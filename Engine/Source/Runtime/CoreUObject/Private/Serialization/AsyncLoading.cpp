@@ -2623,7 +2623,7 @@ void FAsyncPackage::DumpDependencies(const TCHAR* Label, UObject* Obj)
 	UE_LOG(LogStreaming, Error, TEXT("****DumpDependencies [%s]:"), Label);
 	if (!Obj)
 	{
-		UE_LOG(LogStreaming, Error, TEXT("    Obj is nullptr"), Label);
+		UE_LOG(LogStreaming, Error, TEXT("    Obj is nullptr"));
 		return;
 	}
 	UE_LOG(LogStreaming, Error, TEXT("    Obj is %s"), *Obj->GetFullName());

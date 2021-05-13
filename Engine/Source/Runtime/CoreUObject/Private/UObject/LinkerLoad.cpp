@@ -1757,7 +1757,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupImportMap()
 							// Change object name
 							Import.ObjectName = NewObjectName.ObjectName;
 
-							UE_LOG(LogLinker, Verbose, TEXT("FLinkerLoad::FixupImportMap() - Renamed Object %s -> %s"), *LinkerRoot->GetName(), *OldObjectName.ToString(), *NewObjectName.ToString());
+							UE_LOG(LogLinker, Verbose, TEXT("FLinkerLoad::FixupImportMap() - Pkg<%s> - Renamed Object %s -> %s"), *LinkerRoot->GetName(), *OldObjectName.ToString(), *NewObjectName.ToString());
 						}
 					}
 
@@ -1793,7 +1793,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupImportMap()
 							Import.ObjectName = FName(*NewDefaultObjectName);
 						}
 
-						UE_LOG(LogLinker, Verbose, TEXT("FLinkerLoad::FixupImportMap() - Renamed Class %s -> %s"), *LinkerRoot->GetName(), *OldClassName.ToString(), *NewClassName.ToString());
+						UE_LOG(LogLinker, Verbose, TEXT("FLinkerLoad::FixupImportMap() - Pkg<%s> - Renamed Class %s -> %s"), *LinkerRoot->GetName(), *OldClassName.ToString(), *NewClassName.ToString());
 					}	
 				}
 

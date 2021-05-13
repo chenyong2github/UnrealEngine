@@ -245,7 +245,7 @@ void ApplyDefaultCultureSettings(const ELocalizationLoadFlags LocLoadFlags)
 				if (bRequireExactMatch && InRequestedCulture != ValidCultureName)
 				{
 					TargetCultureName = ValidCultureName;
-					UE_LOG(LogTextLocalizationManager, Log, TEXT("No specific localization for '%s' exists, so the '%s' localization will be used."), *InRequestedCulture, *ValidCultureName, InLogDesc);
+					UE_LOG(LogTextLocalizationManager, Log, TEXT("No specific localization for '%s' exists, so '%s' will be used for the %s."), *InRequestedCulture, *TargetCultureName, InLogDesc);
 				}
 			}
 			else if (!ValidFallbackCultureName.IsEmpty())

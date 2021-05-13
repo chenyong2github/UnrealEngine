@@ -1455,7 +1455,7 @@ void FAssetDataDiscovery::TickInternal()
 			}
 			if (FPathViews::GetPathLeaf(RelPath).Len() != RelPath.Len())
 			{
-				UE_LOG(LogAssetRegistry, Warning, TEXT("IterateDirectoryStat returned unexpected result %* which is not a direct child of the requested path %s."), InPackageFilename, DirLocalAbsPath.ToString());
+				UE_LOG(LogAssetRegistry, Warning, TEXT("IterateDirectoryStat returned unexpected result %s which is not a direct child of the requested path %s."), InPackageFilename, DirLocalAbsPath.ToString());
 				return true;
 			}
 			ON_SCOPE_EXIT{ DirLongPackageName.RemoveSuffix(DirLongPackageName.Len() - DirLongPackageNameRootLen); };
