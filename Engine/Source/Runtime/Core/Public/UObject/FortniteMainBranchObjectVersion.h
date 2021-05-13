@@ -161,6 +161,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Fix corrupted LOD transition maps
 		ChaosClothFixLODTransitionMaps,
 
+		// Enable a few more weight maps to better art direct the cloth simulation
+		ChaosClothAddTetherScaleAndDragLiftWeightMaps,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

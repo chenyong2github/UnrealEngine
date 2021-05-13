@@ -41,7 +41,6 @@ namespace ChaosClothingSimulationSolverDefault
 {
 	static const FVec3 Gravity(0.f, 0.f, -980.665f);  // cm/s^2
 	static const FVec3 WindVelocity(0.f);
-	static const FRealSingle WindFluidDensity = 1.225e-6f;  // kg/cm^3
 	static const int32 NumIterations = 1;
 	static const int32 NumSubsteps = 1;
 	static const FRealSingle SelfCollisionThickness = 2.f;
@@ -67,8 +66,7 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 	, CollisionParticlesSize(0)
 	, Gravity(ChaosClothingSimulationSolverDefault::Gravity)
 	, WindVelocity(ChaosClothingSimulationSolverDefault::WindVelocity)
-	, LegacyWindAdaption(0.f)
-	, WindFluidDensity(ChaosClothingSimulationSolverDefault::WindFluidDensity)
+	, LegacyWindAdaption((FReal)0.)
 	, bIsClothGravityOverrideEnabled(false)
 {
 	FPBDParticles LocalParticles;
@@ -609,7 +607,7 @@ void FClothingSimulationSolver::SetGravity(uint32 GroupId, const FVec3& InGravit
 void FClothingSimulationSolver::SetWindVelocity(const FVec3& InWindVelocity, FRealSingle InLegacyWindAdaption)
 {
 	WindVelocity = InWindVelocity * ChaosClothingSimulationSolverConstant::WorldScale;
-	LegacyWindAdaption = InLegacyWindAdaption;
+	LegacyWindAdaption = (FReal)InLegacyWindAdaption;
 }
 
 void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const FVec3& InWindVelocity)
@@ -618,11 +616,16 @@ void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const FVec3& InW
 	VelocityField.SetVelocity(InWindVelocity);
 }
 
-void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, FRealSingle DragCoefficient, FRealSingle LiftCoefficient, const FTriangleMesh* TriangleMesh)
+void FClothingSimulationSolver::SetWindGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers)
 {
 	FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
-	VelocityField.SetGeometry(TriangleMesh);
-	VelocityField.SetCoefficients(DragCoefficient, LiftCoefficient);
+	VelocityField.SetGeometry(&TriangleMesh, DragMultipliers, LiftMultipliers);
+}
+
+void FClothingSimulationSolver::SetWindProperties(uint32 GroupId, const FVec2& Drag, const FVec2& Lift, FReal AirDensity)
+{
+	FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
+	VelocityField.SetProperties(Drag, Lift, AirDensity);
 }
 
 const FVelocityField& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
@@ -810,7 +813,6 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 			// Pre-update overridable solver properties first
 			Evolution->GetGravityForces(GroupId).SetAcceleration(Gravity);
 			Evolution->GetVelocityField(GroupId).SetVelocity(WindVelocity);
-			Evolution->GetVelocityField(GroupId).SetFluidDensity(WindFluidDensity);
 
 			Cloth->Update(this);
 		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothUpdate);

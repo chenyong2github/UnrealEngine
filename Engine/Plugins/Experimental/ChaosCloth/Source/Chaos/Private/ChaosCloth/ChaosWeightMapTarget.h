@@ -16,5 +16,8 @@ enum class EChaosWeightMapTarget : uint8
 	AnimDriveStiffness = (uint8)EWeightMapTargetCommon::AnimDriveStiffness,
 	// Add Chaos specific maps below this line
 	AnimDriveDamping,
-	TetherStiffness
+	TetherStiffness,
+	TetherScale,
+	Drag,
+	Lift
 };

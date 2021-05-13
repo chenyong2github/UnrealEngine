@@ -7,6 +7,19 @@
 #include "Math/Soaaos.isph"
 
 // Opt-in for explicit vector structs. Can assist with alignment and codegen in some cases.
+#ifndef EXPLICIT_VECTOR2
+#define EXPLICIT_VECTOR2 0
+#endif
+
+struct FVector2
+{
+#if EXPLICIT_VECTOR2 == 0
+	float V[2];
+#else
+	float<2> V;
+#endif
+};
+
 #ifndef EXPLICIT_VECTOR
 #define EXPLICIT_VECTOR 0
 #endif
@@ -239,6 +252,36 @@ inline void VectorStore(uniform FIntVector *uniform DstPtr, const varying FIntVe
 	}
 }
 
+inline varying FVector2 VectorLoad(const uniform FVector2 *uniform SrcPtr)
+{
+	varying FVector2 Result;
+
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		aos_to_soa2_ispc((uniform float * uniform)SrcPtr, &Result.V[0], &Result.V[1]);
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		Result = SrcPtr[programIndex];
+	}
+
+	return Result;
+}
+
+inline void VectorStore(uniform FVector2 *uniform DstPtr, const varying FVector2 &V)
+{
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		soa_to_aos2_ispc(V.V[0], V.V[1], (uniform float *uniform)DstPtr);
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		DstPtr[programIndex] = V;
+	}
+}
+
 inline varying FVector VectorLoad(const uniform FVector *uniform SrcPtr)
 {
 	varying FVector Result;
@@ -297,6 +340,18 @@ inline void VectorStore(uniform FVector4 *uniform DstPtr, const varying FVector4
 		#pragma ignore warning(perf)
 		DstPtr[programIndex] = V;
 	}
+}
+
+inline varying FVector2 VectorGather(const uniform FVector2 *varying SrcPtr)
+{
+	#pragma ignore warning(perf)
+	return *SrcPtr;
+}
+
+inline void VectorScatter(uniform FVector2 *varying DstPtr, const varying FVector2 &V)
+{
+	#pragma ignore warning(perf)
+	*DstPtr = V;
 }
 
 inline varying FVector VectorGather(const uniform FVector *varying SrcPtr)

@@ -25,11 +25,12 @@ public:
 		const int32 InParticleCount,
 		const TMap<int32, TSet<int32>>& PointToNeighbors,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
+		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const int32 MaxNumTetherIslands = 4,
-		const FVec2& InStiffness = FVec2((FReal)1., (FReal)1.),
-		const FReal LimitScale = (FReal)1.,
+		const FVec2& InStiffness = FVec2((FReal)1.),
+		const FVec2& Scale = FVec2((FReal)1.),
 		const EMode InMode = EMode::Geodesic)
-	    : FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, PointToNeighbors, StiffnessMultipliers, MaxNumTetherIslands, InStiffness, LimitScale, InMode)
+	    : FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, PointToNeighbors, StiffnessMultipliers, ScaleMultipliers, MaxNumTetherIslands, InStiffness, Scale, InMode)
 	{
 		Lambdas.Reserve(Tethers.Num());
 	}

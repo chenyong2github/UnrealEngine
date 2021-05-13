@@ -2175,6 +2175,9 @@ public:
 	/** Remove a cloth collision source defined by both a component and a physics asset */
 	void RemoveClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset);
 
+	/** Remove all cloth collision sources */
+	void ResetClothCollisionSources();
+
 protected:
 	/** copy cloth collision sources to this, where parent means components above it in the hierarchy */
 	void CopyClothCollisionSources();
@@ -2197,6 +2200,7 @@ public:
 	void AddClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset) {}
 	void RemoveClothCollisionSource(USkeletalMeshComponent* InSourceComponent) {}
 	void RemoveClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset) {}
+	void ResetClothCollisionSources() {}
 
 #endif
 

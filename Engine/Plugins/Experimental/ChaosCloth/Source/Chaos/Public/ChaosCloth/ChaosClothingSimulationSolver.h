@@ -39,7 +39,9 @@ namespace Chaos
 
 		void SetWindVelocity(const FVec3& InWindVelocity, FRealSingle InLegacyWindAdaption = 0.f);
 		const FVec3& GetWindVelocity() const { return WindVelocity; }
-		void SetWindFluidDensity(FRealSingle InWindFluidDensity) { WindFluidDensity = InWindFluidDensity; }
+
+		UE_DEPRECATED(4.27, "Use SetWindProperties instead.")
+		void SetWindFluidDensity(FRealSingle /*WindFluidDensity*/) {}
 
 		void SetNumIterations(int32 InNumIterations) { NumIterations = InNumIterations; }
 		int32 GetNumIterations() const { return NumIterations; }
@@ -74,7 +76,6 @@ namespace Chaos
 		void SetParticleMassFromTotalMass(int32 Offset, FReal TotalMass, FReal MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 		void SetParticleMassFromDensity(int32 Offset, FReal Density, FReal MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
-
 		// Set the amount of velocity allowed to filter from the given change in reference space transform, including local simulation space.
 		void SetReferenceVelocityScale(uint32 GroupId,
 			const FRigidTransform3& OldReferenceSpaceTransform,
@@ -95,8 +96,27 @@ namespace Chaos
 		// Set per group wind velocity, used to override solver's wind velocity. Must be called during cloth update.
 		void SetWindVelocity(uint32 GroupId, const FVec3& InWindVelocity);
 
-		// Set the geometry affected by wind, or disable if TriangleMesh is null.
-		void SetWindVelocityField(uint32 GroupId, FRealSingle DragCoefficient, FRealSingle LiftCoefficient, const FTriangleMesh* TriangleMesh = nullptr);
+		UE_DEPRECATED(4.27, "Use SetWindGeometry and SetWindPropertiesinstead.")
+		void SetWindVelocityField(uint32 GroupId, FRealSingle DragCoefficient, FRealSingle LiftCoefficient, const FTriangleMesh* TriangleMesh = nullptr)
+		{
+			if (TriangleMesh)
+			{
+				SetWindGeometry(GroupId, *TriangleMesh, TConstArrayView<FRealSingle>(), TConstArrayView<FRealSingle>());
+				SetWindProperties(GroupId, FVec2((FReal)DragCoefficient), FVec2((FReal)LiftCoefficient));
+			}
+			else
+			{
+				SetWindProperties(GroupId, FVec2((FReal)0.), FVec2((FReal)0.));
+			}
+		}
+
+		// Set the geometry affected by the wind.
+		void SetWindGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers);
+
+		// Set the wind properties.
+		void SetWindProperties(uint32 GroupId, const FVec2& Drag, const FVec2& Lift, FReal AirDensity = (FReal)1.225e-6);
+
+		// Return the wind velocity field associated with a given group id.
 		const FVelocityField&  GetWindVelocityField(uint32 GroupId);
 
 		// Add external forces to the particles
@@ -199,8 +219,7 @@ namespace Chaos
 		// Solver parameters
 		FVec3 Gravity;
 		FVec3 WindVelocity;
-		FRealSingle LegacyWindAdaption;
-		FRealSingle WindFluidDensity;
+		FReal LegacyWindAdaption;
 		bool bIsClothGravityOverrideEnabled;
 
 		// Field system unique to the cloth solver
