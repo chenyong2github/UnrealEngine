@@ -31,7 +31,7 @@ namespace Commands
 		const TSharedPtr<IRemoteControlProtocol> Protocol = IRemoteControlProtocolModule::Get().GetProtocolByName(InArgs.ProtocolName);
 		if (Protocol.IsValid())
 		{
-			if(TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
+			if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 			{
 				const FRemoteControlProtocolEntityPtr RemoteControlProtocolEntityPtr = Protocol->CreateNewProtocolEntity(RCProperty->GetProperty(), InPreset, InArgs.EntityId);
 
@@ -48,11 +48,11 @@ namespace Commands
 
 	static FName RemoveProtocolInternal(URemoteControlPreset* InPreset, const FAddRemoveProtocolArgs& InArgs)
 	{
-		if(TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
+		if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 		{
 			TSet<FRemoteControlProtocolBinding>& Test = RCProperty->ProtocolBinding;
 			FRemoteControlProtocolBinding* FoundElement = Test.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
-			if(FoundElement)
+			if (FoundElement)
 			{
 				Test.RemoveByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
 				return FoundElement->GetProtocolName();
@@ -89,14 +89,14 @@ FProtocolEntityViewModel::~FProtocolEntityViewModel()
 void FProtocolEntityViewModel::Initialize()
 {
 	Bindings.Empty(Bindings.Num());
-	if(TSharedPtr<FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(PropertyId).Pin())
+	if (TSharedPtr<FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(PropertyId).Pin())
 	{
 		Property = RCProperty->GetProperty();
 		for(FRemoteControlProtocolBinding& Binding : RCProperty->ProtocolBinding)
 		{
 			const TSharedPtr<IRemoteControlProtocol> Protocol = IRemoteControlProtocolModule::Get().GetProtocolByName(Binding.GetProtocolName());
 			// Supporting plugin needs to be loaded/protocol available
-			if(Protocol.IsValid())
+			if (Protocol.IsValid())
 			{
 				Bindings.Emplace(FProtocolBindingViewModel::Create(SharedThis(this), MakeShared<FRemoteControlProtocolBinding>(Binding)));
 				Protocol->Bind(Binding.GetRemoteControlProtocolEntityPtr());
@@ -109,28 +109,28 @@ void FProtocolEntityViewModel::Initialize()
 bool FProtocolEntityViewModel::CanAddBinding(const FName& InProtocolName, FText& OutMessage) const
 {
 	// If no protocols registered
-	if(InProtocolName == NAME_None)
+	if (InProtocolName == NAME_None || !GetProperty().IsValid())
 	{
 		return false;
 	}
 
 	FFieldClass* PropertyClass = GetProperty()->GetClass();
-	if(PropertyClass == FBoolProperty::StaticClass())
+	if (PropertyClass == FBoolProperty::StaticClass())
 	{
 		return FRemoteControlProtocolBinding::IsRangeTypeSupported<bool>();
 	}
 	
-	if(PropertyClass->IsChildOf(FNumericProperty::StaticClass()))
+	if (PropertyClass->IsChildOf(FNumericProperty::StaticClass()))
 	{
 		return true;
 	}
 	
-	if(PropertyClass->IsChildOf(FStructProperty::StaticClass()))
+	if (PropertyClass->IsChildOf(FStructProperty::StaticClass()))
 	{
 		return true;
 	}
 
-	if(PropertyClass->IsChildOf(FArrayProperty::StaticClass())
+	if (PropertyClass->IsChildOf(FArrayProperty::StaticClass())
 		|| PropertyClass->IsChildOf(FSetProperty::StaticClass())
 		|| PropertyClass->IsChildOf(FMapProperty::StaticClass()))
 	{
@@ -149,11 +149,11 @@ TSharedPtr<FProtocolBindingViewModel> FProtocolEntityViewModel::AddBinding(const
 	FScopedTransaction Transaction(LOCTEXT("AddProtocolBinding", "Add Protocol Binding"));
 
 	const TSharedPtr<FRemoteControlProtocolBinding> ProtocolBinding = Commands::AddProtocolInternal(Preset.Get(), Commands::FAddRemoveProtocolArgs{GetId(), InProtocolName});
-	if(ProtocolBinding.IsValid())
+	if (ProtocolBinding.IsValid())
 	{
 		using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveProtocolArgs>;
 		using FOnChange = FCommandChange::FOnUndoRedoDelegate;
-		if(GUndo)
+		if (GUndo)
 		{
 			GUndo->StoreUndo(Preset.Get(),
                 MakeUnique<FCommandChange>(
@@ -183,11 +183,11 @@ void FProtocolEntityViewModel::RemoveBinding(const FGuid& InBindingId)
 	FScopedTransaction Transaction(LOCTEXT("RemoveProtocolBinding", "Remove Protocol Binding"));
 
 	const FName RemovedProtocolName = Commands::RemoveProtocolInternal(Preset.Get(), Commands::FAddRemoveProtocolArgs{GetId(), NAME_None, InBindingId});
-	if(RemovedProtocolName != NAME_None)
+	if (RemovedProtocolName != NAME_None)
 	{
 		using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveProtocolArgs>;
 		using FOnChange = FCommandChange::FOnUndoRedoDelegate;
-		if(GUndo)
+		if (GUndo)
 		{
 			GUndo->StoreUndo(Preset.Get(),
                 MakeUnique<FCommandChange>(
@@ -205,7 +205,7 @@ void FProtocolEntityViewModel::RemoveBinding(const FGuid& InBindingId)
         return InBinding->GetId() == InBindingId;
     });
 
-	if(NumItemsRemoved <= 0)
+	if (NumItemsRemoved <= 0)
 	{
 		return;
 	}
@@ -215,7 +215,7 @@ void FProtocolEntityViewModel::RemoveBinding(const FGuid& InBindingId)
 
 TArray<TSharedPtr<FProtocolBindingViewModel>> FProtocolEntityViewModel::GetFilteredBindings(const TSet<FName>& InHiddenProtocolTypeNames)
 {
-	if(InHiddenProtocolTypeNames.Num() == 0)
+	if (InHiddenProtocolTypeNames.Num() == 0)
 	{
 		return GetBindings();
 	}
@@ -224,7 +224,7 @@ TArray<TSharedPtr<FProtocolBindingViewModel>> FProtocolEntityViewModel::GetFilte
 	for(const TSharedPtr<FProtocolBindingViewModel>& Binding : Bindings)
 	{
 		// make sure this bindings protocol name is NOT in the Hidden list, then add it to FilteredBindings
-		if(Algo::NoneOf(InHiddenProtocolTypeNames, [&Binding](const FName& InHiddenTypeName)
+		if (Algo::NoneOf(InHiddenProtocolTypeNames, [&Binding](const FName& InHiddenTypeName)
 		{
 			return InHiddenTypeName == Binding->GetBinding()->GetProtocolName();
 		}))
