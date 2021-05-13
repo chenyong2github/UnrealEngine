@@ -23,6 +23,8 @@ UUsdPrimTwin& UUsdPrimTwin::AddChild( const FString& InPrimPath )
 	ChildPrim = NewObject<UUsdPrimTwin>( this, NAME_None, RF_Transient | RF_Transactional | RF_Public );
 	ChildPrim->PrimPath = InPrimPath;
 
+	ChildPrim->Parent = this;
+
 	return *ChildPrim;
 }
 
@@ -36,6 +38,7 @@ void UUsdPrimTwin::RemoveChild( const TCHAR* InPrimPath )
 	{
 		if ( ChildIt->Value->PrimPath == InPrimPath )
 		{
+			ChildIt->Value->Parent.Reset();
 			ChildIt.RemoveCurrent();
 			break;
 		}

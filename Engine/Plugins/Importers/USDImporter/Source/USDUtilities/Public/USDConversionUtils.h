@@ -167,5 +167,15 @@ namespace UsdUtils
 	 * Note that this obviously doesn't check for a potential name collision.
 	 */
 	USDUTILITIES_API FString SanitizeUsdIdentifier( const TCHAR* InIdentifier );
+
+	/** Will call UsdGeomImageable::MakeVisible/MakeInvisible if Prim is a UsdGeomImageable */
+	USDUTILITIES_API void MakeVisible( UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+	USDUTILITIES_API void MakeInvisible( UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+
+	/** Returns if the ComputedVisibility for Prim says it should be visible */
+	USDUTILITIES_API bool IsVisible( UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+
+	/** Returns whether Prim has visibility set to 'inherited' */
+	USDUTILITIES_API bool HasInheritedVisibility( UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
 }
 

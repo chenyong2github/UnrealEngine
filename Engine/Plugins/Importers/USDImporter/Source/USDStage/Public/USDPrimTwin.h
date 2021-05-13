@@ -24,6 +24,9 @@ class UUsdPrimTwin final : public UObject
 public:
 	UUsdPrimTwin& AddChild( const FString& InPrimPath );
 	void RemoveChild( const TCHAR* InPrimPath );
+	const TMap< FString, UUsdPrimTwin* >& GetChildren() const { return Children; }
+
+	UUsdPrimTwin* GetParent() const { return Parent.Get(); }
 
 	void Clear();
 
@@ -67,4 +70,7 @@ public:
 private:
 	UPROPERTY( Transient )
 	TMap< FString, UUsdPrimTwin* > Children;
+
+	UPROPERTY( Transient )
+	TWeakObjectPtr< UUsdPrimTwin > Parent;
 };
