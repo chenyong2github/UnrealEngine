@@ -152,14 +152,17 @@ namespace Chaos
 
 		virtual void SetUseContactGraph(const bool InUseContactGraph) {}
 
-		/** Disable all constraints associated with the specified particles */
+		/** Change enabled state on all constraints associated with the specified particles */
 		virtual void SetConstraintsEnabled(const TSet<TGeometryParticleHandle<FReal, 3>*>& DisabledParticles, bool bInEnabled) 
 		{ 
 			for (TGeometryParticleHandle<FReal, 3>*DisabledParticle : DisabledParticles)
 			{
 				for( FConstraintHandle* Constraint : DisabledParticle->ParticleConstraints() )
 				{
-					Constraint->SetEnabled(bInEnabled);
+					if (Constraint->IsEnabled() != bInEnabled)
+					{
+						Constraint->SetEnabled(bInEnabled);
+					}
 				}
 			}
 		}

@@ -526,7 +526,23 @@ namespace Chaos
 
 	void FPBDJointConstraints::SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled)
 	{
-		ConstraintStates[ConstraintIndex].bDisabled = !bEnabled;
+		const FGenericParticleHandle Particle0 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][0]);
+		const FGenericParticleHandle Particle1 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][1]);
+
+		if (bEnabled)
+		{ 
+			// only enable constraint if the particles are valid and not disabled
+			if (Particle0->Handle() != nullptr && !Particle0->Disabled()
+				&& Particle1->Handle() != nullptr && !Particle1->Disabled())
+			{
+				ConstraintStates[ConstraintIndex].bDisabled = false;
+			}
+		}
+		else
+		{ 
+			// desirable to allow disabling no matter what state the endpoints
+			ConstraintStates[ConstraintIndex].bDisabled = true;
+		}
 	}
 
 
