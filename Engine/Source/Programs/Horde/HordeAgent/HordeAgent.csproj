@@ -19,6 +19,24 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="appsettings.json" Condition="Exists('appsettings.json')">
+      <Generator></Generator>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="appsettings.Development.json" Condition="Exists('appsettings.Development.json')">
+      <Generator></Generator>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="appsettings.Production.json" Condition="Exists('appsettings.Production.json')">
+      <Generator></Generator>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AWSSDK.Core" Version="3.5.1.49" />
     <PackageReference Include="AWSSDK.EC2" Version="3.5.1.2" />
     <PackageReference Include="Blake3" Version="0.3.0" />
@@ -84,7 +102,7 @@
     <Protobuf Include="..\HordeCommon\Protos\google\rpc\code.proto" ProtoRoot="..\HordeCommon\Protos" GrpcServices="Client" />
     <Protobuf Include="..\HordeCommon\Protos\horde\action_rpc.proto" ProtoRoot="..\HordeCommon\Protos" GrpcServices="Client" />
     <Protobuf Include="..\HordeCommon\Protos\horde\horde_rpc.proto" ProtoRoot="..\HordeCommon\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\HordeCommon\Protos\horde\tasks\action_task.proto" ProtoRoot="..\HordeCommon\Protos" GrpcServices="Client"/>
+    <Protobuf Include="..\HordeCommon\Protos\horde\tasks\action_task.proto" ProtoRoot="..\HordeCommon\Protos" GrpcServices="Client" />
   </ItemGroup>
 
   <ItemGroup>
