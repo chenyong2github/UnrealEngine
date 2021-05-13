@@ -14,14 +14,12 @@ public class MeshModelingTools : ModuleRules
 			}
 			);
 				
-		
-		PrivateIncludePaths.AddRange(
+		PublicIncludePathModuleNames.AddRange(
 			new string[] {
-				// ... add other private include paths required here ...
+				"AnimationCore",			// For the BoneWeights.h include
 			}
-			);
-			
-		
+		);
+	
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -42,6 +40,7 @@ public class MeshModelingTools : ModuleRules
 				"MeshConversion",
 				"MeshDescription",
                 "StaticMeshDescription",
+                "SkeletalMeshDescription",
 				"ModelingComponents",
 				"ModelingOperators",
 
@@ -75,7 +74,8 @@ public class MeshModelingTools : ModuleRules
 				"RenderCore",
 				"ModelingOperators",
 				"InputCore",
-				"PhysicsCore"
+				"PhysicsCore",
+
 				// ... add private dependencies that you statically link with here ...
 			}
 			);

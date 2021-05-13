@@ -92,6 +92,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginEditMeshMaterialsTool;
 	TSharedPtr<FUICommandInfo> BeginTransformUVIslandsTool;
 	TSharedPtr<FUICommandInfo> BeginMeshAttributePaintTool;
+	TSharedPtr<FUICommandInfo> BeginSkinWeightsPaintTool;
 	TSharedPtr<FUICommandInfo> BeginAttributeEditorTool;
 	TSharedPtr<FUICommandInfo> BeginBakeMeshAttributeMapsTool;
 	TSharedPtr<FUICommandInfo> BeginUVSeamEditTool;
