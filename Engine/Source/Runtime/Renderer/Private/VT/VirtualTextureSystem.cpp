@@ -2313,6 +2313,7 @@ void FVirtualTextureSystem::CallPendingCallbacks()
 
 void FVirtualTextureSystem::ReleasePendingResources()
 {
+	DestroyPendingVirtualTextures(true);
 	ReleasePendingSpaces();
 }
 
