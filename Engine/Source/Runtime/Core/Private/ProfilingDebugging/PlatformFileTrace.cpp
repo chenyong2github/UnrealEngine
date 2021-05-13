@@ -27,6 +27,16 @@ UE_TRACE_EVENT_BEGIN(PlatformFile, EndOpen)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginReOpen)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, OldFileHandle)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndReOpen)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, NewFileHandle)
+UE_TRACE_EVENT_END()
+
 UE_TRACE_EVENT_BEGIN(PlatformFile, BeginClose)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
@@ -99,10 +109,31 @@ void FPlatformFileTrace::EndOpen(uint64 FileHandle)
 
 void FPlatformFileTrace::FailOpen(const TCHAR* Path)
 {
-	// TODO: Separate event for failure in the trace?
 	UE_TRACE_LOG(PlatformFile, EndOpen, FileChannel)
 		<< EndOpen.Cycle(FPlatformTime::Cycles64())
 		<< EndOpen.FileHandle(uint64(-1));
+}
+
+void FPlatformFileTrace::BeginReOpen(uint64 OldFileHandle)
+{
+	UE_TRACE_LOG(PlatformFile, BeginReOpen, FileChannel)
+		<< BeginReOpen.Cycle(FPlatformTime::Cycles64())
+		<< BeginReOpen.OldFileHandle(OldFileHandle);
+}
+
+void FPlatformFileTrace::EndReOpen(uint64 NewFileHandle)
+{
+	UE_TRACE_LOG(PlatformFile, EndReOpen, FileChannel)
+		<< EndReOpen.Cycle(FPlatformTime::Cycles64())
+		<< EndReOpen.NewFileHandle(NewFileHandle);
+#if PLATFORMFILETRACE_DEBUG_ENABLED
+	{
+		FScopeLock OpenHandlesScopeLock(&OpenHandlesLock);
+		++OpenHandles.FindOrAdd(NewFileHandle, 0);
+	}
+#else
+	++OpenFileHandleCount;
+#endif
 }
 
 void FPlatformFileTrace::BeginClose(uint64 FileHandle)
@@ -144,7 +175,6 @@ void FPlatformFileTrace::EndClose(uint64 FileHandle)
 
 void FPlatformFileTrace::FailClose(uint64 FileHandle)
 {
-	// TODO: Separate event for failure in the trace?
 	UE_TRACE_LOG(PlatformFile, EndClose, FileChannel)
 		<< EndClose.Cycle(FPlatformTime::Cycles64());
 }

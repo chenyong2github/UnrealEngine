@@ -498,8 +498,24 @@ public:
 	{
 		if (IsValid())
 		{
+			TRACE_PLATFORMFILE_BEGIN_REOPEN(Handle);
 			HANDLE NewFileHandle = ReOpenFile(Handle, DesiredAccess, ShareMode, Flags);
-			CloseHandle(Handle);
+			TRACE_PLATFORMFILE_END_REOPEN(NewFileHandle);
+
+			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
+			BOOL CloseResult = CloseHandle(Handle);
+#if PLATFORMFILETRACE_ENABLED
+			if (CloseResult)
+			{
+				TRACE_PLATFORMFILE_END_CLOSE(Handle);
+			}
+			else
+			{
+				TRACE_PLATFORMFILE_FAIL_CLOSE(Handle);
+			}
+#else
+			(void)CloseResult;
+#endif
 			Handle = NewFileHandle;
 		}
 	}
@@ -736,8 +752,24 @@ public:
 	{
 		if (IsValid())
 		{
+			TRACE_PLATFORMFILE_BEGIN_REOPEN(FileHandle);
 			HANDLE NewFileHandle = ReOpenFile(FileHandle, DesiredAccess, ShareMode, Flags);
-			CloseHandle(FileHandle);
+			TRACE_PLATFORMFILE_END_REOPEN(NewFileHandle);
+
+			TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle);
+			BOOL CloseResult = CloseHandle(FileHandle);
+#if PLATFORMFILETRACE_ENABLED
+			if (CloseResult)
+			{
+				TRACE_PLATFORMFILE_END_CLOSE(FileHandle);
+			}
+			else
+			{
+				TRACE_PLATFORMFILE_FAIL_CLOSE(FileHandle);
+			}
+#else
+			(void)CloseResult;
+#endif
 			FileHandle = NewFileHandle;
 		}
 	}
