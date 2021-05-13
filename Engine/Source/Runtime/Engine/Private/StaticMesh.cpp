@@ -1578,7 +1578,17 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 	}
 #endif
 	Ar << NumInlinedLODs;
-	CurrentFirstLODIdx = LODResources.Num() - NumInlinedLODs;
+
+#if WITH_EDITOR
+	if (bCooked && Ar.IsLoading())
+	{
+		CurrentFirstLODIdx = 0;
+	}
+	else
+#endif
+	{
+		CurrentFirstLODIdx = LODResources.Num() - NumInlinedLODs;
+	}
 
 	if (Ar.IsLoading())
 	{
