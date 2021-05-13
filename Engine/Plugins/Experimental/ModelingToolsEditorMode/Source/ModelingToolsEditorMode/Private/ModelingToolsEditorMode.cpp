@@ -7,7 +7,8 @@
 #include "Toolkits/ToolkitManager.h"
 #include "ToolTargetManager.h"
 #include "ToolTargets/StaticMeshComponentToolTarget.h"
-#include "ConversionUtils/VolumeMeshDescriptionToolTarget.h"
+#include "ToolTargets/VolumeDynamicMeshToolTarget.h"
+#include "ToolTargets/VolumeMeshDescriptionToolTarget.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -296,6 +297,7 @@ void UModelingToolsEditorMode::Enter()
 
 	// Register builders for tool targets that the mode uses.
 	ToolsContext->TargetManager->AddTargetFactory(NewObject<UStaticMeshComponentToolTargetFactory>(ToolsContext->TargetManager));
+	ToolsContext->TargetManager->AddTargetFactory(NewObject<UVolumeDynamicMeshToolTargetFactory>(ToolsContext->TargetManager));
 	ToolsContext->TargetManager->AddTargetFactory(NewObject<UVolumeMeshDescriptionToolTargetFactory>(ToolsContext->TargetManager));
 
 	// register stylus event handler

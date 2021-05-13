@@ -27,6 +27,7 @@ public class DynamicMesh : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"CoreUObject",
 				"Eigen"
 			}
 		);

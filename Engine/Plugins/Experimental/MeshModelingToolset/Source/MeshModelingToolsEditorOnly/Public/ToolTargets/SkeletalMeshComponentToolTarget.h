@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "TargetInterfaces/DynamicMeshCommitter.h"
+#include "TargetInterfaces/DynamicMeshProvider.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -20,10 +22,12 @@ class USkeletalMesh;
  * description.
  */
 UCLASS(Transient)
-class EDITORINTERACTIVETOOLSFRAMEWORK_API USkeletalMeshComponentToolTarget :
+class MESHMODELINGTOOLSEDITORONLY_API USkeletalMeshComponentToolTarget :
 	public UPrimitiveComponentToolTarget,
 	public IMeshDescriptionCommitter,
 	public IMeshDescriptionProvider,
+	public IDynamicMeshProvider, 
+	public IDynamicMeshCommitter,
 	public IMaterialProvider,
 	public ISkeletalMeshBackedTarget
 {
@@ -35,12 +39,20 @@ public:
 
 	// IMeshDescritpionCommitter implementation
 	void CommitMeshDescription(const FCommitter& Committer) override;
+	using IMeshDescriptionCommitter::CommitMeshDescription; // unhide the other overload
 
 	// IMaterialProvider implementation
 	int32 GetNumMaterials() const override;
 	UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
 	void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const override;
 	bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;	
+
+	// IDynamicMeshProvider
+	virtual TSharedPtr<UE::Geometry::FDynamicMesh3> GetDynamicMesh() override;
+
+	// IDynamicMeshCommitter
+	virtual void CommitDynamicMesh(const UE::Geometry::FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo) override;
+	using IDynamicMeshCommitter::CommitDynamicMesh; // unhide the other overload
 
 	// ISkeletalMeshBackedTarget implementation
 	USkeletalMesh* GetSkeletalMesh() const override;
@@ -57,7 +69,7 @@ private:
 
 /** Factory for USkeletalMeshComponentToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class EDITORINTERACTIVETOOLSFRAMEWORK_API USkeletalMeshComponentToolTargetFactory : public UToolTargetFactory
+class MESHMODELINGTOOLSEDITORONLY_API USkeletalMeshComponentToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 

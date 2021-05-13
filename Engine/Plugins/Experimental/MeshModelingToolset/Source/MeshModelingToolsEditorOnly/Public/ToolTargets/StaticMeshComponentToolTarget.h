@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "TargetInterfaces/DynamicMeshCommitter.h"
+#include "TargetInterfaces/DynamicMeshProvider.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -20,8 +22,9 @@ class UStaticMesh;
  * description.
  */
 UCLASS(Transient)
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UStaticMeshComponentToolTarget : public UPrimitiveComponentToolTarget,
-	public IMeshDescriptionCommitter, public IMeshDescriptionProvider, public IMaterialProvider, public IStaticMeshBackedTarget
+class MESHMODELINGTOOLSEDITORONLY_API UStaticMeshComponentToolTarget : public UPrimitiveComponentToolTarget,
+	public IMeshDescriptionCommitter, public IMeshDescriptionProvider, public IMaterialProvider, public IStaticMeshBackedTarget,
+	public IDynamicMeshProvider, public IDynamicMeshCommitter
 {
 	GENERATED_BODY()
 
@@ -45,6 +48,14 @@ public:
 
 	// IMeshDescritpionCommitter implementation
 	virtual void CommitMeshDescription(const FCommitter& Committer) override;
+	using IMeshDescriptionCommitter::CommitMeshDescription; // unhide the other overload
+
+	// IDynamicMeshProvider
+	virtual TSharedPtr<UE::Geometry::FDynamicMesh3> GetDynamicMesh() override;
+
+	// IDynamicMeshCommitter
+	virtual void CommitDynamicMesh(const UE::Geometry::FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo) override;
+	using IDynamicMeshCommitter::CommitDynamicMesh; // unhide the other overload
 
 	// IMaterialProvider implementation
 	int32 GetNumMaterials() const override;
@@ -68,7 +79,7 @@ protected:
 
 /** Factory for UStaticMeshComponentToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UStaticMeshComponentToolTargetFactory : public UToolTargetFactory
+class MESHMODELINGTOOLSEDITORONLY_API UStaticMeshComponentToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 

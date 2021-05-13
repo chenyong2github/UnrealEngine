@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ConversionUtils/VolumeMeshDescriptionToolTarget.h"
+#include "ToolTargets/VolumeMeshDescriptionToolTarget.h"
 
 #include "Components/BrushComponent.h"
 #include "ConversionUtils/VolumeToDynamicMesh.h"
@@ -18,92 +18,32 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-UVolumeMeshDescriptionToolTarget::UVolumeMeshDescriptionToolTarget()
-{
-	// TODO: These should be user-configurable somewhere
-	VolumeToMeshOptions.bInWorldSpace = false;
-	VolumeToMeshOptions.bSetGroups = true;
-	VolumeToMeshOptions.bMergeVertices = true;
-
-	// When a volume has cracks, this option seems to make the geometry
-	// worse rather than better, since the filled in triangles are sometimes
-	// degenerate, folded in on themselves, etc.
-	VolumeToMeshOptions.bAutoRepairMesh = false;
-	
-	VolumeToMeshOptions.bOptimizeMesh = true;
-}
-
-int32 UVolumeMeshDescriptionToolTarget::GetNumMaterials() const
-{
-	return IsValid() ? 1 : 0;
-}
-
-UMaterialInterface* UVolumeMeshDescriptionToolTarget::GetMaterial(int32 MaterialIndex) const
-{
-	if (!IsValid() || MaterialIndex > 0)
-	{
-		return nullptr;
-	}
-
-	return ToolSetupUtil::GetDefaultEditVolumeMaterial();
-}
-
-void UVolumeMeshDescriptionToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const
-{
-	MaterialSetOut.Materials.Reset();
-	if (IsValid() == false)
-	{
-		return;
-	}
-
-	UMaterialInterface* Material = ToolSetupUtil::GetDefaultEditVolumeMaterial();
-	if (Material)
-	{
-		MaterialSetOut.Materials.Add(Material);
-	}
-}
-
 FMeshDescription* UVolumeMeshDescriptionToolTarget::GetMeshDescription()
 {
-	FTransform transform = GetWorldTransform();
 	if (!ConvertedMeshDescription.IsValid())
 	{
-		UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component);
-		if (!BrushComponent)
-		{
-			return nullptr;
-		}
-		AVolume* Volume = Cast<AVolume>(BrushComponent->GetOwner());
-		if (!Volume)
-		{
-			return nullptr;
-		}
-
 		// Note: We can go directly from a volume to a mesh description using GetBrushMesh() in
 		// Editor.h. However, that path doesn't assign polygroups to the result, which we
-		// typically want when using this target, hence the two-step path we use here.
-		FDynamicMesh3 DynamicMesh;
-		UE::Conversion::VolumeToDynamicMesh(Volume, DynamicMesh, GetVolumeToMeshOptions());
-		FMeshNormals::InitializeMeshToPerTriangleNormals(&DynamicMesh);
+		// typically want when using this target, hence the path through a dynamic mesh.
+
+		TSharedPtr<FDynamicMesh3> DynamicMesh = GetDynamicMesh();
+		if (!DynamicMesh)
+		{
+			return nullptr;
+		}
 
 		ConvertedMeshDescription = MakeShared<FMeshDescription>();
 		FStaticMeshAttributes Attributes(*ConvertedMeshDescription);
 		Attributes.Register();
 		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(&DynamicMesh, *ConvertedMeshDescription);
+		Converter.Convert(DynamicMesh.Get(), *ConvertedMeshDescription);
 	}
-	FTransform transform2 = GetWorldTransform();
 	return ConvertedMeshDescription.Get();
 }
 
 void UVolumeMeshDescriptionToolTarget::CommitMeshDescription(const FCommitter& Committer)
 {
 	check(IsValid());
-
-	UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component);
-	check(BrushComponent);
-	AVolume* Volume = Cast<AVolume>(BrushComponent->GetOwner());
-	check(Volume);
 
 	// Let the user fill our mesh description with the Committer
 	if (!ConvertedMeshDescription.IsValid())
@@ -122,11 +62,7 @@ void UVolumeMeshDescriptionToolTarget::CommitMeshDescription(const FCommitter& C
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(ConvertedMeshDescription.Get(), DynamicMesh);
 
-	FTransform Transform = GetWorldTransform();
-	UE::Conversion::DynamicMeshToVolume(DynamicMesh, Volume);
-
-	Volume->SetActorTransform(Transform);
-	Volume->PostEditChange();
+	CommitDynamicMesh(DynamicMesh);
 }
 
 

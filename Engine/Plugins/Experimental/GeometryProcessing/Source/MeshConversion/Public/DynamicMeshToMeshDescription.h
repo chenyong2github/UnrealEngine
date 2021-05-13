@@ -80,6 +80,14 @@ public:
 	void Convert(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bCopyTangents = false);
 
 	/**
+	 * Updates the given mesh description based conversion options provided in the constructor. Assumes
+	 * the mesh topology has not changed. 
+	 * Annoyingly, this can't just be named Update() due to ambiguity with the function below, which
+	 * existed beforehand and should probably have been this function instead.
+	 */
+	void UpdateUsingConversionOptions(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
+
+	/**
 	 * Update existing MeshDescription based on DynamicMesh. Assumes mesh topology has not changed.
 	 * Copies positions 
 	 * optionally, normals, tangents and UVs
