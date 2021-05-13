@@ -339,12 +339,6 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 
 	if (!GetOutermost()->bIsCookedForEditor && !bIsDedicatedServer)
 	{
-		if (EditorParameters == nullptr)
-		{
-			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
-			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
-		}
-		
 		TArray<UNiagaraScript*> AllSystemScripts;
 		UNiagaraScriptSourceBase* SystemScriptSource;
 		if (SystemSpawnScript == nullptr)
@@ -809,7 +803,13 @@ void UNiagaraSystem::PostLoad()
 	{
 		EditorData->PostLoadFromOwner(this);
 	}
-	
+
+	if (EditorParameters == nullptr)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+	}
+
 	// see the equivalent in NiagaraEmitter for details
 	if(bIsTemplateAsset_DEPRECATED)
 	{
