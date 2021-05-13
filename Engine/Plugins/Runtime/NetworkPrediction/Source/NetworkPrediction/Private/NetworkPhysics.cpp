@@ -149,6 +149,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 				if (CompareObjState(Obj.Physics.ObjectState, P.ObjectState(), TEXT("DEBUG ObjectState")))
 				//if (CompareVec(Obj.Physics.Location, P.X(), UE_NETWORK_PHYSICS::X, TEXT("Location")))
 				{
+					/*
 					UE_LOG(LogTemp, Warning, TEXT("ObjectState Correction. Obj.Frame: %d. CurrentFramE: %d"), Obj.Frame, RewindData->CurrentFrame());
 					//UE_LOG(LogTemp, Warning, TEXT("Location Correction. Obj.Frame: %d. CurrentFrame: %d"), Obj.Frame, RewindData->CurrentFrame());
 					
@@ -160,6 +161,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 						UE_LOG(LogTemp, Warning, TEXT("    [%d/%d] --> %d"), F, F-Snapshot.LocalFrameOffset, (int32)PP.ObjectState());
 					}
 					UE_LOG(LogTemp, Warning, TEXT(""));
+					*/
 					
 				}
 
