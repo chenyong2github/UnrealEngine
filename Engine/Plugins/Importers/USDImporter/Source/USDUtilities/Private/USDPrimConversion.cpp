@@ -112,11 +112,32 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	SceneComponent.SetRelativeTransform( Transform );
 
-	// Visibility
-	const bool bIsHidden = ( Xformable.ComputeVisibility( EvalTime ) == pxr::UsdGeomTokens->invisible );
-
 	SceneComponent.Modify();
+
+	// Computed (effective) visibility
+	const bool bIsHidden = ( Xformable.ComputeVisibility( EvalTime ) == pxr::UsdGeomTokens->invisible );
 	SceneComponent.SetVisibility( !bIsHidden );
+
+	// Per-prim visibility
+	bool bIsInvisible = false; // Default to 'inherited'
+	if ( pxr::UsdAttribute VisibilityAttr = Xformable.GetVisibilityAttr() )
+	{
+		pxr::TfToken Value;
+		if ( VisibilityAttr.Get( &Value, EvalTime ) )
+		{
+			bIsInvisible = Value == pxr::UsdGeomTokens->invisible;
+		}
+	}
+	if ( bIsInvisible )
+	{
+		SceneComponent.ComponentTags.AddUnique( UnrealIdentifiers::Invisible );
+		SceneComponent.ComponentTags.Remove( UnrealIdentifiers::Inherited );
+	}
+	else
+	{
+		SceneComponent.ComponentTags.Remove( UnrealIdentifiers::Invisible );
+		SceneComponent.ComponentTags.AddUnique( UnrealIdentifiers::Inherited );
+	}
 
 	return true;
 }
@@ -321,15 +342,22 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 	// Transform
 	ConvertXformable( RelativeTransform, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 
-	// Visibility
-	bool bVisible = SceneComponent->GetVisibleFlag();
-	if ( bVisible )
+	// Per-prim visibility
+	if ( pxr::UsdAttribute VisibilityAttr = XForm.CreateVisibilityAttr() )
 	{
-		XForm.MakeVisible();
-	}
-	else
-	{
-		XForm.MakeInvisible();
+		pxr::TfToken Value = pxr::UsdGeomTokens->inherited;
+
+		if ( SceneComponent->ComponentTags.Contains( UnrealIdentifiers::Invisible ) )
+		{
+			Value = pxr::UsdGeomTokens->invisible;
+		}
+		else if ( !SceneComponent->ComponentTags.Contains( UnrealIdentifiers::Inherited ) )
+		{
+			// We don't have visible nor inherited tags: We're probably exporting a pure UE component, so write out component visibility instead
+			Value = SceneComponent->IsVisible() ? pxr::UsdGeomTokens->inherited : pxr::UsdGeomTokens->invisible;
+		}
+
+		VisibilityAttr.Set<pxr::TfToken>( Value );
 	}
 
 	return true;

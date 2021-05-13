@@ -351,7 +351,7 @@ struct FUsdStageActorImpl
 			return false;
 		}
 
-		if ( !FilePath.IsEmpty() && !FPaths::IsRelative( FilePath ) && !FilePath.StartsWith( USD_IDENTIFIER_TOKEN ) )
+		if ( !FilePath.IsEmpty() && !FPaths::IsRelative( FilePath ) && !FilePath.StartsWith( UnrealIdentifiers::IdentifierPrefix ) )
 		{
 			FilePath = UsdUtils::MakePathRelativeToProjectDir( FilePath );
 		}
@@ -363,7 +363,7 @@ struct FUsdStageActorImpl
 			const FString LayerIdentifier = Layer.GetIdentifier();
 
 			// Something like "@identifier:anon:0000022F9E194D50:tmp.usda" if we're also pointing at an anonymous layer
-			if ( FilePath.RemoveFromStart( USD_IDENTIFIER_TOKEN ) )
+			if ( FilePath.RemoveFromStart( UnrealIdentifiers::IdentifierPrefix ) )
 			{
 				// Same anonymous layers
 				if ( FilePath == LayerIdentifier )
@@ -384,6 +384,128 @@ struct FUsdStageActorImpl
 #endif // USE_USD_SDK
 
 		return false;
+	}
+
+	/**
+	 * Uses USD's MakeVisible to handle the visible/inherited update logic as it is a bit complex.
+	 * Will update a potentially large chunk of the component hierarchy to having/not the `invisible` component tag, as well as the
+	 * correct value of bVisible.
+	 * Note that bVisible corresponds to computed visibility, and the component tags correspond to individual prim-level visibilities
+	 */
+	static void MakeVisible( UUsdPrimTwin& UsdPrimTwin, UE::FUsdStage& Stage )
+	{
+		// Find the highest invisible prim parent: Nothing above this can possibly change with what we're doing
+		UUsdPrimTwin* Iter = &UsdPrimTwin;
+		UUsdPrimTwin* HighestInvisibleParent = nullptr;
+		while ( Iter )
+		{
+			if ( USceneComponent* Component = Iter->GetSceneComponent() )
+			{
+				if ( Component->ComponentTags.Contains( UnrealIdentifiers::Invisible ) )
+				{
+					HighestInvisibleParent = Iter;
+				}
+			}
+
+			Iter = Iter->GetParent();
+		}
+
+		// No parent (not even UsdPrimTwin's prim directly) was invisible, so we should already be visible and there's nothing to do
+		if ( !HighestInvisibleParent )
+		{
+			return;
+		}
+
+		UE::FUsdPrim Prim = Stage.GetPrimAtPath( UE::FSdfPath( *UsdPrimTwin.PrimPath ) );
+		if ( !Prim )
+		{
+			return;
+		}
+		UsdUtils::MakeVisible( Prim );
+
+		TFunction<void(UUsdPrimTwin&, bool)> RecursiveResyncVisibility;
+		RecursiveResyncVisibility = [ &Stage, &RecursiveResyncVisibility ]( UUsdPrimTwin& PrimTwin, bool bPrimHasInvisibleParent )
+		{
+			USceneComponent* Component = PrimTwin.GetSceneComponent();
+			if ( !Component )
+			{
+				return;
+			}
+
+			UE::FUsdPrim CurrentPrim = Stage.GetPrimAtPath( UE::FSdfPath( *PrimTwin.PrimPath ) );
+			if ( !CurrentPrim )
+			{
+				return;
+			}
+
+			const bool bPrimHasInheritedVisibility = UsdUtils::HasInheritedVisibility( CurrentPrim );
+			const bool bPrimIsVisible = bPrimHasInheritedVisibility && !bPrimHasInvisibleParent;
+
+			const bool bComponentHasInvisibleTag = Component->ComponentTags.Contains( UnrealIdentifiers::Invisible );
+			const bool bComponentIsVisible = Component->IsVisible();
+
+			const bool bTagIsCorrect = bComponentHasInvisibleTag == !bPrimHasInheritedVisibility;
+			const bool bComputedVisibilityIsCorrect = bPrimIsVisible == bComponentIsVisible;
+
+			// Stop recursing as this prim's or its children couldn't possibly need to be updated
+			if ( bTagIsCorrect && bComputedVisibilityIsCorrect )
+			{
+				return;
+			}
+
+			if ( !bTagIsCorrect )
+			{
+				if ( bPrimHasInheritedVisibility )
+				{
+					Component->ComponentTags.Remove( UnrealIdentifiers::Invisible );
+					Component->ComponentTags.AddUnique( UnrealIdentifiers::Inherited );
+				}
+				else
+				{
+					Component->ComponentTags.AddUnique( UnrealIdentifiers::Invisible );
+					Component->ComponentTags.Remove( UnrealIdentifiers::Inherited );
+				}
+			}
+
+			if ( !bComputedVisibilityIsCorrect )
+			{
+				const bool bPropagateToChildren = false;
+				Component->Modify();
+				Component->SetVisibility( bPrimIsVisible, bPropagateToChildren );
+			}
+
+			for ( const TPair<FString, UUsdPrimTwin*>& ChildPair : PrimTwin.GetChildren() )
+			{
+				if ( UUsdPrimTwin* ChildTwin = ChildPair.Value )
+				{
+					RecursiveResyncVisibility( *ChildTwin, !bPrimIsVisible );
+				}
+			}
+		};
+
+		const bool bHasInvisibleParent = false;
+		RecursiveResyncVisibility( *HighestInvisibleParent, bHasInvisibleParent );
+	}
+
+	/**
+	 * Sets this prim to 'invisible', and force all of the child components
+	 * to bVisible = false. Leave their individual prim-level visibilities intact though.
+	 * Note that bVisible corresponds to computed visibility, and the component tags correspond to individual prim-level visibilities
+	 */
+	static void MakeInvisible( UUsdPrimTwin& UsdPrimTwin )
+	{
+		USceneComponent* PrimSceneComponent = UsdPrimTwin.GetSceneComponent();
+		if ( !PrimSceneComponent )
+		{
+			return;
+		}
+
+		PrimSceneComponent->ComponentTags.AddUnique( UnrealIdentifiers::Invisible );
+		PrimSceneComponent->ComponentTags.Remove( UnrealIdentifiers::Inherited );
+
+		const bool bPropagateToChildren = true;
+		const bool bVisible = false;
+		PrimSceneComponent->SetVisibility( bVisible, bPropagateToChildren );
 	}
 };
 
@@ -1030,7 +1152,7 @@ void AUsdStageActor::SetRootLayer( const FString& RootFilePath )
 {
 	FString RelativeFilePath = RootFilePath;
 #if USE_USD_SDK
-	if ( !RelativeFilePath.IsEmpty() && !FPaths::IsRelative( RelativeFilePath ) && !RelativeFilePath.StartsWith( USD_IDENTIFIER_TOKEN ) )
+	if ( !RelativeFilePath.IsEmpty() && !FPaths::IsRelative( RelativeFilePath ) && !RelativeFilePath.StartsWith( UnrealIdentifiers::IdentifierPrefix ) )
 	{
 		RelativeFilePath = UsdUtils::MakePathRelativeToProjectDir( RootFilePath );
 	}
@@ -1168,7 +1290,7 @@ void AUsdStageActor::OpenUsdStage()
 	UsdUtils::StartMonitoringErrors();
 
 	FString AbsPath;
-	if ( !RootLayer.FilePath.StartsWith( USD_IDENTIFIER_TOKEN ) && FPaths::IsRelative( RootLayer.FilePath ) )
+	if ( !RootLayer.FilePath.StartsWith( UnrealIdentifiers::IdentifierPrefix ) && FPaths::IsRelative( RootLayer.FilePath ) )
 	{
 		// The RootLayer property is marked as RelativeToGameDir, and UsdUtils::BrowseUsdFile will also emit paths relative to the project's directory
 		FString ProjectDir = FPaths::ConvertRelativePathToFull( FPaths::ProjectDir() );
@@ -1905,9 +2027,30 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 		{
 			if ( UsdStage )
 			{
+				// This block is important, as it not only prevents us from getting into infinite loops with the USD notices,
+				// but it also guarantees that if we have an object property change, the corresponding stage notice is not also
+				// independently saved to the transaction via the UUsdTransactor, which would be duplication
 				FScopedBlockNoticeListening BlockNotices( this );
 
 				UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) );
+
+				// We want to keep component visibilities in sync with USD, which uses inherited visibilities
+				// To accomplish that while blocking notices we must always propagate component visibility changes manually.
+				// This part is effectively the same as calling pxr::UsdGeomImageable::MakeVisible/Invisible.
+				if ( PropertyChangedEvent.GetPropertyName() == TEXT( "bVisible" ) )
+				{
+					PrimSceneComponent->Modify();
+
+					const bool bVisible = PrimSceneComponent->GetVisibleFlag();
+					if ( bVisible )
+					{
+						FUsdStageActorImpl::MakeVisible( *UsdPrimTwin, UsdStage );
+					}
+					else
+					{
+						FUsdStageActorImpl::MakeInvisible( *UsdPrimTwin );
+					}
+				}
 
 #if USE_USD_SDK
 				UnrealToUsd::ConvertSceneComponent( UsdStage, PrimSceneComponent, UsdPrim );
@@ -1958,14 +2101,6 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 					UnrealToUsd::ConvertSkyLightComponent( *SkyLightComponent, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 				}
 #endif // #if USE_USD_SDK
-
-				// We want to keep component visibilities in sync with USD, which uses inherited visibilities
-				// To accomplish that while blocking notices we must always propagate component visibility changes
-				if ( PropertyChangedEvent.GetPropertyName() == TEXT( "bVisible" ) )
-				{
-					PrimSceneComponent->Modify();
-					PrimSceneComponent->SetVisibility( PrimSceneComponent->GetVisibleFlag(), true );
-				}
 
 				// Update stage window in case any of our component changes trigger USD stage changes
 				this->OnPrimChanged.Broadcast( PrimPath, false );

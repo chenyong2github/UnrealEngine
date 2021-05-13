@@ -856,6 +856,10 @@ EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mes
 }
 #endif // USE_USD_SDK
 
+const TCHAR* UnrealIdentifiers::Invisible = TEXT("invisible");
+const TCHAR* UnrealIdentifiers::Inherited = TEXT("inherited");
+const TCHAR* UnrealIdentifiers::IdentifierPrefix = TEXT("@identifier:");
+
 FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPreUsdImport;
 FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPostUsdImport;
 
@@ -983,7 +987,7 @@ UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* Identifier, EUsdInitialL
 	{
 		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( Identifier ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
 	}
-	else if ( IdentifierStr.RemoveFromStart( USD_IDENTIFIER_TOKEN ) )
+	else if ( IdentifierStr.RemoveFromStart( UnrealIdentifiers::IdentifierPrefix ) )
 	{
 		pxr::SdfLayerRefPtr RootLayer = pxr::SdfLayer::Find( TCHAR_TO_ANSI( *IdentifierStr ) );
 		if ( RootLayer )
