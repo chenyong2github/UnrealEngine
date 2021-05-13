@@ -23,6 +23,8 @@
 #include "Curves/CurveFloat.h"
 #include "Engine/BlueprintGeneratedClass.h"
 
+#include "Serialization/AsyncLoadingLock.h"
+
 #ifdef WITH_ONLINETRACING
 #include "OnlineTracingModule.h"
 #endif
@@ -177,6 +179,15 @@ UOnlineHotfixManager::UOnlineHotfixManager() :
 	GameContentPath = FString() / FApp::GetProjectName() / TEXT("Content");
 }
 
+UOnlineHotfixManager::UOnlineHotfixManager(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
+UOnlineHotfixManager::~UOnlineHotfixManager()
+{
+}
+
 UOnlineHotfixManager* UOnlineHotfixManager::Get(UWorld* World)
 {
 	UOnlineHotfixManager* DefaultObject = UOnlineHotfixManager::StaticClass()->GetDefaultObject<UOnlineHotfixManager>();
@@ -258,6 +269,7 @@ void UOnlineHotfixManager::Cleanup()
 	}
 	OnlineTitleFile = nullptr;
 	bHotfixingInProgress = false;
+	AsyncLock = nullptr;
 }
 
 void UOnlineHotfixManager::StartHotfixProcess()
@@ -419,14 +431,34 @@ void UOnlineHotfixManager::OnEnumerateFilesComplete(bool bWasSuccessful, const F
 		{
 			if (RemovedHotfixFileList.Num() > 0)
 			{
-				// No changes, just reverts
-				// Perform any undo operations needed
-				RestoreBackupIniFiles();
-				UnmountHotfixFiles();
-			}
+				UE_LOG(LogHotfixManager, Display, TEXT("Files have been removed since last check. Reverting."));
 
-			UE_LOG(LogHotfixManager, Display, TEXT("Returned hotfix data is the same as last application, skipping the apply phase"));
-			TriggerHotfixComplete(EHotfixResult::SuccessNoChange);
+				// Prevent async loading while reverting hotfixes.
+				check(!AsyncLock);
+				AsyncLock = MakeUnique<FAsyncLoadingLock>(TEXT("RevertHotfix"));
+				AsyncLock->Acquire(
+					FOnAsyncLoadingLockAcquired::CreateWeakLambda(
+						this,
+						[this]()
+						{
+							{
+								// No changes, just reverts
+								// Perform any undo operations needed
+								RestoreBackupIniFiles();
+								UnmountHotfixFiles();
+							}
+
+							AsyncLock->Release();
+
+							// Trigger completion outside of async lock.
+							TriggerHotfixComplete(EHotfixResult::SuccessNoChange);
+						}));
+			}
+			else
+			{
+				UE_LOG(LogHotfixManager, Display, TEXT("Returned hotfix data is the same as last application, skipping the apply phase"));
+				TriggerHotfixComplete(EHotfixResult::SuccessNoChange);
+			}
 		}
 	}
 	else
@@ -648,8 +680,25 @@ void UOnlineHotfixManager::OnReadFileComplete(bool bWasSuccessful, const FString
 			PendingHotfixFiles.Remove(FileName);
 			if (PendingHotfixFiles.Num() == 0)
 			{
-				// All files have been downloaded so now apply the files
-				ApplyHotfix();
+				// Prevent async loading while applying hotfixes.
+				check(!AsyncLock);
+				AsyncLock = MakeUnique<FAsyncLoadingLock>(TEXT("ApplyHotfix"));
+				AsyncLock->Acquire(
+					FOnAsyncLoadingLockAcquired::CreateWeakLambda(
+						this,
+						[this]()
+						{
+							EHotfixResult Result = EHotfixResult::Success;
+
+							{
+								Result = ApplyHotfix();
+							}
+
+							AsyncLock->Release();
+
+							// Trigger completion outside of async lock.
+							TriggerHotfixComplete(Result);
+						}));
 			}
 		}
 		else
@@ -668,7 +717,7 @@ void UOnlineHotfixManager::UpdateProgress(uint32 FileCount, uint64 UpdateSize)
 	TriggerOnHotfixProgressDelegates(NumDownloaded, TotalFiles, NumBytes, TotalBytes);
 }
 
-void UOnlineHotfixManager::ApplyHotfix()
+EHotfixResult UOnlineHotfixManager::ApplyHotfix()
 {
 	// Perform any undo operations needed
 	// This occurs same frame as the application of new hotfixes
@@ -680,8 +729,7 @@ void UOnlineHotfixManager::ApplyHotfix()
 		if (!ApplyHotfixProcessing(FileHeader))
 		{
 			UE_LOG(LogHotfixManager, Error, TEXT("Couldn't apply hotfix file (%s)"), *FileHeader.FileName);
-			TriggerHotfixComplete(EHotfixResult::Failed);
-			return;
+			return EHotfixResult::Failed;
 		}
 		// Let anyone listening know we just processed this file
 		TriggerOnHotfixProcessedFileDelegates(FileHeader.FileName, GetCachedDirectory() / FileHeader.DLName);
@@ -698,11 +746,16 @@ void UOnlineHotfixManager::ApplyHotfix()
 		UE_LOG(LogHotfixManager, Display, TEXT("Hotfix has detected PAK files containing currently loaded maps, so a level load is needed"));
 		Result = EHotfixResult::SuccessNeedsReload;
 	}
-	TriggerHotfixComplete(Result);
+
+	return Result;
 }
 
 void UOnlineHotfixManager::TriggerHotfixComplete(EHotfixResult HotfixResult)
 {
+	// Flush the async loader to prevent updating data while it is accessed for loading.
+	// This may cause a hitch in some failure cases.
+	FlushAsyncLoading();
+
 	if (HotfixResult != EHotfixResult::Failed && HotfixResult != EHotfixResult::SuccessNoChange)
 	{
 		PatchAssetsFromIniFiles();
