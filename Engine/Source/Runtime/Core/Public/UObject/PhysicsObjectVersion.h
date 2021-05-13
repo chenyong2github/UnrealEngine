@@ -46,7 +46,10 @@ struct CORE_API FPhysicsObjectVersion
 		ChaosClothFixLODTransitionMaps,
 
 		// Convex structure data is now an index-based half-edge structure
-		ConvexUsesHalfEdges,
+		ChaosConvexUsesHalfEdges,
+
+		// Convex structure data has a list of unique edges (half of the half edges)
+		ChaosConvexHasUniqueEdgeSet,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
