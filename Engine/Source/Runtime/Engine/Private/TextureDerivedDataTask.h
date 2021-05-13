@@ -15,6 +15,7 @@
 #include "TextureCompressorModule.h"
 #include "IImageWrapperModule.h"
 #include "Engine/Texture2D.h"
+#include "TextureDerivedDataBuildExporter.h"
 
 #endif // WITH_EDITOR
 
@@ -121,6 +122,8 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	FTextureSourceData TextureData;
 	/** Source mip images of the composite texture (e.g. normal map for compute roughness). Not necessarily in RGBA32F, usually only top mip as other mips need to be generated first */
 	FTextureSourceData CompositeTextureData;
+	/** Exporter that can optionally write out build actions and reference outputs for the purpose of testing remote execution of builds */
+	FTextureDerivedDataBuildExporter BuildExporter;
 	/** Texture cache flags. */
 	uint32 CacheFlags;
 	/** Have many bytes were loaded from DDC or built (for telemetry) */
