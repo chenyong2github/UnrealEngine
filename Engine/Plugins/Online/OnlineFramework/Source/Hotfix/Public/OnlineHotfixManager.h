@@ -15,8 +15,6 @@
 
 HOTFIX_API DECLARE_LOG_CATEGORY_EXTERN(LogHotfixManager, Display, All);
 
-class FAsyncLoadingLock;
-
 UENUM()
 enum class EHotfixResult : uint8
 {
@@ -159,8 +157,6 @@ protected:
 	uint64 NumBytes;
 	/** Some title file interfaces aren't re-entrant so handle it ourselves */
 	bool bHotfixingInProgress;
-	/** Lock to prevent async loading during the hotfixing process. */
-	TUniquePtr<FAsyncLoadingLock> AsyncLock;
 	/** Set to true if any PAK file contains an update to a level that is currently loaded */
 	bool bHotfixNeedsMapReload;
 #if !UE_BUILD_SHIPPING
@@ -178,7 +174,7 @@ protected:
 	virtual void Init();
 	virtual void Cleanup();
 	/** Looks at each file returned via the hotfix and processes them */
-	EHotfixResult ApplyHotfix();
+	void ApplyHotfix();
 	/** Cleans up and fires the delegate indicating it's done */
 	void TriggerHotfixComplete(EHotfixResult HotfixResult);
 	/** Checks each file listed to see if it is a hotfix file to process */
@@ -315,8 +311,6 @@ protected:
 
 public:
 	UOnlineHotfixManager();
-	UOnlineHotfixManager(FVTableHelper& Helper);
-	virtual ~UOnlineHotfixManager();
 
 	/** Tells the hotfix manager which OSS to use. Uses the default if empty */
 	UPROPERTY(Config)
