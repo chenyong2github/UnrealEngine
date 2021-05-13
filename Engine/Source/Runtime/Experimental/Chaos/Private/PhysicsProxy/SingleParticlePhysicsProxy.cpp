@@ -32,6 +32,9 @@ FSingleParticlePhysicsProxy::~FSingleParticlePhysicsProxy()
 {
 }
 
+CHAOS_API int32 ForceNoCollisionIntoSQ = 0;
+FAutoConsoleVariableRef CVarForceNoCollisionIntoSQ(TEXT("p.ForceNoCollisionIntoSQ"), ForceNoCollisionIntoSQ, TEXT("When enabled, all particles end up in sq structure, even ones with no collision"));
+
 template <Chaos::EParticleType ParticleType, typename TEvolution>
 void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos::FGeometryParticleHandle* Handle, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, TEvolution& Evolution, bool bResimInitialized)
 {
@@ -161,7 +164,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 		}
 		
 
-		if(bUpdateCollisionData)
+		if(bUpdateCollisionData && !ForceNoCollisionIntoSQ)
 		{
 			//Some shapes were not dirty and may have collision - so have to iterate them all. TODO: find a better way to handle this case
 			if(!bHasCollision && Dirty.ShapeDataIndices.Num() != Handle->ShapesArray().Num())

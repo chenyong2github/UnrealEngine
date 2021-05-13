@@ -24,6 +24,9 @@ extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
 extern int32 ChaosNumPushOutIterationsOverride;
 extern int32 ChaosNumContactIterationsOverride;
 
+extern CHAOS_API int32 ForceNoCollisionIntoSQ;
+
+
 namespace Chaos
 {
 
@@ -342,6 +345,7 @@ public:
 		}
 	}
 
+
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& Particle)
 	{
@@ -374,7 +378,7 @@ public:
 		}
 
 		//only add to acceleration structure if it has collision
-		if (Particle.HasCollision())
+		if (Particle.HasCollision() || ForceNoCollisionIntoSQ)
 		{
 			//TODO: distinguish between new particles and dirty particles
 			const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
