@@ -57,7 +57,10 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 			{
 				return false;
 			}
-			PackagePath = PickContentPathDlg->GetPath().ToString() + TEXT("/");
+			// e.g. "/Game/MyFolder/layername/"
+			// We inject the package path here because this is what the automated import task upstream code will do. This way the importer
+			// can always expect to receive /ContentPath/layername/
+			PackagePath = FString::Printf( TEXT( "%s/%s/" ), *PickContentPathDlg->GetPath().ToString(), *InName );
 		}
 
 		ImportOptions->EnableActorImport( bAllowActorImport );
