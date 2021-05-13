@@ -300,4 +300,7 @@
       <Filter>Private\Utils</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STAT.lib" />
+  </ItemGroup>
 </Project>
