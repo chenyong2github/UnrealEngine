@@ -295,7 +295,7 @@ namespace PropertyContainers
 		FFieldVariant PropertyScope = InParent;
 
 		// A name is usually required further down the chain, so set one if not already.
-		const FName PropertyName = InPropertyName == NAME_None ? TEXT("Value") : InPropertyName;
+		const FName PropertyName = (InPropertyName == NAME_None) ? TEXT("Value") : InPropertyName;
 		
 		FProperty* NewProperty = nullptr;
 
