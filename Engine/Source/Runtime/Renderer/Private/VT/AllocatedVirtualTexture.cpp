@@ -220,6 +220,67 @@ void FAllocatedVirtualTexture::LockOrUnlockTiles(FVirtualTextureSystem* InSystem
 	}
 }
 
+bool FAllocatedVirtualTexture::TryMapLockedTiles(FVirtualTextureSystem* InSystem) const
+{
+	bool bHasMissingTiles = false;
+	for (int32 PageTableLayerIndex = 0u; PageTableLayerIndex < UniquePageTableLayers.Num(); ++PageTableLayerIndex)
+	{
+		const FPageTableLayerDesc& PageTableLayer = UniquePageTableLayers[PageTableLayerIndex];
+		const FProducerDesc& UniqueProducer = UniqueProducers[PageTableLayer.UniqueProducerIndex];
+		const FVirtualTextureProducer* Producer = InSystem->FindProducer(UniqueProducer.Handle);
+		if (!Producer)
+		{
+			continue;
+		}
+
+		const uint32 WidthInTiles = Producer->GetWidthInTiles();
+		const uint32 HeightInTiles = Producer->GetHeightInTiles();
+		const uint32 Local_vLevel = FMath::Min(Producer->GetMaxLevel(), MaxLevel - UniqueProducer.MipBias);
+		const uint32 MipScaleFactor = (1u << Local_vLevel);
+		const uint32 RootWidthInTiles = FMath::DivideAndRoundUp(WidthInTiles, MipScaleFactor);
+		const uint32 RootHeightInTiles = FMath::DivideAndRoundUp(HeightInTiles, MipScaleFactor);
+
+		FTexturePagePool& PagePool = PageTableLayer.PhysicalSpace->GetPagePool();
+		FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(PageTableLayerIndex);
+
+		uint32 NumNonResidentPages = 0u;
+		for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
+		{
+			for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
+			{
+				const uint32 vAddress = FMath::MortonCode2(VirtualPageX + (TileX << MaxLevel)) | (FMath::MortonCode2(VirtualPageY + (TileY << MaxLevel)) << 1);
+				uint32 pAddress = PageMap.FindPageAddress(MaxLevel, vAddress);
+				if (pAddress == ~0u)
+				{
+					uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
+
+					const uint32 LocalMipBias = Producer->GetVirtualTexture()->GetLocalMipBias(Local_vLevel, Local_vAddress);
+					Local_vAddress >>= (LocalMipBias * Description.Dimensions);
+
+					pAddress = PagePool.FindPageAddress(UniqueProducer.Handle, PageTableLayer.ProducerPhysicalGroupIndex, Local_vAddress, Local_vLevel + LocalMipBias);
+					if (pAddress != ~0u)
+					{
+						PagePool.MapPage(Space, PageTableLayer.PhysicalSpace, PageTableLayerIndex, MaxLevel, MaxLevel, vAddress, MaxLevel + LocalMipBias, pAddress);
+					}
+					else
+					{
+						bHasMissingTiles = true;
+					}
+				}
+			}
+		}
+	}
+
+	// Display a warning message (once) if we've failed to map pages for this after a set number of frames
+	// Generally there should be no delay, but if the system is saturated, it's possible that locked pages may not be loaded immediately
+	if (bHasMissingTiles && InSystem->GetFrame() == FrameAllocated + 30u)
+	{
+		UE_LOG(LogVirtualTexturing, Warning, TEXT("Failed to map lowest resolution mip for AllocatedVT %s"), *Description.Name.ToString());
+	}
+
+	return !bHasMissingTiles;
+}
+
 uint32 FAllocatedVirtualTexture::AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, const FVirtualTextureProducer* InProducer)
 {
 	for (int32 Index = 0u; Index < UniqueProducers.Num(); ++Index)

@@ -20,6 +20,8 @@
 #include "VT/VirtualTextureScalability.h"
 #include "VT/VirtualTextureSpace.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 #define LOCTEXT_NAMESPACE "VirtualTexture"
 
 DECLARE_CYCLE_STAT(TEXT("VirtualTextureSystem Update"), STAT_VirtualTextureSystem_Update, STATGROUP_VirtualTexturing);
@@ -28,6 +30,7 @@ DECLARE_CYCLE_STAT(TEXT("Gather Requests"), STAT_ProcessRequests_Gather, STATGRO
 DECLARE_CYCLE_STAT(TEXT("Sort Requests"), STAT_ProcessRequests_Sort, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Submit Requests"), STAT_ProcessRequests_Submit, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Map Requests"), STAT_ProcessRequests_Map, STATGROUP_VirtualTexturing);
+DECLARE_CYCLE_STAT(TEXT("Map New VTs"), STAT_ProcessRequests_MapNew, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Finalize Requests"), STAT_ProcessRequests_Finalize, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Merge Unique Pages"), STAT_ProcessRequests_MergePages, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Merge Requests"), STAT_ProcessRequests_MergeRequests, STATGROUP_VirtualTexturing);
@@ -522,6 +525,10 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 
 	AllocatedVT = new FAllocatedVirtualTexture(this, Frame, Desc, ProducerForLayer, BlockWidthInTiles, BlockHeightInTiles, WidthInBlocks, HeightInBlocks, DepthInTiles);
 	AllocatedVT->NumRefs = 1;
+	if (bAnyLayerProducerWantsPersistentHighestMip)
+	{
+		AllocatedVTsToMap.Add(AllocatedVT);
+	}
 	return AllocatedVT;
 }
 
@@ -576,6 +583,8 @@ void FVirtualTextureSystem::DestroyPendingVirtualTextures(bool bForceDestroyAll)
 
 	for (IAllocatedVirtualTexture* AllocatedVT : AllocatedVTsToDelete)
 	{
+		// shouldn't be more than 1 instance of this in the list
+		verify(AllocatedVTsToMap.Remove(AllocatedVT) <= 1);
 		verify(AllocatedVTs.Remove(AllocatedVT->GetDescription()) == 1);
 		AllocatedVT->Destroy(this);
 		delete AllocatedVT;
@@ -2238,6 +2247,28 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 		}
 	}
 
+	// Map any resident tiles to newly allocated VTs
+	if(AllocatedVTsToMap.Num() > 0)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_MapNew);
+
+		uint32 Index = 0u;
+		while (Index < (uint32)AllocatedVTsToMap.Num())
+		{
+			const IAllocatedVirtualTexture* AllocatedVT = AllocatedVTsToMap[Index];
+			if (AllocatedVT->TryMapLockedTiles(this))
+			{
+				AllocatedVTsToMap.RemoveAtSwap(Index, 1, false);
+			}
+			else
+			{
+				Index++;
+			}
+		}
+
+		AllocatedVTsToMap.Shrink();
+	}
+
 	// Finalize requests
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_Finalize);
@@ -2288,3 +2319,5 @@ void FVirtualTextureSystem::ReleasePendingResources()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_OPTIMIZATION
