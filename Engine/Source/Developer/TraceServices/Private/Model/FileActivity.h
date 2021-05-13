@@ -35,6 +35,9 @@ public:
 	uint32 GetUnknownFileIndex();
 	uint64 BeginActivity(uint32 FileIndex, EFileActivityType Type, uint32 ThreadId, uint64 Offset, uint64 Size, double Time);
 	void EndActivity(uint32 FileIndex, uint64 ActivityIndex, uint64 ActualSize, double Time, bool Failed);
+	void SetActivityFileHandle(uint32 FileIndex, uint64 ActivityIndex, uint64 FileHandle);
+	void SetActivityReadWriteHandle(uint32 FileIndex, uint64 ActivityIndex, uint64 ReadWriteHandle);
+	void CheckActivityReadWriteHandle(uint32 FileIndex, uint64 ActivityIndex, uint64 ReadWriteHandle);
 	const TCHAR* GetFilePath(uint32 FileIndex) const;
 
 private:

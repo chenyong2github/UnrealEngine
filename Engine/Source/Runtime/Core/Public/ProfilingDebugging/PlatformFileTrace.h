@@ -18,6 +18,8 @@ struct FPlatformFileTrace
 	static void BeginOpen(const TCHAR* Path);
 	static void EndOpen(uint64 FileHandle);
 	static void FailOpen(const TCHAR* Path);
+	static void BeginReOpen(uint64 OldFileHandle);
+	static void EndReOpen(uint64 NewFileHandle);
 	static void BeginClose(uint64 FileHandle);
 	static void EndClose(uint64 FileHandle);
 	static void FailClose(uint64 FileHandle);
@@ -37,6 +39,12 @@ struct FPlatformFileTrace
 
 #define TRACE_PLATFORMFILE_FAIL_OPEN(Path) \
 	FPlatformFileTrace::FailOpen(Path);
+
+#define TRACE_PLATFORMFILE_BEGIN_REOPEN(OldFileHandle) \
+	FPlatformFileTrace::BeginReOpen(uint64(OldFileHandle));
+
+#define TRACE_PLATFORMFILE_END_REOPEN(NewFileHandle) \
+	FPlatformFileTrace::EndReOpen(uint64(NewFileHandle));
 
 #define TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle) \
 	FPlatformFileTrace::BeginClose(uint64(FileHandle));

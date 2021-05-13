@@ -79,6 +79,8 @@ uint64 FFileActivityProvider::BeginActivity(uint32 FileIndex, EFileActivityType 
 	FileActivity.ThreadId = ThreadId;
 	FileActivity.Failed = false;
 	FileActivity.ActivityType = Type;
+	FileActivity.FileHandle = uint64(-1);
+	FileActivity.ReadWriteHandle = uint64(-1);
 	return FileInfo.ActivityTimeline->AppendBeginEvent(Time, &FileActivity);
 }
 
@@ -89,6 +91,27 @@ void FFileActivityProvider::EndActivity(uint32 FileIndex, uint64 ActivityIndex, 
 	Activity->ActualSize = ActualSize;
 	Activity->EndTime = Time;
 	Activity->Failed = Failed;
+}
+
+void FFileActivityProvider::SetActivityFileHandle(uint32 FileIndex, uint64 ActivityIndex, uint64 FileHandle)
+{
+	FFileInfoInternal& FileInfo = Files[FileIndex];
+	FFileActivity* Activity = FileInfo.ActivityTimeline->GetEvent(ActivityIndex);
+	Activity->FileHandle = FileHandle;
+}
+
+void FFileActivityProvider::SetActivityReadWriteHandle(uint32 FileIndex, uint64 ActivityIndex, uint64 ReadWriteHandle)
+{
+	FFileInfoInternal& FileInfo = Files[FileIndex];
+	FFileActivity* Activity = FileInfo.ActivityTimeline->GetEvent(ActivityIndex);
+	Activity->ReadWriteHandle = ReadWriteHandle;
+}
+
+void FFileActivityProvider::CheckActivityReadWriteHandle(uint32 FileIndex, uint64 ActivityIndex, uint64 ReadWriteHandle)
+{
+	FFileInfoInternal& FileInfo = Files[FileIndex];
+	FFileActivity* Activity = FileInfo.ActivityTimeline->GetEvent(ActivityIndex);
+	check(Activity->ReadWriteHandle == ReadWriteHandle);
 }
 
 const TCHAR* FFileActivityProvider::GetFilePath(uint32 FileIndex) const
