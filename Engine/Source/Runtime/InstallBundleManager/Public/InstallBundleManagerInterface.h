@@ -59,6 +59,7 @@ enum class EInstallBundleManagerInitErrorHandlerResult
 using FInstallBundleSourceOrCache = TUnion<EInstallBundleSourceType, FName>;
 
 DECLARE_DELEGATE_RetVal_OneParam(EInstallBundleManagerInitErrorHandlerResult, FInstallBundleManagerInitErrorHandler, EInstallBundleManagerInitResult);
+DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleManagerInitCompleteMultiDelegate, EInstallBundleManagerInitResult);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleCompleteMultiDelegate, FInstallBundleRequestResultInfo);
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundlePausedMultiDelegate, FInstallBundlePauseInfo);
@@ -75,6 +76,8 @@ DECLARE_DELEGATE(FInstallBundleManagerFlushCacheCompleteDelegate);
 class INSTALLBUNDLEMANAGER_API IInstallBundleManager : public TSharedFromThis<IInstallBundleManager>
 {
 public:
+	static FInstallBundleManagerInitCompleteMultiDelegate InitCompleteDelegate;
+
 	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate; // Called when a content request is complete
 	static FInstallBundlePausedMultiDelegate PausedBundleDelegate;
 	static FInstallBundleReleasedMultiDelegate ReleasedDelegate; // Called when content release request is complete
