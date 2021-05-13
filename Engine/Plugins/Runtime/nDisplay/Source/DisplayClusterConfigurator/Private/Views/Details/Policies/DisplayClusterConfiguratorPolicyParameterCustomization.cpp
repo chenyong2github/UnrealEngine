@@ -181,9 +181,9 @@ FPolicyParameterInfoComponentCombo::FPolicyParameterInfoComponentCombo(
 	UDisplayClusterBlueprint* InBlueprint,
 	UDisplayClusterConfigurationViewport* InConfigurationViewport,
 	const TSharedPtr<IPropertyHandle>& InParametersHandle,
-	TSubclassOf<UActorComponent> InComponentClass) : FPolicyParameterInfoCombo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, {}, nullptr)
+	const TArray<TSubclassOf<UActorComponent>>& InComponentClasses) : FPolicyParameterInfoCombo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, {}, nullptr)
 {
-	ComponentType = InComponentClass;
+	ComponentTypes = InComponentClasses;
 	if (BlueprintEditorPtrCached)
 	{
 		// BlueprintEditorPtrCached can be null when remote control is interfacing with the world instance details panel. At this stage
@@ -196,7 +196,7 @@ FPolicyParameterInfoComponentCombo::FPolicyParameterInfoComponentCombo(
 
 void FPolicyParameterInfoComponentCombo::CreateParameterValues(ADisplayClusterRootActor* RootActor)
 {
-	if (ComponentType)
+	for (const TSubclassOf<UActorComponent>& ComponentType : ComponentTypes)
 	{
 		TArray<UActorComponent*> ActorComponents;
 		RootActor->GetComponents(ComponentType, ActorComponents);

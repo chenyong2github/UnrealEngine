@@ -11,9 +11,9 @@
 #include "DisplayClusterRootActor.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Components/DisplayClusterScreenComponent.h"
-#include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
 
-#include "CineCameraComponent.h"
+#include "Camera/CameraComponent.h"
 
 #include "DisplayClusterProjectionStrings.h"
 
@@ -364,7 +364,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateSimplePolicy(UDis
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		UDisplayClusterScreenComponent::StaticClass()));
+		TArray<TSubclassOf<UActorComponent>>{ UDisplayClusterScreenComponent::StaticClass() }));
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateCameraPolicy(UDisplayClusterBlueprint* Blueprint)
@@ -375,7 +375,8 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateCameraPolicy(UDis
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		UCineCameraComponent::StaticClass()));
+		TArray<TSubclassOf<UActorComponent>>{ UCameraComponent::StaticClass(),
+			UDisplayClusterICVFX_RefCineCameraComponent::StaticClass() }));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
 		"Native",
@@ -393,7 +394,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMeshPolicy(UDispl
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		UStaticMeshComponent::StaticClass()));
+		TArray<TSubclassOf<UActorComponent>>{ UStaticMeshComponent::StaticClass() }));
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateDomePolicy(UDisplayClusterBlueprint* Blueprint)
@@ -412,7 +413,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateDomePolicy(UDispl
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		USceneComponent::StaticClass()));
+		TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() }));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<int32>>(
 		"Channel",
@@ -438,7 +439,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateVIOSOPolicy(UDisp
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		USceneComponent::StaticClass()));
+		TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() }));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoMatrix>(
 		"Matrix",
@@ -464,7 +465,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateEasyBlendPolicy(U
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		USceneComponent::StaticClass()));
+		TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() }));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<float>>(
 		"Scale",
@@ -749,7 +750,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		USceneComponent::StaticClass());
+		TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() });
 }
 
 #undef LOCTEXT_NAMESPACE

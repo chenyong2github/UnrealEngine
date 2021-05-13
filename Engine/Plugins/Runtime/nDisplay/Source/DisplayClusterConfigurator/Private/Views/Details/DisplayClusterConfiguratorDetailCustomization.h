@@ -107,30 +107,6 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
 	/** End IDetailCustomization interface */
-
-private:
-	void ResetCameraOptions();
-
-	TSharedRef<SWidget> CreateCustomCameraWidget();
-
-	TSharedRef<SWidget> MakeCameraOptionComboWidget(TSharedPtr<FString> InItem);
-
-	void OnCameraSelected(TSharedPtr<FString> InCamera, ESelectInfo::Type SelectInfo);
-
-	FText GetSelectedCameraText() const;
-
-private:
-	TArray< TSharedPtr< FString > >	CameraOptions;
-
-	TSharedPtr<IPropertyHandle> CameraHandle;
-
-	TSharedPtr<FString>	NoneOption;
-
-	TWeakObjectPtr<UDisplayClusterConfigurationViewport> ConfigurationViewportPtr;
-
-	TWeakObjectPtr<UDisplayClusterConfigurationData> ConfigurationDataPtr;
-
-	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> CameraComboBox;
 };
 
 /**

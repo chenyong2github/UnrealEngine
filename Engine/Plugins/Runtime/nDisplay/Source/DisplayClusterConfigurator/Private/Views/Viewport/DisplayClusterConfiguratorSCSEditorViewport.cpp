@@ -7,11 +7,14 @@
 #include "DisplayClusterConfiguratorUtils.h"
 #include "DisplayClusterProjectionStrings.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
-#include "Components/DisplayClusterScreenComponent.h"
-#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
 #include "Views/DragDrop/DisplayClusterConfiguratorValidatedDragDropOp.h"
 #include "Views/DragDrop/DisplayClusterConfiguratorViewportDragDropOp.h"
 #include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorProjectionPolicyViewModel.h"
+
+#include "Components/DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
+
+#include "Camera/CameraComponent.h"
 
 #include "EngineUtils.h"
 #include "BlueprintEditor.h"
@@ -696,9 +699,12 @@ FReply SDisplayClusterConfiguratorSCSEditorViewport::OnDragOver(const FGeometry&
 					}
 					else
 					{
-						if (UDisplayClusterICVFX_CineCameraComponent* CineCameraComponent = Cast<UDisplayClusterICVFX_CineCameraComponent>(MeshComponent->GetAttachParent()))
+						USceneComponent* AttachParent = MeshComponent->GetAttachParent();
+						const bool bIsCamera = AttachParent && (AttachParent->IsA<UCameraComponent>() || AttachParent->IsA<UDisplayClusterICVFX_RefCineCameraComponent>());
+						
+						if (bIsCamera)
 						{
-							ViewportDragDropOp->SetDropAsValid(FText::Format(LOCTEXT("ViewportDragDropOp_CameraMessage", "Project to camera {0}"), FText::FromName(CineCameraComponent->GetFName())));
+							ViewportDragDropOp->SetDropAsValid(FText::Format(LOCTEXT("ViewportDragDropOp_CameraMessage", "Project to camera {0}"), FText::FromName(AttachParent->GetFName())));
 						}
 						else if (!MeshComponent->IsVisualizationComponent())
 						{
@@ -750,11 +756,14 @@ FReply SDisplayClusterConfiguratorSCSEditorViewport::OnDrop(const FGeometry& MyG
 					}
 					else
 					{
-						if (UDisplayClusterICVFX_CineCameraComponent* CineCameraComponent = Cast<UDisplayClusterICVFX_CineCameraComponent>(MeshComponent->GetAttachParent()))
+						USceneComponent* AttachParent = MeshComponent->GetAttachParent();
+						const bool bIsCamera = AttachParent && (AttachParent->IsA<UCameraComponent>() || AttachParent->IsA<UDisplayClusterICVFX_RefCineCameraComponent>());
+						
+						if (bIsCamera)
 						{
 							PolicyType = DisplayClusterProjectionStrings::projection::Camera;
 							ParameterKey = DisplayClusterProjectionStrings::cfg::camera::Component;
-							ComponentName = CineCameraComponent->GetName();
+							ComponentName = AttachParent->GetName();
 						}
 						else if (!MeshComponent->IsVisualizationComponent())
 						{

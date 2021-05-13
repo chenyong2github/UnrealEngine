@@ -13,7 +13,7 @@
 /**
  * ICVFX camera with configuration
  */
-UCLASS(ClassGroup = (DisplayCluster), meta = (DisplayName="NDisplay ICVFX_CineCamera"))
+UCLASS(ClassGroup = (DisplayCluster), meta = (DisplayName="ICVFX_CineCamera"))
 class DISPLAYCLUSTER_API UDisplayClusterICVFX_CineCameraComponent 
 	: public UCineCameraComponent
 {
