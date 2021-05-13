@@ -33,6 +33,9 @@ namespace Chaos
 	FReal Chaos_Collision_Manifold_MaxMargin = -1.0f;
 	FAutoConsoleVariableRef CVarChaosCollisioConvexManifoldMaxMargin(TEXT("p.Chaos.Collision.Manifold.MaxMargin"), Chaos_Collision_Manifold_MaxMargin, TEXT(""));
 
+	FReal Chaos_Collision_Manifold_MinFaceSearchDistance = 1.0f;
+	FAutoConsoleVariableRef CVarChaosCollisioConvexManifoldMinFaceSearchDistance(TEXT("p.Chaos.Collision.Manifold.MinFaceSearchDistance"), Chaos_Collision_Manifold_MinFaceSearchDistance, TEXT(""));
+
 	namespace Collisions
 	{
 		// Forward delarations we need from CollisionRestitution.cpp
@@ -570,8 +573,13 @@ namespace Chaos
 			const ConvexImplicitType& Convex,
 			const FVec3 X,
 			const FVec3 N,
-			const FReal MaxDistance)
+			const FReal InMaxDistance)
 		{
+			// Handle InMaxDistance = 0. We expect that the X is actually on the surface in this case, so the search distance just needs to be some reasonable tolerance.
+			// @todo(chaos): this should probable be dependent on the size of the objects...
+			const FReal MinFaceSearchDistance = Chaos_Collision_Manifold_MinFaceSearchDistance;
+			const FReal MaxDistance = FMath::Max(InMaxDistance, MinFaceSearchDistance);
+
 			int32 BestPlaneIndex = INDEX_NONE;
 			FReal BestPlaneDot = 1.0f;
 
