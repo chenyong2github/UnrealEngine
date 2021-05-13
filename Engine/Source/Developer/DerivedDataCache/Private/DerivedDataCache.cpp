@@ -18,6 +18,7 @@
 
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataBuild.h"
+#include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
@@ -727,6 +728,17 @@ public:
 		return Private::LoadBuildDefinition(Name, MoveTemp(Definition));
 	}
 
+	FBuildActionBuilder CreateAction(FStringView Name, FStringView Function) final
+	{
+		// DDC-TODO: Find the function version from the function registry on the scheduler.
+		return Private::CreateBuildAction(Name, Function, FGuid::NewGuid(), BuildSystemVersion);
+	}
+
+	FBuildAction LoadAction(FStringView Name, FCbObject&& Action) final
+	{
+		return Private::LoadBuildAction(Name, MoveTemp(Action));
+	}
+
 	FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) final
 	{
 		return Private::CreateBuildOutput(Name, Function);
@@ -741,6 +753,13 @@ public:
 	{
 		return Private::LoadBuildOutput(Name, Function, Output);
 	}
+
+	const FGuid& GetVersion() const final
+	{
+		return BuildSystemVersion;
+	}
+
+	const FGuid BuildSystemVersion{TEXT("ac0574e5-62bd-4c2e-84ec-f2efe48c0fef")};
 };
 
 } // UE::DerivedData
