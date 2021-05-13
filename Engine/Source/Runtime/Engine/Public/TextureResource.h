@@ -62,6 +62,8 @@ struct FTexture2DMipMap
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner, int32 MipIndex);
 
 #if WITH_EDITORONLY_DATA
+	void SerializeWithConditionalBulkData(FArchive& Ar, UObject* Owner, int32 MipIndex);
+
 	/** Key if stored in the derived data cache. */
 	FString DerivedDataKey;
 
@@ -74,6 +76,8 @@ struct FTexture2DMipMap
 	 */
 	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC);
 #endif // #if WITH_EDITORONLY_DATA
+private:
+	void SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipIndex, bool bBulkDataConditionalOnKey);
 };
 
 /** 

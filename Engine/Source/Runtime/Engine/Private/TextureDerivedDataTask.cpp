@@ -340,6 +340,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 
 		FOptTexturePlatformData OptData;
 
+		BuildExporter.ExportTextureBuild(Texture, BuildSettingsPerLayer[0], 0, NUM_INLINE_DERIVED_MIPS);
+
 		// Compress the texture.
 		TArray<FCompressedImage2D> CompressedMips;
 		if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
@@ -385,6 +387,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 
 			DerivedData->SetOptData(OptData);
 
+			BuildExporter.ExportTextureOutput(*DerivedData, BuildSettingsPerLayer[0]);
+			
 			// Store it in the cache.
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!
 			// Should ideally avoid this redundant work, but it only happens when we actually have 
@@ -448,6 +452,7 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	}
 	UTexture::GetPixelFormatEnum();
 	GetTextureDerivedDataKeySuffix(Texture, InSettingsPerLayer, KeySuffix);
+	BuildExporter.Init(KeySuffix);
 		
 	const bool bAllowAsyncBuild = (CacheFlags & ETextureCacheFlags::AllowAsyncBuild) != 0;
 	const bool bAllowAsyncLoading = (CacheFlags & ETextureCacheFlags::AllowAsyncLoading) != 0;
@@ -614,30 +619,22 @@ void FTextureCacheDerivedDataWorker::DoWork()
 	
 	if (!bSucceeded && bAllowAsyncBuild)
 	{
-		bool bHasTextureSourceMips = false;
 		if (TextureData.IsValid() && Texture.Source.IsBulkDataLoaded())
 		{
-			TextureData.GetSourceMips(Texture.Source, ImageWrapper);
-			bHasTextureSourceMips = true;
+			BuildExporter.ExportTextureSourceBulkData(Texture.Source);
+		}
+		else if (bAllowAsyncLoading)
+		{
+			BuildExporter.ExportTextureSourceBulkData(TextureData.AsyncSource);
 		}
 
-		bool bHasCompositeTextureSourceMips = false;
 		if (CompositeTextureData.IsValid() && Texture.CompositeTexture && Texture.CompositeTexture->Source.IsBulkDataLoaded())
 		{
-			CompositeTextureData.GetSourceMips(Texture.CompositeTexture->Source, ImageWrapper);
-			bHasCompositeTextureSourceMips = true;
+			BuildExporter.ExportCompositeTextureSourceBulkData(Texture.CompositeTexture->Source);
 		}
-
-		if (bAllowAsyncLoading && !bHasTextureSourceMips)
+		else if (bAllowAsyncLoading)
 		{
-			TextureData.GetAsyncSourceMips(ImageWrapper);
-			TextureData.AsyncSource.RemoveBulkData();
-		}
-
-		if (bAllowAsyncLoading && !bHasCompositeTextureSourceMips)
-		{
-			CompositeTextureData.GetAsyncSourceMips(ImageWrapper);
-			CompositeTextureData.AsyncSource.RemoveBulkData();
+			BuildExporter.ExportCompositeTextureSourceBulkData(CompositeTextureData.AsyncSource);
 		}
 
 		if (TextureData.Blocks.Num() && TextureData.Blocks[0].MipsPerLayer.Num() && TextureData.Blocks[0].MipsPerLayer[0].Num() && 

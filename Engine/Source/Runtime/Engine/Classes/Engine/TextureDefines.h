@@ -224,7 +224,6 @@ enum ETextureLossyCompressionAmount
 	TLCA_Highest		UMETA(DisplayName = "Highest (Worst image quality, smallest filesize)"),
 };
 
-
 UENUM()
 enum ECompositeTextureMode
 {
@@ -242,4 +241,55 @@ enum ECompositeTextureMode
 	// Note: These are serialized as as raw values in the texture DDC key, so additional entries
 	// should be added at the bottom; reordering or removing entries will require changing the GUID
 	// in the texture compressor DDC key
+};
+
+UENUM()
+enum ETextureSourceCompressionFormat
+{
+	TSCF_None	UMETA(DisplayName = "ZLib"),
+	TSCF_PNG	UMETA(DisplayName = "PNG"),
+	TSCF_JPEG	UMETA(DisplayName = "JPEG"),
+
+	TSCF_MAX
+};
+
+UENUM()
+enum ETextureSourceFormat
+{
+	TSF_Invalid,
+	TSF_G8,
+	TSF_BGRA8,
+	TSF_BGRE8,
+	TSF_RGBA16,
+	TSF_RGBA16F,
+
+	//@todo: Deprecated!
+	TSF_RGBA8,
+	//@todo: Deprecated!
+	TSF_RGBE8,
+
+	TSF_G16,
+
+	TSF_MAX
+};
+
+// This needs to be mirrored in EditorFactories.cpp.
+UENUM()
+enum TextureCompressionSettings
+{
+	TC_Default					UMETA(DisplayName = "Default (DXT1/5, BC1/3 on DX11)"),
+	TC_Normalmap				UMETA(DisplayName = "Normalmap (DXT5, BC5 on DX11)"),
+	TC_Masks					UMETA(DisplayName = "Masks (no sRGB)"),
+	TC_Grayscale				UMETA(DisplayName = "Grayscale (R8, RGB8 sRGB)"),
+	TC_Displacementmap			UMETA(DisplayName = "Displacementmap (8/16bit)"),
+	TC_VectorDisplacementmap	UMETA(DisplayName = "VectorDisplacementmap (RGBA8)"),
+	TC_HDR						UMETA(DisplayName = "HDR (RGB, no sRGB)"),
+	TC_EditorIcon				UMETA(DisplayName = "UserInterface2D (RGBA)"),
+	TC_Alpha					UMETA(DisplayName = "Alpha (no sRGB, BC4 on DX11)"),
+	TC_DistanceFieldFont		UMETA(DisplayName = "DistanceFieldFont (R8)"),
+	TC_HDR_Compressed			UMETA(DisplayName = "HDRCompressed (RGB, BC6H, DX11)"),
+	TC_BC7						UMETA(DisplayName = "BC7 (DX11, optional A)"),
+	TC_HalfFloat				UMETA(DisplayName = "Half Float (R16F)"),
+	TC_ReflectionCapture		UMETA(Hidden),
+	TC_MAX,
 };
