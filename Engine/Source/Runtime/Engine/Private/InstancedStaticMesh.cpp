@@ -2705,7 +2705,7 @@ void UInstancedStaticMeshComponent::PreAllocateInstancesMemory(int32 AddedInstan
 	PerInstanceSMCustomData.Reserve(PerInstanceSMCustomData.Num() + AddedInstanceCount * NumCustomDataFloats);
 }
 
-int32 UInstancedStaticMeshComponent::AddInstanceInternal(int32 InstanceIndex, FInstancedStaticMeshInstanceData* InNewInstanceData, const FTransform& InstanceTransform)
+int32 UInstancedStaticMeshComponent::AddInstanceInternal(int32 InstanceIndex, FInstancedStaticMeshInstanceData* InNewInstanceData, const FTransform& InstanceTransform, bool bWorldSpace)
 {
 	FInstancedStaticMeshInstanceData* NewInstanceData = InNewInstanceData;
 
@@ -2714,7 +2714,8 @@ int32 UInstancedStaticMeshComponent::AddInstanceInternal(int32 InstanceIndex, FI
 		NewInstanceData = &PerInstanceSMData.AddDefaulted_GetRef();
 	}
 
-	SetupNewInstanceData(*NewInstanceData, InstanceIndex, InstanceTransform);
+	const FTransform LocalTransform = bWorldSpace ? InstanceTransform.GetRelativeTransform(GetComponentTransform()) : InstanceTransform;
+	SetupNewInstanceData(*NewInstanceData, InstanceIndex, LocalTransform);
 
 	// Add custom data to instance
 	PerInstanceSMCustomData.AddZeroed(NumCustomDataFloats);
@@ -2740,13 +2741,15 @@ int32 UInstancedStaticMeshComponent::AddInstanceInternal(int32 InstanceIndex, FI
 	return InstanceIndex;
 }
 
-int32 UInstancedStaticMeshComponent::AddInstance(const FTransform& InstanceTransform)
+int32 UInstancedStaticMeshComponent::AddInstance(const FTransform& InstanceTransform, bool bWorldSpace)
 {
-	return AddInstanceInternal(PerInstanceSMData.Num(), nullptr, InstanceTransform);
+	return AddInstanceInternal(PerInstanceSMData.Num(), nullptr, InstanceTransform, bWorldSpace);
 }
 
-TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(int32 Count, const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices)
+TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace)
 {
+	const int32 Count = InstanceTransforms.Num();
+
 	TArray<int32> NewInstanceIndices;
 
 	if (bShouldReturnIndices)
@@ -2762,11 +2765,12 @@ TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(int32 Count, c
 	SelectedInstances.Add(false, Count);
 #endif
 
-	for (int32 i = 0; i < Count; ++i)
+	for (const FTransform& InstanceTransform : InstanceTransforms)
 	{
 		FInstancedStaticMeshInstanceData& NewInstanceData = PerInstanceSMData.AddDefaulted_GetRef();
 
-		SetupNewInstanceData(NewInstanceData, InstanceIndex, InstanceTransforms[i]);
+		const FTransform LocalTransform = bWorldSpace ? InstanceTransform.GetRelativeTransform(GetComponentTransform()) : InstanceTransform;
+		SetupNewInstanceData(NewInstanceData, InstanceIndex, LocalTransform);
 
 		if (bShouldReturnIndices)
 		{
@@ -2800,16 +2804,9 @@ TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(int32 Count, c
 	return NewInstanceIndices;
 }
 
-TArray<int32> UInstancedStaticMeshComponent::AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices)
+TArray<int32> UInstancedStaticMeshComponent::AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace)
 {
-	return AddInstancesInternal(InstanceTransforms.Num(), InstanceTransforms, bShouldReturnIndices);
-}
-
-int32 UInstancedStaticMeshComponent::AddInstanceWorldSpace(const FTransform& WorldTransform)
- {
-	// Transform from world space to local space
-	FTransform RelativeTM = WorldTransform.GetRelativeTransform(GetComponentTransform());
-	return AddInstance(RelativeTM);
+	return AddInstancesInternal(InstanceTransforms, bShouldReturnIndices, bWorldSpace);
 }
 
 // Per Instance Custom Data - Updating custom data for specific instance
@@ -2925,6 +2922,25 @@ bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, 
 bool UInstancedStaticMeshComponent::RemoveInstance(int32 InstanceIndex)
 {
 	return RemoveInstanceInternal(InstanceIndex, false);
+}
+
+bool UInstancedStaticMeshComponent::RemoveInstances(const TArray<int32>& InstancesToRemove)
+{
+	// Sort so Remove doesn't alter the indices of items still to remove
+	TArray<int32> SortedInstancesToRemove = InstancesToRemove;
+	SortedInstancesToRemove.Sort(TGreater<int32>());
+
+	if (!PerInstanceSMData.IsValidIndex(SortedInstancesToRemove[0]) || !PerInstanceSMData.IsValidIndex(SortedInstancesToRemove.Last()))
+	{
+		return false;
+	}
+
+	for (const int32 InstanceIndex : SortedInstancesToRemove)
+	{
+		RemoveInstanceInternal(InstanceIndex, false);
+	}
+
+	return true;
 }
 
 bool UInstancedStaticMeshComponent::GetInstanceTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace) const
@@ -3738,7 +3754,7 @@ void UInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChanged
 				int32 AddedAtIndex = PropertyChangedEvent.GetArrayIndex(PropertyChangedEvent.Property->GetFName().ToString());
 				check(AddedAtIndex != INDEX_NONE);
 
-				AddInstanceInternal(AddedAtIndex, &PerInstanceSMData[AddedAtIndex], PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd ? FTransform::Identity : FTransform(PerInstanceSMData[AddedAtIndex].Transform));
+				AddInstanceInternal(AddedAtIndex, &PerInstanceSMData[AddedAtIndex], PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd ? FTransform::Identity : FTransform(PerInstanceSMData[AddedAtIndex].Transform), /*bWorldSpace*/false);
 
 				// added via the property editor, so we will want to interactively work with instances
 				bHasPerInstanceHitProxies = true;

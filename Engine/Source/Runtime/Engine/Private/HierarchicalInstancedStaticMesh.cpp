@@ -2491,11 +2491,11 @@ void UHierarchicalInstancedStaticMeshComponent::PreAllocateInstancesMemory(int32
 	UnbuiltInstanceBoundsList.Reserve(UnbuiltInstanceBoundsList.Num() + AddedInstanceCount);
 }
 
-int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& InstanceTransform)
+int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& InstanceTransform, bool bWorldSpace)
 {
 	SCOPE_CYCLE_COUNTER(STAT_HISMCAddInstance);
 
-	int32 InstanceIndex = UInstancedStaticMeshComponent::AddInstance(InstanceTransform);
+	int32 InstanceIndex = UInstancedStaticMeshComponent::AddInstance(InstanceTransform, bWorldSpace);
 
 	// The tree will be fully rebuilt once the static mesh compilation is finished, no need for incremental update in that case.
 	if (InstanceIndex != INDEX_NONE && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
@@ -2514,9 +2514,9 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 			++InstanceCountToRender;
 		}
 
-		InstanceUpdateCmdBuffer.AddInstance(InstanceTransform.ToMatrixWithScale());
+		InstanceUpdateCmdBuffer.AddInstance(PerInstanceSMData[InstanceIndex].Transform);
 
-		const FBox NewInstanceBounds = GetStaticMesh()->GetBounds().GetBox().TransformBy(InstanceTransform);
+		const FBox NewInstanceBounds = GetStaticMesh()->GetBounds().GetBox().TransformBy(PerInstanceSMData[InstanceIndex].Transform);
 		UnbuiltInstanceBounds += NewInstanceBounds;
 		UnbuiltInstanceBoundsList.Add(NewInstanceBounds);
 
@@ -2529,13 +2529,11 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 	return InstanceIndex;
 }
 
-TArray<int32> UHierarchicalInstancedStaticMeshComponent::AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices)
+TArray<int32> UHierarchicalInstancedStaticMeshComponent::AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace)
 {
 	SCOPE_CYCLE_COUNTER(STAT_HISMCAddInstances);
 
-	int32 BaseIndex = PerInstanceSMData.Num();
-
-	TArray<int32> InstanceIndices = UInstancedStaticMeshComponent::AddInstances(InstanceTransforms, true);
+	TArray<int32> InstanceIndices = UInstancedStaticMeshComponent::AddInstances(InstanceTransforms, true, bWorldSpace);
 
 	// The tree will be fully rebuilt once the static mesh compilation is finished, no need for incremental update in that case.
 	if (InstanceIndices.Num() > 0 && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
@@ -2548,19 +2546,15 @@ TArray<int32> UHierarchicalInstancedStaticMeshComponent::AddInstances(const TArr
 		InstanceReorderTable.Reserve(InstanceReorderTable.Num() + Count);
 		UnbuiltInstanceBoundsList.Reserve(UnbuiltInstanceBoundsList.Num() + Count);
 
-		int32 TransformIndexOffset = BaseIndex;
-
 		const int32 InitialBufferOffset = InstanceCountToRender - InstanceReorderTable.Num();
 
 		for (const int32 InstanceIndex : InstanceIndices)
 		{
-			TransformIndexOffset = InstanceIndex - BaseIndex;
-
 			InstanceReorderTable.Add(InitialBufferOffset + InstanceIndex);
 
-			InstanceUpdateCmdBuffer.AddInstance(InstanceTransforms[TransformIndexOffset].ToMatrixWithScale());
+			InstanceUpdateCmdBuffer.AddInstance(PerInstanceSMData[InstanceIndex].Transform);
 
-			const FBox NewInstanceBounds = GetStaticMesh()->GetBounds().GetBox().TransformBy(InstanceTransforms[TransformIndexOffset]);
+			const FBox NewInstanceBounds = GetStaticMesh()->GetBounds().GetBox().TransformBy(PerInstanceSMData[InstanceIndex].Transform);
 			UnbuiltInstanceBounds += NewInstanceBounds;
 			UnbuiltInstanceBoundsList.Add(NewInstanceBounds);
 		}

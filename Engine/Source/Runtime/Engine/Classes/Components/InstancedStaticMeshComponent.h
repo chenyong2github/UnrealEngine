@@ -175,17 +175,21 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	/** Returns the render instance buffer index. */
 	FORCEINLINE int32 GetRenderIndex(int32 InInstanceIndex) const { return InstanceReorderTable.IsValidIndex(InInstanceIndex) ? InstanceReorderTable[InInstanceIndex] : InInstanceIndex; }
 
-	/** Add an instance to this component. Transform is given in local space of this component. */
+	/** Add an instance to this component. Transform is given in local space of this component unless bWorldSpace is set. */
 	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
-	virtual int32 AddInstance(const FTransform& InstanceTransform);
+	virtual int32 AddInstance(const FTransform& InstanceTransform, bool bWorldSpace = false);
 
-	/** Add multiple instances to this component. Transform is given in local space of this component. */
+	/** Add multiple instances to this component. Transform is given in local space of this component unless bWorldSpace is set. */
 	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
-	virtual TArray<int32> AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices);
+	virtual TArray<int32> AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace = false);
 
 	/** Add an instance to this component. Transform is given in world space. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	int32 AddInstanceWorldSpace(const FTransform& WorldTransform);
+	int32 AddInstanceWorldSpace(const FTransform& WorldTransform)
+	{
+		// TODO: Deprecate this shim
+		return AddInstance(WorldTransform, /*bWorldSpace*/true);
+	}
 
 	/** Update custom data for specific instance */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
@@ -265,9 +269,13 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 
 	virtual bool BatchUpdateInstancesData(int32 StartInstanceIndex, int32 NumInstances, FInstancedStaticMeshInstanceData* StartInstanceData, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
-	/** Remove the instance specified. Returns True on success. Note that this will leave the array in order, but may shrink it. */
+	/** Remove the instance specified. Returns True on success. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	virtual bool RemoveInstance(int32 InstanceIndex);
+
+	/** Remove the instances specified. Returns True on success. */
+	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
+	virtual bool RemoveInstances(const TArray<int32>& InstancesToRemove);
 
 	/** Clear all instances being rendered by this component. */
 	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
@@ -410,10 +418,10 @@ protected:
 	virtual bool SupportsPartialNavigationUpdate() const { return false; }
 
 	/** Internal version of AddInstance */
-	int32 AddInstanceInternal(int32 InstanceIndex, FInstancedStaticMeshInstanceData* InNewInstanceData, const FTransform& InstanceTransform);
+	int32 AddInstanceInternal(int32 InstanceIndex, FInstancedStaticMeshInstanceData* InNewInstanceData, const FTransform& InstanceTransform, bool bWorldSpace);
 
 	/** Internal implementation of AddInstances */
-	TArray<int32> AddInstancesInternal(int32 Count, const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices);
+	TArray<int32> AddInstancesInternal(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace);
 
 	/** Internal version of RemoveInstance */	
 	bool RemoveInstanceInternal(int32 InstanceIndex, bool InstanceAlreadyRemoved);
@@ -469,7 +477,7 @@ struct HInstancedStaticMeshInstance : public HHitProxy
 
 	virtual EMouseCursor::Type GetMouseCursor() override
 	{
-		return EMouseCursor::CardinalCross;
+		return EMouseCursor::Crosshairs;
 	}
 };
 
