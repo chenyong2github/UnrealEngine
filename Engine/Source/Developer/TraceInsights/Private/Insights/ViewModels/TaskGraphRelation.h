@@ -12,10 +12,10 @@ namespace Insights
 
 class FTaskGraphRelation : public ITimingEventRelation
 {
+	INSIGHTS_DECLARE_RTTI(FTaskGraphRelation, ITimingEventRelation)
+
 public:
 	FTaskGraphRelation(double InSourceTime, int32 InSourceThreadId, double InTargetTime, int32 InTargetThreadId, ETaskEventType InType);
-
-	virtual bool IsSolved() override { return bIsSolved; }
 
 	virtual void Draw(const FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const ITimingViewDrawHelper& Helper, const ITimingEventRelation::EDrawFilter Filter) override;
 
@@ -35,7 +35,6 @@ public:
 	void SetTargetDepth(int32 InDepth) { TargetDepth = InDepth; }
 	int32 GetTargetDepth() { return TargetDepth; }
 
-	void SetIsSolved(bool InValue) { bIsSolved = InValue; }
 	ETaskEventType GetType() { return Type; }
 
 private:
@@ -46,8 +45,6 @@ private:
 	int32 TargetThreadId;
 	int32 TargetDepth = 0;
 	ETaskEventType Type;
-
-	bool bIsSolved = false;
 
 	TWeakPtr<const FBaseTimingTrack> SourceTrack;
 	TWeakPtr<const FBaseTimingTrack> TargetTrack;

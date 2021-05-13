@@ -16,6 +16,8 @@ namespace TraceServices
 	class ITasksProvider;
 }
 
+class FThreadTrackEvent;
+
 namespace Insights
 {
 
@@ -90,11 +92,16 @@ public:
 
 	void OnSessionChanged();
 
-	void GetTaskRelations(double Time, uint32 ThreadId, FAddRelationCallback Callback);
-	void GetTaskRelations(uint32 TaskId, FAddRelationCallback Callback);
+	void ShowTaskRelations(const FThreadTrackEvent* InSelectedEvent, uint32 ThreadId);
+	void ShowTaskRelations(uint32 TaskId);
+	void AddRelation(const FThreadTrackEvent* InSelectedEvent, double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, ETaskEventType Type);
+	void ClearTaskRelations();
 	FLinearColor GetColorForTaskEvent(ETaskEventType InEvent);
 
 	TSharedPtr<Insights::FTaskTimingSharedState> GetTaskTimingSharedState() { return TaskTimingSharedState;	}
+
+	bool GetShowRelations() const { return bShowRelations; }
+	void SetShowRelations(bool bInValue);
 
 private:
 	/** Updates this manager, done through FCoreTicker. */
@@ -102,8 +109,8 @@ private:
 
 	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
 
-	void GetTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, FAddRelationCallback Callback);
-	void GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, FAddRelationCallback Callback);
+	void ShowTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
+	void GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
 
 	void InitializeColorCode();
 
@@ -128,6 +135,7 @@ private:
 
 	TSharedPtr<Insights::STaskTableTreeView> TaskTableTreeView;
 	FLinearColor ColorCode[static_cast<uint32>(ETaskEventType::NumTaskEventTypes)];
+	bool bShowRelations = true;
 };
 
 } // namespace Insights

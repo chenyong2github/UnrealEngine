@@ -345,6 +345,7 @@ public:
 	const TSharedPtr<FBaseTimingTrack> GetTrackAt(float InPosX, float InPosY) const;
 
 	const TArray<TUniquePtr<ITimingEventRelation>>& GetCurrentRelations() const { return CurrentRelations; }
+	TArray<TUniquePtr<ITimingEventRelation>>& EditCurrentRelations() { return CurrentRelations; }
 	void AddRelation(TUniquePtr<ITimingEventRelation>& Relation) { CurrentRelations.Add(MoveTemp(Relation)); }
 	void ClearRelations();
 
@@ -435,8 +436,6 @@ protected:
 	void ContextMenu_ShowTaskDependecies_Execute();
 	bool ContextMenu_ShowTaskDependecies_CanExecute();
 	bool ContextMenu_ShowTaskDependecies_IsChecked();
-
-	void UpdateEventRelations();
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
@@ -631,5 +630,4 @@ protected:
 	TSharedPtr<FUICommandList> CommandList;
 
 	TArray<TUniquePtr<ITimingEventRelation>> CurrentRelations;
-	bool bShowEventRelations = true;
 };

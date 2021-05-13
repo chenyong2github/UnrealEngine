@@ -8,6 +8,7 @@
 
 namespace Insights
 {
+INSIGHTS_IMPLEMENT_RTTI(FTaskGraphRelation)
 
 FTaskGraphRelation::FTaskGraphRelation(double InSourceTime, int32 InSourceThreadId, double InTargetTime, int32 InTargetThreadId, ETaskEventType InType)
 {
