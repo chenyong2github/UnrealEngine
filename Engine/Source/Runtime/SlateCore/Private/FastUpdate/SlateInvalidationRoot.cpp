@@ -1148,7 +1148,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 
 	UE_SLATE_LOG_ERROR_IF_FALSE(WidgetList.VerifySortOrder()
 		, GSlateInvalidationRootVerifyHittestGrid
-		, TEXT("The array's sort order for InvalidationRoot '%d' is not respected.")
+		, TEXT("The array's sort order for InvalidationRoot '%s' is not respected.")
 		, *FReflectionMetaData::GetWidgetPath(InvalidationRootWidget));
 
 	TArray<FHittestGrid::FWidgetSortData> WeakHittestGridSortDatas = HittestGrid->GetAllWidgetSortDatas();
@@ -1237,13 +1237,13 @@ void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)
 						// Confirm that we have the correct parent
 						UE_SLATE_LOG_ERROR_IF_FALSE(WidgetList.IsValidIndex(InvalidationWidget.ParentIndex)
 							, GSlateInvalidationRootVerifyWidgetVisibility
-							, TEXT("The widget's parent index '%s' is invalid")
+							, TEXT("Widget '%s' Parent index is invalid.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 
 						const FSlateInvalidationWidgetList::InvalidationWidgetType& ParentInvalidationWidget = WidgetList[InvalidationWidget.ParentIndex];
 						UE_SLATE_LOG_ERROR_IF_FALSE(ParentWidget.Get() == ParentInvalidationWidget.GetWidget()
 							, GSlateInvalidationRootVerifyWidgetVisibility
-							, TEXT("The widget's parent '%s' is not '%s'")
+							, TEXT("Widget '%s' Parent is not '%s'.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
 							, *FReflectionMetaData::GetWidgetDebugInfo(ParentWidget.Get()));
 
@@ -1254,7 +1254,7 @@ void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)
 					{
 						UE_SLATE_LOG_ERROR_IF_FALSE(ParentWidget == nullptr || ParentWidget->Advanced_IsInvalidationRoot()
 							, GSlateInvalidationRootVerifyWidgetVisibility
-							, TEXT("The widget's parent is valid and is not an invalidation root.")
+							, TEXT("Widget '%s' Parent is valid and is not an invalidation root.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					}
 

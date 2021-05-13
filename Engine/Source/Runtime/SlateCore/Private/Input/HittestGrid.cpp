@@ -994,7 +994,7 @@ void FHittestGrid::LogGrid() const
 	{
 		const FWidgetData& CurWidgetData = *It;
 		const TSharedPtr<SWidget> CachedWidget = CurWidgetData.GetWidget();
-		UE_LOG(LogHittestDebug, Warning, TEXT("  [%d][%d][%d] => %s @ %s"),
+		UE_LOG(LogHittestDebug, Warning, TEXT("  [%d][%lld] => %s @ %s"),
 			It.GetIndex(),
 			CurWidgetData.PrimarySort,
 			CachedWidget.IsValid() ? *CachedWidget->ToString() : TEXT("Invalid Widget"),
