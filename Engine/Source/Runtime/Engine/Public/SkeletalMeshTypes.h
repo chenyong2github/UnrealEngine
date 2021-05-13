@@ -32,17 +32,18 @@ struct ESkeletalMeshVertexFlags
 	};
 };
 
-/** Name of vertex color channels */
+/** Name of vertex color channels, used by recompute tangents */
 enum class ESkinVertexColorChannel : uint8
 {
-	// 
+	// Use red channel as recompute tangents blending mask
 	Red = 0,
-	// 
+	// Use green channel as recompute tangents blending mask
 	Green = 1,
-	// 
+	// Use blue channel as recompute tangents blending mask
 	Blue = 2,
-	//
-	Alpha = 3
+	// Alpha channel not used by recompute tangents
+	Alpha = 3,
+	None = Alpha
 };
 
 

@@ -117,15 +117,6 @@ FAutoConsoleVariableRef CVarGPUSkinCacheAllowDupedVertesForRecomputeTangents(
 	ECVF_RenderThreadSafe
 );
 
-static int32 GBlendUsingVertexColorForRecomputeTangents = 0;
-FAutoConsoleVariableRef CVarGPUSkinCacheBlendUsingVertexColorForRecomputeTangents(
-	TEXT("r.SkinCache.BlendUsingVertexColorForRecomputeTangents"),
-	GBlendUsingVertexColorForRecomputeTangents,
-	TEXT("0: off (default)\n")
-	TEXT("1: Linear interpolation between source and recompute tangents.\n"),
-	ECVF_RenderThreadSafe
-);
-
 int32 GRecomputeTangentsParallelDispatch = 0;
 FAutoConsoleVariableRef CVarRecomputeTangentsParallelDispatch(
 	TEXT("r.SkinCache.RecomputeTangentsParallelDispatch"),
@@ -345,16 +336,8 @@ public:
 
 		FGPUSkinCache::FSkinCacheRWBuffer* GetActiveTangentRWBuffer()
 		{
-			bool bUseIntermediateTangentBuffer = IndexBuffer && GBlendUsingVertexColorForRecomputeTangents > 0;
-
-			if (bUseIntermediateTangentBuffer)
-			{
-				return IntermediateTangentBuffer;
-			}
-			else
-			{
-				return TangentBuffer;
-			}
+			// This is the buffer containing tangent results from the skinning CS pass
+			return (IndexBuffer && IntermediateTangentBuffer) ? IntermediateTangentBuffer : TangentBuffer;
 		}
 
 		inline FGPUSkinCache::FSkinCacheRWBuffer* GetIntermediateAccumulatedTangentBuffer()
@@ -538,7 +521,6 @@ protected:
 	FRHIShaderResourceView* MorphBuffer;
 	FShaderResourceViewRHIRef ClothBuffer;
 	int32 LOD;
-
 	bool bMultipleClothSkinInfluences;
 
 	friend class FGPUSkinCache;
@@ -965,7 +947,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, NumTriangles, DispatchData.NumTriangles);
 
 		SetSRVParameter(RHICmdList, ShaderRHI, GPUPositionCacheBuffer, DispatchData.GetPositionRWBuffer()->Buffer.SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, GPUTangentCacheBuffer, GBlendUsingVertexColorForRecomputeTangents > 0 ? DispatchData.IntermediateTangentBuffer->Buffer.SRV : DispatchData.GetTangentRWBuffer()->Buffer.SRV);
+		SetSRVParameter(RHICmdList, ShaderRHI, GPUTangentCacheBuffer, DispatchData.GetActiveTangentRWBuffer()->Buffer.SRV);
 		SetSRVParameter(RHICmdList, ShaderRHI, UVsInputBuffer, DispatchData.UVsBufferSRV);
 
 		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheStart, DispatchData.OutputStreamStart);
@@ -1251,7 +1233,7 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 		TShaderMapRef<FRecomputeTangentsPerVertexPassCS<0>> ComputeShader0(GlobalShaderMap);
 		TShaderMapRef<FRecomputeTangentsPerVertexPassCS<1>> ComputeShader1(GlobalShaderMap);
 		TShaderRef<FBaseRecomputeTangentsPerVertexShader> ComputeShader;
-		if (GBlendUsingVertexColorForRecomputeTangents > 0)
+		if (DispatchData.Section->RecomputeTangentsVertexMaskChannel < ESkinVertexColorChannel::None)
 			ComputeShader = ComputeShader1;
 		else
 			ComputeShader = ComputeShader0;
@@ -1276,10 +1258,10 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 	}
 }
 
-FGPUSkinCache::FRWBuffersAllocation* FGPUSkinCache::TryAllocBuffer(uint32 NumVertices, bool WithTangnents, uint32 NumTriangles, FRHICommandListImmediate& RHICmdList)
+FGPUSkinCache::FRWBuffersAllocation* FGPUSkinCache::TryAllocBuffer(uint32 NumVertices, bool WithTangnents, bool UseIntermediateTangents, uint32 NumTriangles, FRHICommandListImmediate& RHICmdList)
 {
 	uint64 MaxSizeInBytes = (uint64)(GSkinCacheSceneMemoryLimitInMB * 1024.0f * 1024.0f);
-	uint64 RequiredMemInBytes = FRWBuffersAllocation::CalculateRequiredMemory(NumVertices, WithTangnents, NumTriangles);
+	uint64 RequiredMemInBytes = FRWBuffersAllocation::CalculateRequiredMemory(NumVertices, WithTangnents, UseIntermediateTangents, NumTriangles);
 	if (bRequiresMemoryLimit && UsedMemoryInBytes + RequiredMemInBytes >= MaxSizeInBytes)
 	{
 		ExtraRequiredMemory += RequiredMemInBytes;
@@ -1288,7 +1270,7 @@ FGPUSkinCache::FRWBuffersAllocation* FGPUSkinCache::TryAllocBuffer(uint32 NumVer
 		return nullptr;
 	}
 
-	FRWBuffersAllocation* NewAllocation = new FRWBuffersAllocation(NumVertices, WithTangnents, NumTriangles, RHICmdList);
+	FRWBuffersAllocation* NewAllocation = new FRWBuffersAllocation(NumVertices, WithTangnents, UseIntermediateTangents, NumTriangles, RHICmdList);
 	Allocations.Add(NewAllocation);
 
 	UsedMemoryInBytes += RequiredMemInBytes;
@@ -1531,13 +1513,11 @@ void FGPUSkinCache::ProcessEntry(
 	{
 		bool WithTangents = RecomputeTangentsMode > 0;
 		int32 TotalNumVertices = VertexFactory->GetNumVertices();
-
-		// IntermediateAccumulatedTangents buffer is needed if mesh has at least one section needing recomputing tangents.
-		// TotalNumTriangles > 0 signals creation of IntermediateAccumulatedTangents buffer.
-		uint32 TotalNumTriangles = 0;
-		if (GRecomputeTangentsParallelDispatch && RecomputeTangentsMode > 0)
+		
+		bool bShouldRecomputeTangent = false;
+		if (RecomputeTangentsMode > 0)
 		{
-			bool bShouldRecomputeTangent = (RecomputeTangentsMode == 1);
+			bShouldRecomputeTangent = (RecomputeTangentsMode == 1);
 			if (!bShouldRecomputeTangent)
 			{
 				for (const FSkelMeshRenderSection& RenderSection : LodData.RenderSections)
@@ -1549,18 +1529,32 @@ void FGPUSkinCache::ProcessEntry(
 					}
 				}
 			}
-			if (bShouldRecomputeTangent)
+		}
+
+		// IntermediateTangents buffer is needed if mesh has at least one section using vertex color as recompute tangents blending mask
+		bool bEntryUseIntermediateTangents = false;
+		if (bShouldRecomputeTangent)
+		{
+			for (const FSkelMeshRenderSection& RenderSection : LodData.RenderSections)
 			{
-				TotalNumTriangles = LodData.GetTotalFaces();
+				if (RenderSection.RecomputeTangentsVertexMaskChannel < ESkinVertexColorChannel::None)
+				{
+					bEntryUseIntermediateTangents = true;
+					break;
+				}
 			}
 		}
 
-		FRWBuffersAllocation* NewPositionAllocation = TryAllocBuffer(TotalNumVertices, WithTangents, TotalNumTriangles, RHICmdList);
+		// IntermediateAccumulatedTangents buffer is needed if mesh has at least one section needing recomputing tangents.
+		// TotalNumTriangles > 0 signals creation of IntermediateAccumulatedTangents buffer.
+		const uint32 TotalNumTriangles = (GRecomputeTangentsParallelDispatch && bShouldRecomputeTangent) ? LodData.GetTotalFaces() : 0;
+
+		FRWBuffersAllocation* NewPositionAllocation = TryAllocBuffer(TotalNumVertices, WithTangents, bEntryUseIntermediateTangents, TotalNumTriangles, RHICmdList);
 		if (!NewPositionAllocation)
 		{
 			if (GSkinCachePrintMemorySummary > 0)
 			{
-				uint64 RequiredMemInBytes = FRWBuffersAllocation::CalculateRequiredMemory(TotalNumVertices, WithTangents, TotalNumTriangles);
+				uint64 RequiredMemInBytes = FRWBuffersAllocation::CalculateRequiredMemory(TotalNumVertices, WithTangents, bEntryUseIntermediateTangents, TotalNumTriangles);
 				UE_LOG(LogSkinCache, Warning, TEXT("FGPUSkinCache::ProcessEntry failed to allocate %.3fMB for mesh %s LOD%d, extra required memory increased to %.3fMB"),
 					RequiredMemInBytes / MBSize, *GetSkeletalMeshObjectName(Skin), LODIndex, ExtraRequiredMemory / MBSize);
 			}
@@ -2193,12 +2187,6 @@ void FGPUSkinCache::GetRayTracingSegmentVertexBuffers(const FGPUSkinCacheEntry& 
 bool FGPUSkinCache::IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section)
 {
 	return SkinCacheEntry->IsSectionValid(Section);
-}
-
-bool FGPUSkinCache::UseIntermediateTangents()
-{
-	int32 RecomputeTangentsMode = GForceRecomputeTangents > 0 ? 1 : GSkinCacheRecomputeTangents;
-	return (RecomputeTangentsMode > 0) && (GBlendUsingVertexColorForRecomputeTangents > 0);
 }
 
 FGPUSkinBatchElementUserData* FGPUSkinCache::InternalGetFactoryUserData(FGPUSkinCacheEntry* Entry, int32 Section)

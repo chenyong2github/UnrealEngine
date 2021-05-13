@@ -77,7 +77,7 @@ struct FSkelMeshSection
 	/** This section will recompute tangent in runtime */
 	bool bRecomputeTangent;
 
-	/** Vertex color channel to mask recompute tangents. R=0,G=1 (default),B=2 */
+	/** Vertex color channel to mask recompute tangents. R=0,G=1,B=2,A=None=3 */
 	ESkinVertexColorChannel RecomputeTangentsVertexMaskChannel;
 
 	/** This section will cast shadow */
@@ -155,7 +155,7 @@ struct FSkelMeshSection
 		, NumTriangles(0)
 		, bSelected(false)
 		, bRecomputeTangent(false)
-		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::Green)
+		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::None)
 		, bCastShadow(true)
 		, bLegacyClothingSection_DEPRECATED(false)
 		, CorrespondClothSectionIndex_DEPRECATED(-1)
@@ -264,7 +264,7 @@ struct FSkelMeshSourceSectionUserData
 
 	FSkelMeshSourceSectionUserData()
 		: bRecomputeTangent(false)
-		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::Green)
+		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::None)
 		, bCastShadow(true)
 		, CorrespondClothAssetIndex(INDEX_NONE)
 		, bDisabled(false)

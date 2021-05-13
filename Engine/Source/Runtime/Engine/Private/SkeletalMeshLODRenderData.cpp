@@ -95,8 +95,8 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 	}
 	else
 	{
-		// Our default is to use the green vertex color channel 
-		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::Green;
+		// Our default is not to use vertex color as mask
+		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::None;
 	}
 	Ar << S.bCastShadow;
 	Ar << S.BaseVertexIndex;
