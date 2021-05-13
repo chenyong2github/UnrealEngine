@@ -179,10 +179,13 @@
 	#ifndef THIRD_PARTY_INCLUDES_START
 		#define THIRD_PARTY_INCLUDES_START \
 			__pragma(warning(push)) \
+			__pragma(warning(disable: 4125))  /* decimal digit terminates octal escape sequence. */ \
 			__pragma(warning(disable: 4510))  /* '<class>': default constructor could not be generated. */ \
+			__pragma(warning(disable: 4582))  /* '<type>': constructor is not implicitly called. */ \
+			__pragma(warning(disable: 4583))  /* '<type>': destructor is not implicitly called. */ \
 			__pragma(warning(disable: 4610))  /* object '<class>' can never be instantiated - user-defined constructor required. */ \
 			__pragma(warning(disable: 4800))  /* Implicit conversion from '<type>' to bool. Possible information loss. */ \
-			__pragma(warning(disable: 4946))  /* reinterpret_cast used between related classes: '<class1>' and '<class1>' */ \
+			__pragma(warning(disable: 4946))  /* reinterpret_cast used between related classes: '<class1>' and '<class2>' */ \
 			__pragma(warning(disable: 4996))  /* '<obj>' was declared deprecated. */ \
 			__pragma(warning(disable: 6011))  /* Dereferencing NULL pointer '<ptr>'. */ \
 			__pragma(warning(disable: 6101))  /* Returning uninitialized memory '<expr>'.  A successful path through the function does not set the named _Out_ parameter. */ \
