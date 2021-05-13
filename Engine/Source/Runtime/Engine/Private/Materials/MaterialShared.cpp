@@ -1537,7 +1537,7 @@ bool FMaterialResource::IsTranslucencyWritingCustomDepth() const
 
 bool FMaterialResource::IsTranslucencyWritingVelocity() const
 {
-	return Material->IsTranslucencyWritingVelocity();
+	return MaterialInstance ? MaterialInstance->IsTranslucencyWritingVelocity() : Material->IsTranslucencyWritingVelocity();
 }
 
 bool FMaterialResource::IsMasked() const 
@@ -4146,9 +4146,11 @@ FMaterialInstanceBasePropertyOverrides::FMaterialInstanceBasePropertyOverrides()
 	,bOverride_DitheredLODTransition(false)
 	,bOverride_CastDynamicShadowAsMasked(false)
 	,bOverride_TwoSided(false)
+	,bOverride_OutputTranslucentVelocity(false)
 	,TwoSided(0)
 	,DitheredLODTransition(0)
 	,bCastDynamicShadowAsMasked(false)
+	,bOutputTranslucentVelocity(false)
 	,BlendMode(BLEND_Opaque)
 	,ShadingModel(MSM_DefaultLit)
 	, OpacityMaskClipValue(.333333f)
@@ -4159,15 +4161,17 @@ FMaterialInstanceBasePropertyOverrides::FMaterialInstanceBasePropertyOverrides()
 bool FMaterialInstanceBasePropertyOverrides::operator==(const FMaterialInstanceBasePropertyOverrides& Other)const
 {
 	return	bOverride_OpacityMaskClipValue == Other.bOverride_OpacityMaskClipValue &&
-			bOverride_BlendMode == Other.bOverride_BlendMode &&
-			bOverride_ShadingModel == Other.bOverride_ShadingModel &&
-			bOverride_TwoSided == Other.bOverride_TwoSided &&
-			bOverride_DitheredLODTransition == Other.bOverride_DitheredLODTransition &&
-			OpacityMaskClipValue == Other.OpacityMaskClipValue &&
-			BlendMode == Other.BlendMode &&
-			ShadingModel == Other.ShadingModel &&
-			TwoSided == Other.TwoSided &&
-			DitheredLODTransition == Other.DitheredLODTransition;
+		bOverride_BlendMode == Other.bOverride_BlendMode &&
+		bOverride_ShadingModel == Other.bOverride_ShadingModel &&
+		bOverride_TwoSided == Other.bOverride_TwoSided &&
+		bOverride_DitheredLODTransition == Other.bOverride_DitheredLODTransition &&
+		bOverride_OutputTranslucentVelocity == Other.bOverride_OutputTranslucentVelocity &&
+		OpacityMaskClipValue == Other.OpacityMaskClipValue &&
+		BlendMode == Other.BlendMode &&
+		ShadingModel == Other.ShadingModel &&
+		TwoSided == Other.TwoSided &&
+		DitheredLODTransition == Other.DitheredLODTransition &&
+		bCastDynamicShadowAsMasked == Other.bCastDynamicShadowAsMasked;
 }
 
 bool FMaterialInstanceBasePropertyOverrides::operator!=(const FMaterialInstanceBasePropertyOverrides& Other)const

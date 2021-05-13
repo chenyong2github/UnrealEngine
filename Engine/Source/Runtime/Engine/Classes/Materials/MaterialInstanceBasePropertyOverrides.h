@@ -37,6 +37,10 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 	UPROPERTY(EditAnywhere, Category = Material)
 	uint8 bOverride_TwoSided : 1;
 
+	/** Enables override of the output velocity property. */
+	UPROPERTY(EditAnywhere, Category = Material)
+	uint8 bOverride_OutputTranslucentVelocity : 1;
+
 	/** Indicates that the material should be rendered without backface culling and the normal should be flipped for backfaces. */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_TwoSided"))
 	uint8 TwoSided : 1;
@@ -48,6 +52,10 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 	/** Whether the material should cast shadows as masked even though it has a translucent blend mode. */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_CastShadowAsMasked", NoSpinbox = true))
 	uint8 bCastDynamicShadowAsMasked:1;
+
+	/** Whether the material should output velocity even though it has a translucent blend mode. */
+	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_OutputTranslucentVelocity"))
+	uint8 bOutputTranslucentVelocity : 1;
 
 	/** The blend mode */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_BlendMode"))
