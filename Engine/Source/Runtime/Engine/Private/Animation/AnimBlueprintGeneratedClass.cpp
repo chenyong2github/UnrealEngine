@@ -681,7 +681,7 @@ void UAnimBlueprintGeneratedClass::InitializeAnimNodeData(UObject* DefaultObject
 		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 		{
 			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
-			Node->SetNodeData(GetNodeData()[AnimNodeIndex]);
+			Node->SetNodeData(AnimNodeData[AnimNodeIndex]);
 		}
 	}
 }
@@ -700,7 +700,13 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 		{
 			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
-			Node->SetNodeData(GetNodeData()[AnimNodeIndex]);
+
+			// This function is called on child->parent hierarchies in postload. We dont want to overwrite child data
+			// with parent data so skip if the node data has already been set up by a previous call.
+			if(Node->NodeData == nullptr)
+			{
+				Node->SetNodeData(AnimNodeData[AnimNodeIndex]);
+			}
 
 			if(Node->NeedsDynamicReset())
 			{
