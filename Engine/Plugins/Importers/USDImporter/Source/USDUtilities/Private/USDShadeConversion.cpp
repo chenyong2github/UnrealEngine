@@ -186,7 +186,7 @@ namespace UE
 			}
 
 			/** If ResolvedTexturePath points at a texture inside an usdz file, this will use USD to pull the asset from the file, and TextureFactory to import it directly from the binary buffer */
-			UTexture* ReadTextureFromUsdzArchiveEditor(const FString& ResolvedTexturePath, const FString& TextureExtension, UTextureFactory* TextureFactory )
+			UTexture* ReadTextureFromUsdzArchiveEditor(const FString& ResolvedTexturePath, const FString& TextureExtension, UTextureFactory* TextureFactory, UObject* Outer, EObjectFlags ObjectFlags )
 			{
 #if WITH_EDITOR
 				uint64 BufferSize = 0;
@@ -202,9 +202,9 @@ namespace UE
 
 				return Cast<UTexture>(TextureFactory->FactoryCreateBinary(
 					UTexture::StaticClass(),
-					GetTransientPackage(),
+					Outer,
 					NAME_None,
-					RF_Transient,
+					ObjectFlags,
 					nullptr,
 					*TextureExtension,
 					BufferStart,
@@ -947,28 +947,26 @@ namespace UE
 					const FString ResolvedTexturePath = UsdUtils::GetResolvedTexturePath( TextureAssetPathAttr );
 					if ( !ResolvedTexturePath.IsEmpty() )
 					{
-						// Try checking if the texture is inside an USDZ archive first, or else TextureFactory throws an error
+						EObjectFlags ObjectFlags = RF_Transactional;
+						if ( !Outer )
+						{
+							Outer = GetTransientPackage();
+						}
+
+						if ( Outer == GetTransientPackage() )
+						{
+							ObjectFlags = ObjectFlags | RF_Transient;
+						}
+
 						FString TextureExtension;
 						if ( IsInsideUsdzArchive( ResolvedTexturePath, TextureExtension ) )
 						{
 							// Always prefer using the TextureFactory if we can, as it may provide compression, which the runtime version never will
-							Texture = ReadTextureFromUsdzArchiveEditor( ResolvedTexturePath, TextureExtension, TextureFactory );
+							Texture = ReadTextureFromUsdzArchiveEditor( ResolvedTexturePath, TextureExtension, TextureFactory, Outer, ObjectFlags );
 						}
-
 						// Not inside an USDZ archive, just a regular texture
-						if ( !Texture )
+						else
 						{
-							EObjectFlags ObjectFlags = RF_Transactional;
-							if ( !Outer )
-							{
-								Outer = GetTransientPackage();
-							}
-
-							if ( Outer == GetTransientPackage() )
-							{
-								ObjectFlags = ObjectFlags | RF_Transient;
-							}
-
 							Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), Outer, NAME_None, ObjectFlags, ResolvedTexturePath, TEXT( "" ), bOutCancelled ) );
 						}
 
