@@ -1210,7 +1210,7 @@ void TOpenGLTexture<RHIResourceType>::RestoreEvictedGLResource(bool bAttemptToRe
 	const bool bSRGB = (this->GetFlags() & TexCreate_SRGB) != 0;
 	checkf(EvictionParamsPtr->MipImageData.Num() == this->GetNumMips(), TEXT("EvictionParamsPtr->MipImageData.Num() =%d, this->GetNumMips() = %d"), EvictionParamsPtr->MipImageData.Num(), this->GetNumMips());
 
-	CachedBindPixelUnpackBuffer(0);
+	CachedBindPixelUnpackBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
 	for (int i = EvictionParamsPtr->MipImageData.Num() - 1; i >= 0; i--)
 	{
