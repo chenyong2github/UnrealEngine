@@ -535,12 +535,12 @@ public:
 		}
 	}
 
-	static const FDisplayClusterConfigurationICVFX_ChromakeySettings& GetCameraChromakeySettings(const UDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings, const UDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
+	static const FDisplayClusterConfigurationICVFX_ChromakeySettings& GetCameraChromakeySettings(const FDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings, const UDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
 	{
 		return (InCameraSettings.CustomChromakey.bEnable) ? InCameraSettings.CustomChromakey.Chromakey : InStageSettings.Chromakey;
 	}
 
-	static void UpdateCameraViewportSetting(FDisplayClusterViewport& DstViewport, const UDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings, const UDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
+	static void UpdateCameraViewportSetting(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings, const UDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
 	{
 		check(InCameraSettings.bEnable);
 

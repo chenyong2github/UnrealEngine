@@ -19,7 +19,7 @@ struct FDisplayClusterConfigurationPostRender_GenerateMips;
 struct FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings;
 struct FDisplayClusterConfigurationICVFX_LightcardSettings;
 
-class UDisplayClusterConfigurationICVFX_CameraSettings;
+struct FDisplayClusterConfigurationICVFX_CameraSettings;
 class UDisplayClusterConfigurationICVFX_StageSettings;
 
 

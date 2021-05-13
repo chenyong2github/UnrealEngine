@@ -8,7 +8,6 @@
 
 UDisplayClusterICVFX_RefCineCameraComponent::UDisplayClusterICVFX_RefCineCameraComponent(const FObjectInitializer& ObjectInitializer)
 {
-	IncameraSettings = CreateDefaultSubobject<UDisplayClusterConfigurationICVFX_CameraSettings>(TEXT("IncameraSettings"));
 }
 
 FDisplayClusterViewport_CameraMotionBlur UDisplayClusterICVFX_RefCineCameraComponent::GetMotionBlurParameters()
@@ -16,7 +15,7 @@ FDisplayClusterViewport_CameraMotionBlur UDisplayClusterICVFX_RefCineCameraCompo
 	FDisplayClusterViewport_CameraMotionBlur OutParameters;
 	OutParameters.Mode = EDisplayClusterViewport_CameraMotionBlur::Undefined;
 
-	switch (IncameraSettings->CameraMotionBlur.MotionBlurMode)
+	switch (IncameraSettings.CameraMotionBlur.MotionBlurMode)
 	{
 	case EDisplayClusterConfigurationCameraMotionBlurMode::Off:
 		OutParameters.Mode = EDisplayClusterViewport_CameraMotionBlur::Off;
@@ -37,7 +36,7 @@ FDisplayClusterViewport_CameraMotionBlur UDisplayClusterICVFX_RefCineCameraCompo
 				OutParameters.CameraLocation = OuterCamera->K2_GetComponentLocation();
 				OutParameters.CameraRotation = OuterCamera->K2_GetComponentRotation();
 
-				OutParameters.TranslationScale = IncameraSettings->CameraMotionBlur.TranslationScale;
+				OutParameters.TranslationScale = IncameraSettings.CameraMotionBlur.TranslationScale;
 
 				OutParameters.Mode = EDisplayClusterViewport_CameraMotionBlur::Override;
 			}
