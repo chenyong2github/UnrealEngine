@@ -3952,6 +3952,11 @@ void FRecastTileGenerator::ComputeRasterizationMasks(FNavMeshBuildContext& Build
 	{
 		if (ModifierElement.bMaskFillCollisionUnderneathForNavmesh)
 		{
+			if (RasterContext.SolidHF == nullptr)
+			{
+				return;
+			}
+
 			const int32 Mask = ~RC_PROJECT_TO_BOTTOM;
 			for (const FAreaNavModifier& ModifierArea : ModifierElement.Areas)
 			{
