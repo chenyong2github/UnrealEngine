@@ -21,68 +21,11 @@
  *			is declared in a package that is already compiled and has had its
  *			source stripped)
  */
-FTokenData* FClassMetaData::FindTokenData( FProperty* Prop )
+FToken* FClassMetaData::FindTokenData(FProperty* Prop)
 {
 	check(Prop);
-
-	FTokenData* Result = nullptr;
-	UObject* Outer = Prop->GetOwner<UObject>();
-	check(Outer);
-	UClass* OuterClass = nullptr;
-	if (Outer->IsA<UStruct>())
-	{
-		Result = GlobalPropertyData.Find(Prop);
-
-		if (Result == nullptr)
-		{
-			OuterClass = Cast<UClass>(Outer);
-
-			if (OuterClass != nullptr && OuterClass->GetSuperClass() != OuterClass)
-			{
-				OuterClass = OuterClass->GetSuperClass();
-			}
-		}
-	}
-	else
-	{
-		UFunction* OuterFunction = Cast<UFunction>(Outer);
-		if ( OuterFunction != NULL )
-		{
-			// function parameter, return, or local property
-			if (TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = GTypeDefinitionInfoMap.Find(OuterFunction))
-			{
-				FUnrealFunctionDefinitionInfo& FuncDef = (*TypeDef)->AsFunctionChecked();
-				FPropertyData& FunctionParameters = FuncDef.GetParameterData();
-				Result = FunctionParameters.Find(Prop);
-				if ( Result == NULL )
-				{
-					Result = FuncDef.GetReturnTokenData();
-				}
-			}
-			else
-			{
-				OuterClass = OuterFunction->GetOwnerClass();
-			}
-		}
-		else
-		{
-			// struct property
-			UScriptStruct* OuterStruct = Cast<UScriptStruct>(Outer);
-			check(OuterStruct != NULL);
-			OuterClass = OuterStruct->GetOwnerClass();
-		}
-	}
-
-	if (Result == nullptr && OuterClass != nullptr)
-	{
-		FClassMetaData* SuperClassData = GScriptHelper.FindClassData(OuterClass);
-		if (SuperClassData && SuperClassData != this)
-		{
-			Result = SuperClassData->FindTokenData(Prop);
-		}
-	}
-
-	return Result;
+	FUnrealPropertyDefinitionInfo& PropDef = GTypeDefinitionInfoMap.FindChecked(Prop).AsPropertyChecked();
+	return &PropDef.GetToken();
 }
 
 void FClassMetaData::AddProperty(FToken&& PropertyToken)
@@ -90,24 +33,13 @@ void FClassMetaData::AddProperty(FToken&& PropertyToken)
 	FProperty* Prop = PropertyToken.TokenProperty;
 	check(Prop);
 
+	FUnrealPropertyDefinitionInfo& PropDef = GTypeDefinitionInfoMap.FindChecked(Prop).AsPropertyChecked();
+	PropDef.GetToken() = MoveTemp(PropertyToken);
+
+	// Add the property to the owner
 	UObject* Outer = Prop->GetOwner<UObject>();
 	check(Outer);
-	UStruct* OuterClass = Cast<UStruct>(Outer);
-	if (OuterClass != NULL)
-	{
-		// global property
-		GlobalPropertyData.Set(Prop, MoveTemp(PropertyToken));
-	}
-	else
-	{
-		checkNoEntry();
-		UFunction* OuterFunction = Cast<UFunction>(Outer);
-		if (OuterFunction != NULL)
-		{
-			// function parameter, return, or local property
-			GTypeDefinitionInfoMap.FindChecked(OuterFunction).AsFunctionChecked().AddProperty(MoveTemp(PropertyToken));
-		}
-	}
+	GTypeDefinitionInfoMap.FindChecked(Outer).AsStructChecked().AddProperty(PropDef);
 
 	// update the optimization flags
 	if (!bContainsDelegates)
@@ -300,25 +232,6 @@ FClassMetaData* FCompilerMetadataManager::AddInterfaceClassData(UStruct* Struct,
 	ClassData->ParsedInterface = EParsedInterface::ParsedUInterface;
 	InterfacesToVerify.Emplace(Struct, ClassData);
 	return ClassData;
-}
-
-FTokenData* FPropertyData::Set(FProperty* InKey, FTokenData&& InValue)
-{
-	FTokenData* Result = NULL;
-
-	TSharedPtr<FTokenData>* pResult = PropertyMap.Find(InKey);
-	if (pResult != NULL)
-	{
-		Result = pResult->Get();
-		*Result = MoveTemp(InValue);
-	}
-	else
-	{
-		pResult = &PropertyMap.Emplace(InKey, new FTokenData(MoveTemp(InValue)));
-		Result = pResult->Get();
-	}
-
-	return Result;
 }
 
 void FCompilerMetadataManager::CheckForNoIInterfaces()
