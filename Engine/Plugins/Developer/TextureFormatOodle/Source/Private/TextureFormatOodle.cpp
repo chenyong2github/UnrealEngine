@@ -606,51 +606,53 @@ public:
 				*TextureFormatName.ToString(), *FString(OodleTex_BC_GetName(OodleBCN)) );
 		}
 
-		// @todo Oodle get rid of this temp Image, just point at InImage
-		FImage Image;
+		ERawImageFormat::Type ImageFormat;
 		OodleTex_PixelFormat OodlePF;
-		if ( OodleBCN == OodleTex_BC6U )
-		{
-			// @todo Oodle avoid this copy, just point at InImage
-			InImage.CopyTo(Image, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
-			OodlePF = OodleTex_PixelFormat_4_F32_RGBA;
 
+		if (OodleBCN == OodleTex_BC6U)
+		{
+			ImageFormat = ERawImageFormat::RGBA32F;
+			OodlePF = OodleTex_PixelFormat_4_F32_RGBA;
 			// BC6 is assumed to be a linear-light HDR Image by default
 			// use OodleTex_BCNFlag_BC6_NonRGBData if it is some other kind of data
+			Gamma = EGammaSpace::Linear;
+		}
+		else if ((OodleBCN == OodleTex_BC4U || OodleBCN == OodleTex_BC5U) &&
+			Gamma == EGammaSpace::Linear &&			
+			!bDebugColor)
+		{
+			// for BC4/5 use 16-bit :
+			//	BC4/5 should always have linear gamma
+			// @todo we only need 1 or 2 channel 16-bit, not all 4; use our own converter
+			//	or just let our encoder take F32 input?
+			ImageFormat = ERawImageFormat::RGBA16;
+			OodlePF = OodleTex_PixelFormat_4_U16;
 		}
 		else
 		{
-			if ( Gamma == EGammaSpace::Linear && 
-				( OodleBCN == OodleTex_BC4U || OodleBCN == OodleTex_BC5U ) &&
-				! bDebugColor )
-			{
-				// for BC4/5 use 16-bit :
-				//	BC4/5 should always have linear gamma
-				// @todo we only need 1 or 2 channel 16-bit, not all 4; use our own converter
-				//	or just let our encoder take F32 input?
-				InImage.CopyTo(Image, ERawImageFormat::RGBA16, EGammaSpace::Linear);
-				
-				OodlePF = OodleTex_PixelFormat_4_U16;
-			}
-			else
-			{
-				InImage.CopyTo(Image, ERawImageFormat::BGRA8, Gamma);
-
-				// if requested format was DXT1
-				// Unreal assumes that will not encode any alpha channel in the source
-				//	(Unreal's "compress without alpha" just selects DXT1)
-				// the legacy NVTT behavior for DXT1 was to always encode opaque pixels
-				// for DXT1 we use BC1_WithTransparency which will preserve the input A transparency bit
-				//	so we need to force the A's to be 255 coming into Oodle
-				//	so for DXT1 we force bHasAlpha = false
-				// force Oodle to ignore input alpha :
-				if ( bHasAlpha )
-					OodlePF = OodleTex_PixelFormat_4_U8_BGRA;
-				else
-					OodlePF = OodleTex_PixelFormat_4_U8_BGRx; // makes Oodle read A=255 even if source has other
-			}
+			ImageFormat = ERawImageFormat::BGRA8;
+			// if requested format was DXT1
+			// Unreal assumes that will not encode any alpha channel in the source
+			//	(Unreal's "compress without alpha" just selects DXT1)
+			// the legacy NVTT behavior for DXT1 was to always encode opaque pixels
+			// for DXT1 we use BC1_WithTransparency which will preserve the input A transparency bit
+			//	so we need to force the A's to be 255 coming into Oodle
+			//	so for DXT1 we force bHasAlpha = false
+			// force Oodle to ignore input alpha :
+			OodlePF = bHasAlpha ? OodleTex_PixelFormat_4_U8_BGRA : OodleTex_PixelFormat_4_U8_BGRx;
 		}
-		
+
+		bool bNeedsImageCopy = ImageFormat != InImage.Format ||
+			Gamma != InImage.GammaSpace ||
+			(CompressedPixelFormat == PF_DXT5 && TextureFormatName == GTextureFormatNameDXT5n) ||
+			bDebugColor;
+		FImage ImageCopy;
+		if (bNeedsImageCopy)
+		{
+			InImage.CopyTo(ImageCopy, ImageFormat, Gamma);
+		}
+		const FImage& Image = bNeedsImageCopy ? ImageCopy : InImage;
+
 		// verify OodlePF matches Image :
 		check( Image.GetBytesPerPixel() == OodleTex_PixelFormat_BytesPerPixel(OodlePF) );
 		
