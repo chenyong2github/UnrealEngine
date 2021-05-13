@@ -19,7 +19,8 @@ enum class EBlueprintCompileReinstancerFlags
 
 	BytecodeOnly			= 0x1,
 	AutoInferSaveOnCompile	= 0x2,
-	AvoidCDODuplication		= 0x4
+	AvoidCDODuplication		= 0x4,
+	UseDeltaSerialization	= 0x8,
 };
 
 ENUM_CLASS_FLAGS(EBlueprintCompileReinstancerFlags)
@@ -130,6 +131,9 @@ protected:
 
 	/** TRUE if this reinstancer should resave compiled Blueprints if the user has requested it */
 	bool bAllowResaveAtTheEndIfRequested;
+
+	/** TRUE if delta serialization should be forced during FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects */
+	bool bUseDeltaSerializationToCopyProperties;
 
 public:
 	// FSerializableObject interface
@@ -243,7 +247,16 @@ protected:
 	/** Determine whether reinstancing actors should preserve the root component of the new actor */
 	virtual bool ShouldPreserveRootComponentOfReinstancedActor() const { return true; }
 
-	static void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, bool bClearExternalReferences);
+	/**
+	* Attempts to copy as many properties as possible from the old object to the new. 
+	* Use during BP compilation to copy properties from the old CDO to the new one.
+	* 
+	* @param OldObject						The old object to copy properties from
+	* @param NewObject						The new Object to copy properties to
+	* @param bClearExternalReferences		If true then attempt to replace references to old classes and instances on this object with the corresponding new ones
+	* @param bForceDeltaSerialization		If true the delta serialization will be used when copying
+	*/
+	static void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, bool bClearExternalReferences, bool bForceDeltaSerialization = false);
 
 private:
 	/** Handles the work of ReplaceInstancesOfClass, handling both normal replacement of instances and batch */
