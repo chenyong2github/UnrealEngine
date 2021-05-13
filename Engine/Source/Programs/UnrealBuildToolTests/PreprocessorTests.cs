@@ -225,7 +225,7 @@ namespace UnrealBuildToolTests
 		{
 			string[] Lines = Fragment.Split('\n');
 
-			SourceFile File = new SourceFile(TokenReader.GetNullTerminatedByteArray(Fragment));
+			SourceFile File = new SourceFile(null, TokenReader.GetNullTerminatedByteArray(Fragment));
 
 			Preprocessor Instance = new Preprocessor();
 
