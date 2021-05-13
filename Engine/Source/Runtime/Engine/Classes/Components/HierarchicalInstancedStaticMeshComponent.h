@@ -219,9 +219,10 @@ public:
 #endif
 
 	// UInstancedStaticMesh interface
-	virtual int32 AddInstance(const FTransform& InstanceTransform) override;
-	virtual TArray<int32> AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices) override;
+	virtual int32 AddInstance(const FTransform& InstanceTransform, bool bWorldSpace = false) override;
+	virtual TArray<int32> AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace = false) override;
 	virtual bool RemoveInstance(int32 InstanceIndex) override;
+	virtual bool RemoveInstances(const TArray<int32>& InstancesToRemove) override;
 	virtual bool UpdateInstanceTransform(int32 InstanceIndex, const FTransform& NewInstanceTransform, bool bWorldSpace, bool bMarkRenderStateDirty = false, bool bTeleport = false) override;
 	virtual bool SetCustomDataValue(int32 InstanceIndex, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty = false) override;
 	virtual bool SetCustomData(int32 InstanceIndex, const TArray<float>& InCustomData, bool bMarkRenderStateDirty = false) override;
@@ -234,10 +235,6 @@ public:
 	virtual TArray<int32> GetInstancesOverlappingBox(const FBox& Box, bool bBoxInWorldSpace = true) const override;
 	virtual void PreAllocateInstancesMemory(int32 AddedInstanceCount) override;
 	virtual bool SupportsRemoveSwap() const override { return true; }
-
-	/** Removes all the instances with indices specified in the InstancesToRemove array. Returns true on success. */
-	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	bool RemoveInstances(const TArray<int32>& InstancesToRemove);
 
 	/** Get the number of instances that overlap a given sphere */
 	int32 GetOverlappingSphereCount(const FSphere& Sphere) const;

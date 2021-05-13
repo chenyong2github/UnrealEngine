@@ -52,13 +52,11 @@ bool USMInstanceElementEditorWorldInterface::DeleteElements(TArrayView<const FTy
 		{
 			BatchedInstancesToDeletePair.Key->Modify();
 
-			// Sort the instance indices in descending order to avoid invalidating resolved indices mid-delete
-			BatchedInstancesToDeletePair.Value.Sort(TGreater<int32>());
 			for (const int32 InstanceIndex : BatchedInstancesToDeletePair.Value)
 			{
 				InSelectionSet->DeselectElement(UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FSMInstanceId{ BatchedInstancesToDeletePair.Key, InstanceIndex }), FTypedElementSelectionOptions());
-				bDidDelete |= BatchedInstancesToDeletePair.Key->RemoveInstance(InstanceIndex);
 			}
+			bDidDelete |= BatchedInstancesToDeletePair.Key->RemoveInstances(BatchedInstancesToDeletePair.Value);
 		}
 
 		return bDidDelete;
