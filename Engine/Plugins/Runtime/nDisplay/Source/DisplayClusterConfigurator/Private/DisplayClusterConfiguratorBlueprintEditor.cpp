@@ -689,7 +689,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable(UBlueprint* Bl
 
 				if (Viewport->Camera == OldVariableName.ToString())
 				{
-					Viewport->Camera = NewVariableName.ToString();
+					DisplayClusterConfiguratorPropertyUtils::SetPropertyHandleValue(Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Camera), NewVariableName.ToString());
 				}
 			}
 		}

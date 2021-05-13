@@ -228,6 +228,125 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
 {
 	Super::CustomizeDetails(InLayoutBuilder);
+
+	ConfigurationViewportPtr = nullptr;
+	NoneOption = MakeShared<FString>("None");
+	
+	// Set config data pointer
+	UDisplayClusterConfigurationData* ConfigurationData = GetConfigData();
+	check(ConfigurationData != nullptr);
+	
+	ConfigurationDataPtr = ConfigurationData;
+	
+	// Get the Editing object
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InLayoutBuilder.GetSelectedObjects();
+	if (SelectedObjects.Num())
+	{
+		ConfigurationViewportPtr = Cast<UDisplayClusterConfigurationViewport>(SelectedObjects[0]);
+	}
+	check(ConfigurationViewportPtr != nullptr);
+	
+	CameraHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Camera));
+	check(CameraHandle.IsValid());
+
+	if (ConfigurationViewportPtr->ProjectionPolicy.Type == DisplayClusterProjectionStrings::projection::Camera)
+	{
+		CameraHandle->MarkHiddenByCustomization();
+		return;
+	}
+	
+	ResetCameraOptions();
+	
+	BEGIN_CATEGORY(CameraHandle->GetDefaultCategoryName())
+		REPLACE_PROPERTY_WITH_CUSTOM(UDisplayClusterConfigurationViewport, Camera, CreateCustomCameraWidget());
+	END_CATEGORY()
+}
+
+void FDisplayClusterConfiguratorViewportDetailCustomization::ResetCameraOptions()
+{
+	CameraOptions.Reset();
+	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
+	check(ConfigurationViewport != nullptr);
+	
+	AActor* RootActor = GetRootActor();
+	
+	TArray<UActorComponent*> ActorComponents;
+	RootActor->GetComponents(UDisplayClusterCameraComponent::StaticClass(), ActorComponents);
+	for (UActorComponent* ActorComponent : ActorComponents)
+	{
+		const FString ComponentName = ActorComponent->GetName();
+		CameraOptions.Add(MakeShared<FString>(ComponentName));
+	}
+	
+	// Component order not guaranteed, sort for consistency.
+	CameraOptions.Sort([](const TSharedPtr<FString>& A, const TSharedPtr<FString>& B)
+	{
+		// Default sort isn't compatible with TSharedPtr<FString>.
+		return *A < *B;
+	});
+	
+	// Add None option
+	if (!ConfigurationViewport->Camera.IsEmpty())
+	{
+		CameraOptions.Add(NoneOption);
+	}
+}
+
+TSharedRef<SWidget> FDisplayClusterConfiguratorViewportDetailCustomization::CreateCustomCameraWidget()
+{
+	if (CameraComboBox.IsValid())
+	{
+		return CameraComboBox.ToSharedRef();
+	}
+	
+	return SAssignNew(CameraComboBox, SDisplayClusterConfigurationSearchableComboBox)
+		.OptionsSource(&CameraOptions)
+		.OnGenerateWidget(this, &FDisplayClusterConfiguratorViewportDetailCustomization::MakeCameraOptionComboWidget)
+		.OnSelectionChanged(this, &FDisplayClusterConfiguratorViewportDetailCustomization::OnCameraSelected)
+		.ContentPadding(2)
+		.MaxListHeight(200.0f)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(this, &FDisplayClusterConfiguratorViewportDetailCustomization::GetSelectedCameraText)
+		];
+}
+
+TSharedRef<SWidget> FDisplayClusterConfiguratorViewportDetailCustomization::MakeCameraOptionComboWidget(TSharedPtr<FString> InItem)
+{
+	return SNew(STextBlock).Text(FText::FromString(*InItem));
+}
+
+void FDisplayClusterConfiguratorViewportDetailCustomization::OnCameraSelected(TSharedPtr<FString> InCamera, ESelectInfo::Type SelectInfo)
+{
+	if (InCamera.IsValid())
+	{
+		UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
+		check(ConfigurationViewport != nullptr);
+		// Handle empty case
+		if (InCamera->Equals(*NoneOption.Get()))
+		{
+			CameraHandle->SetValue(TEXT(""));
+		}
+		else
+		{
+			CameraHandle->SetValue(*InCamera.Get());
+		}
+		// Reset available options
+		ResetCameraOptions();
+		CameraComboBox->ResetOptionsSource(&CameraOptions);
+		CameraComboBox->SetIsOpen(false);
+	}
+}
+
+FText FDisplayClusterConfiguratorViewportDetailCustomization::GetSelectedCameraText() const
+{
+	FString SelectedOption = ConfigurationViewportPtr.Get()->Camera;
+	if (SelectedOption.IsEmpty())
+	{
+		SelectedOption = *NoneOption.Get();
+	}
+	return FText::FromString(SelectedOption);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
