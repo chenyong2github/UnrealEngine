@@ -317,6 +317,7 @@ public:
 	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle, const FGeometryParticleHandle* ParentParticle)
 	{
 		Particles.EnableParticle(Particle);
+		EnableConstraints({ Particle });
 		ConstraintGraph.EnableParticle(Particle, ParentParticle);
 		// enable constraint after disabling the particle in the graph because of dependencies 
 		AddConstraintsToConstraintGraph(Particle->ParticleConstraints());
@@ -508,6 +509,15 @@ public:
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->SetConstraintsEnabled(DisabledParticles, false);
+		}
+	}
+
+	/** Enable constraints from the enabled particles; constraints will only become enabled if their particle end points are valid */
+	CHAOS_API void EnableConstraints(const TSet<FGeometryParticleHandle*>& EnabledParticles)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->SetConstraintsEnabled(EnabledParticles, true);
 		}
 	}
 

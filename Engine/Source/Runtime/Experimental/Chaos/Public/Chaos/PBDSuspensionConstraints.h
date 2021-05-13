@@ -126,7 +126,22 @@ namespace Chaos
 
 		void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled)
 		{
-			ConstraintEnabledStates[ConstraintIndex] = bEnabled;
+			const FGenericParticleHandle Particle = FGenericParticleHandle(ConstrainedParticles[ConstraintIndex]);
+
+			if (bEnabled)
+			{
+				// only enable constraint if the particle is valid and not disabled
+				if (Particle->Handle() != nullptr && !Particle->Disabled())
+				{
+					ConstraintEnabledStates[ConstraintIndex] = true;
+				}
+			}
+			else
+			{
+				// desirable to allow disabling no matter what state the endpoint
+				ConstraintEnabledStates[ConstraintIndex] = false;
+			}
+
 		}
 
 		//
