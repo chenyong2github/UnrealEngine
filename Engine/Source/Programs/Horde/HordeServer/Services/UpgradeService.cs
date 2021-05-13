@@ -81,7 +81,7 @@ namespace HordeServer.Services
 
 				if (SchemaVersion == 3)
 				{
-					IJobCollection JobCollection = ServiceProvider.GetService<IJobCollection>();
+					IJobCollection JobCollection = ServiceProvider.GetRequiredService<IJobCollection>();
 					await JobCollection.UpgradeDocumentsAsync();
 				}
 				if (SchemaVersion == 4)

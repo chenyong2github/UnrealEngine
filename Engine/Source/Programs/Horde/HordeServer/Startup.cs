@@ -372,7 +372,7 @@ namespace HordeServer
 			if (!String.IsNullOrEmpty(Settings.PerforceBridge))
 			{
 				// Python P4 bridge service
-				Services.AddSingleton<IPerforceService, BridgePerforceService>(SP => new BridgePerforceService(Settings.PerforceBridge!, SP.GetService<ILogger<BridgePerforceService>>()));				
+				Services.AddSingleton<IPerforceService, BridgePerforceService>(SP => new BridgePerforceService(Settings.PerforceBridge!, SP.GetRequiredService<ILogger<BridgePerforceService>>()));				
 			}
 			else if (!String.IsNullOrEmpty(Settings.P4BridgeServer))
 			{
@@ -593,12 +593,12 @@ namespace HordeServer
 				}
 				else
 				{
-					return new RedisLogBuilder(RedisConnectionPool, Provider.GetService<ILogger<RedisLogBuilder>>());
+					return new RedisLogBuilder(RedisConnectionPool, Provider.GetRequiredService<ILogger<RedisLogBuilder>>());
 				}
 			});
 			Services.AddSingleton<ILogStorage>(Provider =>
 			{
-				ILogStorage Storage = new PersistentLogStorage(Provider.GetService<IStorageBackend>(), Provider.GetService<ILogger<PersistentLogStorage>>());
+				ILogStorage Storage = new PersistentLogStorage(Provider.GetRequiredService<IStorageBackend>(), Provider.GetRequiredService<ILogger<PersistentLogStorage>>());
 
 //				IDatabase? RedisDb = Provider.GetService<IDatabase>();
 //				if (RedisDb != null)
