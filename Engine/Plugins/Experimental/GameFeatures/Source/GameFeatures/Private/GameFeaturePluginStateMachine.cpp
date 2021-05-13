@@ -979,15 +979,15 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 				for (UGameFeaturePluginStateMachine* Dependency : Dependencies)
 				{
 					check(Dependency);
-					if (Dependency->GetCurrentState() < EGameFeaturePluginState::Loaded)
+					if (Dependency->GetCurrentState() < EGameFeaturePluginState::Registered)
 					{
 						RemainingDependencies.Add(Dependency);
 						Dependency->OnStateChanged().AddRaw(this, &FGameFeaturePluginState_WaitingForDependencies::OnDependencyStateChanged);
 
 						// If we are not alreadying loading this dependency, do so now
-						if (Dependency->GetDestinationState() < EGameFeaturePluginState::Loaded)
+						if (Dependency->GetDestinationState() < EGameFeaturePluginState::Registered)
 						{
-							Dependency->SetDestinationState(EGameFeaturePluginState::Loaded, FGameFeatureStateTransitionComplete());
+							Dependency->SetDestinationState(EGameFeaturePluginState::Registered, FGameFeatureStateTransitionComplete());
 						}
 					}
 				}
@@ -1009,7 +1009,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Dependency_Destroyed_Before_Finish"));
 				return;
 			}
-			else if (RemainingDependency->GetCurrentState() >= EGameFeaturePluginState::Loaded)
+			else if (RemainingDependency->GetCurrentState() >= EGameFeaturePluginState::Registered)
 			{
 				RemainingDependency->OnStateChanged().RemoveAll(this);
 				RemainingDependencies.RemoveAt(DepIdx, 1, false);
