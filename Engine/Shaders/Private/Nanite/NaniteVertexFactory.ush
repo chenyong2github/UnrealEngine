@@ -101,12 +101,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, NaniteView.ViewSizeAndInvSize.zw);
 
 	#if NEEDS_LIGHTMAP_COORDINATE
-		// Materials without any texture coordinates referenced will
-		// set NUM_TEX_COORD_INTERPOLATORS to 0 which will cause GetAttributeData
-		// to skip loading any texture coordinates from Nanite data, including light
-		// map UVs. In this case we cannot use the literal constant and must use the
-		// count stored on the cluster data.
-		const uint NumTexCoords = Cluster.NumUVs;
+		// Light map UV index can reference any UV set, even outside NUM_TEX_COORD_INTERPOLATORS.
+		// TODO: Fetch lightmap UVs separately instead.
+		const uint NumTexCoords = MAX_NANITE_UVS;
 	#else
 		// Prefer literal constant to optimize shader codegen.
 		const uint NumTexCoords = NUM_TEX_COORD_INTERPOLATORS;
