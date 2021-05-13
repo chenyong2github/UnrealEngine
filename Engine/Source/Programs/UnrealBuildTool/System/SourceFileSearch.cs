@@ -34,7 +34,9 @@ namespace UnrealBuildTool
 		// Default directory names to exclude. Must be lowercase.
 		static readonly string[] DefaultExcludedDirectorySuffixes = new string[] 
 		{
-			Path.DirectorySeparatorChar + "intermediate"
+			Path.DirectorySeparatorChar + "intermediate",
+			Path.DirectorySeparatorChar + "source" + Path.DirectorySeparatorChar + "thirdparty",
+			Path.DirectorySeparatorChar + "third_party",
 		};
 
 		/// Finds mouse source files
