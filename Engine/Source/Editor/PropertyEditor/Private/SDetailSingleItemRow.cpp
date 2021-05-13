@@ -754,6 +754,8 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsBlacklistChecked)),
 			NAME_None,
 			EUserInterfaceActionType::Check);
+			
+		bAddedMenuEntry = true;
 	}
 
 	if (WidgetRow.CustomMenuItems.Num() > 0)
