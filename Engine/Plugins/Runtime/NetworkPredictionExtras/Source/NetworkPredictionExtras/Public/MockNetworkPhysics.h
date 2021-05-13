@@ -23,9 +23,6 @@ struct FMockPhysInputCmd
 	FVector	Force;
 
 	UPROPERTY(BlueprintReadWrite, Category="Input")
-	float Turn=0.f;
-
-	UPROPERTY(BlueprintReadWrite, Category="Input")
 	bool bJumpedPressed = false;
 
 	UPROPERTY(BlueprintReadWrite, Category="Input")
@@ -34,7 +31,6 @@ struct FMockPhysInputCmd
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << Force;
-		Ar << Turn;
 		Ar << bJumpedPressed;
 		Ar << bBrakesPressed;
 		return true;
@@ -52,23 +48,18 @@ struct FMockPhysInputCmd
 	bool ShouldReconcile(const FMockPhysInputCmd& AuthState) const
 	{
 		return FVector::DistSquared(Force, AuthState.Force) > 0.1f || bJumpedPressed != AuthState.bJumpedPressed || 
-			bBrakesPressed != AuthState.bBrakesPressed || FMath::Abs<float>(Turn - AuthState.Turn) > 0.1f;
+			bBrakesPressed != AuthState.bBrakesPressed;
 	}
 
 	// Decays input for non locally controlled sims (client only)
 	// disabled behind np2.InputDecay cvar for now
 	void Decay(float Alpha)
 	{
-		Turn *= Alpha;
-		if (Turn < 0.001f)
-		{
-			Turn = 0.f;
-		}
 	}
 
 	void ToString(FStringBuilderBase& Out)
 	{
-		Out.Appendf(TEXT("%s. bJumpedPressed: %d. bBrakesPressed: %d. Turn: %.2f"), *Force.ToString(), (int32)bJumpedPressed, (int32)bBrakesPressed, Turn);
+		Out.Appendf(TEXT("%s. bJumpedPressed: %d. bBrakesPressed: %d."), *Force.ToString(), (int32)bJumpedPressed, (int32)bBrakesPressed);
 	}
 };
 
@@ -146,18 +137,28 @@ struct FMockState_PT
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	int32 RecoveryFrame = 0;
 
+	// Frame we started jumping on
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 JumpStartFrame = 0;
+
+	// Frame we started being in the air
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 InAirFrame = 0;
+
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << JumpCooldownMS;
 		Ar << JumpCount;
 		Ar << CheckSum;	
 		Ar << RecoveryFrame;
+		Ar << JumpStartFrame;
+		Ar << InAirFrame;
 		return true;
 	}
 
 	bool ShouldReconcile(const FMockState_PT& AuthState) const
 	{
-		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount || RecoveryFrame != AuthState.RecoveryFrame;
+		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount || RecoveryFrame != AuthState.RecoveryFrame || JumpStartFrame != AuthState.JumpStartFrame || InAirFrame != AuthState.InAirFrame;
 	}
 };
 
@@ -329,6 +330,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Network Physics")
 	int32 GetNetworkPredictionLOD() const { return NetworkPhysicsState.LocalLOD; }
+
+	// Makes the object "controllable". This includes logic like air-recover.
+	UPROPERTY(EditDefaultsOnly, Category="Network Physics")
+	bool bEnableMockGameplay=false;
 
 protected:
 
