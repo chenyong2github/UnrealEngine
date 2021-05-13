@@ -203,8 +203,6 @@ public:
 
 	static bool IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section);
 
-	static bool UseIntermediateTangents();
-
 	ENGINE_API uint64 GetExtraRequiredMemoryAndReset();
 
 	enum
@@ -236,8 +234,8 @@ public:
 	{
 		friend struct FRWBufferTracker;
 
-		FRWBuffersAllocation(uint32 InNumVertices, bool InWithTangents, uint32 InNumTriangles, FRHICommandListImmediate& RHICmdList)
-			: NumVertices(InNumVertices), WithTangents(InWithTangents), NumTriangles(InNumTriangles)
+		FRWBuffersAllocation(uint32 InNumVertices, bool InWithTangents, bool InUseIntermediateTangents, uint32 InNumTriangles, FRHICommandListImmediate& RHICmdList)
+			: NumVertices(InNumVertices), WithTangents(InWithTangents), UseIntermediateTangents(InUseIntermediateTangents), NumTriangles(InNumTriangles)
 		{
 			for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 			{
@@ -248,7 +246,7 @@ public:
 			{
 				Tangents.Buffer.Initialize(TEXT("SkinCacheTangents"), TangentBufferBytesPerElement, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
 				Tangents.AccessState = ERHIAccess::Unknown;
-				if (FGPUSkinCache::UseIntermediateTangents())
+				if (UseIntermediateTangents)
 				{
 					IntermediateTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateTangents"), TangentBufferBytesPerElement, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
 					IntermediateTangents.AccessState = ERHIAccess::Unknown;
@@ -280,12 +278,12 @@ public:
 			}
 		}
 
-		static uint64 CalculateRequiredMemory(uint32 InNumVertices, bool InWithTangents, uint32 InNumTriangles)
+		static uint64 CalculateRequiredMemory(uint32 InNumVertices, bool InWithTangents, bool InUseIntermediateTangents, uint32 InNumTriangles)
 		{
 			uint64 PositionBufferSize = PosBufferBytesPerElement * InNumVertices * 3 * NUM_BUFFERS;
 			uint64 TangentBufferSize = InWithTangents ? TangentBufferBytesPerElement * InNumVertices * 2 : 0;
 			uint64 IntermediateTangentBufferSize = 0;
-			if (FGPUSkinCache::UseIntermediateTangents())
+			if (InUseIntermediateTangents)
 			{
 				IntermediateTangentBufferSize = InWithTangents ? TangentBufferBytesPerElement * InNumVertices * 2 : 0;
 			}
@@ -295,7 +293,7 @@ public:
 
 		uint64 GetNumBytes() const
 		{
-			return CalculateRequiredMemory(NumVertices, WithTangents, NumTriangles);
+			return CalculateRequiredMemory(NumVertices, WithTangents, UseIntermediateTangents, NumTriangles);
 		}
 
 		FSkinCacheRWBuffer* GetTangentBuffer()
@@ -305,7 +303,7 @@ public:
 
 		FSkinCacheRWBuffer* GetIntermediateTangentBuffer()
 		{
-			return WithTangents ? &IntermediateTangents : nullptr;
+			return (WithTangents && UseIntermediateTangents) ? &IntermediateTangents : nullptr;
 		}
 
 		FSkinCacheRWBuffer* GetIntermediateAccumulatedTangentBuffer()
@@ -325,6 +323,7 @@ public:
 
 		const uint32 NumVertices;
 		const bool WithTangents;
+		const bool UseIntermediateTangents;
 		const uint32 NumTriangles;
 
 		static const uint32 PosBufferBytesPerElement = 4;
@@ -455,7 +454,7 @@ protected:
 	TArray<FGPUSkinCacheEntry*> Entries;
 	TArray<FDispatchEntry> BatchDispatches;
 
-	FRWBuffersAllocation* TryAllocBuffer(uint32 NumVertices, bool WithTangnents, uint32 NumTriangles, FRHICommandListImmediate& RHICmdList);
+	FRWBuffersAllocation* TryAllocBuffer(uint32 NumVertices, bool WithTangnents, bool UseIntermediateTangents, uint32 NumTriangles, FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber);
 	void DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex, FSkinCacheRWBuffer*& StagingBuffer, bool bTrianglePass);

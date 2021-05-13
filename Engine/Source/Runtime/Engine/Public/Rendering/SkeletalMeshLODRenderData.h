@@ -74,7 +74,7 @@ struct FSkelMeshRenderSection
 		, NumTriangles(0)
 		, bRecomputeTangent(false)
 		, bCastShadow(true)
-		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::Green)
+		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::None)
 		, BaseVertexIndex(0)
 		, NumVertices(0)
 		, MaxBoneInfluences(4)

@@ -373,8 +373,8 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 	}
 	else
 	{
-		// Our default is to use the green vertex color channel 
-		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::Green;
+		// Our default is not to use vertex color as mask
+		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::None;
 	}
 
 	if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::RefactorMeshEditorMaterials)
@@ -551,8 +551,8 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSourceSectionUserData& S)
 	}
  	else
 	{
-		// Our default is to use the green vertex color channel 
-		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::Green;
+		// Our default is not to use vertex color as mask
+		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::None;
 	}
 
 	Ar << S.bCastShadow;

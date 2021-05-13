@@ -4578,6 +4578,45 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 		]
 	];
 #endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
+
+	SectionWidget->AddSlot()
+	.AutoHeight()
+	.Padding(0, 2, 0, 0)
+	.HAlign(HAlign_Fill)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.HAlign(HAlign_Right)
+			.MinDesiredWidth(65.0f)
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("RecomputeTangents", "Recompute Tangents"))
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.Padding(5, 2, 0, 0)
+		[
+			SNew(SComboButton)
+			.IsEnabled(IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
+			.OnGetMenuContent(this, &FPersonaMeshDetails::OnGenerateRecomputeTangentsSetting, LODIndex, SectionIndex)
+			.VAlign(VAlign_Center)
+			.ContentPadding(2)
+			.ButtonContent()
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(this, &FPersonaMeshDetails::GetCurrentRecomputeTangentsSetting, LODIndex, SectionIndex)
+				.ToolTipText(LOCTEXT("RecomputeTangentsToolTip", "Require (Support Skincache Shaders) enabled in Project Settings and compute shaders. None:Do_NOT_Recompute, All:Do_Recompute, R/G/B:Do_Recompute_And_Use_Vertex_Color_Channel_As_Blending_Mask"))
+			]
+		]
+	];
+
 	SectionWidget->AddSlot()
 	.AutoHeight()
 	.Padding(0, 2, 0, 0)
@@ -4596,38 +4635,6 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 				.Text(LOCTEXT("Cast Shadows", "Cast Shadows"))
 			]
 		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(2, 0, 2, 0)
-		[
-			SNew(SCheckBox)
-			.IsEnabled(IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
-			.IsChecked(this, &FPersonaMeshDetails::IsSectionRecomputeTangentEnabled, LODIndex, SectionIndex)
-			.OnCheckStateChanged(this, &FPersonaMeshDetails::OnSectionRecomputeTangentChanged, LODIndex, SectionIndex)
-			[
-				SNew(STextBlock)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.Text(LOCTEXT("RecomputeTangent_Title", "Recompute Tangent"))
-				.ToolTipText(LOCTEXT("RecomputeTangent_Tooltip", "This feature only works if you enable (Support Skincache Shaders) in the Project Settings. Please note that skin cache is an experimental feature and only works if you have compute shaders."))
-			]
-		]
-		+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.Padding(5, 2, 0, 0)
-			[
-				SNew(SComboButton)
-				.IsEnabled(this, &FPersonaMeshDetails::IsGenerateRecomputeTangentsVertexChannelMaskPicker, LODIndex, SectionIndex)
-			    .OnGetMenuContent(this, &FPersonaMeshDetails::OnGenerateRecomputeTangentsVertexChannelMaskPicker, LODIndex, SectionIndex)
-			    .VAlign(VAlign_Center)
-			    .ContentPadding(2)
-			    .ButtonContent()
-			    [
-			    	SNew(STextBlock)
-			    	.Font(IDetailLayoutBuilder::GetDetailFont())
-			        .Text(this, &FPersonaMeshDetails::GetCurrentRecomputeTangentsVertexChannelMaskName, LODIndex, SectionIndex)
-			        .ToolTipText(LOCTEXT("RecomputeTangentsVertexChannelMaskTip", "Which Vertex Color Channel to use"))
-			    ]
-			]
 	];
 	return SectionWidget;
 }
@@ -5176,154 +5183,62 @@ void FPersonaMeshDetails::OnSectionShadowCastingChanged(ECheckBoxState NewState,
 	}
 }
 
-ECheckBoxState FPersonaMeshDetails::IsSectionRecomputeTangentEnabled(int32 LODIndex, int32 SectionIndex) const
-{
-	ECheckBoxState State = ECheckBoxState::Unchecked;
-	const USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
-	if (Mesh == nullptr)
-		return State;
-
-	check(Mesh->GetImportedModel());
-
-	if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
-		return State;
-
-	const FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
-
-	if (!LODModel.Sections.IsValidIndex(SectionIndex))
-		return State;
-
-	const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
-
-	State = Section.bRecomputeTangent ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	return State;
-}
-
-void FPersonaMeshDetails::OnSectionRecomputeTangentChanged(ECheckBoxState NewState, int32 LODIndex, int32 SectionIndex)
-{
-	ECheckBoxState State = ECheckBoxState::Unchecked;
-	USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
-	if (Mesh == nullptr)
-		return;
-
-	check(Mesh->GetImportedModel());
-
-	if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
-		return;
-
-	FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
-
-	if (!LODModel.Sections.IsValidIndex(SectionIndex))
-		return;
-
-	FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
-
-	//Update Original PolygonGroup
-	auto UpdatePolygonGroupRecomputeTangent = [&Mesh, &LODModel, &Section, &SectionIndex](bool bRecomputeTangent)
-	{
-		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
-		{
-			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
-			Section.bRecomputeTangent = bRecomputeTangent;
-			for (int32 AfterSectionIndex = SectionIndex + 1; AfterSectionIndex < LODModel.Sections.Num(); ++AfterSectionIndex)
-			{
-				if (LODModel.Sections[AfterSectionIndex].ChunkedParentSectionIndex == SectionIndex)
-				{
-					LODModel.Sections[AfterSectionIndex].bRecomputeTangent = bRecomputeTangent;
-				}
-				else
-				{
-					break;
-				}
-			}
-			//We display only the parent chunk
-			check(Section.ChunkedParentSectionIndex == INDEX_NONE);
-			SetSkelMeshSourceSectionUserData(LODModel, SectionIndex, Section.OriginalDataSectionIndex);
-		}
-	};
-
-	if (NewState == ECheckBoxState::Checked)
-	{
-		const FScopedTransaction Transaction(LOCTEXT("PersonaSetSectionRecomputeTangentFlag", "Persona editor: Set Recompute Tangent For Section"));
-		Mesh->Modify();
-		UpdatePolygonGroupRecomputeTangent(true);
-	}
-	else if (NewState == ECheckBoxState::Unchecked)
-	{
-		const FScopedTransaction Transaction(LOCTEXT("PersonaClearSectionRecomputeTangentFlag", "Persona editor: Clear Recompute Tangent For Section"));
-		Mesh->Modify();
-		UpdatePolygonGroupRecomputeTangent(false);
-	}
-}
-
-FText FPersonaMeshDetails::GetCurrentRecomputeTangentsVertexChannelMaskName(int32 LODIndex, int32 SectionIndex) const
-{
-	const FString ChannelNames[] = {
-				TEXT("Red"),
-				TEXT("Green"),
-				TEXT("Blue")
-	};
-	const USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
-	if (Mesh == nullptr)
-		return FText::GetEmpty();
-
-	check(Mesh->GetImportedModel());
-
-	if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
-		return FText::GetEmpty();
-
-	FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
-
-	if (!LODModel.Sections.IsValidIndex(SectionIndex))
-		return FText::GetEmpty();
-
-	FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
-
-	int32 ChannelIndex = FMath::Clamp<int32>(static_cast<int32>(Section.RecomputeTangentsVertexMaskChannel), 0, 2); 
-	
-	return FText::FromString(ChannelNames[ChannelIndex]);
-}
-
-bool FPersonaMeshDetails::IsGenerateRecomputeTangentsVertexChannelMaskPicker(int32 LODIndex, int32 SectionIndex) const
-{
-	
-	const USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
-	if (Mesh == nullptr)
-		return false;
-
-	check(Mesh->GetImportedModel());
-
-	if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
-		return false;
-
-	const FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
-
-	if (!LODModel.Sections.IsValidIndex(SectionIndex))
-		return false;
-
-	const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
-	return Section.bRecomputeTangent;
-}
-
-
-TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateRecomputeTangentsVertexChannelMaskPicker(int32 LODIndex, int32 SectionIndex)
-{
-	const FString ChannelNames[] = {
+const FString RecomputeTangentsChannelNames[] = {
+			TEXT("None"),
+			TEXT("All"),
 			TEXT("Red"),
 			TEXT("Green"),
 			TEXT("Blue")
-	};
-	FMenuBuilder MenuBuilder(true, NULL);
-	for (int32 ChannelIndex = 0; ChannelIndex < 3; ChannelIndex++) { 
-		FUIAction Action(FExecuteAction::CreateSP(this, &FPersonaMeshDetails::SetCurrentRecomputeTangentsVertexChannel, LODIndex, SectionIndex, ChannelIndex));
+};
 
-		MenuBuilder.AddMenuEntry(FText::FromString(ChannelNames[ChannelIndex]), FText::GetEmpty(), FSlateIcon(), Action);
+FText FPersonaMeshDetails::GetCurrentRecomputeTangentsSetting(int32 LODIndex, int32 SectionIndex) const
+{
+	const USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
+	if (Mesh == nullptr)
+		return FText::GetEmpty();
+
+	check(Mesh->GetImportedModel());
+
+	if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+		return FText::GetEmpty();
+
+	FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
+
+	if (!LODModel.Sections.IsValidIndex(SectionIndex))
+		return FText::GetEmpty();
+
+	FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+	// Index_0 None:  bRecomputeTangent == false
+	// Index_1 All:   bRecomputeTangent == true & RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::None
+	// Index_2 Red:   bRecomputeTangent == true & RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::Red
+	// Index_3 Green: bRecomputeTangent == true & RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::Green
+	// Index_4 Blue:  bRecomputeTangent == true & RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::Blue
+	int32 ChannelIndex = 0;
+	if (Section.bRecomputeTangent)
+	{
+		if (Section.RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::None)
+			ChannelIndex = 1;
+		else
+			ChannelIndex = FMath::Clamp<int32>(static_cast<int32>(Section.RecomputeTangentsVertexMaskChannel) + 2, 0, 4);
+	}
+	
+	return FText::FromString(RecomputeTangentsChannelNames[ChannelIndex]);
+}
+
+TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateRecomputeTangentsSetting(int32 LODIndex, int32 SectionIndex)
+{
+	FMenuBuilder MenuBuilder(true, NULL);
+	for (int32 ChannelIndex = 0; ChannelIndex < 5; ChannelIndex++) { 
+		FUIAction Action(FExecuteAction::CreateSP(this, &FPersonaMeshDetails::SetCurrentRecomputeTangentsSetting, LODIndex, SectionIndex, ChannelIndex));
+
+		MenuBuilder.AddMenuEntry(FText::FromString(RecomputeTangentsChannelNames[ChannelIndex]), FText::GetEmpty(), FSlateIcon(), Action);
 	}
 	return MenuBuilder.MakeWidget();
 }
 
 
-void FPersonaMeshDetails::SetCurrentRecomputeTangentsVertexChannel(int32 LODIndex, int32 SectionIndex, int32 Index)
+void FPersonaMeshDetails::SetCurrentRecomputeTangentsSetting(int32 LODIndex, int32 SectionIndex, int32 Index)
 {
 	 USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
 	if (Mesh == nullptr)
@@ -5341,21 +5256,27 @@ void FPersonaMeshDetails::SetCurrentRecomputeTangentsVertexChannel(int32 LODInde
 
 	FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
 
-	Section.RecomputeTangentsVertexMaskChannel = static_cast<ESkinVertexColorChannel>(Index);
-
-
 	auto UpdatePolygonGroupRecomputeTangentVertexColor = [&Mesh, &LODModel, &Section, &SectionIndex, &Index]()
 	{
 		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
 		{
 			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
-			Section.RecomputeTangentsVertexMaskChannel = static_cast<ESkinVertexColorChannel>(Index);
+
+			// Index_0 None:  bRecomputeTangent == false
+			// Index_1 All:   bRecomputeTangent == true & RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::None
+			// Index_2 Red:   bRecomputeTangent == true & RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::Red
+			// Index_3 Green: bRecomputeTangent == true & RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::Green
+			// Index_4 Blue:  bRecomputeTangent == true & RecomputeTangentsVertexMaskChannel == ESkinVertexColorChannel::Blue
+			Section.bRecomputeTangent = Index > 0;
+			Section.RecomputeTangentsVertexMaskChannel = Index > 1 ? static_cast<ESkinVertexColorChannel>(Index - 2) : ESkinVertexColorChannel::None;
 			
 			for (int32 AfterSectionIndex = SectionIndex+1; AfterSectionIndex < LODModel.Sections.Num(); ++AfterSectionIndex)
 			{
 				if (LODModel.Sections[AfterSectionIndex].ChunkedParentSectionIndex == SectionIndex)
 				{
-					LODModel.Sections[AfterSectionIndex].RecomputeTangentsVertexMaskChannel = static_cast<ESkinVertexColorChannel>(Index);
+					// Index: None-0, All-1, Red-2, Green-3, Blue-4
+					LODModel.Sections[AfterSectionIndex].bRecomputeTangent = Index > 0;
+					LODModel.Sections[AfterSectionIndex].RecomputeTangentsVertexMaskChannel = Index > 1 ? static_cast<ESkinVertexColorChannel>(Index-2) : ESkinVertexColorChannel::None;
 				}
 				else
 				{
