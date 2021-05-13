@@ -30,6 +30,8 @@ public:
 	UObject* GetAssetForPrim( const FString& PrimPath ) const;
 	TMap< FString, UObject* > GetAssetPrimLinks() const { return PrimPathToAssets; }; // Can't return a reference as it wouldn't be thread-safe
 
+	bool IsAssetOwnedByCache( UObject* Asset ) const { return OwnedAssets.Contains( Asset ); }
+
 	int32 GetNumAssets() const { return TransientStorage.Num() + PersistentStorage.Num(); }
 	void Reset();
 
