@@ -31,7 +31,9 @@ public:
 	}
 
 	/** Destructor. */
-	virtual ~FTextureFormatManagerModule()
+	virtual ~FTextureFormatManagerModule() = default;
+
+	virtual void ShutdownModule()
 	{
 		FModuleManager::Get().OnModulesChanged().RemoveAll(this);
 	}
@@ -40,12 +42,12 @@ public:
 	virtual const TArray<const ITextureFormat*>& GetTextureFormats() override
 	{
 		static bool bInitialized = false;
-		static TArray<const ITextureFormat*> Results;
 
 		if (!bInitialized || bForceCacheUpdate)
 		{
 			bInitialized = true;
-			Results.Empty(Results.Num());
+			TextureFormats.Empty(TextureFormats.Num());
+			TextureFormatMetadata.Empty(TextureFormatMetadata.Num());
 
 			TArray<FName> Modules;
 
@@ -66,19 +68,30 @@ public:
 						ITextureFormat* Format = Module->GetTextureFormat();
 						if (Format != nullptr)
 						{
-							Results.Add(Format);
+							TextureFormats.Add(Format);
+							FTextureFormatMetadata& NewMeta = TextureFormatMetadata.AddDefaulted_GetRef();
+							NewMeta.ModuleName = Modules[Index];
+							NewMeta.Module = Module;
 						}
 					}
 				}
 			}
 		}
 
-		return Results;
+		return TextureFormats;
 	}
 
 	virtual const ITextureFormat* FindTextureFormat(FName Name) override
 	{
-		const TArray<const ITextureFormat*>& TextureFormats = GetTextureFormats();
+		FName ModuleNameUnused;
+		ITextureFormatModule* ModuleUnused;
+		return FindTextureFormatAndModule(Name, ModuleNameUnused, ModuleUnused);
+	}
+	
+	virtual const class ITextureFormat* FindTextureFormatAndModule(FName Name, FName& OutModuleName, ITextureFormatModule*& OutModule) override
+	{
+		// Called to ensure the arrays are populated
+		GetTextureFormats();
 
 		for (int32 Index = 0; Index < TextureFormats.Num(); Index++)
 		{
@@ -90,6 +103,9 @@ public:
 			{
 				if (Formats[FormatIndex] == Name)
 				{
+					const FTextureFormatMetadata& FoundMeta = TextureFormatMetadata[Index];
+					OutModuleName = FoundMeta.ModuleName;
+					OutModule = FoundMeta.Module;
 					return TextureFormats[Index];
 				}
 			}
@@ -117,6 +133,15 @@ private:
 	}
 
 	FName ModuleName;
+
+	TArray<const ITextureFormat*> TextureFormats;
+
+	struct FTextureFormatMetadata
+	{
+		FName ModuleName;
+		ITextureFormatModule* Module;
+	};
+	TArray<FTextureFormatMetadata> TextureFormatMetadata;
 
 	// Flag to force reinitialization of all cached data. This is needed to have up-to-date caches
 	// in case of a module reload of a TextureFormat-Module.

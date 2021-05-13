@@ -1594,16 +1594,21 @@ FString FTextureSource::GetIdString() const
 	return GuidString;
 }
 
-FString FTextureSource::GetSourceCompressionAsString() const
+ETextureSourceCompressionFormat FTextureSource::GetSourceCompression() const
 {
 	// Until we deprecate bPNGCompressed it might not be 100% in sync with CompressionFormat
 	// so if it is set we should use that rather than the enum.
 	if (bPNGCompressed)
 	{
-		return StaticEnum<ETextureSourceCompressionFormat>()->GetDisplayNameTextByValue(ETextureSourceCompressionFormat::TSCF_PNG).ToString();
+		return ETextureSourceCompressionFormat::TSCF_PNG;
 	}
 
-	return StaticEnum<ETextureSourceCompressionFormat>()->GetDisplayNameTextByValue(CompressionFormat).ToString();
+	return CompressionFormat;
+}
+
+FString FTextureSource::GetSourceCompressionAsString() const
+{
+	return StaticEnum<ETextureSourceCompressionFormat>()->GetDisplayNameTextByValue(GetSourceCompression()).ToString();
 }
 
 FTextureSource::FMipAllocation FTextureSource::TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST
@@ -1848,6 +1853,27 @@ void FTextureSource::UseHashAsGuid()
 	{
 		Id.Invalidate();
 	}
+}
+
+void FTextureSource::OperateOnLoadedBulkData(TFunctionRef<void(const FSharedBuffer& BulkDataBuffer)> Operation)
+{
+	checkf(LockState == ELockState::None, TEXT("OperateOnLoadedBulkData shouldn't be called in-between LockMip/UnlockMip"));
+
+#if WITH_EDITOR
+	FReadScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
+#endif
+
+#if UE_USE_VIRTUALBULKDATA
+	FSharedBuffer Payload = BulkData.GetPayload().Get();
+#else
+	uint8* BulkDataPtr = (uint8*)BulkData.Lock(LOCK_READ_ONLY);
+	const int64 BulkDataSize = BulkData.GetBulkDataSize();
+	FSharedBuffer Payload = FSharedBuffer::MakeView(BulkDataPtr, BulkDataSize);
+#endif //UE_USE_VIRTUALBULKDATA
+	Operation(Payload);
+#if !UE_USE_VIRTUALBULKDATA
+	BulkData.Unlock();
+#endif //!UE_USE_VIRTUALBULKDATA
 }
 
 void FTextureSource::SetId(const FGuid& InId, bool bInGuidIsHash)

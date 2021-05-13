@@ -125,6 +125,7 @@ public class Engine : ModuleRules
 				"CrunchCompression",
 				"IntelISPC",
 				"TraceLog",
+				"TextureFormat",
 			}
 		);
 
