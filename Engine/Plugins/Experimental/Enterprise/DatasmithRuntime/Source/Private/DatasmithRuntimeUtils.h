@@ -84,13 +84,15 @@ namespace DatasmithRuntime
 
 		static bool IsObjectCompleted(UObject* Asset);
 
-		static UObject* FindObjectFromHash(DirectLink::FElementHash ElementHash);
+		static UObject* FindObjectFromHash(uint32 ElementHash);
+
+		static int32 GetAssetReferenceCount(UObject* Asset);
 
 		/** @return true if some assets have been marked for deletion */
 		static bool CleanUp();
 
 	private:
-		static TMap<DirectLink::FElementHash, TStrongObjectPtr<UObject>> RegistrationMap;
+		static TMap<uint32, TStrongObjectPtr<UObject>> RegistrationMap;
 		static TMap<uint32, TMap<FSceneGraphId,FAssetData>*> SceneMappings;
 	};
 

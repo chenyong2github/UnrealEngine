@@ -234,7 +234,7 @@ namespace DatasmithRuntime
 		}
 
 		template<typename T = UObject>
-		T* GetObject()
+		T* GetObject() const
 		{
 			return Cast< T >(Object.Get());
 		}
@@ -249,10 +249,10 @@ namespace DatasmithRuntime
 		int32 Requirements = 0;
 
 		/** Hash of associated element used to prevent the duplication of assets */
-		DirectLink::FElementHash Hash = 0;
+		uint32 Hash = 0;
 
 		/** Hash of potential resource of associated element used to prevent recreation of assets */
-		DirectLink::FElementHash ResourceHash = 0;
+		uint32 ResourceHash = 0;
 
 		FAssetData(FSceneGraphId InElementId, EDataType InType = EDataType::None)
 			: FBaseData(InElementId, InType)
@@ -524,7 +524,7 @@ namespace DatasmithRuntime
 
 		void PrepareIncrementalUpdate(FUpdateContext& UpdateContext);
 
-		void IncrementalAdditions(TArray<TSharedPtr<IDatasmithElement>>& Additions);
+		void IncrementalAdditions(TArray<TSharedPtr<IDatasmithElement>>& Additions, TArray<TSharedPtr<IDatasmithElement>>& Updates);
 
 		void IncrementalModifications(TArray<TSharedPtr<IDatasmithElement>>& Modifications);
 
