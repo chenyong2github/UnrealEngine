@@ -44,9 +44,14 @@ public:
 	inline ByteArray& GetBytes() { return Hash; }
 	inline const ByteArray& GetBytes() const { return Hash; }
 
+	/** A zero hash. */
+	static const FBlake3Hash Zero;
+
 private:
 	alignas(uint32) ByteArray Hash{};
 };
+
+inline const FBlake3Hash FBlake3Hash::Zero;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
