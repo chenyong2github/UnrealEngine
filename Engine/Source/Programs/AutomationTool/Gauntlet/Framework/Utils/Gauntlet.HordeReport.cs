@@ -208,6 +208,17 @@ namespace Gauntlet
 				get { return TestDetailed.State; }
 				set { TestDetailed.State = value; }
 			}
+			public int Errors
+			{
+				get { return TestDetailed.Errors; }
+				set { TestDetailed.Errors = value; }
+			}
+			public int Warnings
+			{
+				get { return TestDetailed.Warnings; }
+				set { TestDetailed.Warnings = value; }
+			}
+
 			public string ArtifactName;
 
 			private TestResultDetailed TestDetailed;
@@ -250,6 +261,7 @@ namespace Gauntlet
 			public int SucceededWithWarningsCount;
 			public int FailedCount;
 			public int NotRunCount;
+			public int InProcessCount;
 			public float TotalDurationSeconds;
 			public List<TestResult> Tests;
 
@@ -280,6 +292,7 @@ namespace Gauntlet
 				OutTestPassResults.SucceededWithWarningsCount = InTestPassResults.succeededWithWarnings;
 				OutTestPassResults.FailedCount = InTestPassResults.failed;
 				OutTestPassResults.NotRunCount = InTestPassResults.notRun;
+				OutTestPassResults.InProcessCount = InTestPassResults.inProcess;
 				OutTestPassResults.TotalDurationSeconds = InTestPassResults.totalDuration;
 				if (InTestPassResults.tests != null)
 				{
