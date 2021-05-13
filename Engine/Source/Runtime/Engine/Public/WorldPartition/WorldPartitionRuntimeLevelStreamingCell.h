@@ -10,28 +10,36 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 {
 	GENERATED_UCLASS_BODY()
 
-	void Load() const;
-	void Unload() const;
-	void Activate() const;
-	void Deactivate() const;
-	int32 GetStreamingPriority() const { return Level; }
-	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
+	//~Begin UWorldPartitionRuntimeCell Interface
+	virtual void Load() const override;
+	virtual void Unload() const override;
+	virtual void Activate() const override;
+	virtual void Deactivate() const override;
+	virtual bool IsAddedToWorld() const override;
+	virtual bool CanAddToWorld() const override;
+	virtual ULevel* GetLevel() const override;
+	virtual EWorldPartitionRuntimeCellState GetCurrentState() const override;
 	virtual FLinearColor GetDebugColor() const override;
+	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) override;
 	virtual EStreamingStatus GetStreamingStatus() const override;
 	virtual bool IsLoading() const override;
-	EWorldPartitionRuntimeCellState GetCurrentState() const;
+	//~End UWorldPartitionRuntimeCell Interface
+
+	int32 GetStreamingPriority() const { return Level; }
+	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
+	
 
 #if WITH_EDITOR
+	//~Begin UWorldPartitionRuntimeCell Interface
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint64 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) override;
 	virtual int32 GetActorCount() const override;
-	const TArray<FWorldPartitionRuntimeCellObjectMapping>& GetPackages() const { return Packages; }
-
 	// Cook methods
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage) override;
 	virtual FString GetPackageNameToCreate() const override;
-#endif
+	//~End UWorldPartitionRuntimeCell Interface
 
-	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) override;
+	const TArray<FWorldPartitionRuntimeCellObjectMapping>& GetPackages() const { return Packages; }
+#endif
 
 private:
 	UFUNCTION()
