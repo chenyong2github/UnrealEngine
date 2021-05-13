@@ -25,6 +25,8 @@ private:
 	{
 		RouteId_BeginOpen,
 		RouteId_EndOpen,
+		RouteId_BeginReOpen,
+		RouteId_EndReOpen,
 		RouteId_BeginClose,
 		RouteId_EndClose,
 		RouteId_BeginRead,
@@ -46,6 +48,7 @@ private:
 	FFileActivityProvider& FileActivityProvider;
 	TMap<uint64, uint32> OpenFilesMap;
 	TMap<uint32, FPendingActivity> PendingOpenMap;
+	TMap<uint32, FPendingActivity> PendingReOpenMap;
 	TMap<uint32, FPendingActivity> PendingCloseMap;
 	TMap<uint64, FPendingActivity> ActiveReadsMap;
 	TMap<uint64, FPendingActivity> ActiveWritesMap;

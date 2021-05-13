@@ -20,6 +20,7 @@ struct FFileInfo
 enum EFileActivityType
 {
 	FileActivityType_Open,
+	FileActivityType_ReOpen,
 	FileActivityType_Close,
 	FileActivityType_Read,
 	FileActivityType_Write,
@@ -41,6 +42,8 @@ struct FFileActivity
 	uint32 ThreadId = 0;
 	EFileActivityType ActivityType = FileActivityType_Invalid;
 	bool Failed = false;
+	uint64 FileHandle;
+	uint64 ReadWriteHandle;
 };
 
 class IFileActivityProvider

@@ -33,13 +33,15 @@
 const TCHAR* GetFileActivityTypeName(TraceServices::EFileActivityType Type)
 {
 	static_assert(TraceServices::FileActivityType_Open == 0, "TraceServices::EFileActivityType enum has changed!?");
-	static_assert(TraceServices::FileActivityType_Close == 1, "TraceServices::EFileActivityType enum has changed!?");
-	static_assert(TraceServices::FileActivityType_Read == 2, "TraceServices::EFileActivityType enum has changed!?");
-	static_assert(TraceServices::FileActivityType_Write == 3, "TraceServices::EFileActivityType enum has changed!?");
-	static_assert(TraceServices::FileActivityType_Count == 4, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_ReOpen == 1, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Close == 2, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Read == 3, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Write == 4, "TraceServices::EFileActivityType enum has changed!?");
+	static_assert(TraceServices::FileActivityType_Count == 5, "TraceServices::EFileActivityType enum has changed!?");
 	static const TCHAR* GFileActivityTypeNames[] =
 	{
 		TEXT("Open"),
+		TEXT("ReOpen"),
 		TEXT("Close"),
 		TEXT("Read"),
 		TEXT("Write"),
@@ -56,6 +58,7 @@ uint32 GetFileActivityTypeColor(TraceServices::EFileActivityType Type)
 	static const uint32 GFileActivityTypeColors[] =
 	{
 		0xFFCCAA33, // open
+		0xFFBB9922, // reopen
 		0xFF33AACC, // close
 		0xFF33AA33, // read
 		0xFFDD33CC, // write
@@ -204,7 +207,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 					uint32 LocalDepth = MAX_uint32;
 					for (int32 i = 0; i < ConcurrentEvents.Num(); ++i)
 					{
-						if (EventStartTime > ConcurrentEvents[i])
+						if (EventStartTime >= ConcurrentEvents[i])
 						{
 							LocalDepth = i;
 							ConcurrentEvents[i] = EventEndTime;
@@ -220,7 +223,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 					}
 
 					uint32 Type = ((uint32)FileActivity->ActivityType & 0x0F) | (FileActivity->Failed ? 0x80 : 0);
-					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, LocalDepth, Type, FileActivity->Offset, FileActivity->Size, FileActivity->ActualSize, ActivityIndex });
+					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, LocalDepth, Type, FileActivity->Offset, FileActivity->Size, FileActivity->ActualSize, ActivityIndex, FileActivity->FileHandle, FileActivity->ReadWriteHandle });
 					return TraceServices::EEventEnumerate::Continue;
 				});
 
@@ -609,7 +612,26 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 			TypeLinearColor.B *= 2.0f;
 			InOutTooltip.AddTitle(TypeStr, TypeLinearColor);
 
-			InOutTooltip.AddTitle(SharedState.FileActivities[InEvent.FileActivityIndex]->Path);
+			if (ensure(InEvent.FileActivityIndex >= 0 && InEvent.FileActivityIndex < SharedState.FileActivities.Num()))
+			{
+				const TSharedPtr<FFileActivitySharedState::FIoFileActivity>& ActivityPtr = SharedState.FileActivities[InEvent.FileActivityIndex];
+				check(ActivityPtr.IsValid());
+				FFileActivitySharedState::FIoFileActivity& Activity = *ActivityPtr;
+
+				InOutTooltip.AddTitle(Activity.Path);
+			}
+
+			if (InEvent.FileHandle != uint64(-1))
+			{
+				const FString Value = FString::Printf(TEXT("0x%X"), InEvent.FileHandle);
+				InOutTooltip.AddNameValueTextLine(TEXT("File Handle:"), Value);
+			}
+
+			if (InEvent.ReadWriteHandle != uint64(-1))
+			{
+				const FString Value = FString::Printf(TEXT("0x%X"), InEvent.ReadWriteHandle);
+				InOutTooltip.AddNameValueTextLine(TEXT("Read/Write Handle:"), Value);
+			}
 
 			const double Duration = InEvent.EndTime - InEvent.StartTime;
 			InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(Duration));
@@ -646,48 +668,68 @@ bool FFileActivityTimingTrack::FindIoTimingEvent(const FTimingEventSearchParamet
 		// Search...
 		[this](TTimingEventSearch<FFileActivitySharedState::FIoTimingEvent>::FContext& InContext)
 		{
+			const TArray<FFileActivitySharedState::FIoTimingEvent>& Events = SharedState.GetAllEvents();
+
 			if (bIgnoreDuration)
 			{
-				for (const FFileActivitySharedState::FIoTimingEvent& Event : SharedState.GetAllEvents())
+				// Events are sorted by start time.
+				// Find the first event with StartTime >= searched StartTime.
+				int32 StartIndex = Algo::LowerBoundBy(Events, InContext.GetParameters().StartTime,
+					[](const FFileActivitySharedState::FIoTimingEvent& Event) { return Event.StartTime; });
+
+				for (int32 Index = StartIndex; Index < Events.Num(); ++Index)
 				{
+					const FFileActivitySharedState::FIoTimingEvent& Event = Events[Index];
+
 					if (bShowOnlyErrors && ((Event.Type & 0xF0) == 0))
 					{
 						continue;
 					}
 
-					if (Event.StartTime < InContext.GetParameters().StartTime)
-					{
-						continue;
-					}
+					ensure(Event.StartTime >= InContext.GetParameters().StartTime);
 
-					if (!InContext.ShouldContinueSearching() || Event.StartTime > InContext.GetParameters().EndTime)
+					if (Event.StartTime > InContext.GetParameters().EndTime)
 					{
 						break;
 					}
 
 					InContext.Check(Event.StartTime, Event.StartTime, bIgnoreEventDepth ? 0 : Event.Depth, Event);
+
+					if (!InContext.ShouldContinueSearching())
+					{
+						break;
+					}
 				}
 			}
 			else
 			{
-				for (const FFileActivitySharedState::FIoTimingEvent& Event : SharedState.GetAllEvents())
+				// Events are sorted by start time.
+				// Find the first event with StartTime >= searched EndTime.
+				int32 StartIndex = Algo::LowerBoundBy(Events, InContext.GetParameters().EndTime,
+					[](const FFileActivitySharedState::FIoTimingEvent& Event) { return Event.StartTime; });
+
+				// Start at the last event with StartTime < searched EndTime.
+				for (int32 Index = StartIndex - 1; Index >= 0; --Index)
 				{
+					const FFileActivitySharedState::FIoTimingEvent& Event = Events[Index];
+
 					if (bShowOnlyErrors && ((Event.Type & 0xF0) == 0))
 					{
 						continue;
 					}
 
-					if (!bIgnoreDuration && Event.EndTime <= InContext.GetParameters().StartTime)
+					if (Event.EndTime <= InContext.GetParameters().StartTime ||
+						Event.StartTime >= InContext.GetParameters().EndTime)
 					{
 						continue;
 					}
 
-					if (!InContext.ShouldContinueSearching() || Event.StartTime >= InContext.GetParameters().EndTime)
+					InContext.Check(Event.StartTime, Event.EndTime, bIgnoreEventDepth ? 0 : Event.Depth, Event);
+
+					if (!InContext.ShouldContinueSearching())
 					{
 						break;
 					}
-
-					InContext.Check(Event.StartTime, Event.EndTime, bIgnoreEventDepth ? 0 : Event.Depth, Event);
 				}
 			}
 		},

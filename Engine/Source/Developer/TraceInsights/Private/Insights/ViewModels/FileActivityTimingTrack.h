@@ -47,6 +47,8 @@ public:
 		uint64 Size;
 		uint64 ActualSize;
 		int32 FileActivityIndex;
+		uint64 FileHandle; // file handle
+		uint64 ReadWriteHandle; // for Read/Write operations
 	};
 
 public:
