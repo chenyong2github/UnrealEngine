@@ -75,11 +75,11 @@ bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(const UPackage* Owne
 }
 
 void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-	const TArray<FGeneratedPackageForPreSave>& PlaceholderPackages)
+	const TArray<FGeneratedPackageForPreSave>& GeneratedPackages)
 {
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	WorldPartition->FinalizeGeneratedPackageForCook();
+	WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
 }
 
 #endif
