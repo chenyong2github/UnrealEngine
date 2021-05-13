@@ -39,7 +39,8 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingLightin
 	TEXT("Determines the lighting mode (Default = 0)\n")
 	TEXT("0: interpolate final lighting from the surface cache\n")
 	TEXT("1: evaluate material, and interpolate irradiance and indirect irradiance from the surface cache\n")
-	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache"),
+	TEXT("2: evaluate material and direct lighting, and interpolate indirect irradiance from the surface cache\n")
+	TEXT("3: evaluate material, direct lighting, and unshadowed skylighting at the hit point"),
 	ECVF_RenderThreadSafe
 );
 
@@ -102,7 +103,15 @@ namespace Lumen
 			FMath::Clamp<int32>(FMath::FloorToInt(SublinearMapping(LumenReflectionQuality)), -2, 0);
 
 		const int32 LightingModeCVar = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
-		Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(FMath::Clamp<int32>(LightingModeCVar + ReflectionQualityLightingModeBias, 0, 2));
+		int32 LightingModeInt = FMath::Clamp<int32>(LightingModeCVar + ReflectionQualityLightingModeBias, 0, 2);
+
+		if (LightingModeCVar == 3)
+		{
+			// Only an explicit selection can enable Lighting Mode 3, which has unshadowed skylight and is not suitable for general use
+			LightingModeInt = 3;
+		}
+
+		Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(LightingModeInt);
 		return LightingMode;
 #else
 		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
@@ -119,6 +128,8 @@ namespace Lumen
 			return TEXT("EvaluateMaterial");
 		case EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting:
 			return TEXT("EvaluateMaterialAndDirectLighting");
+		case EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLightingAndSkyLighting:
+			return TEXT("EvaluateMaterialAndDirectLightingAndSkyLighting");
 		default:
 			checkf(0, TEXT("Unhandled EHardwareRayTracingLightingMode"));
 		}

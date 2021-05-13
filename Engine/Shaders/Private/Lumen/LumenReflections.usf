@@ -63,7 +63,7 @@ void ReflectionGBufferTileClassificationCS(
 	{
 		FGBufferData GBufferData = GetGBufferDataUint(ScreenCoord);
 
-		if (NeedRayTracedReflections(GBufferData.Roughness, GBufferData.ShadingModelID))
+		if (NeedRayTracedReflections(ApplySmoothBias(GBufferData.Roughness), GBufferData.ShadingModelID))
 		{
 			SharedTileNeedsTracing = 1;
 			SharedTileNeedsResolve[ResolveTileOffset.x][ResolveTileOffset.y] = 1;
@@ -115,7 +115,7 @@ void ReflectionGenerateRaysCS(
 
 		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
 
-		float TopLayerRoughness = GetClearCoatRoughness(GBufferData);
+		float TopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(GBufferData));
 		float DownsampledDepth = GBufferData.Depth;
 
 		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
@@ -218,7 +218,7 @@ void ReflectionResolveCS(
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
 		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
 
-		float TopLayerRoughness = GetClearCoatRoughness(GBufferData);
+		float TopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(GBufferData));
 
 		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
 		{
@@ -255,7 +255,7 @@ void ReflectionResolveCS(
 
 				float MinKernelRadius = ReflectionDownsampleFactor;
 				float MaxKernelRadius = SpatialReconstructionKernelRadius;
-				float KernelDiameter = 2.0 * lerp(MinKernelRadius, MaxKernelRadius, saturate(GBufferData.Roughness * 8));
+				float KernelDiameter = 2.0 * lerp(MinKernelRadius, MaxKernelRadius, saturate(TopLayerRoughness * 8));
 				for (uint SampleIndex = 0; SampleIndex < NumSpatialReconstructionSamples; SampleIndex++)
 				{
 					float2 Offset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f) * KernelDiameter;

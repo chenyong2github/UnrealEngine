@@ -106,6 +106,14 @@ FAutoConsoleVariableRef GVarLumenReflectionMaxRayIntensity(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenReflectionSmoothBias = 0.0f;
+FAutoConsoleVariableRef GVarLumenReflectionSmoothBias(
+	TEXT("r.Lumen.Reflections.SmoothBias"),
+	GLumenReflectionSmoothBias,
+	TEXT("Values larger than 0 apply a global material roughness bias for Lumen Reflections, where 1 is fully mirror."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenReflectionScreenSpaceReconstruction = 1;
 FAutoConsoleVariableRef CVarLumenReflectionScreenSpaceReconstruction(
 	TEXT("r.Lumen.Reflections.ScreenSpaceReconstruction"),
@@ -564,6 +572,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.ReflectionTracingViewSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
 	ReflectionTracingParameters.ReflectionTracingBufferSize = FIntPoint::DivideAndRoundUp(SceneTextures.Config.Extent, (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
 	ReflectionTracingParameters.MaxRayIntensity = GLumenReflectionMaxRayIntensity;
+	ReflectionTracingParameters.ReflectionSmoothBias = GLumenReflectionSmoothBias;
 
 	FRDGTextureDesc RayBufferDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ReflectionTracingParameters.RayBuffer = GraphBuilder.CreateTexture(RayBufferDesc, TEXT("Lumen.Reflections.ReflectionRayBuffer"));

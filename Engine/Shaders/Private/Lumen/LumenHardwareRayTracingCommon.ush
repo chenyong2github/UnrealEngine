@@ -39,6 +39,7 @@ float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPU
 #define LIGHTING_FROM_SURFACE_CACHE 0
 #define EVALUATE_MATERIAL 1
 #define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING 2
+#define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING 3
 
 uint GetAtlasId(int Mode)
 {
@@ -264,14 +265,21 @@ float3 CalculateRayTracedLighting(
 	float3 RayHitWorldNormal = Payload.GetWorldNormal();
 
 	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
-	if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
+	if (LightingMode >= EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
 	{
 		Radiance += CalculateDirectLighting(Ray, Context, Payload, RayHitWorldPosition, RayHitWorldNormal);
 	}
 
 	float3 DiffuseColor = Payload.GetDiffuseColor();
-	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode);
 
+	if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
+	{
+		Radiance += DiffuseColor * Payload.GetIndirectIrradiance();
+	}
+	else
+	{
+		Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode);
+	}
 	return Radiance;
 }
 
@@ -289,7 +297,7 @@ bool TraceAndCalculateRayTracedLighting(
 
 	uint RayFlags = 0;
 	uint InstanceMask = RAY_TRACING_MASK_OPAQUE;
-	bool bEnableSkyLightContribution = false;
+	bool bEnableSkyLightContribution = LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING;
 
 	FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
 	Payload.SetLumenPayload();
