@@ -464,6 +464,12 @@ namespace UnrealBuildTool
 		public bool bCompileISPC = false;
 
 		/// <summary>
+		/// Whether to compile in python support
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompilePython = true;
+
+		/// <summary>
 		/// Whether to compile the editor or not. Only desktop platforms (Windows or Mac) will use this, other platforms force this to false.
 		/// </summary>
 		public bool bBuildEditor
@@ -2083,6 +2089,11 @@ namespace UnrealBuildTool
 		public bool bCompileISPC
 		{
 			get { return Inner.bCompileISPC && !GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=0"); }	// LWC_TODO: Temporarily disable ISPC when LWC is turned on. To be removed when double support is added to ISPC.
+		}
+
+		public bool bCompilePython
+		{
+			get { return Inner.bCompilePython; }
 		}
 
 		public bool bBuildEditor
