@@ -1,0 +1,12 @@
+# Ignore GitHib repo
+vcpkg/
+vcpkg-*/
+
+# Ignore vcpkg_installed (combined libs & headers for all packages) except for the metadata
+**/vcpkg_installed/
+!**/vcpkg_installed/vcpkg/
+
+# Ignore OpenSSL and Zlib until vcpkg is also used to build them
+**/openssl_*/
+**/openssl-*/
+**/zlib_*/

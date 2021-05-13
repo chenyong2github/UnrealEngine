@@ -1,0 +1,37 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "DefaultRemoteExecutor.h"
+
+#define LOCTEXT_NAMESPACE "DefaultRemoteExecutor"
+
+FName FDefaultRemoteExecutor::GetFName() const
+{
+	return FName("None");
+}
+
+FText FDefaultRemoteExecutor::GetNameText() const
+{
+	return LOCTEXT("DefaultDisplayName", "None");
+}
+
+FText FDefaultRemoteExecutor::GetDescriptionText() const
+{
+	return LOCTEXT("DefaultDisplayDesc", "Disable remote execution.");
+}
+
+bool FDefaultRemoteExecutor::CanRemoteExecute() const
+{
+	return false;
+}
+
+IContentAddressableStorage* FDefaultRemoteExecutor::GetContentAddressableStorage() const
+{
+	return nullptr;
+}
+
+IExecution* FDefaultRemoteExecutor::GetExecution() const
+{
+	return nullptr;
+}
+
+#undef LOCTEXT_NAMESPACE
