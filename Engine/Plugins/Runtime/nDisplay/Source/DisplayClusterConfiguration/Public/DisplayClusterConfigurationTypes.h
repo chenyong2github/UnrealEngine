@@ -525,6 +525,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
+	UPROPERTY(EditAnywhere, Category = NDisplay)
+	FDisplayClusterConfigurationICVFX_StageSettings StageSettings;
+
+	UPROPERTY(EditAnywhere, Category = NDisplay)
+	FDisplayClusterConfigurationRenderFrame RenderFrameSettings;
+
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Follow Local Player Camera"))
+	bool bFollowLocalPlayerCamera = false;
+
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Exit when ESC pressed"))
+	bool bExitOnEsc = true;
+
 	/** Create empty config data. */
 	static UDisplayClusterConfigurationData* CreateNewConfigData(UObject* Owner = nullptr, EObjectFlags ObjectFlags = RF_NoFlags);
 #if WITH_EDITORONLY_DATA

@@ -171,10 +171,17 @@ void FDisplayClusterConfiguratorDataDetailCustomization::CustomizeDetails(IDetai
 {
 	Super::CustomizeDetails(InLayoutBuilder);
 
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
+		ADD_PROPERTY(UDisplayClusterConfigurationData, StageSettings);
+	END_CATEGORY()
+
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
-		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationData, Info);
-		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationData, Diagnostics);
+		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationData, RenderFrameSettings);
+		ADD_PROPERTY(UDisplayClusterConfigurationData, Info);
+		ADD_PROPERTY(UDisplayClusterConfigurationData, Diagnostics);
 		ADD_PROPERTY(UDisplayClusterConfigurationData, CustomParameters);
+		ADD_PROPERTY(UDisplayClusterConfigurationData, bFollowLocalPlayerCamera);
+		ADD_PROPERTY(UDisplayClusterConfigurationData, bExitOnEsc);
 	END_CATEGORY()
 }
 
@@ -190,9 +197,18 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 	check(ClusterNodesHandle->IsValidHandle());
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterCategory)
-		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, MasterNode);
-		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, Sync);
-		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, Network);
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Nodes);
+	END_CATEGORY()
+
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
+	END_CATEGORY()
+
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterConfigurationCategory)
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, MasterNode);
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Sync);
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Network);
 		ADD_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
 		ADD_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
 
@@ -218,7 +234,6 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 				];
 		}
 
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Nodes);
 	END_CATEGORY()
 }
 

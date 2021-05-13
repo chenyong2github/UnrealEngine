@@ -1081,7 +1081,6 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::SyncShowPreview()
 			if (CorrectShowPreviewValue != Actor->PreviewNodeId)
 			{
 				Actor->PreviewNodeId = CorrectShowPreviewValue;
-				Actor->PreviewSettings->PreviewNodeId = CorrectShowPreviewValue;
 				Actor->UpdatePreviewComponents();
 			}
 		}

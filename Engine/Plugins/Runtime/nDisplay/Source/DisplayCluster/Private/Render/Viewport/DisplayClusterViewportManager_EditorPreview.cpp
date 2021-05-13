@@ -96,7 +96,7 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	}
 }
 
-bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration, class ADisplayClusterRootActor* InRootActorPtr)
+bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& PreviewConfiguration, class ADisplayClusterRootActor* InRootActorPtr)
 {
 	Configuration->SetRootActor(InRootActorPtr);
 	return Configuration->UpdatePreviewConfiguration(PreviewConfiguration);
@@ -188,7 +188,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 		FinalizeNewFrame();
 
 		// After all render target rendered call nDisplay frame rendering:
-		RenderFrame(InRenderFrame.bWarpBlendEnabled, InViewport);
+		RenderFrame(InViewport);
 
 		return true;
 	}

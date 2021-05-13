@@ -166,20 +166,23 @@ bool FDisplayClusterRootActorDetailsCustomization::RebuildNodeIdOptionsList()
 
 void FDisplayClusterRootActorDetailsCustomization::UpdateNodeIdSelection()
 {
-	const FString& CurrentPreviewNode = EditedObject->PreviewNodeId;
-	TSharedPtr<FString>* FoundItem = NodeIdOptions.FindByPredicate([CurrentPreviewNode](const TSharedPtr<FString>& Item)
+	if (NodeIdComboBox.IsValid())
 	{
-		return Item->Equals(CurrentPreviewNode, ESearchCase::IgnoreCase);
-	});
+		const FString& CurrentPreviewNode = EditedObject->PreviewNodeId;
+		TSharedPtr<FString>* FoundItem = NodeIdOptions.FindByPredicate([CurrentPreviewNode](const TSharedPtr<FString>& Item)
+		{
+			return Item->Equals(CurrentPreviewNode, ESearchCase::IgnoreCase);
+		});
 
-	if (FoundItem)
-	{
-		NodeIdComboBox->SetSelectedItem(*FoundItem);
-	}
-	else
-	{
-		// Set combobox selected item (options list is not empty here)
-		NodeIdComboBox->SetSelectedItem(NodeIdOptionAll);
+		if (FoundItem)
+		{
+			NodeIdComboBox->SetSelectedItem(*FoundItem);
+		}
+		else
+		{
+			// Set combobox selected item (options list is not empty here)
+			NodeIdComboBox->SetSelectedItem(NodeIdOptionAll);
+		}
 	}
 }
 
@@ -191,8 +194,13 @@ void FDisplayClusterRootActorDetailsCustomization::OnNodeIdSelected(TSharedPtr<F
 
 FText FDisplayClusterRootActorDetailsCustomization::GetSelectedNodeIdText() const
 {
-	TSharedPtr<FString> CurSelection = NodeIdComboBox->GetSelectedItem();
-	return FText::FromString(CurSelection.IsValid() ? *CurSelection : *NodeIdOptionNone);
+	if (NodeIdComboBox.IsValid())
+	{
+		TSharedPtr<FString> CurSelection = NodeIdComboBox->GetSelectedItem();
+		return FText::FromString(CurSelection.IsValid() ? *CurSelection : *NodeIdOptionNone);
+	}
+
+	return FText::FromString(*NodeIdOptionNone);
 }
 
 
