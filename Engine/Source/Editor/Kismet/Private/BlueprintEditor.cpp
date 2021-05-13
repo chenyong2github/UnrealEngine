@@ -1553,6 +1553,7 @@ void FBlueprintEditor::OnChangeBreadCrumbGraph(UEdGraph* InGraph)
 
 FBlueprintEditor::FBlueprintEditor()
 	: bSaveIntermediateBuildProducts(false)
+	, bIsReparentingBlueprint(false)
 	, bPendingDeferredClose(false)
 	, bRequestedSavingOpenDocumentState(false)
 	, bBlueprintModifiedOnOpen (false)
@@ -3067,6 +3068,9 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 
 		if ( bReparent )
 		{
+			// Notify that we are currently reparenting this blueprint so that we get the proper compilation flags
+			TGuardValue<bool> GuardValue(bIsReparentingBlueprint, true);
+
 			const FScopedTransaction Transaction( LOCTEXT("ReparentBlueprint", "Reparent Blueprint") );
 			UE_LOG(LogBlueprint, Warning, TEXT("Reparenting blueprint %s from %s to %s..."), *BlueprintObj->GetFullName(), BlueprintObj->ParentClass ? *BlueprintObj->ParentClass->GetName() : TEXT("[None]"), *ChosenClass->GetName());
 			
@@ -3622,6 +3626,12 @@ void FBlueprintEditor::Compile()
 		{
 			CompileOptions |= EBlueprintCompileOptions::SaveIntermediateProducts;
 		}
+
+		if (bIsReparentingBlueprint)
+		{
+			CompileOptions |= EBlueprintCompileOptions::UseDeltaSerializationDuringReinstancing;
+		}
+
 		FKismetEditorUtilities::CompileBlueprint(BlueprintObj, CompileOptions, &LogResults);
 
 		LogResults.EndEvent();

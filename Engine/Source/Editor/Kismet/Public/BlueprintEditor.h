@@ -1234,8 +1234,11 @@ public://@TODO
 
 protected:
 
-	// Should intermediate build products be saved when recompiling?
+	/** Should intermediate build products be saved when recompiling? */
 	bool bSaveIntermediateBuildProducts;
+
+	/** True if the current blueprint is in the process of being reparented */
+	bool bIsReparentingBlueprint;
 
 	/** Flags if this blueprint editor should close on its next tick. */
 	bool bPendingDeferredClose;
@@ -1243,7 +1246,7 @@ protected:
 	/** Currently focused graph editor */
 	TWeakPtr<class SGraphEditor> FocusedGraphEdPtr;
 	
-	// Factory that spawns graph editors; used to look up all tabs spawned by it.
+	/** Factory that spawns graph editors; used to look up all tabs spawned by it. */
 	TWeakPtr<FDocumentTabFactory> GraphEditorTabFactoryPtr;
 
 	/** User-defined enumerators to keep loaded */

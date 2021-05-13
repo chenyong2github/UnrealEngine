@@ -369,6 +369,7 @@ FBlueprintCompileReinstancer::FBlueprintCompileReinstancer(UClass* InClassToRein
 			ReinstClassType = RCT_Native;
 		}
 		bAllowResaveAtTheEndIfRequested = bAutoInferSaveOnCompile && !bIsBytecodeOnly && (ReinstClassType != RCT_BpSkeleton);
+		bUseDeltaSerializationToCopyProperties = !!(Flags & EBlueprintCompileReinstancerFlags::UseDeltaSerialization);
 
 		SaveClassFieldMapping(InClassToReinstance);
 
@@ -2639,14 +2640,15 @@ void FBlueprintCompileReinstancer::ReparentChild(UClass* ChildClass)
 	ChildClass->StaticLink(true);
 }
 
-void FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, bool bClearExternalReferences)
+void FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, bool bClearExternalReferences, bool bForceDeltaSerialization /* = false */)
 {
 	InstancedPropertyUtils::FInstancedPropertyMap InstancedPropertyMap;
 	InstancedPropertyUtils::FArchiveInstancedSubObjCollector  InstancedSubObjCollector(OldObject, InstancedPropertyMap);
 
 	UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
-	Params.bAggressiveDefaultSubobjectReplacement = false;//true;
-	Params.bDoDelta = !OldObject->HasAnyFlags(RF_ClassDefaultObject);
+	Params.bAggressiveDefaultSubobjectReplacement = false;
+	// During a blueprint reparent, delta serialization must be enabled to correctly copy all properties
+	Params.bDoDelta = bForceDeltaSerialization || !OldObject->HasAnyFlags(RF_ClassDefaultObject);
 	Params.bCopyDeprecatedProperties = true;
 	Params.bSkipCompilerGeneratedDefaults = true;
 	Params.bClearReferences = bClearExternalReferences;
