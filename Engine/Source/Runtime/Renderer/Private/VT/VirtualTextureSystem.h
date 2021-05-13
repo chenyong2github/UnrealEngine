@@ -37,6 +37,8 @@ public:
 	static void Shutdown();
 	static FVirtualTextureSystem& Get();
 
+	uint32 GetFrame() const { return Frame; }
+
 	void AllocateResources(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
 	void CallPendingCallbacks();
 	void Update( FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene);
@@ -122,6 +124,7 @@ private:
 	TArray<IAllocatedVirtualTexture*> PendingDeleteAllocatedVTs;
 
 	TMap<FAllocatedVTDescription, FAllocatedVirtualTexture*> AllocatedVTs;
+	TArray<IAllocatedVirtualTexture*> AllocatedVTsToMap;
 
 	FAdaptiveVirtualTexture* AdaptiveVTs[MaxSpaces] = { nullptr };
 

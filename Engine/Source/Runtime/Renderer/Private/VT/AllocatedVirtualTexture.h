@@ -29,8 +29,6 @@ public:
 
 	virtual ~FAllocatedVirtualTexture();
 
-	void Release(FVirtualTextureSystem* System);
-
 	inline uint32 GetFrameAllocated() const { return FrameAllocated; }
 
 	void AssignVirtualAddress(uint32 vAddress);
@@ -47,6 +45,7 @@ public:
 	virtual void GetPackedPageTableUniform(FUintVector4* OutUniform) const override;
 	virtual void GetPackedUniform(FUintVector4* OutUniform, uint32 LayerIndex) const override;
 	virtual void Destroy(FVirtualTextureSystem* InSystem) override;
+	virtual bool TryMapLockedTiles(FVirtualTextureSystem* InSystem) const override;
 	// end IAllocatedVirtualTexture
 
 	inline FVirtualTextureSpace* GetSpace() const { return Space; }
