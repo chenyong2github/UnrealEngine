@@ -47,6 +47,11 @@ struct FCountersTrace
 			CounterId = OutputInitCounter(InCounterName, CounterType, CounterDisplayHint);
 		}
 
+		const ValueType& Get() const
+		{
+			return Value;
+		}
+
 		void Set(ValueType InValue)
 		{
 			if (Value != InValue)
