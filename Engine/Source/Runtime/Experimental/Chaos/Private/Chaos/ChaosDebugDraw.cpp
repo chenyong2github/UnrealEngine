@@ -87,10 +87,7 @@ namespace Chaos
 				return *InSettings;
 			}
 
-			{
-				static FChaosDebugDrawSettings ChaosDefaultDebugDebugDrawSettings;
-				return ChaosDefaultDebugDebugDrawSettings;
-			}
+			return ChaosDefaultDebugDebugDrawSettings;
 		}
 
 		//
