@@ -7,7 +7,6 @@
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
 #include "Sections/MovieSceneStringSection.h"
-#include "Evaluation/MovieScene3DTransformTemplate.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
 #include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneByteChannel.h"
