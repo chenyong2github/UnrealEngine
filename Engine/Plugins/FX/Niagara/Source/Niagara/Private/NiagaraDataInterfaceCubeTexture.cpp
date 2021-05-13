@@ -258,7 +258,7 @@ public:
 				GBlackTextureCube->SamplerStateRHI,
 				GBlackTextureCube->TextureRHI
 			);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector3f::ZeroVector);
 		}
 	}
 private:

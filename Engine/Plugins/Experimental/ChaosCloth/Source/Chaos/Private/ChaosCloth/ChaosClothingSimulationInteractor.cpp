@@ -45,7 +45,7 @@ void UChaosClothingInteractor::SetLongRangeAttachment(FVector2D TetherStiffness)
 {
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetLongRangeAttachmentProperties(TetherStiffness);
+		Cloth->SetLongRangeAttachmentProperties((FVec2)TetherStiffness);
 	}));
 }
 
