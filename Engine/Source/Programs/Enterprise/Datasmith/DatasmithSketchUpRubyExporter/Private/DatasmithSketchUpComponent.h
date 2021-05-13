@@ -167,7 +167,7 @@ namespace DatasmithSketchUp
 			SUComponentDefinitionRef InComponentDefinitionRef // source SketchUp component definition
 		);
 
-		// Being FDefinition
+		// Begin FDefinition
 		void Parse(FExportContext& Context);
 		void CreateActor(FExportContext& Context, FNodeOccurence& Node) override;
 		void BuildNodeNames(FNodeOccurence& Node) override;
@@ -187,10 +187,11 @@ namespace DatasmithSketchUp
 		// Register/unregister instanced of this definition
 		void LinkComponentInstance(FComponentInstance* ComponentInstance);
 		void UnlinkComponentInstance(FComponentInstance* ComponentInstance);
+		void RemoveComponentDefinition(FExportContext& Context);
 
 		// Source SketchUp component ID.
 		FComponentDefinitionIDType SketchupSourceID;
-		TSet<FComponentInstance*> Instances;
+		TSet<FComponentInstance*> Instances; // Tracked instances of this ComponentDefinition
 
 	private:
 		SUComponentDefinitionRef ComponentDefinitionRef;
