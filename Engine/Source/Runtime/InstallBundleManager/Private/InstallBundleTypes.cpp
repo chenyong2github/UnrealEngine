@@ -83,6 +83,7 @@ const TCHAR* LexToString(EInstallBundleResult Result)
 		TEXT("InstallError"),
 		TEXT("InstallerOutOfDiskSpaceError"),
 		TEXT("ManifestArchiveError"),
+		TEXT("ConnectivityError"),
 		TEXT("UserCancelledError"),
 		TEXT("InitializationError"),
 		TEXT("InitializationPending"),

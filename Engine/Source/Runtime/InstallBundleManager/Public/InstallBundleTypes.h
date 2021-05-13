@@ -121,6 +121,7 @@ enum class EInstallBundleResult : int
 	InstallError,
 	InstallerOutOfDiskSpaceError,
 	ManifestArchiveError,
+	ConnectivityError,
 	UserCancelledError,
 	InitializationError,
 	InitializationPending,
