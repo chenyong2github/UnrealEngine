@@ -547,8 +547,8 @@ void AddBoxFaceTriangles(FDynamicMeshBuilder& MeshBuilder, int32 FaceIndex)
 		{ 2, 3, 7, 6 }	// top, +y
 	};
 
-	MeshBuilder.AddTriangle(BoxIndices[FaceIndex][0], BoxIndices[FaceIndex][1], BoxIndices[FaceIndex][2]);
-	MeshBuilder.AddTriangle(BoxIndices[FaceIndex][0], BoxIndices[FaceIndex][2], BoxIndices[FaceIndex][3]);
+	MeshBuilder.AddTriangle(BoxIndices[FaceIndex][0], BoxIndices[FaceIndex][2], BoxIndices[FaceIndex][1]);
+	MeshBuilder.AddTriangle(BoxIndices[FaceIndex][0], BoxIndices[FaceIndex][3], BoxIndices[FaceIndex][2]);
 }
 
 void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
@@ -605,7 +605,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 				const uint8 CardValue = 0xFF;
 
 				FLinearColor CardColor = FLinearColor::MakeFromHSV8(CardHue, CardSaturation, CardValue);
-				CardColor.A = 0.5f;
+				CardColor.A = 1.0f;
 
 				FMatrix CardToWorld = FMatrix::Identity;
 				CardToWorld.SetAxes(&Card.LocalToWorldRotationX, &Card.LocalToWorldRotationY, &Card.LocalToWorldRotationZ, &Card.Origin);
@@ -614,22 +614,28 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 
 				DrawWireBox(&ViewPDI, CardToWorld, LocalBounds, CardColor, DepthPriority);
 
-				FColoredMaterialRenderProxy* MaterialRenderProxy = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), CardColor, NAME_Color);
-
-				FDynamicMeshBuilder MeshBuilder(ViewPDI.View->GetFeatureLevel());
-
-				for (int32 VertIndex = 0; VertIndex < 8; ++VertIndex)
+				#if WITH_EDITORONLY_DATA
 				{
-					FVector BoxVertex;
-					BoxVertex.X = VertIndex & 0x1 ? LocalBounds.Max.X : LocalBounds.Min.X;
-					BoxVertex.Y = VertIndex & 0x2 ? LocalBounds.Max.Y : LocalBounds.Min.Y;
-					BoxVertex.Z = VertIndex & 0x4 ? LocalBounds.Max.Z : LocalBounds.Min.Z;
-					MeshBuilder.AddVertex(BoxVertex, FVector2D(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+					CardColor.A = 0.5f;
+
+					FColoredMaterialRenderProxy* MaterialRenderProxy = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->GeomMaterial->GetRenderProxy(), CardColor, NAME_Color);
+
+					FDynamicMeshBuilder MeshBuilder(ViewPDI.View->GetFeatureLevel());
+
+					for (int32 VertIndex = 0; VertIndex < 8; ++VertIndex)
+					{
+						FVector BoxVertex;
+						BoxVertex.X = VertIndex & 0x1 ? LocalBounds.Max.X : LocalBounds.Min.X;
+						BoxVertex.Y = VertIndex & 0x2 ? LocalBounds.Max.Y : LocalBounds.Min.Y;
+						BoxVertex.Z = VertIndex & 0x4 ? LocalBounds.Max.Z : LocalBounds.Min.Z;
+						MeshBuilder.AddVertex(BoxVertex, FVector2D(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+					}
+
+					AddBoxFaceTriangles(MeshBuilder, 1);
+
+					MeshBuilder.Draw(&ViewPDI, CardToWorld, MaterialRenderProxy, DepthPriority, false);
 				}
-
-				AddBoxFaceTriangles(MeshBuilder, 1);
-
-				MeshBuilder.Draw(&ViewPDI, CardToWorld, MaterialRenderProxy, DepthPriority, 0.0f);
+				#endif
 			}
 		}
 
