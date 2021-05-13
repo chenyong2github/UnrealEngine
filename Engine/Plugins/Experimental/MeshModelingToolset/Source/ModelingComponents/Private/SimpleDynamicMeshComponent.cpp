@@ -179,29 +179,14 @@ void USimpleDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3
 
 void USimpleDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
 {
-	
 	FDynamicMeshToMeshDescription Converter(ConversionOptions);
-	if (bHaveModifiedTopology == false && Converter.HaveMatchingElementCounts(Mesh.Get(), MeshDescription))
+	if (!bHaveModifiedTopology)
 	{
-		if (ConversionOptions.bUpdatePositions)
-		{
-			Converter.Update(Mesh.Get(), *MeshDescription, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateTangents, ConversionOptions.bUpdateUVs);
-		}
-		else if (ConversionOptions.bUpdateNormals || ConversionOptions.bUpdateTangents || ConversionOptions.bUpdateUVs)
-		{
-			Converter.UpdateAttributes(Mesh.Get(), *MeshDescription, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateTangents, ConversionOptions.bUpdateUVs);
-		}
-
-		if (ConversionOptions.bUpdateVtxColors)
-		{
-			Converter.UpdateVertexColors(Mesh.Get(), *MeshDescription);
-		}
+		Converter.UpdateUsingConversionOptions(Mesh.Get(), *MeshDescription);
 	}
 	else
 	{
 		Converter.Convert(Mesh.Get(), *MeshDescription);
-
-		//UE_LOG(LogTemp, Warning, TEXT("MeshDescription has %d instances"), MeshDescription->VertexInstances().Num());
 	}
 }
 

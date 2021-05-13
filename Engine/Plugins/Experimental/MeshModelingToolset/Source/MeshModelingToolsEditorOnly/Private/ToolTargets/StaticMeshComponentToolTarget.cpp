@@ -4,9 +4,10 @@
 
 #include "ComponentReregisterContext.h"
 #include "Components/StaticMeshComponent.h"
+#include "DynamicMeshToMeshDescription.h"
 #include "Engine/StaticMesh.h"
+#include "MeshDescriptionToDynamicMesh.h"
 #include "RenderingThread.h"
-
 
 static void DisplayCriticalWarningMessage(const FString& Message)
 {
@@ -251,6 +252,40 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 
 	// this rebuilds physics, but it doesn't undo!
 	Component->RecreatePhysicsState();
+}
+
+TSharedPtr<FDynamicMesh3> UStaticMeshComponentToolTarget::GetDynamicMesh()
+{
+	TSharedPtr<FDynamicMesh3> DynamicMesh = MakeShared<FDynamicMesh3>();
+	FMeshDescriptionToDynamicMesh Converter;
+	Converter.Convert(GetMeshDescription(), *DynamicMesh);
+	return DynamicMesh;
+}
+
+void UStaticMeshComponentToolTarget::CommitDynamicMesh(const FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo)
+{
+	FConversionToMeshDescriptionOptions ConversionOptions;
+	ConversionOptions.bSetPolyGroups = CommitInfo.bPolygroupsChanged;
+	ConversionOptions.bUpdatePositions = CommitInfo.bPositionsChanged;
+	ConversionOptions.bUpdateNormals = CommitInfo.bNormalsChanged;
+	ConversionOptions.bUpdateTangents = CommitInfo.bTangentsChanged;
+	ConversionOptions.bUpdateUVs = CommitInfo.bUVsChanged;
+	ConversionOptions.bUpdateVtxColors = CommitInfo.bVertexColorsChanged;
+
+	CommitMeshDescription([&CommitInfo, &ConversionOptions, &Mesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+	{
+		FDynamicMeshToMeshDescription Converter(ConversionOptions);
+
+		if (!CommitInfo.bTopologyChanged)
+		{
+			Converter.UpdateUsingConversionOptions(&Mesh, *CommitParams.MeshDescriptionOut);
+		}
+		else
+		{
+			// Do a full conversion.
+			Converter.Convert(&Mesh, *CommitParams.MeshDescriptionOut);
+		}
+	});
 }
 
 UStaticMesh* UStaticMeshComponentToolTarget::GetStaticMesh() const

@@ -341,6 +341,32 @@ void FDynamicMeshToMeshDescription::Convert(const FDynamicMesh3* MeshIn, FMeshDe
 	}
 }
 
+void FDynamicMeshToMeshDescription::UpdateUsingConversionOptions(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
+{
+	// See if we can do a buffer update without having to alter triangles.
+	if (HaveMatchingElementCounts(MeshIn, &MeshOut))
+	{
+		if (ConversionOptions.bUpdatePositions)
+		{
+			Update(MeshIn, MeshOut, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateTangents, ConversionOptions.bUpdateUVs);
+		}
+		else if (ConversionOptions.bUpdateNormals || ConversionOptions.bUpdateTangents || ConversionOptions.bUpdateUVs)
+		{
+			UpdateAttributes(MeshIn, MeshOut, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateTangents, ConversionOptions.bUpdateUVs);
+		}
+
+		if (ConversionOptions.bUpdateVtxColors)
+		{
+			UpdateVertexColors(MeshIn, MeshOut);
+		}
+	}
+	else
+	{
+		// Do a full conversion.
+		Convert(MeshIn, MeshOut);
+	}
+}
+
 
 void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
 {
