@@ -36,6 +36,7 @@
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
+#include "CookPackageSplitter.h"
 #include "Misc/Parse.h"
 
 #include "Algo/Find.h"
@@ -935,7 +936,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 							check(!PackageRelativePath.IsEmpty());
 							OutPackagesToGenerate->Add(PackageRelativePath);
 
-							// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/FinalizeGeneratedPackageForCook
+							// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/FinalizeGeneratorPackageForCook
 							PackagesToGenerateForCook.Add(PackageRelativePath, StreamingCell);
 						}
 					}
@@ -960,16 +961,18 @@ bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratedPackageForCook(UPackage
 	return false;
 }
 
-void UWorldPartitionRuntimeSpatialHash::FinalizeGeneratedPackageForCook()
+bool UWorldPartitionRuntimeSpatialHash::FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages)
 {
-	for (const auto& Package : PackagesToGenerateForCook)
+	for (const ICookPackageSplitter::FGeneratedPackageForPreSave& GeneratedPackage : InGeneratedPackages)
 	{
-		UWorldPartitionRuntimeCell* Cell = Package.Value;
-		if (ensure(Cell))
+		UWorldPartitionRuntimeCell** MatchingCell = PackagesToGenerateForCook.Find(GeneratedPackage.RelativePath);
+		UWorldPartitionRuntimeCell* Cell = MatchingCell ? *MatchingCell : nullptr;
+		if (!Cell || !Cell->PrepareCellForCook(GeneratedPackage.Package))
 		{
-			Cell->FinalizeGeneratedPackageForCook();
+			return false;
 		}
 	}
+	return true;
 }
 
 void UWorldPartitionRuntimeSpatialHash::FlushStreaming()

@@ -1203,13 +1203,16 @@ bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const
 	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath);
 }
 
-void UWorldPartition::FinalizeGeneratedPackageForCook()
+bool UWorldPartition::FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages)
 {
 	check(RuntimeHash);
-	RuntimeHash->FinalizeGeneratedPackageForCook();
-
-	// Apply remapping of Persistent Level's SoftObjectPaths
-	FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
+	if (RuntimeHash->FinalizeGeneratorPackageForCook(InGeneratedPackages))
+	{
+		// Apply remapping of Persistent Level's SoftObjectPaths
+		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
+		return true;
+	}
+	return false;
 }
 
 void UWorldPartition::SavePerUserSettings()

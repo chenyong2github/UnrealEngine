@@ -13,6 +13,7 @@
 
 #if WITH_EDITOR
 #include "PackageSourceControlHelper.h"
+#include "CookPackageSplitter.h"
 #endif
 
 #include "WorldPartition.generated.h"
@@ -144,7 +145,7 @@ public:
 
 	// Cook Methods
 	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath);
-	void FinalizeGeneratedPackageForCook();
+	bool FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages);
 
 	FBox GetWorldBounds() const;
 	FBox GetEditorWorldBounds() const;
