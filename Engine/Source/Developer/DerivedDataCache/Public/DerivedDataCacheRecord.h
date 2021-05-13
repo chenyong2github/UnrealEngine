@@ -219,7 +219,7 @@ public:
 	 */
 	inline FRequest BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority)
 	{
-		return RecordBuilder->BuildAsync(MoveTemp(OnComplete), Priority);
+		return RecordBuilder.Release()->BuildAsync(MoveTemp(OnComplete), Priority);
 	}
 
 private:

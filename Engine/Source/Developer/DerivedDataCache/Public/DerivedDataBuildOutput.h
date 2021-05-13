@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
+#include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -181,6 +182,7 @@ public:
 	/** Build a build output, which makes this builder subsequently unusable. */
 	inline FBuildOutput Build()
 	{
+		ON_SCOPE_EXIT { OutputBuilder = nullptr; };
 		return OutputBuilder->Build();
 	}
 

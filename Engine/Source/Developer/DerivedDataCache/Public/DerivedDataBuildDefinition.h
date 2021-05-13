@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -205,6 +206,7 @@ public:
 	 */
 	inline FBuildDefinition Build()
 	{
+		ON_SCOPE_EXIT { DefinitionBuilder = nullptr; };
 		return DefinitionBuilder->Build();
 	}
 

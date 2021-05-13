@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "IO/IoHash.h"
+#include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -165,6 +166,7 @@ public:
 	/** Build a build action, which makes this builder subsequently unusable. */
 	inline FBuildAction Build()
 	{
+		ON_SCOPE_EXIT { ActionBuilder = nullptr; };
 		return ActionBuilder->Build();
 	}
 
