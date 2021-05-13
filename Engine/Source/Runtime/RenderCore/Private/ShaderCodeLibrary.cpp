@@ -1904,7 +1904,7 @@ public:
 					// In case we run under such circumstances, we need to discover the components ourselves
 					if (FPlatformFileManager::Get().FindPlatformFile(TEXT("PakFile")) == nullptr)
 					{
-						UE_LOG(LogShaderLibrary, Display, TEXT("Running without a pakfile and did not find a monolithic library '%s' - attempting disk search for its chunks"), *Name, Library->GetNumComponents());
+						UE_LOG(LogShaderLibrary, Display, TEXT("Running without a pakfile and did not find a monolithic library '%s' - attempting disk search for its chunks"), *Name);
 
 						TArray<FString> UshaderbytecodeFiles;
 						FString SearchMask = Directory / FString::Printf(TEXT("ShaderArchive-*%s*.ushaderbytecode"), *Name);

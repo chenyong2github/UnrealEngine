@@ -237,8 +237,7 @@ void FShaderMapResourceCode::AddShaderCode(EShaderFrequency InFrequency, const F
 				Entry.UncompressedSize = ShaderCode.Num();
 				UE_LOG(LogShaders, Warning, TEXT("Shader %s is expected to be compressed with %s, but it arrived uncompressed. Assuming compressing made it longer and storing uncompressed."),
 					*InHash.ToString(),
-					*ShaderCompressionFormat.ToString(),
-					*InCode.GetCompressionFormat().ToString()
+					*ShaderCompressionFormat.ToString()
 				);
 			}
 		}
