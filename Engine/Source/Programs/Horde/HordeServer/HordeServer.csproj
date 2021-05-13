@@ -73,7 +73,7 @@
     <ProjectReference Include="..\..\Shared\EpicGames.Core\EpicGames.Core.csproj" />
     <ProjectReference Include="..\..\Shared\EpicGames.Perforce\EpicGames.Perforce.csproj" />
     <ProjectReference Include="..\HordeCommon\HordeCommon.csproj" />
-    <ProjectReference Include="..\..\..\ThirdParty\Perforce\P4Api.Net\P4Api.Net\P4Api.Net.csproj" />
+    <ProjectReference Include="..\..\..\ThirdParty\Perforce\P4Api.Net\p4api.net\p4api.net.csproj" />
   </ItemGroup>
 
   <ItemGroup>
