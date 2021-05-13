@@ -2149,8 +2149,7 @@ bool UnhashUnreachableObjects(bool bUseTimeLimit, float TimeLimit)
 		UE_LOG(LogGarbage, Log, TEXT("%f ms for %sunhashing unreachable objects (%d objects unhashed)"),
 		(FPlatformTime::Seconds() - StartTime) * 1000,
 		bUseTimeLimit ? TEXT("incrementally ") : TEXT(""),
-			Items,
-		GUnrechableObjectIndex, GUnreachableObjects.Num());
+		GUnreachableObjects.Num());
 	}
 	else if (!bTimeLimitReached)
 	{
