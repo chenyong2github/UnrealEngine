@@ -30,7 +30,12 @@ FNiagaraParameterDefinitionsToolkit::FNiagaraParameterDefinitionsToolkit()
 {}
 
 FNiagaraParameterDefinitionsToolkit::~FNiagaraParameterDefinitionsToolkit()
-{}
+{
+	if (ParameterPanelViewModel.IsValid())
+	{
+		ParameterPanelViewModel->Cleanup();
+	}
+}
 
 void FNiagaraParameterDefinitionsToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
