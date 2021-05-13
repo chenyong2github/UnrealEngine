@@ -207,7 +207,6 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupComponent::BuildSlot(TSharedRef<
 	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
-	CachedLabelBox->SetWidthOverride(SizeX);
 
 	UpdateWidget();
 
@@ -363,7 +362,6 @@ void UDMXPixelMappingFixtureGroupComponent::SetSizeWithinMinBoundaryBox()
 #if WITH_EDITOR
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
-	CachedLabelBox->SetWidthOverride(SizeX);
 #endif // WITH_EDITOR
 }
 

@@ -28,8 +28,8 @@ const FVector2D UDMXPixelMappingMatrixCellComponent::MixPixelSize = FVector2D(1.
 UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
 	: DownsamplePixelIndex(0)
 {
-	SizeX = 100.f;
-	SizeY = 100.f;
+	SizeX = 10.f;
+	SizeY = 10.f;
 
 #if WITH_EDITOR
 	RelativePositionX = 0.f;

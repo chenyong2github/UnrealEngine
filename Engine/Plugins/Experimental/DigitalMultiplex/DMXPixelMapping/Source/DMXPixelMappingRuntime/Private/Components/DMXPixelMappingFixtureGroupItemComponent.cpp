@@ -28,8 +28,8 @@ const FVector2D UDMXPixelMappingFixtureGroupItemComponent::MixPixelSize = FVecto
 UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemComponent()
 	: DownsamplePixelIndex(0)
 {
-	SizeX = 100.f;
-	SizeY = 100.f;
+	SizeX = 10.f;
+	SizeY = 10.f;
 	PositionX = 0.f;
 	PositionY = 0.f;
 
@@ -93,46 +93,8 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostParentAssigned()
 		}
 	}
 
-	// first compute a non-overlapping position
-	if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Parent))
-	{
-		bool bFirstStep = true;
-		for (UDMXPixelMappingBaseComponent* Component : FixtureGroupComponent->Children)
-		{
-			// skip myself
-			if (Component == this)
-			{
-				continue;
-			}
-			if (UDMXPixelMappingFixtureGroupItemComponent* FixtureGroupItem = Cast<UDMXPixelMappingFixtureGroupItemComponent>(Component))
-			{
-				if (bFirstStep)
-				{
-					PositionX = FixtureGroupItem->PositionX + FixtureGroupItem->SizeX;
-					PositionY = FixtureGroupItem->PositionY + FixtureGroupItem->SizeY;
-
-					bFirstStep = false;
-				}
-				else
-				{
-					PositionX = FMath::Max(FixtureGroupItem->PositionX + FixtureGroupItem->SizeX, PositionX);
-					PositionY = FMath::Max(FixtureGroupItem->PositionY + FixtureGroupItem->SizeY, PositionY);
-				}
-			}
-		}
-
 #if WITH_EDITOR
-		// Update relative position
-		RelativePositionX = PositionX - FixtureGroupComponent->GetPosition().X;
-		RelativePositionY = PositionY - FixtureGroupComponent->GetPosition().Y;
-
-		UpdateWidget();
-#endif // WITH_EDITOR
-	}
-
-	SetPositionInBoundaryBox(FVector2D(PositionX, PositionY));
-
-#if WITH_EDITOR
+	UpdateWidget();
 	AutoMapAttributes();
 #endif // WITH_EDITOR
 }
@@ -227,6 +189,7 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupItemComponent::BuildSlot(TShared
 
 	CachedLabelBox =
 		SNew(SBox)
+		.Padding(FMargin(2.f, 1.f, 2.f, 1.f))
 		.WidthOverride(SizeY)
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Top)
@@ -247,8 +210,8 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupItemComponent::BuildSlot(TShared
 		.ZOrder(ZOrder)
 		[
 			SNew(SOverlay)
+			
 			+ SOverlay::Slot()
-			.Padding(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateUObject(this, &UDMXPixelMappingFixtureGroupItemComponent::GetLabelPadding)))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
@@ -684,13 +647,6 @@ void UDMXPixelMappingFixtureGroupItemComponent::SetSizeWithinBoundaryBox(const F
 #endif // WITH_EDITOR
 	}
 }
-
-#if WITH_EDITOR
-FMargin UDMXPixelMappingFixtureGroupItemComponent::GetLabelPadding() const
-{
-	return FMargin(2.f, 1.f, 2.f, 0.f);
-}
-#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 void UDMXPixelMappingFixtureGroupItemComponent::AutoMapAttributes()

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/SDMXPixelMappingHierarchyView.h"
-#include "Widgets/SDMXPixelMappingHierarchyItem.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
+
 #include "DMXPixelMappingComponentReference.h"
 #include "DMXPixelMappingEditorUtils.h"
+#include "Components/DMXPixelMappingMatrixComponent.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 #include "ViewModels/DMXPixelMappingHierarchyViewModel.h"
+#include "Widgets/SDMXPixelMappingHierarchyItem.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Widgets/Layout/SBorder.h"
@@ -107,16 +109,16 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 		[
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		[
-			SAssignNew(TreeViewArea, SBorder)
-			.Padding(0)
-		.BorderImage(FEditorStyle::GetBrush("NoBrush"))
-		]
-		]
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.FillHeight(1.0f)
+				[
+					SAssignNew(TreeViewArea, SBorder)
+					.Padding(0)
+					.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+				]
+			]
 		];
 
 	RebuildTreeView();
@@ -268,7 +270,15 @@ void SDMXPixelMappingHierarchyView::ConditionallyUpdateTree()
 			bool* pPreviousExpansionState = ComponentExpansionStates.Find(Component);
 			if(pPreviousExpansionState == nullptr)
 			{
-				TreeView->SetItemExpansion(Model, true);
+				// Initially collapse matrix components
+				if (Cast<UDMXPixelMappingMatrixComponent>(Component))
+				{
+					TreeView->SetItemExpansion(Model, false);
+				}
+				else
+				{
+					TreeView->SetItemExpansion(Model, true);
+				}
 			}
 			else
 			{
