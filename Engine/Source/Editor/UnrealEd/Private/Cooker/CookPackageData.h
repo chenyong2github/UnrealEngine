@@ -302,6 +302,8 @@ namespace Cook
 		void SetGeneratedOwner(FGeneratorPackage* InGeneratedOwner);
 		/** Return the owning generator PackageData. Will be null if not a generated package or if orphaned */
 		FGeneratorPackage* GetGeneratedOwner() const { return GeneratedOwner; }
+		/** Mark that the package has finished generation and its save attempt, and should generate again if it needs to be resaved */
+		void ResetGenerationProgress();
 
 		/** Return whether a GC is required by a generator package as soon as possible. */
 		bool GeneratorPackageRequiresGC() const;

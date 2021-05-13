@@ -606,15 +606,13 @@ namespace Cook
 		check(GetPackage() != nullptr && GetPackage()->IsFullyLoaded());
 
 		check(!GetHasBeginPrepareSaveFailed());
-		check(!HasInitializedGeneratorSave());
-		check(!HasCompletedGeneration());
 		CheckObjectCacheEmpty();
 		CheckCookedPlatformDataEmpty();
 	}
 
 	void FPackageData::OnExitSave()
 	{
-		PackageDatas.GetCookOnTheFlyServer().ReleaseCookedPlatformData(*this);
+		PackageDatas.GetCookOnTheFlyServer().ReleaseCookedPlatformData(*this, false /* bCompletedSave */);
 		ClearObjectCache();
 		SetHasBeginPrepareSaveFailed(false);
 	}
@@ -879,8 +877,6 @@ namespace Cook
 		check(!GetCookedPlatformDataStarted());
 		check(!GetCookedPlatformDataCalled());
 		check(!GetCookedPlatformDataComplete());
-		check(!HasInitializedGeneratorSave());
-		check(!HasCompletedGeneration());
 	}
 
 	void FPackageData::ClearCookedPlatformData()
@@ -890,6 +886,10 @@ namespace Cook
 		SetCookedPlatformDataStarted(false);
 		SetCookedPlatformDataCalled(false);
 		SetCookedPlatformDataComplete(false);
+	}
+
+	void FPackageData::ResetGenerationProgress()
+	{
 		SetInitializedGeneratorSave(false);
 		SetCompletedGeneration(false);
 	}
