@@ -26,6 +26,8 @@ using Serilog.Events;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.SystemConsole.Themes;
 
+using Log = Serilog.Log;
+
 namespace HordeServer
 {
 	static class LoggerExtensions
