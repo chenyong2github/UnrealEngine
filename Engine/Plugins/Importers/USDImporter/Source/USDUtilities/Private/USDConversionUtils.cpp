@@ -944,6 +944,76 @@ FString UsdUtils::SanitizeUsdIdentifier( const TCHAR* InIdentifier )
 	return InIdentifier;
 }
 
+void UsdUtils::MakeVisible( UE::FUsdPrim& Prim, double TimeCode )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim PxrUsdPrim{ Prim };
+	if ( pxr::UsdGeomImageable Imageable{ PxrUsdPrim } )
+	{
+		Imageable.MakeVisible( TimeCode );
+	}
+#endif // USE_USD_SDK
+}
+
+void UsdUtils::MakeInvisible( UE::FUsdPrim& Prim, double TimeCode )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim PxrUsdPrim{ Prim };
+	if ( pxr::UsdGeomImageable Imageable{ PxrUsdPrim } )
+	{
+		Imageable.MakeInvisible( TimeCode );
+	}
+#endif // USE_USD_SDK
+}
+
+bool UsdUtils::IsVisible( UE::FUsdPrim& Prim, double TimeCode )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim PxrUsdPrim{ Prim };
+	if ( pxr::UsdGeomImageable Imageable{ PxrUsdPrim } )
+	{
+		return Imageable.ComputeVisibility( TimeCode ) == pxr::UsdGeomTokens->inherited;
+	}
+
+	return true;
+#else
+	return false;
+#endif // USE_USD_SDK
+}
+
+bool UsdUtils::HasInheritedVisibility( UE::FUsdPrim& Prim, double TimeCode )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim PxrUsdPrim{ Prim };
+	if ( pxr::UsdGeomImageable Imageable{ PxrUsdPrim } )
+	{
+		if ( pxr::UsdAttribute VisibilityAttr = Imageable.GetVisibilityAttr() )
+		{
+			pxr::TfToken Visibility;
+			if ( !VisibilityAttr.Get<pxr::TfToken>( &Visibility, TimeCode ) )
+			{
+				return true;
+			}
+
+			return Visibility == pxr::UsdGeomTokens->inherited;
+		}
+	}
+
+	// If it doesn't have the attribute the default is for it to be 'inherited'
+	return true;
+#else
+	return false;
+#endif // USE_USD_SDK
+}
+
 #if USE_USD_SDK
 #undef LOCTEXT_NAMESPACE
 #endif
