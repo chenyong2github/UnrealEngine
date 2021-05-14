@@ -391,6 +391,14 @@ namespace UnrealBuildTool
 		public bool bEnableMeshEditor = false;
 
 		/// <summary>
+		/// Whether to use the verse script interface.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-NoUseVerse", Value = "false")]
+		[CommandLine("-UseVerse", Value = "true")]
+		public bool bUseVerse = false;
+
+		/// <summary>
 		/// Whether to compile the Chaos physics plugin.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2034,6 +2042,11 @@ namespace UnrealBuildTool
 		public bool bEnableMeshEditor
 		{
 			get { return Inner.bEnableMeshEditor; }
+		}
+
+		public bool bUseVerse
+		{
+			get { return Inner.bUseVerse; }
 		}
 
 		public bool bCompileChaos

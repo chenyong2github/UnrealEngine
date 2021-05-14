@@ -1213,6 +1213,29 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Setup this module for verse support (based on the settings in UEBuildConfiguration)
+		/// </summary>
+		public void SetupModuleVerseSupport(ReadOnlyTargetRules Target)
+		{
+			bool bUseVerse = (Target.bUseVerse == true);
+			if (bUseVerse)
+			{
+				PublicDefinitions.Add("WITH_VERSE=1");
+
+				PrivateDependencyModuleNames.AddRange(
+					new string[] {
+						"Solaris",
+						"VerseCore",
+					}
+					);
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_VERSE=0");
+			}
+		}
+
+		/// <summary>
 		/// Setup this module for physics support (based on the settings in UEBuildConfiguration)
 		/// </summary>
 		public void SetupModulePhysicsSupport(ReadOnlyTargetRules Target)
