@@ -48,6 +48,7 @@ public:
 	bool SerializeNameMap();
 	bool SerializeImportMap(TArray<FObjectImport>& OutImportMap);
 	bool SerializeExportMap(TArray<FObjectExport>& OutExportMap);
+	bool SerializeImportedClasses(const TArray<FObjectImport>& ImportMap, TArray<FName>& OutClassNames);
 	bool SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
 	bool SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData);
 	bool SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData);

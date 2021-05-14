@@ -50,6 +50,7 @@ struct COREUOBJECT_API FAssetRegistryVersion
 								// * Removed global tag storage, a tag map reference-counts one store per asset registry
 								// * All configs can mix fixed and loose tag maps 
 		WorkspaceDomain,		// Added Version information to AssetPackageData
+		PackageImportedClasses, // Added ImportedClasses to AssetPackageData
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -620,6 +621,7 @@ private:
 }
 
 /** A class to hold data about a package on disk, this data is updated on save/load and is not updated when an asset changes in memory */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // Silence deprecation warnings for deprecated PackageGuid member in implicit constructors
 class FAssetPackageData
 {
 public:
@@ -629,6 +631,9 @@ public:
 
 	/** MD5 of the cooked package on disk, for tracking nondeterministic changes */
 	FMD5Hash CookedHash;
+
+	/** List of classes used by exports in the package. Does not include classes in the same package. */
+	TArray<FName> ImportedClasses;
 
 	/** Total size of this asset on disk */
 	int64 DiskSize;
@@ -653,17 +658,6 @@ public:
 		, Flags(0)
 	{
 	}
-	// Silence clang deprecation warnings for deprecated PackageGuid member in implicit constructors
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FAssetPackageData(FAssetPackageData&& Other) = default;
-	FAssetPackageData(const FAssetPackageData& Other)
-		: FAssetPackageData()
-	{
-		*this = Other;
-	}
-	FAssetPackageData& operator=(FAssetPackageData&& Other) = default;
-	FAssetPackageData& operator=(const FAssetPackageData& Other) = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Custom versions used by the package, used to check whether we need to update the package for the current binary.
@@ -696,15 +690,12 @@ public:
 	 */
 	void SerializeForCache(FArchive& Ar)
 	{
-		Ar << DiskSize;
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Ar << PackageGuid;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		Ar << CookedHash;
-		Ar << FileVersionUE;
-		Ar << FileVersionLicenseeUE;
-		Ar << Flags;
-		Ar << CustomVersions;
+		// Calling with hard-coded version and using force-inline on SerializeForCacheInternal eliminates the cost of its if-statements
+		SerializeForCacheInternal(Ar, FAssetRegistryVersion::LatestVersion);
+	}
+	void SerializeForCacheOldVersion(FArchive& Ar, FAssetRegistryVersion::Type Version)
+	{
+		SerializeForCacheInternal(Ar, Version);
 	}
 
 private:
@@ -712,7 +703,33 @@ private:
 	{
 		FLAG_LICENSEE_VERSION = 0x1,
 	};
+
+	void SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version);
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+FORCEINLINE void FAssetPackageData::SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version)
+{
+	Ar << DiskSize;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Ar << PackageGuid;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (Version >= FAssetRegistryVersion::AddedCookedMD5Hash)
+	{
+		Ar << CookedHash;
+	}
+	if (Version >= FAssetRegistryVersion::WorkspaceDomain)
+	{
+		Ar << FileVersionUE;
+		Ar << FileVersionLicenseeUE;
+		Ar << Flags;
+		Ar << CustomVersions;
+	}
+	if (Version >= FAssetRegistryVersion::PackageImportedClasses)
+	{
+		Ar << ImportedClasses;
+	}
+}
+
 
 /**
  * Helper struct for FAssetIdentifier (e.g., for the FOnViewAssetIdentifiersInReferenceViewer delegate and Reference Viewer functions).

@@ -368,6 +368,10 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	{
 		return false;
 	}
+	if (!SerializeImportedClasses(OutDependencyData.ImportMap, PackageData.ImportedClasses))
+	{
+		return false;
+	}
 	if (!SerializeSoftPackageReferenceList(OutDependencyData.SoftPackageReferenceList))
 	{
 		return false;
@@ -437,8 +441,8 @@ bool FPackageReader::SerializeImportMap(TArray<FObjectImport>& OutImportMap)
 		}
 		for ( int32 ImportMapIdx = 0; ImportMapIdx < PackageFileSummary.ImportCount; ++ImportMapIdx )
 		{
-			FObjectImport* Import = new(OutImportMap)FObjectImport;
-			*this << *Import;
+			FObjectImport& Import = OutImportMap.Emplace_GetRef();
+			*this << Import;
 			if (IsError())
 			{
 				UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeImportMapInvalidImport", PackageFilename);
@@ -447,6 +451,106 @@ bool FPackageReader::SerializeImportMap(TArray<FObjectImport>& OutImportMap)
 		}
 	}
 
+	return true;
+}
+
+bool FPackageReader::SerializeImportedClasses(const TArray<FObjectImport>& ImportMap, TArray<FName>& OutClassNames)
+{
+	OutClassNames.Reset();
+
+	TSet<int32> ClassImportIndices;
+	if (PackageFileSummary.ExportCount > 0)
+	{
+		if (!StartSerializeSection(PackageFileSummary.ExportOffset))
+		{
+			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeExportMapInvalidExportOffset", PackageFilename);
+			return false;
+		}
+
+		const int MinSizePerExport = 1;
+		if (PackageFileSize < Tell() + PackageFileSummary.ExportCount * MinSizePerExport)
+		{
+			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeExportMapInvalidExportCount", PackageFilename);
+			return false;
+		}
+		FObjectExport ExportBuffer;
+		for (int32 ExportMapIdx = 0; ExportMapIdx < PackageFileSummary.ExportCount; ++ExportMapIdx)
+		{
+			*this << ExportBuffer;
+			if (IsError())
+			{
+				UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeExportMapInvalidExport", PackageFilename);
+				return false;
+			}
+			if (ExportBuffer.ClassIndex.IsImport())
+			{
+				ClassImportIndices.Add(ExportBuffer.ClassIndex.ToImport());
+			}
+		}
+	}
+
+	TArray<FName, TInlineAllocator<5>>  ParentChain;
+	FNameBuilder ClassObjectPath;
+	for (int32 ClassImportIndex : ClassImportIndices)
+	{
+		ParentChain.Reset();
+		ClassObjectPath.Reset();
+		if (!ImportMap.IsValidIndex(ClassImportIndex))
+		{
+			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeImportedClassesInvalidClassIndex", PackageFilename);
+			return false;
+		}
+		bool bParentChainComplete = false;
+		int32 CurrentParentIndex = ClassImportIndex;
+		for (;;)
+		{
+			const FObjectImport& ObjectImport = ImportMap[CurrentParentIndex];
+			ParentChain.Add(ObjectImport.ObjectName);
+			if (ObjectImport.OuterIndex.IsImport())
+			{
+				CurrentParentIndex = ObjectImport.OuterIndex.ToImport();
+				if (!ImportMap.IsValidIndex(CurrentParentIndex))
+				{
+					UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeImportedClassesInvalidImportInParentChain",
+						PackageFilename);
+					return false;
+				}
+			}
+			else if (ObjectImport.OuterIndex.IsNull())
+			{
+				bParentChainComplete = true;
+				break;
+			}
+			else
+			{
+				check(ObjectImport.OuterIndex.IsExport());
+				// Ignore classes in an external package but with an object in this package as one of their outers;
+				// We do not need to handle that case yet for Import Classes, and we would have to make this
+				// loop more complex (searching in both ExportMap and ImportMap) to do so
+				UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeImportedClassesInvalidExportInParentChain",
+					PackageFilename);
+				break;
+			}
+		} while (!bParentChainComplete);
+
+		if (bParentChainComplete)
+		{
+			int32 NumTokens = ParentChain.Num();
+			check(NumTokens >= 1);
+			const TCHAR Delimiters[] = {'.', SUBOBJECT_DELIMITER_CHAR, '.' };
+			int32 DelimiterIndex = 0;
+			ParentChain[NumTokens - 1].AppendString(ClassObjectPath);
+			for (int32 TokenIndex = NumTokens - 2; TokenIndex >= 0; --TokenIndex)
+			{
+				ClassObjectPath << Delimiters[DelimiterIndex];
+				DelimiterIndex = FMath::Min(DelimiterIndex+1, static_cast<int32>(UE_ARRAY_COUNT(Delimiters))-1);
+				ParentChain[TokenIndex].AppendString(ClassObjectPath);
+			}
+			OutClassNames.Emplace(ClassObjectPath);
+		}
+	}
+
+	OutClassNames.Sort(FNameLexicalLess());
 	return true;
 }
 
