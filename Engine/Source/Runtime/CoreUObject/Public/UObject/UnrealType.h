@@ -1973,7 +1973,8 @@ class COREUOBJECT_API FDoubleProperty : public TProperty_Numeric<double>
 // Note: Stub only. Used to provide FNativeClassHeaderGenerator::PropertyNew with a way to track an as yet unaliased FFloatProperty/FDoubleProperty within the header tool, which will be resolved to the correct type at run time.
 class COREUOBJECT_API FLargeWorldCoordinatesRealProperty : public TProperty_Numeric<double>
 {
-public:
+	DECLARE_FIELD(FLargeWorldCoordinatesRealProperty, TProperty_Numeric<double>, CASTCLASS_FLargeWorldCoordinatesRealProperty)
+
 	FLargeWorldCoordinatesRealProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
 		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
