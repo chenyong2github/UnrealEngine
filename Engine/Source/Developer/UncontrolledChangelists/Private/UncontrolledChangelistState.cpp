@@ -102,7 +102,9 @@ void FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 
 	if (bCheckStatus)
 	{
-		SourceControlProvider.Execute(ISourceControlOperation::Create<FStatus>(), InFilenames);
+		auto UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
+		UpdateStatusOperation->SetUpdateModifiedState(true);
+		SourceControlProvider.Execute(UpdateStatusOperation, InFilenames);
 	}
 
 	bool GetStateSucceeded = SourceControlProvider.GetState(InFilenames, FileStates, EStateCacheUsage::Use) == ECommandResult::Succeeded;
@@ -138,7 +140,10 @@ void FUncontrolledChangelistState::UpdateStatus()
 	}
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	SourceControlProvider.Execute(ISourceControlOperation::Create<FStatus>(), FilesToUpdate, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &FUncontrolledChangelistState::OnUpdateStatusCompleted));
+	auto UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
+	UpdateStatusOperation->SetUpdateModifiedState(true);
+
+	SourceControlProvider.Execute(UpdateStatusOperation, FilesToUpdate, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &FUncontrolledChangelistState::OnUpdateStatusCompleted));
 }
 
 void FUncontrolledChangelistState::OnUpdateStatusCompleted(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult)
