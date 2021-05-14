@@ -41,7 +41,8 @@ public:
 
 	struct FHandle
 	{
-		int32 Identifier;
+		static const int32 InvalidHandle = -1;
+		int32 Identifier = InvalidHandle;
 		bool operator==(const FHandle& OtherHandle) const { return Identifier == OtherHandle.Identifier; }
 	};
 
