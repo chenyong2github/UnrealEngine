@@ -581,6 +581,8 @@ void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL
 
 void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlugin>& Plugin, FBuiltInPluginAdditionalFilters AdditionalFilter)
 {
+	UAssetManager::Get().PushBulkScanning();
+
 	const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();
 
 	// Make sure you are in the game feature plugins folder. All GameFeaturePlugins are in this folder.
