@@ -30,7 +30,7 @@ namespace EditorAnalyticsDefs
 	//   Version 1_3 : Added SessionTickCount, UserInteractionCount, IsCrcExeMissing, IsUserLoggingOut, MonitorExitCode and readded lost code to save/load/delete IsLowDriveSpace for 4.26.0.
 	//   Version 1_4 : Added CommandLine, EngineTickCount, LastTickTimestamp, DeathTimestamp and IsDebuggerIgnored for 4.26.0.
 	//   Version 1_5 : Added Stall Detector stats for 5.0.
-	//   Version 1_6 : Added ProcessDiagnostics, Renamed IsDebugger as IsDebuggerPresent
+	//   Version 1_6 : Added ProcessDiagnostics, Renamed IsDebugger as IsDebuggerPresent: This was the last version using this system before the refactor in UE 5.0.
 	static const FString StoreId(TEXT("Epic Games"));
 	static const FString SessionSummaryRoot(TEXT("Unreal Engine/Session Summary"));
 	static const FString DeprecatedVersions[] = { // The session format used by older versions.
@@ -40,8 +40,9 @@ namespace EditorAnalyticsDefs
 		SessionSummaryRoot / TEXT("1_3"),
 		SessionSummaryRoot / TEXT("1_4"),
 		SessionSummaryRoot / TEXT("1_5"),
+		SessionSummaryRoot / TEXT("1_6"),
 	};
-	static const FString SessionSummarySection = SessionSummaryRoot / TEXT("1_6"); // The current session format.
+	static const FString SessionSummarySection = SessionSummaryRoot / TEXT("1_7"); // The current session format.
 	static const FString GlobalLockName(TEXT("UE4_SessionSummary_Lock"));
 	static const FString SessionListStoreKey(TEXT("SessionList"));
 

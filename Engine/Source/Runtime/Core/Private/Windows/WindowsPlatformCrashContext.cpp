@@ -480,6 +480,14 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 		FCString::Strncat(CrashReporterClientArgs, PidStr, CR_CLIENT_MAX_ARGS_LEN);
 	}
 
+	{
+		// When CRC is spawned to 'monitor' a process, it creates an analytics session summary that can be merged with the summary of the watched process.
+		// The summaries are matched together using this process group ID.
+		TCHAR AnalyticsSummaryGuid[128] = { 0 };
+		FCString::Sprintf(AnalyticsSummaryGuid, TEXT(" -ProcessGroupId=%s"), *FApp::GetInstanceId().ToString(EGuidFormats::Digits));
+		FCString::Strncat(CrashReporterClientArgs, AnalyticsSummaryGuid, CR_CLIENT_MAX_ARGS_LEN);
+	}
+
 	// Parse commandline arguments relevant to pass to the client. Note that since we run this from static initialization
 	// FCommandline has not yet been initialized, instead we need to use the OS provided methods.
 	{
