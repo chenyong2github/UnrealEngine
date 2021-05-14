@@ -73,10 +73,27 @@ public:
 		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, 16, PF_A32B32G32R32F);
 	}
 
+	void UpdateDynamicData(const TArray<FMatrix44f>& Transforms, EResourceLockMode LockMode);
+
 	int32 NumTransforms;
 
 	FShaderResourceViewRHIRef VertexBufferSRV;
 };
+
+
+inline void CopyTransformsWithConversionWhenNeeded(TArray<FMatrix44f>& DstTransforms, const TArray<FMatrix>& SrcTransforms)
+{
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+	DstTransforms = SrcTransforms; // add move option?
+#else
+	// LWC_TODO : we have no choice but to convert each element at this point to avoid changing GeometryCollectionAlgo::GlobalMatrices that is used all over the place
+	DstTransforms.SetNumUninitialized(SrcTransforms.Num());
+	for (int TransformIndex = 0; TransformIndex < SrcTransforms.Num(); ++TransformIndex)
+	{
+		DstTransforms[TransformIndex] = FMatrix44f(SrcTransforms[TransformIndex]); // LWC_TODO: Perf pessimization
+	}
+#endif
+}
 
 /** Immutable rendering data (kind of) */
 struct FGeometryCollectionConstantData
@@ -99,14 +116,20 @@ struct FGeometryCollectionConstantData
 	TArray<FIntVector> OriginalMeshIndices;
 	TArray<FGeometryCollectionSection> OriginalMeshSections;
 
-	TArray<FMatrix> RestTransforms;
+	TArray<FMatrix44f> RestTransforms;
+
+	void SetRestTransforms(const TArray<FMatrix>& InTransforms)
+	{
+		// use for LWC as FMatrix and FMatrix44f are different when LWC is on 
+		CopyTransformsWithConversionWhenNeeded(RestTransforms, InTransforms);
+	}
 };
 
 /** Mutable rendering data */
 struct FGeometryCollectionDynamicData
 {
-	TArray<FMatrix> Transforms;
-	TArray<FMatrix> PrevTransforms;
+	TArray<FMatrix44f> Transforms;
+	TArray<FMatrix44f> PrevTransforms;
 	uint32 ChangedCount;
 	uint8 IsDynamic : 1;
 	uint8 IsLoading : 1;
@@ -122,6 +145,25 @@ struct FGeometryCollectionDynamicData
 		PrevTransforms.Reset();
 		IsDynamic = false;
 		IsLoading = false;
+	}
+
+	void SetTransforms(const TArray<FMatrix>& InTransforms)
+	{
+		// use for LWC as FMatrix and FMatrix44f are different when LWC is on 
+		CopyTransformsWithConversionWhenNeeded(Transforms, InTransforms);
+	}
+
+	void SetPrevTransforms(const TArray<FMatrix>& InTransforms)
+	{
+		// use for LWC as FMatrix and FMatrix44f are different when LWC is on 
+		CopyTransformsWithConversionWhenNeeded(PrevTransforms, InTransforms);
+	}
+
+	void SetAllTransforms(const TArray<FMatrix>& InTransforms)
+	{
+		SetTransforms(InTransforms);
+		PrevTransforms = Transforms;
+		ChangedCount = Transforms.Num();
 	}
 
 	void DetermineChanges()
