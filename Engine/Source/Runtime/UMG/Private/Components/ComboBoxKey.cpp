@@ -2,6 +2,7 @@
 
 #include "Components/ComboBoxKey.h"
 
+#include "Styling/UMGCoreStyle.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SNullWidget.h"
@@ -17,8 +18,14 @@ UComboBoxKey::UComboBoxKey()
 	// We don't want to try and load fonts on the server.
 	if (!IsRunningDedicatedServer())
 	{
-		WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox");
-		ItemStyle = FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+#if WITH_EDITOR 
+		const ISlateStyle& SlateStyle = IsEditorWidget() ? FCoreStyle::Get() : FUMGCoreStyle::Get();
+		WidgetStyle = SlateStyle.GetWidgetStyle<FComboBoxStyle>("ComboBox");
+		ItemStyle = SlateStyle.GetWidgetStyle<FTableRowStyle>("TableView.Row");
+#else
+		WidgetStyle = FUMGCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox");
+		ItemStyle = FUMGCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+#endif // WITH_EDITOR
 	}
 
 	ContentPadding = FMargin(4.0, 2.0);

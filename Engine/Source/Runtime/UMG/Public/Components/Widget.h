@@ -986,6 +986,8 @@ protected:
 	// This is an implementation detail that allows us to show and hide the widget in the designer
 	// regardless of the actual visibility state set by the user.
 	EVisibility GetVisibilityInDesigner() const;
+
+	bool IsEditorWidget() const;
 #endif
 
 	virtual void OnBindingChanged(const FName& Property);

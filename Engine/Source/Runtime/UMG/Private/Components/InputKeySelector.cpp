@@ -7,35 +7,63 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SInputKeySelector.h"
 #include "Internationalization/Internationalization.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
 static FButtonStyle* DefaultInputKeySelectorButtonStyle = nullptr;
 static FTextBlockStyle* DefaultInputKeySelectorTextStyle = nullptr;
 
+#if WITH_EDITOR 
+static FButtonStyle* EditorInputKeySelectorButtonStyle = nullptr;
+static FTextBlockStyle* EditorInputKeySelectorTextStyle = nullptr;
+#endif
+
 UInputKeySelector::UInputKeySelector( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
 	if (DefaultInputKeySelectorButtonStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultInputKeySelectorButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
+		DefaultInputKeySelectorButtonStyle = new FButtonStyle(FUMGCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultInputKeySelectorButtonStyle->UnlinkColors();
 	}
 
 	if (DefaultInputKeySelectorTextStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultInputKeySelectorTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
+		DefaultInputKeySelectorTextStyle = new FTextBlockStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultInputKeySelectorTextStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultInputKeySelectorButtonStyle;
 	TextStyle = *DefaultInputKeySelectorTextStyle;
+
+#if WITH_EDITOR 
+	if (EditorInputKeySelectorButtonStyle == nullptr)
+	{
+		EditorInputKeySelectorButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorInputKeySelectorButtonStyle->UnlinkColors();
+	}
+
+	if (EditorInputKeySelectorTextStyle == nullptr)
+	{
+		EditorInputKeySelectorTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorInputKeySelectorTextStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorInputKeySelectorButtonStyle;
+		TextStyle = *EditorInputKeySelectorTextStyle;
+	}
+#endif // WITH_EDITOR
 
 	KeySelectionText = NSLOCTEXT("InputKeySelector", "DefaultKeySelectionText", "...");
 	NoKeySpecifiedText = NSLOCTEXT("InputKeySelector", "DefaultEmptyText", "Empty");

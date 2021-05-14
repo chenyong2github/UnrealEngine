@@ -3,6 +3,7 @@
 #include "Components/ExpandableArea.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/UMGCoreStyle.h"
 
 #include "Widgets/Layout/SExpandableArea.h"
 
@@ -17,6 +18,11 @@ static const FName BodyName(TEXT("Body"));
 static FExpandableAreaStyle* DefaultExpandableAreaStyle = nullptr;
 static FSlateBrush* DefaultExpandableAreaBorderBrush = nullptr;
 
+#if WITH_EDITOR
+static FExpandableAreaStyle* EditorExpandableAreaStyle = nullptr;
+static FSlateBrush* EditorExpandableAreaBorderBrush = nullptr;
+#endif 
+
 UExpandableArea::UExpandableArea(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bIsExpanded(false)
@@ -25,24 +31,46 @@ UExpandableArea::UExpandableArea(const FObjectInitializer& ObjectInitializer)
 
 	if (DefaultExpandableAreaStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultExpandableAreaStyle = new FExpandableAreaStyle(FCoreStyle::Get().GetWidgetStyle<FExpandableAreaStyle>("ExpandableArea"));
+		DefaultExpandableAreaStyle = new FExpandableAreaStyle(FUMGCoreStyle::Get().GetWidgetStyle<FExpandableAreaStyle>("ExpandableArea"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultExpandableAreaStyle->UnlinkColors();
 	}
 
 	if (DefaultExpandableAreaBorderBrush == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultExpandableAreaBorderBrush = new FSlateBrush(*FCoreStyle::Get().GetBrush("ExpandableArea.Border"));
+		DefaultExpandableAreaBorderBrush = new FSlateBrush(*FUMGCoreStyle::Get().GetBrush("ExpandableArea.Border"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultExpandableAreaBorderBrush->UnlinkColors();
 	}
 
 	Style = *DefaultExpandableAreaStyle;
 	BorderBrush = *DefaultExpandableAreaBorderBrush;
+
+#if WITH_EDITOR 
+	if (EditorExpandableAreaStyle == nullptr)
+	{
+		EditorExpandableAreaStyle = new FExpandableAreaStyle(FCoreStyle::Get().GetWidgetStyle<FExpandableAreaStyle>("ExpandableArea"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorExpandableAreaStyle->UnlinkColors();
+	}
+
+	if (EditorExpandableAreaBorderBrush == nullptr)
+	{
+		EditorExpandableAreaBorderBrush = new FSlateBrush(*FCoreStyle::Get().GetBrush("ExpandableArea.Border"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorExpandableAreaBorderBrush->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		Style = *EditorExpandableAreaStyle;
+		BorderBrush = *EditorExpandableAreaBorderBrush;
+	}
+#endif // WITH_EDITOR
 
 	BorderColor = FLinearColor::White;
 	AreaPadding = FMargin(1);

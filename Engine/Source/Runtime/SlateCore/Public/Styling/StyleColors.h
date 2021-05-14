@@ -13,7 +13,7 @@
 #define COLOR( HexValue ) FLinearColor::FromSRGBColor(FColor::FromHex(HexValue))
 
 /**
- * Note: If you add another color here, you should update the Dark.json theme file in Engine\Content\Slate\Themes for consistency
+ * Note: If you add another color here, you should update the Dark.json theme file in Engine\Content\Slate\Themes & FUMGColors in UMGCoreStyle.cpp for consistency
  */
 UENUM()
 enum class EStyleColor : uint8

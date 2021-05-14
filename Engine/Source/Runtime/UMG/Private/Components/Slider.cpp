@@ -3,6 +3,7 @@
 #include "Components/Slider.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSlider.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -10,6 +11,10 @@
 // USlider
 
 static FSliderStyle* DefaultSliderStyle = nullptr;
+
+#if WITH_EDITOR
+static FSliderStyle* EditorSliderStyle = nullptr;
+#endif 
 
 USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -26,14 +31,29 @@ USlider::USlider(const FObjectInitializer& ObjectInitializer)
 
 	if (DefaultSliderStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultSliderStyle = new FSliderStyle(FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider"));
+		DefaultSliderStyle = new FSliderStyle(FUMGCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultSliderStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultSliderStyle;
+
+
+#if WITH_EDITOR 
+	if (EditorSliderStyle == nullptr)
+	{
+		EditorSliderStyle = new FSliderStyle(FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorSliderStyle->UnlinkColors();
+	}
+	
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorSliderStyle;
+	}
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Summary;

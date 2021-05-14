@@ -21,6 +21,7 @@
 #include "Binding/PropertyBinding.h"
 #include "Logging/MessageLog.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/UserWidgetBlueprint.h"
 #include "Slate/SObjectWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "UMGStyle.h"
@@ -1076,6 +1077,23 @@ EVisibility UWidget::GetVisibilityInDesigner() const
 	return bHiddenInDesigner ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
+bool UWidget::IsEditorWidget() const
+{
+	if (UWidgetTree* WidgetTree = Cast<UWidgetTree>(GetOuter()))
+	{
+		//@TODO: DarenC - This is a bit dirty, can't find a cleaner alternative yet though.
+		bool bIsEditorWidgetPreview = WidgetTree->RootWidget && WidgetTree->RootWidget->WidgetGeneratedBy.IsValid();
+		UObject* WidgetBPObject = bIsEditorWidgetPreview ? WidgetTree->RootWidget->WidgetGeneratedBy.Get() : WidgetTree->GetOuter();
+
+		if (UUserWidgetBlueprint* WidgetBP = Cast<UUserWidgetBlueprint>(WidgetBPObject))
+		{
+			return WidgetBP->AllowEditorWidget();
+		}
+	}
+
+	return false;
+}
+
 bool UWidget::IsVisibleInDesigner() const
 {
 	if (bHiddenInDesigner)
@@ -1138,7 +1156,7 @@ void UWidget::DeselectByDesigner()
 
 #undef LOCTEXT_NAMESPACE
 #define LOCTEXT_NAMESPACE "UMG"
-#endif
+#endif // WITH_EDITOR
 
 void UWidget::PreSave(const class ITargetPlatform* TargetPlatform)
 {

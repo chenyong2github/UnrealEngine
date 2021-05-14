@@ -3,6 +3,7 @@
 #include "Components/Throbber.h"
 #include "SlateFwd.h"
 #include "Slate/SlateBrushAsset.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -10,6 +11,10 @@
 // UThrobber
 
 static FSlateBrush* DefaultThrobberBrush = nullptr;
+
+#if WITH_EDITOR
+static FSlateBrush* EditorThrobberBrush = nullptr;
+#endif 
 
 UThrobber::UThrobber(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -22,14 +27,28 @@ UThrobber::UThrobber(const FObjectInitializer& ObjectInitializer)
 
 	if (DefaultThrobberBrush == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultThrobberBrush = new FSlateBrush(*FCoreStyle::Get().GetBrush("Throbber.Chunk"));
+		DefaultThrobberBrush = new FSlateBrush(*FUMGCoreStyle::Get().GetBrush("Throbber.Chunk"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultThrobberBrush->UnlinkColors();
 	}
 
 	Image = *DefaultThrobberBrush;
+
+#if WITH_EDITOR 
+	if (EditorThrobberBrush == nullptr)
+	{
+		EditorThrobberBrush = new FSlateBrush(*FCoreStyle::Get().GetBrush("Throbber.Chunk"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorThrobberBrush->UnlinkColors();
+	}
+	
+	if (IsEditorWidget())
+	{
+		Image = *EditorThrobberBrush;
+	}
+#endif // WITH_EDITOR
 }
 
 void UThrobber::ReleaseSlateResources(bool bReleaseChildren)

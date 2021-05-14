@@ -4,6 +4,7 @@
 #include "Containers/Ticker.h"
 #include "Components/ScrollBoxSlot.h"
 #include "UObject/EditorObjectVersion.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -12,6 +13,11 @@
 
 static FScrollBoxStyle* DefaultScrollBoxStyle = nullptr;
 static FScrollBarStyle* DefaultScrollBoxBarStyle = nullptr;
+
+#if WITH_EDITOR
+static FScrollBoxStyle* EditorScrollBoxStyle = nullptr;
+static FScrollBarStyle* EditorScrollBoxBarStyle = nullptr;
+#endif 
 
 UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -36,24 +42,46 @@ UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 
 	if (DefaultScrollBoxStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultScrollBoxStyle = new FScrollBoxStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox"));
+		DefaultScrollBoxStyle = new FScrollBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultScrollBoxStyle->UnlinkColors();
 	}
 
 	if (DefaultScrollBoxBarStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultScrollBoxBarStyle = new FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"));
+		DefaultScrollBoxBarStyle = new FScrollBarStyle(FUMGCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultScrollBoxBarStyle->UnlinkColors();
 	}
 	
 	WidgetStyle = *DefaultScrollBoxStyle;
 	WidgetBarStyle = *DefaultScrollBoxBarStyle;
+
+#if WITH_EDITOR 
+	if (EditorScrollBoxStyle == nullptr)
+	{
+		EditorScrollBoxStyle = new FScrollBoxStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorScrollBoxStyle->UnlinkColors();
+	}
+
+	if (EditorScrollBoxBarStyle == nullptr)
+	{
+		EditorScrollBoxBarStyle = new FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorScrollBoxBarStyle->UnlinkColors();
+	}
+	
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorScrollBoxStyle;
+		WidgetBarStyle = *EditorScrollBoxBarStyle;
+	}
+#endif // WITH_EDITOR
 
 	bAllowRightClickDragScrolling = true;
 }
