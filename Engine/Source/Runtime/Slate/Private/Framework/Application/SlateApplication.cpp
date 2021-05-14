@@ -43,6 +43,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Trace/SlateTrace.h"
 #include "Styling/StarshipCoreStyle.h"
+#include "Styling/UMGCoreStyle.h"
 
 #ifndef SLATE_HAS_WIDGET_REFLECTOR
 	#define SLATE_HAS_WIDGET_REFLECTOR !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && PLATFORM_DESKTOP
@@ -6749,6 +6750,7 @@ void FSlateApplication::InitializeCoreStyle()
 		FAppStyle::SetAppStyleSet(FCoreStyle::GetCoreStyle());
 	}
 
+	FUMGCoreStyle::ResetToDefault();
 }
 
 void FSlateApplication::SetWidgetReflector(const TSharedRef<IWidgetReflector>& WidgetReflector)

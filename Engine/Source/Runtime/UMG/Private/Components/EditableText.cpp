@@ -6,6 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Slate/SlateBrushAsset.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -14,19 +15,37 @@
 
 static FEditableTextStyle* DefaultEditableTextStyle = nullptr;
 
+#if WITH_EDITOR
+static FEditableTextStyle* EditorEditableTextStyle = nullptr;
+#endif 
+
 UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	if (DefaultEditableTextStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultEditableTextStyle = new FEditableTextStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText"));
+		DefaultEditableTextStyle = new FEditableTextStyle(FUMGCoreStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultEditableTextStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultEditableTextStyle;
+
+#if WITH_EDITOR 
+	if (EditorEditableTextStyle == nullptr)
+	{
+		EditorEditableTextStyle = new FEditableTextStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorEditableTextStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorEditableTextStyle;
+	}
+#endif // WITH_EDITOR
 
 	ColorAndOpacity_DEPRECATED = FLinearColor::Black;
 

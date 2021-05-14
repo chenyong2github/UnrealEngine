@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "Engine/Blueprint.h"
+#include "Blueprint/UserWidgetBlueprint.h"
 #include "BaseWidgetBlueprint.generated.h"
 
 UCLASS(Abstract)
-class UNREALED_API UBaseWidgetBlueprint : public UBlueprint
+class UNREALED_API UBaseWidgetBlueprint : public UUserWidgetBlueprint
 {
 	GENERATED_UCLASS_BODY()
 

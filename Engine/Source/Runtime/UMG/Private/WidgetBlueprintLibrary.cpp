@@ -13,6 +13,7 @@
 #include "Rendering/DrawElements.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/UMGCoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Slate/UMGDragDropOp.h"
 #include "Slate/SlateBrushAsset.h"
@@ -204,7 +205,7 @@ void UWidgetBlueprintLibrary::DrawText(FPaintContext& Context, const FString& In
 	Context.MaxLayer++;
 
 	//TODO UMG Create a font asset usable as a UFont or as a slate font asset.
-	FSlateFontInfo FontInfo = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText").Font;
+	FSlateFontInfo FontInfo = FUMGCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText").Font;
 	
 	FSlateDrawElement::MakeText(
 		Context.OutDrawElements,
