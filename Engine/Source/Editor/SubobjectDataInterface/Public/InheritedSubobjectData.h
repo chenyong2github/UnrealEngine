@@ -5,7 +5,7 @@
 #include "SubobjectData.h"
 
 /**
- * Container that represents the subobejct data of a child actor component.
+ * Container that represents the subobject data of a child actor component.
  */
 struct SUBOBJECTDATAINTERFACE_API FInheritedSubobjectData : public FSubobjectData
 {
@@ -16,7 +16,9 @@ struct SUBOBJECTDATAINTERFACE_API FInheritedSubobjectData : public FSubobjectDat
 	// FSubobjectData interface
 	virtual bool IsNativeComponent() const override;
 	virtual bool CanEdit() const override;
+	virtual bool CanDelete() const override;
 	virtual bool IsInheritedSCSNode() const override;
+	virtual bool IsInheritedComponent() const override;
 	// End FSubobjectData
 
 protected:

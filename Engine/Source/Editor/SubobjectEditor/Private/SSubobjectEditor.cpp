@@ -2139,19 +2139,9 @@ FSubobjectEditorTreeNodePtrType SSubobjectEditor::GetSceneRootNode() const
 		if(const USceneComponent* RootComp = ActorContext->GetRootComponent())
 		{
 			TSet<FSubobjectEditorTreeNodePtrType> VisitedNodes;
-			FSubobjectDataHandle RootHandle;
+			USubobjectDataSubsystem* System = USubobjectDataSubsystem::Get();
 			
-			DepthFirstTraversal(RootNodes[0], VisitedNodes,
-                [&RootComp, &RootHandle](
-                const FSubobjectEditorTreeNodePtrType& InNodePtr)
-                {
-                    if(InNodePtr->GetComponentTemplate() == RootComp)
-                    {
-                    	RootHandle = InNodePtr->GetDataHandle();
-                    }
-                });
-			
-			return FindSlateNodeForHandle(RootHandle);
+			return FindSlateNodeForHandle(System->FindSceneRootForSubobject(GetObjectContextHandle()));
 		}
 	}
 
