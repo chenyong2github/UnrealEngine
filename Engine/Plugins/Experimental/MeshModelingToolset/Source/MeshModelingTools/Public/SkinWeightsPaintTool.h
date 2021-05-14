@@ -144,8 +144,6 @@ protected:
 	void UpdateBoneVisualization();
 	void UpdateCurrentBone(const FName &BoneName);
 
-	void ExternalUpdateAttributes(TUniquePtr<TAttributesSet<FVertexID>>& NewAttrib, int32 NewSelecedIndex);
-
 	struct FBonePositionInfo
 	{
 		FName BoneName;
@@ -155,7 +153,7 @@ protected:
 		TMap<FName, int32> ChildBones;
 	};
 	TArray<FBonePositionInfo> BonePositionInfos;
-	float MaxDrawRadius;
+	float MaxDrawRadius = 0.0f;
 
 	void UpdateBonePositionInfos(float MinRadius);
 	void RenderBonePositions(FPrimitiveDrawInterface *PDI);
