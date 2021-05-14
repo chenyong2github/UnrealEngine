@@ -57,6 +57,10 @@ public:
 	/** Break on Exceptions allows you to trap Access Nones and other exceptional events in Blueprints. */
 	UPROPERTY(EditAnywhere, config, Category=Blueprints, meta=(DisplayName="Blueprint Break on Exceptions"))
 	bool bBreakOnExceptions;
+
+	/** Allows the One File Per Actor option for worlds */
+	UPROPERTY(EditAnywhere, config, Category = World, meta = (DisplayName = "Enable One File Per Actor Support"))
+	bool bEnableOneFilePerActorSupport;
 	
 protected:
 	/** Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor */
