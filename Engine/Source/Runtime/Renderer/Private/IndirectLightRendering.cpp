@@ -1139,14 +1139,9 @@ static void AddSkyReflectionPass(
 	bool bHasBoxCaptures = (View.NumBoxReflectionCaptures > 0);
 	bool bHasSphereCaptures = (View.NumSphereReflectionCaptures > 0);
 
-	float DynamicBentNormalAO = 0.0f;
+	float DynamicBentNormalAO = DynamicBentNormalAOTexture ? 1.0f : 0.0f;
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-	FRDGTextureRef AmbientOcclusionTexture = GetScreenSpaceAOFallback(SystemTextures);
-	if (HasBeenProduced(SceneTextures.ScreenSpaceAO))
-	{
-		DynamicBentNormalAO = 1.0f;
-		AmbientOcclusionTexture = SceneTextures.ScreenSpaceAO;
-	}
+	FRDGTextureRef AmbientOcclusionTexture = HasBeenProduced(SceneTextures.ScreenSpaceAO) ? SceneTextures.ScreenSpaceAO : GetScreenSpaceAOFallback(SystemTextures);
 
 	const auto& SceneColorTexture = SceneTextures.Color;
 
