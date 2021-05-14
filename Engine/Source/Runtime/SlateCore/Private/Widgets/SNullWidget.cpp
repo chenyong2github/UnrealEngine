@@ -68,5 +68,14 @@ protected:
 	// End of SWidget interface
 };
 
+namespace NullWidgetPrivate
+{
+	TSharedRef<SWidget> Construct()
+	{
+		static TSharedRef<SWidget> Result = SNew(SNullWidgetContent).Visibility(EVisibility::Hidden);
+		return Result;
+	}
+}
+SLATECORE_API TSharedRef<SWidget> SNullWidget::NullWidget = NullWidgetPrivate::Construct();
 
-SLATECORE_API TSharedRef<SWidget> SNullWidget::NullWidget = SNew(SNullWidgetContent).Visibility(EVisibility::Hidden);
+FNoChildren FNoChildren::NoChildrenInstance(&NullWidgetPrivate::Construct().Get());
