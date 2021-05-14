@@ -124,6 +124,10 @@ void FSkeletalMeshSkinCacheDataProviderProxy::GetBindings(int32 InvocationIndex,
 
  	FRWBuffer* OutputPositionBuffer = GPUSkinCache->GetPositionBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
 	FRWBuffer* OutputTangentBuffer = GPUSkinCache->GetTangentBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
+	if (!ensure(OutputPositionBuffer != nullptr && OutputTangentBuffer != nullptr))
+	{
+		return;
+	}
 
 	FSkinCacheWriteDataInterfaceParameters Parameters;
 	FMemory::Memset(&Parameters, 0, sizeof(FSkinCacheWriteDataInterfaceParameters));
