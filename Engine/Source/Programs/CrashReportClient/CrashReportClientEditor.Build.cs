@@ -19,6 +19,7 @@ public class CrashReportClientEditor : CrashReportClient
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Analytics",
 				"EditorAnalyticsSession",
 			}
 		);
