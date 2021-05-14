@@ -4680,7 +4680,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 			if (Linker != nullptr)
 			{
-				Linker->OnPostSave(TargetPackagePath);
+				Linker->OnPostSave(TargetPackagePath, FObjectPostSaveContext(ObjectSaveContext));
 			}
 
 			// send a message that the package was saved

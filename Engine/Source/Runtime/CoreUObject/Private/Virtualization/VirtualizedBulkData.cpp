@@ -12,6 +12,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectSaveContext.h"
 #include "Virtualization/IVirtualizationSourceControlUtilities.h"
 
 //#if WITH_EDITORONLY_DATA
@@ -321,7 +322,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 					// Restore the archive's offset
 					Ar.Seek(ReturnPos);
 
-					// If we are saving the package to disk (we have access to FLinkerSave and it's filepath is valid) 
+					// If we are saving the package to disk (we have access to FLinkerSave and its filepath is valid) 
 					// then we should register a callback to be received once the package has actually been saved to 
 					// disk so that we can update the object's members to be redirected to the saved file.
 					FLinkerSave* LinkerSave = Cast<FLinkerSave>(Ar.GetLinker());
@@ -336,8 +337,13 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 							SidecarData.Payload = PayloadToSerialize;
 						}
 
-						auto OnSavePackage = [this, PayloadOffset, UpdatedFlags](const FPackagePath& InPackagePath)
+						auto OnSavePackage = [this, PayloadOffset, UpdatedFlags](const FPackagePath& InPackagePath, FObjectPostSaveContext ObjectSaveContext)
 						{
+							if (!ObjectSaveContext.IsUpdatingLoadedPath())
+							{
+								return;
+							}
+
 							this->PackagePath = InPackagePath;
 
 							if (!this->PackagePath.IsEmpty())

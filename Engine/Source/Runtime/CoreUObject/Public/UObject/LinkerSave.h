@@ -12,6 +12,7 @@
 #include "UObject/UObjectThreadContext.h"
 #include "Virtualization/PayloadId.h"
 
+class FObjectPostSaveContext;
 struct FUntypedBulkData;
 
 /*----------------------------------------------------------------------------
@@ -108,7 +109,7 @@ public:
 	 * via lambda capture. 
 	 * @param PackagePath The path of the package
 	 */
-	TArray<TUniqueFunction<void(const FPackagePath& PackagePath)>> PostSaveCallbacks;
+	TArray<TUniqueFunction<void(const FPackagePath& PackagePath, FObjectPostSaveContext ObjectSaveContext)>> PostSaveCallbacks;
 
 	/** A mapping of package name to generated script SHA keys */
 	COREUOBJECT_API static TMap<FString, TArray<uint8> > PackagesToScriptSHAMap;
@@ -161,7 +162,7 @@ public:
 	void Serialize( void* V, int64 Length );
 
 	/** Invoke all of the callbacks in PostSaveCallbacks and then empty it. */
-	void OnPostSave(const FPackagePath& PackagePath);
+	void OnPostSave(const FPackagePath& PackagePath, FObjectPostSaveContext ObjectSaveContext);
 
 	// FLinker interface
 	virtual FString GetDebugName() const override;

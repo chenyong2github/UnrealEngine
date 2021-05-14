@@ -1933,7 +1933,7 @@ void PostSavePackage(FSaveContext& SaveContext)
 
 	if (SaveContext.Linker != nullptr)
 	{
-		SaveContext.Linker->OnPostSave(SaveContext.GetTargetPackagePath());
+		SaveContext.Linker->OnPostSave(SaveContext.GetTargetPackagePath(), FObjectPostSaveContext(SaveContext.GetObjectSaveContext()));
 	}
 
 	// Send a message that the package was saved
