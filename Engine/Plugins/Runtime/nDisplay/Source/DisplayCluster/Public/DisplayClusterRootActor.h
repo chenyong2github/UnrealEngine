@@ -314,7 +314,7 @@ public:
 
 	IDisplayClusterViewport* FindPreviewViewport(const FString& InViewportId) const;
 
-	void GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures) const;
+	void GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures);
 
 	float GetXformGizmoScale() const;
 	bool GetXformGizmoVisibility() const;
@@ -325,6 +325,8 @@ public:
 	void SetIsSelectedInEditor(bool bValue);
 
 private:
+	/** The number of times to update the render target via deferred update. */
+	int32 PreviewRenderTargetUpdatesRequired = 0;
 	bool bIsSelectedInEditor = false;
 	
 protected:

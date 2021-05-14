@@ -54,7 +54,7 @@ public:
 	}
 
 	void UpdatePreviewResources();
-	void HandleRenderTargetTextureDefferedUpdate();
+	void HandleRenderTargetTextureDeferredUpdate();
 
 	UMeshComponent* GetPreviewMesh() const
 	{

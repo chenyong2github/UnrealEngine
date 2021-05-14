@@ -126,17 +126,25 @@ bool ADisplayClusterRootActor::IsPreviewEnabled() const
 }
 
 // Return all RTT RHI resources for preview
-void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures) const
+void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures)
 {
 	check(IsInGameThread());
 
 	if(IsPreviewEnabled())
 	{
+		const bool bPerformDeferredUpdate = PreviewRenderTargetUpdatesRequired > 0;
+		if (bPerformDeferredUpdate)
+		{
+			// Optimization to limit number of deferred updates. This process is expensive
+			// and only needs to happen for a few frames after the BP was modified.
+			--PreviewRenderTargetUpdatesRequired;
+		}
+
 		for(const TPair<FString, UDisplayClusterPreviewComponent*>& PreviewComponentIt : PreviewComponents)
 		{
 			if (PreviewComponentIt.Value)
 			{
-				int OutTextureIndex = InViewportNames.Find(PreviewComponentIt.Value->GetViewportId());
+				const int32 OutTextureIndex = InViewportNames.Find(PreviewComponentIt.Value->GetViewportId());
 				if (OutTextureIndex != INDEX_NONE)
 				{
 					// Add scope for func GetRenderTargetTexture()
@@ -148,8 +156,11 @@ void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<F
 						{
 							OutTextures[OutTextureIndex] = DstRenderTarget->TextureRHI;
 
-							// handle configurator logic: raise deffered update for preview component RTT
-							PreviewComponentIt.Value->HandleRenderTargetTextureDefferedUpdate();
+							if(bPerformDeferredUpdate)
+							{
+								// handle configurator logic: raise deffered update for preview component RTT
+								PreviewComponentIt.Value->HandleRenderTargetTextureDeferredUpdate();
+							}
 						}
 					}
 				}
@@ -386,6 +397,12 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 			ExistingComp->DestroyComponent();
 		}
 	}
+
+	// Update render target for output mapping.
+	// Compile - 3 frames
+	// Load    - 2 frames
+	// Modify  - 1 frame
+	PreviewRenderTargetUpdatesRequired = 3;
 }
 
 void ADisplayClusterRootActor::ReleasePreviewComponents()
