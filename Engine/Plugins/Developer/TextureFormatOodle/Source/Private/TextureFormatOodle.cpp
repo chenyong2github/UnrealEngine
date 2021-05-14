@@ -958,7 +958,7 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 		[JobFunction, JobData]()
 		{
 			JobFunction(JobData);
-		}, TStatId(), &Prerequisites, ENamedThreads::AnyBackgroundThreadNormalTask);
+		}, TStatId(), &Prerequisites, IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask);
 	
 	// scope lock for NextTaskId and TaskIdMap
 	TaskIdMapLock.Lock();
