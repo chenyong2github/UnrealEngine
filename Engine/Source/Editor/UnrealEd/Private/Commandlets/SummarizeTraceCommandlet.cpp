@@ -619,6 +619,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		UE_LOG(LogSummarizeTrace, Log, TEXT("Options:"));
 		UE_LOG(LogSummarizeTrace, Log, TEXT(" Required: -inputfile=<utrace path>   (The utrace you wish to process)"));
 		UE_LOG(LogSummarizeTrace, Log, TEXT(" Optional: -statsfile=<csv path>      (The csv of statistics to generate)"));
+		UE_LOG(LogSummarizeTrace, Log, TEXT(" Optional: -testname=<string>         (Test name to use in telemetry csv)"));
 		return 0;
 	}
 
@@ -865,6 +866,10 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		IFileHandle* TelemetryCsvHandle = FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*TelemetryCsvFileName);
 		if (TelemetryCsvHandle)
 		{
+			// override the test name
+			FString TestName = TraceFileBasename;
+			FParse::Value(*CmdLineParams, TEXT("testname="), TestName, true);
+
 			// no newline, see row printfs
 			FilePrint(TelemetryCsvHandle, FString::Printf(TEXT("TestName,Context,DataPoint,Measurement")));
 			for (const FSummarizeCpuAnalyzer::FScope& Scope : SortedScopes)
@@ -874,7 +879,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 				for (const FString& Statistic : Statistics)
 				{
 					// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
-					FilePrint(TelemetryCsvHandle, FString::Printf(TEXT("\n%s,%s,%s,%s,"), *TraceFileBasename, *Scope.Name, *Statistic, *Scope.GetValue(Statistic)));
+					FilePrint(TelemetryCsvHandle, FString::Printf(TEXT("\n%s,%s,%s,%s,"), *TestName, *Scope.Name, *Statistic, *Scope.GetValue(Statistic)));
 				}
 			}
 			for (const TMap<uint16, FSummarizeCountersAnalyzer::FCounter>::ElementType& Counter : CountersAnalyzer.Counters)
@@ -884,7 +889,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 				for (const FString& Statistic : Statistics)
 				{
 					// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
-					FilePrint(TelemetryCsvHandle, FString::Printf(TEXT("\n%s,%s,%s,%s,"), *TraceFileBasename, *Counter.Value.Name, *Statistic, *Counter.Value.GetValue()));
+					FilePrint(TelemetryCsvHandle, FString::Printf(TEXT("\n%s,%s,%s,%s,"), *TestName, *Counter.Value.Name, *Statistic, *Counter.Value.GetValue()));
 				}
 			}
 			TelemetryCsvHandle->Flush();
