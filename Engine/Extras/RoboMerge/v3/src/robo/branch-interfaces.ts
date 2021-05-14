@@ -4,7 +4,7 @@ import { BranchSpec, ConflictedResolveNFile, RoboWorkspace } from '../common/per
 // TODO: Remove Circular Dependency on bot-interfaces
 import { NodeBotInterface } from './bot-interfaces';
 import { FailureKind } from './status-types';
-import { BotConfig, BranchBase, EdgeOptions, NodeOptions } from './branchdefs';
+import { BotConfig, BranchBase, EdgeOptions, NodeOptions, IntegrationWindowPane } from './branchdefs';
 import { BlockageNodeOpUrls } from './roboserver';
 
 export type BranchArg = Branch | string
@@ -194,6 +194,53 @@ export type GateInfo = {
 	cl: number
 	link?: string
 	date?: Date
+
+	// optional overrides for integration window (takes precedence over any in config)
+	integrationWindow?: IntegrationWindowPane[]
+	invertIntegrationWindow?: boolean
+}
+
+export function gatesSame(lhs: GateInfo | null, rhs: GateInfo | null) {
+	if (!lhs && !rhs) {
+		return true
+	}
+
+	if (!lhs || !rhs) {
+		return false
+	}
+
+	if (lhs.cl !== rhs.cl) {
+		return false
+	}
+
+	// neither has windows? no need to check further
+	if (!lhs.integrationWindow && !rhs.integrationWindow) {
+		return true
+	}
+
+	if (!lhs.integrationWindow || !rhs.integrationWindow) {
+		return false
+	}
+
+	if (lhs.integrationWindow.length !== rhs.integrationWindow.length) {
+		return false
+	}
+
+	if (!lhs.invertIntegrationWindow !== !rhs.invertIntegrationWindow) {
+		return false
+	}
+
+	for (let n = 0; n < lhs.integrationWindow.length; ++n) {
+		const lhsWindow = lhs.integrationWindow[n]
+		const rhsWindow = rhs.integrationWindow[n]
+		if (lhsWindow.startHourUTC !== rhsWindow.startHourUTC ||
+				lhsWindow.durationHours !== rhsWindow.durationHours ||
+				lhsWindow.dayOfTheWeek !== rhsWindow.dayOfTheWeek) {
+			return false
+		}
+	}
+
+	return true
 }
 
 export type GateEventContext = {
@@ -207,4 +254,3 @@ export type BeginIntegratingToGateEvent = {
 	context: GateEventContext
 	info: GateInfo
 }
-
