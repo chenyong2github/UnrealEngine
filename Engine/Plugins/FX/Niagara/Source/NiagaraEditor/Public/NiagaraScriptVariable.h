@@ -127,7 +127,7 @@ private:
 	UPROPERTY()
 	bool bSubscribedToParameterDefinitions;
 
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid ChangeId;
 
 	UPROPERTY()
