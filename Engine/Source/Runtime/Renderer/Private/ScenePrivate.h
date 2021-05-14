@@ -2338,6 +2338,20 @@ public:
 		return false;
 	}
 
+	inline bool GetComponentPreviousLocalToWorldWithoutFrameUpdate(FPrimitiveComponentId PrimitiveComponentId, FMatrix& OutPreviousLocalToWorld) const
+	{
+		const FComponentVelocityData* VelocityData = ComponentData.Find(PrimitiveComponentId);
+
+		if (VelocityData)
+		{
+			check(VelocityData->bPreviousLocalToWorldValid);
+			OutPreviousLocalToWorld = VelocityData->PreviousLocalToWorld;
+			return true;
+		}
+
+		return false;
+	}
+
 	/** 
 	 * Updates a primitives current LocalToWorld state.
 	 */
