@@ -1311,7 +1311,7 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 	TArray<FMatrix> RestMatrices;
 	GeometryCollectionAlgo::GlobalMatrices(RestCollection->GetGeometryCollection()->Transform, RestCollection->GetGeometryCollection()->Parent, RestMatrices);
 
-	ConstantData->RestTransforms = MoveTemp(RestMatrices);
+	ConstantData->SetRestTransforms(RestMatrices);
 }
 
 FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bool bInitialization)
@@ -1346,9 +1346,7 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
 
 			DynamicData = GDynamicDataPool.Allocate();
-			DynamicData->PrevTransforms = GlobalMatrices;
-			DynamicData->Transforms = GlobalMatrices;
-			DynamicData->ChangedCount = GlobalMatrices.Num();
+			DynamicData->SetAllTransforms(GlobalMatrices);
 			DynamicData->IsDynamic = bIsCacheDynamic;
 			DynamicData->IsLoading = GetIsObjectLoading();
 
@@ -1389,7 +1387,7 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 				float TimeIncrement = Step == NumSteps - 1 ? LastDt : CacheDt;
 				CurrentCacheTime += TimeIncrement;
 			
-				DynamicData->PrevTransforms = GlobalMatrices;
+				DynamicData->SetPrevTransforms(GlobalMatrices);
 
 				const FRecordedFrame* FirstFrame = nullptr;
 				const FRecordedFrame* SecondFrame = nullptr;
@@ -1420,9 +1418,7 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 								*RestCollection->GetName(), *CacheParameters.TargetCache->GetName()
 							);
 
-							DynamicData->PrevTransforms = GlobalMatrices;
-							DynamicData->Transforms = GlobalMatrices;
-							DynamicData->ChangedCount = GlobalMatrices.Num();
+							DynamicData->SetAllTransforms(GlobalMatrices);
 							return DynamicData;
 						}
 
@@ -1462,9 +1458,7 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 								TEXT("%s: TargetCache (%s) is out of sync with GeometryCollection.  Regenerate the cache."), 
 								*RestCollection->GetName(), *CacheParameters.TargetCache->GetName()
 							);
-							DynamicData->PrevTransforms = GlobalMatrices;
-							DynamicData->Transforms = GlobalMatrices;
-							DynamicData->ChangedCount = GlobalMatrices.Num();
+							DynamicData->SetAllTransforms(GlobalMatrices);
 							return DynamicData;
 						}
 
@@ -1495,7 +1489,7 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 						}
 					}
 				}
-				DynamicData->Transforms = GlobalMatrices;
+				DynamicData->SetTransforms(GlobalMatrices);
 			}
 
 			// Check if transforms at start of this tick are the same as what is calculated from the cache
@@ -1517,14 +1511,12 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 			// Copy global matrices over to DynamicData
 			CalculateGlobalMatrices();
 
-			DynamicData->PrevTransforms = GlobalMatrices;
-			DynamicData->Transforms = GlobalMatrices;
-			DynamicData->ChangedCount = GlobalMatrices.Num();
+			DynamicData->SetAllTransforms(GlobalMatrices);
 		}
 		else
 		{
 			// Copy existing global matrices into prev transforms
-			DynamicData->PrevTransforms = GlobalMatrices;
+			DynamicData->SetPrevTransforms(GlobalMatrices);
 
 			// Copy global matrices over to DynamicData
 			CalculateGlobalMatrices();
@@ -1534,12 +1526,12 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 			// if the number of matrices has changed between frames, then sync previous to current
 			if (GlobalMatrices.Num() != DynamicData->PrevTransforms.Num())
 			{
-				DynamicData->PrevTransforms = GlobalMatrices;
+				DynamicData->SetPrevTransforms(GlobalMatrices);
 				DynamicData->ChangedCount = GlobalMatrices.Num();
 				bComputeChanges = false; // Optimization to just force all transforms as changed and skip comparison
 			}
 
-			DynamicData->Transforms = GlobalMatrices;
+			DynamicData->SetTransforms(GlobalMatrices);
 
 			// The number of transforms for current and previous should match now
 			check(DynamicData->PrevTransforms.Num() == DynamicData->Transforms.Num());
