@@ -804,6 +804,18 @@ export class Backend {
 
     }
 
+    getIssue(issueId: number): Promise<IssueData> {
+
+        return new Promise<IssueData>((resolve, reject) => {
+            this.backend.get(`/api/v1/issues/${issueId}`).then((value) => {
+                resolve(value.data as IssueData);
+            }).catch((reason) => {
+                reject(reason);
+            });
+        });
+
+    }
+
 
     getIssues(queryIn?: IssueQuery): Promise<IssueData[]> {
 
@@ -845,7 +857,7 @@ export class Backend {
 
     }
 
-    getIssueEvents(issueId: number, jobId?: string, logIds?: string[]): Promise<GetLogEventResponse[]> {
+    getIssueEvents(issueId: number, jobId?: string, logIds?: string[], count?:number): Promise<GetLogEventResponse[]> {
 
         if (logIds && logIds.length) {
             jobId = undefined;
@@ -853,7 +865,8 @@ export class Backend {
 
         const params = {
             jobId: jobId,
-            logIds: logIds
+            logIds: logIds,
+            count: count
         };
 
         return new Promise<GetLogEventResponse[]>((resolve, reject) => {

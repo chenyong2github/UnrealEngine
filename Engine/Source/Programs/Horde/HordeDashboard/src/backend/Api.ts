@@ -281,6 +281,7 @@ export type IssueQuery = {
 	maxChange?: number;
 	index?: number;
 	count?: number;
+	user?: string;
 	resolved?: boolean;
 }
 
@@ -2353,6 +2354,9 @@ export type GetIssueStepResponse = {
 
 	/**The changelist number */
 	change: number;
+
+	/** Severity of the issue in this step */
+	severity: IssueSeverity;
 
 	/** Name of the job containing this step */
 	jobName: string;

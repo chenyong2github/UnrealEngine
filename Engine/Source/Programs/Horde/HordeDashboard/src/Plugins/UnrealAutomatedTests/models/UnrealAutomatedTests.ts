@@ -3,6 +3,9 @@
 export enum TestState {
     Failed = "Fail",
     Success = "Success",
+    SuccessWithWarnings = "SuccessWithWarnings",
+    NotRun = "NotRun",
+    InProcess = "InProcess",
 }
 
 export enum EventType {
@@ -40,6 +43,8 @@ export type TestResult = {
     FullTestPath: string;
     State: string;
     ArtifactName: string;
+    Errors: number;
+    Warnings: number;
 }
 
 export type TestPassSummary = {
@@ -47,6 +52,7 @@ export type TestPassSummary = {
     ReportURL: string;
     FailedCount: number;
     NotRunCount: number;
+    InProcessCount: number;
     ReportCreatedOn: string;
     SucceededCount: number;
     SucceededWithWarningsCount: number;

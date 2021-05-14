@@ -1,4 +1,6 @@
+
 import { GetJobResponse } from "../../backend/Api";
+import graphCache from "../../backend/GraphCache";
 
 
 export type JobFilterSimple = {
@@ -24,6 +26,34 @@ const getJobKeywords = (job: GetJobResponse): string[] => {
         keywords.push("Scheduler");
     }
 
+    if (job.graphHash) {
+        const graph = graphCache.cache.get(job.graphHash);
+
+        if (graph) {
+
+            const nodes: string[] = [];
+            graph.groups?.forEach(g => g.nodes.forEach(n => nodes.push(n.name)));
+
+            job.batches?.forEach(batch => {
+
+                const group = graph.groups?.[batch.groupIdx];
+
+                if (group) {
+
+                    batch.steps.forEach(step => {
+                        const name = group.nodes[step.nodeIdx]?.name;
+                        if (name && keywords.indexOf(name) === -1) {                            
+                            keywords.push(name);
+                        }
+
+                    })
+                }
+
+            });
+
+        } 
+    }
+
 
     keywords.push(...job.arguments);
 
@@ -31,7 +61,7 @@ const getJobKeywords = (job: GetJobResponse): string[] => {
 
 }
 
-export const filterJob = (job: GetJobResponse, keywordIn?: string, additionalKeywords?:string[]): boolean => {
+export const filterJob = (job: GetJobResponse, keywordIn?: string, additionalKeywords?: string[]): boolean => {
 
     const keyword = keywordIn?.toLowerCase();
 

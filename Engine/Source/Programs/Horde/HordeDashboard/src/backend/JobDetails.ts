@@ -581,7 +581,7 @@ export class JobDetails {
 
     private getIssues() {
 
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>(async (resolve, reject) => {
 
             let stepId = this.stepId;
             let labelIdx = this.labelIdx;
@@ -591,7 +591,14 @@ export class JobDetails {
             }
 
             this.issues = [];
-            backend.getIssues({ jobId: this.id, stepId: stepId, label: this.labelIdx, count: 50 }).then(async (issues) => {
+
+            const issueRequests = [ backend.getIssues({ jobId: this.id, stepId: stepId, label: this.labelIdx, count: 50, resolved: false }),
+            backend.getIssues({ jobId: this.id, stepId: stepId, label: this.labelIdx, count: 50, resolved: true })];
+            
+            Promise.all(issueRequests).then(async (issueResults) => {
+
+                let issues:IssueData[] = [];
+                issueResults.forEach( r => issues.push(...r));
 
                 let nstepId = this.stepId;
                 let nlabelIdx = this.labelIdx;
