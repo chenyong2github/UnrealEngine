@@ -228,7 +228,7 @@ class FStatement : public FNode
 {
 public:
 	/** Emits HLSL code for the statement. The generated code should include any required semi-colons and newlines */
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const = 0;
+	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const = 0;
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
@@ -249,7 +249,7 @@ public:
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
 	/** Emits code for the given expression, either HLSL code or preshader bytecode */
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
 };
 
 /**
@@ -323,9 +323,9 @@ class FScope final : public FNode
 {
 public:
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-	void EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const;
+	bool EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const;
 
-	void EmitUnscopedHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const;
+	bool EmitUnscopedHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const;
 
 	void AddDeclaration(FLocalDeclaration* Declaration);
 	void AddExpression(FExpression* Expression);
@@ -356,7 +356,7 @@ class FTree
 public:
 	static FTree* Create(FMemStackBase& Allocator);
 
-	void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const;
+	bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const;
 
 	FScope& GetRootScope() const { return *RootScope; }
 

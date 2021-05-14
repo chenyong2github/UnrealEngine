@@ -254,7 +254,7 @@
 #include "Materials/MaterialUniformExpressions.h"
 #include "Materials/MaterialExpressionSamplePhysicsField.h"
 #include "Materials/MaterialExpressionExecBegin.h"
-#include "Materials/MaterialExpressionReturnMaterialAttributes.h"
+#include "Materials/MaterialExpressionExecEnd.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
 #include "Materials/MaterialExpressionSetLocal.h"
@@ -21351,58 +21351,20 @@ int32 UMaterialExpressionExecBegin::Compile(class FMaterialCompiler* Compiler, i
 }
 #endif
 
-UMaterialExpressionReturnMaterialAttributes::UMaterialExpressionReturnMaterialAttributes(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionExecEnd::UMaterialExpressionExecEnd(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	struct FConstructorStatics
-	{
-		FText NAME_Execution;
-		FConstructorStatics() : NAME_Execution(LOCTEXT("Execution", "Execution")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Execution);
 	Outputs.Reset();
 	bHidePreviewWindow = true;
 #endif
 }
 
 #if WITH_EDITOR
-void UMaterialExpressionReturnMaterialAttributes::GetCaption(TArray<FString>& OutCaptions) const
+int32 UMaterialExpressionExecEnd::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	OutCaptions.Add(TEXT("Return Material Attributes"));
-}
-
-int32 UMaterialExpressionReturnMaterialAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	check(OutputIndex == CompileExecutionOutputIndex);
-	const int32 AttributesIndex = MaterialAttributes.Compile(Compiler);
-	return Compiler->ReturnMaterialAttributes(AttributesIndex);
-}
-
-const TArray<FExpressionInput*> UMaterialExpressionReturnMaterialAttributes::GetInputs()
-{
-	TArray<FExpressionInput*> Result;
-	Result.Add(&MaterialAttributes);
-	return Result;
-}
-
-FExpressionInput* UMaterialExpressionReturnMaterialAttributes::GetInput(int32 InputIndex)
-{
-	switch (InputIndex)
-	{
-	case 0: return &MaterialAttributes;
-	default: checkNoEntry(); return nullptr;
-	}
-}
-
-uint32 UMaterialExpressionReturnMaterialAttributes::GetInputType(int32 InputIndex)
-{
-	switch (InputIndex)
-	{
-	case 0: return MCT_MaterialAttributes;
-	default: checkNoEntry(); return 0u;
-	}
+	const int32 Attributes = Material->MaterialAttributes.Compile(Compiler);
+	return Compiler->ReturnMaterialAttributes(Attributes);
 }
 #endif
 

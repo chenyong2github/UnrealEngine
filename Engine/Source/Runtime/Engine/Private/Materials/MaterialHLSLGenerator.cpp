@@ -16,10 +16,22 @@
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "Containers/LazyPrintf.h"
 
-FMaterialHLSLGenerator::FMaterialHLSLGenerator(const FMaterialCompileTargetParameters& InCompileTarget, UE::HLSLTree::FTree& InOutTree)
-	: CompileTarget(InCompileTarget), HLSLTree(&InOutTree)
+FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial, const FMaterialCompileTargetParameters& InCompileTarget, UE::HLSLTree::FTree& InOutTree)
+	: CompileTarget(InCompileTarget)
+	, TargetMaterial(InTargetMaterial)
+	, TargetMaterialFunction(nullptr)
+	, HLSLTree(&InOutTree)
+	, bGeneratedResult(false)
 {
-	
+}
+
+FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterialFunctionInterface* InTargetMaterialFunction, const FMaterialCompileTargetParameters& InCompileTarget, UE::HLSLTree::FTree& InOutTree)
+	: CompileTarget(InCompileTarget)
+	, TargetMaterial(nullptr)
+	, TargetMaterialFunction(InTargetMaterialFunction)
+	, HLSLTree(&InOutTree)
+	, bGeneratedResult(false)
+{
 }
 
 void FMaterialHLSLGenerator::AcquireErrors(TArray<FString>& OutCompileErrors, TArray<UMaterialExpression*>& OutErrorExpressions)
@@ -65,6 +77,109 @@ EMaterialGenerateHLSLStatus FMaterialHLSLGenerator::Error(const FString& Message
 	}
 
 	return EMaterialGenerateHLSLStatus::Error;
+}
+
+static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& Generator,
+	UE::HLSLTree::FScope& Scope,
+	EMaterialProperty InputProperty,
+	UMaterial* Material,
+	UE::HLSLTree::FExpression* AttributesExpression)
+{
+	UE::HLSLTree::FExpression* Expression = nullptr;
+	if (Material->IsPropertyActive(InputProperty))
+	{
+		FMaterialInputDescription InputDescription;
+		if (Material->GetExpressionInputDescription(InputProperty, InputDescription))
+		{
+			if (InputDescription.bUseConstant)
+			{
+				UE::Shader::FValue DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(InputProperty);
+				DefaultValue.NumComponents = UE::Shader::GetValueTypeDescription(InputDescription.Type).NumComponents;
+				if (InputDescription.ConstantValue != DefaultValue)
+				{
+					Expression = Generator.NewConstant(Scope, InputDescription.ConstantValue);
+				}
+			}
+			else
+			{
+				check(InputDescription.Input);
+				if (InputProperty >= MP_CustomizedUVs0 && InputProperty <= MP_CustomizedUVs7)
+				{
+					const int32 TexCoordIndex = (int32)InputProperty - MP_CustomizedUVs0;
+					if (TexCoordIndex < Material->NumCustomizedUVs)
+					{
+						Expression = InputDescription.Input->AcquireHLSLExpressionWithCast(Generator, Scope, InputDescription.Type);
+					}
+					if (!Expression)
+					{
+						Expression = Generator.NewTexCoord(Scope, TexCoordIndex);
+					}
+				}
+				else
+				{
+					Expression = InputDescription.Input->AcquireHLSLExpressionWithCast(Generator, Scope, InputDescription.Type);
+				}
+			}
+		}
+	}
+
+	if (Expression)
+	{
+		UE::HLSLTree::FExpressionSetMaterialAttribute* SetAttributeExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSetMaterialAttribute>(Scope);
+		SetAttributeExpression->AttributeID = FMaterialAttributeDefinitionMap::GetID(InputProperty);
+		SetAttributeExpression->AttributesExpression = AttributesExpression;
+		SetAttributeExpression->ValueExpression = Expression;
+		return SetAttributeExpression;
+	}
+
+	return AttributesExpression;
+}
+
+UE::HLSLTree::FStatement* FMaterialHLSLGenerator::NewResult(UE::HLSLTree::FScope& Scope)
+{
+	UE::HLSLTree::FStatement* Result = nullptr;
+	if (bGeneratedResult)
+	{
+		Error(TEXT("Multiple connections to execution output"));
+	}
+	else
+	{
+		if (TargetMaterial)
+		{
+			UE::HLSLTree::FExpression* AttributesExpression = nullptr;
+			if (TargetMaterial->bUseMaterialAttributes)
+			{
+				FMaterialInputDescription InputDescription;
+				if (TargetMaterial->GetExpressionInputDescription(MP_MaterialAttributes, InputDescription))
+				{
+					check(InputDescription.Type == UE::Shader::EValueType::MaterialAttributes);
+					AttributesExpression = InputDescription.Input->AcquireHLSLExpression(*this, Scope);
+				}
+			}
+			else
+			{
+				AttributesExpression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionDefaultMaterialAttributes>(Scope);
+				for (int32 PropertyIndex = 0; PropertyIndex < MP_MAX; ++PropertyIndex)
+				{
+					const EMaterialProperty Property = (EMaterialProperty)PropertyIndex;
+					AttributesExpression = CompileMaterialInput(*this, Scope, Property, TargetMaterial, AttributesExpression);
+				}
+			}
+
+			if (AttributesExpression)
+			{
+				UE::HLSLTree::FStatementReturn* ReturnStatement = HLSLTree->NewStatement<UE::HLSLTree::FStatementReturn>(Scope);
+				ReturnStatement->Expression = AttributesExpression;
+				Result = ReturnStatement;
+			}
+		}
+		else
+		{
+			check(false);
+		}
+		bGeneratedResult = true;
+	}
+	return Result;
 }
 
 UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value)
@@ -259,7 +374,7 @@ UE::HLSLTree::FStatement* FMaterialHLSLGenerator::AcquireStatement(UE::HLSLTree:
 	else
 	{
 		Statement = *PrevStatement;
-		if (!Scope.TryMoveStatement(Statement))
+		if (Statement && !Scope.TryMoveStatement(Statement))
 		{
 			// Could not move existing statement to the given scope
 			Error(TEXT("Invalid control flow"));

@@ -17,6 +17,8 @@
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionNamedReroute.h"
+#include "Materials/MaterialExpressionExecBegin.h"
+#include "Materials/MaterialExpressionExecEnd.h"
 
 #include "MaterialGraphNode_Knot.h"
 
@@ -49,6 +51,30 @@ void UMaterialGraph::RebuildGraph()
 	}
 
 	RebuildGraphInternal(SubgraphExpressionMap, SubgraphCommentMap);
+}
+
+template<typename NodeType>
+static UMaterialGraphNode* InitExpressionNewNode(UMaterialGraph* Graph, UMaterialExpression* Expression, bool bUserInvoked)
+{
+	UMaterialGraphNode* NewNode = nullptr;
+
+	FGraphNodeCreator<NodeType> NodeCreator(*Graph);
+	if (bUserInvoked)
+	{
+		NewNode = NodeCreator.CreateUserInvokedNode();
+	}
+	else
+	{
+		NewNode = NodeCreator.CreateNode(false);
+	}
+	NewNode->MaterialExpression = Expression;
+	NewNode->RealtimeDelegate = Graph->RealtimeDelegate;
+	NewNode->MaterialDirtyDelegate = Graph->MaterialDirtyDelegate;
+	Expression->GraphNode = NewNode;
+	Expression->SubgraphExpression = Graph->SubgraphExpression;
+	NodeCreator.Finalize();
+
+	return NewNode;
 }
 
 void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArray<UMaterialExpression*>>& SubgraphExpressionMap, const TMap<UMaterialExpression*, TArray<UMaterialExpressionComment*>>& SubgraphCommentMap)
@@ -93,11 +119,14 @@ void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArra
 		//^^^ New material properties go above here. ^^^^
 		MaterialInputs.Add(FMaterialInputInfo(LOCTEXT("MaterialAttributes", "Material Attributes"), MP_MaterialAttributes, LOCTEXT("MaterialAttributesToolTip", "Material Attributes")));
 
-		// No root node if material is using exec pin
-		// Attribute assignments should be done using explicit nodes in this case
-		if (!Material->IsCompiledWithExecutionFlow())
+		if (Material->IsCompiledWithExecutionFlow())
 		{
-			// Add Root Node
+			check(Material->ExpressionExecBegin);
+			InitExpressionNewNode<UMaterialGraphNode>(this, Material->ExpressionExecBegin, false);
+		}
+		
+		// Add Root Node
+		{
 			FGraphNodeCreator<UMaterialGraphNode_Root> NodeCreator(*this);
 			RootNode = NodeCreator.CreateNode();
 			RootNode->Material = Material;
@@ -155,33 +184,13 @@ void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArra
 	LinkGraphNodesFromMaterial();
 }
 
-template<typename NodeType>
-static UMaterialGraphNode* InitExpressionNewNode(UMaterialGraph* Graph, UMaterialExpression* Expression, bool bUserInvoked)
-{
-	UMaterialGraphNode* NewNode = nullptr;
-
-	FGraphNodeCreator<NodeType> NodeCreator(*Graph);
-	if (bUserInvoked)
-	{
-		NewNode = NodeCreator.CreateUserInvokedNode();
-	}
-	else
-	{
-		NewNode = NodeCreator.CreateNode(false);
-	}
-	NewNode->MaterialExpression = Expression;
-	NewNode->RealtimeDelegate = Graph->RealtimeDelegate;
-	NewNode->MaterialDirtyDelegate = Graph->MaterialDirtyDelegate;
-	Expression->GraphNode = NewNode;
-	Expression->SubgraphExpression = Graph->SubgraphExpression;
-	NodeCreator.Finalize();
-
-	return NewNode;
-}
-
 UMaterialGraphNode* UMaterialGraph::AddExpression(UMaterialExpression* Expression, bool bUserInvoked)
 {
-	if (Expression)
+	// Node for UMaterialExpressionExecBegin is explicitly placed if needed
+	// We don't created any node for UMaterialExpressionExecEnd, it's handled as part of the root node
+	if (Expression &&
+		!Expression->IsA(UMaterialExpressionExecBegin::StaticClass()) &&
+		!Expression->IsA(UMaterialExpressionExecEnd::StaticClass()))
 	{
 		Modify();
 
@@ -371,7 +380,12 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 				FExpressionExecOutput* ExecOutput = ExecOutputs[PinInfo.Index].Output;
 				if (ExecOutput->Expression)
 				{
-					if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ExecOutput->Expression->GraphNode))
+					if (ExecOutput->Expression == Material->ExpressionExecEnd)
+					{
+						// Exec end point is the root node
+						Pin->MakeLinkTo(RootNode->GetExecInputPin());
+					}
+					else if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ExecOutput->Expression->GraphNode))
 					{
 						Pin->MakeLinkTo(GraphNode->GetExecInputPin());
 					}
@@ -395,18 +409,18 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 			Material->Modify();
 			Material->EditorX = RootNode->NodePosX;
 			Material->EditorY = RootNode->NodePosY;
-			check(RootNode->Pins.Num() == MaterialInputs.Num());
-			for (int32 PinIndex = 0; PinIndex < RootNode->Pins.Num() && PinIndex < MaterialInputs.Num(); ++PinIndex)
+			check(RootNode->InputPins.Num() == MaterialInputs.Num());
+			for (int32 PinIndex = 0; PinIndex < RootNode->InputPins.Num() && PinIndex < MaterialInputs.Num(); ++PinIndex)
 			{
 				FExpressionInput& MaterialInput = MaterialInputs[PinIndex].GetExpressionInput(Material);
 
-				if (RootNode->Pins[PinIndex]->LinkedTo.Num() > 0)
+				if (RootNode->InputPins[PinIndex]->LinkedTo.Num() > 0)
 				{
-					UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(RootNode->Pins[PinIndex]->LinkedTo[0]->GetOwningNode());
+					UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(RootNode->InputPins[PinIndex]->LinkedTo[0]->GetOwningNode());
 					// Work out the index of the connected pin
 					for (int32 OutPinIndex = 0; OutPinIndex < ConnectedNode->OutputPins.Num(); ++OutPinIndex)
 					{
-						if (ConnectedNode->OutputPins[OutPinIndex] == RootNode->Pins[PinIndex]->LinkedTo[0])
+						if (ConnectedNode->OutputPins[OutPinIndex] == RootNode->InputPins[PinIndex]->LinkedTo[0])
 						{
 							if (!ConnectedNode->MaterialExpression->IsExpressionConnected(&MaterialInput, OutPinIndex))
 							{
@@ -501,20 +515,31 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 
 							if (Pin->LinkedTo.Num() > 0)
 							{
-								UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(Pin->LinkedTo[0]->GetOwningNode());
-
-								if (ExpressionOutput &&
-									ExpressionOutput->Expression != ConnectedNode->MaterialExpression &&
-									ConnectedNode->MaterialExpression->HasExecInput())
+								if (Pin->LinkedTo[0]->GetOwningNode() == RootNode)
 								{
 									if (!bModifiedExpression)
 									{
 										bModifiedExpression = true;
 										Expression->Modify();
 									}
+									ExpressionOutput->Expression = Material->ExpressionExecEnd;
+								}
+								else
+								{
+									UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(Pin->LinkedTo[0]->GetOwningNode());
+									if (ExpressionOutput &&
+										ExpressionOutput->Expression != ConnectedNode->MaterialExpression &&
+										ConnectedNode->MaterialExpression->HasExecInput())
+									{
+										if (!bModifiedExpression)
+										{
+											bModifiedExpression = true;
+											Expression->Modify();
+										}
 
-									ConnectedNode->MaterialExpression->Modify();
-									ExpressionOutput->Expression = ConnectedNode->MaterialExpression;
+										ConnectedNode->MaterialExpression->Modify();
+										ExpressionOutput->Expression = ConnectedNode->MaterialExpression;
+									}
 								}
 							}
 							else if (ExpressionOutput && ExpressionOutput->Expression)
@@ -568,12 +593,10 @@ bool UMaterialGraph::IsInputActive(UEdGraphPin* GraphPin) const
 {
 	if (Material && RootNode)
 	{
-		for (int32 Index = 0; Index < RootNode->Pins.Num(); ++Index)
+		int32 Index = INDEX_NONE;
+		if (RootNode->InputPins.Find(GraphPin, Index))
 		{
-			if (RootNode->Pins[Index] == GraphPin)
-			{
-				return Material->IsPropertyActiveInEditor(MaterialInputs[Index].GetProperty());
-			}
+			return Material->IsPropertyActiveInEditor(MaterialInputs[Index].GetProperty());
 		}
 	}
 	return true;
@@ -589,8 +612,6 @@ void UMaterialGraph::GetUnusedExpressions(TArray<UEdGraphNode*>& UnusedNodes) co
 	{
 		for (int32 Index = 0; Index < RootNode->InputPins.Num(); ++Index)
 		{
-			check(Index < MaterialInputs.Num());
-			
 			if (MaterialInputs[Index].IsVisiblePin(Material)
 				&& RootNode->InputPins[Index]->LinkedTo.Num() > 0 && RootNode->InputPins[Index]->LinkedTo[0])
 			{

@@ -26,7 +26,7 @@ public:
 
 	Shader::FValue Value;
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionLocalVariable : public FExpression
@@ -46,7 +46,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionParameter : public FExpression
@@ -68,7 +68,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 enum class EExternalInputType
@@ -99,7 +99,7 @@ public:
 
 	EExternalInputType InputType;
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionTextureSample : public FExpression
@@ -128,7 +128,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionDefaultMaterialAttributes : public FExpression
@@ -136,7 +136,7 @@ class FExpressionDefaultMaterialAttributes : public FExpression
 public:
 	FExpressionDefaultMaterialAttributes() {}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionSetMaterialAttribute : public FExpression
@@ -159,7 +159,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionSelect : public FExpression
@@ -187,7 +187,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionBinaryOp : public FExpression
@@ -214,7 +214,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 struct FSwizzleParameters
@@ -248,7 +248,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionCast : public FExpression
@@ -274,13 +274,13 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionReflectionVector : public FExpression
 {
 public:
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionFunctionInput : public FExpression
@@ -290,7 +290,7 @@ public:
 		: Name(InName), Type(InType), InputIndex(InIndex)
 	{}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 
 	FName Name;
 	Shader::EValueType Type;
@@ -320,7 +320,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FStatementReturn : public FStatement
@@ -338,7 +338,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
 };
 
 class FStatementSetLocalVariable : public FStatement
@@ -358,7 +358,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
 };
 
 class FStatementIf : public FStatement
@@ -380,7 +380,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
 };
 
 class FStatementFor : public FStatement
@@ -402,7 +402,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
 };
 
 }

@@ -10,7 +10,7 @@
 
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionExecBegin.h"
-#include "Materials/MaterialExpressionReturnMaterialAttributes.h"
+#include "Materials/MaterialExpressionExecEnd.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
@@ -317,6 +317,12 @@ EMaterialGenerateHLSLStatus UMaterialExpressionExecBegin::GenerateHLSLStatement(
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
+EMaterialGenerateHLSLStatus UMaterialExpressionExecEnd::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
+{
+	OutStatement = Generator.NewResult(Scope);
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
 EMaterialGenerateHLSLStatus UMaterialExpressionSetLocal::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
 {
 	UE::HLSLTree::FExpression* ValueExpression = Value.AcquireHLSLExpressionWithCast(Generator, Scope, UE::Shader::EValueType::Float3);
@@ -338,21 +344,6 @@ EMaterialGenerateHLSLStatus UMaterialExpressionSetLocal::GenerateHLSLStatement(F
 	Exec.AcquireHLSLStatement(Generator, Scope);
 
 	OutStatement = Statement;
-	return EMaterialGenerateHLSLStatus::Success;
-}
-
-EMaterialGenerateHLSLStatus UMaterialExpressionReturnMaterialAttributes::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
-{
-	UE::HLSLTree::FExpression* AttributesExpression = MaterialAttributes.AcquireHLSLExpression(Generator, Scope);
-	if (!AttributesExpression)
-	{
-		return Generator.Error(TEXT("Missing attribute connection"));
-	}
-
-	UE::HLSLTree::FStatementReturn* ReturnStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementReturn>(Scope);
-	ReturnStatement->Expression = AttributesExpression;
-
-	OutStatement = ReturnStatement;
 	return EMaterialGenerateHLSLStatus::Success;
 }
 

@@ -47,30 +47,43 @@ void UMaterialGraphNode_Root::PostPlacedNewNode()
 
 uint32 UMaterialGraphNode_Root::GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const
 {
-	check(PinInfo.PinType == EMaterialGraphPinType::Data);
-	const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
-	const FMaterialInputInfo& MaterialInput = MaterialGraph->MaterialInputs[PinInfo.Index];
-	EMaterialProperty Property = MaterialInput.GetProperty();
+	if (PinInfo.PinType == EMaterialGraphPinType::Data)
+	{
+		const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
+		const FMaterialInputInfo& MaterialInput = MaterialGraph->MaterialInputs[PinInfo.Index];
+		EMaterialProperty Property = MaterialInput.GetProperty();
 
-	uint32 MaterialType = 0u;
-	if (Property == MP_MaterialAttributes)
-	{
-		MaterialType = MCT_MaterialAttributes;
+		uint32 MaterialType = 0u;
+		if (Property == MP_MaterialAttributes)
+		{
+			MaterialType = MCT_MaterialAttributes;
+		}
+		else if (Property == MP_FrontMaterial)
+		{
+			MaterialType = MCT_Strata;
+		}
+		else
+		{
+			MaterialType = FMaterialAttributeDefinitionMap::GetValueType(Property);
+		}
+		return MaterialType;
 	}
-	else if (Property == MP_FrontMaterial)
-	{
-		MaterialType = MCT_Strata;
-	}
-	else
-	{
-		MaterialType = FMaterialAttributeDefinitionMap::GetValueType(Property);
-	}
-	return MaterialType;
+	return MCT_Execution;
 }
 
 void UMaterialGraphNode_Root::CreateInputPins()
 {
 	UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
+
+	if (Material->IsCompiledWithExecutionFlow())
+	{
+		// Create the execution pin
+		UEdGraphPin* NewPin = CreatePin(EGPD_Input, UMaterialGraphSchema::PC_Exec, NAME_None, NAME_None);
+		// Makes sure pin has a name for lookup purposes but user will never see it
+		NewPin->PinName = CreateUniquePinName(TEXT("Input"));
+		NewPin->PinFriendlyName = LOCTEXT("Space", " ");
+		RegisterPin(NewPin, EMaterialGraphPinType::Exec, 0);
+	}
 
 	for (int32 Index = 0; Index < MaterialGraph->MaterialInputs.Num(); ++Index)
 	{
