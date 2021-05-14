@@ -84,7 +84,7 @@ class FBuildDefinitionInternal final : public IBuildDefinitionInternal
 {
 public:
 	explicit FBuildDefinitionInternal(FBuildDefinitionBuilderInternal&& DefinitionBuilder);
-	explicit FBuildDefinitionInternal(FStringView Name, FCbObject&& Definition);
+	explicit FBuildDefinitionInternal(FStringView Name, FCbObject&& Definition, bool& bOutIsValid);
 
 	~FBuildDefinitionInternal() final = default;
 
@@ -250,20 +250,33 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 
 	Writer.EndObject();
 	Definition = Writer.Save().AsObject();
-	Key = FBuildKey{Definition.GetHash()};
+	Key.Hash = Definition.GetHash();
 }
 
-FBuildDefinitionInternal::FBuildDefinitionInternal(FStringView InName, FCbObject&& InDefinition)
+FBuildDefinitionInternal::FBuildDefinitionInternal(FStringView InName, FCbObject&& InDefinition, bool& bOutIsValid)
 	: Name(InName)
 	, Function(InDefinition.FindView("Function"_ASV).AsString())
 	, Definition(MoveTemp(InDefinition))
+	, Key{Definition.GetHash()}
 {
 	checkf(!InName.IsEmpty(), TEXT("A build definition requires a non-empty name."));
 	Definition.MakeOwned();
-	if (const bool bIsValid = Definition && Algo::AllOf(Function, FChar::IsAlnum))
-	{
-		Key = FBuildKey{Definition.GetHash()};
-	}
+	bOutIsValid = Definition
+		&& !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum)
+		&& Algo::AllOf(Definition.FindView("Constants"_ASV),
+			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsObject(); })
+		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Builds"_ASV), [](FCbFieldView Field)
+			{
+				return Field.GetName().Len() > 0 && Field.IsObject()
+					&& Field.AsObjectView()["Build"_ASV].IsHash()
+					&& Field.AsObjectView()["Payload"_ASV].IsObjectId();
+			})
+		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("BulkData"_ASV),
+			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsUuid(); })
+		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Files"_ASV),
+			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.AsString().Len() > 0; })
+		&& Algo::AllOf(Definition.FindView("Inputs"_ASV).AsObjectView().FindView("Hashes"_ASV),
+			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsBinaryAttachment(); });
 }
 
 bool FBuildDefinitionInternal::HasConstants() const
@@ -348,9 +361,15 @@ FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Func
 	return CreateBuildDefinitionBuilder(new FBuildDefinitionBuilderInternal(Name, Function));
 }
 
-FBuildDefinition LoadBuildDefinition(FStringView Name, FCbObject&& Definition)
+FOptionalBuildDefinition LoadBuildDefinition(FStringView Name, FCbObject&& Definition)
 {
-	return CreateBuildDefinition(new FBuildDefinitionInternal(Name, MoveTemp(Definition)));
+	bool bIsValid = false;
+	FOptionalBuildDefinition Out = CreateBuildDefinition(new FBuildDefinitionInternal(Name, MoveTemp(Definition), bIsValid));
+	if (!bIsValid)
+	{
+		Out.Reset();
+	}
+	return Out;
 }
 
 } // UE::DerivedData::Private

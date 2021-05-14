@@ -77,7 +77,7 @@ class FBuildActionInternal final : public IBuildActionInternal
 {
 public:
 	explicit FBuildActionInternal(FBuildActionBuilderInternal&& ActionBuilder);
-	explicit FBuildActionInternal(FStringView Name, FCbObject&& Action);
+	explicit FBuildActionInternal(FStringView Name, FCbObject&& Action, bool& bOutIsValid);
 
 	~FBuildActionInternal() final = default;
 
@@ -112,8 +112,8 @@ private:
 	FString Function;
 	FGuid FunctionVersion;
 	FGuid BuildSystemVersion;
-	FBuildActionKey Key;
 	FCbObject Action;
+	FBuildActionKey Key;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,22 +179,31 @@ FBuildActionInternal::FBuildActionInternal(FBuildActionBuilderInternal&& ActionB
 
 	Writer.EndObject();
 	Action = Writer.Save().AsObject();
-	Key = FBuildActionKey{Action.GetHash()};
+	Key.Hash = Action.GetHash();
 }
 
-FBuildActionInternal::FBuildActionInternal(FStringView InName, FCbObject&& InAction)
+FBuildActionInternal::FBuildActionInternal(FStringView InName, FCbObject&& InAction, bool& bOutIsValid)
 	: Name(InName)
 	, Function(InAction.FindView("Function"_ASV).AsString())
 	, FunctionVersion(InAction.FindView("FunctionVersion"_ASV).AsUuid())
 	, BuildSystemVersion(InAction.FindView("BuildSystemVersion"_ASV).AsUuid())
 	, Action(MoveTemp(InAction))
+	, Key{Action.GetHash()}
 {
 	checkf(!InName.IsEmpty(), TEXT("A build action requires a non-empty name."));
 	Action.MakeOwned();
-	if (const bool bIsValid = Action && Algo::AllOf(Function, FChar::IsAlnum))
-	{
-		Key = FBuildActionKey{Action.GetHash()};
-	}
+	bOutIsValid = Action
+		&& !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum)
+		&& FunctionVersion.IsValid()
+		&& BuildSystemVersion.IsValid()
+		&& Algo::AllOf(Action.FindView("Constants"_ASV),
+			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsObject(); })
+		&& Algo::AllOf(Action.FindView("Inputs"_ASV), [](FCbFieldView Field)
+			{
+				return Field.GetName().Len() > 0 && Field.IsObject()
+					&& Field.AsObjectView()["RawHash"_ASV].IsBinaryAttachment()
+					&& Field.AsObjectView()["RawSize"_ASV].IsInteger();
+			});
 }
 
 void FBuildActionInternal::IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const
@@ -243,9 +252,15 @@ FBuildActionBuilder CreateBuildAction(FStringView Name, FStringView Function, co
 	return CreateBuildActionBuilder(new FBuildActionBuilderInternal(Name, Function, FunctionVersion, BuildSystemVersion));
 }
 
-FBuildAction LoadBuildAction(FStringView Name, FCbObject&& Action)
+FOptionalBuildAction LoadBuildAction(FStringView Name, FCbObject&& Action)
 {
-	return CreateBuildAction(new FBuildActionInternal(Name, MoveTemp(Action)));
+	bool bIsValid = false;
+	FOptionalBuildAction Out = CreateBuildAction(new FBuildActionInternal(Name, MoveTemp(Action), bIsValid));
+	if (!bIsValid)
+	{
+		Out.Reset();
+	}
+	return Out;
 }
 
 } // UE::DerivedData::Private

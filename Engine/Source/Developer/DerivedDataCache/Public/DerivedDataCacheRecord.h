@@ -79,10 +79,7 @@ namespace UE::DerivedData
 class FCacheRecord
 {
 public:
-	/** Construct a null cache record. */
-	explicit FCacheRecord() = default;
-
-	/** Returns the key that identifies this record in the cache. Always available in a non-null cache record. */
+	/** Returns the key that identifies this record in the cache. */
 	inline const FCacheKey& GetKey() const { return Record->GetKey(); }
 
 	/** Returns the metadata. Null when requested with ECachePolicy::SkipMeta. */
@@ -100,23 +97,14 @@ public:
 	/** Returns the attachment payload matching the ID. Null if no match. Data is null if attachments were skipped. */
 	inline const FPayload& GetAttachmentPayload(const FPayloadId& Id) const { return Record->GetAttachmentPayload(Id); }
 
-	/** Returns a view of the attachments. Always available in a non-null cache record, but data may be skipped. */
+	/** Returns a view of the attachments. Always available, but data may be skipped. */
 	inline TConstArrayView<FPayload> GetAttachmentPayloads() const { return Record->GetAttachmentPayloads(); }
 
 	/** Returns the payload matching the ID, whether value or attachment. Null if no match. Data is null if skipped. */
 	inline const FPayload& GetPayload(const FPayloadId& Id) const { return Record->GetPayload(Id); }
 
-	/** Whether this is null. */
-	inline bool IsNull() const { return !Record; }
-	/** Whether this is not null. */
-	inline bool IsValid() const { return !IsNull(); }
-	/** Whether this is not null. */
-	inline explicit operator bool() const { return IsValid(); }
-
-	/** Reset this to null. */
-	inline void Reset() { *this = FCacheRecord(); }
-
 private:
+	friend class FOptionalCacheRecord;
 	friend FCacheRecord Private::CreateCacheRecord(Private::ICacheRecordInternal* Record);
 
 	/** Construct a cache record. Use Build() or BuildAsync() on a builder from ICache::CreateRecord(). */
@@ -232,6 +220,32 @@ private:
 	}
 
 	TUniquePtr<Private::ICacheRecordBuilderInternal> RecordBuilder;
+};
+
+/**
+ * A cache record that can be null.
+ *
+ * @see FCacheRecord
+ */
+class FOptionalCacheRecord : private FCacheRecord
+{
+public:
+	inline FOptionalCacheRecord() : FCacheRecord(nullptr) {}
+
+	inline FOptionalCacheRecord(FCacheRecord&& InRecord) : FCacheRecord(MoveTemp(InRecord)) {}
+	inline FOptionalCacheRecord(const FCacheRecord& InRecord) : FCacheRecord(InRecord) {}
+	inline FOptionalCacheRecord& operator=(FCacheRecord&& InRecord) { FCacheRecord::operator=(MoveTemp(InRecord)); return *this; }
+	inline FOptionalCacheRecord& operator=(const FCacheRecord& InRecord) { FCacheRecord::operator=(InRecord); return *this; }
+
+	/** Returns the cache record. The caller must check for null before using this accessor. */
+	inline const FCacheRecord& Get() const & { return *this; }
+	inline FCacheRecord&& Get() && { return MoveTemp(*this); }
+
+	inline bool IsNull() const { return !IsValid(); }
+	inline bool IsValid() const { return Record.IsValid(); }
+	inline explicit operator bool() const { return IsValid(); }
+
+	inline void Reset() { *this = FOptionalCacheRecord(); }
 };
 
 } // UE::DerivedData

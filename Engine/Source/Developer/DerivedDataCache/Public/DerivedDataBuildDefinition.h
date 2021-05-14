@@ -138,6 +138,7 @@ public:
 	}
 
 private:
+	friend class FOptionalBuildDefinition;
 	friend FBuildDefinition Private::CreateBuildDefinition(Private::IBuildDefinitionInternal* Definition);
 
 	/** Construct a build definition. Use Build() on a builder from IBuild::CreateDefinition(). */
@@ -220,6 +221,32 @@ private:
 	}
 
 	TUniquePtr<Private::IBuildDefinitionBuilderInternal> DefinitionBuilder;
+};
+
+/**
+ * A build definition that can be null.
+ *
+ * @see FBuildDefinition
+ */
+class FOptionalBuildDefinition : private FBuildDefinition
+{
+public:
+	inline FOptionalBuildDefinition() : FBuildDefinition(nullptr) {}
+
+	inline FOptionalBuildDefinition(FBuildDefinition&& InDefinition) : FBuildDefinition(MoveTemp(InDefinition)) {}
+	inline FOptionalBuildDefinition(const FBuildDefinition& InDefinition) : FBuildDefinition(InDefinition) {}
+	inline FOptionalBuildDefinition& operator=(FBuildDefinition&& InDefinition) { FBuildDefinition::operator=(MoveTemp(InDefinition)); return *this; }
+	inline FOptionalBuildDefinition& operator=(const FBuildDefinition& InDefinition) { FBuildDefinition::operator=(InDefinition); return *this; }
+
+	/** Returns the build definition. The caller must check for null before using this accessor. */
+	inline const FBuildDefinition& Get() const & { return *this; }
+	inline FBuildDefinition&& Get() && { return MoveTemp(*this); }
+
+	inline bool IsNull() const { return !IsValid(); }
+	inline bool IsValid() const { return Definition.IsValid(); }
+	inline explicit operator bool() const { return IsValid(); }
+
+	inline void Reset() { *this = FOptionalBuildDefinition(); }
 };
 
 } // UE::DerivedData
