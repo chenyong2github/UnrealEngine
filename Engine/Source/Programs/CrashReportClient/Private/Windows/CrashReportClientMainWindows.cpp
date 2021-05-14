@@ -5,13 +5,12 @@
 #include "CrashReportClientDefines.h"
 
 #if CRASH_REPORT_WITH_MTBF
-#include "EditorAnalyticsSession.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformStackWalk.h"
 #include "Serialization/Archive.h"
-#include "DiagnosticLogger.h"
+#include "CrashReportAnalyticsSessionSummary.h"
 #endif
 
 #if CRASH_REPORT_WITH_MTBF && !PLATFORM_SEH_EXCEPTIONS_DISABLED
@@ -25,27 +24,7 @@ void SaveCrcCrashException(EXCEPTION_POINTERS* ExceptionInfo)
 	static volatile int32 CrashCount = 0;
 	if (FPlatformAtomics::InterlockedIncrement(&CrashCount) == 1)
 	{
-		TCHAR CrashEventLog[64];
-		FCString::Sprintf(CrashEventLog, TEXT("CRC/Crash:%d"), ExceptionInfo->ExceptionRecord->ExceptionCode);
-		FDiagnosticLogger::Get().LogEvent(CrashEventLog);
-
-		uint64 MonitoredEditorPid;
-		if (FParse::Value(GetCommandLineW(), TEXT("-MONITOR="), MonitoredEditorPid))
-		{
-			FTimespan Timeout = FTimespan::FromSeconds(2);
-			if (FEditorAnalyticsSession::Lock(Timeout)) // This lock is reentrant for the same process.
-			{
-				FEditorAnalyticsSession MonitoredSession;
-				if (FEditorAnalyticsSession::FindSession(MonitoredEditorPid, MonitoredSession))
-				{
-					if (!MonitoredSession.SaveMonitorExceptCode(ExceptionInfo->ExceptionRecord->ExceptionCode))
-					{
-						FDiagnosticLogger::Get().LogEvent("CRC/ExceptCodeNotSaved");
-					}
-				}
-				FEditorAnalyticsSession::Unlock();
-			}
-		}
+		FCrashReportAnalyticsSessionSummary::Get().OnCrcCrashing(ExceptionInfo->ExceptionRecord->ExceptionCode);
 
 		if (ExceptionInfo->ExceptionRecord->ExceptionCode != STATUS_HEAP_CORRUPTION)
 		{
@@ -56,7 +35,7 @@ void SaveCrcCrashException(EXCEPTION_POINTERS* ExceptionInfo)
 				FPlatformStackWalk::StackWalkAndDump(CrashStackTrace, UE_ARRAY_COUNT(CrashStackTrace), 0);
 				if (CrashStackTrace[0] != 0)
 				{
-					FDiagnosticLogger::Get().LogEvent(ANSI_TO_TCHAR(CrashStackTrace));
+					FCrashReportAnalyticsSessionSummary::Get().LogEvent(ANSI_TO_TCHAR(CrashStackTrace));
 				}
 			}
 		}
