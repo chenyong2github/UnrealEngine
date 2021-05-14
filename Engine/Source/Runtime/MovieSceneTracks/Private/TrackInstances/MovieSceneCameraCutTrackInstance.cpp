@@ -94,8 +94,14 @@ namespace MovieScene
 
 		virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& RestoreParams) override
 		{
+			IMovieScenePlayer* Player = RestoreParams.GetTerminalPlayer();
+			if (!ensure(Player))
+			{
+				return;
+			}
+			
 			EMovieSceneCameraCutParams Params;
-			RestoreParams.GetTerminalPlayer()->UpdateCameraCut(nullptr, Params);
+			Player->UpdateCameraCut(nullptr, Params);
 		}
 	};
 
