@@ -16,6 +16,7 @@
 #include "Misc/PackagePath.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "UObject/CoreRedirects.h"
 #include "UObject/ObjectVersion.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
@@ -30,7 +31,8 @@ const TCHAR* EditorDomainVersion = TEXT("C217EB656E9B4C04816D3DC0E21901F6");
 // Identifier of the CacheBucket for EditorDomainPackages
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
 
-FPackageDigest GetPackageDigest(const FAssetPackageData& PackageData, FName PackageName)
+EPackageDigestResult GetPackageDigest(FPackageDigest& OutDigest, FString& OutErrorMessage,
+	const FAssetPackageData& PackageData, FName PackageName, FClassDigestMap& ClassDigests)
 {
 	FCbWriter Writer;
 	int32 CurrentFileVersionUE = GPackageFileUEVersion;
@@ -52,25 +54,119 @@ FPackageDigest GetPackageDigest(const FAssetPackageData& PackageData, FName Pack
 		}
 		else
 		{
-			UE_LOG(LogEditorDomain, Error, TEXT("CustomVersion guid %s is used by package %s but is not ")
-				TEXT("available in FCurrentCustomVersions. PackageDigest will set its version to 0."),
-				*PackageVersion.Key.ToString(), *PackageName.ToString());
+			OutErrorMessage = FString::Printf(TEXT("Package %s uses CustomVersion guid %s but that guid is not available in FCurrentCustomVersions"),
+				*PackageName.ToString(), *PackageVersion.Key.ToString());
+			return EPackageDigestResult::MissingCustomVersion;
 		}
 	}
-	return Writer.Save().GetRangeHash();
+	FNameBuilder NameBuilder;
+	int32 NextClass = 0;
+	for (int32 Attempt = 0; NextClass < PackageData.ImportedClasses.Num(); ++Attempt)
+	{
+		if (Attempt > 0)
+		{
+			// EDITORDOMAIN_TODO: Remove this !IsInGameThread check once FindObject no longer asserts if GIsSavingPackage
+			if (Attempt > 1 || !IsInGameThread())
+			{
+				OutErrorMessage = FString::Printf(TEXT("Package %s uses Class %s but that class is not loaded"),
+					*PackageName.ToString(), *PackageData.ImportedClasses[NextClass].ToString());
+				return EPackageDigestResult::MissingClass;
+			}
+			TConstArrayView<FName> RemainingClasses(PackageData.ImportedClasses);
+			RemainingClasses = RemainingClasses.Slice(NextClass, PackageData.ImportedClasses.Num() - NextClass);
+			PrecacheClassDigests(RemainingClasses, ClassDigests);
+		}
+		FScopeLock ClassDigestsScopeLock(&ClassDigests.Lock);
+		for (; NextClass < PackageData.ImportedClasses.Num(); ++NextClass)
+		{
+			FName ClassName = PackageData.ImportedClasses[NextClass];
+			FClassDigestData* ExistingData = ClassDigests.Map.Find(ClassName);
+			if (!ExistingData)
+			{
+				break;
+			}
+			if (ExistingData->bNative)
+			{
+				Writer << ExistingData->SchemaHash;
+			}
+		}
+	}
+	OutDigest = Writer.Save().GetRangeHash();
+	return EPackageDigestResult::Success;
+}
+
+void PrecacheClassDigests(TConstArrayView<FName> ClassNames, FClassDigestMap& ClassDigests)
+{
+	TArray<TPair<FName,FClassDigestData>> ClassesToAdd;
+	FString ClassNameStr;
+	{
+		FScopeLock ClassDigestsScopeLock(&ClassDigests.Lock);
+		for (FName ClassName : ClassNames)
+		{
+			if (!ClassDigests.Map.Find(ClassName))
+			{
+				ClassesToAdd.Emplace_GetRef().Get<0>() = ClassName;
+			}
+		}
+	}
+	if (ClassesToAdd.Num())
+	{
+		FString TargetClassNameString;
+		for (int32 Index = 0; Index < ClassesToAdd.Num();)
+		{
+			FName OldClassFName = ClassesToAdd[Index].Get<0>();
+			FClassDigestData& Data = ClassesToAdd[Index].Get<1>();
+			OldClassFName.ToString(TargetClassNameString);
+			FCoreRedirectObjectName OldClassName(TargetClassNameString);
+			FCoreRedirectObjectName NewClassName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, OldClassName);
+			if (OldClassName != NewClassName)
+			{
+				TargetClassNameString = NewClassName.ToString();
+			}
+
+			if (FPackageName::IsScriptPackage(TargetClassNameString))
+			{
+				UStruct* Struct = FindObject<UStruct>(nullptr, *TargetClassNameString);
+				if (Struct)
+				{
+					Data.SchemaHash = Struct->GetSchemaHash(false /* bSkipEditorOnly */);
+					Data.bNative = true;
+					++Index;
+				}
+				else
+				{
+					ClassesToAdd.RemoveAtSwap(Index);
+				}
+			}
+			else
+			{
+				Data.SchemaHash.Reset();
+				Data.bNative = false;
+				++Index;
+			}
+		}
+		{
+			FScopeLock ClassDigestsScopeLock(&ClassDigests.Lock);
+			for (TPair<FName,FClassDigestData>& Pair: ClassesToAdd)
+			{
+				ClassDigests.Map.Add(Pair.Get<0>(), MoveTemp(Pair.Get<1>()));
+			}
+		}
+	}
 }
 
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FPackageDigest& OutPackageDigest)
+	FPackageDigest& OutPackageDigest, FString& OutErrorMessage, FClassDigestMap& ClassDigests)
 {
 	AssetRegistry.WaitForPackage(PackageName.ToString());
 	TOptional<FAssetPackageData> PackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
 	if (!PackageData)
 	{
+		OutErrorMessage = FString::Printf(TEXT("Package %s does not exist in the AssetRegistry"),
+			*PackageName.ToString());
 		return EPackageDigestResult::FileDoesNotExist;
 	}
-	OutPackageDigest = GetPackageDigest(*PackageData, PackageName);
-	return EPackageDigestResult::Success;
+	return GetPackageDigest(OutPackageDigest, OutErrorMessage, *PackageData, PackageName, ClassDigests);
 }
 
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest)
@@ -90,20 +186,18 @@ UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& Package
 		UE::DerivedData::ECachePolicy::QueryLocal, CachePriority, MoveTemp(Callback));
 }
 
-bool TrySavePackage(UPackage* Package)
+bool TrySavePackage(UPackage* Package, FClassDigestMap& ClassDigests)
 {
+	FString ErrorMessage;
 	FPackageDigest PackageDigest;
-	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), Package->GetFName(), PackageDigest);
+	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), Package->GetFName(), PackageDigest,
+		ErrorMessage, ClassDigests);
 	switch (FindHashResult)
 	{
 	case EPackageDigestResult::Success:
 		break;
-	case EPackageDigestResult::FileDoesNotExist:
-		return false;
-	case EPackageDigestResult::WrongThread:
-		return false;
 	default:
-		check(false);
+		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package to EditorDomain: %s."), *ErrorMessage)
 		return false;
 	}
 

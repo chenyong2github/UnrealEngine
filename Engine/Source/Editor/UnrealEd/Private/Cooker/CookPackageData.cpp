@@ -7,6 +7,7 @@
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CookPlatformManager.h"
 #include "Containers/StringView.h"
+#include "EditorDomain/EditorDomain.h"
 #include "HAL/FileManager.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Misc/Paths.h"
@@ -695,6 +696,10 @@ namespace Cook
 		}
 		if (!PreloadableFile.Get())
 		{
+			if (FEditorDomain* EditorDomain = FEditorDomain::Get())
+			{
+				EditorDomain->PrecachePackageDigest(GetPackageName());
+			}
 			TStringBuilder<NAME_SIZE> FileNameString;
 			GetFileName().ToString(FileNameString);
 			PreloadableFile.Set(MakeShared<FPreloadableArchive>(FileNameString.ToString()), *this);
