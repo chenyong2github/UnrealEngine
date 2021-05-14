@@ -205,7 +205,14 @@ namespace HordeAgent
 			ServerProfile? ServerProfile = ServerProfiles.FirstOrDefault(x => x.Name.Equals(Name, StringComparison.OrdinalIgnoreCase));
 			if (ServerProfile == null)
 			{
-				throw new Exception($"Unknown server profile name '{Server}'");
+				if (ServerProfiles.Count == 0)
+				{
+					throw new Exception("No server profiles are defined (missing configuration?)");
+				}
+				else
+				{
+					throw new Exception($"Unknown server profile name '{Name}' (valid profiles: {String.Join("/", ServerProfiles.Select(x => x.Name))})");
+				}
 			}
 			return ServerProfile;
 		}

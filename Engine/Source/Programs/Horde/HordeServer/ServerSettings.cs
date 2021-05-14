@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Services;
+using HordeServer.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -111,12 +112,12 @@ namespace HordeServer
 		/// <summary>
 		/// The claim type for administrators
 		/// </summary>
-		public string? AdminClaimType { get; set; }
+		public string AdminClaimType { get; set; } = HordeClaimTypes.InternalRole;
 
 		/// <summary>
 		/// Value of the claim type for administrators
 		/// </summary>
-		public string? AdminClaimValue { get; set; }
+		public string AdminClaimValue { get; set; } = "admin";
 
 		/// <summary>
 		/// Optional certificate to trust in order to access the database (eg. AWS public cert for TLS)

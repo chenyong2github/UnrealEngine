@@ -26,8 +26,6 @@ using Serilog.Events;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.SystemConsole.Themes;
 
-using Log = Serilog.Log;
-
 namespace HordeServer
 {
 	static class LoggerExtensions
@@ -71,7 +69,7 @@ namespace HordeServer
 			ServerSettings HordeSettings = new ServerSettings();
 			Config.GetSection("Horde").Bind(HordeSettings);
 
-			Log.Logger = new LoggerConfiguration()
+			Serilog.Log.Logger = new LoggerConfiguration()
 				.MinimumLevel.Debug()
 //				.MinimumLevel.Override("HordeServer.Services.DatabaseService", LogEventLevel.Verbose) // For MongoDB query tracing
 				.MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -79,6 +77,7 @@ namespace HordeServer
 				.MinimumLevel.Override("HordeServer.Authentication.OktaHandler", LogEventLevel.Warning)
 				.MinimumLevel.Override("HordeServer.Authentication.OktaViaJwtHandler", LogEventLevel.Warning)
 				.MinimumLevel.Override("HordeServer.Authentication.HordeJwtBearerHandler", LogEventLevel.Warning)
+				.MinimumLevel.Override("HordeServer.Authentication.ServiceAccountAuthHandler", LogEventLevel.Warning)
 				.MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
 				.MinimumLevel.Override("Grpc", LogEventLevel.Warning)
 				.Enrich.FromLogContext()
@@ -98,7 +97,7 @@ namespace HordeServer
 			catch (Exception Ex)
 #pragma warning restore CA1031 // Do not catch general exception types
 			{
-				Log.Logger.Error(Ex, "Unhandled exception");
+				Serilog.Log.Logger.Error(Ex, "Unhandled exception");
 			}
 		}
 

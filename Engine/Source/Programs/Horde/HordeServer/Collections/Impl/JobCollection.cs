@@ -842,6 +842,7 @@ namespace HordeServer.Collections.Impl
 			if (bRefreshDependentJobSteps)
 			{
 				RefreshDependentJobSteps(JobDocument, Graph, Updates, Logger);
+				RefreshJobPriority(JobDocument, Updates);
 			}
 
 			// Update the new list of job steps
@@ -865,6 +866,22 @@ namespace HordeServer.Collections.Impl
 				return true;
 			}
 			return false;
+		}
+
+		/// <inheritdoc/>
+		public Task<bool> TryRemoveFromDispatchQueueAsync(IJob Job)
+		{
+			JobDocument JobDocument = (JobDocument)Job;
+
+			// Create the update 
+			UpdateDefinitionBuilder<JobDocument> UpdateBuilder = Builders<JobDocument>.Update;
+			List<UpdateDefinition<JobDocument>> Updates = new List<UpdateDefinition<JobDocument>>();
+
+			JobDocument.SchedulePriority = 0;
+			Updates.Add(UpdateBuilder.Set(x => x.SchedulePriority, JobDocument.SchedulePriority));
+
+			// Update the new list of job steps
+			return TryUpdateAsync(JobDocument, UpdateBuilder.Combine(Updates));
 		}
 
 		/// <inheritdoc/>
@@ -896,7 +913,7 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<List<IJob>> GetDispatchQueueAsync()
 		{
-			List<JobDocument> NewJobs = await Jobs.Find(x => x.SchedulePriority > 0).SortByDescending(x => x.SchedulePriority).ToListAsync();
+			List<JobDocument> NewJobs = await Jobs.Find(x => x.SchedulePriority > 0).SortByDescending(x => x.SchedulePriority).ThenBy(x => x.CreateTimeUtc).ToListAsync();
 			foreach (JobDocument Result in NewJobs)
 			{
 				Result.PostLoad();
@@ -1088,6 +1105,7 @@ namespace HordeServer.Collections.Impl
 			}
 
 			RefreshDependentJobSteps(JobDocument, Graph, Updates, Logger);
+			RefreshJobPriority(JobDocument, Updates);
 
 			return (Updates.Count == 0 || await TryUpdateAsync(JobDocument, UpdateBuilder.Combine(Updates)));
 		}
@@ -1121,6 +1139,7 @@ namespace HordeServer.Collections.Impl
 
 			// Update all the dependencies
 			RefreshDependentJobSteps(Job, Graph, new List<UpdateDefinition<JobDocument>>(), Logger);
+			RefreshJobPriority(Job, Updates);
 		}
 
 		/// <summary>
@@ -1503,13 +1522,21 @@ namespace HordeServer.Collections.Impl
 					}
 				}
 			}
+		}
 
+		/// <summary>
+		/// Updates the schedule priority of a job
+		/// </summary>
+		/// <param name="Job"></param>
+		/// <param name="Updates"></param>
+		static void RefreshJobPriority(JobDocument Job, List<UpdateDefinition<JobDocument>> Updates)
+		{
 			// Update the weighted priority for the job
 			int NewSchedulePriority = GetSchedulePriority(Job);
 			if (Job.SchedulePriority != NewSchedulePriority)
 			{
 				Job.SchedulePriority = NewSchedulePriority;
-				Updates.Add(UpdateBuilder.Set(x => x.SchedulePriority, NewSchedulePriority));
+				Updates.Add(Builders<JobDocument>.Update.Set(x => x.SchedulePriority, NewSchedulePriority));
 			}
 		}
 

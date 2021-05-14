@@ -611,7 +611,7 @@ namespace HordeServer.Controllers
 
 			return await JobTaskSource.GetStatus();
 		}
-		
+
 		/// <summary>
 		/// Returns the complete config Horde uses
 		/// </summary>
@@ -629,7 +629,7 @@ namespace HordeServer.Controllers
 			{
 				WriteIndented = true
 			};
-			
+
 			return Ok(JsonSerializer.Serialize(Settings.CurrentValue, Options));
 		}
 
@@ -803,6 +803,63 @@ namespace HordeServer.Controllers
 			return await Perforce.CreateTicket(Username);
 		}
 
+		/// <summary>
+		/// Debugs perforce service commands
+		/// </summary>
+		/// <returns>Perforce ticket</returns>
+		[HttpGet]
+		[Route("/api/v1/debug/perforce/stress")]
+		public async Task<ActionResult<string>> GetPerforceStress()
+		{
+			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			{
+				return Forbid();
+			}
+
+			Dictionary<string, string> Results = new Dictionary<string, string>();
+			const string DevBuild = "//UE4/Dev-Build";
+			string? PerforceUser = User.GetPerforceUser();
+
+			object UpdateLock = new object();
+
+			// ParallelTest.ForAsync doesn't seem to handle async lambdas
+			IEnumerable<Task> Tasks = Enumerable.Range(0, 16).Select(async (Idx) => {
+
+				int LatestChange = await Perforce.GetLatestChangeAsync(DevBuild, PerforceUser);
+				int CodeChange = await Perforce.GetCodeChangeAsync(DevBuild, LatestChange);				
+
+				lock (UpdateLock)
+				{
+					Results.Add($"Parallel Perforce Result {Idx}", $"LatestChange: {LatestChange} - CodeChange: {CodeChange}");
+				}
+			});
+
+			await Task.WhenAll(Tasks);			
+
+			Tasks = Enumerable.Range(0, 16).Select(async (Idx) => {
+
+				int LatestChange = await Perforce.GetLatestChangeAsync(DevBuild, PerforceUser);
+				int CodeChange = await Perforce.GetCodeChangeAsync(DevBuild, LatestChange);				
+
+				lock (UpdateLock)
+				{
+					Results.Add($"Parallel Perforce Result {Idx + 16}", $"LatestChange: {LatestChange} - CodeChange: {CodeChange}");
+				}
+			});
+
+
+			await Task.WhenAll(Tasks);
+
+			StringBuilder Content = new StringBuilder();
+			Content.AppendLine("<html><body><pre>");
+			foreach (KeyValuePair<string, string> Pair in Results)
+			{
+				Content.AppendLine(HttpUtility.HtmlEncode($"{Pair.Key}={Pair.Value}"));
+			}
+			Content.Append("</pre></body></html>");
+			return new ContentResult { ContentType = "text/html", StatusCode = (int)HttpStatusCode.OK, Content = Content.ToString() };
+
+		}
 
 		/// <summary>
 		/// Debugs perforce service commands
@@ -810,7 +867,7 @@ namespace HordeServer.Controllers
 		/// <returns>Perforce ticket</returns>
 		[HttpGet]
 		[Route("/api/v1/debug/perforce/commands")]
-		public async Task<ActionResult<string>> Get()
+		public async Task<ActionResult<string>> GetPerforceCommands()
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
@@ -832,23 +889,23 @@ namespace HordeServer.Controllers
 
 			int NewChangeId = await Perforce.CreateNewChangeAsync("//UE4/Private-Build", "Counter.txt");
 
-			List<ChangeDetails> ChangeDetails = await Perforce.GetChangeDetailsAsync("//UE4/Private-Build", new int[]{NewChangeId}, PerforceUser);
+			List<ChangeDetails> ChangeDetails = await Perforce.GetChangeDetailsAsync("//UE4/Private-Build", new int[] { NewChangeId }, PerforceUser);
 
-			Results.Add("CreateNewChangeAsync", $"{NewChangeId} : {ChangeDetails[0].Description}"); 
+			Results.Add("CreateNewChangeAsync", $"{NewChangeId} : {ChangeDetails[0].Description}");
 
-			await Perforce.UpdateChangelistDescription(TestCL, $"Updated Description: New Change CL was {NewChangeId}");			
+			await Perforce.UpdateChangelistDescription(TestCL, $"Updated Description: New Change CL was {NewChangeId}");
 
-			ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{TestCL}, PerforceUser);
+			ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[] { TestCL }, PerforceUser);
 
-			Results.Add("UpdateChangelistDescription", $"{TestCL} : {ChangeDetails[0].Description}"); 
+			Results.Add("UpdateChangelistDescription", $"{TestCL} : {ChangeDetails[0].Description}");
 
 			int LatestChange = await Perforce.GetLatestChangeAsync(DevBuild, PerforceUser);
 			Results.Add("GetLatestChangeAsync", LatestChange.ToString(CultureInfo.InvariantCulture));
 
 			int CodeChange = await Perforce.GetCodeChangeAsync(DevBuild, LatestChange);
 			Results.Add("GetCodeChangeAsync", CodeChange.ToString(CultureInfo.InvariantCulture));
-			
-			PerforceUserInfo? UserInfo =  await Perforce.GetUserInfoAsync(PerforceUser);
+
+			PerforceUserInfo? UserInfo = await Perforce.GetUserInfoAsync(PerforceUser);
 
 			if (UserInfo == null)
 			{
@@ -867,20 +924,20 @@ namespace HordeServer.Controllers
 				Results.Add($"GetChangesAsync Result {Count++}", $"{Summary.Number} : {Summary.Author} - {Summary.Description}");
 			}
 
-			ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, Changes.Select(Change => Change.Number).ToArray(), PerforceUser);			
+			ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, Changes.Select(Change => Change.Number).ToArray(), PerforceUser);
 			Count = 0;
 			foreach (ChangeDetails Details in ChangeDetails)
 			{
 				Results.Add($"GetChangeDetailsAsync Result {Count++}", $"{Details.Number} : {Details.Author} - {Details.Files.ToJson()}");
 			}
-			
+
 			String Ticket = "Failed (Expected if not running service account)";
-			try 
+			try
 			{
 				await Perforce.CreateTicket(PerforceUser);
 				Ticket = "Success";
 			}
-			catch 
+			catch
 			{
 
 			}
@@ -896,10 +953,10 @@ namespace HordeServer.Controllers
 			// print async
 
 			byte[] Bytes = await Perforce.PrintAsync($"{DevBuild}/RunUAT.bat");
-			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat ",  $"{System.Text.Encoding.Default.GetString(Bytes)}");
+			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat ", $"{System.Text.Encoding.Default.GetString(Bytes)}");
 
 			Bytes = await Perforce.PrintAsync($"{DevBuild}/RunUAT.bat@13916380");
-			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat@13916380",  $"{System.Text.Encoding.Default.GetString(Bytes)}");
+			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat@13916380", $"{System.Text.Encoding.Default.GetString(Bytes)}");
 
 
 			// DuplicateShelvedChangeAsync is disabled due to issue with p4 librarian
@@ -946,7 +1003,7 @@ namespace HordeServer.Controllers
 				Results.Add("GetChangeDetailsAsync - After Delete", $"ChangeDetails.Count: {ChangeDetails.Count}"); 
 
 			}
-			*/			
+			*/
 			StringBuilder Content = new StringBuilder();
 			Content.AppendLine("<html><body><pre>");
 			foreach (KeyValuePair<string, string> Pair in Results)

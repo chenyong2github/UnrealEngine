@@ -471,6 +471,19 @@ namespace HordeServer.Tasks.Impl
 			{
 				IJob? NewJob = NewJobs[Idx];
 
+				if (NewJob.GraphHash == null)
+				{
+					Logger.LogError("Job {JobId} has a null graph hash and can't be started.", NewJob.Id);
+					await Jobs.TryRemoveFromDispatchQueueAsync(NewJob);
+					continue;
+				}
+				if (NewJob.AbortedByUser != null)
+				{
+					Logger.LogError("Job {JobId} was aborted but not removed from dispatch queue", NewJob.Id);
+					await Jobs.TryRemoveFromDispatchQueueAsync(NewJob);
+					continue;
+				}
+
 				// Get the graph for this job
 				IGraph Graph = await Graphs.GetAsync(NewJob.GraphHash);
 
@@ -483,6 +496,7 @@ namespace HordeServer.Tasks.Impl
 				}
 
 				// Update all the batches
+				bool IsRunning = false;
 				for (int BatchIdx = 0; NewJob != null && BatchIdx < NewJob.Batches.Count; BatchIdx++)
 				{
 					// Skip any batches which aren't ready to execute
@@ -520,6 +534,15 @@ namespace HordeServer.Tasks.Impl
 							NewBatchIdToQueueItem[(NewJob.Id, Batch.Id)] = NewQueueItem;
 						}
 					}
+					IsRunning |= (Batch.State == JobStepBatchState.Ready || Batch.State == JobStepBatchState.Running);
+				}
+
+				// Add a warning if a job looks to be idle
+				if (!IsRunning && NewJob != null)
+				{
+					Logger.LogError("Job {JobId} is in dispatch queue but not currently executing", NewJob.Id);
+					await Jobs.TryRemoveFromDispatchQueueAsync(NewJob);
+					continue;
 				}
 			}
 

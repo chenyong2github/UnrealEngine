@@ -63,7 +63,7 @@ namespace HordeServer.Services
 						Serilog.Log.Information("Perforce: {Message} {Source} : ", Message, Source);
 						break;
 					default:
-						Serilog.Log.Debug("Perforce (Debug): {Message} {Source} : ", Message, Source);
+						// Serilog.Log.Debug("Perforce (Debug): {Message} {Source} : ", Message, Source);
 						break;
 				};
 
