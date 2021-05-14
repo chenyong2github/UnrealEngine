@@ -105,7 +105,7 @@ public:
 	 */
 	static bool TryConvertLongPackageNameToFilename(const FString& InLongPackageName, FString& OutFilename, const FString& InExtension = TEXT(""));
 
-	/**
+	/** 
 	 * Find the MountPoint for a LocalPath, LongPackageName, or ObjectPath and return its elements. Use this function instead of TryConvertFilenameToLongPackageName or
 	 * TryConvertLongPackageNameToFilename if you need to handle InPaths that might be ObjectPaths.
 	 * @param InPath					The LocalPath (with path,name,extension), PackageName, or ObjectPath we want to 
@@ -320,6 +320,26 @@ public:
 	 * @return true if the specified package name points to an existing package, false otherwise.
 	 **/
 	static bool DoesPackageExist(const FPackagePath& PackagePath, FPackagePath* OutPackagePath);
+
+	enum class EPackageLocationFilter : uint8
+	{
+		None = 0,
+		Cooked = 1,
+		Uncooked = 2,
+		Any = 0xFF, // special filter to find if it exists anywhere at all, and won't need to check both. in this case, as soon as one is found, DoesPackageExistEx will return true
+	};
+
+	/**
+	 * Checks if the package exists in IOStore containers, on disk outsode of IOStore, both, or neither
+	 *
+	 * @param PackagePath Package package.
+	 * @param Filter Indication of where it should look for 
+	 * @param Guid If nonnull, and the package is found on disk but does not have this PackageGuid in its FPackageFileSummary::Guid, false is returned
+	 * @param bMatchCaseOnDisk If true, the OutPackagePath is modified to match the capitalization of the discovered file
+	 * @param OutPackagePath If nonnull and the package exists, set to a copy of PackagePath with the HeaderExtension set to the extension that exists on disk (and if bMatchCaseOnDisk is true, capitalization changed to match). If not found, this variable is not written
+	 * @return the set of locations where the package exists (cooked or uncooked, both or neither)
+	 **/
+	static EPackageLocationFilter DoesPackageExistEx(const FPackagePath& PackagePath, EPackageLocationFilter Filterconst, const FGuid* Guid = nullptr, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
 
 	/**
 	 * Attempts to find a package given its short name on disk (very slow).
@@ -638,7 +658,7 @@ public:
 	 */
 	static bool DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, FText* OutReason);
 	static bool DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, EErrorCode* OutReason = nullptr);
-
+	
 	/**
 	* Checks if a package can be found using known package extensions (header extensions only; files with the extensions of other segments are not returned).
 	*

@@ -512,13 +512,6 @@ COREUOBJECT_API bool IsEventDrivenLoaderEnabledInCookedBuilds();
 */
 COREUOBJECT_API bool IsEventDrivenLoaderEnabled();
 
-#if WITH_IOSTORE_IN_EDITOR
-/**
- * Returns true if the specified package is cooked and stored in I/O store
-*/
-bool DoesPackageExistInIoStore(FName InPackageName);
-#endif
-
 /**
  * Returns the async load percentage for a package in flight with the passed in name or -1 if there isn't one.
  * @warning THIS IS SLOW. MAY BLOCK ASYNC LOADING.

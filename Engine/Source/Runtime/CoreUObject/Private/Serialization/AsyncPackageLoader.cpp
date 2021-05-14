@@ -833,19 +833,6 @@ void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObject
 	GetAsyncPackageLoader().NotifyUnreachableObjects(UnreachableObjects);
 }
 
-#if WITH_IOSTORE_IN_EDITOR
-bool DoesPackageExistInIoStore(FName InPackageName)
-{
-	if (FIoDispatcher::IsInitialized())
-	{
-		FIoChunkId PackageChunkId = CreateIoChunkId(FPackageId::FromName(InPackageName).Value(), 0, EIoChunkType::ExportBundleData);
-		return FIoDispatcher::Get().DoesChunkExist(PackageChunkId);
-	}
-
-	return false;
-}
-#endif
-
 double GFlushAsyncLoadingTime = 0.0;
 uint32 GFlushAsyncLoadingCount = 0;
 uint32 GSyncLoadCount = 0;
