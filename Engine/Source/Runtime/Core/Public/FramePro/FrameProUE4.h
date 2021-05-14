@@ -44,20 +44,16 @@
 		#define FRAMEPRO_API CORE_API
 
 		// Windows or Linux based platform
-#if !defined(FRAMEPRO_WIN_BASED_PLATFORM) //@EPIC begin - allow external definition
-		#define FRAMEPRO_WIN_BASED_PLATFORM (PLATFORM_WINDOWS || PLATFORM_XBOXONE)
+#if !defined(FRAMEPRO_WIN_BASED_PLATFORM) //@EPIC begin - allow external definition + XBOXONE removed
+		#define FRAMEPRO_WIN_BASED_PLATFORM (PLATFORM_WINDOWS)
 #endif //@EPIC: end
 		#define FRAMEPRO_LINUX_BASED_PLATFORM (!FRAMEPRO_WIN_BASED_PLATFORM && !PLATFORM_SWITCH)
 
 		#define FRAMEPRO_USE_TLS_SLOTS 1
 
 		// Port
-#if !defined(FRAMEPRO_PORT) //@EPIC begin - allow external definition
-		#if PLATFORM_XBOXONE
-			#define FRAMEPRO_PORT "4420"
-		#else
-			#define FRAMEPRO_PORT "8428"
-		#endif
+#if !defined(FRAMEPRO_PORT) //@EPIC begin - allow external definition + XBOXONE removed
+		#define FRAMEPRO_PORT "8428"
 #endif //@EPIC: end
 
 		// x64 or x32

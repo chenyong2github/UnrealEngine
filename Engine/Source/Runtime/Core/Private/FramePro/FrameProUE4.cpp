@@ -149,10 +149,10 @@
 		//------------------------------------------------------------------------
 		Platform::Enum Platform::GetPlatformEnum()
 		{
-			#if defined(FRAMEPRO_UNREAL_PLATFORM) //@EPIC: allow external definition
-				return FRAMEPRO_UNREAL_PLATFORM;  //@EPIC end
-			#elif PLATFORM_XBOXONE
-				return Platform::XBoxOne;
+			//@EPIC: allow external definition + XBOXONE removed
+			#if defined(FRAMEPRO_UNREAL_PLATFORM)
+				return FRAMEPRO_UNREAL_PLATFORM;
+			//@EPIC end
 			#elif PLATFORM_WINDOWS
 				return Platform::Windows;
 			#elif PLATFORM_LINUX
