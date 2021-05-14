@@ -2038,6 +2038,12 @@ void FShaderCompileUtilities::GenerateBrdfHeaders(EShaderPlatform TargetPlatform
 	FGBufferInfo Info = FetchGBufferInfoAndWriteAutogen(TargetPlatform, FeatureLevel);
 }
 
+void FShaderCompileUtilities::GenerateBrdfHeaders(const FName& ShaderFormat)
+{
+	const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormat);
+	FShaderCompileUtilities::GenerateBrdfHeaders(ShaderPlatform);
+}
+
 ENGINE_API FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatform Platform)
 {
 

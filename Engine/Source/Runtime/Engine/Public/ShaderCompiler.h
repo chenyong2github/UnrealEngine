@@ -633,7 +633,8 @@ namespace FShaderCompileUtilities
 	void MoveFileHelper(const FString& To, const FString& From);
 	void DeleteFileHelper(const FString& Filename);
 
-	void GenerateBrdfHeaders(const EShaderPlatform Platform);
+	ENGINE_API void GenerateBrdfHeaders(const EShaderPlatform Platform);
+	ENGINE_API void GenerateBrdfHeaders(const FName& ShaderFormat);
 	void ApplyDerivedDefines(FShaderCompilerEnvironment& OutEnvironment, FShaderCompilerEnvironment * SharedEnvironment, const EShaderPlatform Platform);
 	void AppendGBufferDDCKeyString(const EShaderPlatform Platform, FString& KeyString);
 	ENGINE_API FGBufferInfo FetchGBufferInfoAndWriteAutogen(EShaderPlatform TargetPlatform, ERHIFeatureLevel::Type FeatureLevel);
