@@ -630,22 +630,4 @@ public:
 	}
 };
 
-/**
- * Operation used to get the status of files
- */
-class FStatus : public FSourceControlOperationBase
-{
-public:
-	// ISourceControlOperation interface
-	virtual FName GetName() const override
-	{
-		return "Status";
-	}
-
-	virtual FText GetInProgressString() const override
-	{
-		return LOCTEXT("SourceControl_StatusOperation", "Retrieving files status...");
-	}
-};
-
 #undef LOCTEXT_NAMESPACE
