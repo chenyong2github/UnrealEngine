@@ -1932,6 +1932,7 @@ public:
 
 		bNotForLicensees = false;
 		bUseIoStore = false;
+		bShouldUpdateFlash = false;
 		bMakeBinaryConfig = false;
 
 		Validate();
