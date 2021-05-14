@@ -331,6 +331,10 @@ void RHIExit()
 		GDynamicRHI->Shutdown();
 		delete GDynamicRHI;
 		GDynamicRHI = NULL;
+
+#if RHI_WANT_RESOURCE_INFO
+		FRHIResource::StopTrackingAllResources();
+#endif
 	}
 	else if (GUsingNullRHI)
 	{

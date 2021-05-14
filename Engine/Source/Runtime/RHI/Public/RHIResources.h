@@ -141,6 +141,7 @@ public:
 
 	static void BeginTrackingResource(FRHIResource* InResource);
 	static void EndTrackingResource(FRHIResource* InResource);
+	static void StopTrackingAllResources();
 #endif
 
 private:
