@@ -524,7 +524,7 @@ TSharedRef<SWindow> UGameEngine::CreateGameWindow()
 	};
 
 	const bool bShouldPreserveAspectRatio = GetProjectSettingBool(TEXT("bShouldWindowPreserveAspectRatio"), true);
-	const bool bUseBorderlessWindow = GetProjectSettingBool(TEXT("bUseBorderlessWindow"), false) && PLATFORM_WINDOWS;
+	const bool bUseBorderlessWindow = GetProjectSettingBool(TEXT("bUseBorderlessWindow"), false) && PLATFORM_SUPPORTS_BORDERLESS_WINDOW;
 	const bool bAllowWindowResize = GetProjectSettingBool(TEXT("bAllowWindowResize"), true);
 	const bool bAllowClose = GetProjectSettingBool(TEXT("bAllowClose"), true);
 	const bool bAllowMaximize = GetProjectSettingBool(TEXT("bAllowMaximize"), true);
