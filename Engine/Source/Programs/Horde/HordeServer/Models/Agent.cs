@@ -619,7 +619,7 @@ namespace HordeServer.Models
 					}
 				}
 
-				if(Requirements.Devices != null)
+				if (Requirements.Devices != null)
 				{
 					if (!TryCreateDeviceLeases(Capabilities.Devices, Requirements.Devices, 0, 0, Leases.SelectMany(x => x.Devices), out Result))
 					{
@@ -651,7 +651,7 @@ namespace HordeServer.Models
 			if (RequiredDeviceIdx == RequiredDevices.Count)
 			{
 				LeasedDevices = new List<AgentLeaseDevice>(RequiredDevices.Count);
-				foreach(DeviceRequirements Device in RequiredDevices)
+				foreach (DeviceRequirements Device in RequiredDevices)
 				{
 					LeasedDevices.Add(new AgentLeaseDevice(-1, Device.Handle, Device.Resources));
 				}
@@ -786,11 +786,17 @@ namespace HordeServer.Models
 				}
 
 				IPerforceServer? Server = await LoadBalancer.SelectServerAsync(ClusterInfo, Agent);
-				if(Server == null)
+				if (Server == null)
 				{
 					return false;
 				}
 				ServerAndPort = Server.ServerAndPort;
+			}
+
+			// HACK: Trying to debug issues with inconsistent workspace state. Possibly related to edge servers?
+			if (Agent.Id == new AgentId("10-99-114-249") || Agent.Id == new AgentId("10-99-115-36"))
+			{
+				ServerAndPort = "perforce:1666";
 			}
 
 			// Find the matching credentials for the desired user

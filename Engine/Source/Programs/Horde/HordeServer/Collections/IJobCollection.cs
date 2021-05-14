@@ -163,6 +163,13 @@ namespace HordeServer.Collections
 		Task<bool> TryUpdateGraphAsync(IJob Job, IGraph NewGraph);
 
 		/// <summary>
+		/// Removes a job from the dispatch queue. Ignores the state of any batches still remaining to execute. Should only be used to correct for inconsistent state.
+		/// </summary>
+		/// <param name="Job">Job</param>
+		/// <returns></returns>
+		Task<bool> TryRemoveFromDispatchQueueAsync(IJob Job);
+
+		/// <summary>
 		/// Adds an issue to a job
 		/// </summary>
 		/// <param name="JobId">The job id</param>

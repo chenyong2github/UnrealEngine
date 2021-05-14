@@ -76,7 +76,7 @@ namespace HordeServerTests
 	        TestSetup TestSetup = await GetTestSetup();
 
 	        IPool Pool = await TestSetup.PoolCollection.AddAsync(new PoolId("ue4-dev-win"), "ue4-dev-win", null, null);
-	        AwsFleetManager Manager = new AwsFleetManager(TestSetup.AgentCollection, TestSetup.ServiceProvider.GetService<ILogger<AwsFleetManager>>());
+	        AwsFleetManager Manager = new AwsFleetManager(TestSetup.AgentCollection, TestSetup.ServiceProvider.GetRequiredService<ILogger<AwsFleetManager>>());
 
 	        await Manager.ExpandPool(Pool, new List<IAgent>(), 1);
         }
@@ -88,7 +88,7 @@ namespace HordeServerTests
 	        TestSetup TestSetup = await GetTestSetupExternal();
 
 	        AutoscaleService AutoscaleService = new AutoscaleService(GetDatabaseServiceExternal(), TestSetup.AgentCollection, TestSetup.PoolCollection,
-		        TestSetup.LeaseCollection, new DefaultFleetManager(TestSetup.ServiceProvider.GetService<ILogger<DefaultFleetManager>>()),
+		        TestSetup.LeaseCollection, new DefaultFleetManager(TestSetup.ServiceProvider.GetRequiredService<ILogger<DefaultFleetManager>>()),
 				new NoOpDogStatsd(), TestSetup.ServiceProvider.GetRequiredService<ILogger<AutoscaleService>>());
 
 	        await AutoscaleService.TickSharedOnlyForTestingAsync();

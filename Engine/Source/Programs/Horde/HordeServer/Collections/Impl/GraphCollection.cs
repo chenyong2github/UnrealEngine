@@ -175,7 +175,7 @@ namespace HordeServer.Collections.Impl
 			public static GraphDocument Empty { get; } = new GraphDocument(new List<NodeGroup>(), new List<Aggregate>(), new List<Label>());
 
 			[BsonRequired, BsonId]
-			public ContentHash Id { get; private set; }
+			public ContentHash Id { get; private set; } = ContentHash.Empty;
 
 			public int Schema { get; set; }
 			public List<NodeGroup> Groups { get; private set; } = new List<NodeGroup>();
@@ -192,7 +192,6 @@ namespace HordeServer.Collections.Impl
 			[BsonConstructor]
 			private GraphDocument()
 			{
-				Id = ContentHash.Empty;
 			}
 
 			public GraphDocument(List<NodeGroup> Groups, List<Aggregate> Aggregates, List<Label> Labels)
@@ -406,10 +405,10 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IGraph> GetAsync(ContentHash Hash)
+		public async Task<IGraph> GetAsync(ContentHash? Hash)
 		{
 			// Special case for an empty graph request
-			if (Hash == ContentHash.Empty || Hash == GraphDocument.Empty.Id)
+			if (Hash == null || Hash == ContentHash.Empty || Hash == GraphDocument.Empty.Id)
 			{
 				return GraphDocument.Empty;
 			}

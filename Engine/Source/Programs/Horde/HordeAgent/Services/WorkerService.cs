@@ -1493,8 +1493,17 @@ namespace HordeAgent.Services
 			PrimaryDevice.Properties.Add($"BootTime={BootTime}");
 			PrimaryDevice.Properties.Add($"StartTime={StartTime}");
 
-			// Add disk info
-			string? DriveName = Path.GetPathRoot(WorkingDir.FullName);
+			// Add disk info based on platform
+			string? DriveName;
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				DriveName = Path.GetPathRoot(WorkingDir.FullName);
+			}
+			else
+			{
+				DriveName = WorkingDir.FullName;
+			}
+
 			if (DriveName != null)
 			{
 				try
