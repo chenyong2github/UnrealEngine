@@ -119,6 +119,9 @@ public:
 		TWeakPtr<class SDockTab> CodeViewerTab;
 
 		FShaderStatsInfo ShaderStatsInfo;
+
+		/** Time when the previous compilation was requested.*/
+		double LastTimeCompilationRequested = 0.0;
 	};
 	/////////////////////
 

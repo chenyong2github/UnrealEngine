@@ -179,6 +179,9 @@ bool FShaderPlatformSettings::CheckShaders()
 {
 	bool bRetValue = false;
 
+	// prevent stats 
+	const double kMinimumTimeBetweenCompilationsSeconds = 5.0;
+
 	if (Material != nullptr)
 	{
 		// check and triggers shader recompilation if needed
@@ -186,7 +189,8 @@ bool FShaderPlatformSettings::CheckShaders()
 		{
 			auto &Data = PlatformData[QualityLevelIndex];
 			const bool bNeedsShaders = (bPresentInGrid && Data.bExtractStats) || Data.bExtractCode;
-			if (Data.bNeedShaderRecompilation && bNeedsShaders)
+			const double CurrentTime = FPlatformTime::Seconds();
+			if (Data.bNeedShaderRecompilation && bNeedsShaders && (CurrentTime - Data.LastTimeCompilationRequested) > kMinimumTimeBetweenCompilationsSeconds)
 			{
 				Data.MaterialResourcesStats->CancelCompilation();
 
@@ -197,6 +201,7 @@ bool FShaderPlatformSettings::CheckShaders()
 					MaterialInstance->UpdateCachedLayerParameters();
 				}
 
+				Data.LastTimeCompilationRequested = CurrentTime;
 				Data.MaterialResourcesStats->CacheShaders(PlatformShaderID);
 
 				Data.bCompilingShaders = true;
