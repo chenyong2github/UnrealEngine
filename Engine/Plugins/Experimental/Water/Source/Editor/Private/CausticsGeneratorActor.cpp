@@ -99,7 +99,7 @@ void ACausticsGeneratorActor::SpawnCausticParticleGrid(UHierarchicalInstancedSta
 			PolyCenterVector += HalfVector * CellSizeF;
 			PolyCenterVector += ActorLocation;
 
-			HISMC->AddInstanceWorldSpace(FTransform(FRotator::ZeroRotator, PolyCenterVector, FVector(CellSizeVector.X, CellSizeVector.Y, 0.0001)));
+			HISMC->AddInstance(FTransform(FRotator::ZeroRotator, PolyCenterVector, FVector(CellSizeVector.X, CellSizeVector.Y, 0.0001)), /*bWorldSpace*/true);
 		}
 	}
 }

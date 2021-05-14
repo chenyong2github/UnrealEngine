@@ -184,10 +184,10 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	virtual TArray<int32> AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace = false);
 
 	/** Add an instance to this component. Transform is given in world space. */
-	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
+	UE_DEPRECATED(5.0, "Use AddInstance or AddInstances with bWorldSpace set to true.")
+	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh", meta=(DeprecatedFunction, DeprecationMessage="Use 'Add Instance' or 'Add Instances' with 'World Space' set to true."))
 	int32 AddInstanceWorldSpace(const FTransform& WorldTransform)
 	{
-		// TODO: Deprecate this shim
 		return AddInstance(WorldTransform, /*bWorldSpace*/true);
 	}
 

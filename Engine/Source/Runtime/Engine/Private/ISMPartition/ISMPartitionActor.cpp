@@ -299,7 +299,7 @@ void AISMPartitionActor::AddInstanceToComponent(FISMComponentData& ComponentData
 {
 	check(ComponentData.Component);
 	ModifyComponent(ComponentData);
-	ComponentData.Component->AddInstanceWorldSpace(WorldTransform);
+	ComponentData.Component->AddInstance(WorldTransform, /*bWorldSpace*/true);
 	InvalidateComponentLightingCache(ComponentData);
 }
 

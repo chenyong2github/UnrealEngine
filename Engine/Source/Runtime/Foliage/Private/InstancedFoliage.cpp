@@ -1064,7 +1064,7 @@ void FFoliageStaticMesh::PreAddInstances(const UFoliageType* FoliageType, int32 
 void FFoliageStaticMesh::AddInstance(const FFoliageInstance& NewInstance)
 {
 	check(Component);
-	Component->AddInstanceWorldSpace(NewInstance.GetInstanceWorldTransform());
+	Component->AddInstance(NewInstance.GetInstanceWorldTransform(), /*bWorldSpace*/true);
 	bInvalidateLightingCache = true;
 }
 
@@ -1652,10 +1652,9 @@ void FFoliageStaticMesh::Reapply(const UFoliageType* FoliageType)
 
 		Component->bAutoRebuildTreeOnInstanceChanges = false;
 
-		for (auto& Instance : Info->Instances)
-		{
-			Component->AddInstanceWorldSpace(Instance.GetInstanceWorldTransform());
-		}
+		TArray<FTransform> InstanceTransforms;
+		Algo::Transform(Info->Instances, InstanceTransforms, &FFoliageInstance::GetInstanceWorldTransform);
+		Component->AddInstances(InstanceTransforms, /*bWorldSpace*/true);
 
 		Component->bAutoRebuildTreeOnInstanceChanges = true;
 		Component->BuildTreeIfOutdated(true, true);

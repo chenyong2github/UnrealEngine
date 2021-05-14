@@ -91,6 +91,7 @@ TArray<UPrimitiveComponent*> FHLODBuilder_Instancing::CreateComponents(AWorldPar
 		DisableCollisions(Component);
 
 		// Add all instances
+		TArray<FTransform> InstanceTransforms;
 		for (UPrimitiveComponent* SMC : EntryComponents)
 		{
 			// If we have an ISMC, retrieve all instances
@@ -100,14 +101,15 @@ TArray<UPrimitiveComponent*> FHLODBuilder_Instancing::CreateComponents(AWorldPar
 				{
 					FTransform InstanceTransform;
 					InstancedStaticMeshComponent->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
-					Component->AddInstanceWorldSpace(InstanceTransform);
+					InstanceTransforms.Add(InstanceTransform);
 				}
 			}
 			else
 			{
-				Component->AddInstanceWorldSpace(SMC->GetComponentTransform());
+				InstanceTransforms.Add(SMC->GetComponentTransform());
 			}
 		}
+		Component->AddInstances(InstanceTransforms, /*bWorldSpace*/true);
 
 		Components.Add(Component);
 	};
