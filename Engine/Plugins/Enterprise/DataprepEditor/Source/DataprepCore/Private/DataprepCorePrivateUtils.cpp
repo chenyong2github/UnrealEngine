@@ -131,6 +131,7 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 
 					SourceModel.BuildSettings.bRecomputeNormals = !(Attributes.GetVertexInstanceNormals().IsValid() && Attributes.GetVertexInstanceNormals().GetNumIndices() > 0);
 					SourceModel.BuildSettings.bRecomputeTangents = false;
+					SourceModel.BuildSettings.DistanceFieldResolutionScale = 0.5f;
 					//SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 					//SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 				}
