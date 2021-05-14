@@ -118,7 +118,6 @@ public:
 	ENGINE_API void EndAsyncUpdate(FRDGBuilder& GraphBuilder);				// Called once per frame before any Nanite rendering has occurred. Must be called after BeginUpdate.
 	ENGINE_API bool IsAsyncUpdateInProgress();
 	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);		// Called once per frame after the last request has been added.
-	
 
 	const TRefCountPtr< FRDGPooledBuffer >&	GetStreamingRequestsBuffer()	{ return StreamingRequestsBuffer; }
 
@@ -126,8 +125,15 @@ public:
 	FRHIShaderResourceView*				GetClusterPageHeadersSRV() const	{ return ClusterPageHeaders.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetHierarchySRV() const				{ return Hierarchy.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetRootPagesSRV() const				{ return RootPages.DataBuffer.SRV; }
+
+	inline bool HasResourceEntries() const
+	{
+		return !RuntimeResourceMap.IsEmpty();
+	}
+
 private:
 	friend class FStreamingUpdateTask;
+
 	struct FHeapBuffer
 	{
 		int32					TotalUpload = 0;

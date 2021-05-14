@@ -68,6 +68,7 @@
 #include "RayTracing/RayTracingScene.h"
 #include "FXSystem.h"
 #include "Lumen/Lumen.h"
+#include "Nanite/NaniteRender.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -3028,6 +3029,19 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 				|| (ShouldRenderLumenReflections(View, false) && !ShouldRenderLumenReflections(View, true));	
 		}
 
+		bool bNaniteEnabledButNoAtomics = false;
+		if (!GRHISupportsAtomicUInt64)
+		{
+			// We want to know when Nanite would've been rendered regardless of atomics being supported or not.
+			const bool bCheckForAtomicSupport = false;
+
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				FViewInfo& View = Views[ViewIndex];
+				bNaniteEnabledButNoAtomics |= ShouldRenderNanite(Scene, View, bCheckForAtomicSupport);
+			}
+		}
+
 		// Mobile-specific warnings
 		const bool bMobile = (FeatureLevel <= ERHIFeatureLevel::ES3_1);
 		const bool bShowMobileLowQualityLightmapWarning = bMobile && !ReadOnlyCVARCache.bEnableLowQualityLightmaps && ReadOnlyCVARCache.bAllowStaticLighting;
@@ -3052,7 +3066,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowDemotedLocalMemoryWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
 			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
-			|| bShowSkyAtmosphereFogComponentsConflicts || bLumenEnabledButNoSoftwareTracing || bRealTimeSkyCaptureButNothingToCapture;
+			|| bShowSkyAtmosphereFogComponentsConflicts || bLumenEnabledButNoSoftwareTracing || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -3075,7 +3089,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bShowAtmosphericFogWarning, bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning,
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bShowSkyAtmosphereFogComponentsConflicts, 
-						bLumenEnabledButNoSoftwareTracing, bRealTimeSkyCaptureButNothingToCapture]
+						bLumenEnabledButNoSoftwareTracing, bNaniteEnabledButNoAtomics, bRealTimeSkyCaptureButNothingToCapture]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -3214,7 +3228,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 
 						if (bSingleLayerWaterWarning)
 						{
-							static const FText Message = NSLOCTEXT("Renderer", "SingleLayerWater", "r.Water.SingleLayer rendering is disabled with a view containing meshe(s) using water material. Meshes are not visible.");
+							static const FText Message = NSLOCTEXT("Renderer", "SingleLayerWater", "r.Water.SingleLayer rendering is disabled with a view containing mesh(es) using water material. Meshes are not visible.");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
@@ -3223,6 +3237,13 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "LumenCantDisplay", "Lumen is enabled but the project does not have 'Generate Mesh Distancefields' enabled.  Lumen will not operate correctly.");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+							Y += 14;
+						}
+
+						if (bNaniteEnabledButNoAtomics)
+						{
+							FString String = TEXT("Nanite is enabled and used in the scene, but 64bit atomics are not supported (try upgrading video driver). Expect corrupt rendering and visuals.");
+							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
 
