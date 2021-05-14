@@ -4531,18 +4531,26 @@ EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncLoading(bool bUseTimeLimi
 
 	if (!bLoadingSuspended)
 	{
+		double TickStartTime = FPlatformTime::Seconds();
+		double TimeLimitUsedForProcessLoaded = 0;
+
 		// First make sure there's no objects pending to be unhashed. This is important in uncooked builds since we don't 
 		// detach linkers immediately there and we may end up in getting unreachable objects from Linkers in CreateImports
 		if (FPlatformProperties::RequiresCookedData() == false && IsIncrementalUnhashPending() && IsAsyncLoadingPackages())
 		{
 			// Call ConditionalBeginDestroy on all pending objects. CBD is where linkers get detached from objects.
-			UnhashUnreachableObjects(false);
+			UnhashUnreachableObjects(bUseTimeLimit, TimeLimit);
+
+			TimeLimitUsedForProcessLoaded = FPlatformTime::Seconds() - TickStartTime;
+
+			if(IsIncrementalUnhashPending() || TimeLimitUsedForProcessLoaded > TimeLimit)
+			{
+				return EAsyncPackageState::TimeOut;
+			}
 		}
 
 		const bool bIsMultithreaded = FAsyncLoadingThread::IsMultithreaded();
-		double TickStartTime = FPlatformTime::Seconds();
-		double TimeLimitUsedForProcessLoaded = 0;
-
+		
 		bool bDidSomething = false;
 		{
 			Result = ProcessLoadedPackages(bUseTimeLimit, bUseFullTimeLimit, TimeLimit, bDidSomething, FlushTree);
