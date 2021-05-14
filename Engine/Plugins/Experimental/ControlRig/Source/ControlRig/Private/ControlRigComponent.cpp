@@ -1125,7 +1125,6 @@ void UControlRigComponent::ValidateMappingData()
 										MappedElement.SubIndex = (int32)SmartName.UID;
 									}
 								}
-							} 
 							}
 							else
 							{
