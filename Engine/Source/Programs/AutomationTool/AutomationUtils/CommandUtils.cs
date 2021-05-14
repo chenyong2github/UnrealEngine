@@ -1668,7 +1668,40 @@ namespace AutomationTool
 
 		/// <summary>
 		/// Copies files using multiple threads
-        /// </summary>
+		/// </summary>
+		/// <param name="SourceFiles">List of source files to copy</param>
+		/// <param name="TargetFiles">List of target files</param>
+		public static void ThreadedCopyFiles(List<FileReference> SourceFiles, List<FileReference> TargetFiles)
+		{
+			ThreadedCopyFiles(SourceFiles.ConvertAll(x => x.FullName), TargetFiles.ConvertAll(x => x.FullName));
+		}
+
+		/// <summary>
+		/// Copies files using multiple threads
+		/// </summary>
+		/// <param name="SourceFiles">List of source files to copy</param>
+		/// <param name="SourceDir">The source directory</param>
+		/// <param name="TargetDir">The target directory</param>
+		public static void ThreadedCopyFiles(List<FileReference> SourceFiles, DirectoryReference SourceDir, DirectoryReference TargetDir)
+		{
+			List<FileReference> TargetFiles = new List<FileReference>();
+			foreach (FileReference SourceFile in SourceFiles)
+			{
+				if (!SourceFile.IsUnderDirectory(SourceDir))
+				{
+					throw new AutomationException($"Source file '{SourceFile}' is not under source directory '{SourceDir}'");
+				}
+				else
+				{
+					TargetFiles.Add(FileReference.Combine(TargetDir, SourceFile.MakeRelativeTo(SourceDir)));
+				}
+			}
+			ThreadedCopyFiles(SourceFiles, TargetFiles);
+		}
+
+		/// <summary>
+		/// Copies files using multiple threads
+		/// </summary>
 		/// <param name="Source"></param>
 		/// <param name="Dest"></param>
 		/// <param name="MaxThreads"></param>
