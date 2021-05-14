@@ -82,6 +82,8 @@ namespace HordeServer.Controllers
 				}
 				Content.Append("</table>");
 				Content.Append("</p>");
+
+				Content.Append($"<p>Built from Perforce</p>");
 			}
 			else
 			{
