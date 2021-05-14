@@ -411,7 +411,7 @@ void SSubobjectBlueprintEditor::OnDetachFromDropAction(const TArray<FSubobjectEd
 		System->ReparentSubobjects(Params, HandlesToMove);
 	}
 
-	PostDragDropAction(false);
+	PostDragDropAction(true);
 }
 
 void SSubobjectBlueprintEditor::OnMakeNewRootDropAction(FSubobjectEditorTreeNodePtrType DroppedNodePtr)
