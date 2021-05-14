@@ -306,6 +306,8 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 
 void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel);
+
 	check(!HasLoadedLevel());
 	check(RuntimeLevel);
 	check(!bLoadRequestInProgress);
@@ -322,17 +324,23 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 		int32 PIEInstanceID = GetPackage()->PIEInstanceID;
 		check(PIEInstanceID != INDEX_NONE);
 
-		// PIE Fixup LazyObjectPtrs
-		FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
-		FFixupLazyObjectPtrForPIEArchive FixupLazyPointersAr;
-		FixupLazyPointersAr << RuntimeLevel;
-
-		// PIE Fixup SoftObjectPaths
-		RuntimeLevel->FixupForPIE(PIEInstanceID, [&](int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
 		{
-			// Remap Runtime Level's SoftObjectPath before each PIE Fixup to avoid doing 2 passes of serialization
-			OuterWorldPartition->RemapSoftObjectPath(ObjectPath);
-		});
+			TRACE_CPUPROFILER_EVENT_SCOPE(FixupLazyObjectPtr);
+			// PIE Fixup LazyObjectPtrs
+			FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
+			FFixupLazyObjectPtrForPIEArchive FixupLazyPointersAr;
+			FixupLazyPointersAr << RuntimeLevel;
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FixupSoftObjectPath);
+			// PIE Fixup SoftObjectPaths
+			RuntimeLevel->FixupForPIE(PIEInstanceID, [&](int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
+			{
+				// Remap Runtime Level's SoftObjectPath before each PIE Fixup to avoid doing 2 passes of serialization
+				OuterWorldPartition->RemapSoftObjectPath(ObjectPath);
+			});
+		}
 	}
 	else if (OuterWorld->IsGameWorld())
 	{
