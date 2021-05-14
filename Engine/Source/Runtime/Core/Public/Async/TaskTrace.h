@@ -31,7 +31,7 @@ namespace TaskTrace
 
 	void CORE_API Init();
 	void CORE_API Created(FId TaskId); // optional, used only if a task was created but not launched immediately
-	void CORE_API Launched(FId TaskId, const char* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn);
+	void CORE_API Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn);
 	void CORE_API Scheduled(FId TaskId);
 	void CORE_API SubsequentAdded(FId TaskId, FId SubsequentId);
 	void CORE_API Started(FId TaskId);
@@ -50,7 +50,7 @@ namespace TaskTrace
 	inline FId GenerateTaskId() { return InvalidId; }
 	inline void Init() {}
 	inline void Created(FId TaskId) {}
-	inline void Launched(FId TaskId, const char* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn) {}
+	inline void Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn) {}
 	inline void Scheduled(FId TaskId) {}
 	inline void SubsequentAdded(FId TaskId, FId SubsequentId) {}
 	inline void Started(FId TaskId) {}
