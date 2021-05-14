@@ -2077,7 +2077,7 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		GObjPurgeIsRequired = true;
 
 		// Perform a full purge by not using a time limit for the incremental purge. The Editor always does a full purge.
-		if (bPerformFullPurge || GIsEditor)
+		if (bPerformFullPurge)
 		{
 			IncrementalPurgeGarbage(false);
 		}
