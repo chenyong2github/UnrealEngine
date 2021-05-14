@@ -41,6 +41,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = FRigVMCompileSettings)
 	bool ConsolidateWorkRegisters;
 
+	UPROPERTY(Transient)
+	bool IsPreprocessorPhase;
+
 	UPROPERTY(EditAnywhere, Transient, BlueprintReadWrite, Category = FRigVMCompileSettings)
 	FRigVMParserASTSettings ASTSettings;
 
@@ -52,6 +55,7 @@ public:
 		FRigVMCompileSettings Settings;
 		Settings.ConsolidateWorkRegisters = false;
 		Settings.EnablePinWatches = true;
+		Settings.IsPreprocessorPhase = false;
 		Settings.ASTSettings = FRigVMParserASTSettings::Fast();
 		return Settings;
 	}
@@ -61,6 +65,7 @@ public:
 		FRigVMCompileSettings Settings;
 		Settings.ConsolidateWorkRegisters = false;
 		Settings.EnablePinWatches = false;
+		Settings.IsPreprocessorPhase = false;
 		Settings.ASTSettings = FRigVMParserASTSettings::Optimized();
 		return Settings;
 	}

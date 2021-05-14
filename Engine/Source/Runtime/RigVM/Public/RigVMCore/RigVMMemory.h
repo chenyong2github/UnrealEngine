@@ -407,7 +407,8 @@ public:
 	{
 		Plain, // Shallow memory with no indirection (for example FTransform.Translation.X)
 		Dynamic, // Memory representing an array
-		NestedDynamic // Memory representing an array or single element with slices (for example within loop)
+		NestedDynamic, // Memory representing an array or single element with slices (for example within loop)
+		ArraySize // a count represented as a pointer address
 	};
 
 	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle()

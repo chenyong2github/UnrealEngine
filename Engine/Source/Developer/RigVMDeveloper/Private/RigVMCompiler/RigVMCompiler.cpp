@@ -52,6 +52,7 @@ FRigVMCompileSettings::FRigVMCompileSettings()
 	, SurpressErrors(false)
 	, EnablePinWatches(true)
 	, ConsolidateWorkRegisters(false)
+	, IsPreprocessorPhase(false)
 	, ASTSettings(FRigVMParserASTSettings::Optimized())
 	, SetupNodeInstructionIndex(true)
 {
@@ -294,17 +295,20 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 	WorkData.VM->GetByteCode().AlignByteCode();
 
-	// setup debug registers
-	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
+	// setup debug registers after all other registers have been created
+	if(Settings.EnablePinWatches)
 	{
-		URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
-		for(URigVMNode* ModelNode : VisitedGraph->GetNodes())
+		for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
 		{
-			for(URigVMPin* ModelPin : ModelNode->GetPins())
+			URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
+			for(URigVMNode* ModelNode : VisitedGraph->GetNodes())
 			{
-				if(ModelPin->RequiresWatch(false))
+				for(URigVMPin* ModelPin : ModelNode->GetPins())
 				{
-					CreateDebugRegister(ModelPin, WorkData.VM, WorkData.PinPathToOperand, AST);
+					if(ModelPin->RequiresWatch(true))
+					{
+						CreateDebugRegister(ModelPin, WorkData.VM, WorkData.PinPathToOperand, AST);
+					}
 				}
 			}
 		}
@@ -501,20 +505,6 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		WorkData.DefaultStructs.Add(DefaultStruct);
 		TraverseChildren(InExpr, WorkData);
 		WorkData.DefaultStructs.Pop();
-
-		if (Settings.EnablePinWatches)
-		{
-			for (URigVMPin* Pin : UnitNode->Pins)
-			{
-				if (Pin->RequiresWatch(true))
-				{
-					FRigVMASTProxy PinProxy = FRigVMASTProxy::MakeFromUObject(Pin);
-					FRigVMVarExprAST TempVarExpr(FRigVMExprAST::EType::Var, PinProxy);
-					TempVarExpr.ParserPtr = InExpr->GetParser();
-					FindOrAddRegister(&TempVarExpr, WorkData, true);
-				}
-			}
-		}
 
 		if (Settings.ConsolidateWorkRegisters)
 		{
@@ -1348,6 +1338,7 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 		}
 	}
 
+	bool bUseFullNodePath = true;
 	if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
 	{
 		if (InPin->GetName() == TEXT("Value") && !bIsLiteral)
@@ -1427,20 +1418,21 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 	{
 		if (InVarExpr)
 		{
-			FRigVMASTProxy NodeProxy = InVarExpr->GetProxy().GetSibling(Node);
+			const FRigVMASTProxy NodeProxy = InVarExpr->GetProxy().GetSibling(Node);
 			if (const FRigVMExprAST* NodeExpr = InVarExpr->GetParser()->GetExprForSubject(NodeProxy))
 			{
 				// rely on the proxy callstack to differentiate registers
-				FString CallStackPath = NodeProxy.GetCallstack().GetCallPath(false /* include last */);
+				const FString CallStackPath = NodeProxy.GetCallstack().GetCallPath(false /* include last */);
 				if (!CallStackPath.IsEmpty())
 				{
 					Prefix += CallStackPath + TEXT("|");
+					bUseFullNodePath = false;
 				}
 			}
 		}
 	}
 
-	return FString::Printf(TEXT("%s%s%s"), *Prefix, *InPin->GetPinPath(true /*  full node path */), *Suffix);
+	return FString::Printf(TEXT("%s%s%s"), *Prefix, *InPin->GetPinPath(bUseFullNodePath), *Suffix);
 }
 
 void URigVMCompiler::CreateDebugRegister(URigVMPin* InPin, URigVM* OutVM,

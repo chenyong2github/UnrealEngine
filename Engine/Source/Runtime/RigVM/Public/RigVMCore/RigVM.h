@@ -586,7 +586,7 @@ private:
 	
 	void CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute = false);
 
-	FORCEINLINE void CopyOperandForDebuggingIfNeeded(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
+	FORCEINLINE_DEBUGGABLE void CopyOperandForDebuggingIfNeeded(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
 	{
 #if WITH_EDITOR
 		const FRigVMOperand KeyOperand(InArg.GetMemoryType(), InArg.GetRegisterIndex()); // no register offset
