@@ -4,11 +4,12 @@
 
 #include "Widgets/SNullWidget.h"
 
-FNoChildren FNoChildren::NoChildrenInstance(&SNullWidget::NullWidget.Get());
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FNoChildren::FNoChildren()
 	: FChildren(&SNullWidget::NullWidget.Get())
 {
 
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
