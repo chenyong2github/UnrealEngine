@@ -250,6 +250,18 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 void UWorldPartition::OnGCPostReachabilityAnalysis()
 {
+	const TIndirectArray<FWorldContext>& WorldContextList = GEngine->GetWorldContexts();
+
+	// Avoid running this process while a game world is live
+	for (const FWorldContext& WorldContext : WorldContextList)
+	{
+		if (WorldContext.World() != nullptr && WorldContext.World()->IsGameWorld())
+		{
+			return;
+		}
+	}
+	
+
 	for (FRawObjectIterator It; It; ++It)
 	{
 		if (AActor* Actor = Cast<AActor>(static_cast<UObject*>(It->Object)))
