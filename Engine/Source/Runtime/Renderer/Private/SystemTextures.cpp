@@ -825,6 +825,11 @@ void FSystemTextures::ReleaseDynamicRHI()
 	StencilDummySRV.SafeRelease();
 	GTAOPreIntegrated.SafeRelease();
 
+	DefaultTextures.Empty();
+	DefaultBuffers.Empty();
+	HashDefaultTextures.Clear();
+	HashDefaultBuffers.Clear();
+
 	GRenderTargetPool.FreeUnusedResources();
 
 	// Indicate that textures will need to be reinitialized.
