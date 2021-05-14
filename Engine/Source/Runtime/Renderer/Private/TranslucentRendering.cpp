@@ -1189,6 +1189,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureMSAA SceneColorTexture,
 	FRDGTextureMSAA SceneDepthTexture,
+	const FHairStrandsRenderingData* HairDatas,
 	FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 	ETranslucencyView ViewsToRender)
 {
@@ -1209,6 +1210,10 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 	if (ViewFamily.AllowTranslucencyAfterDOF())
 	{
 		RenderTranslucencyInner(GraphBuilder, SceneColorTexture, SceneDepthTexture, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency);
+		if (GetHairStrandsComposition() == EHairStrandsCompositionType::AfterTranslucentTranslucentBeforeAfterDOF)
+		{
+			RenderHairComposition(GraphBuilder, Views, HairDatas, SceneColorTexture.Target, SceneDepthTexture.Target);
+		}
 		RenderTranslucencyInner(GraphBuilder, SceneColorTexture, SceneDepthTexture, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOF);
 		RenderTranslucencyInner(GraphBuilder, SceneColorTexture, SceneDepthTexture, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOFModulate);
 	}

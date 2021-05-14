@@ -379,6 +379,7 @@ private:
 		FRDGBuilder& GraphBuilder,
 		FRDGTextureMSAA SceneColorTexture,
 		FRDGTextureMSAA SceneDepthTexture,
+		const FHairStrandsRenderingData* HairDatas,
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 		ETranslucencyView ViewsToRender);
 

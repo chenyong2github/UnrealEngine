@@ -2309,7 +2309,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
 			SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
 			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Translucency));
-			RenderTranslucency(GraphBuilder, SceneColorTexture, SceneDepthTexture, nullptr, ETranslucencyView::UnderWater);
+			RenderTranslucency(GraphBuilder, SceneColorTexture, SceneDepthTexture, HairDatas, nullptr, ETranslucencyView::UnderWater);
 			EnumRemoveFlags(TranslucencyViewsToRender, ETranslucencyView::UnderWater);
 		}
 
@@ -2428,7 +2428,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Render all remaining translucency views.
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Translucency));
-		RenderTranslucency(GraphBuilder, SceneColorTexture, SceneDepthTexture, &SeparateTranslucencyTextures, TranslucencyViewsToRender);
+		RenderTranslucency(GraphBuilder, SceneColorTexture, SceneDepthTexture, HairDatas, &SeparateTranslucencyTextures, TranslucencyViewsToRender);
 		AddServiceLocalQueuePass(GraphBuilder);
 		TranslucencyViewsToRender = ETranslucencyView::None;
 
