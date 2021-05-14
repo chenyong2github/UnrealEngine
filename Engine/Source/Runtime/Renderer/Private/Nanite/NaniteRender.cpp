@@ -136,6 +136,16 @@ FAutoConsoleVariableRef CVarNaniteVisualizeComplexityScale(
 	TEXT("")
 );
 
+// Specifies if Nanite should require atomic64 support, or fallback to traditional mesh rendering using the proxies.
+// 0: Nanite will run without atomic support, but use the lockbuffer fallback, with known race conditions and corruption. (unshippable, but useful for debugging and platform bring-up).
+// 1: Nanite will not run without atomic support, instead causing legacy scene proxies to be created instead.
+int32 GNaniteRequireAtomic64Support = 0;
+FAutoConsoleVariableRef CVarNaniteRequireAtomic64Support(
+	TEXT("r.Nanite.RequireAtomic64Support"),
+	GNaniteRequireAtomic64Support,
+	TEXT("")
+);
+
 // Specifies if visualization only shows Nanite information that passes full scene depth test
 // -1: Use default composition specified the each mode
 //  0: Force composition with scene depth off
@@ -5475,3 +5485,20 @@ void DrawEditorVisualizeLevelInstance(
 #endif // WITH_EDITOR
 
 } // namespace Nanite
+
+bool ShouldRenderNanite(const FScene* Scene, const FViewInfo& View, bool bCheckForAtomicSupport)
+{
+	// Does the platform support Nanite (with 64bit image atomics), and is it enabled?
+	if (Scene && UseNanite(Scene->GetShaderPlatform(), bCheckForAtomicSupport))
+	{
+		// Any resources registered to the streaming manager?
+		if (Nanite::GStreamingManager.HasResourceEntries())
+		{
+			// Is the view family showing Nanite meshes?
+			return View.Family->EngineShowFlags.NaniteMeshes;
+		}
+	}
+
+	// Nanite should not render for this view
+	return false;
+}
