@@ -948,39 +948,42 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 		}
 
 		//Do Bool straight up no blending
-		bool bWasDoNotKey = false;
-
-		bWasDoNotKey = Section->GetDoNotKey();
-		Section->SetDoNotKey(true);
-
-		if (Section->GetControlRig())
+		if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive)
 		{
-			Section->GetControlRig()->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
-			for (const FBoolParameterStringAndValue& BoolNameAndValue : BoolValues)
-			{
-				if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
-				{
-					FRigControl* RigControl = Section->GetControlRig()->FindControl(BoolNameAndValue.ParameterName);
-					if (RigControl && RigControl->ControlType == ERigControlType::Bool)
-					{
-						Section->GetControlRig()->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
-					}
-				}
-			}
+			bool bWasDoNotKey = false;
 
-			for (const FIntegerParameterStringAndValue& IntegerNameAndValue : IntegerValues)
+			bWasDoNotKey = Section->GetDoNotKey();
+			Section->SetDoNotKey(true);
+
+			if (Section->GetControlRig())
 			{
-				if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
+				Section->GetControlRig()->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
+				for (const FBoolParameterStringAndValue& BoolNameAndValue : BoolValues)
 				{
-					FRigControl* RigControl = Section->GetControlRig()->FindControl(IntegerNameAndValue.ParameterName);
-					if (RigControl && RigControl->ControlType == ERigControlType::Integer)
+					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
 					{
-						Section->GetControlRig()->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
+						FRigControl* RigControl = Section->GetControlRig()->FindControl(BoolNameAndValue.ParameterName);
+						if (RigControl && RigControl->ControlType == ERigControlType::Bool)
+						{
+							Section->GetControlRig()->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
+						}
+					}
+				}
+
+				for (const FIntegerParameterStringAndValue& IntegerNameAndValue : IntegerValues)
+				{
+					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
+					{
+						FRigControl* RigControl = Section->GetControlRig()->FindControl(IntegerNameAndValue.ParameterName);
+						if (RigControl && RigControl->ControlType == ERigControlType::Integer)
+						{
+							Section->GetControlRig()->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
+						}
 					}
 				}
 			}
+			Section->SetDoNotKey(bWasDoNotKey);
 		}
-		Section->SetDoNotKey(bWasDoNotKey);
 
 	}
 
