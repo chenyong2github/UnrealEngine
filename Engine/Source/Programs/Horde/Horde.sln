@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Perforce", "..\Sh
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2288A796-7DEB-40B7-804B-86855811259C}"
 	ProjectSection(SolutionItems) = preProject
-		.editorconfig = .editorconfig
+		..\..\..\Restricted\NotForLicensees\Source\Programs\Horde\BuildHorde.xml = ..\..\..\Restricted\NotForLicensees\Source\Programs\Horde\BuildHorde.xml
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HordeServerTests", "HordeServerTests\HordeServerTests.csproj", "{EB3085C5-8768-45EF-AE22-A2B15B7AF926}"
