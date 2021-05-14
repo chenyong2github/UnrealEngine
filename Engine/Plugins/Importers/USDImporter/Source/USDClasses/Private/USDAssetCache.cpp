@@ -157,16 +157,13 @@ void UUsdAssetCache::Reset()
 {
 	FScopeLock Lock( &CriticalSection );
 
+	Modify();
+
 	TransientStorage.Reset();
 	OwnedAssets.Reset();
 	PrimPathToAssets.Reset();
 	ActiveAssets.Reset();
-
-	if ( PersistentStorage.Num() > 0 )
-	{
-		Modify();
-		PersistentStorage.Reset();
-	}
+	PersistentStorage.Reset();
 }
 
 void UUsdAssetCache::MarkAssetsAsStale()
@@ -190,8 +187,6 @@ void UUsdAssetCache::Serialize( FArchive& Ar )
 	if ( Ar.GetPortFlags() & PPF_DuplicateForPIE )
 	{
 		Ar << TransientStorage;
-		Ar << OwnedAssets;
-		Ar << PrimPathToAssets;
 		Ar << ActiveAssets;
 	}
 }
