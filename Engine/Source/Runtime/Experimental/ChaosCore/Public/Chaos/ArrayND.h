@@ -22,9 +22,67 @@ inline void TryBulkSerializeArrayNDBase(FArchive& Ar, TArray<float>& Array)
 	Array.BulkSerialize(Ar);
 }
 
-inline void TryBulkSerializeArrayNDBase(FArchive& Ar, TArray<FVec3>& Array)
+inline void TryBulkSerializeArrayNDBase(FArchive& Ar, TArray<TVec3<FRealSingle>>& Array)
 {
-	Array.BulkSerialize(Ar);
+	Array.BulkSerialize(Ar); 
+}
+
+inline float ConvertDoubleToFloat(double DoubleValue)
+{
+	return (float)DoubleValue; // LWC_TODO : Perf pessimization 
+}
+
+inline TVec3<float> ConvertDoubleToFloat(TVec3<double> DoubleValue)
+{
+	return TVec3<float>((float)DoubleValue.X, (float)DoubleValue.Y, (float)DoubleValue.Z); // LWC_TODO : Perf pessimization 
+}
+
+inline double ConvertFloatToDouble(float FloatValue)
+{
+	return (double)FloatValue;
+}
+
+inline TVec3<double> ConvertFloatToDouble(TVec3<float> FloatValue)
+{
+	return TVec3<double>((double)FloatValue.X, (double)FloatValue.Y, (double)FloatValue.Z); 
+}
+
+// LWC_TODO : Perf pessimization : this is sub-optimal but will do until we sort the serialization out
+template<typename DOUBLE_T, typename FLOAT_T>
+inline void TryBulkSerializeArrayNDBaseForDoubles(FArchive& Ar, TArray<DOUBLE_T>& DoubleTypedArray)
+{
+	TArray<FLOAT_T> FloatTypedArray;
+	if (Ar.IsSaving())
+	{
+		FloatTypedArray.SetNumUninitialized(DoubleTypedArray.Num());
+		for (int i = 0; i < DoubleTypedArray.Num(); ++i)
+		{
+			FloatTypedArray[i] = ConvertDoubleToFloat(DoubleTypedArray[i]);
+		}
+	}
+
+	TryBulkSerializeArrayNDBase(Ar, FloatTypedArray);
+
+	if (Ar.IsLoading())
+	{
+		DoubleTypedArray.SetNumUninitialized(FloatTypedArray.Num());
+		for (int i = 0; i < FloatTypedArray.Num(); ++i)
+		{
+			DoubleTypedArray[i] = ConvertFloatToDouble(FloatTypedArray[i]);
+		}
+	}
+}
+
+// LWC_TODO : Perf pessimization : this is sub-optimal but will do until we sort the serialization out
+inline void TryBulkSerializeArrayNDBase(FArchive& Ar, TArray<double>& Array)
+{
+	TryBulkSerializeArrayNDBaseForDoubles<double, float>(Ar, Array);
+}
+
+// LWC_TODO : Perf pessimization : this is sub-optimal but will do until we sort the serialization out
+inline void TryBulkSerializeArrayNDBase(FArchive& Ar, TArray<TVec3<FRealDouble>>& Array)
+{
+	TryBulkSerializeArrayNDBaseForDoubles<TVec3<FRealDouble>, TVec3<FRealSingle>>(Ar, Array);
 }
 
 template<class T_DERIVED, class T, int d>
