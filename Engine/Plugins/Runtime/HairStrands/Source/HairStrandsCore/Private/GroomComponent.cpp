@@ -466,6 +466,10 @@ public:
 					++MeshesLODIndex;
 				}
 			}
+
+			// Initialization of the default skel. mesh transform (refresh during ticking).
+			HairInstance->Debug.SkeletalLocalToWorld = HairInstance->Debug.SkeletalComponent ? HairInstance->Debug.SkeletalComponent->GetComponentTransform() : FTransform();
+			HairInstance->Debug.SkeletalPreviousLocalToWorld = HairInstance->Debug.SkeletalLocalToWorld;
 		}
 	}
 
