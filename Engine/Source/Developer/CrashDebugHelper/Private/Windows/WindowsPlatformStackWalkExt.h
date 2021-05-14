@@ -60,4 +60,7 @@ struct FWindowsPlatformStackWalkExt
 protected:
 	/** Reference to the crash info. */
 	FCrashInfo& CrashInfo;
+
+	/** List of modules that are not from the engine. */
+	TArray<FString> SystemModuleNames;
 };
