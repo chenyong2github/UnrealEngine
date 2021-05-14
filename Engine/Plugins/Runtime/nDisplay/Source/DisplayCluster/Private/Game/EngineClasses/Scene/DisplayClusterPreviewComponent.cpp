@@ -235,7 +235,7 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 		if (RenderTarget)
 		{
 			// clear preview RTT to black in this case
-			FTextureRenderTarget2DResource* TexResource = (FTextureRenderTarget2DResource*)RenderTarget->Resource;
+			FTextureRenderTarget2DResource* TexResource = (FTextureRenderTarget2DResource*)RenderTarget->GetResource();
 			if (TexResource)
 			{
 				FCanvas Canvas(TexResource, NULL, 0, 0, 0, GMaxRHIFeatureLevel);

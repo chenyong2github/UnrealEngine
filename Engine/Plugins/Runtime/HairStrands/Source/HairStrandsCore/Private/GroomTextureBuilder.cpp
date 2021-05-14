@@ -146,7 +146,7 @@ static void InternalGenerateFollicleTexture_GPU(
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
 
-	if (OutTexture == nullptr || !OutTexture->Resource || !OutTexture->Resource->GetTexture2DRHI() ||
+	if (OutTexture == nullptr || !OutTexture->GetResource() || !OutTexture->GetResource()->GetTexture2DRHI() ||
 		(InRootUVBuffers_R.Num() == 0 &&
 		 InRootUVBuffers_G.Num() == 0 &&
 		 InRootUVBuffers_B.Num() == 0 &&
@@ -218,13 +218,13 @@ static void InternalGenerateFollicleTexture_GPU(
 		FollicleMaskTexture,
 		[FollicleMaskTexture, MipCount, OutTexture](FRHICommandListImmediate& RHICmdList)
 	{
-		if (OutTexture && OutTexture->Resource && OutTexture->Resource->GetTexture2DRHI())
+		if (OutTexture && OutTexture->GetResource() && OutTexture->GetResource()->GetTexture2DRHI())
 		{
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.NumMips = MipCount;
 			RHICmdList.CopyTexture(
 				FollicleMaskTexture->GetRHI(),
-				OutTexture->Resource->GetTexture2DRHI(),
+				OutTexture->GetResource()->GetTexture2DRHI(),
 				CopyInfo);
 		}
 	});
@@ -389,7 +389,7 @@ void FGroomTextureBuilder::BuildFollicleTexture(const TArray<FFollicleInfo>& InI
 			ENQUEUE_RENDER_COMMAND(FFollicleTextureQuery)(
 			[Resolution, MipCount, Format, InInfos, OutTexture](FRHICommandListImmediate& RHICmdList)
 			{
-				if (OutTexture->Resource)
+				if (OutTexture->GetResource())
 				{
 					GFollicleQueries.Enqueue({ InInfos, Resolution, MipCount, Format, OutTexture });
 				}

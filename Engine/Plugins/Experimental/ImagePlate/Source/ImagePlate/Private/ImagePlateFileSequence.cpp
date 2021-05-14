@@ -136,16 +136,16 @@ bool FImagePlateSourceFrame::EnsureTextureMetrics(UTexture* DestinationTexture) 
 			}
 		}
 	}
-	else if (DestinationTexture->Resource)
+	else if (DestinationTexture->GetResource())
 	{
 		// We have to have a valid texture to check whether it's the right type or not
-		if (!DestinationTexture->Resource->TextureRHI)
+		if (!DestinationTexture->GetResource()->TextureRHI)
 		{
 			DestinationTexture->UpdateResource();
 			FlushRenderingCommands();
 		}
 
-		FTexture2DRHIRef Texture2DRHI = DestinationTexture->Resource->TextureRHI ? DestinationTexture->Resource->TextureRHI->GetTexture2D() : nullptr;
+		FTexture2DRHIRef Texture2DRHI = DestinationTexture->GetResource()->TextureRHI ? DestinationTexture->GetResource()->TextureRHI->GetTexture2D() : nullptr;
 		if (!Texture2DRHI)
 		{
 			UE_LOG(LogImagePlateFileSequence, Warning, TEXT("Unsupported texture type encountered: Unable to update texture to fit source frame size or bitdepth."));
@@ -195,12 +195,12 @@ TFuture<void> FImagePlateSourceFrame::CopyTo(UTexture* DestinationTexture)
 	ENQUEUE_RENDER_COMMAND(CopySourceBufferToTexture)(
 		[CommandData](FRHICommandListImmediate& RHICmdList)
 		{
-			if (!CommandData->DestinationTexture->Resource || !CommandData->DestinationTexture->Resource->TextureRHI)
+			if (!CommandData->DestinationTexture->GetResource() || !CommandData->DestinationTexture->GetResource()->TextureRHI)
 			{
 				return;
 			}
 
-			FTexture2DRHIRef Texture2DRHI = CommandData->DestinationTexture->Resource->TextureRHI->GetTexture2D();
+			FTexture2DRHIRef Texture2DRHI = CommandData->DestinationTexture->GetResource()->TextureRHI->GetTexture2D();
 			if (!Texture2DRHI)
 			{
 				return;

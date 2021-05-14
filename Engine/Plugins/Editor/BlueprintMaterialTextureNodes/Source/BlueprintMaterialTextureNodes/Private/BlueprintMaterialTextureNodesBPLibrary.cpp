@@ -144,7 +144,7 @@ TArray<FLinearColor> UBlueprintMaterialTextureNodesBPLibrary::RenderTarget_Sampl
 		FMessageLog("Blueprint").Warning(LOCTEXT("RenderTargetSampleUV_InvalidRenderTarget", "RenderTargetSampleUVEditoOnly: Render Target must be non-null."));
 		return { FLinearColor(0,0,0,0) };
 	}
-	else if (!InRenderTarget->Resource)
+	else if (!InRenderTarget->GetResource())
 	{
 		FMessageLog("Blueprint").Warning(LOCTEXT("RenderTargetSampleUV_ReleasedRenderTarget", "RenderTargetSampleUVEditoOnly: Render Target has been released."));
 		return { FLinearColor(0,0,0,0) };
@@ -206,7 +206,7 @@ FLinearColor UBlueprintMaterialTextureNodesBPLibrary::RenderTarget_SampleUV_Edit
 		FMessageLog("Blueprint").Warning(LOCTEXT("RenderTargetSampleUV_InvalidRenderTarget", "RenderTargetSampleUVEditoOnly: Render Target must be non-null."));
 		return FLinearColor(0, 0, 0, 0);
 	}
-	else if (!InRenderTarget->Resource)
+	else if (!InRenderTarget->GetResource())
 	{
 		FMessageLog("Blueprint").Warning(LOCTEXT("RenderTargetSampleUV_ReleasedRenderTarget", "RenderTargetSampleUVEditoOnly: Render Target has been released."));
 		return FLinearColor(0, 0, 0, 0);

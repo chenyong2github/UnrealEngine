@@ -118,7 +118,7 @@ TArray<FLinearColor> UDMXFixtureComponent::GetTextureCenterColors(UTexture2D* Te
 		(
 			[Texture, &PixelColorArray, NumCells](FRHICommandListImmediate& RHICmdList)
 			{
-				FTexture2DResource* uTex2DRes = (FTexture2DResource*)Texture->Resource;
+				FTexture2DResource* uTex2DRes = (FTexture2DResource*)Texture->GetResource();
 				if (uTex2DRes)
 				{
 					FIntVector Size = uTex2DRes->TextureRHI->GetSizeXYZ();

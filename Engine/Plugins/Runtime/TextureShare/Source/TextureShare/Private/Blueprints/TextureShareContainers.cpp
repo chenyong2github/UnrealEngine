@@ -57,7 +57,7 @@ bool FTextureShareBPTexture2D::GetTexture2DRHI_RenderThread(FTexture2DRHIRef& Ou
 
 	if (Texture)
 	{
-		FTexture2DResource* Texture2DResource = Texture ? (FTexture2DResource*)Texture->Resource : nullptr;
+		FTexture2DResource* Texture2DResource = Texture ? (FTexture2DResource*)Texture->GetResource() : nullptr;
 		if (Texture2DResource)
 		{
 			OutTexture2DRHIRef = Texture2DResource->GetTexture2DRHI();

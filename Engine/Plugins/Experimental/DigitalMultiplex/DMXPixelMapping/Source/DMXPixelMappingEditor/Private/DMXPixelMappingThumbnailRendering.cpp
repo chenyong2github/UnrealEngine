@@ -12,10 +12,10 @@ bool UDMXPixelMappingThumbnailRendering::CanVisualizeAsset(UObject* Object)
 void UDMXPixelMappingThumbnailRendering::GetThumbnailSize(UObject* Object, float Zoom, uint32& OutWidth, uint32& OutHeight) const
 {
 	UTexture* ObjectTexture = GetThumbnailTextureFromObject(Object);
-	if (ObjectTexture != nullptr && ObjectTexture->Resource != nullptr)
+	if (ObjectTexture != nullptr && ObjectTexture->GetResource() != nullptr)
 	{
-		OutWidth = Zoom * ObjectTexture->Resource->GetSizeX();
-		OutHeight = Zoom * ObjectTexture->Resource->GetSizeY();
+		OutWidth = Zoom * ObjectTexture->GetResource()->GetSizeX();
+		OutHeight = Zoom * ObjectTexture->GetResource()->GetSizeY();
 	}
 	else
 	{
@@ -29,7 +29,7 @@ void UDMXPixelMappingThumbnailRendering::Draw(UObject* Object, int32 X, int32 Y,
 	UTexture* ObjectTexture = GetThumbnailTextureFromObject(Object);
 	if (ObjectTexture != nullptr)
 	{
-		Canvas->DrawTile(X, Y, Width, Height, 0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::White, ObjectTexture->Resource, false);
+		Canvas->DrawTile(X, Y, Width, Height, 0.0f, 0.0f, 1.0f, 1.0f, FLinearColor::White, ObjectTexture->GetResource(), false);
 	}
 }
 

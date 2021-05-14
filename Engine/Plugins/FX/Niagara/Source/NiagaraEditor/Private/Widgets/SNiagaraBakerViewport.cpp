@@ -317,7 +317,7 @@ public:
 					PreviewViewRect.Min.X, PreviewViewRect.Min.Y, PreviewViewRect.Width(), PreviewViewRect.Height(),
 					HalfPixel.X, HalfPixel.Y, 1.0f - HalfPixel.X, 1.0f - HalfPixel.Y,
 					FLinearColor::White,
-					RealtimeRenderTarget->Resource,
+					RealtimeRenderTarget->GetResource(),
 					false	//-TODO: Preview with alpha?
 				);
 
@@ -367,7 +367,7 @@ public:
 					BakerViewRect.Min.X, BakerViewRect.Min.Y, BakerViewRect.Width(), BakerViewRect.Height(),
 					(float(FramePixelA.X) + 0.5f) / float(TextureSize.X), (float(FramePixelA.Y) + 0.5f) / float(TextureSize.Y), (float(FramePixelA.X + OutputTexture.FrameSize.X) - 0.5f) / float(TextureSize.X), (float(FramePixelA.Y + OutputTexture.FrameSize.Y) - 0.5f) / float(TextureSize.Y),
 					FLinearColor::White,
-					OutputTexture.GeneratedTexture->Resource,
+					OutputTexture.GeneratedTexture->GetResource(),
 					false	//-TODO: Preview with alpha?
 				);
 
@@ -420,7 +420,7 @@ public:
 			EndUV.X = float(InRect.Width()) / float(FMath::Max(Texture->GetSizeX(), 1));
 			EndUV.Y = float(InRect.Height()) / float(FMath::Max(Texture->GetSizeY(), 1));
 		}
-		Canvas->DrawTile(InRect.Min.X, InRect.Min.Y, InRect.Width(), InRect.Height(), 0.0f, 0.0f, EndUV.X, EndUV.Y, Color, Texture ? Texture->Resource : nullptr, false);
+		Canvas->DrawTile(InRect.Min.X, InRect.Min.Y, InRect.Width(), InRect.Height(), 0.0f, 0.0f, EndUV.X, EndUV.Y, Color, Texture ? Texture->GetResource() : nullptr, false);
 	}
 
 	UTexture2D* GetCheckerboardTexture()
@@ -436,7 +436,7 @@ public:
 	{
 		if (CheckerboardTexture)
 		{
-			if (CheckerboardTexture->Resource)
+			if (CheckerboardTexture->GetResource())
 			{
 				CheckerboardTexture->ReleaseResource();
 			}

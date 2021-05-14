@@ -419,8 +419,8 @@ void UDMXPixelMappingFixtureGroupItemComponent::QueueDownsample()
 	// Store pixel position
 	DownsamplePixelIndex = RendererComponent->GetDownsamplePixelNum();
 	
-	const uint32 TextureSizeX = InputTexture->Resource->GetSizeX();
-	const uint32 TextureSizeY = InputTexture->Resource->GetSizeY();
+	const uint32 TextureSizeX = InputTexture->GetResource()->GetSizeX();
+	const uint32 TextureSizeY = InputTexture->GetResource()->GetSizeY();
 	check(TextureSizeX > 0 && TextureSizeY > 0);
 	const FIntPoint PixelPosition = RendererComponent->GetPixelPosition(DownsamplePixelIndex);
 	const FVector2D UV = FVector2D(PositionX / TextureSizeX, PositionY / TextureSizeY);

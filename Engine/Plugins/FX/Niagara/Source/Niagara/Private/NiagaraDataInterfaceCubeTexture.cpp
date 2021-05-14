@@ -281,7 +281,7 @@ void UNiagaraDataInterfaceCubeTexture::PushToRenderThreadImpl()
 
 	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT)
 	(
-		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims=TextureSize](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_Resource=Texture ? Texture->GetResource() : nullptr, RT_TexDims=TextureSize](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_Proxy->TextureRHI = RT_Resource ? RT_Resource->TextureRHI : nullptr;
 			RT_Proxy->SamplerStateRHI = RT_Resource ? RT_Resource->SamplerStateRHI : nullptr;

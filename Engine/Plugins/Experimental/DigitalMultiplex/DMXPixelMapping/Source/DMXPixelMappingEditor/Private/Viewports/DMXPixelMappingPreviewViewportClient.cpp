@@ -41,7 +41,7 @@ void FDMXPixelMappingPreviewViewportClient::Draw(FViewport* InViewport, FCanvas*
 
 			if (Renderer.IsValid() && InputTexture != nullptr)
 			{
-				Renderer->RenderTextureToRectangle(InputTexture->Resource, InViewport->GetRenderTargetTexture(), InViewport->GetSizeXY(), InputTexture->SRGB);
+				Renderer->RenderTextureToRectangle(InputTexture->GetResource(), InViewport->GetRenderTargetTexture(), InViewport->GetSizeXY(), InputTexture->SRGB);
 			}
 		}
 	}
