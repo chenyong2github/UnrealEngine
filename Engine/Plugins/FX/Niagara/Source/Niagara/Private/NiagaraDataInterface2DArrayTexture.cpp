@@ -116,21 +116,25 @@ void UNiagaraDataInterface2DArrayTexture::GetVMExternalFunction(const FVMExterna
 	}
 }
 
+bool UNiagaraDataInterface2DArrayTexture::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+{
+	const FIntVector CurrentTextureSize = Texture != nullptr ? FIntVector(Texture->GetSizeX(), Texture->GetSizeY(), Texture->GetNumSlices()) : FIntVector::ZeroValue;
+	if ( CurrentTextureSize != TextureSize )
+	{
+		TextureSize = CurrentTextureSize;
+		MarkRenderDataDirty();
+	}
+	return false;
+}
+
 void UNiagaraDataInterface2DArrayTexture::GetTextureDimensions(FVectorVMContext& Context)
 {
 	FNDIOutputParam<FVector> DimensionsOut(Context);
 
-	FVector TextureDimensions = FVector::ZeroVector;
-	if (Texture)
-	{
-		TextureDimensions.X = Texture->GetSizeX();
-		TextureDimensions.Y = Texture->GetSizeY();
-		TextureDimensions.Z = Texture->GetNumSlices();
-	}
-
+	const FVector FloatTextureSize(TextureSize.X, TextureSize.Y, TextureSize.Z);
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		DimensionsOut.SetAndAdvance(TextureDimensions);
+		DimensionsOut.SetAndAdvance(FloatTextureSize);
 	}
 }
 
@@ -233,21 +237,21 @@ void UNiagaraDataInterface2DArrayTexture::PushToRenderThreadImpl()
 {
 	FNiagaraDataInterfaceProxy2DArrayTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxy2DArrayTexture>();
 
-	FVector RT_TexDims(EForceInit::ForceInitToZero);
+	TextureSize = FIntVector::ZeroValue;
 	if (Texture)
 	{
-		RT_TexDims.X = Texture->GetSizeX();
-		RT_TexDims.Y = Texture->GetSizeY();
-		RT_TexDims.Z = Texture->GetNumSlices();
+		TextureSize.X = Texture->GetSizeX();
+		TextureSize.Y = Texture->GetSizeY();
+		TextureSize.Z = Texture->GetNumSlices();
 	}
 
 	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT)
 	(
-		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims=TextureSize](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_Proxy->TextureRHI = RT_Resource ? RT_Resource->TextureRHI : nullptr;
 			RT_Proxy->SamplerStateRHI = RT_Resource ? RT_Resource->SamplerStateRHI : nullptr;
-			RT_Proxy->TexDims = RT_TexDims;
+			RT_Proxy->TexDims = FVector(RT_TexDims.X, RT_TexDims.Y, RT_TexDims.Z);
 		}
 	);
 }
