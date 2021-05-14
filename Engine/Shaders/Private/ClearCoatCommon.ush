@@ -44,6 +44,19 @@ void RemapClearCoatDiffuseAndSpecularColor(FGBufferData GBuffer, float NoV, inou
 	}
 }
 
+void RemapClearCoatDiffuseAndSpecularColor(FGBufferData GBuffer, float2 ScreenPosition, inout float3 DiffuseColor, inout float3 SpecularColor)
+{
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
+		float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
+		float3 V = -CameraToPixel;
+		float NoV = saturate(dot(GBuffer.WorldNormal, V));
+
+		RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
+	}
+}
+
 float3 ClearCoatLayerCombine(FGBufferData GBuffer, float NoV, float3 TopLayerReflections, float3 BottomLayerReflections, float3 SpecularColor)
 {
 	const float ClearCoat			= GBuffer.CustomData.x;
