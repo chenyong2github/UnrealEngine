@@ -6,7 +6,20 @@
 #include "Interfaces/ITextureFormatManagerModule.h"
 
 /** Return the Texture Format Manager interface, if it is available, otherwise return nullptr. **/
-TEXTUREFORMAT_API class ITextureFormatManagerModule* GetTextureFormatManager();
+inline ITextureFormatManagerModule* GetTextureFormatManager()
+{
+	return FModuleManager::LoadModulePtr<ITextureFormatManagerModule>("TextureFormat");
+}
 
 /** Return the Texture Format Manager interface, fatal error if it is not available. **/
-TEXTUREFORMAT_API class ITextureFormatManagerModule& GetTextureFormatManagerRef();
+inline ITextureFormatManagerModule& GetTextureFormatManagerRef()
+{
+	class ITextureFormatManagerModule* TextureFormatManager = GetTextureFormatManager();
+	if (!TextureFormatManager)
+	{
+		UE_LOG(LogInit, Fatal, TEXT("Texture format manager was requested, but not available."));
+		CA_ASSUME( TextureFormatManager != NULL );	// Suppress static analysis warning in unreachable code (fatal error)
+	}
+	return *TextureFormatManager;
+}
+
