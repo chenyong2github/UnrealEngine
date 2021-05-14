@@ -153,20 +153,3 @@ private:
 };
 
 IMPLEMENT_MODULE(FTextureFormatManagerModule, TextureFormat);
-
-class ITextureFormatManagerModule* GetTextureFormatManager()
-{
-	static class ITextureFormatManagerModule* SingletonInterface = FModuleManager::LoadModulePtr<ITextureFormatManagerModule>("TextureFormat");
-	return SingletonInterface;
-}
-
-class ITextureFormatManagerModule& GetTextureFormatManagerRef()
-{
-	class ITextureFormatManagerModule* SingletonInterface = GetTextureFormatManager();
-	if (!SingletonInterface)
-	{
-		UE_LOG(LogInit, Fatal, TEXT("Texture format manager was requested, but not available."));
-		CA_ASSUME( SingletonInterface != NULL );	// Suppress static analysis warning in unreachable code (fatal error)
-	}
-	return *SingletonInterface;
-}
