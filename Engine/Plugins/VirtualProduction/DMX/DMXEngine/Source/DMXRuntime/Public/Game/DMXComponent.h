@@ -31,6 +31,10 @@ class DMXRUNTIME_API UDMXComponent
 public:
 	UDMXComponent();
 
+	/** Broadcast when the component's fixture patch received DMX */
+	UPROPERTY(BlueprintAssignable, Category = "Components|DMX");
+	FDMXComponentFixturePatchReceivedSignature OnFixturePatchReceived;
+
 protected:
 	// ~Begin UActorComponent interface
 	virtual void OnRegister() override;
@@ -41,10 +45,6 @@ protected:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	// ~End UActorComponent interface
-
-	/** Broadcast when the component's fixture patch received DMX */
-	UPROPERTY(BlueprintAssignable, Category = "Components|DMX");
-	FDMXComponentFixturePatchReceivedSignature OnFixturePatchReceived;
 
 protected:
 	/** Called when the fixture patch received DMX */
