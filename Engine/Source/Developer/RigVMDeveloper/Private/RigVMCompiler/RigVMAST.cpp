@@ -559,6 +559,12 @@ bool FRigVMNodeExprAST::IsConstant() const
 		TArray<URigVMPin*> AllPins = CurrentNode->GetAllPinsRecursively();
 		for (URigVMPin* Pin : AllPins)
 		{
+			// don't flatten pins which have a watch
+			if(Pin->RequiresWatch(false))
+			{
+				return false;
+			}
+
 			URigVMPin::FPinOverride PinOverride(GetProxy(), GetParser()->GetPinOverrides());
 			if (Pin->IsBoundToVariable(PinOverride))
 			{
@@ -1845,6 +1851,9 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 	URigVMCompiler* TempCompiler = NewObject<URigVMCompiler>(GetTransientPackage());
 	TempCompiler->Settings.ConsolidateWorkRegisters = false;
 	TempCompiler->Settings.SetupNodeInstructionIndex = false;
+	TempCompiler->Settings.IsPreprocessorPhase = true;
+	TempCompiler->Settings.EnablePinWatches = false;
+	TempCompiler->Settings.ASTSettings = FRigVMParserASTSettings::Fast();
 
 	TempCompiler->Compile(InGraph, InController, TempVM, InExternalVariables, InRigVMUserData, &Operands, TempAST);
 

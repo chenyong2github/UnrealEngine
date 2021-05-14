@@ -289,6 +289,7 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 	Instructions = InVM->Instructions;
 	Parameters = InVM->Parameters;
 	ParametersNameMap = InVM->ParametersNameMap;
+	OperandToDebugRegisters = InVM->OperandToDebugRegisters;
 
 	if (bCopyExternalVariables)
 	{
@@ -1161,21 +1162,24 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			{
 				const FRigVMExecuteOp& Op = ByteCode.GetOpAt<FRigVMExecuteOp>(Instruction);
 				const int32 OperandCount = FirstHandleForInstruction[Context.InstructionIndex + 1] - FirstHandleForInstruction[Context.InstructionIndex];
-				FRigVMMemoryHandleArray OpHandles(&CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]], OperandCount);
+				FRigVMMemoryHandleArray Handles(&CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]], OperandCount);
 #if WITH_EDITOR
 				Context.FunctionName = FunctionNames[Op.FunctionIndex];
 #endif
-				(*Functions[Op.FunctionIndex])(Context, OpHandles);
+				(*Functions[Op.FunctionIndex])(Context, Handles);
 
 #if WITH_EDITOR
 				if(DebugMemoryPtr->Num() > 0)
 				{
 					const FRigVMOperandArray Operands = ByteCode.GetOperandsForExecuteOp(Instruction);
-					check(Operands.Num() == OperandCount);
-					
-					for(int32 OperandIndex=0;OperandIndex<OperandCount;OperandIndex++)
+					for(int32 OperandIndex = 0, HandleIndex = 0; OperandIndex < Operands.Num() && HandleIndex < Handles.Num(); HandleIndex++)
 					{
-						CopyOperandForDebuggingIfNeeded(Operands[OperandIndex], OpHandles[OperandIndex]);
+						// skip array sizes
+						if(Handles[HandleIndex].GetType() == FRigVMMemoryHandle::FType::ArraySize)
+						{
+							continue;
+						}
+						CopyOperandForDebuggingIfNeeded(Operands[OperandIndex++], Handles[HandleIndex]);
 					}
 				}
 #endif
@@ -1894,7 +1898,7 @@ void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecut
 		if (Register.IsArray() && !Register.IsDynamic())
 	{
 			void* ElementsForArray = reinterpret_cast<void*>(Register.ElementCount);
-			CachedMemoryHandles.Add(FRigVMMemoryHandle((uint8*)ElementsForArray));
+			CachedMemoryHandles.Add(FRigVMMemoryHandle((uint8*)ElementsForArray, sizeof(uint16), FRigVMMemoryHandle::FType::ArraySize));
 		}
 	}
 }

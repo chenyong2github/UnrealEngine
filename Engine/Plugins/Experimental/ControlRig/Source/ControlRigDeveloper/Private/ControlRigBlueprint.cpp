@@ -2480,7 +2480,16 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 					
 					if(Pin->RequiresWatch())
 					{
-						Compiler->CreateDebugRegister(Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+						// check if the node is optimized out - in that case we need to recompile
+						if(CR->GetVM()->GetByteCode().GetFirstInstructionIndexForSubject(Pin->GetNode()) == INDEX_NONE)
+						{
+							RequestAutoVMRecompilation();
+							MarkPackageDirty();
+						}
+						else
+						{
+							Compiler->CreateDebugRegister(Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+						}
 					}
 					else
 					{
