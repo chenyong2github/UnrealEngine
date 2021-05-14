@@ -7,8 +7,6 @@
 #include "UnrealTypeDefinitionInfo.h"
 #include "ClassMaps.h"
 
-extern FCompilerMetadataManager GScriptHelper;
-
 FScope::FScope(FScope* InParent)
 	: Parent(InParent)
 { }
@@ -19,9 +17,9 @@ FScope::FScope()
 
 }
 
-void FScope::AddType(UField* Type)
+void FScope::AddType(FUnrealFieldDefinitionInfo& Type)
 {
-	TypeMap.Add(Type->GetFName(), Type);
+	TypeMap.Add(Type.GetField()->GetFName(), &Type);
 }
 
 /**
@@ -68,9 +66,9 @@ void DispatchType(UField* Type, TArray<UEnum*> &Enums, TArray<UScriptStruct*> &S
 
 void FScope::SplitTypesIntoArrays(TArray<UEnum*>& Enums, TArray<UScriptStruct*>& Structs, TArray<UDelegateFunction*>& DelegateFunctions)
 {
-	for (TPair<FName, UField*>& TypePair : TypeMap)
+	for (TPair<FName, FUnrealFieldDefinitionInfo*>& TypePair : TypeMap)
 	{
-		UField* Type = TypePair.Value;
+		UField* Type = TypePair.Value->GetField();
 		DispatchType(Type, Enums, Structs, DelegateFunctions);
 	}
 }
@@ -86,16 +84,16 @@ TSharedRef<FScope> FScope::GetTypeScope(UStruct* Type)
 	return (*TypeDef)->GetScope();
 }
 
-UField* FScope::FindTypeByName(FName Name)
+FUnrealFieldDefinitionInfo* FScope::FindTypeByName(FName Name)
 {
 	if (!Name.IsNone())
 	{
-		TDeepScopeTypeIterator<UField, false> TypeIterator(this);
+		TDeepScopeTypeIterator<FUnrealFieldDefinitionInfo, false> TypeIterator(this);
 
 		while (TypeIterator.MoveNext())
 		{
-			UField* Type = *TypeIterator;
-			if (Type->GetFName() == Name)
+			FUnrealFieldDefinitionInfo* Type = *TypeIterator;
+			if (Type->GetField()->GetFName() == Name)
 			{
 				return Type;
 			}
@@ -105,16 +103,16 @@ UField* FScope::FindTypeByName(FName Name)
 	return nullptr;
 }
 
-const UField* FScope::FindTypeByName(FName Name) const
+const FUnrealFieldDefinitionInfo* FScope::FindTypeByName(FName Name) const
 {
 	if (!Name.IsNone())
 	{
-		TScopeTypeIterator<UField, true> TypeIterator = GetTypeIterator();
+		TScopeTypeIterator<FUnrealFieldDefinitionInfo, true> TypeIterator = GetTypeIterator();
 
 		while (TypeIterator.MoveNext())
 		{
-			UField* Type = *TypeIterator;
-			if (Type->GetFName() == Name)
+			FUnrealFieldDefinitionInfo* Type = *TypeIterator;
+			if (Type->GetField()->GetFName() == Name)
 			{
 				return Type;
 			}
@@ -124,9 +122,9 @@ const UField* FScope::FindTypeByName(FName Name) const
 	return nullptr;
 }
 
-bool FScope::ContainsType(UField* Type)
+bool FScope::ContainsType(FUnrealFieldDefinitionInfo* Type)
 {
-	return FindTypeByName(Type->GetFName()) != nullptr;
+	return FindTypeByName(Type->GetField()->GetFName()) != nullptr;
 }
 
 bool FScope::IsFileScope() const
@@ -169,18 +167,7 @@ FName FFileScope::GetName() const
 	return Name;
 }
 
-UStruct* FStructScope::GetStruct() const
-{
-	return Struct;
-}
-
 FName FStructScope::GetName() const
 {
 	return Struct->GetFName();
-}
-
-FStructScope::FStructScope(UStruct* InStruct, FScope* InParent)
-	: FScope(InParent), Struct(InStruct)
-{
-
 }

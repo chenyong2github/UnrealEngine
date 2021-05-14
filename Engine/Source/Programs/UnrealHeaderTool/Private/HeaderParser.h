@@ -9,6 +9,7 @@
 #include "Scope.h"
 #include "UnrealTypeDefinitionInfo.h"
 #include "GeneratedCodeVersion.h"
+#include "ClassMaps.h"
 
 class UClass;
 enum class EGeneratedCodeVersion : uint8;
@@ -552,11 +553,19 @@ protected:
 	}
 
 	/**
+	 * Gets current class definition.
+	 */
+	FUnrealStructDefinitionInfo& GetCurrentClassDef() const
+	{
+		return GetCurrentClassScope()->GetStructDef();
+	}
+
+	/**
 	 * Gets current class's metadata.
 	 */
-	FClassMetaData* GetCurrentClassData()
+	FStructMetaData& GetCurrentClassData()
 	{
-		return GScriptHelper.FindClassData(GetCurrentClass());
+		return GetCurrentClassDef().GetStructMetaData();
 	}
 
 	// Information about all nesting levels.
@@ -642,7 +651,7 @@ protected:
 	bool IsBitfieldProperty(ELayoutMacroType LayoutMacroType);
 
 	// Parse the parameter list of a function or delegate declaration
-	void ParseParameterList(UFunction* Function, bool bExpectCommaBeforeName = false, TMap<FName, FString>* MetaData = NULL);
+	void ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDef, bool bExpectCommaBeforeName = false, TMap<FName, FString>* MetaData = NULL);
 
 public:
 	// Throws if a specifier value wasn't provided
@@ -711,7 +720,7 @@ protected:
 	bool SkipDeclaration(FToken& Token);
 	/** Similar to MatchSymbol() but will return to the exact location as on entry if the symbol was not found. */
 	bool SafeMatchSymbol(const TCHAR Match);
-	void HandleOneInheritedClass(UClass* Class, FString&& InterfaceName);
+	void HandleOneInheritedClass(FStructMetaData& StructMetaData, UClass* Class, FString&& InterfaceName);
 	FClass* ParseClassNameDeclaration(FString& DeclaredClassName, FString& RequiredAPIMacroIfPresent);
 
 	/** The property style of a variable declaration being parsed */
@@ -743,7 +752,7 @@ protected:
 	UClass* CompileClassDeclaration();
 	UDelegateFunction* CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
 	void CompileFunctionDeclaration();
-	void CompileVariableDeclaration (UStruct* Struct);
+	void CompileVariableDeclaration (FUnrealStructDefinitionInfo& StructDef);
 	void CompileInterfaceDeclaration();
 	void CompileRigVMMethodDeclaration(UStruct* Struct);
 	void ParseRigVMMethodParameters(UStruct* Struct);
@@ -789,14 +798,14 @@ protected:
 	/**
 	 * Parses a variable name declaration and creates a new FProperty object.
 	 *
-	 * @param	Scope				struct to create the property in
+	 * @param	ParentStruct		struct to create the property in
 	 * @param	VarProperty			type and propertyflag info for the new property (inout)
 	 * @param   VariableCategory	what kind of variable is being created
 	 *
 	 * @return	a pointer to the new FProperty if successful, or NULL if there was no property to parse
 	 */
 	FProperty* GetVarNameAndDim(
-		UStruct* Struct,
+		FUnrealStructDefinitionInfo& ParentStruct,
 		FToken& VarProperty,
 		EVariableCategory::Type VariableCategory,
 		ELayoutMacroType LayoutMacroType = ELayoutMacroType::None);
@@ -867,17 +876,17 @@ protected:
 	 * Tasks that need to be done after popping interface definition
 	 * from parsing stack.
 	 *
-	 * @param CurrentInterface Interface that have just been popped.
+	 * @param CurrentInterfaceDef Interface that have just been popped.
 	 */
-	void PostPopNestInterface(UClass* CurrentInterface);
+	void PostPopNestInterface(FUnrealClassDefinitionInfo& CurrentInterfaceDef);
 
 	/**
 	 * Tasks that need to be done after popping class definition
 	 * from parsing stack.
 	 *
-	 * @param CurrentClass Class that have just been popped.
+	 * @param CurrentClassDef Class that have just been popped.
 	 */
-	void PostPopNestClass(UClass* CurrentClass);
+	void PostPopNestClass(FUnrealClassDefinitionInfo& CurrentClassDef);
 
 	/**
 	 * Binds all delegate properties declared in ValidationScope the delegate functions specified in the variable declaration, verifying that the function is a valid delegate

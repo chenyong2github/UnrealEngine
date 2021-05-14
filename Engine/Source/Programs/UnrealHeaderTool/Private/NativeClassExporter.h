@@ -16,7 +16,7 @@ class UClass;
 class UEnum;
 class UScriptStruct;
 class UDelegateFunction;
-class FClassMetaData;
+class FStructMetaData;
 class FOutputDevice;
 class FUnrealPackageDefinitionInfo;
 struct FFuncInfo;
@@ -336,6 +336,9 @@ private:
 	static const FString& GetPackageSingletonNameFuncAddr(UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
 
 	/** Return the address of the singleton function - handles nullptr */
+	static const FString& GetSingletonNameFuncAddr(FUnrealFieldDefinitionInfo& Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
+
+	/** Return the address of the singleton function - handles nullptr */
 	static const FString& GetSingletonNameFuncAddr(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
 
 	/**
@@ -522,7 +525,7 @@ private:
 	 * @param Class			class
 	 * @param ClassData		class data
 	 */
-	void ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UClass* Class, FClassMetaData* ClassData) const;
+	void ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UClass* Class, FStructMetaData& StructData) const;
 
 	/**
 	 * Export the actual internals to a standard thunk function

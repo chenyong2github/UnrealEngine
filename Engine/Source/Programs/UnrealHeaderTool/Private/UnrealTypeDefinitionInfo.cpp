@@ -245,7 +245,7 @@ void FUnrealStructDefinitionInfo::SetObject(UObject* InObject)
 	// Don't create a scope for things without a source.  Those are builtin types
 	if (HasSource())
 	{
-		StructScope = MakeShared<FStructScope>(static_cast<UStruct*>(InObject), &GetUnrealSourceFile().GetScope().Get());
+		StructScope = MakeShared<FStructScope>(*this, static_cast<UStruct*>(InObject), &GetUnrealSourceFile().GetScope().Get());
 	}
 }
 
@@ -262,3 +262,15 @@ uint32 FUnrealClassDefinitionInfo::GetHash(bool bIncludeNoExport) const
 	return FUnrealStructDefinitionInfo::GetHash(bIncludeNoExport);
 }
 
+
+void FUnrealClassDefinitionInfo::PostParseFinalize()
+{
+	if (IsInterface() && GetStructMetaData().ParsedInterface == EParsedInterface::ParsedUInterface)
+	{
+		FString UName = GetNameCPP();
+		FString IName = TEXT("I") + UName.RightChop(1);
+		FError::Throwf(TEXT("UInterface '%s' parsed without a corresponding '%s'"), *UName, *IName);
+	}
+
+	FUnrealStructDefinitionInfo::PostParseFinalize();
+}
