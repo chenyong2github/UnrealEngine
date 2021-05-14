@@ -282,7 +282,7 @@ UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSL
 UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionWithCast(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type) const
 {
 	UE::HLSLTree::FExpression* Result = AcquireHLSLExpression(Generator, Scope);
-	return Generator.NewCast(Scope, Type, Result);
+	return Result ? Generator.NewCast(Scope, Type, Result) : nullptr;
 }
 
 UE::HLSLTree::FTextureParameterDeclaration* FExpressionInput::AcquireHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const

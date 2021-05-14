@@ -18,12 +18,12 @@
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionNamedReroute.h"
 #include "Materials/MaterialExpressionExecBegin.h"
+#include "Materials/MaterialExpressionExecEnd.h"
 
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionSetLocal.h"
-#include "Materials/MaterialExpressionReturnMaterialAttributes.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -118,7 +118,8 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 						if ( Class != UMaterialExpressionComment::StaticClass() 
 							&& Class != UMaterialExpressionParameter::StaticClass()
 							&& Class != UMaterialExpressionNamedRerouteUsage::StaticClass()
-							&& Class != UMaterialExpressionExecBegin::StaticClass() )
+							&& Class != UMaterialExpressionExecBegin::StaticClass()
+							&& Class != UMaterialExpressionExecEnd::StaticClass() )
 						{
 							FMaterialExpression MaterialExpression;
 							// Trim the material expression name and add it to the list used for filtering.

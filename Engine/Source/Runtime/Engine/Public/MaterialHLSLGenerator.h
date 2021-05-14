@@ -15,6 +15,7 @@ class FMaterial;
 class FMaterialCompilationOutput;
 struct FSharedShaderCompilerEnvironment;
 struct FMaterialCompileTargetParameters;
+class UMaterial;
 class UMaterialFunctionInterface;
 class UMaterialExpression;
 class UMaterialExpressionFunctionInput;
@@ -42,7 +43,9 @@ class FFunctionCall;
 class FMaterialHLSLGenerator
 {
 public:
-	FMaterialHLSLGenerator(const FMaterialCompileTargetParameters& InCompilerTarget,
+	FMaterialHLSLGenerator(UMaterial* InTargetMaterial, const FMaterialCompileTargetParameters& InCompilerTarget,
+		UE::HLSLTree::FTree& InOutTree);
+	FMaterialHLSLGenerator(UMaterialFunctionInterface* InTargetMaterialFunction, const FMaterialCompileTargetParameters& InCompilerTarget,
 		UE::HLSLTree::FTree& InOutTree);
 
 	const FMaterialCompileTargetParameters& GetCompileTarget() const { return CompileTarget; }
@@ -63,6 +66,8 @@ public:
 	}
 
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
+
+	UE::HLSLTree::FStatement* NewResult(UE::HLSLTree::FScope& Scope);
 
 	UE::HLSLTree::FExpressionConstant* NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value);
 	UE::HLSLTree::FExpressionExternalInput* NewTexCoord(UE::HLSLTree::FScope& Scope, int32 Index);
@@ -127,6 +132,9 @@ private:
 	};
 
 	const FMaterialCompileTargetParameters& CompileTarget;
+	UMaterial* TargetMaterial;
+	UMaterialFunctionInterface* TargetMaterialFunction;
+
 	UE::HLSLTree::FTree* HLSLTree;
 	TArray<FExpressionKey> ExpressionStack;
 	TArray<FString> CompileErrors;
@@ -138,6 +146,7 @@ private:
 	TMap<FFunctionCallKey, UE::HLSLTree::FFunctionCall*> FunctionCallMap;
 	TMap<FExpressionKey, UE::HLSLTree::FExpression*> ExpressionMap;
 	TMap<UMaterialExpression*, UE::HLSLTree::FStatement*> StatementMap;
+	bool bGeneratedResult;
 };
 
 #endif // WITH_EDITOR

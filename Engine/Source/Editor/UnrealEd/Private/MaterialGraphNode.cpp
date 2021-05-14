@@ -38,7 +38,6 @@
 #include "Materials/MaterialExpressionNamedReroute.h"
 #include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
-#include "Materials/MaterialExpressionReturnMaterialAttributes.h"
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialExpressionStrata.h"
 #include "MaterialEditorUtilities.h"
@@ -278,14 +277,6 @@ FLinearColor UMaterialGraphNode::GetNodeTitleColor() const
 	{
 		// Previously FColor(255, 155, 0);
 		return Settings->ResultNodeTitleColor;
-	}
-	else if (MaterialExpression->IsA(UMaterialExpressionReturnMaterialAttributes::StaticClass()))
-	{
-		return Settings->ResultNodeTitleColor;
-	}
-	else if (MaterialExpression->IsA(UMaterialExpressionExecBegin::StaticClass()))
-	{
-		return Settings->FunctionTerminatorNodeTitleColor;
 	}
 	else if (MaterialExpression->HasExecInput())
 	{

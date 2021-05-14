@@ -811,6 +811,9 @@ public:
 	/** The execution begin expression, if material is using an exec wire */
 	UPROPERTY()
 	class UMaterialExpressionExecBegin* ExpressionExecBegin;
+	
+	UPROPERTY()
+	class UMaterialExpressionExecEnd* ExpressionExecEnd;
 
 	/** Controls where this parameter group is displayed in a material instance parameter list.  The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, EditFixedSize, Category = "Group Sorting")
@@ -1209,6 +1212,8 @@ private:
 	  * from the Map Check message log.
 	  */
 	void FixupMaterialUsageAfterLoad();
+
+	void CreateExecutionFlowExpressions();
 #endif
 
 public:
