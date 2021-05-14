@@ -4,6 +4,7 @@
 
 #include "Async/Fundamental/Task.h"
 #include "Async/Fundamental/Scheduler.h"
+#include "Async/TaskTrace.h"
 #include "Templates/Invoke.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "Misc/Timeout.h"
@@ -72,15 +73,24 @@ namespace UE { namespace Tasks
 						Deleter = Forward<DeleterType>(Deleter)
 					]() mutable
 					{
-						StartPipeExecution();
-						Invoke(TaskBody);
-						FinishPipeExecution();
+						TaskTrace::Started(GetTraceId());
+						{
+							TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
+							StartPipeExecution();
+							Invoke(TaskBody);
+							FinishPipeExecution();
+						}
+						TaskTrace::Finished(GetTraceId());
+
 						FTaskBase* Subsequent = CloseAndReturnSubsequent();
 						if (Subsequent != nullptr)
 						{
 							check(TryPushIntoPipe());
+							TaskTrace::Scheduled(Subsequent->GetTraceId());
 							LowLevelTasks::TryLaunch(Subsequent->LowLevelTask, LowLevelTasks::EQueuePreference::DefaultPreference, /*bWakeUpWorker =*/ false);
 						}
+
+						TaskTrace::Completed(GetTraceId());
 					} // Continuation
 				);
 			}
@@ -102,8 +112,11 @@ namespace UE { namespace Tasks
 			// scheduled immediately
 			bool TryLaunch()
 			{
+				TaskTrace::Launched(GetTraceId(), LowLevelTask.GetDebugName(), true, (ENamedThreads::Type)255);
+
 				if (TryPushIntoPipe())
 				{
+					TaskTrace::Scheduled(GetTraceId());
 					// scheduler's reference was accounted on task creation
 					return LowLevelTasks::TryLaunch(LowLevelTask);
 				}
@@ -119,6 +132,8 @@ namespace UE { namespace Tasks
 				FTaskBase* CurrentState = SubsequentAndState.load(std::memory_order_relaxed);
 				checkf(CurrentState == GetEmptyOpenState() || CurrentState == GetClosedState(), TEXT("only a single subsequent can be set"));
 #endif
+
+				TaskTrace::SubsequentAdded(GetTraceId(), Task.GetTraceId());
 
 				FTaskBase* EmptyNotCompleted = GetEmptyOpenState();
 				FTaskBase* NotCompletedWithTask = &Task;
@@ -178,6 +193,15 @@ namespace UE { namespace Tasks
 				return LowLevelTask.IsCompleted(std::memory_order_relaxed);
 			}
 
+			TaskTrace::FId GetTraceId() const
+			{
+#if UE_TASK_TRACE_ENABLED
+				return TraceId;
+#else
+				return TaskTrace::InvalidId;
+#endif
+			}
+
 		private:
 			// checks if the task is ready to be launched by trying to push it into the pipe
 			bool TryPushIntoPipe()
@@ -235,6 +259,10 @@ namespace UE { namespace Tasks
 			// can be "empty and open" (`nullptr`), "have subsequent and open" (subsequent ptr) and closed (`nullptr` with the most significant
 			// bit set)
 			std::atomic<FTaskBase*> SubsequentAndState{ GetEmptyOpenState() };
+
+#if UE_TASK_TRACE_ENABLED
+			TaskTrace::FId TraceId = TaskTrace::GenerateTaskId();
+#endif
 		};
 
 		// Extends FTaskBase by supporting execution result.

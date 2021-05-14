@@ -25,7 +25,7 @@ namespace TaskTrace
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Launched)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 		UE_TRACE_EVENT_FIELD(uint32, TaskId)
-		UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, DebugName)
+		UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DebugName)
 		UE_TRACE_EVENT_FIELD(bool, Tracked)
 		UE_TRACE_EVENT_FIELD(int32, ThreadToExecuteOn)
 	UE_TRACE_EVENT_END()
@@ -100,7 +100,7 @@ namespace TaskTrace
 			<< Created.TaskId(TaskId);
 	}
 
-	void Launched(FId TaskId, const char* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn)
+	void Launched(FId TaskId, const TCHAR* DebugName, bool bTracked, ENamedThreads::Type ThreadToExecuteOn)
 	{
 		check(bGTaskTraceInitialized);
 		check(TaskId != InvalidId);
@@ -108,7 +108,7 @@ namespace TaskTrace
 		UE_TRACE_LOG(TaskTrace, Launched, TaskChannel)
 			<< Launched.Timestamp(FPlatformTime::Cycles64())
 			<< Launched.TaskId(TaskId)
-			<< Launched.DebugName(DebugName != nullptr ? DebugName : "")
+			<< Launched.DebugName(DebugName != nullptr ? DebugName : TEXT(""))
 			<< Launched.Tracked(bTracked)
 			<< Launched.ThreadToExecuteOn(ThreadToExecuteOn);
 	}
