@@ -100,7 +100,7 @@ const FTextureResource* SDMXPixelMappingSourceTextureViewport::GetInputTextureRe
 {
 	if (const UTexture* Texture = GetInputTexture())
 	{
-		return Texture->Resource;
+		return Texture->GetResource();
 	}
 
 	return nullptr;

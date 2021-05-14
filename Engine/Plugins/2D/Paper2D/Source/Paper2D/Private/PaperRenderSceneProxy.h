@@ -61,7 +61,7 @@ struct PAPER2D_API FSpriteRenderSection
 
 	class FTexture* GetBaseTextureResource() const
 	{
-		return (BaseTexture != nullptr) ? BaseTexture->Resource : nullptr;
+		return (BaseTexture != nullptr) ? BaseTexture->GetResource() : nullptr;
 	}
 
 	bool IsValid() const

@@ -397,12 +397,12 @@ void UAppleARKitTextureCameraImage::UpdateCameraImage(float InTimestamp, CVPixel
 	
 	Timestamp = InTimestamp;
 	
-	if (!Resource)
+	if (!GetResource())
 	{
 		UpdateResource();
 	}
 	
-	if (auto MyResource = static_cast<FARKitTextureResource*>(Resource))
+	if (auto MyResource = static_cast<FARKitTextureResource*>(GetResource()))
 	{
 		MyResource->UpdateCameraImage(CameraImage, InPixelFormat, ColorSpace, BlurParams);
 	}
@@ -453,7 +453,7 @@ UAppleARKitEnvironmentCaptureProbeTexture::UAppleARKitEnvironmentCaptureProbeTex
 #if PLATFORM_APPLE
 void UAppleARKitEnvironmentCaptureProbeTexture::Init(float InTimestamp, id<MTLTexture> InEnvironmentTexture)
 {
-	if (Resource == nullptr)
+	if (GetResource() == nullptr)
 	{
 		UpdateResource();
 	}
@@ -481,10 +481,10 @@ void UAppleARKitEnvironmentCaptureProbeTexture::Init(float InTimestamp, id<MTLTe
 		Size.Y = MetalTexture.height;
 	}
 	// Force an update to our external texture on the render thread
-	if (Resource != nullptr)
+	if (GetResource() != nullptr)
 	{
 		ENQUEUE_RENDER_COMMAND(UpdateEnvironmentCapture)(
-			[InResource = Resource](FRHICommandListImmediate& RHICmdList)
+			[InResource = GetResource()](FRHICommandListImmediate& RHICmdList)
 			{
 				InResource->InitRHI();
 			});
@@ -743,12 +743,12 @@ void UAppleARKitOcclusionTexture::SetMetalTexture(float InTimestamp, id<MTLTextu
 		}
 	}
 	
-	if (Resource == nullptr)
+	if (GetResource() == nullptr)
 	{
 		UpdateResource();
 	}
 	
-	if (auto MyResource = static_cast<FARKitTextureResource*>(Resource))
+	if (auto MyResource = static_cast<FARKitTextureResource*>(GetResource()))
 	{
 		MyResource->UpdateMetalTexture(InMetalTexture, PixelFormat, ColorSpace);
 	}
@@ -1085,7 +1085,7 @@ UAppleARKitCameraVideoTexture::UAppleARKitCameraVideoTexture(const FObjectInitia
 
 void UAppleARKitCameraVideoTexture::Init()
 {
-	if (!Resource)
+	if (!GetResource())
 	{
 		UpdateResource();
 	}
@@ -1096,7 +1096,7 @@ void UAppleARKitCameraVideoTexture::UpdateFrame(const FAppleARKitFrame& InFrame)
 #if SUPPORTS_ARKIT_1_0
 	if (InFrame.CapturedYImage && InFrame.CapturedCbCrImage)
 	{
-		if (auto VideoResource = static_cast<FARKitCameraVideoResource*>(Resource))
+		if (auto VideoResource = static_cast<FARKitCameraVideoResource*>(GetResource()))
 		{
 			auto CapturedYImageCopy = InFrame.CapturedYImage;
 			auto CapturedCbCrImageCopy = InFrame.CapturedCbCrImage;
@@ -1120,7 +1120,7 @@ void UAppleARKitCameraVideoTexture::UpdateFrame(const FAppleARKitFrame& InFrame)
 #if SUPPORTS_ARKIT_1_0
 id<MTLTexture> UAppleARKitCameraVideoTexture::GetMetalTexture() const
 {
-	if (auto MyResource = (FARKitCameraVideoResource*)Resource)
+	if (auto MyResource = (FARKitCameraVideoResource*)GetResource())
 	{
 		return MyResource->GetMetalTexture();
 	}

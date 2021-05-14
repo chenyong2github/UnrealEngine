@@ -13,12 +13,12 @@ namespace
 {
 	void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)
 	{
-		if (DynamicTexture->Resource)
+		if (DynamicTexture->GetResource())
 		{
 			ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsData)(
 				[=](FRHICommandListImmediate& RHICmdList)
 				{
-					FTexture2DResource* Resource = (FTexture2DResource*)DynamicTexture->Resource;
+					FTexture2DResource* Resource = (FTexture2DResource*)DynamicTexture->GetResource();
 					RHIUpdateTexture2D(
 						Resource->GetTexture2DRHI(),
 						MipIndex,

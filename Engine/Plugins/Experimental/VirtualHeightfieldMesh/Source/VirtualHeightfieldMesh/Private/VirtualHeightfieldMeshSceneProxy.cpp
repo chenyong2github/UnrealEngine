@@ -446,7 +446,7 @@ void FVirtualHeightfieldMeshSceneProxy::CreateRenderThreadResources()
 				UniformParams.PageTableTexture = AllocatedVirtualTexture->GetPageTableTexture(0);
 				UniformParams.HeightTexture = AllocatedVirtualTexture->GetPhysicalTextureSRV(0, false);
 				UniformParams.HeightSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-				UniformParams.LodBiasTexture = LodBiasTexture ? LodBiasTexture->Resource->TextureRHI : GBlackTexture->TextureRHI;
+				UniformParams.LodBiasTexture = LodBiasTexture ? LodBiasTexture->GetResource()->TextureRHI : GBlackTexture->TextureRHI;
 				UniformParams.LodBiasSampler = TStaticSamplerState<SF_Point>::GetRHI();
 				UniformParams.NumQuadsPerTileSide = NumQuadsPerTileSide;
 
@@ -1218,8 +1218,8 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRDGBuilder& GraphBuil
 
 		VirtualHeightfieldMesh::FProxyDesc ProxyDesc;
 		ProxyDesc.PageTableTexture = AllocatedVirtualTexture->GetPageTableTexture(0);
-		ProxyDesc.HeightMinMaxTexture = Proxy->HeightMinMaxTexture ? Proxy->HeightMinMaxTexture->Resource->TextureRHI : VirtualHeightfieldMesh::GHeightMinMaxDefaultTexture->TextureRHI;
-		ProxyDesc.LodBiasMinMaxTexture = Proxy->LodBiasMinMaxTexture ? Proxy->LodBiasMinMaxTexture->Resource->TextureRHI : GBlackTexture->TextureRHI;
+		ProxyDesc.HeightMinMaxTexture = Proxy->HeightMinMaxTexture ? Proxy->HeightMinMaxTexture->GetResource()->TextureRHI : VirtualHeightfieldMesh::GHeightMinMaxDefaultTexture->TextureRHI;
+		ProxyDesc.LodBiasMinMaxTexture = Proxy->LodBiasMinMaxTexture ? Proxy->LodBiasMinMaxTexture->GetResource()->TextureRHI : GBlackTexture->TextureRHI;
 		ProxyDesc.MinMaxLevelOffset = ProxyDesc.HeightMinMaxTexture->GetNumMips() - 1 - AllocatedVirtualTexture->GetMaxLevel();
 		ProxyDesc.MaxLevel = AllocatedVirtualTexture->GetMaxLevel();
 		ProxyDesc.NumForceLoadLods = FMath::Min<uint32>(FMath::Max(Proxy->NumForceLoadLods, 0), ProxyDesc.MaxLevel + 1);

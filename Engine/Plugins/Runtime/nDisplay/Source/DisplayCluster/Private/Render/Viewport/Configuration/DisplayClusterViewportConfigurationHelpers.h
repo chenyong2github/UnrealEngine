@@ -277,7 +277,7 @@ public:
 
 		if (InOverride.bAllowOverride && InOverride.SourceTexture != nullptr)
 		{
-			FTextureRHIRef& TextureRHI = InOverride.SourceTexture->Resource->TextureRHI;
+			FTextureRHIRef& TextureRHI = InOverride.SourceTexture->GetResource()->TextureRHI;
 
 			if (TextureRHI.IsValid())
 			{
@@ -568,7 +568,7 @@ public:
 			DstCameraSettings.ChromakeyMarkersDistance = InChromakeyMarkers.MarkerTileDistance;
 
 			// Assign texture RHI ref
-			FTextureResource* MarkersResource = InChromakeyMarkers.MarkerTileRGBA->Resource;
+			FTextureResource* MarkersResource = InChromakeyMarkers.MarkerTileRGBA->GetResource();
 			if (MarkersResource)
 			{
 				DstCameraSettings.ChromakeMarkerTextureRHI = MarkersResource->TextureRHI;

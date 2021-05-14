@@ -406,9 +406,9 @@ void UHoloLensCameraImageTexture::Init(void* handle)
 	if (LastUpdateFrame != GFrameCounter)
 	{
 		LastUpdateFrame = GFrameCounter;
-		if (Resource != nullptr)
+		if (GetResource() != nullptr)
 		{
-			FHoloLensCameraImageResource* LambdaResource = static_cast<FHoloLensCameraImageResource*>(Resource);
+			FHoloLensCameraImageResource* LambdaResource = static_cast<FHoloLensCameraImageResource*>(GetResource());
 			ENQUEUE_RENDER_COMMAND(Init_RenderThread)(
 				[LambdaResource, handle](FRHICommandListImmediate&)
 			{

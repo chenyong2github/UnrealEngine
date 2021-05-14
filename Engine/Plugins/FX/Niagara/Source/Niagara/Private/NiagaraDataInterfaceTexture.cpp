@@ -458,7 +458,7 @@ void UNiagaraDataInterfaceTexture::PushToRenderThreadImpl()
 			if (RT_Texture)
 			{
 				RT_Proxy->TextureReferenceRHI = RT_Texture->TextureReference.TextureReferenceRHI;
-				RT_Proxy->SamplerStateRHI = RT_Texture->Resource ? RT_Texture->Resource->SamplerStateRHI : nullptr;
+				RT_Proxy->SamplerStateRHI = RT_Texture->GetResource() ? RT_Texture->GetResource()->SamplerStateRHI : nullptr;
 			}
 			else
 			{

@@ -25,7 +25,7 @@
 #include "LevelEditor.h"
 #endif
 
-
+class FTextureResource;
 const FIntPoint UDMXPixelMappingRendererComponent::MaxDownsampleBufferTargetSize = FIntPoint(4096);
 const FLinearColor UDMXPixelMappingRendererComponent::ClearTextureColor = FLinearColor::Black;
 
@@ -174,7 +174,7 @@ void UDMXPixelMappingRendererComponent::RenderEditorPreviewTexture()
 		}
 	}, true);
 
-	Renderer->RenderPreview(GetPreviewRenderTarget()->Resource, DownsampleBufferTarget->Resource, MoveTemp(PixelPreviewParams));
+	Renderer->RenderPreview(GetPreviewRenderTarget()->GetResource(), DownsampleBufferTarget->GetResource(), MoveTemp(PixelPreviewParams));
 }
 
 UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetPreviewRenderTarget()
@@ -192,7 +192,7 @@ FVector2D UDMXPixelMappingRendererComponent::GetSize() const
 	// Get a size from Input Texture
 	if (const UTexture* const RendererInputTexture = GetRendererInputTexture())
 	{
-		if (class FTextureResource* Resource = RendererInputTexture->Resource)
+		if (const FTextureResource* Resource = RendererInputTexture->GetResource())
 		{
 			return FVector2D(Resource->GetSizeX(), Resource->GetSizeY());
 		}
@@ -303,8 +303,8 @@ void UDMXPixelMappingRendererComponent::Render()
 
 	// 7. Downsample all pixels
 	GetRenderer()->DownsampleRender(
-		DownsampleInputTexture->Resource,
-		DownsampleBufferTarget->Resource,
+		DownsampleInputTexture->GetResource(),
+		DownsampleBufferTarget->GetResource(),
 		DownsampleBufferTarget->GameThread_GetRenderTargetResource(),
 		MoveTemp(DownsamplePixelParams), // Move Set to GPU thread, no empty function call needed
 		[this](TArray<FColor>&& InDownsampleBuffer, FIntRect InRect) { SetDownsampleBuffer(MoveTemp(InDownsampleBuffer), InRect); }
@@ -415,9 +415,9 @@ void UDMXPixelMappingRendererComponent::RendererInputTexture()
 	{
 	case(EDMXPixelMappingRendererType::Texture) :
 		// Nothing
-		if (InputTexture != nullptr &&  InputTexture->Resource != nullptr)
+		if (InputTexture != nullptr &&  InputTexture->GetResource() != nullptr)
 		{
-			ResizePreviewRenderTarget(InputTexture->Resource->GetSizeX(), InputTexture->Resource->GetSizeY());
+			ResizePreviewRenderTarget(InputTexture->GetResource()->GetSizeX(), InputTexture->GetResource()->GetSizeY());
 		}
 		break;
 	case(EDMXPixelMappingRendererType::Material):

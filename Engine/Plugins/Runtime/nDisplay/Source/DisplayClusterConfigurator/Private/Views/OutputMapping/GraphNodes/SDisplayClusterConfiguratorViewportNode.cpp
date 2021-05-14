@@ -343,8 +343,8 @@ void SDisplayClusterConfiguratorViewportNode::UpdatePreviewTexture()
 			{
 				BackgroundActiveBrush = FSlateBrush();
 				BackgroundActiveBrush.SetResourceObject(CachedTexture);
-				BackgroundActiveBrush.ImageSize.X = CachedTexture->Resource->GetSizeX();
-				BackgroundActiveBrush.ImageSize.Y = CachedTexture->Resource->GetSizeY();
+				BackgroundActiveBrush.ImageSize.X = CachedTexture->GetResource()->GetSizeX();
+				BackgroundActiveBrush.ImageSize.Y = CachedTexture->GetResource()->GetSizeY();
 			}
 		}
 		else

@@ -534,9 +534,9 @@ void FSplash::DoShow()
 		//@DBG BEGIN
 		if (SplashLayer.Desc.LoadingTexture->IsValidLowLevel())
 		{
-			if (SplashLayer.Desc.LoadingTexture->Resource && SplashLayer.Desc.LoadingTexture->Resource->TextureRHI)
+			if (SplashLayer.Desc.LoadingTexture->GetResource() && SplashLayer.Desc.LoadingTexture->GetResource()->TextureRHI)
 			{
-				SplashLayer.Desc.LoadedTexture = SplashLayer.Desc.LoadingTexture->Resource->TextureRHI;
+				SplashLayer.Desc.LoadedTexture = SplashLayer.Desc.LoadingTexture->GetResource()->TextureRHI;
 			}
 			else
 			{
