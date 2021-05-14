@@ -252,6 +252,7 @@ enum class EInstallBundleSourceUpdateBundleInfoResult : uint8
 	AlreadyRequested,
 	IllegalStartupBundle,
 	IllegalCacheStatus,
+	IllegalInstallSizeChange,
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleSourceUpdateBundleInfoResult Result);
