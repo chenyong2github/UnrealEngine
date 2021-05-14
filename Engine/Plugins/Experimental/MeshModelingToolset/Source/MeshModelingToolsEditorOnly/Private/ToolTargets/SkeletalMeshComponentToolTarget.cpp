@@ -131,8 +131,8 @@ FMeshDescription* USkeletalMeshComponentToolTarget::GetMeshDescription()
 		CachedMeshDescription = MakeUnique<FMeshDescription>();
 		const USkeletalMesh* SkeletalMesh = Cast<USkinnedMeshComponent>(Component)->SkeletalMesh;
 
-		// Check first if we have bulk data available.
-		if (SkeletalMesh->IsLODImportedDataBuildAvailable(LODIndex))
+		// Check first if we have bulk data available and non-empty.
+		if (SkeletalMesh->IsLODImportedDataBuildAvailable(LODIndex) && !SkeletalMesh->IsLODImportedDataEmpty(LODIndex))
 		{
 			FSkeletalMeshImportData SkeletalMeshImportData;
 			SkeletalMesh->LoadLODImportedData(LODIndex, SkeletalMeshImportData);
@@ -201,6 +201,8 @@ void USkeletalMeshComponentToolTarget::CommitMeshDescription(const FCommitter& C
 
 	// this rebuilds physics, but it doesn't undo!
 	Component->RecreatePhysicsState();
+	
+	CachedMeshDescription.Reset();
 }
 
 TSharedPtr<FDynamicMesh3> USkeletalMeshComponentToolTarget::GetDynamicMesh()
