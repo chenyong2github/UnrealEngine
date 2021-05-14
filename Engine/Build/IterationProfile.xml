@@ -61,8 +61,9 @@
 
 	<!-- The main test running macro logic that is expanded with platform and dependency node names -->
 	<Macro Name="RunTest" Arguments="OutputName;PlatformName;ProjectName;NodeName;NodeRequires;Phase;Args">
-		<Property Name="TraceFile" Value="$(TraceDir)/$(ProjectName)IterationProfile$(PlatformName)$(Phase).utrace"/>
-		<Property Name="TelemetryFile" Value="$(TraceDir)/$(ProjectName)IterationProfile$(PlatformName)$(Phase)Telemetry.csv"/>
+		<Property Name="TestName" Value="IterationProfile$(Phase)"/>
+		<Property Name="TraceFile" Value="$(TraceDir)/$(ProjectName)$(PlatformName)$(TestName).utrace"/>
+		<Property Name="TelemetryFile" Value="$(TraceDir)/$(ProjectName)$(PlatformName)$(TestName)Telemetry.csv"/>
 		<Property Name="ReportExportPath" Value="$(AutomationOutputDir)/$(OutputName)"/>
 		<Property Name="ReportParams" Value="-ReportExportPath=&quot;$(ReportExportPath)&quot;"/>
 		<Do If="$(IsBuildMachine)">
@@ -72,10 +73,10 @@
 		<Property Name="LogOutputParams" Value="-logdir=&quot;$(AutomationOutputDir)/$(OutputName)&quot;"/>
 		<Property Name="AllGauntletArgs" Value="-platform=$(PlatformName) -project=$(ProjectName) $(GauntletArgs) $(ReportParams) $(LogOutputParams) -artifactname=&quot;$(Phase)&quot;"/>
 		<Command Name="RunUnreal" Arguments="$(AllGauntletArgs) $(ProfileArgs) $(Args) -tracefile=&quot;$(TraceFile)&quot;"/>
-		<Commandlet Name="SummarizeTrace" Arguments="-NoEnginePlugins -inputfile=&quot;$(TraceFile)&quot; $(SummarizeArgs)"/>
+		<Commandlet Name="SummarizeTrace" Arguments="-NoEnginePlugins -inputfile=&quot;$(TraceFile)&quot; -testname=&quot;$(TestName)&quot; $(SummarizeArgs)"/>
 		<Do If="$(IsBuildMachine)">
 			<!-- Files copied to this folder are automatically uploaded to Horde as artifacts -->
-			<Copy From="$(TraceDir)/$(ProjectName)IterationProfile*.*" To="$(RootDir)/Engine/Programs/AutomationTool/Saved/Logs"/>
+			<Copy From="$(TraceDir)/$(ProjectName)$(TestName)*.*" To="$(RootDir)/Engine/Programs/AutomationTool/Saved/Logs"/>
 			<Command Name="PublishUnrealAutomationTelemetry" Arguments="-CSVFile=&quot;$(TelemetryFile)&quot; -project=$(ProjectName) -changelist=$(Change) -branch=$(Branch)"/>
 		</Do>
 	</Macro>
