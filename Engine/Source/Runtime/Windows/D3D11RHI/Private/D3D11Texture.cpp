@@ -496,12 +496,28 @@ inline DXGI_FORMAT FindSharedResourceDXGIFormat(DXGI_FORMAT InFormat, bool bSRGB
 	return InFormat;
 }
 
+inline DXGI_FORMAT FindDepthStencilResourceDXGIFormat(DXGI_FORMAT InFormat)
+{
+	switch (InFormat)
+	{
+	case DXGI_FORMAT_R32_FLOAT: return DXGI_FORMAT_R32_TYPELESS;
+	case DXGI_FORMAT_R16_FLOAT: return DXGI_FORMAT_R16_TYPELESS;
+	}
+
+	return InFormat;
+}
+
+
 DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, uint32 InFlags)
 {
 	// Find valid shared texture format
 	if (InFlags & TexCreate_Shared)
 	{
 		return FindSharedResourceDXGIFormat(InFormat, InFlags & TexCreate_SRGB);
+	}
+	if (InFlags & TexCreate_DepthStencilTargetable)
+	{
+		return FindDepthStencilResourceDXGIFormat(InFormat);
 	}
 	return InFormat;
 }

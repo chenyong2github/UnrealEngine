@@ -23,6 +23,7 @@ static inline bool IsDepthOrStencilFormat(EPixelFormat Format)
 	case PF_DepthStencil:
 	case PF_X24_G8:
 	case PF_ShadowDepth:
+	case PF_R32_FLOAT:
 		return true;
 
 	default:

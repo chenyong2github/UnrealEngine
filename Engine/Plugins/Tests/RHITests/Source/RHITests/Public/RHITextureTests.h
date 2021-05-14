@@ -230,4 +230,81 @@ public:
 
 		return bResult;
 	}
+
+	static bool Test_RHIFormat_WithParams(FRHICommandListImmediate& RHICmdList, EPixelFormat ResourceFormat, EPixelFormat SRVFormat, EPixelFormat UAVFormat, ETextureCreateFlags Flags)
+	{
+		const uint32 Width = 32;
+		const uint32 Height = 32;
+
+		bool bResult = true;
+		FString TestName = FString::Printf(TEXT("Test_RHIFormat (%s, %s, %s, %d)"), GPixelFormats[ResourceFormat].Name, GPixelFormats[SRVFormat].Name, GPixelFormats[UAVFormat].Name, Flags);
+		{
+			FRHIResourceCreateInfo CreateInfo(*TestName);
+
+			FTextureRHIRef Texture;
+			Texture = RHICreateTexture2D(Width, Height, ResourceFormat, 1, 1, Flags, CreateInfo);
+			bResult = (Texture != nullptr);
+
+			if (Texture && SRVFormat != PF_Unknown)
+			{
+				FRHITextureSRVCreateInfo ViewInfo(0, 1, SRVFormat);
+				FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(Texture, ViewInfo);
+				bResult = (SRV != nullptr);
+			}
+
+			// TODO
+			if (Texture && UAVFormat != PF_Unknown)
+			{
+				//RHICreateUnorderedAccessView(Texture, 0, UAVFormat);
+			}
+		}
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+
+		if (bResult)
+		{
+			UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test passed. \"%s\""), *TestName);
+		}
+
+		return bResult;
+	}
+
+	static bool Test_RHIFormat_RenderTargetFormat(FRHICommandListImmediate& RHICmdList, EPixelFormat Format, bool bAllowUAV)
+	{
+		bool bResult = true;
+		RUN_TEST(Test_RHIFormat_WithParams(RHICmdList, Format, PF_Unknown, PF_Unknown, TexCreate_RenderTargetable));
+		RUN_TEST(Test_RHIFormat_WithParams(RHICmdList, Format, Format, PF_Unknown, TexCreate_RenderTargetable | TexCreate_ShaderResource));
+		if (bAllowUAV)
+		{
+			RUN_TEST(Test_RHIFormat_WithParams(RHICmdList, Format, PF_Unknown, Format, TexCreate_RenderTargetable | TexCreate_UAV));
+			RUN_TEST(Test_RHIFormat_WithParams(RHICmdList, Format, Format, Format, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV));
+		}
+		return bResult;
+	}
+
+	static bool Test_RHIFormat_DepthFormat(FRHICommandListImmediate& RHICmdList, EPixelFormat ResourceFormat)
+	{
+		bool bResult = true;
+		RUN_TEST(Test_RHIFormat_WithParams(RHICmdList, ResourceFormat, PF_Unknown, PF_Unknown, TexCreate_DepthStencilTargetable));
+		RUN_TEST(Test_RHIFormat_WithParams(RHICmdList, ResourceFormat, ResourceFormat, PF_Unknown, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource));
+
+		if (ResourceFormat == PF_DepthStencil)
+		{
+			RUN_TEST(Test_RHIFormat_WithParams(RHICmdList, ResourceFormat, PF_X24_G8, PF_Unknown, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource));
+		}
+
+		return bResult;
+	}
+
+	static bool Test_RHIFormats(FRHICommandListImmediate& RHICmdList)
+	{
+		bool bResult = true;
+		RUN_TEST(Test_RHIFormat_RenderTargetFormat(RHICmdList, PF_R32_FLOAT, true));
+
+		RUN_TEST(Test_RHIFormat_DepthFormat(RHICmdList, PF_DepthStencil));
+		RUN_TEST(Test_RHIFormat_DepthFormat(RHICmdList, PF_ShadowDepth));
+		RUN_TEST(Test_RHIFormat_DepthFormat(RHICmdList, PF_R32_FLOAT));
+		RUN_TEST(Test_RHIFormat_DepthFormat(RHICmdList, PF_D24));
+
+		return bResult;
+	}
 };

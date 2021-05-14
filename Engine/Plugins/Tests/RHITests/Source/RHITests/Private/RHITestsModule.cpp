@@ -33,6 +33,10 @@ static bool RunTests_RenderThread(FRHICommandListImmediate& RHICmdList)
 		RUN_TEST(FRHITextureTests::Test_RHIClearUAV_Texture3D(RHICmdList));
 	}
 
+	{
+		RUN_TEST(FRHITextureTests::Test_RHIFormats(RHICmdList));
+	}
+
 	// @todo - add more tests
 	return bResult;
 }
