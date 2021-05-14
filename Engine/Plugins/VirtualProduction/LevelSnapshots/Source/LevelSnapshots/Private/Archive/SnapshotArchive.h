@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Serialization/ArchiveUObject.h"
+#include "UObject/ObjectMacros.h"
 
 class UObject;
 class UPackage;
@@ -41,7 +42,7 @@ protected:
 		return SharedData;
 	}
 
-	int32 ExcludedPropertyFlags;
+	EPropertyFlags ExcludedPropertyFlags;
 
 	FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading);
 	

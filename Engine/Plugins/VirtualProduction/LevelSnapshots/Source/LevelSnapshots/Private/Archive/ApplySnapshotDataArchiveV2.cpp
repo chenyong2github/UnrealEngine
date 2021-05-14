@@ -61,8 +61,7 @@ namespace
 			:
 			Super(SaveLocation),
 			PropertiesToSerialize(PropertiesToSerialize),
-			SnapshotObject(SnapshotObject),
-			TextProperties(TextProperties)
+			SnapshotObject(SnapshotObject)
 		{
 			ArNoDelta = true;
 		}
