@@ -1347,7 +1347,7 @@ FLandscapeTextureAtlas::FAllocation::FAllocation(UTexture2D* InTexture, uint32 I
 {}
 
 FLandscapeTextureAtlas::FPendingUpload::FPendingUpload(UTexture2D* Texture, uint32 SizeX, uint32 SizeY, uint32 MipBias, uint32 InHandle, uint32 Channel)
-	: SourceTexture(Texture->Resource->TextureRHI)
+	: SourceTexture(Texture->GetResource()->TextureRHI)
 	, SizesAndMipBias(FIntVector(SizeX, SizeY, MipBias))
 	, VisibilityChannel(Channel)
 	, Handle(InHandle)

@@ -522,9 +522,9 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 	FRHITexture* BloomDirtMaskTexture = GBlackTexture->TextureRHI;
 
-	if (PostProcessSettings.BloomDirtMask && PostProcessSettings.BloomDirtMask->Resource)
+	if (PostProcessSettings.BloomDirtMask && PostProcessSettings.BloomDirtMask->GetResource())
 	{
-		BloomDirtMaskTexture = PostProcessSettings.BloomDirtMask->Resource->TextureRHI;
+		BloomDirtMaskTexture = PostProcessSettings.BloomDirtMask->GetResource()->TextureRHI;
 	}
 
 	FRHISamplerState* BilinearClampSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

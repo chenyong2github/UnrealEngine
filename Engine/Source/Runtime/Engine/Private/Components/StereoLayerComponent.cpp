@@ -132,7 +132,7 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	}
 
 	bool bCurrVisible = GetVisibleFlag();
-	if (!Texture || !Texture->Resource)
+	if (!Texture || !Texture->GetResource())
 	{
 		bCurrVisible = false;
 	}
@@ -148,13 +148,13 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 		if (Texture)
 		{
 			Texture->SetForceMipLevelsToBeResident(30.0f);
-			LayerDesc.Texture = Texture->Resource->TextureRHI;
+			LayerDesc.Texture = Texture->GetResource()->TextureRHI;
 			LayerDesc.Flags |= (Texture->GetMaterialType() == MCT_TextureExternal) ? IStereoLayers::LAYER_FLAG_TEX_EXTERNAL : 0;
 		}
 		if (LeftTexture)
 		{
 			Texture->SetForceMipLevelsToBeResident(30.0f);
-			LayerDesc.LeftTexture = LeftTexture->Resource->TextureRHI;
+			LayerDesc.LeftTexture = LeftTexture->GetResource()->TextureRHI;
 		}
 				
 		LayerDesc.Flags |= (bLiveTexture) ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0;

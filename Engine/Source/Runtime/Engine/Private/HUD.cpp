@@ -970,7 +970,7 @@ void AHUD::DrawTexture(UTexture* Texture, float ScreenX, float ScreenY, float Sc
 {
 	if (IsCanvasValid_WarnIfNot() && Texture)
 	{
-		FCanvasTileItem TileItem(FVector2D(ScreenX, ScreenY), Texture->Resource, FVector2D(ScreenW, ScreenH) * Scale, FVector2D(TextureU, TextureV), FVector2D(TextureU + TextureUWidth, TextureV + TextureVHeight), Color);
+		FCanvasTileItem TileItem(FVector2D(ScreenX, ScreenY), Texture->GetResource(), FVector2D(ScreenW, ScreenH) * Scale, FVector2D(TextureU, TextureV), FVector2D(TextureU + TextureUWidth, TextureV + TextureVHeight), Color);
 		TileItem.Rotation = FRotator(0, Rotation, 0);
 		TileItem.PivotPoint = RotPivot;
 		if (bScalePosition)
@@ -986,7 +986,7 @@ void AHUD::DrawTextureSimple(UTexture* Texture, float ScreenX, float ScreenY, fl
 {
 	if (IsCanvasValid_WarnIfNot() && Texture)
 	{
-		FCanvasTileItem TileItem(FVector2D(ScreenX, ScreenY), Texture->Resource, FLinearColor::White);
+		FCanvasTileItem TileItem(FVector2D(ScreenX, ScreenY), Texture->GetResource(), FLinearColor::White);
 		if (bScalePosition)
 		{
 			TileItem.Position *= Scale;

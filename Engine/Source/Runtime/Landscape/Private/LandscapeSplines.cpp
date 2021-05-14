@@ -284,11 +284,11 @@ public:
 							ControlPointSpriteLocation,
 							ControlPointSpriteScale,
 							ControlPointSpriteScale,
-							ControlPointSprite->Resource,
+							ControlPointSprite->GetResource(),
 							ControlPointSpriteColor,
 							GetDepthPriorityGroup(View),
-							0, ControlPointSprite->Resource->GetSizeX(),
-							0, ControlPointSprite->Resource->GetSizeY(),
+							0, ControlPointSprite->GetResource()->GetSizeX(),
+							0, ControlPointSprite->GetResource()->GetSizeY(),
 							SE_BLEND_Masked);
 					}
 

@@ -883,7 +883,7 @@ bool FLightCacheInterface::GetVirtualTextureLightmapProducer(ERHIFeatureLevel::T
 		// Preview lightmaps don't stream from disk, thus no FVirtualTexture2DResource
 		if (VirtualTexture && !VirtualTexture->bPreviewLightmap)
 		{
-			FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)VirtualTexture->Resource;
+			FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)VirtualTexture->GetResource();
 			OutProducerHandle = Resource->GetProducerHandle();
 			return true;
 		}
@@ -896,9 +896,9 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapResourceClusterShaderParameter
 static FRHISamplerState* GetTextureSamplerState(const UTexture* Texture, FRHISamplerState* Default)
 {
 	FRHISamplerState* Result = nullptr;
-	if (Texture && Texture->Resource)
+	if (Texture && Texture->GetResource())
 	{
-		Result = Texture->Resource->SamplerStateRHI;
+		Result = Texture->GetResource()->SamplerStateRHI;
 	}
 	return Result ? Result : Default;
 }

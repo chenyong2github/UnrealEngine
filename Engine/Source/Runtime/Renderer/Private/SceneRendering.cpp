@@ -1857,7 +1857,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.FarShadowStaticMeshLODBias = 0;
 	}
 
-	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
+	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->GetResource()->TextureRHI;
 
 	ViewUniformShaderParameters.VirtualTextureFeedbackStride = GetVirtualTextureFeedbackBufferSize(SceneTexturesConfig.Extent).X;
 	// Use some low(ish) discrepancy sequence to run over every pixel in the virtual texture feedback tile.

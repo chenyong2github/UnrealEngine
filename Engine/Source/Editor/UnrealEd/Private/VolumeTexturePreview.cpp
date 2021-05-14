@@ -79,7 +79,7 @@ public:
 		SetTextureParameter(RHICmdList, ShaderRHI, InTexture, InTextureSampler, TextureValue);
 		if (GEditor && GEditor->Bad)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, BadTexture, BadTextureSampler, GEditor->Bad->Resource);
+			SetTextureParameter(RHICmdList, ShaderRHI, BadTexture, BadTextureSampler, GEditor->Bad->GetResource());
 		}
 		else
 		{

@@ -13,7 +13,7 @@ FTextureUpdateContext::FTextureUpdateContext(const UTexture* InTexture, EThreadT
 	, CurrentThread(InCurrentThread)
 {
 	check(InTexture);
-	Resource = Texture && Texture->Resource ? Texture->Resource->GetStreamableTextureResource() : nullptr;
+	Resource = Texture && Texture->GetResource() ? const_cast<UTexture*>(Texture)->GetResource()->GetStreamableTextureResource() : nullptr;
 	if (Resource)
 	{
 		MipsView = Resource->GetPlatformMipsView();

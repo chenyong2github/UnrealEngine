@@ -81,11 +81,11 @@ UStereoLayerFunctionLibrary::UStereoLayerFunctionLibrary(const FObjectInitialize
 void UStereoLayerFunctionLibrary::SetSplashScreen(class UTexture* Texture, FVector2D Scale, FVector Offset, bool bShowLoadingMovie, bool bShowOnSet)
 {
 	IXRLoadingScreen* LoadingScreen = GetLoadingScreen();
-	if (LoadingScreen && Texture && Texture->Resource)
+	if (LoadingScreen && Texture && Texture->GetResource())
 	{
 		LoadingScreen->ClearSplashes();
 		IXRLoadingScreen::FSplashDesc Splash;
-		Splash.Texture = Texture->Resource->TextureRHI;
+		Splash.Texture = Texture->GetResource()->TextureRHI;
 		Splash.QuadSize = Scale;
 		Splash.Transform = FTransform(Offset);
 		LoadingScreen->AddSplash(Splash);

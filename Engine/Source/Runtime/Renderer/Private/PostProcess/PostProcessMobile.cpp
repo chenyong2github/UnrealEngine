@@ -1121,9 +1121,9 @@ FScreenPassTexture AddMobileSunMergePass(FRDGBuilder& GraphBuilder, const FViewI
 
 	FRHITexture* BloomDirtMaskTexture = GBlackTexture->TextureRHI;
 
-	if (Settings.BloomDirtMask && Settings.BloomDirtMask->Resource)
+	if (Settings.BloomDirtMask && Settings.BloomDirtMask->GetResource())
 	{
-		BloomDirtMaskTexture = Settings.BloomDirtMask->Resource->TextureRHI;
+		BloomDirtMaskTexture = Settings.BloomDirtMask->GetResource()->TextureRHI;
 	}
 
 	FMobileSunMergePS::FParameters* PSShaderParameters = GraphBuilder.AllocParameters<FMobileSunMergePS::FParameters>();

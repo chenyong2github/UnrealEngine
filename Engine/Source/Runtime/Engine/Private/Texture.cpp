@@ -560,9 +560,9 @@ void UTexture::BeginFinalReleaseResource()
 {
 	check(!bAsyncResourceReleaseHasBeenStarted);
 	// Send the rendering thread a release message for the texture's resource.
-	if (Resource)
+	if (GetResource())
 	{
-		BeginReleaseResource(Resource);
+		BeginReleaseResource(GetResource());
 	}
 	if (TextureReference.IsInitialized_GameThread())
 	{
@@ -709,31 +709,31 @@ bool UTexture::DoesMipDataExist(const int32 MipIndex) const
 
 bool UTexture::HasPendingRenderResourceInitialization() const
 {
-	return Resource && !Resource->IsInitialized();
+	return GetResource() && !GetResource()->IsInitialized();
 }
 
 bool UTexture::HasPendingLODTransition() const
 {
-	return Resource && Resource->MipBiasFade.IsFading();
+	return GetResource() && GetResource()->MipBiasFade.IsFading();
 }
 
 float UTexture::GetLastRenderTimeForStreaming() const
 {
 	float LastRenderTime = -FLT_MAX;
-	if (Resource)
+	if (GetResource())
 	{
 		// The last render time is the last time the resource was directly bound or the last
 		// time the texture reference was cached in a resource table, whichever was later.
-		LastRenderTime = FMath::Max<double>(Resource->LastRenderTime,TextureReference.GetLastRenderTime());
+		LastRenderTime = FMath::Max<double>(GetResource()->LastRenderTime,TextureReference.GetLastRenderTime());
 	}
 	return LastRenderTime;
 }
 
 void UTexture::InvalidateLastRenderTimeForStreaming()
 {
-	if (Resource)
+	if (GetResource())
 	{
-		Resource->LastRenderTime = -FLT_MAX;
+		GetResource()->LastRenderTime = -FLT_MAX;
 	}
 	TextureReference.InvalidateLastRenderTime();
 }

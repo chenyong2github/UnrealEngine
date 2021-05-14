@@ -217,7 +217,7 @@ struct TextureStatsGenerator : public FFindReferencedAssets
 
 			Entry->LODBias = InTexture->GetCachedLODBias();
 
-			const FTexture* Resource = InTexture->Resource; 
+			const FTexture* Resource = InTexture->GetResource();
 			if(Resource)
 			{
 				Entry->LastTimeRendered = (float)FMath::Max( FApp::GetLastTime() - Resource->LastRenderTime, 0.0 );

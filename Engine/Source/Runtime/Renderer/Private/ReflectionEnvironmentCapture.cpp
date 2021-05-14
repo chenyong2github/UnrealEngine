@@ -835,7 +835,7 @@ void CopyCubemapToScratchCubemap(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 	SCOPED_DRAW_EVENT(RHICmdList, CopyCubemapToScratchCubemap);
 	check(SourceCubemap);
 
-	const FTexture* SourceCubemapResource = SourceCubemap->Resource;
+	const FTexture* SourceCubemapResource = SourceCubemap->GetResource();
 	if (SourceCubemapResource == nullptr)
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Unable to copy from cubemap %s, it's RHI resource is null"), *SourceCubemap->GetPathName());

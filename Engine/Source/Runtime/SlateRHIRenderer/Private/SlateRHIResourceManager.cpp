@@ -833,7 +833,7 @@ FSlateShaderResourceProxy* FSlateRHIResourceManager::FindOrCreateDynamicTextureR
 					}
 				}
 
-				if ( TextureResource.IsValid() && TextureResource->GetTextureObject() && TextureResource->GetTextureObject()->Resource )
+				if ( TextureResource.IsValid() && TextureResource->GetTextureObject() && TextureResource->GetTextureObject()->GetResource())
 				{
 					TextureResource->UpdateTexture(TextureObject);
 					return TextureResource->Proxy;

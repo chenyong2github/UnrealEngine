@@ -189,11 +189,11 @@ public:
 	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, UTexture2D* HeightfieldTextureValue, UTexture2D* DiffuseColorTextureValue, UTexture2D* VisibilityTextureValue)
 	{
 		//@todo - shouldn't filter the heightfield, it's packed
-		SetTextureParameter(RHICmdList, ShaderRHI, HeightfieldTexture, HeightfieldSampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), HeightfieldTextureValue->Resource->TextureRHI);
+		SetTextureParameter(RHICmdList, ShaderRHI, HeightfieldTexture, HeightfieldSampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), HeightfieldTextureValue->GetResource()->TextureRHI);
 
 		if (DiffuseColorTextureValue)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, DiffuseColorTexture, DiffuseColorSampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), DiffuseColorTextureValue->Resource->TextureRHI);
+			SetTextureParameter(RHICmdList, ShaderRHI, DiffuseColorTexture, DiffuseColorSampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), DiffuseColorTextureValue->GetResource()->TextureRHI);
 		}
 		else
 		{
@@ -202,7 +202,7 @@ public:
 
 		if (VisibilityTextureValue)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, VisibilityTexture, VisibilitySampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), VisibilityTextureValue->Resource->TextureRHI);
+			SetTextureParameter(RHICmdList, ShaderRHI, VisibilityTexture, VisibilitySampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), VisibilityTextureValue->GetResource()->TextureRHI);
 		}
 		else
 		{

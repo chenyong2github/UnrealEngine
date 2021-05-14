@@ -61,9 +61,9 @@ void UTextureRenderTarget2DArray::InitAutoFormat(uint32 InSizeX, uint32 InSizeY,
 
 void UTextureRenderTarget2DArray::UpdateResourceImmediate(bool bClearRenderTarget/*=true*/)
 {
-	if (Resource)
+	if (GetResource())
 	{
-		FTextureRenderTarget2DArrayResource* InResource = static_cast<FTextureRenderTarget2DArrayResource*>(Resource);
+		FTextureRenderTarget2DArrayResource* InResource = static_cast<FTextureRenderTarget2DArrayResource*>(GetResource());
 		ENQUEUE_RENDER_COMMAND(UpdateResourceImmediate)(
 			[InResource, bClearRenderTarget](FRHICommandListImmediate& RHICmdList)
 			{

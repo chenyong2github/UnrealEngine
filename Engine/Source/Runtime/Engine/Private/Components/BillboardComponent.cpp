@@ -126,7 +126,7 @@ public:
 	{
 		QUICK_SCOPE_CYCLE_COUNTER( STAT_SpriteSceneProxy_GetDynamicMeshElements );
 
-		FTexture* TextureResource = Texture ? Texture->Resource : nullptr;
+		const FTexture* TextureResource = Texture ? Texture->GetResource() : nullptr;
 		if (TextureResource)
 		{
 			const float UL = ComponentUL == 0.0f ? TextureResource->GetSizeX() : ComponentUL;

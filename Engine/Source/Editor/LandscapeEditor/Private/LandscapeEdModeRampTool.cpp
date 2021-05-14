@@ -353,11 +353,11 @@ public:
 				PDI->DrawSprite(WorldPoints[i],
 					SpriteScale,
 					SpriteScale,
-					SpriteTexture->Resource,
+					SpriteTexture->GetResource(),
 					SpriteColor,
 					SDPG_Foreground,
-					0, SpriteTexture->Resource->GetSizeX(),
-					0, SpriteTexture->Resource->GetSizeY(),
+					0, SpriteTexture->GetResource()->GetSizeX(),
+					0, SpriteTexture->GetResource()->GetSizeY(),
 					SE_BLEND_Masked);
 			}
 			PDI->SetHitProxy(NULL);

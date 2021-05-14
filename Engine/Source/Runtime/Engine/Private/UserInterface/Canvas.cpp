@@ -79,9 +79,9 @@ FTexture* GetTextureForCanvasItem(UTexture* RenderTexture)
 	// Only assign a valid texture for the canvas item. Proxy textures, from the UTexture implementation, are not valid here.
 	// This is because the proxy textures get destroyed on the render thread as soon as the build completes, which could happen
 	// before the canvas item renders.
-	if (RenderTexture && RenderTexture->Resource && !RenderTexture->Resource->IsProxy())
+	if (RenderTexture && RenderTexture->GetResource() && !RenderTexture->GetResource()->IsProxy())
 	{
-		return RenderTexture->Resource;
+		return RenderTexture->GetResource();
 	}
 	else
 	{
@@ -2078,7 +2078,7 @@ void UCanvas::K2_DrawBorder(UTexture* BorderTexture, UTexture* BackgroundTexture
 {
 	if (ScreenSize.X > 0.0f && ScreenSize.Y > 0.0f && BorderTexture && BackgroundTexture && LeftBorderTexture && RightBorderTexture && TopBorderTexture && BottomBorderTexture && Canvas)
 	{
-		FCanvasBorderItem BorderItem(ScreenPosition, BorderTexture->Resource, BackgroundTexture->Resource, LeftBorderTexture->Resource, RightBorderTexture->Resource, TopBorderTexture->Resource, BottomBorderTexture->Resource, ScreenSize, RenderColor);
+		FCanvasBorderItem BorderItem(ScreenPosition, BorderTexture->GetResource(), BackgroundTexture->GetResource(), LeftBorderTexture->GetResource(), RightBorderTexture->GetResource(), TopBorderTexture->GetResource(), BottomBorderTexture->GetResource(), ScreenSize, RenderColor);
 		BorderItem.BorderScale = BorderScale;
 		BorderItem.BackgroundScale = BackgroundScale;
 		BorderItem.BorderUV0 = CoordinatePosition;

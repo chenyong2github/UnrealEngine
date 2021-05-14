@@ -167,19 +167,19 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		const int32 CheckerboardSizeY = FMath::Max<int32>(1, CheckerboardTexture->GetSizeY());
 		if (Settings.Background == TextureEditorBackground_CheckeredFill)
 		{
-			Canvas->DrawTile( 0.0f, 0.0f, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y, 0.0f, 0.0f, (float)Viewport->GetSizeXY().X / CheckerboardSizeX, (float)Viewport->GetSizeXY().Y / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->Resource);
+			Canvas->DrawTile( 0.0f, 0.0f, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y, 0.0f, 0.0f, (float)Viewport->GetSizeXY().X / CheckerboardSizeX, (float)Viewport->GetSizeXY().Y / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->GetResource());
 		}
 		else if (Settings.Background == TextureEditorBackground_Checkered)
 		{
-			Canvas->DrawTile( XPos, YPos, Width, Height, 0.0f, 0.0f, (float)Width / CheckerboardSizeX, (float)Height / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->Resource);
+			Canvas->DrawTile( XPos, YPos, Width, Height, 0.0f, 0.0f, (float)Width / CheckerboardSizeX, (float)Height / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->GetResource());
 		}
 	}
 
 	float Exposure = FMath::Pow(2.0f, (float)TextureEditorPinned->GetExposureBias());
 
-	if ( Texture->Resource != nullptr )
+	if ( Texture->GetResource() != nullptr )
 	{
-		FCanvasTileItem TileItem( FVector2D( XPos, YPos ), Texture->Resource, FVector2D( Width, Height ), FLinearColor(Exposure, Exposure, Exposure) );
+		FCanvasTileItem TileItem( FVector2D( XPos, YPos ), Texture->GetResource(), FVector2D( Width, Height ), FLinearColor(Exposure, Exposure, Exposure) );
 		TileItem.BlendMode = TextureEditorPinned->GetColourChannelBlendMode();
 		TileItem.BatchedElementParameters = BatchedElementParameters;
 
@@ -204,7 +204,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		// if we are presenting a virtual texture, make the appropriate tiles resident
 		if (bIsVirtualTexture && CVarEnableVTFeedback.GetValueOnAnyThread() != 0)
 		{
-			FVirtualTexture2DResource* VTResource = static_cast<FVirtualTexture2DResource*>(Texture->Resource);
+			FVirtualTexture2DResource* VTResource = static_cast<FVirtualTexture2DResource*>(Texture->GetResource());
 			const FVector2D ScreenSpaceSize((float)Width, (float)Height);
 			const FVector2D ViewportPositon(-(float)XPos, -(float)YPos);
 			const FVector2D UV0 = TileItem.UV0;
@@ -231,7 +231,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		const FIntPoint SizeOnMip = { Texture2D->GetSizeX() >> Mip,Texture2D->GetSizeY() >> Mip };
 		const uint64 NumPixels = static_cast<uint64>(SizeOnMip.X) * SizeOnMip.Y;
 
-		const FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)Texture2D->Resource;
+		const FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)Texture2D->GetResource();
 		const FIntPoint PhysicalTextureSize = Resource->GetPhysicalTextureSize(0u);
 		const uint64 NumPhysicalPixels = static_cast<uint64>(PhysicalTextureSize.X) * PhysicalTextureSize.Y;
 
@@ -509,7 +509,7 @@ void FTextureEditorViewportClient::DestroyCheckerboardTexture()
 {
 	if (CheckerboardTexture)
 	{
-		if (CheckerboardTexture->Resource)
+		if (CheckerboardTexture->GetResource())
 		{
 			CheckerboardTexture->ReleaseResource();
 		}

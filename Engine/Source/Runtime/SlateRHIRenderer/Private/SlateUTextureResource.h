@@ -25,9 +25,9 @@ public:
 	/** Gets the RHI resource used for rendering and updates the last render time for texture streaming */
 	FTextureRHIRef AccessRHIResource()
 	{
-		if ( TextureObject && TextureObject->Resource )
+		if ( TextureObject && TextureObject->GetResource())
 		{
-			FTexture* TextureResource = TextureObject->Resource;
+			FTexture* TextureResource = TextureObject->GetResource();
 			TextureResource->LastRenderTime = FApp::GetCurrentTime();
 
 			return TextureResource->TextureRHI;

@@ -28,5 +28,5 @@ inline void InitializeBlueNoise(FBlueNoise& BlueNoise)
 		GEngine->BlueNoiseTexture->GetSizeY() / FMath::Max<int32>(1, GEngine->BlueNoiseTexture->GetSizeX())
 	);
 
-	BlueNoise.Texture = GEngine->BlueNoiseTexture->Resource->TextureRHI;
+	BlueNoise.Texture = GEngine->BlueNoiseTexture->GetResource()->TextureRHI;
 }

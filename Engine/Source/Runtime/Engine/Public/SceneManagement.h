@@ -1460,7 +1460,7 @@ public:
 	inline float GetLightFunctionFadeDistance() const { return LightFunctionFadeDistance; }
 	inline float GetLightFunctionDisabledBrightness() const { return LightFunctionDisabledBrightness; }
 	inline UTextureLightProfile* GetIESTexture() const { return IESTexture; }
-	inline FTexture* GetIESTextureResource() const { return IESTexture ? IESTexture->Resource : nullptr; }
+	inline FTexture* GetIESTextureResource() const { return IESTexture ? IESTexture->GetResource() : nullptr; }
 	inline const FMaterialRenderProxy* GetLightFunctionMaterial() const { return LightFunctionMaterial; }
 	inline bool IsMovable() const { return bMovable; }
 	inline bool HasStaticLighting() const { return bStaticLighting; }
