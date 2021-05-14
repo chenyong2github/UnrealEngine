@@ -69,26 +69,15 @@ void FMediaMovieStreamer::OnMediaEnd()
 bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<EMoviePlaybackType> InPlaybackType)
 {
 	MovieViewport->SetTexture(nullptr);
-
-	// Get player.
-	if (MediaPlayer.IsValid() == false)
-	{
-		UE_LOG(LogMediaMovieStreamer, Error, TEXT("OpenNextMovie called but no player set."));
-		return false;
-	}
-
-	// Get source.
-	if (MediaSource.IsValid() == false)
-	{
-		UE_LOG(LogMediaMovieStreamer, Error, TEXT("OpenNextMovie called but no source set."));
-		return false;
-	}
-
+	
 	// Play source.
-	bIsPlaying = true;
-	MediaPlayer->OpenSource(MediaSource.Get());
+	if ((MediaPlayer.IsValid()) && (MediaSource.IsValid()))
+	{
+		bIsPlaying = true;
+		MediaPlayer->OpenSource(MediaSource.Get());
 
-	Texture = MakeShareable(new FSlateTexture2DRHIRef(nullptr, 0, 0));
+		Texture = MakeShareable(new FSlateTexture2DRHIRef(nullptr, 0, 0));
+	}
 	
 	return true;
 }
