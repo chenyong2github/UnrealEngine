@@ -712,7 +712,7 @@ bool FEditorDomainSaveServer::TrySavePackage(const FPackagePath& PackagePath, FS
 		return false;
 	}
 
-	if (!UE::EditorDomain::TrySavePackage(Package))
+	if (!UE::EditorDomain::TrySavePackage(Package, this->ClassDigests))
 	{
 		OutErrorMessage = FString::Printf(TEXT("Could not save package %s."), *PackagePath.GetDebugName());
 		return false;
