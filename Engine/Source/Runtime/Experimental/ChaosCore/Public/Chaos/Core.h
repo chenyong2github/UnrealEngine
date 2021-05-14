@@ -35,5 +35,5 @@ namespace Chaos
 	// NOTE: if you get a merge conflict on the GUID, you must replace it with a new GUID - do not accept the source or target
 	// or you will likely get DDC version conflicts resulting in crashes during load.
 	// Core version string for Chaos data. Any DDC builder dependent on Chaos for serialization should depend on this version
-	static const FString ChaosVersionString = TEXT("9C6B5D3F-C884-4564-BF7C-68B28AFFDD33");
+	static const FString ChaosVersionString = TEXT("77BD06DA-4CDE-4196-AB40-118520F9A69E");
 }

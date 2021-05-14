@@ -963,30 +963,40 @@ namespace Chaos
 		return Seed;
 	}
 
+	// this is used as 
+	template<typename T, int d>
+	inline FArchive& SerializeReal(FArchive& Ar, TVector<T, d>& ValueIn)
+	{
+		static_assert(TIsSame<T, float>::Value || TIsSame<T, double>::Value, "only float or double are supoprted by this function");
+		for (int32 Idx = 0; Idx < d; ++Idx)
+		{
+			FRealSingle RealSingle = (FRealSingle)ValueIn[Idx];
+			Ar << RealSingle;
+			ValueIn[Idx] = (T)RealSingle;
+		}
+		return Ar;
+	}
+
+	template<int d>
+	FArchive& operator<<(FArchive& Ar, TVector<FRealSingle, d>& ValueIn) 
+	{
+		return SerializeReal(Ar, ValueIn);
+	}
+
+	template<int d>
+	FArchive& operator<<(FArchive& Ar, TVector<FRealDouble, d>& ValueIn)
+	{
+		return SerializeReal(Ar, ValueIn);
+	}
+
+	// general for for all other vectors
 	template<typename T, int d>
 	FArchive& operator<<(FArchive& Ar, TVector<T, d>& ValueIn)
 	{
-		// LWC_TODO: Serializer
-		//constexpr bool bIsTypeReal = (TAreTypesEqual<FReal, T>::Value == true);
-		//if(!Ar.IsPersistent())
-		//{
-		//	// unchanged type code path 
-		//	for (int32 Idx = 0; Idx < d; ++Idx)
-		//	{
-		//		Ar << ValueIn[Idx];
-		//	}
-
-		//}
-		//else
+		// unchanged type code path 
+		for (int32 Idx = 0; Idx < d; ++Idx)
 		{
-			// in that case data is stored as float and we need to read it as such		
-			//ensure(Ar.IsLoading()); // this case should normally only happening when reading 
-			for (int32 Idx = 0; Idx < d; ++Idx)
-			{
-				FRealSingle RealSingle = (FRealSingle)ValueIn[Idx];
-				Ar << RealSingle;
-				ValueIn[Idx] = (T)RealSingle;
-			}
+			Ar << ValueIn[Idx];
 		}
 		return Ar;
 	}
