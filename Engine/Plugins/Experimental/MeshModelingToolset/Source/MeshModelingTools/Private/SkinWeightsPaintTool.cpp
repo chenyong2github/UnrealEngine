@@ -89,11 +89,11 @@ void USkinWeightsPaintTool::Setup()
 		// Pick the first root bone as the initial selection.
 		PendingCurrentBone = Component->SkeletalMesh->GetRefSkeleton().GetBoneName(0);
 		ToolProps->CurrentBone.BoneName = PendingCurrentBone.GetValue();
+
+		// Update the skeleton drawing information from the original bind pose
+		MaxDrawRadius = Component->Bounds.SphereRadius * 0.0025f;
 	}
 	AddToolPropertySource(ToolProps);
-
-	// Update the skeleton drawing information from the original bind pose
-	MaxDrawRadius = Component->Bounds.SphereRadius * 0.01f;
 
 	UpdateBonePositionInfos(MaxDrawRadius);
 
