@@ -2,6 +2,7 @@
 
 #include "DerivedDataBuildOutput.h"
 
+#include "Algo/AllOf.h"
 #include "Algo/BinarySearch.h"
 #include "Containers/StringConv.h"
 #include "Containers/StringView.h"
@@ -75,8 +76,8 @@ class FBuildOutputInternal final : public IBuildOutputInternal
 {
 public:
 	explicit FBuildOutputInternal(FBuildOutputBuilderInternal&& InOutput);
-	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& InOutput);
-	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& InOutput);
+	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& InOutput, bool& bOutIsValid);
+	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& InOutput, bool& bOutIsValid);
 
 	~FBuildOutputInternal() final = default;
 
@@ -90,8 +91,10 @@ public:
 	void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const final;
 	bool HasError() const final;
 
-	void Save(FCbWriter& Writer) const;
-	void Save(FCacheRecordBuilder& RecordBuilder) const;
+	void Save(FCbWriter& Writer) const final;
+	void Save(FCacheRecordBuilder& RecordBuilder) const final;
+
+	bool IsValid() const;
 
 	inline void AddRef() const final
 	{
@@ -126,32 +129,42 @@ FBuildOutputInternal::FBuildOutputInternal(FBuildOutputBuilderInternal&& InOutpu
 {
 }
 
-FBuildOutputInternal::FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& Output)
+FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCbObject& InOutput, bool& bOutIsValid)
 	: Name(Name)
 	, Function(Function)
 {
-	for (FCbFieldView PayloadField : Output["Payloads"_ASV])
+	bOutIsValid = false;
+	checkf(!InName.IsEmpty(), TEXT("A build output requires a non-empty name."));
+	for (FCbFieldView PayloadField : InOutput["Payloads"_ASV])
 	{
 		const FCbObjectView Payload = PayloadField.AsObjectView();
-		Payloads.Emplace(
-			FPayloadId(Payload["Id"_ASV].AsObjectId().GetView()),
-			Payload["RawHash"_ASV].AsAttachment(),
-			Payload["RawSize"_ASV].AsUInt64());
+		const FPayloadId Id(Payload["Id"_ASV].AsObjectId().GetView());
+		const FIoHash& RawHash = Payload["RawHash"_ASV].AsAttachment();
+		if (Id.IsNull() || RawHash.IsZero() || !Payload["RawSize"_ASV].IsInteger())
+		{
+			return;
+		}
+		Payloads.Emplace(Id, RawHash, Payload["RawSize"_ASV].AsUInt64());
 	}
-	Diagnostics = Output["Diagnostics"_ASV];
-	Meta = Output["Meta"_ASV].AsObject();
+	Diagnostics = InOutput["Diagnostics"_ASV];
+	Diagnostics.MakeOwned();
+	Meta = InOutput["Meta"_ASV].AsObject();
+	Meta.MakeOwned();
+	bOutIsValid = IsValid() && (!InOutput.FindView("Meta"_ASV) || InOutput.FindView("Meta"_ASV).IsObject());
 }
 
-FBuildOutputInternal::FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& Output)
-	: Name(Name)
-	, Function(Function)
-	, Payloads(Output.GetAttachmentPayloads())
-	, Meta(Output.GetMeta())
+FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCacheRecord& InOutput, bool& bOutIsValid)
+	: Name(InName)
+	, Function(InFunction)
+	, Payloads(InOutput.GetAttachmentPayloads())
+	, Meta(InOutput.GetMeta())
 {
-	if (FSharedBuffer Buffer = Output.GetValue())
+	checkf(!InName.IsEmpty(), TEXT("A build output requires a non-empty name."));
+	if (FSharedBuffer Buffer = InOutput.GetValue())
 	{
 		Diagnostics = FCbObject(MoveTemp(Buffer))["Diagnostics"_ASV];
 	}
+	bOutIsValid = IsValid();
 }
 
 const FPayload& FBuildOutputInternal::GetPayload(const FPayloadId& Id) const
@@ -232,6 +245,20 @@ void FBuildOutputInternal::Save(FCacheRecordBuilder& RecordBuilder) const
 	}
 }
 
+bool FBuildOutputInternal::IsValid() const
+{
+	return !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum)
+		&& Algo::AllOf(Payloads, [](const FPayload& Payload) { return !Payload.GetRawHash().IsZero(); })
+		&& (!Diagnostics || Diagnostics.IsArray())
+		&& Algo::AllOf(Diagnostics.CreateViewIterator(), [](FCbFieldView Field)
+			{
+				return Field.IsObject()
+					&& Field.AsObjectView()["Level"_ASV].AsString().Len() > 0
+					&& Field.AsObjectView()["Category"_ASV].AsString().Len() > 0
+					&& Field.AsObjectView()["Message"_ASV].AsString().Len() > 0;
+			});
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FBuildOutputBuilderInternal::AddPayload(const FPayload& Payload)
@@ -278,24 +305,31 @@ FBuildOutputBuilder CreateBuildOutputBuilder(IBuildOutputBuilderInternal* Output
 	return FBuildOutputBuilder(OutputBuilder);
 }
 
-const IBuildOutputInternal* GetBuildOutput(const FBuildOutput& Output)
-{
-	return Output.Output;
-}
-
 FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function)
 {
 	return CreateBuildOutputBuilder(new FBuildOutputBuilderInternal(Name, Function));
 }
 
-FBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCbObject& Output)
+FOptionalBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCbObject& Output)
 {
-	return CreateBuildOutput(new FBuildOutputInternal(Name, Function, Output));
+	bool bIsValid = false;
+	FOptionalBuildOutput Out = CreateBuildOutput(new FBuildOutputInternal(Name, Function, Output, bIsValid));
+	if (!bIsValid)
+	{
+		Out.Reset();
+	}
+	return Out;
 }
 
-FBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCacheRecord& Output)
+FOptionalBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCacheRecord& Output)
 {
-	return CreateBuildOutput(new FBuildOutputInternal(Name, Function, Output));
+	bool bIsValid = false;
+	FOptionalBuildOutput Out = CreateBuildOutput(new FBuildOutputInternal(Name, Function, Output, bIsValid));
+	if (!bIsValid)
+	{
+		Out.Reset();
+	}
+	return Out;
 }
 
 } // UE::DerivedData::Private

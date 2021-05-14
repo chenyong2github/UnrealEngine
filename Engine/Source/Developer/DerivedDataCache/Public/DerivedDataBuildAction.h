@@ -130,6 +130,7 @@ public:
 	}
 
 private:
+	friend class FOptionalBuildAction;
 	friend FBuildAction Private::CreateBuildAction(Private::IBuildActionInternal* Action);
 
 	/** Construct a build action. Use Build() on a builder from IBuild::CreateAction(). */
@@ -180,6 +181,32 @@ private:
 	}
 
 	TUniquePtr<Private::IBuildActionBuilderInternal> ActionBuilder;
+};
+
+/**
+ * A build action that can be null.
+ *
+ * @see FBuildAction
+ */
+class FOptionalBuildAction : private FBuildAction
+{
+public:
+	inline FOptionalBuildAction() : FBuildAction(nullptr) {}
+
+	inline FOptionalBuildAction(FBuildAction&& InAction) : FBuildAction(MoveTemp(InAction)) {}
+	inline FOptionalBuildAction(const FBuildAction& InAction) : FBuildAction(InAction) {}
+	inline FOptionalBuildAction& operator=(FBuildAction&& InAction) { FBuildAction::operator=(MoveTemp(InAction)); return *this; }
+	inline FOptionalBuildAction& operator=(const FBuildAction& InAction) { FBuildAction::operator=(InAction); return *this; }
+
+	/** Returns the build action. The caller must check for null before using this accessor. */
+	inline const FBuildAction& Get() const & { return *this; }
+	inline FBuildAction&& Get() && { return MoveTemp(*this); }
+
+	inline bool IsNull() const { return !IsValid(); }
+	inline bool IsValid() const { return Action.IsValid(); }
+	inline explicit operator bool() const { return IsValid(); }
+
+	inline void Reset() { *this = FOptionalBuildAction(); }
 };
 
 } // UE::DerivedData
