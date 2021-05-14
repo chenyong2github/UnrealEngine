@@ -33,13 +33,13 @@ template <> struct TLiteral<WIDECHAR>
 template <typename CharType, const unsigned int Size>
 struct TCharBase
 {
-	static constexpr CharType LineFeed = 0xa;
-	static constexpr CharType VerticalTab = 0xb;
-	static constexpr CharType FormFeed = 0xc;
-	static constexpr CharType CarriageReturn = 0xd;
-	static constexpr CharType NextLine = 0x85;
-	static constexpr CharType LineSeparator = 0x2028;
-	static constexpr CharType ParagraphSeparator = 0x2029;
+	static constexpr CharType LineFeed           = (CharType)0xa;
+	static constexpr CharType VerticalTab        = (CharType)0xb;
+	static constexpr CharType FormFeed           = (CharType)0xc;
+	static constexpr CharType CarriageReturn     = (CharType)0xd;
+	static constexpr CharType NextLine           = (CharType)0x85;
+	static constexpr CharType LineSeparator      = (CharType)0x2028;
+	static constexpr CharType ParagraphSeparator = (CharType)0x2029;
 
 	static bool IsLinebreak(CharType Char)
 	{
@@ -52,10 +52,10 @@ struct TCharBase
 template <typename CharType>
 struct TCharBase<CharType, 1>
 {
-	static constexpr CharType LineFeed = 0xa;
-	static constexpr CharType VerticalTab = 0xb;
-	static constexpr CharType FormFeed = 0xc;
-	static constexpr CharType CarriageReturn = 0xd;
+	static constexpr CharType LineFeed       = (CharType)0xa;
+	static constexpr CharType VerticalTab    = (CharType)0xb;
+	static constexpr CharType FormFeed       = (CharType)0xc;
+	static constexpr CharType CarriageReturn = (CharType)0xd;
 
 	static bool IsLinebreak(CharType Char)
 	{
