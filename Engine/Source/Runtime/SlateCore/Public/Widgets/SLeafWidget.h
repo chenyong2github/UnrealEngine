@@ -62,9 +62,4 @@ private:
 	virtual FChildren* GetChildren() override;
 
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-
-private:
-
-	// Shared instance of FNoChildren for all widgets with no children.
-	static FNoChildren NoChildrenInstance;
 };

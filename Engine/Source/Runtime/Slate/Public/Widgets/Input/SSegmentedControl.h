@@ -29,11 +29,11 @@ public:
 
 	/** Stores the per-child info for this panel type */
 	template< typename SlotOptionType >
-	struct FSlot : public TSlotBase<FSlot<SlotOptionType>>, TSupportsContentAlignmentMixin<FSlot<SlotOptionType>>
+	struct FSlot : public TSlotBase<FSlot<SlotOptionType>>, TAlignmentWidgetSlotMixin<FSlot<SlotOptionType>>
 	{
 		FSlot(const SlotOptionType& InValue) 
 		: TSlotBase<FSlot<SlotOptionType>>()
-		, TSupportsContentAlignmentMixin<FSlot<SlotOptionType>>(HAlign_Center, VAlign_Fill)
+		, TAlignmentWidgetSlotMixin<FSlot<SlotOptionType>>(HAlign_Center, VAlign_Fill)
 		, _Text()
 		, _Tooltip()
 		, _Icon(nullptr)

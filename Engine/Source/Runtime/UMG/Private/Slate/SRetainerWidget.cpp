@@ -86,8 +86,7 @@ TFrameValue<int32> SRetainerWidget::Shared_RetainerWorkThisFrame(0);
 
 
 SRetainerWidget::SRetainerWidget()
-	: EmptyChildSlot(this)
-	, PreviousRenderSize(FIntPoint::NoneValue)
+	: PreviousRenderSize(FIntPoint::NoneValue)
 	, PreviousClipRectSize(FIntPoint::NoneValue)
 	, PreviousColorAndOpacity(FColor::Transparent)
 	, LastIncomingLayerId(0)
@@ -332,7 +331,7 @@ FChildren* SRetainerWidget::GetChildren()
 {
 	if (bEnableRetainedRendering)
 	{
-		return &EmptyChildSlot;
+		return &FNoChildren::NoChildrenInstance;
 	}
 	else
 	{

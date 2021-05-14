@@ -2736,7 +2736,6 @@ void UGameViewportClient::AddViewportWidgetContent( TSharedRef<SWidget> Viewport
 	TSharedPtr< SOverlay > PinnedViewportOverlayWidget( ViewportOverlayWidget.Pin() );
 	if( ensure( PinnedViewportOverlayWidget.IsValid() ) )
 	{
-		// NOTE: Returns FSimpleSlot but we're ignoring here.  Could be used for alignment though.
 		PinnedViewportOverlayWidget->AddSlot( ZOrder )
 			[
 				ViewportContent

@@ -61,7 +61,7 @@ protected:
 
 	const TSharedRef<FUICommandList> CommandList;
 
-	FSimpleSlot ChildSlot;
+	FSingleWidgetChildrenWithBasicLayoutSlot ChildSlot;
 
 	FChildren* GetChildren()
 	{

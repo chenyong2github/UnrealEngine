@@ -32,13 +32,12 @@ public:
 		int TheLayer;
 	};
 
-	class FSlot : public TSlotBase<FSlot>, public TSupportsContentAlignmentMixin<FSlot>, public TSupportsContentPaddingMixin<FSlot>
+	class FSlot : public TBasicLayoutWidgetSlot<FSlot>
 	{
 		public:
 			/** Default values for a slot. */
 			FSlot( int32 Column, int32 Row, int32 InLayer )
-				: TSlotBase<FSlot>()
-				, TSupportsContentAlignmentMixin<FSlot>(HAlign_Fill, VAlign_Fill)
+				: TBasicLayoutWidgetSlot<FSlot>(HAlign_Fill, VAlign_Fill)
 				, ColumnParam( Column )
 				, ColumnSpanParam( 1 )
 				, RowParam( Row )

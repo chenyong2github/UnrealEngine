@@ -4,8 +4,6 @@
 #include "Layout/ArrangedChildren.h"
 
 
-FNoChildren SListPanel::NoChildren = FNoChildren();
-
 // Used to subtract a tiny amount from the available dimension to avoid floating point precision problems when arranging children
 static const float FloatingPointPrecisionOffset = 0.001f;
 
@@ -191,7 +189,7 @@ FChildren* SListPanel::GetChildren()
 		// When a refresh is pending it is unsafe to cache the desired sizes of our children because
 		// they may be representing unsound data structures. Any delegates/attributes accessing unsound
 		// data will cause a crash.
-		return &NoChildren;
+		return &FNoChildren::NoChildrenInstance;
 	}
 	else
 	{

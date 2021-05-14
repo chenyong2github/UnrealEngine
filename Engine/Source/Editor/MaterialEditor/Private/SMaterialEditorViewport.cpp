@@ -775,15 +775,7 @@ void SMaterialEditor3DPreviewViewport::OnPropertyChanged(UObject* ObjectBeingMod
 class SMaterialEditorUIPreviewZoomer : public SPanel, public IScrollableZoomable, public FGCObject
 {
 public:
-
-	class FMaterialPreviewPanelSlot : public TSupportsOneChildMixin<FMaterialPreviewPanelSlot>
-	{
-	public:
-		FMaterialPreviewPanelSlot(SWidget* InOwner)
-			: TSupportsOneChildMixin<FMaterialPreviewPanelSlot>(InOwner)
-		{
-		}
-	};
+	using FMaterialPreviewPanelSlot = FSingleWidgetChildrenWithSlot;
 
 	SLATE_BEGIN_ARGS(SMaterialEditorUIPreviewZoomer)
 		: _OnContextMenuRequested()

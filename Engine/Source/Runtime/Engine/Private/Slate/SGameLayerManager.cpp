@@ -184,7 +184,6 @@ void SGameLayerManager::AddWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWid
 {
 	TSharedPtr<FPlayerLayer> PlayerLayer = FindOrCreatePlayerLayer(Player);
 	
-	// NOTE: Returns FSimpleSlot but we're ignoring here.  Could be used for alignment though.
 	PlayerLayer->Widget->AddSlot(ZOrder)
 	[
 		ViewportContent
