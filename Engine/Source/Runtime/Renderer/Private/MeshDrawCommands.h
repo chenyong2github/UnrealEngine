@@ -140,6 +140,7 @@ class FParallelMeshDrawCommandPass
 public:
 	FParallelMeshDrawCommandPass()
 		: bPrimitiveIdBufferDataOwnedByRHIThread(false)
+		, bHasQueuedInstanceCullingBuild(false)
 		, MaxNumDraws(0)
 	{
 	}
@@ -172,6 +173,13 @@ public:
 	 * Needs to happen after DispatchPassSetup and before DispatchDraw, but not before global instance culling has been done.
 	 */
 	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
+
+
+	/**
+	 * Sync with setup task and return item to run batch processing on, sets a flag to signal batched processing has been requested (which is then used in BuildRenderingCommands to skip processing).
+	 * Needs to happen after DispatchPassSetup and before DispatchDraw, but not before global instance culling has been done.
+	 */
+	void QueueBatchedBuildRenderingCommands(TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator>& BatchItems);
 
 	/**
 	 * Sync with setup task and run post-instance culling job unpack surviving instance IDs into two lists of instance ID + draw command ID.
@@ -210,6 +218,7 @@ private:
 
 	// If TaskContext::PrimitiveIdBufferData will be released by RHI Thread.
 	mutable bool bPrimitiveIdBufferDataOwnedByRHIThread;
+	bool bHasQueuedInstanceCullingBuild;
 
 	// Maximum number of draws for this pass. Used to prealocate resources on rendering thread. 
 	// Has a guarantee that if there won't be any draws, then MaxNumDraws = 0;
@@ -235,6 +244,7 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 	uint32 InstanceFactor,
 	FRHIBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
 	FRHIBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
+	uint32 DrawCommandDataOffset, // Used to offset both the indirect args and the instance ID offset buffers when bound (wrt each their strides)
 	FRHICommandList& RHICmdList);
 
 void SetupGPUInstancedDraws(

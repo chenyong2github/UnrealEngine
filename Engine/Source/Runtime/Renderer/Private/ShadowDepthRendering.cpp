@@ -1960,6 +1960,31 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
 	}
 
+	// Batch all culling commands to minimize transition stalls and improve throughput etc
+	{
+		TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator> InstanceCullingBatches;
+		for (FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.ShadowMapAtlases)
+		{
+			for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
+			{
+				ProjectedShadowInfo->QueueBatchedBuildRenderingCommands(InstanceCullingBatches);
+			}
+		}
+		for (FSortedShadowMapAtlas& ShadowMap : SortedShadowsForShadowDepthPass.ShadowMapCubemaps)
+		{
+			FProjectedShadowInfo* ProjectedShadowInfo = ShadowMap.Shadows[0];
+			ProjectedShadowInfo->QueueBatchedBuildRenderingCommands(InstanceCullingBatches);
+		}
+		for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.PreshadowCache.Shadows)
+		{
+			if (!ProjectedShadowInfo->bDepthsCached)
+			{
+				ProjectedShadowInfo->QueueBatchedBuildRenderingCommands(InstanceCullingBatches);
+			}
+		}
+		FInstanceCullingContext::BuildRenderingCommandsBatched(GraphBuilder, Scene->GPUScene, InstanceCullingBatches);
+	}
+
 	VirtualShadowMapArray.SetupProjectionParameters(GraphBuilder);
 
 	// Render non-VSM shadows
