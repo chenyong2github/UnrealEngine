@@ -30,8 +30,11 @@ struct FConsoleSlateDebuggerUtility
 	static const TSWidgetId InvalidWidgetId = 0;
 	static const TSWindowId InvalidWindowId = 0;
 
+	static TSWidgetId GetId(const SWidget& Widget);
 	static TSWidgetId GetId(const SWidget* Widget);
+	static TSWindowId GetId(const SWindow& Widget);
 	static TSWindowId GetId(const SWindow* Widget);
+	static TSWindowId FindWindowId(const SWidget& Widget);
 	static TSWindowId FindWindowId(const SWidget* Widget);
 };
 
