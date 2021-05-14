@@ -8,9 +8,6 @@
 #include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 
-#include "Elements/Actor/ActorElementSelectionInterface.h"
-#include "Elements/Component/ComponentElementSelectionInterface.h"
-
 #include "EditorViewportClient.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -64,9 +61,9 @@ FTypedElementHandle FComponentElementLevelEditorSelectionCustomization::GetSelec
 			// 2. The actor selected is blueprintable
 			// 3. No components are already selected and the click was a double click
 			// 4. OR, a component is already selected and the click was NOT a double click
-			const bool bActorAlreadySelectedExclusively = InCurrentSelection->Contains(ConsideredActorHandle) && UActorElementSelectionInterface::GetNumSelectedActors(InCurrentSelection) == 1;
+			const bool bActorAlreadySelectedExclusively = InCurrentSelection->Contains(ConsideredActorHandle) && InCurrentSelection->CountElementsOfType(NAME_Actor) == 1;
 			const bool bActorIsBlueprintable = FKismetEditorUtilities::CanCreateBlueprintOfClass(ConsideredActor->GetClass());
-			const bool bComponentAlreadySelected = UComponentElementSelectionInterface::HasSelectedComponents(InCurrentSelection);
+			const bool bComponentAlreadySelected = InCurrentSelection->HasElementsOfType(NAME_Components);
 			const bool bWasDoubleClick = InSelectionMethod == ETypedElementSelectionMethod::Secondary;
 
 			const bool bSelectComponent = bActorAlreadySelectedExclusively && bActorIsBlueprintable && (bComponentAlreadySelected != bWasDoubleClick);

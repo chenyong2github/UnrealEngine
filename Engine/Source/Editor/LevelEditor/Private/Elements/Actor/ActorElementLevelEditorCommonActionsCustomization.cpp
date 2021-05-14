@@ -5,7 +5,6 @@
 #include "GameFramework/Actor.h"
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "Elements/Component/ComponentElementSelectionInterface.h"
 
 #include "EditorModeManager.h"
 #include "Toolkits/IToolkitHost.h"
@@ -14,7 +13,7 @@ void FActorElementLevelEditorCommonActionsCustomization::GetElementsForAction(co
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
-	if (UComponentElementSelectionInterface::HasSelectedComponents(InElementList))
+	if (InElementList->HasElementsOfType(NAME_Components))
 	{
 		// If we have components selected then we will perform the action on those rather than the actors
 		return;

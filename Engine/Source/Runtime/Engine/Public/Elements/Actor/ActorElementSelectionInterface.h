@@ -9,8 +9,4 @@ UCLASS()
 class ENGINE_API UActorElementSelectionInterface : public UTypedElementSelectionInterface
 {
 	GENERATED_BODY()
-
-public:
-	static int32 GetNumSelectedActors(const UTypedElementList* InCurrentSelection);
-	static bool HasSelectedActors(const UTypedElementList* InCurrentSelection);
 };
