@@ -13,7 +13,7 @@ class UPackage;
 class UClass;
 class UStruct;
 class FArchive;
-class FClassMetaData;
+class FStructMetaData;
 
 enum class ETopologicalState : uint8
 {
@@ -194,10 +194,10 @@ public:
 	/**
 	 * Gets file-wise generated body macro name.
 	 *
-	 * @param ClassData Class metadata for which to get generated body macro name.
+	 * @param StructData Struct metadata for which to get generated body macro name.
 	 * @param Suffix Suffix to add to generated body macro name.
 	 */
-	FString GetGeneratedMacroName(FClassMetaData* ClassData, const TCHAR* Suffix = nullptr) const;
+	FString GetGeneratedMacroName(FStructMetaData& StructData, const TCHAR* Suffix = nullptr) const;
 
 	/**
 	 * Gets scope for this file.

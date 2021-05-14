@@ -78,9 +78,9 @@ const FString& FUnrealSourceFile::GetStrippedFilename() const
 	return StrippedFilename;
 }
 
-FString FUnrealSourceFile::GetGeneratedMacroName(FClassMetaData* ClassData, const TCHAR* Suffix) const
+FString FUnrealSourceFile::GetGeneratedMacroName(FStructMetaData& StructData, const TCHAR* Suffix) const
 {
-	return GetGeneratedMacroName(ClassData->GetGeneratedBodyLine(), Suffix);
+	return GetGeneratedMacroName(StructData.GetGeneratedBodyLine(), Suffix);
 }
 
 FString FUnrealSourceFile::GetGeneratedMacroName(int32 LineNumber, const TCHAR* Suffix) const

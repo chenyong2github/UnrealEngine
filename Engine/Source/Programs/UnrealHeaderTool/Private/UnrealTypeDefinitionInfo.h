@@ -756,11 +756,21 @@ public:
 		return Properties;
 	}
 
+	/**
+	 * Return the class meta data information
+	 */
+	FStructMetaData& GetStructMetaData()
+	{
+		return StructMetaData;
+	}
+
 private:
 	TSharedPtr<FScope> StructScope;
 
 	/** Properties of the structure */
 	TArray<FUnrealPropertyDefinitionInfo*> Properties;
+
+	FStructMetaData StructMetaData;
 };
 
 /**
@@ -925,7 +935,12 @@ public:
 		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
 		, BaseClassNameCPP(MoveTemp(InBaseClassNameCPP))
 		, bIsInterface(bInIsInterface)
-	{ }
+	{
+		if (bInIsInterface)
+		{
+			GetStructMetaData().ParsedInterface = EParsedInterface::ParsedUInterface;
+		}
+	}
 
 	FUnrealClassDefinitionInfo(FString&& InNameCPP)
 		: FUnrealStructDefinitionInfo(MoveTemp(InNameCPP))
@@ -945,6 +960,11 @@ public:
 	}
 
 	virtual uint32 GetHash(bool bIncludeNoExport = true) const override;
+
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalize() override;
 
 	/**
 	 * Return the Engine instance associated with the compiler instance

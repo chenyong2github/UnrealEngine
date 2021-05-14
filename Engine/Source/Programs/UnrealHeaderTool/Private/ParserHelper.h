@@ -22,8 +22,7 @@ class UObject;
 class UField;
 class UMetaData;
 class FHeaderParser;
-
-extern class FCompilerMetadataManager GScriptHelper;
+class FUnrealPropertyDefinitionInfo;
 
 /*-----------------------------------------------------------------------------
 	FPropertyBase.
@@ -1214,7 +1213,7 @@ enum class EParsedInterface
 /**
  * Class for storing compiler metadata about a class's properties.
  */
-class FClassMetaData
+class FStructMetaData
 {
 	/** base classes to multiply inherit from (other than the main base class */
 	TArray<FMultipleInheritanceBaseClass*>					MultipleInheritanceParents;
@@ -1233,7 +1232,7 @@ class FClassMetaData
 
 public:
 	/** Default constructor */
-	FClassMetaData()
+	FStructMetaData()
 		: bContainsDelegates(false)
 		, PrologLine(-1)
 		, GeneratedBodyLine(-1)
@@ -1312,9 +1311,9 @@ public:
 	 * Adds a new property to be tracked.  Determines the correct list for the property based on
 	 * its owner (function, struct, etc).
 	 * 
-	 * @param	PropertyToken	the property to add
+	 * @param	PropertyDef	the property to add
 	 */
-	void AddProperty(FToken&& PropertyToken);
+	void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef);
 
 	/**
 	 * Adds new editor-only metadata (key/value pairs) to the class or struct that
@@ -1368,18 +1367,6 @@ public:
 	}
 
 	/**
-	 * Finds the metadata for the property specified
-	 * 
-	 * @param	Prop	the property to search for
-	 *
-	 * @return	pointer to the metadata for the property specified, or NULL
-	 *			if the property doesn't exist in the list (for example, if it
-	 *			is declared in a package that is already compiled and has had its
-	 *			source stripped)
-	 */
-	FToken* FindTokenData( FProperty* Prop );
-
-	/**
 	 * Add a string to the list of inheritance parents for this class.
 	 *
 	 * @param Inparent The C++ class name to add to the multiple inheritance list
@@ -1411,14 +1398,6 @@ public:
 		return bContainsDelegates;
 	}
 
-	/**
-	 * Shrink TMaps to avoid slack in Pairs array.
-	 */
-	void Shrink()
-	{
-		MultipleInheritanceParents.Shrink();
-	}
-
 	// Is constructor declared?
 	bool bConstructorDeclared;
 
@@ -1436,71 +1415,6 @@ public:
 
 	/** Parsed interface state */
 	EParsedInterface ParsedInterface = EParsedInterface::NotAnInterface;
-};
-
-/**
- * Class for storing and linking data about properties and functions that is only required by the compiler.
- * The type of data tracked by this class is data that would otherwise only be accessible by adding a 
- * member property to UFunction/FProperty.  
- */
-class FCompilerMetadataManager : protected TMap<UStruct*, TUniquePtr<FClassMetaData> >
-{
-	using Super = TMap<UStruct*, TUniquePtr<FClassMetaData>>;
-
-public:
-	/**
-	 * Adds a new class to be tracked
-	 * 
-	 * @param	Struct	the UStruct to add
-	 *
-	 * @return	a pointer to the newly added metadata for the class specified
-	 */
-	FClassMetaData* AddClassData(UStruct* Struct, FUnrealSourceFile* UnrealSourceFile);
-
-	FClassMetaData* AddInterfaceClassData(UStruct* Struct, FUnrealSourceFile* UnrealSourceFile);
-
-	/**
-	 * Find the metadata associated with the class specified
-	 * 
-	 * @param	Struct	the UStruct to add
-	 *
-	 * @return	a pointer to the newly added metadata for the class specified
-	 */
-	FClassMetaData* FindClassData(UStruct* Struct)
-	{
-		FClassMetaData* Result = nullptr;
-
-		TUniquePtr<FClassMetaData>* pClassData = Find(Struct);
-		if (pClassData)
-		{
-			Result = pClassData->Get();
-		}
-
-		return Result;
-	}
-
-	/**
-	 * Shrink TMaps to avoid slack in Pairs array.
-	 */
-	void Shrink()
-	{
-		TMap<UStruct*, TUniquePtr<FClassMetaData> >::Shrink();
-		for (TMap<UStruct*, TUniquePtr<FClassMetaData> >::TIterator It(*this); It; ++It)
-		{
-			FClassMetaData* MetaData = It->Value.Get();
-			MetaData->Shrink();
-		}
-	}
-
-	/**
-	 * Throws an exception if a UInterface was parsed but not the corresponding IInterface.
-	 */
-	void CheckForNoIInterfaces();
-
-	friend struct FCompilerMetadataManagerArchiveProxy;
-
-private:
-	TArray<TPair<UStruct*, FClassMetaData*>> InterfacesToVerify;
 };
 
 /*-----------------------------------------------------------------------------
