@@ -5,6 +5,7 @@
 #include "Tasks/TaskPrivate.h"
 #include "Async/Fundamental/Task.h"
 #include "Templates/RefCounting.h"
+#include "Containers/StaticArray.h"
 #include "CoreTypes.h"
 
 namespace UE { namespace Tasks
@@ -13,6 +14,11 @@ namespace UE { namespace Tasks
 	template<typename ResultType>
 	class TTaskBase
 	{
+		friend Private::FTaskBase;
+
+		template<typename... TaskTypes>
+		friend class TPrerequisites;
+
 	protected:
 		TTaskBase() = default;
 
@@ -83,6 +89,9 @@ namespace UE { namespace Tasks
 		template<typename TaskBodyType>
 		friend TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, LowLevelTasks::ETaskPriority Priority/* = LowLevelTasks::ETaskPriority::Normal*/);
 
+		template<typename TaskBodyType, typename PrerequisitesCollectionType>
+		friend TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority/* = LowLevelTasks::ETaskPriority::Normal*/);
+
 		friend FPipe;
 
 		// private constructor, valid instances can be created only by launching (see friends)
@@ -90,6 +99,8 @@ namespace UE { namespace Tasks
 			: FSuper(Other)
 		{}
 	};
+
+	class FTaskEvent;
 
 	template<>
 	class TTask<void> : public TTaskBase<void>
@@ -107,7 +118,11 @@ namespace UE { namespace Tasks
 		template<typename TaskBodyType>
 		friend TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, LowLevelTasks::ETaskPriority Priority/* = LowLevelTasks::ETaskPriority::Normal*/);
 
+		template<typename TaskBodyType, typename PrerequisitesCollectionType>
+		friend TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority/* = LowLevelTasks::ETaskPriority::Normal*/);
+
 		friend FPipe;
+		friend FTaskEvent;
 
 		// private constructor, valid instances can be created only by launching (see friends)
 		explicit TTask(Private::TTaskWithResult<void>* Other)
@@ -116,54 +131,19 @@ namespace UE { namespace Tasks
 	};
 
 	// a synchronisation primitive similar to `FEvent` that uses "busy waiting" - executing tasks while waiting
-	class FTaskEvent
+	class FTaskEvent : public TTask<void>
 	{
 	public:
-		UE_NONCOPYABLE(FTaskEvent)
-
-		FTaskEvent() = default;
+		explicit FTaskEvent(const TCHAR* DebugName)
+			: TTask<void>(new Private::TTaskWithResult<void>)
+		{
+			Pimpl->Init(DebugName, [] {}, Private::FTaskBase::InlineTaskPriority);
+		}
 
 		void Trigger()
 		{
-			bTriggered.store(true, std::memory_order_release);
+			verify(Pimpl->TryLaunch());
 		}
-
-		bool IsTriggered() const
-		{
-			return bTriggered.load(std::memory_order_acquire);
-		}
-
-		// waits until the event is triggered
-		void Wait()
-		{
-			LowLevelTasks::BusyWaitUntil([this] { return bTriggered.load(std::memory_order_acquire); });
-		}
-
-		// waits until the event is triggered or the waiting timed out.
-		// the call can return much later than the given timeout
-		// @return true if the event was triggered
-		bool Wait(FTimespan InTimeout)
-		{
-			LowLevelTasks::BusyWaitUntil(
-				[this, Timeout = FTimeout{ InTimeout }] { return bTriggered.load(std::memory_order_acquire) || Timeout; }
-			);
-			return bTriggered.load(std::memory_order_relaxed);
-		}
-
-		// waits until the event is triggered or the given condition returns true.
-		// the call can return much later than the condition has become true
-		// @return true if the event was triggered
-		template<typename ConditionType>
-		bool Wait(ConditionType&& Condition)
-		{
-			LowLevelTasks::BusyWaitUntil(
-				[this, Condition = Forward<ConditionType>(Condition)] { return bTriggered.load(std::memory_order_acquire) || Condition(); }
-			);
-			return bTriggered.load(std::memory_order_relaxed);
-		}
-
-	private:
-		std::atomic<bool> bTriggered{ false };
 	};
 
 	// launches a task for asynchronous execution
@@ -173,8 +153,8 @@ namespace UE { namespace Tasks
 	// @return a trivially relocatable instance that can be used to wait for task completion or to obtain task execution result
 	template<typename TaskBodyType>
 	TTask<TInvokeResult_T<TaskBodyType>> Launch(
-		const TCHAR* DebugName, 
-		TaskBodyType&& TaskBody, 
+		const TCHAR* DebugName,
+		TaskBodyType&& TaskBody,
 		LowLevelTasks::ETaskPriority Priority/* = LowLevelTasks::ETaskPriority::Normal*/
 	)
 	{
@@ -185,5 +165,75 @@ namespace UE { namespace Tasks
 		return TTask<FResult>{ Task };
 	}
 
+	// launches a task for asynchronous execution, with prerequisites that must be completed before the task is scheduled
+	// @param DebugName - a unique name for task identification in debugger and profiler, is compiled out in test/shipping builds
+	// @param TaskBody - a functor that will be executed asynchronously
+	// @param Prerequisites - tasks or task events that must be completed before the task being launched can be scheduled, accepts any 
+	// iterable collection (.begin()/.end()), `Tasks::Prerequisites()` helper is recommended to create such collection on the fly
+	// @param Priority - task priority that affects when the task will be executed
+	// @return a trivially relocatable instance that can be used to wait for task completion or to obtain task execution result
+	template<typename TaskBodyType, typename PrerequisitesCollectionType>
+	TTask<TInvokeResult_T<TaskBodyType>> Launch(
+		const TCHAR* DebugName,
+		TaskBodyType&& TaskBody,
+		PrerequisitesCollectionType&& Prerequisites,
+		LowLevelTasks::ETaskPriority Priority/* = LowLevelTasks::ETaskPriority::Normal*/
+	)
+	{
+		using FResult = TInvokeResult_T<TaskBodyType>;
+		auto* Task{ new Private::TTaskWithResult<FResult> };
+		Task->Init(DebugName, Forward<TaskBodyType>(TaskBody), Priority);
+		Task->AddPrerequisites(Forward<PrerequisitesCollectionType>(Prerequisites));
+		Task->TryLaunch();
+		return TTask<FResult>{ Task };
+	}
+
+	template<typename TaskCollectionType>
+	void Wait(TaskCollectionType&& Tasks)
+	{
+		for (auto& Task : Tasks)
+		{
+			Task.Wait();
+		}
+	}
+
 	using FTask = TTask<void>;
+
+	// a convenient proxy collection for specifying task prerequisites that can include both tasks and task events
+	// usage: Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Task1, Task2, TaskEvent1, ...));
+	template<typename... TaskTypes>
+	class TPrerequisites : public TStaticArray<Private::FTaskBase*, sizeof...(TaskTypes)>
+	{
+	public:
+		TPrerequisites(TaskTypes&&... Tasks)
+		{
+			Fill(0, Forward<TaskTypes>(Tasks)...);
+		}
+
+	private:
+		template<typename FirstTaskType, typename... OtherTaskTypes>
+		void Fill(uint32 Index, FirstTaskType&& FirstTask, OtherTaskTypes&&... OtherTasks)
+		{
+			(*this)[Index] = FirstTask.Pimpl.GetReference();
+			Fill(Index + 1, Forward<OtherTaskTypes>(OtherTasks)...);
+		}
+
+		template<typename TaskType>
+		void Fill(uint32 Index, TaskType&& Task)
+		{
+			(*this)[Index] = Task.Pimpl.GetReference();
+		}
+	};
+
+	template<typename... TaskTypes>
+	TPrerequisites<TaskTypes...> Prerequisites(TaskTypes&... Tasks)
+	{
+		return TPrerequisites<TaskTypes...>{ Forward<TaskTypes>(Tasks)... };
+	}
 }}
+
+template <typename... TaskTypes>
+struct TIsContiguousContainer<UE::Tasks::TPrerequisites<TaskTypes...>>
+{
+	static constexpr bool Value = true;
+};
