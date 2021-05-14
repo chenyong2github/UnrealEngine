@@ -103,7 +103,7 @@ public class Grpc : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform != UnrealTargetPlatform.Win64)
+		if (Target.Platform != UnrealTargetPlatform.Win64 || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 		{
 			// Currently only supported for Win64
 			return;
