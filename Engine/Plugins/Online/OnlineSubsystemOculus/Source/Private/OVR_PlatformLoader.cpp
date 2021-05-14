@@ -653,7 +653,7 @@ OVRPL_PUBLIC_FUNCTION(void) ovr_PlatformInitializeStandaloneAccessToken(const ch
 }
 
 // Resetting to pre-init state without unloading completely
-// Useful for development purposes such as running it in the Unity or UE4 editor
+// Useful for development purposes such as running it in the Unity or UE editor
 OVRP_PUBLIC_FUNCTION(void) ovr_UnityResetTestPlatform();
 OVRPL_PUBLIC_FUNCTION(void) ovr_ResetInitAndContext()
 {

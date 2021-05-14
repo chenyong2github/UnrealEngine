@@ -746,7 +746,7 @@ bool FOnlineSessionOculus::FindModeratedRoomSessions(const TSharedRef<FOnlineSes
 
 		SearchSettings->SearchResults.Reset(SearchResultsSize);
 
-		// UE4 specific setting.  Sessions with different build unique ids shouldn't be able to see each other
+		// Sessions with different build unique ids shouldn't be able to see each other
 		// because the builds are not compatible
 		int32 BuildUniqueId = GetBuildUniqueId();
 
@@ -812,7 +812,7 @@ bool FOnlineSessionOculus::FindMatchmakingSessions(const FString Pool, const TSh
 
 		SearchSettings->SearchResults.Reset(SearchResultsSize);
 
-		// UE4 specific setting.  Sessions with different build unique ids shouldn't be able to see each other
+		// Sessions with different build unique ids shouldn't be able to see each other
 		// because the builds are not compatible
 		int32 BuildUniqueId = GetBuildUniqueId();
 
@@ -879,7 +879,7 @@ bool FOnlineSessionOculus::FindSessionById(const FUniqueNetId& SearchingUserId, 
 			return;
 		}
 
-		// UE4 specific setting.  Sessions with different build unique ids shouldn't be able to see each other
+		// Sessions with different build unique ids shouldn't be able to see each other
 		// because the builds are not compatible
 		int32 BuildUniqueId = GetBuildUniqueId();
 
@@ -1005,7 +1005,7 @@ bool FOnlineSessionOculus::FindFriendSession(int32 LocalUserNum, const FUniqueNe
 			return;
 		}
 	
-	// UE4 specific setting.  Sessions with different build unique ids shouldn't be able to see each other
+		// Sessions with different build unique ids shouldn't be able to see each other
 		// because the builds are not compatible
 		int32 BuildUniqueId = GetBuildUniqueId();
 
