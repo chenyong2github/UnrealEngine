@@ -121,6 +121,8 @@ public:
 protected:
 	void ComputeFirstPass(double UnsignedOffset, double SignedOffset)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_FirstPass);
+
 		ComputedSDF.Mesh = Source;
 
 		ComputedSDF.Spatial = SourceSpatial;
@@ -139,7 +141,10 @@ protected:
 			ComputedSDF.ComputeMode = TSweepingMeshSDF<TriangleMeshType>::EComputeModes::NarrowBandOnly;
 		}
 
-		ComputedSDF.Compute(SourceSpatial->GetBoundingBox());
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_FirstPass_ComputeSDF);
+			ComputedSDF.Compute(SourceSpatial->GetBoundingBox());
+		}
 
 		TTriLinearGridInterpolant<TSweepingMeshSDF<TriangleMeshType>> Interpolant = ComputedSDF.MakeInterpolant();
 
@@ -164,7 +169,10 @@ protected:
 		{
 			return -Interpolant.Value(Pt);
 		};
-		MarchingCubes.Generate();
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_FirstPass_GenerateMesh);
+			MarchingCubes.Generate();
+		}
 
 		// TODO: refactor FMarchingCubes to not retain the implicit function, or refactor this function so the implicit function isn't invalid after returning,
 		/// ..... then remove this line
@@ -173,6 +181,8 @@ protected:
 
 	void ComputeSecondPass(double UnsignedOffset, double SignedOffset)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_SecondPass);
+
 		if (MarchingCubes.Triangles.Num() == 0)
 		{
 			MarchingCubes.Reset();
@@ -211,7 +221,10 @@ protected:
 			return;
 		}
 
-		SecondSDF.Compute(Bounds);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_SecondPass_ComputeSDF);
+			SecondSDF.Compute(Bounds);
+		}
 		TTriLinearGridInterpolant<TSweepingMeshSDF<TIndexVectorMeshArrayAdapter<FIndex3i, double, FVector3d>>> Interpolant = SecondSDF.MakeInterpolant();
 
 		MarchingCubes.Reset();
@@ -234,7 +247,10 @@ protected:
 			return -Interpolant.Value(Pt);
 		};
 
-		MarchingCubes.Generate();
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_SecondPass_GenerateMesh);
+			MarchingCubes.Generate();
+		}
 
 		// TODO: refactor FMarchingCubes to not retain the implicit function, or refactor this function so the implicit function isn't invalid after returning,
 		/// ..... then remove this line
