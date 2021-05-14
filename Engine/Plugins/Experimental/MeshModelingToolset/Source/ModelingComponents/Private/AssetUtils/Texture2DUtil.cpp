@@ -147,3 +147,61 @@ bool UE::AssetUtils::ReadTexture(
 
 	return ReadTexture_PlatformData(TextureMap, Dimensions, DestImage);
 }
+
+
+
+bool UE::AssetUtils::ConvertToSingleChannel(UTexture2D* TextureMap)
+{
+	if (ensure(TextureMap) == false) return false;
+
+#if WITH_EDITOR
+	bool bHasVTData = TextureMap->GetPlatformData()->VTData != nullptr;
+	bool bHasMips = TextureMap->GetPlatformData()->Mips.Num() != 0;
+	ensure(bHasVTData != bHasMips);		// should be one or the other
+
+	if (ensure(TextureMap->Source.IsValid()) && bHasVTData == false)
+	{
+		FTextureSource& TextureSource = TextureMap->Source;
+		int32 Width = TextureSource.GetSizeX();
+		int32 Height = TextureSource.GetSizeY();
+		int64 Num = Width * Height;
+		ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
+		if (SourceFormat == TSF_G8)
+		{
+			return true;		// already single channel
+		}
+		if (SourceFormat != TSF_BGRA8 && SourceFormat != TSF_BGRE8)
+		{
+			ensureMsgf(false, TEXT("ConvertToSingleChannel currently only supports RGBA8 textures"));
+			return false;
+		}
+
+		TArray64<uint8> NewSourceData;
+		NewSourceData.SetNum(Width * Height);
+
+		TArray64<uint8> SourceData;
+		TextureMap->Source.GetMipData(SourceData, 0, 0, 0);
+		int32 BytesPerPixel = TextureSource.GetBytesPerPixel();
+		check(BytesPerPixel == sizeof(FColor));
+		const uint8* SourceDataPtr = SourceData.GetData();
+		for (int32 i = 0; i < Num; ++i)
+		{
+			const uint8* PixelPtr = SourceDataPtr + (i * BytesPerPixel);
+			FColor PixelColor = *((FColor*)PixelPtr);
+			NewSourceData[i] = PixelColor.R;
+		}
+
+		TextureSource.Init(Width, Height, 1, 1, TSF_G8, &NewSourceData[0]);
+
+		TextureMap->UpdateResource();
+
+		return true;
+	}
+	return false;
+#else
+
+	ensureMsgf(false, TEXT("ConvertToSingleChannel currently requires editor-only SourceData"));
+	return false;
+#endif
+
+}

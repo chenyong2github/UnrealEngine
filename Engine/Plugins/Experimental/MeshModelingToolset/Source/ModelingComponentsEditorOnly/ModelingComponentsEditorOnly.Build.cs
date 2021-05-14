@@ -49,7 +49,8 @@ public class ModelingComponentsEditorOnly : ModuleRules
                 "RenderCore",
                 "RHI",
 
-				"AssetTools"
+				"AssetTools",
+				"UnrealEd"			// required for asset factories
 
 			}
 			);
