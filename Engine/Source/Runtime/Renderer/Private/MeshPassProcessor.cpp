@@ -1524,10 +1524,10 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList
 			FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
 			FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
 
-			if (InstanceCullingDrawParams.DrawIndirectArgsBuffer != nullptr && InstanceCullingDrawParams.InstanceIdOffsetBuffer != nullptr)
+			if (InstanceCullingDrawParams.DrawIndirectArgsBuffer.GetBuffer() != nullptr && InstanceCullingDrawParams.InstanceIdOffsetBuffer.GetBuffer() != nullptr)
 			{
-				DrawIndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer->GetRHI();
-				InstanceIdOffsetBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer->GetRHI();
+				DrawIndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer.GetBuffer()->GetRHI();
+				InstanceIdOffsetBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer.GetBuffer()->GetRHI();
 			}
 
 			SubmitGPUInstancedMeshDrawCommandsRange(
@@ -1538,6 +1538,7 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList
 				InstanceFactor,
 				InstanceIdOffsetBuffer,
 				DrawIndirectArgsBuffer,
+				InstanceCullingDrawParams.DrawCommandDataOffset,
 				RHICmdList);
 		}
 		else

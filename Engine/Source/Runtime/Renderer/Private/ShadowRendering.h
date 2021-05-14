@@ -697,6 +697,13 @@ public:
 	FParallelMeshDrawCommandPass& GetShadowDepthPass() { return ShadowDepthPass; }
 
 	float GetMaxNonFarCascadeDistance() const { return MaxNonFarCascadeDistance; }
+
+	void QueueBatchedBuildRenderingCommands(TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator>& BatchItems)
+	{
+		ShadowDepthView->DynamicPrimitiveCollector.Commit();
+		return ShadowDepthPass.QueueBatchedBuildRenderingCommands(BatchItems);
+	}
+
 private:
 	// 0 if Setup...() wasn't called yet
 	FLightSceneInfo* LightSceneInfo;

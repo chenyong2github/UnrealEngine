@@ -37,6 +37,8 @@ struct FInstanceCullingResult
 	//TRefCountPtr<FRDGPooledBuffer> InstanceIdsBuffer;
 	FRDGBufferRef DrawIndirectArgsBuffer = nullptr;
 	FRDGBufferRef InstanceIdOffsetBuffer = nullptr;
+	// Offset (in items, not bytes or something) for both buffers to start fetching data at, used when batching multiple culling jobs in the same buffer
+	uint32 DrawCommandDataOffset = 0U;
 
 	//FRHIBuffer* GetDrawIndirectArgsBufferRHI() const { return DrawIndirectArgsBuffer.IsValid() ? DrawIndirectArgsBuffer->GetVertexBufferRHI() : nullptr; }
 	//FRHIBuffer* GetInstanceIdOffsetBufferRHI() const { return InstanceIdOffsetBuffer.IsValid() ? InstanceIdOffsetBuffer->GetVertexBufferRHI() : nullptr; }
@@ -45,6 +47,7 @@ struct FInstanceCullingResult
 		// GPUCULL_TODO: Maybe get dummy buffers?
 		OutParams.DrawIndirectArgsBuffer = DrawIndirectArgsBuffer;
 		OutParams.InstanceIdOffsetBuffer = InstanceIdOffsetBuffer;
+		OutParams.DrawCommandDataOffset = DrawCommandDataOffset;
 	}
 
 	static void CondGetDrawParameters(const FInstanceCullingResult* InstanceCullingResult, FInstanceCullingDrawParams& OutParams)
@@ -57,6 +60,7 @@ struct FInstanceCullingResult
 		{
 			OutParams.DrawIndirectArgsBuffer = nullptr;
 			OutParams.InstanceIdOffsetBuffer = nullptr;
+			OutParams.DrawCommandDataOffset = 0U;
 		}
 	}
 };

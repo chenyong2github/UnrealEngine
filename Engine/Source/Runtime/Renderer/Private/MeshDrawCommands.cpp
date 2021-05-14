@@ -1353,6 +1353,7 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 	uint32 InstanceFactor,
 	FRHIBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
 	FRHIBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
+	uint32 DrawCommandDataOffset, // Used to offset both the indirect args and the instance ID offset buffers when bound (wrt each their strides)
 	FRHICommandList& RHICmdList)
 {
 #if GPUCULL_TODO
@@ -1364,8 +1365,8 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 		//SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, MeshEvent, GEmitMeshDrawEvent != 0, TEXT("Mesh Draw"));
 
 		const FVisibleMeshDrawCommand& VisibleMeshDrawCommand = VisibleMeshDrawCommands[DrawCommandIndex];
-		const uint32 IndirectArgsByteOffset = uint32(DrawCommandIndex) * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
-		const int32 InstanceIdsOffsetBufferByteOffset = DrawCommandIndex * sizeof(int32);
+		const uint32 IndirectArgsByteOffset = uint32(DrawCommandDataOffset + DrawCommandIndex) * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
+		const int32 InstanceIdsOffsetBufferByteOffset = (DrawCommandDataOffset + DrawCommandIndex) * sizeof(int32);
 		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, GraphicsMinimalPipelineStateSet, InstanceIdsOffsetBuffer, InstanceIdsOffsetBufferByteOffset, InstanceFactor, RHICmdList, StateCache, IndirectArgsBuffer, IndirectArgsByteOffset);
 	}
 #endif // GPUCULL_TODO
@@ -1380,6 +1381,7 @@ class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask
 #if GPUCULL_TODO
 	FRHIBuffer* InstanceIdOffsetBuffer;
 	FRHIBuffer* DrawIndirectArgsBuffer;
+	uint32 DrawCommandDataOffset;
 #else //!GPUCULL_TODO
 	FRHIBuffer* PrimitiveIdsBuffer;
 	int32 BasePrimitiveIdsOffset;
@@ -1398,6 +1400,7 @@ public:
 #if GPUCULL_TODO
 		FRHIBuffer* InInstanceIdOffsetBuffer,
 		FRHIBuffer* InDrawIndirectArgsBuffer,
+		uint32 InDrawCommandDataOffset,
 #else //!GPUCULL_TODO
 		FRHIBuffer* InPrimitiveIdsBuffer,
 		int32 InBasePrimitiveIdsOffset,
@@ -1413,6 +1416,7 @@ public:
 #if GPUCULL_TODO
 		, InstanceIdOffsetBuffer(InInstanceIdOffsetBuffer)
 		, DrawIndirectArgsBuffer(InDrawIndirectArgsBuffer)
+		, DrawCommandDataOffset(InDrawCommandDataOffset)
 #else //!GPUCULL_TODO
 		, PrimitiveIdsBuffer(InPrimitiveIdsBuffer)
 		, BasePrimitiveIdsOffset(InBasePrimitiveIdsOffset)
@@ -1452,6 +1456,7 @@ public:
 			InstanceFactor,
 			InstanceIdOffsetBuffer,
 			DrawIndirectArgsBuffer,
+			DrawCommandDataOffset,
 			RHICmdList);
 #else // !GPUCULL_TODO
 		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, bDynamicInstancing, StartIndex, NumDraws, InstanceFactor, RHICmdList);
@@ -1466,6 +1471,11 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuil
 #if GPUCULL_TODO
 	if (TaskContext.InstanceCullingContext.IsEnabled())
 	{
+		if (bHasQueuedInstanceCullingBuild)
+		{
+			TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
+			return;
+		}
 		WaitForMeshPassSetupTask();
 		if (MaxNumDraws > 0 && TaskContext.InstanceCullingContext.HasCullingCommands())
 		{
@@ -1477,9 +1487,29 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuil
 	}
 	OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
 	OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;
+	OutInstanceCullingDrawParams.DrawCommandDataOffset = 0U;
 
 #endif
 }
+
+
+void FParallelMeshDrawCommandPass::QueueBatchedBuildRenderingCommands(TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator> & BatchItems)
+{
+#if defined(GPUCULL_TODO)
+	if (TaskContext.InstanceCullingContext.IsEnabled())
+	{
+		WaitForMeshPassSetupTask();
+		if (MaxNumDraws > 0 && TaskContext.InstanceCullingContext.HasCullingCommands())
+		{
+			// 2. Queue finalize culling commands pass
+			BatchItems.Add(FInstanceCullingContext::FBatchItem{ &TaskContext.InstanceCullingContext, &TaskContext.InstanceCullingResult, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange() });
+			bHasQueuedInstanceCullingBuild = true;
+		}
+	}
+#endif // defined(GPUCULL_TODO)
+}
+
+
 
 void FParallelMeshDrawCommandPass::BuildInstanceList(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingRdgParams& OutParams)
 {
@@ -1518,12 +1548,14 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 #if GPUCULL_TODO
 	FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
 	FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
+	uint32 DrawCommandDataOffset = 0U;
 	if (InstanceCullingDrawParams != nullptr 
-		&& InstanceCullingDrawParams->DrawIndirectArgsBuffer != nullptr 
-		&& InstanceCullingDrawParams->InstanceIdOffsetBuffer != nullptr)
+		&& InstanceCullingDrawParams->DrawIndirectArgsBuffer.GetBuffer() != nullptr
+		&& InstanceCullingDrawParams->InstanceIdOffsetBuffer.GetBuffer() != nullptr)
 	{
-		DrawIndirectArgsBuffer = InstanceCullingDrawParams->DrawIndirectArgsBuffer->GetRHI();
-		InstanceIdOffsetBuffer = InstanceCullingDrawParams->InstanceIdOffsetBuffer->GetRHI();
+		DrawIndirectArgsBuffer = InstanceCullingDrawParams->DrawIndirectArgsBuffer.GetBuffer()->GetRHI();
+		InstanceIdOffsetBuffer = InstanceCullingDrawParams->InstanceIdOffsetBuffer.GetBuffer()->GetRHI();
+		DrawCommandDataOffset = InstanceCullingDrawParams->DrawCommandDataOffset;
 	}
 
 #else // !GPUCULL_TODO
@@ -1601,6 +1633,7 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 					TaskContext.InstanceFactor,
 					InstanceIdOffsetBuffer,
 					DrawIndirectArgsBuffer,
+					DrawCommandDataOffset,
 					TaskIndex, NumTasks);
 #else //!GPUCULL_TODO
 				.ConstructAndDispatchWhenReady(*CmdList, TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, TaskContext.InstanceFactor, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, TaskContext.bDynamicInstancing, TaskIndex, NumTasks);
@@ -1627,6 +1660,7 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 					TaskContext.InstanceFactor,
 					InstanceIdOffsetBuffer,
 					DrawIndirectArgsBuffer,
+					DrawCommandDataOffset,
 					RHICmdList);
 			}
 		}
