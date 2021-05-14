@@ -10,6 +10,7 @@ export type SiteConfig = {
 
 const dev = {
 	"environment": "dev",
+	"datadogClient" : "",
 	"plugins": [
 		"UnrealAutomatedTests",
 		"SimpleTestReport"
@@ -18,6 +19,7 @@ const dev = {
 
 const prod = {
 	"environment": "production",
+	"datadogClient" : "",
 	"plugins": [
 		"UnrealAutomatedTests",
 		"SimpleTestReport"
