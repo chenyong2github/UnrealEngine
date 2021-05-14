@@ -115,7 +115,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FLandscapeVertexFactoryMVFParameters> FLandscapeVertexFactoryMVFUniformBufferRef;
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeSectionLODUniformParameters, )
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeSectionLODUniformParameters, LANDSCAPE_API)
 	SHADER_PARAMETER(FIntPoint, Min)
 	SHADER_PARAMETER(FIntPoint, Size)
 	SHADER_PARAMETER_SRV(Buffer<float>, SectionLOD)
@@ -676,7 +676,7 @@ struct FLandscapeRenderSystem
 	void EndFrame();
 };
 
-extern TMap<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*> LandscapeRenderSystems;
+LANDSCAPE_API extern TMap<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*> LandscapeRenderSystems;
 
 class FLandscapeVisibilityHelper
 {
@@ -691,6 +691,36 @@ private:
 	bool bIsComponentLevelVisible = false;
 	FPrimitiveSceneProxy* Proxy = nullptr;
 };
+
+//
+// FLandscapeDebugOptions
+//
+struct LANDSCAPE_API FLandscapeDebugOptions
+{
+	FLandscapeDebugOptions();
+
+	enum eCombineMode
+	{
+		eCombineMode_Default = 0,
+		eCombineMode_CombineAll = 1,
+		eCombineMode_Disabled = 2
+	};
+
+	bool bShowPatches;
+	bool bDisableStatic;
+	eCombineMode CombineMode;
+
+private:
+	FAutoConsoleCommand PatchesConsoleCommand;
+	FAutoConsoleCommand StaticConsoleCommand;
+	FAutoConsoleCommand CombineConsoleCommand;
+
+	void Patches();
+	void Static();
+	void Combine(const TArray<FString>& Args);
+};
+
+LANDSCAPE_API extern FLandscapeDebugOptions GLandscapeDebugOptions;
 
 //
 // FLandscapeMeshProxySceneProxy
@@ -714,7 +744,7 @@ private:
 //
 // FLandscapeComponentSceneProxy
 //
-class FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy, public FLandscapeNeighborInfo
+class LANDSCAPE_API FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy, public FLandscapeNeighborInfo
 {
 	friend class FLandscapeSharedBuffers;
 
@@ -774,7 +804,7 @@ public:
 	// Reference counted vertex and index buffer shared among all landscape scene proxies of the same component size
 	// Key is the component size and number of subsections.
 	// Also being reused by GPULightmass currently to save mem
-	static LANDSCAPE_API TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
+	static TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
 #if GPUCULL_TODO
 	// GPUCULL_TODO: put instances in base proxy and make non-virtual
 	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const	{ return &Instances; }
