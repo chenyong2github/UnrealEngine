@@ -37,6 +37,8 @@ LRESULT CALLBACK CrashReportAnalyticsSessionSummaryWindowProc(HWND Hwnd, UINT Ms
 	return DefWindowProc(Hwnd, Msg, wParam, lParam);
 }
 
+#include "Windows/HideWindowsPlatformTypes.h"
+
 #endif
 
 namespace CrcAnalyticsProperties
