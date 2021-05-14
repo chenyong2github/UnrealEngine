@@ -355,7 +355,7 @@ namespace UE
 			var AppInstance = TestInstance.EditorApp;
 
 			UnrealLogParser Parser = new UnrealLogParser(AppInstance.StdOut);
-			ChannelEntries.AddRange(Parser.GetLogChannels(new string[] { "Automation", "FunctionalTest", "Material", "DerivedDataCache", "ShaderCompilers", "SkeletalMesh", "StaticMesh", "Texture" }, false));
+			ChannelEntries.AddRange(Parser.GetEditorBusyChannels());
 
 			// Any new entries?
 			if (ChannelEntries.Count > LastAutomationEntryCount)
