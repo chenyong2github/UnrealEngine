@@ -100,15 +100,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 		// Calculate perspective correct barycentric coordinates with screen derivatives
 		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, NaniteView.ViewSizeAndInvSize.zw);
 
-	#if NEEDS_LIGHTMAP_COORDINATE
-		// Light map UV index can reference any UV set, even outside NUM_TEX_COORD_INTERPOLATORS.
-		// TODO: Fetch lightmap UVs separately instead.
-		const uint NumTexCoords = MAX_NANITE_UVS;
-	#else
-		// Prefer literal constant to optimize shader codegen.
-		const uint NumTexCoords = NUM_TEX_COORD_INTERPOLATORS;
-	#endif
-
 		const FNaniteAttributeData AttributeData = GetAttributeData(
 			Cluster,
 			TriIndices,
@@ -117,7 +108,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 			PointLocal2,
 			Barycentrics,
 			InstanceData,
-			NumTexCoords
+			NUM_TEX_COORD_INTERPOLATORS
 		);
 
 	#if INTERPOLATE_VERTEX_COLOR
@@ -202,8 +193,22 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 		const uint LightMapUVIndex   = PrimitiveData.LightmapUVIndex;
 		//UnpackLightmapDataAndUVIndex(PrimitiveData.LightmapDataAndUVIndex, LightmapDataIndex, LightmapUVIndex);
 
-		float2 LightMapCoordinateInput = AttributeData.TexCoords[LightMapUVIndex];
-		const float2 LightMapUVs = LightMapCoordinateInput;
+		float2 LightMapCoordinateInput;
+		float2 LightMapCoordinateInput_DDX;
+		float2 LightMapCoordinateInput_DDY;
+		if (LightMapUVIndex < NUM_TEX_COORD_INTERPOLATORS)
+		{
+			LightMapCoordinateInput = AttributeData.TexCoords[LightMapUVIndex];
+			LightMapCoordinateInput_DDX = AttributeData.TexCoords_DDX[LightMapUVIndex];
+			LightMapCoordinateInput_DDY = AttributeData.TexCoords_DDY[LightMapUVIndex];
+		}
+		else
+		{
+			FTexCoord TexCoord = GetTexCoord(Cluster, TriIndices, Barycentrics, LightMapUVIndex);
+			LightMapCoordinateInput = TexCoord.Value;
+			LightMapCoordinateInput_DDX = TexCoord.DDX;
+			LightMapCoordinateInput_DDY = TexCoord.DDY;
+		}
 
 		const float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
 		if (PrimitiveData.NumInstanceDataEntries > 1)
@@ -229,9 +234,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 
 	#if LIGHTMAP_UV_ACCESS
 		// Store unscaled/unbiased lightmap UVs
-		Result.LightmapUVs = AttributeData.TexCoords[LightMapUVIndex];
-		Result.LightmapUVs_DDX = AttributeData.TexCoords_DDX[LightMapUVIndex];
-		Result.LightmapUVs_DDY = AttributeData.TexCoords_DDY[LightMapUVIndex];
+		Result.LightmapUVs = LightMapCoordinateInput;
+		Result.LightmapUVs_DDX = LightMapCoordinateInput_DDX;
+		Result.LightmapUVs_DDY = LightMapCoordinateInput_DDY;
 	#endif
 
 		SetLightMapCoordinate(Interpolants, LightMapCoordinate, ShadowMapCoordinate);

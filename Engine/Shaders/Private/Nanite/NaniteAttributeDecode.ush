@@ -221,6 +221,26 @@ uint GetMaterialBucketIdFromDepth(float Depth)
 	return (uint)(Depth * MAX_STATE_BUCKET_ID);
 }
 
+// TODO: We should really expose the derivative types from the material compiler and use them instead.
+struct FTexCoord
+{
+	float2 Value;
+	float2 DDX;
+	float2 DDY;
+};
+
+FTexCoord InterpolateTexCoord(float2 TexCoord0, float2 TexCoord1, float2 TexCoord2, FBarycentrics Barycentrics)
+{
+	float2 TexCoord10 = TexCoord1 - TexCoord0;
+	float2 TexCoord20 = TexCoord2 - TexCoord0;
+
+	FTexCoord Result;
+	Result.Value		= TexCoord0 + Barycentrics.UVW.y * TexCoord10 + Barycentrics.UVW.z * TexCoord20;
+	Result.DDX			= Barycentrics.UVW_dx.y * TexCoord10 + Barycentrics.UVW_dx.z * TexCoord20;
+	Result.DDY			= Barycentrics.UVW_dy.y * TexCoord10 + Barycentrics.UVW_dy.z * TexCoord20;
+	return Result;
+}
+
 FNaniteAttributeData GetAttributeData(
 	FCluster Cluster,
 	uint3 TriIndices,
@@ -229,7 +249,7 @@ FNaniteAttributeData GetAttributeData(
 	float3 PointLocal2,
 	FBarycentrics Barycentrics,
 	FInstanceSceneData InstanceData,
-	uint NumTexCoordInterpolators
+	uint CompileTimeMaxTexCoords
 )
 {
 	FNaniteAttributeData AttributeData = (FNaniteAttributeData)0;
@@ -237,6 +257,9 @@ FNaniteAttributeData GetAttributeData(
 	// Unpack and interpolate attributes
 	uint DecodeInfoOffset = Cluster.PageBaseAddress + Cluster.DecodeInfoOffset;
 	uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
+
+	// Always process first UV set. Even if it isn't used, we might still need TangentToWorld.
+	CompileTimeMaxTexCoords = max(1, min(MAX_NANITE_UVS, CompileTimeMaxTexCoords));
 
 	// Unpack normal
 #if USE_UNCOMPRESSED_VERTEX_DATA
@@ -246,7 +269,7 @@ FNaniteAttributeData GetAttributeData(
 	float3 TangentZ2 = asfloat(ClusterPageData.Load3(ReadOffset.z));
 	ReadOffset += 12;
 #else
-	const uint MaxAttributeBits = CalculateMaxAttributeBits(NumTexCoordInterpolators);
+	const uint MaxAttributeBits = CalculateMaxAttributeBits(CompileTimeMaxTexCoords);
 
 	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
 	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
@@ -299,9 +322,8 @@ FNaniteAttributeData GetAttributeData(
 	}
 #endif
 
-	const uint CompileTimeNumTexCoords = max(1, min(MAX_NANITE_UVS, NumTexCoordInterpolators));	// Always process first UV set. Even if it isn't used, we might still need TangentToWorld.
 	UNROLL
-	for (uint TexCoordIndex = 0; TexCoordIndex < CompileTimeNumTexCoords; ++TexCoordIndex)
+	for (uint TexCoordIndex = 0; TexCoordIndex < CompileTimeMaxTexCoords; ++TexCoordIndex)
 	{
 	#if USE_UNCOMPRESSED_VERTEX_DATA
 		float2 TexCoord0 = asfloat(ClusterPageData.Load2(ReadOffset.x));
@@ -324,14 +346,10 @@ FNaniteAttributeData GetAttributeData(
 			float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
 			float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
 		#endif
-
-			float2 TexCoord10 = TexCoord1 - TexCoord0;
-			float2 TexCoord20 = TexCoord2 - TexCoord0;
-
-			float2 TexCoord = TexCoord0 + Barycentrics.UVW.y * TexCoord10 + Barycentrics.UVW.z * TexCoord20;
-			AttributeData.TexCoords[TexCoordIndex] = TexCoord;
-			AttributeData.TexCoords_DDX[TexCoordIndex] = Barycentrics.UVW_dx.y * TexCoord10 + Barycentrics.UVW_dx.z * TexCoord20;
-			AttributeData.TexCoords_DDY[TexCoordIndex] = Barycentrics.UVW_dy.y * TexCoord10 + Barycentrics.UVW_dy.z * TexCoord20;
+			FTexCoord TexCoord = InterpolateTexCoord(TexCoord0, TexCoord1, TexCoord2, Barycentrics);
+			AttributeData.TexCoords[TexCoordIndex] = TexCoord.Value;
+			AttributeData.TexCoords_DDX[TexCoordIndex] = TexCoord.DDX;
+			AttributeData.TexCoords_DDY[TexCoordIndex] = TexCoord.DDY;
 
 			// Generate tangent frame for UV0
 			if (TexCoordIndex == 0)
@@ -344,6 +362,8 @@ FNaniteAttributeData GetAttributeData(
 
 				float3 PointLocal10 = PointLocal1 - PointLocal0;
 				float3 PointLocal20 = PointLocal2 - PointLocal0;
+				float2 TexCoord10 = TexCoord1 - TexCoord0;
+				float2 TexCoord20 = TexCoord2 - TexCoord0;
 
 				bool TangentXValid = abs(TexCoord10.x) + abs(TexCoord20.x) > 1e-6;
 
@@ -397,4 +417,55 @@ FNaniteAttributeData GetAttributeData(
 		}
 	}
 	return AttributeData;
+}
+
+FTexCoord GetTexCoord(
+	FCluster Cluster,
+	uint3 TriIndices,
+	FBarycentrics Barycentrics,
+	uint TexCoordIndex
+)
+{
+	if (TexCoordIndex >= Cluster.NumUVs)
+		return (FTexCoord)0;
+
+	// Unpack and interpolate attributes
+	const uint DecodeInfoOffset = Cluster.PageBaseAddress + Cluster.DecodeInfoOffset;
+	const uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
+
+#if USE_UNCOMPRESSED_VERTEX_DATA
+	uint3 ReadOffset = AttributeDataOffset + TriIndices * Cluster.BitsPerAttribute / 8;
+	ReadOffset += 12 + 4 + TexCoordIndex * 8;	// Normal + Color + TexCoord
+#else
+	const uint4 NumColorComponentBits = UnpackToUint4(Cluster.ColorBits, 4);
+	
+	// Sum U and V bit costs to combined UV bit costs in 8:8:8:8.
+	const uint NumUVBits_8888 = (Cluster.UV_Prec & 0x0F0F0F0Fu) + ((Cluster.UV_Prec >> 4) & 0x0F0F0F0Fu);	// 8:8:8:8 (U0+V0, U1+V1, U2+V2, U3+V3)
+	const uint UVBitsOffset_8888 = NumUVBits_8888 * 0x01010100u;											// 8:8:8:8 (0, UV0, UV0+UV1, UV0+UV1+UV2)
+	const uint TexCoord_OffsetBits = (UVBitsOffset_8888 >> (8 * TexCoordIndex)) & 0xFFu;
+
+	const uint BitOffset = 2 * NORMAL_QUANTIZATION_BITS + dot(NumColorComponentBits, 1u) + TexCoord_OffsetBits;
+
+	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.x * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.y * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.z * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+#endif
+
+#if USE_UNCOMPRESSED_VERTEX_DATA
+	float2 TexCoord0 = asfloat(ClusterPageData.Load2(ReadOffset.x));
+	float2 TexCoord1 = asfloat(ClusterPageData.Load2(ReadOffset.y));
+	float2 TexCoord2 = asfloat(ClusterPageData.Load2(ReadOffset.z));
+#else
+	uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
+	uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+	uint2 Bits1_UV = BitStreamReader_Read2(AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+	uint2 Bits2_UV = BitStreamReader_Read2(AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+
+	FUVRange UVRange = GetUVRange(ClusterPageData, DecodeInfoOffset, TexCoordIndex);
+	float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
+	float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
+	float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
+#endif
+
+	return InterpolateTexCoord(TexCoord0, TexCoord1, TexCoord2, Barycentrics);	
 }
