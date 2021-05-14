@@ -5,6 +5,7 @@ from switchboard.config import CONFIG
 from .switchboard_logging import LOGGER
 
 import switchboard.p4_utils as P4
+import switchboard.switchboard_utils as sb_utils
 import os, sys, subprocess, shlex, pathlib, socket, threading
 
 class AddConfigDialog(QtWidgets.QDialog):
@@ -404,7 +405,7 @@ class AddConfigDialog(QtWidgets.QDialog):
                 # Relying on wmic for this. Another option is to use psutil which is cross-platform, and slower.
                 cmd = f'wmic process where caption="{UEname}" get commandline'
 
-                for line in subprocess.check_output(cmd, startupinfo=P4.get_sp_startupinfo()).decode().splitlines():
+                for line in subprocess.check_output(cmd, startupinfo=sb_utils.get_hidden_sp_startupinfo()).decode().splitlines():
                     if UEname.lower() not in line.lower():
                         continue
                     
