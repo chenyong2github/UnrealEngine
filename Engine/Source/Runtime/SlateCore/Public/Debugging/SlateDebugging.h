@@ -207,6 +207,10 @@ enum class ESlateDebuggingInvalidateRootReason
 
 ENUM_CLASS_FLAGS(ESlateDebuggingInvalidateRootReason)
 
+SLATECORE_API FString LexToString(ESlateDebuggingInvalidateRootReason Reason);
+SLATECORE_API bool LexTryParseString(ESlateDebuggingInvalidateRootReason& OutMode, const TCHAR* InBuffer);
+SLATECORE_API void LexFromString(ESlateDebuggingInvalidateRootReason& OutMode, const TCHAR* InBuffer);
+
 struct SLATECORE_API FSlateDebuggingInvalidateArgs
 {
 	FSlateDebuggingInvalidateArgs(

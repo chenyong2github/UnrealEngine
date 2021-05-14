@@ -29,6 +29,7 @@ FConsoleSlateDebuggerInvalidate::FConsoleSlateDebuggerInvalidate()
 	, DrawRootRootColor(FColorList::Red)
 	, DrawRootChildOrderColor(FColorList::Blue)
 	, DrawRootScreenPositionColor(FColorList::Green)
+	, DrawWidgetPrepassColor(FColorList::Magenta)
 	, DrawWidgetLayoutColor(FColorList::Magenta)
 	, DrawWidgetPaintColor(FColorList::Yellow)
 	, DrawWidgetVolatilityColor(FColorList::Grey)
@@ -64,11 +65,11 @@ FConsoleSlateDebuggerInvalidate::FConsoleSlateDebuggerInvalidate()
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::ToggleLogInvalidatedWidget))
 	, SetInvalidateWidgetReasonFilterCommand(
 		TEXT("SlateDebugger.Invalidate.SetInvalidateWidgetReasonFilter"),
-		TEXT("Enable Invalidate Widget Reason filters. Usage: SetInvalidateWidgetReasonFilter [None] [Layout] [Paint] [Volatility] [ChildOrder] [RenderTransform] [Visibility] [Any]"),
+		TEXT("Enable Invalidate Widget Reason filters. Usage: SetInvalidateWidgetReasonFilter None|Layout|Paint|Volatility|ChildOrder|RenderTransform|Visibility|Any"),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::HandleSetInvalidateWidgetReasonFilter))
 	, SetInvalidateRootReasonFilterCommand(
 		TEXT("SlateDebugger.Invalidate.SetInvalidateRootReasonFilter"),
-		TEXT("Enable Invalidate Root Reason filters. Usage: SetInvalidateRootReasonFilter [None] [ChildOrder] [Root] [ScreenPosition] [Any]"),
+		TEXT("Enable Invalidate Root Reason filters. Usage: SetInvalidateRootReasonFilter None|ChildOrder|Root|ScreenPosition|Any"),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::HandleSetInvalidateRootReasonFilter))
 {
 	LoadConfig();
@@ -97,6 +98,7 @@ void FConsoleSlateDebuggerInvalidate::LoadConfig()
 	GetColor(TEXT("DrawRootRootColor"), DrawRootRootColor);
 	GetColor(TEXT("DrawRootChildOrderColor"), DrawRootChildOrderColor);
 	GetColor(TEXT("DrawRootScreenPositionColor"), DrawRootScreenPositionColor);
+	GetColor(TEXT("DrawWidgetPrepassColor"), DrawWidgetPrepassColor);
 	GetColor(TEXT("DrawWidgetLayoutColor"), DrawWidgetLayoutColor);
 	GetColor(TEXT("DrawWidgetPaintColor"), DrawWidgetPaintColor);
 	GetColor(TEXT("DrawWidgetVolatilityColor"), DrawWidgetVolatilityColor);
@@ -122,6 +124,7 @@ void FConsoleSlateDebuggerInvalidate::SaveConfig()
 	SetColor(TEXT("DrawRootRootColor"), DrawRootRootColor);
 	SetColor(TEXT("DrawRootChildOrderColor"), DrawRootChildOrderColor);
 	SetColor(TEXT("DrawRootScreenPositionColor"), DrawRootScreenPositionColor);
+	SetColor(TEXT("DrawWidgetPrepassColor"), DrawWidgetPrepassColor);
 	SetColor(TEXT("DrawWidgetLayoutColor"), DrawWidgetLayoutColor);
 	SetColor(TEXT("DrawWidgetPaintColor"), DrawWidgetPaintColor);
 	SetColor(TEXT("DrawWidgetVolatilityColor"), DrawWidgetVolatilityColor);
@@ -192,101 +195,24 @@ void FConsoleSlateDebuggerInvalidate::ToggleLogInvalidatedWidget()
 	SaveConfig();
 }
 
-namespace ConsoleSlateDebuggerInvalidate
-{
-	template<class EnumType, int32 BuilderSize>
-	bool CheckAndAddToMessageBuilder(TStringBuilder<BuilderSize>& MessageBuilder, EnumType Filter, EnumType Reason, const TCHAR* Message, bool bFirstFlag)
-	{
-		if (EnumHasAnyFlags(Filter, Reason))
-		{
-			if (!bFirstFlag)
-			{
-				MessageBuilder << TEXT("|");
-			}
-			bFirstFlag = false;
-			MessageBuilder << Message;
-		}
-		return bFirstFlag;
-	}
-
-	template<class EnumType>
-	bool TestAndSetEnum(const FString& Param, EnumType& NewFilter, EnumType Reason, const TCHAR* ReasonParam)
-	{
-		if (Param == ReasonParam)
-		{
-			NewFilter |= Reason;
-			return true;
-		}
-		return false;
-	}
-
-	template<int32 BuilderSize>
-	void BuildEnumMessage(TStringBuilder<BuilderSize>& MessageBuilder, EInvalidateWidgetReason InvalidateWidgetReasonFilter)
-	{
-		bool bFirstFlag = true;
-		bFirstFlag = CheckAndAddToMessageBuilder(MessageBuilder, InvalidateWidgetReasonFilter, EInvalidateWidgetReason::Layout, TEXT("Layout"), bFirstFlag);
-		bFirstFlag = CheckAndAddToMessageBuilder(MessageBuilder, InvalidateWidgetReasonFilter, EInvalidateWidgetReason::Paint, TEXT("Paint"), bFirstFlag);
-		bFirstFlag = CheckAndAddToMessageBuilder(MessageBuilder, InvalidateWidgetReasonFilter, EInvalidateWidgetReason::Volatility, TEXT("Volatility"), bFirstFlag);
-		bFirstFlag = CheckAndAddToMessageBuilder(MessageBuilder, InvalidateWidgetReasonFilter, EInvalidateWidgetReason::ChildOrder, TEXT("ChildOrder"), bFirstFlag);
-		bFirstFlag = CheckAndAddToMessageBuilder(MessageBuilder, InvalidateWidgetReasonFilter, EInvalidateWidgetReason::RenderTransform, TEXT("RenderTransform"), bFirstFlag);
-		bFirstFlag = CheckAndAddToMessageBuilder(MessageBuilder, InvalidateWidgetReasonFilter, EInvalidateWidgetReason::Visibility, TEXT("Visibility"), bFirstFlag);
-
-		if (bFirstFlag)
-		{
-			MessageBuilder << TEXT("None");
-		}
-	}
-
-	template<int32 BuilderSize>
-	void BuildEnumMessage(TStringBuilder<BuilderSize>& MessageBuilder, ESlateDebuggingInvalidateRootReason InvalidateRootReasonFilter)
-	{
-		bool bFirstFlag = true;
-		bFirstFlag = ConsoleSlateDebuggerInvalidate::CheckAndAddToMessageBuilder(MessageBuilder, InvalidateRootReasonFilter, ESlateDebuggingInvalidateRootReason::ChildOrder, TEXT("ChildOrder"), bFirstFlag);
-		bFirstFlag = ConsoleSlateDebuggerInvalidate::CheckAndAddToMessageBuilder(MessageBuilder, InvalidateRootReasonFilter, ESlateDebuggingInvalidateRootReason::Root, TEXT("Root"), bFirstFlag);
-		bFirstFlag = ConsoleSlateDebuggerInvalidate::CheckAndAddToMessageBuilder(MessageBuilder, InvalidateRootReasonFilter, ESlateDebuggingInvalidateRootReason::ScreenPosition, TEXT("ScreenPosition"), bFirstFlag);
-
-		if (bFirstFlag)
-		{
-			MessageBuilder << TEXT("None");
-		}
-	}
-}
-
 void FConsoleSlateDebuggerInvalidate::HandleSetInvalidateWidgetReasonFilter(const TArray<FString>& Params)
 {
-	const TCHAR* UsageMessage = TEXT("Usage: SetInvalidateWidgetReasonFilter [None] [Layout] [Paint] [Volatility] [ChildOrder] [RenderTransform] [Visibility] [Any]");
+	const TCHAR* UsageMessage = TEXT("Usage: SetInvalidateWidgetReasonFilter None|Layout|Paint|Volatility|ChildOrder|RenderTransform|Visibility|Any");
 	if (Params.Num() == 0)
 	{
 		UE_LOG(LogSlateDebugger, Log, TEXT("%s"), UsageMessage);
 
-		TStringBuilder<128> MessageBuilder;
+		TStringBuilder<512> MessageBuilder;
 		MessageBuilder << TEXT("Current Invalidate Widget Reason set: ");
-		ConsoleSlateDebuggerInvalidate::BuildEnumMessage(MessageBuilder, InvalidateWidgetReasonFilter);
+		MessageBuilder << LexToString(InvalidateWidgetReasonFilter);
 		UE_LOG(LogSlateDebugger, Log, TEXT("%s"), MessageBuilder.GetData());
 	}
 	else
 	{
-		EInvalidateWidgetReason NewInvalidateWidgetReasonFilter = EInvalidateWidgetReason::None;
-		bool bHasValidFlags = true;
-		for (const FString& Param : Params)
-		{
-			if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateWidgetReasonFilter, EInvalidateWidgetReason::Layout, TEXT("Layout"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateWidgetReasonFilter, EInvalidateWidgetReason::Paint, TEXT("Paint"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateWidgetReasonFilter, EInvalidateWidgetReason::Volatility, TEXT("Volatility"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateWidgetReasonFilter, EInvalidateWidgetReason::ChildOrder, TEXT("ChildOrder"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateWidgetReasonFilter, EInvalidateWidgetReason::RenderTransform, TEXT("RenderTransform"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateWidgetReasonFilter, EInvalidateWidgetReason::Visibility, TEXT("Visibility"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateWidgetReasonFilter, static_cast<EInvalidateWidgetReason>(0xFF), TEXT("Any"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateWidgetReasonFilter, EInvalidateWidgetReason::None, TEXT("None"))) {}
-			else
-			{
-				bHasValidFlags = false;
-				UE_LOG(LogSlateDebugger, Warning, TEXT("Param '%s' is invalid."), *Param);
-				break;
-			}
-		}
-
-		if (!bHasValidFlags)
+		TStringBuilder<512> MessageBuilder;
+		MessageBuilder.Join(Params, TEXT('|'));
+		EInvalidateWidgetReason NewInvalidateWidgetReasonFilter;
+		if (!LexTryParseString(NewInvalidateWidgetReasonFilter, MessageBuilder.ToString()))
 		{
 			UE_LOG(LogSlateDebugger, Log, TEXT("%s"), UsageMessage);
 		}
@@ -300,42 +226,28 @@ void FConsoleSlateDebuggerInvalidate::HandleSetInvalidateWidgetReasonFilter(cons
 
 void FConsoleSlateDebuggerInvalidate::HandleSetInvalidateRootReasonFilter(const TArray<FString>& Params)
 {
-	const TCHAR* UsageMessage = TEXT("Usage: SetInvalidateRootReasonFilter [None] [ChildOrder] [Root] [ScreenPosition] [Any]");
+	const TCHAR* UsageMessage = TEXT("Usage: SetInvalidateRootReasonFilter None|ChildOrder|Root|ScreenPosition|Any");
 	if (Params.Num() == 0)
 	{
 		UE_LOG(LogSlateDebugger, Log, TEXT("%s"), UsageMessage);
 
-		TStringBuilder<128> MessageBuilder;
+		TStringBuilder<512> MessageBuilder;
 		MessageBuilder << TEXT("Current Invalidate Root Reason set: ");
-		ConsoleSlateDebuggerInvalidate::BuildEnumMessage(MessageBuilder, InvalidateRootReasonFilter);
+		MessageBuilder << LexToString(InvalidateRootReasonFilter);
 		UE_LOG(LogSlateDebugger, Log, TEXT("%s"), MessageBuilder.GetData());
 	}
 	else
 	{
-		ESlateDebuggingInvalidateRootReason NewInvalidateRoottReasonFilter = ESlateDebuggingInvalidateRootReason::None;
-		bool bHasValidFlags = true;
-		for (const FString& Param : Params)
-		{
-			if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateRoottReasonFilter, ESlateDebuggingInvalidateRootReason::ChildOrder, TEXT("ChildOrder"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateRoottReasonFilter, ESlateDebuggingInvalidateRootReason::Root, TEXT("Root"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateRoottReasonFilter, ESlateDebuggingInvalidateRootReason::ScreenPosition, TEXT("ScreenPosition"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateRoottReasonFilter, static_cast<ESlateDebuggingInvalidateRootReason>(0xFF), TEXT("Any"))) {}
-			else if (ConsoleSlateDebuggerInvalidate::TestAndSetEnum(Param, NewInvalidateRoottReasonFilter, ESlateDebuggingInvalidateRootReason::None, TEXT("None"))) {}
-			else
-			{
-				bHasValidFlags = false;
-				UE_LOG(LogSlateDebugger, Warning, TEXT("Param '%s' is invalid."), *Param);
-				break;
-			}
-		}
-
-		if (!bHasValidFlags)
+		TStringBuilder<512> MessageBuilder;
+		MessageBuilder.Join(Params, TEXT('|'));
+		ESlateDebuggingInvalidateRootReason NewInvalidateRootReasonFilter;
+		if (!LexTryParseString(NewInvalidateRootReasonFilter, MessageBuilder.ToString()))
 		{
 			UE_LOG(LogSlateDebugger, Log, TEXT("%s"), UsageMessage);
 		}
 		else
 		{
-			InvalidateRootReasonFilter = NewInvalidateRoottReasonFilter;
+			InvalidateRootReasonFilter = NewInvalidateRootReasonFilter;
 			SaveConfig();
 		}
 	}
@@ -359,17 +271,17 @@ int32 FConsoleSlateDebuggerInvalidate::GetInvalidationPriority(EInvalidateWidget
 		return 50;
 	}
 
-	if (EnumHasAnyFlags(InvalidationInfo, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::ChildOrder | EInvalidateWidgetReason::Visibility | EInvalidateWidgetReason::RenderTransform))
+	if (EnumHasAnyFlags(InvalidationInfo, EInvalidateWidgetReason::Prepass | EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::ChildOrder | EInvalidateWidgetReason::Visibility | EInvalidateWidgetReason::RenderTransform))
 	{
 		return 40;
+	}
+	else if (EnumHasAnyFlags(InvalidationInfo, EInvalidateWidgetReason::Volatility))
+	{
+		return 30;
 	}
 	else if (EnumHasAnyFlags(InvalidationInfo, EInvalidateWidgetReason::Paint))
 	{
 		return 20;
-	}
-	else if (EnumHasAnyFlags(InvalidationInfo, EInvalidateWidgetReason::Volatility))
-	{
-		return 10;
 	}
 	return 0;
 }
@@ -389,7 +301,11 @@ const FLinearColor& FConsoleSlateDebuggerInvalidate::GetColor(const FInvalidatio
 		return DrawRootScreenPositionColor;
 	}
 
-	if (EnumHasAnyFlags(InvalidationInfo.WidgetReason, EInvalidateWidgetReason::Layout))
+	if (EnumHasAnyFlags(InvalidationInfo.WidgetReason, EInvalidateWidgetReason::Prepass))
+	{
+		return DrawWidgetPrepassColor;
+	}
+	else if (EnumHasAnyFlags(InvalidationInfo.WidgetReason, EInvalidateWidgetReason::Layout))
 	{
 		return DrawWidgetLayoutColor;
 	}
@@ -594,9 +510,9 @@ void FConsoleSlateDebuggerInvalidate::ProcessFrameList()
 			MessageBuilder << TEXT("' Invalidated: '");
 			MessageBuilder << FrameInvalidationInfo.WidgetInvalidatedName;
 			MessageBuilder << TEXT("' Root Reason: '");
-			ConsoleSlateDebuggerInvalidate::BuildEnumMessage(MessageBuilder, FrameInvalidationInfo.InvalidationRootReason);
+			MessageBuilder << LexToString(FrameInvalidationInfo.InvalidationRootReason);
 			MessageBuilder << TEXT("' Widget Reason: '");
-			ConsoleSlateDebuggerInvalidate::BuildEnumMessage(MessageBuilder, FrameInvalidationInfo.WidgetReason);
+			MessageBuilder << LexToString(FrameInvalidationInfo.WidgetReason);
 			MessageBuilder << TEXT("'");
 
 			UE_LOG(LogSlateDebugger, Log, TEXT("%s"), MessageBuilder.GetData());

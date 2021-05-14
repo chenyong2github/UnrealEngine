@@ -73,5 +73,9 @@ enum class EInvalidateWidgetReason : uint8
 
 ENUM_CLASS_FLAGS(EInvalidateWidgetReason)
 
+SLATECORE_API FString LexToString(EInvalidateWidgetReason Reason);
+SLATECORE_API bool LexTryParseString(EInvalidateWidgetReason& OutMode, const TCHAR* InBuffer);
+SLATECORE_API void LexFromString(EInvalidateWidgetReason& OutMode, const TCHAR* InBuffer);
+
 // This typedefed because EInvalidateWidget will be deprecated soon
 typedef EInvalidateWidgetReason EInvalidateWidget;
