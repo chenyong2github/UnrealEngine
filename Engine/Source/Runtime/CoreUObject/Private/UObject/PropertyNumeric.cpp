@@ -17,6 +17,7 @@ IMPLEMENT_FIELD(FUInt32Property)
 IMPLEMENT_FIELD(FUInt64Property)
 IMPLEMENT_FIELD(FFloatProperty)
 IMPLEMENT_FIELD(FDoubleProperty)
+IMPLEMENT_FIELD(FLargeWorldCoordinatesRealProperty)
 
 int64 FNumericProperty::ReadEnumAsInt64(FStructuredArchive::FSlot Slot, UStruct* DefaultsStruct, const FPropertyTag& Tag)
 {
