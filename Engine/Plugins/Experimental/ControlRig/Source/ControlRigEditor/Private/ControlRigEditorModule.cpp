@@ -1238,24 +1238,19 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 			
 			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InGraphPin->GetOwningNode()))
 			{
-				// Check if we can watch this value (not inside any function)
-				bool bIsInsideFunction = RigNode->GetModel()->GetRootGraph()->IsA<URigVMFunctionLibrary>();
-				if(!bIsInsideFunction)
+				// Add the watch pin / unwatch pin menu items
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
+				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
 				{
-					// Add the watch pin / unwatch pin menu items
-					FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
-					UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
+					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, InGraphPin))
 					{
-						if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, InGraphPin))
-						{
-							Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
-						}
-						else
-						{
-							Section.AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
-						}
-					}				
-				}
+						Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
+					}
+					else
+					{
+						Section.AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
+					}
+				}				
 			}
 
 			// Add alphainterp menu entries
