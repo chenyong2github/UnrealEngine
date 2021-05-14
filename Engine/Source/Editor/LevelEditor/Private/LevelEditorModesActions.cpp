@@ -43,13 +43,14 @@ void FLevelEditorModesCommands::RegisterCommands()
 				++editorMode;
 			}
 
+			FSlateIcon ModeIcon = (Mode.IconBrush != FSlateIcon()) ? Mode.IconBrush : FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.Tabs.EditorModes");
 			FUICommandInfo::MakeCommandInfo(
 				this->AsShared(),
 				EditorModeCommand,
 				EditorModeCommandName,
 				ModeName,
 				Tooltip,
-				Mode.IconBrush,
+				ModeIcon,
 				EUserInterfaceActionType::ToggleButton,
 				DefaultKeyBinding);
 
