@@ -483,10 +483,18 @@ void SRCPanelExposedEntitiesList::OnEntityRemoved(const FGuid& InGroupId, const 
 {
 	if (TSharedPtr<SRCPanelGroup> PanelGroup = FindGroupById(InGroupId))
 	{
-		int32 EntityIndex = PanelGroup->GetNodes().IndexOfByPredicate([InEntityId](const TSharedPtr<SRCPanelTreeNode>& Node) {return Node->GetId() == InEntityId; });
+		int32 EntityIndex = PanelGroup->GetNodes().IndexOfByPredicate([InEntityId](const TSharedPtr<SRCPanelTreeNode>& Node) { return Node->GetId() == InEntityId; });
 		if (EntityIndex != INDEX_NONE)
 		{
 			PanelGroup->GetNodes().RemoveAt(EntityIndex);
+		}
+	}
+
+	if (TSharedPtr<SRCPanelTreeNode> Node = GetSelection())
+	{
+		if (Node->GetId() == InEntityId)
+		{
+			OnSelectionChangeDelegate.Broadcast(nullptr);
 		}
 	}
 
@@ -523,6 +531,15 @@ void SRCPanelExposedEntitiesList::OnGroupAdded(const FRemoteControlPresetGroup& 
 void SRCPanelExposedEntitiesList::OnGroupDeleted(FRemoteControlPresetGroup DeletedGroup)
 {
 	int32 Index = FieldGroups.IndexOfByPredicate([&DeletedGroup](const TSharedPtr<SRCPanelGroup>& Group) { return Group->GetId() == DeletedGroup.Id; });
+
+	if (TSharedPtr<SRCPanelTreeNode> Node = GetSelection())
+	{
+		if (DeletedGroup.GetFields().Contains(Node->GetId()))
+		{
+			OnSelectionChangeDelegate.Broadcast(nullptr);
+		}
+	}
+	
 	if (Index != INDEX_NONE)
 	{
 		FieldGroups.RemoveAt(Index);
