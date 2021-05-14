@@ -153,7 +153,7 @@ bool IsFFTBloomPhysicalKernelReady(const FViewInfo& View)
 		BloomConvolutionTexture = GEngine->DefaultBloomKernelTexture;
 	}
 
-	bool bValidSetup = (BloomConvolutionTexture != nullptr && BloomConvolutionTexture->Resource != nullptr);
+	bool bValidSetup = (BloomConvolutionTexture != nullptr && BloomConvolutionTexture->GetResource() != nullptr);
 
 	// The bloom convolution kernel needs to be resident to avoid visual artifacts.
 	if (bValidSetup)
@@ -642,7 +642,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 	}
 
 	// This should exist if we called IsFFTBloomPhysicalKernelReady.
-	check(BloomConvolutionTexture && BloomConvolutionTexture->Resource && BloomConvolutionTexture->Resource->TextureRHI);
+	check(BloomConvolutionTexture && BloomConvolutionTexture->GetResource() && BloomConvolutionTexture->GetResource()->TextureRHI);
 
 	const float BloomConvolutionSize = PPSettings.BloomConvolutionSize;
 	const FVector2D CenterUV = PPSettings.BloomConvolutionCenterUV;
@@ -678,7 +678,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 		const bool bSameKernelSize = FMath::IsNearlyEqual(CachedKernelScale, BloomConvolutionSize, float(1.e-6) /*tol*/);
 		const bool bSameImageSize = (ImageSize == CachedImageSize);
 		const bool bSameKernelCenterUV = CachedKernelCenterUV.Equals(CenterUV, float(1.e-6) /*tol*/);
-		const bool bSameMipLevel = bSameTexture && FFTKernel.PhysicalMipLevel == BloomConvolutionTexture->Resource->GetCurrentMipCount();
+		const bool bSameMipLevel = bSameTexture && FFTKernel.PhysicalMipLevel == BloomConvolutionTexture->GetResource()->GetCurrentMipCount();
 
 		if (bSameTexture && bSameSpectralBuffer && bSameKernelSize && bSameImageSize && bSameKernelCenterUV && bSameMipLevel)
 		{
@@ -698,7 +698,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 
 		// Sample the physical space kernel into the resized buffer
 
-		FTextureRHIRef& PhysicalSpaceKernelTextureRef = BloomConvolutionTexture->Resource->TextureRHI;
+		FTextureRHIRef& PhysicalSpaceKernelTextureRef = BloomConvolutionTexture->GetResource()->TextureRHI;
 
 		// Rescale the physical space kernel ( and omit the center if this is a 1/2 resolution fft, it will be added later)
 
@@ -736,7 +736,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 		ViewState->BloomFFTKernel.ImageSize = ImageSize;
 		ViewState->BloomFFTKernel.Physical = BloomConvolutionTexture;
 		ViewState->BloomFFTKernel.CenterUV = CenterUV;
-		ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTexture->Resource->GetCurrentMipCount();
+		ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTexture->GetResource()->GetCurrentMipCount();
 	}
 
 	// Return pointer to the transformed kernel.

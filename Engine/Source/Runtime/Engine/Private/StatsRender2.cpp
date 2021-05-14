@@ -267,7 +267,7 @@ struct FStatRenderGlobals
 		else
 		{
 			UTexture2D* BackgroundTexture = UCanvas::StaticClass()->GetDefaultObject<UCanvas>()->GradientTexture0;
-			return (BackgroundTexture != nullptr) ? BackgroundTexture->Resource : nullptr;
+			return (BackgroundTexture != nullptr) ? BackgroundTexture->GetResource() : nullptr;
 		}
 	}
 };

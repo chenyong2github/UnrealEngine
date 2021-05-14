@@ -6191,7 +6191,7 @@ bool UEngine::HandleRemoteTextureStatsCommand( const TCHAR* Cmd, FOutputDevice& 
 		float LastTimeRendered = FLT_MAX;
 		uint32 NumUses = 0;
 		int32 LODBias = Texture->GetCachedLODBias();
-		FTexture* Resource = Texture->Resource; 
+		FTexture* Resource = Texture->GetResource();
 
 		if(Resource)
 		{
@@ -10210,7 +10210,7 @@ static void DrawProperty(UCanvas* CanvasObject, UObject* Obj, const FDebugDispla
 			}
 		}
 		Canvas->DrawTile(  X, Y, XL2 + 1, YL * FMath::Max<int>(TextLines.Num(), 1), 0, 0, CanvasObject->DefaultTexture->GetSizeX(), CanvasObject->DefaultTexture->GetSizeY(),
-			FLinearColor(0.5f, 0.5f, 0.5f, 0.5f), CanvasObject->DefaultTexture->Resource );
+			FLinearColor(0.5f, 0.5f, 0.5f, 0.5f), CanvasObject->DefaultTexture->GetResource());
 		if( bDrawPropName )
 		{
 			bDrawPropName = false;

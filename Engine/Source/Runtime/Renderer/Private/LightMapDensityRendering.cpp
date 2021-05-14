@@ -38,7 +38,7 @@ void SetupLightmapDensityPassUniformBuffer(FRDGBuilder& GraphBuilder, ERHIFeatur
 {
 	SetupSceneTextureUniformParameters(GraphBuilder, FeatureLevel, ESceneTextureSetupMode::None, LightmapDensityPassParameters.SceneTextures);
 
-	LightmapDensityPassParameters.GridTexture = GEngine->LightMapDensityTexture->Resource->TextureRHI;
+	LightmapDensityPassParameters.GridTexture = GEngine->LightMapDensityTexture->GetResource()->TextureRHI;
 	LightmapDensityPassParameters.GridTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 
 	LightmapDensityPassParameters.LightMapDensity = FVector4(

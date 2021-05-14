@@ -26,7 +26,7 @@ void SetupAmbientCubemapParameters(const FFinalPostProcessSettings::FCubemapEntr
 
 	// cubemap texture
 	{
-		FTexture* AmbientCubemapTexture = Entry.AmbientCubemap ? Entry.AmbientCubemap->Resource : (FTexture*)GBlackTextureCube;
+		FTexture* AmbientCubemapTexture = Entry.AmbientCubemap ? Entry.AmbientCubemap->GetResource() : (FTexture*)GBlackTextureCube;
 		OutParameters->AmbientCubemap = AmbientCubemapTexture->TextureRHI;
 		OutParameters->AmbientCubemapSampler = AmbientCubemapTexture->SamplerStateRHI;
 	}

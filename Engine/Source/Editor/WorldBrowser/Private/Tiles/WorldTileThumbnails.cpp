@@ -191,7 +191,7 @@ const FSlateBrush* FTileAtlasPage::GetSlotBrush(int32 SlotIdx) const
 
 void FTileAtlasPage::UpdateSlotImageData(int32 SlotIdx, FSlateTextureDataPtr ImageData)
 {
-	if (AtlasTexture && AtlasTexture->Resource)
+	if (AtlasTexture && AtlasTexture->GetResource())
 	{
 		int32 SlotX = (SlotIdx % TileThumbnailAtlasDim)*TileThumbnailSize;
 		int32 SlotY = (SlotIdx / TileThumbnailAtlasDim)*TileThumbnailSize;
@@ -211,7 +211,7 @@ void FTileAtlasPage::UpdateSlotImageData(int32 SlotIdx, FSlateTextureDataPtr Ima
 		} 
 		Context = 
 		{
-			AtlasTexture->Resource->TextureRHI,
+			AtlasTexture->GetResource()->TextureRHI,
 			ImageData,
 			TileThumbnailSize*4,
 			UpdateRegion

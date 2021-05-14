@@ -362,7 +362,7 @@ FScreenPassTexture AddLensFlaresPass(
 
 		if (GEngine->DefaultBokehTexture)
 		{
-			FTextureResource* BokehTextureResource = GEngine->DefaultBokehTexture->Resource;
+			FTextureResource* BokehTextureResource = GEngine->DefaultBokehTexture->GetResource();
 
 			if (BokehTextureResource && BokehTextureResource->TextureRHI)
 			{
@@ -372,7 +372,7 @@ FScreenPassTexture AddLensFlaresPass(
 
 		if (Settings.LensFlareBokehShape)
 		{
-			FTextureResource* BokehTextureResource = Settings.LensFlareBokehShape->Resource;
+			FTextureResource* BokehTextureResource = Settings.LensFlareBokehShape->GetResource();
 
 			if (BokehTextureResource && BokehTextureResource->TextureRHI)
 			{

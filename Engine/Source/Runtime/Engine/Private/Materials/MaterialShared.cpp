@@ -2977,7 +2977,7 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 			continue;
 		}
 
-		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (FVirtualTexture2DResource*)Texture->Resource;
+		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (FVirtualTexture2DResource*)Texture->GetResource();
 		if (VirtualTextureResourceForLayer != nullptr)
 		{
 			// All tile sizes need to match

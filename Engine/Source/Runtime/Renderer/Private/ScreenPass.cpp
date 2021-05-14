@@ -17,7 +17,7 @@ const FTextureRHIRef& GetMiniFontTexture()
 {
 	if (GEngine->MiniFontTexture)
 	{
-		return GEngine->MiniFontTexture->Resource->TextureRHI;
+		return GEngine->MiniFontTexture->GetResource()->TextureRHI;
 	}
 	else
 	{

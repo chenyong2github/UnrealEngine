@@ -36,7 +36,7 @@ void UCanvasRenderTarget2D::UpdateResource()
 
 void UCanvasRenderTarget2D::FastUpdateResource()
 {
-	if (Resource == nullptr)
+	if (GetResource() == nullptr)
 	{
 		// We don't have a resource, just take the fast path
 		UpdateResource();

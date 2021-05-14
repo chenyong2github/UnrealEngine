@@ -1282,7 +1282,7 @@ void UConsole::PostRender_Console_Open(UCanvas* Canvas)
 	// Background
 	FLinearColor BackgroundColor = ConsoleDefs::AutocompleteBackgroundColor.ReinterpretAsLinear();
 	BackgroundColor.A = ConsoleSettings->BackgroundOpacityPercentage / 100.0f;
-	FCanvasTileItem ConsoleTile(FVector2D(LeftPos, 0.0f), DefaultTexture_Black->Resource, FVector2D(ClipX, Height + TopPos - yl), FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f), BackgroundColor);
+	FCanvasTileItem ConsoleTile(FVector2D(LeftPos, 0.0f), DefaultTexture_Black->GetResource(), FVector2D(ClipX, Height + TopPos - yl), FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f), BackgroundColor);
 
 	// Preserve alpha to allow single-pass composite
 	ConsoleTile.BlendMode = SE_BLEND_AlphaBlend;
@@ -1432,7 +1432,7 @@ void UConsole::PostRender_InputLine(UCanvas* Canvas, FIntPoint UserInputLinePos)
 	// Background
 	FLinearColor BackgroundColor = ConsoleDefs::AutocompleteBackgroundColor.ReinterpretAsLinear();
 	BackgroundColor.A = ConsoleSettings->BackgroundOpacityPercentage / 100.0f;
-	FCanvasTileItem ConsoleTile(FVector2D(UserInputLinePos.X, UserInputLinePos.Y - 6 - yl), DefaultTexture_Black->Resource, FVector2D(ClipX, yl + 6), FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f), BackgroundColor);
+	FCanvasTileItem ConsoleTile(FVector2D(UserInputLinePos.X, UserInputLinePos.Y - 6 - yl), DefaultTexture_Black->GetResource(), FVector2D(ClipX, yl + 6), FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f), BackgroundColor);
 
 	// Preserve alpha to allow single-pass composite
 	ConsoleTile.BlendMode = SE_BLEND_AlphaBlend;
@@ -1441,7 +1441,7 @@ void UConsole::PostRender_InputLine(UCanvas* Canvas, FIntPoint UserInputLinePos)
 
 	// Separator line
 	ConsoleTile.SetColor(ConsoleDefs::BorderColor);
-	ConsoleTile.Texture = DefaultTexture_White->Resource;
+	ConsoleTile.Texture = DefaultTexture_White->GetResource();
 	ConsoleTile.Size = FVector2D(ClipX, 2.0f);
 	Canvas->DrawItem(ConsoleTile);
 
@@ -1478,7 +1478,7 @@ void UConsole::PostRender_InputLine(UCanvas* Canvas, FIntPoint UserInputLinePos)
 		FLinearColor AutoCompleteBackgroundColor = ConsoleDefs::AutocompleteBackgroundColor;
 		AutoCompleteBackgroundColor.A = ConsoleSettings->BackgroundOpacityPercentage / 100.0f;
 		ConsoleTile.SetColor(AutoCompleteBackgroundColor);
-		ConsoleTile.Texture = DefaultTexture_White->Resource;
+		ConsoleTile.Texture = DefaultTexture_White->GetResource();
 
 		// wasteful memory allocations but when typing in a console command this is fine
 		TArray<const FAutoCompleteCommand*> AutoCompleteElements;

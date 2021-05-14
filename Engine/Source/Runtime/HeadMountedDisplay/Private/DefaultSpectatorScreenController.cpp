@@ -103,7 +103,7 @@ void FDefaultSpectatorScreenController::SetSpectatorScreenTextureRenderCommand(U
 	}
 
 	FTexture2DRHIRef Texture2DRHIRef;
-	FTextureResource* TextureResource = SrcTexture->Resource;
+	FTextureResource* TextureResource = SrcTexture->GetResource();
 	if (TextureResource && TextureResource->TextureRHI)
 	{
 		Texture2DRHIRef = TextureResource->TextureRHI->GetTexture2D();

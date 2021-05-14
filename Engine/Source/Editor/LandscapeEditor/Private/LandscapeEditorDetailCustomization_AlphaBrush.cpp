@@ -165,7 +165,7 @@ void FTextureMaskThumbnailViewportClient::Draw(FViewport* Viewport, FCanvas* Can
 	Texture->WaitForStreaming();
 
 	//Draw the selected texture, uses ColourChannelBlend mode parameter to filter colour channels and apply grayscale
-	FCanvasTileItem TileItem( FVector2D( 0.0f, 0.0f ), Texture->Resource, Viewport->GetSizeXY(), FLinearColor::White );
+	FCanvasTileItem TileItem( FVector2D( 0.0f, 0.0f ), Texture->GetResource(), Viewport->GetSizeXY(), FLinearColor::White );
 	TileItem.BlendMode = (ESimpleElementBlendMode)(SE_BLEND_RGBA_MASK_START + (1<<PinnedParent->TextureChannel.Get()) + 16);
 	Canvas->DrawItem( TileItem );
 }

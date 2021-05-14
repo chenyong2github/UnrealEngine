@@ -364,7 +364,7 @@ public:
 
 		if( RenderTarget )
 		{
-			FTextureResource* TextureResource = RenderTarget->Resource;
+			FTextureResource* TextureResource = RenderTarget->GetResource();
 			if ( TextureResource )
 			{
 				if (GeometryMode == EWidgetGeometryMode::Plane)

@@ -1690,7 +1690,7 @@ void FEditorModeTools::DrawHUD( FEditorViewportClient* InViewportClient,FViewpor
 							{
 								Canvas->SetHitProxy(new HStaticMeshVert(Actor, Vertex));
 							}
-							TileItem.Texture = VertexTexture->Resource;
+							TileItem.Texture = VertexTexture->GetResource();
 
 							TileItem.Size = FVector2D(TextureSizeX, TextureSizeY);
 							Canvas->DrawItem(TileItem, FVector2D(X, Y));

@@ -1487,7 +1487,7 @@ void FMatineeViewportClient::CreatePushPropertiesOntoGraphButton( FCanvas* Canva
 
 		// Draw button for pushing properties onto graph view.
 		if(Canvas->IsHitTesting()) Canvas->SetHitProxy( new HMatineeTrackGraphPropBtn( InGroup, GroupIndex, Track ) );
-		Canvas->DrawTile( -14, TrackHeightToUse-11, 8, 8, 0.f, 0.f, 1.f, 1.f, FLinearColor::White, GraphTex->Resource );
+		Canvas->DrawTile( -14, TrackHeightToUse-11, 8, 8, 0.f, 0.f, 1.f, 1.f, FLinearColor::White, GraphTex->GetResource());
 		if(Canvas->IsHitTesting()) Canvas->SetHitProxy( NULL );
 	}
 }
@@ -1580,7 +1580,7 @@ void FMatineeViewportClient::DrawTrackLabel( FCanvas* Canvas, UInterpTrack* Trac
 	if( TrackIconTex )
 	{
 		TileItem.SetColor( FLinearColor::White );
-		TileItem.Texture = TrackIconTex->Resource;
+		TileItem.Texture = TrackIconTex->GetResource();
 		TileItem.Size = FVector2D( TrackIconSize, TrackIconSize );
 		TileItem.Draw( Canvas, FVector2D( -InterpEd->LabelWidth + TrackTitleIndentPixels - PaddedTrackIconSize, 0.5*(TrackHeightToUse - TrackIconSize) ) );		
 		TileItem.Texture = GWhiteTexture;
@@ -1621,11 +1621,11 @@ void FMatineeViewportClient::DrawTrackLabel( FCanvas* Canvas, UInterpTrack* Trac
 		UTexture2D* BackwardTex = (EventTrack->bFireEventsWhenBackwards) ? LabelDrawParams.BackwardEventOnTex : LabelDrawParams.BackwardEventOffTex;
 
 		if(Canvas->IsHitTesting()) Canvas->SetHitProxy( new HMatineeEventDirBtn(Group, TrackIndex, EMatineeEventDirection::IED_Backward) );
-		Canvas->DrawTile( -24, TrackHeightToUse-11, 8, 8, 0.f, 0.f, 1.f, 1.f, FLinearColor::White, BackwardTex->Resource );
+		Canvas->DrawTile( -24, TrackHeightToUse-11, 8, 8, 0.f, 0.f, 1.f, 1.f, FLinearColor::White, BackwardTex->GetResource());
 		if(Canvas->IsHitTesting()) Canvas->SetHitProxy( NULL );
 
 		if(Canvas->IsHitTesting()) Canvas->SetHitProxy( new HMatineeEventDirBtn(Group, TrackIndex, EMatineeEventDirection::IED_Forward) );
-		Canvas->DrawTile( -14, TrackHeightToUse-11, 8, 8, 0.f, 0.f, 1.f, 1.f, FLinearColor::White, ForwardTex->Resource );
+		Canvas->DrawTile( -14, TrackHeightToUse-11, 8, 8, 0.f, 0.f, 1.f, 1.f, FLinearColor::White, ForwardTex->GetResource());
 		if(Canvas->IsHitTesting()) Canvas->SetHitProxy( NULL );
 	}
 
@@ -1638,7 +1638,7 @@ void FMatineeViewportClient::DrawTrackLabel( FCanvas* Canvas, UInterpTrack* Trac
 		if(Canvas->IsHitTesting()) Canvas->SetHitProxy( new HMatineeTrackTrajectoryButton( Group, Track ) );
 		if(MovementTrack->bHide3DTrack)
 		{
-			Canvas->DrawTile( -24, TrackHeightToUse-11, 8, 8, 0.f, 0.f, 1.f, 1.f, FLinearColor::White, TrajectoryButtonTex->Resource );
+			Canvas->DrawTile( -24, TrackHeightToUse-11, 8, 8, 0.f, 0.f, 1.f, 1.f, FLinearColor::White, TrajectoryButtonTex->GetResource());
 		}
 		else
 		{
@@ -1665,7 +1665,7 @@ void FMatineeViewportClient::DrawTrackLabel( FCanvas* Canvas, UInterpTrack* Trac
 
 		if( Track->IsDisabled() == false )
 		{
-			Canvas->DrawTile( -InterpEd->LabelWidth + MatineeGlobals::DisableTrackCheckBoxHorizOffset, YPos, MatineeGlobals::DisableTrackIconSize.X, MatineeGlobals::DisableTrackIconSize.Y, 0,0,1,1, FLinearColor::White, LabelDrawParams.DisableTrackTex->Resource);
+			Canvas->DrawTile( -InterpEd->LabelWidth + MatineeGlobals::DisableTrackCheckBoxHorizOffset, YPos, MatineeGlobals::DisableTrackIconSize.X, MatineeGlobals::DisableTrackIconSize.Y, 0,0,1,1, FLinearColor::White, LabelDrawParams.DisableTrackTex->GetResource());
 		}
 
 		if( Canvas->IsHitTesting() )
@@ -2070,7 +2070,7 @@ void FMatineeViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 					UTexture2D* ButtonTex = (Group == InterpEd->CamViewGroup) ? LabelDrawParams.CamLockedIcon : LabelDrawParams.CamUnlockedIcon;
 					if(Canvas->IsHitTesting()) Canvas->SetHitProxy( new HMatineeGroupLockCamBtn(Group) );
 					TileItem.SetColor( FLinearColor::White );
-					TileItem.Texture = ButtonTex->Resource;
+					TileItem.Texture = ButtonTex->GetResource();
 					TileItem.Size = FVector2D( 16, 16 );
 					TileItem.Draw( Canvas, FVector2D( InterpEd->LabelWidth - 26, (0.5*GroupHeadHeight)-8 ) );
 					TileItem.Texture = GWhiteTexture;
@@ -2079,7 +2079,7 @@ void FMatineeViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 				if( !Group->bIsFolder )
 				{
 					TileItem.SetColor( Group->GroupColor );
-					TileItem.Texture = InterpEd->BarGradText->Resource;
+					TileItem.Texture = InterpEd->BarGradText->GetResource();
 					TileItem.Size = FVector2D( 6, GroupHeadHeight );
 					TileItem.Draw( Canvas, FVector2D( InterpEd->LabelWidth - 6, 0 ) );
 					TileItem.Texture = GWhiteTexture;

@@ -37,7 +37,7 @@ struct FLandscapeEditReadbackTaskImpl
 /** Initialize the read back task data that is written by game thread. */
 bool InitTask_GameThread(FLandscapeEditReadbackTaskImpl& Task, UTexture2D const* InTexture, FLandscapeEditLayerReadback::FReadbackContext&& InReadbackContext, uint32 InFrameId)
 {
-	Task.TextureResource = InTexture->Resource;
+	Task.TextureResource = InTexture->GetResource();
 	Task.ReadbackContext = MoveTemp(InReadbackContext);
 	Task.InitFrameId = InFrameId;
 	Task.Size = FIntPoint(InTexture->GetSizeX(), InTexture->GetSizeY());

@@ -49,7 +49,7 @@ void UTextureThumbnailRenderer::GetThumbnailSize(UObject* Object, float Zoom, ui
 void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UTexture* Texture = Cast<UTexture>(Object);
-	if (Texture != nullptr && Texture->Resource != nullptr) 
+	if (Texture != nullptr && Texture->GetResource() != nullptr)
 	{
 		UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 
@@ -102,11 +102,11 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 			Canvas->DrawTile(
 				0.0f, 0.0f, Width, Height,							// Dimensions
 				0.0f, 0.0f, CheckerDensity, CheckerDensity,			// UVs
-				FLinearColor::White, Checker->Resource);			// Tint & Texture
+				FLinearColor::White, Checker->GetResource());			// Tint & Texture
 		}
 
 		// Use A canvas tile item to draw
-		FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->Resource, FVector2D( Width,Height ), FLinearColor::White );
+		FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->GetResource(), FVector2D( Width,Height ), FLinearColor::White );
 		CanvasTile.BlendMode = bUseTranslucentBlend ? SE_BLEND_Translucent : SE_BLEND_Opaque;
 		CanvasTile.BatchedElementParameters = BatchedElementParameters;
 		if (bIsVirtualTexture && Texture->Source.GetNumBlocks() > 1)

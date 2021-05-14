@@ -342,7 +342,7 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 
 	//AutoExposureMeterMask
 	const FTextureRHIRef MeterMask = Settings.AutoExposureMeterMask ?
-		Settings.AutoExposureMeterMask->Resource->TextureRHI :
+		Settings.AutoExposureMeterMask->GetResource()->TextureRHI :
 		GWhiteTexture->TextureRHI;
 
 	// The distance at which we switch from linear to exponential. I.e. at StartDistance=1.5, when linear is 1.5 f-stops away from hitting the 

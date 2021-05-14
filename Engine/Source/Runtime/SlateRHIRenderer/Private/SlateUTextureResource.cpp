@@ -102,7 +102,7 @@ void FSlateUTextureResource::UpdateTexture(UTexture* InTexture)
 		Proxy = new FSlateShaderResourceProxy;
 	}
 
-	FTexture* TextureResource = InTexture->Resource;
+	FTexture* TextureResource = InTexture->GetResource();
 
 	Proxy->Resource = this;
 	// If the RHI data has changed, it's possible the underlying size of the texture has changed,

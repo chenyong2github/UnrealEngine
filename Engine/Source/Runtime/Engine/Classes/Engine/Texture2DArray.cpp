@@ -370,7 +370,7 @@ ENGINE_API void UTexture2DArray::PostEditChangeProperty(FPropertyChangedEvent & 
 
 bool UTexture2DArray::StreamOut(int32 NewMipCount)
 {
-	FTexture2DArrayResource* Texture2DArrayResource = Resource ? Resource->GetTexture2DArrayResource() : nullptr;
+	FTexture2DArrayResource* Texture2DArrayResource = GetResource() ? GetResource()->GetTexture2DArrayResource() : nullptr;
 	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamOut(NewMipCount) && ensure(Texture2DArrayResource))
 	{
 		FTextureMipAllocator* MipAllocator = new FTexture2DArrayMipAllocator_Reallocate(this);
@@ -382,7 +382,7 @@ bool UTexture2DArray::StreamOut(int32 NewMipCount)
 
 bool UTexture2DArray::StreamIn(int32 NewMipCount, bool bHighPrio)
 {
-	FTexture2DArrayResource* Texture2DArrayResource = Resource ? Resource->GetTexture2DArrayResource() : nullptr;
+	FTexture2DArrayResource* Texture2DArrayResource = GetResource() ? GetResource()->GetTexture2DArrayResource() : nullptr;
 	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamIn(NewMipCount) && ensure(Texture2DArrayResource))
 	{
 		FTextureMipDataProvider* CustomMipDataProvider = nullptr;

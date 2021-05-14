@@ -64,7 +64,7 @@ void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 
 		if (View.FogInscatteringColorCubemap)
 		{
-			Cubemap = View.FogInscatteringColorCubemap->Resource;
+			Cubemap = View.FogInscatteringColorCubemap->GetResource();
 		}
 
 		OutParameters.ExponentialFogParameters = View.ExponentialFogParameters;

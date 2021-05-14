@@ -247,11 +247,11 @@ static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context
 static void EvaluateTextureSize(const FMaterialRenderContext& Context, UE::Shader::FPreshaderStack& Stack, UE::Shader::FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
-	if (Texture && Texture->Resource)
+	if (Texture && Texture->GetResource())
 	{
-		const uint32 SizeX = Texture->Resource->GetSizeX();
-		const uint32 SizeY = Texture->Resource->GetSizeY();
-		const uint32 SizeZ = Texture->Resource->GetSizeZ();
+		const uint32 SizeX = Texture->GetResource()->GetSizeX();
+		const uint32 SizeY = Texture->GetResource()->GetSizeY();
+		const uint32 SizeZ = Texture->GetResource()->GetSizeZ();
 		Stack.Add(UE::Shader::FValue((float)SizeX, (float)SizeY, (float)SizeZ));
 	}
 	else
@@ -263,11 +263,11 @@ static void EvaluateTextureSize(const FMaterialRenderContext& Context, UE::Shade
 static void EvaluateTexelSize(const FMaterialRenderContext& Context, UE::Shader::FPreshaderStack& Stack, UE::Shader::FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
-	if (Texture && Texture->Resource)
+	if (Texture && Texture->GetResource())
 	{
-		const uint32 SizeX = Texture->Resource->GetSizeX();
-		const uint32 SizeY = Texture->Resource->GetSizeY();
-		const uint32 SizeZ = Texture->Resource->GetSizeZ();
+		const uint32 SizeX = Texture->GetResource()->GetSizeX();
+		const uint32 SizeY = Texture->GetResource()->GetSizeY();
+		const uint32 SizeZ = Texture->GetResource()->GetSizeZ();
 		Stack.Add(UE::Shader::FValue(1.0f / (float)SizeX, 1.0f / (float)SizeY, (SizeZ > 0 ? 1.0f / (float)SizeZ : 0.0f)));
 	}
 	else

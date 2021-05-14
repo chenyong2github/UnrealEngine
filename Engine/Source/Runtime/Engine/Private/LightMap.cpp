@@ -3195,7 +3195,7 @@ FLightMapInteraction FLightMap2D::GetInteraction(ERHIFeatureLevel::Type InFeatur
 	const bool bUseVirtualTextures = (CVarVirtualTexturedLightMaps.GetValueOnAnyThread() != 0) && UseVirtualTexturing(InFeatureLevel);
 	if (!bUseVirtualTextures)
 	{
-		bool bValidTextures = Textures[LightmapIndex] && Textures[LightmapIndex]->Resource;
+		bool bValidTextures = Textures[LightmapIndex] && Textures[LightmapIndex]->GetResource();
 
 		// When the FLightMap2D is first created, the textures aren't set, so that case needs to be handled.
 		if (bValidTextures)
@@ -3206,7 +3206,7 @@ FLightMapInteraction FLightMap2D::GetInteraction(ERHIFeatureLevel::Type InFeatur
 	else
 	{
 		// Preview lightmaps don't stream from disk, thus no FVirtualTexture2DResource
-		bool bValidVirtualTexture = VirtualTextures[LightmapIndex] && (VirtualTextures[LightmapIndex]->Resource != nullptr || VirtualTextures[LightmapIndex]->bPreviewLightmap);
+		bool bValidVirtualTexture = VirtualTextures[LightmapIndex] && (VirtualTextures[LightmapIndex]->GetResource() != nullptr || VirtualTextures[LightmapIndex]->bPreviewLightmap);
 		if (bValidVirtualTexture)
 		{
 			return FLightMapInteraction::InitVirtualTexture(VirtualTextures[LightmapIndex], ScaleVectors, AddVectors, CoordinateScale, CoordinateBias, bHighQuality);
@@ -3226,7 +3226,7 @@ FShadowMapInteraction FLightMap2D::GetShadowInteraction(ERHIFeatureLevel::Type I
 	if (bUseVirtualTextures)
 	{
 		// Preview lightmaps don't stream from disk, thus no FVirtualTexture2DResource
-		const bool bValidVirtualTexture = VirtualTextures[LightmapIndex] && (VirtualTextures[LightmapIndex]->Resource != nullptr || VirtualTextures[LightmapIndex]->bPreviewLightmap);
+		const bool bValidVirtualTexture = VirtualTextures[LightmapIndex] && (VirtualTextures[LightmapIndex]->GetResource() != nullptr || VirtualTextures[LightmapIndex]->bPreviewLightmap);
 		if (bValidVirtualTexture)
 		{
 			return FShadowMapInteraction::InitVirtualTexture(VirtualTextures[LightmapIndex], CoordinateScale, CoordinateBias, bShadowChannelValid, InvUniformPenumbraSize);
@@ -3476,10 +3476,10 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 		}
 #endif
 
-	if (!AllocatedVT && VirtualTexture && VirtualTexture->Resource)
+	if (!AllocatedVT && VirtualTexture && VirtualTexture->GetResource())
 	{
 		check(VirtualTexture->VirtualTextureStreaming);
-		const FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)VirtualTexture->Resource;
+		const FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)VirtualTexture->GetResource();
 		const FVirtualTextureProducerHandle ProducerHandle = Resource->GetProducerHandle();
 
 		GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyed, const_cast<FLightmapResourceCluster*>(this));

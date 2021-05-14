@@ -109,7 +109,7 @@ void UWebBrowserTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSi
 
 void UWebBrowserTexture::TickResource(TSharedPtr<FWebBrowserTextureSample, ESPMode::ThreadSafe> Sample)
 {
-	if (Resource == nullptr)
+	if (GetResource() == nullptr)
 	{
 		return;
 	}
@@ -129,7 +129,7 @@ void UWebBrowserTexture::TickResource(TSharedPtr<FWebBrowserTextureSample, ESPMo
 		RenderParams.SampleSource = SampleQueue;
 	}
 
-	FWebBrowserTextureResource* ResourceParam = (FWebBrowserTextureResource*)Resource;
+	FWebBrowserTextureResource* ResourceParam = (FWebBrowserTextureResource*)GetResource();
 	ENQUEUE_RENDER_COMMAND(UWebBrowserTextureResourceRender)(
 		[ResourceParam, RenderParams](FRHICommandListImmediate& RHICmdList)
 		{
