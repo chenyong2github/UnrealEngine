@@ -52,12 +52,11 @@ class SLATE_API SWrapBox : public SPanel
 public:
 
 	/** A slot that support alignment of content and padding */
-	class FSlot : public TSlotBase<FSlot>, public TSupportsContentAlignmentMixin<FSlot>, public TSupportsContentPaddingMixin<FSlot>
+	class FSlot : public TBasicLayoutWidgetSlot<FSlot>
 	{
 	public:
 		FSlot()
-			: TSlotBase<FSlot>()
-			, TSupportsContentAlignmentMixin<FSlot>(HAlign_Fill, VAlign_Fill)
+			: TBasicLayoutWidgetSlot<FSlot>(HAlign_Fill, VAlign_Fill)
 			, SlotFillLineWhenWidthLessThan()
 			, SlotFillLineWhenSizeLessThan()
 			, bSlotFillEmptySpace(false)

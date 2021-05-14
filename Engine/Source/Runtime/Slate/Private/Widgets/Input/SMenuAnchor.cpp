@@ -83,8 +83,8 @@ SMenuAnchor::FPopupPlacement::FPopupPlacement(const FGeometry& PlacementGeometry
  */
 void SMenuAnchor::Construct( const FArguments& InArgs )
 {
-	Children.Add( new FSimpleSlot(this) );
-	Children.Add( new FSimpleSlot(this) );
+	Children.Add(new FBasicLayoutWidgetSlot());
+	Children.Add(new FBasicLayoutWidgetSlot());
 	
 
 	Children[0]

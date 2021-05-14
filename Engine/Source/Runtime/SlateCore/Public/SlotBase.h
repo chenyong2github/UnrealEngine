@@ -8,6 +8,7 @@
 
 class SWidget;
 
+/** Slot are a container of a SWidget used by the FChildren. */
 class SLATECORE_API FSlotBase
 {
 public:
@@ -104,14 +105,13 @@ private:
 };
 
 
+/** A slot that can be used by the declarative syntax. */
 template<typename SlotType>
 class TSlotBase : public FSlotBase
 {
 public:
 
-	TSlotBase()
-	: FSlotBase()
-	{}
+	TSlotBase() = default;
 
 	TSlotBase( const TSharedRef<SWidget>& InWidget )
 	: FSlotBase( InWidget )
@@ -120,12 +120,12 @@ public:
 	SlotType& operator[]( const TSharedRef<SWidget>& InChildWidget )
 	{
 		this->AttachWidget(InChildWidget);
-		return (SlotType&)(*this);
+		return static_cast<SlotType&>(*this);
 	}
 
 	SlotType& Expose( SlotType*& OutVarToInit )
 	{
-		OutVarToInit = (SlotType*)this;
-		return (SlotType&)(*this);
+		OutVarToInit = static_cast<SlotType*>(this);
+		return static_cast<SlotType&>(*this);
 	}
 };

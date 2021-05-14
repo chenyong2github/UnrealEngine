@@ -38,7 +38,7 @@ class SLATE_API SResponsiveGridPanel
 {
 public:
 
-	class FSlot : public TSlotBase<FSlot>, public TSupportsContentAlignmentMixin<FSlot>, public TSupportsContentPaddingMixin < FSlot >
+	class FSlot : public TBasicLayoutWidgetSlot< FSlot >
 	{
 	public:
 
@@ -52,8 +52,7 @@ public:
 	public:
 		/** Default values for a slot. */
 		FSlot(int32 Row)
-			: TSlotBase<FSlot>()
-			, TSupportsContentAlignmentMixin<FSlot>(HAlign_Fill, VAlign_Fill)
+			: TBasicLayoutWidgetSlot<FSlot>(HAlign_Fill, VAlign_Fill)
 			, RowParam(FMath::Max(0, Row))
 			, ColumnLayouts()
 		{ }

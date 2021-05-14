@@ -25,14 +25,7 @@ class SLATE_API SWindowTitleBarArea
 {
 public:
 	
-	class SLATE_API FSlot : public TSupportsOneChildMixin<FSlot>, public TSupportsContentAlignmentMixin<FSlot>, public TSupportsContentPaddingMixin<FSlot>
-	{
-		public:
-			FSlot(SWidget* InOwner)
-			: TSupportsOneChildMixin<FSlot>(InOwner)
-			, TSupportsContentAlignmentMixin<FSlot>(HAlign_Fill, VAlign_Fill)
-			{ }
-	};
+	using FSlot = FSingleWidgetChildrenWithBasicLayoutSlot;
 
 	SLATE_BEGIN_ARGS(SWindowTitleBarArea)
 		: _HAlign( HAlign_Fill )

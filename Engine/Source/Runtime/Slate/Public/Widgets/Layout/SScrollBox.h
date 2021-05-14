@@ -69,34 +69,7 @@ class SLATE_API SScrollBox : public SCompoundWidget
 {
 public:
 	/** A Slot that provides layout options for the contents of a scrollable box. */
-	class SLATE_API FSlot : public TSlotBase<FSlot>, public TSupportsContentPaddingMixin<FSlot>
-	{
-	public:
-		FSlot()
-			: TSlotBase<FSlot>()
-			// Set both vertical and horizontal alignment to fill by default.  During layout, the
-			// alignment direction parallel to the scroll direction is assumed to be top, or left
-			// since that is how the items are stacked.
-			, HAlignment(HAlign_Fill)
-			, VAlignment(VAlign_Fill)
-		{
-		}
-
-		FSlot& HAlign( EHorizontalAlignment InHAlignment )
-		{
-			HAlignment = InHAlignment;
-			return *this;
-		}
-
-		FSlot& VAlign(EVerticalAlignment InVAlignment)
-		{
-			VAlignment = InVAlignment;
-			return *this;
-		}
-		
-		EHorizontalAlignment HAlignment;
-		EVerticalAlignment VAlignment;
-	};
+	using FSlot = FBasicLayoutWidgetSlot;
 
 	SLATE_BEGIN_ARGS(SScrollBox)
 		: _Style( &FAppStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox") )

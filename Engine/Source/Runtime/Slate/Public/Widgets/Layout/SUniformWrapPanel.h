@@ -19,11 +19,11 @@ class SLATE_API SUniformWrapPanel : public SPanel
 {
 public:
 	/** Stores the per-child info for this panel type */
-	struct FSlot : public TSlotBase<FSlot>, public TSupportsContentAlignmentMixin<FSlot>
+	struct FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
 	{
 		FSlot()
 		: TSlotBase<FSlot>()
-		, TSupportsContentAlignmentMixin<FSlot>(HAlign_Fill, VAlign_Fill)
+		, TAlignmentWidgetSlotMixin<FSlot>(HAlign_Fill, VAlign_Fill)
 		{
 
 		}

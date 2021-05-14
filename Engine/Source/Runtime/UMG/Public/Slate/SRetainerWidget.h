@@ -123,7 +123,6 @@ private:
 	static void OnRetainerModeCVarChanged( IConsoleVariable* CVar );
 	static FOnRetainedModeChanged OnRetainerModeChangedDelegate;
 #endif
-	FSimpleSlot EmptyChildSlot;
 
 	mutable FSlateBrush SurfaceBrush;
 

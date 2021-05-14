@@ -23,18 +23,7 @@ class SLATE_API SWidgetSwitcher
 {
 public:
 
-	class FSlot
-		: public TSlotBase<FSlot>
-		, public TSupportsContentAlignmentMixin<FSlot>
-		, public TSupportsContentPaddingMixin<FSlot>
-	{
-	public:
-
-		FSlot()
-			: TSlotBase<FSlot>()
-			,TSupportsContentAlignmentMixin<FSlot>( HAlign_Fill, VAlign_Fill )
-		{ }
-	};
+	using FSlot = FBasicLayoutWidgetSlot;
 
 	SLATE_BEGIN_ARGS(SWidgetSwitcher)
 		: _WidgetIndex(0)

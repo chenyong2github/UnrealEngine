@@ -53,8 +53,7 @@ public:
 
 	virtual FChildren* GetChildren() override
 	{
-		static FNoChildren NoChildrenInstance;
-		return &NoChildrenInstance;
+		return &FNoChildren::NoChildrenInstance;
 	}
 	
 	bool GetPlayerView(FVector& Location, FRotator& Rotation) const;

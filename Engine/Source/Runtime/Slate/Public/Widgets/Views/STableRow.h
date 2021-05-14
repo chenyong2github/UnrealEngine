@@ -239,7 +239,7 @@ public:
 				InContent
 			];
 
-			InnerContentSlot = InnerContentSlotNativePtr;
+			InnerContentSlot = &InnerContentSlotNativePtr->AsSlot();
 		}
 		else
 		{

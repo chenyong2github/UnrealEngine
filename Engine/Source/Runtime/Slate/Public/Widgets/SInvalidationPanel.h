@@ -67,8 +67,6 @@ private:
 	bool UpdateCachePrequisites(FSlateWindowElementList& OutDrawElements, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, int32 LayerId, const FWidgetStyle& InWidgetStyle) const;
 
 private:
-	FSimpleSlot EmptyChildSlot;
-
 	mutable TSharedRef<FHittestGrid> HittestGrid;
 
 	mutable TOptional<FSlateClippingState> LastClippingState;

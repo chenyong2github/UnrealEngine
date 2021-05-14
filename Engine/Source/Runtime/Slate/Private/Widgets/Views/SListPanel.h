@@ -155,10 +155,4 @@ protected:
 
 	/** The preferred number of lines that this widget should have orthogonal to the scroll axis. Only relevant for tile views. */
 	int32 PreferredNumLines = 1;
-
-
-private:
-	
-	/** Used to pretend that the panel has no children when asked to cache desired size. */
-	static FNoChildren NoChildren;
 };
