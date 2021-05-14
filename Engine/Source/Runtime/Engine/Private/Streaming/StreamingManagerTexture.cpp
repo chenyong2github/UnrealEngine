@@ -2400,9 +2400,9 @@ bool FRenderAssetStreamingManager::HandleLODGroupsCommand( const TCHAR* Cmd, FOu
 			{
 				return (*Texture->GetRunningPlatformData())->PixelFormat;
 			}
-			else if (Texture->Resource && Texture->Resource->TextureRHI)
+			else if (Texture->GetResource() && Texture->GetResource()->TextureRHI)
 			{
-				return Texture->Resource->TextureRHI->GetFormat();
+				return Texture->GetResource()->TextureRHI->GetFormat();
 			}
 			else
 			{
@@ -2411,7 +2411,7 @@ bool FRenderAssetStreamingManager::HandleLODGroupsCommand( const TCHAR* Cmd, FOu
 		}();
 
 		// No resource no size taken
-		if (!Texture->Resource)
+		if (!Texture->GetResource())
 		{
 			LODStats.NumNoResourceTextures++;
 		}

@@ -312,7 +312,7 @@ uint32 GenerateFinalTable(const FFinalPostProcessSettings& Settings, const FText
 
 			{
 				UTexture* LUTTexture = Settings.ContributingLUTs[InputIndex].LUTTexture;
-				FTexture* Internal = LUTTexture ? LUTTexture->Resource : nullptr;
+				FTexture* Internal = LUTTexture ? LUTTexture->GetResource() : nullptr;
 				for (uint32 OutputIndex = 0; OutputIndex < LocalCount; ++OutputIndex)
 				{
 					if (Internal == OutTextures[OutputIndex])
@@ -353,7 +353,7 @@ uint32 GenerateFinalTable(const FFinalPostProcessSettings& Settings, const FText
 		}
 
 		UTexture* BestLUTTexture = Settings.ContributingLUTs[BestIndex].LUTTexture;
-		FTexture* BestInternal = BestLUTTexture ? BestLUTTexture->Resource : nullptr;
+		FTexture* BestInternal = BestLUTTexture ? BestLUTTexture->GetResource() : nullptr;
 
 		OutTextures[LocalCount] = BestInternal;
 		OutWeights[LocalCount] = BestWeight;

@@ -1060,7 +1060,7 @@ void FCascadeEmitterCanvasClient::DrawHeaderBlock(int32 Index, int32 XPos, UPart
 	}
 	else
 	{
-		Canvas->DrawTile(XPos, 0, EmitterWidth, EmitterHeadHeight, 0.f, 0.f, 1.f, 1.f, HeadColor, TexModuleDisabledBackground->Resource);
+		Canvas->DrawTile(XPos, 0, EmitterWidth, EmitterHeadHeight, 0.f, 0.f, 1.f, 1.f, HeadColor, TexModuleDisabledBackground->GetResource());
 	}
 
 	UParticleSpriteEmitter* SpriteEmitter = Cast<UParticleSpriteEmitter>(Emitter);
@@ -1281,7 +1281,7 @@ void FCascadeEmitterCanvasClient::DrawCollapsedHeaderBlock(int32 Index, int32 XP
 	}
 	else
 	{
-		Canvas->DrawTile(XPos, 0, EmitterCollapsedWidth, EmitterHeadHeight, 0.f, 0.f, 1.f, 1.f, HeadColor, TexModuleDisabledBackground->Resource);
+		Canvas->DrawTile(XPos, 0, EmitterCollapsedWidth, EmitterHeadHeight, 0.f, 0.f, 1.f, 1.f, HeadColor, TexModuleDisabledBackground->GetResource());
 	}
 
 	// Draw column background
@@ -1446,7 +1446,7 @@ void FCascadeEmitterCanvasClient::DrawModule(FCanvas* Canvas, UParticleModule* M
 	else
 	{
 		FColor BkgColor = ModuleBkgColor;
-		FTexture* BkgTexture = TexModuleDisabledBackground->Resource;
+		FTexture* BkgTexture = TexModuleDisabledBackground->GetResource();
 		if (!bIsModuleValid)
 		{
 			BkgColor.R = 255;
@@ -1769,7 +1769,7 @@ FTexture* FCascadeEmitterCanvasClient::GetIconTexture(ECascadeIcons eIcon)
 		UTexture2D* IconTexture = IconTex[eIcon];
 		if (IconTexture)
 		{
-			return IconTexture->Resource;
+			return IconTexture->GetResource();
 		}
 	}
 

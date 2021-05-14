@@ -28,7 +28,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 		Canvas->DrawTile(
 			0.0f, 0.0f, Width, Height,							// Dimensions
 			0.0f, 0.0f, CheckerDensity, CheckerDensity,			// UVs
-			FLinearColor::White, Checker->Resource);			// Tint & Texture
+			FLinearColor::White, Checker->GetResource());			// Tint & Texture
 
 		if (Texture)
 		{
@@ -36,14 +36,14 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 			{
 			case ESlateBrushDrawType::Image:
 				{
-					FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->Resource, FVector2D( Width,Height ), Brush.TintColor.GetSpecifiedColor() );
+					FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->GetResource(), FVector2D( Width,Height ), Brush.TintColor.GetSpecifiedColor() );
 					CanvasTile.BlendMode = SE_BLEND_Translucent;
 					CanvasTile.Draw( Canvas );
 				}
 				break;
 			case ESlateBrushDrawType::Border:
 				{
-					FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->Resource, FVector2D( Width,Height ), Brush.TintColor.GetSpecifiedColor() );
+					FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->GetResource(), FVector2D( Width,Height ), Brush.TintColor.GetSpecifiedColor() );
 					CanvasTile.BlendMode = SE_BLEND_Translucent;
 					CanvasTile.Draw( Canvas );
 				}
@@ -66,7 +66,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( 0, 0 );
 						FVector2D UV1( Brush.Margin.Left, Brush.Margin.Top );
 
-						FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->Resource, TopLeftSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->GetResource(), TopLeftSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -77,7 +77,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( 0, 1 - Brush.Margin.Bottom );
 						FVector2D UV1( Brush.Margin.Left, 1 );
 
-						FCanvasTileItem CanvasTile( FVector2D( X, Y + Height - BottomPx ), Texture->Resource, BottomLeftSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X, Y + Height - BottomPx ), Texture->GetResource(), BottomLeftSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -88,7 +88,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( 1 - Brush.Margin.Right, 0 );
 						FVector2D UV1( 1, Brush.Margin.Top );
 
-						FCanvasTileItem CanvasTile( FVector2D( X + Width - RightPx, Y ), Texture->Resource, TopRightSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X + Width - RightPx, Y ), Texture->GetResource(), TopRightSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -99,7 +99,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( 1 - Brush.Margin.Right, 1 - Brush.Margin.Bottom );
 						FVector2D UV1( 1, 1 );
 
-						FCanvasTileItem CanvasTile( FVector2D( X + Width - RightPx, Y + Height - BottomPx ), Texture->Resource, BottomRightSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X + Width - RightPx, Y + Height - BottomPx ), Texture->GetResource(), BottomRightSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -112,7 +112,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( 0, Brush.Margin.Top );
 						FVector2D UV1( Brush.Margin.Left, 1 - Brush.Margin.Bottom );
 
-						FCanvasTileItem CanvasTile( FVector2D( X, Y + TopPx), Texture->Resource, CenterVerticalLeftSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X, Y + TopPx), Texture->GetResource(), CenterVerticalLeftSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -123,7 +123,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( 1 - Brush.Margin.Right, Brush.Margin.Top );
 						FVector2D UV1( 1, 1 - Brush.Margin.Bottom );
 
-						FCanvasTileItem CanvasTile( FVector2D( X + Width - RightPx, Y + TopPx), Texture->Resource, CenterVerticalRightSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X + Width - RightPx, Y + TopPx), Texture->GetResource(), CenterVerticalRightSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -136,7 +136,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( Brush.Margin.Left, 0 );
 						FVector2D UV1( 1 - Brush.Margin.Right, Brush.Margin.Top );
 
-						FCanvasTileItem CanvasTile( FVector2D( X + LeftPx, Y), Texture->Resource, CenterHorizontalTopSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X + LeftPx, Y), Texture->GetResource(), CenterHorizontalTopSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -147,7 +147,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( Brush.Margin.Left, 1 - Brush.Margin.Bottom );
 						FVector2D UV1( 1 - Brush.Margin.Right, 1 );
 
-						FCanvasTileItem CanvasTile( FVector2D( X + LeftPx, Y + Height - BottomPx ), Texture->Resource, CenterHorizontalBottomSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X + LeftPx, Y + Height - BottomPx ), Texture->GetResource(), CenterHorizontalBottomSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -160,7 +160,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 						FVector2D UV0( Brush.Margin.Left, Brush.Margin.Top );
 						FVector2D UV1( 1 - Brush.Margin.Right, 1 - Brush.Margin.Bottom );
 
-						FCanvasTileItem CanvasTile( FVector2D( X + LeftPx, Y + TopPx), Texture->Resource, CenterSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
+						FCanvasTileItem CanvasTile( FVector2D( X + LeftPx, Y + TopPx), Texture->GetResource(), CenterSize, UV0, UV1, Brush.TintColor.GetSpecifiedColor() );
 						CanvasTile.BlendMode = SE_BLEND_Translucent;
 						CanvasTile.Draw( Canvas );
 					}
@@ -168,7 +168,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 				break;
 			case ESlateBrushDrawType::NoDrawType:
 				{
-					FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->Resource, FVector2D( Width,Height ), Brush.TintColor.GetSpecifiedColor() );
+					FCanvasTileItem CanvasTile( FVector2D( X, Y ), Texture->GetResource(), FVector2D( Width,Height ), Brush.TintColor.GetSpecifiedColor() );
 					CanvasTile.BlendMode = SE_BLEND_Translucent;
 					CanvasTile.Draw( Canvas );
 				}

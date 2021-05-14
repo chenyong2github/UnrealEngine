@@ -882,9 +882,9 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			// It's possible for this command to trigger before a given material is cleaned up and removed from deferred update list
 			// Technically I don't think it's necessary to check 'Resource' for nullptr here, as if TextureReferenceRHI has been initialized, that should be enough
 			// Going to leave the check for now though, to hopefully avoid any unexpected problems
-			if (Value && Value->Resource && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & ValidTextureTypes) != 0u)
+			if (Value && Value->GetResource() && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & ValidTextureTypes) != 0u)
 			{
-				FSamplerStateRHIRef* SamplerSource = &Value->Resource->SamplerStateRHI;
+				const FSamplerStateRHIRef* SamplerSource = &Value->GetResource()->SamplerStateRHI;
 
 				const ESamplerSourceMode SourceMode = Parameter.SamplerSource;
 				if (SourceMode == SSM_Wrap_WorldGroupSettings)
@@ -908,7 +908,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 						TEXT("Texture %s of class %s had invalid sampler source. Material %s with texture expression in slot %i. Sampler source mode %d. Resource initialized: %d"),
 						*Value->GetName(), *Value->GetClass()->GetName(),
 						*MaterialRenderContext.Material.GetFriendlyName(), ExpressionIndex, SourceMode,
-						Value->Resource->IsInitialized());
+						Value->GetResource()->IsInitialized());
 				}
 			}
 
@@ -934,11 +934,11 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
 			check(BufferCursor <= TempBuffer + TempBufferSize);
 
-			if(Value && Value->Resource && (Value->GetMaterialType() & MCT_TextureCube) != 0u)
+			if(Value && Value->GetResource() && (Value->GetMaterialType() & MCT_TextureCube) != 0u)
 			{
 				check(Value->TextureReference.TextureReferenceRHI);
 				*ResourceTableTexturePtr = Value->TextureReference.TextureReferenceRHI;
-				FSamplerStateRHIRef* SamplerSource = &Value->Resource->SamplerStateRHI;
+				const FSamplerStateRHIRef* SamplerSource = &Value->GetResource()->SamplerStateRHI;
 
 				const ESamplerSourceMode SourceMode = Parameter.SamplerSource;
 				if (SourceMode == SSM_Wrap_WorldGroupSettings)
@@ -974,11 +974,11 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			void** ResourceTableSamplerPtr = (void**)((uint8*)BufferCursor + 1 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
 
-			if (Value && Value->Resource && (Value->GetMaterialType() & MCT_Texture2DArray) != 0u)
+			if (Value && Value->GetResource() && (Value->GetMaterialType() & MCT_Texture2DArray) != 0u)
 			{
 				check(Value->TextureReference.TextureReferenceRHI);
 				*ResourceTableTexturePtr = Value->TextureReference.TextureReferenceRHI;
-				FSamplerStateRHIRef* SamplerSource = &Value->Resource->SamplerStateRHI;
+				const FSamplerStateRHIRef* SamplerSource = &Value->GetResource()->SamplerStateRHI;
 				ESamplerSourceMode SourceMode = Parameter.SamplerSource;
 				if (SourceMode == SSM_Wrap_WorldGroupSettings)
 				{
@@ -1014,11 +1014,11 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
 			check(BufferCursor <= TempBuffer + TempBufferSize);
 
-			if(Value && Value->Resource && (Value->GetMaterialType() & MCT_VolumeTexture) != 0u)
+			if(Value && Value->GetResource() && (Value->GetMaterialType() & MCT_VolumeTexture) != 0u)
 			{
 				check(Value->TextureReference.TextureReferenceRHI);
 				*ResourceTableTexturePtr = Value->TextureReference.TextureReferenceRHI;
-				FSamplerStateRHIRef* SamplerSource = &Value->Resource->SamplerStateRHI;
+				const FSamplerStateRHIRef* SamplerSource = &Value->GetResource()->SamplerStateRHI;
 
 				const ESamplerSourceMode SourceMode = Parameter.SamplerSource;
 				if (SourceMode == SSM_Wrap_WorldGroupSettings)
@@ -1139,10 +1139,10 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			{
 				const UTexture* Texture = nullptr;
 				GetTextureValue(EMaterialTextureParameterType::Virtual, ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, Texture);
-				if (Texture && Texture->Resource)
+				if (Texture && Texture->GetResource())
 				{
 					const FVTPackedStackAndLayerIndex StackAndLayerIndex = GetVTStackAndLayerIndex(ExpressionIndex);
-					FVirtualTexture2DResource* VTResource = (FVirtualTexture2DResource*)Texture->Resource;
+					FVirtualTexture2DResource* VTResource = (FVirtualTexture2DResource*)Texture->GetResource();
 					check(VTResource);
 
 					const IAllocatedVirtualTexture* AllocatedVT = UniformExpressionCache.AllocatedVTs[StackAndLayerIndex.StackIndex];
@@ -1215,7 +1215,7 @@ uint32 FUniformExpressionSet::GetReferencedTexture2DRHIHash(const FMaterialRende
 		const uint32 ValidTextureTypes = MCT_Texture2D | MCT_TextureVirtual | MCT_TextureExternal;
 
 		FRHITexture* TexturePtr = nullptr;
-		if (Value && Value->Resource && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & ValidTextureTypes) != 0u)
+		if (Value && Value->GetResource() && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & ValidTextureTypes) != 0u)
 		{
 			TexturePtr = Value->TextureReference.TextureReferenceRHI->GetReferencedTexture();
 		}

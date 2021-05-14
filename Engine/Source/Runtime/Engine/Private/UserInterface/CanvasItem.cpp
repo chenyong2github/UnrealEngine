@@ -234,7 +234,7 @@ void FCanvasItemTestbed::Draw( class FViewport* Viewport, class FCanvas* Canvas 
 	if( ( SelectedTexture ) && ( bShowTiles == true ))
 	{
 		// Plain tex
-		FCanvasTileItem TileItem( FVector2D( 128.0f,128.0f ), SelectedTexture->Resource, FLinearColor::White );
+		FCanvasTileItem TileItem( FVector2D( 128.0f,128.0f ), SelectedTexture->GetResource(), FLinearColor::White );
 		TileItem.Draw( Canvas );
 		TileItem.Size = FVector2D( 32.0f,32.0f );
 		TileItem.Position = FVector2D( 16.0f,16.0f );
@@ -1051,24 +1051,24 @@ void FCanvasTextItem::DrawStringInternal_OfflineCache( FCanvas* InCanvas, const 
 
 		if( Font->Textures.IsValidIndex(Char.TextureIndex) && 
 			(Tex=Font->Textures[Char.TextureIndex])!=nullptr && 
-			Tex->Resource != nullptr )
+			Tex->GetResource() != nullptr )
 		{
-			if( LastTexture != Tex->Resource || BatchedElements == nullptr )
+			if( LastTexture != Tex->GetResource() || BatchedElements == nullptr )
 			{
 				FBatchedElementParameters* BatchedElementParams = nullptr;
-				BatchedElements = InCanvas->GetBatchedElements(FCanvas::ET_Triangle, BatchedElementParams, Tex->Resource, BlendMode, FontRenderInfo.GlowInfo, false);
+				BatchedElements = InCanvas->GetBatchedElements(FCanvas::ET_Triangle, BatchedElementParams, Tex->GetResource(), BlendMode, FontRenderInfo.GlowInfo, false);
 				check(BatchedElements != nullptr);
 				// Trade-off to use memory for performance by pre-allocating more reserved space 
 				// for the triangles/vertices of the batched elements used to render the text tiles
 				// Only reserve initial batch, allow growth afterwards in case there are multiple repeated calls.
 				// Reserving exactly the added amount each time would essentially force an alloc each time on subsequent calls.
-				BatchedElements->ReserveTriangles(TextLen*2,Tex->Resource,BlendMode);
+				BatchedElements->ReserveTriangles(TextLen*2,Tex->GetResource(),BlendMode);
 				BatchedElements->ReserveVertices(TextLen*4);
 
 				InvTextureSize.X = 1.0f / Tex->GetSurfaceWidth();
 				InvTextureSize.Y = 1.0f / Tex->GetSurfaceHeight();
 			}
-			LastTexture = Tex->Resource;
+			LastTexture = Tex->GetResource();
 
 			const float X		= CurrentPos.X + DrawPos.X;
 			const float Y		= CurrentPos.Y + DrawPos.Y + Char.VerticalOffset * Scale.Y;
@@ -1105,8 +1105,8 @@ void FCanvasTextItem::DrawStringInternal_OfflineCache( FCanvas* InCanvas, const 
 				InColor,
 				HitProxyId);
 
-			BatchedElements->AddTriangle(V00, V10, V11, Tex->Resource, BlendMode, FontRenderInfo.GlowInfo);
-			BatchedElements->AddTriangle(V00, V11, V01, Tex->Resource, BlendMode, FontRenderInfo.GlowInfo);
+			BatchedElements->AddTriangle(V00, V10, V11, Tex->GetResource(), BlendMode, FontRenderInfo.GlowInfo);
+			BatchedElements->AddTriangle(V00, V11, V01, Tex->GetResource(), BlendMode, FontRenderInfo.GlowInfo);
 
 			// if we have another non-whitespace character to render, add the font's kerning.
 			if ( Chars[i+1] && !FChar::IsWhitespace(Chars[i+1]) )

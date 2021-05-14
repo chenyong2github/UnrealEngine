@@ -1765,7 +1765,7 @@ void UpdateGlobalDistanceFieldVolume(
 									FHeightfieldComponentDescription NewComponentDescription(HeightfieldPrimitive->Proxy->GetLocalToWorld());
 									HeightfieldPrimitive->Proxy->GetHeightfieldRepresentation(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture, NewComponentDescription);
 
-									if (HeightfieldTexture && HeightfieldTexture->Resource && HeightfieldTexture->Resource->TextureRHI)
+									if (HeightfieldTexture && HeightfieldTexture->GetResource() && HeightfieldTexture->GetResource()->TextureRHI)
 									{
 										const FIntPoint HeightfieldSize = NewComponentDescription.HeightfieldRect.Size();
 
@@ -1929,9 +1929,9 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->NumHeightfields = HeightfieldDescriptions.Num();
 									PassParameters->InfluenceRadius = ClipmapInfluenceRadius;
 									PassParameters->HeightfieldThickness = ClipmapVoxelSize.X * GGlobalDistanceFieldHeightFieldThicknessScale;
-									PassParameters->HeightfieldTexture = HeightfieldTexture->Resource->TextureRHI;
+									PassParameters->HeightfieldTexture = HeightfieldTexture->GetResource()->TextureRHI;
 									PassParameters->HeightfieldSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-									PassParameters->VisibilityTexture = VisibilityTexture ? VisibilityTexture->Resource->TextureRHI : GBlackTexture->TextureRHI;
+									PassParameters->VisibilityTexture = VisibilityTexture ? VisibilityTexture->GetResource()->TextureRHI : GBlackTexture->TextureRHI;
 									PassParameters->VisibilitySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 									PassParameters->HeightfieldDescriptions = GraphBuilder.CreateSRV(HeightfieldDescriptionBuffer, EPixelFormat::PF_A32B32G32R32F);
 
@@ -2220,9 +2220,9 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->NumHeightfields = HeightfieldDescriptions.Num();
 									PassParameters->InfluenceRadius = ClipmapInfluenceRadius;
 									PassParameters->HeightfieldThickness = ClipmapVoxelSize.X * GGlobalDistanceFieldHeightFieldThicknessScale;
-									PassParameters->HeightfieldTexture = HeightfieldTexture->Resource->TextureRHI;
+									PassParameters->HeightfieldTexture = HeightfieldTexture->GetResource()->TextureRHI;
 									PassParameters->HeightfieldSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-									PassParameters->VisibilityTexture = VisibilityTexture ? VisibilityTexture->Resource->TextureRHI : GBlackTexture->TextureRHI;
+									PassParameters->VisibilityTexture = VisibilityTexture ? VisibilityTexture->GetResource()->TextureRHI : GBlackTexture->TextureRHI;
 									PassParameters->VisibilitySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 									PassParameters->HeightfieldDescriptions = GraphBuilder.CreateSRV(HeightfieldDescriptionBuffer, EPixelFormat::PF_A32B32G32R32F);
 

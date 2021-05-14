@@ -115,7 +115,7 @@ void UAsyncTaskDownloadImage::HandleImageRequest(FHttpRequestPtr HttpRequest, FH
 						Texture->SRGB = true;
 						Texture->UpdateResource();
 
-						FTexture2DDynamicResource* TextureResource = static_cast<FTexture2DDynamicResource*>(Texture->Resource);
+						FTexture2DDynamicResource* TextureResource = static_cast<FTexture2DDynamicResource*>(Texture->GetResource());
 						if (TextureResource)
 						{
 							ENQUEUE_RENDER_COMMAND(FWriteRawDataToTexture)(

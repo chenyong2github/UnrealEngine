@@ -90,18 +90,18 @@ void UParticleSystemThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, u
 			else if (ParticleSystem->ThumbnailImage)
 			{
 				Canvas->DrawTile(X,Y,Width,Height,0.f,0.f,1.f,1.f,FLinearColor::White,
-					ParticleSystem->ThumbnailImage->Resource,false);
+					ParticleSystem->ThumbnailImage->GetResource(),false);
 				if (ParticleSystem->ThumbnailImageOutOfDate == true)
 				{
 					Canvas->DrawTile(X,Y,Width/2,Height/2,0.f,0.f,1.f,1.f,FLinearColor::White,
-						OutOfDate->Resource,true);
+						OutOfDate->GetResource(),true);
 				}
 			}
 			else if (NoImage)
 			{
 				// Use the texture interface to draw
 				Canvas->DrawTile(X,Y,Width,Height,0.f,0.f,1.f,1.f,FLinearColor::White,
-					NoImage->Resource,false);
+					NoImage->GetResource(),false);
 			}
 		}
 	}

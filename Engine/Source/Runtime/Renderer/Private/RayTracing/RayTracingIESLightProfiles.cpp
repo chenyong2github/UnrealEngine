@@ -75,7 +75,7 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 		FTextureRHIRef ProfileTexture; 
 		if (IsIESTextureFormatValid(LightProfileTexture))
 		{
-			ProfileTexture = LightProfileTexture->Resource->TextureRHI;
+			ProfileTexture = LightProfileTexture->GetResource()->TextureRHI;
 		}
 		else
 		{
@@ -95,8 +95,8 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 bool FIESLightProfileResource::IsIESTextureFormatValid(const UTextureLightProfile* Texture) const
 {
 	if (Texture
-		&& Texture->Resource
-		&& Texture->Resource->TextureRHI
+		&& Texture->GetResource()
+		&& Texture->GetResource()->TextureRHI
 		&& Texture->PlatformData
 		&& Texture->PlatformData->PixelFormat == AllowedIESProfileFormat
 		&& Texture->PlatformData->Mips.Num() == 1

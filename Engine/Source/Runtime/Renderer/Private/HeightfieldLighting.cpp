@@ -413,7 +413,7 @@ void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& Vie
 				FHeightfieldComponentDescription NewComponentDescription(HeightfieldPrimitive->Proxy->GetLocalToWorld());
 				HeightfieldPrimitive->Proxy->GetHeightfieldRepresentation(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture, NewComponentDescription);
 
-				if (HeightfieldTexture && HeightfieldTexture->Resource->TextureRHI)
+				if (HeightfieldTexture && HeightfieldTexture->GetResource()->TextureRHI)
 				{
 					const FIntPoint HeightfieldSize = NewComponentDescription.HeightfieldRect.Size();
 
@@ -546,7 +546,7 @@ void FHeightfieldLightingViewInfo::SetupHeightfieldsForScene(const FScene& Scene
 			FHeightfieldComponentDescription NewComponentDescription(HeightfieldPrimitive->Proxy->GetLocalToWorld());
 			HeightfieldPrimitive->Proxy->GetHeightfieldRepresentation(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture, NewComponentDescription);
 
-			if (HeightfieldTexture && HeightfieldTexture->Resource->TextureRHI)
+			if (HeightfieldTexture && HeightfieldTexture->GetResource()->TextureRHI)
 			{
 				const FIntPoint HeightfieldSize = NewComponentDescription.HeightfieldRect.Size();
 

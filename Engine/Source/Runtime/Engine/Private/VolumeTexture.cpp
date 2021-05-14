@@ -379,7 +379,7 @@ void UVolumeTexture::UpdateMipGenSettings()
 
 bool UVolumeTexture::StreamOut(int32 NewMipCount)
 {
-	FTexture3DResource* Texture3DResource = Resource ? Resource->GetTexture3DResource() : nullptr;
+	FTexture3DResource* Texture3DResource = GetResource() ? GetResource()->GetTexture3DResource() : nullptr;
 	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamOut(NewMipCount) && ensure(Texture3DResource))
 	{
 		FTextureMipAllocator* MipAllocator = nullptr;
@@ -395,7 +395,7 @@ bool UVolumeTexture::StreamOut(int32 NewMipCount)
 
 bool UVolumeTexture::StreamIn(int32 NewMipCount, bool bHighPrio)
 {
-	FTexture3DResource* Texture3DResource = Resource ? Resource->GetTexture3DResource() : nullptr;
+	FTexture3DResource* Texture3DResource = GetResource() ? GetResource()->GetTexture3DResource() : nullptr;
 	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamIn(NewMipCount) && ensure(Texture3DResource))
 	{
 		FTextureMipDataProvider* CustomMipDataProvider = nullptr;

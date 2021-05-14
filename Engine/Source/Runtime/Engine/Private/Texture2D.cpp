@@ -477,7 +477,7 @@ int32 UTexture2D::GetNumResidentMips() const
 			in-game	resolution of the texture as it's currently loaded. An other option would be "Mips that are partially resident" as that would cover
 			somewhat the same but knowing this is additional burden on the VT system and interfaces.
 			*/
-			return static_cast<const FVirtualTexture2DResource*>(Resource)->GetNumMips();
+			return static_cast<const FVirtualTexture2DResource*>(GetResource())->GetNumMips();
 		}
 		else if (CachedSRRState.IsValid())
 		{
@@ -485,7 +485,7 @@ int32 UTexture2D::GetNumResidentMips() const
 		}
 		else
 		{
-			return Resource->GetCurrentMipCount();
+			return GetResource()->GetCurrentMipCount();
 		}
 	}
 	return 0;

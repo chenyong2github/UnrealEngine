@@ -106,7 +106,7 @@ FTextureEditorToolkit::~FTextureEditorToolkit( )
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 	if (Texture2D && Texture2D->IsCurrentlyVirtualTextured())
 	{
-		FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)Texture2D->Resource;
+		FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)Texture2D->GetResource();
 		Resource->ReleaseAllocatedVT();
 	}
 
@@ -423,7 +423,7 @@ UTexture* FTextureEditorToolkit::GetTexture( ) const
 
 bool FTextureEditorToolkit::HasValidTextureResource( ) const
 {
-	return Texture != nullptr && Texture->Resource != nullptr;
+	return Texture != nullptr && Texture->GetResource() != nullptr;
 }
 
 

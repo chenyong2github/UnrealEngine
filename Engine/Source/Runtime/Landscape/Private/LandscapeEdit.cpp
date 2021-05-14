@@ -7249,7 +7249,7 @@ TArray<FLinearColor> ALandscapeProxy::SampleRTData(UTextureRenderTarget2D* InRen
 		FMessageLog("Blueprint").Warning(LOCTEXT("SampleRTData_InvalidRenderTarget", "SampleRTData: Render Target must be non-null."));
 		return { FLinearColor(0,0,0,0) };
 	}
-	else if (!InRenderTarget->Resource)
+	else if (!InRenderTarget->GetResource())
 	{
 		FMessageLog("Blueprint").Warning(LOCTEXT("SampleRTData_ReleasedRenderTarget", "SampleRTData: Render Target has been released."));
 		return { FLinearColor(0,0,0,0) };
@@ -7327,7 +7327,7 @@ bool ALandscapeProxy::LandscapeImportHeightmapFromRenderTarget(UTextureRenderTar
 		return false;
 	}
 
-	if (InRenderTarget == nullptr || InRenderTarget->Resource == nullptr)
+	if (InRenderTarget == nullptr || InRenderTarget->GetResource() == nullptr)
 	{
 		FMessageLog("Blueprint").Error(LOCTEXT("LandscapeImportHeightmapFromRenderTarget_InvalidRT", "LandscapeImportHeightmapFromRenderTarget: Render Target must be non null and not released."));
 		return false;

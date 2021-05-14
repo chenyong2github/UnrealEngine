@@ -1128,7 +1128,7 @@ public:
 	{
 		check(IsInRenderingThread());
 
-		if (GetFeatureLevel() == ERHIFeatureLevel::SM5 && AnimatedVectorField && AnimatedVectorField->Texture && AnimatedVectorField->Texture->Resource)
+		if (GetFeatureLevel() == ERHIFeatureLevel::SM5 && AnimatedVectorField && AnimatedVectorField->Texture && AnimatedVectorField->Texture->GetResource())
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, AnimateVectorField);
 
@@ -1187,7 +1187,7 @@ public:
 			CompositeCS->SetParameters(
 				RHICmdList,
 				UniformBuffer,
-				AnimatedVectorField->Texture->Resource->TextureRHI,
+				AnimatedVectorField->Texture->GetResource()->TextureRHI,
 				NoiseVolumeTextureRHI );
 			DispatchComputeShader(
 				RHICmdList,

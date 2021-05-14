@@ -180,7 +180,7 @@ namespace VirtualTextureScalability
 				if (It->IsCurrentlyVirtualTextured())
 				{
 					ReleasedVirtualTextures.Add(*It);
-					BeginReleaseResource(It->Resource);
+					BeginReleaseResource(It->GetResource());
 				}
 			}
 
@@ -194,7 +194,7 @@ namespace VirtualTextureScalability
 			// Reinit streaming virtual textures
 			for (UTexture2D* Texture : ReleasedVirtualTextures)
 			{
-				BeginInitResource(Texture->Resource);
+				BeginInitResource(Texture->GetResource());
 			}
 
 			// Reinit runtime virtual textures

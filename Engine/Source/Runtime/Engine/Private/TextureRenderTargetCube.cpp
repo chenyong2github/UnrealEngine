@@ -56,9 +56,9 @@ void UTextureRenderTargetCube::InitAutoFormat(uint32 InSizeX)
 
 void UTextureRenderTargetCube::UpdateResourceImmediate(bool bClearRenderTarget/*=true*/)
 {
-	if (Resource)
+	if (GetResource())
 	{
-		FTextureRenderTargetCubeResource* InResource = static_cast<FTextureRenderTargetCubeResource*>(Resource);
+		FTextureRenderTargetCubeResource* InResource = static_cast<FTextureRenderTargetCubeResource*>(GetResource());
 		ENQUEUE_RENDER_COMMAND(UpdateResourceImmediate)(
 			[InResource, bClearRenderTarget](FRHICommandListImmediate& RHICmdList)
 			{

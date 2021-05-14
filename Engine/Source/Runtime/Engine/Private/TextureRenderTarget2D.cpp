@@ -130,9 +130,9 @@ void UTextureRenderTarget2D::ResizeTarget(uint32 InSizeX, uint32 InSizeY)
 			NumMips = FGenericPlatformMath::CeilToInt(FGenericPlatformMath::Log2(static_cast<float>(FGenericPlatformMath::Max(SizeX, SizeY))));
 		}
 
-		if (Resource)
+		if (GetResource())
 		{
-			FTextureRenderTarget2DResource* InResource = static_cast<FTextureRenderTarget2DResource*>(Resource);
+			FTextureRenderTarget2DResource* InResource = static_cast<FTextureRenderTarget2DResource*>(GetResource());
 			int32 NewSizeX = SizeX;
 			int32 NewSizeY = SizeY;
 			ENQUEUE_RENDER_COMMAND(ResizeRenderTarget)(
@@ -142,8 +142,6 @@ void UTextureRenderTarget2D::ResizeTarget(uint32 InSizeX, uint32 InSizeY)
 					InResource->UpdateDeferredResource(RHICmdList, true);
 				}
 			);
-
-
 		}
 		else
 		{
@@ -154,9 +152,9 @@ void UTextureRenderTarget2D::ResizeTarget(uint32 InSizeX, uint32 InSizeY)
 
 void UTextureRenderTarget2D::UpdateResourceImmediate(bool bClearRenderTarget/*=true*/)
 {
-	if (Resource)
+	if (GetResource())
 	{
-		FTextureRenderTarget2DResource* InResource = static_cast<FTextureRenderTarget2DResource*>(Resource);
+		FTextureRenderTarget2DResource* InResource = static_cast<FTextureRenderTarget2DResource*>(GetResource());
 		ENQUEUE_RENDER_COMMAND(UpdateResourceImmediate)(
 			[InResource, bClearRenderTarget](FRHICommandListImmediate& RHICmdList)
 			{

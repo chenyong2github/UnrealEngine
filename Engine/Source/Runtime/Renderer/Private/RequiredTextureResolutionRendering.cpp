@@ -44,15 +44,15 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 			{
 				const UTexture* Texture = nullptr;
 				UniformExpressions.GetTextureValue(EMaterialTextureParameterType::Standard2D, ParameterIndex, MaterialContext, Material, Texture);
-				if (Texture && Texture->Resource)
+				if (Texture && Texture->GetResource())
 				{
 					if (Texture->IsStreamable())
 					{
-						TextureResolution = 1 << (Texture->Resource->GetCurrentMipCount() - 1);
+						TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
 					}
 					else
 					{
-						TextureResolution = FMath::Max(Texture->Resource->GetSizeX(), Texture->Resource->GetSizeY());
+						TextureResolution = FMath::Max(Texture->GetResource()->GetSizeX(), Texture->GetResource()->GetSizeY());
 					}
 				}
 			}
@@ -65,17 +65,17 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 		{
 			const UTexture* Texture = nullptr;
 			UniformExpressions.GetTextureValue(EMaterialTextureParameterType::Standard2D, ParameterIndex, MaterialContext, Material, Texture);
-			if (Texture && Texture->Resource && Texture->GetFName() == ViewModeParamName)
+			if (Texture && Texture->GetResource() && Texture->GetFName() == ViewModeParamName)
 			{
 				if (Texture->IsStreamable())
 				{
 					const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, ParameterIndex);
 					AnalysisIndex = Parameter.TextureIndex;
-					TextureResolution = 1 << (Texture->Resource->GetCurrentMipCount() - 1);
+					TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
 				}
 				else
 				{
-					TextureResolution = FMath::Max(Texture->Resource->GetSizeX(), Texture->Resource->GetSizeY());
+					TextureResolution = FMath::Max(Texture->GetResource()->GetSizeX(), Texture->GetResource()->GetSizeY());
 				}
 			}
 		}

@@ -311,7 +311,7 @@ void UMediaTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 void UMediaTexture::TickResource(FTimespan Timecode)
 {
-	if (Resource == nullptr)
+	if (GetResource() == nullptr)
 	{
 		return;
 	}
@@ -425,7 +425,7 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 	RenderParams.NumMips = NumMips;
 	
 	// redraw texture resource on render thread
-	FMediaTextureResource* ResourceParam = (FMediaTextureResource*)Resource;
+	FMediaTextureResource* ResourceParam = (FMediaTextureResource*)GetResource();
 	ENQUEUE_RENDER_COMMAND(MediaTextureResourceRender)(
 		[ResourceParam, RenderParams](FRHICommandListImmediate& RHICmdList)
 		{
@@ -455,7 +455,7 @@ void UMediaTexture::UpdatePlayerAndQueue()
 		// Player changed?
 		if (CurrentGuid != PlayerGuid)
 		{
-			if (FMediaTextureResource* MediaResource = static_cast<FMediaTextureResource*>(Resource))
+			if (FMediaTextureResource* MediaResource = static_cast<FMediaTextureResource*>(GetResource()))
 			{
 				MediaResource->FlushPendingData();
 			}
@@ -474,7 +474,7 @@ void UMediaTexture::UpdatePlayerAndQueue()
 			SampleQueue.Reset();
 			CurrentGuid = DefaultGuid;
 
-			if (FMediaTextureResource* MediaResource = static_cast<FMediaTextureResource*>(Resource))
+			if (FMediaTextureResource* MediaResource = static_cast<FMediaTextureResource*>(GetResource()))
 			{
 				MediaResource->FlushPendingData();
 			}

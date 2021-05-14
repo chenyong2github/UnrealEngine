@@ -25,7 +25,7 @@ UXRLoadingScreenFunctionLibrary::UXRLoadingScreenFunctionLibrary(const FObjectIn
 void UXRLoadingScreenFunctionLibrary::SetLoadingScreen(class UTexture* Texture, FVector2D Scale, FVector Offset, bool bShowLoadingMovie, bool bShowOnSet)
 {
 	IXRLoadingScreen* LoadingSrcreen = GetLoadingScreen();
-	if (LoadingSrcreen && Texture && Texture->Resource)
+	if (LoadingSrcreen && Texture && Texture->GetResource())
 	{
 		LoadingSrcreen->ClearSplashes();
 		const bool bIsExternal = Texture->GetMaterialType() == MCT_TextureExternal;
@@ -34,7 +34,7 @@ void UXRLoadingScreenFunctionLibrary::SetLoadingScreen(class UTexture* Texture, 
 		Splash.QuadSize = Scale;
 		Splash.bIsDynamic = bShowLoadingMovie || bIsExternal;
 		Splash.bIsExternal = bIsExternal;
-		Splash.Texture = Texture->Resource->TextureRHI;
+		Splash.Texture = Texture->GetResource()->TextureRHI;
 		LoadingSrcreen->AddSplash(Splash);
 
 		if (bShowOnSet)
@@ -57,7 +57,7 @@ void UXRLoadingScreenFunctionLibrary::ClearLoadingScreenSplashes()
 void UXRLoadingScreenFunctionLibrary::AddLoadingScreenSplash(class UTexture* Texture, FVector Translation, FRotator Rotation, FVector2D Size, FRotator DeltaRotation, bool bClearBeforeAdd)
 {
 	IXRLoadingScreen* LoadingSrcreen = GetLoadingScreen();
-	if (LoadingSrcreen && Texture && Texture->Resource)
+	if (LoadingSrcreen && Texture && Texture->GetResource())
 	{
 		if (bClearBeforeAdd)
 		{
@@ -65,7 +65,7 @@ void UXRLoadingScreenFunctionLibrary::AddLoadingScreenSplash(class UTexture* Tex
 		}
 
 		IXRLoadingScreen::FSplashDesc Splash;
-		Splash.Texture = Texture->Resource->TextureRHI;
+		Splash.Texture = Texture->GetResource()->TextureRHI;
 		Splash.QuadSize = Size;
 		Splash.Transform = FTransform(Rotation, Translation);
 		Splash.DeltaRotation = FQuat(DeltaRotation);

@@ -55,7 +55,7 @@ bool UImageWriteBlueprintLibrary::ResolvePixelData(UTexture* InTexture, const FO
 		break;
 	}
 
-	FTextureResource* TextureResource = InTexture->Resource;
+	FTextureResource* TextureResource = InTexture->GetResource();
 	ENQUEUE_RENDER_COMMAND(ResolvePixelData)(
 		[TextureResource, OnPixelsReady](FRHICommandListImmediate& RHICmdList)
 		{
@@ -157,14 +157,14 @@ void UImageWriteBlueprintLibrary::ExportToDisk(UTexture* InTexture, const FStrin
 
 	// In the case of an error, we always call the error callbacks in a latent manner to ensure that we always trigger the calback outside of this 
 	// function - this ensures the calling context deterministic for whatever is handling the completion.
-	if (!InTexture || !InTexture->Resource || !InTexture->Resource->TextureRHI)
+	if (!InTexture || !InTexture->GetResource() || !InTexture->GetResource()->TextureRHI)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Invalid texture supplied."), ELogVerbosity::Error);
 		AsyncTask(ENamedThreads::GameThread, [OnCompleteWrapper] { OnCompleteWrapper(false); });
 		return;
 	}
 
-	FTexture2DRHIRef Texture2D = InTexture->Resource->TextureRHI->GetTexture2D();
+	FTexture2DRHIRef Texture2D = InTexture->GetResource()->TextureRHI->GetTexture2D();
 	if (!Texture2D)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Invalid texture supplied."), ELogVerbosity::Error);
