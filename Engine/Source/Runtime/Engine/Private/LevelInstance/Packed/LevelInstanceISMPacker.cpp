@@ -51,6 +51,7 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 
 	ISMCluster->ISMDescriptor.InitComponent(PackComponent);
 
+	TArray<FTransform> InstanceTransforms;
 	for (UActorComponent* Component : InComponents)
 	{
 		// If we have a ISM we need to add all instances
@@ -62,16 +63,17 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 
 				if (ensure(ISMComponent->GetInstanceTransform(InstanceIndex, InstanceTransform, /*bWorldSpace=*/ true)))
 				{
-					PackComponent->AddInstanceWorldSpace(InstanceTransform);
+					InstanceTransforms.Add(InstanceTransform);
 				}
 			}
 		}
 		else // other subclasses are processed like regular UStaticMeshComponent
 		{
 			UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(Component);
-			PackComponent->AddInstanceWorldSpace(StaticMeshComponent->GetComponentTransform());
+			InstanceTransforms.Add(StaticMeshComponent->GetComponentTransform());
 		}
 	}
+	PackComponent->AddInstances(InstanceTransforms, /*bWorldSpace*/true);
 
 	FTransform NewWorldTransform = ActorTransform * CurrentPivotOffsetInverse * FTransform(InContext.GetPivotOffset());
 

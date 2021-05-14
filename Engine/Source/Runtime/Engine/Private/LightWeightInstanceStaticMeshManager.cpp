@@ -69,7 +69,7 @@ void ALightWeightInstanceStaticMeshManager::AddNewInstanceAt(FLWIData* InitData,
 	// Update the HISMC
 	if (InstancedStaticMeshComponent)
 	{
-		ensure(RenderingIdx == InstancedStaticMeshComponent->AddInstanceWorldSpace(InitData->Transform));
+		ensure(RenderingIdx == InstancedStaticMeshComponent->AddInstance(InitData->Transform, /*bWorldSpace*/true));
 	}
 }
 
@@ -129,7 +129,7 @@ void ALightWeightInstanceStaticMeshManager::OnRep_Transforms()
 
 	if (InstancedStaticMeshComponent)
 	{
-		InstancedStaticMeshComponent->AddInstanceWorldSpace(InstanceTransforms.Last());
+		InstancedStaticMeshComponent->AddInstance(InstanceTransforms.Last(), /*bWorldSpace*/true);
 	}
 }
 
