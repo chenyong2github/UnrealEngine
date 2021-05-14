@@ -22,7 +22,7 @@ public:
 	FChildren(SWidget* InOwner)
 		: Owner(InOwner)
 	{
-		//check(InOwner);
+		check(InOwner);
 	}
 
 	FChildren(std::nullptr_t) = delete;
