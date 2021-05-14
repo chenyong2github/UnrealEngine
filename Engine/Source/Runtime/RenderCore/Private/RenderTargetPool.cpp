@@ -566,7 +566,7 @@ bool FRenderTargetPool::FindFreeElement(
 	check(InputDesc.NumMips > 0);
 
 	// Make sure if requesting a depth format that the clear value is correct
-	ensure(!IsDepthOrStencilFormat(InputDesc.Format) || (InputDesc.ClearValue.ColorBinding == EClearBinding::ENoneBound || InputDesc.ClearValue.ColorBinding == EClearBinding::EDepthStencilBound));
+	ensure(!(InputDesc.Flags & TexCreate_DepthStencilTargetable) || (InputDesc.ClearValue.ColorBinding == EClearBinding::ENoneBound || InputDesc.ClearValue.ColorBinding == EClearBinding::EDepthStencilBound));
 
 	// TexCreate_FastVRAM should be used on Desc.Flags
 	ensure(!(InputDesc.TargetableFlags & TexCreate_FastVRAM));

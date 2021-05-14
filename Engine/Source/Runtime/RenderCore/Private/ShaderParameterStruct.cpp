@@ -360,7 +360,7 @@ bool FDepthStencilBinding::Validate() const
 		EPixelFormat PixelFormat = Texture->Desc.Format;
 		const TCHAR* FormatString = GetPixelFormatString(PixelFormat);
 
-		bool bIsDepthFormat = PixelFormat == PF_DepthStencil || PixelFormat == PF_ShadowDepth || PixelFormat == PF_D24;
+		bool bIsDepthFormat = PixelFormat == PF_DepthStencil || PixelFormat == PF_ShadowDepth || PixelFormat == PF_D24 || PixelFormat == PF_R32_FLOAT;
 		checkf(bIsDepthFormat,
 			TEXT("Can't bind texture %s as a depth stencil because its pixel format is %s."),
 			Texture->Name, FormatString);

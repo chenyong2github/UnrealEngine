@@ -49,6 +49,12 @@ void FAutomationExpectedErrorTest::Define()
 			bool bResult = RunOnRenderThreadSynchronous(FRHITextureTests::Test_RHIClearUAV_Texture3D);
 			TestEqual("Clear Texture3D failed", bResult, 1);
 		});
+
+		It("RHI Formats", [this]()
+		{
+			bool bResult = RunOnRenderThreadSynchronous(FRHITextureTests::Test_RHIFormats);
+			TestEqual("RHI Formats failed", bResult, 1);
+		});
 	});
 
 }
