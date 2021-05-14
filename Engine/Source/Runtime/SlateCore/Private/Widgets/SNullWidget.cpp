@@ -8,8 +8,6 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 
-FNoChildren NullWidgetNoChildren;
-
 class SLATECORE_API SNullWidgetContent
 	: public SWidget
 {
@@ -48,7 +46,7 @@ public:
 
 	virtual FChildren* GetChildren( ) override final
 	{
-		return &NullWidgetNoChildren;
+		return &FNoChildren::NoChildrenInstance;
 	}
 
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override final

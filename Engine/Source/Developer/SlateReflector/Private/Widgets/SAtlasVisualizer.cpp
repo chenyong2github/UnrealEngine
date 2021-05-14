@@ -16,14 +16,7 @@
 class SAtlasVisualizerPanel : public IScrollableZoomable, public SPanel
 {
 public:
-	class FAtlasVisualizerPanelSlot : public TSupportsOneChildMixin<FAtlasVisualizerPanelSlot>
-	{
-	public:
-		FAtlasVisualizerPanelSlot(SWidget* InOwner)
-			: TSupportsOneChildMixin<FAtlasVisualizerPanelSlot>(InOwner)
-		{
-		}
-	};
+	using FAtlasVisualizerPanelSlot = FSingleWidgetChildrenWithSlot;
 
 	SLATE_BEGIN_ARGS(SAtlasVisualizerPanel)
 		{

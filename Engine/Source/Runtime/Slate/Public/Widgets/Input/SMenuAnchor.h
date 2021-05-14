@@ -234,5 +234,5 @@ protected:
 	FVector2D ScreenPopupPosition;
 
 	/** The currently arranged children in the menu anchor.  Changes as the opened/closed state of the widget changes. */
-	TPanelChildren<FSimpleSlot> Children;
+	TPanelChildren<FBasicLayoutWidgetSlot> Children;
 };

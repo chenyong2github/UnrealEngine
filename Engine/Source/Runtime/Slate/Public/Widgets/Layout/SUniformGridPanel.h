@@ -19,11 +19,11 @@ class SLATE_API SUniformGridPanel : public SPanel
 {
 public:
 	/** Stores the per-child info for this panel type */
-	struct FSlot : public TSlotBase<FSlot>, public TSupportsContentAlignmentMixin<FSlot>
+	struct FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
 	{
 		FSlot( int32 InColumn, int32 InRow )
 		: TSlotBase<FSlot>()
-		, TSupportsContentAlignmentMixin<FSlot>(HAlign_Fill, VAlign_Fill)
+		, TAlignmentWidgetSlotMixin<FSlot>(HAlign_Fill, VAlign_Fill)
 		, Column( InColumn )
 		, Row( InRow )
 		{

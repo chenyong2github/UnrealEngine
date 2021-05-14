@@ -37,8 +37,7 @@ FAutoConsoleVariableRef CVarAlwaysInvalidate(
 
 
 SInvalidationPanel::SInvalidationPanel()
-	: EmptyChildSlot(this)
-	, HittestGrid(MakeShared<FHittestGrid>())
+	: HittestGrid(MakeShared<FHittestGrid>())
 	, bCanCache(true)
 	, bPaintedSinceLastPrepass(true)
 	, bWasCachable(false)
@@ -191,7 +190,7 @@ FChildren* SInvalidationPanel::GetChildren()
 {
 	if (GetCanCache())
 	{
-		return &EmptyChildSlot;
+		return &FNoChildren::NoChildrenInstance;
 	}
 	else
 	{

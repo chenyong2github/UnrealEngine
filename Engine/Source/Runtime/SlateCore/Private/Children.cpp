@@ -2,3 +2,13 @@
 
 #include "Layout/Children.h"
 
+#include "Widgets/SNullWidget.h"
+
+FNoChildren FNoChildren::NoChildrenInstance(&SNullWidget::NullWidget.Get());
+
+FNoChildren::FNoChildren()
+	: FChildren(&SNullWidget::NullWidget.Get())
+{
+
+}
+
