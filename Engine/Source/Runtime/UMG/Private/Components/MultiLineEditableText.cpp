@@ -5,6 +5,7 @@
 #include "Engine/Font.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -13,20 +14,38 @@
 
 static FTextBlockStyle* DefaultMultiLineEditableTextStyle = nullptr;
 
+#if WITH_EDITOR
+static FTextBlockStyle* EditorMultiLineEditableTextStyle = nullptr;
+#endif 
+
 UMultiLineEditableText::UMultiLineEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	if (DefaultMultiLineEditableTextStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultMultiLineEditableTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
+		DefaultMultiLineEditableTextStyle = new FTextBlockStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultMultiLineEditableTextStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultMultiLineEditableTextStyle;
 	
+#if WITH_EDITOR 
+	if (EditorMultiLineEditableTextStyle == nullptr)
+	{
+		EditorMultiLineEditableTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorMultiLineEditableTextStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorMultiLineEditableTextStyle;
+	}
+#endif // WITH_EDITOR
+
 	bIsReadOnly = false;
 	SelectAllTextWhenFocused = false;
 	ClearTextSelectionOnFocusLoss = true;

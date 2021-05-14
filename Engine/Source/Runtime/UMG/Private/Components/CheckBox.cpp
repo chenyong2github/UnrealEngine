@@ -5,6 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Slate/SlateBrushAsset.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -13,19 +14,37 @@
 
 static FCheckBoxStyle* DefaultCheckboxStyle = nullptr;
 
+#if WITH_EDITOR
+static FCheckBoxStyle* EditorCheckboxStyle = nullptr;
+#endif 
+
 UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	if (DefaultCheckboxStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultCheckboxStyle = new FCheckBoxStyle(FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("Checkbox"));
+		DefaultCheckboxStyle = new FCheckBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("Checkbox"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultCheckboxStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultCheckboxStyle;
+
+#if WITH_EDITOR 
+	if (EditorCheckboxStyle == nullptr)
+	{
+		EditorCheckboxStyle = new FCheckBoxStyle(FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("Checkbox"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorCheckboxStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorCheckboxStyle;
+	}
+#endif // WITH_EDITOR
 
 	CheckedState = ECheckBoxState::Unchecked;
 

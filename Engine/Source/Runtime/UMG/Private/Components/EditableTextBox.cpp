@@ -5,6 +5,7 @@
 #include "Engine/Font.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -12,6 +13,10 @@
 // UEditableTextBox
 
 static FEditableTextBoxStyle* DefaultEditableTextBoxStyle = nullptr;
+
+#if WITH_EDITOR
+static FEditableTextBoxStyle* EditorEditableTextBoxStyle = nullptr;
+#endif 
 
 UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -40,14 +45,28 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 
 	if (DefaultEditableTextBoxStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultEditableTextBoxStyle = new FEditableTextBoxStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
+		DefaultEditableTextBoxStyle = new FEditableTextBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultEditableTextBoxStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultEditableTextBoxStyle;
+
+#if WITH_EDITOR 
+	if (EditorEditableTextBoxStyle == nullptr)
+	{
+		EditorEditableTextBoxStyle = new FEditableTextBoxStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorEditableTextBoxStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorEditableTextBoxStyle;
+	}
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;

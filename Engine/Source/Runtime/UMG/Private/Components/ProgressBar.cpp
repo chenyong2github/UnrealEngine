@@ -2,6 +2,7 @@
 
 #include "Components/ProgressBar.h"
 #include "Slate/SlateBrushAsset.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -10,19 +11,38 @@
 
 static FProgressBarStyle* DefaultProgressBarStyle = nullptr;
 
+#if WITH_EDITOR
+static FProgressBarStyle* EditorProgressBarStyle = nullptr;
+#endif 
+
 UProgressBar::UProgressBar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	if (DefaultProgressBarStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultProgressBarStyle = new FProgressBarStyle(FCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar"));
+		DefaultProgressBarStyle = new FProgressBarStyle(FUMGCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultProgressBarStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultProgressBarStyle;
+
+#if WITH_EDITOR 
+	if (EditorProgressBarStyle == nullptr)
+	{
+		EditorProgressBarStyle = new FProgressBarStyle(FCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorProgressBarStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorProgressBarStyle;
+	}
+#endif // WITH_EDITOR
+
 	WidgetStyle.FillImage.TintColor = FLinearColor::White;
 
 	BarFillType = EProgressBarFillType::LeftToRight;

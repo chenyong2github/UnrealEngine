@@ -5,6 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Widgets/Images/SThrobber.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -13,20 +14,38 @@
 
 static FSlateBrush* DefaultCircularThrobberBrushStyle = nullptr;
 
+#if WITH_EDITOR
+static FSlateBrush* EditorCircularThrobberBrushStyle = nullptr;
+#endif 
+
 UCircularThrobber::UCircularThrobber(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bEnableRadius(true)
 {
 	if (DefaultCircularThrobberBrushStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultCircularThrobberBrushStyle = new FSlateBrush(*FCoreStyle::Get().GetBrush("Throbber.CircleChunk"));
+		DefaultCircularThrobberBrushStyle = new FSlateBrush(*FUMGCoreStyle::Get().GetBrush("Throbber.CircleChunk"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultCircularThrobberBrushStyle->UnlinkColors();
 	}
 
 	Image = *DefaultCircularThrobberBrushStyle;
+
+#if WITH_EDITOR 
+	if (EditorCircularThrobberBrushStyle == nullptr)
+	{
+		EditorCircularThrobberBrushStyle = new FSlateBrush(*FCoreStyle::Get().GetBrush("Throbber.CircleChunk"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorCircularThrobberBrushStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		Image = *EditorCircularThrobberBrushStyle;
+	}
+#endif // WITH_EDITOR
 
 	NumberOfPieces = 6;
 	Period = 0.75f;

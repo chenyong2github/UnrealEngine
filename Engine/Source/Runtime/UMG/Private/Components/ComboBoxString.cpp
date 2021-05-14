@@ -5,6 +5,7 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Font.h"
+#include "Styling/UMGCoreStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -14,31 +15,58 @@
 static FComboBoxStyle* DefaultComboBoxStyle = nullptr;
 static FTableRowStyle* DefaultComboBoxRowStyle = nullptr;
 
+#if WITH_EDITOR
+static FComboBoxStyle* EditorComboBoxStyle = nullptr;
+static FTableRowStyle* EditorComboBoxRowStyle = nullptr;
+#endif 
+
 UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	if (DefaultComboBoxStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultComboBoxStyle = new FComboBoxStyle(FCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox"));
+		DefaultComboBoxStyle = new FComboBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultComboBoxStyle->UnlinkColors();
 	}
 
 	if (DefaultComboBoxRowStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultComboBoxRowStyle = new FTableRowStyle(FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"));
+		DefaultComboBoxRowStyle = new FTableRowStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultComboBoxRowStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultComboBoxStyle;
-	WidgetStyle.UnlinkColors();
-
 	ItemStyle = *DefaultComboBoxRowStyle;
+
+#if WITH_EDITOR 
+	if (EditorComboBoxStyle == nullptr)
+	{
+		EditorComboBoxStyle = new FComboBoxStyle(FCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorComboBoxStyle->UnlinkColors();
+	}
+
+	if (EditorComboBoxRowStyle == nullptr)
+	{
+		EditorComboBoxRowStyle = new FTableRowStyle(FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorComboBoxRowStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorComboBoxStyle;
+		ItemStyle = *EditorComboBoxRowStyle;
+	}
+#endif // WITH_EDITOR
+
+	WidgetStyle.UnlinkColors();
 	ItemStyle.UnlinkColors();
 
 	ForegroundColor = FLinearColor::Black;

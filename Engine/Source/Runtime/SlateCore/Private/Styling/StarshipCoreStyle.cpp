@@ -10,11 +10,12 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateTypes.h"
-#include "Fonts/LegacySlateFontInfoCache.h"
+#include "Fonts/CompositeFont.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/ToolBarStyle.h"
 #include "Styling/SegmentedControlStyle.h"
 #include "Styling/StyleColors.h"
+#include "Styling/CoreStyle.h"
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but Style->RootToContentDir is how the core style is set up
 #define RootToContentDir Style->RootToContentDir
@@ -26,7 +27,7 @@ TSharedPtr< ISlateStyle > FStarshipCoreStyle::Instance = nullptr;
 
 using namespace CoreStyleConstants;
 
-#define FONT(...) FSlateFontInfo(FLegacySlateFontInfoCache::Get().GetDefaultFont(), __VA_ARGS__)
+#define FONT(...) FSlateFontInfo(FCoreStyle::GetDefaultFont(), __VA_ARGS__)
 
 TUniquePtr<FStyleFonts> FStyleFonts::Instance = nullptr;
 
@@ -45,7 +46,7 @@ FStyleFonts::FStyleFonts()
 /* FStarshipCoreStyle helper class
  *****************************************************************************/
 
-class FStyle
+class FStarshipCoreStyle::FStyle
 	: public FSlateStyleSet
 {
 public:
@@ -83,8 +84,8 @@ public:
 
 TSharedRef<const FCompositeFont> FStarshipCoreStyle::GetDefaultFont()
 {
-	// FStarshipCoreStyle::GetDefaultFont is an alias so that the default font from FLegacySlateFontInfoCache can be acccessed outside of SlateCore (FLegacySlateFontInfoCache is private)
-	return FLegacySlateFontInfoCache::Get().GetDefaultFont();
+	// FStarshipCoreStyle currently uses same default font as core
+	return FCoreStyle::GetDefaultFont();
 }
 
 
@@ -145,7 +146,6 @@ void FStarshipCoreStyle::SetFocusBrush(FSlateBrush* NewBrush)
 	FSlateStyleRegistry::RegisterSlateStyle(Style.Get());
 }
 
-#define DEFAULT_FONT(...) FStarshipCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 
 TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 {
@@ -2114,7 +2114,5 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 
 }
 
-#undef IMAGE_BRUSH
-#undef BOX_BRUSH
-#undef BORDER_BRUSH
-#undef DEFAULT_FONT
+#undef RootToContentDir
+#undef FONT

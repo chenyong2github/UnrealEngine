@@ -5,6 +5,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 #include "Components/ButtonSlot.h"
+#include "Styling/UMGCoreStyle.h"
+#include "Blueprint/WidgetTree.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -13,19 +15,37 @@
 
 static FButtonStyle* DefaultButtonStyle = nullptr;
 
+#if WITH_EDITOR
+static FButtonStyle* EditorButtonStyle = nullptr;
+#endif 
+
 UButton::UButton(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	if (DefaultButtonStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		DefaultButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
+		DefaultButtonStyle = new FButtonStyle(FUMGCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
 
-		// Unlink UMG default colors from the editor settings colors.
+		// Unlink UMG default colors.
 		DefaultButtonStyle->UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultButtonStyle;
+
+#if WITH_EDITOR 
+	if (EditorButtonStyle == nullptr)
+	{
+		EditorButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
+
+		// Unlink UMG Editor colors from the editor settings colors.
+		EditorButtonStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorButtonStyle;
+	}
+#endif // WITH_EDITOR
 
 	ColorAndOpacity = FLinearColor::White;
 	BackgroundColor = FLinearColor::White;
