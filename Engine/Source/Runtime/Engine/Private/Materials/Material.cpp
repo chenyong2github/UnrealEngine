@@ -47,6 +47,7 @@
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialExpressionExecBegin.h"
+#include "Materials/MaterialExpressionExecEnd.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
@@ -4132,6 +4133,8 @@ void UMaterial::PostLoad()
 	}
 
 #if WITH_EDITOR
+	// Create exec flow expressions, if needed
+	CreateExecutionFlowExpressions();
 	if (GIsEditor)
 	{
 		// Clean up any removed material expression classes	
@@ -4143,7 +4146,7 @@ void UMaterial::PostLoad()
 			FlushResourceShaderMaps();
 		}
 	}
-#endif
+#endif // WITH_EDITOR
 
 	if (!StateId.IsValid())
 	{
@@ -4560,6 +4563,26 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 	return true;
 }
 
+void UMaterial::CreateExecutionFlowExpressions()
+{
+	if (IsCompiledWithExecutionFlow())
+	{
+		if (!ExpressionExecBegin)
+		{
+			ExpressionExecBegin = NewObject<UMaterialExpressionExecBegin>(this);
+			ExpressionExecBegin->Material = this;
+			Expressions.Add(ExpressionExecBegin);
+		}
+
+		if (!ExpressionExecEnd)
+		{
+			ExpressionExecEnd = NewObject<UMaterialExpressionExecEnd>(this);
+			ExpressionExecEnd->Material = this;
+			Expressions.Add(ExpressionExecEnd);
+		}
+	}
+}
+
 void UMaterial::PreEditChange(FProperty* PropertyThatChanged)
 {
 	Super::PreEditChange(PropertyThatChanged);
@@ -4636,19 +4659,7 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterial, bEnableExecWire))
 	{
-		if (IsCompiledWithExecutionFlow())
-		{
-			check(!ExpressionExecBegin);
-			ExpressionExecBegin = NewObject<UMaterialExpressionExecBegin>(this);
-			ExpressionExecBegin->Material = this;
-			Expressions.Add(ExpressionExecBegin);
-		}
-		else
-		{
-			check(ExpressionExecBegin);
-			verify(Expressions.Remove(ExpressionExecBegin) == 1);
-			ExpressionExecBegin = nullptr;
-		}
+		CreateExecutionFlowExpressions();
 	}
 
 	TranslucencyDirectionalLightingIntensity = FMath::Clamp(TranslucencyDirectionalLightingIntensity, .1f, 10.0f);

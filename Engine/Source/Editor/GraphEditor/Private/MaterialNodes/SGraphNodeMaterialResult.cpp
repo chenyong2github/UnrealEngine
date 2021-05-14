@@ -24,34 +24,40 @@ void SGraphNodeMaterialResult::Construct(const FArguments& InArgs, UMaterialGrap
 void SGraphNodeMaterialResult::CreatePinWidgets()
 {
 	// Create Pin widgets for each of the pins.
-	for( int32 PinIndex=0; PinIndex < GraphNode->Pins.Num(); ++PinIndex )
+	UMaterialGraphNode_Base* MaterialGraphNode = Cast<UMaterialGraphNode_Base>(GraphNode);
+	UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GraphNode->GetGraph());
+
+	bool bHideNoConnectionPins = false;
+	if (OwnerGraphPanelPtr.IsValid())
 	{
-		UEdGraphPin* CurPin = GraphNode->Pins[PinIndex];
+		bHideNoConnectionPins = OwnerGraphPanelPtr.Pin()->GetPinVisibility() == SGraphEditor::Pin_HideNoConnection;
+	}
 
-		bool bHideNoConnectionPins = false;
-		
-		if (OwnerGraphPanelPtr.IsValid())
-		{
-			bHideNoConnectionPins = OwnerGraphPanelPtr.Pin()->GetPinVisibility() == SGraphEditor::Pin_HideNoConnection;
-		}
-
+	for(const auto& It : MaterialGraphNode->PinInfoMap)
+	{
+		UEdGraphPin* CurPin = It.Key;
+		const FMaterialGraphPinInfo& PinInfo = It.Value;
 		const bool bPinHasConections = CurPin->LinkedTo.Num() > 0;
 
-		//const bool bPinDesiresToBeHidden = CurPin->bHidden || (bHideNoConnectionPins && !bPinHasConections);
-
-		UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GraphNode->GetGraph());
-
-		check(PinIndex < MaterialGraph->MaterialInputs.Num());
-
-		const bool bPinDesiresToBeHidden = !MaterialGraph->MaterialInputs[PinIndex].IsVisiblePin(MaterialGraph->Material) || (bHideNoConnectionPins && !bPinHasConections);
+		bool bPinDesiresToBeHidden = bHideNoConnectionPins && !bPinHasConections;
+		if (PinInfo.PinType == EMaterialGraphPinType::Data)
+		{
+			if (!MaterialGraph->MaterialInputs[PinInfo.Index].IsVisiblePin(MaterialGraph->Material))
+			{
+				bPinDesiresToBeHidden = true;
+			}
+		}
 
 		if (!bPinDesiresToBeHidden)
 		{
 			TSharedPtr<SGraphPin> NewPin = CreatePinWidget(CurPin);
 			check(NewPin.IsValid());
 
-			TSharedPtr<SToolTip> ToolTipWidget = IDocumentation::Get()->CreateToolTip(MaterialGraph->MaterialInputs[PinIndex].GetToolTip(), nullptr, FString( TEXT("") ), FString( TEXT("") ) );
-			NewPin->SetToolTip( ToolTipWidget.ToSharedRef() );
+			if (PinInfo.PinType == EMaterialGraphPinType::Data)
+			{
+				TSharedPtr<SToolTip> ToolTipWidget = IDocumentation::Get()->CreateToolTip(MaterialGraph->MaterialInputs[PinInfo.Index].GetToolTip(), nullptr, FString(TEXT("")), FString(TEXT("")));
+				NewPin->SetToolTip(ToolTipWidget.ToSharedRef());
+			}
 
 			this->AddPin(NewPin.ToSharedRef());
 		}

@@ -16,69 +16,13 @@ FMaterialHLSLTree::FMaterialHLSLTree()
 {
 }
 
-static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& Generator,
-	UE::HLSLTree::FScope& Scope,
-	EMaterialProperty InputProperty,
-	UMaterial* Material,
-	UE::HLSLTree::FExpression* AttributesExpression)
-{
-	UE::HLSLTree::FExpression* Expression = nullptr;
-	if (Material->IsPropertyActive(InputProperty))
-	{
-		FMaterialInputDescription InputDescription;
-		if (Material->GetExpressionInputDescription(InputProperty, InputDescription))
-		{
-			if (InputDescription.bUseConstant)
-			{
-				UE::Shader::FValue DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(InputProperty);
-				DefaultValue.NumComponents = UE::Shader::GetValueTypeDescription(InputDescription.Type).NumComponents;
-				if (InputDescription.ConstantValue != DefaultValue)
-				{
-					Expression = Generator.NewConstant(Scope, InputDescription.ConstantValue);
-				}
-			}
-			else
-			{
-				check(InputDescription.Input);
-				if (InputProperty >= MP_CustomizedUVs0 && InputProperty <= MP_CustomizedUVs7)
-				{
-					const int32 TexCoordIndex = (int32)InputProperty - MP_CustomizedUVs0;
-					if (TexCoordIndex < Material->NumCustomizedUVs)
-					{
-						Expression = InputDescription.Input->AcquireHLSLExpressionWithCast(Generator, Scope, InputDescription.Type);
-					}
-					if (!Expression)
-					{
-						Expression = Generator.NewTexCoord(Scope, TexCoordIndex);
-					}
-				}
-				else
-				{
-					Expression = InputDescription.Input->AcquireHLSLExpressionWithCast(Generator, Scope, InputDescription.Type);
-				}
-			}
-		}
-	}
-
-	if (Expression)
-	{
-		UE::HLSLTree::FExpressionSetMaterialAttribute* SetAttributeExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSetMaterialAttribute>(Scope);
-		SetAttributeExpression->AttributeID = FMaterialAttributeDefinitionMap::GetID(InputProperty);
-		SetAttributeExpression->AttributesExpression = AttributesExpression;
-		SetAttributeExpression->ValueExpression = Expression;
-		return SetAttributeExpression;
-	}
-
-	return AttributesExpression;
-}
-
 void FMaterialHLSLTree::InitializeForMaterial(const FMaterialCompileTargetParameters& InCompilerTarget, FMaterial& InOutMaterial)
 {
 	UMaterialInterface* MaterialInterface = InOutMaterial.GetMaterialInterface();
 	UMaterial* BaseMaterial = MaterialInterface->GetMaterial();
 
 	HLSLTree = UE::HLSLTree::FTree::Create(Allocator);
-	FMaterialHLSLGenerator Generator(InCompilerTarget, *HLSLTree);
+	FMaterialHLSLGenerator Generator(BaseMaterial, InCompilerTarget, *HLSLTree);
 	UE::HLSLTree::FScope& RootScope = HLSLTree->GetRootScope();
 
 	if (BaseMaterial->IsCompiledWithExecutionFlow())
@@ -88,15 +32,7 @@ void FMaterialHLSLTree::InitializeForMaterial(const FMaterialCompileTargetParame
 	}
 	else
 	{
-		UE::HLSLTree::FExpression* AttributesExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionDefaultMaterialAttributes>(RootScope);
-		for (int32 PropertyIndex = 0; PropertyIndex < MP_MAX; ++PropertyIndex)
-		{
-			const EMaterialProperty Property = (EMaterialProperty)PropertyIndex;
-			AttributesExpression = CompileMaterialInput(Generator, RootScope, Property, BaseMaterial, AttributesExpression);
-		}
-
-		UE::HLSLTree::FStatementReturn* ReturnStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementReturn>(RootScope);
-		ReturnStatement->Expression = AttributesExpression;
+		Generator.NewResult(RootScope);
 	}
 
 	Generator.AcquireErrors(InOutMaterial.CompileErrors, InOutMaterial.ErrorExpressions);
@@ -115,7 +51,7 @@ void FMaterialHLSLTree::InitializeForFunction(const FMaterialCompileTargetParame
 	NumFunctionOutputs = FunctionOutputs.Num();
 	FunctionOutputExpressions = New<UE::HLSLTree::FExpression*>(Allocator, NumFunctionOutputs);
 
-	FMaterialHLSLGenerator Generator(InCompilerTarget, *HLSLTree);
+	FMaterialHLSLGenerator Generator(InOutFunction, InCompilerTarget, *HLSLTree);
 	for (int32 InputIndex = 0; InputIndex < FunctionInputs.Num(); ++InputIndex)
 	{
 		const FFunctionExpressionInput& Input = FunctionInputs[InputIndex];
