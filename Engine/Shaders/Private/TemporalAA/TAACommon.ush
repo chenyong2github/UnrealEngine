@@ -6,6 +6,7 @@
 #include "../FastMath.ush"
 #include "../MonteCarlo.ush"
 #include "../ScreenPass.ush"
+#include "/Engine/Public/DualPixelVectorization.ush"
 
 
 //------------------------------------------------------- COMPILER CONFIG
@@ -25,6 +26,13 @@
 #endif
 
 #define CONFIG_ENABLE_STOCASTIC_QUANTIZATION 1
+
+#if CONFIG_COMPILE_FP16
+	// Take advantage of RDNA's v_pk_*_{uif}16 instructions
+	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 1
+#else
+	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 0
+#endif
 
 
 //------------------------------------------------------- CONSTANTS
@@ -150,6 +158,18 @@ static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 5, 7 };
 	#define taa_ushort3 uint16_t3
 	#define taa_ushort4 uint16_t4
 
+	#define taa_half2x2 half2x2
+	#define taa_half3x2 half3x2
+	#define taa_half4x2 half4x2
+
+	#define taa_short2x2 int16_t2x2
+	#define taa_short3x2 int16_t3x2
+	#define taa_short4x2 int16_t4x2
+
+	#define taa_ushort2x2 uint16_t2x2
+	#define taa_ushort3x2 uint16_t3x2
+	#define taa_ushort4x2 uint16_t4x2
+
 #else
 	#define taa_half  float
 	#define taa_half2 float2
@@ -166,10 +186,24 @@ static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 5, 7 };
 	#define taa_ushort3 uint3
 	#define taa_ushort4 uint4
 
+	#define taa_half2x2 float2x2
+	#define taa_half3x2 float3x2
+	#define taa_half4x2 float4x2
+
+	#define taa_short2x2 int2x2
+	#define taa_short3x2 int3x2
+	#define taa_short4x2 int4x2
+
+	#define taa_ushort2x2 uint2x2
+	#define taa_ushort3x2 uint3x2
+	#define taa_ushort4x2 uint4x2
+
 #endif
 
 #define taa_subpixel_details uint
+#define taa_subpixel_details2 uint2
 #define taa_subpixel_payload uint // TODO: uint16_t
+#define taa_subpixel_payload2 uint2 // TODO: uint16_t
 
 
 //------------------------------------------------------- PARAMETERS
@@ -247,6 +281,21 @@ uint bEnableInterferenceHeuristic;
 
 
 //------------------------------------------------------- FUNCTIONS
+	
+float2x2 ApplyScreenTransform(float2x2 PInA, FScreenTransform AToB)
+{
+	return dpv_add(dpv_mul(PInA, AToB.xy), AToB.zw);
+}
+
+#if PLATFORM_SUPPORTS_REAL_TYPES
+
+half2x2 ApplyScreenTransform(half2x2 PInA, FScreenTransform AToB)
+{
+	return dpv_add(dpv_mul(PInA, half2(AToB.xy)), half2(AToB.zw));
+}
+
+#endif
+
 
 /** Compute the group wave index into SGRP to then recompue the GroupThreadIndex latter */
 uint GetGroupWaveIndex(uint GroupThreadIndex, uint GroupSize)
@@ -313,6 +362,28 @@ taa_short2 ClampPixelOffset(
 	return ClampedOffset;
 }
 
+taa_short2x2 ClampPixelOffset(
+	taa_short2x2 SamplePixelPos,
+	int2 MinPixelPos, int2 MaxPixelPos)
+{
+	taa_short2 SamplePixelPos0 = dpv_lo(SamplePixelPos);
+	taa_short2 SamplePixelPos1 = dpv_hi(SamplePixelPos);
+
+	SamplePixelPos0.x = min(SamplePixelPos0.x, taa_short(MaxPixelPos.x));
+	SamplePixelPos0.x = max(SamplePixelPos0.x, taa_short(MinPixelPos.x));
+		
+	SamplePixelPos0.y = min(SamplePixelPos0.y, taa_short(MaxPixelPos.y));
+	SamplePixelPos0.y = max(SamplePixelPos0.y, taa_short(MinPixelPos.y));
+	
+	SamplePixelPos1.x = min(SamplePixelPos1.x, taa_short(MaxPixelPos.x));
+	SamplePixelPos1.x = max(SamplePixelPos1.x, taa_short(MinPixelPos.x));
+		
+	SamplePixelPos1.y = min(SamplePixelPos1.y, taa_short(MaxPixelPos.y));
+	SamplePixelPos1.y = max(SamplePixelPos1.y, taa_short(MinPixelPos.y));
+
+	return dpv_interleave_registers(SamplePixelPos0, SamplePixelPos1);
+}
+
 taa_short2 ClampPixelOffset(
 	taa_short2 SamplePixelPos,
 	int2 MinPixelPos, int2 MaxPixelPos)
@@ -324,6 +395,42 @@ taa_short2 ClampPixelOffset(
 	SamplePixelPos.y = max(SamplePixelPos.y, taa_short(MinPixelPos.y));
 
 	return SamplePixelPos;
+}
+
+taa_short2x2 AddAndClampPixelOffset(
+	taa_short2x2 KernelCenterPixelPos,
+	taa_short2x2 Offset,
+	const taa_short2 OffsetDirection,
+	int2 MinPixelPos, int2 MaxPixelPos)
+{
+	taa_short2x2 SamplePixelPos = KernelCenterPixelPos + Offset;
+	
+	taa_short2 SamplePixelPos0 = dpv_lo(SamplePixelPos);
+	taa_short2 SamplePixelPos1 = dpv_hi(SamplePixelPos);
+
+	// Only do clamp based on the compile time known direction of the offset.
+	// This turns only 1 v_pk_max_i16 and v_pk_min_i16 for a 3x3 kernel.
+	if (OffsetDirection.x > 0)
+		SamplePixelPos0.x = min(SamplePixelPos0.x, taa_short(MaxPixelPos.x));
+	else if (OffsetDirection.x < 0)
+		SamplePixelPos0.x = max(SamplePixelPos0.x, taa_short(MinPixelPos.x));
+		
+	if (OffsetDirection.y > 0)
+		SamplePixelPos0.y = min(SamplePixelPos0.y, taa_short(MaxPixelPos.y));
+	else if (OffsetDirection.y < 0)
+		SamplePixelPos0.y = max(SamplePixelPos0.y, taa_short(MinPixelPos.y));
+	
+	if (OffsetDirection.x > 0)
+		SamplePixelPos1.x = min(SamplePixelPos1.x, taa_short(MaxPixelPos.x));
+	else if (OffsetDirection.x < 0)
+		SamplePixelPos1.x = max(SamplePixelPos1.x, taa_short(MinPixelPos.x));
+		
+	if (OffsetDirection.y > 0)
+		SamplePixelPos1.y = min(SamplePixelPos1.y, taa_short(MaxPixelPos.y));
+	else if (OffsetDirection.y < 0)
+		SamplePixelPos1.y = max(SamplePixelPos1.y, taa_short(MinPixelPos.y));
+	
+	return dpv_interleave_registers(SamplePixelPos0, SamplePixelPos1);
 }
 
 taa_short2 AddAndClampPixelOffset(
@@ -348,6 +455,28 @@ taa_short2 AddAndClampPixelOffset(
 
 	return SamplePixelPos;
 }
+
+taa_short2x2 InvalidateOutputPixelPos(taa_short2x2 PixelPos, uint2 ViewportMax)
+#if 1
+{
+	taa_short2x2 Subtract = dpv_sub(taa_short2(ViewportMax - 1), PixelPos);
+	taa_ushort2 Override = taa_ushort2(Subtract[0] | Subtract[1]);
+
+	#if CONFIG_COMPILE_FP16
+		PixelPos[0] |= -taa_short2((Override & uint16_t(0x8000)) >> 15);
+	#else
+		PixelPos[0] |= -taa_short2((Override & uint(0x80000000)) >> 31);
+	#endif
+
+	return PixelPos;
+}
+#else
+{
+	bool bIsValidPixel = all(PixelPos < ViewportMax);
+	PixelPos.x = bIsValidPixel ? PixelPos.x : ~taa_short(0);
+	return PixelPos;
+}
+#endif
 
 taa_short2 InvalidateOutputPixelPos(taa_short2 PixelPos, uint2 ViewportMax)
 #if 1
@@ -398,6 +527,11 @@ float SafeRcp(float x)
 	return x > 0.0 ? rcp(x) : 0.0;
 }
 
+float2 SafeRcp(float2 x)
+{
+	return float2(SafeRcp(x.x), SafeRcp(x.y));
+}
+
 #if CONFIG_COMPILE_FP16
 
 half SafeRcp(half x)
@@ -406,99 +540,133 @@ half SafeRcp(half x)
 	return min(rcp(x), half(MaxHalfFloat)) * saturate(x * asfloat16(uint16_t(0x7C00)));
 }
 
+half2 SafeRcp(half2 x)
+{
+	// If x=0.0, then MaxHalfFloat * 0.0 = 0.0
+	return min(rcp(x), half(MaxHalfFloat)) * saturate(x * asfloat16(uint16_t(0x7C00)));
+}
+
 #endif
+
+taa_half3x2 RGBToYCoCg(taa_half3x2 RGB)
+{
+	taa_half2 Y  = mul(taa_half3(1, 2, 1), RGB);
+	taa_half2 Co = mul(taa_half3(2, 0, -2), RGB);
+	taa_half2 Cg = mul(taa_half3(-1, 2, -1), RGB);
+
+	taa_half3x2 YCoCg = taa_half3x2(Y, Co, Cg);
+	return YCoCg;
+}
+
+taa_half3x2 YCoCgToRGB(taa_half3x2 YCoCg)
+{
+	taa_half2 Y =  YCoCg[0] * taa_half(0.25);
+	taa_half2 Co = YCoCg[1] * taa_half(0.25);
+	taa_half2 Cg = YCoCg[2] * taa_half(0.25);
+
+	taa_half2 R = Y + Co - Cg;
+	taa_half2 G = Y + Cg;
+	taa_half2 B = Y - Co - Cg;
+
+	taa_half3x2 RGB = taa_half3x2(R, G, B);
+	return RGB;
+}
 
 taa_half3 RGBToYCoCg(taa_half3 RGB)
 {
-	taa_half Y = dot(RGB, taa_half3(1, 2, 1));
-	taa_half Co = dot(RGB, taa_half3(2, 0, -2));
-	taa_half Cg = dot(RGB, taa_half3(-1, 2, -1));
-
-	taa_half3 YCoCg = taa_half3(Y, Co, Cg);
-	return YCoCg;
+	return dpv_lo(RGBToYCoCg(dpv_interleave_mono_registers(RGB)));
 }
 
 taa_half3 YCoCgToRGB(taa_half3 YCoCg)
 {
-	taa_half Y =  YCoCg.x * taa_half(0.25);
-	taa_half Co = YCoCg.y * taa_half(0.25);
-	taa_half Cg = YCoCg.z * taa_half(0.25);
-
-	taa_half R = Y + Co - Cg;
-	taa_half G = Y + Cg;
-	taa_half B = Y - Co - Cg;
-
-	taa_half3 RGB = taa_half3(R, G, B);
-	return RGB;
+	return dpv_lo(YCoCgToRGB(dpv_interleave_mono_registers(YCoCg)));
 }
 
-taa_half3 YCoCgToLCoCg(taa_half3 YCoCg)
-{
-	return taa_half3(YCoCg.x, YCoCg.yz * SafeRcp(YCoCg.x));
-}
-
-taa_half3 LCoCgToYCoCg(taa_half3 LCoCg)
-{
-	return taa_half3(LCoCg.x, LCoCg.x * LCoCg.yz);
-}
-
-taa_half3 RGBToLCoCg(taa_half3 RGB)
-{
-	return YCoCgToLCoCg(RGBToYCoCg(RGB));
-}
-
-taa_half3 LCoCgToRGB(taa_half3 LCoCg)
-{
-	return YCoCgToRGB(LCoCgToYCoCg(LCoCg));
-}
 
 // Some bright pixel can cause HdrWeight to get nullified under fp16 representation. So clamping this to a value close to the minimum float float positive value (0.000061).
 #define HDR_WEIGHT_SAFE_MIN_VALUE 0.0001
 
 // Faster but less accurate luma computation. 
 // Luma includes a scaling by 4.
-taa_half Luma4(taa_half3 Color)
+taa_half2 Luma4(taa_half3x2 Color)
 {
-	return (Color.g * taa_half(2.0)) + (Color.r + Color.b);
+	return (Color[1] * taa_half(2.0)) + (Color[0] + Color[2]);
 }
 
-taa_half HdrWeightY(taa_half Color)
+taa_half Luma4(taa_half3 Color)
+{
+	return dpv_lo(Luma4(dpv_interleave_mono_registers(Color)));
+}
+
+taa_half2 HdrWeightY(taa_half2 Luma)
 {
 	taa_half Exposure = taa_half(1.0);
 
-	return max(taa_half(HDR_WEIGHT_SAFE_MIN_VALUE), rcp(Color * Exposure + taa_half(4.0)));
+	return max(taa_half(HDR_WEIGHT_SAFE_MIN_VALUE), rcp(Luma * Exposure + taa_half(4.0)));
 }
 
-taa_half HdrWeightInvY(taa_half Color) 
+taa_half HdrWeightY(taa_half Luma)
 {
-	return taa_half(4.0) * rcp(taa_half(1.0) - Color);
+	return dpv_lo(HdrWeightY(dpv_interleave_mono_registers(Luma)));
+}
+
+taa_half2 HdrWeightInvY(taa_half2 LDRLuma) 
+{
+	return taa_half(4.0) * rcp(taa_half(1.0) - LDRLuma);
+}
+
+taa_half HdrWeightInvY(taa_half LDRLuma) 
+{
+	return dpv_lo(HdrWeightInvY(dpv_interleave_mono_registers(LDRLuma)));
 }
 
 // Optimized HDR weighting function.
+taa_half2 HdrWeight4(taa_half3x2 Color)
+{
+	return HdrWeightY(Luma4(Color));
+}
+
 taa_half HdrWeight4(taa_half3 Color)
 {
 	return HdrWeightY(Luma4(Color));
 }
 
+
 // Returns the weight of a pixels at a coordinate <PixelDelta> from the PDF highest point.
-taa_half ComputeSampleWeigth(taa_half UpscaleFactor, taa_half2 PixelDelta, const float MinimalContribution)
+taa_half2 ComputeSampleWeigth(taa_half2 UpscaleFactor, taa_half2x2 PixelDelta, const float MinimalContribution)
 {
-	taa_half u2 = UpscaleFactor * UpscaleFactor;
+	taa_half2 u2 = UpscaleFactor * UpscaleFactor;
 
 	// 1 - 1.9 * x^2 + 0.9 * x^4
-	taa_half x2 = saturate(u2 * dot(PixelDelta, PixelDelta));
+	taa_half2 x2 = saturate(u2 * dpv_length2(PixelDelta));
 	//return taa_half(((float(0.9) + MinimalContribution) * x2 - float(1.9)) * x2 + float(1.0));
 	return saturate((taa_half(0.9) * x2 - taa_half(1.9)) * x2 + taa_half(1.0 + MinimalContribution));
 }
 
-taa_half2 WeightedLerpFactors(taa_half WeightA, taa_half WeightB, taa_half Blend)
+taa_half ComputeSampleWeigth(taa_half UpscaleFactor, taa_half2 PixelDelta, const float MinimalContribution)
 {
-	taa_half BlendA = (taa_half(1.0) - Blend) * WeightA;
-	taa_half BlendB = Blend * WeightB;
-	taa_half RcpBlend = SafeRcp(BlendA + BlendB);
+	return dpv_lo(ComputeSampleWeigth(
+		dpv_interleave_mono_registers(UpscaleFactor),
+		dpv_interleave_mono_registers(PixelDelta),
+		MinimalContribution));
+}
+
+taa_half2x2 WeightedLerpFactors(taa_half2 WeightA, taa_half2 WeightB, taa_half2 Blend)
+{
+	taa_half2 BlendA = (taa_half(1.0) - Blend) * WeightA;
+	taa_half2 BlendB = Blend * WeightB;
+	taa_half2 RcpBlend = SafeRcp(BlendA + BlendB);
 	BlendA *= RcpBlend;
 	BlendB *= RcpBlend;
-	return taa_half2(BlendA, BlendB);
+	return taa_half2x2(BlendA, BlendB);
+}
+
+taa_half2 WeightedLerpFactors(taa_half WeightA, taa_half WeightB, taa_half Blend)
+{
+	return dpv_lo(WeightedLerpFactors(
+		dpv_interleave_mono_registers(WeightA),
+		dpv_interleave_mono_registers(WeightB),
+		dpv_interleave_mono_registers(Blend)));
 }
 
 bool TakeOnlyOneSamplePair(float2 Offset)
@@ -530,35 +698,45 @@ bool IsOffScreen(uint bCameraCut, float2 ScreenPos, taa_half ParallaxRejectionMa
 	return (bIsCameraCut || bIsOutOfBounds || bIsParallaxRejected);
 }
 
-taa_half MeasureRejectionFactor(taa_half3 PrevYCoCg, taa_half3 ClampedPrevYCoCg, taa_half3 InputCenterYCoCg, taa_half3 InputMinYCoCg, taa_half3 InputMaxYCoCg)
+taa_half2 MeasureRejectionFactor(taa_half3x2 PrevYCoCg, taa_half3x2 ClampedPrevYCoCg, taa_half3x2 InputCenterYCoCg, taa_half3x2 InputMinYCoCg, taa_half3x2 InputMaxYCoCg)
 {
-	taa_half3 BoxSize = InputMaxYCoCg - InputMinYCoCg;
+	taa_half3x2 BoxSize = InputMaxYCoCg - InputMinYCoCg;
 
-	taa_half3 ClampedEnergy = abs(ClampedPrevYCoCg - PrevYCoCg);
-	taa_half3 Delta = abs(InputCenterYCoCg - PrevYCoCg);
+	taa_half3x2 ClampedEnergy = abs(ClampedPrevYCoCg - PrevYCoCg);
+	taa_half3x2 Delta = abs(InputCenterYCoCg - PrevYCoCg);
 
-	taa_half3 ClampError;
+	taa_half3x2 ClampError;
 	#if 0
 	{
 		ClampError = BoxSize * taa_half(0.25);
 	}
 	#else
 	{
-		taa_half Luma = max(ClampedPrevYCoCg.x, PrevYCoCg.x);
+		taa_half2 Luma = max(ClampedPrevYCoCg[0], PrevYCoCg[0]);
 
 		// Measure the error due to the quantization of the color in channels.
-		taa_half Tonemap = Luma * HdrWeightY(Luma) + taa_half(0.5 / 1024.0);
-		taa_half PixelColorQuantizationError = abs(Tonemap * HdrWeightInvY(Tonemap) - Luma);
+		taa_half2 Tonemap = Luma * HdrWeightY(Luma) + taa_half(0.5 / 1024.0);
+		taa_half2 PixelColorQuantizationError = abs(Tonemap * HdrWeightInvY(Tonemap) - Luma);
 		
-		ClampError = max(BoxSize * taa_half(0.25), PixelColorQuantizationError);
+		ClampError = max(BoxSize * taa_half(0.25), taa_half3x2(PixelColorQuantizationError, PixelColorQuantizationError, PixelColorQuantizationError));
 	}
 	#endif
 
-	taa_half3 Factor = taa_half(1.0) - saturate(max(ClampedEnergy - ClampError, taa_half(0.0)) / max(Delta, BoxSize));
+	taa_half3x2 Factor = taa_half(1.0) - saturate(max(ClampedEnergy - ClampError, taa_half3x2(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)) / max(Delta, BoxSize));
 
-	taa_half Rejection = min3(Factor.r, Factor.g, Factor.b);
+	taa_half2 Rejection = min3(Factor[0], Factor[1], Factor[2]);
 	
 	return Rejection;
+}
+
+taa_half MeasureRejectionFactor(taa_half3 PrevYCoCg, taa_half3 ClampedPrevYCoCg, taa_half3 InputCenterYCoCg, taa_half3 InputMinYCoCg, taa_half3 InputMaxYCoCg)
+{
+	return dpv_lo(MeasureRejectionFactor(
+		dpv_interleave_mono_registers(PrevYCoCg), 
+		dpv_interleave_mono_registers(ClampedPrevYCoCg), 
+		dpv_interleave_mono_registers(InputCenterYCoCg), 
+		dpv_interleave_mono_registers(InputMinYCoCg), 
+		dpv_interleave_mono_registers(InputMaxYCoCg)));
 }
 
 struct FSubpixelNeighborhood
@@ -660,29 +838,33 @@ taa_half LumaToInterferenceSeed(taa_half Luma)
 	return Luma * HdrWeightY(Luma);
 }
 
-taa_half3 QuantizeForFloatRenderTarget(taa_half3 Color, taa_half E, float3 QuantizationError)
+taa_half3x2 QuantizeForFloatRenderTarget(taa_half3x2 Color, taa_half E, const float3 QuantizationError)
 {
-	taa_half3 Error = Color * taa_half3(QuantizationError);
+	taa_half3x2 Error = dpv_mul(Color, taa_half3(QuantizationError));
 
 	#if 0
 		// NOP
 	#elif CONFIG_COMPILE_FP16
 	{
-		uint16_t3 UError = asint16(Error);
-
-		Error = asfloat16(UError & uint16_t(~0x03FF));
+		Error[0] = asfloat16(asint16(Error[0]) & uint16_t(~0x03FF));
+		Error[1] = asfloat16(asint16(Error[1]) & uint16_t(~0x03FF));
+		Error[2] = asfloat16(asint16(Error[2]) & uint16_t(~0x03FF));
 	}
 	#else
 	{
-		Error.x = asfloat(asuint(Error.x) & ~0x007FFFFF);
-		Error.y = asfloat(asuint(Error.y) & ~0x007FFFFF);
-		Error.z = asfloat(asuint(Error.z) & ~0x007FFFFF);
+		Error[0] = asfloat(asuint(Error[0]) & ~0x007FFFFF);
+		Error[1] = asfloat(asuint(Error[1]) & ~0x007FFFFF);
+		Error[2] = asfloat(asuint(Error[2]) & ~0x007FFFFF);
 	}
 	#endif
 	
 	return Color + Error * E;
 }
 
+taa_half3 QuantizeForFloatRenderTarget(taa_half3 Color, taa_half E, const float3 QuantizationError)
+{
+	return dpv_lo(QuantizeForFloatRenderTarget(dpv_interleave_mono_registers(Color), E, QuantizationError));
+}
 
 
 struct FSuperResHistory

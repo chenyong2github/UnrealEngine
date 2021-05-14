@@ -1,0 +1,349 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	DoublePixelVectorization.ush: API to vectorize a lane to process 2 pixel
+	instead of one, to take full advantage of v_pk_*_[iuf]16 instructions
+=============================================================================*/
+  
+#pragma once
+
+#include "Platform.ush"
+
+#define PLATFORM_SUPPORT_16BITS_DPV (PLATFORM_SUPPORTS_REAL_TYPES)
+
+
+// ------------------------------------------------- DEFINE_DPV_FUNCTION_FOR_ALL_32BITS
+
+#define __DPV_VECTOR(TYPE, COMPONENTS) \
+	TYPE##COMPONENTS
+
+#define __DPV_MULTI_SCALAR(TYPE) \
+	TYPE##2
+
+#define __DPV_MULTI_VECTOR(TYPE, COMPONENTS) \
+	TYPE##COMPONENTS##x2
+
+#define __DPV_MULTI_VECTOR_TRANSPOSED(TYPE, COMPONENTS) \
+	TYPE##2x##COMPONENTS
+
+
+#if PLATFORM_SUPPORT_16BITS_DPV
+
+#define DEFINE_DPV_FUNCTION_FOR_FLOAT_SCALARS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION(float) \
+	DEFINE_DPV_FUNCTION(float16_t) \
+
+#define DEFINE_DPV_FUNCTION_FOR_INT_SCALARS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION(uint) \
+	DEFINE_DPV_FUNCTION(int) \
+	DEFINE_DPV_FUNCTION(uint16_t) \
+	DEFINE_DPV_FUNCTION(int16_t) \
+		
+#define DEFINE_DPV_FUNCTION_FOR_FLOAT_VECTORS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION(float, 2) \
+	DEFINE_DPV_FUNCTION(float, 3) \
+	DEFINE_DPV_FUNCTION(float, 4) \
+	DEFINE_DPV_FUNCTION(float16_t, 2) \
+	DEFINE_DPV_FUNCTION(float16_t, 3) \
+	DEFINE_DPV_FUNCTION(float16_t, 4) \
+
+#define DEFINE_DPV_FUNCTION_FOR_INT_VECTORS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION(uint, 2) \
+	DEFINE_DPV_FUNCTION(uint, 3) \
+	DEFINE_DPV_FUNCTION(uint, 4) \
+	DEFINE_DPV_FUNCTION(int, 2) \
+	DEFINE_DPV_FUNCTION(int, 3) \
+	DEFINE_DPV_FUNCTION(int, 4) \
+	DEFINE_DPV_FUNCTION(uint16_t, 2) \
+	DEFINE_DPV_FUNCTION(uint16_t, 3) \
+	DEFINE_DPV_FUNCTION(uint16_t, 4) \
+	DEFINE_DPV_FUNCTION(int16_t, 2) \
+	DEFINE_DPV_FUNCTION(int16_t, 3) \
+	DEFINE_DPV_FUNCTION(int16_t, 4) \
+		
+#else
+
+#define DEFINE_DPV_FUNCTION_FOR_FLOAT_SCALARS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION(float) \
+
+#define DEFINE_DPV_FUNCTION_FOR_INT_SCALARS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION(uint) \
+	DEFINE_DPV_FUNCTION(int) \
+		
+#define DEFINE_DPV_FUNCTION_FOR_FLOAT_VECTORS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION(float, 2) \
+	DEFINE_DPV_FUNCTION(float, 3) \
+	DEFINE_DPV_FUNCTION(float, 4) \
+
+#define DEFINE_DPV_FUNCTION_FOR_INT_VECTORS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION(uint, 2) \
+	DEFINE_DPV_FUNCTION(uint, 3) \
+	DEFINE_DPV_FUNCTION(uint, 4) \
+	DEFINE_DPV_FUNCTION(int, 2) \
+	DEFINE_DPV_FUNCTION(int, 3) \
+	DEFINE_DPV_FUNCTION(int, 4) \
+		
+#endif
+
+#define DEFINE_DPV_FUNCTION_FOR_ALL_SCALARS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION_FOR_FLOAT_SCALARS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION_FOR_INT_SCALARS(DEFINE_DPV_FUNCTION) \
+
+#define DEFINE_DPV_FUNCTION_FOR_ALL_VECTORS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION_FOR_FLOAT_VECTORS(DEFINE_DPV_FUNCTION) \
+	DEFINE_DPV_FUNCTION_FOR_INT_VECTORS(DEFINE_DPV_FUNCTION) \
+
+
+/* dpv_interleave_registers() & dpv_lo() & dpv_hi()
+ *
+ * Reinterleaves explicit vector floatN for each individual pixel into a floatNx2 matrix.
+ * 
+ * Example:
+ *		half3 Color0 = ... ;
+ *		half3 Color1 = ... ;
+ *		
+ *		half3x2 Color0 = dpv_interleave_registers(Color0, Color1);
+ *		
+ *		// Can access each individual channel with the [0] notation
+ *		half2 Red = Color[0];
+ *		half2 Green = Color[1];
+ *		half2 Blue = Color[2];
+ *		
+ *		// And access back the per vectorized pixel data if need.
+ *		Color0 = dpv_lo(Color);
+ *		Color1 = dpv_hi(Color);
+ */
+
+#define DEFINE_DPV_FUNCTION_SCALAR(TYPE) \
+	__DPV_MULTI_SCALAR(TYPE) dpv_interleave_registers(TYPE lo, TYPE hi) { return __DPV_MULTI_SCALAR(TYPE)(lo, hi); } \
+	TYPE dpv_lo(__DPV_MULTI_SCALAR(TYPE) x) { return x[0]; } \
+	TYPE dpv_hi(__DPV_MULTI_SCALAR(TYPE) x) { return x[1]; } \
+
+#define DEFINE_DPV_FUNCTION_VECTOR(TYPE, COMPONENTS) \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_interleave_registers(__DPV_VECTOR(TYPE, COMPONENTS) lo, __DPV_VECTOR(TYPE, COMPONENTS) hi) { return transpose(__DPV_MULTI_VECTOR_TRANSPOSED(TYPE, COMPONENTS)(lo, hi)); } \
+	__DPV_VECTOR(TYPE, COMPONENTS) dpv_lo(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) x) { return transpose(x)[0]; } \
+	__DPV_VECTOR(TYPE, COMPONENTS) dpv_hi(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) x) { return transpose(x)[1]; } \
+
+DEFINE_DPV_FUNCTION_FOR_ALL_SCALARS(DEFINE_DPV_FUNCTION_SCALAR)
+DEFINE_DPV_FUNCTION_FOR_ALL_VECTORS(DEFINE_DPV_FUNCTION_VECTOR)
+#undef DEFINE_DPV_FUNCTION_SCALAR
+#undef DEFINE_DPV_FUNCTION_VECTOR
+
+
+/* dpv_interleave_mono_registers()
+ *
+ * Reinterleaves explicit vector floatN for of one individual pixel into a floatNx2 matrix to reuse code for dual pixel vectorization.
+ * 
+ * Example:
+ *		// transform color space a pair of colors
+ *		half3x2 RGBToYCoCg(half3x2 Color) { ... }
+ *		
+ *		// transform color space of a color
+ *		half3 RGBToYCoCg(half3 Color)
+ *		{
+ *			return dpv_lo(RGBToYCoCg(dpv_interleave_mono_registers(Color)));
+ *		}
+ */
+#define DEFINE_DPV_FUNCTION_SCALAR(TYPE) \
+	__DPV_MULTI_SCALAR(TYPE) dpv_interleave_mono_registers(TYPE lo) { return dpv_interleave_registers(lo, lo); }
+
+#define DEFINE_DPV_FUNCTION_VECTOR(TYPE, COMPONENTS) \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_interleave_mono_registers(__DPV_VECTOR(TYPE, COMPONENTS) lo) { return dpv_interleave_registers(lo, lo); }
+
+DEFINE_DPV_FUNCTION_FOR_ALL_SCALARS(DEFINE_DPV_FUNCTION_SCALAR)
+DEFINE_DPV_FUNCTION_FOR_ALL_VECTORS(DEFINE_DPV_FUNCTION_VECTOR)
+#undef DEFINE_DPV_FUNCTION_SCALAR
+#undef DEFINE_DPV_FUNCTION_VECTOR
+
+
+/* per vector multiplication
+ *
+ * Example:
+ *		half3x2 Color = ...;
+ *		half2 Coverage = ...;
+ * 
+ *		half3x2 BlueishColor = dpv_mul(Color, half3(1.00, 0.25, 0.25));
+ *		half3x2 PremultipliedColor = dpv_scale(Color, Coverage);
+ */
+#define DEFINE_DPV_FUNCTION_VECTOR(TYPE, COMPONENTS) \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_mul(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] * b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_mul(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] * b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_mul(__DPV_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] * b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_scale(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_SCALAR(TYPE) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] * b; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_scale(__DPV_MULTI_SCALAR(TYPE) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a * b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_scale(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, TYPE b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] * b; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_scale(TYPE a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a * b[c]; \
+		} \
+		return r; \
+	} \
+
+DEFINE_DPV_FUNCTION_FOR_ALL_VECTORS(DEFINE_DPV_FUNCTION_VECTOR)
+#undef DEFINE_DPV_FUNCTION_VECTOR
+
+
+/* per vector multiplication
+ *
+ * Example:
+ *		half3x2 PosA = ...;
+ *		half3 PosAToB = ...;
+ * 
+ *		half3x2 PosB = dpv_add(PosA, PosAToB);
+ */
+#define DEFINE_DPV_FUNCTION_VECTOR(TYPE, COMPONENTS) \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_add(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] + b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_add(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] + b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_add(__DPV_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] + b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_sub(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] - b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_sub(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] - b[c]; \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_sub(__DPV_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = a[c] - b[c]; \
+		} \
+		return r; \
+	} \
+
+DEFINE_DPV_FUNCTION_FOR_ALL_VECTORS(DEFINE_DPV_FUNCTION_VECTOR)
+#undef DEFINE_DPV_FUNCTION_VECTOR
+
+
+/* per vector multiplication
+ *
+ * Example:
+ *		half3x2 Color = ...;
+ * 
+ *		half2 Luma = dpv_dot(Color, half3(0.25, 0.5, 0.25));
+ */
+#define DEFINE_DPV_FUNCTION_VECTOR(TYPE, COMPONENTS) \
+	__DPV_MULTI_SCALAR(TYPE) dpv_dot(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		return dpv_interleave_registers(dot(dpv_lo(a), dpv_lo(b)), dot(dpv_hi(a), dpv_hi(b))); \
+	} \
+	__DPV_MULTI_SCALAR(TYPE) dpv_dot(__DPV_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		return dpv_interleave_registers(dot(a, dpv_lo(b)), dot(a, dpv_hi(b))); \
+	} \
+	__DPV_MULTI_SCALAR(TYPE) dpv_dot(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_VECTOR(TYPE, COMPONENTS) b) { \
+		return dpv_interleave_registers(dot(dpv_lo(a), b), dot(dpv_hi(a), b)); \
+	} \
+	__DPV_MULTI_SCALAR(TYPE) dpv_length2(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
+		return dpv_dot(v, v); \
+	} \
+	__DPV_MULTI_SCALAR(TYPE) dpv_length(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
+		return sqrt(dpv_length2(v)); \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_normalize(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
+		return dpv_scale(v, rsqrt(dpv_length2(v))); \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_clamp(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) x, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) min, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) max) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = clamp(x[c], min[c], max[c]); \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_min(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		return min(a, b); \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_min(__DPV_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = min(a[c], b[c]); \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_min(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = min(a[c], b[c]); \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_max(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		return max(a, b); \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_max(__DPV_VECTOR(TYPE, COMPONENTS) a, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = max(a[c], b[c]); \
+		} \
+		return r; \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_max(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_VECTOR(TYPE, COMPONENTS) b) { \
+		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
+		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
+			r[c] = max(a[c], b[c]); \
+		} \
+		return r; \
+	} \
+
+
+DEFINE_DPV_FUNCTION_FOR_FLOAT_VECTORS(DEFINE_DPV_FUNCTION_VECTOR)
+#undef DEFINE_DPV_FUNCTION_VECTOR
