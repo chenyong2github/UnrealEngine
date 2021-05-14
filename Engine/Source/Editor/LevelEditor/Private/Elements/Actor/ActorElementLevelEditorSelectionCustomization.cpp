@@ -8,9 +8,6 @@
 #include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 
-#include "Elements/Actor/ActorElementSelectionInterface.h"
-#include "Elements/Component/ComponentElementSelectionInterface.h"
-
 #include "Editor.h"
 #include "LevelUtils.h"
 #include "UnrealEdGlobals.h"
@@ -46,7 +43,7 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectElement(const TType
 bool FActorElementLevelEditorSelectionCustomization::AllowSelectionModifiers(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InSelectionSet)
 {
 	// Ctrl or Shift clicking an actor is the same as regular clicking when components are selected
-	return !UComponentElementSelectionInterface::HasSelectedComponents(InSelectionSet);
+	return !InSelectionSet->HasElementsOfType(NAME_Components);
 }
 
 FTypedElementHandle FActorElementLevelEditorSelectionCustomization::GetSelectionElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)

@@ -6,7 +6,6 @@
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "Elements/Component/ComponentElementSelectionInterface.h"
 #include "Elements/Component/ComponentElementLevelEditorViewportInteractionCustomization.h"
 
 #include "Editor.h"
@@ -19,7 +18,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
-	if (UComponentElementSelectionInterface::HasSelectedComponents(InSelectionSet->GetElementList()))
+	if (InSelectionSet->GetElementList()->HasElementsOfType(NAME_Components))
 	{
 		// If we have components selected then we will move those rather than the actors
 		// The component may still choose to move its owner actor rather than itself
