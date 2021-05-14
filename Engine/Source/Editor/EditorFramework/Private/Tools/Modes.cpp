@@ -24,10 +24,6 @@ FEditorModeInfo::FEditorModeInfo(
 	, PriorityOrder(InPriorityOrder)
 	, Visibility(InVisibility)
 {
-	if (!InIconBrush.IsSet())
-	{
-		IconBrush = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditorModes");
-	}
 }
 
 bool FEditorModeInfo::IsVisible() const
