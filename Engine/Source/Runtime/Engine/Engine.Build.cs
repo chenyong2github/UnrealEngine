@@ -151,7 +151,6 @@ public class Engine : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"RawMesh",
-					"TextureFormat",
 				}
 			);
 		}
