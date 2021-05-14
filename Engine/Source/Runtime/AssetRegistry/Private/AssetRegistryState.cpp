@@ -1212,20 +1212,13 @@ void FAssetRegistryState::Load(Archive&& Ar, FAssetRegistryVersion::Type Version
 			{
 				NewPackageData = &SerializedElement;
 			}
-			if (Version >= FAssetRegistryVersion::WorkspaceDomain)
+			if (Version >= FAssetRegistryVersion::LatestVersion)
 			{
 				NewPackageData->SerializeForCache(Ar);
 			}
 			else
 			{
-				Ar << NewPackageData->DiskSize;
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				Ar << NewPackageData->PackageGuid;
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				if (Version >= FAssetRegistryVersion::AddedCookedMD5Hash)
-				{
-					Ar << NewPackageData->CookedHash;
-				}
+				NewPackageData->SerializeForCacheOldVersion(Ar, Version);
 			}
 		}
 	}
