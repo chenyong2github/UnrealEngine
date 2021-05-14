@@ -1,6 +1,7 @@
 export * from './Button';
 export * from './Gauge';
 export * from './GaugesWrapper';
+export * from './Joystick';
 export * from './JoysticksWrapper';
 export * from './NewColorPicker';
 export * from './Slider';

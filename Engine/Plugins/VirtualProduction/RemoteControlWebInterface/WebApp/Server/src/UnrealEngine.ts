@@ -14,6 +14,7 @@ namespace UnrealApi {
     FieldsRemoved     = 'PresetFieldsRemoved',
     MetadataModified  = 'PresetMetadataModified',
     ActorModified     = 'PresetActorModified',
+    EntitiesModified  = 'PresetEntitiesModified',
   }
 
   export type Presets = { 
@@ -160,6 +161,9 @@ export namespace UnrealEngine {
           refresh();
           break;
 
+        case UnrealApi.PresetEvent.EntitiesModified:
+          break;
+
         case UnrealApi.PresetEvent.MetadataModified:
           if (!message.Metadata.view)
             break;
@@ -276,53 +280,10 @@ export namespace UnrealEngine {
       Preset.Exposed = {};
 
       for (const Group of Preset.Groups) {
-        for (const Function of Group.ExposedFunctions) {
-          Function.Widget = WidgetTypes.Button;
+        for (const Function of Group.ExposedFunctions)
           Preset.Exposed[Function.Id] = Function;
-        }
-
-        for (const Property of Group.ExposedProperties) {
+        for (const Property of Group.ExposedProperties)
           Preset.Exposed[Property.Id] = Property;
-
-          switch (Property.UnderlyingProperty.Type) {
-            case PropertyType.Boolean:
-            case PropertyType.Uint8:
-            case PropertyType.Int8:
-              Property.Widget = WidgetTypes.Toggle;
-              break;
-
-            case PropertyType.Int16:
-            case PropertyType.Int32:
-            case PropertyType.Int64:
-            case PropertyType.Uint16:
-            case PropertyType.Uint32:
-            case PropertyType.Uint64:
-            case PropertyType.Float:
-            case PropertyType.Double:
-              Property.Widget = WidgetTypes.Slider;
-              break;
-
-            case PropertyType.LinearColor:
-            case PropertyType.Color:
-            case PropertyType.Vector4:
-              Property.Widget = WidgetTypes.ColorPicker;
-              break;
-
-            case PropertyType.Vector:
-            case PropertyType.Vector2D:
-            case PropertyType.Rotator:
-              Property.Widget = WidgetTypes.Vector;
-              break;
-
-            case PropertyType.String:
-            case PropertyType.Text:
-              Property.Widget = WidgetTypes.Text;
-              break;
-          }
-
-          if (Property.UnderlyingProperty.Type.startsWith('TEnum'))
-            Property.Widget = WidgetTypes.Dropdown;
-        }
 
         Preset.ExposedProperties.push(...Group.ExposedProperties);
         Preset.ExposedFunctions.push(...Group.ExposedFunctions);
