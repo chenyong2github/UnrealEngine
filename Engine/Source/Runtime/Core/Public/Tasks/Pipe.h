@@ -62,6 +62,24 @@ namespace UE { namespace Tasks
 			return TTask<FResult>{ Task };
 		}
 
+		// launches a task in the pipe, with multiple prerequisites that must be completed before the task is scheduled
+		// @param InDebugName helps to identify the task in debugger and profiler
+		// @param TaskBody a callable with no parameters whose return value is ignored, usually a lambda but can be also a functor object 
+		// or a pointer to a function. TaskBody can return results.
+		// @Priority - task priority, can affect task scheduling once it's passed the pipe
+		// @return Task instance that can be used to wait for task completion or to obtain the result of task execution
+		template<typename TaskBodyType, typename PrerequisitesCollectionType>
+		TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* InDebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Default)
+		{
+			using FResult = TInvokeResult_T<TaskBodyType>;
+			Private::TTaskWithResult<FResult>* Task = new Private::TTaskWithResult<FResult>;
+			Task->Init(InDebugName, Forward<TaskBodyType>(TaskBody), Priority);
+			Task->AddPrerequisites(Forward<PrerequisitesCollectionType>(Prerequisites));
+			Task->SetPipe(*this);
+			Task->TryLaunch();
+			return TTask<FResult>{ Task };
+		}
+
 		// checks if pipe's task is being executed by the current thread. Allows to check if accessing a resource protected by a pipe
 		// is thread-safe
 		CORE_API bool IsInContext() const;

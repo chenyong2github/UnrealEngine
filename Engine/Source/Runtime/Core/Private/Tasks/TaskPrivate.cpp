@@ -22,7 +22,6 @@ namespace UE { namespace Tasks { namespace Private
 	{
 		if (GetPipe() != nullptr)
 		{
-			check(bPushedIntoPipe);
 			GetPipe()->ExecutionFinished();
 			GetPipe()->ClearTask(*this);
 		}
