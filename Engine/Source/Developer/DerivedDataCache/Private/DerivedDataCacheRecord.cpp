@@ -5,6 +5,7 @@
 #include "Containers/UnrealString.h"
 #include "DerivedDataCacheKey.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
