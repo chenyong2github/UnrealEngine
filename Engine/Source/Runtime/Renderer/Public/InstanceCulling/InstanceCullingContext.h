@@ -54,6 +54,7 @@ struct FInstanceCullingRdgParams
 BEGIN_SHADER_PARAMETER_STRUCT(FInstanceCullingDrawParams, )
 	RDG_BUFFER_ACCESS(DrawIndirectArgsBuffer, ERHIAccess::IndirectArgs)
 	RDG_BUFFER_ACCESS(InstanceIdOffsetBuffer, ERHIAccess::VertexOrIndexBuffer)
+	SHADER_PARAMETER(uint32, DrawCommandDataOffset)
 END_SHADER_PARAMETER_STRUCT()
 
 
@@ -120,6 +121,16 @@ public:
 	inline bool HasCullingCommands() const { return CullingCommands.Num() > 0; 	}
 
 	EInstanceCullingMode GetInstanceCullingMode() const { return InstanceCullingMode; }
+
+
+	struct FBatchItem
+	{
+		FInstanceCullingContext* Context = nullptr;
+		FInstanceCullingResult* Result = nullptr;
+		TRange<int32> DynamicPrimitiveIdRange;
+	};
+
+	static void BuildRenderingCommandsBatched(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, TArrayView<FBatchItem> Batches);
 
 	// GPUCULL_TODO: These should not be dynamically heap-allocated, all except instance runs are easy to pre-size on memstack.
 	//           Must be presized as populated from task threads.

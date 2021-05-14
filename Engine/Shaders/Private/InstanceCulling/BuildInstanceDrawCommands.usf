@@ -11,6 +11,21 @@ struct FInstanceRun
 	int PrimitiveId;
 };
 
+struct FBatchInfo
+{
+	uint CullingCommandsOffset;
+	uint NumCullingCommands;
+	uint PrimitiveIdsOffset;
+	uint NumPrimitiveIds;
+	uint InstanceRunsOffset;
+	uint NumInstanceRuns;
+	uint ViewIdsOffset;
+	uint NumViewIds;
+	int DynamicPrimitiveIdOffset;
+	int DynamicPrimitiveIdMax;
+};
+
+
 #if OUTPUT_COMMAND_IDS
 RWBuffer<uint> InstanceIdsBufferOut;
 RWBuffer<uint> DrawCommandIdsBufferOut;
@@ -23,6 +38,9 @@ RWStructuredBuffer<uint> OutputOffsetBufferOut;
 
 StructuredBuffer<FInstanceRun> InstanceRuns;
 StructuredBuffer<uint> ViewIds;
+
+StructuredBuffer<FBatchInfo> BatchInfos;
+StructuredBuffer<uint> BatchInds;
 
 groupshared uint PrimitiveInstanceCountGroupShared;
 groupshared uint RunInstanceCountGroupShared;
@@ -56,10 +74,10 @@ int DynamicPrimitiveIdMax;
 /**
  * Check if the PRIM_ID_DYNAMIC_FLAG bit is set on the Primitive ID and if so add the dynamic primitive offset to get the GPU-Scene ID.
  */
-uint TranslatePrimitiveId(uint PrimitiveIdIn)
+uint TranslatePrimitiveId(uint PrimitiveIdIn, FBatchInfo BatchInfo)
 {
 	// This means we defer the translation to later
-	if (DynamicPrimitiveIdOffset == -1)
+	if (BatchInfo.DynamicPrimitiveIdOffset == -1)
 	{
 		return PrimitiveIdIn;
 	}
@@ -68,7 +86,7 @@ uint TranslatePrimitiveId(uint PrimitiveIdIn)
 	if ((PrimitiveIdIn & PRIM_ID_DYNAMIC_FLAG) != 0)
 	{
 		uint DynamicPrimitiveIndex = PrimitiveIdIn & (~PRIM_ID_DYNAMIC_FLAG);
-		PrimitiveId = uint(DynamicPrimitiveIdOffset) + DynamicPrimitiveIndex;
+		PrimitiveId = uint(BatchInfo.DynamicPrimitiveIdOffset) + DynamicPrimitiveIndex;
 	}
 
 	return PrimitiveId;
@@ -402,21 +420,41 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 	FinalInstanceCountGroupShared = 0;
 	GroupMemoryBarrierWithGroupSync();
 
-	// Get start of next CMD or go to end.
-	uint LastOffset = (CommandSlotIndex + 1 < NumCommands) ? PrimitiveCullingCommands[CommandSlotIndex + 1].FirstPrimitiveIdOffset : NumPrimitiveIds;
-	// Note: the max here is purely to safe-guard against corrupted buffer data leading to an infinite loop
-	uint NumCmdPrimitiveIds = min(NumPrimitiveIds, LastOffset - Cmd.FirstPrimitiveIdOffset);
+#if ENABLE_BATCH_MODE
+	// Load batch info, 
+	FBatchInfo BatchInfo = BatchInfos[BatchInds[CommandSlotIndex]];
+#else // !ENABLE_BATCH_MODE
+	// Single batch in the call, set up batch from the kernel parameters
+	FBatchInfo BatchInfo;
+	BatchInfo.CullingCommandsOffset = 0U;
+	BatchInfo.NumCullingCommands = NumCommands;
+	BatchInfo.PrimitiveIdsOffset = 0U;
+	BatchInfo.NumPrimitiveIds = NumPrimitiveIds;
+	BatchInfo.InstanceRunsOffset = 0U;
+	BatchInfo.NumInstanceRuns = NumInstanceRuns;
+	BatchInfo.ViewIdsOffset = 0U;
+	BatchInfo.NumViewIds = NumViewIds;
+	BatchInfo.DynamicPrimitiveIdOffset = DynamicPrimitiveIdOffset;
+	BatchInfo.DynamicPrimitiveIdMax = DynamicPrimitiveIdMax;
 
-	uint LastInstanceRunOffset = (CommandSlotIndex + 1 < NumCommands) ? PrimitiveCullingCommands[CommandSlotIndex + 1].FirstInstanceRunOffset : NumInstanceRuns;
+#endif // ENABLE_BATCH_MODE
+
+	uint BatchCommandSlotIndex = CommandSlotIndex - BatchInfo.CullingCommandsOffset;
+	// Get start of next CMD or go to end.
+	uint LastOffset = (BatchCommandSlotIndex + 1 < BatchInfo.NumCullingCommands) ? PrimitiveCullingCommands[CommandSlotIndex + 1].FirstPrimitiveIdOffset : BatchInfo.NumPrimitiveIds;
+	// Note: the max here is purely to safe-guard against corrupted buffer data leading to an infinite loop
+	uint NumCmdPrimitiveIds = min(BatchInfo.NumPrimitiveIds, LastOffset - Cmd.FirstPrimitiveIdOffset);
+
+	uint LastInstanceRunOffset = (BatchCommandSlotIndex + 1 < BatchInfo.NumCullingCommands) ? PrimitiveCullingCommands[CommandSlotIndex + 1].FirstInstanceRunOffset : BatchInfo.NumInstanceRuns;
 	// Note: the min here is purely to safe-guard against corrupted buffer data leading to an infinite loop
-	uint NumCmdInstanceRuns = min(NumInstanceRuns, LastInstanceRunOffset - Cmd.FirstInstanceRunOffset);
+	uint NumCmdInstanceRuns = min(BatchInfo.NumInstanceRuns, LastInstanceRunOffset - Cmd.FirstInstanceRunOffset);
 
 	for (uint Index = GroupThreadIndex; Index < NumCmdPrimitiveIds + NumCmdInstanceRuns; Index += NUM_THREADS_PER_GROUP)
 	{
 		uint Num = 0;
 		if (Index < NumCmdPrimitiveIds)
 		{
-			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset + Index]);
+			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset + Index], BatchInfo);
 			if (GetPrimitiveData(PrimitiveId).InstanceDataOffset >= 0)
 			{
 				Num = GetPrimitiveData(PrimitiveId).NumInstanceDataEntries;
@@ -430,7 +468,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 		}
 		else
 		{
-			FInstanceRun Run = InstanceRuns[Cmd.FirstInstanceRunOffset + Index - NumCmdPrimitiveIds];
+			FInstanceRun Run = InstanceRuns[BatchInfo.InstanceRunsOffset + Cmd.FirstInstanceRunOffset + Index - NumCmdPrimitiveIds];
 			Num = (Run.EndInclusive + 1) - Run.Start;
 
 			InterlockedAdd(RunInstanceCountGroupShared, Num);
@@ -442,7 +480,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 	uint PrimitiveInstanceCount = PrimitiveInstanceCountGroupShared;
 	uint RunInstanceCount = RunInstanceCountGroupShared;
 	// Note: NumViewIds - replicate for each view in instanced stereo or other multi-view
-	uint CommandInstanceCount = NumViewIds * (PrimitiveInstanceCount + RunInstanceCount);
+	uint CommandInstanceCount = BatchInfo.NumViewIds * (PrimitiveInstanceCount + RunInstanceCount);
 
 	// Bail if no instances to output
 	if (CommandInstanceCount > 0)
@@ -460,7 +498,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 		// 3. Broadcast to all threads
 		uint InstanceIdOutputOffset = InstanceIdOffsetGroupShared;
 		{
-			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset]);
+			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset], BatchInfo);
 			WriteInstanceId(InstanceIdOutputOffset, GetPrimitiveData(PrimitiveId).InstanceDataOffset, 0U, CommandSlotIndex);
 		}
 		GroupMemoryBarrierWithGroupSync();
@@ -478,7 +516,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 			while (OutputIndex1 >= CurrentRangeEnd)
 			{
 				CurrentPrimitiveIdIndex += 1;
-				uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset + CurrentPrimitiveIdIndex]);
+				uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset + CurrentPrimitiveIdIndex], BatchInfo);
 
 				CurrentRangeStart = CurrentRangeEnd;
 				InstanceDataOffset = GetPrimitiveData(PrimitiveId).InstanceDataOffset;
@@ -505,20 +543,20 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 			{
 				// In stereo mode we need to output all the instances in pairs, one for each eye
 #if STEREO_CULLING_MODE
-				if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[0]) || TestInstanceVisibilityBit(OutId, ViewIds[1]))
+				if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 0]) || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 1]))
 				{
 					uint OutputOffset = 0;
 					InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
 
-					for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+					for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
 					{
 						WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
 					}
 				}
 #else // !STEREO_CULLING_MODE
-				for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+				for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
 				{
-					if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[ViewIdIndex]))
+					if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + ViewIdIndex]))
 					{
 						uint OutputOffset = 0;
 						InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
@@ -540,7 +578,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 			while (OutputIndex2 >= CurrentRangeEnd)
 			{
 				CurrentRunIndex += 1;
-				Run = InstanceRuns[Cmd.FirstInstanceRunOffset + CurrentRunIndex];
+				Run = InstanceRuns[BatchInfo.InstanceRunsOffset + Cmd.FirstInstanceRunOffset + CurrentRunIndex];
 
 				CurrentRangeStart = CurrentRangeEnd;
 				CurrentRangeEnd += (Run.EndInclusive + 1) - Run.Start;
@@ -567,20 +605,20 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 			{
 				// In stereo mode we need to output all the instances in pairs, one for each eye, thus they must be atomically allocated in pairs also
 #if STEREO_CULLING_MODE
-				if (TestInstanceVisibilityBit(OutId, ViewIds[0]) || TestInstanceVisibilityBit(OutId, ViewIds[1]))
+				if (TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 0]) || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 1]))
 				{
 					uint OutputOffset = 0;
 					InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
-					for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+					for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
 					{
 						WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
 					}
 				}
 
 #else // !STEREO_CULLING_MODE
-				for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+				for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
 				{
-					if (TestInstanceVisibilityBit(OutId, ViewIds[ViewIdIndex]))
+					if (TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + ViewIdIndex]))
 					{
 						uint OutputOffset = 0;
 						InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
