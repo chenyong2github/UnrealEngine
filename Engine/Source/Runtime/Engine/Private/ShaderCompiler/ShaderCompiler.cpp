@@ -3760,7 +3760,9 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 				// Make a clone of the compiling shader map to use for rendering
 				// This will allow rendering to proceed with the clone, while async compilation continues to potentially update the compiling shader map
+				double StartTime = FPlatformTime::Seconds();
 				ShaderMapToUseForRendering = CompilingShaderMap->AcquireFinalizedClone();
+				TimeBudget -= (FPlatformTime::Seconds() - StartTime);
 			}
 
 			if (!bSuccess || ResultArray.Num() == 0)
