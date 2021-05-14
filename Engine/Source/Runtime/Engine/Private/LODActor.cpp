@@ -1032,10 +1032,7 @@ void ALODActor::AddInstances(const UStaticMesh* InStaticMesh, const UMaterialInt
 	check(InTransforms.Num() > 0);
 
 	UInstancedStaticMeshComponent* Component = GetOrCreateISMComponent(FHLODInstancingKey(InStaticMesh, InMaterial));
-	for (const FTransform& Transform : InTransforms)
-	{
-		Component->AddInstanceWorldSpace(Transform);
-	}
+	Component->AddInstances(InTransforms, /*bWorldSpace*/true);
 
 	// Ensure parenting is up to date and take into account the newly created component.
 	UpdateSubActorLODParents();
