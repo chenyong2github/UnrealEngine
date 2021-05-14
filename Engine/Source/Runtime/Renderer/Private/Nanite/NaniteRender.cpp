@@ -4539,9 +4539,9 @@ void DrawBasePass(
 			UniformParams.VisibleMaterials = PassParameters->VisibleMaterials->GetRHI();
 
 			UniformParams.MultiViewEnabled = PassParameters->MultiViewEnabled;
-			UniformParams.MultiViewIndices = PassParameters->MultiViewIndices;
-			UniformParams.MultiViewRectScaleOffsets = PassParameters->MultiViewRectScaleOffsets;
-			UniformParams.InViews = PassParameters->InViews;
+			UniformParams.MultiViewIndices = PassParameters->MultiViewIndices->GetRHI();
+			UniformParams.MultiViewRectScaleOffsets = PassParameters->MultiViewRectScaleOffsets->GetRHI();
+			UniformParams.InViews = PassParameters->InViews->GetRHI();
 
 			UniformParams.VisBuffer64 = PassParameters->VisBuffer64->GetRHI();
 			UniformParams.DbgBuffer64 = PassParameters->DbgBuffer64->GetRHI();
@@ -5193,9 +5193,9 @@ void DrawLumenMeshCapturePass(
 				UniformParams.VisibleMaterials = PassParameters->VisibleMaterials->GetRHI();
 
 				UniformParams.MultiViewEnabled = PassParameters->MultiViewEnabled;
-				UniformParams.MultiViewIndices = PassParameters->MultiViewIndices;
-				UniformParams.MultiViewRectScaleOffsets = PassParameters->MultiViewRectScaleOffsets;
-				UniformParams.InViews = PassParameters->InViews;
+				UniformParams.MultiViewIndices = PassParameters->MultiViewIndices->GetRHI();
+				UniformParams.MultiViewRectScaleOffsets = PassParameters->MultiViewRectScaleOffsets->GetRHI();
+				UniformParams.InViews = PassParameters->InViews->GetRHI();
 
 				UniformParams.VisBuffer64 = PassParameters->VisBuffer64->GetRHI();
 				UniformParams.DbgBuffer64 = PassParameters->DbgBuffer64->GetRHI();
