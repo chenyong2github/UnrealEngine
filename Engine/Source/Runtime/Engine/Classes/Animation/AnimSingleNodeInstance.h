@@ -43,7 +43,10 @@ protected:
 	virtual void Montage_Advance(float DeltaTime) override;
 	//~ End UAnimInstance Interface
 public:
-
+	UFUNCTION(BlueprintCallable, Category="Animation")
+    void SetMirrorDataTable(const UMirrorDataTable* MirrorDataTable);
+	UFUNCTION(BlueprintCallable, Category="Animation")
+	const UMirrorDataTable* GetMirrorDataTable();
 	UFUNCTION(BlueprintCallable, Category="Animation")
 	void SetLooping(bool bIsLooping);
 	UFUNCTION(BlueprintCallable, Category="Animation")
