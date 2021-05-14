@@ -46,7 +46,7 @@ protected:
 	FMetasoundFrontendDocument RootMetasoundDocument;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UMetasoundEditorGraphBase* Graph;
 #endif // WITH_EDITORONLY_DATA
 
