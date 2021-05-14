@@ -511,68 +511,49 @@ namespace
 
 } // namespace 
 
-struct FLandscapeDebugOptions
+
+//
+// FLandscapeDebugOptions
+//
+FLandscapeDebugOptions::FLandscapeDebugOptions()
+	: bShowPatches(false)
+	, bDisableStatic(false)
+	, CombineMode(eCombineMode_Default)
+	, PatchesConsoleCommand(
+		TEXT("Landscape.Patches"),
+		TEXT("Show/hide Landscape patches"),
+		FConsoleCommandDelegate::CreateRaw(this, &FLandscapeDebugOptions::Patches))
+	, StaticConsoleCommand(
+		TEXT("Landscape.Static"),
+		TEXT("Enable/disable Landscape static drawlists"),
+		FConsoleCommandDelegate::CreateRaw(this, &FLandscapeDebugOptions::Static))
+	, CombineConsoleCommand(
+		TEXT("Landscape.Combine"),
+		TEXT("Set landscape component combining mode : 0 = Default, 1 = Combine All, 2 = Disabled"),
+		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FLandscapeDebugOptions::Combine))
 {
-	FLandscapeDebugOptions()
-		: bShowPatches(false)
-		, bDisableStatic(false)
-		, CombineMode(eCombineMode_Default)
-		, PatchesConsoleCommand(
-			TEXT("Landscape.Patches"),
-			TEXT("Show/hide Landscape patches"),
-			FConsoleCommandDelegate::CreateRaw(this, &FLandscapeDebugOptions::Patches))
-		, StaticConsoleCommand(
-			TEXT("Landscape.Static"),
-			TEXT("Enable/disable Landscape static drawlists"),
-			FConsoleCommandDelegate::CreateRaw(this, &FLandscapeDebugOptions::Static))
-		, CombineConsoleCommand(
-			TEXT("Landscape.Combine"),
-			TEXT("Set landscape component combining mode : 0 = Default, 1 = Combine All, 2 = Disabled"),
-			FConsoleCommandWithArgsDelegate::CreateRaw(this, &FLandscapeDebugOptions::Combine))
+}
+
+void FLandscapeDebugOptions::Patches()
+{
+	bShowPatches = !bShowPatches;
+	UE_LOG(LogLandscape, Display, TEXT("Landscape.Patches: %s"), bShowPatches ? TEXT("Show") : TEXT("Hide"));
+}
+
+void FLandscapeDebugOptions::Static()
+{
+	bDisableStatic = !bDisableStatic;
+	UE_LOG(LogLandscape, Display, TEXT("Landscape.Static: %s"), bDisableStatic ? TEXT("Disabled") : TEXT("Enabled"));
+}
+
+void FLandscapeDebugOptions::Combine(const TArray<FString>& Args)
+{
+	if (Args.Num() >= 1)
 	{
+		CombineMode = (eCombineMode)FCString::Atoi(*Args[0]);
+		UE_LOG(LogLandscape, Display, TEXT("Landscape.Combine: %d"), (int32)CombineMode);
 	}
-
-	enum eCombineMode
-	{
-		eCombineMode_Default = 0,
-		eCombineMode_CombineAll = 1,
-		eCombineMode_Disabled = 2
-	};
-
-	bool bShowPatches;
-	bool bDisableStatic;
-	eCombineMode CombineMode;
-
-	FORCEINLINE bool IsCombinedDisabled() const { return CombineMode == eCombineMode_Disabled; }
-	FORCEINLINE bool IsCombinedAll() const { return CombineMode == eCombineMode_CombineAll; }
-	FORCEINLINE bool IsCombinedDefault() const { return CombineMode == eCombineMode_Default; }
-
-private:
-	FAutoConsoleCommand PatchesConsoleCommand;
-	FAutoConsoleCommand StaticConsoleCommand;
-	FAutoConsoleCommand CombineConsoleCommand;
-
-	void Patches()
-	{
-		bShowPatches = !bShowPatches;
-		UE_LOG(LogLandscape, Display, TEXT("Landscape.Patches: %s"), bShowPatches ? TEXT("Show") : TEXT("Hide"));
-	}
-
-	void Static()
-	{
-		bDisableStatic = !bDisableStatic;
-		UE_LOG(LogLandscape, Display, TEXT("Landscape.Static: %s"), bDisableStatic ? TEXT("Disabled") : TEXT("Enabled"));
-	}
-
-	void Combine(const TArray<FString>& Args)
-	{
-		if (Args.Num() >= 1)
-		{
-			CombineMode = (eCombineMode)FCString::Atoi(*Args[0]);
-			UE_LOG(LogLandscape, Display, TEXT("Landscape.Combine: %d"), (int32)CombineMode);
-		}
-	}
-};
+}
 
 FLandscapeDebugOptions GLandscapeDebugOptions;
 
