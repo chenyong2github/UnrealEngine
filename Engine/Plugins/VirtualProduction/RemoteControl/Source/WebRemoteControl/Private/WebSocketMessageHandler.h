@@ -46,6 +46,7 @@ private:
 	void OnFieldRenamed(URemoteControlPreset* Owner, FName OldFieldLabel, FName NewFieldLabel);
 	void OnMetadataModified(URemoteControlPreset* Owner);
 	void OnActorPropertyChanged(URemoteControlPreset* Owner, FRemoteControlActor& Actor, UObject* ModifiedObject, FProperty* ModifiedProperty);
+	void OnEntitiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedEntities);
 
 	/** Callback when a websocket connection was closed. Let us clean out registrations */
 	void OnConnectionClosedCallback(FGuid ClientId);
