@@ -388,7 +388,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				// Flush all pending render commands, as unloading the package may invalidate render resources.
 				FlushRenderingCommands();
 
-				// Close any open asset editors
+				// Close any open asset editors.
 				ForEachObjectWithPackage(PackageBeingUnloaded, [](UObject* Obj)
 				{
 					if (Obj->IsAsset())
@@ -397,6 +397,23 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					}
 					return true;
 				}, false);
+
+				// Notify any Blueprints that are about to be unloaded, and destroy any leftover worlds.
+				ForEachObjectWithPackage(PackageBeingUnloaded, [](UObject* Obj)
+				{
+					if (UBlueprint* BP = Cast<UBlueprint>(Obj))
+					{
+						BP->ClearEditorReferences();
+					}
+					if (UWorld* World = Cast<UWorld>(Obj))
+					{
+						if (World->bIsWorldInitialized)
+						{
+							World->CleanupWorld();
+						}
+					}
+					return true;
+				}, true, RF_Transient, EInternalObjectFlags::PendingKill);
 
 				PackageBeingUnloaded->bHasBeenFullyLoaded = false;
 				PackageBeingUnloaded->ClearFlags(RF_WasLoaded);
@@ -839,15 +856,22 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		{
 			GEngine->NotifyToolsOfObjectReplacement(InPackageReloadedEvent->GetRepointedObjects());
 
-			// Notify any Blueprints that are about to be unloaded.
-			ForEachObjectWithPackage(InPackageReloadedEvent->GetOldPackage(), [&](UObject* InObject)
+			// Notify any Blueprints that are about to be unloaded, and destroy any leftover worlds.
+			ForEachObjectWithPackage(InPackageReloadedEvent->GetOldPackage(), [](UObject* InObject)
 			{
 				if (UBlueprint* BP = Cast<UBlueprint>(InObject))
 				{
 					BP->ClearEditorReferences();
 				}
+				if (UWorld* World = Cast<UWorld>(InObject))
+				{
+					if (World->bIsWorldInitialized)
+					{
+						World->CleanupWorld();
+					}
+				}
 				return true;
-			}, false, RF_Transient, EInternalObjectFlags::PendingKill);
+			}, true, RF_Transient, EInternalObjectFlags::PendingKill);
 		}
 
 		if (InPackageReloadPhase == EPackageReloadPhase::OnPackageFixup)
