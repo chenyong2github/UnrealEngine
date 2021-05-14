@@ -385,6 +385,7 @@ enum class EOutputBufferMode : uint8
 {
 	// Default mode outputting both ID and depth
 	VisBuffer,
+
 	// Rasterize only depth to 32 bit buffer
 	DepthOnly,
 };
@@ -735,3 +736,5 @@ void DrawEditorVisualizeLevelInstance(
 #endif
 
 }
+
+extern bool ShouldRenderNanite(const FScene* Scene, const FViewInfo& View, bool bCheckForAtomicSupport = true);

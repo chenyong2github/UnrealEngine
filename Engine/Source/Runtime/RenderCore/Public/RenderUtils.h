@@ -672,12 +672,24 @@ RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform);
 /**
  * Returns true if Nanite rendering should be used for the given shader platform.
  */
-inline bool UseNanite(EShaderPlatform ShaderPlatform)
+inline bool UseNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport = true)
 {
+	// Does the platform support Nanite?
+	const bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);
+
+	// Is Nanite currently enabled?
 	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
-	bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);
-	bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
-	return bNaniteSupported /*&& GRHISupportsAtomicUInt64*/ && !bForwardShadingEnabled && (EnableNaniteCVar != nullptr && EnableNaniteCVar->GetInt() > 0);
+	const bool bNaniteEnabled   = (EnableNaniteCVar != nullptr) ? (EnableNaniteCVar->GetInt() != 0) : true;
+
+	// Are 64bit image atomics supported by the GPU/Driver/OS/API?
+	static const auto NaniteAtomic64CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.RequireAtomic64Support"));
+	const bool bRequireAtomics = (NaniteAtomic64CVar != nullptr) ? (NaniteAtomic64CVar->GetInt() != 0) : false;
+	const bool bAtomicsSupported = GRHISupportsAtomicUInt64 || !bRequireAtomics;
+	
+	// Nanite is not supported with forward shading at this time.
+	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
+
+	return bNaniteSupported && bNaniteEnabled && (!bCheckForAtomicSupport || bAtomicsSupported) && !bForwardShadingEnabled;
 }
 
 inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
