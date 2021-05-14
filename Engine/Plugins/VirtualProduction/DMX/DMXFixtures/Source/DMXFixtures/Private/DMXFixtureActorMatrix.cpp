@@ -2,6 +2,7 @@
 
 #include "DMXFixtureActorMatrix.h"
 
+#include "DMXProtocolConstants.h"
 #include "DMXStats.h"
 
 #include "Rendering/Texture2DResource.h"
@@ -97,11 +98,13 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 	XCells = MatrixProperties.XCells;
 	YCells = MatrixProperties.YCells;
 
-	// Limit cells [1-64]
+	// Limit cells [1-DMX_UNIVERSE_SIZE]
+	constexpr int DMXUniverseSize = DMX_UNIVERSE_SIZE;
+
 	XCells = FMath::Max(XCells, 1);
 	YCells = FMath::Max(YCells, 1);
-	XCells = FMath::Min(XCells, 64);
-	YCells = FMath::Min(YCells, 64);
+	XCells = FMath::Min(XCells, DMXUniverseSize);
+	YCells = FMath::Min(YCells, DMXUniverseSize);
 
 	int NbrCells = XCells * YCells;
 
@@ -415,11 +418,13 @@ void ADMXFixtureActorMatrix::GenerateEditorMatrixMesh()
 		XCells = MatrixProperties.XCells;
 		YCells = MatrixProperties.YCells;
 
-		// Limit cells [1-64]
+		// Limit cells [1-DMX_UNIVERSE_SIZE]
+		constexpr int DMXUniverseSize = DMX_UNIVERSE_SIZE;
+
 		XCells = FMath::Max(XCells, 1);
 		YCells = FMath::Max(YCells, 1);
-		XCells = FMath::Min(XCells, 64);
-		YCells = FMath::Min(YCells, 64);
+		XCells = FMath::Min(XCells, DMXUniverseSize);
+		YCells = FMath::Min(YCells, DMXUniverseSize);
 
 		MatrixHead->ClearAllMeshSections();
 		GenerateMatrixCells();
