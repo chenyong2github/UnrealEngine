@@ -1481,8 +1481,19 @@ void UEngine::PerformGarbageCollectionAndCleanupActors()
 	// to block on loading the remaining data.
 	if (!IsAsyncLoading())
 	{
+		bool bForcePurge = true;
+		for (FWorldContext& Context : WorldList)
+		{
+			UWorld* World = Context.World();
+			if (World->IsGameWorld())
+			{
+				bForcePurge = false;
+				break;
+			}
+		}
+
 		// Perform housekeeping.
-		if (TryCollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, false))
+		if (TryCollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, bForcePurge))
 		{
 			ForEachObjectOfClass(UWorld::StaticClass(), [](UObject* World)
 			{
