@@ -12,11 +12,20 @@
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
+#include "Algo/AllOf.h"
+#include "Algo/IsSorted.h"
+#include "Algo/MinElement.h"
+#include "Templates/Greater.h"
 
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalBytesRead, TEXT("IoDispatcher/TotalBytesRead"));
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalBytesScattered, TEXT("IoDispatcher/TotalBytesScattered"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherCacheHits, TEXT("IoDispatcher/CacheHits"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherCacheMisses, TEXT("IoDispatcher/CacheMisses"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherOutstandingReads, TEXT("IoDispatcher/OutstandingReads"));
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherOutstandingBytesToRead, TEXT("IoDispatcher/OutstandingBytesToRead"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherLatencyCircuitBreaks, TEXT("IoDispatcher/LatencyCircuitBreaks"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherSeekDistanceCircuitBreaks, TEXT("IoDispatcher/SeekDistanceCircuitBreaks"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherNumPriorityQueues, TEXT("IoDispatcher/NumPriorityQueues"));
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -55,7 +64,38 @@ static FAutoConsoleVariableRef CVar_IoDispatcherCacheSizeMB(
 	TEXT("IoDispatcher cache memory size (in megabytes).")
 );
 
+int32 GIoDispatcherSortRequestsByOffset = 1;
+static FAutoConsoleVariableRef CVar_IoDispatcherSortRequestsByOffset(
+	TEXT("s.IoDispatcherSortRequestsByOffset"),
+	GIoDispatcherSortRequestsByOffset,
+	TEXT("If > 0, io dispatcher sorts the outstanding request queue by offset rather than sequence.")
+);
+
+int32 GIoDispatcherMaintainSortingOnPriorityChange = 1;
+static FAutoConsoleVariableRef CVar_IoDispatcherMaintainSortingOnPriorityChange(
+	TEXT("s.IoDispatcherMaintainSortingOnPriorityChange"),
+	GIoDispatcherMaintainSortingOnPriorityChange,
+	TEXT("If s.IoDispatcherSortRequestsByOffset > 0 and this > 0, io dispatcher remembers the last file handle/offset read from even when switching priority levels.")
+);
+
+int32 GIoDispatcherMaxForwardSeekKB = 0;
+static FAutoConsoleVariableRef CVar_IoDispatcherMaxForwardSeekKB(
+	TEXT("s.IoDispatcherMaxForwardSeekKB"),
+	GIoDispatcherMaxForwardSeekKB,
+	TEXT("If s.IoDispatcherSortRequestsByOffset is enabled and this is > 0, if the next sequential read is further than this offset from the last one, read the oldest request instead")
+);
+
+int32 GIoDispatcherRequestLatencyCircuitBreakerMS = 0;
+static FAutoConsoleVariableRef CVar_IoDispatcherRequestLatencyCircuitBreakerMS(
+	TEXT("s.IoDispatcherRequestLatencyCircuitBreakerMS"),
+	GIoDispatcherRequestLatencyCircuitBreakerMS,
+	TEXT("If s.IoDispatcherSortRequestsByOffset is enabled and this is >0, if the oldest request has been in the queue for this long, read it instead of the most optimal read")
+);
+
 uint32 FFileIoStoreReadRequest::NextSequence = 0;
+#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
+uint32 FFileIoStoreReadRequestList::NextListCookie = 0;
+#endif
 TAtomic<uint32> FFileIoStoreReader::GlobalPartitionIndex{ 0 };
 TAtomic<uint32> FFileIoStoreReader::GlobalContainerInstanceId{ 0 };
 
@@ -240,52 +280,305 @@ void FFileIoStoreBlockCache::Store(const FFileIoStoreReadRequest* Block)
 	}
 }
 
+bool FFileIoStoreOffsetSortedRequestQueue::RequestSortPredicate(const FFileIoStoreReadRequestSortKey& A, const FFileIoStoreReadRequestSortKey& B)
+{
+	if (A.Handle == B.Handle)
+	{
+		return A.Offset < B.Offset;
+	}
+	return A.Handle < B.Handle;
+}
+
+FFileIoStoreOffsetSortedRequestQueue::FFileIoStoreOffsetSortedRequestQueue(int32 InPriority)
+	: Priority(InPriority)
+{
+}
+
+TArray<FFileIoStoreReadRequest*> FFileIoStoreOffsetSortedRequestQueue::StealRequests()
+{
+	RequestsBySequence.Clear();
+	PeekRequestIndex = INDEX_NONE;
+	return MoveTemp(Requests); 
+}
+
+// This could be potentially optimized if the higher level keeps track of which requests it changes the priority of, or even just the old priorty levels
+TArray<FFileIoStoreReadRequest*> FFileIoStoreOffsetSortedRequestQueue::RemoveMisprioritizedRequests()
+{
+	PeekRequestIndex = INDEX_NONE;
+	TArray<FFileIoStoreReadRequest*> RequestsToReturn;
+	for (int32 i = Requests.Num()-1; i >= 0; --i)
+	{
+		if (Requests[i]->Priority != Priority)
+		{
+			RequestsToReturn.Add(Requests[i]);
+			RequestsBySequence.Remove(Requests[i]);
+			Requests.RemoveAt(i, 1, false);
+		}
+	}
+
+	return RequestsToReturn;
+}
+
+FFileIoStoreReadRequest* FFileIoStoreOffsetSortedRequestQueue::GetNextInternal(FFileIoStoreReadRequestSortKey LastSortKey, bool bPop)
+{
+	if (Requests.Num() == 0)
+	{
+		return nullptr;
+	}
+
+	int32 RequestIndex = INDEX_NONE;
+	if (PeekRequestIndex != INDEX_NONE)
+	{
+		RequestIndex = PeekRequestIndex;
+	}
+	else 
+	{
+		bool bHeadRequestTooOld = false;
+		if (GIoDispatcherRequestLatencyCircuitBreakerMS > 0)
+		{
+			// If our oldest request has been unserviced for too long, grab that instead of the next sequential read
+			uint64 ThresholdCycles = uint64((GIoDispatcherRequestLatencyCircuitBreakerMS * 1000.0) / FPlatformTime::GetSecondsPerCycle64());
+			bHeadRequestTooOld = (FPlatformTime::Cycles64() - RequestsBySequence.PeekHead()->CreationTime) >= ThresholdCycles;
+
+			if (bPop)
+			{
+				TRACE_COUNTER_INCREMENT(IoDispatcherLatencyCircuitBreaks);
+			}
+		}
+
+		const bool bChooseByOffset = 
+				LastSortKey.Handle != 0 
+			&&	!bHeadRequestTooOld 
+			&&  (GIoDispatcherMaintainSortingOnPriorityChange || LastSortKey.Priority == Priority);
+		if (bChooseByOffset)
+		{
+			// Pick the request with the closest offset to the last thing that we read
+			RequestIndex = Algo::LowerBoundBy(Requests, LastSortKey, RequestSortProjection, RequestSortPredicate);
+			if (Requests.IsValidIndex(RequestIndex)) // If all requests are before LastOffset we get back out-of-bounds
+			{
+				if (Requests[RequestIndex]->FileHandle != LastSortKey.Handle)
+				{
+					// Changing file handle so switch back to the oldest outstanding request 
+					RequestIndex = INDEX_NONE;
+				}
+				else if (GIoDispatcherMaxForwardSeekKB > 0 && (LastSortKey.Offset - Requests[RequestIndex]->Offset) > uint64(GIoDispatcherMaxForwardSeekKB) * 1024)
+				{
+					// Large forward seek so switch back to the oldest outstanding request 
+					RequestIndex = INDEX_NONE;
+
+					if (bPop)
+					{
+						TRACE_COUNTER_INCREMENT(IoDispatcherSeekDistanceCircuitBreaks);
+					}
+				}
+			}
+		}
+
+		if (!Requests.IsValidIndex(RequestIndex))
+		{
+			RequestIndex = Requests.Find(RequestsBySequence.PeekHead());
+			check(Requests[RequestIndex] == RequestsBySequence.PeekHead());
+		}
+	}
+
+	check(Requests.IsValidIndex(RequestIndex));
+
+	FFileIoStoreReadRequest* Request = Requests[RequestIndex];
+	if (bPop)
+	{
+		Requests.RemoveAt(RequestIndex);
+		RequestsBySequence.Remove(Request);
+		PeekRequestIndex = INDEX_NONE;
+	}
+	else
+	{
+		PeekRequestIndex = RequestIndex;
+	}
+	return Request;
+}
+
+FFileIoStoreReadRequest* FFileIoStoreOffsetSortedRequestQueue::Peek(FFileIoStoreReadRequestSortKey LastSortKey)
+{
+	return GetNextInternal(LastSortKey, false);
+}
+
+FFileIoStoreReadRequest* FFileIoStoreOffsetSortedRequestQueue::Pop(FFileIoStoreReadRequestSortKey LastSortKey)
+{
+	return GetNextInternal(LastSortKey, true);
+}
+
+void FFileIoStoreOffsetSortedRequestQueue::Push(FFileIoStoreReadRequest* Request)
+{
+	// Insert sorted by file handle & offset
+	int32 InsertIndex = Algo::UpperBoundBy(Requests, RequestSortProjection(Request), RequestSortProjection, RequestSortPredicate);
+	Requests.Insert(Request, InsertIndex);
+	
+	// Insert sorted by age
+	RequestsBySequence.Add(Request);
+
+	PeekRequestIndex = INDEX_NONE;
+}
+
+void FFileIoStoreRequestQueue::UpdateSortRequestsByOffset()
+{
+	// Must hold CriticalSection here
+	if (bSortRequestsByOffset == bool(GIoDispatcherSortRequestsByOffset))
+	{
+		return;
+	}
+
+	bSortRequestsByOffset = bool(GIoDispatcherSortRequestsByOffset);
+	if (bSortRequestsByOffset)
+	{
+		// Split things into separate heaps
+		for (FFileIoStoreReadRequest* Request : Heap)
+		{
+			Push(*Request);
+		}
+		Heap.Empty();
+	}
+	else
+	{
+		// Put things back into the main heap
+		TArray< FFileIoStoreReadRequest*> AllRequests;
+		for (FFileIoStoreOffsetSortedRequestQueue& SubQueue : SortedPriorityQueues)
+		{
+			AllRequests.Append(SubQueue.StealRequests());
+		}
+		Algo::SortBy(AllRequests, [](FFileIoStoreReadRequest* Request) { return Request->Sequence; });
+		for (FFileIoStoreReadRequest* Request : AllRequests)
+		{
+			Push(*Request);
+		}
+		check(Algo::AllOf(SortedPriorityQueues, [](const FFileIoStoreOffsetSortedRequestQueue& Q) { return Q.IsEmpty(); }));
+		SortedPriorityQueues.Empty();
+	}
+}
+
 FFileIoStoreReadRequest* FFileIoStoreRequestQueue::Peek()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePeek);
 	FScopeLock _(&CriticalSection);
-	if (Heap.Num() == 0)
+	UpdateSortRequestsByOffset();
+	if (bSortRequestsByOffset)
 	{
-		return nullptr;
+		if( SortedPriorityQueues.Num() == 0)
+		{
+			return nullptr;
+		}
+
+		FFileIoStoreOffsetSortedRequestQueue& SubQueue = SortedPriorityQueues.Last();
+		check(!SubQueue.IsEmpty());
+		FFileIoStoreReadRequest* Request = SubQueue.Peek(LastSortKey);
+		check(Request);
+		// Do not update LastUsedPriority here until we actually pop
+		return Request;
 	}
-	return Heap.HeapTop();
+	else
+	{
+		if (Heap.Num() == 0)
+		{
+			return nullptr;
+		}
+		return Heap.HeapTop();
+	}
 }
 
 FFileIoStoreReadRequest* FFileIoStoreRequestQueue::Pop()
 {
-	//TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePop);
+	TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePop);
 	FScopeLock _(&CriticalSection);
-	if (Heap.Num() == 0)
+	UpdateSortRequestsByOffset();
+	FFileIoStoreReadRequest* Result = nullptr;
+	if (bSortRequestsByOffset)
 	{
-		return nullptr;
+		if (SortedPriorityQueues.Num() == 0)
+		{
+			return nullptr;
+		}
+
+		FFileIoStoreOffsetSortedRequestQueue& SubQueue = SortedPriorityQueues.Last();
+		check(!SubQueue.IsEmpty());
+		Result = SubQueue.Pop(LastSortKey);
+		check(Result);
+		LastSortKey = Result;
+		if (SubQueue.IsEmpty())
+		{
+			SortedPriorityQueues.Pop();
+			// SubQueue is invalid here
+			TRACE_COUNTER_DECREMENT(IoDispatcherNumPriorityQueues);
+		}
 	}
-	FFileIoStoreReadRequest* Result;
-	Heap.HeapPop(Result, QueueSortFunc, false);
+	else
+	{
+		if (Heap.Num() == 0)
+		{
+			return nullptr;
+		}
+		Heap.HeapPop(Result, QueueSortFunc, false);
+	}
+	
 	check(Result->QueueStatus == FFileIoStoreReadRequest::QueueStatus_InQueue);
 	Result->QueueStatus = FFileIoStoreReadRequest::QueueStatus_Started;
 	return Result;
 }
 
-void FFileIoStoreRequestQueue::Push(FFileIoStoreReadRequest& Request)
+void FFileIoStoreRequestQueue::PushToPriorityQueues(FFileIoStoreReadRequest* Request)
 {
-	//TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePush);
-	FScopeLock _(&CriticalSection);
-	check(Request.QueueStatus != FFileIoStoreReadRequest::QueueStatus_InQueue);
-	Request.QueueStatus = FFileIoStoreReadRequest::QueueStatus_InQueue;
-	Heap.HeapPush(&Request, QueueSortFunc);
+	int32 QueueIndex = Algo::LowerBoundBy(SortedPriorityQueues, Request->Priority, QueuePriorityProjection, TLess<int32>());
+	if (!SortedPriorityQueues.IsValidIndex(QueueIndex) || SortedPriorityQueues[QueueIndex].GetPriority() != Request->Priority)
+	{
+		SortedPriorityQueues.Insert(FFileIoStoreOffsetSortedRequestQueue(Request->Priority), QueueIndex);
+		TRACE_COUNTER_INCREMENT(IoDispatcherNumPriorityQueues);
+	}
+	check(Algo::IsSortedBy(SortedPriorityQueues, QueuePriorityProjection, TLess<int32>()));
+	FFileIoStoreOffsetSortedRequestQueue& Queue = SortedPriorityQueues[QueueIndex];
+	check(Queue.GetPriority() == Request->Priority);
+	Queue.Push(Request);
 }
 
-void FFileIoStoreRequestQueue::Push(const FFileIoStoreReadRequestList& Requests)
+void FFileIoStoreRequestQueue::Push(FFileIoStoreReadRequest& Request)
 {
-	//TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePush);
+	TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePush);
 	FScopeLock _(&CriticalSection);
-	FFileIoStoreReadRequest* Request = Requests.GetHead();
-	while (Request)
+	UpdateSortRequestsByOffset();
+	TRACE_COUNTER_INCREMENT(IoDispatcherOutstandingReads);
+	TRACE_COUNTER_ADD(IoDispatcherOutstandingBytesToRead, Request.Size);
+	
+	check(Request.QueueStatus != FFileIoStoreReadRequest::QueueStatus_InQueue);
+	Request.QueueStatus = FFileIoStoreReadRequest::QueueStatus_InQueue;
+	if (bSortRequestsByOffset)
 	{
-		check(Request->QueueStatus != FFileIoStoreReadRequest::QueueStatus_InQueue);
-		Request->QueueStatus = FFileIoStoreReadRequest::QueueStatus_InQueue;
-		Heap.HeapPush(Request, QueueSortFunc);
-		Request = Request->Next;
+		PushToPriorityQueues(&Request);
+	}
+	else
+	{
+		Heap.HeapPush(&Request, QueueSortFunc);
+	}
+}
+
+void FFileIoStoreRequestQueue::Push(FFileIoStoreReadRequestList& Requests)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueuePush);
+	FScopeLock _(&CriticalSection);
+	UpdateSortRequestsByOffset();
+
+	for (auto It = Requests.Steal(); It; ++It)
+	{
+		TRACE_COUNTER_INCREMENT(IoDispatcherOutstandingReads);
+		TRACE_COUNTER_ADD(IoDispatcherOutstandingBytesToRead, It->Size);
+
+		check(It->QueueStatus != FFileIoStoreReadRequest::QueueStatus_InQueue);
+		It->QueueStatus = FFileIoStoreReadRequest::QueueStatus_InQueue;
+
+		if (bSortRequestsByOffset)
+		{
+			PushToPriorityQueues(*It);
+		}
+		else
+		{
+			Heap.HeapPush(*It, QueueSortFunc);
+		}
 	}
 }
 
@@ -293,7 +586,26 @@ void FFileIoStoreRequestQueue::UpdateOrder()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RequestQueueUpdateOrder);
 	FScopeLock _(&CriticalSection);
-	Heap.Heapify(QueueSortFunc);
+	UpdateSortRequestsByOffset();
+	if (bSortRequestsByOffset)
+	{
+		TArray<FFileIoStoreReadRequest*> Requests;
+		for (FFileIoStoreOffsetSortedRequestQueue& SubQueue : SortedPriorityQueues)
+		{
+			TArray<FFileIoStoreReadRequest*> RequestsRemoved = SubQueue.RemoveMisprioritizedRequests();
+			Requests.Append(RequestsRemoved);
+		}
+
+		Algo::SortBy(Requests, [](FFileIoStoreReadRequest* Request) { return Request->Sequence;  });
+		for (FFileIoStoreReadRequest* Request : Requests)
+		{
+			PushToPriorityQueues(Request);
+		}
+	}
+	else
+	{
+		Heap.Heapify(QueueSortFunc);
+	}
 }
 
 void FFileIoStoreRequestQueue::Lock()
@@ -547,18 +859,16 @@ void FFileIoStoreRequestTracker::AddReadRequestsToResolvedRequest(FFileIoStoreCo
 	}
 }
 
-void FFileIoStoreRequestTracker::AddReadRequestsToResolvedRequest(const FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest)
+void FFileIoStoreRequestTracker::AddReadRequestsToResolvedRequest(FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(RequestTrackerAddIoRequest);
-	FFileIoStoreReadRequest* ReadRequest = Requests.GetHead();
-	while (ReadRequest)
+	for (auto It = Requests.Steal(); It; ++It)
 	{
 		++ResolvedRequest.UnfinishedReadsCount;
-		FFileIoStoreReadRequestLink* Link = RequestAllocator.AllocRequestLink(ReadRequest);
-		++ReadRequest->RefCount;
+		FFileIoStoreReadRequestLink* Link = RequestAllocator.AllocRequestLink(*It);
+		++It->RefCount;
 		ResolvedRequest.AddReadRequestLink(Link);
-		check(ResolvedRequest.GetPriority() == ReadRequest->Priority);
-		ReadRequest = ReadRequest->Next;
+		check(ResolvedRequest.GetPriority() == It->Priority);
 	}
 }
 
@@ -1111,12 +1421,13 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 
 	FFileIoStoreReadRequestList CompletedRequests;
 	PlatformImpl.GetCompletedRequests(CompletedRequests);
-	FFileIoStoreReadRequest* CompletedRequest = CompletedRequests.GetHead();
-	while (CompletedRequest)
+	for (auto It = CompletedRequests.Steal(); It; ++It)
 	{
-		FFileIoStoreReadRequest* NextRequest = CompletedRequest->Next;
+		FFileIoStoreReadRequest* CompletedRequest = *It;
 
 		TRACE_COUNTER_ADD(IoDispatcherTotalBytesRead, CompletedRequest->Size);
+		TRACE_COUNTER_DECREMENT(IoDispatcherOutstandingReads);
+		TRACE_COUNTER_SUBTRACT(IoDispatcherOutstandingBytesToRead, CompletedRequest->Size);
 
 		if (!CompletedRequest->ImmediateScatter.Request)
 		{
@@ -1206,8 +1517,6 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 				RequestTracker.ReleaseIoRequestReferences(*CompletedResolvedRequest);
 			}
 		}
-		
-		CompletedRequest = NextRequest;
 	}
 	
 	FFileIoStoreCompressedBlock* BlockToReap;
