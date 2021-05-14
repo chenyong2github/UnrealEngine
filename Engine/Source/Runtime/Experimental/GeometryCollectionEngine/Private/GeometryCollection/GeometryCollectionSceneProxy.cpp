@@ -522,48 +522,33 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 				}
 			}
 
-			const EResourceLockMode LockMode = bLocalGeometryCollectionTripleBufferUploads ? RLM_WriteOnly_NoOverwrite : RLM_WriteOnly;
-
 			// Copy the transform data over to the vertex buffer	
-			if (DynamicData->IsDynamic)
 			{
+				const EResourceLockMode LockMode = bLocalGeometryCollectionTripleBufferUploads ? RLM_WriteOnly_NoOverwrite : RLM_WriteOnly;
+
 				CycleTransformBuffers(bLocalGeometryCollectionTripleBufferUploads);
+
 				FGeometryCollectionTransformBuffer& TransformBuffer = GetCurrentTransformBuffer();
 				FGeometryCollectionTransformBuffer& PrevTransformBuffer = GetCurrentPrevTransformBuffer();
+
 				VertexFactory.SetBoneTransformSRV(TransformBuffer.VertexBufferSRV);
 				VertexFactory.SetBonePrevTransformSRV(PrevTransformBuffer.VertexBufferSRV);
 
-				check(TransformBuffer.NumTransforms == DynamicData->Transforms.Num());
-				check(PrevTransformBuffer.NumTransforms == DynamicData->PrevTransforms.Num());
+				if (DynamicData->IsDynamic)
+				{
+					TransformBuffer.UpdateDynamicData(DynamicData->Transforms, LockMode);
+					PrevTransformBuffer.UpdateDynamicData(DynamicData->PrevTransforms, LockMode);
 
-				void* VertexBufferData = RHILockBuffer(TransformBuffer.VertexBufferRHI, 0, DynamicData->Transforms.Num() * sizeof(FMatrix), LockMode);
-				FMemory::Memcpy(VertexBufferData, DynamicData->Transforms.GetData(), DynamicData->Transforms.Num() * sizeof(FMatrix));
-				RHIUnlockBuffer(TransformBuffer.VertexBufferRHI);
+					TransformVertexBuffersContainsOriginalMesh = false;
+				}
+				else if (!TransformVertexBuffersContainsOriginalMesh)
+				{
+					// if we are rendering the base mesh geometry, then use rest transforms rather than the simulated one for both current and previous transforms
+					TransformBuffer.UpdateDynamicData(ConstantData->RestTransforms, LockMode);
+					PrevTransformBuffer.UpdateDynamicData(ConstantData->RestTransforms, LockMode);
 
-				void* PrevVertexBufferData = RHILockBuffer(PrevTransformBuffer.VertexBufferRHI, 0, DynamicData->PrevTransforms.Num() * sizeof(FMatrix), LockMode);
-				FMemory::Memcpy(PrevVertexBufferData, DynamicData->PrevTransforms.GetData(), DynamicData->PrevTransforms.Num() * sizeof(FMatrix));
-				RHIUnlockBuffer(PrevTransformBuffer.VertexBufferRHI);
-
-				TransformVertexBuffersContainsOriginalMesh = false;
-			}
-			else if (!TransformVertexBuffersContainsOriginalMesh)
-			{		
-				CycleTransformBuffers(bLocalGeometryCollectionTripleBufferUploads);
-				FGeometryCollectionTransformBuffer& TransformBuffer = GetCurrentTransformBuffer();
-				FGeometryCollectionTransformBuffer& PrevTransformBuffer = GetCurrentPrevTransformBuffer();
-				VertexFactory.SetBoneTransformSRV(TransformBuffer.VertexBufferSRV);
-				VertexFactory.SetBonePrevTransformSRV(PrevTransformBuffer.VertexBufferSRV);
-
-				// if we are rendering the base mesh geometry, then use rest transforms rather than the simulated one for both current and previous transforms
-				void* VertexBufferData = RHILockBuffer(TransformBuffer.VertexBufferRHI, 0, ConstantData->RestTransforms.Num() * sizeof(FMatrix), LockMode);
-				FMemory::Memcpy(VertexBufferData, ConstantData->RestTransforms.GetData(), ConstantData->RestTransforms.Num() * sizeof(FMatrix));
-				RHIUnlockBuffer(TransformBuffer.VertexBufferRHI);
-
-				void* PrevVertexBufferData = RHILockBuffer(PrevTransformBuffer.VertexBufferRHI, 0, ConstantData->RestTransforms.Num() * sizeof(FMatrix), LockMode);
-				FMemory::Memcpy(PrevVertexBufferData, ConstantData->RestTransforms.GetData(), ConstantData->RestTransforms.Num() * sizeof(FMatrix));
-				RHIUnlockBuffer(PrevTransformBuffer.VertexBufferRHI);
-
-				TransformVertexBuffersContainsOriginalMesh = true;
+					TransformVertexBuffersContainsOriginalMesh = true;
+				}
 			}
 		}
 		else
@@ -602,7 +587,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 
 				if (ThisBatchSize > 0)
 				{
-					const FMatrix* RESTRICT BoneTransformsPtr = DynamicData->IsDynamic ? DynamicData->Transforms.GetData() : ConstantData->RestTransforms.GetData();
+					const FMatrix44f* RESTRICT BoneTransformsPtr = DynamicData->IsDynamic ? DynamicData->Transforms.GetData() : ConstantData->RestTransforms.GetData();
 	#if INTEL_ISPC
 					uint8* VertexBufferOffset = (uint8*)VertexBufferData + (IndexOffset * VertexBuffer.GetStride());
 					ispc::SetDynamicData_RenderThread(
@@ -1528,4 +1513,13 @@ void FGeometryCollectionDynamicDataPool::Release(FGeometryCollectionDynamicData*
 		UsedList.RemoveAt(UsedIndex, 1, false /* no shrinking */);
 		FreeList.Push(DynamicData);
 	}
+}
+
+void FGeometryCollectionTransformBuffer::UpdateDynamicData(const TArray<FMatrix44f>& Transforms, EResourceLockMode LockMode)
+{
+	check(NumTransforms == Transforms.Num());
+
+	void* VertexBufferData = RHILockBuffer(VertexBufferRHI, 0, Transforms.Num() * sizeof(FMatrix44f), LockMode);
+	FMemory::Memcpy(VertexBufferData, Transforms.GetData(), Transforms.Num() * sizeof(FMatrix44f));
+	RHIUnlockBuffer(VertexBufferRHI);
 }
