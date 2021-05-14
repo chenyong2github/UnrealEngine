@@ -419,8 +419,8 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 					{
 						// The Vulkan RHI's implementation of GetNativeResource is different and returns the VkImage cast
 						// as a void* instead of a pointer to the VkImage, so we need this workaround
-						BackgroundTexture = (void*)BackgroundRenderTargets[EncodeIndex]->Resource->TextureRHI->GetNativeResource();
-						ForegroundTexture = (void*)ForegroundRenderTargets[EncodeIndex]->Resource->TextureRHI->GetNativeResource();
+						BackgroundTexture = (void*)BackgroundRenderTargets[EncodeIndex]->GetResource()->TextureRHI->GetNativeResource();
+						ForegroundTexture = (void*)ForegroundRenderTargets[EncodeIndex]->GetResource()->TextureRHI->GetNativeResource();
 					});
 				});
 			}
@@ -430,8 +430,8 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 				{
 					ExecuteOnRHIThread([this, EncodeIndex, &BackgroundTexture, &ForegroundTexture]()
 					{
-						BackgroundTexture = *((void**)BackgroundRenderTargets[EncodeIndex]->Resource->TextureRHI->GetNativeResource());
-						ForegroundTexture = *((void**)ForegroundRenderTargets[EncodeIndex]->Resource->TextureRHI->GetNativeResource());
+						BackgroundTexture = *((void**)BackgroundRenderTargets[EncodeIndex]->GetResource()->TextureRHI->GetNativeResource());
+						ForegroundTexture = *((void**)ForegroundRenderTargets[EncodeIndex]->GetResource()->TextureRHI->GetNativeResource());
 					});
 				});
 			}
@@ -499,7 +499,7 @@ void AOculusMR_CastingCameraActor::UpdateCameraColorTexture(const ovrpSizei &fra
 	{
 		SrcData,
 		Pitch,
-		(FTexture2DResource*)CameraColorTexture->Resource,
+		(FTexture2DResource*)CameraColorTexture->GetResource(),
 		(uint32) frameSize.w,
 		(uint32) frameSize.h
 	};

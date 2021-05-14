@@ -40,6 +40,6 @@ public:
 
 	bool IsValid() const
 	{
-		return (RenderVerts.Num() > 0) && (BaseTexture != nullptr) && (BaseTexture->Resource != nullptr);
+		return (RenderVerts.Num() > 0) && (BaseTexture != nullptr) && (BaseTexture->GetResource() != nullptr);
 	}
 };

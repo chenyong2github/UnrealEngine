@@ -165,13 +165,13 @@ UTexture2D* ThumbnailGenerator::GenerateThumbnailFromTexture(UTexture2D* Texture
 	ENQUEUE_RENDER_COMMAND(RetrieveTextureDataForThumbnail)(
 		[CommandData, TargetWidth, TargetHeight](FRHICommandListImmediate& RHICmdList)
 		{
-			if (!CommandData->Texture->Resource)
+			if (!CommandData->Texture->GetResource())
 			{
 				CommandData->Promise.SetValue();
 				return;
 			}
 
-			FTexture2DRHIRef Texture2DRHI = CommandData->Texture->Resource->TextureRHI->GetTexture2D();
+			FTexture2DRHIRef Texture2DRHI = CommandData->Texture->GetResource()->TextureRHI->GetTexture2D();
 
 			CommandData->PackedPixelFormat = Texture2DRHI->GetFormat();
 			CommandData->bCanResize = ThumbnailGeneratorImpl::IsPixelFormatResizeable( CommandData->PackedPixelFormat );
@@ -181,7 +181,7 @@ UTexture2D* ThumbnailGenerator::GenerateThumbnailFromTexture(UTexture2D* Texture
 			// We start at CurrentFirstMip instead of 0 because Texture2DRHI will always match the CurrentFirstMip, so
 			// even if the texture is 256x256, we may be dealing with CurrentFirstMip 2, and so a 64x64 resource.
 			// This shouldn't happen if we wait for streaming (that we do), but just to be safe
-			int32 TargetMipIndex = ((FTexture2DResource*)CommandData->Texture->Resource)->GetCurrentFirstMip();
+			int32 TargetMipIndex = ((FTexture2DResource*)CommandData->Texture->GetResource())->GetCurrentFirstMip();
 			if (!CommandData->bCanResize)
 			{
 				for(int32 MipIndex = 0; MipIndex < CommandData->Texture->PlatformData->Mips.Num(); ++MipIndex)

@@ -319,7 +319,7 @@ bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type 
 		//Some color transform will only require shader code with no LUT involved.
 		if (Lut3dTexture != nullptr)
 		{
-			OutLUT3dResource = Lut3dTexture->Resource;
+			OutLUT3dResource = Lut3dTexture->GetResource();
 		}
 
 		return true;

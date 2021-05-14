@@ -43,7 +43,7 @@ void UPaperTileSetThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uin
 				4.0f,
 				4.0f,
 				FLinearColor::White,
-				GridTexture->Resource,
+				GridTexture->GetResource(),
 				bAlphaBlend);
 		}
 
@@ -98,7 +98,7 @@ void UPaperTileSetThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uin
 			(TextureWidth - Margin.Right) * InvWidth,
 			(TextureHeight - Margin.Bottom) * InvHeight,
 			FLinearColor::White,
-			TileSheetTexture->Resource,
+			TileSheetTexture->GetResource(),
 			bUseTranslucentBlend);
 
 		// Draw a label overlay

@@ -668,7 +668,7 @@ void FEdModeGeometry::RenderVertex( const FSceneView* View, FPrimitiveDrawInterf
 			Color = GeomVertex->IsSelected() ? FColor(255,128,64) : GeomObject->GetActualBrush()->GetWireColor();
 
 			PDI->SetHitProxy( new HGeomVertexProxy( GeomObject, VertIdx) );
-			PDI->DrawSprite( Location, 4.f * Scale, 4.f * Scale, GEngine->DefaultBSPVertexTexture->Resource, Color, SDPG_Foreground, 0.0, 0.0, 0.0, 0.0 );
+			PDI->DrawSprite( Location, 4.f * Scale, 4.f * Scale, GEngine->DefaultBSPVertexTexture->GetResource(), Color, SDPG_Foreground, 0.0, 0.0, 0.0, 0.0 );
 			PDI->SetHitProxy( NULL );
 		}
 	}

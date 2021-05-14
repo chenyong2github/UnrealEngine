@@ -33,12 +33,12 @@ void FDMXPixelMappingSourceTextureViewportClient::Draw(FViewport* InViewport, FC
 		InputTexture = RendererComponent->GetRendererInputTexture();
 	}
 
-	if (InputTexture != nullptr && InputTexture->Resource != nullptr)
+	if (InputTexture != nullptr && InputTexture->GetResource() != nullptr)
 	{
 		uint32 Width = SceneViewport->GetSizeXY().X;
 		uint32 Height = SceneViewport->GetSizeXY().Y;
 
-		FCanvasTileItem TileItem(FVector2D(0, 0), InputTexture->Resource, FVector2D(Width, Height), FLinearColor::White);
+		FCanvasTileItem TileItem(FVector2D(0, 0), InputTexture->GetResource(), FVector2D(Width, Height), FLinearColor::White);
 		TileItem.BlendMode = ESimpleElementBlendMode::SE_BLEND_MAX;
 		Canvas->DrawItem(TileItem);
 	}

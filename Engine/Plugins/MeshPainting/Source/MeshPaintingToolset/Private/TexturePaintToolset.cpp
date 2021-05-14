@@ -46,7 +46,7 @@ void UTexturePaintToolset::CopyTextureToRenderTargetTexture(UTexture* SourceText
 	UTexture2D* Texture2D = Cast<UTexture2D>(SourceTexture);
 	if (Texture2D != nullptr)
 	{
-		TextureResource = Texture2D->Resource;
+		TextureResource = Texture2D->GetResource();
 	}
 	else
 	{

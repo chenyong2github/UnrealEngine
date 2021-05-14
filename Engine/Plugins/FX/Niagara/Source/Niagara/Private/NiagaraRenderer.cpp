@@ -496,7 +496,7 @@ void FNiagaraRenderer::ProcessMaterialParameterBindings(TConstArrayView< FNiagar
 							if (Var)
 							{
 								UTexture* Tex = Cast<UTexture>(Var);
-								if (Tex && Tex->Resource != nullptr)
+								if (Tex && Tex->GetResource() != nullptr)
 								{
 									MatDyn->SetTextureParameterValue(Binding.MaterialParameterName, Tex);
 								}

@@ -493,8 +493,8 @@ void UDMXPixelMappingScreenComponent::QueueDownsample()
 		return;
 	}
 
-	const uint32 TextureSizeX = InputTexture->Resource->GetSizeX();
-	const uint32 TextureSizeY = InputTexture->Resource->GetSizeY();
+	const uint32 TextureSizeX = InputTexture->GetResource()->GetSizeX();
+	const uint32 TextureSizeY = InputTexture->GetResource()->GetSizeY();
 	check(TextureSizeX > 0 && TextureSizeY > 0);
 	
 	constexpr bool bStaticCalculateUV = true;

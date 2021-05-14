@@ -42,7 +42,7 @@ void UPaperSpriteThumbnailRenderer::DrawGrid(int32 X, int32 Y, uint32 Width, uin
 		4.0f,
 		4.0f,
 		FLinearColor::White,
-		GridTexture->Resource,
+		GridTexture->GetResource(),
 		bAlphaBlend);
 }
 
@@ -106,7 +106,7 @@ void UPaperSpriteThumbnailRenderer::DrawFrame(class UPaperSprite* Sprite, int32 
 		}
 
 		// Draw triangles
-		if ((CanvasPositions.Num() > 0) && (SourceTexture->Resource != nullptr))
+		if ((CanvasPositions.Num() > 0) && (SourceTexture->GetResource() != nullptr))
 		{
 			TArray<FCanvasUVTri> Triangles;
 			const FLinearColor SpriteColor(FLinearColor::White);
@@ -117,7 +117,7 @@ void UPaperSpriteThumbnailRenderer::DrawFrame(class UPaperSprite* Sprite, int32 
 				Triangle->V1_Pos = CanvasPositions[Vertex + 1]; Triangle->V1_UV = CanvasUVs[Vertex + 1]; Triangle->V1_Color = SpriteColor;
 				Triangle->V2_Pos = CanvasPositions[Vertex + 2]; Triangle->V2_UV = CanvasUVs[Vertex + 2]; Triangle->V2_Color = SpriteColor;
 			}
-			FCanvasTriangleItem CanvasTriangle(Triangles, SourceTexture->Resource);
+			FCanvasTriangleItem CanvasTriangle(Triangles, SourceTexture->GetResource());
 			CanvasTriangle.BlendMode = bUseTranslucentBlend ? ESimpleElementBlendMode::SE_BLEND_Translucent : ESimpleElementBlendMode::SE_BLEND_Opaque;
 			Canvas->DrawItem(CanvasTriangle);
 		}

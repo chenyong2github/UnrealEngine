@@ -620,7 +620,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::RenderVariableToCanvas(FNiagaraSystemI
 		return false;
 	}
 
-	if ( !GT_InstanceData->TargetTexture || !GT_InstanceData->TargetTexture->Resource )
+	if ( !GT_InstanceData->TargetTexture || !GT_InstanceData->TargetTexture->GetResource())
 	{
 		return false;
 	}
@@ -629,7 +629,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::RenderVariableToCanvas(FNiagaraSystemI
 		DrawRect.Min.X, DrawRect.Min.Y, DrawRect.Width(), DrawRect.Height(),
 		0.0f, 0.0f, 1.0f, 1.0f,
 		FLinearColor::White,
-		GT_InstanceData->TargetTexture->Resource,
+		GT_InstanceData->TargetTexture->GetResource(),
 		false
 	);
 
@@ -747,7 +747,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 			(InstanceData->TargetTexture->RenderTargetFormat != InstanceData->Format) ||
 			!InstanceData->TargetTexture->bCanCreateUAV ||
 			(InstanceData->TargetTexture->bAutoGenerateMips != bAutoGenerateMips) ||
-			!InstanceData->TargetTexture->Resource )
+			!InstanceData->TargetTexture->GetResource())
 		{
 			// resize RT to match what we need for the output
 			InstanceData->TargetTexture->bCanCreateUAV = true;

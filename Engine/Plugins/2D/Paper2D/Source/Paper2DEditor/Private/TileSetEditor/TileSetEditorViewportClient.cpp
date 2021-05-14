@@ -54,7 +54,7 @@ void FTileSetEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 			const float Width = Texture->GetSurfaceWidth() * ZoomAmount;
 			const float Height = Texture->GetSurfaceHeight() * ZoomAmount;
 
-			Canvas->DrawTile(XPos, YPos, Width, Height, 0.0f, 0.0f, 1.0f, 1.0f, TextureDrawColor, Texture->Resource, bUseTranslucentBlend);
+			Canvas->DrawTile(XPos, YPos, Width, Height, 0.0f, 0.0f, 1.0f, 1.0f, TextureDrawColor, Texture->GetResource(), bUseTranslucentBlend);
 		}
 
 

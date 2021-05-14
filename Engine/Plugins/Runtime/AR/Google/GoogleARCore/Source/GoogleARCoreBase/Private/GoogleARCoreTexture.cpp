@@ -67,7 +67,7 @@ FTextureResource* UARCoreCameraTexture::CreateResource()
 
 uint32 UARCoreCameraTexture::GetTextureId() const
 {
-	if (auto MyResource = static_cast<FARCoreCameraTextureResource*>(Resource))
+	if (const FARCoreCameraTextureResource* MyResource = static_cast<const FARCoreCameraTextureResource*>(GetResource()))
 	{
 		return MyResource->GetTextureId();
 	}
@@ -202,12 +202,12 @@ void UARCoreDepthTexture::UpdateDepthImage(const ArSession* SessionHandle, const
 	Size.X = ImageWidth;
 	Size.Y = ImageHeight;
 	
-	if (!Resource)
+	if (!GetResource())
 	{
 		UpdateResource();
 	}
 	
-	if (auto MyResource = static_cast<FARCoreDepthTextureResource*>(Resource))
+	if (auto MyResource = static_cast<FARCoreDepthTextureResource*>(GetResource()))
 	{
 		MyResource->UpdateDepthData((const uint16*)DepthData, PlaneSize, ImageWidth, ImageHeight);
 	}

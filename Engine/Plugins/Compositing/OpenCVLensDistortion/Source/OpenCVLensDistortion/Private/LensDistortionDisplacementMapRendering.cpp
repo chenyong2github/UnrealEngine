@@ -167,7 +167,7 @@ void FOpenCVLensDistortionParameters::DrawDisplacementMapToRenderTarget(UWorld* 
 		return;
 	}
 
-	if(InPreComputedUndistortDisplacementMap == nullptr || InPreComputedUndistortDisplacementMap->Resource == nullptr)
+	if(InPreComputedUndistortDisplacementMap == nullptr || InPreComputedUndistortDisplacementMap->GetResource() == nullptr)
 	{
 		UE_LOG(LogOpenCVLensDistortion, Error, TEXT("Precomputed displacement map is required to generate final displacement maps."));
 		return;
@@ -176,7 +176,7 @@ void FOpenCVLensDistortionParameters::DrawDisplacementMapToRenderTarget(UWorld* 
 	//Prepare parameters for render command
 	const FName TextureRenderTargetName = InOutputRenderTarget->GetFName();
 	FTextureRenderTargetResource* TextureRenderTargetResource = InOutputRenderTarget->GameThread_GetRenderTargetResource();
-	const FTextureResource* PreComputedMapResource = InPreComputedUndistortDisplacementMap->Resource;
+	const FTextureResource* PreComputedMapResource = InPreComputedUndistortDisplacementMap->GetResource();
 	ERHIFeatureLevel::Type FeatureLevel = InWorld->Scene->GetFeatureLevel();
 
 	ENQUEUE_RENDER_COMMAND(CaptureCommand)
