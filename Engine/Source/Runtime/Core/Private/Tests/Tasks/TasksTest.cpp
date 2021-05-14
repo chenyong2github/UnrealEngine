@@ -95,7 +95,7 @@ namespace UE { namespace TasksTests
 		}
 
 		{	// basic example, fire and forget a high-pri task
-			Tasks::Launch(
+			Launch(
 				UE_SOURCE_LOCATION, // debug name
 				[] {}, // task body
 				Tasks::ETaskPriority::High /* task priority, `Normal` by default */
@@ -103,12 +103,12 @@ namespace UE { namespace TasksTests
 		}
 
 		{	// launch a task and wait till it's executed
-			Tasks::Launch(UE_SOURCE_LOCATION, [] {}).Wait();
+			Launch(UE_SOURCE_LOCATION, [] {}).Wait();
 		}
 
 		{	// FTaskEvent
-			FTaskEvent Event;
-			check(!Event.IsTriggered());
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
+			check(!Event.IsCompleted());
 
 			// check that waiting blocks
 			FTask Task = Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); });
@@ -116,7 +116,7 @@ namespace UE { namespace TasksTests
 			check(!Task.IsCompleted());
 
 			Event.Trigger();
-			check(Event.IsTriggered());
+			check(Event.IsCompleted());
 			verify(Event.Wait(FTimespan::Zero()));
 		}
 
@@ -130,7 +130,7 @@ namespace UE { namespace TasksTests
 		}
 
 		{	// same but using `FTaskEvent`
-			FTaskEvent Event;
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
 			FTask Task = Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); });
 			ensure(!Task.Wait(FTimespan::FromMilliseconds(100)));
 			Event.Trigger();
@@ -319,7 +319,7 @@ namespace UE { namespace TasksTests
 		{	// an example of blocking a pipe
 			FPipe Pipe{ UE_SOURCE_LOCATION };
 			std::atomic<bool> bBlocked;
-			FTaskEvent Event;
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
 			FTask Task = Pipe.Launch(UE_SOURCE_LOCATION,
 				[&bBlocked, &Event]
 				{
@@ -466,6 +466,176 @@ namespace UE { namespace TasksTests
 	{
 		UE_BENCHMARK(5, UeTlsStressTest<10000000>);
 		UE_BENCHMARK(5, ThreadLocalStressTest<10000000>);
+
+		return true;
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDependenciesTest, "System.Core.Tasks.Dependencies", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	template<uint64 NumBranches, uint64 NumLoops, uint64 NumTasks>
+	void DependenciesPerfTest()
+	{
+		auto Branch = []
+		{
+			FTask Joiner;
+			for (uint64 LoopIndex = 0; LoopIndex != NumLoops; ++LoopIndex)
+			{
+				TArray<FTask> Tasks;
+				Tasks.Reserve(NumTasks);
+				for (uint64 TaskIndex = 0; TaskIndex != NumTasks; ++TaskIndex)
+				{
+					if (Joiner.IsValid())
+					{
+						Tasks.Add(Launch(UE_SOURCE_LOCATION, [] { /*FPlatformProcess::YieldCycles(100000);*/ }, Joiner));
+					}
+					else
+					{
+						Tasks.Add(Launch(UE_SOURCE_LOCATION, [] { /*FPlatformProcess::YieldCycles(100000);*/ }));
+					}
+				}
+				Joiner = Launch(UE_SOURCE_LOCATION, [] {}, Tasks);
+			}
+			return Joiner;
+		};
+
+		TArray<TTask<FTask>> Branches;
+		Branches.Reserve(NumBranches);
+		for (uint64 BranchIndex = 0; BranchIndex != NumBranches; ++BranchIndex)
+		{
+			Branches.Add(Launch(UE_SOURCE_LOCATION, Branch));
+		}
+		TArray<FTask> BranchTasks;
+		BranchTasks.Reserve(NumBranches);
+		for (TTask<FTask>& Task : Branches)
+		{
+			BranchTasks.Add(Task.GetResult());
+		}
+		Wait(Branches);
+	}
+
+	bool FTasksDependenciesTest::RunTest(const FString& Parameters)
+	{
+		{	// a task is not executed until its prerequisite (FTaskEvent) is completed
+			FTaskEvent Prereq{ UE_SOURCE_LOCATION };
+
+			FTask Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereq) };
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Prereq.Trigger();
+			Task.Wait();
+		}
+
+		{	// a task is not executed until its prerequisite (FTaskEvent) is completed. with explicit task priority
+			FTaskEvent Prereq{ UE_SOURCE_LOCATION };
+
+			FTask Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereq, ETaskPriority::Normal) };
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Prereq.Trigger();
+			Task.Wait();
+		}
+
+		{	// a task is not executed until its prerequisite (FTask) is completed
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
+			FTask Prereq{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
+			FTask Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereq) };
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Event.Trigger();
+			Task.Wait();
+		}
+
+		{	// compilation test of an iterable collection as prerequisites
+			TArray<FTask> Prereqs{ Launch(UE_SOURCE_LOCATION, [] {}), FTaskEvent{ UE_SOURCE_LOCATION } };
+
+			FTask Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereqs) };
+			((FTaskEvent&)Prereqs[1]).Trigger();
+			Task.Wait();
+		}
+
+		{	// compilation test of an initializer list as prerequisites
+			auto Prereqs = { Launch(UE_SOURCE_LOCATION, [] {}), Launch(UE_SOURCE_LOCATION, [] {}) };
+			Launch(UE_SOURCE_LOCATION, [] {}, Prereqs).Wait();
+			// the following line doesn't compile because the compiler can't deduce the initializer list type
+			//Launch(UE_SOURCE_LOCATION, [] {}, { Launch(UE_SOURCE_LOCATION, [] {}), Launch(UE_SOURCE_LOCATION, [] {}) }).Wait();
+		}
+
+		{	// a task is not executed until all its prerequisites (FTask and FTaskEvent instances) are completed
+			FTaskEvent Prereq1{ UE_SOURCE_LOCATION };
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
+			FTask Prereq2{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
+
+			TTask<void> Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Prereq1, Prereq2)) };
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Prereq1.Trigger();
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Event.Trigger();
+			Task.Wait();
+		}
+
+		{	// a task is not executed until all its prerequisites (FTask and FTaskEvent instances) are completed. with explicit task priority
+			FTaskEvent Prereq1{ UE_SOURCE_LOCATION };
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
+			FTask Prereq2{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
+			TArray<TTask<void>> Prereqs{ Prereq1, Prereq2 }; // to check if a random iterable container works as a prerequisite collection
+
+			TTask<void> Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereqs, ETaskPriority::Normal) };
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Prereq1.Trigger();
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Event.Trigger();
+			Task.Wait();
+		}
+
+		{	// a piped task blocked by a prerequisites doesn't block the pipe
+			FPipe Pipe{ UE_SOURCE_LOCATION };
+			FTaskEvent Prereq{ UE_SOURCE_LOCATION };
+
+			FTask Task1{ Pipe.Launch(UE_SOURCE_LOCATION, [] {}, Prereq) };
+			verify(!Task1.Wait(FTimespan::FromMilliseconds(10)));
+
+			FTask Task2{ Pipe.Launch(UE_SOURCE_LOCATION, [] {}) };
+			Task2.Wait();
+
+			Prereq.Trigger();
+			Task1.Wait();
+		}
+
+		{	// a piped task with multiple prerequisites
+			FPipe Pipe{ UE_SOURCE_LOCATION };
+			FTaskEvent Prereq1{ UE_SOURCE_LOCATION };
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
+			FTask Prereq2{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
+
+			FTask Task{ Pipe.Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Prereq1, Prereq2)) };
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Prereq1.Trigger();
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			Event.Trigger();
+			Task.Wait();
+		}
+
+		{	// a piped task with multiple prerequisites. with explicit task priority
+			FPipe Pipe{ UE_SOURCE_LOCATION };
+			FTaskEvent Prereq1{ UE_SOURCE_LOCATION };
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
+			FTask Prereq2{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
+
+			FTask Task{ Pipe.Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Prereq1, Prereq2), ETaskPriority::Normal) };
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+
+			Prereq1.Trigger();
+			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			Event.Trigger();
+			Task.Wait();
+		}
+
+		UE_BENCHMARK(3, DependenciesPerfTest<200, 50, 1000>);
 
 		return true;
 	}

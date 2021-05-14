@@ -17,7 +17,7 @@ namespace UE { namespace Tasks
 		Private::FTaskBase* LastTask_Local = LastTask.exchange(&Task, std::memory_order_release);
 		checkf(LastTask_Local != &Task, TEXT("Dependency cycle: adding itself as a prerequisite (or use after destruction)"));
 
-		return LastTask_Local == nullptr || !LastTask_Local->SetSubsequent(Task);
+		return LastTask_Local == nullptr || !LastTask_Local->AddSubsequent(Task);
 	}
 
 	void FPipe::ClearTask(Private::FTaskBase& Task)
