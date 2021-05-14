@@ -636,14 +636,18 @@ bool operator==(const FBlendStateInitializerRHI::FRenderTarget& A, const FBlendS
 
 static FCriticalSection GRHIResourceTrackingCriticalSection;
 static TSet<FRHIResource*> GRHITrackedResources;
+static bool GRHITrackingResources = true;
 
 void FRHIResource::BeginTrackingResource(FRHIResource* InResource)
 {
-	FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
+	if (GRHITrackingResources)
+	{
+		FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
 
-	InResource->bBeingTracked = true;
+		InResource->bBeingTracked = true;
 
-	GRHITrackedResources.Add(InResource);
+		GRHITrackedResources.Add(InResource);
+	}
 }
 
 void FRHIResource::EndTrackingResource(FRHIResource* InResource)
@@ -654,6 +658,20 @@ void FRHIResource::EndTrackingResource(FRHIResource* InResource)
 		GRHITrackedResources.Remove(InResource);
 		InResource->bBeingTracked = false;
 	}
+}
+
+void FRHIResource::StopTrackingAllResources()
+{
+	FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
+	for (FRHIResource* Resource : GRHITrackedResources)
+	{
+		if (Resource)
+		{
+			Resource->bBeingTracked = false;
+		}
+	}
+	GRHITrackedResources.Empty();
+	GRHITrackingResources = false;
 }
 
 struct FRHIResourceTypeName
