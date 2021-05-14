@@ -9,6 +9,15 @@
 
 DEFINE_LOG_CATEGORY(LogSlateDebugger);
 
+FConsoleSlateDebuggerUtility::TSWidgetId FConsoleSlateDebuggerUtility::GetId(const SWidget& Widget)
+{
+#if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
+	return Widget.GetId();
+#else
+	return reinterpret_cast<TSWidgetId>(&Widget);
+#endif
+}
+
 FConsoleSlateDebuggerUtility::TSWidgetId FConsoleSlateDebuggerUtility::GetId(const SWidget* Widget)
 {
 // We prefer to use the widget id but if it's not available, then use the widget address.
@@ -22,6 +31,15 @@ FConsoleSlateDebuggerUtility::TSWidgetId FConsoleSlateDebuggerUtility::GetId(con
 #endif
 }
 
+FConsoleSlateDebuggerUtility::TSWindowId FConsoleSlateDebuggerUtility::GetId(const SWindow& Widget)
+{
+#if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
+	return Widget.GetId();
+#else
+	return reinterpret_cast<TSWindowId>(&Widget);
+#endif
+}
+
 FConsoleSlateDebuggerUtility::TSWindowId FConsoleSlateDebuggerUtility::GetId(const SWindow* Widget)
 {
 #if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
@@ -29,6 +47,11 @@ FConsoleSlateDebuggerUtility::TSWindowId FConsoleSlateDebuggerUtility::GetId(con
 #else
 	return reinterpret_cast<TSWindowId>(Widget);
 #endif
+}
+
+FConsoleSlateDebuggerUtility::TSWindowId FConsoleSlateDebuggerUtility::FindWindowId(const SWidget& Widget)
+{
+	return FindWindowId(&Widget);
 }
 
 FConsoleSlateDebuggerUtility::TSWindowId FConsoleSlateDebuggerUtility::FindWindowId(const SWidget* Widget)

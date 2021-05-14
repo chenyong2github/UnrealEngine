@@ -96,6 +96,7 @@ private:
 	FLinearColor DrawRootRootColor;
 	FLinearColor DrawRootChildOrderColor;
 	FLinearColor DrawRootScreenPositionColor;
+	FLinearColor DrawWidgetPrepassColor;
 	FLinearColor DrawWidgetLayoutColor;
 	FLinearColor DrawWidgetPaintColor;
 	FLinearColor DrawWidgetVolatilityColor;

@@ -241,6 +241,76 @@ FText FSlateDebuggingCursorQueryEventArgs::ToText() const
 	return EventText;
 }
 
+FString LexToString(ESlateDebuggingInvalidateRootReason InValue)
+{
+	if (InValue == ESlateDebuggingInvalidateRootReason::None)
+	{
+		return TEXT("None");
+	}
+	if (InValue == (ESlateDebuggingInvalidateRootReason)0xFF)
+	{
+		return TEXT("All");
+	}
+
+	TStringBuilder<512> Result;
+#define ENUM_CASE_TO_STRING(Enum) if (EnumHasAnyFlags(InValue, ESlateDebuggingInvalidateRootReason::Enum)) { if (Result.Len() != 0) { Result.Append(TEXT('|')); } Result.Append(TEXT(#Enum)); }
+	ENUM_CASE_TO_STRING(ChildOrder);
+	ENUM_CASE_TO_STRING(Root);
+	ENUM_CASE_TO_STRING(ScreenPosition);
+#undef ENUM_CASE_TO_STRING
+
+	return Result.ToString();
+}
+
+bool LexTryParseString(ESlateDebuggingInvalidateRootReason& OutValue, const TCHAR* Buffer)
+{
+	bool bResult = false;
+	ESlateDebuggingInvalidateRootReason Value = ESlateDebuggingInvalidateRootReason::None;
+	auto ParseResult = [&bResult, &Value](FStringView& SubString)
+	{
+		SubString.TrimStartAndEndInline();
+
+		if (SubString.Equals(TEXT("All"), ESearchCase::IgnoreCase)) { Value = (ESlateDebuggingInvalidateRootReason)0xFF; return; }
+		if (SubString.Equals(TEXT("Any"), ESearchCase::IgnoreCase)) { Value = (ESlateDebuggingInvalidateRootReason)0xFF; return; }
+
+#define ENUM_CASE_FROM_STRING(Enum) if (SubString.Equals(TEXT(#Enum), ESearchCase::IgnoreCase)) { Value |= ESlateDebuggingInvalidateRootReason::Enum; return; }
+		ENUM_CASE_FROM_STRING(None)
+		ENUM_CASE_FROM_STRING(ChildOrder)
+		ENUM_CASE_FROM_STRING(Root)
+		ENUM_CASE_FROM_STRING(ScreenPosition)
+		bResult = false;
+#undef ENUM_CASE_FROM_STRING
+	};
+
+	if (Buffer && *Buffer)
+	{
+		bResult = true;
+		while (const TCHAR* At = FCString::Strchr(Buffer, TEXT('|')))
+		{
+			FStringView SubString{ Buffer, UE_PTRDIFF_TO_INT32(At - Buffer) };
+			ParseResult(SubString);
+			Buffer = At + 1;
+		}
+		if (*Buffer)
+		{
+			FStringView SubString{ Buffer };
+			ParseResult(SubString);
+		}
+	}
+
+	if (bResult)
+	{
+		OutValue = Value;
+	}
+	return bResult;
+}
+
+void LexFromString(ESlateDebuggingInvalidateRootReason& OutValue, const TCHAR* Buffer)
+{
+	OutValue = ESlateDebuggingInvalidateRootReason::None;
+	LexTryParseString(OutValue, Buffer);
+}
+
 FSlateDebuggingInvalidateArgs::FSlateDebuggingInvalidateArgs(
 	const SWidget* InWidgetInvalidated,
 	const SWidget* InWidgetInvalidateInvestigator,
