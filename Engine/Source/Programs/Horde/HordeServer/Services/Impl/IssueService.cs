@@ -959,7 +959,14 @@ namespace HordeServer.Services.Impl
 				Dictionary<StreamId, bool>? FixStreamIds = await GetFixStreamsAsync(Issue.Id, Issue.FixChange.Value, Issue.GetFixStreamIds());
 				if (FixStreamIds != null)
 				{
-					Issue = await IssueCollection.UpdateIssueAsync(Issue, NewFixStreamIds: FixStreamIds);
+					if(FixStreamIds.Count > Issue.Streams.Count)
+					{
+						Issue = await UpdateIssueDerivedDataAsync(Issue);
+					}
+					if (Issue != null)
+					{
+						Issue = await IssueCollection.UpdateIssueAsync(Issue, NewFixStreamIds: FixStreamIds);
+					}
 				}
 			}
 
@@ -1023,12 +1030,22 @@ namespace HordeServer.Services.Impl
 					bool ContainsFix;
 					if (PrevFixStreamIds == null || !PrevFixStreamIds.TryGetValue(Span.StreamId, out ContainsFix))
 					{
+						Logger.LogInformation("Querying fix changelist {FixChange} for issue {IssueId} in {StreamId} (prev={HavePrev})", FixChange, IssueId, Span.StreamId, PrevFixStreamIds != null);
 						List<ChangeSummary> Changes = await Perforce.GetChangesAsync(Span.StreamName, FixChange, FixChange, 1, null);
 						ContainsFix = Changes.Count > 0;
 					}
 					NextFixStreamIds[Span.StreamId] = ContainsFix;
 				}
 			}
+
+			if (PrevFixStreamIds != null)
+			{
+				if(PrevFixStreamIds.Count != NextFixStreamIds.Count || PrevFixStreamIds.Any(x => !NextFixStreamIds.TryGetValue(x.Key, out bool Value) || x.Value != Value))
+				{
+					return null;
+				}
+			}
+
 			return NextFixStreamIds;
 		}
 

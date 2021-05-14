@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeServer.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -32,9 +33,9 @@ namespace HordeServer.Authentication
 		{
 			Claim[] Claims =
 			{
-					new Claim(ClaimTypes.Name, AuthenticationScheme),
-					new Claim(Options.AdminClaimType, Options.AdminClaimValue)
-				};
+				new Claim(ClaimTypes.Name, AuthenticationScheme),
+				new Claim(Options.AdminClaimType, Options.AdminClaimValue)
+			};
 			ClaimsIdentity Identity = new ClaimsIdentity(Claims, Scheme.Name);
 
 			ClaimsPrincipal Principal = new ClaimsPrincipal(Identity);
