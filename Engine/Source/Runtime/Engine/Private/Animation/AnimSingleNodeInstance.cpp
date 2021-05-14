@@ -232,6 +232,19 @@ void UAnimSingleNodeInstance::Montage_Advance(float DeltaTime)
 	}
 }
 
+void UAnimSingleNodeInstance::SetMirrorDataTable(const UMirrorDataTable* MirrorDataTable)
+{
+	FAnimSingleNodeInstanceProxy& Proxy = GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>();
+	Proxy.SetMirrorDataTable(MirrorDataTable);
+}
+
+const UMirrorDataTable* UAnimSingleNodeInstance::GetMirrorDataTable()
+{
+	FAnimSingleNodeInstanceProxy& Proxy = GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>();
+	return Proxy.GetMirrorDataTable();
+}
+
+
 void UAnimSingleNodeInstance::PlayAnim(bool bIsLooping, float InPlayRate, float InStartPosition)
 {
 	SetPlaying(true);

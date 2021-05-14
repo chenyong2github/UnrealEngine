@@ -11,6 +11,7 @@
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimSyncScope.h"
+#include "Animation/MirrorDataTable.h"
 
 FAnimSingleNodeInstanceProxy::~FAnimSingleNodeInstanceProxy()
 {
@@ -45,7 +46,18 @@ bool FAnimSingleNodeInstanceProxy::Evaluate(FPoseContext& Output)
 	return true;
 }
 
+void FAnimSingleNodeInstanceProxy::SetMirrorDataTable(const UMirrorDataTable* InMirrorDataTable)
+{
+	MirrorDataTable = InMirrorDataTable;
+}
+
+const UMirrorDataTable* FAnimSingleNodeInstanceProxy::GetMirrorDataTable()
+{
+	return MirrorDataTable;
+}
+
 #if WITH_EDITORONLY_DATA
+
 void FAnimSingleNodeInstanceProxy::PropagatePreviewCurve(FPoseContext& Output) 
 {
 	USkeleton* MySkeleton = GetSkeleton();
@@ -528,6 +540,11 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 					}
 				}
 			}
+		}
+
+		if (Proxy->MirrorDataTable)
+		{
+			FAnimationRuntime::MirrorPose(Output.Pose, *(Proxy->MirrorDataTable));
 		}
 #endif // WITH_EDITORONLY_DATA
 	}

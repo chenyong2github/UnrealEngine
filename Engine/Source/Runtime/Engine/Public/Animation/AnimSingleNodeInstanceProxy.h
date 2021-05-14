@@ -11,6 +11,7 @@
 #include "AnimSingleNodeInstanceProxy.generated.h"
 
 struct FAnimSingleNodeInstanceProxy;
+class UMirrorDataTable;
 
 /** 
  * Local anim node for extensible processing. 
@@ -58,6 +59,7 @@ public:
 	FAnimSingleNodeInstanceProxy(UAnimInstance* InAnimInstance)
 		: FAnimInstanceProxy(InAnimInstance)
 		, CurrentAsset(nullptr)
+		, MirrorDataTable(nullptr)
 		, BlendSpacePosition(0.0f, 0.0f, 0.0f)
 		, CurrentTime(0.0f)
 		, DeltaTimeRecord()
@@ -174,6 +176,10 @@ public:
 	}
 #endif
 
+	void SetMirrorDataTable(const UMirrorDataTable* InMirrorDataTable);
+
+	const UMirrorDataTable* GetMirrorDataTable();
+
 #if WITH_EDITORONLY_DATA
 	void PropagatePreviewCurve(FPoseContext& Output);
 #endif // WITH_EDITORONLY_DATA
@@ -202,6 +208,9 @@ protected:
 	/** Current Asset being played. Note that this will be nullptr outside of pre/post update **/
 	UAnimationAsset* CurrentAsset;
 
+	/** If set the result will be mirrored using the table */ 
+	const UMirrorDataTable* MirrorDataTable;
+	
 	/** The internal anim node that does our processing */
 	FAnimNode_SingleNode SingleNode;
 
