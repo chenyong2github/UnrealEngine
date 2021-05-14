@@ -7,13 +7,13 @@
 class FCbObject;
 struct FGuid;
 
-namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildActionBuilder; }
-namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
-namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FCacheRecord; }
+namespace UE::DerivedData { class FOptionalBuildAction; }
+namespace UE::DerivedData { class FOptionalBuildDefinition; }
+namespace UE::DerivedData { class FOptionalBuildOutput; }
 
 namespace UE::DerivedData
 {
@@ -41,9 +41,9 @@ public:
 	 *
 	 * @param Name         The name by which to identify this definition for logging and profiling.
 	 * @param Definition   An object saved from a build definition. Holds a reference and is cloned if not owned.
-	 * @return A valid build definition, or a build definition with an empty key on error.
+	 * @return A valid build definition, or null on error.
 	 */
-	virtual FBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) = 0;
+	virtual FOptionalBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) = 0;
 
 	/**
 	 * Create a build action builder.
@@ -58,9 +58,9 @@ public:
 	 *
 	 * @param Name       The name by which to identify this action for logging and profiling.
 	 * @param Action     The saved action to load.
-	 * @return A valid build action, or a build action with an empty key on error.
+	 * @return A valid build action, or null on error.
 	 */
-	virtual FBuildAction LoadAction(FStringView Name, FCbObject&& Action) = 0;
+	virtual FOptionalBuildAction LoadAction(FStringView Name, FCbObject&& Action) = 0;
 
 	/**
 	 * Create a build output builder.
@@ -76,9 +76,10 @@ public:
 	 * @param Name       The name by which to identify this output for logging and profiling.
 	 * @param Function   The name of the build function that produced this output.
 	 * @param Output     The saved output to load.
+	 * @return A valid build output, or null on error.
 	 */
-	virtual FBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) = 0;
-	virtual FBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) = 0;
+	virtual FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) = 0;
+	virtual FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) = 0;
 
 	/**
 	 * Returns the version of the build system.

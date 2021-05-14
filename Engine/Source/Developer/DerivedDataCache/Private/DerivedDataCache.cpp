@@ -723,7 +723,7 @@ public:
 		return Private::CreateBuildDefinition(Name, Function);
 	}
 
-	FBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) final
+	FOptionalBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) final
 	{
 		return Private::LoadBuildDefinition(Name, MoveTemp(Definition));
 	}
@@ -734,7 +734,7 @@ public:
 		return Private::CreateBuildAction(Name, Function, FGuid::NewGuid(), BuildSystemVersion);
 	}
 
-	FBuildAction LoadAction(FStringView Name, FCbObject&& Action) final
+	FOptionalBuildAction LoadAction(FStringView Name, FCbObject&& Action) final
 	{
 		return Private::LoadBuildAction(Name, MoveTemp(Action));
 	}
@@ -744,12 +744,12 @@ public:
 		return Private::CreateBuildOutput(Name, Function);
 	}
 
-	FBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) final
+	FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) final
 	{
 		return Private::LoadBuildOutput(Name, Function, Output);
 	}
 
-	FBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) final
+	FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) final
 	{
 		return Private::LoadBuildOutput(Name, Function, Output);
 	}

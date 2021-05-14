@@ -900,14 +900,14 @@ public:
 		for (const FCacheKey& Key : Keys)
 		{
 			COOK_STAT(auto Timer = UsageStats.TimeGet());
-			if (FCacheRecord Record = GetCacheRecord(Key, Context, Policy))
+			if (FOptionalCacheRecord Record = GetCacheRecord(Key, Context, Policy))
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
 					*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-				COOK_STAT(Timer.AddHit(MeasureCacheRecord(Record)));
+				COOK_STAT(Timer.AddHit(MeasureCacheRecord(Record.Get())));
 				if (OnComplete)
 				{
-					OnComplete({MoveTemp(Record), EStatus::Ok});
+					OnComplete({MoveTemp(Record).Get(), EStatus::Ok});
 				}
 			}
 			else
@@ -931,15 +931,15 @@ public:
 		TArray<FCachePayloadKey, TInlineAllocator<16>> SortedKeys(Keys);
 		SortedKeys.StableSort();
 
-		FCacheRecord Record;
+		FOptionalCacheRecord Record;
 		for (const FCachePayloadKey& Key : SortedKeys)
 		{
 			COOK_STAT(auto Timer = UsageStats.TimeGet());
-			if (!Record || Record.GetKey() != Key.CacheKey)
+			if (!Record || Record.Get().GetKey() != Key.CacheKey)
 			{
 				Record = GetCacheRecord(Key.CacheKey, Context, Policy | ECachePolicy::SkipData, /*bAlwaysLoadInlineData*/ true);
 			}
-			if (FPayload Payload = GetCachePayload(Key.CacheKey, Context, Policy, Record.GetPayload(Key.Id)))
+			if (FPayload Payload = Record ? GetCachePayload(Key.CacheKey, Context, Policy, Record.Get().GetPayload(Key.Id)) : FPayload::Null)
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
 					*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
@@ -1043,13 +1043,13 @@ private:
 		return true;
 	}
 
-	FCacheRecord GetCacheRecord(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, bool bAlwaysLoadInlineData = false) const
+	FOptionalCacheRecord GetCacheRecord(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, bool bAlwaysLoadInlineData = false) const
 	{
 		if (!IsUsable())
 		{
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' because this cache store is not available"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-			return FCacheRecord();
+			return FOptionalCacheRecord();
 		}
 
 		// Skip the request if querying the cache is disabled.
@@ -1057,7 +1057,7 @@ private:
 		{
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' due to cache policy"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-			return FCacheRecord();
+			return FOptionalCacheRecord();
 		}
 
 		// Request the record from storage.
@@ -1068,7 +1068,7 @@ private:
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss with missing record for %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-			return FCacheRecord();
+			return FOptionalCacheRecord();
 		}
 
 		// Delete the record from storage if is corrupted or has missing payloads.
@@ -1086,7 +1086,7 @@ private:
 		{
 			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with corrupted record for %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-			return FCacheRecord();
+			return FOptionalCacheRecord();
 		}
 
 		const FCbObject RecordObject(MoveTemp(Buffer));
@@ -1104,7 +1104,7 @@ private:
 				{
 					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with corrupted metadata for %s from '%.*s'"),
 						*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-					return FCacheRecord();
+					return FOptionalCacheRecord();
 				}
 			}
 		}
@@ -1115,7 +1115,7 @@ private:
 			FPayload Payload = GetCachePayload(Key, Context, ValuePolicy, ValueObject, bAlwaysLoadInlineData);
 			if (Payload.IsNull())
 			{
-				return FCacheRecord();
+				return FOptionalCacheRecord();
 			}
 			RecordBuilder.SetValue(MoveTemp(Payload));
 		}
@@ -1126,7 +1126,7 @@ private:
 			FPayload Payload = GetCachePayload(Key, Context, AttachmentsPolicy, AttachmentField.AsObject(), bAlwaysLoadInlineData);
 			if (Payload.IsNull())
 			{
-				return FCacheRecord();
+				return FOptionalCacheRecord();
 			}
 			RecordBuilder.AddAttachment(MoveTemp(Payload));
 		}

@@ -41,7 +41,6 @@ public:
 };
 
 FBuildOutput CreateBuildOutput(IBuildOutputInternal* Output);
-const IBuildOutputInternal* GetBuildOutput(const FBuildOutput& Output);
 
 class IBuildOutputBuilderInternal
 {
@@ -91,7 +90,7 @@ struct FBuildDiagnostic
 class FBuildOutput
 {
 public:
-	/** Returns the name of the build definition that produced this output. */
+	/** Returns the name by which to identify this output for logging and profiling. */
 	inline FStringView GetName() const { return Output->GetName(); }
 
 	/** Returns the name of the build function that produced this output. */
@@ -128,8 +127,8 @@ public:
 	}
 
 private:
+	friend class FOptionalBuildOutput;
 	friend FBuildOutput Private::CreateBuildOutput(Private::IBuildOutputInternal* Output);
-	friend const Private::IBuildOutputInternal* Private::GetBuildOutput(const FBuildOutput& Output);
 
 	inline explicit FBuildOutput(Private::IBuildOutputInternal* InOutput)
 		: Output(InOutput)
@@ -142,7 +141,7 @@ private:
 /**
  * A build output builder is used to construct a build output.
  *
- * Create using IBuild::CreateOutput() which must be given a build definition.
+ * Create using IBuild::CreateOutput().
  *
  * @see FBuildOutput
  */
@@ -196,6 +195,32 @@ private:
 	}
 
 	TUniquePtr<Private::IBuildOutputBuilderInternal> OutputBuilder;
+};
+
+/**
+ * A build output that can be null.
+ *
+ * @see FBuildOutput
+ */
+class FOptionalBuildOutput : private FBuildOutput
+{
+public:
+	inline FOptionalBuildOutput() : FBuildOutput(nullptr) {}
+
+	inline FOptionalBuildOutput(FBuildOutput&& InOutput) : FBuildOutput(MoveTemp(InOutput)) {}
+	inline FOptionalBuildOutput(const FBuildOutput& InOutput) : FBuildOutput(InOutput) {}
+	inline FOptionalBuildOutput& operator=(FBuildOutput&& InOutput) { FBuildOutput::operator=(MoveTemp(InOutput)); return *this; }
+	inline FOptionalBuildOutput& operator=(const FBuildOutput& InOutput) { FBuildOutput::operator=(InOutput); return *this; }
+
+	/** Returns the build output. The caller must check for null before using this accessor. */
+	inline const FBuildOutput& Get() const & { return *this; }
+	inline FBuildOutput&& Get() && { return MoveTemp(*this); }
+
+	inline bool IsNull() const { return !IsValid(); }
+	inline bool IsValid() const { return Output.IsValid(); }
+	inline explicit operator bool() const { return IsValid(); }
+
+	inline void Reset() { *this = FOptionalBuildOutput(); }
 };
 
 } // UE::DerivedData

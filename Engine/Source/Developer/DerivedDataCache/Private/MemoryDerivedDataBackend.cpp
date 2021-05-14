@@ -483,17 +483,17 @@ FRequest FMemoryDerivedDataBackend::Get(
 	for (const FCacheKey& Key : Keys)
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
-		FCacheRecord Record;
+		FOptionalCacheRecord Record;
 		if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
 		{
 			Record = *CacheRecord;
 		}
 		if (Record)
 		{
-			COOK_STAT(Timer.AddHit(CalcRawCacheRecordSize(Record)));
+			COOK_STAT(Timer.AddHit(CalcRawCacheRecordSize(Record.Get())));
 			if (OnComplete)
 			{
-				OnComplete({MoveTemp(Record), EStatus::Ok});
+				OnComplete({MoveTemp(Record).Get(), EStatus::Ok});
 			}
 		}
 		else
