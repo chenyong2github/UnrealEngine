@@ -9,7 +9,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public HordeExecutor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			if (Target.Platform != UnrealTargetPlatform.Win64 || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if (Target.Platform != UnrealTargetPlatform.Win64)
 			{
 				// Grpc is currently only supported for Win64, set to external to prevent compiling for any other platform
 				Type = ModuleType.External;
