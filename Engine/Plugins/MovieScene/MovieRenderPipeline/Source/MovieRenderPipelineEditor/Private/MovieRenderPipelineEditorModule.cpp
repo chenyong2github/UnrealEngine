@@ -138,6 +138,8 @@ class FMovieRenderPipelineRenderer : public IMovieRendererInterface
 			}
 		}
 
+		UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(ActiveJob);
+
 		TArray<FString> ShotNames;
 		for (UMovieSceneCinematicShotSection* ShotSection : InSections)
 		{
