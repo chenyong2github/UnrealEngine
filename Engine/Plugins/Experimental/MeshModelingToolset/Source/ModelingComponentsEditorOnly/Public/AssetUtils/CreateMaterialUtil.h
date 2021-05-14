@@ -8,6 +8,7 @@
 #include "Image/ImageBuilder.h"
 
 class UMaterial;
+class UMaterialInstanceConstant;
 class UMaterialInterface;
 
 namespace UE
@@ -47,6 +48,7 @@ namespace AssetUtils
 	struct MODELINGCOMPONENTSEDITORONLY_API FMaterialAssetResults
 	{
 		UMaterial* NewMaterial = nullptr;
+		UMaterialInstanceConstant* NewMaterialInstance = nullptr;
 	};
 
 	/**
@@ -59,6 +61,20 @@ namespace AssetUtils
 		UMaterialInterface* BaseMaterial,
 		FMaterialAssetOptions& Options,
 		FMaterialAssetResults& ResultsOut);
+
+
+	/**
+	 * Create a new UMaterialInstanceConstant Asset derived from the parent UMaterial of BaseMaterial.
+	 * If the input is a UMaterialInstanceConstant, duplicate it to preserve existing parameters/etc
+	 * @param Options defines configuration for the new UMaterialInstanceConstant Asset
+	 * @param ResultOut new UMateriaInstanceConstant is returned here
+	 * @return Ok, or error flag if some part of the creation process failed. On failure, no Asset is created.
+	 */
+	MODELINGCOMPONENTSEDITORONLY_API ECreateMaterialResult CreateDerivedMaterialInstance(
+		UMaterialInterface* BaseMaterial,
+		FMaterialAssetOptions& Options,
+		FMaterialAssetResults& ResultsOut);
+
 
 }  // end namespace UE
 }  // end namespace AssetUtils

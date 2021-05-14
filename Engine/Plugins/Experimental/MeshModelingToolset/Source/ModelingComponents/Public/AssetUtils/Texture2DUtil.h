@@ -22,6 +22,8 @@ namespace AssetUtils
 		TImageBuilder<FVector4f>& DestImageOut,
 		bool bPreferPlatformData = false);
 
+	MODELINGCOMPONENTS_API bool ConvertToSingleChannel(UTexture2D* TextureMap);
+
 }
 }
 
