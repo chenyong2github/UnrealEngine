@@ -700,7 +700,13 @@ void UUnrealEdEngine::OnPostGarbageCollect()
 		}
 	}
 
-	RedrawAllViewports();
+	for (FEditorViewportClient* ViewportClient : GetAllViewportClients())
+	{
+		if (ViewportClient && ViewportClient->Viewport)
+		{
+			ViewportClient->Viewport->InvalidateHitProxy();
+		}
+	}
 }
 
 

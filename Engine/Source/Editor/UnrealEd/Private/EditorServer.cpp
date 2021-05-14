@@ -2870,6 +2870,9 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						GEngine->WorldAdded( Context.World() );
 					}
 
+					// Invalidate all the level viewport hit proxies
+					RedrawLevelEditingViewports();
+
 					// Collect any stale components or other objects that are no longer required after loading the map
 					CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 				}
