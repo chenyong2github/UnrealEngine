@@ -35,6 +35,8 @@
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "WeightMapUtil.h"
 
+#include "Sampling/MeshResampleImageBaker.h"
+
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
@@ -426,6 +428,69 @@ void UGenerateStaticMeshLODProcess::CalculateDerivedPathName(const FString& NewA
 }
 
 
+int UGenerateStaticMeshLODProcess::SelectTextureToBake(const TArray<FTextureInfo>& TextureInfos) const
+{
+	TArray<int> TextureVotes;
+	TextureVotes.Init(0, TextureInfos.Num());
+
+	for (int TextureIndex = 0; TextureIndex < TextureInfos.Num(); ++TextureIndex)
+	{
+		FTextureInfo Info = TextureInfos[TextureIndex];
+
+		if (!Info.bIsNormalMap)
+		{
+			++TextureVotes[TextureIndex];
+		}
+
+		if (Info.ParameterName == "Diffuse" || Info.ParameterName == "Albedo" || Info.ParameterName == "BaseColor")
+		{
+			++TextureVotes[TextureIndex];
+		}
+
+		if (Info.Dimensions.GetWidth() > 0 && Info.Dimensions.GetHeight() > 0)
+		{
+			++TextureVotes[TextureIndex];
+		}
+
+		UTexture2D* Tex2D = Info.Texture;
+
+		if (Tex2D)
+		{
+			// Texture uses SRGB
+			if (Tex2D->SRGB != 0)
+			{
+				++TextureVotes[TextureIndex];
+			}
+
+#if WITH_EDITORONLY_DATA
+			// Texture has multiple channels
+			ETextureSourceFormat Format = Tex2D->Source.GetFormat();
+			if (Format == TSF_BGRA8 || Format == TSF_BGRE8 || Format == TSF_RGBA16 || Format == TSF_RGBA16F)
+			{
+				++TextureVotes[TextureIndex];
+			}
+#endif
+
+			// What else? Largest texture? Most layers? Most mipmaps?
+		}
+	}
+
+	int MaxIndex = -1;
+	int MaxVotes = -1;
+	for (int TextureIndex = 0; TextureIndex < TextureInfos.Num(); ++TextureIndex)
+	{
+		if (TextureVotes[TextureIndex] > MaxVotes)
+		{
+			MaxIndex = TextureIndex;
+			MaxVotes = TextureVotes[TextureIndex];
+		}
+	}
+
+	return MaxIndex;
+}
+
+
+
 bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 {
 	Generator = MakeUnique<FGenerateMeshLODGraph>();
@@ -448,6 +513,37 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 			}
 		}
 	}
+
+	//  Add multi-texture bake node	
+	TMap<int32, TSafeSharedPtr<UE::Geometry::TImageBuilder<FVector4f>>> SourceMaterialImages;
+
+	// TODO: Relying on MaterialID being the index in the SourceMaterials array is brittle
+	for (int32 MaterialID = 0; MaterialID < SourceMaterials.Num(); ++MaterialID)
+	{
+		FSourceMaterialInfo& MatInfo = SourceMaterials[MaterialID];
+
+		if (MatInfo.bIsPreviouslyGeneratedMaterial == false && MatInfo.bIsReusable == false && MatInfo.bHasTexturesToBake)
+		{
+			int TexIndex = SelectTextureToBake(MatInfo.SourceTextures);
+			if (TexIndex < 0)
+			{
+				continue;
+			}
+
+			FTextureInfo& TextureInfo = MatInfo.SourceTextures[TexIndex];
+
+			MultiTextureParameterName.Add(MaterialID, TextureInfo.ParameterName);
+
+			TSafeSharedPtr<TImageBuilder<FVector4f>> ImagePtr =
+				MakeSafeShared<TImageBuilder<FVector4f>>(TextureInfo.Image);
+			SourceMaterialImages.Add(MaterialID, ImagePtr);
+
+			TextureInfo.bIsUsedInMultiTextureBaking = true;
+		}
+	}
+
+	Generator->AppendMultiTextureBakeNode(SourceMaterialImages);
+
 
 	// initialize source mesh
 	Generator->SetSourceMesh(this->SourceMesh);
@@ -557,7 +653,8 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 
 
 	if ( (NewCombinedSettings.BakeResolution != CurrentSettings.BakeResolution) ||
-		 (NewCombinedSettings.BakeThickness != CurrentSettings.BakeThickness))
+		 (NewCombinedSettings.BakeThickness != CurrentSettings.BakeThickness) || 
+		 (NewCombinedSettings.bCombineTextures != CurrentSettings.bCombineTextures))
 	{
 		UE::GeometryFlow::FMeshMakeBakingCacheSettings NewBakeSettings = Generator->GetCurrentBakeCacheSettings();
 		NewBakeSettings.Dimensions = FImageDimensions((int32)NewCombinedSettings.BakeResolution, (int32)NewCombinedSettings.BakeResolution);
@@ -605,6 +702,7 @@ bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData(FProgressCancel* Pr
 		this->DerivedCollision,
 		this->DerivedNormalMapImage,
 		this->DerivedTextureImages,
+		this->DerivedMultiTextureBakeImage,
 		Progress);
 
 	if (Progress && Progress->Cancelled())
@@ -681,6 +779,12 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 		for (int32 ti = 0; ti < NumTextures; ++ti)
 		{
 			const FTextureInfo& SourceTex = SourceMaterialInfo.SourceTextures[ti];
+
+			if (CurrentSettings.bCombineTextures && SourceTex.bIsUsedInMultiTextureBaking)
+			{
+				continue;
+			}
+
 			bool bConvertToSRGB = SourceTex.Texture->SRGB;
 			const FTextureInfo& DerivedTex = DerivedMaterialInfo.DerivedTextures[ti];
 			if (DerivedTex.bShouldBakeTexture)
@@ -708,6 +812,22 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 	UTexture2D* PreviewNormalMapTex = NormapMapBuilder.GetTexture2D();
 	MaterialSetOut.Textures.Add(PreviewNormalMapTex);
 
+	// create multi-texture bake result
+	if (CurrentSettings.bCombineTextures)
+	{
+		bool bConvertToSRGB = true;
+
+		FTexture2DBuilder MultiTextureBuilder;
+		MultiTextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, DerivedMultiTextureBakeImage.Image.GetDimensions());
+		MultiTextureBuilder.GetTexture2D()->SRGB = bConvertToSRGB;
+		MultiTextureBuilder.Copy(DerivedMultiTextureBakeImage.Image, bConvertToSRGB);
+		MultiTextureBuilder.Commit(false);
+
+		DerivedMultiTextureBakeResult = MultiTextureBuilder.GetTexture2D();
+		MaterialSetOut.Textures.Add(DerivedMultiTextureBakeResult);
+	}
+
+
 	// create derived MIDs and point to new textures
 	for (int32 mi = 0; mi < NumMaterials; ++mi)
 	{
@@ -726,8 +846,15 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 			// rewrite texture parameters to new textures
 			UpdateMaterialTextureParameters(GeneratedMID, SourceMaterialInfo, SourceToPreviewTexMap, PreviewNormalMapTex);
 
+			if (CurrentSettings.bCombineTextures && DerivedMultiTextureBakeResult && MultiTextureParameterName.Contains(mi))
+			{
+				FMaterialParameterInfo ParamInfo(MultiTextureParameterName[mi]);
+				GeneratedMID->SetTextureParameterValueByInfo(ParamInfo, DerivedMultiTextureBakeResult);
+			}
+
 			MaterialSetOut.Materials.Add(GeneratedMID);
 		}
+
 	}
 
 }
@@ -755,6 +882,11 @@ void UGenerateStaticMeshLODProcess::UpdateMaterialTextureParameters(
 		}
 		else if (SourceTex.bShouldBakeTexture)
 		{
+			if (CurrentSettings.bCombineTextures && SourceTex.bIsUsedInMultiTextureBaking)
+			{
+				continue;
+			}
+
 			UTexture2D*const* FoundTexture = PreviewTextures.Find(SourceTex.Texture);
 			if (ensure(FoundTexture))
 			{
@@ -928,6 +1060,28 @@ void UGenerateStaticMeshLODProcess::WriteDerivedTextures(bool bCreatingNewStatic
 		}
 	}
 
+
+	// write multi-texture bake result
+	if (CurrentSettings.bCombineTextures)
+	{
+		bool bConvertToSRGB = true;
+		
+		FTexture2DBuilder MultiTextureBuilder;
+		MultiTextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, DerivedMultiTextureBakeImage.Image.GetDimensions());
+		MultiTextureBuilder.GetTexture2D()->SRGB = bConvertToSRGB;
+		MultiTextureBuilder.Copy(DerivedMultiTextureBakeImage.Image, bConvertToSRGB);
+		MultiTextureBuilder.Commit(false);
+
+		DerivedMultiTextureBakeResult = MultiTextureBuilder.GetTexture2D();
+		if (ensure(DerivedMultiTextureBakeResult))
+		{
+			FTexture2DBuilder::CopyPlatformDataToSourceData(DerivedMultiTextureBakeResult, FTexture2DBuilder::ETextureType::Color);
+
+			// write asset
+			bool bWriteOK = WriteDerivedTexture(DerivedMultiTextureBakeResult, DerivedAssetNameNoSuffix + TEXT("_MultiTexture"), bCreatingNewStaticMeshAsset);
+			ensure(bWriteOK);
+		}
+	}
 	
 }
 
@@ -1081,6 +1235,13 @@ void UGenerateStaticMeshLODProcess::WriteDerivedMaterials(bool bCreatingNewStati
 		DerivedMaterialInfo.DerivedMaterial.MaterialInterface = GeneratedMIC;
 		DerivedMaterialInfo.DerivedMaterial.MaterialSlotName = FName(FString::Printf(TEXT("GeneratedMat%d"), mi));
 		DerivedMaterialInfo.DerivedMaterial.ImportedMaterialSlotName = DerivedMaterialInfo.DerivedMaterial.MaterialSlotName;
+
+		if (CurrentSettings.bCombineTextures && DerivedMultiTextureBakeResult && MultiTextureParameterName.Contains(mi))
+		{
+			FMaterialParameterInfo ParamInfo(MultiTextureParameterName[mi]);
+			GeneratedMIC->SetTextureParameterValueEditorOnly(ParamInfo, DerivedMultiTextureBakeResult);
+		}
+
 	}
 }
 

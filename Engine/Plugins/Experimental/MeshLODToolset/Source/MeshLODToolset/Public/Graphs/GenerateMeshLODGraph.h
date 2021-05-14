@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GeometryFlowGraph.h"
+#include "GeometryFlowTypes.h"
 #include "DataTypes/NormalMapData.h"
 #include "DataTypes/TextureImageData.h"
 #include "DataTypes/CollisionGeometryData.h"
@@ -32,6 +33,8 @@ public:
 	void BuildGraph();
 
 	int32 AppendTextureBakeNode(const UE::Geometry::TImageBuilder<FVector4f>& SourceImage, const FString& Identifier);
+
+	void AppendMultiTextureBakeNode(const TMap<int32, UE::GeometryFlow::TSafeSharedPtr<UE::Geometry::TImageBuilder<FVector4f>>>& SourceMaterialImages);
 
 	void SetSourceMesh(const FDynamicMesh3& SourceMesh);
 
@@ -69,6 +72,7 @@ public:
 		UE::Geometry::FSimpleShapeSet3d& ResultCollision,
 		UE::GeometryFlow::FNormalMapImage& NormalMap,
 		TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
+		UE::GeometryFlow::FTextureImage& MultiTextureImage,
 		FProgressCancel* Progress);
 
 protected:
@@ -118,6 +122,10 @@ protected:
 
 	UE::GeometryFlow::FGraph::FHandle BakeNormalMapNode;
 	UE::GeometryFlow::FGraph::FHandle BakeNormalMapSettingsNode;
+
+	UE::GeometryFlow::FGraph::FHandle BakeMultiTextureNode;
+	UE::GeometryFlow::FGraph::FHandle BakeMultiTextureSettingsNode;
+	UE::GeometryFlow::FGraph::FHandle MaterialIDTextureSourceNode;
 
 	UE::GeometryFlow::FGraph::FHandle ThickenNode;
 	UE::GeometryFlow::FGraph::FHandle ThickenSettingsNode;

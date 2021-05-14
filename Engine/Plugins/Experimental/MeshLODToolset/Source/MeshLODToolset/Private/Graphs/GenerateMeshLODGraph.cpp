@@ -25,6 +25,7 @@
 #include "DataTypes/MeshImageBakingData.h"
 #include "MeshBakingNodes/BakeMeshNormalMapNode.h"
 #include "MeshBakingNodes/BakeMeshTextureImageNode.h"
+#include "MeshBakingNodes/BakeMeshMultiTextureNode.h"
 
 #include "MeshDecompositionNodes/MakeTriangleSetsNode.h"
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
@@ -110,6 +111,7 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	FSimpleShapeSet3d& ResultCollision,
 	UE::GeometryFlow::FNormalMapImage& NormalMap,
 	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
+	UE::GeometryFlow::FTextureImage& MultiTextureImage,
 	FProgressCancel* Progress)
 {
 	//FScopedDurationTimeLogger Timer(TEXT("FGenerateMeshLODGraph::EvaluateResult -- serial execution"));
@@ -159,6 +161,25 @@ void FGenerateMeshLODGraph::EvaluateResult(
 		ensure(TexBakeEvalResult == EGeometryFlowResult::Ok);
 
 		UE_LOG(LogMeshLODToolset, Display, TEXT("TextureBakePass %s - Evaluated %d Nodes, Recomputed %d"), *TexBakeStep.Identifier, TexBakeEvalInfo->NumEvaluations(), TexBakeEvalInfo->NumComputes());
+	}
+
+
+	// 
+	// evaluate multi texture bake
+	//
+	{
+		TUniquePtr<FEvaluationInfo> MultiTextureBakeEvalInfo = MakeUnique<FEvaluationInfo>();
+		MultiTextureBakeEvalInfo->Progress = Progress;
+		EGeometryFlowResult MultiTextureBakeEvalResult = Graph->EvaluateResult(BakeMultiTextureNode, FBakeMeshMultiTextureNode::OutParamTextureImage(),
+																			   MultiTextureImage, (int)EMeshProcessingDataTypes::TextureImage, MultiTextureBakeEvalInfo, true);
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
+		ensure(MultiTextureBakeEvalResult == EGeometryFlowResult::Ok);
+		UE_LOG(LogMeshLODToolset, Display, TEXT("MultiTextureBake - Evaluated %d Nodes, Recomputed %d"), MultiTextureBakeEvalInfo->NumEvaluations(), MultiTextureBakeEvalInfo->NumComputes());
 	}
 
 	// 
@@ -466,4 +487,23 @@ int32 FGenerateMeshLODGraph::AppendTextureBakeNode(const TImageBuilder<FVector4f
 	BakeTextureNodes.Add(NewNode);
 
 	return NewNode.Index;
+}
+
+
+void FGenerateMeshLODGraph::AppendMultiTextureBakeNode(const TMap<int32, TSafeSharedPtr<TImageBuilder<FVector4f>>>& SourceMaterialImages)
+{
+	// add source node
+	MaterialIDTextureSourceNode = Graph->AddNodeOfType<FMaterialIDToTextureMapSourceNode>(FString::Printf(TEXT("MaterialIDTextureSource")));
+
+	// texture baker
+	BakeMultiTextureNode = Graph->AddNodeOfType<FBakeMeshMultiTextureNode>(FString::Printf(TEXT("BakeMultiTexture")));
+	ensure(Graph->InferConnection(BakeCacheNode, BakeMultiTextureNode) == EGeometryFlowResult::Ok);
+	ensure(Graph->InferConnection(MaterialIDTextureSourceNode, BakeMultiTextureNode) == EGeometryFlowResult::Ok);
+	BakeMultiTextureSettingsNode = Graph->AddNodeOfType<FBakeMeshMultiTextureSettingsSourceNode>(TEXT("BakeMultiTextureSettings"));
+	ensure(Graph->InferConnection(BakeMultiTextureSettingsNode, BakeMultiTextureNode) == EGeometryFlowResult::Ok);
+
+	FMaterialIDToTextureMap InputMap;
+	InputMap.MaterialIDTextureMap = SourceMaterialImages;
+
+	UpdateSourceNodeValue<FMaterialIDToTextureMapSourceNode>(*Graph, MaterialIDTextureSourceNode, InputMap);
 }

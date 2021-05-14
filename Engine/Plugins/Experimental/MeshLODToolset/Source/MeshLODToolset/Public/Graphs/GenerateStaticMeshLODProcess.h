@@ -121,13 +121,17 @@ struct FGenerateStaticMeshLODProcessSettings
 	UPROPERTY(EditAnywhere, Category = Baking, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Bake Thickness"))
 	float BakeThickness = 5.0f;
 
+	UPROPERTY(EditAnywhere, Category = Baking, meta = (DisplayName = "Combine Textures"))
+	bool bCombineTextures = true;
+
+
+	// Simple collision generator settings
+
 	// Transient property, not set directly by the user. The user controls a CollisionGroupLayerName dropdown property
 	// on the Tool and that value is copied here.
 	UPROPERTY(meta = (TransientToolProperty))
 	FName CollisionGroupLayerName = TEXT("Default");
 
-
-	// Simple collision generator settings
 	/** Type of simple collision objects to produce */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Collision Type"))
 	EGenerateStaticMeshLODSimpleCollisionGeometryType CollisionType = EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls;
@@ -241,7 +245,10 @@ protected:
 		bool bIsNormalMap = false;
 		bool bIsDefaultTexture = false;
 		bool bShouldBakeTexture = false;
+		bool bIsUsedInMultiTextureBaking = false;
 	};
+
+	int SelectTextureToBake(const TArray<FTextureInfo>& TextureInfos) const;
 
 	// Information about one of the input StaticMesh Materials. Computed in Initialize() and not modified afterwards
 	struct FSourceMaterialInfo
@@ -273,6 +280,7 @@ protected:
 	// Texture set potentially required by output Material set
 	UE::GeometryFlow::FNormalMapImage DerivedNormalMapImage;	// Normal Map
 	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>> DerivedTextureImages;	// generated Textures
+	UE::GeometryFlow::FTextureImage DerivedMultiTextureBakeImage;
 	TMap<UTexture2D*, int32> SourceTextureToDerivedTexIndex;	// mapping from input Textures to DerivedTextureImages index
 
 	// Information about an output Material
@@ -296,6 +304,13 @@ protected:
 	// Derived Normal Map
 	UPROPERTY()
 	UTexture2D* DerivedNormalMapTex;
+
+	// For each material participating in multi-texture baking, the parameter name of the texture
+	TMap<int32, FName> MultiTextureParameterName;
+
+	UPROPERTY()
+	UTexture2D* DerivedMultiTextureBakeResult;
+
 
 	TUniquePtr<FGenerateMeshLODGraph> Generator;			// active LODGenerator Graph
 	bool InitializeGenerator();

@@ -22,6 +22,7 @@ enum class EMeshProcessingDataTypes
 	CollisionGeometry = (int)EDataTypes::BaseMeshProcessingTypes + 13,
 	IndexSets = (int)EDataTypes::BaseMeshProcessingTypes + 14,
 	WeightMap = (int)EDataTypes::BaseMeshProcessingTypes + 15,
+	MaterialIDToTextureMap = (int)EDataTypes::BaseMeshProcessingTypes + 16,
 
 	SolidifySettings = (int)EDataTypes::BaseMeshProcessingTypes + 100,
 	VoxMorphologyOpSettings = (int)EDataTypes::BaseMeshProcessingTypes + 101,
@@ -43,6 +44,7 @@ enum class EMeshProcessingDataTypes
 	MakeBakingCacheSettings = (int)EDataTypes::BaseMeshProcessingTypes + 160,
 	BakeNormalMapSettings = (int)EDataTypes::BaseMeshProcessingTypes + 161,
 	BakeTextureImageSettings = (int)EDataTypes::BaseMeshProcessingTypes + 162,
+	BakeMultiTextureSettings = (int)EDataTypes::BaseMeshProcessingTypes + 163,
 
 
 	GenerateCollisionConvexHullsSettings = (int)EDataTypes::BaseMeshProcessingTypes + 200,

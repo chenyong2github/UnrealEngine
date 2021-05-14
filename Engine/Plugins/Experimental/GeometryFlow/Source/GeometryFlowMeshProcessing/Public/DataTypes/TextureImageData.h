@@ -26,6 +26,15 @@ struct FTextureImage
 GEOMETRYFLOW_DECLARE_BASIC_TYPES(TextureImage, FTextureImage, (int)EMeshProcessingDataTypes::TextureImage)
 
 
+struct FMaterialIDToTextureMap
+{
+	DECLARE_GEOMETRYFLOW_DATA_TYPE_IDENTIFIER(EMeshProcessingDataTypes::MaterialIDToTextureMap);
+
+	TMap<int32, TSafeSharedPtr<TImageBuilder<FVector4f>>> MaterialIDTextureMap;
+};
+
+GEOMETRYFLOW_DECLARE_BASIC_TYPES(MaterialIDToTextureMap, FMaterialIDToTextureMap, (int)EMeshProcessingDataTypes::MaterialIDToTextureMap)
+
 
 }	// end namespace GeometryFlow
 }	// end namespace UE
