@@ -298,13 +298,13 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	const uint32 NumElements = FMath::Max(1024, PageTable.Num());
+	const uint32 NumElements = FMath::Max(1024u, FMath::RoundUpToPowerOfTwo(PageTable.Num()));
 	const int32 NumElementsToUpload = PageTableIndicesToUpdateInBuffer.Num();
 
 	// PageTableBuffer
 	{
 		const int32 NumBytesPerElement = sizeof(uint32);
-		bool bResourceResized = ResizeResourceIfNeeded(GraphBuilder.RHICmdList, PageTableBuffer, FMath::RoundUpToPowerOfTwo(NumElements) * NumBytesPerElement, TEXT("Lumen.PageTable"));
+		bool bResourceResized = ResizeResourceIfNeeded(GraphBuilder.RHICmdList, PageTableBuffer, NumElements * NumBytesPerElement, TEXT("Lumen.PageTable"));
 
 		if (NumElementsToUpload > 0)
 		{
@@ -336,7 +336,7 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 		}
 		else if (bResourceResized)
 		{
-			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(PageTableBuffer.UAV, ERHIAccess::UAVCompute | ERHIAccess::UAVGraphics, ERHIAccess::SRVMask));
+			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(PageTableBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 	}
 
@@ -345,7 +345,7 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 		const FVector2D InvPhysicalAtlasSize = FVector2D(1.0f) / GetPhysicalAtlasSize();
 
 		const int32 NumBytesPerElement = FLumenCardPageGPUData::DataStrideInFloat4s * sizeof(FVector4);
-		bool bResourceResized = ResizeResourceIfNeeded(GraphBuilder.RHICmdList, CardPageBuffer, FMath::RoundUpToPowerOfTwo(NumElements) * NumBytesPerElement, TEXT("Lumen.PageBuffer"));
+		bool bResourceResized = ResizeResourceIfNeeded(GraphBuilder.RHICmdList, CardPageBuffer, NumElements * NumBytesPerElement, TEXT("Lumen.PageBuffer"));
 
 		if (NumElementsToUpload > 0)
 		{
@@ -376,7 +376,7 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 		}
 		else if (bResourceResized)
 		{
-			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(CardPageBuffer.UAV, ERHIAccess::UAVCompute | ERHIAccess::UAVGraphics, ERHIAccess::SRVMask));
+			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(CardPageBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 	}
 
