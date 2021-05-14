@@ -12,5 +12,5 @@ class FDisplayClusterDeviceQuadBufferStereoBase :
 {
 public:
 	FDisplayClusterDeviceQuadBufferStereoBase();
-	virtual ~FDisplayClusterDeviceQuadBufferStereoBase();
+	virtual ~FDisplayClusterDeviceQuadBufferStereoBase() = default;
 };

@@ -17,8 +17,7 @@ class UWorld;
 class IDisplayClusterGameManager
 {
 public:
-	virtual ~IDisplayClusterGameManager() = 0
-	{ }
+	virtual ~IDisplayClusterGameManager() = default;
 
 public:
 	/**

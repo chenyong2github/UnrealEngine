@@ -9,8 +9,7 @@
 class IDisplayClusterSessionStatusListener
 {
 public:
-	virtual ~IDisplayClusterSessionStatusListener()
-	{ }
+	virtual ~IDisplayClusterSessionStatusListener() = default;
 
 public:
 	// Called when a session has started

@@ -11,8 +11,7 @@
 class IDisplayClusterSession
 {
 public:
-	virtual ~IDisplayClusterSession() = 0
-	{ }
+	virtual ~IDisplayClusterSession() = default;
 
 public:
 	// Start processing of incoming events

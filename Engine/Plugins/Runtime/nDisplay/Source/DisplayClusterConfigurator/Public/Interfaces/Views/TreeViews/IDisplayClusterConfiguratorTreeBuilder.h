@@ -88,6 +88,9 @@ class IDisplayClusterConfiguratorTreeBuilder
 	: public IDisplayClusterConfiguratorBuilder
 {
 public:
+	virtual ~IDisplayClusterConfiguratorTreeBuilder() = default;
+
+public:
 	/** Setup this builder with links to the tree */
 	virtual void Initialize(const TSharedRef<IDisplayClusterConfiguratorViewTree>& InConfiguratorTree) = 0;
 

@@ -35,7 +35,9 @@ public:
 	
 	// Request additional targetable resources for domeprojection  external warpblend
 	virtual bool ShouldUseAdditionalTargetableResource() const override
-	{ return true; }
+	{
+		return true;
+	}
 
 protected:
 	// Delegate view adapter instantiation to the RHI specific children

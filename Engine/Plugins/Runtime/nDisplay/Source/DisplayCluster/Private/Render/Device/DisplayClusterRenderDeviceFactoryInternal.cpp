@@ -2,32 +2,32 @@
 
 #include "Render/Device/DisplayClusterRenderDeviceFactoryInternal.h"
 
-#include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicDX11.h"
-#include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicDX12.h"
-#include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoDX11.h"
-#include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoDX12.h"
-#include "Render/Device/SideBySide/DisplayClusterDeviceSideBySideDX11.h"
-#include "Render/Device/SideBySide/DisplayClusterDeviceSideBySideDX12.h"
-#include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomDX11.h"
-#include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomDX12.h"
+#if PLATFORM_WINDOWS
+#include "Render/Device/Monoscopic/Windows/DisplayClusterDeviceMonoscopicDX11.h"
+#include "Render/Device/Monoscopic/Windows/DisplayClusterDeviceMonoscopicDX12.h"
+#include "Render/Device/QuadBufferStereo/Windows/DisplayClusterDeviceQuadBufferStereoDX11.h"
+#include "Render/Device/QuadBufferStereo/Windows/DisplayClusterDeviceQuadBufferStereoDX12.h"
+#include "Render/Device/SideBySide/Windows/DisplayClusterDeviceSideBySideDX11.h"
+#include "Render/Device/SideBySide/Windows/DisplayClusterDeviceSideBySideDX12.h"
+#include "Render/Device/TopBottom/Windows/DisplayClusterDeviceTopBottomDX11.h"
+#include "Render/Device/TopBottom/Windows/DisplayClusterDeviceTopBottomDX12.h"
+#endif
+
+#include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicVulkan.h"
+#include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoVulkan.h"
+#include "Render/Device/SideBySide/DisplayClusterDeviceSideBySideVulkan.h"
+#include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomVulkan.h"
 
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterStrings.h"
 
-
-FDisplayClusterRenderDeviceFactoryInternal::FDisplayClusterRenderDeviceFactoryInternal()
-{
-}
-
-FDisplayClusterRenderDeviceFactoryInternal::~FDisplayClusterRenderDeviceFactoryInternal()
-{
-}
 
 TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRenderDeviceFactoryInternal::Create(const FString& InDeviceType, const FString& InRHIName)
 {
 	// Monoscopic
 	if (InDeviceType.Equals(DisplayClusterStrings::args::dev::Mono, ESearchCase::IgnoreCase))
 	{
+#if PLATFORM_WINDOWS
 		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating DX11 monoscopic device..."));
@@ -38,10 +38,18 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating DX12 monoscopic device..."));
 			return MakeShared<FDisplayClusterDeviceMonoscopicDX12, ESPMode::ThreadSafe>();
 		}
+		else
+#endif
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		{
+			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating Vulkan monoscopic device..."));
+			return MakeShared<FDisplayClusterDeviceMonoscopicVulkan, ESPMode::ThreadSafe>();
+		}
 	}
 	// Quad buffer stereo
 	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::QBS, ESearchCase::IgnoreCase))
 	{
+#if PLATFORM_WINDOWS
 		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 quad buffer stereo device..."));
@@ -52,10 +60,18 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 quad buffer stereo device..."));
 			return MakeShared<FDisplayClusterDeviceQuadBufferStereoDX12, ESPMode::ThreadSafe>();
 		}
+		else
+#endif
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		{
+			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating Vulkan quad buffer stereo device..."));
+			return MakeShared<FDisplayClusterDeviceQuadBufferStereoVulkan, ESPMode::ThreadSafe>();
+		}
 	}
 	// Side-by-side
 	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::SbS, ESearchCase::IgnoreCase))
 	{
+#if PLATFORM_WINDOWS
 		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 side-by-side stereo device..."));
@@ -66,10 +82,18 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 side-by-side stereo device..."));
 			return MakeShared<FDisplayClusterDeviceSideBySideDX12, ESPMode::ThreadSafe>();
 		}
+		else
+#endif
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		{
+			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating Vulkan side-by-side stereo device..."));
+			return MakeShared<FDisplayClusterDeviceSideBySideVulkan, ESPMode::ThreadSafe>();
+		}
 	}
 	// Top-bottom
 	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::TB, ESearchCase::IgnoreCase))
 	{
+#if PLATFORM_WINDOWS
 		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 top-bottom stereo device..."));
@@ -79,6 +103,13 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 top-bottom stereo device..."));
 			return MakeShared<FDisplayClusterDeviceTopBottomDX12, ESPMode::ThreadSafe>();
+		}
+		else
+#endif
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		{
+			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating Vulkan top-bottom stereo device..."));
+			return MakeShared<FDisplayClusterDeviceTopBottomVulkan, ESPMode::ThreadSafe>();
 		}
 	}
 

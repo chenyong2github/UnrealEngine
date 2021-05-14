@@ -47,14 +47,14 @@
 
 #include "Config/DisplayClusterConfigManager.h"
 
-UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper) : Super(Helper)
+
+UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper)
+	: Super(Helper)
 {
-	
 }
 
 UDisplayClusterViewportClient::~UDisplayClusterViewportClient()
 {
-
 }
 
 /** Util to find named canvas in transient package, and create if not found */

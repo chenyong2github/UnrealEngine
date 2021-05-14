@@ -23,8 +23,7 @@ public:
 		: InitParams(InitializationParams)
 	{ }
 
-	virtual ~FDisplayClusterProjectionEasyBlendViewAdapterBase() = 0
-	{ }
+	virtual ~FDisplayClusterProjectionEasyBlendViewAdapterBase() = default;
 
 public:
 	virtual bool Initialize(const FString& File) = 0;

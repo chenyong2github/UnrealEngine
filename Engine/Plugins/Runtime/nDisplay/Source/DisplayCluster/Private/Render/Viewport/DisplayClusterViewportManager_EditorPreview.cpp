@@ -15,8 +15,6 @@
 #include "Engine/Scene.h"
 #include "GameFramework/WorldSettings.h"
 
-#include "ScenePrivate.h"
-
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
@@ -32,7 +30,7 @@
 #include "ClearQuad.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////
-//          FDisplayClusterViewportManager
+// FDisplayClusterViewportManager
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
@@ -131,7 +129,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 				FRenderTarget* DstResource = RenderTargetIt.RenderTargetPtr;
 				// Create the view family for rendering the world scene to the viewport's render target
 				FSceneViewFamilyContext ViewFamily(
-					FSceneViewFamily::ConstructionValues(DstResource, PreviewScene->GetRenderScene(), EngineShowFlags)
+					FSceneViewFamily::ConstructionValues(DstResource, PreviewScene, EngineShowFlags)
 					.SetResolveScene(true)
 					.SetRealtimeUpdate(true)
 					.SetAdditionalViewFamily(AdditionalViewFamily));

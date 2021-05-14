@@ -9,11 +9,6 @@ public class DisplayCluster : ModuleRules
 	{
 		PublicDefinitions.Add("WITH_OCIO=0");
 
-		PublicIncludePathModuleNames.AddRange(
-			new string[] {
-				"ActorLayerUtilities"
-			});
-
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"../../../../Source/Runtime/Renderer/Private",
@@ -30,22 +25,18 @@ public class DisplayCluster : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"D3D11RHI",
-				"D3D12RHI",
 				"HeadMountedDisplay",
 				"InputCore",
 				"Json",
 				"JsonUtilities",
 				"Networking",
+				"OpenColorIO",
 				"Renderer",
 				"RenderCore",
 				"RHI",
 				"Slate",
 				"SlateCore",
 				"Sockets",
-				"TextureShare",
-				"TextureShareCore",
-				"OpenColorIO",
 			});
 
 		if (Target.bBuildEditor == true)
@@ -56,11 +47,22 @@ public class DisplayCluster : ModuleRules
 			PrivateDependencyModuleNames.Add("LevelEditor");
 		}
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"D3D11RHI",
+					"D3D12RHI",
+					"TextureShare",
+					"TextureShareCore",
+			});
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
+		}
 	}
 }

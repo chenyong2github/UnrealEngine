@@ -14,4 +14,6 @@ public:
 	IDisplayClusterConfiguratorPreviewScene(ConstructionValues CVS)
 		: FAdvancedPreviewScene(CVS)
 	{ }
+
+	virtual ~IDisplayClusterConfiguratorPreviewScene() = default;
 };

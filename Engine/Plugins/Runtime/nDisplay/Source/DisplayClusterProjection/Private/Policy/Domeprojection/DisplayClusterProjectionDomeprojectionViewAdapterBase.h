@@ -23,8 +23,7 @@ public:
 		: InitParams(InitializationParams)
 	{ }
 
-	virtual ~FDisplayClusterProjectionDomeprojectionViewAdapterBase() = 0
-	{ }
+	virtual ~FDisplayClusterProjectionDomeprojectionViewAdapterBase() = default;
 
 public:
 	virtual bool Initialize(const FString& File) = 0;

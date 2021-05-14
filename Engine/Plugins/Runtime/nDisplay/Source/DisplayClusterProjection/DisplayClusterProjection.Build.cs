@@ -55,13 +55,13 @@ public class DisplayClusterProjection : ModuleRules
 					Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private\Windows")
 			});
 
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 		}
 
 		AddThirdPartyDependencies(ROTargetRules);

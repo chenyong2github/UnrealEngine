@@ -11,8 +11,7 @@
 class IDisplayClusterRenderSyncPolicy
 {
 public:
-	virtual ~IDisplayClusterRenderSyncPolicy() = 0
-	{ }
+	virtual ~IDisplayClusterRenderSyncPolicy() = default;
 
 public:
 
