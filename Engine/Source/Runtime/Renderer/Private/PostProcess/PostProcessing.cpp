@@ -237,7 +237,7 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 	return NewSceneColor;
 }
 
-void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs)
+void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, int32 ViewIndex, const FPostProcessingInputs& Inputs)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -497,6 +497,11 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 
 			SceneColor.Texture = LocalSceneColorTexture;
+
+			if (GetHairStrandsComposition() == EHairStrandsCompositionType::AfterSeparateTranslucent)
+			{
+				RenderHairComposition(GraphBuilder, View, ViewIndex, Inputs.HairDatas, SceneColor.Texture, SceneDepth.Texture);
+			}
 		}
 
 		// Post Process Material Chain - Before Tonemapping

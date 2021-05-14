@@ -40,6 +40,7 @@ struct FPostProcessingInputs
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = nullptr;
 	FRDGTextureRef ViewFamilyTexture = nullptr;
 	const FSeparateTranslucencyTextures* SeparateTranslucencyTextures = nullptr;
+	const struct FHairStrandsRenderingData* HairDatas = nullptr;
 
 	void Validate() const
 	{
@@ -49,7 +50,7 @@ struct FPostProcessingInputs
 	}
 };
 
-void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
+void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, int32 ViewIndex, const FPostProcessingInputs& Inputs);
 
 void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs);
 
