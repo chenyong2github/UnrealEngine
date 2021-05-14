@@ -99,6 +99,8 @@ FMockState_PT
 #include "GameFramework/PlayerController.h"
 #include "DrawDebugHelpers.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "TimerManager.h"
+#include "NetworkPredictionDebug.h"
 
 // ==================================================
 
@@ -616,6 +618,7 @@ FMockObjectManager* FMockObjectManager::Get(UWorld* World)
 
 FMockObjectManager::FMockObjectManager(UWorld* World)
 {
+	WeakWorld = World;
 	if (ensure(World))
 	{
 		FPhysScene* PhysScene = World->GetPhysicsScene();
@@ -736,31 +739,7 @@ void FMockObjectManager::PreNetSend(UWorld* World, float DeltaSeconds)
 		return;
 	}
 
-	// -------------------------------------------
-	// Marshall the managed objects to PT
-	// This part needs to happen once per PT tick - currently being called in PreNetSend (probably) every frame on GT is not ideal
-	// -------------------------------------------
 	
-	FMockAsyncObjectManagerInput* AsyncInput = AsyncCallback->GetProducerInputData_External();
-	AsyncInput->Reset();	//only want latest frame's data
-	AsyncInput->World = World;
-	AsyncInput->ManagedObjects.Reserve(InMockManagedStates.Num());
-		
-	for (FMockManagedState* State : InMockManagedStates)
-	{
-		// Should we decay the GT InputCmd or just the marshalled copy?
-		// Probably want non linear decay?
-		if (UE_NETWORK_PHYSICS::bInputDecay && State->PC == nullptr)
-		{
-			if (State->InputDecay > 0.f)
-			{
-				State->InputCmd.Decay(State->InputDecay);
-			}
-			State->InputDecay += DeltaSeconds * UE_NETWORK_PHYSICS::InputDecayRate;
-		}
-
-		AsyncInput->ManagedObjects.Emplace( *State );
-	}
 
 	// -------------------------------------------
 	//	Marshall data from PT
@@ -841,6 +820,42 @@ void FMockObjectManager::PreNetSend(UWorld* World, float DeltaSeconds)
 				}
 			}
 		}
+	}
+}
+
+void FMockObjectManager::ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd)
+{
+	// -------------------------------------------
+	// Marshall the managed objects to PT
+	// This part needs to happen once per PT tick - currently being called in PreNetSend (probably) every frame on GT is not ideal
+	// -------------------------------------------
+	
+	FMockAsyncObjectManagerInput* AsyncInput = AsyncCallback->GetProducerInputData_External();
+	AsyncInput->Reset();	//only want latest frame's data
+	AsyncInput->World = WeakWorld;
+	AsyncInput->ManagedObjects.Reserve(InMockManagedStates.Num());
+		
+	for (FMockManagedState* State : InMockManagedStates)
+	{
+		// Should we decay the GT InputCmd or just the marshalled copy?
+		// Probably want non linear decay?
+		if (UE_NETWORK_PHYSICS::bInputDecay && State->PC == nullptr)
+		{
+			if (State->InputDecay > 0.f)
+			{
+				State->InputCmd.Decay(State->InputDecay);
+			}
+			//State->InputDecay += DeltaSeconds * UE_NETWORK_PHYSICS::InputDecayRate; FIXME
+		}
+
+		// ------------------------------------------------
+		if (State->Component)
+		{			
+			State->Component->ProcessInputs_External(*State, PhysicsStep, LocalFrameOffset);
+		}
+		// -----------------------------------------------
+
+		AsyncInput->ManagedObjects.Emplace( *State );
 	}
 }
 
@@ -969,7 +984,12 @@ void UNetworkPhysicsComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	{
 		// Broadcast out a delegate. The user will use GetPendingInputCmd/SetPendingInputCmd to write to ManagedState.InputCmd
 		OnGeneratedLocalInputCmd.Broadcast();
+		if (bRecording)
+		{
+
+		}
 	}
+	InManagedState.Component = this;
 
 	ReplicatedManagedState.PC = PC;
 	InManagedState.PC = PC;
@@ -994,10 +1014,252 @@ void UNetworkPhysicsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME( UNetworkPhysicsComponent, ReplicatedManagedState);
 }
 
+void UNetworkPhysicsComponent::StartRecording(TArray<FMockPhysInputCmd>* Stream)
+{
+	if (bRecording)
+	{
+		return;
+	}
+
+	CurrentInputCmdStream = Stream;
+	bRecording = true;
+}
+
+void UNetworkPhysicsComponent::StopRecording()
+{
+	if (CurrentInputCmdStream)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Recorded %d Inputs."), CurrentInputCmdStream->Num());
+	}
+
+	bRecording = false;
+	CurrentInputCmdStream = nullptr;
+}
+
+void UNetworkPhysicsComponent::StartPlayback(TArray<FMockPhysInputCmd>* Stream)
+{
+	CurrentInputCmdStream = Stream;
+	if (CurrentInputCmdStream && CurrentInputCmdStream->Num() > 0)
+	{
+		PlaybackIdx = 0;
+	}
+	else
+	{
+		PlaybackIdx = INDEX_NONE;
+	}
+}
+
+void UNetworkPhysicsComponent::ProcessInputs_External(FMockManagedState& State, int32 PhysicsStep, int32 LocalFrameOffset)
+{
+	if (bRecording)
+	{
+		if (CurrentInputCmdStream)
+		{
+			CurrentInputCmdStream->Add(State.InputCmd);
+		}
+	}
+	else if (CurrentInputCmdStream && CurrentInputCmdStream->IsValidIndex(PlaybackIdx))
+	{
+		State.InputCmd = (*CurrentInputCmdStream)[PlaybackIdx++ % CurrentInputCmdStream->Num()];		
+	}
+}
+
+// ============================================================================================================
+
+void ANetworkPredictionSpawner::Spawn(FName StreamName)
+{
+	ANetworkPredictionSpawner* SourceSpawner = nullptr;
+	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
+	{
+		// Saved inputs are saved on the map version, so we need to copy them over to the server version
+		if (WorldIt->WorldType == EWorldType::Editor)
+		{
+			for (TActorIterator<ANetworkPredictionSpawner> It(*WorldIt); It; ++It)
+			{
+				ANetworkPredictionSpawner* Spawner = *It;
+				if (Spawner->GetName() == this->GetName())
+				{
+					SourceSpawner = Spawner;
+					break;
+				}
+			}
+		}
+	}
+
+	ensure(SourceSpawner);
+
+	StreamName = (StreamName == NAME_None ? SourceSpawner->RecordedInputs[FMath::Rand() % SourceSpawner->RecordedInputs.Num()].Name : StreamName);
+
+	if (FMockRecordedInputs* PlaybackRecordedInputs = SourceSpawner->RecordedInputs.FindByKey(StreamName))
+	{
+		AActor* SpawnedActor = this->GetWorld()->SpawnActor<AActor>(this->SpawnClass.Get(), this->GetActorTransform());
+		if (UNetworkPhysicsComponent* Comp = SpawnedActor->FindComponentByClass<UNetworkPhysicsComponent>())
+		{
+			Comp->StartPlayback(&PlaybackRecordedInputs->Inputs);
+		}
+	}
+	else
+	{
+		UE_LOG(LogNetworkPhysics, Warning, TEXT("Could not find Inputs named %s on %s"), *StreamName.ToString(), *GetName());
+	}
+}
+
+void ANetworkPredictionSpawner::SpawnRandom()
+{
+	Spawn(NAME_None);
+}
+
+void ANetworkPredictionSpawner::StartRecording(UNetworkPhysicsComponent* Target, FName StreamName)
+{
+	FMockRecordedInputs* PlaybackRecordedInputs = RecordedInputs.FindByKey(StreamName);
+	if (!PlaybackRecordedInputs)
+	{
+		PlaybackRecordedInputs = &RecordedInputs.AddDefaulted_GetRef();
+		PlaybackRecordedInputs->Name = StreamName;
+	}
+	PlaybackRecordedInputs->Inputs.Reset();
+
+	// Teleport the target on the server
+	if (AActor* ServerOwner = Cast<AActor>(NetworkPredictionDebug::FindReplicatedObjectOnPIEServer(Target->GetOwner())))
+	{
+		ServerOwner->TeleportTo(this->GetActorLocation(), this->K2_GetActorRotation());
+	}
+
+	// Wait a second and start recording on the client
+	FTimerHandle Handle;
+	Target->GetWorld()->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([this, PlaybackRecordedInputs, Target]()
+	{
+		Target->StartRecording(&PlaybackRecordedInputs->Inputs);
+
+	}), 1.f, false);
+}
+
 // ============================================================================================================
 // ============================================================================================================
 // ============================================================================================================
 
+FAutoConsoleCommandWithWorldAndArgs RecordInputCmds(TEXT("np2.RecordInputs"), TEXT(""),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* InWorld) 
+{
+	FName StreamName = Args.Num() > 0 ? FName(Args[0]) : NAME_None;
+
+	UNetworkPhysicsComponent* RecordTarget = nullptr;
+	for (TObjectIterator<UNetworkPhysicsComponent> It; It; ++It)
+	{
+		UNetworkPhysicsComponent* Comp = *It;
+		if (Comp->GetWorld() == InWorld && Comp->GetOwnerPC() && Comp->GetOwnerPC()->IsLocalPlayerController())
+		{
+			RecordTarget = Comp;
+			break;
+		}
+	}
+
+	if (!RecordTarget)
+	{
+		UE_LOG(LogNetworkPhysics, Warning, TEXT("Could not find viable target to record"));
+		return;
+	}
+
+	if (RecordTarget->IsRecording())
+	{
+		UE_LOG(LogNetworkPhysics, Log, TEXT("Stopped Recording on %s"), *RecordTarget->GetPathName());
+		RecordTarget->StopRecording();
+		return;
+	}
+
+	if (Args.Num() > 1)
+	{
+		// Spawner path
+		for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
+		{
+			if (WorldIt->WorldType == EWorldType::Editor)
+			{
+				for (TActorIterator<ANetworkPredictionSpawner> It(*WorldIt); It; ++It)
+				{
+					ANetworkPredictionSpawner* Spawner = *It;
+					if (Spawner->GetName().Contains(Args[1]))
+					{
+						UE_LOG(LogNetworkPhysics, Warning, TEXT("Recording Stream %s on Spawner %s"), *StreamName.ToString(), *GetPathNameSafe(Spawner));
+						Spawner->StartRecording(RecordTarget, StreamName);
+						break;
+					}
+				}
+				break;
+			}
+		}
+	}
+	else
+	{
+		TArray<FMockPhysInputCmd>* CurrentInputCmdStream = nullptr;
+
+		UNetworkPhysicsComponent* CDO = UNetworkPhysicsComponent::StaticClass()->GetDefaultObject<UNetworkPhysicsComponent>();
+		if (FMockRecordedInputs* MockRecordedInputs = CDO->RecordedInputs.FindByKey(StreamName))
+		{
+			MockRecordedInputs->Inputs.Reset();
+			CurrentInputCmdStream = &MockRecordedInputs->Inputs;
+		}
+		else
+		{
+			FMockRecordedInputs& NewRecordedInputs = CDO->RecordedInputs.AddDefaulted_GetRef();
+			NewRecordedInputs.Name = StreamName;
+			CurrentInputCmdStream = &NewRecordedInputs.Inputs;
+		}
+
+		if (CurrentInputCmdStream)
+		{
+			UE_LOG(LogNetworkPhysics, Log, TEXT("Started %s input recording on %s"), *StreamName.ToString(), *RecordTarget->GetPathName());
+			RecordTarget->StartRecording(CurrentInputCmdStream);
+		}
+	}
+	
+}));
+
+FAutoConsoleCommandWithWorldAndArgs PlaybackInputCmds(TEXT("np2.PlaybackInputs"), TEXT(""),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* InWorld) 
+{
+	FName StreamName = Args.Num() > 0 ? FName(Args[0]) : NAME_None;
+
+	if (Args.Num() > 1)
+	{		
+		for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
+		{
+			if ((WorldIt->WorldType == EWorldType::Game || WorldIt->WorldType == EWorldType::PIE) && WorldIt->GetNetMode() != NM_Client)
+			{
+				for (TActorIterator<ANetworkPredictionSpawner> It(*WorldIt); It; ++It)
+				{
+					ANetworkPredictionSpawner* Spawner = *It;
+					if (Spawner->GetName().Contains(Args[1]))
+					{
+						UE_LOG(LogNetworkPhysics, Warning, TEXT("Spawning New Stream %s on Spawner %s"), *StreamName.ToString(), *GetPathNameSafe(Spawner));
+						Spawner->Spawn(StreamName);
+						break;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		UNetworkPhysicsComponent* CDO = UNetworkPhysicsComponent::StaticClass()->GetDefaultObject<UNetworkPhysicsComponent>();
+		if (FMockRecordedInputs* PlaybackRecordedInputs = CDO->RecordedInputs.FindByKey(StreamName))
+		{
+			if (PlaybackRecordedInputs->Inputs.Num() > 0)
+			{
+				for (TObjectIterator<UNetworkPhysicsComponent> It; It; ++It)
+				{
+					UNetworkPhysicsComponent* Comp = *It;
+					if (Comp->GetWorld() == InWorld && Comp->GetOwnerPC() && Comp->GetOwnerPC()->IsLocalPlayerController())
+					{
+						Comp->StartPlayback(&PlaybackRecordedInputs->Inputs);
+						UE_LOG(LogNetworkPhysics, Log, TEXT("PlayingBack %d Inputs from stream %s."), PlaybackRecordedInputs->Inputs.Num(), *StreamName.ToString());
+						return;
+					}
+				}
+			}
+		}
+	}
+
+}));
 
 FAutoConsoleCommandWithWorldAndArgs ForceMockCorrectionCmd(TEXT("np2.ForceMockCorrection"), TEXT(""),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* InWorld) 
