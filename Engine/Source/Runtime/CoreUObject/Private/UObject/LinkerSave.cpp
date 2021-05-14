@@ -10,6 +10,7 @@
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/UnrealType.h"
 #include "HAL/PlatformStackWalk.h"
@@ -274,11 +275,11 @@ void FLinkerSave::Serialize( void* V, int64 Length )
 	Saver->Serialize( V, Length );
 }
 
-void FLinkerSave::OnPostSave(const FPackagePath& PackagePath)
+void FLinkerSave::OnPostSave(const FPackagePath& PackagePath, FObjectPostSaveContext ObjectSaveContext)
 {
-	for (TUniqueFunction<void(const FPackagePath&)>& Callback : PostSaveCallbacks)
+	for (TUniqueFunction<void(const FPackagePath&, FObjectPostSaveContext)>& Callback : PostSaveCallbacks)
 	{
-		Callback(PackagePath);
+		Callback(PackagePath, ObjectSaveContext);
 	}
 
 	PostSaveCallbacks.Empty();
