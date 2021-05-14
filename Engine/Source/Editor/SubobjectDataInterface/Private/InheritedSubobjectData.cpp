@@ -42,6 +42,25 @@ bool FInheritedSubobjectData::CanEdit() const
 	return FSubobjectData::CanEdit();
 }
 
+bool FInheritedSubobjectData::CanDelete() const
+{
+	if(IsNativeComponent() || IsInheritedSCSNode() || IsDefaultSceneRoot() || IsInstancedInheritedComponent())
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+bool FInheritedSubobjectData::IsInheritedComponent() const
+{
+	if(GetComponentTemplate() != nullptr)
+	{
+		return true;
+	}
+	return false;
+}
+
 bool FInheritedSubobjectData::IsInheritedSCSNode() const
 {
 	return bIsInheritedSCS;
