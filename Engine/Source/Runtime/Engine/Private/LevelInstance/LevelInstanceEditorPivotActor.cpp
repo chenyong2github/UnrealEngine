@@ -88,6 +88,10 @@ void ALevelInstancePivot::SetPivot(ELevelInstancePivotType PivotType, AActor* Pi
 		}
 		SetActorLocation(Location);
 	}
+	else if (PivotType == ELevelInstancePivotType::WorldOrigin)
+	{
+		SetActorLocation(FVector(0.f, 0.f, 0.f));
+	}
 	else // unsupported
 	{
 		check(0);

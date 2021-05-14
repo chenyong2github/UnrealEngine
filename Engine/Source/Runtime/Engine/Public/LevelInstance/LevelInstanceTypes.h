@@ -50,7 +50,8 @@ enum class ELevelInstancePivotType : uint8
 {
 	CenterMinZ,
 	Center,
-	Actor
+	Actor,
+	WorldOrigin
 };
 
 USTRUCT()
