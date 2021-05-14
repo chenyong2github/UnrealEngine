@@ -2,6 +2,8 @@
 
 
 #include "SAnimViewportToolBar.h"
+
+#include "AnimPreviewInstance.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -46,6 +48,9 @@
 #include "UICommandList_Pinnable.h"
 #include "BoneSelectionWidget.h"
 #include "Widgets/Text/SRichTextBlock.h"
+#include "ContentBrowserModule.h"
+#include "IContentBrowserSingleton.h"
+#include "Animation/MirrorDataTable.h"
 
 #define LOCTEXT_NAMESPACE "AnimViewportToolBar"
 
@@ -628,7 +633,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 			InMenuBuilder.AddSubMenu(
 				LOCTEXT("CharacterMenu_AnimationSubMenu", "Animation"),
 				LOCTEXT("CharacterMenu_AnimationSubMenuToolTip", "Animation-related options"),
-				FNewMenuDelegate::CreateLambda([WeakSharedViewport = Viewport](FMenuBuilder& SubMenuBuilder)
+				FNewMenuDelegate::CreateLambda([this, WeakSharedViewport = Viewport](FMenuBuilder& SubMenuBuilder)
 				{
 					SubMenuBuilder.BeginSection("AnimViewportRootMotion", LOCTEXT("CharacterMenu_RootMotionLabel", "Root Motion"));
 					{
@@ -642,6 +647,31 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowNonRetargetedAnimation);
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowAdditiveBaseBones);
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowSourceRawAnimation);
+
+						if (WeakSharedViewport.IsValid())
+						{
+							if ( UDebugSkelMeshComponent* PreviewComponent = WeakSharedViewport.Pin()->GetPreviewScene()->GetPreviewMeshComponent())
+							{
+								FUIAction DisableUnlessPreviewInstance(
+									FExecuteAction::CreateLambda([](){}),
+									FCanExecuteAction::CreateLambda([PreviewComponent]()
+									{
+										return (PreviewComponent->PreviewInstance && (PreviewComponent->PreviewInstance == PreviewComponent->GetAnimInstance() ) );
+									})
+								);
+
+								SubMenuBuilder.AddSubMenu(
+									LOCTEXT("CharacterMenu_AnimationSubMenu_MirrorSubMenu", "Mirror"),
+									LOCTEXT("CharacterMenu_AnimationSubMenu_MirrorSubMenuToolTip", "Mirror the animation using the selected mirror data table"),
+									FNewMenuDelegate::CreateRaw(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::FillCharacterMirrorMenu),
+									DisableUnlessPreviewInstance,
+									NAME_None,
+									EUserInterfaceActionType::Button,
+									false,
+									FSlateIcon(),
+									false);
+							}
+						}
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBakedAnimation);
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().DisablePostProcessBlueprint);
 					}
@@ -754,6 +784,50 @@ void SAnimViewportToolBar::FillCharacterAdvancedMenu(FMenuBuilder& MenuBuilder) 
 		MenuBuilder.AddMenuEntry( Actions.ShowLocalAxesNone );
 	}
 	MenuBuilder.EndSection();
+}
+
+void SAnimViewportToolBar::FillCharacterMirrorMenu(FMenuBuilder& MenuBuilder) const
+{
+	FAssetPickerConfig AssetPickerConfig;
+	UDebugSkelMeshComponent* PreviewComp = Viewport.Pin()->GetPreviewScene()->GetPreviewMeshComponent();
+	USkeletalMesh* Mesh = PreviewComp->SkeletalMesh;
+	UAnimPreviewInstance* PreviewInstance = PreviewComp->PreviewInstance; 
+	if (Mesh && PreviewInstance)
+	{
+		USkeleton* Skeleton = Mesh->GetSkeleton();
+	
+		AssetPickerConfig.Filter.ClassNames.Add(*UMirrorDataTable::StaticClass()->GetName());
+		AssetPickerConfig.Filter.bRecursiveClasses = false;
+		AssetPickerConfig.bAllowNullSelection = true;
+		AssetPickerConfig.Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(Skeleton).GetExportTextName());
+		AssetPickerConfig.InitialAssetSelection = FAssetData(PreviewInstance->GetMirrorDataTable());
+		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnMirrorDataTableSelected);
+		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+		AssetPickerConfig.ThumbnailScale = 0.1f;
+		AssetPickerConfig.bAddFilterUI = false;
+		
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+
+		MenuBuilder.AddWidget(
+			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig),
+			FText::GetEmpty()
+		);
+	}
+}
+
+void SAnimViewportToolBar::OnMirrorDataTableSelected(const FAssetData& SelectedMirrorTableData)
+{
+	UMirrorDataTable* MirrorDataTable = Cast<UMirrorDataTable>(SelectedMirrorTableData.GetAsset());
+	if (Viewport.Pin().IsValid())
+	{
+		UDebugSkelMeshComponent* PreviewComp = Viewport.Pin()->GetPreviewScene()->GetPreviewMeshComponent();
+		USkeletalMesh* Mesh = PreviewComp->SkeletalMesh;
+		UAnimPreviewInstance* PreviewInstance = PreviewComp->PreviewInstance; 
+		if (Mesh && PreviewInstance)
+		{
+			PreviewInstance->SetMirrorDataTable(MirrorDataTable);
+		}
+	}
 }
 
 void SAnimViewportToolBar::FillCharacterClothingMenu(FMenuBuilder& MenuBuilder)

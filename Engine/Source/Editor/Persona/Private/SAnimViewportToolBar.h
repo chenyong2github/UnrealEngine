@@ -85,6 +85,11 @@ private:
 	void FillCharacterAdvancedMenu(FMenuBuilder& MenuBuilder) const;
 
 	/**
+	* Generates the Show -> Mirror sub menu content
+	*/
+	void FillCharacterMirrorMenu(FMenuBuilder& MenuBuilder) const;
+
+	/**
 	* Generates the Show -> Clothing sub menu content
 	*/
 	void FillCharacterClothingMenu(FMenuBuilder& MenuBuilder);
@@ -157,6 +162,9 @@ private:
 	/** Called when the floor offset slider is adjusted in the perspective viewport */
 	void OnFloorOffsetChanged( float NewValue );
 
+	/** Called when users select the mirror table in the menu */
+	void OnMirrorDataTableSelected(const FAssetData& SelectedMirrorTableData);
+	
 	// Called to determine if the gizmos can be used in the current preview
 	EVisibility GetTransformToolbarVisibility() const;
 
