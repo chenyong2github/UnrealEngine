@@ -2933,24 +2933,12 @@ bool FSceneRenderer::DoOcclusionQueries() const
 }
 
 FSceneRenderer::~FSceneRenderer()
-{	
-	if(Scene)
+{
+	for (FProjectedShadowInfo* ProjectedShadow : MemStackProjectedShadows)
 	{
-		// Destruct the projected shadow infos.
-		for(TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights);LightIt;++LightIt)
-		{
-			if( VisibleLightInfos.IsValidIndex(LightIt.GetIndex()) )
-			{
-				FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightIt.GetIndex()];
-				for(int32 ShadowIndex = 0;ShadowIndex < VisibleLightInfo.MemStackProjectedShadows.Num();ShadowIndex++)
-				{
-					// FProjectedShadowInfo's in MemStackProjectedShadows were allocated on the rendering thread mem stack, 
-					// Their memory will be freed when the stack is freed with no destructor call, so invoke the destructor explicitly
-					VisibleLightInfo.MemStackProjectedShadows[ShadowIndex]->~FProjectedShadowInfo();
-				}
-				VisibleLightInfo.VirtualShadowMapId = INDEX_NONE;
-			}
-		}
+		// FProjectedShadowInfo's in MemStackProjectedShadows were allocated on the rendering thread mem stack, 
+		// Their memory will be freed when the stack is freed with no destructor call, so invoke the destructor explicitly
+		ProjectedShadow->~FProjectedShadowInfo();
 	}
 
 	// Manually release references to TRefCountPtrs that are allocated on the mem stack, which doesn't call dtors

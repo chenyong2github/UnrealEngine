@@ -165,13 +165,6 @@ class FVisibleLightInfo
 {
 public:
 
-	/** 
-	 * Projected shadows allocated on the scene rendering mem stack. 
-	 * Note: this exists purely such that the destructor can be called as the memory is allocated from a pool.
-	 * Note #2: Much more elegant if the pool itself managed this!
-	 */
-	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> MemStackProjectedShadows;
-
 	/** All visible projected shadows, output of shadow setup.  Not all of these will be rendered. */
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> AllProjectedShadows;
 
@@ -2177,6 +2170,13 @@ private:
 	void DumpPrimitives(const FViewCommands& ViewCommands);
 #endif
 	bool bShadowDepthRenderCompleted;
+
+	/**
+	 * Projected shadows allocated on the scene rendering mem stack.
+	 * Note: this exists purely such that the destructor can be called as the memory is allocated from a pool.
+	 * Note #2: Much more elegant if the pool itself managed this!
+	 */
+	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> MemStackProjectedShadows;
 };
 
 struct FForwardScreenSpaceShadowMaskTextureMobileOutputs

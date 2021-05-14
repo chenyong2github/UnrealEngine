@@ -2869,7 +2869,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 					false))					// no translucent shadow
 				{
 					ProjectedShadowInfo->FadeAlphas = ResolutionFadeAlphas;
-					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
 					if (bOpaqueShadowIsVisibleThisFrame)
 					{
@@ -2911,7 +2911,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 					true))					// translucent shadow
 				{
 					ProjectedShadowInfo->FadeAlphas = ResolutionFadeAlphas,
-					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
 					if (bTranslucentShadowIsVisibleThisFrame)
 					{
@@ -3647,7 +3647,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					// Create the projected shadow info.
 					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
 					// Add to remember-to-call-dtor list
-					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
 					// Rescale size to fit whole virtual SM but keeping aspect ratio
 					int32 VirtualSizeX = SizeX >= SizeY ? FVirtualShadowMap::VirtualMaxResolutionXY : (FVirtualShadowMap::VirtualMaxResolutionXY * SizeX) / SizeY;
@@ -3713,7 +3713,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
 					ProjectedShadowInfo->FadeAlphas = FadeAlphas;
 
-					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
 					// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
 					if (bNeedsVirtualShadowMap)
@@ -4589,7 +4589,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						ProjectedShadowInfo->ProjectionIndex = Index;
 						ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
 
-						VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+						MemStackProjectedShadows.Add(ProjectedShadowInfo);
 						VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 						ShadowInfos.Add(ProjectedShadowInfo);
 
@@ -4712,7 +4712,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					// Create the projected shadow info to make sure that culling happens.
 					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
 					// Add to remember-to-call-dtor list
-					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					MemStackProjectedShadows.Add(ProjectedShadowInfo);
 					ProjectedShadowInfo->SetupClipmapProjection(&LightSceneInfo, &View, VirtualShadowMapClipmap, CVarVsmUseFarShadowRules.GetValueOnRenderThread() != 0 ? MaxNonFarCascadeDistance : -1.0f);
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 					ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);
