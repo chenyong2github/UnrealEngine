@@ -14,6 +14,8 @@
 #include "GameFramework/Actor.h"
 #include "SnapshotRestorability.h"
 #include "UObject/Package.h"
+#include "UObject/TextProperty.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
@@ -24,36 +26,17 @@ namespace
 	/* If this function return false, the objects are not equivalent. If true, ignore the object references. */
 	bool ShouldConsiderObjectsEquivalent(const FWorldSnapshotData& SnapshotData, const FObjectPropertyBase* ObjectProperty, void* SnapshotValuePtr, void* WorldValuePtr, AActor* SnapshotActor, AActor* WorldActor)
 	{
+		// Native identity check handles:
+			// - external references, e.g. UMaterial in content browser
+			// - soft object paths: if SnapshotValuePtr is a TSoftObjectPtr<AActor> property, it points to a world actor instead of to an equivalent snapshot actor
+		if (ObjectProperty->Identical(SnapshotValuePtr, WorldValuePtr, 0))
+		{
+			return true;
+		}
+		
 		UObject* SnapshotObject = ObjectProperty->GetObjectPropertyValue(SnapshotValuePtr);
 		UObject* WorldObject = ObjectProperty->GetObjectPropertyValue(WorldValuePtr);
-		if (SnapshotObject == nullptr && WorldObject == nullptr)
-		{
-			return true;
-		}
-
-		UObject* PossiblySubobject = WorldObject ? WorldObject : SnapshotObject;
-		AActor* PossiblyOwner = WorldObject ?  WorldActor : SnapshotActor;
-		// Handle subobjects created within actor
-		const bool bIsSubobject = PossiblySubobject->IsIn(PossiblyOwner);
-		if (bIsSubobject)
-		{
-			return true;
-		}
-		// Handle temporary 'subobjects'
-		const bool bIsTempTransientObject = PossiblySubobject->HasAnyFlags(RF_Transient) || PossiblySubobject->GetPackage()->HasAnyFlags(RF_Transient);
-		if (bIsTempTransientObject)
-		{
-			return true;
-		}
-
-		// Handle internal reference to other objects within the same world
-		if (SnapshotData.AreReferencesEquivalent(SnapshotObject, WorldObject))
-		{
-			return true;
-		}
-
-		// Anything this far should be an asset reference, e.g. to a data asset or material.
-		return ObjectProperty->Identical(SnapshotValuePtr, WorldValuePtr, 0);
+		return SnapshotData.AreReferencesEquivalent(SnapshotObject, WorldObject, SnapshotActor, WorldActor);
 	}
 	
 	void EnqueueMatchingComponents(TInlineComponentArray<TPair<UObject*, UObject*>>& SnapshotOriginalPairsToProcess, AActor* SnapshotActor, AActor* WorldActor)
@@ -111,7 +94,7 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 	}
 	else
 	{
-		SerializedData.ApplyToWorld(TargetWorld, SelectionSet);
+		SerializedData.ApplyToWorld(TargetWorld, GetPackage(), SelectionSet);
 	}
 }
 
@@ -259,6 +242,13 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 		{
 			// TODO: Use custom function. Need to do something similar to UE4SetProperty_Private::IsPermutation
 		}
+
+		if (const FTextProperty* TextProperty = CastField<FTextProperty>(LeafProperty))
+		{
+			const FText& SnapshotText = TextProperty->GetPropertyValue_InContainer(SnapshotContainer);
+			const FText& WorldText = TextProperty->GetPropertyValue_InContainer(WorldContainer);
+			return SnapshotText.IdenticalTo(WorldText, ETextIdenticalModeFlags::None) || SnapshotText.ToString().Equals(WorldText.ToString());
+		}
 		
 		// Use normal property comparison for all other properties
 		if (!LeafProperty->Identical_InContainer(SnapshotContainer, WorldContainer, i, PPF_DeepComparison | PPF_DeepCompareDSOsOnly))
@@ -283,7 +273,7 @@ TOptional<AActor*> ULevelSnapshot::GetDeserializedActor(const FSoftObjectPath& O
 	}
 	else
 	{
-		return SerializedData.GetDeserializedActor(OriginalActorPath);
+		return SerializedData.GetDeserializedActor(OriginalActorPath, GetPackage());
 	}
 }
 
@@ -389,8 +379,10 @@ void ULevelSnapshot::EnsureWorldInitialised()
 	if (SnapshotContainerWorld == nullptr)
 	{
 		SnapshotContainerWorld = NewObject<UWorld>(GetTransientPackage(), NAME_None);
-		SnapshotContainerWorld->WorldType = EWorldType::EditorPreview; 
-		
+		SnapshotContainerWorld->WorldType = EWorldType::EditorPreview;
+
+		// Note: Do NOT create a FWorldContext for this world.
+		// If you do, the render thread will send render commands every tick (and crash cuz we do not init the scene below).
 		SnapshotContainerWorld->InitializeNewWorld(UWorld::InitializationValues()
 			.InitializeScenes(false)		// This is memory only world: no rendering
             .AllowAudioPlayback(false)

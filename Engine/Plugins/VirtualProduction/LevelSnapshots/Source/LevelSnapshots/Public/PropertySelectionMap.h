@@ -29,6 +29,7 @@ struct LEVELSNAPSHOTS_API FPropertySelectionMap
 	const FPropertySelection* GetSelectedProperties(UObject* WorldObject) const;
 	const FPropertySelection* GetSelectedProperties(const FSoftObjectPath& WorldObjectPath) const;
 	TArray<FSoftObjectPath> GetKeys() const;
+	int32 GetKeyCount() const;
 	const TSet<FSoftObjectPath>& GetDeletedActorsToRespawn() const;
 	const TSet<TWeakObjectPtr<AActor>>& GetNewActorsToDespawn() const;
 

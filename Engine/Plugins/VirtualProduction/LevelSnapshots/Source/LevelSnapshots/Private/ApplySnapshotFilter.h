@@ -70,7 +70,7 @@ private:
 		CheckSubproperties,
         SkipSubproperties
     }; 
-	ECheckSubproperties AnalyseProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon);
+	ECheckSubproperties AnalyseProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon, bool bSkipEqualityTest = false);
 
 	
 	ULevelSnapshot* Snapshot;

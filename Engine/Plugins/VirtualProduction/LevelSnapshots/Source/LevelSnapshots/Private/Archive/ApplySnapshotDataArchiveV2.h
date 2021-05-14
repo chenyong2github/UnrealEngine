@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "PropertySelection.h"
+#include "PropertySelectionMap.h"
 #include "SnapshotArchive.h"
-
-class ULevelSnapshotSelectionSet;
 
 /* For writing data into an object */
 class FApplySnapshotDataArchiveV2 : public FSnapshotArchive
@@ -14,8 +13,8 @@ class FApplySnapshotDataArchiveV2 : public FSnapshotArchive
 	using Super = FSnapshotArchive;
 public:
 	
-	static void ApplyToExistingWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion, const FPropertySelection& InSelectionSet);
-	static void ApplyToRecreatedWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion);
+	static void ApplyToExistingEditorWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects, const FPropertySelection& InSelectionSet);
+	static void ApplyToRecreatedEditorWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects);
 	
 	//~ Begin FTakeSnapshotArchiveV2 Interface
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
@@ -23,10 +22,25 @@ public:
 	virtual void PopSerializedProperty(FProperty* InProperty, const bool bIsEditorOnlyProperty) override;
 	//~ End FTakeSnapshotArchiveV2 Interface
 
+protected:
+
+	//~ Begin FSnapshotArchive Interface
+	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const override;
+	//~ End FSnapshotArchive Interface
+
 private:
 
-	FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, const FPropertySelection& InSelectionSet);
-	FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject);
+	FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects, TOptional<const FPropertySelection*> InSelectionSet);
+
+	bool ShouldSerializeAllProperties() const;
+	
+	/* Object we are serializing into.
+	* Needed for Pre and Post Edit change
+	*/
+	UObject* OriginalObject;
+
+	/* Needed so subobjects can be fully reconstructed */
+	const FPropertySelectionMap& SelectionMapForResolvingSubobjects; 
 	
 	/* Immutable list of properties we are supposed to serialise */
 	TOptional<const FPropertySelection*> SelectionSet;
@@ -35,9 +49,5 @@ private:
 	 */
 	mutable FPropertySelection PropertiesLeftToSerialize;
 	
-	/* Object we are serializing into.
-	 * Needed for Pre and Post Edit change
-	 */
-	UObject* OriginalObject;
 	
 };
