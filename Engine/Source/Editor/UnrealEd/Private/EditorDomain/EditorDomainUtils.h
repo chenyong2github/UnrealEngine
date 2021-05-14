@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "Containers/UnrealString.h"
 #include "DerivedDataCache.h"
 #include "EditorDomain/EditorDomain.h"
 #include "Misc/ConfigCacheIni.h"
+#include "UObject/NameTypes.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomainSave, Log, All);
 
@@ -14,16 +16,15 @@ class FPackagePath;
 class IAssetRegistry;
 class UPackage;
 
-namespace UE
-{
-namespace EditorDomain
+namespace UE::EditorDomain
 {
 
 enum class EPackageDigestResult
 {
 	Success,
 	FileDoesNotExist,
-	WrongThread,
+	MissingCustomVersion,
+	MissingClass,
 };
 
 /**
@@ -31,7 +32,9 @@ enum class EPackageDigestResult
  * Reads information from the AssetRegistry to compute the digest.
  */
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FPackageDigest& OutPackageDigest);
+	FPackageDigest& OutPackageDigest, FString& OutErrorMessage, FClassDigestMap& ClassDigests);
+/** For any ClassNames not already in ClassDigests, look up their UStruct and add them. */
+void PrecacheClassDigests(TConstArrayView<FName> ClassNames, FClassDigestMap& ClassDigests);
 
 /** Convert the given PackageDigest into CacheKey format. */
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest);
@@ -42,7 +45,6 @@ UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& Package
 	UE::DerivedData::FOnCacheGetComplete&& Callback);
 
 /** Save the given package into the EditorDomain. */
-bool TrySavePackage(UPackage* Package);
+bool TrySavePackage(UPackage* Package, FClassDigestMap& ClassDigests);
 
-}
 }

@@ -7,6 +7,7 @@
 #include "Containers/RingBuffer.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
+#include "EditorDomain/EditorDomain.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformProcess.h"
@@ -138,6 +139,8 @@ private:
 	IAssetRegistry* AssetRegistry;
 	/** In-process handle to the interprocess synchronization object. */
 	FPlatformProcess::FSemaphore* ProcessLock = nullptr;
+	/** Cache of GetSchemaHash by class name */
+	UE::EditorDomain::FClassDigestMap ClassDigests;
 	/** The time at which the current idleness started. Used to decide abdication. */
 	double IdleStartTime = 0;
 	/** The time at which garbage was last collected. Used for scheduling the next collection. */

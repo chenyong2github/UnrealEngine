@@ -141,8 +141,9 @@ bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, T
 		return true;
 	}
 
+	FString ErrorMessage;
 	FPackageDigest PackageDigest;
-	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest);
+	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest, ErrorMessage, ClassDigests);
 	switch (Result)
 	{
 	case EPackageDigestResult::Success:
@@ -160,14 +161,24 @@ bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, T
 		// but for non-existent packages we want it not to be there to avoid wasting memory on it
 		PackageSources.Remove(PackageName);
 		return false;
-	case EPackageDigestResult::WrongThread:
+	default:
+		UE_LOG(LogEditorDomain, Warning,
+			TEXT("Could not load package from EditorDomain; it will be loaded from the WorkspaceDomain: %s."),
+			*ErrorMessage)
 		PackageSource = new FPackageSource();
 		PackageSource->Source = EPackageSource::Workspace;
 		OutSource = PackageSource;
 		return true;
-	default:
-		check(false);
-		return false;
+	}
+}
+
+void FEditorDomain::PrecachePackageDigest(FName PackageName)
+{
+	AssetRegistry->WaitForPackage(PackageName.ToString());
+	TOptional<FAssetPackageData> PackageData = AssetRegistry->GetAssetPackageDataCopy(PackageName);
+	if (PackageData)
+	{
+		UE::EditorDomain::PrecacheClassDigests(PackageData->ImportedClasses, ClassDigests);
 	}
 }
 
@@ -419,10 +430,7 @@ void FEditorDomain::OnEndLoad(TConstArrayView<UPackage*> LoadedPackages)
 
 	for (UPackage* Package : PackagesToSave)
 	{
-		if (!UE::EditorDomain::TrySavePackage(Package))
-		{
-			UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package %s into EditorDomain."), *Package->GetName());
-		}
+		UE::EditorDomain::TrySavePackage(Package, ClassDigests);
 	}
 }
 
@@ -452,10 +460,7 @@ void FEditorDomain::OnPostEngineInit()
 
 	for (UPackage* Package : PackagesToSave)
 	{
-		if (!UE::EditorDomain::TrySavePackage(Package))
-		{
-			UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package %s into EditorDomain."), *Package->GetName());
-		}
+		UE::EditorDomain::TrySavePackage(Package, ClassDigests);
 	}
 }
 
