@@ -29,6 +29,12 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultLinearSleepThreshold(TEXT
 Chaos::FRealSingle ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.0087f;  //~1/2 unit mass degree
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultAngularSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultAngularSleepThreshold"), ChaosSolverCollisionDefaultAngularSleepThresholdCVar, TEXT("Default angular threshold for sleeping.[def:0.0087]"));
 
+namespace Chaos
+{
+	bool ChaosPerfHackIgnoreSleepingContacts = false;
+	FAutoConsoleVariableRef CVarChaosPerfHackDisableSleepingConstraints(TEXT("p.Chaos.PerfHackIgnoreSleepingContacts"), ChaosPerfHackIgnoreSleepingContacts, TEXT("Hack to improve perf by not generating all contacts for sleeping particles"));
+}
+
 FPBDConstraintGraph::FPBDConstraintGraph() : VisitToken(0)
 {
 }
@@ -584,6 +590,21 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 			}
 			else
 			{
+				int32 NumRigidsInNewIsland = 0;
+				if (ChaosPerfHackIgnoreSleepingContacts && NewIslandParticles.IsValidIndex(OtherIsland))
+				{
+					for (FGeometryParticleHandle* Particle : NewIslandParticles[OtherIsland])
+					{
+						if (Particle)
+						{
+							if (FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle())
+							{
+								NumRigidsInNewIsland++;
+							}
+						}
+					}
+				}
+
 				for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 				{
 					if (CHAOS_ENSURE(Particle))
@@ -591,7 +612,11 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 						TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 						if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 						{
-							Particles.ActivateParticle(Particle);
+							const bool bShouldActivateParticle = ChaosPerfHackIgnoreSleepingContacts ? !(NumRigidsInNewIsland == 1 && PBDRigid->Sleeping()) : true;
+							if (bShouldActivateParticle)
+							{
+								Particles.ActivateParticle(Particle);
+							}
 						}
 					}
 				}

@@ -20,7 +20,9 @@ namespace Chaos
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Filtering"), STAT_Collisions_Filtering, STATGROUP_ChaosCollision, CHAOS_API);
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::GenerateCollisions"), STAT_Collisions_GenerateCollisions, STATGROUP_ChaosCollision, CHAOS_API);
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::ReceiveCollisions"), STAT_Collisions_ReceiveCollisions, STATGROUP_ChaosCollision, CHAOS_API);
-	
+
+	extern bool ChaosPerfHackIgnoreSleepingContacts;
+
 	template <typename TPayloadType, typename T, int d>
 	class ISpatialAcceleration;
 
@@ -286,7 +288,23 @@ namespace Chaos
 					const bool bSecondParticleWillHaveAnswer = !bIsResimming || Particle2.SyncState() == ESyncState::HardDesync;
 					// Sleeping vs dynamic gets picked up by the other direction.
 					const bool bIsParticle2Dynamic = Particle2.CastToRigidParticle() && Particle2.ObjectState() == EObjectStateType::Dynamic;
-					if (Particle1.ObjectState() == EObjectStateType::Sleeping && bIsParticle2Dynamic && bSecondParticleWillHaveAnswer)
+
+					bool bSkipSleepingContact = bSecondParticleWillHaveAnswer;
+					if (ChaosPerfHackIgnoreSleepingContacts)
+					{
+						const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
+							(Particle2.ObjectState() == EObjectStateType::Kinematic &&
+								(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
+									Particle2.Geometry()->GetType() == FCapsule::StaticType()));
+
+						bSkipSleepingContact &= !bIsParticle2Kinematic;
+					}
+					else
+					{
+						bSkipSleepingContact &= bIsParticle2Dynamic;
+					}
+
+					if (Particle1.ObjectState() == EObjectStateType::Sleeping && bSkipSleepingContact)
 					{
 						//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
 						continue;
