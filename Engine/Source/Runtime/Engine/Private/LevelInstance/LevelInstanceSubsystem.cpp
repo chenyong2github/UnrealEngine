@@ -733,6 +733,10 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		check(CreationParams.PivotActor);
 		LevelInstanceLocation = CreationParams.PivotActor->GetActorLocation();
 	}
+	else if (CreationParams.PivotType == ELevelInstancePivotType::WorldOrigin)
+	{
+		LevelInstanceLocation = FVector(0.f, 0.f, 0.f);
+	}
 	else
 	{
 		LevelInstanceLocation = ActorLocationBox.GetCenter();
