@@ -38,7 +38,9 @@
 <Option Name="TestConfigurations" DefaultValue="$(PackageConfigurations)" Description="Configuration to test"/>
 
 <!-- No means of reliably running these tests atm -->
-<Option Name="PlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+Lumin+Stadia+TVOS" Restrict=".*" Description="List of platforms that tests won't be run on" />
+<Option Name="EditorPlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of editor platforms that editor tests won't be run on" />
+<Option Name="TargetPlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+Lumin+Stadia+TVOS" Restrict=".*" Description="List of target platforms that target tests won't be run on" />
+<Option Name="PlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of platforms that all tests won't be run on. Overrides Editor/TargetPlatformsToSkipTests when non-empty." />
 
 <!-- Support explicit flags for horde but hide them otherwise as the option list is overwhelming..-->
 <Do If="$(ShowExplicitFlags)" >
