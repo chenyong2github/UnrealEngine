@@ -1792,28 +1792,6 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, "LumenCardScene");
 
-class FNullCardBuffers : public FRenderResource
-{
-public:
-
-	virtual void InitRHI() override
-	{
-		EPixelFormat BufferFormat = PF_A32B32G32R32F;
-		uint32 BytesPerElement = GPixelFormats[BufferFormat].BlockBytes;
-		CardData.Initialize(TEXT("FNullCardBuffers"), BytesPerElement, 1, 0, false, false, ERHIAccess::SRVMask);
-	}
-
-	virtual void ReleaseRHI() override
-	{
-		CardData.Release();
-	}
-
-	FRWBufferStructured CardData;
-};
-
-TGlobalResource<FNullCardBuffers> GNullCardBuffers;
-
-
 void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenCardScene& OutParameters)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
@@ -1839,41 +1817,11 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 		OutParameters.DistantCardIndices[i] = LumenSceneData.DistantCardIndices[i];
 	}
 
-	if (LumenSceneData.CardBuffer.SRV)
-	{
-		OutParameters.CardData = LumenSceneData.CardBuffer.SRV;
-	}
-	else
-	{
-		OutParameters.CardData = GNullCardBuffers.CardData.SRV;
-	}
-
-	if (LumenSceneData.CardPageBuffer.SRV)
-	{
-		OutParameters.CardPageData = LumenSceneData.CardPageBuffer.SRV;
-	}
-	else
-	{
-		OutParameters.CardPageData = GNullCardBuffers.CardData.SRV;
-	}
-
-	if (LumenSceneData.GetPageTableBufferSRV())
-	{
-		OutParameters.PageTableBuffer = LumenSceneData.GetPageTableBufferSRV();
-	}
-	else
-	{
-		OutParameters.PageTableBuffer = GNullCardBuffers.CardData.SRV;
-	}
-
-	if (LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.SRV)
-	{
-		OutParameters.SceneInstanceIndexToMeshCardsIndexBuffer = LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.SRV;
-	}
-	else
-	{
-		OutParameters.SceneInstanceIndexToMeshCardsIndexBuffer = GNullCardBuffers.CardData.SRV;
-	}
+	OutParameters.CardData = LumenSceneData.CardBuffer.SRV;
+	OutParameters.MeshCardsData = LumenSceneData.MeshCardsBuffer.SRV;
+	OutParameters.CardPageData = LumenSceneData.CardPageBuffer.SRV;
+	OutParameters.PageTableBuffer = LumenSceneData.GetPageTableBufferSRV();
+	OutParameters.SceneInstanceIndexToMeshCardsIndexBuffer = LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.SRV;
 
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{
@@ -1890,8 +1838,6 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 		OutParameters.EmissiveAtlas = BlackDummyTextureRef;
 		OutParameters.DepthAtlas = BlackDummyTextureRef;
 	}
-	
-	OutParameters.MeshCardsData = LumenSceneData.MeshCardsBuffer.SRV;
 }
 
 DECLARE_GPU_STAT(UpdateCardSceneBuffer);
