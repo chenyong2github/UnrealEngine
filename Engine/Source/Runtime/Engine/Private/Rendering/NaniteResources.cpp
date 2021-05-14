@@ -1133,6 +1133,8 @@ void FGlobalResources::ReleaseRHI()
 		ScratchOccludedInstancesBuffer.SafeRelease();
 #endif
 
+		StructureBufferStride8.SafeRelease();
+
 		delete VertexFactory;
 		VertexFactory = nullptr;
 	}
