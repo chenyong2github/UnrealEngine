@@ -109,11 +109,10 @@ struct FFileIoStoreReadRequest
 
 	FFileIoStoreReadRequest()
 		: Sequence(NextSequence++)
-		, CreationTime(FPlatformTime::Cycles64())
 	{
+
 	}
 	FFileIoStoreReadRequest* Next = nullptr;
-	FFileIoStoreReadRequest* Previous = nullptr;
 	uint64 FileHandle = uint64(-1);
 	uint64 Offset = uint64(-1);
 	uint64 Size = uint64(-1);
@@ -124,309 +123,80 @@ struct FFileIoStoreReadRequest
 	TArray<FFileIoStoreCompressedBlock*, TInlineAllocator<8>> CompressedBlocks;
 	const uint32 Sequence;
 	int32 Priority = 0;
-	uint64 CreationTime;	// Potentially used to circuit break request ordering optimizations when outstanding requests have been delayed too long
 	FFileIoStoreBlockScatter ImmediateScatter;
 	bool bIsCacheable = false;
 	bool bFailed = false;
 	bool bCancelled = false;
 	EQueueStatus QueueStatus = QueueStatus_NotInQueue;
 
-#if DO_CHECK
-	// For debug checks that we are in the correct owning list for our intrusive next/previous pointers
-	uint32 ListCookie = 0;
-#endif
-
 private:
 	static uint32 NextSequence;
 };
 
-// Iterator class for traversing and emptying a list FFileIoStoreReadRequestList at the same time
-class FFileIoStoreReadRequestListStealingIterator
-{
-public:
-	FFileIoStoreReadRequestListStealingIterator(const FFileIoStoreReadRequestListStealingIterator&) = delete;
-	FFileIoStoreReadRequestListStealingIterator& operator=(const FFileIoStoreReadRequestListStealingIterator&) = delete;
-
-	FFileIoStoreReadRequestListStealingIterator(FFileIoStoreReadRequestListStealingIterator&& Other)
-	{
-		Current = Other.Current;
-		Next = Other.Next;
-
-		Other.Current = Other.Next = nullptr;
-	}
-
-	FFileIoStoreReadRequestListStealingIterator& operator=(FFileIoStoreReadRequestListStealingIterator&& Other)
-	{
-		Current = Other.Current;
-		Next = Other.Next;
-
-		Other.Current = Other.Next = nullptr;
-
-		return *this;
-	}
-
-	void operator++()
-	{
-		AdvanceTo(Next);
-	}
-
-	FFileIoStoreReadRequest* operator*()
-	{
-		return Current;
-	}
-
-	FFileIoStoreReadRequest* operator->()
-	{
-		return Current;
-	}
-
-	explicit operator bool() const
-	{
-		return Current != nullptr;
-	}
-
-private:
-	friend class FFileIoStoreReadRequestList; // Only the list can construct us
-
-	FFileIoStoreReadRequestListStealingIterator(FFileIoStoreReadRequest* InHead)
-	{
-#if DO_CHECK
-		// None of these nodes are members of the list any more
-		for (FFileIoStoreReadRequest* Cursor = InHead; Cursor; Cursor = Cursor->Next)
-		{
-			Cursor->ListCookie = 0;
-		}
-#endif
-
-		AdvanceTo(InHead);
-	}
-
-	void AdvanceTo(FFileIoStoreReadRequest* NewCurrent)
-	{
-		Current = NewCurrent;
-		if (Current)
-		{
-			// Copy off the next ptr and remove Current from its list so it can safely be added to another list
-			Next = Current->Next;
-			Current->Next = nullptr;
-		}
-		else
-		{
-			Next = nullptr;
-		}
-	}
-
-	FFileIoStoreReadRequest* Current = nullptr;
-	FFileIoStoreReadRequest* Next = nullptr;;
-};
-
-// Wrapper for doubly-linked intrusive list of FFileIoStoreReadRequest
-#define CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP (DO_CHECK && 0)
 class FFileIoStoreReadRequestList
 {
 public:
-	FFileIoStoreReadRequestList()
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-		: ListCookie(++NextListCookie)
-#endif
-	{
-	}
-
-	// Owns the Next/Previous pointers of the FFileIoStoreReadRequests it contains so it can't be copied
-	FFileIoStoreReadRequestList(const FFileIoStoreReadRequestList& Other) = delete;
-	FFileIoStoreReadRequestList& operator=(const FFileIoStoreReadRequestList& Other) = delete;
-
-	FFileIoStoreReadRequestList(FFileIoStoreReadRequestList&& Other)
-	{
-		Head = Other.Head;
-		Tail = Other.Tail;
-		Other.Head = Other.Tail = nullptr;
-
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-		for (FFileIoStoreReadRequest* Cursor = Head; Cursor; Cursor = Cursor->Next)
-		{
-			Cursor->ListCookie = ListCookie;
-		}
-#endif
-	}
-
-	FFileIoStoreReadRequestList& operator=(FFileIoStoreReadRequestList&& Other)
-	{
-		check(!Head && !Tail);
-
-		Head = Other.Head;
-		Tail = Other.Tail;
-		Other.Head = Other.Tail = nullptr;
-
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-		for (FFileIoStoreReadRequest* Cursor = Head; Cursor; Cursor = Cursor->Next)
-		{
-			Cursor->ListCookie = ListCookie;
-		}
-#endif
-
-		return *this;
-	}
-
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-	~FFileIoStoreReadRequestList()
-	{
-		// If anything is left in this list it should still think we own it
-		for (FFileIoStoreReadRequest* Cursor = Head; Cursor; Cursor = Cursor->Next)
-		{
-			check(Cursor->ListCookie == ListCookie);
-		}
-	}
-#endif
-
 	bool IsEmpty() const
 	{
 		return Head == nullptr;
 	}
 
-	// Steal the whole list for iteration and moving the contents to other lists
-	FFileIoStoreReadRequestListStealingIterator Steal()
-	{
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-		for (FFileIoStoreReadRequest* Cursor = Head; Cursor; Cursor = Cursor->Next)
-		{
-			check(Cursor->ListCookie == ListCookie);
-		}
-#endif
-
-		FFileIoStoreReadRequest* OldHead = Head;
-		Clear();
-		return FFileIoStoreReadRequestListStealingIterator(OldHead);
-	}
-
-	FFileIoStoreReadRequest* PeekHead() const
+	FFileIoStoreReadRequest* GetHead() const
 	{
 		return Head;
 	}
 
+	FFileIoStoreReadRequest* GetTail() const
+	{
+		return Tail;
+	}
+
 	void Add(FFileIoStoreReadRequest* Request)
 	{
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-		check(Request->ListCookie == 0);
-		Request->ListCookie = ListCookie;
-#endif
-
 		if (Tail)
 		{
 			Tail->Next = Request;
-			Request->Previous = Tail;
 		}
 		else
 		{
 			Head = Request;
-			Request->Previous = nullptr;
 		}
 		Tail = Request;
 		Request->Next = nullptr;
 	}
 
-
-	// Remove all FFileIoStoreReadRequests from List and add them to this list
-	void AppendSteal(FFileIoStoreReadRequestList& List)
+	void Append(FFileIoStoreReadRequest* ListHead, FFileIoStoreReadRequest* ListTail)
 	{
-		if (List.Head)
+		check(ListHead);
+		check(ListTail);
+		check(!ListTail->Next);
+		if (Tail)
 		{
-			FFileIoStoreReadRequest *ListHead = List.Head, *ListTail = List.Tail;
-			List.Clear();
-			AppendSteal(ListHead, ListTail);
-		}
-	}
-
-	void Remove(FFileIoStoreReadRequest* Request)
-	{
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-		check(Request);
-		check(Request->ListCookie == ListCookie);
-		Request->ListCookie = 0;
-#endif
-
-		if (Head == Request && Tail == Request)
-		{
-			check(Request->Next == nullptr);
-			check(Request->Previous == nullptr);
-
-			Head = Tail = nullptr;
-		}
-		else if (Head == Request)
-		{
-			check(Request->Previous == nullptr);
-
-			Head = Request->Next;
-			Head->Previous = nullptr;
-			Request->Next = nullptr;
-		}
-		else if (Tail == Request)
-		{
-			check(Request->Next == nullptr);
-
-			Tail = Request->Previous;
-			Tail->Next = nullptr;
-			Request->Previous = nullptr;
+			Tail->Next = ListHead;
 		}
 		else
 		{
-			check(Request->Next != nullptr && Request->Previous != nullptr); // Neither head nor tail should mean both links are live
+			Head = ListHead;
+		}
+		Tail = ListTail;
+	}
 
-			Request->Next->Previous = Request->Previous;
-			Request->Previous->Next = Request->Next;
-
-			Request->Next = Request->Previous = nullptr;
+	void Append(FFileIoStoreReadRequestList& List)
+	{
+		if (List.Head)
+		{
+			Append(List.Head, List.Tail);
 		}
 	}
 
 	void Clear()
 	{
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-		for (FFileIoStoreReadRequest* Cursor = Head; Cursor; Cursor = Cursor->Next)
-		{
-			check(Cursor->ListCookie == ListCookie);
-			Cursor->ListCookie = 0;
-		}
-#endif
 		Head = Tail = nullptr;
 	}
 
 private:
 	FFileIoStoreReadRequest* Head = nullptr;
 	FFileIoStoreReadRequest* Tail = nullptr;
-
-	uint32 ListCookie;
-	static uint32 NextListCookie;
-	
-	void AppendSteal(FFileIoStoreReadRequest* ListHead, FFileIoStoreReadRequest* ListTail)
-	{
-		check(ListHead);
-		check(ListTail);
-		check(!ListTail->Next);
-		check(!ListHead->Previous);
-		check(ListTail == ListHead || ListTail->Previous != nullptr);
-		check(ListTail == ListHead || ListHead->Next != nullptr);
-
-#if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
-		for (FFileIoStoreReadRequest* Cursor = ListHead; Cursor; Cursor = Cursor->Next)
-		{
-			check(Cursor->ListCookie == 0);
-			Cursor->ListCookie = ListCookie;
-		}
-#endif
-
-		if (Tail)
-		{
-			Tail->Next = ListHead;
-			ListHead->Previous = Tail;
-		}
-		else
-		{
-			Head = ListHead;
-			ListHead->Previous = nullptr;
-		}
-		Tail = ListTail;
-	}
 };
 
 class FFileIoStoreBufferAllocator
@@ -470,65 +240,13 @@ private:
 	uint64 ReadBufferSize = 0;
 };
 
-struct FFileIoStoreReadRequestSortKey
-{
-	uint64 Offset = 0;
-	uint64 Handle = 0;
-	int32 Priority = 0;
-
-	FFileIoStoreReadRequestSortKey() {}
-	FFileIoStoreReadRequestSortKey(FFileIoStoreReadRequest* Request)
-		: Offset(Request->Offset), Handle(Request->FileHandle), Priority(Request->Priority)
-	{
-	}
-};
-
-// Stores FFileIoStoreReadRequest sorted by file handle & offset with a parallel list sorted by insertion order 
-class FFileIoStoreOffsetSortedRequestQueue
-{
-public:
-	FFileIoStoreOffsetSortedRequestQueue(int32 InPriority);
-	FFileIoStoreOffsetSortedRequestQueue(const FFileIoStoreOffsetSortedRequestQueue&) = delete;
-	FFileIoStoreOffsetSortedRequestQueue(FFileIoStoreOffsetSortedRequestQueue&&) = default;
-	FFileIoStoreOffsetSortedRequestQueue& operator=(const FFileIoStoreOffsetSortedRequestQueue&) = delete;
-	FFileIoStoreOffsetSortedRequestQueue& operator=(FFileIoStoreOffsetSortedRequestQueue&&) = default;
-
-	int32 GetPriority() const { return Priority; }
-	bool IsEmpty() const { return Requests.Num() == 0; }
-	
-	// Remove all requests from this container and return them, for switching to a different queue scheme
-	TArray<FFileIoStoreReadRequest*> StealRequests();
-	// Remove all requests whose priority has been changed to something other than the Priority of this queue
-	TArray<FFileIoStoreReadRequest*> RemoveMisprioritizedRequests();
-
-	FFileIoStoreReadRequest* Peek(FFileIoStoreReadRequestSortKey LastSortKey);
-	FFileIoStoreReadRequest* Pop(FFileIoStoreReadRequestSortKey LastSortKey);
-	void Push(FFileIoStoreReadRequest* Request);
-
-private:
-	int32 Priority;
-	int32 PeekRequestIndex = INDEX_NONE;
-	
-	// Requests sorted by file handle & offset
-	TArray<FFileIoStoreReadRequest*> Requests;
-	
-	// Requests sorted by insertion order 
-	// We store this on the heap in case we get moved, FFileIoStoreReadRequest keeps pointers to FFileIoStoreReadRequestList for debugging
-	FFileIoStoreReadRequestList RequestsBySequence;
-
-	FFileIoStoreReadRequest* GetNextInternal(FFileIoStoreReadRequestSortKey LastSortKey, bool bPop);
-
-	static FFileIoStoreReadRequestSortKey RequestSortProjection(FFileIoStoreReadRequest* Request) { return FFileIoStoreReadRequestSortKey(Request); }
-	static bool RequestSortPredicate(const FFileIoStoreReadRequestSortKey& A, const FFileIoStoreReadRequestSortKey& B);
-};
-
 class FFileIoStoreRequestQueue
 {
 public:
 	FFileIoStoreReadRequest* Peek();
 	FFileIoStoreReadRequest* Pop();
-	void Push(FFileIoStoreReadRequest& Request);	// Takes ownership of Request and rewrites its intrustive linked list pointers
-	void Push(FFileIoStoreReadRequestList& Requests); // Consumes the request list and overwrites all intrustive linked list pointers
+	void Push(FFileIoStoreReadRequest& Request);
+	void Push(const FFileIoStoreReadRequestList& Requests);
 	void UpdateOrder();
 	void Lock();
 	void Unlock();
@@ -543,24 +261,9 @@ private:
 		}
 		return A.Priority > B.Priority;
 	}
-	void UpdateSortRequestsByOffset(); // Check if we need to switch sorting schemes based on the CVar
-	void PushToPriorityQueues(FFileIoStoreReadRequest* Request);
-	static int32 QueuePriorityProjection(const FFileIoStoreOffsetSortedRequestQueue& A) { return A.GetPriority(); }
-
-	bool bSortRequestsByOffset = false; // Cached value of CVar controlling whether we use Heap or SortedPriorityQueues
 	
-	// Heap sorted by request order
 	TArray<FFileIoStoreReadRequest*> Heap;
 	FCriticalSection CriticalSection;
-
-	// Queues sorted by increasing priority
-	TArray<FFileIoStoreOffsetSortedRequestQueue> SortedPriorityQueues; 
-	// The last offset, file handle and priority we popped so that we can pop the closest forward read for the next IO operation
-	FFileIoStoreReadRequestSortKey LastSortKey;
-
-#if !UE_BUILD_SHIPPING
-	TMap<int32, uint32> RequestPriorityCounts;
-#endif
 };
 
 template <typename T, uint16 SlabSize = 4096>

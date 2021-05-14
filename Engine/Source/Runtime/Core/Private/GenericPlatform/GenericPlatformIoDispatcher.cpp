@@ -159,5 +159,6 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 void FGenericFileIoStoreImpl::GetCompletedRequests(FFileIoStoreReadRequestList& OutRequests)
 {
 	FScopeLock _(&CompletedRequestsCritical);
-	OutRequests.AppendSteal(CompletedRequests);
+	OutRequests.Append(CompletedRequests);
+	CompletedRequests.Clear();
 }

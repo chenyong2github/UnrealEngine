@@ -83,8 +83,7 @@ public:
 	FFileIoStoreReadRequest* FindOrAddRawBlock(FFileIoStoreBlockKey Key, bool& bOutWasAdded);
 	void RemoveRawBlock(const FFileIoStoreReadRequest* RawBlock);
 	void AddReadRequestsToResolvedRequest(FFileIoStoreCompressedBlock* CompressedBlock, FFileIoStoreResolvedRequest& ResolvedRequest);
-	// This function takes ownership of the requests in the request list and empties it because of the intrusive linked list
-	void AddReadRequestsToResolvedRequest(FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest);
+	void AddReadRequestsToResolvedRequest(const FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest);
 	bool CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
 	void UpdatePriorityForIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
 	void ReleaseIoRequestReferences(FFileIoStoreResolvedRequest& ResolvedRequest);
