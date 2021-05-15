@@ -605,7 +605,7 @@ private:
 	struct FComparisonEntry
 	{
 		FMessageAddress Sender;
-		FString TestName;
+		FString ScreenshotPath;
 		TFuture<FImageComparisonResult> PendingComparison;
 	};
 
