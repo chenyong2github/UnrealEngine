@@ -5,11 +5,11 @@
 #include "CompositingElement.h"
 
 #include "CameraCalibrationTypes.h"
-#include "LensDistortionModelHandlerBase.h"
-
 #include "CompositingCaptureBase.generated.h"
 
 class USceneCaptureComponent2D;
+class ULensDistortionModelHandlerBase;
+
 
 /**
  * Base class for CG Compositing Elements
@@ -42,6 +42,7 @@ protected:
 	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
 
 public:
+
 	/** Default constructor */
 	ACompositingCaptureBase();
 
@@ -54,4 +55,12 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif	
 	//~ End UObject Interface
+
+public:
+
+	/** Sets whether distortion should be applied or not */
+	void SetApplyDistortion(bool bInApplyDistortion);
+
+	/** Sets which distortion handler to use when bInApplyDistortion is enabled */
+	void SetDistortionHandler(ULensDistortionModelHandlerBase* InDistortionHandler);
 };
