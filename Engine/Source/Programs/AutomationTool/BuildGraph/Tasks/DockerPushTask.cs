@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using AutomationTool;
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ using System.Text;
 using System.Text.Json;
 using System.Xml;
 
-namespace AutomationTool.Tasks
+namespace BuildGraph.Tasks
 {
 	/// <summary>
 	/// Parameters for a Docker-Build task
@@ -35,17 +36,29 @@ namespace AutomationTool.Tasks
 		public string TargetImage;
 
 		/// <summary>
-		/// Settings for logging in to AWS ECR
+		/// Additional environment variables
 		/// </summary>
 		[TaskParameter(Optional = true)]
-		public string AwsSettings;
+		public string Environment;
+
+		/// <summary>
+		/// File to read environment from
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string EnvironmentFile;
+
+		/// <summary>
+		/// Whether to login to AWS ECR
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool AwsEcr;
 	}
 
 	/// <summary>
 	/// Spawns Docker and waits for it to complete.
 	/// </summary>
 	[TaskElement("Docker-Push", typeof(DockerPushTaskParameters))]
-	public class DockerPushTask : CustomTask
+	public class DockerPushTask : SpawnTaskBase
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -69,24 +82,20 @@ namespace AutomationTool.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			FileReference DockerExe = CommandUtils.FindToolInPath("docker");
-			if(DockerExe == null)
-			{
-				throw new AutomationException("Unable to find path to Docker. Check you have it installed, and it is on your PATH.");
-			}
-
 			Log.TraceInformation("Pushing Docker image");
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
-				if (Parameters.AwsSettings != null)
+				Dictionary<string, string> Environment = ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile);
+
+				if (Parameters.AwsEcr)
 				{
-					string Password = AwsTask.Run("ecr get-login-password", ResolveFile(Parameters.AwsSettings), LogOutput: false);
-					RunDocker(DockerExe, $"login {Parameters.Repository} --username AWS --password-stdin", Password, CommandUtils.RootDirectory);
+					IProcessResult Result = SpawnTaskBase.Execute("aws", "ecr get-login-password", EnvVars: Environment, LogOutput: false);
+					Execute("docker", $"login {Parameters.Repository} --username AWS --password-stdin", Result.Output);
 				}
 
 				string TargetImage = Parameters.TargetImage ?? Parameters.Image;
-				RunDocker(DockerExe, $"tag {Parameters.Image} {Parameters.Repository}/{TargetImage}", null, CommandUtils.RootDirectory);
-				RunDocker(DockerExe, $"push {Parameters.Repository}/{TargetImage}", null, CommandUtils.RootDirectory);
+				Execute("docker", $"tag {Parameters.Image} {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
+				Execute("docker", $"push {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
 			}
 		}
 
@@ -119,7 +128,7 @@ namespace AutomationTool.Tasks
 		/// <returns>The tag names which are read by this task</returns>
 		public override IEnumerable<string> FindConsumedTagNames()
 		{
-			return FindTagNamesFromFilespec(Parameters.AwsSettings);
+			yield break;
 		}
 
 		/// <summary>
