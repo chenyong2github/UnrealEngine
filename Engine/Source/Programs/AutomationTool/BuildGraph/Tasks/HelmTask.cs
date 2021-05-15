@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using AutomationTool;
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
@@ -7,7 +8,7 @@ using System.IO;
 using System.Text;
 using System.Xml;
 
-namespace AutomationTool.Tasks
+namespace BuildGraph.Tasks
 {
 	/// <summary>
 	/// Parameters for a Helm task
@@ -45,6 +46,12 @@ namespace AutomationTool.Tasks
 		public List<string> Values;
 
 		/// <summary>
+		/// Environment variables to set
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string Environment;
+
+		/// <summary>
 		/// File to parse environment variables from
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -60,14 +67,14 @@ namespace AutomationTool.Tasks
 		/// Base directory for running the command
 		/// </summary>
 		[TaskParameter(Optional = true)]
-		public string BaseDir;
+		public string WorkingDir;
 	}
 
 	/// <summary>
 	/// Spawns Helm and waits for it to complete.
 	/// </summary>
 	[TaskElement("Helm", typeof(HelmTaskParameters))]
-	public class HelmTask : CustomTask
+	public class HelmTask : SpawnTaskBase
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -91,31 +98,10 @@ namespace AutomationTool.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			FileReference HelmExe = CommandUtils.FindToolInPath("helm");
-			if(HelmExe == null)
-			{
-				throw new AutomationException("Unable to find path to Helm. Check you have it installed, and it is on your PATH.");
-			}
-
-			Dictionary<string, string> Environment = new Dictionary<string, string>();
-			if (Parameters.EnvironmentFile != null)
-			{
-			}
-
 			// Switch Kubernetes config
 			if (Parameters.KubeContext != null)
 			{
-				FileReference KubectlExe = CommandUtils.FindToolInPath("kubectl");
-				if (KubectlExe == null)
-				{
-					throw new AutomationException("Unable to find path to Kubectl. Check you have it installed, and it is on your PATH.");
-				}
-
-				IProcessResult KubectlResult = CommandUtils.Run(KubectlExe.FullName, $"config use-context {Parameters.KubeContext}", null, WorkingDir: Parameters.BaseDir);
-				if (KubectlResult.ExitCode != 0)
-				{
-					throw new AutomationException("Kubectl terminated with an exit code indicating an error ({0})", KubectlResult.ExitCode);
-				}
+				Execute("kubectl", $"config use-context {Parameters.KubeContext}", WorkingDir: Parameters.WorkingDir);
 			}
 
 			// Build the argument list
@@ -136,11 +122,7 @@ namespace AutomationTool.Tasks
 				Arguments.Add(Value);
 			}
 
-			IProcessResult Result = CommandUtils.Run(HelmExe.FullName, CommandLineArguments.Join(Arguments), WorkingDir: Parameters.BaseDir);
-			if (Result.ExitCode != 0)
-			{
-				throw new AutomationException("Helm terminated with an exit code indicating an error ({0})", Result.ExitCode);
-			}
+			SpawnTaskBase.Execute("helm", CommandLineArguments.Join(Arguments), WorkingDir: Parameters.WorkingDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile));
 		}
 
 		/// <summary>

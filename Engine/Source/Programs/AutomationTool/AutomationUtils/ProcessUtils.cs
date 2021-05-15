@@ -10,6 +10,7 @@ using System.Management;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using EpicGames.Core;
+using UnrealBuildTool;
 
 namespace AutomationTool
 {
@@ -768,6 +769,11 @@ namespace AutomationTool
 			if (FileExists(Quiet, App))
 			{
 				return App;
+			}
+
+			if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64 && !Path.HasExtension(App))
+			{
+				App += ".exe";
 			}
 
 			string ResolvedPath = null;
