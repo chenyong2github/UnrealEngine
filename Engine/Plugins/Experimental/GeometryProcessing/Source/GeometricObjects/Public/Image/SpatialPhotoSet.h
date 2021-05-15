@@ -33,6 +33,8 @@ struct TSpatialPhoto
 	TImageBuilder<PixelType> Image;
 };
 typedef TSpatialPhoto<FVector4f> FSpatialPhoto4f;
+typedef TSpatialPhoto<FVector3f> FSpatialPhoto3f;
+typedef TSpatialPhoto<float> FSpatialPhoto1f;
 
 
 
@@ -83,6 +85,8 @@ protected:
 	TArray<TSharedPtr<TSpatialPhoto<PixelType>, ESPMode::ThreadSafe>> Photos;
 };
 typedef TSpatialPhotoSet<FVector4f, float> FSpatialPhotoSet4f;
+typedef TSpatialPhotoSet<FVector3f, float> FSpatialPhotoSet3f;
+typedef TSpatialPhotoSet<float, float> FSpatialPhotoSet1f;
 
 
 

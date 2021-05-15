@@ -168,16 +168,41 @@ bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<T
 
 	IGeometryProcessing_ApproximateActors::FOptions Options;
 	Options.BasePackagePath = PackageName;
+	Options.BasePolicy = (UseSettings.OutputType == EMeshApproximationType::MeshShapeOnly) ?
+		IGeometryProcessing_ApproximateActors::EApproximationPolicy::CollisionMesh :
+		IGeometryProcessing_ApproximateActors::EApproximationPolicy::MeshAndGeneratedMaterial;
 	Options.WorldSpaceApproximationAccuracyMeters = UseSettings.ApproximationAccuracy;
+
+	Options.bAutoThickenThinParts = UseSettings.bAttemptAutoThickening;
+	Options.AutoThickenThicknessMeters = UseSettings.TargetMinThicknessMultiplier * UseSettings.ApproximationAccuracy;
+
+	Options.BaseCappingPolicy = IGeometryProcessing_ApproximateActors::EBaseCappingPolicy::NoBaseCapping;
+	if (UseSettings.BaseCapping == EMeshApproximationBaseCappingType::ConvexPolygon)
+	{
+		Options.BaseCappingPolicy = IGeometryProcessing_ApproximateActors::EBaseCappingPolicy::ConvexPolygon;
+	}
+	else if (UseSettings.BaseCapping == EMeshApproximationBaseCappingType::ConvexSolid)
+	{
+		Options.BaseCappingPolicy = IGeometryProcessing_ApproximateActors::EBaseCappingPolicy::ConvexSolid;
+	}
+
 	Options.ClampVoxelDimension = UseSettings.ClampVoxelDimension;
 	Options.WindingThreshold = UseSettings.WindingThreshold;
 	Options.bApplyMorphology = UseSettings.bFillGaps;
 	Options.MorphologyDistanceMeters = UseSettings.GapDistance;
+
+	Options.OcclusionPolicy = (UseSettings.OcclusionMethod == EOccludedGeometryFilteringPolicy::VisibilityBasedFiltering) ?
+		IGeometryProcessing_ApproximateActors::EOcclusionPolicy::VisibilityBased : IGeometryProcessing_ApproximateActors::EOcclusionPolicy::None;
 	Options.FixedTriangleCount = UseSettings.TargetTriCount;
 	if (UseSettings.SimplifyMethod == EMeshApproximationSimplificationPolicy::TrianglesPerArea)
 	{
 		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::TrianglesPerUnitSqMeter;
 		Options.SimplificationTargetMetric = UseSettings.TrianglesPerM;
+	}
+	else if (UseSettings.SimplifyMethod == EMeshApproximationSimplificationPolicy::GeometricTolerance)
+	{
+		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::GeometricTolerance;
+		Options.SimplificationTargetMetric = UseSettings.GeometricDeviation;
 	}
 	else
 	{
@@ -192,6 +217,8 @@ bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<T
 	Options.FieldOfViewDegrees = UseSettings.CaptureFieldOfView;
 	Options.NearPlaneDist = UseSettings.NearPlaneDist;
 
+	Options.bVerbose = UseSettings.bPrintDebugMessages;
+	Options.bWriteDebugMesh = UseSettings.bEmitFullDebugMesh;
 
 	// run actor approximation computation
 	IGeometryProcessing_ApproximateActors::FResults Results;
@@ -202,7 +229,7 @@ bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<T
 	{
 		FAssetRegistryModule::AssetCreated(StaticMesh);
 	}
-	for (UMaterial* Material : Results.NewMaterials)
+	for (UMaterialInterface* Material : Results.NewMaterials)
 	{
 		FAssetRegistryModule::AssetCreated(Material);
 	}

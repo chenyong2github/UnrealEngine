@@ -83,17 +83,18 @@ public:
 	struct MODELINGCOMPONENTS_API FSceneSample
 	{
 		FRenderCaptureTypeFlags HaveValues;		// defines which channels have non-default values
-		FVector4f BaseColor;
-		FVector4f Roughness;
-		FVector4f Specular;
-		FVector4f Metallic;
-		FVector4f Emissive;
-		FVector4f WorldNormal;
+		FVector3f BaseColor;
+		float Roughness;
+		float Specular;
+		float Metallic;
+		FVector3f Emissive;
+		FVector3f WorldNormal;
 
 		FSceneSample();
 
 		/** @return value for the given captured channel, or default value */
-		FVector4f GetValue(ERenderCaptureType CaptureType) const;
+		FVector3f GetValue3f(ERenderCaptureType CaptureType) const;
+		FVector4f GetValue4f(ERenderCaptureType CaptureType) const;
 	};
 
 
@@ -122,12 +123,12 @@ protected:
 	bool bEnableWorldNormal = true;
 	bool bEnableEmissive = true;
 
-	FSpatialPhotoSet4f BaseColorPhotoSet;
-	FSpatialPhotoSet4f RoughnessPhotoSet;
-	FSpatialPhotoSet4f SpecularPhotoSet;
-	FSpatialPhotoSet4f MetallicPhotoSet;
-	FSpatialPhotoSet4f WorldNormalPhotoSet;
-	FSpatialPhotoSet4f EmissivePhotoSet;
+	FSpatialPhotoSet3f BaseColorPhotoSet;
+	FSpatialPhotoSet1f RoughnessPhotoSet;
+	FSpatialPhotoSet1f SpecularPhotoSet;
+	FSpatialPhotoSet1f MetallicPhotoSet;
+	FSpatialPhotoSet3f WorldNormalPhotoSet;
+	FSpatialPhotoSet3f EmissivePhotoSet;
 };
 
 

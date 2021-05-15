@@ -48,10 +48,26 @@ public:
 	 */
 	const TArray<TTransform3<RealType>,TInlineAllocator<2>>& GetTransforms() const { return Transforms; }
 
+
+	/**
+	 * @return true if any transform in the sequence has nonuniform scaling
+	 */
+	bool HasNonUniformScale(RealType Tolerance = TMathUtil<RealType>::ZeroTolerance) const
+	{
+		for (const TTransform3<RealType>& Transform : Transforms)
+		{
+			if (Transform.HasNonUniformScale(Tolerance))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * @return point P with transform sequence applied
 	 */
-	FVector3d TransformPosition(FVector3d P) const
+	FVector3<RealType> TransformPosition(UE::Math::TVector<RealType> P) const
 	{
 		for (const TTransform3<RealType>& Transform : Transforms)
 		{
@@ -63,7 +79,7 @@ public:
 	/**
 	 * @return point P with inverse transform sequence applied
 	 */
-	FVector3d InverseTransformPosition(FVector3d P) const
+	FVector3<RealType> InverseTransformPosition(UE::Math::TVector<RealType> P) const
 	{
 		int32 N = Transforms.Num();
 		for (int32 k = N - 1; k >= 0; k--)
@@ -74,20 +90,28 @@ public:
 	}
 
 	/**
-	 * Create an reversed transform sequence such that InverseSeq.Transform(P) is equivalent to Seq.InverseTransform(P).
-	 * This is more efficient if applying inverse many times as it saves lots of checking for invalid scaling.
-	 * @return inverse transform sequence
+	 * @return Vector V with transform sequence applied
 	 */
-	TTransformSequence3<RealType> Inverse() const
+	FVector3<RealType> TransformVector(UE::Math::TVector<RealType> V) const
 	{
-		TTransformSequence3 Inverse;
-		int32 N = Transforms.Num();
-		Inverse.Transforms.Reserve(N);
-		for (int32 k = N - 1; k >= 0; --k)
+		for (const TTransform3<RealType>& Transform : Transforms)
 		{
-			Inverse.Transforms.Add(Transforms[k].Inverse());
+			V = Transform.TransformVector(V);
 		}
-		return Inverse;
+		return V;
+	}
+
+
+	/**
+	 * @return Normal with transform sequence applied
+	 */
+	FVector3<RealType> TransformNormal(UE::Math::TVector<RealType> Normal) const
+	{
+		for (const TTransform3<RealType>& Transform : Transforms)
+		{
+			Normal = Transform.TransformNormal(Normal);
+		}
+		return Normal;
 	}
 
 
