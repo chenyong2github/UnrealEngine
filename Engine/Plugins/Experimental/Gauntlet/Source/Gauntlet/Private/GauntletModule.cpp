@@ -165,7 +165,7 @@ void FGauntletModuleImpl::ShutdownModule()
 		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	}
 
-	UE_LOG(LogGauntlet, Display, TEXT("Gauntlet Shutdown"));
+	UE_LOG(LogGauntlet, Log, TEXT("Gauntlet Shutdown"));
 
 }
 
