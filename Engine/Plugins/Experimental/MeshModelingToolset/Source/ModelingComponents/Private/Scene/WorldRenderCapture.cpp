@@ -224,7 +224,7 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 	const FFrame3d& ViewFrame,
 	double HorzFOVDegrees,
 	double NearPlaneDist,
-	TImageBuilder<FVector4f>& ResultImageOut)
+	FImageAdapter& ResultImageOut)
 {
 	// This function is a combination of CaptureFromPosition() and RenderSceneVisualizationToTexture() below,
 	// that attempts to capture Emissive. The difficulty with capturing Emissive is there is no Visualization
@@ -457,7 +457,7 @@ bool FWorldRenderCapture::CaptureFromPosition(
 	const FFrame3d& ViewFrame,
 	double HorzFOVDegrees,
 	double NearPlaneDist,
-	TImageBuilder<FVector4f>& ResultImageOut)
+	FImageAdapter& ResultImageOut)
 {
 	if (CaptureType == ERenderCaptureType::Emissive)
 	{

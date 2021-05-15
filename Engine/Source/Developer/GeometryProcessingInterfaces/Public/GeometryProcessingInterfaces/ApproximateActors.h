@@ -8,6 +8,7 @@
 class AActor;
 class UStaticMesh;
 class UMaterial;
+class UMaterialInterface;
 class UTexture2D;
 
 
@@ -36,11 +37,24 @@ public:
 		CollisionMesh
 	};
 
+	enum class EBaseCappingPolicy
+	{
+		NoBaseCapping = 0,
+		ConvexPolygon = 1,
+		ConvexSolid = 2
+	};
+
+	enum class EOcclusionPolicy : uint8
+	{
+		None = 0,
+		VisibilityBased = 1
+	};
 
 	enum class ESimplificationPolicy
 	{
 		FixedTriangleCount = 0,
-		TrianglesPerUnitSqMeter = 1
+		TrianglesPerUnitSqMeter = 1,
+		GeometricTolerance = 2
 	};
 
 
@@ -56,21 +70,32 @@ public:
 		EApproximationPolicy BasePolicy = EApproximationPolicy::MeshAndGeneratedMaterial;
 
 		//
+		// Mesh Preprocessing settings
+		//
+		bool bAutoThickenThinParts = false;
+		double AutoThickenThicknessMeters = 0.1;
+
+		EBaseCappingPolicy BaseCappingPolicy = EBaseCappingPolicy::NoBaseCapping;
+		double BaseThicknessOverrideMeters = 0.0;		// use this thickness for Solid. If zero, use AutoThickenThickness if bAutoThickenThinParts=true, otherwise use WorldSpaceApproximationAccuracyMeters
+		double BaseHeightOverrideMeters = 0.0;		// consider this height from MinZ as "base" region. If zero, use 2.0*WorldSpaceApproximationAccuracyMeters
+
+		//
 		// Shape Approximation settings
 		//
 
 		// Meshing settings (ie for voxelization)
-		float WorldSpaceApproximationAccuracyMeters = 1.0f;
-		int32 ClampVoxelDimension = 512;
+		double WorldSpaceApproximationAccuracyMeters = 1.0;
+		int32 ClampVoxelDimension = 1024;
 
-		float WindingThreshold = 0.5;
+		double WindingThreshold = 0.5;
 
 		bool bApplyMorphology = false;
-		float MorphologyDistanceMeters = 0.1;
+		double MorphologyDistanceMeters = 0.1;
 
+		EOcclusionPolicy OcclusionPolicy = EOcclusionPolicy::VisibilityBased;
 		ESimplificationPolicy MeshSimplificationPolicy = ESimplificationPolicy::FixedTriangleCount;
 		int32 FixedTriangleCount = 5000;
-		float SimplificationTargetMetric = 0.1;		// interpretation varies depending on MeshSimplificationPolicy
+		double SimplificationTargetMetric = 0.1;		// interpretation varies depending on MeshSimplificationPolicy
 
 		//
 		// Material approximation settings
@@ -78,13 +103,28 @@ public:
 		int32 RenderCaptureImageSize = 1024;
 
 		// render capture parameters
-		float FieldOfViewDegrees = 45.0f;
-		float NearPlaneDist = 1.0f;
+		double FieldOfViewDegrees = 45.0;
+		double NearPlaneDist = 1.0;
 
 
 		//
 		// Material output settings
 		//
+
+		// A new MIC derived from this material will be created and assigned to the generated mesh
+		UMaterialInterface* BakeMaterial = nullptr;		// if null, will use /MeshModelingToolset/Materials/FullMaterialBakePreviewMaterial instead
+		FName BaseColorTexParamName = FName("BaseColor");
+		bool bBakeBaseColor = true;
+		FName RoughnessTexParamName = FName("Roughness");
+		bool bBakeRoughness = true;
+		FName MetallicTexParamName = FName("Metallic");
+		bool bBakeMetallic = true;
+		FName SpecularTexParamName = FName("Specular");
+		bool bBakeSpecular = true;
+		FName EmissiveTexParamName = FName("Emissive");
+		bool bBakeEmissive = true;
+		FName NormalTexParamName = FName("NormalMap");
+		bool bBakeNormalMap = true;
 
 		// output texture options
 		int32 TextureImageSize = 1024;
@@ -92,6 +132,16 @@ public:
 		// supersampling parameter
 		int32 AntiAliasMultiSampling = 0;
 
+
+		//
+		// Debug settings
+		//
+
+		// print useful information to the Output Log 
+		bool bVerbose = false;
+
+		// create a flattened (ie non-instanced) mesh and save it with _DEBUG suffix. Warning often absolutely enormous!
+		bool bWriteDebugMesh = false;
 
 
 		// todo
@@ -117,7 +167,7 @@ public:
 
 		TArray<UStaticMesh*> NewMeshAssets;
 
-		TArray<UMaterial*> NewMaterials;
+		TArray<UMaterialInterface*> NewMaterials;
 		
 		TArray<UTexture2D*> NewTextures;
 

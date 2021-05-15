@@ -107,42 +107,57 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 		ViewFrame.Origin = (FVector3d)RenderSphere.Center;
 		ViewFrame.Origin -= (double)RenderSphere.W * ViewFrame.X();
 
-		FSpatialPhoto4f BasePhoto;
-		BasePhoto.Frame = ViewFrame;
-		BasePhoto.NearPlaneDist = NearPlaneDist;
-		BasePhoto.HorzFOVDegrees = HorizontalFOVDegrees;
-		BasePhoto.Dimensions = PhotoDimensions;
+		FSpatialPhoto3f BasePhoto3f;
+		BasePhoto3f.Frame = ViewFrame;
+		BasePhoto3f.NearPlaneDist = NearPlaneDist;
+		BasePhoto3f.HorzFOVDegrees = HorizontalFOVDegrees;
+		BasePhoto3f.Dimensions = PhotoDimensions;
 
-		auto CaptureImageTypeFunc = [&BasePhoto, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet4f& PhotoSet)
+		auto CaptureImageTypeFunc_3f = [&BasePhoto3f, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet3f& PhotoSet)
 		{
-			FSpatialPhoto4f NewPhoto = BasePhoto;
-			RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, NewPhoto.Image);
+			FSpatialPhoto3f NewPhoto = BasePhoto3f;
+			FImageAdapter Image(&NewPhoto.Image);
+			RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image);
+			PhotoSet.Add(MoveTemp(NewPhoto));
+		};
+
+		FSpatialPhoto1f BasePhoto1f;
+		BasePhoto1f.Frame = ViewFrame;
+		BasePhoto1f.NearPlaneDist = NearPlaneDist;
+		BasePhoto1f.HorzFOVDegrees = HorizontalFOVDegrees;
+		BasePhoto1f.Dimensions = PhotoDimensions;
+
+		auto CaptureImageTypeFunc_1f = [&BasePhoto1f, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet1f& PhotoSet)
+		{
+			FSpatialPhoto1f NewPhoto = BasePhoto1f;
+			FImageAdapter Image(&NewPhoto.Image);
+			RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image);
 			PhotoSet.Add(MoveTemp(NewPhoto));
 		};
 
 		if (bEnableBaseColor)
 		{
-			CaptureImageTypeFunc(ERenderCaptureType::BaseColor, BaseColorPhotoSet);
+			CaptureImageTypeFunc_3f(ERenderCaptureType::BaseColor, BaseColorPhotoSet);
 		}
 		if (bEnableRoughness)
 		{
-			CaptureImageTypeFunc(ERenderCaptureType::Roughness, RoughnessPhotoSet);
+			CaptureImageTypeFunc_1f(ERenderCaptureType::Roughness, RoughnessPhotoSet);
 		}
 		if (bEnableSpecular)
 		{
-			CaptureImageTypeFunc(ERenderCaptureType::Specular, SpecularPhotoSet);
+			CaptureImageTypeFunc_1f(ERenderCaptureType::Specular, SpecularPhotoSet);
 		}
 		if (bEnableMetallic)
 		{
-			CaptureImageTypeFunc(ERenderCaptureType::Metallic, MetallicPhotoSet);
+			CaptureImageTypeFunc_1f(ERenderCaptureType::Metallic, MetallicPhotoSet);
 		}
 		if (bEnableWorldNormal)
 		{
-			CaptureImageTypeFunc(ERenderCaptureType::WorldNormal, WorldNormalPhotoSet);
+			CaptureImageTypeFunc_3f(ERenderCaptureType::WorldNormal, WorldNormalPhotoSet);
 		}
 		if (bEnableEmissive)
 		{
-			CaptureImageTypeFunc(ERenderCaptureType::Emissive, EmissivePhotoSet);
+			CaptureImageTypeFunc_3f(ERenderCaptureType::Emissive, EmissivePhotoSet);
 		}
 	}
 
@@ -163,15 +178,15 @@ void FSceneCapturePhotoSet::OptimizePhotoSets()
 FSceneCapturePhotoSet::FSceneSample::FSceneSample()
 {
 	HaveValues = FRenderCaptureTypeFlags::None();
-	BaseColor = FVector4f(0, 0, 0, 1);
-	Roughness = FVector4f(0, 0, 0, 1);
-	Specular = FVector4f(0, 0, 0, 1);
-	Metallic = FVector4f(0, 0, 0, 1);
-	Emissive = FVector4f(0, 0, 0, 1);
-	WorldNormal = FVector4f(0, 0, 1, 1);
+	BaseColor = FVector3f(0, 0, 0);
+	Roughness = 0.0f;
+	Specular = 0.0f;
+	Metallic = 0.0f;
+	Emissive = FVector3f(0, 0, 0);
+	WorldNormal = FVector3f(0, 0, 1);
 }
 
-FVector4f FSceneCapturePhotoSet::FSceneSample::GetValue(ERenderCaptureType CaptureType) const
+FVector3f FSceneCapturePhotoSet::FSceneSample::GetValue3f(ERenderCaptureType CaptureType) const
 {
 	switch (CaptureType)
 	{
@@ -180,18 +195,41 @@ FVector4f FSceneCapturePhotoSet::FSceneSample::GetValue(ERenderCaptureType Captu
 	case ERenderCaptureType::WorldNormal:
 		return WorldNormal;
 	case ERenderCaptureType::Roughness:
-		return Roughness;
+		return Roughness * FVector3f::One();
 	case ERenderCaptureType::Metallic:
-		return Metallic;
+		return Metallic * FVector3f::One();
 	case ERenderCaptureType::Specular:
-		return Specular;
+		return Specular * FVector3f::One();
 	case ERenderCaptureType::Emissive:
 		return Emissive;
 	default:
 		check(false);
 	}
+	return FVector3f::Zero();
+}
+
+FVector4f FSceneCapturePhotoSet::FSceneSample::GetValue4f(ERenderCaptureType CaptureType) const
+{
+	switch (CaptureType)
+	{
+	case ERenderCaptureType::BaseColor:
+		return FVector4f(BaseColor.X, BaseColor.Y, BaseColor.Z, 1.0f);
+	case ERenderCaptureType::WorldNormal:
+		return FVector4f(WorldNormal.X, WorldNormal.Y, WorldNormal.Z, 1.0f);
+	case ERenderCaptureType::Roughness:
+		return FVector4f(Roughness, Roughness, Roughness, 1.0f);
+	case ERenderCaptureType::Metallic:
+		return FVector4f(Metallic, Metallic, Metallic, 1.0f);
+	case ERenderCaptureType::Specular:
+		return FVector4f(Specular, Specular, Specular, 1.0f);
+	case ERenderCaptureType::Emissive:
+		return FVector4f(Emissive.X, Emissive.Y, Emissive.Z, 1.0f);
+	default:
+		check(false);
+	}
 	return FVector4f::Zero();
 }
+
 
 
 bool FSceneCapturePhotoSet::ComputeSample(

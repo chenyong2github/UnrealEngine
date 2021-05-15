@@ -34,7 +34,8 @@ protected:
 		const FOptions& Options,
 		FResults& ResultsOut,
 		FDynamicMesh3* FinalMesh,
-		UMaterialInterface* Material = nullptr);
+		UMaterialInterface* Material = nullptr,
+		FDynamicMesh3* DebugMesh = nullptr);
 };
 
 

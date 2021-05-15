@@ -241,9 +241,82 @@ public:
 
 		return DownsampleImage;
 	}
-	
-
 };
+
+
+/**
+ * FImageAdapter is a wrapper around different types of TImageBuilder that provides a
+ * standard interface, which allows functions that don't need to know about the specific
+ * image type to operate on "any" image. For example to allow code that works on a 4-channel
+ * image to operate on a single-channel image (in which case the Adapter will expand/collapse
+ * the channels automatically).
+ */
+class FImageAdapter
+{
+public:
+
+	enum class EImageType
+	{
+		Float1,
+		Float3,
+		Float4
+	};
+
+	FImageAdapter(TImageBuilder<float>* Image)
+	{
+		ImageType = EImageType::Float1;
+		Image1f = Image;
+	}
+
+	FImageAdapter(TImageBuilder<FVector3f>* Image)
+	{
+		ImageType = EImageType::Float3;
+		Image3f = Image;
+	}
+
+	FImageAdapter(TImageBuilder<FVector4f>* Image)
+	{
+		ImageType = EImageType::Float4;
+		Image4f = Image;
+	}
+
+	void SetDimensions(FImageDimensions Dimensions)
+	{
+		switch (ImageType)
+		{
+		case EImageType::Float1:
+			Image1f->SetDimensions(Dimensions); break;
+		case EImageType::Float3:
+			Image3f->SetDimensions(Dimensions); break;
+		case EImageType::Float4:
+			Image4f->SetDimensions(Dimensions); break;
+		}
+	}
+
+	void SetPixel(const FVector2i& PixelCoords, const FVector4f& FloatPixel)
+	{
+		switch (ImageType)
+		{
+		case EImageType::Float1:
+			Image1f->SetPixel(PixelCoords, FloatPixel.X); 
+			break;
+		case EImageType::Float3:
+			Image3f->SetPixel(PixelCoords, FVector3f(FloatPixel.X, FloatPixel.Y, FloatPixel.Z)); 
+			break;
+		case EImageType::Float4:
+			Image4f->SetPixel(PixelCoords, FloatPixel); 
+			break;
+		}
+	}
+
+protected:
+	EImageType ImageType;
+
+	TImageBuilder<float>* Image1f = nullptr;
+	TImageBuilder<FVector3f>* Image3f = nullptr;
+	TImageBuilder<FVector4f>* Image4f = nullptr;
+};
+
 
 
 } // end namespace UE::Geometry
