@@ -35,10 +35,10 @@ namespace AutomationTool.Tasks
 		public string TargetImage;
 
 		/// <summary>
-		/// Path to a credentials file
+		/// Settings for logging in to AWS ECR
 		/// </summary>
 		[TaskParameter(Optional = true)]
-		public string CredentialsFile;
+		public string AwsSettings;
 	}
 
 	/// <summary>
@@ -47,72 +47,6 @@ namespace AutomationTool.Tasks
 	[TaskElement("Docker-Push", typeof(DockerPushTaskParameters))]
 	public class DockerPushTask : CustomTask
 	{
-		/// <summary>
-		/// Base class for credentials that can be read from a JSON file
-		/// </summary>
-		[JsonKnownTypes(typeof(BasicDockerCredentials), typeof(AwsDockerCredentials))]
-		abstract class DockerCredentials
-		{
-			public abstract (string UserName, string Password) Resolve();
-		}
-
-		/// <summary>
-		/// Basic credentials
-		/// </summary>
-		[JsonDiscriminator("Basic")]
-		class BasicDockerCredentials : DockerCredentials
-		{
-			public string UserName { get; set; }
-			public string Password { get; set; }
-
-			public override (string, string) Resolve() => (UserName, Password);
-		}
-
-		/// <summary>
-		/// AWS credentials
-		/// </summary>
-		[JsonDiscriminator("AWS")]
-		class AwsDockerCredentials : DockerCredentials
-		{
-			public string Region { get; set; }
-			public string AccessKey { get; set; }
-			public string SecretKey { get; set; }
-
-			public override (string, string) Resolve()
-			{
-				Dictionary<string, string> EnvVars = new Dictionary<string, string>();
-				if (AccessKey != null)
-				{
-					EnvVars.Add("AWS_ACCESS_KEY_ID", AccessKey);
-				}
-				if(SecretKey != null)
-				{
-					EnvVars.Add("AWS_SECRET_ACCESS_KEY", SecretKey);
-				}
-
-				FileReference AwsExe = CommandUtils.FindToolInPath("aws");
-				if (AwsExe == null)
-				{
-					throw new AutomationException("Unable to find path to AWSCLI. Check you have it installed, and it is on your PATH.");
-				}
-
-				StringBuilder Arguments = new StringBuilder("ecr get-login-password");
-				if(Region != null)
-				{
-					Arguments.Append($" --region {Region}");
-				}
-
-				IProcessResult Result = CommandUtils.Run(AwsExe.FullName, Arguments.ToString(), Env: EnvVars, Options: CommandUtils.ERunOptions.None);
-				if (Result.ExitCode != 0)
-				{
-					Log.TraceInformation(Result.Output);
-					throw new AutomationException("AWSCLI terminated with an exit code indicating an error ({0})", Result.ExitCode);
-				}
-
-				return ("AWS", Result.Output);
-			}
-		}
-
 		/// <summary>
 		/// Parameters for this task
 		/// </summary>
@@ -144,20 +78,10 @@ namespace AutomationTool.Tasks
 			Log.TraceInformation("Pushing Docker image");
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
-				if (Parameters.CredentialsFile != null)
+				if (Parameters.AwsSettings != null)
 				{
-					FileReference CredentialsFile = ResolveFile(Parameters.CredentialsFile);
-					byte[] Data = FileReference.ReadAllBytes(CredentialsFile);
-
-					JsonSerializerOptions Options = new JsonSerializerOptions();
-					Options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-					Options.PropertyNameCaseInsensitive = true;
-					Options.Converters.Add(new JsonKnownTypesConverterFactory());
-
-					DockerCredentials Credentials = JsonSerializer.Deserialize<DockerCredentials>(Data, Options);
-					(string UserName, string Password) = Credentials.Resolve();
-
-					RunDocker(DockerExe, $"login {Parameters.Repository} --username {UserName} --password-stdin", Password, CommandUtils.RootDirectory);
+					string Password = AwsTask.Run("ecr get-login-password", ResolveFile(Parameters.AwsSettings), LogOutput: false);
+					RunDocker(DockerExe, $"login {Parameters.Repository} --username AWS --password-stdin", Password, CommandUtils.RootDirectory);
 				}
 
 				string TargetImage = Parameters.TargetImage ?? Parameters.Image;
@@ -195,7 +119,7 @@ namespace AutomationTool.Tasks
 		/// <returns>The tag names which are read by this task</returns>
 		public override IEnumerable<string> FindConsumedTagNames()
 		{
-			return FindTagNamesFromFilespec(Parameters.CredentialsFile);
+			return FindTagNamesFromFilespec(Parameters.AwsSettings);
 		}
 
 		/// <summary>
