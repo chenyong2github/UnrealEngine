@@ -7,6 +7,7 @@
 #include "BoxTypes.h"
 #include "TransformTypes.h"
 #include "TransformSequence.h"
+#include "DynamicMesh3.h"
 
 class AActor;
 class UActorComponent;
@@ -16,25 +17,6 @@ namespace UE
 {
 namespace Geometry
 {
-
-
-/**
- * Abstract interface to a spatial data structure for a mesh
- */
-class MODELINGCOMPONENTS_API IMeshSpatialWrapper
-{
-public:
-	virtual ~IMeshSpatialWrapper() {}
-
-	/** If possible, spatial data structure should defer construction until this function, which will be called off the game thread (in ParallelFor) */
-	virtual bool Build() = 0;
-
-	/** Calculate the mesh winding number at the given Position. Must be callable in parallel from any thread.  */
-	virtual double FastWindingNumber(const FVector3d& P) = 0;
-
-	/** Collect a set of seed points from this Mesh, mapped through LocalToWorldFunc to world space. Must be callable in parallel from any thread. */
-	virtual void CollectSeedPoints(TArray<FVector3d>& WorldPoints, TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) = 0;
-};
 
 
 /**
@@ -75,6 +57,57 @@ struct MODELINGCOMPONENTS_API FMeshTypeContainer
 };
 
 
+
+/**
+ * Configuration for FMeshSceneAdapter::Build()
+ */
+struct FMeshSceneAdapterBuildOptions
+{
+	bool bPrintDebugMessages = false;
+
+	/** If true, find approximately-planar meshes with a main dimension below DesiredMinThickness and thicken them to DesiredMinThickness  */
+	bool bThickenThinMeshes = false;
+	/** Thickness used for bThickenThinMeshes processing */
+	double DesiredMinThickness = 0.1;
+};
+
+
+
+
+
+/**
+ * Abstract interface to a spatial data structure for a mesh
+ */
+class MODELINGCOMPONENTS_API IMeshSpatialWrapper
+{
+public:
+	virtual ~IMeshSpatialWrapper() {}
+
+	FMeshTypeContainer SourceContainer;
+
+	/** If possible, spatial data structure should defer construction until this function, which will be called off the game thread (in ParallelFor) */
+	virtual bool Build(const FMeshSceneAdapterBuildOptions& BuildOptions) = 0;
+
+	/*** @return triangle count for this mesh */
+	virtual int32 GetTriangleCount() = 0;
+
+	/** Calculate bounding box for this Mesh */
+	virtual FAxisAlignedBox3d GetWorldBounds(TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) = 0;
+
+	/** Calculate the mesh winding number at the given Position. Must be callable in parallel from any thread.  */
+	virtual double FastWindingNumber(const FVector3d& P, const FTransformSequence3d& LocalToWorldTransform) = 0;
+
+	/** Collect a set of seed points from this Mesh, mapped through LocalToWorldFunc to world space. Must be callable in parallel from any thread. */
+	virtual void CollectSeedPoints(TArray<FVector3d>& WorldPoints, TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) = 0;
+
+	/** apply ProcessFunc to each vertex in world space */
+	virtual void ProcessVerticesInWorld(TFunctionRef<void(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) = 0;
+
+	/** Append the geometry represented by this wrapper to the accumulated AppendTo mesh, under the given world transform */
+	virtual void AppendMesh(FDynamicMesh3& AppendTo, const FTransformSequence3d& TransformSeq) = 0;
+};
+
+
 /**
  * EActorMeshComponentType enum is used to determine which type of Component 
  * an FActorChildMesh represents.
@@ -84,6 +117,8 @@ enum class EActorMeshComponentType
 	StaticMesh,
 	InstancedStaticMesh,
 	HierarchicalInstancedStaticMesh,
+
+	InternallyGeneratedComponent,
 
 	Unknown
 };
@@ -97,6 +132,10 @@ enum class EActorMeshComponentType
 struct MODELINGCOMPONENTS_API FActorChildMesh
 {
 public:
+	FActorChildMesh() {}
+	FActorChildMesh(const FActorChildMesh&) = delete;		// must delete to allow TArray<TUniquePtr> in FActorAdapter
+	FActorChildMesh(FActorChildMesh&&) = delete;
+
 	/** the Component this Mesh was generated from, if there is one. */
 	UActorComponent* SourceComponent = nullptr;
 	/** Type of SourceComponent, if known */
@@ -107,8 +146,8 @@ public:
 	/** Wrapper around the Mesh this FActorChildMesh refers to (eg from a StaticMeshAsset, etc) */
 	FMeshTypeContainer MeshContainer;
 	/** Local-to-World transformation of the Mesh in the MeshContainer */
-	UE::Geometry::FTransformSequence3d WorldTransform;
-	UE::Geometry::FTransformSequence3d WorldTransformInverse;
+	FTransformSequence3d WorldTransform;
+	bool bIsNonUniformScaled = false;
 
 	/** Spatial data structure that represents the Mesh in MeshContainer - assumption is this is owned externally */
 	IMeshSpatialWrapper* MeshSpatial;
@@ -130,9 +169,9 @@ public:
 	// the AActor this Adapter represents
 	AActor* SourceActor = nullptr;
 	// set of child Meshes with transforms
-	TArray<FActorChildMesh> ChildMeshes;
+	TArray<TUniquePtr<FActorChildMesh>> ChildMeshes;
 	// World-space bounds of this Actor (meshes)
-	UE::Geometry::FAxisAlignedBox3d WorldBounds;
+	FAxisAlignedBox3d WorldBounds;
 };
 
 
@@ -155,11 +194,39 @@ public:
 	FMeshSceneAdapter(const FMeshSceneAdapter&) = delete;		// must delete this due to TArray<TUniquePtr> member
 	FMeshSceneAdapter(FMeshSceneAdapter&&) = delete;
 
-	/** Add the  given Actors to our Actor set */
+	/** Add the given Actors to our Actor set. */
 	void AddActors(const TArray<AActor*>& ActorsSetIn);
 
+	/** Build */
+	void Build(const FMeshSceneAdapterBuildOptions& BuildOptions);
+
+	/**
+	 * Generate a new mesh that "caps" the mesh scene on the bottom. This can be used in cases where
+	 * the geometry is open on the base, to fill in the hole, which allows things like mesh-solidification
+	 * to work better. The base mesh is a polygon which can be optionally extruded.
+	 * Currently the closing mesh is a convex hull, todo: implement a better option
+	 * @param BaseHeight the height in world units from the bounding-box MinZ to consider as part of the "base".
+	 * @param ExtrudeHeight height in world units to extrude the generated base. Positive is in +Z direction. If zero, an open-boundary polygon is generated instead.
+	 */
+	void GenerateBaseClosingMesh(double BaseHeight = 1.0, double ExtrudeHeight = 0.0);
+
+	/**
+	 * Statistics about the mesh scene returned by GetGeometryStatistics()
+	 */
+	struct FStatistics
+	{
+		int32 UniqueMeshCount = 0;
+		int32 UniqueMeshTriangleCount = 0;
+
+		int32 InstanceMeshCount = 0;
+		int32 InstanceMeshTriangleCount = 0;
+	};
+
 	/** @return bounding box for the Actor set */
-	virtual UE::Geometry::FAxisAlignedBox3d GetBoundingBox();
+	virtual void GetGeometryStatistics(FStatistics& StatsOut);
+
+	/** @return bounding box for the Actor set */
+	virtual FAxisAlignedBox3d GetBoundingBox();
 
 	/** @return a set of points on the surface of the meshes, can be used to initialize the MarchingCubes mesher */
 	virtual void CollectMeshSeedPoints(TArray<FVector3d>& PointsOut);
@@ -167,13 +234,27 @@ public:
 	/** @return FastWindingNumber computed across all mesh Actors/Components */
 	virtual double FastWindingNumber(const FVector3d& P);
 
+	/** Append all instance triangles to a single mesh. May be very large. */
+	virtual void GetAccumulatedMesh(FDynamicMesh3& AccumMesh);
+
 protected:
 
 	// top-level list of ActorAdapters, which represent each Actor and set of Components
 	TArray<TUniquePtr<FActorAdapter>> SceneActors;
 
+	struct FSpatialWrapperInfo
+	{
+		FMeshTypeContainer SourceContainer;
+		TArray<FActorChildMesh*> ParentMeshes;
+		int32 NonUniformScaleCount = 0;
+		TUniquePtr<IMeshSpatialWrapper> SpatialWrapper;
+	};
+
 	// Unique set of spatial data structure query interfaces, one for each Mesh object, which is identified by void* pointer
-	TMap<void*, TSharedPtr<IMeshSpatialWrapper>> SpatialAdapters;
+	TMap<void*, TSharedPtr<FSpatialWrapperInfo>> SpatialAdapters;
+
+	bool bEnableClipPlane = false;
+	FFrame3d ClipPlane;
 };
 
 

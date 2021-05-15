@@ -106,7 +106,7 @@ public:
 		const FFrame3d& ViewFrame,
 		double HorzFOVDegrees,
 		double NearPlaneDist,
-		TImageBuilder<FVector4f>& ResultImageOut);
+		FImageAdapter& ResultImageOut);
 
 protected:
 	UWorld* World;
@@ -131,7 +131,7 @@ protected:
 		const FFrame3d& Frame,
 		double HorzFOVDegrees,
 		double NearPlaneDist,
-		TImageBuilder<FVector4f>& ResultImageOut);
+		FImageAdapter& ResultImageOut);
 };
 
 

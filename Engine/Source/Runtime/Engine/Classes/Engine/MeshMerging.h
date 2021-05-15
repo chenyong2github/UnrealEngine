@@ -679,11 +679,36 @@ struct FMeshInstancingSettings
 	TSubclassOf<UInstancedStaticMeshComponent> ISMComponentToUse;
 };
 
+
+UENUM()
+enum class EMeshApproximationType : uint8
+{
+	MeshAndMaterials,
+	MeshShapeOnly
+};
+
+UENUM()
+enum class EMeshApproximationBaseCappingType : uint8
+{
+	NoBaseCapping = 0,
+	ConvexPolygon = 1,
+	ConvexSolid = 2
+};
+
+
+UENUM()
+enum class EOccludedGeometryFilteringPolicy : uint8
+{
+	NoOcclusionFiltering = 0,
+	VisibilityBasedFiltering = 1
+};
+
 UENUM()
 enum class EMeshApproximationSimplificationPolicy : uint8
 {
 	FixedTriangleCount = 0,
-	TrianglesPerArea = 1
+	TrianglesPerArea = 1,
+	GeometricTolerance = 2
 };
 
 
@@ -692,13 +717,30 @@ struct FMeshApproximationSettings
 {
 	GENERATED_BODY()
 
+	/** Type of output from mesh approximation process */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings)
+	EMeshApproximationType OutputType = EMeshApproximationType::MeshAndMaterials;
+
 	/** Approximation Accuracy in Meters, will determine (eg) voxel resolution */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.1"))
 	float ApproximationAccuracy = 1.0;
 
 	/** Maximum allowable voxel count along main directions. This is a limit on ApproximationAccuracy */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = ShapeSettings, meta = (ClampMin = "64"))
-	int32 ClampVoxelDimension = 512;
+	int32 ClampVoxelDimension = 1024;
+
+	/** if enabled, we will attempt to auto-thicken thin parts or flat sheets */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings)
+	bool bAttemptAutoThickening = true;
+
+	/** Multiplier on Approximation Accuracy used for auto-thickening */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.1", EditCondition = "bAttemptAutoThickening"))
+	float TargetMinThicknessMultiplier = 1.5;
+
+	/** Optional methods to attempt to close off the bottom of open meshes */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings)
+	EMeshApproximationBaseCappingType BaseCapping = EMeshApproximationBaseCappingType::NoBaseCapping;
+
 
 	/** */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.01", ClampMax = "0.99"))
@@ -711,25 +753,39 @@ struct FMeshApproximationSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.1", EditCondition = "bFillGaps"))
 	float GapDistance = 0.1;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings)
-	EMeshApproximationSimplificationPolicy SimplifyMethod = EMeshApproximationSimplificationPolicy::FixedTriangleCount;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "16", EditCondition = "SimplifyMethod == EMeshApproximationSimplificationPolicy::FixedTriangleCount" ))
+	/** Type of hidden geometry removal to apply */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SimplifySettings)
+	EOccludedGeometryFilteringPolicy OcclusionMethod = EOccludedGeometryFilteringPolicy::VisibilityBasedFiltering;
+
+	/** Mesh simplification criteria */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SimplifySettings)
+	EMeshApproximationSimplificationPolicy SimplifyMethod = EMeshApproximationSimplificationPolicy::GeometricTolerance;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SimplifySettings, meta = (ClampMin = "16", EditCondition = "SimplifyMethod == EMeshApproximationSimplificationPolicy::FixedTriangleCount" ))
 	int32 TargetTriCount = 2000;
 
 	/** Approximate Number of triangles per Square Meter */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.01", EditCondition = "SimplifyMethod == EMeshApproximationSimplificationPolicy::TrianglesPerArea" ))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SimplifySettings, meta = (ClampMin = "0.01", EditCondition = "SimplifyMethod == EMeshApproximationSimplificationPolicy::TrianglesPerArea" ))
 	float TrianglesPerM = 2.0f;
 
+	/** Allowable Geometric Deviation in Meters when SimplifyMethod incorporates a Geometric Tolerance */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SimplifySettings, meta = (ClampMin = "0.0001", EditCondition = "SimplifyMethod == EMeshApproximationSimplificationPolicy::GeometricTolerance"))
+	float GeometricDeviation = 0.1f;
 
 
-	/** Material simplification */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MaterialSettings)
-	FMaterialProxySettings MaterialSettings;
 
 	/** If Value is > 1, Multisample output baked textures by this amount in each direction (eg 4 == 16x supersampling) */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = MaterialSettings, meta = (ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "4"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "4"))
 	int32 MultiSamplingAA = 0;
+
+	/** If Value is zero, use MaterialSettings resolution, otherwise override the render capture resolution */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "128"))
+	int32 RenderCaptureResolution = 2048;
+
+	/** Material generation settings */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MaterialSettings)
+	FMaterialProxySettings MaterialSettings;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = MaterialSettings, meta = (ClampMin = "5.0", ClampMax = "160.0"))
 	float CaptureFieldOfView = 30.0f;
@@ -737,14 +793,22 @@ struct FMeshApproximationSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = MaterialSettings, meta = (ClampMin = "0.001", ClampMax = "1000.0"))
 	float NearPlaneDist = 1.0f;
 
-	/** If Value is zero, use MaterialSettings resolution, otherwise override the render capture resolution */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = MaterialSettings, meta = (ClampMin = "128"))
-	int32 RenderCaptureResolution = 0;
+
+
+	/** If true, print out debugging messages */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = DebugSettings)
+	bool bPrintDebugMessages = false;
+
+	/** If true, write the full mesh triangle set (ie flattened, non-instanced) used for mesh generation. Warning: this asset may be extremely large!! */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = DebugSettings)
+	bool bEmitFullDebugMesh = false;
+
 
 	/** Equality operator. */
 	bool operator==(const FMeshApproximationSettings& Other) const
 	{
-		return ApproximationAccuracy == Other.ApproximationAccuracy
+		return OutputType == Other.OutputType
+			&& ApproximationAccuracy == Other.ApproximationAccuracy
 			&& ClampVoxelDimension == Other.ClampVoxelDimension
 			&& WindingThreshold == Other.WindingThreshold
 			&& bFillGaps == Other.bFillGaps
