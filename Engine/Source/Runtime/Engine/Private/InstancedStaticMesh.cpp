@@ -2677,8 +2677,7 @@ void UInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 	else
 #endif //WITH_EDITOR
 	{
-		// LWC_TODO: Perf pessimization. PerInstance data contains an FMatrix so can't be bulk serialized
-		PerInstanceSMData.BulkSerialize(Ar, true);
+		PerInstanceSMData.BulkSerialize(Ar, !UE_LARGE_WORLD_COORDINATES_DISABLED); // LWC_TODO: Need to force per element with LWC-on PerInstance data contains an FMatrix
 	}
 
 	if (!Ar.IsLoading() || Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::PerInstanceCustomData)
