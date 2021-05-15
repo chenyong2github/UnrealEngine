@@ -192,6 +192,7 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 				FGeometryCollectionConvexUtility::FGeometryCollectionConvexData ConvexData = FGeometryCollectionConvexUtility::GetValidConvexHullData(GeometryCollection);
 				const TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
 				const TManagedArray<int32>& Parent = GeometryCollection->Parent;
+				const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 				TArray<FTransform> BoneGlobalTransforms;
 				GeometryCollectionAlgo::GlobalMatrices(Transform, Parent, BoneGlobalTransforms);
 
@@ -199,23 +200,27 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 				FVector ComponentSpaceLocation = WorldToComponent.TransformPosition(SMLocation);
 
 				int32 NumConvex = ConvexData.ConvexHull.Num();
-				for (int32 ConvexIndex = 0; ConvexIndex < NumConvex; ++ConvexIndex)
+				for (int32 TransformIndex = 0; TransformIndex < Transform.Num(); TransformIndex++)
 				{
-					// transform into bone space where the convex hull is described
-					int32 TransformIndex = ConvexData.TransformToConvexIndex.Find(ConvexIndex);
-					FTransform ComponentToBone = BoneGlobalTransforms[TransformIndex].Inverse();
-					FVector BoneSpaceLocation = ComponentToBone.TransformPosition(ComponentSpaceLocation);
-
-					Chaos::FVec3 Normal;
-					Chaos::FReal Phi = ConvexData.ConvexHull[ConvexIndex]->PhiWithNormal(BoneSpaceLocation, Normal);
-					UE_LOG(LogTemp, Warning, TEXT(" Cone %d Phi %f"), ConvexData.TransformToConvexIndex.Find(ConvexIndex), Phi);
-					if (Phi < ClosestPhi)
+					if (SimulationType[TransformIndex] != FGeometryCollection::ESimulationTypes::FST_Rigid)
 					{
-						ClosestPhi = Phi;
-						ClosestGeometryCollection = Context.GetGeometryCollection();
-						ClosestConvex = ConvexIndex;
-						ClosestComponent = Context.GetGeometryCollectionComponent();
-						ClosestContext = &Context;
+						continue;
+					}
+
+					FVector BoneSpaceLocation = BoneGlobalTransforms[TransformIndex].InverseTransformPosition(ComponentSpaceLocation);
+					for (int32 ConvexIndex : ConvexData.TransformToConvexIndices[TransformIndex])
+					{
+						Chaos::FVec3 Normal;
+						Chaos::FReal Phi = ConvexData.ConvexHull[ConvexIndex]->PhiWithNormal(BoneSpaceLocation, Normal);
+						UE_LOG(LogTemp, Warning, TEXT(" Cone %d Phi %f"), TransformIndex, Phi);
+						if (Phi < ClosestPhi)
+						{
+							ClosestPhi = Phi;
+							ClosestGeometryCollection = Context.GetGeometryCollection();
+							ClosestConvex = ConvexIndex;
+							ClosestComponent = Context.GetGeometryCollectionComponent();
+							ClosestContext = &Context;
+						}
 					}
 				}
 			}
@@ -225,10 +230,10 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 				// Which bone points to the closest convex?
 				const TManagedArray<FTransform>& Transform = ClosestGeometryCollection->Transform;
 				const TManagedArray<int32>& Parent = ClosestGeometryCollection->Parent;
-				TManagedArray<int32>& TransformToConvexIndex =
-					ClosestGeometryCollection->GetAttribute<int32>("TransformToConvexIndex", FTransformCollection::TransformGroup);
+				TManagedArray<int32>& TransformToConvexIndices =
+					ClosestGeometryCollection->GetAttribute<int32>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 
-				const int32 BoneIndex = TransformToConvexIndex.Find(ClosestConvex);
+				const int32 BoneIndex = TransformToConvexIndices.Find(ClosestConvex);
 
 				if (BoneIndex > INDEX_NONE)
 				{

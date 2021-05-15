@@ -1007,6 +1007,30 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			Version = 6;
 		}
 
+		if (Version < 7)
+		{
+			if (HasAttribute("TransformToConvexIndex", FTransformCollection::TransformGroup))
+			{
+				TManagedArray<int32> TransformToConvexIndex = MoveTemp(GetAttribute<int32>("TransformToConvexIndex", FTransformCollection::TransformGroup));
+				RemoveAttribute("TransformToConvexIndex", FTransformCollection::TransformGroup);
+				// if we don't already have the one-to-many version, convert the previous one-to-one mapping to the new format
+				if (!HasAttribute("TransformToConvexIndices", FTransformCollection::TransformGroup))
+				{
+					FManagedArrayCollection::FConstructionParameters ConvexDependency("Convex");
+					TManagedArray<TSet<int32>>& IndexSets = AddAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup, ConvexDependency);
+					for (int32 TransformIdx = 0; TransformIdx < TransformToConvexIndex.Num(); TransformIdx++)
+					{
+						int32 ConvexIdx = TransformToConvexIndex[TransformIdx];
+						if (ConvexIdx != INDEX_NONE)
+						{
+							IndexSets[TransformIdx].Add(ConvexIdx);
+						}
+					}
+				}
+			}
+			Version = 7;
+		}
+
 	}
 }
 
