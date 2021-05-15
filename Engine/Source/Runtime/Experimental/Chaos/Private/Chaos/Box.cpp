@@ -5,12 +5,7 @@
 
 namespace Chaos
 {
-	template<typename T, int D> TBox<T, D>::FStaticInitializer::FStaticInitializer()
-	{
-		TBox<FReal, 3>::InitializeStructureData();
-	}
-
-	template<typename T, int D> void TBox<T, D>::InitializeStructureData()
+	FConvexHalfEdgeStructureDataS16 MakeBoxStructureData()
 	{
 		TArray<TArray<int32>> PlaneVertices
 		{
@@ -22,7 +17,7 @@ namespace Chaos
 			{0, 1, 2, 3},	// -Z,
 		};
 
-		SStructureData.SetPlaneVertices(PlaneVertices, 8);
+		return FConvexHalfEdgeStructureDataS16::MakePlaneVertices(PlaneVertices, 8);
 	}
 
 	template<typename T, int D> TArray<FVec3> TBox<T, D>::SNormals =
@@ -47,9 +42,7 @@ namespace Chaos
 		FVec3(1,-1,1),
 	};
 
-	template<typename T, int D> FConvexHalfEdgeStructureDataS16 TBox<T, D>::SStructureData;
-
-	template<typename T, int D> typename TBox<T, D>::FStaticInitializer TBox<T, D>::SInitializer;
+	template<typename T, int D> FConvexHalfEdgeStructureDataS16 TBox<T, D>::SStructureData = MakeBoxStructureData();
 
 	template class TBox<FReal, 3>;
 }
