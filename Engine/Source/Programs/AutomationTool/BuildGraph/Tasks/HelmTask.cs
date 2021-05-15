@@ -24,7 +24,7 @@ namespace AutomationTool.Tasks
 		/// Name of the release
 		/// </summary>
 		[TaskParameter]
-		public string Release;
+		public string Deployment;
 
 		/// <summary>
 		/// The Kubernetes namespace
@@ -121,7 +121,7 @@ namespace AutomationTool.Tasks
 			// Build the argument list
 			List<string> Arguments = new List<string>();
 			Arguments.Add("upgrade");
-			Arguments.Add(Parameters.Release);
+			Arguments.Add(Parameters.Deployment);
 			Arguments.Add(Parameters.Chart);
 			Arguments.Add("--install");
 			Arguments.Add("--reset-values");
