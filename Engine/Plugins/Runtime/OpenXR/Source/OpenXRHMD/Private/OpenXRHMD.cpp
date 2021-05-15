@@ -689,7 +689,7 @@ bool FOpenXRHMDPlugin::InitInstance()
 	SystemInfo.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
-		Info.next = Module->OnGetSystem(Instance, Info.next);
+		SystemInfo.next = Module->OnGetSystem(Instance, SystemInfo.next);
 	}
 	rs = xrGetSystem(Instance, &SystemInfo, &System);
 	if (XR_FAILED(rs))
@@ -1628,6 +1628,11 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 		ViewFov[ViewIndex].next = nullptr;
 		View.next = bViewConfigurationFovSupported ? &ViewFov[ViewIndex] : nullptr;
 
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			View.next = Module->OnEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, ViewIndex, View.next);
+		}
+
 		// These are core views that don't have an associated plugin
 		PipelineState.PluginViews.Add(nullptr);
 		PipelineState.ViewConfigs.Add(View);
@@ -1654,6 +1659,10 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 		ViewInfo.viewConfigurationType = SelectedViewConfigurationType;
 		ViewInfo.space = DeviceSpaces[HMDDeviceId].Space;
 		ViewInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			ViewInfo.next = Module->OnLocateViews(Session, ViewInfo.displayTime, ViewInfo.next);
+		}
 		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, 0, &ViewCount, nullptr));
 		PipelineState.Views.SetNum(ViewCount, false);
 		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));
@@ -1826,6 +1835,11 @@ bool FOpenXRHMD::OnStereoStartup()
 		SessionInfo.next = Module->OnCreateSession(Instance, System, SessionInfo.next);
 	}
 	XR_ENSURE(xrCreateSession(Instance, &SessionInfo, &Session));
+
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		Module->PostCreateSession(Session);
+	}
 
 	uint32_t ReferenceSpacesCount;
 	XR_ENSURE(xrEnumerateReferenceSpaces(Session, 0, &ReferenceSpacesCount, nullptr));
