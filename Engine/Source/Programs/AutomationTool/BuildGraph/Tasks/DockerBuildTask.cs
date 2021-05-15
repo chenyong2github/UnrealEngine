@@ -7,8 +7,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using AutomationTool;
 
-namespace AutomationTool.Tasks
+namespace BuildGraph.Tasks
 {
 	/// <summary>
 	/// Parameters for a Docker-Build task
@@ -50,13 +51,25 @@ namespace AutomationTool.Tasks
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string OverlayDirs;
+
+		/// <summary>
+		/// Environment variables to set
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string Environment;
+
+		/// <summary>
+		/// File to read environment variables from
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string EnvironmentFile;
 	}
 
 	/// <summary>
 	/// Spawns Docker and waits for it to complete.
 	/// </summary>
 	[TaskElement("Docker-Build", typeof(DockerBuildTaskParameters))]
-	public class DockerBuildTask : CustomTask
+	public class DockerBuildTask : SpawnTaskBase
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -80,12 +93,6 @@ namespace AutomationTool.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			FileReference DockerExe = CommandUtils.FindToolInPath("docker");
-			if(DockerExe == null)
-			{
-				throw new AutomationException("Unable to find path to Docker. Check you have it installed, and it is on your PATH.");
-			}
-
 			Log.TraceInformation("Building Docker image");
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
@@ -124,11 +131,7 @@ namespace AutomationTool.Tasks
 					Arguments.Append($" {Parameters.Arguments}");
 				}
 
-				IProcessResult Result = CommandUtils.Run(DockerExe.FullName, Arguments.ToString(), WorkingDir: StagingDir.FullName, Options: CommandUtils.ERunOptions.AllowSpew);
-				if (Result.ExitCode != 0)
-				{
-					throw new AutomationException("Docker terminated with an exit code indicating an error ({0})", Result.ExitCode);
-				}
+				SpawnTaskBase.Execute("docker", Arguments.ToString(), EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), WorkingDir: StagingDir.FullName);
 			}
 		}
 

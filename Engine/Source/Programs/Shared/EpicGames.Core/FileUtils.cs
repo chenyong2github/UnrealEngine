@@ -54,6 +54,31 @@ namespace EpicGames.Core
 		public static IEqualityComparer<ReadOnlyUtf8String> PlatformPathComparerUtf8 = Environment.OSVersion.Platform == PlatformID.Unix ? ReadOnlyUtf8StringComparer.Ordinal : ReadOnlyUtf8StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
+		/// Read all text for a file
+		/// </summary>
+		/// <param name="File"></param>
+		/// <returns></returns>
+		public static string ReadAllText(FileReference File)
+		{
+			try
+			{
+				return FileReference.ReadAllText(File);
+			}
+			catch (DirectoryNotFoundException Ex)
+			{
+				throw new WrappedFileOrDirectoryException(Ex, $"Unable to read file '{File}'. The directory does not exist.");
+			}
+			catch (FileNotFoundException Ex)
+			{
+				throw new WrappedFileOrDirectoryException(Ex, $"Unable to read file '{File}'. The file does not exist.");
+			}
+			catch (Exception Ex)
+			{
+				throw new WrappedFileOrDirectoryException(Ex, $"Unable to read file '{File}'");
+			}
+		}
+
+		/// <summary>
 		/// Finds the on-disk case of a a file
 		/// </summary>
 		/// <param name="Info">FileInfo instance describing the file</param>

@@ -31,6 +31,30 @@ namespace BuildGraph.Tasks
 		public string Arguments;
 
 		/// <summary>
+		/// Working directory for spawning the new task
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string WorkingDir;
+
+		/// <summary>
+		/// Environment variables to set
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string Environment;
+
+		/// <summary>
+		/// File to read environment from
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string EnvironmentFile;
+
+		/// <summary>
+		/// Write output to the log
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool LogOutput;
+
+		/// <summary>
 		/// The minimum exit code, which is treated as an error.
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -38,10 +62,91 @@ namespace BuildGraph.Tasks
 	}
 
 	/// <summary>
+	/// Base class for tasks that run an external tool
+	/// </summary>
+	public abstract class SpawnTaskBase : CustomTask
+	{
+		/// <summary>
+		/// Execute a command
+		/// </summary>
+		protected static IProcessResult Execute(string Exe, string Arguments, string WorkingDir = null, Dictionary<string, string> EnvVars = null, bool LogOutput = true, int ErrorLevel = 1)
+		{
+			if (WorkingDir != null)
+			{
+				WorkingDir = ResolveDirectory(WorkingDir).FullName;
+			}
+
+			CommandUtils.ERunOptions Options = CommandUtils.ERunOptions.Default;
+			if (!LogOutput)
+			{
+				Options &= ~CommandUtils.ERunOptions.AllowSpew;
+			}
+
+			IProcessResult Result = CommandUtils.Run(Exe, Arguments, Env: EnvVars, WorkingDir: WorkingDir, Options: Options);
+			if (Result.ExitCode < 0 || Result.ExitCode >= ErrorLevel)
+			{
+				throw new AutomationException("{0} terminated with an exit code indicating an error ({1})", Path.GetFileName(Exe), Result.ExitCode);
+			}
+
+			return Result;
+		}
+
+		/// <summary>
+		/// Parses environment from a property and file
+		/// </summary>
+		/// <param name="Environment"></param>
+		/// <param name="EnvironmentFile"></param>
+		/// <returns></returns>
+		protected static Dictionary<string, string> ParseEnvVars(string Environment, string EnvironmentFile)
+		{
+			Dictionary<string, string> EnvVars = new Dictionary<string, string>();
+			if (Environment != null)
+			{
+				ParseEnvironment(Environment, ';', EnvVars);
+			}
+			if (EnvironmentFile != null)
+			{
+				ParseEnvironment(FileUtils.ReadAllText(ResolveFile(EnvironmentFile)), '\n', EnvVars);
+			}
+			return EnvVars;
+		}
+
+		/// <summary>
+		/// Parse environment from a string
+		/// </summary>
+		/// <param name="Environment"></param>
+		/// <param name="Separator"></param>
+		/// <param name="EnvVars"></param>
+		static void ParseEnvironment(string Environment, char Separator, Dictionary<string, string> EnvVars)
+		{
+			for (int BaseIdx = 0; BaseIdx < Environment.Length;)
+			{
+				int EqualsIdx = Environment.IndexOf('=', BaseIdx);
+				if (EqualsIdx == -1)
+				{
+					throw new AutomationException("Missing value in environment variable string '{0}'", Environment);
+				}
+
+				int EndIdx = Environment.IndexOf(Separator, EqualsIdx + 1);
+				if (EndIdx == -1)
+				{
+					EndIdx = Environment.Length;
+				}
+
+				string Name = Environment.Substring(BaseIdx, EqualsIdx - BaseIdx).Trim();
+				string Value = Environment.Substring(EqualsIdx + 1, EndIdx - (EqualsIdx + 1)).Trim();
+				EnvVars[Name] = Value;
+
+				BaseIdx = EndIdx + 1;
+			}
+		}
+	}
+
+	/// <summary>
 	/// Spawns an external executable and waits for it to complete.
 	/// </summary>
 	[TaskElement("Spawn", typeof(SpawnTaskParameters))]
-	public class SpawnTask : CustomTask
+	public class SpawnTask : SpawnTaskBase
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -65,11 +170,7 @@ namespace BuildGraph.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			IProcessResult Result = CommandUtils.Run(Parameters.Exe, Parameters.Arguments);
-			if(Result.ExitCode < 0 || Result.ExitCode >= Parameters.ErrorLevel)
-			{
-				throw new AutomationException("{0} terminated with an exit code indicating an error ({1})", Path.GetFileName(Parameters.Exe), Result.ExitCode);
-			}
+			Execute(Parameters.Exe, Parameters.Arguments, Parameters.WorkingDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), LogOutput: Parameters.LogOutput, ErrorLevel: Parameters.ErrorLevel);
 		}
 
 		/// <summary>
