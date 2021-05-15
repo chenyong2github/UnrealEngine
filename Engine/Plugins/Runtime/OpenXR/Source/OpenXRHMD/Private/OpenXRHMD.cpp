@@ -28,6 +28,7 @@
 #include "BuildSettings.h"
 #include "ARSystem.h"
 #include "IHandTracker.h"
+#include "PixelShaderUtils.h"
 
 #if PLATFORM_ANDROID
 #include <android_native_app_glue.h>
@@ -1716,19 +1717,18 @@ void FOpenXRHMD::BuildOcclusionMeshes()
 	HiddenAreaMeshes.SetNum(ViewCount);
 	VisibleAreaMeshes.SetNum(ViewCount);
 
-	bool bSucceeded = true;
+	bool bAnyViewSucceeded = false;
 
 	for (uint32_t View = 0; View < ViewCount; ++View)
 	{
-		if (!BuildOcclusionMesh(XR_VISIBILITY_MASK_TYPE_VISIBLE_TRIANGLE_MESH_KHR, View, VisibleAreaMeshes[View]) ||
-			!BuildOcclusionMesh(XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR, View, HiddenAreaMeshes[View]))
+		if (BuildOcclusionMesh(XR_VISIBILITY_MASK_TYPE_VISIBLE_TRIANGLE_MESH_KHR, View, VisibleAreaMeshes[View]) &&
+			BuildOcclusionMesh(XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR, View, HiddenAreaMeshes[View]))
 		{
-			bSucceeded = false;
-			break;
+			bAnyViewSucceeded = true;
 		}
 	}
 
-	if (!bSucceeded)
+	if (!bAnyViewSucceeded)
 	{
 		UE_LOG(LogHMD, Error, TEXT("Failed to create all visibility mask meshes for device/views. Abandoning visibility mask."));
 
@@ -1755,9 +1755,7 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 
 	if (VisibilityMask.indexCountOutput == 0)
 	{
-		UE_LOG(LogHMD, Warning, TEXT("Runtime does not currently have a visibility mask.  Another attempt will be made to build the occlusion mesh on an XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR event."));
-		// Disallow future BuildOcclusionMesh attempts until this flag is reset in the XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR handler.
-		bHiddenAreaMaskSupported = false;
+		// Runtime doesn't have a valid mask for this view
 		return false;
 	}
 	if (!VisibilityMask.indexCountOutput || (VisibilityMask.indexCountOutput % 3) != 0 || VisibilityMask.vertexCountOutput == 0)
@@ -2849,10 +2847,12 @@ void FOpenXRHMD::DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdLi
 	if (ViewIndex < (uint32)HiddenAreaMeshes.Num())
 	{
 		const FHMDViewMesh& Mesh = HiddenAreaMeshes[ViewIndex];
-		check(Mesh.IsValid());
 
-		RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
-		RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
+		if (Mesh.IsValid())
+		{
+			RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
+			RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
+		}
 	}
 }
 
@@ -2864,10 +2864,17 @@ void FOpenXRHMD::DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdL
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
 	check(ViewIndex < (uint32)VisibleAreaMeshes.Num());
 	const FHMDViewMesh& Mesh = VisibleAreaMeshes[ViewIndex];
-	check(Mesh.IsValid());
 
-	RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
-	RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
+	if (Mesh.IsValid())
+	{
+		RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
+		RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
+	}
+	else
+	{
+		// Invalid mesh means that entire area is visible, draw a fullscreen quad to simulate
+		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
+	}
 }
 
 void FOpenXRHMD::UpdateLayer(FOpenXRLayer& Layer, uint32 LayerId, bool bIsValid) const
