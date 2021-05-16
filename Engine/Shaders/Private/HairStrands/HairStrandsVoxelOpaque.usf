@@ -47,7 +47,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint4 PageIndexCoord = VirtualVoxelParams_PageIndexCoordBuffer[NodeDesc.PageIndexOffset + AllocatedPageIndex];
 	const uint  LinearPageIndexCoord = CoordToIndex(PageIndexCoord.xyz, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
 
-	const bool bIsValid = LinearPageIndexCoord < VirtualVoxelParams_PageIndexCount;
+	// PageIndexCoord have invalid .w component if we run out of available page during the allocation
+	const bool bIsValid = LinearPageIndexCoord < VirtualVoxelParams_PageIndexCount && PageIndexCoord.w != INVALID_MACRO_GROUP_ID;
 	if (bIsValid)
 	{
 		const uint PageIndex = VirtualVoxelParams_PageIndexBuffer.Load(LinearPageIndexCoord);
