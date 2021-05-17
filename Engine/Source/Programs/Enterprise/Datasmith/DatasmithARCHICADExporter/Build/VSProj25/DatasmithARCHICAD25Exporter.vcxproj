@@ -269,7 +269,6 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClInclude Include="..\..\Private\ElementID.h" />
     <ClInclude Include="..\..\Private\MaterialsDatabase.h" />
     <ClInclude Include="..\..\Private\Preferences.h" />
-    <ClInclude Include="..\..\Private\Progression.h" />
     <ClInclude Include="..\..\Private\SyncContext.h" />
     <ClInclude Include="..\..\Private\SyncData.h" />
     <ClInclude Include="..\..\Private\SyncDatabase.h" />
@@ -284,12 +283,15 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClInclude Include="..\..\Private\Utils\ElementTools.h" />
     <ClInclude Include="..\..\Private\Utils\Error.h" />
     <ClInclude Include="..\..\Private\Utils\IdleTask.h" />
+    <ClInclude Include="..\..\Private\Utils\LibPartInfo.h" />
     <ClInclude Include="..\..\Private\Utils\LocalizeTools.h" />
     <ClInclude Include="..\..\Private\Utils\Pasteboard.h" />
+    <ClInclude Include="..\..\Private\Utils\Progression.h" />
     <ClInclude Include="..\..\Private\Utils\ResourcesUtils.h" />
     <ClInclude Include="..\..\Private\Utils\SaverReader.h" />
     <ClInclude Include="..\..\Private\Utils\SceneValidator.h" />
     <ClInclude Include="..\..\Private\Utils\ShellOpenDocument.h" />
+    <ClInclude Include="..\..\Private\Utils\TaskMgr.h" />
     <ClInclude Include="..\..\Private\Utils\TAssValueName.h" />
     <ClInclude Include="..\..\Private\Utils\TimeStat.h" />
     <ClInclude Include="..\..\Private\Utils\ViewEvent.h" />
@@ -316,7 +318,6 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClCompile Include="..\..\Private\Element2StaticMesh.cpp" />
     <ClCompile Include="..\..\Private\ElementID.cpp" />
     <ClCompile Include="..\..\Private\MaterialsDatabase.cpp" />
-    <ClCompile Include="..\..\Private\Progression.cpp" />
     <ClCompile Include="..\..\Private\SyncContext.cpp" />
     <ClCompile Include="..\..\Private\SyncData.cpp" />
     <ClCompile Include="..\..\Private\SyncDatabase.cpp" />
@@ -329,10 +330,13 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClCompile Include="..\..\Private\Utils\ElementTools.cpp" />
     <ClCompile Include="..\..\Private\Utils\Error.cpp" />
     <ClCompile Include="..\..\Private\Utils\IdleTask.cpp" />
+    <ClCompile Include="..\..\Private\Utils\LibPartInfo.cpp" />
     <ClCompile Include="..\..\Private\Utils\LocalizeTools.cpp" />
     <ClCompile Include="..\..\Private\Utils\Pasteboard.cpp" />
+    <ClCompile Include="..\..\Private\Utils\Progression.cpp" />
     <ClCompile Include="..\..\Private\Utils\SceneValidator.cpp" />
     <ClCompile Include="..\..\Private\Utils\ShellOpenDocument.cpp" />
+    <ClCompile Include="..\..\Private\Utils\TaskMgr.cpp" />
     <ClCompile Include="..\..\Private\Utils\TAssValueName.cpp" />
     <ClCompile Include="..\..\Private\Utils\TimeStat.cpp" />
     <ClCompile Include="..\..\Private\Utils\ViewEvent.cpp" />
@@ -340,39 +344,20 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClCompile Include="..\..\Private\Utils\WinOS.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\Resources\RINT\DatasmithARCHICADExporter.grc">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">set FileName=DatasmithARCHICADExporter
-cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DDEBUG /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)\RO\%FileName%.grc.rc2.i" "..\..\Resources\RINT\%FileName%.grc"
-        "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\%FileName%.grc.rc2.i" -D _DEBUG -o "$(OutDir)\RO\%FileName%.grc.rc2" -w 2</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the localized GRC file...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\DatasmithARCHICADExporter.grc.rc2;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">set FileName=DatasmithARCHICADExporter
-cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)\RO\%FileName%.grc.rc2.i" "..\..\Resources\RINT\%FileName%.grc"
-"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\%FileName%.grc.rc2.i" -o "$(OutDir)\RO\%FileName%.grc.rc2" -w 2</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">set FileName=DatasmithARCHICADExporter
-cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)\RO\%FileName%.grc.rc2.i" "..\..\Resources\RINT\%FileName%.grc"
-"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)\RO\%FileName%.grc.rc2.i" -o "$(OutDir)\RO\%FileName%.grc.rc2" -w 2</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the localized GRC file...</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">Compiling the localized GRC file...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\DatasmithARCHICADExporter.grc.rc2;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">$(OutDir)\RO\DatasmithARCHICADExporter.grc.rc2;%(Outputs)</Outputs>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
     <CustomBuild Include="..\..\Resources\RFIX\DatasmithARCHICADExporterFix.grc">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">set FileName=DatasmithARCHICADExporterFix
-cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DDEBUG /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
-"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -D _DEBUG -i "$(OutDir)RO\%FileName%.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)RO\%FileName%.grc.rc2" -w 2</Command>
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /I ".\..\..\Resources\RINT" /utf-8 /DDEBUG /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
+"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -D _DEBUG -i "$(OutDir)RO\%FileName%.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)RO\%FileName%.grc.rc2" -w 2
+</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the non-localized GRC file...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\RO\$(SolutionName)Fix.grc.rc2;%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">set FileName=DatasmithARCHICADExporterFix
-cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /I ".\..\..\Resources\RINT" /utf-8 /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
 "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)RO\%FileName%.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)RO\%FileName%.grc.rc2" -w 2
 </Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">set FileName=DatasmithARCHICADExporterFix
-cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /utf-8 /DWINDOWS /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /I ".\..\..\Resources\RINT" /utf-8 /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
 "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)RO\%FileName%.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)RO\%FileName%.grc.rc2" -w 2
 </Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the non-localized GRC file...</Message>
@@ -409,6 +394,16 @@ cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modu
   <ItemGroup>
     <None Include="..\..\Private\Utils\MacOS.mm" />
     <None Include="..\..\Resources\RFIX\Images\MenuIcon_18x18.svg" />
+    <None Include="..\..\Resources\RINT\en.lproj\DatasmithARCHICADExporter.grc">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\..\Resources\RINT\fr.lproj\DatasmithARCHICADExporter.grc">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -6,6 +6,8 @@
 
 BEGIN_NAMESPACE_UE_AC
 
+#define UE_AC_NO_MENU 1 // 1 = Dont create menu
+
 class FMenus
 {
   public:

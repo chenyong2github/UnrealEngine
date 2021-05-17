@@ -31,10 +31,12 @@ DISABLE_SDK_WARNINGS_END
 #endif
 
 #include "Utils/APIEnvir.h"
+
+DISABLE_SDK_WARNINGS_START
 #include "ACAPinc.h"
-//#include "ModelColor.hpp"
 #include "Md5.hpp"
 #include "Lock.hpp"
+DISABLE_SDK_WARNINGS_END
 
 #include "Utils/LocalizeTools.h"
 #include "Utils/AddonTools.h"

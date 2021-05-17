@@ -61,7 +61,7 @@ template < typename Functor > GSErrCode TryFunctionCatchAndAlert(const utf8_t* I
 	}
 	catch (...)
 	{
-		ShowAlert(GetStdName(kName_Unknown), InFctName);
+		ShowAlert("Unknown", InFctName);
 	}
 
 	return GSErr;
