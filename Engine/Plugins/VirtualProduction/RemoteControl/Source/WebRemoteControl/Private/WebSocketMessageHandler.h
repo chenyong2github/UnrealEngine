@@ -122,7 +122,7 @@ private:
 	TMap<FName, TArray<FGuid>> PerFrameAddedProperties;
 
 	/** Properties that were unexposed for a frame, per preset */
-	TMap<FName, TArray<FGuid>> PerFrameRemovedProperties;
+	TMap<FName, TTuple<TArray<FGuid>, TArray<FName>>> PerFrameRemovedProperties;
 
 	/** Fields that were renamed for a frame, per preset */
 	TMap<FName, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
