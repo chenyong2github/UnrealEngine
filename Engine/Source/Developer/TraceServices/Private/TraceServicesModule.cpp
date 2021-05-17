@@ -13,6 +13,7 @@
 #include "Modules/NetProfilerModule.h"
 #include "Modules/MemoryModule.h"
 #include "Modules/DiagnosticsModule.h"
+#include "Modules/PlatformEventsModule.h"
 #include "Modules/TasksModule.h"
 
 class FTraceServicesModule
@@ -39,6 +40,7 @@ private:
 	TraceServices::FNetProfilerModule NetProfilerModule;
 	TraceServices::FMemoryModule MemoryModule;
 	TraceServices::FDiagnosticsModule DiagnosticsModule;
+	TraceServices::FPlatformEventsModule PlatformEventsModule;
 	TraceServices::FTasksModule TasksModule;
 };
 
@@ -83,6 +85,7 @@ void FTraceServicesModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &CountersModule);
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &NetProfilerModule);
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &DiagnosticsModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &PlatformEventsModule);
 
 #if EXPERIMENTAL_STATSTRACE_ENABLED
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &StatsModule);
@@ -107,6 +110,7 @@ void FTraceServicesModule::ShutdownModule()
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &StatsModule);
 #endif
 
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &PlatformEventsModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &DiagnosticsModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &NetProfilerModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &CountersModule);

@@ -10,6 +10,7 @@ class CORE_API FTraceAuxiliary
 public:
 	static void Initialize(const TCHAR* CommandLine);
 	static void InitializePresets(const TCHAR* CommandLine);
+	static void Shutdown();
 	static void TryAutoConnect();
 	static void EnableChannels();
 };

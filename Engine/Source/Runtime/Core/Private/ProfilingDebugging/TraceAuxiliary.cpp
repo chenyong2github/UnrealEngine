@@ -24,6 +24,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
+#include "ProfilingDebugging/PlatformEvents.h"
 #include "String/ParseTokens.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Trace.inl"
@@ -214,6 +215,12 @@ void FTraceAuxiliaryImpl::EnableChannel(FChannel& Channel)
 		return;
 	}
 
+	EPlatformEvent Event = PlatformEvents_GetEvent(Channel.Name);
+	if (Event != EPlatformEvent::None)
+	{
+		PlatformEvents_Enable(Event);
+	}
+
 	UE::Trace::ToggleChannel(*Channel.Name, true);
 	Channel.bActive = true;
 }
@@ -237,6 +244,12 @@ void FTraceAuxiliaryImpl::DisableChannels()
 		{
 			UE::Trace::ToggleChannel(*Channel.Name, false);
 			Channel.bActive = false;
+
+			EPlatformEvent Event = PlatformEvents_GetEvent(Channel.Name);
+			if (Event != EPlatformEvent::None)
+			{
+				PlatformEvents_Disable(Event);
+			}
 		}
 	}
 }
@@ -453,6 +466,11 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	}
 	UE::Trace::Initialize(Desc);
 
+	// By default use 1msec for stack sampling interval
+	uint32 Microseconds = 1000;
+	FParse::Value(CommandLine, TEXT("-samplinginterval="), Microseconds);
+	PlatformEvents_Init(Microseconds);
+
 	FCoreDelegates::OnEndFrame.AddStatic(UE::Trace::Update);
 	FModuleManager::Get().OnModulesChanged().AddLambda([](FName Name, EModuleChangeReason Reason)
 	{
@@ -502,6 +520,16 @@ void FTraceAuxiliary::InitializePresets(const TCHAR* CommandLine)
 		GTraceAuxiliary.EnableChannels();
 	}
 #endif 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliary::Shutdown()
+{
+#if UE_TRACE_ENABLED
+	// make sure all platform event functionality has shut down as on some
+	// platforms it impacts whole system, even if application has terminated
+	PlatformEvents_Stop();
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
