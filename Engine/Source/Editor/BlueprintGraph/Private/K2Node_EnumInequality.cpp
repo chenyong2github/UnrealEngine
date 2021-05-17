@@ -21,7 +21,7 @@ FText UK2Node_EnumInequality::GetTooltipText() const
 
 FText UK2Node_EnumInequality::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return NSLOCTEXT("K2Node_EnumInequality", "NotEqualEnum", "NotEqual (Enum)");
+	return NSLOCTEXT("K2Node_EnumInequality", "NotEqualEnum", "Not Equal (Enum)");
 }
 
 void UK2Node_EnumInequality::GetConditionalFunction(FName& FunctionName, UClass** FunctionClass) const

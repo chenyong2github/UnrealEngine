@@ -432,7 +432,7 @@ public:
 	virtual void SetAutoActivate(bool bNewAutoActivate);
 
 	/** Sets whether this component can tick when paused. */
-	UFUNCTION(BlueprintCallable, Category="Utilities")
+	UFUNCTION(BlueprintCallable, Category="Components|Tick")
 	void SetTickableWhenPaused(bool bTickableWhenPaused);
 
 	/** Create any physics engine information for this component */
@@ -681,7 +681,7 @@ public:
 	 * 
 	 * @param	bEnabled - Whether it should be enabled or not
 	 */
-	UFUNCTION(BlueprintCallable, Category="Utilities")
+	UFUNCTION(BlueprintCallable, Category="Components|Tick")
 	virtual void SetComponentTickEnabled(bool bEnabled);
 
 	/** 
@@ -693,25 +693,25 @@ public:
 	/** 
 	 * Returns whether this component has tick enabled or not
 	 */
-	UFUNCTION(BlueprintCallable, Category="Utilities")
+	UFUNCTION(BlueprintCallable, Category="Components|Tick")
 	virtual bool IsComponentTickEnabled() const;
 
 	/** 
 	* Sets the tick interval for this component's primary tick function. Does not enable the tick interval. Takes effect on next tick.
 	* @param TickInterval	The duration between ticks for this component's primary tick function
 	*/
-	UFUNCTION(BlueprintCallable, Category="Utilities")
+	UFUNCTION(BlueprintCallable, Category="Components|Tick")
 	void SetComponentTickInterval(float TickInterval);
 
 	/**
 	* Sets the tick interval for this component's primary tick function. Does not enable the tick interval. Takes effect imediately.
 	* @param TickInterval	The duration between ticks for this component's primary tick function
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Utilities")
+	UFUNCTION(BlueprintCallable, Category="Components|Tick")
 	void SetComponentTickIntervalAndCooldown(float TickInterval);
 
 	/** Returns the tick interval for this component's primary tick function, which is the frequency in seconds at which it will be executed */
-	UFUNCTION(BlueprintCallable, Category="Utilities")
+	UFUNCTION(BlueprintCallable, Category="Components|Tick")
 	float GetComponentTickInterval() const;
 
 	/**
@@ -931,30 +931,30 @@ public:
 	/**
 	 * Unregister and mark for pending kill a component.  This may not be used to destroy a component that is owned by an actor unless the owning actor is calling the function.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components", meta=(Keywords = "Delete", HidePin="Object", DefaultToSelf="Object", DisplayName = "DestroyComponent", ScriptName = "DestroyComponent"))
+	UFUNCTION(BlueprintCallable, Category="Components", meta=(Keywords = "Delete", HidePin="Object", DefaultToSelf="Object", DisplayName = "Destroy Component", ScriptName = "DestroyComponent"))
 	void K2_DestroyComponent(UObject* Object);
 
 	/** Unregisters and immediately re-registers component. */
 	void ReregisterComponent();
 
 	/** Changes the ticking group for this component */
-	UFUNCTION(BlueprintCallable, Category="Utilities", meta=(Keywords = "dependency"))
+	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
 	void SetTickGroup(ETickingGroup NewTickGroup);
 
 	/** Make this component tick after PrerequisiteActor */
-	UFUNCTION(BlueprintCallable, Category="Utilities", meta=(Keywords = "dependency"))
+	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
 	virtual void AddTickPrerequisiteActor(AActor* PrerequisiteActor);
 
 	/** Make this component tick after PrerequisiteComponent. */
-	UFUNCTION(BlueprintCallable, Category="Utilities", meta=(Keywords = "dependency"))
+	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
 	virtual void AddTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
 
 	/** Remove tick dependency on PrerequisiteActor. */
-	UFUNCTION(BlueprintCallable, Category="Utilities", meta=(Keywords = "dependency"))
+	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
 	virtual void RemoveTickPrerequisiteActor(AActor* PrerequisiteActor);
 
 	/** Remove tick dependency on PrerequisiteComponent. */
-	UFUNCTION(BlueprintCallable, Category="Utilities", meta=(Keywords = "dependency"))
+	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
 	virtual void RemoveTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
 
 	/** Event called every frame if tick is enabled */

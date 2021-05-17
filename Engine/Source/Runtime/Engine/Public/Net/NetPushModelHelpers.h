@@ -11,10 +11,11 @@ class ENGINE_API UNetPushModelHelpers : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-
-	UFUNCTION(BlueprintCallable, Category="Net")
+	
+	/** Mark replicated property as dirty with the Push Model networking system */
+	UFUNCTION(BlueprintCallable, Category="Networking")
 	static void MarkPropertyDirty(UObject* Object, FName PropertyName);
 
-	UFUNCTION(BlueprintCallable, Category = "Net", Meta=(BlueprintInternalUseOnly = "true", HidePin = "Object|RepIndex|PropertyName"))
+	UFUNCTION(BlueprintCallable, Category = "Networking", Meta=(BlueprintInternalUseOnly = "true", HidePin = "Object|RepIndex|PropertyName"))
 	static void MarkPropertyDirtyFromRepIndex(UObject* Object, int32 RepIndex, FName PropertyName);
 };
