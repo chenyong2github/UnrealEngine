@@ -207,6 +207,8 @@ public:
 	/**
 	 * Imports a texture a buffer and creates Texture2D from it
 	 */
+	ENGINE_API static UTexture2D* ImportBufferAsTexture2D(TArrayView64<const uint8> Buffer);
+
 	ENGINE_API static UTexture2D* ImportBufferAsTexture2D(const TArray<uint8>& Buffer);
 	
 	/**
