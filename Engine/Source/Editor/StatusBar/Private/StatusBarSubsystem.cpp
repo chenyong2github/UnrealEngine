@@ -431,7 +431,7 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 	OutputLogDrawer.CustomWidget = OutputLog;
 
 	OutputLogDrawer.ButtonText = LOCTEXT("StatusBar_OutputLogButton", "Output Log");
-	OutputLogDrawer.ToolTipText = FText::Format(LOCTEXT("StatusBar_OutputLogButtonTip", "Opens a temporary output log which will dismiss when it loses focus ({0})"), FGlobalEditorCommonCommands::Get().OpenConsoleCommandBox->GetInputText());
+	OutputLogDrawer.ToolTipText = FText::Format(LOCTEXT("StatusBar_OutputLogButtonTip", "Opens the output log drawer. ({0}) cycles between focusing the console command box, opening the output log drawer, and closing it.\nThe output log drawer may also be toggled directly with ({1})"), FGlobalEditorCommonCommands::Get().OpenConsoleCommandBox->GetInputText(), FGlobalEditorCommonCommands::Get().OpenOutputLogDrawer->GetInputText());
 	OutputLogDrawer.Icon = FAppStyle::Get().GetBrush("Log.TabIcon");
 	StatusBar->RegisterDrawer(MoveTemp(OutputLogDrawer));
 

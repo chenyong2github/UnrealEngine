@@ -42,10 +42,8 @@ public:
 	virtual bool Exec(const TCHAR* Input) override;
 	virtual bool AllowHotKeyClose() const override;
 	virtual bool AllowMultiLine() const override;
-	virtual FInputChord GetHotKey() const override
-	{
-		return FInputChord();
-	}
+	virtual FInputChord GetHotKey() const override;
+
 private:
 	IPythonScriptPlugin* PythonScriptPlugin;
 };
@@ -68,10 +66,8 @@ public:
 	virtual bool Exec(const TCHAR* Input) override;
 	virtual bool AllowHotKeyClose() const override;
 	virtual bool AllowMultiLine() const override;
-	virtual FInputChord GetHotKey() const override
-	{
-		return FInputChord();
-	}
+	virtual FInputChord GetHotKey() const override;
+
 private:
 	IPythonScriptPlugin* PythonScriptPlugin;
 };
