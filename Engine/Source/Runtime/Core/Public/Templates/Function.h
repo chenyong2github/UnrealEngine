@@ -976,6 +976,14 @@ public:
 	}
 
 	/**
+	 * Removes any bound callable from the TFunction, restoring it to the default 'empty' state.
+	 */
+	void Reset()
+	{
+		*this = nullptr;
+	}
+
+	/**
 	 * Tests if the TFunction is callable.
 	 */
 	FORCEINLINE explicit operator bool() const
@@ -1070,6 +1078,14 @@ public:
 	TUniqueFunction(const TUniqueFunction& Other) = delete;
 	TUniqueFunction& operator=(const TUniqueFunction& Other) = delete;
 	~TUniqueFunction() = default;
+
+	/**
+	 * Removes any bound callable from the TFunction, restoring it to the default 'empty' state.
+	 */
+	void Reset()
+	{
+		*this = nullptr;
+	}
 
 	/**
 	 * Tests if the TUniqueFunction is callable.
