@@ -139,8 +139,10 @@ private:
 	/** Cache the classes (and parent classes) of all actors in the level. */
 	void CacheLevelClasses();
 	
-	/** Handles updating the level class list when an actor is added to the level. */
+	//~ Handlers for various level actor events.
 	void OnActorAddedToLevel(AActor* Actor);
+	void OnLevelActorsRemoved(AActor* Actor);
+	void OnLevelActorListChanged();
 
 	/** Handles caching an actor's class and parent classes. */
 	void CacheActorClass(AActor* Actor);
@@ -163,8 +165,13 @@ private:
 	//~ Handlers called in order to clear the exposed property cache.
 	void OnEntityExposed(URemoteControlPreset* InPreset, const FGuid& InEntityId);
 	void OnEntityUnexposed(URemoteControlPreset* InPreset, const FGuid& InEntityId);
+	
 	/** Toggles the logging part of UI */
 	void OnLogCheckboxToggle(ECheckBoxState State);
+
+	/** Triggers a next frame update of the actor function picker to ensure that added actors are valid. */
+	void UpdateActorFunctionPicker();
+
 private:
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;

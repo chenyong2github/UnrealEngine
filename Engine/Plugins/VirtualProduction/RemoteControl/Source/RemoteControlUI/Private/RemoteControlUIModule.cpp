@@ -307,15 +307,24 @@ bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyH
 			return false;
 		}
 
-		// Don't display an expose icon for settings
 		if (PropertyHandle->GetNumOuterObjects() == 1)
 		{
 			TArray<UObject*> OuterObjects;
 			PropertyHandle->GetOuterObjects(OuterObjects);
-		
-			if (OuterObjects[0] && OuterObjects[0]->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+
+			if (OuterObjects[0])
 			{
-				return false;
+				// Don't display an expose icon for default objects.
+				if (OuterObjects[0]->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+				{
+					return false;
+				}
+
+				// Don't display an expose icon for transient objects such as material editor parameters.
+				if (OuterObjects[0]->GetOutermost()->HasAnyFlags(RF_Transient))
+				{
+					return false;
+				}
 			}
 		}
 	}

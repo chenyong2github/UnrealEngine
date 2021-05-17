@@ -385,7 +385,7 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 		FRCPresetDescription AddedPropertiesDescription;
 		AddedPropertiesDescription.Name = Preset->GetName();
 		AddedPropertiesDescription.Path = Preset->GetPathName();
-		AddedPropertiesDescription.Id = Preset->GetPresetId().ToString();
+		AddedPropertiesDescription.ID = Preset->GetPresetId().ToString();
 
 		TMap<FRemoteControlPresetGroup*, TArray<FGuid>> GroupedNewFields;
 

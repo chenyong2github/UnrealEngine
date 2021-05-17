@@ -176,6 +176,14 @@ private:
 	/** Holds the client currently making a request. */
 	FGuid ActingClientId;
 
+	/** List of preprocessor delegates that need to be registered when the server is started. */
+	TMap<FDelegateHandle, FHttpRequestHandler> PreprocessorsToRegister;
+
+	/**
+	 * Mappings of preprocessors delegate handles generated from the WebRC module to the ones generated from the Http Module.
+	 */
+	TMap<FDelegateHandle, FDelegateHandle> PreprocessorsHandleMappings;
+
 	//~ Server started stopped delegates.
 	FOnWebServerStarted OnHttpServerStartedDelegate;
 	FSimpleMulticastDelegate OnHttpServerStoppedDelegate;
