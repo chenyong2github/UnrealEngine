@@ -317,6 +317,24 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Distribution"))
 	int32 PackageCompressionLevel_Distribution;
 
+	/**
+	 * A generic setting which is used to determine whether it is worth using compression for a block of data when creating IoStore or .pak files.
+	 * If the amount of saved bytes is smaller than the specified value, then the block of data remains uncompressed.
+	 * The optimal value of this setting depends on the capabilities of the target platform. For instance PackageCompressionMinBytesSaved=1024
+	 * Note that some compressors (for example Oodle) do their own internal worth it check and only use this value to determine the minimal size of a block which should be compressed.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Minimum amount of bytes which should be saved when compressing a block of data, otherwise data remains uncompressed"))
+	int32 PackageCompressionMinBytesSaved;
+
+	/**
+	 * A generic setting which is used to determine whether it is worth using compression for a block of data when creating IoStore or .pak files.
+	 * If the saved percentage of a compressed block of data is smaller than the specified value, then the block remains uncompressed.
+	 * The optimal value of this setting depends on the capabilities of the target platform. For instance PackageCompressionMinPercentSaved=5
+	 * Note that some compressors (for example Oodle) do their own internal worth it check and ignore this value.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Minimum percentage of a block of data which should be saved when performing compression, otherwise data remains uncompressed"))
+	int32 PackageCompressionMinPercentSaved;
+
 	/** 
 	 * Version name for HTTP Chunk Install Data.
 	 */
