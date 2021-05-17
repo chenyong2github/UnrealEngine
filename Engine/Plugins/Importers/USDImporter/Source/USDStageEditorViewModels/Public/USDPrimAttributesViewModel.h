@@ -21,8 +21,6 @@ public:
 	void SetAttributeValue( const UsdUtils::FConvertedVtValue& InValue );
 
 public:
-	UE::FUsdStage UsdStage;
-
 	FString Label;
 	UsdUtils::FConvertedVtValue Value;
 	FString ValueRole;

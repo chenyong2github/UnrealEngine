@@ -316,29 +316,34 @@ void SUsdStageTreeView::OnGetChildren( FUsdPrimViewModelRef InParent, TArray< FU
 
 void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 {
-	RootItems.Empty();
+	UE::FUsdStage OldStage = RootItems.Num() > 0 ? RootItems[0]->UsdStage : UE::FUsdStage();
+	UE::FUsdStage NewStage = InUsdStageActor ? static_cast< const AUsdStageActor* >( InUsdStageActor )->GetUsdStage() : UE::FUsdStage();
 
-	if (UsdStageActor.Get() != InUsdStageActor)
+	RootItems.Empty();
+	if ( UsdStageActor.Get() != InUsdStageActor || NewStage != OldStage )
 	{
+		// This is very important: Internally the tree will store FUsdPrimViewModelRef in its SparseItemInfos member if we have
+		// any member manually expanded/collapsed. These can prevent the FUsdPrimViewModels from being collected, and prevent the
+		// stage from being fully closed, so we must do this whenever the stage changes
+		ClearExpandedItems();
 		TreeItemExpansionStates.Reset();
 	}
 
 	UsdStageActor = InUsdStageActor;
-
 	if ( !UsdStageActor.IsValid() )
 	{
 		return;
 	}
 
-	if ( UE::FUsdStage UsdStage = const_cast< const AUsdStageActor* >( UsdStageActor.Get() )->GetUsdStage() )
+	if ( NewStage )
 	{
-		if ( UE::FUsdPrim RootPrim = UsdStage.GetPseudoRoot() )
+		if ( UE::FUsdPrim RootPrim = NewStage.GetPseudoRoot() )
 		{
-			RootItems.Add( MakeShared< FUsdPrimViewModel >( nullptr, UsdStage, RootPrim ) );
+			RootItems.Add( MakeShared< FUsdPrimViewModel >( nullptr, NewStage, RootPrim ) );
 		}
-	}
 
-	RestoreExpansionStates();
+		RestoreExpansionStates();
+	}
 }
 
 void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
