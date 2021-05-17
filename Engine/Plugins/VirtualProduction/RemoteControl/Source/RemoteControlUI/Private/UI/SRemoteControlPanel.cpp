@@ -100,7 +100,11 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	
 	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get())
 		.DisplayValues(true)
-		.OnEntityListUpdated_Lambda([this] () { UpdateRebindButtonVisibility(); })
+		.OnEntityListUpdated_Lambda([this] ()
+		{
+			UpdateEntityDetailsView(EntityList->GetSelection());
+			UpdateRebindButtonVisibility();
+		})
 		.EditMode_Lambda([this](){ return bIsInEditMode; });
 	
 	EntityList->OnSelectionChange().AddSP(this, &SRemoteControlPanel::UpdateEntityDetailsView);

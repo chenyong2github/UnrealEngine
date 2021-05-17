@@ -19,8 +19,10 @@
 #include "UObject/FieldPath.h"
 
 
+
 #if WITH_EDITOR
-	#include "ScopedTransaction.h"
+#include "Editor.h"
+#include "ScopedTransaction.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogRemoteControl);
