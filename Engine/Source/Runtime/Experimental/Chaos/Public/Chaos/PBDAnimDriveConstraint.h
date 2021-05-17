@@ -24,8 +24,8 @@ namespace Chaos
 			, OldAnimationPositions(InOldAnimationPositions)
 			, ParticleOffset(InParticleOffset)
 			, ParticleCount(InParticleCount)
-			, Stiffness(StiffnessMultipliers, FVec2((FReal)0., (FReal)1.), InParticleCount)
-			, Damping(DampingMultipliers, FVec2((FReal)0., (FReal)1.), InParticleCount)
+			, Stiffness(FVec2::UnitVector, StiffnessMultipliers, InParticleCount)
+			, Damping(FVec2::UnitVector, DampingMultipliers, InParticleCount)
 		{
 		}
 

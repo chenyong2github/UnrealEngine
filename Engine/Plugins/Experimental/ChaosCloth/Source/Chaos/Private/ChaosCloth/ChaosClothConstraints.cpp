@@ -85,9 +85,10 @@ void FClothConstraints::CreateRules()
 	if (XEdgeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const FPBDParticles& /*Particles*/, const FReal /*Dt*/)
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
 			{
 				XEdgeConstraints->Init();
+				XEdgeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
 
 		ConstraintRules[ConstraintRuleIndex++] = 
@@ -98,6 +99,11 @@ void FClothConstraints::CreateRules()
 	}
 	if (EdgeConstraints)
 	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
+			{
+				EdgeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+			};
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
 			{
@@ -107,9 +113,10 @@ void FClothConstraints::CreateRules()
 	if (XBendingConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const FPBDParticles& /*Particles*/, const FReal /*Dt*/)
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
 			{
 				XBendingConstraints->Init();
+				XBendingConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
@@ -119,6 +126,11 @@ void FClothConstraints::CreateRules()
 	}
 	if (BendingConstraints)
 	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
+			{
+				BendingConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+			};
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
 			{
@@ -136,9 +148,10 @@ void FClothConstraints::CreateRules()
 	if (XAreaConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const FPBDParticles& /*Particles*/, const FReal /*Dt*/)
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
 			{
 				XAreaConstraints->Init();
+				XAreaConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
@@ -148,6 +161,11 @@ void FClothConstraints::CreateRules()
 	}
 	if (AreaConstraints)
 	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
+			{
+				AreaConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+			};
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
 			{
@@ -252,71 +270,114 @@ void FClothConstraints::CreateRules()
 	check(ConstraintRuleIndex == NumConstraintRules);
 }
 
-void FClothConstraints::SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, FReal EdgeStiffness, bool bUseXPBDConstraints)
+void FClothConstraints::SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints)
 {
 	check(Evolution);
-	check(EdgeStiffness > 0.f && EdgeStiffness <= 1.f);
 
 	if (bUseXPBDConstraints)
 	{
-		XEdgeConstraints = MakeShared<FXPBDSpringConstraints>(Evolution->Particles(), SurfaceElements, EdgeStiffness, /*bStripKinematicConstraints =*/ true);
-		++NumConstraintInits;
+		XEdgeConstraints = MakeShared<FXPBDSpringConstraints>(
+			Evolution->Particles(),
+			ParticleOffset, NumParticles,
+			SurfaceElements,
+			StiffnessMultipliers,
+			/*InStiffness =*/ FVec2::UnitVector,
+			/*bTrimKinematicConstraints =*/ true);
 	}
 	else
 	{
-		EdgeConstraints = MakeShared<FPBDSpringConstraints>(Evolution->Particles(), SurfaceElements, EdgeStiffness, /*bStripKinematicConstraints =*/ true);
+		EdgeConstraints = MakeShared<FPBDSpringConstraints>(
+			Evolution->Particles(),
+			ParticleOffset,
+			NumParticles,
+			SurfaceElements,
+			StiffnessMultipliers,
+			/*InStiffness =*/ FVec2::UnitVector,
+			/*bTrimKinematicConstraints =*/ true);
 	}
+	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetBendingConstraints(TArray<TVec2<int32>>&& Edges, FReal BendingStiffness, bool bUseXPBDConstraints)
+void FClothConstraints::SetBendingConstraints(const TArray<TVec2<int32>>& Edges, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints)
 {
 	check(Evolution);
 
 	if (bUseXPBDConstraints)
 	{
-		XBendingConstraints = MakeShared<FXPBDSpringConstraints>(Evolution->Particles(), MoveTemp(Edges), BendingStiffness, /*bStripKinematicConstraints =*/ true);
-		++NumConstraintInits;
+		XBendingConstraints = MakeShared<FXPBDSpringConstraints>(
+			Evolution->Particles(),
+			ParticleOffset, NumParticles,
+			Edges,
+			StiffnessMultipliers,
+			/*InStiffness =*/ FVec2::UnitVector,
+			/*bTrimKinematicConstraints =*/ true);
 	}
 	else
 	{
-		BendingConstraints = MakeShared<FPBDSpringConstraints>(Evolution->Particles(), MoveTemp(Edges), BendingStiffness, /*bStripKinematicConstraints =*/ true);
+		BendingConstraints = MakeShared<FPBDSpringConstraints>(
+			Evolution->Particles(),
+			ParticleOffset,
+			NumParticles,
+			Edges,
+			StiffnessMultipliers,
+			/*InStiffness =*/ FVec2::UnitVector,
+			/*bTrimKinematicConstraints =*/ true);
 	}
+	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
 
 void FClothConstraints::SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, FReal BendingStiffness)
 {
 	check(Evolution);
-	check(BendingStiffness > 0.f && BendingStiffness <= 1.f);
 
 	BendingElementConstraints = MakeShared<FPBDBendingConstraints>(Evolution->Particles(), MoveTemp(BendingElements), BendingStiffness);  // TODO: Strip kinematic constraints
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetAreaConstraints(TArray<TVec3<int32>>&& SurfaceElements, FReal AreaStiffness, bool bUseXPBDConstraints)
+void FClothConstraints::SetAreaConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints)
 {
 	check(Evolution);
-	check(AreaStiffness > 0.f && AreaStiffness <= 1.f);
 
 	if (bUseXPBDConstraints)
 	{
-		XAreaConstraints = MakeShared<FXPBDAxialSpringConstraints>(Evolution->Particles(), MoveTemp(SurfaceElements), AreaStiffness);
-		++NumConstraintInits;
+		XAreaConstraints = MakeShared<FXPBDAxialSpringConstraints>(
+			Evolution->Particles(),
+			ParticleOffset,
+			NumParticles,
+			SurfaceElements,
+			StiffnessMultipliers,
+			/*InStiffness =*/ FVec2::UnitVector,
+			/*bTrimKinematicConstraints =*/ true);
 	}
 	else
 	{
-		AreaConstraints = MakeShared<FPBDAxialSpringConstraints>(Evolution->Particles(), MoveTemp(SurfaceElements), AreaStiffness);
+		AreaConstraints = MakeShared<FPBDAxialSpringConstraints>(
+			Evolution->Particles(),
+			ParticleOffset,
+			NumParticles,
+			SurfaceElements,
+			StiffnessMultipliers,
+			/*InStiffness =*/ FVec2::UnitVector,
+			/*bTrimKinematicConstraints =*/ true);
 	}
+	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetVolumeConstraints(TArray<TVec2<int32>>&& DoubleBendingEdges, FReal VolumeStiffness)
+void FClothConstraints::SetVolumeConstraints(const TArray<TVec2<int32>>& DoubleBendingEdges, FReal VolumeStiffness)
 {
 	check(Evolution);
-	check(VolumeStiffness > 0.f && VolumeStiffness <= 1.f);
 
-	ThinShellVolumeConstraints = MakeShared<FPBDSpringConstraints>(Evolution->Particles(), MoveTemp(DoubleBendingEdges), VolumeStiffness);
+	ThinShellVolumeConstraints = MakeShared<FPBDSpringConstraints>(
+		Evolution->Particles(),
+		ParticleOffset,
+		NumParticles,
+		DoubleBendingEdges,
+		TConstArrayView<FRealSingle>(),
+		VolumeStiffness,
+		/*bTrimKinematicConstraints =*/ true);
 	++NumConstraintRules;
 }
 
@@ -331,8 +392,7 @@ void FClothConstraints::SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceEleme
 
 void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& PointToNeighborsMap,
 	const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
-	const FVec2& TetherStiffness, const FVec2& TetherScale,
-	ETetherMode TetherMode, bool bUseXPBDConstraints)
+	const FVec2& TetherScale, ETetherMode TetherMode, bool bUseXPBDConstraints)
 {
 	check(Evolution);
 
@@ -348,7 +408,7 @@ void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& 
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
 			MaxNumTetherIslands,
-			TetherStiffness,
+			/*InStiffness =*/ FVec2::UnitVector,
 			TetherScale,
 			TetherMode);
 	}
@@ -362,7 +422,7 @@ void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& 
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
 			MaxNumTetherIslands,
-			TetherStiffness,
+			/*InStiffness =*/ FVec2::UnitVector,
 			TetherScale,
 			TetherMode);
 	}
@@ -433,39 +493,39 @@ void FClothConstraints::SetSelfCollisionConstraints(const TArray<TVec3<int32>>& 
 	++NumConstraintRules;  // and a rule
 }
 
-void FClothConstraints::SetEdgeProperties(FReal EdgeStiffness)
+void FClothConstraints::SetEdgeProperties(const FVec2& EdgeStiffness)
 {
 	if (EdgeConstraints)
 	{
-		EdgeConstraints->SetStiffness(EdgeStiffness);
+		EdgeConstraints->SetProperties(EdgeStiffness);
 	}
 	if (XEdgeConstraints)
 	{
-		XEdgeConstraints->SetStiffness(EdgeStiffness);
+		XEdgeConstraints->SetProperties(EdgeStiffness);
 	}
 }
 
-void FClothConstraints::SetBendingProperties(FReal BendingStiffness)
+void FClothConstraints::SetBendingProperties(const FVec2& BendingStiffness)
 {
 	if (BendingConstraints)
 	{
-		BendingConstraints->SetStiffness(BendingStiffness);
+		BendingConstraints->SetProperties(BendingStiffness);
 	}
 	if (XBendingConstraints)
 	{
-		XBendingConstraints->SetStiffness(BendingStiffness);
+		XBendingConstraints->SetProperties(BendingStiffness);
 	}
 }
 
-void FClothConstraints::SetAreaProperties(FReal AreaStiffness)
+void FClothConstraints::SetAreaProperties(const FVec2& AreaStiffness)
 {
 	if (AreaConstraints)
 	{
-		AreaConstraints->SetStiffness(AreaStiffness);
+		AreaConstraints->SetProperties(AreaStiffness);
 	}
 	if (XAreaConstraints)
 	{
-		XAreaConstraints->SetStiffness(AreaStiffness);
+		XAreaConstraints->SetProperties(AreaStiffness);
 	}
 }
 
@@ -473,7 +533,7 @@ void FClothConstraints::SetThinShellVolumeProperties(FReal VolumeStiffness)
 {
 	if (ThinShellVolumeConstraints)
 	{
-		ThinShellVolumeConstraints->SetStiffness(VolumeStiffness);
+		ThinShellVolumeConstraints->SetProperties(VolumeStiffness);
 	}
 }
 

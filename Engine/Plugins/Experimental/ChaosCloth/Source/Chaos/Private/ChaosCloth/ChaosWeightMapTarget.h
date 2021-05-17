@@ -19,5 +19,8 @@ enum class EChaosWeightMapTarget : uint8
 	TetherStiffness,
 	TetherScale,
 	Drag,
-	Lift
+	Lift,
+	EdgeStiffness,
+	BendingStiffness,
+	AreaStiffness
 };

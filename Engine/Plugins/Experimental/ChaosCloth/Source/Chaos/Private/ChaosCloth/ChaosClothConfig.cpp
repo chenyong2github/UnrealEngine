@@ -38,13 +38,13 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 	const float HorizontalStiffness =
 		ClothConfig.HorizontalConstraintConfig.Stiffness *
 		ClothConfig.HorizontalConstraintConfig.StiffnessMultiplier;
-	EdgeStiffness = FMath::Clamp((VerticalStiffness + HorizontalStiffness) * 0.5f, 0.f, 1.f);
+	EdgeStiffnessWeighted.Low = EdgeStiffnessWeighted.High = FMath::Clamp((VerticalStiffness + HorizontalStiffness) * 0.5f, 0.f, 1.f);
 
-	BendingStiffness = FMath::Clamp(
+	BendingStiffnessWeighted.Low = BendingStiffnessWeighted.High = FMath::Clamp(
 		ClothConfig.BendConstraintConfig.Stiffness *
 		ClothConfig.BendConstraintConfig.StiffnessMultiplier, 0.f, 1.f);
 
-	AreaStiffness = FMath::Clamp(
+	AreaStiffnessWeighted.Low = AreaStiffnessWeighted.High = FMath::Clamp(
 		ClothConfig.ShearConstraintConfig.Stiffness *
 		ClothConfig.ShearConstraintConfig.StiffnessMultiplier, 0.f, 1.f);
 
@@ -176,6 +176,13 @@ void UChaosClothConfig::PostLoad()
 		TetherScale.Low = TetherScale.High = LimitScale_DEPRECATED;
 		Drag.Low = Drag.High = DragCoefficient_DEPRECATED;
 		Lift.Low = Lift.High = LiftCoefficient_DEPRECATED;
+	}
+
+	if (FortniteMainBranchObjectVersion < FFortniteMainBranchObjectVersion::ChaosClothAddMaterialWeightMaps)
+	{
+		EdgeStiffnessWeighted.Low = EdgeStiffnessWeighted.High = EdgeStiffness_DEPRECATED;
+		BendingStiffnessWeighted.Low = BendingStiffnessWeighted.High = BendingStiffness_DEPRECATED;
+		AreaStiffnessWeighted.Low = AreaStiffnessWeighted.High = AreaStiffness_DEPRECATED;
 	}
 #endif  // #if WITH_EDITORONLY_DATA
 }
