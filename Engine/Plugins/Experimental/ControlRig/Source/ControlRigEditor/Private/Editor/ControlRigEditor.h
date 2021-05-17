@@ -213,7 +213,7 @@ protected:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 	void HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM);
 	void HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
-	void HandleControlRigExecutionHalted(const int32 InstructionIndex, URigVMNode* InNode);
+	void HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNode);
 
 	// FBaseToolKit overrides
 	void CreateEditorModeManager() override;
@@ -328,6 +328,10 @@ private:
 	 void OnGraphImported(UEdGraph* InEdGraph);
 
 	 virtual bool OnActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const override;
+
+	void HandleBreakpointActionRequested(const ERigVMBreakpointAction BreakpointAction);
+
+	bool IsHaltedAtBreakpoint() const;
 
 protected:
 

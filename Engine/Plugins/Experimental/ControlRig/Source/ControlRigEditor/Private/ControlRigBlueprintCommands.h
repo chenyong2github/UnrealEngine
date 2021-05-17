@@ -54,6 +54,15 @@ public:
 	/** Resume the execution of the graph when halted at a breakpoint */
 	TSharedPtr< FUICommandInfo > ResumeExecution;
 
+	/** Steps to the next node in the execution graph (at the same graph level) when halted at a breakpoint */
+	TSharedPtr< FUICommandInfo > StepOver;
+
+	/** Steps into the collapsed/function node, when halted at a breakpoint */
+	TSharedPtr< FUICommandInfo > StepInto;
+
+	/** Steps out of the collapsed/function node, when halted at a breakpoint */
+	TSharedPtr< FUICommandInfo > StepOut;
+
 	/**
 	 * Initialize commands
 	 */

@@ -13,6 +13,19 @@
 #endif
 #include "RigVM.generated.h"
 
+// Possible actions when the VM is halted at a breakpoint
+UENUM()
+enum class ERigVMBreakpointAction : uint8
+{
+	None,
+	Resume,
+	StepOver,
+	StepInto,
+	StepOut,
+	Max UMETA(Hidden),
+};
+
+
 // The type of parameter for a VM
 UENUM(BlueprintType)
 enum class ERigVMParameterType : uint8
@@ -124,7 +137,7 @@ public:
 	/** Bindable event for external objects to be notified when the VM reaches an Exit Operation */
 	DECLARE_EVENT(URigVM, FExecutionReachedExitEvent);
 #if WITH_EDITOR
-	DECLARE_EVENT_TwoParams(URigVM, FExecutionHaltedEvent, int32, URigVMNode*);
+	DECLARE_EVENT_TwoParams(URigVM, FExecutionHaltedEvent, int32, UObject*);
 #endif
 
 	URigVM();
@@ -529,6 +542,8 @@ public:
 	void SetDebugInfo(FRigVMDebugInfo* InDebugInfo) { DebugInfo = InDebugInfo; }
 
 	int32 GetHaltedAtInstruction() const { return HaltedAtInstruction; }
+
+	void SetBreakpointAction(const ERigVMBreakpointAction& Action) { CurrentBreakpointAction = Action; }
 #endif
 
 private:
@@ -547,6 +562,10 @@ private:
 #if WITH_EDITOR
 	FRigVMDebugInfo* DebugInfo;
 	int32 HaltedAtInstruction;
+	int32 HaltedAtInstructionHit;
+	ERigVMBreakpointAction CurrentBreakpointAction;
+
+	bool ShouldHaltAtInstruction(const uint16 InstructionIndex);
 #endif
 
 	UPROPERTY()

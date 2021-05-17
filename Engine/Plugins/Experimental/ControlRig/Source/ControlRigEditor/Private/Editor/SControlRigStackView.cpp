@@ -621,7 +621,7 @@ void SControlRigStackView::OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM*
 	}
 }
 
-void SControlRigStackView::HandleExecutionHalted(const int32 HaltedAtInstruction, URigVMNode* InNode)
+void SControlRigStackView::HandleExecutionHalted(const int32 HaltedAtInstruction, UObject* InNode)
 {	
 	if (HaltedAtInstruction != INDEX_NONE && Operators.Num() > HaltedAtInstruction)
 	{

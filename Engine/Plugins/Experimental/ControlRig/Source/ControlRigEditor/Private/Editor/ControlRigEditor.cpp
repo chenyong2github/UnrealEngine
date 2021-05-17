@@ -460,21 +460,23 @@ void FControlRigEditor::BindCommands()
 
 	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().ResumeExecution,
-		FExecuteAction::CreateLambda([this]()
-        {
-            if (ControlRig)
-            {
-	            ControlRig->ResumeExecution();
-            }
-        }),			
-		FIsActionChecked::CreateLambda([this]()
-		{
-			if (ControlRig && ControlRig->GetVM())
-			{
-				return ControlRig->GetVM()->GetHaltedAtInstruction() != INDEX_NONE;
-			}
-			return false;
-	}));
+		FExecuteAction::CreateSP(this, &FControlRigEditor::HandleBreakpointActionRequested, ERigVMBreakpointAction::Resume),			
+		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
+
+	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().StepOver,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::HandleBreakpointActionRequested, ERigVMBreakpointAction::StepOver),
+		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
+
+	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().StepInto,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::HandleBreakpointActionRequested, ERigVMBreakpointAction::StepInto),
+		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
+
+	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().StepOut,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::HandleBreakpointActionRequested, ERigVMBreakpointAction::StepOut),
+		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
 
 }
 
@@ -640,8 +642,20 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			LOCTEXT("ExecutionMode_ToolTip", "Pick between different execution modes for testing the Control Rig"),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
 			true);
+
+
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ResumeExecution,
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ResumeExecution"));
+
+		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepOver,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.StepOver"));
+
+		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepInto,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.StepInto"));
+
+		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().StepOut,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.StepOut"));
+		
 
 	}
 	ToolbarBuilder.EndSection();
@@ -2249,29 +2263,32 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 	UpdateGraphCompilerErrors();
 }
 
-void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionIndex, URigVMNode* InNode)
+void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNodeObject)
 {
-	if (HaltedAtNode != nullptr)
+	if (URigVMNode* InNode = Cast<URigVMNode>(InNodeObject))
 	{
-		HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
-	}
-	HaltedAtNode = InNode;
-
-	if (InNode == nullptr)
-	{
-		return;
-	}	
-	InNode->SetExecutionIsHaltedAtThisNode(true);
-	
-	if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
-	{
-		if (Blueprint->GetAllModels().Contains(InNode->GetGraph()))
+		if (HaltedAtNode != nullptr)
 		{
-			if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(Blueprint->GetEdGraph(InNode->GetGraph())))
+			HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
+		}
+		HaltedAtNode = InNode;
+
+		if (InNode == nullptr)
+		{
+			return;
+		}	
+		InNode->SetExecutionIsHaltedAtThisNode(true);
+	
+		if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
+		{
+			if (Blueprint->GetAllModels().Contains(InNode->GetGraph()))
 			{
-				if(UEdGraphNode* EdNode = EdGraph->FindNodeForModelNodeName(InNode->GetFName()))
+				if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(Blueprint->GetEdGraph(InNode->GetGraph())))
 				{
-					JumpToHyperlink(EdNode, false);
+					if(UEdGraphNode* EdNode = EdGraph->FindNodeForModelNodeName(InNode->GetFName()))
+					{
+						JumpToHyperlink(EdNode, false);
+					}
 				}
 			}
 		}
@@ -4792,6 +4809,23 @@ bool FControlRigEditor::OnActionMatchesName(FEdGraphSchemaAction* InAction, cons
 	if (InAction->GetMenuDescription().ToString() == InName.ToString())
 	{
 		return true;
+	}
+	return false;
+}
+
+void FControlRigEditor::HandleBreakpointActionRequested(const ERigVMBreakpointAction BreakpointAction)
+{
+	if (ControlRig)
+	{
+		ControlRig->ExecuteBreakpointAction(BreakpointAction);
+	}
+}
+
+bool FControlRigEditor::IsHaltedAtBreakpoint() const
+{
+	if (ControlRig && ControlRig->GetVM())
+	{
+		return ControlRig->GetVM()->GetHaltedAtInstruction() != INDEX_NONE;
 	}
 	return false;
 }

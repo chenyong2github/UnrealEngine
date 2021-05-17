@@ -14,20 +14,30 @@ struct RIGVM_API FRigVMBreakpoint
 
 	FRigVMBreakpoint()
 	: bIsActive(true)
+	, InstructionIndex(INDEX_NONE)
 	, Subject(nullptr)
 	{
 
 	}
 	
-	FRigVMBreakpoint(URigVMNode* InNode)
+	FRigVMBreakpoint(const uint16 InInstructionIndex, UObject* InNode)
 	: bIsActive(true)
+	, InstructionIndex(InInstructionIndex)
 	, Subject(InNode)
 	{
 
 	}
 
+	FORCEINLINE void Clear()
+	{
+		bIsActive = true;
+		InstructionIndex = INDEX_NONE;
+		Subject = nullptr;
+	}
+
 	bool bIsActive;
-	URigVMNode* Subject;
+	uint16 InstructionIndex;
+	UObject* Subject;
 };
 
 USTRUCT()
@@ -36,19 +46,13 @@ struct RIGVM_API FRigVMDebugInfo
 	GENERATED_BODY()
 
 	FORCEINLINE FRigVMDebugInfo()
+		: SteppingOriginBreakpoint(nullptr)
 	{
 	}
 
-	FORCEINLINE void ResetState()
-	{
-		BreakpointHits.Empty();
-		BreakpointActivationOnHit.Empty();
-	}
+	void ResetState();
 
-	FORCEINLINE void StartExecution()
-	{
-		BreakpointHits.Empty();
-	}
+	void StartExecution();
 
 	FORCEINLINE void Clear()
 	{
@@ -56,80 +60,46 @@ struct RIGVM_API FRigVMDebugInfo
 		// Do not remove state
 	}
 
-	FRigVMBreakpoint* FindBreakpoint(const uint16 InstructionIndex) 
-	{
-		return Breakpoints.Find(InstructionIndex);
-	}
+	FRigVMBreakpoint* FindBreakpoint(const uint16 InstructionIndex);
 	
-	FRigVMBreakpoint* AddBreakpoint(const uint16 InstructionIndex, URigVMNode* InNode)
-	{
-		if (!Breakpoints.Contains(InstructionIndex))
-		{
-			if (FRigVMBreakpoint* NewBP = &Breakpoints.Add(InstructionIndex, InNode))
-			{
-				// Do not override the state if it already exists
-				BreakpointActivationOnHit.FindOrAdd(InstructionIndex, 0);
-				BreakpointHits.FindOrAdd(InstructionIndex, 0);
-				return NewBP;
-			}
-		}
-		return nullptr;
-	}
+	FRigVMBreakpoint* AddBreakpoint(const uint16 InstructionIndex, UObject* InNode, const bool bIsTemporary = false);
+
+	bool RemoveBreakpoint(const uint16 InstructionIndex);
 
 	TMap<uint16 , FRigVMBreakpoint> GetBreakpoints() const { return Breakpoints; }
 
-	void SetBreakpoints(const TMap<uint16 , FRigVMBreakpoint>& InBreakpoints) { Breakpoints = InBreakpoints; }
-
-	bool HasBreakpoint(const uint16 InstructionIndex) { return Breakpoints.Contains(InstructionIndex); }
-
-	bool IsActive(const uint16 InstructionIndex)
+	void SetBreakpoints(const TMap<uint16 , FRigVMBreakpoint>& InBreakpoints)
 	{
-		if (FRigVMBreakpoint* BP = Breakpoints.Find(InstructionIndex))
-		{
-			if (BP->bIsActive)
-			{
-				uint16 Hits = 0;
-				uint16 OnHit = 0;
-				if (BreakpointHits.Contains(InstructionIndex))
-				{
-					Hits = BreakpointHits.FindChecked(InstructionIndex);
-				}
-				if (BreakpointActivationOnHit.Contains(InstructionIndex))
-				{
-					OnHit = BreakpointActivationOnHit.FindChecked(InstructionIndex);
-				}
-				return Hits == OnHit;
-			}				
-		}
-		return false;		
+		Breakpoints = InBreakpoints;
 	}
 
-	void HitBreakpoint(const uint16 InstructionIndex)
+	bool IsTemporaryBreakpoint(FRigVMBreakpoint* Breakpoint) const
 	{
-		if (BreakpointHits.Contains(InstructionIndex))
-		{
-			BreakpointHits[InstructionIndex]++;
-		}
-		else
-		{
-			BreakpointHits.Add(InstructionIndex, 1);
-		}
+		return Breakpoint == &TemporaryBreakpoint;
 	}
 
-	void IncrementBreakpointActivationOnHit(const uint16 InstructionIndex)
-	{
-		if (BreakpointActivationOnHit.Contains(InstructionIndex))
-		{
-			BreakpointActivationOnHit[InstructionIndex]++;
-		}
-		else
-		{
-			BreakpointActivationOnHit.Add(InstructionIndex, 1);
-		}
-	}
+	bool IsActive(const uint16 InstructionIndex) const;
+
+	void HitBreakpoint(const uint16 InstructionIndex);
+
+	void IncrementBreakpointActivationOnHit(const uint16 InstructionIndex);
+
+	uint16 GetBreakpointHits(const uint16 InstructionIndex) const;
+
+	FRigVMBreakpoint* GetSteppingOriginBreakpoint() const { return SteppingOriginBreakpoint; }
+
+	void SetSteppingOriginBreakpoint(FRigVMBreakpoint* Breakpoint) { SteppingOriginBreakpoint = Breakpoint; }
+
+	TArray<UObject*>& GetSteppingOriginBreakpointCallstack() { return SteppingOriginBreakpointCallstack; }
+
+	void SetSteppingOriginBreakpointCallstack(TArray<UObject*> Callstack) { SteppingOriginBreakpointCallstack = Callstack; }
 
 private:
 	TMap<uint16 , FRigVMBreakpoint> Breakpoints;
+	FRigVMBreakpoint TemporaryBreakpoint;
 	TMap<uint16 , uint16> BreakpointActivationOnHit; // After how many instruction executions, this breakpoint becomes active
 	TMap<uint16 , uint16> BreakpointHits; // How many times this instruction has been executed
+
+	FRigVMBreakpoint* SteppingOriginBreakpoint;
+	TArray<UObject*> SteppingOriginBreakpointCallstack;
 };

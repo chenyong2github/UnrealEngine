@@ -662,8 +662,9 @@ public:
 	/** Adds a breakpoint in the VM at the InstructionIndex */
 	void AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode);
 
-	/** Reloads the VM from the SnapshotVM, and increments activation hit on the halted breakpoint */
-	void ResumeExecution();
+	/** If the VM is halted at a breakpoint, it sets a breakpoint action so that
+	 *  it is applied on the next VM execution */
+	bool ExecuteBreakpointAction(const ERigVMBreakpointAction BreakpointAction);
 	
 	FRigVMDebugInfo& GetDebugInfo() { return DebugInfo; }
 
