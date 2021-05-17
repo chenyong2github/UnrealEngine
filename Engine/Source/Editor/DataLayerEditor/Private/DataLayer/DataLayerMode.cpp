@@ -282,14 +282,6 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 
 			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, FText::Format(LOCTEXT("AssignToDataLayer", "Assign to Data Layer \"{0}\""), FText::FromName(DataLayerTarget->GetDataLayerLabel())));
 		}
-		else
-		{
-			if (!PayloadActors[0]->HasDataLayers())
-			{
-				// Only allow actors not coming from the DataLayerBrowser
-				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, LOCTEXT("AssignToNewDataLayer", "Assign to New Data Layer"));
-			}
-		}
 	}
 	return FSceneOutlinerDragValidationInfo::Invalid();
 }
@@ -392,18 +384,6 @@ void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutl
 
 			const FScopedTransaction Transaction(LOCTEXT("DataLayerOutlinerAddActorsToDataLayer", "Add Actors to Data Layer"));
 			DataLayerEditorSubsystem->AddActorsToDataLayer(ActorsToAdd, DataLayer);
-		}
-	}
-	else
-	{
-		if (!ActorsToAdd[0]->HasDataLayers())
-		{
-			// Only allow actors not coming from the DataLayerBrowser
-			const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Actors to New Data Layer"));
-			if (UDataLayer* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
-			{
-				DataLayerEditorSubsystem->AddActorsToDataLayer(ActorsToAdd, NewDataLayer);
-			}
 		}
 	}
 }
