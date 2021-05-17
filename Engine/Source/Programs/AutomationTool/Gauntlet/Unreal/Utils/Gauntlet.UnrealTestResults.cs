@@ -55,6 +55,7 @@ namespace Gauntlet
 		public int succeededWithWarnings;
 		public int failed;
 		public int notRun;
+		public int inProcess;
 		public float totalDuration;
 		public bool comparisonExported;
 		public string comparisonExportDirectory;

@@ -2,6 +2,7 @@
 
 #include "ScreenShotManager.h"
 #include "AutomationWorkerMessages.h"
+#include "Async/ParallelFor.h"
 #include "Async/Async.h"
 #include "HAL/FileManager.h"
 #include "MessageEndpointBuilder.h"
@@ -484,30 +485,27 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 	return ComparisonResult;
 }
 
-TFuture<FScreenshotExportResults> FScreenShotManager::ExportComparisonResultsAsync(FString ExportPath)
-{
-	return Async(EAsyncExecution::Thread, [=] () { return ExportComparisonResults(ExportPath); });
-}
 
-FScreenshotExportResults FScreenShotManager::ExportComparisonResults(FString RootExportFolder)
+FScreenshotExportResult FScreenShotManager::ExportScreenshotComparisonResult(FString ScreenshotName, FString RootExportFolder)
 {
 	FPaths::NormalizeDirectoryName(RootExportFolder);
 
-	if ( RootExportFolder.IsEmpty() )
+	if (RootExportFolder.IsEmpty())
 	{
 		RootExportFolder = GetDefaultExportDirectory();
 	}
 
-	FScreenshotExportResults Results;
+	FScreenshotExportResult Results;
 	Results.Success = false;
 	Results.ExportPath = RootExportFolder / FString::FromInt(FEngineVersion::Current().GetChangelist());
 
-	if ( !IFileManager::Get().MakeDirectory(*Results.ExportPath, /*Tree =*/true) )
+	FString Destination = Results.ExportPath / ScreenshotName;
+	if (!IFileManager::Get().MakeDirectory(*Destination, /*Tree =*/true))
 	{
 		return Results;
 	}
 
-	CopyDirectory(Results.ExportPath, ScreenshotResultsFolder);
+	CopyDirectory(Destination, ScreenshotResultsFolder / ScreenshotName);
 
 	Results.Success = true;
 	return Results;
@@ -570,13 +568,13 @@ void FScreenShotManager::CopyDirectory(const FString& DestDir, const FString& Sr
 	FPaths::NormalizeDirectoryName(NormalizedSrc);
 
 	IFileManager::Get().FindFilesRecursive(FilesToCopy, *SrcDir, TEXT("*"), /*Files=*/true, /*Directories=*/false);
-	for ( const FString& File : FilesToCopy )
-	{
-		const FString& SourceFilePath = File;
-		FString DestFilePath = FPaths::Combine(DestDir, SourceFilePath.RightChop(SrcDir.Len()));
 
-		IFileManager::Get().Copy(*DestFilePath, *File, true, true);
-	}
+	ParallelFor(FilesToCopy.Num(), [&](int32 Index)
+		{
+			const FString& SourceFilePath = FilesToCopy[Index];
+			FString DestFilePath = FPaths::Combine(DestDir, SourceFilePath.RightChop(SrcDir.Len()));
+			IFileManager::Get().Copy(*DestFilePath, *SourceFilePath, true, true);
+		});
 }
 
 void FScreenShotManager::BuildFallbackPlatformsListFromConfig(const UScreenShotComparisonSettings* InSettings)

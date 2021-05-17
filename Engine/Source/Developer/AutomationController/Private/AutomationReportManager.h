@@ -40,6 +40,13 @@ public:
 	TSharedPtr<IAutomationReport> GetNextReportToExecute(bool& bOutAllTestsComplete, const int32 ClusterIndex, const int32 PassIndex, const int32 NumDevicesInCluster);
 
 	/**
+	 * Returns all the enabled test reports.
+	 *
+	 * @return an array of all reports
+	 */
+	TArray<TSharedPtr<IAutomationReport>> GetEnabledTestReports();
+
+	/**
 	 * Ensures the nested tree exists ("blueprint.test.all") would have 3 levels other than the root.
 	 *
 	 * @param TestInfo Structure containing the test info.
