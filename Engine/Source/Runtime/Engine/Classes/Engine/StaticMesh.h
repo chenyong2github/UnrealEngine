@@ -1169,6 +1169,7 @@ public:
 			, bUseHashAsGuid(false)
 			, bBuildSimpleCollision(false)
 			, bCommitMeshDescription(true)
+			, bAllowCpuAccess(false)
 		{}
 
 		/**
@@ -1192,6 +1193,11 @@ public:
 		 * Commits the MeshDescription as part of the building process. Set to true by default.
 		 */
 		bool bCommitMeshDescription;
+
+		/**
+		 * Ored with the value of bAllowCpuAccess on the static mesh. Set to false by default.
+		 */
+		bool bAllowCpuAccess;
 	};
 
 	/**
