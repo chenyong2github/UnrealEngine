@@ -1828,7 +1828,7 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 void UMovieSceneControlRigParameterSection::SetControlRig(UControlRig* InControlRig)
 {
 	ControlRig = InControlRig;
-	ControlRigClass = ControlRig->GetClass();
+	ControlRigClass = ControlRig ? ControlRig->GetClass() : nullptr;
 }
 
 #if WITH_EDITOR
