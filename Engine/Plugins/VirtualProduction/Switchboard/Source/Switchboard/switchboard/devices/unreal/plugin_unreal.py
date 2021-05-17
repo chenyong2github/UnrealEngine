@@ -435,7 +435,7 @@ class DeviceUnreal(Device):
     def on_build_engine_changed(self, _, build_engine):
         if build_engine:
             self.widget.engine_changelist_label.show()
-            if self.status != DeviceStatus.DISCONNECTED:
+            if not self.is_disconnected:
                 self._request_engine_changelist_number()
         else:
             self.widget.engine_changelist_label.hide()

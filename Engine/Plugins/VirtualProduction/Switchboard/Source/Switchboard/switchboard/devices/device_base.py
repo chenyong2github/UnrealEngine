@@ -189,6 +189,10 @@ class Device(QtCore.QObject):
         self.device_qt_handler.signal_device_status_changed.emit(self, previous_status)
 
     @property
+    def is_disconnected(self):
+        return self.status in {DeviceStatus.DISCONNECTED}
+
+    @property
     def project_changelist(self):
         return self._project_changelist
 
@@ -221,7 +225,7 @@ class Device(QtCore.QObject):
             return
 
         # If the device was disconnected, set to closed
-        if self.status == DeviceStatus.DISCONNECTED:
+        if self.is_disconnected:
             self.status = DeviceStatus.CLOSED
 
     @QtCore.Slot()
@@ -250,7 +254,7 @@ class Device(QtCore.QObject):
             LOGGER.error(f'{self.name}: Incorrect ip address when sending OSC message. {e}')
 
     def record_start(self, slate, take, description):
-        if self.status == DeviceStatus.DISCONNECTED or not self.is_recording_device:
+        if self.is_disconnected or not self.is_recording_device:
             return
 
         self.send_osc_message(osc.RECORD_START, [slate, take, description])

@@ -155,7 +155,7 @@ class DeviceListWidget(QtWidgets.QListWidget):
         any_connected = False
         any_opened = False
         for device in devices:
-            any_connected |= (device.status != DeviceStatus.DISCONNECTED)
+            any_connected |= (not device.is_disconnected)
             any_opened |= (device.status > DeviceStatus.CLOSED)
 
         header_item = self._header_by_category_name[category_name]
