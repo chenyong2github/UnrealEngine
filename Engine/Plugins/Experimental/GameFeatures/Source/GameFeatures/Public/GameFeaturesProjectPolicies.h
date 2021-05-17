@@ -52,5 +52,6 @@ public:
 	//~UGameFeaturesProjectPolicies interface
 	virtual void InitGameFeatureManager() override;
 	virtual void GetGameFeatureLoadingMode(bool& bLoadClientData, bool& bLoadServerData) const override;
+	virtual const TArray<FName> GetPreloadBundleStateForGameFeature() const override;
 	//~End of UGameFeaturesProjectPolicies interface
 };
