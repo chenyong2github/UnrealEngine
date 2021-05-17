@@ -163,8 +163,6 @@ type RobomergeBranchOptions = {
 	incognitoMode: boolean
 
 	excludeAuthors: string[] // if present, completely overrides BotConfig
-
-	p4MaxRowsOverride: number // use with care and check with p4 admins
 }
 
 export type RobomergeBranchSpec = Partial<RobomergeBranchOptions> & {
@@ -172,6 +170,13 @@ export type RobomergeBranchSpec = Partial<RobomergeBranchOptions> & {
 }
 
 // copied from branchdefs.ts
+type IntegrationWindowPane = {
+	// if day not specified, daily
+	dayOfTheWeek?: 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
+	startHourUTC: number
+	durationHours: number
+}
+
 type EdgeOptionFields = {
 	lastGoodCLPath: string
 	additionalSlackChannel: string
@@ -183,6 +188,10 @@ type EdgeOptionFields = {
 	terminal: boolean // changes go along terminal edges but no further
 
 	excludeAuthors: string[]
+
+	// by default, specify when gate catch ups are allowed; can be inverted to disallow
+	integrationWindow: IntegrationWindowPane[]
+	invertIntegrationWindow: boolean
 }
 
 export type EdgeProperties = Partial<EdgeOptionFields> & {
@@ -810,10 +819,14 @@ export abstract class FunctionalTest {
 				const p4CL = await latestP4CLs.get(source)!
 				const rmCL = edgeState.getLastCL()
 				if (rmCL < p4CL) {
-					const gateCL = edgeState.getLastGoodCL()
-					if (!gateCL || gateCL < 0 || rmCL < gateCL) {
+					const gateClosed = edgeState.getGateClosedMessage()
+					if (gateClosed) {
+						this.verbose(gateClosed)
+					}
+					else {
 						if (dump) {
 							let msg = `RoboMerge is not idle: ${source} -> ${target} last CL ${rmCL} < ${p4CL}`
+							const gateCL = edgeState.getLastGoodCL()
 							if (gateCL) {
 								msg += ` (gate: ${gateCL})`
 							}

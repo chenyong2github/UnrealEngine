@@ -2,8 +2,8 @@
 
 import { ContextualLogger } from "../common/logger";
 import { Change, PerforceContext } from "../common/perforce";
-import { GateEventContext, GateInfo } from "./branch-interfaces"
-import { DAYS_OF_THE_WEEK, EdgeOptions } from "./branchdefs"
+import { gatesSame, GateEventContext, GateInfo } from "./branch-interfaces"
+import { DAYS_OF_THE_WEEK, EdgeOptions, IntegrationWindowPane } from "./branchdefs"
 import { BotEventTriggers } from "./events"
 import { Context } from "./settings"
 
@@ -45,7 +45,7 @@ class DummyEventTriggers {
 	eventTriggers = new DummyEventTriggers.Inner
 }
 
-async function getRequestedGateCl(context: GateContext): Promise<GateInfo | null> {
+async function getRequestedGateCl(context: GateContext, previousGateInfo?: GateInfo | null): Promise<GateInfo | null> {
 
 	const lastGoodCLPath = context.options.lastGoodCLPath
 	if (!lastGoodCLPath) {
@@ -91,13 +91,28 @@ async function getRequestedGateCl(context: GateContext): Promise<GateInfo | null
 	if (clInfo.Url) {
 		result.link = clInfo.Url
 	}
-	try {
-		const description = await context.p4!.describe(cl)
-		if (description.date) {
-			result.date = description.date
+	if (previousGateInfo && previousGateInfo.cl === cl) {
+		if (previousGateInfo.date) {
+			result.date = previousGateInfo.date
 		}
 	}
-	catch (_err) {
+	else {
+		try {
+			const description = await context.p4!.describe(cl)
+			if (description.date) {
+				result.date = description.date
+			}
+		}
+		catch (err) {
+			console.log('error getting gate CL description', err)
+		}
+	}
+
+	if (clInfo.integrationWindow) {
+		result.integrationWindow = clInfo.integrationWindow
+		if (clInfo.invertIntegrationWindow) {
+			result.invertIntegrationWindow = true
+		}
 	}
 
 	return result
@@ -169,7 +184,9 @@ export class Gate {
 			return
 		}
 
-		const gateInfo = await getRequestedGateCl(this.context)
+		const mostRecentGate = this.getMostRecentGate()
+
+		const gateInfo = await getRequestedGateCl(this.context, mostRecentGate)
 		if (!gateInfo) {
 			if (this.currentGateInfo) {
 				// we were waiting for a gate, so unpause and clear gate info
@@ -186,14 +203,12 @@ export class Gate {
 		}
 
 		let dirty = false
-		const mostRecentGate = this.getMostRecentGate()
-
 		if (!mostRecentGate) {
 			// ooh look, our first gate
 			this.queuedGates.push(gateInfo)
 			dirty = true
 		}
-		else if (mostRecentGate.cl !== gateInfo.cl) {
+		else if (!gatesSame(mostRecentGate, gateInfo)) {
 			this.processGateChange(gateInfo)
 			dirty = true
 		}
@@ -345,6 +360,11 @@ export class Gate {
 			outStatus.lastGoodCLJobLink = mostRecentGate.link
 			outStatus.lastGoodCLDate = mostRecentGate.date
 		}
+
+		const closedMessage = this.getGateClosedMessage()
+		if (closedMessage) {
+			outStatus.gateClosedMessage = closedMessage
+		}
 	}
 
 	logSummary() {
@@ -355,14 +375,27 @@ export class Gate {
 	}
 
 	private nowIsWithinAllowedCatchupWindow() {
-		if (!this.context.options.integrationWindow) {
+		const mostRecentGate = this.getMostRecentGate()
+		let integrationWindow: IntegrationWindowPane[] | null = null
+		let invert = false
+
+		if (mostRecentGate && mostRecentGate.integrationWindow) {
+			integrationWindow = mostRecentGate.integrationWindow
+			invert = !!mostRecentGate.invertIntegrationWindow
+		}
+		else if (this.context.options.integrationWindow) {
+			integrationWindow = this.context.options.integrationWindow
+			invert = !!this.context.options.invertIntegrationWindow
+		}
+
+		if (!integrationWindow) {
 			return true
 		}
 
 		const now = new Date;
 		let inWindow = false
 
-		for (const pane of this.context.options.integrationWindow) {
+		for (const pane of integrationWindow) {
 			if (pane.dayOfTheWeek) {
 				const dayIndex = DAYS_OF_THE_WEEK.indexOf(pane.dayOfTheWeek)
 				if (dayIndex < 0 || dayIndex > 6) {
@@ -382,7 +415,7 @@ export class Gate {
 			}
 		}
 
-		if (this.context.options.invertIntegrationWindow) {
+		if (invert) {
 			inWindow = !inWindow
 		}
 		return inWindow
@@ -516,7 +549,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 	const openWindow = (opts: EdgeOptions) => {
 		opts.integrationWindow!.push({
 			startHourUTC: (new Date).getUTCHours(),
-			durationHours: 1
+			durationHours: 2 // more than 1 to avoid edge cases
 			})
 	}
 

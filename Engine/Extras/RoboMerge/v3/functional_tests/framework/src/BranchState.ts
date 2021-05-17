@@ -26,6 +26,10 @@ export class EdgeState {
 		return this.rawEdgeData.lastGoodCL
 	}
 
+	getGateClosedMessage() {
+		return this.rawEdgeData.gateClosedMessage
+	}
+
 	dump() {
 		console.log(this.rawEdgeData)
 	}

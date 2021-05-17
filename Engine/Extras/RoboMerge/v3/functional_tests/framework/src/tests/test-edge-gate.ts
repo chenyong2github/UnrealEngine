@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { FunctionalTest, getRootDataClient, P4Client, P4Util, Stream } from '../framework'
+import * as system from '../system'
 
 const streams: Stream[] = [
 	{name: 'Main', streamType: 'mainline'},
 	{name: 'Dev-NoGate', streamType: 'development', parent: 'Main'},
 	{name: 'Dev-PlusOne', streamType: 'development', parent: 'Main'},
-	{name: 'Dev-Exact', streamType: 'development', parent: 'Main'}
+	{name: 'Dev-Exact', streamType: 'development', parent: 'Main'},
+	{name: 'Dev-Queue', streamType: 'development', parent: 'Main'}
 ]
 
 const GATE_FILENAME = 'TestEdgeGate-gate'
@@ -26,41 +28,60 @@ export class TestEdgeGate extends FunctionalTest {
 		await Promise.all([
 			this.p4.populate(this.getStreamPath('Dev-Exact'), desc),
 			this.p4.populate(this.getStreamPath('Dev-PlusOne'), desc),
-			this.p4.populate(this.getStreamPath('Dev-NoGate'), desc)
+			this.p4.populate(this.getStreamPath('Dev-NoGate'), desc),
+			this.p4.populate(this.getStreamPath('Dev-Queue'), desc)
 		])
 
 		const firstEditCl = await P4Util.editFileAndSubmit(mainClient, 'test.txt', 'Initial content\n\nFirst addition')
 
 		// must happen in set-up, and for this test, before second addition (i.e. earlier CL numbers)
 		await Promise.all([
-			P4Util.addFile(this.gateClient, GATE_FILENAME + 'exact.json', `{"Change":${firstEditCl}}`),
-			P4Util.addFile(this.gateClient, GATE_FILENAME + 'plusone.json', `{"Change":${firstEditCl + 1}}`)
+			P4Util.addFile(this.gateClient, GATE_FILENAME + 'exact.json', JSON.stringify({Change:firstEditCl})),
+			P4Util.addFile(this.gateClient, GATE_FILENAME + 'plusone.json', JSON.stringify({Change:firstEditCl + 1})),
+			P4Util.addFile(this.gateClient, GATE_FILENAME + 'queue.json', JSON.stringify({Change:firstEditCl, integrationWindow: []}))
 		])
 
 		await this.gateClient.submit('Added gates')
-		await P4Util.editFileAndSubmit(mainClient, 'test.txt', 'Initial content\n\nFirst addition\n\nSecond addition')
+		const contentsWithTwoAdditions = 'Initial content\n\nFirst addition\n\nSecond addition'
+		this.secondEditCl = await P4Util.editFileAndSubmit(mainClient, 'test.txt', contentsWithTwoAdditions)
+		await P4Util.editFileAndSubmit(mainClient, 'test.txt', contentsWithTwoAdditions + '\n\nThird addition')
 	}
 
+	secondEditCl = -1
+
 	async run() {
+		await this.waitForRobomergeIdle()
+		await this.checkHeadRevision('Dev-Queue', 'test.txt', 1)
+		await P4Util.editFileAndSubmit(this.gateClient, GATE_FILENAME + 'queue.json', JSON.stringify({Change:this.secondEditCl, integrationWindow: []}))
+
+		this.info('updated gate but window closed; sleeping') // don't have a way to wait for robomerge to pick up the gate change
+		await system.sleep(10)
+		await this.checkHeadRevision('Dev-Queue', 'test.txt', 1)
+
+		await P4Util.editFileAndSubmit(this.gateClient, GATE_FILENAME + 'queue.json', JSON.stringify({Change:this.secondEditCl}))
+		// this.info('removing window, sleeping again')
+		// await system.sleep(10)
 	}
 
 	verify() {
 		return Promise.all([
-			this.checkHeadRevision('Main', 'test.txt', 3),
+			this.checkHeadRevision('Main', 'test.txt', 4),
 			this.checkHeadRevision('Dev-Exact', 'test.txt', 2),
 			this.checkHeadRevision('Dev-PlusOne', 'test.txt', 2),
-			this.checkHeadRevision('Dev-NoGate', 'test.txt', 3)
+			this.checkHeadRevision('Dev-Queue', 'test.txt', 3),
+			this.checkHeadRevision('Dev-NoGate', 'test.txt', 4)
 		])
 	}
 
 	getBranches() {
-		const mainSpec = this.makeForceAllBranchDef('Main', ['Dev-Exact', 'Dev-NoGate', 'Dev-PlusOne'])
+		const mainSpec = this.makeForceAllBranchDef('Main', ['Dev-Exact', 'Dev-NoGate', 'Dev-PlusOne', 'Dev-Queue'])
 		mainSpec.initialCL = 1
 		return [
 			mainSpec,
 			this.makeForceAllBranchDef('Dev-Exact', []),
 			this.makeForceAllBranchDef('Dev-PlusOne', []),
-			this.makeForceAllBranchDef('Dev-NoGate', [])
+			this.makeForceAllBranchDef('Dev-NoGate', []),
+			this.makeForceAllBranchDef('Dev-Queue', [])
 		]
 	}
 
@@ -71,6 +92,9 @@ export class TestEdgeGate extends FunctionalTest {
 		  }
 		, { from: this.fullBranchName('Main'), to: this.fullBranchName('Dev-PlusOne')
 		  , lastGoodCLPath: this.gateClient.stream + '/' + GATE_FILENAME + 'plusone.json'
+		  }
+		, { from: this.fullBranchName('Main'), to: this.fullBranchName('Dev-Queue')
+		  , lastGoodCLPath: this.gateClient.stream + '/' + GATE_FILENAME + 'queue.json'
 		  }
 		]
 	}
