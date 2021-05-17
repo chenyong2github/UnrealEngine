@@ -79,8 +79,8 @@ public:
 
 	UDisplayClusterSyncTickComponent* GetSyncTickComponent() const { return SyncTickComponent; }
 
-	UDisplayClusterConfigurationICVFX_StageSettings* GetStageSettings() const { return StageSettings; }
-	UDisplayClusterConfigurationRenderFrame* GetRenderFrameSettings() const { return RenderFrameSettings; }
+	const FDisplayClusterConfigurationICVFX_StageSettings& GetStageSettings() const;
+	const FDisplayClusterConfigurationRenderFrame& GetRenderFrameSettings() const;
 
 	UDisplayClusterConfigurationViewport* GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID);
 
@@ -163,24 +163,12 @@ public:
 	UDisplayClusterSceneComponent* GetComponentById(const FString& ComponentId) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "NDisplay", NoClear)
-	UDisplayClusterConfigurationICVFX_StageSettings* StageSettings;
-
-	UPROPERTY(EditAnywhere, Category = "NDisplay", NoClear)
-	UDisplayClusterConfigurationRenderFrame* RenderFrameSettings;
-
 	IDisplayClusterViewportManager* GetViewportManager() const
 	{
 		return ViewportManager.IsValid() ? ViewportManager.Get() : nullptr;
 	}
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Follow Local Player Camera"))
-	bool bFollowLocalPlayerCamera;
-
-	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Exit when ESC pressed"))
-	bool bExitOnEsc;
-
 	// Unique viewport manager for this configuration
 	TUniquePtr<IDisplayClusterViewportManager> ViewportManager;
 
@@ -258,10 +246,6 @@ public:
 	// Preview texture size get from viewport, and scaled by this value
 	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float PreviewRenderTargetRatioMult = 0.25;
-
-	// Extra settings for preview
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
-	UDisplayClusterConfigurationViewportPreview* PreviewSettings;
 
 	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
 	float XformGizmoScale = 1.0f;

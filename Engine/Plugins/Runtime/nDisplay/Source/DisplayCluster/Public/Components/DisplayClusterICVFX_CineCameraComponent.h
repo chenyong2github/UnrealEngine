@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 
+#include "CineCameraActor.h"
 #include "CineCameraComponent.h"
+
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_CameraMotionBlur.h"
 
@@ -23,15 +25,19 @@ public:
 	UDisplayClusterICVFX_CineCameraComponent(const FObjectInitializer& ObjectInitializer);
 
 public:
-	UPROPERTY(EditAnywhere, Category = "NDisplay ICVFX", meta = (ShowInnerProperties))
-	FDisplayClusterConfigurationICVFX_CameraSettings IncameraSettings;
+	// Use external cine camrea actor ref
+	UPROPERTY(EditAnywhere, Category = NDisplay)
+	TSoftObjectPtr<ACineCameraActor> CineCameraActorRef;
+
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ShowInnerProperties))
+	FDisplayClusterConfigurationICVFX_CameraSettings CameraSettings;
 
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
 
 	bool IsShouldUseICVFX() const
 	{
-		return IncameraSettings.bEnable;
+		return CameraSettings.bEnable;
 	}
 
 	// Return unique camera name
@@ -39,7 +45,7 @@ public:
 
 	const FDisplayClusterConfigurationICVFX_CameraSettings& GetCameraSettingsICVFX() const
 	{
-		return IncameraSettings;
+		return CameraSettings;
 	}
 
 	class UCameraComponent* GetCameraComponent();

@@ -12,7 +12,7 @@
 #include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorProjectionPolicyViewModel.h"
 
 #include "Components/DisplayClusterScreenComponent.h"
-#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
+#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
 
 #include "Camera/CameraComponent.h"
 
@@ -700,7 +700,7 @@ FReply SDisplayClusterConfiguratorSCSEditorViewport::OnDragOver(const FGeometry&
 					else
 					{
 						USceneComponent* AttachParent = MeshComponent->GetAttachParent();
-						const bool bIsCamera = AttachParent && (AttachParent->IsA<UCameraComponent>() || AttachParent->IsA<UDisplayClusterICVFX_RefCineCameraComponent>());
+						const bool bIsCamera = AttachParent && (AttachParent->IsA<UCameraComponent>());
 						
 						if (bIsCamera)
 						{
@@ -757,7 +757,7 @@ FReply SDisplayClusterConfiguratorSCSEditorViewport::OnDrop(const FGeometry& MyG
 					else
 					{
 						USceneComponent* AttachParent = MeshComponent->GetAttachParent();
-						const bool bIsCamera = AttachParent && (AttachParent->IsA<UCameraComponent>() || AttachParent->IsA<UDisplayClusterICVFX_RefCineCameraComponent>());
+						const bool bIsCamera = AttachParent && (AttachParent->IsA<UCameraComponent>());
 						
 						if (bIsCamera)
 						{

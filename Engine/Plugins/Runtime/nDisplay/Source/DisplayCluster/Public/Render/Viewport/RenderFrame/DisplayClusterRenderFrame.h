@@ -108,9 +108,6 @@ public:
 
 	int DesiredNumberOfViews = 0;
 
-	// Allow warp blend
-	bool bWarpBlendEnabled = true;
-
 	IDisplayClusterViewportManager* ViewportManager = nullptr;
 };
 

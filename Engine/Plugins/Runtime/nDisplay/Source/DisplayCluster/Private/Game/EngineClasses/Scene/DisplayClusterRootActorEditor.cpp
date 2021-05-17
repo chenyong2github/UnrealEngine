@@ -52,7 +52,6 @@ void ADisplayClusterRootActor::Constructor_Editor()
 {
 	// Allow tick in editor for preview rendering
 	PrimaryActorTick.bStartWithTickEnabled = true;
-	PreviewSettings = CreateDefaultSubobject<UDisplayClusterConfigurationViewportPreview>(TEXT("PreviewSettings"));
 }
 
 void ADisplayClusterRootActor::Destructor_Editor()
@@ -208,19 +207,16 @@ bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor()
 {
 	if (ViewportManager.IsValid())
 	{
-		check(PreviewSettings);
-
 		//@todo: make correct GUI implementation for preview settings UObject (special widged in configurator bp, etc)
 		// now just copy RootActor properties to UObject::PreviewSettings
+		FDisplayClusterConfigurationViewportPreview PreviewSettings;
+		if(bPreviewEnable)
 		{
-			PreviewSettings->bEnable = bPreviewEnable;
-			PreviewSettings->PreviewNodeId = PreviewNodeId;
-			PreviewSettings->TickPerFrame = TickPerFrame;
-			PreviewSettings->PreviewRenderTargetRatioMult = PreviewRenderTargetRatioMult;
-		}
+			PreviewSettings.bEnable = bPreviewEnable;
+			PreviewSettings.PreviewNodeId = PreviewNodeId;
+			PreviewSettings.TickPerFrame = TickPerFrame;
+			PreviewSettings.PreviewRenderTargetRatioMult = PreviewRenderTargetRatioMult;
 
-		if (PreviewSettings->bEnable)
-		{
 			return ViewportManager->UpdatePreviewConfiguration(PreviewSettings, this);
 		}
 	}
@@ -340,7 +336,7 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 	
 	if (CurrentConfigData != nullptr)
 	{
-		const bool bAllComponentsVisible = PreviewSettings->PreviewNodeId.Equals(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll, ESearchCase::IgnoreCase);
+		const bool bAllComponentsVisible = PreviewNodeId.Equals(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll, ESearchCase::IgnoreCase);
 
 		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& Node : CurrentConfigData->Cluster->Nodes)
 		{
@@ -350,7 +346,7 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 			}
 			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
 			{
-				if (bAllComponentsVisible || Node.Key.Equals(PreviewSettings->PreviewNodeId, ESearchCase::IgnoreCase))
+				if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
 				{
 					const FString PreviewCompId = GeneratePreviewComponentName(Node.Key, Viewport.Key);
 					UDisplayClusterPreviewComponent* PreviewComp = PreviewComponents.FindRef(PreviewCompId);

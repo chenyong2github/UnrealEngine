@@ -11,7 +11,7 @@
 #include "DisplayClusterRootActor.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Components/DisplayClusterScreenComponent.h"
-#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
+#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
 
 #include "Camera/CameraComponent.h"
 
@@ -376,7 +376,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateCameraPolicy(UDis
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
 		TArray<TSubclassOf<UActorComponent>>{ UCameraComponent::StaticClass(),
-			UDisplayClusterICVFX_RefCineCameraComponent::StaticClass() }));
+			UDisplayClusterICVFX_CineCameraComponent::StaticClass() }));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
 		"Native",

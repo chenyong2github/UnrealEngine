@@ -3,11 +3,6 @@
 #include "DisplayClusterViewportConfigurationBase.h"
 #include "DisplayClusterViewportConfigurationHelpers.h"
 
-
-#include "IDisplayClusterProjection.h"
-#include "Render/Projection/IDisplayClusterProjectionPolicy.h"
-
-
 ///////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfigurationBase
 ///////////////////////////////////////////////////////////////////
@@ -103,11 +98,7 @@ bool FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(FDisp
 	}
 	else
 	{
-		if (!DesiredViewport->ProjectionPolicy.IsValid())
-		{
-			// Try initialize proj policy every tick (mesh deffered load, etc)
-			DesiredViewport->HandleStartScene();
-		}
+		DisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*DesiredViewport);
 	}
 
 	return true;

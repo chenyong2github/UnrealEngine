@@ -23,6 +23,9 @@
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettingsICVFX.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
 
+#include "IDisplayClusterProjection.h"
+#include "Render/Projection/IDisplayClusterProjectionPolicy.h"
+
 #include "DisplayClusterSceneViewExtensions.h"
 #include "OpenColorIODisplayExtension.h"
 
@@ -535,12 +538,12 @@ public:
 		}
 	}
 
-	static const FDisplayClusterConfigurationICVFX_ChromakeySettings& GetCameraChromakeySettings(const FDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings, const UDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
+	static const FDisplayClusterConfigurationICVFX_ChromakeySettings& GetCameraChromakeySettings(const FDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings, const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
 	{
 		return (InCameraSettings.CustomChromakey.bEnable) ? InCameraSettings.CustomChromakey.Chromakey : InStageSettings.Chromakey;
 	}
 
-	static void UpdateCameraViewportSetting(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings, const UDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
+	static void UpdateCameraViewportSetting(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings, const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
 	{
 		check(InCameraSettings.bEnable);
 
@@ -554,7 +557,7 @@ public:
 		UpdateViewportOCIOConfiguration(DstViewport, InCameraSettings.OCIO_Configuration);
 
 
-		// UDisplayClusterConfigurationICVFX_CameraSettings
+		// FDisplayClusterConfigurationICVFX_CameraSettings
 		{
 			DstViewport.RenderSettings.CameraId.Empty();
 			DstViewport.RenderSettings.BufferRatio = InCameraSettings.BufferRatio;
@@ -602,7 +605,19 @@ public:
 		}
 	}
 
-	static void UpdateChromakeyViewportSetting(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_ChromakeySettings& InChromakeySettings, const UDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
+	static void UpdateProjectionPolicy(FDisplayClusterViewport& DstViewport)
+	{
+		if (!DstViewport.ProjectionPolicy.IsValid())
+		{
+			if (DstViewport.Owner.IsSceneOpened())
+			{
+				// Try initialize proj policy every tick (mesh deffered load, etc)
+				DstViewport.HandleStartScene();
+			}
+		}
+	}
+
+	static void UpdateChromakeyViewportSetting(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_ChromakeySettings& InChromakeySettings, const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings)
 	{
 		check(InChromakeySettings.Source== EDisplayClusterConfigurationICVFX_ChromakeySource::ChromakeyRenderTexture);
 
@@ -670,7 +685,7 @@ public:
 		return IsVisibilitySettingsDefined(InLightcardSettings.ShowOnlyList);
 	}
 
-	static void UpdateLightcardViewportSetting(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& BaseViewport, const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings, const UDisplayClusterConfigurationICVFX_StageSettings& InStageSettings, bool bIsOpenColorIO)
+	static void UpdateLightcardViewportSetting(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& BaseViewport, const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings, const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings, bool bIsOpenColorIO)
 	{
 		check(InLightcardSettings.bEnable);
 
