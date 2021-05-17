@@ -70,7 +70,7 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("EC1BEA18C73F42AE95D70CDC66EBB51A")
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("23BBACC58782442DAAE9DCBFC4715C65")
 
 const FString& GetSkeletalMeshDerivedDataVersion()
 {

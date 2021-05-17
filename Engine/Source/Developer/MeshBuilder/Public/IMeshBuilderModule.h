@@ -29,16 +29,11 @@ public:
 
 	virtual void AppendToDDCKey(FString& DDCKey) { }
 
-	virtual bool BuildMesh(class FStaticMeshRenderData& OutRenderData, class UObject* Mesh, const class FStaticMeshLODGroup& LODGroup) { return false; }
+	virtual bool BuildMesh(class FStaticMeshRenderData& OutRenderData, class UObject* Mesh, const class FStaticMeshLODGroup& LODGroup) = 0;
 
-	virtual bool BuildMeshVertexPositions(
-		class UObject* StaticMesh,
-		TArray<uint32>& Indices,
-		TArray<FVector>& Vertices)
-	{
-		return false;
-	}
+	virtual bool BuildMeshVertexPositions(class UObject* StaticMesh, TArray<uint32>& Indices, TArray<FVector>& Vertices) = 0;
 
-	virtual bool BuildSkeletalMesh(const struct FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters) { return false; }
+	virtual bool BuildSkeletalMesh(const struct FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters) = 0;
+
 	virtual void PostBuildSkeletalMesh(class FSkeletalMeshRenderData* SkeletalMeshRenderData, class USkeletalMesh* SkeletalMesh) { }
 };
