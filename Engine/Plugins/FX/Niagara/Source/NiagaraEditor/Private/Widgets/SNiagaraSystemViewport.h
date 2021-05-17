@@ -131,6 +131,12 @@ private:
 	uint32 DrawFlags;
 
 	FOnThumbnailCaptured OnThumbnailCaptured;
+
+	/** Used on tick to determine if a view transition was active so we can restore view settings at the end of it */
+	bool bIsViewTransitioning = false;
+
+	/** True if orbit mode was active before we started a view transition. Used to restore orbit mode at the the end of the transition */
+	bool bShouldActivateOrbitAfterTransitioning = false;
 };
 
 #if NIAGARA_PERF_BASELINES
