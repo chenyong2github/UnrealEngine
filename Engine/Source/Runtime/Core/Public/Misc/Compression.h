@@ -43,9 +43,10 @@ struct FCompression
 	/**
 	 * Thread-safe abstract compression routine to query memory requirements for a compression operation.
 	 *
-	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
+	 * @param	FormatName					Name of the compression format
 	 * @param	UncompressedSize			Size of uncompressed data in bytes
-	 * @param	BitWindow					Bit window to use in compression
+	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
+	 * @param	CompressionData				Additional compression parameter (specifies BitWindow value for ZLIB compression format)
 	 * @return The maximum possible bytes needed for compression of data buffer of size UncompressedSize
 	 */
 	CORE_API static int32 CompressMemoryBound(FName FormatName, int32 UncompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
@@ -56,12 +57,13 @@ struct FCompression
 	 * CompressMemory is expected to return true and write valid data even if it expanded bytes.
 	 * Always check CompressedSize >= UncompressedSize and fall back to uncompressed, or use CompressMemoryIfWorthDecompressing
 	 *
-	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
+	 * @param	FormatName					Name of the compression format
 	 * @param	CompressedBuffer			Buffer compressed data is going to be written to
 	 * @param	CompressedSize	[in/out]	Size of CompressedBuffer, at exit will be size of compressed data
 	 * @param	UncompressedBuffer			Buffer containing uncompressed data
 	 * @param	UncompressedSize			Size of uncompressed data in bytes
-	 * @param	BitWindow					Bit window to use in compression
+	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
+	 * @param	CompressionData				Additional compression parameter (specifies BitWindow value for ZLIB compression format)
 	 * @return true if compression succeeds, false if it fails because CompressedBuffer was too small or other reasons
 	 */
 	CORE_API static bool CompressMemory(FName FormatName, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
@@ -71,26 +73,30 @@ struct FCompression
 	* returns false if the size saving is not worth it (also if CompressedSize >= UncompressedSize)
 	* if false is returned, send the data uncompressed instead
 	 *
-	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
+	 * @param	FormatName					Name of the compression format
+	 * @param	MinBytesSaved				Minimum amount of bytes which should be saved when performing compression, otherwise false is returned
+	 * @param	MinPercentSaved				Minimum percentage of the buffer which should be saved when performing compression, otherwise false is returned
 	 * @param	CompressedBuffer			Buffer compressed data is going to be written to
 	 * @param	CompressedSize	[in/out]	Size of CompressedBuffer, at exit will be size of compressed data
 	 * @param	UncompressedBuffer			Buffer containing uncompressed data
 	 * @param	UncompressedSize			Size of uncompressed data in bytes
-	 * @param	BitWindow					Bit window to use in compression
+	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
+	 * @param	CompressionData				Additional compression parameter (specifies BitWindow value for ZLIB compression format)
 	 * @return true if compression succeeds, false if it fails because CompressedBuffer was too small or other reasons
 	 */
-	CORE_API static bool CompressMemoryIfWorthDecompressing(FName FormatName, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
+	CORE_API static bool CompressMemoryIfWorthDecompressing(FName FormatName, int32 MinBytesSaved, int32 MinPercentSaved, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
 
 	/**
 	 * Thread-safe abstract decompression routine. Uncompresses memory from compressed buffer and writes it to uncompressed
 	 * buffer. UncompressedSize is expected to be the exact size of the data after decompression.
 	 *
-	 * @param	Flags						Flags to control what method to use to decompress
+	 * @param	FormatName					Name of the compression format
 	 * @param	UncompressedBuffer			Buffer containing uncompressed data
 	 * @param	UncompressedSize			Size of uncompressed data in bytes
 	 * @param	CompressedBuffer			Buffer compressed data is going to be read from
 	 * @param	CompressedSize				Size of CompressedBuffer data in bytes
-	 * @param	bIsSourcePadded		Whether the source memory is padded with a full cache line at the end
+	 * @param	Flags						Flags to control what method to use to decompress
+	 * @param	CompressionData				Additional decompression parameter (specifies BitWindow value for ZLIB compression format)
 	 * @return true if compression succeeds, false if it fails because CompressedBuffer was too small or other reasons
 	 */
 	CORE_API static bool UncompressMemory(FName FormatName, void* UncompressedBuffer, int32 UncompressedSize, const void* CompressedBuffer, int32 CompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);

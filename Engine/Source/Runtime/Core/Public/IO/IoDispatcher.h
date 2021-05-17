@@ -1029,10 +1029,14 @@ struct FIoStoreWriterSettings
 	FName CompressionMethod = NAME_None;
 	uint64 CompressionBlockSize = 64 << 10;
 	uint64 CompressionBlockAlignment = 0;
+	int32 CompressionMinBytesSaved = 0;
+	int32 CompressionMinPercentSaved = 0;
 	uint64 MemoryMappingAlignment = 0;
 	uint64 MaxPartitionSize = 0;
 	bool bEnableCsvOutput = false;
 	bool bEnableFileRegions = false;
+
+	CORE_API void InitializePlatformSpecificSettings(const ITargetPlatform* TargetPlatform);
 };
 
 enum class EIoContainerFlags : uint8

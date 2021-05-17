@@ -3310,6 +3310,19 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
+	FString TargetPlatformName;
+	if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatformName))
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Using target platform '%s'"), *TargetPlatformName);
+		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+		Arguments.TargetPlatform = TPM.FindTargetPlatform(TargetPlatformName);
+		if (!Arguments.TargetPlatform)
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Invalid TargetPlatform: '%s'"), *TargetPlatformName);
+			return 1;
+		}
+	}
+
 	FIoStoreWriterSettings GeneralIoWriterSettings { DefaultCompressionMethod, DefaultCompressionBlockSize, false };
 	GeneralIoWriterSettings.bEnableCsvOutput = FParse::Param(CmdLine, TEXT("-csvoutput"));
 
@@ -3376,9 +3389,16 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		GeneralIoWriterSettings.MaxPartitionSize = MaxPartitionSize;
 	}
 
+	if (Arguments.TargetPlatform)
+	{
+		GeneralIoWriterSettings.InitializePlatformSpecificSettings(Arguments.TargetPlatform);
+	}
+
 	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), GeneralIoWriterSettings.MemoryMappingAlignment);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block size '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
 	UE_LOG(LogIoStore, Display, TEXT("Using compression block alignment '%ld'"), GeneralIoWriterSettings.CompressionBlockAlignment);
+	UE_LOG(LogIoStore, Display, TEXT("Using compression min bytes saved '%d'"), GeneralIoWriterSettings.CompressionMinBytesSaved);
+	UE_LOG(LogIoStore, Display, TEXT("Using compression min percent saved '%d'"), GeneralIoWriterSettings.CompressionMinPercentSaved);
 	UE_LOG(LogIoStore, Display, TEXT("Using max partition size '%lld'"), GeneralIoWriterSettings.MaxPartitionSize);
 
 	FParse::Value(CmdLine, TEXT("-MetaOutputDirectory="), Arguments.MetaOutputDir);
@@ -3504,19 +3524,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	if (Arguments.ShouldCreateContainers())
 	{
-		FString TargetPlatform;
-		if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatform))
-		{
-			UE_LOG(LogIoStore, Display, TEXT("Using target platform '%s'"), *TargetPlatform);
-			ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-			Arguments.TargetPlatform = TPM.FindTargetPlatform(TargetPlatform);
-			if (!Arguments.TargetPlatform)
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Invalid TargetPlatform: '%s'"), *TargetPlatform);
-				return 1;
-			}
-		}
-		else
+		if (!Arguments.TargetPlatform)
 		{
 			UE_LOG(LogIoStore, Error, TEXT("TargetPlatform must be specified"));
 			return 1;

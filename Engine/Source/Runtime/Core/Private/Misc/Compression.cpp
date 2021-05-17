@@ -530,13 +530,12 @@ int32 FCompression::CompressMemoryBound(FName FormatName, int32 UncompressedSize
 
 
 
-bool FCompression::CompressMemoryIfWorthDecompressing(FName FormatName, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags, int32 CompressionData)
+bool FCompression::CompressMemoryIfWorthDecompressing(FName FormatName, int32 MinBytesSaved, int32 MinPercentSaved, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags, int32 CompressionData)
 {
 	// returns false if we could compress,
 	//	but it's not worth the time to decompress
 	//	you should store the data uncompressed instead
 
-	const int MinBytesSaved = 1024; // @todo make this configurable?
 	if ( UncompressedSize <= MinBytesSaved )
 	{
 		// if input size is smaller than the number of bytes we need to save
@@ -600,13 +599,9 @@ bool FCompression::CompressMemoryIfWorthDecompressing(FName FormatName, void* Co
 		return false;
 	}
 
-	// Check the compression ratio, if it's too low just store uncompressed. 
-	// 	saving 64 KB per 1 MB is 6%
-	// @todo make this configurable?
-	float PercentSaved = ((float)BytesSaved * 100.f / (float)UncompressedSize);
-	bool bWorthIt = PercentSaved >= 5.f;
-
-	return bWorthIt;
+	// Check the saved compression ratio, if it's too low just store uncompressed. 
+	// For example, saving 64 KB per 1 MB is about 6%.
+	return (int64)BytesSaved * 100 >= (int64)UncompressedSize * MinPercentSaved;
 }
 
 bool FCompression::CompressMemory(FName FormatName, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, ECompressionFlags Flags, int32 CompressionData)
