@@ -15,7 +15,6 @@
 #include "Components/DisplayClusterRootComponent.h"
 #include "Components/DisplayClusterICVFX_CineCameraComponent.h"
 #include "CineCameraComponent.h"
-#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
 #include "Components/DisplayClusterSceneComponentSyncThis.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
@@ -44,8 +43,6 @@
 
 ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bFollowLocalPlayerCamera(false)
-	, bExitOnEsc(true)
 	, OperationMode(EDisplayClusterOperationMode::Disabled)
 {
 	// Root component
@@ -64,12 +61,6 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	}
 	// A helper component to trigger nDisplay Tick() during Tick phase
 	SyncTickComponent = CreateDefaultSubobject<UDisplayClusterSyncTickComponent>(TEXT("DisplayClusterSyncTick"));
-
-	// A ICVFX Stage settings
-	StageSettings = CreateDefaultSubobject<UDisplayClusterConfigurationICVFX_StageSettings>(TEXT("StageSettings"));
-
-	// A render frame settings (allow control whole cluster rendering)
-	RenderFrameSettings = CreateDefaultSubobject<UDisplayClusterConfigurationRenderFrame>(TEXT("RenderFrameSettings"));
 
 	ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
 
@@ -105,6 +96,20 @@ bool ADisplayClusterRootActor::IsRunningGameOrPIE() const
 	}
 
 	return true;
+}
+
+const FDisplayClusterConfigurationICVFX_StageSettings& ADisplayClusterRootActor::GetStageSettings() const
+{
+	check(CurrentConfigData);
+
+	return CurrentConfigData->StageSettings;
+}
+
+const FDisplayClusterConfigurationRenderFrame& ADisplayClusterRootActor::GetRenderFrameSettings() const 
+{ 
+	check(CurrentConfigData);
+
+	return CurrentConfigData->RenderFrameSettings;
 }
 
 void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData)
@@ -588,13 +593,13 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 		OperationMode == EDisplayClusterOperationMode::Editor)
 	{
 		UWorld* const CurWorld = GetWorld();
-		if (CurWorld)
+		if (CurWorld && CurrentConfigData)
 		{
 			APlayerController* const CurPlayerController = CurWorld->GetFirstPlayerController();
 			if (CurPlayerController)
 			{
 				// Depending on the flag state the DCRA follows or not the current player's camera
-				if (bFollowLocalPlayerCamera)
+				if (CurrentConfigData->bFollowLocalPlayerCamera)
 				{
 					APlayerCameraManager* const CurPlayerCameraManager = CurPlayerController->PlayerCameraManager;
 					if (CurPlayerCameraManager)
@@ -603,7 +608,7 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 					}
 				}
 
-				if (bExitOnEsc)
+				if (CurrentConfigData->bExitOnEsc)
 				{
 					if (CurPlayerController->WasInputKeyJustPressed(EKeys::Escape))
 					{

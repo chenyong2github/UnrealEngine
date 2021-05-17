@@ -15,7 +15,6 @@
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 
 #include "Components/DisplayClusterICVFX_CineCameraComponent.h"
-#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfigurationCameraViewport
@@ -98,6 +97,9 @@ public:
 		// Setup camera visibility
 		DisplayClusterViewportConfigurationHelpers::UpdateVisibilitySetting(*CameraViewport, EDisplayClusterViewport_VisibilityMode::Hide, ConfigurationICVFX.StageSettings.HideList);
 
+		// Support projection policy update
+		DisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*CameraViewport);
+
 		return true;
 	}
 
@@ -135,6 +137,9 @@ public:
 
 		// Attach to parent viewport
 		ChromakeyViewport->RenderSettings.AssignParentViewport(CameraViewport->GetId(), CameraViewport->RenderSettings);
+
+		// Support projection policy update
+		DisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*ChromakeyViewport);
 
 		return true;
 	}
@@ -295,13 +300,6 @@ public:
 		, CameraMotionBlurParameters(InCameraComponent->GetMotionBlurParameters())
 	{}
 
-	FDisplayClusterViewportConfigurationCameraICVFX(const FTransform& InLocal2WorldTransform, class FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFX_RefCineCameraComponent* const InCameraComponent)
-		: ConfigurationICVFX(InConfigurationICVFX)
-		, CameraViewport(InLocal2WorldTransform, InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), InCameraComponent->GetCameraSettingsICVFX())
-		, ChromakeySettings(DisplayClusterViewportConfigurationHelpers::GetCameraChromakeySettings(InCameraComponent->GetCameraSettingsICVFX(), ConfigurationICVFX.StageSettings))
-		, CameraMotionBlurParameters(InCameraComponent->GetMotionBlurParameters())
-	{}
-
 public:
 	// Create camera resources and intialize targets
 	void Update();
@@ -421,7 +419,7 @@ FDisplayClusterViewportConfigurationICVFX::FDisplayClusterViewportConfigurationI
 	: ViewportManager(InViewportManager)
 	, RootActor(InRootActor)
 	, ConfigurationData(InConfigurationData)
-	, StageSettings(*(InRootActor.GetStageSettings()))
+	, StageSettings(InRootActor.GetStageSettings())
 	, LightcardSettings(StageSettings.Lightcard)
 { }
 
@@ -593,6 +591,9 @@ bool FDisplayClusterViewportConfigurationICVFX::ImplCreateLightcardViewport(FDis
 		// Update configuration
 		DisplayClusterViewportConfigurationHelpers::UpdateLightcardViewportSetting(*LightcardViewport, BaseViewport, LightcardSettings, StageSettings, bIsOpenColorIO);
 
+		// Support projection policy update
+		DisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*LightcardViewport);
+
 		return true;
 	}
 
@@ -651,14 +652,6 @@ void FDisplayClusterViewportConfigurationICVFX::ImplGetCameras(TArray<FDisplayCl
 			if (CineCameraComponent && CineCameraComponent->IsShouldUseICVFX())
 			{
 				NewCamera = new FDisplayClusterViewportConfigurationCameraICVFX(Local2WorldTransform, *this, CineCameraComponent);
-			}
-			else
-			{
-				UDisplayClusterICVFX_RefCineCameraComponent* RefCineCameraComponent = Cast<UDisplayClusterICVFX_RefCineCameraComponent>(ActorComponentIt);
-				if (RefCineCameraComponent && RefCineCameraComponent->IsShouldUseICVFX())
-				{
-					NewCamera = new FDisplayClusterViewportConfigurationCameraICVFX(Local2WorldTransform, *this, RefCineCameraComponent);
-				}
 			}
 		}
 

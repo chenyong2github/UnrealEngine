@@ -17,10 +17,15 @@ namespace DisplayClusterConfigurationStrings
 	// Property Categories
 	namespace categories
 	{
-		static constexpr auto DefaultCategory = TEXT("NDisplay");
-		static constexpr auto ClusterCategory = TEXT("NDisplay Cluster");
-		static constexpr auto ConfigurationCategory = TEXT("NDisplay Configuration");
-		static constexpr auto PreviewCategory = TEXT("NDisplay Preview (Editor only)");
+		static constexpr auto DefaultCategory              = TEXT("NDisplay");
+
+		static constexpr auto ClusterCategory              = TEXT("NDisplay Cluster");
+		static constexpr auto ClusterConfigurationCategory = TEXT("NDisplay Cluster Configuration");
+		static constexpr auto ClusterPostprocessCategory   = TEXT("NDisplay Cluster Postprocess");
+
+		static constexpr auto ICVFXCategory                = TEXT("NDisplay ICVFX");
+		static constexpr auto ConfigurationCategory        = TEXT("NDisplay Configuration");
+		static constexpr auto PreviewCategory              = TEXT("NDisplay Preview (Editor only)");
 	}
 
 	// Command line arguments

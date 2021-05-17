@@ -12,7 +12,6 @@
 #include "Components/DisplayClusterCameraComponent.h"
 
 #include "Components/DisplayClusterICVFX_CineCameraComponent.h"
-#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
 
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
@@ -439,7 +438,6 @@ void SDisplayClusterConfiguratorComponentClassCombo::GenerateComponentClassList(
 
 	AddHeader("nDisplay ICVFX Components");
 	AddDCComp(UDisplayClusterICVFX_CineCameraComponent::StaticClass());
-	AddDCComp(UDisplayClusterICVFX_RefCineCameraComponent::StaticClass());
 
 	int32 CompIterationIdx = 0;
 	for (const TSharedPtr<FComponentClassComboEntry>& Comp : *ComponentClassListPtr)

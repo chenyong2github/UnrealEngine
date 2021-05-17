@@ -72,7 +72,7 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 			ImplUpdateConfiguration(RenderNodes, *RootActor, *ConfigurationData);
 			ImplUpdateConfigurationICVFX(*RootActor, *ConfigurationData);
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
-			ImplUpdateRenderFrameConfiguration(*(RootActor->GetRenderFrameSettings()));
+			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
 
 			ImplUpdateConfiguration_PostProcess(InClusterNodeId, *ConfigurationData);
 
@@ -113,7 +113,7 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADi
 	}
 }
 
-void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(const UDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration)
+void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration)
 {
 	// Some frame postprocess require additional render targetable resources
 	RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager.PostProcessManager->ShouldUseAdditionalFrameTargetableResource_PostProcess();
@@ -211,11 +211,10 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfiguration_PostProcess(c
 }
 
 #if WITH_EDITOR
-bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration)
+bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& InPreviewConfiguration)
 {
 	check(IsInGameThread());
-	check(PreviewConfiguration);
-	check(PreviewConfiguration->bEnable);
+	check(InPreviewConfiguration.bEnable);
 
 	ADisplayClusterRootActor* RootActor = GetRootActor();
 	if (RootActor)
@@ -224,7 +223,7 @@ bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(class UDis
 		if (ConfigurationData)
 		{
 			TArray<FString> RenderNodes;
-			if (PreviewConfiguration->PreviewNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll)
+			if (InPreviewConfiguration.PreviewNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll)
 			{
 				// Collect all nodes from cluster
 				for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& It : ConfigurationData->Cluster->Nodes)
@@ -234,17 +233,17 @@ bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(class UDis
 			}
 			else
 			{
-				RenderNodes.Add(PreviewConfiguration->PreviewNodeId);
+				RenderNodes.Add(InPreviewConfiguration.PreviewNodeId);
 			}
 
 			ImplUpdateConfiguration(RenderNodes, *RootActor, *ConfigurationData);
 
 			ImplUpdateConfigurationICVFX(*RootActor, *ConfigurationData);
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
-			ImplUpdateRenderFrameConfiguration(*(RootActor->GetRenderFrameSettings()));
+			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
 
 			// Downscale resources with PreviewDownscaleRatio
-			RenderFrameSettings.PreviewRenderTargetRatioMult = PreviewConfiguration->PreviewRenderTargetRatioMult;
+			RenderFrameSettings.PreviewRenderTargetRatioMult = InPreviewConfiguration.PreviewRenderTargetRatioMult;
 			RenderFrameSettings.RenderMode = EDisplayClusterRenderFrameMode::PreviewMono;
 
 			RenderFrameSettings.bIsRenderingInEditor = true;

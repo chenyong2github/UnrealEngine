@@ -14,6 +14,8 @@ class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationViewport;
 class IDisplayClusterViewportManagerProxy;
 
+struct FDisplayClusterConfigurationViewportPreview;
+
 class DISPLAYCLUSTER_API IDisplayClusterViewportManager
 {
 public:
@@ -77,10 +79,10 @@ public:
 	virtual void ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& InOutViewFamily) = 0;
 
 	// Send to render thread
-	virtual void RenderFrame(const bool bWarpBlendEnabled, FViewport* InViewport) = 0;
+	virtual void RenderFrame(FViewport* InViewport) = 0;
 
 #if WITH_EDITOR
-	virtual bool UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration, ADisplayClusterRootActor* InRootActorPtr) = 0;
+	virtual bool UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& PreviewConfiguration, ADisplayClusterRootActor* InRootActorPtr) = 0;
 	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport) = 0;
 #endif
 

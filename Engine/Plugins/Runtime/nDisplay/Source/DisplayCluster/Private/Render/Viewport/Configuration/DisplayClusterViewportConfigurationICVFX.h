@@ -18,9 +18,8 @@ struct FDisplayClusterConfigurationPostRender_BlurPostprocess;
 struct FDisplayClusterConfigurationPostRender_GenerateMips;
 struct FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings;
 struct FDisplayClusterConfigurationICVFX_LightcardSettings;
-
 struct FDisplayClusterConfigurationICVFX_CameraSettings;
-class UDisplayClusterConfigurationICVFX_StageSettings;
+struct FDisplayClusterConfigurationICVFX_StageSettings;
 
 
 class ADisplayClusterRootActor;
@@ -60,7 +59,7 @@ private:
 
 public:
 	const UDisplayClusterConfigurationData& ConfigurationData;
-	const UDisplayClusterConfigurationICVFX_StageSettings& StageSettings;
+	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings;
 	const FDisplayClusterConfigurationICVFX_LightcardSettings& LightcardSettings;
 };
 

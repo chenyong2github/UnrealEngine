@@ -131,11 +131,7 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 	Type = TEXT("simple");
 }
 
-FDisplayClusterConfigurationICVFX_CameraSettings::FDisplayClusterConfigurationICVFX_CameraSettings()
-{
-}
-
-UDisplayClusterConfigurationICVFX_StageSettings::UDisplayClusterConfigurationICVFX_StageSettings()
+FDisplayClusterConfigurationICVFX_StageSettings::FDisplayClusterConfigurationICVFX_StageSettings()
 	: DefaultFrameSize(2560, 1440)
 {
 }
@@ -146,10 +142,6 @@ UDisplayClusterConfigurationViewport::UDisplayClusterConfigurationViewport()
 	bIsVisible = true;
 	bIsEnabled = true;
 #endif
-}
-
-UDisplayClusterConfigurationViewportPreview::UDisplayClusterConfigurationViewportPreview()
-{
 }
 
 #if WITH_EDITOR

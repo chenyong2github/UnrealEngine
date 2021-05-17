@@ -17,12 +17,8 @@
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Override
-	//: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationPostRender_Override();
 
 public:
 	// Disable default render, and resolve SourceTexture to viewport
@@ -44,12 +40,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_BlurPostprocess
-	//: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationPostRender_BlurPostprocess();
 
 public:
 	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
@@ -64,12 +56,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_GenerateMips
-	//: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationPostRender_GenerateMips();
 
 public:
 	// Allow autogenerate num mips for this target

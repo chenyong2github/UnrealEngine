@@ -13,24 +13,7 @@ public:
 	{ }
 
 public:
-	/** Transfer view results accross GPUs. This is done only once all views have been rendered for RenderFrame
-	* [Rendering thread func]
-	*/
-	//virtual void DoCrossGPUTransfers_RenderThread(FViewport* InViewport, FRHICommandListImmediate& RHICmdList) const = 0;
-
-	/** Resolve render targets to unique viewport inputshader contexts resources
-	* Apply postprocess, generate mips, etc from settings in FDisplayClusterViewporDeferredUpdateSettings
-	* [Rendering thread func]
-	*/
-	//virtual void UpdateDeferredResources_RenderThread(FRHICommandListImmediate& RHICmdList) const = 0;
-
-	/** Apply Warp&Blend
-	* [Rendering thread func]
-	*/
-	//virtual void UpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, bool bWarpBlendEnabled) const = 0;
-
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 	/**
 	* Find viewport render thread proxy object by name
 	* [Rendering thread func]
