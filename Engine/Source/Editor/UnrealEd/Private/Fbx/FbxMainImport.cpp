@@ -16,7 +16,7 @@
 #include "Factories/FbxTextureImportData.h"
 
 #include "Materials/MaterialInterface.h"
-#include "SkelImport.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/FbxErrors.h"
 #include "FbxImporter.h"

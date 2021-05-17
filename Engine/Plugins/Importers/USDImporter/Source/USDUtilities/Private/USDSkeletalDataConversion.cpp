@@ -29,6 +29,7 @@
 #if WITH_EDITOR
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+#include "ImportUtils/SkeletalMeshImportUtils.h"
 #include "MeshUtilities.h"
 #endif // WITH_EDITOR
 
@@ -2066,7 +2067,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	int32 SkeletalDepth = 0;
 	FSkeletalMeshImportData DummyData;
 	DummyData.RefBonesBinary = InSkeletonBones;
-	if ( !SkeletalMeshHelper::ProcessImportMeshSkeleton( SkeletalMesh->GetSkeleton(), SkeletalMesh->GetRefSkeleton(), SkeletalDepth, DummyData ) )
+	if ( !SkeletalMeshImportUtils::ProcessImportMeshSkeleton( SkeletalMesh->GetSkeleton(), SkeletalMesh->GetRefSkeleton(), SkeletalDepth, DummyData ) )
 	{
 		return nullptr;
 	}
@@ -2111,7 +2112,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 		FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels.Last();
 
 		// Process bones influence (normalization and optimization) (optional)
-		SkeletalMeshHelper::ProcessImportMeshInfluences(LODImportData, SkeletalMesh->GetPathName());
+		SkeletalMeshImportUtils::ProcessImportMeshInfluences(LODImportData, SkeletalMesh->GetPathName());
 
 		FSkeletalMeshLODInfo& NewLODInfo = SkeletalMesh->AddLODInfo();
 		NewLODInfo.ReductionSettings.NumOfTrianglesPercentage = 1.0f;

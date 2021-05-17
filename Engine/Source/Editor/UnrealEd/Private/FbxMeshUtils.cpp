@@ -18,11 +18,12 @@
 #include "FbxImporter.h"
 #include "StaticMeshResources.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "SkelImport.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "EditorFramework/AssetImportData.h"
 #include "DesktopPlatformModule.h"
 #include "Editor.h"
+#include "ImportUtils/SkeletalMeshImportUtils.h"
+#include "ImportUtils/StaticMeshImportUtils.h"
 
 #if WITH_APEX_CLOTHING
 	#include "ApexClothingUtils.h"
@@ -40,12 +41,6 @@
 DEFINE_LOG_CATEGORY_STATIC(LogExportMeshUtils, Log, All);
 
 #define LOCTEXT_NAMESPACE "FbxMeshUtil"
-
-struct FExistingStaticMeshData;
-extern TSharedPtr<FExistingStaticMeshData> SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, UnFbx::FBXImportOptions* ImportOptions, int32 LodIndex);
-extern void RestoreExistingMeshSettings(const FExistingStaticMeshData* ExistingMesh, UStaticMesh* NewMesh, int32 LODIndex);
-extern void RestoreExistingMeshData(TSharedPtr<const FExistingStaticMeshData> ExistingMeshDataPtr, UStaticMesh* NewMesh, int32 LodLevel, bool bCanShowDialog, bool bForceConflictingMaterialReset);
-extern void UpdateSomeLodsImportMeshData(UStaticMesh* NewMesh, TArray<int32> *ReimportLodList);
 
 
 namespace FbxMeshUtils
@@ -167,7 +162,7 @@ namespace FbxMeshUtils
 			TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr;
 			if (IsReimport)
 			{
-				ExistMeshDataPtr = SaveExistingStaticMeshData(BaseStaticMesh, FFbxImporter->ImportOptions, LODLevel);
+				ExistMeshDataPtr = StaticMeshImportUtils::SaveExistingStaticMeshData(BaseStaticMesh, FFbxImporter->ImportOptions, LODLevel);
 			}
 
 			// Display the LOD selection dialog
@@ -200,10 +195,10 @@ namespace FbxMeshUtils
 					FFbxImporter->PostImportStaticMesh(TempStaticMesh, *(LODNodeList[bUseLODs ? LODLevel : 0]), LODLevel);
 					TArray<int32> ReimportLodList;
 					ReimportLodList.Add(LODLevel);
-					UpdateSomeLodsImportMeshData(BaseStaticMesh, &ReimportLodList);
+					StaticMeshImportUtils::UpdateSomeLodsImportMeshData(BaseStaticMesh, &ReimportLodList);
 					if(IsReimport)
 					{
-						RestoreExistingMeshData(ExistMeshDataPtr, BaseStaticMesh, LODLevel, false, ImportOptions->bResetToFbxOnMaterialConflict);
+						StaticMeshImportUtils::RestoreExistingMeshData(ExistMeshDataPtr, BaseStaticMesh, LODLevel, false, ImportOptions->bResetToFbxOnMaterialConflict);
 					}
 
 					// Update mesh component
@@ -488,7 +483,7 @@ namespace FbxMeshUtils
 				if (SelectedSkelMesh->GetLODNum() > SelectedLOD)
 				{
 					SelectedSkelMesh->PreEditChange(NULL);
-					SkelMeshDataPtr = SkeletalMeshHelper::SaveExistingSkelMeshData(SelectedSkelMesh, true, SelectedLOD);
+					SkelMeshDataPtr = SkeletalMeshImportUtils::SaveExistingSkelMeshData(SelectedSkelMesh, true, SelectedLOD);
 				}
 
 				//Original fbx data storage
@@ -518,7 +513,7 @@ namespace FbxMeshUtils
 
 					if (SkelMeshDataPtr)
 					{
-						SkeletalMeshHelper::RestoreExistingSkelMeshData(SkelMeshDataPtr, SelectedSkelMesh, SelectedLOD, false, ImportOptions->bImportAsSkeletalSkinning, ImportOptions->bResetToFbxOnMaterialConflict);
+						SkeletalMeshImportUtils::RestoreExistingSkelMeshData(SkelMeshDataPtr, SelectedSkelMesh, SelectedLOD, false, ImportOptions->bImportAsSkeletalSkinning, ImportOptions->bResetToFbxOnMaterialConflict);
 					}
 
 					if (ImportOptions->bImportMorph)

@@ -29,7 +29,6 @@ THIRD_PARTY_INCLUDES_END
 
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
-#include "SkelImport.h"
 #include "Animation/AnimSequence.h"
 #include "Rendering/SkeletalMeshModel.h"
 

@@ -30,7 +30,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "ObjectTools.h"
-#include "SkelImport.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Object.h"
 

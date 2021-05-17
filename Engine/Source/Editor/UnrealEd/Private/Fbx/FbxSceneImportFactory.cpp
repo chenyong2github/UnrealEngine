@@ -39,7 +39,6 @@
 #include "Editor.h"
 #include "FileHelpers.h"
 #include "CineCameraComponent.h"
-#include "SkelImport.h"
 #include "Rendering/SkeletalMeshModel.h"
 
 #include "AssetSelection.h"
