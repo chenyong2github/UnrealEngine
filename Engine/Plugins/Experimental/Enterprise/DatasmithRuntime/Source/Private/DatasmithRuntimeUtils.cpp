@@ -196,7 +196,7 @@ namespace DatasmithRuntime
 		}
 	}
 
-	TMap<DirectLink::FElementHash, TStrongObjectPtr<UObject>> FAssetRegistry::RegistrationMap;
+	TMap<uint32, TStrongObjectPtr<UObject>> FAssetRegistry::RegistrationMap;
 	TMap<uint32, TMap<FSceneGraphId,FAssetData>*> FAssetRegistry::SceneMappings;
 
 	union FRegistryKey
@@ -349,6 +349,19 @@ namespace DatasmithRuntime
 		return bIsCompleted;
 	}
 
+	int32 FAssetRegistry::GetAssetReferenceCount(UObject * Asset)
+	{
+		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
+		{
+			if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
+			{
+				return AuxillaryData->Referencers.Num();
+			}
+		}
+
+		return -1;
+	}
+
 	void FAssetRegistry::UnregisteredAssetsData(UObject* Asset, uint32 SceneKey, TFunction<void(FAssetData& AssetData)> UpdateFunc)
 	{
 		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
@@ -394,7 +407,7 @@ namespace DatasmithRuntime
 		ensure(false);
 	}
 
-	UObject* FAssetRegistry::FindObjectFromHash(DirectLink::FElementHash ElementHash)
+	UObject* FAssetRegistry::FindObjectFromHash(uint32 ElementHash)
 	{
 		TStrongObjectPtr<UObject>* AssetPtr = RegistrationMap.Find(ElementHash);
 		return AssetPtr ? (*AssetPtr).Get() : nullptr;
@@ -402,10 +415,10 @@ namespace DatasmithRuntime
 
 	bool FAssetRegistry::CleanUp()
 	{
-		TArray<DirectLink::FElementHash> EntriesToDelete;
+		TArray<uint32> EntriesToDelete;
 		EntriesToDelete.Reserve(RegistrationMap.Num());
 
-		for (TPair<DirectLink::FElementHash, TStrongObjectPtr<UObject>>& Entry : RegistrationMap)
+		for (TPair<uint32, TStrongObjectPtr<UObject>>& Entry : RegistrationMap)
 		{
 			if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Entry.Value.Get()))
 			{
@@ -425,7 +438,7 @@ namespace DatasmithRuntime
 			}
 		}
 
-		for (DirectLink::FElementHash ElementHash : EntriesToDelete)
+		for (uint32 ElementHash : EntriesToDelete)
 		{
 			RegistrationMap.Remove(ElementHash);
 		}
