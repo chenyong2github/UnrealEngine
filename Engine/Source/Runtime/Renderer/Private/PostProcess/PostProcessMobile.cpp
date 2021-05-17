@@ -1947,7 +1947,7 @@ void AddMobileEyeAdaptationPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 	// Get the custom 1x1 target used to store exposure value and Toggle the two render targets used to store new and old.
 	View.SwapEyeAdaptationBuffers(GraphBuilder);
 
-	FRDGBufferRef EyeAdaptationBuffer = GraphBuilder.RegisterExternalBuffer(View.GetLastEyeAdaptationBuffer(GraphBuilder), ERDGBufferFlags::MultiFrame);
+	FRDGBufferRef EyeAdaptationBuffer = Inputs.EyeAdaptationBuffer;
 	FRDGBufferSRVRef EyeAdaptationBufferSRV = GraphBuilder.CreateSRV(EyeAdaptationBuffer, PF_A32B32G32R32F);
 
 	FRDGBufferRef OutputBuffer = GraphBuilder.RegisterExternalBuffer(View.GetEyeAdaptationBuffer(GraphBuilder), ERDGBufferFlags::MultiFrame);
