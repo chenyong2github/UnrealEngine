@@ -505,7 +505,7 @@ namespace HordeServer
 			Services.AddHostedService(Provider => Provider.GetRequiredService<PerforceLoadBalancer>());
 			Services.AddHostedService<PoolUpdateService>();
 			Services.AddHostedService(Provider => Provider.GetRequiredService<SlackNotificationSink>());
-			Services.AddHostedService<StreamConfigService>();
+			Services.AddHostedService<ConfigService>();
 			Services.AddHostedService<TelemetryService>();
 
 			// Task sources. Order of registration is important here; it dictates the order in which sources are served.

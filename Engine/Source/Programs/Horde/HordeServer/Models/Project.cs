@@ -105,6 +105,11 @@ namespace HordeServer.Models
 		public string Name { get; }
 
 		/// <summary>
+		/// Revision of the config file used to configure this project
+		/// </summary>
+		public string? Revision { get; set; }
+
+		/// <summary>
 		/// Order to display on the dashboard
 		/// </summary>
 		public int Order { get; }
@@ -134,6 +139,11 @@ namespace HordeServer.Models
 		/// The project id
 		/// </summary>
 		public ProjectId Id { get; }
+
+		/// <summary>
+		/// Revision of the file
+		/// </summary>
+		public string Revision { get; }
 
 		/// <summary>
 		/// Mime type for the image

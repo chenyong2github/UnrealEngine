@@ -269,6 +269,11 @@ namespace HordeServer.Models
 		public bool ForceReset { get; set; }
 
 		/// <summary>
+		/// The config revision
+		/// </summary>
+		public string? ConfigRevision { get; set; }
+
+		/// <summary>
 		/// Manually added status messages
 		/// </summary>
 		public List<Notice> Notices { get; set; } = new List<Notice>();

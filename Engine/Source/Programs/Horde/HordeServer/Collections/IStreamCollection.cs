@@ -25,48 +25,15 @@ namespace HordeServer.Collections
 	public interface IStreamCollection
 	{
 		/// <summary>
-		/// Creates a new stream
+		/// Creates or replaces a stream configuration
 		/// </summary>
 		/// <param name="Id">Unique id for the new stream</param>
-		/// <param name="Name">Name of the new stream</param>
-		/// <param name="ProjectId">Unique id of the project</param>
-		/// <param name="ConfigPath">Path to the config file for this stream in Perforce</param>
-		/// <param name="Order">Order for this stream</param>
-		/// <param name="NotificationChannel">Notification channel for this stream</param>
-		/// <param name="NotificationChannelFilter">Notification channel filter for this stream</param>
-		/// <param name="TriageChannel">Notification channel for triage requests</param>
-		/// <param name="DefaultPreflight">Default template for preflights</param>
-		/// <param name="Tabs">Tabs for the new stream</param>
-		/// <param name="AgentTypes">Map of new agent types to machine attributes</param>
-		/// <param name="WorkspaceTypes">Map of new workspace types</param>
-		/// <param name="TemplateRefs">New job templates for the stream</param>
-		/// <param name="Properties">New properties for the stream</param>
-		/// <param name="Acl">The ACL for this stream</param>
-		/// <returns>The new stream document</returns>
-		Task<IStream?> TryCreateAsync(StreamId Id, string Name, ProjectId ProjectId, string? ConfigPath = null, int? Order = null, string? NotificationChannel = null, string? NotificationChannelFilter = null, string? TriageChannel = null, DefaultPreflight? DefaultPreflight = null, List<StreamTab>? Tabs = null, Dictionary<string, AgentType>? AgentTypes = null, Dictionary<string, WorkspaceType>? WorkspaceTypes = null, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs = null, Dictionary<string, string>? Properties = null, Acl? Acl = null);
-
-		/// <summary>
-		/// Replaces an existing stream
-		/// </summary>
-		/// <param name="StreamInterface">Unique id for the new stream</param>
-		/// <param name="Name">Name of the new stream</param>
-		/// <param name="ConfigPath">Path to the config file for this stream in Perforce</param>
-		/// <param name="ConfigChange">Changelist number for the config file</param>
-		/// <param name="Order">Order for this stream</param>
-		/// <param name="NotificationChannel">Notification channel for this stream</param>
-		/// <param name="NotificationChannelFilter">Notification channel filter for this stream</param>
-		/// <param name="TriageChannel"></param>
-		/// <param name="DefaultPreflight">Default template for preflights</param>
-		/// <param name="Tabs">Tabs for the new stream</param>
-		/// <param name="AgentTypes">Map of new agent types to machine attributes</param>
-		/// <param name="WorkspaceTypes">Map of new workspace types</param>
-		/// <param name="TemplateRefs">New job templates for the stream</param>
-		/// <param name="Properties">New properties for the stream</param>
-		/// <param name="Acl">The ACL for this stream</param>
-		/// <param name="PausedUntil">The new datetime for pausing builds</param>
-		/// <param name="PauseComment">The reason for pausing</param>
-		/// <returns>The new stream document</returns>
-		Task<IStream?> TryReplaceAsync(IStream StreamInterface, string Name, string? ConfigPath = null, int? ConfigChange = null, int? Order = null, string? NotificationChannel = null, string? NotificationChannelFilter = null, string? TriageChannel = null, DefaultPreflight? DefaultPreflight = null, List<StreamTab>? Tabs = null, Dictionary<string, AgentType>? AgentTypes = null, Dictionary<string, WorkspaceType>? WorkspaceTypes = null, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs = null, Dictionary<string, string>? Properties = null, Acl? Acl = null, DateTime? PausedUntil = null, string? PauseComment = null);
+		/// <param name="Stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
+		/// <param name="Revision">The config file revision</param>
+		/// <param name="ProjectId">The project id</param>
+		/// <param name="Config">The stream configuration</param>
+		/// <returns></returns>
+		Task<IStream?> TryCreateOrReplaceAsync(StreamId Id, IStream? Stream, string Revision, ProjectId ProjectId, StreamConfig Config);
 
 		/// <summary>
 		/// Gets a stream by ID
