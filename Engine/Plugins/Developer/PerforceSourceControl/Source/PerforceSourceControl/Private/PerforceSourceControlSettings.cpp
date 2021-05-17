@@ -104,16 +104,20 @@ void FPerforceSourceControlSettings::SaveSettings() const
 
 FPerforceConnectionInfo FPerforceSourceControlSettings::GetConnectionInfo() const
 {
-	check(IsInGameThread());
-	FPerforceConnectionInfo OutConnectionInfo = ConnectionInfo;
-	
-	// password needs to be gotten straight from the input UI, its not stored anywhere else
-	if(SPerforceSourceControlSettings::GetPassword().Len() > 0)
+	FPerforceConnectionInfo OutConnectionInfo;
 	{
-		OutConnectionInfo.Password = SPerforceSourceControlSettings::GetPassword();
+		FScopeLock ScopeLock(&CriticalSection);
+		OutConnectionInfo = ConnectionInfo;
+	}
+	
+	// The password needs to be gotten straight from the input UI, its not stored anywhere else
+	FString Password = SPerforceSourceControlSettings::GetPassword();
+	if(!Password.IsEmpty())
+	{
+		OutConnectionInfo.Password = Password;
 	}
 
-	// Ticket is stored in the provider
+	// Ticket is stored in the provider (this is only set by the command line so should be safe to access without threading protection)
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::GetModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
 	FPerforceSourceControlProvider& Provider = PerforceSourceControl.GetProvider();
 	OutConnectionInfo.Ticket = Provider.GetTicket();

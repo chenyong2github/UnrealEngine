@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SourceControlOperationBase.h"
+
+#include "Containers/StringFwd.h"
+#include "Memory/SharedBuffer.h"
 #include "ISourceControlChangelist.h"
+#include "SourceControlOperationBase.h"
 
 #define LOCTEXT_NAMESPACE "SourceControl"
 
@@ -628,6 +631,66 @@ public:
 	{
 		return LOCTEXT("SourceControl_DeleteShelvedOperation", "Deleting shelved files from changelist...");
 	}
+};
+
+/**
+ * Operation used to download a file from the source control server
+ */
+class FDownloadFile : public FSourceControlOperationBase
+{
+public:
+	/** 
+	 * This constructor will download the files and keep them in memory, 
+	 * which can then be accessed by calling XXX.
+	 */
+	FDownloadFile() = default;
+	
+	/** This constructor will download the files to the given directory */
+	SOURCECONTROL_API FDownloadFile(FStringView InTargetDirectory);
+
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "DownloadFile";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_PrintOperation", "Downloading file from server...");
+	}
+
+	virtual bool CanBeCalledFromBackgroundThreads() const
+	{
+		return true;
+	}
+
+	FString GetTargetDirectory() const
+	{
+		return TargetDirectory;
+	}
+
+	void AddFileData(const FString& Filename, FSharedBuffer FileData)
+	{
+		FileDataMap.Add(Filename, FileData);
+	}
+
+	FSharedBuffer GetFileData(const FStringView& Filename)
+	{
+		const uint32 Hash = GetTypeHash(Filename);
+		FSharedBuffer* Buffer = FileDataMap.FindByHash(Hash, Filename);
+		if (Buffer != nullptr)
+		{
+			return *Buffer;
+		}
+		else
+		{
+			return FSharedBuffer();
+		}
+	}
+private:
+
+	FString TargetDirectory;
+	TMap<FString, FSharedBuffer> FileDataMap;
 };
 
 #undef LOCTEXT_NAMESPACE

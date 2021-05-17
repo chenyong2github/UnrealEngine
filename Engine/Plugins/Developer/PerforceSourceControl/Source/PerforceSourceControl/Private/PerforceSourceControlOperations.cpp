@@ -2721,4 +2721,92 @@ bool FPerforceUnshelveWorker::UpdateStates() const
 	}
 }
 
+FName FPerforceDownloadFileWorker::GetName() const
+{
+	return "DownloadFile";
+}
+
+bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InCommand)
+{
+	FScopedPerforceConnection ScopedConnection(InCommand);
+
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	{
+		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+		
+		// TODO: The cast doesn't seem to have any type safety
+		TSharedRef<FDownloadFile, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FDownloadFile>(InCommand.Operation);
+
+		TArray<FString> Parameters;
+		FP4RecordSet Records;
+
+		const FString TargetDirectory = Operation->GetTargetDirectory();
+
+		if (TargetDirectory.IsEmpty())
+		{
+			// Download and store the files as blobs in memory that the caller can access as they wish
+			for (const FString& TargetFilePath : InCommand.Files)
+			{
+				Parameters.Add(TEXT("-q")); // Do not print the header, we only want the actual file contents
+				Parameters.Add(TargetFilePath);
+
+				TOptional<FSharedBuffer> FileData = FSharedBuffer();
+				InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("print"), Parameters, Records, FileData, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+
+				if (InCommand.bCommandSuccessful)
+				{
+					Operation->AddFileData(TargetFilePath, FileData.GetValue());
+				}
+
+				// Keep the already allocated memory for future files to prevent reallocation
+				Parameters.Reset();
+				Records.Reset();
+			}
+		}
+		else
+		{
+			// Downloading the files directly to a target directory
+			for (const FString& TargetFilePath : InCommand.Files)
+			{
+				// First we will stream to a temp file before moving it to the final location if the download was successful.
+				// This will prevent us from overwriting files with partial data in case of an error.
+
+				Parameters.Add(TEXT("-o"));
+				const FString BaseFilename = FPaths::GetBaseFilename(TargetFilePath);
+				const FString TempFilePath = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
+				Parameters.Add(TempFilePath);
+
+				Parameters.Add(TEXT("-q")); // Do not print the header, we only want the actual file contents
+				Parameters.Add(TargetFilePath);
+
+				InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("print"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+
+				if (InCommand.bCommandSuccessful)
+				{
+					const FString FinalTargetPath = TargetDirectory / FPaths::GetCleanFilename(TargetFilePath);
+					if (IFileManager::Get().Move(*FinalTargetPath, *TempFilePath) == false)
+					{
+						// Give error 
+						const FString ErrorMsg = FString::Printf(TEXT("Failed to move '%s' to '%s'"), *TempFilePath, *FinalTargetPath);
+						InCommand.ResultInfo.ErrorMessages.Add(FText::FromString(ErrorMsg));
+						InCommand.bCommandSuccessful = false;
+					}
+				}
+
+				// Keep the already allocated memory for future files to prevent reallocation
+				Parameters.Reset();
+				Records.Reset();
+			}
+		}
+	}
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPerforceDownloadFileWorker::UpdateStates() const
+{
+	// Downloading a file from the server will never affect the cached
+	// file states.
+	return false;
+}
+
 #undef LOCTEXT_NAMESPACE

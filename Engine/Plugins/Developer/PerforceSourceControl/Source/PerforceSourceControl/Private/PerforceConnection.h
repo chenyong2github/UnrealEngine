@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PerforceSourceControlPrivate.h"
 #include "PerforceSourceControlCommand.h"
+#include "Memory/SharedBuffer.h"
 
 /** A map containing result of running Perforce command */
 class FP4Record : public TMap<FString, FString >
@@ -68,13 +69,22 @@ public:
 	{
 		const bool bStandardDebugOutput=true;
 		const bool bAllowRetry=true;
-		return RunCommand(InCommand, InParameters, OutRecordSet, OutErrorMessage, InIsCancelled, OutConnectionDropped, bStandardDebugOutput, bAllowRetry);
+		TOptional<FSharedBuffer> UnsetDataBuffer;
+
+		return RunCommand(InCommand, InParameters, OutRecordSet, UnsetDataBuffer, OutErrorMessage, InIsCancelled, OutConnectionDropped, bStandardDebugOutput, bAllowRetry);
+	}
+
+	bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, FOnIsCancelled InIsCancelled, bool& OutConnectionDropped)
+	{
+		const bool bStandardDebugOutput = true;
+		const bool bAllowRetry = true;
+		return RunCommand(InCommand, InParameters, OutRecordSet, OutData, OutErrorMessage, InIsCancelled, OutConnectionDropped, bStandardDebugOutput, bAllowRetry);
 	}
 
 	/**
 	 * Runs internal perforce command, catches exceptions, returns results
 	 */
-	bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, TArray<FText>& OutErrorMessage, FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, const bool bInStandardDebugOutput, const bool bInAllowRetry);
+	bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, const bool bInStandardDebugOutput, const bool bInAllowRetry);
 
 	/**
 	 * Creates a changelist with the specified description

@@ -263,6 +263,32 @@ public:
 	virtual TArray<FSourceControlChangelistRef> GetChangelists( EStateCacheUsage::Type InStateCacheUsage ) = 0;
 
 	/**
+	 * Executes the FDownloadFile operation, but unlike the ::Execute method this can be called from a background thread, this
+	 * works because FDownloadFile is thread safe and it does not change the state of source control.
+	 * NOTE: This is only intended for use by the virtualization module and will be deprecated at some point in the future when
+	 * thread safety is built into the system.
+	 * NOTE: This is only implemented for the perforce source control provider with no plans to extend this to other providers.
+	 * 
+	 * @param InOperation The download operation to be executed.
+	 * @param InFile The depot path of a file to download.
+	 * @return True if the operation was a success, otherwise false.
+	 */
+	SOURCECONTROL_API bool TryToDownloadFileFromBackgroundThread(const TSharedRef<class FDownloadFile>& InOperation, const FString& InFile);
+
+	/**
+	 * Executes the FDownloadFile operation, but unlike the ::Execute method this can be called from a background thread, this
+	 * works because FDownloadFile is thread safe and it does not change the state of source control.
+	 * NOTE: This is only intended for use by the virtualization module and will be deprecated at some point in the future when
+	 * thread safety is built into the system.
+	 * NOTE: This is only implemented for the perforce source control provider with no plans to extend this to other providers.
+	 *
+	 * @param InOperation The download operation to be executed.
+	 * @param InFile An array of depot paths for the files to download.
+	 * @return True if the operation was a success, otherwise false.
+	 */
+	SOURCECONTROL_API virtual bool TryToDownloadFileFromBackgroundThread(const TSharedRef<class FDownloadFile>& InOperation, const TArray<FString>& InFiles);
+
+	/**
 	 * Whether the provider uses local read-only state to signal whether a file is editable.
 	 */
 	virtual bool UsesLocalReadOnlyState() const = 0;

@@ -18,8 +18,8 @@ FPerforceSourceControlCommand::FPerforceSourceControlCommand(const TSharedRef<cl
 	, bAutoDelete(true)
 	, Concurrency(EConcurrency::Synchronous)
 {
-	// grab the providers settings here, so we don't access them once the worker thread is launched
-	check(IsInGameThread());
+	// Grab the providers settings here, so we don't access them once the worker thread is launched
+	check(IsInGameThread() || InOperation->CanBeCalledFromBackgroundThreads());
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
 	ConnectionInfo = PerforceSourceControl.AccessSettings().GetConnectionInfo();
 }
