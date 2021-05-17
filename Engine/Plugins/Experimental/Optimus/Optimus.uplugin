@@ -17,6 +17,11 @@
 	"Modules": [
 		{
 			"Name": "OptimusCore",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "OptimusDeveloper",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault"
 		},

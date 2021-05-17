@@ -2,7 +2,7 @@
 
 #include "OptimusNode_GetVariable.h"
 
-#include "OptimusCoreModule.h"
+#include "OptimusDeveloperModule.h"
 #include "OptimusNodePin.h"
 #include "OptimusVariableDescription.h"
 
@@ -15,7 +15,7 @@ void UOptimusNode_GetVariable::SetVariableDescription(UOptimusVariableDescriptio
 
 	if (!EnumHasAnyFlags(InVariableDesc->DataType->UsageFlags, EOptimusDataTypeUsageFlags::Variable))
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Data type '%s' is not usable in a resource"),
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Data type '%s' is not usable in a resource"),
 		    *InVariableDesc->DataType->TypeName.ToString());
 		return;
 	}

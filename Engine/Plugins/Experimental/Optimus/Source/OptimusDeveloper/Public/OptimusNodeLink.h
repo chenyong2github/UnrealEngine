@@ -10,7 +10,7 @@
 class UOptimusNodePin;
 
 UCLASS()
-class OPTIMUSCORE_API UOptimusNodeLink : public UObject
+class OPTIMUSDEVELOPER_API UOptimusNodeLink : public UObject
 {
 	GENERATED_BODY()
 
