@@ -99,7 +99,7 @@ public:
 
 	FRunnableThreadHoloLens()
 		: Thread(NULL)
-		, ThreadInitSyncEvent(NULL)
+		, ThreadInitSyncEvent()
 		, ThreadPriority(TPri_Normal)
 	{
 
