@@ -4,6 +4,7 @@
 
 #include "Misc/HashBuilder.h"
 #include "Engine/StaticMesh.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 

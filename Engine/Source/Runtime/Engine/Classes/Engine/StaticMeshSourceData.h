@@ -7,6 +7,7 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/MeshMerging.h"
 #include "UObject/ObjectMacros.h"
+#include "PerPlatformProperties.h"
 
 #include "StaticMeshSourceData.generated.h"
 
