@@ -842,41 +842,41 @@ TSharedRef<SWidget> SStatusBar::MakeStatusBarDrawerButton(const FStatusBarDrawer
 {
 	const FName DrawerId = Drawer.UniqueId;
 
+	const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("Brushes.Panel");
+
 	TSharedRef<SWidget> DrawerButton = 
-		SNew(SButton)
-		.IsFocusable(false)
-		.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
-		.OnClicked(this, &SStatusBar::OnDrawerButtonClicked, DrawerId)
-		.ToolTipText(Drawer.ToolTipText)
+
+		SNew(SBorder)
+		.Padding(FMargin(2.0f, 0.0f))
+		.BorderImage(StatusBarBackground)
+		.Visibility(EVisibility::SelfHitTestInvisible)
+		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.Padding(2.0f)
-			.AutoWidth()
+			SNew(SButton)
+			.IsFocusable(false)
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
+			.OnClicked(this, &SStatusBar::OnDrawerButtonClicked, DrawerId)
+			.ToolTipText(Drawer.ToolTipText)
 			[
-				SNew(SImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image_Lambda([this, DrawerId]() { return IsDrawerOpened(DrawerId) ? DownArrow : UpArrow; })
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f)
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(Drawer.Icon)
-			]
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f)
-			[
-				SNew(STextBlock)
-				.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
-				.Text(Drawer.ButtonText)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(2.0f)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(Drawer.Icon)
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(2.0f)
+				[
+					SNew(STextBlock)
+					.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+					.Text(Drawer.ButtonText)
+				]
 			]
 		];
 
@@ -886,14 +886,21 @@ TSharedRef<SWidget> SStatusBar::MakeStatusBarDrawerButton(const FStatusBarDrawer
 		return
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			.Padding(0.0f, 0.0f, 2.0f, 0.0f)
 			.AutoWidth()
 			[
 				DrawerButton
 			]
 			+ SHorizontalBox::Slot()
 			[
-				Drawer.CustomWidget.ToSharedRef()
+				SNew(SBorder)
+				.Padding(FMargin(2.0f, 0.0f))
+				.BorderImage(StatusBarBackground)
+				.Visibility(EVisibility::SelfHitTestInvisible)
+				.VAlign(VAlign_Center)
+				[
+					Drawer.CustomWidget.ToSharedRef()
+				]
 			];
 	
 	}
@@ -1185,19 +1192,11 @@ void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer)
 
 	if (RegisteredDrawers.Num() > NumDrawers)
 	{
-		const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("Brushes.Panel");
-
 		DrawerBox->AddSlot()
 		.Padding(1.0f, 0.0f)
 		.AutoWidth()
 		[
-			SNew(SBorder)
-			.Padding(FMargin(2.0f, 0.0f))
-			.BorderImage(StatusBarBackground)
-			.VAlign(VAlign_Center)
-			[
-				MakeStatusBarDrawerButton(Drawer)
-			]
+			MakeStatusBarDrawerButton(Drawer)
 		];
 	}
 }
