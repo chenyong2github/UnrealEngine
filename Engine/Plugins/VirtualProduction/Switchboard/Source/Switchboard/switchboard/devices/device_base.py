@@ -38,7 +38,7 @@ class DeviceQtHandler(QtCore.QObject):
     signal_device_sync_failed = QtCore.Signal(object)
     signal_device_is_recording_device_changed = QtCore.Signal(object, int)
     signal_device_build_update = QtCore.Signal(object, str, str) # device, step, percent
-    signal_device_sync_update = QtCore.Signal(object, int) # device, progress
+    signal_device_sync_update = QtCore.Signal(object, str) # device, percent
 
 
 class Device(QtCore.QObject):

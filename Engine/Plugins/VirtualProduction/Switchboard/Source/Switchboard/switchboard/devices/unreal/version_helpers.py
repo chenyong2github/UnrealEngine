@@ -3,8 +3,11 @@
 import typing
 
 
-LISTENER_COMPATIBLE_VERSION = (1,4)
+LISTENER_COMPATIBLE_VERSION = (1,5)
+
+# Version where redeploy support was initially introduced.
 LISTENER_MIN_REDEPLOY_VERSION = (1,4,0)
+
 
 ListenerVersion = typing.Tuple[int, int, int]
 
