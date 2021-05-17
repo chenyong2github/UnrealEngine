@@ -21,5 +21,12 @@ public class DerivedDataCache : ModuleRules
 		{
 			DynamicallyLoadedModuleNames.Add("DDCUtils");
 		}
+
+		// Platform-specific opt-in
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDefinitions.Add("WITH_HTTP_DDC_BACKEND=1");
+			PrivateDefinitions.Add("WITH_S3_DDC_BACKEND=1");
+		}
 	}
 }
