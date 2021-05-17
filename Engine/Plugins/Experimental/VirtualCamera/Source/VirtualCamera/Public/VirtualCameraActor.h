@@ -178,11 +178,6 @@ protected:
 	//~ End IVirtualCameraOptions Interface
 
 private:
-
-	void OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change);
-	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
-	void OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
-
 	void OnTouchEventOutsideUMG(const FVector2D& InViewportPosition);
 
 	/** Stores the current camera settings to a save game for later use. */
@@ -203,7 +198,6 @@ private:
 	UPROPERTY(BlueprintGetter = GetCineCameraComponent, Category = "VirtualCamera | Component")
 	UCineCameraComponent* StreamedCamera;
 	bool bIsStreaming;
-	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;
 	TUniquePtr<FVirtualCameraViewportSettings> ViewportSettingsBackup;
 	FHitResult LastViewportTouchResult;
 };
