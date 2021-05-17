@@ -6,7 +6,6 @@
 
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
@@ -161,16 +160,16 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			return;
 		}
 
-		UWorldPartitionRuntimeHash::FStreamingSourceCells ActivateCells;
-		UWorldPartitionRuntimeHash::FStreamingSourceCells LoadCells;
-		TSet<const UWorldPartitionRuntimeCell*>& LoadStreamingCells = LoadCells.GetCells();
-		TSet<const UWorldPartitionRuntimeCell*>& ActivateStreamingCells = ActivateCells.GetCells();
+		TSet<const UWorldPartitionRuntimeCell*>& ActivateStreamingCells = FrameActivateCells.GetCells();
+		TSet<const UWorldPartitionRuntimeCell*>& LoadStreamingCells = FrameLoadCells.GetCells();
+		check(ActivateStreamingCells.IsEmpty());
+		check(LoadStreamingCells.IsEmpty());
 
 		// When uninitializing, UpdateStreamingState is called, but we don't want any cells to be loaded
 		if (WorldPartition->IsInitialized())
 		{
 			UWorldPartitionRuntimeCell::DirtyStreamingSourceCacheEpoch();
-			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, ActivateCells, LoadCells);
+			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, FrameActivateCells, FrameLoadCells);
 
 			// Activation superseeds Loading
 			LoadStreamingCells = LoadStreamingCells.Difference(ActivateStreamingCells);
@@ -230,6 +229,10 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		{
 			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Loaded, ToLoadCells);
 		}
+
+		// Reset frame StreamingSourceCells (optimization to avoid reallocation at every call to UpdateStreamingState)
+		FrameActivateCells.Reset();
+		FrameLoadCells.Reset();
 	}
 }
 

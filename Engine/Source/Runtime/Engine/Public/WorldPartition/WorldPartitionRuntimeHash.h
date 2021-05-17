@@ -5,7 +5,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "WorldPartition.h"
-#include "WorldPartitionStreamingPolicy.h"
 #include "WorldPartitionActorDescView.h"
 #include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartitionHandle.h"
@@ -47,12 +46,8 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	class FStreamingSourceCells
 	{
 	public:
-		void AddCell(const UWorldPartitionRuntimeCell* InCell, const FWorldPartitionStreamingSource& InSource)
-		{
-			InCell->CacheStreamingSourceInfo(InSource);
-			Cells.Add(InCell);
-		}
-
+		void AddCell(const UWorldPartitionRuntimeCell* InCell, const FWorldPartitionStreamingSource& InSource);
+		void Reset() { Cells.Reset(); }
 		int32 Num() const { return Cells.Num(); }
 		TSet<const UWorldPartitionRuntimeCell*>& GetCells() { return Cells; }
 
