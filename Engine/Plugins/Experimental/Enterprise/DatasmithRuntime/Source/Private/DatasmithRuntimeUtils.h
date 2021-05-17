@@ -8,7 +8,10 @@
 
 #include "DirectLinkCommon.h"
 
+#include "Engine/StaticMesh.h"
 #include "Misc/SecureHash.h"
+
+#include "DatasmithRuntimeUtils.generated.h"
 
 class IDatasmithBaseMaterialElement;
 class IDatasmithElement;
@@ -22,13 +25,40 @@ class UClass;
 class UMaterial;
 class UMaterialInstanceDynamic;
 class USceneComponent;
-class UStaticMesh;
+class UWorld;
 
 struct FTextureData;
 struct FActorData;
 struct FDatasmithMeshElementPayload;
 struct FMeshDescription;
 struct FStaticMeshLODResources;
+
+// Class deriving from UStaticMesh to allow the cooking of collision meshes at runtime
+// To do so, bAllowCPUAccess must be true AND  the metod GetWorld() must return a valid world
+UCLASS()
+class URuntimeMesh : public UStaticMesh
+{
+	GENERATED_BODY()
+
+public:
+	URuntimeMesh()
+		: World(nullptr)
+	{
+		// Set bAllowCPUAccess to true to allow the copy of render data triangles to the collision mesh
+		bAllowCPUAccess = true;
+	}
+
+	// UObject overrides
+	// Overridden to allow cooking of collision meshes, simple and complex, from static mesh at runtime
+	virtual UWorld* GetWorld() const override  { return World ? World : UStaticMesh::GetWorld(); }
+	// End UObject overrides
+
+	// Use valid world to allow cooking of collision meshes, simple and complex, from static mesh at runtime 
+	void SetWorld(UWorld* InWorld) { World = InWorld; }
+
+private:
+	UWorld* World;
+};
 
 namespace DatasmithRuntime
 {
