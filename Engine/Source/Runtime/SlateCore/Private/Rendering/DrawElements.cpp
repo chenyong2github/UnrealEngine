@@ -561,6 +561,7 @@ void FSlateDrawElement::MakeViewport( FSlateWindowElementList& ElementList, uint
 	FSlateViewportPayload& DataPayload = ElementList.CreatePayload<FSlateViewportPayload>(Element);
 
 	DataPayload.SetViewport(Viewport, InTint);
+	check(DataPayload.RenderTargetResource == nullptr || !DataPayload.RenderTargetResource->Debug_IsDestroyed());
 
 	Element.Init(ElementList, EElementType::ET_Viewport, InLayer, PaintGeometry, InDrawEffects);
 }
