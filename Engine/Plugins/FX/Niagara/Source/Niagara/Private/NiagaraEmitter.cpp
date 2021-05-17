@@ -1021,27 +1021,12 @@ bool UNiagaraEmitter::IsValid()const
 		}
 		if (EventHandlerScriptProps.Num() != 0)
 		{
-			for (const FNiagaraEventScriptProperties& EventHandler : EventHandlerScriptProps)
+			for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
 			{
-				if (!EventHandler.Script->IsScriptCompilationPending(false) &&
-					!EventHandler.Script->DidScriptCompilationSucceed(false))
+				if (!EventHandlerScriptProps[i].Script->IsScriptCompilationPending(false) &&
+					!EventHandlerScriptProps[i].Script->DidScriptCompilationSucceed(false))
 				{
 					return false;
-				}
-
-				const FNiagaraVMExecutableData& ScriptData = EventHandler.Script->GetVMExecutableData();
-
-				// validate that the read data sets for any events match the name that we've found
-				for (const FNiagaraDataSetID& ReadDataSet : ScriptData.ReadDataSets)
-				{
-					if (ReadDataSet.Type == ENiagaraDataSetType::Event
-					&& EventHandler.SourceEventName != NAME_None
-					&& ReadDataSet.Name != EventHandler.SourceEventName)
-					{
-						UE_LOG(LogNiagara, Warning, TEXT("%s being marked invalid because it has mismatched events (%s is expected, but %s has been found)."),
-							*GetPathName(), *ReadDataSet.Name.ToString(), *EventHandler.SourceEventName.ToString());
-						return false;
-					}
 				}
 			}
 		}
