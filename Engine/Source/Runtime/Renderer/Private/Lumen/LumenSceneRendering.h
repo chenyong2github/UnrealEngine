@@ -23,8 +23,7 @@ inline bool DoesPlatformSupportLumenGI(EShaderPlatform Platform)
 class FCardPageRenderData
 {
 public:
-	FPrimitiveSceneInfo* PrimitiveSceneInfo = nullptr;
-	int32 PrimitiveInstanceIndexOrMergedFlag = -1;
+	int32 PrimitiveGroupIndex = -1;
 
 	// CardData
 	const int32 CardIndex = -1;
@@ -57,10 +56,9 @@ public:
 		FVector4 InCardUVRect,
 		FIntRect InCardCaptureAtlasRect,
 		FIntRect InSurfaceCacheAtlasRect,
-		FPrimitiveSceneInfo* InPrimitiveSceneInfo,
-		int32 InPrimitiveInstanceIndex,
+		int32 InPrimitiveGroupIndex,
 		int32 InCardIndex,
-		int32 CardPageIndex);
+		int32 InCardPageIndex);
 
 	void UpdateViewMatrices(const FViewInfo& MainView);
 

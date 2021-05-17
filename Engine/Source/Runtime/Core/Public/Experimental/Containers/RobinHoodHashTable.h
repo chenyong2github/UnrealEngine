@@ -84,6 +84,11 @@ public:
 		return Index != INDEX_NONE;
 	}
 
+	inline bool operator==(FHashElementId InHashElementId) const
+	{
+		return Index == InHashElementId.Index;
+	}
+
 private:
 	int32 Index;
 };
