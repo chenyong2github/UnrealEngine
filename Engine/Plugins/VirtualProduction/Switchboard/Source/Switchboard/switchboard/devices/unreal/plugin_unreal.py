@@ -373,6 +373,10 @@ class DeviceUnreal(Device):
         self.inflight_project_cl = None
         self.inflight_engine_cl = None
 
+        self.unreal_client.listener_qt_handler.listener_connecting.connect(super().connecting_listener, QtCore.Qt.QueuedConnection)
+        self.unreal_client.listener_qt_handler.listener_connected.connect(super().connect_listener, QtCore.Qt.QueuedConnection)
+        self.unreal_client.listener_qt_handler.listener_connection_failed.connect(self._on_listener_connection_failed, QtCore.Qt.QueuedConnection)
+
         # Set a delegate method if the device gets a disconnect signal
         self.unreal_client.disconnect_delegate = self.on_listener_disconnect
         self.unreal_client.receive_file_completed_delegate = self.on_file_received
@@ -568,13 +572,14 @@ class DeviceUnreal(Device):
             QtCore.QMetaObject.invokeMethod(self, 'connect_listener', QtCore.Qt.QueuedConnection)
             return
 
-        is_connected = self.unreal_client.connect()
+        # This will start the connection process asynchronously. The base class will be notified
+        # by signal whether the connection succeeded or failed and will update the device's status
+        # accordingly.
+        self.unreal_client.connect()
 
-        if not is_connected:
-            self.device_qt_handler.signal_device_connect_failed.emit(self)
-            return
-
-        super().connect_listener()
+    @QtCore.Slot()
+    def _on_listener_connection_failed(self):
+        self.device_qt_handler.signal_device_connect_failed.emit(self)
 
     @QtCore.Slot()
     def disconnect_listener(self):
