@@ -325,39 +325,45 @@ int32 FExpressionExecOutput::Compile(class FMaterialCompiler* Compiler) const
 	return INDEX_NONE;
 }
 
-UE::HLSLTree::FStatement* FExpressionExecOutput::AcquireHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+void FExpressionExecOutput::Connect(UMaterialExpression* InExpression)
 {
-	UE::HLSLTree::FStatement* Result = nullptr;
+	check(!InExpression || InExpression->HasExecInput());
+	if (InExpression != Expression)
+	{
+		if (Expression)
+		{
+			check(Expression->NumExecutionInputs > 0);
+			Expression->NumExecutionInputs--;
+		}
+
+		Expression = InExpression;
+		if (InExpression)
+		{
+			InExpression->NumExecutionInputs++;
+		}
+	}
+}
+
+bool FExpressionExecOutput::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	bool bResult = false;
 	if (Expression)
 	{
 		Expression->ValidateState();
-		Result = Generator.AcquireStatement(Scope, Expression);
+		bResult = Generator.GenerateStatements(Scope, Expression);
 	}
 
-	return Result;
+	return bResult;
 }
 
-UE::HLSLTree::FScope* FExpressionExecOutput::NewScopeWithStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+UE::HLSLTree::FScope* FExpressionExecOutput::NewScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
 {
 	UE::HLSLTree::FScope* Result = nullptr;
 	if (Expression)
 	{
 		Expression->ValidateState();
-		Result = Generator.GetTree().NewScope(Scope); // Create a new scope for the statement
-		Generator.AcquireStatement(*Result, Expression);
-	}
-
-	return Result;
-}
-
-UE::HLSLTree::FScope* FExpressionExecOutput::NewLinkedScopeWithStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
-{
-	UE::HLSLTree::FScope* Result = nullptr;
-	if (Expression)
-	{
-		Expression->ValidateState();
-		Result = Generator.GetTree().NewLinkedScope(Scope); // Create a new scope for the statement
-		Generator.AcquireStatement(*Result, Expression);
+		Result = Generator.GetTree().NewScope(Scope); // Create a new scope for the statements
+		Generator.GenerateStatements(*Result, Expression);
 	}
 
 	return Result;

@@ -40,7 +40,7 @@ EMaterialGenerateHLSLStatus UMaterialExpression::GenerateHLSLExpression(FMateria
 	return Generator.Error(TEXT("Node does not support expressions"));
 }
 
-EMaterialGenerateHLSLStatus UMaterialExpression::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
+EMaterialGenerateHLSLStatus UMaterialExpression::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
 {
 	return Generator.Error(TEXT("Node does not support statements"));
 }
@@ -311,19 +311,19 @@ EMaterialGenerateHLSLStatus UMaterialExpressionMaterialFunctionCall::GenerateHLS
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
-EMaterialGenerateHLSLStatus UMaterialExpressionExecBegin::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
+EMaterialGenerateHLSLStatus UMaterialExpressionExecBegin::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
 {
-	OutStatement = Exec.AcquireHLSLStatement(Generator, Scope);
+	Exec.GenerateHLSLStatements(Generator, Scope);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
-EMaterialGenerateHLSLStatus UMaterialExpressionExecEnd::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
+EMaterialGenerateHLSLStatus UMaterialExpressionExecEnd::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
 {
-	OutStatement = Generator.NewResult(Scope);
+	Generator.GenerateResult(Scope);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
-EMaterialGenerateHLSLStatus UMaterialExpressionSetLocal::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
+EMaterialGenerateHLSLStatus UMaterialExpressionSetLocal::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
 {
 	UE::HLSLTree::FExpression* ValueExpression = Value.AcquireHLSLExpressionWithCast(Generator, Scope, UE::Shader::EValueType::Float3);
 	if (!ValueExpression)
@@ -341,13 +341,12 @@ EMaterialGenerateHLSLStatus UMaterialExpressionSetLocal::GenerateHLSLStatement(F
 	Statement->Declaration = Declaration;
 	Statement->Expression = ValueExpression;
 
-	Exec.AcquireHLSLStatement(Generator, Scope);
+	Exec.GenerateHLSLStatements(Generator, Scope);
 
-	OutStatement = Statement;
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
-EMaterialGenerateHLSLStatus UMaterialExpressionIfThenElse::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
+EMaterialGenerateHLSLStatus UMaterialExpressionIfThenElse::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
 {
 	UE::HLSLTree::FExpression* ConditionExpression = Condition.AcquireHLSLExpression(Generator, Scope);
 	if (!ConditionExpression)
@@ -355,7 +354,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionIfThenElse::GenerateHLSLStatement
 		return Generator.Error(TEXT("Missing condition connection"));
 	}
 
-	UE::HLSLTree::FScope* ThenScope = Then.NewScopeWithStatement(Generator, Scope);
+	UE::HLSLTree::FScope* ThenScope = Then.NewScopeWithStatements(Generator, Scope);
 	if (!ThenScope)
 	{
 		return Generator.Error(TEXT("Missing Then connection"));
@@ -364,40 +363,47 @@ EMaterialGenerateHLSLStatus UMaterialExpressionIfThenElse::GenerateHLSLStatement
 	UE::HLSLTree::FStatementIf* IfStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementIf>(Scope);
 	IfStatement->ConditionExpression = ConditionExpression;
 	IfStatement->ThenScope = ThenScope;
-	IfStatement->ElseScope = Else.NewLinkedScopeWithStatement(Generator, *ThenScope);
+	IfStatement->ElseScope = Else.NewScopeWithStatements(Generator, Scope);
 
-	OutStatement = IfStatement;
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
-EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement)
+EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::HLSLTree::FExpression* StartExpression = StartIndex.AcquireHLSLExpression(Generator, Scope);
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
+EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
+{
+	if (!LoopBody.GetExpression())
+	{
+		return Generator.Error(TEXT("Missing LoopBody connection"));
+	}
+
+	UE::HLSLTree::FExpression* StartExpression = StartIndex.AcquireHLSLExpressionWithCast(Generator, Scope, UE::Shader::EValueType::Int1);
 	if (!StartExpression)
 	{
 		return Generator.Error(TEXT("Missing StartIndex connection"));
 	}
 
-	UE::HLSLTree::FExpression* EndExpression = EndIndex.AcquireHLSLExpression(Generator, Scope);
+	UE::HLSLTree::FExpression* EndExpression = EndIndex.AcquireHLSLExpressionWithCast(Generator, Scope, UE::Shader::EValueType::Int1);
 	if (!EndExpression)
 	{
 		return Generator.Error(TEXT("Missing EndIndex connection"));
 	}
 
-	UE::HLSLTree::FScope* LoopScope = LoopBody.NewScopeWithStatement(Generator, Scope);
-	if (!LoopScope)
-	{
-		return Generator.Error(TEXT("Missing LoopBody connection"));
-	}
+	UE::HLSLTree::FLocalDeclaration* LoopControlDeclaration = Generator.GetTree().NewLocalDeclaration(Scope, UE::Shader::EValueType::Int1, TEXT("ForLoopControl"));
+	UE::HLSLTree::FScope* LoopScope = Generator.GetTree().NewScope(Scope);
+	LoopBody.GenerateHLSLStatements(Generator, *LoopScope);
 
 	UE::HLSLTree::FStatementFor* ForStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementFor>(Scope);
+	ForStatement->LoopControlDeclaration = LoopControlDeclaration;
 	ForStatement->StartExpression = StartExpression;
 	ForStatement->EndExpression = EndExpression;
 	ForStatement->LoopScope = LoopScope;
 
-	Completed.AcquireHLSLStatement(Generator, Scope);
+	Completed.GenerateHLSLStatements(Generator, Scope);
 
-	OutStatement = ForStatement;
 	return EMaterialGenerateHLSLStatus::Success;
 }
 

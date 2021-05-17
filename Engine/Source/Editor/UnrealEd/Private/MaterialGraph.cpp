@@ -378,14 +378,15 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 			else if (Pin->Direction == EGPD_Output && PinInfo.PinType == EMaterialGraphPinType::Exec)
 			{
 				FExpressionExecOutput* ExecOutput = ExecOutputs[PinInfo.Index].Output;
-				if (ExecOutput->Expression)
+				UMaterialExpression* ConnectedExpression = ExecOutput->GetExpression();
+				if (ConnectedExpression)
 				{
-					if (ExecOutput->Expression == Material->ExpressionExecEnd)
+					if (ConnectedExpression == Material->ExpressionExecEnd)
 					{
 						// Exec end point is the root node
 						Pin->MakeLinkTo(RootNode->GetExecInputPin());
 					}
-					else if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ExecOutput->Expression->GraphNode))
+					else if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ConnectedExpression->GraphNode))
 					{
 						Pin->MakeLinkTo(GraphNode->GetExecInputPin());
 					}
@@ -522,13 +523,13 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 										bModifiedExpression = true;
 										Expression->Modify();
 									}
-									ExpressionOutput->Expression = Material->ExpressionExecEnd;
+									ExpressionOutput->Connect(Material->ExpressionExecEnd);
 								}
 								else
 								{
 									UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(Pin->LinkedTo[0]->GetOwningNode());
 									if (ExpressionOutput &&
-										ExpressionOutput->Expression != ConnectedNode->MaterialExpression &&
+										ExpressionOutput->GetExpression() != ConnectedNode->MaterialExpression &&
 										ConnectedNode->MaterialExpression->HasExecInput())
 									{
 										if (!bModifiedExpression)
@@ -538,18 +539,18 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 										}
 
 										ConnectedNode->MaterialExpression->Modify();
-										ExpressionOutput->Expression = ConnectedNode->MaterialExpression;
+										ExpressionOutput->Connect(ConnectedNode->MaterialExpression);
 									}
 								}
 							}
-							else if (ExpressionOutput && ExpressionOutput->Expression)
+							else if (ExpressionOutput && ExpressionOutput->GetExpression())
 							{
 								if (!bModifiedExpression)
 								{
 									bModifiedExpression = true;
 									Expression->Modify();
 								}
-								ExpressionOutput->Expression = NULL;
+								ExpressionOutput->Connect(nullptr);
 							}
 						}
 					}

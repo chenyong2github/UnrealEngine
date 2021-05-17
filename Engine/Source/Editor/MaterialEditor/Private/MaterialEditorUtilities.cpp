@@ -597,7 +597,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 			MaterialExpressionKey.Expression->GetExecOutputs(ExpressionExecOutputs);
 			for (const FExpressionExecOutputEntry& Entry : ExpressionExecOutputs)
 			{
-				GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Entry.Output->Expression, INDEX_NONE), MaterialInstance, VisibleExpressions, FunctionStack);
+				GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Entry.Output->GetExpression(), INDEX_NONE), MaterialInstance, VisibleExpressions, FunctionStack);
 			}
 		}
 	}

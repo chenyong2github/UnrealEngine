@@ -639,6 +639,32 @@ int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, const int32 A, con
 	return OutputCodeChunk;
 }
 
+#if WITH_EDITOR
+void UMaterialExpression::InitializeNumExecutionInputs(TArrayView<UMaterialExpression*> Expressions)
+{
+	for (UMaterialExpression* Expression : Expressions)
+	{
+		Expression->NumExecutionInputs = 0;
+	}
+
+	TArray<FExpressionExecOutputEntry> ExecOutputs;
+	for (UMaterialExpression* Expression : Expressions)
+	{
+		ExecOutputs.Reset();
+		Expression->GetExecOutputs(ExecOutputs);
+		for (const FExpressionExecOutputEntry& Output : ExecOutputs)
+		{
+			UMaterialExpression* ConnectedExpression = Output.Output->GetExpression();
+			if (ConnectedExpression)
+			{
+				check(ConnectedExpression->HasExecInput());
+				ConnectedExpression->NumExecutionInputs++;
+			}
+		}
+	}
+}
+#endif // WITH_EDITOR
+
 UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -648,6 +674,8 @@ UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitial
 {
 #if WITH_EDITORONLY_DATA
 	Outputs.Add(FExpressionOutput(TEXT("")));
+
+	NumExecutionInputs = 0;
 
 	bShowInputs = true;
 	bShowOutputs = true;
@@ -832,6 +860,20 @@ void UMaterialExpression::PostLoad()
 	UpdateParameterGuid(false, false);
 	
 	UpdateMaterialExpressionGuid(false, false);
+
+#if WITH_EDITORONLY_DATA
+	TArray<FExpressionExecOutputEntry> ExecOutputs;
+	GetExecOutputs(ExecOutputs);
+	for (const FExpressionExecOutputEntry& Output : ExecOutputs)
+	{
+		UMaterialExpression* ConnectedExpression = Output.Output->GetExpression();
+		if (ConnectedExpression)
+		{
+			check(ConnectedExpression->HasExecInput());
+			ConnectedExpression->NumExecutionInputs++;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void UMaterialExpression::PostDuplicate(bool bDuplicateForPIE)
@@ -21328,6 +21370,7 @@ UMaterialExpressionExecBegin::UMaterialExpressionExecBegin(const FObjectInitiali
 #if WITH_EDITORONLY_DATA
 	Outputs.Reset();
 	bHidePreviewWindow = true;
+	NumExecutionInputs = 1; // ExecBegin has 1 implicit input (since it's the start of the graph)
 #endif
 }
 
@@ -21340,7 +21383,7 @@ void UMaterialExpressionExecBegin::GetCaption(TArray<FString>& OutCaptions) cons
 int32 UMaterialExpressionExecBegin::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	check(OutputIndex == CompileExecutionOutputIndex);
-	if (Exec.Expression)
+	if (Exec.GetExpression())
 	{
 		const int32 RootScope = Compiler->BeginScope();
 		Exec.Compile(Compiler);
@@ -21389,7 +21432,7 @@ UMaterialExpressionIfThenElse::UMaterialExpressionIfThenElse(const FObjectInitia
 int32 UMaterialExpressionIfThenElse::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	check(OutputIndex == CompileExecutionOutputIndex);
-	if (!Then.Expression)
+	if (!Then.GetExpression())
 	{
 		return Compiler->Error(TEXT("Then pin must be connected"));
 	}
@@ -21405,7 +21448,7 @@ int32 UMaterialExpressionIfThenElse::Compile(class FMaterialCompiler* Compiler, 
 	Compiler->EndScope();
 
 	int32 ElseScope = INDEX_NONE;
-	if (Else.Expression)
+	if (Else.GetExpression())
 	{
 		ElseScope = Compiler->BeginScope_Else();
 		Else.Compile(Compiler);
@@ -21453,7 +21496,7 @@ int32 UMaterialExpressionForLoop::Compile(class FMaterialCompiler* Compiler, int
 {
 	if (OutputIndex == CompileExecutionOutputIndex)
 	{
-		if (!LoopBody.Expression)
+		if (!LoopBody.GetExpression())
 		{
 			return Compiler->Error(TEXT("Loop pin must be connected"));
 		}
