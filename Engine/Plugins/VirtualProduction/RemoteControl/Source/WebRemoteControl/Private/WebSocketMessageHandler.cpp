@@ -88,6 +88,7 @@ void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteContro
 		Preset->OnFieldRenamed().AddRaw(this, &FWebSocketMessageHandler::OnFieldRenamed);
 		Preset->OnMetadataModified().AddRaw(this, &FWebSocketMessageHandler::OnMetadataModified);
 		Preset->OnActorPropertyModified().AddRaw(this, &FWebSocketMessageHandler::OnActorPropertyChanged);
+		Preset->OnEntitiesUpdated().AddRaw(this, &FWebSocketMessageHandler::OnEntitiesModified);
 	}
 
 	ClientIds->AddUnique(WebSocketMessage.ClientId);
@@ -323,6 +324,19 @@ void FWebSocketMessageHandler::OnActorPropertyChanged(URemoteControlPreset* Owne
 			}
 		}
 	}
+}
+
+void FWebSocketMessageHandler::OnEntitiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedEntities)
+{
+	// We do not need to store these event for the current frame since this was already handled by the preset in this case.
+	if (!Owner || ModifiedEntities.Num() == 0)
+	{
+		return;
+	}
+	
+	TArray<uint8> Payload;
+	WebRemoteControlUtils::SerializeResponse(FRCPresetEntitiesModifiedEvent{Owner, ModifiedEntities.Array()}, Payload);
+	BroadcastToListeners(Owner->GetFName(), Payload);
 }
 
 void FWebSocketMessageHandler::OnConnectionClosedCallback(FGuid ClientId)
