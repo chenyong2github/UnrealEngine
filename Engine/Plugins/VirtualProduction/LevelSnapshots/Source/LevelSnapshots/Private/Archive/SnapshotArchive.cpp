@@ -12,7 +12,9 @@
 void FSnapshotArchive::RestoreData(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage)
 {
 	FSnapshotArchive Archive(InObjectData, InSharedData, true);
+#if USE_STABLE_LOCALIZATION_KEYS
 	Archive.SetLocalizationNamespace(TextNamespaceUtil::EnsurePackageNamespace(InLocalisationSnapshotPackage));
+#endif
 	InObjectToRestore->Serialize(Archive);
 }
 
