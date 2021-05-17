@@ -71,15 +71,18 @@ TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflow
 		}
 	});
 
-	Args.OnBlendSpaceSampleAdded = FOnBlendSpaceSampleAdded::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](UAnimSequence* InSequence, const FVector& InSamplePoint)
+	Args.OnBlendSpaceSampleAdded = FOnBlendSpaceSampleAdded::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](UAnimSequence* InSequence, const FVector& InSamplePoint) -> int32
 	{
+		int32 Index = INDEX_NONE;
 		if(WeakBlendSpaceNode.Get())
 		{
 			UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
 			UAnimationBlendSpaceSampleGraph* NewGraph = BlendSpaceNode->AddGraph(TEXT("NewSample"), InSequence);
+			Index = BlendSpaceNode->GetSampleIndex(NewGraph);
 			BlueprintEditorPtr.Pin()->RefreshMyBlueprint();
 			BlueprintEditorPtr.Pin()->RenameNewlyAddedAction(NewGraph->GetFName());
 		}
+		return Index;
 	});
 
 	Args.OnBlendSpaceSampleRemoved = FOnBlendSpaceSampleRemoved::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](int32 InSampleIndex)

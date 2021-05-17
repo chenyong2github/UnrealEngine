@@ -39,6 +39,11 @@ public:
 protected:
 	/** Checks whether or not the specified asset should not be shown in the mini content browser when changing the animation */
 	bool ShouldFilterAsset(const FAssetData& AssetData) const;
+
+	FReply HandleAnalyzeAndDuplicateSample();
+	FReply HandleAnalyzeSample();
+	FReply HandleAnalyzeSampleX();
+	FReply HandleAnalyzeSampleY();
 private:
 	/** Pointer to the current parent blend space for the customized blend sample*/
 	const class UBlendSpace* BlendSpace;

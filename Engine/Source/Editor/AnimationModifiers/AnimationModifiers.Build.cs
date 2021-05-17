@@ -23,8 +23,6 @@ public class AnimationModifiers : ModuleRules
                 "Kismet",
                 "AssetTools",
                 "ClassViewer",
-                "AnimationEditor",
-                "SkeletonEditor",
                 "AssetRegistry",
                 "AnimationBlueprintLibrary",
             }

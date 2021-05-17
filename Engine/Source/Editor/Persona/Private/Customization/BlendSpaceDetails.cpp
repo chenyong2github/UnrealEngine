@@ -14,17 +14,20 @@
 #include "BlendSampleDetails.h"
 
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "BlendSpaceGraph.h"
 #include "AnimGraphNode_BlendSpaceGraph.h"
+#include "PersonaBlendSpaceAnalysis.h"
 
 #define LOCTEXT_NAMESPACE "BlendSpaceDetails"
 
 FBlendSpaceDetails::FBlendSpaceDetails()
 {
 	Builder = nullptr;
-	BlendSpaceBase = nullptr;
+	BlendSpace = nullptr;
 	BlendSpaceNode = nullptr;
 }
 
@@ -32,18 +35,132 @@ FBlendSpaceDetails::~FBlendSpaceDetails()
 {
 }
 
+//======================================================================================================================
+FReply FBlendSpaceDetails::HandleClearSamples()
+{
+	FSlateApplication::Get().DismissAllMenus();
+	BlendSpace->Modify();
+	BlendSpace->SampleData.Empty();
+
+	FPropertyChangedEvent ChangedEvent(nullptr, EPropertyChangeType::ArrayClear);
+	BlendSpace->PostEditChangeProperty(ChangedEvent);
+
+	return FReply::Handled();
+}
+
+//======================================================================================================================
+static bool GetLockAfterAnalysis(const TObjectPtr<UAnalysisProperties>& AnalysisProperties)
+{
+	return AnalysisProperties ? AnalysisProperties->bLockAfterAnalysis : false;
+}
+
+//======================================================================================================================
+FReply FBlendSpaceDetails::HandleAnalyzeSamples()
+{
+	if(BlendSpace->IsAsset())
+	{
+		FSlateApplication::Get().DismissAllMenus();
+		bool bChangedOne = false;
+
+		bool bLockX = GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]);
+		bool bLockY = GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]);
+		bool bLockZ = GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]);
+		
+		const int32 NumSamples = BlendSpace->SampleData.Num();
+		for (int32 SampleIndex = 0 ; SampleIndex != NumSamples ; ++SampleIndex)
+		{
+			bool bAnalyzed[3] = { false, false, false };
+			FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+				*BlendSpace, *BlendSpace->SampleData[SampleIndex].Animation, 
+				BlendSpace->SampleData[SampleIndex].RateScale, 
+				BlendSpace->SampleData[SampleIndex].SampleValue, bAnalyzed);
+			if (NewValue != BlendSpace->SampleData[SampleIndex].SampleValue)
+			{
+				BlendSpace->EditSampleValue(SampleIndex, NewValue);
+				// Note that the sample might not move if the destination position is in use
+				if (NewValue == BlendSpace->SampleData[SampleIndex].SampleValue)
+				{
+					bChangedOne = true;
+					BlendSpace->LockSample(
+						SampleIndex,
+						bAnalyzed[0] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]) : false,
+						bAnalyzed[1] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]) : false,
+						bAnalyzed[2] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]) : false);
+				}
+			}
+		}
+
+		if (bChangedOne)
+		{
+			BlendSpace->Modify();
+			FPropertyChangedEvent ChangedEvent(nullptr, EPropertyChangeType::ArrayClear);
+			BlendSpace->PostEditChangeProperty(ChangedEvent);
+		}
+	}
+	return FReply::Handled();
+}
+
+//======================================================================================================================
+// Returns a bit mask of EAnalysisProperty
+static EVisibility GetAnalyzeButtonVisibility(
+	TSharedPtr<IPropertyHandle> AnalysisPropertiesHandle,
+	int32                       HideIndex)
+{
+	for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+	{
+		if (AxisIndex < HideIndex)
+		{
+			TSharedPtr<IPropertyHandle> AnalysisPropertyHandle = AnalysisPropertiesHandle->GetChildHandle(AxisIndex);
+			UObject* Object;
+			if (AnalysisPropertyHandle->GetValue(Object))
+			{
+				UAnalysisProperties* AnalysisProperties = Cast<UAnalysisProperties>(Object);
+				if (AnalysisProperties && !AnalysisProperties->Function.IsEmpty() && AnalysisProperties->Function != TEXT("None"))
+				{
+					return EVisibility::Visible;
+				}
+			}
+		}
+	}
+	return EVisibility::Collapsed;
+}
+
+//======================================================================================================================
+// When the existing one gets replaced it will get garbage collected automatically as nothing will reference it. Note 
+// that if "None" was selected then the new value will be null
+void FBlendSpaceDetails::HandleAnalysisFunctionChanged(int32 AxisIndex, TSharedPtr<FString> NewFunctionName)
+{
+	BlendSpace->Modify();
+	UAnalysisProperties* NewAnalysisProperties = FBlendSpaceAnalysis::MakeAnalysisProperties(BlendSpace, *NewFunctionName);
+	// Preserve values where possible
+	if (BlendSpace->AnalysisProperties[AxisIndex])
+	{
+		BlendSpace->AnalysisProperties[AxisIndex]->MakeCache(BlendSpace->CachedAnalysisProperties[AxisIndex]);
+	}
+	if (NewAnalysisProperties)
+	{
+		NewAnalysisProperties->InitializeFromCache(BlendSpace->CachedAnalysisProperties[AxisIndex]);
+	}
+	BlendSpace->AnalysisProperties[AxisIndex] = NewAnalysisProperties;
+	Builder->ForceRefreshDetails();
+}
+
+//======================================================================================================================
 void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder)
 {
 	TArray< TWeakObjectPtr<UObject> > Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
 
 	Builder = &DetailBuilder;
-	TWeakObjectPtr<UObject>* WeakPtr = Objects.FindByPredicate([](const TWeakObjectPtr<UObject>& ObjectPtr) { return ObjectPtr->IsA<UBlendSpace>(); });
-	if (WeakPtr)
-	{
-		BlendSpaceBase = Cast<UBlendSpace>(WeakPtr->Get());
 
-		if(!BlendSpaceBase->IsAsset())
+	FSimpleDelegate RefreshDelegate = FSimpleDelegate::CreateLambda([this]() { Builder->ForceRefreshDetails(); });
+
+	TWeakObjectPtr<UObject>* BlendSpacePtr = Objects.FindByPredicate([](const TWeakObjectPtr<UObject>& ObjectPtr) { return ObjectPtr->IsA<UBlendSpace>(); });
+	if (BlendSpacePtr)
+	{
+		BlendSpace = Cast<UBlendSpace>(BlendSpacePtr->Get());
+
+		if(!BlendSpace->IsAsset())
 		{
 			// Hide various properties when we are 'internal'
 			DetailBuilder.HideCategory("MetaData");
@@ -51,14 +168,17 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 			DetailBuilder.HideCategory("Thumbnail");
 			DetailBuilder.HideCategory("Animation");
 			DetailBuilder.HideCategory("AdditiveSettings");
+			DetailBuilder.HideCategory("Analysis");
+			DetailBuilder.HideCategory("AnalysisProperties");
+			DetailBuilder.HideCategory("Graph");
 		}
 
-		if(UBlendSpaceGraph* BlendSpaceGraph = Cast<UBlendSpaceGraph>(BlendSpaceBase->GetOuter()))
+		if(UBlendSpaceGraph* BlendSpaceGraph = Cast<UBlendSpaceGraph>(BlendSpace->GetOuter()))
 		{
-			check(BlendSpaceBase == BlendSpaceGraph->BlendSpace);
+			check(BlendSpace == BlendSpaceGraph->BlendSpace);
 			BlendSpaceNode = Cast<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceGraph->GetOuter());
 		}
-		const bool b1DBlendSpace = BlendSpaceBase->IsA<UBlendSpace1D>();
+		const bool b1DBlendSpace = BlendSpace->IsA<UBlendSpace1D>();
 
 		if (b1DBlendSpace)
 		{
@@ -66,155 +186,357 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 			DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, PreferredTriangulationDirection), UBlendSpace::StaticClass()));
 		}
 
-		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName("Axis Settings"));
-		IDetailGroup* Groups[2] =
-		{
-			&CategoryBuilder.AddGroup(FName("Horizontal Axis"), LOCTEXT("HorizontalAxisName", "Horizontal Axis")),
-			b1DBlendSpace ? nullptr : &CategoryBuilder.AddGroup(FName("Vertical Axis"), LOCTEXT("VerticalAxisName", "Vertical Axis"))
-		};
-
-		// Hide the default blend and interpolation parameters
-		TSharedPtr<IPropertyHandle> BlendParameters = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, BlendParameters), UBlendSpace::StaticClass());
-		TSharedPtr<IPropertyHandle> InterpolationParameters = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, InterpolationParam), UBlendSpace::StaticClass());
-		DetailBuilder.HideProperty(BlendParameters);
-		DetailBuilder.HideProperty(InterpolationParameters);
-
-		// Add the properties to the corresponding groups created above (third axis will always be hidden since it isn't used)
-		int32 HideIndex = b1DBlendSpace ? 1 : 2;
-		for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
-		{
-			TSharedPtr<IPropertyHandle> BlendParameter = BlendParameters->GetChildHandle(AxisIndex);
-			TSharedPtr<IPropertyHandle> InterpolationParameter = InterpolationParameters->GetChildHandle(AxisIndex);
-
-			if (AxisIndex < HideIndex)
-			{
-				Groups[AxisIndex]->AddPropertyRow(BlendParameter.ToSharedRef());
-				// Don't add InterpolationParameter in the same way as BlendParameter, because it would add the
-				// elements as customizations that we can't subsequently customize. We will add them individually
-				// below.
-
-				TSharedPtr<IPropertyHandle> InterpolationTime = InterpolationParameter->GetChildHandle(
-                    GET_MEMBER_NAME_CHECKED(FInterpolationParameter, InterpolationTime));
-				TSharedPtr<IPropertyHandle> DampingRatio = InterpolationParameter->GetChildHandle(
-                    GET_MEMBER_NAME_CHECKED(FInterpolationParameter, DampingRatio));
-				TSharedPtr<IPropertyHandle> MaxSpeed = InterpolationParameter->GetChildHandle(
-                    GET_MEMBER_NAME_CHECKED(FInterpolationParameter, MaxSpeed));
-				TSharedPtr<IPropertyHandle> InterpolationType = InterpolationParameter->GetChildHandle(
-                    GET_MEMBER_NAME_CHECKED(FInterpolationParameter, InterpolationType));
-
-				// Custom edit condition for MaxSpeed
-				TAttribute<bool> MaxSpeedEditCondition = TAttribute<bool>::Create(
-                    [this, InterpolationTime, InterpolationType]()
-                    {
-                    uint8 IntType;
-                    InterpolationType->GetValue(IntType);
-                    EFilterInterpolationType Type = (EFilterInterpolationType) IntType;
-                    float Time;
-                    InterpolationTime->GetValue(Time);
-                    if (Time > 0.0f && (Type == EFilterInterpolationType::BSIT_SpringDamper ||
-                        Type == EFilterInterpolationType::BSIT_ExponentialDecay))
-                    {
-                        return true;
-                    }
-                    return false;
-                });
-
-				Groups[AxisIndex]->AddPropertyRow(InterpolationTime.ToSharedRef());
-				Groups[AxisIndex]->AddPropertyRow(InterpolationType.ToSharedRef());
-				Groups[AxisIndex]->AddPropertyRow(DampingRatio.ToSharedRef());
-				IDetailPropertyRow& MaxSpeedProperty = Groups[AxisIndex]->AddPropertyRow(MaxSpeed.ToSharedRef());
-				MaxSpeedProperty.EditCondition(MaxSpeedEditCondition, nullptr);
-			}
-			else
-			{
-				DetailBuilder.HideProperty(BlendParameter);
-				DetailBuilder.HideProperty(InterpolationParameter);
-			}
-		}
-
-		IDetailCategoryBuilder& SampleCategoryBuilder = DetailBuilder.EditCategory(FName("BlendSamples"));
-		TArray<TSharedRef<IPropertyHandle>> DefaultProperties;
-		SampleCategoryBuilder.GetDefaultProperties(DefaultProperties);
-		for (TSharedRef<IPropertyHandle> DefaultProperty : DefaultProperties)
-		{
-			DefaultProperty->MarkHiddenByCustomization();
-		}
-
-		FSimpleDelegate RefreshDelegate = FSimpleDelegate::CreateLambda([this]() { Builder->ForceRefreshDetails(); });
-
-		// Retrieve blend samples array
+		// How many samples are there?
 		TSharedPtr<IPropertyHandleArray> BlendSamplesArrayProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, SampleData), UBlendSpace::StaticClass())->AsArray();
-		BlendSamplesArrayProperty->SetOnNumElementsChanged(RefreshDelegate);
-		
 		uint32 NumBlendSampleEntries = 0;
 		BlendSamplesArrayProperty->GetNumElements(NumBlendSampleEntries);
-		for (uint32 SampleIndex = 0; SampleIndex < NumBlendSampleEntries; ++SampleIndex)
+
+		//==============================================================================================================
+		// Axis Settings section
+		//==============================================================================================================
 		{
-			TSharedPtr<IPropertyHandle> BlendSampleProperty = BlendSamplesArrayProperty->GetElement(SampleIndex);
-			BlendSampleProperty->SetOnChildPropertyValueChanged(RefreshDelegate);
-			TSharedPtr<IPropertyHandle> AnimationProperty = BlendSampleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBlendSample, Animation));
-			TSharedPtr<IPropertyHandle> SampleValueProperty = BlendSampleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBlendSample, SampleValue));
-			TSharedPtr<IPropertyHandle> RateScaleProperty = BlendSampleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale));
-
-			IDetailGroup& Group = SampleCategoryBuilder.AddGroup(FName("GroupName"), FText::GetEmpty());
-			Group.HeaderRow()
-			.NameContent()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.Padding(FMargin(0,2,2,2))
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Right)
-				[
-					SNew(STextBlock)
-					.Font(DetailBuilder.GetDetailFont())
-					.Text_Lambda([this, AnimationProperty, SampleIndex]() -> FText
-					{
-						FAssetData AssetData;
-						AnimationProperty->GetValue(AssetData);
-						if(AssetData.IsValid())
-						{
-							return FText::Format(LOCTEXT("BlendSpaceAnimationNameLabel", "{0} ({1})"), FText::FromString(AssetData.GetAsset()->GetName()), FText::FromString(FString::FromInt(SampleIndex)));
-						}
-						else if(BlendSpaceNode.Get() && BlendSpaceNode->GetGraphs().IsValidIndex(SampleIndex))
-						{
-							return FText::Format(LOCTEXT("BlendSpaceAnimationNameLabel", "{0} ({1})"), FText::FromName(BlendSpaceNode->GetGraphs()[SampleIndex]->GetFName()), FText::FromString(FString::FromInt(SampleIndex)));
-						}
-						return LOCTEXT("NoAnimation", "No Animation");
-					})
-				]
-			];
-
-			FBlendSampleDetails::GenerateBlendSampleWidget([&Group]() -> FDetailWidgetRow& { return Group.AddWidgetRow(); }, FOnSampleMoved::CreateLambda([this](const uint32 Index, const FVector& SampleValue, bool bIsInteractive) 
+			IDetailCategoryBuilder& DetailCategoryBuilder = DetailBuilder.EditCategory(FName("Axis Settings"));
+			IDetailGroup* Groups[2] =
 			{
-				if (BlendSpaceBase->IsValidBlendSampleIndex(Index) && BlendSpaceBase->GetBlendSample(Index).SampleValue != SampleValue && !BlendSpaceBase->IsTooCloseToExistingSamplePoint(SampleValue, Index))
+				&DetailCategoryBuilder.AddGroup(FName("Horizontal Axis"), LOCTEXT("HorizontalAxisName", "Horizontal Axis")),
+                b1DBlendSpace ? nullptr : &DetailCategoryBuilder.AddGroup(FName("Vertical Axis"), LOCTEXT("VerticalAxisName", "Vertical Axis"))
+            };
+
+			// Hide the default blend and interpolation parameters
+			TSharedPtr<IPropertyHandle> BlendParameters = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, BlendParameters), UBlendSpace::StaticClass());
+			TSharedPtr<IPropertyHandle> InterpolationParameters = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, InterpolationParam), UBlendSpace::StaticClass());
+			DetailBuilder.HideProperty(BlendParameters);
+			DetailBuilder.HideProperty(InterpolationParameters);
+
+			// Add the properties to the corresponding groups created above (third axis will always be hidden since it isn't used)
+			int32 HideIndex = b1DBlendSpace ? 1 : 2;
+			for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+			{
+				TSharedPtr<IPropertyHandle> BlendParameter = BlendParameters->GetChildHandle(AxisIndex);
+				TSharedPtr<IPropertyHandle> InterpolationParameter = InterpolationParameters->GetChildHandle(AxisIndex);
+
+				if (AxisIndex < HideIndex)
 				{
-					BlendSpaceBase->Modify();
+					Groups[AxisIndex]->AddPropertyRow(BlendParameter.ToSharedRef());
+					// Don't add InterpolationParameter in the same way as BlendParameter, because it would add the
+					// elements as customizations that we can't subsequently customize. We will add them individually
+					// below.
 
-					bool bMoveSuccesful = BlendSpaceBase->EditSampleValue(Index, SampleValue);
-					if (bMoveSuccesful)
-					{
-						BlendSpaceBase->ValidateSampleData();
-						FPropertyChangedEvent ChangedEvent(nullptr, bIsInteractive ? EPropertyChangeType::Interactive : EPropertyChangeType::ValueSet);
-						BlendSpaceBase->PostEditChangeProperty(ChangedEvent);
-					}
+					TSharedPtr<IPropertyHandle> InterpolationTime = InterpolationParameter->GetChildHandle(
+						GET_MEMBER_NAME_CHECKED(FInterpolationParameter, InterpolationTime));
+					TSharedPtr<IPropertyHandle> DampingRatio = InterpolationParameter->GetChildHandle(
+						GET_MEMBER_NAME_CHECKED(FInterpolationParameter, DampingRatio));
+					TSharedPtr<IPropertyHandle> MaxSpeed = InterpolationParameter->GetChildHandle(
+						GET_MEMBER_NAME_CHECKED(FInterpolationParameter, MaxSpeed));
+					TSharedPtr<IPropertyHandle> InterpolationType = InterpolationParameter->GetChildHandle(
+						GET_MEMBER_NAME_CHECKED(FInterpolationParameter, InterpolationType));
+
+					// Custom edit condition for MaxSpeed
+					TAttribute<bool> MaxSpeedEditCondition = TAttribute<bool>::Create(
+						[this, InterpolationTime, InterpolationType]()
+						{
+							uint8 IntType;
+							InterpolationType->GetValue(IntType);
+							EFilterInterpolationType Type = (EFilterInterpolationType)IntType;
+							float Time;
+							InterpolationTime->GetValue(Time);
+							if (Time > 0.0f && (Type == EFilterInterpolationType::BSIT_SpringDamper ||
+												Type == EFilterInterpolationType::BSIT_ExponentialDecay))
+							{
+								return true;
+							}
+							return false;
+						});
+
+					Groups[AxisIndex]->AddPropertyRow(InterpolationTime.ToSharedRef());
+					Groups[AxisIndex]->AddPropertyRow(InterpolationType.ToSharedRef());
+					Groups[AxisIndex]->AddPropertyRow(DampingRatio.ToSharedRef());
+					IDetailPropertyRow& MaxSpeedProperty = Groups[AxisIndex]->AddPropertyRow(MaxSpeed.ToSharedRef());
+					MaxSpeedProperty.EditCondition(MaxSpeedEditCondition, nullptr);
 				}
-			}), BlendSpaceBase, SampleIndex, false);
-			
-			if(BlendSpaceBase->IsAsset())
-			{
-				FDetailWidgetRow& AnimationRow = Group.AddWidgetRow();
-				FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendSpaceBase, AnimationProperty);
-				Group.AddPropertyRow(RateScaleProperty.ToSharedRef());
-			}
-			else if(BlendSpaceNode.Get())
-			{
-				FDetailWidgetRow& GraphRow = Group.AddWidgetRow();
-				FBlendSampleDetails::GenerateSampleGraphWidget(GraphRow, BlendSpaceNode.Get(), SampleIndex);
+				else
+				{
+					DetailBuilder.HideProperty(BlendParameter);
+					DetailBuilder.HideProperty(InterpolationParameter);
+				}
 			}
 		}
-	}
-	
+		
+		//==============================================================================================================
+		// Analysis section
+		//==============================================================================================================
+		if (BlendSpace->IsAsset())
+		{
+			IDetailCategoryBuilder& DetailCategoryBuilder = DetailBuilder.EditCategory(FName("Analysis"));
+			TSharedPtr<IPropertyHandle> AnalysisPropertiesHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, AnalysisProperties), UBlendSpace::StaticClass());
+
+			int32 HideIndex = b1DBlendSpace ? 1 : 2;
+
+			// Re-analyse button
+			if (NumBlendSampleEntries)
+			{
+				DetailCategoryBuilder
+					.AddGroup(FName("GroupName"), FText::GetEmpty())
+					.HeaderRow()
+					.Visibility(TAttribute<EVisibility>::Create([AnalysisPropertiesHandle, HideIndex]() {
+						return GetAnalyzeButtonVisibility(AnalysisPropertiesHandle, HideIndex);}))
+					.NameContent()
+					[
+						SNew(STextBlock)
+						.Font(DetailBuilder.GetDetailFont())
+						.Text(FText::Format(LOCTEXT("SamplesLabel", "Analyze {0} Samples"), NumBlendSampleEntries))
+					]
+					.ValueContent()
+					[
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+						.HAlign(EHorizontalAlignment::HAlign_Left)
+						.ToolTipText(LOCTEXT("Analyze", "Analyze all samples"))
+						.OnClicked(this, &FBlendSpaceDetails::HandleAnalyzeSamples)
+						.ContentPadding(1)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("Icons.Refresh"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+					];
+			}
+
+			FText AxisTexts[2] = 
+			{ 
+				LOCTEXT("HorizontalAxisName", "Horizontal Axis Function"), 
+				LOCTEXT("VerticalAxisName", "Vertical Axis Function") 
+			};
+
+			// Hide the default parameters
+			DetailBuilder.HideProperty(AnalysisPropertiesHandle);
+
+			// Add the properties to the corresponding groups created above (third axis will always be hidden since it isn't used)
+			for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+			{
+				TSharedPtr<IPropertyHandle> AnalysisProperty = AnalysisPropertiesHandle->GetChildHandle(AxisIndex);
+				
+				if (AxisIndex < HideIndex)
+				{
+					UObject* AnalysisPropertiesObject;
+					FPropertyAccess::Result Result = AnalysisProperty->GetValue(AnalysisPropertiesObject);
+					UAnalysisProperties* AnalysisProperties = Cast<UAnalysisProperties>(AnalysisPropertiesObject);
+
+					// Note that we need to make sure the function drop-down is shown, even if there is no current
+					// analysis property.
+
+					// Prepare the drop-down. Note that it uses pointers to strings, and comparison is between
+					// pointers, not string contents!
+					AnalysisFunctionNames[AxisIndex].Empty();
+					const TArray<FString> AnalysisFunctions = FBlendSpaceAnalysis::GetAnalysisFunctions();
+					TSharedPtr<FString> CurrentlySelectedFunction;
+					for (const FString& AnalysisFunction : AnalysisFunctions)
+					{
+						AnalysisFunctionNames[AxisIndex].Add(MakeShared<FString>(AnalysisFunction));
+						if (AnalysisProperties && AnalysisProperties->Function == *AnalysisFunctionNames[AxisIndex].Last())
+						{
+							CurrentlySelectedFunction = AnalysisFunctionNames[AxisIndex].Last();
+						}
+						// In the event that we don't find anything (possible if the list of available functions
+						// changes), it's nice if we start off by at least selecting "None".
+						if (!CurrentlySelectedFunction && *AnalysisFunctionNames[AxisIndex].Last() == "None")
+						{
+							CurrentlySelectedFunction = AnalysisFunctionNames[AxisIndex].Last();
+						}
+					}
+
+					// Add the analysis properties. We want the function drop-down even if they don't exist
+					IDetailPropertyRow* AnalysisPropertiesRow = nullptr;
+					if (AnalysisProperties && 
+						!AnalysisProperties->Function.IsEmpty() && 
+						AnalysisProperties->Function != TEXT("None") && 
+						AnalysisFunctions.Contains(AnalysisProperties->Function))
+					{
+						AnalysisPropertiesRow = DetailCategoryBuilder.AddExternalObjects( {AnalysisProperties} );
+					}
+
+					FDetailWidgetRow *FunctionWidgetRow = nullptr;
+					// Insert the function drop-down
+					if (AnalysisPropertiesRow)
+					{
+						// Note that there is an extra/unwanted level of indirection here in the UI that is generated,
+						// with the block being underneath an unnecessary "Analysis Properties" section.
+						FunctionWidgetRow = &AnalysisPropertiesRow->CustomWidget();
+					}
+					else
+					{
+						FunctionWidgetRow = &DetailCategoryBuilder.AddCustomRow(LOCTEXT("AnalysisProperties", "Analysis Properties"));
+					}
+
+					FunctionWidgetRow->NameContent()
+					[
+						SNew(STextBlock)
+						.Text(AxisTexts[AxisIndex])
+						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					]
+					.ValueContent()
+					[
+						SNew(STextComboBox)
+						.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+						.OptionsSource(&AnalysisFunctionNames[AxisIndex])
+						.InitiallySelectedItem(CurrentlySelectedFunction)
+						.OnSelectionChanged_Lambda(
+							[this, AxisIndex, CurrentlySelectedFunction]
+							(TSharedPtr<FString> NewFunctionName, ESelectInfo::Type SelectInfo) 
+							{
+								if (NewFunctionName && NewFunctionName != CurrentlySelectedFunction)
+								{
+									this->HandleAnalysisFunctionChanged(AxisIndex, NewFunctionName);
+								}
+							})
+					];
+				}
+				else
+				{
+					DetailBuilder.HideProperty(AnalysisProperty);
+				}
+			}
+		}
+		
+		//==============================================================================================================
+		// Blend Samples section
+		//==============================================================================================================
+		{
+			IDetailCategoryBuilder& DetailCategoryBuilder = DetailBuilder.EditCategory(FName("BlendSamples"));
+			TArray<TSharedRef<IPropertyHandle>> DefaultProperties;
+			DetailCategoryBuilder.GetDefaultProperties(DefaultProperties);
+			for (TSharedRef<IPropertyHandle> DefaultProperty : DefaultProperties)
+			{
+				 DefaultProperty->MarkHiddenByCustomization();
+			}
+
+			BlendSamplesArrayProperty->SetOnNumElementsChanged(RefreshDelegate);
+
+			// Add a "Remove all" button if there are some samples
+			if (NumBlendSampleEntries)
+			{
+				DetailCategoryBuilder
+					.AddGroup(FName("GroupName"), FText::GetEmpty())
+					.HeaderRow()
+					.NameContent()
+					[
+						SNew(STextBlock)
+						.Font(DetailBuilder.GetDetailFont())
+						.Text(FText::Format(LOCTEXT("SamplesLabel", "{0} Samples"), NumBlendSampleEntries))
+					]
+					.ValueContent()
+					[
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+						.HAlign(EHorizontalAlignment::HAlign_Left)
+						.ToolTipText(LOCTEXT("Empty", "Remove all samples"))
+						.OnClicked(this, &FBlendSpaceDetails::HandleClearSamples)
+						.ContentPadding(1)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("Icons.Delete"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+					];
+			}
+
+			for (uint32 SampleIndex = 0; SampleIndex < NumBlendSampleEntries; ++SampleIndex)
+			{
+				TSharedPtr<IPropertyHandle> BlendSampleProperty = BlendSamplesArrayProperty->GetElement(SampleIndex);
+				BlendSampleProperty->SetOnChildPropertyValueChanged(RefreshDelegate);
+				TSharedPtr<IPropertyHandle> AnimationProperty = BlendSampleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBlendSample, Animation));
+				TSharedPtr<IPropertyHandle> SampleValueProperty = BlendSampleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBlendSample, SampleValue));
+				TSharedPtr<IPropertyHandle> RateScaleProperty = BlendSampleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale));
+
+				IDetailGroup& Group = DetailCategoryBuilder.AddGroup(FName("GroupName"), FText::GetEmpty());
+				Group.HeaderRow()
+				.NameContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(0,2,2,2))
+					.FillWidth(1.0f)
+					.HAlign(HAlign_Right)
+					[
+						SNew(STextBlock)
+						.Font(DetailBuilder.GetDetailFont())
+						.Text_Lambda([this, AnimationProperty, SampleIndex]() -> FText
+						{
+							FAssetData AssetData;
+							AnimationProperty->GetValue(AssetData);
+							if(AssetData.IsValid())
+							{
+								return FText::Format(
+									LOCTEXT("BlendSpaceAnimationNameLabel", "{0} ({1})"),
+									FText::FromString(AssetData.GetAsset()->GetName()),
+									FText::FromString(FString::FromInt(SampleIndex)));
+							}
+							else if(BlendSpaceNode.Get() && BlendSpaceNode->GetGraphs().IsValidIndex(SampleIndex))
+							{
+								return FText::Format(
+									LOCTEXT("BlendSpaceAnimationNameLabel", "{0} ({1})"),
+									FText::FromName(BlendSpaceNode->GetGraphs()[SampleIndex]->GetFName()),
+									FText::FromString(FString::FromInt(SampleIndex)));
+							}
+							return LOCTEXT("NoAnimation", "No Animation");
+						})
+					]
+				];
+
+				FBlendSampleDetails::GenerateBlendSampleWidget(
+					[&Group]() -> FDetailWidgetRow& { return Group.AddWidgetRow(); }, FOnSampleMoved::CreateLambda(
+						[this](const uint32 Index, const FVector& SampleValue, bool bIsInteractive) 
+				{
+					if (BlendSpace->IsValidBlendSampleIndex(Index) && BlendSpace->GetBlendSample(Index).SampleValue !=
+						SampleValue && !BlendSpace->IsTooCloseToExistingSamplePoint(SampleValue, Index))
+					{
+						BlendSpace->Modify();
+						bool bMoveSuccesful = BlendSpace->EditSampleValue(Index, SampleValue);
+						if (bMoveSuccesful)
+						{
+							BlendSpace->ValidateSampleData();
+							FPropertyChangedEvent ChangedEvent(nullptr, bIsInteractive ? EPropertyChangeType::Interactive : EPropertyChangeType::ValueSet);
+							BlendSpace->PostEditChangeProperty(ChangedEvent);
+						}
+					}
+				}), BlendSpace, SampleIndex, false);
+
+
+				// Locked
+				{
+					TSharedPtr<IPropertyHandle> LockPositionProperty = BlendSampleProperty->GetChildHandle(
+						GET_MEMBER_NAME_CHECKED(FBlendSample, bLockX));
+					IDetailPropertyRow& LockPositionPropertyRow = Group.AddPropertyRow(
+						LockPositionProperty.ToSharedRef());
+					LockPositionPropertyRow.DisplayName(FText::Format(
+						LOCTEXT("BlendSpaceSampleLockLabel", "{0} {1}"), FText::FromString(TEXT("Lock ")),
+						FText::FromString(BlendSpace->GetBlendParameter(0).DisplayName)));
+				}
+				if (!b1DBlendSpace)
+				{
+					TSharedPtr<IPropertyHandle> LockPositionProperty = BlendSampleProperty->GetChildHandle(
+						GET_MEMBER_NAME_CHECKED(FBlendSample, bLockY));
+					IDetailPropertyRow& LockPositionPropertyRow = Group.AddPropertyRow(
+						LockPositionProperty.ToSharedRef());
+					LockPositionPropertyRow.DisplayName(FText::Format(
+						LOCTEXT("BlendSpaceSampleLockLabel", "{0} {1}"), FText::FromString(TEXT("Lock ")),
+						FText::FromString(BlendSpace->GetBlendParameter(1).DisplayName)));
+				}
+				
+				if(BlendSpace->IsAsset())
+				{
+					FDetailWidgetRow& AnimationRow = Group.AddWidgetRow();
+					FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendSpace, AnimationProperty);
+					Group.AddPropertyRow(RateScaleProperty.ToSharedRef());
+				}
+				else if(BlendSpaceNode.Get())
+				{
+					FDetailWidgetRow& GraphRow = Group.AddWidgetRow();
+					FBlendSampleDetails::GenerateSampleGraphWidget(GraphRow, BlendSpaceNode.Get(), SampleIndex);
+				}
+			}
+		}
+	}	
 }
 
 #undef LOCTEXT_NAMESPACE
