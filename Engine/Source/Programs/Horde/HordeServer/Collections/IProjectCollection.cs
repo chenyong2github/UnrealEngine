@@ -25,6 +25,16 @@ namespace HordeServer.Collections
 	public interface IProjectCollection
 	{
 		/// <summary>
+		/// Updates the project configuration
+		/// </summary>
+		/// <param name="Id">The project id</param>
+		/// <param name="Revision">The config file revision</param>
+		/// <param name="Order">Order of the project</param>
+		/// <param name="Config">The configuration</param>
+		/// <returns>New project instance</returns>
+		Task<IProject?> AddOrUpdateAsync(ProjectId Id, string Revision, int Order, ProjectConfig Config);
+
+		/// <summary>
 		/// Attempts to create a new project
 		/// </summary>
 		/// <param name="Id">Identifier for the new project</param>
@@ -71,10 +81,11 @@ namespace HordeServer.Collections
 		/// Sets the logo for a project
 		/// </summary>
 		/// <param name="ProjectId">The project id</param>
+		/// <param name="Revision">Revision of the file</param>
 		/// <param name="MimeType"></param>
 		/// <param name="Data"></param>
 		/// <returns></returns>
-		Task SetLogoAsync(ProjectId ProjectId, string MimeType, byte[] Data);
+		Task SetLogoAsync(ProjectId ProjectId, string Revision, string MimeType, byte[] Data);
 
 		/// <summary>
 		/// Gets a project's permissions info by ID

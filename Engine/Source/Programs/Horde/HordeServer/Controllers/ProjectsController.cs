@@ -5,13 +5,11 @@ using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -245,71 +243,8 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			await ProjectService.DeleteProjectAsync(ProjectIdValue, StreamService, JobService);
+			await ProjectService.DeleteProjectAsync(ProjectIdValue);
 			return new OkResult();
-		}
-
-		/// <summary>
-		/// Retrieve information about a specific project
-		/// </summary>
-		/// <param name="ProjectId">Id of the project to get information about</param>
-		/// <returns>Information about the requested project</returns>
-		[HttpGet]
-		[Route("/api/v1/projects/{ProjectId}/logo")]
-		[ProducesResponseType(typeof(List<GetProjectResponse>), 200)]
-		public async Task<ActionResult<object>> GetProjectLogoAsync(string ProjectId)
-		{
-			ProjectId ProjectIdValue = new ProjectId(ProjectId);
-
-			IProject? Project = await ProjectService.GetProjectAsync(ProjectIdValue);
-			if (Project == null)
-			{
-				return NotFound();
-			}
-			if (!await ProjectService.AuthorizeAsync(Project, AclAction.ViewProject, User, null))
-			{
-				return Forbid();
-			}
-
-			IProjectLogo? ProjectLogo = await ProjectService.Collection.GetLogoAsync(ProjectIdValue);
-			if (ProjectLogo == null)
-			{
-				return NotFound();
-			}
-
-			return new FileContentResult(ProjectLogo.Data, ProjectLogo.MimeType);
-		}
-
-		/// <summary>
-		/// Retrieve information about a specific project
-		/// </summary>
-		/// <param name="ProjectId">Id of the project to get information about</param>
-		/// <param name="File">The file content</param>
-		/// <returns>Information about the requested project</returns>
-		[HttpPut]
-		[Route("/api/v1/projects/{ProjectId}/logo")]
-		[ProducesResponseType(typeof(List<GetProjectResponse>), 200)]
-		public async Task<ActionResult> SetProjectLogoAsync(string ProjectId, IFormFile File)
-		{
-			ProjectId ProjectIdValue = new ProjectId(ProjectId);
-
-			IProject? Project = await ProjectService.GetProjectAsync(ProjectIdValue);
-			if (Project == null)
-			{
-				return NotFound();
-			}
-			if (!await ProjectService.AuthorizeAsync(Project, AclAction.UpdateProject, User, null))
-			{
-				return Forbid();
-			}
-
-			using (MemoryStream Stream = new MemoryStream())
-			{
-				await File.CopyToAsync(Stream);
-				await ProjectService.Collection.SetLogoAsync(ProjectIdValue, File.ContentType, Stream.ToArray());
-			}
-
-			return Ok();
 		}
 	}
 }

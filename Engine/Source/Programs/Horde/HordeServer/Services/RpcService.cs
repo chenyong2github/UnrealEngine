@@ -435,30 +435,6 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
-		/// Updates properties on a stream
-		/// </summary>
-		/// <param name="Request">Request arguments</param>
-		/// <param name="Context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public async override Task<Empty> UpdateStream(UpdateStreamRequest Request, ServerCallContext Context)
-		{
-			StreamId StreamIdValue = new StreamId(Request.StreamId);
-
-			IStream? Stream = await StreamService.GetStreamAsync(StreamIdValue);
-			if (Stream == null)
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} does not exist", Request.StreamId);
-			}
-			if (!await StreamService.AuthorizeAsync(Stream, AclAction.UpdateStream, Context.GetHttpContext().User, null))
-			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Not authenticated to modify stream {StreamId}", Request.StreamId);
-			}
-
-			await StreamService.UpdateStreamAsync(Stream, Request.Name, NewProperties: Request.Properties.ToDictionary(x => x.Name, x => (string?)x.Value));
-			return new Empty();
-		}
-
-		/// <summary>
 		/// Gets information about a job
 		/// </summary>
 		/// <param name="Request">Request arguments</param>

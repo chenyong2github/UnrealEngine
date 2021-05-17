@@ -380,6 +380,11 @@ namespace HordeServer
 		public int? GlobalThreadPoolMinSize { get; set; }
 
 		/// <summary>
+		/// Path to the root config file
+		/// </summary>
+		public string? ConfigPath { get; set; }
+
+		/// <summary>
 		/// Settings for remote execution
 		/// </summary>
 		public RemoteExecSettings RemoteExecSettings { get; set; } = new RemoteExecSettings();

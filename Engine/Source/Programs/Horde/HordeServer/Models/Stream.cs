@@ -450,14 +450,9 @@ namespace HordeServer.Models
 		public string Name { get; }
 
 		/// <summary>
-		/// Depot path to poll for this stream's configuration from
+		/// The revision of config file used for this stream
 		/// </summary>
-		public string? ConfigPath { get; }
-
-		/// <summary>
-		/// Revision of the config file currently being used
-		/// </summary>
-		public int? ConfigChange { get; }
+		public string? Revision { get; }
 
 		/// <summary>
 		/// Order to display on the dashboard's drop-down list
@@ -659,7 +654,7 @@ namespace HordeServer.Models
 			Dictionary<string, GetAgentTypeResponse> ApiAgentTypes = Stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
 			Dictionary<string, GetWorkspaceTypeResponse> ApiWorkspaceTypes = Stream.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
 			GetAclResponse? ApiAcl = (bIncludeAcl && Stream.Acl != null)? new GetAclResponse(Stream.Acl) : null;
-			return new Api.GetStreamResponse(Stream.Id.ToString(), Stream.ProjectId.ToString(), Stream.Name, Stream.ConfigPath, Stream.ConfigChange, Stream.Order, Stream.NotificationChannel, Stream.NotificationChannelFilter, Stream.TriageChannel, Stream.DefaultPreflight?.ToRequest(), ApiTabs, ApiAgentTypes, ApiWorkspaceTypes, ApiTemplateRefs, new Dictionary<string, string>(Stream.Properties), ApiAcl, Stream.PausedUntil, Stream.PauseComment);
+			return new Api.GetStreamResponse(Stream.Id.ToString(), Stream.ProjectId.ToString(), Stream.Name, Stream.Revision, Stream.Order, Stream.NotificationChannel, Stream.NotificationChannelFilter, Stream.TriageChannel, Stream.DefaultPreflight?.ToRequest(), ApiTabs, ApiAgentTypes, ApiWorkspaceTypes, ApiTemplateRefs, new Dictionary<string, string>(Stream.Properties), ApiAcl, Stream.PausedUntil, Stream.PauseComment);
 		}
 
 		/// <summary>
