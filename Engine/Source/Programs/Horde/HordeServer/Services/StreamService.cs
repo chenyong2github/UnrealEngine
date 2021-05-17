@@ -55,6 +55,11 @@ namespace HordeServer.Services
 		MemoryCache StreamCache = new MemoryCache(new MemoryCacheOptions());
 
 		/// <summary>
+		/// Accessor for the stream collection
+		/// </summary>
+		public IStreamCollection StreamCollection => Streams;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ProjectService">The project service instance</param>
@@ -74,80 +79,13 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
-		/// Creates a new stream
-		/// </summary>
-		/// <param name="Id">Unique id for the new stream</param>
-		/// <param name="Name">Name of the new stream</param>
-		/// <param name="ProjectId">Unique id of the project</param>
-		/// <param name="ConfigPath">Path to the config file in Perforce</param>
-		/// <param name="Order">Order for this stream</param>
-		/// <param name="NotificationChannel">Notification channel for this stream</param>
-		/// <param name="NotificationChannelFilter">Notification channel filter for this stream</param>
-		/// <param name="TriageChannel"></param>
-		/// <param name="DefaultPreflight">Default template for preflights</param>
-		/// <param name="Tabs">Tabs for the new stream</param>
-		/// <param name="AgentTypes">Map of new agent types to machine attributes</param>
-		/// <param name="WorkspaceTypes">Map of new workspace types</param>
-		/// <param name="TemplateRefs">New job templates for the stream</param>
-		/// <param name="Properties">New properties for the stream</param>
-		/// <param name="Acl">Acl for the stream</param>
-		/// <returns>The new stream document</returns>
-		public Task<IStream?> TryCreateStreamAsync(StreamId Id, string Name, ProjectId ProjectId, string? ConfigPath = null, int? Order = null, string? NotificationChannel = null, string? NotificationChannelFilter = null, string? TriageChannel = null, DefaultPreflight? DefaultPreflight = null, List<StreamTab>? Tabs = null, Dictionary<string, AgentType>? AgentTypes = null, Dictionary<string, WorkspaceType>? WorkspaceTypes = null, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs = null, Dictionary<string, string>? Properties = null, Acl? Acl = null)
-		{
-			return Streams.TryCreateAsync(Id, Name, ProjectId, ConfigPath, Order, NotificationChannel, NotificationChannelFilter, TriageChannel, DefaultPreflight, Tabs, AgentTypes, WorkspaceTypes, TemplateRefs, Properties, Acl);
-		}
-
-		/// <summary>
-		/// Replaces a stream
-		/// </summary>
-		/// <param name="Stream">The stream interface</param>
-		/// <param name="Name">Name of the new stream</param>
-		/// <param name="ConfigPath">Path to the config file in Perforce</param>
-		/// <param name="ConfigChange">CL number of the config file</param>
-		/// <param name="Order">Order for this stream</param>
-		/// <param name="NotificationChannel">Notification channel for this stream</param>
-		/// <param name="NotificationChannelFilter">Notification channel filter for this stream</param>
-		/// <param name="TriageChannel"></param>
-		/// <param name="DefaultPreflight">Default template for preflights</param>
-		/// <param name="Tabs">Tabs for the new stream</param>
-		/// <param name="AgentTypes">Map of new agent types to machine attributes</param>
-		/// <param name="WorkspaceTypes">Map of new workspace types</param>
-		/// <param name="TemplateRefs">New job templates for the stream</param>
-		/// <param name="Properties">New properties for the stream</param>
-		/// <param name="Acl">Acl for the stream</param>
-		/// <param name="PausedUntil">The new datetime for pausing builds</param>
-		/// <param name="PauseComment">The reason for pausing</param>
-		/// <returns>The new stream document</returns>
-		public Task<IStream?> TryReplaceStreamAsync(IStream Stream, string Name, string? ConfigPath = null, int? ConfigChange = null, int? Order = null, string? NotificationChannel = null, string? NotificationChannelFilter = null, string? TriageChannel = null, DefaultPreflight? DefaultPreflight = null, List<StreamTab>? Tabs = null, Dictionary<string, AgentType>? AgentTypes = null, Dictionary<string, WorkspaceType>? WorkspaceTypes = null, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs = null, Dictionary<string, string>? Properties = null, Acl? Acl = null, DateTime? PausedUntil = null, string? PauseComment = null)
-		{
-			return Streams.TryReplaceAsync(Stream, Name, ConfigPath, ConfigChange, Order, NotificationChannel, NotificationChannelFilter, TriageChannel, DefaultPreflight, Tabs, AgentTypes, WorkspaceTypes, TemplateRefs, Properties, Acl, PausedUntil, PauseComment);
-		}
-
-		/// <summary>
 		/// Deletes an existing stream
 		/// </summary>
 		/// <param name="StreamId">Unique id of the stream</param>
-		/// <param name="JobService">Instance of the job service</param>
 		/// <returns>Async task object</returns>
-		public async Task DeleteStreamAsync(StreamId StreamId, JobService JobService)
+		public async Task DeleteStreamAsync(StreamId StreamId)
 		{
-			await JobService.DeleteJobsForStreamAsync(StreamId);
 			await Streams.DeleteAsync(StreamId);
-		}
-
-		/// <summary>
-		/// Deletes all the streams for a particular project
-		/// </summary>
-		/// <param name="ProjectId">Unique id of the project</param>
-		/// <param name="JobService">Instance of the job service</param>
-		/// <returns>Async task object</returns>
-		public async Task DeleteStreamsForProjectAsync(ProjectId ProjectId, JobService JobService)
-		{
-			List<IStream> Streams = await GetStreamsAsync(new[] { ProjectId });
-			foreach (IStream Stream in Streams)
-			{
-				await DeleteStreamAsync(Stream.Id, JobService);
-			}
 		}
 
 		/// <summary>

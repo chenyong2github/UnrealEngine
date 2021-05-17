@@ -121,11 +121,8 @@ namespace HordeServer.Services
 		/// Deletes a project by id
 		/// </summary>
 		/// <param name="ProjectId">Unique id of the project</param>
-		/// <param name="StreamService">The stream service singleton</param>
-		/// <param name="JobService">The job service singleton</param>
-		public async Task DeleteProjectAsync(ProjectId ProjectId, StreamService StreamService, JobService JobService)
+		public async Task DeleteProjectAsync(ProjectId ProjectId)
 		{
-			await StreamService.DeleteStreamsForProjectAsync(ProjectId, JobService);
 			await Projects.DeleteAsync(ProjectId);
 		}
 

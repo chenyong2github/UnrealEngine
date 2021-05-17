@@ -29,16 +29,23 @@ namespace HordeServer.Collections.Impl
 		/// </summary>
 		class ProjectDocument : IProject
 		{
+			public const int DefaultOrder = 128;
+
 			[BsonRequired, BsonId]
 			public ProjectId Id { get; set; }
 
 			[BsonRequired]
 			public string Name { get; set; }
 
-			public int Order { get; set; } = 128;
+			public string? Revision { get; set; }
+
+			public int Order { get; set; } = DefaultOrder;
 			public Acl? Acl { get; set; }
 			public List<StreamCategory> Categories { get; set; } = new List<StreamCategory>();
 			public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+			[BsonIgnoreIfDefault, BsonDefaultValue(false)]
+			public bool Deleted { get; set; }
 
 			IReadOnlyList<StreamCategory> IProject.Categories => Categories;
 			IReadOnlyDictionary<string, string> IProject.Properties => Properties;
@@ -63,6 +70,7 @@ namespace HordeServer.Collections.Impl
 		{
 			public ProjectId Id { get; set; }
 
+			public string Revision { get; set; } = String.Empty;
 			public string MimeType { get; set; } = String.Empty;
 
 			public byte[] Data { get; set; } = Array.Empty<byte>();
@@ -103,6 +111,19 @@ namespace HordeServer.Collections.Impl
 		{
 			Projects = DatabaseService.GetCollection<ProjectDocument>("Projects");
 			ProjectLogos = DatabaseService.GetCollection<ProjectLogoDocument>("ProjectLogos");
+		}
+
+		/// <inheritdoc/>
+		public async Task<IProject?> AddOrUpdateAsync(ProjectId Id, string Revision, int Order, ProjectConfig Config)
+		{
+			ProjectDocument NewProject = new ProjectDocument(Id, Config.Name);
+			NewProject.Revision = Revision;
+			NewProject.Order = Order;
+			NewProject.Categories = Config.Categories.ConvertAll(x => new StreamCategory(x));
+			NewProject.Acl = Acl.Merge(new Acl(), Config.Acl);
+
+			await Projects.FindOneAndReplaceAsync<ProjectDocument>(x => x.Id == Id, NewProject, new FindOneAndReplaceOptions<ProjectDocument> { IsUpsert = true });
+			return NewProject;
 		}
 
 		/// <inheritdoc/>
@@ -187,7 +208,7 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<List<IProject>> FindAllAsync()
 		{
-			List<ProjectDocument> Results = await Projects.Find(FilterDefinition<ProjectDocument>.Empty).ToListAsync();
+			List<ProjectDocument> Results = await Projects.Find(x => !x.Deleted).ToListAsync();
 			return Results.OrderBy(x => x.Order).ThenBy(x => x.Name).Select<ProjectDocument, IProject>(x => x).ToList();
 		}
 
@@ -204,13 +225,14 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task SetLogoAsync(ProjectId ProjectId, string MimeType, byte[] Data)
+		public async Task SetLogoAsync(ProjectId ProjectId, string Revision, string MimeType, byte[] Data)
 		{
 			ProjectLogoDocument Logo = new ProjectLogoDocument();
 			Logo.Id = ProjectId;
+			Logo.Revision = Revision;
 			Logo.MimeType = MimeType;
 			Logo.Data = Data;
-			await ProjectLogos.UpdateOneAsync(x => x.Id == ProjectId, Builders<ProjectLogoDocument>.Update.Set(x => x.MimeType, MimeType).Set(x => x.Data, Data), new UpdateOptions { IsUpsert = true });
+			await ProjectLogos.ReplaceOneAsync(x => x.Id == ProjectId, Logo, new ReplaceOptions { IsUpsert = true });
 		}
 
 		/// <inheritdoc/>
@@ -222,7 +244,7 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task DeleteAsync(ProjectId ProjectId)
 		{
-			await Projects.DeleteOneAsync<ProjectDocument>(x => x.Id == ProjectId);
+			await Projects.UpdateOneAsync(x => x.Id == ProjectId, Builders<ProjectDocument>.Update.Set(x => x.Deleted, true));
 		}
 	}
 }
