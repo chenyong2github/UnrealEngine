@@ -19,9 +19,7 @@ public class Lobby : ModuleRules
 				"Core",
 				"CoreOnline",
 				"CoreUObject",
-				//IRIS-begin
 				"NetCore",
-				//IRIS-end
 				"Engine",
 				"OnlineSubsystem",
 				"OnlineSubsystemUtils",
