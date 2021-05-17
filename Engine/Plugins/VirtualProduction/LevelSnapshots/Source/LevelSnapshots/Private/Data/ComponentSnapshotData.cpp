@@ -2,13 +2,12 @@
 
 #include "ComponentSnapshotData.h"
 
-#include "ApplySnapshotDataArchiveV2.h"
 #include "LevelSnapshotsLog.h"
-#include "PropertySelection.h"
 #include "TakeWorldObjectSnapshotArchive.h"
 #include "WorldSnapshotData.h"
 
 #include "Components/ActorComponent.h"
+#include "UObject/Package.h"
 
 TOptional<FComponentSnapshotData> FComponentSnapshotData::SnapshotComponent(UActorComponent* OriginalComponent, FWorldSnapshotData& WorldData)
 {
@@ -32,7 +31,7 @@ bool FComponentSnapshotData::IsRestoreSupportedForSavedComponent()
 	return CreationMethod != EComponentCreationMethod::Instance && CreationMethod != EComponentCreationMethod::UserConstructionScript;
 }
 
-void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData)
+void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage)
 {
 	// TODO: Handle CreationMethod == Instance and UserConstructionScript here by re-creating the component if it does not exist
 	if (ComponentToDeserializeInto->CreationMethod == EComponentCreationMethod::Instance)
@@ -59,16 +58,5 @@ void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& Seria
 		//   - We apply the CDO and afterwards we override it with the serialized data. Good.
 	WorldData.SerializeClassDefaultsInto(ComponentToDeserializeInto);
 	
-	FSnapshotArchive Serializer = FSnapshotArchive::MakeArchiveForRestoring(SerializedComponentData, WorldData);
-	ComponentToDeserializeInto->Serialize(Serializer);
-}
-
-void FComponentSnapshotData::DeserializeIntoExistingWorldActor(FObjectSnapshotData& SerializedComponentData, UActorComponent* OriginalComponentToDeserializeInto, UActorComponent* DeserializedComponentCounterpart, FWorldSnapshotData& WorldData, const FPropertySelection& PropertySelection)
-{
-	FApplySnapshotDataArchiveV2::ApplyToExistingWorldObject(SerializedComponentData, WorldData, OriginalComponentToDeserializeInto, DeserializedComponentCounterpart, PropertySelection);
-}
-
-void FComponentSnapshotData::DeserializeIntoRecreatedWorldActor(FObjectSnapshotData& SerializedComponentData, UActorComponent* OriginalComponentToDeserializeInto, UActorComponent* DeserializedComponentCounterpart, FWorldSnapshotData& WorldData)
-{
-	FApplySnapshotDataArchiveV2::ApplyToRecreatedWorldObject(SerializedComponentData, WorldData, OriginalComponentToDeserializeInto, DeserializedComponentCounterpart);
+	FSnapshotArchive::RestoreData(SerializedComponentData, WorldData, ComponentToDeserializeInto, InLocalisationSnapshotPackage);
 }

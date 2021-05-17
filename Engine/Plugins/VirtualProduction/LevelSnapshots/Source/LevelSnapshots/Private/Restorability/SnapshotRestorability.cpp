@@ -103,7 +103,7 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 	return IsValid(Actor)
             && DoesActorHaveSupportedClass(Actor)
             && !Actor->IsTemplate()								// Should never happen, but we never want CDOs
-            // TODO: Temp test for USD && !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds		
+            && !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds		
 #if WITH_EDITOR
             && Actor->IsEditable()
             && Actor->IsListedInSceneOutliner() 				// Only add actors that are allowed to be selected and drawn in editor

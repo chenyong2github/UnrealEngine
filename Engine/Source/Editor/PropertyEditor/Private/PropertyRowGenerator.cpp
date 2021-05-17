@@ -643,8 +643,13 @@ void FPropertyRowGenerator::UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyN
 }
 
 
-bool FPropertyRowGenerator::ValidatePropertyNodes(const FRootPropertyNodeList &PropertyNodeList)
+bool FPropertyRowGenerator::ValidatePropertyNodes(const FRootPropertyNodeList& PropertyNodeList)
 {
+	if (CustomValidatePropertyNodesFunction.IsBound())
+	{
+		return CustomValidatePropertyNodesFunction.Execute(PropertyNodeList);
+	}
+	
 	bool bFullRefresh = false;
 
 	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)

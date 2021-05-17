@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Serialization/ArchiveUObject.h"
 
+class UObject;
+class UPackage;
 struct FObjectSnapshotData;
 struct FWorldSnapshotData;
 
@@ -15,7 +17,7 @@ class FSnapshotArchive : public FArchiveUObject
 	
 public:
 
-	static FSnapshotArchive MakeArchiveForRestoring(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData);
+	static void RestoreData(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage);
 
 	//~ Begin FArchive Interface
 	virtual FString GetArchiveName() const override;
@@ -30,18 +32,14 @@ public:
 	//~ End FArchive Interface
 
 protected:
-
+	
+	/* Allocates and serializes an object dependency, or gets the object, if it already exists. */
+	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const;
+	
 	FWorldSnapshotData& GetSharedData() const
 	{
 		return SharedData;
 	}
-	
-	/* Only used when Loading.
-	 * True: we're loading into a temp world. False: we're loading into an editor world.
-	 * 
-	 * If true, object references within the world are translated to use the temp world package.
-	 */
-	bool bShouldLoadObjectDependenciesForTempWorld = true;
 
 	int32 ExcludedPropertyFlags;
 

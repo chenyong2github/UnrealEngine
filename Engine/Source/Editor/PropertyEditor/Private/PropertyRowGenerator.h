@@ -69,8 +69,6 @@ struct FDetailLayoutData
 
 typedef TArray<FDetailLayoutData> FDetailLayoutList;
 
-typedef TArray<TSharedPtr<FComplexPropertyNode>> FRootPropertyNodeList;
-
 class FPropertyRowGenerator : public IPropertyRowGenerator, public FTickableEditorObject, public TSharedFromThis<FPropertyRowGenerator>
 {
 public:
@@ -95,6 +93,14 @@ public:
 	virtual void RegisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) override;
 	virtual void UnregisterInstancedCustomPropertyLayout(UStruct* Class) override;
 	virtual void UnregisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) override;
+	virtual TSharedPtr<FAssetThumbnailPool> GetGeneratedThumbnailPool() override
+	{ 
+		return GetThumbnailPool();
+	}
+	virtual void SetCustomValidatePropertyNodesFunction(FOnValidatePropertyRowGeneratorNodes InCustomValidatePropertyNodesFunction) override
+	{
+		CustomValidatePropertyNodesFunction = MoveTemp(InCustomValidatePropertyNodesFunction);
+	}
 
 	/** FTickableEditorObject interface */
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
@@ -150,6 +156,8 @@ private:
 	TSharedRef<IPropertyGenerationUtilities> PropertyGenerationUtilities;
 	/** Delegate called when the details panel finishes editing a property (after post edit change is called) */
 	FOnFinishedChangingProperties OnFinishedChangingPropertiesDelegate;
+	/** The ValidatePropertyNodes function can be overridden with this member, if set. Useful if your implementation doesn't require this kind of validation each Tick. */
+	FOnValidatePropertyRowGeneratorNodes CustomValidatePropertyNodesFunction;
 
 	bool bViewingClassDefaultObject;
 };
