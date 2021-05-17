@@ -1625,10 +1625,12 @@ int32 FRigVMMemoryContainer::GetOrAddRegisterOffset(int32 InRegisterIndex, UScri
 		return INDEX_NONE;
 	}
 
-	ensure(Registers.IsValidIndex(InRegisterIndex));
-
+	// if this is a register offset for a external variable
+	// the register index is expected to be INDEX_NONE
+	// and it is also expected that InElementSize != 0
 	if (InElementSize == 0)
 	{
+		ensure(Registers.IsValidIndex(InRegisterIndex)); 
 		InElementSize = (int32)Registers[InRegisterIndex].ElementSize;
 	}
 
