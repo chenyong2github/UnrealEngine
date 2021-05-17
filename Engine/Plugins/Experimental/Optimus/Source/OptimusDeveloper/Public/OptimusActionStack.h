@@ -17,7 +17,7 @@ struct FOptimusCompoundAction;
 
 // Base action class
 UCLASS()
-class OPTIMUSCORE_API UOptimusActionStack :
+class OPTIMUSDEVELOPER_API UOptimusActionStack :
 	public UObject
 {
 	GENERATED_BODY()
@@ -79,7 +79,7 @@ private:
 	TFunction<void(int InTransactionId)> EndScopeFunc;
 };
 
-class OPTIMUSCORE_API FOptimusActionScope
+class OPTIMUSDEVELOPER_API FOptimusActionScope
 {
 public:
 	FOptimusActionScope(UOptimusActionStack& InActionStack, const FString& InTitle);

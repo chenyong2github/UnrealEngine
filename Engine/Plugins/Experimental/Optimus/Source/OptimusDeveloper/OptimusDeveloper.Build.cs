@@ -2,13 +2,13 @@
 
 namespace UnrealBuildTool.Rules
 {
-    public class OptimusEditor : ModuleRules
+    public class OptimusDeveloper : ModuleRules
     {
-        public OptimusEditor(ReadOnlyTargetRules Target) : base(Target)
+        public OptimusDeveloper(ReadOnlyTargetRules Target) : base(Target)
         {
             PrivateIncludePaths.AddRange(
                 new string[] {
-                    "OptimusEditor/Private",
+					"OptimusDeveloper/Private",
 				}
             );
 
@@ -23,24 +23,10 @@ namespace UnrealBuildTool.Rules
                 {
                     "Core",
 					"CoreUObject",
-					"SlateCore",
-					"Slate",
-					"EditorStyle",
-					"GraphEditor",
 					"Engine",
-					"EditorFramework",
-					"UnrealEd",
-					"AssetTools",
-					"AdvancedPreviewScene",
-					"InputCore",
-					"RHI",
-					"ToolMenus",
 					"OptimusCore",
-					"OptimusDeveloper",
-					"BlueprintGraph",		// For the graph pin colors
 				}
 			);
-
         }
     }
 }

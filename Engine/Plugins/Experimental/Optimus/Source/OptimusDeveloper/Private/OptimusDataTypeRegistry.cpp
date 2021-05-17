@@ -2,7 +2,7 @@
 
 #include "OptimusDataTypeRegistry.h"
 
-#include "OptimusCoreModule.h"
+#include "OptimusDeveloperModule.h"
 #include "Types/OptimusType_MeshAttribute.h"
 #include "Types/OptimusType_MeshSkinWeights.h"
 
@@ -84,15 +84,15 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    bHideElements,
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
-	Registry.RegisterType(
-	    TBaseStructure<FTransform>::Get(),
-	    FShaderValueType::Get(FName("transform"), 
-			{{FName("trn"), FShaderValueType::Get(EShaderFundamentalType::Float, 3)},
-			 {FName("scl"), FShaderValueType::Get(EShaderFundamentalType::Float, 3)},
-			 {FName("rot"), FShaderValueType::Get(EShaderFundamentalType::Float, 4)}}),
-	    {},
-	    bShowElements,
-	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+// 	Registry.RegisterType(
+// 	    TBaseStructure<FTransform>::Get(),
+// 	    FShaderValueType::Get(FName("transform"), 
+// 			{{FName("trn"), FShaderValueType::Get(EShaderFundamentalType::Float, 3)},
+// 			 {FName("scl"), FShaderValueType::Get(EShaderFundamentalType::Float, 3)},
+// 			 {FName("rot"), FShaderValueType::Get(EShaderFundamentalType::Float, 4)}}),
+// 	    {},
+// 	    bShowElements,
+// 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// String types
 	Registry.RegisterType(
@@ -149,13 +149,13 @@ bool FOptimusDataTypeRegistry::RegisterType(
 {
 	if (InTypeName == NAME_None)
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Invalid type name."));
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Invalid type name."));
 		return false;
 	}
 
 	if (RegisteredTypes.Contains(InTypeName))
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Type '%s' is already registered."), *InTypeName.ToString());
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Type '%s' is already registered."), *InTypeName.ToString());
 		return false;
 	}
 
@@ -206,7 +206,7 @@ bool FOptimusDataTypeRegistry::RegisterType(
 			{
 				if (FindType(*Property) == nullptr)
 				{
-					UE_LOG(LogOptimusCore, Error, TEXT("Found un-registered sub-element '%s' when registering '%s'"),
+					UE_LOG(LogOptimusDeveloper, Error, TEXT("Found un-registered sub-element '%s' when registering '%s'"),
 						*(Property->GetClass()->GetName()), *InStructType->GetName());
 					return false;
 				}
@@ -280,7 +280,7 @@ bool FOptimusDataTypeRegistry::RegisterType(
 {
 	if (EnumHasAnyFlags(InUsageFlags, EOptimusDataTypeUsageFlags::Variable))
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Can't register '%s' for use in variables when there is no associated native type."), *InTypeName.ToString());
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Can't register '%s' for use in variables when there is no associated native type."), *InTypeName.ToString());
 		return false;
 	}
 

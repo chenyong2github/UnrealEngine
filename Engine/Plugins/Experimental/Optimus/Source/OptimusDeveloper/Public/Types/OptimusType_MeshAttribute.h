@@ -5,14 +5,14 @@
 #include "UObject/Object.h"
 #include "CoreMinimal.h"
 
-#include "OptimusType_MeshSkinWeights.generated.h"
+#include "OptimusType_MeshAttribute.generated.h"
 
 UCLASS()
-class OPTIMUSCORE_API UOptimusType_MeshSkinWeights : public UObject
+class OPTIMUSDEVELOPER_API UOptimusType_MeshAttribute : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY()
-	FName SkinWeightProfileName;
+	FName AttributeName;
 };

@@ -76,7 +76,7 @@ using FOptimusDataTypeHandle = TSharedPtr<const FOptimusDataType>;
 
 /** A reference object for an Optimus data type to use in UObjects and other UStruct-like things */
 USTRUCT(BlueprintType)
-struct OPTIMUSCORE_API FOptimusDataTypeRef
+struct OPTIMUSDEVELOPER_API FOptimusDataTypeRef
 {
 	GENERATED_BODY()
 

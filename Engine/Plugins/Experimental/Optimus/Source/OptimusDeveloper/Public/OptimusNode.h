@@ -31,7 +31,7 @@ static inline uint32 GetTypeHash(const TArray<T, Allocator>& A)
 
 
 UCLASS(Abstract)
-class OPTIMUSCORE_API UOptimusNode : public UObject
+class OPTIMUSDEVELOPER_API UOptimusNode : public UObject
 {
 	GENERATED_BODY()
 public:

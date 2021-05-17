@@ -18,10 +18,10 @@ public:
 	~FOptimusDataTypeRegistry();
 
 	/** Get the singleton registry object */
-	OPTIMUSCORE_API static FOptimusDataTypeRegistry &Get();
+	OPTIMUSDEVELOPER_API static FOptimusDataTypeRegistry &Get();
 
 	// Register a POD type that has corresponding types on both the UE and HLSL side.
-	OPTIMUSCORE_API bool RegisterType(
+	OPTIMUSDEVELOPER_API bool RegisterType(
 		const FFieldClass &InFieldType,
 	    FShaderValueTypeHandle InShaderValueType,
 	    FName InPinCategory,
@@ -30,7 +30,7 @@ public:
 	);
 
 	// Register a complex type that has corresponding types on both the UE and HLSL side.
-	OPTIMUSCORE_API bool RegisterType(
+	OPTIMUSDEVELOPER_API bool RegisterType(
 	    UScriptStruct *InStructType,
 	    FShaderValueTypeHandle InShaderValueType,
 		TOptional<FLinearColor> InPinColor,
@@ -39,7 +39,7 @@ public:
 		);
 
 	// Register a complex type that has only has correspondence on the UE side.
-	OPTIMUSCORE_API bool RegisterType(
+	OPTIMUSDEVELOPER_API bool RegisterType(
 	    UClass* InClassType,
 	    TOptional<FLinearColor> InPinColor,
 	    EOptimusDataTypeUsageFlags InUsageFlags
@@ -47,7 +47,7 @@ public:
 
 	// Register a type that only has correspondence on the HLSL side. 
 	// Presence of the EOptimusDataTypeFlags::UseInVariable results in an error.
-	OPTIMUSCORE_API bool RegisterType(
+	OPTIMUSDEVELOPER_API bool RegisterType(
 		FName InTypeName,
 	    FShaderValueTypeHandle InShaderValueType,
 	    FName InPinCategory,
@@ -57,25 +57,25 @@ public:
 		);
 
 	/** Returns all registered types */
-	OPTIMUSCORE_API TArray<FOptimusDataTypeHandle> GetAllTypes() const;
+	OPTIMUSDEVELOPER_API TArray<FOptimusDataTypeHandle> GetAllTypes() const;
 
 	/** Find the registered type associated with the given property's type. Returns an invalid
 	  * handle if no registered type is associated.
 	*/
-	OPTIMUSCORE_API FOptimusDataTypeHandle FindType(const FProperty &InProperty) const;
+	OPTIMUSDEVELOPER_API FOptimusDataTypeHandle FindType(const FProperty &InProperty) const;
 
 	/** Find the registered type associated with the given field class. Returns an invalid
 	  * handle if no registered type is associated.
 	*/
-	OPTIMUSCORE_API FOptimusDataTypeHandle FindType(const FFieldClass& InFieldType) const;
+	OPTIMUSDEVELOPER_API FOptimusDataTypeHandle FindType(const FFieldClass& InFieldType) const;
 
 	/** Find the registered type with the given name. Returns an invalid handle if no registered 
 	  * type with that name exists.
 	*/
-	OPTIMUSCORE_API FOptimusDataTypeHandle FindType(FName InTypeName) const;
+	OPTIMUSDEVELOPER_API FOptimusDataTypeHandle FindType(FName InTypeName) const;
 
 protected:
-	friend class FOptimusCoreModule;
+	friend class FOptimusDeveloperModule;
 
 	/** Call during module init to register all known built-in types */
 	static void RegisterBuiltinTypes();

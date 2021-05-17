@@ -17,7 +17,7 @@ enum class EOptimusNodeGraphType;
 
 
 UINTERFACE()
-class OPTIMUSCORE_API UOptimusNodeGraphCollectionOwner : 
+class OPTIMUSDEVELOPER_API UOptimusNodeGraphCollectionOwner :
 	public UInterface
 {
 	GENERATED_BODY()
@@ -26,7 +26,7 @@ class OPTIMUSCORE_API UOptimusNodeGraphCollectionOwner :
 /**
  * Interface that provides a mechanism to identify and work with node graph owners.
  */
-class OPTIMUSCORE_API IOptimusNodeGraphCollectionOwner
+class OPTIMUSDEVELOPER_API IOptimusNodeGraphCollectionOwner
 {
 	GENERATED_BODY()
 

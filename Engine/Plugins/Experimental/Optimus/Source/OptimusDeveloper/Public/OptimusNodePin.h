@@ -32,7 +32,7 @@ enum class EOptimusNodePinStorageType : uint8
 
 
 UCLASS(BlueprintType)
-class OPTIMUSCORE_API UOptimusNodePin : public UObject
+class OPTIMUSDEVELOPER_API UOptimusNodePin : public UObject
 {
 	GENERATED_BODY()
 
