@@ -34,7 +34,7 @@ struct FControlRigSequencerBindingProxy
 		, ControlRig(InControlRig)
 	{}
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = ControlRig)
 	FSequencerBindingProxy Proxy;
 
 	UPROPERTY(BlueprintReadOnly, Category = ControlRig)
