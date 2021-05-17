@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/Paths.h"
 #include "AnalyticsPropertyStore.h"
 #include "CoreGlobals.h"
 
