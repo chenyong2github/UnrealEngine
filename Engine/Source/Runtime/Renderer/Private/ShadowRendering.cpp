@@ -1698,8 +1698,9 @@ void FSceneRenderer::RenderShadowProjections(
 		const FHairStrandsMacroGroupDatas* HairMacroGroupData = nullptr;
 		if (HairDatas)
 		{
-			HairVisibilityData = &(HairDatas->HairVisibilityViews.HairDatas[ViewIndex]);
-			HairMacroGroupData = &(HairDatas->MacroGroupsPerViews.Views[ViewIndex]);
+			const int32 HairViewIndex = 0; // HAIR_TODO multiview support
+			HairVisibilityData = &(HairDatas->HairVisibilityViews.HairDatas[HairViewIndex]);
+			HairMacroGroupData = &(HairDatas->MacroGroupsPerViews.Views[HairViewIndex]);
 		}
 
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);

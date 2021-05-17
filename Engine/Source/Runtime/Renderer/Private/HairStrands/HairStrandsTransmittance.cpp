@@ -670,11 +670,12 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	FHairStrandsTransmittanceMaskData TransmittanceMaskData;
 	if (HairDatas)
 	{
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		//for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		const int32 HairViewIndex = 0; // HAIR_TODO multiview support
 		{
-			const FViewInfo& View = Views[ViewIndex];
-			const FHairStrandsVisibilityData& InHairVisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-			const FHairStrandsMacroGroupDatas& InMacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
+			const FViewInfo& View = Views[HairViewIndex];
+			const FHairStrandsVisibilityData& InHairVisibilityData = HairDatas->HairVisibilityViews.HairDatas[HairViewIndex];
+			const FHairStrandsMacroGroupDatas& InMacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[HairViewIndex];
 
 			TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, LightSceneInfo, InMacroGroupDatas, InHairVisibilityData, ScreenShadowMaskSubPixelTexture);
 		}

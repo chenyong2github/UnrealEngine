@@ -2262,10 +2262,11 @@ void FDeferredShadingSceneRenderer::RenderLight(
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 		FRenderLightParams RenderLightParams;
-		const bool bHairLighting = InHairVisibilityViews && ViewIndex < InHairVisibilityViews->HairDatas.Num() && InHairVisibilityViews->HairDatas[ViewIndex].CategorizationTexture != nullptr;
+		const int32 HairViewIndex = 0; // HAIR_TODO multiview support
+		const bool bHairLighting = InHairVisibilityViews && HairViewIndex < InHairVisibilityViews->HairDatas.Num() && InHairVisibilityViews->HairDatas[HairViewIndex].CategorizationTexture != nullptr;
 		if (bHairLighting)
 		{
-			RenderLightParams.HairCategorizationTexture = InHairVisibilityViews->HairDatas[ViewIndex].CategorizationTexture->GetPooledRenderTarget();
+			RenderLightParams.HairCategorizationTexture = InHairVisibilityViews->HairDatas[HairViewIndex].CategorizationTexture->GetPooledRenderTarget();
 		}
 		if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
 		{
