@@ -52,6 +52,7 @@ namespace Gauntlet
 		public int SucceededWithWarnings { get; set; }
 		public int Failed { get; set; }
 		public int NotRun { get; set; }
+		public int InProcess { get; set; }
 		public float TotalDuration { get; set; }
 		public bool ComparisonExported { get; set; }
 		public string ComparisonExportDirectory { get; set; }

@@ -261,6 +261,7 @@ namespace Gauntlet
 			public int SucceededWithWarningsCount { get; set; }
 			public int FailedCount { get; set; }
 			public int NotRunCount { get; set; }
+			public int InProcessCount { get; set; }
 			public float TotalDurationSeconds { get; set; }
 			public List<TestResult> Tests { get; set; }
 
@@ -296,6 +297,7 @@ namespace Gauntlet
 				OutTestPassResults.SucceededWithWarningsCount = InTestPassResults.SucceededWithWarnings;
 				OutTestPassResults.FailedCount = InTestPassResults.Failed;
 				OutTestPassResults.NotRunCount = InTestPassResults.NotRun;
+				OutTestPassResults.InProcessCount = InTestPassResults.InProcess;
 				OutTestPassResults.TotalDurationSeconds = InTestPassResults.TotalDuration;
 				if (InTestPassResults.Tests != null)
 				{
