@@ -51,7 +51,7 @@ public:
 	template<typename BlenderSystemClass>
 	static FMovieSceneBlenderSystemID GetBlenderSystemID()
 	{
-		UMovieSceneBlenderSystem* DefaultObject = BlenderSystemClass::StaticClass()->GetDefaultObject<UMovieSceneBlenderSystem>();
+		UMovieSceneBlenderSystem* DefaultObject = BlenderSystemClass::StaticClass()->template GetDefaultObject<UMovieSceneBlenderSystem>();
 		check(DefaultObject);
 		return DefaultObject->SystemID;
 	}
