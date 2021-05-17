@@ -476,6 +476,18 @@ void SNiagaraSystemViewport::RefreshViewport()
 void SNiagaraSystemViewport::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	SEditorViewport::Tick( AllottedGeometry, InCurrentTime, InDeltaTime );
+
+	// this marks the end of the transition, so we restore orbit mode if needed
+	if(bIsViewTransitioning && !SystemViewportClient->GetViewTransform().IsPlaying())
+	{
+		if(bShouldActivateOrbitAfterTransitioning)
+		{
+			SystemViewportClient->ToggleOrbitCamera(true);
+		}
+
+		bShouldActivateOrbitAfterTransitioning = false;
+		bIsViewTransitioning = false;
+	}
 }
 
 void SNiagaraSystemViewport::SetPreviewComponent(UNiagaraComponent* NiagaraComponent)
@@ -589,7 +601,9 @@ void SNiagaraSystemViewport::OnFocusViewportToSelection()
 
 		SystemViewportClient->FocusViewportOnBox(PreviewComponent->Bounds.GetBox());
 
-		SystemViewportClient->ToggleOrbitCamera(bIsOrbit);
+		// this will reactivate orbit mode after the transition is done, if needed
+		bIsViewTransitioning = true;
+		bShouldActivateOrbitAfterTransitioning = bIsOrbit;
 	}
 }
 
