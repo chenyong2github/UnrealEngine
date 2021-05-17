@@ -529,7 +529,7 @@ namespace DatasmithRuntime
 			Params.bCommitMeshDescription = false;
 #if !WITH_EDITOR
 			// Force build process to keep index buffer for complex collision when in game
-			Params.bAllowCpuAccess = ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision && (ImportOptions.CollisionType == ECollisionTraceFlag::CTF_UseComplexAsSimple || ImportOptions.CollisionType == ECollisionTraceFlag::CTF_UseSimpleAndComplex);
+			//Params.bAllowCpuAccess = ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision && (ImportOptions.CollisionType == ECollisionTraceFlag::CTF_UseComplexAsSimple || ImportOptions.CollisionType == ECollisionTraceFlag::CTF_UseSimpleAndComplex);
 #endif
 
 			StaticMesh->BuildFromMeshDescriptions(MeshDescriptionPointers, Params);
