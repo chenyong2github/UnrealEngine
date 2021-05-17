@@ -292,6 +292,8 @@ void SDMXChannelsMonitor::OnUniverseIDValueCommitted(const FText& InNewText, ETe
 				UniverseIDEditableTextBox->SetText(FText::FromString(FString::FromInt(0)));
 			}
 		}
+
+		ZeroChannelValues();
 	}
 }
 
