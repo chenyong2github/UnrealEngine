@@ -37,7 +37,7 @@ static int32 GHairVisibilityRectOptimEnable = 0;
 static FAutoConsoleVariableRef CVarHairVisibilityRectOptimEnable(TEXT("r.HairStrands.RectLightingOptim"), GHairVisibilityRectOptimEnable, TEXT("Hair Visibility use projected view rect to light only relevant pixels"));
 
 static int32 GHairStrandsComposeAfterTranslucency = 1;
-static FAutoConsoleVariableRef CVarHairStrandsComposeAfterTranslucency(TEXT("r.HairStrands.ComposeAfterTranslucency"), GHairStrandsComposeAfterTranslucency, TEXT("Compose hair rendering with scene color after the translucency pass if true. Otherwise compose hair defor the translucent objects are rendered."));
+static FAutoConsoleVariableRef CVarHairStrandsComposeAfterTranslucency(TEXT("r.HairStrands.ComposeAfterTranslucency"), GHairStrandsComposeAfterTranslucency, TEXT("0: Compose hair before translucent objects. 1: Compose hair after translucent objects, but before separate translucent objects. 2: Compose hair after seperate translucent objects"));
 
 static float GHairDualScatteringRoughnessOverride = 0;
 static FAutoConsoleVariableRef CVarHairDualScatteringRoughnessOverride(TEXT("r.HairStrands.DualScatteringRoughness"), GHairDualScatteringRoughnessOverride, TEXT("Override all roughness for the dual scattering evaluation. 0 means no override. Default:0"));
@@ -55,9 +55,15 @@ float GetHairDualScatteringRoughnessOverride()
 	return GHairDualScatteringRoughnessOverride;
 }
 
-bool IsHairStrandsComposeAfterTranslucency()
+EHairStrandsCompositionType GetHairStrandsComposition()
 {
-	return GHairStrandsComposeAfterTranslucency > 0;
+	switch (GHairStrandsComposeAfterTranslucency)
+	{
+	case 0	: return EHairStrandsCompositionType::BeforeTranslucent;
+	case 1	: return EHairStrandsCompositionType::AfterTranslucent;
+	case 2	: return EHairStrandsCompositionType::AfterSeparateTranslucent;
+	default	: return EHairStrandsCompositionType::BeforeTranslucent;
+	}
 }
 
 float GetDeepShadowAABBScale()

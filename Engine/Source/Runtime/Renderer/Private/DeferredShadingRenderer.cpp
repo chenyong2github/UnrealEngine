@@ -2402,7 +2402,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderDebugSkyAtmosphere(GraphBuilder, SceneColorTexture.Target, SceneDepthTexture.Target);
 	}
 
-	if (HairDatas && !IsHairStrandsComposeAfterTranslucency())
+	if (HairDatas && GetHairStrandsComposition() == EHairStrandsCompositionType::BeforeTranslucent)
 	{
 		RenderHairComposition(GraphBuilder, Views, HairDatas, SceneColorTexture.Target, SceneDepthTexture.Target);
 	}
@@ -2467,7 +2467,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, HairRendering);
-		if (HairDatas && IsHairStrandsComposeAfterTranslucency())
+		if (HairDatas && GetHairStrandsComposition() == EHairStrandsCompositionType::AfterTranslucent)
 		{
 			RenderHairComposition(GraphBuilder, Views, HairDatas, SceneColorTexture.Target, SceneDepthTexture.Target);
 		}
@@ -2585,6 +2585,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		PostProcessingInputs.ViewFamilyTexture = ViewFamilyTexture;
 		PostProcessingInputs.SeparateTranslucencyTextures = &SeparateTranslucencyTextures;
 		PostProcessingInputs.SceneTextures = SceneTextures;
+		PostProcessingInputs.HairDatas = HairDatas;
 
 		if (ViewFamily.UseDebugViewPS())
 		{
@@ -2624,7 +2625,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				else
 #endif
 				{
-					AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs);
+					AddPostProcessingPasses(GraphBuilder, View, ViewIndex, PostProcessingInputs);
 				}
 			}
 		}
