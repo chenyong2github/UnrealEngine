@@ -982,7 +982,7 @@ void FPixelShaderInOut_MainPS(
 	{
 		StrataPixelHeader.BSDFCount += StrataData.Layers[l].BSDFCount;
 	}
-	StrataPixelHeader.SharedNormals = MaterialParameters.SharedNormals;
+	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
 
 #if !GBUFFER_HAS_PRECSHADOWFACTOR
 	StrataPixelHeader.SkipPrecShadowMask = true;
@@ -1005,7 +1005,7 @@ void FPixelShaderInOut_MainPS(
 	Specular = SLW_SPECULAR(SLWBSDF);
 	Roughness = SLW_ROUGHNESS(SLWBSDF);
 	Opacity = SLW_TOPMATERIALOPACITY(SLWBSDF);
-	MaterialParameters.WorldNormal = StrataPixelHeader.SharedNormals.Normals[BSDF_GETNORMALID(SLWBSDF)];
+	MaterialParameters.WorldNormal = StrataPixelHeader.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(SLWBSDF)];
 	MaterialParameters.TangentToWorld[2] = MaterialParameters.WorldNormal;
 	Anisotropy = 0.0f;
 	ShadingModel = MATERIAL_SHADINGMODEL_SINGLELAYERWATER;
@@ -1542,12 +1542,12 @@ void FPixelShaderInOut_MainPS(
 	// We must normalize each normal and tangent to avoid non normalised vectors due to per vertex interpolation or texture filtering,
 	// for the deferred (our packing relies on normalized normal) and forward (normals are going to be used as-is from registers) paths.
 	UNROLL
-	for (uint i = 0; i < StrataPixelHeader.SharedNormals.NormalCount; ++i)
+	for (uint i = 0; i < StrataPixelHeader.SharedLocalBases.Count; ++i)
 	{
-		StrataPixelHeader.SharedNormals.Normals[i] = normalize(StrataPixelHeader.SharedNormals.Normals[i]);
-		if (StrataGetSharedNormalType(StrataPixelHeader.SharedNormals.NormalTypes, i) == STRATA_BASIS_TYPE_TANGENT)
+		StrataPixelHeader.SharedLocalBases.Normals[i] = normalize(StrataPixelHeader.SharedLocalBases.Normals[i]);
+		if (StrataGetSharedLocalBasisType(StrataPixelHeader.SharedLocalBases.Types, i) == STRATA_BASIS_TYPE_TANGENT)
 		{
-			StrataPixelHeader.SharedNormals.Tangents[i] = normalize(StrataPixelHeader.SharedNormals.Tangents[i]);
+			StrataPixelHeader.SharedLocalBases.Tangents[i] = normalize(StrataPixelHeader.SharedLocalBases.Tangents[i]);
 		}
 	}
 #endif

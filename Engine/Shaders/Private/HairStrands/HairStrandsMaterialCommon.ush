@@ -205,7 +205,7 @@ FEvaluateOutput Evaluate(
 		OutSample.Specular	= HAIR_SPECULAR(HairBSDF);
 		OutSample.Backlit	= HAIR_BACKLIT(HairBSDF);
 		OutSample.Emissive	= BSDF_GETEMISSIVE(HairBSDF);
-		float3 Tangent		= normalize(MaterialParameters.SharedNormals.Normals[BSDF_GETNORMALID(HairBSDF)]);
+		float3 Tangent		= normalize(MaterialParameters.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(HairBSDF)]);
 		
 	  #if MATERIAL_TANGENTSPACENORMAL 
 		// Convert the tangent space input tangent 

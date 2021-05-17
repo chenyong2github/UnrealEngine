@@ -43,35 +43,35 @@ static void UpdateTotalBSDFCount(FMaterialCompiler* Compiler, FStrataMaterialCom
 	}
 }
 
-FStrataRegisteredSharedNormal StrataCompilationInfoCreateNullSharedNormal()
+FStrataRegisteredSharedLocalBasis StrataCompilationInfoCreateNullSharedLocalBasis()
 {
-	FStrataRegisteredSharedNormal FakeSharedNormal;
-	FakeSharedNormal.NormalCodeChunk = INDEX_NONE;
-	FakeSharedNormal.TangentCodeChunk = INDEX_NONE;
-	FakeSharedNormal.NormalCodeChunkHash = 0;
-	FakeSharedNormal.TangentCodeChunkHash = 0;
-	FakeSharedNormal.GraphSharedNormalIndex = 0;
-	return FakeSharedNormal;
+	FStrataRegisteredSharedLocalBasis FakeSharedLocalBasis;
+	FakeSharedLocalBasis.NormalCodeChunk = INDEX_NONE;
+	FakeSharedLocalBasis.TangentCodeChunk = INDEX_NONE;
+	FakeSharedLocalBasis.NormalCodeChunkHash = 0;
+	FakeSharedLocalBasis.TangentCodeChunkHash = 0;
+	FakeSharedLocalBasis.GraphSharedLocalBasisIndex = 0;
+	return FakeSharedLocalBasis;
 }
 
-FStrataRegisteredSharedNormal StrataCompilationInfoCreateSharedNormal(FMaterialCompiler* Compiler, int32 NormalCodeChunk, int32 TangentCodeChunk)
+FStrataRegisteredSharedLocalBasis StrataCompilationInfoCreateSharedLocalBasis(FMaterialCompiler* Compiler, int32 NormalCodeChunk, int32 TangentCodeChunk)
 {
 	if (TangentCodeChunk == INDEX_NONE)
 	{
-		return Compiler->StrataCompilationInfoRegisterSharedNormal(NormalCodeChunk);
+		return Compiler->StrataCompilationInfoRegisterSharedLocalBasis(NormalCodeChunk);
 	}
-	return Compiler->StrataCompilationInfoRegisterSharedNormal(NormalCodeChunk, TangentCodeChunk);
+	return Compiler->StrataCompilationInfoRegisterSharedLocalBasis(NormalCodeChunk, TangentCodeChunk);
 }
 
 void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk,
-	const FStrataRegisteredSharedNormal& RegisteredSharedNormal,
+	const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis,
 	uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm, bool bHasFuzz, bool bHasHaziness)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
 	StrataInfo.Layers[0].BSDFCount = 1;
 	StrataInfo.Layers[0].BSDFs[0].Type = BSDFType;
-	StrataInfo.Layers[0].BSDFs[0].RegisteredSharedNormal = RegisteredSharedNormal;
+	StrataInfo.Layers[0].BSDFs[0].RegisteredSharedLocalBasis = RegisteredSharedLocalBasis;
 	StrataInfo.Layers[0].BSDFs[0].bHasSSS = bHasSSS;
 	StrataInfo.Layers[0].BSDFs[0].bHasDMFPPluggedIn = bHasDMFPPluggedIn;
 	StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = bHasEdgeColor;
@@ -129,7 +129,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compi
 
 
 // ==> NOTE: Always pair with the shader behavior in StrataAddParameterBlending.
-FStrataMaterialCompilationInfo StrataCompilationInfoAddParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedNormal& RegisteredSharedNormal)
+FStrataMaterialCompilationInfo StrataCompilationInfoAddParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis)
 {
 	check(A.TotalBSDFCount == 1);
 	check(B.TotalBSDFCount == 1);
@@ -138,7 +138,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAddParamBlend(FMaterialCompi
 	FStrataMaterialCompilationInfo::FBSDF& NewBSDF = StrataInfo.Layers[0].BSDFs[0];
 	const FStrataMaterialCompilationInfo::FBSDF& OtherBSDF = B.Layers[0].BSDFs[0];
 
-	NewBSDF.RegisteredSharedNormal = RegisteredSharedNormal;
+	NewBSDF.RegisteredSharedLocalBasis = RegisteredSharedLocalBasis;
 
 	// When parameter blending is used, we take the union of all the features activated by input BSDFs.
 	NewBSDF.bHasSSS				|=	OtherBSDF.bHasSSS;
@@ -159,7 +159,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCo
 
 
 // ==> NOTE: Always pair with the shader behavior in StrataHorizontalMixingParameterBlending
-FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedNormal& RegisteredSharedNormal)
+FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis)
 {
 	check(A.TotalBSDFCount == 1);
 	check(B.TotalBSDFCount == 1);
@@ -168,7 +168,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(F
 	FStrataMaterialCompilationInfo::FBSDF& NewBSDF = StrataInfo.Layers[0].BSDFs[0];
 	const FStrataMaterialCompilationInfo::FBSDF& OtherBSDF = B.Layers[0].BSDFs[0];
 
-	NewBSDF.RegisteredSharedNormal = RegisteredSharedNormal;
+	NewBSDF.RegisteredSharedLocalBasis = RegisteredSharedLocalBasis;
 
 	// When parameter blending is used, we take the union of all the features activated by input BSDFs.
 	NewBSDF.bHasSSS				|=	OtherBSDF.bHasSSS;
@@ -206,7 +206,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCo
 
 
 // ==> NOTE: Always pair with the shader behavior in StrataVerticalLayeringParameterBlending
-FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayeringParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Top, const FStrataMaterialCompilationInfo& Base, const FStrataRegisteredSharedNormal& RegisteredSharedNormal)
+FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayeringParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Top, const FStrataMaterialCompilationInfo& Base, const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis)
 {
 	check(Top.TotalBSDFCount == 1);
 	check(Base.TotalBSDFCount == 1);
@@ -215,7 +215,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayeringParamBlend(F
 	FStrataMaterialCompilationInfo::FBSDF& NewBSDF = StrataInfo.Layers[0].BSDFs[0];
 	const FStrataMaterialCompilationInfo::FBSDF& TopBSDF = Top.Layers[0].BSDFs[0];
 
-	NewBSDF.RegisteredSharedNormal = RegisteredSharedNormal;
+	NewBSDF.RegisteredSharedLocalBasis = RegisteredSharedLocalBasis;
 
 //	NewBSDF.bHasSSS				= TopBSDF.bHasSSS;				// We keep SSS only if the base layer has it. Otherwise it will be simple volume and the throughput wll be applied on the parameters.
 //	NewBSDF.bHasDMFPPluggedIn	= TopBSDF.bHasDMFPPluggedIn;	// Idem
@@ -338,10 +338,10 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 
 	// 1. Header
 
-	// SharedNormals_BSDFCount
+	// SharedLocalBases_BSDFCount
 	Result.RequestedByteCount += UintByteSize;
-	// Shared normals between BSDFs
-	Result.RequestedByteCount += Compiler->StrataCompilationInfoGetSharedNormalCount() * STRATA_PACKED_NORMAL_STRIDE_BYTES;
+	// shared local bases between BSDFs
+	Result.RequestedByteCount += Compiler->StrataCompilationInfoGetSharedLocalBasesCount() * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
 	
 	// 2. The list of BSDFs
 
