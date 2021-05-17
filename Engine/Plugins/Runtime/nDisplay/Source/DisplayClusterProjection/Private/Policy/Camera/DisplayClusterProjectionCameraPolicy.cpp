@@ -15,7 +15,7 @@
 #include "Camera/CameraComponent.h"
 #include "ComposurePostMoves.h"
 
-#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
@@ -47,7 +47,7 @@ bool FDisplayClusterProjectionCameraPolicy::HandleStartScene(class IDisplayClust
 
 	if (CfgComponent)
 	{
-		UDisplayClusterICVFX_CineCameraComponent* CameraICVFX = Cast<UDisplayClusterICVFX_CineCameraComponent>(CfgComponent);
+		UDisplayClusterICVFXCameraComponent* CameraICVFX = Cast<UDisplayClusterICVFXCameraComponent>(CfgComponent);
 		if (CameraICVFX)
 		{
 			AssignedICVFXCameraRef.SetSceneComponent(CameraICVFX);
@@ -88,7 +88,7 @@ APlayerCameraManager* const GetCurPlayerCameraManager(IDisplayClusterViewport* I
 	return nullptr;
 }
 
-bool FDisplayClusterProjectionCameraPolicy::UpdateICVFXCamera(UDisplayClusterICVFX_CineCameraComponent* InComponentICVFX)
+bool FDisplayClusterProjectionCameraPolicy::UpdateICVFXCamera(UDisplayClusterICVFXCameraComponent* InComponentICVFX)
 {
 	if (InComponentICVFX)
 	{
@@ -114,7 +114,7 @@ bool FDisplayClusterProjectionCameraPolicy::UpdateICVFXCamera(UDisplayClusterICV
 UCameraComponent* FDisplayClusterProjectionCameraPolicy::GetCameraComponent()
 {
 	// Support runtime update for ICVFX camera component
-	UDisplayClusterICVFX_CineCameraComponent* CameraICVFX = ImplGetAssignedICVFXComponent();
+	UDisplayClusterICVFXCameraComponent* CameraICVFX = ImplGetAssignedICVFXComponent();
 	if (CameraICVFX)
 	{
 		UpdateICVFXCamera(CameraICVFX);
@@ -123,14 +123,14 @@ UCameraComponent* FDisplayClusterProjectionCameraPolicy::GetCameraComponent()
 	return ImplGetAssignedCamera();
 }
 
-UDisplayClusterICVFX_CineCameraComponent* FDisplayClusterProjectionCameraPolicy::ImplGetAssignedICVFXComponent()
+UDisplayClusterICVFXCameraComponent* FDisplayClusterProjectionCameraPolicy::ImplGetAssignedICVFXComponent()
 {
 	if (AssignedICVFXCameraRef.IsDefinedSceneComponent())
 	{
 		USceneComponent* SceneComponent = AssignedICVFXCameraRef.GetOrFindSceneComponent();
 		if (SceneComponent)
 		{
-			UDisplayClusterICVFX_CineCameraComponent* CameraComponentICVFX = Cast<UDisplayClusterICVFX_CineCameraComponent>(SceneComponent);
+			UDisplayClusterICVFXCameraComponent* CameraComponentICVFX = Cast<UDisplayClusterICVFXCameraComponent>(SceneComponent);
 			if (CameraComponentICVFX)
 			{
 				return CameraComponentICVFX;
@@ -251,8 +251,8 @@ bool FDisplayClusterProjectionCameraPolicy::GetSettingsFromConfig(class IDisplay
 	}
 
 	// Get ICVFX camera component
-	TArray<UDisplayClusterICVFX_CineCameraComponent*> ICVFXCameraComps;
-	RootActor->GetComponents<UDisplayClusterICVFX_CineCameraComponent>(ICVFXCameraComps);
+	TArray<UDisplayClusterICVFXCameraComponent*> ICVFXCameraComps;
+	RootActor->GetComponents<UDisplayClusterICVFXCameraComponent>(ICVFXCameraComps);
 	for (UCameraComponent* Comp : ICVFXCameraComps)
 	{
 		if (Comp->GetName() == CameraComponentId)
