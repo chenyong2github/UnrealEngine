@@ -782,6 +782,8 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 
 TSharedPtr<FRemoteControlEntity> URemoteControlPreset::Expose(FRemoteControlEntity&& Entity, UScriptStruct* EntityType, const FGuid& GroupId)
 {
+	Registry->Modify();
+	
 	TSharedPtr<FRemoteControlEntity> RCEntity = Registry->AddExposedEntity(MoveTemp(Entity), EntityType);
 	InitializeEntityMetadata(RCEntity);
 	
@@ -981,6 +983,7 @@ void URemoteControlPreset::Unexpose(const FGuid& EntityId)
 	if (EntityId.IsValid() && Registry->GetExposedEntity(EntityId).IsValid())
 	{
 		OnEntityUnexposedDelegate.Broadcast(this, EntityId);
+		Registry->Modify();
 		Registry->RemoveExposedEntity(EntityId);
 		FRCCachedFieldData CachedData = FieldCache.FindChecked(EntityId);
 		Layout.RemoveField(CachedData.LayoutGroupId, EntityId);
@@ -1089,6 +1092,11 @@ void URemoteControlPreset::Serialize(FArchive& Ar)
 		if (CustomVersion < FRemoteControlObjectVersion::ConvertTargetsToBindings)
 		{
 			ConvertTargetsToBindings();
+		}
+
+		if (!PresetId.IsValid())
+		{
+			PresetId = FGuid::NewGuid();
 		}
 	}
 }

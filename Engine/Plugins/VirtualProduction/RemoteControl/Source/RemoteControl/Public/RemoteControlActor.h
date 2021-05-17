@@ -37,7 +37,7 @@ struct REMOTECONTROL_API FRemoteControlActor : public FRemoteControlEntity
 	{
 		if (InObjectToBind && InObjectToBind->IsA<AActor>())
 		{
-			SetActor(CastChecked<AActor>(InObjectToBind));
+			FRemoteControlEntity::BindObject(InObjectToBind);
 		}
 	}
 
@@ -60,15 +60,7 @@ struct REMOTECONTROL_API FRemoteControlActor : public FRemoteControlEntity
 
 	void SetActor(AActor* InActor)
 	{
-		if (Owner.IsValid())
-		{
-			Owner->Modify();
-		}
-
-		if (ensure(Bindings.Num()) && Bindings[0].IsValid())
-		{
-			Bindings[0]->SetBoundObject(InActor);
-		}
+		BindObject(InActor);
 	}
 
 public:

@@ -234,6 +234,20 @@ void SRCPanelFunctionPicker::Construct(const FArguments& InArgs)
 	];
 }
 
+void SRCPanelFunctionPicker::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	constexpr double MinimumTimeToSwitchFocus = 0.2;
+	if (LastTimeSinceTick != 0.0 && InCurrentTime - LastTimeSinceTick > MinimumTimeToSwitchFocus)
+	{
+		ObjectsTreeView->ClearSearchBox();
+		ObjectsTreeView->Focus();
+	}
+
+	LastTimeSinceTick = InCurrentTime;
+}
+
 FReply SRCPanelFunctionPicker::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
 {
 	if (InFocusEvent.GetCause() == EFocusCause::Navigation)

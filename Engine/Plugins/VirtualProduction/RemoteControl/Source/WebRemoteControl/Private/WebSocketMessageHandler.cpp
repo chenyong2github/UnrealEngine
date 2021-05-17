@@ -88,7 +88,6 @@ void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteContro
 		Preset->OnFieldRenamed().AddRaw(this, &FWebSocketMessageHandler::OnFieldRenamed);
 		Preset->OnMetadataModified().AddRaw(this, &FWebSocketMessageHandler::OnMetadataModified);
 		Preset->OnActorPropertyModified().AddRaw(this, &FWebSocketMessageHandler::OnActorPropertyChanged);
-
 	}
 
 	ClientIds->AddUnique(WebSocketMessage.ClientId);
@@ -230,8 +229,13 @@ void FWebSocketMessageHandler::OnPropertyUnexposed(URemoteControlPreset* Owner, 
 		return;
 	}
 
+	TSharedPtr<FRemoteControlEntity> Entity = Owner->GetExposedEntity(EntityId).Pin();
+	check(Entity);
+
 	//Cache the property field that was removed for end of frame notification
-	PerFrameRemovedProperties.FindOrAdd(Owner->GetFName()).AddUnique(EntityId);
+	TTuple<TArray<FGuid>, TArray<FName>>& Entries = PerFrameRemovedProperties.FindOrAdd(Owner->GetFName());
+	Entries.Key.AddUnique(EntityId);
+	Entries.Value.AddUnique(Entity->GetLabel());
 }
 
 void FWebSocketMessageHandler::OnFieldRenamed(URemoteControlPreset* Owner, FName OldFieldLabel, FName NewFieldLabel)
@@ -394,30 +398,17 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 
 void FWebSocketMessageHandler::ProcessRemovedProperties()
 {
-	for (const TPair<FName, TArray<FGuid>>& Entry : PerFrameRemovedProperties)
+	for (const TPair<FName, TTuple<TArray<FGuid>, TArray<FName>>>& Entry : PerFrameRemovedProperties)
 	{
-		if (Entry.Value.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
+		if (Entry.Value.Key.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
 		{
 			continue;
 		}
 
-		TArray<FName> Labels;
-		Labels.Reserve(Entry.Value.Num());
-		if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry.Key))
-		{
-			for (const FGuid& Id : Entry.Value)
-			{
-				if (TSharedPtr<FRemoteControlEntity> Entity = Preset->GetExposedEntity(Id).Pin())
-				{
-					Labels.Add(Entity->GetLabel());
-				}
-			}
-		}
-
-		ensure(Labels.Num() == Entry.Value.Num());
+		ensure(Entry.Value.Key.Num() == Entry.Value.Value.Num());
 		
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRemovedEvent{ Entry.Key, Labels, Entry.Value}, Payload);
+		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRemovedEvent{ Entry.Key, Entry.Value.Value, Entry.Value.Key }, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 	

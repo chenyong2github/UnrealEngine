@@ -627,7 +627,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	{
 		TArray<uint8> WorkingBuffer;
 		FMemoryWriter Writer(WorkingBuffer);
-		FRCJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+		FRCJsonStructSerializerBackend SerializerBackend(Writer);
 		if (IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend))
 		{
 			Response->Code = EHttpServerResponseCodes::Ok;
@@ -711,7 +711,7 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	TArray<uint8> OutputBuffer;
 	FMemoryWriter Writer{ OutputBuffer };
 	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
-	FRCJsonStructSerializerBackend WriterBackend{ Writer, EStructSerializerBackendFlags::Default };
+	FRCJsonStructSerializerBackend WriterBackend{ Writer };
 
 	JsonWriter->WriteObjectStart();
 	JsonWriter->WriteIdentifierPrefix("ReturnedValues");
@@ -917,7 +917,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	{
 		{
 			JsonWriter->WriteIdentifierPrefix(TEXT("ExposedPropertyDescription"));
-			FRCJsonStructSerializerBackend SerializeBackend{Writer, EStructSerializerBackendFlags::Default};
+			FRCJsonStructSerializerBackend SerializeBackend{Writer};
 			FStructSerializer::Serialize(FRCExposedPropertyDescription{*RemoteControlProperty}, SerializeBackend, FStructSerializerPolicies());
 		}
 		
@@ -997,7 +997,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHt
 
 			bSuccess &= IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Actor, FieldPath, ObjectRef);
 
-			FRCJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+			FRCJsonStructSerializerBackend SerializerBackend(Writer);
 
 			JsonWriter->WriteObjectStart();
 			JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
@@ -1051,7 +1051,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute(const F
 		{
 			TArray<uint8> WorkingBuffer;
 			FMemoryWriter Writer(WorkingBuffer);
-			FRCJsonStructSerializerBackend Backend{Writer, EStructSerializerBackendFlags::Default};
+			FRCJsonStructSerializerBackend Backend{Writer};
 
 			FRCObjectReference Ref{ ERCAccess::READ_ACCESS, Actor};
 			if (IRemoteControlModule::Get().GetObjectProperties(Ref, Backend))
