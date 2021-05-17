@@ -87,18 +87,18 @@ public:
 	// Note that skipped parameters in macro definitions will just evaluate to nothing
 	// This is intentional to get around the inconsistent naming in the color grading fields in FPostProcessSettings
 	#define PP_CONDITIONAL_BLEND(BLENDOP, COLOR, OUTGROUP, INGROUP, NAME, OFFSETOP, OFFSETVALUE) \
-		OutputPP.bOverride_##COLOR##NAME##OUTGROUP = ClusterPPSettings.##INGROUP bOverride_##NAME || ViewportPPSettings.##INGROUP bOverride_##NAME; \
-		if (ClusterPPSettings.##INGROUP bOverride_##NAME && ViewportPPSettings.##INGROUP bOverride_##NAME) \
+		OutputPP.bOverride_##COLOR##NAME##OUTGROUP = ClusterPPSettings.INGROUP bOverride_##NAME || ViewportPPSettings.INGROUP bOverride_##NAME; \
+		if (ClusterPPSettings.INGROUP bOverride_##NAME && ViewportPPSettings.INGROUP bOverride_##NAME) \
 		{ \
-			OutputPP.##COLOR##NAME##OUTGROUP = ClusterPPSettings.##INGROUP##NAME ##BLENDOP ViewportPPSettings.##INGROUP##NAME ##OFFSETOP ##OFFSETVALUE; \
+			OutputPP.COLOR##NAME##OUTGROUP = ClusterPPSettings.INGROUP NAME BLENDOP ViewportPPSettings.INGROUP NAME OFFSETOP OFFSETVALUE; \
 		} \
-		else if (ClusterPPSettings.##INGROUP bOverride_##NAME) \
+		else if (ClusterPPSettings.INGROUP bOverride_##NAME) \
 		{ \
-			OutputPP.##COLOR##NAME##OUTGROUP = ClusterPPSettings.##INGROUP##NAME; \
+			OutputPP.COLOR##NAME##OUTGROUP = ClusterPPSettings.INGROUP NAME; \
 		} \
-		else if (ViewportPPSettings.##INGROUP bOverride_##NAME) \
+		else if (ViewportPPSettings.INGROUP bOverride_##NAME) \
 		{ \
-			OutputPP.##COLOR##NAME##OUTGROUP = ViewportPPSettings.##INGROUP##NAME; \
+			OutputPP.COLOR##NAME##OUTGROUP = ViewportPPSettings.INGROUP NAME; \
 		} \
 
 	static void BlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_PerViewportSettings& ClusterPPSettings, const FDisplayClusterConfigurationViewport_PerViewportSettings& ViewportPPSettings)
@@ -135,8 +135,8 @@ public:
 	#define PP_CONDITIONAL_COPY(COLOR, OUTGROUP, INGROUP, NAME) \
 		if (InPPS->bOverride_##COLOR##NAME##INGROUP) \
 		{ \
-			OutViewportPPSettings->##OUTGROUP##NAME = InPPS->##COLOR##NAME##INGROUP; \
-			OutViewportPPSettings->##OUTGROUP bOverride_##NAME = true; \
+			OutViewportPPSettings->OUTGROUP NAME = InPPS->COLOR##NAME##INGROUP; \
+			OutViewportPPSettings->OUTGROUP bOverride_##NAME = true; \
 		} \
 
 	static void CopyPPSStructConditional(FDisplayClusterConfigurationViewport_PerViewportSettings* OutViewportPPSettings, FPostProcessSettings* InPPS)
@@ -174,8 +174,8 @@ public:
 	}
 
 	#define PP_COPY(COLOR, OUTGROUP, INGROUP, NAME) \
-		OutViewportPPSettings->##OUTGROUP##NAME = InPPS->##COLOR##NAME##INGROUP; \
-		OutViewportPPSettings->##OUTGROUP bOverride_##NAME = true; \
+		OutViewportPPSettings->OUTGROUP NAME = InPPS->COLOR##NAME##INGROUP; \
+		OutViewportPPSettings->OUTGROUP bOverride_##NAME = true; \
 
 	static void CopyPPSStruct(FDisplayClusterConfigurationViewport_PerViewportSettings* OutViewportPPSettings, FPostProcessSettings* InPPS)
 	{

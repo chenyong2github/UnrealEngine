@@ -62,6 +62,9 @@ class IDisplayClusterConfiguratorViewTree
 	: public IDisplayClusterConfiguratorView
 {
 public:
+	virtual ~IDisplayClusterConfiguratorViewTree() = default;
+
+public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnHoveredItemSet, const TSharedRef<IDisplayClusterConfiguratorTreeItem>&);
 	DECLARE_MULTICAST_DELEGATE(FOnHoveredItemCleared);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemsSelected, const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>&);

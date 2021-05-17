@@ -8,6 +8,5 @@ class IDisplayClusterConfiguratorBuilder
 	: public TSharedFromThis<IDisplayClusterConfiguratorBuilder>
 {
 public:
-	virtual ~IDisplayClusterConfiguratorBuilder()
-	{ }
+	virtual ~IDisplayClusterConfiguratorBuilder() = default;
 };

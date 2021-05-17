@@ -37,12 +37,12 @@ FDisplayClusterClusterManager::FDisplayClusterClusterManager()
 	// Set internal system events handler
 	OnClusterEventJson.Add(FDisplayClusterClusterEventHandler::Get().GetJsonListenerDelegate());
 
-	NativeInputDataAvailableEvent = FPlatformProcess::CreateSynchEvent(true);
+	NativeInputDataAvailableEvent = FPlatformProcess::GetSynchEventFromPool(true);
 }
 
 FDisplayClusterClusterManager::~FDisplayClusterClusterManager()
 {
-	delete NativeInputDataAvailableEvent;
+	FPlatformProcess::ReturnSynchEventToPool(NativeInputDataAvailableEvent);
 }
 
 

@@ -11,5 +11,8 @@ struct FDisplayClusterClusterEventJson;
 class IDisplayClusterProtocolEventsJson
 {
 public:
+	virtual ~IDisplayClusterProtocolEventsJson() = default;
+
+public:
 	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event) = 0;
 };

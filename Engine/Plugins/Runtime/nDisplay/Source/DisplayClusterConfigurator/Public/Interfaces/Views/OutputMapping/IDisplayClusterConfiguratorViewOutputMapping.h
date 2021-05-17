@@ -77,6 +77,9 @@ class IDisplayClusterConfiguratorViewOutputMapping
 	: public IDisplayClusterConfiguratorView
 {
 public:
+	virtual ~IDisplayClusterConfiguratorViewOutputMapping() = default;
+
+public:
 	DECLARE_MULTICAST_DELEGATE(FOnOutputMappingBuilt);
 
 	using FOnOutputMappingBuiltDelegate = FOnOutputMappingBuilt::FDelegate;

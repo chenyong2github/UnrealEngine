@@ -15,8 +15,7 @@ class UDisplayClusterConfigurationData;
 class IPDisplayClusterManager
 {
 public:
-	virtual ~IPDisplayClusterManager() = 0
-	{ }
+	virtual ~IPDisplayClusterManager() = default;
 
 public:
 	// Called at start to initialize internals

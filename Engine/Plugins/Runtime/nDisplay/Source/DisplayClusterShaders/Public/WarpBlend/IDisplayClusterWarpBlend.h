@@ -15,9 +15,9 @@ struct FMPCDIGeometryExportData;
 class IDisplayClusterWarpBlend
 {
 public:
-	virtual ~IDisplayClusterWarpBlend()
-	{ }
+	virtual ~IDisplayClusterWarpBlend() = default;
 
+public:
 	/**
 	* Calculate warp context data for new eye
 	*

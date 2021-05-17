@@ -12,9 +12,9 @@ class IDisplayClusterClusterSyncObject
 	: public IDisplayClusterStringSerializable
 {
 public:
-	virtual ~IDisplayClusterClusterSyncObject()
-	{ }
+	virtual ~IDisplayClusterClusterSyncObject() = default;
 
+public:
 	// Need to sync this object?
 	virtual bool IsActive() const = 0;
 	// Unique ID of synced object

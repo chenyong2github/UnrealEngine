@@ -19,8 +19,7 @@ class FViewport;
 class IDisplayClusterPostProcess
 {
 public:
-	virtual ~IDisplayClusterPostProcess() = 0
-	{ }
+	virtual ~IDisplayClusterPostProcess() = default;
 
 public:
 	/**

@@ -14,8 +14,7 @@ struct FDisplayClusterConfigurationProjection;
 class IDisplayClusterConfigManager
 {
 public:
-	virtual ~IDisplayClusterConfigManager() = 0
-	{ }
+	virtual ~IDisplayClusterConfigManager() = default;
 
 public:
 	// Returns current config data

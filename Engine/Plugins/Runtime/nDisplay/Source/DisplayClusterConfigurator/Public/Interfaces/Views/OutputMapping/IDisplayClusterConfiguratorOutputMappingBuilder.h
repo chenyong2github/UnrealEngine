@@ -15,6 +15,9 @@ class IDisplayClusterConfiguratorOutputMappingBuilder
 	: public IDisplayClusterConfiguratorBuilder
 {
 public:
+	virtual ~IDisplayClusterConfiguratorOutputMappingBuilder() = default;
+
+public:
 	struct FSlot
 	{
 		static const FName Canvas;

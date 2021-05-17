@@ -8,4 +8,6 @@
 class IDisplayClusterConfiguratorViewDetails
 	: public IDisplayClusterConfiguratorView
 {
+public:
+	virtual ~IDisplayClusterConfiguratorViewDetails() = default;
 };

@@ -19,8 +19,7 @@ struct FDisplayClusterConfigurationViewportPreview;
 class DISPLAYCLUSTER_API IDisplayClusterViewportManager
 {
 public:
-	virtual ~IDisplayClusterViewportManager() = 0
-	{ }
+	virtual ~IDisplayClusterViewportManager() = default;
 
 public:
 	virtual const IDisplayClusterViewportManagerProxy* GetProxy() const = 0;

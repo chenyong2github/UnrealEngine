@@ -71,9 +71,9 @@ namespace DisplayClusterConfigurationStrings
 
 			namespace render_sync
 			{
-				static constexpr auto None     = TEXT("none");
-				
-				static constexpr auto Ethernet = TEXT("ethernet");
+				static constexpr auto None              = TEXT("none");
+				static constexpr auto Ethernet          = TEXT("ethernet");
+				static constexpr auto EthernetBarrier   = TEXT("ethernet_barrier");
 
 				static constexpr auto Nvidia            = TEXT("nvidia");
 				static constexpr auto NvidiaSwapBarrier = TEXT("swap_barrier");

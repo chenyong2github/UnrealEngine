@@ -12,8 +12,8 @@ class FDisplayClusterProjectionVIOSOPolicyFactory
 	: public IDisplayClusterProjectionPolicyFactory
 {
 public:
-	FDisplayClusterProjectionVIOSOPolicyFactory();
-	virtual ~FDisplayClusterProjectionVIOSOPolicyFactory();
+	FDisplayClusterProjectionVIOSOPolicyFactory() = default;
+	virtual ~FDisplayClusterProjectionVIOSOPolicyFactory() = default;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

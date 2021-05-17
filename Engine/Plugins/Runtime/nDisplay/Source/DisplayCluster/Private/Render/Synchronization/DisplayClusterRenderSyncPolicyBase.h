@@ -16,8 +16,7 @@ public:
 		: Parameters(InParameters)
 	{ }
 
-	virtual ~FDisplayClusterRenderSyncPolicyBase() = 0
-	{ }
+	virtual ~FDisplayClusterRenderSyncPolicyBase() = default;
 
 public:
 	void SyncBarrierRenderThread();
