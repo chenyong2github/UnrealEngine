@@ -655,6 +655,9 @@ FRotator UnwindRotator(const FRotator& InOld, const FRotator& InNew)
 
 void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>& LastTransform, const FTransformData& CurrentTransform, EMovieSceneTransformChannel ChannelsToKey, UObject* Object, UMovieSceneSection* Section, FGeneratedTrackKeys& OutGeneratedKeys)
 {
+	UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(Section);
+	EMovieSceneTransformChannel TransformMask = TransformSection->GetMask().GetChannels();
+
 	using namespace UE::MovieScene;
 
 	bool bLastVectorIsValid = LastTransform.IsSet();
@@ -688,6 +691,19 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 			bKeyX = bKeyY = bKeyZ = true;
 		}
 
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationX))
+		{
+			bKeyX = false;
+		}
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationY))
+		{
+			bKeyY = false;
+		}
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationZ))
+		{
+			bKeyZ = false;
+		}
+
 		FVector KeyVector = RecomposedTransform.Translation;
 
 		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, KeyVector.X, bKeyX));
@@ -716,6 +732,19 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 			bKeyX = bKeyY = bKeyZ = true;
 		}
 
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationX))
+		{
+			bKeyX = false;
+		}
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationY))
+		{
+			bKeyY = false;
+		}
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationZ))
+		{
+			bKeyZ = false;
+		}
+
 		// Do we need to unwind re-composed rotations?
 		KeyRotator = UnwindRotator(CurrentTransform.Rotation, RecomposedTransform.Rotation);
 		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(3, KeyRotator.Roll, bKeyX));
@@ -740,6 +769,19 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 		if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyGroup && (bKeyX || bKeyY || bKeyZ))
 		{
 			bKeyX = bKeyY = bKeyZ = true;
+		}
+
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleX))
+		{
+			bKeyX = false;
+		}
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleY))
+		{
+			bKeyY = false;
+		}
+		if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleZ))
+		{
+			bKeyZ = false;
 		}
 
 		FVector KeyVector = RecomposedTransform.Scale;
