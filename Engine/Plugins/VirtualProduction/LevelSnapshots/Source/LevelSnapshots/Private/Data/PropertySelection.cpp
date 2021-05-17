@@ -80,8 +80,8 @@ bool FPropertySelection::ShouldSerializeProperty(const FArchiveSerializedPropert
 		//		Serialize(FArchive& Ar) { Ar << SomeVar;  }
 		// }
 		// LeafProperty will be FVector::X, which we need to allow.
-		const FStructProperty* StructProperty = CastField<FStructProperty>(ParentProperty);
-		if (StructProperty->Struct->UseNativeSerialization())
+		const FStructProperty* StructProperty = CastField<FStructProperty>(ParentProperty); 
+		if (StructProperty && StructProperty->Struct->UseNativeSerialization())
 		{
 			return true;
 		}

@@ -5,11 +5,15 @@
 #include "ObjectSnapshotData.h"
 #include "WorldSnapshotData.h"
 
+#include "Internationalization/TextNamespaceUtil.h"
+#include "Internationalization/TextPackageNamespaceUtil.h"
 #include "UObject/ObjectMacros.h"
 
-FSnapshotArchive FSnapshotArchive::MakeArchiveForRestoring(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData)
+void FSnapshotArchive::RestoreData(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage)
 {
-	return FSnapshotArchive(InObjectData, InSharedData, true);
+	FSnapshotArchive Archive(InObjectData, InSharedData, true);
+	Archive.SetLocalizationNamespace(TextNamespaceUtil::EnsurePackageNamespace(InLocalisationSnapshotPackage));
+	InObjectToRestore->Serialize(Archive);
 }
 
 FString FSnapshotArchive::GetArchiveName() const
@@ -36,7 +40,9 @@ void FSnapshotArchive::Seek(int64 InPos)
 bool FSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
 	return InProperty->HasAnyPropertyFlags(ExcludedPropertyFlags)
-		// We do not support (instanced) subobjects at this moment
+		// CPF_InstancedReference and CPF_ContainsInstancedReference skips properties skip references to components.
+		// CPF_PersistentInstance skips things like UPROPERTY(Instanced)
+		// Note, this still allows subobjects, e.g. when construction script creates a new material instance.
 		|| InProperty->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance);
 }
 
@@ -84,13 +90,11 @@ FArchive& FSnapshotArchive::operator<<(UObject*& Value)
 			return *this;
 		}
 
-		TOptional<UObject*> Resolved = SharedData.ResolveObjectDependency(ReferencedIndex, bShouldLoadObjectDependenciesForTempWorld ? FWorldSnapshotData::EResolveType::ResolveForUseInTempWorld : FWorldSnapshotData::EResolveType::ResolveForUseInOriginalWorld);
-		Value = Resolved.Get(nullptr);
+		Value = ResolveObjectDependency(ReferencedIndex);
 	}
 	else
 	{
 		int32 ReferenceIndex = SharedData.AddObjectDependency(Value);
-		// TODO: Check whether subobject and allocate
 		*this << ReferenceIndex;
 	}
 	
@@ -128,6 +132,11 @@ void FSnapshotArchive::Serialize(void* Data, int64 Length)
 	}
 }
 
+UObject* FSnapshotArchive::ResolveObjectDependency(int32 ObjectIndex) const
+{
+	return SharedData.ResolveObjectDependencyForSnapshotWorld(ObjectIndex);
+}
+
 FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading)
 	:
 	ExcludedPropertyFlags(CPF_BlueprintAssignable | CPF_Transient | CPF_Deprecated),
@@ -142,9 +151,11 @@ FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnap
 	if (bIsLoading)
 	{
 		Super::SetIsLoading(true);
+		Super::SetIsSaving(false);
 	}
 	else
 	{
+		Super::SetIsLoading(false);
 		Super::SetIsSaving(true);
 	}
 }
