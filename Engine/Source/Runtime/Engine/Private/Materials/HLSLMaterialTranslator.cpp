@@ -7426,7 +7426,7 @@ int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom
 		}
 		Code.ReplaceInline(TEXT("\n"), TEXT("\r\n"), ESearchCase::CaseSensitive);
 
-		FString ParametersType = ShaderFrequency == SF_Vertex ? TEXT("Vertex") : (ShaderFrequency == SF_Domain ? TEXT("Tessellation") : TEXT("Pixel"));
+		FString ParametersType = ShaderFrequency == SF_Vertex ? TEXT("Vertex") : ((ShaderFrequency == SF_Domain || ShaderFrequency == SF_Hull) ? TEXT("Tessellation") : TEXT("Pixel"));
 
 		FMaterialCustomExpressionEntry& Entry = CustomExpressions.AddDefaulted_GetRef();
 		CustomEntry = &Entry;
