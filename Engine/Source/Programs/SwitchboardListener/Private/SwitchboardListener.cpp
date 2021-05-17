@@ -1886,6 +1886,35 @@ void FSwitchboardListener::DisconnectClient(const FIPv4Endpoint& InClientEndpoin
 	ReceiveBuffer.Remove(InClientEndpoint);
 }
 
+void FSwitchboardListener::HandleStdout(const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& Process)
+{
+	TArray<uint8> Output;
+	if (FPlatformProcess::ReadPipeToArray(Process->ReadPipe, Output))
+	{
+		Process->Output.Append(Output);
+	}
+
+	// If there was a new stdout, update the clients
+	if (Output.Num() && Process->bUpdateClientsWithStdout)
+	{
+		FSwitchboardProgramStdout Packet;
+
+		Packet.Process.Uuid = Process->UUID.ToString();
+		Packet.Process.Name = Process->Name;
+		Packet.Process.Path = Process->Path;
+		Packet.Process.Caller = Process->Caller;
+		Packet.Process.Pid = Process->PID;
+
+		Packet.PartialStdoutB64 = FBase64::Encode(Output);
+
+		for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
+		{
+			const FIPv4Endpoint& ClientEndpoint = Connection.Key;
+			SendMessage(CreateMessage(Packet), ClientEndpoint);
+		}
+	}
+}
+
 void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>>& Processes, bool bNotifyThatProgramEnded)
 {
 	// Reads pipe and cleans up dead processes from the array.
@@ -1902,50 +1931,20 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 
 		if (Process->Handle.IsValid())
 		{
-			TArray<uint8> Output;
-
-			if (FPlatformProcess::ReadPipeToArray(Process->ReadPipe, Output))
-			{
-				// make sure the output array always has exactly one trailing null terminator.
-				// this way we can always convert to a valid string.
-				if (Process->Output.Num() > 0)
-				{
-					Process->Output.RemoveAt(Process->Output.Num() - 1);
-				}
-				Process->Output.Append(Output);
-				Process->Output.Add('\x00');
-			}
-
-			// If there was a new stdout, update the clients
-			if (Output.Num() && Process->bUpdateClientsWithStdout)
-			{
-				FSwitchboardProgramStdout Packet;
-
-				Packet.Process.Uuid = Process->UUID.ToString();
-				Packet.Process.Name = Process->Name;
-				Packet.Process.Path = Process->Path;
-				Packet.Process.Caller = Process->Caller;
-				Packet.Process.Pid = Process->PID;
-
-				Packet.PartialStdout = Output;
-
-				for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
-				{
-					const FIPv4Endpoint& ClientEndpoint = Connection.Key;
-					SendMessage(CreateMessage(Packet), ClientEndpoint);
-				}
-			}
+			HandleStdout(Process);
 
 			if (!FPlatformProcess::IsProcRunning(Process->Handle))
 			{
+				// A final read can be necessary to avoid truncating the output.
+				HandleStdout(Process);
+
 				int32 ReturnCode = 0;
 				FPlatformProcess::GetProcReturnCode(Process->Handle, &ReturnCode);
 				UE_LOG(LogSwitchboard, Display, TEXT("Process exited with returncode: %d"), ReturnCode);
 
-				const FString ProcessOutput(UTF8_TO_TCHAR(Process->Output.GetData()));
 				if (ReturnCode != 0)
 				{
-					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), *ProcessOutput);
+					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), UTF8_TO_TCHAR(Process->Output.GetData()));
 				}
 
 				// Notify remote client, which implies that this is a program managed by it.
@@ -1959,7 +1958,7 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 					Packet.Process.Caller = Process->Caller;
 					Packet.Process.Pid = Process->PID;
 					Packet.Returncode = ReturnCode;
-					Packet.Output = ProcessOutput;
+					Packet.StdoutB64 = FBase64::Encode(Process->Output);
 
 					for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
 					{

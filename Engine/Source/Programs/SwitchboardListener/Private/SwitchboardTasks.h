@@ -88,9 +88,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 		const FString& InArgs, 
 		const FString& InName, 
 		const FString& InCaller, 
-		const FString& InWorkingDir,
-		bool bInUpdateClientsWithStdout,
-		int32 InPriorityModifier
+		const FString& InWorkingDir
 	)
 		: FSwitchboardTask{ ESwitchboardTaskType::Start, TEXT("start"), InTaskId, InEndpoint }
 		, Command(InCommand)
@@ -98,8 +96,6 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 		, Name(InName)
 		, Caller(InCaller)
 		, WorkingDir(InWorkingDir)
-		, bUpdateClientsWithStdout(bInUpdateClientsWithStdout)
-		, PriorityModifier(InPriorityModifier)
 	{
 	}
 
@@ -108,8 +104,8 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 	FString Name;
 	FString Caller;
 	FString WorkingDir;
-	bool bUpdateClientsWithStdout;
-	int32 PriorityModifier;
+	bool bUpdateClientsWithStdout = false;
+	int32 PriorityModifier = 0;
 
 	//~ Begin FSwitchboardTask interface
 	virtual uint32 GetEquivalenceHash() const override
