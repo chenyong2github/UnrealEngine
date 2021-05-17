@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "Interfaces/ITargetPlatform.h"
 
 UTextureCube::UTextureCube(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -366,6 +367,21 @@ void UTextureCube::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		// Use all possible mips
 		CumulativeResourceSize.AddDedicatedVideoMemoryBytes(CalcTextureMemorySizeEnum(TMC_AllMipsBiased));
 	}
+}
+
+bool UTextureCube::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const
+{
+	// TC_EncodedReflectionCapture is used only for EncodedCapture for Mobile and is hidden for the user.
+	if (CompressionSettings == TC_EncodedReflectionCapture)
+	{
+		const static FName EncodedHDR(TEXT("EncodedHDR"));
+		TArray<FName> Formats;
+
+		TargetPlatform->GetReflectionCaptureFormats(Formats);
+
+		return Formats.Contains(EncodedHDR);
+	}
+	return true;
 }
 
 #if WITH_EDITOR
