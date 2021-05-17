@@ -11,6 +11,7 @@
 
 #include "Containers/Set.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartitionStreamingPolicy.generated.h"
 
@@ -59,6 +60,9 @@ protected:
 	TSet<const UWorldPartitionRuntimeCell*> LoadedCells;
 	TSet<const UWorldPartitionRuntimeCell*> ActivatedCells;
 	TArray<FWorldPartitionStreamingSource> StreamingSources;
+
+	UWorldPartitionRuntimeHash::FStreamingSourceCells FrameActivateCells;
+	UWorldPartitionRuntimeHash::FStreamingSourceCells FrameLoadCells;
 	
 	int32 UpdateStreamingStateEpoch;
 	mutable int32 SortedAddToWorldCellsEpoch;
