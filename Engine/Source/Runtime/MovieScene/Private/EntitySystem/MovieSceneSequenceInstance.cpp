@@ -264,7 +264,7 @@ void FSequenceInstance::PreEvaluation(UMovieSceneEntitySystemLinker* Linker)
 	}
 }
 
-void FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemLinker* Linker)
+void FSequenceInstance::RunLegacyTrackTemplates()
 {
 	if (LegacyEvaluator)
 	{
@@ -281,7 +281,10 @@ void FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemLinker* Linker)
 			}
 		}
 	}
+}
 
+void FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemLinker* Linker)
+{
 	Ledger.UnlinkOneShots(Linker);
 
 	if (IsRootSequence())
