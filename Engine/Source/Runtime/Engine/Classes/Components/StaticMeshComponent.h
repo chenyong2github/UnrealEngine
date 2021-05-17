@@ -606,6 +606,7 @@ public:
 	void RemoveInstanceVertexColors();
 #endif
 
+	UE_DEPRECATED(4.27, "This function is no longer used")
 	void UpdatePreCulledData(int32 LODIndex, const TArray<uint32>& PreCulledData, const TArray<int32>& NumTrianglesPerSection);
 
 #if WITH_EDITORONLY_DATA
