@@ -220,6 +220,7 @@ struct FRHIFrameOffsetThread : public FRunnable
 	virtual void Stop() override
 	{
 		bRun = false;
+		GDynamicRHI->RHISignalFlipEvent();
 	}
 
 public:
@@ -268,7 +269,6 @@ public:
 			return;
 		}
 		bInitialized = false;
-		GDynamicRHI->RHISignalFlipEvent();
 
 		if (WaitEvent)
 		{
@@ -282,8 +282,6 @@ public:
 			delete Thread;
 			Thread = nullptr;
 		}
-
-		Singleton.GetOrInitializeWaitEvent()->Trigger();
 	}
 
 	static void SetFrameDebugInfo(uint64 PresentIndex, uint64 FrameIndex, uint64 InputTime)
