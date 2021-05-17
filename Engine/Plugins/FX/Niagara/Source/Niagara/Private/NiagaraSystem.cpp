@@ -176,10 +176,11 @@ void UNiagaraSystem::BeginDestroy()
 void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);
+
+	EnsureFullyLoaded();
 #if WITH_EDITORONLY_DATA
 	WaitForCompilationComplete();
 #endif
-	EnsureFullyLoaded();
 }
 
 #if WITH_EDITOR
@@ -188,8 +189,8 @@ void UNiagaraSystem::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 	//UE_LOG(LogNiagara, Display, TEXT("UNiagaraSystem::BeginCacheForCookedPlatformData %s %s"), *GetFullName(), GIsSavingPackage ? TEXT("Saving...") : TEXT("Not Saving..."));
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 	
+	EnsureFullyLoaded();
 #if WITH_EDITORONLY_DATA
-
 	WaitForCompilationComplete();
 #endif
 }
