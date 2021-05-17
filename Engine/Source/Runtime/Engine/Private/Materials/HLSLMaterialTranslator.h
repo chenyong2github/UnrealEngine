@@ -412,8 +412,6 @@ protected:
 	/** Tracks shared normal & tangent used by strata materials, mapping a normal code chunk hash to a SharedMaterialInfo.
 	 * A normal code chunk hash can point to multiple shared info in case it is paired with different tangents. */
 	TMultiMap<uint64, FStrataSharedNormalInfo> CodeChunkToStrataSharedNormal;
-	/** The final material topology and memory analysis that can be feedback to the user in the editor UI */
-	FStrataMaterialAnalysisResult StrataMaterialAnalysis;
 
 	/** Tracks the total number of vt samples in the shader. */
 	uint32 NumVtSamples;
