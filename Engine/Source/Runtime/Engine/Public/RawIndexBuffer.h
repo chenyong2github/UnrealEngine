@@ -129,6 +129,19 @@ public:
 	ENGINE_API FRawStaticIndexBuffer(bool InNeedsCPUAccess=false);
 
 	/**
+	 * Copy everything, keeping reference to the same RHI resources.
+	 * Returns true if input value for bAllowCPUAccess will be honored:
+	 *		- if bAllowCPUAccess is true then no indices have already been cached or IndexStorage is not empty
+	 *		- or if bAllowCPUAccess is false
+	 */
+	bool TrySetAllowCPUAccess(bool bAllowCPUAccess)
+	{
+		IndexStorage.SetAllowCPUAccess(bAllowCPUAccess);
+
+		return !bAllowCPUAccess || CachedNumIndices == 0 || IndexStorage.Num() > 0;
+	}
+
+	/**
 	 * Sets a single index value.  Consider using SetIndices() instead if you're setting a lot of indices.
 	 * @param	At	The index of the index to set
 	 * @param	NewIndexValue	The index value
