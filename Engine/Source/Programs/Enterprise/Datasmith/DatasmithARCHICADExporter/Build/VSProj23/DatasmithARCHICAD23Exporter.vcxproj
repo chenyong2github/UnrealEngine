@@ -169,7 +169,7 @@ popd
       <LinkDLL>true</LinkDLL>
       <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
       <DelayLoadDLLs />
-      <AdditionalDependencies>DatasmithUE4ArchiCAD.lib;ACAP_STAT.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ACAP_STAT.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>echo Copying files
@@ -235,6 +235,7 @@ popd
       <LinkDLL>true</LinkDLL>
       <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
       <DelayLoadDLLs />
+      <AdditionalDependencies>ACAP_STAT.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>echo Copying files
@@ -372,21 +373,18 @@ cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modu
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /d _DEBUG /fo"$(OutDir)$(SolutionName).res" "..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling the RC2 file...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)$(SolutionName).res;%(Outputs)</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)RO\$(SolutionName).grc.rc2;$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(SolutionName).res" "..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(SolutionName).res" "..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the RC2 file...</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">Compiling the RC2 file...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(SolutionName).res;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">$(OutDir)$(SolutionName).res;%(Outputs)</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)RO\$(SolutionName).grc.rc2;$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">$(OutDir)RO\$(SolutionName).grc.rc2;$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STAT.lib" Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">
-      <FileType>Document</FileType>
-    </Library>
     <Library Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STATD.lib">
       <FileType>Document</FileType>
     </Library>
