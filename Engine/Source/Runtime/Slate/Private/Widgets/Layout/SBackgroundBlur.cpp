@@ -82,20 +82,12 @@ void SBackgroundBlur::SetLowQualityBackgroundBrush(const FSlateBrush* InBrush)
 
 void SBackgroundBlur::SetHAlign(EHorizontalAlignment HAlign)
 {
-	if (ChildSlot.HAlignment != HAlign)
-	{
-		ChildSlot.HAlignment = HAlign;
-		Invalidate(EInvalidateWidget::Layout);
-	}
+	ChildSlot.SetHorizontalAlignment(HAlign);
 }
 
 void SBackgroundBlur::SetVAlign(EVerticalAlignment VAlign)
 {
-	if (ChildSlot.VAlignment != VAlign)
-	{
-		ChildSlot.VAlignment = VAlign;
-		Invalidate(EInvalidateWidget::Layout);
-	}
+	ChildSlot.SetVerticalAlignment(VAlign);
 }
 
 void SBackgroundBlur::SetPadding(TAttribute<FMargin> InPadding)

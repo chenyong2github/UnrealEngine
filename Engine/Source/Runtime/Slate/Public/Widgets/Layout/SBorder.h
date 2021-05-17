@@ -118,7 +118,7 @@ public:
 	void SetVAlign(EVerticalAlignment VAlign);
 
 	/** See Padding attribute */
-	void SetPadding(const TAttribute<FMargin>& InPadding);
+	void SetPadding(TAttribute<FMargin> InPadding);
 
 	/** See ShowEffectWhenDisabled attribute */
 	void SetShowEffectWhenDisabled(TAttribute<bool> InShowEffectWhenDisabled);

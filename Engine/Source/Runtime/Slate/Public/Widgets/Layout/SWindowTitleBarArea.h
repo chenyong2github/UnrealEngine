@@ -74,7 +74,7 @@ public:
 	void SetVAlign(EVerticalAlignment VAlign);
 
 	/** See Padding attribute */
-	void SetPadding(const TAttribute<FMargin>& InPadding);
+	void SetPadding(TAttribute<FMargin> InPadding);
 
 	void SetGameWindow(TSharedPtr<SWindow> Window)
 	{

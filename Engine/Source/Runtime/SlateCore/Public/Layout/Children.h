@@ -22,7 +22,7 @@ public:
 	FChildren(SWidget* InOwner)
 		: Owner(InOwner)
 	{
-		//check(InOwner);
+		check(InOwner);
 	}
 
 	FChildren(std::nullptr_t) = delete;
@@ -173,9 +173,8 @@ TSupportsOneChildMixin : public FChildren, public TSlotBase<MixedIntoType>
 public:
 	TSupportsOneChildMixin(SWidget* InOwner)
 		: FChildren(InOwner)
-		, TSlotBase<MixedIntoType>()
+		, TSlotBase<MixedIntoType>(static_cast<const FChildren&>(*this))
 	{
-		this->RawParentPtr = InOwner;
 	}
 
 	TSupportsOneChildMixin(std::nullptr_t) = delete;
@@ -296,9 +295,8 @@ class TSingleWidgetChildrenWithSlot : public FChildren, protected TSlotBase<Slot
 public:
 	TSingleWidgetChildrenWithSlot(SWidget* InOwner)
 		: FChildren(InOwner)
-		, TSlotBase<SlotType>()
+		, TSlotBase<SlotType>(static_cast<const FChildren&>(*this))
 	{
-		this->RawParentPtr = InOwner;
 	}
 
 	TSingleWidgetChildrenWithSlot(std::nullptr_t) = delete;
@@ -322,9 +320,11 @@ public:
 	TSlotBase<SlotType>& AsSlot() { return *this; }
 	const TSlotBase<SlotType>& AsSlot() const { return *this; }
 
+	using TSlotBase<SlotType>::GetOwnerWidget;
 	using TSlotBase<SlotType>::AttachWidget;
 	using TSlotBase<SlotType>::DetachWidget;
 	using TSlotBase<SlotType>::GetWidget;
+	using TSlotBase<SlotType>::Invalidate;
 	SlotType& operator[](const TSharedRef<SWidget>& InChildWidget)
 	{
 		this->AttachWidget(InChildWidget);
@@ -426,7 +426,7 @@ public:
 	{
 		int32 Index = Children.Add(TUniquePtr<SlotType>(Slot));
 		check(Slot);
-		Slot->AttachWidgetParent(&GetOwner());
+		Slot->SetOwner(*this);
 
 		return Index;
 	}
@@ -480,7 +480,7 @@ public:
 	{
 		check(Slot);
 		Children.Insert(TUniquePtr<SlotType>(Slot), Index);
-		Slot->AttachWidgetParent(&GetOwner());
+		Slot->SetOwner(*this);
 	}
 
 	void Move(int32 IndexToMove, int32 IndexToDestination)

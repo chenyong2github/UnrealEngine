@@ -18,11 +18,9 @@
 #include "DisplayNodes/SequencerObjectBindingNode.h"
 
 FTrackAreaSlot::FTrackAreaSlot(const TSharedPtr<SSequencerTrackLane>& InSlotContent)
+	: TAlignmentWidgetSlotMixin<FTrackAreaSlot>(HAlign_Fill, VAlign_Top)
 {
 	TrackLane = InSlotContent;
-	
-	HAlignment = HAlign_Fill;
-	VAlignment = VAlign_Top;
 
 	this->AttachWidget(
 		SNew(SWeakWidget)

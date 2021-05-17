@@ -25,8 +25,31 @@ public:
 
 	/**
 	 * Canvas slots allow child widgets to be positioned and sized
+	 *
+	 * Horizontal Alignment 
+	 *  Given a top aligned slot, where '+' represents the 
+	 *  anchor point defined by PositionAttr.
+	 *  
+	 *   Left				Center				Right
+	 *	+ _ _ _ _            _ _ + _ _          _ _ _ _ +
+	 *	|		  |		   | 		   |	  |		    |
+	 *	| _ _ _ _ |        | _ _ _ _ _ |	  | _ _ _ _ |
+	 * 
+	 *  Note: FILL is NOT supported.
+	 *
+	 * Vertical Alignment 
+	 *   Given a left aligned slot, where '+' represents the 
+	 *   anchor point defined by PositionAttr.
+	 *  
+	 *   Top				Center			  Bottom
+	 *	+_ _ _ _ _          _ _ _ _ _		 _ _ _ _ _ 
+	 *	|		  |		   | 		 |		|		  |
+	 *	| _ _ _ _ |        +		 |		|		  |
+	 *					   | _ _ _ _ |		+ _ _ _ _ |
+	 * 
+	 *  Note: FILL is NOT supported.
 	 */
-	class FSlot : public TSlotBase<FSlot>
+	class FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
 	{
 	public:		
 		FSlot& Position( const TAttribute<FVector2D>& InPosition )
@@ -41,59 +64,18 @@ public:
 			return *this;
 		}
 
-		FSlot& HAlign( EHorizontalAlignment InHAlignment )
-		{
-			HAlignment = InHAlignment;
-			return *this;
-		}
-
-		FSlot& VAlign( EVerticalAlignment InVAlignment )
-		{
-			VAlignment = InVAlignment;
-			return *this;
-		}
-
 		/** Position */
 		TAttribute<FVector2D> PositionAttr;
 
 		/** Size */
 		TAttribute<FVector2D> SizeAttr;
 
-		/** Horizontal Alignment 
-		*  Given a top aligned slot, where '+' represents the 
-		*  anchor point defined by PositionAttr.
-		*  
-		*   Left				Center				Right
-			+ _ _ _ _            _ _ + _ _          _ _ _ _ +
-			|		  |		   | 		   |	  |		    |
-			| _ _ _ _ |        | _ _ _ _ _ |	  | _ _ _ _ |
-		* 
-		*  Note: FILL is NOT supported.
-		*/
-		EHorizontalAlignment HAlignment;
-
-		/** Vertical Alignment 
-		*   Given a left aligned slot, where '+' represents the 
-		*   anchor point defined by PositionAttr.
-		*  
-		*   Top					Center			  Bottom
-		*	+_ _ _ _ _          _ _ _ _ _		 _ _ _ _ _ 
-		*	|		  |		   | 		 |		|		  |
-		*	| _ _ _ _ |        +		 |		|		  |
-		*					   | _ _ _ _ |		+ _ _ _ _ |
-		* 
-		*  Note: FILL is NOT supported.
-		*/
-		EVerticalAlignment VAlignment;
-
-
 		/** Default values for a slot. */
 		FSlot()
 			: TSlotBase<FSlot>()
+			, TAlignmentWidgetSlotMixin<FSlot>(HAlign_Left, VAlign_Top)
 			, PositionAttr( FVector2D::ZeroVector )
 			, SizeAttr( FVector2D( 1.0f, 1.0f ) )
-			, HAlignment(HAlign_Left)
-			, VAlignment(VAlign_Top)
 		{ }
 	};
 

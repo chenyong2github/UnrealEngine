@@ -30,17 +30,11 @@ public:
 	 * A BoxPanel contains one BoxPanel child and describes how that
 	 * child should be arranged on the screen.
 	 */
-	class FSlot : public TSlotBase<FSlot>
+	class FSlot : public TBasicLayoutWidgetSlot<FSlot>
 	{
 	public:		
 		/** Horizontal and Vertical Boxes inherit from FSlot */
 		virtual ~FSlot(){}
-		
-		/** Horizontal positioning of child within the allocated slot */
-		TEnumAsByte<EHorizontalAlignment> HAlignment;
-		
-		/** Vertical positioning of child within the allocated slot */
-		TEnumAsByte<EVerticalAlignment> VAlignment;
 
 		/**
 		* How much space this slot should occupy along panel's direction.
@@ -50,9 +44,6 @@ public:
 		*   peers' SizeRule_Auto requirements have been satisfied.
 		*/
 		FSizeParam SizeParam;
-
-		/** The padding to add around the child. */
-		TAttribute<FMargin> SlotPadding;
 		
 		/** The max size that this slot can be (0 if no max) */
 		TAttribute<float> MaxSize;
@@ -60,11 +51,8 @@ public:
 	protected:
 		/** Default values for a slot. */
 		FSlot()
-			: TSlotBase<FSlot>()
-			, HAlignment( HAlign_Fill )
-			, VAlignment( VAlign_Fill )
+			: TBasicLayoutWidgetSlot<FSlot>(HAlign_Fill, VAlign_Fill)
 			, SizeParam( FStretch(1) )
-			, SlotPadding( FMargin(0) )
 			, MaxSize( 0.0f )
 		{ }
 	};
@@ -139,39 +127,40 @@ public:
 			SizeParam = FStretch( StretchCoefficient );
 			return *this;
 		}
+
 		FSlot& Padding( float Uniform )
 		{
-			SlotPadding = FMargin(Uniform);
+			SBoxPanel::FSlot::Padding(Uniform);
 			return *this;
 		}
 
 		FSlot& Padding( float Horizontal, float Vertical )
 		{
-			SlotPadding = FMargin(Horizontal, Vertical);
+			SBoxPanel::FSlot::Padding(Horizontal, Vertical);
 			return *this;
 		}
 
 		FSlot& Padding( float Left, float Top, float Right, float Bottom )
 		{
-			SlotPadding = FMargin(Left, Top, Right, Bottom);
+			SBoxPanel::FSlot::Padding(Left, Top, Right, Bottom);
 			return *this;
 		}
 		
 		FSlot& Padding( TAttribute<FMargin> InPadding )
 		{
-			SlotPadding = InPadding;
+			SBoxPanel::FSlot::Padding(MoveTemp(InPadding));
 			return *this;
 		}
 
-		FSlot& HAlign( EHorizontalAlignment InHAlignment )
+		FSlot& HAlign(EHorizontalAlignment InHAlignment)
 		{
-			HAlignment = InHAlignment;
+			SBoxPanel::FSlot::HAlign(InHAlignment);
 			return *this;
 		}
 
-		FSlot& VAlign( EVerticalAlignment InVAlignment )
+		FSlot& VAlign(EVerticalAlignment InVAlignment)
 		{
-			VAlignment = InVAlignment;
+			SBoxPanel::FSlot::VAlign(InVAlignment);
 			return *this;
 		}
 
@@ -277,45 +266,39 @@ public:
 			return *this;
 		}
 
-		FSlot& Padding( float Uniform )
+		FSlot& Padding(float Uniform)
 		{
-			SlotPadding = FMargin(Uniform);
+			SBoxPanel::FSlot::Padding(Uniform);
 			return *this;
 		}
 
-		FSlot& Padding( float Horizontal, float Vertical )
+		FSlot& Padding(float Horizontal, float Vertical)
 		{
-			SlotPadding = FMargin(Horizontal, Vertical);
+			SBoxPanel::FSlot::Padding(Horizontal, Vertical);
 			return *this;
 		}
 
-		FSlot& Padding( float Left, float Top, float Right, float Bottom )
+		FSlot& Padding(float Left, float Top, float Right, float Bottom)
 		{
-			SlotPadding = FMargin(Left, Top, Right, Bottom);
+			SBoxPanel::FSlot::Padding(Left, Top, Right, Bottom);
 			return *this;
 		}
 
-		FSlot& Padding( const TAttribute<FMargin>::FGetter& InDelegate )
+		FSlot& Padding(TAttribute<FMargin> InPadding)
 		{
-			SlotPadding.Bind( InDelegate );
+			SBoxPanel::FSlot::Padding(MoveTemp(InPadding));
 			return *this;
 		}
 
 		FSlot& HAlign( EHorizontalAlignment InHAlignment )
 		{
-			HAlignment = InHAlignment;
+			SBoxPanel::FSlot::HAlign(InHAlignment);
 			return *this;
 		}
 
 		FSlot& VAlign( EVerticalAlignment InVAlignment )
 		{
-			VAlignment = InVAlignment;
-			return *this;
-		}
-
-		FSlot& Padding( TAttribute<FMargin> InPadding )
-		{
-			SlotPadding = InPadding;
+			SBoxPanel::FSlot::VAlign(InVAlignment);
 			return *this;
 		}
 

@@ -7,28 +7,37 @@
 #include "Widgets/InvalidateWidgetReason.h"
 
 class SWidget;
+class FChildren;
 
 /** Slot are a container of a SWidget used by the FChildren. */
 class SLATECORE_API FSlotBase
 {
 public:
-
 	FSlotBase();
-
-	FSlotBase( const TSharedRef<SWidget>& InWidget );
+	FSlotBase(const FChildren& Children);
+	FSlotBase(const TSharedRef<SWidget>& InWidget);
+	FSlotBase& operator=(const FSlotBase&) = delete;
+	FSlotBase(const FSlotBase&) = delete;
 
 	virtual ~FSlotBase();
 
-	FORCEINLINE_DEBUGGABLE void AttachWidgetParent(SWidget* InParent)
-	{
-		if (RawParentPtr != InParent)
-		{
-			ensureMsgf(RawParentPtr == nullptr, TEXT("Slots should not be reassigned to different parents."));
+	UE_DEPRECATED(5.0, "AttachWidgetParent is not used anymore. Use get SetOwner.")
+	void AttachWidgetParent(SWidget* InParent) { }
 
-			RawParentPtr = InParent;
-			AfterContentOrOwnerAssigned();
-		}
-	}
+	/**
+	 * Access the FChildren that own the slot.
+	 * The owner can be invalid when the slot is not attached.
+	 */
+	const FChildren* GetOwner() const { return Owner; }
+
+	/**
+	 * Access the widget that own the slot.
+	 * The owner can be invalid when the slot is not attached.
+	 */
+	SWidget* GetOwnerWidget() const;
+
+	/** Set the owner of the slot. */
+	void SetOwner(const FChildren& Children);
 
 	FORCEINLINE_DEBUGGABLE void AttachWidget( const TSharedRef<SWidget>& InWidget )
 	{
@@ -45,10 +54,7 @@ public:
 	 * There will always be a widget in the slot; sometimes it is
 	 * the SNullWidget instance.
 	 */
-	FORCEINLINE_DEBUGGABLE const TSharedRef<SWidget>& GetWidget() const
-	{
-		return Widget;
-	}
+	FORCEINLINE_DEBUGGABLE const TSharedRef<SWidget>& GetWidget() const { return Widget; }
 
 	/**
 	 * Remove the widget from its current slot.
@@ -57,9 +63,9 @@ public:
 	 */
 	const TSharedPtr<SWidget> DetachWidget();
 
-protected:
 	void Invalidate(EInvalidateWidgetReason InvalidateReason);
 
+protected:
 	/**
 	 * Performs the attribute assignment and invalidates the widget minimally based on what actually changed.  So if the boundness of the attribute didn't change
 	 * volatility won't need to be recalculated.  Returns true if the value changed.
@@ -86,22 +92,22 @@ protected:
 		return false;
 	}
 
-protected:
-	/** The parent and owner of the slot. */
-	SWidget* RawParentPtr;
-
 private:
 	void DetatchParentFromContent();
 	void AfterContentOrOwnerAssigned();
 
 private:
-	// non-copyable
-	FSlotBase& operator=(const FSlotBase&);
-	FSlotBase(const FSlotBase&);
-
-private:
+	/** The children that own the slot. */
+	const FChildren* Owner;
 	/** The content widget of the slot. */
 	TSharedRef<SWidget> Widget;
+
+#if WITH_EDITORONLY_DATA
+protected:
+	/** The parent and owner of the slot. */
+	UE_DEPRECATED(5.0, "RawParentPtr is not used anymore. Use get Owner Widget.")
+	SWidget* RawParentPtr;
+#endif
 };
 
 
@@ -110,12 +116,7 @@ template<typename SlotType>
 class TSlotBase : public FSlotBase
 {
 public:
-
-	TSlotBase() = default;
-
-	TSlotBase( const TSharedRef<SWidget>& InWidget )
-	: FSlotBase( InWidget )
-	{}
+	using FSlotBase::FSlotBase;
 
 	SlotType& operator[]( const TSharedRef<SWidget>& InChildWidget )
 	{
