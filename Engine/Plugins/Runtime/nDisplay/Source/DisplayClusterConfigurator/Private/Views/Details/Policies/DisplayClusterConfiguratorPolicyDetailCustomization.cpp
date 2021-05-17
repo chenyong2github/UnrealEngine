@@ -375,8 +375,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateCameraPolicy(UDis
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		TArray<TSubclassOf<UActorComponent>>{ UCameraComponent::StaticClass(),
-			UDisplayClusterICVFXCameraComponent::StaticClass() }));
+		TArray<TSubclassOf<UActorComponent>>{ UCameraComponent::StaticClass() } ));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
 		"Native",
