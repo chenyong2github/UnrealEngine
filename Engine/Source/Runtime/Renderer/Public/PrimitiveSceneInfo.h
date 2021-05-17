@@ -308,8 +308,8 @@ public:
 	/** Mapping from instance index in this primitive to index in the global distance field object buffers. */
 	TArray<int32, TInlineAllocator<1>> DistanceFieldInstanceIndices;
 
-	/** Mapping from instance index in this primitive to index in the LumenPrimitive array. */
-	int32 LumenPrimitiveIndex = -1;
+	/** Mapping from instance index in this primitive to index in the LumenPrimitiveGroup array. */
+	TArray<int32, TInlineAllocator<1>> LumenPrimitiveGroupIndices;
 
 	/** Whether the primitive is newly registered or moved and CachedReflectionCaptureProxy needs to be updated on the next render. */
 	uint32 bNeedsCachedReflectionCaptureUpdate : 1;

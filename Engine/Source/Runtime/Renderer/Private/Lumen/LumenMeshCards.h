@@ -23,17 +23,15 @@ class FLumenMeshCards
 {
 public:
 	void Initialize(
-		FPrimitiveSceneInfo* InCapturePrimitive,
-		int32 InCaptureInstanceIndex,
 		const FMatrix& InLocalToWorld, 
 		const FBox& InBounds,
+		int32 InPrimitiveGroupIndex,
 		uint32 InFirstCardIndex,
 		uint32 InNumCards,
 		uint32 InNumCardsPerOrientation[6],
 		uint32 InCardOffsetPerOrientation[6])
 	{
-		CapturePrimitive = InCapturePrimitive;
-		CaptureInstanceIndex = InCaptureInstanceIndex;
+		PrimitiveGroupIndex = InPrimitiveGroupIndex;
 
 		Bounds = InBounds;
 		SetTransform(InLocalToWorld);
@@ -55,8 +53,7 @@ public:
 	FMatrix LocalToWorld;
 	FBox Bounds;
 
-	FPrimitiveSceneInfo* CapturePrimitive = nullptr;
-	int32 CaptureInstanceIndex = -1;
+	int32 PrimitiveGroupIndex = -1;
 
 	uint32 FirstCardIndex = 0;
 	uint32 NumCards = 0;

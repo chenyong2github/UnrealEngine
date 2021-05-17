@@ -9,9 +9,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 
-/**
- * Grow only sparse array with stable indices and contiguous span allocation.
- */
+// Sparse array with stable indices and contiguous span allocation
 template <typename ElementType>
 class TSparseSpanArray
 {
@@ -196,9 +194,7 @@ public:
 		int32 ElementIndex;
 	};
 
-	/**
-	 * Iterate over all allocated elements (skip free ones).
-	 */
+	// Iterate over all allocated elements (skip free ones)
 	TRangedForIterator begin() { return TRangedForIterator(*this, 0); }
 	TRangedForIterator end() { return TRangedForIterator(*this, Elements.Num()); }
 	TRangedForConstIterator begin() const { return TRangedForConstIterator(*this, 0); }
@@ -350,4 +346,193 @@ private:
 
 		return NewSize;
 	}
+};
+
+// TSparseSpanArray specialization for span size == 1
+template <typename ElementType>
+class TSparseElementArray
+{
+public:
+	int32 Num() const
+	{
+		return Elements.Num();
+	}
+
+	void Reserve(int32 NumElements)
+	{
+		Elements.Reserve(NumElements);
+	}
+
+	int32 Allocate()
+	{
+		int32 InsertIndex = -1;
+
+		// Try to allocate from the free list
+		if (FreeList.Num() > 0)
+		{
+			InsertIndex = FreeList.Last();
+			FreeList.Pop();
+		}
+
+		if (InsertIndex == -1)
+		{
+			// Allocate new element
+			InsertIndex = Elements.Num();
+			Elements.AddDefaulted(1);
+			AllocatedElementsBitArray.Add(true, 1);
+		}
+		else
+		{
+			// Reuse existing element
+			checkSlow(!IsAllocated(InsertIndex));
+			Elements[InsertIndex] = ElementType();
+
+			AllocatedElementsBitArray[InsertIndex] = true;
+		}
+
+		return InsertIndex;
+	}
+
+	void Free(int32 ElementIndex)
+	{
+		checkSlow(IsAllocated(ElementIndex));
+		Elements[ElementIndex] = ElementType();
+
+		FreeList.Add(ElementIndex);
+		AllocatedElementsBitArray[ElementIndex] = false;
+	}
+
+	void Reset()
+	{
+		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+		{
+			if (IsAllocated(ElementIndex))
+			{
+				Elements[ElementIndex].~ElementType();
+			}
+		}
+
+		FreeList.Reset();
+		Elements.Reset();
+		AllocatedElementsBitArray.SetNumUninitialized(0);
+	}
+
+	ElementType& operator[](int32 Index)
+	{
+		checkSlow(IsAllocated(Index));
+		return Elements[Index];
+	}
+
+	const ElementType& operator[](int32 Index) const
+	{
+		checkSlow(IsAllocated(Index));
+		return Elements[Index];
+	}
+
+	bool IsAllocated(int32 ElementIndex) const
+	{
+		if (ElementIndex < AllocatedElementsBitArray.Num())
+		{
+			return AllocatedElementsBitArray[ElementIndex];
+		}
+
+		return false;
+	}
+
+	SIZE_T GetAllocatedSize() const
+	{
+		return Elements.GetAllocatedSize() + AllocatedElementsBitArray.GetAllocatedSize() + FreeList.GetAllocatedSize();
+	}
+
+	class TRangedForIterator
+	{
+	public:
+		TRangedForIterator(TSparseElementArray<ElementType>& InArray, int32 InElementIndex)
+			: Array(InArray)
+			, ElementIndex(InElementIndex)
+		{
+			// Scan for the first valid element.
+			while (ElementIndex < Array.Elements.Num() && !Array.AllocatedElementsBitArray[ElementIndex])
+			{
+				++ElementIndex;
+			}
+		}
+
+		TRangedForIterator operator++()
+		{
+			// Scan for the next first valid element.
+			do
+			{
+				++ElementIndex;
+			} while (ElementIndex < Array.Elements.Num() && !Array.AllocatedElementsBitArray[ElementIndex]);
+
+			return *this;
+		}
+
+		bool operator!=(const TRangedForIterator& Other) const
+		{
+			return ElementIndex != Other.ElementIndex;
+		}
+
+		ElementType& operator*()
+		{
+			return Array.Elements[ElementIndex];
+		}
+
+	private:
+		TSparseElementArray<ElementType>& Array;
+		int32 ElementIndex;
+	};
+
+	class TRangedForConstIterator
+	{
+	public:
+		TRangedForConstIterator(const TSparseElementArray<ElementType>& InArray, int32 InElementIndex)
+			: Array(InArray)
+			, ElementIndex(InElementIndex)
+		{
+			// Scan for the first valid element.
+			while (ElementIndex < Array.Elements.Num() && !Array.AllocatedElementsBitArray[ElementIndex])
+			{
+				++ElementIndex;
+			}
+		}
+
+		TRangedForConstIterator operator++()
+		{
+			// Scan for the next first valid element.
+			do
+			{
+				++ElementIndex;
+			} while (ElementIndex < Array.Elements.Num() && !Array.AllocatedElementsBitArray[ElementIndex]);
+
+			return *this;
+		}
+
+		bool operator!=(const TRangedForConstIterator& Other) const
+		{
+			return ElementIndex != Other.ElementIndex;
+		}
+
+		const ElementType& operator*() const
+		{
+			return Array.Elements[ElementIndex];
+		}
+
+	private:
+		const TSparseElementArray<ElementType>& Array;
+		int32 ElementIndex;
+	};
+
+	// Iterate over all allocated elements (skip free ones)
+	TRangedForIterator begin() { return TRangedForIterator(*this, 0); }
+	TRangedForIterator end() { return TRangedForIterator(*this, Elements.Num()); }
+	TRangedForConstIterator begin() const { return TRangedForConstIterator(*this, 0); }
+	TRangedForConstIterator end() const { return TRangedForConstIterator(*this, Elements.Num()); }
+
+private:
+
+	TArray<ElementType> Elements;
+	TBitArray<> AllocatedElementsBitArray;
+	TArray<int32> FreeList;
 };

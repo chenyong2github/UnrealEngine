@@ -704,12 +704,10 @@ FCardPageRenderData::FCardPageRenderData(const FViewInfo& InMainView,
 	FVector4 InCardUVRect,
 	FIntRect InCardCaptureAtlasRect,
 	FIntRect InSurfaceCacheAtlasRect,
-	FPrimitiveSceneInfo* InPrimitiveSceneInfo,
-	int32 InPrimitiveInstanceIndexOrMergedFlag,
+	int32 InPrimitiveGroupIndex,
 	int32 InCardIndex,
 	int32 InPageTableIndex)
-	: PrimitiveSceneInfo(InPrimitiveSceneInfo)
-	, PrimitiveInstanceIndexOrMergedFlag(InPrimitiveInstanceIndexOrMergedFlag)
+	: PrimitiveGroupIndex(InPrimitiveGroupIndex)
 	, CardIndex(InCardIndex)
 	, PageTableIndex(InPageTableIndex)
 	, bDistantScene(InCardData.bDistantScene)
@@ -923,6 +921,7 @@ void AllocateOptionalCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& Lum
 void AddCardCaptureDraws(const FScene* Scene,
 	FRHICommandListImmediate& RHICmdList,
 	FCardPageRenderData& CardPageRenderData,
+	const FLumenPrimitiveGroup& PrimitiveGroup,
 	FMeshCommandOneFrameArray& VisibleMeshCommands,
 	TArray<int32, SceneRenderingAllocator>& PrimitiveIds)
 {
@@ -930,96 +929,114 @@ void AddCardCaptureDraws(const FScene* Scene,
 
 	const EMeshPass::Type MeshPass = EMeshPass::LumenCardCapture;
 	const ENaniteMeshPass::Type NaniteMeshPass = ENaniteMeshPass::LumenCardCapture;
-	FPrimitiveSceneInfo* PrimitiveSceneInfo = CardPageRenderData.PrimitiveSceneInfo;
 
-	if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
+	uint32 MaxVisibleMeshDrawCommands = 0;
+	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
 	{
-		if (PrimitiveSceneInfo->Proxy->IsNaniteMesh())
+		if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting() && !PrimitiveSceneInfo->Proxy->IsNaniteMesh())
 		{
-			if (CardPageRenderData.PrimitiveInstanceIndexOrMergedFlag >= 0)
+			MaxVisibleMeshDrawCommands += PrimitiveSceneInfo->StaticMeshRelevances.Num();
+		}
+	}
+	CardPageRenderData.InstanceRuns.Reserve(2 * MaxVisibleMeshDrawCommands);
+
+	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
+	{
+		if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
+		{
+			if (PrimitiveSceneInfo->Proxy->IsNaniteMesh())
 			{
-				CardPageRenderData.NaniteInstanceIds.Add(PrimitiveSceneInfo->GetInstanceDataOffset() + CardPageRenderData.PrimitiveInstanceIndexOrMergedFlag);
+				if (PrimitiveGroup.PrimitiveInstanceIndex >= 0)
+				{
+					CardPageRenderData.NaniteInstanceIds.Add(PrimitiveSceneInfo->GetInstanceDataOffset() + PrimitiveGroup.PrimitiveInstanceIndex);
+				}
+				else
+				{
+					// Render all instances
+					const int32 NumInstances = PrimitiveSceneInfo->GetNumInstanceDataEntries();
+
+					for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+					{
+						CardPageRenderData.NaniteInstanceIds.Add(PrimitiveSceneInfo->GetInstanceDataOffset() + InstanceIndex);
+					}
+				}
+
+				for (const FNaniteCommandInfo& CommandInfo : PrimitiveSceneInfo->NaniteCommandInfos[NaniteMeshPass])
+				{
+					CardPageRenderData.NaniteCommandInfos.Add(CommandInfo);
+				}
 			}
 			else
 			{
-				// Render all instances
-				const int32 NumInstances = PrimitiveSceneInfo->GetNumInstanceDataEntries();
+				FLODMask LODToRender;
 
-				for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+				int32 MaxLOD = 0;
+				for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); ++MeshIndex)
 				{
-					CardPageRenderData.NaniteInstanceIds.Add(PrimitiveSceneInfo->GetInstanceDataOffset() + InstanceIndex);
-				}
-			}
-
-			for (const FNaniteCommandInfo& CommandInfo : PrimitiveSceneInfo->NaniteCommandInfos[NaniteMeshPass])
-			{
-				CardPageRenderData.NaniteCommandInfos.Add(CommandInfo);
-			}
-		}
-		else
-		{
-			FLODMask LODToRender;
-
-			int32 MaxLOD = 0;
-			for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); ++MeshIndex)
-			{
-				const FStaticMeshBatchRelevance& Mesh = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
-				if (Mesh.ScreenSize > 0.0f)
-				{
-					//todo DynamicGI artist control - last LOD is sometimes billboard
-					MaxLOD = FMath::Max(MaxLOD, (int32)Mesh.LODIndex);
-				}
-			}
-			LODToRender.SetLOD(MaxLOD);
-
-			for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); MeshIndex++)
-			{
-				const FStaticMeshBatchRelevance& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
-				const FStaticMeshBatch& StaticMesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
-
-				if (StaticMeshRelevance.bUseForMaterial && LODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
-				{
-					const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(MeshPass);
-					if (StaticMeshCommandInfoIndex >= 0)
+					const FStaticMeshBatchRelevance& Mesh = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
+					if (Mesh.ScreenSize > 0.0f)
 					{
-						const FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = PrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
-						const FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[MeshPass];
+						//todo DynamicGI artist control - last LOD is sometimes billboard
+						MaxLOD = FMath::Max(MaxLOD, (int32)Mesh.LODIndex);
+					}
+				}
+				LODToRender.SetLOD(MaxLOD);
 
-						const FMeshDrawCommand* MeshDrawCommand = nullptr;
-						if (CachedMeshDrawCommand.StateBucketId >= 0)
+				for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); MeshIndex++)
+				{
+					const FStaticMeshBatchRelevance& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
+					const FStaticMeshBatch& StaticMesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
+
+					if (StaticMeshRelevance.bUseForMaterial && LODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
+					{
+						const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(MeshPass);
+						if (StaticMeshCommandInfoIndex >= 0)
 						{
-							MeshDrawCommand = &Scene->CachedMeshDrawCommandStateBuckets[MeshPass].GetByElementId(CachedMeshDrawCommand.StateBucketId).Key;
+							const FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = PrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
+							const FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[MeshPass];
+
+							const FMeshDrawCommand* MeshDrawCommand = nullptr;
+							if (CachedMeshDrawCommand.StateBucketId >= 0)
+							{
+								MeshDrawCommand = &Scene->CachedMeshDrawCommandStateBuckets[MeshPass].GetByElementId(CachedMeshDrawCommand.StateBucketId).Key;
+							}
+							else
+							{
+								MeshDrawCommand = &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
+							}
+
+							const uint32* InstanceRunArray = nullptr;
+							uint32 NumInstanceRuns = 0;
+
+							if (MeshDrawCommand->NumInstances > 1 && PrimitiveGroup.PrimitiveInstanceIndex >= 0)
+							{
+								// Render only a single specified instance, by specifying an inclusive [x;x] range
+
+								ensure(CardPageRenderData.InstanceRuns.Num() + 2 <= CardPageRenderData.InstanceRuns.Max());
+								InstanceRunArray = CardPageRenderData.InstanceRuns.GetData() + CardPageRenderData.InstanceRuns.Num();
+								NumInstanceRuns = 1;
+
+								CardPageRenderData.InstanceRuns.Add(PrimitiveGroup.PrimitiveInstanceIndex);
+								CardPageRenderData.InstanceRuns.Add(PrimitiveGroup.PrimitiveInstanceIndex);
+							}
+
+							FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
+
+							NewVisibleMeshDrawCommand.Setup(
+								MeshDrawCommand,
+								PrimitiveSceneInfo->GetIndex(),
+								PrimitiveSceneInfo->GetIndex(),
+								CachedMeshDrawCommand.StateBucketId,
+								CachedMeshDrawCommand.MeshFillMode,
+								CachedMeshDrawCommand.MeshCullMode,
+								CachedMeshDrawCommand.Flags,
+								CachedMeshDrawCommand.SortKey,
+								InstanceRunArray,
+								NumInstanceRuns);
+
+							VisibleMeshCommands.Add(NewVisibleMeshDrawCommand);
+							PrimitiveIds.Add(PrimitiveSceneInfo->GetIndex());
 						}
-						else
-						{
-							MeshDrawCommand = &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
-						}
-
-						CardPageRenderData.InstanceRuns.Reset();
-
-						if (MeshDrawCommand->NumInstances > 1 && CardPageRenderData.PrimitiveInstanceIndexOrMergedFlag >= 0)
-						{
-							// Render only a single specified instance, by specifying an inclusive [x;x] range
-							CardPageRenderData.InstanceRuns.Add(CardPageRenderData.PrimitiveInstanceIndexOrMergedFlag);
-							CardPageRenderData.InstanceRuns.Add(CardPageRenderData.PrimitiveInstanceIndexOrMergedFlag);
-						}
-
-						FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
-						
-						NewVisibleMeshDrawCommand.Setup(
-							MeshDrawCommand,
-							PrimitiveSceneInfo->GetIndex(),
-							PrimitiveSceneInfo->GetIndex(),
-							CachedMeshDrawCommand.StateBucketId,
-							CachedMeshDrawCommand.MeshFillMode,
-							CachedMeshDrawCommand.MeshCullMode,
-							CachedMeshDrawCommand.Flags,
-							CachedMeshDrawCommand.SortKey,
-							CardPageRenderData.InstanceRuns.Num() > 0 ? CardPageRenderData.InstanceRuns.GetData() : nullptr,
-							CardPageRenderData.InstanceRuns.Num() / 2);
-
-						VisibleMeshCommands.Add(NewVisibleMeshDrawCommand);
-						PrimitiveIds.Add(PrimitiveSceneInfo->GetIndex());
 					}
 				}
 			}
@@ -1029,15 +1046,13 @@ void AddCardCaptureDraws(const FScene* Scene,
 
 struct FMeshCardsAdd
 {
-	int32 LumenPrimitiveIndex;
-	int32 LumenInstanceIndex;
+	int32 PrimitiveGroupIndex;
 	float DistanceSquared;
 };
 
 struct FMeshCardsRemove
 {
-	int32 LumenPrimitiveIndex;
-	int32 LumenInstanceIndex;
+	int32 PrimitiveGroupIndex;
 };
 
 struct FCardAllocationOutput
@@ -1051,14 +1066,14 @@ struct FLumenSurfaceCacheUpdatePrimitivesTask
 {
 public:
 	FLumenSurfaceCacheUpdatePrimitivesTask(
-		const TArray<FLumenPrimitive>& InLumenPrimitives,
+		const TSparseElementArray<FLumenPrimitiveGroup>& InPrimitiveGroups,
 		FVector InViewOrigin,
 		float InMaxDistanceFromCamera,
-		int32 InFirstLumenPrimitiveIndex,
+		int32 InFirstPrimitiveGroupIndex,
 		int32 InNumPrimitivesPerPacket)
-		: LumenPrimitives(InLumenPrimitives)
+		: PrimitiveGroups(InPrimitiveGroups)
 		, ViewOrigin(InViewOrigin)
-		, FirstLumenPrimitiveIndex(InFirstLumenPrimitiveIndex)
+		, FirstPrimitiveGroupIndex(InFirstPrimitiveGroupIndex)
 		, NumPrimitivesPerPacket(InNumPrimitivesPerPacket)
 		, MaxDistanceFromCamera(InMaxDistanceFromCamera)
 		, TexelDensityScale(GetCardCameraDistanceTexelDensityScale())
@@ -1071,68 +1086,43 @@ public:
 
 	void AnyThreadTask()
 	{
-		const int32 LastLumenPrimitiveIndex = FMath::Min(FirstLumenPrimitiveIndex + NumPrimitivesPerPacket, LumenPrimitives.Num());
+		const int32 LastLumenPrimitiveIndex = FMath::Min(FirstPrimitiveGroupIndex + NumPrimitivesPerPacket, PrimitiveGroups.Num());
 		const float MaxDistanceSquared = MaxDistanceFromCamera * MaxDistanceFromCamera;
 
-		for (int32 PrimitiveIndex = FirstLumenPrimitiveIndex; PrimitiveIndex < LastLumenPrimitiveIndex; ++PrimitiveIndex)
+		for (int32 PrimitiveGroupIndex = FirstPrimitiveGroupIndex; PrimitiveGroupIndex < LastLumenPrimitiveIndex; ++PrimitiveGroupIndex)
 		{
-			const FLumenPrimitive& LumenPrimitive = LumenPrimitives[PrimitiveIndex];
-
-			// Rough card min resolution test
-			float DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(LumenPrimitive.WorldSpaceBoundingBox.Min, LumenPrimitive.WorldSpaceBoundingBox.Max, ViewOrigin);
-			float MaxCardResolution = (TexelDensityScale * LumenPrimitive.MaxCardExtent) / FMath::Sqrt(FMath::Max(DistanceSquared, 1.0f)) + 0.01f;
-
-			if (DistanceSquared <= MaxDistanceSquared && MaxCardResolution >= 2.0f)
+			if (PrimitiveGroups.IsAllocated(PrimitiveGroupIndex))
 			{
-				for (int32 InstanceIndex = 0; InstanceIndex < LumenPrimitive.Instances.Num(); ++InstanceIndex)
-				{	
-					const FLumenPrimitiveInstance& LumenInstance = LumenPrimitive.Instances[InstanceIndex];
-					const float LumenInstanceMaxCardExtent = LumenInstance.WorldSpaceBoundingBox.GetExtent().GetMax();
+				const FLumenPrimitiveGroup& PrimitiveGroup = PrimitiveGroups[PrimitiveGroupIndex];
 
-					DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(LumenInstance.WorldSpaceBoundingBox.Min, LumenInstance.WorldSpaceBoundingBox.Max, ViewOrigin);
-					MaxCardResolution = (TexelDensityScale * LumenInstanceMaxCardExtent) / FMath::Sqrt(FMath::Max(DistanceSquared, 1.0f)) + 0.01f;
+				// Rough card min resolution test
+				const float DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(PrimitiveGroup.WorldSpaceBoundingBox.Min, PrimitiveGroup.WorldSpaceBoundingBox.Max, ViewOrigin);
+				const float MaxCardExtent = PrimitiveGroup.WorldSpaceBoundingBox.GetExtent().GetMax();
+				const float MaxCardResolution = (TexelDensityScale * MaxCardExtent) / FMath::Sqrt(FMath::Max(DistanceSquared, 1.0f)) + 0.01f;
 
-					if (DistanceSquared <= MaxDistanceSquared && MaxCardResolution >= 2.0f)
+				if (DistanceSquared <= MaxDistanceSquared && MaxCardResolution >= 2.0f)
+				{
+					if (PrimitiveGroup.MeshCardsIndex == -1 && PrimitiveGroup.bValidMeshCards)
 					{
-						if (LumenInstance.MeshCardsIndex == -1 && LumenInstance.bValidMeshCards)
-						{
-							FMeshCardsAdd Add;
-							Add.LumenPrimitiveIndex = PrimitiveIndex;
-							Add.LumenInstanceIndex = InstanceIndex;
-							Add.DistanceSquared = DistanceSquared;
-							MeshCardsAdds.Add(Add);
-						}
-					}
-					else if (LumenInstance.MeshCardsIndex >= 0)
-					{
-						FMeshCardsRemove Remove;
-						Remove.LumenPrimitiveIndex = PrimitiveIndex;
-						Remove.LumenInstanceIndex = InstanceIndex;
-						MeshCardsRemoves.Add(Remove);
+						FMeshCardsAdd Add;
+						Add.PrimitiveGroupIndex = PrimitiveGroupIndex;
+						Add.DistanceSquared = DistanceSquared;
+						MeshCardsAdds.Add(Add);
 					}
 				}
-			}
-			else if (LumenPrimitive.NumMeshCards > 0)
-			{
-				for (int32 InstanceIndex = 0; InstanceIndex < LumenPrimitive.Instances.Num(); ++InstanceIndex)
+				else if (PrimitiveGroup.MeshCardsIndex >= 0)
 				{
-					const FLumenPrimitiveInstance& LumenInstance = LumenPrimitive.Instances[InstanceIndex];
-
-					if (LumenInstance.MeshCardsIndex >= 0)
-					{
-						FMeshCardsRemove Remove;
-						Remove.LumenPrimitiveIndex = PrimitiveIndex;
-						Remove.LumenInstanceIndex = InstanceIndex;
-						MeshCardsRemoves.Add(Remove);
-					}
+					FMeshCardsRemove Remove;
+					Remove.PrimitiveGroupIndex = PrimitiveGroupIndex;
+					MeshCardsRemoves.Add(Remove);
 				}
 			}
 		}
 	}
 
-	const TArray<FLumenPrimitive>& LumenPrimitives;
+	const TSparseElementArray<FLumenPrimitiveGroup>& PrimitiveGroups;
 	FVector ViewOrigin;
-	int32 FirstLumenPrimitiveIndex;
+	int32 FirstPrimitiveGroupIndex;
 	int32 NumPrimitivesPerPacket;
 	float MaxDistanceFromCamera;
 	float TexelDensityScale;
@@ -1143,7 +1133,6 @@ struct FSurfaceCacheRemove
 public:
 	int32 LumenCardIndex;
 };
-
 
 // Loop over Lumen mesh cards and output card updates
 struct FLumenSurfaceCacheUpdateMeshCardsTask
@@ -1354,8 +1343,7 @@ void ProcessLumenSurfaceCacheRequests(
 							PageTableEntry.CardUVRect,
 							CardCaptureAllocation.PhysicalAtlasRect,
 							PageTableEntry.PhysicalAtlasRect,
-							MeshCardsElement.CapturePrimitive,
-							MeshCardsElement.CaptureInstanceIndex,
+							MeshCardsElement.PrimitiveGroupIndex,
 							Request.CardIndex,
 							PageIndex));
 
@@ -1434,8 +1422,7 @@ void ProcessLumenSurfaceCacheRequests(
 					PageTableEntry.CardUVRect,
 					CardCaptureAllocation.PhysicalAtlasRect,
 					PageTableEntry.PhysicalAtlasRect,
-					MeshCardsElement.CapturePrimitive,
-					MeshCardsElement.CaptureInstanceIndex,
+					MeshCardsElement.PrimitiveGroupIndex,
 					VirtualPageIndex.CardIndex,
 					PageIndex));
 
@@ -1462,7 +1449,7 @@ void UpdateSurfaceCachePrimitives(
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSurfaceCachePrimitives);
 
 	const int32 NumPrimitivesPerTask = FMath::Max(GLumenScenePrimitivesPerTask, 1);
-	const int32 NumTasks = FMath::DivideAndRoundUp(LumenSceneData.LumenPrimitives.Num(), GLumenScenePrimitivesPerTask);
+	const int32 NumTasks = FMath::DivideAndRoundUp(LumenSceneData.PrimitiveGroups.Num(), GLumenScenePrimitivesPerTask);
 
 	TArray<FLumenSurfaceCacheUpdatePrimitivesTask, SceneRenderingAllocator> Tasks;
 	Tasks.Reserve(NumTasks);
@@ -1470,7 +1457,7 @@ void UpdateSurfaceCachePrimitives(
 	for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
 	{
 		Tasks.Emplace(
-			LumenSceneData.LumenPrimitives,
+			LumenSceneData.PrimitiveGroups,
 			LumenSceneCameraOrigin,
 			MaxCardUpdateDistanceFromCamera,
 			TaskIndex * NumPrimitivesPerTask,
@@ -1505,10 +1492,8 @@ void UpdateSurfaceCachePrimitives(
 
 		for (const FMeshCardsRemove& MeshCardsRemove : Task.MeshCardsRemoves)
 		{
-			FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[MeshCardsRemove.LumenPrimitiveIndex];
-			FLumenPrimitiveInstance& LumenPrimitiveInstance = LumenPrimitive.Instances[MeshCardsRemove.LumenInstanceIndex];
-
-			LumenSceneData.RemoveMeshCards(LumenPrimitive.Primitive->GetIndex(), LumenPrimitive, LumenPrimitiveInstance);
+			FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[MeshCardsRemove.PrimitiveGroupIndex];
+			LumenSceneData.RemoveMeshCards(PrimitiveGroup);
 		}
 	}
 
@@ -1532,7 +1517,7 @@ void UpdateSurfaceCachePrimitives(
 	for (int32 MeshCardsIndex = 0; MeshCardsIndex < FMath::Min(MeshCardsAdds.Num(), MeshCardsToAddPerFrame); ++MeshCardsIndex)
 	{
 		const FMeshCardsAdd& MeshCardsAdd = MeshCardsAdds[MeshCardsIndex];
-		LumenSceneData.AddMeshCards(MeshCardsAdd.LumenPrimitiveIndex, MeshCardsAdd.LumenInstanceIndex);
+		LumenSceneData.AddMeshCards(MeshCardsAdd.PrimitiveGroupIndex);
 	}
 }
 
@@ -1661,13 +1646,15 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		LumenSceneData.NumLockedCardsToUpdate = 0;
 		LumenSceneData.NumHiResPagesToAdd = 0;
 
+		UpdateLumenScenePrimitives(Scene);
+		UpdateDistantScene(Scene, Views[0]);
+
 		if (LumenSceneData.bDebugClearAllCachedState || bReallocateAtlas)
 		{
 			LumenSceneData.RemoveAllMeshCards();
 		}
 
-		UpdateLumenScenePrimitives(Scene);
-		UpdateDistantScene(Scene, Views[0]);
+		LumenScenePDIVisualization();
 
 		const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps() - 1);
 		const float MaxCardUpdateDistanceFromCamera = ComputeMaxCardUpdateDistanceFromCamera();
@@ -1732,18 +1719,21 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 					for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 					{
-						FPrimitiveSceneInfo* PrimitiveSceneInfo = CardPageRenderData.PrimitiveSceneInfo;
+						const FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[CardPageRenderData.PrimitiveGroupIndex];
 
-						if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
+						for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
 						{
-							if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
+							if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
 							{
-								PrimitiveSceneInfo->UpdateUniformBuffer(GraphBuilder.RHICmdList);
-							}
+								if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
+								{
+									PrimitiveSceneInfo->UpdateUniformBuffer(GraphBuilder.RHICmdList);
+								}
 
-							if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
-							{
-								PrimitivesToUpdateStaticMeshes.Add(PrimitiveSceneInfo);
+								if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
+								{
+									PrimitivesToUpdateStaticMeshes.Add(PrimitiveSceneInfo);
+								}
 							}
 						}
 					}
@@ -1773,6 +1763,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 					AddCardCaptureDraws(Scene, 
 						GraphBuilder.RHICmdList, 
 						CardPageRenderData,
+						LumenSceneData.PrimitiveGroups[CardPageRenderData.PrimitiveGroupIndex],
 						LumenCardRenderer.MeshDrawCommands, 
 						LumenCardRenderer.MeshDrawPrimitiveIds);
 
