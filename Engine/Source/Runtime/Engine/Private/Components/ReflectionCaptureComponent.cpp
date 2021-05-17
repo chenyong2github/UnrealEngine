@@ -656,7 +656,7 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 #if WITH_EDITOR
 	UTextureFactory* TextureFactory = NewObject<UTextureFactory>();
 
-	TextureFactory->CompressionSettings = TC_ReflectionCapture;
+	TextureFactory->CompressionSettings = TC_EncodedReflectionCapture;
 	UTextureCube* TextureCube = TextureFactory->CreateTextureCube(Registry, FName(TextureName), RF_Public);
 
 	if (TextureCube)
@@ -682,7 +682,7 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 			bIsCompressed = CaptureComponent->MobileReflectionCompression == EMobileReflectionCompression::Default ? bIsReflectionCaptureCompressionProjectSetting : CaptureComponent->MobileReflectionCompression == EMobileReflectionCompression::On;
 		}
 
-		TextureCube->CompressionSettings = TC_ReflectionCapture;
+		TextureCube->CompressionSettings = TC_EncodedReflectionCapture;
 		TextureCube->CompressionNone = !bIsCompressed;
 		TextureCube->CompressionQuality = TCQ_Highest;
 		TextureCube->Filter = TF_Trilinear;

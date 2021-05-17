@@ -298,7 +298,7 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 
 	TArray<FName> Formats;
 
-	if (Ar.IsSaving() && Ar.IsCooking())
+	if (Ar.IsCooking())
 	{
 		// Get all the reflection capture formats that the target platform wants
 		Ar.CookingTarget()->GetReflectionCaptureFormats(Formats);
@@ -316,15 +316,7 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 
 	if (Ar.CustomVer(FMobileObjectVersion::GUID) >= FMobileObjectVersion::StoreReflectionCaptureCompressedMobile)
 	{
-		if (Ar.IsCooking() && !Formats.Contains(EncodedHDR))
-		{
-			UTextureCube* StrippedData = NULL;
-			Ar << StrippedData;
-		}
-		else
-		{
-			Ar << ReflectionCaptureMapBuildData.EncodedCaptureData;
-		}
+		Ar << ReflectionCaptureMapBuildData.EncodedCaptureData;
 	}
 	else
 	{
