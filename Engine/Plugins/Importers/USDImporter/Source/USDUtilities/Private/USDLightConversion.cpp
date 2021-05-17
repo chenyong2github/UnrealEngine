@@ -468,8 +468,16 @@ bool UnrealToUsd::ConvertSkyLightComponent( const USkyLightComponent& LightCompo
 			if ( UAssetImportData* AssetImportData = TextureCube->AssetImportData )
 			{
 				FString FilePath = AssetImportData->GetFirstFilename();
-				UsdUtils::MakePathRelativeToLayer( UE::FSdfLayer( Prim.GetStage()->GetEditTarget().GetLayer() ), FilePath );
+				if ( !FPaths::FileExists( FilePath ) )
+				{
+					UE_LOG(LogTemp, Warning, TEXT("Used '%s' as cubemap when converting SkyLightComponent '%s' onto prim '%s', but the cubemap does not exist on the filesystem!"),
+						*FilePath,
+						*LightComponent.GetPathName(),
+						*UsdToUnreal::ConvertPath(Prim.GetPath())
+					);
+				}
 
+				UsdUtils::MakePathRelativeToLayer( UE::FSdfLayer( Prim.GetStage()->GetEditTarget().GetLayer() ), FilePath );
 				Attr.Set<pxr::SdfAssetPath>( pxr::SdfAssetPath{ UnrealToUsd::ConvertString( *FilePath ).Get() }, TimeCode );
 			}
 		}

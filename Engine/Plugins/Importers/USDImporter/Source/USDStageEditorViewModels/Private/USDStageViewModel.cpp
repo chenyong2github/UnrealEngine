@@ -108,10 +108,7 @@ void FUsdStageViewModel::OpenStage( const TCHAR* FilePath )
 	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
 	{
 		StageActor->Modify();
-
-		StageActor->RootLayer.FilePath = FilePath;
-		FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< FProperty >( StageActor->GetClass(), FName("RootLayer") ) );
-		StageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
+		StageActor->SetRootLayer( FilePath );
 	}
 	else
 	{
