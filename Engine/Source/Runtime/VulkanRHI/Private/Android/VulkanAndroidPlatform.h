@@ -107,11 +107,6 @@ public:
 
 	static bool RegisterGPUWork() { return false; }
 
-	static bool UseRealUBsOptimization(bool bCodeHeaderUseRealUBs)
-	{
-		return !RequiresMobileRenderer();
-	}
-
 	// Assume most devices can't use the extra cores for running parallel tasks
 	static bool SupportParallelRenderingTasks() { return false; }
 

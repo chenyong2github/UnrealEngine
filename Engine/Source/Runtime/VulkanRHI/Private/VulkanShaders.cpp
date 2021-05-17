@@ -106,14 +106,8 @@ void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 
 
 	SpirvSize = Spirv.Num() * sizeof(uint32);
 
-	if (CodeHeader.bHasRealUBs)
-	{
-		check(CodeHeader.UniformBufferSpirvInfos.Num() == CodeHeader.UniformBuffers.Num());
-	}
-	else
-	{
-		checkSlow(CodeHeader.UniformBufferSpirvInfos.Num() == 0);
-	}
+	check(CodeHeader.UniformBufferSpirvInfos.Num() == CodeHeader.UniformBuffers.Num());
+
 	check(CodeHeader.GlobalSpirvInfos.Num() == CodeHeader.Globals.Num());
 
 	StaticSlots.Reserve(CodeHeader.UniformBuffers.Num());
@@ -288,21 +282,19 @@ void FVulkanLayout::PatchSpirvBindings(TArray<uint32>& Spirv, EShaderFrequency F
 	//#todo-rco: Do we need an actual copy of the SPIR-V?
 	ShaderStage::EStage Stage = ShaderStage::GetStageForFrequency(Frequency);
 	const FDescriptorSetRemappingInfo::FStageInfo& StageInfo = DescriptorSetLayout.RemappingInfo.StageInfos[Stage];
-	if (CodeHeader.bHasRealUBs)
+	
+	checkSlow(StageInfo.UniformBuffers.Num() == CodeHeader.UniformBufferSpirvInfos.Num());
+	for (int32 Index = 0; Index < CodeHeader.UniformBufferSpirvInfos.Num(); ++Index)
 	{
-		checkSlow(StageInfo.UniformBuffers.Num() == CodeHeader.UniformBufferSpirvInfos.Num());
-		for (int32 Index = 0; Index < CodeHeader.UniformBufferSpirvInfos.Num(); ++Index)
+		if (StageInfo.UniformBuffers[Index].bHasConstantData)
 		{
-			if (StageInfo.UniformBuffers[Index].bHasConstantData)
-			{
-				const uint32 OffsetDescriptorSet = CodeHeader.UniformBufferSpirvInfos[Index].DescriptorSetOffset;
-				const uint32 OffsetBindingIndex = CodeHeader.UniformBufferSpirvInfos[Index].BindingIndexOffset;
-				check(OffsetDescriptorSet != UINT32_MAX && OffsetBindingIndex != UINT32_MAX);
-				uint16 NewDescriptorSet = StageInfo.UniformBuffers[Index].Remapping.NewDescriptorSet;
-				Spirv[OffsetDescriptorSet] = NewDescriptorSet;
-				uint16 NewBindingIndex = StageInfo.UniformBuffers[Index].Remapping.NewBindingIndex;
-				Spirv[OffsetBindingIndex] = NewBindingIndex;
-			}
+			const uint32 OffsetDescriptorSet = CodeHeader.UniformBufferSpirvInfos[Index].DescriptorSetOffset;
+			const uint32 OffsetBindingIndex = CodeHeader.UniformBufferSpirvInfos[Index].BindingIndexOffset;
+			check(OffsetDescriptorSet != UINT32_MAX && OffsetBindingIndex != UINT32_MAX);
+			uint16 NewDescriptorSet = StageInfo.UniformBuffers[Index].Remapping.NewDescriptorSet;
+			Spirv[OffsetDescriptorSet] = NewDescriptorSet;
+			uint16 NewBindingIndex = StageInfo.UniformBuffers[Index].Remapping.NewBindingIndex;
+			Spirv[OffsetBindingIndex] = NewBindingIndex;
 		}
 	}
 
@@ -564,57 +556,54 @@ void FVulkanDescriptorSetsLayoutInfo::FinalizeBindings(const FUniformBufferGathe
 				AddDescriptor(DescriptorSet, Binding);
 			}
 
-			if (ShaderHeader->bHasRealUBs)
+			RemappingInfo.StageInfos[Stage].UniformBuffers.Reserve(ShaderHeader->UniformBuffers.Num());
+			for (int32 Index = 0; Index < ShaderHeader->UniformBuffers.Num(); ++Index)
 			{
-				RemappingInfo.StageInfos[Stage].UniformBuffers.Reserve(ShaderHeader->UniformBuffers.Num());
-				for (int32 Index = 0; Index < ShaderHeader->UniformBuffers.Num(); ++Index)
+				VkDescriptorType Type = bConvertAllUBsToDynamic ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+				// Here we might mess up with the stageFlags, so reset them every loop
+				Binding.stageFlags = StageFlags;
+				Binding.descriptorType = Type;
+				const FVulkanShaderHeader::FUniformBufferInfo& UBInfo = ShaderHeader->UniformBuffers[Index];
+				const uint32 LayoutHash = UBInfo.LayoutHash;
+				const bool bUBHasConstantData = UBInfo.ConstantDataOriginalBindingIndex != UINT16_MAX;
+				if (bUBHasConstantData)
 				{
-					VkDescriptorType Type = bConvertAllUBsToDynamic ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-					// Here we might mess up with the stageFlags, so reset them every loop
-					Binding.stageFlags = StageFlags;
-					Binding.descriptorType = Type;
-					const FVulkanShaderHeader::FUniformBufferInfo& UBInfo = ShaderHeader->UniformBuffers[Index];
-					const uint32 LayoutHash = UBInfo.LayoutHash;
-					const bool bUBHasConstantData = UBInfo.ConstantDataOriginalBindingIndex != UINT16_MAX;
-					if (bUBHasConstantData)
+					bool bProcessRegularUB = true;
+					const VkShaderStageFlags* FoundFlags = bMoveCommonUBsToExtraSet ? UBGatherInfo.CommonUBLayoutsToStageMap.Find(LayoutHash) : nullptr;
+					if (FoundFlags)
 					{
-						bool bProcessRegularUB = true;
-						const VkShaderStageFlags* FoundFlags = bMoveCommonUBsToExtraSet ? UBGatherInfo.CommonUBLayoutsToStageMap.Find(LayoutHash) : nullptr;
-						if (FoundFlags)
+						if (const FDescriptorSetRemappingInfo::FUBRemappingInfo* UBRemapInfo = AlreadyProcessedUBs.Find(LayoutHash))
 						{
-							if (const FDescriptorSetRemappingInfo::FUBRemappingInfo* UBRemapInfo = AlreadyProcessedUBs.Find(LayoutHash))
-							{
-								RemappingInfo.AddRedundantUB(Stage, Index, UBRemapInfo);
-							}
-							else
-							{
-								//#todo-rco: Only process constant data part of the UB
-								check(bUBHasConstantData);
-
-								Binding.stageFlags = *FoundFlags;
-								uint32 NewBindingIndex;
-								AlreadyProcessedUBs.Add(LayoutHash, RemappingInfo.AddUBWithData(Stage, Index, CommonUBDescriptorSet, Type, NewBindingIndex));
-								Binding.binding = NewBindingIndex;
-
-								AddDescriptor(CommonUBDescriptorSet, Binding);
-							}
-							bProcessRegularUB = false;
+							RemappingInfo.AddRedundantUB(Stage, Index, UBRemapInfo);
 						}
-
-						if (bProcessRegularUB)
+						else
 						{
-							int32 DescriptorSet = FindOrAddDescriptorSet(Stage);
+							//#todo-rco: Only process constant data part of the UB
+							check(bUBHasConstantData);
+
+							Binding.stageFlags = *FoundFlags;
 							uint32 NewBindingIndex;
-							RemappingInfo.AddUBWithData(Stage, Index, DescriptorSet, Type, NewBindingIndex);
+							AlreadyProcessedUBs.Add(LayoutHash, RemappingInfo.AddUBWithData(Stage, Index, CommonUBDescriptorSet, Type, NewBindingIndex));
 							Binding.binding = NewBindingIndex;
 
-							AddDescriptor(FindOrAddDescriptorSet(Stage), Binding);
+							AddDescriptor(CommonUBDescriptorSet, Binding);
 						}
+						bProcessRegularUB = false;
 					}
-					else
+
+					if (bProcessRegularUB)
 					{
-						RemappingInfo.AddUBResourceOnly(Stage, Index);
+						int32 DescriptorSet = FindOrAddDescriptorSet(Stage);
+						uint32 NewBindingIndex;
+						RemappingInfo.AddUBWithData(Stage, Index, DescriptorSet, Type, NewBindingIndex);
+						Binding.binding = NewBindingIndex;
+
+						AddDescriptor(FindOrAddDescriptorSet(Stage), Binding);
 					}
+				}
+				else
+				{
+					RemappingInfo.AddUBResourceOnly(Stage, Index);
 				}
 			}
 
