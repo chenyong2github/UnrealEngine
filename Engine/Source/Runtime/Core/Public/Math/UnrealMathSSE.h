@@ -2,19 +2,36 @@
 
 #pragma once
 
-#if defined(__cplusplus_cli) && !PLATFORM_HOLOLENS
-// there are compile issues with this file in managed mode, so use the FPU version
-#include "Math/UnrealMathFPU.h"
-#else
-
 // We require SSE2
 #include <emmintrin.h>
 
-#define UNREALPLATFORMMATH_SSE_USE_SSE4_1 PLATFORM_ALWAYS_HAS_SSE4_1
+#ifndef UE_PLATFORM_MATH_USE_SSE4_1
+#define UE_PLATFORM_MATH_USE_SSE4_1			PLATFORM_ALWAYS_HAS_SSE4_1
+#endif
+
+#ifndef UE_PLATFORM_MATH_USE_AVX
+#define UE_PLATFORM_MATH_USE_AVX			PLATFORM_ALWAYS_HAS_AVX
+#endif
+
+#ifndef UE_PLATFORM_MATH_USE_AVX_2
+#define UE_PLATFORM_MATH_USE_AVX_2			0 // PLATFORM_ALWAYS_HAS_AVX_2
+#endif
+
+#ifndef UE_PLATFORM_MATH_USE_FMA3
+#define UE_PLATFORM_MATH_USE_FMA3			PLATFORM_ALWAYS_HAS_FMA3
+#endif
 
 // If SSE4.1 is enabled, need additional defines.
-#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+#if UE_PLATFORM_MATH_USE_SSE4_1
 #include <smmintrin.h>
+#endif
+
+// If AVX is enabled, need additional defines.
+#if UE_PLATFORM_MATH_USE_AVX
+#include <immintrin.h>
+#define UE_SSE_DOUBLE_ALIGNMENT 32
+#else
+#define UE_SSE_DOUBLE_ALIGNMENT 16
 #endif
 
 #include "Math/sse_mathfun.h"
@@ -43,27 +60,74 @@ typedef __m128d	VectorRegister2Double;
 
 
 // 4 doubles
-struct alignas(16) VectorRegister4Double
+struct alignas(UE_SSE_DOUBLE_ALIGNMENT) VectorRegister4Double
 {
+#if !UE_PLATFORM_MATH_USE_AVX
 	VectorRegister2Double XY;
 	VectorRegister2Double ZW;
+#else
+	union
+	{
+		struct
+		{
+			VectorRegister2Double XY;
+			VectorRegister2Double ZW;
+		};
+		__m256d XYZW;
+	};
+#endif
 
-	VectorRegister4Double() = default;
+	FORCEINLINE VectorRegister4Double() = default;
+
+	FORCEINLINE VectorRegister4Double(const VectorRegister2Double& InXY, const VectorRegister2Double& InZW)
+		: XY(InXY)
+		, ZW(InZW)
+	{
+	}
 
 	// Construct from a vector of 4 floats
-	VectorRegister4Double(const VectorRegister4Float& FloatVector)
+	FORCEINLINE VectorRegister4Double(const VectorRegister4Float& FloatVector)
 	{
+#if !UE_PLATFORM_MATH_USE_AVX
 		XY = _mm_cvtps_pd(FloatVector);
 		ZW = _mm_cvtps_pd(_mm_movehl_ps(FloatVector, FloatVector));
+#else
+		XYZW = _mm256_cvtps_pd(FloatVector);
+#endif
 	}
 
 	// Assign from a vector of 4 floats
-	VectorRegister4Double& operator=(const VectorRegister4Float& From)
+	FORCEINLINE VectorRegister4Double& operator=(const VectorRegister4Float& FloatVector)
 	{
-		XY = _mm_cvtps_pd(From);
-		ZW = _mm_cvtps_pd(_mm_movehl_ps(From, From));
+#if !UE_PLATFORM_MATH_USE_AVX
+		XY = _mm_cvtps_pd(FloatVector);
+		ZW = _mm_cvtps_pd(_mm_movehl_ps(FloatVector, FloatVector));
+#else
+		XYZW = _mm256_cvtps_pd(FloatVector);
+#endif
 		return *this;
 	}
+
+#if UE_PLATFORM_MATH_USE_AVX
+	// Convenience for things like 'Result = _mm256_add_pd(...)'
+	FORCEINLINE VectorRegister4Double(const __m256d& Register)
+	{
+		XYZW = Register;
+	}
+
+	// Convenience for things like 'Result = _mm256_add_pd(...)'
+	FORCEINLINE VectorRegister4Double& operator=(const __m256d& Register)
+	{
+		XYZW = Register;
+		return *this;
+	}
+
+	// Convenience for passing VectorRegister4Double to _mm256_* functions without needing '.XYZW'
+	FORCEINLINE operator __m256d() const
+	{
+		return XYZW;
+	}
+#endif
 
 };
 
@@ -114,7 +178,7 @@ struct alignas(16) AlignedFloat4
 
 
 // Helper for conveniently aligning a double array for extraction from VectorRegister4Double
-struct alignas(16) AlignedDouble4
+struct alignas(alignof(VectorRegister4Double)) AlignedDouble4
 {
 	double V[4];
 
@@ -159,14 +223,13 @@ FORCEINLINE VectorRegister2Double MakeVectorRegister2Double(double X, double Y)
 }
 
 // Bitwise equivalent from two 64-bit values.
-FORCEINLINE VectorRegister2Double MakeVectorRegister2Double(uint64 X, uint64 Y)
+FORCEINLINE VectorRegister2Double MakeVectorRegister2DoubleMask(uint64 X, uint64 Y)
 {
 	union { VectorRegister2Double Vd; __m128i Vi; } Result;
 	// Note: this instruction only exists on 64-bit
 	Result.Vi = _mm_set_epi64x(Y, X); // intentionally (Y,X), there is no 'setr' version.
 	return Result.Vd;
 }
-
 
 /**
  * Returns a bitwise equivalent vector based on 4 DWORDs.
@@ -187,14 +250,25 @@ FORCEINLINE VectorRegister4Float MakeVectorRegisterFloat( uint32 X, uint32 Y, ui
 FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(uint64 X, uint64 Y, uint64 Z, uint64 W)
 {
 	VectorRegister4Double Result;
-	Result.XY = MakeVectorRegister2Double(X, Y);
-	Result.ZW = MakeVectorRegister2Double(Z, W);
+	Result.XY = MakeVectorRegister2DoubleMask(X, Y);
+	Result.ZW = MakeVectorRegister2DoubleMask(Z, W);
 	return Result;
 }
 
 FORCEINLINE VectorRegister4Float MakeVectorRegister(uint32 X, uint32 Y, uint32 Z, uint32 W)
 {
 	return MakeVectorRegisterFloat(X, Y, Z, W);
+}
+
+// Nicer aliases
+FORCEINLINE VectorRegister4Float MakeVectorRegisterFloatMask(uint32 X, uint32 Y, uint32 Z, uint32 W)
+{
+	return MakeVectorRegisterFloat(X, Y, Z, W);
+}
+
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDoubleMask(uint64 X, uint64 Y, uint64 Z, uint64 W)
+{
+	return MakeVectorRegisterDouble(X, Y, Z, W);
 }
 
 /**
@@ -214,8 +288,12 @@ FORCEINLINE VectorRegister4Float MakeVectorRegisterFloat(float X, float Y, float
 FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(double X, double Y, double Z, double W)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_setr_pd(X, Y);
 	Result.ZW = _mm_setr_pd(Z, W);
+#else
+	Result = _mm256_setr_pd(X, Y, Z, W);
+#endif
 	return Result;
 }
 
@@ -238,7 +316,11 @@ FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(const VectorRegister4
 // Lossy conversion: double->float vector
 FORCEINLINE VectorRegister4Float MakeVectorRegisterFloatFromDouble(const VectorRegister4Double& Vec4d)
 {
+#if !UE_PLATFORM_MATH_USE_AVX
 	return _mm_movelh_ps(_mm_cvtpd_ps(Vec4d.XY), _mm_cvtpd_ps(Vec4d.ZW));
+#else
+	return _mm256_cvtpd_ps(Vec4d);
+#endif
 }
 
 /**
@@ -278,8 +360,12 @@ FORCEINLINE VectorRegister4Float VectorZeroFloat(void)
 FORCEINLINE VectorRegister4Double VectorZeroDouble(void)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_setzero_pd();
 	Result.ZW = _mm_setzero_pd();
+#else
+	Result = _mm256_setzero_pd();
+#endif
 	return Result;
 }
 
@@ -315,13 +401,11 @@ FORCEINLINE float VectorGetComponentImpl(const VectorRegister4Float& Vec)
 template <uint32 ComponentIndex>
 FORCEINLINE double VectorGetComponentImpl(const VectorRegister4Double& Vec)
 {
-	// TODO: LWC: verify this is equivalent to _mm_store_pd and a read, or better.
+#if !UE_PLATFORM_MATH_USE_AVX
 	return (((double*)&(Vec.XY))[ComponentIndex]);
-
-	/*
-	AlignedDouble4 Components(Vec);
-	return Components[ComponentIndex];
-	*/
+#else
+	return (((double*)&(Vec.XYZW))[ComponentIndex]);
+#endif
 }
 
 #define VectorGetComponent(Vec, ComponentIndex) VectorGetComponentImpl<ComponentIndex>(Vec)
@@ -351,8 +435,12 @@ FORCEINLINE VectorRegister4Float VectorLoad(const float* Ptr)
 FORCEINLINE VectorRegister4Double VectorLoad(const double* Ptr)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_loadu_pd((double*)(Ptr));
 	Result.ZW = _mm_loadu_pd((double*)(Ptr + 2));
+#else
+	Result = _mm256_loadu_pd((double*)Ptr);
+#endif
 	return Result;
 }
 
@@ -364,11 +452,16 @@ FORCEINLINE VectorRegister4Double VectorLoad(const double* Ptr)
  */
 FORCEINLINE VectorRegister4Double VectorLoadFloat3(const double* Ptr)
 {
-	//return MakeVectorRegisterDouble(Ptr[0], Ptr[1], Ptr[2], 0.0);
+#if !UE_PLATFORM_MATH_USE_AVX
 	VectorRegister4Double Result;
 	Result.XY = _mm_loadu_pd((double*)(Ptr));
 	Result.ZW = _mm_load_sd((double*)(Ptr+2));
 	return Result;
+#else
+	// TODO: AVX: compare performance. MaskLoad is supposed to be efficient compared to MaskStore (from Intel and AMD manuals citing instruction latency), but validate this.
+	// Otherwise, use the m128d code above.
+	return _mm256_maskload_pd(Ptr, _mm256_castpd_si256(GlobalVectorConstants::DoubleXYZMask));
+#endif	
 }
 
 /**
@@ -379,11 +472,15 @@ FORCEINLINE VectorRegister4Double VectorLoadFloat3(const double* Ptr)
  */
 FORCEINLINE VectorRegister4Double VectorLoadFloat3_W1(const double* Ptr)
 {
-	//return MakeVectorRegisterDouble(Ptr[0], Ptr[1], Ptr[2], 1.0);
+#if !UE_PLATFORM_MATH_USE_AVX
 	VectorRegister4Double Result;
 	Result.XY = _mm_loadu_pd((double*)(Ptr));
 	Result.ZW = MakeVectorRegister2Double(Ptr[2], 1.0);
 	return Result;
+#else
+	// TODO: AVX: improve?
+	return MakeVectorRegisterDouble(Ptr[0], Ptr[1], Ptr[2], 1.0);
+#endif	
 }
 
 /**
@@ -400,8 +497,13 @@ FORCEINLINE VectorRegister4Float VectorLoadAligned(const float* Ptr)
 FORCEINLINE VectorRegister4Double VectorLoadAligned(const double* Ptr)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_load_pd((const double*)(Ptr));
 	Result.ZW = _mm_load_pd((const double*)(Ptr + 2));
+#else
+	// TODO: AVX using unaligned here, until we ensure 32-byte alignment (was previously 16 across most types)
+	Result = _mm256_loadu_pd(Ptr);
+#endif
 	return Result;
 }
 
@@ -413,20 +515,23 @@ FORCEINLINE VectorRegister4Double VectorLoadAligned(const double* Ptr)
  */
 FORCEINLINE VectorRegister4Float VectorLoadFloat1(const float* Ptr)
 {
+#if !UE_PLATFORM_MATH_USE_AVX
 	return _mm_load1_ps(Ptr);
-}
-
-FORCEINLINE VectorRegister4Double VectorLoadFloat1(const double* Ptr)
-{
-	VectorRegister4Double Result;
-	Result.XY = _mm_load1_pd(Ptr);
-	Result.ZW = Result.XY;
-	return Result;
+#else
+	return _mm_broadcast_ss(Ptr);
+#endif
 }
 
 FORCEINLINE VectorRegister4Double VectorLoadDouble1(const double* Ptr)
 {
-	return VectorLoadFloat1(Ptr);
+	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
+	Result.XY = _mm_load1_pd(Ptr);
+	Result.ZW = Result.XY;
+#else
+	Result = _mm256_broadcast_sd(Ptr);
+#endif
+	return Result;
 }
 
 /**
@@ -437,15 +542,20 @@ FORCEINLINE VectorRegister4Double VectorLoadDouble1(const double* Ptr)
  */
 FORCEINLINE VectorRegister4Float VectorLoadFloat2(const float* Ptr)
 {
-	// Note: SA warning for this is disabled at top of file.
-	return _mm_castpd_ps(_mm_load1_pd((const double*)(Ptr)));
+	// This intentionally casts to a double* to be able to load 64 bits of data using the "load 1 double" instruction to fill in the two 32-bit floats.
+	return _mm_castpd_ps(_mm_load1_pd(reinterpret_cast<const double*>(Ptr))); // -V615
 }
 
 FORCEINLINE VectorRegister4Double VectorLoadFloat2(const double* Ptr)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_loadu_pd(Ptr);
 	Result.ZW = Result.XY;
+#else
+	const __m128d Temp = _mm_loadu_pd(Ptr);
+	Result = _mm256_set_m128d(Temp, Temp);
+#endif
 	return Result;
 }
 
@@ -459,7 +569,8 @@ FORCEINLINE VectorRegister4Double VectorLoadFloat2(const double* Ptr)
  */
 FORCEINLINE VectorRegister4Float VectorLoadTwoPairsFloat(const float* Ptr1, const float* Ptr2)
 {
-	__m128 Ret = _mm_castpd_ps(_mm_load_sd((double const *)(Ptr1))); // -V615
+	// This intentionally casts to a double* to be able to load 64 bits of data using the "load 1 double" instruction to fill in the two 32-bit floats.
+	__m128 Ret = _mm_castpd_ps(_mm_load_sd(reinterpret_cast<const double*>(Ptr1))); // -V615
 	Ret = _mm_loadh_pi(Ret, (__m64 const*)(Ptr2));
 	return Ret;
 }
@@ -467,8 +578,12 @@ FORCEINLINE VectorRegister4Float VectorLoadTwoPairsFloat(const float* Ptr1, cons
 FORCEINLINE VectorRegister4Double VectorLoadTwoPairsFloat(const double* Ptr1, const double* Ptr2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_loadu_pd(Ptr1);
 	Result.ZW = _mm_loadu_pd(Ptr2);
+#else
+	Result = _mm256_loadu2_m128d(Ptr2, Ptr1); // Note: arguments are (hi, lo)
+#endif
 	return Result;
 }
 
@@ -486,8 +601,12 @@ FORCEINLINE VectorRegister4Float VectorSetFloat1(float F)
 FORCEINLINE VectorRegister4Double VectorSetFloat1(double D)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_set1_pd(D);
 	Result.ZW = Result.XY;
+#else
+	Result = _mm256_set1_pd(D);
+#endif
 	return Result;
 }
 
@@ -504,8 +623,13 @@ FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, float* Dst)
 
 FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, double* Dst)
 {
+#if !UE_PLATFORM_MATH_USE_AVX
 	_mm_store_pd(Dst, Vec.XY);
 	_mm_store_pd(Dst + 2, Vec.ZW);
+#else
+	// TODO: AVX using unaligned store until we verify 32-byte alignment requirement (was 16 for most types)
+	_mm256_storeu_pd(Dst, Vec);
+#endif
 }
 
 
@@ -522,18 +646,15 @@ FORCEINLINE void VectorStoreAlignedStreamed(const VectorRegister4Float& Vec, flo
 
 FORCEINLINE void VectorStoreAlignedStreamed(const VectorRegister4Double& Vec, double* Dst)
 {
+#if !UE_PLATFORM_MATH_USE_AVX
 	_mm_stream_pd(Dst, Vec.XY);
 	_mm_stream_pd(Dst + 2, Vec.ZW);
+#else
+	// TODO: AVX using two 128-bit stores until we verify 32-byte alignment requirement for our data with _mm256_stream_pd (was 16 for most types)
+	_mm_stream_pd(Dst, Vec.XY);
+	_mm_stream_pd(Dst + 2, Vec.ZW);
+#endif
 }
-
-// TODO: this is lossy, would rather not implement.
-/*
-FORCEINLINE void VectorStoreAlignedStreamed(const VectorRegister4Double& Vec, float* Dst)
-{
-	const VectorRegister4Float FloatXYZW = MakeVectorRegisterFloatFromDouble(Vec);
-	VectorStoreAlignedStreamed(FloatXYZW, Dst);
-}
-*/
 
 /**
  * Stores a vector to memory (aligned or unaligned).
@@ -548,8 +669,12 @@ FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, float* Ptr)
 
 FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, double* Dst)
 {
+#if !UE_PLATFORM_MATH_USE_AVX
 	_mm_storeu_pd(Dst, Vec.XY);
 	_mm_storeu_pd(Dst + 2, Vec.ZW);
+#else
+	_mm256_storeu_pd(Dst, Vec);
+#endif
 }
 
 /**
@@ -570,8 +695,15 @@ FORCEINLINE void VectorStoreFloat3( const VectorRegister4Float& Vec, float* Ptr 
 
 FORCEINLINE void VectorStoreFloat3(const VectorRegister4Double& Vec, double* Dst)
 {
+#if !UE_PLATFORM_MATH_USE_AVX
 	_mm_storeu_pd(Dst, Vec.XY);
 	_mm_store_sd(Dst + 2, Vec.ZW);
+#else
+	// TODO: AVX: compare perf. MaskStore is supposedly not so great on AMD Zen1 and Zen2 or older Intel.
+	_mm_storeu_pd(Dst, Vec.XY);
+	_mm_store_sd(Dst + 2, Vec.ZW);
+	//_mm256_maskstore_pd(Dst, _mm256_castpd_si256(GlobalVectorConstants::DoubleXYZMask), Vec);
+#endif
 }
 
 /**
@@ -591,46 +723,115 @@ FORCEINLINE void VectorStoreFloat1(const VectorRegister4Double& Vec, double* Dst
 }
 
 // Templated shuffles required for double shuffles when using __m128d, since we have to break it down in to two separate operations.
+// TODO: more specializations for simple cases. SSE 4.1 and AVX have cheaper blends available.
 
 // [0,1]:[0,1]
 template<int Index0, int Index1, typename std::enable_if< (Index0 <= 1) && (Index1 <= 1), bool >::type = true>
 FORCEINLINE VectorRegister2Double SelectVectorSwizzle2(const VectorRegister4Double& Vec)
 {
-	VectorRegister2Double Result = _mm_shuffle_pd(Vec.XY, Vec.XY, SHUFFLEMASK2(Index0, Index1));
-	return Result;
+	return _mm_shuffle_pd(Vec.XY, Vec.XY, SHUFFLEMASK2(Index0, Index1));
 }
+// <0,1> is simply XY.
+template<> FORCEINLINE VectorRegister2Double SelectVectorSwizzle2<0, 1>(const VectorRegister4Double& Vec) { return Vec.XY; }
 
 // [0,1]:[2,3]
 template<int Index0, int Index1, typename std::enable_if< (Index0 <= 1) && (Index1 > 1), bool >::type = true>
 FORCEINLINE VectorRegister2Double SelectVectorSwizzle2(const VectorRegister4Double& Vec)
 {
-	VectorRegister2Double Result = _mm_shuffle_pd(Vec.XY, Vec.ZW, SHUFFLEMASK2(Index0, Index1 - 2));
-	return Result;
+	return _mm_shuffle_pd(Vec.XY, Vec.ZW, SHUFFLEMASK2(Index0, Index1 - 2));
 }
 
 // [2,3]:[0,1]
 template<int Index0, int Index1, typename std::enable_if< (Index0 > 1) && (Index1 <= 1), bool >::type = true>
 FORCEINLINE VectorRegister2Double SelectVectorSwizzle2(const VectorRegister4Double& Vec)
 {
-	VectorRegister2Double Result = _mm_shuffle_pd(Vec.ZW, Vec.XY, SHUFFLEMASK2(Index0 - 2, Index1));
-	return Result;
+	return _mm_shuffle_pd(Vec.ZW, Vec.XY, SHUFFLEMASK2(Index0 - 2, Index1));
 }
 
 // [2,3]:[2,3]
 template<int Index0, int Index1, typename std::enable_if< (Index0 > 1) && (Index1 > 1), bool >::type = true>
 FORCEINLINE VectorRegister2Double SelectVectorSwizzle2(const VectorRegister4Double& Vec)
 {
-	VectorRegister2Double Result = _mm_shuffle_pd(Vec.ZW, Vec.ZW, SHUFFLEMASK2(Index0 - 2, Index1 - 2));
-	return Result;
+	return _mm_shuffle_pd(Vec.ZW, Vec.ZW, SHUFFLEMASK2(Index0 - 2, Index1 - 2));
 }
+// <2,3> is simply ZW.
+template<> FORCEINLINE VectorRegister2Double SelectVectorSwizzle2<2, 3>(const VectorRegister4Double& Vec) { return Vec.ZW; }
 
 // Double swizzle
 template<int Index0, int Index1, int Index2, int Index3>
 FORCEINLINE VectorRegister4Double VectorSwizzleTemplate(const VectorRegister4Double& Vec)
 {
+#if UE_PLATFORM_MATH_USE_AVX_2
+	VectorRegister4Double Result = _mm256_permute4x64_pd(Vec, SHUFFLEMASK(Index0, Index1, Index2, Index3));
+#else
 	VectorRegister4Double Result;
 	Result.XY = SelectVectorSwizzle2<Index0, Index1>(Vec);
 	Result.ZW = SelectVectorSwizzle2<Index2, Index3>(Vec);
+#endif
+	return Result;
+}
+
+// Double Swizzle specializations
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<0, 1, 2, 3>(const VectorRegister4Double& Vec) { return Vec; }
+
+#if UE_PLATFORM_MATH_USE_AVX
+constexpr int PERMUTE_MASK(int A, int B, int C, int D) { return ((A == 1 ? (1 << 0) : 0) | (B == 1 ? (1 << 1) : 0) | (C == 3 ? (1 << 2) : 0) | (D == 3 ? (1 << 3) : 0)); }
+// _mm256_permute4x64_pd has a latency of 3, so here are some specializations using instructions which have a latency of 1 but are restricted to in-lane (128 bit) permutes.
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<0, 1, 2, 2>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(0, 1, 2, 2)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<0, 1, 3, 3>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(0, 1, 3, 3)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<0, 1, 3, 2>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(0, 1, 3, 2)); }
+																																											 
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<0, 0, 2, 3>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(0, 0, 2, 3)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<0, 0, 2, 2>(const VectorRegister4Double& Vec) { return _mm256_movedup_pd(Vec); }							 
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<0, 0, 3, 3>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(0, 0, 3, 3)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<0, 0, 3, 2>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(0, 0, 3, 2)); }
+																																											 
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<1, 0, 2, 3>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(1, 0, 2, 3)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<1, 0, 2, 2>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(1, 0, 2, 2)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<1, 0, 3, 3>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(1, 0, 3, 3)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<1, 0, 3, 2>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(1, 0, 3, 2)); }
+																																											 
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<1, 1, 2, 3>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(1, 1, 2, 3)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<1, 1, 2, 2>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(1, 1, 2, 2)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<1, 1, 3, 3>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(1, 1, 3, 3)); }
+template<> FORCEINLINE VectorRegister4Double VectorSwizzleTemplate<1, 1, 3, 2>(const VectorRegister4Double& Vec) { return _mm256_permute_pd(Vec, PERMUTE_MASK(1, 1, 3, 2)); }
+#endif
+
+
+// Double replicate (2 doubles)
+template <int Index>
+FORCEINLINE VectorRegister2Double VectorReplicateImpl2(const VectorRegister2Double& Vec)
+{
+	return _mm_shuffle_pd(Vec, Vec, SHUFFLEMASK2(Index, Index));
+}
+
+// Double replicate (4 doubles)
+template <int Index, typename std::enable_if < (Index <= 1), bool >::type = true >
+FORCEINLINE VectorRegister4Double VectorReplicateImpl(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = VectorReplicateImpl2<Index>(Vec.XY);
+	Result.ZW = Result.XY;
+	return Result;
+}
+
+template <int Index, typename std::enable_if < (Index > 1), bool >::type = true >
+FORCEINLINE VectorRegister4Double VectorReplicateImpl(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = VectorReplicateImpl2<Index - 2>(Vec.ZW);
+	Result.ZW = Result.XY;
+	return Result;
+}
+
+template<int Index>
+FORCEINLINE VectorRegister4Double VectorReplicateTemplate(const VectorRegister4Double& Vec)
+{
+#if UE_PLATFORM_MATH_USE_AVX_2
+	VectorRegister4Double Result = _mm256_permute4x64_pd(Vec, SHUFFLEMASK(Index, Index, Index, Index));
+#else
+	VectorRegister4Double Result = VectorReplicateImpl<Index>(Vec);
+#endif
 	return Result;
 }
 
@@ -644,6 +845,19 @@ FORCEINLINE VectorRegister4Double VectorShuffleTemplate(const VectorRegister4Dou
 	return Result;
 }
 
+// Double Shuffle specializations 
+#if UE_PLATFORM_MATH_USE_AVX
+template<> FORCEINLINE VectorRegister4Double VectorShuffleTemplate<0, 1, 0, 1>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_permute2f128_pd(Vec1, Vec2, (0x00) | (0x02 << 4)); }
+template<> FORCEINLINE VectorRegister4Double VectorShuffleTemplate<0, 1, 2, 3>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_blend_pd(Vec1, Vec2, 0b1100); }
+template<> FORCEINLINE VectorRegister4Double VectorShuffleTemplate<2, 3, 0, 1>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_permute2f128_pd(Vec1, Vec2, (0x01) | (0x02 << 4)); }
+template<> FORCEINLINE VectorRegister4Double VectorShuffleTemplate<2, 3, 2, 3>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_permute2f128_pd(Vec1, Vec2, (0x01) | (0x03 << 4)); }
+#else
+template<> FORCEINLINE VectorRegister4Double VectorShuffleTemplate<0, 1, 0, 1>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return VectorRegister4Double(Vec1.XY, Vec2.XY); }
+template<> FORCEINLINE VectorRegister4Double VectorShuffleTemplate<0, 1, 2, 3>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return VectorRegister4Double(Vec1.XY, Vec2.ZW); }
+template<> FORCEINLINE VectorRegister4Double VectorShuffleTemplate<2, 3, 0, 1>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return VectorRegister4Double(Vec1.ZW, Vec2.XY); }
+template<> FORCEINLINE VectorRegister4Double VectorShuffleTemplate<2, 3, 2, 3>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return VectorRegister4Double(Vec1.ZW, Vec2.ZW); }
+#endif
+
 
 // Float swizzle
 template<int Index0, int Index1, int Index2, int Index3>
@@ -653,13 +867,43 @@ FORCEINLINE VectorRegister4Float VectorSwizzleTemplate(const VectorRegister4Floa
 	return Result;
 }
 
+// Float Swizzle specializations.
+// These can result in no-ops or simpler ops than shuffle which don't compete with the shuffle unit, or which can copy directly to the destination and avoid an intermediate mov.
+// See: https://stackoverflow.com/questions/56238197/what-is-the-difference-between-mm-movehdup-ps-and-mm-shuffle-ps-in-this-case
+template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<0, 1, 2, 3>(const VectorRegister4Float& Vec) { return Vec; }
+template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<0, 1, 0, 1>(const VectorRegister4Float& Vec) { return _mm_movelh_ps(Vec, Vec); }
+template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<2, 3, 2, 3>(const VectorRegister4Float& Vec) { return _mm_movehl_ps(Vec, Vec); }
+template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<0, 0, 1, 1>(const VectorRegister4Float& Vec) { return _mm_unpacklo_ps(Vec, Vec); }
+template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<2, 2, 3, 3>(const VectorRegister4Float& Vec) { return _mm_unpackhi_ps(Vec, Vec); }
+
+#if UE_PLATFORM_MATH_USE_SSE4_1
+template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<0, 0, 2, 2>(const VectorRegister4Float& Vec) { return _mm_moveldup_ps(Vec); }
+template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<1, 1, 3, 3>(const VectorRegister4Float& Vec) { return _mm_movehdup_ps(Vec); }
+#endif
+
+#if UE_PLATFORM_MATH_USE_AVX_2
+template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<0, 0, 0, 0>(const VectorRegister4Float& Vec) { return _mm_broadcastss_ps(Vec); }
+#endif
+
+
+// Float replicate
+template<int Index>
+FORCEINLINE VectorRegister4Float VectorReplicateTemplate(const VectorRegister4Float& Vec)
+{
+	return VectorSwizzleTemplate<Index, Index, Index, Index>(Vec);
+}
+
 // Float shuffle
 template<int Index0, int Index1, int Index2, int Index3>
 FORCEINLINE VectorRegister4Float VectorShuffleTemplate(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
-	VectorRegister4Float Result = _mm_shuffle_ps(Vec1, Vec2, SHUFFLEMASK(Index0, Index1, Index2, Index3));
-	return Result;
+	return _mm_shuffle_ps(Vec1, Vec2, SHUFFLEMASK(Index0, Index1, Index2, Index3));
 }
+
+// Float Shuffle specializations
+template<> FORCEINLINE VectorRegister4Float VectorShuffleTemplate<0, 1, 0, 1>(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2) { return _mm_movelh_ps(Vec1, Vec2); }
+template<> FORCEINLINE VectorRegister4Float VectorShuffleTemplate<2, 3, 2, 3>(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2) { return _mm_movehl_ps(Vec2, Vec1); } // Note: movehl copies first from the 2nd argument
+
 
 /**
  * Replicates one element into all four elements and returns the new vector.
@@ -669,7 +913,7 @@ FORCEINLINE VectorRegister4Float VectorShuffleTemplate(const VectorRegister4Floa
  * @return				VectorRegister4Float( Vec[ElementIndex], Vec[ElementIndex], Vec[ElementIndex], Vec[ElementIndex] )
  */
 
-#define VectorReplicate( Vec, ElementIndex )	VectorSwizzleTemplate<ElementIndex, ElementIndex, ElementIndex, ElementIndex>(Vec)
+#define VectorReplicate( Vec, ElementIndex )	VectorReplicateTemplate<ElementIndex>(Vec)
 
  /**
   * Swizzles the 4 components of a vector and returns the result.
@@ -708,11 +952,22 @@ FORCEINLINE VectorRegister4Float VectorAbs(const VectorRegister4Float& Vec)
 	return _mm_and_ps(Vec, GlobalVectorConstants::SignMask);
 }
 
+namespace SSEVectorConstants
+{
+#define DOUBLE_SIGN_BIT (uint64(1) << uint64(63))
+	static const VectorRegister2Double DoubleSignMask2d = MakeVectorRegister2DoubleMask((uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT));
+#undef DOUBLE_SIGN_BIT
+}
+
 FORCEINLINE VectorRegister4Double VectorAbs(const VectorRegister4Double& Vec)
 {
 	VectorRegister4Double Result;
-	Result.XY = _mm_and_pd(Vec.XY, GlobalVectorConstants::DoubleSignMask2d);
-	Result.ZW = _mm_and_pd(Vec.ZW, GlobalVectorConstants::DoubleSignMask2d);
+#if !UE_PLATFORM_MATH_USE_AVX
+	Result.XY = _mm_and_pd(Vec.XY, SSEVectorConstants::DoubleSignMask2d);
+	Result.ZW = _mm_and_pd(Vec.ZW, SSEVectorConstants::DoubleSignMask2d);
+#else
+	Result = _mm256_and_pd(Vec, GlobalVectorConstants::DoubleSignMask);
+#endif
 	return Result;
 }
 
@@ -730,8 +985,12 @@ FORCEINLINE VectorRegister4Float VectorNegate(const VectorRegister4Float& Vec)
 FORCEINLINE VectorRegister4Double VectorNegate(const VectorRegister4Double& Vec)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_sub_pd(_mm_setzero_pd(), Vec.XY);
 	Result.ZW = _mm_sub_pd(_mm_setzero_pd(), Vec.ZW);
+#else
+	Result = _mm256_sub_pd(_mm256_setzero_pd(), Vec);
+#endif
 	return Result;
 }
 
@@ -751,8 +1010,12 @@ FORCEINLINE VectorRegister4Float VectorAdd( const VectorRegister4Float& Vec1, co
 FORCEINLINE VectorRegister4Double VectorAdd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_add_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_add_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_add_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -771,8 +1034,12 @@ FORCEINLINE VectorRegister4Float VectorSubtract( const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorSubtract(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_sub_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_sub_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_sub_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -791,8 +1058,12 @@ FORCEINLINE VectorRegister4Float VectorMultiply( const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorMultiply(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_mul_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_mul_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_mul_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -808,7 +1079,7 @@ FORCEINLINE VectorRegister4Double VectorMultiply(const VectorRegister4Double& Ve
  */
 FORCEINLINE VectorRegister4Float VectorMultiplyAdd(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3)
 {
-#if PLATFORM_ALWAYS_HAS_FMA3
+#if UE_PLATFORM_MATH_USE_FMA3
 	return _mm_fmadd_ps(Vec1, Vec2, Vec3);
 #else
 	return VectorAdd(VectorMultiply(Vec1, Vec2), Vec3);
@@ -817,10 +1088,14 @@ FORCEINLINE VectorRegister4Float VectorMultiplyAdd(const VectorRegister4Float& V
 
 FORCEINLINE VectorRegister4Double VectorMultiplyAdd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2, const VectorRegister4Double& Vec3)
 {
-#if PLATFORM_ALWAYS_HAS_FMA3
+#if UE_PLATFORM_MATH_USE_FMA3
 	VectorRegister4Double Result;
-	Result.XY = _mm_fmadd_pd(Vec1.XY, Vec2.XY, Vec3.XY);
-	Result.ZW = _mm_fmadd_pd(Vec1.ZW, Vec2.ZW, Vec3.ZW);
+	#if !UE_PLATFORM_MATH_USE_AVX
+		Result.XY = _mm_fmadd_pd(Vec1.XY, Vec2.XY, Vec3.XY);
+		Result.ZW = _mm_fmadd_pd(Vec1.ZW, Vec2.ZW, Vec3.ZW);
+	#else
+		Result = _mm256_fmadd_pd(Vec1, Vec2, Vec3);
+	#endif
 	return Result;
 #else
 	return VectorAdd(VectorMultiply(Vec1, Vec2), Vec3);
@@ -837,7 +1112,7 @@ FORCEINLINE VectorRegister4Double VectorMultiplyAdd(const VectorRegister4Double&
  */
 FORCEINLINE VectorRegister4Float VectorNegateMultiplyAdd(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3)
 {
-#if PLATFORM_ALWAYS_HAS_FMA3
+#if UE_PLATFORM_MATH_USE_FMA3
 	return _mm_fnmadd_ps(Vec1, Vec2, Vec3);
 #else
 	return VectorSubtract(Vec3, VectorMultiply(Vec1, Vec2));
@@ -846,10 +1121,14 @@ FORCEINLINE VectorRegister4Float VectorNegateMultiplyAdd(const VectorRegister4Fl
 
 FORCEINLINE VectorRegister4Double VectorNegateMultiplyAdd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2, const VectorRegister4Double& Vec3)
 {
-#if PLATFORM_ALWAYS_HAS_FMA3
+#if UE_PLATFORM_MATH_USE_FMA3
 	VectorRegister4Double Result;
-	Result.XY = _mm_fnmadd_pd(Vec1.XY, Vec2.XY, Vec3.XY);
-	Result.ZW = _mm_fnmadd_pd(Vec1.ZW, Vec2.ZW, Vec3.ZW);
+	#if !UE_PLATFORM_MATH_USE_AVX
+		Result.XY = _mm_fnmadd_pd(Vec1.XY, Vec2.XY, Vec3.XY);
+		Result.ZW = _mm_fnmadd_pd(Vec1.ZW, Vec2.ZW, Vec3.ZW);
+	#else
+		Result = _mm256_fnmadd_pd(Vec1, Vec2, Vec3);
+	#endif
 	return Result;
 #else
 	return VectorSubtract(Vec3, VectorMultiply(Vec1, Vec2));
@@ -872,8 +1151,12 @@ FORCEINLINE VectorRegister4Float VectorDivide(const VectorRegister4Float& Vec1, 
 FORCEINLINE VectorRegister4Double VectorDivide(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_div_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_div_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_div_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -892,6 +1175,7 @@ FORCEINLINE VectorRegister4Float VectorDot3( const VectorRegister4Float& Vec1, c
 
 FORCEINLINE VectorRegister4Double VectorDot3(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
+	// TODO: AVX version?
 	VectorRegister4Double Temp = VectorMultiply(Vec1, Vec2);
 	return VectorAdd(VectorReplicate(Temp,0), VectorAdd(VectorReplicate(Temp,1), VectorReplicate(Temp,2)));
 }
@@ -901,20 +1185,21 @@ FORCEINLINE VectorRegister4Double VectorDot3(const VectorRegister4Double& Vec1, 
  *
  * @param Vec1	1st vector
  * @param Vec2	2nd vector
- * @return		d = dot4(Vec1.xyzw, Vec2.xyzw), VectorRegister4Float( d, d, d, d )
+ * @return		d = dot4(Vec1, Vec2), VectorRegister4Float( d, d, d, d )
  */
 FORCEINLINE VectorRegister4Float VectorDot4( const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2 )
 {
 	VectorRegister4Float Temp1, Temp2;
 	Temp1 = VectorMultiply( Vec1, Vec2 );
-	Temp2 = _mm_shuffle_ps( Temp1, Temp1, SHUFFLEMASK(2,3,0,1) );	// (Z,W,X,Y).
-	Temp1 = VectorAdd( Temp1, Temp2 );								// (X*X + Z*Z, Y*Y + W*W, Z*Z + X*X, W*W + Y*Y)
-	Temp2 = _mm_shuffle_ps( Temp1, Temp1, SHUFFLEMASK(1,2,3,0) );	// Rotate left 4 bytes (Y,Z,W,X).
-	return VectorAdd( Temp1, Temp2 );								// (X*X + Z*Z + Y*Y + W*W, Y*Y + W*W + Z*Z + X*X, Z*Z + X*X + W*W + Y*Y, W*W + Y*Y + X*X + Z*Z)
+	Temp2 = VectorSwizzle( Temp1, 2, 3, 0, 1 );	// (Z,W,X,Y).
+	Temp1 = VectorAdd( Temp1, Temp2 );			// (X*X + Z*Z, Y*Y + W*W, Z*Z + X*X, W*W + Y*Y)
+	Temp2 = VectorSwizzle( Temp1, 1, 2, 3, 0 );	// Rotate left 4 bytes (Y,Z,W,X).
+	return VectorAdd( Temp1, Temp2 );			// (X*X + Z*Z + Y*Y + W*W, Y*Y + W*W + Z*Z + X*X, Z*Z + X*X + W*W + Y*Y, W*W + Y*Y + X*X + Z*Z)
 }
 
 FORCEINLINE VectorRegister4Double VectorDot4(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
+	// TODO: AVX version
 	VectorRegister4Double R;
 	VectorRegister2Double T;
 
@@ -951,8 +1236,12 @@ FORCEINLINE VectorRegister4Float VectorCompareEQ(const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorCompareEQ(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_cmpeq_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_cmpeq_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_cmp_pd(Vec1, Vec2, _CMP_EQ_OQ);
+#endif
 	return Result;
 }
 
@@ -971,8 +1260,12 @@ FORCEINLINE VectorRegister4Float VectorCompareNE(const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorCompareNE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_cmpneq_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_cmpneq_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_cmp_pd(Vec1, Vec2, _CMP_NEQ_OQ);
+#endif
 	return Result;
 }
 
@@ -991,8 +1284,12 @@ FORCEINLINE VectorRegister4Float VectorCompareGT(const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorCompareGT(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_cmpgt_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_cmpgt_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_cmp_pd(Vec1, Vec2, _CMP_GT_OQ);
+#endif
 	return Result;
 }
 
@@ -1011,8 +1308,12 @@ FORCEINLINE VectorRegister4Float VectorCompareGE(const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorCompareGE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_cmpge_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_cmpge_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_cmp_pd(Vec1, Vec2, _CMP_GE_OQ);
+#endif
 	return Result;
 }
 
@@ -1031,8 +1332,12 @@ FORCEINLINE VectorRegister4Float VectorCompareLT(const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorCompareLT(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_cmplt_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_cmplt_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_cmp_pd(Vec1, Vec2, _CMP_LT_OQ);
+#endif
 	return Result;
 }
 
@@ -1051,8 +1356,12 @@ FORCEINLINE VectorRegister4Float VectorCompareLE(const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorCompareLE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_cmple_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_cmple_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_cmp_pd(Vec1, Vec2, _CMP_LE_OQ);
+#endif
 	return Result;
 }
 
@@ -1079,8 +1388,12 @@ FORCEINLINE VectorRegister2Double VectorSelect(const VectorRegister2Double& Mask
 FORCEINLINE VectorRegister4Double VectorSelect(const VectorRegister4Double& Mask, const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = VectorSelect(Mask.XY, Vec1.XY, Vec2.XY);
 	Result.ZW = VectorSelect(Mask.ZW, Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_xor_pd(Vec2, _mm256_and_pd(Mask, _mm256_xor_pd(Vec1, Vec2)));
+#endif
 	return Result;
 }
 
@@ -1099,8 +1412,12 @@ FORCEINLINE VectorRegister4Float VectorBitwiseOr(const VectorRegister4Float& Vec
 FORCEINLINE VectorRegister4Double VectorBitwiseOr(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_or_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_or_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_or_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -1119,8 +1436,12 @@ FORCEINLINE VectorRegister4Float VectorBitwiseAnd(const VectorRegister4Float& Ve
 FORCEINLINE VectorRegister4Double VectorBitwiseAnd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_and_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_and_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_and_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -1139,8 +1460,12 @@ FORCEINLINE VectorRegister4Float VectorBitwiseXor(const VectorRegister4Float& Ve
 FORCEINLINE VectorRegister4Double VectorBitwiseXor(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_xor_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_xor_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_xor_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -1166,6 +1491,8 @@ FORCEINLINE VectorRegister4Float VectorCross( const VectorRegister4Float& Vec1, 
 
 FORCEINLINE VectorRegister4Double VectorCross(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
+	// TODO: AVX?
+
 	// YZX
 	VectorRegister4Double A = VectorSwizzle(Vec2, 1, 2, 0, 3);
 	VectorRegister4Double B = VectorSwizzle(Vec1, 1, 2, 0, 3);
@@ -1226,8 +1553,12 @@ FORCEINLINE VectorRegister4Double VectorReciprocalSqrt(const VectorRegister4Doub
 {
 	// Not an estimate.
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_sqrt_pd(Vec.XY);
 	Result.ZW = _mm_sqrt_pd(Vec.ZW);
+#else
+	Result = _mm256_sqrt_pd(Vec);
+#endif
 	return VectorDivide(GlobalVectorConstants::DoubleOne, Result);
 }
 
@@ -1309,8 +1640,12 @@ FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(const VectorRegist
 FORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(const VectorRegister4Double& Vec)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_sqrt_pd(Vec.XY);
 	Result.ZW = _mm_sqrt_pd(Vec.ZW);
+#else
+	Result = _mm256_sqrt_pd(Vec);
+#endif
 	return VectorDivide(GlobalVectorConstants::DoubleOne, Result);
 }
 
@@ -1370,8 +1705,12 @@ FORCEINLINE VectorRegister4Float VectorSet_W0(const VectorRegister4Float& Vec)
 FORCEINLINE VectorRegister4Double VectorSet_W0(const VectorRegister4Double& Vec)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = Vec.XY;
 	Result.ZW = _mm_castsi128_pd(_mm_move_epi64(_mm_castpd_si128(Vec.ZW)));
+#else
+	Result = _mm256_blend_pd(Vec, VectorZeroDouble(), 0b1000);
+#endif
 	return Result;
 }
 
@@ -1387,14 +1726,18 @@ FORCEINLINE VectorRegister4Float VectorSet_W1( const VectorRegister4Float& Vec)
 	VectorRegister4Float Temp = _mm_movehl_ps( VectorOneFloat(), Vec);
 
 	// Return (Vector[0], Vector[1], Vector[2], 1.0f)
-	return _mm_shuffle_ps(Vec, Temp, SHUFFLEMASK(0,1,0,3) );
+	return VectorShuffle(Vec, Temp, 0, 1, 0, 3 );
 }
 
 FORCEINLINE VectorRegister4Double VectorSet_W1(const VectorRegister4Double& Vec)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = Vec.XY;
 	Result.ZW = _mm_move_sd(GlobalVectorConstants::DoubleOne2d, Vec.ZW);
+#else
+	Result = _mm256_blend_pd(Vec, VectorOneDouble(), 0b1000);
+#endif
 	return Result;
 }
 
@@ -1570,7 +1913,7 @@ FORCEINLINE void VectorMatrixInverse(FMatrix44d* DstMatrix, const FMatrix44d* Sr
 		M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
 		);
 
-	memcpy( DstMatrix, &Result, 16*sizeof(double) );
+	memcpy( DstMatrix, &Result, sizeof(Result) );
 }
 
 FORCEINLINE void VectorMatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* SrcMatrix)
@@ -1654,7 +1997,7 @@ FORCEINLINE void VectorMatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* Sr
 		M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
 		);
 
-	memcpy(DstMatrix, &Result, 16 * sizeof(float));
+	memcpy(DstMatrix, &Result, sizeof(Result));
 }
 
 
@@ -1668,7 +2011,7 @@ FORCEINLINE void VectorMatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* Sr
  */
 FORCEINLINE VectorRegister4Float VectorTransformVector(const VectorRegister4Float& VecP, const FMatrix44f* MatrixM)
 {
-	const VectorRegister4Float *M	= (const VectorRegister4Float *) MatrixM;
+	const VectorRegister4Float *M = (const VectorRegister4Float *) MatrixM;
 	VectorRegister4Float VTempX, VTempY, VTempZ, VTempW;
 
 	// Splat x,y,z and w
@@ -1759,8 +2102,12 @@ FORCEINLINE VectorRegister4Float VectorMin(const VectorRegister4Float& Vec1, con
 FORCEINLINE VectorRegister4Double VectorMin(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_min_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_min_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_min_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -1779,8 +2126,12 @@ FORCEINLINE VectorRegister4Float VectorMax(const VectorRegister4Float& Vec1, con
 FORCEINLINE VectorRegister4Double VectorMax(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = _mm_max_pd(Vec1.XY, Vec2.XY);
 	Result.ZW = _mm_max_pd(Vec1.ZW, Vec2.ZW);
+#else
+	Result = _mm256_max_pd(Vec1, Vec2);
+#endif
 	return Result;
 }
 
@@ -1798,10 +2149,7 @@ FORCEINLINE VectorRegister4Float VectorCombineHigh(const VectorRegister4Float& V
 
 FORCEINLINE VectorRegister4Double VectorCombineHigh(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
-	VectorRegister4Double Result;
-	Result.XY = Vec1.ZW;
-	Result.ZW = Vec2.ZW;
-	return Result;
+	return VectorShuffle(Vec1, Vec2, 2, 3, 2, 3);
 }
 
 /**
@@ -1818,10 +2166,7 @@ FORCEINLINE VectorRegister4Float VectorCombineLow(const VectorRegister4Float& Ve
 
 FORCEINLINE VectorRegister4Double VectorCombineLow(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
-	VectorRegister4Double Result;
-	Result.XY = Vec1.XY;
-	Result.ZW = Vec2.XY;
-	return Result;
+	return VectorShuffle(Vec1, Vec2, 0, 1, 0, 1);
 }
 
 /**
@@ -1859,9 +2204,13 @@ FORCEINLINE int VectorMaskBits(const VectorRegister4Float& VecMask)
 
 FORCEINLINE int VectorMaskBits(const VectorRegister4Double& VecMask)
 {
+#if !UE_PLATFORM_MATH_USE_AVX
 	const int MaskXY = _mm_movemask_pd(VecMask.XY);
 	const int MaskZW = _mm_movemask_pd(VecMask.ZW);
 	return (MaskZW << 2) | (MaskXY);
+#else
+	return _mm256_movemask_pd(VecMask);
+#endif
 }
 
 /**
@@ -1881,7 +2230,7 @@ FORCEINLINE VectorRegister4Double VectorMergeVecXYZ_VecW(const VectorRegister4Do
 	//return VectorSelect(GlobalVectorConstants::DoubleXYZMask, VecXYZ, VecW);
 	VectorRegister4Double Result;
 	Result.XY = VecXYZ.XY;
-	Result.ZW = _mm_move_sd(VecW.ZW, VecXYZ.ZW); //VectorSelect(GlobalVectorConstants::DoubleZMask, VecXYZ.ZW, VecW.ZW);
+	Result.ZW = _mm_move_sd(VecW.ZW, VecXYZ.ZW);
 	return Result;
 }
 
@@ -1923,7 +2272,7 @@ FORCEINLINE VectorRegister4Float VectorLoadSignedByte4(const void* Ptr)
 FORCEINLINE VectorRegister4Float VectorLoadByte4Reverse( void* Ptr )
 {
 	VectorRegister4Float Temp = VectorLoadByte4(Ptr);
-	return _mm_shuffle_ps( Temp, Temp, SHUFFLEMASK(3,2,1,0) );
+	return VectorSwizzle( Temp, 3, 2, 1, 0 );
 }
 
 /**
@@ -2183,7 +2532,7 @@ FORCEINLINE bool VectorContainsNaNOrInfinite(const VectorRegister4Double& Vec)
 
 FORCEINLINE VectorRegister4Float VectorTruncate(const VectorRegister4Float& Vec)
 {
-#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+#if UE_PLATFORM_MATH_USE_SSE4_1
 	return _mm_round_ps(Vec, _MM_FROUND_TRUNC);
 #else
 	return _mm_cvtepi32_ps(_mm_cvttps_epi32(Vec));
@@ -2192,7 +2541,7 @@ FORCEINLINE VectorRegister4Float VectorTruncate(const VectorRegister4Float& Vec)
 
 FORCEINLINE VectorRegister2Double TruncateVectorRegister2d(const VectorRegister2Double& V)
 {
-#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+#if UE_PLATFORM_MATH_USE_SSE4_1
 	return _mm_round_pd(V, _MM_FROUND_TRUNC);
 #else
 	// TODO: LWC: Optimize
@@ -2202,21 +2551,25 @@ FORCEINLINE VectorRegister2Double TruncateVectorRegister2d(const VectorRegister2
 	VectorRegister2Double A = _mm_cvtsi64_sd(V, X); // Converts to lowest element, copies upper.
 	VectorRegister2Double B = _mm_cvtsi64_sd(V, Y); // Converts to lowest element, copies upper.
 	return _mm_shuffle_pd(A, B, SHUFFLEMASK2(0, 0));
-#endif // UNREALPLATFORMMATH_SSE_USE_SSE4_1	
+#endif // UE_PLATFORM_MATH_USE_SSE4_1	
 }
 
 FORCEINLINE VectorRegister4Double VectorTruncate(const VectorRegister4Double& V)
 {
 	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = TruncateVectorRegister2d(V.XY);
 	Result.ZW = TruncateVectorRegister2d(V.ZW);
+#else
+	Result = _mm256_round_pd(V, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+#endif
 	return Result;
 }
 
 
 FORCEINLINE VectorRegister4Float VectorCeil(const VectorRegister4Float& V)
 {
-#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+#if UE_PLATFORM_MATH_USE_SSE4_1
 	return _mm_ceil_ps(V);
 #else
 	const VectorRegister4Float Trunc = VectorTruncate(V);
@@ -2229,7 +2582,11 @@ FORCEINLINE VectorRegister4Float VectorCeil(const VectorRegister4Float& V)
 
 FORCEINLINE VectorRegister4Double VectorCeil(const VectorRegister4Double& V)
 {
-#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+#if UE_PLATFORM_MATH_USE_AVX
+	VectorRegister4Double Result;
+	Result = _mm256_round_pd(V, _MM_FROUND_TO_POS_INF | _MM_FROUND_NO_EXC);
+	return Result;
+#elif UE_PLATFORM_MATH_USE_SSE4_1
 	VectorRegister4Double Result;
 	Result.XY = _mm_ceil_pd(V.XY);
 	Result.ZW = _mm_ceil_pd(V.ZW);
@@ -2245,7 +2602,7 @@ FORCEINLINE VectorRegister4Double VectorCeil(const VectorRegister4Double& V)
 
 FORCEINLINE VectorRegister4Float VectorFloor(const VectorRegister4Float& V)
 {
-#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+#if UE_PLATFORM_MATH_USE_SSE4_1
 	return _mm_floor_ps(V);
 #else
 	const VectorRegister4Float Trunc = VectorTruncate(V);
@@ -2258,7 +2615,11 @@ FORCEINLINE VectorRegister4Float VectorFloor(const VectorRegister4Float& V)
 
 FORCEINLINE VectorRegister4Double VectorFloor(const VectorRegister4Double& V)
 {
-#if UNREALPLATFORMMATH_SSE_USE_SSE4_1
+#if UE_PLATFORM_MATH_USE_AVX
+	VectorRegister4Double Result;
+	Result = _mm256_round_pd(V, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+	return Result;
+#elif UE_PLATFORM_MATH_USE_SSE4_1
 	VectorRegister4Double Result;
 	Result.XY = _mm_floor_pd(V.XY);
 	Result.ZW = _mm_floor_pd(V.ZW);
@@ -2757,5 +3118,3 @@ FORCEINLINE VectorRegister4Int VectorFloatToInt(const VectorRegister4Double& A)
 * @return		VectorRegister4Int(*Ptr, *Ptr, *Ptr, *Ptr)
 */
 #define VectorIntLoad1( Ptr )	_mm_set1_epi32(*(Ptr))
-#endif
-
