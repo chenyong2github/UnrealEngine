@@ -126,32 +126,29 @@ void UNiagaraDataInterfaceVolumeTexture::GetVMExternalFunction(const FVMExternal
 	}
 }
 
+bool UNiagaraDataInterfaceVolumeTexture::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+{
+	const FIntVector CurrentTextureSize = Texture != nullptr ? FIntVector(Texture->GetSizeX(), Texture->GetSizeY(), Texture->GetSizeZ()) : FIntVector::ZeroValue;
+	if ( CurrentTextureSize !=  TextureSize )
+	{
+		TextureSize = CurrentTextureSize;
+		MarkRenderDataDirty();
+	}
+	return false;
+}
+
 void UNiagaraDataInterfaceVolumeTexture::GetTextureDimensions(FVectorVMContext& Context)
 {
-	VectorVM::FExternalFuncRegisterHandler<float> OutWidth(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutHeight(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutDepth(Context);
+	FNDIOutputParam<float> OutWidth(Context);
+	FNDIOutputParam<float> OutHeight(Context);
+	FNDIOutputParam<float> OutDepth(Context);
 
-	if (Texture == nullptr)
+	FVector FloatTextureSize(TextureSize.X, TextureSize.Y, TextureSize.Z);
+	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
-		{
-			*OutWidth.GetDestAndAdvance() = 0.0f;
-			*OutHeight.GetDestAndAdvance() = 0.0f;
-			*OutDepth.GetDestAndAdvance() = 0.0f;
-		}
-	}
-	else
-	{
-		float Width = Texture->GetSizeX();
-		float Height = Texture->GetSizeY();
-		float Depth = Texture->GetSizeZ();
-		for (int32 i = 0; i < Context.NumInstances; ++i)
-		{
-			*OutWidth.GetDestAndAdvance() = Width;
-			*OutHeight.GetDestAndAdvance() = Height;
-			*OutDepth.GetDestAndAdvance() = Depth;
-		}
+		OutWidth.SetAndAdvance(FloatTextureSize.X);
+		OutHeight.SetAndAdvance(FloatTextureSize.Y);
+		OutDepth.SetAndAdvance(FloatTextureSize.Z);
 	}
 }
 
@@ -280,21 +277,21 @@ void UNiagaraDataInterfaceVolumeTexture::PushToRenderThreadImpl()
 {
 	FNiagaraDataInterfaceProxyVolumeTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyVolumeTexture>();
 
-	FVector RT_TexDims(EForceInit::ForceInitToZero);
+	TextureSize = FIntVector::ZeroValue;
 	if (Texture)
 	{
-		RT_TexDims.X = Texture->GetSizeX();
-		RT_TexDims.Y = Texture->GetSizeY();
-		RT_TexDims.Z = Texture->GetSizeZ();
+		TextureSize.X = Texture->GetSizeX();
+		TextureSize.Y = Texture->GetSizeY();
+		TextureSize.Z = Texture->GetSizeZ();
 	}
 
 	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT)
 	(
-		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims=TextureSize](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_Proxy->TextureRHI = RT_Resource ? RT_Resource->TextureRHI : nullptr;
 			RT_Proxy->SamplerStateRHI = RT_Resource ? RT_Resource->SamplerStateRHI : nullptr;
-			RT_Proxy->TexDims = RT_TexDims;
+			RT_Proxy->TexDims = FVector(RT_TexDims.X, RT_TexDims.Y, RT_TexDims.Z);
 		}
 	);
 }

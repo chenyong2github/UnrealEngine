@@ -131,28 +131,26 @@ void UNiagaraDataInterfaceCubeTexture::GetVMExternalFunction(const FVMExternalFu
 	}
 }
 
+bool UNiagaraDataInterfaceCubeTexture::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+{
+	const FIntPoint CurrentTextureSize = Texture != nullptr ? FIntPoint(Texture->GetSizeX(), Texture->GetSizeY()) : FIntPoint::ZeroValue;
+	if ( CurrentTextureSize != TextureSize )
+	{
+		TextureSize = CurrentTextureSize;
+		MarkRenderDataDirty();
+	}
+	return false;
+}
+
 void UNiagaraDataInterfaceCubeTexture::GetTextureDimensions(FVectorVMContext& Context)
 {
 	FNDIOutputParam<int32> OutWidth(Context);
 	FNDIOutputParam<int32> OutHeight(Context);
 
-	if (Texture == nullptr)
+	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
-		{
-			OutWidth.SetAndAdvance(0);
-			OutHeight.SetAndAdvance(0);
-		}
-	}
-	else
-	{
-		const int Width = Texture->GetSizeX();
-		const int Height = Texture->GetSizeY();
-		for (int32 i = 0; i < Context.NumInstances; ++i)
-		{
-			OutWidth.SetAndAdvance(Width);
-			OutHeight.SetAndAdvance(Height);
-		}
+		OutWidth.SetAndAdvance(TextureSize.X);
+		OutHeight.SetAndAdvance(TextureSize.Y);
 	}
 }
 
@@ -274,16 +272,16 @@ void UNiagaraDataInterfaceCubeTexture::PushToRenderThreadImpl()
 {
 	FNiagaraDataInterfaceProxyCubeTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyCubeTexture>();
 
-	FIntPoint RT_TexDims(0, 0);
+	TextureSize = FIntPoint::ZeroValue;
 	if (Texture)
 	{
-		RT_TexDims.X = Texture->GetSizeX();
-		RT_TexDims.Y = Texture->GetSizeY();
+		TextureSize.X = Texture->GetSizeX();
+		TextureSize.Y = Texture->GetSizeY();
 	}
 
 	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT)
 	(
-		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims=TextureSize](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_Proxy->TextureRHI = RT_Resource ? RT_Resource->TextureRHI : nullptr;
 			RT_Proxy->SamplerStateRHI = RT_Resource ? RT_Resource->SamplerStateRHI : nullptr;
