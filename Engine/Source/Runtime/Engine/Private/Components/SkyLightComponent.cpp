@@ -364,19 +364,9 @@ void USkyLightComponent::CreateRenderState_Concurrent(FRegisterComponentContext*
 {
 	Super::CreateRenderState_Concurrent(Context);
 
-	bool bHidden = false;
-#if WITH_EDITORONLY_DATA
-	bHidden = GetOwner() ? GetOwner()->bHiddenEdLevel : false;
-#endif // WITH_EDITORONLY_DATA
-
-	if(!ShouldComponentAddToScene())
-	{
-		bHidden = true;
-	}
-
 	const bool bIsValid = SourceType != SLS_SpecifiedCubemap || Cubemap != NULL || IsRealTimeCaptureEnabled();
 
-	if (bAffectsWorld && GetVisibleFlag() && !bHidden && bIsValid)
+	if (bAffectsWorld && bIsValid && ShouldComponentAddToScene() && ShouldRender())
 	{
 		// Create the light's scene proxy.
 		SceneProxy = CreateSceneProxy();
@@ -999,7 +989,7 @@ ASkyLight::ASkyLight(const FObjectInitializer& ObjectInitializer)
 {
 	LightComponent = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLightComponent0"));
 	RootComponent = LightComponent;
-
+	SetHidden(false);
 #if WITH_EDITORONLY_DATA
 	if (!IsRunningCommandlet())
 	{

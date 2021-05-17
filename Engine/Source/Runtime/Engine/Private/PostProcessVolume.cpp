@@ -18,6 +18,20 @@ APostProcessVolume::APostProcessVolume(const FObjectInitializer& ObjectInitializ
 	BlendWeight = 1.0f;
 }
 
+bool APostProcessVolume::IsPPVEnabled() const
+{
+#if WITH_EDITOR
+	const bool bShowInEditor = GIsEditor ? !IsHiddenEd() : false;
+	const bool bInGameWorld = GetWorld() && GetWorld()->UsesGameHiddenFlags();
+
+	// bEnabled is the only thing we check in a game world. In the editor we also check the editor hidden flags
+	// In a GameWorld we can't use the IsHidden() flag of the Actor because the APostProcessVolume is always Hidden by subclassing of ABrush
+	return bEnabled != 0 && (bInGameWorld || (!bInGameWorld && bShowInEditor));
+#else
+	return bEnabled != 0;
+#endif
+}
+
 bool APostProcessVolume::EncompassesPoint(FVector Point, float SphereRadius/*=0.f*/, float* OutDistanceToPoint)
 {
 	// Redirect IInterface_PostProcessVolume's non-const pure virtual EncompassesPoint virtual in to AVolume's non-virtual const EncompassesPoint

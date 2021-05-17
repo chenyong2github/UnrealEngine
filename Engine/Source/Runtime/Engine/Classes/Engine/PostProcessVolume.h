@@ -55,7 +55,7 @@ class ENGINE_API APostProcessVolume : public AVolume, public IInterface_PostProc
 	virtual FPostProcessVolumeProperties GetProperties() const override
 	{
 		FPostProcessVolumeProperties Ret;
-		Ret.bIsEnabled = bEnabled != 0;
+		Ret.bIsEnabled = IsPPVEnabled();
 		Ret.bIsUnbound = bUnbound != 0;
 		Ret.BlendRadius = BlendRadius;
 		Ret.BlendWeight = BlendWeight;
@@ -72,6 +72,8 @@ class ENGINE_API APostProcessVolume : public AVolume, public IInterface_PostProc
 protected:
 	virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface
+
+	bool IsPPVEnabled() const;
 public:
 	
 	//~ Begin UObject Interface
