@@ -8,6 +8,7 @@
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterConfigurationTypes.h"
 
+#include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterStrings.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
@@ -48,6 +49,8 @@ const uint32 UDisplayClusterPreviewComponent::MaxRenderTargetDimension = 2048;
 
 void UDisplayClusterPreviewComponent::OnComponentCreated()
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::OnComponentCreated"), STAT_OnComponentCreated, STATGROUP_NDisplay);
+	
 	Super::OnComponentCreated();
 
 	InitializeInternals();
@@ -55,6 +58,8 @@ void UDisplayClusterPreviewComponent::OnComponentCreated()
 
 void UDisplayClusterPreviewComponent::DestroyComponent(bool bPromoteChildren)
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::DestroyComponent"), STAT_DestroyComponent, STATGROUP_NDisplay);
+	
 	if (PreviewMesh)
 	{
 		bUseMeshUsePreviewMaterialInstance = false;
@@ -88,6 +93,8 @@ bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayCluster
 
 bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewMesh"), STAT_UpdatePreviewMesh, STATGROUP_NDisplay);
+	
 	check(IsInGameThread());
 
 	// And search for new mesh reference
@@ -146,6 +153,8 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 
 void UDisplayClusterPreviewComponent::UpdatePreviewResources()
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewResources"), STAT_UpdatePreviewResources, STATGROUP_NDisplay);
+	
 	if (PreviewMesh && PreviewMesh->GetName().Find(TEXT("TRASH_")) != INDEX_NONE)
 	{
 		// Screen components are regenerated from construction scripts, but preview components are added in dynamically. This preview component may end up
@@ -195,6 +204,8 @@ void UDisplayClusterPreviewComponent::InitializeInternals()
 
 void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget"), STAT_UpdatePreviewRenderTarget, STATGROUP_NDisplay);
+	
 	FIntPoint TextureSize(1,1);
 	float     TextureGamma = 1.f;
 
@@ -294,6 +305,8 @@ void UDisplayClusterPreviewComponent::RemovePreviewTexture()
 
 bool UDisplayClusterPreviewComponent::UpdatePreviewTexture()
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewTexture"), STAT_UpdatePreviewTexture, STATGROUP_NDisplay);
+	
 	check(RenderTarget);
 
 	TArray<FColor> SurfData;
@@ -358,7 +371,7 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewTexture()
 	return true;
 }
 
-void UDisplayClusterPreviewComponent::HandleRenderTargetTextureDefferedUpdate()
+void UDisplayClusterPreviewComponent::HandleRenderTargetTextureDeferredUpdate()
 {
 	check(IsInGameThread());
 
@@ -376,7 +389,10 @@ UTexture2D* UDisplayClusterPreviewComponent::GetOrCreateRenderTexture2D()
 	else
 	if (RenderTarget && bIsRenderTargetSurfaceChanged)
 	{
-		UpdatePreviewTexture();
+		if (UpdatePreviewTexture())
+		{
+			bIsRenderTargetSurfaceChanged = false;
+		}
 	}
 
 	return PreviewTexture;
