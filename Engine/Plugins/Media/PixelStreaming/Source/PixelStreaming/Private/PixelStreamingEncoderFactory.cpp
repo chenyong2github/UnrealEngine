@@ -47,7 +47,7 @@ std::unique_ptr<VideoEncoder> FPixelStreamingVideoEncoderFactory::CreateVideoEnc
 	bool res = PendingPlayerSessions.Dequeue(Session);
 	checkf(res, TEXT("no player session associated with encoder instance"));
 
-	UE_LOG(PixelStreamer, Log, TEXT("Encoder factory addded encoder for PlayerId=%d"), Session->GetPlayerId());
+	UE_LOG(PixelStreamer, Log, TEXT("Encoder factory addded encoder for PlayerId=%s"), *Session->GetPlayerId());
 
 	auto VideoEncoder = std::make_unique<FPixelStreamingVideoEncoder>(Session, &EncoderContext);
 	this->ActiveEncoders.Add(VideoEncoder.get());
@@ -64,7 +64,7 @@ void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedIma
 		if(!Encoder->IsRegisteredWithWebRTC())
 		{
 			ActiveEncoders.RemoveAt(Index);
-			UE_LOG(PixelStreamer, Log, TEXT("Encoder factory cleaned up stale encoder associated with PlayerId=%d"), Encoder->GetPlayerId());
+			UE_LOG(PixelStreamer, Log, TEXT("Encoder factory cleaned up stale encoder associated with PlayerId=%s"), *Encoder->GetPlayerId());
 		}
 		else
 		{
@@ -77,8 +77,8 @@ void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedIma
 void FPixelStreamingVideoEncoderFactory::ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder)
 {
 	ActiveEncoders.Remove(encoder);
-	int PlayerId = encoder->GetPlayerId();
-	UE_LOG(PixelStreamer, Log, TEXT("Encoder factory asked to remove encoder for PlayerId=%d"), PlayerId);
+	FPlayerId PlayerId = encoder->GetPlayerId();
+	UE_LOG(PixelStreamer, Log, TEXT("Encoder factory asked to remove encoder for PlayerId=%s"), *PlayerId);
 }
 
 //TODO real encoder class in here

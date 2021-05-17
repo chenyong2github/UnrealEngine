@@ -107,7 +107,7 @@ void FStreamerConnection::SignallingThreadFunc()
 #endif
 
 	// now that everything is ready connect to SignallingServer
-	SignallingServerConnection = MakeUnique<FSignallingServerConnection>(SignallingServerAddress, *this);
+	SignallingServerConnection = MakeUnique<FSignallingServerConnection>(SignallingServerAddress, *this, TEXT(""));
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// WebRTC window messaging loop
