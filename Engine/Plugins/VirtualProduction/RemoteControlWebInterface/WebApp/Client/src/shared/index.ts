@@ -72,7 +72,6 @@ export interface IExposedFunction {
   DisplayName: string;
   UnderlyingFunction: IFunction;
   Metadata: { [key: string]: string };
-  Widget: WidgetType;
 }
 
 export interface IProperty {
@@ -196,7 +195,7 @@ export interface ICustomStackProperty {
   lock?: boolean;
 
   // Vector only
-  widgets?: (WidgetTypes.Joystick | WidgetTypes.Sliders | WidgetTypes.Gauge)[];
+  widgets?: WidgetType[];
   speedMin?: number;
   speedMax?: number;
 
