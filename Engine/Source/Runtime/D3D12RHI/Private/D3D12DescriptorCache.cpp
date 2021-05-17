@@ -15,7 +15,7 @@ static FAutoConsoleVariableRef CVarGlobalViewHeapBlockSize(
 
 #if PLATFORM_WINDOWS
 
-int32 GGlobalViewHeapClobberAfterUse = 1;
+int32 GGlobalViewHeapClobberAfterUse = 0;
 static FAutoConsoleVariableRef CVarGlobalViewHeapClobberSRVAfterUse(
 	TEXT("D3D12.GlobalViewHeapClobberSRVAfterUse"),
 	GGlobalViewHeapClobberAfterUse,

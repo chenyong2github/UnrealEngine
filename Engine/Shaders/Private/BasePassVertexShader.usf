@@ -203,7 +203,8 @@ void Main(
 	{
 		float4 PrevTranslatedWorldPosition = float4(0, 0, 0, 1);
 #if GPUCULL_TODO
-		BRANCH
+		// Use 'FLATTEN' instead of 'BRANCH' because of nVidia driver compiler bug: see UE-108339 - nVidia is working on a driver side fix right now
+		FLATTEN
 		if (GetPrimitiveData(VFIntermediates).OutputVelocity > 0 || View.ForceDrawAllVelocities != 0)
 #else //!GPUCULL_TODO
 		// Warning: This here is a non-abstracted use of VFIntermediates.PrimitiveId - Only works because GetPrimitiveData(VFIntermediates.PrimitiveId) is a macro.
