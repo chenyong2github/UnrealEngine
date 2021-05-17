@@ -818,7 +818,7 @@ public:
 	FConstraintBrokenSignature OnConstraintBroken;
 
 	/** Class of the object responsible for  */
-	UPROPERTY(EditAnywhere, Category = ClothingSimulation)
+	UPROPERTY(EditAnywhere, Category = Clothing)
 	TSubclassOf<class UClothingSimulationFactory> ClothingSimulationFactory;
 
 	struct FPendingRadialForces
@@ -1104,46 +1104,46 @@ public:
 	 * The snapshot is taken at the current LOD, so if for example you took the snapshot at LOD1 
 	 * and then used it at LOD0 any bones not in LOD1 will use the reference pose 
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Pose")
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
 	void SnapshotPose(UPARAM(ref) FPoseSnapshot& Snapshot);
 
 	/**
 	 * Get/Set the max distance scale of clothing mesh vertices
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Clothing")
 	float GetClothMaxDistanceScale() const;
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Clothing")
 	void SetClothMaxDistanceScale(float Scale);
 
 	/** 
 	 * Used to indicate we should force 'teleport' during the next call to UpdateClothState, 
 	 * This will transform positions and velocities and thus keep the simulation state, just translate it to a new pose.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Clothing")
 	void ForceClothNextUpdateTeleport();
 	/** 
 	 * Used to indicate we should force 'teleport and reset' during the next call to UpdateClothState.
 	 * This can be used to reset it from a bad state or by a teleport where the old state is not important anymore.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Clothing")
 	void ForceClothNextUpdateTeleportAndReset();
 
 	/** Stops simulating clothing, but does not show clothing ref pose. Keeps the last known simulation state */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh", meta=(UnsafeDuringActorConstruction))
+	UFUNCTION(BlueprintCallable, Category="Clothing", meta=(UnsafeDuringActorConstruction))
 	void SuspendClothingSimulation();
 
 	/** Resumes a previously suspended clothing simulation, teleporting the clothing on the next tick */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta=(UnsafeDuringActorConstruction))
+	UFUNCTION(BlueprintCallable, Category = "Clothing", meta=(UnsafeDuringActorConstruction))
 	void ResumeClothingSimulation();
 
 	/** Gets whether or not the clothing simulation is currently suspended */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category = "Clothing")
 	bool IsClothingSimulationSuspended() const;
 
 	/**
 	 * Reset the teleport mode of a next update to 'Continuous'
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Clothing")
 	void ResetClothTeleportMode();
 
 	/** 
@@ -1152,7 +1152,7 @@ public:
 	 * @Note This will FORCE any cloth actor on the master component to simulate in local space. Also
 	 * The meshes used in the components must be identical for the cloth to bind correctly
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh", meta=(UnsafeDuringActorConstruction="true"))
+	UFUNCTION(BlueprintCallable, Category="Clothing", meta=(UnsafeDuringActorConstruction="true"))
 	void BindClothToMasterPoseComponent();
 
 	/** 
@@ -1162,7 +1162,7 @@ public:
 	 * space, we will restore this setting. This will cause the master component to reset which may be
 	 * undesirable.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh", meta=(UnsafeDuringActorConstruction="true"))
+	UFUNCTION(BlueprintCallable, Category="Clothing", meta=(UnsafeDuringActorConstruction="true"))
 	void UnbindClothFromMasterPoseComponent(bool bRestoreSimulationSpace = true);
 
 	/**
@@ -1368,7 +1368,7 @@ public:
 	const IClothingSimulationContext* GetClothingSimulationContext() const;
 
 	/** Get the current interactor for a clothing simulation, if the current simulation supports runtime interaction. */
-	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
+	UFUNCTION(BlueprintCallable, Category=Clothing)
 	UClothingSimulationInteractor* GetClothingSimulationInteractor() const;
 
 	/** Callback when the parallel clothing task finishes, copies needed data back to component for gamethread */
@@ -1678,7 +1678,7 @@ public:
 	 *	@param bEnableGravity	Whether gravity should be enabled or disabled.
 	 *	@param BoneName			The name of the bone to modify.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Physics|Components")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void SetEnableBodyGravity(bool bEnableGravity, FName BoneName);
 
 	/**
@@ -1689,7 +1689,7 @@ public:
 	 *	@param BoneName	The name of the bone to check.
 	 *	@return True if gravity is enabled on the bone.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Physics|Components")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	bool IsBodyGravityEnabled(FName BoneName);
 
 	/**
@@ -1701,7 +1701,7 @@ public:
 	*	@param BoneName			The name of the top most bone.
 	*	@param bIncludeSelf		Whether the bone specified should be edited.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Physics|Components")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetEnableGravityOnAllBodiesBelow(bool bEnableGravity, FName BoneName, bool bIncludeSelf=true);
 
 	/** 
@@ -1719,7 +1719,7 @@ public:
 	 *  @param	ClosestPointOnPhysicsAsset	The data associated with the closest point (position, normal, etc...)
 	 *  @return	true if we found a closest point
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh", meta=(DisplayName="GetClosestPointOnPhysicsAsset", ScriptName="GetClosestPointOnPhysicsAsset", Keywords="closest point"))
+	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh", meta=(DisplayName="Get Closest Point On Physics Asset", ScriptName="GetClosestPointOnPhysicsAsset", Keywords="closest point"))
 	bool K2_GetClosestPointOnPhysicsAsset(const FVector& WorldPosition, FVector& ClosestWorldPosition, FVector& Normal, FName& BoneName, float& Distance) const;
 
 	virtual bool LineTraceComponent( FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params ) override;
@@ -1923,7 +1923,7 @@ public:
 	int32 FindRootBodyIndex() const;
 
 	/** Terminate physics on all bodies below the named bone, effectively disabling collision forever. If you terminate, you won't be able to re-init later. */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void TermBodiesBelow(FName ParentBoneName);
 
 	/** Find instance of the constraint that matches the name supplied. */
@@ -1945,7 +1945,7 @@ public:
 	void SetAllBodiesNotifyRigidBodyCollision(bool bNewNotifyRigidBodyCollision);
 
 	/** Set bSimulatePhysics to true for all bone bodies. Does not change the component bSimulatePhysics flag. */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void SetAllBodiesSimulatePhysics(bool bNewSimulate);
 
 	/** This is global set up for setting physics blend weight
@@ -1954,11 +1954,11 @@ public:
 	 * Also it will respect each body's setup, so if the body is fixed, it won't simulate. Vice versa
 	 * So if you'd like all bodies to change manually, do not use this function, but SetAllBodiesPhysicsBlendWeight
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void SetPhysicsBlendWeight(float PhysicsBlendWeight);
 
 	/** Disable physics blending of bones **/
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void SetEnablePhysicsBlending(bool bNewBlendPhysics);
 
 	/** [WARNING: Chaos Only] 
@@ -1966,46 +1966,46 @@ public:
 	* Bodies will not be colliding or be part of the physics simulation. 
 	* This is different from SetAllBodiesBelowSimulatePhysics that changes bodies to Kinematic/simulated 	
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetAllBodiesBelowPhysicsDisabled(const FName& InBoneName, bool bDisabled, bool bIncludeSelf = true);
 
 	/** Set all of the bones below passed in bone to be simulated */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void SetAllBodiesBelowSimulatePhysics(const FName& InBoneName, bool bNewSimulate, bool bIncludeSelf = true );
 
 	/** Allows you to reset bodies Simulate state based on where bUsePhysics is set to true in the BodySetup. */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void ResetAllBodiesSimulatePhysics();
 
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void SetAllBodiesPhysicsBlendWeight(float PhysicsBlendWeight, bool bSkipCustomPhysicsType = false );
 
 	/** Set all of the bones below passed in bone to be simulated */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void SetAllBodiesBelowPhysicsBlendWeight(const FName& InBoneName, float PhysicsBlendWeight, bool bSkipCustomPhysicsType = false, bool bIncludeSelf = true );
 
 	/** Accumulate AddPhysicsBlendWeight to physics blendweight for all of the bones below passed in bone to be simulated */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category="Physics")
 	void AccumulateAllBodiesBelowPhysicsBlendWeight(const FName& InBoneName, float AddPhysicsBlendWeight, bool bSkipCustomPhysicsType = false );
 
 	/** Enable or Disable AngularPositionDrive. If motor is in SLERP mode it will be turned on if either EnableSwingDrive OR EnableTwistDrive are enabled. In Twist and Swing mode the twist and the swing can be controlled individually.*/
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetAllMotorsAngularPositionDrive(bool bEnableSwingDrive, bool bEnableTwistDrive, bool bSkipCustomPhysicsType = false);
 
 	/** Enable or Disable AngularVelocityDrive. If motor is in SLERP mode it will be turned on if either EnableSwingDrive OR EnableTwistDrive are enabled. In Twist and Swing mode the twist and the swing can be controlled individually.*/
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetAllMotorsAngularVelocityDrive(bool bEnableSwingDrive, bool bEnableTwistDrive, bool bSkipCustomPhysicsType = false);
 
 	/** Set Angular Drive motors params for all constraint instances */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetAllMotorsAngularDriveParams(float InSpring, float InDamping, float InForceLimit, bool bSkipCustomPhysicsType = false);
 
 	/** Sets the constraint profile properties (limits, motors, etc...) to match the constraint profile as defined in the physics asset. If profile name is not found the joint is set to use the default constraint profile.*/
-	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetConstraintProfile(FName JointName, FName ProfileName, bool bDefaultIfNotFound = false);
 
 	/** Sets the constraint profile properties (limits, motors, etc...) to match the constraint profile as defined in the physics asset for all constraints. If profile name is not found the joint is set to use the default constraint profile.*/
-	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetConstraintProfileForAll(FName ProfileName, bool bDefaultIfNotFound = false);
 
 	/** Enable or Disable AngularPositionDrive based on a list of bone names */
@@ -2051,7 +2051,7 @@ public:
 	 * @param	ConstraintIndex	Index of constraint to look for
 	 * @return	Constraint Joint Name
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	FName	FindConstraintBoneName(int32 ConstraintIndex);
 
 	/** 
@@ -2082,21 +2082,21 @@ public:
 	 * @param	HitLocation	location of the hit
 	 * @param	InBoneName	Name of bone to break constraint for
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "Constraint"))
+	UFUNCTION(BlueprintCallable, Category = "Physics", meta = (Keywords = "Constraint"))
 	void BreakConstraint(FVector Impulse, FVector HitLocation, FName InBoneName);
 
 	/** Gets a constraint by its name 
 	* @param ConstraintName		name of the constraint
-	* @param IncludesTerminated wether or not to return a terminated constraint
+	* @param IncludesTerminated whether or not to return a terminated constraint
 	* */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "Components|SkeletalMesh"))
+	UFUNCTION(BlueprintCallable, Category = "Physics", meta = (Keywords = "Components|SkeletalMesh"))
 	FConstraintInstanceAccessor GetConstraintByName(FName ConstraintName, bool bIncludesTerminated);
 
 	/** Gets all the constraints
-	* @param IncludesTerminated wether or not to return terminated constraints
+	* @param IncludesTerminated whether or not to return terminated constraints
 	* @param OutConstraints returned list of constraints matching the parameters
 	* */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "Components|SkeletalMesh"))
+	UFUNCTION(BlueprintCallable, Category = "Physics", meta = (Keywords = "Components|SkeletalMesh"))
 	void GetConstraints(bool bIncludesTerminated, TArray<FConstraintInstanceAccessor>& OutConstraints);
 
 	/** Sets the Angular Motion Ranges for a named constraint
@@ -2105,7 +2105,7 @@ public:
 	*  @param TwistLimitAngle	 Size of limit in degrees, 0 means locked, 180 means free
 	*  @param Swing2LimitAngle	 Size of limit in degrees, 0 means locked, 180 means free
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void  SetAngularLimits(FName InBoneName,float Swing1LimitAngle, float TwistLimitAngle, float Swing2LimitAngle);
 
 	/** Gets the current Angular state for a named bone constraint 
@@ -2114,7 +2114,7 @@ public:
 	*  @param TwistAngle  current angular state of the constraint
 	*  @param Swing2Angle current angular state of the constraint
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void GetCurrentJointAngles(FName InBoneName,float& Swing1Angle, float& TwistAngle, float& Swing2Angle) ;
 
 

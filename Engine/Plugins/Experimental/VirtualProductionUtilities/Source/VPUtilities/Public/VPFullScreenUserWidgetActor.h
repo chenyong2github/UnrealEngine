@@ -12,7 +12,7 @@ class UVPFullScreenUserWidget;
 /**
  * Widgets are first rendered to a render target, then that render target is displayed in the world.
  */
-UCLASS(Blueprintable, ClassGroup = "UserInterface", HideCategories = (Actor, Input, Movement, Collision, Rendering, "Utilities|Transformation", LOD), ShowCategories = ("Input|MouseInput", "Input|TouchInput"))
+UCLASS(Blueprintable, ClassGroup = "UserInterface", HideCategories = (Actor, Input, Movement, Collision, Rendering, Transformation, LOD), ShowCategories = ("Input|MouseInput", "Input|TouchInput"))
 class VPUTILITIES_API AFullScreenUserWidgetActor : public AInfo
 {
 	GENERATED_BODY()

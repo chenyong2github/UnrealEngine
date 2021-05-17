@@ -170,7 +170,7 @@ private:
  * A placeable actor that represents a participating media material around a planet, e.g. clouds.
  * @see TODO address to the documentation.
  */
-UCLASS(showcategories = (Movement, Rendering, "Utilities|Transformation", "Input|MouseInput", "Input|TouchInput"), ClassGroup = Fog, hidecategories = (Info, Object, Input), MinimalAPI)
+UCLASS(showcategories = (Movement, Rendering, Transformation, "Input|MouseInput", "Input|TouchInput"), ClassGroup = Fog, hidecategories = (Info, Object, Input), MinimalAPI)
 class AVolumetricCloud : public AInfo
 {
 	GENERATED_UCLASS_BODY()

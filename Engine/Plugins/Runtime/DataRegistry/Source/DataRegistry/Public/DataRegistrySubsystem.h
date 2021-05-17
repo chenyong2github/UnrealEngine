@@ -91,7 +91,7 @@ public:
 	static bool IsValidDataRegistryType(FDataRegistryType DataRegistryType);
 
 	/** Converts a Data Registry Type to a string. The other direction is not provided because it cannot be validated */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (DataRegistryType)", CompactNodeTitle = "->", ScriptMethod = "ToString", BlueprintThreadSafe), Category = DataRegistry)
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To String (DataRegistryType)", CompactNodeTitle = "->", ScriptMethod = "ToString", BlueprintThreadSafe), Category = DataRegistry)
 	static FString Conv_DataRegistryTypeToString(FDataRegistryType DataRegistryType);
 
 	/** Returns true if the values are equal (A == B) */
@@ -99,7 +99,7 @@ public:
 	static bool EqualEqual_DataRegistryType(FDataRegistryType A, FDataRegistryType B);
 
 	/** Returns true if the values are not equal (A != B) */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "NotEqual (DataRegistryType)", CompactNodeTitle = "!=", ScriptOperator = "!=", BlueprintThreadSafe), Category = DataRegistry)
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Not Equal (DataRegistryType)", CompactNodeTitle = "!=", ScriptOperator = "!=", BlueprintThreadSafe), Category = DataRegistry)
 	static bool NotEqual_DataRegistryType(FDataRegistryType A, FDataRegistryType B);
 
 	/** Returns true if this is a non-empty item identifier, does not check if it is currently registered */
@@ -107,7 +107,7 @@ public:
 	static bool IsValidDataRegistryId(FDataRegistryId DataRegistryId);
 
 	/** Converts a Data Registry Id to a string. The other direction is not provided because it cannot be validated */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (DataRegistryId)", CompactNodeTitle = "->", ScriptMethod="ToString", BlueprintThreadSafe), Category = DataRegistry)
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To String (DataRegistryId)", CompactNodeTitle = "->", ScriptMethod="ToString", BlueprintThreadSafe), Category = DataRegistry)
 	static FString Conv_DataRegistryIdToString(FDataRegistryId DataRegistryId);
 
 	/** Returns true if the values are equal (A == B) */
@@ -115,7 +115,7 @@ public:
 	static bool EqualEqual_DataRegistryId(FDataRegistryId A, FDataRegistryId B);
 
 	/** Returns true if the values are not equal (A != B) */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "NotEqual (DataRegistryId)", CompactNodeTitle = "!=", ScriptOperator="!=", BlueprintThreadSafe), Category = DataRegistry)
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Not Equal (DataRegistryId)", CompactNodeTitle = "!=", ScriptOperator="!=", BlueprintThreadSafe), Category = DataRegistry)
 	static bool NotEqual_DataRegistryId(FDataRegistryId A, FDataRegistryId B);
 
 

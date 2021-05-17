@@ -466,7 +466,7 @@ public:
 	virtual FQuat GetBaseRotationOffset() const { return BaseRotationOffset; }
 
 	/** Get the saved rotation offset of mesh. This is how much extra rotation is applied from the capsule rotation. */
-	UFUNCTION(BlueprintCallable, Category=Character, meta=(DisplayName="GetBaseRotationOffset", ScriptName="GetBaseRotationOffset"))
+	UFUNCTION(BlueprintCallable, Category=Character, meta=(DisplayName="Get Base Rotation Offset", ScriptName="GetBaseRotationOffset"))
 	FRotator GetBaseRotationOffsetRotator() const { return GetBaseRotationOffset().Rotator(); }
 
 	/** Default crouched eye height */
@@ -951,7 +951,7 @@ public:
 	FAnimMontageInstance * GetRootMotionAnimMontageInstance() const;
 
 	/** True if we are playing Anim root motion right now */
-	UFUNCTION(BlueprintCallable, Category=Animation, meta=(DisplayName="IsPlayingAnimRootMotion"))
+	UFUNCTION(BlueprintCallable, Category=Animation, meta=(DisplayName="Is Playing Anim Root Motion"))
 	bool IsPlayingRootMotion() const;
 
 	/** True if we are playing root motion from any source right now (anim root motion, root motion source) */

@@ -27,16 +27,16 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering, Meta=(ToolTip="Material overrides."))
 	TArray<TObjectPtr<class UMaterialInterface>> OverrideMaterials;
 	
-	UFUNCTION(BlueprintCallable, Category="Components|Mesh")
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	virtual TArray<class UMaterialInterface*> GetMaterials() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Components|Mesh")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
 	virtual int32 GetMaterialIndex(FName MaterialSlotName) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Components|Mesh")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
 	virtual TArray<FName> GetMaterialSlotNames() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Components|Mesh")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
 	virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const;
 
 	/** Returns override Materials count */
@@ -95,7 +95,7 @@ public:
 	 */
 	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn);
 
-	/** Get the material info for texture stremaing. Return whether the data is valid or not. */
+	/** Get the material info for texture streaming. Return whether the data is valid or not. */
 	virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const { return false; }
 
 	/** Generate streaming data for all materials. */
