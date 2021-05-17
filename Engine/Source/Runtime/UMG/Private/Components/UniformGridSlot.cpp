@@ -54,7 +54,7 @@ void UUniformGridSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalA
 	HorizontalAlignment = InHorizontalAlignment;
 	if ( Slot )
 	{
-		Slot->HAlignment = InHorizontalAlignment;
+		Slot->SetHorizontalAlignment(InHorizontalAlignment);
 	}
 }
 
@@ -63,7 +63,7 @@ void UUniformGridSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignme
 	VerticalAlignment = InVerticalAlignment;
 	if ( Slot )
 	{
-		Slot->VAlignment = InVerticalAlignment;
+		Slot->SetVerticalAlignment(InVerticalAlignment);
 	}
 }
 

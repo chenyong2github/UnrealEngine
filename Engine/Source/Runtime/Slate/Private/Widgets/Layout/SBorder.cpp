@@ -146,25 +146,17 @@ void SBorder::SetDesiredSizeScale(TAttribute<FVector2D> InDesiredSizeScale)
 
 void SBorder::SetHAlign(EHorizontalAlignment HAlign)
 {
-	if (ChildSlot.HAlignment != HAlign)
-	{
-		ChildSlot.HAlignment = HAlign;
-		Invalidate(EInvalidateWidget::Layout);
-	}
+	ChildSlot.SetHorizontalAlignment(HAlign);
 }
 
 void SBorder::SetVAlign(EVerticalAlignment VAlign)
 {
-	if (ChildSlot.VAlignment != VAlign)
-	{
-		ChildSlot.VAlignment = VAlign;
-		Invalidate(EInvalidateWidget::Layout);
-	}
+	ChildSlot.SetVerticalAlignment(VAlign);
 }
 
-void SBorder::SetPadding(const TAttribute<FMargin>& InPadding)
+void SBorder::SetPadding(TAttribute<FMargin> InPadding)
 {
-	ChildSlot.SetPadding(InPadding);
+	ChildSlot.SetPadding(MoveTemp(InPadding));
 }
 
 void SBorder::SetShowEffectWhenDisabled(TAttribute<bool> InShowEffectWhenDisabled)

@@ -288,13 +288,9 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 				const int32 SlotToAdjustIndex = bPinWidgetForExpanderLeft ? 0 : Slots->Num() - 1;
 				SBoxPanel::FSlot& Slot = (*Slots)[SlotToAdjustIndex];
 
-				FMargin Padding;
-				if(Slot.SlotPadding.IsSet() || Slot.SlotPadding.IsBound())
-				{
-					Padding = Slot.SlotPadding.Get();
-				}
+				FMargin Padding = Slot.GetPadding();
 				Padding = FMargin(RightIndentation + Padding.Left, Padding.Top, LeftIndentation + Padding.Right, Padding.Bottom);
-				Slot.SlotPadding = Padding; 
+				Slot.SetPadding(Padding);
 			}
 		}
 	}

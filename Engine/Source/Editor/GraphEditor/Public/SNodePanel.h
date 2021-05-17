@@ -275,29 +275,16 @@ public:
 	public:
 
 		/** A slot that support alignment of content and padding and z-order */
-		class FNodeSlot : public TSlotBase<FNodeSlot>
+		class FNodeSlot : public TSlotBase<FNodeSlot>, public TAlignmentWidgetSlotMixin<FNodeSlot>
 		{
 		public:
 			FNodeSlot()
 				: TSlotBase<FNodeSlot>()
-				, HAlignment(HAlign_Fill)
-				, VAlignment(VAlign_Fill)
+				, TAlignmentWidgetSlotMixin<FNodeSlot>(HAlign_Fill, VAlign_Fill)
 				, SlotPadding(0.0f)
 				, Offset( FVector2D::ZeroVector )
 				, AllowScale( true )
 			{ }
-
-			FNodeSlot& HAlign( EHorizontalAlignment InHAlignment )
-			{
-				HAlignment = InHAlignment;
-				return *this;
-			}
-
-			FNodeSlot& VAlign( EVerticalAlignment InVAlignment )
-			{
-				VAlignment = InVAlignment;
-				return *this;
-			}
 
 			FNodeSlot& Padding( const TAttribute<FMargin> InPadding )
 			{
@@ -327,8 +314,6 @@ public:
 
 			/** The child widget contained in this slot. */
 			ENodeZone::Type Zone;
-			EHorizontalAlignment HAlignment;
-			EVerticalAlignment VAlignment;
 			TAttribute<FMargin> SlotPadding;
 			TAttribute<FVector2D> Offset;
 			TAttribute<FVector2D> Size;

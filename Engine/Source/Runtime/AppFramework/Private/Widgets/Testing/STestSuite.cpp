@@ -4365,7 +4365,7 @@ class SDPIScalingTest : public SCompoundWidget
 
 	ECheckBoxState IsFillChecked() const
 	{
-		const bool bIsFilling = (ScalerSlot->HAlignment == HAlign_Fill);
+		const bool bIsFilling = (ScalerSlot->GetHorizontalAlignment() == HAlign_Fill);
 		return (bIsFilling)
 			? ECheckBoxState::Checked
 			: ECheckBoxState::Unchecked;
@@ -4373,8 +4373,8 @@ class SDPIScalingTest : public SCompoundWidget
 
 	void OnFillChecked(ECheckBoxState InValue)
 	{
-		ScalerSlot->HAlign( (InValue == ECheckBoxState::Checked) ? HAlign_Fill : HAlign_Center );
-		ScalerSlot->VAlign( (InValue == ECheckBoxState::Checked) ? VAlign_Fill : VAlign_Center );
+		ScalerSlot->SetHorizontalAlignment( (InValue == ECheckBoxState::Checked) ? HAlign_Fill : HAlign_Center );
+		ScalerSlot->SetVerticalAlignment( (InValue == ECheckBoxState::Checked) ? VAlign_Fill : VAlign_Center );
 	}
 
 	float DPIScale;

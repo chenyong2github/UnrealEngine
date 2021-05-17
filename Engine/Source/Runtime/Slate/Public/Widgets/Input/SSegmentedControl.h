@@ -173,11 +173,11 @@ public:
 			int32 ColumnIndex = MaxSegmentsPerLine ? SlotIndex % MaxSegmentsPerLine : SlotIndex;
 			UniformBox->AddSlot(ColumnIndex, MaxSegmentsPerLine > 0 ? SlotIndex / MaxSegmentsPerLine : 0)
 			// Note HAlignment is applied at the check box level because if it were applied here it would make the slots look physically disconnected from each other 
-			.VAlign(ChildSlotPtr->VAlignment)
+			.VAlign(ChildSlotPtr->GetVerticalAlignment())
 			[
 				SNew(SCheckBox)
 				.Clipping(EWidgetClipping::ClipToBounds)
-				.HAlign(ChildSlotPtr->HAlignment)
+				.HAlign(ChildSlotPtr->GetHorizontalAlignment())
 				.ToolTipText(ChildSlotPtr->_Tooltip)
 				.Style(ColumnIndex == 0 ? &Style->FirstControlStyle : ColumnIndex == (NumSlots - 1) ? &Style->LastControlStyle : &Style->ControlStyle)
 				.IsChecked(this, &SSegmentedControl::IsCurrentValue, ChildValue)

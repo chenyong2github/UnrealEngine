@@ -37,62 +37,18 @@ class SLATECORE_API SOverlay
 public:	
 
 	/** A slot that support alignment of content and padding and z-order */
-	class SLATECORE_API FOverlaySlot : public TSlotBase<FOverlaySlot>
+	class SLATECORE_API FOverlaySlot : public TBasicLayoutWidgetSlot<FOverlaySlot>
 	{
 	public:
 		FOverlaySlot()
-			: TSlotBase<FOverlaySlot>()
+			: TBasicLayoutWidgetSlot<FOverlaySlot>(HAlign_Fill, VAlign_Fill)
 			, ZOrder(0)
-			, HAlignment(HAlign_Fill)
-			, VAlignment(VAlign_Fill)
-			, SlotPadding(0.0f)
 		{ }
-
-		FOverlaySlot& HAlign( EHorizontalAlignment InHAlignment )
-		{
-			HAlignment = InHAlignment;
-			return *this;
-		}
-
-		FOverlaySlot& VAlign( EVerticalAlignment InVAlignment )
-		{
-			VAlignment = InVAlignment;
-			return *this;
-		}
-
-		FOverlaySlot& Padding(float Uniform)
-		{
-			SlotPadding = FMargin(Uniform);
-			return *this;
-		}
-
-		FOverlaySlot& Padding(float Horizontal, float Vertical)
-		{
-			SlotPadding = FMargin(Horizontal, Vertical);
-			return *this;
-		}
-
-		FOverlaySlot& Padding(float Left, float Top, float Right, float Bottom)
-		{
-			SlotPadding = FMargin(Left, Top, Right, Bottom);
-			return *this;
-		}
-
-		FOverlaySlot& Padding( const TAttribute<FMargin> InPadding )
-		{
-			SlotPadding = InPadding;
-			return *this;
-		}
 
 		/** Slots with larger ZOrder values will draw above slots with smaller ZOrder values.  Slots
 		with the same ZOrder will simply draw in the order they were added.  Currently this only
 		works for overlay slots that are added dynamically with AddWidget() and RemoveWidget() */
 		int32 ZOrder;
-
-		TEnumAsByte<EHorizontalAlignment> HAlignment;
-		TEnumAsByte<EVerticalAlignment> VAlignment;
-
-		TAttribute< FMargin > SlotPadding;
 	};
 
 

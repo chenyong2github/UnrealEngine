@@ -162,7 +162,7 @@ void UDynamicEntryBoxBase::SetEntrySpacing(const FVector2D& InEntrySpacing)
 					}
 				}
 				SOverlay::FOverlaySlot& OverlaySlot = (*OverlayChildren)[ChildIdx];
-				OverlaySlot.SlotPadding = Padding;
+				OverlaySlot.SetPadding(Padding);
 			}
 		}
 		else if (EntryBoxType == EDynamicBoxType::Horizontal || EntryBoxType == EDynamicBoxType::Vertical)
@@ -179,7 +179,7 @@ void UDynamicEntryBoxBase::SetEntrySpacing(const FVector2D& InEntrySpacing)
 				Padding.Left = bIsHBox && !bIsFirstChild ? EntrySpacing.X : 0.f;
 
 				SBoxPanel::FSlot& BoxSlot = (*BoxChildren)[ChildIdx];
-				BoxSlot.SlotPadding = Padding;
+				BoxSlot.SetPadding(Padding);
 			}
 		}
 	}
@@ -401,9 +401,9 @@ void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 			VAlign = EntrySpacing.Y >= 0.f ? EVerticalAlignment::VAlign_Top : EVerticalAlignment::VAlign_Bottom;
 		}
 		
-		OverlaySlot.HAlignment = HAlign;
-		OverlaySlot.VAlignment = VAlign;
-		OverlaySlot.SlotPadding = BuildEntryPadding(TargetSpacing);
+		OverlaySlot.SetHorizontalAlignment(HAlign);
+		OverlaySlot.SetVerticalAlignment(VAlign);
+		OverlaySlot.SetPadding(BuildEntryPadding(TargetSpacing));
 
 		NewSlot = &OverlaySlot;
 	}
@@ -413,14 +413,14 @@ void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 		const bool bIsFirstChild = MyPanelWidget->GetChildren()->Num() == 0;
 
 		SBoxPanel::FSlot& BoxPanelSlot = bIsHBox ? (SBoxPanel::FSlot&)StaticCastSharedPtr<SHorizontalBox>(MyPanelWidget)->AddSlot().MaxWidth(MaxElementSize) : (SBoxPanel::FSlot&)StaticCastSharedPtr<SVerticalBox>(MyPanelWidget)->AddSlot().MaxHeight(MaxElementSize);
-		BoxPanelSlot.HAlignment = EntryHorizontalAlignment;
-		BoxPanelSlot.VAlignment = EntryVerticalAlignment;
+		BoxPanelSlot.SetHorizontalAlignment(EntryHorizontalAlignment);
+		BoxPanelSlot.SetVerticalAlignment(EntryVerticalAlignment);
 		BoxPanelSlot.SizeParam = UWidget::ConvertSerializedSizeParamToRuntime(EntrySizeRule);
 
 		FMargin Padding;
 		Padding.Top = bIsHBox || bIsFirstChild ? 0.f : EntrySpacing.Y;
 		Padding.Left = bIsHBox && !bIsFirstChild ? EntrySpacing.X : 0.f;
-		BoxPanelSlot.SlotPadding = Padding;
+		BoxPanelSlot.SetPadding(Padding);
 
 		NewSlot = &BoxPanelSlot;
 	}

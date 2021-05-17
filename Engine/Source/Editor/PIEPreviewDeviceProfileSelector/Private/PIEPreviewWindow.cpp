@@ -572,7 +572,7 @@ void SPIEPreviewWindow::UpdateWindow()
 	ReshapeWindow(FVector2D(PosX, PosY), FVector2D(Device->GetWindowWidth(), Device->GetWindowHeight()));
 
 	// offset the viewport widget into its correct location
-	ContentSlot->SlotPadding = Device->GetViewportMargin();
+	ContentSlot->SetPadding(Device->GetViewportMargin());
 
 	// bezel orientation depends on the window size so we need to call it after ReshapeWindow()
 	ComputeBezelOrientation();

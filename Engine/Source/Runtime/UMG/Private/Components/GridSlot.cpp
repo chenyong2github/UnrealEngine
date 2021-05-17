@@ -106,7 +106,7 @@ void UGridSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignmen
 	HorizontalAlignment = InHorizontalAlignment;
 	if ( Slot )
 	{
-		Slot->HAlignment = InHorizontalAlignment;
+		Slot->SetHorizontalAlignment(InHorizontalAlignment);
 	}
 }
 
@@ -115,7 +115,7 @@ void UGridSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 	VerticalAlignment = InVerticalAlignment;
 	if ( Slot )
 	{
-		Slot->VAlignment = InVerticalAlignment;
+		Slot->SetVerticalAlignment(InVerticalAlignment);
 	}
 }
 

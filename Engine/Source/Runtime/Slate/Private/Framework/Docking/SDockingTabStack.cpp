@@ -848,7 +848,7 @@ void SDockingTabStack::ReserveSpaceForWindowChrome(EChromeElement Element, bool 
 	#endif
 
 	bShowingTitleBarArea = true;
-	const FMargin CurrentPadding = TitleBarSlot->SlotPadding.Get();
+	const FMargin CurrentPadding = TitleBarSlot->GetPadding();
 	switch (Element)
 	{
 	case EChromeElement::Controls:

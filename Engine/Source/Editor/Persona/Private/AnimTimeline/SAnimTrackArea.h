@@ -23,7 +23,7 @@ class FAnimTimeSliderController;
 /**
  * Structure representing a slot in the track area.
  */
-class FAnimTrackAreaSlot : public TSlotBase<FAnimTrackAreaSlot>
+class FAnimTrackAreaSlot : public TSlotBase<FAnimTrackAreaSlot>, public TAlignmentWidgetSlotMixin<FAnimTrackAreaSlot>
 {
 public:
 
@@ -32,10 +32,6 @@ public:
 
 	/** Get the vertical position of this slot inside its parent. */
 	float GetVerticalOffset() const;
-
-	/** Horizontal/Vertical alignment for the slot. */
-	EHorizontalAlignment HAlignment;
-	EVerticalAlignment VAlignment;
 
 	/** The track that we represent. */
 	TWeakPtr<SAnimTrack> TrackWidget;

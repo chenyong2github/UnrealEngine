@@ -43,7 +43,7 @@ void SCanvas::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChi
 			//Handle HAlignment
 			FVector2D Offset(0.0f, 0.0f);
 
-			switch (CurChild.HAlignment)
+			switch (CurChild.GetHorizontalAlignment())
 			{
 			case HAlign_Center:
 				Offset.X = -Size.X / 2.0f;
@@ -57,7 +57,7 @@ void SCanvas::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChi
 			}
 
 			//handle VAlignment
-			switch (CurChild.VAlignment)
+			switch (CurChild.GetVerticalAlignment())
 			{
 			case VAlign_Bottom:
 				Offset.Y = -Size.Y;

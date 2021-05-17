@@ -14,11 +14,9 @@
 #include "AnimTimeSliderController.h"
 
 FAnimTrackAreaSlot::FAnimTrackAreaSlot(const TSharedPtr<SAnimTrack>& InSlotContent)
+	: TAlignmentWidgetSlotMixin<FAnimTrackAreaSlot>(HAlign_Fill, VAlign_Top)
 {
 	TrackWidget = InSlotContent;
-	
-	HAlignment = HAlign_Fill;
-	VAlignment = VAlign_Top;
 
 	AttachWidget(
 		SNew(SWeakWidget)

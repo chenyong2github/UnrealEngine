@@ -46,7 +46,7 @@ FVector2D SCurveEditorViewContainer::ComputeDesiredSize(float) const
 		{
 			const FVector2D& ChildDesiredSize = Child.GetWidget()->GetDesiredSize();
 
-			FMargin SlotPadding = Child.SlotPadding.Get();
+			FMargin SlotPadding = Child.GetPadding();
 			MyDesiredSize.Y += SlotPadding.GetTotalSpaceAlong<Orient_Vertical>();
 
 			// For a vertical panel, we want to find the maximum desired width (including margin).

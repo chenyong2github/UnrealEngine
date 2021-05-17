@@ -26,7 +26,7 @@ class SSequencerTreeView;
  * Structure representing a slot in the track area.
  */
 class FTrackAreaSlot
-	: public TSlotBase<FTrackAreaSlot>
+	: public TSlotBase<FTrackAreaSlot>, public TAlignmentWidgetSlotMixin<FTrackAreaSlot>
 {
 public:
 
@@ -35,10 +35,6 @@ public:
 
 	/** Get the vertical position of this slot inside its parent. */
 	float GetVerticalOffset() const;
-
-	/** Horizontal/Vertical alignment for the slot. */
-	EHorizontalAlignment HAlignment;
-	EVerticalAlignment VAlignment;
 
 	/** The track lane that we represent. */
 	TWeakPtr<SSequencerTrackLane> TrackLane;
