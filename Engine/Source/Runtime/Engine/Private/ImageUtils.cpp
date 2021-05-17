@@ -5,17 +5,17 @@ ImageUtils.cpp: Image utility functions.
 =============================================================================*/
 
 #include "ImageUtils.h"
+
+#include "CubemapUnwrapUtils.h"
+#include "DDSLoader.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
-#include "Misc/ObjectThumbnail.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "CubemapUnwrapUtils.h"
-#include "Logging/MessageLog.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
+#include "Logging/MessageLog.h"
 #include "Misc/FileHelper.h"
-#include "DDSLoader.h"
-#include "HDRLoader.h"
+#include "Misc/ObjectThumbnail.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
@@ -851,7 +851,7 @@ UTexture2D* FImageUtils::ImportFileAsTexture2D(const FString& Filename)
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 
 	UTexture2D* NewTexture = nullptr;
-	TArray<uint8> Buffer;
+	TArray64<uint8> Buffer;
 	if (FFileHelper::LoadFileToArray(Buffer, *Filename))
 	{
 		EPixelFormat PixelFormat = PF_Unknown;
@@ -863,32 +863,41 @@ UTexture2D* FImageUtils::ImportFileAsTexture2D(const FString& Filename)
 
 		if (FPaths::GetExtension(Filename) == TEXT("HDR"))
 		{
-			FHDRLoadHelper HDRLoadHelper(Buffer.GetData(), Buffer.GetAllocatedSize());
-			if(HDRLoadHelper.IsValid())
+			TSharedPtr<IImageWrapper> HdrImageWrapper =  ImageWrapperModule.CreateImageWrapper(EImageFormat::HDR);
+	
+			if(HdrImageWrapper->SetCompressed(Buffer.GetData(), Buffer.Num()))
 			{
-				TArray<uint8> DDSFile;
-				HDRLoadHelper.ExtractDDSInRGBE(DDSFile);
-				FDDSLoadHelper HDRDDSLoadHelper(DDSFile.GetData(), DDSFile.Num());
+				PixelFormat = PF_FloatRGBA;
+				Width = HdrImageWrapper->GetWidth();
+				Height = HdrImageWrapper->GetHeight();
 
-				if (HDRDDSLoadHelper.IsValid2DTexture())
+				TArray64<uint8> BGREImage;
+				if (HdrImageWrapper->GetRaw(ERGBFormat::BGRE, 8, BGREImage))
 				{
-					PixelFormat = HDRDDSLoadHelper.ComputePixelFormat();
-					Width = HDRDDSLoadHelper.DDSHeader->dwWidth;
-					Height = HDRDDSLoadHelper.DDSHeader->dwHeight;
-
 					NewTexture = UTexture2D::CreateTransient(Width, Height, PixelFormat);
 					if (NewTexture)
 					{
 						uint8* MipData = static_cast<uint8*>(NewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
 
+						TArrayView64<FColor> SourceColors(reinterpret_cast<FColor*>(BGREImage.GetData()), BGREImage.Num() / sizeof(FColor));
+
 						// Bulk data was already allocated for the correct size when we called CreateTransient above
-						FMemory::Memcpy(MipData, HDRDDSLoadHelper.GetDDSDataPointer(), NewTexture->PlatformData->Mips[0].BulkData.GetBulkDataSize());
+						TArrayView64<FFloat16> Destination(reinterpret_cast<FFloat16*>(MipData), NewTexture->PlatformData->Mips[0].BulkData.GetBulkDataSize() / sizeof(FFloat16));
+
+						int64 DestinationIndex = 0;
+						for (const FColor& Color: SourceColors)
+						{
+							FLinearColor LinearColor = Color.FromRGBE();
+							Destination[DestinationIndex++].Set(LinearColor.R);
+							Destination[DestinationIndex++].Set(LinearColor.G);
+							Destination[DestinationIndex++].Set(LinearColor.B);
+							Destination[DestinationIndex++].Set(LinearColor.A);
+						}
 
 						NewTexture->PlatformData->Mips[0].BulkData.Unlock();
 
 						NewTexture->UpdateResource();
 					}
-
 				}
 			}
 		}
@@ -910,11 +919,11 @@ UTexture2D* FImageUtils::ImportFileAsTexture2D(const FString& Filename)
 	return NewTexture;
 }
 
-UTexture2D* FImageUtils::ImportBufferAsTexture2D(const TArray<uint8>& Buffer)
+UTexture2D* FImageUtils::ImportBufferAsTexture2D(TArrayView64<const uint8> Buffer)
 {
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 
-	EImageFormat Format = ImageWrapperModule.DetectImageFormat(Buffer.GetData(), Buffer.GetAllocatedSize());
+	EImageFormat Format = ImageWrapperModule.DetectImageFormat(Buffer.GetData(), Buffer.Num());
 
 	UTexture2D* NewTexture = nullptr;
 	EPixelFormat PixelFormat = PF_Unknown;
@@ -927,7 +936,7 @@ UTexture2D* FImageUtils::ImportBufferAsTexture2D(const TArray<uint8>& Buffer)
 		int32 Width = 0;
 		int32 Height = 0;
 
-		if (ImageWrapper->SetCompressed((void*)Buffer.GetData(), Buffer.GetAllocatedSize()))
+		if (ImageWrapper->SetCompressed((void*)Buffer.GetData(), Buffer.Num()))
 		{
 			PixelFormat = PF_Unknown;
 			
@@ -941,7 +950,7 @@ UTexture2D* FImageUtils::ImportBufferAsTexture2D(const TArray<uint8>& Buffer)
 			if (BitDepth == 16)
 			{
 				PixelFormat = PF_FloatRGBA;
-				RGBFormat = ERGBFormat::BGRA;
+				RGBFormat = ERGBFormat::RGBA;
 			}
 			else if (BitDepth == 8)
 			{
@@ -978,6 +987,11 @@ UTexture2D* FImageUtils::ImportBufferAsTexture2D(const TArray<uint8>& Buffer)
 	}
 
 	return NewTexture;
+}
+
+UTexture2D* FImageUtils::ImportBufferAsTexture2D(const TArray<uint8>& Buffer)
+{
+	return ImportBufferAsTexture2D(TArrayView64<const uint8>(Buffer.GetData(), Buffer.Num()));
 }
 
 bool FImageUtils::ExportRenderTargetCubeAsHDR(UTextureRenderTargetCube* TexRT, FArchive& Ar)

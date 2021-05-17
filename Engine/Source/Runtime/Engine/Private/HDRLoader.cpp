@@ -175,6 +175,8 @@ void FHDRLoadHelper::DecompressScanline(uint8* Out, const uint8*& In) const
 
 void FHDRLoadHelper::OldDecompressScanline(uint8* Out, const uint8*& In, uint32 Len)
 {
+	// This is implementation does not have the same behavior as the code found in Radiance but It won't be fix since this implementation of the hdr loader is deprecated.
+
 	int32 Shift = 0;
 
 	while(Len > 0)

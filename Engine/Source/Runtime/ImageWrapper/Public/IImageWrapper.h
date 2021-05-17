@@ -37,7 +37,10 @@ enum class EImageFormat : int8
 	ICNS,
 	
 	/** Truevision TGA / TARGA */
-	TGA
+	TGA,
+
+	/** Hdr file from radiance using RGBE*/
+	HDR,
 };
 
 
@@ -59,6 +62,9 @@ enum class ERGBFormat : int8
 
 	// Red, Green, Blue and Alpha using IEEE Floating-Point Arithmetic (see IEEE754). The format is always binary.
 	RGBAF = 3,
+
+	// Blue, Green, Red and Exponent (Similar to the RGBE format from radiance but with the blue and red channel inversed)
+	BGRE = 4,
 };
 
 
