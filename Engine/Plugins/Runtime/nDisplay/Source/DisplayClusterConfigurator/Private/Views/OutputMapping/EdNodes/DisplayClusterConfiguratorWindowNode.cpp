@@ -3,6 +3,7 @@
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorClusterNodeViewModel.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
@@ -119,6 +120,15 @@ bool UDisplayClusterConfiguratorWindowNode::IsNodeEnabled() const
 	}
 
 	return bIsChildEnabled;
+}
+
+bool UDisplayClusterConfiguratorWindowNode::CanNodeExceedParentBounds() const
+{
+	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
+	return !OutputMapping->GetOutputMappingSettings().bKeepClusterNodesInHosts;
 }
 
 void UDisplayClusterConfiguratorWindowNode::DeleteObject()

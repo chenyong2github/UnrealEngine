@@ -40,8 +40,6 @@ public:
 	//~ End SGraphNode interface
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
-	virtual bool CanNodeOverlapSiblings() const override { return false; }
-	virtual bool CanNodeExceedParentBounds() const override;
 	virtual bool CanNodeBeSnapAligned() const override { return true; }
 	virtual bool CanNodeBeResized() const { return !IsClusterNodeLocked(); }
 	virtual bool IsAspectRatioFixed() const override;

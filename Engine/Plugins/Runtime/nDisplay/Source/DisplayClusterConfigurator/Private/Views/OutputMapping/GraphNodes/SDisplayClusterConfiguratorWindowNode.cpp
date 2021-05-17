@@ -375,15 +375,6 @@ FVector2D SDisplayClusterConfiguratorWindowNode::GetPosition() const
 	return SDisplayClusterConfiguratorBaseNode::GetPosition() * WindowScaleFactor;
 }
 
-bool SDisplayClusterConfiguratorWindowNode::CanNodeExceedParentBounds() const
-{
-	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
-	check(Toolkit.IsValid());
-
-	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
-	return !OutputMapping->GetOutputMappingSettings().bKeepClusterNodesInHosts;
-}
-
 bool SDisplayClusterConfiguratorWindowNode::IsAspectRatioFixed() const
 {
 	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
