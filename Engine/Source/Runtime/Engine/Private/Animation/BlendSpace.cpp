@@ -17,6 +17,9 @@
 #include "UObject/UObjectIterator.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
+#if WITH_EDITOR
+#include "BlendSpaceAnalysis.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "BlendSpace"
 
@@ -33,6 +36,30 @@ struct FBlendSpaceScratchData : public TThreadSingleton<FBlendSpaceScratchData>
 	TArray<FGridBlendSample, TInlineAllocator<4> > RawGridSamples;
 };
 
+//======================================================================================================================
+void UAnalysisProperties::InitializeFromCache(TSharedPtr<FCachedAnalysisProperties> Cache)
+{
+#if WITH_EDITOR
+	if (Cache)
+	{
+		bLockAfterAnalysis = Cache->bLockAfterAnalysis;
+	}
+#endif
+}
+
+//======================================================================================================================
+void UAnalysisProperties::MakeCache(TSharedPtr<FCachedAnalysisProperties>& Cache) const
+{
+#if WITH_EDITOR
+	if (!Cache)
+	{
+		Cache = MakeShared<FCachedAnalysisProperties>();
+	}
+	Cache->bLockAfterAnalysis = bLockAfterAnalysis;
+#endif
+}
+
+//======================================================================================================================
 UBlendSpace::UBlendSpace(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -1154,11 +1181,42 @@ void UBlendSpace::ValidateSampleData()
 	}
 }
 
-bool UBlendSpace::AddSample(const FVector& SampleValue)
+void UBlendSpace::ExpandRangeForSample(const FVector& SampleValue)
+{
+	for (int32 Index = 0 ; Index != 3 ; ++Index)
+	{
+		const float Delta = (BlendParameters[Index].Max - BlendParameters[Index].Min) / BlendParameters[Index].GridNum;
+		while (SampleValue[Index] > BlendParameters[Index].Max)
+		{
+			BlendParameters[Index].Max += Delta;
+			BlendParameters[Index].GridNum += 1;
+		}
+		while (SampleValue[Index] < BlendParameters[Index].Min)
+		{
+			BlendParameters[Index].Min -= Delta;
+			BlendParameters[Index].GridNum += 1;
+		}
+	}
+}
+
+void UBlendSpace::LockSample(int32 SampleIndex, bool bLockX, bool bLockY, bool bLockZ)
+{
+	if (SampleData.IsValidIndex(SampleIndex))
+	{
+		SampleData[SampleIndex].bLockX = bLockX; 
+		SampleData[SampleIndex].bLockY = bLockY; 
+		SampleData[SampleIndex].bLockZ = bLockZ; 
+	}
+}
+
+int32 UBlendSpace::AddSample(const FVector& SampleValue)
 {
 	// We should only be adding samples without a source animation if we are not a standalone asset
 	check(!IsAsset());
 
+	// Expand the range if necessary
+	ExpandRangeForSample(SampleValue);
+	
 	const bool bValidSampleData = ValidateSampleValue(SampleValue);
 
 	if (bValidSampleData)
@@ -1167,11 +1225,14 @@ bool UBlendSpace::AddSample(const FVector& SampleValue)
 		UpdatePreviewBasePose();
 	}
 
-	return bValidSampleData;
+	return bValidSampleData ? SampleData.Num() - 1 : -1;
 }
 
-bool UBlendSpace::AddSample(UAnimSequence* AnimationSequence, const FVector& SampleValue)
+int32 UBlendSpace::AddSample(UAnimSequence* AnimationSequence, const FVector& SampleValue)
 {
+	// Expand the range if necessary
+	ExpandRangeForSample(SampleValue);
+
 	const bool bValidSampleData = ValidateSampleValue(SampleValue) && ValidateAnimationSequence(AnimationSequence);
 
 	if (bValidSampleData)
@@ -1180,11 +1241,14 @@ bool UBlendSpace::AddSample(UAnimSequence* AnimationSequence, const FVector& Sam
 		UpdatePreviewBasePose();
 	}
 
-	return bValidSampleData;
+	return bValidSampleData ? SampleData.Num() - 1 : -1;
 }
 
 bool UBlendSpace::EditSampleValue(const int32 BlendSampleIndex, const FVector& NewValue)
 {
+	// Expand the range if necessary
+	ExpandRangeForSample(NewValue);
+
 	const bool bValidValue = SampleData.IsValidIndex(BlendSampleIndex) && ValidateSampleValue(NewValue, BlendSampleIndex);
 
 	if (bValidValue)

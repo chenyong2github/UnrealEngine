@@ -49,6 +49,7 @@ public:
 		SLATE_EVENT(FOnSampleMoved, OnSampleMoved)
 		SLATE_EVENT(FOnBlendSpaceSampleRemoved, OnSampleRemoved)
 		SLATE_EVENT(FOnBlendSpaceSampleAdded, OnSampleAdded)
+		SLATE_EVENT(FOnBlendSpaceSampleDuplicated, OnSampleDuplicated)
 		SLATE_EVENT(FOnBlendSpaceSampleReplaced, OnSampleReplaced)
 		SLATE_EVENT(FOnBlendSpaceSampleDoubleClicked, OnSampleDoubleClicked)
 		SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName)
@@ -182,7 +183,9 @@ protected:
 	int32 FindClosestGridPointIndexFromScreenPosition(const FVector2D& InPosition) const;
 	/** Converts the given sample value to a screen space position */
 	const FVector2D SampleValueToScreenPosition(const FVector& SampleValue) const;
-	/** Converst a screen space (grid) position to a sample value, with optional clamping */
+	/** Converts the given sample value to a normalized position (between 0 and 1) */
+	const FVector2D SampleValueToNormalizedPosition(const FVector& SampleValue) const;
+	/** Converts a screen space (grid) position to a sample value, with optional clamping */
 	const FVector ScreenPositionToSampleValue(const FVector2D& GridPosition, bool bClamp) const;
 	/** Returns the (calculated) grid rectangle given the supplied geometry, and calls UpdateGridRatioMargin */
 	const FSlateRect GetGridRectangleFromGeometry(const FGeometry& MyGeometry);
@@ -227,7 +230,7 @@ private:
 	/** Previous blendspace, cached here to allow us to update cached data when it changes. */
 	TWeakObjectPtr<const UBlendSpace> PreviousBlendSpaceBase;
 	/** Current BlendSpace params (driven from outside the widget) */
-	TAttribute<FVector> Position;
+	TAttribute<FVector> TargetPosition;
 	/** Current BlendSpace state - filtered version of Position (driven from outside the widget) */
 	TAttribute<FVector> FilteredPosition;
 	/** Notify hook (ptr to SAnimationBlendSpace instance), which is required for transacting FBlendSample object when edited using the context-menu/structure details panel */
@@ -307,6 +310,7 @@ private:
 
 	/** Delegates populated from SAnimationBlendSpace and used as callbacks */
 	FOnBlendSpaceSampleAdded OnSampleAdded;
+	FOnBlendSpaceSampleDuplicated OnSampleDuplicated;
 	FOnSampleMoved OnSampleMoved;
 	FOnBlendSpaceSampleRemoved OnSampleRemoved;
 	FOnBlendSpaceSampleReplaced OnSampleReplaced;
@@ -314,7 +318,7 @@ private:
 	FOnGetBlendSpaceSampleName OnGetBlendSpaceSampleName;
 	FOnExtendBlendSpaceSampleTooltip OnExtendSampleTooltip;
 
-	/** Thresshold values for hovering, click and dragging samples */
+	/** Threshold values for hovering, click and dragging samples */
 	float DragThreshold;
 	float ClickAndHighlightThreshold;
 

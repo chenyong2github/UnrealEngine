@@ -115,6 +115,7 @@ class ANIMATIONBLUEPRINTLIBRARY_API UAnimPoseExtensions : public UBlueprintFunct
 {
 	GENERATED_BODY()
 	
+public:
 	/**
 	*  Returns whether the Anim Pose contains valid data
 	*

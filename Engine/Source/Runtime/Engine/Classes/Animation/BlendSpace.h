@@ -14,7 +14,33 @@
 #include "AnimationRuntime.h"
 #include "AnimNodeBase.h"
 #include "Containers/ArrayView.h"
+#include "Animation/BoneSocketReference.h"
 #include "BlendSpace.generated.h"
+
+class FCachedAnalysisProperties;
+
+/**
+* The base class for properties to be used in analysis. Engine will inherit from this to define structures used for
+* the functions it supports. User-defined functions will likely need their own analysis structures inheriting from
+* this too.
+*/
+UCLASS(config=Engine, MinimalAPI)
+class UAnalysisProperties : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	ENGINE_API virtual void InitializeFromCache(TSharedPtr<FCachedAnalysisProperties> Cache);
+	ENGINE_API virtual void MakeCache(TSharedPtr<FCachedAnalysisProperties>& Cache) const;
+
+	/** Analysis function for this axis */
+	UPROPERTY()
+	FString Function = TEXT("None");
+
+	/** If set then the sample values will be locked after analysis, preventing them from being moved by accident */
+	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
+	bool bLockAfterAnalysis = false;
+};
 
 /** Interpolation data types. */
 UENUM()
@@ -32,6 +58,7 @@ enum class EPreferredTriangulationDirection : uint8
 	Tangential UMETA(DisplayName = "Tangential"),
 	Radial UMETA(DisplayName = "Radial")
 };
+
 
 USTRUCT()
 struct FInterpolationParameter
@@ -133,11 +160,20 @@ struct FBlendSample
 	FVector SampleValue;
 	
 	UPROPERTY(EditAnywhere, Category = BlendSample, meta=(UIMin="0.01", UIMax="2.0", ClampMin="0.01", ClampMax="64.0"))
-	float RateScale;
+	float RateScale = 1.0f;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	uint8 bIsValid : 1;
+
+	UPROPERTY(EditAnywhere, Category=BlendSample)
+	uint8 bLockX : 1;
+
+	UPROPERTY(EditAnywhere, Category=BlendSample)
+	uint8 bLockY : 1;
+
+	UPROPERTY(EditAnywhere, Category=BlendSample)
+	uint8 bLockZ : 1;
 
 	// Cache the samples marker data counter so that we can track if it changes and revalidate the blendspace
 	int32 CachedMarkerDataUpdateCounter;
@@ -145,25 +181,28 @@ struct FBlendSample
 #endif // WITH_EDITORONLY_DATA
 
 	FBlendSample()
-		: Animation(nullptr)
-		, SampleValue(0.f)
-		, RateScale(1.0f)
+        : Animation(nullptr)
+        , SampleValue(0.f)
+        , RateScale(1.0f)
 #if WITH_EDITORONLY_DATA
-		, bIsValid(false)
+        , bIsValid(false)
+		, bLockX(false)
+		, bLockY(false)
+		, bLockZ(false)
 		, CachedMarkerDataUpdateCounter(INDEX_NONE)
 #endif // WITH_EDITORONLY_DATA
-	{		
-	}
+{		
+}
 	
 	FBlendSample(class UAnimSequence* InAnim, FVector InValue, bool bInIsSnapped, bool bInIsValid) 
-		: Animation(InAnim)
-		, SampleValue(InValue)
-		, RateScale(1.0f)
+        : Animation(InAnim)
+        , SampleValue(InValue)
+        , RateScale(1.0f)
 #if WITH_EDITORONLY_DATA
-		, bIsValid(bInIsValid)
+        , bIsValid(bInIsValid)
 		, CachedMarkerDataUpdateCounter(INDEX_NONE)
 #endif // WITH_EDITORONLY_DATA
-	{		
+	{		 
 	}
 	
 	bool operator==( const FBlendSample& Other ) const 
@@ -412,6 +451,7 @@ public:
 
 	/** Required for accessing protected variable names */
 	friend class FBlendSpaceDetails;
+	friend class FBlendSampleDetails;
 	friend class UAnimGraphNode_BlendSpaceGraphBase;
 
 	//~ Begin UObject Interface
@@ -516,9 +556,14 @@ public:
 	ENGINE_API void ValidateSampleData();
 
 	/** Add samples */
-	ENGINE_API bool AddSample(const FVector& SampleValue);
-	ENGINE_API bool	AddSample(UAnimSequence* AnimationSequence, const FVector& SampleValue);
+	ENGINE_API int32 AddSample(const FVector& SampleValue);
+	ENGINE_API int32 AddSample(UAnimSequence* AnimationSequence, const FVector& SampleValue);
 
+	/** if requested, locks the position of the sample (e.g. after analysis) */
+	ENGINE_API void LockSample(int32 SampleIndex, bool bLockX, bool bLockY, bool bLockZ);
+
+	ENGINE_API void ExpandRangeForSample(const FVector& SampleValue);
+	
 	/** edit samples */
 	ENGINE_API bool	EditSampleValue(const int32 BlendSampleIndex, const FVector& NewValue);
 
@@ -653,6 +698,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = InputInterpolation)
 	FInterpolationParameter	InterpolationParam[3];
 
+#if WITH_EDITORONLY_DATA
+	/** Analysis properties for each axis. Note that these can be null. */
+	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
+	TObjectPtr<UAnalysisProperties> AnalysisProperties[3];
+
+	/** Cached properties used to initialize properties when newly created. */
+	TSharedPtr<FCachedAnalysisProperties> CachedAnalysisProperties[3];
+#endif
+
 	/**
 	* If greater than zero, this is the speed at which the sample weights are allowed to change.
 	* 
@@ -677,15 +731,16 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = SampleSmoothing, meta = (DisplayName = "Smoothing"))
 	bool bTargetWeightInterpolationEaseInOut = true;
-	
+
+
 #if WITH_EDITORONLY_DATA
 	/** Preview Base pose for additive BlendSpace **/
 	UPROPERTY(EditAnywhere, Category = AdditiveSettings)
 	TObjectPtr<UAnimSequence> PreviewBasePose;
 #endif // WITH_EDITORONLY_DATA
 
-	/** This animation length changes based on current input (resulting in different blend time)**/
-	UPROPERTY(transient)
+	/** This is the maximum length of any sample in the blendspace. **/
+	UPROPERTY()
 	float AnimLength;
 
 	/** The current mode used by the BlendSpace to decide which animation notifies to fire. Valid options are:
@@ -736,7 +791,7 @@ protected:
 	UPROPERTY()
 	TArray<struct FEditorElement> GridSamples;
 
-	/** COntainer for the runtime data, which could be line segments, triangulation or tetrahedrons */
+	/** Container for the runtime data, which could be line segments, triangulation or tetrahedrons */
 	UPROPERTY()
 	FBlendSpaceData BlendSpaceData;
 	

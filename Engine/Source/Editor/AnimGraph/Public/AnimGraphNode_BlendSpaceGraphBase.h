@@ -32,6 +32,9 @@ public:
 	// Adds a new graph to the internal array
 	UAnimationBlendSpaceSampleGraph* AddGraph(FName InSampleName, UAnimSequence* InSequence);
 
+	/** Returns the sample index associated with the graph, or -1 if not found */
+	int32 GetSampleIndex(const UEdGraph* Graph) const;
+
 	// Removes the graph at the specified index
 	void RemoveGraph(int32 InSampleIndex);
 
@@ -104,6 +107,6 @@ protected:
 	// Helper function for compilation
 	UAnimGraphNode_Base* ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
-	// Helper function for AddGraph/ReplaceGraph - builds the new graph but doesnt add it to Graphs array.
+	// Helper function for AddGraph/ReplaceGraph - builds the new graph but doesn't add it to Graphs array.
 	UAnimationBlendSpaceSampleGraph* AddGraphInternal(FName InSampleName, UAnimSequence* InSequence);
 };

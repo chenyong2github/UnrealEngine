@@ -392,6 +392,18 @@ void UAnimGraphNode_BlendSpaceGraphBase::PostProcessPinName(const UEdGraphPin* P
 	Super::PostProcessPinName(Pin, DisplayName);
 }
 
+int32 UAnimGraphNode_BlendSpaceGraphBase::GetSampleIndex(const UEdGraph* Graph) const
+{
+	for (int32 Index = 0 ; Index != Graphs.Num() ; ++Index)
+	{
+		if (Graphs[Index] == Graph)
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
 UAnimationBlendSpaceSampleGraph* UAnimGraphNode_BlendSpaceGraphBase::AddGraph(FName InSampleName, UAnimSequence* InSequence)
 {
 	UAnimationBlendSpaceSampleGraph* NewGraph = AddGraphInternal(InSampleName, InSequence);

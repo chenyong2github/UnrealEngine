@@ -34,11 +34,13 @@ public class Persona : ModuleRules
                 "SequenceRecorder",
                 "AnimationBlueprintEditor",
 			}
-        );
+		);
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "AppFramework",
+                "AnimationModifiers",
+                "AnimationBlueprintLibrary",
                 "Core", 
                 "CoreUObject", 
 				"ApplicationCore",
