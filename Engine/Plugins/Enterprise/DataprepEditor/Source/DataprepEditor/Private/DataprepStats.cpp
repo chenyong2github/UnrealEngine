@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"

@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/MaterialMerging.h"
-#include "GameFramework/Actor.h"
-#include "Components/InstancedStaticMeshComponent.h"
 #include "MeshMerging.generated.h"
+
+class AActor;
+class UInstancedStaticMeshComponent;
 
 /** The importance of a mesh feature when automatically generating mesh LODs. */
 UENUM()
@@ -638,17 +639,11 @@ struct FSectionInfo
 
 /** Mesh instance-replacement settings */
 USTRUCT(Blueprintable)
-struct FMeshInstancingSettings
+struct ENGINE_API FMeshInstancingSettings
 {
 	GENERATED_BODY()
 
-	FMeshInstancingSettings()
-		: ActorClassToUse(AActor::StaticClass())
-		, InstanceReplacementThreshold(2)
-		, bSkipMeshesWithVertexColors(true)
-		, bUseHLODVolumes(true)
-		, ISMComponentToUse(UInstancedStaticMeshComponent::StaticClass())
-	{}
+	FMeshInstancingSettings();
 
 	/** The actor class to attach new instance static mesh components to */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, NoClear, Category="Instancing")

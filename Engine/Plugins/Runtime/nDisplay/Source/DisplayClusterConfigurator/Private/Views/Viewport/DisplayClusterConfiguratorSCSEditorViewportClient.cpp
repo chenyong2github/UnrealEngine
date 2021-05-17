@@ -24,6 +24,7 @@
 #include "UnrealEdGlobals.h"
 #include "UnrealWidget.h"
 #include "Components/PostProcessComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Kismet2/ComponentEditorUtils.h"
