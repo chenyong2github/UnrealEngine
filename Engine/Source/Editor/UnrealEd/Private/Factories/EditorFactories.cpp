@@ -199,7 +199,7 @@
 #include "IAssetTools.h"
 
 #include "DDSLoader.h"
-#include "HDRLoader.h"
+#include "Formats/HdrImageWrapper.h"
 #include "Factories/TIFFLoader.h"
 #include "IESConverter.h"
 #include "IImageWrapper.h"
@@ -3877,30 +3877,37 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 	//
 	// HDR File
 	//
-	FHDRLoadHelper           HDRLoadHelper(Buffer, Length);
-	if(HDRLoadHelper.IsValid())
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+	if (ImageWrapperModule.DetectImageFormat(Buffer, Length) == EImageFormat::HDR)
 	{
-		TArray<uint8> DDSFile;
-		HDRLoadHelper.ExtractDDSInRGBE(DDSFile);
-		FDDSLoadHelper HDRDDSLoadHelper(DDSFile.GetData(), DDSFile.Num());
-
-		// create the cube texture
-		UTextureCube* TextureCube = CreateTextureCube(InParent, Name, Flags);
-		if ( TextureCube )
+		FHdrImageWrapper HdrImageWrapper;
+		if (HdrImageWrapper.SetCompressedFromView(TArrayView64<const uint8>(Buffer, Length)))
 		{
-			TextureCube->Source.Init(
-				HDRDDSLoadHelper.DDSHeader->dwWidth,
-				HDRDDSLoadHelper.DDSHeader->dwHeight,
-				/*NumSlices=*/ 1,
-				/*NumMips=*/ 1,
-				TSF_BGRE8,
-				HDRDDSLoadHelper.GetDDSDataPointer()
-				);
-			// the loader can suggest a compression setting
-			TextureCube->CompressionSettings = TC_HDR;
+			TArray64<uint8> UnCompressedData;
+			if (HdrImageWrapper.GetRaw(ERGBFormat::BGRE, 8, UnCompressedData))
+			{
+				// create the cube texture
+				UTextureCube* TextureCube = CreateTextureCube(InParent, Name, Flags);
+				if ( TextureCube )
+				{
+					TextureCube->Source.Init(
+						HdrImageWrapper.GetWidth(),
+						HdrImageWrapper.GetHeight(),
+						/*NumSlices=*/ 1,
+						/*NumMips=*/ 1,
+						TSF_BGRE8,
+						UnCompressedData.GetData()
+						);
+					// the loader can suggest a compression setting
+					TextureCube->CompressionSettings = TC_HDR;
+
+					return TextureCube;
+				}
+			}
 		}
 
-		return TextureCube;
+		Warn->Log(ELogVerbosity::Error, HdrImageWrapper.GetErrorMessage().ToString());
+		
 	}
 
 	//

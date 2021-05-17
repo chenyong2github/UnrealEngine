@@ -9,6 +9,7 @@
 // http://paulbourke.net/dataformats/pic/
 
 /** To load the HDR file image format. Does not support all possible types HDR formats (e.g. xyze is not supported) */
+class UE_DEPRECATED(5.1, "HDR Loader as been replaced by the FHdrImageWrapper which can be found in the image wrapper module.") FHDRLoadHelper;
 class FHDRLoadHelper
 {
 public:
