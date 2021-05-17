@@ -398,7 +398,7 @@ struct FMaterialPixelParameters
 #endif
 
 #if TEMPLATE_USES_STRATA
-	FSharedNormals SharedNormals;
+	FSharedLocalBases SharedLocalBases;
 #endif
 };
 
@@ -2587,7 +2587,7 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 %s
 
 #if TEMPLATE_USES_STRATA
-	Parameters.SharedNormals = StrataInitialiseSharedNormals();
+	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
 #endif
 
 	// Note that here MaterialNormal can be in world space or tangent space
@@ -2646,7 +2646,7 @@ void CalcPixelMaterialInputsAnalyticDerivatives(in out FMaterialPixelParameters 
 %s
 
 #if TEMPLATE_USES_STRATA
-	Parameters.SharedNormals = StrataInitialiseSharedNormals();
+	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
 #endif
 
 	// Note that here MaterialNormal can be in world space or tangent space

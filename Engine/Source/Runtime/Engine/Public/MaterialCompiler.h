@@ -48,13 +48,13 @@ enum class EMaterialCompilerType
 	MaterialProxy, /** Flat material proxy compiler */
 };
 
-struct FStrataRegisteredSharedNormal
+struct FStrataRegisteredSharedLocalBasis
 {
 	int32 NormalCodeChunk;
 	int32 TangentCodeChunk;
 	uint64 NormalCodeChunkHash;
 	uint64 TangentCodeChunkHash;
-	uint8 GraphSharedNormalIndex;
+	uint8 GraphSharedLocalBasisIndex;
 };
 
 /** 
@@ -431,32 +431,32 @@ public:
 		int32 ThinFilmThickness, 
 		int32 FuzzAmount, int32 FuzzColor,
 		int32 Thickness,
-		int32 Normal, int32 Tangent, const FString& SharedNormalIndexMacro) = 0;
-	virtual int32 StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, const FString& SharedNormalIndexMacro) = 0;
+		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro) = 0;
+	virtual int32 StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, const FString& SharedLocalBasisIndexMacro) = 0;
 	virtual int32 StrataVolumetricFogCloudBSDF(int32 Albedo, int32 Extinction, int32 EmissiveColor, int32 AmbientOcclusion) = 0;
 	virtual int32 StrataUnlitBSDF(int32 EmissiveColor, int32 TransmittanceColor) = 0;
-	virtual int32 StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedNormalIndexMacro) = 0;
+	virtual int32 StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedLocalBasisIndexMacro) = 0;
 	virtual int32 StrataSingleLayerWaterBSDF(
 		int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, int32 EmissiveColor, int32 TopMaterialOpacity, 
-		int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, const FString& SharedNormalIndexMacro) = 0;
+		int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, const FString& SharedLocalBasisIndexMacro) = 0;
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) = 0;
-	virtual int32 StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 Mix, const FString& SharedNormalIndexMacro) = 0;
+	virtual int32 StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 Mix, const FString& SharedLocalBasisIndexMacro) = 0;
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
-	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro, int32 TopBSDFNormalCodeChunk) = 0;
+	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B) = 0;
-	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro) = 0;
+	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedLocalBasisIndexMacro) = 0;
 	virtual int32 StrataWeight(int32 A, int32 Weight) = 0;
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) = 0;
 
 	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
 	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) = 0;
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) = 0;
-	virtual FStrataRegisteredSharedNormal StrataCompilationInfoRegisterSharedNormal(int32 NormalCodeChunk) = 0;
-	virtual FStrataRegisteredSharedNormal StrataCompilationInfoRegisterSharedNormal(int32 NormalCodeChunk, int32 TangentCodeChunk) = 0;
-	virtual uint8 StrataCompilationInfoGetSharedNormalCount() = 0;
-	FString GetStrataSharedNormalIndexMacro(const FStrataRegisteredSharedNormal& SharedNormal)
+	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk) = 0;
+	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk, int32 TangentCodeChunk) = 0;
+	virtual uint8 StrataCompilationInfoGetSharedLocalBasesCount() = 0;
+	FString GetStrataSharedLocalBasisIndexMacro(const FStrataRegisteredSharedLocalBasis& SharedLocalBasis)
 	{
-		return FString::Printf(TEXT("NORMAL_INDEX_%u"), SharedNormal.GraphSharedNormalIndex);
+		return FString::Printf(TEXT("SHAREDLOCALBASIS_INDEX_%u"), SharedLocalBasis.GraphSharedLocalBasisIndex);
 	}
 
 	// Water
@@ -931,7 +931,7 @@ public:
 		int32 ThinFilmThickness, 
 		int32 FuzzAmount, int32 FuzzColor,
 		int32 Thickness,
-		int32 Normal, int32 Tangent, const FString& SharedNormalIndexMacro) override
+		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro) override
 	{
 		return Compiler->StrataSlabBSDF(
 			UseMetalness,
@@ -944,12 +944,12 @@ public:
 			ThinFilmThickness,
 			FuzzAmount, FuzzColor,
 			Thickness,
-			Normal, Tangent, SharedNormalIndexMacro);
+			Normal, Tangent, SharedLocalBasisIndexMacro);
 	}
 
-	virtual int32 StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, const FString& SharedNormalIndexMacro) override
+	virtual int32 StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, const FString& SharedLocalBasisIndexMacro) override
 	{
-		return Compiler->StrataSheenBSDF(BaseColor, Roughness, Normal, SharedNormalIndexMacro);
+		return Compiler->StrataSheenBSDF(BaseColor, Roughness, Normal, SharedLocalBasisIndexMacro);
 	}
 
 	virtual int32 StrataVolumetricFogCloudBSDF(int32 Albedo, int32 Extinction, int32 EmissiveColor, int32 AmbientOcclusion) override
@@ -962,18 +962,18 @@ public:
 		return Compiler->StrataUnlitBSDF(EmissiveColor, TransmittanceColor);
 	}
 
-	virtual int32 StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedNormalIndexMacro) override
+	virtual int32 StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedLocalBasisIndexMacro) override
 	{
-		return Compiler->StrataHairBSDF(BaseColor, Scatter, Specular, Roughness, Backlit, EmissiveColor, Tangent, SharedNormalIndexMacro);
+		return Compiler->StrataHairBSDF(BaseColor, Scatter, Specular, Roughness, Backlit, EmissiveColor, Tangent, SharedLocalBasisIndexMacro);
 	}
 
 	virtual int32 StrataSingleLayerWaterBSDF(
 		int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, int32 EmissiveColor, int32 TopMaterialOpacity, 
-		int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, const FString& SharedNormalIndexMacro) override
+		int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, const FString& SharedLocalBasisIndexMacro) override
 	{
 		return Compiler->StrataSingleLayerWaterBSDF(
 			BaseColor, Metallic, Specular, Roughness, EmissiveColor, TopMaterialOpacity, 
-			WaterAlbedo, WaterExtinction, WaterPhaseG, ColorScaleBehindWater, Normal, SharedNormalIndexMacro);
+			WaterAlbedo, WaterExtinction, WaterPhaseG, ColorScaleBehindWater, Normal, SharedLocalBasisIndexMacro);
 	}
 
 	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) override
@@ -981,9 +981,9 @@ public:
 		return Compiler->StrataHorizontalMixing(Foreground, Background, Mix);
 	}
 
-	virtual int32 StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 Mix, const FString& SharedNormalIndexMacro) override
+	virtual int32 StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 Mix, const FString& SharedLocalBasisIndexMacro) override
 	{
-		return Compiler->StrataHorizontalMixingParameterBlending(Foreground, Background, Mix, SharedNormalIndexMacro);
+		return Compiler->StrataHorizontalMixingParameterBlending(Foreground, Background, Mix, SharedLocalBasisIndexMacro);
 	}
 
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override
@@ -991,9 +991,9 @@ public:
 		return Compiler->StrataVerticalLayering(Top, Base);
 	}
 
-	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedNormalIndexMacro, int32 TopBSDFNormalCodeChunk) override
+	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk) override
 	{
-		return Compiler->StrataVerticalLayeringParameterBlending(Top, Base, SharedNormalIndexMacro, TopBSDFNormalCodeChunk);
+		return Compiler->StrataVerticalLayeringParameterBlending(Top, Base, SharedLocalBasisIndexMacro, TopBSDFNormalCodeChunk);
 	}
 
 	virtual int32 StrataAdd(int32 A, int32 B) override
@@ -1001,9 +1001,9 @@ public:
 		return Compiler->StrataAdd(A, B);
 	}
 
-	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedNormalIndexMacro) override
+	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedLocalBasisIndexMacro) override
 	{
-		return Compiler->StrataAddParameterBlending(A, B, SharedNormalIndexMacro);
+		return Compiler->StrataAddParameterBlending(A, B, SharedLocalBasisIndexMacro);
 	}
 
 	virtual int32 StrataWeight(int32 A, int32 Weight) override
@@ -1031,19 +1031,19 @@ public:
 		return Compiler->GetStrataCompilationInfo(CodeChunk);
 	}
 
-	virtual FStrataRegisteredSharedNormal StrataCompilationInfoRegisterSharedNormal(int32 NormalCodeChunk) override
+	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk) override
 	{
-		return Compiler->StrataCompilationInfoRegisterSharedNormal(NormalCodeChunk);
+		return Compiler->StrataCompilationInfoRegisterSharedLocalBasis(NormalCodeChunk);
 	}
 
-	virtual FStrataRegisteredSharedNormal StrataCompilationInfoRegisterSharedNormal(int32 NormalCodeChunk, int32 TangentCodeChunk) override
+	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk, int32 TangentCodeChunk) override
 	{
-		return Compiler->StrataCompilationInfoRegisterSharedNormal(NormalCodeChunk, TangentCodeChunk);
+		return Compiler->StrataCompilationInfoRegisterSharedLocalBasis(NormalCodeChunk, TangentCodeChunk);
 	}
 
-	virtual uint8 StrataCompilationInfoGetSharedNormalCount() override
+	virtual uint8 StrataCompilationInfoGetSharedLocalBasesCount() override
 	{
-		return Compiler->StrataCompilationInfoGetSharedNormalCount();
+		return Compiler->StrataCompilationInfoGetSharedLocalBasesCount();
 	}
 
 protected:

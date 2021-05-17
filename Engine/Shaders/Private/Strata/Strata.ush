@@ -12,7 +12,7 @@
 #include "/Engine/Shared/StrataDefinitions.h"
 
 
-// During the base pass or forward rendering, shared normals are simply available from registers.
+// During the base pass or forward rendering, shared local bases are simply available from registers.
 // If a BSDF is loaded for processing from the strata buffer, normals are unpacked on demand to reduce VGPR pressure and increase occupancy.
 #ifndef STRATA_INLINE_SHADING
 #define STRATA_INLINE_SHADING 1
@@ -46,7 +46,7 @@
 struct FStrataBSDF
 {
 	float3				Weight;		// Weight is a float3 because, when loaded from the material buffer, it contains the BSDF throughput (coverage and transmittance combined)
-	uint				State;		// (27 unused bits) (1bit as HasAnisotropy) (2bits as SharedNormalIndex) (3bits as BSDFType)
+	uint				State;		// Extra informations and other enabled BSDF features
 
 #if STRATA_INLINE_SHADING
 	float3				Emissive;	// All bsdf can potientially have emissive. This is never written out to the strata gbuffer but instead accumulated in the emissive buffer during the base pass.
@@ -71,10 +71,10 @@ struct FStrataBSDF
 #define WRITE_BITS(X, BitCount, BitOffset, NewValue)	X = (X & (~TO_OFFSET_BITMASK(BitCount, BitOffset))) | (((NewValue) & TO_BITMASK(BitCount)) << (BitOffset))
 
 // Bit count for each component stored in a Strata header
-// For HEADER_BIT_BSDF_COUNT and  HEADER_BIT_SHAREDNORMAL_X, please refer to values in StrataDefinitions.h
+// For HEADER_BIT_BSDF_COUNT and  HEADER_BIT_SHAREDLOCALBASES_X, please refer to values in StrataDefinitions.h
 #define HEADER_BIT_COUNT_BSDF_COUNT				4
-#define HEADER_BIT_COUNT_SHAREDNORMAL_COUNT		3
-#define HEADER_BIT_COUNT_SHAREDNORMAL_TYPE		4
+#define HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT	3
+#define HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE	4
 #define HEADER_BIT_COUNT_AO						8
 #define HEADER_BIT_COUNT_SKIP_PRECSHADOW_MASK	1
 #define HEADER_BIT_COUNT_ZERO_PRECSHADOW_MASK	1
@@ -82,9 +82,9 @@ struct FStrataBSDF
 #define HEADER_BIT_COUNT___UNUSED___			10
 
 #define HEADER_BIT_OFFSET_BSDF_COUNT			0
-#define HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT	(HEADER_BIT_OFFSET_BSDF_COUNT				+ HEADER_BIT_COUNT_BSDF_COUNT)
-#define HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE		(HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT		+ HEADER_BIT_COUNT_SHAREDNORMAL_COUNT)
-#define HEADER_BIT_OFFSET_AO					(HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE		+ HEADER_BIT_COUNT_SHAREDNORMAL_TYPE)
+#define HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT (HEADER_BIT_OFFSET_BSDF_COUNT				+ HEADER_BIT_COUNT_BSDF_COUNT)
+#define HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE	(HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	+ HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT)
+#define HEADER_BIT_OFFSET_AO					(HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE	+ HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE)
 #define HEADER_BIT_OFFSET_SKIP_PRECSHADOW_MASK	(HEADER_BIT_OFFSET_AO						+ HEADER_BIT_COUNT_AO)
 #define HEADER_BIT_OFFSET_ZERO_PRECSHADOW_MASK	(HEADER_BIT_OFFSET_SKIP_PRECSHADOW_MASK		+ HEADER_BIT_COUNT_SKIP_PRECSHADOW_MASK)
 #define HEADER_BIT_OFFSET_ISSINGLELAYERWATER	(HEADER_BIT_OFFSET_ZERO_PRECSHADOW_MASK		+ HEADER_BIT_COUNT_ZERO_PRECSHADOW_MASK)
@@ -92,11 +92,11 @@ struct FStrataBSDF
 #define HEADER_GETBSDFCOUNT(X)					READ_BITS( X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT)
 #define HEADER_SETBSDFCOUNT(X, NewValue)		WRITE_BITS(X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT, NewValue)
 
-#define HEADER_GETSHAREDNORMALCOUNT(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDNORMAL_COUNT, HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT)
-#define HEADER_SETSHAREDNORMALCOUNT(X, NewValue)WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDNORMAL_COUNT, HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT, NewValue)
+#define HEADER_GETSHAREDLOCALBASESCOUNT(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT, HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT)
+#define HEADER_SETSHAREDLOCALBASESCOUNT(X, NewValue)WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT, HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT, NewValue)
 
-#define HEADER_GETSHAREDNORMALTYPE(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDNORMAL_TYPE, HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE)
-#define HEADER_SETSHAREDNORMALTYPE(X, NewValue)	WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDNORMAL_TYPE, HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE, NewValue)
+#define HEADER_GETSHAREDLOCALBASESTYPE(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE)
+#define HEADER_SETSHAREDLOCALBASESTYPE(X, NewValue)	WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE, NewValue)
 
 #define HEADER_GETAO(X)							READ_BITS( X, HEADER_BIT_COUNT_AO, HEADER_BIT_OFFSET_AO)
 #define HEADER_SETAO(X, NewValue)				WRITE_BITS(X, HEADER_BIT_COUNT_AO, HEADER_BIT_OFFSET_AO, NewValue)
@@ -112,7 +112,7 @@ struct FStrataBSDF
 
 // Bit count for each component stored in a Strata BSDF state
 #define STATE_BIT_COUNT_BSDF					3
-#define STATE_BIT_COUNT_SHAREDNORMALID			2
+#define STATE_BIT_COUNT_SHAREDLOCALBASESID		2
 #define STATE_BIT_COUNT_ANISOTROPY				1
 #define STATE_BIT_COUNT_TOPLAYER				1
 #define STATE_BIT_COUNT_HASSSS					1
@@ -130,8 +130,8 @@ struct FStrataBSDF
 
 // Bit offset of each component store in BSDF state 
 #define STATE_BIT_OFFSET_BSDF			0
-#define STATE_BIT_OFFSET_SHAREDNORMALID	(STATE_BIT_OFFSET_BSDF				+ STATE_BIT_COUNT_BSDF)
-#define STATE_BIT_OFFSET_ANISOTROPY		(STATE_BIT_OFFSET_SHAREDNORMALID	+ STATE_BIT_COUNT_SHAREDNORMALID)
+#define STATE_BIT_OFFSET_SHAREDLOCALBASESID (STATE_BIT_OFFSET_BSDF			+ STATE_BIT_COUNT_BSDF)
+#define STATE_BIT_OFFSET_ANISOTROPY		(STATE_BIT_OFFSET_SHAREDLOCALBASESID+ STATE_BIT_COUNT_SHAREDLOCALBASESID)
 #define STATE_BIT_OFFSET_TOPLAYER		(STATE_BIT_OFFSET_ANISOTROPY		+ STATE_BIT_COUNT_ANISOTROPY)
 #define STATE_BIT_OFFSET_HASSSS			(STATE_BIT_OFFSET_TOPLAYER			+ STATE_BIT_COUNT_TOPLAYER)
 #define STATE_BIT_OFFSET_HASSSSPROFILE	(STATE_BIT_OFFSET_HASSSS			+ STATE_BIT_COUNT_HASSSS)
@@ -149,10 +149,10 @@ struct FStrataBSDF
 #define BSDF_GETTYPE(X)					READ_BITS(X.State,  STATE_BIT_COUNT_BSDF, STATE_BIT_OFFSET_BSDF)
 #define BSDF_SETTYPE(X, NewType)		WRITE_BITS(X.State, STATE_BIT_COUNT_BSDF, STATE_BIT_OFFSET_BSDF, NewType)
 
-// Accessors for Shared Normal
-// This assumes Normals[STRATA_MAX_SHARED_NORMAL_REGISTERS]
-#define BSDF_GETNORMALID(X)				READ_BITS(X.State,  STATE_BIT_COUNT_SHAREDNORMALID, STATE_BIT_OFFSET_SHAREDNORMALID)
-#define BSDF_SETNORMALID(X, NrmlIdx)	WRITE_BITS(X.State, STATE_BIT_COUNT_SHAREDNORMALID, STATE_BIT_OFFSET_SHAREDNORMALID, NrmlIdx)
+// Accessors for shared local bases
+// This assumes Normals[STRATA_MAX_SHAREDLOCALBASES_REGISTERS]
+#define BSDF_GETSHAREDLOCALBASISID(X)	READ_BITS(X.State,  STATE_BIT_COUNT_SHAREDLOCALBASESID, STATE_BIT_OFFSET_SHAREDLOCALBASESID)
+#define BSDF_SETSHAREDLOCALBASISID(X, NrmlIdx)	WRITE_BITS(X.State, STATE_BIT_COUNT_SHAREDLOCALBASESID, STATE_BIT_OFFSET_SHAREDLOCALBASESID, NrmlIdx)
 
 // Accessors for HasAnisotropy
 // Indicates if the BSDF has anisotropic feature
@@ -280,7 +280,7 @@ struct FStrataBSDF
 // Forward declarations
 FParticipatingMedia StrataSlabCreateParticipatingMedia(float3 DiffuseColor, float3 MeanFreePathCentimeters);
 void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF);
-void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
+void StrataRequestSharedLocalBasisTangent(inout uint Types, uint Index);
 float3 StrataUnpackNormal(uint PackedNormal);
 void StrataUnpackNormalAndTangent(inout float3 Normal, inout float3 Tangent, in uint InPacked);
 uint   PackRGBA8(float4 rgba);
@@ -478,7 +478,7 @@ FStrataData GetStrataSlabBSDF(
 	float ThinFilmThickness,
 	float FuzzAmount, float3 FuzzColor,
 	float Thickness, 
-	uint SharedNormalIndex, inout uint SharedNormalTypes)
+	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
 {
 	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
@@ -488,7 +488,7 @@ FStrataData GetStrataSlabBSDF(
 	const uint bHasFuzz = FuzzAmount > 0.0f ? 1 : 0;
 	if (bHasAnisotropy)
 	{
-		StrataRequestSharedNormalTangentBasis(SharedNormalTypes, SharedNormalIndex);
+		StrataRequestSharedLocalBasisTangent(SharedLocalBasisTypes, SharedLocalBasisIndex);
 	}
 
 	const float2 RoughnessXY = GetAnisotropicRoughness(Roughness, Anisotropy);
@@ -508,7 +508,7 @@ FStrataData GetStrataSlabBSDF(
 	//  - It will only be ran for the bottom layer only. Otherwise, the simple volume should be used. As such, Two-sided lighting can also be disabled later if part of the bottom layer.
 
 	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_SLAB);
-	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
+	BSDF_SETSHAREDLOCALBASISID(StrataData.Layers[0].BSDFs[0],		SharedLocalBasisIndex);
 	BSDF_SETEMISSIVE		(StrataData.Layers[0].BSDFs[0],		Emissive);
 	BSDF_SETANISOTROPY		(StrataData.Layers[0].BSDFs[0],		bHasAnisotropy);
 	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
@@ -602,12 +602,12 @@ FStrataData GetStrataUnlitBSDF(float3 Emissive, float3 TransmittanceColor)
 	return StrataData;
 }
 
-FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, float Roughness, float Backlit, float3 Emissive, uint SharedNormalIndex)
+FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, float Roughness, float Backlit, float3 Emissive, uint SharedLocalBasisIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_HAIR);
-	BSDF_SETNORMALID				(StrataData.Layers[0].BSDFs[0], SharedNormalIndex);
+	BSDF_SETSHAREDLOCALBASISID		(StrataData.Layers[0].BSDFs[0], SharedLocalBasisIndex);
 	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
 	HAIR_BASECOLOR					(StrataData.Layers[0].BSDFs[0]) = BaseColor;
 	HAIR_SCATTER					(StrataData.Layers[0].BSDFs[0]) = Scatter;
@@ -622,12 +622,12 @@ FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, f
 
 FStrataData GetStrataSingleLayerWaterBSDF(
 	float3 BaseColor, float Metallic, float Specular, float Roughness, float3 Emissive, float TopMaterialOpacity,
-	float3 WaterAlbedo, float3 WaterExtinction, float WaterPhaseG, float3 ColorScaleBehindWater, uint SharedNormalIndex)
+	float3 WaterAlbedo, float3 WaterExtinction, float WaterPhaseG, float3 ColorScaleBehindWater, uint SharedLocalBasisIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
 	BSDF_SETTYPE					(StrataData.Layers[0].BSDFs[0], STRATA_BSDF_TYPE_SINGLELAYERWATER);
-	BSDF_SETNORMALID				(StrataData.Layers[0].BSDFs[0], SharedNormalIndex);
+	BSDF_SETSHAREDLOCALBASISID		(StrataData.Layers[0].BSDFs[0], SharedLocalBasisIndex);
 	BSDF_SETEMISSIVE				(StrataData.Layers[0].BSDFs[0], Emissive);
 	SLW_BASECOLOR					(StrataData.Layers[0].BSDFs[0]) = BaseColor;
 	SLW_METALLIC					(StrataData.Layers[0].BSDFs[0]) = Metallic;
@@ -728,32 +728,32 @@ uint  StrataLoadUint1(ByteAddressBuffer StrataBuffer, inout FStrataAddressing St
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// Shared normals
+// Shared local bases
 
 #define STRATA_BASIS_TYPE_NORMAL 0u
 #define STRATA_BASIS_TYPE_TANGENT 1u
-struct FSharedNormals
+struct FSharedLocalBases
 {
-	uint NormalCount;
-	uint NormalTypes;
-	float3 Normals[STRATA_MAX_SHARED_NORMAL_REGISTERS];	// once registered, normals are always world space
-	float3 Tangents[STRATA_MAX_SHARED_NORMAL_REGISTERS];// idem for tangents
+	uint Count;
+	uint Types;
+	float3 Normals[STRATA_MAX_SHAREDLOCALBASES_REGISTERS];	// once registered, normals are always world space
+	float3 Tangents[STRATA_MAX_SHAREDLOCALBASES_REGISTERS];// idem for tangents
 };
 
-FSharedNormals StrataInitialiseSharedNormals()
+FSharedLocalBases StrataInitialiseSharedLocalBases()
 {
-	FSharedNormals SharedNormals = (FSharedNormals)0;
-	return SharedNormals;
+	FSharedLocalBases SharedLocalBases = (FSharedLocalBases)0;
+	return SharedLocalBases;
 }
 
-void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index)
+void StrataRequestSharedLocalBasisTangent(inout uint Types, uint Index)
 {
-	NormalTypes = NormalTypes | (STRATA_BASIS_TYPE_TANGENT << Index);
+	Types = Types | (STRATA_BASIS_TYPE_TANGENT << Index);
 }
 
-uint StrataGetSharedNormalType(in uint NormalTypes, uint Index)
+uint StrataGetSharedLocalBasisType(in uint Types, uint Index)
 {
-	return (NormalTypes >> Index) & 0x1 ? STRATA_BASIS_TYPE_TANGENT : STRATA_BASIS_TYPE_NORMAL;
+	return (Types >> Index) & 0x1 ? STRATA_BASIS_TYPE_TANGENT : STRATA_BASIS_TYPE_NORMAL;
 }
 
 struct FStrataPixelHeader
@@ -761,12 +761,12 @@ struct FStrataPixelHeader
 	uint BSDFCount;
 
 #if STRATA_INLINE_SHADING
-	// All the shared normal in VGPRS. This is only used in basepass and during forward rendering.
-	FSharedNormals SharedNormals;
+	// All the shared local bases in VGPRS. This is only used in basepass and during forward rendering.
+	FSharedLocalBases SharedLocalBases;
 #else
 	ByteAddressBuffer StrataBuffer;
-	uint SharedNormalByteOffset;
-	uint SharedNormalTypes;
+	uint SharedLocalBasesByteOffset;
+	uint SharedLocalBasesTypes;
 #endif
 
 	float MaterialAO;
@@ -780,10 +780,10 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	FStrataPixelHeader Out;
 	Out.BSDFCount = 0;
 #if STRATA_INLINE_SHADING
-	Out.SharedNormals = (FSharedNormals)0;
+	Out.SharedLocalBases = (FSharedLocalBases)0;
 #else
-	Out.SharedNormalByteOffset = 0;
-	Out.SharedNormalTypes = 0;
+	Out.SharedLocalBasesByteOffset = 0;
+	Out.SharedLocalBasesTypes = 0;
 #endif
 	Out.MaterialAO = 1.0f;
 	Out.SkipPrecShadowMask = false;
@@ -796,14 +796,14 @@ float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FS
 {
 #if STRATA_INLINE_SHADING
 	// Assume Normal & Tangent are already been normalized
-	float3 Normal  = StrataPixelHeader.SharedNormals.Normals[BSDF_GETNORMALID(BSDF)];
-	float3 Tangent = StrataPixelHeader.SharedNormals.Tangents[BSDF_GETNORMALID(BSDF)];
+	float3 Normal  = StrataPixelHeader.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(BSDF)];
+	float3 Tangent = StrataPixelHeader.SharedLocalBases.Tangents[BSDF_GETSHAREDLOCALBASISID(BSDF)];
 	float3 Bitangent = cross(Normal, Tangent);
 	return float3x3(Tangent, Bitangent, Normal);
 #else
 	const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDF) != 0;
-	uint PackedBasis = StrataPixelHeader.StrataBuffer.Load(StrataPixelHeader.SharedNormalByteOffset + BSDF_GETNORMALID(BSDF) * StrataAddressing.ByteOffsetToNextUint);
-	uint BasisType   = StrataGetSharedNormalType(StrataPixelHeader.SharedNormalTypes, BSDF_GETNORMALID(BSDF));
+	uint PackedBasis = StrataPixelHeader.StrataBuffer.Load(StrataPixelHeader.SharedLocalBasesByteOffset + BSDF_GETSHAREDLOCALBASISID(BSDF) * StrataAddressing.ByteOffsetToNextUint);
+	uint BasisType   = StrataGetSharedLocalBasisType(StrataPixelHeader.SharedLocalBasesTypes, BSDF_GETSHAREDLOCALBASISID(BSDF));
 	float3x3 OutTangentBasis;
 	if (BasisType == STRATA_BASIS_TYPE_NORMAL)
 	{
@@ -918,7 +918,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 
 	// We can only parameter blend the slab 
 	BSDF_SETTYPE(ResultBSDF,			STRATA_BSDF_TYPE_SLAB);
-	BSDF_SETNORMALID(ResultBSDF,		NewNormalIndex);
+	BSDF_SETSHAREDLOCALBASISID(ResultBSDF,NewNormalIndex);
 
 	BSDF_SETISTOPLAYER(ResultBSDF,		0);
 	BSDF_SETANISOTROPY(ResultBSDF,		BSDF_GETANISOTROPY(ForegroundBSDF)				| BSDF_GETANISOTROPY(BackgroundBSDF));
@@ -981,7 +981,7 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, uint NewNor
 
 	// We can only parameter blend the slab 
 	BSDF_SETTYPE(ResultBSDF,			STRATA_BSDF_TYPE_SLAB);
-	BSDF_SETNORMALID(ResultBSDF,		NewNormalIndex);
+	BSDF_SETSHAREDLOCALBASISID(ResultBSDF,NewNormalIndex);
 
 	BSDF_SETISTOPLAYER(ResultBSDF,		0);
 	BSDF_SETANISOTROPY(ResultBSDF,		BSDF_GETANISOTROPY(ABSDF)						| BSDF_GETANISOTROPY(BBSDF));
@@ -1045,7 +1045,7 @@ FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData
 
 	// We can only parameter blend the slab 
 	BSDF_SETTYPE(ResultBSDF,			STRATA_BSDF_TYPE_SLAB);
-	BSDF_SETNORMALID(ResultBSDF,		NewNormalIndex);
+	BSDF_SETSHAREDLOCALBASISID(ResultBSDF,NewNormalIndex);
 
 	BSDF_SETISTOPLAYER(ResultBSDF,		0);
 	BSDF_SETANISOTROPY(ResultBSDF,		0);																					// Anisotropy is disabled because it changes a lot of things
@@ -1727,16 +1727,16 @@ void PackStrataOut(
 	STRATA_STORE_UINT1(PackStrataHeaderIn(BSDFCount, StrataPixelHeader));
 #if STRATA_INLINE_SHADING
 	UNROLL
-	for (uint i = 0; i < StrataPixelHeader.SharedNormals.NormalCount; ++i)
+	for (uint i = 0; i < StrataPixelHeader.SharedLocalBases.Count; ++i)
 	{
-		const uint BasisType = StrataGetSharedNormalType(StrataPixelHeader.SharedNormals.NormalTypes, i);
+		const uint BasisType = StrataGetSharedLocalBasisType(StrataPixelHeader.SharedLocalBases.Types, i);
 		if (BasisType == STRATA_BASIS_TYPE_NORMAL)
 		{
-			STRATA_STORE_UINT1(StrataPackNormal(StrataPixelHeader.SharedNormals.Normals[i]));
+			STRATA_STORE_UINT1(StrataPackNormal(StrataPixelHeader.SharedLocalBases.Normals[i]));
 		}
 		else // if (BasisType == STRATA_BASIS_TYPE_TANGENT)
 		{
-			STRATA_STORE_UINT1(StrataPackNormalAndTangent(StrataPixelHeader.SharedNormals.Normals[i], StrataPixelHeader.SharedNormals.Tangents[i]));
+			STRATA_STORE_UINT1(StrataPackNormalAndTangent(StrataPixelHeader.SharedLocalBases.Normals[i], StrataPixelHeader.SharedLocalBases.Tangents[i]));
 		}
 	}
 #endif
@@ -1840,8 +1840,8 @@ uint PackStrataHeaderIn(uint InBSDFCount, FStrataPixelHeader InHeader)
 	HEADER_SETBSDFCOUNT(Out, InBSDFCount);
 
 #if STRATA_INLINE_SHADING
-	HEADER_SETSHAREDNORMALCOUNT(Out, InHeader.SharedNormals.NormalCount);
-	HEADER_SETSHAREDNORMALTYPE(Out, InHeader.SharedNormals.NormalTypes);
+	HEADER_SETSHAREDLOCALBASESCOUNT(Out, InHeader.SharedLocalBases.Count);
+	HEADER_SETSHAREDLOCALBASESTYPE(Out, InHeader.SharedLocalBases.Types);
 #endif
 
 	HEADER_SETAO(Out, uint(InHeader.MaterialAO * 255.0f));
@@ -1861,20 +1861,20 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 	uint PackedHeader = 0;
 	STRATA_LOAD_UINT1(PackedHeader);
 	Out.BSDFCount    = HEADER_GETBSDFCOUNT(PackedHeader);
-	uint NormalCount = HEADER_GETSHAREDNORMALCOUNT(PackedHeader);
-	uint NormalTypes = HEADER_GETSHAREDNORMALTYPE(PackedHeader);
+	uint SharedLocalBasesCount = HEADER_GETSHAREDLOCALBASESCOUNT(PackedHeader);
+	uint SharedLocalBasesTypes = HEADER_GETSHAREDLOCALBASESTYPE(PackedHeader);
 
 #if STRATA_INLINE_SHADING==0
-	// Only keep the offset to the shared normal memory. We are going to load them on demand.
-	Out.SharedNormalByteOffset = StrataAddressing.CurrentAddr;
+	// Only keep the offset to the shared local bases memory. We are going to load them on demand.
+	Out.SharedLocalBasesByteOffset = StrataAddressing.CurrentAddr;
 	Out.StrataBuffer = StrataBuffer;
-	Out.SharedNormalTypes = NormalTypes;
+	Out.SharedLocalBasesTypes = SharedLocalBasesTypes;
 
-	// Now skip over the shared normal memory to be able to load the BSDF content
-	StrataAddressing.CurrentAddr += NormalCount * StrataAddressing.ByteOffsetToNextUint;
+	// Now skip over the shared local basis memory to be able to load the BSDF content
+	StrataAddressing.CurrentAddr += SharedLocalBasesCount * StrataAddressing.ByteOffsetToNextUint;
 
 	// And account for the space used by normal for the debug information
-	StrataAddressing.ReadBytes += NormalCount * STRATA_PACKED_NORMAL_STRIDE_BYTES;
+	StrataAddressing.ReadBytes += SharedLocalBasesCount * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
 #endif
 
 	Out.MaterialAO = float(HEADER_GETAO(PackedHeader)) * (1.0f / 255.0f);
