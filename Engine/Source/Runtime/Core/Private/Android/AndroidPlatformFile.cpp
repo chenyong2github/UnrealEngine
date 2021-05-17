@@ -1115,18 +1115,18 @@ public:
 
 		// make sure the base path directory exists (UE4Game and UE4Game/ProjectName)
 		FString FileBaseDir = GFilePathBase + FString(FILEBASE_DIRECTORY);
-		mkdir(TCHAR_TO_UTF8(*FileBaseDir), 0766);
-		mkdir(TCHAR_TO_UTF8(*(FileBaseDir + GAndroidProjectName)), 0766);
+		mkdir(TCHAR_TO_UTF8(*FileBaseDir), 0777);
+		mkdir(TCHAR_TO_UTF8(*(FileBaseDir + GAndroidProjectName)), 0777);
 
 		// make sure the log directory exists if override applied
-		if (GOverrideAndroidLogDir)
+		//if (GOverrideAndroidLogDir)
 		{
 			FString LogBaseDir = GExternalFilePath + FString(FILEBASE_DIRECTORY);
-			mkdir(TCHAR_TO_UTF8(*LogBaseDir), 0766);
-			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName)), 0766);
-			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName)), 0766);
-			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName + TEXT("/Saved"))), 0766);
-			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName + TEXT("/Saved/Logs"))), 0766);
+			mkdir(TCHAR_TO_UTF8(*LogBaseDir), 0777);
+			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName)), 0777);
+			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName)), 0777);
+			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName + TEXT("/Saved"))), 0777);
+			mkdir(TCHAR_TO_UTF8(*(LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName + TEXT("/Saved/Logs"))), 0777);
 
 			AndroidLogDir = LogBaseDir + GAndroidProjectName + TEXT("/") + GAndroidProjectName + TEXT("/Saved/Logs/");
 		}
