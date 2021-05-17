@@ -218,6 +218,7 @@ namespace Gauntlet
 				get { return TestDetailed.Warnings; }
 				set { TestDetailed.Warnings = value; }
 			}
+
 			public string ArtifactName { get; set; }
 
 
