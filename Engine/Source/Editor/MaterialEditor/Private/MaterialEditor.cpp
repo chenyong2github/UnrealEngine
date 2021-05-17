@@ -2331,6 +2331,11 @@ void FMaterialEditor::UpdatePreviewMaterial( bool bForce )
 		// So that RebuildMaterialFunctionInfo will see all the nested material functions that may need to be updated
 		ExpressionPreviewMaterial->Expressions = Material->Expressions;
 
+		if (MaterialFunction)
+		{
+			ExpressionPreviewMaterial->BlendMode = MaterialFunction->PreviewBlendMode;
+		}
+
 		FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
 		UpdateContext.AddMaterial(ExpressionPreviewMaterial);
 

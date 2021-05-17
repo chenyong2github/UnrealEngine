@@ -75,6 +75,9 @@ class UMaterialFunction : public UMaterialFunctionInterface
 	UPROPERTY()
 	TArray<TObjectPtr<class UMaterialExpressionMaterialFunctionCall>> DependentFunctionExpressionCandidates;
 
+	/** Determines the blend mode when previewing a material function. */
+	UPROPERTY(EditAnywhere, Category = Preview, AssetRegistrySearchable)
+	TEnumAsByte<enum EBlendMode> PreviewBlendMode = BLEND_Opaque;
 private:
 	/** Transient flag used to track re-entrance in recursive functions like IsDependent. */
 	UPROPERTY(transient)
