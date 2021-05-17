@@ -10,18 +10,18 @@
 
 // Platform specific vector intrinsics include.
 #if WITH_DIRECTXMATH
-#define SIMD_ALIGNMENT (16)
 #include "Math/UnrealMathDirectX.h"
 #elif PLATFORM_ENABLE_VECTORINTRINSICS_NEON
-#define SIMD_ALIGNMENT (16)
 #include "Math/UnrealMathNeon.h"
+#elif defined(__cplusplus_cli) && !PLATFORM_HOLOLENS
+#include "Math/UnrealMathFPU.h" // there are compile issues with UnrealMathSSE in managed mode, so use the FPU version
 #elif PLATFORM_ENABLE_VECTORINTRINSICS
-#define SIMD_ALIGNMENT (16)
 #include "Math/UnrealMathSSE.h"
 #else
-#define SIMD_ALIGNMENT (4)
 #include "Math/UnrealMathFPU.h"
 #endif
+
+#define SIMD_ALIGNMENT (alignof(VectorRegister))
 
 // 'Cross-platform' vector intrinsics (built on the platform-specific ones defined above)
 #include "Math/UnrealMathVectorCommon.h"

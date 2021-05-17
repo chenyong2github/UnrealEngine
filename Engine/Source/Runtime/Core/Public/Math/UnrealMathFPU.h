@@ -86,7 +86,7 @@ void VectorStoreAligned(const VectorRegister4Double& Vec, double* Dst);
 
 
 // Helper for conveniently aligning a float array for extraction from VectorRegister4Float
-struct alignas(16) AlignedFloat4
+struct alignas(alignof(VectorRegister4Float)) AlignedFloat4
 {
 	float V[4];
 
@@ -106,7 +106,7 @@ struct alignas(16) AlignedFloat4
 
 
 // Helper for conveniently aligning a double array for extraction from VectorRegister4Double
-struct alignas(16) AlignedDouble4
+struct alignas(alignof(VectorRegister4Double)) AlignedDouble4
 {
 	double V[4];
 
@@ -143,16 +143,6 @@ FORCEINLINE VectorRegister2Double MakeVectorRegister2Double(double X, double Y)
 	return Result;
 }
 
-// Bitwise equivalent from two 64-bit values.
-FORCEINLINE VectorRegister2Double MakeVectorRegister2Double(uint64 X, uint64 Y)
-{
-	VectorRegister2Double Result;
-	Result.V[0] = (double)X;
-	Result.V[1] = (double)Y;
-	return Result;
-}
-
-
 /**
  * Returns a bitwise equivalent vector based on 4 DWORDs.
  *
@@ -185,6 +175,17 @@ FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(uint64 X, uint64 Y, u
 FORCEINLINE VectorRegister4Float MakeVectorRegister(uint32 X, uint32 Y, uint32 Z, uint32 W)
 {
 	return MakeVectorRegisterFloat(X, Y, Z, W);
+}
+
+// Nicer aliases
+FORCEINLINE VectorRegister4Float MakeVectorRegisterFloatMask(uint32 X, uint32 Y, uint32 Z, uint32 W)
+{
+	return MakeVectorRegisterFloat(X, Y, Z, W);
+}
+
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDoubleMask(uint64 X, uint64 Y, uint64 Z, uint64 W)
+{
+	return MakeVectorRegisterDouble(X, Y, Z, W);
 }
 
 /**
@@ -399,11 +400,6 @@ FORCEINLINE VectorRegister4Double VectorLoadAligned(const double* Ptr)
 FORCEINLINE VectorRegister4Float VectorLoadFloat1(const float* Ptr)
 {
 	return MakeVectorRegisterFloat(Ptr[0], Ptr[0], Ptr[0], Ptr[0]);
-}
-
-FORCEINLINE VectorRegister4Double VectorLoadFloat1(const double* Ptr)
-{
-	return MakeVectorRegisterDouble(Ptr[0], Ptr[0], Ptr[0], Ptr[0]);
 }
 
 FORCEINLINE VectorRegister4Double VectorLoadDouble1(const double* Ptr)

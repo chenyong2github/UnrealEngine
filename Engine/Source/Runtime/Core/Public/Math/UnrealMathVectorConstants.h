@@ -10,6 +10,7 @@ namespace GlobalVectorConstants
 	static const VectorRegister4Float FloatMinusOne = MakeVectorRegisterFloat(-1.0f, -1.0f, -1.0f, -1.0f);
 	static const VectorRegister4Float Float0001 = MakeVectorRegisterFloat( 0.0f, 0.0f, 0.0f, 1.0f );
 	static const VectorRegister4Float Float1000 = MakeVectorRegisterFloat( 1.0f, 0.0f, 0.0f, 0.0f );
+	static const VectorRegister4Float Float1110 = MakeVectorRegisterFloat(1.0f, 1.0f, 1.0f, 0.0f);
 	static const VectorRegister4Float SmallLengthThreshold = MakeVectorRegisterFloat(1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f);
 	static const VectorRegister4Float FloatOneHundredth = MakeVectorRegisterFloat(0.01f, 0.01f, 0.01f, 0.01f);
 	static const VectorRegister4Float Float111_Minus1 = MakeVectorRegisterFloat( 1.f, 1.f, 1.f, -1.f );
@@ -27,6 +28,7 @@ namespace GlobalVectorConstants
 	static const VectorRegister4Double DoubleMinusOne = MakeVectorRegisterDouble(-1.0, -1.0, -1.0, -1.0);
 	static const VectorRegister4Double Double0001 = MakeVectorRegisterDouble(0.0f, 0.0, 0.0, 1.0);
 	static const VectorRegister4Double Double1000 = MakeVectorRegisterDouble(1.0, 0.0, 0.0, 0.0);
+	static const VectorRegister4Double Double1110 = MakeVectorRegisterDouble(1.0, 1.0, 1.0, 0.0);
 	static const VectorRegister4Double DoubleSmallLengthThreshold = MakeVectorRegisterDouble(1.e-8, 1.e-8, 1.e-8, 1.e-8);
 	static const VectorRegister4Double DoubleOneHundredth = MakeVectorRegisterDouble(0.01, 0.01, 0.01, 0.01);
 	static const VectorRegister4Double Double111_Minus1 = MakeVectorRegisterDouble(1., 1., 1., -1.);
@@ -37,6 +39,9 @@ namespace GlobalVectorConstants
 	static const VectorRegister4Double DoubleSmallNumber = MakeVectorRegisterDouble(DOUBLE_SMALL_NUMBER, DOUBLE_SMALL_NUMBER, DOUBLE_SMALL_NUMBER, DOUBLE_SMALL_NUMBER);
 	static const VectorRegister4Double DoubleThreshQuatNormalized = MakeVectorRegisterDouble(DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED);
 	static const VectorRegister4Double DoubleBigNumber = MakeVectorRegisterDouble(DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER);
+
+	static const VectorRegister Vector0001 = Float0001;
+	static const VectorRegister Vector1110 = Float1110;
 
 	static const VectorRegister4Int IntOne = MakeVectorRegisterInt(1, 1, 1, 1);
 	static const VectorRegister4Int IntZero = MakeVectorRegisterInt(0, 0, 0, 0);
@@ -61,34 +66,28 @@ namespace GlobalVectorConstants
 	static const VectorRegister4Double DOUBLE_RAD_TO_DEG = MakeVectorRegister((180.)/DOUBLE_PI, (180.)/DOUBLE_PI, (180.)/DOUBLE_PI, (180.)/DOUBLE_PI);
 
 	/** Bitmask to AND out the XYZ components in a vector */
-	static const VectorRegister4Float XYZMask = MakeVectorRegister((uint32)0xffffffff, (uint32)0xffffffff, (uint32)0xffffffff, (uint32)0x00000000);
-	static const VectorRegister4Double DoubleXYZMask = MakeVectorRegisterDouble((uint64)0xFFFFFFFFFFFFFFFF, (uint64)0xFFFFFFFFFFFFFFFF, (uint64)0xFFFFFFFFFFFFFFFF, (uint64)0);
+	static const VectorRegister4Float XYZMask = MakeVectorRegisterFloatMask((uint32)0xffffffff, (uint32)0xffffffff, (uint32)0xffffffff, (uint32)0x00000000);
+	static const VectorRegister4Double DoubleXYZMask = MakeVectorRegisterDoubleMask((uint64)0xFFFFFFFFFFFFFFFF, (uint64)0xFFFFFFFFFFFFFFFF, (uint64)0xFFFFFFFFFFFFFFFF, (uint64)0);
 	
-	/** Bitmask to AND out the 2nd component in a double pair vector */
-	static const VectorRegister2Double DoubleZMask = MakeVectorRegister2Double((uint64)0xFFFFFFFFFFFFFFFF, (uint64)0);
-
-
 	/** Bitmask to AND out the sign bit of each components in a vector */
 #define SIGN_BIT ((1 << 31))
-	static const VectorRegister4Float SignBit = MakeVectorRegister((uint32)SIGN_BIT, (uint32)SIGN_BIT, (uint32)SIGN_BIT, (uint32)SIGN_BIT);
-	static const VectorRegister4Float SignMask = MakeVectorRegister((uint32)(~SIGN_BIT), (uint32)(~SIGN_BIT), (uint32)(~SIGN_BIT), (uint32)(~SIGN_BIT));
+	static const VectorRegister4Float SignBit = MakeVectorRegisterFloatMask((uint32)SIGN_BIT, (uint32)SIGN_BIT, (uint32)SIGN_BIT, (uint32)SIGN_BIT);
+	static const VectorRegister4Float SignMask = MakeVectorRegisterFloatMask((uint32)(~SIGN_BIT), (uint32)(~SIGN_BIT), (uint32)(~SIGN_BIT), (uint32)(~SIGN_BIT));
 	static const VectorRegister4Int IntSignBit = MakeVectorRegisterInt(SIGN_BIT, SIGN_BIT, SIGN_BIT, SIGN_BIT);
 	static const VectorRegister4Int IntSignMask = MakeVectorRegisterInt((~SIGN_BIT), (~SIGN_BIT), (~SIGN_BIT), (~SIGN_BIT));
 #undef SIGN_BIT
-	static const VectorRegister4Float AllMask = MakeVectorRegister(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
-	static const VectorRegister4Double DoubleAllMask = MakeVectorRegisterDouble((uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0xFFFFFFFFFFFFFFFF));
+	static const VectorRegister4Float AllMask = MakeVectorRegisterFloatMask(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+	static const VectorRegister4Double DoubleAllMask = MakeVectorRegisterDoubleMask((uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0xFFFFFFFFFFFFFFFF), (uint64)(0xFFFFFFFFFFFFFFFF));
 	static const VectorRegister4Int IntAllMask = MakeVectorRegisterInt(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
 
 #define DOUBLE_SIGN_BIT (uint64(1) << uint64(63))
-	static const VectorRegister2Double DoubleSignBit2d = MakeVectorRegister2Double((uint64)DOUBLE_SIGN_BIT, (uint64)DOUBLE_SIGN_BIT);
-	static const VectorRegister2Double DoubleSignMask2d = MakeVectorRegister2Double((uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT));
-	static const VectorRegister4Double DoubleSignBit = MakeVectorRegisterDouble((uint64)DOUBLE_SIGN_BIT, (uint64)DOUBLE_SIGN_BIT, (uint64)DOUBLE_SIGN_BIT, (uint64)DOUBLE_SIGN_BIT);
-	static const VectorRegister4Double DoubleSignMask = MakeVectorRegisterDouble((uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT));
+	static const VectorRegister4Double DoubleSignBit = MakeVectorRegisterDoubleMask((uint64)DOUBLE_SIGN_BIT, (uint64)DOUBLE_SIGN_BIT, (uint64)DOUBLE_SIGN_BIT, (uint64)DOUBLE_SIGN_BIT);
+	static const VectorRegister4Double DoubleSignMask = MakeVectorRegisterDoubleMask((uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT));
 #undef DOUBLE_SIGN_BIT
 
 	/** Vector full of positive infinity */
-	static const VectorRegister4Float FloatInfinity = MakeVectorRegisterFloat((uint32)0x7F800000, (uint32)0x7F800000, (uint32)0x7F800000, (uint32)0x7F800000);
-	static const VectorRegister4Double DoubleInfinity = MakeVectorRegisterDouble((uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000);
+	static const VectorRegister4Float FloatInfinity = MakeVectorRegisterFloatMask((uint32)0x7F800000, (uint32)0x7F800000, (uint32)0x7F800000, (uint32)0x7F800000);
+	static const VectorRegister4Double DoubleInfinity = MakeVectorRegisterDoubleMask((uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000, (uint64)0x7FF0000000000000);
 
 	static const VectorRegister4Float Pi = MakeVectorRegister(PI, PI, PI, PI);
 	static const VectorRegister4Float TwoPi = MakeVectorRegister(2.0f*PI, 2.0f*PI, 2.0f*PI, 2.0f*PI);
@@ -122,9 +121,9 @@ namespace GlobalVectorConstants
 
 	static const VectorRegister4Float FloatTwo = MakeVectorRegister(2.0f, 2.0f, 2.0f, 2.0f);
 	static const uint32 AlmostTwoBits = 0x3fffffff;
-	static const VectorRegister4Float FloatAlmostTwo = MakeVectorRegister(*(float*)&AlmostTwoBits, *(float*)&AlmostTwoBits, *(float*)&AlmostTwoBits, *(float*)&AlmostTwoBits);
+	static const VectorRegister4Float FloatAlmostTwo = MakeVectorRegisterFloatMask(AlmostTwoBits, AlmostTwoBits, AlmostTwoBits, AlmostTwoBits);
 
 	static const VectorRegister4Double DoubleTwo = MakeVectorRegisterDouble(2.0, 2.0, 2.0, 2.0);
 	static const uint64 DoubleAlmostTwoBits = 0x3FFFFFFFFFFFFFFF;
-	static const VectorRegister4Double DoubleAlmostTwo = MakeVectorRegisterDouble(*(double*)&DoubleAlmostTwoBits, *(double*)&DoubleAlmostTwoBits, *(double*)&DoubleAlmostTwoBits, *(double*)&DoubleAlmostTwoBits);
+	static const VectorRegister4Double DoubleAlmostTwo = MakeVectorRegisterDoubleMask(DoubleAlmostTwoBits, DoubleAlmostTwoBits, DoubleAlmostTwoBits, DoubleAlmostTwoBits);
 }
