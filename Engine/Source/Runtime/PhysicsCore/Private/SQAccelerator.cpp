@@ -213,6 +213,7 @@ private:
 		bool bContinue = true;
 
 		const TRigidTransform<float, 3> ActorTM(GeometryParticle->X(), GeometryParticle->R());
+		const TAABB<FReal, 3> QueryGeomWorldBounds = QueryGeom ? QueryGeom->BoundingBox().TransformedAABB(StartTM) : TAABB<FReal, 3>(-HalfExtents, HalfExtents);
 
 #if CHAOS_DEBUG_DRAW
 		bool bAllShapesIgnoredInPrefilter = true;
@@ -233,7 +234,7 @@ private:
 				else
 				{
 					// Transform to world bounds and get the proper half extent.
-					const FVec3 WorldHalfExtent = QueryGeom ? QueryGeom->BoundingBox().TransformedAABB(StartTM).Extents() * 0.5f : HalfExtents;
+					const FVec3 WorldHalfExtent = QueryGeom ? QueryGeomWorldBounds.Extents() * 0.5f : HalfExtents;
 
 					InflatedWorldBounds = FAABB3(Shape->GetWorldSpaceInflatedShapeBounds().Min() - WorldHalfExtent, Shape->GetWorldSpaceInflatedShapeBounds().Max() + WorldHalfExtent);
 				}
@@ -249,7 +250,8 @@ private:
 				}
 				else
 				{
-					if (!InflatedWorldBounds.Contains(StartTM.GetLocation()))
+					const FVec3 QueryCenter = QueryGeom ? QueryGeomWorldBounds.Center() : StartTM.GetLocation();
+					if (!InflatedWorldBounds.Contains(QueryCenter))
 					{
 						continue;
 					}
@@ -411,7 +413,7 @@ private:
 	ChaosInterface::FSQHitBuffer<THitType>& HitBuffer;
 	const FQueryFilterData& QueryFilterData;
 	const FCollisionFilterData QueryFilterDataConcrete;
-	const QueryGeometryType* QueryGeom;
+	const QueryGeometryType* QueryGeom = nullptr;
 	ICollisionQueryFilterCallbackBase& QueryCallback;
 	const FTransform StartTM;
 };
