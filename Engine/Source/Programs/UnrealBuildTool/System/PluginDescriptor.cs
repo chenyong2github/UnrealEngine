@@ -247,20 +247,23 @@ namespace UnrealBuildTool
 			RawObject.TryGetStringArrayField("SupportedPrograms", out SupportedPrograms);
 			RawObject.TryGetBoolField("bIsPluginExtension", out bIsPluginExtension);
 
-			try
+			string[] SupportedTargetPlatformNames;
+			if (RawObject.TryGetStringArrayField("SupportedTargetPlatforms", out SupportedTargetPlatformNames))
 			{
-				string[] SupportedTargetPlatformNames;
-				if (RawObject.TryGetStringArrayField("SupportedTargetPlatforms", out SupportedTargetPlatformNames))
+				SupportedTargetPlatforms = new List<UnrealTargetPlatform>();
+				foreach (string TargetPlatformName in SupportedTargetPlatformNames)
 				{
-					SupportedTargetPlatforms = Array.ConvertAll(SupportedTargetPlatformNames, x => UnrealTargetPlatform.Parse(x)).ToList();
+					UnrealTargetPlatform Platform;
+					if (UnrealTargetPlatform.TryParse(TargetPlatformName, out Platform))
+					{
+						SupportedTargetPlatforms.Add(Platform);
+					}
+					else
+					{
+						Log.TraceWarning("Unknown platform {0} listed in plugin with FriendlyName {1}", TargetPlatformName, FriendlyName);
+					}
 				}
 			}
-			catch (BuildException Ex)
-			{
-				ExceptionUtils.AddContext(Ex, "while parsing SupportedTargetPlatforms in plugin with FriendlyName '{0}'", FriendlyName);
-				throw;
-			}
-
 
 			JsonObject[] ModulesArray;
 			if (RawObject.TryGetObjectArrayField("Modules", out ModulesArray))

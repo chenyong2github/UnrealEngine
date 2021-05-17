@@ -184,6 +184,13 @@ namespace UnrealBuildTool
 						}
 					}
 				}
+
+				// remove any platform directories in non-engine locations if the engine doesn't have the platform 
+				if (BaseDir != UnrealBuildTool.EngineDirectory && CachedDirs.Item1.Count > 0)
+				{
+					// if the DDPI.ini file doesn't exist, we haven't synced the platform, so just skip this directory
+					CachedDirs.Item1.RemoveAll(x => DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(x.GetDirectoryName()) == null);
+				}
 			}
 
 			// now return what the caller wanted (always include BaseDir)
