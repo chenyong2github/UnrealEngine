@@ -54,14 +54,6 @@ IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayout::FResourceParameter);
 	#define RHIRESOURCE_NUM_FRAMES_TO_EXPIRE 3
 #endif
 
-static FAutoConsoleVariable CVarUseVulkanRealUBs(
-	TEXT("r.Vulkan.UseRealUBs"),
-	1,
-	TEXT("0: Emulate uniform buffers on Vulkan SM4/SM5 (debugging ONLY)\n")
-	TEXT("1: Use real uniform buffers [default]"),
-	ECVF_ReadOnly
-	);
-
 static TAutoConsoleVariable<int32> CVarDisableEngineAndAppRegistration(
 	TEXT("r.DisableEngineAndAppRegistration"),
 	0,

@@ -925,7 +925,7 @@ static TAutoConsoleVariable<int32> CVarOpenGLForceDXC(
 
 static TAutoConsoleVariable<int32> CVarVulkanForceDXC(
 	TEXT("r.Vulkan.ForceDXC"),
-	1,
+	3,
 	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all Vulkan shaders instead of hlslcc.\n")
 	TEXT(" 0: Disable (hlslcc/glslang)\n")
 	TEXT(" 1: Enabled on desktop platforms only (default)\n")
@@ -5070,23 +5070,6 @@ void GlobalBeginCompileShader(
 			{
 				Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
 			}
-		}
-		else if(IsVulkanPlatform((EShaderPlatform)Target.Platform))
-		{
-			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.UseRealUBs"));
-			if ((CVar && CVar->GetInt() == 0) || 
-				Target.Platform == SP_VULKAN_ES3_1_ANDROID) // we force eUB on mobile Android
-			{
-				Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
-			}
-		}
-	}
-	else
-	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.UseRealUBs"));
-		if (CVar && CVar->GetInt() == 0)
-		{
-			Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
 		}
 	}
 

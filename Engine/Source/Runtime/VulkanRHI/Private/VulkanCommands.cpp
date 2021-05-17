@@ -427,37 +427,28 @@ inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStag
 	check(Shader->GetShaderKey() == PendingGfxState->GetCurrentShaderKey(Stage));
 
 	const FVulkanShaderHeader& CodeHeader = Shader->GetCodeHeader();
-	const bool bUseRealUBs = FVulkanPlatform::UseRealUBsOptimization(CodeHeader.bHasRealUBs != 0);
 	const FVulkanShaderHeader::FUniformBufferInfo& HeaderUBInfo = CodeHeader.UniformBuffers[BufferIndex];
 	checkfSlow(!HeaderUBInfo.LayoutHash || HeaderUBInfo.LayoutHash == UniformBuffer->GetLayout().GetHash(), TEXT("Mismatched UB layout! Got hash 0x%x, expected 0x%x!"), UniformBuffer->GetLayout().GetHash(), HeaderUBInfo.LayoutHash);
 	const FVulkanGfxPipelineDescriptorInfo& DescriptorInfo = PendingGfxState->CurrentState->GetGfxPipelineDescriptorInfo();
-	if (!bUseRealUBs || !HeaderUBInfo.bOnlyHasResources)
+	if (!HeaderUBInfo.bOnlyHasResources)
 	{
-		checkSlow(!bUseRealUBs || UniformBuffer->GetLayout().ConstantBufferSize > 0);
+		checkSlow(UniformBuffer->GetLayout().ConstantBufferSize > 0);
 		extern TAutoConsoleVariable<int32> GDynamicGlobalUBs;
-		if (bUseRealUBs)
-		{
-			uint8 DescriptorSet;
-			uint32 BindingIndex;
-			if (!DescriptorInfo.GetDescriptorSetAndBindingIndex(FVulkanShaderHeader::UniformBuffer, Stage, BufferIndex, DescriptorSet, BindingIndex))
-			{
-				return;
-			}
 
-			const FVulkanRealUniformBuffer* RealUniformBuffer = static_cast<const FVulkanRealUniformBuffer*>(UniformBuffer);
-			if (GDynamicGlobalUBs.GetValueOnAnyThread() > 1)
-			{
-				PendingGfxState->SetUniformBuffer<true>(DescriptorSet, BindingIndex, RealUniformBuffer);
-			}
-			else
-			{
-				PendingGfxState->SetUniformBuffer<false>(DescriptorSet, BindingIndex, RealUniformBuffer);
-			}
+		uint8 DescriptorSet;
+		uint32 BindingIndex;
+		if (!DescriptorInfo.GetDescriptorSetAndBindingIndex(FVulkanShaderHeader::UniformBuffer, Stage, BufferIndex, DescriptorSet, BindingIndex))
+		{
+			return;
+		}
+
+		if (GDynamicGlobalUBs.GetValueOnAnyThread() > 1)
+		{
+			PendingGfxState->SetUniformBuffer<true>(DescriptorSet, BindingIndex, UniformBuffer);
 		}
 		else
 		{
-			const FVulkanEmulatedUniformBuffer* EmulatedUniformBuffer = static_cast<const FVulkanEmulatedUniformBuffer*>(UniformBuffer);
-			PendingGfxState->SetUniformBufferConstantData(Stage, BufferIndex, EmulatedUniformBuffer->ConstantData);
+			PendingGfxState->SetUniformBuffer<false>(DescriptorSet, BindingIndex, UniformBuffer);
 		}
 	}
 
@@ -468,7 +459,7 @@ inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStag
 	else
 	{
 		// Internal error: Completely empty UB!
-		checkSlow(!CodeHeader.bHasRealUBs || !HeaderUBInfo.bOnlyHasResources);
+		checkSlow(!HeaderUBInfo.bOnlyHasResources);
 	}
 }
 
@@ -508,36 +499,27 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* Com
 	const FVulkanShaderHeader& CodeHeader = Shader->GetCodeHeader();
 	const FVulkanShaderHeader::FUniformBufferInfo& HeaderUBInfo = CodeHeader.UniformBuffers[BufferIndex];
 	checkfSlow(!HeaderUBInfo.LayoutHash || HeaderUBInfo.LayoutHash == UniformBuffer->GetLayout().GetHash(), TEXT("Mismatched UB layout! Got hash 0x%x, expected 0x%x!"), UniformBuffer->GetLayout().GetHash(), HeaderUBInfo.LayoutHash);
-	const bool bUseRealUBs = FVulkanPlatform::UseRealUBsOptimization(CodeHeader.bHasRealUBs != 0);
 
 	// Uniform Buffers
-	if (!bUseRealUBs || !HeaderUBInfo.bOnlyHasResources)
+	if (!HeaderUBInfo.bOnlyHasResources)
 	{
-		checkSlow(!bUseRealUBs || UniformBuffer->GetLayout().ConstantBufferSize > 0);
+		checkSlow(UniformBuffer->GetLayout().ConstantBufferSize > 0);
 		extern TAutoConsoleVariable<int32> GDynamicGlobalUBs;
-		if (bUseRealUBs)
-		{
-			uint8 DescriptorSet;
-			uint32 BindingIndex;
-			if (!DescriptorInfo.GetDescriptorSetAndBindingIndex(FVulkanShaderHeader::UniformBuffer, BufferIndex, DescriptorSet, BindingIndex))
-			{
-				return;
-			}
 
-			const FVulkanRealUniformBuffer* RealUniformBuffer = static_cast<const FVulkanRealUniformBuffer*>(UniformBuffer);
-			if (GDynamicGlobalUBs.GetValueOnAnyThread() > 1)
-			{
-				State.SetUniformBuffer<true>(DescriptorSet, BindingIndex, RealUniformBuffer);
-			}
-			else
-			{
-				State.SetUniformBuffer<false>(DescriptorSet, BindingIndex, RealUniformBuffer);
-			}
+		uint8 DescriptorSet;
+		uint32 BindingIndex;
+		if (!DescriptorInfo.GetDescriptorSetAndBindingIndex(FVulkanShaderHeader::UniformBuffer, BufferIndex, DescriptorSet, BindingIndex))
+		{
+			return;
+		}
+
+		if (GDynamicGlobalUBs.GetValueOnAnyThread() > 1)
+		{
+			State.SetUniformBuffer<true>(DescriptorSet, BindingIndex, UniformBuffer);
 		}
 		else
 		{
-			const FVulkanEmulatedUniformBuffer* EmulatedUniformBuffer = static_cast<const FVulkanEmulatedUniformBuffer*>(UniformBuffer);
-			State.SetUniformBufferConstantData(BufferIndex, EmulatedUniformBuffer->ConstantData);
+			State.SetUniformBuffer<false>(DescriptorSet, BindingIndex, UniformBuffer);
 		}
 	}
 
@@ -548,7 +530,7 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* Com
 	else
 	{
 		// Internal error: Completely empty UB!
-		checkSlow(!CodeHeader.bHasRealUBs || !HeaderUBInfo.bOnlyHasResources);
+		checkSlow(!HeaderUBInfo.bOnlyHasResources);
 	}
 }
 
