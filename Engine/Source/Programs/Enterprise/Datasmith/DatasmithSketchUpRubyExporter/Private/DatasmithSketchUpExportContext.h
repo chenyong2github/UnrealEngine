@@ -11,6 +11,8 @@
 #include "Containers/UnrealString.h"
 #include "Templates/SharedPointer.h"
 
+#include "Async/Future.h"
+
 class FDatasmithSceneExporter;
 
 class IDatasmithActorElement;
@@ -48,6 +50,7 @@ namespace DatasmithSketchUp
 
 		TSharedPtr<FComponentInstance> AddComponentInstance(FDefinition& ParentDefinition, SUComponentInstanceRef InComponentInstanceRef); // Register ComponentInstance as a child of ParentDefinition
 		bool RemoveComponentInstance(FComponentInstanceIDType ParentEntityId, FComponentInstanceIDType ComponentInstanceId); // Take note that ComponentInstance removed from ParentDefinition children
+		void RemoveComponentInstance(TSharedPtr<FComponentInstance> ComponentInstance);
 
 		bool InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
 		void InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID);
@@ -211,5 +214,7 @@ namespace DatasmithSketchUp
 		FMaterialCollection Materials;
 		FSceneCollection Scenes;
 		FTextureCollection Textures;
+
+		TArray<TFuture<bool>> MeshExportTasks;
 	};
 }

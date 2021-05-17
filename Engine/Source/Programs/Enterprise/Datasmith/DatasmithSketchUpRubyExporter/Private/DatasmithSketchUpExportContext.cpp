@@ -126,6 +126,13 @@ void FExportContext::Update()
 	RootNode->Update(*this);
 
 	Textures.Update();
+
+	// Wait for mesh export to complete
+	for(TFuture<bool>& Task: MeshExportTasks)
+	{
+		Task.Get();
+	}
+	MeshExportTasks.Reset();
 }
 
 FDefinition* FExportContext::GetDefinition(SUEntityRef Entity)
@@ -340,16 +347,22 @@ bool FComponentInstanceCollection::RemoveComponentInstance(FComponentInstanceIDT
 	//
 	// Details:
 	// ComponentInstance which removal is notified could have been relocated to another Definition 
-	// This happens when Make Group is done - first new Group is added, containing existing ComponentInstace
-	// And only after that event about removal previous owning Definition is received
+	// This happens when Make Group is done - first new Group is added, containing existing ComponentInstance
+	// And only after that event about removal from previous owning Definition is received
 	if (ComponentInstance->IsParentDefinition(ParentDefinition))
 	{
-		ComponentInstance->RemoveComponentInstance(Context);
-		ComponentInstanceMap.Remove(ComponentInstanceId);
+		RemoveComponentInstance(ComponentInstance);
 	}
 
 	return true;
 }
+
+void FComponentInstanceCollection::RemoveComponentInstance(TSharedPtr<FComponentInstance> ComponentInstance)
+{
+	ComponentInstance->RemoveComponentInstance(Context);
+	ComponentInstanceMap.Remove(ComponentInstance->GetComponentInstanceId());
+}
+
 
 void FComponentInstanceCollection::InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID)
 {
@@ -367,11 +380,24 @@ void FComponentInstanceCollection::InvalidateComponentInstanceMetadata(FComponen
 	}
 }
 
-bool FComponentInstanceCollection::InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID)
+bool FComponentInstanceCollection::InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceId)
 {
-	if (TSharedPtr<FComponentInstance>* Ptr = FindComponentInstance(ComponentInstanceID))
+	if (TSharedPtr<FComponentInstance>* Ptr = FindComponentInstance(ComponentInstanceId))
 	{
-		(*Ptr)->InvalidateEntityProperties();
+		TSharedPtr<FComponentInstance> ComponentInstance = *Ptr;
+		
+		// Replacing definition on a component instance fires the same event as changing properties
+		SUComponentInstanceRef ComponentInstanceRef = ComponentInstance->GetComponentInstanceRef();
+		TSharedPtr<FComponentDefinition> Definition = Context.ComponentDefinitions.GetComponentDefinition(ComponentInstanceRef);
+		if (ComponentInstance->GetDefinition() != Definition.Get())
+		{
+			// Recreate and re-add instance
+			FDefinition* ParentDefinition = ComponentInstance->Parent;
+			RemoveComponentInstance(ComponentInstance);
+			ParentDefinition->AddInstance(Context, AddComponentInstance(*ParentDefinition, ComponentInstanceRef));
+		}
+
+		ComponentInstance->InvalidateEntityProperties();
 		return true;
 	}
 	return false;
