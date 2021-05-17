@@ -4774,6 +4774,27 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 	RHICmdList.Transition(FRHITransitionInfo(Scene->SkyIrradianceEnvironmentMap.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 }
 
+void FHairStrandsViewData::Init()
+{
+	VoxelWorldSize = 0;
+	AllocatedPageCount = 0;
+	if (VoxelPageAllocationCountReadback == nullptr)
+	{
+		VoxelPageAllocationCountReadback = new FRHIGPUBufferReadback(TEXT("Voxel page allocation readback"));
+	}
+}
+
+void FHairStrandsViewData::Release()
+{
+	VoxelWorldSize = 0;
+	AllocatedPageCount = 0;
+	if (VoxelPageAllocationCountReadback)
+	{
+		delete VoxelPageAllocationCountReadback;
+		VoxelPageAllocationCountReadback = nullptr;
+	}
+}
+
 void RunGPUSkinCacheTransition(FRHICommandList& RHICmdList, FScene* Scene, EGPUSkinCacheTransition Type)
 {
 	// * When hair strands is disabled, the skin cache sync point run later 

@@ -54,6 +54,21 @@ DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, 
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
 
+/** Hair strands persitent information per view. Used for GPU->CPU feedback */
+struct FHairStrandsViewData
+{
+	FRHIGPUBufferReadback* GetBuffer() const { return VoxelPageAllocationCountReadback; }
+	bool IsReady() const				{ return VoxelPageAllocationCountReadback->IsReady(); }
+	bool IsInit() const					{ return VoxelPageAllocationCountReadback != nullptr; }
+	void Init();
+	void Release();
+
+	float VoxelWorldSize		= 0; // Voxel size used during the last frame allocation
+	uint32 AllocatedPageCount	= 0; // Number of voxels allocated last frame
+
+	// Buffer used for reading back the number of voxels allocated on the GPU
+	FRHIGPUBufferReadback* VoxelPageAllocationCountReadback = nullptr;
+};
 
 /** Mobile only. Information used to determine whether static meshes will be rendered with CSM shaders or not. */
 class FMobileCSMVisibilityInfo

@@ -601,6 +601,7 @@ uint IndirectGroupSize;
 
 RWBuffer<uint> OutPageIndexGlobalCounter;
 RWBuffer<uint> OutIndirectArgsBuffer;
+RWBuffer<uint> OutTotalRequestedPageAllocationBuffer;
 
 [numthreads(1, 1, 1)]
 void AddIndirectBufferCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -621,6 +622,9 @@ void AddIndirectBufferCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId
 
 	// Copy current total to previous total
 	OutPageIndexGlobalCounter[1] = TotalAllocatedPageCount;
+
+	// The value will be written several times, but only the value written during the last macro group will give the final page count allocated/requested
+	OutTotalRequestedPageAllocationBuffer[0] = TotalAllocatedPageCount;
 }
 
 #endif
