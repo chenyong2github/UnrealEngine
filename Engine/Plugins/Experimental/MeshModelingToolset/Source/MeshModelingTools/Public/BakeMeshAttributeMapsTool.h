@@ -10,7 +10,7 @@
 #include "DynamicMeshAABBTree3.h"
 #include "Image/ImageDimensions.h"
 #include "Image/ImageBuilder.h"
-#include "Sampling/MeshImageBaker.h"
+#include "Sampling/MeshMapBaker.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
 #include "BakeMeshAttributeMapsTool.generated.h"
@@ -85,6 +85,17 @@ enum class EBakeTextureResolution
 };
 
 
+UENUM()
+enum class EBakeMultisampling
+{
+	None = 1 UMETA(DisplayName = "None"),
+	Sample2x2 = 2 UMETA(DisplayName = "2 x 2"),
+	Sample4x4 = 4 UMETA(DisplayName = "4 x 4"),
+	Sample8x8 = 8 UMETA(DisplayName = "8 x 8"),
+	Sample16x16 = 16 UMETA(DisplayName = "16 x 16")
+};
+
+
 UCLASS()
 class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsToolProperties : public UInteractiveToolPropertySet
 {
@@ -98,6 +109,10 @@ public:
 	/** The pixel resolution of the generated map */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
 	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution256;
+
+	/** The multisampling configuration per texel */
+	UPROPERTY(EditAnywhere, Category = MapSettings)
+	EBakeMultisampling Multisampling = EBakeMultisampling::None;
 
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	bool bUseWorldSpace = false;
@@ -333,12 +348,12 @@ public:
  * Detail Map Baking Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsTool : public UMultiSelectionTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshImageBaker>
+class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsTool : public UMultiSelectionTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshMapBaker>
 {
 	GENERATED_BODY()
 
 public:
-	UBakeMeshAttributeMapsTool();
+	UBakeMeshAttributeMapsTool() = default;
 
 	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
@@ -353,7 +368,7 @@ public:
 	virtual bool CanAccept() const override;
 
 	// IGenericDataOperatorFactory API
-	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshImageBaker>> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshMapBaker>> MakeNewOperator() override;
 
 protected:
 	// need to update bResultValid if these are modified, so we don't publicly expose them. 
@@ -391,6 +406,8 @@ protected:
 	friend class FBakeMeshPropertyMapOp;
 	friend class FBakeMultiTextureOp;
 
+	friend class FMeshMapBakerOp;
+
 
 	IAssetGenerationAPI* AssetAPI = nullptr;
 
@@ -425,8 +442,8 @@ protected:
 	void UpdateOnModeChange();
 	void UpdateVisualization();
 
-	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshImageBaker>> Compute = nullptr;
-	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshImageBaker>& NewResult);
+	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshMapBaker>> Compute = nullptr;
+	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult);
 
 	struct FBakeCacheSettings
 	{
@@ -434,10 +451,11 @@ protected:
 		int32 UVLayer;
 		int32 DetailTimestamp;
 		float Thickness;
+		int32 Multisampling;
 
 		bool operator==(const FBakeCacheSettings& Other) const
 		{
-			return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp && Thickness == Other.Thickness;
+			return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp && Thickness == Other.Thickness && Multisampling == Other.Multisampling;
 		}
 	};
 	FBakeCacheSettings CachedBakeCacheSettings;

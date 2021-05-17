@@ -6,6 +6,7 @@
 #include "VectorTypes.h"
 #include "Image/ImageDimensions.h"
 #include "Spatial/MeshAABBTree3.h"
+#include "Sampling/GridSampler.h"
 
 namespace UE
 {
@@ -40,9 +41,10 @@ public:
 	//const int8 BorderTexel = 2;
 	const int8 GutterTexel = 3;
 
-	/** Texel Type for each texel in image, Size = Width x Height */
+	/** Texel Type for each texel in image, Size = Width x Height x Multisamples */
 	TArray64<int8> TexelType;
-
+	/** Count of samples in the texel that are interior. */
+	TArray64<int32> TexelInteriorSamples;
 	/** UV for each texel in image. Only set for Interior texels */
 	TArray64<FVector2f> TexelQueryUV;
 	/** integer/Triangle ID for each texel in image. Only set for Interior texels. */
@@ -52,20 +54,31 @@ public:
 	    Gutter can be filled by directly copying from source to target. */
 	TArray64<TTuple<int64, int64>> GutterTexels;
 
+	using FGridSampler = TGridSampler<double>;
+	FGridSampler Multisampler = FGridSampler(1);
 
-	void Initialize(FImageDimensions DimensionsIn)
+	bool bParallel = true;
+
+
+	void Initialize(FImageDimensions DimensionsIn, int32 Multisampling = 1)
 	{
 		check(DimensionsIn.IsSquare()); // are we sure it works otherwise?
 		Dimensions = DimensionsIn;
+		Multisampler = FGridSampler(Multisampling);
 	}
 
-
 	/**
-	 * @return true if texel at this linear index is an Interior texel
+	 * @return true if texel sample at this sample linear index is an Interior texel
 	 */
 	bool IsInterior(int64 LinearIndex) const
 	{
 		return TexelType[LinearIndex] == InteriorTexel;
+	}
+
+	/** @return number of interior samples for the texel at this image linear index. */
+	int32 TexelNumSamples(int64 LinearIndex) const
+	{
+		return TexelInteriorSamples[LinearIndex];
 	}
 
 	/** Set texel type at the given X/Y */
@@ -82,12 +95,15 @@ public:
 		// make flat mesh
 		TMeshAABBTree3<MeshType> FlatSpatial(&UVSpaceMesh, true);
 
-		TexelType.Init(EmptyTexel, Dimensions.Num());
-		TexelQueryUV.Init(FVector2f::Zero(), Dimensions.Num());
-		TexelQueryTriangle.Init(IndexConstants::InvalidID, Dimensions.Num());
+		const int32 LinearImageSize = Dimensions.Num();
+		const int32 LinearSampleSize = Dimensions.Num() * Multisampler.Num();
+		TexelType.Init(EmptyTexel, LinearSampleSize);
+		TexelInteriorSamples.Init(0, LinearImageSize);
+		TexelQueryUV.Init(FVector2f::Zero(), LinearSampleSize);
+		TexelQueryTriangle.Init(IndexConstants::InvalidID, LinearSampleSize);
 
-		FVector2d TexelDims = Dimensions.GetTexelSize();
-		double TexelDiag = TexelDims.Length();
+		const FVector2d TexelSize = Dimensions.GetTexelSize();
+		const double TexelDiag = TexelSize.Length();
 
 		IMeshSpatial::FQueryOptions QueryOptions;
 		QueryOptions.MaxDistance = (double)GutterSize * TexelDiag;
@@ -96,56 +112,99 @@ public:
 		TAtomic<int64> InteriorCounter;
 		FCriticalSection GutterLock;
 		ParallelFor(Dimensions.GetHeight(), 
-			[this, &UVSpaceMesh, &GetTriangleIDFunc, &FlatSpatial, TexelDiag, &QueryOptions, &InteriorCounter, &GutterLock]
+			[this, &UVSpaceMesh, &GetTriangleIDFunc, &FlatSpatial, TexelDiag, &QueryOptions, &InteriorCounter, &GutterLock, &TexelSize]
 		(int32 ImgY)
 		{
+			// To minimize locks, accumulate gutter texel data locally and append
+			// to our gutter texel array at the end.
+			TArray64<TTuple<int64, int64>> LocalGutterTexels;
+			int64 LocalInteriorCounter = 0;
 			for (int32 ImgX = 0; ImgX < Dimensions.GetWidth(); ++ImgX)
 			{
-				int64 LinearIdx = Dimensions.GetIndex(ImgX, ImgY);
-				FVector2d UVPoint = Dimensions.GetTexelUV(LinearIdx);
-				FVector3d UVPoint3d(UVPoint.X, UVPoint.Y, 0);
-
-				double NearDistSqr;
-				int32 NearestTriID = FlatSpatial.FindNearestTriangle(UVPoint3d, NearDistSqr, QueryOptions);
-				if (NearestTriID >= 0)
+				// With multiple samples, a texel may contain multiple gutter samples.
+				// Since we copy nearest interior texel over top our gutter texels, we
+				// should only consider a texel a gutter texel iff all samples in a
+				// texel are gutter texels. This bool will track that as we iterate
+				// over each sample of the texel.
+				bool bIsGutterTexel = true;
+				TTuple<int64, int64> GutterNearestTexel;
+				for (int32 Sample = 0; Sample < Multisampler.Num(); ++Sample)
 				{
-					FVector3d A, B, C;
-					UVSpaceMesh.GetTriVertices(NearestTriID, A, B, C);
-					FTriangle2d UVTriangle(GetXY(A), GetXY(B), GetXY(C));
+					const int64 TexelLinearIdx = Dimensions.GetIndex(ImgX, ImgY);
+					const int64 SampleLinearIdx = TexelLinearIdx * Multisampler.Num() + Sample;
+					const FVector2d SampleUV = Multisampler.Sample(Sample);
+					FVector2d UVPoint = Dimensions.GetTexelUV(TexelLinearIdx);
+					UVPoint = UVPoint - 0.5 * TexelSize + SampleUV * TexelSize;
+					const FVector3d UVPoint3d(UVPoint.X, UVPoint.Y, 0);
 
-					if (UVTriangle.IsInsideOrOn(UVPoint))
+					double NearDistSqr;
+					const int32 NearestTriID = FlatSpatial.FindNearestTriangle(UVPoint3d, NearDistSqr, QueryOptions);
+					if (NearestTriID >= 0)
 					{
-						TexelType[LinearIdx] = InteriorTexel;
-						TexelQueryUV[LinearIdx] = (FVector2f)UVPoint;
-						TexelQueryTriangle[LinearIdx] = GetTriangleIDFunc(NearestTriID);
-						InteriorCounter.IncrementExchange();
+						FVector3d A, B, C;
+						UVSpaceMesh.GetTriVertices(NearestTriID, A, B, C);
+						const FTriangle2d UVTriangle(GetXY(A), GetXY(B), GetXY(C));
+
+						if (UVTriangle.IsInsideOrOn(UVPoint))
+						{
+							TexelType[SampleLinearIdx] = InteriorTexel;
+							TexelQueryUV[SampleLinearIdx] = (FVector2f)UVPoint;
+							TexelQueryTriangle[SampleLinearIdx] = GetTriangleIDFunc(NearestTriID);
+							++TexelInteriorSamples[TexelLinearIdx];
+							++LocalInteriorCounter;
+							bIsGutterTexel = false;
+						}
+						else if (NearDistSqr < TexelDiag * TexelDiag)
+						{
+							const FDistPoint3Triangle3d DistQuery = TMeshQueries<MeshType>::TriangleDistance(UVSpaceMesh, NearestTriID, UVPoint3d);
+							FVector2d NearestUV = GetXY(DistQuery.ClosestTrianglePoint);
+							// nudge point into triangle to improve numerical behavior of things like barycentric coord calculation
+							NearestUV += (10.0 * FMathf::ZeroTolerance) * Normalized(NearestUV - UVPoint);
+
+							TexelType[SampleLinearIdx] = InteriorTexel;
+							TexelQueryUV[SampleLinearIdx] = (FVector2f)NearestUV;
+							TexelQueryTriangle[SampleLinearIdx] = GetTriangleIDFunc(NearestTriID);
+							++TexelInteriorSamples[TexelLinearIdx];
+							++LocalInteriorCounter;
+							bIsGutterTexel = false;
+						}
+						else
+						{
+							TexelType[SampleLinearIdx] = GutterTexel;
+							const FDistPoint3Triangle3d DistQuery = TMeshQueries<MeshType>::TriangleDistance(UVSpaceMesh, NearestTriID, UVPoint3d);
+							const FVector2d NearestUV = GetXY(DistQuery.ClosestTrianglePoint);
+							const FVector2i NearestCoords = Dimensions.UVToCoords(NearestUV);
+
+							// To avoid artifacts with mipmapping the gutter texels store the nearest
+							// interior texel and a post pass copies those nearest interior texel values
+							// to each gutter pixel.
+							//
+							// The gutter pixel structure stores pixel indices to copy in the source
+							// image's linear index.
+							//
+							// For tiled images:
+							//    NearestCoords are in source space --> GetSource().GetIndex() will return source linear index.
+							//    ImgX, ImgY are in local tile space --> GetSourceIndex() will return source linear index.
+							const int64 NearestLinearIdx = Dimensions.IsTile() ? Dimensions.GetSourceDimensions().GetIndex(NearestCoords) : Dimensions.GetIndex(NearestCoords);
+							const int32 LinearSourceIdx = Dimensions.IsTile() ? Dimensions.GetSourceIndex(FVector2i(ImgX, ImgY)) : TexelLinearIdx;
+
+							GutterNearestTexel = TTuple<int64, int64>(LinearSourceIdx, NearestLinearIdx);
+						}
 					}
-					else if (NearDistSqr < TexelDiag * TexelDiag)
+					if (bIsGutterTexel)
 					{
-						FDistPoint3Triangle3d DistQuery = TMeshQueries<MeshType>::TriangleDistance(UVSpaceMesh, NearestTriID, UVPoint3d);
-						FVector2d NearestUV = GetXY(DistQuery.ClosestTrianglePoint);
-						// nudge point into triangle to improve numerical behavior of things like barycentric coord calculation
-						NearestUV += (10.0 * FMathf::ZeroTolerance) * Normalized(NearestUV - UVPoint);
-
-						TexelType[LinearIdx] = InteriorTexel;
-						TexelQueryUV[LinearIdx] = (FVector2f)NearestUV;
-						TexelQueryTriangle[LinearIdx] = GetTriangleIDFunc(NearestTriID);
-					}
-					else
-					{
-						TexelType[LinearIdx] = GutterTexel;
-						FDistPoint3Triangle3d DistQuery = TMeshQueries<MeshType>::TriangleDistance(UVSpaceMesh, NearestTriID, UVPoint3d);
-						FVector2d NearestUV = GetXY(DistQuery.ClosestTrianglePoint);
-						FVector2i NearestCoords = Dimensions.UVToCoords(NearestUV);
-						int64 NearestLinearIdx = Dimensions.GetIndex(NearestCoords);
-
-						GutterLock.Lock();
-						GutterTexels.Add(TTuple<int64, int64>(LinearIdx, NearestLinearIdx));
-						GutterLock.Unlock();
+						LocalGutterTexels.Add(GutterNearestTexel);
 					}
 				}
 			}
-		});
+			if (LocalGutterTexels.Num() > 0)
+			{
+				GutterLock.Lock();
+				GutterTexels += LocalGutterTexels;
+				GutterLock.Unlock();
+			}
+			InteriorCounter += LocalInteriorCounter;
+		}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 
 		return true;
 	}
