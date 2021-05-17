@@ -21,6 +21,9 @@ struct REMOTECONTROL_API FRemoteControlEntity
 
 	virtual ~FRemoteControlEntity(){}
 
+	/** Get the type of this remote control entity. */
+	const UScriptStruct* GetStruct() const;
+
 	/**
 	 * Change this entity's label.
 	 * @param NewLabel the desired label.

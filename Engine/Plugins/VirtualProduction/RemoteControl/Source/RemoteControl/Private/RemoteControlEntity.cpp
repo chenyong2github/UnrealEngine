@@ -87,6 +87,15 @@ FRemoteControlEntity::FRemoteControlEntity(URemoteControlPreset* InPreset, FName
 	Bindings.Append(InBindings);
 }
 
+const UScriptStruct* FRemoteControlEntity::GetStruct() const
+{
+	if (URemoteControlPreset* Preset = Owner.Get())
+	{
+		return Preset->GetExposedEntityType(Id);
+	}
+	return nullptr;
+}
+
 FName FRemoteControlEntity::Rename(FName NewLabel)
 {
 	if (URemoteControlPreset* Preset = Owner.Get())
