@@ -82,9 +82,6 @@ public:
 		InOutFeaturesToEnable.sparseResidencyAliased	= VK_FALSE;
 	}
 
-	// Some platforms only support real or non-real UBs, so this function can optimize it out
-	static bool UseRealUBsOptimization(bool bCodeHeaderUseRealUBs) { return bCodeHeaderUseRealUBs; }
-
 	static bool SupportParallelRenderingTasks() { return true; }
 
 	/** The status quo is false, so the default is chosen to not change it. As platforms opt in it may be better to flip the default. */

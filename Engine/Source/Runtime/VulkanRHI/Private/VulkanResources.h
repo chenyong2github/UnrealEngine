@@ -1157,34 +1157,13 @@ protected:
 class FVulkanUniformBuffer : public FRHIUniformBuffer
 {
 public:
-	FVulkanUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
+	FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
+	virtual ~FVulkanUniformBuffer();
 
 	const TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() const { return ResourceTable; }
 
 	void UpdateResourceTable(const FRHIUniformBufferLayout& InLayout, const void* Contents, int32 ResourceNum);
 	void UpdateResourceTable(FRHIResource** Resources, int32 ResourceNum);
-
-protected:
-	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
-};
-
-class FVulkanEmulatedUniformBuffer : public FVulkanUniformBuffer
-{
-public:
-	FVulkanEmulatedUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
-
-	TArray<uint8> ConstantData;
-
-	void UpdateConstantData(const void* Contents, int32 ContentsSize);
-};
-
-class FVulkanRealUniformBuffer : public FVulkanUniformBuffer
-{
-public:
-	FVulkanDevice* Device;
-	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
-	virtual ~FVulkanRealUniformBuffer();
-
 
 	inline uint32 GetOffset() const
 	{
@@ -1195,7 +1174,14 @@ public:
 	{
 		NewAlloc.Swap(Allocation);
 	}
+	
+public:
+	FVulkanDevice* Device;
 	VulkanRHI::FVulkanAllocation Allocation;
+
+protected:
+	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
+	
 };
 
 class FVulkanUnorderedAccessView : public FRHIUnorderedAccessView, public VulkanRHI::FVulkanViewBase
