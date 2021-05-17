@@ -147,10 +147,13 @@ void SRCPanelExposedField::Refresh()
 	{
 		CachedLabel = Field->GetLabel();
 
-		// Don't update the function row needlessly.
 		if (Field->FieldType == EExposedFieldType::Property)
 		{
-			ChildSlot.AttachWidget(ConstructWidget());
+			ConstructPropertyWidget();
+		}
+		else if (Field->FieldType == EExposedFieldType::Function)
+		{
+			ConstructFunctionWidget();
 		}
 	}
 }
