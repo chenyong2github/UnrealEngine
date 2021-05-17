@@ -269,7 +269,7 @@ class DeviceWidgetKiPro(DeviceWidget):
     def update_status(self, status, previous_status):
         super().update_status(status, previous_status)
 
-        if status == DeviceStatus.DISCONNECTED:
+        if status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}:
             self.play_button.setDisabled(True)
             self.stop_button.setDisabled(True)
         elif status >= DeviceStatus.CLOSED:

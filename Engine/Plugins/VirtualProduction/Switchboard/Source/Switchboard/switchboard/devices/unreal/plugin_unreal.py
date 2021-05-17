@@ -1278,13 +1278,7 @@ class DeviceWidgetUnreal(DeviceWidget):
         self.signal_device_widget_close.emit(self)
 
     def _connect(self):
-        # Make sure the button is in the correct state
-        self.connect_button.setChecked(True)
-        self.connect_button.setToolTip("Disconnect from listener")
-
-        self.open_button.setDisabled(False)
-        self.sync_button.setDisabled(False)
-        self.build_button.setDisabled(False)
+        self._update_connected_ui()
 
         # Emit Signal to Switchboard
         self.signal_device_widget_connect.emit(self)
@@ -1312,11 +1306,30 @@ class DeviceWidgetUnreal(DeviceWidget):
         self.sync_button.setDisabled(True)
         self.build_button.setDisabled(True)
 
+    def _update_connected_ui(self):
+        ''' Updates the UI of the device to reflect connected status. '''
+        # Make sure the button is in the correct state
+        self.connect_button.setChecked(True)
+        self.connect_button.setToolTip("Disconnect from listener")
+
+        self.open_button.setDisabled(False)
+        self.sync_button.setDisabled(False)
+        self.build_button.setDisabled(False)
+
     def update_status(self, status, previous_status):
         super().update_status(status, previous_status)
 
-        if status == DeviceStatus.DISCONNECTED:
+        if status <= DeviceStatus.CONNECTING:
             self._update_disconnected_ui()
+        else:
+            self._update_connected_ui()
+
+        # The connect/disconnect button is enabled in all states except for CONNECTING.
+        self.connect_button.setDisabled(False)
+
+        if status == DeviceStatus.CONNECTING:
+            self.connect_button.setDisabled(True)
+            self.connect_button.setToolTip("Connecting to listener...")
         elif status == DeviceStatus.CLOSED:
             self.open_button.setDisabled(False)
             self.open_button.setChecked(False)
