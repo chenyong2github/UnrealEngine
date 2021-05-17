@@ -165,5 +165,3 @@ private:
 UE_REGISTER_VIRTUALIZATION_BACKEND_FACTORY(FSourceControlBackend, SourceControl);
 
 } // namespace UE::Virtualization
-
-PRAGMA_ENABLE_OPTIMIZATION
