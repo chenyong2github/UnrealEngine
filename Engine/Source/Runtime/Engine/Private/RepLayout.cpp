@@ -93,7 +93,7 @@ constexpr bool GbPushModelValidateProperties = false;
 extern int32 GNumSharedSerializationHit;
 extern int32 GNumSharedSerializationMiss;
 
-extern TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
+extern NETCORE_API TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
 
 /** 
 * Helper method to allow us to instrument FBitArchive using FNetTraceCollector
@@ -3947,15 +3947,6 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 	}
 
 	return true;
-}
-
-FGuidReferences::~FGuidReferences()
-{
-	if (Array != NULL)
-	{
-		delete Array;
-		Array = NULL;
-	}
 }
 
 void FRepLayout::GatherGuidReferences_r(

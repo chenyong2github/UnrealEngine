@@ -19,6 +19,7 @@ public class Lobby : ModuleRules
 				"Core",
 				"CoreOnline",
 				"CoreUObject",
+				"NetCore",
 				"Engine",
 				"OnlineSubsystem",
 				"OnlineSubsystemUtils",
