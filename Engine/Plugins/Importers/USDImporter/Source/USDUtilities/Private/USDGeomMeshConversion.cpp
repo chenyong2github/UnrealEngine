@@ -188,10 +188,10 @@ namespace UE
 					// Vertex colors
 					if ( LODRenderMesh.bHasColorVertexData )
 					{
-						pxr::UsdAttribute DisplayColorAttribute = UsdMesh.CreateDisplayColorAttr();
-						pxr::UsdAttribute DisplayOpacityAttribute = UsdMesh.CreateDisplayOpacityAttr();
+						pxr::UsdGeomPrimvar DisplayColorPrimvar = UsdMesh.CreateDisplayColorPrimvar( pxr::UsdGeomTokens->vertex );
+						pxr::UsdGeomPrimvar DisplayOpacityPrimvar = UsdMesh.CreateDisplayOpacityPrimvar( pxr::UsdGeomTokens->vertex );
 
-						if ( DisplayColorAttribute )
+						if ( DisplayColorPrimvar )
 						{
 							pxr::VtArray< pxr::GfVec3f > DisplayColors;
 							DisplayColors.reserve( VertexCount );
@@ -208,8 +208,8 @@ namespace UE
 								DisplayOpacities.push_back( Color[ 3 ] );
 							}
 
-							DisplayColorAttribute.Set( DisplayColors, TimeCode );
-							DisplayOpacityAttribute.Set( DisplayOpacities, TimeCode );
+							DisplayColorPrimvar.Set( DisplayColors, TimeCode );
+							DisplayOpacityPrimvar.Set( DisplayOpacities, TimeCode );
 						}
 					}
 				}
@@ -805,11 +805,6 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 				// Vertex color
 				{
-					auto ConvertToLinear = []( const pxr::GfVec3f& UsdColor ) -> FLinearColor
-					{
-						return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
-					};
-
 					const int32 ValueIndex = UsdGeomMeshImpl::GetPrimValueIndex( ColorInterpolation, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					GfVec3f UsdColor( 1.f, 1.f, 1.f );
@@ -819,7 +814,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 						UsdColor = UsdColors[ ValueIndex ];
 					}
 
-					MeshDescriptionColors[ AddedVertexInstanceId ] = ConvertToLinear( UsdColor );
+					MeshDescriptionColors[ AddedVertexInstanceId ] = UsdToUnreal::ConvertColor( UsdColor );
 				}
 
 				// Vertex opacity

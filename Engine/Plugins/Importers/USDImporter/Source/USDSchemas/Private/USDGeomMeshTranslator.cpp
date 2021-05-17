@@ -753,7 +753,8 @@ namespace UsdGeomMeshTranslatorImpl
 						OutMeshData.TangentsZ.Add( Normal );
 						OutMeshData.TangentsX.Add( VertexInstanceTangents[ VertexInstanceID ] );
 
-						OutMeshData.Colors.Add( FLinearColor( VertexInstanceColors[ VertexInstanceID ] ).ToFColor( false ) );
+						const bool bSRGB = true;
+						OutMeshData.Colors.Add( FLinearColor( VertexInstanceColors[ VertexInstanceID ] ).ToFColor( bSRGB ) );
 
 						// Supporting only one UV channel
 						const int32 UVIndex = 0;

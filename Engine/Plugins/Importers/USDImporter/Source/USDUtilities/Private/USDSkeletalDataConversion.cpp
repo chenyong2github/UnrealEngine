@@ -1240,11 +1240,6 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 			uint32 NumColors = UsdColors.size();
 			pxr::TfToken USDInterpType = ColorPrimvar.GetInterpolation();
 
-			auto ConvertToColor = []( const pxr::GfVec3f& UsdColor ) -> FColor
-			{
-				return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) ).ToFColor(true);
-			};
-
 			if ( USDInterpType == pxr::UsdGeomTokens->uniform )
 			{
 				NumExpectedColors = NumFaces;
@@ -1271,7 +1266,8 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 				Colors.Reserve( NumColors );
 				for ( uint32 Index = 0; Index < NumColors; ++Index )
 				{
-					Colors.Add( ConvertToColor( UsdColors[ Index ] ) );
+					const bool bSRGB = true;
+					Colors.Add( UsdToUnreal::ConvertColor( UsdColors[ Index ] ).ToFColor( bSRGB ) );
 				}
 
 				SkelMeshImportData.bHasVertexColors = true;
