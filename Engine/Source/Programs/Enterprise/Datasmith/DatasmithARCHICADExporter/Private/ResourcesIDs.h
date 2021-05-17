@@ -18,6 +18,7 @@
 	#define kIconAutoSync 32514
 #endif
 #define kIconDS 32600
+#define kIconDSFile 32601
 
 /* Localizable resources */
 #define kStrListFileTypes 302

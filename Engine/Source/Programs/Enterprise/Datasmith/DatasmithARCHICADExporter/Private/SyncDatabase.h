@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Utils/AddonTools.h"
+#include "Utils/LibPartInfo.h"
 
 #include "Lock.hpp"
 
@@ -15,13 +16,15 @@ class FSyncData;
 class FMaterialsDatabase;
 class FTexturesCache;
 class FElementID;
+class FLibPartInfo;
 
 // Class that maintain synchronization datas (SyncData, Material, Texture)
 class FSyncDatabase
 {
   public:
 	// Constructor
-	FSyncDatabase(const TCHAR* InSceneName, const TCHAR* InSceneLabel, const TCHAR* InAssetsPath);
+	FSyncDatabase(const TCHAR* InSceneName, const TCHAR* InSceneLabel, const TCHAR* InAssetsPath,
+				  const GS::UniString& InAssetsCache);
 
 	// Destructor
 	~FSyncDatabase();
@@ -69,9 +72,20 @@ class FSyncDatabase
 	// Set the mesh in the handle and take care of mesh life cycle.
 	bool SetMesh(TSharedPtr< IDatasmithMeshElement >* Handle, const TSharedPtr< IDatasmithMeshElement >& InMesh);
 
+	// Return the libpart from it's index
+	FLibPartInfo* GetLibPartInfo(GS::Int32 InIndex);
+
+	// Return the libpart from it's unique id
+	FLibPartInfo* GetLibPartInfo(const char* InUnID);
+
+	// Return the cache path
+	static GS::UniString GetCachePath();
+
   private:
-	typedef TMap< FGuid, FSyncData* > FMapGuid2SyncData;
-	typedef TMap< short, FString >	  FMapLayerIndex2Name;
+	typedef TMap< FGuid, FSyncData* >					  FMapGuid2SyncData;
+	typedef TMap< short, FString >						  FMapLayerIndex2Name;
+	typedef TMap< GS::Int32, TUniquePtr< FLibPartInfo > > MapIndex2LibPart;
+	typedef TMap< FGSUnID, FLibPartInfo* >				  MapUnId2LibPart;
 
 	// To take care of mesh life cycle.
 	class FMeshInfo
@@ -115,6 +129,12 @@ class FSyncDatabase
 	// Map mesh name (hash) to mesh info
 	FMapHashToMeshInfo HashToMeshInfo;
 	GS::Lock		   HashToMeshInfoAccesControl;
+
+	// Map lib part by index
+	MapIndex2LibPart IndexToLibPart;
+
+	// Map lib part by UnId
+	MapUnId2LibPart UnIdToLibPart;
 };
 
 END_NAMESPACE_UE_AC

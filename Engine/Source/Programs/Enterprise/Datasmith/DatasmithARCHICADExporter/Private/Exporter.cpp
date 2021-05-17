@@ -107,7 +107,8 @@ void FExporter::DoExport(const ModelerAPI::Model& InModel, const IO::Location& I
 	FProgression Progression(kStrListProgression, kExportTitle, kNbPhases, FProgression::kThrowOnCancel,
 							 &OutUserCancelled);
 
-	FSyncDatabase SyncDatabase(*FilePath, *LabelString, SceneExporter.GetAssetsOutputPath());
+	FSyncDatabase SyncDatabase(*FilePath, *LabelString, SceneExporter.GetAssetsOutputPath(),
+							   FSyncDatabase::GetCachePath());
 
 	FSyncContext SyncContext(false, InModel, SyncDatabase, &Progression);
 
@@ -139,9 +140,10 @@ GSErrCode FExporter::DoChooseDestination(IO::Location* OutDestFile)
 	// IO::fileSystem.GetSpecialLocation(IO::FileSystem::CurrentFolder, OutDestFile);
 
 	FTM::FileTypeManager templateFileFTM("TemplateFileFTM");
-	FTM::TypeID datasmithTypeID = templateFileFTM.AddType(FTM::FileType("Datasmith file", "udatasmith", 0, 0, kIconDS));
+	FTM::TypeID			 datasmithTypeID = templateFileFTM.AddType(
+		 FTM::FileType(GetStdName(kName_DatasmithFileTypeName), "udatasmith", 0, 0, kIconDSFile));
 
-	fileDialog.SetTitle("Export Datasmith File");
+	fileDialog.SetTitle(GetGSName(kName_ExportToDatasmithFile));
 	fileDialog.AddFilter(datasmithTypeID);
 	fileDialog.AddFilter(FTM::RootGroup);
 	fileDialog.SelectFilter(0);

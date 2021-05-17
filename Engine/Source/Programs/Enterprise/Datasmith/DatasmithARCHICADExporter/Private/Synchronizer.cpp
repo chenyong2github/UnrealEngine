@@ -10,8 +10,6 @@
 #include "DatasmithDirectLink.h"
 #include "DatasmithSceneExporter.h"
 #include "DatasmithSceneXmlWriter.h"
-#include "IDirectLinkUI.h"
-#include "IDatasmithExporterUIModule.h"
 
 #ifdef TicksPerSecond
 	#undef TicksPerSecond
@@ -247,7 +245,8 @@ void FSynchronizer::ProjectOpen()
 	GS::UniString ProjectPath;
 	GS::UniString ProjectName;
 	GetProjectPathAndName(&ProjectPath, &ProjectName);
-	SyncDatabase = new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName), *GetExportPath());
+	SyncDatabase = new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName),
+									 GSStringToUE(FSyncDatabase::GetCachePath()), FSyncDatabase::GetCachePath());
 
 	// Announce it to potential receivers
 #if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
@@ -290,29 +289,6 @@ void FSynchronizer::ProjectClosed()
 	Reset("Project Closed");
 }
 
-// Return the export path from the ExporterUIModule or a default one
-FString FSynchronizer::GetExportPath()
-{
-	const TCHAR*				CacheDirectory = nullptr;
-	IDatasmithExporterUIModule* DsExporterUIModule = IDatasmithExporterUIModule::Get();
-	if (DsExporterUIModule != nullptr)
-	{
-		IDirectLinkUI* DLUI = DsExporterUIModule->GetDirectLinkExporterUI();
-		if (DLUI != nullptr)
-		{
-			CacheDirectory = DLUI->GetDirectLinkCacheDirectory();
-		}
-	}
-	if (CacheDirectory != nullptr)
-	{
-		return CacheDirectory;
-	}
-	else
-	{
-		return GSStringToUE(GetAddonDataDirectory());
-	}
-}
-
 // Do a snapshot of the model 3D data
 void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 {
@@ -328,12 +304,12 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 
 	ViewState = FViewState();
 
-	FString ExportPath = GetExportPath();
+	GS::UniString ExportPath = FSyncDatabase::GetCachePath();
 
 	// If we have a sync database validate it use the ExportPath
 	if (SyncDatabase != nullptr)
 	{
-		if (ExportPath != SyncDatabase->GetAssetsFolderPath())
+		if (FCString::Strcmp(GSStringToUE(ExportPath), SyncDatabase->GetAssetsFolderPath()) != 0)
 		{
 			delete SyncDatabase;
 			SyncDatabase = nullptr;
@@ -347,7 +323,8 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 		GS::UniString ProjectName;
 		GetProjectPathAndName(&ProjectPath, &ProjectName);
 
-		SyncDatabase = new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName), *ExportPath);
+		SyncDatabase = new FSyncDatabase(GSStringToUE(ProjectPath), GSStringToUE(ProjectName), GSStringToUE(ExportPath),
+										 ExportPath);
 
 #if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
 		TSharedRef< IDatasmithScene > ToBuildWith_4_26(SyncDatabase->GetScene());
