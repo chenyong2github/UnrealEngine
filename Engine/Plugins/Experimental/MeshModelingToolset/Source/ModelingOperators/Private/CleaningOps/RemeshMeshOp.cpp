@@ -34,6 +34,13 @@ TUniquePtr<FRemesher> FRemeshMeshOp::CreateRemesher(ERemeshType Type, FDynamicMe
 		TUniquePtr<FNormalFlowRemesher> NormalFlowRemesher = MakeUnique<FNormalFlowRemesher>(TargetMesh);
 		NormalFlowRemesher->MaxRemeshIterations = MaxRemeshIterations;
 		NormalFlowRemesher->NumExtraProjectionIterations = ExtraProjectionIterations;
+		NormalFlowRemesher->MaxTriangleCount = FMath::Max(0, TriangleCountHint);
+		NormalFlowRemesher->FaceProjectionPassesPerRemeshIteration = FaceProjectionPassesPerRemeshIteration;
+		NormalFlowRemesher->SurfaceProjectionSpeed = SurfaceProjectionSpeed;
+		NormalFlowRemesher->NormalAlignmentSpeed = NormalAlignmentSpeed;
+		NormalFlowRemesher->bSmoothInFillAreas = bSmoothInFillAreas;
+		NormalFlowRemesher->FillAreaDistanceMultiplier = FillAreaDistanceMultiplier;
+		NormalFlowRemesher->FillAreaSmoothMultiplier = FillAreaSmoothMultiplier;
 		return NormalFlowRemesher;
 	}
 	default:
@@ -68,6 +75,8 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 	FDynamicMesh3* TargetMesh = ResultMesh.Get();
 
 	TUniquePtr<FRemesher> Remesher = CreateRemesher(RemeshType, TargetMesh);
+
+	Remesher->bEnableParallelProjection = this->bParallel;
 
 	Remesher->bEnableSplits = bSplits;
 	Remesher->bEnableFlips = bFlips;

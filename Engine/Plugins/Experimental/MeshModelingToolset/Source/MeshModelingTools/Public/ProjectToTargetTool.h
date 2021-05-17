@@ -40,9 +40,30 @@ public:
 	UPROPERTY(EditAnywhere, Category = ProjectionSpace)
 	bool bWorldSpace = true;
 
-	UProjectToTargetToolProperties() :
-		URemeshMeshToolProperties(),
-		bWorldSpace(true)
+	UPROPERTY(EditAnywhere, Category = Remeshing)
+	bool bParallel = true;
+
+	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "100"))
+	int FaceProjectionPassesPerRemeshIteration = 1;
+
+	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "10.0"))
+	float SurfaceProjectionSpeed = 0.2f;
+
+	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "10.0"))
+	float NormalAlignmentSpeed = 0.2f;
+
+	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow"))
+	bool bSmoothInFillAreas = true;
+
+	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "10.0"))
+	float FillAreaDistanceMultiplier = 0.25f;
+
+	UPROPERTY(EditAnywhere, Category = NormalFlow, meta = (EditCondition = "RemeshType == ERemeshType::NormalFlow", UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "10.0"))
+	float FillAreaSmoothMultiplier = 0.25f;
+
+
+	UProjectToTargetToolProperties() 
+		: URemeshMeshToolProperties()
 	{
 		bPreserveSharpEdges = false;
 		RemeshType = ERemeshType::NormalFlow;

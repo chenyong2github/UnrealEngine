@@ -61,6 +61,7 @@ public:
 	int RemeshIterations;
 	int MaxRemeshIterations;
 	int ExtraProjectionIterations = 5;
+	int TriangleCountHint = 0;
 	float SmoothingStrength, TargetEdgeLength;
 	ERemeshSmoothingType SmoothingType;
 	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips;
@@ -72,6 +73,31 @@ public:
 	FTransform3d TargetMeshLocalToWorld;
 	FTransform3d ToolMeshLocalToWorld;
 	bool bUseWorldSpace = false;
+	bool bParallel = true;
+
+	// Normal flow only:
+
+	/// During each call to RemeshIteration, do this many passes of face-aligned projection
+	int FaceProjectionPassesPerRemeshIteration = 1;
+
+	/// drag on surface projection
+	double SurfaceProjectionSpeed = 0.2;
+
+	/// drag on normal alignment
+	double NormalAlignmentSpeed = 0.2;
+
+	/// Control whether or not we want to apply mesh smoothing in "free" areas that have not projected to target surface.
+	/// This smoothing is on applied in the ExtraProjections Iterations
+	bool bSmoothInFillAreas = true;
+
+	/// This is used as a multiplier on MaxEdgeLength to determine when we identify points as being in "free" areas
+	float FillAreaDistanceMultiplier = 0.25;
+
+	/// This is used as a multiplier on the Remesher smoothing rate, applied to points identified as being in "free" areas
+	float FillAreaSmoothMultiplier = 0.25;
+
+	// End normal flow only
+
 
 	void SetTransform(const FTransform& Transform);
 
