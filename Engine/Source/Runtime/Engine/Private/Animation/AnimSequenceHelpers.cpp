@@ -381,7 +381,7 @@ void Retargeting::RetargetPose(FCompactPose& InOutPose, const FName& RetargetSou
 	const FBoneContainer& RequiredBones = InOutPose.GetBoneContainer();
 	const bool bDisableRetargeting = RequiredBones.GetDisableRetargeting();
 
-	if (!bDisableRetargeting)
+	if (!bDisableRetargeting && RetargetTransforms.Num())
 	{
 		const TArray<UE::Anim::FRetargetTracking>& RetargetTracking = UE::Anim::FBuildRawPoseScratchArea::Get().RetargetTracking;
 

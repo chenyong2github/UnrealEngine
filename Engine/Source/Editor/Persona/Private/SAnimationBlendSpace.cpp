@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimationBlendSpace.h"
+
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Editor.h"
 
@@ -19,6 +20,10 @@
 #include "Animation/AimOffsetBlendSpace.h"
 #include "Animation/AimOffsetBlendSpace1D.h"
 #include "SAnimationBlendSpaceGridWidget.h"
+#include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AnimSequence.h"
+#include "Engine/SkeletalMeshSocket.h"
+#include "PersonaBlendSpaceAnalysis.h"
 
 #define LOCTEXT_NAMESPACE "BlendSpaceEditor"
 
@@ -32,6 +37,7 @@ void SBlendSpaceEditor::Construct(const FArguments& InArgs)
 	BlendSpace = InArgs._BlendSpace;
 
 	OnBlendSpaceSampleAdded = InArgs._OnBlendSpaceSampleAdded;
+	OnBlendSpaceSampleDuplicated = InArgs._OnBlendSpaceSampleDuplicated;
 	OnBlendSpaceSampleRemoved = InArgs._OnBlendSpaceSampleRemoved;
 	OnBlendSpaceSampleReplaced = InArgs._OnBlendSpaceSampleReplaced;
 	OnSetPreviewPosition = InArgs._OnSetPreviewPosition;
@@ -68,7 +74,7 @@ void SBlendSpaceEditor::Construct(const FArguments& InArgs)
 						+SVerticalBox::Slot()
 						.FillHeight(1)
 						[
-							SAssignNew(NewBlendSpaceGridWidget, SBlendSpaceGridWidget)
+							SAssignNew(BlendSpaceGridWidget, SBlendSpaceGridWidget)
 							.Cursor(EMouseCursor::Crosshairs)
 							.BlendSpaceBase(BlendSpace)
 							.NotifyHook(this)
@@ -77,6 +83,7 @@ void SBlendSpaceEditor::Construct(const FArguments& InArgs)
 							.OnSampleMoved(this, &SBlendSpaceEditor::OnSampleMoved)
 							.OnSampleRemoved(this, &SBlendSpaceEditor::OnSampleRemoved)
 							.OnSampleAdded(this, &SBlendSpaceEditor::OnSampleAdded)
+							.OnSampleDuplicated(this, &SBlendSpaceEditor::OnSampleDuplicated)
 							.OnSampleReplaced(this, &SBlendSpaceEditor::OnSampleReplaced)
 							.OnSampleDoubleClicked(InArgs._OnBlendSpaceSampleDoubleClicked)
 							.OnExtendSampleTooltip(InArgs._OnExtendSampleTooltip)
@@ -107,16 +114,17 @@ void SBlendSpaceEditor::Construct(const FArguments& InArgs, const TSharedRef<cla
 
 void SBlendSpaceEditor::OnSampleMoved(const int32 SampleIndex, const FVector& NewValue, bool bIsInteractive)
 {
-	bool bMoveSuccesful = true;
+	bool bMoveSuccessful = true;
 	if (BlendSpace->IsValidBlendSampleIndex(SampleIndex) && BlendSpace->GetBlendSample(SampleIndex).SampleValue != NewValue && !BlendSpace->IsTooCloseToExistingSamplePoint(NewValue, SampleIndex))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("MoveSample", "Moving Blend Grid Sample"));
-		BlendSpace->Modify();
 
-		bMoveSuccesful = BlendSpace->EditSampleValue(SampleIndex, NewValue);
-		if (bMoveSuccesful)
+		bMoveSuccessful = BlendSpace->EditSampleValue(SampleIndex, NewValue);
+		if (bMoveSuccessful)
 		{
+			BlendSpace->Modify();
 			BlendSpace->ValidateSampleData();
+			BlendSpace->PostEditChange();
 			ResampleData();
 		}
 	}
@@ -125,65 +133,105 @@ void SBlendSpaceEditor::OnSampleMoved(const int32 SampleIndex, const FVector& Ne
 void SBlendSpaceEditor::OnSampleRemoved(const int32 SampleIndex)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("RemoveSample", "Removing Blend Grid Sample"));
-	BlendSpace->Modify();
 
-	const bool bRemoveSuccesful = BlendSpace->DeleteSample(SampleIndex);
-	if (bRemoveSuccesful)
+	const bool bRemoveSuccessful = BlendSpace->DeleteSample(SampleIndex);
+	if (bRemoveSuccessful)
 	{
+		BlendSpace->Modify();
 		ResampleData();
 		BlendSpace->ValidateSampleData();
 
+		BlendSpaceGridWidget->InvalidateCachedData();
+		BlendSpaceGridWidget->InvalidateState();
+
 		OnBlendSpaceSampleRemoved.ExecuteIfBound(SampleIndex);
+		BlendSpace->PostEditChange();
 	}
-	BlendSpace->PostEditChange();
 }
 
-void SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& Value)
+//======================================================================================================================
+static bool GetLockAfterAnalysis(const TObjectPtr<UAnalysisProperties>& AnalysisProperties)
+{
+	return AnalysisProperties ? AnalysisProperties->bLockAfterAnalysis : false;
+}
+
+//======================================================================================================================
+int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& Value)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("AddSample", "Adding Blend Grid Sample"));
-	BlendSpace->Modify();
 
-	bool bAddSuccesful = false;
+	FVector AdjustedValue = Value;
+	bool bAnalyzed[3] = { false, false, false };
 
 	if(BlendSpace->IsAsset())
 	{
-		bAddSuccesful = BlendSpace->AddSample(Animation, Value);
+		AdjustedValue = FBlendSpaceAnalysis::CalculateSampleValue(*BlendSpace, *Animation, 1.0f, Value, bAnalyzed);
+	}
+		
+	int32 NewSampleIndex = -1;
+
+	if(BlendSpace->IsAsset())
+	{
+		NewSampleIndex = BlendSpace->AddSample(Animation, AdjustedValue);
 	}
 	else
 	{
-		bAddSuccesful = BlendSpace->AddSample(Value);
+		NewSampleIndex = BlendSpace->AddSample(AdjustedValue);
 	}
 
-	if (bAddSuccesful)
+	if (NewSampleIndex >= 0)
 	{
+		BlendSpace->Modify();
+		BlendSpace->LockSample(NewSampleIndex,
+							   bAnalyzed[0] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]) : false,
+							   bAnalyzed[1] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]) : false,
+							   bAnalyzed[2] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]) : false);
+
 		ResampleData();
 		BlendSpace->ValidateSampleData();
 
-		OnBlendSpaceSampleAdded.ExecuteIfBound(Animation, Value);
+		BlendSpaceGridWidget->InvalidateCachedData();
+		BlendSpaceGridWidget->InvalidateState();
+
+		if (OnBlendSpaceSampleAdded.IsBound())
+		{
+			OnBlendSpaceSampleAdded.Execute(Animation, AdjustedValue);
+		}
+		BlendSpace->PostEditChange();
 	}
-	BlendSpace->PostEditChange();
+
+	return NewSampleIndex;
+}
+
+void SBlendSpaceEditor::OnSampleDuplicated(const int32 SampleIndex, const FVector& NewValue)
+{
+	const FBlendSample& OrigSample = BlendSpace->GetBlendSample(SampleIndex);
+	int32 NewSampleIndex = OnSampleAdded(OrigSample.Animation, NewValue);
+	if (NewSampleIndex >= 0)
+	{
+		BlendSpace->LockSample(NewSampleIndex, OrigSample.bLockX, OrigSample.bLockY, OrigSample.bLockZ);
+	}
 }
 
 void SBlendSpaceEditor::OnSampleReplaced(int32 InSampleIndex, UAnimSequence* Animation)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("UpdateAnimation", "Changing Animation Sequence"));
-	BlendSpace->Modify();
 
-	bool bUpdateSuccesful = false;
+	bool bUpdateSuccessful = false;
 	if(BlendSpace->IsAsset())
 	{
-		bUpdateSuccesful = BlendSpace->ReplaceSampleAnimation(InSampleIndex, Animation);
+		bUpdateSuccessful = BlendSpace->ReplaceSampleAnimation(InSampleIndex, Animation);
 	}
 	else
 	{
-		bUpdateSuccesful = true;
+		bUpdateSuccessful = true;
 	}
 
-	if (bUpdateSuccesful)
+	if (bUpdateSuccessful)
 	{
+		BlendSpace->Modify();
 		ResampleData();
 		BlendSpace->ValidateSampleData();
-
 		OnBlendSpaceSampleReplaced.ExecuteIfBound(InSampleIndex, Animation);
 	}
 }
@@ -195,10 +243,10 @@ void SBlendSpaceEditor::PostUndoRedo()
 	ResampleData();
 
 	// Invalidate widget data
-	NewBlendSpaceGridWidget->InvalidateCachedData();
+	BlendSpaceGridWidget->InvalidateCachedData();
 
 	// Invalidate sample indices used for UI info
-	NewBlendSpaceGridWidget->InvalidateState();
+	BlendSpaceGridWidget->InvalidateState();
 
 	// Set flag which will update the preview value in the next tick (this due the recreation of data after Undo)
 	bShouldSetPreviewPosition = true;
@@ -219,7 +267,7 @@ void SBlendSpaceEditor::UpdatePreviewParameter() const
 		{
 			if (Component->PreviewInstance->GetCurrentAsset() == BlendSpace)
 			{
-				const FVector PreviewPosition = NewBlendSpaceGridWidget->GetPreviewPosition();
+				const FVector PreviewPosition = BlendSpaceGridWidget->GetPreviewPosition();
 				Component->PreviewInstance->SetBlendSpacePosition(PreviewPosition);
 				GetPreviewScene()->InvalidateViews();			
 			}
@@ -227,7 +275,7 @@ void SBlendSpaceEditor::UpdatePreviewParameter() const
 	}
 	else if(OnSetPreviewPosition.IsBound())
 	{
-		const FVector PreviewPosition = NewBlendSpaceGridWidget->GetPreviewPosition();
+		const FVector PreviewPosition = BlendSpaceGridWidget->GetPreviewPosition();
 		OnSetPreviewPosition.Execute(PreviewPosition);
 	}
 }
@@ -245,7 +293,7 @@ void SBlendSpaceEditor::UpdateFromBlendSpaceState() const
 				FVector FilteredPosition;
 				FVector Position;
 				Component->PreviewInstance->GetBlendSpaceState(Position, FilteredPosition);
-				NewBlendSpaceGridWidget->SetPreviewingState(Position, FilteredPosition);
+				BlendSpaceGridWidget->SetPreviewingState(Position, FilteredPosition);
 			}
 		}
 	}
@@ -254,7 +302,7 @@ void SBlendSpaceEditor::UpdateFromBlendSpaceState() const
 void SBlendSpaceEditor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	// Update the preview as long as its enabled
-	if (NewBlendSpaceGridWidget->IsPreviewing() || bShouldSetPreviewPosition)
+	if (BlendSpaceGridWidget->IsPreviewing() || bShouldSetPreviewPosition)
 	{
 		UpdatePreviewParameter();
 		bShouldSetPreviewPosition = false;
@@ -269,7 +317,7 @@ void SBlendSpaceEditor::OnPropertyChanged(UObject* ObjectBeingModified, FPropert
 	{
 		BlendSpace->ValidateSampleData();
 		ResampleData();
-		NewBlendSpaceGridWidget->InvalidateCachedData();
+		BlendSpaceGridWidget->InvalidateCachedData();
 	}
 }
 

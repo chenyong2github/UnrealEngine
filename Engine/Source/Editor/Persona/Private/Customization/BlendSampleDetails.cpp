@@ -13,6 +13,8 @@
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SVectorInputBox.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 #include "Animation/AnimSequence.h"
@@ -30,8 +32,87 @@
 #include "BlueprintEditorModule.h"
 #include "AnimationGraph.h"
 #include "BlendSpaceGraph.h"
+#include "PersonaBlendSpaceAnalysis.h"
+#include "SAnimationBlendSpaceGridWidget.h"
 
 #define LOCTEXT_NAMESPACE "BlendSampleDetails"
+
+FReply FBlendSampleDetails::HandleAnalyzeAndDuplicateSample()
+{
+	if (BlendSpace->IsAsset())
+	{
+		// Dismiss menus so that operations which might affect samples (and cause reallocation etc) won't invalidate
+		// data being used in the UI.
+		FSlateApplication::Get().DismissAllMenus();
+		bool bAnalyzed[3] = { false, false, false };
+		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
+		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
+			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
+		NewValue.Z = OrigValue.Z;
+		if (NewValue != OrigValue)
+		{
+			GridWidget->OnSampleDuplicated.ExecuteIfBound(SampleIndex, NewValue);
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply FBlendSampleDetails::HandleAnalyzeSample()
+{
+	if (BlendSpace->IsAsset())
+	{
+		bool bAnalyzed[3] = { false, false, false };
+		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
+		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
+			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
+		NewValue.Z = OrigValue.Z;
+		if (NewValue != OrigValue)
+		{
+			GridWidget->OnSampleMoved.ExecuteIfBound(SampleIndex, NewValue, false);
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply FBlendSampleDetails::HandleAnalyzeSampleX()
+{
+	if (BlendSpace->IsAsset())
+	{
+		bool bAnalyzed[3] = { false, false, false };
+		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
+		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
+			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
+		NewValue.Y = OrigValue.Y;
+		NewValue.Z = OrigValue.Z;
+		if (NewValue != OrigValue)
+		{
+			GridWidget->OnSampleMoved.ExecuteIfBound(SampleIndex, NewValue, false);
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply FBlendSampleDetails::HandleAnalyzeSampleY()
+{
+	if (BlendSpace->IsAsset())
+	{
+		bool bAnalyzed[3] = { false, false, false };
+		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
+		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
+			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
+		NewValue.X = OrigValue.X;
+		NewValue.Z = OrigValue.Z;
+		if (NewValue != OrigValue)
+		{
+			GridWidget->OnSampleMoved.ExecuteIfBound(SampleIndex, NewValue, false);
+		}
+	}
+	return FReply::Handled();
+}
 
 FBlendSampleDetails::FBlendSampleDetails(const UBlendSpace* InBlendSpace, class SBlendSpaceGridWidget* InGridWidget, int32 InSampleIndex)
 	: BlendSpace(InBlendSpace)
@@ -62,7 +143,7 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 	// Hide all default properties
 	for (TSharedRef<IPropertyHandle> Property : DefaultProperties)
 	{
-		Property->MarkHiddenByCustomization();		
+		Property->MarkHiddenByCustomization();
 	}
 	
 	TArray < TSharedPtr<FStructOnScope>> Structs;
@@ -77,7 +158,7 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 	TArray<UObject*> Objects;
 	UPackageTools::GetObjectsInPackages(&Packages, Objects);
 
-	UBlendSpace* BlendSpaceBase = nullptr;
+	const UBlendSpace* BlendSpaceBase = nullptr;
 	// Find blendspace in found objects
 	for ( UObject* Object : Objects )
 	{
@@ -96,17 +177,207 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 		BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceGraph->GetOuter());
 	}
 
-	FBlendSampleDetails::GenerateBlendSampleWidget([&CategoryBuilder]() -> FDetailWidgetRow& { return CategoryBuilder.AddCustomRow(FText::FromString(TEXT("SampleValue"))); }, GridWidget->OnSampleMoved, (BlendSpaceBase != nullptr) ? BlendSpaceBase : BlendSpace, GridWidget->GetSelectedSampleIndex(), false );
+	// Sample value
+	FBlendSampleDetails::GenerateBlendSampleWidget(
+		[&CategoryBuilder]() -> FDetailWidgetRow&
+		{
+			return CategoryBuilder.AddCustomRow(FText::FromString(TEXT("SampleValue")));
+		}, GridWidget->OnSampleMoved, (BlendSpaceBase != nullptr) ? BlendSpaceBase : BlendSpace,
+		GridWidget->GetSelectedSampleIndex(), false);
 
-	TSharedPtr<IPropertyHandle> AnimationProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, Animation), FBlendSample::StaticStruct());
+	// Locked
+	const bool b1DBlendSpace = BlendSpace->IsA<UBlendSpace1D>();
+	{
+		IDetailPropertyRow& LockPositionXPropertyRow = CategoryBuilder.AddProperty(DetailBuilder.GetProperty(
+            GET_MEMBER_NAME_CHECKED(FBlendSample, bLockX), FBlendSample::StaticStruct()));
+		LockPositionXPropertyRow.DisplayName(FText::Format(
+            LOCTEXT("BlendSpaceSampleLockLabel", "{0} {1}"), FText::FromString(TEXT("Lock ")),
+            FText::FromString(BlendSpace->GetBlendParameter(0).DisplayName)));
+	}
+	if (!b1DBlendSpace)
+	{
+		IDetailPropertyRow& LockPositionYPropertyRow = CategoryBuilder.AddProperty(DetailBuilder.GetProperty(
+			GET_MEMBER_NAME_CHECKED(FBlendSample, bLockY), FBlendSample::StaticStruct()));
+		LockPositionYPropertyRow.DisplayName(FText::Format(
+			LOCTEXT("BlendSpaceSampleLockLabel", "{0} {1}"), FText::FromString(TEXT("Lock ")),
+			FText::FromString(BlendSpace->GetBlendParameter(1).DisplayName)));
+	}
 
+	// Animation and rate
 	if(BlendspaceToUse->IsAsset())
 	{
+		TSharedPtr<IPropertyHandle> AnimationProperty = DetailBuilder.GetProperty(
+			GET_MEMBER_NAME_CHECKED(FBlendSample, Animation), FBlendSample::StaticStruct());
+
 		FDetailWidgetRow& AnimationRow = CategoryBuilder.AddCustomRow(FText::FromString(TEXT("Animation")));
 		FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendspaceToUse, AnimationProperty);
 
-		TSharedPtr<IPropertyHandle> RateScaleProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale), FBlendSample::StaticStruct());
-		CategoryBuilder.AddProperty(RateScaleProperty);	
+		TSharedPtr<IPropertyHandle> RateScaleProperty = DetailBuilder.GetProperty(
+			GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale), FBlendSample::StaticStruct());
+		CategoryBuilder.AddProperty(RateScaleProperty);
+
+		bool bShowAnalysis = false;
+		bool bAnalyzed[3] = { false, false, false };
+		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation,
+			BlendSpace->GetBlendSample(SampleIndex).RateScale, 
+			BlendSpace->GetBlendSample(SampleIndex).SampleValue, bAnalyzed);
+		FText AnalysisTexts[2];
+		FText ValueTexts[2];
+		FText ToolTipTexts[2];
+
+		for (int32 Index = 0 ; Index != 2 ; ++Index)
+		{
+			if (bAnalyzed[Index])
+			{
+				AnalysisTexts[Index] = FText::Format(FTextFormat(
+					LOCTEXT("AnalysisSampleValue", "Set {0}")), 
+					FText::FromString(BlendSpace->GetBlendParameter(Index).DisplayName));
+				ToolTipTexts[Index] = FText::Format(FTextFormat(
+					LOCTEXT("AnalysisSampleToolTip", "Set {0} to the analysed value {1}")), 
+					FText::FromString(BlendSpace->GetBlendParameter(Index).DisplayName),
+					NewValue[Index]);
+				ValueTexts[Index] = FText::Format(FTextFormat(
+					LOCTEXT("AnalysisValue", "{0}")), NewValue[Index]);
+				bShowAnalysis = true;
+			}
+			else
+			{
+				AnalysisTexts[Index] = LOCTEXT("Unanalyzed", "Not analyzed");
+				ToolTipTexts[Index] = FText::Format(FTextFormat(
+					LOCTEXT("AnalysisSampleToolTipUnanalyzed", "Analysis has not been set for {0}")), 
+					FText::FromString(BlendSpace->GetBlendParameter(Index).DisplayName));
+			}
+		}
+
+		if (bShowAnalysis && NewValue != BlendSpace->GetBlendSample(SampleIndex).SampleValue)
+		{
+			// Button to run analysis
+			CategoryBuilder
+				.AddGroup(FName("AnalysisGroup"), FText::GetEmpty())
+				.HeaderRow()
+				.NameContent()
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+						.ToolTipText(LOCTEXT("AnalyzeText", "Move this sample to the analyzed position"))
+						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeSample)
+						.ContentPadding(1)
+						[
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								SNew(SImage)
+								.Image(FEditorStyle::GetBrush("Icons.ArrowRight"))
+								.ColorAndOpacity(FSlateColor::UseForeground())
+							]
+							+SHorizontalBox::Slot()
+							.Padding(6.0f, 0.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+								.Font(DetailBuilder.GetDetailFont())
+								.Text(LOCTEXT("AnalyzeLabel", "Move"))
+							]
+						]
+					]
+				]
+				.ValueContent()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SUniformGridPanel)
+					+SUniformGridPanel::Slot(0,0)
+					.HAlign(HAlign_Center)
+					[   // Analyze X button
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "RoundButton")
+						.ToolTipText(ToolTipTexts[0])
+						.IsEnabled(bAnalyzed[0])
+						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeSampleX)
+						[
+							SNew(STextBlock)
+							.Justification(ETextJustify::Center)
+							.Text(AnalysisTexts[0])
+						]
+					]
+					+SUniformGridPanel::Slot(1,0)
+					.HAlign(HAlign_Center)
+					[   // Analyze Y button
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "RoundButton")
+						.ToolTipText(ToolTipTexts[1])
+						.Visibility(b1DBlendSpace ? EVisibility::Hidden : EVisibility::Visible)
+						.IsEnabled(bAnalyzed[1])
+						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeSampleY)
+						[
+							SNew(STextBlock)
+							.Justification(ETextJustify::Center)
+							.Text(AnalysisTexts[1])
+						]
+					]
+				];
+
+			// Button to duplicate analysis
+			CategoryBuilder
+				.AddGroup(FName("DuplicateGroup"), FText::GetEmpty())
+				.HeaderRow()
+				.NameContent()
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+						.ToolTipText(LOCTEXT("DuplicateText", "Duplicate this sample and place it at the analyzed position"))
+						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeAndDuplicateSample)
+						.ContentPadding(1)
+						[
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								SNew(SImage)
+								.Image(FEditorStyle::GetBrush("Icons.Duplicate"))
+								.ColorAndOpacity(FSlateColor::UseForeground())
+							]
+							+SHorizontalBox::Slot()
+							.Padding(6.0f, 0.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+								.Font(DetailBuilder.GetDetailFont())
+								.Text(LOCTEXT("DuplicateLabel", "Duplicate to"))
+							]
+						]
+					]
+				]
+				.ValueContent()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SUniformGridPanel)
+					+SUniformGridPanel::Slot(0,0)
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(ValueTexts[0])
+					]
+					+SUniformGridPanel::Slot(1,0)
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(ValueTexts[1])
+					]
+				];
+
+		}
 	}
 	else
 	{

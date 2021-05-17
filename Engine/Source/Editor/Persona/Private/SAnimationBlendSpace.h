@@ -24,31 +24,19 @@ public:
 		, _DisplayScrubBar(true)
 		, _StatusBarName(TEXT("AssetEditor.AnimationEditor.MainMenu"))
 		{}
-		
 	SLATE_ARGUMENT(UBlendSpace*, BlendSpace)
-
 	SLATE_ARGUMENT(bool, DisplayScrubBar)
-
 	SLATE_EVENT(FOnBlendSpaceSampleDoubleClicked, OnBlendSpaceSampleDoubleClicked)
-
 	SLATE_EVENT(FOnBlendSpaceSampleAdded, OnBlendSpaceSampleAdded)
-
+	SLATE_EVENT(FOnBlendSpaceSampleDuplicated, OnBlendSpaceSampleDuplicated)
 	SLATE_EVENT(FOnBlendSpaceSampleRemoved, OnBlendSpaceSampleRemoved)
-
 	SLATE_EVENT(FOnBlendSpaceSampleReplaced, OnBlendSpaceSampleReplaced)
-
 	SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName) 
-
 	SLATE_EVENT(FOnExtendBlendSpaceSampleTooltip, OnExtendSampleTooltip)
-
 	SLATE_EVENT(FOnSetBlendSpacePreviewPosition, OnSetPreviewPosition)
-
 	SLATE_ATTRIBUTE(FVector, PreviewPosition)
-
 	SLATE_ATTRIBUTE(FVector, PreviewFilteredPosition)
-
 	SLATE_ARGUMENT(FName, StatusBarName)
-
 	SLATE_END_ARGS()
 
 	~SBlendSpaceEditor();
@@ -69,9 +57,10 @@ public:
 protected:
 	void OnSampleMoved(const int32 SampleIndex, const FVector& NewValue, bool bIsInteractive);
 	void OnSampleRemoved(const int32 SampleIndex);
-	void OnSampleAdded(UAnimSequence* Animation, const FVector& Value);
+	int32 OnSampleAdded(UAnimSequence* Animation, const FVector& Value);
+	void OnSampleDuplicated(const int32 SampleIndex, const FVector& NewValue);
 	void OnSampleReplaced(const int32 SampleIndex, UAnimSequence* Animation);
-	
+
 	// Begin SAnimEditorBase overrides
 	virtual UAnimationAsset* GetEditorObject() const override { return BlendSpace; }
 	// End SAnimEditorBase overrides
@@ -105,7 +94,7 @@ protected:
 	TWeakPtr<class IPersonaPreviewScene> PreviewScenePtr;
 	
 	/** Pointer to the grid widget which displays the blendspace visualization */
-	TSharedPtr<class SBlendSpaceGridWidget> NewBlendSpaceGridWidget;	
+	TSharedPtr<class SBlendSpaceGridWidget> BlendSpaceGridWidget;	
 
 	// Property changed delegate
 	FCoreUObjectDelegates::FOnObjectPropertyChanged::FDelegate OnPropertyChangedHandle;	
@@ -115,6 +104,9 @@ protected:
 
 	/** Delegate called when a sample is added */
 	FOnBlendSpaceSampleAdded OnBlendSpaceSampleAdded;
+
+	/** Delegate called when a sample is duplicated */
+	FOnBlendSpaceSampleDuplicated OnBlendSpaceSampleDuplicated;
 
 	/** Delegate called when a sample is removed */
 	FOnBlendSpaceSampleRemoved OnBlendSpaceSampleRemoved;
@@ -126,5 +118,5 @@ protected:
 	FOnSetBlendSpacePreviewPosition OnSetPreviewPosition;
 
 	/** Flag to check whether or not the preview value should be (re-)set on the next tick */
-	bool bShouldSetPreviewPosition;
+	bool bShouldSetPreviewPosition = true;
 };

@@ -2510,6 +2510,7 @@ void FAnimationRuntime::RetargetBoneTransform(const USkeleton* SourceSkeleton, c
 
 void FAnimationRuntime::RetargetBoneTransform(const USkeleton* SourceSkeleton, const FName& SourceName, const TArray<FTransform>& RetargetTransforms, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive)
 {
+	check(!RetargetTransforms.IsEmpty());
 	if (SourceSkeleton)
 	{
 		const USkeleton* TargetSkeleton = RequiredBones.GetSkeletonAsset();

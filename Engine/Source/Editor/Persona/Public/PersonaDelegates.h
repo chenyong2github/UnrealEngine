@@ -43,8 +43,11 @@ DECLARE_DELEGATE_OneParam(FOnBlendSpaceSampleDoubleClicked, int32 /*SampleIndex*
 // Called when a blendspace sample point is removed
 DECLARE_DELEGATE_OneParam(FOnBlendSpaceSampleRemoved, const int32 /*SampleIndex*/);
 
+// Called when a blendspace sample point is added. Returns the new SampleIndex
+DECLARE_DELEGATE_RetVal_TwoParams(int32, FOnBlendSpaceSampleAdded, UAnimSequence* /*InSequence*/, const FVector& /*InSamplePoint*/);
+
 // Called when a blendspace sample point is added
-DECLARE_DELEGATE_TwoParams(FOnBlendSpaceSampleAdded, UAnimSequence* /*InSequence*/, const FVector& /*InSamplePoint*/);
+DECLARE_DELEGATE_TwoParams(FOnBlendSpaceSampleDuplicated, int32 /*SampleIndex*/, const FVector& /*InSamplePoint*/);
 
 // Called when a blendspace sample point is replaced
 DECLARE_DELEGATE_TwoParams(FOnBlendSpaceSampleReplaced, const int32 /*SampleIndex*/, UAnimSequence* /*InSequence*/);

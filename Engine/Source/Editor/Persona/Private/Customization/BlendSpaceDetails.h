@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
@@ -25,7 +26,12 @@ public:
 	// IDetailCustomization interface
 	virtual void CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder) override;
 private:
+	FReply HandleClearSamples();
+	FReply HandleAnalyzeSamples();
+	void HandleAnalysisFunctionChanged(int32 AxisIndex, TSharedPtr<FString> NewItem);
+
 	IDetailLayoutBuilder* Builder;
-	UBlendSpace* BlendSpaceBase;
+	UBlendSpace* BlendSpace;
 	TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase> BlendSpaceNode;
+	TArray<TSharedPtr<FString>> AnalysisFunctionNames[3];
 };
