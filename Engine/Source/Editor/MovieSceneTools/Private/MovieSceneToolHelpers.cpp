@@ -1855,6 +1855,7 @@ static void PrepForInsertReplaceAnimation(bool bInsert, const FFBXNodeAndChannel
 	}
 
 	FFrameNumber Diff = EndFrame - StartFrame;
+	FrameToInsertOrReplace += StartFrame;
 	if (bInsert)
 	{
 		for (FMovieSceneChannel* Channel : Channels)
