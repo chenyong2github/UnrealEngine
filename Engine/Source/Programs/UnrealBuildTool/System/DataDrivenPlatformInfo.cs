@@ -157,7 +157,7 @@ namespace UnrealBuildTool
 		public static ConfigDataDrivenPlatformInfo GetDataDrivenInfoForPlatform(string PlatformName)
 		{
 			// lookup the platform name (which is not guaranteed to be there)
-			ConfigDataDrivenPlatformInfo Info = null;
+			ConfigDataDrivenPlatformInfo Info;
 			GetAllPlatformInfos().TryGetValue(PlatformName, out Info);
 
 			// return what we found of null if nothing
