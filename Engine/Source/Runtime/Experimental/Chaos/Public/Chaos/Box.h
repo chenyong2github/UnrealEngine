@@ -481,8 +481,6 @@ namespace Chaos
 			return AABB.GetTypeHash();
 		}
 
-		static void InitializeStructureData();
-
 	private:
 		TAABB<T, d> AABB;
 
@@ -490,12 +488,6 @@ namespace Chaos
 		static TArray<FVec3> SNormals;
 		static TArray<FVec3> SVertices;
 		static FConvexHalfEdgeStructureDataS16 SStructureData;
-
-		struct FStaticInitializer
-		{
-			FStaticInitializer();
-		};
-		static FStaticInitializer SInitializer;
 	};
 
 
