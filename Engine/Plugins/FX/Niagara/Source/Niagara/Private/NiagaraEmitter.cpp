@@ -919,6 +919,15 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 #endif
 }
 
+void UNiagaraEmitter::PreSave(const ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+	if (UpdateTaskRef.IsValid() && UpdateTaskRef->IsComplete() == false)
+	{
+		UpdateEmitterAfterLoad();
+	}
+}
+
 
 UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnPropertiesChanged()
 {
@@ -1388,6 +1397,10 @@ UNiagaraEditorParametersAdapterBase* UNiagaraEmitter::GetEditorParameters()
 
 void UNiagaraEmitter::SetEditorData(UNiagaraEditorDataBase* InEditorData)
 {
+	if (EditorData == InEditorData)
+	{
+		return;
+	}
 	if (EditorData != nullptr)
 	{
 		EditorData->OnPersistentDataChanged().RemoveAll(this);
