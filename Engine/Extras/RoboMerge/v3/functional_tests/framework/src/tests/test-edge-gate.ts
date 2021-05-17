@@ -59,11 +59,12 @@ export class TestEdgeGate extends FunctionalTest {
 		await this.checkHeadRevision('Dev-Queue', 'test.txt', 1)
 
 		await P4Util.editFileAndSubmit(this.gateClient, GATE_FILENAME + 'queue.json', JSON.stringify({Change:this.secondEditCl}))
-		// this.info('removing window, sleeping again')
-		// await system.sleep(10)
 	}
 
 	verify() {
+		this.info('sleeping again after removing window')
+		await system.sleep(10)
+
 		return Promise.all([
 			this.checkHeadRevision('Main', 'test.txt', 4),
 			this.checkHeadRevision('Dev-Exact', 'test.txt', 2),
