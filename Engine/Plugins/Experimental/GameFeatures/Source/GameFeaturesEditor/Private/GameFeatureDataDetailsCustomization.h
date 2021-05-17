@@ -32,6 +32,7 @@ protected:
 	EGameFeaturePluginState GetCurrentState() const;
 
 	FText GetInitialStateText() const;
+	FText GetTagConfigPathText() const;
 
 	static void OnOperationCompletedOrFailed(const UE::GameFeatures::FResult& Result, const TWeakPtr<FGameFeatureDataDetailsCustomization> WeakThisPtr);
 protected:
