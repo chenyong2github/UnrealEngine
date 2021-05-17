@@ -32,6 +32,629 @@ namespace
 	}
 }
 
+namespace UE::Core::Private
+{
+	/**
+	 * This is a basic object which counts how many times it has been incremented
+	 */
+	template <typename DestType>
+	struct TCountingOutputIterator
+	{
+		TCountingOutputIterator()
+			: Counter(0)
+		{
+		}
+
+		const TCountingOutputIterator& operator* () const { return *this; }
+		const TCountingOutputIterator& operator++() { ++Counter; return *this; }
+		const TCountingOutputIterator& operator++(int) { ++Counter; return *this; }
+		const TCountingOutputIterator& operator+=(const int32 Amount) { Counter += Amount; return *this; }
+
+		const DestType& operator=(const DestType& Val) const
+		{
+			return Val;
+		}
+
+		friend int32 operator-(TCountingOutputIterator Lhs, TCountingOutputIterator Rhs)
+		{
+			return Lhs.Counter - Rhs.Counter;
+		}
+
+		int32 GetCount() const { return Counter; }
+
+	private:
+		int32 Counter;
+	};
+
+	/** Is the provided Codepoint within the range of valid codepoints? */
+	FORCEINLINE bool IsValidCodepoint(const uint32 Codepoint)
+	{
+		if ((Codepoint > 0x10FFFF) ||						// No Unicode codepoints above 10FFFFh, (for now!)
+			(Codepoint == 0xFFFE) || (Codepoint == 0xFFFF)) // illegal values.
+		{
+			return false;
+		}
+		return true;
+	}
+
+	/** Is the provided Codepoint within the range of the high-surrogates? */
+	static FORCEINLINE bool IsHighSurrogate(const uint32 Codepoint)
+	{
+		return Codepoint >= HIGH_SURROGATE_START_CODEPOINT && Codepoint <= HIGH_SURROGATE_END_CODEPOINT;
+	}
+
+	/** Is the provided Codepoint within the range of the low-surrogates? */
+	static FORCEINLINE bool IsLowSurrogate(const uint32 Codepoint)
+	{
+		return Codepoint >= LOW_SURROGATE_START_CODEPOINT && Codepoint <= LOW_SURROGATE_END_CODEPOINT;
+	}
+
+	static FORCEINLINE uint32 EncodeSurrogate(const uint16 HighSurrogate, const uint16 LowSurrogate)
+	{
+		return ((HighSurrogate - HIGH_SURROGATE_START_CODEPOINT) << 10) + (LowSurrogate - LOW_SURROGATE_START_CODEPOINT) + 0x10000;
+	}
+
+	static FORCEINLINE void DecodeSurrogate(const uint32 Codepoint, uint16& OutHighSurrogate, uint16& OutLowSurrogate)
+	{
+		const uint32 TmpCodepoint = Codepoint - 0x10000;
+		OutHighSurrogate = (uint16)((TmpCodepoint >> 10) + HIGH_SURROGATE_START_CODEPOINT);
+		OutLowSurrogate = (TmpCodepoint & 0x3FF) + LOW_SURROGATE_START_CODEPOINT;
+	}
+
+	/** Is the provided Codepoint outside of the range of the basic multilingual plane, but within the valid range of UTF8/16? */
+	static FORCEINLINE bool IsEncodedSurrogate(const uint32 Codepoint)
+	{
+		return Codepoint >= ENCODED_SURROGATE_START_CODEPOINT && Codepoint <= ENCODED_SURROGATE_END_CODEPOINT;
+	}
+
+	/**
+	 * Convert TCHAR Codepoint into UTF-8 characters.
+	 *
+	 * @param Codepoint Codepoint to expand into UTF-8 bytes
+	 * @param OutputIterator Output iterator to write UTF-8 bytes into
+	 * @param OutputIteratorByteSizeRemaining Maximum number of ANSI characters that can be written to OutputIterator
+	 * @return Number of characters written for Codepoint
+	 */
+	template <typename BufferType>
+	static int32 WriteCodepointToUTF8(uint32 Codepoint, BufferType OutputIterator, uint32 OutputIteratorByteSizeRemaining)
+	{
+		// Ensure we have at least one character in size to write
+		if (OutputIteratorByteSizeRemaining < sizeof(UTF8CHAR))
+		{
+			return 0;
+		}
+
+		const BufferType OutputIteratorStartPosition = OutputIterator;
+
+		if (!IsValidCodepoint(Codepoint))
+		{
+			Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
+		}
+		else if (IsHighSurrogate(Codepoint) || IsLowSurrogate(Codepoint)) // UTF-8 Characters are not allowed to encode codepoints in the surrogate pair range
+		{
+			Codepoint = UNICODE_BOGUS_CHAR_CODEPOINT;
+		}
+
+		// Do the encoding...
+		if (Codepoint < 0x80)
+		{
+			*(OutputIterator++) = (UTF8CHAR)Codepoint;
+		}
+		else if (Codepoint < 0x800)
+		{
+			if (OutputIteratorByteSizeRemaining >= 2)
+			{
+				*(OutputIterator++) = (UTF8CHAR)((Codepoint >> 6)         | 128 | 64);
+				*(OutputIterator++) = (UTF8CHAR)((Codepoint       & 0x3F) | 128);
+			}
+		}
+		else if (Codepoint < 0x10000)
+		{
+			if (OutputIteratorByteSizeRemaining >= 3)
+			{
+				*(OutputIterator++) = (UTF8CHAR)( (Codepoint >> 12)        | 128 | 64 | 32);
+				*(OutputIterator++) = (UTF8CHAR)(((Codepoint >> 6) & 0x3F) | 128);
+				*(OutputIterator++) = (UTF8CHAR)( (Codepoint       & 0x3F) | 128);
+			}
+		}
+		else
+		{
+			if (OutputIteratorByteSizeRemaining >= 4)
+			{
+				*(OutputIterator++) = (UTF8CHAR)( (Codepoint >> 18)         | 128 | 64 | 32 | 16);
+				*(OutputIterator++) = (UTF8CHAR)(((Codepoint >> 12) & 0x3F) | 128);
+				*(OutputIterator++) = (UTF8CHAR)(((Codepoint >> 6 ) & 0x3F) | 128);
+				*(OutputIterator++) = (UTF8CHAR)( (Codepoint        & 0x3F) | 128);
+			}
+		}
+
+		return UE_PTRDIFF_TO_INT32(OutputIterator - OutputIteratorStartPosition);
+	}
+
+	template <typename DestBufferType>
+	static bool WriteCodepointToBuffer(const uint32 Codepoint, DestBufferType& Dest, int32& DestLen)
+	{
+		int32 WrittenChars = WriteCodepointToUTF8(Codepoint, Dest, DestLen);
+		if (WrittenChars < 1)
+		{
+			return false;
+		}
+
+		Dest += WrittenChars;
+		DestLen -= WrittenChars;
+		return true;
+	}
+
+	template <typename DestBufferType, typename FromType, typename DestType>
+	static int32 ConvertToUTF8(DestBufferType& Dest, int32 DestLen, const FromType* Source, const int32 SourceLen, DestType BogusChar)
+	{
+		DestBufferType DestStartingPosition = Dest;
+		if constexpr (sizeof(FromType) == 4)
+		{
+			for (int32 i = 0; i < SourceLen; ++i)
+			{
+				uint32 Codepoint = static_cast<uint32>(Source[i]);
+
+				if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
+				{
+					// Could not write data, bail out
+					return -1;
+				}
+			}
+		}
+		else
+		{
+			uint32 HighSurrogate = MAX_uint32;
+
+			for (int32 i = 0; i < SourceLen; ++i)
+			{
+				const bool bHighSurrogateIsSet = HighSurrogate != MAX_uint32;
+				uint32 Codepoint = static_cast<uint32>(Source[i]);
+
+				// Check if this character is a high-surrogate
+				if (IsHighSurrogate(Codepoint))
+				{
+					// Ensure we don't already have a high-surrogate set or end without a matching low-surrogate
+					if (bHighSurrogateIsSet || i == SourceLen - 1)
+					{
+						// Already have a high-surrogate in this pair or string ends with lone high-surrogate
+						// Write our stored value (will be converted into bogus character)
+						if (!WriteCodepointToBuffer(HighSurrogate, Dest, DestLen))
+						{
+							// Could not write data, bail out
+							return -1;
+						}
+					}
+
+					// Store our code point for our next character
+					HighSurrogate = Codepoint;
+					continue;
+				}
+
+				// If our High Surrogate is set, check if this character is the matching low-surrogate
+				if (bHighSurrogateIsSet)
+				{
+					if (IsLowSurrogate(Codepoint))
+					{
+						const uint32 LowSurrogate = Codepoint;
+						// Combine our high and low surrogates together to a single Unicode codepoint
+						Codepoint = EncodeSurrogate((uint16)HighSurrogate, (uint16)LowSurrogate);
+					}
+					else
+					{
+						// Did not find matching low-surrogate, write out a bogus character for our stored HighSurrogate
+						if (!WriteCodepointToBuffer(HighSurrogate, Dest, DestLen))
+						{
+							// Could not write data, bail out
+							return -1;
+						}
+					}
+
+					// Reset our high-surrogate now that we've used (or discarded) its value
+					HighSurrogate = MAX_uint32;
+				}
+
+				if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
+				{
+					// Could not write data, bail out
+					return -1;
+				}
+			}
+		}
+
+		return UE_PTRDIFF_TO_INT32(Dest - DestStartingPosition);
+	}
+
+	template <typename FromType>
+	static uint32 CodepointFromUtf8(const FromType*& SourceString, const uint32 SourceLengthRemaining, uint32 BogusChar)
+	{
+		checkSlow(SourceLengthRemaining > 0);
+
+		const FromType* OctetPtr = SourceString;
+
+		uint32 Codepoint = 0;
+		uint32 Octet = (uint32) ((uint8) *SourceString);
+		uint32 Octet2, Octet3, Octet4;
+
+		if (Octet < 128)  // one octet char: 0 to 127
+		{
+			++SourceString;  // skip to next possible start of codepoint.
+			return Octet;
+		}
+		else if (Octet < 192)  // bad (starts with 10xxxxxx).
+		{
+			// Apparently each of these is supposed to be flagged as a bogus
+			//  char, instead of just resyncing to the next valid codepoint.
+			++SourceString;  // skip to next possible start of codepoint.
+			return BogusChar;
+		}
+		else if (Octet < 224)  // two octets
+		{
+			// Ensure our string has enough characters to read from
+			if (SourceLengthRemaining < 2)
+			{
+				// Skip to end and write out a single char (we always have room for at least 1 char)
+				SourceString += SourceLengthRemaining;
+				return BogusChar;
+			}
+
+			Octet -= (128+64);
+			Octet2 = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet2 & (128 + 64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Codepoint = ((Octet << 6) | (Octet2 - 128));
+			if ((Codepoint >= 0x80) && (Codepoint <= 0x7FF))
+			{
+				SourceString += 2;  // skip to next possible start of codepoint.
+				return Codepoint;
+			}
+		}
+		else if (Octet < 240)  // three octets
+		{
+			// Ensure our string has enough characters to read from
+			if (SourceLengthRemaining < 3)
+			{
+				// Skip to end and write out a single char (we always have room for at least 1 char)
+				SourceString += SourceLengthRemaining;
+				return BogusChar;
+			}
+
+			Octet -= (128+64+32);
+			Octet2 = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet2 & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet3 = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet3 & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Codepoint = ( ((Octet << 12)) | ((Octet2-128) << 6) | ((Octet3-128)) );
+
+			// UTF-8 characters cannot be in the UTF-16 surrogates range
+			if (IsHighSurrogate(Codepoint) || IsLowSurrogate(Codepoint))
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			// 0xFFFE and 0xFFFF are illegal, too, so we check them at the edge.
+			if ((Codepoint >= 0x800) && (Codepoint <= 0xFFFD))
+			{
+				SourceString += 3;  // skip to next possible start of codepoint.
+				return Codepoint;
+			}
+		}
+		else if (Octet < 248)  // four octets
+		{
+			// Ensure our string has enough characters to read from
+			if (SourceLengthRemaining < 4)
+			{
+				// Skip to end and write out a single char (we always have room for at least 1 char)
+				SourceString += SourceLengthRemaining;
+				return BogusChar;
+			}
+
+			Octet -= (128+64+32+16);
+			Octet2 = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet2 & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet3 = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet3 & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet4 = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet4 & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Codepoint = ( ((Octet << 18)) | ((Octet2 - 128) << 12) |
+						((Octet3 - 128) << 6) | ((Octet4 - 128)) );
+			if ((Codepoint >= 0x10000) && (Codepoint <= 0x10FFFF))
+			{
+				SourceString += 4;  // skip to next possible start of codepoint.
+				return Codepoint;
+			}
+		}
+		// Five and six octet sequences became illegal in rfc3629.
+		//  We throw the codepoint away, but parse them to make sure we move
+		//  ahead the right number of bytes and don't overflow the buffer.
+		else if (Octet < 252)  // five octets
+		{
+			// Ensure our string has enough characters to read from
+			if (SourceLengthRemaining < 5)
+			{
+				// Skip to end and write out a single char (we always have room for at least 1 char)
+				SourceString += SourceLengthRemaining;
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			SourceString += 5;  // skip to next possible start of codepoint.
+			return BogusChar;
+		}
+
+		else  // six octets
+		{
+			// Ensure our string has enough characters to read from
+			if (SourceLengthRemaining < 6)
+			{
+				// Skip to end and write out a single char (we always have room for at least 1 char)
+				SourceString += SourceLengthRemaining;
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			Octet = (uint32) ((uint8) *(++OctetPtr));
+			if ((Octet & (128+64)) != 128)  // Format isn't 10xxxxxx?
+			{
+				++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+				return BogusChar;
+			}
+
+			SourceString += 6;  // skip to next possible start of codepoint.
+			return BogusChar;
+		}
+
+		++SourceString;  // Sequence was not valid UTF-8. Skip the first byte and continue.
+		return BogusChar;  // catch everything else.
+	}
+
+	/**
+	 * Read Source string, converting the data from UTF-8 into UTF-16, and placing these in the Destination
+	 */
+	template <typename DestBufferType, typename FromType, typename DestType>
+	static void ConvertFromUTF8(DestBufferType& ConvertedBuffer, int32 DestLen, const FromType* Source, const int32 SourceLen, DestType BogusChar)
+	{
+		const FromType* SourceEnd = Source + SourceLen;
+
+		const uint64 ExtendedCharMask = 0x8080808080808080;
+		while (Source < SourceEnd && DestLen > 0)
+		{
+			// In case we're given an unaligned pointer, we'll
+			// fallback to the slow path until properly aligned.
+			if (IsAligned(Source, 8))
+			{
+				// Fast path for most common case
+				while (Source < SourceEnd - 8 && DestLen >= 8)
+				{
+					// Detect any extended characters 8 chars at a time
+					if ((*(const uint64*)Source) & ExtendedCharMask)
+					{
+						// Move to slow path since we got extended characters to process
+						break;
+					}
+
+					// This should get unrolled on most compiler
+					// ROI of diminished return to vectorize this as we 
+					// would have to deal with alignment, endianness and
+					// rewrite the iterators to support bulk writes
+					for (int32 Index = 0; Index < 8; ++Index)
+					{
+						*(ConvertedBuffer++) = (DestType)(uint8)*(Source++);
+					}
+					DestLen -= 8;
+				}
+			}
+
+			// Slow path for extended characters
+			while (Source < SourceEnd && DestLen > 0)
+			{
+				// Read our codepoint, advancing the source pointer
+				uint32 Codepoint = CodepointFromUtf8(Source, UE_PTRDIFF_TO_UINT32(SourceEnd - Source), BogusChar);
+
+				if constexpr (sizeof(DestType) == 4)
+				{
+					// We want to write out two chars
+					if (IsEncodedSurrogate(Codepoint))
+					{
+						// We need two characters to write the surrogate pair
+						if (DestLen >= 2)
+						{
+							uint16 HighSurrogate = 0;
+							uint16 LowSurrogate = 0;
+							DecodeSurrogate(Codepoint, HighSurrogate, LowSurrogate);
+
+							*(ConvertedBuffer++) = (DestType)HighSurrogate;
+							*(ConvertedBuffer++) = (DestType)LowSurrogate;
+							DestLen -= 2;
+							continue;
+						}
+
+						// If we don't have space, write a bogus character instead (we should have space for it)
+						Codepoint = (uint32)BogusChar;
+					}
+					else if (Codepoint > ENCODED_SURROGATE_END_CODEPOINT)
+					{
+						// Ignore values higher than the supplementary plane range
+						Codepoint = (uint32)BogusChar;
+					}
+				}
+
+				*(ConvertedBuffer++) = (DestType)Codepoint;
+				--DestLen;
+
+				// Return to the fast path once aligned and back to simple ASCII chars
+				if (Codepoint < 128 && IsAligned(Source, 8))
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Determines the length of the converted string.
+	 *
+	 * @return The length of the string in UTF-16 code units.
+	 */
+	int32 GetConvertedLength(const UTF8CHAR*, const ANSICHAR* Source, int32 SourceLen)
+	{
+		TCountingOutputIterator<UTF8CHAR> Dest;
+		ConvertToUTF8(Dest, INT32_MAX, Source, SourceLen, (UTF8CHAR)'?');
+
+		return Dest.GetCount();
+	}
+	int32 GetConvertedLength(const UTF8CHAR*, const WIDECHAR* Source, int32 SourceLen)
+	{
+		TCountingOutputIterator<UTF8CHAR> Dest;
+		ConvertToUTF8(Dest, INT32_MAX, Source, SourceLen, (UTF8CHAR)'?');
+
+		return Dest.GetCount();
+	}
+	int32 GetConvertedLength(const UTF8CHAR*, const UCS2CHAR* Source, int32 SourceLen)
+	{
+		TCountingOutputIterator<UTF8CHAR> Dest;
+		ConvertToUTF8(Dest, INT32_MAX, Source, SourceLen, (UTF8CHAR)'?');
+
+		return Dest.GetCount();
+	}
+	int32 GetConvertedLength(const ANSICHAR*, const UTF8CHAR* Source, int32 SourceLen)
+	{
+		TCountingOutputIterator<ANSICHAR> Dest;
+		ConvertFromUTF8(Dest, INT32_MAX, Source, SourceLen, (ANSICHAR)'?');
+
+		return Dest.GetCount();
+	}
+	int32 GetConvertedLength(const WIDECHAR*, const UTF8CHAR* Source, int32 SourceLen)
+	{
+		TCountingOutputIterator<WIDECHAR> Dest;
+		ConvertFromUTF8(Dest, INT32_MAX, Source, SourceLen, (WIDECHAR)'?');
+
+		return Dest.GetCount();
+	}
+	int32 GetConvertedLength(const UCS2CHAR*, const UTF8CHAR* Source, int32 SourceLen)
+	{
+		TCountingOutputIterator<UCS2CHAR> Dest;
+		ConvertFromUTF8(Dest, INT32_MAX, Source, SourceLen, (UCS2CHAR)'?');
+
+		return Dest.GetCount();
+	}
+
+	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const ANSICHAR* Src, int32 SrcLen, UTF8CHAR BogusChar)
+	{
+		ConvertToUTF8(Dest, DestLen, Src, SrcLen, BogusChar);
+		return Dest;
+	}
+	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const WIDECHAR* Src, int32 SrcLen, UTF8CHAR BogusChar)
+	{
+		ConvertToUTF8(Dest, DestLen, Src, SrcLen, BogusChar);
+		return Dest;
+	}
+	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UCS2CHAR* Src, int32 SrcLen, UTF8CHAR BogusChar)
+	{
+		ConvertToUTF8(Dest, DestLen, Src, SrcLen, BogusChar);
+		return Dest;
+	}
+	ANSICHAR* Convert(ANSICHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, ANSICHAR BogusChar)
+	{
+		ConvertFromUTF8(Dest, DestLen, Src, SrcLen, BogusChar);
+		return Dest;
+	}
+	WIDECHAR* Convert(WIDECHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, WIDECHAR BogusChar)
+	{
+		ConvertFromUTF8(Dest, DestLen, Src, SrcLen, BogusChar);
+		return Dest;
+	}
+	UCS2CHAR* Convert(UCS2CHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, UCS2CHAR BogusChar)
+	{
+		ConvertFromUTF8(Dest, DestLen, Src, SrcLen, BogusChar);
+		return Dest;
+	}
+}
+
 template <typename DestEncoding, typename SourceEncoding>
 void FGenericPlatformString::LogBogusChars(const SourceEncoding* Src, int32 SrcSize)
 {
