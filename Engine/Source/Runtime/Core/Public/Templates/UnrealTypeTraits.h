@@ -101,7 +101,6 @@ template<typename T> struct TIsCharType           { enum { Value = false }; };
 template<>           struct TIsCharType<ANSICHAR> { enum { Value = true  }; };
 template<>           struct TIsCharType<UCS2CHAR> { enum { Value = true  }; };
 template<>           struct TIsCharType<WIDECHAR> { enum { Value = true  }; };
-template<>           struct TIsCharType<UTF8CHAR> { enum { Value = true  }; };
 
 /**
  * TFormatSpecifier, only applies to numeric types
