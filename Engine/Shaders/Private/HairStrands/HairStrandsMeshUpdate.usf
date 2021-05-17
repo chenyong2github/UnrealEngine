@@ -208,9 +208,20 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #if SHADER_OFFSET_UPDATE
 
-float3 CPUPositionOffset;
-uint bUseCPUOffset;
+#if PERMUTATION_USE_GPU_OFFSET
 Buffer<float4> RootTrianglePosition0Buffer;
+float3 GetOffsetPosition()
+{
+	return RootTrianglePosition0Buffer[0];
+}
+#else
+float3 CPUPositionOffset;
+float3 GetOffsetPosition()
+{
+	return CPUPositionOffset;
+}
+#endif
+
 RWBuffer<float4> OutOffsetBuffer;
 
 [numthreads(1, 1, 1)]
@@ -219,12 +230,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (DispatchThreadId.x > 0)
 		return;
 
-	float3 RefPosition = CPUPositionOffset;
-	if (bUseCPUOffset == 0)
-	{
-		RefPosition = RootTrianglePosition0Buffer[0];
-	}
-	OutOffsetBuffer[0] = float4(RefPosition, 1);
+	OutOffsetBuffer[0] = float4(GetOffsetPosition(), 1);
 }
 
 #endif // SHADER_OFFSET_UPDATE
