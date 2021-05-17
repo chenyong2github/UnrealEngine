@@ -78,7 +78,7 @@ void FCompElementManager::Initialize()
 	}
 }
 
-TWeakObjectPtr<ACompositingElement> FCompElementManager::CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext)
+TWeakObjectPtr<ACompositingElement> FCompElementManager::CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext, UPackage* OverridePackage)
 {
 	ACompositingElement* SpawnedActor = nullptr;
 
@@ -109,6 +109,9 @@ TWeakObjectPtr<ACompositingElement> FCompElementManager::CreateElement(const FNa
 		FScopedWorldLevelContext ScopedLevelContext(TargetWorld, LevelContext);
 
 		FActorSpawnParameters SpawnParams;
+#if WITH_EDITOR
+		SpawnParams.OverridePackage = OverridePackage;
+#endif
 		SpawnedActor = TargetWorld->SpawnActor<ACompositingElement>(ClassType, FTransform::Identity, SpawnParams);
 
 		if (SpawnedActor)
