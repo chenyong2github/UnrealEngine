@@ -93,6 +93,10 @@ public:
 			Set("ControlRig.ResumeExecution", new IMAGE_BRUSH_SVG("Slate/simulate", Icon40x40));
 			Set("ControlRig.ReleaseMode", new IMAGE_BRUSH_SVG("Slate/animation", Icon40x40));
 			Set("ControlRig.DebugMode", new IMAGE_BRUSH_SVG("Slate/Bug", Icon40x40));
+			
+			Set( "ControlRig.StepOut", new IMAGE_BRUSH("Slate/icon_DebugStepOut_40x", Icon40x40));
+			Set( "ControlRig.StepInto", new IMAGE_BRUSH( "Slate/icon_DebugStepIn_40x", Icon40x40 ) );
+			Set( "ControlRig.StepOver", new IMAGE_BRUSH( "Slate/icon_DebugStepOver_40x", Icon40x40 ) );
 		}
 
 		// Graph styles

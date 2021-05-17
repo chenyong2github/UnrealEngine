@@ -1235,6 +1235,7 @@ void UControlRig::HandleExecutionReachedExit()
 		SnapShotVM->CopyFrom(VM, false, false, false, true, true);
 	}
 	DebugInfo.ResetState();
+	VM->SetBreakpointAction(ERigVMBreakpointAction::None);
 #endif
 	
 	if (LatestExecutedState != EControlRigState::Init && bAccumulateTime)
@@ -2415,14 +2416,14 @@ void UControlRig::AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode)
 	DebugInfo.AddBreakpoint(InstructionIndex, InNode);
 }
 
-void UControlRig::ResumeExecution()
+bool UControlRig::ExecuteBreakpointAction(const ERigVMBreakpointAction BreakpointAction)
 {
-	// this makes sure that the snapshot exists
-	if(URigVM* SnapShotVM = GetSnapshotVM())
+	if (VM->GetHaltedAtInstruction() != INDEX_NONE)
 	{
-		VM->CopyFrom(SnapShotVM, false, false, false, true, true);
+		VM->SetBreakpointAction(BreakpointAction);
+		return true;
 	}
-	VM->ResumeExecution();
+	return false;
 }
 
 #endif // WITH_EDITOR
