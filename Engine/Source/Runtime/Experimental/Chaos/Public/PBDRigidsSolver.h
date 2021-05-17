@@ -230,6 +230,7 @@ namespace Chaos
 
 		/**/
 		void PostTickDebugDraw(FReal Dt) const;
+		void UpdateCounters() const;
 
 		// Visual debugger (VDB) push methods
 		void PostEvolutionVDBPush() const;

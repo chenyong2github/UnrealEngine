@@ -278,9 +278,19 @@ public:
 		MApplyPairIterations = InPairIterations;
 	}
 
+	int32 GetPairIterations() const
+	{
+		return MApplyPairIterations;
+	}
+
 	void SetPushOutPairIterations(int32 InPairIterations)
 	{
 		MApplyPushOutPairIterations = InPairIterations;
+	}
+
+	int32 GetPushOutPairIterations() const
+	{
+		return MApplyPushOutPairIterations;
 	}
 
 	void SetCollisionsEnabled(bool bInEnableCollisions)
