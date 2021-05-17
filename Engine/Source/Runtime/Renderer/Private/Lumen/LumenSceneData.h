@@ -182,64 +182,47 @@ public:
 	}
 };
 
-class FLumenPrimitiveRemoveInfo
+class FLumenPrimitiveGroupRemoveInfo
 {
 public:
-	FLumenPrimitiveRemoveInfo(const FPrimitiveSceneInfo* InPrimitive, int32 InPrimitiveIndex)
+	FLumenPrimitiveGroupRemoveInfo(const FPrimitiveSceneInfo* InPrimitive, int32 InPrimitiveIndex)
 		: Primitive(InPrimitive)
 		, PrimitiveIndex(InPrimitiveIndex)
-		, LumenPrimitiveIndex(InPrimitive->LumenPrimitiveIndex)
+		, LumenPrimitiveGroupIndices(InPrimitive->LumenPrimitiveGroupIndices)
 	{}
 
-	/** 
-	 * Must not be dereferenced after creation, the primitive was removed from the scene and deleted
-	 * Value of the pointer is still useful for map lookups
-	 */
+	// Must not be dereferenced after creation, the primitive was removed from the scene and deleted
+	// Value of the pointer is still useful for map lookups
 	const FPrimitiveSceneInfo* Primitive;
 
 	// Need to copy by value as this is a deferred remove and Primitive may be already destroyed
 	int32 PrimitiveIndex;
-	int32 LumenPrimitiveIndex;
+	TArray<int32, TInlineAllocator<1>> LumenPrimitiveGroupIndices;
 };
 
-class FLumenPrimitiveInstance
+// Defines a group of scene primitives for a given LOD level 
+class FLumenPrimitiveGroup
 {
 public:
 	FBox WorldSpaceBoundingBox;
 
-	int32 MeshCardsIndex;
-	bool bValidMeshCards;
-};
+	Experimental::FHashElementId RayTracingGroupMapElementId;
 
-class FLumenPrimitive
-{
-public:
-	FBox WorldSpaceBoundingBox;
+	TArray<FPrimitiveSceneInfo*, TInlineAllocator<1>> Primitives;
+	int32 PrimitiveInstanceIndex = -1;
 
-	// Max extent of cards belonging to this primitive. Used for early culling.
-	float MaxCardExtent;
-
-	TArray<FLumenPrimitiveInstance, TInlineAllocator<1>> Instances;
-
-	FPrimitiveSceneInfo* Primitive = nullptr;
-
-	bool bMergedInstances = false;
 	float CardResolutionScale = 1.0f;
-	int32 NumMeshCards = 0;
+	int32 MeshCardsIndex = -1;
+	bool bValidMeshCards = false;
 
-	int32 GetMeshCardsIndex(int32 InstanceIndex) const
+	bool HasMergedInstances() const 
 	{
-		if (bMergedInstances)
-		{
-			return Instances[0].MeshCardsIndex;
-		}
+		return PrimitiveInstanceIndex < 0;
+	}
 
-		if (InstanceIndex < Instances.Num())
-		{
-			return Instances[InstanceIndex].MeshCardsIndex;
-		}
-
-		return -1;
+	bool HasMergedPrimitives() const
+	{
+		return RayTracingGroupMapElementId.IsValid();
 	}
 };
 
@@ -393,8 +376,10 @@ public:
 	// Modified bounds for caching voxel lighting
 	TArray<FBox> PrimitiveModifiedBounds;
 
-	// Lumen Primitives
-	TArray<FLumenPrimitive> LumenPrimitives;
+	// Primitive groups
+	TSparseElementArray<FLumenPrimitiveGroup> PrimitiveGroups;
+	// Maps RayTracingGroupId to a specific Primitive Group Index
+	Experimental::TRobinHoodHashMap<int32, int32> RayTracingGroups;
 
 	// Mesh Cards
 	FUniqueIndexList MeshCardsIndicesToUpdateInBuffer;
@@ -437,7 +422,7 @@ public:
 	bool bTrackAllPrimitives;
 	TSet<FPrimitiveSceneInfo*> PendingAddOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
-	TArray<FLumenPrimitiveRemoveInfo> PendingRemoveOperations;
+	TArray<FLumenPrimitiveGroupRemoveInfo> PendingRemoveOperations;
 
 	FLumenSceneData(EShaderPlatform ShaderPlatform, EWorldType::Type WorldType);
 	~FLumenSceneData();
@@ -446,9 +431,9 @@ public:
 	void UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
 
-	void AddMeshCards(int32 LumenPrimitiveIndex, int32 LumenInstanceIndex);
+	void AddMeshCards(int32 PrimitiveGroupIndex);
 	void UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCardsIndex, const FMeshCardsBuildData& MeshCardsBuildData);
-	void RemoveMeshCards(int32 ScenePrimitiveId, FLumenPrimitive& LumenPrimitive, FLumenPrimitiveInstance& LumenPrimitiveInstance);
+	void RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup);
 
 	void RemoveCardFromAtlas(int32 CardIndex);
 
@@ -489,9 +474,11 @@ public:
 
 	FShaderResourceViewRHIRef GetPageTableBufferSRV() { return PageTableBuffer.SRV;  };
 
+	int32 GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 InstanceIndex) const;
+
 private:
 
-	int32 AddMeshCardsFromBuildData(const FLumenPrimitive& LumenPrimitive, int32 LumenInstanceIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, float ResolutionScale);
+	int32 AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, float ResolutionScale);
 
 	void UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& Page, int32 PageIndex);
 

@@ -8,7 +8,7 @@
 #include "RendererPrivate.h"
 #include "Lumen.h"
 
-extern void BuildMeshCardsDataForMergedInstances(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMeshCardsBuildData& MeshCardsBuildData);
+extern void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveGroup, FMeshCardsBuildData& MeshCardsBuildData, FMatrix& MeshCardsLocalToWorld);
 
 int32 GLumenSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarLumenSceneUploadEveryFrame(
@@ -489,9 +489,9 @@ void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 Pr
 	{
 		PendingAddOperations.Remove(InPrimitive);
 		PendingUpdateOperations.Remove(InPrimitive);
-		PendingRemoveOperations.Add(FLumenPrimitiveRemoveInfo(InPrimitive, PrimitiveIndex));
+		PendingRemoveOperations.Add(FLumenPrimitiveGroupRemoveInfo(InPrimitive, PrimitiveIndex));
 
-		InPrimitive->LumenPrimitiveIndex = -1;
+		InPrimitive->LumenPrimitiveGroupIndices.Reset();
 	}
 }
 
@@ -508,83 +508,95 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	// Remove LumenPrimitives
+	// Remove primitives
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(RemoveLumenPrimitives);
 		QUICK_SCOPE_CYCLE_COUNTER(RemoveLumenPrimitives);
 
-		struct FGreaterLumenPrimitiveIndex
+		TSparseUniqueList<int32, SceneRenderingAllocator> PrimitiveGroupsToRemove;
+
+		// Delete primitives
+		for (const FLumenPrimitiveGroupRemoveInfo& RemoveInfo : LumenSceneData.PendingRemoveOperations)
 		{
-			FORCEINLINE bool operator()(const FLumenPrimitiveRemoveInfo& A, const FLumenPrimitiveRemoveInfo& B) const
+			for (int32 PrimitiveGroupIndex : RemoveInfo.LumenPrimitiveGroupIndices)
 			{
-				return A.LumenPrimitiveIndex > B.LumenPrimitiveIndex;
+				FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+
+				for (int32 PrimitiveIndex = 0; PrimitiveIndex < PrimitiveGroup.Primitives.Num(); ++PrimitiveIndex)
+				{
+					if (PrimitiveGroup.Primitives[PrimitiveIndex] == RemoveInfo.Primitive)
+					{
+						PrimitiveGroup.Primitives.RemoveAtSwap(PrimitiveIndex, 1, false);
+						break;
+					}
+				}
+
+				PrimitiveGroupsToRemove.Add(PrimitiveGroupIndex);
 			}
-		};
+		}
 
-		// Sort from largest to smallest so we can safely RemoveAtSwap without invalidating indices in this array
-		LumenSceneData.PendingRemoveOperations.Sort(FGreaterLumenPrimitiveIndex());
-
-		for (const FLumenPrimitiveRemoveInfo& RemoveInfo : LumenSceneData.PendingRemoveOperations)
+		// Delete empty Primitive Groups
+		for (int32 PrimitiveGroupIndex : PrimitiveGroupsToRemove.Array)
 		{
-			if (RemoveInfo.LumenPrimitiveIndex >= 0)
+			FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+
+			LumenSceneData.RemoveMeshCards(PrimitiveGroup);
+
+			if (PrimitiveGroup.RayTracingGroupMapElementId.IsValid())
 			{
-				// Deallocate resources
+				if (PrimitiveGroup.Primitives.Num() == 0)
 				{
-					FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[RemoveInfo.LumenPrimitiveIndex];
-
-					for (FLumenPrimitiveInstance& LumenPrimitiveInstance : LumenPrimitive.Instances)
-					{
-						LumenSceneData.RemoveMeshCards(/*ScenePrimitiveId*/ -1, LumenPrimitive, LumenPrimitiveInstance);
-					}
-
-					ensure(LumenPrimitive.NumMeshCards == 0);
-					LumenPrimitive.Instances.Empty(1);
+					LumenSceneData.RayTracingGroups.RemoveByElementId(PrimitiveGroup.RayTracingGroupMapElementId);
+					PrimitiveGroup.RayTracingGroupMapElementId = Experimental::FHashElementId();
 				}
-
-				// Swap, remove and fixup indices to the swapped element
+				else
 				{
-					LumenSceneData.LumenPrimitives.RemoveAtSwap(RemoveInfo.LumenPrimitiveIndex, 1, false);
-
-					if (RemoveInfo.LumenPrimitiveIndex < LumenSceneData.LumenPrimitives.Num())
+					// Update bounds
+					PrimitiveGroup.WorldSpaceBoundingBox.Init();
+					for (const FPrimitiveSceneInfo* Primitive : PrimitiveGroup.Primitives)
 					{
-						const FLumenPrimitive& SwappedLumenPrimitive = LumenSceneData.LumenPrimitives[RemoveInfo.LumenPrimitiveIndex];
-						SwappedLumenPrimitive.Primitive->LumenPrimitiveIndex = RemoveInfo.LumenPrimitiveIndex;
+						PrimitiveGroup.WorldSpaceBoundingBox += Primitive->Proxy->GetBounds().GetBox();
 					}
 				}
+			}
+
+			if (PrimitiveGroup.Primitives.Num() == 0)
+			{
+				LumenSceneData.PrimitiveGroups.Free(PrimitiveGroupIndex);
 			}
 		}
 	}
 
-	// AddLumenPrimitives
+	// Add primitives
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AddLumenPrimitives);
 		QUICK_SCOPE_CYCLE_COUNTER(AddLumenPrimitives);
 
-		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : LumenSceneData.PendingAddOperations)
+		for (FPrimitiveSceneInfo* ScenePrimitiveInfo : LumenSceneData.PendingAddOperations)
 		{
-			const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
+			const TArray<FPrimitiveInstance>* PrimitiveInstances = ScenePrimitiveInfo->Proxy->GetPrimitiveInstances();
 
 			// #lumen_todo: Remove after non-Nanite per instance ISM capture is fixed (now every instance draws entire ISM)
 			int32 NumInstances = PrimitiveInstances ? PrimitiveInstances->Num() : 1;
-			if (!PrimitiveSceneInfo->Proxy->IsNaniteMesh())
+			if (!ScenePrimitiveInfo->Proxy->IsNaniteMesh())
 			{
 				NumInstances = 1;
 			}
 
 			bool bAnyInstanceValid = false;
 			{
-				const FMatrix& LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+				const FMatrix& PrimitiveLocalToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
 
 				for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 				{
-					FBox LocalBoundingBox;
+					FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetLocalBounds().GetBox();
+					FMatrix LocalToWorld = PrimitiveLocalToWorld;
+
 					if (PrimitiveInstances && InstanceIndex < PrimitiveInstances->Num())
 					{
-						LocalBoundingBox = (*PrimitiveInstances)[InstanceIndex].RenderBounds.GetBox();
-					}
-					else
-					{
-						LocalBoundingBox = PrimitiveSceneInfo->Proxy->GetLocalBounds().GetBox();
+						const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
+						LocalBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
+						LocalToWorld = PrimitiveInstance.InstanceToLocal * PrimitiveLocalToWorld;
 					}
 
 					if (TrackPrimitiveInstanceForLumenScene(LocalToWorld, LocalBoundingBox))
@@ -597,96 +609,149 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 			if (bAnyInstanceValid)
 			{
-				const int32 LumenPrimitiveIndex = LumenSceneData.LumenPrimitives.AddDefaulted(1);
-				FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[LumenPrimitiveIndex];
+				ensure(ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Num() == 0);
 
-				LumenPrimitive.Primitive = PrimitiveSceneInfo;
-				LumenPrimitive.Primitive->LumenPrimitiveIndex = LumenPrimitiveIndex;
-				LumenPrimitive.WorldSpaceBoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
-				LumenPrimitive.MaxCardExtent = LumenPrimitive.WorldSpaceBoundingBox.GetExtent().GetMax();
-
-				const FMatrix& LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
-
-				if (PrimitiveInstances && NumInstances > 1)
+				// First try to merge components
+				extern int32 GLumenMeshCardsMergeComponents;
+				if (GLumenMeshCardsMergeComponents != 0 && ScenePrimitiveInfo->Proxy->GetRayTracingGroupId() >= 0)
 				{
-					// Check if we can merge all instances into one MeshCards
-					extern int32 GLumenMeshCardsMergeInstances;
-					extern float GLumenMeshCardsMergedMaxWorldSize;
-					if (GLumenMeshCardsMergeInstances
-						&& NumInstances > 1
-						&& LumenPrimitive.WorldSpaceBoundingBox.GetSize().GetMax() < GLumenMeshCardsMergedMaxWorldSize)
+					const Experimental::FHashElementId RayTracingGroupMapElementId = LumenSceneData.RayTracingGroups.FindOrAddId(ScenePrimitiveInfo->Proxy->GetRayTracingGroupId(), -1);
+					int32& PrimitiveGroupIndex = LumenSceneData.RayTracingGroups.GetByElementId(RayTracingGroupMapElementId).Value;
+
+					if (PrimitiveGroupIndex >= 0)
 					{
-						FBox LocalBounds;
-						LocalBounds.Init();
-						double TotalInstanceSurfaceArea = 0;
+						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
-						for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+						ensure(PrimitiveGroup.RayTracingGroupMapElementId == RayTracingGroupMapElementId);
+
+						LumenSceneData.RemoveMeshCards(PrimitiveGroup);
+						PrimitiveGroup.bValidMeshCards = true;
+						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
+
+						PrimitiveGroup.WorldSpaceBoundingBox.Init();
+						for (const FPrimitiveSceneInfo* PrimitiveInfoInGroup : PrimitiveGroup.Primitives)
 						{
-							const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
-							const FBox InstanceLocalBounds = Instance.RenderBounds.GetBox().TransformBy(Instance.InstanceToLocal);
-							LocalBounds += InstanceLocalBounds;
-							const double InstanceSurfaceArea = BoxSurfaceArea(InstanceLocalBounds.GetExtent());
-							TotalInstanceSurfaceArea += InstanceSurfaceArea;
+							PrimitiveGroup.WorldSpaceBoundingBox += PrimitiveInfoInGroup->Proxy->GetBounds().GetBox();
 						}
-
-						const double BoundsSurfaceArea = BoxSurfaceArea(LocalBounds.GetExtent());
-						const float SurfaceAreaRatio = BoundsSurfaceArea / TotalInstanceSurfaceArea;
-
-						extern float GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio;
-						extern float GLumenMeshCardsMergedResolutionScale;
-
-						if (SurfaceAreaRatio < GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio)
-						{
-							LumenPrimitive.bMergedInstances = true;
-							LumenPrimitive.CardResolutionScale = FMath::Sqrt(1.0f / SurfaceAreaRatio) * GLumenMeshCardsMergedResolutionScale;
-
-							LumenPrimitive.Instances.SetNum(1);
-							LumenPrimitive.Instances[0].WorldSpaceBoundingBox = LocalBounds.TransformBy(LocalToWorld);
-							LumenPrimitive.Instances[0].MeshCardsIndex = -1;
-							LumenPrimitive.Instances[0].bValidMeshCards = true;
-
-							LumenPrimitive.MaxCardExtent = LumenPrimitive.Instances[0].WorldSpaceBoundingBox.GetExtent().GetMax();
-						}
-
-#define LOG_LUMEN_PRIMITIVE_ADDS 0
-#if LOG_LUMEN_PRIMITIVE_ADDS
-						{
-							UE_LOG(LogRenderer, Log, TEXT("AddLumenPrimitive %s: Instances: %u, Merged: %u, SurfaceAreaRatio: %.1f"),
-								*LumenPrimitive.Primitive->Proxy->GetOwnerName().ToString(),
-								NumInstances,
-								LumenPrimitive.bMergedInstances ? 1 : 0,
-								SurfaceAreaRatio);
-						}
-#endif
 					}
-
-					if (!LumenPrimitive.bMergedInstances)
+					else
 					{
-						LumenPrimitive.Instances.SetNum(NumInstances);
+						PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
+						ensure(ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Num() == 0);
+						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
-						LumenPrimitive.MaxCardExtent = 0.0f;
-
-						for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
-						{
-							FLumenPrimitiveInstance& LumenInstance = LumenPrimitive.Instances[InstanceIndex];
-							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
-
-							const FBox& RenderBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
-
-							LumenInstance.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.InstanceToLocal * LocalToWorld);
-							LumenInstance.MeshCardsIndex = -1;
-							LumenInstance.bValidMeshCards = true;
-
-							LumenPrimitive.MaxCardExtent = FMath::Max(LumenPrimitive.MaxCardExtent, LumenInstance.WorldSpaceBoundingBox.GetExtent().GetMax());
-						}
+						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+						PrimitiveGroup.RayTracingGroupMapElementId = RayTracingGroupMapElementId;
+						PrimitiveGroup.PrimitiveInstanceIndex = -1;
+						PrimitiveGroup.CardResolutionScale = 1.0f;
+						PrimitiveGroup.WorldSpaceBoundingBox = ScenePrimitiveInfo->Proxy->GetBounds().GetBox();
+						PrimitiveGroup.MeshCardsIndex = -1;
+						PrimitiveGroup.bValidMeshCards = true;
+						PrimitiveGroup.Primitives.Reset();
+						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 					}
 				}
 				else
 				{
-					LumenPrimitive.Instances.SetNum(1);
-					LumenPrimitive.Instances[0].WorldSpaceBoundingBox = LumenPrimitive.WorldSpaceBoundingBox;
-					LumenPrimitive.Instances[0].MeshCardsIndex = -1;
-					LumenPrimitive.Instances[0].bValidMeshCards = true;
+					const FMatrix& LocalToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
+
+					bool bMergedInstances = false;
+
+					if (PrimitiveInstances && NumInstances > 1)
+					{
+						// Check if we can merge all instances into one MeshCards
+						extern int32 GLumenMeshCardsMergeInstances;
+						extern float GLumenMeshCardsMergedMaxWorldSize;
+						if (GLumenMeshCardsMergeInstances
+							&& NumInstances > 1
+							&& ScenePrimitiveInfo->Proxy->GetBounds().GetBox().GetSize().GetMax() < GLumenMeshCardsMergedMaxWorldSize)
+						{
+							FBox LocalBounds;
+							LocalBounds.Init();
+							double TotalInstanceSurfaceArea = 0;
+
+							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+							{
+								const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
+								const FBox InstanceLocalBounds = Instance.RenderBounds.GetBox().TransformBy(Instance.InstanceToLocal);
+								LocalBounds += InstanceLocalBounds;
+								const double InstanceSurfaceArea = BoxSurfaceArea(InstanceLocalBounds.GetExtent());
+								TotalInstanceSurfaceArea += InstanceSurfaceArea;
+							}
+
+							const double BoundsSurfaceArea = BoxSurfaceArea(LocalBounds.GetExtent());
+							const float SurfaceAreaRatio = BoundsSurfaceArea / TotalInstanceSurfaceArea;
+
+							extern float GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio;
+							extern float GLumenMeshCardsMergedResolutionScale;
+
+							if (SurfaceAreaRatio < GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio)
+							{
+								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
+								ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
+
+								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+								PrimitiveGroup.PrimitiveInstanceIndex = -1;
+								PrimitiveGroup.CardResolutionScale = FMath::Sqrt(1.0f / SurfaceAreaRatio) * GLumenMeshCardsMergedResolutionScale;
+								PrimitiveGroup.WorldSpaceBoundingBox = LocalBounds.TransformBy(LocalToWorld);
+								PrimitiveGroup.MeshCardsIndex = -1;
+								PrimitiveGroup.bValidMeshCards = true;
+								PrimitiveGroup.Primitives.Reset();
+								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
+
+								bMergedInstances = true;
+							}
+
+							#define LOG_LUMEN_PRIMITIVE_ADDS 0
+							#if LOG_LUMEN_PRIMITIVE_ADDS
+							{
+								UE_LOG(LogRenderer, Log, TEXT("AddLumenPrimitive %s: Instances: %u, Merged: %u, SurfaceAreaRatio: %.1f"),
+									*LumenPrimitive.Primitive->Proxy->GetOwnerName().ToString(),
+									NumInstances,
+									LumenPrimitive.bMergedInstances ? 1 : 0,
+									SurfaceAreaRatio);
+							}
+							#endif
+						}
+
+						if (!bMergedInstances)
+						{
+							ScenePrimitiveInfo->LumenPrimitiveGroupIndices.SetNum(NumInstances);
+
+							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+							{
+								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
+								ScenePrimitiveInfo->LumenPrimitiveGroupIndices[InstanceIndex] = PrimitiveGroupIndex;
+
+								const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
+								const FBox& RenderBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
+
+								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+								PrimitiveGroup.PrimitiveInstanceIndex = InstanceIndex;
+								PrimitiveGroup.CardResolutionScale = 1.0f;
+								PrimitiveGroup.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.InstanceToLocal * LocalToWorld);
+								PrimitiveGroup.MeshCardsIndex = -1;
+								PrimitiveGroup.bValidMeshCards = true;
+								PrimitiveGroup.Primitives.Reset();
+								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
+							}
+						}
+					}
+					else
+					{
+						const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.Allocate();
+						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
+
+						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+						PrimitiveGroup.PrimitiveInstanceIndex = 0;
+						PrimitiveGroup.CardResolutionScale = 1.0f;
+						PrimitiveGroup.WorldSpaceBoundingBox = ScenePrimitiveInfo->Proxy->GetBounds().GetBox();
+						PrimitiveGroup.MeshCardsIndex = -1;
+						PrimitiveGroup.bValidMeshCards = true;
+						PrimitiveGroup.Primitives.Reset();
+						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
+					}
 				}
 			}
 		}
@@ -701,44 +766,28 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 		{
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = *It;
 
-			if (PrimitiveSceneInfo->LumenPrimitiveIndex >= 0)
+			if (PrimitiveSceneInfo->LumenPrimitiveGroupIndices.Num() > 0)
 			{
-				FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[PrimitiveSceneInfo->LumenPrimitiveIndex];
-				LumenPrimitive.WorldSpaceBoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
-				LumenPrimitive.MaxCardExtent = LumenPrimitive.WorldSpaceBoundingBox.GetExtent().GetMax();
+				const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
+				const FMatrix& PrimitiveLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+				const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
 
-				const TArray<FPrimitiveInstance>* PrimitiveInstances = LumenPrimitive.Primitive->Proxy->GetPrimitiveInstances();
-
-				if (LumenPrimitive.bMergedInstances)
+				for (int32 PrimitiveGroupIndex : PrimitiveSceneInfo->LumenPrimitiveGroupIndices)
 				{
-					FMatrix LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+					FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
 
-					FMeshCardsBuildData MeshCardsBuildData;
-					BuildMeshCardsDataForMergedInstances(PrimitiveSceneInfo, MeshCardsBuildData);
-					LumenSceneData.UpdateMeshCards(LocalToWorld, LumenPrimitive.Instances[0].MeshCardsIndex, MeshCardsBuildData);
-				}
-				else
-				{
-					LumenPrimitive.MaxCardExtent = 0.0f;
-
-					for (int32 LumenInstanceIndex = 0; LumenInstanceIndex < LumenPrimitive.Instances.Num(); ++LumenInstanceIndex)
+					if (PrimitiveGroup.PrimitiveInstanceIndex >= 0)
 					{
-						FLumenPrimitiveInstance& LumenInstance = LumenPrimitive.Instances[LumenInstanceIndex];
-						FBox WorldSpaceBoundingBox = LumenPrimitive.WorldSpaceBoundingBox;
-						const FMatrix& LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+						FBox WorldSpaceBoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
 
-						if (PrimitiveInstances && LumenInstanceIndex < PrimitiveInstances->Num())
+						if (PrimitiveInstances && PrimitiveGroup.PrimitiveInstanceIndex < PrimitiveInstances->Num())
 						{
-							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[LumenInstanceIndex];
-							WorldSpaceBoundingBox = PrimitiveInstance.RenderBounds.GetBox().TransformBy(PrimitiveInstance.InstanceToLocal * LocalToWorld);
+							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[PrimitiveGroup.PrimitiveInstanceIndex];
+							WorldSpaceBoundingBox = PrimitiveInstance.RenderBounds.GetBox().TransformBy(PrimitiveInstance.InstanceToLocal * PrimitiveLocalToWorld);
 						}
 
-						const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
-
-						LumenInstance.WorldSpaceBoundingBox = WorldSpaceBoundingBox;
-						LumenSceneData.UpdateMeshCards(LocalToWorld, LumenInstance.MeshCardsIndex, CardRepresentationData->MeshCardsBuildData);
-
-						LumenPrimitive.MaxCardExtent = FMath::Max(LumenPrimitive.MaxCardExtent, LumenInstance.WorldSpaceBoundingBox.GetExtent().GetMax());
+						PrimitiveGroup.WorldSpaceBoundingBox = WorldSpaceBoundingBox;
+						LumenSceneData.UpdateMeshCards(PrimitiveLocalToWorld, PrimitiveGroup.MeshCardsIndex, CardRepresentationData->MeshCardsBuildData);
 					}
 				}
 			}
@@ -755,16 +804,11 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 void FLumenSceneData::RemoveAllMeshCards()
 {
 	LLM_SCOPE_BYTAG(Lumen);
-	TRACE_CPUPROFILER_EVENT_SCOPE(RemoveAllCards);
 	QUICK_SCOPE_CYCLE_COUNTER(RemoveAllCards);
 
-	for (int32 LumenPrimitiveIndex = 0; LumenPrimitiveIndex < LumenPrimitives.Num(); ++LumenPrimitiveIndex)
+	for (FLumenPrimitiveGroup& PrimitiveGroup : PrimitiveGroups)
 	{
-		FLumenPrimitive& LumenPrimitive = LumenPrimitives[LumenPrimitiveIndex];
-		for (FLumenPrimitiveInstance& Instance : LumenPrimitive.Instances)
-		{
-			RemoveMeshCards(LumenPrimitive.Primitive->GetIndex(), LumenPrimitive, Instance);
-		}
+		RemoveMeshCards(PrimitiveGroup);
 	}
 }
 
@@ -1215,34 +1259,33 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 		}
 	}
 
-	int32 NumLumenPrimitives = 0;
-	int32 NumLumenPrimitiveInstances = 0;
+	int32 NumPrimitiveGroups = 0;
+	int32 NumPrimitivesMerged = 0;
 	int32 NumInstancesMerged = 0;
 	int32 NumMeshCards = 0;
-	SIZE_T LumenPrimitiveInstanceAllocatedMemory = 0;
+	SIZE_T PrimitiveGroupsAllocatedMemory = PrimitiveGroups.GetAllocatedSize();
 
-	for (const FLumenPrimitive& LumenPrimitive : LumenPrimitives)
+	for (const FLumenPrimitiveGroup& PrimitiveGroup : PrimitiveGroups)
 	{
-		++NumLumenPrimitives;
-		LumenPrimitiveInstanceAllocatedMemory += LumenPrimitive.Instances.GetAllocatedSize();
+		++NumPrimitiveGroups;
 
-		if (LumenPrimitive.bMergedInstances)
+		if (PrimitiveGroup.HasMergedInstances())
 		{
-			const TArray<FPrimitiveInstance>* PrimitiveInstances = LumenPrimitive.Primitive->Proxy->GetPrimitiveInstances();
-			if (PrimitiveInstances)
+			for (const FPrimitiveSceneInfo* ScenePrimitive : PrimitiveGroup.Primitives)
 			{
-				NumInstancesMerged += PrimitiveInstances->Num();
+				++NumPrimitivesMerged;
+
+				const TArray<FPrimitiveInstance>* PrimitiveInstances = ScenePrimitive->Proxy->GetPrimitiveInstances();
+				if (PrimitiveInstances)
+				{
+					NumInstancesMerged += PrimitiveInstances->Num();
+				}
 			}
 		}
 
-		for (const FLumenPrimitiveInstance& LumenPrimitiveInstance : LumenPrimitive.Instances)
+		if (PrimitiveGroup.MeshCardsIndex >= 0)
 		{
-			++NumLumenPrimitiveInstances;
-
-			if (LumenPrimitiveInstance.MeshCardsIndex >= 0)
-			{
-				++NumMeshCards;
-			}
+			++NumMeshCards;
 		}
 	}
 
@@ -1251,8 +1294,8 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 
 	UE_LOG(LogRenderer, Log, TEXT("*** LumenScene Stats ***"));
 	UE_LOG(LogRenderer, Log, TEXT("  Mesh SDF Objects: %d"), DistanceFieldSceneData.NumObjectsInBuffer);
-	UE_LOG(LogRenderer, Log, TEXT("  Lumen Primitives: %d"), NumLumenPrimitives);
-	UE_LOG(LogRenderer, Log, TEXT("  Lumen Primitive Instances: %d"), NumLumenPrimitiveInstances);
+	UE_LOG(LogRenderer, Log, TEXT("  Primitive groups: %d"), NumPrimitiveGroups);
+	UE_LOG(LogRenderer, Log, TEXT("  Merged primitives: %d"), NumPrimitivesMerged);
 	UE_LOG(LogRenderer, Log, TEXT("  Merged instances: %d"), NumInstancesMerged);
 	UE_LOG(LogRenderer, Log, TEXT("  Mesh cards: %d"), NumMeshCards);
 	UE_LOG(LogRenderer, Log, TEXT("  Cards: %d"), NumCards);
@@ -1271,8 +1314,7 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("  Hi-res pages to add: %d"), NumHiResPagesToAdd);
 
 	UE_LOG(LogRenderer, Log, TEXT("*** CPU Memory ***"));
-	UE_LOG(LogRenderer, Log, TEXT("  Primitives allocated memory: %.3fMb"), LumenPrimitives.GetAllocatedSize() / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  Instances allocated memory: %.3fMb"), LumenPrimitiveInstanceAllocatedMemory / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  Primitive groups allocated memory: %.3fMb"), PrimitiveGroups.GetAllocatedSize() / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  Cards allocated memory: %.3fMb"), Cards.GetAllocatedSize() / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  MeshCards allocated memory: %.3fMb"), MeshCards.GetAllocatedSize() / (1024.0f * 1024.0f));
 

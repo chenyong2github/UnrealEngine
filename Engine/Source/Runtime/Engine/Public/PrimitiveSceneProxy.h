@@ -618,6 +618,8 @@ public:
 	inline bool IsForceHidden() const {return bForceHidden;}
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
 	inline bool ShouldUpdateGPUSceneTransforms() const { return bShouldUpdateGPUSceneTransforms; }
+	inline int32 GetRayTracingGroupId() const { return RayTracingGroupId; }
+	inline uint8 GetRayTracingGroupCullingPriority() const { return RayTracingGroupCullingPriority; }
 
 	/** Returns whether draws velocity in base pass. */
 	inline bool DrawsVelocity() const
