@@ -353,6 +353,7 @@ namespace LLMPrivate
 	class FLLMCsvWriter;
 	class FLLMThreadState;
 	class FLLMTraceWriter;
+	class FLLMCsvProfilerWriter;
 	class FLLMTracker;
 
 	namespace AllocatorPrivate
@@ -573,6 +574,7 @@ private:
 	friend class UE::LLMPrivate::FLLMTracker;
 	friend class UE::LLMPrivate::FLLMThreadState;
 	friend class UE::LLMPrivate::FLLMTraceWriter;
+	friend class UE::LLMPrivate::FLLMCsvProfilerWriter;
 	friend void GlobalRegisterTagDeclaration(FLLMTagDeclaration& TagDeclaration);
 
 	UE::LLMPrivate::FLLMAllocator Allocator;
