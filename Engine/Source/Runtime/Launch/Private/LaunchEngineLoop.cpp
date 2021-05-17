@@ -6077,6 +6077,8 @@ void FEngineLoop::AppExit()
 
 	FTextLocalizationManager::TearDown();
 	FInternationalization::TearDown();
+
+	FTraceAuxiliary::Shutdown();
 }
 
 void FEngineLoop::PostInitRHI()
