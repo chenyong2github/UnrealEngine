@@ -527,6 +527,7 @@ public:
 	inline EIndirectLightingCacheQuality GetIndirectLightingCacheQuality() const { return IndirectLightingCacheQuality; }
 	inline bool CastsVolumetricTranslucentShadow() const { return bCastVolumetricTranslucentShadow; }
 	inline bool CastsContactShadow() const { return bCastContactShadow; }
+	inline bool CastsDeepShadow() const { return bCastDeepShadow; }
 	inline bool CastsCapsuleDirectShadow() const { return bCastCapsuleDirectShadow; }
 	inline bool CastsDynamicIndirectShadow() const { return bCastsDynamicIndirectShadow; }
 	inline float GetDynamicIndirectShadowMinVisibility() const { return DynamicIndirectShadowMinVisibility; }
@@ -873,6 +874,9 @@ protected:
 
 	/** Whether the object should cast a contact shadow */
 	uint8 bCastContactShadow : 1;
+
+	/** Whether the object should cast a deep shadow */
+	uint8 bCastDeepShadow : 1;
 
 	/** Whether the primitive should use capsules for direct shadowing, if present.  Forces inset shadows. */
 	uint8 bCastCapsuleDirectShadow : 1;

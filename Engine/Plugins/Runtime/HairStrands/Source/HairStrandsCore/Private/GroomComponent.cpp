@@ -404,6 +404,7 @@ public:
 	{
 		// Forcing primitive uniform as we don't support robustly GPU scene data
 		bVFRequiresPrimitiveUniformBuffer = true;
+		bCastDeepShadow = true;
 
 		HairGroupInstances = Component->HairGroupInstances;
 		check(Component);

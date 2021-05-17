@@ -122,6 +122,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bCastStaticShadow(InComponent->CastShadow && InComponent->bCastStaticShadow)
 ,	bCastVolumetricTranslucentShadow(InComponent->bCastDynamicShadow && InComponent->CastShadow && InComponent->bCastVolumetricTranslucentShadow)
 ,	bCastContactShadow(InComponent->CastShadow && InComponent->bCastContactShadow)
+,	bCastDeepShadow(false)
 ,	bCastCapsuleDirectShadow(false)
 ,	bCastsDynamicIndirectShadow(false)
 ,	bCastHiddenShadow(InComponent->bCastHiddenShadow)
