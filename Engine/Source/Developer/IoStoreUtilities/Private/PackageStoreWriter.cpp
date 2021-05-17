@@ -15,6 +15,7 @@ FPackageStoreWriter::FPackageStoreWriter(const FString& InOutputPath, const ITar
 {
 	FIoStoreWriterSettings WriterSettings;
 	WriterSettings.CompressionMethod = NAME_Zlib;
+	WriterSettings.InitializePlatformSpecificSettings(InTargetPlatform);
 	FIoStatus IoStatus = IoStoreWriterContext->Initialize(WriterSettings);
 	check(IoStatus.IsOk());
 	FIoContainerSettings ContainerSettings;

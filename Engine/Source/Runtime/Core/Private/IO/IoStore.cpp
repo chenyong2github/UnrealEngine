@@ -17,6 +17,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Serialization/MemoryWriter.h"
 #include "Async/AsyncFileHandle.h"
+#include "Interfaces/ITargetPlatform.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -146,6 +147,8 @@ struct FChunkBlock
 	uint64 CompressedSize = 0;
 	uint64 UncompressedSize = 0;
 	FName CompressionMethod = NAME_None;
+	int32 CompressionMinBytesSaved = 0;
+	int32 CompressionMinPercentSaved = 0;
 	FSHAHash Signature;
 };
 
@@ -997,6 +1000,8 @@ private:
 			FChunkBlock& Block = Entry->ChunkBlocks[BlockIndex];
 			Block.IoBuffer = WriterContext->AllocCompressionBuffer(int32(NumChunkBlocks));
 			Block.CompressionMethod = CompressionMethod;
+			Block.CompressionMinBytesSaved = WriterSettings.CompressionMinBytesSaved;
+			Block.CompressionMinPercentSaved = WriterSettings.CompressionMinPercentSaved;
 			Block.UncompressedSize = FMath::Min(BytesToProcess, WriterSettings.CompressionBlockSize);
 			Block.UncompressedData = UncompressedData;
 			BytesToProcess -= Block.UncompressedSize;
@@ -1026,6 +1031,8 @@ private:
 				TRACE_CPUPROFILER_EVENT_SCOPE(CompressMemory);
 				bCompressed = FCompression::CompressMemoryIfWorthDecompressing(
 					Block->CompressionMethod,
+					Block->CompressionMinBytesSaved,
+					Block->CompressionMinPercentSaved,
 					Block->IoBuffer->Data(),
 					CompressedBlockSize,
 					Block->UncompressedData,
@@ -2042,4 +2049,12 @@ void FIoStoreReader::GetFilenamesByBlockIndex(const TArray<int32>& InBlockIndexL
 
 			return true;
 		});
+}
+
+void FIoStoreWriterSettings::InitializePlatformSpecificSettings(const ITargetPlatform* TargetPlatform)
+{
+	FConfigCacheIni* PlatformConfig = TargetPlatform->GetConfigSystem();
+	const TCHAR* IniSection = TEXT("/Script/UnrealEd.ProjectPackagingSettings");
+	PlatformConfig->GetInt(IniSection, TEXT("PackageCompressionMinBytesSaved"), CompressionMinBytesSaved, GGameIni);
+	PlatformConfig->GetInt(IniSection, TEXT("PackageCompressionMinPercentSaved"), CompressionMinPercentSaved, GGameIni);
 }
