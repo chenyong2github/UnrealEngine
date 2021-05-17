@@ -1559,7 +1559,6 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Subsystems.
 	FURL::StaticInit();
-	FLinkerLoad::StaticInit(UTexture2D::StaticClass());
 	EngineSubsystemCollection->Initialize(this);
 
 #if !UE_BUILD_SHIPPING

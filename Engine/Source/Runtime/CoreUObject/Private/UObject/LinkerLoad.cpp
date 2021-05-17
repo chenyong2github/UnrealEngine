@@ -73,8 +73,6 @@ static FAutoConsoleVariableRef CVarLinkerAllowDynamicClasses(
 	);
 #endif
 
-UClass* FLinkerLoad::UTexture2DStaticClass = NULL;
-
 FName FLinkerLoad::NAME_LoadErrors("LoadErrors");
 
 
@@ -413,11 +411,6 @@ static FORCEINLINE bool IsCoreUObjectPackage(const FName& PackageName)
 /*----------------------------------------------------------------------------
 	FLinkerLoad.
 ----------------------------------------------------------------------------*/
-
-void FLinkerLoad::StaticInit(UClass* InUTexture2DStaticClass)
-{
-	UTexture2DStaticClass = InUTexture2DStaticClass;
-}
 
 FLinkerLoad* FLinkerLoad::CreateLinker(FUObjectSerializeContext* LoadContext, UPackage* Parent, const TCHAR* Filename, uint32 LoadFlags, FArchive* InLoader, const FLinkerInstancingContext* InstancingContext)
 {
