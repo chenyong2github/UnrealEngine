@@ -127,9 +127,9 @@ namespace HordeServerTests
 
 			IProject Project = TestSetup.ProjectCollection.TryAddAsync(new ProjectId("ue4"), "UE4").Result!;
 
-			IStream MainStream = TestSetup.StreamCollection.TryCreateAsync(MainStreamId, MainStreamName, Project.Id).Result!;
-			IStream ReleaseStream = TestSetup.StreamCollection.TryCreateAsync(ReleaseStreamId, ReleaseStreamName, Project.Id).Result!;
-			IStream DevStream = TestSetup.StreamCollection.TryCreateAsync(DevStreamId, DevStreamName, Project.Id).Result!;
+			IStream MainStream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(MainStreamId, null, "", Project.Id, new StreamConfig { Name = MainStreamName }).Result!;
+			IStream ReleaseStream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(ReleaseStreamId, null, "", Project.Id, new StreamConfig { Name = ReleaseStreamName }).Result!;
+			IStream DevStream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(DevStreamId, null, "", Project.Id, new StreamConfig { Name = DevStreamName }).Result!;
 
 			Perforce = TestSetup.PerforceService;
 			Perforce.AddChange(MainStreamName, 100, "Bill", "Description", new string[] { "a/b.cpp" });

@@ -27,8 +27,6 @@ namespace HordeServerTests
 		public IStream? Stream { get; private set; }
 		public TemplateRefId TemplateRefId1 { get; private set; }
 		public TemplateRefId TemplateRefId2 { get; private set; }
-		public TemplateRef TemplateRef1 { get; private set; } = null!;
-		public TemplateRef TemplateRef2 { get; private set; } = null!;
 		public Artifact Job1Artifact { get; private set; } = null!;
 		public string Job1ArtifactData { get; private set; } = null!;
 		public IAgent Agent1 { get; private set; } = null!;
@@ -65,29 +63,20 @@ namespace HordeServerTests
 
 			TemplateRefId1 = new TemplateRefId("template1");
 			TemplateRefId2 = new TemplateRefId("template2");
-			TemplateRef1 = new TemplateRef(Template, false, false, null, null, null);
-			TemplateRef2 = new TemplateRef(Template, false, false, null, null, null);
 
-			Dictionary<TemplateRefId, TemplateRef> TemplateRefs = new Dictionary<TemplateRefId, TemplateRef>
-			{
-				{TemplateRefId1, TemplateRef1},
-				{TemplateRefId2, TemplateRef2}
-			};
-			
-			List<StreamTab> Tabs = new List<StreamTab>();
-			Tabs.Add(new JobsTab("foo", true, new List<TemplateRefId> { TemplateRefId1, TemplateRefId2 }, new List<string>(), new List<JobsTabColumn>()));
+			List<CreateTemplateRefRequest> Templates = new List<CreateTemplateRefRequest>();
+			Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId1.ToString(), Name = "Test Template" });
+			Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId2.ToString(), Name = "Test Template" });
 
-			Stream = await StreamService.TryCreateStreamAsync(
-				Id: new StreamId("ue5-main"),
-				Name: "//UE5/Main",
-				ProjectId: new ProjectId("does-not-exist"),
-				Order: null,
-				Tabs: Tabs,
-				AgentTypes: null,
-				WorkspaceTypes: null,
-				TemplateRefs: TemplateRefs,
-				Properties: null,
-				Acl: null
+			List<CreateStreamTabRequest> Tabs = new List<CreateStreamTabRequest>();
+			Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId1.ToString(), TemplateRefId2.ToString() } });
+
+			Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(
+				new StreamId("ue5-main"),
+				null,
+				"",
+				new ProjectId("does-not-exist"),
+				new StreamConfig { Name = "//UE5/Main", Tabs = Tabs, Templates = Templates }
 			);
 			
 			Job1 = await JobService.CreateJobAsync(
