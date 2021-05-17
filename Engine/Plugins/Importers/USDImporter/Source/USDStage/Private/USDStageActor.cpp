@@ -1324,6 +1324,8 @@ void AUsdStageActor::CloseUsdStage()
 {
 	FUsdStageActorImpl::DiscardStage( UsdStage, this );
 	UsdStage = UE::FUsdStage();
+	LevelSequenceHelper.Init( UE::FUsdStage() ); // Drop the helper's reference to the stage
+	OnStageChanged.Broadcast();
 }
 
 #if WITH_EDITOR
@@ -1559,7 +1561,6 @@ void AUsdStageActor::UnloadUsdStage()
 		LevelSequence = nullptr;
 	}
 	LevelSequenceHelper.Clear();
-	LevelSequenceHelper.Init( UE::FUsdStage() ); // Drop the helper's reference to the stage
 
 	if ( RootUsdTwin )
 	{
@@ -1670,26 +1671,28 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		{
 			OpenUsdStage();
 		}
-
-		OnStageChanged.Broadcast();
 	}
 
-	// If we're in a sublevel that is hidden, we'll respond to the generated PostUnregisterAllComponent call
-	// and unload our spawned actors/assets, so let's close/open the stage too
-	if ( ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEdLevel ) ) ||
-		 ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEdLayer ) ) ||
-		 ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEd ) ) )
+	// If we're in the persistent level don't do anything, because hiding/showing the persistent level doesn't
+	// cause actors to load/unload like it does if they're in sublevels
+	ULevel* CurrentLevel = GetLevel();
+	if ( CurrentLevel && !CurrentLevel->IsPersistentLevel() )
 	{
-		if ( IsHiddenEd() )
+		// If we're in a sublevel that is hidden, we'll respond to the generated PostUnregisterAllComponent call
+		// and unload our spawned actors/assets, so let's close/open the stage too
+		if ( ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEdLevel ) ) ||
+			 ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEdLayer ) ) ||
+			 ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEd ) ) )
 		{
-			CloseUsdStage();
+			if ( IsHiddenEd() )
+			{
+				CloseUsdStage();
+			}
+			else
+			{
+				OpenUsdStage();
+			}
 		}
-		else
-		{
-			OpenUsdStage();
-		}
-
-		OnStageChanged.Broadcast();
 	}
 
 	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
@@ -1707,8 +1710,6 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 			CloseUsdStage();
 			OpenUsdStage();
 			ReloadAnimations();
-
-			OnStageChanged.Broadcast();
 		}
 		else if (ChangedProperties.Contains(GET_MEMBER_NAME_CHECKED(AUsdStageActor, Time)))
 		{
@@ -1869,8 +1870,10 @@ void AUsdStageActor::PostRegisterAllComponents()
 	const bool bIsLevelHidden = !Level || ( !Level->bIsVisible && !Level->bIsAssociatingLevel );
 
 	// We get an inactive world when dragging a ULevel asset
+	// Prevent loading on bHiddenEdLevel because PostRegisterAllComponents gets called in the process of hiding our level, if we're in the persistent level.
+	// This is just hiding though, so we shouldn't actively load/unload anything
 	UWorld* World = GetWorld();
-	if ( IsTemplate() || bIsTransitioningIntoPIE || !World || World->WorldType == EWorldType::Inactive || bIsLevelHidden || bIsModifyingAProperty || bIsUndoRedoing )
+	if ( IsTemplate() || bIsTransitioningIntoPIE || !World || World->WorldType == EWorldType::Inactive || bIsLevelHidden || bIsModifyingAProperty || bIsUndoRedoing || bHiddenEdLevel )
 	{
 		return;
 	}
