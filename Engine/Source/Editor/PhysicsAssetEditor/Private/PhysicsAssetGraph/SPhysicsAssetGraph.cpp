@@ -82,6 +82,8 @@ void SPhysicsAssetGraph::Construct(const FArguments& InArgs, const TSharedRef<FP
 	];
 
 	BlockSelectionBroadcastCounter = 2;
+
+	GEditor->RegisterForUndo(this);
 }
 
 FActionMenuContent SPhysicsAssetGraph::OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
@@ -178,6 +180,16 @@ void SPhysicsAssetGraph::Tick(const FGeometry& AllottedGeometry, const double In
 	}
 
 	BlockSelectionBroadcastCounter--;
+}
+
+void SPhysicsAssetGraph::PostUndo(bool bSuccess)
+{
+	GraphObj->RebuildGraph();
+}
+
+void SPhysicsAssetGraph::PostRedo(bool bSuccess)
+{
+	GraphObj->RebuildGraph();
 }
 
 #undef LOCTEXT_NAMESPACE
