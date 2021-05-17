@@ -9,6 +9,7 @@ public class DisplayClusterEditor : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"CinematicCamera",
 				"Core",
 				"CoreUObject",
 				"DisplayCluster",
@@ -18,7 +19,7 @@ public class DisplayClusterEditor : ModuleRules
 				"PropertyEditor",
 				"Slate",
 				"SlateCore",
-				"UnrealEd"
+				"UnrealEd",
 			});
 	}
 }

@@ -666,7 +666,7 @@ public:
 		}
 	}
 
-	static bool IsShouldUseLightcard(const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings)
+	static bool ShouldUseLightcard(const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings)
 	{
 		if (InLightcardSettings.bEnable == false)
 		{

@@ -11,7 +11,7 @@
 #include "Components/DisplayClusterXformComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
 
-#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
@@ -437,7 +437,7 @@ void SDisplayClusterConfiguratorComponentClassCombo::GenerateComponentClassList(
 	AddDCComp(UDisplayClusterCameraComponent::StaticClass());
 
 	AddHeader("nDisplay ICVFX Components");
-	AddDCComp(UDisplayClusterICVFX_CineCameraComponent::StaticClass());
+	AddDCComp(UDisplayClusterICVFXCameraComponent::StaticClass());
 
 	int32 CompIterationIdx = 0;
 	for (const TSharedPtr<FComponentClassComboEntry>& Comp : *ComponentClassListPtr)

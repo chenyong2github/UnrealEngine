@@ -6,7 +6,7 @@
 #include "Containers/DisplayClusterProjectionCameraPolicySettings.h"
 #include "Misc/DisplayClusterObjectRef.h"
 
-class UDisplayClusterICVFX_CineCameraComponent;
+class UDisplayClusterICVFXCameraComponent;
 class UCameraComponent;
 class UWorld;
 
@@ -41,13 +41,13 @@ public:
 
 protected:
 	bool GetSettingsFromConfig(class IDisplayClusterViewport* InViewport, USceneComponent*& OutSceneComponent, FDisplayClusterProjectionCameraPolicySettings& OutCameraSettings);
-	bool UpdateICVFXCamera(UDisplayClusterICVFX_CineCameraComponent* InComponentICVFX);
+	bool UpdateICVFXCamera(UDisplayClusterICVFXCameraComponent* InComponentICVFX);
 
 	UCameraComponent* GetCameraComponent();
 
 private:
 	UCameraComponent* ImplGetAssignedCamera();
-	UDisplayClusterICVFX_CineCameraComponent* ImplGetAssignedICVFXComponent();
+	UDisplayClusterICVFXCameraComponent* ImplGetAssignedICVFXComponent();
 
 private:
 	// Camera to use for rendering

@@ -12,7 +12,7 @@
 #include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorProjectionPolicyViewModel.h"
 
 #include "Components/DisplayClusterScreenComponent.h"
-#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "Camera/CameraComponent.h"
 
