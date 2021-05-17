@@ -42,6 +42,9 @@ public:
 	virtual bool IsNodeEnabled() const override;
 	virtual bool IsNodeAutoPositioned() const { return !CanUserMoveNode(); }
 	virtual bool IsNodeAutosized() const override { return !CanUserResizeNode(); }
+	virtual bool CanNodeOverlapSiblings() const override { return false; }
+	virtual bool CanNodeEncroachChildBounds() const { return false; }
+
 	virtual void DeleteObject() override;
 
 protected:

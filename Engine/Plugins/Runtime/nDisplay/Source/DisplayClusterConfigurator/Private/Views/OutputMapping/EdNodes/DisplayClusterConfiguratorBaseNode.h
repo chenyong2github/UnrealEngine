@@ -100,6 +100,9 @@ public:
 	virtual bool IsNodeEnabled() const { return true; }
 	virtual bool IsNodeAutoPositioned() const { return false; }
 	virtual bool IsNodeAutosized() const { return false; }
+	virtual bool CanNodeOverlapSiblings() const { return true; }
+	virtual bool CanNodeExceedParentBounds() const { return true; }
+	virtual bool CanNodeEncroachChildBounds() const { return true; }
 
 	virtual void FillParent(bool bRepositionNode = true);
 	virtual void SizeToChildren(bool bRepositionNode = true);
@@ -113,8 +116,9 @@ public:
 	virtual void TickPosition() { }
 
 	virtual bool IsUserInteractingWithNode(bool bCheckDescendents = false) const;
-	virtual void MarkUserInteractingWithNode() { bIsUserInteractingWithNode = true; }
-	virtual void ClearUserInteractingWithNode() { bIsUserInteractingWithNode = false; }
+	virtual bool IsUserDirectlyInteractingWithNode() const { return bIsDirectInteraction; }
+	virtual void MarkUserInteractingWithNode(bool bInIsDirectInteraction) { bIsUserInteractingWithNode = true; bIsDirectInteraction = bInIsDirectInteraction; }
+	virtual void ClearUserInteractingWithNode() { bIsUserInteractingWithNode = bIsDirectInteraction = false;  }
 
 	virtual void UpdateNode();
 	virtual void UpdateObject();
@@ -126,18 +130,18 @@ public:
 	virtual FVector2D FindNonOverlappingOffset(UDisplayClusterConfiguratorBaseNode* InNode, const FVector2D& InDesiredOffset) const;
 	virtual FVector2D FindNonOverlappingSize(UDisplayClusterConfiguratorBaseNode* InNode, const FVector2D& InDesiredSize, const bool bFixedApsectRatio) const;
 
-	virtual FVector2D FindNonOverlappingOffsetFromParent(const FVector2D& InDesiredOffset);
+	virtual FVector2D FindNonOverlappingOffsetFromParent(const FVector2D& InDesiredOffset, const TSet<UDisplayClusterConfiguratorBaseNode*>& NodesToIgnore = TSet<UDisplayClusterConfiguratorBaseNode*>());
 	virtual FVector2D FindBoundedOffsetFromParent(const FVector2D& InDesiredOffset);
 	virtual FVector2D FindNonOverlappingSizeFromParent(const FVector2D& InDesiredSize, const bool bFixedApsectRatio);
 	virtual FVector2D FindBoundedSizeFromParent(const FVector2D& InDesiredSize, const bool bFixedApsectRatio);
 	virtual FVector2D FindBoundedSizeFromChildren(const FVector2D& InDesiredSize, const bool bFixedApsectRatio);
 
-	virtual FNodeAlignmentPair GetTranslationAlignments(const FVector2D& InOffset, const FNodeAlignmentParams& AlignmentParams) const;
-	virtual FNodeAlignmentPair GetResizeAlignments(const FVector2D& InSizeChange, const FNodeAlignmentParams& AlignmentParams) const;
+	virtual FNodeAlignmentPair GetTranslationAlignments(const FVector2D& InOffset, const FNodeAlignmentParams& AlignmentParams, const TSet<UDisplayClusterConfiguratorBaseNode*>& NodesToIgnore = TSet<UDisplayClusterConfiguratorBaseNode*>()) const;
+	virtual FNodeAlignmentPair GetResizeAlignments(const FVector2D& InSizeChange, const FNodeAlignmentParams& AlignmentParams, const TSet<UDisplayClusterConfiguratorBaseNode*>& NodesToIgnore = TSet<UDisplayClusterConfiguratorBaseNode*>()) const;
 
 protected:
 	virtual bool CanAlignWithParent() const { return false; }
-	virtual FNodeAlignmentPair GetAlignments(const FNodeAlignmentAnchors& TransformedAnchors, const FNodeAlignmentParams& AlignmentParams) const;
+	virtual FNodeAlignmentPair GetAlignments(const FNodeAlignmentAnchors& TransformedAnchors, const FNodeAlignmentParams& AlignmentParams, const TSet<UDisplayClusterConfiguratorBaseNode*>& NodesToIgnore) const;
 
 	virtual void WriteNodeStateToObject() { }
 	virtual void ReadNodeStateFromObject() { }
@@ -171,4 +175,5 @@ protected:
 	int32 NodeZIndex;
 
 	bool bIsUserInteractingWithNode;
+	bool bIsDirectInteraction;
 };
