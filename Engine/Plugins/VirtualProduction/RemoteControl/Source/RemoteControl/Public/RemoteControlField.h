@@ -208,6 +208,10 @@ public:
 	TSharedPtr<class FStructOnScope> FunctionArguments;
 
 private:
+	/** Parse function metadata to get the function's default parameters */
+	void AssignDefaultFunctionArguments();
+
+private:
 	/** Whether the function is callable in a packaged build. */
 	UPROPERTY()
 	bool bIsCallableInPackaged = false;
@@ -219,9 +223,6 @@ private:
 	/** Cached resolved underlying function used to avoid doing a findobject while serializing. */
 	mutable TWeakObjectPtr<UFunction> CachedFunction;
 
-private:
-	/** Parse function metadata to get the function`s default parameters */
-	void AssignDefaultFunctionArguments();
 };
 
 template<> struct TStructOpsTypeTraits<FRemoteControlFunction> : public TStructOpsTypeTraitsBase2<FRemoteControlFunction>

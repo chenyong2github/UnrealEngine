@@ -9,6 +9,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "Templates/PimplPtr.h"
 #include "Templates/UnrealTypeTraits.h"
+
 #include "RemoteControlPreset.generated.h"
 
 class AActor;
@@ -18,6 +19,7 @@ struct FRCFieldPathInfo;
 struct FRemoteControlActor;
 struct FRemoteControlPresetLayout;
 class FRemoteControlPresetRebindingManager;
+class UBlueprint;
 class URemoteControlExposeRegistry;
 class URemoteControlBinding;
 class URemoteControlPreset;
@@ -780,6 +782,7 @@ private:
 	void OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap);
 	void OnEndFrame();
 	void OnMapChange(uint32 /*MapChangeFlags*/);
+	void OnBlueprintRecompiled(UBlueprint* Blueprint);
 #endif
 	
 	/** Get a field ptr using it's id. */
@@ -813,6 +816,9 @@ private:
 
 	/** Register delegates for all exposed entities. */
 	void RegisterEntityDelegates();
+
+	/** Register an event triggered when the exposed function's owner blueprint is compiled. */
+	void RegisterOnCompileEvent(const TSharedPtr<FRemoteControlFunction>& RCFunction);
 	
 private:
 	/** Preset unique ID */
@@ -872,6 +878,11 @@ private:
 
 	/** Holds manager that handles rebinding unbound entities upon load or map change. */
 	TPimplPtr<FRemoteControlPresetRebindingManager> RebindingManager;
+
+#if WITH_EDITOR
+	/** List of blueprints for which we have registered events. */
+	TSet<TWeakObjectPtr<UBlueprint>> BlueprintsWithRegisteredDelegates;
+#endif
 
 	friend FRemoteControlTarget;
 	friend FRemoteControlPresetLayout;
