@@ -52,13 +52,7 @@ void FPrimaryAssetTypeInfo::FillRuntimeData(bool& bIsValid, bool& bBaseClassWasL
 		}
 	}
 
-	if (AssetScanPaths.Num() == 0)
-	{
-		// No scan locations picked out
-		return;
-	}
-
-	// Valid data
+	// Valid data, it's fine for a type to have no scan directories
 	bIsValid = true;
 }
 

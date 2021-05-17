@@ -1644,7 +1644,7 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 		}
 		else
 		{
- 			UE_LOG(LogAssetManager, Verbose, TEXT("%s - UAssetManager::ChangeBundleStateForPrimaryAssets found no NameData for this primary asset."), *PrimaryAssetId.ToString());
+			WarnAboutInvalidPrimaryAsset(PrimaryAssetId, TEXT("ChangeBundleStateForPrimaryAssets failed to find NameData"));
 		}
 	}
 
@@ -1740,6 +1740,10 @@ bool UAssetManager::GetPrimaryAssetLoadSet(TSet<FSoftObjectPath>& OutAssetLoadSe
 		{
 			OutAssetLoadSet.Append(Entry.BundleAssets);
 		}
+	}
+	else
+	{
+		WarnAboutInvalidPrimaryAsset(PrimaryAssetId, TEXT("GetPrimaryAssetLoadSet failed to find NameData"));
 	}
 	return NameData != nullptr;
 }
@@ -1939,6 +1943,10 @@ int32 UAssetManager::UnloadPrimaryAssets(const TArray<FPrimaryAssetId>& AssetsTo
 				NameData->CurrentState.Reset(true);
 				NameData->PendingState.Reset(true);
 			}
+		}
+		else
+		{
+			WarnAboutInvalidPrimaryAsset(PrimaryAssetId, TEXT("UnloadPrimaryAssets failed to find NameData"));
 		}
 	}
 
@@ -2193,6 +2201,10 @@ void UAssetManager::AcquireResourcesForPrimaryAssetList(const TArray<FPrimaryAss
 					PathsToLoad.Append(Entry.BundleAssets);
 				}
 			}
+		}
+		else
+		{
+			WarnAboutInvalidPrimaryAsset(PrimaryAssetId, TEXT("AcquireResourcesForPrimaryAssetList failed to find NameData"));
 		}
 	}
 
@@ -3403,6 +3415,77 @@ FString UAssetManager::GetNormalizedPackagePath(const FString& InPath, bool bInc
 	return MoveTemp(ReturnPath);
 }
 
+void UAssetManager::WarnAboutInvalidPrimaryAsset(const FPrimaryAssetId& PrimaryAssetId, const FString& Message) const
+{
+	if (!WarningInvalidAssets.Contains(PrimaryAssetId))
+	{
+		WarningInvalidAssets.Add(PrimaryAssetId);
+
+		const UAssetManagerSettings& Settings = GetSettings();
+		if (Settings.bShouldWarnAboutInvalidAssets)
+		{
+			const TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetId.PrimaryAssetType);
+
+			if (FoundType)
+			{
+				UE_LOG(LogAssetManager, Warning, TEXT("Invalid Primary Asset Id %s: %s"), *PrimaryAssetId.ToString(), *Message);
+			}
+			else
+			{
+				UE_LOG(LogAssetManager, Warning, TEXT("Invalid Primary Asset Type %s: %s"), *PrimaryAssetId.ToString(), *Message);
+			}
+		}
+	}
+}
+
+void UAssetManager::InvalidatePrimaryAssetDirectory()
+{
+	bIsPrimaryAssetDirectoryCurrent = false;
+}
+
+void UAssetManager::RefreshPrimaryAssetDirectory(bool bForceRefresh)
+{
+	WarningInvalidAssets.Reset();
+
+	if (bForceRefresh || !bIsPrimaryAssetDirectoryCurrent)
+	{
+		PushBulkScanning();
+
+		for (TPair<FName, TSharedRef<FPrimaryAssetTypeData>>& TypePair : AssetTypeMap)
+		{
+			FPrimaryAssetTypeData& TypeData = TypePair.Value.Get();
+
+			// Rescan the runtime data, the class may have gotten changed by hot reload or config changes
+			bool bIsValid, bBaseClassWasLoaded;
+			TypeData.Info.FillRuntimeData(bIsValid, bBaseClassWasLoaded);
+
+			if (bBaseClassWasLoaded)
+			{
+				// Had to load a class, mark that the temporary cache needs to be updated
+				GetAssetRegistry().SetTemporaryCachingModeInvalidated();
+			}
+
+			if (!bIsValid)
+			{
+				continue;
+			}
+
+			if (TypeData.Info.AssetScanPaths.Num())
+			{
+				// Clear old data if this type has actual scan paths
+				TypeData.AssetMap.Reset();
+
+				// Rescan all assets. We don't force synchronous here as in the editor it was already loaded async
+				ScanPathsForPrimaryAssets(TypePair.Key, TypeData.Info.AssetScanPaths, TypeData.Info.AssetBaseClassLoaded, TypeData.Info.bHasBlueprintClasses, TypeData.Info.bIsEditorOnly, false);
+			}
+		}
+
+		PopBulkScanning();
+
+		PostInitialAssetScan();
+	}
+}
+
 #if WITH_EDITOR
 
 EAssetSetManagerResult::Type UAssetManager::ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target, EAssetRegistryDependencyType::Type DependencyType, EAssetSetManagerFlags::Type Flags) const
@@ -4017,52 +4100,6 @@ void UAssetManager::EndPIE(bool bStartSimulate)
 				UnloadPrimaryAsset(AssetID);
 			}
 		}
-	}
-}
-
-void UAssetManager::InvalidatePrimaryAssetDirectory()
-{
-	bIsPrimaryAssetDirectoryCurrent = false;
-}
-
-void UAssetManager::RefreshPrimaryAssetDirectory(bool bForceRefresh)
-{
-	if (bForceRefresh || !bIsPrimaryAssetDirectoryCurrent)
-	{
-		PushBulkScanning();
-
-		for (TPair<FName, TSharedRef<FPrimaryAssetTypeData>>& TypePair : AssetTypeMap)
-		{
-			FPrimaryAssetTypeData& TypeData = TypePair.Value.Get();
-
-			// Rescan the runtime data, the class may have gotten changed by hot reload or config changes
-			bool bIsValid, bBaseClassWasLoaded;
-			TypeData.Info.FillRuntimeData(bIsValid, bBaseClassWasLoaded);
-
-			if (bBaseClassWasLoaded)
-			{
-				// Had to load a class, mark that the temporary cache needs to be updated
-				GetAssetRegistry().SetTemporaryCachingModeInvalidated();
-			}
-
-			if (!bIsValid)
-			{
-				continue;
-			}
-
-			if (TypeData.Info.AssetScanPaths.Num())
-			{
-				// Clear old data
-				TypeData.AssetMap.Reset();
-
-				// Rescan all assets. We don't force synchronous here as in the editor it was already loaded async
-				ScanPathsForPrimaryAssets(TypePair.Key, TypeData.Info.AssetScanPaths, TypeData.Info.AssetBaseClassLoaded, TypeData.Info.bHasBlueprintClasses, TypeData.Info.bIsEditorOnly, false);
-			}
-		}
-
-		PopBulkScanning();
-
-		PostInitialAssetScan();
 	}
 }
 
