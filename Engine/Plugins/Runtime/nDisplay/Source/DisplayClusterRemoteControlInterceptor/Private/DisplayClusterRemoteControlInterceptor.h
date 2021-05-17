@@ -22,6 +22,7 @@ public:
 	// IRemoteControlInterceptionCommands interface
 	virtual ERCIResponse SetObjectProperties(FRCIPropertiesMetadata& InProperties) override;
 	virtual ERCIResponse ResetObjectProperties(FRCIObjectMetadata& InObject) override;
+	virtual ERCIResponse InvokeCall(FRCIFunctionMetadata& InFunction) override;
 	// ~IRemoteControlInterceptionCommands interface
 
 private:
@@ -35,10 +36,14 @@ private:
 	void OnReplication_SetObjectProperties   (const TArray<uint8>& Buffer);
 	// Process ResetObjectProperties command replication data
 	void OnReplication_ResetObjectProperties (const TArray<uint8>& Buffer);
+	// Process InvokeCall command replication data
+	void OnReplication_InvokeCall (const TArray<uint8>& Buffer);
 
 private:
 	// CVar value MasterOnly
 	const bool bInterceptOnMasterOnly;
 	// Cluster events listener
 	FOnClusterEventBinaryListener EventsListener;
+	// Force Apply the ERCIResponse
+	bool bForceApply;
 };

@@ -14,6 +14,7 @@
 
 #include "Features/IModularFeatures.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/CommandLine.h"
 
 
 // Data interception source
@@ -29,13 +30,17 @@ static TAutoConsoleVariable<int32> CVarInterceptOnMasterOnly(
 
 // Magic numbers for now. Unfortunately there is no any ID management for binary events yet.
 // This will be refactored once we have some global events registry to prevent any ID conflicts.
-const int32 EventId_SetObjectProperties   = 0xaabb0701;
-const int32 EventId_ResetObjectProperties = 0xaabb0702;
+const int32 EventId_SetObjectProperties		= 0xaabb0701;
+const int32 EventId_ResetObjectProperties	= 0xaabb0702;
+const int32 EventId_InvokeCall				= 0xaabb0703;
 
 
 FDisplayClusterRemoteControlInterceptor::FDisplayClusterRemoteControlInterceptor()
 	: bInterceptOnMasterOnly(CVarInterceptOnMasterOnly.GetValueOnGameThread() == 1)
+	, bForceApply(false)
 {
+	bForceApply = FParse::Param(FCommandLine::Get(), TEXT("ClusterForceApplyResponse"));
+	
 	// Set up cluster events handler
 	EventsListener.BindRaw(this, &FDisplayClusterRemoteControlInterceptor::OnClusterEventBinaryHandler);
 	// Subscribe for cluster events
@@ -65,7 +70,11 @@ ERCIResponse FDisplayClusterRemoteControlInterceptor::SetObjectProperties(FRCIPr
 	static const FString EventName = FString(TEXT("SetObjectProperties"));
 	EmitReplicationEvent(EventId_SetObjectProperties, Buffer, EventName);
 
-	// The caller should not process the RC event
+	if (bForceApply)
+	{
+		return ERCIResponse::Apply;
+	}
+
 	return ERCIResponse::Intercept;
 }
 
@@ -80,7 +89,30 @@ ERCIResponse FDisplayClusterRemoteControlInterceptor::ResetObjectProperties(FRCI
 	static const FString EventName = FString(TEXT("ResetObjectProperties"));
 	EmitReplicationEvent(EventId_ResetObjectProperties, Buffer, EventName);
 
-	// The caller should not process the RC event
+	if (bForceApply)
+	{
+		return ERCIResponse::Apply;
+	}
+
+	return ERCIResponse::Intercept;
+}
+
+ERCIResponse FDisplayClusterRemoteControlInterceptor::InvokeCall(FRCIFunctionMetadata& InFunction)
+{
+	// Serialize command data to binary
+	TArray<uint8> Buffer;
+	FMemoryWriter MemoryWiter(Buffer);
+	MemoryWiter << InFunction;
+
+	// Replicate data
+	static const FString EventName = FString(TEXT("InvokeCall"));
+	EmitReplicationEvent(EventId_InvokeCall, Buffer, EventName);
+
+	if (bForceApply)
+	{
+		return ERCIResponse::Apply;
+	}
+	
 	return ERCIResponse::Intercept;
 }
 
@@ -114,6 +146,10 @@ void FDisplayClusterRemoteControlInterceptor::OnClusterEventBinaryHandler(const 
 
 		case EventId_ResetObjectProperties:
 			OnReplication_ResetObjectProperties(Event.EventData);
+			break;
+
+		case EventId_InvokeCall:
+			OnReplication_InvokeCall(Event.EventData);
 			break;
 
 		default:
@@ -169,6 +205,31 @@ void FDisplayClusterRemoteControlInterceptor::OnReplication_ResetObjectPropertie
 		if (Processor)
 		{
 			Processor->ResetObjectProperties(ObjectMetadata);
+		}
+	}
+}
+
+void FDisplayClusterRemoteControlInterceptor::OnReplication_InvokeCall(const TArray<uint8>& Buffer)
+{
+	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Processing replication event InvokeCall (0x%d): %d bytes"), EventId_InvokeCall, Buffer.Num());
+
+	// Deserialize command data
+	FMemoryReader MemoryReader(Buffer);
+	FRCIFunctionMetadata FunctionMetadata;
+	MemoryReader << FunctionMetadata;
+
+	// Initialization
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	const FName ProcessorFeatureName = IRemoteControlInterceptionFeatureProcessor::GetName();
+	const int32 ProcessorsAmount = ModularFeatures.GetModularFeatureImplementationCount(IRemoteControlInterceptionFeatureProcessor::GetName());
+
+	// Send the command to the processor(s)
+	for (int32 ProcessorIdx = 0; ProcessorIdx < ProcessorsAmount; ++ProcessorIdx)
+	{
+		IRemoteControlInterceptionFeatureProcessor* const Processor = static_cast<IRemoteControlInterceptionFeatureProcessor*>(ModularFeatures.GetModularFeatureImplementation(ProcessorFeatureName, ProcessorIdx));
+		if (Processor)
+		{
+			Processor->InvokeCall(FunctionMetadata);
 		}
 	}
 }
