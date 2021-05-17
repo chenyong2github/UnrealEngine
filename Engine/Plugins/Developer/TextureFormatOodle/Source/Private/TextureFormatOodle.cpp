@@ -193,6 +193,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatOodle, Log, All);
 static int OodleJobifyNumThreads = 0;
 static void *OodleJobifyUserPointer = nullptr;
 
+// enable this to make the DDC key unique (per build) for testing
+//#define DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
+
 #define ENUSUPPORTED_FORMATS(op) \
     op(DXT1) \
     op(DXT3) \
@@ -295,7 +298,15 @@ public:
 		FString ImageHash = MD5.HashBytes(static_cast<const uint8*>(InRawData), InRawSize);
 		FString OodleBCName(OodleTex_BC_GetName(InOodleBCN));
 		FString Filename = FString::Printf(TEXT("%s.w%d.h%d.s%d.rdo%d.%s%s"), *ImageHash, InWidth, InHeight, InSlice, InRDOLambda, *OodleBCName, Extension);
-		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Filename;
+		
+		// put in subdir by format and size
+		// helps reduce the count of files in a single dir, which stresses the file system
+		FString Subdir = FString::Printf(TEXT("%s.w%d.h%d"), *OodleBCName, InWidth, InHeight);
+
+		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Subdir / Filename;
+
+		//UE_LOG(LogTextureFormatOodle, Display, TEXT("DumpImage : %s"), *Filename );
+
 		const TArray64<uint8>& CompressedImage = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Uncompressed);
 		return FFileHelper::SaveArrayToFile(CompressedImage, *Path);
 	}
@@ -414,6 +425,10 @@ public:
 			bForceRDOOff_NoEditor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_NoEditor,
 			bForceRDOOff_Editor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_Editor,
 			DefaultRDOLambda);
+			
+		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
+		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD"));
+		#endif
 	}
 	
 	void GetOodleCompressSettings(EPixelFormat * OutCompressedPixelFormat,int * OutRDOLambda, OodleTex_EncodeEffortLevel * OutEffortLevel, const struct FTextureBuildSettings& InBuildSettings, bool bHasAlpha) const
@@ -610,7 +625,14 @@ public:
 			EffortLevel = OodleTex_EncodeEffortLevel_Default;
 		}
 		
-		return FString::Printf(TEXT("Oodle_CPF%d_L%d_E%d"), icpf, (int)RDOLambda, (int)EffortLevel);
+		FString DDCString = FString::Printf(TEXT("Oodle_CPF%d_L%d_E%d"), icpf, (int)RDOLambda, (int)EffortLevel);
+
+		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
+		DDCString += TEXT(__DATE__);
+		DDCString += TEXT(__TIME__);
+		#endif
+
+		return DDCString;
 	}
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
