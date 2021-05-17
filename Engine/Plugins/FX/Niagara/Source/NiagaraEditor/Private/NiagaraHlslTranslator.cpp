@@ -4564,6 +4564,17 @@ FString FHlslNiagaraTranslator::GenerateConstantString(const FNiagaraVariable& C
 			int32* ValuePtr = (int32*)Constant.GetData();
 			ConstantStr = FString::Printf(TEXT("%d"), *ValuePtr);
 		}
+		else if (Type == FNiagaraTypeDefinition::GetMatrix4Def() )
+		{
+			float* ValuePtr = (float*)Constant.GetData();
+			ConstantStr = FString::Printf(
+				TEXT("float4x4(%g,%g,%g,%g, %g,%g,%g,%g, %g,%g,%g,%g, %g,%g,%g,%g)"),
+				ValuePtr[ 0], ValuePtr[ 1], ValuePtr[ 2], ValuePtr[ 3],
+				ValuePtr[ 4], ValuePtr[ 5], ValuePtr[ 6], ValuePtr[ 7],
+				ValuePtr[ 8], ValuePtr[ 9], ValuePtr[10], ValuePtr[11],
+				ValuePtr[12], ValuePtr[13], ValuePtr[14], ValuePtr[15]
+			);
+		}
 		else if (Type == FNiagaraTypeDefinition::GetBoolDef())
 		{
 			if (Constant.GetValue<FNiagaraBool>().IsValid() == false)
