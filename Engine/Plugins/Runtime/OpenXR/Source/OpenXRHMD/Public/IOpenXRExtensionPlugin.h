@@ -116,9 +116,14 @@ public:
 	* It is common to do this in StartupModule of your IModuleInterface class (which may also be the class that implements this interface).
 	* The module's LoadingPhase must be PostInitConfig or earlier because OpenXRHMD will look for these after it is loaded in that phase.
 	*/
-	virtual void RegisterOpenXRExtensionModularFeature()
+	void RegisterOpenXRExtensionModularFeature()
 	{
 		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
+	}
+
+	void UnregisterOpenXRExtensionModularFeature()
+	{
+		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 	}
 
 	/**
@@ -194,6 +199,17 @@ public:
 
 	/** Get custom capture interface if provided by this extension. */
 	virtual IOpenXRCustomCaptureSupport* GetCustomCaptureSupport(const EARCaptureType CaptureType) { return nullptr; }
+
+	virtual void* OnEnumerateViewConfigurationViews(XrInstance InInstance, XrSystemId InSystem, XrViewConfigurationType InViewConfigurationType, uint32_t InViewIndex, void* InNext)
+	{
+		return InNext;
+	}
+
+	virtual const void* OnLocateViews(XrSession InSession, XrTime InDisplayTime, const void* InNext)
+	{
+		return InNext;
+	}
+
 	/**
 	* Callback to provide extra view configurations that should be rendered in the main render pass
 	*/
@@ -230,6 +246,10 @@ public:
 	virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext)
 	{
 		return InNext;
+	}
+
+	virtual void PostCreateSession(XrSession InSession)
+	{
 	}
 
 	virtual const void* OnBeginSession(XrSession InSession, const void* InNext)
