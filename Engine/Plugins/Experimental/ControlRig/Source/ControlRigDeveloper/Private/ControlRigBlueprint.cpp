@@ -404,7 +404,7 @@ void UControlRigBlueprint::PostLoad()
 		TGuardValue<bool> SuspendNotifGuard(Hierarchy->GetSuspendNotificationsFlag(), true);
 		
 		Hierarchy->Reset();
-		GetHierarchyController()->ImportFromHierarchyContainer(HierarchyContainer_DEPRECATED);
+		GetHierarchyController()->ImportFromHierarchyContainer(HierarchyContainer_DEPRECATED, false);
 	}
 
 	PropagateHierarchyFromBPToInstances();

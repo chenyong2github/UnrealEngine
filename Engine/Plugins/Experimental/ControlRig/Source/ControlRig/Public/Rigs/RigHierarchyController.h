@@ -330,7 +330,7 @@ public:
 	* This is used for backwards compatbility only during load and does not support undo.
 	* @param InContainer The input hierarchy container
 	*/
-    TArray<FRigElementKey> ImportFromHierarchyContainer(const FRigHierarchyContainer& InContainer);
+    TArray<FRigElementKey> ImportFromHierarchyContainer(const FRigHierarchyContainer& InContainer, bool bIsCopyAndPaste);
 
 	/**
 	 * Removes an existing element from the hierarchy
