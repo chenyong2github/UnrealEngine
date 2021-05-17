@@ -82,6 +82,17 @@ TUniquePtr<FDynamicMeshOperator> UProjectToTargetTool::MakeNewOperator()
 	RemeshOp->ToolMeshLocalToWorld = FTransform3d(Cast<IPrimitiveComponentBackedTarget>(Targets[0])->GetWorldTransform());
 	RemeshOp->TargetMeshLocalToWorld = FTransform3d(Cast<IPrimitiveComponentBackedTarget>(Targets[1])->GetWorldTransform());
 	RemeshOp->bUseWorldSpace = ProjectProperties->bWorldSpace;
+	RemeshOp->bParallel = ProjectProperties->bParallel;
+
+	if (ProjectProperties->RemeshType == ERemeshType::NormalFlow)
+	{
+		RemeshOp->FaceProjectionPassesPerRemeshIteration = ProjectProperties->FaceProjectionPassesPerRemeshIteration;
+		RemeshOp->SurfaceProjectionSpeed = ProjectProperties->SurfaceProjectionSpeed;
+		RemeshOp->NormalAlignmentSpeed = ProjectProperties->NormalAlignmentSpeed;
+		RemeshOp->bSmoothInFillAreas = ProjectProperties->bSmoothInFillAreas;
+		RemeshOp->FillAreaDistanceMultiplier = ProjectProperties->FillAreaDistanceMultiplier;
+		RemeshOp->FillAreaSmoothMultiplier = ProjectProperties->FillAreaSmoothMultiplier;
+	}
 
 	return Op;
 }
