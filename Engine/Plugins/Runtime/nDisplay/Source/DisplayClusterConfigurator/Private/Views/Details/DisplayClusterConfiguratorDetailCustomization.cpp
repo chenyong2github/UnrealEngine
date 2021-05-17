@@ -91,20 +91,23 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 	check(RootActorPtr.IsValid() || ToolkitPtr.IsValid());
 	
 	// Iterate over all of the properties in the object being edited to find properties marked with specific custom metadata tags and hide those properties if necessary
-	for (TFieldIterator<FProperty> It(ObjectBeingEdited->GetClass()); It; ++It)
+	if (ObjectBeingEdited)
 	{
-		if (FProperty* Property = *It)
+		for (TFieldIterator<FProperty> It(ObjectBeingEdited->GetClass()); It; ++It)
 		{
-			TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(Property->GetFName());
-
-			const bool bShouldHide = PropertyHandle->HasMetaData("nDisplayHidden") ||
-				(IsRunningForBlueprintEditor() ?
-					PropertyHandle->HasMetaData("nDisplayInstanceOnly") || Property && Property->HasAnyPropertyFlags(CPF_DisableEditOnTemplate) :
-					false);
-
-			if (bShouldHide)
+			if (FProperty* Property = *It)
 			{
-				PropertyHandle->MarkHiddenByCustomization();
+				TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(Property->GetFName());
+
+				const bool bShouldHide = PropertyHandle->HasMetaData("nDisplayHidden") ||
+					(IsRunningForBlueprintEditor() ?
+						PropertyHandle->HasMetaData("nDisplayInstanceOnly") || Property && Property->HasAnyPropertyFlags(CPF_DisableEditOnTemplate) :
+						false);
+
+				if (bShouldHide)
+				{
+					PropertyHandle->MarkHiddenByCustomization();
+				}
 			}
 		}
 	}
