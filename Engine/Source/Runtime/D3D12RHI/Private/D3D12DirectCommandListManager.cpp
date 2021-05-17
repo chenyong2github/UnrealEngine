@@ -718,7 +718,10 @@ FD3D12SyncPoint FD3D12CommandListManager::ExecuteCommandListInternal(TArray<FD3D
 #endif
 		
 		// Make sure the queue is done executing commands before trying to use the barrier command list from it
-		BarrierCommandListManager->WaitOnExecuteTask();
+		if (bBarriersUseDifferentQueue)
+		{
+			BarrierCommandListManager->WaitOnExecuteTask();
+		}
 
 		// If the barrier command list manager is different then this command list then it might need another sync point
 		// with the copy queue (didn't happen yet)
