@@ -60,6 +60,58 @@ namespace RemoteControlModels
 	}
 }
 
+/**
+ * Short description of an unreal object.
+ */
+USTRUCT()
+struct FRCObjectDescription
+{
+	GENERATED_BODY()
+
+	FRCObjectDescription() = default;
+
+	FRCObjectDescription(UObject* InObject)
+	{
+		checkSlow(InObject);
+		
+#if WITH_EDITOR
+		if (AActor* Actor = Cast<AActor>(InObject))
+		{
+			Name = Actor->GetActorLabel();
+		}
+		else if(UActorComponent* Component = Cast<UActorComponent>(InObject))
+		{
+			Name = Component->GetOwner()->GetActorLabel();
+		}
+		else
+#endif
+		{
+			// Get the class name when dealing with BP libraries and subsystems. 
+			Name = InObject->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ? InObject->GetClass()->GetName() : InObject->GetName();
+		}
+		
+#if WITH_EDITOR
+		Class = InObject->GetClass()->GetDisplayNameText().ToString();
+#else
+		Class = InObject->GetClass()->GetName();
+#endif
+
+		Path = InObject->GetPathName();
+	}
+
+	/** Name of the object. */
+	UPROPERTY()
+	FString Name;
+
+	/** Class of the object. */
+	UPROPERTY()
+	FString Class;
+
+	/** Path of the object. */
+	UPROPERTY()
+	FString Path;
+};
+
 USTRUCT()
 struct FRCPropertyDescription
 {
@@ -216,6 +268,7 @@ struct FRCExposedPropertyDescription
 		UnderlyingProperty = RCProperty.GetProperty();
 		Metadata = RCProperty.GetMetadata();
 		Id = RCProperty.GetId().ToString();
+		OwnerObjects.Append(RCProperty.GetBoundObjects());
 	}
 
 	/** The label displayed in the remote control panel for this exposed property. */
@@ -233,8 +286,11 @@ struct FRCExposedPropertyDescription
 	/** Metadata specific to this exposed property. */
 	UPROPERTY()
 	TMap<FName, FString> Metadata;
-};
 
+	/** The objects that own the underlying property. */
+	UPROPERTY()
+	TArray<FRCObjectDescription> OwnerObjects; 
+};
 
 USTRUCT()
 struct FRCExposedFunctionDescription
@@ -248,6 +304,7 @@ struct FRCExposedFunctionDescription
 		, Id(Function.GetId().ToString())
 		, UnderlyingFunction(Function.GetFunction())
 	{
+		OwnerObjects.Append(Function.GetBoundObjects());
 	}
 
 	/** The label displayed in the remote control panel for this exposed property. */
@@ -261,38 +318,10 @@ struct FRCExposedFunctionDescription
 	/** The underlying exposed function. */
 	UPROPERTY()
 	FRCFunctionDescription UnderlyingFunction;
-};
 
-USTRUCT()
-struct FRCActorDescription
-{
-	GENERATED_BODY()
-
-	FRCActorDescription() = default;
-
-	FRCActorDescription(const AActor* InActor)
-	{
-		checkSlow(InActor);
-#if WITH_EDITOR
-		Name = InActor->GetActorLabel();
-#else
-		Name = InActor->GetName();
-#endif
-		Path = InActor->GetPathName();
-		Class = InActor->GetClass()->GetName();
-	}
-
-	/** The label of the actor. */
+	/** The objects that own the underlying function. */
 	UPROPERTY()
-	FString Name;
-
-	/** The object path of the actor. */
-	UPROPERTY()
-	FString Path;
-
-	/** The class of the actor. */
-	UPROPERTY()
-	FString Class;
+	TArray<FRCObjectDescription> OwnerObjects;
 };
 
 USTRUCT()
@@ -307,7 +336,7 @@ struct FRCExposedActorDescription
 	{
 		if (AActor* Actor = Cast<AActor>(InExposedActor.Path.ResolveObject()))
 		{
-			UnderlyingActor = FRCActorDescription{ Actor };
+			UnderlyingActor = FRCObjectDescription{ Actor };
 		}
 
 		Id = InExposedActor.GetId().ToString();
@@ -318,12 +347,12 @@ struct FRCExposedActorDescription
 	FName DisplayName;
 	
 	/** Unique identifier for the exposed actor. */
-    UPROPERTY()
-    FString Id;
+	UPROPERTY()
+	FString Id;
 
 	/** The underlying exposed actor. */
 	UPROPERTY()
-	FRCActorDescription UnderlyingActor;
+	FRCObjectDescription UnderlyingActor;
 };
 
 USTRUCT()
@@ -389,6 +418,68 @@ private:
 			if (RCActor->GetActor())
 			{
 				ExposedActors.Emplace(*RCActor);
+			}
+		}
+	}
+};
+
+/**
+ * Holds lists of modified RC entities.
+ * @Note that this does not mean the underlying property/function/actor was modified,
+ * but rather that the entity structure itself was modified in some way.
+ */
+USTRUCT()
+struct FRCPresetModifiedEntitiesDescription
+{
+	GENERATED_BODY()
+
+	FRCPresetModifiedEntitiesDescription() = default;
+	
+	FRCPresetModifiedEntitiesDescription(const URemoteControlPreset* Preset, const TArray<FGuid>& EntityIds)
+	{
+		checkSlow(Preset);
+		for (const FGuid& Id : EntityIds)
+		{
+			AddModifiedEntity(Preset, Id);
+		}
+	}
+
+public:
+	/** The list of modified RC properties. */
+	UPROPERTY()
+	TArray<FRCExposedPropertyDescription> ModifiedRCProperties;
+
+	/** The list of modified RC functions. */
+	UPROPERTY()
+	TArray<FRCExposedFunctionDescription> ModifiedRCFunctions;
+
+	/** The list of modified RC actors. */
+	UPROPERTY()
+	TArray<FRCExposedActorDescription> ModifiedRCActors;
+
+private:
+	/** Add an exposed field to this group description. */
+	void AddModifiedEntity(const URemoteControlPreset* Preset, const FGuid& EntityId)
+	{
+		if (TSharedPtr<const FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(EntityId).Pin())
+		{
+			if (FProperty* Property = RCProperty->GetProperty())
+			{
+				ModifiedRCProperties.Emplace(*RCProperty);	
+			}
+		}
+		else if (TSharedPtr<const FRemoteControlFunction> RCFunction = Preset->GetExposedEntity<FRemoteControlFunction>(EntityId).Pin())
+		{
+			if (RCFunction->GetFunction())
+			{
+				ModifiedRCFunctions.Emplace(*RCFunction);
+			}
+		}
+		else if (TSharedPtr<const FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(EntityId).Pin())
+		{
+			if (RCActor->GetActor())
+			{
+				ModifiedRCActors.Emplace(*RCActor);
 			}
 		}
 	}
@@ -495,27 +586,6 @@ struct FRCAssetDescription
 
 	UPROPERTY()
 	TMap<FName, FString> Metadata;
-};
-
-USTRUCT()
-struct FRCObjectDescription
-{
-	GENERATED_BODY()
-
-	FRCObjectDescription() = default;
-
-	FRCObjectDescription(const UObject* InObject)
-	{
-		checkSlow(InObject);
-		Name = InObject->GetName();
-		Path = InObject->GetPathName();
-	}
-
-	UPROPERTY()
-	FString Name;
-
-	UPROPERTY()
-	FString Path;
 };
 
 USTRUCT()
