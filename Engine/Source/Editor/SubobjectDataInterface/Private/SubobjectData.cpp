@@ -885,7 +885,10 @@ bool FSubobjectData::IsDefaultSceneRoot() const
 	const USceneComponent* SceneComponent = Cast<USceneComponent>(GetComponentTemplate());
 	if (SceneComponent && !SceneComponent->IsTemplate())
 	{
-		return SceneComponent->GetFName() == USceneComponent::GetDefaultSceneRootVariableName();
+		const AActor* OwningActor = SceneComponent->GetAttachmentRootActor();		
+		return
+			SceneComponent->GetFName() == USceneComponent::GetDefaultSceneRootVariableName() || 
+			(OwningActor && SceneComponent == OwningActor->GetRootComponent());
 	}
 	// If this isn't a scene component, then we can check an SCS node for a flag. 
 	else if (const USCS_Node* SCS_Node = GetSCSNode())
