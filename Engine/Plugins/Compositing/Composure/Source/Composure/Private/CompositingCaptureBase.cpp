@@ -6,6 +6,8 @@
 #include "CineCameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/Engine.h"
+#include "LensDistortionModelHandlerBase.h"
+
 
 ACompositingCaptureBase::ACompositingCaptureBase()
 {
@@ -126,3 +128,25 @@ void ACompositingCaptureBase::PostEditChangeProperty(struct FPropertyChangedEven
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+void ACompositingCaptureBase::SetApplyDistortion(bool bInApplyDistortion)
+{
+	bApplyDistortion = bInApplyDistortion;
+	UpdateDistortion();
+}
+
+void ACompositingCaptureBase::SetDistortionHandler(ULensDistortionModelHandlerBase* InDistortionHandler)
+{
+	if (InDistortionHandler)
+	{
+		DistortionSource.DistortionProducerID = InDistortionHandler->GetDistortionProducerID();
+		DistortionSource.HandlerDisplayName = InDistortionHandler->GetDisplayName();
+	}
+	else
+	{
+		DistortionSource.DistortionProducerID = FGuid();
+		DistortionSource.HandlerDisplayName = FString();
+	}
+
+	UpdateDistortion();
+}
