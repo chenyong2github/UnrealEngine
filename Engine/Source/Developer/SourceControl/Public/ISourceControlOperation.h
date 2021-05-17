@@ -70,12 +70,11 @@ public:
 	}
 
 	/** Factory method for easier operation creation */
-	template<typename Type>
-	static TSharedRef<Type, ESPMode::ThreadSafe> Create()
+	template<typename Type, typename... TArgs>
+	static TSharedRef<Type, ESPMode::ThreadSafe> Create(TArgs&&... Args)
 	{
-		return MakeShareable( new Type() );
+		return MakeShareable( new Type(Forward<TArgs>(Args)...));
 	}
-
 };
 
 typedef TSharedRef<class ISourceControlOperation, ESPMode::ThreadSafe> FSourceControlOperationRef;
