@@ -141,8 +141,14 @@ struct MOVIESCENE_API FMovieSceneFloatChannel : public FMovieSceneChannel
 {
 	GENERATED_BODY()
 
-	FMovieSceneFloatChannel()
-		: PreInfinityExtrap(RCCE_Constant), PostInfinityExtrap(RCCE_Constant), DefaultValue(), bHasDefaultValue(false)
+	FMovieSceneFloatChannel() 
+		: PreInfinityExtrap(RCCE_Constant)
+		, PostInfinityExtrap(RCCE_Constant)
+		, DefaultValue()
+		, bHasDefaultValue(false)
+#if WITH_EDITORONLY_DATA
+		, bShowCurve(false)
+#endif
 	{}
 
 	/**
@@ -313,6 +319,14 @@ public:
 	* @param InValues Values to add
 	*/
 	void AddKeys(const TArray<FFrameNumber>& InTimes, const TArray<FMovieSceneFloatValue>& InValues);
+
+#if WITH_EDITORONLY_DATA
+	/* Get whether to show this curve in the UI */
+	bool GetShowCurve() const;
+	/* Set whether to show this curve in the UI */
+	void SetShowCurve(bool bInShowCurve);
+#endif
+
 public:
 
 	/** Pre-infinity extrapolation state */
@@ -364,6 +378,13 @@ private:
 
 	UPROPERTY()
 	FFrameRate TickResolution;
+
+#if WITH_EDITORONLY_DATA
+
+	UPROPERTY()
+	bool bShowCurve;
+
+#endif
 
 public:
 	//Set it's frame resolution

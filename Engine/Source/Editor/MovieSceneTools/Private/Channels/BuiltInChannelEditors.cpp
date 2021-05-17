@@ -8,6 +8,7 @@
 #include "ISequencerChannelInterface.h"
 #include "Widgets/SNullWidget.h"
 #include "ISequencer.h"
+#include "SequencerSettings.h"
 #include "MovieSceneCommonHelpers.h"
 #include "GameFramework/Actor.h"
 #include "EditorStyleSet.h"
@@ -1026,7 +1027,76 @@ struct FFloatChannelSectionMenuExtension : FExtender, TSharedFromThis<FFloatChan
 			LOCTEXT("SetPostInfinityExtrapTooltip", "Set post-infinity extrapolation"),
 			FNewMenuDelegate::CreateLambda([SharedThis](FMenuBuilder& SubMenuBuilder){ SharedThis->AddExtrapolationMenu(SubMenuBuilder, false); })
 			);
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("DisplayOpyions", "Display"),
+			LOCTEXT("DisplayOptionsTooltip", "Display options"),
+			FNewMenuDelegate::CreateLambda([SharedThis](FMenuBuilder& SubMenuBuilder){ SharedThis->AddDisplayOptionsMenu(SubMenuBuilder); })
+			);
 	}
+
+	void AddDisplayOptionsMenu(FMenuBuilder& MenuBuilder)
+	{
+		TSharedRef<FFloatChannelSectionMenuExtension> SharedThis = AsShared();
+
+		// Menu entry for key area height
+		auto OnKeyAreaHeightChanged = [=](int32 NewValue) {
+
+			if (ISequencer* Sequencer = WeakSequencer.Pin().Get())
+			{
+				Sequencer->GetSequencerSettings()->SetKeyAreaHeightWithCurves((float)NewValue);
+			}
+		};
+
+		auto GetKeyAreaHeight = [=]() {
+
+			if (ISequencer* Sequencer = WeakSequencer.Pin().Get())
+			{
+				return (int)Sequencer->GetSequencerSettings()->GetKeyAreaHeightWithCurves();
+			}
+
+			return 15;
+		};
+
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleShowCurve", "Show Curve"),
+			LOCTEXT("ToggleShowCurveTooltip", "Toggle showing the curve in the track area"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([SharedThis]{ SharedThis->ToggleShowCurve(); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([SharedThis]{ return SharedThis->IsShowCurve(); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);	
+
+		MenuBuilder.AddWidget(
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				[
+					SNew(SSpacer)
+				]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(30.f)
+					[
+						SNew(SSpinBox<int32>)
+						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.OnValueCommitted_Lambda([=](int32 Value, ETextCommit::Type CommitType) { OnKeyAreaHeightChanged(Value); })
+						.OnValueChanged_Lambda(OnKeyAreaHeightChanged)
+						.MinValue(15)
+						.MaxValue(300)
+						.Value_Lambda([=]() -> int32 { return GetKeyAreaHeight(); })
+					]
+				],
+				LOCTEXT("KeyAreaHeightText", "Key Area Height")
+		);
+	}
+
 
 	void AddExtrapolationMenu(FMenuBuilder& MenuBuilder, bool bPreInfinity)
 	{
@@ -1153,6 +1223,55 @@ struct FFloatChannelSectionMenuExtension : FExtender, TSharedFromThis<FFloatChan
 				{
 					return false;
 				}
+			}
+		}
+
+		return true;
+	}
+
+	void ToggleShowCurve()
+	{
+		bool bShowCurve = !IsShowCurve();
+		FScopedTransaction Transaction(LOCTEXT("ToggleShowCurve_Transaction", "Toggle Show Curve"));
+
+		bool bAnythingChanged = false;
+
+		// Modify all sections
+		for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+		{
+			if (UMovieSceneSection* Section = WeakSection.Get())
+			{
+				Section->Modify();
+			}
+		}
+
+		// Apply to all channels
+		for (const TMovieSceneChannelHandle<FMovieSceneFloatChannel>& Handle : Channels)
+		{
+			FMovieSceneFloatChannel* Channel = Handle.Get();
+
+			if (Channel)
+			{
+				Channel->SetShowCurve(bShowCurve);
+				bAnythingChanged = true;
+			}
+		}
+
+		if (!bAnythingChanged)
+		{
+			Transaction.Cancel();
+		}
+	}
+
+	bool IsShowCurve() const
+	{
+		for (const TMovieSceneChannelHandle<FMovieSceneFloatChannel>& Handle : Channels)
+		{
+			FMovieSceneFloatChannel* Channel = Handle.Get();
+
+			if (Channel && !Channel->GetShowCurve())
+			{
+				return false;
 			}
 		}
 
