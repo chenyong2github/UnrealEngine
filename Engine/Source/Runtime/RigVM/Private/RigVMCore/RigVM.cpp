@@ -69,6 +69,7 @@ URigVM::URigVM()
 #if WITH_EDITOR
 	, DebugInfo(nullptr)
 	, HaltedAtInstruction(INDEX_NONE)
+	, HaltedAtInstructionHit(INDEX_NONE)
 #endif
     , FunctionNamesPtr(&FunctionNamesStorage)
     , FunctionsPtr(&FunctionsStorage)
@@ -351,6 +352,7 @@ TArray<FName> URigVM::GetEntryNames() const
 bool URigVM::ResumeExecution()
 {
 	HaltedAtInstruction = INDEX_NONE;
+	HaltedAtInstructionHit = INDEX_NONE;
 	if (DebugInfo)
 	{
 		if (FRigVMBreakpoint* Breakpoint = DebugInfo->FindBreakpoint(Context.InstructionIndex))
@@ -739,6 +741,157 @@ void URigVM::CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory
 	}
 }
 
+#if WITH_EDITOR
+bool URigVM::ShouldHaltAtInstruction(const uint16 InstructionIndex)
+{
+	FRigVMByteCode& ByteCode = GetByteCode();
+	
+	if (FRigVMBreakpoint* Breakpoint = DebugInfo->FindBreakpoint(Context.InstructionIndex))
+	{
+		if (DebugInfo->IsActive(Context.InstructionIndex))
+		{
+			switch (CurrentBreakpointAction)
+			{
+				case ERigVMBreakpointAction::None:
+				{
+					// Halted at breakpoint. Check if this is a new breakpoint different from the previous halt.
+					if (HaltedAtInstruction != Context.InstructionIndex ||
+						HaltedAtInstructionHit != DebugInfo->GetBreakpointHits(Context.InstructionIndex))
+					{
+						HaltedAtInstruction = Context.InstructionIndex;
+						HaltedAtInstructionHit = DebugInfo->GetBreakpointHits(HaltedAtInstruction);
+						ExecutionHalted().Broadcast(Context.InstructionIndex, Breakpoint->Subject);
+					}
+					return true;
+				}
+				case ERigVMBreakpointAction::Resume:
+				{
+					CurrentBreakpointAction = ERigVMBreakpointAction::None;
+
+					if (DebugInfo->IsTemporaryBreakpoint(Breakpoint))
+					{
+						DebugInfo->RemoveBreakpoint(Breakpoint->InstructionIndex);
+					}
+					else
+					{
+						DebugInfo->IncrementBreakpointActivationOnHit(Context.InstructionIndex);
+						DebugInfo->HitBreakpoint(Context.InstructionIndex);
+					}
+					return false;
+					break;
+				}
+				case ERigVMBreakpointAction::StepOver:
+				case ERigVMBreakpointAction::StepInto:
+				case ERigVMBreakpointAction::StepOut:
+				{
+					// If we are stepping, check if we were halted at the current instruction, and remember it 
+					if (!DebugInfo->GetSteppingOriginBreakpoint())
+					{
+						DebugInfo->SetSteppingOriginBreakpoint(Breakpoint);
+						const TArray<UObject*>* FullCallstack = ByteCode.GetCallstackForInstruction(Context.InstructionIndex);
+						
+						// We want to keep the callstack up to the node that produced the halt
+						DebugInfo->SetSteppingOriginBreakpointCallstack(TArray<UObject*>(FullCallstack->GetData(), FullCallstack->Find((UObject*)DebugInfo->GetSteppingOriginBreakpoint()->Subject)+1));
+					}							
+					
+					break;	
+				}
+				default:
+				{
+					ensure(false);
+					break;
+				}
+			}
+		}
+		else
+		{
+			DebugInfo->HitBreakpoint(Context.InstructionIndex);
+		}
+	}
+
+	// If we are stepping, and the last active breakpoint was set, check if this is the new temporary breakpoint
+	if (DebugInfo->GetSteppingOriginBreakpoint())
+	{
+		const TArray<UObject*>* CurrentCallstack = ByteCode.GetCallstackForInstruction(Context.InstructionIndex);
+		if (CurrentCallstack && !CurrentCallstack->IsEmpty())
+		{
+			UObject* NewBreakpointNode = nullptr;
+
+			// Find the first difference in the callstack
+			int32 DifferenceIndex = INDEX_NONE;
+			TArray<UObject*>& PreviousCallstack = DebugInfo->GetSteppingOriginBreakpointCallstack();
+			for (int32 i=0; i<PreviousCallstack.Num(); ++i)
+			{
+				if (CurrentCallstack->Num() == i)
+				{
+					DifferenceIndex = i-1;
+					break;
+				}
+				if (PreviousCallstack[i] != CurrentCallstack->operator[](i))
+				{
+					DifferenceIndex = i;
+					break;
+				}
+			}
+
+			if (CurrentBreakpointAction == ERigVMBreakpointAction::StepOver)
+			{
+				if (DifferenceIndex != INDEX_NONE)
+				{
+					NewBreakpointNode = CurrentCallstack->operator[](DifferenceIndex);
+				}
+			}
+			else if (CurrentBreakpointAction == ERigVMBreakpointAction::StepInto)
+			{
+				if (DifferenceIndex == INDEX_NONE)
+				{
+					if (CurrentCallstack->Last() != PreviousCallstack.Last())
+					{
+						NewBreakpointNode = CurrentCallstack->operator[](FMath::Min(PreviousCallstack.Num(), CurrentCallstack->Num()-1));
+					}
+				}
+				else
+				{
+					NewBreakpointNode = CurrentCallstack->operator[](DifferenceIndex);
+				}
+			}
+			else if (CurrentBreakpointAction == ERigVMBreakpointAction::StepOut)
+			{
+				if (DifferenceIndex != INDEX_NONE && DifferenceIndex <= PreviousCallstack.Num() - 2)
+                {
+                	NewBreakpointNode = CurrentCallstack->operator[](DifferenceIndex);
+                }
+			}
+			
+			if (NewBreakpointNode)
+			{
+				if (DebugInfo->IsTemporaryBreakpoint(DebugInfo->GetSteppingOriginBreakpoint()))
+				{
+					DebugInfo->RemoveBreakpoint(DebugInfo->GetSteppingOriginBreakpoint()->InstructionIndex);
+				}
+				else
+				{
+					DebugInfo->IncrementBreakpointActivationOnHit(DebugInfo->GetSteppingOriginBreakpoint()->InstructionIndex);
+					DebugInfo->HitBreakpoint(DebugInfo->GetSteppingOriginBreakpoint()->InstructionIndex);
+				}
+				
+				FRigVMBreakpoint* NewBreakpoint = DebugInfo->AddBreakpoint(Context.InstructionIndex, NewBreakpointNode, true);
+				CurrentBreakpointAction = ERigVMBreakpointAction::None;					
+
+				// Halted at breakpoint. Check if this is a new breakpoint different from the previous halt.
+				HaltedAtInstruction = Context.InstructionIndex;
+				HaltedAtInstructionHit = DebugInfo->GetBreakpointHits(HaltedAtInstruction);
+				ExecutionHalted().Broadcast(Context.InstructionIndex, NewBreakpointNode);
+		
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+#endif
+
 bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments)
 {
 	if (ExecutingThreadId != INDEX_NONE)
@@ -1066,24 +1219,9 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 	while (Instructions.IsValidIndex(Context.InstructionIndex))
 	{
 #if WITH_EDITOR
-		if (DebugInfo)
+		if (DebugInfo && ShouldHaltAtInstruction(Context.InstructionIndex))
 		{
-			if (FRigVMBreakpoint* Breakpoint = DebugInfo->FindBreakpoint(Context.InstructionIndex))
-			{
-				if (DebugInfo->IsActive(Context.InstructionIndex))
-				{
-					if (HaltedAtInstruction != Context.InstructionIndex)
-					{
-						HaltedAtInstruction = Context.InstructionIndex;
-						ExecutionHalted().Broadcast(Context.InstructionIndex, Breakpoint->Subject);
-					}
-					return true;
-				}
-				else
-				{
-					DebugInfo->HitBreakpoint(Context.InstructionIndex);
-				}
-			}
+			return true;
 		}
 		
 		InstructionVisitedDuringLastRun[Context.InstructionIndex]++;
