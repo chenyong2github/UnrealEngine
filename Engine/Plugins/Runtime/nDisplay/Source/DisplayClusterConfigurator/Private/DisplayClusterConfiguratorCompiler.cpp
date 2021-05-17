@@ -163,6 +163,11 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 				{
 					MessageLog.Warning(*LOCTEXT("NoPolicyError", "No projection policy assigned to viewport @@.").ToString(), Viewport.Value);
 				}
+				
+				if (bCameraFound && Viewport.Value->Camera.IsEmpty())
+				{
+					MessageLog.Note(*LOCTEXT("NoCameraForViewportNote", "Using default camera for viewport @@ because none is assigned.").ToString(), Viewport.Value);
+				}
 			}
 		}
 	}
