@@ -7,9 +7,7 @@
 #include "DerivedDataCacheUsageStats.h"
 
 // Macro for whether to enable the S3 backend. libcurl is not currently available on Mac.
-#if PLATFORM_WINDOWS
-	#define WITH_S3_DDC_BACKEND 1
-#else
+#if !defined(WITH_S3_DDC_BACKEND)
 	#define WITH_S3_DDC_BACKEND 0
 #endif
 
