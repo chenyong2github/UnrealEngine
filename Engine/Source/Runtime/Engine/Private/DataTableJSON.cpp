@@ -235,6 +235,11 @@ bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, c
 			const int64 PropertyValue = NumProp->GetSignedIntPropertyValue(InPropertyData);
 			JsonWriter->WriteValue(Identifier, PropertyValue);
 		}
+		else if (NumProp->IsA(FFloatProperty::StaticClass()))
+		{
+			const float PropertyValue = (float)NumProp->GetFloatingPointPropertyValue(InPropertyData);
+			JsonWriter->WriteValue(Identifier, PropertyValue);
+		}
 		else
 		{
 			const double PropertyValue = NumProp->GetFloatingPointPropertyValue(InPropertyData);
