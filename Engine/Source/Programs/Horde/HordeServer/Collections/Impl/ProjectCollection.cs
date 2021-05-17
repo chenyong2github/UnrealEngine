@@ -57,6 +57,18 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <summary>
+		/// Logo for a project
+		/// </summary>
+		class ProjectLogoDocument : IProjectLogo
+		{
+			public ProjectId Id { get; set; }
+
+			public string MimeType { get; set; } = String.Empty;
+
+			public byte[] Data { get; set; } = Array.Empty<byte>();
+		}
+
+		/// <summary>
 		/// Projection of a project definition to just include permissions info
 		/// </summary>
 		[SuppressMessage("Design", "CA1812: Class is never instantiated")]
@@ -79,12 +91,18 @@ namespace HordeServer.Collections.Impl
 		IMongoCollection<ProjectDocument> Projects;
 
 		/// <summary>
+		/// Collection of project logo documents
+		/// </summary>
+		IMongoCollection<ProjectLogoDocument> ProjectLogos;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="DatabaseService">The database service instance</param>
 		public ProjectCollection(DatabaseService DatabaseService)
 		{
 			Projects = DatabaseService.GetCollection<ProjectDocument>("Projects");
+			ProjectLogos = DatabaseService.GetCollection<ProjectLogoDocument>("ProjectLogos");
 		}
 
 		/// <inheritdoc/>
@@ -177,6 +195,22 @@ namespace HordeServer.Collections.Impl
 		public async Task<IProject?> GetAsync(ProjectId ProjectId)
 		{
 			return await Projects.Find<ProjectDocument>(x => x.Id == ProjectId).FirstOrDefaultAsync();
+		}
+
+		/// <inheritdoc/>
+		public async Task<IProjectLogo?> GetLogoAsync(ProjectId ProjectId)
+		{
+			return await ProjectLogos.Find(x => x.Id == ProjectId).FirstOrDefaultAsync();
+		}
+
+		/// <inheritdoc/>
+		public async Task SetLogoAsync(ProjectId ProjectId, string MimeType, byte[] Data)
+		{
+			ProjectLogoDocument Logo = new ProjectLogoDocument();
+			Logo.Id = ProjectId;
+			Logo.MimeType = MimeType;
+			Logo.Data = Data;
+			await ProjectLogos.UpdateOneAsync(x => x.Id == ProjectId, Builders<ProjectLogoDocument>.Update.Set(x => x.MimeType, MimeType).Set(x => x.Data, Data), new UpdateOptions { IsUpsert = true });
 		}
 
 		/// <inheritdoc/>
