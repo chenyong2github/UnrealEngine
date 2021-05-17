@@ -243,121 +243,6 @@ public:
 		}
 	}
 
-	// XXX: REMOVE before shipping
-	// Used for simple testing on the plugin side what is being sent to DL
-	void ExportCurrentDatasmithSceneWithoutCleanup()
-	{
-		{
-			TSharedRef<IDatasmithScene> DatasmithScene = ExportedScene.GetDatasmithSceneRef();
-			FString FilePath = FPaths::Combine(ExportedScene.GetSceneExporterRef()->GetOutputPath(), ExportedScene.GetSceneExporterRef()->GetName()) + TEXT(".") + FDatasmithUtils::GetFileExtension();
-
-			TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(*FilePath));
-
-			if (!Archive.IsValid())
-			{
-				// XXX - removed 
-				//if (Impl->Logger.IsValid())
-				//{
-				//	Impl->Logger->AddGeneralError(*(TEXT("Unable to create file ") + FilePath + TEXT(", Aborting the export process")));
-				//}
-				return;
-			}
-
-			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-			PlatformFile.CreateDirectoryTree(ExportedScene.GetSceneExporterRef()->GetAssetsOutputPath());
-
-			// Add Bump maps from Material objects to scene as TextureElement
-			// XXX - removed Impl->CheckBumpMaps(DatasmithScene);
-
-			// XXX - removed FDatasmithSceneUtils::CleanUpScene(DatasmithScene, bCleanupUnusedElements);
-
-			// Update TextureElements
-			// XXX - removed Impl->UpdateTextureElements(DatasmithScene);
-
-			// XXX - note todo
-			// todo: keep relative myself
-			// Convert paths to relative
-			FString AbsoluteDir = FString(ExportedScene.GetSceneExporterRef()->GetOutputPath()) + TEXT("/");
-
-			for (int32 MeshIndex = 0; MeshIndex < DatasmithScene->GetMeshesCount(); ++MeshIndex)
-			{
-				TSharedPtr< IDatasmithMeshElement > Mesh = DatasmithScene->GetMesh(MeshIndex);
-
-				FString RelativePath = Mesh->GetFile();
-				FPaths::MakePathRelativeTo(RelativePath, *AbsoluteDir);
-
-				Mesh->SetFile(*RelativePath);
-			}
-
-			for (int32 TextureIndex = 0; TextureIndex < DatasmithScene->GetTexturesCount(); ++TextureIndex)
-			{
-				TSharedPtr< IDatasmithTextureElement > Texture = DatasmithScene->GetTexture(TextureIndex);
-
-				FString TextureFile = Texture->GetFile();
-				FPaths::MakePathRelativeTo(TextureFile, *AbsoluteDir);
-				Texture->SetFile(*TextureFile);
-			}
-
-			// XXX - removed 
-			//FDatasmithAnimationSerializer AnimSerializer;
-			//int32 NumSequences = DatasmithScene->GetLevelSequencesCount();
-			//for (int32 SequenceIndex = 0; SequenceIndex < NumSequences; ++SequenceIndex)
-			//{
-			//	const TSharedPtr<IDatasmithLevelSequenceElement>& LevelSequence = DatasmithScene->GetLevelSequence(SequenceIndex);
-			//	if (LevelSequence.IsValid())
-			//	{
-			//		FString AnimFilePath = FPaths::Combine(Impl->AssetsOutputPath, LevelSequence->GetName()) + DATASMITH_ANIMATION_EXTENSION;
-
-			//		if (AnimSerializer.Serialize(LevelSequence.ToSharedRef(), *AnimFilePath))
-			//		{
-			//			TUniquePtr<FArchive> AnimArchive(IFileManager::Get().CreateFileReader(*AnimFilePath));
-			//			if (AnimArchive)
-			//			{
-			//				LevelSequence->SetFileHash(FMD5Hash::HashFileFromArchive(AnimArchive.Get()));
-			//			}
-
-			//			FPaths::MakePathRelativeTo(AnimFilePath, *AbsoluteDir);
-			//			LevelSequence->SetFile(*AnimFilePath);
-			//		}
-			//	}
-			//}
-
-			// XXX - removed 
-			// Log time spent to export scene in seconds
-			//int ElapsedTime = (int)FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - Impl->ExportStartCycles);
-			//DatasmithScene->SetExportDuration(ElapsedTime);
-
-			FDatasmithSceneXmlWriter DatasmithSceneXmlWriter;
-			DatasmithSceneXmlWriter.Serialize(DatasmithScene, *Archive);
-
-			Archive->Close();
-
-			// Run the garbage collector at this point so that we're in a good state for the next export
-			FDatasmithExporterManager::RunGarbageCollection();
-		}
-
-		TSharedRef<IDatasmithScene> DatasmithScene = ExportedScene.GetDatasmithSceneRef();
-
-		// Convert paths back to absolute(they were changes by Export)
-		FString AbsoluteDir = FString(ExportedScene.GetSceneExporterRef()->GetOutputPath()) + TEXT("/");
-		for (int32 MeshIndex = 0; MeshIndex < DatasmithScene->GetMeshesCount(); ++MeshIndex)
-		{
-			TSharedPtr< IDatasmithMeshElement > Mesh = DatasmithScene->GetMesh(MeshIndex);
-
-			FString RelativePath = Mesh->GetFile();
-			Mesh->SetFile(*FPaths::ConvertRelativePathToFull(AbsoluteDir, *RelativePath));
-		}
-
-		for (int32 TextureIndex = 0; TextureIndex < DatasmithScene->GetTexturesCount(); ++TextureIndex)
-		{
-			TSharedPtr< IDatasmithTextureElement > Texture = DatasmithScene->GetTexture(TextureIndex);
-
-			FString RelativePath = Texture->GetFile();
-
-			Texture->SetFile(*FPaths::ConvertRelativePathToFull(AbsoluteDir, *RelativePath));
-		}
-	}
-
 	void ExportCurrentDatasmithScene()
 	{
 		ExportedScene.GetSceneExporterRef()->Export(ExportedScene.GetDatasmithSceneRef());
@@ -674,17 +559,6 @@ VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene(VALUE s
 	return Qtrue;
 }
 
-VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene_no_cleanup(VALUE self)
-{
-	// Converting args
-	FDatasmithSketchUpDirectLinkExporter* ptr;
-	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, ptr);
-	// Done converting args
-
-	ptr->ExportCurrentDatasmithSceneWithoutCleanup();
-	return Qtrue;
-}
-
 #ifndef SKP_SDK_2019
 VALUE DatasmithSketchUpDirectLinkExporter_on_component_instance_changed(VALUE self, VALUE ruby_entity)
 {
@@ -911,8 +785,6 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUpRuby()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "send_update", ToRuby(DatasmithSketchUpDirectLinkExporter_send_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene), 0);
-	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene_no_cleanup", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene_no_cleanup), 0);
-	
 }
 
 /* todo:

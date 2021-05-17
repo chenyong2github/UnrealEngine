@@ -513,6 +513,28 @@ void FComponentDefinition::UnlinkComponentInstance(FComponentInstance* Component
 	Instances.Remove(ComponentInstance);
 }
 
+void FComponentDefinition::RemoveComponentDefinition(FExportContext& Context)
+{
+	// Remove ComponentDefinition that doesn't have tracked instances 
+	ensure(!Instances.Num());
+	
+	// todo: might better keep in the Definition's Entities all ComponentInstanceIDs of the tracked entities
+	// this way we don't need to check whether we are tracking them (inside RemoveComponentInstance) 
+	for (SUComponentInstanceRef ComponentInstanceRef : GetEntities().GetComponentInstances())
+	{
+		Context.ComponentInstances.RemoveComponentInstance(
+			DatasmithSketchUpUtils::GetComponentID(ComponentDefinitionRef), 
+			DatasmithSketchUpUtils::GetComponentInstanceID(ComponentInstanceRef));
+	}
+
+	for (SUGroupRef GroupRef : GetEntities().GetGroups())
+	{
+		Context.ComponentInstances.RemoveComponentInstance(
+			DatasmithSketchUpUtils::GetComponentID(ComponentDefinitionRef),
+			DatasmithSketchUpUtils::GetGroupID(GroupRef));
+	}
+}
+
 void FComponentDefinition::AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance)
 {
 	for (FComponentInstance* ParentInstance : Instances)
@@ -751,7 +773,8 @@ SUComponentInstanceRef FComponentInstance::GetComponentInstanceRef()
 bool FComponentInstance::RetrieveHidden()
 {
 	bool bResult = false;
-	SUDrawingElementGetHidden(SUComponentInstanceToDrawingElement(GetComponentInstanceRef()), &bResult);
+	SUResult bSuResult  = SUDrawingElementGetHidden(SUComponentInstanceToDrawingElement(GetComponentInstanceRef()), &bResult);
+	ensure(bSuResult == SU_ERROR_NONE);
 	return bResult;
 }
 
@@ -761,6 +784,10 @@ void FComponentInstance::FillOccurrenceActorMetadata(FNodeOccurence& Node)
 	{
 		return;
 	}
+
+	//SUTransformation SComponentInstanceWorldTransform = DatasmithSketchUpUtils::GetComponentInstanceTransform(GetComponentInstanceRef(), Node.ParentNode->WorldTransform);
+	//double Volume;
+	//SUComponentInstanceComputeVolume(GetComponentInstanceRef(), &SComponentInstanceWorldTransform, &Volume);
 
 	// Add original instance/component names to metadata
 	TSharedPtr<IDatasmithKeyValueProperty> EntityName = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("Instance"));
@@ -831,6 +858,16 @@ void FComponentInstance::RemoveComponentInstance(FExportContext& Context)
 	Definition.EntityVisible(this, false);
 	Definition.UnlinkComponentInstance(this);
 	RemoveOccurrences(Context);
+
+	// If there's no Instances of this removed ComponentInstance we need to stop tracking Definition's Entities
+	// Details:
+	// SketchUp api doesn't fire event for those child Entities although they are effectively removed from Model 
+	// Sketchup.active_model.definitions.purge_unused will deallocate those dangling Entities leaving references invalid
+	// Although SU API tries to notify about this but fails e.g. DefinitionObserver.onComponentInstanceRemoved/onEraseEntity passes already deleted Entity making this callback useless
+	if (!Definition.Instances.Num())
+	{
+		Definition.RemoveComponentDefinition(Context);
+	}
 }
 
 void FComponentInstance::SetParentDefinition(FExportContext& Context, FDefinition* InParent)
