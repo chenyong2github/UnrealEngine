@@ -5,6 +5,7 @@
 #include "PersonaDelegates.h"
 #include "GraphEditor.h"
 #include "Containers/ArrayView.h"
+#include "EditorUndoClient.h"
 
 class UObject;
 class UPhysicsAsset;
@@ -22,7 +23,7 @@ DECLARE_DELEGATE_OneParam(FOnPhysicsAssetGraphCreated, const TSharedRef<SPhysics
 /** Delegate used to communicate graph selection */
 DECLARE_DELEGATE_OneParam(FOnGraphObjectsSelected, const TArrayView<UObject*>& /*InObjects*/);
 
-class SPhysicsAssetGraph : public SCompoundWidget
+class SPhysicsAssetGraph : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SPhysicsAssetGraph){}
@@ -33,6 +34,10 @@ public:
 
 	/** SWidget interface */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	/** FEditorUndoClient interface */
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
 
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const TSharedRef<FPhysicsAssetEditor>& InPhysicsAssetEditor, UPhysicsAsset* InPhysicsAsset, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, FOnGraphObjectsSelected InOnGraphObjectSelected);
