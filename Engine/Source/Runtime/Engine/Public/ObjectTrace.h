@@ -60,6 +60,9 @@ struct FObjectTrace
 	/** Helper function to get an object ID from a UObject */
 	ENGINE_API static uint64 GetObjectId(const UObject* InObject);
 
+	/** Helper function to get the UObject from an ObjectId, if the UObject still exists */
+	ENGINE_API static UObject* GetObjectFromId(uint64 id);
+
 	/** Helper function to get an object's world's tick counter */
 	ENGINE_API static uint16 GetObjectWorldTickCounter(const UObject* InObject);
 
