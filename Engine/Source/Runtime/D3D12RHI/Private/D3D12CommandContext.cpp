@@ -628,7 +628,7 @@ void FD3D12CommandContextBase::RHIEndFrame()
 
 		// Only delete free blocks when not used in the last 2 frames, to make sure we are not allocating and releasing
 		// the same blocks every frame.
-		uint64 BufferPoolDeletionFrameLag = 2;
+		uint64 BufferPoolDeletionFrameLag = 20;
 		Device->GetDefaultBufferAllocator().CleanupFreeBlocks(BufferPoolDeletionFrameLag);
 
 		uint64 FastAllocatorDeletionFrameLag = 10;
