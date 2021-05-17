@@ -447,16 +447,31 @@ bool FPerforceSourceControlProvider::UsesCheckout() const
 
 void FPerforceSourceControlProvider::OutputCommandMessages(const FPerforceSourceControlCommand& InCommand) const
 {
-	FMessageLog SourceControlLog("SourceControl");
-
-	for (int32 ErrorIndex = 0; ErrorIndex < InCommand.ResultInfo.ErrorMessages.Num(); ++ErrorIndex)
+	if (IsInGameThread()) // On the game thread we can use FMessageLog
 	{
-		SourceControlLog.Error(FText::Format(LOCTEXT("OutputCommandMessagesFormatError", "CommandMessage Command: {0}, Error: {1}"), FText::FromName(InCommand.Operation->GetName()), InCommand.ResultInfo.ErrorMessages[ErrorIndex]));
+		FMessageLog SourceControlLog("SourceControl");
+
+		for (int32 ErrorIndex = 0; ErrorIndex < InCommand.ResultInfo.ErrorMessages.Num(); ++ErrorIndex)
+		{
+			SourceControlLog.Error(FText::Format(LOCTEXT("OutputCommandMessagesFormatError", "CommandMessage Command: {0}, Error: {1}"), FText::FromName(InCommand.Operation->GetName()), InCommand.ResultInfo.ErrorMessages[ErrorIndex]));
+		}
+
+		for (int32 InfoIndex = 0; InfoIndex < InCommand.ResultInfo.InfoMessages.Num(); ++InfoIndex)
+		{
+			SourceControlLog.Info(FText::Format(LOCTEXT("OutputCommandMessagesFormatInfo", "CommandMessage Command: {0}, Info: {1}"), FText::FromName(InCommand.Operation->GetName()), InCommand.ResultInfo.InfoMessages[InfoIndex]));
+		}
 	}
-
-	for (int32 InfoIndex = 0; InfoIndex < InCommand.ResultInfo.InfoMessages.Num(); ++InfoIndex)
+	else // On background threads we must log directly as FMessageLog internals cannot be assumed to be thread safe
 	{
-		SourceControlLog.Info(FText::Format(LOCTEXT("OutputCommandMessagesFormatInfo", "CommandMessage Command: {0}, Info: {1}"), FText::FromName(InCommand.Operation->GetName()), InCommand.ResultInfo.InfoMessages[InfoIndex]));
+		for (const FText& Error : InCommand.ResultInfo.ErrorMessages)
+		{
+			UE_LOG(LogSourceControl, Error, TEXT("Command: %s, Error: %s"), *InCommand.Operation->GetName().ToString(), *Error.ToString());
+		}
+
+		for (const FText& Info : InCommand.ResultInfo.InfoMessages)
+		{
+			UE_LOG(LogSourceControl, Log, TEXT("Command: %s, Info: %s"), *InCommand.Operation->GetName().ToString(), *Info.ToString());
+		}
 	}
 }
 
@@ -583,6 +598,51 @@ TArray<FSourceControlChangelistRef> FPerforceSourceControlProvider::GetChangelis
 	TArray<FSourceControlChangelistRef> Changelists;
 	Algo::Transform(ChangelistsStateCache, Changelists, [](const auto& Pair) { return MakeShared<FPerforceSourceControlChangelist, ESPMode::ThreadSafe>(Pair.Key); });
 	return Changelists;
+}
+
+bool FPerforceSourceControlProvider::TryToDownloadFileFromBackgroundThread(const TSharedRef<class FDownloadFile>& InOperation, const TArray<FString>& InFiles)
+{
+	if (!IsEnabled())
+	{
+		return false;
+	}
+
+	TSharedPtr<IPerforceSourceControlWorker, ESPMode::ThreadSafe> Worker = CreateWorker(InOperation->GetName());
+	if (!Worker.IsValid())
+	{
+		// This operation is unsupported by this source control provider
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("OperationName"), FText::FromName(InOperation->GetName()));
+		Arguments.Add(TEXT("ProviderName"), FText::FromName(GetName()));
+		FText Message = FText::Format(LOCTEXT("UnsupportedOperation", "Operation '{OperationName}' not supported by source control provider '{ProviderName}'"), Arguments);
+
+		InOperation->AddErrorMessge(Message);
+
+		return false;
+	}
+
+	// Note that this method can safely be called from any thread works because we know that
+	// a) We are not executing any delegates.
+	// b) That the FDownloadFile operation does not change the stage of any files in 
+	// source control and so will not affect any cached states.
+	// c) We are not invoking any globals that might touch the slate UI such as FMessageLog
+
+	FPerforceSourceControlCommand Command(InOperation, Worker.ToSharedRef());
+	Command.bAutoDelete = false;
+	Command.Files = SourceControlHelpers::AbsoluteFilenames(InFiles);
+	Command.StatusBranchNames = StatusBranchNames;
+	Command.ContentRoot = ContentRoot;
+
+	// DoWork will use a shared connection, we need to call DoThreadedWork to make sure that 
+	// we use our own connection for this background thread.
+	Command.DoThreadedWork();
+
+	// Sanity check to make sure we are not running a command that modifies the cached states from a background thread
+	check(Command.Worker->UpdateStates() == false);
+
+	OutputCommandMessages(Command);
+	
+	return Command.bCommandSuccessful;
 }
 
 #if SOURCE_CONTROL_WITH_SLATE

@@ -345,3 +345,14 @@ protected:
 	/** List of files states after update */
 	TArray<FPerforceSourceControlState> ChangelistFilesStates;
 };
+
+class FPerforceDownloadFileWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceDownloadFileWorker() = default;
+
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+};

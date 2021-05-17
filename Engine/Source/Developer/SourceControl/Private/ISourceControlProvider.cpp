@@ -98,4 +98,24 @@ TSharedPtr<class ISourceControlLabel> ISourceControlProvider::GetLabel(const FSt
 	return nullptr;
 }
 
+bool ISourceControlProvider::TryToDownloadFileFromBackgroundThread(const TSharedRef<class FDownloadFile>& InOperation, const FString& InFile)
+{
+	TArray<FString> FileArray;
+	FileArray.Add(InFile);
+
+	return TryToDownloadFileFromBackgroundThread(InOperation, FileArray);
+}
+
+bool ISourceControlProvider::TryToDownloadFileFromBackgroundThread(const TSharedRef<class FDownloadFile>& InOperation, const TArray<FString>& InFiles)
+{
+	// TryToDownloadFileFromBackgroundThread is unsupported by this source control provider
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("ProviderName"), FText::FromName(GetName()));
+	FText Message = FText::Format(LOCTEXT("UnsupportedOperation", "TryToDownloadFileFromBackgroundThread is not supported by source control provider '{ProviderName}'"), Arguments);
+
+	InOperation->AddErrorMessge(Message);
+
+	return false;
+}
+
 #undef LOCTEXT_NAMESPACE

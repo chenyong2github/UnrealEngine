@@ -69,6 +69,16 @@ public:
 		// Implemented in subclasses
 	}
 
+	/**
+	 * This will return true if the operation can be safely called from a background thread.
+	 * Currently it is assumed to only the operation 'FDownloadFile' will return true at least
+	 * until the API is made thread safe.
+	 */
+	virtual bool CanBeCalledFromBackgroundThreads() const
+	{
+		return false;
+	}
+
 	/** Factory method for easier operation creation */
 	template<typename Type, typename... TArgs>
 	static TSharedRef<Type, ESPMode::ThreadSafe> Create(TArgs&&... Args)

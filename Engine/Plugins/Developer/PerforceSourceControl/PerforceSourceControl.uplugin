@@ -19,7 +19,7 @@
 		{
 			"Name" : "PerforceSourceControl",
 			"Type" : "UncookedOnly",
-			"LoadingPhase" : "Default"
+			"LoadingPhase" : "EarliestPossible"
 		}
 	]
 }
