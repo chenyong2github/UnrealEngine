@@ -477,6 +477,18 @@ public:
 	/** Loads the redirector maps */
 	virtual void LoadRedirectorMaps();
 
+	/** Refresh the entire set of asset data, can call from editor when things have changed dramatically. Will only refresh if force is true or it thinks something has changed */
+	virtual void RefreshPrimaryAssetDirectory(bool bForceRefresh = false);
+
+	/** Invalidate cached asset data so it knows to rescan when needed */
+	virtual void InvalidatePrimaryAssetDirectory();
+
+	/** Warn about this primary asset id being missing, but only if this is the first time this session */
+	virtual void WarnAboutInvalidPrimaryAsset(const FPrimaryAssetId& PrimaryAssetId, const FString& Message) const;
+
+	/** Helper function to write out asset reports */
+	virtual bool WriteCustomReport(FString FileName, TArray<FString>& FileLines) const;
+
 #if WITH_EDITOR
 	// EDITOR ONLY FUNCTIONALITY
 
@@ -527,9 +539,6 @@ public:
 
 	/** Returns the list of chunks assigned to the list of primary assets, which is usually a manager list. This is called by GetPackageChunkIds */
 	virtual bool GetPrimaryAssetSetChunkIds(const TSet<FPrimaryAssetId>& PrimaryAssetSet, const class ITargetPlatform* TargetPlatform, TArrayView<const int32> ExistingChunkList, TArray<int32>& OutChunkList) const;
-
-	/** Refresh the entire set of asset data, can call from editor when things have changed dramatically. Will only refresh if force is true or it thinks something has changed */
-	virtual void RefreshPrimaryAssetDirectory(bool bForceRefresh = false);
 
 	/** Resets all asset manager data, called in the editor to reinitialize the config */
 	virtual void ReinitializeFromConfig();
@@ -601,9 +610,6 @@ protected:
 	/** Called when an internal load handle finishes, handles setting to pending state */
 	virtual void OnAssetStateChangeCompleted(FPrimaryAssetId PrimaryAssetId, TSharedPtr<FStreamableHandle> BoundHandle, FStreamableDelegate WrappedDelegate);
 
-	/** Helper function to write out asset reports */
-	virtual bool WriteCustomReport(FString FileName, TArray<FString>& FileLines) const;
-
 	/** Scans all asset types specified in DefaultGame */
 	virtual void ScanPrimaryAssetTypesFromConfig();
 
@@ -662,9 +668,6 @@ protected:
 	/** Called after PIE ends, resets loading state */
 	virtual void EndPIE(bool bStartSimulate);
 
-	/** Invalidate cached asset data so it knows to rescan when needed */
-	virtual void InvalidatePrimaryAssetDirectory();
-
 	/** Copy of the asset state before PIE was entered, return to that when PIE completes */
 	TMap<FPrimaryAssetId, TArray<FName>> PrimaryAssetStateBeforePIE;
 
@@ -683,6 +686,9 @@ protected:
 
 	/** Cached map of asset bundles, global and per primary asset */
 	TMap<FPrimaryAssetId, TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>> CachedAssetBundles;
+
+	/** List of assets we have warned about being missing */
+	mutable TSet<FPrimaryAssetId> WarningInvalidAssets;
 
 	/** List of directories that have already been synchronously scanned */
 	mutable TArray<FString> AlreadyScannedDirectories;
