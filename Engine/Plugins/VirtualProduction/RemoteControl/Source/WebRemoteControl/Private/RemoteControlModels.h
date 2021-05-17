@@ -79,10 +79,6 @@ struct FRCObjectDescription
 		{
 			Name = Actor->GetActorLabel();
 		}
-		else if(UActorComponent* Component = Cast<UActorComponent>(InObject))
-		{
-			Name = Component->GetOwner()->GetActorLabel();
-		}
 		else
 #endif
 		{
@@ -90,12 +86,7 @@ struct FRCObjectDescription
 			Name = InObject->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ? InObject->GetClass()->GetName() : InObject->GetName();
 		}
 		
-#if WITH_EDITOR
-		Class = InObject->GetClass()->GetDisplayNameText().ToString();
-#else
 		Class = InObject->GetClass()->GetName();
-#endif
-
 		Path = InObject->GetPathName();
 	}
 
@@ -267,7 +258,7 @@ struct FRCExposedPropertyDescription
 	{
 		UnderlyingProperty = RCProperty.GetProperty();
 		Metadata = RCProperty.GetMetadata();
-		Id = RCProperty.GetId().ToString();
+		ID = RCProperty.GetId().ToString();
 		OwnerObjects.Append(RCProperty.GetBoundObjects());
 	}
 
@@ -277,7 +268,7 @@ struct FRCExposedPropertyDescription
 
 	/** Unique identifier for the exposed property. */
 	UPROPERTY()
-	FString Id;
+	FString ID;
 
 	/** The underlying exposed property. */
 	UPROPERTY()
@@ -301,7 +292,7 @@ struct FRCExposedFunctionDescription
 
 	FRCExposedFunctionDescription(const FRemoteControlFunction& Function)
 		: DisplayName(Function.GetLabel())
-		, Id(Function.GetId().ToString())
+		, ID(Function.GetId().ToString())
 		, UnderlyingFunction(Function.GetFunction())
 	{
 		OwnerObjects.Append(Function.GetBoundObjects());
@@ -313,7 +304,7 @@ struct FRCExposedFunctionDescription
 
 	/** Unique identifier for the exposed function. */
 	UPROPERTY()
-	FString Id;
+	FString ID;
 	
 	/** The underlying exposed function. */
 	UPROPERTY()
@@ -339,7 +330,7 @@ struct FRCExposedActorDescription
 			UnderlyingActor = FRCObjectDescription{ Actor };
 		}
 
-		Id = InExposedActor.GetId().ToString();
+		ID = InExposedActor.GetId().ToString();
 	}
 
 	/** The label displayed in the remote control panel for this exposed actor. */
@@ -348,7 +339,7 @@ struct FRCExposedActorDescription
 	
 	/** Unique identifier for the exposed actor. */
 	UPROPERTY()
-	FString Id;
+	FString ID;
 
 	/** The underlying exposed actor. */
 	UPROPERTY()
@@ -498,7 +489,7 @@ struct FRCPresetDescription
 
 		Name = Preset->GetName();
 		Path = Preset->GetPathName();
-		Id = Preset->GetPresetId().ToString();
+		ID = Preset->GetPresetId().ToString();
 
 		Algo::Transform(Preset->Layout.GetGroups(), Groups, [Preset](const FRemoteControlPresetGroup& Group) { return FRCPresetLayoutGroupDescription{ Preset, Group }; });
 	}
@@ -519,7 +510,7 @@ struct FRCPresetDescription
 	 * Unique identifier for the preset, can be used to make requests to the API.
 	 */
 	UPROPERTY()
-	FString Id;
+	FString ID;
 
 	/**
 	 * The groups containing exposed entities.
@@ -538,7 +529,7 @@ struct FRCShortPresetDescription
 	FRCShortPresetDescription(const FAssetData& PresetAsset)
 	{
 		Name = PresetAsset.AssetName;
-		Id = PresetAsset.GetTagValueRef<FGuid>(FName("PresetId")).ToString();
+		ID = PresetAsset.GetTagValueRef<FGuid>(FName("PresetId")).ToString();
 		Path = PresetAsset.ObjectPath;
 	}
 
@@ -552,7 +543,7 @@ struct FRCShortPresetDescription
 	 * Unique identifier for the preset, can be used to make requests to the API.
 	 */
 	UPROPERTY()
-	FString Id;
+	FString ID;
 
 	/**
 	 * Object path of the preset.

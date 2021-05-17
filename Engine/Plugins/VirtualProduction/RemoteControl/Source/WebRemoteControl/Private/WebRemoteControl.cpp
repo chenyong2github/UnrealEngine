@@ -96,6 +96,11 @@ namespace WebRemoteControl
 
 void FWebRemoteControlModule::StartupModule()
 {
+	if (FParse::Param(FCommandLine::Get(), TEXT("RCWebControlDisable")))
+	{
+		return;
+	}
+	
 #if WITH_EDITOR
 	RegisterSettings();
 #endif
@@ -125,6 +130,11 @@ void FWebRemoteControlModule::StartupModule()
 
 void FWebRemoteControlModule::ShutdownModule()
 {
+	if (FParse::Param(FCommandLine::Get(), TEXT("RCWebControlDisable")))
+	{
+		return;
+	}
+	
 	EditorRoutes.UnregisterRoutes(this);
 	WebSocketHandler->UnregisterRoutes(this);
 	StopHttpServer();
@@ -137,17 +147,33 @@ void FWebRemoteControlModule::ShutdownModule()
 
 FDelegateHandle FWebRemoteControlModule::RegisterRequestPreprocessor(FHttpRequestHandler RequestPreprocessor)
 {
-	FDelegateHandle Handle;
+	FDelegateHandle WebRCHandle{FDelegateHandle::GenerateNewHandle};
+	
+	PreprocessorsToRegister.Add(WebRCHandle, RequestPreprocessor);
+	
+	FDelegateHandle HttpRouterHandle;
 	if (HttpRouter)
 	{
-		Handle = HttpRouter->RegisterRequestPreprocessor(MoveTemp(RequestPreprocessor));
+		HttpRouterHandle = HttpRouter->RegisterRequestPreprocessor(MoveTemp(RequestPreprocessor));
 	}
-	return Handle;
+
+	PreprocessorsHandleMappings.Add(WebRCHandle, HttpRouterHandle);
+	
+	return WebRCHandle;
 }
 
 void FWebRemoteControlModule::UnregisterRequestPreprocessor(const FDelegateHandle& RequestPreprocessorHandle)
 {
-	HttpRouter->UnregisterRequestPreprocessor(RequestPreprocessorHandle);
+	PreprocessorsToRegister.Remove(RequestPreprocessorHandle);
+	if (FDelegateHandle* HttpRouterHandle = PreprocessorsHandleMappings.Find(RequestPreprocessorHandle))
+	{
+		if (HttpRouterHandle->IsValid())
+		{
+			HttpRouter->UnregisterRequestPreprocessor(*HttpRouterHandle);
+		}
+		
+		PreprocessorsHandleMappings.Remove(RequestPreprocessorHandle);
+	}
 }
 
 void FWebRemoteControlModule::RegisterRoute(const FRemoteControlRoute& Route)
@@ -199,6 +225,20 @@ void FWebRemoteControlModule::StartHttpServer()
 		for (FRemoteControlRoute& Route : RegisteredHttpRoutes)
 		{
 			StartRoute(Route);
+		}
+
+		// Go through externally registered request pre-processors and register them with the http router.
+		for (const TPair<FDelegateHandle, FHttpRequestHandler>& Handler : PreprocessorsToRegister)
+		{
+			// Find the pre-processors HTTP-handle from the one we generated.
+			FDelegateHandle& Handle = PreprocessorsHandleMappings.FindChecked(Handler.Key);
+			if (Handle.IsValid())
+			{
+				HttpRouter->UnregisterRequestPreprocessor(Handle);
+			}
+
+			// Update the preprocessor handle mapping.
+			Handle = HttpRouter->RegisterRequestPreprocessor(Handler.Value);
 		}
 
 		FHttpServerModule::Get().StartAllListeners();
