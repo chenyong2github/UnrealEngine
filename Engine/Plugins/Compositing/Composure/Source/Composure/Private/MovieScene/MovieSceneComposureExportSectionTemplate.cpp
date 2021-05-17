@@ -164,7 +164,11 @@ struct FStopCapturingShotElementPassToken : IMovieScenePreAnimatedToken
 	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params)
 	{
 		IMovieScenePlayer* Player = Params.GetTerminalPlayer();
-		check(Player);
+		if (!ensure(Player))
+		{
+			return;
+		}
+
 		FPersistentEvaluationData PersistentData(*Player);
 
 		FComposureShotElementCaptureManager* CaptureManager = PersistentData.Find<FComposureShotElementCaptureManager>(ComposureExportSharedKey);
