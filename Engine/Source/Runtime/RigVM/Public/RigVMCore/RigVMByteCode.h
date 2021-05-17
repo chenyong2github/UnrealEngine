@@ -228,21 +228,29 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 	: FRigVMBaseOp(ERigVMOpCode::Copy)
 	, Source()
 	, Target()
+	, NumBytes(0)
+	, RegisterType(ERigVMRegisterType::Invalid)
 	{
 	}
 
 	FRigVMCopyOp(
 		FRigVMOperand InSource,
-		FRigVMOperand InTarget
+		FRigVMOperand InTarget,
+		uint16 InNumBytes,
+		ERigVMRegisterType InRegisterType
 	)
 		: FRigVMBaseOp(ERigVMOpCode::Copy)
 		, Source(InSource)
 		, Target(InTarget)
+		, NumBytes(InNumBytes)
+		, RegisterType(InRegisterType)
 	{
 	}
 
 	FRigVMOperand Source;
 	FRigVMOperand Target;
+	uint16 NumBytes;
+	ERigVMRegisterType RegisterType;
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMCopyOp& P)
@@ -540,7 +548,10 @@ public:
 	uint64 AddTrueOp(const FRigVMOperand& InArg);
 
 	// adds a copy operator to copy the content of a source argument to a target argument
-	uint64 AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget);
+	uint64 AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType);
+
+	// adds a copy operator to copy the content of a source argument to a target argument
+	uint64 AddCopyOp(const FRigVMCopyOp& InCopyOp);
 
 	// adds an increment operator to increment a int32 argument
 	uint64 AddIncrementOp(const FRigVMOperand& InArg);

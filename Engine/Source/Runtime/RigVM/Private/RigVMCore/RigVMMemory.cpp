@@ -173,10 +173,10 @@ void FRigVMRegisterOffset::Load(FArchive& Ar)
 	}
 }
 
-FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const FString& InSegmentPath, int32 InInitialOffset, uint16 InElementSize)
+FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const FString& InSegmentPath, int32 InInitialOffset, uint16 InElementSize, const FName& InCPPType)
 	: Segments()
 	, Type(ERigVMRegisterType::Plain)
-	, CPPType()
+	, CPPType(InCPPType)
 	, ScriptStruct(nullptr)
 	, ParentScriptStruct(nullptr)
 	, ArrayIndex(0)
@@ -244,6 +244,9 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 				{
 					Offset.Segments.Add(-1);
 					Property = ArrayProperty->Inner;
+
+					Offset.CPPType = *ArrayProperty->Inner->GetCPPType();
+					Offset.ElementSize = ArrayProperty->Inner->ElementSize;
 				}
 
 				if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
@@ -1699,8 +1702,20 @@ int32 FRigVMMemoryContainer::GetOrAddRegisterOffset(int32 InRegisterIndex, UScri
 		ensure(Registers.IsValidIndex(InRegisterIndex)); 
 		InElementSize = (int32)Registers[InRegisterIndex].ElementSize;
 	}
+	
+	FName BaseCPPType = NAME_None;
+	if(Registers.IsValidIndex(InRegisterIndex))
+	{
+		if(InElementSize == 0)
+		{
+			InElementSize = (int32)Registers[InRegisterIndex].ElementSize;
+		}
+#if WITH_EDITORONLY_DATA
+		BaseCPPType = Registers[InRegisterIndex].BaseCPPType;
+#endif
+	}
 
-	FRigVMRegisterOffset Offset(InScriptStruct, InSegmentPath, InInitialOffset, InElementSize);
+	FRigVMRegisterOffset Offset(InScriptStruct, InSegmentPath, InInitialOffset, InElementSize, BaseCPPType);
 	int32 ExistingIndex = RegisterOffsets.Find(Offset);
 	if (ExistingIndex == INDEX_NONE)
 	{

@@ -87,7 +87,14 @@ public:
 	FORCEINLINE_DEBUGGABLE ERigVMMemoryType GetMemoryType() const { return MemoryType; }
 
 	// returns the index of the container of this argument
-	FORCEINLINE_DEBUGGABLE int32 GetContainerIndex() const { return (int32)MemoryType; }
+	FORCEINLINE_DEBUGGABLE int32 GetContainerIndex() const
+	{
+		if(MemoryType == ERigVMMemoryType::External)
+		{
+			return (int)ERigVMMemoryType::Work;
+		}
+		return (int32)MemoryType;
+	}
 
 	// returns the index of the register of this argument
 	FORCEINLINE_DEBUGGABLE int32 GetRegisterIndex() const { return RegisterIndex == UINT16_MAX ? INDEX_NONE : (int32)RegisterIndex; }
@@ -328,7 +335,7 @@ public:
 	}
 
 	// constructs a path given a struct and a segment path
-	FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const FString& InSegmentPath, int32 InInitialOffset = 0, uint16 InElementSize = 0);
+	FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const FString& InSegmentPath, int32 InInitialOffset = 0, uint16 InElementSize = 0, const FName& InCPPType = NAME_None);
 
 	// returns the data pointer within a container
 	uint8* GetData(uint8* InContainer) const;
@@ -488,6 +495,11 @@ public:
 		return Type;
 	}
 
+	FORCEINLINE bool IsDynamic() const
+	{
+		return (Type == Dynamic) || (Type == NestedDynamic);
+	}
+
 private:
 
 	FORCEINLINE_DEBUGGABLE uint8* GetData_Internal_NoOffset(int32 SliceIndex, bool bGetArrayData = false) const
@@ -504,6 +516,10 @@ private:
 			case FType::Plain:
 			{
 				return Ptr + SliceIndex * Size;
+			}
+			case FType::ArraySize:
+			{
+				return Ptr;
 			}
 			case FType::Dynamic:
 			{

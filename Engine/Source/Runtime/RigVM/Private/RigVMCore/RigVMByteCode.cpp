@@ -2,6 +2,7 @@
 
 #include "RigVMCore/RigVMByteCode.h"
 #include "UObject/AnimObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
 void FRigVMExecuteOp::Serialize(FArchive& Ar)
@@ -25,9 +26,30 @@ void FRigVMBinaryOp::Serialize(FArchive& Ar)
 
 void FRigVMCopyOp::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	
 	Ar << OpCode;
 	Ar << Source;
 	Ar << Target;
+
+	if(Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FAnimObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
+		{
+			NumBytes = 0;
+			RegisterType = ERigVMRegisterType::Invalid;
+		}
+		else
+		{
+			Ar << NumBytes;
+			Ar << RegisterType;
+		}
+	}
+	else
+	{
+		Ar << NumBytes;
+		Ar << RegisterType;
+	}
 }
 
 void FRigVMComparisonOp::Serialize(FArchive& Ar)
@@ -129,6 +151,7 @@ void FRigVMByteCode::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
@@ -751,11 +774,19 @@ uint64 FRigVMByteCode::AddTrueOp(const FRigVMOperand& InArg)
 	return AddOp(Op);
 }
 
-uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
+uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType)
 {
-	ensure(InTarget.GetMemoryType() != ERigVMMemoryType::Literal);
-	FRigVMCopyOp Op(InSource, InTarget);
+	check(InTarget.GetMemoryType() != ERigVMMemoryType::Literal);
+	check(InNumBytes > 0);
+	check(InTargetType != ERigVMRegisterType::Invalid);
+	
+	FRigVMCopyOp Op(InSource, InTarget, InNumBytes, InTargetType);
 	return AddOp(Op);
+}
+
+uint64 FRigVMByteCode::AddCopyOp(const FRigVMCopyOp& InCopyOp)
+{
+	return AddCopyOp(InCopyOp.Source, InCopyOp.Target, InCopyOp.NumBytes, InCopyOp.RegisterType);
 }
 
 uint64 FRigVMByteCode::AddIncrementOp(const FRigVMOperand& InArg)
@@ -925,6 +956,7 @@ FString FRigVMByteCode::DumpToText() const
 				FString TargetContent;
 				FRigVMOperand::StaticStruct()->ExportText(TargetContent, &Op.Source, nullptr, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", Target %s"), *TargetContent);
+				Line += FString::Printf(TEXT(", NumBytes %d"), (int32)Op.NumBytes);
 				break;
 			}
 			case ERigVMOpCode::Zero:

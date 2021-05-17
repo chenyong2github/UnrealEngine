@@ -139,6 +139,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Switch FTextureSource to use virtualized bulkdata
 		TextureSourceVirtualization,
 
+		// RigVM to store more information alongside the Copy Operator
+		RigVMCopyOpStoreNumBytes,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

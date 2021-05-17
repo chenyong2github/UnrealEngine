@@ -805,7 +805,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetTargetPin(), Target, TargetExpr, false);
 		}
 
-		WorkData.VM->GetByteCode().AddCopyOp(Source, Target);
+		WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(Source, Target));
 		int32 InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 
 		if (Settings.SetupNodeInstructionIndex)
@@ -960,7 +960,7 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 
 	FRigVMOperand& TrueOperand = WorkData.ExprToOperand.FindChecked(TrueExpr);
 
-	WorkData.VM->GetByteCode().AddCopyOp(TrueOperand, ResultOperand);
+	WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(TrueOperand, ResultOperand));
 	if (Settings.SetupNodeInstructionIndex)
 	{
 		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
@@ -987,7 +987,7 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 
 	FRigVMOperand& FalseOperand = WorkData.ExprToOperand.FindChecked(FalseExpr);
 
-	WorkData.VM->GetByteCode().AddCopyOp(FalseOperand, ResultOperand);
+	WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(FalseOperand, ResultOperand));
 	if (Settings.SetupNodeInstructionIndex)
 	{
 		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
@@ -1108,7 +1108,7 @@ void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCom
 
 		// add copy op to copy the result
 		FRigVMOperand& CaseOperand = WorkData.ExprToOperand.FindChecked(CaseExpressions[CaseIndex]);
-		WorkData.VM->GetByteCode().AddCopyOp(CaseOperand, ResultOperand);
+		WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(CaseOperand, ResultOperand));
 		if (Settings.SetupNodeInstructionIndex)
 		{
 			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
@@ -1237,14 +1237,17 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 						{
 							FString TargetPath = FString::Printf(TEXT("LocalVariable::%s|%s"), *Node->GetNodePath(), *Variable.Name.ToString());
 							FString SourcePath = FString::Printf(TEXT("LocalVariable::%s|%s::Const"), *Node->GetContainedGraph()->GetGraphName(), *Variable.Name.ToString());
-							FRigVMOperand* Target = WorkData.PinPathToOperand->Find(TargetPath);
-							FRigVMOperand* Source = WorkData.PinPathToOperand->Find(SourcePath);
-							if (Source && Target) 
+							FRigVMOperand* TargetPtr = WorkData.PinPathToOperand->Find(TargetPath);
+							FRigVMOperand* SourcePtr = WorkData.PinPathToOperand->Find(SourcePath);
+							if (SourcePtr && TargetPtr) 
 							{
+								const FRigVMOperand& Source = *SourcePtr;
+								const FRigVMOperand& Target = *TargetPtr;
+
 								bool bAlreadyCopied = false;
 								for (const FRigVMCopyOp& CopyOp : PreviousCopyInstructions)
 								{
-									if (CopyOp.Source == *Source && CopyOp.Target == *Target)
+									if (CopyOp.Source == Source && CopyOp.Target == Target)
 									{
 										bAlreadyCopied = true;
 										break;
@@ -1253,7 +1256,7 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 
 								if (!bAlreadyCopied)
 								{
-									ByteCode.AddCopyOp(*Source, *Target);
+									ByteCode.AddCopyOp(WorkData.VM->GetCopyOpForOperands(Source, Target));
 								}	
 							}					
 						}
@@ -1280,11 +1283,13 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 					{
 						FString TargetPath = FString::Printf(TEXT("LocalVariable::%s"), *Variable.Name.ToString());
 						FString SourcePath = FString::Printf(TEXT("LocalVariable::|%s::Const"), *Variable.Name.ToString());
-						FRigVMOperand* Target = WorkData.PinPathToOperand->Find(TargetPath);
-						FRigVMOperand* Source = WorkData.PinPathToOperand->Find(SourcePath);
-						if (Source && Target)
+						FRigVMOperand* TargetPtr = WorkData.PinPathToOperand->Find(TargetPath);
+						FRigVMOperand* SourcePtr = WorkData.PinPathToOperand->Find(SourcePath);
+						if (SourcePtr && TargetPtr)
 						{
-							ByteCode.AddCopyOp(*Source, *Target);
+							const FRigVMOperand& Source = *SourcePtr;
+							const FRigVMOperand& Target = *TargetPtr;
+							ByteCode.AddCopyOp(WorkData.VM->GetCopyOpForOperands(Source, Target));
 						}					
 					}
 				}
