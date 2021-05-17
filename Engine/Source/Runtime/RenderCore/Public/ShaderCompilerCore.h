@@ -362,8 +362,8 @@ struct FShaderCompilerError
 	FString HighlightedLine;
 	FString HighlightedLineMarker;
 
-	/** Returns the error message with source file and source line (if present). */
-	FString GetErrorString() const
+	/** Returns the error message with source file and source line (if present), as well as a line marker separated with a LINE_TERMINATOR. */
+	FString GetErrorStringWithoutLineMarker() const
 	{
 		if (ErrorVirtualFilePath.IsEmpty())
 		{
@@ -374,7 +374,7 @@ struct FShaderCompilerError
 			return ErrorVirtualFilePath + TEXT("(") + ErrorLineString + TEXT("): ") + StrippedErrorMessage;
 		}
 	}
-
+	
 	/** Returns the error message with source file and source line (if present), as well as a line marker separated with a LINE_TERMINATOR. */
 	FString GetErrorStringWithLineMarker() const
 	{
@@ -382,12 +382,18 @@ struct FShaderCompilerError
 		{
 			// Append highlighted line and its marker to the same error message with line terminators
 			// to get a similar multiline error output as with DXC
-			return (GetErrorString() + LINE_TERMINATOR + TEXT("\t") + HighlightedLine + LINE_TERMINATOR + TEXT("\t") + HighlightedLineMarker);
+			return (GetErrorStringWithoutLineMarker() + LINE_TERMINATOR + TEXT("\t") + HighlightedLine + LINE_TERMINATOR + TEXT("\t") + HighlightedLineMarker);
 		}
 		else
 		{
-			return GetErrorString();
+			return GetErrorStringWithoutLineMarker();
 		}
+	}
+
+	/** Returns the error message with source file and source line (if present). */
+	FString GetErrorString(bool bOmitLineMarker = false) const
+	{
+		return bOmitLineMarker ? GetErrorStringWithoutLineMarker() : GetErrorStringWithLineMarker();
 	}
 
 	/**
