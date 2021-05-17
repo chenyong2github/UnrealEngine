@@ -30,7 +30,7 @@ enum EDMXFixtureQualityLevel
 };
 
 
-UCLASS(HideCategories = ("Rendering", "Variable", "Input", "Tags", "Activation", "Cooking", "Replication", "AssetUserData", "Collision", "LOD", "Actor"))
+UCLASS()
 class DMXFIXTURES_API ADMXFixtureActor : public AActor
 {
 	GENERATED_BODY()
@@ -49,7 +49,7 @@ public:
 	void FeedFixtureData();
 
 	// VISUAL QUALITY LEVEL----------------------
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture", meta = (DisplayPriority = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture", meta = (DisplayPriority = 0))
 	TEnumAsByte<EDMXFixtureQualityLevel> QualityLevel;
 
 	// HIERARCHY---------------------------------
@@ -94,25 +94,25 @@ public:
 	void InterpolateDMXComponents(float DeltaSeconds);
 	
 	// PARAMETERS---------------------------------
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float LightIntensityMax;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float LightDistanceMax;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float LightColorTemp;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float SpotlightIntensityScale;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float PointlightIntensityScale;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	bool LightCastShadow;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	bool UseDynamicOcclusion;
 
 	// DMX COMPONENT -----------------------------
