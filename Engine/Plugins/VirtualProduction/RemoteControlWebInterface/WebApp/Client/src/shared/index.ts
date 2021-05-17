@@ -72,6 +72,7 @@ export interface IExposedFunction {
   DisplayName: string;
   UnderlyingFunction: IFunction;
   Metadata: { [key: string]: string };
+  Widget: WidgetType;
 }
 
 export interface IProperty {
@@ -141,6 +142,7 @@ export enum WidgetTypes {
   Dropdown =        'Dropdown',
   ImageSelector =   'Image Selector',
   Vector =          'Vector',
+  Spacer =          'Spacer',
 
   Level =           'Level',
   Sequence =        'Sequence',
@@ -150,18 +152,10 @@ export type WidgetType = keyof typeof WidgetTypes | string;
 
 
 export type IWidgetMeta = { [key: string]: any } & {
-  default?: PropertyValue;
-  min?: number;
-  max?: number;
+  Min?: number;
+  Max?: number;
 };
 
-export interface IWidget {
-  title?: string;
-  type?: WidgetType;
-  property?: string;
-  meta?: IWidgetMeta;
-  order?: number;
-}
 
 export enum IPanelType {
   Panel = 'PANEL',
@@ -173,25 +167,17 @@ export interface IPanel {
   title?: string;
   type: IPanelType;
   widgets?: ICustomStackWidget[];
-  
   items?: ICustomStackListItem[];
-  addFunction?: ICustomStackFunction;
-  removeFunction?: ICustomStackFunction;
 }
 
 export enum TabLayout {
-  Panel1X1 =      '1x1',
-  Panel1x2 =      '1x2',
-  Panel2x1 =      '2x1',
-  Panel2x2 =      '2x2',
-  Stack =         'Stack',
-
-  CustomActor =   'CustomActor',
+  Stack =    'Stack',
+  Screen =   'Screen',
 }
 
-export interface IActorWidget {
-  type: 'Walls' | 'Cards' | 'Location' | 'Camera' | 'Save' | 'Another' | 'GreenScreen' | 'Snapshot';
-  actors: string[];
+export interface IScreen {
+  type: 'Snapshot';
+  data: any;
 }
 
 export interface IDropdownOption {
@@ -201,15 +187,10 @@ export interface IDropdownOption {
 
 export interface ICustomStackProperty {
   id?: string;
-  actor?: string;
   property: string;
   propertyType: PropertyType;
   widget: WidgetType;
   label?: string;
-  reset?: PropertyValue;
-
-  min?: number;
-  max?: number;
 
   // Sliders & Vector only
   lock?: boolean;
@@ -221,11 +202,12 @@ export interface ICustomStackProperty {
 
   // Dropdown only
   options?: IDropdownOption[];
-}
 
-export interface ICustomStackFunction {
-  actor: string;
-  function: string;
+  // Space only
+  spaces?: number;
+
+  // Dial only
+  mode?: 'ENDLESS' | 'RANGE' | 'ROTATION';
 }
 
 export interface ICustomStackItem {
@@ -249,16 +231,14 @@ export interface ICustomStackListItem {
 
 export type ICustomStackWidget = ICustomStackProperty | ICustomStackTabs;
 
+export interface IView {
+  tabs: ITab[];
+}
+
 export interface ITab {
   name: string;
   icon: string;
   layout: TabLayout;
   panels?: IPanel[];
-  stack?: ICustomStackWidget[];
-
-  actor?: IActorWidget;
-}
-
-export interface IView {
-  tabs: ITab[];
+  screen?: IScreen;
 }
