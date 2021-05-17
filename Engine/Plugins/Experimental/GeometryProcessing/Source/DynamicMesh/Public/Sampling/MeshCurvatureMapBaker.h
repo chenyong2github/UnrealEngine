@@ -90,8 +90,37 @@ protected:
 
 	void Bake_Multi();
 
+	double GetCurvature(int32 vid);
 
 	void GetColorMapRange(FVector3f& NegativeColor, FVector3f& ZeroColor, FVector3f& PositiveColor);
+
+public:
+	//
+	// New Baker interface
+	//
+
+	/** Invoked at start of bake to initialize baker. */
+	virtual void PreEvaluate(const FMeshMapBaker& Baker) override;
+
+	/** Evaluate the sample at this mesh correspondence point. */
+	virtual FVector4f EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample) override;
+
+	/** @return the default sample value for the baker. */
+	virtual FVector4f DefaultSample() const override { return FVector4f(0.0f, 0.0f, 0.0f, 1.0f); }
+
+protected:
+	// Cached data
+	const FDynamicMesh3* DetailMesh = nullptr;
+	double MinPreClamp = -TNumericLimits<double>::Max();
+	double MaxPreClamp = TNumericLimits<double>::Max();
+	FInterval1d ClampRange;
+	FVector3f NegativeColor;
+	FVector3f ZeroColor;
+	FVector3f PositiveColor;
+
+private:
+	template <class SampleType>
+	double SampleFunction(const SampleType& Sample);
 };
 
 

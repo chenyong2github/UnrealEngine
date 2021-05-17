@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sampling/MeshPropertyMapBaker.h"
+#include "Sampling/MeshMapBaker.h"
 #include "Util/ColorConstants.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -31,12 +32,12 @@ void FMeshPropertyMapBaker::Bake()
 {
 	const FMeshImageBakingCache* BakeCache = GetCache();
 	check(BakeCache);
-	const FDynamicMesh3* DetailMesh = BakeCache->GetDetailMesh();
-	const FDynamicMeshNormalOverlay* DetailNormalOverlay = BakeCache->GetDetailNormals();
+	DetailMesh = BakeCache->GetDetailMesh();
+	DetailNormalOverlay = BakeCache->GetDetailNormals();
 	check(DetailNormalOverlay);
-	const FDynamicMeshUVOverlay* DetailUVOverlay = DetailMesh->Attributes()->PrimaryUV();
+	DetailUVOverlay = DetailMesh->Attributes()->PrimaryUV();
 
-	FAxisAlignedBox3d Bounds = DetailMesh->GetBounds();
+	Bounds = DetailMesh->GetBounds();
 	for (int32 j = 0; j < 3; ++j)
 	{
 		if (Bounds.Diagonal()[j] < FMathf::ZeroTolerance)
@@ -47,7 +48,7 @@ void FMeshPropertyMapBaker::Bake()
 		}
 	}
 
-	FVector3f DefaultValue(0, 0, 0);
+	DefaultValue = FVector3f::Zero();
 	switch (this->Property)
 	{
 		case EMeshPropertyBakeType::Position:
@@ -63,75 +64,12 @@ void FMeshPropertyMapBaker::Bake()
 			break;
 	}
 
-	auto PropertySampleFunction = [&](const FMeshImageBakingCache::FCorrespondenceSample& SampleData)
-	{
-		FVector3f Color = DefaultValue;
-		int32 DetailTriID = SampleData.DetailTriID;
-		if (DetailMesh->IsTriangle(DetailTriID))
-		{
-			switch (this->Property)
-			{
-				case EMeshPropertyBakeType::Position:
-					{
-						FVector3d Position = DetailMesh->GetTriBaryPoint(DetailTriID, SampleData.DetailBaryCoords[0], SampleData.DetailBaryCoords[1], SampleData.DetailBaryCoords[2]);
-						Color = PositionToColor(Position, Bounds);
-					}
-					break;
-				default:
-				case EMeshPropertyBakeType::FacetNormal:
-					{
-						FVector3d FacetNormal = DetailMesh->GetTriNormal(DetailTriID);
-						Color = NormalToColor(FacetNormal);
-					}
-					break;
-				break;
-				case EMeshPropertyBakeType::Normal:
-					{
-						if (DetailNormalOverlay->IsSetTriangle(DetailTriID))
-						{
-							FVector3d DetailNormal;
-							DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailNormal.X);
-							Normalize(DetailNormal);
-							Color = NormalToColor(DetailNormal);
-						}
-					}
-					break;
-				case EMeshPropertyBakeType::UVPosition:
-					{
-						if (DetailUVOverlay && DetailUVOverlay->IsSetTriangle(DetailTriID))
-						{
-							FVector2d DetailUV;
-							DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
-							Color = UVToColor(DetailUV);
-						}
-					}
-					break;
-				case EMeshPropertyBakeType::MaterialID:
-					{
-						if (DetailMesh->Attributes() && DetailMesh->Attributes()->HasMaterialID())
-						{
-							const FDynamicMeshMaterialAttribute* DetailMaterialIDAttrib = DetailMesh->Attributes()->GetMaterialID();
-							const int32 MatID = DetailMaterialIDAttrib->GetValue(DetailTriID);
-							Color = LinearColors::SelectColor<FVector3f>(MatID);
-						}
-						else
-						{
-							Color = FVector3f(LinearColors::LightPink3f());
-						}
-					}
-					break;
-			}
-		}
-		return Color;
-	};
-
-
 	ResultBuilder = MakeUnique<TImageBuilder<FVector3f>>();
 	ResultBuilder->SetDimensions(BakeCache->GetDimensions());
 
 	BakeCache->EvaluateSamples([&](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
 	{
-		FVector3f Color = PropertySampleFunction(Sample);
+		FVector3f Color = SampleFunction<FMeshImageBakingCache::FCorrespondenceSample>(Sample);
 		ResultBuilder->SetPixel(Coords, Color);
 	});
 
@@ -144,4 +82,108 @@ void FMeshPropertyMapBaker::Bake()
 	}
 
 
+}
+
+void FMeshPropertyMapBaker::PreEvaluate(const FMeshMapBaker& Baker)
+{
+	DetailMesh = Baker.GetDetailMesh();
+	DetailNormalOverlay = Baker.GetDetailMeshNormals();
+	check(DetailNormalOverlay);
+	DetailUVOverlay = Baker.GetDetailMeshUVs();
+
+	Bounds = DetailMesh->GetBounds();
+	for (int32 j = 0; j < 3; ++j)
+	{
+		if (Bounds.Diagonal()[j] < FMathf::ZeroTolerance)
+		{
+			Bounds.Min[j] = Bounds.Center()[j] - FMathf::ZeroTolerance;
+			Bounds.Max[j] = Bounds.Center()[j] + FMathf::ZeroTolerance;
+
+		}
+	}
+
+	DefaultValue = FVector3f::Zero();
+	switch (this->Property)
+	{
+	case EMeshPropertyBakeType::Position:
+		DefaultValue = PositionToColor(Bounds.Center(), Bounds);
+		break;
+	default:
+	case EMeshPropertyBakeType::FacetNormal:
+	case EMeshPropertyBakeType::Normal:
+		DefaultValue = NormalToColor(FVector3d::UnitZ());
+		break;
+	case EMeshPropertyBakeType::UVPosition:
+		DefaultValue = UVToColor(FVector2d::Zero());
+		break;
+	}
+}
+
+FVector4f FMeshPropertyMapBaker::EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample)
+{
+	FVector3f SampleResult = SampleFunction<FCorrespondenceSample>(Sample);
+	return FVector4f(SampleResult.X, SampleResult.Y, SampleResult.Z, 1.0f);
+}
+
+template<class SampleType>
+FVector3f FMeshPropertyMapBaker::SampleFunction(const SampleType& SampleData)
+{
+	FVector3f Color = DefaultValue;
+	int32 DetailTriID = SampleData.DetailTriID;
+	if (DetailMesh->IsTriangle(DetailTriID))
+	{
+		switch (this->Property)
+		{
+		case EMeshPropertyBakeType::Position:
+		{
+			FVector3d Position = DetailMesh->GetTriBaryPoint(DetailTriID, SampleData.DetailBaryCoords[0], SampleData.DetailBaryCoords[1], SampleData.DetailBaryCoords[2]);
+			Color = PositionToColor(Position, Bounds);
+		}
+		break;
+		default:
+		case EMeshPropertyBakeType::FacetNormal:
+		{
+			FVector3d FacetNormal = DetailMesh->GetTriNormal(DetailTriID);
+			Color = NormalToColor(FacetNormal);
+		}
+		break;
+		break;
+		case EMeshPropertyBakeType::Normal:
+		{
+			if (DetailNormalOverlay->IsSetTriangle(DetailTriID))
+			{
+				FVector3d DetailNormal;
+				DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailNormal.X);
+				Normalize(DetailNormal);
+				Color = NormalToColor(DetailNormal);
+			}
+		}
+		break;
+		case EMeshPropertyBakeType::UVPosition:
+		{
+			if (DetailUVOverlay && DetailUVOverlay->IsSetTriangle(DetailTriID))
+			{
+				FVector2d DetailUV;
+				DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
+				Color = UVToColor(DetailUV);
+			}
+		}
+		break;
+		case EMeshPropertyBakeType::MaterialID:
+		{
+			if (DetailMesh->Attributes() && DetailMesh->Attributes()->HasMaterialID())
+			{
+				const FDynamicMeshMaterialAttribute* DetailMaterialIDAttrib = DetailMesh->Attributes()->GetMaterialID();
+				const int32 MatID = DetailMaterialIDAttrib->GetValue(DetailTriID);
+				Color = LinearColors::SelectColor<FVector3f>(MatID);
+			}
+			else
+			{
+				Color = FVector3f(LinearColors::LightPink3f());
+			}
+		}
+		break;
+		}
+	}
+	return Color;
 }

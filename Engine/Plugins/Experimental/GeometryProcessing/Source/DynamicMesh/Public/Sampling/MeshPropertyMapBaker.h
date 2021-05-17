@@ -49,6 +49,35 @@ public:
 
 protected:
 	TUniquePtr<TImageBuilder<FVector3f>> ResultBuilder;
+
+public:
+	//
+	// New Baker interface
+	//
+
+	/** Invoked at start of bake to initialize baker. */
+	virtual void PreEvaluate(const FMeshMapBaker& Baker) override;
+
+	/** Evaluate the sample at this mesh correspondence point. */
+	virtual FVector4f EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample) override;
+
+	/** @return the default sample value for the baker. */
+	virtual FVector4f DefaultSample() const override { return FVector4f(0.0f, 0.0f, 0.0f, 1.0f); }
+
+	/** @return true if this baker supports multisampling. */
+	virtual bool SupportsMultisampling() const override { return Property != EMeshPropertyBakeType::MaterialID; }
+
+protected:
+	// Cached data
+	const FDynamicMesh3* DetailMesh = nullptr;
+	const FDynamicMeshNormalOverlay* DetailNormalOverlay = nullptr;
+	const FDynamicMeshUVOverlay* DetailUVOverlay = nullptr;
+	FAxisAlignedBox3d Bounds;
+	FVector3f DefaultValue = FVector3f::Zero();
+
+private:
+	template <class SampleType>
+	FVector3f SampleFunction(const SampleType& Sample);
 };
 
 } // end namespace UE::Geometry

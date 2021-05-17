@@ -7,6 +7,7 @@
 #include "Sampling/MeshImageBakingCache.h"
 #include "Image/ImageBuilder.h"
 #include "MeshTangents.h"
+#include "Math/RandomStream.h"
 
 namespace UE
 {
@@ -124,6 +125,57 @@ public:
 protected:
 	TUniquePtr<TImageBuilder<FVector3f>> OcclusionBuilder;
 	TUniquePtr<TImageBuilder<FVector3f>> NormalBuilder;
+
+public:
+	//
+	// New Baker interface
+	//
+
+	/** Invoked at start of bake to initialize baker. */
+	virtual void PreEvaluate(const FMeshMapBaker& Baker) override;
+
+	/** Evaluate the sample at this mesh correspondence point. */
+	virtual FVector4f EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample) override;
+
+	/** @return the default sample value for the baker. */
+	virtual FVector4f DefaultSample() const override
+	{
+		if (WantAmbientOcclusion())
+		{
+			return FVector4f::One();
+		}
+		else //if (WantBentNormal())
+		{
+			FVector3f DefaultNormal = FVector3f::UnitZ();
+			switch (NormalSpace)
+			{
+			case ESpace::Tangent:
+				break;
+			case ESpace::Object:
+				DefaultNormal = FVector3f::Zero();
+				break;
+			}
+			// Map normal space [-1,1] to floating point color space [0,1]
+			DefaultNormal = (DefaultNormal + FVector3f::One()) * 0.5f;
+			return FVector4f(DefaultNormal.X, DefaultNormal.Y, DefaultNormal.Z, 1.0f);
+		}
+	}
+
+protected:
+	const FDynamicMesh3* DetailMesh = nullptr;
+	const FDynamicMeshAABBTree3* DetailSpatial = nullptr;
+	const FDynamicMeshNormalOverlay* DetailNormalOverlay = nullptr;
+	double BiasDotThreshold = 0.25;
+	TArray<FVector3d> RayDirections;
+
+	FRandomStream RotationGen = FRandomStream(31337);
+	FCriticalSection RotationLock;
+
+private:
+	template<class SampleType>
+	void SampleFunction(const SampleType& Sample, double& Occlusion, FVector3d& Normal);
+
+	double GetRandomRotation();
 };
 
 } // end namespace UE::Geometry
