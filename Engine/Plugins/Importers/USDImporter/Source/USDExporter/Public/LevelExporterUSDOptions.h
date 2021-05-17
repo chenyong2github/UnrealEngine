@@ -75,9 +75,9 @@ public:
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers" )
     bool bExportSublayers;
 
-	/** The exporter will only export actors if their level name is within this set. An empty set will allow all actors. */
+	/** Names of levels that should be ignored when collecting actors to export (e.g. "Persistent Level", "Level1", "MySubLevel", etc.) */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers" )
-    TSet<FString> LevelFilter;
+    TSet<FString> LevelsToIgnore;
 
 public:
 	// We temporarily stash our export task here as a way of passing our options down to
