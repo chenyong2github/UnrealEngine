@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/IndirectArray.h"
-#include "GPUSkinPublicDefs.h"
-#include "Components.h"
 #include "BoneIndices.h"
-#include "SkelImport.h"
+#include "Components.h"
+#include "Containers/IndirectArray.h"
+#include "CoreMinimal.h"
+#include "GPUSkinPublicDefs.h"
 #include "MeshBuild.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 
 class USkeletalMesh;
 struct FSoftSkinVertex;

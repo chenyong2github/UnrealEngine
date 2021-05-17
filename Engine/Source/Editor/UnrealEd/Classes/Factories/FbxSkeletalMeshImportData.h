@@ -110,17 +110,3 @@ public:
 	/** This function add the last import content type to the asset registry which is use by the thumbnail overlay of the skeletal mesh */
 	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags);
 };
-
-namespace SkeletalMeshHelper
-{
-	/** Backups the given SkeletalMesh into a FExistingSkelMeshData */
-	UNREALED_API TSharedPtr<FExistingSkelMeshData> SaveExistingSkelMeshData(USkeletalMesh* SourceSkeletalMesh, bool bSaveMaterials, int32 ReimportLODIndex);
-
-	/** Restore a backed up FExistingSkelMeshData into a SkeletalMesh asset */
-	UNREALED_API void RestoreExistingSkelMeshData(TSharedPtr<const FExistingSkelMeshData> MeshData, USkeletalMesh* SkeletalMesh, int32 ReimportLODIndex, bool bCanShowDialog, bool bImportSkinningOnly, bool bForceMaterialReset);
-
-	UNREALED_API void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData, const FString& SkeletalMeshName);
-	UNREALED_API void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData);
-	UNREALED_API bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData);
-	UNREALED_API void ApplySkinning(USkeletalMesh* SkeletalMesh, FSkeletalMeshLODModel& SrcLODModel, FSkeletalMeshLODModel& DestLODModel);
-}

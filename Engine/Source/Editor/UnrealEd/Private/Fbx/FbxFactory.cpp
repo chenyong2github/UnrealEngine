@@ -34,7 +34,6 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "ObjectTools.h"
-#include "SkelImport.h"
 #include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "FBXFactory"
