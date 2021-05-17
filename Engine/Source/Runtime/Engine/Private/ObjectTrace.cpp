@@ -76,10 +76,21 @@ struct FTracedObjectAnnotation
 	{
 		return bTraced == false && Id == 0;
 	}
+
+
+	bool operator == (const FTracedObjectAnnotation& other) const
+	{
+		return Id == other.Id;
+	}
 };
 
+int32 GetTypeHash(const FTracedObjectAnnotation& Annotation)
+{
+	return GetTypeHash(Annotation.Id);
+}
+
 // Object annotations used for tracing
-FUObjectAnnotationSparse<FTracedObjectAnnotation, true> GObjectTraceAnnotations;
+FUObjectAnnotationSparseSearchable<FTracedObjectAnnotation, true> GObjectTraceAnnotations;
 
 // Handle used to hook to world tick
 static FDelegateHandle WorldTickStartHandle;
@@ -149,6 +160,14 @@ uint64 FObjectTrace::GetObjectId(const UObject* InObject)
 	}
 
 	return Id | (OuterId << 32);
+}
+
+UObject* FObjectTrace::GetObjectFromId(uint64 Id)
+{
+	FTracedObjectAnnotation FindAnnotation;
+	// Id used for annotation map doesn't include the parent id in the upper bits, so zero those first
+	FindAnnotation.Id = Id & 0x00000000FFFFFFFFll;
+	return GObjectTraceAnnotations.Find(FindAnnotation);
 }
 
 void FObjectTrace::ResetWorldElapsedTime(const UWorld* World)
