@@ -1391,6 +1391,9 @@ void UChaosVehicleMovementComponent::CreateVehicle()
 				VehicleSimulationPT->Init(PVehicle);
 
 			}
+
+			VehicleState.CaptureState(GetBodyInstance(), GetGravityZ(), 0.01667f);
+
 		}
 	}
 }

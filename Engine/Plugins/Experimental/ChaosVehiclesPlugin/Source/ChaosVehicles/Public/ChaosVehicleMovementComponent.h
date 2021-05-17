@@ -1057,6 +1057,8 @@ public:
 		return PVehicleOutput;
 	}
 
+	virtual float GetSuspensionOffset(int WheelIndex) { return 0.f; }
+
 	//----ASYNC----
 	TUniquePtr<FChaosVehicleAsyncInput> SetCurrentAsyncInputOutput(int32 InputIdx, FChaosVehicleManagerAsyncOutput* CurOutput, FChaosVehicleManagerAsyncOutput* NextOutput, float Alpha, int32 VehicleManagerTimestamp);
 
