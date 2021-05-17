@@ -403,9 +403,6 @@ private:
 
 private:
 
-	/** Allows access to UTexture2D::StaticClass() without linking Core with Engine											*/
-	static UClass* UTexture2DStaticClass;
-
 	static FName NAME_LoadErrors;
 
 	/** Makes sure the deprecated active redirects inis have been read */
@@ -441,11 +438,6 @@ private:
 #endif 
 
 public:
-
-	/**
-	 * Initialize the static variables
-	 */
-	COREUOBJECT_API static void StaticInit(UClass* InUTexture2DStaticClass);
 
 	/**
 	 * Add redirects to FLinkerLoad static map
