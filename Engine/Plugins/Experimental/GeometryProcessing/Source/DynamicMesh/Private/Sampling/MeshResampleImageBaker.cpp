@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sampling/MeshResampleImageBaker.h"
+#include "Sampling/MeshMapBaker.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -9,25 +10,9 @@ void FMeshResampleImageBaker::Bake()
 {
 	const FMeshImageBakingCache* BakeCache = GetCache();
 	check(BakeCache);
-	const FDynamicMesh3* DetailMesh = BakeCache->GetDetailMesh();
+	DetailMesh = BakeCache->GetDetailMesh();
 
 	check(DetailUVOverlay);
-
-	FVector4f DefaultValue(0, 0, 0, 1.0);
-
-	auto PropertySampleFunction = [&](const FMeshImageBakingCache::FCorrespondenceSample& SampleData)
-	{
-		FVector4f Color = DefaultValue;
-		int32 DetailTriID = SampleData.DetailTriID;
-		if (DetailMesh->IsTriangle(SampleData.DetailTriID) && DetailUVOverlay)
-		{
-			FVector2d DetailUV;
-			DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
-
-			Color = SampleFunction(DetailUV);
-		}
-		return Color;
-	};
 
 	ResultBuilder = MakeUnique<TImageBuilder<FVector4f>>();
 	ResultBuilder->SetDimensions(BakeCache->GetDimensions());
@@ -35,7 +20,7 @@ void FMeshResampleImageBaker::Bake()
 
 	BakeCache->EvaluateSamples([&](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
 	{
-		FVector4f Color = PropertySampleFunction(Sample);
+		FVector4f Color = PropertySampleFunction<FMeshImageBakingCache::FCorrespondenceSample>(Sample);
 		ResultBuilder->SetPixel(Coords, Color);
 	});
 
@@ -47,6 +32,31 @@ void FMeshResampleImageBaker::Bake()
 		ResultBuilder->CopyPixel(GutterTexel.Value, GutterTexel.Key);
 	}
 
+}
+
+void FMeshResampleImageBaker::PreEvaluate(const FMeshMapBaker& Baker)
+{
+	DetailMesh = Baker.GetDetailMesh();
+}
+
+FVector4f FMeshResampleImageBaker::EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample)
+{
+	return PropertySampleFunction<FCorrespondenceSample>(Sample);
+}
+
+template <class SampleType>
+FVector4f FMeshResampleImageBaker::PropertySampleFunction(const SampleType& SampleData)
+{
+	FVector4f Color = DefaultColor;
+	int32 DetailTriID = SampleData.DetailTriID;
+	if (DetailMesh->IsTriangle(SampleData.DetailTriID) && DetailUVOverlay)
+	{
+		FVector2d DetailUV;
+		DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
+
+		Color = SampleFunction(DetailUV);
+	}
+	return Color;
 }
 
 
@@ -68,12 +78,12 @@ void FMeshMultiResampleImageBaker::BakeMaterial(int32 MaterialID)
 	{
 		return;
 	}
-	const FDynamicMesh3* DetailMesh = BakeCache->GetDetailMesh();
+	DetailMesh = BakeCache->GetDetailMesh();
 	if (!ensure(DetailMesh))
 	{
 		return;
 	}
-	const FDynamicMeshMaterialAttribute* DetailMaterialIDAttrib = DetailMesh->Attributes()->GetMaterialID();
+	DetailMaterialIDAttrib = DetailMesh->Attributes()->GetMaterialID();
 	if (!ensure(DetailMaterialIDAttrib))
 	{
 		return;
@@ -83,7 +93,7 @@ void FMeshMultiResampleImageBaker::BakeMaterial(int32 MaterialID)
 		return;
 	}
 
-	BakeCache->EvaluateSamples([this, DetailMesh, DetailMaterialIDAttrib, MaterialID](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
+	BakeCache->EvaluateSamples([this, MaterialID](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
 	{
 		int32 DetailTriID = Sample.DetailTriID;
 
@@ -128,4 +138,35 @@ void FMeshMultiResampleImageBaker::Bake()
 		BakeMaterial(MaterialID);
 	}
 
+}
+
+void FMeshMultiResampleImageBaker::PreEvaluate(const FMeshMapBaker& Baker)
+{
+	DetailMesh = Baker.GetDetailMesh();
+	DetailMaterialIDAttrib = DetailMesh->Attributes()->GetMaterialID();
+
+	bValidDetailMesh = ensure(DetailMesh) && ensure(DetailMaterialIDAttrib) && ensure(DetailUVOverlay);
+}
+
+FVector4f FMeshMultiResampleImageBaker::EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample)
+{
+	if (!bValidDetailMesh)
+	{
+		return DefaultSample();
+	}
+
+	FVector4f Color = DefaultSample();
+	int32 DetailTriID = Sample.DetailTriID;
+	if (DetailMesh->IsTriangle(DetailTriID))
+	{
+		int32 MaterialID = DetailMaterialIDAttrib->GetValue(DetailTriID);
+		TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> TextureImage = MultiTextures.FindRef(MaterialID);
+		if (TextureImage)
+		{
+			FVector2d DetailUV;
+			DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &Sample.DetailBaryCoords.X, &DetailUV.X);
+			Color = TextureImage->BilinearSampleUV<float>(DetailUV, FVector4f(0, 0, 0, 1));
+		}
+	}
+	return Color;
 }

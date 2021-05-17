@@ -86,33 +86,32 @@ TArray<FString> UBakeMeshAttributeMapsToolProperties::GetUVLayerNamesFunc()
  * Operators
  */
 
-class FBakeMapBaseOp : public TGenericDataOperator<FMeshImageBaker>
+class FBakeMapBaseOp : public TGenericDataOperator<FMeshMapBaker>
 {
-public:
-	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
-	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
-	UE::Geometry::FDynamicMesh3* BaseMesh;
-	TPimplPtr<UE::Geometry::FMeshImageBakingCache> BakeCache;
-	UBakeMeshAttributeMapsTool::FBakeCacheSettings BakeCacheSettings;
-
 public:
 	virtual ~FBakeMapBaseOp() {}
 
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
+	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
+	UE::Geometry::FDynamicMesh3* BaseMesh;
+	TUniquePtr<UE::Geometry::FMeshMapBaker> Baker;
+	UBakeMeshAttributeMapsTool::FBakeCacheSettings BakeCacheSettings;
+
 	//
 	// TGenericDataOperator implementation
-	// 
+	//
 	virtual void CalculateResult(FProgressCancel* Progress) override
 	{
-		BakeCache = MakePimpl<FMeshImageBakingCache>();
-		BakeCache->CancelF = [Progress]() {
+		Baker = MakeUnique<FMeshMapBaker>();
+		Baker->CancelF = [Progress]() {
 			return Progress && Progress->Cancelled();
 		};
-		BakeCache->SetDetailMesh(DetailMesh.Get(), DetailSpatial.Get());
-		BakeCache->SetBakeTargetMesh(BaseMesh);
-		BakeCache->SetDimensions(BakeCacheSettings.Dimensions);
-		BakeCache->SetUVLayer(BakeCacheSettings.UVLayer);
-		BakeCache->SetThickness(BakeCacheSettings.Thickness);
-		BakeCache->ValidateCache();
+		Baker->SetTargetMesh(BaseMesh);
+		Baker->SetDetailMesh(DetailMesh.Get(), DetailSpatial.Get());
+		Baker->SetDimensions(BakeCacheSettings.Dimensions);
+		Baker->SetUVLayer(BakeCacheSettings.UVLayer);
+		Baker->SetThickness(BakeCacheSettings.Thickness);
+		Baker->SetMultisampling(BakeCacheSettings.Multisampling);
 	}
 };
 
@@ -122,7 +121,7 @@ public:
 	typedef FBakeMapBaseOp Super;
 
 	// inputs
-	const TMeshTangents<double>* BaseMeshTangents = nullptr;
+	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	UBakeMeshAttributeMapsTool::FNormalMapSettings Settings;
 
 public:
@@ -140,9 +139,9 @@ public:
 			return;
 		}
 
-		TUniquePtr<FMeshNormalMapBaker> Baker = MakeUnique<FMeshNormalMapBaker>();
-		Baker->SetCache(BakeCache.Get());
-		Baker->BaseMeshTangents = BaseMeshTangents;
+		TSharedPtr<FMeshNormalMapBaker, ESPMode::ThreadSafe> NormalBaker = MakeShared<FMeshNormalMapBaker, ESPMode::ThreadSafe>();
+		Baker->AddBaker(NormalBaker);
+		Baker->SetTargetMeshTangents(BaseMeshTangents);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
 	}
@@ -154,7 +153,7 @@ public:
 	typedef FBakeMapBaseOp Super;
 
 	// inputs
-	const TMeshTangents<double>* BaseMeshTangents = nullptr;
+	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	UBakeMeshAttributeMapsTool::FOcclusionMapSettings Settings;
 
 public:
@@ -172,33 +171,45 @@ public:
 			return;
 		}
 
-		TUniquePtr<FMeshOcclusionMapBaker> Baker = MakeUnique<FMeshOcclusionMapBaker>();
-		Baker->SetCache(BakeCache.Get());
-		Baker->OcclusionType = EOcclusionMapType::All;
-        Baker->BaseMeshTangents = BaseMeshTangents;
-		Baker->NumOcclusionRays = Settings.OcclusionRays;
-        Baker->MaxDistance = Settings.MaxDistance;
-        Baker->SpreadAngle = Settings.SpreadAngle;
-		Baker->BlurRadius = Settings.BlurRadius;
-		Baker->BiasAngleDeg = Settings.BiasAngle;
-        switch (Settings.Distribution)
-		{
-		case EOcclusionMapDistribution::Cosine:
-			Baker->Distribution = FMeshOcclusionMapBaker::EDistribution::Cosine;
-			break;
-		case EOcclusionMapDistribution::Uniform:
-			Baker->Distribution = FMeshOcclusionMapBaker::EDistribution::Uniform;
-			break;
-		}
-        switch (Settings.NormalSpace)
-		{
-		case ENormalMapSpace::Tangent:
-			Baker->NormalSpace = FMeshOcclusionMapBaker::ESpace::Tangent;
-			break;
-		case ENormalMapSpace::Object:
-			Baker->NormalSpace = FMeshOcclusionMapBaker::ESpace::Object;
-			break;
-		}
+		auto InitializeBaker = [this](TSharedPtr<FMeshOcclusionMapBaker>& BakerIn) {
+			BakerIn->NumOcclusionRays = Settings.OcclusionRays;
+			BakerIn->MaxDistance = Settings.MaxDistance;
+			BakerIn->SpreadAngle = Settings.SpreadAngle;
+			BakerIn->BlurRadius = Settings.BlurRadius;
+			BakerIn->BiasAngleDeg = Settings.BiasAngle;
+
+			switch (Settings.Distribution)
+			{
+			case EOcclusionMapDistribution::Cosine:
+				BakerIn->Distribution = FMeshOcclusionMapBaker::EDistribution::Cosine;
+				break;
+			case EOcclusionMapDistribution::Uniform:
+				BakerIn->Distribution = FMeshOcclusionMapBaker::EDistribution::Uniform;
+				break;
+			}
+
+			switch (Settings.NormalSpace)
+			{
+			case ENormalMapSpace::Tangent:
+				BakerIn->NormalSpace = FMeshOcclusionMapBaker::ESpace::Tangent;
+				break;
+			case ENormalMapSpace::Object:
+				BakerIn->NormalSpace = FMeshOcclusionMapBaker::ESpace::Object;
+				break;
+			}
+		};
+
+		TSharedPtr<FMeshOcclusionMapBaker> OcclusionBaker = MakeShared<FMeshOcclusionMapBaker>();
+		InitializeBaker(OcclusionBaker);
+		OcclusionBaker->OcclusionType = EOcclusionMapType::AmbientOcclusion;
+
+		TSharedPtr<FMeshOcclusionMapBaker> BentNormalBaker = MakeShared<FMeshOcclusionMapBaker>();
+		InitializeBaker(BentNormalBaker);
+		BentNormalBaker->OcclusionType = EOcclusionMapType::BentNormal;
+
+		Baker->SetTargetMeshTangents(BaseMeshTangents);
+		Baker->AddBaker(OcclusionBaker);
+		Baker->AddBaker(BentNormalBaker);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
 	}
@@ -227,14 +238,14 @@ public:
 			return;
 		}
 
-		TUniquePtr<FMeshCurvatureMapBaker> Baker = MakeUnique<FMeshCurvatureMapBaker>();
-		Baker->SetCache(BakeCache.Get());
-		Baker->RangeScale = FMathd::Clamp(Settings.RangeMultiplier, 0.0001, 1000.0);
-		Baker->MinRangeScale = FMathd::Clamp(Settings.MinRangeMultiplier, 0.0, 1.0);
-		Baker->UseCurvatureType = (FMeshCurvatureMapBaker::ECurvatureType)Settings.CurvatureType;
-		Baker->UseColorMode = (FMeshCurvatureMapBaker::EColorMode)Settings.ColorMode;
-		Baker->UseClampMode = (FMeshCurvatureMapBaker::EClampMode)Settings.ClampMode;
-		Baker->BlurRadius = Settings.BlurRadius;
+		TSharedPtr<FMeshCurvatureMapBaker> CurvatureBaker = MakeShared<FMeshCurvatureMapBaker>();
+		CurvatureBaker->RangeScale = FMathd::Clamp(Settings.RangeMultiplier, 0.0001, 1000.0);
+		CurvatureBaker->MinRangeScale = FMathd::Clamp(Settings.MinRangeMultiplier, 0.0, 1.0);
+		CurvatureBaker->UseCurvatureType = (FMeshCurvatureMapBaker::ECurvatureType)Settings.CurvatureType;
+		CurvatureBaker->UseColorMode = (FMeshCurvatureMapBaker::EColorMode)Settings.ColorMode;
+		CurvatureBaker->UseClampMode = (FMeshCurvatureMapBaker::EClampMode)Settings.ClampMode;
+		CurvatureBaker->BlurRadius = Settings.BlurRadius;
+		Baker->AddBaker(CurvatureBaker);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
 	}
@@ -263,10 +274,9 @@ public:
 			return;
 		}
 
-		TUniquePtr<FMeshPropertyMapBaker> Baker = MakeUnique<FMeshPropertyMapBaker>();
-		Baker->SetCache(BakeCache.Get());
-		Baker->Property = (EMeshPropertyBakeType)Settings.PropertyTypeIndex;
-		//Baker->BlurRadius = Settings.BlurRadius;
+		TSharedPtr<FMeshPropertyMapBaker> PropertyBaker = MakeShared<FMeshPropertyMapBaker>();
+		PropertyBaker->Property = (EMeshPropertyBakeType)Settings.PropertyTypeIndex;
+		Baker->AddBaker(PropertyBaker);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
 	}
@@ -297,12 +307,12 @@ public:
 			return;
 		}
 
-		TUniquePtr<FMeshResampleImageBaker> Baker = MakeUnique<FMeshResampleImageBaker>();
-		Baker->SetCache(BakeCache.Get());
-		Baker->DetailUVOverlay = UVOverlay;
-		Baker->SampleFunction = [this](FVector2d UVCoord) {
+		TSharedPtr<FMeshResampleImageBaker> ResampleBaker = MakeShared<FMeshResampleImageBaker>();
+		ResampleBaker->DetailUVOverlay = UVOverlay;
+		ResampleBaker->SampleFunction = [this](FVector2d UVCoord) {
 			return TextureImage->BilinearSampleUV<float>(UVCoord, FVector4f(0, 0, 0, 1));
 		};
+		Baker->AddBaker(ResampleBaker);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
 	}
@@ -334,10 +344,10 @@ public:
 			return;
 		}
 
-		TUniquePtr<FMeshMultiResampleImageBaker> Baker = MakeUnique<FMeshMultiResampleImageBaker>();
-		Baker->SetCache(BakeCache.Get());
-		Baker->DetailUVOverlay = UVOverlay;
-		Baker->MultiTextures = MaterialToTextureImageMap;
+		TSharedPtr<FMeshMultiResampleImageBaker> TextureBaker = MakeShared<FMeshMultiResampleImageBaker>();
+		TextureBaker->DetailUVOverlay = UVOverlay;
+		TextureBaker->MultiTextures = MaterialToTextureImageMap;
+		Baker->AddBaker(TextureBaker);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
 	}
@@ -346,11 +356,6 @@ public:
 /*
  * Tool
  */
-
-UBakeMeshAttributeMapsTool::UBakeMeshAttributeMapsTool()
-{
-}
-
 
 void UBakeMeshAttributeMapsTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
@@ -440,6 +445,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	Settings->WatchProperty(Settings->UVLayer, [this](FString) { bInputsDirty = true; });
 	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool) { bDetailMeshValid = false; bInputsDirty = true; });
 	Settings->WatchProperty(Settings->Thickness, [this](float) { bInputsDirty = true; });
+	Settings->WatchProperty(Settings->Multisampling, [this](EBakeMultisampling) { bInputsDirty = true; });
 
 	NormalMapProps = NewObject<UBakedNormalMapToolProperties>(this);
 	NormalMapProps->RestoreProperties(this);
@@ -525,39 +531,38 @@ bool UBakeMeshAttributeMapsTool::CanAccept() const
 }
 
 
-TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshImageBaker>> UBakeMeshAttributeMapsTool::MakeNewOperator()
+TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttributeMapsTool::MakeNewOperator()
 {
+	auto InitializeBaseOp = [this](FBakeMapBaseOp* Op)
+	{
+		Op->DetailMesh = DetailMesh;
+		Op->DetailSpatial = DetailSpatial;
+		Op->BaseMesh = &BaseMesh;
+		Op->BakeCacheSettings = CachedBakeCacheSettings;
+	};
+
 	switch (Settings->MapType)
 	{
 	case EBakeMapType::TangentSpaceNormalMap:
 	{
 		TUniquePtr<FBakeNormalMapOp> Op = MakeUnique<FBakeNormalMapOp>();
-		Op->DetailMesh = DetailMesh;
-		Op->DetailSpatial = DetailSpatial;
-		Op->BaseMesh = &BaseMesh;
-		Op->BakeCacheSettings = CachedBakeCacheSettings;
-		Op->BaseMeshTangents = BaseMeshTangents.Get();
+		InitializeBaseOp(Op.Get());
+		Op->BaseMeshTangents = BaseMeshTangents;
 		Op->Settings = CachedNormalMapSettings;
 		return Op;
 	}
 	case EBakeMapType::Occlusion:
 	{
 		TUniquePtr<FBakeOcclusionMapOp> Op = MakeUnique<FBakeOcclusionMapOp>();
-		Op->DetailMesh = DetailMesh;
-		Op->DetailSpatial = DetailSpatial;
-		Op->BaseMesh = &BaseMesh;
-		Op->BakeCacheSettings = CachedBakeCacheSettings;
-		Op->BaseMeshTangents = BaseMeshTangents.Get();
+		InitializeBaseOp(Op.Get());
+		Op->BaseMeshTangents = BaseMeshTangents;
 		Op->Settings = CachedOcclusionMapSettings;
 		return Op;
 	}
 	case EBakeMapType::Curvature:
 	{
 		TUniquePtr<FBakeCurvatureMapOp> Op = MakeUnique<FBakeCurvatureMapOp>();
-		Op->DetailMesh = DetailMesh;
-		Op->DetailSpatial = DetailSpatial;
-		Op->BaseMesh = &BaseMesh;
-		Op->BakeCacheSettings = CachedBakeCacheSettings;
+		InitializeBaseOp(Op.Get());
 		Op->Settings = CachedCurvatureMapSettings;
 		return Op;
 	}
@@ -567,20 +572,14 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshImageBaker>> UBakeMeshAttribu
 	case EBakeMapType::MaterialID:
 	{
 		TUniquePtr<FBakeMeshPropertyMapOp> Op = MakeUnique<FBakeMeshPropertyMapOp>();
-		Op->DetailMesh = DetailMesh;
-		Op->DetailSpatial = DetailSpatial;
-		Op->BaseMesh = &BaseMesh;
-		Op->BakeCacheSettings = CachedBakeCacheSettings;
+		InitializeBaseOp(Op.Get());
 		Op->Settings = CachedMeshPropertyMapSettings;
 		return Op;
 	}
 	case EBakeMapType::Texture2DImage:
 	{
 		TUniquePtr<FBakeTexture2DImageMapOp> Op = MakeUnique<FBakeTexture2DImageMapOp>();
-		Op->DetailMesh = DetailMesh;
-		Op->DetailSpatial = DetailSpatial;
-		Op->BaseMesh = &BaseMesh;
-		Op->BakeCacheSettings = CachedBakeCacheSettings;
+		InitializeBaseOp(Op.Get());
 		Op->UVOverlay = DetailMesh->Attributes()->GetUVLayer(CachedTexture2DImageSettings.UVLayer);
 		Op->TextureImage = CachedTextureImage;
 		Op->Settings = CachedTexture2DImageSettings;
@@ -589,10 +588,7 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshImageBaker>> UBakeMeshAttribu
 	case EBakeMapType::MultiTexture:
 	{
 		TUniquePtr<FBakeMultiTextureOp> Op = MakeUnique<FBakeMultiTextureOp>();
-		Op->DetailMesh = DetailMesh;
-		Op->DetailSpatial = DetailSpatial;
-		Op->BaseMesh = &BaseMesh;
-		Op->BakeCacheSettings = CachedBakeCacheSettings;
+		InitializeBaseOp(Op.Get());
 		Op->UVOverlay = DetailMesh->Attributes()->GetUVLayer(CachedTexture2DImageSettings.UVLayer);
 		Op->MaterialToTextureImageMap = CachedMultiTextures;
 		Op->Settings = CachedTexture2DImageSettings;
@@ -901,6 +897,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	BakeCacheSettings.UVLayer = FCString::Atoi(*Settings->UVLayer);
 	BakeCacheSettings.DetailTimestamp = this->DetailMeshTimestamp;
 	BakeCacheSettings.Thickness = Settings->Thickness;
+	BakeCacheSettings.Multisampling = (int32)Settings->Multisampling;
 
 	// update bake cache settings
 	if (!(CachedBakeCacheSettings == BakeCacheSettings))
@@ -956,9 +953,9 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	bool bInvalidate = bInputsDirty || (OpState == EOpState::Evaluate);
 	if (!Compute)
 	{
-		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshImageBaker>>();
+		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
 		Compute->Setup(this);
-		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshImageBaker>& NewResult) { OnMapsUpdated(NewResult); });
+		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
 		Compute->InvalidateResult();
 	}
 	else if (bInvalidate)
@@ -1309,6 +1306,11 @@ UBakeMeshAttributeMapsTool::EOpState UBakeMeshAttributeMapsTool::UpdateResult_Mu
 			return EOpState::Invalid;
 		}
 	}
+	if (CachedMultiTextures.Num() == 0)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidTextureWarning", "The Source Texture is not valid"), EToolMessageLevel::UserWarning);
+		return EOpState::Invalid;
+	}
 
 	if (!(CachedTexture2DImageSettings == NewSettings))
 	{
@@ -1420,50 +1422,39 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 }
 
 
-void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshImageBaker>& NewResult)
+void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& NewResult)
 {
 	switch (Settings->MapType)
 	{
 	case EBakeMapType::TangentSpaceNormalMap:
 	{
-		FMeshNormalMapBaker* Baker = static_cast<FMeshNormalMapBaker*>(NewResult.Get());
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedNormalMapSettings.Dimensions);
-		TextureBuilder.Copy(*Baker->GetResult());
+		TextureBuilder.Copy(*NewResult->GetBakeResult(0));
 		TextureBuilder.Commit(false);
 		CachedNormalMap = TextureBuilder.GetTexture2D();
 		break;
 	}
 	case EBakeMapType::Occlusion:
 	{
-		FMeshOcclusionMapBaker* Baker = static_cast<FMeshOcclusionMapBaker*>(NewResult.Get());
-		const TUniquePtr<TImageBuilder<FVector3f>>& AOResult = Baker->GetResult(FMeshOcclusionMapBaker::EResult::AmbientOcclusion);
-		if (ensure(AOResult))
-		{
-			FTexture2DBuilder TextureBuilder;
-			TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, CachedOcclusionMapSettings.Dimensions);
-			TextureBuilder.Copy(*AOResult);
-			TextureBuilder.Commit(false);
-			CachedOcclusionMap = TextureBuilder.GetTexture2D();
-		}
+		FTexture2DBuilder TextureBuilder;
+		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, CachedOcclusionMapSettings.Dimensions);
+		TextureBuilder.Copy(*NewResult->GetBakeResult(0));
+		TextureBuilder.Commit(false);
+		CachedOcclusionMap = TextureBuilder.GetTexture2D();
 
-		const TUniquePtr<TImageBuilder<FVector3f>>& BNResult = Baker->GetResult(FMeshOcclusionMapBaker::EResult::BentNormal);
-		if (ensure(BNResult))
-		{
-			FTexture2DBuilder TextureNormalBuilder;
-			TextureNormalBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedOcclusionMapSettings.Dimensions);
-			TextureNormalBuilder.Copy(*BNResult);
-			TextureNormalBuilder.Commit(false);
-			CachedBentNormalMap = TextureNormalBuilder.GetTexture2D();
-		}
+		FTexture2DBuilder TextureNormalBuilder;
+		TextureNormalBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedOcclusionMapSettings.Dimensions);
+		TextureNormalBuilder.Copy(*NewResult->GetBakeResult(1));
+		TextureNormalBuilder.Commit(false);
+		CachedBentNormalMap = TextureNormalBuilder.GetTexture2D();
 		break;
 	}
 	case EBakeMapType::Curvature:
 	{
-		FMeshCurvatureMapBaker* Baker = static_cast<FMeshCurvatureMapBaker*>(NewResult.Get());
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedCurvatureMapSettings.Dimensions);
-		TextureBuilder.Copy(*Baker->GetResult());
+		TextureBuilder.Copy(*NewResult->GetBakeResult(0));
 		TextureBuilder.Commit(false);
 		CachedCurvatureMap = TextureBuilder.GetTexture2D();
 		break;
@@ -1473,32 +1464,30 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshImageBaker>
 	case EBakeMapType::FaceNormalImage:
 	case EBakeMapType::MaterialID:
 	{
-		FMeshPropertyMapBaker* Baker = static_cast<FMeshPropertyMapBaker*>(NewResult.Get());
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedMeshPropertyMapSettings.Dimensions);
-		TextureBuilder.Copy(*Baker->GetResult());
+		TextureBuilder.Copy(*NewResult->GetBakeResult(0));
 		TextureBuilder.Commit(false);
 		CachedMeshPropertyMap = TextureBuilder.GetTexture2D();
 		break;
 	}
 	case EBakeMapType::Texture2DImage:
 	{
-		FMeshResampleImageBaker* Baker = static_cast<FMeshResampleImageBaker*>(NewResult.Get());
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedTexture2DImageSettings.Dimensions);
-		TextureBuilder.Copy(*Baker->GetResult(), true);
+		TextureBuilder.Copy(*NewResult->GetBakeResult(0), true);
 		TextureBuilder.Commit(false);
 		CachedTexture2DImageMap = TextureBuilder.GetTexture2D();
 		break;
 	}
 	case EBakeMapType::MultiTexture:
 	{
-		FMeshMultiResampleImageBaker* Baker = static_cast<FMeshMultiResampleImageBaker*>(NewResult.Get());
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedTexture2DImageSettings.Dimensions);
-		TextureBuilder.Copy(*Baker->GetResult(), true);
+		TextureBuilder.Copy(*NewResult->GetBakeResult(0), true);
 		TextureBuilder.Commit(false);
 		CachedTexture2DImageMap = TextureBuilder.GetTexture2D();
+		break;
 	}
 	}
 
