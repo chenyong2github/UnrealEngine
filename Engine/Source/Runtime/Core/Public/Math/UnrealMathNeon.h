@@ -31,7 +31,7 @@ PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
 // redundant zero initialization in these cases for non-MSVC (e.g. V()
 // is called now where it wasn't before)
 template<typename T, bool is_int>
-struct MS_ALIGN(alignof(T)) VectorRegisterWrapper
+struct alignas(alignof(T)) VectorRegisterWrapper
 {
 	FORCEINLINE VectorRegisterWrapper() {}
 	FORCEINLINE VectorRegisterWrapper(const T& vec) : m_vec(vec) {}
@@ -67,7 +67,7 @@ typedef uint64x2_t GCC_ALIGN(16) VectorRegister2Int64;
 	typedef VectorRegister4Float VectorRegister;
 #endif
 
-MS_ALIGN(16) struct VectorRegister4Double
+struct alignas(16) VectorRegister4Double
 {
 	union
 	{
@@ -95,7 +95,7 @@ MS_ALIGN(16) struct VectorRegister4Double
 		*this = VectorRegister4Double(From);
 		return *this;
 	}
-} GCC_ALIGN(16);
+};
 
 
 // Forward declarations
@@ -106,7 +106,7 @@ void VectorStoreAligned(const VectorRegister4Double& Vec, double* Dst);
 
 
 // Helper for conveniently aligning a float array for extraction from VectorRegister4Float
-struct alignas(16) AlignedFloat4
+struct alignas(alignof(VectorRegister4Float)) AlignedFloat4
 {
 	float V[4];
 
@@ -126,7 +126,7 @@ struct alignas(16) AlignedFloat4
 
 
 // Helper for conveniently aligning a double array for extraction from VectorRegister4Double
-struct alignas(16) AlignedDouble4
+struct alignas(alignof(VectorRegister4Double)) AlignedDouble4
 {
 	double V[4];
 
@@ -178,6 +178,13 @@ FORCEINLINE VectorRegister4Float MakeVectorRegisterFloat(uint32 X, uint32 Y, uin
 {
 	return MakeVectorRegister(X, Y, Z, W);
 }
+
+// Nicer alias
+FORCEINLINE VectorRegister4Float MakeVectorRegisterFloatMask(uint32 X, uint32 Y, uint32 Z, uint32 W)
+{
+	return MakeVectorRegisterFloat(X, Y, Z, W);
+}
+
 
 /**
  * Returns a vector based on 4 floats.
@@ -246,6 +253,12 @@ FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(uint64 X, uint64 Y, u
 	Tmp.D[2] = Z;
 	Tmp.D[3] = W;
 	return Tmp.V;
+}
+
+// Nicer alias
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDoubleMask(uint64 X, uint64 Y, uint64 Z, uint64 W)
+{
+	return MakeVectorRegisterDouble(X, Y, Z, W);
 }
 
 FORCEINLINE VectorRegister2Double MakeVectorRegister2Double(double X, double Y)

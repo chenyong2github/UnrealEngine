@@ -45,6 +45,7 @@ struct TAlignedBytes<Size,1>
 #endif
 
 // Implement TAlignedBytes for these alignments.
+IMPLEMENT_ALIGNED_STORAGE(32);
 IMPLEMENT_ALIGNED_STORAGE(16);
 IMPLEMENT_ALIGNED_STORAGE(8);
 IMPLEMENT_ALIGNED_STORAGE(4);

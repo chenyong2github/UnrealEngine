@@ -33,7 +33,7 @@
  * Example: LocalToWorld = (LocalToWorld * DeltaRotation) will change rotation in world space by DeltaRotation.
  */
 
-MS_ALIGN(16) struct FTransform
+struct alignas(alignof(VectorRegister)) FTransform
 {
 	friend struct Z_Construct_UScriptStruct_FTransform_Statics;
 
@@ -108,11 +108,11 @@ public:
 	FORCEINLINE FTransform()
 	{
 		// Rotation = {0,0,0,1)
-		Rotation = VectorSet_W1( VectorZero() );
+		Rotation = GlobalVectorConstants::Vector0001; //VectorSet_W1( VectorZero() );
 		// Translation = {0,0,0,0)
 		Translation = VectorZero();
 		// Scale3D = {1,1,1,0);
-		Scale3D = VectorSet_W0( VectorOne() );
+		Scale3D = GlobalVectorConstants::Vector1110; //VectorSet_W0( VectorOne() );
 	}
 
 	/**
@@ -123,11 +123,11 @@ public:
 	FORCEINLINE explicit FTransform(const FVector& InTranslation) 
 	{
 		// Rotation = {0,0,0,1) quaternion identity
-		Rotation =  VectorSet_W1( VectorZero() );
+		Rotation = GlobalVectorConstants::Vector0001; //VectorSet_W1( VectorZero() );
 		//Translation = InTranslation;
 		Translation = MakeVectorRegister(InTranslation.X, InTranslation.Y, InTranslation.Z, 0.0f );
 		// Scale3D = {1,1,1,0);
-		Scale3D = VectorSet_W0( VectorOne() );
+		Scale3D = GlobalVectorConstants::Vector1110; //VectorSet_W0( VectorOne() );
 
 		DiagnosticCheckNaN_All();
 	}
@@ -144,7 +144,7 @@ public:
 		// Translation = {0,0,0,0)
 		Translation = VectorZero();
 		// Scale3D = {1,1,1,0);
-		Scale3D = VectorSet_W0( VectorOne() );
+		Scale3D = GlobalVectorConstants::Vector1110; //VectorSet_W0( VectorOne() );
 
 		DiagnosticCheckNaN_All();
 	}
@@ -162,7 +162,7 @@ public:
 		// Translation = {0,0,0,0)
 		Translation = VectorZero();
 		// Scale3D = {1,1,1,0);
-		Scale3D = VectorSet_W0( VectorOne() );
+		Scale3D = GlobalVectorConstants::Vector1110; //VectorSet_W0( VectorOne() );
 
 		DiagnosticCheckNaN_All();
 	}
@@ -680,7 +680,7 @@ private:
 
 	FORCEINLINE static bool Private_AnyHasNegativeScale(const VectorRegister& InScale3D, const  VectorRegister& InOtherScale3D)
 	{
-		return !!VectorAnyLesserThan(VectorMin(InScale3D, InOtherScale3D), GlobalVectorConstants::FloatZero);
+		return !!VectorAnyLesserThan(VectorMin(InScale3D, InOtherScale3D), VectorZero());
 	}
 
 	FORCEINLINE bool Private_RotationEquals( const VectorRegister& InRotation, const ScalarRegister& Tolerance = ScalarRegister(GlobalVectorConstants::KindaSmallNumber)) const
@@ -790,11 +790,11 @@ public:
 	FORCEINLINE void SetIdentity()
 	{
 		// Rotation = {0,0,0,1)
-		Rotation = VectorSet_W1( VectorZero() );
+		Rotation = GlobalVectorConstants::Vector0001; //VectorSet_W1( VectorZero() );
 		// Translation = {0,0,0,0)
 		Translation = VectorZero();
 		// Scale3D = {1,1,1,0);
-		Scale3D = VectorSet_W0 ( VectorOne() );
+		Scale3D = GlobalVectorConstants::Vector1110; //VectorSet_W0( VectorOne() );
 	}
 
 	/**
@@ -1107,7 +1107,7 @@ public:
 	 */
 	FORCEINLINE static void BlendFromIdentityAndAccumulate(FTransform& FinalAtom, const FTransform& SourceAtom, const ScalarRegister& BlendWeight)
 	{
-		const VectorRegister Const0001 = GlobalVectorConstants::Float0001;
+		const VectorRegister Const0001 = GlobalVectorConstants::Vector0001;
 		const VectorRegister ConstNegative0001 = VectorSubtract(VectorZero(), Const0001);
 		const VectorRegister VOneMinusAlpha = VectorSubtract(VectorOne(), BlendWeight.Value);
 		const VectorRegister DefaultScale = MakeVectorRegister(1.f, 1.f, 1.f, 0.f);
@@ -1416,7 +1416,7 @@ private:
 	* @param  Relative Transform Relative.
 	*/
 	static void GetRelativeTransformUsingMatrixWithScale(FTransform* OutTransform, const FTransform* Base, const FTransform* Relative);
-}  GCC_ALIGN(16);
+};
 
 template <> struct TIsPODType<FTransform> { enum { Value = true }; };
 
