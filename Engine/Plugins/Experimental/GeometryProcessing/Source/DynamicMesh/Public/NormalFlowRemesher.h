@@ -27,6 +27,25 @@ public:
 	/// Additional projection iterations after the usual remesh step
 	int NumExtraProjectionIterations = 5;
 
+	/// drag on surface projection
+	double SurfaceProjectionSpeed = 0.2;
+
+	/// drag on normal alignment
+	double NormalAlignmentSpeed = 0.2;
+
+	/// Control whether or not we want to apply mesh smoothing in "free" areas that have not projected to target surface.
+	/// This smoothing is on applied in the ExtraProjections Iterations
+	bool bSmoothInFillAreas = true;
+
+	/// This is used as a multiplier on MaxEdgeLength to determine when we identify points as being in "free" areas
+	float FillAreaDistanceMultiplier = 0.25;
+
+	/// This is used as a multiplier on the Remesher smoothing rate, applied to points identified as being in "free" areas
+	float FillAreaSmoothMultiplier = 0.25;
+
+	/// cap on triangle count, to prevent runaway mesh messes. Ignored if zero.
+	int MaxTriangleCount = 0;
+
 	/// "Outer loop" for all remeshing operations
 	void BasicRemeshPass() override
 	{
@@ -44,8 +63,8 @@ protected:
 	void RemeshWithFaceProjection();
 
 	// Perform face-aligned projection onto the target mesh. Queue edges whose lengths change because of it.
-	void TrackedFaceProjectionPass(double& MaxDistanceMoved);
-	void TrackedFaceProjectionPass_Serial(double& MaxDistanceMoved);
+	void TrackedFaceProjectionPass(double& MaxDistanceMoved, bool bIsTuningIteration);
+	void TrackedFaceProjectionPass_Serial(double& MaxDistanceMoved, bool bIsTuningIteration);
 
 	// This is called during RemeshIteration 
 	void TrackedFullProjectionPass(bool bParallel) override
@@ -53,13 +72,14 @@ protected:
 		for (int i = 0; i < FaceProjectionPassesPerRemeshIteration; ++i)
 		{
 			double ProjectionDistance;
+			constexpr bool bIsTuningIteration = false;
 			if (bParallel)
 			{
-				TrackedFaceProjectionPass(ProjectionDistance);
+				TrackedFaceProjectionPass(ProjectionDistance, bIsTuningIteration);
 			}
 			else
 			{
-				TrackedFaceProjectionPass_Serial(ProjectionDistance);
+				TrackedFaceProjectionPass_Serial(ProjectionDistance, bIsTuningIteration);
 			}
 		}
 	}

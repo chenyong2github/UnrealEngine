@@ -200,6 +200,7 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	if (!BasicProperties->bUseTargetEdgeLength)
 	{
 		Op->TargetEdgeLength = CalculateTargetEdgeLength(BasicProperties->TargetTriangleCount);
+		Op->TriangleCountHint = 2.0 * BasicProperties->TargetTriangleCount;
 	}
 	else
 	{

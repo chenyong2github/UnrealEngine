@@ -62,20 +62,24 @@ void FNormalFlowRemesher::RemeshWithFaceProjection()
 		}
 
 		double MaxProjectionDistance = 0.0;
+		constexpr bool bIsTuningIteration = false;
 		if (bEnableParallelProjection)
 		{
-			TrackedFaceProjectionPass(MaxProjectionDistance);
+			TrackedFaceProjectionPass(MaxProjectionDistance, bIsTuningIteration);
 		}
 		else
 		{
-			TrackedFaceProjectionPass_Serial(MaxProjectionDistance);
+			TrackedFaceProjectionPass_Serial(MaxProjectionDistance, bIsTuningIteration);
 		}
 		
 
-		// Stop if we've hit max iterations, or both:
+		// Stop if we've hit max iterations, hit triangle limit, or both:
 		// - queue is empty and
 		// - projection isn't moving anything
-		bContinue = (Iterations++ < MaxRemeshIterations) && ((ModifiedEdges->Num() > 0) || (MaxProjectionDistance > ProjectionDistanceThreshold));
+		bContinue =
+			(Iterations++ < MaxRemeshIterations)
+			&& ((ModifiedEdges->Num() > 0) || (MaxProjectionDistance > ProjectionDistanceThreshold))
+			&& ((MaxTriangleCount == 0) || (Mesh->TriangleCount() < MaxTriangleCount));
 	}
 
 	SmoothSpeedT = OriginalSmoothSpeed;
@@ -91,13 +95,14 @@ void FNormalFlowRemesher::RemeshWithFaceProjection()
 			}
 
 			double MaxProjectionDistance = 0.0;
+			constexpr bool bIsTuningIteration = true;
 			if (bEnableParallelProjection)
 			{
-				TrackedFaceProjectionPass(MaxProjectionDistance);
+				TrackedFaceProjectionPass(MaxProjectionDistance, bIsTuningIteration);
 			}
 			else
 			{
-				TrackedFaceProjectionPass_Serial(MaxProjectionDistance);
+				TrackedFaceProjectionPass_Serial(MaxProjectionDistance, bIsTuningIteration);
 			}
 
 			if (MaxProjectionDistance == 0.0)
@@ -113,7 +118,8 @@ void FNormalFlowRemesher::RemeshWithFaceProjection()
 }
 
 
-void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
+
+void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved, bool bIsTuningIteration)
 {
 	ensure(ProjTarget != nullptr);
 
@@ -122,12 +128,17 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
 
 	InitializeVertexBufferForFacePass();
 
+	double MaxStepDistance = (bIsTuningIteration) ? (0.25 * MaxEdgeLength) : (0.5 * MaxEdgeLength);		// kind of arbitrary...
+	double SmoothAreaDistance = FillAreaDistanceMultiplier * MaxEdgeLength;
+
+	TFunction<FVector3d(const FDynamicMesh3&, int, double)> UseSmoothFunc = GetSmoothFunction();
+
 	// For each triangle, rotate it such that it aligns with closest normal on the target surface.
 	// Each vertex is then assigned a weighted combination of its corresponding triangle corner positions. The weighting
 	// is chosen to favor triangles that don't rotate much (i.e. are already aligned with the target surface.)
 
 	// First compute all rotated triangles and store their corner positions and weights
-	ParallelFor(Mesh->MaxTriangleID(), [this, NormalProjTarget](int32 TriangleIndex)
+	ParallelFor(Mesh->MaxTriangleID(), [this, NormalProjTarget, bIsTuningIteration, SmoothAreaDistance, UseSmoothFunc, MaxStepDistance](int32 TriangleIndex)
 	{
 		FVector3d TriangleNormal, Centroid;
 		double Area;
@@ -135,6 +146,11 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
 
 		FVector3d ProjectedNormal{ 1e30, 1e30, 1e30 };
 		FVector3d ProjectedPosition = NormalProjTarget->Project(Centroid, ProjectedNormal);
+
+		if (TriangleNormal.Length() < 0.9 || ProjectedNormal.Length() < 0.9)
+		{
+			return;		// skip this triangle
+		}
 
 		if (!ensure(ProjectedNormal[0] != 1e30))
 		{
@@ -144,6 +160,52 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
 		{
 			return;
 		}
+
+		FIndex3i TriangleVertices = Mesh->GetTriangle(TriangleIndex);
+
+		// if we are tuning and we are not within distance band from the target mesh, then this 
+		// is likely an area that cannot project, ie a "fill" area. In those areas we just want to
+		// smooth because the projection+remesh will have created very ugly geometry
+		// Note: it seems like this ought to be done per-vertex, not triangle based. However this
+		// so far has not produced as good of results - not entirely clear why, but it seems that
+		// around the boundaries, the triangles that sill have a good projection extert some pull
+		// back on the boundary vertices, which keeps them more stable, otherwise they shrink too
+		// much and this causes artifacts around the border (perhaps because the normals are never converging).
+		// It *might* work better to do this as a fully separate step, after everything else has 
+		// converged, and do some kind of weighted-identification of these hole areas
+
+		if (bIsTuningIteration && bSmoothInFillAreas && Distance(ProjectedPosition, Centroid) > SmoothAreaDistance && FillAreaSmoothMultiplier > 0)
+		{
+			for (int32 j = 0; j < 3; ++j)
+			{
+				bool bModified = false;
+				FVector3d SmoothPos = ComputeSmoothedVertexPos(TriangleVertices[j], UseSmoothFunc, bModified);
+				if (bModified)
+				{
+					double Weight = Area;
+					SmoothPos = Lerp(Centroid, SmoothPos, FillAreaSmoothMultiplier * SmoothSpeedT);
+
+					ProjectionVertexBuffer[3*TriangleIndex + j] = Weight * SmoothPos;
+					ProjectionWeightBuffer[3*TriangleIndex + j] = Weight;
+				}
+			}
+			return;
+		}
+
+		// apply damping to new position/normal
+		ProjectedPosition = Lerp(Centroid, ProjectedPosition, SurfaceProjectionSpeed);
+		ProjectedNormal = Normalized(Lerp(TriangleNormal, ProjectedNormal, NormalAlignmentSpeed));
+		if (ProjectedNormal.Length() < 0.1)
+		{
+			ProjectedNormal = TriangleNormal;
+		}
+
+		// clamp movement of target position, to prevent moving too far in a single step
+		FVector3d MoveDelta = (ProjectedPosition - Centroid);
+		double MoveLength = Normalize(MoveDelta);
+
+		MoveLength = FMathd::Min(MoveLength, MaxStepDistance);
+		ProjectedPosition = Centroid + MoveLength * MoveDelta;
 
 		FVector3d V0, V1, V2;
 		Mesh->GetTriVertices(TriangleIndex, V0, V1, V2);
@@ -172,7 +234,7 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
 	});
 
 	// Next compute all the weighted average of triangle corners for each vertex
-	ParallelFor(Mesh->MaxVertexID(), [this, &MaxDistanceMoved](int32 VertexIndex)
+	ParallelFor(Mesh->MaxVertexID(), [this, &MaxDistanceMoved, bIsTuningIteration, MaxStepDistance](int32 VertexIndex)
 	{
 		TempFlagBuffer[VertexIndex] = false;
 
@@ -223,6 +285,12 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
 		FVector3d CurrentPosition = Mesh->GetVertex(VertexIndex);
 		FVector3d ProjectedPosition = TempPosBuffer[VertexIndex] / TempWeightBuffer[VertexIndex];
 
+		// clamp movement of target position, to prevent moving too far in a single step
+		FVector3d MoveDelta = (ProjectedPosition - CurrentPosition);
+		double MoveLength = Normalize(MoveDelta);
+		MoveLength = FMathd::Min(MoveLength, MaxStepDistance);
+		ProjectedPosition = CurrentPosition + MoveLength * MoveDelta;
+
 		if (VectorUtil::EpsilonEqual(CurrentPosition, ProjectedPosition, FMathd::ZeroTolerance))
 		{
 			return;
@@ -264,7 +332,7 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved)
 
 
 
-void FNormalFlowRemesher::TrackedFaceProjectionPass_Serial(double& MaxDistanceMoved)
+void FNormalFlowRemesher::TrackedFaceProjectionPass_Serial(double& MaxDistanceMoved, bool bIsTuningIteration)
 {
 	ensure(ProjTarget != nullptr);
 
@@ -272,6 +340,11 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass_Serial(double& MaxDistanceMo
 	ensure(NormalProjTarget != nullptr);
 
 	InitializeVertexBufferForFacePass();
+
+	double MaxStepDistance = (bIsTuningIteration) ? (0.25*MaxEdgeLength) : (0.5*MaxEdgeLength);		// kind of arbitrary...
+	double SmoothAreaDistance = FillAreaDistanceMultiplier * MaxEdgeLength;
+
+	TFunction<FVector3d(const FDynamicMesh3&, int, double)> UseSmoothFunc = GetSmoothFunction();
 
 	// this function computes rotated position of triangle, such that it
 	// aligns with face normal on target surface. We accumulate weighted-average
@@ -282,12 +355,56 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass_Serial(double& MaxDistanceMo
 		FVector3d TriangleNormal, Centroid;
 		double Area;
 		Mesh->GetTriInfo(TriangleIndex, TriangleNormal, Area, Centroid);
-
+		FIndex3i TriangleVertices = Mesh->GetTriangle(TriangleIndex);
+		
 		FVector3d ProjectedNormal{ 1e30, 1e30, 1e30 };
 		FVector3d ProjectedPosition = NormalProjTarget->Project(Centroid, ProjectedNormal);
+		if (TriangleNormal.Length() < 0.9 || ProjectedNormal.Length() < 0.9 )
+		{
+			continue;		// skip this triangle
+		}
 
-		check(ProjectedNormal[0] != 1e30);
-		check(ProjectedNormal.Length() > 1e-6);
+		// if we are tuning and we are not within distance band from the target mesh, then this 
+		// is likely an area that cannot project, ie a "fill" area. In those areas we just want to
+		// smooth because the projection+remesh will have created very ugly geometry
+		// Note: it seems like this ought to be done per-vertex, not triangle based. However this
+		// so far has not produced as good of results - not entirely clear why, but it seems that
+		// around the boundaries, the triangles that sill have a good projection extert some pull
+		// back on the boundary vertices, which keeps them more stable, otherwise they shrink too
+		// much and this causes artifacts around the border (perhaps because the normals are never converging).
+		// It *might* work better to do this as a fully separate step, after everything else has 
+		// converged, and do some kind of weighted-identification of these hole areas
+		if (bIsTuningIteration && bSmoothInFillAreas && Distance(ProjectedPosition, Centroid) > SmoothAreaDistance && FillAreaSmoothMultiplier > 0)
+		{
+			for (int32 j = 0; j < 3; ++j)
+			{
+				bool bModified = false;
+				FVector3d SmoothPos = ComputeSmoothedVertexPos(TriangleVertices[j], UseSmoothFunc, bModified);
+				if (bModified)
+				{
+					double Weight = Area;
+					SmoothPos = Lerp(Centroid, SmoothPos, FillAreaSmoothMultiplier*SmoothSpeedT);
+					TempPosBuffer[TriangleVertices[j]] += Weight * SmoothPos;
+					TempWeightBuffer[TriangleVertices[j]] += Weight;
+				}
+			}
+			continue;
+		}
+
+		// apply damping to new position/normal
+		ProjectedPosition = Lerp(Centroid, ProjectedPosition, SurfaceProjectionSpeed);
+		ProjectedNormal = Normalized(Lerp(TriangleNormal, ProjectedNormal, NormalAlignmentSpeed));
+		if (ProjectedNormal.Length() < 0.1)
+		{
+			ProjectedNormal = TriangleNormal;
+		}
+
+		// clamp movement of target position, to prevent moving too far in a single step
+		FVector3d MoveDelta = (ProjectedPosition - Centroid);
+		double MoveLength = Normalize(MoveDelta);
+
+		MoveLength = FMathd::Min(MoveLength, MaxStepDistance);
+		ProjectedPosition = Centroid + MoveLength * MoveDelta;
 
 		FVector3d V0, V1, V2;
 		Mesh->GetTriVertices(TriangleIndex, V0, V1, V2);
@@ -307,7 +424,6 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass_Serial(double& MaxDistanceMo
 		Dot = FMath::Clamp(Dot, 0.0, 1.0);
 		double Weight = Area * (Dot * Dot * Dot);
 
-		FIndex3i TriangleVertices = Mesh->GetTriangle(TriangleIndex);
 		TempPosBuffer[TriangleVertices.A] += Weight * V0;
 		TempWeightBuffer[TriangleVertices.A] += Weight;
 		TempPosBuffer[TriangleVertices.B] += Weight * V1;
@@ -348,6 +464,12 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass_Serial(double& MaxDistanceMo
 		{
 			continue;
 		}
+
+		// clamp movement of target position, to prevent moving too far in a single step
+		FVector3d MoveDelta = (ProjectedPosition - CurrentPosition);
+		double MoveLength = Normalize(MoveDelta);
+		MoveLength = FMathd::Min(MoveLength, MaxStepDistance);
+		ProjectedPosition = CurrentPosition + MoveLength * MoveDelta;
 
 		MaxDistanceMoved = FMath::Max(MaxDistanceMoved, Distance(CurrentPosition, ProjectedPosition));
 
