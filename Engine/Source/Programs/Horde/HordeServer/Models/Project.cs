@@ -124,6 +124,27 @@ namespace HordeServer.Models
 		/// </summary>
 		public IReadOnlyDictionary<string, string> Properties { get; }
 	}
+	
+	/// <summary>
+	/// Interface for a document containing a project logo
+	/// </summary>
+	public interface IProjectLogo
+	{
+		/// <summary>
+		/// The project id
+		/// </summary>
+		public ProjectId Id { get; }
+
+		/// <summary>
+		/// Mime type for the image
+		/// </summary>
+		public string MimeType { get; }
+
+		/// <summary>
+		/// Image data
+		/// </summary>
+		public byte[] Data { get; }
+	}
 
 	/// <summary>
 	/// Extension methods for projects

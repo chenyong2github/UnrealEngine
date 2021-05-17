@@ -44,6 +44,11 @@ namespace HordeServer.Services
 		IProjectCollection Projects;
 
 		/// <summary>
+		/// Accessor for the collection of project documents
+		/// </summary>
+		public IProjectCollection Collection => Projects;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="AclService">The ACL service</param>
