@@ -818,6 +818,12 @@ public:
 			return nullptr;
 		}
 
+		// Invalid primitive setup. This can happens when the (procedural) resources are not ready.
+		if (NumPrimitive == 0 && !bUseCulling)
+		{
+			return nullptr;
+		}
+
 		if (bWireframe)
 		{
 			MaterialRenderProxy = new FColoredMaterialRenderProxy( GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : NULL, FLinearColor(1.f, 0.5f, 0.f));
