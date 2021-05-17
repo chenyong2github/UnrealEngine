@@ -1296,9 +1296,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPerfTest, "System.Core.Async.TaskGraph.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphPerfTest, "System.Core.Async.TaskGraph.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
-	bool FPerfTest::RunTest(const FString& Parameters)
+	bool FTaskGraphPerfTest::RunTest(const FString& Parameters)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PerfTest);
 
