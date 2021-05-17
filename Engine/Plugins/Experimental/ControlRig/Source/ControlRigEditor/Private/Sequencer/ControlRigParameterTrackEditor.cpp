@@ -2015,8 +2015,11 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 	}
 }
 
-void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRig, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, FGeneratedTrackKeys& OutGeneratedKeys)
+void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRig, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, UMovieSceneControlRigParameterSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys)
 {
+	const TArray<bool>& ControlsMask = SectionToKey->GetControlsMask();
+	EMovieSceneTransformChannel TransformMask = SectionToKey->GetTransformMask().GetChannels();
+
 	TArray<FRigControl> Controls;
 	InControlRig->GetControlsInOrder(Controls);
 	// If key all is enabled, for a key on all the channels
@@ -2030,12 +2033,20 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 	int32 BoolChannelIndex = 0;
 	int32 EnumChannelIndex = 0;
 	int32 IntChannelIndex = 0;
-	for (const FRigControl& RigControl : Controls)
+	for (int32 ControlIndex = 0; ControlIndex < Controls.Num(); ++ControlIndex)
 	{
+		const FRigControl& RigControl = Controls[ControlIndex];
+
 		if (!RigControl.bAnimatable)
 		{
 			continue;
 		}
+
+		if (ControlIndex < ControlsMask.Num() && !ControlsMask[ControlIndex])
+		{
+			continue;
+		}
+
 		bool bSetKey = RigControl.Name == ParameterName;
 		switch (RigControl.ControlType)
 		{
@@ -2118,6 +2129,18 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			{
 				bKeyX = bKeyY = bKeyZ = true;
 			}
+			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationX))
+			{
+				bKeyX = false;
+			}
+			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationY))
+			{
+				bKeyY = false;
+			}
+			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::TranslationZ))
+			{
+				bKeyZ = false;
+			}
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.X, bKeyX));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Y, bKeyY));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Z, bKeyZ));
@@ -2129,6 +2152,18 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyGroup && (bKeyX || bKeyY || bKeyZ))
 			{
 				bKeyX = bKeyY = bKeyZ = true;
+			}
+			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationX))
+			{
+				bKeyX = false;
+			}
+			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationY))
+			{
+				bKeyY = false;
+			}
+			if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::RotationZ))
+			{
+				bKeyZ = false;
 			}
 
 			/* @Mike.Zyracki this is my gut feeling - we should run SetClosestToMe on the rotator SOMEWHERE....
@@ -2157,6 +2192,18 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 				if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyGroup && (bKeyX || bKeyY || bKeyZ))
 				{
 					bKeyX = bKeyY = bKeyZ = true;
+				}
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleX))
+				{
+					bKeyX = false;
+				}
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleY))
+				{
+					bKeyY = false;
+				}
+				if (!EnumHasAnyFlags(TransformMask, EMovieSceneTransformChannel::ScaleZ))
+				{
+					bKeyZ = false;
 				}
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.X, bKeyX));
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentVector.Y, bKeyY));
@@ -2271,11 +2318,12 @@ void FControlRigParameterTrackEditor::AddControlKeys(USceneComponent *InSceneCom
 	}
 	FFindOrCreateTrackResult TrackResult = FindOrCreateTrackForObject(ObjectHandle, UMovieSceneControlRigParameterTrack::StaticClass(), ControlRigName, bCreateTrack);
 	UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
+	UMovieSceneControlRigParameterSection* ParamSection = nullptr;
 	if (Track)
 	{
 		FFrameNumber  FrameTime = GetTimeForKey();
 		UMovieSceneSection* Section = Track->FindSection(FrameTime);
-		UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(Section);
+		ParamSection = Cast<UMovieSceneControlRigParameterSection>(Section);
 
 		if (ParamSection && ParamSection->GetDoNotKey())
 		{
@@ -2283,9 +2331,14 @@ void FControlRigParameterTrackEditor::AddControlKeys(USceneComponent *InSceneCom
 		}
 	}
 
+	if (!ParamSection)
+	{
+		return;
+	}
+
 	TSharedRef<FGeneratedTrackKeys> GeneratedKeys = MakeShared<FGeneratedTrackKeys>();
 
-	GetControlRigKeys(InControlRig, RigControlName, ChannelsToKey, *GeneratedKeys);
+	GetControlRigKeys(InControlRig, RigControlName, ChannelsToKey, ParamSection, *GeneratedKeys);
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
 	auto OnKeyProperty = [=](FFrameNumber Time) -> FKeyPropertyResult
@@ -2968,10 +3021,10 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 			})
 				);
 		};
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("RigSectionFilterControls", "Filter Controls"));
+		MenuBuilder.BeginSection(NAME_None, LOCTEXT("RigSectionActiveChannels", "Active Channels"));
 		{
 			MenuBuilder.AddSubMenu(
-				LOCTEXT("ToggleRigControlsText", "Toggle Rig Controls"), LOCTEXT("ToggleRigControlsText_Tooltip", "Toggle Rig Controls"),
+				LOCTEXT("ToggleRigControlsText", "Rig Controls"), LOCTEXT("ToggleRigControlsText_Tooltip", "Causes this section to affect all rig controls"),
 				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
 				int32 Index = 0;
 				for (const FRigControl& RigControl : Controls)
@@ -2979,7 +3032,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 					const FName RigName = RigControl.Name;
 					FText Name = FText::FromName(RigName);
 					FText Text = FText::Format(LOCTEXT("RigControlToggle", "{0}"), Name);
-					FText TooltipText = FText::Format(LOCTEXT("RigControlToggleTooltip", "Toggle Rig Control {0}"), Name);
+					FText TooltipText = FText::Format(LOCTEXT("RigControlToggleTooltip", "Causes this section to affect rig control {0}"), Name);
 					SubMenuBuilder.AddMenuEntry(
 						Text, TooltipText,
 						FSlateIcon(), ToggleControls(Index++), NAME_None, EUserInterfaceActionType::ToggleButton);
