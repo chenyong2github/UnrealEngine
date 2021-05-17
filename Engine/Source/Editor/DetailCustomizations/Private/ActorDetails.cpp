@@ -54,6 +54,7 @@
 #include "ObjectEditorUtils.h"
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
+#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "ActorDetails"
 
@@ -551,10 +552,12 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 		];
 	}
 
-	// WorldSettings should not be packaged externally
-	if (SelectedActorInfo.SelectionClass != AWorldSettings::StaticClass())
+	// Actor Packaging Mode
+	const bool bOFPASupportEnabled = GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport;
+	const bool bActorClassSupportsOFPA = CastChecked<AActor>(SelectedActorInfo.SelectionClass->GetDefaultObject())->SupportsExternalPackaging();
+	const bool bShowActorPackagingModeProperty = bOFPASupportEnabled && bActorClassSupportsOFPA;
+	if (bShowActorPackagingModeProperty)
 	{
-			// Actor Packaging Mode
 		auto OnGetMenuContent = [=]() -> TSharedRef<SWidget> {
 			FMenuBuilder MenuBuilder(true, nullptr);
 			MenuBuilder.AddMenuEntry(ActorDetailsUtil::GetActorPackagingModeText(0), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FActorDetails::OnActorPackagingModeChanged, false));
@@ -592,7 +595,7 @@ bool FActorDetails::IsActorPackagingModeEditable() const
 	{
 		if (Actor.IsValid() && Actor->GetLevel())
 		{
-			if (!Actor->GetLevel()->CanConvertActorToExternalPackaging(Actor.Get()))
+			if (!ULevel::CanConvertActorToExternalPackaging(Actor.Get()))
 			{
 				return false;
 			}

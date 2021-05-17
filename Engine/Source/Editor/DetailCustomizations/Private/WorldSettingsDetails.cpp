@@ -79,34 +79,37 @@ void FWorldSettingsDetails::AddLightmapCustomization( IDetailLayoutBuilder& Deta
 
 void FWorldSettingsDetails::AddLevelExternalActorsCustomization(IDetailLayoutBuilder& DetailBuilder)
 {
-	TArray<TWeakObjectPtr<UObject>> CustomizedObjects;
-	DetailBuilder.GetObjectsBeingCustomized(CustomizedObjects);
-	ULevel* CustomizedLevel = nullptr;
-	if (CustomizedObjects.Num() > 0)
+	if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
 	{
-		if (AActor* WorldSettings = Cast<AWorldSettings>(CustomizedObjects[0]))
+		TArray<TWeakObjectPtr<UObject>> CustomizedObjects;
+		DetailBuilder.GetObjectsBeingCustomized(CustomizedObjects);
+		ULevel* CustomizedLevel = nullptr;
+		if (CustomizedObjects.Num() > 0)
 		{
-			CustomizedLevel = WorldSettings->GetLevel();
+			if (AActor* WorldSettings = Cast<AWorldSettings>(CustomizedObjects[0]))
+			{
+				CustomizedLevel = WorldSettings->GetLevel();
+			}
 		}
-	}
 
-	if (CustomizedLevel)
-	{
-		IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
-		WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("LevelUseExternalActors", "Use External Actors"))
-			.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load."))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-		]
-		.ValueContent()
-		[
-			SNew(SCheckBox)
-			.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseExternalActorsChanged, CustomizedLevel)
-			.IsChecked(this, &FWorldSettingsDetails::IsUseExternalActorsChecked, CustomizedLevel)
-		];
+		if (CustomizedLevel)
+		{
+			IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
+			WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("LevelUseExternalActors", "Use External Actors"))
+				.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseExternalActorsChanged, CustomizedLevel)
+				.IsChecked(this, &FWorldSettingsDetails::IsUseExternalActorsChecked, CustomizedLevel)
+			];
+		}
 	}
 }
 
