@@ -46,24 +46,6 @@ DECLARE_GPU_STAT_NAMED(NiagaraGPUSorting, TEXT("Niagara GPU sorting"));
 
 uint32 FNiagaraComputeExecutionContext::TickCounter = 0;
 
-int32 GNiagaraAllowTickBeforeRender = 1;
-static FAutoConsoleVariableRef CVarNiagaraAllowTickBeforeRender(
-	TEXT("fx.NiagaraAllowTickBeforeRender"),
-	GNiagaraAllowTickBeforeRender,
-	TEXT("If 1, Niagara GPU systems that don't rely on view data will be rendered in sync\n")
-	TEXT("with the current frame simulation instead of the last frame one. (default=1)\n"),
-	ECVF_Default
-);
-
-int32 GNiagaraOverlapCompute = 1;
-static FAutoConsoleVariableRef CVarNiagaraUseAsyncCompute(
-	TEXT("fx.NiagaraOverlapCompute"),
-	GNiagaraOverlapCompute,
-	TEXT("0 - Disable compute dispatch overlap, this will result in poor performance due to resource barriers between each dispatch call, but can be used to debug resource transition issues.\n")
-	TEXT("1 - (Default) Enable compute dispatch overlap where possible, this increases GPU utilization.\n"),
-	ECVF_Default
-);
-
 int32 GNiagaraGpuMaxQueuedRenderFrames = 10;
 static FAutoConsoleVariableRef CVarNiagaraGpuMaxQueuedRenderFrames(
 	TEXT("fx.Niagara.Batcher.MaxQueuedFramesWithoutRender"),
@@ -501,7 +483,15 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 
 void NiagaraEmitterInstanceBatcher::FinishDispatches()
 {
-	ReleaseTicks();
+	check(IsInRenderingThread());
+
+	for (int iTickStage = 0; iTickStage < ENiagaraGpuComputeTickStage::Max; ++iTickStage)
+	{
+		for (FNiagaraSystemGpuComputeProxy* ComputeProxy : ProxiesPerStage[iTickStage])
+		{
+			ComputeProxy->ReleaseTicks(GPUInstanceCounterManager);
+		}
+	}
 
 	for (FNiagaraGpuDispatchList& DispatchList : DispatchListPerStage)
 	{
@@ -512,24 +502,6 @@ void NiagaraEmitterInstanceBatcher::FinishDispatches()
 			DispatchList.CountsToRelease.Empty();
 		}
 	}
-}
-
-void NiagaraEmitterInstanceBatcher::ReleaseTicks()
-{
-	check(IsInRenderingThread());
-
-	for ( int iTickStage=0; iTickStage < ENiagaraGpuComputeTickStage::Max; ++iTickStage )
-	{
-		for ( FNiagaraSystemGpuComputeProxy* ComputeProxy : ProxiesPerStage[iTickStage] )
-		{
-			ComputeProxy->ReleaseTicks(GPUInstanceCounterManager);
-		}
-	}
-}
-
-bool NiagaraEmitterInstanceBatcher::UseOverlapCompute()
-{
-	return !IsMobilePlatform(ShaderPlatform) && GNiagaraOverlapCompute;
 }
 
 void NiagaraEmitterInstanceBatcher::ResetDataInterfaces(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData) const
@@ -1137,16 +1109,24 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 			ComputeContext->DataBuffers_RT[BufferIndex]->AllocateGPU(RHICmdList, ComputeContext->CurrentMaxAllocateInstances_RT + 1, FeatureLevel, ComputeContext->GetDebugSimName());
 		}
 
-		// Set the translucent draw data and also set the GPU count offset for the draw.
-		// This is safe as simulations have all completed before the translucent pass and allow us to issue
-		// draw commands with this frames data rather than the previous frames.  Note an opaque draw where
-		// the simulation uses the depth buffer can not do this as the simulation can not run until depth
-		// is available for use.
-		extern int32 GNiagaraGpuLowLatencyTranslucencyEnabled;
-		if (GNiagaraGpuLowLatencyTranslucencyEnabled)
+		// RDG will defer the execution of the actual dispatch calls until much later in the frame, so anything that is required for
+		// Mesh Processor commands to execute correct we must setup immediately.  I.e. the final buffer / final count.
+		if (ComputeProxy->GetComputeTickStage() == ENiagaraGpuComputeTickStage::PreInitViews)
 		{
-			ComputeContext->GetCurrDataBuffer()->GPUInstanceCountBufferOffset = ComputeContext->CountOffset_RT;
-			ComputeContext->SetTranslucentDataToRender(ComputeContext->GetCurrDataBuffer());
+			FNiagaraDataBuffer* FinalBuffer = ComputeContext->GetCurrDataBuffer();
+			FinalBuffer->GPUInstanceCountBufferOffset = ComputeContext->CountOffset_RT;
+			FinalBuffer->SetNumInstances(ComputeContext->CurrentNumInstances_RT);
+			ComputeContext->SetDataToRender(FinalBuffer);
+		}
+		// When low latency translucency is enabled we can setup the final buffer / final count here.
+		// This will allow our mesh processor commands to pickup the data for the same frame.
+		// This allows simulations that use the depth buffer, for example, to execute with no latency
+		else if ( GNiagaraGpuLowLatencyTranslucencyEnabled )
+		{
+			FNiagaraDataBuffer* FinalBuffer = ComputeContext->GetCurrDataBuffer();
+			FinalBuffer->GPUInstanceCountBufferOffset = ComputeContext->CountOffset_RT;
+			FinalBuffer->SetNumInstances(ComputeContext->CurrentNumInstances_RT);
+			ComputeContext->SetTranslucentDataToRender(FinalBuffer);
 		}
 	}
 }
@@ -1609,10 +1589,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 			DumpDebugFrame(RHICmdList);
 		}
 
-		if (GNiagaraAllowTickBeforeRender)
-		{
-			ExecuteTicks(RHICmdList, nullptr, ENiagaraGpuComputeTickStage::PreInitViews);
-		}
+		ExecuteTicks(RHICmdList, nullptr, ENiagaraGpuComputeTickStage::PreInitViews);
 	}
 	else
 	{
