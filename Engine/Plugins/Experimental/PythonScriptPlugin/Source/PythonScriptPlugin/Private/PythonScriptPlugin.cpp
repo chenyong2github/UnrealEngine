@@ -46,6 +46,7 @@
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserFileDataCore.h"
 #include "ContentBrowserFileDataSource.h"
+#include "Toolkits/GlobalEditorCommonCommands.h"
 #endif	// WITH_EDITOR
 
 #if PLATFORM_WINDOWS
@@ -146,12 +147,21 @@ bool FPythonCommandExecutor::Exec(const TCHAR* Input)
 
 bool FPythonCommandExecutor::AllowHotKeyClose() const
 {
-	return false;
+	return true;
 }
 
 bool FPythonCommandExecutor::AllowMultiLine() const
 {
 	return true;
+}
+
+FInputChord FPythonCommandExecutor::GetHotKey() const
+{
+#if WITH_EDITOR
+	return FGlobalEditorCommonCommands::Get().OpenConsoleCommandBox->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
+#else
+	return FInputChord();
+#endif
 }
 
 FPythonREPLCommandExecutor::FPythonREPLCommandExecutor(IPythonScriptPlugin* InPythonScriptPlugin)
@@ -210,12 +220,21 @@ bool FPythonREPLCommandExecutor::Exec(const TCHAR* Input)
 
 bool FPythonREPLCommandExecutor::AllowHotKeyClose() const
 {
-	return false;
+	return true;
 }
 
 bool FPythonREPLCommandExecutor::AllowMultiLine() const
 {
 	return true;
+}
+
+FInputChord FPythonREPLCommandExecutor::GetHotKey() const
+{
+#if WITH_EDITOR
+	return FGlobalEditorCommonCommands::Get().OpenConsoleCommandBox->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
+#else
+	return FInputChord();
+#endif
 }
 
 #if WITH_EDITOR
