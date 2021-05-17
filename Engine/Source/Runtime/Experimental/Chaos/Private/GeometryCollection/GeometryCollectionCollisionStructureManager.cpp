@@ -221,7 +221,14 @@ FCollisionStructureManager::NewImplicitBox(
 {
 	const FVector HalfExtents = CollisionBounds.GetExtent() * (1 - CollisionObjectReduction / 100.f);
 	const FVector Center = CollisionBounds.GetCenter();
-	Chaos::FImplicitObject* Implicit = new Chaos::TBox<Chaos::FReal, 3>(Center - HalfExtents, Center + HalfExtents);
+
+	// Margin settings are in UPhysicsSettingsCore which we can't access here
+	// @todo(chaos): pass margin settings into the collision manager?
+	float CollisionMarginFraction = 0.1f;// FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
+	float CollisionMarginMax = 10.0f;// FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
+	const float Margin = FMath::Min(CollisionMarginFraction * 0.5f * HalfExtents.GetMin(), CollisionMarginMax);
+
+	Chaos::FImplicitObject* Implicit = new Chaos::TBox<Chaos::FReal, 3>(Center - HalfExtents, Center + HalfExtents, Margin);
 	UpdateImplicitFlags(Implicit, CollisionType);
 	return Implicit;
 }
