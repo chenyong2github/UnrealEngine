@@ -278,4 +278,10 @@ void UWorldPartitionRuntimeHash::SortStreamingCellsByImportance(const TSet<const
 	});
 }
 
+void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPartitionRuntimeCell* InCell, const FWorldPartitionStreamingSource& InSource)
+{
+	InCell->CacheStreamingSourceInfo(InSource);
+	Cells.Add(InCell);
+}
+
 #undef LOCTEXT_NAMESPACE
