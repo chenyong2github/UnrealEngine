@@ -61,6 +61,22 @@ namespace HordeServer.Collections
 		Task<IProject?> GetAsync(ProjectId ProjectId);
 
 		/// <summary>
+		/// Gets the logo for a project
+		/// </summary>
+		/// <param name="ProjectId">The project id</param>
+		/// <returns>The project logo document</returns>
+		Task<IProjectLogo?> GetLogoAsync(ProjectId ProjectId);
+
+		/// <summary>
+		/// Sets the logo for a project
+		/// </summary>
+		/// <param name="ProjectId">The project id</param>
+		/// <param name="MimeType"></param>
+		/// <param name="Data"></param>
+		/// <returns></returns>
+		Task SetLogoAsync(ProjectId ProjectId, string MimeType, byte[] Data);
+
+		/// <summary>
 		/// Gets a project's permissions info by ID
 		/// </summary>
 		/// <param name="ProjectId">Unique id of the project</param>
