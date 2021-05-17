@@ -4358,8 +4358,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 
 	check(IsInGameThread());
 
-	// If we're not multithreaded and flushing async loading, update the thread heartbeat
-	const bool bNeedsHeartbeatTick = !FAsyncLoadingThread2::IsMultithreaded();
 	OutPackagesProcessed = 0;
 
 #if ALT2_VERIFY_RECURSIVE_LOADS 
@@ -4372,10 +4370,12 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 	{
 		do 
 		{
-			if (bNeedsHeartbeatTick && (++LoopIterations) % 32 == 31)
+			if ((++LoopIterations) % 32 == 31)
 			{
+				// We're not multithreaded and flushing async loading
 				// Update heartbeat after 32 events
 				FThreadHeartBeat::Get().HeartBeat();
+				FCoreDelegates::OnAsyncLoadingFlushUpdate.Broadcast();
 			}
 
 			if (ThreadState.IsTimeLimitExceeded(TEXT("ProcessAsyncLoadingFromGameThread")))
