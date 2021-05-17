@@ -1207,7 +1207,7 @@ private:
 		PlaneVertInfo.bHaveUV = true;
 		PlaneVertInfo.bHaveN = true;
 		PlaneVertInfo.Color = FVector3f(1, 1, 1);
-		PlaneVertInfo.Normal = FVector3f(Plane.GetNormal());
+		PlaneVertInfo.Normal = -FVector3f(Plane.GetNormal());
 
 		for (int CornerIdx = 0; CornerIdx < 4; CornerIdx++)
 		{
