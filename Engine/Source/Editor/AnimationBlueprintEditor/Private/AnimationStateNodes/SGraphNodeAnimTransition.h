@@ -22,7 +22,7 @@ public:
 
 	// SNodePanel::SNode interface
 	virtual void GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGraphInformationPopupInfo>& Popups) const override;
-	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
+	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
 	virtual bool RequiresSecondPassLayout() const override;
 	virtual void PerformSecondPassLayout(const TMap< UObject*, TSharedRef<SNode> >& NodeToWidgetLookup) const override;
 	// End of SNodePanel::SNode interface

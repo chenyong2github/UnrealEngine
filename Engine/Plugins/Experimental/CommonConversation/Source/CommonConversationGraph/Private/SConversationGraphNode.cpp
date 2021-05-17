@@ -1061,9 +1061,9 @@ TSharedRef<SGraphNode> SConversationGraphNode::GetNodeUnderMouse(const FGeometry
 	return SubNode.IsValid() ? SubNode.ToSharedRef() : StaticCastSharedRef<SGraphNode>(AsShared());
 }
 
-void SConversationGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SConversationGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
-	SGraphNodeAI::MoveTo(NewPosition, NodeFilter);
+	SGraphNodeAI::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 
 	UConversationGraphNode* ConversationGraphNode = CastChecked<UConversationGraphNode>(GraphNode);
 	if (!ConversationGraphNode->IsSubNode())

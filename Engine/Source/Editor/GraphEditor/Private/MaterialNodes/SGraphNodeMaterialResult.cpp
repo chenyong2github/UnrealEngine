@@ -58,9 +58,9 @@ void SGraphNodeMaterialResult::CreatePinWidgets()
 	}
 }
 
-void SGraphNodeMaterialResult::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SGraphNodeMaterialResult::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
-	SGraphNode::MoveTo(NewPosition, NodeFilter);
+	SGraphNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 
 	RootNode->Material->EditorX = RootNode->NodePosX;
 	RootNode->Material->EditorY = RootNode->NodePosY;

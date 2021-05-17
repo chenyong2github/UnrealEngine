@@ -78,7 +78,7 @@ public:
 		return false;
 	}
 	virtual void SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel) override;
-	virtual void MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter ) override;
+	virtual void MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true ) override;
 	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	virtual bool ShouldAllowCulling() const override { return false; }

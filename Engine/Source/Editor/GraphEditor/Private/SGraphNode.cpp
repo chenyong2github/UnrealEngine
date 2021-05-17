@@ -508,14 +508,14 @@ void SGraphNode::SetOwner( const TSharedRef<SGraphPanel>& OwnerPanel )
 }
 
 /** @param NewPosition  The Node should be relocated to this position in the graph panel */
-void SGraphNode::MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter )
+void SGraphNode::MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty )
 {
 	if ( !NodeFilter.Find( SharedThis( this )))
 	{
 		if (GraphNode && !RequiresSecondPassLayout())
 		{
 			NodeFilter.Add( SharedThis( this ) );
-			GraphNode->Modify();
+			GraphNode->Modify(bMarkDirty);
 			GraphNode->NodePosX = NewPosition.X;
 			GraphNode->NodePosY = NewPosition.Y;
 		}

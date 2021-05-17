@@ -152,14 +152,14 @@ void SDisplayClusterConfiguratorViewportNode::Tick(const FGeometry& AllottedGeom
 	UpdatePreviewTexture();
 }
 
-void SDisplayClusterConfiguratorViewportNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SDisplayClusterConfiguratorViewportNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	if (IsViewportLocked())
 	{
 		NodeFilter.Add(SharedThis(this));
 	}
 
-	SDisplayClusterConfiguratorBaseNode::MoveTo(NewPosition, NodeFilter);
+	SDisplayClusterConfiguratorBaseNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 }
 
 bool SDisplayClusterConfiguratorViewportNode::IsNodeVisible() const

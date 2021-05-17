@@ -37,7 +37,7 @@ void SGraphNodeAnimTransition::GetNodeInfoPopups(FNodeInfoContext* Context, TArr
 {
 }
 
-void SGraphNodeAnimTransition::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SGraphNodeAnimTransition::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	// Ignored; position is set by the location of the attached state nodes
 }

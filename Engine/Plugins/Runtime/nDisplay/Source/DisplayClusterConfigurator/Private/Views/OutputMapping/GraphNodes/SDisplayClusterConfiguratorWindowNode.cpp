@@ -345,14 +345,14 @@ void SDisplayClusterConfiguratorWindowNode::UpdateGraphNode()
 	];
 }
 
-void SDisplayClusterConfiguratorWindowNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SDisplayClusterConfiguratorWindowNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	if (IsClusterNodeLocked())
 	{
 		NodeFilter.Add(SharedThis(this));
 	}
 
-	SDisplayClusterConfiguratorBaseNode::MoveTo(NewPosition, NodeFilter);
+	SDisplayClusterConfiguratorBaseNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 }
 
 bool SDisplayClusterConfiguratorWindowNode::CanBeSelected(const FVector2D& MousePositionInNode) const

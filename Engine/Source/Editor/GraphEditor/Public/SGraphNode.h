@@ -108,7 +108,7 @@ public:
 	// End of SWidget interface
 
 	// SNodePanel::SNode interface
-	virtual void MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter ) override;
+	virtual void MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true ) override;
 	virtual FVector2D GetPosition() const override;
 	virtual FString GetNodeComment() const override;
 	virtual UObject* GetObjectBeingDisplayed() const override;
