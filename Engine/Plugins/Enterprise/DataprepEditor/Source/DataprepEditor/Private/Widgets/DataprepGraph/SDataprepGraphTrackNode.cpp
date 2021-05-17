@@ -930,7 +930,7 @@ bool SDataprepGraphTrackNode::OnNodeDragged( TSharedPtr<SDataprepGraphBaseAction
 	const FVector2D TrackSize = TrackWidgetPtr->GetWorkingSize() * ZoomAmount;
 	float PanAmount = 0.f;
 
-	DragCallback LocalComputePanAmount = [&](const FVector2D& SlotRange, float Delta) -> float
+	DragCallback LocalComputePanAmount = [this, GraphPanel, ZoomAmount, TrackSize, PanelSize, DragTrackPosition, &TrackGeometry, &PanAmount](const FVector2D& SlotRange, float Delta) -> float
 	{
 		if(TrackSize.X > PanelSize.X)
 		{
