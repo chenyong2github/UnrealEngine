@@ -101,7 +101,7 @@ public:
 	void SetVAlign(EVerticalAlignment VAlign);
 
 	/** See Padding attribute */
-	void SetPadding(const TAttribute<FMargin>& InPadding);
+	void SetPadding(TAttribute<FMargin> InPadding);
 
 	/** See WidthOverride attribute */
 	void SetWidthOverride(TAttribute<FOptionalSize> InWidthOverride);

@@ -41,16 +41,16 @@ namespace ArrangeUtils
 			{
 			default:
 			case EFlowDirection::LeftToRight:
-				return static_cast<int32>(InSlot.HAlignment);
+				return static_cast<int32>(InSlot.GetHorizontalAlignment());
 			case EFlowDirection::RightToLeft:
-				switch (InSlot.HAlignment)
+				switch (InSlot.GetHorizontalAlignment())
 				{
 				case HAlign_Left:
 					return static_cast<int32>(HAlign_Right);
 				case HAlign_Right:
 					return static_cast<int32>(HAlign_Left);
 				default:
-					return static_cast<int32>(InSlot.HAlignment);
+					return static_cast<int32>(InSlot.GetHorizontalAlignment());
 				}
 			}
 		}
@@ -63,7 +63,7 @@ namespace ArrangeUtils
 		static int32 AsInt(EFlowDirection InFlowDirection, const SlotType& InSlot )
 		{
 			// InFlowDirection has no effect in vertical orientations.
-			return static_cast<int32>(InSlot.VAlignment);
+			return static_cast<int32>(InSlot.GetVerticalAlignment());
 		}
 	};
 }

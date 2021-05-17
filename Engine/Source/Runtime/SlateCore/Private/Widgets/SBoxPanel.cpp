@@ -55,7 +55,7 @@ static void ArrangeChildrenAlong(EFlowDirection InLayoutFlow, const TPanelChildr
 			{
 				bAnyChildVisible = true;
 				// All widgets contribute their margin to the fixed space requirement
-				FixedTotal += CurChild.SlotPadding.Get().GetTotalSpaceAlong<Orientation>();
+				FixedTotal += CurChild.GetPadding().GetTotalSpaceAlong<Orientation>();
 
 				if ( CurChild.SizeParam.SizeRule == FSizeParam::SizeRule_Stretch )
 				{
@@ -129,7 +129,7 @@ static void ArrangeChildrenAlong(EFlowDirection InLayoutFlow, const TPanelChildr
 				}
 			}
 
-			const FMargin SlotPadding(LayoutPaddingWithFlow(InLayoutFlow, CurChild.SlotPadding.Get()));
+			const FMargin SlotPadding(LayoutPaddingWithFlow(InLayoutFlow, CurChild.GetPadding()));
 
 			FVector2D SlotSize = (Orientation == Orient_Vertical)
 				? FVector2D(AllottedGeometry.GetLocalSize().X, ChildSize + SlotPadding.GetTotalSpaceAlong<Orient_Vertical>())
@@ -211,7 +211,7 @@ static FVector2D ComputeDesiredSizeForBox( const TPanelChildren<SBoxPanel::FSlot
 			{
 				// For a vertical panel, we want to find the maximum desired width (including margin).
 				// That will be the desired width of the whole panel.
-				MyDesiredSize.X = FMath::Max(MyDesiredSize.X, CurChildDesiredSize.X + CurChild.SlotPadding.Get().GetTotalSpaceAlong<Orient_Horizontal>());
+				MyDesiredSize.X = FMath::Max(MyDesiredSize.X, CurChildDesiredSize.X + CurChild.GetPadding().GetTotalSpaceAlong<Orient_Horizontal>());
 
 				// Clamp to the max size if it was specified
 				float FinalChildDesiredSize = CurChildDesiredSize.Y;
@@ -221,13 +221,13 @@ static FVector2D ComputeDesiredSizeForBox( const TPanelChildren<SBoxPanel::FSlot
 					FinalChildDesiredSize = FMath::Min( MaxSize, FinalChildDesiredSize );
 				}
 
-				MyDesiredSize.Y += FinalChildDesiredSize + CurChild.SlotPadding.Get().GetTotalSpaceAlong<Orient_Vertical>();				
+				MyDesiredSize.Y += FinalChildDesiredSize + CurChild.GetPadding().GetTotalSpaceAlong<Orient_Vertical>();
 			}
 			else
 			{
 				// A horizontal panel is just a sideways vertical panel: the axes are swapped.
 
-				MyDesiredSize.Y = FMath::Max(MyDesiredSize.Y, CurChildDesiredSize.Y + CurChild.SlotPadding.Get().GetTotalSpaceAlong<Orient_Vertical>());
+				MyDesiredSize.Y = FMath::Max(MyDesiredSize.Y, CurChildDesiredSize.Y + CurChild.GetPadding().GetTotalSpaceAlong<Orient_Vertical>());
 
 				// Clamp to the max size if it was specified
 				float FinalChildDesiredSize = CurChildDesiredSize.X;
@@ -237,7 +237,7 @@ static FVector2D ComputeDesiredSizeForBox( const TPanelChildren<SBoxPanel::FSlot
 					FinalChildDesiredSize = FMath::Min( MaxSize, FinalChildDesiredSize );
 				}
 
-				MyDesiredSize.X += FinalChildDesiredSize + CurChild.SlotPadding.Get().GetTotalSpaceAlong<Orient_Horizontal>();
+				MyDesiredSize.X += FinalChildDesiredSize + CurChild.GetPadding().GetTotalSpaceAlong<Orient_Horizontal>();
 			}
 		}
 	}

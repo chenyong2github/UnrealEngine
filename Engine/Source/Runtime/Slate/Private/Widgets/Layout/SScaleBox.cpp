@@ -235,14 +235,14 @@ void SScaleBox::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedCh
 
 			// If the layout horizontally is fill, then we need the desired size to be the whole size of the widget, 
 			// but scale the inverse of the scale we're applying.
-			if (ChildSlot.HAlignment == HAlign_Fill)
+			if (ChildSlot.GetHorizontalAlignment() == HAlign_Fill)
 			{
 				SlotWidgetDesiredSize.X = AreaSize.X / FinalScale;
 			}
 
 			// If the layout vertically is fill, then we need the desired size to be the whole size of the widget, 
 			// but scale the inverse of the scale we're applying.
-			if (ChildSlot.VAlignment == VAlign_Fill)
+			if (ChildSlot.GetVerticalAlignment() == VAlign_Fill)
 			{
 				SlotWidgetDesiredSize.Y = AreaSize.Y / FinalScale;
 			}
@@ -315,20 +315,12 @@ void SScaleBox::SetContent(TSharedRef<SWidget> InContent)
 
 void SScaleBox::SetHAlign(EHorizontalAlignment HAlign)
 {
-	if(ChildSlot.HAlignment != HAlign)
-	{
-		ChildSlot.HAlignment = HAlign;
-		Invalidate(EInvalidateWidgetReason::Layout);
-	}
+	ChildSlot.SetHorizontalAlignment(HAlign);
 }
 
 void SScaleBox::SetVAlign(EVerticalAlignment VAlign)
 {
-	if(ChildSlot.VAlignment != VAlign)
-	{
-		ChildSlot.VAlignment = VAlign;
-		Invalidate(EInvalidateWidgetReason::Layout);
-	}
+	ChildSlot.SetVerticalAlignment(VAlign);
 }
 
 void SScaleBox::SetStretchDirection(EStretchDirection::Type InStretchDirection)

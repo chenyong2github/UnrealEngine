@@ -1,28 +1,64 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlotBase.h"
+#include "Layout/Children.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SNullWidget.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FSlotBase::FSlotBase()
-	: RawParentPtr(nullptr)
-	, Widget( SNullWidget::NullWidget )
+	: Owner(nullptr)
+	, Widget(SNullWidget::NullWidget)
+#if WITH_EDITORONLY_DATA
+	, RawParentPtr(nullptr)
+#endif
+{
+
+}
+
+FSlotBase::FSlotBase(const FChildren& Children)
+	: Owner(&Children)
+	, Widget(SNullWidget::NullWidget)
+#if WITH_EDITORONLY_DATA
+	, RawParentPtr(nullptr)
+#endif
 {
 
 }
 
 FSlotBase::FSlotBase( const TSharedRef<SWidget>& InWidget )
-	: RawParentPtr(nullptr)
-	, Widget( InWidget )
+	: Owner(nullptr)
+	, Widget(InWidget)
+#if WITH_EDITORONLY_DATA
+	, RawParentPtr(nullptr)
+#endif
 {
-	
+
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+SWidget* FSlotBase::GetOwnerWidget() const
+{
+	return GetOwner() ? &(GetOwner()->GetOwner()) : nullptr;
+}
+
+void FSlotBase::SetOwner(const FChildren& InChildren)
+{
+	if (Owner != &InChildren)
+	{
+		if (ensureMsgf(Owner == nullptr, TEXT("Slots should not be reassigned to different parents.")))
+		{
+			Owner = &InChildren;
+			AfterContentOrOwnerAssigned();
+		}
+	}
 }
 
 const TSharedPtr<SWidget> FSlotBase::DetachWidget()
 {
 	if (Widget != SNullWidget::NullWidget)
 	{
-		Widget->ConditionallyDetatchParentWidget(RawParentPtr);
+		Widget->ConditionallyDetatchParentWidget(GetOwnerWidget());
 
 		// Invalidate Prepass?
 
@@ -40,10 +76,9 @@ const TSharedPtr<SWidget> FSlotBase::DetachWidget()
 void FSlotBase::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
 	// If a slot invalidates it needs to invalidate the parent of widget of its content.
-	const TSharedPtr<SWidget>& ParentWidget = Widget->GetParentWidget();
-	if (ParentWidget.IsValid())
+	if (SWidget* OwnerWidget = GetOwnerWidget())
 	{
-		ParentWidget->Invalidate(InvalidateReason);
+		OwnerWidget->Invalidate(InvalidateReason);
 	}
 }
 
@@ -51,13 +86,13 @@ void FSlotBase::DetatchParentFromContent()
 {
 	if (Widget != SNullWidget::NullWidget)
 	{
-		Widget->ConditionallyDetatchParentWidget(RawParentPtr);
+		Widget->ConditionallyDetatchParentWidget(GetOwnerWidget());
 	}
 }
 
 void FSlotBase::AfterContentOrOwnerAssigned()
 {
-	if (RawParentPtr)
+	if (SWidget* OwnerWidget = GetOwnerWidget())
 	{
 		if (Widget != SNullWidget::NullWidget)
 		{
@@ -65,7 +100,7 @@ void FSlotBase::AfterContentOrOwnerAssigned()
 			// have made assumptions about being able to freely reparent widgets, while they're
 			// still connected to an existing hierarchy.
 			//ensure(!Widget->IsParentValid());
-			Widget->AssignParentWidget(RawParentPtr->AsShared());
+			Widget->AssignParentWidget(OwnerWidget->AsShared());
 		}
 	}
 }

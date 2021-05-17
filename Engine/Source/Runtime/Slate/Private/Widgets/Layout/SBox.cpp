@@ -66,23 +66,15 @@ void SBox::SetContent(const TSharedRef< SWidget >& InContent)
 
 void SBox::SetHAlign(EHorizontalAlignment HAlign)
 {
-	if (ChildSlot.HAlignment != HAlign)
-	{
-		ChildSlot.HAlignment = HAlign;
-		Invalidate(EInvalidateWidget::Layout);
-	}
+	ChildSlot.SetHorizontalAlignment(HAlign);
 }
 
 void SBox::SetVAlign(EVerticalAlignment VAlign)
 {
-	if (ChildSlot.VAlignment != VAlign)
-	{
-		ChildSlot.VAlignment = VAlign;
-		Invalidate(EInvalidateWidget::Layout);
-	}
+	ChildSlot.SetVerticalAlignment(VAlign);
 }
 
-void SBox::SetPadding(const TAttribute<FMargin>& InPadding)
+void SBox::SetPadding(TAttribute<FMargin> InPadding)
 {
 	ChildSlot.SetPadding(InPadding);
 }

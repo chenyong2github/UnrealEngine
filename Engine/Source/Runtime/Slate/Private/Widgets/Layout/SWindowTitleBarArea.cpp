@@ -181,17 +181,17 @@ void SWindowTitleBarArea::SetContent(const TSharedRef< SWidget >& InContent)
 
 void SWindowTitleBarArea::SetHAlign(EHorizontalAlignment HAlign)
 {
-	ChildSlot.HAlignment = HAlign;
+	ChildSlot.SetHorizontalAlignment(HAlign);
 }
 
 void SWindowTitleBarArea::SetVAlign(EVerticalAlignment VAlign)
 {
-	ChildSlot.VAlignment = VAlign;
+	ChildSlot.SetVerticalAlignment(VAlign);
 }
 
-void SWindowTitleBarArea::SetPadding(const TAttribute<FMargin>& InPadding)
+void SWindowTitleBarArea::SetPadding(TAttribute<FMargin> InPadding)
 {
-	ChildSlot.Padding(InPadding);
+	ChildSlot.SetPadding(MoveTemp(InPadding));
 }
 
 FVector2D SWindowTitleBarArea::ComputeDesiredSize( float ) const

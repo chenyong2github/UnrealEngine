@@ -8,6 +8,7 @@
 #include "Layout/Margin.h"
 #include "Misc/Optional.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /** Mixin to add the alignment functionality to a base slot. */
 template <typename MixedIntoType>
 class TAlignmentWidgetSlotMixin
@@ -37,11 +38,36 @@ public:
 	}
 
 public:
+	void SetHorizontalAlignment(EHorizontalAlignment Alignment)
+	{
+		if (HAlignment != Alignment)
+		{
+			HAlignment = Alignment;
+			static_cast<MixedIntoType*>(this)->Invalidate(EInvalidateWidgetReason::Layout);
+		}
+	}
+
+	void SetVerticalAlignment(EVerticalAlignment Alignment)
+	{
+		if (VAlignment != Alignment)
+		{
+			VAlignment = Alignment;
+			static_cast<MixedIntoType*>(this)->Invalidate(EInvalidateWidgetReason::Layout);
+		}
+	}
+
+	EHorizontalAlignment GetHorizontalAlignment() const { return HAlignment; }
+	EVerticalAlignment GetVerticalAlignment() const { return VAlignment; }
+
+public:
 	/** Horizontal positioning of child within the allocated slot */
+	UE_DEPRECATED(5.0, "Direct access to HAlignment is now deprecated. Use the getter.")
 	EHorizontalAlignment HAlignment;
 	/** Vertical positioning of child within the allocated slot */
+	UE_DEPRECATED(5.0, "Direct access to VAlignment is now deprecated. Use the getter.")
 	EVerticalAlignment VAlignment;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -84,6 +110,7 @@ public:
 	void SetPadding(TAttribute<FMargin> InPadding)
 	{
 		SlotPadding = MoveTemp(InPadding);
+		static_cast<MixedIntoType*>(this)->Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
 	}
 
 	const FMargin& GetPadding() const { return SlotPadding.Get(); }
@@ -108,11 +135,25 @@ public:
 		, TAlignmentWidgetSlotMixin<SlotType>()
 	{}
 
+	TBasicLayoutWidgetSlot(FChildren& InOwner)
+		: TSlotBase<SlotType>(InOwner)
+		, TPaddingWidgetSlotMixin<SlotType>()
+		, TAlignmentWidgetSlotMixin<SlotType>()
+	{
+	}
+
 	TBasicLayoutWidgetSlot(const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign)
 		: TSlotBase<SlotType>()
 		, TPaddingWidgetSlotMixin<SlotType>()
 		, TAlignmentWidgetSlotMixin<SlotType>(InHAlign, InVAlign)
 	{}
+
+	TBasicLayoutWidgetSlot(FChildren& InOwner, const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign)
+		: TSlotBase<SlotType>(InOwner)
+		, TPaddingWidgetSlotMixin<SlotType>()
+		, TAlignmentWidgetSlotMixin<SlotType>(InHAlign, InVAlign)
+	{
+	}
 };
 
 
