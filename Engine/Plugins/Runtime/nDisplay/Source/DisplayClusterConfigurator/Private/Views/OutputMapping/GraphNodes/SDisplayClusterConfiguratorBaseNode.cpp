@@ -156,7 +156,7 @@ FVector2D SDisplayClusterConfiguratorBaseNode::ComputeDesiredSize(float) const
 	return GetSize();
 }
 
-void SDisplayClusterConfiguratorBaseNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SDisplayClusterConfiguratorBaseNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
 	check(Toolkit.IsValid());
@@ -246,7 +246,7 @@ void SDisplayClusterConfiguratorBaseNode::MoveTo(const FVector2D& NewPosition, F
 		YAlignmentTarget.TargetNode.Reset();
 	}
 
-	SGraphNode::MoveTo(CurrentPosition + BestOffset + AlignmentOffset, NodeFilter);
+	SGraphNode::MoveTo(CurrentPosition + BestOffset + AlignmentOffset, NodeFilter, bMarkDirty);
 
 	// Nodes that aren't being directly interacted with aren't allowed to update their positions themselves since that might cause
 	// issues with overlapping and alignment, so the node being directly dragged and moved needs to update the positions of all selected

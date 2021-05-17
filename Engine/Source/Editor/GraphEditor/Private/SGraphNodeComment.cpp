@@ -356,10 +356,10 @@ void SGraphNodeComment::GetOverlayBrushes(bool bSelected, const FVector2D Widget
 	return SGraphNode::GetOverlayBrushes(bSelected, WidgetSize, Brushes);
 }
 
-void SGraphNodeComment::MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter ) 
+void SGraphNodeComment::MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	FVector2D PositionDelta = NewPosition - GetPosition();
-	SGraphNode::MoveTo(NewPosition, NodeFilter);
+	SGraphNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 	// Don't drag note content if either of the shift keys are down.
 	FModifierKeysState KeysState = FSlateApplication::Get().GetModifierKeys();
 	if(!KeysState.IsShiftDown())
@@ -378,7 +378,7 @@ void SGraphNodeComment::MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilt
 					if (!Panel->SelectionManager.IsNodeSelected(Node) && !NodeFilter.Find(Node->DEPRECATED_NodeWidget.Pin()))
 					{
 						NodeFilter.Add(Node->DEPRECATED_NodeWidget.Pin());
-						Node->Modify();
+						Node->Modify(bMarkDirty);
 						Node->NodePosX += PositionDelta.X;
 						Node->NodePosY += PositionDelta.Y;
 					}

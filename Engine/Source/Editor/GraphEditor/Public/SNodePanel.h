@@ -481,8 +481,9 @@ public:
 		/**
 		* @param NewPosition	The Node should be relocated to this position in the graph panel
 		* @param NodeFilter		Set of nodes to prevent movement on, after moving successfully a node is added to this set.
+		* @param bMarkDirty		If we should mark nodes as dirty on move
 		*/
-		virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter )
+		virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true)
 		{
 		}
 
@@ -634,6 +635,7 @@ public:
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
@@ -693,6 +695,9 @@ public:
 
 	/** If it is focusing on a particular object */
 	bool HasDeferredObjectFocus() const;
+
+	/** Commit transactions for any node movements */
+	void FinalizeNodeMovements();
 
 	/** Returns the current LOD level of this panel, based on the zoom factor */
 	EGraphRenderingLOD::Type GetCurrentLOD() const { return CurrentLOD; }
@@ -962,6 +967,9 @@ protected:
 	/** A flag to detect when a visual update is pending to prevent deferred
 	    commands like zoom to fit from running when there are no widgets */
 	bool bVisualUpdatePending;
+	
+	/** Node positions pre-drag, used to limit transaction creation on drag */
+	TMap<TWeakPtr<SNode>, FVector2D> OriginalNodePositions;
 
 private:
 	/** Active timer that handles deferred zooming until the target zoom is reached */

@@ -776,7 +776,8 @@ FReply SNodePanel::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent&
 							const FVector2D AnchorNodeOldPos = NodeBeingDragged->GetPosition();
 							const FVector2D DeltaPos = AnchorNodeNewPos - AnchorNodeOldPos;
 
-							// Perform movement in 2 passes:
+							// Perform movement in 3 passes:
+							
 							// 1. Gather all selected nodes positions and calculate new positions
 							struct FDefferedNodePosition 
 							{ 
@@ -784,37 +785,30 @@ FReply SNodePanel::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent&
 								FVector2D	NewPosition; 
 							};
 							TArray<FDefferedNodePosition> DefferedNodesToMove;
-							
+
+							// 2. Deffer actual move transactions to mouse release or focus lost
+							bool bStoreOriginalNodePositions = OriginalNodePositions.Num() == 0;
 							for (FGraphPanelSelectionSet::TIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
 							{
-								TSharedRef<SNode>* pWidget = NodeToWidgetLookup.Find(*NodeIt);
-								if (pWidget != nullptr)
+								if (TSharedRef<SNode>* pWidget = NodeToWidgetLookup.Find(*NodeIt))
 								{
 									SNode& Widget = pWidget->Get();
 									FDefferedNodePosition NodePosition = { &Widget, Widget.GetPosition() + DeltaPos };
 									DefferedNodesToMove.Add(NodePosition);
+
+									if (bStoreOriginalNodePositions)
+									{
+										OriginalNodePositions.FindOrAdd(*pWidget) = Widget.GetPosition();
+									}
 								}
 							}
 
-							// Create a new transaction record
-							if(!ScopedTransactionPtr.IsValid())
-							{
-								if(DefferedNodesToMove.Num() > 1)
-								{
-									ScopedTransactionPtr = MakeShareable(new FScopedTransaction(NSLOCTEXT("GraphEditor", "MoveNodesAction", "Move Nodes")));
-								}
-								else if(DefferedNodesToMove.Num() > 0)
-								{
-									ScopedTransactionPtr = MakeShareable(new FScopedTransaction(NSLOCTEXT("GraphEditor", "MoveNodeAction", "Move Node")));
-								}
-							}
-
-							// 2. Move selected nodes to new positions
+							// 3. Move selected nodes to new positions
 							SNode::FNodeSet NodeFilter;
 
 							for (int32 NodeIdx = 0; NodeIdx < DefferedNodesToMove.Num(); ++NodeIdx)
 							{
-								DefferedNodesToMove[NodeIdx].Node->MoveTo( DefferedNodesToMove[NodeIdx].NewPosition, NodeFilter );
+								DefferedNodesToMove[NodeIdx].Node->MoveTo(DefferedNodesToMove[NodeIdx].NewPosition, NodeFilter, false);
 							}
 						}
 					}
@@ -909,6 +903,7 @@ FReply SNodePanel::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerE
 		{
 			OnEndNodeInteraction(NodeUnderMousePtr.Pin().ToSharedRef());
 
+			FinalizeNodeMovements();
 			ScopedTransactionPtr.Reset();
 		}
 				
@@ -981,6 +976,16 @@ FReply SNodePanel::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerE
 	}
 
 	return ReplyState;	
+}
+
+void SNodePanel::OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
+{
+	if (OriginalNodePositions.Num() > 0)
+	{
+		FinalizeNodeMovements();
+	}
+
+	SPanel::OnMouseCaptureLost(CaptureLostEvent);
 }
 
 FReply SNodePanel::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -1695,6 +1700,55 @@ FVector2D SNodePanel::GetPastePosition() const
 bool SNodePanel::HasDeferredObjectFocus() const
 {
 	return DeferredMovementTargetObject != nullptr;
+}
+
+void SNodePanel::FinalizeNodeMovements()
+{
+	// Process moved nodes on focus lost
+	if (OriginalNodePositions.Num() > 0)
+	{
+		// Build up all the current positions
+		TMap<SNode*, FVector2D> CurrentNodePositions;
+
+		for (FGraphPanelSelectionSet::TIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
+		{
+			TSharedRef<SNode>* pWidget = NodeToWidgetLookup.Find(*NodeIt);
+			if (pWidget != nullptr)
+			{
+				SNode& Widget = pWidget->Get();
+				CurrentNodePositions.FindOrAdd(&Widget) = Widget.GetPosition();
+			}
+		}
+
+		// Move all the nodes back to their original position before we start the transaction
+		SNode::FNodeSet OriginalNodeFilter;
+
+		for (TPair<TWeakPtr<SNode>, FVector2D>& OriginalNodePosition : OriginalNodePositions)
+		{
+			if (OriginalNodePosition.Key.IsValid())
+			{
+				OriginalNodePosition.Key.Pin()->MoveTo(OriginalNodePosition.Value, OriginalNodeFilter, false);
+			}
+		}
+
+		OriginalNodePositions.Reset();
+
+		if (CurrentNodePositions.Num() > 0)
+		{
+			FScopedTransaction NodeMoveTransaction(
+				CurrentNodePositions.Num() > 1 
+				? NSLOCTEXT("GraphEditor", "MoveNodesAction", "Move Nodes")
+				: NSLOCTEXT("GraphEditor", "MoveNodeAction", "Move Node"));
+
+			// Move all the nodes back to their current position but on on the undo stack
+			SNode::FNodeSet CurrentNodeFilter;
+
+			for (TPair<SNode*, FVector2D>& CurrentNodePosition : CurrentNodePositions)
+			{
+				CurrentNodePosition.Key->MoveTo(CurrentNodePosition.Value, CurrentNodeFilter, true);
+			}
+		}
+	}
 }
 
 void SNodePanel::PostChangedZoom()

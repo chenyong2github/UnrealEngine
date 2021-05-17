@@ -379,7 +379,7 @@ void SDisplayClusterConfiguratorHostNode::UpdateGraphNode()
 	];
 }
 
-void SDisplayClusterConfiguratorHostNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SDisplayClusterConfiguratorHostNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	UDisplayClusterConfiguratorHostNode* HostEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorHostNode>();
 	if (!HostEdNode->CanUserMoveNode())
@@ -387,7 +387,7 @@ void SDisplayClusterConfiguratorHostNode::MoveTo(const FVector2D& NewPosition, F
 		NodeFilter.Add(SharedThis(this));
 	}
 
-	SDisplayClusterConfiguratorBaseNode::MoveTo(NewPosition, NodeFilter);
+	SDisplayClusterConfiguratorBaseNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 }
 
 FVector2D SDisplayClusterConfiguratorHostNode::ComputeDesiredSize(float) const
