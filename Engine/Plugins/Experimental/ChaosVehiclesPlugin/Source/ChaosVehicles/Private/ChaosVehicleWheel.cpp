@@ -87,7 +87,7 @@ float UChaosVehicleWheel::GetWheelAngularVelocity() const
 float UChaosVehicleWheel::GetSuspensionOffset() const
 {
 	check(VehicleComponent && VehicleComponent->PhysicsVehicleOutput());
-	return VehicleComponent->PhysicsVehicleOutput()->Wheels[WheelIndex].SuspensionOffset;
+	return VehicleComponent->GetSuspensionOffset(WheelIndex);
 }
 
 bool UChaosVehicleWheel::IsInAir() const

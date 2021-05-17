@@ -2023,34 +2023,41 @@ void UChaosWheeledVehicleMovementComponent::DrawDial(UCanvas* Canvas, FVector2D 
 
 void UChaosWheeledVehicleMovementComponent::FillWheelOutputState()
 {
-	for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
+	if (const FChaosVehicleAsyncOutput* CurrentOutput = static_cast<FChaosVehicleAsyncOutput*>(CurAsyncOutput))
 	{
-		auto& PWheel = PVehicleOutput->Wheels[WheelIdx];
-		FHitResult& HitResult = Wheels[WheelIdx]->HitResult;
-
-		FWheelStatus& State = WheelStatus[WheelIdx];
-
-		State.bInContact = HitResult.bBlockingHit;
-		State.ContactPoint = HitResult.ImpactPoint;
-		State.PhysMaterial = HitResult.PhysMaterial;
-		State.NormalizedSuspensionLength = PWheel.NormalizedSuspensionLength;
-		State.SpringForce = PWheel.SpringForce;
-		State.SlipAngle = PWheel.SlipAngle;
-		State.bIsSlipping = PWheel.bIsSlipping;
-		State.SlipMagnitude = PWheel.SlipMagnitude;
-		State.bIsSkidding = PWheel.bIsSkidding;
-		State.SkidMagnitude = PWheel.SkidMagnitude;
-		if (State.bIsSkidding)
+		if (CurrentOutput->bValid && PVehicleOutput)
 		{
-			State.SkidNormal = PWheel.SkidNormal;
-			//DrawDebugLine(GetWorld()
-			//	, State.ContactPoint
-			//	, State.ContactPoint + State.SkidNormal
-			//	, FColor::Yellow, true, -1.0f, 0, 4);
-		}
-		else
-		{
-			State.SkidNormal = FVector::ZeroVector;
+			for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
+			{
+				auto& PWheel = PVehicleOutput->Wheels[WheelIdx];
+				FHitResult& HitResult = Wheels[WheelIdx]->HitResult;
+
+				FWheelStatus& State = WheelStatus[WheelIdx];
+
+				State.bIsValid = true;
+				State.bInContact = HitResult.bBlockingHit;
+				State.ContactPoint = HitResult.ImpactPoint;
+				State.PhysMaterial = HitResult.PhysMaterial;
+				State.NormalizedSuspensionLength = PWheel.NormalizedSuspensionLength;
+				State.SpringForce = PWheel.SpringForce;
+				State.SlipAngle = PWheel.SlipAngle;
+				State.bIsSlipping = PWheel.bIsSlipping;
+				State.SlipMagnitude = PWheel.SlipMagnitude;
+				State.bIsSkidding = PWheel.bIsSkidding;
+				State.SkidMagnitude = PWheel.SkidMagnitude;
+				if (State.bIsSkidding)
+				{
+					State.SkidNormal = PWheel.SkidNormal;
+					//DrawDebugLine(GetWorld()
+					//	, State.ContactPoint
+					//	, State.ContactPoint + State.SkidNormal
+					//	, FColor::Yellow, true, -1.0f, 0, 4);
+				}
+				else
+				{
+					State.SkidNormal = FVector::ZeroVector;
+				}
+			}
 		}
 	}
 }
@@ -2492,6 +2499,73 @@ void UChaosWheeledVehicleMovementComponent::SetWheelMaxSteerAngle(int WheelIndex
 	}
 }
 
+
+float UChaosWheeledVehicleMovementComponent::GetSuspensionOffset(int WheelIndex)
+{
+	float Offset = 0.f;
+
+	FChaosWheelSetup& WheelSetup = WheelSetups[WheelIndex];
+	FTransform VehicleWorldTransform = GetBodyInstance()->GetUnrealWorldTransform();
+	if (GetBodyInstance())
+	{
+		if (UChaosVehicleWheel* Wheel = WheelSetups[WheelIndex].WheelClass.GetDefaultObject())
+		{
+			if (WheelStatus[WheelIndex].bIsValid)
+			{
+				if (WheelStatus[WheelIndex].bInContact)
+				{
+					FVector LocalPos = GetWheelRestingPosition(WheelSetup);
+					FVector LocalHitPoint = VehicleWorldTransform.InverseTransformPosition(WheelStatus[WheelIndex].ContactPoint);
+					Offset = LocalHitPoint.Z - LocalPos.Z + PVehicleOutput->Wheels[WheelIndex].WheelRadius;
+					Offset = FMath::Clamp(Offset, -Wheel->SuspensionMaxDrop, Wheel->SuspensionMaxRaise);
+				}
+				else
+				{
+					Offset = -Wheel->SuspensionMaxDrop;
+				}
+			}
+			else
+			{
+				ECollisionChannel SpringCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
+				FCollisionResponseParams ResponseParams;
+				ResponseParams.CollisionResponse = WheelTraceCollisionResponses;
+
+				TArray<AActor*> ActorsToIgnore;
+				ActorsToIgnore.Add(GetPawnOwner()); // ignore self in scene query
+
+				FCollisionQueryParams TraceParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(), false, nullptr);
+				TraceParams.bReturnPhysicalMaterial = true;	// we need this to get the surface friction coefficient
+				TraceParams.AddIgnoredActors(ActorsToIgnore);
+				TraceParams.bTraceComplex = (Wheels[WheelIndex]->SweepType == ESweepType::ComplexSweep);
+
+				FVector LocalDirection = Wheel->SuspensionAxis;
+				FVector WorldLocation = VehicleWorldTransform.TransformPosition(GetWheelRestingPosition(WheelSetup));
+				FVector WorldDirection = VehicleWorldTransform.TransformVector(LocalDirection);
+
+				FVector TraceStart = WorldLocation - WorldDirection * (Wheel->SuspensionMaxRaise);
+				FVector TraceEnd = WorldLocation + WorldDirection * (Wheel->SuspensionMaxDrop + Wheel->WheelRadius);
+
+				FHitResult HitResult;
+				GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, SpringCollisionChannel, TraceParams, ResponseParams);
+
+				if (HitResult.bBlockingHit)
+				{
+					FVector LocalPos = GetWheelRestingPosition(WheelSetup);
+					FVector LocalHitPoint = VehicleWorldTransform.InverseTransformPosition(HitResult.ImpactPoint);
+					Offset = LocalHitPoint.Z - LocalPos.Z + Wheel->WheelRadius;
+					Offset = FMath::Clamp(Offset, -Wheel->SuspensionMaxDrop, Wheel->SuspensionMaxRaise);
+				}
+				else
+				{
+					Offset = -Wheel->SuspensionMaxDrop;
+				}
+
+			}
+		}
+	}
+
+	return Offset;
+}
 
 FChaosWheelSetup::FChaosWheelSetup()
 	: WheelClass(UChaosVehicleWheel::StaticClass())
