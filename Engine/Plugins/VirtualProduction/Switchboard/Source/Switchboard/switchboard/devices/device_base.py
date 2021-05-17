@@ -15,6 +15,7 @@ import os, random, socket, threading
 class DeviceStatus(IntEnum):
     DELETE = auto()
     DISCONNECTED = auto()
+    CONNECTING = auto()
     CLOSED = auto()
     SYNCING = auto()
     BUILDING = auto()
@@ -190,7 +191,7 @@ class Device(QtCore.QObject):
 
     @property
     def is_disconnected(self):
-        return self.status in {DeviceStatus.DISCONNECTED}
+        return self.status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}
 
     @property
     def project_changelist(self):
@@ -217,6 +218,19 @@ class Device(QtCore.QObject):
         pass
 
     @QtCore.Slot()
+    def connecting_listener(self):
+
+        # Ensure this code is run from the main thread
+        if threading.current_thread() is not threading.main_thread():
+            QtCore.QMetaObject.invokeMethod(self, 'connecting_listener', QtCore.Qt.QueuedConnection)
+            return
+
+        # If the device was disconnected, set to connecting.
+        # We can only transition to CONNECTING from DISCONNECTED.
+        if self.status == DeviceStatus.DISCONNECTED:
+            self.status = DeviceStatus.CONNECTING
+
+    @QtCore.Slot()
     def connect_listener(self):
 
         # Ensure this code is run from the main thread
@@ -224,7 +238,8 @@ class Device(QtCore.QObject):
             QtCore.QMetaObject.invokeMethod(self, 'connect_listener', QtCore.Qt.QueuedConnection)
             return
 
-        # If the device was disconnected, set to closed
+        # If the device was disconnected, set to closed.
+        # We can transition to CLOSED from either DISCONNECTED or CONNECTING.
         if self.is_disconnected:
             self.status = DeviceStatus.CLOSED
 
