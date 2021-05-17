@@ -11,6 +11,7 @@
 #include "AssetUtils/Texture2DBuilder.h"
 #include "AssetToolsModule.h"
 #include "AssetRegistryModule.h"
+#include "EditorAssetLibrary.h"
 // for content-browser things
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -121,7 +122,8 @@ TArray<FFractureToolContext> UFractureToolAutoUV::GetFractureToolContexts() cons
 	return Contexts;
 }
 
-bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave)
+
+bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bAllowReplace)
 {
 	check(RelativeToAsset);
 	check(GeneratedTexture);
@@ -141,14 +143,15 @@ bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FSt
 
 		FString UseDefaultAssetName = ObjectBaseName;
 		FString CurrentPath = PackageFolderPath;
-		if (CurrentPath.IsEmpty() == false)
+		if (!CurrentPath.IsEmpty() && !bAllowReplace)
 		{
 			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 			FString UnusedPackageName;
-			AssetToolsModule.Get().CreateUniqueAssetName(PackageFolderPath + TEXT("/") + ObjectBaseName, TEXT(""), UnusedPackageName, UseDefaultAssetName);
+			AssetToolsModule.Get().CreateUniqueAssetName(FPaths::Combine(PackageFolderPath, ObjectBaseName), TEXT(""), UnusedPackageName, UseDefaultAssetName);
 		}
 
 		FSaveAssetDialogConfig Config;
+		Config.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 		Config.DefaultAssetName = UseDefaultAssetName;
 		Config.DialogTitleOverride = LOCTEXT("GenerateTexture2DAssetPathDialogWarning", "Choose Folder Path and Name for New Asset. Cancel to Discard New Asset.");
 		Config.DefaultPath = CurrentPath;
@@ -165,12 +168,24 @@ bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FSt
 		}
 	}
 
+	FString NewAssetPath = FPaths::Combine(PackageFolderPath, ObjectBaseName);
+	if (bAllowReplace)
+	{
+		// Modifying the static mesh in place. Delete existing asset so that we can have a clean duplicate
+		bool bNewAssetExists = UEditorAssetLibrary::DoesAssetExist(NewAssetPath);
+		if (bNewAssetExists)
+		{
+			bool bDeleteOK = UEditorAssetLibrary::DeleteAsset(NewAssetPath);
+			ensure(bDeleteOK);
+		}
+	}
+
 	// create new package
 	FString UniqueAssetName;
 	FString UniquePackageName;
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetToolsModule.Get().CreateUniqueAssetName(PackageFolderPath + TEXT("/") + ObjectBaseName, TEXT(""), UniquePackageName, UniqueAssetName);
+	AssetToolsModule.Get().CreateUniqueAssetName(NewAssetPath, TEXT(""), UniquePackageName, UniqueAssetName);
 
 	UPackage* AssetPackage = CreatePackage(*UniquePackageName);
 
@@ -265,7 +280,13 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		// choose default texture name based on corresponding geometry collection name
 		FString BaseName = FractureContext.GetFracturedGeometryCollection()->GetName();
 		FTexture2DBuilder::CopyPlatformDataToSourceData(AutoUVSettings->Result, FTexture2DBuilder::ETextureType::Color);
-		SaveGeneratedTexture(AutoUVSettings->Result, FString::Printf(TEXT("%s_AutoUV"), *BaseName), FractureContext.GetFracturedGeometryCollection(), AutoUVSettings->bPromptToSave);
+		FString Suffix = "_AutoUV";
+		if (AutoUVSettings->BakeTextureType == ETextureType::SpatialGradients)
+		{
+			Suffix = "_AutoUV_Spatial";
+		}
+		Suffix = FPaths::MakeValidFileName(Suffix);
+		SaveGeneratedTexture(AutoUVSettings->Result, FString::Printf(TEXT("%s%s"), *BaseName, *Suffix), FractureContext.GetFracturedGeometryCollection(), AutoUVSettings->bPromptToSave, AutoUVSettings->bReplaceExisting);
 	}
 
 	return INDEX_NONE;
