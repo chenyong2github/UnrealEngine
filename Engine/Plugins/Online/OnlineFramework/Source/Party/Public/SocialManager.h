@@ -150,6 +150,7 @@ protected:
 		static const FName Step_LeaveCurrentParty;
 		static const FName Step_JoinParty;
 		static const FName Step_DeferredPartyCreation;
+		static const FName Step_WaitForPersistentPartyCreation;
 
 		FSocialActionTimeTracker ActionTimeTracker;
 	};
@@ -220,6 +221,9 @@ private:
 	USocialParty* GetPartyInternal(const FOnlinePartyId& PartyId, bool bIncludeLeavingParties = false) const;
 
 	TSharedPtr<const IOnlinePartyJoinInfo> GetJoinInfoFromSession(const FOnlineSessionSearchResult& PlatformSession);
+
+	void OnCreatePersistentPartyCompleteInternal(ECreatePartyCompletionResult Result, FOnCreatePartyAttemptComplete OnCreatePartyComplete);
+	bool bCreatingPersistentParty = false;
 
 private:	// Handlers
 	void HandleGameViewportInitialized();
