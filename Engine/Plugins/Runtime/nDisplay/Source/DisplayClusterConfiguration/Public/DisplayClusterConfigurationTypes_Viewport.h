@@ -282,7 +282,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	bool bAllowRendering = true;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	FString Camera;
 
 	UPROPERTY(EditDefaultsOnly, Category = "NDisplay Viewport")
