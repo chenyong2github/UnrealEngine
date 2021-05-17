@@ -90,27 +90,12 @@ namespace BuildGraph.Tasks
 				if (Parameters.AwsEcr)
 				{
 					IProcessResult Result = SpawnTaskBase.Execute("aws", "ecr get-login-password", EnvVars: Environment, LogOutput: false);
-					Execute("docker", $"login {Parameters.Repository} --username AWS --password-stdin", Result.Output);
+					Execute("docker", $"login {Parameters.Repository} --username AWS --password-stdin", Input: Result.Output);
 				}
 
 				string TargetImage = Parameters.TargetImage ?? Parameters.Image;
 				Execute("docker", $"tag {Parameters.Image} {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
 				Execute("docker", $"push {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
-			}
-		}
-
-		/// <summary>
-		/// Runs Docker
-		/// </summary>
-		/// <param name="DockerExe"></param>
-		/// <param name="Arguments"></param>
-		/// <param name="StagingDir"></param>
-		public void RunDocker(FileReference DockerExe, string Arguments, string Input, DirectoryReference StagingDir)
-		{
-			IProcessResult Result = CommandUtils.Run(DockerExe.FullName, Arguments, Input: Input, WorkingDir: StagingDir.FullName, Options: CommandUtils.ERunOptions.AllowSpew);
-			if (Result.ExitCode != 0)
-			{
-				throw new AutomationException("Docker terminated with an exit code indicating an error ({0})", Result.ExitCode);
 			}
 		}
 

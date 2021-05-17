@@ -69,7 +69,7 @@ namespace BuildGraph.Tasks
 		/// <summary>
 		/// Execute a command
 		/// </summary>
-		protected static IProcessResult Execute(string Exe, string Arguments, string WorkingDir = null, Dictionary<string, string> EnvVars = null, bool LogOutput = true, int ErrorLevel = 1)
+		protected static IProcessResult Execute(string Exe, string Arguments, string WorkingDir = null, Dictionary<string, string> EnvVars = null, bool LogOutput = true, int ErrorLevel = 1, string Input = null)
 		{
 			if (WorkingDir != null)
 			{
@@ -82,7 +82,7 @@ namespace BuildGraph.Tasks
 				Options &= ~CommandUtils.ERunOptions.AllowSpew;
 			}
 
-			IProcessResult Result = CommandUtils.Run(Exe, Arguments, Env: EnvVars, WorkingDir: WorkingDir, Options: Options);
+			IProcessResult Result = CommandUtils.Run(Exe, Arguments, Env: EnvVars, WorkingDir: WorkingDir, Options: Options, Input: Input);
 			if (Result.ExitCode < 0 || Result.ExitCode >= ErrorLevel)
 			{
 				throw new AutomationException("{0} terminated with an exit code indicating an error ({1})", Path.GetFileName(Exe), Result.ExitCode);
