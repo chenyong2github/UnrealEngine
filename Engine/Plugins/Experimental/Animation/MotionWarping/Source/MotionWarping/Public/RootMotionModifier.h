@@ -102,15 +102,15 @@ class MOTIONWARPING_API URootMotionModifier : public UObject
 public:
 
 	/** Source of the root motion we are warping */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (ExposeOnSpawn))
+	UPROPERTY()
 	TWeakObjectPtr<const UAnimSequenceBase> Animation = nullptr;
 
 	/** Start time of the warping window */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (ExposeOnSpawn))
+	UPROPERTY()
 	float StartTime = 0.f;
 
 	/** End time of the warping window */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (ExposeOnSpawn))
+	UPROPERTY()
 	float EndTime = 0.f;
 
 	/** Previous playback time of the animation */

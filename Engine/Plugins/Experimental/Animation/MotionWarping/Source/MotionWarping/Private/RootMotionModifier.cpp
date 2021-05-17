@@ -171,7 +171,7 @@ void URootMotionModifier_Warp::Update()
 									TArray<FBoneIndexType> RequiredBoneIndexArray = { 0, (FBoneIndexType)BoneIndex };
 									FullBoneContainer.GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBoneIndexArray);
 
-									FBoneContainer LimitedBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Animation->GetSkeleton());
+									FBoneContainer LimitedBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *FullBoneContainer.GetAsset());
 
 									FCSPose<FCompactPose> Pose;
 									UMotionWarpingUtilities::ExtractComponentSpacePose(GetAnimation(), LimitedBoneContainer, EndTime, false, Pose);
@@ -184,7 +184,7 @@ void URootMotionModifier_Warp::Update()
 					}
 
 					// Calculate and cache the offset between the root and the warp point in the animation
-					CachedOffsetFromWarpPoint = WarpPointTransform.GetRelativeTransform(RootTransform);
+					CachedOffsetFromWarpPoint = RootTransform.GetRelativeTransform(WarpPointTransform);
 				}
 			}
 
