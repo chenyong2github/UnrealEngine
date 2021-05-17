@@ -168,6 +168,7 @@ FMobileEyeAdaptationSetupOutputs AddMobileEyeAdaptationSetupPass(FRDGBuilder& Gr
 struct FMobileEyeAdaptationInputs
 {
 	FRDGBufferSRVRef EyeAdaptationSetupSRV;
+	FRDGBufferRef EyeAdaptationBuffer;
 	bool bUseBasicEyeAdaptation;
 	bool bUseHistogramEyeAdaptation;
 };
