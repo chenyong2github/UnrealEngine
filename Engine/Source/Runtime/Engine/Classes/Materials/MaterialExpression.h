@@ -116,18 +116,21 @@ USTRUCT()
 struct FExpressionExecOutput
 {
 	GENERATED_BODY()
-
+public:
 #if WITH_EDITOR
 	ENGINE_API int32 Compile(class FMaterialCompiler* Compiler) const;
 
+	ENGINE_API void Connect(class UMaterialExpression* InExpression);
+
+	inline class UMaterialExpression* GetExpression() const { return Expression; }
+
 	/** Returns the statement for the expression connected to this input */ 
-	ENGINE_API UE::HLSLTree::FStatement* AcquireHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
+	ENGINE_API bool GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
 
 	/** Creates a new scope, and populates it with the expression connected to this input */
-	ENGINE_API UE::HLSLTree::FScope* NewScopeWithStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
-	ENGINE_API UE::HLSLTree::FScope* NewLinkedScopeWithStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
+	ENGINE_API UE::HLSLTree::FScope* NewScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
 #endif // WITH_EDITOR
-
+private:
 	UPROPERTY()
 	class UMaterialExpression* Expression = nullptr;
 };
@@ -150,6 +153,10 @@ class ENGINE_API UMaterialExpression : public UObject
 	GENERATED_UCLASS_BODY()
 
 	static constexpr int32 CompileExecutionOutputIndex = -2;
+
+#if WITH_EDITOR
+	static void InitializeNumExecutionInputs(TArrayView<UMaterialExpression*> Expressions);
+#endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -192,6 +199,9 @@ class ENGINE_API UMaterialExpression : public UObject
 	/** A description that level designers can add (shows in the material editor UI). */
 	UPROPERTY(EditAnywhere, Category=MaterialExpression, meta=(MultiLine=true, DisplayAfter = "SortPriority"))
 	FString Desc;
+
+	/** Number of expressions connected to this expression's execution input */
+	int32 NumExecutionInputs;
 
 	/** Set to true by RecursiveUpdateRealtimePreview() if the expression's preview needs to be updated in realtime in the material editor. */
 	UPROPERTY()
@@ -289,7 +299,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	 * For example, a for-loop expression might generate a statement for the execution input, but also generate an expression to access the loop index
 	 * These methods replace the Compile() method; once we switch over to the new system, Compile() will be removed
 	 */
-	virtual EMaterialGenerateHLSLStatus GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement);
+	virtual EMaterialGenerateHLSLStatus GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope);
 	virtual EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression* &OutExpression);
 	virtual EMaterialGenerateHLSLStatus GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture);
 

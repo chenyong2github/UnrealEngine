@@ -698,60 +698,6 @@ void UE::HLSLTree::FScope::AddStatement(UE::HLSLTree::FStatement* Statement)
 	}
 }
 
-bool UE::HLSLTree::FScope::TryMoveStatement(UE::HLSLTree::FStatement* Statement)
-{
-	bool bResult = false;
-	FScope* PrevScope = Statement->ParentScope;
-	if (!PrevScope)
-	{
-		// Statement does not currently belong to any scope, just add it
-		AddStatement(Statement);
-		bResult = true;
-	}
-	else if (LinkedScope && ParentScope == PrevScope)
-	{
-		// Already moved
-		bResult = true;
-	}
-	else if(LinkedScope == PrevScope)
-	{
-		// Statement belongs to our linked scope, so move it into our parent scope
-		check(ParentScope->FirstStatement);
-		check(ParentScope->LastStatement);
-
-		// First need to unlink the statement from its previous scope
-		FStatement* PrevStatement = PrevScope->FirstStatement;
-		bool bFoundInPrevScope = false;
-		while (PrevStatement)
-		{
-			FStatement* NextStatement = PrevStatement->NextStatement;
-			if (NextStatement == Statement)
-			{
-				PrevScope->LastStatement = PrevStatement;
-				PrevStatement->NextStatement = nullptr;
-				bFoundInPrevScope = true;
-				break;
-			}
-			PrevStatement = NextStatement;
-		}
-		check(bFoundInPrevScope);
-
-		// Now link it into the new scope
-		FNodeVisitor_MoveToScope Visitor(ParentScope);
-		ParentScope->LastStatement->NextStatement = Statement;
-		FStatement* StatementToLink = Statement;
-		while (StatementToLink)
-		{
-			StatementToLink->ParentScope = ParentScope;
-			ParentScope->LastStatement = StatementToLink;
-			Visitor.VisitNode(StatementToLink);
-			StatementToLink = StatementToLink->NextStatement;
-		}
-		bResult = true;
-	}
-	return bResult;
-}
-
 UE::HLSLTree::FTree* UE::HLSLTree::FTree::Create(FMemStackBase& Allocator)
 {
 	FTree* Tree = new(Allocator) FTree();
@@ -770,15 +716,6 @@ UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewScope(UE::HLSLTree::FScope& Scope)
 	FScope* NewScope = NewNode<FScope>();
 	NewScope->ParentScope = &Scope;
 	NewScope->NestedLevel = Scope.NestedLevel + 1;
-	return NewScope;
-}
-
-UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewLinkedScope(UE::HLSLTree::FScope& Scope)
-{
-	FScope* NewScope = NewNode<FScope>();
-	NewScope->ParentScope = Scope.ParentScope;
-	NewScope->LinkedScope = &Scope;
-	NewScope->NestedLevel = Scope.NestedLevel;
 	return NewScope;
 }
 

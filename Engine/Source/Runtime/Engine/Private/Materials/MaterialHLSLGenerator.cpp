@@ -40,6 +40,28 @@ void FMaterialHLSLGenerator::AcquireErrors(TArray<FString>& OutCompileErrors, TA
 	OutErrorExpressions = MoveTemp(ErrorExpressions);
 }
 
+bool FMaterialHLSLGenerator::Finalize()
+{
+	if (!bGeneratedResult)
+	{
+		Error(TEXT("Missing connection to material output"));
+		return false;
+	}
+
+	for (const auto& It : StatementMap)
+	{
+		const UMaterialExpression* Expression = It.Key;
+		const FStatementEntry& Entry = It.Value;
+		if (Entry.NumInputs != Expression->NumExecutionInputs)
+		{
+			Error(TEXT("Invalid number of input connections"));
+			return false;
+		}
+	}
+
+	return true;
+}
+
 EMaterialGenerateHLSLStatus FMaterialHLSLGenerator::Error(const FString& Message)
 {
 	UMaterialExpression* ExpressionToError = nullptr;
@@ -135,9 +157,9 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 	return AttributesExpression;
 }
 
-UE::HLSLTree::FStatement* FMaterialHLSLGenerator::NewResult(UE::HLSLTree::FScope& Scope)
+bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 {
-	UE::HLSLTree::FStatement* Result = nullptr;
+	bool bResult = false;
 	if (bGeneratedResult)
 	{
 		Error(TEXT("Multiple connections to execution output"));
@@ -170,7 +192,7 @@ UE::HLSLTree::FStatement* FMaterialHLSLGenerator::NewResult(UE::HLSLTree::FScope
 			{
 				UE::HLSLTree::FStatementReturn* ReturnStatement = HLSLTree->NewStatement<UE::HLSLTree::FStatementReturn>(Scope);
 				ReturnStatement->Expression = AttributesExpression;
-				Result = ReturnStatement;
+				bResult = true;
 			}
 		}
 		else
@@ -179,7 +201,7 @@ UE::HLSLTree::FStatement* FMaterialHLSLGenerator::NewResult(UE::HLSLTree::FScope
 		}
 		bGeneratedResult = true;
 	}
-	return Result;
+	return bResult;
 }
 
 UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value)
@@ -359,30 +381,28 @@ UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextu
 	return TextureDeclaration;
 }
 
-UE::HLSLTree::FStatement* FMaterialHLSLGenerator::AcquireStatement(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression)
+bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression)
 {
-	UE::HLSLTree::FStatement** PrevStatement = StatementMap.Find(MaterialExpression);
-	UE::HLSLTree::FStatement* Statement = nullptr;
-	if (!PrevStatement)
+	FStatementEntry& Entry = StatementMap.FindOrAdd(MaterialExpression);
+	Entry.NumInputs++;
+	check(Entry.NumInputs <= MaterialExpression->NumExecutionInputs);
+
+	bool bResult = true;
+	if (Entry.NumInputs == MaterialExpression->NumExecutionInputs)
 	{
+		UE::HLSLTree::FScope* ScopeToUse = &Scope;
+		if (MaterialExpression->NumExecutionInputs > 1u)
+		{
+			ScopeToUse = ScopeToUse->ParentScope;
+		}
+
 		const FExpressionKey Key(MaterialExpression);
 		ExpressionStack.Add(Key);
-		const EMaterialGenerateHLSLStatus Status = MaterialExpression->GenerateHLSLStatement(*this, Scope, Statement);
+		const EMaterialGenerateHLSLStatus Status = MaterialExpression->GenerateHLSLStatements(*this, *ScopeToUse);
 		verify(ExpressionStack.Pop() == Key);
-		StatementMap.Add(MaterialExpression, Statement);
-	}
-	else
-	{
-		Statement = *PrevStatement;
-		if (Statement && !Scope.TryMoveStatement(Statement))
-		{
-			// Could not move existing statement to the given scope
-			Error(TEXT("Invalid control flow"));
-			return nullptr;
-		}
 	}
 
-	return Statement;
+	return bResult;
 }
 
 #endif // WITH_EDITOR
