@@ -798,7 +798,7 @@ public:
 	 * @param Tolerance  How many seconds ago the actor last render time can be and still count as having been "recently" rendered.
 	 * @return Whether this actor was recently rendered.
 	 */
-	UFUNCTION(Category = "Rendering", BlueprintCallable, meta=(DisplayName="WasComponentRecentlyRendered", Keywords="scene visible"))
+	UFUNCTION(Category = "Rendering", BlueprintCallable, meta=(DisplayName="Was Component Recently Rendered", Keywords="scene visible"))
 	bool WasRecentlyRendered(float Tolerance = 0.2) const;
 
 	void SetLastRenderTime(float InLastRenderTime);
@@ -826,7 +826,7 @@ public:
 	/**
 	 * Returns the list of actors we currently ignore when moving.
 	 */
-	UFUNCTION(BlueprintCallable, meta=(DisplayName="GetMoveIgnoreActors", UnsafeDuringActorConstruction="true"), Category = "Collision")
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="Get Move Ignore Actors", UnsafeDuringActorConstruction="true"), Category = "Collision")
 	TArray<AActor*> CopyArrayOfMoveIgnoreActors();
 
 	/**
@@ -861,7 +861,7 @@ public:
 	/**
 	* Returns the list of actors we currently ignore when moving.
 	*/
-	UFUNCTION(BlueprintCallable, meta=(DisplayName="GetMoveIgnoreComponents", UnsafeDuringActorConstruction="true"), Category = "Collision")
+	UFUNCTION(BlueprintCallable, meta=(DisplayName="Get Move Ignore Components", UnsafeDuringActorConstruction="true"), Category = "Collision")
 	TArray<UPrimitiveComponent*> CopyArrayOfMoveIgnoreComponents();
 
 	/**
@@ -1219,7 +1219,7 @@ public:
 	 *	@param	SectionIndex	Section of the mesh that the face belongs to
 	 *	@return					Material applied to section that the hit face belongs to
 	 */
-	UFUNCTION(BlueprintPure, Category = "Components|Mesh")
+	UFUNCTION(BlueprintPure, Category = "Rendering|Material")
 	virtual UMaterialInterface* GetMaterialFromCollisionFaceIndex(int32 FaceIndex, int32& SectionIndex) const;
 
 	/** Returns the slope override struct for this component. */

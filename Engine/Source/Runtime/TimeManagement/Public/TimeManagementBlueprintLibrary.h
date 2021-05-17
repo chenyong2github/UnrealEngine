@@ -19,11 +19,11 @@ class TIMEMANAGEMENT_API UTimeManagementBlueprintLibrary : public UBlueprintFunc
 
 public:
 	/** Converts an FrameRate to a float ie: 1/30 returns 0.0333333 */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "FrameRate to Seconds", BlueprintAutocast), Category = "Utilities|Time Management")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "FrameRate To Seconds", BlueprintAutocast), Category = "Utilities|Time Management")
 	static float Conv_FrameRateToSeconds(const FFrameRate& InFrameRate);
 
 	/** Converts an QualifiedFrameTime to seconds. */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "QualifiedFrameTime to Seconds", BlueprintAutocast), Category = "Utilities|Time Management")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "QualifiedFrameTime To Seconds", BlueprintAutocast), Category = "Utilities|Time Management")
 	static float Conv_QualifiedFrameTimeToSeconds(const FQualifiedFrameTime& InFrameTime);
 
 	/** Multiplies a value in seconds against a FrameRate to get a new FrameTime. */
@@ -31,11 +31,11 @@ public:
 	static FFrameTime Multiply_SecondsFrameRate(float TimeInSeconds, const FFrameRate& FrameRate);
 
 	/** Converts an Timecode to a string (hh:mm:ss:ff). If bForceSignDisplay then the number sign will always be prepended instead of just when expressing a negative time. */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "Timecode to String", BlueprintAutocast), Category = "Utilities|Time Management")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Timecode To String", BlueprintAutocast), Category = "Utilities|Time Management")
 	static FString Conv_TimecodeToString(const FTimecode& InTimecode, bool bForceSignDisplay = false);
 
 	/** Verifies that this is a valid framerate with a non-zero denominator. */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "IsValid"), Category = "Utilities|Time Management")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Valid Frame Rate"), Category = "Utilities|Time Management")
 	static bool IsValid_Framerate(const FFrameRate& InFrameRate);
 
 	/** Checks if this framerate is an even multiple of another framerate, ie: 60 is a multiple of 30, but 59.94 is not. */
