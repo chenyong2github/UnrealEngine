@@ -1653,7 +1653,7 @@ void FD3D12TextureAllocatorPool::CleanUpAllocations()
 {
 	for (uint32 PoolIndex = 0; PoolIndex < (uint32)EPoolType::Count; ++PoolIndex)
 	{
-		PoolAllocators[PoolIndex]->CleanUpAllocations(2);
+		PoolAllocators[PoolIndex]->CleanUpAllocations(20);
 	}
 }
 

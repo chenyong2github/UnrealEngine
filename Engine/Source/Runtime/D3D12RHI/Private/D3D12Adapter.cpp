@@ -1276,7 +1276,7 @@ void FD3D12Adapter::EndFrame()
 {
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
-		uint64 FrameLag = 2;
+		uint64 FrameLag = 20;
 		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations(FrameLag);
 	}
 	GetDeferredDeletionQueue().ReleaseResources(false, false);
