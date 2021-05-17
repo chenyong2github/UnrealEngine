@@ -10,8 +10,7 @@ class UDisplayClusterConfigurationData;
 class IDisplayClusterConfigurationDataParser
 {
 public:
-	virtual ~IDisplayClusterConfigurationDataParser()
-	{ }
+	virtual ~IDisplayClusterConfigurationDataParser() = default;
 
 public:
 	// Load data from a specified file

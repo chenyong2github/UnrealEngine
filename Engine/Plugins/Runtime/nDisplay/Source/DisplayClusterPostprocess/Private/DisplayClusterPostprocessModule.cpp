@@ -6,14 +6,13 @@
 #include "DisplayClusterPostprocessStrings.h"
 
 #include "PostProcess/DisplayClusterPostprocessOutputRemap.h"
-#include "PostProcess/DisplayClusterPostprocessTextureShare.h"
-#include "PostProcess/DisplayClusterPostprocessDX12CrossGPU.h"
+#if PLATFORM_WINDOWS
+#include "PostProcess/Windows/DisplayClusterPostprocessTextureShare.h"
+#include "PostProcess/Windows/DisplayClusterPostprocessDX12CrossGPU.h"
+#endif
 
 #include "IDisplayCluster.h"
 #include "Render/IDisplayClusterRenderManager.h"
-
-#include "ITextureShare.h"
-#include "ITextureShareD3D12.h"
 
 
 FDisplayClusterPostprocessModule::FDisplayClusterPostprocessModule()
@@ -24,6 +23,7 @@ FDisplayClusterPostprocessModule::FDisplayClusterPostprocessModule()
 	Postprocess = MakeShared<FDisplayClusterPostprocessOutputRemap, ESPMode::ThreadSafe>();
 	PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::OutputRemap, Postprocess);
 
+#if PLATFORM_WINDOWS
 	// Texture Share
 	//Postprocess = MakeShared<FDisplayClusterPostprocessTextureShare, ESPMode::ThreadSafe>();
 	//PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::TextureShare, Postprocess);
@@ -31,6 +31,7 @@ FDisplayClusterPostprocessModule::FDisplayClusterPostprocessModule()
 	// D3D12 Cross GPU
 	//Postprocess = MakeShared<FDisplayClusterPostprocessD3D12CrossGPU, ESPMode::ThreadSafe>();
 	//PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::D3D12CrossGPU, Postprocess);
+#endif
 
 	UE_LOG(LogDisplayClusterPostprocess, Log, TEXT("Postprocess module has been instantiated"));
 }

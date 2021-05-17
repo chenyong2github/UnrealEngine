@@ -16,6 +16,9 @@
 class IDisplayClusterProtocolClusterSync
 {
 public:
+	virtual ~IDisplayClusterProtocolClusterSync() = default;
+
+public:
 	// Game start barrier
 	virtual void WaitForGameStart() = 0;
 

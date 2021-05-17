@@ -11,8 +11,7 @@ class IDisplayClusterConfiguratorView
 	: public TSharedFromThis<IDisplayClusterConfiguratorView>
 {
 public:
-	virtual ~IDisplayClusterConfiguratorView()
-	{ }
+	virtual ~IDisplayClusterConfiguratorView() = default;
 
 public:
 	virtual TSharedRef<SWidget> CreateWidget() = 0;

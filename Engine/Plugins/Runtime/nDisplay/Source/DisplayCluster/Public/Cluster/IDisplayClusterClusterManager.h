@@ -27,9 +27,9 @@ typedef FOnClusterEventBinary::FDelegate FOnClusterEventBinaryListener;
 class IDisplayClusterClusterManager
 {
 public:
-	virtual ~IDisplayClusterClusterManager() = 0
-	{ }
+	virtual ~IDisplayClusterClusterManager() = default;
 
+public:
 	/** Returns true if current node is master. */
 	virtual bool IsMaster() const = 0;
 	/** Returns true if current node is slave. */

@@ -13,7 +13,3 @@ FDisplayClusterDeviceQuadBufferStereoBase::FDisplayClusterDeviceQuadBufferStereo
 	: FDisplayClusterDeviceBase(EDisplayClusterRenderFrameMode::Stereo)
 {
 }
-
-FDisplayClusterDeviceQuadBufferStereoBase::~FDisplayClusterDeviceQuadBufferStereoBase()
-{
-}

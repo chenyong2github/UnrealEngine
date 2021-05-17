@@ -20,8 +20,7 @@ class IDisplayClusterNodeController
 	, public IDisplayClusterProtocolRenderSync
 {
 public:
-	virtual ~IDisplayClusterNodeController()
-	{ }
+	virtual ~IDisplayClusterNodeController() = default;
 
 public:
 	/** Initialize controller instance */

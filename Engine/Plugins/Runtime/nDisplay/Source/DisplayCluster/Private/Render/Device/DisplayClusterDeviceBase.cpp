@@ -30,8 +30,10 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
+#if PLATFORM_WINDOWS
 #include "ITextureShare.h"
 #include "ITextureShareItem.h"
+#endif
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
@@ -474,6 +476,7 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 		// UE viewport
 		MainViewport = (FViewport*)&Viewport;
 
+#if PLATFORM_WINDOWS
 		/*
 		// Create texture share for render viewports by config line flag
 		//@todo move to right place. add on\off
@@ -522,6 +525,7 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 				}
 			}
 		}*/
+#endif
 	}
 }
 

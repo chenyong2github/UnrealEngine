@@ -22,7 +22,6 @@
 #include "Game/IPDisplayClusterGameManager.h"
 
 #include "Render/Device/DisplayClusterRenderDeviceFactoryInternal.h"
-#include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicDX11.h"
 
 #include "Render/Device/IDisplayClusterRenderDeviceFactory.h"
 #include "Render/PostProcess/IDisplayClusterPostProcess.h"
@@ -63,9 +62,10 @@ FDisplayClusterRenderManager::FDisplayClusterRenderManager()
 
 	// Instantiate and register internal sync policy factory
 	TSharedPtr<IDisplayClusterRenderSyncPolicyFactory> NewSyncPolicyFactory(new FDisplayClusterRenderSyncPolicyFactoryInternal);
-	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::None,     NewSyncPolicyFactory); // 0 - none
-	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet, NewSyncPolicyFactory); // 1 - network sync (soft sync)
-	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia,   NewSyncPolicyFactory); // 2 - hardware sync (NVIDIA frame lock and swap sync)
+	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::None,            NewSyncPolicyFactory); // None
+	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet,        NewSyncPolicyFactory); // Ethernet
+	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier, NewSyncPolicyFactory); // Ethernet_Simple
+	RegisterSynchronizationPolicyFactory(DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia,          NewSyncPolicyFactory); // NVIDIA
 }
 
 FDisplayClusterRenderManager::~FDisplayClusterRenderManager()
@@ -595,12 +595,9 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderManager::Create
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("No factory found for the requested synchronization policy <%s>. Default Ethernet based will be used."), *SyncPolicyType);
-		NewSyncPolicy = SyncPolicyFactories[FString(DisplayClusterConfigurationStrings::config::cluster::render_sync::None)]->Create(
-			FString(DisplayClusterConfigurationStrings::config::cluster::render_sync::None),
-			RHIName,
-			TMap<FString, FString>()
-		);
+		const FString DefaultPolicy = DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier;
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("No factory found for the requested synchronization policy <%s>. Default '%s' policy will be used."), *SyncPolicyType, *DefaultPolicy);
+		NewSyncPolicy = SyncPolicyFactories[DefaultPolicy]->Create(DefaultPolicy, RHIName, TMap<FString, FString>());
 	}
 
 	return NewSyncPolicy;
