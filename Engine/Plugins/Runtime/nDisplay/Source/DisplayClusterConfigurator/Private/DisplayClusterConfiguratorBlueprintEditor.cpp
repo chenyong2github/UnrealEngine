@@ -19,6 +19,7 @@
 #include "Components/DisplayClusterScreenComponent.h"
 
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
+#include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
 #include "Views/General/DisplayClusterConfiguratorViewGeneral.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
@@ -662,11 +663,26 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable(UBlueprint* Bl
 				// of the parameters in the custom case
 				if (!Viewport->ProjectionPolicy.bIsCustom)
 				{
-					for (TPair<FString, FString>& PolicyParameters : Viewport->ProjectionPolicy.Parameters)
+					TMap<FString, FString> PolicyCopy = Viewport->ProjectionPolicy.Parameters;
+
+					const TSharedPtr<ISinglePropertyView> ProjectPolicyView =
+						DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+							Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, ProjectionPolicy));
+					check(ProjectPolicyView);
+					
+					const TSharedPtr<IPropertyHandle> ParametersHandle = ProjectPolicyView->GetPropertyHandle()->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationProjection, Parameters));
+					check(ParametersHandle);
+
+					FStructProperty* StructProperty = FindFProperty<FStructProperty>(Viewport->GetClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, ProjectionPolicy));
+					check(StructProperty);
+					uint8* MapContainer = StructProperty->ContainerPtrToValuePtr<uint8>(Viewport);
+					
+					for (TPair<FString, FString>& PolicyParameters : PolicyCopy)
 					{
 						if (PolicyParameters.Value == OldVariableName.ToString())
 						{
-							PolicyParameters.Value = NewVariableName.ToString();
+							DisplayClusterConfiguratorPropertyUtils::RemoveKeyFromMap(MapContainer, ParametersHandle, PolicyParameters.Key);
+							DisplayClusterConfiguratorPropertyUtils::AddKeyValueToMap(MapContainer, ParametersHandle, PolicyParameters.Key, NewVariableName.ToString());
 						}
 					}
 				}

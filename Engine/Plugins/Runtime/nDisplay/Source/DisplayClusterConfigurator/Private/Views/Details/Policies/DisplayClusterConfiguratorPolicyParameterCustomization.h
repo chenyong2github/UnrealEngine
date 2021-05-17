@@ -153,17 +153,17 @@ public:
 		UDisplayClusterBlueprint* InBlueprint,
 		UDisplayClusterConfigurationViewport* InConfigurationViewport,
 		const TSharedPtr<IPropertyHandle>& InParametersHandle,
-		TSubclassOf<UActorComponent> InComponentClass);
+		const TArray<TSubclassOf<UActorComponent>>& InComponentClasses);
 
 	/** Populate CustomParameterOptions based on this parameter. */
 	void CreateParameterValues(ADisplayClusterRootActor* RootActor);
 
 	/** The type of component this parameter represents. */
-	TSubclassOf<UActorComponent> GetComponentType() const { return ComponentType; }
+	const TArray<TSubclassOf<UActorComponent>>& GetComponentTypes() const { return ComponentTypes; }
 
 private:
 	/** A component class to use for creating parameter options. */
-	TSubclassOf<UActorComponent> ComponentType;
+	TArray<TSubclassOf<UActorComponent>> ComponentTypes;
 };
 
 /**
