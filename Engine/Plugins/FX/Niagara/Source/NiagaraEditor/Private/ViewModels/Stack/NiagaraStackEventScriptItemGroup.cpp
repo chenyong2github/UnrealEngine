@@ -221,31 +221,6 @@ void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNi
 	if (EventScriptProperties != nullptr)
 	{
 		SetDisplayName(FText::Format(LOCTEXT("FormatEventScriptDisplayName", "Event Handler - Source: {0}"), FText::FromName(EventScriptProperties->SourceEventName)));
-
-		const bool HasValidScript = EventScriptProperties->Script
-			&& !EventScriptProperties->Script->IsScriptCompilationPending(false)
-			&& EventScriptProperties->Script->DidScriptCompilationSucceed(false);
-
-		if (HasValidScript && EventScriptProperties->SourceEventName != NAME_None)
-		{
-			const FNiagaraVMExecutableData& ScriptData = EventScriptProperties->Script->GetVMExecutableData();
-
-			// validate that the read data sets for any events match the name that we've found
-			for (const FNiagaraDataSetID& ReadDataSet : ScriptData.ReadDataSets)
-			{
-				if (ReadDataSet.Type == ENiagaraDataSetType::Event && ReadDataSet.Name != EventScriptProperties->SourceEventName)
-				{
-					FStackIssue EventMismatchError(
-						EStackIssueSeverity::Error,
-						FText::Format(LOCTEXT("EventMismatchSummaryText", "Event {0} can't be found"), FText::FromName(ReadDataSet.Name)),
-						FText::Format(LOCTEXT("EventMismatchText", "Looking for an event named {0} but the Emitter is currently using {1}."), FText::FromName(ReadDataSet.Name), FText::FromName(EventScriptProperties->SourceEventName)),
-						GetStackEditorDataKey(),
-						false);
-
-					NewIssues.Add(EventMismatchError);
-				}
-			}
-		}
 	}
 	else
 	{
