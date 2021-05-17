@@ -593,13 +593,20 @@ void AllocateCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dis
 	if (bIsValid)
 	{
 		const uint PageIndex = GroupBase + Offset;
-		PageIndexBuffer[GridIndex] = PageIndex < PageCount ? PageIndex : INVALID_VOXEL_PAGE_INDEX;
-		PageToPageIndexBuffer[PageIndex] = GridIndex;
+		const bool bIsAllocationValid = PageIndex < PageCount;
+
+		PageIndexBuffer[GridIndex] = bIsAllocationValid ? PageIndex : INVALID_VOXEL_PAGE_INDEX;
+		if (bIsAllocationValid)
+		{
+			PageToPageIndexBuffer[PageIndex] = GridIndex;
+		}
+
 		// Output the coordinates of the allocated page for indirect dispatch usage
+		// If the allocated failed (run out of page), then we mark the IndexCoord with a invalid GroupID
 		const uint LinearIndex = DispatchThreadId.x;
 		const uint3 PageIndexCoord = IndexToCoord(LinearIndex, PageIndexResolution);
 		const uint IndexRelativeToMacroGroupIndexOffset = PageIndex - PageIndexGlobalCounter[1];
-		PageIndexCoordBuffer[PageIndexOffset + IndexRelativeToMacroGroupIndexOffset] = uint4(PageIndexCoord, MacroGroupId);
+		PageIndexCoordBuffer[PageIndexOffset + IndexRelativeToMacroGroupIndexOffset] = uint4(PageIndexCoord, bIsAllocationValid ? MacroGroupId : INVALID_MACRO_GROUP_ID);
 	}
 	// Mark page index as invalid
 	// Insure that even if write more (due to larger dispatch count that needed), we do not stomp other instance group page index
