@@ -2505,9 +2505,9 @@ float UChaosWheeledVehicleMovementComponent::GetSuspensionOffset(int WheelIndex)
 	float Offset = 0.f;
 
 	FChaosWheelSetup& WheelSetup = WheelSetups[WheelIndex];
-	FTransform VehicleWorldTransform = GetBodyInstance()->GetUnrealWorldTransform();
 	if (GetBodyInstance())
 	{
+		FTransform VehicleWorldTransform = GetBodyInstance()->GetUnrealWorldTransform();
 		if (UChaosVehicleWheel* Wheel = WheelSetups[WheelIndex].WheelClass.GetDefaultObject())
 		{
 			if (WheelStatus[WheelIndex].bIsValid)
