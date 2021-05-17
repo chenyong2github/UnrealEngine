@@ -21,7 +21,7 @@ class UOptimusVariableDescription;
 
 
 UCLASS()
-class OPTIMUSCORE_API UOptimusDeformer : 
+class OPTIMUSDEVELOPER_API UOptimusDeformer :
 	public UComputeKernelCollection, 
 	public IOptimusNodeGraphCollectionOwner
 {

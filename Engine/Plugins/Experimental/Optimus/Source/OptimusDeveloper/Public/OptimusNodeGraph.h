@@ -28,7 +28,7 @@ enum class EOptimusNodeGraphType
 
 
 UCLASS()
-class OPTIMUSCORE_API UOptimusNodeGraph 
+class OPTIMUSDEVELOPER_API UOptimusNodeGraph
 	: public UObject
 {
 	GENERATED_BODY()

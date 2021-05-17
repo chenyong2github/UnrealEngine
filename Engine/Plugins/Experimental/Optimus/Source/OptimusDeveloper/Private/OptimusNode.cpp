@@ -4,7 +4,7 @@
 
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
-#include "OptimusCoreModule.h"
+#include "OptimusDeveloperModule.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
 #include "OptimusNodeGraph.h"
@@ -343,7 +343,7 @@ void UOptimusNode::CreatePinsFromStructLayout(
 		{
 			if (Property->HasMetaData(PropertyMeta::Output))
 			{
-				UE_LOG(LogOptimusCore, Error, TEXT("Pin on %s.%s marked both input and output. Ignoring it as output."),
+				UE_LOG(LogOptimusDeveloper, Error, TEXT("Pin on %s.%s marked both input and output. Ignoring it as output."),
 					*GetName(), *Property->GetName());
 			}
 
@@ -375,7 +375,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 
 	if (!DataType.IsValid())
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("No registered type found for pin '%s'."), *InProperty->GetName());
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("No registered type found for pin '%s'."), *InProperty->GetName());
 		return nullptr;
 	}
 
@@ -384,14 +384,14 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 	{
 		if (!ensure(!InParentPin))
 		{
-			UE_LOG(LogOptimusCore, Error, TEXT("Pin '%s' marked as resource cannot have sub-pins."), *InProperty->GetName());
+			UE_LOG(LogOptimusDeveloper, Error, TEXT("Pin '%s' marked as resource cannot have sub-pins."), *InProperty->GetName());
 			return nullptr;
 		}
 
 		// Ensure that the data type for the property allows it to be used as a resource.
 		if (!EnumHasAnyFlags(DataType->UsageFlags, EOptimusDataTypeUsageFlags::Resource))
 		{
-			UE_LOG(LogOptimusCore, Error, TEXT("Pin '%s' marked as resource but data type is not compatible."), *InProperty->GetName());
+			UE_LOG(LogOptimusDeveloper, Error, TEXT("Pin '%s' marked as resource but data type is not compatible."), *InProperty->GetName());
 			return nullptr;
 		}
 

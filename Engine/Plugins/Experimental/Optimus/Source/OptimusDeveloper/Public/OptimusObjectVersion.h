@@ -4,7 +4,7 @@
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
 
-struct OPTIMUSCORE_API FOptimusObjectVersion
+struct OPTIMUSDEVELOPER_API FOptimusObjectVersion
 {
 	// Not instantiable.
 	FOptimusObjectVersion() = delete;

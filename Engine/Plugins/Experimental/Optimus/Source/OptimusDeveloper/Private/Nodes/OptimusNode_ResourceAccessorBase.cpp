@@ -2,7 +2,7 @@
 
 #include "OptimusNode_ResourceAccessorBase.h"
 
-#include "OptimusCoreModule.h"
+#include "OptimusDeveloperModule.h"
 #include "OptimusResourceDescription.h"
 
 
@@ -15,7 +15,7 @@ void UOptimusNode_ResourceAccessorBase::SetResourceDescription(UOptimusResourceD
 
 	if (!EnumHasAnyFlags(InResourceDesc->DataType->UsageFlags, EOptimusDataTypeUsageFlags::Resource))
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Data type '%s' is not usable in a resource"),
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Data type '%s' is not usable in a resource"),
 		    *InResourceDesc->DataType->TypeName.ToString());
 		return;
 	}

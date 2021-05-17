@@ -13,7 +13,7 @@
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodePin.h"
-#include "OptimusCoreModule.h"
+#include "OptimusDeveloperModule.h"
 
 #include "UObject/Package.h"
 
@@ -101,7 +101,7 @@ UOptimusVariableDescription* UOptimusDeformer::AddVariable(
 	FOptimusDataTypeHandle DataType = InDataTypeRef.Resolve();
 	if (!DataType.IsValid() || !EnumHasAnyFlags(DataType->UsageFlags, EOptimusDataTypeUsageFlags::Variable))
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Invalid data type for variables."));
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Invalid data type for variables."));
 		return nullptr;
 	}
 
@@ -129,7 +129,7 @@ bool UOptimusDeformer::RemoveVariable(
 	}
 	if (InVariableDesc->GetOuter() != this)
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Variable not owned by this deformer."));
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Variable not owned by this deformer."));
 		return false;
 	}
 
@@ -144,12 +144,12 @@ bool UOptimusDeformer::RenameVariable(
 {
 	if (InNewName.IsNone())
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Invalid resource name."));
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Invalid resource name."));
 		return false;
 	}
 	if (InVariableDesc->GetOuter() != this)
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Variable not owned by this deformer."));
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Variable not owned by this deformer."));
 		return false;
 	}
 
@@ -298,7 +298,7 @@ UOptimusResourceDescription* UOptimusDeformer::AddResource(
 	FOptimusDataTypeHandle DataType = InDataTypeRef.Resolve();
 	if (!DataType.IsValid() || !EnumHasAnyFlags(DataType->UsageFlags, EOptimusDataTypeUsageFlags::Resource))
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Invalid data type for resources."));
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Invalid data type for resources."));
 		return nullptr;
 	}
 
@@ -324,7 +324,7 @@ bool UOptimusDeformer::RemoveResource(UOptimusResourceDescription* InResourceDes
 	}
 	if (InResourceDesc->GetOuter() != this)
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Resource not owned by this deformer."));
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Resource not owned by this deformer."));
 		return false;
 	}
 
@@ -339,7 +339,7 @@ bool UOptimusDeformer::RenameResource(
 {
 	if (InNewName.IsNone())
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Invalid resource name."));
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Invalid resource name."));
 		return false;
 	}
 
