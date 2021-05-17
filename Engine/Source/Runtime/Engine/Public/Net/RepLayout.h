@@ -20,11 +20,10 @@
 #include "Engine/EngineTypes.h"
 #include "UObject/GCObject.h"
 #include "Containers/StaticBitArray.h"
-#include "Net/GuidReferences.h"
+#include "Net/Core/Misc/GuidReferences.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Templates/CopyQualifiersFromTo.h"
 
-class FGuidReferences;
 class FNetFieldExportGroup;
 class FRepLayout;
 class UActorChannel;
