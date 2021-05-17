@@ -721,7 +721,7 @@ class SwitchboardDialog(QtCore.QObject):
                 continue
 
             # Do not send updates to disconnected devices
-            if device.status == DeviceStatus.DISCONNECTED:
+            if device.is_disconnected:
                 continue
 
             device.set_slate(self._slate)
@@ -771,7 +771,7 @@ class SwitchboardDialog(QtCore.QObject):
         # Tell all devices the new take
         for device in self.device_manager.devices():
             # Do not send updates to disconnected devices
-            if device.status == DeviceStatus.DISCONNECTED:
+            if device.is_disconnected:
                 continue
 
             if device.ip_address in exclude_ip_addresses:
@@ -1006,7 +1006,7 @@ class SwitchboardDialog(QtCore.QObject):
     def update_connect_and_open_button_states(self):
         """ Refresh states of connect-all and start-all buttons. """
         devices = self.device_manager.devices()
-        any_connected = any(device.status != DeviceStatus.DISCONNECTED for device in devices)
+        any_connected = any(not device.is_disconnected for device in devices)
         any_started = any(device.status > DeviceStatus.CLOSED for device in devices)
 
         self.update_connect_all_button_state(any_connected)
@@ -1241,8 +1241,8 @@ class SwitchboardDialog(QtCore.QObject):
             LOGGER.warning(f'{ip_address} is not registered with a device in Switchboard')
             return None
 
-        # Do not recieve osc from disconnected devices
-        if device.status == DeviceStatus.DISCONNECTED:
+        # Do not receive osc from disconnected devices
+        if device.is_disconnected:
             LOGGER.warning(f'{device.name}: is sending OSC commands but is not connected. Ignoring "{command} {value}"')
             return None
 
@@ -1308,7 +1308,7 @@ class SwitchboardDialog(QtCore.QObject):
                 continue
 
             # Do not send updates to disconnected devices
-            if device.status == DeviceStatus.DISCONNECTED:
+            if device.is_disconnected:
                 continue
 
             LOGGER.debug(f'Record Start {device.name}')
@@ -1344,7 +1344,7 @@ class SwitchboardDialog(QtCore.QObject):
                 continue
 
             # Do not send updates to disconnected devices
-            if device.status == DeviceStatus.DISCONNECTED:
+            if device.is_disconnected:
                 continue
 
             device.record_stop()
