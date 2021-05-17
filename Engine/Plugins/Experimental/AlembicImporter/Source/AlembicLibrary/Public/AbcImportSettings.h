@@ -151,8 +151,8 @@ struct FAbcNormalGenerationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NormalCalculation, meta = (EditCondition = "bRecomputeNormals"))
 	bool bIgnoreDegenerateTriangles;
 
-	/** Determines whether tangents are computed. Skipping them can improve streaming performance but may cause visual artifacts where they are required */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NormalCalculation, AdvancedDisplay)
+	/** Determines whether tangents are computed for GeometryCache. Skipping them can improve streaming performance but may cause visual artifacts where they are required */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Hidden, AdvancedDisplay)
 	bool bSkipComputingTangents;
 };
 

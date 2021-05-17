@@ -206,7 +206,9 @@ void FAbcPolyMesh::SetFrameAndTime(const float InTime, const int32 FrameIndex, c
 				}
 			}
 
-			if (!File->GetImportSettings()->NormalGenerationSettings.bSkipComputingTangents)
+			// Computing tangents skippable for GeometryCache only, the other import types need tangents
+			if (File->GetImportSettings()->ImportType != EAlembicImportType::GeometryCache ||
+				!File->GetImportSettings()->NormalGenerationSettings.bSkipComputingTangents)
 			{
 				AbcImporterUtilities::ComputeTangents(WriteSample, File->GetImportSettings()->NormalGenerationSettings.bIgnoreDegenerateTriangles, *File->GetMeshUtilities());
 			}
