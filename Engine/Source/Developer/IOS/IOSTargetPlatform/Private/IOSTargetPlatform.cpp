@@ -611,7 +611,7 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 			{
 				FTextureFormatSettings FormatSettings;
 				Cube->GetDefaultFormatSettings(FormatSettings);
-				if (FormatSettings.CompressionSettings == TC_ReflectionCapture && !FormatSettings.CompressionNone)
+				if (FormatSettings.CompressionSettings == TC_EncodedReflectionCapture && !FormatSettings.CompressionNone)
 				{
 					TextureFormatName = FName(TEXT("ETC2_RGBA"));
 				}
