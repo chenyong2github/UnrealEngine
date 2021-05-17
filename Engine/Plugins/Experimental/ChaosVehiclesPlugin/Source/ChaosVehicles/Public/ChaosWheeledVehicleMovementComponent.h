@@ -134,6 +134,7 @@ struct CHAOSVEHICLES_API FWheelStatus
 
 	explicit FWheelStatus(ENoInit NoInit)
 	{
+		bIsValid = false;
 	}
 
 	void Init()
@@ -148,10 +149,12 @@ struct CHAOSVEHICLES_API FWheelStatus
 		SpringForce = 0.f;
 		SkidNormal = FVector::ZeroVector;
 		ContactPoint = FVector::ZeroVector;
+		bIsValid = false;
 	}
 
 	FString ToString() const;
 
+	bool bIsValid;
 };
 
 USTRUCT()
@@ -702,6 +705,7 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 		return WheelStatus[WheelIndex];
 	}
 
+	virtual float GetSuspensionOffset(int WheelIndex) override;
 
 	/** Set all channels to the specified response - for wheel raycasts */
 	void SetWheelTraceAllChannels(ECollisionResponse NewResponse)
