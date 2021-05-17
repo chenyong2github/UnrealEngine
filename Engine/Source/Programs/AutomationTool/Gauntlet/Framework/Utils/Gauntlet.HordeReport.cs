@@ -208,7 +208,18 @@ namespace Gauntlet
 				get { return TestDetailed.State; }
 				set { TestDetailed.State = value; }
 			}
+			public int Errors
+			{
+				get { return TestDetailed.Errors; }
+				set { TestDetailed.Errors = value; }
+			}
+			public int Warnings
+			{
+				get { return TestDetailed.Warnings; }
+				set { TestDetailed.Warnings = value; }
+			}
 			public string ArtifactName { get; set; }
+
 
 			private TestResultDetailed TestDetailed { get; set; }
 

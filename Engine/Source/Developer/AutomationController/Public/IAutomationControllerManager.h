@@ -369,16 +369,6 @@ public:
 
 	virtual FString GetReportOutputPath() const = 0;
 
-	virtual TArray<FString> GetCheckpointFileContents() = 0;
-
-	virtual FArchive* GetCheckpointFileForWrite() = 0;
-
-	virtual void CleanUpCheckpointFile() = 0;
-
-	virtual void WriteLoadedCheckpointDataToFile() = 0;
-
-	virtual void WriteLineToCheckpointFile(FString LineToWrite) = 0;
-
 	virtual void ResetAutomationTestTimeout(const TCHAR* Reason) = 0;
 	
 public:
