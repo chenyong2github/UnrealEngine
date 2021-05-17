@@ -209,19 +209,19 @@ void ADatasmithRuntimeActor::OnChangedElement(DirectLink::FSceneGraphId ElementI
 
 bool ADatasmithRuntimeActor::IsConnected()
 {
-	return DirectLinkHelper->IsConnected();
+	return DirectLinkHelper.IsValid() ? DirectLinkHelper->IsConnected() : false;
 }
 
 FString ADatasmithRuntimeActor::GetSourceName()
 {
-	return DirectLinkHelper->GetSourceName();
+	return DirectLinkHelper.IsValid() ? DirectLinkHelper->GetSourceName() : FString();
 }
 
 bool ADatasmithRuntimeActor::OpenConnectionWithIndex(int32 SourceIndex)
 {
 	using namespace DatasmithRuntime;
 
-	if (DirectLinkHelper->CanConnect())
+	if (DirectLinkHelper.IsValid() && DirectLinkHelper->CanConnect())
 	{
 		const TArray<FDatasmithRuntimeSourceInfo>& SourcesList = FDestinationProxy::GetListOfSources();
 
@@ -244,7 +244,7 @@ int32 ADatasmithRuntimeActor::GetSourceIndex()
 {
 	using namespace DatasmithRuntime;
 
-	if (DirectLinkHelper->IsConnected())
+	if (DirectLinkHelper.IsValid() && DirectLinkHelper->IsConnected())
 	{
 		const TArray<FDatasmithRuntimeSourceInfo>& SourcesList = FDestinationProxy::GetListOfSources();
 
@@ -262,7 +262,7 @@ int32 ADatasmithRuntimeActor::GetSourceIndex()
 
 void ADatasmithRuntimeActor::CloseConnection()
 {
-	if (DirectLinkHelper->IsConnected())
+	if (DirectLinkHelper.IsValid() && DirectLinkHelper->IsConnected())
 	{
 		DirectLinkHelper->CloseConnection();
 		Reset();
