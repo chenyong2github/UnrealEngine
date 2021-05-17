@@ -23,7 +23,7 @@
 class FDisplayClusterViewportConfigurationCameraViewport
 {
 public:
-	FDisplayClusterViewportConfigurationCameraViewport(const FTransform& InLocal2WorldTransform, FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, UCameraComponent* const InCameraComponent, const FString InCameraId, const UDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings)
+	FDisplayClusterViewportConfigurationCameraViewport(const FTransform& InLocal2WorldTransform, FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, UCameraComponent* const InCameraComponent, const FString InCameraId, const FDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings)
 		: ConfigurationICVFX(InConfigurationICVFX)
 		, CameraComponent(InCameraComponent)
 		, CameraId(InCameraId)
@@ -276,7 +276,7 @@ private:
 	UCameraComponent* const CameraComponent;
 	const FString CameraId;
 
-	const UDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings;
+	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings;
 
 	const FTransform Local2WorldTransform;
 };
@@ -290,15 +290,15 @@ class FDisplayClusterViewportConfigurationCameraICVFX
 public:
 	FDisplayClusterViewportConfigurationCameraICVFX(const FTransform& InLocal2WorldTransform, FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFX_CineCameraComponent* const InCameraComponent)
 		: ConfigurationICVFX(InConfigurationICVFX)
-		, CameraViewport(InLocal2WorldTransform, InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), *(InCameraComponent->GetCameraSettingsICVFX()))
-		, ChromakeySettings(DisplayClusterViewportConfigurationHelpers::GetCameraChromakeySettings(*(InCameraComponent->GetCameraSettingsICVFX()), ConfigurationICVFX.StageSettings))
+		, CameraViewport(InLocal2WorldTransform, InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), InCameraComponent->GetCameraSettingsICVFX())
+		, ChromakeySettings(DisplayClusterViewportConfigurationHelpers::GetCameraChromakeySettings(InCameraComponent->GetCameraSettingsICVFX(), ConfigurationICVFX.StageSettings))
 		, CameraMotionBlurParameters(InCameraComponent->GetMotionBlurParameters())
 	{}
 
 	FDisplayClusterViewportConfigurationCameraICVFX(const FTransform& InLocal2WorldTransform, class FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFX_RefCineCameraComponent* const InCameraComponent)
 		: ConfigurationICVFX(InConfigurationICVFX)
-		, CameraViewport(InLocal2WorldTransform, InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), *(InCameraComponent->GetCameraSettingsICVFX()))
-		, ChromakeySettings(DisplayClusterViewportConfigurationHelpers::GetCameraChromakeySettings(*(InCameraComponent->GetCameraSettingsICVFX()), ConfigurationICVFX.StageSettings))
+		, CameraViewport(InLocal2WorldTransform, InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), InCameraComponent->GetCameraSettingsICVFX())
+		, ChromakeySettings(DisplayClusterViewportConfigurationHelpers::GetCameraChromakeySettings(InCameraComponent->GetCameraSettingsICVFX(), ConfigurationICVFX.StageSettings))
 		, CameraMotionBlurParameters(InCameraComponent->GetMotionBlurParameters())
 	{}
 

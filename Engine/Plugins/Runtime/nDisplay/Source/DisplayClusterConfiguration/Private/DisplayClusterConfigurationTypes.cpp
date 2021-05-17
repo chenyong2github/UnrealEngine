@@ -131,7 +131,7 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 	Type = TEXT("simple");
 }
 
-UDisplayClusterConfigurationICVFX_CameraSettings::UDisplayClusterConfigurationICVFX_CameraSettings()
+FDisplayClusterConfigurationICVFX_CameraSettings::FDisplayClusterConfigurationICVFX_CameraSettings()
 {
 }
 

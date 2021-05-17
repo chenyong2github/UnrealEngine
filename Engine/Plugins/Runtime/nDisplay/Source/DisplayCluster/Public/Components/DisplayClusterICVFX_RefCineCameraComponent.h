@@ -23,8 +23,8 @@ public:
 	UDisplayClusterICVFX_RefCineCameraComponent(const FObjectInitializer& ObjectInitializer);
 
 public:
-	UPROPERTY(EditAnywhere, Category = "NDisplay ICVFX")
-	UDisplayClusterConfigurationICVFX_CameraSettings* IncameraSettings;
+	UPROPERTY(EditAnywhere, Category = "NDisplay ICVFX", meta = (ShowInnerProperties))
+	FDisplayClusterConfigurationICVFX_CameraSettings IncameraSettings;
 
 	UPROPERTY(EditAnywhere, Category = "NDisplay ICVFX")
 	TSoftObjectPtr<ACineCameraActor> CineCameraActor;
@@ -34,7 +34,7 @@ public:
 
 	bool IsShouldUseICVFX() const
 	{
-		return IsCineCameraActorValid() && IncameraSettings->bEnable;
+		return IsCineCameraActorValid() && IncameraSettings.bEnable;
 	}
 
 	// Return unique camera name
@@ -48,7 +48,7 @@ public:
 		return FString();
 	}
 
-	const UDisplayClusterConfigurationICVFX_CameraSettings* GetCameraSettingsICVFX() const
+	const FDisplayClusterConfigurationICVFX_CameraSettings& GetCameraSettingsICVFX() const
 	{
 		return IncameraSettings;
 	}

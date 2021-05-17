@@ -23,21 +23,21 @@ public:
 	UDisplayClusterICVFX_CineCameraComponent(const FObjectInitializer& ObjectInitializer);
 
 public:
-	UPROPERTY(EditAnywhere, Category = "NDisplay ICVFX")
-	UDisplayClusterConfigurationICVFX_CameraSettings* IncameraSettings;
+	UPROPERTY(EditAnywhere, Category = "NDisplay ICVFX", meta = (ShowInnerProperties))
+	FDisplayClusterConfigurationICVFX_CameraSettings IncameraSettings;
 
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
 
 	bool IsShouldUseICVFX() const
 	{
-		return IncameraSettings->bEnable;
+		return IncameraSettings.bEnable;
 	}
 
 	// Return unique camera name
 	FString GetCameraUniqueId() const;
 
-	const UDisplayClusterConfigurationICVFX_CameraSettings* GetCameraSettingsICVFX() const
+	const FDisplayClusterConfigurationICVFX_CameraSettings& GetCameraSettingsICVFX() const
 	{
 		return IncameraSettings;
 	}

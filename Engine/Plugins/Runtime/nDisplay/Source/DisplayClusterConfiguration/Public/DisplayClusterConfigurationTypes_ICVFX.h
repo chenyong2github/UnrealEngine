@@ -303,14 +303,13 @@ public:
 };
 
 
-UCLASS(ClassGroup = (DisplayClusterICVFX), meta = (BlueprintSpawnableComponent))
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationICVFX_CameraSettings
-	 : public UActorComponent
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraSettings
 {
 	GENERATED_BODY()
 
 public:
-	UDisplayClusterConfigurationICVFX_CameraSettings();
+	FDisplayClusterConfigurationICVFX_CameraSettings();
 
 public:
 	// Enable this camera
