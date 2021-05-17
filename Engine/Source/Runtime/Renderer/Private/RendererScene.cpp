@@ -279,6 +279,8 @@ FSceneViewState::~FSceneViewState()
 	DestroyRenderResource(AOScreenGridResources);
 	AOScreenGridResources = NULL;
 	DestroyLightPropagationVolume();
+
+	HairStrandsViewData.Release();
 }
 
 #if WITH_EDITOR
