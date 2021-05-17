@@ -204,9 +204,11 @@ public:
 	 * This is a thin wrapper around UObject::ProcessEvent
 	 * This expects that the caller has already validated the call as it will assert otherwise.
 	 * @param InCall the remote call structure to call.
+	 * @param InPayloadType the payload type archive.
+	 * @param InInterceptPayload the payload reference archive for the interception.
 	 * @return true if the call was allowed and done.
 	 */
-	virtual bool InvokeCall(FRCCall& InCall) = 0;
+	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) = 0;
 
 	/**
 	 * Resolve a remote object reference to a property

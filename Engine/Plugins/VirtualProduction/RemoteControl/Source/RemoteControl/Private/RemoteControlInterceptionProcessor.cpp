@@ -7,8 +7,8 @@
 #include "RemoteControlInterceptionHelpers.h"
 #include "Backends/CborStructDeserializerBackend.h"
 #include "Backends/JsonStructDeserializerBackend.h"
-#include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "StructDeserializer.h"
 #include "UObject/FieldPath.h"
 
 
@@ -63,5 +63,50 @@ void FRemoteControlInterceptionProcessor::ResetObjectProperties(FRCIObjectMetada
 	{
 		// Reset object property without replication
 		IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, false);
+	}
+}
+
+void FRemoteControlInterceptionProcessor::InvokeCall(FRCIFunctionMetadata& InFunction)
+{
+	// This is invoke on a final render node
+	UObject* LoadedObject = StaticLoadObject(UObject::StaticClass(), nullptr, *InFunction.ObjectPath, nullptr, LOAD_None, nullptr, true);
+	UFunction* LoadedFunction = Cast<UFunction>(StaticLoadObject(UObject::StaticClass(), nullptr, *InFunction.FunctionPath, nullptr, LOAD_None, nullptr, true));
+	
+	if (!ensure(LoadedObject) || !ensure(LoadedFunction))
+	{
+		return;
+	}
+
+	FStructOnScope FunctionArgs{ LoadedFunction };
+	
+	// Create the backend based on SerializationMethod
+	FMemoryReader BackendMemoryReader(InFunction.Payload);
+	TSharedPtr<IStructDeserializerBackend> StructDeserializerBackend = nullptr;
+	if (InFunction.PayloadType == ERCIPayloadType::Cbor)
+	{
+		StructDeserializerBackend = MakeShared<FCborStructDeserializerBackend>(BackendMemoryReader);
+	}
+	else if (InFunction.PayloadType == ERCIPayloadType::Json)
+	{
+		StructDeserializerBackend = MakeShared<FJsonStructDeserializerBackend>(BackendMemoryReader);
+	}
+	else
+	{
+		// It should never be the case
+		checkNoEntry();
+	}
+
+	if (FStructDeserializer::Deserialize(FunctionArgs.GetStructMemory(), *const_cast<UStruct*>(FunctionArgs.GetStruct()), *StructDeserializerBackend, FStructDeserializerPolicies()))
+	{
+		FRCCallReference CallRef;
+		CallRef.Object = LoadedObject;
+		CallRef.Function = LoadedFunction;
+		
+		FRCCall Call;
+		Call.CallRef = MoveTemp(CallRef);
+		Call.bGenerateTransaction = InFunction.bGenerateTransaction;
+		Call.ParamStruct = FStructOnScope(FunctionArgs.GetStruct(), FunctionArgs.GetStructMemory());
+
+		IRemoteControlModule::Get().InvokeCall(Call);
 	}
 }
