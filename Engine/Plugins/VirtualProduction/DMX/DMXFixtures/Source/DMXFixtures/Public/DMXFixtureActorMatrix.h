@@ -7,7 +7,7 @@
 #include "Rendering/Texture2DResource.h"
 #include "DMXFixtureActorMatrix.generated.h"
 
-UCLASS(HideCategories = ("Rendering", "Variable", "Input", "Tags", "Activation", "Cooking", "Replication", "AssetUserData", "Collision", "LOD", "Actor", "HLOD"))
+UCLASS()
 class DMXFIXTURES_API ADMXFixtureActorMatrix : public ADMXFixtureActor
 {
 	GENERATED_BODY()

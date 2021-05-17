@@ -578,7 +578,7 @@ void FDMXFixtureTypeSharedData::AddFunctionToSelectedMode()
 		ModeRef.FixtureType->Modify();
 
 		Mode.Functions.Add(NewFunction);
-		ModeRef.FixtureType->UpdateModeChannelProperties(Mode);
+		ModeRef.FixtureType->UpdateChannelSpan(Mode);
 
 		ModeRef.FixtureType->PostEditChange();
 
