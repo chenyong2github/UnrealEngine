@@ -3,6 +3,7 @@
 #include "RigVMCore/RigVM.h"
 #include "UObject/Package.h"
 #include "UObject/AnimObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "HAL/PlatformTLS.h"
 
 void FRigVMParameter::Serialize(FArchive& Ar)
@@ -97,6 +98,7 @@ URigVM::~URigVM()
 void URigVM::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
@@ -139,6 +141,12 @@ void URigVM::Load(FArchive& Ar)
 	Ar << FunctionNamesStorage;
 	Ar << ByteCodeStorage;
 	Ar << Parameters;
+
+	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
+	{
+		Reset();
+		return;
+	}
 
 	if (WorkMemoryStorage.bEncounteredErrorDuringLoad ||
 		LiteralMemoryStorage.bEncounteredErrorDuringLoad)
@@ -594,76 +602,7 @@ void URigVM::CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory
 				CacheSingleMemoryHandle(Op.Source);
 				CacheSingleMemoryHandle(Op.Target);
 
-				uint16 NumBytes = 0;
-				ERigVMRegisterType TargetType = ERigVMRegisterType::Invalid;
-				UScriptStruct* ScriptStruct = nullptr;
-
-				if (Op.Target.GetMemoryType() == ERigVMMemoryType::External)
-				{
-					ensure(ExternalVariables.IsValidIndex(Op.Target.GetRegisterIndex()));
-					const FRigVMExternalVariable& ExternalVariable = ExternalVariables[Op.Target.GetRegisterIndex()];
-
-					NumBytes = ExternalVariable.Size;
-					TargetType = ERigVMRegisterType::Plain;
-					if (UScriptStruct* ExternalScriptStruct = Cast<UScriptStruct>(ExternalVariable.TypeObject))	
-					{
-						TargetType = ERigVMRegisterType::Struct;
-						ScriptStruct = ExternalScriptStruct;
-					}
-					else if (ExternalVariable.TypeName == TEXT("FString"))
-					{
-						TargetType = ERigVMRegisterType::String;
-					}
-					else if (ExternalVariable.TypeName == TEXT("FName"))
-					{
-						TargetType = ERigVMRegisterType::Name;
-					}
-				}
-				else
-				{
-					const FRigVMRegister& TargetRegister = CachedMemory[Op.Target.GetContainerIndex()]->Registers[Op.Target.GetRegisterIndex()];
-					NumBytes = TargetRegister.GetNumBytesPerSlice();
-
-					TargetType = TargetRegister.Type;
-
-					if (Op.Target.GetRegisterOffset() == INDEX_NONE)
-					{
-						if (TargetRegister.IsArray())
-						{
-							const FRigVMRegister& SourceRegister = CachedMemory[Op.Source.GetContainerIndex()]->Registers[Op.Source.GetRegisterIndex()];
-							if (!SourceRegister.IsArray())
-							{
-								if (Op.Source.GetRegisterOffset() == INDEX_NONE)
-								{
-									NumBytes = TargetRegister.ElementSize;
-								}
-								else
-								{
-									const FRigVMRegisterOffset& SourceOffset = CachedMemory[Op.Source.GetContainerIndex()]->RegisterOffsets[Op.Source.GetRegisterOffset()];
-									if (SourceOffset.GetCPPType() != TEXT("TArray"))
-									{
-										NumBytes = SourceOffset.GetElementSize();
-									}
-								}
-							}
-						}
-					}
-					else
-					{
-						TargetType = CachedMemory[Op.Target.GetContainerIndex()]->RegisterOffsets[Op.Target.GetRegisterOffset()].GetType();
-						NumBytes = CachedMemory[Op.Target.GetContainerIndex()]->RegisterOffsets[Op.Target.GetRegisterOffset()].GetElementSize();
-					}
-
-					if (TargetType == ERigVMRegisterType::Struct)
-					{
-						ScriptStruct = CachedMemory[Op.Target.GetContainerIndex()]->GetScriptStruct(Op.Target.GetRegisterIndex(), Op.Target.GetRegisterOffset());
-					}
-				}
-
-				CachedMemoryHandles.Add(FRigVMMemoryHandle((uint8*)reinterpret_cast<void*>(NumBytes)));
-				CachedMemoryHandles.Add(FRigVMMemoryHandle((uint8*)reinterpret_cast<void*>((uint16)TargetType)));
-
-				if (TargetType == ERigVMRegisterType::Struct)
+				if (UScriptStruct* ScriptStruct = GetScriptStructForCopyOp(Op))
 				{
 					CachedMemoryHandles.Add(FRigVMMemoryHandle((uint8*)ScriptStruct));
 				}
@@ -1052,8 +991,7 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 				void* SourcePtr = SourceHandle;
 				void* TargetPtr = TargetHandle;
 
-				uint64 NumBytes = reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData());
-				ERigVMRegisterType MemoryType = (ERigVMRegisterType)reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3].GetData());
+				const uint64 NumBytes = (uint64)Op.NumBytes;
 
 				if (TargetHandle.Type == FRigVMMemoryHandle::Dynamic)
 				{
@@ -1077,7 +1015,7 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 					TargetPtr = (*Storage)[ArrayIndex].GetData();
 				}
 
-				switch (MemoryType)
+				switch (Op.RegisterType)
 				{
 					case ERigVMRegisterType::Plain:
 					{
@@ -1108,7 +1046,7 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 					}
 					case ERigVMRegisterType::Struct:
 					{
-						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4].GetData();
+						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData();
 						int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
 						if (NumStructs > 0 && TargetPtr)
 						{
@@ -1360,8 +1298,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 				void* SourcePtr = SourceHandle;
 				void* TargetPtr = TargetHandle;
 
-				const uint64 NumBytes = reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData());
-				const ERigVMRegisterType MemoryType = (ERigVMRegisterType)reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3].GetData());
+				const uint64 NumBytes = (uint64)Op.NumBytes;
 
 				if (TargetHandle.Type == FRigVMMemoryHandle::Dynamic)
 				{
@@ -1385,7 +1322,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					TargetPtr = (*Storage)[ArrayIndex].GetData();
 				}
 
-				switch (MemoryType)
+				switch (Op.RegisterType)
 				{
 					case ERigVMRegisterType::Plain:
 					{
@@ -1416,7 +1353,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					}
 					case ERigVMRegisterType::Struct:
 					{
-						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4].GetData();
+						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData();
 						const int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
 						if (NumStructs > 0 && TargetPtr)
 						{
@@ -2154,3 +2091,95 @@ void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigV
 	
 #endif
 }
+
+FRigVMCopyOp URigVM::GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
+{
+	TPair<ERigVMRegisterType, uint16> SourceCopyInfo = GetCopyInfoForOperand(InSource);
+	TPair<ERigVMRegisterType, uint16> TargetCopyInfo = GetCopyInfoForOperand(InTarget);
+
+	check(SourceCopyInfo.Key != ERigVMRegisterType::Invalid);
+	check(SourceCopyInfo.Value > 0);
+	check(TargetCopyInfo.Key != ERigVMRegisterType::Invalid);
+	check(TargetCopyInfo.Value > 0);
+	//check(SourceCopyInfo.Value == TargetCopyInfo.Value);
+
+	return FRigVMCopyOp(InSource, InTarget, TargetCopyInfo.Value, TargetCopyInfo.Key);
+}
+
+TPair<ERigVMRegisterType, uint16> URigVM::GetCopyInfoForOperand(const FRigVMOperand& InOperand)
+{
+	if(CachedMemory.IsEmpty())
+	{
+		CachedMemory.Add(WorkMemoryPtr);
+		CachedMemory.Add(LiteralMemoryPtr);
+		CachedMemory.Add(DebugMemoryPtr);
+	}
+	
+	ERigVMRegisterType RegisterType = ERigVMRegisterType::Invalid;
+	uint16 NumBytesToCopy = 0;
+
+	if (InOperand.GetRegisterOffset() != INDEX_NONE)
+	{
+		const FRigVMRegisterOffset& RegisterOffset = CachedMemory[InOperand.GetContainerIndex()]->RegisterOffsets[InOperand.GetRegisterOffset()];
+		RegisterType = RegisterOffset.GetType();
+		NumBytesToCopy = RegisterOffset.GetElementSize();
+	}
+	else if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
+	{
+		ensure(ExternalVariables.IsValidIndex(InOperand.GetRegisterIndex()));
+		const FRigVMExternalVariable& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
+
+		NumBytesToCopy = ExternalVariable.Size;
+		RegisterType = ERigVMRegisterType::Plain;
+		
+		if (UScriptStruct* ExternalScriptStruct = Cast<UScriptStruct>(ExternalVariable.TypeObject))	
+		{
+			RegisterType = ERigVMRegisterType::Struct;
+		}
+		else if (ExternalVariable.TypeName == TEXT("FString"))
+		{
+			RegisterType = ERigVMRegisterType::String;
+		}
+		else if (ExternalVariable.TypeName == TEXT("FName"))
+		{
+			RegisterType = ERigVMRegisterType::Name;
+		}
+	}
+	else
+	{
+		const FRigVMRegister& Register = CachedMemory[InOperand.GetContainerIndex()]->Registers[InOperand.GetRegisterIndex()];
+
+		RegisterType = Register.Type;
+		NumBytesToCopy = Register.GetNumBytesPerSlice();
+	}
+
+	return TPair<ERigVMRegisterType, uint16>(RegisterType, NumBytesToCopy); 
+}
+
+UScriptStruct* URigVM::GetScriptStructForCopyOp(const FRigVMCopyOp& InCopyOp) const
+{
+	UScriptStruct* SourceScriptStruct = GetScripStructForOperand(InCopyOp.Source);
+#if WITH_EDITOR
+	UScriptStruct* TargetScriptStruct = GetScripStructForOperand(InCopyOp.Target);
+	check(SourceScriptStruct == TargetScriptStruct);
+#endif
+	return SourceScriptStruct;
+}
+
+UScriptStruct* URigVM::GetScripStructForOperand(const FRigVMOperand& InOperand) const
+{
+	if(InOperand.GetRegisterOffset() != INDEX_NONE)
+	{
+		const FRigVMRegisterOffset& RegisterOffset = CachedMemory[InOperand.GetContainerIndex()]->RegisterOffsets[InOperand.GetRegisterOffset()];
+		return RegisterOffset.GetScriptStruct();
+	}
+
+	if(InOperand.GetMemoryType() == ERigVMMemoryType::External)
+	{
+		const FRigVMExternalVariable& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
+		return Cast<UScriptStruct>(ExternalVariable.TypeObject);
+	}
+
+	return CachedMemory[InOperand.GetContainerIndex()]->GetScriptStruct(InOperand.GetRegisterIndex());
+}
+

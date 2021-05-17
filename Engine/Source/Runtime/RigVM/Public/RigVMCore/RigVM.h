@@ -622,6 +622,11 @@ private:
 
 	void CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand);
 
+	FRigVMCopyOp GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget);
+	TPair<ERigVMRegisterType, uint16> GetCopyInfoForOperand(const FRigVMOperand& InOperand);
+	UScriptStruct* GetScriptStructForCopyOp(const FRigVMCopyOp& InCopyOp) const;
+	UScriptStruct* GetScripStructForOperand(const FRigVMOperand& InOperand) const;
+	
 	TMap<FRigVMOperand, TArray<FRigVMOperand>> OperandToDebugRegisters;
 
 	int32 ExecutingThreadId;
