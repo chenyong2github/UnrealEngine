@@ -52,19 +52,21 @@ public:
 	virtual void Serialize( FArchive& Ar ) override;
 
 private:
-	UPROPERTY(transient, VisibleAnywhere, Category="Assets")
+	UPROPERTY( Transient, VisibleAnywhere, Category = "Assets" )
 	TMap< FString, UObject* > TransientStorage;
 
-	UPROPERTY(VisibleAnywhere, Category="Assets")
+	UPROPERTY( VisibleAnywhere, Category = "Assets" )
 	TMap< FString, UObject* > PersistentStorage;
 
-	UPROPERTY(EditAnywhere, Category="Assets", AdvancedDisplay)
+	UPROPERTY( EditAnywhere, Category = "Assets", AdvancedDisplay )
 	bool bAllowPersistentStorage;
 
 	// Points to the assets in primary storage, used to quickly check if we own an asset
+	UPROPERTY()
 	TSet< UObject* > OwnedAssets;
 
 	// Keeps associations from prim paths to assets that we own in primary storage
+	UPROPERTY()
     TMap< FString, UObject* > PrimPathToAssets;
 
 	// Assets that were added/retrieved since the last call to MarkAssetsAsSlate();
