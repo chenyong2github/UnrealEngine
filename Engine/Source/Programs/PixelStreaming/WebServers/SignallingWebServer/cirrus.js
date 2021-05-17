@@ -350,7 +350,7 @@ playerServer.on('connection', function (ws, req) {
 		return;
 	}
 
-	let playerId = ++nextPlayerId;
+	let playerId = (++nextPlayerId).toString();
 	console.log(`player ${playerId} (${req.connection.remoteAddress}) connected`);
 	players.set(playerId, { ws: ws, id: playerId });
 

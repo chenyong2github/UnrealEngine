@@ -155,14 +155,14 @@ void FPixelStreamingVideoEncoder::SetQualityController(bool bControlsQualityNow)
 {
 	if (bControlsQuality != bControlsQualityNow)
 	{
-		UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%d, controls quality %d"), TEXT("FVideoEncoder::SetQualityController"), this->PlayerId, bControlsQualityNow);
+		UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%s, controls quality %d"), TEXT("FVideoEncoder::SetQualityController"), *this->PlayerId, bControlsQualityNow);
 		bControlsQuality = bControlsQualityNow;
 	}
 }
 
 int FPixelStreamingVideoEncoder::InitEncode(const VideoCodec* codec_settings, const VideoEncoder::Settings& settings)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming video encoder initialise for PlayerId=%d"), this->GetPlayerId());
+	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming video encoder initialise for PlayerId=%s"), *this->GetPlayerId());
 
 	if (!bControlsQuality)
 		return WEBRTC_VIDEO_CODEC_OK;
@@ -182,7 +182,7 @@ int FPixelStreamingVideoEncoder::InitEncode(const VideoCodec* codec_settings, co
 
 int32 FPixelStreamingVideoEncoder::RegisterEncodeCompleteCallback(EncodedImageCallback* callback)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming video encoder callback registered for PlayerId=%d"), this->GetPlayerId());
+	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming video encoder callback registered for PlayerId=%s"), *this->GetPlayerId());
 	OnEncodedImageCallback = callback;
 	// Encoder is initialised, add it as active encoder to factory.
 	return WEBRTC_VIDEO_CODEC_OK;
@@ -190,7 +190,7 @@ int32 FPixelStreamingVideoEncoder::RegisterEncodeCompleteCallback(EncodedImageCa
 
 int32 FPixelStreamingVideoEncoder::Release()
 {
-	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming video encoder released for PlayerId=%d"), this->GetPlayerId());
+	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming video encoder released for PlayerId=%s"), *this->GetPlayerId());
 	OnEncodedImageCallback = nullptr;
 	return WEBRTC_VIDEO_CODEC_OK;
 }

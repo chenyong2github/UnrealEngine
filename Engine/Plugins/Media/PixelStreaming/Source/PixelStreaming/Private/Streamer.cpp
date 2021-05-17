@@ -41,8 +41,8 @@ bool FStreamer::CheckPlatformCompatibility()
 	return AVEncoder::FVideoEncoderFactory::Get().HasEncoderForCodec(AVEncoder::ECodecType::H264);
 }
 
-FStreamer::FStreamer(const FString& InSignallingServerUrl)
-	: SignallingServerUrl(InSignallingServerUrl)
+FStreamer::FStreamer(const FString& InSignallingServerUrl, const FString& InStreamerId)
+	: SignallingServerUrl(InSignallingServerUrl), StreamerId(InStreamerId)
 {
 	RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity::LS_VERBOSE);
 
@@ -171,7 +171,7 @@ void FStreamer::WebRtcSignallingThreadFunc()
 
 void FStreamer::ConnectToSignallingServer()
 {
-	SignallingServerConnection = MakeUnique<FSignallingServerConnection>(SignallingServerUrl, *this);
+	SignallingServerConnection = MakeUnique<FSignallingServerConnection>(SignallingServerUrl, *this, StreamerId);
 }
 
 void FStreamer::OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer)
@@ -192,7 +192,7 @@ void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptio
 	AddStreams(PlayerId);
 
 	FPlayerSession* Player = GetPlayerSession(PlayerId);
-	checkf(Player, TEXT("just created player %d not found"), PlayerId);
+	checkf(Player, TEXT("just created player %s not found"), *PlayerId);
 
 	Player->OnOffer(MoveTemp(Sdp));
 
@@ -206,13 +206,13 @@ void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptio
 void FStreamer::OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate)
 {
 	FPlayerSession* Player = GetPlayerSession(PlayerId);
-	checkf(Player, TEXT("player %u not found"), PlayerId);
+	checkf(Player, TEXT("player %s not found"), *PlayerId);
 	Player->OnRemoteIceCandidate(MoveTemp(Candidate));
 }
 
 void FStreamer::OnPlayerDisconnected(FPlayerId PlayerId)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("player %d disconnected"), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("player %s disconnected"), *PlayerId);
 	DeletePlayerSession(PlayerId);
 }
 
@@ -254,7 +254,7 @@ void FStreamer::CreatePlayerSession(FPlayerId PlayerId)
 		}
 	}
 
-	UE_LOG(PixelStreamer, Log, TEXT("Creating player session for PlayerId=%d"), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("Creating player session for PlayerId=%s"), *PlayerId);
 	
 	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
 	bool bOriginalQualityController = Players.Num() == 0; // first player controls quality by default
@@ -274,7 +274,7 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 	FPlayerSession* Player = GetPlayerSession(PlayerId);
 	if (!Player)
 	{
-		UE_LOG(PixelStreamer, VeryVerbose, TEXT("failed to delete player %d: not found"), PlayerId);
+		UE_LOG(PixelStreamer, VeryVerbose, TEXT("failed to delete player %s: not found"), *PlayerId);
 		return;
 	}
 
@@ -309,8 +309,8 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 void FStreamer::AddStreams(FPlayerId PlayerId)
 {
 	FString const StreamId = TEXT("stream_id");
-	FString const AudioLabel = FString::Printf(TEXT("audio_label_%d"), PlayerId);
-	FString const VideoLabel= FString::Printf(TEXT("video_label_%d"), PlayerId);
+	FString const AudioLabel = FString::Printf(TEXT("audio_label_%s"), *PlayerId);
+	FString const VideoLabel= FString::Printf(TEXT("video_label_%s"), *PlayerId);
 
 	FPlayerSession* Session = GetPlayerSession(PlayerId);
 	check(Session);
@@ -337,8 +337,8 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 	{
 		UE_LOG(PixelStreamer,
 			   Error,
-			   TEXT("Failed to add AudioTrack to PeerConnection of player %u. Msg=%s"),
-			   Session->GetPlayerId(),
+			   TEXT("Failed to add AudioTrack to PeerConnection of player %s. Msg=%s"),
+			   *Session->GetPlayerId(),
 			   TCHAR_TO_UTF8(addAudioTrackResult.error().message()));
 	}
 
@@ -347,8 +347,8 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 	{
 		UE_LOG(PixelStreamer,
 			   Error,
-			   TEXT("Failed to add VideoTrack to PeerConnection of player %u. Msg=%s"),
-			   Session->GetPlayerId(),
+			   TEXT("Failed to add VideoTrack to PeerConnection of player %s. Msg=%s"),
+			   *Session->GetPlayerId(),
 				TCHAR_TO_UTF8(addVideoTrackResult.error().message()));
 	}
 	else
@@ -370,7 +370,7 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 
 void FStreamer::OnQualityOwnership(FPlayerId PlayerId)
 {
-	checkf(GetPlayerSession(PlayerId), TEXT("player %d not found"), PlayerId);
+	checkf(GetPlayerSession(PlayerId), TEXT("player %s not found"), *PlayerId);
 	{
 		FScopeLock PlayersLock(&PlayersCS);
 		for (auto&& PlayerEntry : Players)
@@ -412,7 +412,7 @@ void FStreamer::SendCachedFreezeFrameTo(FPlayerSession& Player)
 {
 	if (CachedJpegBytes.Num() > 0)
 	{
-		UE_LOG(PixelStreamer, Log, TEXT("Sending cached freeze frame to player %d: %d bytes"), Player.GetPlayerId(), CachedJpegBytes.Num());
+		UE_LOG(PixelStreamer, Log, TEXT("Sending cached freeze frame to player %s: %d bytes"), *Player.GetPlayerId(), CachedJpegBytes.Num());
 		Player.SendFreezeFrame(CachedJpegBytes);
 	}
 }
