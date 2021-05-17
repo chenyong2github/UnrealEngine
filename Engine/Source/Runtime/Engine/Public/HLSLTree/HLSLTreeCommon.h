@@ -386,6 +386,7 @@ public:
 class FStatementFor : public FStatement
 {
 public:
+	FLocalDeclaration* LoopControlDeclaration;
 	FExpression* StartExpression;
 	FExpression* EndExpression;
 	FScope* LoopScope;
@@ -395,6 +396,7 @@ public:
 		const ENodeVisitResult Result = FStatement::Visit(Visitor);
 		if (ShouldVisitDependentNodes(Result))
 		{
+			Visitor.VisitNode(LoopControlDeclaration);
 			Visitor.VisitNode(StartExpression);
 			Visitor.VisitNode(EndExpression);
 			Visitor.VisitNode(LoopScope);

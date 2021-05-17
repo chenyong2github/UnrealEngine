@@ -550,5 +550,22 @@ bool UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context, FCodeWriter& Ou
 
 bool UE::HLSLTree::FStatementFor::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
 {
-	return false;
+	const FEmitValue* DeclarationValue = Context.AcquireValue(LoopControlDeclaration);
+	const FEmitValue* StartExpressionValue = Context.AcquireValue(StartExpression);
+	const FEmitValue* EndExpressionValue = Context.AcquireValue(StartExpression);
+	if (!DeclarationValue || !StartExpressionValue || !EndExpressionValue)
+	{
+		return false;
+	}
+
+	const TCHAR* DeclarationCode = Context.GetCode(DeclarationValue);
+
+	OutWriter.WriteLinef(TEXT("for (%s = %s; %s < %s; %s++"),
+		DeclarationCode,
+		Context.GetCode(StartExpressionValue),
+		DeclarationCode,
+		Context.GetCode(EndExpressionValue),
+		DeclarationCode);
+	LoopScope->EmitHLSL(Context, OutWriter);
+	return true;
 }

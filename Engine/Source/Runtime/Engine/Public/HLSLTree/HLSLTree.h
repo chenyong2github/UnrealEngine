@@ -334,15 +334,12 @@ public:
 	void UseDeclaration(FLocalDeclaration* Declaration);
 	void UseFunctionCall(FFunctionCall* FunctionCall);
 	void UseExpression(FExpression* Expression);
-	bool TryMoveStatement(FStatement* Statement);
-
 private:
 	friend class FTree;
 	friend class FNodeVisitor_MoveToScope;
 
 	void UseNode(FNode* Node);
 
-	FScope* LinkedScope = nullptr;
 	FStatement* FirstStatement = nullptr;
 	FStatement* LastStatement = nullptr;
 	int32 NestedLevel = 0;
@@ -377,19 +374,6 @@ public:
 	}
 
 	FScope* NewScope(FScope& Scope);
-
-	/**
-	 * 2 scopes may be linked if they are both logically part of the same control structure (an 'if' scope and an 'else' scope are linked for example)
-	 * Linked scopes always share the same parent scope
-	 * Attempting to move a statement from a scope to its linked scope will instead move that statement into the parent scope
-	 * When translating node graphs, a chain of statements may be generated when translating an 'if' scope for example
-	 * Then when translating the 'else' scope, the flow may eventually hit a statement that was previously translated from the 'if' scope
-	 * At this point, that statement connected to both 'if' and 'else' scope should become the next statement after the if/else block,
-	 * which means it should be moved to the parent scope (the scope that contains the linked if/else scopes)
-	 * It's not clear if this pattern will be useful outside if/else block
-	 */
-	FScope* NewLinkedScope(FScope& Scope);
-	
 	FLocalDeclaration* NewLocalDeclaration(FScope& Scope, Shader::EValueType Type, const FName& Name);
 	FParameterDeclaration* NewParameterDeclaration(FScope& Scope, const FName& Name, const Shader::FValue& DefaultValue);
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(FScope& Scope, const FName& Name, const FTextureDescription& DefaultValue);

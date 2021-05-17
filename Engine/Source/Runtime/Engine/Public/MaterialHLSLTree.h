@@ -27,9 +27,9 @@ class FMaterialHLSLTree
 public:
 	FMaterialHLSLTree();
 
-	void InitializeForMaterial(const FMaterialCompileTargetParameters& InCompilerTarget, FMaterial& InOutMaterial);
+	bool InitializeForMaterial(const FMaterialCompileTargetParameters& InCompilerTarget, FMaterial& InOutMaterial);
 
-	void InitializeForFunction(const FMaterialCompileTargetParameters& InCompilerTarget, UMaterialFunctionInterface* InOutFunction);
+	bool InitializeForFunction(const FMaterialCompileTargetParameters& InCompilerTarget, UMaterialFunctionInterface* InOutFunction);
 
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
 	int32 GetNumFunctionInputs() const { return NumFunctionInputs; }

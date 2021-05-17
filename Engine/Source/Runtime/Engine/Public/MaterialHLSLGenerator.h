@@ -50,9 +50,7 @@ public:
 
 	const FMaterialCompileTargetParameters& GetCompileTarget() const { return CompileTarget; }
 
-	//bool GenerateHLSL(FMaterial& InMaterial,
-	//	FMaterialCompilationOutput& OutCompilationOutput,
-	//	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
+	bool Finalize();
 
 	/** Retrieve the compile errors from the generator */
 	void AcquireErrors(TArray<FString>& OutCompileErrors, TArray<UMaterialExpression*>& OutErrorExpressions);
@@ -67,7 +65,7 @@ public:
 
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
 
-	UE::HLSLTree::FStatement* NewResult(UE::HLSLTree::FScope& Scope);
+	bool GenerateResult(UE::HLSLTree::FScope& Scope);
 
 	UE::HLSLTree::FExpressionConstant* NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value);
 	UE::HLSLTree::FExpressionExternalInput* NewTexCoord(UE::HLSLTree::FScope& Scope, int32 Index);
@@ -94,7 +92,7 @@ public:
 	 */
 	UE::HLSLTree::FExpression* AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureDeclaration(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
-	UE::HLSLTree::FStatement* AcquireStatement(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
+	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
 
 private:
 	struct FExpressionKey
@@ -131,6 +129,11 @@ private:
 		}
 	};
 
+	struct FStatementEntry
+	{
+		int32 NumInputs = 0;
+	};
+
 	const FMaterialCompileTargetParameters& CompileTarget;
 	UMaterial* TargetMaterial;
 	UMaterialFunctionInterface* TargetMaterialFunction;
@@ -145,7 +148,7 @@ private:
 	TMap<FName, UE::HLSLTree::FTextureParameterDeclaration*> TextureParameterDeclarationMap;
 	TMap<FFunctionCallKey, UE::HLSLTree::FFunctionCall*> FunctionCallMap;
 	TMap<FExpressionKey, UE::HLSLTree::FExpression*> ExpressionMap;
-	TMap<UMaterialExpression*, UE::HLSLTree::FStatement*> StatementMap;
+	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
 	bool bGeneratedResult;
 };
 

@@ -16,7 +16,7 @@ FMaterialHLSLTree::FMaterialHLSLTree()
 {
 }
 
-void FMaterialHLSLTree::InitializeForMaterial(const FMaterialCompileTargetParameters& InCompilerTarget, FMaterial& InOutMaterial)
+bool FMaterialHLSLTree::InitializeForMaterial(const FMaterialCompileTargetParameters& InCompilerTarget, FMaterial& InOutMaterial)
 {
 	UMaterialInterface* MaterialInterface = InOutMaterial.GetMaterialInterface();
 	UMaterial* BaseMaterial = MaterialInterface->GetMaterial();
@@ -25,20 +25,28 @@ void FMaterialHLSLTree::InitializeForMaterial(const FMaterialCompileTargetParame
 	FMaterialHLSLGenerator Generator(BaseMaterial, InCompilerTarget, *HLSLTree);
 	UE::HLSLTree::FScope& RootScope = HLSLTree->GetRootScope();
 
+	bool bResult = false;
 	if (BaseMaterial->IsCompiledWithExecutionFlow())
 	{
 		UMaterialExpression* BaseExpression = BaseMaterial->ExpressionExecBegin;
-		Generator.AcquireStatement(RootScope, BaseExpression);
+		bResult = Generator.GenerateStatements(RootScope, BaseExpression);
 	}
 	else
 	{
-		Generator.NewResult(RootScope);
+		bResult = Generator.GenerateResult(RootScope);
+	}
+
+	if (!Generator.Finalize())
+	{
+		bResult = false;
 	}
 
 	Generator.AcquireErrors(InOutMaterial.CompileErrors, InOutMaterial.ErrorExpressions);
+
+	return bResult;
 }
 
-void FMaterialHLSLTree::InitializeForFunction(const FMaterialCompileTargetParameters& InCompilerTarget, UMaterialFunctionInterface* InOutFunction)
+bool FMaterialHLSLTree::InitializeForFunction(const FMaterialCompileTargetParameters& InCompilerTarget, UMaterialFunctionInterface* InOutFunction)
 {
 	TArray<FFunctionExpressionInput> FunctionInputs;
 	TArray<FFunctionExpressionOutput> FunctionOutputs;
@@ -64,6 +72,8 @@ void FMaterialHLSLTree::InitializeForFunction(const FMaterialCompileTargetParame
 		UMaterialExpressionFunctionOutput* ExpressionOutput = Output.ExpressionOutput;
 		FunctionOutputExpressions[OutputIndex] = ExpressionOutput->A.AcquireHLSLExpression(Generator, RootScope);
 	}
+
+	return Generator.Finalize();
 }
 
 UE::HLSLTree::FFunctionCall* FMaterialHLSLTree::GenerateFunctionCall(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, TArrayView<UE::HLSLTree::FExpression*> Inputs) const
