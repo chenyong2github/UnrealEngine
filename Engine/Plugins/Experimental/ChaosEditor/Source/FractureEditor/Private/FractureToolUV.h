@@ -62,6 +62,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	bool bPromptToSave = true;
 
+	/** Whether to allow the new texture to overwrite an existing texture */
+	UPROPERTY(EditAnywhere, Category = MapSettings)
+	bool bReplaceExisting = true;
+
 	/** Which standard set of texture channels to bake */
 	UPROPERTY(EditAnywhere, Category = AttributesToBake)
 	ETextureType BakeTextureType = ETextureType::ThicknessAndSurfaceAttributes;
@@ -161,5 +165,5 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureAutoUVSettings> AutoUVSettings;
 
-	bool SaveGeneratedTexture(UTexture2D* GeneratedTexture, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave);
+	bool SaveGeneratedTexture(UTexture2D* GeneratedTexture, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bAllowReplace);
 };
