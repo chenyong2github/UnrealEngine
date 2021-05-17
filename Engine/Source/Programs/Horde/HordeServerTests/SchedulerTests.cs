@@ -46,7 +46,7 @@ namespace HordeServerTests
 			Stream = TestSetup.StreamCollection.GetAsync(StreamId).Result!;
 			if (Stream == null)
 			{
-				Stream = TestSetup.StreamService.TryCreateStreamAsync(new StreamId("ue5-main"), "//UE5/Main", Project!.Id).Result!;
+				Stream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), null, "", Project!.Id, new StreamConfig { Name = "//UE5/Main" }).Result!;
 			}
 
 			InitialJobIds = new HashSet<ObjectId>(TestSetup.JobCollection.FindAsync().Result.Select(x => x.Id));

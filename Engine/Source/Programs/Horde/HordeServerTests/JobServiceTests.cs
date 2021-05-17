@@ -23,8 +23,9 @@ namespace HordeServerTests
 		public async Task TestChainedJobs()
 		{
 			TestSetup TestSetup = await GetTestSetup();
-			
-			IProject? Project = await TestSetup.ProjectService.TryCreateProjectAsync(new ProjectId("ue5"), "UE5", null, null, null);
+
+			ProjectId ProjectId = new ProjectId("ue5");
+			IProject? Project = await TestSetup.ProjectService.TryCreateProjectAsync(ProjectId, "UE5", null, null, null);
 			Assert.IsNotNull(Project);
 
 			ITemplate Template = await TestSetup.TemplateService.CreateTemplateAsync("Test template", null, false, null, null, new List<TemplateCounter>(), new List<string>(), new List<Parameter>());
@@ -32,26 +33,17 @@ namespace HordeServerTests
 
 			TemplateRefId TemplateRefId1 = new TemplateRefId("template1");
 			TemplateRefId TemplateRefId2 = new TemplateRefId("template2");
-			TemplateRef TemplateRef1 = new TemplateRef(Template, Triggers: new List<ChainedJobTemplate> { new ChainedJobTemplate("Setup Build", TemplateRefId2) });
-			TemplateRef TemplateRef2 = new TemplateRef(Template);
 
-			Dictionary<TemplateRefId, TemplateRef> TemplateRefs = new Dictionary<TemplateRefId, TemplateRef>
-			{
-				{ TemplateRefId1, TemplateRef1 },
-				{ TemplateRefId2, TemplateRef2 }
-			};
-
-			List<StreamTab> Tabs = new List<StreamTab>();
-			Tabs.Add(new JobsTab("foo", true, new List<TemplateRefId> { TemplateRefId1, TemplateRefId2 }, new List<string>(), new List<JobsTabColumn>()));
+			StreamConfig StreamConfig = new StreamConfig();
+			StreamConfig.Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId1.ToString(), Name = "Test Template", ChainedJobs = new List<CreateChainedJobTemplateRequest> { new CreateChainedJobTemplateRequest { TemplateId = TemplateRefId2.ToString(), Trigger = "Setup Build" } } });
+			StreamConfig.Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId2.ToString(), Name = "Test Template" });
+			StreamConfig.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId1.ToString(), TemplateRefId2.ToString() } });
 
 			StreamId StreamId = new StreamId("ue5-main");
-			await TestSetup.StreamService.TryCreateStreamAsync(new StreamId("ue5-main"), "//UE5/Main", Project!.Id);
-
 			IStream? Stream = await TestSetup.StreamService.GetStreamAsync(StreamId);
-			Assert.IsNotNull(Stream);
-			await TestSetup.StreamService.UpdateStreamAsync(Stream, NewTabs: Tabs, NewTemplateRefs: TemplateRefs);
+			Stream = await TestSetup.StreamService.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), Stream, String.Empty, ProjectId, StreamConfig);
 
-			IJob Job = await TestSetup.JobService.CreateJobAsync(null, Stream!.Id, TemplateRefId1, Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, "joe", null, null, TemplateRef1.ChainedJobs, true, true, null, null, null, Template.Counters, new List<string>());
+			IJob Job = await TestSetup.JobService.CreateJobAsync(null, Stream!.Id, TemplateRefId1, Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, "joe", null, null, Stream.Templates[TemplateRefId1].ChainedJobs, true, true, null, null, null, Template.Counters, new List<string>());
 			Assert.AreEqual(1, Job.ChainedJobs.Count);
 
 			Assert.IsTrue(await TestSetup.JobService.UpdateBatchAsync(Job, Job.Batches[0].Id, ObjectId.GenerateNewId(), JobStepBatchState.Running));
@@ -159,7 +151,7 @@ namespace HordeServerTests
 			Assert.IsNotNull(Project);
 
 			StreamId StreamId = new StreamId("ue5-main");
-			await TestSetup.StreamService.TryCreateStreamAsync(new StreamId("ue5-main"), "//UE5/Main", Project!.Id);
+			await TestSetup.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), null, "", Project!.Id, new StreamConfig { Name = "//UE5/Main" });
 
 			ITemplate Template = await TestSetup.TemplateService.CreateTemplateAsync("Test template", null, false, null, null, new List<TemplateCounter>(), new List<string>(), new List<Parameter>());
 			IGraph Graph = await TestSetup.GraphCollection.AddAsync(Template);
