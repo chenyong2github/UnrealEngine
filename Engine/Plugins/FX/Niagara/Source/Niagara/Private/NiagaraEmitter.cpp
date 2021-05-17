@@ -565,9 +565,17 @@ void UNiagaraEmitter::PostLoad()
 	}
 
 	EnsureScriptsPostLoaded();
+
+	FGraphEventArray ParentPrerequisiteTasks;
+#if WITH_EDITORONLY_DATA
+	if (Parent != nullptr && Parent->UpdateTaskRef.IsValid())
+	{
+		ParentPrerequisiteTasks.Add(Parent->UpdateTaskRef);
+	}
+#endif
 	
 	// we are not yet finished, but we do the rest of the work after postload in a separate task
-	UpdateTaskRef = TGraphTask<FNiagaraEmitterUpdateTask>::CreateTask().ConstructAndDispatchWhenReady(this);
+	UpdateTaskRef = TGraphTask<FNiagaraEmitterUpdateTask>::CreateTask(&ParentPrerequisiteTasks).ConstructAndDispatchWhenReady(this);
 }
 
 bool UNiagaraEmitter::IsEditorOnly() const
@@ -1265,6 +1273,17 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 		// If this emitter is owned by another emitter, remove it's inheritance information so that it doesn't try to merge changes.
 		Parent = nullptr;
 		ParentAtLastMerge = nullptr;
+	}
+
+	// The task prerequisites should have updated the parent emitter before updating this emitter, but if this emitter
+	// has been forced to update we need to make sure the parent has been updated too.
+	if (Parent != nullptr)
+	{
+		Parent->UpdateEmitterAfterLoad();
+	}
+	if (ParentAtLastMerge != nullptr)
+	{
+		ParentAtLastMerge->UpdateEmitterAfterLoad();
 	}
 	
 	if (!GetOutermost()->bIsCookedForEditor)
