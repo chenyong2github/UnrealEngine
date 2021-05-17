@@ -137,7 +137,7 @@ void MainVisibility(
 		Backlit			 = HAIR_BACKLIT(HairBSDF);
 		float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
-		Tangent = MaterialParameters.SharedNormals.Normals[BSDF_GETNORMALID(HairBSDF)];	// Strata normals are all world space already
+		Tangent = MaterialParameters.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(HairBSDF)];	// Strata normals are all world space already
 #else
 		BaseColor		 = GetMaterialBaseColor(PixelMaterialInputs);
 		Roughness		 = GetMaterialRoughness(PixelMaterialInputs);
