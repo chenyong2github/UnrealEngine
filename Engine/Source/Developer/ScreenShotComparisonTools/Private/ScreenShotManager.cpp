@@ -76,16 +76,11 @@ FString FScreenShotManager::GetPathComponentForPlatformAndRHI(const FAutomationS
 }
 
 /**
- * Images are now preferred to be under MapOrContext/TestName/ImageName/Plat/RHI etc
+ * Images are now preferred to be under MapOrContext/ImageName/Plat/RHI etc
  */
 FString FScreenShotManager::GetPathComponentForTestImages(const FAutomationScreenshotMetadata& MetaData) const
 {
-	//if (bUseLegacyFormat)
-	{
-		return FPaths::Combine(MetaData.Context, *MetaData.ScreenShotName);
-	}
-
-	//return FPaths::Combine(MetaData.Context, MetaData.TestName, MetaData.ScreenShotName);
+	return FPaths::Combine(MetaData.Context, *MetaData.ScreenShotName);
 }
 
 FString FScreenShotManager::GetApprovedFolderForImageWithOptions(const FAutomationScreenshotMetadata& MetaData, EApprovedFolderOptions InOptions) const
@@ -96,7 +91,7 @@ FString FScreenShotManager::GetApprovedFolderForImageWithOptions(const FAutomati
 
 	bool bUsePlatformPath = PlatInfo.bIsConfidential && (InOptions & EApprovedFolderOptions::UsePlatformFolders) == 0;
 
-	// Test folder will be either Map/Map_ImageName/ for legacy or Map/Test/ImageName/
+	// Test folder will be MapOrContext/ImageName
 	FString TestFolder = GetPathComponentForTestImages(MetaData);
 
 	FString OutPath = FPaths::ProjectDir();
