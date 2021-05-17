@@ -1128,6 +1128,13 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		}
 	}
 
+	// Vis buffer data is valid only for a particular scene and need to be recreated if scene changes
+	if (View.ViewState->Lumen.VoxelVisBufferCachedScene != Scene)
+	{
+		bForceFullUpdate = true;
+		View.ViewState->Lumen.VoxelVisBufferCachedScene = Scene;
+	}
+
 	TArray<int32, SceneRenderingAllocator> ClipmapsToUpdate;
 	ClipmapsToUpdate.Empty(ClampedNumClipmapLevels);
 

@@ -120,6 +120,7 @@ public:
 	FLumenVoxelLightingClipmapState VoxelLightingClipmapState[MaxVoxelClipmapLevels];
 	TRefCountPtr<IPooledRenderTarget> VoxelLighting;
 	TRefCountPtr<IPooledRenderTarget> VoxelVisBuffer;
+	const FScene* VoxelVisBufferCachedScene = nullptr;
 	FIntVector VoxelGridResolution;
 
 	// Translucency
