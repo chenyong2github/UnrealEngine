@@ -27,6 +27,7 @@ public class NiagaraEditor : ModuleRules
 				"RenderCore",
 				"Slate", 
 				"SlateCore",
+				"SlateNullRenderer",
 				"Kismet",
                 "EditorStyle",
 				"UnrealEd", 
