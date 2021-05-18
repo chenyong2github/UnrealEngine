@@ -5304,7 +5304,7 @@ FName FBlueprintEditorUtils::DuplicateMemberVariable(UBlueprint* InFromBlueprint
 				if (OldPropertyAddr)
 				{
 					// if there is a property for variable, it means the original default value was already copied, so it can be safely overridden
-					Variable.DefaultValue.Empty();
+					NewVar.DefaultValue.Empty();
 					TargetProperty->ExportTextItem(NewVar.DefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
 				}
 			}
