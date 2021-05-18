@@ -455,26 +455,13 @@ void FLumenSceneData::UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
-
 	if (bTrackAllPrimitives
-		&& TrackPrimitiveForLumenScene(Proxy)
-		&& !PendingUpdateOperations.Contains(InPrimitive))
+		&& TrackPrimitiveForLumenScene(InPrimitive->Proxy)
+		&& InPrimitive->LumenPrimitiveGroupIndices.Num() > 0
+		&& !PendingUpdateOperations.Contains(InPrimitive)
+		&& !PendingAddOperations.Contains(InPrimitive))
 	{
-		bool bPendingAdd = false;
-		for (FPrimitiveSceneInfo* AddPrimitive : PendingAddOperations)
-		{
-			if (AddPrimitive == InPrimitive)
-			{
-				bPendingAdd = true;
-				break;
-			}
-		}
-
-		if (!bPendingAdd)
-		{
-			PendingUpdateOperations.Add(InPrimitive);
-		}
+		PendingUpdateOperations.Add(InPrimitive);
 	}
 }
 
