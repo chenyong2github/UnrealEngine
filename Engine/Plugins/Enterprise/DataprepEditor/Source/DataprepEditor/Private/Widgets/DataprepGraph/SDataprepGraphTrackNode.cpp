@@ -563,10 +563,10 @@ bool SDataprepGraphTrackNode::RefreshLayout()
 	return false;
 }
 
-void SDataprepGraphTrackNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SDataprepGraphTrackNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	// Block track node to specific position
-	SGraphNode::MoveTo( TrackAnchor, NodeFilter);
+	SGraphNode::MoveTo( TrackAnchor, NodeFilter, bMarkDirty);
 }
 
 const FSlateBrush* SDataprepGraphTrackNode::GetShadowBrush(bool bSelected) const

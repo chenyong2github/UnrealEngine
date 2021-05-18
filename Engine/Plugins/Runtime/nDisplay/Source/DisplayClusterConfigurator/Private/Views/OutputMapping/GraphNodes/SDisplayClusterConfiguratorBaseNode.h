@@ -72,7 +72,7 @@ public:
 	//~ Begin SGraphNode interface
 	virtual void UpdateGraphNode() override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
+	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
 	virtual void EndUserInteraction() const override;
 	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
 	virtual bool CanBeSelected(const FVector2D& MousePositionInNode) const override;
