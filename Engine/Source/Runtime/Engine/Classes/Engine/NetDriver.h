@@ -1402,6 +1402,7 @@ public:
 	bool HandleNetDumpServerRPCCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleNetDumpDormancy(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleDumpSubObjectsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleDumpRepLayoutFlagsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 #endif
 
 	void HandlePacketLossBurstCommand( int32 DurationInMilliseconds );

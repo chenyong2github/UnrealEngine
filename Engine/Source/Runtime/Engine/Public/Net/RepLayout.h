@@ -1085,8 +1085,11 @@ enum class ERepLayoutFlags : uint8
 	PartialPushSupport					= (1 << 1),	//! This RepLayout has some properties that use Push Model and some that don't.
 	FullPushSupport						= (1 << 2),	//! All properties in this RepLayout use Push Model.
 	HasObjectOrNetSerializeProperties	= (1 << 3),	//! Will be set for any RepLayout that contains Object or Net Serialize property commands.
+	NoReplicatedProperties				= (1 << 4), //! Will be set if the RepLayout has no lifetime properties, or they are all disabled.
 };
 ENUM_CLASS_FLAGS(ERepLayoutFlags);
+
+const TCHAR* LexToString(ERepLayoutFlags Flag);
 
 enum class ERepLayoutResult
 {
@@ -1520,6 +1523,28 @@ public:
 	{
 		return Parents.Num();
 	}
+
+	const FProperty* GetParentProperty(int32 Index) const
+	{ 
+		return Parents.IsValidIndex(Index) ? Parents[Index].Property : nullptr;
+	}
+
+	const int32 GetParentArrayIndex(int32 Index) const
+	{
+		return Parents.IsValidIndex(Index) ? Parents[Index].ArrayIndex : 0;
+	}
+
+	const int32 GetParentCondition(int32 Index) const
+	{
+		return Parents.IsValidIndex(Index) ? Parents[Index].Condition : COND_None;
+	}
+
+#if WITH_PUSH_MODEL
+	const bool IsPushModelProperty(int32 Index) const
+	{
+		return PushModelProperties.IsValidIndex(Index) ? PushModelProperties[Index] : false;
+	}
+#endif
 
 	void CountBytes(FArchive& Ar) const;
 

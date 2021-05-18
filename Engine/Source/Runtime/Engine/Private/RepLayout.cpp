@@ -6096,16 +6096,16 @@ void FRepLayout::InitFromClass(
 	}
 
 	if (bIsObjectActor)
-		{
-			// We handle remote role specially, since it can change between connections when downgraded
-			// So we force it on the conditional list
+	{
+		// We handle remote role specially, since it can change between connections when downgraded
+		// So we force it on the conditional list
 		FRepParentCmd& RemoteRoleParent = Parents[(int32)AActor::ENetFields_Private::RemoteRole];
 		if (RemoteRoleParent.Condition != COND_Never)
 		{
 			if (COND_None != RemoteRoleParent.Condition)
 			{
 				UE_LOG(LogRep, Warning, TEXT("FRepLayout::InitFromClass: Forcing replication of RemoteRole. Owner=%s"), *InObjectClass->GetPathName());
-		}
+			}
 
 			Parents[(int32)AActor::ENetFields_Private::RemoteRole].Flags |= ERepParentFlags::IsConditional;
 			Parents[(int32)AActor::ENetFields_Private::RemoteRole].Condition = COND_None;
@@ -6120,6 +6120,11 @@ void FRepLayout::InitFromClass(
 			ERepLayoutFlags::PartialPushSupport;
 	}
 #endif
+
+	if (NumberOfLifetimeProperties == 0)
+	{
+		Flags |= ERepLayoutFlags::NoReplicatedProperties;
+	}
 
 	if (!ServerConnection || EnumHasAnyFlags(CreateFlags, ECreateRepLayoutFlags::MaySendProperties))
 	{
@@ -8094,6 +8099,26 @@ FRepStateStaticBuffer::~FRepStateStaticBuffer()
 	if (Buffer.Num() > 0)
 	{
 		RepLayout->DestructProperties(*this);
+	}
+}
+
+const TCHAR* LexToString(ERepLayoutFlags Flag)
+{
+	switch (Flag)
+	{
+	case ERepLayoutFlags::IsActor:
+		return TEXT("IsActor");
+	case ERepLayoutFlags::PartialPushSupport:
+		return TEXT("PartialPushSupport");
+	case ERepLayoutFlags::FullPushSupport:
+		return TEXT("FullPushSupport");
+	case ERepLayoutFlags::HasObjectOrNetSerializeProperties:
+		return TEXT("HasObjectOrNetSerializeProperties");
+	case ERepLayoutFlags::NoReplicatedProperties:
+		return TEXT("NoReplicatedProperties");
+	default:
+		check(false);
+		return TEXT("Unknown");
 	}
 }
 
