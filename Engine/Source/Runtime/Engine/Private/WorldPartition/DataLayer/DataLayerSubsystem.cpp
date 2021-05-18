@@ -43,25 +43,18 @@ void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #endif
 }
 
-void UDataLayerSubsystem::PostInitialize()
+const TSet<FName>& UDataLayerSubsystem::GetActiveDataLayerNames() const
 {
-	Super::PostInitialize();
+	static TSet<FName> EmptySet;
+	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	return WorldDataLayers ? WorldDataLayers->GetActiveDataLayerNames() : EmptySet;
+}
 
-	if (GetWorld()->IsGameWorld())
-	{
-		// Initialize Dynamically loaded Data Layers state
-		if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-		{
-			WorldDataLayers->ForEachDataLayer([this](class UDataLayer* DataLayer)
-			{
-				if (DataLayer && DataLayer->IsDynamicallyLoaded())
-				{
-					SetDataLayerState(DataLayer, DataLayer->GetInitialState());
-				}
-				return true;
-			});
-		}
-	}
+const TSet<FName>& UDataLayerSubsystem::GetLoadedDataLayerNames() const
+{
+	static TSet<FName> EmptySet;
+	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	return WorldDataLayers ? WorldDataLayers->GetLoadedDataLayerNames() : EmptySet;
 }
 
 UDataLayer* UDataLayerSubsystem::GetDataLayer(const FActorDataLayer& InDataLayer) const
@@ -81,63 +74,11 @@ UDataLayer* UDataLayerSubsystem::GetDataLayerFromName(FName InDataLayerName) con
 	return WorldDataLayers ? const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromName(InDataLayerName)) : nullptr;
 }
 
-// Deprecated start
-void UDataLayerSubsystem::ActivateDataLayer(const FActorDataLayer& InDataLayer, bool bInActivate)
-{
-	// Keep deprecated behavior (!Activated == Unloaded)
-	SetDataLayerState(GetDataLayerFromName(InDataLayer.Name), bInActivate ? EDataLayerState::Activated : EDataLayerState::Unloaded);
-}
-
-void UDataLayerSubsystem::ActivateDataLayerByLabel(const FName& InDataLayerLabel, bool bInActivate)
-{
-	// Keep deprecated behavior (!Activated == Unloaded)
-	SetDataLayerState(GetDataLayerFromLabel(InDataLayerLabel), bInActivate ? EDataLayerState::Activated : EDataLayerState::Unloaded);
-}
-
-bool UDataLayerSubsystem::IsDataLayerActive(const FActorDataLayer& InDataLayer) const
-{
-	return GetDataLayerStateByName(InDataLayer.Name) == EDataLayerState::Activated;
-}
-
-bool UDataLayerSubsystem::IsDataLayerActiveByLabel(const FName& InDataLayerLabel) const
-{
-	return GetDataLayerStateByLabel(InDataLayerLabel) == EDataLayerState::Activated;
-}
-// Deprecation end
-
 void UDataLayerSubsystem::SetDataLayerState(const UDataLayer* InDataLayer, EDataLayerState InState)
 {
-	if (!InDataLayer || !InDataLayer->IsDynamicallyLoaded())
+	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 	{
-		return;
-	}
-
-	FName DataLayerName = InDataLayer->GetFName();
-	EDataLayerState CurrentState = GetDataLayerStateByName(DataLayerName);
-	if (CurrentState != InState)
-	{
-		LoadedDataLayerNames.Remove(DataLayerName);
-		ActiveDataLayerNames.Remove(DataLayerName);
-		
-		if (InState == EDataLayerState::Loaded)
-		{
-			LoadedDataLayerNames.Add(DataLayerName);
-		}
-		else if(InState == EDataLayerState::Activated)
-		{
-			ActiveDataLayerNames.Add(DataLayerName);
-		}
-		
-		// todo_ow: remove
-		if (OnDataLayerActivationStateChanged.IsBound())
-		{
-			OnDataLayerActivationStateChanged.Broadcast(InDataLayer, InState == EDataLayerState::Activated);
-		}
-
-		if (OnDataLayerStateChanged.IsBound())
-		{
-			OnDataLayerStateChanged.Broadcast(InDataLayer, InState);
-		}
+		WorldDataLayers->SetDataLayerState(FActorDataLayer(InDataLayer->GetFName()), InState);
 	}
 }
 
@@ -168,18 +109,13 @@ EDataLayerState UDataLayerSubsystem::GetDataLayerState(const UDataLayer* InDataL
 
 EDataLayerState UDataLayerSubsystem::GetDataLayerStateByName(const FName& InDataLayerName) const
 {
-	if (ActiveDataLayerNames.Contains(InDataLayerName))
+	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	if (!WorldDataLayers)
 	{
-		check(!LoadedDataLayerNames.Contains(InDataLayerName));
-		return EDataLayerState::Activated;
-	}
-	else if (LoadedDataLayerNames.Contains(InDataLayerName))
-	{
-		check(!ActiveDataLayerNames.Contains(InDataLayerName));
-		return EDataLayerState::Loaded;
+		return EDataLayerState::Unloaded;
 	}
 
-	return EDataLayerState::Unloaded;
+	return WorldDataLayers->GetDataLayerStateByName(InDataLayerName);
 }
 
 EDataLayerState UDataLayerSubsystem::GetDataLayerState(const FActorDataLayer& InDataLayer) const
@@ -234,8 +170,8 @@ void UDataLayerSubsystem::DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offse
 		}
 	};
 
-	DrawLayerNames(TEXT("Loaded Data Layers"), FColor::Cyan, LoadedDataLayerNames);
-	DrawLayerNames(TEXT("Active Data Layers"), FColor::Green, ActiveDataLayerNames);
+	DrawLayerNames(TEXT("Loaded Data Layers"), FColor::Cyan, GetLoadedDataLayerNames());
+	DrawLayerNames(TEXT("Active Data Layers"), FColor::Green, GetActiveDataLayerNames());
 
 	Offset.X += MaxTextWidth + 10;
 }

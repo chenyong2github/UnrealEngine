@@ -10,6 +10,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "Hash/CityHash.h"
 
 template<class LayerNameContainer>

@@ -8,6 +8,7 @@
 #include "DataLayerMode.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Editor.h"

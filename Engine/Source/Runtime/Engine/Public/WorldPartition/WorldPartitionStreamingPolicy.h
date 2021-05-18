@@ -55,7 +55,6 @@ protected:
 	virtual int32 GetMaxCellsToLoad() const;
 	virtual void UpdateStreamingSources();
 
-	bool bIsServerLoadingDone;
 	const UWorldPartition* WorldPartition;
 	TSet<const UWorldPartitionRuntimeCell*> LoadedCells;
 	TSet<const UWorldPartitionRuntimeCell*> ActivatedCells;
@@ -67,4 +66,6 @@ protected:
 	int32 UpdateStreamingStateEpoch;
 	mutable int32 SortedAddToWorldCellsEpoch;
 	mutable TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedAddToWorldCells;
+
+	int32 DataLayersStatesServerEpoch;
 };

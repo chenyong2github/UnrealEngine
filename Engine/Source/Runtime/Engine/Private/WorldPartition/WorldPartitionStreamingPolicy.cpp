@@ -9,6 +9,7 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "GameFramework/PlayerController.h"
@@ -34,9 +35,9 @@ static FAutoConsoleVariableRef CMaxLoadingStreamingCells(
 
 UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer) 
-, bIsServerLoadingDone(false)
 , UpdateStreamingStateEpoch(0)
 , SortedAddToWorldCellsEpoch(INT_MIN)
+, DataLayersStatesServerEpoch(INT_MIN)
 {
 	if (!IsTemplate())
 	{
@@ -74,7 +75,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 #endif
 	{
 		UWorld* World = WorldPartition->GetWorld();
-		if (World->GetNetMode() != NM_DedicatedServer)
+		const ENetMode NetMode = World->GetNetMode();
+		if(NetMode == NM_Standalone || NetMode == NM_Client)
 		{
 			const int32 NumPlayers = GEngine->GetNumGamePlayers(World);
 			for (int32 PlayerIndex = 0; PlayerIndex < NumPlayers; ++PlayerIndex)
@@ -131,40 +133,21 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	
 	// Update streaming sources
 	UpdateStreamingSources();
+		
+	TSet<const UWorldPartitionRuntimeCell*>& ActivateStreamingCells = FrameActivateCells.GetCells();
+	TSet<const UWorldPartitionRuntimeCell*>& LoadStreamingCells = FrameLoadCells.GetCells();
+	check(ActivateStreamingCells.IsEmpty());
+	check(LoadStreamingCells.IsEmpty());
 
-	if (World->GetNetMode() == NM_DedicatedServer)
-	{
-		// Load all cells on server (do this once)
-		if (!bIsServerLoadingDone)
-		{
-			TSet<const UWorldPartitionRuntimeCell*> AllStreamingCells;
-			WorldPartition->RuntimeHash->GetAllStreamingCells(AllStreamingCells);
-			TSet<const UWorldPartitionRuntimeCell*> ToActivateCells = AllStreamingCells.Difference(ActivatedCells);
-
-			// Mark Runtime Cells to be Always Loaded
-			for (const UWorldPartitionRuntimeCell* Cell : ToActivateCells)
-			{
-				UWorldPartitionRuntimeCell* MutableCell = const_cast<UWorldPartitionRuntimeCell*>(Cell);
-				MutableCell->SetIsAlwaysLoaded(true);
-			}
-
-			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Activated, ToActivateCells);
-			bIsServerLoadingDone = true;
-		}
-	}
-	else
+	const ENetMode NetMode = World->GetNetMode();
+	if(NetMode == NM_Standalone || NetMode == NM_Client)
 	{
 		// Early out if nothing loaded and no streaming source
 		if ((StreamingSources.Num() == 0) && (ActivatedCells.Num() == 0) && (LoadedCells.Num() == 0))
 		{
 			return;
 		}
-
-		TSet<const UWorldPartitionRuntimeCell*>& ActivateStreamingCells = FrameActivateCells.GetCells();
-		TSet<const UWorldPartitionRuntimeCell*>& LoadStreamingCells = FrameLoadCells.GetCells();
-		check(ActivateStreamingCells.IsEmpty());
-		check(LoadStreamingCells.IsEmpty());
-
+				
 		// When uninitializing, UpdateStreamingState is called, but we don't want any cells to be loaded
 		if (WorldPartition->IsInitialized())
 		{
@@ -191,49 +174,71 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			RemoveHLODCells(ActivateStreamingCells);
 			RemoveHLODCells(LoadStreamingCells);
 		}
-
-		// Determine cells to load/unload
-		TSet<const UWorldPartitionRuntimeCell*> ToActivateCells = ActivateStreamingCells.Difference(ActivatedCells);
-		TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = LoadStreamingCells.Difference(LoadedCells);
-		TSet<const UWorldPartitionRuntimeCell*> ToUnloadCells = ActivatedCells.Union(LoadedCells).Difference(ActivateStreamingCells.Union(LoadStreamingCells));
-
-		UE_SUPPRESS(LogWorldPartition, Verbose,
+	} 
+	else 
+	{
+		// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
+		if (DataLayersStatesServerEpoch == AWorldDataLayers::GetDataLayersStateEpoch())
 		{
-			if (ToActivateCells.Num() > 0 || ToUnloadCells.Num() > 0)
-			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: CellsToLoad(%d), CellsToUnload(%d)"), ToActivateCells.Num(), ToUnloadCells.Num());
-				
-				FTransform LocalToWorld = WorldPartition->GetInstanceTransform();
-				for (int i = 0; i < StreamingSources.Num(); ++i)
-				{
-					FVector ViewLocation = LocalToWorld.TransformPosition(StreamingSources[i].Location);
-					FRotator ViewRotation = LocalToWorld.TransformRotation(StreamingSources[i].Rotation.Quaternion()).Rotator();
-					UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: Sources[%d] = %s,%s"), i, *ViewLocation.ToString(), *ViewRotation.ToString());
-				}
-			}
-		});
-
-		// Process unload first, so that LoadedCells is up-to-date when calling LoadCells
-		if (ToUnloadCells.Num() > 0)
-		{
-			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Unloaded, ToUnloadCells);
+			// Server as nothing to do early out
+			return; 
 		}
 
-		// Do Activation State first as it is higher prio than Load State (if we have a limited number of loading cells per frame)
-		if (ToActivateCells.Num() > 0)
-		{
-			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Activated, ToActivateCells);
-		}
+		const UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+		DataLayersStatesServerEpoch = AWorldDataLayers::GetDataLayersStateEpoch();
 
-		if (ToLoadCells.Num() > 0)
-		{
-			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Loaded, ToLoadCells);
-		}
+		const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
 
-		// Reset frame StreamingSourceCells (optimization to avoid reallocation at every call to UpdateStreamingState)
-		FrameActivateCells.Reset();
-		FrameLoadCells.Reset();
+		// Non Data Layer Cells + Active Data Layers
+		WorldPartition->RuntimeHash->GetAllStreamingCells(ActivateStreamingCells, /*bAllDataLayers=*/ false, /*bDataLayersOnly=*/ false, DataLayerSubsystem->GetActiveDataLayerNames());
+
+		// Loaded Data Layers Cells only
+		if (DataLayerSubsystem->GetLoadedDataLayerNames().Num())
+		{
+			WorldPartition->RuntimeHash->GetAllStreamingCells(LoadStreamingCells, /*bAllDataLayers=*/ false, /*bDataLayersOnly=*/ true, DataLayerSubsystem->GetLoadedDataLayerNames());
+		}
 	}
+
+	// Determine cells to load/unload
+	TSet<const UWorldPartitionRuntimeCell*> ToActivateCells = ActivateStreamingCells.Difference(ActivatedCells);
+	TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = LoadStreamingCells.Difference(LoadedCells);
+	TSet<const UWorldPartitionRuntimeCell*> ToUnloadCells = ActivatedCells.Union(LoadedCells).Difference(ActivateStreamingCells.Union(LoadStreamingCells));
+
+	UE_SUPPRESS(LogWorldPartition, Verbose,
+	{
+		if (ToActivateCells.Num() > 0 || ToLoadCells.Num() > 0 || ToUnloadCells.Num() > 0)
+		{
+			UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: CellsToActivate(%d), CellsToLoad(%d), CellsToUnload(%d)"), ToActivateCells.Num(), ToLoadCells.Num(), ToUnloadCells.Num());
+
+			FTransform LocalToWorld = WorldPartition->GetInstanceTransform();
+			for (int i = 0; i < StreamingSources.Num(); ++i)
+			{
+				FVector ViewLocation = LocalToWorld.TransformPosition(StreamingSources[i].Location);
+				FRotator ViewRotation = LocalToWorld.TransformRotation(StreamingSources[i].Rotation.Quaternion()).Rotator();
+				UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: Sources[%d] = %s,%s"), i, *ViewLocation.ToString(), *ViewRotation.ToString());
+			}
+		}
+	});
+
+	if (ToUnloadCells.Num() > 0)
+	{
+		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Unloaded, ToUnloadCells);
+	}
+
+	// Do Activation State first as it is higher prio than Load State (if we have a limited number of loading cells per frame)
+	if (ToActivateCells.Num() > 0)
+	{
+		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Activated, ToActivateCells);
+	}
+
+	if (ToLoadCells.Num() > 0)
+	{
+		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Loaded, ToLoadCells);
+	}
+
+	// Reset frame StreamingSourceCells (optimization to avoid reallocation at every call to UpdateStreamingState)
+	FrameActivateCells.Reset();
+	FrameLoadCells.Reset();
 }
 
 int32 UWorldPartitionStreamingPolicy::GetMaxCellsToLoad() const
