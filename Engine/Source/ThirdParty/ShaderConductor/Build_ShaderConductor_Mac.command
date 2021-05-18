@@ -29,16 +29,17 @@ DST_DIR="../../../../Binaries/ThirdParty/ShaderConductor/Mac"
 if [ "$#" -eq 1 ] && [ "$1" == "-debug" ]; then
 	# Debug
 	python3 BuildAll.py ninja clang x64 Debug
-	SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-Debug/Lib"
+	SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-Debug"
 else
 	# Release
 	python3 BuildAll.py ninja clang x64 RelWithDebInfo
-	SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-RelWithDebInfo/Lib"
+	SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-RelWithDebInfo"
 fi
 
 # Copy binary files from source to destination
-cp -f "$SRC_DIR/libdxcompiler.dylib" "$DST_DIR/libdxcompiler.dylib"
-cp -f "$SRC_DIR/libShaderConductor.dylib" "$DST_DIR/libShaderConductor.dylib"
+cp -f "$SRC_DIR/Lib/libdxcompiler.dylib" "$DST_DIR/libdxcompiler.dylib"
+cp -f "$SRC_DIR/Lib/libShaderConductor.dylib" "$DST_DIR/libShaderConductor.dylib"
+cp -f "$SRC_DIR/Bin/ShaderConductorCmd" "$DST_DIR/ShaderConductorCmd"
 
 # Replace dummy RPATH value, so ShaderConductor can manually load libdxcompiler.dylib via the 'dlopen' API
 install_name_tool -rpath RPATH_DUMMY ../ThirdParty/ShaderConductor/Mac "$DST_DIR/libShaderConductor.dylib"
