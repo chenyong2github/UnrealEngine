@@ -150,7 +150,7 @@ void UActorDescContainer::BeginDestroy()
 #if WITH_EDITOR
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 {
-	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel) && !World->PersistentLevel->GetIsAutoSaveExternalActorPackages() && Actor->IsMainPackageActor())
+	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel) && Actor->IsMainPackageActor())
 	{
 		// Only handle assets that belongs to our level
 		auto RemoveAfterFirstDot = [](const FString& InValue)
@@ -173,41 +173,37 @@ bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 
 void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext)
 {
-	if (SaveContext.IsProceduralSave())
+	if (!SaveContext.IsProceduralSave() && !(SaveContext.GetSaveFlags() & SAVE_FromAutosave))
 	{
-		// Do not delete and recreate FWorldPartitionActorDesc when making a procedural save. Procedural saves such as
-		// EditorDomain saves can occur during a load package, and FWorldPartitionReferenceImpl::IncRefCount 
-		// can load (and therefore save) an actor package while holding a pointer to the FWorldPartitionActorDesc. 
-		return;
-	}
-	if (const AActor* Actor = Cast<AActor>(Object))
-	{
-		if (ShouldHandleActorEvent(Actor))
+		if (const AActor* Actor = Cast<AActor>(Object))
 		{
-			check(!Actor->IsPendingKill());
-			if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(Actor->GetActorGuid()))
+			if (ShouldHandleActorEvent(Actor))
 			{
-				// Pin the actor handle on the actor to prevent unloading it when unhashing
-				FWorldPartitionHandle ExistingActorHandle(ExistingActorDesc);
-				FWorldPartitionHandlePinRefScope ExistingActorHandlePin(ExistingActorHandle);
+				check(!Actor->IsPendingKill());
+				if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(Actor->GetActorGuid()))
+				{
+					// Pin the actor handle on the actor to prevent unloading it when unhashing
+					FWorldPartitionHandle ExistingActorHandle(ExistingActorDesc);
+					FWorldPartitionHandlePinRefScope ExistingActorHandlePin(ExistingActorHandle);
 
-				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(Actor->CreateActorDesc());
+					TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(Actor->CreateActorDesc());
 
-				OnActorDescUpdating(ExistingActorDesc->Get());
+					OnActorDescUpdating(ExistingActorDesc->Get());
 
-				// Transfer any reference count from external sources
-				NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
+					// Transfer any reference count from external sources
+					NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
 
-				*ExistingActorDesc = MoveTemp(NewActorDesc);
+					*ExistingActorDesc = MoveTemp(NewActorDesc);
 
-				OnActorDescUpdated(ExistingActorDesc->Get());
-			}
-			// New actor
-			else
-			{
-				FWorldPartitionActorDesc* const AddedActorDesc = AddActor(Actor);
-				OnActorDescAdded(AddedActorDesc);
-				OnActorDescAddedEvent.Broadcast(AddedActorDesc);
+					OnActorDescUpdated(ExistingActorDesc->Get());
+				}
+				// New actor
+				else
+				{
+					FWorldPartitionActorDesc* const AddedActorDesc = AddActor(Actor);
+					OnActorDescAdded(AddedActorDesc);
+					OnActorDescAddedEvent.Broadcast(AddedActorDesc);
+				}
 			}
 		}
 	}
