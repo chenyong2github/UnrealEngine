@@ -96,7 +96,7 @@ namespace UnrealVS
 					}
 					else
 					{
-						// No solution loaded, or solution doesn't look like UE4
+						// No solution loaded, or solution doesn't look like Unreal
 					}
 				}
 			}
@@ -137,7 +137,7 @@ namespace UnrealVS
 
 		private string GetBatchFileName()
 		{
-			// Check to see if we have UE4.sln loaded
+			// Check to see if we have the Unreal loaded
 			if (UnrealVSPackage.Instance.IsUESolutionLoaded)
 			{
 				// We expect "GenerateProjectFiles.bat" to live in the same directory as the solution

@@ -69,8 +69,8 @@ namespace UnrealVS
 	{
 		/** Constants */
 
-		private const string VersionString = "v1.57";
-		private const string UnrealSolutionFileNamePrefix = "UE4";
+		private const string VersionString = "v1.60";
+		private const string UnrealSolutionFileNamePrefix = "UE";
 		private const string ExtensionName = "UnrealVS";
 		private const string CommandLineOptionKey = ExtensionName + "CommandLineMRU";
 		private const string BatchBuildSetsOptionKey = ExtensionName + "BatchBuildSetsV002";
