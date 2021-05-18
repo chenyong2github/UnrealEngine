@@ -16,7 +16,6 @@ struct NIAGARAEDITOR_API FNiagaraMessageTopics
 {
 	static const FName CompilerTopicName;
 	static const FName ObjectTopicName;
-	static const FName CustomTopicName;
 };
 
 UENUM()
@@ -234,6 +233,30 @@ private:
 	TOptional<const FString> SourceScriptAssetPath;
 };
 
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraStackMessage
+{
+	GENERATED_BODY()
+
+	FNiagaraStackMessage();
+
+	FNiagaraStackMessage(const FText& MessageText, const FText& ShortDescription, ENiagaraMessageSeverity Severity, bool bAllowDismissal, FGuid Guid = FGuid::NewGuid());
+	
+	UPROPERTY()
+	FText MessageText;
+
+	UPROPERTY()
+	FText ShortDescription;
+
+	UPROPERTY()
+	ENiagaraMessageSeverity MessageSeverity;
+
+	UPROPERTY()
+	bool bAllowDismissal;
+
+	UPROPERTY()
+	FGuid Guid;
+};
 
 struct NIAGARAEDITOR_API FGenerateNiagaraMessageInfo
 {

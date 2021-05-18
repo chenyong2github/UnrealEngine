@@ -13,7 +13,6 @@
 
 const FName FNiagaraMessageTopics::CompilerTopicName = "Compiler";
 const FName FNiagaraMessageTopics::ObjectTopicName = "Object";
-const FName FNiagaraMessageTopics::CustomTopicName = "Custom";
 
 FText INiagaraMessage::GenerateMessageTitle() const
 {
@@ -385,6 +384,19 @@ bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromCon
 	FText FailureReason = LOCTEXT("CompileEventMessageGenerator_CouldNotFindMatchingNodeGUID", "Failed to walk the entire context stack, is this compile event out of date ? Event: '{0}'");
 	OutFailureReason = FText::Format(FailureReason, FText::FromString(CompileEvent.Message));
 	return false;
+}
+
+FNiagaraStackMessage::FNiagaraStackMessage()
+{
+}
+
+FNiagaraStackMessage::FNiagaraStackMessage(const FText& InMessageText, const FText& InShortDescription,	ENiagaraMessageSeverity InSeverity, bool bInAllowDismissal, FGuid InGuid)
+{
+	MessageText = InMessageText;
+	ShortDescription = InShortDescription;
+	MessageSeverity = InSeverity;
+	bAllowDismissal = bInAllowDismissal;
+	Guid = InGuid;
 }
 
 TSharedRef<FTokenizedMessage> FNiagaraMessageText::GenerateTokenizedMessage() const
