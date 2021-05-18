@@ -658,17 +658,24 @@ void UDataRegistrySubsystem::ApplyPreregisterMap(UDataRegistry* Registry)
 	{
 		for (int32 i = 0; i < FoundPreregister->Num(); i++)
 		{
+			bool bRegistered = false;
 			const FSoftObjectPath& AssetPath = (*FoundPreregister)[i].Key;
 			FAssetData AssetData;
 			if (AssetManager.GetAssetDataForPath(AssetPath, AssetData))
 			{
-				Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
+				bRegistered = Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
 			}
 			else if (Settings->CanIgnoreMissingAssetData())
 			{
 				// Construct fake asset data and register that
 				AssetData = FAssetData(AssetPath.GetLongPackageName(), AssetPath.GetAssetPathString(), NAME_Object);
-				Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
+				bRegistered = Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
+			}
+
+			if (!bRegistered)
+			{
+				// If specific type is mentioned, it is expected to always succeed
+				UE_LOG(LogDataRegistry, Warning, TEXT("ApplyPreregisterMap failed to register %s with %s, there needs to be a meta source that handles registered assets with matching data"), *AssetPath.ToString(), *Registry->GetRegistryType().ToString());
 			}
 		}
 	}
