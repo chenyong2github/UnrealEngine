@@ -150,8 +150,8 @@ export namespace UnrealEngine {
             if (!property)
               continue;
 
-            setPayloadValueInternal(payloads, [message.PresetName, property.Id], field.PropertyValue);
-            Notify.emitValueChange(message.PresetName, property.Id, field.PropertyValue);
+            setPayloadValueInternal(payloads, [message.PresetName, property.ID], field.PropertyValue);
+            Notify.emitValueChange(message.PresetName, property.ID, field.PropertyValue);
           }
           break;
         }
@@ -281,9 +281,9 @@ export namespace UnrealEngine {
 
       for (const Group of Preset.Groups) {
         for (const Function of Group.ExposedFunctions)
-          Preset.Exposed[Function.Id] = Function;
+          Preset.Exposed[Function.ID] = Function;
         for (const Property of Group.ExposedProperties)
-          Preset.Exposed[Property.Id] = Property;
+          Preset.Exposed[Property.ID] = Property;
 
         Preset.ExposedProperties.push(...Group.ExposedProperties);
         Preset.ExposedFunctions.push(...Group.ExposedFunctions);
@@ -395,8 +395,9 @@ export namespace UnrealEngine {
     for (const Preset of presets) {
       for (const group of Preset.Groups) {
         for (const property of group.ExposedProperties) {
-           const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.Id}`);
-           setPayloadValueInternal(updatedPayloads, [Preset.Name, property.Id], value?.PropertyValues?.[0]?.PropertyValue);
+           const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.ID}`);
+           console.log(value);
+           setPayloadValueInternal(updatedPayloads, [Preset.Name, property.ID], value?.PropertyValues?.[0]?.PropertyValue);
         }
       }
     }

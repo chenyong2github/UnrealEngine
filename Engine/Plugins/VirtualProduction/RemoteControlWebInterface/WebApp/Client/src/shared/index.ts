@@ -68,7 +68,7 @@ export interface IFunction {
 }
 
 export interface IExposedFunction {
-  Id: string;
+  ID: string;
   DisplayName: string;
   UnderlyingFunction: IFunction;
   Metadata: { [key: string]: string };
@@ -82,7 +82,7 @@ export interface IProperty {
 }
 
 export interface IExposedProperty {
-  Id: string;
+  ID: string;
   DisplayName: string;
   Metadata: Record<string, string>;
   Widget: WidgetType;

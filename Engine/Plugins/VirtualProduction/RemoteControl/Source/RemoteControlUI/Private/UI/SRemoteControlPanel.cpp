@@ -438,8 +438,6 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateCPUThrottleButton() const
 TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 {	
 	FMenuBuilder MenuBuilder(true, nullptr);
-
-	
 	
 	SAssignNew(BlueprintPicker, SRCPanelFunctionPicker)
 		.AllowDefaultObjects(true)
@@ -622,7 +620,27 @@ void SRemoteControlPanel::OnActorAddedToLevel(AActor* Actor)
 		{
 			ClassPicker->Refresh();
 		}
+
+		UpdateActorFunctionPicker();
 	}
+}
+
+void SRemoteControlPanel::OnLevelActorsRemoved(AActor* Actor)
+{
+	if (Actor)
+	{
+		if (ClassPicker)
+		{
+			ClassPicker->Refresh();
+		}
+
+		UpdateActorFunctionPicker();
+	}
+}
+
+void SRemoteControlPanel::OnLevelActorListChanged()
+{
+	UpdateActorFunctionPicker();
 }
 
 void SRemoteControlPanel::CacheActorClass(AActor* Actor)
@@ -663,6 +681,8 @@ void SRemoteControlPanel::RegisterEvents()
 	if (GEngine)
 	{
 		GEngine->OnLevelActorAdded().AddSP(this, &SRemoteControlPanel::OnActorAddedToLevel);
+		GEngine->OnLevelActorListChanged().AddSP(this, &SRemoteControlPanel::OnLevelActorListChanged);
+		GEngine->OnLevelActorDeleted().AddSP(this, &SRemoteControlPanel::OnLevelActorsRemoved);
 	}
 
 	Preset->OnEntityExposed().AddSP(this, &SRemoteControlPanel::OnEntityExposed);
@@ -676,6 +696,8 @@ void SRemoteControlPanel::UnregisterEvents()
 	
 	if (GEngine)
 	{
+		GEngine->OnLevelActorDeleted().RemoveAll(this);
+		GEngine->OnLevelActorListChanged().RemoveAll(this);
 		GEngine->OnLevelActorAdded().RemoveAll(this);
 	}
 	
@@ -909,6 +931,17 @@ FReply SRemoteControlPanel::OnClickRebindAllButton()
 		UpdateRebindButtonVisibility();
 	}
 	return FReply::Handled();
+}
+
+void SRemoteControlPanel::UpdateActorFunctionPicker()
+{
+	if (GEditor && ActorFunctionPicker)
+	{
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+		{
+			ActorFunctionPicker->Refresh();
+		}));
+	}
 }
 
 void SRemoteControlPanel::OnEntityExposed(URemoteControlPreset* InPreset, const FGuid& InEntityId)
