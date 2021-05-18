@@ -33,13 +33,24 @@ struct FUniqueVertex
 {
 	FVector Normal;
 	FVector Tangent;
-	FVector2D UV;
+	TArray<FVector2D> UVs;
 
 	bool operator==(const FUniqueVertex& Other) const
 	{
-		return ((this->Normal == Other.Normal) &&
-			(this->Tangent == Other.Tangent) &&
-			(this->UV == Other.UV));
+		if (this->UVs.Num() != Other.UVs.Num())
+		{
+			return false;
+		}
+		
+		bool bEquality = true;
+		bEquality &= (this->Normal == Other.Normal);
+		bEquality &= (this->Tangent == Other.Tangent);
+		for (int32 UVLayerIdx = 0; UVLayerIdx < UVs.Num(); ++UVLayerIdx)
+		{
+			bEquality &= (this->UVs[UVLayerIdx] == Other.UVs[UVLayerIdx]);
+		}
+		
+		return bEquality;
 	}
 };
 
@@ -47,8 +58,11 @@ FORCEINLINE uint32 GetTypeHash(const FUniqueVertex& UniqueVertex)
 {
 	uint32 VertexHash = GetTypeHash(UniqueVertex.Normal);
 	VertexHash = HashCombine(VertexHash, GetTypeHash(UniqueVertex.Tangent));
-	VertexHash = HashCombine(VertexHash, GetTypeHash(UniqueVertex.UV));
-
+	for (int32 UVLayerIdx = 0; UVLayerIdx < UniqueVertex.UVs.Num(); ++UVLayerIdx)
+	{
+		VertexHash = HashCombine(VertexHash, GetTypeHash(UniqueVertex.UVs[UVLayerIdx]));
+	}
+	
 	return VertexHash;
 }
 
@@ -89,15 +103,20 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		TArrayView<const FVector4> SourceColor = Attributes.GetVertexInstanceColors().GetRawArray();
 
 		TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
-		TArrayView<const FVector2D> SourceUV = InstanceUVs.GetRawArray();
-		const int NumUVLayers = InstanceUVs.GetNumChannels();
+		const int32 NumUVLayers = InstanceUVs.GetNumChannels();
+		TArray<TArrayView<const FVector2D>> SourceUVArrays;
+		SourceUVArrays.SetNum(NumUVLayers);
+		for (int32 UVLayerIdx = 0; UVLayerIdx < NumUVLayers; ++UVLayerIdx)
+		{
+			SourceUVArrays[UVLayerIdx] = InstanceUVs.GetRawArray(UVLayerIdx);
+		}
 		
 		// target vertex information
 		TManagedArray<FVector3f>& TargetVertex = GeometryCollection->Vertex;
 		TManagedArray<FVector3f>& TargetTangentU = GeometryCollection->TangentU;
 		TManagedArray<FVector3f>& TargetTangentV = GeometryCollection->TangentV;
 		TManagedArray<FVector3f>& TargetNormal = GeometryCollection->Normal;
-		TManagedArray<FVector2D>& TargetUV = GeometryCollection->UV;
+		TManagedArray<TArray<FVector2D>>& TargetUVs = GeometryCollection->UVs;
 		TManagedArray<FLinearColor>& TargetColor = GeometryCollection->Color;
 		TManagedArray<int32>& TargetBoneMap = GeometryCollection->BoneMap;
 		TManagedArray<FLinearColor>& TargetBoneColor = GeometryCollection->BoneColor;
@@ -114,15 +133,21 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		VertexInstanceToGeometryCollectionVertex.Reserve(Attributes.GetVertexInstanceNormals().GetNumElements());
 		
 		for (const FVertexID VertexIndex : MeshDescription->Vertices().GetElementIDs())
-		{
-			
+		{		
 			TArrayView<const FVertexInstanceID> ReferencingVertexInstances = MeshDescription->GetVertexVertexInstanceIDs(VertexIndex);
 
 			// Generate per instance hash of splittable attributes.
 			TMap<FUniqueVertex, TArray<FVertexInstanceID>> SplitVertices;
 			for (const FVertexInstanceID& InstanceID : ReferencingVertexInstances)
 			{
-				FUniqueVertex UniqueVertex{ SourceNormal[InstanceID], SourceTangent[InstanceID], SourceUV[InstanceID] };
+				TArray<FVector2D> SourceUVs;
+				SourceUVs.SetNum(NumUVLayers);
+				for (int32 UVLayerIdx = 0; UVLayerIdx < NumUVLayers; ++UVLayerIdx)
+				{
+					SourceUVs[UVLayerIdx] = SourceUVArrays[UVLayerIdx][InstanceID];
+				}
+				
+				FUniqueVertex UniqueVertex{ SourceNormal[InstanceID], SourceTangent[InstanceID], SourceUVs };
 				TArray<FVertexInstanceID>& SplitVertex = SplitVertices.FindOrAdd(UniqueVertex);
 				SplitVertex.Add(InstanceID);
 			}
@@ -142,8 +167,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 				TargetTangentU[CurrentVertex] = SourceTangent[ExemplarInstanceID];
 				TargetTangentV[CurrentVertex] = SourceBinormalSign[ExemplarInstanceID] * FVector::CrossProduct(TargetNormal[CurrentVertex], TargetTangentU[CurrentVertex]);
 
-				// @todo : Support multiple UV's per vertex based on MAX_STATIC_TEXCOORDS
-				TargetUV[CurrentVertex] = SourceUV[ExemplarInstanceID];
+				TargetUVs[CurrentVertex] = SplitVertex.Key.UVs;
 
 				if (SourceColor.Num() > 0)
 				{
@@ -162,6 +186,27 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 				++CurrentVertex;
 				++VertexCount;
 			}
+		}
+
+
+		// for each material, add a reference in our GeometryCollectionObject
+		const int32 MaterialStart = GeometryCollectionObject->Materials.Num();
+		const int32 NumMeshMaterials = Materials.Num();
+		GeometryCollectionObject->Materials.Reserve(MaterialStart + NumMeshMaterials);
+
+		for (int32 Index = 0; Index < NumMeshMaterials; ++Index)
+		{
+			UMaterialInterface* CurrMaterial = Materials[Index];
+
+			// Possible we have a null entry - replace with default
+			if (CurrMaterial == nullptr)
+			{
+				CurrMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+
+			// We add the material twice, once for interior and again for exterior.
+			GeometryCollectionObject->Materials.Add(CurrMaterial);
+			GeometryCollectionObject->Materials.Add(CurrMaterial);
 		}
 
 		// target triangle indices
@@ -185,7 +230,9 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 			);
 
 			TargetVisible[TargetIndex] = true;
-			TargetMaterialID[TargetIndex] = 0;
+
+			// Materials are ganged in pairs and we want the id to associate with the first of each pair.
+			TargetMaterialID[TargetIndex] = MaterialStart + (MeshDescription->GetTrianglePolygonGroup(TriangleIndex) * 2);
 
 			// Is this right?
 			TargetMaterialIndex[TargetIndex] = TargetIndex;
@@ -280,54 +327,6 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 			}
 		}
 
-		// for each material, add a reference in our GeometryCollectionObject
-		const int32 MaterialStart = GeometryCollectionObject->Materials.Num();
-		const int32 NumMeshMaterials = Materials.Num();
-		GeometryCollectionObject->Materials.Reserve(MaterialStart + NumMeshMaterials);
-
-		for (int32 Index = 0; Index < NumMeshMaterials; ++Index)
-		{
-			UMaterialInterface* CurrMaterial = Materials[Index];
-
-			// Possible we have a null entry - replace with default
-			if (CurrMaterial == nullptr)
-			{
-				CurrMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-			}
-
-			// We add the material twice, once for interior and again for exterior.
-			GeometryCollectionObject->Materials.Add(CurrMaterial);
-			GeometryCollectionObject->Materials.Add(CurrMaterial);
-		}
-
-		TManagedArray<FGeometryCollectionSection>& Sections = GeometryCollection->Sections;
-
-		// We make sections that mirror what is in the static mesh.  Note that this isn't explicitly
-		// necessary since we reindex after all the meshes are added, but it is a good step to have
-		// optimal min/max vertex index right from the static mesh.  All we really need to do is
-		// assign material ids and rely on reindexing, in theory
-		for (const FStaticMeshSection& CurrSection : StaticMesh->GetRenderData()->LODResources[0].Sections)
-		{			
-			// create new section
-			int32 SectionIndex = GeometryCollection->AddElements(1, FGeometryCollection::MaterialGroup);
-
-			// Materials are doubled on ingestions: we multiply the incoming ID by 2 to skip internal materials.
-			Sections[SectionIndex].MaterialID = MaterialStart + (CurrSection.MaterialIndex * 2);
-
-			Sections[SectionIndex].FirstIndex = IndicesStart * 3 + CurrSection.FirstIndex;
-			Sections[SectionIndex].MinVertexIndex = VertexStart + CurrSection.MinVertexIndex;
-
-			Sections[SectionIndex].NumTriangles = CurrSection.NumTriangles;
-			Sections[SectionIndex].MaxVertexIndex = VertexStart + CurrSection.MaxVertexIndex;
-
-			// set the MaterialID for all of the faces
-			// note the divide by 3 - the GeometryCollection stores indices in tuples of 3 rather than in a flat array
-			for (int32 i = Sections[SectionIndex].FirstIndex / 3; i < Sections[SectionIndex].FirstIndex / 3 + Sections[SectionIndex].NumTriangles; ++i)
-			{
-				TargetMaterialID[i] = Sections[SectionIndex].MaterialID;
-			}
-		}
-
 		if (ReindexMaterials) {
 			GeometryCollection->ReindexMaterials();
 		}
@@ -371,7 +370,7 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 	const TManagedArray<FVector3f>& SourceTangentU = SourceGeometryCollectionPtr->TangentU;
 	const TManagedArray<FVector3f>& SourceTangentV = SourceGeometryCollectionPtr->TangentV;
 	const TManagedArray<FVector3f>& SourceNormal = SourceGeometryCollectionPtr->Normal;
-	const TManagedArray<FVector2D>& SourceUV = SourceGeometryCollectionPtr->UV;
+	const TManagedArray<TArray<FVector2D>>& SourceUVs = SourceGeometryCollectionPtr->UVs;
 	const TManagedArray<FLinearColor>& SourceColor = SourceGeometryCollectionPtr->Color;
 	const TManagedArray<int32>& SourceBoneMap = SourceGeometryCollectionPtr->BoneMap;
 
@@ -380,7 +379,7 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 	TManagedArray<FVector3f>& TargetTangentU = GeometryCollection->TangentU;
 	TManagedArray<FVector3f>& TargetTangentV = GeometryCollection->TangentV;
 	TManagedArray<FVector3f>& TargetNormal = GeometryCollection->Normal;
-	TManagedArray<FVector2D>& TargetUV = GeometryCollection->UV;
+	TManagedArray<TArray<FVector2D>>& TargetUVs = GeometryCollection->UVs;
 	TManagedArray<FLinearColor>& TargetColor = GeometryCollection->Color;
 	TManagedArray<int32>& TargetBoneMap = GeometryCollection->BoneMap;
 
@@ -393,7 +392,7 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 		TargetTangentU[VertexOffset] = SourceTangentU[VertexIndex];
 		TargetTangentV[VertexOffset] = SourceTangentV[VertexIndex];
 		TargetNormal[VertexOffset] = SourceNormal[VertexIndex];
-		TargetUV[VertexOffset] = SourceUV[VertexIndex];
+		TargetUVs[VertexOffset] = SourceUVs[VertexIndex];
 		TargetColor[VertexOffset] = SourceColor[VertexIndex];
 
 		TargetBoneMap[VertexOffset] = SourceBoneMap[VertexIndex] + TransformStart;
@@ -717,7 +716,7 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 						TManagedArray<FVector3f>& TangentU = GeometryCollection->TangentU;
 						TManagedArray<FVector3f>& TangentV = GeometryCollection->TangentV;
 						TManagedArray<FVector3f>& Normal = GeometryCollection->Normal;
-						TManagedArray<FVector2D>& UV = GeometryCollection->UV;
+						TManagedArray<TArray<FVector2D>>& UVs = GeometryCollection->UVs;
 						TManagedArray<FLinearColor>& Color = GeometryCollection->Color;
 						TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
 						TManagedArray<FLinearColor>& BoneColor = GeometryCollection->BoneColor;
@@ -730,6 +729,7 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 						TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 						int InitialNumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
 						int VertexBaseIndex = GeometryCollection->AddElements(VertexCount, FGeometryCollection::VerticesGroup);
+						const int32 NumUVLayers = VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 						for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
 						{
 							int VertexOffset = VertexBaseIndex + VertexIndex;
@@ -745,8 +745,13 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 							TangentU[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIndex);
 							TangentV[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(VertexIndex);
 							Normal[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);
-							// @todo : Support multiple UV's per vertex based on MAX_STATIC_TEXCOORDS 
-							UV[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, 0);
+							
+							UVs[VertexOffset].SetNum(NumUVLayers);
+							for (int32 UVLayerIdx = 0; UVLayerIdx < NumUVLayers; ++UVLayerIdx)
+							{
+								UVs[VertexOffset][UVLayerIdx] = VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, UVLayerIdx);
+							}
+							
 							if (VertexBuffers.ColorVertexBuffer.GetNumVertices() == VertexCount)
 								Color[VertexOffset] = VertexBuffers.ColorVertexBuffer.VertexColor(VertexIndex);
 							else

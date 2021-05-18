@@ -218,7 +218,7 @@ void FGeometryCollectionSceneProxy::InitResources()
 	
 	// Init buffers
 	VertexBuffers.PositionVertexBuffer.Init(NumVertices);
-	VertexBuffers.StaticMeshVertexBuffer.Init(NumVertices, 1);
+	VertexBuffers.StaticMeshVertexBuffer.Init(NumVertices, Chaos::GeometryCollection::MAX_NUM_UV_CHANNELS);
 	VertexBuffers.ColorVertexBuffer.Init(NumVertices);
 
 	// Init resources
@@ -320,12 +320,20 @@ void FGeometryCollectionSceneProxy::BuildGeometry( const FGeometryCollectionCons
 		OutVertices[PointIdx] =
 			FDynamicMeshVertex(
 				ConstantDataIn->Vertices[PointIdx],
-				ConstantDataIn->UVs[PointIdx],
+				ConstantDataIn->UVs[PointIdx][0],
 				bShowBoneColors||bEnableBoneSelection ?
 				ConstantDataIn->BoneColors[PointIdx].ToFColor(true) :
 				ConstantDataIn->Colors[PointIdx].ToFColor(true)
 			);
 		OutVertices[PointIdx].SetTangents(ConstantDataIn->TangentU[PointIdx], ConstantDataIn->TangentV[PointIdx], ConstantDataIn->Normals[PointIdx]);
+
+		if (ConstantDataIn->UVs[PointIdx].Num() > 1)
+		{
+			for (int32 UVLayerIdx = 1; UVLayerIdx < ConstantDataIn->UVs[PointIdx].Num(); ++UVLayerIdx)
+			{
+				OutVertices[PointIdx].TextureCoordinate[UVLayerIdx] = ConstantDataIn->UVs[PointIdx][UVLayerIdx];
+			}
+		}
 	});
 
 	check(ConstantDataIn->Indices.Num() * 3 == NumIndices);
@@ -380,7 +388,10 @@ void FGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollec
 
 			VertexBuffers.PositionVertexBuffer.VertexPosition(i) = Vertex.Position;
 			VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector());
-			VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i, 0, Vertex.TextureCoordinate[0]);
+			for (int UVChannelIndex = 0; UVChannelIndex < Chaos::GeometryCollection::MAX_NUM_UV_CHANNELS; UVChannelIndex++)
+			{
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i, UVChannelIndex, Vertex.TextureCoordinate[UVChannelIndex]);
+			}
 			VertexBuffers.ColorVertexBuffer.VertexColor(i) = Vertex.Color;
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 			if (bEnableBoneSelection)

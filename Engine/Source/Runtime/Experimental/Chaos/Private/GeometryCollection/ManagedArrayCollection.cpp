@@ -12,7 +12,7 @@ int8 FManagedArrayCollection::Invalid = INDEX_NONE;
 
 FManagedArrayCollection::FManagedArrayCollection()
 {
-	Version = 5;
+	Version = 8;
 }
 
 void FManagedArrayCollection::AddGroup(FName Group)

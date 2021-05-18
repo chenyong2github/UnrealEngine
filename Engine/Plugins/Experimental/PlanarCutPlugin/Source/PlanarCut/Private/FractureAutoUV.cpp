@@ -217,12 +217,12 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 
 	virtual FVector2f GetUV(int32 EID) const
 	{
-		return FVector2f(Collection->UV[EID]);
+		return FVector2f(Collection->UVs[EID][0]);
 	}
 
 	virtual void SetUV(int32 EID, FVector2f UVIn)
 	{
-		FVector2D& UV = Collection->UV[EID];
+		FVector2D& UV = Collection->UVs[EID][0];
 		UV.X = UVIn.X;
 		UV.Y = UVIn.Y;
 	}
@@ -299,7 +299,7 @@ struct FGeomFlatUVMesh
 
 	inline FVector3d GetVertex(int32 VID) const
 	{
-		const FVector2D& UV = Collection->UV[VID];
+		const FVector2D& UV = Collection->UVs[VID][0];
 		return FVector3d(UV.X, UV.Y, 0);
 	}
 
@@ -317,7 +317,7 @@ struct FGeomFlatUVMesh
 	}
 	inline int32 MaxVertexID() const
 	{
-		return Collection->UV.Num();
+		return Collection->UVs.Num();
 	}
 	inline int32 TriangleCount() const
 	{
@@ -325,7 +325,7 @@ struct FGeomFlatUVMesh
 	}
 	inline int32 VertexCount() const
 	{
-		return Collection->UV.Num();
+		return Collection->UVs.Num();
 	}
 	constexpr inline int32 GetShapeTimestamp() const
 	{
@@ -535,7 +535,7 @@ void TextureInternalSurfaces(
 			int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
 			FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
 			FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
-			AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh);
+			AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, Collection.NumUVLayers());
 			FDynamicMeshUVOverlay* UV = Mesh.Attributes()->PrimaryUV();
 			for (int TID : Mesh.TriangleIndicesItr())
 			{

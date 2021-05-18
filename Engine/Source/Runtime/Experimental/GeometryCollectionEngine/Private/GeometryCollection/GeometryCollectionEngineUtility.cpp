@@ -327,7 +327,8 @@ void GeometryCollectionEngineUtility::ComputeNormals(FGeometryCollection* Geomet
 	TArray<FVector2D> TmpUV;
 
 	TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
-	TManagedArray<FVector2D>& UV = GeometryCollection->UV;
+	const int32 UVChannelIndex = 0;
+	TManagedArray<TArray<FVector2D>>& UVs = GeometryCollection->UVs;
 	for (int i = 0; i < NumIndices; ++i)
 	{
 		FIntVector CurrTri = Indices[i];
@@ -336,9 +337,9 @@ void GeometryCollectionEngineUtility::ComputeNormals(FGeometryCollection* Geomet
 		TmpIndices.Add(CurrTri.Y);
 		TmpIndices.Add(CurrTri.Z);
 
-		TmpUV.Add(UV[CurrTri.X]);
-		TmpUV.Add(UV[CurrTri.Y]);
-		TmpUV.Add(UV[CurrTri.Z]);
+		TmpUV.Add(UVs[CurrTri.X][UVChannelIndex]);
+		TmpUV.Add(UVs[CurrTri.Y][UVChannelIndex]);
+		TmpUV.Add(UVs[CurrTri.Z][UVChannelIndex]);
 	}
 
 	// Make a copy of the vertex array
@@ -384,7 +385,8 @@ void GeometryCollectionEngineUtility::ComputeTangents(FGeometryCollection* Geome
 	TArray<FVector2D> TmpUV;
 
 	TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
-	TManagedArray<FVector2D>& UV = GeometryCollection->UV;
+	const int32 UVChannelIndex = 0;
+	TManagedArray<TArray<FVector2D>>& UVs = GeometryCollection->UVs;
 	for (int i = 0; i < NumIndices; ++i)
 	{
 		FIntVector CurrTri = Indices[i];
@@ -393,9 +395,9 @@ void GeometryCollectionEngineUtility::ComputeTangents(FGeometryCollection* Geome
 		TmpIndices.Add(CurrTri.Y);
 		TmpIndices.Add(CurrTri.Z);
 
-		TmpUV.Add(UV[CurrTri.X]);
-		TmpUV.Add(UV[CurrTri.Y]);
-		TmpUV.Add(UV[CurrTri.Z]);
+		TmpUV.Add(UVs[CurrTri.X][UVChannelIndex]);
+		TmpUV.Add(UVs[CurrTri.Y][UVChannelIndex]);
+		TmpUV.Add(UVs[CurrTri.Z][UVChannelIndex]);
 	}
 
 	// Make a copy of the vertex array

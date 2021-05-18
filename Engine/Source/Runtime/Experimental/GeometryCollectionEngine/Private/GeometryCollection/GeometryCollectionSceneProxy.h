@@ -103,7 +103,7 @@ struct FGeometryCollectionConstantData
 	TArray<FVector3f> Normals;
 	TArray<FVector3f> TangentU;
 	TArray<FVector3f> TangentV;
-	TArray<FVector2D> UVs;
+	TArray<TArray<FVector2D>> UVs;
 	TArray<FLinearColor> Colors;
 	TArray<int32> BoneMap;
 	TArray<FLinearColor> BoneColors;
