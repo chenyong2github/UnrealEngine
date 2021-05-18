@@ -2321,6 +2321,7 @@ public:
 	{
 		return true;
 	}
+	virtual void GetMeshId(FString& OutMeshId) override { OutMeshId = TEXT("3FC28DC87B814E08BA852C92D18D41D4"); }
 	//~ End Interface_CollisionDataProvider Interface
 
 	//~ Begin IInterface_AssetUserData Interface
