@@ -70,13 +70,6 @@ bool ILiveLinkSubject::SupportsRole(TSubclassOf<ULiveLinkRole> InDesiredRole) co
 }
 
 
-bool ILiveLinkSubject::HasValidFrameSnapshot() const
-{
-	const FLiveLinkSubjectFrameData& FrameSnapshot = GetFrameSnapshot();
-	return FrameSnapshot.StaticData.IsValid() && FrameSnapshot.FrameData.IsValid();
-}
-
-
 bool ILiveLinkSubject::Translate(const ILiveLinkSubject* InLinkSubject, TSubclassOf<ULiveLinkRole> InDesiredRole, const FLiveLinkStaticDataStruct& InStaticData, const FLiveLinkFrameDataStruct& InFrameData, FLiveLinkSubjectFrameData& OutFrame)
 {
 	// Find one that matches exactly
