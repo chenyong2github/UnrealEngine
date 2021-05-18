@@ -124,7 +124,7 @@ FTransform FTransform::GetRelativeTransformReverse(const FTransform& Other) cons
 
 	Result.Scale3D = VScale3D;	
 	Result.Translation = VTranslation;
-	Result.Rotation = VRotation;
+	Result.Rotation = MakeVectorRegisterFloatFromDouble(VRotation);
 		
 	Result.DiagnosticCheckNaN_All(); 
 
@@ -172,7 +172,7 @@ void FTransform::SetToRelativeTransform(const FTransform& ParentTransform)
 	Translation = VectorMultiply(VR, VSafeScale3D);
 
 	// Rotation = Q(B)(-1) * Q(A)	
-	Rotation = VectorQuaternionMultiply2(VInverseParentRot, Rotation );
+	Rotation = MakeVectorRegisterFloatFromDouble(VectorQuaternionMultiply2(VInverseParentRot, Rotation ));
 
 	DiagnosticCheckNaN_All(); 
 
@@ -238,7 +238,7 @@ FTransform FTransform::GetRelativeTransform(const FTransform& Other) const
 
 		Result.Scale3D = VScale3D;
 		Result.Translation = VTranslation;
-		Result.Rotation = VRotation;
+		Result.Rotation = MakeVectorRegisterFloatFromDouble(VRotation);
 
 		Result.DiagnosticCheckNaN_All();
 #if DEBUG_INVERSE_TRANSFORM
