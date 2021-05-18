@@ -218,7 +218,7 @@ void FGeometryCollectionSceneProxy::InitResources()
 	
 	// Init buffers
 	VertexBuffers.PositionVertexBuffer.Init(NumVertices);
-	VertexBuffers.StaticMeshVertexBuffer.Init(NumVertices, Chaos::GeometryCollection::MAX_NUM_UV_CHANNELS);
+	VertexBuffers.StaticMeshVertexBuffer.Init(NumVertices, GeometryCollectionUV::MAX_NUM_UV_CHANNELS);
 	VertexBuffers.ColorVertexBuffer.Init(NumVertices);
 
 	// Init resources
@@ -388,7 +388,7 @@ void FGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollec
 
 			VertexBuffers.PositionVertexBuffer.VertexPosition(i) = Vertex.Position;
 			VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector());
-			for (int UVChannelIndex = 0; UVChannelIndex < Chaos::GeometryCollection::MAX_NUM_UV_CHANNELS; UVChannelIndex++)
+			for (int UVChannelIndex = 0; UVChannelIndex < GeometryCollectionUV::MAX_NUM_UV_CHANNELS; UVChannelIndex++)
 			{
 				VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i, UVChannelIndex, Vertex.TextureCoordinate[UVChannelIndex]);
 			}
