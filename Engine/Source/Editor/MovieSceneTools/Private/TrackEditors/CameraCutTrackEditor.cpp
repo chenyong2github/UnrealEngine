@@ -271,9 +271,9 @@ const FSlateBrush* FCameraCutTrackEditor::GetIconBrush() const
 }
 
 
-bool FCameraCutTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid)
+bool FCameraCutTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams)
 {
-	if (!Track->IsA(UMovieSceneCameraCutTrack::StaticClass()))
+	if (!DragDropParams.Track->IsA(UMovieSceneCameraCutTrack::StaticClass()))
 	{
 		return false;
 	}
@@ -285,6 +285,8 @@ bool FCameraCutTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMo
 		return false;
 	}
 	
+	UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(DragDropParams.Track);
+
 	TSharedPtr<FActorDragDropGraphEdOp> DragDropOp = StaticCastSharedPtr<FActorDragDropGraphEdOp>( Operation );
 
 	for (auto& ActorPtr : DragDropOp->Actors)
@@ -296,6 +298,8 @@ bool FCameraCutTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMo
 			UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromActor(Actor);
 			if (CameraComponent)
 			{
+				FFrameNumber EndFrameNumber = CameraCutTrack->FindEndTimeForCameraCut(DragDropParams.FrameNumber);
+				DragDropParams.FrameRange = TRange<FFrameNumber>(DragDropParams.FrameNumber, EndFrameNumber);
 				return true;
 			}
 		}
@@ -305,9 +309,9 @@ bool FCameraCutTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMo
 }
 
 
-FReply FCameraCutTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid)
+FReply FCameraCutTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams)
 {
-	if (!Track->IsA(UMovieSceneCameraCutTrack::StaticClass()))
+	if (!DragDropParams.Track->IsA(UMovieSceneCameraCutTrack::StaticClass()))
 	{
 		return FReply::Unhandled();
 	}
@@ -321,7 +325,7 @@ FReply FCameraCutTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovie
 	
 	TSharedPtr<FActorDragDropGraphEdOp> DragDropOp = StaticCastSharedPtr<FActorDragDropGraphEdOp>( Operation );
 
-	FMovieSceneTrackEditor::BeginKeying();
+	FMovieSceneTrackEditor::BeginKeying(DragDropParams.FrameNumber);
 
 	bool bAnyDropped = false;
 	for (auto& ActorPtr : DragDropOp->Actors)

@@ -257,9 +257,9 @@ const FSlateBrush* FCinematicShotTrackEditor::GetIconBrush() const
 	return FEditorStyle::GetBrush("Sequencer.Tracks.CinematicShot");
 }
 
-bool FCinematicShotTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid)
+bool FCinematicShotTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams)
 {
-	if (!Track->IsA(UMovieSceneCinematicShotTrack::StaticClass()))
+	if (!DragDropParams.Track->IsA(UMovieSceneCinematicShotTrack::StaticClass()))
 	{
 		return false;
 	}
@@ -275,8 +275,16 @@ bool FCinematicShotTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent,
 
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
 	{
-		if (Cast<UMovieSceneSequence>(AssetData.GetAsset()))
+		if (UMovieSceneSequence* Sequence = Cast<UMovieSceneSequence>(AssetData.GetAsset()))
 		{
+			FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
+
+			const FQualifiedFrameTime InnerDuration = FQualifiedFrameTime(
+				UE::MovieScene::DiscreteSize(Sequence->GetMovieScene()->GetPlaybackRange()),
+				Sequence->GetMovieScene()->GetTickResolution());
+
+			FFrameNumber LengthInFrames = InnerDuration.ConvertTo(TickResolution).FrameNumber;
+			DragDropParams.FrameRange = TRange<FFrameNumber>(DragDropParams.FrameNumber, DragDropParams.FrameNumber + LengthInFrames);
 			return true;
 		}
 	}
@@ -285,9 +293,9 @@ bool FCinematicShotTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent,
 }
 
 
-FReply FCinematicShotTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid)
+FReply FCinematicShotTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams)
 {
-	if (!Track->IsA(UMovieSceneCinematicShotTrack::StaticClass()))
+	if (!DragDropParams.Track->IsA(UMovieSceneCinematicShotTrack::StaticClass()))
 	{
 		return FReply::Unhandled();
 	}
@@ -303,7 +311,7 @@ FReply FCinematicShotTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UM
 
 	TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
 	
-	FMovieSceneTrackEditor::BeginKeying();
+	FMovieSceneTrackEditor::BeginKeying(DragDropParams.FrameNumber);
 
 	bool bAnyDropped = false;
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
@@ -312,7 +320,7 @@ FReply FCinematicShotTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UM
 
 		if (Sequence)
 		{
-			AnimatablePropertyChanged( FOnKeyProperty::CreateRaw( this, &FCinematicShotTrackEditor::AddKeyInternal, Sequence, RowIndex) );
+			AnimatablePropertyChanged( FOnKeyProperty::CreateRaw( this, &FCinematicShotTrackEditor::AddKeyInternal, Sequence, DragDropParams.RowIndex) );
 			
 			bAnyDropped = true;
 		}

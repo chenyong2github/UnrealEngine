@@ -55,9 +55,9 @@ public:
 	virtual EMovieSceneSectionMovedResult OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) override;
 #endif
 
-protected:
+	MOVIESCENETRACKS_API FFrameNumber FindEndTimeForCameraCut(FFrameNumber StartTime);
 
-	FFrameNumber FindEndTimeForCameraCut(FFrameNumber StartTime);
+protected:
 
 	virtual void PreCompileImpl(FMovieSceneTrackPreCompileResult& OutPreCompileResult) override;
 

@@ -1744,9 +1744,9 @@ TSharedPtr<SWidget> FSkeletalAnimationTrackEditor::BuildOutlinerEditWidget(const
 	}
 }
 
-bool FSkeletalAnimationTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid)
+bool FSkeletalAnimationTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams)
 {
-	if (!Track->IsA(UMovieSceneSkeletalAnimationTrack::StaticClass()))
+	if (!DragDropParams.Track->IsA(UMovieSceneSkeletalAnimationTrack::StaticClass()))
 	{
 		return false;
 	}
@@ -1758,12 +1758,12 @@ bool FSkeletalAnimationTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEv
 		return false;
 	}
 	
-	if (!TargetObjectGuid.IsValid())
+	if (!DragDropParams.TargetObjectGuid.IsValid())
 	{
 		return false;
 	}
 
-	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(TargetObjectGuid, GetSequencer());
+	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(DragDropParams.TargetObjectGuid, GetSequencer());
 
 	TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
 
@@ -1774,6 +1774,9 @@ bool FSkeletalAnimationTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEv
 		const bool bValidAnimSequence = AnimSequence && AnimSequence->CanBeUsedInComposition();
 		if (bValidAnimSequence && Skeleton && Skeleton == AnimSequence->GetSkeleton())
 		{
+			FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
+			FFrameNumber LengthInFrames = TickResolution.AsFrameNumber(AnimSequence->GetPlayLength());
+			DragDropParams.FrameRange = TRange<FFrameNumber>(DragDropParams.FrameNumber, DragDropParams.FrameNumber + LengthInFrames);
 			return true;
 		}
 	}
@@ -1782,9 +1785,9 @@ bool FSkeletalAnimationTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEv
 }
 
 
-FReply FSkeletalAnimationTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid)
+FReply FSkeletalAnimationTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams)
 {
-	if (!Track->IsA(UMovieSceneSkeletalAnimationTrack::StaticClass()))
+	if (!DragDropParams.Track->IsA(UMovieSceneSkeletalAnimationTrack::StaticClass()))
 	{
 		return FReply::Unhandled();
 	}
@@ -1796,18 +1799,18 @@ FReply FSkeletalAnimationTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent
 		return FReply::Unhandled();
 	}
 	
-	if (!TargetObjectGuid.IsValid())
+	if (!DragDropParams.TargetObjectGuid.IsValid())
 	{
 		return FReply::Unhandled();
 	}
 
-	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(TargetObjectGuid, GetSequencer());
+	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(DragDropParams.TargetObjectGuid, GetSequencer());
 
 	const FScopedTransaction Transaction(LOCTEXT("DropAssets", "Drop Assets"));
 
 	TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
 
-	FMovieSceneTrackEditor::BeginKeying();
+	FMovieSceneTrackEditor::BeginKeying(DragDropParams.FrameNumber);
 
 	bool bAnyDropped = false;
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
@@ -1816,9 +1819,9 @@ FReply FSkeletalAnimationTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent
 		const bool bValidAnimSequence = AnimSequence && AnimSequence->CanBeUsedInComposition();
 		if (bValidAnimSequence && Skeleton && Skeleton == AnimSequence->GetSkeleton())
 		{
-			UObject* Object = GetSequencer()->FindSpawnedObjectOrTemplate(TargetObjectGuid);
+			UObject* Object = GetSequencer()->FindSpawnedObjectOrTemplate(DragDropParams.TargetObjectGuid);
 				
-			AnimatablePropertyChanged( FOnKeyProperty::CreateRaw(this, &FSkeletalAnimationTrackEditor::AddKeyInternal, Object, AnimSequence, Track, RowIndex));
+			AnimatablePropertyChanged( FOnKeyProperty::CreateRaw(this, &FSkeletalAnimationTrackEditor::AddKeyInternal, Object, AnimSequence, DragDropParams.Track, DragDropParams.RowIndex));
 
 			bAnyDropped = true;
 		}
