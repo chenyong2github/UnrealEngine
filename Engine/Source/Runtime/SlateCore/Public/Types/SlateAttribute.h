@@ -239,7 +239,7 @@ struct FSlateAttributeBase
 };
 
 
-#include "Types/Attributes/SlateAttributeDefinition.h"
-#include "Types/Attributes/SlateAttributeBase.h"
-#include "Types/Attributes/SlateAttributeManaged.h"
-#include "Types/Attributes/SlateAttributeMember.h"
+#include "Types/Attributes/SlateAttributeDefinition.inl"
+#include "Types/Attributes/SlateAttributeBase.inl"
+#include "Types/Attributes/SlateAttributeManaged.inl"
+#include "Types/Attributes/SlateAttributeMember.inl"
