@@ -323,6 +323,11 @@ private:
 	FSubobjectDataHandle FindOrCreateAttachParentForComponent(UActorComponent* InActorComponent, const FSubobjectDataHandle& ActorRootHandle, TArray<FSubobjectDataHandle>& ExistingHandles);
 
 	/**
+	* Recursively search for an attachment parent that matches the given InActorComponent on the blueprint
+	*/
+	FSubobjectDataHandle FindAttachParentForInheritedComponent(UActorComponent* InActorComponent, const FSubobjectDataHandle& ActorRootHandle, UBlueprint* BP);
+
+	/**
 	 * Find all child subobject data related to the given root context.
 	 * Populates the OutVisited set with all data. 
 	 */
