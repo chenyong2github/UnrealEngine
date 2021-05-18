@@ -1070,6 +1070,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 		}
 	}
 }
+
 bool FGeometryCollection::HasContiguousVertices( ) const
 {
 	int32 NumTransforms = NumElements(FGeometryCollection::TransformGroup);
