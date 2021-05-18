@@ -883,11 +883,11 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 		bool bHasFreeIDUpdates = false;
 
 		// Track that we need to consume per instance data before executing the ticks
-		if (Tick.DIInstanceData)
-		{
-			GpuDispatchList.PreAllocateGroups(iTickStartDispatchGroup + 1);
-			GpuDispatchList.DispatchGroups[iTickStartDispatchGroup].TicksWithPerInstanceData.Add(&Tick);
-		}
+		//if (Tick.DIInstanceData)
+		//{
+		//	GpuDispatchList.PreAllocateGroups(iTickStartDispatchGroup + 1);
+		//	GpuDispatchList.DispatchGroups[iTickStartDispatchGroup].TicksWithPerInstanceData.Add(&Tick);
+		//}
 
 		// Iterate over all instances preparing our number of instances
 		for (FNiagaraComputeInstanceData& InstanceData : Tick.GetInstances())
@@ -1207,17 +1207,17 @@ void NiagaraEmitterInstanceBatcher::ExecuteTicks(FRHICommandList& RHICmdList, FR
 		}
 
 		// Consume per tick data from the game thread
-		for (FNiagaraGPUSystemTick* Tick : DispatchGroup.TicksWithPerInstanceData)
-		{
-			uint8* BasePointer = reinterpret_cast<uint8*>(Tick->DIInstanceData->PerInstanceDataForRT);
+		//for (FNiagaraGPUSystemTick* Tick : DispatchGroup.TicksWithPerInstanceData)
+		//{
+		//	uint8* BasePointer = reinterpret_cast<uint8*>(Tick->DIInstanceData->PerInstanceDataForRT);
 
-			for (const auto& Pair : Tick->DIInstanceData->InterfaceProxiesToOffsets)
-			{
-				FNiagaraDataInterfaceProxy* Proxy = Pair.Key;
-				uint8* InstanceDataPtr = BasePointer + Pair.Value;
-				Proxy->ConsumePerInstanceDataFromGameThread(InstanceDataPtr, Tick->SystemInstanceID);
-			}
-		}
+		//	for (const auto& Pair : Tick->DIInstanceData->InterfaceProxiesToOffsets)
+		//	{
+		//		FNiagaraDataInterfaceProxy* Proxy = Pair.Key;
+		//		uint8* InstanceDataPtr = BasePointer + Pair.Value;
+		//		Proxy->ConsumePerInstanceDataFromGameThread(InstanceDataPtr, Tick->SystemInstanceID);
+		//	}
+		//}
 
 		// Execute Before Transitions
 		RHICmdList.Transition(TransitionsBefore);
