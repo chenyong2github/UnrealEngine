@@ -90,7 +90,7 @@ class FDDSLoadHelper
 {
 public:
 	/** @param Buffer must not be 0 */
-	ENGINE_API FDDSLoadHelper(const uint8* Buffer, uint32 Length);
+	ENGINE_API FDDSLoadHelper(const uint8* Buffer, uint64 Length);
 
 	bool IsValid() const;
 		
@@ -120,7 +120,13 @@ public:
 
 	/** Extracts the cube map size from the texture name */
 	ENGINE_API const uint8* GetDDSDataPointer(const UTexture2D& Texture) const;
-	
+
+	/** Get the largest size possible for a DDS header in Bytes */
+	ENGINE_API static int64 GetDDSHeaderMaximalSize();
+
+	/** Get the minimal size possible for a DDS header in Bytes */
+	ENGINE_API static int64 GetDDSHeaderMinimalSize();
+
 // for now we allow direct access to the header but that could be changed
 
 	/** !=0 if valid */
