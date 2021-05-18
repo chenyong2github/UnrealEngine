@@ -6,6 +6,7 @@
 #include "TemplateSequencePlayer.h"
 #include "IMovieScenePlaybackClient.h"
 #include "MovieSceneBindingOwnerInterface.h"
+#include "MovieSceneSequenceTickManager.h"
 #include "GameFramework/Actor.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -34,6 +35,7 @@ struct FTemplateSequenceBindingOverrideData
 UCLASS(hideCategories = (Rendering, Physics, LOD, Activation, Input))
 class TEMPLATESEQUENCE_API ATemplateSequenceActor
 	: public AActor
+	, public IMovieSceneSequenceActor
 	, public IMovieScenePlaybackClient
 {
 public:
@@ -75,13 +77,16 @@ public:
 
 protected:
 
+	//~ Begin IMovieSceneSequenceActor interface
+	virtual void TickFromSequenceTickManager(float DeltaSeconds) override;
+	//~ End IMovieSceneSequenceActor interface
+
 	//~ Begin IMovieScenePlaybackClient interface
 	virtual bool RetrieveBindingOverrides(const FGuid& InBindingId, FMovieSceneSequenceID InSequenceID, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
 	virtual UObject* GetInstanceData() const override;
 	//~ End IMovieScenePlaybackClient interface
 
 	//~ Begin AActor interface
-	virtual void Tick(float DeltaSeconds) override;
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

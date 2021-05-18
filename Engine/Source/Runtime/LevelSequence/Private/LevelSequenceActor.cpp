@@ -162,7 +162,7 @@ void ALevelSequenceActor::BeginPlay()
 	UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager();
 	if (ensure(TickManager))
 	{
-		TickManager->SequenceActors.Add(this);
+		TickManager->RegisterSequenceActor(this);
 	}
 
 	Super::BeginPlay();
@@ -186,17 +186,15 @@ void ALevelSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 		if (UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager())
 		{
-			TickManager->SequenceActors.Remove(this);
+			TickManager->UnregisterSequenceActor(this);
 		}
 	}
 
 	Super::EndPlay(EndPlayReason);
 }
 
-void ALevelSequenceActor::Tick(float DeltaSeconds)
+void ALevelSequenceActor::TickFromSequenceTickManager(float DeltaSeconds)
 {
-	Super::Tick(DeltaSeconds);
-
 	if (SequencePlayer)
 	{
 		SequencePlayer->Update(DeltaSeconds);
