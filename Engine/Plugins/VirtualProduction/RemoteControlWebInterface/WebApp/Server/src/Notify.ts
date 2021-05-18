@@ -30,8 +30,9 @@ export namespace Notify {
     io.emit(what, value);
   }
 
-  export function onViewChange(preset: string, view: IView) {
-    UnrealEngine.setView(preset, view);
+  export function onViewChange(preset: string, view: IView, supressUnrealNotification?: boolean) {
+    if (!supressUnrealNotification)
+      UnrealEngine.setView(preset, view);
     io.emit('view', preset, view);
   }
 

@@ -1,6 +1,6 @@
 export * from './Button';
-export * from './Gauge';
-export * from './GaugesWrapper';
+export * from './Dial';
+export * from './DialsWrapper';
 export * from './Joystick';
 export * from './JoysticksWrapper';
 export * from './NewColorPicker';
@@ -10,3 +10,4 @@ export * from './Text';
 export * from './Toggle';
 export * from './ValueInput';
 export * from './VectorDrawer';
+export * from './Search';

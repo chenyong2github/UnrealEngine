@@ -128,7 +128,7 @@ export type IPayload = { [property: string]: PropertyValue | IPayload };
 export type IPayloads = { [preset: string]: IPayload };
 
 export enum WidgetTypes {
-  Gauge =           'Gauge',
+  Dial =            'Dial',
   Slider =          'Slider',
   Sliders =         'Sliders',
   ScaleSlider =     'Scale Slider',
@@ -206,7 +206,7 @@ export interface ICustomStackProperty {
   spaces?: number;
 
   // Dial only
-  mode?: 'ENDLESS' | 'RANGE' | 'ROTATION';
+  mode?: 'ENDLESS' | 'RANGE';
 }
 
 export interface ICustomStackItem {

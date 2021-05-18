@@ -313,7 +313,7 @@ export namespace UnrealEngine {
       }
 
       views[preset] = view;
-      Notify.onViewChange(preset, view);
+      Notify.onViewChange(preset, view, true);
     } catch (error) {
       console.log('Failed to parse View of Preset', preset);
     }    
@@ -396,7 +396,6 @@ export namespace UnrealEngine {
       for (const group of Preset.Groups) {
         for (const property of group.ExposedProperties) {
            const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.ID}`);
-           console.log(value);
            setPayloadValueInternal(updatedPayloads, [Preset.Name, property.ID], value?.PropertyValues?.[0]?.PropertyValue);
         }
       }
@@ -527,11 +526,18 @@ export namespace UnrealEngine {
     }
   }
 
-  export async function setPresetPropertyMetadata(preset: string, property: string, metadata: string, value: string) {
+  export async function setPresetPropertyMetadata(preset: string, property: string, metadata: string, value: string, cb?: () => void) {
     try {
 
       const url = `/remote/preset/${preset}/property/${property}/metadata/${metadata}`;
       await put(url, { value });
+      const p = _.find(presets, p => p.Name === preset);
+      const prop = p?.Exposed[property];
+      if (prop) {
+        prop.Metadata[metadata] = value;
+        Notify.emit('presets', presets);
+        cb?.();
+      }
     } catch (err) {
       console.log(`Failed to rename a property`);
     }
