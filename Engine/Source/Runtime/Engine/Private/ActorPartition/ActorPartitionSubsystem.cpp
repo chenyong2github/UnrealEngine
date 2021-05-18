@@ -6,6 +6,7 @@
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 

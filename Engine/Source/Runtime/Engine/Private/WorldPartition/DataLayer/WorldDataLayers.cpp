@@ -6,16 +6,122 @@
 
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "EngineUtils.h"
+#include "Net/UnrealNetwork.h"
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldDataLayers"
 
+int32 AWorldDataLayers::DataLayersStateEpoch = 0;
+
 AWorldDataLayers::AWorldDataLayers(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bAlwaysRelevant = true;
+	bReplicates = true;
+}
+
+void AWorldDataLayers::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AWorldDataLayers, RepLoadedDataLayerNames);
+	DOREPLIFETIME(AWorldDataLayers, RepActiveDataLayerNames);
+}
+
+void AWorldDataLayers::InitializeDataLayerStates()
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		ForEachDataLayer([this](class UDataLayer* DataLayer)
+		{
+			if (DataLayer && DataLayer->IsDynamicallyLoaded())
+			{
+				if (DataLayer->GetInitialState() == EDataLayerState::Activated)
+				{
+					ActiveDataLayerNames.Add(DataLayer->GetFName());
+				}
+				else if (DataLayer->GetInitialState() == EDataLayerState::Loaded)
+				{
+					LoadedDataLayerNames.Add(DataLayer->GetFName());
+				}
+			}
+			return true;
+		});
+
+		RepActiveDataLayerNames = ActiveDataLayerNames.Array();
+		RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
+	}
+}
+
+void AWorldDataLayers::SetDataLayerState_Implementation(FActorDataLayer InDataLayer, EDataLayerState InState)
+{
+	const UDataLayer* DataLayer = GetDataLayerFromName(InDataLayer.Name);
+	if (!DataLayer || !DataLayer->IsDynamicallyLoaded())
+	{
+		return;
+	}
+
+	EDataLayerState CurrentState = GetDataLayerStateByName(InDataLayer.Name);
+	if (CurrentState != InState)
+	{
+		LoadedDataLayerNames.Remove(InDataLayer.Name);
+		ActiveDataLayerNames.Remove(InDataLayer.Name);
+
+		if (InState == EDataLayerState::Loaded)
+		{
+			LoadedDataLayerNames.Add(InDataLayer.Name);
+		}
+		else if (InState == EDataLayerState::Activated)
+		{
+			ActiveDataLayerNames.Add(InDataLayer.Name);
+		}
+			
+		// Update Replicated Properties
+		RepActiveDataLayerNames = ActiveDataLayerNames.Array();
+		RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
+
+		++DataLayersStateEpoch;
+
+		OnDataLayerStateChanged(DataLayer, InState);
+	}
+}
+
+void AWorldDataLayers::OnDataLayerStateChanged_Implementation(const UDataLayer* InDataLayer, EDataLayerState InState)
+{
+	UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+	DataLayerSubsystem->OnDataLayerStateChanged.Broadcast(InDataLayer, InState);
+}
+
+void AWorldDataLayers::OnRep_ActiveDataLayerNames()
+{
+	ActiveDataLayerNames.Reset();
+	ActiveDataLayerNames.Append(RepActiveDataLayerNames);
+}
+
+void AWorldDataLayers::OnRep_LoadedDataLayerNames()
+{
+	LoadedDataLayerNames.Reset();
+	LoadedDataLayerNames.Append(RepLoadedDataLayerNames);
+}
+
+EDataLayerState AWorldDataLayers::GetDataLayerStateByName(FName InDataLayerName) const
+{
+	if (ActiveDataLayerNames.Contains(InDataLayerName))
+	{
+		check(!LoadedDataLayerNames.Contains(InDataLayerName));
+		return EDataLayerState::Activated;
+	}
+	else if (LoadedDataLayerNames.Contains(InDataLayerName))
+	{
+		check(!ActiveDataLayerNames.Contains(InDataLayerName));
+		return EDataLayerState::Loaded;
+	}
+
+	return EDataLayerState::Unloaded;
 }
 
 #if WITH_EDITOR
@@ -233,6 +339,8 @@ void AWorldDataLayers::PostLoad()
 		NameToDataLayer.Add(DataLayer->GetFName(), DataLayer);
 	}
 #endif
+
+	InitializeDataLayerStates();
 }
 
 #undef LOCTEXT_NAMESPACE

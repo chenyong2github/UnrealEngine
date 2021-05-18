@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 

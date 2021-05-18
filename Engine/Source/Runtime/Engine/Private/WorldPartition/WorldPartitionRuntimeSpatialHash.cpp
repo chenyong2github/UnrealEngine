@@ -1014,7 +1014,7 @@ FAutoConsoleCommand UWorldPartitionRuntimeSpatialHash::OverrideLoadingRangeComma
 );
 
 // Streaming interface
-int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldPartitionRuntimeCell*>& Cells, bool bIncludeDataLayers /*=false*/) const
+int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldPartitionRuntimeCell*>& Cells, bool bAllDataLayers, bool bDataLayersOnly, const TSet<FName>& InDataLayers) const
 {
 	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 	{
@@ -1024,7 +1024,11 @@ int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldP
 			{
 				for (const UWorldPartitionRuntimeSpatialHashCell* Cell : LayerCell.GridCells)
 				{
-					if (bIncludeDataLayers || !Cell->HasDataLayers())
+					if (!bDataLayersOnly && !Cell->HasDataLayers())
+					{
+						Cells.Add(Cell);
+					}
+					else if (Cell->HasDataLayers() && (bAllDataLayers || Cell->HasAnyDataLayer(InDataLayers)))
 					{
 						Cells.Add(Cell);
 					}
