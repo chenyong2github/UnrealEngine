@@ -23,6 +23,7 @@ class NIAGARAEDITOR_API UNiagaraStackModuleItem : public UNiagaraStackItem
 
 public:
 	DECLARE_DELEGATE_OneParam(FOnRequestDeprecationRecommended, UNiagaraStackModuleItem*);
+	DECLARE_DELEGATE_OneParam(FOnNoteModeSet, bool);
 
 	UNiagaraStackModuleItem();
 
@@ -106,9 +107,22 @@ public:
 		SetIsEnabledInternal(bEnabled);
 	}
 
+	void SetNoteMode(bool bEnabled)
+	{
+		bIsNoteModeActive = bEnabled;
+		OnNoteModeSet().ExecuteIfBound(bIsNoteModeActive);
+	}
+
+	bool GetNoteMode() const
+	{
+		return bIsNoteModeActive;
+	}
+
 	bool IsDebugDrawEnabled() const;
 	void SetDebugDrawEnabled(bool bInEnabled);
 
+	FOnNoteModeSet& OnNoteModeSet() { return OnNoteModeSetDelegate;}
+	
 protected:
 	FOnRequestDeprecationRecommended DeprecationDelegate;
 
@@ -150,6 +164,8 @@ private:
 
 	mutable TOptional<bool> bIsScratchModuleCache;
 
+	bool bIsNoteModeActive = false;
+	
 	bool bIsModuleScriptReassignmentPending;
 
 	FGuid MessageManagerRegistrationKey;
@@ -158,4 +174,6 @@ private:
 	TArray<FStackIssue> MessageManagerIssues;
 
 	FGuid MessageLogGuid;
+	
+	FOnNoteModeSet OnNoteModeSetDelegate;
 };

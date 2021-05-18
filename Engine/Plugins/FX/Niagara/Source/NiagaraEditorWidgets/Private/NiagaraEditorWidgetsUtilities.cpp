@@ -4,6 +4,7 @@
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 #include "Stack/SNiagaraStackItemGroupAddMenu.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorCommon.h"
@@ -19,6 +20,8 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "NiagaraMessages.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackEditorWidgetsUtilities"
 
@@ -328,10 +331,16 @@ void ShowInsertModuleMenu(TWeakObjectPtr<UNiagaraStackModuleItem> StackModuleIte
 	}
 }
 
+void EnableNoteMode(TWeakObjectPtr<UNiagaraStackModuleItem> ModuleItem)
+{
+	ModuleItem->GetSystemViewModel()->GetSelectionViewModel()->UpdateSelectedEntries({ModuleItem.Get()}, {}, true);
+	ModuleItem->SetNoteMode(true);
+}
+
 bool FNiagaraStackEditorWidgetsUtilities::AddStackModuleItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackModuleItem& StackModuleItem, TSharedRef<SWidget> TargetWidget)
 {
 	MenuBuilder.BeginSection("ModuleActions", LOCTEXT("ModuleActions", "Module Actions"));
-	{
+	{		
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("InsertModuleAbove", "Insert Above"),
 			LOCTEXT("InsertModuleAboveToolTip", "Insert a new module above this module in the stack."),
@@ -343,6 +352,12 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackModuleItemContextMenuActions(F
 			LOCTEXT("InsertModuleBelowToolTip", "Insert a new module below this module in the stack."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateStatic(&ShowInsertModuleMenu, TWeakObjectPtr<UNiagaraStackModuleItem>(&StackModuleItem), 1, TWeakPtr<SWidget>(TargetWidget))));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AddNote", "Add Note"),
+			LOCTEXT("AddNoteToolTip", "Add a note to this module item."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateStatic(&EnableNoteMode, TWeakObjectPtr<UNiagaraStackModuleItem>(&StackModuleItem))));
 	}
 	MenuBuilder.EndSection();
 	return true;

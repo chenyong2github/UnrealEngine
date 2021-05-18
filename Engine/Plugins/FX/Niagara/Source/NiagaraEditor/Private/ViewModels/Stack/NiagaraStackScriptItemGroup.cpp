@@ -1260,6 +1260,11 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 
 			if (NewFunctionCallNode != nullptr)
 			{
+				for(const auto& Message : ClipboardFunction->Messages)
+				{
+					NewFunctionCallNode->AddCustomNote(Message);	
+				}
+				
 				ClipboardFunction->OnPastedFunctionCallNodeDelegate.ExecuteIfBound(NewFunctionCallNode);
 				ClipboardFunctionAndNodeFunctionPairs.Add(TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>(ClipboardFunction, NewFunctionCallNode));
 				CurrentPasteIndex++;

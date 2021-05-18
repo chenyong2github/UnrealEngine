@@ -7,6 +7,7 @@
 #include "INiagaraMergeManager.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
+#include "NiagaraMessages.h"
 
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
@@ -99,12 +100,13 @@ public:
 
 	void GatherFunctionCallNodes(TArray<UNiagaraNodeFunctionCall*>& OutFunctionCallNodes) const;
 
+	const TArray<FNiagaraStackMessage>& GetMessages() const;
+
 private:
 	TWeakObjectPtr<UNiagaraScript> OwningScript;
 	TWeakObjectPtr<UNiagaraNodeFunctionCall> FunctionCallNode;
 	int32 StackIndex;
 	bool bUsesScratchPadScript;
-
 	TArray<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>> InputOverrides;
 };
 
@@ -266,6 +268,11 @@ private:
 	TWeakObjectPtr<const UNiagaraEmitterEditorData> EditorData;
 };
 
+struct FNiagaraStackFunctionMessageData
+{
+	TSharedPtr<FNiagaraStackFunctionMergeAdapter> Function;
+	FNiagaraStackMessage StackMessage;
+};
 struct FNiagaraScriptStackDiffResults
 {
 	FNiagaraScriptStackDiffResults();
@@ -290,6 +297,9 @@ struct FNiagaraScriptStackDiffResults
 	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> EnabledChangedBaseModules;
 	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> EnabledChangedOtherModules;
 
+	TArray<FNiagaraStackFunctionMessageData> AddedOtherMessages;
+	TArray<FNiagaraStackFunctionMessageData> RemovedBaseMessagesInOther;
+	
 	TArray<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>> RemovedBaseInputOverrides;
 	TArray<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>> AddedOtherInputOverrides;
 	TArray<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>> ModifiedBaseInputOverrides;
