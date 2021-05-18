@@ -98,6 +98,22 @@ EFilterResult::Type UDisjunctiveNormalFormFilter::IsPropertyValid(const FIsPrope
 	});
 }
 
+EFilterResult::Type UDisjunctiveNormalFormFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
+{
+	return ExecuteOrChain(Children, [&Params](UConjunctionFilter* Child)
+	{
+		return Child->IsDeletedActorValid(Params);
+	});
+}
+
+EFilterResult::Type UDisjunctiveNormalFormFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
+{
+	return ExecuteOrChain(Children, [&Params](UConjunctionFilter* Child)
+	{
+		return Child->IsAddedActorValid(Params);
+	});
+}
+
 TArray<UEditorFilter*> UDisjunctiveNormalFormFilter::GetEditorChildren()
 {
 	TArray<UEditorFilter*> EditorFilterChildren;

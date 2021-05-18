@@ -16,8 +16,8 @@
 #include "UObject/Package.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
-
 #if WITH_EDITOR
+#include "Logging/MessageLog.h"
 #include "ScopedTransaction.h"
 #endif
 
@@ -80,8 +80,29 @@ namespace
 
 void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet)
 {
+	if (TargetWorld == nullptr)
+	{
+		return;
+	}
+	
+	if (MapPath != FSoftObjectPath(TargetWorld))
+	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (TargetWorld->IsPlayInEditor())
+		{
+			FMessageLog("PIE").Warning(
+				FText::Format(NSLOCTEXT("LevelSnapshots", "IncompatibleWorlds", "This snapshot was taken in world '%s' and cannot be applied to PIE world '%s'. Snapshots can only be applied to the world they were taken in."),
+				FText::FromString(MapPath.ToString()),
+				FText::FromString(TargetWorld->GetPathName())
+				)
+			);
+		}
+#endif
+		UE_LOG(LogLevelSnapshots, Error, TEXT("This snapshot was taken for world '%s' and cannot be applied to world '%s': snapshots currently only support applying to the world they were taken in. "), *MapPath.ToString(), *TargetWorld->GetPathName());
+		return;
+	}
+	
 	EnsureWorldInitialised();
-
 #if WITH_EDITOR
 	FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
 #endif
@@ -107,6 +128,19 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		return;
 	}
 
+	if (TargetWorld->WorldType != EWorldType::Editor)
+	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (TargetWorld->IsPlayInEditor())
+		{
+			FMessageLog("PIE").Warning(
+			NSLOCTEXT("LevelSnapshots", "IncompatibleWorlds", "Taking snapshots in PIE is an experimental feature. The snapshot will work in the same PIE session but may no longer work when you start a new PIE session.")
+			);
+		}
+#endif
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("Level snapshots currently only support editors. Snapshots taken in other world types are experimental any may not function as expected."));
+	}
+	
 	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
 	if (bHasLegacyData)
 	{

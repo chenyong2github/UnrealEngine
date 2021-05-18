@@ -142,7 +142,7 @@ TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FW
 	bReceivedSerialisation = true;
 	
 	AActor* PreallocatedActor = Preallocated.GetValue();
-	FSnapshotArchive::RestoreData(SerializedActorData, WorldData, PreallocatedActor, InLocalisationSnapshotPackage);
+	FSnapshotArchive::ApplyToSnapshotWorldObject(SerializedActorData, WorldData, PreallocatedActor, InLocalisationSnapshotPackage);
 
 	DeserializeComponents(PreallocatedActor, WorldData, [InLocalisationSnapshotPackage](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Comp, FWorldSnapshotData& SharedData)
 	{

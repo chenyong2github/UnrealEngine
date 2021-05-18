@@ -93,14 +93,14 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	enum ELevelSnapshotsEditorResultsRowType
 	{
 		None,
-		TreeViewHeader,
-		AddedActor,
-		RemovedActor,
-		ActorGroup,
-		ComponentGroup,
-		SubObjectGroup,
+		TreeViewHeader, // Includes rows that represent headers grouping together added, removed, or modified actor rows
+		AddedActor, // Includes rows that represent actors which have been created in the world since the snapshot was taken
+		RemovedActor, // Includes rows that represent actors which have been deleted from the world since the snapshot was taken
+		ActorGroup, // Modified Actor group. Use AddedActor or RemovedActor for other Actor row types.
+		ComponentGroup, // Includes rows that represent UActorComponent types
+		SubObjectGroup, // Includes rows that represent separate non-component objects wholly owned by the world or snapshot actor
 		StructGroup,
-		CollectionGroup,
+		CollectionGroup, // Includes rows that represent TMap, TSet, and TArray.
 		SingleProperty,
 		SinglePropertyInStruct,
 		SinglePropertyInMap,
@@ -184,6 +184,8 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	void ExecuteSearchOnChildNodes(const FString& SearchString) const;
 	void ExecuteSearchOnChildNodes(const TArray<FString>& Tokens) const;
 
+	void SetCachedSearchTerms(const FString& InTerms);
+
 	UObject* GetSnapshotObject() const;
 	UObject* GetWorldObject() const;
 
@@ -253,7 +255,7 @@ private:
 	bool bDoesRowMatchSearchTerms = true;
 
 	/* Returns a string of searchable keywords such as object names, property names, paths or anything else associated with the row that might be useful to search for. */
-	const FString& GetSearchTerms() const;
+	const FString& GetOrCacheSearchTerms();
 
 	/* Use MatchSearchTerms() first to match Search Terms against tokens, then call this method*/
 	bool GetDoesRowMatchSearchTerms() const;
@@ -323,7 +325,11 @@ public:
 	/* This method builds a selection set of all visible and checked properties to pass back to apply to the world. */
 	void BuildSelectionSetFromSelectedPropertiesInEachActorGroup();
 
-	const FString& GetSearchStringFromSearchInputField() const;
+	FString GetSearchStringFromSearchInputField() const;
+	void ExecuteResultsViewSearchOnAllActors(const FString& SearchString) const;
+	void ExecuteResultsViewSearchOnSpecifiedActors(const FString& SearchString, const TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& ActorRowsToConsider) const;
+
+	bool DoesTreeViewHaveVisibleChildren() const;
 
 	ULevelSnapshotsEditorData* GetEditorDataPtr() const;
 
@@ -355,8 +361,7 @@ private:
 
 	// Search
 	
-	void OnResultsViewSearchTextChanged(const FText& Text);
-	void ExecuteResultsViewSearch(const FString& SearchString);
+	void OnResultsViewSearchTextChanged(const FText& Text) const;
 
 	FDelegateHandle OnActiveSnapshotChangedHandle;
 	FDelegateHandle OnRefreshResultsHandle;
@@ -382,7 +387,7 @@ private:
 	bool GenerateTreeViewChildren_RemovedActors(FLevelSnapshotsEditorResultsRowPtr RemovedActorsHeader);
 	
 	void OnGetRowChildren(FLevelSnapshotsEditorResultsRowPtr Row, TArray<FLevelSnapshotsEditorResultsRowPtr>& OutChildren);
-	void OnRowChildExpansionChange(FLevelSnapshotsEditorResultsRowPtr Row, const bool bIsExpanded);
+	void OnRowChildExpansionChange(FLevelSnapshotsEditorResultsRowPtr Row, const bool bIsExpanded) const;
 	
 	TSharedPtr<STreeView<FLevelSnapshotsEditorResultsRowPtr>> TreeViewPtr;
 	

@@ -7,7 +7,7 @@
 #include "PropertySelectionMap.h"
 #include "SnapshotArchive.h"
 
-/* For writing data into an object */
+/* For writing data into an editor object. */
 class FApplySnapshotDataArchiveV2 : public FSnapshotArchive
 {
 	using Super = FSnapshotArchive;

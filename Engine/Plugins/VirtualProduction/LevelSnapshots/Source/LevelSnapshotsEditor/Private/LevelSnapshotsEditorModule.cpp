@@ -4,25 +4,23 @@
 
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
 #include "NegatableFilter.h"
-#include "NegatableFilterDetailsCustomization.h"
 #include "LevelSnapshotsEditorCommands.h"
 #include "LevelSnapshotsEditorStyle.h"
+#include "LevelSnapshotsEditorFunctionLibrary.h"
 #include "LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsFunctionLibrary.h"
 #include "LevelSnapshotsUserSettings.h"
 #include "SLevelSnapshotsEditorCreationForm.h"
 #include "Toolkits/LevelSnapshotsEditorToolkit.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions/AssetTypeActions_LevelSnapshot.h"
 #include "IAssetTools.h"
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
-#include "LevelSnapshotsEditorFunctionLibrary.h"
-#include "Editor/MainFrame/Private/Menus/SettingsMenu.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/ScopeExit.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -49,12 +47,6 @@ void FLevelSnapshotsEditorModule::StartupModule()
 	{
 		RegisterEditorToolbar();
 	}
-
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomClassLayout( UNegatableFilter::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateLambda( []()
-	{
-		return MakeShared<FNegatableFilterDetailsCustomization>();
-	}));
 }
 
 void FLevelSnapshotsEditorModule::ShutdownModule()
@@ -298,6 +290,7 @@ void FLevelSnapshotsEditorModule::TakeAndSaveSnapshot(const FText& InDescription
 	{
 		return;
 	}
+	Snapshot->SetFlags(RF_Public | RF_Standalone);
 
 	
 	// Take screenshot before we save
@@ -342,7 +335,7 @@ void FLevelSnapshotsEditorModule::OpenSnapshotsEditor()
 
 void FLevelSnapshotsEditorModule::OpenLevelSnapshotsSettings()
 {
-	FSettingsMenu::OpenSettings("Project", "Plugins", "Level Snapshots");
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Plugins", "Level Snapshots");
 }
 
 ULevelSnapshotsEditorData* FLevelSnapshotsEditorModule::AllocateTransientPreset()

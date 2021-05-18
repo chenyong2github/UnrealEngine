@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SnapshotVersion.h"
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/ObjectMacros.h"
 
@@ -18,7 +19,7 @@ class FSnapshotArchive : public FArchiveUObject
 	
 public:
 
-	static void RestoreData(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage);
+	static void ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage);
 
 	//~ Begin FArchive Interface
 	virtual FString GetArchiveName() const override;
@@ -44,6 +45,11 @@ protected:
 
 	EPropertyFlags ExcludedPropertyFlags;
 
+	/**
+	 * @param InObjectData Holds the array we're loading from or saving to
+	 * @param InSharedData Used to store shared data, e.g. references
+	 * @param bIsLoading Whether to load or save
+	 */
 	FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading);
 	
 private:

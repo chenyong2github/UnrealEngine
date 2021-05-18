@@ -6,7 +6,9 @@
 #include "ActorSnapshotData.h"
 #include "ComponentSnapshotData.h"
 #include "ClassDefaultObjectSnapshotData.h"
+#include "SnapshotVersion.h"
 #include "SubobjectSnapshotData.h"
+#include "UObject/Class.h"
 #include "WorldSnapshotData.generated.h"
 
 class AActor;
@@ -43,9 +45,8 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	 * Checks whether two pointers point to "equivalent" objects.
 	 */
 	bool AreReferencesEquivalent(UObject* SnapshotPropertyValue, UObject* OriginalPropertyValue, AActor* SnapshotActor, AActor* OriginalActor) const;
-
+	
 public: /* Serialisation functions */
-
 	
 	
 	/* Adds an object dependency without serializing the object's content. Intended for external objects, e.g. to UMaterial in the content browser. */
@@ -79,9 +80,18 @@ public: /* Serialisation functions */
 	* This is intended for cases where you cannot specify a template object for new objects. Components are one such use case.
 	*/
 	void SerializeClassDefaultsInto(UObject* Object);
+
+
+	const FSnapshotVersionInfo& GetSnapshotVersionInfo() const;
+	
+	//~ Begin TStructOpsTypeTraits Interface
+	void PostSerialize(const FArchive& Ar);
+	//~ End TStructOpsTypeTraits Interface
 	
 private:
 
+	UObject* ResolveExternalReference(const FSoftObjectPath& ObjectPath);
+	
 	void ApplyToWorld_HandleRemovingActors(const FPropertySelectionMap& PropertiesToSerialize);
 	void ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
 	void ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
@@ -91,7 +101,14 @@ private:
 	/* The world we will be adding temporary actors to */
 	TWeakObjectPtr<UWorld> TempActorWorld;
 
-
+	/**
+	 * Stores versioning information we inject into archives.
+	 * This is to support asset migration, like FArchive::UsingCustomVersion.
+	 */
+	UPROPERTY()
+	FSnapshotVersionInfo SnapshotVersionInfo;
+	
+	
 	
 	/* We only save properties with values different from their CDO counterpart.
 	 * Because of this, we need to save class defaults in the snapshot.
@@ -130,5 +147,14 @@ private:
 	 */
 	UPROPERTY()
 	TMap<int32, FSubobjectSnapshotData> Subobjects;
-	
 };
+
+template<>
+struct TStructOpsTypeTraits<FWorldSnapshotData> : public TStructOpsTypeTraitsBase2<FWorldSnapshotData>
+{
+	enum 
+	{ 
+		WithPostSerialize = true
+	};
+};
+
