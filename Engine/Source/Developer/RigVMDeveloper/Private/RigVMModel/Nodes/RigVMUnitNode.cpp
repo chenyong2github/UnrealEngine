@@ -3,8 +3,6 @@
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMCore/RigVMStruct.h"
 
-const FName URigVMUnitNode::LoopSliceContextName = TEXT("LoopContext");
-
 FString URigVMUnitNode::GetNodeTitle() const
 {
 	if (UScriptStruct* Struct = GetScriptStruct())
@@ -50,64 +48,6 @@ FName URigVMUnitNode::GetEventName() const
 		return StructMemory->GetEventName();
 	}
 	return NAME_None;
-}
-
-FName URigVMUnitNode::GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData)
-{
-	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(false);
-	if (StructOnScope.IsValid())
-	{
-		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
-		if (StructMemory->IsForLoop())
-		{
-			// if we are on any of the pins returning something from the loop
-			if (InRootPin->GetFName() == FRigVMStruct::ExecuteContextName ||
-				InRootPin->GetFName() == FRigVMStruct::ForLoopIndexPinName)
-			{
-				return LoopSliceContextName;
-			}
-			else if (InRootPin->GetFName() == FRigVMStruct::ForLoopCompletedPinName||
-				InRootPin->GetFName() == FRigVMStruct::ForLoopCountPinName ||
-				InRootPin->GetFName() == FRigVMStruct::ForLoopContinuePinName)
-			{
-				return NAME_None;
-			}
-		}
-	}
-
-	if (UScriptStruct* Struct = GetScriptStruct())
-	{
-		if (FProperty* Property = Struct->FindPropertyByName(InRootPin->GetFName()))
-		{
-			FString SliceContextMetaData = Property->GetMetaData(FRigVMStruct::SliceContextMetaName);
-			if (!SliceContextMetaData.IsEmpty())
-			{
-				return *SliceContextMetaData;
-			}
-		}
-	}
-
-	return Super::GetSliceContextForPin(InRootPin, InUserData);
-}
-
-int32 URigVMUnitNode::GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData)
-{
-	int32 NumSlices = Super::GetNumSlicesForContext(InContextName, InUserData);
-
-	if (InContextName == LoopSliceContextName)
-	{
-		TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(false);
-		if (StructOnScope.IsValid())
-		{
-			const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
-			if (StructMemory->IsForLoop())
-			{
-				NumSlices = NumSlices * FMath::Max<int32>(StructMemory->GetNumSlices(), 1);
-			}
-		}
-	}
-
-	return NumSlices;
 }
 
 FText URigVMUnitNode::GetToolTipTextForPin(const URigVMPin* InPin) const
