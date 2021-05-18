@@ -362,6 +362,7 @@ struct TStructOpsTypeTraits<FTransform> : public TStructOpsTypeTraitsBase2<FTran
 {
 	enum
 	{
+		WithSerializer = true,
 		WithIdentical = true,
 	};
 };
