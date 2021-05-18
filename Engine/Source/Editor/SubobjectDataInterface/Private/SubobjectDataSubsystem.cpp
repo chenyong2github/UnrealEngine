@@ -690,8 +690,6 @@ FSubobjectDataHandle USubobjectDataSubsystem::FindParentForNewSubobject(const UO
 		{
 			TargetParentHandle = SelectedParent;
 		}
-
-		check(TargetParentHandle.IsValid() && TargetParentData->IsActor());
 	}
 	
 	return TargetParentHandle;
