@@ -1150,9 +1150,13 @@ int32 URigHierarchyController::AddElement(FRigBaseElement* InElementToAdd, FRigB
 	Hierarchy->IndexLookup.Add(InElementToAdd->Key, InElementToAdd->Index);
 	Hierarchy->TopologyVersion++;
 
-	Notify(ERigHierarchyNotification::ElementAdded, InElementToAdd);
+	{
+		const TGuardValue<bool> Guard(bSuspendNotifications, true);
+		SetParent(InElementToAdd, InFirstParent, bMaintainGlobalTransform);
+	}
 
-	SetParent(InElementToAdd, InFirstParent, bMaintainGlobalTransform);
+	// only notify once at the end
+	Notify(ERigHierarchyNotification::ElementAdded, InElementToAdd);
 
 	return InElementToAdd->Index;
 }
