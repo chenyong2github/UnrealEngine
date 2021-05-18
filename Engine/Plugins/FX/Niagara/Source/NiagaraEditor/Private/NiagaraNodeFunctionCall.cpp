@@ -26,6 +26,7 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeStaticSwitch.h"
+#include "ScopedTransaction.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
