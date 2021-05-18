@@ -22,7 +22,7 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	const FVec2& Scale,
 	const EMode InMode)
 	: TethersView(Tethers)
-	, Stiffness(StiffnessMultipliers, InStiffness, InParticleCount)
+	, Stiffness(InStiffness, StiffnessMultipliers, InParticleCount)
 	, Mode(InMode)
 	, ParticleOffset(InParticleOffset)
 	, ParticleCount(InParticleCount)

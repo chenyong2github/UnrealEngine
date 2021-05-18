@@ -164,6 +164,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Enable a few more weight maps to better art direct the cloth simulation
 		ChaosClothAddTetherScaleAndDragLiftWeightMaps,
 
+		// Enable material (edge, bending, and area stiffness) weight maps
+		ChaosClothAddMaterialWeightMaps,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

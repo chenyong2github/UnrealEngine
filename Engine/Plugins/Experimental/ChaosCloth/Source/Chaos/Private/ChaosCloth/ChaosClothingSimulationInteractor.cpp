@@ -6,6 +6,11 @@
 
 using namespace Chaos;
 
+namespace ChaosClothingInteractor
+{
+	static const float InvStiffnessLogBase = 1.f / FMath::Loge(1.e3f);  // Log base for updating old linear stiffnesses to the new stiffness exponentiation
+}
+
 void UChaosClothingInteractor::Sync(IClothingSimulation* Simulation)
 {
 	check(Simulation);
@@ -23,7 +28,19 @@ void UChaosClothingInteractor::Sync(IClothingSimulation* Simulation)
 	UClothingInteractor::Sync(Simulation);
 }
 
-void UChaosClothingInteractor::SetMaterialLinear(float EdgeStiffness, float BendingStiffness, float AreaStiffness)
+void UChaosClothingInteractor::SetMaterialLinear(float EdgeStiffnessLinear, float BendingStiffnessLinear, float AreaStiffnessLinear)
+{
+	const TVec2<FRealSingle> EdgeStiffness((FMath::Clamp(FMath::Loge(EdgeStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
+	const TVec2<FRealSingle> BendingStiffness((FMath::Clamp(FMath::Loge(BendingStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
+	const TVec2<FRealSingle> AreaStiffness((FMath::Clamp(FMath::Loge(AreaStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
+
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([EdgeStiffness, BendingStiffness, AreaStiffness](FClothingSimulationCloth* Cloth)
+	{
+		Cloth->SetMaterialProperties(EdgeStiffness, BendingStiffness, AreaStiffness);
+	}));
+}
+
+void UChaosClothingInteractor::SetMaterial(FVector2D EdgeStiffness, FVector2D BendingStiffness, FVector2D AreaStiffness)
 {
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([EdgeStiffness, BendingStiffness, AreaStiffness](FClothingSimulationCloth* Cloth)
 	{
@@ -34,9 +51,9 @@ void UChaosClothingInteractor::SetMaterialLinear(float EdgeStiffness, float Bend
 void UChaosClothingInteractor::SetLongRangeAttachmentLinear(float TetherStiffnessLinear)
 {
 	// Deprecated
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffnessLinear](FClothingSimulationCloth* Cloth)
+	const TVec2<FRealSingle> TetherStiffness((FMath::Clamp(FMath::Loge(TetherStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness](FClothingSimulationCloth* Cloth)
 	{
-		const TVec2<FRealSingle> TetherStiffness((FMath::Clamp(FMath::Loge(TetherStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f)), 1.f);
 		Cloth->SetLongRangeAttachmentProperties(TetherStiffness);
 	}));
 }
@@ -45,7 +62,7 @@ void UChaosClothingInteractor::SetLongRangeAttachment(FVector2D TetherStiffness)
 {
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetLongRangeAttachmentProperties(TVec2<FRealSingle>(TetherStiffness.X, TetherStiffness.Y));
+		Cloth->SetLongRangeAttachmentProperties(TVec2<FRealSingle>(TetherStiffness[0], TetherStiffness[1]));
 	}));
 }
 
@@ -93,11 +110,11 @@ void UChaosClothingInteractor::SetGravity(float GravityScale, bool bIsGravityOve
 void UChaosClothingInteractor::SetAnimDriveLinear(float AnimDriveStiffnessLinear)
 {
 	// Deprecated
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([AnimDriveStiffnessLinear](FClothingSimulationCloth* Cloth)
+	const TVec2<FRealSingle> AnimDriveStiffness(0.f, FMath::Clamp(FMath::Loge(AnimDriveStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f));
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([AnimDriveStiffness](FClothingSimulationCloth* Cloth)
 	{
 		// The Anim Drive stiffness Low value needs to be 0 in order to keep backward compatibility with existing mask (this wouldn't be an issue if this property had no legacy mask)
-		const TVec2<FRealSingle> AnimDriveStiffness(0.f, FMath::Clamp(FMath::Loge(AnimDriveStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f));
-		const TVec2<FRealSingle> AnimDriveDamping(0.f, 1.f);
+		static const TVec2<FRealSingle> AnimDriveDamping(0.f, 1.f);
 		Cloth->SetAnimDriveProperties(AnimDriveStiffness, AnimDriveDamping);
 	}));
 }

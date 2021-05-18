@@ -44,15 +44,15 @@ namespace Chaos
 		// ---- End of Solver interface ----
 
 		// ---- Cloth interface ----
-		void SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, FReal EdgeStiffness, bool bUseXPBDConstraints);
-		void SetBendingConstraints(TArray<TVec2<int32>>&& Edges, FReal BendingStiffness, bool bUseXPBDConstraints);
+		void SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
+		void SetBendingConstraints(const TArray<TVec2<int32>>& Edges, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
 		void SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, FReal BendingStiffness);
-		void SetAreaConstraints(TArray<TVec3<int32>>&& SurfaceElements, FReal AreaStiffness, bool bUseXPBDConstraints);
-		void SetVolumeConstraints(TArray<TVec2<int32>>&& DoubleBendingEdges, FReal VolumeStiffness);
+		void SetAreaConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
+		void SetVolumeConstraints(const TArray<TVec2<int32>>& DoubleBendingEdges, FReal VolumeStiffness);
 		void SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceElements, FReal VolumeStiffness);
 		void SetLongRangeConstraints(const TMap<int32, TSet<int32>>& PointToNeighborsMap,
 			const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
-			const FVec2& TetherStiffness, const FVec2& TetherScale, ETetherMode TetherMode, bool bUseXPBDConstraints);
+			const FVec2& TetherScale, ETetherMode TetherMode, bool bUseXPBDConstraints);
 		void SetMaximumDistanceConstraints(const TConstArrayView<FRealSingle>& MaxDistances);
 		void SetBackstopConstraints(const TConstArrayView<FRealSingle>& BackstopDistances, const TConstArrayView<FRealSingle>& BackstopRadiuses, bool bUseLegacyBackstop);
 		void SetAnimDriveConstraints(const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers, const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers);
@@ -62,9 +62,9 @@ namespace Chaos
 		void CreateRules();
 		void Enable(bool bEnable);
 
-		void SetEdgeProperties(FReal EdgeStiffness);
-		void SetBendingProperties(FReal BendingStiffness);
-		void SetAreaProperties(FReal AreaStiffness);
+		void SetEdgeProperties(const FVec2& EdgeStiffness);
+		void SetBendingProperties(const FVec2& BendingStiffness);
+		void SetAreaProperties(const FVec2& AreaStiffness);
 		void SetThinShellVolumeProperties(FReal VolumeStiffness);
 		void SetVolumeProperties(FReal VolumeStiffness);
 		void SetLongRangeAttachmentProperties(const FVec2& TetherStiffness);
