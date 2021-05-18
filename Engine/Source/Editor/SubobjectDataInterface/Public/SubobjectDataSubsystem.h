@@ -318,6 +318,11 @@ public:
 private:
 
 	/**
+	* Recursively add the attachment children of the given actor component
+	*/
+	FSubobjectDataHandle FindOrCreateAttachParentForComponent(UActorComponent* InActorComponent, const FSubobjectDataHandle& ActorRootHandle, TArray<FSubobjectDataHandle>& ExistingHandles);
+
+	/**
 	 * Find all child subobject data related to the given root context.
 	 * Populates the OutVisited set with all data. 
 	 */
