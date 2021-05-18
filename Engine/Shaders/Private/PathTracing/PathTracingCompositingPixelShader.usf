@@ -41,7 +41,7 @@ void CompositeMain(
 )
 {
 	float2 BufferSize = View.BufferSizeAndInvSize.xy;
-	int3 TexCoord = int3(UV * BufferSize, 0);
+	int3 TexCoord = int3(UV * BufferSize - View.ViewRectMin.xy, 0);
 
 	float4 Radiance = RadianceTexture.Load(TexCoord);
 
