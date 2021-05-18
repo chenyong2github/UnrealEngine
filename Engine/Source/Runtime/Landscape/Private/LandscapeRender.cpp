@@ -3522,8 +3522,6 @@ public:
 			FName(TEXT("FHitProxyPS")),
 			FName(TEXT("FVelocityVS")),
 			FName(TEXT("FVelocityPS")),
-			FName(TEXT("FLumenCardVS")),
-			FName(TEXT("FLumenCardPS")),
 
 			FName(TEXT("TBasePassPSFSimpleStationaryLightSingleSampleShadowsLightingPolicy")),
 			FName(TEXT("TBasePassPSFSimpleStationaryLightSingleSampleShadowsLightingPolicySkylight")),
@@ -3742,15 +3740,16 @@ public:
 			FName(TEXT("TBasePassHSFPrecomputedVolumetricLightmapLightingPolicy")),
 
 #if RHI_RAYTRACING
-				// No ray tracing on thumbnails
-				FName(TEXT("TMaterialCHSFPrecomputedVolumetricLightmapLightingPolicy")),
-				FName(TEXT("TMaterialCHSFNoLightMapPolicy")),
-				FName(TEXT("FRayTracingDynamicGeometryConverterCS")),
-				FName(TEXT("FTrivialMaterialCHS")),
+			// No ray tracing on thumbnails
+			FName(TEXT("TMaterialCHSFPrecomputedVolumetricLightmapLightingPolicy")),
+			FName(TEXT("TMaterialCHSFNoLightMapPolicy")),
+			FName(TEXT("FRayTracingDynamicGeometryConverterCS")),
+			FName(TEXT("FTrivialMaterialCHS")),
 #endif // RHI_RAYTRACING
 
 			FName(TEXT("FLumenCardVS")),
-			FName(TEXT("FLumenCardPS")),
+			FName(TEXT("FLumenCardPS<true>")),
+			FName(TEXT("FLumenCardPS<false>")),
 		};
 		return ExcludedShaderTypes;
 	}

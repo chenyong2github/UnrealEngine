@@ -372,6 +372,27 @@ public:
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
 
+bool GetLumenCardShaders(
+	const FMaterial& Material,
+	FVertexFactoryType* VertexFactoryType,
+	TShaderRef<FLumenCardVS>& VertexShader,
+	TShaderRef<FLumenCardPS<false>>& PixelShader)
+{
+	FMaterialShaderTypes ShaderTypes;
+	ShaderTypes.AddShaderType<FLumenCardVS>();
+	ShaderTypes.AddShaderType<FLumenCardPS<false>>();
+
+	FMaterialShaders Shaders;
+	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+	{
+		return false;
+	}
+
+	Shaders.TryGetVertexShader(VertexShader);
+	Shaders.TryGetPixelShader(PixelShader);
+	return true;
+}
+
 void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	LLM_SCOPE_BYTAG(Lumen);
@@ -402,8 +423,14 @@ void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 				FLumenCardVS,
 				FLumenCardPS<bMultiViewCapture>> PassShaders;
 
-			PassShaders.VertexShader = Material.GetShader<FLumenCardVS>(VertexFactoryType);
-			PassShaders.PixelShader = Material.GetShader<FLumenCardPS<bMultiViewCapture>>(VertexFactoryType);
+			if (!GetLumenCardShaders(
+				Material,
+				VertexFactory->GetType(),
+				PassShaders.VertexShader,
+				PassShaders.PixelShader))
+			{
+				return;
+			}
 
 			FMeshMaterialShaderElementData ShaderElementData;
 			ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
