@@ -1661,22 +1661,18 @@ void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandl
 
 void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget)
 {
-	{
-		Chaos::TKinematicTarget <Chaos::FReal, 3 > NewKinematicTarget;
-		// SetKinematicTarget_AssumesLocked could be called multiple times in one time step
-		// Don't update Previous here. Previous is updated in FSingleParticlePhysicsProxy::PushToPhysicsState. Previous is not used in game thread and set to identity.
-		// @todo(chaos): create a new KinematicTarget class for game thread that does not have Preivous 
-		Chaos::FRigidTransform3 IdentityTransform;
-		NewKinematicTarget.SetTargetMode(InNewTarget, IdentityTransform);
-		InActorReference->GetGameThreadAPI().SetKinematicTarget(NewKinematicTarget);
+	Chaos::TKinematicTarget<Chaos::FReal, 3> NewKinematicTarget;
+	// SetKinematicTarget_AssumesLocked could be called multiple times in one time step
+	NewKinematicTarget.SetTargetMode(InNewTarget);
+	InActorReference->GetGameThreadAPI().SetKinematicTarget(NewKinematicTarget);
 
-		InActorReference->GetGameThreadAPI().SetX(InNewTarget.GetLocation(), false);
-		InActorReference->GetGameThreadAPI().SetR(InNewTarget.GetRotation(), false);
-		InActorReference->GetGameThreadAPI().UpdateShapeBounds();
+	// IMPORTANT : we do not invalidate X and R as they will be properly computed using the kinematic target information 
+	InActorReference->GetGameThreadAPI().SetX(InNewTarget.GetLocation(), false); 
+	InActorReference->GetGameThreadAPI().SetR(InNewTarget.GetRotation(), false); 
+	InActorReference->GetGameThreadAPI().UpdateShapeBounds();
 
-		FChaosScene* Scene = GetCurrentScene(InActorReference);
-		Scene->UpdateActorInAccelerationStructure(InActorReference);
-	}
+	FChaosScene* Scene = GetCurrentScene(InActorReference);
+	Scene->UpdateActorInAccelerationStructure(InActorReference);
 }
 
 #elif WITH_ENGINE //temp physx code to make moving out of engine easier

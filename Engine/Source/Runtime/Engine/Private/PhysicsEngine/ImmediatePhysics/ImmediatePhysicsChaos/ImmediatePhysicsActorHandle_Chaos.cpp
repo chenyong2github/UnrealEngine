@@ -387,10 +387,9 @@ namespace ImmediatePhysics_Chaos
 		if (ensure(GetIsKinematic()))
 		{
 			FGenericParticleHandle GenericHandle(ParticleHandle);
-			FTransform PreviousTransform(GenericHandle->R(), GenericHandle->X());
 			FTransform ParticleTransform = FParticleUtilities::ActorWorldToParticleWorld(GenericHandle, WorldTM);
 
-			GetKinematicTarget().SetTargetMode(ParticleTransform, PreviousTransform);
+			GetKinematicTarget().SetTargetMode(ParticleTransform);
 		}
 
 	}
