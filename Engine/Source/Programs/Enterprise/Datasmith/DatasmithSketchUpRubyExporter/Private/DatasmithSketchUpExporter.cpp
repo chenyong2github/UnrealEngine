@@ -50,7 +50,7 @@
 #include "Misc/Paths.h"
 
 #include "HAL/FileManager.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "DatasmithSceneXmlWriter.h"
 
 #include "DatasmithSceneFactory.h"

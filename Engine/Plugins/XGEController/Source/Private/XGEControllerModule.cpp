@@ -3,7 +3,7 @@
 #include "Features/IModularFeatures.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformNamedPipe.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformFile.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ScopeLock.h"
