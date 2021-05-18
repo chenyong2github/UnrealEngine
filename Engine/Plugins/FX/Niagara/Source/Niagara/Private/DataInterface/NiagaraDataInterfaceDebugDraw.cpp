@@ -3185,6 +3185,9 @@ bool UNiagaraDataInterfaceDebugDraw::PerInstanceTick(void* PerInstanceData, FNia
 
 bool UNiagaraDataInterfaceDebugDraw::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
+	if (!SystemInstance)
+		return false;
+
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	FNDIDebugDrawInstanceData_GameThread* InstanceData = reinterpret_cast<FNDIDebugDrawInstanceData_GameThread*>(PerInstanceData);
 
@@ -3194,32 +3197,36 @@ bool UNiagaraDataInterfaceDebugDraw::PerInstanceTickPostSimulate(void* PerInstan
 		{
 			InstanceData->HandlePersistentShapes(SystemInstance, DeltaSeconds);
 		}
-	}
 
-	// Dispatch information to the RT proxy
-	ENQUEUE_RENDER_COMMAND(NDIDebugDrawUpdate)(
-		[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_TickCount=SystemInstance->GetTickCount(), RT_LineBuffer=MoveTemp(InstanceData->LineBuffer)](FRHICommandListImmediate& RHICmdList) mutable
-		{
-			FNDIDebugDrawInstanceData_RenderThread* RT_InstanceData = &RT_Proxy->SystemInstancesToProxyData_RT.FindChecked(RT_InstanceID);
 
-			if ( RT_InstanceData->GpuComputeDebug )
+		// Dispatch information to the RT proxy
+		ENQUEUE_RENDER_COMMAND(NDIDebugDrawUpdate)(
+			[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_TickCount=SystemInstance->GetTickCount(), RT_LineBuffer=MoveTemp(InstanceData->LineBuffer)](FRHICommandListImmediate& RHICmdList) mutable
 			{
-				if ( FNiagaraSimulationDebugDrawData* DebugDraw = RT_InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(RT_InstanceID, false) )
+				if (RT_Proxy)
 				{
-					if (DebugDraw->LastUpdateTickCount != RT_TickCount)
+					FNDIDebugDrawInstanceData_RenderThread* RT_InstanceData = &RT_Proxy->SystemInstancesToProxyData_RT.FindChecked(RT_InstanceID);
+
+					if (RT_InstanceData && RT_InstanceData->GpuComputeDebug)
 					{
-						DebugDraw->LastUpdateTickCount = RT_TickCount;
-						DebugDraw->bRequiresUpdate = true;
-						DebugDraw->StaticLines = MoveTemp(RT_LineBuffer);
-					}
-					else
-					{
-						DebugDraw->StaticLines += MoveTemp(RT_LineBuffer);
+						if (FNiagaraSimulationDebugDrawData* DebugDraw = RT_InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(RT_InstanceID, false))
+						{
+							if (DebugDraw->LastUpdateTickCount != RT_TickCount)
+							{
+								DebugDraw->LastUpdateTickCount = RT_TickCount;
+								DebugDraw->bRequiresUpdate = true;
+								DebugDraw->StaticLines = MoveTemp(RT_LineBuffer);
+							}
+							else
+							{
+								DebugDraw->StaticLines += MoveTemp(RT_LineBuffer);
+							}
+						}
 					}
 				}
 			}
-		}
-	);
+		);
+	}
 #endif
 	return false;
 }
