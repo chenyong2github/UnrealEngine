@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/NetConnection.h"
+#include "Engine/NetworkDelegates.h"
 #include "Misc/CommandLine.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
