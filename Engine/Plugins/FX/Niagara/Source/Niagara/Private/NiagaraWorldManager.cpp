@@ -768,14 +768,27 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 
 void FNiagaraWorldManager::PreSendAllEndOfFrameUpdates()
 {
-	for (const auto& Simulation : SimulationsWithPostActorWork)
+	if ( SimulationsWithPostActorWork.Num() > 0 )
+	{
+		//-TODO: This should not happen
+		for (const auto& Simulation : SimulationsWithPostActorWork)
+		{
+			if (Simulation->IsValid())
+			{
+				Simulation->WaitForInstancesTickComplete();
+			}
+		}
+		SimulationsWithPostActorWork.Reset();
+	}
+
+	for (const auto& Simulation : SimulationsWithEndOfFrameWait)
 	{
 		if (Simulation->IsValid())
 		{
 			Simulation->WaitForInstancesTickComplete();
 		}
 	}
-	SimulationsWithPostActorWork.Reset();
+	SimulationsWithEndOfFrameWait.Reset();
 }
 
 void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation)
@@ -784,6 +797,15 @@ void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulati
 	if ( !SimulationsWithPostActorWork.ContainsByPredicate([&](const TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>& Existing) { return &Existing.Get() == SystemSimulation; }) )
 	{
 		SimulationsWithPostActorWork.Add(SystemSimulation->AsShared());
+	}
+}
+
+void FNiagaraWorldManager::MarkSimulationsForEndOfFrameWait(FNiagaraSystemSimulation* SystemSimulation)
+{
+	check(SystemSimulation);
+	if (!SimulationsWithEndOfFrameWait.ContainsByPredicate([&](const TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>& Existing) { return &Existing.Get() == SystemSimulation; }))
+	{
+		SimulationsWithEndOfFrameWait.Add(SystemSimulation->AsShared());
 	}
 }
 

@@ -112,6 +112,14 @@ static FAutoConsoleVariableRef CVarNiagaraSkipTickDeltaSeconds(
 	ECVF_Default
 );
 
+static int32 GNiagaraSystemSimulationTickTaskShouldWait = 1;
+static FAutoConsoleVariableRef CVarNiagaraSystemSimulationTickTaskShouldWait(
+	TEXT("fx.Niagara.SystemSimulation.TickTaskShouldWait"),
+	GNiagaraSystemSimulationTickTaskShouldWait,
+	TEXT("When enabled the tick task will wait for concurrent work to complete, when disabled the task is complete one the GT tick is complete."),
+	ECVF_Default
+);
+
 namespace NiagaraSystemSimulationLocal
 {
 #if NIAGARA_SYSTEMSIMULATION_DEBUGGING
@@ -1240,7 +1248,14 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 			Instance->ConcurrentTickGraphEvent = ConcurrentTickGraphEvent;
 		}
 		ConcurrentTickTask->Unlock();
-		MyCompletionGraphEvent->DontCompleteUntil(AllWorkCompleteGraphEvent);
+		if (GNiagaraSystemSimulationTickTaskShouldWait)
+		{
+			MyCompletionGraphEvent->DontCompleteUntil(AllWorkCompleteGraphEvent);
+		}
+		else
+		{
+			FNiagaraWorldManager::Get(World)->MarkSimulationsForEndOfFrameWait(this);
+		}
 	}
 	else
 	{
@@ -1388,7 +1403,8 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 		}
 
 		// Can we spawn async?
-		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), !bPostActorTick);
+		const bool bCanRunAsync = !bPostActorTick || !GNiagaraSystemSimulationTickTaskShouldWait;
+		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), bCanRunAsync);
 		if ( Context.IsRunningAsync() )
 		{
 			check(bIsSolo == false);
@@ -1400,7 +1416,9 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 				Instance->ConcurrentTickGraphEvent = ConcurrentTickGraphEvent;
 			}
 			ConcurrentTickTask->Unlock();
-			WorldManager->MarkSimulationForPostActorWork(this);
+
+			// Note we always mark for EOF wait as the execution could be ongoing beyond PostActorTick
+			WorldManager->MarkSimulationsForEndOfFrameWait(this);
 		}
 		else
 		{
