@@ -42,18 +42,16 @@ struct FCachedPageInfo
 	float Padding;
 };
 
-static void RecreateGlobalRenderState(IConsoleVariable* Var)
-{
-	// Needed because the depth state changes with method (so cached draw commands must be re-created) see SetStateForShadowDepth
-	FGlobalComponentRecreateRenderStateContext Context;
-}
-
 int32 GEnableVirtualShadowMaps = 0;
 FAutoConsoleVariableRef CVarEnableVirtualShadowMaps(
 	TEXT("r.Shadow.Virtual.Enable"),
 	GEnableVirtualShadowMaps,
 	TEXT("Enable Virtual Shadow Maps."),
-	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		// Needed because the depth state changes with method (so cached draw commands must be re-created) see SetStateForShadowDepth
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -129,7 +127,11 @@ FAutoConsoleVariableRef CVarAtomicWrites(
 	TEXT("r.Shadow.Virtual.AtomicWrites"),
 	GVirtualShadowMapAtomicWrites,
 	TEXT("Use per pixel page table routing and atomic writes instead of an instance per page."),
-	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		// Needed because the depth state changes with method (so cached draw commands must be re-created) see SetStateForShadowDepth
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
 	ECVF_RenderThreadSafe
 );
 

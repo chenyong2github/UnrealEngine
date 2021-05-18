@@ -41,11 +41,6 @@
 #include "ComponentReregisterContext.h"
 #include "ComponentRecreateRenderStateContext.h"
 
-static void RecreateGCPGlobalRenderState(IConsoleVariable* Var)
-{
-	FGlobalComponentRecreateRenderStateContext Context;
-}
-
 static int32 GParallelGeometryCollectionBatchSize = 1024;
 static TAutoConsoleVariable<int32> CVarParallelGeometryCollectionBatchSize(
 	TEXT("r.ParallelGeometryCollectionBatchSize"),
@@ -67,7 +62,10 @@ FAutoConsoleVariableRef CVarGeometryCollectionOptimizedTransforms(
 	TEXT("r.GeometryCollectionOptimizedTransforms"),
 	GGeometryCollectionOptimizedTransforms,
 	TEXT("Whether to optimize transform update by skipping automatic updates in GPUScene."),
-	FConsoleVariableDelegate::CreateStatic(&RecreateGCPGlobalRenderState),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 

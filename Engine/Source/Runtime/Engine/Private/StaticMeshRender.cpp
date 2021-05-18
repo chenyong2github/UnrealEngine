@@ -98,18 +98,31 @@ static FAutoConsoleCommand GToggleReversedIndexBuffersCmd(
 	FConsoleCommandDelegate::CreateStatic(ToggleReversedIndexBuffers)
 	);
 
-static void RecreateSMGlobalRenderState(IConsoleVariable* Var)
-{
-	FGlobalComponentRecreateRenderStateContext Context;
-}
-
 // TODO: Should move this outside of SM, since Nanite can be used for multiple primitive types
 int32 GRenderNaniteMeshes = 1;
 FAutoConsoleVariableRef CVarRenderNaniteMeshes(
 	TEXT("r.Nanite"),
 	GRenderNaniteMeshes,
 	TEXT("Render static meshes using Nanite."),
-	FConsoleVariableDelegate::CreateStatic(&RecreateSMGlobalRenderState),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GNaniteProxyRenderMode = 0;
+FAutoConsoleVariableRef CVarNaniteProxyRenderMode(
+	TEXT("r.Nanite.ProxyRenderMode"),
+	GNaniteProxyRenderMode,
+	TEXT("Render proxy meshes if Nanite is unsupported.")
+	TEXT(" 0: Fall back to rendering Nanite proxy meshes if Nanite is unsupported. (default)")
+	TEXT(" 1: Disable rendering if Nanite is enabled on a mesh but is unsupported.")
+	TEXT(" 2: Disable rendering if Nanite is enabled on a mesh but is unsupported, except for static mesh editor toggle."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -2310,10 +2323,32 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
+	// Whether or not to allow Nanite for this component
 	if (ShouldCreateNaniteProxy())
 	{
 		LLM_SCOPE(ELLMTag::StaticMesh);
+
+		// Nanite is fully supported
 		return ::new Nanite::FSceneProxy(this);
+	}
+
+	// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
+	if (GetStaticMesh()->HasValidNaniteData())
+	{
+		if (GNaniteProxyRenderMode == 1) // Never render proxies
+		{
+			// We don't want to fall back to Nanite proxy rendering, so just make the mesh invisible instead.
+			return nullptr;
+		}
+	#if WITH_EDITORONLY_DATA
+		// Check for specific case of static mesh editor "proxy toggle"
+		else if (bDisplayNaniteProxyMesh && GNaniteProxyRenderMode == 2)
+		{
+			// Do nothing - render proxy in this case
+		}
+	#endif
+
+		// Fall back to rendering Nanite proxy meshes with traditional static mesh scene proxies
 	}
 
 	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->GetRenderData()->LODResources;
