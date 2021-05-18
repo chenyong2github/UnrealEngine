@@ -482,6 +482,9 @@ namespace Cook
 		/** Callback during garbage collection */
 		void PostGarbageCollect();
 
+		/** Call CreatePackage and set PackageData correctly for deterministic generated packages */
+		UPackage* CreateGeneratedUPackage(const UPackage* OwnerPackage, const TCHAR* GeneratedPackageName);
+
 	private:
 		/** PackageData for the package that is being split */
 		const UE::Cook::FPackageData& Owner;
