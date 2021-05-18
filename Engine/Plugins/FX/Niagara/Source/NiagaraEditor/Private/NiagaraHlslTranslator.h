@@ -66,7 +66,7 @@ public:
 
 	}
 
-	virtual ~FNiagaraCompileRequestData() {}
+	virtual ~FNiagaraCompileRequestData();
 	virtual bool GatherPreCompiledVariables(const FString& InNamespaceFilter, TArray<FNiagaraVariable>& OutVars) override;
 	virtual void GetReferencedObjects(TArray<UObject*>& Objects) override;
 	virtual const TMap<FName, UNiagaraDataInterface*>& GetObjectNameMap() override;
@@ -75,7 +75,7 @@ public:
 
 	TArray<FNiagaraParameterMapHistory>& GetPrecomputedHistories() { return PrecompiledHistories; }
 	const TArray<FNiagaraParameterMapHistory>& GetPrecomputedHistories() const { return PrecompiledHistories; }
-	virtual const class UNiagaraGraph* GetPrecomputedNodeGraph() const { return NodeGraphDeepCopy; }
+	virtual const class UNiagaraGraph* GetPrecomputedNodeGraph() const { return NodeGraphDeepCopy.Get(); }
 	const FString& GetUniqueEmitterName() const { return EmitterUniqueName; }
 	void VisitReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, bool bNeedsCompilation);
 	void DeepCopyGraphs(UNiagaraScriptSource* ScriptSource, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, bool bNeedsCompilation);
@@ -97,9 +97,7 @@ public:
 	TArray<FGuid> StageGuids;
 	TArray<FName> StageNames;
 
-	// If this is being held onto for any length of time, make sure to hold onto it in a gc-aware object. Right now in this information-passing struct,
-	// we could have a leaked garbage collected pointer if not held onto by someone capable of registering a reference.
-	UNiagaraGraph* NodeGraphDeepCopy;
+	TWeakObjectPtr<UNiagaraGraph> NodeGraphDeepCopy;
 	TArray<FNiagaraParameterMapHistory> PrecompiledHistories;
 	TArray<FNiagaraVariable> ChangedFromNumericVars;
 	TMap<FName, UNiagaraDataInterface*> CopiedDataInterfacesByName;
@@ -126,7 +124,7 @@ public:
 		bool bHasNumericInputs;
 	};
 	TMap<const UNiagaraGraph*, TArray<FunctionData>> PreprocessedFunctions;
-	TArray<UNiagaraGraph*> ClonedGraphs;
+	TArray<TWeakObjectPtr<UNiagaraGraph>> ClonedGraphs;
 
 	// Copy of the variables that are required by Renderers if this is a compile request for an Emitter. 
 	TArray<FNiagaraVariable> RequiredRendererVariables;

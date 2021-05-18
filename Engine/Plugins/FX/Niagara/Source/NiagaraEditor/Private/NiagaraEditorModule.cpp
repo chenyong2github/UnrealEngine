@@ -755,6 +755,7 @@ void FNiagaraEditorModule::OnPreExit()
 			Sys->WaitForCompilationComplete();
 		}
 	}
+	ClearObjectPool();
 }
 
 void FNiagaraEditorModule::StartupModule()
@@ -1320,6 +1321,54 @@ TSharedRef<INiagaraEditorWidgetProvider> FNiagaraEditorModule::GetWidgetProvider
 TSharedRef<FNiagaraScriptMergeManager> FNiagaraEditorModule::GetScriptMergeManager() const
 {
 	return ScriptMergeManager.ToSharedRef();
+}
+
+UObject* FNiagaraEditorModule::GetPooledDuplicateObject(UObject* Source, EFieldIteratorFlags::SuperClassFlags CopySuperProperties)
+{
+	check(IsInGameThread());
+	TArray<UObject*>& Pool = ObjectPool.FindOrAdd(Source->GetClass());
+	UObject* OutPooledObj;
+	if (Pool.Num() > 0)
+	{
+		OutPooledObj = Pool.Pop();
+		for (TFieldIterator<FProperty> PropertyIt(OutPooledObj->GetClass(), CopySuperProperties); PropertyIt; ++PropertyIt)
+		{
+			FProperty* Property = *PropertyIt;
+			const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(Source);
+			uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(OutPooledObj);
+			Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+		}
+	}
+	else
+	{
+		OutPooledObj = DuplicateObject(Source, GetTransientPackage());
+		OutPooledObj->AddToRoot();
+	}
+	return OutPooledObj;
+}
+
+void FNiagaraEditorModule::ReleaseObjectToPool(UObject* Obj)
+{
+	check(IsInGameThread());
+	if (Obj->GetOuter() == GetTransientPackage())
+	{
+		Obj->AddToRoot();
+		ObjectPool.FindOrAdd(Obj->GetClass()).Push(Obj);
+	}
+}
+
+void FNiagaraEditorModule::ClearObjectPool()
+{
+	check(IsInGameThread());
+	for (auto& Pool : ObjectPool)
+	{
+		for (UObject* Var : Pool.Value)
+		{
+			Var->RemoveFromRoot();
+			Var->MarkPendingKill();
+		}
+	}
+	ObjectPool.Empty();
 }
 
 void FNiagaraEditorModule::RegisterParameterTrackCreatorForType(const UScriptStruct& StructType, FOnCreateMovieSceneTrackForParameter CreateTrack)

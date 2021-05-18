@@ -221,14 +221,12 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 							}
 							else
 							{
-								DupeScript = bNeedsCompilation ? PrecompileDuplicateObject<UNiagaraScript>(FunctionScript, InNode, FunctionScript->GetFName()) : FunctionScript;
+								DupeScript = FunctionScript;
 								if (bNeedsCompilation)
 								{
-									if (DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion)->GetOuter() != DupeScript)
-									{
-										UNiagaraScriptSource* DupeScriptSource = CastChecked<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion));
-										DupeScript->SetSource(DuplicateObject<UNiagaraScriptSource>(DupeScriptSource, DupeScript, DupeScript->GetLatestSource()->GetFName()), FunctionCallNode->SelectedScriptVersion);
-									}
+									DupeScript = FunctionScript->CreateCompilationCopy();
+									UNiagaraScriptSource* DupeScriptSource = CastChecked<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion))->CreateCompilationCopy();
+									DupeScript->SetSource(DupeScriptSource, FunctionCallNode->SelectedScriptVersion);
 								}
 								ProcessedGraph = Cast<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion))->NodeGraph;
 								if (bNeedsCompilation)
@@ -252,11 +250,16 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 							PreprocessedFunctions.Add(FunctionGraph, MadeArray);
 							VisitReferencedGraphsRecursive(ProcessedGraph, ConstantResolver, bNeedsCompilation);
 							ClonedGraphs.AddUnique(ProcessedGraph);
-
 						}
 						else if (bHasNumericParams)
 						{
-							UNiagaraScript* DupeScript = bNeedsCompilation ? PrecompileDuplicateObject<UNiagaraScript>(FunctionScript, InNode, FunctionScript->GetFName()) : FunctionScript;
+							UNiagaraScript* DupeScript = FunctionScript;
+							if (bNeedsCompilation)
+							{
+								DupeScript = FunctionScript->CreateCompilationCopy();
+								UNiagaraScriptSource* DupeScriptSource = CastChecked<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion))->CreateCompilationCopy();
+								DupeScript->SetSource(DupeScriptSource, FunctionCallNode->SelectedScriptVersion);
+							}
 							ProcessedGraph = Cast<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion))->NodeGraph;
 							if (bNeedsCompilation)
 							{
@@ -298,7 +301,7 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 					{
 						EmitterNode->SyncEnabledState(); // Just to be safe, sync here while we likely still have the handle source.
 						EmitterNode->SetOwnerSystem(nullptr);
-						EmitterNode->SetCachedVariablesForCompilation(*Ptr->EmitterUniqueName, Ptr->NodeGraphDeepCopy, Ptr->Source);
+						EmitterNode->SetCachedVariablesForCompilation(*Ptr->EmitterUniqueName, Ptr->NodeGraphDeepCopy.Get(), Ptr->Source);
 					}
 				}
 			}
@@ -329,7 +332,7 @@ FName FNiagaraCompileRequestData::ResolveEmitterAlias(FName VariableName) const
 
 void FNiagaraCompileRequestData::GetReferencedObjects(TArray<UObject*>& Objects)
 {
-	Objects.Add(NodeGraphDeepCopy);
+	Objects.Add(NodeGraphDeepCopy.Get());
 	TArray<UNiagaraDataInterface*> DIs;
 	CopiedDataInterfacesByName.GenerateValueArray(DIs);
 	for (UNiagaraDataInterface* DI : DIs)
@@ -356,6 +359,21 @@ void FNiagaraCompileRequestData::GetReferencedObjects(TArray<UObject*>& Objects)
 				Objects.Add(Iter.Value()[i].ClonedGraph);
 			}
 			++Iter;
+		}
+	}
+}
+
+FNiagaraCompileRequestData::~FNiagaraCompileRequestData()
+{
+	if (NodeGraphDeepCopy.IsValid())
+	{
+		NodeGraphDeepCopy->ReleaseCompilationCopy();
+	}
+	for (TWeakObjectPtr<UNiagaraGraph> Graph : ClonedGraphs)
+	{
+		if (Graph.IsValid())
+		{
+			Graph->ReleaseCompilationCopy();
 		}
 	}
 }
@@ -389,15 +407,15 @@ void FNiagaraCompileRequestData::DeepCopyGraphs(UNiagaraScriptSource* ScriptSour
 {
 	// Clone the source graph so we can modify it as needed; merging in the child graphs
 	//NodeGraphDeepCopy = CastChecked<UNiagaraGraph>(FEdGraphUtilities::CloneGraph(ScriptSource->NodeGraph, GetTransientPackage(), 0));
-	Source = bNeedsCompilation ? PrecompileDuplicateObject<UNiagaraScriptSource>(ScriptSource, GetTransientPackage()) : ScriptSource;
+	Source = bNeedsCompilation ? ScriptSource->CreateCompilationCopy() : ScriptSource;
 	NodeGraphDeepCopy = Source->NodeGraph;
 	
 	//double StartTime = FPlatformTime::Seconds();
 	if (bNeedsCompilation)
 	{
-		FEdGraphUtilities::MergeChildrenGraphsIn(NodeGraphDeepCopy, NodeGraphDeepCopy, /*bRequireSchemaMatch=*/ true);
+		FEdGraphUtilities::MergeChildrenGraphsIn(NodeGraphDeepCopy.Get(), NodeGraphDeepCopy.Get(), /*bRequireSchemaMatch=*/ true);
 	}
-	VisitReferencedGraphs(ScriptSource->NodeGraph, NodeGraphDeepCopy, InUsage, ConstantResolver, bNeedsCompilation);
+	VisitReferencedGraphs(ScriptSource->NodeGraph, NodeGraphDeepCopy.Get(), InUsage, ConstantResolver, bNeedsCompilation);
 	//float DeltaTime = (float)(FPlatformTime::Seconds() - StartTime);
 	//if (DeltaTime > 0.01f)
 	//{
@@ -517,7 +535,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 				// Map all for this output node
 				FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
 				Builder.ConstantResolver = ConstantResolver;
-				Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy);
+				Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy.Get());
 				Builder.RegisterEncounterableVariables(EncounterableVariables);
 
 				FString TranslationName = TEXT("Emitter");
@@ -626,6 +644,12 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 					}
 				}
 			}
+		}
+
+		// clean up graph copies
+		for (auto& ClonedGraph : ClonedGraphs)
+		{
+			ClonedGraph->ReleaseCompilationCopy();
 		}
 	}
 

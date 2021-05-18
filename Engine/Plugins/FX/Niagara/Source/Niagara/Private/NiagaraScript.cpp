@@ -377,6 +377,23 @@ void UNiagaraScript::CheckVersionDataAvailable()
 	ExposedVersion = Data.Version.VersionGuid;
 }
 
+UNiagaraScript* UNiagaraScript::CreateCompilationCopy()
+{
+	UNiagaraScript* Result = NewObject<UNiagaraScript>();
+
+	// create a shallow copy
+	for (TFieldIterator<FProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(this);
+		uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(Result);
+
+		Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+	}
+	
+	return Result;
+}
+
 #endif
 
 bool FNiagaraVMExecutableDataId::IsValid() const

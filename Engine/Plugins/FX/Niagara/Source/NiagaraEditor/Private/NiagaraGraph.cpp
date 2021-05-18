@@ -29,6 +29,7 @@
 #include "Misc/SecureHash.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Serialization/DuplicatedDataWriter.h"
 #include "String/ParseTokens.h"
 #include "ViewModels/NiagaraParameterDefinitionsSubscriberViewModel.h"
 
@@ -776,6 +777,12 @@ void UNiagaraGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	RefreshParameterReferences();
 }
 
+void UNiagaraGraph::BeginDestroy()
+{
+	Super::BeginDestroy();
+	ReleaseCompilationCopy();
+}
+
 class UNiagaraScriptSource* UNiagaraGraph::GetSource() const
 {
 	return CastChecked<UNiagaraScriptSource>(GetOuter());
@@ -937,6 +944,70 @@ void UNiagaraGraph::FindEquivalentOutputNodes(ENiagaraScriptUsage TargetUsageTyp
 	}
 
 	OutputNodes = NodesFound;
+}
+
+UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
+{
+	UNiagaraGraph* Result = NewObject<UNiagaraGraph>();
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+
+	// create a shallow copy
+	for (TFieldIterator<FProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(this);
+        uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(Result);
+
+        Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+	}
+	Result->bIsForCompilationOnly = true;
+
+	// get new script variables from the pool
+	for (auto& It : VariableToScriptVariable)
+	{
+		It.Value = CastChecked<UNiagaraScriptVariable>(NiagaraEditorModule.GetPooledDuplicateObject(It.Value));
+	}
+
+	// duplicate the nodes
+	TMap<UEdGraphNode*, UEdGraphNode*> DuplicationMapping;
+	TArray<UEdGraphNode*> NewNodes;
+	for (UEdGraphNode* Node : Result->Nodes)
+	{
+		UEdGraphNode* DupNode = NewNodes.Add_GetRef(DuplicateObject(Node, Result));
+		DuplicationMapping.Add(Node, DupNode);
+	}
+	for (UEdGraphNode* Node : NewNodes)
+	{
+		// fix up linked pins
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			for (int i = 0; i < Pin->LinkedTo.Num(); i++)
+			{
+				UEdGraphPin* LinkedPin = Pin->LinkedTo[i];
+				UEdGraphNode* NewNode = DuplicationMapping[LinkedPin->GetOwningNode()];
+				UEdGraphPin** NodePin = NewNode->Pins.FindByPredicate([LinkedPin](UEdGraphPin* Pin) { return Pin->PinId == LinkedPin->PinId; });
+				check(NodePin);
+				Pin->LinkedTo[i] = *NodePin;
+			}
+		}
+	}
+	Result->Nodes = NewNodes;
+	
+	return Result;
+}
+
+void UNiagaraGraph::ReleaseCompilationCopy()
+{
+	if (!bIsForCompilationOnly)
+	{
+		return;
+	}
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	for (auto It : VariableToScriptVariable)
+	{
+		NiagaraEditorModule.ReleaseObjectToPool(It.Value);
+	}
+	VariableToScriptVariable.Empty();
 }
 
 UNiagaraNodeOutput* UNiagaraGraph::FindOutputNode(ENiagaraScriptUsage TargetUsageType, FGuid TargetUsageId) const
