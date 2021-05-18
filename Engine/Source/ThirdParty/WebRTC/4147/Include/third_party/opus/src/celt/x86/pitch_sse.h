@@ -132,10 +132,10 @@ extern opus_val32 (*const CELT_INNER_PROD_IMPL[OPUS_ARCHMASK + 1])(
 #if defined(OPUS_X86_MAY_HAVE_SSE) && !defined(FIXED_POINT)
 
 #define OVERRIDE_DUAL_INNER_PROD
-#define OVERRIDE_COMB_FILTER_CONST
+#define OVERRIDE_webrtc_comb_filter_CONST
 
 #undef dual_inner_prod
-#undef comb_filter_const
+#undef webrtc_comb_filter_const
 
 void dual_inner_prod_sse(const opus_val16 *x,
     const opus_val16 *y01,
@@ -144,7 +144,7 @@ void dual_inner_prod_sse(const opus_val16 *x,
     opus_val32       *xy1,
     opus_val32       *xy2);
 
-void comb_filter_const_sse(opus_val32 *y,
+void webrtc_comb_filter_const_sse(opus_val32 *y,
     opus_val32 *x,
     int         T,
     int         N,
@@ -157,8 +157,8 @@ void comb_filter_const_sse(opus_val32 *y,
 # define dual_inner_prod(x, y01, y02, N, xy1, xy2, arch) \
     ((void)(arch),dual_inner_prod_sse(x, y01, y02, N, xy1, xy2))
 
-# define comb_filter_const(y, x, T, N, g10, g11, g12, arch) \
-    ((void)(arch),comb_filter_const_sse(y, x, T, N, g10, g11, g12))
+# define webrtc_comb_filter_const(y, x, T, N, g10, g11, g12, arch) \
+    ((void)(arch),webrtc_comb_filter_const_sse(y, x, T, N, g10, g11, g12))
 #else
 
 extern void (*const DUAL_INNER_PROD_IMPL[OPUS_ARCHMASK + 1])(
@@ -172,7 +172,7 @@ extern void (*const DUAL_INNER_PROD_IMPL[OPUS_ARCHMASK + 1])(
 #define dual_inner_prod(x, y01, y02, N, xy1, xy2, arch) \
     ((*DUAL_INNER_PROD_IMPL[(arch) & OPUS_ARCHMASK])(x, y01, y02, N, xy1, xy2))
 
-extern void (*const COMB_FILTER_CONST_IMPL[OPUS_ARCHMASK + 1])(
+extern void (*const webrtc_comb_filter_CONST_IMPL[OPUS_ARCHMASK + 1])(
               opus_val32 *y,
               opus_val32 *x,
               int         T,
@@ -181,10 +181,10 @@ extern void (*const COMB_FILTER_CONST_IMPL[OPUS_ARCHMASK + 1])(
               opus_val16  g11,
               opus_val16  g12);
 
-#define comb_filter_const(y, x, T, N, g10, g11, g12, arch) \
-    ((*COMB_FILTER_CONST_IMPL[(arch) & OPUS_ARCHMASK])(y, x, T, N, g10, g11, g12))
+#define webrtc_comb_filter_const(y, x, T, N, g10, g11, g12, arch) \
+    ((*webrtc_comb_filter_CONST_IMPL[(arch) & OPUS_ARCHMASK])(y, x, T, N, g10, g11, g12))
 
-#define NON_STATIC_COMB_FILTER_CONST_C
+#define NON_STATIC_webrtc_comb_filter_CONST_C
 
 #endif
 #endif
