@@ -18,8 +18,6 @@
 #include "UObject/Class.h"
 #include "UObject/FieldPath.h"
 
-
-
 #if WITH_EDITOR
 #include "Editor.h"
 #include "ScopedTransaction.h"
@@ -125,11 +123,27 @@ namespace RemoteControlUtil
 		return GetFirstPreset(Filter);
 	}
 
+	URemoteControlPreset* FindPresetByName(FName PresetName)
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+
+		TArray<FAssetData> Assets;
+		AssetRegistry.GetAssetsByClass(URemoteControlPreset::StaticClass()->GetFName(), Assets);
+
+		FAssetData* FoundAsset = Assets.FindByPredicate([&PresetName](const FAssetData& InAsset)
+		{
+			return InAsset.AssetName == PresetName;
+		});
+
+		return FoundAsset ? Cast<URemoteControlPreset>(FoundAsset->GetAsset()) : nullptr;
+	}
+
 	URemoteControlPreset* GetPresetByName(FName PresetName)
 	{
 		FARFilter Filter = GetBasePresetFilter();
 		Filter.PackageNames = { PresetName };
-		return GetFirstPreset(Filter);
+		URemoteControlPreset* FoundPreset = GetFirstPreset(Filter);
+		return FoundPreset ? FoundPreset : FindPresetByName(PresetName);
 	}
 
 	FGuid GetPresetId(const FAssetData& PresetAsset)
@@ -264,10 +278,39 @@ public:
 		return bSuccess;
 	}
 
-	virtual bool InvokeCall(FRCCall& InCall) override
+	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType, const TArray<uint8>& InInterceptPayload) override
 	{
 		if (InCall.IsValid())
 		{
+			// Check the replication path before apply property values
+			if (InInterceptPayload.Num() != 0)
+			{
+				FRCIFunctionMetadata FunctionMetadata(InCall.CallRef.Object->GetPathName(), InCall.CallRef.Function->GetPathName(), InCall.bGenerateTransaction, ToExternal(InPayloadType), InInterceptPayload);
+
+				// Initialization
+				IModularFeatures& ModularFeatures = IModularFeatures::Get();
+				const FName InterceptorFeatureName = IRemoteControlInterceptionFeatureInterceptor::GetName();
+				const int32 InterceptorsAmount = ModularFeatures.GetModularFeatureImplementationCount(IRemoteControlInterceptionFeatureInterceptor::GetName());
+
+				// Pass interception command data to all available interceptors
+				bool bShouldIntercept = false;
+				for (int32 InterceptorIdx = 0; InterceptorIdx < InterceptorsAmount; ++InterceptorIdx)
+				{
+					IRemoteControlInterceptionFeatureInterceptor* const Interceptor = static_cast<IRemoteControlInterceptionFeatureInterceptor*>(ModularFeatures.GetModularFeatureImplementation(InterceptorFeatureName, InterceptorIdx));
+					if (Interceptor)
+					{
+						// Update response flag
+						bShouldIntercept |= (Interceptor->InvokeCall(FunctionMetadata) == ERCIResponse::Intercept);
+					}
+				}
+
+				// Don't process the RC message if any of interceptors returned ERCIResponse::Intercept
+				if (bShouldIntercept)
+				{
+					return true;
+				}
+			}
+			
 #if WITH_EDITOR
 			FScopedTransaction Transaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"), InCall.bGenerateTransaction);
 #endif
@@ -440,19 +483,19 @@ public:
 			const int32 InterceptorsAmount = ModularFeatures.GetModularFeatureImplementationCount(IRemoteControlInterceptionFeatureInterceptor::GetName());
 
 			// Pass interception command data to all available interceptors
-			bool bShouldApply = false;
+			bool bShouldIntercept = false;
 			for (int32 InterceptorIdx = 0; InterceptorIdx < InterceptorsAmount; ++InterceptorIdx)
 			{
 				IRemoteControlInterceptionFeatureInterceptor* const Interceptor = static_cast<IRemoteControlInterceptionFeatureInterceptor*>(ModularFeatures.GetModularFeatureImplementation(InterceptorFeatureName, InterceptorIdx));
 				if (Interceptor)
 				{
 					// Update response flag
-					bShouldApply |= (Interceptor->SetObjectProperties(PropsMetadata) == ERCIResponse::Apply);
+					bShouldIntercept |= (Interceptor->SetObjectProperties(PropsMetadata) == ERCIResponse::Intercept);
 				}
 			}
 
 			// Don't process the RC message if any of interceptors returned ERCIResponse::Intercept
-			if (bShouldApply)
+			if (bShouldIntercept)
 			{
 				return true;
 			}
@@ -540,19 +583,19 @@ public:
 			const int32 InterceptorsAmount = ModularFeatures.GetModularFeatureImplementationCount(IRemoteControlInterceptionFeatureInterceptor::GetName());
 
 			// Pass interception command data to all available interceptors
-			bool bShouldApply = false;
+			bool bShouldIntercept = false;
 			for (int32 InterceptorIdx = 0; InterceptorIdx < InterceptorsAmount; ++InterceptorIdx)
 			{
 				IRemoteControlInterceptionFeatureInterceptor* const Interceptor = static_cast<IRemoteControlInterceptionFeatureInterceptor*>(ModularFeatures.GetModularFeatureImplementation(InterceptorFeatureName, InterceptorIdx));
 				if (Interceptor)
 				{
 					// Update response flag
-					bShouldApply |= (Interceptor->ResetObjectProperties(ObjectMetadata) == ERCIResponse::Apply);
+					bShouldIntercept |= (Interceptor->ResetObjectProperties(ObjectMetadata) == ERCIResponse::Intercept);
 				}
 			}
 
 			// Don't process the RC message if any of interceptors returned ERCIResponse::Intercept
-			if (bShouldApply)
+			if (bShouldIntercept)
 			{
 				return true;
 			}
