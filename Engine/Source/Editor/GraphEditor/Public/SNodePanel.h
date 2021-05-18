@@ -833,7 +833,21 @@ protected:
 
 	// Cancels any active zoom-to-fit action
 	void CancelZoomToFit();
+
+public:
+	
+	// Sets the zoom levels container
+	template<typename T>
+	void SetZoomLevelsContainer()
+	{
+		ZoomLevels = MakeUnique<T>();
+		OldZoomAmount = ZoomLevels->GetZoomAmount(ZoomLevel);
+		ZoomLevel = PreviousZoomLevel = ZoomLevels->GetNearestZoomLevel(OldZoomAmount);
+		PostChangedZoom();
+	}
+	
 protected:
+	
 	// The interface for mapping ZoomLevel values to actual node scaling values
 	TUniquePtr<FZoomLevelsContainer> ZoomLevels;
 
