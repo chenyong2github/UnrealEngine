@@ -677,12 +677,6 @@ public:
 		return Ar;
 	}
 
-	bool Serialize(FArchive& Ar)
-	{
-		Ar << *this;
-		return true;
-	}
-
 	// Binary comparison operators.
 	/*
 	bool operator==(const FTransform& Other) const
