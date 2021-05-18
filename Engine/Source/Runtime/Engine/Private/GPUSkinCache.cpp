@@ -2232,7 +2232,7 @@ FRWBuffer* FGPUSkinCache::GetPositionBuffer(uint32 ComponentId, uint32 SectionIn
 		if (Entry && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId)
 		{
 			FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->GetDispatchData()[SectionIndex];
-			FSkinCacheRWBuffer* SkinCacheRWBuffer = DispatchData.PreviousPositionBuffer != nullptr ? DispatchData.PreviousPositionBuffer : DispatchData.PositionBuffer;
+			FSkinCacheRWBuffer* SkinCacheRWBuffer = DispatchData.PositionBuffer;
 			return SkinCacheRWBuffer != nullptr ? &SkinCacheRWBuffer->Buffer : nullptr;
 		}
 	}
