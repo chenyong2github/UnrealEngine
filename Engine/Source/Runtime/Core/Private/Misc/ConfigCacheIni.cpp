@@ -515,13 +515,7 @@ static bool SaveConfigFileWrapper(const TCHAR* IniFile, const FString& Contents)
 	// save it even if a delegate did as well
 	bool bLocalWriteSucceeded = false;
 
-#if PLATFORM_DESKTOP && WITH_EDITOR
-	bool bWriteTempFileThenMove = !FApp::IsGame() && !FApp::IsUnattended();
-#else // PLATFORM_DESKTOP
-	bool bWriteTempFileThenMove = false;
-#endif
-
-	if (bWriteTempFileThenMove)
+	if (FConfigFile::WriteTempFileThenMove())
 	{
 		const FString BaseFilename = FPaths::GetBaseFilename(IniFile);
 		const FString TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
@@ -1532,6 +1526,17 @@ static void ClearHierarchyCache( const TCHAR* BaseIniName )
 		}
 	}
 #endif
+}
+
+bool FConfigFile::WriteTempFileThenMove()
+{
+#if PLATFORM_DESKTOP && WITH_EDITOR
+	bool bWriteTempFileThenMove = !FApp::IsGame() && !FApp::IsUnattended();
+#else // PLATFORM_DESKTOP
+	bool bWriteTempFileThenMove = false;
+#endif
+
+	return bWriteTempFileThenMove;
 }
 
 bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite/* = true*/, const FString& PrefixText/*=FString()*/)

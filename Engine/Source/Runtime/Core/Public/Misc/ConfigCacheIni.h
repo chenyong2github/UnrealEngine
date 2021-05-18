@@ -442,6 +442,9 @@ public:
 	CORE_API void CombineFromBuffer(const FString& Buffer);
 	CORE_API void Read( const FString& Filename );
 
+	/** Whether to write a temp file then move it to it's destination when saving. */
+	CORE_API static bool WriteTempFileThenMove();
+
 	/** Write this ConfigFile to the given Filename, constructed the text from the config sections in *this, prepended by the optional PrefixText */
 	CORE_API bool Write( const FString& Filename, bool bDoRemoteWrite=true, const FString& PrefixText=FString());
 
