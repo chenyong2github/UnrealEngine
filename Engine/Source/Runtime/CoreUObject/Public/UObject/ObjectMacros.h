@@ -560,7 +560,8 @@ enum class EEnumFlags
 {
 	None,
 
-	Flags = 0x00000001 // Whether the UEnum represents a set of flags
+	Flags = 0x00000001, // Whether the UEnum represents a set of flags
+	NewerVersionExists = 0x00000002, // If set, this UEnum has been replaced by a newer version
 };
 
 ENUM_CLASS_FLAGS(EEnumFlags)

@@ -213,9 +213,12 @@ int32 FBlueprintActionDatabaseRegistrar::RegisterStructActions(const FMakeStruct
 		if (const UScriptStruct* StructAsset = Cast<UScriptStruct>(RegistrarTarget))
 		{
 			check(IsOpenForRegistration(StructAsset));
-			if (UBlueprintNodeSpawner* NewAction = MakeActionCallback.Execute(StructAsset))
+			if ((StructAsset->StructFlags & STRUCT_NewerVersionExists) == 0)
 			{
-				RegisteredCount += (int32)AddBlueprintAction(StructAsset, NewAction);
+				if (UBlueprintNodeSpawner* NewAction = MakeActionCallback.Execute(StructAsset))
+				{
+					RegisteredCount += (int32)AddBlueprintAction(StructAsset, NewAction);
+				}
 			}
 		}
 		// else, the target is a class or a different asset type... not something pertaining to a struct
@@ -225,9 +228,12 @@ int32 FBlueprintActionDatabaseRegistrar::RegisterStructActions(const FMakeStruct
 		for (TObjectIterator<UScriptStruct> StructIt; StructIt; ++StructIt)
 		{
 			UScriptStruct const* Struct = (*StructIt);
-			if (UBlueprintNodeSpawner* NewAction = MakeActionCallback.Execute(Struct))
+			if ((Struct->StructFlags & STRUCT_NewerVersionExists) == 0)
 			{
-				RegisteredCount += (int32)AddBlueprintAction(Struct, NewAction);
+				if (UBlueprintNodeSpawner* NewAction = MakeActionCallback.Execute(Struct))
+				{
+					RegisteredCount += (int32)AddBlueprintAction(Struct, NewAction);
+				}
 			}
 		}
 	}
@@ -245,6 +251,10 @@ int32 FBlueprintActionDatabaseRegistrar::RegisterEnumActions(const FMakeEnumSpaw
 			for (TFieldIterator<UEnum> EnumIt(TargetClass, EFieldIteratorFlags::ExcludeSuper); EnumIt; ++EnumIt)
 			{
 				UEnum const* EnumToConsider = (*EnumIt);
+				if (EnumToConsider->HasAnyEnumFlags(EEnumFlags::NewerVersionExists))
+				{
+					continue;
+				}
 				if (!UEdGraphSchema_K2::IsAllowableBlueprintVariableType(EnumToConsider))
 				{
 					continue;
@@ -258,7 +268,7 @@ int32 FBlueprintActionDatabaseRegistrar::RegisterEnumActions(const FMakeEnumSpaw
 		}
 		else if (const UEnum* TargetEnum = Cast<UEnum>(RegistrarTarget))
 		{
-			if (UEdGraphSchema_K2::IsAllowableBlueprintVariableType(TargetEnum))
+			if (!TargetEnum->HasAnyEnumFlags(EEnumFlags::NewerVersionExists) && UEdGraphSchema_K2::IsAllowableBlueprintVariableType(TargetEnum))
 			{
 				if (UBlueprintNodeSpawner* NewAction = MakeActionCallback.Execute(TargetEnum))
 				{
@@ -272,6 +282,11 @@ int32 FBlueprintActionDatabaseRegistrar::RegisterEnumActions(const FMakeEnumSpaw
 		for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
 		{
 			UEnum const* EnumToConsider = (*EnumIt);
+			if (EnumToConsider->HasAnyEnumFlags(EEnumFlags::NewerVersionExists))
+			{
+				continue;
+			}
+
 			if (!UEdGraphSchema_K2::IsAllowableBlueprintVariableType(EnumToConsider))
 			{
 				continue;
