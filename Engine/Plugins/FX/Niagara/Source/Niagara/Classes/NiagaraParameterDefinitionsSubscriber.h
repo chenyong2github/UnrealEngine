@@ -41,8 +41,6 @@ class NIAGARA_API INiagaraParameterDefinitionsSubscriber
 public:
 	virtual ~INiagaraParameterDefinitionsSubscriber() = default;
 
-	void InitParameterDefinitionsSubscriptions();
-	void CleanupParameterDefinitionsSubscriptions();
 	void PostLoadDefinitionsSubscriptions();
 
 	//~ Begin Pure Virtual Methods

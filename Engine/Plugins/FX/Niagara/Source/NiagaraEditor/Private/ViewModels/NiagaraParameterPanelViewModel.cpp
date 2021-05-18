@@ -1402,14 +1402,22 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 			}
 	
 			// Get all UNiagaraScriptVariables of visited graphs in the ParameterToScriptVariableMap so that generated items are in sync.
-			TSet<UNiagaraGraph*> VisitedGraphs;
+			TSet<UNiagaraGraph*> VisitedExternalGraphs;
 			for (const UEdGraphPin* MapPin : Builder.Histories[0].MapPinHistory)
 			{
-				VisitedGraphs.Add(CastChecked<UNiagaraGraph>(MapPin->GetOwningNode()->GetOuter()));
+				const UNiagaraNodeFunctionCall* MapPinOuterFunctionCallNode = Cast<UNiagaraNodeFunctionCall>(MapPin->GetOuter());
+				if (MapPinOuterFunctionCallNode != nullptr)
+				{
+					UNiagaraGraph* VisitedExternalGraph = MapPinOuterFunctionCallNode->GetCalledGraph();
+					if (VisitedExternalGraph != nullptr)
+					{
+						VisitedExternalGraphs.Add(VisitedExternalGraph);
+					}
+				}
 			}
-			for (const UNiagaraGraph* VisitedGraph : VisitedGraphs)
+			for (const UNiagaraGraph* VisitedExternalGraph : VisitedExternalGraphs)
 			{
-				ParameterToScriptVariableMap.Append(VisitedGraph->GetAllMetaData());
+				ParameterToScriptVariableMap.Append(VisitedExternalGraph->GetAllMetaData());
 			}
 
 			const TArray<FName>& CustomIterationSourceNamespaces = Builder.Histories[0].IterationNamespaceOverridesEncountered;

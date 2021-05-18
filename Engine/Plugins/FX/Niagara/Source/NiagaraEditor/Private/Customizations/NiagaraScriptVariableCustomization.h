@@ -79,7 +79,10 @@ private:
 
 	void OnStaticSwitchValueChanged();
 
+	void OnBeginLibraryValueChanged();
+	void OnEndLibraryValueChanged();
 	void OnLibraryValueChanged();
+
 	int32 GetLibraryDefaultModeValue() const { return LibraryDefaultModeValue; };
 	int32 GetLibrarySourcedDefaultModeInitialValue() const;
 	int32 GetLibrarySynchronizedDefaultModeInitialValue() const;

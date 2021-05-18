@@ -9,23 +9,6 @@
 
 #if WITH_EDITORONLY_DATA
 
-void INiagaraParameterDefinitionsSubscriber::InitParameterDefinitionsSubscriptions()
-{
-	for (UNiagaraParameterDefinitionsBase* ParameterDefinitions : GetSubscribedParameterDefinitions())
-	{
-		ParameterDefinitions->GetOnParameterDefinitionsChanged().AddRaw(this, &INiagaraParameterDefinitionsSubscriber::SynchronizeWithParameterDefinitions, FSynchronizeWithParameterDefinitionsArgs());
-	}
-	SynchronizeWithParameterDefinitions();
-}
-
-void INiagaraParameterDefinitionsSubscriber::CleanupParameterDefinitionsSubscriptions()
-{
-	for (UNiagaraParameterDefinitionsBase* ParameterDefinitions : GetSubscribedParameterDefinitions())
-	{
-		ParameterDefinitions->GetOnParameterDefinitionsChanged().RemoveAll(this);
-	}
-}
-
 void INiagaraParameterDefinitionsSubscriber::PostLoadDefinitionsSubscriptions()
 {
 	TArray<FParameterDefinitionsSubscription>& Subscriptions = GetParameterDefinitionsSubscriptions();

@@ -45,15 +45,16 @@ protected:
 private:
 	TSharedRef<SDockTab> SpawnTab_ParameterDefinitionsDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_ParameterPanel(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_SelectedDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_SelectedScriptVarDetails(const FSpawnTabArgs& Args);
 
 	void ExtendToolbar();
 	void SetupCommands();
 
-	void OnApply();
+	void OnApply(bool bInvokedFromSaveAsset = false);
 	bool OnApplyEnabled() const;
 
 	void OnEditedParameterDefinitionsPropertyFinishedChanging(const FPropertyChangedEvent& InEvent);
+	void OnEditedParameterDefinitionsChanged();
 
 private:
 	/** The duplicate instance of ParameterDefinitions to be live edited. Overwrites ParameterDefinitionsSource when changes are applied. */
@@ -71,7 +72,7 @@ private:
 	/** The Parameter Panel displaying parameter definitions. */
 	TSharedPtr<FNiagaraParameterDefinitionsToolkitParameterPanelViewModel> ParameterPanelViewModel;
 
-	TSharedPtr<SNiagaraSelectedObjectsDetails> SelectedDetailsWidget;
+	TSharedPtr<SNiagaraSelectedObjectsDetails> SelectedScriptVarDetailsWidget;
 
 	/** The selection displayed by the details tab. */
 	TSharedPtr<FNiagaraObjectSelection> DetailsScriptSelection;

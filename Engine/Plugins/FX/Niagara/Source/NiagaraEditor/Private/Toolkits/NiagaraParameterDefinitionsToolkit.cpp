@@ -35,6 +35,10 @@ FNiagaraParameterDefinitionsToolkit::~FNiagaraParameterDefinitionsToolkit()
 	{
 		ParameterPanelViewModel->Cleanup();
 	}
+	if (SelectedScriptVarDetailsWidget.IsValid())
+	{
+		SelectedScriptVarDetailsWidget->OnFinishedChangingProperties().RemoveAll(this);
+	}
 }
 
 void FNiagaraParameterDefinitionsToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -49,7 +53,7 @@ void FNiagaraParameterDefinitionsToolkit::RegisterTabSpawners(const TSharedRef<c
 		.SetDisplayName(LOCTEXT("ParameterDefinitionsDetailsTab", "Options"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 
-	InTabManager->RegisterTabSpawner(SelectedDetailsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::SpawnTab_SelectedDetails))
+	InTabManager->RegisterTabSpawner(SelectedDetailsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::SpawnTab_SelectedScriptVarDetails))
 		.SetDisplayName(LOCTEXT("SelectedDetailsTab", "Selected Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
@@ -78,6 +82,7 @@ void FNiagaraParameterDefinitionsToolkit::Initialize(const EToolkitMode::Type Mo
 	ParameterDefinitionsInstance = Cast<UNiagaraParameterDefinitions>(StaticDuplicateObject(ParameterDefinitionsSource, GetTransientPackage()));
 	ParameterDefinitionsInstance->ClearFlags(RF_Standalone | RF_Public);
 	LastSyncedDefinitionsChangeIdHash = ParameterDefinitionsInstance->GetChangeIdHash();
+	ParameterDefinitionsInstance->GetOnParameterDefinitionsChanged().AddRaw(this, &FNiagaraParameterDefinitionsToolkit::OnEditedParameterDefinitionsChanged);
 
 	// Determine display name for panel heading based on asset usage type
 	FText DisplayName = LOCTEXT("NiagaraParameterDefinitionsDisplayName", "Niagara Parameter Definitions");
@@ -174,13 +179,15 @@ void FNiagaraParameterDefinitionsToolkit::GetSaveableObjects(TArray<UObject*>& O
 
 void FNiagaraParameterDefinitionsToolkit::SaveAsset_Execute()
 {
-	OnApply();
+	bool bInvokedFromSaveAsset = true;
+	OnApply(bInvokedFromSaveAsset);
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
 
 void FNiagaraParameterDefinitionsToolkit::SaveAssetAs_Execute()
 {
-	OnApply();
+	bool bInvokedFromSaveAsset = true;
+	OnApply(bInvokedFromSaveAsset);
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
 
@@ -223,7 +230,6 @@ TSharedRef<SDockTab> FNiagaraParameterDefinitionsToolkit::SpawnTab_ParameterDefi
 	FDetailsViewArgs DetailsViewArgs(false, false, true, FDetailsViewArgs::HideNameArea, true);
 	ParameterDefinitionsDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
-	ParameterDefinitionsDetailsView->OnFinishedChangingProperties().AddRaw(this, &FNiagaraParameterDefinitionsToolkit::OnEditedParameterDefinitionsPropertyFinishedChanging);
 	ParameterDefinitionsDetailsView->SetObject(ParameterDefinitionsInstance);
 
 	return SNew(SDockTab)
@@ -246,7 +252,7 @@ TSharedRef<SDockTab> FNiagaraParameterDefinitionsToolkit::SpawnTab_ParameterPane
 	];
 }
 
-TSharedRef<SDockTab> FNiagaraParameterDefinitionsToolkit::SpawnTab_SelectedDetails(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FNiagaraParameterDefinitionsToolkit::SpawnTab_SelectedScriptVarDetails(const FSpawnTabArgs& Args)
 {
 	checkf(Args.GetTabId().TabType == SelectedDetailsTabId, TEXT("Wrong tab ID in NiagaraParameterDefinitionsToolkit!"));
 
@@ -254,9 +260,11 @@ TSharedRef<SDockTab> FNiagaraParameterDefinitionsToolkit::SpawnTab_SelectedDetai
 	.Label(LOCTEXT("SelectedDetailsTabLabel", "Selected Details"))
 	.TabColorScale(GetTabColorScale())
 	[
-		SAssignNew(SelectedDetailsWidget, SNiagaraSelectedObjectsDetails, DetailsScriptSelection.ToSharedRef())
+		SAssignNew(SelectedScriptVarDetailsWidget, SNiagaraSelectedObjectsDetails, DetailsScriptSelection.ToSharedRef())
 		.AllowEditingLibraryScriptVariables(true)
 	];
+
+	SelectedScriptVarDetailsWidget->OnFinishedChangingProperties().AddRaw(this, &FNiagaraParameterDefinitionsToolkit::OnEditedParameterDefinitionsPropertyFinishedChanging);
 }
 
 void FNiagaraParameterDefinitionsToolkit::ExtendToolbar()
@@ -296,58 +304,67 @@ void FNiagaraParameterDefinitionsToolkit::ExtendToolbar()
 
 void FNiagaraParameterDefinitionsToolkit::SetupCommands()
 {
+	bool bInvokedFromSaveAsset = false;
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().Apply,
-		FExecuteAction::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::OnApply),
+		FExecuteAction::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::OnApply, bInvokedFromSaveAsset),
 		FCanExecuteAction::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::OnApplyEnabled));
 }
 
-void FNiagaraParameterDefinitionsToolkit::OnApply()
+void FNiagaraParameterDefinitionsToolkit::OnApply(bool bInvokedFromSaveAsset /*= false*/)
 {
-	if (ParameterDefinitionsInstance->GetChangeIdHash() != LastSyncedDefinitionsChangeIdHash)
+	if (bInvokedFromSaveAsset == false && ParameterDefinitionsInstance->GetChangeIdHash() == LastSyncedDefinitionsChangeIdHash)
 	{
-		const FScopedBusyCursor BusyCursor;
-		const FText LocalizedScriptEditorApply = NSLOCTEXT("UnrealEd", "ToolTip_NiagaraParameterDefinitionsEditorApply", "Apply changes to parameter definitions.");
-		GWarn->BeginSlowTask(LocalizedScriptEditorApply, true);
-		GWarn->StatusUpdate(1, 1, LocalizedScriptEditorApply);
-
-		if (ParameterDefinitionsSource->IsSelected())
-		{
-			GEditor->GetSelectedObjects()->Deselect(ParameterDefinitionsSource);
-		}
-
-		ResetLoaders(ParameterDefinitionsSource->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
-		ParameterDefinitionsSource->GetOutermost()->LinkerCustomVersion.Empty();
-
-		ParameterDefinitionsSource->PreEditChange(nullptr);
-		// overwrite the original parameter definitions in place by constructing a new one with the same name
-		ParameterDefinitionsSource = (UNiagaraParameterDefinitions*)StaticDuplicateObject(ParameterDefinitionsInstance, ParameterDefinitionsSource->GetOuter(),
-			ParameterDefinitionsSource->GetFName(), RF_AllFlags, ParameterDefinitionsSource->GetClass());
-
-		// Restore RF_Standalone and RF_Public on the original parameter definitions.
-		ParameterDefinitionsSource->SetFlags(RF_Standalone | RF_Public);
-
-		ParameterDefinitionsSource->PostEditChange();
-
-		// Record the last synced change id to detect future changes.
-		LastSyncedDefinitionsChangeIdHash = ParameterDefinitionsInstance->GetChangeIdHash();
-
-		FRefreshAllScriptsFromExternalChangesArgs Args;
-		Args.OriginatingParameterDefinitions = ParameterDefinitionsSource;
-		FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(Args);
-
-		GWarn->EndSlowTask();
-		FNiagaraEditorModule::Get().InvalidateCachedScriptAssetData();
+		ensureMsgf(false, TEXT("Tried to apply changes to parameter definitions but the change ID does not differ with the last seen change ID!"));
 	}
+
+	const FScopedBusyCursor BusyCursor;
+	const FText LocalizedScriptEditorApply = NSLOCTEXT("UnrealEd", "ToolTip_NiagaraParameterDefinitionsEditorApply", "Apply changes to parameter definitions.");
+	GWarn->BeginSlowTask(LocalizedScriptEditorApply, true);
+	GWarn->StatusUpdate(1, 1, LocalizedScriptEditorApply);
+
+	if (ParameterDefinitionsSource->IsSelected())
+	{
+		GEditor->GetSelectedObjects()->Deselect(ParameterDefinitionsSource);
+	}
+
+	ResetLoaders(ParameterDefinitionsSource->GetOutermost()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
+	ParameterDefinitionsSource->GetOutermost()->LinkerCustomVersion.Empty();
+
+	ParameterDefinitionsSource->PreEditChange(nullptr);
+	// overwrite the original parameter definitions in place by constructing a new one with the same name
+	ParameterDefinitionsSource = (UNiagaraParameterDefinitions*)StaticDuplicateObject(ParameterDefinitionsInstance, ParameterDefinitionsSource->GetOuter(),
+		ParameterDefinitionsSource->GetFName(), RF_AllFlags, ParameterDefinitionsSource->GetClass());
+
+	// Restore RF_Standalone and RF_Public on the original parameter definitions.
+	ParameterDefinitionsSource->SetFlags(RF_Standalone | RF_Public);
+
+	ParameterDefinitionsSource->PostEditChange();
+
+	// Record the last synced change id to detect future changes.
+	LastSyncedDefinitionsChangeIdHash = ParameterDefinitionsInstance->GetChangeIdHash();
+	bEditedParameterDefinitionsHasPendingChanges = false;
+
+	ParameterDefinitionsSource->NotifyParameterDefinitionsChanged();
+	FRefreshAllScriptsFromExternalChangesArgs Args;
+	Args.OriginatingParameterDefinitions = ParameterDefinitionsSource;
+	FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(Args);
+
+	GWarn->EndSlowTask();
+	FNiagaraEditorModule::Get().InvalidateCachedScriptAssetData();
 }
 
 bool FNiagaraParameterDefinitionsToolkit::OnApplyEnabled() const
 {
-	return true;
-	//return bEditedParameterDefinitionsHasPendingChanges; //@todo(ng) fixup
+	return bEditedParameterDefinitionsHasPendingChanges;
 }
 
 void FNiagaraParameterDefinitionsToolkit::OnEditedParameterDefinitionsPropertyFinishedChanging(const FPropertyChangedEvent& InEvent)
+{
+	bEditedParameterDefinitionsHasPendingChanges = true;
+}
+
+void FNiagaraParameterDefinitionsToolkit::OnEditedParameterDefinitionsChanged()
 {
 	bEditedParameterDefinitionsHasPendingChanges = true;
 }
