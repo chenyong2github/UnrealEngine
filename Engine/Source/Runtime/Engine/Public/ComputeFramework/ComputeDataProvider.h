@@ -7,10 +7,7 @@
 
 class FComputeDataProviderRenderProxy;
 struct FComputeKernelPermutationSet;
-class FRDGBuffer;
-class FRDGTexture;
-class FRHIShaderResourceView;
-class FRHIUnorderedAccessView;
+class FRDGBuilder;
 
 /**
  * Compute Framework Data Provider.
@@ -51,6 +48,9 @@ public:
 	 * All potential data permutations should already have been registered by the associated data interface to ensure that the compiled permutation exists. 
 	 */
 	virtual void GetPermutations(int32 InvocationIndex, FComputeKernelPermutationSet& OutPermutationSet) const {}
+
+	/* Called once before any calls to GetBindings() to allow any RDG resource allocation. */
+	virtual void AllocateResources(FRDGBuilder& GraphBuilder) {}
 
 	/** 
 	 * The name-value shader bindings that are collected from data providers.
