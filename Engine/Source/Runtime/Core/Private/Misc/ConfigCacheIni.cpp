@@ -514,11 +514,14 @@ static bool SaveConfigFileWrapper(const TCHAR* IniFile, const FString& Contents)
 
 	// save it even if a delegate did as well
 	bool bLocalWriteSucceeded = false;
-	if (FApp::IsUnattended())
-	{
-		bLocalWriteSucceeded = FFileHelper::SaveStringToFile(Contents, IniFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-	}
-	else
+
+#if PLATFORM_DESKTOP && WITH_EDITOR
+	bool bWriteTempFileThenMove = !FApp::IsGame() && !FApp::IsUnattended();
+#else // PLATFORM_DESKTOP
+	bool bWriteTempFileThenMove = false;
+#endif
+
+	if (bWriteTempFileThenMove)
 	{
 		const FString BaseFilename = FPaths::GetBaseFilename(IniFile);
 		const FString TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
@@ -531,6 +534,10 @@ static bool SaveConfigFileWrapper(const TCHAR* IniFile, const FString& Contents)
 				bLocalWriteSucceeded = false;
 			}
 		}
+	}
+	else
+	{
+		bLocalWriteSucceeded = FFileHelper::SaveStringToFile(Contents, IniFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	}
 
 	// success is based on a delegate or file write working (or both)
