@@ -11,6 +11,7 @@
 #include "ProfilingDebugging/ResourceSize.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/GCObject.h"
+#include "AsyncCompilationHelpers.h"
 #include "AssetCompilingManager.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
@@ -283,6 +284,8 @@ private:
 	class IMeshUtilities* MeshUtilities;
 
 	mutable FCriticalSection CriticalSection;
+	
+	FAsyncCompilationNotification Notification;
 };
 
 /** Global build queue. */

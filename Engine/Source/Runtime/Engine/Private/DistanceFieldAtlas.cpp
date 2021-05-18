@@ -272,6 +272,7 @@ void FDistanceFieldAsyncQueue::OnAssetPostCompile(const TArray<FAssetCompileData
 }
 
 FDistanceFieldAsyncQueue::FDistanceFieldAsyncQueue() 
+	: Notification(GetAssetNameFormat())
 {
 	FAssetCompilingManager::Get().RegisterManager(this);
 	FAssetCompilingManager::Get().OnAssetPostCompileEvent().AddRaw(this, &FDistanceFieldAsyncQueue::OnAssetPostCompile);
@@ -765,6 +766,8 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 
 		delete Task;
 	}
+
+	Notification.Update(GetNumRemainingAssets());
 #endif
 }
 

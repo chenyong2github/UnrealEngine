@@ -2821,7 +2821,8 @@ FShaderCompilingManager::FShaderCompilingManager() :
 #endif
 	SuppressedShaderPlatforms(0),
 	BuildDistributionController(nullptr),
-	bNoShaderCompilation(false)
+	bNoShaderCompilation(false),
+	Notification(GetAssetNameFormat())
 {
 	// don't perform any initialization if compiling is not allowed
 	if (!AllowShaderCompiling())
@@ -4509,6 +4510,8 @@ void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool
 	{
 		check(AllJobs.GetNumPendingJobs() == 0);
 	}
+
+	Notification.Update(GetNumRemainingAssets());
 }
 
 bool FShaderCompilingManager::IsShaderCompilerWorkerRunning(FProcHandle & WorkerHandle)

@@ -703,12 +703,6 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 	FCoreUObjectDelegates::IsPackageOKToSaveDelegate.BindUObject(this, &UEditorEngine::IsPackageOKToSave);
 	FCoreUObjectDelegates::AutoPackageBackupDelegate.BindStatic(&FAutoPackageBackup::BackupPackage);
 
-	extern void SetupDistanceFieldBuildNotification();
-	SetupDistanceFieldBuildNotification();
-
-	extern void SetupCardRepresentationBuildNotification();
-	SetupCardRepresentationBuildNotification();
-
 	// Update recents
 	UpdateRecentlyLoadedProjectFiles();
 
@@ -1300,12 +1294,6 @@ void UEditorEngine::FinishDestroy()
 
 		// Destroy selection sets.
 		PrivateEditorSelection::DestroySelectionSets();
-
-		extern void TearDownDistanceFieldBuildNotification();
-		TearDownDistanceFieldBuildNotification();
-
-		extern void TearDownCardRepresentationBuildNotification();
-		TearDownCardRepresentationBuildNotification();
 
 		// Remove editor array from root.
 		UE_LOG(LogExit, Log, TEXT("Editor shut down") );
