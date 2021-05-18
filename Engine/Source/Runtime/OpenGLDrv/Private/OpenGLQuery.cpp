@@ -663,7 +663,7 @@ FOpenGLRenderQuery::~FOpenGLRenderQuery()
 		}
 		else
 		{
-			CreationFence.WaitFence();
+			CreationFence.WaitFenceRenderThreadOnly();
 			ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([Resource = Resource, ResourceContext = ResourceContext]() {VERIFY_GL_SCOPE(); ReleaseResource(Resource, ResourceContext); });
 		}
 	}

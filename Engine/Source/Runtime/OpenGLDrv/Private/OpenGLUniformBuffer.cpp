@@ -400,8 +400,8 @@ void FOpenGLUniformBuffer::SetGLUniformBufferParams(GLuint InResource, uint32 In
 
 FOpenGLUniformBuffer::~FOpenGLUniformBuffer()
 {
-	AccessFence.WaitFence();
-	CopyFence.WaitFence();
+	AccessFence.WaitFenceRenderThreadOnly();
+	CopyFence.WaitFenceRenderThreadOnly();
 
 	if (Resource != 0)
 	{

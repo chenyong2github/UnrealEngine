@@ -217,7 +217,7 @@ static EBlendFactor TranslateBlendFactor(GLenum BlendFactor)
 
 FOpenGLSamplerState::~FOpenGLSamplerState()
 {
-	CreationFence.WaitFence();
+	CreationFence.WaitFenceRenderThreadOnly();
 	VERIFY_GL_SCOPE();
 	FOpenGL::DeleteSamplers(1,&Resource);
 }
