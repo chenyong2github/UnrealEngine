@@ -150,7 +150,7 @@ namespace UnrealVS
 		private void SortCachedStartupProjects()
 		{
 			// Sort projects by game y/n then alphabetically
-			_CachedStartupProjects = (_CachedStartupProjects.OrderBy(ProjectRef => ProjectRef.Name == "UE4" ? 0 : 1)
+			_CachedStartupProjects = (_CachedStartupProjects.OrderBy(ProjectRef => ProjectRef.Name == "UE5" ? 0 : 1)
 				.ThenBy(ProjectRef => Utils.IsGameProject(ProjectRef.Project) ? 0 : 1)
 				.ThenBy(ProjectRef => ProjectRef.Name)).ToList();
 		}

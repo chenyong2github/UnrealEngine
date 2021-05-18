@@ -75,7 +75,7 @@ namespace UnrealVS
 		/// </summary>
 		public void OnStartupProjectPropertyChanged(UInt32 itemid, Int32 propid, UInt32 flags)
 		{
-			// Filter out Helix VS plugin sending thousands of VSHPROPID_StateIconIndex in UE4.sln
+			// Filter out Helix VS plugin sending thousands of VSHPROPID_StateIconIndex in the solution
 			// This event type is not usefull at all for the commandline editor
 			if (propid == (Int32)__VSHPROPID.VSHPROPID_StateIconIndex)
 			{
