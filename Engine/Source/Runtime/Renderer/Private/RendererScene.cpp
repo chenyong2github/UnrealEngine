@@ -288,6 +288,8 @@ FSceneViewState::~FSceneViewState()
 	AOTileIntersectionResources = NULL;
 	DestroyRenderResource(AOScreenGridResources);
 	AOScreenGridResources = NULL;
+
+	HairStrandsViewStateData.Release();
 }
 
 #if WITH_EDITOR
