@@ -5,7 +5,7 @@
 #include "Engine/Texture2D.h"
 #include "RenderUtils.h"
 
-FDDSLoadHelper::FDDSLoadHelper(const uint8* Buffer, uint32 Length) 
+FDDSLoadHelper::FDDSLoadHelper(const uint8* Buffer, uint64 Length) 
 	: DDSHeader(0), DDS10Header(0)
 {
 	check(Buffer);
@@ -151,17 +151,18 @@ ETextureSourceFormat FDDSLoadHelper::ComputeSourceFormat() const
 
 bool FDDSLoadHelper::IsValidCubemapTexture() const
 {
-	if(DDSHeader != nullptr && (DDSHeader->dwCaps2 & DDSC_CubeMap) != 0 && (DDSHeader->dwCaps2 & DDSC_CubeMap_AllFaces) != 0)
-	{
-		return true;
+	if (DDSHeader != nullptr  && DDSHeader->dwWidth == DDSHeader->dwHeight)
+	{ 
+		if((DDSHeader->dwCaps2 & DDSC_CubeMap) != 0 && (DDSHeader->dwCaps2 & DDSC_CubeMap_AllFaces) != 0)
+		{
+			return true;
+		}
+
+		if (DDS10Header != nullptr && DDS10Header->resourceType == 3 && (DDS10Header->miscFlag & 4))
+		{
+			return true;
+		}
 	}
-
-	if (DDS10Header != nullptr && DDS10Header->resourceType == 3 && (DDS10Header->miscFlag & 4))
-	{
-		return true;
-	}
-
-
 	return false;
 }
 
@@ -217,7 +218,7 @@ uint32 FDDSLoadHelper::ComputeMipMapCount() const
 
 const uint8* FDDSLoadHelper::GetDDSDataPointer(ECubeFace Face) const
 {
-	uint32 SliceSize = CalcTextureSize(DDSHeader->dwWidth, DDSHeader->dwHeight, ComputePixelFormat(), ComputeMipMapCount());
+	uint32 SliceSize = CalcTextureSize(GetSizeX(), GetSizeY(), ComputePixelFormat(), ComputeMipMapCount());
 
 	const uint8* Ptr = (const uint8*)DDSHeader + sizeof(FDDSFileHeader);
 
@@ -246,3 +247,14 @@ const uint8* FDDSLoadHelper::GetDDSDataPointer(const UTexture2D& Texture) const
 
 	return GetDDSDataPointer();
 }
+
+int64 FDDSLoadHelper::GetDDSHeaderMaximalSize()
+{
+	return sizeof(FDDSFileHeader) + sizeof(FDDS10FileHeader);
+}
+
+int64 FDDSLoadHelper::GetDDSHeaderMinimalSize()
+{
+	return sizeof(FDDSFileHeader);
+}
+

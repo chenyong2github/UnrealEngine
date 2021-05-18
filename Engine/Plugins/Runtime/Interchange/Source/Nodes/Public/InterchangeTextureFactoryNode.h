@@ -720,6 +720,13 @@ private:
 		FString OperationName = GetTypeName() + TEXT(".GetAssetClassName");
 		FString ClassName;
 		InterchangePrivateNodeBase::GetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, ClassName);
+		FillAssetClassFromClassName(ClassName);
+#endif
+	}
+
+#if WITH_ENGINE
+	virtual void FillAssetClassFromClassName(const FString& ClassName)
+	{
 		if (ClassName.Equals(UTexture2D::StaticClass()->GetName()))
 		{
 			AssetClass = UTexture2D::StaticClass();
@@ -730,8 +737,8 @@ private:
 			AssetClass = UTexture::StaticClass();
 			bIsTextureNodeClassInitialized = true;
 		}
-#endif
 	}
+#endif
 
 	bool SetTextureNodeClassFromClassAttribute()
 	{
@@ -895,8 +902,6 @@ protected:
 #if WITH_ENGINE
 	TSubclassOf<UTexture> AssetClass = nullptr;
 #endif
-
-	UE::Interchange::TMapAttributeHelper<int32, FString> SourceBlocks;
 
 	bool bIsTextureNodeClassInitialized = false;
 };
