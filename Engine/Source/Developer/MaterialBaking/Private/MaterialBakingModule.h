@@ -78,9 +78,7 @@ private:
 	TMap<FMaterialPropertyEx, EPixelFormat> PerPropertyFormat;
 
 	/** Whether or not to enforce gamma correction while baking out specific material properties */
-	TMap<FMaterialPropertyEx, EPropertyColorSpace> PerPropertyColorSpace;
-
-	EPropertyColorSpace DefaultColorSpace;
+	TSet<FMaterialPropertyEx> PerPropertyLinearGamma;
 
 	bool bEmissiveHDR;
 };
