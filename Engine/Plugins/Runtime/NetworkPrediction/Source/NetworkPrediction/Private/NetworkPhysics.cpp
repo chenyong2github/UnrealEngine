@@ -19,6 +19,8 @@
 #include "GameFramework/Actor.h"
 #include "NetworkPredictionCheck.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "NetworkPredictionDebug.h"
+#include "GameFramework/PlayerState.h"
 
 DEFINE_LOG_CATEGORY(LogNetworkPhysics);
 
@@ -750,6 +752,15 @@ void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TAr
 	UWorld* World = GetWorld();
 	const ENetMode NetMode = World->GetNetMode();
 
+	int32 FrameDelta = this->LatestConfirmedFrame - PhysicsStep;
+
+	if (PhysicsStep % 500 == 0)
+	{
+		ClientServerMaxFrameDelta = 0;
+	}
+
+	ClientServerMaxFrameDelta = FMath::Max(ClientServerMaxFrameDelta, FrameDelta);
+
 	// ----------------------------------------------------------------------
 	//	Server: Do remote client input buffering logic
 	//	This should probably be moved into PlayerController itself, with more options.
@@ -758,7 +769,7 @@ void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TAr
 	
 	if (NetMode != NM_Client)
 	{
-		constexpr int32 MaxBufferedCmds = 64;
+		constexpr int32 MaxBufferedCmds = 16;
 		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 		{
 			if (APlayerController* PC = Iterator->Get())
@@ -807,7 +818,7 @@ void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TAr
 
 
 				// ----------------------------------------------------------------------------------------------
-				// REMOVE Once Mock/Hardcoded exmaple is gone
+				// REMOVE Once Mock/Hardcoded example is gone
 				// ----------------------------------------------------------------------------------------------
 				if (FrameInfo.LastProcessedInputFrame != INDEX_NONE)
 				{
@@ -1038,6 +1049,22 @@ void UNetworkPhysicsManager::TickDrawDebug()
 				Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
 				const int32 LatestSimulatedFrame = Solver->GetCurrentFrame() - Manager->LocalOffset;
 				YPos += Canvas->DrawText(GEngine->GetMediumFont(), FString::Printf(TEXT("Num Predicted Frames: %d"), (LatestSimulatedFrame - Manager->LatestConfirmedFrame)), XPos, YPos);
+
+				APlayerController* LocalPC = GEngine->GetFirstLocalPlayerController(Manager->GetWorld());
+
+				if (APlayerState* PS = LocalPC->GetPlayerState<APlayerState>())
+				{
+					YPos += Canvas->DrawText(GEngine->GetMediumFont(), FString::Printf(TEXT("Ping: %d"), PS->GetPing()), XPos, YPos);
+				}
+
+				
+				YPos += Canvas->DrawText(GEngine->GetMediumFont(), FString::Printf(TEXT("ClientServerMaxFrameDelta: %d"), Manager->ClientServerMaxFrameDelta), XPos, YPos);
+				
+				if (APlayerController* ServerPC = Cast<APlayerController>(NetworkPredictionDebug::FindReplicatedObjectOnPIEServer(LocalPC)))
+				{
+					int32 NumBufferedCmd = ServerPC->GetInputBuffer().HeadFrame() - ServerPC->GetServerFrameInfo().LastProcessedInputFrame;
+					YPos += Canvas->DrawText(GEngine->GetMediumFont(), FString::Printf(TEXT("Server-Side Buffered InputCmds: %d"), NumBufferedCmd), XPos, YPos);
+				}
 
 				YPos += 20.f;
 

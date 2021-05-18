@@ -397,11 +397,11 @@ public:
 
 	// Spawns actor and plays named recorded inputs
 	UFUNCTION(BlueprintCallable, Category="Spawner")
-	void Spawn(FName NamedInputs);
+	AActor* Spawn(FName NamedInputs);
 
 	// Spawns actor and plays random stream of recorded input
 	UFUNCTION(BlueprintCallable, Category="Spawner")
-	void SpawnRandom();
+	AActor* SpawnRandom();
 	
 	void StartRecording(UNetworkPhysicsComponent* Target, FName NamedInputs);
 

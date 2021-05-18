@@ -1066,7 +1066,7 @@ void UNetworkPhysicsComponent::ProcessInputs_External(FMockManagedState& State, 
 
 // ============================================================================================================
 
-void ANetworkPredictionSpawner::Spawn(FName StreamName)
+AActor* ANetworkPredictionSpawner::Spawn(FName StreamName)
 {
 	ANetworkPredictionSpawner* SourceSpawner = nullptr;
 	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
@@ -1086,13 +1086,14 @@ void ANetworkPredictionSpawner::Spawn(FName StreamName)
 		}
 	}
 
+	AActor* SpawnedActor = nullptr;
 	ensure(SourceSpawner);
 
 	StreamName = (StreamName == NAME_None ? SourceSpawner->RecordedInputs[FMath::Rand() % SourceSpawner->RecordedInputs.Num()].Name : StreamName);
 
 	if (FMockRecordedInputs* PlaybackRecordedInputs = SourceSpawner->RecordedInputs.FindByKey(StreamName))
 	{
-		AActor* SpawnedActor = this->GetWorld()->SpawnActor<AActor>(this->SpawnClass.Get(), this->GetActorTransform());
+		SpawnedActor = this->GetWorld()->SpawnActor<AActor>(this->SpawnClass.Get(), this->GetActorTransform());
 		if (UNetworkPhysicsComponent* Comp = SpawnedActor->FindComponentByClass<UNetworkPhysicsComponent>())
 		{
 			Comp->StartPlayback(&PlaybackRecordedInputs->Inputs);
@@ -1102,11 +1103,13 @@ void ANetworkPredictionSpawner::Spawn(FName StreamName)
 	{
 		UE_LOG(LogNetworkPhysics, Warning, TEXT("Could not find Inputs named %s on %s"), *StreamName.ToString(), *GetName());
 	}
+
+	return SpawnedActor;
 }
 
-void ANetworkPredictionSpawner::SpawnRandom()
+AActor* ANetworkPredictionSpawner::SpawnRandom()
 {
-	Spawn(NAME_None);
+	return Spawn(NAME_None);
 }
 
 void ANetworkPredictionSpawner::StartRecording(UNetworkPhysicsComponent* Target, FName StreamName)

@@ -163,6 +163,8 @@ private:
 	int32 LatestSimulatedFrame = INDEX_NONE;	// Latest frame we have sent off to PT for simulation. Doesn't mean its been completed and marshalled back.
 	int32 LocalOffset = 0; // Calculated client/server frame offset. ClientFrame = ServerFrame + LocalOffset
 
+	int32 ClientServerMaxFrameDelta = 0;
+
 	TSortedMap<int32, int32> ManagedHandleToIndexMap;
 	TSparseArray<FNetworkPhysicsState*> ManagedPhysicsStates;
 	int32 LastFreeIndex = 0;
