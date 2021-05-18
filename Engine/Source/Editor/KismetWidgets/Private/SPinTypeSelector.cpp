@@ -743,9 +743,11 @@ TSharedRef< SWidget > SPinTypeSelector::GetAllowedObjectTypes(FPinTypeTreeItem I
 	const FSlateBrush* IconBrush = FBlueprintEditorUtils::GetIconFromPin(PinType);
 
 	FFormatNamedArguments Args;
+	bool bIsNative = false;
 
-	if(PinType.PinSubCategory != UEdGraphSchema_K2::PSC_Bitmask && PinType.PinSubCategoryObject.IsValid())
+	if (PinType.PinSubCategory != UEdGraphSchema_K2::PSC_Bitmask && PinType.PinSubCategoryObject.IsValid())
 	{
+		bIsNative = PinType.PinSubCategoryObject->IsNative() && PinType.PinSubCategoryObject != UBlueprint::StaticClass();
 		Args.Add(TEXT("TypeName"), InItem->GetDescription());
 	}
 
@@ -764,23 +766,35 @@ TSharedRef< SWidget > SPinTypeSelector::GetAllowedObjectTypes(FPinTypeTreeItem I
 	if (PossibleObjectReferenceTypes & static_cast<uint8>(EObjectReferenceType::ClassReference))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Class;
-		TSharedRef<SWidget> Widget = CreateObjectReferenceWidget(InItem, PinType, IconBrush, FText::Format(LOCTEXT("ClassTooltip", "Reference a class of type \'{TypeName}\'"), Args));
+		TSharedRef<SWidget> Widget = CreateObjectReferenceWidget(InItem, PinType, IconBrush, FText::Format(LOCTEXT("ClassTooltip", "Reference a class inheriting from type \'{TypeName}\'"), Args));
 		FObjectReferenceListItem ObjectReferenceType = MakeShareable(new FObjectReferenceType(InItem, Widget, PinType.PinCategory));
 		AllowedObjectReferenceTypes.Add(ObjectReferenceType);
 	}
 
 	if (PossibleObjectReferenceTypes & static_cast<uint8>(EObjectReferenceType::SoftObject))
 	{
+		FText FormatString = LOCTEXT("AssetTooltip", "Path to an instanced object of type \'{TypeName}\' which may not be loaded. Can be used to asynchronously load the asset.");
+		if (!bIsNative)
+		{
+			FormatString = LOCTEXT("AssetBPTooltip", "Path to an instanced object of type \'{TypeName}\' which may not be loaded. The blueprint type itself will always be loaded, which can be expensive.");
+		}
+
 		PinType.PinCategory = UEdGraphSchema_K2::PC_SoftObject;
-		TSharedRef<SWidget> Widget = CreateObjectReferenceWidget(InItem, PinType, IconBrush, FText::Format(LOCTEXT("AssetTooltip", "Path to an instanced object of type \'{TypeName}\' which may be in an unloaded state. Can be utilized to asynchronously load the object reference."), Args));
+		TSharedRef<SWidget> Widget = CreateObjectReferenceWidget(InItem, PinType, IconBrush, FText::Format(FormatString, Args));
 		FObjectReferenceListItem ObjectReferenceType = MakeShareable(new FObjectReferenceType(InItem, Widget, PinType.PinCategory));
 		AllowedObjectReferenceTypes.Add(ObjectReferenceType);
 	}
 
 	if (PossibleObjectReferenceTypes & static_cast<uint8>(EObjectReferenceType::SoftClass))
 	{
+		FText FormatString = LOCTEXT("ClassAssetTooltip", "Path to a class inheriting from type \'{TypeName}\' which may not be loaded. Can be utilized to asynchronously load the class.");
+		if (!bIsNative)
+		{
+			FormatString = LOCTEXT("ClassAssetBPTooltip", "Path to a class inheriting from type \'{TypeName}\' which may not be loaded. The blueprint type itself will always be loaded, which can be expensive.");
+		}
+
 		PinType.PinCategory = UEdGraphSchema_K2::PC_SoftClass;
-		TSharedRef<SWidget> Widget = CreateObjectReferenceWidget(InItem, PinType, IconBrush, FText::Format(LOCTEXT("ClassAssetTooltip", "Path to a class object of type \'{TypeName}\' which may be in an unloaded state. Can be utilized to asynchronously load the class."), Args));
+		TSharedRef<SWidget> Widget = CreateObjectReferenceWidget(InItem, PinType, IconBrush, FText::Format(FormatString, Args));
 		FObjectReferenceListItem ObjectReferenceType = MakeShareable(new FObjectReferenceType(InItem, Widget, PinType.PinCategory));
 		AllowedObjectReferenceTypes.Add(ObjectReferenceType);
 	}

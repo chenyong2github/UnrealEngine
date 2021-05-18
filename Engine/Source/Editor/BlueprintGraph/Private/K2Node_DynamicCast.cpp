@@ -117,6 +117,20 @@ FText UK2Node_DynamicCast::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	return CachedNodeTitle;
 }
 
+FText UK2Node_DynamicCast::GetTooltipText() const
+{
+	if (TargetType && TargetType->IsChildOf(UInterface::StaticClass()))
+	{
+		return LOCTEXT("CastToInterfaceTooltip", "Tries to access object as an interface it may implement.");
+	}
+	UBlueprint* CastToBP = UBlueprint::GetBlueprintFromClass(TargetType);
+	if (CastToBP)
+	{
+		return LOCTEXT("CastToBPTooltip", "Tries to access object as a blueprint class it may be an instance of.\n\nNOTE: This will cause the blueprint to always be loaded, which can be expensive.");
+	}
+	return LOCTEXT("CastToNativeTooltip", "Tries to access object as a class it may be an instance of.");
+}
+
 void UK2Node_DynamicCast::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
 	Super::GetNodeContextMenuActions(Menu, Context);
