@@ -455,7 +455,6 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	}
 
 	// Collect "add parameter from parameter definition asset" actions
-	const TSet<FName> GraphParameterNames = bShowGraphParameters ? VisitedParameterNames : GetAllGraphParameterNames();
 	for (UNiagaraParameterDefinitions* ParameterDefinitions : AvailableParameterDefinitions)
 	{
 		bool bTopLevelCategory = ParameterDefinitions->GetIsPromotedToTopInAddMenus();
@@ -475,7 +474,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 			{
 				continue;
 			}
-			else if (GraphParameterNames.Contains(ScriptVar->Variable.GetName()))
+			else if (VisitedParameterNames.Contains(ScriptVar->Variable.GetName()))
 			{
 				continue;
 			}
