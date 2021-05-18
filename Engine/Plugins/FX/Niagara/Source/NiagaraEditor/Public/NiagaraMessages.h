@@ -249,7 +249,7 @@ struct NIAGARAEDITOR_API FNiagaraStackMessage
 	FText ShortDescription;
 
 	UPROPERTY()
-	ENiagaraMessageSeverity MessageSeverity;
+	ENiagaraMessageSeverity MessageSeverity = ENiagaraMessageSeverity::Info;
 
 	UPROPERTY()
 	bool bAllowDismissal;
