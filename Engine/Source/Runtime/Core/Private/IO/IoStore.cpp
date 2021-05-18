@@ -18,6 +18,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "Async/AsyncFileHandle.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Misc/ConfigCacheIni.h"
 
 //////////////////////////////////////////////////////////////////////////
 
