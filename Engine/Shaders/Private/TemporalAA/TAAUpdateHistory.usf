@@ -111,7 +111,7 @@ void ComputeInputKernelSamplePosition(
 		taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
 		PixelOffset = dpv_interleave_registers(taa_half2(iPixelOffset), taa_half2(iPixelOffset));
 				
-		SampleInputPixelPos = AddAndClampPixelOffset(
+		SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
 			InputPixelPos,
 			dpv_interleave_registers(iPixelOffset, iPixelOffset), iPixelOffset,
 			InputPixelPosMin, InputPixelPosMax);
@@ -140,7 +140,7 @@ void ComputeInputKernelSamplePosition(
 			taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
 			PixelOffset = dpv_interleave_registers(taa_half2(iPixelOffset), taa_half2(iPixelOffset));
 					
-			SampleInputPixelPos = AddAndClampPixelOffset(
+			SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
 				InputPixelPos,
 				dpv_interleave_registers(iPixelOffset, iPixelOffset), iPixelOffset,
 				InputPixelPosMin, InputPixelPosMax);
