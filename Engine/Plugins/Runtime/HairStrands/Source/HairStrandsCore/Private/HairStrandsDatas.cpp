@@ -117,6 +117,15 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation0Vertex& Vertex)
 	return Ar;
 }
 
+FArchive& operator<<(FArchive& Ar, FHairInterpolationVertex& Vertex)
+{
+	Ar << Vertex.VertexGuideIndex0;
+	Ar << Vertex.VertexGuideIndex1;
+	Ar << Vertex.VertexLerp;
+
+	return Ar;
+}
+
 FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
@@ -156,12 +165,21 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 
 void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 {
+	static_assert(sizeof(FHairInterpolationVertex::BulkType) == sizeof(FHairInterpolationVertex));
 	static_assert(sizeof(FHairInterpolation0Vertex::BulkType) == sizeof(FHairInterpolation0Vertex));
 	static_assert(sizeof(FHairInterpolation1Vertex::BulkType) == sizeof(FHairInterpolation1Vertex));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
 
-	Interpolation0.BulkSerialize(Ar);
-	Interpolation1.BulkSerialize(Ar);
+	Ar << Flags;
+	if (!!(Flags & DataFlags_HasSingleGuideData))
+	{
+		Interpolation.BulkSerialize(Ar);
+	}
+	else
+	{
+		Interpolation0.BulkSerialize(Ar);
+		Interpolation1.BulkSerialize(Ar);
+	}
 	SimRootPointIndex.BulkSerialize(Ar);
 }
 
