@@ -49,12 +49,6 @@ FReply FBlendSpaceDetails::HandleClearSamples()
 }
 
 //======================================================================================================================
-static bool GetLockAfterAnalysis(const TObjectPtr<UAnalysisProperties>& AnalysisProperties)
-{
-	return AnalysisProperties ? AnalysisProperties->bLockAfterAnalysis : false;
-}
-
-//======================================================================================================================
 FReply FBlendSpaceDetails::HandleAnalyzeSamples()
 {
 	if(BlendSpace->IsAsset())
@@ -62,15 +56,15 @@ FReply FBlendSpaceDetails::HandleAnalyzeSamples()
 		FSlateApplication::Get().DismissAllMenus();
 		bool bChangedOne = false;
 
-		bool bLockX = GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]);
-		bool bLockY = GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]);
-		bool bLockZ = GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]);
+		bool bLockX = BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]);
+		bool bLockY = BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]);
+		bool bLockZ = BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]);
 		
 		const int32 NumSamples = BlendSpace->SampleData.Num();
 		for (int32 SampleIndex = 0 ; SampleIndex != NumSamples ; ++SampleIndex)
 		{
 			bool bAnalyzed[3] = { false, false, false };
-			FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+			FVector NewValue = BlendSpaceAnalysis::CalculateSampleValue(
 				*BlendSpace, *BlendSpace->SampleData[SampleIndex].Animation, 
 				BlendSpace->SampleData[SampleIndex].RateScale, 
 				BlendSpace->SampleData[SampleIndex].SampleValue, bAnalyzed);
@@ -83,9 +77,9 @@ FReply FBlendSpaceDetails::HandleAnalyzeSamples()
 					bChangedOne = true;
 					BlendSpace->LockSample(
 						SampleIndex,
-						bAnalyzed[0] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]) : false,
-						bAnalyzed[1] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]) : false,
-						bAnalyzed[2] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]) : false);
+						bAnalyzed[0] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]) : false,
+						bAnalyzed[1] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]) : false,
+						bAnalyzed[2] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]) : false);
 				}
 			}
 		}
@@ -131,7 +125,7 @@ static EVisibility GetAnalyzeButtonVisibility(
 void FBlendSpaceDetails::HandleAnalysisFunctionChanged(int32 AxisIndex, TSharedPtr<FString> NewFunctionName)
 {
 	BlendSpace->Modify();
-	UAnalysisProperties* NewAnalysisProperties = FBlendSpaceAnalysis::MakeAnalysisProperties(BlendSpace, *NewFunctionName);
+	UAnalysisProperties* NewAnalysisProperties = BlendSpaceAnalysis::MakeAnalysisProperties(BlendSpace, *NewFunctionName);
 	// Preserve values where possible
 	if (BlendSpace->AnalysisProperties[AxisIndex])
 	{
@@ -328,7 +322,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 					// Prepare the drop-down. Note that it uses pointers to strings, and comparison is between
 					// pointers, not string contents!
 					AnalysisFunctionNames[AxisIndex].Empty();
-					const TArray<FString> AnalysisFunctions = FBlendSpaceAnalysis::GetAnalysisFunctions();
+					const TArray<FString> AnalysisFunctions = BlendSpaceAnalysis::GetAnalysisFunctions();
 					TSharedPtr<FString> CurrentlySelectedFunction;
 					for (const FString& AnalysisFunction : AnalysisFunctions)
 					{
