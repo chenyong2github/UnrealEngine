@@ -131,11 +131,6 @@ const TArray<FVersionedNiagaraScriptWeakPtr>& FNiagaraScriptViewModel::GetScript
 
 void FNiagaraScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, TArray<FVersionedNiagaraScript>& InScripts)
 {
-	SetScriptsImpl(InScriptSource, InScripts, false);
-}
-
-void FNiagaraScriptViewModel::SetScriptsImpl(UNiagaraScriptSource* InScriptSource, TArray<FVersionedNiagaraScript>& InScripts, bool bStandalone)
-{
 	// Remove the graph changed handler on the child.
 	if (Source.IsValid())
 	{
@@ -169,10 +164,6 @@ void FNiagaraScriptViewModel::SetScriptsImpl(UNiagaraScriptSource* InScriptSourc
 	for (FVersionedNiagaraScript& VersionedScript : InScripts)
 	{
 		int32 i = Scripts.Add(VersionedScript.ToWeakPtr());
-		if (bStandalone)
-		{
-			Scripts[i].InitParameterDefinitionsSubscriptions(); //@todo(ng) cleanup
-		}
 		check(VersionedScript.Script->GetSource(VersionedScript.Version) == InScriptSource);
 		Scripts[i].Script->OnVMScriptCompiled().AddSP(this, &FNiagaraScriptViewModel::OnVMScriptCompiled);
 		Scripts[i].Script->OnGPUScriptCompiled().AddSP(this, &FNiagaraScriptViewModel::OnGPUScriptCompiled);
@@ -264,7 +255,6 @@ void FNiagaraScriptViewModel::SetScript(FVersionedNiagaraScript InScript)
 	UNiagaraScriptSource* InSource = nullptr;
 	if (InScript.Script)
 	{
-		InScript.InitParameterDefinitionsSubscriptions(); //@todo(ng) cleanup
 		InScripts.Add(InScript);
 		InSource = Cast<UNiagaraScriptSource>(InScript.Script->GetSource(InScript.Version));
 	}
@@ -407,6 +397,7 @@ void FNiagaraScriptViewModel::CompileStandaloneScript(bool bForceCompile)
 		FVersionedNiagaraScriptWeakPtr VersionedScript = Scripts[0];
 		if (VersionedScript.Script->IsStandaloneScript() && VersionedScript.Script->IsCompilable())
 		{
+			VersionedScript.SynchronizeWithParameterDefinitions();
 			VersionedScript.Script->RequestCompile(VersionedScript.Version, bForceCompile);
 		}
 		else if (!VersionedScript.Script->IsCompilable())

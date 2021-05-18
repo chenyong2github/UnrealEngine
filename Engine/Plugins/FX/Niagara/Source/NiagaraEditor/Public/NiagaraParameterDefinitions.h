@@ -59,8 +59,6 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 
-	void InitBindings();
-
 	void AddParameter(const FNiagaraVariable& NewVariable);
 	void RemoveParameter(const FNiagaraVariable& VariableToRemove);
 	void RenameParameter(const FNiagaraVariable& VariableToRename, const FName NewName);

@@ -88,9 +88,6 @@ public:
 	virtual FVersionedNiagaraScript GetStandaloneScript();
 	//const UNiagaraScript* GetStandaloneScript() const;
 
-protected:
-	void SetScriptsImpl(UNiagaraScriptSource* InScriptSource, TArray<FVersionedNiagaraScript>& InScripts, bool bStandalone);
-
 private:
 	/** Handles the selection changing in the graph view model. */
 	void GraphViewModelSelectedNodesChanged();
@@ -101,7 +98,7 @@ private:
 	/** Marks this script view model as dirty and marks the scripts as needing synchrnozation. */
 	void MarkAllDirty(FString Reason);
 
-	virtual void SetScripts(UNiagaraScriptSource* InScriptSource, TArray<FVersionedNiagaraScript>& InScripts);
+	void SetScripts(UNiagaraScriptSource* InScriptSource, TArray<FVersionedNiagaraScript>& InScripts);
 
 	/** Handles when a value in the input parameter collection changes. */
 	void InputParameterValueChanged(FName ParameterName);

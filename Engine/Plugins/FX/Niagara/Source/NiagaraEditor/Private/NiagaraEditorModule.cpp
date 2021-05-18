@@ -1229,6 +1229,14 @@ void FNiagaraEditorModule::OnPostEngineInit()
 		GEditor->OnExecParticleInvoked().AddRaw(this, &FNiagaraEditorModule::OnExecParticleInvoked);
 
 		PreviewPlatformChangedHandle = CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().AddRaw(this, &FNiagaraEditorModule::OnPreviewPlatformChanged);
+
+		// Preload all parameter definitions in the default linked settings so that they will be postloaded before postload calls to scripts/emitters/systems that rely on them.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionSoftPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			DefaultLinkedParameterDefinitionSoftPath.TryLoad();
+		}
 	}
 	else
 	{

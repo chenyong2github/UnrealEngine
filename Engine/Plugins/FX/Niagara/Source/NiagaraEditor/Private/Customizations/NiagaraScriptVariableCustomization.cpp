@@ -80,6 +80,15 @@ void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
 			ParameterEditorStaticSwitchValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
 		}
 	}
+	else if (Variable->GetOuter()->IsA<UNiagaraParameterDefinitions>())
+	{
+		if (TypeUtilityLibraryValue && ParameterEditorLibraryValue)
+		{
+			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
+			Variable->CopyDefaultValueDataTo(ParameterValue->GetStructMemory());
+			ParameterEditorLibraryValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
+		}
+	}
 	else
 	{
 		if (UEdGraphPin* Pin = GetAnyDefaultPin())
@@ -354,8 +363,9 @@ void FNiagaraScriptVariableDetails::AddLibraryDefaultValueCustomRow(IDetailCateg
 		Variable->CopyDefaultValueDataTo(ParameterValue->GetStructMemory());
 		ParameterEditorLibraryValue->SetEnabled(bInLibraryAsset);
 		ParameterEditorLibraryValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
+		ParameterEditorLibraryValue->SetOnBeginValueChange(SNiagaraParameterEditor::FOnValueChange::CreateSP(this, &FNiagaraScriptVariableDetails::OnBeginLibraryValueChanged));
 		ParameterEditorLibraryValue->SetOnValueChanged(SNiagaraParameterEditor::FOnValueChange::CreateSP(this, &FNiagaraScriptVariableDetails::OnLibraryValueChanged));
-		ParameterEditorLibraryValue->SetOnEndValueChange(SNiagaraParameterEditor::FOnValueChange::CreateSP(this, &FNiagaraScriptVariableDetails::OnEndValueChanged));
+		ParameterEditorLibraryValue->SetOnEndValueChange(SNiagaraParameterEditor::FOnValueChange::CreateSP(this, &FNiagaraScriptVariableDetails::OnEndLibraryValueChanged));
 
 		FDetailWidgetRow& DefaultValueWidget = CategoryBuilder.AddCustomRow(LOCTEXT("DefaultValueFilterText", "Default Value"));
 		DefaultValueWidget.NameContent()
@@ -416,6 +426,14 @@ void FNiagaraScriptVariableDetails::OnValueChanged()
 		}
 		else
 		{
+			// Values that can change continuously are not guaranteed to call OnBeginChange() before OnChange(), so if a transaction has not been begun by OnBeginChange(), create one now.
+			bool bOnValueChangedTransactionActive = false;
+			if (GEditor->IsTransactionActive() == false)
+			{
+				bOnValueChangedTransactionActive = true;
+				GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
+				Variable->Modify();
+			}
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 			ParameterEditorValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
 			Variable->Variable.SetData(ParameterValue->GetStructMemory());
@@ -423,7 +441,16 @@ void FNiagaraScriptVariableDetails::OnValueChanged()
 
 			for (UEdGraphPin* Pin : GetDefaultPins())
 			{
+				if (bOnValueChangedTransactionActive)
+				{
+					Pin->Modify();
+				}
 				GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
+			}
+
+			if (bOnValueChangedTransactionActive)
+			{
+				GEditor->EndTransaction();
 			}
 		}
 	}
@@ -481,6 +508,44 @@ void FNiagaraScriptVariableDetails::OnStaticSwitchValueChanged()
 	} 
 }
 
+void FNiagaraScriptVariableDetails::OnBeginLibraryValueChanged()
+{
+	if (!ParameterEditorLibraryValue->CanChangeContinuously())
+	{
+		return;
+	}
+
+	if (TypeUtilityLibraryValue && ParameterEditorLibraryValue && CachedDetailBuilder.IsValid())
+	{
+		const TSharedPtr<IPropertyHandle> DefaultValueHandle = CachedDetailBuilder.Pin()->GetProperty("DefaultValueVariant", UNiagaraScriptVariable::StaticClass());
+		GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeLibraryValue", "Change Default Value"));
+		DefaultValueHandle->NotifyPreChange();
+		Variable->Modify();
+		TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
+		ParameterEditorLibraryValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
+		Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
+	}
+}
+
+void FNiagaraScriptVariableDetails::OnEndLibraryValueChanged()
+{
+	Variable->UpdateChangeId();
+
+	if (TypeUtilityLibraryValue && ParameterEditorLibraryValue && CachedDetailBuilder.IsValid())
+	{
+		const TSharedPtr<IPropertyHandle> DefaultValueHandle = CachedDetailBuilder.Pin()->GetProperty("DefaultValueVariant", UNiagaraScriptVariable::StaticClass());
+		DefaultValueHandle->NotifyPostChange();
+		DefaultValueHandle->NotifyFinishedChangingProperties();
+	}
+
+	if (UNiagaraParameterDefinitions* OuterParameterDefinitions = Cast<UNiagaraParameterDefinitions>(Variable->GetOuter()))
+	{
+		OuterParameterDefinitions->NotifyParameterDefinitionsChanged();
+	}
+
+	OnEndValueChanged();
+}
+
 void FNiagaraScriptVariableDetails::OnLibraryValueChanged()
 {
 	if (TypeUtilityLibraryValue && ParameterEditorLibraryValue && CachedDetailBuilder.IsValid())
@@ -489,21 +554,48 @@ void FNiagaraScriptVariableDetails::OnLibraryValueChanged()
 		if (!ParameterEditorLibraryValue->CanChangeContinuously())
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeLibraryValue", "Change Default Value"));
+			DefaultValueHandle->NotifyPreChange();
 			Variable->Modify();
-
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 			ParameterEditorLibraryValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
-			DefaultValueHandle->NotifyPreChange();
 			Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
+
+			if (UNiagaraParameterDefinitions* OuterParameterDefinitions = Cast<UNiagaraParameterDefinitions>(Variable->GetOuter()))
+			{
+				OuterParameterDefinitions->NotifyParameterDefinitionsChanged();
+			}
 			DefaultValueHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			DefaultValueHandle->NotifyFinishedChangingProperties();
 		}
 		else
 		{
+			// Values that can change continuously are not guaranteed to call OnBeginChange() before OnChange(), so if a transaction has not been begun by OnBeginChange(), create one now.
+			bool bOnValueChangedTransactionActive = false;
+			if (GEditor->IsTransactionActive() == false)
+			{
+				bOnValueChangedTransactionActive = true;
+				GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeValue", "Change Default Value"));
+				Variable->Modify();
+			}
+			DefaultValueHandle->NotifyPreChange();
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 			ParameterEditorLibraryValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
-			DefaultValueHandle->NotifyPreChange();
 			Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
+
+			if (bOnValueChangedTransactionActive)
+			{
+				Variable->UpdateChangeId();
+
+				DefaultValueHandle->NotifyPostChange();
+				DefaultValueHandle->NotifyFinishedChangingProperties();
+
+				if (UNiagaraParameterDefinitions* OuterParameterDefinitions = Cast<UNiagaraParameterDefinitions>(Variable->GetOuter()))
+				{
+					OuterParameterDefinitions->NotifyParameterDefinitionsChanged();
+				}
+
+				GEditor->EndTransaction();
+			}
 			DefaultValueHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			DefaultValueHandle->NotifyFinishedChangingProperties();
 		}
