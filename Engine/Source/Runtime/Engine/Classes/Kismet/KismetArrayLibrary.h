@@ -15,7 +15,7 @@
 
 class AActor;
 
-UCLASS(meta=(BlueprintThreadSafe))
+UCLASS()
 class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()

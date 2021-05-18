@@ -71,9 +71,6 @@ struct FKismetUserDeclaredFunctionMetadata
 	UPROPERTY()
 	bool bCallInEditor;
 
-	UPROPERTY()
-	bool bThreadSafe;
-
 	/** Cached value for whether or not the graph has latent functions, positive for TRUE, zero for FALSE, and INDEX_None for undetermined */
 	UPROPERTY(transient)
 	int8 HasLatentFunctions;
@@ -83,7 +80,6 @@ public:
 		: InstanceTitleColor(FLinearColor::White)
 		, bIsDeprecated(false)
 		, bCallInEditor(false)
-		, bThreadSafe(false)
 		, HasLatentFunctions(INDEX_NONE)
 	{
 	}

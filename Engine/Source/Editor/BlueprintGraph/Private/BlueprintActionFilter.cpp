@@ -185,16 +185,6 @@ namespace BlueprintActionFilterImpl
 	static bool IsPropertyAccessorNode(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
 
 	/**
-	* Rejection test that checks to see if the supplied node-spawner would produce a node with thread safety
-	* characteristics that are incompatible with the specification of the containing graph. 
-	* 
-	* @param  Filter			Filter context (unused) for this test.
-	* @param  BlueprintAction	The action you wish to query.
-	* @return True if the action would spawn a node that has incompatible thread safety.
-	*/
-	static bool IsThreadSafetyIncompatible(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
-
-	/**
 	 * Rejection test that checks to see if the supplied node-spawner would 
 	 * produce an impure node, incompatible with the specified graphs.
 	 * 
@@ -1006,32 +996,6 @@ static bool BlueprintActionFilterImpl::IsPropertyAccessorNode(FBlueprintActionFi
 	}
 
 	return bIsAccessor;
-}
-
-//------------------------------------------------------------------------------
-static bool BlueprintActionFilterImpl::IsThreadSafetyIncompatible(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
-{
-	if (UFunction const* Function = BlueprintAction.GetAssociatedFunction())
-	{	
-		bool bAllowNonThreadSafeNodes = true;
-
-		FBlueprintActionContext const& FilterContext = Filter.Context;
-
-		for (UEdGraph* Graph : FilterContext.Graphs)
-		{
-			if (const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(Graph->GetSchema()))
-			{
-				bAllowNonThreadSafeNodes &= !K2Schema->IsGraphMarkedThreadSafe(Graph);
-			}
-		}
-
-		if(!bAllowNonThreadSafeNodes)
-		{
-			return !FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function);
-		}
-	}
-	
-	return false;
 }
 
 //------------------------------------------------------------------------------
@@ -2029,10 +1993,6 @@ FBlueprintActionFilter::FBlueprintActionFilter(uint32 Flags/*= 0x00*/)
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleLatentNode));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleImpureNode));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsPropertyAccessorNode));
-	if (Flags & BPFILTER_RejectIncompatibleThreadSafety)
-	{
-		AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsThreadSafetyIncompatible));
-	}
 	
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsActionHiddenByConfig));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsFieldCategoryHidden));

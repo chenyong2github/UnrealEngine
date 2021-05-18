@@ -614,10 +614,6 @@ private:
 	void OnIsExecFunctionModified(const ECheckBoxState NewCheckedState);
 	ECheckBoxState GetIsExecFunction() const;
 
-	bool IsThreadSafeFunctionVisible() const;
-	void OnIsThreadSafeFunctionModified(const ECheckBoxState NewCheckedState);
-	ECheckBoxState GetIsThreadSafeFunction() const;
-	
 	/** Determines if the selected event is identified as editor callable */
 	ECheckBoxState GetIsEditorCallableEvent() const;
 

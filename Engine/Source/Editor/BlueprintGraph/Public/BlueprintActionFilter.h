@@ -194,12 +194,6 @@ public:
 		 * imported namespaces will be filtered out.
 		 */
 		BPFILTER_RejectOutOfScopeMembers	= (1<<4),
-
-		/**
-		 * Rejects actions that would spawn nodes with thread safety characteristics
-		 * that are incompatible with the specification of the containing graph
-		 */
-		BPFILTER_RejectIncompatibleThreadSafety = (1<<5)
 	};
 	FBlueprintActionFilter(uint32 const Flags = 0x00);
 	
