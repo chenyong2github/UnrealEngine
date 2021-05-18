@@ -1814,10 +1814,11 @@ public:
 	*
 	* @param BoneName				Used to get body associated with specific bone. NAME_None automatically gets the root most body
 	* @param bGetWelded				If the component has been welded to another component and bGetWelded is true we return the single welded BodyInstance that is used in the simulation
+	* @param Index					Index used in Components with multiple body instances
 	*
 	* @return		Returns the BodyInstance based on various states (does component have multiple bodies? Is the body welded to another body?)
 	*/
-	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true) const;
+	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = INDEX_NONE) const;
 
 	/** 
 	 * Returns The square of the distance to closest Body Instance surface. 

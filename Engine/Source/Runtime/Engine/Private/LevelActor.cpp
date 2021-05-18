@@ -1297,7 +1297,8 @@ static bool ComponentEncroachesBlockingGeometry_WithAdjustment(UWorld const* Wor
 				{
 					NumBlockingHits++;
 					FCollisionShape const NonShrunkenCollisionShape = PrimComp->GetCollisionShape();
-					bool bSuccess = OverlapComponent->ComputePenetration(MTDResult, NonShrunkenCollisionShape, TestWorldTransform.GetLocation(), TestWorldTransform.GetRotation());
+					const FBodyInstance* OverlapBodyInstance = OverlapComponent->GetBodyInstance(NAME_None, true, Overlaps[HitIdx].ItemIndex);
+					bool bSuccess = OverlapBodyInstance && OverlapBodyInstance->OverlapTest(TestWorldTransform.GetLocation(), TestWorldTransform.GetRotation(), NonShrunkenCollisionShape, &MTDResult);
 					if (bSuccess)
 					{
 						OutProposedAdjustment += MTDResult.Direction * MTDResult.Distance;
@@ -1316,7 +1317,7 @@ static bool ComponentEncroachesBlockingGeometry_WithAdjustment(UWorld const* Wor
 					if (bSuccess && FMath::IsNearlyZero(MTDResult.Distance))
 					{
 						FCollisionShape const ShrunkenCollisionShape = PrimComp->GetCollisionShape(-Epsilon);
-						bSuccess = OverlapComponent->ComputePenetration(MTDResult, ShrunkenCollisionShape, TestWorldTransform.GetLocation(), TestWorldTransform.GetRotation());
+						bSuccess = OverlapBodyInstance && OverlapBodyInstance->OverlapTest(TestWorldTransform.GetLocation(), TestWorldTransform.GetRotation(), ShrunkenCollisionShape, &MTDResult);
 						if (bSuccess)
 						{
 							OutProposedAdjustment += MTDResult.Direction * MTDResult.Distance;
