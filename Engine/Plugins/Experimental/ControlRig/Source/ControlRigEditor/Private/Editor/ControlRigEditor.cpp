@@ -176,7 +176,7 @@ struct FControlRigZoomLevelsContainer : public FZoomLevelsContainer
 	
 	int32 GetDefaultZoomLevel() const override
 	{
-		return 12;
+		return 14;
 	}
 
 	EGraphRenderingLOD::Type GetLOD(int32 InZoomLevel) const override
