@@ -207,7 +207,7 @@ void SGraphNodeDetailsWidget::OnSCSEditorTreeViewSelectionChanged(const TArray<T
 				}
 			}
 
-			UpdateFromObjects(DetailsObjects, true);
+			PropertyView->SetObjects(DetailsObjects);
 		}
 	}
 }
