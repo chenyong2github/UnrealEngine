@@ -1305,7 +1305,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 				// Create a new UNiagaraScriptVariable to represent this parameter for the lifetime of the ParameterPanelViewModel.
 				ScriptVar = NewObject<UNiagaraScriptVariable>(GetTransientPackage());
 				ScriptVar->AddToRoot();
-				ScriptVar->Variable = Var;
+				ScriptVar->Init(Var, FNiagaraVariableMetaData());
 				TransientParameterToScriptVarMap.Add(Var, ScriptVar);
 			}
 
@@ -1459,7 +1459,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 						// Create a new UNiagaraScriptVariable to represent this parameter for the lifetime of the ParameterPanelViewModel.
 						ScriptVar = NewObject<UNiagaraScriptVariable>(&SystemViewModel->GetSystem());
 						ScriptVar->AddToRoot();
-						ScriptVar->Variable = Var;
+						ScriptVar->Init(Var, FNiagaraVariableMetaData());
 						TransientParameterToScriptVarMap.Add(Var, ScriptVar);
 					}
 
@@ -2317,7 +2317,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraScriptToolkitParameterPanelViewModel:
 					// Create a new UNiagaraScriptVariable to represent this parameter for the lifetime of the ParameterPanelViewModel.
 					ScriptVar = NewObject<UNiagaraScriptVariable>(ScriptViewModel->GetStandaloneScript().Script);
 					ScriptVar->AddToRoot();
-					ScriptVar->Variable = Var;
+					ScriptVar->Init(Var, FNiagaraVariableMetaData());
 					TransientParameterToScriptVarMap.Add(Var, ScriptVar);
 				}
 
