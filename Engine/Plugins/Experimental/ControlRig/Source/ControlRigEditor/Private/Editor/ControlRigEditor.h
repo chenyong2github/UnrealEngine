@@ -432,6 +432,8 @@ protected:
 
 	URigVMNode* HaltedAtNode;
 
+	bool bSuspendDetailsPanelRefresh;
+
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;
 	friend class SRigHierarchy;

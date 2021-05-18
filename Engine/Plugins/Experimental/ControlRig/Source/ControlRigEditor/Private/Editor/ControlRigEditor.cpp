@@ -205,6 +205,7 @@ FControlRigEditor::FControlRigEditor()
 	, LastDebuggedRig()
 	, RigHierarchyTabCount(0)
 	, HaltedAtNode(nullptr)
+	, bSuspendDetailsPanelRefresh(false)
 {
 }
 
@@ -1257,6 +1258,11 @@ UBlueprint* FControlRigEditor::GetBlueprintObj() const
 
 void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 {
+	if(bSuspendDetailsPanelRefresh)
+	{
+		return;
+	}
+
 	ClearDetailObject();
 
 	if (InObjects.Num() == 1)
@@ -1282,6 +1288,11 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 
 void FControlRigEditor::SetDetailObject(UObject* Obj)
 {
+	if(bSuspendDetailsPanelRefresh)
+	{
+		return;
+	}
+
 	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Obj))
 	{
 		ClearDetailObject();
@@ -1403,6 +1414,11 @@ void FControlRigEditor::SetDetailObject(UObject* Obj)
 
 void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement)
 {
+	if(bSuspendDetailsPanelRefresh)
+	{
+		return;
+	}
+
 	if (RigElementInDetailPanel == InElement)
 	{
 		return;
@@ -1475,6 +1491,11 @@ void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement)
 
 void FControlRigEditor::ClearDetailObject()
 {
+	if(bSuspendDetailsPanelRefresh)
+	{
+		return;
+	}
+
 	RigElementInDetailPanel = FRigElementKey();
 
 	if (NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr)
