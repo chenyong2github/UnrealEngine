@@ -529,11 +529,6 @@ RWBuffer<uint> DrawIndirectParameters;
 RWStructuredBuffer<FHairClusterDebugInfo> ClusterDebugInfoBuffer;
 #endif
 
-float3			HZBUvFactor;
-float4			HZBSize;
-Texture2D		HZBTexture;
-SamplerState	HZBSampler;
-
 bool ViewFrustumIntersectSphere(float3 SphereOrigin, float SphereRadius)
 {
 	for (uint PlaneIndex = 0; PlaneIndex < NumConvexHullPlanes; PlaneIndex++)
@@ -549,70 +544,6 @@ bool ViewFrustumIntersectSphere(float3 SphereOrigin, float SphereRadius)
 	return true;
 }
 
-// From HZBOcclusion.usf. TODO: make common
-// Rect contains screen coordinates as {minx, miny, maxx, maxy}. Those coordinates are not clamped to screen edges so they mnight be outside the [0,1]^2.
-bool ViewHierarchicalZBufferCulling(float3 WorldBoundsMin, float3 WorldBoundsMax, inout float4 NotClampedRect)
-{
-	float3 WorldBounds[2] = { WorldBoundsMin, WorldBoundsMax };
-
-	// Screen rect from bounds
-	float3 RectMin = float3(1, 1, 1);
-	float3 RectMax = float3(-1, -1, -1);
-	/*UNROLL*/ for (int i = 0; i < 8; i++)
-	{
-		float3 PointSrc;
-		PointSrc.x = WorldBounds[(i >> 0) & 1].x;
-		PointSrc.y = WorldBounds[(i >> 1) & 1].y;
-		PointSrc.z = WorldBounds[(i >> 2) & 1].z;
-
-		float4 PointClip = mul(float4(PointSrc, 1), WorldToClipMatrix);
-		float3 PointScreen = PointClip.xyz / PointClip.w;
-
-		RectMin = min(RectMin, PointScreen);
-		RectMax = max(RectMax, PointScreen);
-	}
-
-	// FIXME assumes DX
-	NotClampedRect = (float4(RectMin.xy, RectMax.xy) * float2(0.5, -0.5).xyxy + 0.5).xwzy;
-	float4 Rect = saturate(NotClampedRect);
-	float4 RectPixels = Rect * HZBSize.xyxy;
-	float2 RectSize = (RectPixels.zw - RectPixels.xy) * 0.5;	// 0.5 for 4x4
-	float Level = max(ceil(log2(max(RectSize.x, RectSize.y))), HZBUvFactor.z);
-
-#if PERMUTATION_HZBCULLING
-	// Check if we can drop one level lower
-	float LevelLower = max(Level - 1, 0);
-	float4 LowerRect = RectPixels * exp2(-LevelLower);
-	float2 LowerRectSize = ceil(LowerRect.zw) - floor(LowerRect.xy);
-	if (all(LowerRectSize <= 4))
-	{
-		Level = LevelLower;
-	}
-
-	// 4x4 samples
-	float2 Scale = HZBUvFactor.xy * (Rect.zw - Rect.xy) / 3;
-	float2 Bias = HZBUvFactor.xy * Rect.xy;
-
-	float4 MinDepth = 1;
-	/*UNROLL*/ for (int j = 0; j < 4; j++)
-	{
-		// TODO could vectorize this
-		float4 Depth;
-		Depth.x = HZBTexture.SampleLevel(HZBSampler, float2(j, 0) * Scale + Bias, Level).r;
-		Depth.y = HZBTexture.SampleLevel(HZBSampler, float2(j, 1) * Scale + Bias, Level).r;
-		Depth.z = HZBTexture.SampleLevel(HZBSampler, float2(j, 2) * Scale + Bias, Level).r;
-		Depth.w = HZBTexture.SampleLevel(HZBSampler, float2(j, 3) * Scale + Bias, Level).r;
-		MinDepth = min(MinDepth, Depth);
-	}
-	MinDepth.x = min(min(MinDepth.x, MinDepth.y), min(MinDepth.z, MinDepth.w));
-
-	// Inverted Z buffer
-	return RectMax.z >= MinDepth.x ? true : false;
-#else
-	return true;
-#endif
-}
-
 [numthreads(64, 1, 1)]
 void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -622,8 +553,7 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		// Note on the cluster culling & LOD selection
 		// Run:
 		// 1. Frustum culling
-		// 2. Visibility culling (using HZB)
-		// 3. LOD selection
+		// 2. LOD selection
 		//
 		// When a cluster is culled:
 		// . Cluster's strands position still updated (HairInterpolation), for the lowest LOD
@@ -654,7 +584,6 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		if (bVisible || bForceVisible) 
 		{
 			float4 NotClampedRect = float4(0.0f, 1.0f, 0.0f, 1.0f);
-			bVisible = bVisible && ViewHierarchicalZBufferCulling(Min, Max, NotClampedRect);
 			if (bVisible || bForceVisible)
 			{
 				const FHairClusterInfo ClusterInfo = UnpackHairClusterInfo(ClusterInfoBuffer[ClusterId]);
