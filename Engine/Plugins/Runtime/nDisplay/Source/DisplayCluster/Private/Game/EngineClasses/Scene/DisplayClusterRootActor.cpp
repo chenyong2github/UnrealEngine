@@ -13,7 +13,7 @@
 #include "Components/DisplayClusterSyncTickComponent.h"
 
 #include "Components/DisplayClusterRootComponent.h"
-#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 #include "CineCameraComponent.h"
 #include "Components/DisplayClusterSceneComponentSyncThis.h"
 

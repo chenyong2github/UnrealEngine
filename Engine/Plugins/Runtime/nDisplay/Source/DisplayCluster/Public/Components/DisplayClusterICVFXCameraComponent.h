@@ -10,24 +10,29 @@
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_CameraMotionBlur.h"
 
-#include "DisplayClusterICVFX_CineCameraComponent.generated.h"
+#include "DisplayClusterICVFXCameraComponent.generated.h"
+
+
+class UCameraComponent;
+
 
 /**
  * ICVFX camera with configuration
  */
-UCLASS(ClassGroup = (DisplayCluster), meta = (DisplayName="ICVFX_CineCamera"))
-class DISPLAYCLUSTER_API UDisplayClusterICVFX_CineCameraComponent 
+UCLASS(ClassGroup = (DisplayCluster), meta = (DisplayName="ICVFX Camera"))
+class DISPLAYCLUSTER_API UDisplayClusterICVFXCameraComponent
 	: public UCineCameraComponent
 {
 	GENERATED_BODY()
 
 public:
-	UDisplayClusterICVFX_CineCameraComponent(const FObjectInitializer& ObjectInitializer);
+	UDisplayClusterICVFXCameraComponent(const FObjectInitializer& ObjectInitializer)
+	{ }
 
 public:
-	// Use external cine camrea actor ref
+	// Use external cine camera actor
 	UPROPERTY(EditAnywhere, Category = NDisplay)
-	TSoftObjectPtr<ACineCameraActor> CineCameraActorRef;
+	TSoftObjectPtr<ACineCameraActor> ExternalCameraActor;
 
 	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ShowInnerProperties))
 	FDisplayClusterConfigurationICVFX_CameraSettings CameraSettings;
@@ -35,7 +40,7 @@ public:
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
 
-	bool IsShouldUseICVFX() const
+	bool IsICVFXEnabled() const
 	{
 		return CameraSettings.bEnable;
 	}
@@ -48,5 +53,5 @@ public:
 		return CameraSettings;
 	}
 
-	class UCameraComponent* GetCameraComponent();
+	UCameraComponent* GetCameraComponent();
 };

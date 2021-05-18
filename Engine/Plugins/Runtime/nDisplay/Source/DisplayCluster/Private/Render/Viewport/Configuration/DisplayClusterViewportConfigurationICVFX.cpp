@@ -14,7 +14,8 @@
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 
-#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfigurationCameraViewport
@@ -293,7 +294,7 @@ private:
 class FDisplayClusterViewportConfigurationCameraICVFX
 {
 public:
-	FDisplayClusterViewportConfigurationCameraICVFX(const FTransform& InLocal2WorldTransform, FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFX_CineCameraComponent* const InCameraComponent)
+	FDisplayClusterViewportConfigurationCameraICVFX(const FTransform& InLocal2WorldTransform, FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFXCameraComponent* const InCameraComponent)
 		: ConfigurationICVFX(InConfigurationICVFX)
 		, CameraViewport(InLocal2WorldTransform, InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), InCameraComponent->GetCameraSettingsICVFX())
 		, ChromakeySettings(DisplayClusterViewportConfigurationHelpers::GetCameraChromakeySettings(InCameraComponent->GetCameraSettingsICVFX(), ConfigurationICVFX.StageSettings))
@@ -517,7 +518,7 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 			if ((TargetViewportsFlags & ViewportICVFX_DisableLightcard) == 0)
 			{
 				// Allocate and assign lightcard resources
-				if (DisplayClusterViewportConfigurationHelpers::IsShouldUseLightcard(LightcardSettings))
+				if (DisplayClusterViewportConfigurationHelpers::ShouldUseLightcard(LightcardSettings))
 				{
 					for (FDisplayClusterViewport* TargetIt : TargetViewports)
 					{
@@ -648,8 +649,8 @@ void FDisplayClusterViewportConfigurationICVFX::ImplGetCameras(TArray<FDisplayCl
 		// Try to create ICVFX camera from component:
 		if (ActorComponentIt)
 		{
-			UDisplayClusterICVFX_CineCameraComponent* CineCameraComponent = Cast<UDisplayClusterICVFX_CineCameraComponent>(ActorComponentIt);
-			if (CineCameraComponent && CineCameraComponent->IsShouldUseICVFX())
+			UDisplayClusterICVFXCameraComponent* CineCameraComponent = Cast<UDisplayClusterICVFXCameraComponent>(ActorComponentIt);
+			if (CineCameraComponent && CineCameraComponent->IsICVFXEnabled())
 			{
 				NewCamera = new FDisplayClusterViewportConfigurationCameraICVFX(Local2WorldTransform, *this, CineCameraComponent);
 			}
