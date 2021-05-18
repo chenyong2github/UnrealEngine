@@ -200,16 +200,16 @@ struct FWorldPartionCellUpdateContext
 			// @todo_ow: Once Metadata is removed from external actor's package, testing WorldPartition->IsInitialized() won't be necessary anymore.
 			if (WorldPartition->IsInitialized())
 			{
-				GEngine->BroadcastLevelActorListChanged();
-				GEditor->NoteSelectionChange();
-
-				if (WorldPartition->WorldPartitionEditor)
-				{
-					WorldPartition->WorldPartitionEditor->Refresh();
-				}
-
 				if (!IsRunningCommandlet())
 				{
+					GEngine->BroadcastLevelActorListChanged();
+					GEditor->NoteSelectionChange();
+
+					if (WorldPartition->WorldPartitionEditor)
+					{
+						WorldPartition->WorldPartitionEditor->Refresh();
+					}
+
 					GEditor->ResetTransaction(LOCTEXT("LoadingEditorCellsResetTrans", "Editor Cells Loading State Changed"));
 				}
 			}
