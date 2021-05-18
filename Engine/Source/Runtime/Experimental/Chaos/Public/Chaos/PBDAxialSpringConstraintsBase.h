@@ -94,7 +94,7 @@ private:
 						Index1 <= Index2 ? TVec3<int32>(Index0, Index1, Index2) :
 						Index0 <= Index2 ? TVec3<int32>(Index0, Index2, Index1) :
 										   TVec3<int32>(Index2, Index0, Index1) :
-					// Index1 <= Index0
+					// Index1 < Index0
 						Index0 <= Index2 ? TVec3<int32>(Index1, Index0, Index2) :
 						Index1 <= Index2 ? TVec3<int32>(Index1, Index2, Index0) :
 										   TVec3<int32>(Index2, Index1, Index0));

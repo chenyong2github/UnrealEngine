@@ -81,6 +81,12 @@ public:
 	/** Return the exponential stiffness value when the weight map is not used. */
 	explicit operator FReal() const { return GetLow(); }
 
+	/** Return the particles/constraints indices to the stiffness table as a read only array. */
+	TConstArrayView<uint8> GetIndices() const { return TConstArrayView<uint8>(Indices); }
+
+	/** Return the table of stiffnesses as a read only array. */
+	TConstArrayView<FReal> GetTable() const { return TConstArrayView<FReal>(Table); }
+
 private:
 	static constexpr FReal ParameterFrequency = (FReal)120.;  // 60Hz @ 2 iterations as a root for all stiffness values TODO: Make this a global solver parameter
 

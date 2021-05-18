@@ -91,17 +91,36 @@ void FPBDSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) cons
 				}
 			}
 		}
-		else
+		else  // Has weight maps
 		{
-			// TODO: ISPC version
-			for (const TArray<int32>& ConstraintBatch : ConstraintsPerColor)
+#if INTEL_ISPC
+			if (bRealTypeCompatibleWithISPC && bChaos_Spring_ISPC_Enabled)
 			{
-				PhysicsParallelFor(ConstraintBatch.Num(), [&](const int32 Index)
+				for (const TArray<int32>& ConstraintBatch : ConstraintsPerColor)
 				{
-					const int32 ConstraintIndex = ConstraintBatch[Index];
-					const FReal ExpStiffnessValue = Stiffness[ConstraintIndex];
-					ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
-				});
+					ispc::ApplySpringConstraintsWithWeightMaps(
+						(ispc::FVector*) & Particles.GetP()[0],
+						(ispc::FIntVector2*) & Constraints.GetData()[0],
+						&ConstraintBatch.GetData()[0],
+						&Particles.GetInvM().GetData()[0],
+						&Dists.GetData()[0],
+						&Stiffness.GetIndices().GetData()[0],
+						&Stiffness.GetTable().GetData()[0],
+						ConstraintBatch.Num());
+				}
+			}
+			else
+#endif
+			{
+				for (const TArray<int32>& ConstraintBatch : ConstraintsPerColor)
+				{
+					PhysicsParallelFor(ConstraintBatch.Num(), [&](const int32 Index)
+					{
+						const int32 ConstraintIndex = ConstraintBatch[Index];
+						const FReal ExpStiffnessValue = Stiffness[ConstraintIndex];
+						ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
+					});
+				}
 			}
 		}
 	}
