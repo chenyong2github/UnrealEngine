@@ -463,7 +463,7 @@ namespace UnrealVS
 			List<FileInfo> ProjectFiles = new List<FileInfo>(SolutionDir.EnumerateFiles("*.uproject"));
 			if (ProjectFiles.Count == 0)
 			{
-				// Build a list of all the parent directories for projects. This includes the UE4 root, plus any directories referenced via .uprojectdirs files.
+				// Build a list of all the parent directories for projects. This includes the UE root, plus any directories referenced via .uprojectdirs files.
 				List<DirectoryInfo> ParentProjectDirs = new List<DirectoryInfo>
 				{
 					SolutionDir

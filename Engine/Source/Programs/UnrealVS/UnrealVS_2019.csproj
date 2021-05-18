@@ -168,15 +168,12 @@
     <None Include="Key.snk" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="TargetManifests\VS14.source.extension.vsixmanifest" />
-    <Content Include="TargetManifests\VS14d.source.extension.vsixmanifest" />
-    <Content Include="TargetManifests\VS15.source.extension.vsixmanifest" />
-    <Content Include="TargetManifests\VS15d.source.extension.vsixmanifest" />
     <Content Include="TargetManifests\VS16.source.extension.vsixmanifest" />
     <Content Include="TargetManifests\VS16d.source.extension.vsixmanifest" />
     <None Include="Generated\source.extension.vsixmanifest" />
     <None Include="Resources\BatchBuilder.png" />
     <Resource Include="Resources\BatchBuilderBackground.png" />
+    <Resource Include="Resources\Icon.ico" />
     <Content Include="Resources\Icon.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
