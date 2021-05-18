@@ -772,6 +772,12 @@ namespace ObjectTools
 				DupObject->GetOutermost()->SetPackageFlags(PKG_DisallowExport);
 			}
 
+			// When duplicating a World Composition map, make sure to properly initialize WorldTileInfo
+			if (Object->GetOutermost()->WorldTileInfo.IsValid())
+			{
+				DupObject->GetOutermost()->WorldTileInfo = MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->WorldTileInfo);
+			}
+
 			// Notify the asset registry
 			FAssetRegistryModule::AssetCreated(DupObject);
 
@@ -3653,6 +3659,7 @@ namespace ObjectTools
 						NewPackage->SetPackageFlags(PKG_DisallowExport);
 					}
 
+					// When renaming a World Composition map, make sure to properly initialize WorldTileInfo
 					if (Object->GetOutermost()->WorldTileInfo.IsValid())
 					{
 						NewPackage->WorldTileInfo = MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->WorldTileInfo);
