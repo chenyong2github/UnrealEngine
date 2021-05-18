@@ -60,7 +60,7 @@ struct FMovieSceneSequenceActorPointers
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TObjectPtr<AActor> SequenceActor;
+	TObjectPtr<AActor> SequenceActor = nullptr;
 
 	UPROPERTY()
 	TScriptInterface<IMovieSceneSequenceActor> SequenceActorInterface;
