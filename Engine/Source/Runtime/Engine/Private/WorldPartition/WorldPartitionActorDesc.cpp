@@ -232,9 +232,9 @@ bool FWorldPartitionActorDesc::IsLoaded() const
 	return ActorPtr.IsValid();
 }
 
-AActor* FWorldPartitionActorDesc::GetActor() const
+AActor* FWorldPartitionActorDesc::GetActor(bool bEvenIfPendingKill, bool bEvenIfUnreachable) const
 {
-	return ActorPtr.Get(true);
+	return bEvenIfUnreachable ? ActorPtr.GetEvenIfUnreachable() : ActorPtr.Get(bEvenIfPendingKill);
 }
 
 AActor* FWorldPartitionActorDesc::Load() const
