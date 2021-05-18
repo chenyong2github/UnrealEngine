@@ -17,7 +17,9 @@ class UStaticMesh;
 class UStaticMeshComponent;
 struct FFlattenMaterial;
 struct FRawMesh;
+struct FRawSkinWeight;
 struct FStaticMeshLODResources;
+class FSkeletalMeshLODModel;
 class FSourceMeshDataForDerivedDataTask;
 
 typedef FIntPoint FMeshIdAndLOD;
