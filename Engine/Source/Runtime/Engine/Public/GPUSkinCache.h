@@ -66,8 +66,8 @@ class FGPUSkinCacheEntry;
 
 struct FClothSimulEntry
 {
-	FVector Position;
-	FVector Normal;
+	FVector3f Position;
+	FVector3f Normal;
 
 	/**
 	 * Serializer
