@@ -7768,7 +7768,7 @@ void UParticleSystemComponent::GetStreamingRenderAssetInfo(FStreamingTextureLeve
 	}
 }
 
-FBodyInstance* UParticleSystemComponent::GetBodyInstance(FName BoneName /*= NAME_None*/, bool bGetWelded /*= true*/) const
+FBodyInstance* UParticleSystemComponent::GetBodyInstance(FName BoneName /*= NAME_None*/, bool bGetWelded /*= true*/, int32 Index /*=INDEX_NONE*/) const
 {
 	return nullptr;
 }

@@ -1828,6 +1828,7 @@ UInstancedStaticMeshComponent::UInstancedStaticMeshComponent(const FObjectInitia
 	BodyInstance.bSimulatePhysics = false;
 
 	bDisallowMeshPaintPerInstance = true;
+	bMultiBodyOverlap = true;
 
 #if STATS
 	{
@@ -1948,6 +1949,15 @@ bool UInstancedStaticMeshComponent::IsHLODRelevant() const
 	}
 
 	return Super::IsHLODRelevant();
+}
+
+FBodyInstance* UInstancedStaticMeshComponent::GetBodyInstance(FName BoneName, bool bGetWelded, int32 Index) const
+{
+	if (Index != INDEX_NONE && IsValidInstance(Index))
+	{
+		return const_cast<FBodyInstance*>(InstanceBodies[Index]);
+	}
+	return  nullptr;
 }
 
 FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
