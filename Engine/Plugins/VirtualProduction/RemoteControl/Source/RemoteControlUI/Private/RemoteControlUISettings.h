@@ -22,4 +22,8 @@ public:
 	/** Show a warning icon for exposed editor-only fields. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Preset", DisplayName = "Show a warning when exposing editor-only entities.")
 	bool bDisplayInEditorOnlyWarnings = false;
+
+	/** The split widget control ratio between entity tree and details/protocol binding list. */
+	UPROPERTY(config)
+	float TreeBindingSplitRatio = 0.7;
 };
