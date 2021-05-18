@@ -1009,9 +1009,9 @@ void FAudioTrackEditor::Resize(float NewSize, UMovieSceneTrack* InTrack)
 	}
 }
 
-bool FAudioTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid)
+bool FAudioTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams)
 {
-	if (!Track->IsA(UMovieSceneAudioTrack::StaticClass()))
+	if (!DragDropParams.Track->IsA(UMovieSceneAudioTrack::StaticClass()))
 	{
 		return false;
 	}
@@ -1027,8 +1027,11 @@ bool FAudioTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieS
 
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
 	{
-		if (Cast<USoundBase>(AssetData.GetAsset()))
+		if (USoundBase* Sound = Cast<USoundBase>(AssetData.GetAsset()))
 		{
+			FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
+			FFrameNumber LengthInFrames = TickResolution.AsFrameNumber(Sound->GetDuration());
+			DragDropParams.FrameRange = TRange<FFrameNumber>(DragDropParams.FrameNumber, DragDropParams.FrameNumber + LengthInFrames);
 			return true;
 		}
 	}
@@ -1037,9 +1040,9 @@ bool FAudioTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieS
 }
 
 
-FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid)
+FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams)
 {
-	if (!Track->IsA(UMovieSceneAudioTrack::StaticClass()))
+	if (!DragDropParams.Track->IsA(UMovieSceneAudioTrack::StaticClass()))
 	{
 		return FReply::Unhandled();
 	}
@@ -1051,13 +1054,13 @@ FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieScen
 		return FReply::Unhandled();
 	}
 	
-	UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(Track);
+	UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(DragDropParams.Track);
 
 	const FScopedTransaction Transaction(LOCTEXT("DropAssets", "Drop Assets"));
 
 	TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
 
-	FMovieSceneTrackEditor::BeginKeying();
+	FMovieSceneTrackEditor::BeginKeying(DragDropParams.FrameNumber);
 
 	bool bAnyDropped = false;
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
@@ -1066,10 +1069,10 @@ FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieScen
 
 		if (Sound)
 		{
-			if (TargetObjectGuid.IsValid())
+			if (DragDropParams.TargetObjectGuid.IsValid())
 			{
 				TArray<TWeakObjectPtr<>> OutObjects;
-				for (TWeakObjectPtr<> Object : GetSequencer()->FindObjectsInCurrentSequence(TargetObjectGuid))
+				for (TWeakObjectPtr<> Object : GetSequencer()->FindObjectsInCurrentSequence(DragDropParams.TargetObjectGuid))
 				{
 					OutObjects.Add(Object);
 				}
@@ -1078,7 +1081,7 @@ FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieScen
 			}
 			else
 			{
-				AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FAudioTrackEditor::AddNewMasterSound, Sound, AudioTrack, RowIndex));
+				AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FAudioTrackEditor::AddNewMasterSound, Sound, AudioTrack, DragDropParams.RowIndex));
 			}
 
 			bAnyDropped = true;
