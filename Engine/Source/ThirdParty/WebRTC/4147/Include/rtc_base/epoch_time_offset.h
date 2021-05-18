@@ -4,8 +4,6 @@
 #include <time.h>
 #include <atomic>
 
-extern void SetPosixShimUTCServerTime(time_t UTCServerTime);
-
 /** UE function to return the offset of time between actual unix epoch and the value returned by POSIX time() */
 time_t UE_epoch_time_offset();
 
