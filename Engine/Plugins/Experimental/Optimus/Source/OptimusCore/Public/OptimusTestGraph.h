@@ -11,18 +11,16 @@ class OPTIMUSCORE_API UOptimusTestGraph : public UComputeGraph
 {
 	GENERATED_BODY()
 
-public:
+protected:
 	/** Single user selectable kernel. Only works if our hard coded data interfaces support the kernel. */
 	UPROPERTY(EditAnywhere, Category = Graph)
 	UComputeKernel* Kernel = nullptr;
 
-	//~ Begin UObject Interface.
-	void PostLoad() override;
 #if WITH_EDITOR
+	//~ Begin UObject Interface.
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 	//~ End UObject Interface.
 
-private:
 	void BuildTestGraph();
+#endif // WITH_EDITOR
 };

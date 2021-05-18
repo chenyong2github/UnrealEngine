@@ -28,7 +28,8 @@ public:
 		FName KernelName;
 		FName InvocationName;
 		FIntVector GroupDim;
-		FComputeKernelResource* Kernel = nullptr;
+		FShaderParametersMetadata const* ShaderMetadata = nullptr;
+		FComputeKernelResource const* Kernel = nullptr;
 	};
 
 	TArray<FKernelInvocation> KernelInvocations;

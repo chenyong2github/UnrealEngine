@@ -7,40 +7,33 @@
 #include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
 #include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
 
-void UOptimusTestGraph::PostLoad()
-{
-	BuildTestGraph();
-	Super::PostLoad();
-}
-
 #if WITH_EDITOR
 
 void UOptimusTestGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	BuildTestGraph();
-	CacheResourceShadersForRendering();
-}
 
-#endif // WITH_EDITOR
+	BuildTestGraph();
+	UpdateResources();
+}
 
 void UOptimusTestGraph::BuildTestGraph()
 {
 	KernelInvocations.Reset();
 	DataInterfaces.Reset();
 	GraphEdges.Reset();
-	
+
 	if (Kernel == nullptr)
 	{
 		return;
 	}
-	
+
 	KernelInvocations.Add(Kernel);
 
 	// Hard code data interfaces.
-	USkeletalMeshReadDataInterface* SkinnedMeshDataInterface = NewObject<USkeletalMeshReadDataInterface>();
+	USkeletalMeshReadDataInterface* SkinnedMeshDataInterface = NewObject<USkeletalMeshReadDataInterface>(this);
 	DataInterfaces.Add(SkinnedMeshDataInterface);
-	USkeletalMeshSkinCacheDataInterface* SkinnedMeshSkinCacheInterface = NewObject<USkeletalMeshSkinCacheDataInterface>();
+	USkeletalMeshSkinCacheDataInterface* SkinnedMeshSkinCacheInterface = NewObject<USkeletalMeshSkinCacheDataInterface>(this);
 	DataInterfaces.Add(SkinnedMeshSkinCacheInterface);
 
 	// Setup the graph edges using function name/type matching.
@@ -105,3 +98,5 @@ void UOptimusTestGraph::BuildTestGraph()
 		}
 	}
 }
+
+#endif // WITH_EDITOR
