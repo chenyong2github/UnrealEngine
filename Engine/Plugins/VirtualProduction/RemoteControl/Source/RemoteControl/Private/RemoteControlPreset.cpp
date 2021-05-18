@@ -22,6 +22,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Engine/Blueprint.h"
 #include "TimerManager.h"
 #endif
 
@@ -777,7 +778,11 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 	}
 
 	FRemoteControlFunction RCFunction{ this, Registry->GenerateUniqueLabel(DesiredName), Function->GetName(), Function, { FindOrAddBinding(Object) } };
-	return StaticCastSharedPtr<FRemoteControlFunction>(Expose(MoveTemp(RCFunction), FRemoteControlFunction::StaticStruct(), Args.GroupId));
+	TSharedPtr<FRemoteControlFunction> RCFunctionPtr = StaticCastSharedPtr<FRemoteControlFunction>(Expose(MoveTemp(RCFunction), FRemoteControlFunction::StaticStruct(), Args.GroupId));
+
+	RegisterOnCompileEvent(RCFunctionPtr);
+	
+	return RCFunctionPtr;
 }
 
 TSharedPtr<FRemoteControlEntity> URemoteControlPreset::Expose(FRemoteControlEntity&& Entity, UScriptStruct* EntityType, const FGuid& GroupId)
@@ -902,7 +907,32 @@ void URemoteControlPreset::RegisterEntityDelegates()
 	for (const TSharedPtr<FRemoteControlEntity>& Entity : Registry->GetExposedEntities())
 	{
 		Entity->OnEntityModifiedDelegate.BindUObject(this, &URemoteControlPreset::OnEntityModified);
+
+		if (Entity->GetStruct() == FRemoteControlFunction::StaticStruct())
+		{
+			RegisterOnCompileEvent(StaticCastSharedPtr<FRemoteControlFunction>(Entity));
+		}
 	}
+}
+
+void URemoteControlPreset::RegisterOnCompileEvent(const TSharedPtr<FRemoteControlFunction>& RCFunction)
+{
+#if WITH_EDITOR
+	if (UFunction* UnderlyingFunction = RCFunction->GetFunction())
+	{
+		if (UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(UnderlyingFunction->GetOwnerClass()))
+		{
+			if (UBlueprint* Blueprint = Cast<UBlueprint>(BPClass->ClassGeneratedBy))
+			{
+				if (!BlueprintsWithRegisteredDelegates.Contains(Blueprint))
+				{
+					BlueprintsWithRegisteredDelegates.Emplace(Blueprint);
+					Blueprint->OnCompiled().AddUObject(this, &URemoteControlPreset::OnBlueprintRecompiled);
+				}
+			}
+		}
+	}
+#endif
 }
 
 TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FName FunctionLabel) const
@@ -1573,7 +1603,10 @@ void URemoteControlPreset::RegisterDelegates()
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &URemoteControlPreset::OnObjectPropertyChanged);
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.AddUObject(this, &URemoteControlPreset::OnPreObjectPropertyChanged);
 
-	GEngine->OnLevelActorDeleted().AddUObject(this, &URemoteControlPreset::OnActorDeleted);
+	if (GEngine)
+	{
+		GEngine->OnLevelActorDeleted().AddUObject(this, &URemoteControlPreset::OnActorDeleted);
+	}
 	FEditorDelegates::PostPIEStarted.AddUObject(this, &URemoteControlPreset::OnPieEvent);
 	FEditorDelegates::EndPIE.AddUObject(this, &URemoteControlPreset::OnPieEvent);
 	
@@ -1588,6 +1621,14 @@ void URemoteControlPreset::RegisterDelegates()
 void URemoteControlPreset::UnregisterDelegates()
 {
 #if WITH_EDITOR
+	for (TWeakObjectPtr<UBlueprint> Blueprint : BlueprintsWithRegisteredDelegates)
+	{
+		if (Blueprint.IsValid())
+		{
+			Blueprint->OnCompiled().RemoveAll(this);
+		}
+	}
+	
 	FEditorDelegates::MapChange.RemoveAll(this);
 
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
@@ -1703,11 +1744,45 @@ void URemoteControlPreset::OnEndFrame()
 
 void URemoteControlPreset::OnMapChange(uint32)
 {
-	// Delay the refresh in order for the old actor points to be invalid.
+	// Delay the refresh in order for the old actors to be invalid.
 	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+	{
+		Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
+	}));
+}
+
+void URemoteControlPreset::OnBlueprintRecompiled(UBlueprint* Blueprint)
+{
+	if (!Blueprint)
+	{
+		return;
+	}
+
+	for (TSharedPtr<FRemoteControlFunction> RCFunction : Registry->GetExposedEntities<FRemoteControlFunction>())
+	{
+		if (UClass* Class = RCFunction->GetSupportedBindingClass())
 		{
-			Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
-		}));
+			if (Class->ClassGeneratedBy == Blueprint)
+			{
+				// Recreate the function arguments with the function from the new BP and copy the old ones on top of it.
+				if (UFunction* OldFunction = RCFunction->GetFunction())
+				{
+					UClass* NewClass = Blueprint->GeneratedClass;
+					if (UFunction* NewFunction = NewClass->FindFunctionByName(OldFunction->GetFName()))
+					{
+						FStructOnScope NewFunctionOnScope{ NewFunction };
+						for (TFieldIterator<FProperty> It(OldFunction); It; ++It)
+						{
+							It->CopyCompleteValue_InContainer(NewFunctionOnScope.GetStructMemory(), RCFunction->FunctionArguments->GetStructMemory());
+						}
+						*RCFunction->FunctionArguments = MoveTemp(NewFunctionOnScope);
+
+						PerFrameUpdatedEntities.Add(RCFunction->GetId());
+					}
+				}
+			}
+		}
+	}
 }
 
 #endif

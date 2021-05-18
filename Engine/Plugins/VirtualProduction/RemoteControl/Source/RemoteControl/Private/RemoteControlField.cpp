@@ -305,6 +305,7 @@ FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, F
 	check(InFunction);
 	FunctionArguments = MakeShared<FStructOnScope>(InFunction);
 	InFunction->InitializeStruct(FunctionArguments->GetStructMemory());
+	CachedFunction = InFunction;
 	AssignDefaultFunctionArguments();
 	OwnerClass = GetSupportedBindingClass();
 
