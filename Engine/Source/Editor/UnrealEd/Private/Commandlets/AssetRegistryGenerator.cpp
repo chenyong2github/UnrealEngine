@@ -28,6 +28,7 @@
 #include "Templates/UniquePtr.h"
 #include "Engine/AssetManager.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Algo/StableSort.h"
 
 #include "PakFileUtilities.h"
 
@@ -382,7 +383,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	
 	bool bEnableGameOpenOrderSort = false;
 	bool bUseSecondaryOpenOrder = false;
-	TArray<FString> OrderFileSpecs;
+	TArray<FString> OrderFileSpecStrings;
 	{
 		FConfigFile PlatformIniFile;
 		FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *TargetPlatform->IniPlatformName());
@@ -390,7 +391,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 		PlatformIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bEnableAssetRegistryGameOpenOrderSort"), bEnableGameOpenOrderSort);
 		PlatformIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bPakUsesSecondaryOrder"), bUseSecondaryOpenOrder);
 
-		PlatformIniFile.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("PakOrderFileSpecs"), OrderFileSpecs);
+		PlatformIniFile.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("PakOrderFileSpecs"), OrderFileSpecStrings);
 	}
 
 	// if a game open order can be found then use that to sort the filenames
@@ -398,13 +399,29 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	bool bHaveGameOpenOrder = false;
 	if (bEnableGameOpenOrderSort)
 	{
-		if (OrderFileSpecs.Num() == 0)
+		TArray<FPakOrderFileSpec> OrderFileSpecs;
+		const FPakOrderFileSpec* SecondaryOrderSpec = nullptr;
+
+		if (OrderFileSpecStrings.Num() == 0)
 		{
-			OrderFileSpecs.Add(TEXT("GameOpenOrder*.log"));
+			OrderFileSpecs.Add(FPakOrderFileSpec(TEXT("GameOpenOrder*.log")));
 			if (bUseSecondaryOpenOrder)
 			{
-				OrderFileSpecs.Add(TEXT("CookerOpenOrder*.log"));
+				OrderFileSpecs.Add(FPakOrderFileSpec(TEXT("CookerOpenOrder*.log")));
+				SecondaryOrderSpec = &OrderFileSpecs.Last();
 			}
+		}
+		else
+		{
+			UScriptStruct* Struct = FPakOrderFileSpec::StaticStruct();
+			int32 Index = 0;
+			for (const FString& String : OrderFileSpecStrings)
+			{
+				FPakOrderFileSpec Spec;
+				Struct->ImportText(*String, &Spec, nullptr, PPF_Delimited, nullptr, Struct->GetName());
+				OrderFileSpecs.Add(Spec);
+			}
+
 		}
 
 		TArray<FString> DirsToSearch;
@@ -418,15 +435,23 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 		{
 			DirsToSearch.Add(FPaths::Combine(FPaths::ProjectDir(), TEXT("Build"), Platform, TEXT("FileOpenOrder")));
 		}
-		
-		TArray<FString> OrderFiles;
-		for (const FString& Spec : OrderFileSpecs)
+
+		TArray<FPakOrderMap> OrderMaps; // Indexes match with OrderFileSpecs
+		OrderMaps.Reserve(OrderFileSpecs.Num());
+		uint64 StartIndex = 0;
+		for (const FPakOrderFileSpec& Spec : OrderFileSpecs)
 		{
+			// For each order map reserve it a contiguous integer range based on what indices were used by previous maps
+			// After building each map we'll then merge in priority order
+			UE_LOG(LogAssetRegistryGenerator, Log, TEXT("Order file spec %s starting at index %llu"), *Spec.Pattern, StartIndex);
+
+			FPakOrderMap& LocalOrderMap = OrderMaps.AddDefaulted_GetRef();
+
 			TArray<FString> FoundFiles;
 			for (const FString& Directory : DirsToSearch)
 			{
 				TArray<FString> LocalFoundFiles;
-				IFileManager::Get().FindFiles(LocalFoundFiles, *FPaths::Combine(Directory, Spec), true, false);
+				IFileManager::Get().FindFiles(LocalFoundFiles, *FPaths::Combine(Directory, Spec.Pattern), true, false);
 
 				for (const FString& Filename : LocalFoundFiles)
 				{
@@ -444,18 +469,46 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 				return Order;
 			});
 
-			for (const FString& Found : FoundFiles)
+			if (FoundFiles.Num() > 0)
 			{
-				bHaveGameOpenOrder = bHaveGameOpenOrder || Found.Contains(TEXT("CookerOpenOrder")) == false;
-				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found order file %s"), *Found);
+				bHaveGameOpenOrder = bHaveGameOpenOrder || (&Spec != SecondaryOrderSpec);
 			}
 
-			OrderFiles.Append(FoundFiles);
+			for (int32 i=0; i < FoundFiles.Num(); ++i)
+			{
+				const FString& Found = FoundFiles[i];
+				UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Found order file %s"), *Found);
+				if (LocalOrderMap.Num() == 0) 
+				{
+					LocalOrderMap.ProcessOrderFile(*Found, &Spec == SecondaryOrderSpec, false, StartIndex);
+				}
+				else
+				{
+					LocalOrderMap.ProcessOrderFile(*Found, &Spec == SecondaryOrderSpec, true);
+				}
+			}
+
+			if (LocalOrderMap.Num() > 0)
+			{
+				check(LocalOrderMap.GetMaxIndex() >= StartIndex);
+				StartIndex = LocalOrderMap.GetMaxIndex() + 1;
+			}
 		}
 
-		for (const FString& OrderFile : OrderFiles)
+		TArray<int32> SpecIndicesByPriority;
+		for (int32 i=0; i < OrderFileSpecs.Num(); ++i)
 		{
-			OrderMap.ProcessOrderFile(*OrderFile, OrderFile.Contains(TEXT("CookerOpenOrder")), &OrderFile != &OrderFiles[0]);
+			SpecIndicesByPriority.Add(i);
+		}
+		Algo::StableSortBy(SpecIndicesByPriority, [&OrderFileSpecs](int32 i) { return  OrderFileSpecs[i].Priority; }, TGreater<int32>());
+
+		UE_LOG(LogAssetRegistryGenerator, Log, TEXT("Merging order maps in priority order"));
+		for (int32 SpecIndex : SpecIndicesByPriority)
+		{
+			const FPakOrderFileSpec& Spec = OrderFileSpecs[SpecIndex];
+			UE_LOG(LogAssetRegistryGenerator, Log, TEXT("Merging order file spec %d (%s) at priority (%d) "), SpecIndex, *Spec.Pattern, Spec.Priority);
+			FPakOrderMap& LocalOrderMap = OrderMaps[SpecIndex];
+			OrderMap.MergeOrderMap(MoveTemp(LocalOrderMap));
 		}
 	}
 

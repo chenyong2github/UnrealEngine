@@ -20,12 +20,14 @@ class FPakOrderMap
 public:
 	FPakOrderMap()
 		: MaxPrimaryOrderIndex(MAX_uint64)
+		, MaxIndex(0)
 	{}
 
 	void Empty()
 	{
 		OrderMap.Empty();
 		MaxPrimaryOrderIndex = MAX_uint64;
+		MaxIndex = 0;
 	}
 
 	int32 Num() const
@@ -37,6 +39,7 @@ public:
 	void Add(const FString& Filename, uint64 Index)
 	{
 		OrderMap.Add(Filename, Index);
+		MaxIndex = FMath::Max(MaxIndex, Index);
 	}
 
 	/**
@@ -46,6 +49,7 @@ public:
 	void AddOffset(const FString& Filename, uint64 Offset)
 	{
 		OrderMap.Add(Filename, Offset);
+		MaxIndex = FMath::Max(MaxIndex, Offset);
 	}
 
 	/** Remaps all the current values in the OrderMap onto [0, NumEntries).  Useful to convert from Offset in Pak file bytes into an Index sorted by Offset */
@@ -66,19 +70,26 @@ public:
 			OrderMap[FilenameAndOffset.Key] = Index;
 			++Index;
 		}
+		MaxIndex = Index - 1;
 	}
 
-	bool PAKFILEUTILITIES_API ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile = false, bool bMergeOrder = false);
+	bool PAKFILEUTILITIES_API ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile = false, bool bMergeOrder = false, TOptional<uint64> InOffset = {});
+
+	// Merge another order map into this one where the files are not already ordered by this map. Steals the strings and empties the other order map.
+	void PAKFILEUTILITIES_API MergeOrderMap(FPakOrderMap&& Other);
 
 	uint64 PAKFILEUTILITIES_API GetFileOrder(const FString& Path, bool bAllowUexpUBulkFallback, bool* OutIsPrimary=nullptr) const;
 
 	void PAKFILEUTILITIES_API WriteOpenOrder(FArchive* Ar);
+
+	uint64 PAKFILEUTILITIES_API GetMaxIndex() { return MaxIndex; }
 
 private:
 	FString RemapLocalizationPathIfNeeded(const FString& PathLower, FString& OutRegion) const;
 
 	TMap<FString, uint64> OrderMap;
 	uint64 MaxPrimaryOrderIndex;
+	uint64 MaxIndex;
 };
 
 

@@ -27,7 +27,6 @@
 #include "Serialization/FileRegions.h"
 #include "Misc/ICompressionFormat.h"
 #include "Misc/KeyChainUtilities.h"
-#include "Algo/MaxElement.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -282,18 +281,18 @@ private:
 	int32 Index;
 };
 
-bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile, bool bMergeOrder)
+bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile, bool bMergeOrder, TOptional<uint64> InOffset)
 {
-	int32 OrderOffset = 0; 
+	uint64 OrderOffset = 0; 
 	int32 OpenOrderNumber = 0;
 
-	if (bSecondaryOrderFile || bMergeOrder)
+	if (InOffset.IsSet())
 	{
-		const auto* maxValue = Algo::MaxElementBy(OrderMap, [](const auto& data) { return data.Value; });
-		if (maxValue)
-		{
-			OrderOffset = maxValue->Value + 1;
-		}
+		OrderOffset = InOffset.GetValue();
+	}
+	else if (bSecondaryOrderFile || bMergeOrder)
+	{
+		OrderOffset = MaxIndex + 1;
 	}
 
 	if (bSecondaryOrderFile)
@@ -322,7 +321,7 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 
 			if (!FParse::Token(OrderLinePtr, Path, false))
 			{
-				UE_LOG(LogPakFile, Error, TEXT("Invlaid entry in the response file %s."), *Lines[EntryIndex]);
+				UE_LOG(LogPakFile, Error, TEXT("Invalid entry in the response file %s."), *Lines[EntryIndex]);
 				return false;
 			}
 
@@ -331,10 +330,25 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 				FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
 				Lines[EntryIndex].LeftInline(OpenOrderNumber + 1, false);
 				ReadNum.TrimStartInline();
-				if (ReadNum.IsNumeric())
+				if(ReadNum.Len() == 0)
+				{
+					// If order files don't have explicit numbers just use the line number
+					OpenOrderNumber = EntryIndex;
+				}
+				else if (ReadNum.IsNumeric())
 				{
 					OpenOrderNumber = FCString::Atoi(*ReadNum);
 				}
+				else
+				{
+					UE_LOG(LogPakFile, Error, TEXT("Invalid entry in the response file %s, couldn't parse an order number after the path."), *Lines[EntryIndex]);
+					return false;
+				}
+			}
+			else
+			{
+				// If order files don't have explicit numbers just use the line number
+				OpenOrderNumber = EntryIndex;
 			}
 
 			FPaths::NormalizeFilename(Path);
@@ -346,6 +360,7 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 			}
 
 			OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
+			MaxIndex = FMath::Max(MaxIndex, OpenOrderNumber + OrderOffset);
 		}
 
 		UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);
@@ -355,6 +370,27 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 	{
 		UE_LOG(LogPakFile, Error, TEXT("Unable to load pak order file %s."), ResponseFile);
 		return false;
+	}
+}
+
+void FPakOrderMap::MergeOrderMap(FPakOrderMap&& Other)
+{
+	for (TPair<FString, uint64>& OrderedFile : Other.OrderMap)
+	{
+		if (OrderMap.Contains(OrderedFile.Key) == false)
+		{
+			OrderMap.Add(MoveTemp(OrderedFile.Key), OrderedFile.Value);
+		}
+	}
+	Other.OrderMap.Empty(); // We moved strings out of this so empty it so nobody tries to use the keys
+
+	if (MaxIndex == MAX_uint64)
+	{
+		MaxIndex = Other.MaxIndex;
+	}
+	else
+	{
+		MaxIndex = FMath::Max(MaxIndex, Other.MaxIndex);
 	}
 }
 

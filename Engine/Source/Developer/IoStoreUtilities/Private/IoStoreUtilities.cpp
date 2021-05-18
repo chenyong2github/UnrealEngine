@@ -52,6 +52,7 @@
 #include "Misc/StringBuilder.h"
 #include "Async/Future.h"
 #include "Algo/MaxElement.h"
+#include "Algo/StableSort.h"
 #include "PackageStoreOptimizer.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -330,8 +331,16 @@ struct FContainerTargetFile
 
 struct FFileOrderMap
 {
-	TMap<FName, uint64> PackageNameToOrder;
+	TMap<FName, int64> PackageNameToOrder;
 	FString Name;
+	int32 Priority;
+	int32 Index;
+
+	FFileOrderMap(int32 InPriority, int32 InIndex)
+		: Priority(InPriority)
+		, Index(InIndex)
+	{
+	}
 };
 
 struct FIoStoreArguments
@@ -354,6 +363,7 @@ struct FIoStoreArguments
 	bool bSign = false;
 	bool bRemapPluginContentToGame = false;
 	bool bCreateDirectoryIndex = true;
+	bool bClusterByOrderFilePriority = false;
 
 	bool ShouldCreateContainers() const
 	{
@@ -431,14 +441,34 @@ static FIoChunkId CreateChunkId(FPackageId GlobalPackageId, uint16 ChunkIndex, E
 	return ChunkId;
 }
 
+// If bClusterByOrderFilePriority is false
+//		Order packages by the order of OrderMaps with their associated priority 
+//		e.g. Order map 1 with priority 0 (A, B, C) 
+//			 Order map 2 with priority 10 (B, D)
+//			Final order: (A, C, B, D)
+//		Then cluster packages in this order. 
+// If bClusterByOrderFilePriority is true
+//		Cluster packages first by OrderMaps in priority order, then concatenate clusters in the array order of OrderMaps.
+//		e.g. Order map 1 with priority 0 (A, B, C) 
+//			 Order map 2 with priority 10 (B, D)
+//			Cluster packages B, D, then A, C
+//			Then reassemble clusters A, C, B, D
 static void AssignPackagesDiskOrder(
 	const TArray<FLegacyCookedPackage*>& Packages,
 	const TArray<FFileOrderMap>& OrderMaps,
-		const FPackageIdMap& PackageIdMap)
+	const FPackageIdMap& PackageIdMap,
+	bool bClusterByOrderFilePriority
+	)
 {
 	struct FCluster
 	{
 		TArray<FLegacyCookedPackage*> Packages;
+		int32 OrderFileIndex; // Index in OrderMaps of the FFileOrderMap which contained Packages.Last()
+
+		FCluster(int32 InOrderFileIndex)
+			: OrderFileIndex(InOrderFileIndex)
+		{
+		}
 	};
 
 	TArray<FCluster*> Clusters;
@@ -448,19 +478,21 @@ static void AssignPackagesDiskOrder(
 	struct FPackageAndOrder
 	{
 		FLegacyCookedPackage* Package = nullptr;
-		uint64 Order = MAX_uint64;
-		const FFileOrderMap* BlameOrderMap = nullptr;
-
-		bool operator<(const FPackageAndOrder& Other) const
-		{
-			if (Order != Other.Order)
-			{
-				return Order < Other.Order;
-			}
-			// Fallback to reverse bundle order (so that packages are considered before their imports)
-			return Package->OptimizedPackage->GetLoadOrder() > Other.Package->OptimizedPackage->GetLoadOrder();
-		}
+		int64 LocalOrder = MAX_uint64;
+		const FFileOrderMap* OrderMap = nullptr;
 	};
+
+	// Order maps sorted by priority
+	TArray<const FFileOrderMap*> PriorityOrderMaps;
+	for (const FFileOrderMap& Map : OrderMaps)
+	{
+		PriorityOrderMaps.Add(&Map);
+	}
+	Algo::StableSortBy(PriorityOrderMaps, [](const FFileOrderMap* Map) { return Map->Priority; }, TGreater<int32>());
+
+	// Create a fallback order map to avoid null checks later
+	// Lowest priority, last index
+	FFileOrderMap FallbackOrderMap(MIN_int32, MAX_int32); 
 
 	TArray<FPackageAndOrder> SortedPackages;
 	SortedPackages.Reserve(Packages.Num());
@@ -472,35 +504,76 @@ static void AssignPackagesDiskOrder(
 		}
 		FPackageAndOrder& Entry = SortedPackages.AddDefaulted_GetRef();
 		Entry.Package = Package;
-		Entry.Order = MAX_uint64;
 
-		for (const FFileOrderMap& OrderMap : OrderMaps)
+		for (const FFileOrderMap* OrderMap : PriorityOrderMaps)
 		{
-			if (const uint64* Order = OrderMap.PackageNameToOrder.Find(Package->PackageName))
+			if (const int64* Order = OrderMap->PackageNameToOrder.Find(Package->PackageName))
 			{
-				Entry.Order = *Order;
-				Entry.BlameOrderMap = &OrderMap;
+				Entry.LocalOrder = *Order;
+				Entry.OrderMap = OrderMap;
 				break;
 			}
+		}
+
+		if (Entry.OrderMap == nullptr)
+		{
+			Entry.OrderMap = &FallbackOrderMap;
+			// Reverse the bundle load order for the fallback map (so that packages are considered before their imports)
+			Entry.LocalOrder = -int64(Package->OptimizedPackage->GetLoadOrder());
 		}
 	}
 	const FFileOrderMap* LastBlameOrderMap = nullptr;
 	int32 LastAssignedCount = 0;
-	Algo::Sort(SortedPackages);
+
+	if (bClusterByOrderFilePriority)
+	{
+		// Sort by priority of the order map
+		Algo::Sort(SortedPackages, [](const FPackageAndOrder& A, const FPackageAndOrder& B) {
+			// Packages in the same order map should be sorted by their local ordering
+			if (A.OrderMap == B.OrderMap)
+			{
+				return A.LocalOrder < B.LocalOrder;
+			}
+
+			// First priority, then index
+			if (A.OrderMap->Priority != B.OrderMap->Priority)
+			{
+				return A.OrderMap->Priority > B.OrderMap->Priority;
+			}
+
+			check(A.OrderMap->Index != B.OrderMap->Index);
+			return A.OrderMap->Index < B.OrderMap->Index;
+		});
+	}
+	else
+	{
+		// Sort by the order of the order map (...)
+		Algo::Sort(SortedPackages, [](const FPackageAndOrder& A, const FPackageAndOrder& B) {
+			// Packages in the same order map should be sorted by their local ordering
+			if (A.OrderMap == B.OrderMap)
+			{
+				return A.LocalOrder < B.LocalOrder;
+			}
+
+			// Blame order priority is not considered for the order in which we cluster packages, only for the order in which we assign packages to an order map
+			return A.OrderMap->Index < B.OrderMap->Index;
+		});
+	}
+
 	for (FPackageAndOrder& Entry : SortedPackages)
 	{
-		if (Entry.BlameOrderMap != LastBlameOrderMap)
+		if (Entry.OrderMap != LastBlameOrderMap)
 		{
 			if( LastBlameOrderMap != nullptr )
 			{
 				UE_LOG(LogIoStore, Display, TEXT("Ordered %d/%d packages using order file %s"), AssignedPackages.Num() - LastAssignedCount, Packages.Num(), *LastBlameOrderMap->Name);
 			}
 			LastAssignedCount = AssignedPackages.Num();
-			LastBlameOrderMap = Entry.BlameOrderMap;
+			LastBlameOrderMap = Entry.OrderMap;
 		}
 		if (!AssignedPackages.Contains(Entry.Package))
 		{
-			FCluster* Cluster = new FCluster();
+			FCluster* Cluster = new FCluster(Entry.OrderMap->Index);
 			Clusters.Add(Cluster);
 			ProcessStack.Push(Entry.Package);
 
@@ -533,6 +606,11 @@ static void AssignPackagesDiskOrder(
 
 	check(AssignedPackages.Num() == Packages.Num());
 	
+	if (bClusterByOrderFilePriority)
+	{
+		Algo::StableSortBy(Clusters, [](FCluster* Cluster) { return Cluster->OrderFileIndex; });
+	}
+	
 	for (FCluster* Cluster : Clusters)
 	{
 		Algo::Sort(Cluster->Packages, [](const FLegacyCookedPackage* A, const FLegacyCookedPackage* B)
@@ -556,11 +634,12 @@ static void CreateDiskLayout(
 	const TArray<FContainerTargetSpec*>& ContainerTargets,
 	const TArray<FLegacyCookedPackage*>& Packages,
 	const TArray<FFileOrderMap>& OrderMaps,
-	const FPackageIdMap& PackageIdMap)
+	const FPackageIdMap& PackageIdMap,
+	bool bClusterByOrderFilePriority)
 {
 	IOSTORE_CPU_SCOPE(CreateDiskLayout);
 
-	AssignPackagesDiskOrder(Packages, OrderMaps, PackageIdMap);
+	AssignPackagesDiskOrder(Packages, OrderMaps, PackageIdMap, bClusterByOrderFilePriority);
 
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
@@ -1574,7 +1653,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	PackageStoreOptimizer.Flush(true);
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
-	CreateDiskLayout(ContainerTargets, Packages, Arguments.OrderMaps, PackageIdMap);
+	CreateDiskLayout(ContainerTargets, Packages, Arguments.OrderMaps, PackageIdMap, Arguments.bClusterByOrderFilePriority);
 
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 	{
@@ -3080,7 +3159,7 @@ static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceF
 	return true;
 }
 
-static bool ParsePakOrderFile(const TCHAR* FilePath, FFileOrderMap& Map, uint64& InOutNumEntries)
+static bool ParsePakOrderFile(const TCHAR* FilePath, FFileOrderMap& Map)
 {
 	TArray<FString> OrderFileContents;
 	if (!FFileHelper::LoadFileToStringArray(OrderFileContents, FilePath))
@@ -3090,8 +3169,8 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, FFileOrderMap& Map, uint64&
 	}
 
 	Map.Name = FPaths::GetCleanFilename(FilePath);
-	uint64 LocalNumEntries = InOutNumEntries;
-	UE_LOG(LogIoStore, Display, TEXT("Order file %s (short name %s) starting at global index %llu"), FilePath, *Map.Name, LocalNumEntries);
+	UE_LOG(LogIoStore, Display, TEXT("Order file %s (short name %s) priority %d"), FilePath, *Map.Name, Map.Priority);
+	int64 NextOrder = 0;
 	for (const FString& OrderLine : OrderFileContents)
 	{
 		const TCHAR* OrderLinePtr = *OrderLine;
@@ -3117,12 +3196,11 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, FFileOrderMap& Map, uint64&
 		FName PackageFName(MoveTemp(PackageName));
 		if (!Map.PackageNameToOrder.Contains(PackageFName))
 		{
-			Map.PackageNameToOrder.Emplace(PackageFName, LocalNumEntries++);
+			Map.PackageNameToOrder.Emplace(PackageFName, NextOrder++);
 		}
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Order file %s (short name %s) contained %llu valid entries"), FilePath, *Map.Name, LocalNumEntries - InOutNumEntries);
-	InOutNumEntries = LocalNumEntries;
+	UE_LOG(LogIoStore, Display, TEXT("Order file %s (short name %s) contained %d valid entries"), FilePath, *Map.Name, Map.PackageNameToOrder.Num());
 	return true;
 }
 
@@ -3276,33 +3354,61 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	}
 
 	uint64 OrderMapStartIndex = 0;
-	FString GameOrderFileStr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("GameOrder="), GameOrderFileStr, false))
+	FString OrderFileStr;
+	if (FParse::Value(FCommandLine::Get(), TEXT("Order="), OrderFileStr, false))
 	{
-		TArray<FString> GameOrderFilePaths;
-		GameOrderFileStr.ParseIntoArray(GameOrderFilePaths, TEXT(","), true);
-		bool bMerge = false;
-		for (FString& PrimaryOrderFile : GameOrderFilePaths)
+		TArray<int32> OrderFilePriorities;
+		TArray<FString> OrderFilePaths;
+		OrderFileStr.ParseIntoArray(OrderFilePaths, TEXT(","), true);
+
+		FString LegacyParam;
+		if (FParse::Value(FCommandLine::Get(), TEXT("GameOrder="), LegacyParam, false))
 		{
-			FFileOrderMap OrderMap;
-			if (!ParsePakOrderFile(*PrimaryOrderFile, OrderMap, OrderMapStartIndex))
+			UE_LOG(LogIoStore, Warning, TEXT("-GameOrder= and -CookerOrder= are deprecated in favor of -Order"));
+			TArray<FString> LegacyPaths;
+			LegacyParam.ParseIntoArray(LegacyPaths, TEXT(","), true);
+			OrderFilePaths.Append(LegacyPaths);
+		}
+		if (FParse::Value(FCommandLine::Get(), TEXT("CookerOrder="), LegacyParam, false))
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("-GameOrder= and -CookerOrder= are deprecated in favor of -Order"));
+			TArray<FString> LegacyPaths;
+			LegacyParam.ParseIntoArray(LegacyPaths, TEXT(","), true);
+			OrderFilePaths.Append(LegacyPaths);
+		}
+
+		FString OrderPriorityString;
+		if (FParse::Value(FCommandLine::Get(), TEXT("OrderPriority="), OrderPriorityString, false))
+		{
+			TArray<FString> PriorityStrings;
+			OrderPriorityString.ParseIntoArray(PriorityStrings, TEXT(","), true);
+			if (PriorityStrings.Num() != OrderFilePaths.Num())
 			{
+				UE_LOG(LogIoStore, Error, TEXT("Number of parameters to -Order= and -OrderPriority= do not match"));
 				return -1;
 			}
-			Arguments.OrderMaps.Add(OrderMap);
-		}
-	}
 
-	FString CookerOrderFileStr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("CookerOrder="), CookerOrderFileStr, false))
-	{
-		TArray<FString> CookerOrderFilePaths;
-		CookerOrderFileStr.ParseIntoArray(CookerOrderFilePaths, TEXT(","), true);
-		bool bMerge = false;
-		for (FString& SecondOrderFile : CookerOrderFilePaths)
+			for (const FString& PriorityString : PriorityStrings)
+			{
+				int32 Priority = FCString::Atoi(*PriorityString);
+				OrderFilePriorities.Add(Priority);
+			}
+		}
+		else
 		{
-			FFileOrderMap OrderMap;
-			if (!ParsePakOrderFile(*SecondOrderFile, OrderMap, OrderMapStartIndex))
+			OrderFilePriorities.AddZeroed(OrderFilePaths.Num());
+		}
+
+		check(OrderFilePaths.Num() == OrderFilePriorities.Num());
+
+		bool bMerge = false;
+		for (int32 i=0; i < OrderFilePaths.Num(); ++i)
+		{
+			FString& OrderFile = OrderFilePaths[i];
+			int32 Priority = OrderFilePriorities[i];
+
+			FFileOrderMap OrderMap(Priority, i);
+			if (!ParsePakOrderFile(*OrderFile, OrderMap))
 			{
 				return -1;
 			}
@@ -3322,6 +3428,8 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			return 1;
 		}
 	}
+
+	Arguments.bClusterByOrderFilePriority = FParse::Param(CmdLine, TEXT("ClusterByOrderPriority"));
 
 	FIoStoreWriterSettings GeneralIoWriterSettings { DefaultCompressionMethod, DefaultCompressionBlockSize, false };
 	GeneralIoWriterSettings.bEnableCsvOutput = FParse::Param(CmdLine, TEXT("-csvoutput"));
