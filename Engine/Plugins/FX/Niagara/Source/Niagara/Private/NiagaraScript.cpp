@@ -1473,12 +1473,17 @@ void UNiagaraScript::PostLoad()
 
 			// Synchronize with Definitions after source scripts have been postloaded.
 			FVersionedNiagaraScript& VersionedScriptAdapter = VersionedScriptAdapters.Emplace_GetRef(this, Data.Version.VersionGuid);
+			VersionedScriptAdapter.PostLoadDefinitionsSubscriptions();
 			const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 			check(Settings);
 			TArray<FGuid> DefaultDefinitionsUniqueIds;
 			for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
 			{
-				UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+				UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+				if (!DefaultLinkedParameterDefinitions)
+				{
+					continue;
+				}
 				DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
 				const bool bDoNotAssertIfAlreadySubscribed = true;
 				VersionedScriptAdapter.SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);

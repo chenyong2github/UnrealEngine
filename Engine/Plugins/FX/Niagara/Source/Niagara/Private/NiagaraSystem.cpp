@@ -722,6 +722,10 @@ void UNiagaraSystem::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
+	PostLoadDefinitionsSubscriptions();
+#endif
+
 	// Workaround for UE-104235 where a CDO loads a NiagaraSystem before the NiagaraModule has had a chance to load
 	// We force the module to load here we makes sure the type registry, etc, is all setup in time.
 	static bool bLoadChecked = false;
