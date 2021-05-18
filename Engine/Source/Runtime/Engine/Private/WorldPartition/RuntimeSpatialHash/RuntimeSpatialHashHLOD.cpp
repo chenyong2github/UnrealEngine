@@ -237,6 +237,9 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 		}
 	});
 
+	// Ensure all async packages writes are completed before we start processing another HLOD level or grid
+	UPackage::WaitForAsyncFileWrites();
+
 	// Need to collect garbage here since some HLOD actors have been marked pending kill when destroying them
 	// and they may be loaded when generating the next HLOD layer.
 	DoCollectGarbage();
@@ -484,21 +487,34 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	// HLOD creation context
 	FHLODCreationContext Context;
-	TArray<FWorldPartitionHandle> InvalidHLODActors;
+
+	TSet<uint64> InvalidHLODCellHashes;
+	InvalidHLODCellHashes.Add(0);
+
+	TSet<FWorldPartitionHandle> InvalidHLODActors;
 
 	for (UActorDescContainer::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 	{
-		FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
-
 		uint64 CellHash = HLODIterator->GetCellHash();
-		if (CellHash != 0)
+
+		FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
+		FWorldPartitionHandle* DupeHLODActorHandle = Context.HLODActorDescs.Find(CellHash);
+
+		if (DupeHLODActorHandle == nullptr && !InvalidHLODCellHashes.Contains(CellHash))
 		{
-			check(!Context.HLODActorDescs.Contains(CellHash));
 			Context.HLODActorDescs.Emplace(CellHash, MoveTemp(HLODActorHandle));
 		}
 		else
 		{
+			InvalidHLODCellHashes.Add(CellHash);
+
 			InvalidHLODActors.Emplace(MoveTemp(HLODActorHandle));
+			if (DupeHLODActorHandle)
+			{
+				InvalidHLODActors.Emplace(*DupeHLODActorHandle);
+			}
+
+			Context.HLODActorDescs.Remove(CellHash);
 		}
 	}
 

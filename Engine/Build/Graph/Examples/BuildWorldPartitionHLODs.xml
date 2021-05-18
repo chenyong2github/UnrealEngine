@@ -12,8 +12,11 @@
 	<EnvVar Name="uebp_CLIENT"/>
 		
 	<Property Name="HLODCommonBuilderArgs" Value="$(MapName) -Builder=WorldPartitionHLODsBuilder -DistributedBuild"/>
-	<Property Name="HLODCommonBuilderArgs" Value="-unattended -buildmachine -SCCProvider=Perforce -P4Port=$(uebp_PORT) -P4User=$(uebp_USER) -P4Client=$(uebp_CLIENT) $(HLODCommonBuilderArgs)" If="$(IsBuildMachine)"/>
+	<Property Name="HLODCommonBuilderArgs" Value="-unattended -buildmachine $(HLODCommonBuilderArgs)" If="$(IsBuildMachine)"/>
 	
+	<Property Name="HLODBuilderSCC_None" Value="-SCCProvider=None"/>
+	<Property Name="HLODBuilderSCC_P4" Value="-SCCProvider=Perforce -P4Port=$(uebp_PORT) -P4User=$(uebp_USER) -P4Client=$(uebp_CLIENT)"/>
+		
 	<Agent Name="HLOD Generation Prerequisites" Type="Win64">
 		<Node Name="Update Version Files">
 			<SetVersion Change="$(Change)" Branch="$(EscapedBranch)" If="$(IsBuildMachine)"/>
@@ -32,7 +35,7 @@
 	
 	<Agent Name="HLOD Setup" Type="Win64">
 		<Node Name="HLOD Setup" Requires="$(HLODSetupDependencies)">
-			<Commandlet Name="WorldPartitionBuilderCommandlet" Project="$(ProjectName)" Arguments="$(HLODCommonBuilderArgs) -SetupHLODs -BuilderCount=$(BuilderCount)"/>
+			<Commandlet Name="WorldPartitionBuilderCommandlet" Project="$(ProjectName)" Arguments="$(HLODCommonBuilderArgs) $(HLODBuilderSCC_None) -SetupHLODs -BuilderCount=$(BuilderCount)"/>
 			<GatherBuildProductsFromFile BuildProductsFile="$(RootDir)/HLODTemp/BuildProducts.txt"/>
 		</Node>
 	</Agent>
@@ -50,7 +53,7 @@
 			
 			<Agent Name="$(HLODBuildAgent)" Type="Win64">
 				<Node Name="$(HLODBuildNode)" Requires="HLOD Setup">
-					<Commandlet Name="WorldPartitionBuilderCommandlet" Project="$(ProjectName)" Arguments="$(HLODCommonBuilderArgs) -AllowCommandletRendering -BuildHLODs -BuilderIdx=$(HLODBuildJobIndex)"/>
+					<Commandlet Name="WorldPartitionBuilderCommandlet" Project="$(ProjectName)" Arguments="$(HLODCommonBuilderArgs) $(HLODBuilderSCC_None) -AllowCommandletRendering -BuildHLODs -BuilderIdx=$(HLODBuildJobIndex)"/>
 				</Node>
 				<Node Name="$(HLODBuildCompleteNode)" After="$(HLODBuildNode)">
 					<GatherBuildProductsFromFile BuildProductsFile="$(RootDir)/HLODTemp/BuildProducts.txt"/>
@@ -61,7 +64,7 @@
 	
 	<Agent Name="HLOD Submit" Type="Win64_NonAWS">
 		<Node Name="HLOD Submit" Requires="$(HLODBuildNodes);$(HLODBuildCompleteNodes);HLOD Setup">
-			<Commandlet Name="WorldPartitionBuilderCommandlet" Project="$(ProjectName)" Arguments="$(HLODCommonBuilderArgs) -SubmitHLODs"/>
+			<Commandlet Name="WorldPartitionBuilderCommandlet" Project="$(ProjectName)" Arguments="$(HLODCommonBuilderArgs) $(HLODBuilderSCC_P4) -SubmitHLODs"/>
 		</Node>
 	</Agent>
 

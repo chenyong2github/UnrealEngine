@@ -5,11 +5,62 @@
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartitionHLODsBuilder.generated.h"
 
+struct FHLODModifiedFiles
+{
+	enum EFileOperation
+	{
+		FileAdded,
+		FileEdited,
+		FileDeleted,
+		NumFileOperations
+	};
+
+	void Add(EFileOperation FileOp, const FString& File)
+	{
+		Files[FileOp].Add(File);
+	}
+
+	const TSet<FString>& Get(EFileOperation FileOp) const
+	{
+		return Files[FileOp];
+	}
+
+	void Append(EFileOperation FileOp, const TArray<FString>& InFiles)
+	{
+		Files[FileOp].Append(InFiles);
+	}
+
+	void Append(const FHLODModifiedFiles& Other)
+	{
+		Files[EFileOperation::FileAdded].Append(Other.Files[EFileOperation::FileAdded]);
+		Files[EFileOperation::FileEdited].Append(Other.Files[EFileOperation::FileEdited]);
+		Files[EFileOperation::FileDeleted].Append(Other.Files[EFileOperation::FileDeleted]);
+	}
+
+	void Empty()
+	{
+		Files[EFileOperation::FileAdded].Empty();
+		Files[EFileOperation::FileEdited].Empty();
+		Files[EFileOperation::FileDeleted].Empty();
+	}
+
+	TArray<FString> GetAllFiles() const
+	{
+		TArray<FString> AllFiles;
+		AllFiles.Append(Files[EFileOperation::FileAdded].Array());
+		AllFiles.Append(Files[EFileOperation::FileEdited].Array());
+		AllFiles.Append(Files[EFileOperation::FileDeleted].Array());
+		return AllFiles;
+	}
+
+private:
+	TSet<FString> Files[NumFileOperations];
+};
+
 UCLASS()
 class UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
 {
 	GENERATED_UCLASS_BODY()
-
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override;
@@ -34,7 +85,7 @@ protected:
 	TArray<TArray<FGuid>> GetHLODWorldloads(int32 NumWorkloads) const;
 	bool ValidateWorkload(const TArray<FGuid>& Workload) const;
 
-	bool CopyFilesToWorkingDir(const FString& TargetDir, const TArray<FString>& FilesToCopy, TArray<FString>& BuildProducts);
+	bool CopyFilesToWorkingDir(const FString& TargetDir, const FHLODModifiedFiles& ModifiedFiles, TArray<FString>& BuildProducts);
 	bool CopyFilesFromWorkingDir(const FString& SourceDir);
 
 private:
@@ -53,8 +104,8 @@ private:
 	int32 BuilderIdx;
 	int32 BuilderCount;
 
-	TSet<FString> ModifiedFiles;
-
 	const FString DistributedBuildWorkingDir;
 	const FString DistributedBuildManifest;
+	
+	FHLODModifiedFiles ModifiedFiles;
 };
