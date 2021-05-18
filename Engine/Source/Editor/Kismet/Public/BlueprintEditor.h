@@ -1165,11 +1165,15 @@ private:
 	/* User wants to edit tunnel via function editor */
 	void OnEditTunnel();
 
+protected:
+	
 	/* Create comment node on graph */
 	virtual void OnCreateComment();
 
 	// Create new graph editor widget for the supplied document container
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget(TSharedRef<class FTabInfo> InTabInfo, class UEdGraph* InGraph);
+	virtual TSharedRef<SGraphEditor> CreateGraphEditorWidget(TSharedRef<class FTabInfo> InTabInfo, class UEdGraph* InGraph);
+
+private:
 
 	/** Helper to move focused graph when clicking on graph breadcrumb */
 	void OnChangeBreadCrumbGraph( class UEdGraph* InGraph);

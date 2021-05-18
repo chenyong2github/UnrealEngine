@@ -289,7 +289,7 @@ void SNodePanel::Construct()
 {
 	if (!ZoomLevels)
 	{
-		ZoomLevels = MakeUnique<FFixedZoomLevelsContainer>();
+		SetZoomLevelsContainer<FFixedZoomLevelsContainer>();
 	}
 	ZoomLevel = ZoomLevels->GetDefaultZoomLevel();
 	PreviousZoomLevel = ZoomLevels->GetDefaultZoomLevel();

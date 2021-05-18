@@ -1644,6 +1644,11 @@ UEdGraphNode* SGraphEditorImpl::GetSingleSelectedNode() const
 	return (SelectedNodes.Num() == 1) ? Cast<UEdGraphNode>(*SelectedNodes.CreateConstIterator()) : nullptr;
 }
 
+SGraphPanel* SGraphEditorImpl::GetGraphPanel() const
+{
+	return GraphPanel.Get();
+}
+
 /////////////////////////////////////////////////////
 
 

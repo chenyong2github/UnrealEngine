@@ -16,6 +16,7 @@
 #include "Engine/LevelStreaming.h"
 
 class UEdGraph;
+class SGraphPanel;
 struct FNotificationInfo;
 struct Rect;
 class FMenuBuilder;
@@ -597,6 +598,17 @@ public:
 
 	// Returns the first graph editor that is viewing the specified graph
 	UNREALED_API static TSharedPtr<SGraphEditor> FindGraphEditorForGraph(const UEdGraph* Graph);
+
+
+	/** Returns the graph panel used for this graph editor */
+	UNREALED_API virtual SGraphPanel* GetGraphPanel() const
+	{
+		if (Implementation.IsValid())
+		{
+			return Implementation->GetGraphPanel();
+		}
+		return nullptr;
+	}
 
 protected:
 	/** Invoked when the underlying Graph is being changed. */
