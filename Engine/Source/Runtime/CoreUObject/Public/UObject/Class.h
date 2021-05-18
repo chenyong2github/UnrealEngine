@@ -696,6 +696,9 @@ enum EStructFlags
 	/** If set, this struct has been cleaned and sanitized (trashed) and should not be used */
 	STRUCT_Trashed = 0x00800000,
 
+	/** If set, this structure has been replaced via reinstancing */
+	STRUCT_NewerVersionExists = 0x01000000,
+
 	/** Struct flags that are automatically inherited */
 	STRUCT_Inherit				= STRUCT_HasInstancedReference|STRUCT_Atomic,
 
@@ -2165,6 +2168,11 @@ public:
 	ECppForm GetCppForm() const
 	{
 		return CppForm;
+	}
+
+	void SetEnumFlags(EEnumFlags FlagsToSet)
+	{
+		EnumFlags |= FlagsToSet;
 	}
 
 	bool HasAnyEnumFlags(EEnumFlags InFlags) const
