@@ -12,7 +12,6 @@
 #include "Algo/AnyOf.h"
 #include "Async/Async.h"
 #include "Engine/Polys.h"
-#include "Engine/StaticMesh.h"
 #include "HAL/FileManager.h"
 #include "Math/Plane.h"
 #include "MeshDescription.h"
@@ -22,6 +21,8 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "PhysicsPublicCore.h"
+#include "PhysXCookHelper.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
@@ -446,7 +447,8 @@ namespace DatasmithRuntime
 		return EntriesToDelete.Num() > 0;
 	}
 
-	// k-DOP (k-Discrete Oriented Polytopes) Direction Vectors
+	// Code below has been borrowed from GenerateKDopAsSimpleCollision in GeomFitUtils.cpp
+	// to generate k-DOP (k-Discrete Oriented Polytopes) with 26 polytopes
 	#define RCP_SQRT2 (0.70710678118654752440084436210485f)
 	#define RCP_SQRT3 (0.57735026918962576450914878050196f)
 
@@ -479,10 +481,8 @@ namespace DatasmithRuntime
 		FVector(-RCP_SQRT3, -RCP_SQRT3,  RCP_SQRT3),
 		FVector(-RCP_SQRT3, -RCP_SQRT3, -RCP_SQRT3),
 	};
-	// THIS FUNCTION REPLACES EXISTING SIMPLE COLLISION MODEL WITH KDOP
-#define MY_FLTMAX (3.402823466e+38F)
-	constexpr float HalfWorldMax = HALF_WORLD_MAX;
 
+	constexpr float HalfWorldMax = HALF_WORLD_MAX;
 
 	void GenerateKDopAsSimpleCollision(UBodySetup* BodySetup, const FStaticMeshLODResources& Resources, const FVector* Directions, int32 DirectionCount)
 	{
@@ -491,7 +491,7 @@ namespace DatasmithRuntime
 
 		for (int32 Index = 0; Index < DirectionCount; ++Index)
 		{
-			MaxDistances.Add(-MY_FLTMAX);
+			MaxDistances.Add(-MAX_FLT);
 		}
 
 		// For each vertex, project along each kdop direction, to find the max in that direction.
@@ -581,6 +581,7 @@ namespace DatasmithRuntime
 
 		ConvexElem.UpdateElemBox();
 	}
+	// End of Code borrowed from GenerateKDopAsSimpleCollision in GeomFitUtils.cpp
 
 	void BuildCollision(UBodySetup* BodySetup, ECollisionTraceFlag CollisionFlag, const FStaticMeshLODResources& Resources)
 	{
@@ -591,48 +592,16 @@ namespace DatasmithRuntime
 			BodySetup->CollisionTraceFlag = UPhysicsSettings::Get()->DefaultShapeComplexity;
 		}
 
-		BodySetup->AggGeom.EmptyElements();
-
-		// Use the bounding box as the collision mesh if simple collision is required and no aggregate geometry is provided
-		// #ue_dsruntime - TODO Choose the best shape according to dimension of bounding box
-		if (BodySetup->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseComplexAsSimple)
+		// Use k-DOP 26 as the collision mesh if simple collision is required
+		// #ue_dsruntime - TODO | Choose better shape of collision mesh
+		if (BodySetup->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseComplexAsSimple && BodySetup->AggGeom.ConvexElems.Num() == 0)
 		{
 			GenerateKDopAsSimpleCollision(BodySetup, Resources, KDopDir26, 26);
 		}
 
-#if WITH_EDITOR
-		BodySetup->CreatePhysicsMeshes();
-#else
-		// Create a convex hull element from the mesh description of the static mesh if complex as simple is required
-		if (BodySetup->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseSimpleAsComplex)
-		{
-			FKConvexElem& ConvexElem = BodySetup->AggGeom.ConvexElems.AddDefaulted_GetRef();
-
-			const FPositionVertexBuffer& PositionVertexBuffer = Resources.VertexBuffers.PositionVertexBuffer;
-			ConvexElem.VertexData.Reserve(Resources.GetNumVertices());
-
-			for(int32 Index = 0; Index < Resources.GetNumVertices(); ++Index)
-			{
-				ConvexElem.VertexData.Add(PositionVertexBuffer.VertexPosition(Index));
-			}
-
-			ConvexElem.UpdateElemBox();
-		}
-
-		BodySetup->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
-
+		// Creation of collision meshes can only happen on game thread
 		AsyncTask(ENamedThreads::GameThread, [BodySetup] {
-
-			BodySetup->InvalidatePhysicsData();
-
-			BodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateLambda([](bool bSuccess, UBodySetup* BodySetup) -> void
-				{
-					FString Message(bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
-					//UE_LOG(LogDatasmithRuntime, Log, TEXT("CreateStaticMesh: CreatePhysicsMeshesAsync %s."), *Message);
-				}
-				, BodySetup)
-			);
+			BodySetup->CreatePhysicsMeshes();
 		});
-#endif
 	}
 } // End of namespace DatasmithRuntime

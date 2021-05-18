@@ -51,7 +51,7 @@ namespace DatasmithRuntime
 
 		TSharedPtr< IDatasmithMeshElement > MeshElement = StaticCastSharedPtr< IDatasmithMeshElement >(Elements[MeshData.ElementId]);
 
-		UStaticMesh* StaticMesh = MeshData.GetObject<UStaticMesh>();
+		URuntimeMesh* StaticMesh = MeshData.GetObject<URuntimeMesh>();
 
 		// If static mesh already completed, check if geometry has changed
 		if (StaticMesh)
@@ -74,7 +74,7 @@ namespace DatasmithRuntime
 
 			if (UObject* AssetPtr = FAssetRegistry::FindObjectFromHash(MeshData.Hash))
 			{
-				StaticMesh = Cast<UStaticMesh>(AssetPtr);
+				StaticMesh = Cast<URuntimeMesh>(AssetPtr);
 				check(StaticMesh);
 			}
 			else
@@ -83,11 +83,13 @@ namespace DatasmithRuntime
 				FString MeshName = TEXT("S_") + FString(MeshElement->GetName()) + TEXT("_LU_") + FString::FromInt(MeshData.ElementId);
 				MeshName = FDatasmithUtils::SanitizeObjectName(MeshName);
 				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Meshes"), MeshName));
-				StaticMesh = NewObject< UStaticMesh >(Package, *MeshName, RF_Public);
+				StaticMesh = NewObject< URuntimeMesh >(Package, *MeshName, RF_Public);
 #else
-				StaticMesh = NewObject< UStaticMesh >(GetTransientPackage());
+				StaticMesh = NewObject< URuntimeMesh >(GetTransientPackage());
 #endif
 				check(StaticMesh);
+
+				StaticMesh->SetWorld(RootComponent->GetWorld());
 
 				// Add the creation of the mesh to the queue
 				FActionTaskFunction TaskFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
@@ -367,7 +369,11 @@ namespace DatasmithRuntime
 		int32 MaxLightmapSize = FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue(EDatasmithImportLightmapMax::LIGHTMAP_512);
 
 		// 4. Collisions
-		ProcessCollision(StaticMesh, MeshPayload);
+		StaticMesh->GetBodySetup()->AggGeom.EmptyElements();
+		if (ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision && ImportOptions.CollisionType != ECollisionTraceFlag::CTF_UseComplexAsSimple)
+		{
+			ProcessCollision(StaticMesh, MeshPayload);
+		}
 
 		// Extracted from FDatasmithStaticMeshImporter::SetupStaticMesh
 #if WITH_EDITOR
@@ -506,7 +512,7 @@ namespace DatasmithRuntime
 			Params.bFastBuild = true;
 #if !WITH_EDITOR
 			// Force build process to keep index buffer for complex collision when in game
-			//Params.bAllowCpuAccess = ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision && (ImportOptions.CollisionType == ECollisionTraceFlag::CTF_UseComplexAsSimple || ImportOptions.CollisionType == ECollisionTraceFlag::CTF_UseSimpleAndComplex);
+			Params.bAllowCpuAccess = ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision && (ImportOptions.CollisionType == ECollisionTraceFlag::CTF_UseComplexAsSimple || ImportOptions.CollisionType == ECollisionTraceFlag::CTF_UseSimpleAndComplex);
 #endif
 
 			StaticMesh->BuildFromMeshDescriptions(MeshDescriptionPointers, Params);
