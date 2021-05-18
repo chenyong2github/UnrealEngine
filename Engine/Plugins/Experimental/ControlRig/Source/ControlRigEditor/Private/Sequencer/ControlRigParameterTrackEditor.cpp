@@ -2106,7 +2106,7 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 	int32 IntChannelIndex = 0;
 	for (int32 ControlIndex = 0; ControlIndex < Controls.Num(); ++ControlIndex)
 	{
-		FRigControlElement* ControlElement = Controls[ControolIndex];
+		FRigControlElement* ControlElement = Controls[ControlIndex];
 
 		if (!ControlElement->Settings.bAnimatable)
 		{
