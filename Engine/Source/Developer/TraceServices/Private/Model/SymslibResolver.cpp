@@ -419,7 +419,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 
 	const uint32 SymbolCount = syms_get_proc_count(ModuleInstance); // get symbol count
 	const uint32 LineCount = syms_get_line_count(ModuleInstance); // get line count
-	UE_LOG(LogSymslib, Display, TEXT("Loaded symbols for '%s' at base 0x%016x, %u symbols and %u lines."), Module->Name, Module->Base, SymbolCount, LineCount);
+	UE_LOG(LogSymslib, Display, TEXT("Loaded symbols for '%s' at base 0x%016llx, %u symbols and %u lines."), Module->Name, Module->Base, SymbolCount, LineCount);
 
 	return EModuleStatus::Loaded;
 }
@@ -441,7 +441,7 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	FModuleEntry* Module = GetModuleForAddress(Address);
 	if (!Module)
 	{
-		UE_LOG(LogSymslib, Warning, TEXT("No module mapped to address 0x%016x."), Address);
+		UE_LOG(LogSymslib, Warning, TEXT("No module mapped to address 0x%016llx."), Address);
 		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
 		return false;
 	}

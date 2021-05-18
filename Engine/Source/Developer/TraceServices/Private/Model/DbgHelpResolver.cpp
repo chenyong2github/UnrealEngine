@@ -243,12 +243,12 @@ bool FDbgHelpResolver::LoadModuleSymbols(uint64 Base, uint64 Size, const TCHAR* 
 
 	if (!bSymbolsLoaded)
 	{
-		UE_LOG(LogDbgHelp, Warning, TEXT("Unable to load symbols for %s at %p"), Path, Base);
+		UE_LOG(LogDbgHelp, Warning, TEXT("Unable to load symbols for %s at 0x%016llx"), Path, Base);
 		++ModulesFailed;
 	}
 	else
 	{
-		UE_LOG(LogDbgHelp, Display, TEXT("Loaded symbols for %s at %p."), Path, Base);
+		UE_LOG(LogDbgHelp, Display, TEXT("Loaded symbols for %s at 0x%016llx."), Path, Base);
 		++ModulesLoaded;
 	}
 
