@@ -146,6 +146,7 @@ void UNiagaraGraph::PostLoad()
 		if (ScriptVar == nullptr)
 		{
 			ScriptVar = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this));
+			ScriptVar->Init(Var, FNiagaraVariableMetaData());
 			UE_LOG(LogNiagaraEditor, Display, TEXT("Fixed null UNiagaraScriptVariable | variable %s | asset path %s"), *Var.GetName().ToString(), *GetPathName());
 		}
 		else
