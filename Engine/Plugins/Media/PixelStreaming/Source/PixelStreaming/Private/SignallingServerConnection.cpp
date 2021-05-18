@@ -298,6 +298,16 @@ void FSignallingServerConnection::OnConfig(const FJsonObjectPtr& Json)
 					IceServer.urls.push_back(to_string(Url));
 				}
 			}
+			else
+			{
+				// in the RTC Spec, "urls" can be an array or a single string
+				// https://www.w3.org/TR/webrtc/#dictionary-rtciceserver-members
+				FString UrlsSingle;
+				if ((*IceServerJson)->TryGetStringField(TEXT("urls"), UrlsSingle))
+				{
+					IceServer.urls.push_back(to_string(UrlsSingle));
+				}
+			}
 
 			FString Username;
 			if ((*IceServerJson)->TryGetStringField(TEXT("username"), Username))
