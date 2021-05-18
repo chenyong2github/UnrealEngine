@@ -103,7 +103,9 @@ float2 ComputeWeightedTextureAverageAlphaSubRegion(
 	return float2(Value, max(WeightTotal,0.0000000001f));
 }
 
-float4 EyeAdaptationCommon()
+#if COMPUTESHADER
+[numthreads(1, 1, 1)]
+void EyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	float4 OutColor = 0;
 
@@ -131,22 +133,7 @@ float4 EyeAdaptationCommon()
 	OutColor.y = MiddleGreyExposureCompensation * TargetExposureScale;
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = MiddleGreyExposureCompensation;
-
-	return OutColor;
-}
-
-void EyeAdaptationPS(float4 UVAndScreenPos : TEXCOORD0, 
-	out float4 OutColor : SV_Target0)
-{
-	OutColor = EyeAdaptationCommon();
-}
-
-#if COMPUTESHADER
-[numthreads(1, 1, 1)]
-void EyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
-{
-	float4 OutColor = EyeAdaptationCommon();
-
+	
 	uint2 PixelPos = DispatchThreadId;
 	RWEyeAdaptationTexture[PixelPos] = OutColor;
 }
