@@ -361,7 +361,7 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 	const bool bIsDedicatedServer = !GIsClient && GIsServer;
 
 	if (!GetOutermost()->bIsCookedForEditor && !bIsDedicatedServer)
-	{
+	{		
 		TArray<UNiagaraScript*> AllSystemScripts;
 		UNiagaraScriptSourceBase* SystemScriptSource;
 		if (SystemSpawnScript == nullptr)
@@ -841,11 +841,6 @@ void UNiagaraSystem::PostLoad()
 	// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the system was already subscribed to, and do not force the sync.
 	SynchronizeWithParameterDefinitions();
 	
-	// see the equivalent in NiagaraEmitter for details
-	if(bIsTemplateAsset_DEPRECATED)
-	{
-		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
-	}
 #endif // WITH_EDITORONLY_DATA
 
 	// we are not yet finished, but we do the rest of the work after postload in a separate task

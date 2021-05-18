@@ -592,7 +592,6 @@ void UNiagaraEmitter::PostLoad()
 			UE_LOG(LogNiagara, Warning, TEXT("Disabling interpolated spawn because emitter flag and script type don't match. Did you adjust this value in the UI? Emitter may need recompile.. %s"), *GetFullName());
 		}
 	}
-
 	EnsureScriptsPostLoaded();
 
 	FGraphEventArray ParentPrerequisiteTasks;
@@ -600,6 +599,11 @@ void UNiagaraEmitter::PostLoad()
 	if (Parent != nullptr && Parent->UpdateTaskRef.IsValid())
 	{
 		ParentPrerequisiteTasks.Add(Parent->UpdateTaskRef);
+	}
+	// this can only ever be true for old assets that haven't been loaded yet, so this won't overwrite subsequent changes to the template specification
+	if(bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
 	}
 #endif
 	
