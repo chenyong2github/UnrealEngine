@@ -11,6 +11,7 @@
 #include "SocketSubsystem.h"
 #include "NboSerializerEOS.h"
 #include "InternetAddrEOS.h"
+#include "IEOSSDKManager.h"
 
 #if WITH_EOS_SDK
 	#include "eos_sessions.h"
@@ -470,7 +471,7 @@ void FOnlineSessionEOS::Init(const FString& InBucketId)
 	SessionInviteAcceptedId = EOS_Sessions_AddNotifySessionInviteAccepted(EOSSubsystem->SessionsHandle, &Options, SessionInviteAcceptedCallbackObj, SessionInviteAcceptedCallbackObj->GetCallbackPtr());
 
 	// Lobbies
-	LobbyHandle = EOS_Platform_GetLobbyInterface(EOSSubsystem->EOSPlatformHandle);
+	LobbyHandle = EOS_Platform_GetLobbyInterface(*EOSSubsystem->EOSPlatformHandle);
 	RegisterLobbyNotifications();
 
 	bIsDedicatedServer = IsRunningDedicatedServer();

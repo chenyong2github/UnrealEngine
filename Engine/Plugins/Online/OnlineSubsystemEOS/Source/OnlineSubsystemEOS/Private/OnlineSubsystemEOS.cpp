@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemEOS.h"
+#include "OnlineSubsystemUtils.h"
 #include "UserManagerEOS.h"
 #include "OnlineSessionEOS.h"
 #include "OnlineStatsEOS.h"
@@ -23,18 +24,6 @@
 // Missing defines
 #define EOS_ENCRYPTION_KEY_MAX_LENGTH 64
 #define EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN (EOS_ENCRYPTION_KEY_MAX_LENGTH + 1)
-
-namespace {
-	IEOSSDKManager* GetEOSSDKManager()
-	{
-		const FName EOSSDKManagerFeatureName = TEXT("EOSSDKManager");
-		if (IModularFeatures::Get().IsModularFeatureAvailable(EOSSDKManagerFeatureName))
-		{
-			return &IModularFeatures::Get().GetModularFeature<IEOSSDKManager>(EOSSDKManagerFeatureName);
-		}
-		return nullptr;
-	}
-}
 
 /** Class that holds the strings for the call duration */
 struct FEOSPlatformOptions :
@@ -71,9 +60,9 @@ void FOnlineSubsystemEOS::ModuleInit()
 	const FName EOSSharedModuleName = TEXT("EOSShared");
 	if (!FModuleManager::Get().IsModuleLoaded(EOSSharedModuleName))
 	{
-		FModuleManager::Get().LoadModule(EOSSharedModuleName);
+		FModuleManager::Get().LoadModuleChecked(EOSSharedModuleName);
 	}
-	IEOSSDKManager* EOSSDKManager = GetEOSSDKManager();
+	IEOSSDKManager* EOSSDKManager = IEOSSDKManager::Get();
 	if (!EOSSDKManager)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: Missing IEOSSDKManager modular feature."));
@@ -114,11 +103,10 @@ bool FOnlineSubsystemEOS::PlatformCreate()
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to find artifact settings object for artifact (%s)"), *ArtifactName);
 		return false;
 	}
-
-	EOSSDKManager = GetEOSSDKManager();
+	EOSSDKManager = IEOSSDKManager::Get();
 	if (!EOSSDKManager)
 	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to init EOS platform"));
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to get EOSSDKManager interface"));
 		return false;
 	}
 
@@ -187,73 +175,73 @@ bool FOnlineSubsystemEOS::Init()
 	}
 
 	// Get handles for later use
-	AuthHandle = EOS_Platform_GetAuthInterface(EOSPlatformHandle);
+	AuthHandle = EOS_Platform_GetAuthInterface(*EOSPlatformHandle);
 	if (AuthHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get auth handle"));
 		return false;
 	}
-	UserInfoHandle = EOS_Platform_GetUserInfoInterface(EOSPlatformHandle);
+	UserInfoHandle = EOS_Platform_GetUserInfoInterface(*EOSPlatformHandle);
 	if (UserInfoHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get user info handle"));
 		return false;
 	}
-	UIHandle = EOS_Platform_GetUIInterface(EOSPlatformHandle);
+	UIHandle = EOS_Platform_GetUIInterface(*EOSPlatformHandle);
 	if (UIHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get UI handle"));
 		return false;
 	}
-	FriendsHandle = EOS_Platform_GetFriendsInterface(EOSPlatformHandle);
+	FriendsHandle = EOS_Platform_GetFriendsInterface(*EOSPlatformHandle);
 	if (FriendsHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get friends handle"));
 		return false;
 	}
-	PresenceHandle = EOS_Platform_GetPresenceInterface(EOSPlatformHandle);
+	PresenceHandle = EOS_Platform_GetPresenceInterface(*EOSPlatformHandle);
 	if (PresenceHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get presence handle"));
 		return false;
 	}
-	ConnectHandle = EOS_Platform_GetConnectInterface(EOSPlatformHandle);
+	ConnectHandle = EOS_Platform_GetConnectInterface(*EOSPlatformHandle);
 	if (ConnectHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get connect handle"));
 		return false;
 	}
-	SessionsHandle = EOS_Platform_GetSessionsInterface(EOSPlatformHandle);
+	SessionsHandle = EOS_Platform_GetSessionsInterface(*EOSPlatformHandle);
 	if (SessionsHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get sessions handle"));
 		return false;
 	}
-	StatsHandle = EOS_Platform_GetStatsInterface(EOSPlatformHandle);
+	StatsHandle = EOS_Platform_GetStatsInterface(*EOSPlatformHandle);
 	if (StatsHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get stats handle"));
 		return false;
 	}
-	LeaderboardsHandle = EOS_Platform_GetLeaderboardsInterface(EOSPlatformHandle);
+	LeaderboardsHandle = EOS_Platform_GetLeaderboardsInterface(*EOSPlatformHandle);
 	if (LeaderboardsHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get leaderboards handle"));
 		return false;
 	}
-	MetricsHandle = EOS_Platform_GetMetricsInterface(EOSPlatformHandle);
+	MetricsHandle = EOS_Platform_GetMetricsInterface(*EOSPlatformHandle);
 	if (MetricsHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get metrics handle"));
 		return false;
 	}
-	AchievementsHandle = EOS_Platform_GetAchievementsInterface(EOSPlatformHandle);
+	AchievementsHandle = EOS_Platform_GetAchievementsInterface(*EOSPlatformHandle);
 	if (AchievementsHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get achievements handle"));
 		return false;
 	}
-	P2PHandle = EOS_Platform_GetP2PInterface(EOSPlatformHandle);
+	P2PHandle = EOS_Platform_GetP2PInterface(*EOSPlatformHandle);
 	if (P2PHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get p2p handle"));
@@ -262,7 +250,7 @@ bool FOnlineSubsystemEOS::Init()
 	// Disable ecom if not part of EGS
 	if (bWasLaunchedByEGS)
 	{
-		EcomHandle = EOS_Platform_GetEcomInterface(EOSPlatformHandle);
+		EcomHandle = EOS_Platform_GetEcomInterface(*EOSPlatformHandle);
 		if (EcomHandle == nullptr)
 		{
 			UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get ecom handle"));
@@ -270,13 +258,13 @@ bool FOnlineSubsystemEOS::Init()
 		}
 		StoreInterfacePtr = MakeShareable(new FOnlineStoreEOS(this));
 	}
-	TitleStorageHandle = EOS_Platform_GetTitleStorageInterface(EOSPlatformHandle);
+	TitleStorageHandle = EOS_Platform_GetTitleStorageInterface(*EOSPlatformHandle);
 	if (TitleStorageHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get title storage handle"));
 		return false;
 	}
-	PlayerDataStorageHandle = EOS_Platform_GetPlayerDataStorageInterface(EOSPlatformHandle);
+	PlayerDataStorageHandle = EOS_Platform_GetPlayerDataStorageInterface(*EOSPlatformHandle);
 	if (PlayerDataStorageHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get player data storage handle"));
@@ -378,6 +366,38 @@ FString FOnlineSubsystemEOS::GetAppId() const
 FText FOnlineSubsystemEOS::GetOnlineServiceName() const
 {
 	return NSLOCTEXT("OnlineSubsystemEOS", "OnlineServiceName", "EOS");
+}
+
+FOnlineSubsystemEOS::FOnlineSubsystemEOS(FName InInstanceName) :
+	FOnlineSubsystemImpl(EOS_SUBSYSTEM, InInstanceName)
+	, EOSSDKManager(nullptr)
+	, AuthHandle(nullptr)
+	, UIHandle(nullptr)
+	, FriendsHandle(nullptr)
+	, UserInfoHandle(nullptr)
+	, PresenceHandle(nullptr)
+	, ConnectHandle(nullptr)
+	, SessionsHandle(nullptr)
+	, StatsHandle(nullptr)
+	, LeaderboardsHandle(nullptr)
+	, MetricsHandle(nullptr)
+	, AchievementsHandle(nullptr)
+	, P2PHandle(nullptr)
+	, EcomHandle(nullptr)
+	, TitleStorageHandle(nullptr)
+	, PlayerDataStorageHandle(nullptr)
+	, UserManager(nullptr)
+	, SessionInterfacePtr(nullptr)
+	, LeaderboardsInterfacePtr(nullptr)
+	, AchievementsInterfacePtr(nullptr)
+	, StoreInterfacePtr(nullptr)
+	, TitleFileInterfacePtr(nullptr)
+	, UserCloudInterfacePtr(nullptr)
+	, bWasLaunchedByEGS(false)
+	, bIsDefaultOSS(false)
+	, bIsPlatformOSS(false)
+{
+	StopTicker();
 }
 
 IOnlineSessionPtr FOnlineSubsystemEOS::GetSessionInterface() const
