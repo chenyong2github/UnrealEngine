@@ -28,10 +28,12 @@ public:
 	const TArray<UNegatableFilter*>& GetChildren() const;
 	
 	//~ Begin ULevelSnapshotFilter Interface
-	EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;
-	EFilterResult::Type IsPropertyValid(const FIsPropertyValidParams& Params) const override;
+	virtual EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;
+	virtual EFilterResult::Type IsPropertyValid(const FIsPropertyValidParams& Params) const override;
+	virtual EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const override;
+	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
 	//~ End ULevelSnapshotFilter Interface
-
+	
 	//~ Begin UEditorFilter Interface
 	virtual TArray<UEditorFilter*> GetEditorChildren();
 	virtual void IncrementEditorFilterBehavior(const bool bIncludeChildren = false) override;

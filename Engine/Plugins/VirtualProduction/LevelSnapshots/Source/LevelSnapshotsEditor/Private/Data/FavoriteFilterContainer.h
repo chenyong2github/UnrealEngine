@@ -17,6 +17,11 @@ class UFavoriteFilterContainer : public UObject
 {
 	GENERATED_BODY()
 public:
+
+	//~ Begin UObject Interface
+	virtual void PostInitProperties() override;
+	virtual void BeginDestroy() override;
+	//~ Begin UObject Interface
 	
 	void AddToFavorites(const TSubclassOf<ULevelSnapshotFilter>& NewFavoriteClass);
 	void RemoveFromFavorites(const TSubclassOf<ULevelSnapshotFilter>& NoLongerFavoriteClass);
@@ -40,6 +45,8 @@ public:
 	
 private:
 
+	void CleanseFavorites();
+	
 	void SetIncludeAllNativeClasses(bool bShouldIncludeNative);
 	void SetIncludeAllBlueprintClasses(bool bShouldIncludeBlueprint);
 	bool ShouldIncludeAllNativeClasses() const;
@@ -52,11 +59,13 @@ private:
 
 	
 	
-	// TODO: detect when blueprint class is deleted and remove it from Favorites and LoadedBlueprintClasses
-	
 	/* The filters the user selected to use. */
+	UPROPERTY()
 	TArray<TSubclassOf<ULevelSnapshotFilter>> Favorites;
+	
 	bool bIncludeAllNativeClasses = false;
 	bool bIncludeAllBlueprintClasses = false;
-	
+
+	/** So we can remove any filter classes that were favourited */
+	FDelegateHandle OnAssetDeleted;
 };

@@ -95,6 +95,22 @@ EFilterResult::Type UConjunctionFilter::IsPropertyValid(const FIsPropertyValidPa
 		});
 }
 
+EFilterResult::Type UConjunctionFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
+{
+	return ExecuteAndChain(Children, EditorFilterBehavior, [&Params](UNegatableFilter* Child)
+		{
+			return Child->IsDeletedActorValid(Params);
+		});
+}
+
+EFilterResult::Type UConjunctionFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
+{
+	return ExecuteAndChain(Children, EditorFilterBehavior, [&Params](UNegatableFilter* Child)
+		{
+			return Child->IsAddedActorValid(Params);
+		});
+}
+
 TArray<UEditorFilter*> UConjunctionFilter::GetEditorChildren()
 {
 	TArray<UEditorFilter*> EditorFilterChildren;

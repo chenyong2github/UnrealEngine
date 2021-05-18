@@ -3,13 +3,14 @@
 #include "SnapshotArchive.h"
 
 #include "ObjectSnapshotData.h"
+#include "SnapshotVersion.h"
 #include "WorldSnapshotData.h"
 
 #include "Internationalization/TextNamespaceUtil.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "UObject/ObjectMacros.h"
 
-void FSnapshotArchive::RestoreData(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage)
+void FSnapshotArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage)
 {
 	FSnapshotArchive Archive(InObjectData, InSharedData, true);
 #if USE_STABLE_LOCALIZATION_KEYS
@@ -159,5 +160,21 @@ FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnap
 	{
 		Super::SetIsLoading(false);
 		Super::SetIsSaving(true);
+	}
+
+	if (bIsLoading)
+	{
+		const FSnapshotVersionInfo& VersionInfo = InSharedData.GetSnapshotVersionInfo();
+		
+		Super::SetUE4Ver(VersionInfo.FileVersion.FileVersionUE4);
+		Super::SetLicenseeUE4Ver(VersionInfo.FileVersion.FileVersionLicenseeUE4);
+		Super::SetEngineVer(FEngineVersionBase(VersionInfo.EngineVersion.Major, VersionInfo.EngineVersion.Minor, VersionInfo.EngineVersion.Patch, VersionInfo.EngineVersion.Changelist));
+
+		FCustomVersionContainer EngineCustomVersions;
+		for (const FSnapshotCustomVersionInfo& CustomVersion : VersionInfo.CustomVersions)
+		{
+			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
+		}
+		Super::SetCustomVersions(EngineCustomVersions);
 	}
 }

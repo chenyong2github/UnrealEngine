@@ -169,6 +169,12 @@ void FWorldSnapshotData::OnCreateSnapshotWorld(UWorld* NewTempActorWorld)
 void FWorldSnapshotData::OnDestroySnapshotWorld()
 {
 	TempActorWorld.Reset();
+
+	// Avoid object leaking
+	for (auto ClassDefaultsIt = ClassDefaults.CreateIterator(); ClassDefaultsIt; ++ClassDefaultsIt)
+	{
+		ClassDefaultsIt->Value.CachedLoadedClassDefault = nullptr;
+	}
 }
 
 void FWorldSnapshotData::SnapshotWorld(UWorld* World)
@@ -180,12 +186,14 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 	SerializedNames.Empty();
 	SerializedObjectReferences.Empty();
 	Subobjects.Empty();
+	
+	SnapshotVersionInfo.Initialize();
 
 #if WITH_EDITOR
 	FScopedSlowTask TakeSnapshotTask(World->GetProgressDenominator(), LOCTEXT("TakeSnapshotKey", "Take snapshot"));
 	TakeSnapshotTask.MakeDialogDelayed(1.f);
 #endif
-	
+
 	for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 	{
 #if WITH_EDITOR
@@ -312,6 +320,214 @@ bool FWorldSnapshotData::AreReferencesEquivalent(UObject* SnapshotPropertyValue,
 	
 	// Compare external references, like a UMaterial in the content browser.
 	return SnapshotPropertyValue == OriginalPropertyValue;
+}
+
+int32 FWorldSnapshotData::AddObjectDependency(UObject* ReferenceFromOriginalObject)
+{
+	// TODO: Check whether subobject and track as such. Do this by walking up the chain of outers and determining whether it is owned by an actor or component.
+	return SerializedObjectReferences.AddUnique(ReferenceFromOriginalObject);
+}
+
+UObject* FWorldSnapshotData::ResolveObjectDependencyForSnapshotWorld(int32 ObjectPathIndex)
+{
+	if (!ensure(SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
+	{
+		return nullptr;
+	}
+	
+	const FSoftObjectPath& OriginalObjectPath = SerializedObjectReferences[ObjectPathIndex];
+	bool bIsPathToActorSubobject;
+	const TOptional<FActorSnapshotData*> SnapshotData = FindSavedActorDataUsingObjectPath(ActorData, OriginalObjectPath, bIsPathToActorSubobject);
+	
+	const bool bIsExternalAssetReference = !SnapshotData.IsSet();
+	if (bIsExternalAssetReference)
+	{
+		return ResolveExternalReference(OriginalObjectPath);
+	}
+
+	TOptional<AActor*> Result = SnapshotData.GetValue()->GetPreallocated(TempActorWorld->GetWorld(), *this);
+	if (!Result.IsSet())
+	{
+		return nullptr;
+	}
+
+	// Reference to actor
+	AActor* SnapshotActor = *Result;
+	const bool bIsPathToActor = !bIsPathToActorSubobject; 
+	if (bIsPathToActor)
+	{
+		return SnapshotActor;
+	}
+
+	// Reference to default subobjects, such as components, or an object we already allocated.
+	const FSoftObjectPath PathToSubobject = SetActorInPath(SnapshotActor, OriginalObjectPath);
+	if (UObject* DefaultSubobject = PathToSubobject.ResolveObject())
+	{
+		return DefaultSubobject;
+	}
+
+	// TODO: The subobject is instanced. Recreate it here using Subobjects.Find(ObjectPathIndex) to recursively construct the subobject's outers
+	return nullptr;
+}
+
+UObject* FWorldSnapshotData::ResolveObjectDependencyForEditorWorld(int32 ObjectPathIndex, const FPropertySelectionMap& SelectionMap)
+{
+	if (!ensure(SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
+	{
+		return nullptr;
+	}
+	
+	const FSoftObjectPath& OriginalObjectPath = SerializedObjectReferences[ObjectPathIndex];
+
+	bool bIsPathToActorSubobject;
+	const TOptional<FActorSnapshotData*> SnapshotData = FindSavedActorDataUsingObjectPath(ActorData, OriginalObjectPath, bIsPathToActorSubobject);
+	
+	// Dealing with an external (asset) reference, e.g. a UMaterial?
+	const bool bIsExternalAssetReference = !SnapshotData.IsSet();
+	if (bIsExternalAssetReference)
+	{
+		return ResolveExternalReference(OriginalObjectPath);
+	}
+
+	UObject* ResolvedObject = OriginalObjectPath.ResolveObject();
+	// Actor reference?
+	const bool bIsReferenceToActor = !bIsPathToActorSubobject;
+	if (bIsReferenceToActor)
+	{
+		return ResolvedObject;
+	}
+
+
+	const FSubobjectSnapshotData* SubobjectData = Subobjects.Find(ObjectPathIndex);
+	if (!SubobjectData)
+	{
+		// This should not happen after release of 4.27. This is error may happen if certain snapshots in an older data format are applied because the data wasn't yet captured.
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("Trying to resolve a subobject but found no associated object data."));
+		return ResolvedObject;
+	}
+	
+	// TODO: Implement restoring subobjects, e.g. material instances, here
+	UClass* ExpectedClass = SubobjectData->Class.ResolveClass();
+	if (ResolvedObject == nullptr || !ensure(ExpectedClass) || ExpectedClass != ResolvedObject->GetClass())
+	{
+		// There was already a subobject with the same name but it is incompatible because is a different class.
+		// TODO: Allocate a new instance, serialize all data into it, and purge ResolvedObject by replacing all references to it
+	}
+	else
+	{
+		// Subobject of same name already exists and is compatible
+		// TODO: Check whether subobject is marked as serialized and if not serialize using SelectionMap 	
+	}
+	
+	return ResolvedObject;
+}
+
+UObject* FWorldSnapshotData::ResolveObjectDependencyForClassDefaultObject(int32 ObjectPathIndex)
+{
+	if (ensure(SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
+	{
+		const FSoftObjectPath& OriginalObjectPath = SerializedObjectReferences[ObjectPathIndex];
+		return ResolveExternalReference(OriginalObjectPath);
+	}
+	return nullptr;
+}
+
+int32 FWorldSnapshotData::AddSubobjectDependency(UObject* ReferenceFromOriginalObject)
+{
+	const int32 Index = AddObjectDependency(ReferenceFromOriginalObject);
+	const bool bSubobjectAlreadyRegistered = Subobjects.Contains(Index);
+	if (!bSubobjectAlreadyRegistered)
+	{
+		FSubobjectSnapshotData& SubobjectData = Subobjects.Add(Index);
+		UClass* Class = ReferenceFromOriginalObject->GetClass();
+
+		SubobjectData.Class = Class;
+		SubobjectData.OuterIndex = AddObjectDependency(ReferenceFromOriginalObject->GetOuter());
+
+		FTakeWorldObjectSnapshotArchive Serializer = FTakeWorldObjectSnapshotArchive::MakeArchiveForSavingWorldObject(SubobjectData, *this, ReferenceFromOriginalObject);
+		ReferenceFromOriginalObject->Serialize(Serializer);
+
+		AddClassDefault(Class);
+	}
+	
+	return Index;
+}
+
+void FWorldSnapshotData::AddClassDefault(UClass* Class)
+{
+	if (!ClassDefaults.Contains(Class))
+	{
+		FObjectSnapshotData& ClassData = ClassDefaults.Add(Class);
+		FTakeClassDefaultObjectSnapshotArchive::SaveClassDefaultObject(ClassData, *this, Class->GetDefaultObject());
+	}
+}
+
+UObject* FWorldSnapshotData::GetClassDefault(UClass* Class)
+{
+	FClassDefaultObjectSnapshotData* ClassDefaultData = ClassDefaults.Find(Class);
+	if (!ClassDefaultData)
+	{
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("No saved CDO data available for class %s. Returning global CDO..."), *Class->GetName());
+		return Class->GetDefaultObject();
+	}
+
+	if (IsValid(ClassDefaultData->CachedLoadedClassDefault))
+	{
+		return ClassDefaultData->CachedLoadedClassDefault;
+	}
+	
+	UObject* CDO = NewObject<UObject>(
+		GetTransientPackage(),
+		Class,
+		*FString("SnapshotCDO_").Append(*MakeUniqueObjectName(GetTransientPackage(), Class).ToString())
+		);
+	FApplyClassDefaulDataArchive::SerializeClassDefaultObject(*ClassDefaultData, *this, CDO);
+
+	ClassDefaultData->CachedLoadedClassDefault = CDO;
+	return CDO;
+}
+
+void FWorldSnapshotData::SerializeClassDefaultsInto(UObject* Object)
+{
+	FClassDefaultObjectSnapshotData* ClassDefaultData = ClassDefaults.Find(Object->GetClass());
+	if (ClassDefaultData)
+	{
+		FApplyClassDefaulDataArchive::RestoreChangedClassDefaults(*ClassDefaultData, *this, Object);
+	}
+	else
+	{
+		UE_LOG(LogLevelSnapshots, Warning,
+			TEXT("No CDO saved for class '%s'. If you changed some class default values for this class, then the affected objects will have the latest values instead of the class defaults at the time the snapshot was taken. Should be nothing major to worry about."),
+			*Object->GetClass()->GetName()
+			);
+	}
+}
+
+const FSnapshotVersionInfo& FWorldSnapshotData::GetSnapshotVersionInfo() const
+{
+	return SnapshotVersionInfo;
+}
+
+void FWorldSnapshotData::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading() && !SnapshotVersionInfo.IsInitialized())
+	{
+		SnapshotVersionInfo.Initialize();
+	}
+}
+
+UObject* FWorldSnapshotData::ResolveExternalReference(const FSoftObjectPath& ObjectPath)
+{
+	UObject* ExternalReference = ObjectPath.ResolveObject();
+	const bool bNeedsToLoadFromDisk = ExternalReference == nullptr;
+	if (bNeedsToLoadFromDisk)
+	{
+		ExternalReference = ObjectPath.TryLoad();
+	}
+		
+	// We're supposed to be dealing with an external (asset) reference, e.g. a UMaterial.
+	ensureAlwaysMsgf(ExternalReference == nullptr || (!ExternalReference->IsA<AActor>() && !ExternalReference->IsA<UActorComponent>()), TEXT("Something is wrong. We just checked that the reference is not a world object but it is an actor or component."));
+	return ExternalReference;
 }
 
 void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(const FPropertySelectionMap& PropertiesToSerialize)
@@ -454,193 +670,6 @@ void FWorldSnapshotData::ApplyToWorld_HandleSerializingMatchingActors(TSet<AActo
 				}
 			}
 		}
-	}
-}
-
-int32 FWorldSnapshotData::AddObjectDependency(UObject* ReferenceFromOriginalObject)
-{
-	// TODO: Check whether subobject and track as such. Do this by walking up the chain of outers and determining whether it is owned by an actor or component.
-	return SerializedObjectReferences.AddUnique(ReferenceFromOriginalObject);
-}
-
-UObject* FWorldSnapshotData::ResolveObjectDependencyForSnapshotWorld(int32 ObjectPathIndex)
-{
-	if (!ensure(SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
-	{
-		return nullptr;
-	}
-	
-	const FSoftObjectPath& OriginalObjectPath = SerializedObjectReferences[ObjectPathIndex];
-	bool bIsPathToActorSubobject;
-	const TOptional<FActorSnapshotData*> SnapshotData = FindSavedActorDataUsingObjectPath(ActorData, OriginalObjectPath, bIsPathToActorSubobject);
-	
-	const bool bIsExternalAssetReference = !SnapshotData.IsSet();
-	if (bIsExternalAssetReference)
-	{
-		// We're dealing with an external (asset) reference, e.g. a UMaterial.
-		UObject* ExternalReference = OriginalObjectPath.ResolveObject();
-		ensureAlwaysMsgf(ExternalReference == nullptr || (!ExternalReference->IsA<AActor>() && !ExternalReference->IsA<UActorComponent>()), TEXT("Something is wrong. We just checked that the reference is not a world object but it is an actor or component."));
-		return ExternalReference;
-	}
-
-	TOptional<AActor*> Result = SnapshotData.GetValue()->GetPreallocated(TempActorWorld->GetWorld(), *this);
-	if (!Result.IsSet())
-	{
-		return nullptr;
-	}
-
-	// Reference to actor
-	AActor* SnapshotActor = *Result;
-	const bool bIsPathToActor = !bIsPathToActorSubobject; 
-	if (bIsPathToActor)
-	{
-		return SnapshotActor;
-	}
-
-	// Reference to default subobjects, such as components, or an object we already allocated.
-	const FSoftObjectPath PathToSubobject = SetActorInPath(SnapshotActor, OriginalObjectPath);
-	if (UObject* DefaultSubobject = PathToSubobject.ResolveObject())
-	{
-		return DefaultSubobject;
-	}
-
-	// TODO: The subobject is instanced. Recreate it here using Subobjects.Find(ObjectPathIndex) to recursively construct the subobject's outers
-	return nullptr;
-}
-
-UObject* FWorldSnapshotData::ResolveObjectDependencyForEditorWorld(int32 ObjectPathIndex, const FPropertySelectionMap& SelectionMap)
-{
-	if (!ensure(SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
-	{
-		return nullptr;
-	}
-	
-	const FSoftObjectPath& OriginalObjectPath = SerializedObjectReferences[ObjectPathIndex];
-
-	bool bIsPathToActorSubobject;
-	const TOptional<FActorSnapshotData*> SnapshotData = FindSavedActorDataUsingObjectPath(ActorData, OriginalObjectPath, bIsPathToActorSubobject);
-	UObject* ResolvedObject = OriginalObjectPath.ResolveObject();
-	
-	// Dealing with an external (asset) reference, e.g. a UMaterial?
-	const bool bIsExternalAssetReference = !SnapshotData.IsSet();
-	if (bIsExternalAssetReference)
-	{
-		ensureAlwaysMsgf(ResolvedObject == nullptr || (!ResolvedObject->IsA<AActor>() && !ResolvedObject->IsA<UActorComponent>()), TEXT("Something is wrong. We just checked that the reference is not a world object but it is an actor or component."));
-		return ResolvedObject;
-	}
-
-	// Actor reference?
-	const bool bIsReferenceToActor = !bIsPathToActorSubobject;
-	if (bIsReferenceToActor)
-	{
-		return ResolvedObject;
-	}
-
-
-
-	const FSubobjectSnapshotData* SubobjectData = Subobjects.Find(ObjectPathIndex);
-	if (!SubobjectData)
-	{
-		// This should not happen after release of 4.27. This is error may happen if certain snapshots in an older data format are applied because the data wasn't yet captured.
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Trying to resolve a subobject but found no associated object data."));
-		return ResolvedObject;
-	}
-	
-	// TODO: Implement restoring subobjects, e.g. material instances, here
-	UClass* ExpectedClass = SubobjectData->Class.ResolveClass();
-	if (ResolvedObject == nullptr || !ensure(ExpectedClass) || ExpectedClass != ResolvedObject->GetClass())
-	{
-		// There was already a subobject with the same name but it is incompatible because is a different class.
-		// TODO: Allocate a new instance, serialize all data into it, and purge ResolvedObject by replacing all references to it
-	}
-	else
-	{
-		// Subobject of same name already exists and is compatible
-		// TODO: Check whether subobject is marked as serialized and if not serialize using SelectionMap 	
-	}
-	
-	return ResolvedObject;
-}
-
-UObject* FWorldSnapshotData::ResolveObjectDependencyForClassDefaultObject(int32 ObjectPathIndex)
-{
-	if (!ensure(SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
-	{
-		return nullptr;
-	}
-	
-	const FSoftObjectPath& OriginalObjectPath = SerializedObjectReferences[ObjectPathIndex];
-	return OriginalObjectPath.ResolveObject();
-}
-
-int32 FWorldSnapshotData::AddSubobjectDependency(UObject* ReferenceFromOriginalObject)
-{
-	const int32 Index = AddObjectDependency(ReferenceFromOriginalObject);
-	const bool bSubobjectAlreadyRegistered = Subobjects.Contains(Index);
-	if (!bSubobjectAlreadyRegistered)
-	{
-		FSubobjectSnapshotData& SubobjectData = Subobjects.Add(Index);
-		UClass* Class = ReferenceFromOriginalObject->GetClass();
-
-		SubobjectData.Class = Class;
-		SubobjectData.OuterIndex = AddObjectDependency(ReferenceFromOriginalObject->GetOuter());
-
-		FTakeWorldObjectSnapshotArchive Serializer = FTakeWorldObjectSnapshotArchive::MakeArchiveForSavingWorldObject(SubobjectData, *this, ReferenceFromOriginalObject);
-		ReferenceFromOriginalObject->Serialize(Serializer);
-
-		AddClassDefault(Class);
-	}
-	
-	return Index;
-}
-
-void FWorldSnapshotData::AddClassDefault(UClass* Class)
-{
-	if (!ClassDefaults.Contains(Class))
-	{
-		FObjectSnapshotData& ClassData = ClassDefaults.Add(Class);
-		FTakeClassDefaultObjectSnapshotArchive::SaveClassDefaultObject(ClassData, *this, Class->GetDefaultObject());
-	}
-}
-
-UObject* FWorldSnapshotData::GetClassDefault(UClass* Class)
-{
-	FClassDefaultObjectSnapshotData* ClassDefaultData = ClassDefaults.Find(Class);
-	if (!ClassDefaultData)
-	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("No saved CDO data available for class %s. Returning global CDO..."), *Class->GetName());
-		return Class->GetDefaultObject();
-	}
-
-	if (IsValid(ClassDefaultData->CachedLoadedClassDefault))
-	{
-		return ClassDefaultData->CachedLoadedClassDefault;
-	}
-	
-	UObject* CDO = NewObject<UObject>(
-		GetTransientPackage(),
-		Class,
-		*FString("SnapshotCDO_").Append(*MakeUniqueObjectName(GetTransientPackage(), Class).ToString())
-		);
-	FApplyClassDefaulDataArchive::SerializeClassDefaultObject(*ClassDefaultData, *this, CDO);
-
-	ClassDefaultData->CachedLoadedClassDefault = CDO;
-	return CDO;
-}
-
-void FWorldSnapshotData::SerializeClassDefaultsInto(UObject* Object)
-{
-	FClassDefaultObjectSnapshotData* ClassDefaultData = ClassDefaults.Find(Object->GetClass());
-	if (ClassDefaultData)
-	{
-		FApplyClassDefaulDataArchive::RestoreChangedClassDefaults(*ClassDefaultData, *this, Object);
-	}
-	else
-	{
-		UE_LOG(LogLevelSnapshots, Warning,
-			TEXT("No CDO saved for class '%s'. If you changed some class default values for this class, then the affected objects will have the latest values instead of the class defaults at the time the snapshot was taken. Should be nothing major to worry about."),
-			*Object->GetClass()->GetName()
-			);
 	}
 }
 
