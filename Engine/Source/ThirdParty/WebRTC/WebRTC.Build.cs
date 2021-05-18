@@ -50,14 +50,12 @@ public class WebRTC : ModuleRules
 			{
 				PublicDefinitions.Add("WEBRTC_WIN=1");
 
-
 				string IncludePath = Path.Combine(WebRtcSdkPath, "Include");
 				PublicSystemIncludePaths.Add(IncludePath);
 				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "third_party", "abseil-cpp");
 				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
-				string CppStandardVersionFolder = Target.CppStandard == CppStandardVersion.Cpp17 ? "Cpp17" : "Cpp11";
-				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, CppStandardVersionFolder, ConfigPath);
+				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, ConfigPath);
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
 
 				// Additional System library
