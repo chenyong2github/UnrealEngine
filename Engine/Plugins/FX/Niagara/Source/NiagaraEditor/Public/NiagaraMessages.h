@@ -252,7 +252,7 @@ struct NIAGARAEDITOR_API FNiagaraStackMessage
 	ENiagaraMessageSeverity MessageSeverity = ENiagaraMessageSeverity::Info;
 
 	UPROPERTY()
-	bool bAllowDismissal;
+	bool bAllowDismissal = true;
 
 	UPROPERTY()
 	FGuid Guid;
