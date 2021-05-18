@@ -81,12 +81,32 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		bool IsValid() const			{ return RestResource != nullptr; }
 		const FBox& GetBounds() const	{ return BulkData.GetBounds(); }
 
+		uint32 GetDataSize() const
+		{
+			uint32 Total = 0;
+			Total += BulkData.Positions.GetAllocatedSize();
+			Total += BulkData.Attributes.GetAllocatedSize();
+			Total += BulkData.Materials.GetAllocatedSize();
+			Total += BulkData.CurveOffsets.GetAllocatedSize();
+			return Total;
+		}
+
 		FHairStrandsBulkData				BulkData;
 		FHairStrandsRestResource*			RestResource = nullptr;
 	};
 
 	struct FBaseWithInterpolation : FBase
 	{
+		uint32 GetDataSize() const
+		{
+			uint32 Total = 0;
+			Total += FBase::GetDataSize();
+			Total += InterpolationBulkData.Interpolation0.GetAllocatedSize();
+			Total += InterpolationBulkData.Interpolation1.GetAllocatedSize();
+			Total += InterpolationBulkData.SimRootPointIndex.GetAllocatedSize();
+			return Total;
+		}
+
 		FHairStrandsInterpolationBulkData	InterpolationBulkData;
 		FHairStrandsInterpolationResource*	InterpolationResource = nullptr;
 	};
@@ -103,6 +123,14 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			if (RestResource) Total += RestResource->GetResourcesSize();
 			return Total;
 		}
+
+		uint32 GetDataSize() const
+		{
+			uint32 Total = 0;
+			Total += FBase::GetDataSize();
+			return Total;
+		}
+
 	} Guides;
 
 	struct FStrands : FBaseWithInterpolation
@@ -117,6 +145,20 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			#if RHI_RAYTRACING
 			if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
 			#endif
+			return Total;
+		}
+
+		uint32 GetDataSize() const
+		{
+			uint32 Total = 0;
+			Total += FBaseWithInterpolation::GetDataSize();
+
+			Total += ClusterCullingData.LODVisibility.GetAllocatedSize();
+			Total += ClusterCullingData.CPULODScreenSize.GetAllocatedSize();
+			Total += ClusterCullingData.ClusterInfos.GetAllocatedSize();
+			Total += ClusterCullingData.ClusterLODInfos.GetAllocatedSize();
+			Total += ClusterCullingData.VertexToClusterIds.GetAllocatedSize();
+			Total += ClusterCullingData.ClusterVertexIds.GetAllocatedSize();
 			return Total;
 		}
 
@@ -163,6 +205,16 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			return Total;
 		}
 
+		uint32 GetDataSize() const
+		{
+			uint32 Total = 0;
+			for (const FLOD& LOD : LODs)
+			{
+				Total += LOD.GetDataSize();
+			}
+			return Total;
+		}
+
 		struct FLOD
 		{
 			/* Return the memory size for GPU resources */
@@ -174,6 +226,20 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 				#if RHI_RAYTRACING
 				if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
 				#endif
+				return Total;
+			}
+
+			uint32 GetDataSize() const
+			{
+				uint32 Total = 0;
+				Total += BulkData.Positions.GetAllocatedSize();
+				Total += BulkData.Normals.GetAllocatedSize();
+				Total += BulkData.UVs.GetAllocatedSize();
+				Total += BulkData.Indices.GetAllocatedSize();
+
+				Total += InterpolationBulkData.Interpolation.GetAllocatedSize();
+
+				Total += Guides.GetDataSize();
 				return Total;
 			}
 
@@ -232,6 +298,16 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			return Total;
 		}
 
+		uint32 GetDataSize() const
+		{
+			uint32 Total = 0;
+			for (const FLOD& LOD : LODs)
+			{
+				Total += LOD.GetDataSize();
+			}
+			return Total;
+		}
+
 		struct FLOD
 		{
 			/* Return the memory size for GPU resources */
@@ -242,6 +318,16 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 				#if RHI_RAYTRACING
 				if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
 				#endif
+				return Total;
+			}
+
+			uint32 GetDataSize() const
+			{
+				uint32 Total = 0;
+				Total += BulkData.Positions.GetAllocatedSize();
+				Total += BulkData.Normals.GetAllocatedSize();
+				Total += BulkData.UVs.GetAllocatedSize();
+				Total += BulkData.Indices.GetAllocatedSize();
 				return Total;
 			}
 
