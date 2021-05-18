@@ -46,7 +46,7 @@ FReply FBlendSampleDetails::HandleAnalyzeAndDuplicateSample()
 		FSlateApplication::Get().DismissAllMenus();
 		bool bAnalyzed[3] = { false, false, false };
 		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
-		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+		FVector NewValue = BlendSpaceAnalysis::CalculateSampleValue(
 			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
 			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
 		NewValue.Z = OrigValue.Z;
@@ -64,7 +64,7 @@ FReply FBlendSampleDetails::HandleAnalyzeSample()
 	{
 		bool bAnalyzed[3] = { false, false, false };
 		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
-		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+		FVector NewValue = BlendSpaceAnalysis::CalculateSampleValue(
 			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
 			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
 		NewValue.Z = OrigValue.Z;
@@ -82,7 +82,7 @@ FReply FBlendSampleDetails::HandleAnalyzeSampleX()
 	{
 		bool bAnalyzed[3] = { false, false, false };
 		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
-		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+		FVector NewValue = BlendSpaceAnalysis::CalculateSampleValue(
 			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
 			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
 		NewValue.Y = OrigValue.Y;
@@ -101,7 +101,7 @@ FReply FBlendSampleDetails::HandleAnalyzeSampleY()
 	{
 		bool bAnalyzed[3] = { false, false, false };
 		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
-		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+		FVector NewValue = BlendSpaceAnalysis::CalculateSampleValue(
 			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
 			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
 		NewValue.X = OrigValue.X;
@@ -218,7 +218,7 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 
 		bool bShowAnalysis = false;
 		bool bAnalyzed[3] = { false, false, false };
-		FVector NewValue = FBlendSpaceAnalysis::CalculateSampleValue(
+		FVector NewValue = BlendSpaceAnalysis::CalculateSampleValue(
 			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation,
 			BlendSpace->GetBlendSample(SampleIndex).RateScale, 
 			BlendSpace->GetBlendSample(SampleIndex).SampleValue, bAnalyzed);
