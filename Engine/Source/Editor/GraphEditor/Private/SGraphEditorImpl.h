@@ -330,6 +330,9 @@ public:
 	virtual int32 GetNumberOfSelectedNodes() const override;
 
 	virtual UEdGraphNode* GetSingleSelectedNode() const override;
+
+	virtual SGraphPanel* GetGraphPanel() const override;
+	
 	// End of SGraphEditor interface
 protected:
 	//
