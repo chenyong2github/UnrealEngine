@@ -6,6 +6,7 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
+#include "Algo/AnyOf.h"
 #include "WorldPartitionRuntimeCell.generated.h"
 
 USTRUCT()
@@ -136,6 +137,10 @@ class UWorldPartitionRuntimeCell : public UObject
 
 	bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
 	const TArray<FName>& GetDataLayers() const { return DataLayers; }
+	bool HasAnyDataLayer(const TSet<FName>& InDataLayers) const
+	{
+		return Algo::AnyOf(DataLayers, [&InDataLayers](const FName& DataLayer) { return InDataLayers.Contains(DataLayer); });
+	}
 
 #if WITH_EDITOR
 	void SetDataLayers(const TArray<const UDataLayer*>& InDataLayers);

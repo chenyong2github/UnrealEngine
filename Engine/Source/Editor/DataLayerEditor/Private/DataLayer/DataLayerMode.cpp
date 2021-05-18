@@ -4,6 +4,7 @@
 #include "SSceneOutliner.h"
 #include "SDataLayerBrowser.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "DataLayerHierarchy.h"
 #include "DataLayerActorTreeItem.h"
 #include "DataLayerTreeItem.h"

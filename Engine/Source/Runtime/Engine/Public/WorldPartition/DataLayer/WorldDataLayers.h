@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Info.h"
+#include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldDataLayers.generated.h"
 
 class UDataLayer;
@@ -39,6 +40,28 @@ public:
 	void ForEachDataLayer(TFunctionRef<bool(class UDataLayer*)> Func);
 	void ForEachDataLayer(TFunctionRef<bool(class UDataLayer*)> Func) const;
 
+	UFUNCTION(Server, Reliable)
+	void SetDataLayerState(FActorDataLayer InDataLayer, EDataLayerState InState);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void OnDataLayerStateChanged(const UDataLayer* InDataLayer, EDataLayerState InState);
+
+	EDataLayerState GetDataLayerStateByName(FName InDataLAyerName) const;
+
+	const TSet<FName>& GetActiveDataLayerNames() const { return ActiveDataLayerNames; }
+	const TSet<FName>& GetLoadedDataLayerNames() const { return LoadedDataLayerNames; }
+
+	static int32 GetDataLayersStateEpoch() { return DataLayersStateEpoch; }
+
+protected:
+	void InitializeDataLayerStates();
+
+	UFUNCTION()
+	void OnRep_ActiveDataLayerNames();
+
+	UFUNCTION()
+	void OnRep_LoadedDataLayerNames();
+
 private:
 #if !WITH_EDITOR
 	TMap<FName, const UDataLayer*> LabelToDataLayer;
@@ -47,4 +70,16 @@ private:
 
 	UPROPERTY()
 	TSet<TObjectPtr<UDataLayer>> WorldDataLayers;
+
+	UPROPERTY(Transient, Replicated, ReplicatedUsing=OnRep_ActiveDataLayerNames)
+	TArray<FName> RepActiveDataLayerNames;
+		
+	UPROPERTY(Transient, Replicated, ReplicatedUsing=OnRep_LoadedDataLayerNames)
+	TArray<FName> RepLoadedDataLayerNames;
+
+	// TSet do not support replication so we replicate an array and update the set in the OnRep_ActiveDataLayerNames/OnRep_LoadedDataLayerNames
+	TSet<FName> ActiveDataLayerNames;
+	TSet<FName> LoadedDataLayerNames;
+
+	static int32 DataLayersStateEpoch;
 };

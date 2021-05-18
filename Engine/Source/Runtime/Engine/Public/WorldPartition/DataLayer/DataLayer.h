@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
-#include "WorldDataLayers.h"
 #include "ActorDataLayer.h"
 #include "Math/Color.h"
 
