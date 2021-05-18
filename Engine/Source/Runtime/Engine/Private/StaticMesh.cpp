@@ -5732,6 +5732,12 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	SetRenderData(MakeUnique<FStaticMeshRenderData>());
 	GetRenderData()->AllocateLODResources(MeshDescriptions.Num());
 
+	FStaticMeshLODResourcesArray& LODResourcesArray = GetRenderData()->LODResources;
+	for (int32 LODIndex = 0; LODIndex < LODResourcesArray.Num(); ++LODIndex)
+	{
+		LODResourcesArray[LODIndex].IndexBuffer.TrySetAllowCPUAccess(bAllowCPUAccess | Params.bAllowCpuAccess);
+	}
+
 	// Build render data from each mesh description
 
 #if WITH_EDITOR

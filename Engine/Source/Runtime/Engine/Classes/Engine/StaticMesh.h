@@ -1325,6 +1325,7 @@ public:
 			, bBuildSimpleCollision(false)
 			, bCommitMeshDescription(true)
 			, bFastBuild(false)
+			, bAllowCpuAccess(false)
 		{}
 
 		/**
@@ -1354,6 +1355,11 @@ public:
 		 * Set to false by default.
 		 */
 		bool bFastBuild;
+
+		/**
+		 * Ored with the value of bAllowCpuAccess on the static mesh. Set to false by default.
+		 */
+		bool bAllowCpuAccess;
 	};
 
 	/**
