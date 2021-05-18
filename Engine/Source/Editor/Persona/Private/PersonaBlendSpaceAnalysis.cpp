@@ -1383,7 +1383,7 @@ static TArray<IBlendSpaceAnalysisFeature*> GetAnalysisFeatures()
 }
 
 //======================================================================================================================
-FVector FBlendSpaceAnalysis::CalculateSampleValue(const UBlendSpace& BlendSpace, const UAnimSequence& Animation,
+FVector BlendSpaceAnalysis::CalculateSampleValue(const UBlendSpace& BlendSpace, const UAnimSequence& Animation,
 												  const float RateScale, const FVector& OriginalPosition, bool bAnalyzed[3])
 {
 
@@ -1408,7 +1408,7 @@ FVector FBlendSpaceAnalysis::CalculateSampleValue(const UBlendSpace& BlendSpace,
 }
 
 //======================================================================================================================
-UAnalysisProperties* FBlendSpaceAnalysis::MakeAnalysisProperties(UObject* Outer, const FString& FunctionName)
+UAnalysisProperties* BlendSpaceAnalysis::MakeAnalysisProperties(UObject* Outer, const FString& FunctionName)
 {
 	UAnalysisProperties* Result = nullptr;
 
@@ -1425,7 +1425,7 @@ UAnalysisProperties* FBlendSpaceAnalysis::MakeAnalysisProperties(UObject* Outer,
 }
 
 //======================================================================================================================
-TArray<FString> FBlendSpaceAnalysis::GetAnalysisFunctions()
+TArray<FString> BlendSpaceAnalysis::GetAnalysisFunctions()
 {
 	TArray<FString> FunctionNames;
 	TArray<IBlendSpaceAnalysisFeature*> ModularFeatures = GetAnalysisFeatures();
@@ -1440,6 +1440,11 @@ TArray<FString> FBlendSpaceAnalysis::GetAnalysisFunctions()
 	return FunctionNames;
 }
 
+//======================================================================================================================
+bool BlendSpaceAnalysis::GetLockAfterAnalysis(const TObjectPtr<UAnalysisProperties>& AnalysisProperties)
+{
+	return AnalysisProperties ? AnalysisProperties->bLockAfterAnalysis : false;
+}
 
 
 #undef LOCTEXT_NAMESPACE

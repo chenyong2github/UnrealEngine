@@ -150,12 +150,6 @@ void SBlendSpaceEditor::OnSampleRemoved(const int32 SampleIndex)
 }
 
 //======================================================================================================================
-static bool GetLockAfterAnalysis(const TObjectPtr<UAnalysisProperties>& AnalysisProperties)
-{
-	return AnalysisProperties ? AnalysisProperties->bLockAfterAnalysis : false;
-}
-
-//======================================================================================================================
 int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& Value)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("AddSample", "Adding Blend Grid Sample"));
@@ -165,7 +159,7 @@ int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& 
 
 	if(BlendSpace->IsAsset())
 	{
-		AdjustedValue = FBlendSpaceAnalysis::CalculateSampleValue(*BlendSpace, *Animation, 1.0f, Value, bAnalyzed);
+		AdjustedValue = BlendSpaceAnalysis::CalculateSampleValue(*BlendSpace, *Animation, 1.0f, Value, bAnalyzed);
 	}
 		
 	int32 NewSampleIndex = -1;
@@ -182,10 +176,11 @@ int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& 
 	if (NewSampleIndex >= 0)
 	{
 		BlendSpace->Modify();
-		BlendSpace->LockSample(NewSampleIndex,
-							   bAnalyzed[0] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]) : false,
-							   bAnalyzed[1] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]) : false,
-							   bAnalyzed[2] ? GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]) : false);
+		BlendSpace->LockSample(
+			NewSampleIndex,
+			bAnalyzed[0] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]) : false,
+			bAnalyzed[1] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]) : false,
+			bAnalyzed[2] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]) : false);
 
 		ResampleData();
 		BlendSpace->ValidateSampleData();
