@@ -124,6 +124,21 @@ void FNiagaraSystemGpuComputeProxy::QueueTick(const FNiagaraGPUSystemTick& Tick)
 
 	//-OPT: Making a copy of the tick here, reduce this.
 	PendingTicks.Add(Tick);
+
+	// Consume DataInterface instance data
+	//-TODO: This should be consumed as the command in executed rather than here, otherwise ticks are not processed correctly
+	//       However an audit of all data interfaces is required to ensure they pass data safely, for example the skeletal mesh one does not
+	if (Tick.DIInstanceData)
+	{
+		uint8* BasePointer = (uint8*)Tick.DIInstanceData->PerInstanceDataForRT;
+
+		for (auto& Pair : Tick.DIInstanceData->InterfaceProxiesToOffsets)
+		{
+			FNiagaraDataInterfaceProxy* Proxy = Pair.Key;
+			uint8* InstanceDataPtr = BasePointer + Pair.Value;
+			Proxy->ConsumePerInstanceDataFromGameThread(InstanceDataPtr, Tick.SystemInstanceID);
+		}
+	}
 }
 
 void FNiagaraSystemGpuComputeProxy::ReleaseTicks(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager)
