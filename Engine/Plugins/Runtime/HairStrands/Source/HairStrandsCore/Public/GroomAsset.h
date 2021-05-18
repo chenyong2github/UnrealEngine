@@ -102,6 +102,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		{
 			uint32 Total = 0;
 			Total += FBase::GetDataSize();
+			Total += InterpolationBulkData.Interpolation.GetAllocatedSize();
 			Total += InterpolationBulkData.Interpolation0.GetAllocatedSize();
 			Total += InterpolationBulkData.Interpolation1.GetAllocatedSize();
 			Total += InterpolationBulkData.SimRootPointIndex.GetAllocatedSize();

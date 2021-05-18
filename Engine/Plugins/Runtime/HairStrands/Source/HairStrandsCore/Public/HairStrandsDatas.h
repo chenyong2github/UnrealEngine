@@ -51,6 +51,16 @@ struct FHairMaterialVertex
 	uint8 Roughness;
 };
 
+struct FHairInterpolationVertex
+{
+	typedef uint32 BulkType;
+
+	// Guide's vertex index are stored onto 24bits: 1) VertexGuideIndex0 is the lower part, 2) VertexGuideIndex1 is the upper part
+	uint16 VertexGuideIndex0;
+	uint8  VertexGuideIndex1;
+	uint8  VertexLerp;
+};
+
 struct FHairInterpolation0Vertex
 {
 	typedef uint64 BulkType;
@@ -146,6 +156,17 @@ struct FHairStrandsTangentFormat
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
 	static const EPixelFormat Format = PF_R8G8B8A8_SNORM;
+};
+
+struct FHairStrandsInterpolationFormat
+{
+	typedef FHairInterpolationVertex Type;
+	typedef uint32 BulkType;
+
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UShort2;
+	static const EPixelFormat Format = PF_R32_UINT;
 };
 
 struct FHairStrandsInterpolation0Format
@@ -282,14 +303,24 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 
 	/** Weight of vertex indices on simulation curve, ordered by closest influence */
 	TArray<FVector>	PointsSimCurvesVertexWeights;
+
+	/** True, if interpolation data are built using a single guide */
+	bool bUseUniqueGuide = false;
 };
 
 struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
 {
+	enum EDataFlags
+	{
+		DataFlags_HasSingleGuideData = 1,
+	};
+
 	void Serialize(FArchive& Ar);
-	uint32 GetPointCount() const { return Interpolation0.Num(); };
-	TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...)
-	TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...)
+	uint32 Flags;
+	uint32 GetPointCount() const { return (!!(Flags & DataFlags_HasSingleGuideData)) ? Interpolation.Num() : Interpolation0.Num(); };
+	TArray<FHairStrandsInterpolationFormat::Type> Interpolation;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a single guide
+	TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
+	TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
 	TArray<FHairStrandsRootIndexFormat::Type> SimRootPointIndex;	// Per-rendering-vertex index of the sim-root vertex
 };
 

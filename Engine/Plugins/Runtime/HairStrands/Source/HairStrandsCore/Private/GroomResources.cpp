@@ -1006,21 +1006,30 @@ void FHairStrandsRootData::Reset()
 
 FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHairStrandsInterpolationBulkData& InBulkData) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
-	Interpolation0Buffer(), Interpolation1Buffer(), BulkData(InBulkData)
+	InterpolationBuffer(), Interpolation0Buffer(), Interpolation1Buffer(), BulkData(InBulkData)
 {
 }
 
 void FHairStrandsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
 	FRDGBufferUploader BufferUploader;
-	InternalCreateVertexBufferRDG<FHairStrandsInterpolation0Format>(GraphBuilder, BufferUploader, BulkData.Interpolation0, Interpolation0Buffer, TEXT("Hair.StrandsInterpolation_Interpolation0Buffer"), EHairResourceUsageType::Static);
-	InternalCreateVertexBufferRDG<FHairStrandsInterpolation1Format>(GraphBuilder, BufferUploader, BulkData.Interpolation1, Interpolation1Buffer, TEXT("Hair.StrandsInterpolation_Interpolation1Buffer"), EHairResourceUsageType::Static);
+	const bool bUseSingleGuide = !!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
+	if (bUseSingleGuide)
+	{
+		InternalCreateVertexBufferRDG<FHairStrandsInterpolationFormat>(GraphBuilder, BufferUploader, BulkData.Interpolation, InterpolationBuffer, TEXT("Hair.StrandsInterpolation_InterpolationBuffer"), EHairResourceUsageType::Static);
+	}
+	else
+	{
+		InternalCreateVertexBufferRDG<FHairStrandsInterpolation0Format>(GraphBuilder, BufferUploader, BulkData.Interpolation0, Interpolation0Buffer, TEXT("Hair.StrandsInterpolation_Interpolation0Buffer"), EHairResourceUsageType::Static);
+		InternalCreateVertexBufferRDG<FHairStrandsInterpolation1Format>(GraphBuilder, BufferUploader, BulkData.Interpolation1, Interpolation1Buffer, TEXT("Hair.StrandsInterpolation_Interpolation1Buffer"), EHairResourceUsageType::Static);
+	}
 	InternalCreateVertexBufferRDG<FHairStrandsRootIndexFormat>(GraphBuilder, BufferUploader, BulkData.SimRootPointIndex, SimRootPointIndexBuffer, TEXT("Hair.StrandsInterpolation_SimRootPointIndex"), EHairResourceUsageType::Static);
 	BufferUploader.Submit(GraphBuilder);
 }
 
 void FHairStrandsInterpolationResource::InternalRelease()
 {
+	InterpolationBuffer.Release();
 	Interpolation0Buffer.Release();
 	Interpolation1Buffer.Release();
 	SimRootPointIndexBuffer.Release();
