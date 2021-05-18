@@ -2747,7 +2747,6 @@ void UEngine::InitializeObjectReferences()
 	LoadEngineTexture(DefaultDiffuseTexture, *DefaultDiffuseTextureName.ToString());
 	LoadEngineTexture(HighFrequencyNoiseTexture, *HighFrequencyNoiseTextureName.ToString());
 	LoadEngineTexture(DefaultBokehTexture, *DefaultBokehTextureName.ToString());
-	LoadEngineTexture(DefaultBloomKernelTexture, *DefaultBloomKernelTextureName.ToString());
 	LoadEngineTexture(PreIntegratedSkinBRDFTexture, *PreIntegratedSkinBRDFTextureName.ToString());
 	LoadEngineTexture(MiniFontTexture, *MiniFontTextureName.ToString());
 	LoadEngineTexture(WeightMapPlaceholderTexture, *WeightMapPlaceholderTextureName.ToString());
@@ -2890,6 +2889,14 @@ void UEngine::InitializeObjectReferences()
 
 	UUserInterfaceSettings* UISettings = GetMutableDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
 	UISettings->ForceLoadResources();
+}
+
+void UEngine::LoadDefaultBloomTexture()
+{
+	if (DefaultBloomKernelTexture == nullptr)
+	{
+		LoadEngineTexture(DefaultBloomKernelTexture, *DefaultBloomKernelTextureName.ToString());
+	}
 }
 
 void UEngine::InitializePortalServices()
