@@ -121,20 +121,18 @@ public:
 	}
 
 
-	void SelectVertexOneRing(int vid) {
-		for (int tid : Mesh->VtxTrianglesItr(vid))
+	void SelectVertexOneRing(int vid) 
+	{
+		Mesh->EnumerateVertexTriangles(vid, [&](int tid)
 		{
 			add(tid);
-		}
+		});
 	}
 	void SelectVertexOneRings(TArrayView<const int> Vertices)
 	{
 		for (int vid : Vertices)
 		{
-			for (int tid : Mesh->VtxTrianglesItr(vid))
-			{
-				add(tid);
-			}
+			SelectVertexOneRing(vid);
 		}
 	}
 
@@ -259,6 +257,26 @@ public:
 		return Bitmap;
 	}
 
+	/**
+	 * @return pair (bIsSelectionBoundaryEdge, bIsMeshBoundaryEdge) for a given edge
+	 */
+	TPair<bool, bool> IsSelectionBoundaryEdge(int32 eid) const
+	{
+		if (Mesh->IsEdge(eid))
+		{
+			FIndex2i EdgeT = Mesh->GetEdgeT(eid);
+			bool bA = Selected.Contains(EdgeT.A);
+			if (EdgeT.B == IndexConstants::InvalidID)
+			{
+				return TPair<bool, bool>(true, true);
+			}
+			else if (Selected.Contains(EdgeT.B) != bA)
+			{
+				return TPair<bool, bool>(true, false);
+			}
+		}
+		return TPair<bool, bool>(false, false);
+	}
 
 
 	/**
@@ -340,35 +358,7 @@ public:
 	 *  
 	 *  Return false from FilterF to prevent triangles from being included.
 	 */
-	void ExpandToOneRingNeighbours(const TUniqueFunction<bool(int)>& FilterF = nullptr)
-	{
-		TArray<int> ToAdd;
-
-		for (int tid : Selected) { 
-			FIndex3i tri_v = Mesh->GetTriangle(tid);
-			for (int j = 0; j < 3; ++j)
-			{
-				int vid = tri_v[j];
-				for (int nbr_t : Mesh->VtxTrianglesItr(vid))
-				{
-					if (FilterF && FilterF(nbr_t) == false)
-					{
-						continue;
-					}
-					if (!IsSelected(nbr_t))
-					{
-						ToAdd.Add(nbr_t);
-					}
-				}
-			}
-		}
-
-		for (int ID : ToAdd)
-		{
-			add(ID);
-		}
-	}
-
+	void ExpandToOneRingNeighbours(const TUniqueFunction<bool(int)>& FilterF = nullptr);
 
 	/**
 	 *  Expand selection by N vertex one-rings. This is *significantly* faster
@@ -377,59 +367,7 @@ public:
 	 *  
 	 *  Return false from FilterF to prevent triangles from being included.
 	 */
-	void ExpandToOneRingNeighbours(int nRings, const TUniqueFunction<bool(int)>& FilterF = nullptr)
-	{
-		if (nRings == 1)
-		{
-			ExpandToOneRingNeighbours(FilterF);
-			return;
-		}
-
-		TArray<int> triArrays[2];
-		int addIdx = 0, checkIdx = 1;
-		triArrays[checkIdx] = Selected.Array();
-
-		TBitArray<FDefaultBitArrayAllocator> Bitmap = AsBitArray();
-
-		for (int ri = 0; ri < nRings; ++ri)
-		{
-			TArray<int>& addTris = triArrays[addIdx];
-			TArray<int>& checkTris = triArrays[checkIdx];
-			addTris.Empty();
-
-			for (int tid : checkTris)
-			{
-				FIndex3i tri_v = Mesh->GetTriangle(tid);
-				for (int j = 0; j < 3; ++j)
-				{
-					int vid = tri_v[j];
-					for (int nbr_t : Mesh->VtxTrianglesItr(vid))
-					{
-						if (FilterF && FilterF(nbr_t) == false)
-						{
-							continue;
-						}
-						if (Bitmap[nbr_t] == false)
-						{
-							addTris.Add(nbr_t);
-							Bitmap[nbr_t] = true;
-						}
-					}
-				}
-			}
-
-			for (int TID : addTris)
-			{
-				add(TID);
-			}
-
-			Swap(addIdx, checkIdx); // check in the next iter what we added in this iter
-		}
-	}
-
-
-
-
+	void ExpandToOneRingNeighbours(int nRings, const TUniqueFunction<bool(int)>& FilterF = nullptr);
 
 	/**
 	 *  remove all triangles in vertex one-rings of current selection to set.
@@ -438,62 +376,7 @@ public:
 	 *  
 	 *  Return false from FilterF to prevent triangles from being deselected.
 	 */
-	void ContractBorderByOneRingNeighbours(int NumRings = 1, bool bContractFromMeshBoundary = false, const TUniqueFunction<bool(int)>& FilterF = nullptr)
-	{
-		TArray<int> BorderVIDs;   // border vertices
-		// TODO: track the border across removals if NumRings > 1, so we don't have to iterate over the whole selection each time
-		for (int RingIdx = 0; RingIdx < NumRings; ++RingIdx)
-		{
-			BorderVIDs.Reset();
-
-			// [TODO] border vertices are pushed onto the temp list multiple times.
-			// minor inefficiency, but maybe we could improve it?
-
-			// find set of vertices on border
-			for (int TID : Selected)
-			{
-				FIndex3i TriV = Mesh->GetTriangle(TID);
-				for (int Idx = 0; Idx < 3; ++Idx)
-				{
-					int VID = TriV[Idx];
-					int UnusedE1, UnusedE2; // Unused edge boundary indices, required to call GetVtxBoundaryEdges to test if vertex is on boundary
-					bool bIsBorder = bContractFromMeshBoundary && Mesh->GetVtxBoundaryEdges(VID, UnusedE1, UnusedE2) > 0;
-					if (!bIsBorder)
-					{
-						for (int NbrT : Mesh->VtxTrianglesItr(VID))
-						{
-							if (!IsSelected(NbrT))
-							{
-								bIsBorder = true;
-								break;
-							}
-						}
-					}
-					if (bIsBorder)
-					{
-						BorderVIDs.Add(VID);
-					}
-				}
-			}
-
-			for (int VID : BorderVIDs)
-			{
-				for (int NbrT : Mesh->VtxTrianglesItr(VID))
-				{
-					if (FilterF && !FilterF(NbrT))
-					{
-						continue;
-					}
-					Deselect(NbrT);
-				}
-			}
-		}
-
-	}
-
-
-
-
+	void ContractBorderByOneRingNeighbours(int NumRings = 1, bool bContractFromMeshBoundary = false, const TUniqueFunction<bool(int)>& FilterF = nullptr);
 
 	/**
 	 *  Grow selection outwards from seed triangle, until it hits boundaries defined by triangle and edge filters.
@@ -646,12 +529,14 @@ public:
 				vertices.Add(tv.A); vertices.Add(tv.B); vertices.Add(tv.C);
 			}
 
-			for (int vid : vertices) {
-				if (is_bowtie_vtx(vid)) {
-					for (int TID : Mesh->VtxTrianglesItr(vid))
+			for (int vid : vertices) 
+			{
+				if (is_bowtie_vtx(vid)) 
+				{
+					Mesh->EnumerateVertexTriangles(vid, [&](int TID)
 					{
 						Deselect(TID);
-					}
+					});
 					done = false;
 				}
 			}
@@ -667,7 +552,8 @@ private:
 	bool is_bowtie_vtx(int vid) const
 	{
 		int border_edges = 0;
-		for (int eid : Mesh->VtxEdgesItr(vid)) {
+		for (int eid : Mesh->VtxEdgesItr(vid)) 
+		{
 			FIndex2i et = Mesh->GetEdgeT(eid);
 			if (et.B != FDynamicMesh3::InvalidID)
 			{
