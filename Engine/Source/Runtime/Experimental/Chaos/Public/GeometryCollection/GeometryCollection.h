@@ -9,6 +9,14 @@
 namespace Chaos
 {
 	class FChaosArchive;
+
+	namespace GeometryCollection
+	{
+		enum 
+		{
+			MAX_NUM_UV_CHANNELS = 8,
+		};
+	}
 }
 
 /**
@@ -38,7 +46,7 @@ public:
 		*			FVectorArray      Vertex         = GetAttribute<FVector3f>("Vertex", VerticesGroup)
 		*			FInt32Array       BoneMap        = GetAttribute<Int32>("BoneMap", VerticesGroup, {"Transform"})
 		*           FVectorArray      Normal         = GetAttribute<FVector3f>("Normal", MaterialGroup)
-		*           FVector2DArray    UV             = GetAttribute<FVector2D>("UV", MaterialGroup)
+		*			FVector2DArray    UVs            = GetAttribute<TArray<FVector2D>>("UVs", MaterialGroup)
 		*           FVectorArray      TangentU       = GetAttribute<FVector3f>("TangentU", MaterialGroup)
 		*           FVectorArray      TangentV       = GetAttribute<FVector3f>("TangentV", MaterialGroup)
 		*           FLinearColorArray Color          = GetAttribute<FLinearColor>("Color", MaterialGroup)
@@ -208,6 +216,9 @@ public:
 	/** Returns true if the render faces are contiguous*/
 	bool HasContiguousRenderFaces() const;
 
+	/** Returns number of UV layers represented by UV array. A Valid Geometry Collection has the same count for every vertex */
+	int32 NumUVLayers() const;
+
 	FORCEINLINE bool IsGeometry(int32 Element) const { return TransformToGeometryIndex[Element] != INDEX_NONE; }
 	FORCEINLINE bool IsClustered(int32 Element) const { const TManagedArray<int32>& SimType = SimulationType;  return !!(SimType[Element] == ESimulationTypes::FST_Clustered); }
 	FORCEINLINE bool IsRigid(int32 Element) const { const TManagedArray<int32>& SimType = SimulationType;  return !!(SimType[Element] == ESimulationTypes::FST_Rigid); }
@@ -247,13 +258,14 @@ public:
 	TManagedArray<int32>		ExemplarIndex;
 
 	// Vertices Group
-	TManagedArray<FVector3f>		Vertex;
-	TManagedArray<FVector2D>    UV;
-	TManagedArray<FLinearColor> Color;
-	TManagedArray<FVector3f>      TangentU;
-	TManagedArray<FVector3f>      TangentV;
-	TManagedArray<FVector3f>      Normal;
-	TManagedArray<int32>        BoneMap;
+	TManagedArray<FVector3f>		 Vertex;
+	// Outer array is the array of vertices, inner array is the uv channels
+	TManagedArray<TArray<FVector2D>> UVs;
+	TManagedArray<FLinearColor>      Color;
+	TManagedArray<FVector3f>         TangentU;
+	TManagedArray<FVector3f>         TangentV;
+	TManagedArray<FVector3f>         Normal;
+	TManagedArray<int32>             BoneMap;
 
 	// Faces Group
 	TManagedArray<FIntVector>   Indices;

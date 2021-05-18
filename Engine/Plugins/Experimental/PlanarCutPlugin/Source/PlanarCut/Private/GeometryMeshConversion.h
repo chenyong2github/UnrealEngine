@@ -23,16 +23,18 @@ namespace PlanarCut
 /**
  * Add attributes necessary for a dynamic mesh to represent geometry from an FGeometryCollection
  */
-void PLANARCUT_API SetGeometryCollectionAttributes(UE::Geometry::FDynamicMesh3& Mesh);
+void PLANARCUT_API SetGeometryCollectionAttributes(UE::Geometry::FDynamicMesh3& Mesh, int32 NumUVLayers);
 
 // functions for DynamicMesh3 meshes that have FGeometryCollection attributes set
 namespace AugmentedDynamicMesh
 {
 	void PLANARCUT_API SetVisibility(UE::Geometry::FDynamicMesh3& Mesh, int TID, bool bIsVisible);
 	bool PLANARCUT_API GetVisibility(const UE::Geometry::FDynamicMesh3& Mesh, int TID);
+	void PLANARCUT_API SetUV(UE::Geometry::FDynamicMesh3& Mesh, int VID, FVector2f UV, int UVLayer);
+	void PLANARCUT_API GetUV(const UE::Geometry::FDynamicMesh3& Mesh, int VID, FVector2f& UV, int UVLayer);
 	void PLANARCUT_API SetTangent(UE::Geometry::FDynamicMesh3& Mesh, int VID, FVector3f Normal, FVector3f TangentU, FVector3f TangentV);
 	void PLANARCUT_API GetTangent(const UE::Geometry::FDynamicMesh3& Mesh, int VID, FVector3f& U, FVector3f& V);
-	void PLANARCUT_API InitializeOverlayToPerVertexUVs(UE::Geometry::FDynamicMesh3& Mesh);
+	void PLANARCUT_API InitializeOverlayToPerVertexUVs(UE::Geometry::FDynamicMesh3& Mesh, int32 NumUVLayers);
 	void PLANARCUT_API InitializeOverlayToPerVertexTangents(UE::Geometry::FDynamicMesh3& Mesh);
 	void PLANARCUT_API ComputeTangents(UE::Geometry::FDynamicMesh3& Mesh, bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials, bool bRecomputeNormals = true);
 	void PLANARCUT_API AddCollisionSamplesPerComponent(UE::Geometry::FDynamicMesh3& Mesh, double Spacing);
@@ -48,9 +50,9 @@ struct PLANARCUT_API FCellMeshes
 	{
 		UE::Geometry::FDynamicMesh3 AugMesh;
 
-		FCellInfo()
+		FCellInfo(int32 NumUVLayers = 1)
 		{
-			SetGeometryCollectionAttributes(AugMesh);
+			SetGeometryCollectionAttributes(AugMesh, NumUVLayers);
 		}
 
 		// TODO: compute spatial in advance?  (only useful if we rework mesh booleans to support it)
@@ -59,6 +61,7 @@ struct PLANARCUT_API FCellMeshes
 
 	TIndirectArray<FCellInfo> CellMeshes;
 	int32 OutsideCellIndex = -1;
+	int32 NumUVLayers = 1;
 
 	// Noise Offsets, to randomize where perlin noise is sampled
 	FVector NoiseOffsetX;
@@ -70,18 +73,18 @@ struct PLANARCUT_API FCellMeshes
 		CellMeshes.Reset();
 		for (int32 Idx = 0; Idx < NumMeshes; Idx++)
 		{
-			CellMeshes.Add(new FCellInfo);
+			CellMeshes.Add(new FCellInfo(NumUVLayers));
 		}
 	}
 
-	FCellMeshes()
+	FCellMeshes(int32 NumUVLayers)
 	{
 		InitEmpty();
 	}
 
-	FCellMeshes(const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
+	FCellMeshes(int32 NumUVLayers, const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
 
-	FCellMeshes(UE::Geometry::FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform);
+	FCellMeshes(int32 NumUVLayers, UE::Geometry::FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform);
 
 	// Special function to just make the "grout" part of the planar mesh cells
 	// Used to make the multi-plane cuts with grout easier to implement
@@ -123,7 +126,7 @@ struct PLANARCUT_API FCellMeshes
 		OutsideCellIndex = -1;
 	}
 
-	void Init(const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
+	void Init(int32 NumUVLayersIn, const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
 
 	void ApplyGeneralGrout(double Grout);
 
@@ -154,9 +157,9 @@ struct PLANARCUT_API FDynamicMeshCollection
 		int32 TransformIndex; // where the mesh was from in the geometry collection
 		FTransform ToCollection; // transform that need be applied to go back to the local space of the geometry collection
 
-		FMeshData()
+		FMeshData(int32 NumUVLayers)
 		{
-			SetGeometryCollectionAttributes(AugMesh);
+			SetGeometryCollectionAttributes(AugMesh, NumUVLayers);
 		}
 
 		FMeshData(const UE::Geometry::FDynamicMesh3& Mesh, int32 TransformIndex, FTransform ToCollection) : AugMesh(Mesh), TransformIndex(TransformIndex), ToCollection(ToCollection)
@@ -164,7 +167,7 @@ struct PLANARCUT_API FDynamicMeshCollection
 	};
 	TIndirectArray<FMeshData> Meshes;
 	UE::Geometry::FAxisAlignedBox3d Bounds;
-
+	
 	FDynamicMeshCollection(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices = false)
 	{
 		Init(Collection, TransformIndices, TransformCollection, bSaveIsolatedVertices);
