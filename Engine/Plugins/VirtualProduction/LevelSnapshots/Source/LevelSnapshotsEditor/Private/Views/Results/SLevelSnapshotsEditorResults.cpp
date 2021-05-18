@@ -152,6 +152,9 @@ void FLevelSnapshotsEditorResultsRow::InitHeaderRow(const ELevelSnapshotsEditorR
 	HeaderType = InHeaderType;
 	HeaderColumns = InColumns;
 	ResultsViewPtr = InResultsView;
+
+	// Set visibility values to false for header rows so they hide correctly when they have no visible children
+	bDoesRowMatchSearchTerms = false;
 }
 
 void FLevelSnapshotsEditorResultsRow::InitAddedActorRow(AActor* InAddedActor)
@@ -741,6 +744,17 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 	}
 
 	SetHasGeneratedChildren(true);
+
+	// Remove cached search terms now that the actor group has child rows to search
+	SetCachedSearchTerms("");
+
+	// Apply Search
+	check(ResultsViewPtr.IsValid());
+	
+	if (const TSharedPtr<SLevelSnapshotsEditorResults>& PinnedResults = ResultsViewPtr.Pin())
+	{
+		PinnedResults->ExecuteResultsViewSearchOnSpecifiedActors(PinnedResults->GetSearchStringFromSearchInputField(), { SharedThis(this) });
+	}
 }
 
 bool FLevelSnapshotsEditorResultsRow::DoesRowRepresentGroup() const
@@ -937,7 +951,7 @@ bool FLevelSnapshotsEditorResultsRow::MatchSearchTokensToSearchTerms(const TArra
 	}
 	else
 	{
-		const FString& SearchTerms = GetSearchTerms();
+		const FString& SearchTerms = GetOrCacheSearchTerms();
 
 		for (const FString& Token : InTokens)
 		{
@@ -1203,7 +1217,7 @@ void FLevelSnapshotsEditorResultsRow::SetIsNodeChecked(const bool bNewChecked)
 }
 
 bool FLevelSnapshotsEditorResultsRow::HasVisibleChildren() const
-{
+{	
 	bool bVisibleChildFound = false;
 
 	for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& ChildRow : GetChildRows())
@@ -1287,7 +1301,7 @@ bool FLevelSnapshotsEditorResultsRow::HasChangedChildren() const
 
 bool FLevelSnapshotsEditorResultsRow::ShouldRowBeVisible() const
 {
-	return GetDoesRowMatchSearchTerms();
+	return GetDoesRowMatchSearchTerms() || HasVisibleChildren();
 }
 
 EVisibility FLevelSnapshotsEditorResultsRow::GetDesiredVisibility() const
@@ -1295,9 +1309,19 @@ EVisibility FLevelSnapshotsEditorResultsRow::GetDesiredVisibility() const
 	return ShouldRowBeVisible() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-const FString& FLevelSnapshotsEditorResultsRow::GetSearchTerms() const
+const FString& FLevelSnapshotsEditorResultsRow::GetOrCacheSearchTerms()
 {
-	return GetDisplayName().ToString();
+	if (CachedSearchTerms.IsEmpty())
+	{
+		SetCachedSearchTerms(GetDisplayName().ToString());
+	}
+	
+	return CachedSearchTerms;
+}
+
+void FLevelSnapshotsEditorResultsRow::SetCachedSearchTerms(const FString& InTerms)
+{
+	CachedSearchTerms = InTerms;
 }
 
 bool FLevelSnapshotsEditorResultsRow::GetDoesRowMatchSearchTerms() const
@@ -1448,7 +1472,7 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(SelectedSnapshotNamePtr, STextBlock)
-					.Text(NSLOCTEXT("LevelSnapshots", "LevelSnapshots", "Level Snapshots"))
+					.Text(LOCTEXT("LevelSnapshots", "Level Snapshots"))
 					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
 				]
 			]	
@@ -1489,21 +1513,44 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 
 			+ SVerticalBox::Slot()
 			[
-				SAssignNew(TreeViewPtr, STreeView<FLevelSnapshotsEditorResultsRowPtr>)
-				.SelectionMode(ESelectionMode::None)
-				.TreeItemsSource(&TreeViewRootHeaderObjects)
-				.OnGenerateRow_Lambda([this](FLevelSnapshotsEditorResultsRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable)
-					{
-						check(Row.IsValid());
-					
-						return SNew(STableRow<FLevelSnapshotsEditorResultsRowPtr>, OwnerTable)
-							[
-								SNew(SLevelSnapshotsEditorResultsRow, Row, SplitterManagerPtr)
-							]
-							.Visibility_Raw(Row.Get(), &FLevelSnapshotsEditorResultsRow::GetDesiredVisibility);
-					})
-				.OnGetChildren_Raw(this, &SLevelSnapshotsEditorResults::OnGetRowChildren)
-				.OnExpansionChanged_Raw(this, &SLevelSnapshotsEditorResults::OnRowChildExpansionChange)
+				SNew(SOverlay)
+				
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Fill)
+				.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+				[
+					SAssignNew(TreeViewPtr, STreeView<FLevelSnapshotsEditorResultsRowPtr>)
+					.SelectionMode(ESelectionMode::None)
+					.TreeItemsSource(&TreeViewRootHeaderObjects)
+					.OnGenerateRow_Lambda([this](FLevelSnapshotsEditorResultsRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable)
+						{
+							check(Row.IsValid());
+						
+							return SNew(STableRow<FLevelSnapshotsEditorResultsRowPtr>, OwnerTable)
+								[
+									SNew(SLevelSnapshotsEditorResultsRow, Row, SplitterManagerPtr)
+								]
+								.Visibility_Raw(Row.Get(), &FLevelSnapshotsEditorResultsRow::GetDesiredVisibility);
+						})
+					.OnGetChildren_Raw(this, &SLevelSnapshotsEditorResults::OnGetRowChildren)
+					.OnExpansionChanged_Raw(this, &SLevelSnapshotsEditorResults::OnRowChildExpansionChange)
+					.Visibility_Lambda([this]()
+						{
+							return this->DoesTreeViewHaveVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
+						})
+				]
+
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Center)
+				.Padding(2.0f, 24.0f, 2.0f, 2.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("LevelSnapshotsEditorResults_NoResults", "No results to show. Try selecting a snapshot, changing your active filters, or clearing any active search."))
+					.Visibility_Lambda([this]()
+						{
+							return this->DoesTreeViewHaveVisibleChildren() ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
+						})
+				]
 			]
 
 			+SVerticalBox::Slot()
@@ -1931,9 +1978,10 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 	GetEditorDataPtr()->GetFilterResults()->SetPropertiesToRollback(PropertySelectionMap);
 }
 
-const FString& SLevelSnapshotsEditorResults::GetSearchStringFromSearchInputField() const
+FString SLevelSnapshotsEditorResults::GetSearchStringFromSearchInputField() const
 {
-	return ResultsSearchBoxPtr->GetText().ToString();
+	return ensureAlwaysMsgf(ResultsSearchBoxPtr.IsValid(), TEXT("%hs: ResultsSearchBoxPtr is not valid. Check to make sure it was created."), __FUNCTION__)
+	? ResultsSearchBoxPtr->GetText().ToString() : "";
 }
 
 ULevelSnapshotsEditorData* SLevelSnapshotsEditorResults::GetEditorDataPtr() const
@@ -2078,6 +2126,9 @@ void SLevelSnapshotsEditorResults::GenerateTreeView()
 
 	TreeViewPtr->RequestListRefresh();
 	UpdateSnapshotInformationText();
+
+	// Apply last search
+	ExecuteResultsViewSearchOnAllActors(GetSearchStringFromSearchInputField());
 }
 
 bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLevelSnapshotsEditorResultsRowPtr ModifiedActorsHeader, ULevelSnapshotFilter* UserFilters)
@@ -2115,7 +2166,8 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 			FilterListData.ApplyFilterToFindSelectedProperties(WorldActor, UserFilters);
 		}
 
-		const int32 KeyCountAfterFilter = FilterListData.GetModifiedActorsSelectedProperties().GetKeyCount();
+		const FPropertySelectionMap& ModifiedSelectedActors = FilterListData.GetModifiedActorsSelectedProperties();
+		const int32 KeyCountAfterFilter = ModifiedSelectedActors.GetKeyCount();
 		const int32 KeyCountDifference = KeyCountAfterFilter - KeyCountBeforeFilter;
 
 		// If keys have been added, then this actor or its children have properties that pass the filter
@@ -2133,12 +2185,37 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 		// Create group
 		FLevelSnapshotsEditorResultsRowPtr NewActorGroup = MakeShared<FLevelSnapshotsEditorResultsRow>(
 			FLevelSnapshotsEditorResultsRow(FText::FromString(ActorName), FLevelSnapshotsEditorResultsRow::ActorGroup, ECheckBoxState::Checked, ModifiedActorsHeader));
-		NewActorGroup->InitActorRow(WeakSnapshotActor.IsValid() ? WeakSnapshotActor.Get() : nullptr, 
-			WeakWorldActor.IsValid() ? WeakWorldActor.Get() : nullptr, SharedThis(this));
+		
+		NewActorGroup->InitActorRow(WeakSnapshotActor.IsValid() ? WeakSnapshotActor.Get() : nullptr, WorldActor, SharedThis(this));
 
 		ModifiedActorsHeader->AddToChildRows(NewActorGroup);
 		
 		TreeViewModifiedActorGroupObjects.Add(NewActorGroup);
+
+		// Cache search terms using the desired leaf properties for each object newly added to ModifiedActorsSelectedProperties this loop
+		FString NewCachedSearchTerms = WorldActor->GetHumanReadableName();
+
+		if (const FPropertySelection* ActorProperties = ModifiedSelectedActors.GetSelectedProperties(WorldActor))
+		{
+			for (const TFieldPath<FProperty>& LeafProperty : ActorProperties->GetSelectedLeafProperties())
+			{
+				NewCachedSearchTerms += " " + LeafProperty.ToString();
+			}
+		}
+
+		for (UActorComponent* Component : WorldActor->GetComponents())
+		{
+			if (const FPropertySelection* ComponentProperties = ModifiedSelectedActors.GetSelectedProperties(Component))
+			{
+				NewCachedSearchTerms += " " + Component->GetReadableName();
+				for (const TFieldPath<FProperty>& LeafProperty : ComponentProperties->GetSelectedLeafProperties())
+				{
+					NewCachedSearchTerms += " " + LeafProperty.ToString();
+				}
+			}
+		}
+		
+		NewActorGroup->SetCachedSearchTerms(NewCachedSearchTerms);
 	}
 
 	return TreeViewModifiedActorGroupObjects.Num() > 0;
@@ -2213,19 +2290,28 @@ FReply SLevelSnapshotsEditorResults::SetAllActorGroupsCollapsed()
 	return FReply::Handled();
 }
 
-void SLevelSnapshotsEditorResults::OnResultsViewSearchTextChanged(const FText& Text)
+void SLevelSnapshotsEditorResults::OnResultsViewSearchTextChanged(const FText& Text) const
 {
-	ExecuteResultsViewSearch(Text.ToString());
+	ExecuteResultsViewSearchOnAllActors(Text.ToString());
 }
 
-void SLevelSnapshotsEditorResults::ExecuteResultsViewSearch(const FString& SearchString)
+void SLevelSnapshotsEditorResults::ExecuteResultsViewSearchOnAllActors(const FString& SearchString) const
+{
+	// Consider all rows for search except the header rows
+	ExecuteResultsViewSearchOnSpecifiedActors(SearchString, TreeViewModifiedActorGroupObjects);
+	ExecuteResultsViewSearchOnSpecifiedActors(SearchString, TreeViewAddedActorGroupObjects);
+	ExecuteResultsViewSearchOnSpecifiedActors(SearchString, TreeViewRemovedActorGroupObjects);
+}
+
+void SLevelSnapshotsEditorResults::ExecuteResultsViewSearchOnSpecifiedActors(
+	const FString& SearchString, const TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& ActorRowsToConsider) const
 {
 	TArray<FString> Tokens;
 	
 	// unquoted search equivalent to a match-any-of search
 	SearchString.ParseIntoArray(Tokens, TEXT(" "), true);
 	
-	for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& ChildRow : TreeViewModifiedActorGroupObjects)
+	for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& ChildRow : ActorRowsToConsider)
 	{
 		if (!ensure(ChildRow.IsValid()))
 		{
@@ -2238,6 +2324,24 @@ void SLevelSnapshotsEditorResults::ExecuteResultsViewSearch(const FString& Searc
 		// If the name doesn't match, then we need to evaluate each child.
 		ChildRow->ExecuteSearchOnChildNodes(bGroupMatch ? "" : SearchString);
 	}
+}
+
+bool SLevelSnapshotsEditorResults::DoesTreeViewHaveVisibleChildren() const
+{
+	if (TreeViewPtr.IsValid())
+	{
+		for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& Header : TreeViewRootHeaderObjects)
+		{
+			const EVisibility HeaderVisibility = Header->GetDesiredVisibility();
+			
+			if (HeaderVisibility != EVisibility::Hidden && HeaderVisibility != EVisibility::Collapsed)
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
 }
 
 void SLevelSnapshotsEditorResults::OnGetRowChildren(FLevelSnapshotsEditorResultsRowPtr Row, TArray<FLevelSnapshotsEditorResultsRowPtr>& OutChildren)
@@ -2265,7 +2369,7 @@ void SLevelSnapshotsEditorResults::OnGetRowChildren(FLevelSnapshotsEditorResults
 	}
 }
 
-void SLevelSnapshotsEditorResults::OnRowChildExpansionChange(FLevelSnapshotsEditorResultsRowPtr Row, const bool bIsExpanded)
+void SLevelSnapshotsEditorResults::OnRowChildExpansionChange(FLevelSnapshotsEditorResultsRowPtr Row, const bool bIsExpanded) const
 {
 	if (Row.IsValid())
 	{

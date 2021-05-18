@@ -58,5 +58,5 @@ void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& Seria
 		//   - We apply the CDO and afterwards we override it with the serialized data. Good.
 	WorldData.SerializeClassDefaultsInto(ComponentToDeserializeInto);
 	
-	FSnapshotArchive::RestoreData(SerializedComponentData, WorldData, ComponentToDeserializeInto, InLocalisationSnapshotPackage);
+	FSnapshotArchive::ApplyToSnapshotWorldObject(SerializedComponentData, WorldData, ComponentToDeserializeInto, InLocalisationSnapshotPackage);
 }

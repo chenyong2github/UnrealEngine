@@ -22,16 +22,21 @@ public:
 	FText GetDisplayName() const;
 
 	//~ Begin ULevelSnapshotFilter Interface
-	EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;
-	EFilterResult::Type IsPropertyValid(const FIsPropertyValidParams& Params) const override;
+	virtual EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;
+	virtual EFilterResult::Type IsPropertyValid(const FIsPropertyValidParams& Params) const override;
+	virtual EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const override;
+	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
 	//~ End ULevelSnapshotFilter Interface
+
 	
 public: // Only public to use GET_MEMBER_NAME_CHECKED with compiler checks - do not use directly.
+	
 	/* Display name in editor. Defaults to class name if left empty. */
 	UPROPERTY(EditAnywhere, Category = "Filter")
 	FString Name;
+
+private:
 	
 	UPROPERTY()
 	ULevelSnapshotFilter* ChildFilter;
-	
 };

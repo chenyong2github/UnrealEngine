@@ -6,6 +6,7 @@
 
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
+#include "Algo/AllOf.h"
 #include "Algo/Transform.h"
 
 namespace
@@ -22,9 +23,11 @@ namespace
 		DetailBuilder.GetObjectsBeingCustomized(WeakSelectedObjects);
 
 		TArray<UObject*> SelectedObjects;
-		Algo::Transform(WeakSelectedObjects, SelectedObjects, [&SelectedObjects](TWeakObjectPtr<UObject> Obj) { return CastChecked<UNegatableFilter>(Obj.Get())->GetChildFilter(); });
-
-		if (!ensure(SelectedObjects.Num() != 0))
+		Algo::Transform(WeakSelectedObjects, SelectedObjects, [&SelectedObjects](TWeakObjectPtr<UObject> Obj) { return ExactCast<UNegatableFilter>(Obj.Get())->GetChildFilter(); });
+		
+		// Child filter may be null in certain cases, e.g. when user force deleted the filter class
+		const bool bNoneAreNull = Algo::AllOf(SelectedObjects, [](UObject* ChildFilter) { return ChildFilter != nullptr; });
+		if (!bNoneAreNull || !ensure(SelectedObjects.Num() != 0))
 		{
 			return;
 		}
