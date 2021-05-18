@@ -45,8 +45,18 @@ float4x4 LocalToWorldMatrix;
 Buffer<uint4>  RenderRestPosePositionBuffer;
 Buffer<uint4>  SimRestPosePositionBuffer;
 Buffer<uint4>  DeformedSimPositionBuffer;
-Buffer<uint4>  Interpolation0Buffer;
-Buffer<uint4>  Interpolation1Buffer;
+
+// Hair interpolation support either 
+// * A single guide, 
+// * Or up to 3 guides. 
+// This option is setup on interpolation data of the groom asset
+#if PERMUTATION_USE_SINGLE_GUIDE == 1
+Buffer<uint>	InterpolationBuffer;
+#else
+Buffer<uint4>	Interpolation0Buffer;
+Buffer<uint4>	Interpolation1Buffer;
+#endif
+
 Buffer<uint>   SimRootPointIndexBuffer;
 
 uint HairStrandsVF_bIsCullingEnable;
@@ -192,32 +202,35 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	uint4 OutPosition = 0;
 	if (VertexIndex < VertexCount)
 	{
-		uint3 GuideVertexIndices = 0;
+		uint3  GuideVertexIndices = 0;
 		float3 GuideVertexLerps = 0;
 		float3 GuideVertexWeights = 0;
 		#if PERMUTATION_SIMULATION == 1 || PERMUTATION_DEBUG == 1 || PERMUTATION_DEBUG == 2 
 		{
+
+		  #if PERMUTATION_USE_SINGLE_GUIDE == 1
+			GuideVertexWeights = float3(1, 0, 0);
+			GuideVertexIndices = 0;
+			GuideVertexLerps = 0;
+
+			const uint InterpolationData = InterpolationBuffer[VertexIndex];
+			GuideVertexIndices.x = InterpolationData & 0xFFFFFF;
+			GuideVertexLerps.x   = saturate(((InterpolationData >> 24) & 0xFF) / 255.f);
+		  #else
 			const uint4 InterpolationData0	= Interpolation0Buffer[VertexIndex];
 			const uint4 InterpolationData1	= Interpolation1Buffer[VertexIndex];
 
 			GuideVertexIndices.x = InterpolationData0.x | ( (InterpolationData1.x & 0xFF) << 16);
-		#if PERMUTATION_USE_SINGLE_GUIDE == 0
 			GuideVertexIndices.y = InterpolationData0.y | (((InterpolationData1.x >> 8) & 0xFF) << 16);
 			GuideVertexIndices.z = InterpolationData0.z | ( (InterpolationData1.y & 0xFF) << 16);
-		#endif
 
-		#if PERMUTATION_USE_SINGLE_GUIDE == 1
-			GuideVertexWeights = float3(1, 0, 0);
-		#else
 			GuideVertexWeights   = float3(saturate((InterpolationData0.w & 0xFF) / 255.f), saturate(((InterpolationData0.w >> 8) & 0xFF) / 255.f), 0);
 			GuideVertexWeights.z = saturate(1.0f - (GuideVertexWeights.x + GuideVertexWeights.y));
-		#endif
 
 			GuideVertexLerps.x = saturate(((InterpolationData1.y >> 8) & 0xFF)/255.f);
-		#if PERMUTATION_USE_SINGLE_GUIDE == 0
 			GuideVertexLerps.y = saturate(( InterpolationData1.z & 0xFF      )/255.f);
 			GuideVertexLerps.z = saturate(((InterpolationData1.z >> 8) & 0xFF)/255.f);
-		#endif
+		  #endif
 		}
 		#endif
 

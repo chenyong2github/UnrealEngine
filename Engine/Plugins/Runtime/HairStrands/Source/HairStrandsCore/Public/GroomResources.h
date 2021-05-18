@@ -360,12 +360,16 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 	uint32 GetResourcesSize() const
 	{
 		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(InterpolationBuffer);
 		Total += GetBufferTotalNumBytes(Interpolation0Buffer);
 		Total += GetBufferTotalNumBytes(Interpolation1Buffer);
 		Total += GetBufferTotalNumBytes(SimRootPointIndexBuffer);
 		return Total;
 	}
 
+	bool UseSingleGuide() const { return InterpolationBuffer.Buffer != nullptr; }
+
+	FRDGExternalBuffer InterpolationBuffer;
 	FRDGExternalBuffer Interpolation0Buffer;
 	FRDGExternalBuffer Interpolation1Buffer;
 	FRDGExternalBuffer SimRootPointIndexBuffer;
