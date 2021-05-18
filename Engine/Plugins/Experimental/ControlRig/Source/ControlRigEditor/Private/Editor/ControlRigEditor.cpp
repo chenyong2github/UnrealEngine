@@ -3706,7 +3706,7 @@ void FControlRigEditor::OnHierarchyChanged()
 		{
 			ControlRigBP->Hierarchy->OnModified().Broadcast(ERigHierarchyNotification::ElementSelected, ControlRigBP->Hierarchy, SelectedElement);
 		}
-		GetControlRigBlueprint()->RecompileVM();
+		GetControlRigBlueprint()->RequestAutoVMRecompilation();
 
 		SynchronizeViewportBoneSelection();
 
