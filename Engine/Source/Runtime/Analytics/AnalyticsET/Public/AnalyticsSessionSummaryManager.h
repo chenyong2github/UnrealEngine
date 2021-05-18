@@ -20,6 +20,11 @@ enum class EAnalyticsSessionShutdownType : int32
 };
 
 /**
+ * Converts the specified shutdown code to its string representation.
+ */
+ANALYTICSET_API const TCHAR* LexToString(EAnalyticsSessionShutdownType ShutdownTypeCode);
+
+/**
  * Manages the lifecycle of analytics summaries created by an application and its subsidiary processes. It manages the
  * summary files created by the processes, tracks which processes are working together, aggregates the summaries
  * from collaborating processes, discards outdated sessions and sends the final summary reports.

@@ -135,32 +135,33 @@ namespace AnalyticsSessionUtils
 		}
 	}
 
-	/** Convert the shutdown type to the string representation known by the analytics backend. */
-	const TCHAR* ToString(EAnalyticsSessionShutdownType Code)
-	{
-		switch (Code)
-		{
-		case EAnalyticsSessionShutdownType::Shutdown:
-			return TEXT("Shutdown");
-
-		case EAnalyticsSessionShutdownType::Crashed:
-			return TEXT("Crashed");
-
-		case EAnalyticsSessionShutdownType::Terminated:
-			return TEXT("Terminated");
-
-		case EAnalyticsSessionShutdownType::Debugged:
-			return TEXT("Debugger");
-
-		case EAnalyticsSessionShutdownType::Abnormal:
-			return TEXT("AbnormalShutdown");
-
-		default:
-			return TEXT("Unknown");
-		}
-	}
-
 } // namespace AnalyticsSessionUtils
+
+
+const TCHAR* LexToString(EAnalyticsSessionShutdownType ShutdownTypeCode)
+{
+	switch (ShutdownTypeCode)
+	{
+	case EAnalyticsSessionShutdownType::Shutdown:
+		return TEXT("Shutdown");
+
+	case EAnalyticsSessionShutdownType::Crashed:
+		return TEXT("Crashed");
+
+	case EAnalyticsSessionShutdownType::Terminated:
+		return TEXT("Terminated");
+
+	case EAnalyticsSessionShutdownType::Debugged:
+		return TEXT("Debugger");
+
+	case EAnalyticsSessionShutdownType::Abnormal:
+		return TEXT("AbnormalShutdown");
+
+	case EAnalyticsSessionShutdownType::Unknown:
+	default:
+		return TEXT("Unknown");
+	}
+}
 
 
 const TAnalyticsProperty<int32> FAnalyticsSessionSummaryManager::ShutdownTypeCodeProperty = TEXT("ShutdownTypeCode");
@@ -495,7 +496,7 @@ bool FAnalyticsSessionSummaryManager::AggregateSummaries(const FString& InProces
 				if (!OutSummaryProperties.Contains(AnalyticsManagerProperties::ShutdownType.Key))
 				{
 					// Convert 'ShutdownTypeCode' into its string representation and emit it as 'ShutdownType' as known by the analytics backend.
-					OutSummaryProperties.Emplace(AnalyticsManagerProperties::ShutdownType.Key, AnalyticsSessionUtils::ToString(static_cast<EAnalyticsSessionShutdownType>(ShutdownTypeCode)));
+					OutSummaryProperties.Emplace(AnalyticsManagerProperties::ShutdownType.Key, LexToString(static_cast<EAnalyticsSessionShutdownType>(ShutdownTypeCode)));
 				}
 			}
 
