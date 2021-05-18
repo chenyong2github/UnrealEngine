@@ -970,10 +970,19 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 	return Result;
 }
 
-// ==> NOTE: Always pair with the compiler behavior in StrataCompilationInfoAddParamBlend
-FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, uint NewNormalIndex)
+float AddParameterBlendingBSDFWeightToNormalMix(FStrataData AStrata, FStrataData BStrata) 
 {
+	const float3 SafeABSDFWeight = saturate(AStrata.Layers[0].BSDFs[0].Weight);
+	const float3 SafeBBSDFWeight = saturate(BStrata.Layers[0].BSDFs[0].Weight);
+	const float SafeGreyABSDFWeight = dot(SafeABSDFWeight, 1.0f / 3.0f);
+	const float SafeGreyBBSDFWeight = dot(SafeBBSDFWeight, 1.0f / 3.0f);
+	const float AMixFactor = SafeGreyABSDFWeight / (1e-10 + SafeGreyABSDFWeight + SafeGreyBBSDFWeight);
+	return AMixFactor;
+}
 
+// ==> NOTE: Always pair with the compiler behavior in StrataCompilationInfoAddParamBlend
+FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixFactor, uint NewNormalIndex)
+{
 	FStrataData Result = GetInitialisedStrataDataWithReservedFirstSlot();
 #define ResultBSDF		Result.Layers[0].BSDFs[0]
 #define ABSDF			A.Layers[0].BSDFs[0]
@@ -981,9 +990,6 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, uint NewNor
 
 	const float3 SafeABSDFWeight = saturate(ABSDF.Weight);
 	const float3 SafeBBSDFWeight = saturate(BBSDF.Weight);
-	const float SafeGreyABSDFWeight = dot(SafeABSDFWeight, 1.0f / 3.0f);
-	const float SafeGreyBBSDFWeight = dot(SafeBBSDFWeight, 1.0f / 3.0f);
-	const float AMixFactor = SafeGreyABSDFWeight / (1e-10 + SafeGreyABSDFWeight + SafeGreyBBSDFWeight);
 
 	// We can only parameter blend the slab 
 	BSDF_SETTYPE(ResultBSDF,			STRATA_BSDF_TYPE_SLAB);

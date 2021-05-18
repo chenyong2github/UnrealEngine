@@ -8985,6 +8985,11 @@ uint8 FHLSLMaterialTranslator::StrataCompilationInfoGetSharedLocalBasesCount()
 	return FinalUsedSharedLocalBasesCount;
 }
 
+int32 FHLSLMaterialTranslator::StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk)
+{
+	return AddCodeChunk(MCT_Float, TEXT("AddParameterBlendingBSDFWeightToNormalMix(%s, %s)"), *GetParameterCode(ACodeChunk), *GetParameterCode(BCodeChunk));
+}
+
 int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()
 {
 	int32 OutputCodeChunk = AddInlinedCodeChunk(MCT_Strata, TEXT("GetInitialisedStrataData()"));
@@ -9165,16 +9170,17 @@ int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataAddParameterBlending(int32 A, int32 B, const FString& SharedLocalBasisIndexMacro)
+int32 FHLSLMaterialTranslator::StrataAddParameterBlending(int32 A, int32 B, int32 AMixWeight, const FString& SharedLocalBasisIndexMacro)
 {
 	if (A == INDEX_NONE || B == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataAddParameterBlending(%s, %s, %s)"),
+		MCT_Strata, TEXT("StrataAddParameterBlending(%s, %s, %s, %s)"),
 		*GetParameterCode(A),
 		*GetParameterCode(B),
+		*GetParameterCode(AMixWeight),
 		*SharedLocalBasisIndexMacro
 	);
 }
