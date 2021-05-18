@@ -104,7 +104,7 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 		
 		// Allocate physical texture from the render target pool
 		const uint32 TextureSize = GetTextureSize();
-		const FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
+		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			FIntPoint(TextureSize, TextureSize),
 			FormatSRV,
 			FClearValueBinding::None,
@@ -112,6 +112,11 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 			// GPULightmass hack: always create UAV for PF_A32B32G32R32F
 			(bCreateAliasedUAV || FormatSRV == PF_A32B32G32R32F) ? TexCreate_ShaderResource | TexCreate_UAV : TexCreate_ShaderResource,
 			false);
+
+		if (bCreateAliasedUAV)
+		{
+			Desc.UAVFormat = FormatUAV;
+		}
 
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget[Layer], TEXT("VirtualPhysicalTexture"));
 		FRHITexture* TextureRHI = PooledRenderTarget[Layer]->GetRenderTargetItem().ShaderResourceTexture;
@@ -127,7 +132,7 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 
 		if (bCreateAliasedUAV)
 		{
-			TextureUAV[Layer] = RHICreateUnorderedAccessView(TextureRHI, 0, FormatUAV);
+			TextureUAV[Layer] = PooledRenderTarget[Layer]->GetRenderTargetItem().UAV;
 		}
 	}
 }

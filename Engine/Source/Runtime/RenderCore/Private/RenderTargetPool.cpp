@@ -92,6 +92,7 @@ static uint64 GetTypeHash(FPooledRenderTargetDesc Desc)
 		sizeof(FPooledRenderTargetDesc::Flags) +
 		sizeof(FPooledRenderTargetDesc::TargetableFlags) +
 		sizeof(FPooledRenderTargetDesc::Format) +
+		sizeof(FPooledRenderTargetDesc::UAVFormat) +
 		sizeof(FPooledRenderTargetDesc::Extent) +
 		sizeof(FPooledRenderTargetDesc::Depth) +
 		sizeof(FPooledRenderTargetDesc::ArraySize) +
@@ -503,9 +504,13 @@ Done:
 
 		if ((Desc.TargetableFlags & TexCreate_UAV))
 		{
+			EPixelFormat AliasFormat = Desc.UAVFormat != PF_Unknown
+				? Desc.UAVFormat
+				: Desc.Format;
+
 			// The render target desc is invalid if a UAV is requested with an RHI that doesn't support the high-end feature level.
 			check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
-			Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0);
+			Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0, AliasFormat);
 		}
 
 		AllocationLevelInKB += ComputeSizeInKB(*Found);
