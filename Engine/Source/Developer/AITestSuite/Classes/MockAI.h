@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "AITestsCommon.h"
 #include "Tickable.h"
@@ -21,11 +20,11 @@ struct FTestTickHelper : FTickableGameObject
 {
 	TWeakObjectPtr<class UMockAI> Owner;
 
-	FTestTickHelper() : Owner(NULL) {}
-	virtual void Tick(float DeltaTime);
-	virtual bool IsTickable() const { return Owner.IsValid(); }
-	virtual bool IsTickableInEditor() const { return true; }
-	virtual TStatId GetStatId() const;
+	FTestTickHelper() : Owner(nullptr) {}
+	virtual void Tick(float DeltaTime) override;
+	virtual bool IsTickable() const override { return Owner.IsValid(); }
+	virtual bool IsTickableInEditor() const override { return true; }
+	virtual TStatId GetStatId() const override;
 };
 
 UCLASS()
@@ -33,26 +32,29 @@ class UMockAI : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual ~UMockAI();
+	virtual ~UMockAI() override;
 
 	FTestTickHelper TickHelper;
 
 	UPROPERTY()
-	TObjectPtr<UBlackboardComponent> BBComp;
+	TObjectPtr<AActor> Actor = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UBrainComponent> BrainComp;
+	TObjectPtr<UBlackboardComponent> BBComp = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UAIPerceptionComponent> PerceptionComp;
+	TObjectPtr<UBrainComponent> BrainComp = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UPawnActionsComponent> PawnActionComp;
+	TObjectPtr<UAIPerceptionComponent> PerceptionComp = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UPawnActionsComponent> PawnActionComp = nullptr;
 	
 	template<typename TBrainClass>
 	void UseBrainComponent()
 	{
-		BrainComp = NewObject<TBrainClass>(FAITestHelpers::GetWorld());
+		BrainComp = NewObject<TBrainClass>(Actor);
 	}
 
 	void UseBlackboardComponent();
