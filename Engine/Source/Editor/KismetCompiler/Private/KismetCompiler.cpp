@@ -2229,6 +2229,12 @@ void FKismetCompilerContext::CompileFunction(FKismetFunctionContext& Context)
 		Context.UnsortedSeparateExecutionGroups = FKismetCompilerUtilities::FindUnsortedSeparateExecutionGroups(Context.LinearExecutionList);
 	}
 
+	// Propagate thread-safe flags in this first pass. Also gets called from SetCalculatedMetaDataAndFlags in the second
+	// pass to catch skeleton class generation
+	if (Context.EntryPoint->MetaData.bThreadSafe)
+	{
+		Context.Function->SetMetaData(FBlueprintMetadata::MD_ThreadSafe, TEXT("true"));
+	}
 }
 
 /**
@@ -2276,6 +2282,12 @@ void FKismetCompilerContext::FinishCompilingFunction(FKismetFunctionContext& Con
 		}
 	}
 #endif//VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
+
+	// Check thread safety
+	if (FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Context.Function))
+	{
+		FKismetCompilerUtilities::CheckFunctionThreadSafety(Context, MessageLog);
+	}
 }
 
 void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, UK2Node_FunctionEntry* EntryNode, const UEdGraphSchema_K2* K2Schema)
@@ -2360,6 +2372,12 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 			Function->SetMetaData(FBlueprintMetadata::MD_DeprecationMessage, *(EntryNode->MetaData.DeprecationMessage));
 		}
 	}
+
+	// Just copy the thread-safe flag with no checking, we verify thread safety elsewhere
+	if (EntryNode->MetaData.bThreadSafe)
+	{
+		Function->SetMetaData(FBlueprintMetadata::MD_ThreadSafe, TEXT("true"));
+	}
 	
 	if (UEdGraphPin* WorldContextPin = EntryNode->GetAutoWorldContextPin())
 	{
@@ -2372,6 +2390,12 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 	{
 		// Copy metadata from parent function as well
 		UMetaData::CopyMetadata(OverriddenFunction, Function);
+
+		// Native thread safety metadata works on the class level as well as functions, so we need to check that too.
+		if(FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(OverriddenFunction))
+		{
+			Function->SetMetaData(FBlueprintMetadata::MD_ThreadSafe, TEXT("true"));
+		}
 	}
 }
 
