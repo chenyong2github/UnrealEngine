@@ -235,6 +235,7 @@ public:
 			&& LhsFlags == RhsFlags
 			&& TargetableFlags == rhs.TargetableFlags
 			&& Format == rhs.Format
+			&& UAVFormat == rhs.UAVFormat
 			&& Extent == rhs.Extent
 			&& Depth == rhs.Depth
 			&& ArraySize == rhs.ArraySize
@@ -378,6 +379,8 @@ public:
 	ETextureCreateFlags TargetableFlags = TexCreate_None;
 	/** Texture format e.g. PF_B8G8R8A8 */
 	EPixelFormat Format = PF_Unknown;
+	/** Texture format used when creating the UAV (if TexCreate_UAV is also passed in TargetableFlags, ignored otherwise). PF_Unknown == use default (same as Format) */
+	EPixelFormat UAVFormat = PF_Unknown;
 	/** In pixels, (0,0) if not set, (x,0) for cube maps, todo: make 3d int vector for volume textures */
 	FIntPoint Extent = FIntPoint::ZeroValue;
 	/** 0, unless it's texture array or volume texture */
