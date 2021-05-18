@@ -1101,7 +1101,7 @@ void FPrimitiveSceneInfo::UnlinkAttachmentGroup()
 			if (AttachmentGroup->Primitives.Num() == 0)
 			{
 				// If this was the owner and the group is empty, remove it (otherwise the above will remove when the last attached goes).
-				Scene->AttachmentGroups.Remove(LightingAttachmentRoot);
+				Scene->AttachmentGroups.Remove(PrimitiveComponentId);
 			}
 		}
 	}
