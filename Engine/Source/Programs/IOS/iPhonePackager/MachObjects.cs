@@ -2097,6 +2097,7 @@ namespace MachObjectHandling
 	public class CodeDirectoryBlob : AbstractBlob
 	{
 		public const UInt32 cVersion2 = 0x20200;
+		public const UInt32 cVersion3 = 0x20400;
 
 		public UInt32 Version;
 		UInt32 Flags;
@@ -2118,6 +2119,13 @@ namespace MachObjectHandling
 		UInt32 ScatterCount;
 
 		string Team;
+
+		UInt32 Spare3;
+		UInt64 CodeLimit64;
+
+		UInt64 ExecSegBase;
+		UInt64 ExecSegLimit;
+		UInt64 ExecSegFlags;
 
 		// Special slot index for Info.plist
 		public const int cdInfoSlot = 1;
@@ -2159,28 +2167,21 @@ namespace MachObjectHandling
 			LogPageSize = SR.ReadByte();
 			Spare2 = SR.ReadUInt32();
 			ScatterCount = SR.ReadUInt32();
+			UInt32 TeamStringOffset = SR.ReadUInt32();
+			Spare3 = SR.ReadUInt32();
+			CodeLimit64 = SR.ReadUInt64();
+			ExecSegBase = SR.ReadUInt64();
+			ExecSegLimit = SR.ReadUInt64();
+			ExecSegFlags = SR.ReadUInt64();
 
-			if (Version == cVersion2)
-			{
-				UInt32 TeamStringOffset = SR.ReadUInt32();
-
-				// Read the identifier string
-				SR.PushPositionAndJump(StartOfBlob + IdentifierStringOffset);
-				Identifier = SR.ReadASCIIZ();
-				SR.PopPosition();
-
-				// Read the team string
-				SR.PushPositionAndJump(StartOfBlob + TeamStringOffset);
-				Team = SR.ReadASCIIZ();
-				SR.PopPosition();
-			}
-			else
-			{
-				// Read the identifier string
-				SR.PushPositionAndJump(StartOfBlob + IdentifierStringOffset);
-				Identifier = SR.ReadASCIIZ();
-				SR.PopPosition();
-			}
+			// Read the identifier string
+			SR.PushPositionAndJump(StartOfBlob + IdentifierStringOffset);
+			Identifier = SR.ReadASCIIZ();
+			SR.PopPosition();
+			// Read the team string
+			SR.PushPositionAndJump(StartOfBlob + TeamStringOffset);
+			Team = SR.ReadASCIIZ();
+			SR.PopPosition();
 
 			// Read the hashes
 			long TotalNumHashes = SpecialSlotCount + CodeSlotCount;
@@ -2233,28 +2234,24 @@ namespace MachObjectHandling
 			SW.Write(Spare2);
 			SW.Write(ScatterCount);
 
-			if (Version == cVersion2)
-			{
-				OffsetFieldU32or64 TeamStringOffset = SW.WriteDeferredOffsetFrom(StartPos, Bits.Num._32);
+			OffsetFieldU32or64 TeamStringOffset = SW.WriteDeferredOffsetFrom(StartPos, Bits.Num._32);
+			SW.Write(Spare3);
 
-				// Write the identifier
-				SW.CommitDeferredField(IdentifierStringOffset);
-				byte[] IdentifierOutput = Utilities.CreateASCIIZ(Identifier);
-				SW.Write(IdentifierOutput);
+			SW.Write(CodeLimit64);
+			SW.Write(ExecSegBase);
+			SW.Write(ExecSegLimit);
+			SW.Write(ExecSegFlags);
 
-				// Write the team identifier
-				SW.CommitDeferredField(TeamStringOffset);
-				byte[] TeamOutput = Utilities.CreateASCIIZ(Team);
-				SW.Write(TeamOutput);
-			}
-			else
-			{
-				// Write the identifier
-				SW.CommitDeferredField(IdentifierStringOffset);
-				byte[] IdentifierOutput = Utilities.CreateASCIIZ(Identifier);
-				SW.Write(IdentifierOutput);
-			}
+			// Write the identifier
+			SW.CommitDeferredField(IdentifierStringOffset);
+			byte[] IdentifierOutput = Utilities.CreateASCIIZ(Identifier);
+			SW.Write(IdentifierOutput);
 
+			// Write the team identifier
+			SW.CommitDeferredField(TeamStringOffset);
+			byte[] TeamOutput = Utilities.CreateASCIIZ(Team);
+			SW.Write(TeamOutput);
+		
 			// Write the hashes
 			SW.CommitDeferredField(HashOffset);
 			SW.Write(Hashes);
@@ -2298,7 +2295,7 @@ namespace MachObjectHandling
 			}
 		}
 
-		public static CodeDirectoryBlob Create(string ApplicationID, string TeamID, int SignedFileLength, uint Version = cVersion2)
+		public static CodeDirectoryBlob Create(string ApplicationID, string TeamID, int SignedFileLength)
 		{
 			CodeDirectoryBlob Blob = new CodeDirectoryBlob();
 			Blob.Allocate(ApplicationID, TeamID, SignedFileLength);
@@ -2306,16 +2303,23 @@ namespace MachObjectHandling
 			return Blob;
 		}
 
-		public void Allocate(string ApplicationID, string TeamID, int SignedFileLength, uint InVersion = cVersion2)
+		public void Allocate(string ApplicationID, string TeamID, int SignedFileLength)
 		{
 			Identifier = ApplicationID;
 			Team = TeamID;
 
-			Version = InVersion;
+			Version = cVersion3;
 			Flags = 0;
 			Spare1 = 0;
 			Spare2 = 0;
+			Spare3 = 0;
 			ScatterCount = 0;
+
+			CodeLimit64 = 0;
+
+			ExecSegBase = 0;
+			ExecSegLimit = 0;
+			ExecSegFlags = 0;
 
 			// 4 KB pages
 			LogPageSize = 12;
