@@ -19,14 +19,19 @@ struct FPackedHairVertex
 	uint8 UCoord;
 };
 
-struct FPackedHairAttributeVertex
+struct FPackedHairAttribute0Vertex
 {
-	typedef uint64 BulkType;
+	typedef uint32 BulkType;
 
 	uint8 RootU;
 	uint8 RootV;
 	uint8 NormalizedLength;
 	uint8 Seed;
+};
+
+struct FPackedHairAttribute1Vertex
+{
+	typedef uint32 BulkType;
 
 	uint8 IndexU;
 	uint8 IndexV;
@@ -102,14 +107,24 @@ struct FHairStrandsPositionOffsetFormat
 	static const EPixelFormat Format = PF_A32B32G32R32F;
 };
 
-struct FHairStrandsAttributeFormat
+struct FHairStrandsAttribute0Format
 {
-	typedef FPackedHairAttributeVertex Type;
-	typedef FPackedHairAttributeVertex::BulkType BulkType;
+	typedef FPackedHairAttribute0Vertex Type;
+	typedef FPackedHairAttribute0Vertex::BulkType BulkType;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_UShort4;
-	static const EPixelFormat Format = PF_R16G16B16A16_UINT;
+	static const EVertexElementType VertexElementType = VET_UByte4;
+	static const EPixelFormat Format = PF_R8G8B8A8;
+};
+
+struct FHairStrandsAttribute1Format
+{
+	typedef FPackedHairAttribute1Vertex Type;
+	typedef FPackedHairAttribute1Vertex::BulkType BulkType;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UByte4;
+	static const EPixelFormat Format = PF_R8G8B8A8_UINT;
 };
 
 struct FHairStrandsMaterialFormat
@@ -373,6 +388,12 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 
 struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 {
+	enum EDataFlags
+	{
+		DataFlags_HasUDIMData = 1,
+		DataFlags_HasMaterialData = 2
+	};
+
 	void Serialize(FArchive& Ar);
 
 	bool IsValid() const { return CurveCount > 0 && PointCount > 0;	}
@@ -389,9 +410,11 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	float MaxLength = 0;
 	float MaxRadius = 0;
 	FBox BoundingBox;
+	uint32 Flags = 0;
 
 	TArray<FHairStrandsPositionFormat::Type>	Positions;		// Size = PointCount
-	TArray<FHairStrandsAttributeFormat::Type>	Attributes;		// Size = PointCount
+	TArray<FHairStrandsAttribute0Format::Type>	Attributes0;	// Size = PointCount
+	TArray<FHairStrandsAttribute1Format::Type>	Attributes1;	// Size = PointCount
 	TArray<FHairStrandsMaterialFormat::Type>	Materials;		// Size = PointCount
 	TArray<FHairStrandsRootIndexFormat::Type>	CurveOffsets;	// Size = CurveCount+1 - Store the root point index for the curve
 };

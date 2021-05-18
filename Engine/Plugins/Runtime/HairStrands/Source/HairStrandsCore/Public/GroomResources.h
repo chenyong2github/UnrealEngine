@@ -212,7 +212,8 @@ struct FHairStrandsRestResource : public FHairCommonResource
 		uint32 Total = 0;
 		Total += GetBufferTotalNumBytes(PositionBuffer);
 		Total += GetBufferTotalNumBytes(PositionOffsetBuffer);
-		Total += GetBufferTotalNumBytes(AttributeBuffer);
+		Total += GetBufferTotalNumBytes(Attribute1Buffer);
+		Total += GetBufferTotalNumBytes(Attribute0Buffer);
 		Total += GetBufferTotalNumBytes(MaterialBuffer);
 		Total += GetBufferTotalNumBytes(TangentBuffer);
 		return Total;
@@ -228,7 +229,10 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	FRDGExternalBuffer TangentBuffer;
 
 	/* Strand hair attribute buffer */
-	FRDGExternalBuffer AttributeBuffer;
+	FRDGExternalBuffer Attribute0Buffer;
+
+	/* Strand hair attribute buffer */
+	FRDGExternalBuffer Attribute1Buffer;
 
 	/* Strand hair material buffer */
 	FRDGExternalBuffer MaterialBuffer;

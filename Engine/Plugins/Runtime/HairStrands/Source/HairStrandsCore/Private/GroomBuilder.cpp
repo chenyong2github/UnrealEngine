@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("1i");
+	return TEXT("2a");
 }
 
 namespace FHairStrandsDecimation
@@ -224,12 +224,14 @@ namespace HairStrandsBuilder
 			return;
 
 		TArray<FHairStrandsPositionFormat::Type>& OutPackedPositions = OutBulkData.Positions;
-		TArray<FHairStrandsAttributeFormat::Type>& OutPackedAttributes = OutBulkData.Attributes;
+		TArray<FHairStrandsAttribute0Format::Type>& OutPackedAttributes0 = OutBulkData.Attributes0;
+		TArray<FHairStrandsAttribute1Format::Type>& OutPackedAttributes1 = OutBulkData.Attributes1;
 		TArray<FHairStrandsMaterialFormat::Type>& OutPackedMaterials = OutBulkData.Materials;
 		TArray<FHairStrandsRootIndexFormat::Type>& OutCurveOffsets = OutBulkData.CurveOffsets;
 
 		OutPackedPositions.SetNum(NumPoints * FHairStrandsPositionFormat::ComponentCount);
-		OutPackedAttributes.SetNum(NumPoints * FHairStrandsAttributeFormat::ComponentCount);
+		OutPackedAttributes0.SetNum(NumPoints * FHairStrandsAttribute0Format::ComponentCount);
+		OutPackedAttributes1.SetNum(NumPoints * FHairStrandsAttribute1Format::ComponentCount);
 		OutPackedMaterials.SetNum(NumPoints * FHairStrandsMaterialFormat::ComponentCount);
 		OutCurveOffsets = HairStrands.StrandsCurves.CurvesOffset;
 
@@ -237,6 +239,10 @@ namespace HairStrandsBuilder
 
 		const FHairStrandsCurves& Curves = HairStrands.StrandsCurves;
 		const FHairStrandsPoints& Points = HairStrands.StrandsPoints;
+
+		// Track what features/data the bulk data contains
+		bool bHasUDIMData = false;
+		bool bHasMaterialData = false;
 
 		struct FPackedRadiusAndType
 		{
@@ -276,28 +282,46 @@ namespace HairStrandsBuilder
 				PackedPosition.UCoord = uint8(FMath::Clamp(CoordU * 255.f, 0.f, 255.f));
 
 				const FVector2D RootUV = Curves.CurvesRootUV[CurveIndex];
-				FHairStrandsAttributeFormat::Type& PackedAttributes = OutPackedAttributes[PointIndex + IndexOffset];
-				PackedAttributes.Unused0 = 0;
-				PackedAttributes.Unused1 = 0;
-				PackedAttributes.NormalizedLength = uint8(FMath::Clamp(NormalizedLength * 255.f, 0.f, 255.f));
-				PackedAttributes.Seed = CurveSeed;
+				FHairStrandsAttribute0Format::Type& PackedAttributes0 = OutPackedAttributes0[PointIndex + IndexOffset];
+				PackedAttributes0.NormalizedLength = uint8(FMath::Clamp(NormalizedLength * 255.f, 0.f, 255.f));
+				PackedAttributes0.Seed = CurveSeed;
 
 				// Root UV support UDIM texture coordinate but limit the spans of the UDIM to be in 256x256 instead of 9999x9999.
 				// The internal UV coords are also limited to 8bits, which means if sampling need to be super precise, this is no enough.
 				const FVector2D TextureRootUV(FMath::Fractional(RootUV.X), FMath::Fractional(RootUV.Y));
 				const FVector2D TextureIndexUV = RootUV - TextureRootUV;
-				PackedAttributes.RootU  = uint32(FMath::Clamp(TextureRootUV.X*255.f, 0.f, 255.f));
-				PackedAttributes.RootV  = uint32(FMath::Clamp(TextureRootUV.Y*255.f, 0.f, 255.f));
-				PackedAttributes.IndexU = uint32(FMath::Clamp(TextureIndexUV.X, 0.f, 255.f));
-				PackedAttributes.IndexV = uint32(FMath::Clamp(TextureIndexUV.Y, 0.f, 255.f));
+				PackedAttributes0.RootU  = uint8(FMath::Clamp(TextureRootUV.X*255.f, 0.f, 255.f));
+				PackedAttributes0.RootV  = uint8(FMath::Clamp(TextureRootUV.Y*255.f, 0.f, 255.f));
 
-				FHairStrandsMaterialFormat::Type& Material = OutPackedMaterials[PointIndex + IndexOffset];
-				// Cheap sRGB encoding instead of PointsBaseColor.ToFColor(true), as this makes the decompression 
-				// cheaper on GPU (since R8G8B8A8 sRGB format used/exposed not exposed)
-				Material.BaseColorR = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].R) * 0xFF), 0u, 0xFFu);
-				Material.BaseColorG = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].G) * 0xFF), 0u, 0xFFu);
-				Material.BaseColorB = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0xFF), 0u, 0xFFu);
-				Material.Roughness  = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
+				// UDIM
+				{
+					FHairStrandsAttribute1Format::Type& PackedAttributes1 = OutPackedAttributes1[PointIndex + IndexOffset];
+					PackedAttributes1.IndexU = uint8(FMath::Clamp(TextureIndexUV.X, 0.f, 255.f));
+					PackedAttributes1.IndexV = uint8(FMath::Clamp(TextureIndexUV.Y, 0.f, 255.f));
+					PackedAttributes1.Unused0 = 0;
+					PackedAttributes1.Unused1 = 0;
+
+					if (PackedAttributes1.IndexU != 0 || PackedAttributes1.IndexV != 0)
+					{
+						bHasUDIMData = true;
+					}
+				}
+
+				// Material
+				{
+					FHairStrandsMaterialFormat::Type& Material = OutPackedMaterials[PointIndex + IndexOffset];
+					// Cheap sRGB encoding instead of PointsBaseColor.ToFColor(true), as this makes the decompression 
+					// cheaper on GPU (since R8G8B8A8 sRGB format used/exposed not exposed)
+					Material.BaseColorR = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].R) * 0xFF), 0u, 0xFFu);
+					Material.BaseColorG = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].G) * 0xFF), 0u, 0xFFu);
+					Material.BaseColorB = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0xFF), 0u, 0xFFu);
+					Material.Roughness  = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
+
+					if (Material.BaseColorR != 0 || Material.BaseColorG != 0 || Material.BaseColorB != 0 || Material.Roughness != 0)
+					{
+						bHasMaterialData = true;
+					}
+				}
 			}
 		}
 
@@ -306,6 +330,12 @@ namespace HairStrandsBuilder
 		OutBulkData.PointCount = HairStrands.GetNumPoints();
 		OutBulkData.MaxLength = HairStrands.StrandsCurves.MaxLength;
 		OutBulkData.MaxRadius = HairStrands.StrandsCurves.MaxRadius;
+		OutBulkData.Flags = 0;
+
+		if (bHasMaterialData)	{ OutBulkData.Flags |= FHairStrandsBulkData::DataFlags_HasMaterialData; }
+		if (bHasUDIMData)		{ OutBulkData.Flags |= FHairStrandsBulkData::DataFlags_HasUDIMData; }
+		if (!bHasMaterialData)	{ OutBulkData.Attributes1.Empty(); }
+		if (!bHasUDIMData)		{ OutBulkData.Materials.Empty(); }
 	}
 
 	void BuildRenderData(const FHairStrandsDatas& HairStrands, FHairStrandsBulkData& OutBulkData)

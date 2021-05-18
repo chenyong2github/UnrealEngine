@@ -83,7 +83,7 @@ uint VertexCount;
 uint PrimitiveCount;
 
 Buffer<uint4> InVF_PositionBuffer;
-Buffer<uint4> InVF_AttributeBuffer;
+Buffer<float4> InVF_Attribute0Buffer;
 float3 InVF_PositionOffset;
 float InVF_Radius;
 float InVF_Length;
@@ -282,8 +282,9 @@ bool Trace(
 							OutDepth = Distance;
 
 
-							const FHairAttributes Attributes0 = DecodeHairAttribute(InVF_AttributeBuffer[P0], InVF_Length);
-							const FHairAttributes Attributes1 = DecodeHairAttribute(InVF_AttributeBuffer[P1], InVF_Length);
+							const uint4 Attribute1 = 0;
+							const FHairAttributes Attributes0 = DecodeHairAttribute(InVF_Attribute0Buffer[P0], Attribute1, InVF_Length);
+							const FHairAttributes Attributes1 = DecodeHairAttribute(InVF_Attribute0Buffer[P1], Attribute1, InVF_Length);
 
 							OutSeed		= Attributes0.Seed;
 							OutRootUV	= Attributes0.RootUV;
