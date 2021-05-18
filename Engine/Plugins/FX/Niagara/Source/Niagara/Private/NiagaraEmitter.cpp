@@ -373,6 +373,10 @@ void UNiagaraEmitter::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
+	PostLoadDefinitionsSubscriptions();
+#endif
+
 	if (GIsEditor)
 	{
 		SetFlags(RF_Transactional);
