@@ -89,6 +89,7 @@ public:
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 
@@ -108,6 +109,8 @@ private:
 	FTaskTimingSharedState& SharedState;
 
 	uint32 TaskId = InvalidTaskId;
+
+	FVector2D MousePositionOnButtonDown;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
