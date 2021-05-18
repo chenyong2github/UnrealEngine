@@ -750,7 +750,10 @@ TArray<FRigElementKey> SRigHierarchy::GetSelectedKeys() const
 	TArray<FRigElementKey> SelectedKeys;
 	for (const TSharedPtr<FRigTreeElement>& SelectedItem : SelectedItems)
 	{
-		SelectedKeys.AddUnique(SelectedItem->Key);
+		if(SelectedItem->Key.IsValid())
+		{
+			SelectedKeys.AddUnique(SelectedItem->Key);
+		}
 	}
 
 	return SelectedKeys;
@@ -795,6 +798,9 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 		return;
 	}
 
+	// an element to use for the control rig editor's detail panel
+	FRigElementKey LastSelectedElement;
+
 	URigHierarchy* Hierarchy = GetHierarchy();
 	if (Hierarchy)
 	{
@@ -803,6 +809,17 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 		
 		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 
+		// flag to guard during selection changes.
+		// in case there's no editor we'll use the local variable.
+		bool bDummySuspensionFlag = false;
+		bool* SuspensionFlagPtr = &bDummySuspensionFlag;
+		if (ControlRigEditor.IsValid())
+		{
+			SuspensionFlagPtr = &ControlRigEditor.Pin()->bSuspendDetailsPanelRefresh;
+		}
+
+		TGuardValue<bool> SuspendDetailsPanelRefreshGuard(*SuspensionFlagPtr, true);
+		
 		const TArray<FRigElementKey> NewSelection = GetSelectedKeys();
 		if(!Controller->SetSelection(NewSelection))
 		{
@@ -818,6 +835,20 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 					HandleControlBoneOrSpaceTransform();
 				}
 			}
+
+			LastSelectedElement = NewSelection.Last();
+		}
+	}
+
+	if (ControlRigEditor.IsValid())
+	{
+		if(LastSelectedElement.IsValid())
+		{
+			ControlRigEditor.Pin()->SetDetailStruct(LastSelectedElement);
+		}
+		else
+		{
+			ControlRigEditor.Pin()->ClearDetailObject();
 		}
 	}
 }
