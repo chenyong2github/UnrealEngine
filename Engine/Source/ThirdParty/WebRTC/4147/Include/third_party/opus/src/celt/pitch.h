@@ -171,8 +171,8 @@ static OPUS_INLINE opus_val32 celt_inner_prod_c(const opus_val16 *x,
     ((void)(arch),celt_inner_prod_c(x, y, N))
 #endif
 
-#ifdef NON_STATIC_COMB_FILTER_CONST_C
-void comb_filter_const_c(opus_val32 *y, opus_val32 *x, int T, int N,
+#ifdef NON_STATIC_webrtc_comb_filter_CONST_C
+void webrtc_comb_filter_const_c(opus_val32 *y, opus_val32 *x, int T, int N,
      opus_val16 g10, opus_val16 g11, opus_val16 g12);
 #endif
 
