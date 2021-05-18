@@ -47,21 +47,49 @@ bool FTraceDataStream::IsOpen() const
 ////////////////////////////////////////////////////////////////////////////////
 void FTraceDataStream::Close()
 {
+	Socket.shutdown(asio::ip::tcp::socket::shutdown_receive);
 	Socket.close();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 int32 FTraceDataStream::Read(void* Dest, uint32 DestSize)
 {
-	asio::error_code ErrorCode;
-	size_t BytesRead = Socket.read_some(asio::buffer(Dest, DestSize), ErrorCode);
-	if (ErrorCode)
-	{
-		Close();
-		return -1;
-	}
+	auto Handle = Socket.native_handle();
 
-	return int32(BytesRead);
+	fd_set Fds;
+	FD_ZERO(&Fds);
+	FD_SET(Handle, &Fds);
+
+	timeval Timeout;
+	Timeout.tv_sec = 1;
+	Timeout.tv_usec = 0;
+
+	while (true)
+	{
+		fd_set ReadFds = Fds;
+		int Ret = select(Handle + 1, &ReadFds, 0, 0, &Timeout);
+
+		if (Ret < 0)
+		{
+			Close();
+			return -1;
+		}
+
+		if (Ret == 0)
+		{
+			continue;
+		}
+
+		asio::error_code ErrorCode;
+		size_t BytesRead = Socket.read_some(asio::buffer(Dest, DestSize), ErrorCode);
+		if (ErrorCode)
+		{
+			Close();
+			return -1;
+		}
+
+		return int32(BytesRead);
+	}
 }
 
 
