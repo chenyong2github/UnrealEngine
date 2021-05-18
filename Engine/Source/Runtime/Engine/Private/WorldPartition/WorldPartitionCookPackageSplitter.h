@@ -6,8 +6,9 @@
 
 #include "CookPackageSplitter.h"
 #include "Engine/World.h"
+#include "UObject/GCObject.h"
 
-class FWorldPartitionCookPackageSplitter : public ICookPackageSplitter
+class FWorldPartitionCookPackageSplitter : public ICookPackageSplitter, public FGCObject
 {
 public:
 	//~ Begin of ICookPackageSplitter
@@ -21,9 +22,19 @@ public:
 		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages) override;
 	//~ End of ICookPackageSplitter
 
+	//~ Begin of FGCObject
+	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual FString GetReferencerName() const
+	{
+		return TEXT("FWorldPartitionCookPackageSplitter");
+	}
+	//~ End of FGCObject
+
 private:
 	const UWorld* ValidateDataObject(const UObject* SplitData);
 	UWorld* ValidateDataObject(UObject* SplitData);
+
+	UWorld* ReferencedWorld = nullptr;
 };
 
 #endif

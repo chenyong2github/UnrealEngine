@@ -538,6 +538,11 @@ bool UCookOnTheFlyServer::StartNetworkFileServer(const bool BindAnyPort, const T
 
 	CreateSandboxFile();
 	GenerateAssetRegistry();
+	for (FName NeverCookPackage : GetNeverCookPackageFileNames(TArrayView<const FString>()))
+	{
+		PackageTracker->NeverCookPackageList.Add(NeverCookPackage);
+	}
+
 
 	{
 		UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(PlatformManager->ReadLockPlatforms());
@@ -2219,17 +2224,6 @@ UE::Cook::FGeneratorPackage* UCookOnTheFlyServer::CreateGeneratorPackage(UE::Coo
 		return nullptr;
 	}
 
-	// TODO: Add support for cook on the fly
-	if (IsCookOnTheFlyMode())
-	{
-		UWorld* World = Cast<UWorld>(SplitDataObject);
-		if (World && World->GetWorldPartition())
-		{
-			UE_LOG(LogCook, Error, TEXT("Cook on the fly doesn't support World Partition."));
-			return nullptr;
-		}
-	}
-
 	UE_LOG(LogCook, Display, TEXT("Splitting Package %s with class %s acting on object %s."), *PackageData.GetPackageName().ToString(), *Splitter->GetSplitDataClass()->GetName(), *SplitDataObject->GetFullName());
 
 	// Create instance of CookPackageSplitter class
@@ -2310,6 +2304,7 @@ void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStr
 		GeneratorStruct->SetClearedOldPackages();
 	}
 
+	UPackage* Owner = GeneratorStruct->GetOwner().GetPackage();
 	if (!GeneratorStruct->HasQueuedGeneratedPackages())
 	{
 		if (Splitter->UseDeferredPopulate())
@@ -2323,7 +2318,6 @@ void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStr
 		}
 		else
 		{
-			UPackage* Owner = GeneratorStruct->GetOwner().GetPackage();
 			FPopulatePackageContext Context(GeneratorStruct, Owner);
 			TArrayView<FGeneratorPackage::FGeneratedStruct> PackagesToGenerate = GeneratorStruct->GetPackagesToGenerate();
 			// Start Splitting
@@ -2346,7 +2340,7 @@ void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStr
 				FString IntermediateFile = GeneratorStruct->GetIntermediateLocalPath(GeneratedStruct);
 				FSavePackageResultStruct SaveResult = GEditor->Save(GeneratedPackage, nullptr, RF_Standalone,
 					*IntermediateFile, GError, nullptr, /*bForceByteSwapping*/ false,
-					/*bWarnOfLongFilename*/ true, SAVE_None);
+					/*bWarnOfLongFilename*/ true, SAVE_KeepGUID);
 				if (SaveResult.Result != ESavePackageResult::Success)
 				{
 					UE_LOG(LogCook, Error, TEXT("PackageSplitter could not save uncooked generated package. Splitter=%s, Generated=%s."),
@@ -2380,7 +2374,7 @@ void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStr
 		SplitterData.Package = FindObject<UPackage>(nullptr, *GeneratedPackageName);
 		if (!SplitterData.Package)
 		{
-			SplitterData.Package = CreatePackage(*GeneratedPackageName);
+			SplitterData.Package = GeneratorStruct->CreateGeneratedUPackage(Owner, *GeneratedPackageName);
 		}
 	}
 
@@ -2451,7 +2445,7 @@ UPackage* UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook::FPopulatePa
 	}
 	else
 	{
-		GeneratedPackage = CreatePackage(*GeneratedPackageName);
+		GeneratedPackage = GeneratorStruct->CreateGeneratedUPackage(OwnerPackage, *GeneratedPackageName);
 	}
 
 	// Populate package using CookPackageSplitterInstance and pass GeneratedPackage's cooked name for it to
@@ -7971,9 +7965,15 @@ TArray<FName> UCookOnTheFlyServer::GetNeverCookPackageFileNames(TArrayView<const
 
 	};
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	AddDirectoryPathArray(PackagingSettings->DirectoriesToNeverCook, TEXT("ProjectSettings -> Project -> Packaging -> Directories to never cook"));
-	AddDirectoryPathArray(PackagingSettings->TestDirectoriesToNotSearch, TEXT("ProjectSettings -> Project -> Packaging -> Test directories to not search"));
-	// Never cook External Actors
+
+	if (IsCookByTheBookMode())
+	{
+		// Respect the packaging settings nevercook directories for CookByTheBook
+		AddDirectoryPathArray(PackagingSettings->DirectoriesToNeverCook, TEXT("ProjectSettings -> Project -> Packaging -> Directories to never cook"));
+		AddDirectoryPathArray(PackagingSettings->TestDirectoriesToNotSearch, TEXT("ProjectSettings -> Project -> Packaging -> Test directories to not search"));
+	}
+
+	// For all modes, never cook External Actors; they are handled by the parent map
 	NeverCookDirectories.Add(FString::Printf(TEXT("/Game/%s"), ULevel::GetExternalActorsFolderName()));
 
 	TArray<FString> NeverCookPackagesPaths;

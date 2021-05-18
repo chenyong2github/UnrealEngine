@@ -1063,6 +1063,17 @@ namespace Cook
 		}
 	}
 
+	UPackage* FGeneratorPackage::CreateGeneratedUPackage(const UPackage* OwnerPackage, const TCHAR* GeneratedPackageName)
+	{
+		UPackage* GeneratedPackage = CreatePackage(GeneratedPackageName);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		GeneratedPackage->SetGuid(OwnerPackage->GetGuid());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		GeneratedPackage->SetPersistentGuid(OwnerPackage->GetPersistentGuid());
+		return GeneratedPackage;
+	}
+
+
 	void FGeneratorPackage::GetIntermediateMountPoint(FString& OutPackagePath, FString& OutLocalFilePath) const
 	{
 		const FString OwnerShortName = FPackageName::GetShortName(Owner.GetPackageName().ToString());
