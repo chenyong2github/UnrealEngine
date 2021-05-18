@@ -110,21 +110,6 @@ public:
 	virtual FVector2D GetSize() const;
 
 	/**
-	 * @return Whether this node can overlap its sibling nodes in the graph editor 
-	 */
-	virtual bool CanNodeOverlapSiblings() const { return true; }
-
-	/**
-	 * @return Whether this node can be placed outside of its parent node's bounds in the graph editor
-	 */
-	virtual bool CanNodeExceedParentBounds() const { return true; }
-
-	/**
-	 * @return Whether this node can be be smaller than the total bounds of its children
-	 */
-	virtual bool CanNodeEncroachChildBounds() const { return true; }
-
-	/**
 	 * @return Wether this node can be snap aligned when the user activates snap aligning
 	 */
 	virtual bool CanNodeBeSnapAligned() const { return false; }

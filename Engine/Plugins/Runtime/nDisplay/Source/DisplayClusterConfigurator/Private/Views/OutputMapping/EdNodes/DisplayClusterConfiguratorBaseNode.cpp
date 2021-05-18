@@ -561,7 +561,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingSize(UDisplayCl
 	return BestSize;
 }
 
-FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingOffsetFromParent(const FVector2D& InDesiredOffset)
+FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingOffsetFromParent(const FVector2D& InDesiredOffset, const TSet<UDisplayClusterConfiguratorBaseNode*>& NodesToIgnore)
 {
 	FVector2D BestOffset = InDesiredOffset;
 
@@ -578,7 +578,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingOffsetFromParen
 		}
 
 		// Skip siblings that are not visible or enabled, as they are not visible in the graph editor and is confusing when a node is blocked by something invisible.
-		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible())
+		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible() || NodesToIgnore.Contains(SiblingNode))
 		{
 			continue;
 		}
@@ -602,7 +602,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingOffsetFromParen
 		}
 
 		// Skip siblings that are not visible or enabled, as they are not visible in the graph editor and is confusing when a node is blocked by something invisible.
-		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible())
+		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible() || NodesToIgnore.Contains(SiblingNode))
 		{
 			continue;
 		}
@@ -874,13 +874,13 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedSizeFromChildren(const
 	return BestSize;
 }
 
-FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetTranslationAlignments(const FVector2D& InOffset, const FNodeAlignmentParams& AlignmentParams) const
+FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetTranslationAlignments(const FVector2D& InOffset, const FNodeAlignmentParams& AlignmentParams, const TSet<UDisplayClusterConfiguratorBaseNode*>& NodesToIgnore) const
 {
 	const FNodeAlignmentAnchors ShiftedAnchors = GetNodeAlignmentAnchors().ShiftBy(InOffset);
-	return GetAlignments(ShiftedAnchors, AlignmentParams);
+	return GetAlignments(ShiftedAnchors, AlignmentParams, NodesToIgnore);
 }
 
-FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetResizeAlignments(const FVector2D& InSizeChange, const FNodeAlignmentParams& AlignmentParams) const
+FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetResizeAlignments(const FVector2D& InSizeChange, const FNodeAlignmentParams& AlignmentParams, const TSet<UDisplayClusterConfiguratorBaseNode*>& NodesToIgnore) const
 {
 	const FNodeAlignmentAnchors ExpandedAnchors = GetNodeAlignmentAnchors().ExpandBy(InSizeChange);
 
@@ -891,10 +891,10 @@ FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetResizeAlignments(cons
 	NewParams.AnchorsToIgnore.Add(EAlignmentAnchor::Top);
 	NewParams.AnchorsToIgnore.Add(EAlignmentAnchor::Left);
 
-	return GetAlignments(ExpandedAnchors, NewParams);
+	return GetAlignments(ExpandedAnchors, NewParams, NodesToIgnore);
 }
 
-FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetAlignments(const FNodeAlignmentAnchors& TransformedAnchors, const FNodeAlignmentParams& AlignmentParams) const
+FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetAlignments(const FNodeAlignmentAnchors& TransformedAnchors, const FNodeAlignmentParams& AlignmentParams, const TSet<UDisplayClusterConfiguratorBaseNode*>& NodesToIgnore) const
 {
 	FDisplayClusterConfiguratorNodeAlignmentHelper AlignmentHelper(this, TransformedAnchors, AlignmentParams);
 
@@ -912,7 +912,7 @@ FNodeAlignmentPair UDisplayClusterConfiguratorBaseNode::GetAlignments(const FNod
 		}
 
 		// Skip siblings that are not visible or enabled, as they are not visible in the graph editor and is confusing when a node snap aligns to an invisible node.
-		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible())
+		if (!SiblingNode->IsNodeEnabled() || !SiblingNode->IsNodeVisible() || NodesToIgnore.Contains(SiblingNode))
 		{
 			continue;
 		}

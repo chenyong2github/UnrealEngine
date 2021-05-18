@@ -35,7 +35,6 @@ public:
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
 	virtual bool IsNodeVisible() const override;
-	virtual bool CanNodeOverlapSiblings() const override { return false; }
 	virtual bool CanNodeBeSnapAligned() const override { return true; }
 	virtual bool CanNodeBeResized() const { return !IsViewportLocked(); }
 	virtual bool IsAspectRatioFixed() const override;
