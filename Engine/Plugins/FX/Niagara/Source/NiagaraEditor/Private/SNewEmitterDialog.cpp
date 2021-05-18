@@ -28,10 +28,12 @@ void SNewEmitterDialog::Construct(const FArguments& InArgs)
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
 
 	SAssignNew(NewAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+		.OnTemplateAssetActivated(this, &SNewEmitterDialog::ConfirmSelection)
 		.ViewOptions(DisplayAllViewOptions)
 		.TabOptions(TabOptions);
 
 	SAssignNew(CopyAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+		.OnTemplateAssetActivated(this, &SNewEmitterDialog::ConfirmSelection)
 		.ViewOptions(DisplayAllViewOptions)
 		.TabOptions(TabOptions);
 	
