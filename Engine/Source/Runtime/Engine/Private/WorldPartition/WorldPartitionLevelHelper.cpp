@@ -10,6 +10,7 @@
 #if WITH_EDITOR
 
 #include "FileHelpers.h"
+#include "Model.h"
 #include "UnrealEngine.h"
 #include "UObject/UObjectHash.h"
 #include "WorldPartition/ActorDescContainer.h"
@@ -180,6 +181,15 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	check(NewLevel->OwningWorld == NewWorld);
 	check(NewLevel->Model);
 	check(!NewLevel->bIsVisible);
+
+	// Set the guids on the constructed level to something based on the generator rather than allowing indeterminism by
+	// constructing new Guids on every cook
+	// @todo_ow: revisit for static lighting support. We need to base the LevelBuildDataId on the relevant information from the
+	// actor's package.
+	NewLevel->LevelBuildDataId = InWorld->PersistentLevel->LevelBuildDataId;
+	check(InWorld->PersistentLevel->Model && NewLevel->Model);
+	NewLevel->Model->LightingGuid = InWorld->PersistentLevel->Model->LightingGuid;
+
 	return NewLevel;
 }
 

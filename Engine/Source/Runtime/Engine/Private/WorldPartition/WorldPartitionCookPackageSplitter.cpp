@@ -40,6 +40,11 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 	const UWorld* ConstPartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorld* PartitionedWorld = const_cast<UWorld*>(ConstPartitionedWorld);
 
+	// Store the World pointer to declare it to GarbageCollection; we do not want to allow the World to be Garbage Collected
+	// until we have finished all of our TryPopulatePackage calls, because we store information on the World 
+	// that is necessary for populate 
+	ReferencedWorld = PartitionedWorld;
+
 	// World is not initialized
 	ensure(!PartitionedWorld->bIsWorldInitialized);
 
@@ -80,6 +85,11 @@ void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* Owner
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
 	WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
+}
+
+void FWorldPartitionCookPackageSplitter::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(ReferencedWorld);
 }
 
 #endif
