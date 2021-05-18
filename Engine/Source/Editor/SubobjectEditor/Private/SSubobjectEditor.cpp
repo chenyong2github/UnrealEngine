@@ -2839,6 +2839,16 @@ FSubobjectEditorTreeNodePtrType SSubobjectEditor::FindSlateNodeForObject(const U
                     }
                 }
             });
+
+		// If we didn't find it in the tree, step up the chain to the parent of the given component and recursively see if that is in the tree (unless the flag is false)
+		if (!OutNodePtr.IsValid() && bIncludeAttachmentComponents)
+		{
+			const USceneComponent* SceneComponent = Cast<const USceneComponent>(InObject);
+			if (SceneComponent && SceneComponent->GetAttachParent())
+			{
+				return FindSlateNodeForObject(SceneComponent->GetAttachParent(), bIncludeAttachmentComponents);
+			}
+		}
 	}
 
 	return OutNodePtr;
