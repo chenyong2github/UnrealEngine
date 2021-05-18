@@ -1363,6 +1363,14 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 	{
 		FViewInfo& View = Views[ViewIndex];
 
+		// Send common ray tracing resources from reference view to all others.
+		if (ViewIndex != ReferenceViewIndex)
+		{
+			View.RayTracingSubSurfaceProfileTexture = ReferenceView.RayTracingSubSurfaceProfileTexture;
+			View.RayTracingSubSurfaceProfileSRV = ReferenceView.RayTracingSubSurfaceProfileSRV;
+			View.RayTracingMaterialPipeline = ReferenceView.RayTracingMaterialPipeline;
+		}
+
 		if (bIsPathTracing)
 		{
 			// Path Tracing currently uses its own code to manage lights, so doesn't need to run this.
@@ -1373,14 +1381,6 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 			// This light data is a function of the camera position, so must be computed per view.
 			View.RayTracingLightData = CreateRayTracingLightData(RHICmdList,
 				Scene->Lights, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
-		}
-
-		// Send common ray tracing resources from reference view to all others.
-		if (ViewIndex != ReferenceViewIndex)
-		{
-			View.RayTracingSubSurfaceProfileTexture = ReferenceView.RayTracingSubSurfaceProfileTexture;
-			View.RayTracingSubSurfaceProfileSRV = ReferenceView.RayTracingSubSurfaceProfileSRV;
-			View.RayTracingMaterialPipeline = ReferenceView.RayTracingMaterialPipeline;
 		}
 	}
 
