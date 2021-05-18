@@ -59,6 +59,12 @@ BuildShaderConductor()
     cp ./External/DirectXShaderCompiler/bin/* ./NATIVE/bin
     ninja
     echo
+    
+    # Copy output into Engine/Binaries folder
+    local DST_DIR="../../../../Binaries/ThirdParty/ShaderConductor/Linux/${ARCH}"
+    cp -vf "./Lib/libdxcompiler.so" "${DST_DIR}/libdxcompiler.so"
+    cp -vf "./Lib/libShaderConductor.so" "${DST_DIR}/libShaderConductor.so"
+    cp -vf "./Bin/ShaderConductorCmd" "${DST_DIR}/ShaderConductorCmd"
 
     popd
 }
