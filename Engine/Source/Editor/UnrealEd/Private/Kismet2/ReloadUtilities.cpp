@@ -843,6 +843,20 @@ void FReload::NotifyChange(UScriptStruct* New, UScriptStruct* Old)
 	}
 }
 
+namespace
+{
+	template<typename T>
+	void CollectPackages(TArray<UPackage*>& Packages, const TMap<T*, T*>& Reinstances)
+	{
+		for (const TPair<T*, T*>& Pair : Reinstances)
+		{
+			T* Old = Pair.Key;
+			T* New = Pair.Value;
+			Packages.AddUnique(New ? New->GetPackage() : Old->GetPackage());
+		}
+	}
+}
+
 void FReload::Reinstance()
 {
 	if (Type != EActiveReloadType::Reinstancing)
@@ -852,6 +866,49 @@ void FReload::Reinstance()
 
 	TMap<UClass*, UClass*>& ClassesToReinstance = GetClassesToReinstanceForHotReload();
 
+	// If we have to collect the packages, gather them from the reinstanced objects
+	if (bCollectPackages)
+	{
+		CollectPackages(Packages, ClassesToReinstance);
+		CollectPackages(Packages, ReinstancedStructs);
+		CollectPackages(Packages, ReinstancedEnums);
+	}
+
+	// Remap all native functions (and gather scriptstructs)
+	TArray<UScriptStruct*> ScriptStructs;
+	for (FRawObjectIterator It; It; ++It)
+	{
+		if (UFunction* Function = Cast<UFunction>(static_cast<UObject*>(It->Object)))
+		{
+			if (FNativeFuncPtr NewFunction = FunctionRemap.FindRef(Function->GetNativeFunc()))
+			{
+				++NumFunctionsRemapped;
+				Function->SetNativeFunc(NewFunction);
+			}
+		} 
+		else if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(static_cast<UObject*>(It->Object)))
+		{
+			if (!ScriptStruct->HasAnyFlags(RF_ClassDefaultObject) && ScriptStruct->GetCppStructOps() && 
+				Packages.ContainsByPredicate([ScriptStruct](UPackage* Package) { return ScriptStruct->IsIn(Package); }))
+			{
+				ScriptStructs.Add(ScriptStruct);
+			}
+		}
+	}
+
+	// now let's set up the script structs...this relies on super behavior, so null them all, then set them all up. Internally this sets them up hierarchically.
+	for (UScriptStruct* Script : ScriptStructs)
+	{
+		Script->ClearCppStructOps();
+	}
+	for (UScriptStruct* Script : ScriptStructs)
+	{
+		Script->PrepareCppStructOps();
+		check(Script->GetCppStructOps());
+	}
+	NumScriptStructsRemapped = ScriptStructs.Num();
+
+	// Collect all the classes being reinstanced
 	TSet<UObject*> ReinstancingObjects;
 	ReinstancingObjects.Reserve(ClassesToReinstance.Num() + ReinstancedStructs.Num() + ReinstancedEnums.Num());
 	for (const TPair<UClass*, UClass*>& Pair : ClassesToReinstance)
@@ -868,23 +925,31 @@ void FReload::Reinstance()
 		BlueprintUpdateInfo.Nodes.Add(Node);
 	};
 
+	// Update all the structures.  We add the unchanging structs to the list to make sure the defaults are updated
 	TMap<UScriptStruct*, UScriptStruct*> ChangedStructs;
 	for (const TPair<UScriptStruct*, UScriptStruct*>& Pair : ReinstancedStructs)
 	{
 		ReinstancingObjects.Add(Pair.Key);
 		if (Pair.Value)
 		{
+			Pair.Key->StructFlags = EStructFlags(Pair.Key->StructFlags | STRUCT_NewerVersionExists);
 			ChangedStructs.Emplace(Pair.Key, Pair.Value);
+		}
+		else
+		{
+			ChangedStructs.Emplace(Pair.Key, Pair.Key);
 		}
 	}
 	FBlueprintEditorUtils::UpdateScriptStructsInNodes(ChangedStructs, OnNodeFoundOrUpdated);
 
+	// Update all the enumeration nodes
 	TMap<UEnum*, UEnum*> ChangedEnums;
 	for (const TPair<UEnum*, UEnum*>& Pair : ReinstancedEnums)
 	{
 		ReinstancingObjects.Add(Pair.Key);
 		if (Pair.Value)
 		{
+			Pair.Key->SetEnumFlags(EEnumFlags::NewerVersionExists);
 			ChangedEnums.Emplace(Pair.Key, Pair.Value);
 		}
 	}
@@ -943,53 +1008,7 @@ void FReload::ReinstanceClass(UClass* NewClass, UClass* OldClass, const TSet<UOb
 
 void FReload::Finalize(bool bRunGC)
 {
-	// If we have to collect the packages
-	if (bCollectPackages)
-	{
-		for (const TPair<UClass*, UClass*>& Pair : ReinstancedClasses)
-		{
-			UClass* OldClass = Pair.Key;
-			UClass* NewClass = Pair.Value;
-			Packages.AddUnique(NewClass ? NewClass->GetPackage() : OldClass->GetPackage());
-		}
-	}
 
-	// Remap all native functions (and gather scriptstructs)
-	TArray<UScriptStruct*> ScriptStructs;
-	for (FRawObjectIterator It; It; ++It)
-	{
-		UObject* a = static_cast<UObject*>(It->Object);
-		UFunction* f = Cast<UFunction>(a);
-
-		if (UFunction* Function = Cast<UFunction>(static_cast<UObject*>(It->Object)))
-		{
-			if (FNativeFuncPtr NewFunction = FunctionRemap.FindRef(Function->GetNativeFunc()))
-			{
-				++NumFunctionsRemapped;
-				Function->SetNativeFunc(NewFunction);
-			}
-		}
-
-		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(static_cast<UObject*>(It->Object)))
-		{
-			if (!ScriptStruct->HasAnyFlags(RF_ClassDefaultObject) && ScriptStruct->GetCppStructOps() && Packages.ContainsByPredicate([=](UPackage* Package) { return ScriptStruct->IsIn(Package); }))
-			{
-				ScriptStructs.Add(ScriptStruct);
-			}
-		}
-	}
-	NumScriptStructsRemapped = ScriptStructs.Num();
-
-	// now let's set up the script structs...this relies on super behavior, so null them all, then set them all up. Internally this sets them up hierarchically.
-	for (UScriptStruct* Script : ScriptStructs)
-	{
-		Script->ClearCppStructOps();
-	}
-	for (UScriptStruct* Script : ScriptStructs)
-	{
-		Script->PrepareCppStructOps();
-		check(Script->GetCppStructOps());
-	}
 	// Make sure new classes have the token stream assembled
 	UClass::AssembleReferenceTokenStreams();
 
