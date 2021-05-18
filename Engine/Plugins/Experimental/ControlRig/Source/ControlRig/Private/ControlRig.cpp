@@ -1172,7 +1172,7 @@ FTransform UControlRig::SetupControlFromGlobalTransform(const FName& InControlNa
 			const FTransform ParentTransform = GetHierarchy()->GetParentTransform(ControlElement, ERigTransformType::CurrentGlobal);
 			const FTransform OffsetTransform = InGlobalTransform.GetRelativeTransform(ParentTransform);
 			GetHierarchy()->SetControlOffsetTransform(ControlElement, OffsetTransform, ERigTransformType::InitialLocal, true, true);
-			ControlElement->Offset.Current = ControlElement->Offset.Initial; 
+			GetHierarchy()->SetControlOffsetTransform(ControlElement, OffsetTransform, ERigTransformType::CurrentLocal, true, true);
 		}
 	}
 	return InGlobalTransform;
