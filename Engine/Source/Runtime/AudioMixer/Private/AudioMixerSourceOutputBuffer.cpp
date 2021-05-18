@@ -399,6 +399,7 @@ namespace Audio
 				ChannelPosition.Channel = EAudioMixerChannel::FrontCenter;
 				ConvertCartesianToSpherical(InSpatParams.EmitterPosition, ChannelPosition.Azimuth, ChannelPosition.Elevation, ChannelPosition.Radius);
 
+				ChannelPosition.Radius = InSpatParams.Distance;
 				InputChannelPositions.Add(ChannelPosition);
 
 				SoundfieldPositionalData.ChannelPositions = &InputChannelPositions;
