@@ -25,8 +25,6 @@ public:
 	virtual bool IsDefinedAsConstant() const override;
 	virtual bool IsDefinedAsVarying() const override;
 	virtual FName GetEventName() const override;
-	virtual FName GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData) override;
-	virtual int32 GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData) override;
 
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;
@@ -50,8 +48,6 @@ public:
 	// Returns an instance of the struct with the current values.
 	// @param bUseDefault If set to true the default struct will be created - otherwise the struct will contains the values from the node
 	TSharedPtr<FStructOnScope> ConstructStructInstance(bool bUseDefault = false) const;
-
-	static const FName LoopSliceContextName;
 
 protected:
 

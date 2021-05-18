@@ -1892,13 +1892,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 		if (!Operand.IsValid())
 		{
-			int32 NumSlices = 1;
-			if (Pin->GetDirection() == ERigVMPinDirection::Hidden)
-			{
-				NumSlices = Pin->GetNumSlices(WorkData.RigVMUserData);
-				ensure(NumSlices >= 1);
-			}
-
+			const int32 NumSlices = 1;
 			int32 Register = INDEX_NONE;
 
 			// debug watch register might already exists - look for them by name

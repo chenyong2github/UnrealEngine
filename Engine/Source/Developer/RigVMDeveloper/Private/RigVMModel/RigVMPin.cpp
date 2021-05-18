@@ -790,28 +790,6 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 	return true;
 }
 
-FName URigVMPin::GetSliceContext(const FRigVMUserDataArray& InUserData)
-{
-	URigVMPin* RootPin = GetRootPin();
-	if (RootPin != this)
-	{
-		return RootPin->GetSliceContext(InUserData);
-	}
-	return GetNode()->GetSliceContextForPin(this, InUserData);
-}
-
-int32 URigVMPin::GetNumSlices(const FRigVMUserDataArray& InUserData)
-{
-	URigVMPin* RootPin = GetRootPin();
-	if(RootPin != this)
-	{
-		return RootPin->GetNumSlices(InUserData);
-	}
-
-	FName SliceContext = GetSliceContext(InUserData);
-	return GetNode()->GetNumSlicesForContext(SliceContext, InUserData);
-}
-
 bool URigVMPin::ShowInDetailsPanelOnly() const
 {
 #if WITH_EDITOR

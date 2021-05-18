@@ -184,15 +184,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	TArray<URigVMNode*> GetLinkedTargetNodes() const;
 
-	// Returns the name of the slice context for a pin
-	virtual FName GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData);
-
-	// returns the number of slices on this node
-	int32 GetNumSlices(const FRigVMUserDataArray& InUserData);
-
-	// Returns the number of slices for a given context
-	virtual int32 GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData);
-
 	// Returns the name of the node prior to the renaming
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	FName GetPreviousFName() const { return PreviousName; }
@@ -254,8 +245,6 @@ private:
 
 	UPROPERTY()
 	TArray<URigVMPin*> OrphanedPins;
-
-	int32 GetSliceContextBracket;
 
 	friend class URigVMController;
 	friend class URigVMGraph;
