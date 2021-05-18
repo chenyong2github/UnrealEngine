@@ -250,12 +250,6 @@ public:
 	/** Namespace into which a type can be optionally defined; if empty or not set, the type will belong to the global namespace (default). */
 	static const FName MD_Namespace;
 
-	/** Function or class marked as thread-safe. Opts class/function compilation into thread-safety checks. */
-	static const FName MD_ThreadSafe;
-
-	/** Function marked as explicitly not thread-safe. Opts function out of class-level thread-safety checks. */
-	static const FName MD_NotThreadSafe;
-	
 private:
 	// This class should never be instantiated
 	FBlueprintMetadata() {}
@@ -1099,13 +1093,6 @@ public:
 	 */
 	bool DoesGraphSupportImpureFunctions(const UEdGraph* InGraph) const;
 
-	/** 
-	 * Checks if the graph is marked as thread safe
-	 * @param InGraph		Graph to check
-	 * @return			True if the graph is marked theead safe
-	 */
-	bool IsGraphMarkedThreadSafe(const UEdGraph* InGraph) const;
-	
 	/**
 	 * Checks to see if the passed in function is valid in the graph for the current class
 	 *

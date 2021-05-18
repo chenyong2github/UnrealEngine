@@ -1885,14 +1885,6 @@ public:
 	 * Returns true if this BP is currently based on a type that returns true for the UObject::ImplementsGetWorld() call:
 	 */
 	static bool ImplementsGetWorld(const UBlueprint* BP);
-
-	/*
-	 * Checks a function for 'blueprint thread safety'. Note this is not strict thread safety and does not perform any
-	 * analysis on the function, it only inspects the metadata. Analysis is performed by the compiler for BP functions
-	 * that are marked thread safe and metadata is used both here and in the compiler for native functions that have
-	 * been validated for thread safe use in a blueprint.
-	 */
-	static bool HasFunctionBlueprintThreadSafeMetaData(const UFunction* InFunction);
 };
 
 struct UNREALED_API FBlueprintDuplicationScopeFlags

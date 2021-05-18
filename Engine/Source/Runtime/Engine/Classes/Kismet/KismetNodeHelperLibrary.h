@@ -12,7 +12,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "KismetNodeHelperLibrary.generated.h"
 
-UCLASS(meta=(BlueprintThreadSafe))
+UCLASS()
 class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
@@ -84,7 +84,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @param bRandom - Whether to select a random index or not
 	 * @return - The index that was selected (returns INDEX_NONE if there was no unmarked bits to choose from)
 	 */
-	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE", NotBlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
 	static int32 GetUnmarkedBit(int32 Data, int32 StartIdx, int32 NumBits, bool bRandom);
 
 	/**
@@ -94,7 +94,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @param NumBits - The logical number of bits we want to track
 	 * @return - The index that was selected (returns INDEX_NONE if there was no unmarked bits to choose from)
 	 */
-	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE", NotBlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
 	static int32 GetRandomUnmarkedBit(int32 Data, int32 StartIdx, int32 NumBits);
 
 	/**
