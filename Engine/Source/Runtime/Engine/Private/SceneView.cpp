@@ -2105,6 +2105,12 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	}
 
 	check(VerifyMembersChecks());
+
+	// If we are using FFT bloom and we don't have a convolution texture load the default one.
+	if (FinalPostProcessSettings.BloomMethod == EBloomMethod::BM_FFT && FinalPostProcessSettings.BloomConvolutionTexture == nullptr)
+	{
+		GEngine->LoadDefaultBloomTexture();
+	}
 }
 
 void FSceneView::ConfigureBufferVisualizationSettings()
