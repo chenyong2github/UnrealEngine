@@ -1539,6 +1539,11 @@ public:
 	ENGINE_API bool HasValidRenderData(bool bCheckLODForVerts = true, int32 LODIndex = INDEX_NONE) const;
 
 	/**
+	 * Returns true if thee mesh has valid Nanite render data.
+	 */
+	ENGINE_API bool HasValidNaniteData() const;
+
+	/**
 	 * Returns the number of bounds of the mesh.
 	 *
 	 * @return	The bounding box represented as box origin with extents and also a sphere that encapsulates that box

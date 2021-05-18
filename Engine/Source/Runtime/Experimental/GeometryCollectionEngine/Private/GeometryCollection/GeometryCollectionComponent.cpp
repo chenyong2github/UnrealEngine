@@ -166,17 +166,15 @@ bool FGeometryCollectionRepData::NetSerialize(FArchive& Ar, class UPackageMap* M
 	return true;
 }
 
-static void RecreateGCGlobalRenderState(IConsoleVariable* Var)
-{
-	FGlobalComponentRecreateRenderStateContext Context;
-}
-
 int32 GGeometryCollectionNanite = 1;
 FAutoConsoleVariableRef CVarGeometryCollectionNanite(
 	TEXT("r.GeometryCollection.Nanite"),
 	GGeometryCollectionNanite,
 	TEXT("Render geometry collections using Nanite."),
-	FConsoleVariableDelegate::CreateStatic(&RecreateGCGlobalRenderState),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
 	ECVF_RenderThreadSafe
 );
 
@@ -498,17 +496,25 @@ void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterCompone
 
 FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 {
+	static const auto NaniteProxyRenderModeVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.ProxyRenderMode"));
+	const int32 NaniteProxyRenderMode = (NaniteProxyRenderModeVar != nullptr) ? (NaniteProxyRenderModeVar->GetInt() != 0) : 0;
+
 	FPrimitiveSceneProxy* LocalSceneProxy = nullptr;
 
 	if (RestCollection)
 	{
-		// TODO: Abstract with a common helper
 		if (UseNanite(GetScene()->GetShaderPlatform()) &&
 			RestCollection->EnableNanite &&
 			RestCollection->NaniteData != nullptr &&
 			GGeometryCollectionNanite != 0)
 		{
 			LocalSceneProxy = new FNaniteGeometryCollectionSceneProxy(this);
+		}
+		// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
+		else if (RestCollection->EnableNanite && NaniteProxyRenderMode != 0)
+		{
+			// Do not render Nanite proxy
+			return nullptr;
 		}
 		else
 		{

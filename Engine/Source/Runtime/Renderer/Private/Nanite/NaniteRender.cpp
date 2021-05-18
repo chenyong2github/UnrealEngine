@@ -27,6 +27,7 @@
 #include "Lumen/LumenSceneRendering.h"
 #include "ScreenPass.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 #define CULLING_PASS_NO_OCCLUSION		0
 #define CULLING_PASS_OCCLUSION_MAIN		1
@@ -139,11 +140,15 @@ FAutoConsoleVariableRef CVarNaniteVisualizeComplexityScale(
 // Specifies if Nanite should require atomic64 support, or fallback to traditional mesh rendering using the proxies.
 // 0: Nanite will run without atomic support, but use the lockbuffer fallback, with known race conditions and corruption. (unshippable, but useful for debugging and platform bring-up).
 // 1: Nanite will not run without atomic support, instead causing legacy scene proxies to be created instead.
-int32 GNaniteRequireAtomic64Support = 0;
+int32 GNaniteRequireAtomic64Support = 1;
 FAutoConsoleVariableRef CVarNaniteRequireAtomic64Support(
 	TEXT("r.Nanite.RequireAtomic64Support"),
 	GNaniteRequireAtomic64Support,
-	TEXT("")
+	TEXT(""),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	})
 );
 
 // Specifies if visualization only shows Nanite information that passes full scene depth test

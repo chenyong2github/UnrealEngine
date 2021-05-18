@@ -145,8 +145,6 @@ public:
 
 TGlobalResource<FDummyFloatBuffer> GDummyFloatBuffer;
 
-extern int32 GRenderNaniteMeshes;
-
 FInstancedStaticMeshDelegates::FOnInstanceIndexUpdated FInstancedStaticMeshDelegates::OnInstanceIndexUpdated;
 
 /** InstancedStaticMeshInstance hit proxy */
@@ -1954,7 +1952,11 @@ bool UInstancedStaticMeshComponent::IsHLODRelevant() const
 
 FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 {
+	static const auto NaniteProxyRenderModeVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.ProxyRenderMode"));
+	const int32 NaniteProxyRenderMode = (NaniteProxyRenderModeVar != nullptr) ? (NaniteProxyRenderModeVar->GetInt() != 0) : 0;
+
 	LLM_SCOPE(ELLMTag::InstancedMesh);
+
 	ProxySize = 0;
 
 	// Verify that the mesh is valid before using it.
@@ -1979,9 +1981,16 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		
 		ProxySize = PerInstanceRenderData->ResourceSize;
 
+		// Is Nanite supported, and is there built Nanite data for this static mesh?
 		if (ShouldCreateNaniteProxy())
 		{
 			return ::new Nanite::FSceneProxy(this);
+		}
+		// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
+		else if (GetStaticMesh()->HasValidNaniteData() && NaniteProxyRenderMode != 0)
+		{
+			// Do not render Nanite proxy
+			return nullptr;
 		}
 		else
 		{

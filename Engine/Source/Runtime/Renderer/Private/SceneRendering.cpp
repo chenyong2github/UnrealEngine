@@ -3242,7 +3242,11 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 
 						if (bNaniteEnabledButNoAtomics)
 						{
-							FString String = TEXT("Nanite is enabled and used in the scene, but 64bit atomics are not supported (try upgrading video driver). Expect corrupt rendering and visuals.");
+						#if PLATFORM_WINDOWS || PLATFORM_LINUX
+							FString String = TEXT("Nanite is enabled and used in the scene, but 64bit atomics are not supported (try upgrading video driver). Expect corrupt or incomplete rendering.");
+						#else
+							FString String = TEXT("Nanite is enabled and used in the scene, but 64bit atomics are not supported (not currently supported by this platform).  Expect corrupt or incomplete rendering.");
+						#endif
 							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
