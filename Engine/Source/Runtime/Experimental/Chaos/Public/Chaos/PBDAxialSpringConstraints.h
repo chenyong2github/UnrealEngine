@@ -1,38 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Array.h"
 #include "Chaos/PBDAxialSpringConstraintsBase.h"
-#include "Chaos/PBDParticles.h"
-#include "Chaos/PerParticleRule.h"
-#include "Chaos/GraphColoring.h"
-#include "Chaos/Core.h"
-#include "ChaosStats.h"
 
 namespace Chaos
 {
 
-class CHAOS_API FPBDAxialSpringConstraints : public FParticleRule, public FPBDAxialSpringConstraintsBase
+class CHAOS_API FPBDAxialSpringConstraints : public FPBDAxialSpringConstraintsBase
 {
 	typedef FPBDAxialSpringConstraintsBase Base;
-	using Base::MBarys;
-	using Base::MConstraints;
+	using Base::Barys;
+	using Base::Constraints;
 
-  public:
-	FPBDAxialSpringConstraints(const FDynamicParticles& InParticles, TArray<TVector<int32, 3>>&& Constraints, const FReal Stiffness = (FReal)1.)
-		: FPBDAxialSpringConstraintsBase(InParticles, MoveTemp(Constraints), Stiffness)
+public:
+	FPBDAxialSpringConstraints(
+		const FPBDParticles& Particles,
+		int32 ParticleOffset,
+		int32 ParticleCount,
+		const TArray<TVec3<int32>>& InConstraints,
+		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
+		const FVec2& InStiffness,
+		bool bTrimKinematicConstraints)
+		: Base(Particles, ParticleOffset, ParticleCount, InConstraints, StiffnessMultipliers, InStiffness, bTrimKinematicConstraints)
 	{
-		InitColor(InParticles);
+		InitColor(Particles);
 	}
+
 	virtual ~FPBDAxialSpringConstraints() {}
 
-  private:
-	void InitColor(const FDynamicParticles& InParticles);
-	void ApplyImp(FPBDParticles& InParticles, const FReal Dt, const int32 i) const;
-  public:
-	void Apply(FPBDParticles& InParticles, const FReal Dt) const override; //-V762
+	void Apply(FPBDParticles& InParticles, const FReal Dt) const;
 
-	TArray<TArray<int32>> MConstraintsPerColor;
+private:
+	void InitColor(const FPBDParticles& InParticles);
+	void ApplyHelper(FPBDParticles& InParticles, const FReal Dt, const int32 ConstraintIndex, const FReal ExpStiffnessValue) const;
+
+private:
+	TArray<TArray<int32>> ConstraintsPerColor;
 };
 
 }

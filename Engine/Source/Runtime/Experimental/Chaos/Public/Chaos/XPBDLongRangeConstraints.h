@@ -27,8 +27,8 @@ public:
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const int32 MaxNumTetherIslands = 4,
-		const FVec2& InStiffness = FVec2((FReal)1.),
-		const FVec2& Scale = FVec2((FReal)1.),
+		const FVec2& InStiffness = FVec2::UnitVector,
+		const FVec2& Scale = FVec2::UnitVector,
 		const EMode InMode = EMode::Geodesic)
 	    : FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, PointToNeighbors, StiffnessMultipliers, ScaleMultipliers, MaxNumTetherIslands, InStiffness, Scale, InMode)
 	{

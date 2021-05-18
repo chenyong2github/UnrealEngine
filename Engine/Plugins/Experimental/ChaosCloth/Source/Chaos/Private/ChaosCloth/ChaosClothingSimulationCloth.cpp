@@ -118,31 +118,33 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 
 	// Edge constraints
-	if (Cloth->EdgeStiffness)
+	const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
+	if (Cloth->EdgeStiffness[0] > (FReal)0. || (Cloth->EdgeStiffness[1] > (FReal)0. && EdgeStiffnessMultipliers.Num()))
 	{
-		ClothConstraints.SetEdgeConstraints(SurfaceElements, (FReal)Cloth->EdgeStiffness, Cloth->bUseXPBDConstraints);
+		ClothConstraints.SetEdgeConstraints(SurfaceElements, EdgeStiffnessMultipliers, Cloth->bUseXPBDConstraints);
 	}
 
 	// Bending constraints
-	if (Cloth->BendingStiffness > 0.f)
+	const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
+	if (Cloth->BendingStiffness[0] > 0.f || (Cloth->BendingStiffness[1] > (FReal)0. && BendingStiffnessMultipliers.Num()))
 	{
 		if (Cloth->bUseBendingElements)
 		{
 			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), (FReal)Cloth->BendingStiffness);
+			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), Cloth->BendingStiffness[0]);  // TODO: Add support for weight maps
 		}
 		else
 		{
-			TArray<Chaos::TVec2<int32>> Edges = TriangleMesh.GetUniqueAdjacentPoints();
-			ClothConstraints.SetBendingConstraints(MoveTemp(Edges), (FReal)Cloth->BendingStiffness, Cloth->bUseXPBDConstraints);
+			const TArray<Chaos::TVec2<int32>> Edges = TriangleMesh.GetUniqueAdjacentPoints();
+			ClothConstraints.SetBendingConstraints(Edges, BendingStiffnessMultipliers, Cloth->bUseXPBDConstraints);
 		}
 	}
 
 	// Area constraints
-	if (Cloth->AreaStiffness)
+	const TConstArrayView<FRealSingle>& AreaStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AreaStiffness];
+	if (Cloth->AreaStiffness[0] > 0.f || (Cloth->AreaStiffness[1] > (FReal)0. && AreaStiffnessMultipliers.Num()))
 	{
-		TArray<Chaos::TVec3<int32>> SurfaceConstraints = SurfaceElements;
-		ClothConstraints.SetAreaConstraints(MoveTemp(SurfaceConstraints), (FReal)Cloth->AreaStiffness, Cloth->bUseXPBDConstraints);
+		ClothConstraints.SetAreaConstraints(SurfaceElements, AreaStiffnessMultipliers, Cloth->bUseXPBDConstraints);
 	}
 
 	// Volume constraints
@@ -180,7 +182,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 				}
 			}
 
-			ClothConstraints.SetVolumeConstraints(MoveTemp(DoubleBendingConstraints), (FReal)Cloth->VolumeStiffness);
+			ClothConstraints.SetVolumeConstraints(DoubleBendingConstraints, (FReal)Cloth->VolumeStiffness);
 		}
 		else
 		{
@@ -200,7 +202,6 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 			PointToNeighborsMap,
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
-			FVec2((FReal)Cloth->TetherStiffness[0], (FReal)Cloth->TetherStiffness[1]),
 			FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]),
 			Cloth->TetherMode,
 			Cloth->bUseXPBDConstraints);
@@ -270,9 +271,9 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 	// Update the animatable constraint parameters
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 	ClothConstraints.SetMaximumDistanceProperties((FReal)Cloth->MaxDistancesMultiplier);
-	ClothConstraints.SetEdgeProperties((FReal)Cloth->EdgeStiffness);
-	ClothConstraints.SetBendingProperties((FReal)Cloth->BendingStiffness);
-	ClothConstraints.SetAreaProperties((FReal)Cloth->AreaStiffness);
+	ClothConstraints.SetEdgeProperties(FVec2((FReal)Cloth->EdgeStiffness[0], (FReal)Cloth->EdgeStiffness[1]));
+	ClothConstraints.SetBendingProperties(FVec2((FReal)Cloth->BendingStiffness[0], (FReal)Cloth->BendingStiffness[1]));
+	ClothConstraints.SetAreaProperties(FVec2((FReal)Cloth->AreaStiffness[0], (FReal)Cloth->AreaStiffness[1]));
 	ClothConstraints.SetLongRangeAttachmentProperties(FVec2((FReal)Cloth->TetherStiffness[0], (FReal)Cloth->TetherStiffness[1]));
 	ClothConstraints.SetSelfCollisionProperties((FReal)Cloth->SelfCollisionThickness);
 	ClothConstraints.SetAnimDriveProperties(
@@ -336,10 +337,10 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	EMassMode InMassMode,
 	FRealSingle InMassValue,
 	FRealSingle InMinPerParticleMass,
-	FRealSingle InEdgeStiffness,
-	FRealSingle InBendingStiffness,
+	const TVec2<FRealSingle>& InEdgeStiffness,
+	const TVec2<FRealSingle>& InBendingStiffness,
 	bool bInUseBendingElements,
-	FRealSingle InAreaStiffness,
+	const TVec2<FRealSingle>& InAreaStiffness,
 	FRealSingle InVolumeStiffness,
 	bool bInUseThinShellVolumeConstraints,
 	const TVec2<FRealSingle>& InTetherStiffness,

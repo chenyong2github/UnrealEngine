@@ -107,21 +107,36 @@ public:
 	UPROPERTY()
 	float MinPerParticleMass = 0.0001f;
 
-	/** The Stiffness of the Edge constraints, only use lower than 1 values for very stretchy materials. Increase the iteration count for stiffer materials. */
-	UPROPERTY(EditAnywhere, Category = "Material Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float EdgeStiffness = 1.f;
+	/**
+	 * The Stiffness of segments constraints. Increase the iteration count for stiffer materials.
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Edge Stiffness" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to enable this constraint.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Material Properties", DisplayName = "Edge Stiffness", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	FChaosClothWeightedValue EdgeStiffnessWeighted = { 1.f, 1.f };
 
-	/** The Stiffness of the bending constraints. Increase the iteration count for stiffer materials. Increase the iteration count for stiffer materials. */
-	UPROPERTY(EditAnywhere, Category = "Material Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float BendingStiffness = 1.f;
+	/**
+	 * The Stiffness of cross segments and bending elements constraints. Increase the iteration count for stiffer materials.
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Bend Stiffness" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to enable this constraint.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Material Properties", DisplayName = "Bending Stiffness", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	FChaosClothWeightedValue BendingStiffnessWeighted = { 1.f, 1.f };
 
 	/** Enable the more accurate bending element constraints instead of the faster cross-edge spring constraints used for controlling bending stiffness. */
 	UPROPERTY(EditAnywhere, Category = "Material Properties")
 	bool bUseBendingElements = false;
 
-	/** The stiffness of the area preservation constraints. Increase the iteration count for stiffer materials. */
-	UPROPERTY(EditAnywhere, Category = "Material Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float AreaStiffness = 1.f;
+	/**
+	 * The stiffness of the surface area preservation constraints. Increase the iteration count for stiffer materials.
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Bend Stiffness" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to enable this constraint.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Material Properties", DisplayName = "Area Stiffness", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	FChaosClothWeightedValue AreaStiffnessWeighted = { 1.f, 1.f };
 
 	/** The stiffness of the volume preservation constraints. */
 	UPROPERTY()
@@ -132,7 +147,7 @@ public:
 	 * The long range attachment connects each of the cloth particles to its closest fixed point with a spring constraint.
 	 * This can be used to compensate for a lack of stretch resistance when the iterations count is kept low for performance reasons.
 	 * Can lead to an unnatural pull string puppet like behavior.
-	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Tether Stiffness" is added to the cloth, 
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Tether Stiffness" is added to the cloth, 
 	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
 	 * in the Weight Map to interpolate the final value from them.
 	 * Otherwise only the Low value is meaningful and sufficient to enable this constraint.
@@ -143,7 +158,7 @@ public:
 
 	/**
 	 * The limit scale of the long range attachment constraints (aka tether limit).
-	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Tether Scale" is added to the cloth, 
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Tether Scale" is added to the cloth, 
 	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
 	 * in the Weight Map to interpolate the final value from them.
 	 * Otherwise only the Low value is meaningful and sufficient to set the tethers' scale.
@@ -209,7 +224,7 @@ public:
 
 	/**
 	 * The aerodynamic coefficient of drag applying on each particle.
-	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Drag" is added to the cloth, 
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Drag" is added to the cloth, 
 	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
 	 * in the Weight Map to interpolate the final value from them.
 	 * Otherwise only the Low value is meaningful and sufficient to set the aerodynamic drag.
@@ -219,7 +234,7 @@ public:
 
 	/**
 	 * The aerodynamic coefficient of lift applying on each particle.
-	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Lift" is added to the cloth, 
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Lift" is added to the cloth, 
 	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
 	 * in the Weight Map to interpolate the final value from them.
 	 * Otherwise only the Low value is meaningful and sufficient to set the aerodynamic lift.
@@ -241,7 +256,7 @@ public:
 
 	/**
 	 * The strength of the constraint driving the cloth towards the animated goal mesh.
-	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Anim Drive Stiffness" is added to the cloth, 
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Anim Drive Stiffness" is added to the cloth, 
 	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
 	 * in the Weight Map to interpolate the final value from them.
 	 * Otherwise only the Low value is meaningful and sufficient to enable this constraint.
@@ -251,7 +266,7 @@ public:
 
 	/**
 	 * The damping amount of the anim drive.
-	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Anim Drive Damping" is added to the cloth, 
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Anim Drive Damping" is added to the cloth, 
 	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
 	 * in the Weight Map to interpolate the final value from them.
 	 * Otherwise only the Low value is sufficient to work on this constraint.
@@ -297,6 +312,17 @@ public:
 
 	// Deprecated properties
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	float EdgeStiffness_DEPRECATED = 1.f;
+
+	/** The Stiffness of the bending constraints. Increase the iteration count for stiffer materials. Increase the iteration count for stiffer materials. */
+	UPROPERTY()
+	float BendingStiffness_DEPRECATED = 1.f;
+
+	/** The stiffness of the area preservation constraints. Increase the iteration count for stiffer materials. */
+	UPROPERTY()
+	float AreaStiffness_DEPRECATED = 1.f;
+
 	UPROPERTY()
 	EChaosClothTetherMode TetherMode_DEPRECATED = EChaosClothTetherMode::MaxChaosClothTetherMode;
 

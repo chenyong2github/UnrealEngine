@@ -33,10 +33,10 @@ namespace Chaos
 			EMassMode InMassMode,
 			FRealSingle InMassValue,
 			FRealSingle InMinPerParticleMass,
-			FRealSingle InEdgeStiffness,
-			FRealSingle InBendingStiffness,
+			const TVec2<FRealSingle>& InEdgeStiffness,
+			const TVec2<FRealSingle>& InBendingStiffness,
 			bool bInUseBendingElements,
-			FRealSingle InAreaStiffness,
+			const TVec2<FRealSingle>& InAreaStiffness,
 			FRealSingle InVolumeStiffness,
 			bool bInUseThinShellVolumeConstraints,
 			const TVec2<FRealSingle>& InTetherStiffness,
@@ -76,7 +76,7 @@ namespace Chaos
 		// ---- Animatable property setters ----
 		void SetMaxDistancesMultiplier(FRealSingle InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
 
-		void SetMaterialProperties(FRealSingle InEdgeStiffness, FRealSingle InBendingStiffness, FRealSingle InAreaStiffness) { EdgeStiffness = InEdgeStiffness; BendingStiffness = InBendingStiffness; AreaStiffness = InAreaStiffness; }
+		void SetMaterialProperties(const TVec2<FRealSingle>& InEdgeStiffness, const TVec2<FRealSingle>& InBendingStiffness, const TVec2<FRealSingle>& InAreaStiffness) { EdgeStiffness = InEdgeStiffness; BendingStiffness = InBendingStiffness; AreaStiffness = InAreaStiffness; }
 		void SetLongRangeAttachmentProperties(const TVec2<FRealSingle>& InTetherStiffness) { TetherStiffness = InTetherStiffness; }
 		void SetCollisionProperties(FRealSingle InCollisionThickness, FRealSingle InFrictionCoefficient, bool bInUseCCD, FRealSingle InSelfCollisionThickness) { CollisionThickness = InCollisionThickness; FrictionCoefficient = InFrictionCoefficient; bUseCCD = bInUseCCD; SelfCollisionThickness = InSelfCollisionThickness; }
 		void SetDampingProperties(FRealSingle InDampingCoefficient) { DampingCoefficient = InDampingCoefficient; }
@@ -184,10 +184,10 @@ namespace Chaos
 		EMassMode MassMode;
 		FRealSingle MassValue;
 		FRealSingle MinPerParticleMass;
-		FRealSingle EdgeStiffness;
-		FRealSingle BendingStiffness;
+		TVec2<FRealSingle> EdgeStiffness;
+		TVec2<FRealSingle> BendingStiffness;
 		bool bUseBendingElements;
-		FRealSingle AreaStiffness;
+		TVec2<FRealSingle> AreaStiffness;
 		FRealSingle VolumeStiffness;
 		bool bUseThinShellVolumeConstraints;
 		TVec2<FRealSingle> TetherStiffness;
