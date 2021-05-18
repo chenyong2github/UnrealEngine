@@ -322,9 +322,9 @@ void SMetasoundGraphNode::SetDefaultTitleAreaWidget(TSharedRef<SOverlay> Default
 	}
 }
 
-void SMetasoundGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SMetasoundGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
-	SGraphNode::MoveTo(NewPosition, NodeFilter);
+	SGraphNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 
 	GetMetasoundNode().UpdatePosition();
 }

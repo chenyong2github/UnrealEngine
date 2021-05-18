@@ -31,9 +31,9 @@ void SGraphNodeMaterialComposite::Construct(const FArguments& InArgs, class UMat
 	this->UpdateGraphNode();
 }
 
-void SGraphNodeMaterialComposite::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SGraphNodeMaterialComposite::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
-	SGraphNode::MoveTo(NewPosition, NodeFilter);
+	SGraphNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 
 	CompositeNode->MaterialExpression->MaterialExpressionEditorX = CompositeNode->NodePosX;
 	CompositeNode->MaterialExpression->MaterialExpressionEditorY = CompositeNode->NodePosY;
