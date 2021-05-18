@@ -46,6 +46,12 @@ namespace BuildGraph.Tasks
 		public List<string> Values;
 
 		/// <summary>
+		/// Values to set for running the chart
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string ValuesFile;
+
+		/// <summary>
 		/// Environment variables to set
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -121,8 +127,14 @@ namespace BuildGraph.Tasks
 				Arguments.Add("--set");
 				Arguments.Add(Value);
 			}
+			foreach (FileReference ValuesFile in ResolveFilespec(CommandUtils.RootDirectory, Parameters.ValuesFile, TagNameToFileSet))
+			{
+				Arguments.Add("--values");
+				Arguments.Add(ValuesFile.FullName);
+			}
 
-			SpawnTaskBase.Execute("helm", CommandLineArguments.Join(Arguments), WorkingDir: Parameters.WorkingDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile));
+			string AdditionalArguments = String.IsNullOrEmpty(Parameters.Arguments) ? String.Empty : $" {Parameters.Arguments}";
+			SpawnTaskBase.Execute("helm", CommandLineArguments.Join(Arguments) + AdditionalArguments, WorkingDir: Parameters.WorkingDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile));
 		}
 
 		/// <summary>
