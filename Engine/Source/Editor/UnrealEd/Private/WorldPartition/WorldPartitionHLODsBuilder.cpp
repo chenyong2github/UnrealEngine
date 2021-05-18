@@ -7,6 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
+#include "Algo/ForEach.h"
 
 #include "EngineUtils.h"
 #include "SourceControlHelpers.h"
@@ -47,67 +48,92 @@ public:
 
 	virtual bool Checkout(UPackage* Package) const override
 	{
-		ModifiedFiles.Add(GetFilename(Package));
-		return PackageHelper.Checkout(Package);
+		bool bCheckedOut = PackageHelper.Checkout(Package);
+		if (bCheckedOut)
+		{
+			ModifiedFiles.Add(FHLODModifiedFiles::EFileOperation::FileEdited, GetFilename(Package));
+		}
+		return bCheckedOut;
 	}
 
 	virtual bool Add(UPackage* Package) const override
 	{
-		ModifiedFiles.Add(GetFilename(Package));
-		return PackageHelper.AddToSourceControl(Package);
+		bool bAdded = PackageHelper.AddToSourceControl(Package);
+		if (bAdded)
+		{
+			ModifiedFiles.Add(FHLODModifiedFiles::EFileOperation::FileAdded, GetFilename(Package));
+		}
+		return bAdded;
 	}
 
 	virtual bool Delete(const FString& PackageName) const override
 	{
-		ModifiedFiles.Add(PackageName);
-		return PackageHelper.Delete(PackageName);
+		bool bDeleted = PackageHelper.Delete(PackageName);
+		if (bDeleted)
+		{
+			ModifiedFiles.Add(FHLODModifiedFiles::EFileOperation::FileDeleted, PackageName);
+		}
+		return bDeleted;
 	}
 
 	virtual bool Delete(UPackage* Package) const override
 	{
-		ModifiedFiles.Add(GetFilename(Package));
-		return PackageHelper.Delete(Package);
+		FString PackageName = GetFilename(Package);
+		bool bDeleted = PackageHelper.Delete(Package);
+		if (bDeleted)
+		{
+			ModifiedFiles.Add(FHLODModifiedFiles::EFileOperation::FileDeleted, PackageName);
+		}
+		return bDeleted;
 	}
 
 	virtual bool Save(UPackage* Package) const override
 	{
-		ModifiedFiles.Add(GetFilename(Package));
+		bool bFileExists = IPlatformFile::GetPlatformPhysical().FileExists(*GetFilename(Package));
 
 		// Checkout package
 		Package->MarkAsFullyLoaded();
 
-		if (!Checkout(Package))
+		if (bFileExists)
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error checking out package %s."), *Package->GetName());
-			return false;
+			if (!Checkout(Package))
+			{
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error checking out package %s."), *Package->GetName());
+				return false;
+			}
 		}
 
 		// Save package
+		ESaveFlags SaveFlags = PackageHelper.UseSourceControl() ? ESaveFlags::SAVE_None : ESaveFlags::SAVE_Async;
 		FString PackageFileName = GetFilename(Package);
-		if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
+		if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SaveFlags))
 		{
 			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
 			return false;
 		}
 
 		// Add new package to source control
-		if (!Add(Package))
+		if (!bFileExists)
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
-			return false;
+			if (!Add(Package))
+			{
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
+				return false;
+			}
 		}
 
 		return true;
 	}
 
-	const TSet<FString> GetModifiedFiles() const
+	const FHLODModifiedFiles& GetModifiedFiles() const
 	{
+		UPackage::WaitForAsyncFileWrites();
 		return ModifiedFiles;
 	}
 
 private:
 	FPackageSourceControlHelper& PackageHelper;
-	mutable TSet<FString> ModifiedFiles;
+	mutable FHLODModifiedFiles ModifiedFiles;
 };
 
 static const FString DistributedBuildWorkingDirName = TEXT("HLODTemp");
@@ -215,9 +241,9 @@ bool UWorldPartitionHLODsBuilder::ValidateParams() const
 		return false;
 	}
 
-	if (IsDistributedBuild() && !ISourceControlModule::Get().GetProvider().IsEnabled())
+	if (IsDistributedBuild() && bSubmitHLODs && !ISourceControlModule::Get().GetProvider().IsEnabled())
 	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Distributed builds requires that a valid source control provider is enabled, exiting..."), *BuildManifest);
+		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Distributed builds submit step requires that a valid source control provider is enabled, exiting..."), *BuildManifest);
 		return false;
 	}
 
@@ -333,20 +359,24 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors(bool bCreateOnly)
 
 				ModifiedFiles.Append(SourceControlHelper->GetModifiedFiles());
 
-				TArray<TArray<FString>> BuildersFiles;
+				TArray<FHLODModifiedFiles> BuildersFiles;
 				BuildersFiles.SetNum(BuilderCount);
 
-				for (const FString& ModifiedFile : ModifiedFiles)
+				for (int32 i = 0; i < FHLODModifiedFiles::EFileOperation::NumFileOperations; i++)
 				{
-					int32* Idx = FilesToBuilderMap.Find(ModifiedFile);
-					if (Idx)
+					FHLODModifiedFiles::EFileOperation FileOp = (FHLODModifiedFiles::EFileOperation)i;
+					for (const FString& ModifiedFile : ModifiedFiles.Get(FileOp))
 					{
-						BuildersFiles[*Idx].Add(ModifiedFile);
-					}
-					else
-					{
-						// Add general files to the last builder
-						BuildersFiles.Last().Add(ModifiedFile);
+						int32* Idx = FilesToBuilderMap.Find(ModifiedFile);
+						if (Idx)
+						{
+							BuildersFiles[*Idx].Add(FileOp, ModifiedFile);
+						}
+						else
+						{
+							// Add general files to the last builder
+							BuildersFiles.Last().Add(FileOp, ModifiedFile);
+						}
 					}
 				}
 
@@ -442,7 +472,7 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 
 		TArray<FString> BuildProducts;
 
-		if (!CopyFilesToWorkingDir("ToSubmit", ModifiedFiles.Array(), BuildProducts))
+		if (!CopyFilesToWorkingDir("ToSubmit", ModifiedFiles, BuildProducts))
 		{
 			return false;
 		}
@@ -506,23 +536,23 @@ bool UWorldPartitionHLODsBuilder::SubmitHLODActors()
 	bool bRet = true;
 
 	// Ensure all files modified by the source control helper are taken into account
-	ModifiedFiles.Append(SourceControlHelper->GetModifiedFiles());
+	TArray<FString> FilesToSubmit = SourceControlHelper->GetModifiedFiles().GetAllFiles();
 
 	// Check in all modified files
-	if (ModifiedFiles.Num() > 0)
+	if (FilesToSubmit.Num() > 0)
 	{
 		FText ChangelistDescription = FText::FromString(FString::Printf(TEXT("Rebuilt HLODs for \"%s\" at %s"), *WorldPartition->GetWorld()->GetName(), *FEngineVersion::Current().ToString()));
 
 		TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
 		CheckInOperation->SetDescription(ChangelistDescription);
-		bRet = ISourceControlModule::Get().GetProvider().Execute(CheckInOperation, ModifiedFiles.Array()) == ECommandResult::Succeeded;
+		bRet = ISourceControlModule::Get().GetProvider().Execute(CheckInOperation, FilesToSubmit) == ECommandResult::Succeeded;
 		if (!bRet)
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to submit %d files to source control."), ModifiedFiles.Num());
+			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to submit %d files to source control."), FilesToSubmit.Num());
 		}
 		else
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Submitted %d files to source control ####"), ModifiedFiles.Num());
+			UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Submitted %d files to source control ####"), FilesToSubmit.Num());
 		}
 	}
 	else
@@ -783,74 +813,62 @@ const FName FileAction_Add(TEXT("Add"));
 const FName FileAction_Edit(TEXT("Edit"));
 const FName FileAction_Delete(TEXT("Delete"));
 
-bool UWorldPartitionHLODsBuilder::CopyFilesToWorkingDir(const FString& TargetDir, const TArray<FString>& FilesToCopy, TArray<FString>& BuildProducts)
+bool UWorldPartitionHLODsBuilder::CopyFilesToWorkingDir(const FString& TargetDir, const FHLODModifiedFiles& Files, TArray<FString>& BuildProducts)
 {
-	FString AbsoluteTargetDir = DistributedBuildWorkingDir / TargetDir / TEXT("");
+	const FString AbsoluteTargetDir = DistributedBuildWorkingDir / TargetDir / TEXT("");
 
-	TArray<FString> FilesToDelete;
+	bool bSuccess = true;
 
-	for (const FString& SourceFilename : FilesToCopy)
+	auto CopyFileToWorkingDir = [&](const FString& SourceFilename, const FName FileAction)
 	{
-		FSourceControlState FileState = USourceControlHelpers::QueryFileState(SourceFilename);
-		if (FileState.bIsValid)
+		FString SourceFilenameRelativeToRoot = SourceFilename;
+		FPaths::MakePathRelativeTo(SourceFilenameRelativeToRoot, *FPaths::RootDir());
+
+		FString TargetFilename = AbsoluteTargetDir / FileAction.ToString() / SourceFilenameRelativeToRoot;
+
+		BuildProducts.Add(TargetFilename);
+
+		if (FileAction != FileAction_Delete)
 		{
-			bool bShouldCopyToWorkingDir = false;
-			FName FileAction;
-
-			if (FileState.bIsAdded)
+			bool bRet = IFileManager::Get().Copy(*TargetFilename, *SourceFilename, false) == COPY_OK;
+			if (!bRet)
 			{
-				FileAction = FileAction_Add;
-				FilesToDelete.Add(SourceFilename);
-			}
-			else if (FileState.bIsCheckedOut)
-			{
-				FileAction = FileAction_Edit;
-			}
-			else if (FileState.bIsDeleted)
-			{
-				FileAction = FileAction_Delete;
-			}
-
-			if (!FileAction.IsNone())
-			{
-				FString SourceFilenameRelativeToRoot = SourceFilename;
-				FPaths::MakePathRelativeTo(SourceFilenameRelativeToRoot, *FPaths::RootDir());
-
-				FString TargetFilename = AbsoluteTargetDir / FileAction.ToString() / SourceFilenameRelativeToRoot;
-
-				BuildProducts.Add(TargetFilename);
-
-				if (FileAction != FileAction_Delete)
-				{
-					bool bRet = IFileManager::Get().Copy(*TargetFilename, *SourceFilename, false) == COPY_OK;
-					if (!bRet)
-					{
-						UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to copy file from \"%s\" to \"%s\""), *SourceFilename, *TargetFilename);
-						return false;
-					}
-				}
-				else
-				{
-					bool bRet = FFileHelper::SaveStringToFile(TEXT(""), *TargetFilename);
-					if (!bRet)
-					{
-						UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to create empty file at \"%s\""), *TargetFilename);
-						return false;
-					}
-				}
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to copy file from \"%s\" to \"%s\""), *SourceFilename, *TargetFilename);
+				bSuccess = false;
 			}
 		}
-	}
+		else
+		{
+			bool bRet = FFileHelper::SaveStringToFile(TEXT(""), *TargetFilename);
+			if (!bRet)
+			{
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to create empty file at \"%s\""), *TargetFilename);
+				bSuccess = false;
+			}
+		}
+	};
 
-	bool bRet = USourceControlHelpers::RevertFiles(FilesToCopy);
-	if (!bRet)
+	Algo::ForEach(Files.Get(FHLODModifiedFiles::EFileOperation::FileAdded), [&](const FString& SourceFilename) { CopyFileToWorkingDir(SourceFilename, FileAction_Add); });
+	Algo::ForEach(Files.Get(FHLODModifiedFiles::EFileOperation::FileEdited), [&](const FString& SourceFilename) { CopyFileToWorkingDir(SourceFilename, FileAction_Edit); });
+	Algo::ForEach(Files.Get(FHLODModifiedFiles::EFileOperation::FileDeleted), [&](const FString& SourceFilename) { CopyFileToWorkingDir(SourceFilename, FileAction_Delete); });
+	if (!bSuccess)
 	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to revert modified files: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
 		return false;
 	}
 
+	// Revert any file changes
+	if (ISourceControlModule::Get().IsEnabled())
+	{
+		bool bRet = USourceControlHelpers::RevertFiles(Files.GetAllFiles());
+		if (!bRet)
+		{
+			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to revert modified files: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+			return false;
+		}
+	}
+
 	// Delete files we added
-	for (const FString& FileToDelete : FilesToDelete)
+	for (const FString& FileToDelete : Files.Get(FHLODModifiedFiles::EFileOperation::FileAdded))
 	{
 		if (!IFileManager::Get().Delete(*FileToDelete, false, true))
 		{
@@ -864,13 +882,27 @@ bool UWorldPartitionHLODsBuilder::CopyFilesToWorkingDir(const FString& TargetDir
 
 bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceDir)
 {
-	FString AbsoluteSourceDir = DistributedBuildWorkingDir / SourceDir / TEXT("");
+	const FString AbsoluteSourceDir = DistributedBuildWorkingDir / SourceDir / TEXT("");
+
+	auto CopyFromWorkingDir = [](const TMap<FString, FString>& FilesToCopy) -> bool
+	{
+		for (const auto& Pair : FilesToCopy)
+		{
+			bool bRet = IFileManager::Get().Copy(*Pair.Key, *Pair.Value) == COPY_OK;
+			if (!bRet)
+			{
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to copy file from \"%s\" to \"%s\""), *Pair.Value, *Pair.Key);
+				return false;
+			}
+		}
+		return true;
+	};
 
 	TArray<FString> Files;
 	IFileManager::Get().FindFilesRecursive(Files, *AbsoluteSourceDir, TEXT("*.*"), true, false);
 
-	TArray<FString>			FilesToAdd;
-	TMap<FString, FString>	FilesToCopy;
+	TMap<FString, FString>	FilesToAdd;
+	TMap<FString, FString>	FilesToEdit;
 	TArray<FString>			FilesToDelete;
 
 	bool bRet = true;
@@ -893,17 +925,11 @@ bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceD
 		FName FileAction(FileActionString);
 		if (FileAction == FileAction_Add)
 		{
-			bRet = IFileManager::Get().Copy(*FullPathInRootDirectory, *File, false) == COPY_OK;
-			if (!bRet)
-			{
-				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to copy file from \"%s\" to \"%s\""), *File, *FullPathInRootDirectory);
-				return false;
-			}
-			FilesToAdd.Add(*FullPathInRootDirectory);
+			FilesToAdd.Add(*FullPathInRootDirectory, File);
 		}
 		else if (FileAction == FileAction_Edit)
 		{
-			FilesToCopy.Add(FullPathInRootDirectory, File);
+			FilesToEdit.Add(FullPathInRootDirectory, File);
 		}
 		else if (FileAction == FileAction_Delete)
 		{
@@ -918,59 +944,84 @@ bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceD
 	// Add
 	if (!FilesToAdd.IsEmpty())
 	{
-		bRet = USourceControlHelpers::MarkFilesForAdd(FilesToAdd);
+		bRet = CopyFromWorkingDir(FilesToAdd);
 		if (!bRet)
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Adding files to source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
-			while (!FPlatformMisc::IsDebuggerPresent())
-			{
-				FPlatformProcess::Sleep(0.1f);
-			}
 			return false;
 		}
-		ModifiedFiles.Append(FilesToAdd);
+
+		TArray<FString> ToAdd;
+		FilesToAdd.GetKeys(ToAdd);
+
+		if (ISourceControlModule::Get().IsEnabled())
+		{
+			bRet = USourceControlHelpers::MarkFilesForAdd(ToAdd);
+			if (!bRet)
+			{
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Adding files to source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+				return false;
+			}
+		}
+
+		ModifiedFiles.Append(FHLODModifiedFiles::EFileOperation::FileAdded, ToAdd);
 	}
 
 	// Delete
 	if (!FilesToDelete.IsEmpty())
 	{
-		bRet = USourceControlHelpers::MarkFilesForDelete(FilesToDelete);
-		if (!bRet)
+		if (ISourceControlModule::Get().IsEnabled())
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Deleting files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
-			return false;
+			bRet = USourceControlHelpers::MarkFilesForDelete(FilesToDelete);
+			if (!bRet)
+			{
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Deleting files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+				return false;
+			}
 		}
-		ModifiedFiles.Append(FilesToDelete);
+		else
+		{
+			for (const FString& FileToDelete : FilesToDelete)
+			{
+				bRet = IFileManager::Get().Delete(*FileToDelete);
+				if (!bRet)
+				{
+					UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to delete file from disk: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+					return false;
+				}
+			}
+		}
+
+		ModifiedFiles.Append(FHLODModifiedFiles::EFileOperation::FileDeleted, FilesToDelete);
 	}
 
 	// Edit
-	if (!FilesToCopy.IsEmpty())
+	if (!FilesToEdit.IsEmpty())
 	{
-		TArray<FString> FilesToEdit;
-		FilesToCopy.GetKeys(FilesToEdit);
+		TArray<FString> ToEdit;
+		FilesToEdit.GetKeys(ToEdit);
 
-		bRet = USourceControlHelpers::CheckOutFiles(FilesToEdit);
-		if (!bRet)
+		if (ISourceControlModule::Get().IsEnabled())
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Checking out files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
-			return false;
-		}
-		ModifiedFiles.Append(FilesToEdit);
-
-		for (const auto& Pair : FilesToCopy)
-		{
-			bRet = IFileManager::Get().Copy(*Pair.Key, *Pair.Value) == COPY_OK;
+			bRet = USourceControlHelpers::CheckOutFiles(ToEdit);
 			if (!bRet)
 			{
-				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to copy file from \"%s\" to \"%s\""), *Pair.Value, *Pair.Key);
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Checking out files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
 				return false;
 			}
+		}
+
+		ModifiedFiles.Append(FHLODModifiedFiles::EFileOperation::FileEdited, ToEdit);
+
+		bRet = CopyFromWorkingDir(FilesToEdit);
+		if (!bRet)
+		{
+			return false;
 		}
 	}
 
 	// Force a rescan of the updated files
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-	AssetRegistry.ScanModifiedAssetFiles(ModifiedFiles.Array());
+	AssetRegistry.ScanModifiedAssetFiles(ModifiedFiles.GetAllFiles());
 
 	return true;
 }
