@@ -259,8 +259,8 @@ public:
 					FVector3d XFPt = SpatialTransforms[SpatialIdx].InverseTransformUnlessMatch(Pt, OriginalPt, OriginalXF);
 					Ray.Direction = SpatialTransforms[SpatialIdx].InverseTransformVector(RayDirs[RayIdx]);
 					Ray.Origin = XFPt;
-					int HitTID = Spatials[SpatialIdx]->FindNearestHitTriangle(Ray);
-					if (HitTID != IndexConstants::InvalidID)
+					bool bFoundHit = Spatials[SpatialIdx]->TestAnyHitTriangle(Ray);
+					if (bFoundHit)
 					{
 						bAnyHit = true;
 						break;
@@ -288,8 +288,8 @@ public:
 				for (int RayIdx = 0; RayIdx < NR; ++RayIdx)
 				{
 					Ray.Direction = SpatialTransforms[SpatialIdx].InverseTransformVector(RayDirs[RayIdx]);
-					int HitTID = Spatials[SpatialIdx]->FindNearestHitTriangle(Ray);
-					if (HitTID == IndexConstants::InvalidID)
+					bool bFoundHit = Spatials[SpatialIdx]->TestAnyHitTriangle(Ray);
+					if (bFoundHit == false)
 					{
 						bIsOccluded = false;
 						break;

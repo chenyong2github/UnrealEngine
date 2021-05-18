@@ -313,6 +313,55 @@ int32 FSparseDynamicOctree3::FindNearestHitObject(const FRay3d& Ray,
 
 
 
+void FSparseDynamicOctree3::ContainmentQuery(
+	const FVector3d& Point,
+	TFunctionRef<void(int)> ObjectIDFunc) const
+{
+	// todo: this should take advantage of raster!
+
+	// always process spill objects
+	for (int ObjectID : SpillObjectSet)
+	{
+		ObjectIDFunc(ObjectID);
+	}
+
+	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue;
+
+	// start at root cells
+	RootCells.AllocatedIteration([&](const uint32* RootCellID)
+	{
+		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
+		if ( GetCellBox(*RootCell, MaxExpandFactor).Contains(Point) )
+		{
+			Queue.Add(&Cells[*RootCellID]);
+		}
+	});
+
+
+	while (Queue.Num() > 0)
+	{
+		const FSparseOctreeCell* CurCell = Queue.Pop(false);
+
+		// process elements
+		CellObjectLists.Enumerate(CurCell->CellID, [&](int32 ObjectID)
+		{
+			ObjectIDFunc(ObjectID);
+		});
+
+		for (int k = 0; k < 8; ++k)
+		{
+			if (CurCell->HasChild(k))
+			{
+				const FSparseOctreeCell* ChildCell = &Cells[CurCell->GetChildCellID(k)];
+				if (GetCellBox(*ChildCell, MaxExpandFactor).Contains(Point))
+				{
+					Queue.Add(ChildCell);
+				}
+			}
+		}
+	}
+}
+
 
 void FSparseDynamicOctree3::RangeQuery(
 	const FAxisAlignedBox3d& Bounds,

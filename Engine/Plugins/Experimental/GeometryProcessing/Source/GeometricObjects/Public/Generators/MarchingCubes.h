@@ -62,6 +62,13 @@ public:
 	bool bParallelCompute = true;
 
 	/**
+	 * If true, code will assume that Implicit() is expensive enough that it is worth it to cache
+	 * evaluations when possible. For something simple like evaluation of an SDF defined by a discrete
+	 * grid, this is generally not worth the overhead.
+	 */
+	bool bEnableValueCaching = true;
+
+	/**
 	 * Max number of cells on any dimension; if exceeded, CubeSize will be automatically increased to fix
 	 */
 	int SafetyMaxDimension = 4096;
@@ -108,6 +115,8 @@ public:
 	*/
 	FMeshShapeGenerator& Generate() override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_MCMesh_Generate);
+
 		if (!ensure(Validate()))
 		{
 			return *this;
@@ -116,15 +125,25 @@ public:
 		SetDimensions();
 		GridBounds = FAxisAlignedBox3i(FVector3i::Zero(), CellDimensions - FVector3i(1,1,1)); // grid bounds are inclusive
 
-		corner_values_grid = FDenseGrid3f(CellDimensions.X+1, CellDimensions.Y+1, CellDimensions.Z+1, FMathf::MaxReal);
-		edge_vertices.Reset();
+		if (bEnableValueCaching)
+		{
+			corner_values_grid = FDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
+		}
 		corner_values.Reset();
+		InitHashTables();
+		ResetMesh();
 
-		if (bParallelCompute) {
+		if (bParallelCompute) 
+		{
 			generate_parallel();
-		} else {
+		} 
+		else 
+		{
 			generate_basic();
 		}
+
+		// finalize mesh
+		BuildMesh();
 
 		return *this;
 	}
@@ -132,6 +151,8 @@ public:
 
 	FMeshShapeGenerator& GenerateContinuation(TArrayView<const FVector3<double>> Seeds)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_MCMesh_GenerateContinuation);
+
 		if (!ensure(Validate()))
 		{
 			return *this;
@@ -140,11 +161,16 @@ public:
 		SetDimensions();
 		GridBounds = FAxisAlignedBox3i(FVector3i::Zero(), CellDimensions - FVector3i(1,1,1)); // grid bounds are inclusive
 
+		InitHashTables();
+		ResetMesh();
+		corner_values.Reset();
+
 		if (LastGridBounds != GridBounds)
 		{
-			corner_values_grid = FDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
-			edge_vertices.Reset();
-			corner_values.Reset();
+			if (bEnableValueCaching)
+			{
+				corner_values_grid = FDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
+			}
 			if (bParallelCompute)
 			{
 				done_cells = FDenseGrid3i(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
@@ -152,20 +178,27 @@ public:
 		}
 		else
 		{
-			edge_vertices.Reset();
-			corner_values.Reset();
-			corner_values_grid.Assign(FMathf::MaxReal);
+			if (bEnableValueCaching)
+			{
+				corner_values_grid.Assign(FMathf::MaxReal);
+			}
 			if (bParallelCompute)
 			{
 				done_cells.Assign(0);
 			}
 		}
 
-		if (bParallelCompute) {
+		if (bParallelCompute) 
+		{
 			generate_continuation_parallel(Seeds);
-		} else {
+		} 
+		else 
+		{
 			generate_continuation(Seeds);
 		}
+
+		// finalize mesh
+		BuildMesh();
 
 		LastGridBounds = GridBounds;
 
@@ -271,28 +304,41 @@ protected:
 	// Hash table for edge vertices
 	//
 
-	TMap<int64, int> edge_vertices;
-	FCriticalSection edge_vertices_lock;
+	int64 NumEdgeVertexSections = 64;
+	TArray<TMap<int64, int>> EdgeVertexSections;
+	TArray<FCriticalSection> EdgeVertexSectionLocks;
+	
+	int FindVertexID(int64 hash)
+	{
+		int32 SectionIndex = (int32)(hash % (NumEdgeVertexSections - 1));
+		FScopeLock Lock(&EdgeVertexSectionLocks[SectionIndex]);
+		int* Found = EdgeVertexSections[SectionIndex].Find(hash);
+		return (Found != nullptr) ? *Found : IndexConstants::InvalidID;
+	}
+
+	int AppendOrFindVertexID(int64 hash, FVector3<double> Pos)
+	{
+		int32 SectionIndex = (int32)(hash % (NumEdgeVertexSections - 1));
+		FScopeLock Lock(&EdgeVertexSectionLocks[SectionIndex]);
+		int* FoundVID = EdgeVertexSections[SectionIndex].Find(hash);
+		if (FoundVID != nullptr)
+		{
+			return *FoundVID;
+		}
+		int NewVID = append_vertex(Pos, hash);
+		EdgeVertexSections[SectionIndex].Add(hash, NewVID);
+		return NewVID;
+	}
+
 
 	int edge_vertex_id(const FVector3i& Idx1, const FVector3i& Idx2, double F1, double F2)
 	{
 		int64 hash = edge_hash(Idx1, Idx2);
 
-		int vid = IndexConstants::InvalidID;
-		bool found = false;
+		int foundvid = FindVertexID(hash);
+		if (foundvid != IndexConstants::InvalidID)
 		{
-			FScopeLock Lock(&edge_vertices_lock);
-			int* foundvid = edge_vertices.Find(hash);
-			if (foundvid)
-			{
-				vid = *foundvid;
-				found = true;
-			}
-		}
-		
-		if (found)
-		{
-			return vid;
+			return foundvid;
 		}
 
 		// ok this is a bit messy. We do not want to lock the entire hash table 
@@ -307,21 +353,7 @@ protected:
 		FVector3<double> Pos = FVector3<double>::Zero();
 		find_iso(pa, pb, F1, F2, Pos);
 
-		{
-			FScopeLock Lock(&edge_vertices_lock);
-			int* foundvid = edge_vertices.Find(hash);
-			if (!foundvid)
-			{
-				vid = append_vertex(Pos);
-				edge_vertices.Add(hash, vid);
-			}
-			else
-			{
-				vid = *foundvid;
-			}
-		}
-
-		return vid;
+		return AppendOrFindVertexID(hash, Pos);
 	}
 
 
@@ -384,8 +416,43 @@ protected:
 
 	FDenseGrid3f corner_values_grid;
 
+	int64 NumCornerValueSections = 64;
+	TArray<FCriticalSection> CornerValueSectionLocks;
+	int32 GetCornerValueSectionIndex(int64 hash)
+	{
+		return (int32)(hash % (NumCornerValueSections - 1));
+	}
+
+	double corner_value_grid_parallel(const FVector3i& Idx)
+	{
+		int32 SectionIndex = GetCornerValueSectionIndex(corner_hash(Idx));
+		float val = 0.0;
+		{
+			FScopeLock Lock(&CornerValueSectionLocks[SectionIndex]);
+			val = corner_values_grid[Idx];
+		}
+		if (val != FMathf::MaxReal)
+		{
+			return (double)val;
+		}
+
+		FVector3<double> V = corner_pos(Idx);
+		val = (float)Implicit(V);
+
+		{
+			FScopeLock Lock(&CornerValueSectionLocks[SectionIndex]);
+			corner_values_grid[Idx] = val;
+		}
+
+		return (double)val;
+	}
 	double corner_value_grid(const FVector3i& Idx)
 	{
+		if (bParallelCompute)
+		{
+			return corner_value_grid_parallel(Idx);
+		}
+
 		float val = corner_values_grid[Idx];
 		if (val != FMathf::MaxReal)
 		{
@@ -397,6 +464,7 @@ protected:
 		corner_values_grid[Idx] = val;
 		return (double)val;
 	}
+
 	void initialize_cell_values_grid(FGridCell& Cell, bool Shift)
 	{
 		if (Shift)
@@ -422,7 +490,8 @@ protected:
 	//
 	//
 
-	double corner_value_nohash(const FVector3i& Idx) {
+	double corner_value_nohash(const FVector3i& Idx) 
+	{
 		FVector3<double> V = corner_pos(Idx);
 		return Implicit(V);
 	}
@@ -446,8 +515,6 @@ protected:
 
 
 
-
-
 	/**
 	*  compute 3D corner-positions and field values for cell at index
 	*/
@@ -463,8 +530,14 @@ protected:
 		Cell.i[7] = FVector3i(Idx.X + 0, Idx.Y + 1, Idx.Z + 1);
 
 		//initialize_cell_values(Cell, false);
-		initialize_cell_values_grid(Cell, false);
-		//initialize_cell_values_nohash(Cell, false);
+		if (bEnableValueCaching)
+		{
+			initialize_cell_values_grid(Cell, false);
+		}
+		else
+		{
+			initialize_cell_values_nohash(Cell, false);
+		}
 	}
 
 
@@ -482,13 +555,34 @@ protected:
 		Cell.i[4].X = XIdx; Cell.i[5].X = XIdx+1; Cell.i[6].X = XIdx+1; Cell.i[7].X = XIdx;
 
 		//initialize_cell_values(Cell, true);
-		initialize_cell_values_grid(Cell, true);
-		//initialize_cell_values_nohash(Cell, true);
+		if (bEnableValueCaching)
+		{
+			initialize_cell_values_grid(Cell, true);
+		}
+		else
+		{
+			initialize_cell_values_nohash(Cell, true);
+		}
+	}
+
+
+	void InitHashTables()
+	{
+		EdgeVertexSections.Reset();
+		EdgeVertexSections.SetNum(NumEdgeVertexSections);
+		EdgeVertexSectionLocks.Reset();
+		EdgeVertexSectionLocks.SetNum(NumEdgeVertexSections);
+
+		CornerValueSectionLocks.Reset();
+		CornerValueSectionLocks.SetNum(NumCornerValueSections);
+
+		DoneCellSectionLocks.Reset();
+		DoneCellSectionLocks.SetNum(NumDoneCellSections);
 	}
 
 
 	bool parallel_mesh_access = false;
-	FCriticalSection mesh_lock;
+
 
 	/**
 	*  processing z-slabs of cells in parallel
@@ -666,16 +760,25 @@ protected:
 
 
 	FDenseGrid3i done_cells;
-	FCriticalSection done_cells_lock;
+
+	int64 NumDoneCellSections = 64;
+	TArray<FCriticalSection> DoneCellSectionLocks;
+	int GetDoneCellSectionIndex(int64 hash)
+	{
+		return (int32)(hash % (NumDoneCellSections - 1));
+	}
 
 	bool set_cell_if_not_done(const FVector3i& Idx)
 	{
+		int32 SectionIndex = GetDoneCellSectionIndex(corner_hash(Idx));
 		bool was_set = false;
-		FScopeLock Lock(&done_cells_lock);
-		if (done_cells[Idx] == 0)
 		{
-			done_cells[Idx] = 1;
-			was_set = true;
+			FScopeLock Lock(&DoneCellSectionLocks[SectionIndex]);
+			if (done_cells[Idx] == 0)
+			{
+				done_cells[Idx] = 1;
+				was_set = true;
+			}
 		}
 		return was_set;
 	}
@@ -729,6 +832,8 @@ protected:
 			Shift <<= 1;
 		}
 
+		int64 CellHash = corner_hash(Cell.i[0]);
+
 		// now iterate through the set of triangles in TriTable for this cube,
 		// and emit triangles using the vertices we found.
 		int tri_count = 0;
@@ -747,7 +852,7 @@ protected:
 				continue;
 			}
 
-			append_triangle(a, b, c);
+			append_triangle(a, b, c, CellHash);
 			tri_count++;
 		}
 
@@ -755,39 +860,113 @@ protected:
 	}
 
 
+	struct FIndexedVertex
+	{
+		int32 Index;
+		FVector3d Position;
+	};
+	std::atomic<int32> VertexCounter;
 
+	int64 NumVertexSections = 64;
+	TArray<FCriticalSection> VertexSectionLocks;
+	TArray<TArray<FIndexedVertex>> VertexSectionLists;
+	int GetVertexSectionIndex(int64 hash)
+	{
+		return (int32)(hash % (NumVertexSections - 1));
+	}
 
 	/**
 	*  add vertex to mesh, with locking if we are computing in parallel
 	*/
-	int append_vertex(FVector3<double> V)
+	int append_vertex(FVector3<double> V, int64 CellHash)
 	{
+		int SectionIndex = GetVertexSectionIndex(CellHash);
+		int32 NewIndex = VertexCounter++;
+
 		if (parallel_mesh_access)
 		{
-			FScopeLock Lock(&mesh_lock);
-			return AppendVertex((FVector3d)V);
+			FScopeLock Lock(&VertexSectionLocks[SectionIndex]);
+			VertexSectionLists[SectionIndex].Add(FIndexedVertex{ NewIndex, V });
 		}
 		else
 		{
-			return AppendVertex((FVector3d)V);
+			VertexSectionLists[SectionIndex].Add(FIndexedVertex{ NewIndex, V });
 		}
+
+		return NewIndex;
 	}
 
 
+	int64 NumTriangleSections = 64;
+	TArray<FCriticalSection> TriangleSectionLocks;
+	TArray<TArray<FIndex3i>> TriangleSectionLists;
+	int GetTriangleSectionIndex(int64 hash)
+	{
+		return (int32)(hash % (NumTriangleSections - 1));
+	}
 
 	/**
 	*  add triangle to mesh, with locking if we are computing in parallel
 	*/
-	int append_triangle(int A, int B, int C)
+	void append_triangle(int A, int B, int C, int64 CellHash)
 	{
+		int SectionIndex = GetTriangleSectionIndex(CellHash);
 		if (parallel_mesh_access)
 		{
-			FScopeLock Lock(&mesh_lock);
-			return AppendTriangle(A, B, C);
+			FScopeLock Lock(&TriangleSectionLocks[SectionIndex]);
+			TriangleSectionLists[SectionIndex].Add(FIndex3i(A, B, C));
 		}
 		else
 		{
-			return AppendTriangle(A, B, C);
+			TriangleSectionLists[SectionIndex].Add(FIndex3i(A, B, C));
+		}
+	}
+
+
+	/**
+	 * Reset internal mesh-assembly data structures
+	 */
+	void ResetMesh()
+	{
+		VertexSectionLocks.SetNum(NumVertexSections);
+		VertexSectionLists.Reset();
+		VertexSectionLists.SetNum(NumVertexSections);
+		VertexCounter = 0;
+
+		TriangleSectionLocks.SetNum(NumTriangleSections);
+		TriangleSectionLists.Reset();
+		TriangleSectionLists.SetNum(NumTriangleSections);
+	}
+
+	/**
+	 * Populate FMeshShapeGenerator data structures from accumulated
+	 * vertex/triangle sets
+	 */
+	void BuildMesh()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_MCMesh_BuildMesh);
+
+		int32 NumVertices = VertexCounter;
+		TArray<FVector3d> VertexBuffer;
+		VertexBuffer.SetNum(NumVertices);
+		for (const TArray<FIndexedVertex>& VertexList : VertexSectionLists)
+		{
+			for (FIndexedVertex Vtx : VertexList)
+			{
+				VertexBuffer[Vtx.Index] = Vtx.Position;
+			}
+		}
+		for (int32 k = 0; k < NumVertices; ++k)
+		{
+			int32 vid = AppendVertex(VertexBuffer[k]);
+		}
+
+		for (const TArray<FIndex3i>& TriangleList : TriangleSectionLists)
+		{
+			for (FIndex3i Tri : TriangleList)
+			{
+				AppendTriangle(Tri.A, Tri.B, Tri.C);
+			}
 		}
 	}
 

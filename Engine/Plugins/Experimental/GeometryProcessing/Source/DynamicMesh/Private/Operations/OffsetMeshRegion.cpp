@@ -25,7 +25,7 @@ bool FOffsetMeshRegion::Apply()
 {
 	FMeshNormals Normals;
 	bool bHaveVertexNormals = Mesh->HasVertexNormals();
-	if (!bHaveVertexNormals)
+	if (bHaveVertexNormals == false && bUseFaceNormals == false)
 	{
 		Normals = FMeshNormals(Mesh);
 		Normals.ComputeVertexNormals();
