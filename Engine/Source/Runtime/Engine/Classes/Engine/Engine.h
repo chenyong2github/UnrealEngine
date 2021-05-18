@@ -1724,6 +1724,10 @@ public:
 		#endif
 	}
 
+	/** Delay loading this texture until it is needed by the renderer.
+	* The texture is uncompressed and contains no mips so it can't be streamed.
+	*/
+	void LoadDefaultBloomTexture();
 
 private:
 	#if WITH_DYNAMIC_RESOLUTION
