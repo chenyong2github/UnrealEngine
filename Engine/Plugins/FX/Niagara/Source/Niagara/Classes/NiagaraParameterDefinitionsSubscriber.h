@@ -43,6 +43,7 @@ public:
 
 	void InitParameterDefinitionsSubscriptions();
 	void CleanupParameterDefinitionsSubscriptions();
+	void PostLoadDefinitionsSubscriptions();
 
 	//~ Begin Pure Virtual Methods
 	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const = 0;
