@@ -2454,7 +2454,7 @@ namespace UnrealGameSync
 				if (ProjectConfigFile != null)
 				{
 					string[] BadgeDefinitions = ProjectConfigFile.GetValues("Badges.DescriptionBadges", new string[0]);
-					foreach (string BadgeDefinition in BadgeDefinitions)
+					foreach (string BadgeDefinition in BadgeDefinitions.Distinct())
 					{
 						ConfigObject BadgeDefinitionObject = new ConfigObject(BadgeDefinition);
 						string Pattern = BadgeDefinitionObject.GetValue("Pattern", null);
