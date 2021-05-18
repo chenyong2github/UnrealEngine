@@ -28,11 +28,28 @@ TStatId FTestTickHelper::GetStatId() const
 UMockAI::UMockAI(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UWorld* World = FAITestHelpers::GetWorld();
+		if (ensureMsgf(World != nullptr, TEXT("A world is required to spawn the associated test actor")))
+		{
+			FActorSpawnParameters SpawnParameters;
+			SpawnParameters.Name = TEXT("MockAIActor");
+			SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+			SpawnParameters.ObjectFlags = RF_Transient;
+			Actor = World->SpawnActor<AActor>(SpawnParameters);
+		}
+	}
 }
 
 UMockAI::~UMockAI()
 {
 	TickHelper.Owner.Reset();
+
+	if (Actor != nullptr)
+	{
+		Actor->Destroy();
+	}
 }
 
 void UMockAI::SetEnableTicking(bool bShouldTick)
@@ -43,45 +60,45 @@ void UMockAI::SetEnableTicking(bool bShouldTick)
 	}
 	else
 	{
-		TickHelper.Owner = NULL;
+		TickHelper.Owner = nullptr;
 	}
 }
 
 void UMockAI::UseBlackboardComponent()
 {
-	BBComp = NewObject<UBlackboardComponent>(FAITestHelpers::GetWorld());
+	BBComp = NewObject<UBlackboardComponent>(Actor);
 }
 
 void UMockAI::UsePerceptionComponent()
 {
-	PerceptionComp = NewObject<UAIPerceptionComponent>(FAITestHelpers::GetWorld());
+	PerceptionComp = NewObject<UAIPerceptionComponent>(Actor);
 }
 
 void UMockAI::UsePawnActionsComponent()
 {
-	PawnActionComp = NewObject<UPawnActionsComponent>(FAITestHelpers::GetWorld());
+	PawnActionComp = NewObject<UPawnActionsComponent>(Actor);
 }
 
 void UMockAI::TickMe(float DeltaTime)
 {
 	if (BBComp)
 	{
-		BBComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, NULL);
+		BBComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, nullptr);
 	}
 
 	if (PerceptionComp)
 	{
-		PerceptionComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, NULL);
+		PerceptionComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, nullptr);
 	}
 	
 	if (BrainComp)
 	{
-		BrainComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, NULL);
+		BrainComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, nullptr);
 	}
 	
 	if (PawnActionComp)
 	{
-		PawnActionComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, NULL);
+		PawnActionComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, nullptr);
 	}
 }
 
