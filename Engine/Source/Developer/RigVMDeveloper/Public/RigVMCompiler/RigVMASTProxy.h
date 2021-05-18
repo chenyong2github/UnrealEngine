@@ -146,6 +146,8 @@ public:
 
 	static FRigVMASTProxy MakeFromUObject(UObject* InSubject);
 	static FRigVMASTProxy MakeFromCallPath(const FString& InCallPath, UObject* InRootObject);
+	static FRigVMASTProxy MakeFromCallstack(const FRigVMCallstack& InCallstack);
+	static FRigVMASTProxy MakeFromCallstack(const TArray<UObject*>* InCallstack);
 
 	FRigVMASTProxy GetSibling(UObject* InSubject) const
 	{

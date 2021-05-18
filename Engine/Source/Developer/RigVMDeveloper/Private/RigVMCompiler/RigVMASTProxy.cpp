@@ -161,3 +161,17 @@ FRigVMASTProxy FRigVMASTProxy::MakeFromCallPath(const FString& InCallPath, UObje
 	return Proxy;
 }
 
+FRigVMASTProxy FRigVMASTProxy::MakeFromCallstack(const FRigVMCallstack& InCallstack)
+{
+	FRigVMASTProxy Proxy;
+	Proxy.Callstack = InCallstack;
+	return Proxy;
+}
+
+FRigVMASTProxy FRigVMASTProxy::MakeFromCallstack(const TArray<UObject*>* InCallstack)
+{
+	check(InCallstack);
+	FRigVMCallstack Callstack;
+	Callstack.Stack = *InCallstack;
+	return MakeFromCallstack(Callstack);
+}
