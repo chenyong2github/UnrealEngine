@@ -18,9 +18,11 @@ class UWorldPartitionEditorCell: public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void Serialize(FArchive& Ar) override;
-
 #if WITH_EDITOR
+	//~ UObject interface
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	//~ UObject interface
+
 	template<typename Type>
 	struct TActorHandle
 	{
