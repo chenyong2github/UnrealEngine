@@ -563,7 +563,7 @@ void SControlRigGraphNode::EndUserInteraction() const
 	SGraphNode::EndUserInteraction();
 }
 
-void SControlRigGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+void SControlRigGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
 	if (!NodeFilter.Find(SharedThis(this)))
 	{
