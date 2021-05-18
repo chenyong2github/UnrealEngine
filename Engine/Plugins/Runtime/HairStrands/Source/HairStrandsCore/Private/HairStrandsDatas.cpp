@@ -72,7 +72,7 @@ FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FPackedHairAttributeVertex& Vertex)
+FArchive& operator<<(FArchive& Ar, FPackedHairAttribute0Vertex& Vertex)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
@@ -81,21 +81,17 @@ FArchive& operator<<(FArchive& Ar, FPackedHairAttributeVertex& Vertex)
 	Ar << Vertex.NormalizedLength;
 	Ar << Vertex.Seed;
 
-	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion1)
-	{
-		Ar << Vertex.IndexU;
-		Ar << Vertex.IndexV;
-		Ar << Vertex.Unused0;
-		Ar << Vertex.Unused1;
-	}
-	else
-	{
-		Vertex.IndexU = 0;
-		Vertex.IndexV = 0;
-		Vertex.Unused0 = 0;
-		Vertex.Unused1 = 0;
-	}
-	
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FPackedHairAttribute1Vertex& Vertex)
+{
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+	Ar << Vertex.IndexU;
+	Ar << Vertex.IndexV;
+	Ar << Vertex.Unused0;
+	Ar << Vertex.Unused1;
 
 	return Ar;
 }
@@ -172,24 +168,32 @@ void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 void FHairStrandsBulkData::Serialize(FArchive& Ar)
 {
 	static_assert(sizeof(FHairStrandsPositionFormat::BulkType) == sizeof(FHairStrandsPositionFormat::Type));
-	static_assert(sizeof(FHairStrandsAttributeFormat::BulkType) == sizeof(FHairStrandsAttributeFormat::Type));
+	static_assert(sizeof(FHairStrandsAttribute0Format::BulkType) == sizeof(FHairStrandsAttribute0Format::Type));
+	static_assert(sizeof(FHairStrandsAttribute1Format::BulkType) == sizeof(FHairStrandsAttribute1Format::Type));
 	static_assert(sizeof(FHairStrandsMaterialFormat::BulkType) == sizeof(FHairStrandsMaterialFormat::Type));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type)); 
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
-	Positions.BulkSerialize(Ar);
-	Attributes.BulkSerialize(Ar);
-	Materials.BulkSerialize(Ar);
-	CurveOffsets.BulkSerialize(Ar);
-
 	Ar << CurveCount;
 	Ar << PointCount;
 	Ar << MaxLength;
 	Ar << MaxRadius;
 	Ar << BoundingBox;
+	Ar << Flags;
 
+	Positions.BulkSerialize(Ar);
+	Attributes0.BulkSerialize(Ar);
+	if (!!(Flags & DataFlags_HasUDIMData))
+	{
+		Attributes1.BulkSerialize(Ar);
+	}
+	if (!!(Flags & DataFlags_HasMaterialData))
+	{
+		Materials.BulkSerialize(Ar);
+	}
+	CurveOffsets.BulkSerialize(Ar);
 }
 
 void FHairStrandsDatas::Reset()

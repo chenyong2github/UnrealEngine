@@ -12,9 +12,12 @@ float  HairStrandsVF_Radius;
 float  HairStrandsVF_RootScale;
 float  HairStrandsVF_TipScale;
 float  HairStrandsVF_Length;
+uint   HairStrandsVF_HasAttribute1;
+uint   HairStrandsVF_HasMaterial;
 
 Buffer<uint4>  HairStrandsVF_PositionBuffer;
-Buffer<uint4>  HairStrandsVF_AttributeBuffer;
+Buffer<float4> HairStrandsVF_Attribute0Buffer;
+Buffer<uint4>  HairStrandsVF_Attribute1Buffer;
 Buffer<float4> HairStrandsVF_MaterialBuffer;
 
 struct FHairVertexAttributes
@@ -27,14 +30,34 @@ struct FHairVertexAttributes
 	float  HairRoughness;
 };
 
+uint4 GetHairStrandsOptionalAttribute1(uint InVertexId)
+{
+	uint4 Out = 0;
+	if (HairStrandsVF_HasAttribute1 > 0)
+	{
+		Out = HairStrandsVF_Attribute1Buffer[InVertexId];
+	}
+	return Out;
+}
+
+float4 GetHairStrandsOptionalMaterial(uint InVertexId)
+{
+	uint4 Out = 0;
+	if (HairStrandsVF_HasMaterial > 0)
+	{
+		Out = HairStrandsVF_MaterialBuffer[InVertexId];
+	}
+	return Out;
+}
+
 FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 VertexUV)
 {
 	const uint VertexId0 = HairPrimitiveId;
 	const uint VertexId1 = HairPrimitiveId+1;
 
 	// Instead of doing the actual interpolation we could rely on dithering as an optimization
-	const FHairAttributes Attributes0 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId0], HairStrandsVF_Length);
-	const FHairAttributes Attributes1 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId1], HairStrandsVF_Length);
+	const FHairAttributes Attributes0 = DecodeHairAttribute(HairStrandsVF_Attribute0Buffer[VertexId0], GetHairStrandsOptionalAttribute1(VertexId0), HairStrandsVF_Length);
+	const FHairAttributes Attributes1 = DecodeHairAttribute(HairStrandsVF_Attribute0Buffer[VertexId1], GetHairStrandsOptionalAttribute1(VertexId1), HairStrandsVF_Length);
 
 	const FHairControlPoint ControlPoint0 = UnpackHairControlPoint(HairStrandsVF_PositionBuffer[VertexId0], float3(0, 0 ,0), HairStrandsVF_Radius, HairStrandsVF_RootScale, HairStrandsVF_TipScale);
 	const FHairControlPoint ControlPoint1 = UnpackHairControlPoint(HairStrandsVF_PositionBuffer[VertexId1], float3(0, 0, 0), HairStrandsVF_Radius, HairStrandsVF_RootScale, HairStrandsVF_TipScale);
@@ -52,8 +75,8 @@ FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 Vert
 	Out.HairUV.y		= VertexUV.y;
 
 	// Instead of doing the actual interpolation we could rely on dithering as an optimization
-	const float4 Material0 = HairStrandsVF_MaterialBuffer[VertexId0];
-	const float4 Material1 = HairStrandsVF_MaterialBuffer[VertexId1];
+	const float4 Material0 = GetHairStrandsOptionalMaterial(VertexId0);
+	const float4 Material1 = GetHairStrandsOptionalMaterial(VertexId1);
 
 	// Cheap/manual sRGB decoding as the underlying format is linear quantization
 	Out.HairBaseColor	= lerp(Material0.xyz*Material0.xyz, Material1.xyz*Material1.xyz, VertexUV.x);

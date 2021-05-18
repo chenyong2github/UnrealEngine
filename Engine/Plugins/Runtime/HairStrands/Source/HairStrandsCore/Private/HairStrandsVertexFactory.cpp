@@ -25,6 +25,7 @@ class FDummyCulledDispatchVertexIdsBuffer : public FVertexBuffer
 public:
 	FShaderResourceViewRHIRef SRVUint;
 	FShaderResourceViewRHIRef SRVFloat;
+	FShaderResourceViewRHIRef SRVRGBA;
 
 	virtual void InitRHI() override
 	{
@@ -37,6 +38,7 @@ public:
 
 		SRVUint = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
 		SRVFloat = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_FLOAT);
+		SRVRGBA = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R8G8B8A8);
 	}
 
 	virtual void ReleaseRHI() override
@@ -44,6 +46,7 @@ public:
 		VertexBufferRHI.SafeRelease();
 		SRVUint.SafeRelease();
 		SRVFloat.SafeRelease();
+		SRVRGBA.SafeRelease();
 	}
 };
 TGlobalResource<FDummyCulledDispatchVertexIdsBuffer> GDummyCulledDispatchVertexIdsBuffer;
@@ -51,7 +54,8 @@ TGlobalResource<FDummyCulledDispatchVertexIdsBuffer> GDummyCulledDispatchVertexI
 /////////////////////////////////////////////////////////////////////////////////////////
 inline FRHIShaderResourceView* GetPositionSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)			{ return VFInput.Strands.PositionBufferRHISRV; }; 
 inline FRHIShaderResourceView* GetPreviousPositionSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)	{ return VFInput.Strands.PrevPositionBufferRHISRV; }
-inline FRHIShaderResourceView* GetAttributeSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)		{ return VFInput.Strands.AttributeBufferRHISRV; }
+inline FRHIShaderResourceView* GetAttribute0SRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)		{ return VFInput.Strands.Attribute0BufferRHISRV; }
+inline FRHIShaderResourceView* GetAttribute1SRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)		{ return VFInput.Strands.Attribute1BufferRHISRV; }
 inline FRHIShaderResourceView* GetMaterialSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)			{ return VFInput.Strands.MaterialBufferRHISRV; }
 inline FRHIShaderResourceView* GetTangentSRV(const FHairGroupPublicData::FVertexFactoryInput& VFInput)			{ return VFInput.Strands.TangentBufferRHISRV; }
 
@@ -65,6 +69,8 @@ inline float GetStrandRootScale(const FHairGroupPublicData::FVertexFactoryInput&
 inline float GetStrandTipScale(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairTipScale; };
 inline float GetMaxStrandLength(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairLength; };
 inline float GetHairDensity(const FHairGroupPublicData::FVertexFactoryInput& VFInput)							{ return VFInput.Strands.HairDensity; };
+//inline float GetHasAttribute1(const FHairGroupPublicData::FVertexFactoryInput& VFInput)							{ return VFInput.Strands.HasAttribute1; };
+//inline float GetHasMaterial(const FHairGroupPublicData::FVertexFactoryInput& VFInput)							{ return VFInput.Strands.HasMaterial; };
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -83,6 +89,8 @@ public:
 	LAYOUT_FIELD(FShaderParameter, RadiusAtDepth1_Velocity);// unused
 	LAYOUT_FIELD(FShaderParameter, Density);
 	LAYOUT_FIELD(FShaderParameter, Culling);
+	LAYOUT_FIELD(FShaderParameter, HasAttribute1);
+	LAYOUT_FIELD(FShaderParameter, HasMaterial);
 	LAYOUT_FIELD(FShaderParameter, StableRasterization);
 	LAYOUT_FIELD(FShaderParameter, ScatterSceneLighing);
 
@@ -90,7 +98,8 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, PreviousPositionOffsetBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, PositionBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, PreviousPositionBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, AttributeBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, Attribute0Buffer);
+	LAYOUT_FIELD(FShaderResourceParameter, Attribute1Buffer);
 	LAYOUT_FIELD(FShaderResourceParameter, MaterialBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, TangentBuffer);
 
@@ -104,8 +113,9 @@ public:
 		TipScale.Bind(ParameterMap, TEXT("HairStrandsVF_TipScale"));
 		Length.Bind(ParameterMap, TEXT("HairStrandsVF_Length"));
 		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));
-		Density.Bind(ParameterMap, TEXT("HairStrandsVF_Density"));	
 		Culling.Bind(ParameterMap, TEXT("HairStrandsVF_CullingEnable"));
+		HasAttribute1.Bind(ParameterMap, TEXT("HairStrandsVF_HasAttribute1"));
+		HasMaterial.Bind(ParameterMap, TEXT("HairStrandsVF_HasMaterial"));
 		StableRasterization.Bind(ParameterMap, TEXT("HairStrandsVF_bUseStableRasterization"));
 		ScatterSceneLighing.Bind(ParameterMap, TEXT("HairStrandsVF_bScatterSceneLighing"));
 
@@ -114,7 +124,8 @@ public:
 
 		PositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PositionBuffer"));
 		PreviousPositionBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_PreviousPositionBuffer"));
-		AttributeBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_AttributeBuffer"));
+		Attribute0Buffer.Bind(ParameterMap, TEXT("HairStrandsVF_Attribute0Buffer"));
+		Attribute1Buffer.Bind(ParameterMap, TEXT("HairStrandsVF_Attribute1Buffer"));
 		MaterialBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_MaterialBuffer"));
 		TangentBuffer.Bind(ParameterMap, TEXT("HairStrandsVF_TangentBuffer"));
 
@@ -137,10 +148,25 @@ public:
 		const FHairStrandsVertexFactory* VF = static_cast<const FHairStrandsVertexFactory*>(VertexFactory);
 		const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(VF->Data.Instance);
 
+		FShaderResourceViewRHIRef Attribute1SRV = GetAttribute1SRV(VFInput);
+		const bool bHasAttribute1 = Attribute1SRV != nullptr;
+		if (!bHasAttribute1)
+		{
+			Attribute1SRV = GDummyCulledDispatchVertexIdsBuffer.SRVRGBA;
+		}
+
+		FShaderResourceViewRHIRef MaterialSRV = GetMaterialSRV(VFInput);
+		const bool bHasMaterial = MaterialSRV != nullptr;
+		if (!bHasMaterial)
+		{
+			MaterialSRV = GDummyCulledDispatchVertexIdsBuffer.SRVRGBA;
+		}
+
 		VFS_BindParam(ShaderBindings, PositionBuffer, GetPositionSRV(VFInput));
 		VFS_BindParam(ShaderBindings, PreviousPositionBuffer, GetPreviousPositionSRV(VFInput));
-		VFS_BindParam(ShaderBindings, AttributeBuffer, GetAttributeSRV(VFInput));
-		VFS_BindParam(ShaderBindings, MaterialBuffer, GetMaterialSRV(VFInput));
+		VFS_BindParam(ShaderBindings, Attribute0Buffer, GetAttribute0SRV(VFInput));
+		VFS_BindParam(ShaderBindings, Attribute1Buffer, Attribute1SRV.GetReference());
+		VFS_BindParam(ShaderBindings, MaterialBuffer, MaterialSRV.GetReference());
 		VFS_BindParam(ShaderBindings, TangentBuffer, GetTangentSRV(VFInput));
 		VFS_BindParam(ShaderBindings, Radius, GetMaxStrandRadius(VFInput));
 		VFS_BindParam(ShaderBindings, RootScale, GetStrandRootScale(VFInput));
@@ -151,6 +177,8 @@ public:
 		VFS_BindParam(ShaderBindings, Density, GetHairDensity(VFInput));
 		VFS_BindParam(ShaderBindings, StableRasterization, UseStableRasterization(VFInput) ? 1u : 0u);
 		VFS_BindParam(ShaderBindings, ScatterSceneLighing, UseScatterSceneLighting(VFInput) ? 1u : 0u);
+		VFS_BindParam(ShaderBindings, HasAttribute1, bHasAttribute1 ? 1u : 0u);
+		VFS_BindParam(ShaderBindings, HasMaterial, bHasMaterial ? 1u : 0u);
 		
 		FShaderResourceViewRHIRef CulledDispatchVertexIdsSRV = GDummyCulledDispatchVertexIdsBuffer.SRVUint;
 		FShaderResourceViewRHIRef CulledCompactedRadiusScaleBufferSRV = GDummyCulledDispatchVertexIdsBuffer.SRVFloat;
