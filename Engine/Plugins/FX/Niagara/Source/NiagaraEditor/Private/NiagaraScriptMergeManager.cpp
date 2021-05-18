@@ -375,6 +375,11 @@ void FNiagaraStackFunctionMergeAdapter::GatherFunctionCallNodes(TArray<UNiagaraN
 	}
 }
 
+const TArray<FNiagaraStackMessage>& FNiagaraStackFunctionMergeAdapter::GetMessages() const
+{
+	return FunctionCallNode->GetCustomNotes();
+}
+
 FNiagaraScriptStackMergeAdapter::FNiagaraScriptStackMergeAdapter(const UNiagaraEmitter& InOwningEmitter, UNiagaraNodeOutput& InOutputNode, UNiagaraScript& InScript)
 {
 	OutputNode = &InOutputNode;
@@ -1014,6 +1019,8 @@ bool FNiagaraScriptStackDiffResults::IsEmpty() const
 		ChangedVersionOtherModules.Num() == 0 &&
 		EnabledChangedBaseModules.Num() == 0 &&
 		EnabledChangedOtherModules.Num() == 0 &&
+		AddedOtherMessages.Num() == 0 &&
+		RemovedBaseMessagesInOther.Num() == 0 &&
 		RemovedBaseInputOverrides.Num() == 0 &&
 		AddedOtherInputOverrides.Num() == 0 &&
 		ModifiedOtherInputOverrides.Num() == 0 &&
@@ -2212,6 +2219,31 @@ void FNiagaraScriptMergeManager::DiffScriptStacks(TSharedRef<FNiagaraScriptStack
 			DiffResults.EnabledChangedOtherModules.Add(CommonValuePair.OtherValue);
 		}
 
+		const TArray<FNiagaraStackMessage>& BaseMessages = CommonValuePair.BaseValue->GetMessages();
+		const TArray<FNiagaraStackMessage>& OtherMessages = CommonValuePair.OtherValue->GetMessages();
+
+		for(const FNiagaraStackMessage& OtherMessage : OtherMessages)
+		{
+			if(!BaseMessages.ContainsByPredicate([&](const FNiagaraStackMessage& Message)
+			{
+				return Message.Guid == OtherMessage.Guid;
+			}))
+			{
+				DiffResults.AddedOtherMessages.Add({CommonValuePair.OtherValue, OtherMessage});
+			}
+		}
+
+		for(const FNiagaraStackMessage& BaseMessage : BaseMessages)
+		{
+			if(!OtherMessages.ContainsByPredicate([&](const FNiagaraStackMessage& Message)
+			{
+				return Message.Guid == BaseMessage.Guid;
+			}))
+			{
+				DiffResults.RemovedBaseMessagesInOther.Add({CommonValuePair.BaseValue, BaseMessage});
+			}
+		}
+
 		if (CommonValuePair.BaseValue->GetFunctionCallNode()->SelectedScriptVersion != CommonValuePair.OtherValue->GetFunctionCallNode()->SelectedScriptVersion)
 		{
 			DiffResults.ChangedVersionBaseModules.Add(CommonValuePair.BaseValue);
@@ -2880,6 +2912,26 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 		}
 	}
 
+	for(const FNiagaraStackFunctionMessageData& AddedMessage : DiffResults.AddedOtherMessages)
+	{
+		TSharedPtr<FNiagaraStackFunctionMergeAdapter> MatchingModuleAdapter = BaseScriptStackAdapter->GetModuleFunctionById(AddedMessage.Function->GetFunctionCallNode()->NodeGuid);
+
+		if(MatchingModuleAdapter.IsValid())
+		{
+			MatchingModuleAdapter->GetFunctionCallNode()->AddCustomNote(AddedMessage.StackMessage);
+		}
+	}
+
+	for(const FNiagaraStackFunctionMessageData& RemovedMessage : DiffResults.RemovedBaseMessagesInOther)
+	{
+		TSharedPtr<FNiagaraStackFunctionMergeAdapter> MatchingModuleAdapter = BaseScriptStackAdapter->GetModuleFunctionById(RemovedMessage.Function->GetFunctionCallNode()->NodeGuid);
+
+		if(MatchingModuleAdapter.IsValid())
+		{
+			MatchingModuleAdapter->GetFunctionCallNode()->RemoveCustomNote(RemovedMessage.StackMessage.Guid);
+		}
+	}
+	
 	// Update the usage if different
 	if (DiffResults.ChangedOtherUsage.IsSet())
 	{

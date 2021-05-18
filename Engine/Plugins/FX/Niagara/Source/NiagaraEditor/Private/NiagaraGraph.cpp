@@ -2540,6 +2540,7 @@ void UNiagaraGraph::MarkGraphRequiresSynchronization(FString Reason)
 {
 	Modify();
 	ChangeId = FGuid::NewGuid();
+	NotifyGraphChanged();
 	if (GEnableVerboseNiagaraChangeIdLogging)
 	{
 		UE_LOG(LogNiagaraEditor, Verbose, TEXT("Graph %s was marked requires synchronization.  Reason: %s"), *GetPathName(), *Reason);

@@ -6,6 +6,7 @@
 #include "Styling/SlateTypes.h"
 #include "Layout/Visibility.h"
 #include "Types/SlateEnums.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 class UNiagaraStackModuleItem;
 class UNiagaraStackViewModel;
@@ -76,5 +77,9 @@ private:
 
 	TSharedPtr<SComboButton> AddButton;
 
+	TSharedPtr<SMultiLineEditableTextBox> ShortDescriptionTextBox;
+	TSharedPtr<SMultiLineEditableTextBox> DescriptionTextBox;
+
 	static bool bLibraryOnly;
+
 };

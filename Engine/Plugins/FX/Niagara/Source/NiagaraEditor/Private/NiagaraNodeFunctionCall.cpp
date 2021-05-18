@@ -110,7 +110,7 @@ void UNiagaraNodeFunctionCall::PostLoad()
 	{
 		ComputeNodeName();
 	}
-
+	
 	// check if maybe the parameter names in the referenced module were changed and try to move over existing values
 	FixupPinNames();
 }
@@ -161,6 +161,40 @@ TSharedPtr<SGraphNode> UNiagaraNodeFunctionCall::CreateVisualWidget()
 	else
 	{
 		return SNew(SNiagaraGraphNodeFunctionCallWithSpecifiers, this);
+	}
+}
+
+void UNiagaraNodeFunctionCall::AddCustomNote(const FNiagaraStackMessage& StackMessage)
+{
+	StackMessages.Add(StackMessage);
+    OnCustomNotesChangedDelegate.ExecuteIfBound();
+    GetNiagaraGraph()->NotifyGraphChanged();
+}
+
+void UNiagaraNodeFunctionCall::RemoveCustomNote(const FGuid& MessageKey)
+{
+	StackMessages.RemoveAll([&](const FNiagaraStackMessage& Message)
+	{
+		return Message.Guid == MessageKey;
+	});
+		
+	OnCustomNotesChangedDelegate.ExecuteIfBound();
+	GetNiagaraGraph()->NotifyGraphChanged();
+}
+
+void UNiagaraNodeFunctionCall::RemoveCustomNoteViaDelegate(const FGuid MessageKey)
+{
+	const bool bContainsMessage = StackMessages.ContainsByPredicate([&](const FNiagaraStackMessage& Message)
+	{
+		return Message.Guid == MessageKey;
+	});
+
+	if(bContainsMessage)
+	{
+		FScopedTransaction Transaction(LOCTEXT("NoteRemoved", "Note Removed"));
+		Modify();
+			
+		RemoveCustomNote(MessageKey);
 	}
 }
 
