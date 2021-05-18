@@ -637,6 +637,8 @@ public:
 #define SEARCH_XBOX_LIVE_SESSION_TEMPLATE_NAME FName(TEXT("LIVESESSIONTEMPLATE"))
 /** Selection method used to determine which match to join when multiple are returned (valid only on Switch) */
 #define SEARCH_SWITCH_SELECTION_METHOD FName(TEXT("SWITCHSELECTIONMETHOD"))
+/** Whether to use lobbies vs sessions */
+#define SEARCH_LOBBIES FName(TEXT("LOBBYSEARCH"))
 
 // User attributes for searching (FSessionMatchmakingUser::Attributes)
 /** Team a user is searching for */
