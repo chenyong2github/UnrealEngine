@@ -4177,8 +4177,13 @@ bool USkeletalMesh::GetPhysicsTriMeshData(FTriMeshCollisionData* CollisionData, 
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 	const FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[0];
 
-		// Copy all verts into collision vertex buffer.
-		CollisionData->Vertices.Empty();
+	const TArray<int32>* MaterialMapPtr = nullptr;
+	if (const FSkeletalMeshLODInfo* LODZeroInfo = GetLODInfo(0))
+	{
+		MaterialMapPtr = &LODZeroInfo->LODMaterialMap;
+	}
+	// Copy all verts into collision vertex buffer.
+	CollisionData->Vertices.Empty();
 	CollisionData->Vertices.AddUninitialized(LODData.GetNumVertices());
 
 	for (uint32 VertIdx = 0; VertIdx < LODData.GetNumVertices(); ++VertIdx)
@@ -4201,8 +4206,19 @@ bool USkeletalMesh::GetPhysicsTriMeshData(FTriMeshCollisionData* CollisionData, 
 		for (int32 SectionIndex = 0; SectionIndex < LODData.RenderSections.Num(); ++SectionIndex)
 		{
 			const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIndex];
-
 			const uint32 OnePastLastIndex = Section.BaseIndex + Section.NumTriangles * 3;
+			uint16 MaterialIndex = Section.MaterialIndex;
+			if (MaterialMapPtr)
+			{
+				if (MaterialMapPtr->IsValidIndex(SectionIndex))
+				{
+					const uint16 RemapMaterialIndex = static_cast<uint16>((*MaterialMapPtr)[SectionIndex]);
+					if (GetMaterials().IsValidIndex(RemapMaterialIndex))
+					{
+						MaterialIndex = RemapMaterialIndex;
+					}
+				}
+			}
 
 			for (uint32 i = Section.BaseIndex; i < OnePastLastIndex; i += 3)
 			{
@@ -4211,7 +4227,7 @@ bool USkeletalMesh::GetPhysicsTriMeshData(FTriMeshCollisionData* CollisionData, 
 				TriIndex.v2 = Indices[i + 2];
 
 				CollisionData->Indices.Add(TriIndex);
-				CollisionData->MaterialIndices.Add(Section.MaterialIndex);
+				CollisionData->MaterialIndices.Add(MaterialIndex);
 			}
 		}
 	}
