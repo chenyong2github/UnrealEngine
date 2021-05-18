@@ -1016,10 +1016,15 @@ void FProjectedShadowInfo::RenderProjection(
 
 	if (bSubPixelShadow)
 	{
-		// Do not apply pre-shadow on hair, as this is intended only for targed opaque geometry
+		// Do not apply pre-shadow on opaque geometry during sub-pixel pass as we only care about opaque geometry 'casting' shadow (not receiving shadow)
+		// However, applied pre-shadow onto hair primitive (which are the only one able to cast deep shadow)
 		if (bPreShadow)
 		{
-			return;
+			const bool bIsValid = ReceiverPrimitives.Num() > 0 && ReceiverPrimitives[0]->Proxy->CastsDeepShadow();
+			if (!bIsValid)
+			{
+				return;
+			}
 		}
 
 		const bool bValidPlanes = FrustumVertices.Num() > 0;
@@ -1163,7 +1168,19 @@ void FProjectedShadowInfo::RenderProjectionInternal(
 	}
 	else if (bStencilTestEnabled)
 	{
-		if (GStencilOptimization)
+		// By pass depth/stencil test for rendering pre-shadow during sub-pixel shadow, as the hair geometry is not re-rendered
+		const bool bBypass = bSubPixelSupport && bPreShadow;
+		if (bBypass)
+		{
+			GraphicsPSOInit.DepthStencilState =
+				TStaticDepthStencilState<
+				false, CF_Always,
+				false, CF_Always, SO_Zero, SO_Zero, SO_Zero,
+				false, CF_Always, SO_Zero, SO_Zero, SO_Zero,
+				0xff, 0xff
+				>::GetRHI();
+		}
+		else if (GStencilOptimization)
 		{
 			// No depth test or writes, zero the stencil
 			// Note: this will disable hi-stencil on many GPUs, but still seems 
@@ -1405,10 +1422,15 @@ void FProjectedShadowInfo::RenderOnePassPointLightProjection(
 
 		if (bSubPixelShadow)
 		{
-			// Do not apply pre-shadow on hair, as this is intended only for targed opaque geometry
+			// Do not apply pre-shadow on opaque geometry during sub-pixel pass as we only care about opaque geometry 'casting' shadow (not receiving shadow)
+			// However, applied pre-shadow onto hair primitive (which are the only one able to cast deep shadow)
 			if (bPreShadow)
 			{
-				return;
+				const bool bIsValid = ReceiverPrimitives.Num() > 0 && ReceiverPrimitives[0]->Proxy->CastsDeepShadow();
+				if (!bIsValid)
+				{
+					return;
+				}
 			}
 
 			// Skip volume which does not intersect hair clusters
