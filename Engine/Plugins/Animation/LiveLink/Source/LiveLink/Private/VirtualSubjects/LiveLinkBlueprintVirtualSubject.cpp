@@ -9,8 +9,14 @@ void ULiveLinkBlueprintVirtualSubject::Initialize(FLiveLinkSubjectKey InSubjectK
 	Super::Initialize(InSubjectKey, Role, LiveLinkClient);
 
 	CachedStaticData.InitializeWith(GetRoleStaticStruct(), nullptr);
-	FrameSnapshot.StaticData.InitializeWith(GetRoleStaticStruct(), nullptr);
-	FrameSnapshot.FrameData.InitializeWith(GetRoleFrameStruct(), nullptr);
+
+	FLiveLinkStaticDataStruct NewStaticData;
+	NewStaticData.InitializeWith(GetRoleStaticStruct(), CachedStaticData.GetBaseData());
+	UpdateStaticDataSnapshot(MoveTemp(NewStaticData));
+
+	FLiveLinkFrameDataStruct NewFrameData;
+	NewFrameData.InitializeWith(GetRoleFrameStruct(), nullptr);
+	UpdateFrameDataSnapshot(MoveTemp(NewFrameData));
 
 	{
 		FEditorScriptExecutionGuard ScriptGuard;
@@ -29,29 +35,35 @@ void ULiveLinkBlueprintVirtualSubject::Update()
 		OnUpdate();
 	}
 
-	if (FrameSnapshot.FrameData.IsValid() && !FrameSnapshot.StaticData.IsValid() && CachedStaticData.IsValid())
+	if (HasValidFrameData() && !HasValidStaticData() && CachedStaticData.IsValid())
 	{
-		FrameSnapshot.StaticData.InitializeWith(CachedStaticData);
+		FLiveLinkStaticDataStruct NewStaticData;
+		NewStaticData.InitializeWith(GetRoleStaticStruct(), CachedStaticData.GetBaseData());
+		UpdateStaticDataSnapshot(MoveTemp(NewStaticData));
 	}
 }
 
 void ULiveLinkBlueprintVirtualSubject::UpdateVirtualSubjectStaticData(const FLiveLinkBaseStaticData* InStaticData)
 {
 	CachedStaticData.InitializeWith(GetRoleStaticStruct(), InStaticData);
-	FrameSnapshot.StaticData.InitializeWith(GetRoleStaticStruct(), InStaticData);
+
+	FLiveLinkStaticDataStruct NewStaticData;
+	NewStaticData.InitializeWith(GetRoleStaticStruct(), InStaticData);
+	UpdateStaticDataSnapshot(MoveTemp(NewStaticData));
 	
 	// Invalidate any existing Frame Data
-	FrameSnapshot.FrameData.Reset();
+	InvalidateFrameData();
 }
 
 void ULiveLinkBlueprintVirtualSubject::UpdateVirtualSubjectFrameData(const FLiveLinkBaseFrameData* InFrameData, bool bInShouldStampCurrentTime)
 {
-	FrameSnapshot.FrameData.InitializeWith(GetRoleFrameStruct(), InFrameData);
+	FLiveLinkFrameDataStruct NewFrameData;
+	NewFrameData.InitializeWith(GetRoleFrameStruct(), InFrameData);
 
 	// Stamp the current time into the frame if desired
 	if (bInShouldStampCurrentTime)
 	{
-		if (FLiveLinkBaseFrameData* BaseFrameData = FrameSnapshot.FrameData.GetBaseData())
+		if (FLiveLinkBaseFrameData* BaseFrameData = NewFrameData.GetBaseData())
 		{
 			// Stamp the current world time
 			BaseFrameData->WorldTime = FLiveLinkWorldTime(FApp::GetCurrentTime());
@@ -64,6 +76,8 @@ void ULiveLinkBlueprintVirtualSubject::UpdateVirtualSubjectFrameData(const FLive
 			}
 		}
 	}
+
+	UpdateFrameDataSnapshot(MoveTemp(NewFrameData));
 }
 
 bool ULiveLinkBlueprintVirtualSubject::UpdateVirtualSubjectStaticData_Internal(const FLiveLinkBaseStaticData& InStruct)
