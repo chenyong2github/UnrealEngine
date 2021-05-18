@@ -397,6 +397,31 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 			bSystemScriptsAreSynchronized &= SystemScript->AreScriptAndSourceSynchronized();
 		}
 
+		// Synchronize with parameter definitions
+		// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FGuid> DefaultDefinitionsUniqueIds;
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+			if (DefaultLinkedParameterDefinitions == nullptr)
+			{
+				continue;
+			}
+			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
+			const bool bDoNotAssertIfAlreadySubscribed = true;
+			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
+		}
+		FSynchronizeWithParameterDefinitionsArgs Args;
+		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
+		Args.bForceSynchronizeDefinitions = true;
+		Args.bSubscribeAllNameMatchParameters = true;
+		//SynchronizeWithParameterDefinitions(Args);
+
+		// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the system was already subscribed to, and do not force the sync.
+		//SynchronizeWithParameterDefinitions();
+
 		bool bEmitterScriptsAreSynchronized = true;
 
 #if 0
@@ -815,31 +840,6 @@ void UNiagaraSystem::PostLoad()
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
 		EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
 	}
-
-	// Synchronize with parameter definitions
-	// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
-	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-	check(Settings);
-	TArray<FGuid> DefaultDefinitionsUniqueIds;
-	for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
-	{
-		UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
-		if (DefaultLinkedParameterDefinitions == nullptr)
-		{
-			continue;
-		}
-		DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
-		const bool bDoNotAssertIfAlreadySubscribed = true;
-		SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
-	}
-	FSynchronizeWithParameterDefinitionsArgs Args;
-	Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
-	Args.bForceSynchronizeDefinitions = true;
-	Args.bSubscribeAllNameMatchParameters = true;
-	SynchronizeWithParameterDefinitions(Args);
-
-	// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the system was already subscribed to, and do not force the sync.
-	SynchronizeWithParameterDefinitions();
 	
 #endif // WITH_EDITORONLY_DATA
 
