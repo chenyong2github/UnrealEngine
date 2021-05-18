@@ -82,6 +82,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, "Hai
 
 void AddServiceLocalQueuePass(FRDGBuilder& GraphBuilder);
 bool GetHairStrandsSkyLightingDebugEnable();
+bool IsHairStrandsAdaptiveVoxelAllocationEnable();
 
 void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
@@ -97,6 +98,23 @@ void RenderHairPrePass(
 			continue;
 
 		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
+
+		// Allocate voxel page allocation readback buffers
+		const bool bAdaptiveAllocationEnable = IsHairStrandsAdaptiveVoxelAllocationEnable();
+		if (View.ViewState)
+		{
+			const bool bIsInit = View.ViewState->HairStrandsViewStateData.IsInit();
+			// Init resources if the adaptive allocation is enabled, but the resources are not initialized yet.
+			if (bAdaptiveAllocationEnable && !bIsInit)
+			{
+				View.ViewState->HairStrandsViewStateData.Init();
+			}
+			// Release resources if the adaptive allocation is disabled, but the resources are initialized.
+			else if (!bAdaptiveAllocationEnable && bIsInit)
+			{
+				View.ViewState->HairStrandsViewStateData.Release();
+			}
+		}
 
 		//SCOPED_GPU_STAT(RHICmdList, HairRendering);
 		CreateHairStrandsMacroGroups(GraphBuilder, Scene, View);
@@ -153,6 +171,27 @@ void RenderHairBasePass(
 			View.HairStrandsViewData.UniformBuffer = InternalCreateHairStrandsViewUniformBuffer(GraphBuilder, nullptr);
 			View.HairStrandsViewData.bIsValid = false;
 		}
+	}
+}
+
+void FHairStrandsViewStateData::Init()
+{
+	VoxelWorldSize = 0;
+	AllocatedPageCount = 0;
+	if (VoxelPageAllocationCountReadback == nullptr)
+	{
+		VoxelPageAllocationCountReadback = new FRHIGPUBufferReadback(TEXT("Voxel page allocation readback"));
+	}
+}
+
+void FHairStrandsViewStateData::Release()
+{
+	VoxelWorldSize = 0;
+	AllocatedPageCount = 0;
+	if (VoxelPageAllocationCountReadback)
+	{
+		delete VoxelPageAllocationCountReadback;
+		VoxelPageAllocationCountReadback = nullptr;
 	}
 }
 

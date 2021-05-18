@@ -395,7 +395,6 @@ void RunHairStrandsBookmark(EHairStrandsBookmark Bookmark, FHairStrandsBookmarkP
 	}
 }
 
-bool IsHairStrandsClusterCullingUseHzb();
 FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, FViewInfo& View)
 {
 	FHairStrandsBookmarkParameters Out;
@@ -423,7 +422,7 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	{
 		GHairStrandsParameterFunction(Out);
 	}
-	Out.bHzbRequest = Out.bHasElements && Out.bStrandsGeometryEnabled && IsHairStrandsClusterCullingUseHzb();
+	Out.bHzbRequest = false; // Out.bHasElements&& Out.bStrandsGeometryEnabled;
 
 	return Out;
 }
