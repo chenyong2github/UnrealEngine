@@ -9,14 +9,14 @@
 namespace Chaos
 {
 	class FChaosArchive;
+}
 
-	namespace GeometryCollection
+namespace GeometryCollectionUV
+{
+	enum
 	{
-		enum 
-		{
-			MAX_NUM_UV_CHANNELS = 8,
-		};
-	}
+		MAX_NUM_UV_CHANNELS = 8,
+	};
 }
 
 /**
