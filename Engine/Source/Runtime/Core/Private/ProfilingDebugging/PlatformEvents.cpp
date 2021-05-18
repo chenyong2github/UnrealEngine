@@ -8,6 +8,9 @@
 UE_TRACE_CHANNEL_DEFINE(ContextSwitchChannel)
 UE_TRACE_CHANNEL_DEFINE(StackSamplingChannel)
 
+UE_TRACE_EVENT_DEFINE(PlatformEvent, ContextSwitch)
+UE_TRACE_EVENT_DEFINE(PlatformEvent, StackSample)
+
 /////////////////////////////////////////////////////////////////////
 
 EPlatformEvent PlatformEvents_GetEvent(const FString& Name)
