@@ -142,7 +142,7 @@ void URigVM::Load(FArchive& Ar)
 	Ar << ByteCodeStorage;
 	Ar << Parameters;
 
-	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
 	{
 		Reset();
 		return;

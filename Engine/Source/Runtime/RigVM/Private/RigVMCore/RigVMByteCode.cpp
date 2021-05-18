@@ -34,7 +34,7 @@ void FRigVMCopyOp::Serialize(FArchive& Ar)
 
 	if(Ar.IsLoading())
 	{
-		if (Ar.CustomVer(FAnimObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
 		{
 			NumBytes = 0;
 			RegisterType = ERigVMRegisterType::Invalid;
