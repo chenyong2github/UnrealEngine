@@ -142,6 +142,7 @@ public:
 
 public:
 #if WITH_EDITOR
+	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual void PreEditChange( FProperty* PropertyThatWillChange ) override;
 	virtual void PreEditUndo() override;

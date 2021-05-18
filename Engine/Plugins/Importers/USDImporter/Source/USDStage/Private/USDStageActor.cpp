@@ -1640,6 +1640,20 @@ void AUsdStageActor::ReloadAnimations()
 }
 
 #if WITH_EDITOR
+
+void AUsdStageActor::PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent )
+{
+	// For handling root layer changes via direct changes to properties we want to go through OnObjectPropertyChanged -> HandlePropertyChangedEvent ->
+	// -> SetRootLayer (which checks whether this stage is already opened or not) -> PostRegisterAllComponents.
+	// We need to intercept PostEditChangeProperty too because in the editor any call to PostEditChangeProperty can also *directly* trigger
+	// PostRegister/UnregisterAllComponents which would have sidestepped our checks in SetRootLayer.
+	// Note that any property change event would also end up calling our intended path via OnObjectPropertyChanged, this just prevents us from loading
+	// the same stage again if we don't need to.
+
+	bIsModifyingAProperty = true;
+	Super::PostEditChangeProperty( PropertyChangedEvent );
+}
+
 void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
 {
 	const TArray<FName>& ChangedProperties = TransactionEvent.GetChangedProperties();
@@ -1720,8 +1734,8 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 void AUsdStageActor::PreEditChange( FProperty* PropertyThatWillChange )
 {
 	// If we're just editing some other actor property like Time or anything else, we will get
-	// PostRegister/Unregister calls in the editor due to AActor::PostEditChangeProperty. Here we
-	// determine in which cases we should ignore those PostRegister/Unregister calls by using the
+	// PostRegister/Unregister calls in the editor due to AActor::PostEditChangeProperty *and* AActor::PreEditChange.
+	// Here we determine in which cases we should ignore those PostRegister/Unregister calls by using the
 	// bIsModifyingAProperty flag
 	if ( !IsActorBeingDestroyed() )
 	{
@@ -1729,7 +1743,7 @@ void AUsdStageActor::PreEditChange( FProperty* PropertyThatWillChange )
 		{
 			// PreEditChange gets called for actor lifecycle functions too (like if the actor transacts on undo/redo).
 			// In those cases we will have nullptr PropertyThatWillChange, and we don't want to block our PostRegister/Unregister
-			// functions. We only care about blocking the calls triggered by AActor::PostEditChangeProperty
+			// functions. We only care about blocking the calls triggered by AActor::PostEditChangeProperty and AActor::PreEditChange
 			if ( PropertyThatWillChange )
 			{
 				bIsModifyingAProperty = true;
