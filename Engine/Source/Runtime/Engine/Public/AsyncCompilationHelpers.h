@@ -10,10 +10,6 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAsyncCompilation, Log, All);
 
-#if WITH_EDITOR
-
-class FQueuedThreadPoolWrapper;
-
 class FAsyncCompilationNotification
 {
 public:
@@ -29,6 +25,10 @@ private:
 	int32 StartNumJobs;
 	FTextFormat AssetNameFormat;
 };
+
+#if WITH_EDITOR
+
+class FQueuedThreadPoolWrapper;
 
 namespace AsyncCompilationHelpers
 {

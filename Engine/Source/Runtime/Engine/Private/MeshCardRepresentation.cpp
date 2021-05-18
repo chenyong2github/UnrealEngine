@@ -168,7 +168,8 @@ static FAutoConsoleVariableRef CVarCardRepresentationAsyncBuildQueue(
 	ECVF_Default | ECVF_ReadOnly
 	);
 
-FCardRepresentationAsyncQueue::FCardRepresentationAsyncQueue() 
+FCardRepresentationAsyncQueue::FCardRepresentationAsyncQueue()
+	: Notification(GetAssetNameFormat())
 {
 #if WITH_EDITOR
 	MeshUtilities = NULL;
@@ -619,6 +620,8 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 
 		delete Task;
 	}
+
+	Notification.Update(GetNumRemainingAssets());
 #endif
 }
 
