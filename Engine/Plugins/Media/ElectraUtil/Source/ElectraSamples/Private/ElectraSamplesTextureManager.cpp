@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ElectraSamplesTextureManager.h"
-#include "misc/ScopeLock.h"
+#include "Misc/ScopeLock.h"
 
 FElectraSamplesTextureManager::FElectraSamplesTextureManager()
 {
