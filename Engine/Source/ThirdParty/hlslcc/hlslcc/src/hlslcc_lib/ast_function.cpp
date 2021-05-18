@@ -2603,7 +2603,9 @@ ir_rvalue* gen_image_op(
 	bool const bIsByteBuffer = (image->type->HlslName != nullptr && !strcmp(image->type->HlslName, "ByteAddressBuffer"));
 	bool const bIsRWByteBuffer = (image->type->HlslName != nullptr && !strcmp(image->type->HlslName, "RWByteAddressBuffer"));
 	bool const bIsRWTexture = (image->type->HlslName != nullptr && !strncmp(image->type->HlslName, "RWTexture", 9));
-	
+	bool const bIsStructuredBuffer = (image->type->HlslName != nullptr && !strncmp(image->type->HlslName, "StructuredBuffer", 16));
+	bool const bIsRWStructuredBuffer = (image->type->HlslName != nullptr && !strncmp(image->type->HlslName, "RWStructuredBuffer", 18));
+
 	if (strcmp(method, "GetDimensions") == 0)
 	{
 		ir_dereference_image *imageop = new(ctx) ir_dereference_image(image, new(ctx) ir_constant(0.0f), ir_image_dimensions);
@@ -2614,22 +2616,29 @@ ir_rvalue* gen_image_op(
 		result = NULL;
 
 		int dimensions = 0;
-		switch (image->type->sampler_dimensionality)
+		if (bIsStructuredBuffer || bIsRWStructuredBuffer)
 		{
-		case GLSL_SAMPLER_DIM_1D:
-			dimensions = 1;
-			break;
-		case GLSL_SAMPLER_DIM_2D:
+			// void GetDimensions(out uint numStructs, out uint stride)
 			dimensions = 2;
-			break;
-		case GLSL_SAMPLER_DIM_3D:
-			dimensions = 3;
-			break;
-		default:
-			check(0); //bad sampler dimension
 		}
-
-		dimensions += image->type->sampler_array;
+		else
+		{
+			switch (image->type->sampler_dimensionality)
+			{
+			case GLSL_SAMPLER_DIM_1D:
+				dimensions = 1;
+				break;
+			case GLSL_SAMPLER_DIM_2D:
+				dimensions = 2;
+				break;
+			case GLSL_SAMPLER_DIM_3D:
+				dimensions = 3;
+				break;
+			default:
+				check(0); //bad sampler dimension
+			}
+			dimensions += image->type->sampler_array;
+		}
 
 		if (num_params != dimensions)
 		{
