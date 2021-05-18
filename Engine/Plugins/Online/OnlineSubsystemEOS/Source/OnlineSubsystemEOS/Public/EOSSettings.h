@@ -18,7 +18,7 @@ struct FEOSArtifactSettings
 	FString DeploymentId;
 	FString EncryptionKey;
 
-	void ParseRawArrayEntry(FString& RawLine);
+	void ParseRawArrayEntry(const FString& RawLine);
 };
 
 UCLASS(Deprecated)
@@ -76,9 +76,9 @@ struct FEOSSettings
 	bool bShouldEnforceBeingLaunchedByEGS;
 	bool bUseEAS;
 	bool bUseEOSConnect;
+	bool bUseEOSSessions;
 	bool bMirrorStatsToEOS;
 	bool bMirrorAchievementsToEOS;
-	bool bUseEOSSessions;
 	bool bMirrorPresenceToEAS;
 	TArray<FEOSArtifactSettings> Artifacts;
 	TArray<FString> TitleStorageTags;
@@ -91,15 +91,13 @@ class ONLINESUBSYSTEMEOS_API UEOSSettings :
 	GENERATED_BODY()
 
 public:
-	UEOSSettings();
-
 	/**
 	 * The directory any PDS/TDS files are cached into. This is per artifact e.g.:
 	 *
 	 * <UserDir>/<ArtifactId>/<CacheDir>
 	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
-	FString CacheDir;
+	FString CacheDir = TEXT("CacheDir");
 
 	/** Used when launched from a store other than EGS or when the specified artifact name was not present */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
@@ -107,19 +105,19 @@ public:
 
 	/** Used to throttle how much time EOS ticking can take */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
-	int32 TickBudgetInMilliseconds;
+	int32 TickBudgetInMilliseconds = 0;
 
 	/** Set to true to enable the overlay (ecom features) */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
-	bool bEnableOverlay;
+	bool bEnableOverlay = false;
 
 	/** Set to true to enable the social overlay (friends, invites, etc.) */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
-	bool bEnableSocialOverlay;
+	bool bEnableSocialOverlay = false;
 
 	/** Set to true to enable the social overlay (friends, invites, etc.) */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings", DisplayName="Require Being Launched by the Epic Games Store")
-	bool bShouldEnforceBeingLaunchedByEGS;
+	bool bShouldEnforceBeingLaunchedByEGS = false;
 
 	/** Tag combinations for paged queries in title file enumerations, separate tags within groups using `+` */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
@@ -127,7 +125,7 @@ public:
 
 	/** Chunk size used when reading a title file */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
-	int32 TitleStorageReadChunkLength;
+	int32 TitleStorageReadChunkLength = 0;
 
 	/** Per artifact SDK settings. A game might have a FooStaging, FooQA, and public Foo artifact */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
@@ -135,27 +133,27 @@ public:
 
 	/** Set to true to have Epic Accounts used (friends list will be unified with the default platform) */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings", DisplayName="Use Epic Account Services")
-	bool bUseEAS;
+	bool bUseEAS = false;
 
 	/** Set to true to have EOS Connect APIs used to link accounts for crossplay */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings", DisplayName="Use Crossplatform User IDs")
-	bool bUseEOSConnect;
+	bool bUseEOSConnect = false;
 
 	/** Set to true to write stats to EOS as well as the default platform */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings")
-	bool bMirrorStatsToEOS;
+	bool bMirrorStatsToEOS = false;
 
 	/** Set to true to write achievement data to EOS as well as the default platform */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings")
-	bool bMirrorAchievementsToEOS;
+	bool bMirrorAchievementsToEOS = false;
 
 	/** Set to true to use EOS for session registration with data mirrored to the default platform */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings", DisplayName="Use Crossplay Sessions")
-	bool bUseEOSSessions;
+	bool bUseEOSSessions = false;
 
 	/** Set to true to have Epic Accounts presence information updated when the default platform is updated */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings")
-	bool bMirrorPresenceToEAS;
+	bool bMirrorPresenceToEAS = false;
 
 	/** Find the Settings for an artifact by name */
 	static bool GetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
