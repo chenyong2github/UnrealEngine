@@ -1431,7 +1431,7 @@ void UDestructibleComponent::SetEnableGravity(bool bGravityEnabled)
 #endif //WITH_APEX
 }
 
-FBodyInstance* UDestructibleComponent::GetBodyInstance( FName BoneName /*= NAME_None*/, bool) const
+FBodyInstance* UDestructibleComponent::GetBodyInstance( FName BoneName /*= NAME_None*/, bool, int) const
 {
 #if WITH_APEX
 	if (ApexDestructibleActor != NULL)
