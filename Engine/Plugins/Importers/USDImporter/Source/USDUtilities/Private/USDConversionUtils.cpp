@@ -775,6 +775,11 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
 {
 #if USE_USD_SDK
+	if ( !Prim || !AbsoluteFilePath )
+	{
+		return;
+	}
+
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdPrim UsdPrim( Prim );
