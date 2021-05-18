@@ -12,7 +12,6 @@ URigVMNode::URigVMNode()
 , Position(FVector2D::ZeroVector)
 , Size(FVector2D::ZeroVector)
 , NodeColor(FLinearColor::White)
-, GetSliceContextBracket(0)
 {
 
 }
@@ -440,49 +439,6 @@ void URigVMNode::GetLinkedNodesRecursive(URigVMPin* InPin, bool bLookForSources,
 	{
 		GetLinkedNodesRecursive(SubPin, bLookForSources, OutNodes);
 	}
-}
-
-FName URigVMNode::GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData)
-{
-	return NAME_None;
-}
-
-int32 URigVMNode::GetNumSlices(const FRigVMUserDataArray& InUserData)
-{
-	return GetNumSlicesForContext(NAME_None, InUserData);
-}
-
-int32 URigVMNode::GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData)
-{
-	for (URigVMPin* RootPin : GetPins())
-	{
-		if (RootPin->GetFName() == InContextName)
-		{
-			return RootPin->GetNumSlices(InUserData);
-		}
-	}
-
-	int32 MaxSlices = 1;
-
-	if (GetSliceContextBracket == 0)
-	{
-		TGuardValue<int32> ReentrantGuard(GetSliceContextBracket, GetSliceContextBracket + 1);
-
-		for (URigVMPin* Pin : GetPins())
-		{
-			TArray<URigVMPin*> SourcePins = Pin->GetLinkedSourcePins(true /* recursive */);
-			if (SourcePins.Num() > 0)
-			{
-				for (URigVMPin* SourcePin : SourcePins)
-				{
-					int32 NumSlices = SourcePin->GetNumSlices(InUserData);
-					MaxSlices = FMath::Max<int32>(NumSlices, MaxSlices);
-				}
-			}
-		}
-	}
-
-	return MaxSlices;
 }
 
 TArray<int32> URigVMNode::GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy) const

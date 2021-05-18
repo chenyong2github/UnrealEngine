@@ -347,12 +347,6 @@ public:
 		return Cast<T>(FindObjectFromCPPTypeObjectPath(InObjectPath));
 	}
 
-	// Returns the name of the context this pin belongs to
-	FName GetSliceContext(const FRigVMUserDataArray& InUserData);
-
-	// Returns the number of slices in memory exist for this pin
-	int32 GetNumSlices(const FRigVMUserDataArray& InUserData);
-
 	// Returns true if the pin should not show up on a node, but in the details panel
 	bool ShowInDetailsPanelOnly() const;
 
