@@ -5,6 +5,7 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneFrameMigration.h"
 #include "UObject/SequencerObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "HAL/ConsoleManager.h"
 
 int32 GSequencerLinearCubicInterpolation = 1;
@@ -1077,10 +1078,26 @@ void FMovieSceneFloatChannel::AddKeys(const TArray<FFrameNumber>& InTimes, const
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+
+bool FMovieSceneFloatChannel::GetShowCurve() const
+{
+	return bShowCurve;
+}
+
+void FMovieSceneFloatChannel::SetShowCurve(bool bInShowCurve)
+{
+	bShowCurve = bInShowCurve;
+}
+
+#endif
+
 bool FMovieSceneFloatChannel::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FSequencerObjectVersion::GUID);
-	if (Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::SerializeFloatChannelCompletely)
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	if (Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::SerializeFloatChannelCompletely &&
+		Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SerializeFloatChannelShowCurve)
 	{
 		return false;
 	}
@@ -1160,6 +1177,16 @@ bool FMovieSceneFloatChannel::Serialize(FArchive& Ar)
 	if (Ar.IsTransacting())
 	{
 		Ar << KeyHandles;
+	}
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::SerializeFloatChannelShowCurve)
+	{
+#if WITH_EDITOR
+		Ar << bShowCurve;
+#else
+		bool bUnused = false;
+		Ar << bUnused;
+#endif
 	}
 	return true;
 }
