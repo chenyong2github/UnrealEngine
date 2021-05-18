@@ -534,6 +534,31 @@ void UNiagaraEmitter::PostLoad()
 			}
 		}
 
+		// Synchronize with definitions before merging.
+		// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FGuid> DefaultDefinitionsUniqueIds;
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+			if (DefaultLinkedParameterDefinitions == nullptr)
+			{
+				continue;
+			}
+			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
+			const bool bDoNotAssertIfAlreadySubscribed = true;
+			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
+		}
+		FSynchronizeWithParameterDefinitionsArgs Args;
+		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
+		Args.bForceSynchronizeDefinitions = true;
+		Args.bSubscribeAllNameMatchParameters = true;
+		SynchronizeWithParameterDefinitions(Args);
+		
+		// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the emitter was already subscribed to, and do not force the sync.
+		SynchronizeWithParameterDefinitions();
+
 		if (IsSynchronizedWithParent() == false)
 		{
 			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
@@ -1975,8 +2000,6 @@ void UNiagaraEmitter::BeginDestroy()
 	{
 		GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
 	}
-
-	CleanupParameterDefinitionsSubscriptions();
 #endif
 	Super::BeginDestroy();
 }

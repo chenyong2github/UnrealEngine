@@ -16,7 +16,6 @@
 void INiagaraParameterDefinitionsSubscriberViewModel::SubscribeToParameterDefinitions(UNiagaraParameterDefinitions* NewParameterDefinitions)
 {
 	GetParameterDefinitionsSubscriber()->SubscribeToParameterDefinitions(NewParameterDefinitions);
-	NewParameterDefinitions->GetOnParameterDefinitionsChanged().AddRaw(this, &INiagaraParameterDefinitionsSubscriberViewModel::SynchronizeWithParameterDefinitions, FSynchronizeWithParameterDefinitionsArgs());
 }
 
 void INiagaraParameterDefinitionsSubscriberViewModel::UnsubscribeFromParameterDefinitions(const FGuid& ParameterDefinitionsToRemoveUniqueId)
