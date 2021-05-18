@@ -581,7 +581,7 @@ class FHairStrandsTexturePS : public FGlobalShader
 		SHADER_PARAMETER(float, InVF_Length)
 		SHADER_PARAMETER(FVector3f, InVF_PositionOffset)
 		SHADER_PARAMETER_SRV(Buffer, InVF_PositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer, InVF_AttributeBuffer)
+		SHADER_PARAMETER_SRV(Buffer, InVF_Attribute0Buffer)
 		SHADER_PARAMETER(uint32, InVF_ControlPointCount)
 
 		SHADER_PARAMETER(FVector3f, Voxel_MinBound)
@@ -667,7 +667,7 @@ static void InternalGenerateHairStrandsTextures(
 
 	ParametersPS->InVF_PositionBuffer = InHairStrands_PositionBuffer;
 	ParametersPS->InVF_PositionOffset = InHairStrands_PositionOffset;
-	ParametersPS->InVF_AttributeBuffer = InHairStrands_AttributeBuffer;
+	ParametersPS->InVF_Attribute0Buffer = InHairStrands_AttributeBuffer;
 	ParametersPS->InVF_Radius = InHairStrands_Radius;
 	ParametersPS->InVF_Length = InHairStrands_Length;
 	ParametersPS->InVF_ControlPointCount = InHairStrands_ControlPointCount;
@@ -983,7 +983,7 @@ static void InternalBuildStrandsTextures_GPU(
 				VoxelData,
 
 				GroupData.Strands.RestResource->PositionBuffer.SRV,
-				GroupData.Strands.RestResource->AttributeBuffer.SRV,
+				GroupData.Strands.RestResource->Attribute0Buffer.SRV,
 				GroupData.Strands.RestResource->GetPositionOffset(),
 				RenderingData.GeometrySettings.HairWidth * 0.5f,
 				GroupData.Strands.RestResource->BulkData.MaxLength,

@@ -85,7 +85,8 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		{
 			uint32 Total = 0;
 			Total += BulkData.Positions.GetAllocatedSize();
-			Total += BulkData.Attributes.GetAllocatedSize();
+			Total += BulkData.Attributes0.GetAllocatedSize();
+			Total += BulkData.Attributes1.GetAllocatedSize();
 			Total += BulkData.Materials.GetAllocatedSize();
 			Total += BulkData.CurveOffsets.GetAllocatedSize();
 			return Total;

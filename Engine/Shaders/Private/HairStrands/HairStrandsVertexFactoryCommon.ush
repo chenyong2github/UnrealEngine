@@ -52,17 +52,17 @@ struct FHairAttributes
 	float WorldLength;
 };
 
-FHairAttributes DecodeHairAttribute(uint4 Attributes, float InVF_Length)
+FHairAttributes DecodeHairAttribute(float4 Attributes0, uint4 Attributes1, float InVF_Length)
 {
 	float2 RootUV, RootIndex;
-	RootUV.x = float(Attributes.x & 0xFF) / 255.f;
-	RootUV.y = 1.0 - (float((Attributes.x >> 8) & 0xFF) / 255.f); // Invert V to compensate image origin flip
-	RootIndex.x = float(Attributes.z & 0xFF);
-	RootIndex.y = float((Attributes.z >> 8) & 0xFF);
+	RootUV.x		= Attributes0.x;
+	RootUV.y		= 1.0 - Attributes0.y; // Invert V to compensate image origin flip
+	RootIndex.x		= float(Attributes1.x);
+	RootIndex.y		= float(Attributes1.y);
 
 	FHairAttributes Out;
-	Out.RootUV = RootUV + RootIndex;
-	Out.WorldLength = (Attributes.y & 0xFF) / 255.f * InVF_Length;
-	Out.Seed = ((Attributes.y >> 8) & 0xFF) / 255.f;
+	Out.RootUV		= RootUV + RootIndex;
+	Out.WorldLength = Attributes0.z * InVF_Length;
+	Out.Seed		= Attributes0.w;
 	return Out;
 }

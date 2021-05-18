@@ -3026,27 +3026,29 @@ static void AddMeshDrawTransitionPass(
 			FRDGResourceAccessFinalizer ResourceAccessFinalizer;
 
 			FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PositionBuffer.Buffer,				ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PrevPositionBuffer.Buffer,			ERHIAccess::SRVMask);
+			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PositionBuffer.Buffer,			ERHIAccess::SRVMask);
+			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PrevPositionBuffer.Buffer,		ERHIAccess::SRVMask);
 			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.TangentBuffer.Buffer,				ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.AttributeBuffer.Buffer,				ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.MaterialBuffer.Buffer,				ERHIAccess::SRVMask);
+			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.Attribute0Buffer.Buffer,			ERHIAccess::SRVMask);
+			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.Attribute1Buffer.Buffer,			ERHIAccess::SRVMask);
+			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.MaterialBuffer.Buffer,			ERHIAccess::SRVMask);
 			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PositionOffsetBuffer.Buffer,		ERHIAccess::SRVMask);
 			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PrevPositionOffsetBuffer.Buffer,	ERHIAccess::SRVMask);
 
 			FRDGBufferRef CulledVertexIdBuffer = Register(GraphBuilder, HairGroupPublicData->CulledVertexIdBuffer, ERDGImportedBufferFlags::None).Buffer;
 			FRDGBufferRef CulledVertexRadiusScaleBuffer = Register(GraphBuilder, HairGroupPublicData->CulledVertexRadiusScaleBuffer, ERDGImportedBufferFlags::None).Buffer;
 			FRDGBufferRef DrawIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->DrawIndirectBuffer, ERDGImportedBufferFlags::None).Buffer;
-			ResourceAccessFinalizer.AddBuffer(CulledVertexIdBuffer, ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(CulledVertexRadiusScaleBuffer, ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(DrawIndirectBuffer, ERHIAccess::IndirectArgs);
+			ResourceAccessFinalizer.AddBuffer(CulledVertexIdBuffer,								ERHIAccess::SRVMask);
+			ResourceAccessFinalizer.AddBuffer(CulledVertexRadiusScaleBuffer,					ERHIAccess::SRVMask);
+			ResourceAccessFinalizer.AddBuffer(DrawIndirectBuffer,								ERHIAccess::IndirectArgs);
 
 			ResourceAccessFinalizer.Finalize(GraphBuilder);
 
 			VFInput.Strands.PositionBuffer				= FRDGImportedBuffer();
 			VFInput.Strands.PrevPositionBuffer			= FRDGImportedBuffer();
 			VFInput.Strands.TangentBuffer				= FRDGImportedBuffer();
-			VFInput.Strands.AttributeBuffer				= FRDGImportedBuffer();
+			VFInput.Strands.Attribute0Buffer			= FRDGImportedBuffer();
+			VFInput.Strands.Attribute1Buffer			= FRDGImportedBuffer();
 			VFInput.Strands.MaterialBuffer				= FRDGImportedBuffer();
 			VFInput.Strands.PositionOffsetBuffer		= FRDGImportedBuffer();
 			VFInput.Strands.PrevPositionOffsetBuffer	= FRDGImportedBuffer();
