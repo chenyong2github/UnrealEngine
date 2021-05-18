@@ -929,7 +929,9 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 
 void UNiagaraEmitter::PreSave(const ITargetPlatform* TargetPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	if (UpdateTaskRef.IsValid() && UpdateTaskRef->IsComplete() == false)
 	{
 		UpdateEmitterAfterLoad();
