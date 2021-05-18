@@ -253,6 +253,14 @@ public:
 		double MaxDistance = TNumericLimits<double>::Max()) const;
 
 	/**
+	 * Process ObjectIDs from all the cells with bounding boxes that contain query point
+	 * @param Point query point
+	 * @param ObjectIDFunc this function is called
+	 */
+	void ContainmentQuery(const FVector3d& Point,
+		TFunctionRef<void(int)> ObjectIDFunc) const;
+
+	/**
 	 * Process ObjectIDs from all the cells with bounding boxes that intersect Bounds
 	 * @param Bounds query box
 	 * @param ObjectIDFunc this function is called 

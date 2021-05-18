@@ -98,6 +98,11 @@ public:
 	/** @return element of Components array at given Index */
 	FComponent& GetComponent(int32 Index) { return Components[Index]; }
 
+	/** @return element of Components array at given Index */
+	const FComponent& operator[](int32 Index) const { return Components[Index]; }
+
+	/** @return element of Components array at given Index */
+	FComponent& operator[](int32 Index) { return Components[Index]; }
 
 	/** 
 	 * @return index of largest component by element count 

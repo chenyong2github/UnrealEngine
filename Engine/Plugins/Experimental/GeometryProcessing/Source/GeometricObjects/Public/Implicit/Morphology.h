@@ -169,6 +169,8 @@ protected:
 		{
 			return -Interpolant.Value(Pt);
 		};
+		MarchingCubes.bEnableValueCaching = false;
+
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_FirstPass_GenerateMesh);
 			MarchingCubes.Generate();
@@ -246,6 +248,7 @@ protected:
 		{
 			return -Interpolant.Value(Pt);
 		};
+		MarchingCubes.bEnableValueCaching = false;
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_SecondPass_GenerateMesh);
