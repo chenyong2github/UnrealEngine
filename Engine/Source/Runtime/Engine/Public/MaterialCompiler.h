@@ -444,7 +444,7 @@ public:
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
 	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B) = 0;
-	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedLocalBasisIndexMacro) = 0;
+	virtual int32 StrataAddParameterBlending(int32 A, int32 B, int32 AMixWeight, const FString& SharedLocalBasisIndexMacro) = 0;
 	virtual int32 StrataWeight(int32 A, int32 Weight) = 0;
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) = 0;
 
@@ -458,6 +458,7 @@ public:
 	{
 		return FString::Printf(TEXT("SHAREDLOCALBASIS_INDEX_%u"), SharedLocalBasis.GraphSharedLocalBasisIndex);
 	}
+	virtual int32 StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk) = 0;
 
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) = 0;
@@ -1001,9 +1002,9 @@ public:
 		return Compiler->StrataAdd(A, B);
 	}
 
-	virtual int32 StrataAddParameterBlending(int32 A, int32 B, const FString& SharedLocalBasisIndexMacro) override
+	virtual int32 StrataAddParameterBlending(int32 A, int32 B, int32 AMixWeight, const FString& SharedLocalBasisIndexMacro) override
 	{
-		return Compiler->StrataAddParameterBlending(A, B, SharedLocalBasisIndexMacro);
+		return Compiler->StrataAddParameterBlending(A, B, AMixWeight, SharedLocalBasisIndexMacro);
 	}
 
 	virtual int32 StrataWeight(int32 A, int32 Weight) override
@@ -1024,6 +1025,11 @@ public:
 	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) override
 	{
 		return Compiler->StrataCompilationInfoContainsCodeChunk(CodeChunk);
+	}
+
+	virtual int32 StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk) override
+	{
+		return Compiler->StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(ACodeChunk, BCodeChunk);
 	}
 	
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override
