@@ -554,7 +554,7 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 
 	// Actor Packaging Mode
 	const bool bOFPASupportEnabled = GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport;
-	const bool bActorClassSupportsOFPA = CastChecked<AActor>(SelectedActorInfo.SelectionClass->GetDefaultObject())->SupportsExternalPackaging();
+	const bool bActorClassSupportsOFPA = SelectedActorInfo.SelectionClass ? CastChecked<AActor>(SelectedActorInfo.SelectionClass->GetDefaultObject())->SupportsExternalPackaging() : false;
 	const bool bShowActorPackagingModeProperty = bOFPASupportEnabled && bActorClassSupportsOFPA;
 	if (bShowActorPackagingModeProperty)
 	{
