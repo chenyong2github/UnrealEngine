@@ -2862,7 +2862,6 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 			// Now gather the world external packages and save them if needed
 			if (World->PersistentLevel)
 			{
-				World->PersistentLevel->SetIsAutoSaveExternalActorPackages(true);
 				for (UPackage* ExternalPackage : World->PersistentLevel->GetLoadedExternalActorPackages())
 				{
 					if (ExternalPackage->IsDirty() && (bForceIfNotInList || DirtyPackagesForAutoSave.Contains(ExternalPackage))
@@ -2897,7 +2896,6 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 						}
 					}
 				}
-				World->PersistentLevel->SetIsAutoSaveExternalActorPackages(false);
 			}
 		}
 
