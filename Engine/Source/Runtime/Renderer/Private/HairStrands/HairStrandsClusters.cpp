@@ -13,9 +13,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static int32 GHairStrandsClusterCullingUsesHzb = 1;
-static FAutoConsoleVariableRef CVarHairCullingUseHzb(TEXT("r.HairStrands.Cluster.CullingUsesHzb"), GHairStrandsClusterCullingUsesHzb, TEXT("Enable/disable the use of HZB to help cull more hair clusters."));
-
 static int32 GHairStrandsClusterForceLOD = -1;
 static FAutoConsoleVariableRef CVarHairClusterCullingLodMode(TEXT("r.HairStrands.Cluster.ForceLOD"), GHairStrandsClusterForceLOD, TEXT("Force a specific hair LOD."));
 
@@ -27,11 +24,6 @@ bool IsHairStrandsClusterCullingEnable()
 	// At the moment it is not possible to disable cluster culling, as this pass is in charge of LOD selection, 
 	// and preparing the buffer which will be need for the cluster AABB pass (used later on by the voxelization pass)
 	return true;
-}
-
-bool IsHairStrandsClusterCullingUseHzb()
-{
-	return GHairStrandsClusterCullingUsesHzb > 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,9 +60,8 @@ class FHairClusterCullingCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairClusterCullingCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairClusterCullingCS, FGlobalShader);
 
-	class FHZBCulling : SHADER_PERMUTATION_INT("PERMUTATION_HZBCULLING", 2);
 	class FDebugAABBBuffer : SHADER_PERMUTATION_INT("PERMUTATION_DEBUGAABBBUFFER", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FHZBCulling, FDebugAABBBuffer>;
+	using FPermutationDomain = TShaderPermutationDomain<FDebugAABBBuffer>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector3f, CameraWorldPos)
@@ -92,10 +83,6 @@ class FHairClusterCullingCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, ClusterDebugInfoBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DrawIndirectParameters)
-		SHADER_PARAMETER(FVector3f, HZBUvFactor)
-		SHADER_PARAMETER(FVector4, HZBSize)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HZBTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -247,14 +234,6 @@ static FVector CapturedCameraWorldPos;
 static FMatrix CapturedWorldToClipMatrix;
 static FMatrix CapturedProjMatrix;
 
-struct FHairHZBParameters
-{
-	// Set from renderer for view culling
-	FVector HZBUvFactorValue;
-	FVector4 HZBSizeValue;
-	FRDGTextureRef HZB = nullptr;
-};
-
 bool IsHairStrandsClusterDebugEnable();
 bool IsHairStrandsClusterDebugAABBEnable();
 
@@ -263,7 +242,6 @@ static void AddClusterCullingPass(
 	FGlobalShaderMap* ShaderMap,
 	const FViewInfo& View,
 	const FHairCullingParams& CullingParameters,
-	const FHairHZBParameters& HZBParameters,
 	FHairStrandClusterData::FHairGroup& ClusterData)
 {
 	FRDGBufferRef DispatchIndirectParametersClusterCount = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(), TEXT("Hair.DispatchIndirectParametersClusterCount"));
@@ -375,13 +353,7 @@ static void AddClusterCullingPass(
 		Parameters->ClusterDebugInfoBuffer = GraphBuilder.CreateUAV(ClusterDebugInfoBuffer, PF_R32_SINT);
 #endif
 
-		Parameters->HZBUvFactor = HZBParameters.HZBUvFactorValue;
-		Parameters->HZBSize = HZBParameters.HZBSizeValue;
-		Parameters->HZBTexture = HZBParameters.HZB;
-		Parameters->HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
 		FHairClusterCullingCS::FPermutationDomain Permutation;
-		Permutation.Set<FHairClusterCullingCS::FHZBCulling>((HZBParameters.HZB && !bClusterCullingFrozenCamera && GHairStrandsClusterCullingUsesHzb) ? 1 : 0);
 		Permutation.Set<FHairClusterCullingCS::FDebugAABBBuffer>(bClusterDebugAABBBuffer ? 1 : 0);
 		TShaderMapRef<FHairClusterCullingCS> ComputeShader(ShaderMap, Permutation);
 		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(ClusterData.ClusterCount, 1, 1), FIntVector(64, 1, 1));
@@ -578,29 +550,6 @@ void ComputeHairStrandsClustersCulling(
 		SceneViews[ViewId] = &Views[ViewId];
 	}
 
-	FHairHZBParameters HZBParameters;
-	if (ViewCount > 0) // only handling one view for now
-	{
-		const FViewInfo& ViewInfo = Views[0];
-		HZBParameters.HZB = ViewInfo.HZB;
-
-		const float kHZBTestMaxMipmap = 9.0f;
-		const float HZBMipmapCounts = FMath::Log2(FMath::Max<float>(ViewInfo.HZBMipmap0Size.X, ViewInfo.HZBMipmap0Size.Y));
-		const FVector HZBUvFactorValue(
-			float(ViewInfo.ViewRect.Width()) / float(2 * ViewInfo.HZBMipmap0Size.X),
-			float(ViewInfo.ViewRect.Height()) / float(2 * ViewInfo.HZBMipmap0Size.Y),
-			FMath::Max(HZBMipmapCounts - kHZBTestMaxMipmap, 0.0f)
-		);
-		const FVector4 HZBSizeValue(
-			ViewInfo.HZBMipmap0Size.X,
-			ViewInfo.HZBMipmap0Size.Y,
-			1.0f / float(ViewInfo.HZBMipmap0Size.X),
-			1.0f / float(ViewInfo.HZBMipmap0Size.Y)
-		);
-		HZBParameters.HZBUvFactorValue = HZBUvFactorValue;
-		HZBParameters.HZBSizeValue = HZBSizeValue;
-	}
-
 	const bool bClusterCulling = IsHairStrandsClusterCullingEnable();
 	for (const FViewInfo& View : Views)
 	{
@@ -619,7 +568,6 @@ void ComputeHairStrandsClustersCulling(
 					&ShaderMap, 
 					View, 
 					CullingParameters,
-					HZBParameters,
 					ClusterData);
 			}
 		}
