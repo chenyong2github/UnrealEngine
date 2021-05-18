@@ -461,6 +461,11 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 		FilterFlags |= FBlueprintActionFilter::BPFILTER_RejectOutOfScopeMembers;
 	}
 
+	if(bIsContextSensitive)
+	{
+		FilterFlags |= FBlueprintActionFilter::BPFILTER_RejectIncompatibleThreadSafety;
+	}
+
 	FBlueprintActionFilter MainMenuFilter(FilterFlags);
 	MainMenuFilter.Context = Context;
 	MainMenuFilter.Context.SelectedObjects.Empty();
