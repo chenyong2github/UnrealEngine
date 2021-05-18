@@ -39,20 +39,18 @@ public:
  * Class that manages the scheduling of Compute Graph work.
  * Work can be enqueued on the render thread for the execution at the next call to ExecuteBatches().
  */
-class FComputeGraphScheduler
+class ENGINE_API FComputeGraphScheduler
 {
 public:
 	/** Enqueue a compute graph for execution. */
 	void EnqueueForExecution(
 		const FComputeGraphProxy* ComputeGraph,
-		TArrayView<FComputeDataProviderRenderProxy* const> ComputeDataProviders
-		);
+		TArray<FComputeDataProviderRenderProxy*> ComputeDataProviders );
 
 	/** Submit enqueued compute graph work. */
 	void ExecuteBatches(
 		FRHICommandListImmediate& RHICmdList,
-		ERHIFeatureLevel::Type FeatureLevel
-		);
+		ERHIFeatureLevel::Type FeatureLevel );
 
 private:
 	/** Description of each dispatch that is enqueued. */
@@ -63,18 +61,21 @@ private:
 		FIntVector DispatchDim;
 		const FShaderParametersMetadata* ShaderParamMetadata = nullptr;
 		TShaderRef<FComputeKernelShader> Shader;
-		int32 BindingsIndex = 0;
+		int32 SubInvocationIndex = 0;
 	};
 
-	/** 
-	 * Shader invocations to dispatch. Stored in required order for dispatch. 
+	/**
+	 * Description of each graph that is enqueued.
 	 * todo[CF]: We probably need more context for dispatching work with minimal overhead. For example we would like to overlap UAVs on any skin cache writing.
 	 */
-	TArray<FShaderInvocation> ComputeShaders;
+	struct FGraphInvocation
+	{
+		/** Shader invocations to dispatch. */
+		TArray<FShaderInvocation> ComputeShaders;
+		TArray<FComputeDataProviderRenderProxy*> DataProviders;
+	
+		~FGraphInvocation();
+	};
 
-	/** 
-	 * Parameter and resource binding information for queued dispatches.
-	 * todo[CF]: Replace this with something more efficient. Hopefully using the existing StructMetadata classes.
-	 */
-	TArray<FComputeDataProviderRenderProxy::FBindings> Bindings;
+	TArray<FGraphInvocation> GraphInvocations;
 };

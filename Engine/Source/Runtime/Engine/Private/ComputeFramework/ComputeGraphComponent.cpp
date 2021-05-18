@@ -61,15 +61,10 @@ void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
 	}
 
 	ENQUEUE_RENDER_COMMAND(ComputeFrameworkEnqueueExecutionCommand)(
-		[ComputeGraphScheduler, ComputeGraphProxy, ProviderProxies = MoveTemp(ComputeDataProviderProxies)](FRHICommandListImmediate& RHICmdList)
+		[ComputeGraphScheduler, ComputeGraphProxy, DataProviderProxies = MoveTemp(ComputeDataProviderProxies)](FRHICommandListImmediate& RHICmdList)
 		{
-			ComputeGraphScheduler->EnqueueForExecution(ComputeGraphProxy, ProviderProxies);
-			
-			for (FComputeDataProviderRenderProxy* ProviderProxy : ProviderProxies)
-			{
-				delete ProviderProxy;
-			}
-
+			// Compute graph scheduler will take ownership of the provider proxies.
+			ComputeGraphScheduler->EnqueueForExecution(ComputeGraphProxy, DataProviderProxies);
 			delete ComputeGraphProxy;
 		});
 }

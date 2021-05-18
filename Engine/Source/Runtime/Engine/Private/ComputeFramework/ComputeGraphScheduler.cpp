@@ -35,8 +35,10 @@ void FComputeGraphProxy::Initialize(UComputeGraph* ComputeGraph)
 	}
 }
 
-void FComputeGraphScheduler::EnqueueForExecution(const FComputeGraphProxy* ComputeGraph, TArrayView<FComputeDataProviderRenderProxy* const> ComputeDataProviders)
+void FComputeGraphScheduler::EnqueueForExecution(const FComputeGraphProxy* ComputeGraph, TArray<FComputeDataProviderRenderProxy*> ComputeDataProviders)
 {
+	FGraphInvocation& GraphInvocation = GraphInvocations.AddDefaulted_GetRef();
+
 	// todo[CF]: Allocate a specific data provider per kernel to drive the number of invocations?
 	int32 FirstProvider = -1;
 	for (int32 ProviderIndex = 0; ProviderIndex < ComputeDataProviders.Num(); ++ProviderIndex)
@@ -64,29 +66,16 @@ void FComputeGraphScheduler::EnqueueForExecution(const FComputeGraphProxy* Compu
 					Invocation.KernelName,
 					Invocation.InvocationName,
 					DispatchDim,
-					Invocation.Kernel->GetShaderParamMetadata(),
+					Invocation.ShaderMetadata,
 					Invocation.Kernel->GetShader(),
-					Bindings.Num() + SubInvocationIndex
-					};
+					SubInvocationIndex };
 
-				ComputeShaders.Emplace(ShaderInvocation);
+				GraphInvocation.ComputeShaders.Emplace(ShaderInvocation);
 			}
 		}
 	}
 
-	// todo[CF]: Move GetBindings() calls to ExecuteBatches() so that RDG buffers can be registered and bound.
-	Bindings.AddDefaulted(SubInvocationCount);
-	for (int32 SubInvocationIndex = 0; SubInvocationIndex < SubInvocationCount; ++SubInvocationIndex)
-	{
-		for (int32 ProviderIndex = 0; ProviderIndex < ComputeDataProviders.Num(); ++ProviderIndex)
-		{
-			if (ComputeDataProviders[ProviderIndex] != nullptr)
-			{
-				TCHAR const* UID = UComputeGraph::GetDataInterfaceUID(ProviderIndex);
-				ComputeDataProviders[ProviderIndex]->GetBindings(SubInvocationIndex, UID, Bindings[SubInvocationIndex]);
-			}
-		}
-	}
+	GraphInvocation.DataProviders = MoveTemp(ComputeDataProviders);
 }
 
 struct FComputeExecutionBuffer
@@ -108,7 +97,7 @@ void FComputeGraphScheduler::ExecuteBatches(
 	ERHIFeatureLevel::Type FeatureLevel
 	)
 {
-	if (ComputeShaders.IsEmpty())
+	if (GraphInvocations.IsEmpty())
 	{
 		return;
 	}
@@ -121,137 +110,124 @@ void FComputeGraphScheduler::ExecuteBatches(
 		FRDGBuilder GraphBuilder(RHICmdList);
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
-		TArray<FComputeExecutionBuffer> ExecutionBuffers;
-
-		// todo[CF]: Implement RDG allocations in the data providers. Probably need to move GetBindings() into the RDG block here?
-		/*
-		for (auto& ExtRes : ExternalBuffers)
+		for (int32 GraphIndex = 0; GraphIndex < GraphInvocations.Num(); ++GraphIndex)
 		{
-			TCHAR ResName[FComputeResource::MAX_NAME_LENGTH];
-			ExtRes.Name.ToString(ResName);
+			// Gather from all providers.
+			// todo[CF]: This is first pass and needs profiling. Probably with some care we can remove a bunch of heap allocations.
+			TArray<FComputeDataProviderRenderProxy::FBindings> AllBindings;
 
-			ExecutionBuffers.Emplace(
-				ExtRes.Name,
-				GraphBuilder.RegisterExternalBuffer(ExtRes.Buffer, ResName)
-				);
-		}
-
-		for (auto& TransRes : TransientBuffers)
-		{
-			TCHAR ResName[FComputeResource::MAX_NAME_LENGTH];
-			TransRes.Name.ToString(ResName);
-
-			FRDGBufferDesc BufferDesc;
-		
-			EComputeExecutionBufferType BufferType = (EComputeExecutionBufferType)TransRes.BufferType;
-			switch (BufferType)
+			TArray<FComputeDataProviderRenderProxy*> const& DataProviders = GraphInvocations[GraphIndex].DataProviders;
+			for (int32 DataProviderIndex = 0; DataProviderIndex < DataProviders.Num(); ++DataProviderIndex)
 			{
-			case EComputeExecutionBufferType::Buffer:
-				BufferDesc = FRDGBufferDesc::CreateBufferDesc(TransRes.BytesPerElement, TransRes.ElementCount);
-				break;
-
-			case EComputeExecutionBufferType::StructuredBuffer:
-				BufferDesc = FRDGBufferDesc::CreateStructuredDesc(TransRes.BytesPerElement, TransRes.ElementCount);
-				break;
-
-			case EComputeExecutionBufferType::ByteAddressBuffer:
-				BufferDesc = FRDGBufferDesc::CreateByteAddressDesc(TransRes.BytesPerElement * TransRes.ElementCount);
-				break;
-
-			default:
-				check(!"Unsupported buffer type");
-				break;
-			}
-
-			ExecutionBuffers.Emplace(
-				TransRes.Name,
-				GraphBuilder.CreateBuffer(BufferDesc, ResName)
-				);
-		}
-		*/
-
-		for (int32 KernelIndex = 0; KernelIndex < ComputeShaders.Num(); KernelIndex++)
-		{
-			FShaderInvocation& Compute = ComputeShaders[KernelIndex];
-			FComputeDataProviderRenderProxy::FBindings& Binding = Bindings[Compute.BindingsIndex];
-
-			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(4, 32);
-
-			void* RawBuffer = GraphBuilder.Alloc(Compute.ShaderParamMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
-			FMemory::Memzero(RawBuffer, Compute.ShaderParamMetadata->GetSize());
-
-			bool bBindFailed = false;
-			uint8* ParamBuffer = static_cast<uint8*>(RawBuffer);
-			TArray<FShaderParametersMetadata::FMember> ParamMembers = Compute.ShaderParamMetadata->GetMembers();
-			for (auto& Member : ParamMembers)
-			{
-				switch (Member.GetBaseType())
+				FComputeDataProviderRenderProxy* DataProvider = DataProviders[DataProviderIndex];
+				if (DataProvider != nullptr)
 				{
-				case EUniformBufferBaseType::UBMT_INT32:
+					if (AllBindings.Num() < DataProvider->GetInvocationCount())
 					{
-						int32* ParamValue = Binding.ParamsInt.Find(Member.GetName());
-						*reinterpret_cast<int32*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
+						AllBindings.SetNum(DataProvider->GetInvocationCount());
 					}
-					break;
 
-				case EUniformBufferBaseType::UBMT_UINT32:
+					DataProvider->AllocateResources(GraphBuilder);
+
+					for (int32 InvocationIndex = 0; InvocationIndex < DataProvider->GetInvocationCount(); ++InvocationIndex)
 					{
-						uint32* ParamValue = Binding.ParamsUint.Find(Member.GetName());
-						*reinterpret_cast<uint32*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
+						TCHAR const* UID = UComputeGraph::GetDataInterfaceUID(DataProviderIndex);
+						DataProvider->GetBindings(InvocationIndex, UID, AllBindings[InvocationIndex]);
 					}
-				break;
-
-				case EUniformBufferBaseType::UBMT_FLOAT32:
-					{
-						float* ParamValue = Binding.ParamsFloat.Find(Member.GetName());
-						*reinterpret_cast<float*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
-					}
-					break;
-
-				case EUniformBufferBaseType::UBMT_NESTED_STRUCT:
-					{
-						TArray<uint8>* ParamValue = Binding.Structs.Find(Member.GetName());
-						if (ParamValue != nullptr)
-						{
-							FMemory::Memcpy(&ParamBuffer[Member.GetOffset()], ParamValue->GetData(), Member.GetStructMetadata()->GetSize());
-						}
-						else
-						{
-							bBindFailed = true;
-						}
-					}
-					break;
-
-				default:
-					check(!"Unsupported type");
-					bBindFailed = true;
-					break;
-				};
+				}
 			}
 
-			if (ensure(!bBindFailed))
+			// Add compute passes.
+			TArray<FShaderInvocation> const& ComputeShaders = GraphInvocations[GraphIndex].ComputeShaders;
+			for (FShaderInvocation const& Compute : ComputeShaders)
 			{
-				TCHAR KernelName[128];
-				Compute.KernelName.ToString(KernelName);
+				FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(4, 32);
 
-				TCHAR InvocationName[128];
-				Compute.InvocationName.ToString(InvocationName);
+				void* RawBuffer = GraphBuilder.Alloc(Compute.ShaderParamMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
+				FMemory::Memzero(RawBuffer, Compute.ShaderParamMetadata->GetSize());
 
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("Compute[%s]: %s", KernelName, InvocationName),
-					ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-					Compute.Shader,
-					Compute.ShaderParamMetadata,
-					static_cast<FComputeKernelShader::FParameters*>(RawBuffer),
-					Compute.DispatchDim
-					);		
+				FComputeDataProviderRenderProxy::FBindings& Bindings = AllBindings[Compute.SubInvocationIndex];
+
+				bool bBindFailed = false;
+				uint8* ParamBuffer = static_cast<uint8*>(RawBuffer);
+				TArray<FShaderParametersMetadata::FMember> ParamMembers = Compute.ShaderParamMetadata->GetMembers();
+				for (auto& Member : ParamMembers)
+				{
+					switch (Member.GetBaseType())
+					{
+					case EUniformBufferBaseType::UBMT_INT32:
+						{
+							int32* ParamValue = Bindings.ParamsInt.Find(Member.GetName());
+							*reinterpret_cast<int32*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
+						}
+						break;
+
+					case EUniformBufferBaseType::UBMT_UINT32:
+						{
+							uint32* ParamValue = Bindings.ParamsUint.Find(Member.GetName());
+							*reinterpret_cast<uint32*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
+						}
+					break;
+
+					case EUniformBufferBaseType::UBMT_FLOAT32:
+						{
+							float* ParamValue = Bindings.ParamsFloat.Find(Member.GetName());
+							*reinterpret_cast<float*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
+						}
+						break;
+
+					case EUniformBufferBaseType::UBMT_NESTED_STRUCT:
+						{
+							TArray<uint8>* ParamValue = Bindings.Structs.Find(Member.GetName());
+							if (ParamValue != nullptr)
+							{
+								FMemory::Memcpy(&ParamBuffer[Member.GetOffset()], ParamValue->GetData(), Member.GetStructMetadata()->GetSize());
+							}
+							else
+							{
+								bBindFailed = true;
+							}
+						}
+						break;
+
+					default:
+						check(!"Unsupported type");
+						bBindFailed = true;
+						break;
+					};
+				}
+
+				if (ensure(!bBindFailed))
+				{
+					TCHAR KernelName[128];
+					Compute.KernelName.ToString(KernelName);
+
+					TCHAR InvocationName[128];
+					Compute.InvocationName.ToString(InvocationName);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("Compute[%s]: %s", KernelName, InvocationName),
+						ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+						Compute.Shader,
+						Compute.ShaderParamMetadata,
+						static_cast<FComputeKernelShader::FParameters*>(RawBuffer),
+						Compute.DispatchDim
+						);		
+				}
 			}
 		}
 
 		GraphBuilder.Execute();
 
-		ComputeShaders.Reset();
-		Bindings.Reset();
+		GraphInvocations.Reset();
+	}
+}
+
+FComputeGraphScheduler::FGraphInvocation::~FGraphInvocation()
+{
+	for (FComputeDataProviderRenderProxy* DataProvider : DataProviders)
+	{
+		delete DataProvider;
 	}
 }
