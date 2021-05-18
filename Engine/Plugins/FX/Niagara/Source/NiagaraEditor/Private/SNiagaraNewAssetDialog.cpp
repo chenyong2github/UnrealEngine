@@ -178,6 +178,16 @@ void SNiagaraNewAssetDialog::ConfirmSelection()
 	RequestDestroyWindow();
 }
 
+void SNiagaraNewAssetDialog::ConfirmSelection(const FAssetData& AssetData)
+{
+	SelectedAssets.Add(AssetData);
+	
+	const FNiagaraNewAssetDialogOption& SelectedOption = Options[SelectedOptionIndex];
+	SelectedOption.OnSelectionConfirmed.ExecuteIfBound();
+	bUserConfirmedSelection = true;
+	RequestDestroyWindow();
+}
+
 void SNiagaraNewAssetDialog::OnWindowClosed(const TSharedRef<SWindow>& Window)
 {
 	SaveConfig();
