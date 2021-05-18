@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	SkeletalMeshImport.cpp: Skeletal mesh import code.
+	SkeletalMeshImportUtils.cpp: Skeletal mesh import code.
 =============================================================================*/
 
-#include "Factories/FbxSkeletalMeshImportData.h"
+#include "ImportUtils/SkeletalMeshImportUtils.h"
 
 #include "ClothingAssetBase.h"
 #include "CoreMinimal.h"
@@ -12,7 +12,9 @@
 #include "Engine/AssetUserData.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "Factories/FbxSkeletalMeshImportData.h"
 #include "FbxImporter.h"
+#include "ImportUtils/SkelImport.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "LODUtilities.h"
@@ -24,7 +26,6 @@
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "SkelImport.h"
 #include "UObject/MetaData.h"
 #include "UObject/UObjectIterator.h"
 
@@ -32,7 +33,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshImport, Log, All);
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshImport"
 
-namespace SkeletalMeshHelperImpl
+namespace SkeletalMesUtilsImpl
 {
 	/** Check that root bone is the same, and that any bones that are common have the correct parent. */
 	bool SkeletonsAreCompatible(const FReferenceSkeleton& NewSkel, const FReferenceSkeleton& ExistSkel, bool bFailNoError);
@@ -52,7 +53,7 @@ namespace SkeletalMeshHelperImpl
 	void RestoreMaterialNameWorkflowSection(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 LodIndex, TArray<int32>& RemapMaterial, bool bMaterialReset);
 }
 
-bool SkeletalMeshHelperImpl::SkeletonsAreCompatible(const FReferenceSkeleton& NewSkel, const FReferenceSkeleton& ExistSkel, bool bFailNoError)
+bool SkeletalMesUtilsImpl::SkeletonsAreCompatible(const FReferenceSkeleton& NewSkel, const FReferenceSkeleton& ExistSkel, bool bFailNoError)
 {
 	if (NewSkel.GetBoneName(0) != ExistSkel.GetBoneName(0))
 	{
@@ -100,7 +101,7 @@ bool SkeletalMeshHelperImpl::SkeletonsAreCompatible(const FReferenceSkeleton& Ne
 * @param Materials - [out] array of materials to update
 * @param ImportData - raw binary import data to process
 */
-void SkeletalMeshHelper::ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData)
+void SkeletalMeshImportUtils::ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData)
 {
 	TArray <SkeletalMeshImportData::FMaterial>&	ImportedMaterials = ImportData.Materials;
 
@@ -159,7 +160,7 @@ void SkeletalMeshHelper::ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& M
 * @param ImportData - raw binary import data to process
 * @return true if the operation completed successfully
 */
-bool SkeletalMeshHelper::ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData)
+bool SkeletalMeshImportUtils::ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData)
 {
 	TArray <SkeletalMeshImportData::FBone>&	RefBonesBinary = ImportData.RefBonesBinary;
 
@@ -217,12 +218,12 @@ bool SkeletalMeshHelper::ProcessImportMeshSkeleton(const USkeleton* SkeletonAsse
 *
 * @param ImportData - raw binary import data to process
 */
-void SkeletalMeshHelper::ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData, const FString& SkeletalMeshName)
+void SkeletalMeshImportUtils::ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData, const FString& SkeletalMeshName)
 {
 	FLODUtilities::ProcessImportMeshInfluences(ImportData.Wedges.Num(), ImportData.Influences, SkeletalMeshName);
 }
 
-bool SkeletalMeshHelperImpl::SkeletalMeshIsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)
+bool SkeletalMesUtilsImpl::SkeletalMeshIsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)
 {
 	UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(AssetImportData);
 	if (ImportData == nullptr || ImportData->ImportMaterialOriginalNameData.Num() <= 0)
@@ -241,7 +242,7 @@ bool SkeletalMeshHelperImpl::SkeletalMeshIsUsingMaterialSlotNameWorkflow(UAssetI
 	return !AllNameAreNone;
 }
 
-void SkeletalMeshHelperImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* SourceSkeletalMesh, TSharedPtr<FExistingSkelMeshData>& ExistingMeshDataPtr, int32 LodIndex, bool bSaveNonReducedMeshData)
+void SkeletalMesUtilsImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* SourceSkeletalMesh, TSharedPtr<FExistingSkelMeshData>& ExistingMeshDataPtr, int32 LodIndex, bool bSaveNonReducedMeshData)
 {
 	const FSkeletalMeshModel* SourceMeshModel = SourceSkeletalMesh->GetImportedModel();
 	const FSkeletalMeshLODModel* SourceLODModel = &SourceMeshModel->LODModels[LodIndex];
@@ -327,7 +328,7 @@ void SkeletalMeshHelperImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* Sou
 	}
 }
 
-void SkeletalMeshHelperImpl::SaveSkeletalMeshMaterialNameWorkflowData(TSharedPtr<FExistingSkelMeshData>& ExistingMeshDataPtr, const USkeletalMesh* SourceSkeletalMesh)
+void SkeletalMesUtilsImpl::SaveSkeletalMeshMaterialNameWorkflowData(TSharedPtr<FExistingSkelMeshData>& ExistingMeshDataPtr, const USkeletalMesh* SourceSkeletalMesh)
 {
 	const UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(SourceSkeletalMesh->GetAssetImportData());
 	if (!ImportData)
@@ -353,7 +354,7 @@ void SkeletalMeshHelperImpl::SaveSkeletalMeshMaterialNameWorkflowData(TSharedPtr
 	}
 }
 
-void SkeletalMeshHelperImpl::SaveSkeletalMeshAssetUserData(TSharedPtr<FExistingSkelMeshData>& ExistingMeshDataPtr, const TArray<UAssetUserData*>* UserData)
+void SkeletalMesUtilsImpl::SaveSkeletalMeshAssetUserData(TSharedPtr<FExistingSkelMeshData>& ExistingMeshDataPtr, const TArray<UAssetUserData*>* UserData)
 {
 	if (!UserData)
 	{
@@ -375,9 +376,9 @@ void SkeletalMeshHelperImpl::SaveSkeletalMeshAssetUserData(TSharedPtr<FExistingS
 	}
 }
 
-TSharedPtr<FExistingSkelMeshData> SkeletalMeshHelper::SaveExistingSkelMeshData(USkeletalMesh* SourceSkeletalMesh, bool bSaveMaterials, int32 ReimportLODIndex)
+TSharedPtr<FExistingSkelMeshData> SkeletalMeshImportUtils::SaveExistingSkelMeshData(USkeletalMesh* SourceSkeletalMesh, bool bSaveMaterials, int32 ReimportLODIndex)
 {
-	using namespace SkeletalMeshHelperImpl;
+	using namespace SkeletalMesUtilsImpl;
 
 	if (!SourceSkeletalMesh)
 	{
@@ -498,7 +499,7 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshHelper::SaveExistingSkelMeshData(U
 	return ExistingMeshDataPtr;
 }
 
-void SkeletalMeshHelperImpl::RestoreDependentLODs(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh)
+void SkeletalMesUtilsImpl::RestoreDependentLODs(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh)
 {
 	check(SkeletalMesh != nullptr);
 	const int32 TotalLOD = MeshData->ExistingLODModels.Num();
@@ -521,7 +522,7 @@ void SkeletalMeshHelperImpl::RestoreDependentLODs(const TSharedPtr<const FExisti
 	}
 }
 
-void SkeletalMeshHelperImpl::RestoreLODInfo(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 LodIndex)
+void SkeletalMesUtilsImpl::RestoreLODInfo(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 LodIndex)
 {
 	FSkeletalMeshLODInfo& ImportedLODInfo = SkeletalMesh->GetLODInfoArray()[LodIndex];
 	if (!MeshData->ExistingLODInfo.IsValidIndex(LodIndex))
@@ -550,7 +551,7 @@ void SkeletalMeshHelperImpl::RestoreLODInfo(const TSharedPtr<const FExistingSkel
 	ImportedLODInfo.bSupportUniformlyDistributedSampling = ExistingLODInfo.bSupportUniformlyDistributedSampling;
 }
 
-void SkeletalMeshHelper::ApplySkinning(USkeletalMesh* SkeletalMesh, FSkeletalMeshLODModel& SrcLODModel, FSkeletalMeshLODModel& DestLODModel)
+void SkeletalMeshImportUtils::ApplySkinning(USkeletalMesh* SkeletalMesh, FSkeletalMeshLODModel& SrcLODModel, FSkeletalMeshLODModel& DestLODModel)
 {
 	TArray<FSoftSkinVertex> SrcVertices;
 	SrcLODModel.GetVertices(SrcVertices);
@@ -681,9 +682,9 @@ void SkeletalMeshHelper::ApplySkinning(USkeletalMesh* SkeletalMesh, FSkeletalMes
 }
 
 
-void SkeletalMeshHelper::RestoreExistingSkelMeshData(TSharedPtr<const FExistingSkelMeshData> MeshData, USkeletalMesh* SkeletalMesh, int32 ReimportLODIndex, bool bCanShowDialog, bool bImportSkinningOnly, bool bForceMaterialReset)
+void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 ReimportLODIndex, bool bCanShowDialog, bool bImportSkinningOnly, bool bForceMaterialReset)
 {
-	using namespace SkeletalMeshHelperImpl;
+	using namespace SkeletalMesUtilsImpl;
 	if (!MeshData || !SkeletalMesh)
 	{
 		return;
@@ -1026,7 +1027,7 @@ void SkeletalMeshHelper::RestoreExistingSkelMeshData(TSharedPtr<const FExistingS
 	SkeletalMesh->SetNegativeBoundsExtension(MeshData->NegativeBoundsExtension);
 }
 
-void SkeletalMeshHelperImpl::RestoreMaterialNameWorkflowSection(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 LodIndex, TArray<int32>& RemapMaterial, bool bMaterialReset)
+void SkeletalMesUtilsImpl::RestoreMaterialNameWorkflowSection(const TSharedPtr<const FExistingSkelMeshData>& MeshData, USkeletalMesh* SkeletalMesh, int32 LodIndex, TArray<int32>& RemapMaterial, bool bMaterialReset)
 {
 	FSkeletalMeshModel* SkeletalMeshImportedModel = SkeletalMesh->GetImportedModel();
 	FSkeletalMeshLODModel &SkeletalMeshLodModel = SkeletalMeshImportedModel->LODModels[LodIndex];

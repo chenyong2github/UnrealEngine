@@ -46,7 +46,6 @@
 #include "Factories/FbxStaticMeshImportData.h"
 
 //Skeletal mesh includes
-#include "SkelImport.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkinnedMeshComponent.h"

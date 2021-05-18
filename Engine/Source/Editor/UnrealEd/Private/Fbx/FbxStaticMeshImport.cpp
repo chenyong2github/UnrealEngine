@@ -30,6 +30,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "FbxImporter.h"
 #include "GeomFitUtils.h"
+#include "ImportUtils/StaticMeshImportUtils.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/FbxErrors.h"
@@ -45,11 +46,6 @@ static const int32 LARGE_MESH_MATERIAL_INDEX_THRESHOLD = 64;
 
 using namespace UnFbx;
 
-struct FExistingStaticMeshData;
-extern TSharedPtr<FExistingStaticMeshData> SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, FBXImportOptions* ImportOptions, int32 LodIndex);
-extern void RestoreExistingMeshSettings(const FExistingStaticMeshData* ExistingMesh, UStaticMesh* NewMesh, int32 LODIndex);
-extern void RestoreExistingMeshData(TSharedPtr<const FExistingStaticMeshData> ExistingMeshDataPtr, UStaticMesh* NewMesh, int32 LodLevel, bool bCanShowDialog, bool bForceConflictingMaterialReset);
-extern void UpdateSomeLodsImportMeshData(UStaticMesh* NewMesh, TArray<int32> *ReimportLodList);
 
 struct FRestoreReimportData
 {
@@ -1245,7 +1241,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 		return Mesh;
 	}
 
-	TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr = SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
+	TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr = StaticMeshImportUtils::SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
 
 	if (Node)
 	{
@@ -1321,7 +1317,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 	if(FirstBaseMesh)
 	{
 	//Don't restore materials when reimporting scene
-		RestoreExistingMeshData(ExistMeshDataPtr, FirstBaseMesh, INDEX_NONE, false, ImportOptions->bResetToFbxOnMaterialConflict);
+		StaticMeshImportUtils::RestoreExistingMeshData(ExistMeshDataPtr, FirstBaseMesh, INDEX_NONE, false, ImportOptions->bResetToFbxOnMaterialConflict);
 		RestoreData.CleanupDuplicateMesh();
 	}
 	else
@@ -1466,7 +1462,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 	ImportOptions->bImportMaterials = false;
 	ImportOptions->bImportTextures = false;
 
-	TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr = SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
+	TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr = StaticMeshImportUtils::SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
 
 	TArray<int32> ReimportLodList;
 	if (bCombineMeshesLOD)
@@ -1597,8 +1593,8 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 	}
 	if (NewMesh != nullptr)
 	{
-		UpdateSomeLodsImportMeshData(NewMesh, &ReimportLodList);
-		RestoreExistingMeshData(ExistMeshDataPtr, NewMesh, INDEX_NONE, ImportOptions->bCanShowDialog, ImportOptions->bResetToFbxOnMaterialConflict);
+		StaticMeshImportUtils::UpdateSomeLodsImportMeshData(NewMesh, &ReimportLodList);
+		StaticMeshImportUtils::RestoreExistingMeshData(ExistMeshDataPtr, NewMesh, INDEX_NONE, ImportOptions->bCanShowDialog, ImportOptions->bResetToFbxOnMaterialConflict);
 		RestoreData.CleanupDuplicateMesh();
 	}
 	else
@@ -2006,7 +2002,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 
 		if (ExistMeshDataPtr && InStaticMesh)
 		{
-			RestoreExistingMeshSettings(ExistMeshDataPtr, InStaticMesh, StaticMesh->LODGroup != NAME_None ? INDEX_NONE : LODIndex);
+			StaticMeshImportUtils::RestoreExistingMeshSettings(ExistMeshDataPtr, InStaticMesh, StaticMesh->LODGroup != NAME_None ? INDEX_NONE : LODIndex);
 		}
 
 		// The code to check for bad lightmap UVs doesn't scale well with number of triangles.
@@ -2665,11 +2661,6 @@ bool UnFbx::FFbxImporter::FillCollisionModelList(FbxNode* Node)
 	return false;
 }
 
-extern bool AddConvexGeomFromVertices( const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName );
-extern bool AddSphereGeomFromVerts(const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
-extern bool AddCapsuleGeomFromVerts(const TArray<FVector3f>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
-extern bool AddBoxGeomFromTris(const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
-extern bool DecomposeUCXMesh( const TArray<FVector3f>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup );
 
 bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const FbxString& InNodeName)
 {
@@ -2782,7 +2773,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			if( !ImportOptions->bOneConvexHullPerUCX )
 			{
-				if (DecomposeUCXMesh(CollisionVertices, CollisionFaceIdx, StaticMesh->GetBodySetup()))
+				if (StaticMeshImportUtils::DecomposeUCXMesh(CollisionVertices, CollisionFaceIdx, StaticMesh->GetBodySetup()))
 				{
 					bAtLeastOneCollisionMeshImported = true;
 				}
@@ -2798,7 +2789,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 
 				// This function cooks the given data, so we cannot test for duplicates based on the position data
 				// before we call it
-				if (AddConvexGeomFromVertices(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
+				if (StaticMeshImportUtils::AddConvexGeomFromVertices(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
 				{
 					bAtLeastOneCollisionMeshImported = true;
 					FKConvexElem& NewElem = AggGeo.ConvexElems.Last();
@@ -2835,7 +2826,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
 
-			if(AddBoxGeomFromTris(CollisionTriangles, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
+			if(StaticMeshImportUtils::AddBoxGeomFromTris(CollisionTriangles, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
 			{
 				bAtLeastOneCollisionMeshImported = true;
 				FKBoxElem& NewElem = AggGeo.BoxElems.Last();
@@ -2858,7 +2849,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
 
-			if(AddSphereGeomFromVerts(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
+			if (StaticMeshImportUtils::AddSphereGeomFromVerts(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
 			{
 				bAtLeastOneCollisionMeshImported = true;
 				FKSphereElem& NewElem = AggGeo.SphereElems.Last();
@@ -2881,7 +2872,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
 
-			if (AddCapsuleGeomFromVerts(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
+			if (StaticMeshImportUtils::AddCapsuleGeomFromVerts(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
 			{
 				bAtLeastOneCollisionMeshImported = true;
 				FKSphylElem& NewElem = AggGeo.SphylElems.Last();
