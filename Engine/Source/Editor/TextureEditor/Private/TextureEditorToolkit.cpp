@@ -1032,6 +1032,7 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			);
 		}
 		ToolbarBuilder.EndStyleOverride();
+		ToolbarBuilder.EndSection();
 	}
 }
 
