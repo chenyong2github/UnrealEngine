@@ -167,9 +167,6 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Enable material (edge, bending, and area stiffness) weight maps
 		ChaosClothAddMaterialWeightMaps,
 
-		// Added bShowCurve for movie scene float channel serialization
-		SerializeFloatChannelShowCurve,
-
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

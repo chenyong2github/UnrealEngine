@@ -3,7 +3,6 @@
 #include "SequencerSettings.h"
 #include "KeyParams.h"
 #include "ISequencer.h"
-#include "SSequencer.h"
 
 USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
@@ -47,7 +46,6 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
 	ReduceKeysTolerance = KINDA_SMALL_NUMBER;
-	KeyAreaHeightWithCurves = SequencerLayoutConstants::KeyAreaHeight;
 	bDeleteKeysWhenTrimming = true;
 	bDisableSectionsAfterBaking = true;
 	bCleanPlaybackMode = true;
@@ -563,20 +561,6 @@ void USequencerSettings::SetShowChannelColors(bool InbShowChannelColors)
 	if (bShowChannelColors != InbShowChannelColors)
 	{
 		bShowChannelColors = InbShowChannelColors;
-		SaveConfig();
-	}
-}
-
-float USequencerSettings::GetKeyAreaHeightWithCurves() const
-{
-	return KeyAreaHeightWithCurves;
-}
-
-void USequencerSettings::SetKeyAreaHeightWithCurves(float InKeyAreaHeightWithCurves)
-{
-	if (KeyAreaHeightWithCurves != InKeyAreaHeightWithCurves)
-	{
-		KeyAreaHeightWithCurves = InKeyAreaHeightWithCurves;
 		SaveConfig();
 	}
 }

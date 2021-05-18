@@ -445,114 +445,9 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 
 		PrecomputedKeys.Add(NewKey);
 	}
-
-	PrecomputedCurve.Reset();
-
-	for (FCachedKeyDrawInformation& Info : KeyDrawInfo)
-	{
-		const TSharedPtr<IKeyArea>& ThisKeyArea = Info.CachedKeyPositions.GetKeyArea();
-		const FMovieSceneChannelHandle& Channel = ThisKeyArea.Get()->GetChannel();
-
-		if (Channel.GetChannelTypeName() != FMovieSceneFloatChannel::StaticStruct()->GetFName())
-		{
-			continue;
-		}
-			
-		FMovieSceneFloatChannel* FloatChannel = ThisKeyArea.Get()->GetChannel().Cast<FMovieSceneFloatChannel>().Get();
-		if (!FloatChannel->GetShowCurve())
-		{
-			continue;
-		}
-
-		const FFrameNumber DeltaFrame = TimeToPixelConverter.PixelDeltaToFrame(1.f).FrameNumber;		
-		const FFrameNumber LowerBoundFrame = (InCachedState.PaddedViewRange.GetLowerBoundValue() * TickResolution).CeilToFrame();
-		const FFrameNumber UpperBoundFrame = (InCachedState.PaddedViewRange.GetUpperBoundValue() * TickResolution).FloorToFrame();
-		TOptional<float> PreviousValue;
-		float MaxValue=-FLT_MAX, MinValue=FLT_MAX;
-		for (FFrameNumber FrameNumber = LowerBoundFrame; FrameNumber <= UpperBoundFrame; )
-		{
-			double EvalTime = TickResolution.AsSeconds(FrameNumber);
-			float Value = 0.f;
-			if (FloatChannel->Evaluate(FrameNumber, Value))
-			{
-				if ((PreviousValue.IsSet() && !FMath::IsNearlyEqual(Value, PreviousValue.GetValue())) || FrameNumber == LowerBoundFrame || FrameNumber == UpperBoundFrame)
-				{
-					MaxValue = FMath::Max(MaxValue, Value);
-					MinValue = FMath::Min(MinValue, Value);
-
-					FCurveKey NewKey;
-					NewKey.NormalizedValue = Value;
-					NewKey.FinalKeyPositionSeconds = EvalTime;
-
-					PrecomputedCurve.Add(NewKey);
-				}
-
-				if (!PreviousValue.IsSet())
-				{
-					PreviousValue = Value;
-				}
-			}
-
-			if (FrameNumber >= UpperBoundFrame)
-			{
-				break;
-			}
-			FrameNumber += DeltaFrame;
-			FrameNumber = FMath::Min(FrameNumber, UpperBoundFrame);
-		}
-
-		// Normalize
-		if (PrecomputedCurve.Num() > 0)
-		{
-			float DiffValue = MaxValue - MinValue;
-			for (FCurveKey& CurveKey : PrecomputedCurve)
-			{
-				CurveKey.NormalizedValue = (CurveKey.NormalizedValue - MinValue)/DiffValue;
-			}
-		}
-	}
 }
 
-void FKeyRenderer::FKeyDrawBatch::DrawCurve(FSequencer* Sequencer, FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry, const FPaintStyle& Style, const FKeyRendererPaintArgs& Args) const
-{
-	const FTimeToPixel& TimeToPixelConverter = Painter.GetTimeConverter();
-
-	TOptional<FSlateClippingState> PreviousClipState = Painter.DrawElements.GetClippingState();
-	Painter.DrawElements.PopClip();
-
-	const int32 KeyLayer = Painter.LayerId;
-
-	const ESlateDrawEffect BaseDrawEffects = Painter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-
-	TArray<FVector2D> CurvePoints;
-	for (const FCurveKey& CurveKey : PrecomputedCurve)
-	{		
-		CurvePoints.Add(
-		FVector2D(TimeToPixelConverter.SecondsToPixel(CurveKey.FinalKeyPositionSeconds),
-				(1.0f - CurveKey.NormalizedValue) * KeyGeometry.GetLocalSize().Y ) );
-	}
-
-	const float CurveThickness = 1.f;
-	const bool  bAntiAliasCurves = true;
-	const FLinearColor CurveColor(0.8f, 0.8f, 0.f, 0.7);
-
-	FSlateDrawElement::MakeLines(
-		Painter.DrawElements,
-		KeyLayer,
-		KeyGeometry.ToPaintGeometry(),
-		CurvePoints,
-		BaseDrawEffects,
-		CurveColor,
-		bAntiAliasCurves,
-		CurveThickness
-	);
-
-	Painter.LayerId = KeyLayer + 2;
-	Painter.DrawElements.GetClippingManager().PushClippingState(PreviousClipState.GetValue());
-}
-
-void
-FKeyRenderer::FKeyDrawBatch::Draw(FSequencer* Sequencer, FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry, const FPaintStyle& Style, const FKeyRendererPaintArgs& Args) const
+void FKeyRenderer::FKeyDrawBatch::Draw(FSequencer* Sequencer, FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry, const FPaintStyle& Style, const FKeyRendererPaintArgs& Args) const
 {
 	const FTimeToPixel& TimeToPixelConverter = Painter.GetTimeConverter();
 
@@ -840,16 +735,11 @@ void FKeyRenderer::Paint(const FSectionLayout& InSectionLayout, const FWidgetSty
 		if (const FKeyDrawBatch* KeyDrawBatch = CachedKeyLayouts.Find(LayoutElement))
 		{
 			FGeometry KeyGeometry = LayoutElement.ComputeGeometry(InPainter.SectionGeometry);
-			
-			if (LayoutElement.GetType() == FSectionLayoutElement::Single)
-			{
-				KeyDrawBatch->DrawCurve(Sequencer, InPainter, KeyGeometry, Style, Args);
-			}
-			
 			KeyDrawBatch->Draw(Sequencer, InPainter, KeyGeometry, Style, Args);
 		}
 	}
 }
+
 
 } // namespace Sequencer
 } // namespace UE

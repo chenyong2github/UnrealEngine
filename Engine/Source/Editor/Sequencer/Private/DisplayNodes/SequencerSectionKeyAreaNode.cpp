@@ -5,12 +5,10 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "SSequencer.h"
-#include "SequencerSettings.h"
 #include "IKeyArea.h"
 #include "SKeyNavigationButtons.h"
 #include "SKeyAreaEditorSwitcher.h"
 #include "CurveModel.h"
-#include "Channels/MovieSceneFloatChannel.h"
 
 
 /* FSectionKeyAreaNode interface
@@ -93,21 +91,8 @@ FText FSequencerSectionKeyAreaNode::GetDisplayName() const
 
 float FSequencerSectionKeyAreaNode::GetNodeHeight() const
 {
-	float KeyAreaHeight = SequencerLayoutConstants::KeyAreaHeight;
-	for (const TSharedRef<IKeyArea>& KeyArea : KeyAreas)
-	{
-		const FMovieSceneChannelHandle& Channel = KeyArea->GetChannel();
-		if (Channel.GetChannelTypeName() == FMovieSceneFloatChannel::StaticStruct()->GetFName())
-		{
-			FMovieSceneFloatChannel* FloatChannel = Channel.Cast<FMovieSceneFloatChannel>().Get();
-			if (FloatChannel && FloatChannel->GetShowCurve())
-			{
-				KeyAreaHeight = FMath::Max(KeyAreaHeight, GetSequencer().GetSequencerSettings()->GetKeyAreaHeightWithCurves());
-			}
-		}
-	}
-
-	return KeyAreaHeight;
+	//@todo sequencer: should be defined by the key area probably
+	return SequencerLayoutConstants::KeyAreaHeight;
 }
 
 

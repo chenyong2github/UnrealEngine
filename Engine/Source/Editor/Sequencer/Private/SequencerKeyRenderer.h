@@ -179,15 +179,6 @@ private:
 		EKeyRenderingFlags Flags = EKeyRenderingFlags::None;
 	};
 
-	struct FCurveKey
-	{
-		/** Normalized key value */
-		float NormalizedValue;
-
-		/** The time in seconds that this key should be drawn - represents the average time for overlapping keys */
-		double FinalKeyPositionSeconds;
-	};
-
 
 	struct FPaintStyle
 	{
@@ -223,11 +214,6 @@ private:
 
 
 		/**
-		 * Draw this batch's curve
-		 */
-		void DrawCurve(FSequencer* Sequencer, FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry, const FPaintStyle& Style, const FKeyRendererPaintArgs& Args) const;
-
-		/**
 		 * Draw this batch
 		 */
 		void Draw(FSequencer* Sequencer, FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry, const FPaintStyle& Style, const FKeyRendererPaintArgs& Args) const;
@@ -239,9 +225,6 @@ private:
 
 		/** Computed final draw info */
 		TArray<FKey> PrecomputedKeys;
-
-		/** Computed final draw curve info */
-		TArray<FCurveKey> PrecomputedCurve;
 	};
 
 private:
