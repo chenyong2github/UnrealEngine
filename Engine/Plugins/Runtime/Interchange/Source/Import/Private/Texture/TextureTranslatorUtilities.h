@@ -15,6 +15,8 @@ namespace UE
 		{
 		public:
 			static bool Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer);
+
+			static bool GenericCubeTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer);
 		};
 	}//ns Interchange
 }//ns UE

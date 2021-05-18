@@ -3,6 +3,7 @@
 
 #include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
+#include "Engine/TextureCube.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeMeshNode.h"
@@ -12,9 +13,11 @@
 #include "InterchangeSkeletalMeshFactoryNode.h"
 #include "InterchangeSkeletalMeshLodDataNode.h"
 #include "InterchangeSkeletonFactoryNode.h"
+#include "InterchangeSourceData.h"
+#include "InterchangeTextureCubeFactoryNode.h"
+#include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureFactoryNode.h"
 #include "InterchangeTextureNode.h"
-#include "InterchangeSourceData.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -58,6 +61,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 				}
 				else if (UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(Node))
 				{
+
 					MeshNodes.Add(MeshNode);
 					if (MeshNode->IsSkinnedMesh())
 					{
@@ -68,6 +72,10 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 						StaticMeshNodes.Add(MeshNode);
 					}
 
+				}
+				else if (UInterchangeTextureCubeNode* TextuteCubeNode = Cast<UInterchangeTextureCubeNode>(Node))
+				{
+					TextureCubeNodes.Add(TextuteCubeNode);
 				}
 			}
 			break;
@@ -90,6 +98,12 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 			CreateTexture2DFactoryNode(TextureNode);
 		}
 	}
+
+	for (const UInterchangeTextureCubeNode* TextureCubeNode : TextureCubeNodes)
+	{
+		CreateTextureCubeFactoryNode(TextureCubeNode);
+	}
+
 
 	if (bImportMaterials)
 	{
@@ -319,6 +333,36 @@ UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::CreateTexture
 		TextureFactoryNodes.Add(TextureFactoryNode);
 	}
 	return TextureFactoryNode;
+}
+
+UInterchangeTextureCubeFactoryNode* UInterchangeGenericAssetsPipeline::CreateTextureCubeFactoryNode(const UInterchangeTextureCubeNode* TextureCubeNode)
+{
+	FString DisplayLabel = TextureCubeNode->GetDisplayLabel();
+	FString NodeUid = UInterchangeTextureFactoryNode::GetTextureFactoryNodeUidFromTextureNodeUid(TextureCubeNode->GetUniqueID());
+	UInterchangeTextureCubeFactoryNode* TextureCubeFactoryNode = nullptr;
+	if (BaseNodeContainer->IsNodeUidValid(NodeUid))
+	{
+		TextureCubeFactoryNode = Cast<UInterchangeTextureCubeFactoryNode>(BaseNodeContainer->GetNode(NodeUid));
+		if (!ensure(TextureCubeFactoryNode))
+		{
+			//Log an error
+		}
+	}
+	else
+	{
+		TextureCubeFactoryNode = NewObject<UInterchangeTextureCubeFactoryNode>(BaseNodeContainer, NAME_None);
+		if (!ensure(TextureCubeFactoryNode))
+		{
+			return nullptr;
+		}
+
+		//Creating a UTextureCube
+		TextureCubeFactoryNode->InitializeTextureNode(NodeUid, DisplayLabel, UTextureCube::StaticClass()->GetName(), TextureCubeNode->GetDisplayLabel());
+		TextureCubeFactoryNode->SetCustomTranslatedTextureNodeUid(TextureCubeNode->GetUniqueID());
+		BaseNodeContainer->AddNode(TextureCubeFactoryNode);
+		TextureCubeFactoryNodes.Add(TextureCubeFactoryNode);
+	}
+	return TextureCubeFactoryNode;
 }
 
 UInterchangeMaterialFactoryNode* UInterchangeGenericAssetsPipeline::CreateMaterialFactoryNode(const UInterchangeMaterialNode* MaterialNode)
