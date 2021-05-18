@@ -227,6 +227,13 @@ void FMemorySharedState::CreateDefaultTracks()
 		TEXT("Textures"),
 		TEXT("Physics"),
 		TEXT("Audio"),
+		TEXT("Animation"),
+		TEXT("Lumen"),
+		TEXT("Nanite"),
+		TEXT("ProgramSize"),
+		TEXT("RenderTargets"),
+		TEXT("SceneRender"),
+		TEXT("UObject")
 	};
 	constexpr int32 DefaultTagCount = UE_ARRAY_COUNT(DefaultTags);
 
