@@ -337,6 +337,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Size = Allocation->GetSize();
 					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
 					Alloc.Callstack = Allocation->GetCallstack();
+					check(Alloc.Callstack != nullptr);
 				}
 
 				PageStopwatch.Stop();
@@ -836,7 +837,16 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 	if (ModuleProvider)
 	{
 		ModuleProvider->GetStats(&Stats);
-		return FText::Format(LOCTEXT("SymbolsResolved", "{0} / {1} symbols resolved. {2} failed."), Stats.SymbolsResolved, Stats.SymbolsDiscovered, Stats.SymbolsFailed);
+		check(Stats.SymbolsDiscovered >= Stats.SymbolsResolved + Stats.SymbolsFailed);
+		const uint32 SymbolsPending = Stats.SymbolsDiscovered - Stats.SymbolsResolved - Stats.SymbolsFailed;
+		if (SymbolsPending != 0)
+		{
+			return FText::Format(LOCTEXT("SymbolsResolved1", "{0} symbols ({1} resolved, {2} failed, {3} pending)"), Stats.SymbolsDiscovered, Stats.SymbolsResolved, Stats.SymbolsFailed, SymbolsPending);
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("SymbolsResolved2", "{0} symbols ({1} resolved, {2} failed)"), Stats.SymbolsDiscovered, Stats.SymbolsResolved, Stats.SymbolsFailed);
+		}
 	}
 	else
 	{
