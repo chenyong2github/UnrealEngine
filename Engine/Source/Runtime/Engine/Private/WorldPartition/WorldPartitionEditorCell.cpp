@@ -5,21 +5,24 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
-void UWorldPartitionEditorCell::Serialize(FArchive& Ar)
-{
 #if WITH_EDITOR
-	if (Ar.IsTransacting())
+void UWorldPartitionEditorCell::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UWorldPartitionEditorCell* This = CastChecked<UWorldPartitionEditorCell>(InThis);
+	
+	Collector.AllowEliminatingReferences(false);
+	for (const FActorReference& ActorReference: This->LoadedActors)
 	{
-		bool bLoadedBool = bLoaded;
-		Ar << bLoadedBool;
-		bLoaded = bLoadedBool;
+		AActor* LoadedActor = ActorReference->GetActor(/*bEvenIfPendingKill*/true, /*bEvenIfUnreachable*/true);
+		check(LoadedActor);
+	
+		Collector.AddReferencedObject(LoadedActor);
 	}
-#endif
+	Collector.AllowEliminatingReferences(true);
 
-	Super::Serialize(Ar);
+	Super::AddReferencedObjects(InThis, Collector);
 }
 
-#if WITH_EDITOR
 void UWorldPartitionEditorCell::BeginDestroy()
 {
 	// Release WorldPartition Actor Handles/References
