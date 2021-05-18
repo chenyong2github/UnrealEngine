@@ -7,6 +7,7 @@
 #include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeKernelShared.h"
 #include "ComputeFramework/ComputeKernelSource.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "ShaderParameterMetadataBuilder.h"
 
 UComputeGraph::UComputeGraph(const FObjectInitializer& ObjectInitializer)
@@ -21,12 +22,33 @@ UComputeGraph::UComputeGraph(FVTableHelper& Helper)
 
 UComputeGraph::~UComputeGraph() = default;
 
+void UComputeGraph::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	int32 NumKernels = 0;
+	if (Ar.IsSaving())
+	{
+		NumKernels = KernelResources.Num();
+	}
+	Ar << NumKernels;
+	if (Ar.IsLoading())
+	{
+		KernelResources.SetNum(NumKernels);
+	}
+
+	for (int32 KernelIndex = 0; KernelIndex < NumKernels; ++KernelIndex)
+	{
+		KernelResources[KernelIndex].Serialize(Ar);
+	}
+}
+
 void UComputeGraph::PostLoad()
 {
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	// PostLoad our kernel dependencies before compiling.
+	// PostLoad our kernel dependencies before any compiling.
 	for (UComputeKernel* Kernel : KernelInvocations)
 	{
 		if (Kernel != nullptr)
@@ -35,11 +57,13 @@ void UComputeGraph::PostLoad()
 		}
 	}
 
-	if (ValidateGraph())
+	for (FComputeKernelResourceSet& KernelResource : KernelResources)
 	{
-		CacheResourceShadersForRendering();
+		KernelResource.ProcessSerializedShaderMaps();
 	}
 #endif
+
+	UpdateResources();
 }
 
 bool UComputeGraph::ValidateGraph(FString* OutErrors)
@@ -49,6 +73,15 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 	// Check each edge connects matching function types.
 	// Check graph is DAG
 	return true;
+}
+
+void UComputeGraph::UpdateResources()
+{
+	CacheShaderMetadata();
+
+#if WITH_EDITOR
+	CacheResourceShadersForRendering(uint32(EComputeKernelCompilationFlags::ApplyCompletedShaderMapForRendering));
+#endif
 }
 
 TCHAR const* UComputeGraph::GetDataInterfaceUID(int32 DataInterfaceIndex)
@@ -65,6 +98,59 @@ TCHAR const* UComputeGraph::GetDataInterfaceUID(int32 DataInterfaceIndex)
 		UIDStore[DataInterfaceIndex] = FString::Printf(TEXT("DI%03d"), DataInterfaceIndex);
 	}
 	return *UIDStore[DataInterfaceIndex];
+}
+
+FShaderParametersMetadata* UComputeGraph::BuildKernelShaderMetadata(int32 KernelIndex) const
+{
+	UComputeKernelSource* KernelSource = KernelInvocations[KernelIndex] != nullptr ? KernelInvocations[KernelIndex]->KernelSource : nullptr;
+	if (KernelSource == nullptr)
+	{
+		return nullptr;
+	}
+
+	// Extract shader parameter info from kernel.
+	FShaderParametersMetadataBuilder Builder;
+	KernelSource->GetShaderParameters(Builder);
+
+	// Gather relevant data providers.
+	TArray<int32> DataProviderIndices;
+	for (FComputeGraphEdge const& GraphEdge : GraphEdges)
+	{
+		if (GraphEdge.KernelIndex == KernelIndex)
+		{
+			DataProviderIndices.AddUnique(GraphEdge.DataInterfaceIndex);
+		}
+	}
+
+	// Extract shader parameter info from data providers.
+	for (int32 DataProviderIndex : DataProviderIndices)
+	{
+		UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
+		TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
+		DataInterface->GetShaderParameters(UID, Builder);
+	}
+
+	return Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, *GetName());
+}
+
+void UComputeGraph::CacheShaderMetadata()
+{
+	if (FApp::CanEverRender())
+	{
+		ShaderMetadatas.SetNum(KernelInvocations.Num());
+		for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+		{
+			UComputeKernel* Kernel = KernelInvocations[KernelIndex];
+			if (Kernel == nullptr || Kernel->KernelSource == nullptr)
+			{
+				ShaderMetadatas[KernelIndex] = nullptr;
+			}
+			else
+			{
+				ShaderMetadatas[KernelIndex] = BuildKernelShaderMetadata(KernelIndex);
+			}
+		}
+	}
 }
 
 #if WITH_EDITOR
@@ -108,40 +194,15 @@ namespace
 	}
 }
 
-void UComputeGraph::CacheResourceShadersForRendering()
+FString UComputeGraph::BuildKernelSource(int32 KernelIndex) const
 {
-	const uint32 CompilationFlags = uint32(EComputeKernelCompilationFlags::ApplyCompletedShaderMapForRendering) | uint32(EComputeKernelCompilationFlags::Force);
-	CacheResourceShadersForRendering(CompilationFlags);
-}
+	FString HLSL;
 
-void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
-{
-	// We expect the graph to be validated before attempting to compile.
-	if (FApp::CanEverRender() && ensure(ValidateGraph()))
+	if (KernelInvocations[KernelIndex] != nullptr)
 	{
-		KernelResources.SetNum(KernelInvocations.Num());
-		for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+		UComputeKernelSource* KernelSource = KernelInvocations[KernelIndex]->KernelSource;
+		if (KernelSource != nullptr)
 		{
-			UComputeKernel* Kernel = KernelInvocations[KernelIndex];
-			if (Kernel == nullptr || Kernel->KernelSource == nullptr)
-			{
-				if (KernelResources[KernelIndex].IsValid())
-				{
-					KernelResources[KernelIndex]->Invalidate();
-					KernelResources[KernelIndex] = nullptr;
-				}
-
-				continue;
-			}
-
-			if (!KernelResources[KernelIndex].IsValid())
-			{
-				KernelResources[KernelIndex] = MakeUnique<FComputeKernelResource>();
-			}
-
-			UComputeKernelSource* KernelSource = Kernel->KernelSource;
-			FComputeKernelResource* KernelResource = KernelResources[KernelIndex].Get();
-
 			TArray<int32> RelevantEdgeIndices;
 			TArray<int32> DataProviderIndices;
 			for (int32 GraphEdgeIndex = 0; GraphEdgeIndex < GraphEdges.Num(); ++GraphEdgeIndex)
@@ -154,11 +215,10 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 			}
 
 			// Collect data interface shader code.
-			FString HLSL;
 			for (int32 DataProviderIndex : DataProviderIndices)
 			{
 				UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
-				
+
 				// Add a unique prefix to generate unique names in the data interface shader code.
 				TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
 				HLSL += FString::Printf(TEXT("#define DI_UID %s_\n"), UID);
@@ -189,32 +249,39 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				}
 			}
 
+			// Add the kernel code.
 			HLSL += KernelSource->GetSource();
+		}
+	}
 
-			// Collect and build shader parameter metadata.
-			FShaderParametersMetadataBuilder Builder;
-			KernelSource->GetShaderParameters(Builder);
+	return HLSL;
+}
 
-			for (int32 DataProviderIndex : DataProviderIndices)
+void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
+{
+	if (FApp::CanEverRender())
+	{
+		KernelResources.SetNum(KernelInvocations.Num());
+		for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+		{
+			UComputeKernel* Kernel = KernelInvocations[KernelIndex];
+			if (Kernel == nullptr || Kernel->KernelSource == nullptr)
 			{
-				UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
-				TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
-				DataInterface->GetShaderParameters(UID, Builder);
+				KernelResources[KernelIndex].Reset();
+				continue;
 			}
 
-			FShaderParametersMetadata* ShaderMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, *GetName());
-
-			// Now we have all the information that the KernelResource will need for compilation.
-			KernelResource->SetupResource(
-				GMaxRHIFeatureLevel,
-				GetName(),
-				KernelSource->GetEntryPoint(),
-				MoveTemp(HLSL),
-				KernelSource->GetSourceCodeHash(),
-				ShaderMetadata);
+			FString ShaderEntryPoint = Kernel->KernelSource->GetEntryPoint();
+			FString ShaderSource = BuildKernelSource(KernelIndex);
+			uint64 ShaderSourceHash = FCrc::TypeCrc32(*ShaderSource, 0);
+			FShaderParametersMetadata* ShaderMetadata = BuildKernelShaderMetadata(KernelIndex);
 
 			const ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
 			const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[CacheFeatureLevel];
+			FComputeKernelResource* KernelResource = KernelResources[KernelIndex].GetOrCreate();
+
+			// Now we have all the information that the KernelResource will need for compilation.
+			KernelResource->SetupResource(CacheFeatureLevel, GetName(), ShaderEntryPoint, MoveTemp(ShaderSource), ShaderSourceHash, ShaderMetadata);
 
 			CacheShadersForResource(ShaderPlatform, nullptr, CompilationFlags | uint32(EComputeKernelCompilationFlags::Force), KernelResource);
 		}
@@ -272,4 +339,235 @@ void UComputeGraph::CacheShadersForResource(
 	}
 }
 
+void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* TargetPlatform)
+{
+	TArray<FName> ShaderFormats;
+	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
+
+	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+	{
+		KernelResources[KernelIndex].CachedKernelResourcesForCooking.Reset();
+
+		UComputeKernelSource* KernelSource = KernelInvocations[KernelIndex] != nullptr ? KernelInvocations[KernelIndex]->KernelSource : nullptr;
+		if (KernelSource == nullptr)
+		{
+			continue;
+		}
+
+		if (ShaderFormats.Num() > 0)
+		{
+			FString ShaderEntryPoint = KernelSource->GetEntryPoint();
+			FString ShaderSource = BuildKernelSource(KernelIndex);
+			uint64 ShaderSourceHash = FCrc::TypeCrc32(*ShaderSource, 0);
+			FShaderParametersMetadata* ShaderMetadata = BuildKernelShaderMetadata(KernelIndex);
+
+			TArray< TUniquePtr<FComputeKernelResource> >& Resources = KernelResources[KernelIndex].CachedKernelResourcesForCooking.FindOrAdd(TargetPlatform);
+
+			for (int32 ShaderFormatIndex = 0; ShaderFormatIndex < ShaderFormats.Num(); ++ShaderFormatIndex)
+			{
+				const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormats[ShaderFormatIndex]);
+				const ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+
+				TUniquePtr<FComputeKernelResource> KernelResource = MakeUnique<FComputeKernelResource>();
+				KernelResource->SetupResource(TargetFeatureLevel, GetName(), ShaderEntryPoint, ShaderSource, ShaderSourceHash, ShaderMetadata);
+
+				const uint32 CompilationFlags = uint32(EComputeKernelCompilationFlags::IsCooking);
+				CacheShadersForResource(ShaderPlatform, TargetPlatform, CompilationFlags, KernelResource.Get());
+
+				Resources.Add(MoveTemp(KernelResource));
+			}
+		}
+	}
+}
+
+bool UComputeGraph::IsCachedCookedPlatformDataLoaded(ITargetPlatform const* TargetPlatform)
+{
+	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+	{
+		UComputeKernelSource* KernelSource = KernelInvocations[KernelIndex] != nullptr ? KernelInvocations[KernelIndex]->KernelSource : nullptr;
+		if (KernelSource == nullptr)
+		{
+			continue;
+		}
+
+		TArray< TUniquePtr<FComputeKernelResource> >* Resources = KernelResources[KernelIndex].CachedKernelResourcesForCooking.Find(TargetPlatform);
+		if (Resources == nullptr)
+		{
+			return false;
+		}
+
+		for (int32 ResourceIndex = 0; ResourceIndex < Resources->Num(); ++ResourceIndex)
+		{
+			if (!(*Resources)[ResourceIndex]->IsCompilationFinished())
+			{
+				return false;
+			}
+		}
+	}	
+
+	return true;
+}
+
+void UComputeGraph::ClearCachedCookedPlatformData(ITargetPlatform const* TargetPlatform)
+{
+	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+	{
+		KernelResources[KernelIndex].CachedKernelResourcesForCooking.Remove(TargetPlatform);
+	}
+}
+
+void UComputeGraph::ClearAllCachedCookedPlatformData()
+{
+	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+	{
+		KernelResources[KernelIndex].CachedKernelResourcesForCooking.Reset();
+	}
+}
+
 #endif // WITH_EDITOR
+
+void UComputeGraph::FComputeKernelResourceSet::Reset()
+{
+#if WITH_EDITORONLY_DATA
+	for (int32 FeatureLevel = 0; FeatureLevel < ERHIFeatureLevel::Num; ++FeatureLevel)
+	{
+		if (KernelResourcesByFeatureLevel[FeatureLevel].IsValid())
+		{
+			KernelResourcesByFeatureLevel[FeatureLevel]->Invalidate();
+			KernelResourcesByFeatureLevel[FeatureLevel] = nullptr;
+		}
+	}
+#else
+	if (KernelResource.IsValid())
+	{
+		KernelResource->Invalidate();
+		KernelResource = nullptr;
+	}
+#endif
+}
+
+FComputeKernelResource const* UComputeGraph::FComputeKernelResourceSet::Get() const
+{
+#if WITH_EDITORONLY_DATA
+	ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
+	return KernelResourcesByFeatureLevel[CacheFeatureLevel].Get();
+#else
+	return KernelResource.Get();
+#endif
+}
+
+FComputeKernelResource* UComputeGraph::FComputeKernelResourceSet::GetOrCreate()
+{
+#if WITH_EDITORONLY_DATA
+	ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
+	if (!KernelResourcesByFeatureLevel[CacheFeatureLevel].IsValid())
+	{
+		KernelResourcesByFeatureLevel[CacheFeatureLevel] = MakeUnique<FComputeKernelResource>();
+	}
+	return KernelResourcesByFeatureLevel[CacheFeatureLevel].Get();
+#else
+	if (!KernelResource.IsValid())
+	{
+		KernelResource = MakeUnique<FComputeKernelResource>();
+	}
+	return KernelResource.Get();
+#endif
+}
+
+void UComputeGraph::FComputeKernelResourceSet::Serialize(FArchive& Ar)
+{
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsSaving())
+	{
+		int32 NumResourcesToSave = 0;
+		const TArray< TUniquePtr<FComputeKernelResource> >* ResourcesToSavePtr = nullptr;
+
+		if (Ar.IsCooking())
+		{
+			ResourcesToSavePtr = CachedKernelResourcesForCooking.Find(Ar.CookingTarget());
+			if (ResourcesToSavePtr != nullptr)
+			{
+				NumResourcesToSave = ResourcesToSavePtr->Num();
+			}
+		}
+
+		Ar << NumResourcesToSave;
+
+		if (ResourcesToSavePtr != nullptr)
+		{
+			for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToSavePtr->Num(); ++ResourceIndex)
+			{
+				(*ResourcesToSavePtr)[ResourceIndex]->SerializeShaderMap(Ar);
+			}
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	if (Ar.IsLoading())
+	{
+#if WITH_EDITORONLY_DATA
+		const bool HasEditorData = !Ar.IsFilterEditorOnly();
+		if (HasEditorData)
+		{
+			int32 NumLoadedResources = 0;
+			Ar << NumLoadedResources;
+			for (int32 i = 0; i < NumLoadedResources; i++)
+			{
+				TUniquePtr<FComputeKernelResource> LoadedResource = MakeUnique<FComputeKernelResource>();
+				LoadedResource->SerializeShaderMap(Ar);
+				LoadedKernelResources.Add(MoveTemp(LoadedResource));
+			}
+		}
+		else
+#endif // WITH_EDITORONLY_DATA
+		{
+			int32 NumResources = 0;
+			Ar << NumResources;
+
+			for (int32 ResourceIndex = 0; ResourceIndex < NumResources; ++ResourceIndex)
+			{
+				TUniquePtr<FComputeKernelResource> Resource = MakeUnique<FComputeKernelResource>();
+				Resource->SerializeShaderMap(Ar);
+
+				FComputeKernelShaderMap* ShaderMap = Resource->GetGameThreadShaderMap();
+				if (ShaderMap != nullptr)
+				{
+					if (GMaxRHIShaderPlatform == ShaderMap->GetShaderPlatform())
+					{
+#if WITH_EDITORONLY_DATA
+						KernelResourcesByFeatureLevel[GMaxRHIShaderPlatform] = MoveTemp(Resource);
+#else
+						KernelResource = MoveTemp(Resource);
+#endif
+					}
+				}
+			}
+		}
+	}
+}
+
+void UComputeGraph::FComputeKernelResourceSet::ProcessSerializedShaderMaps()
+{
+#if WITH_EDITORONLY_DATA
+	for (TUniquePtr<FComputeKernelResource>& LoadedResource : LoadedKernelResources)
+	{
+		FComputeKernelShaderMap* LoadedShaderMap = LoadedResource->GetGameThreadShaderMap();
+		if (LoadedShaderMap && LoadedShaderMap->GetShaderPlatform() == GMaxRHIShaderPlatform)
+		{
+			ERHIFeatureLevel::Type LoadedFeatureLevel = LoadedShaderMap->GetShaderMapId().FeatureLevel;
+			if (!KernelResourcesByFeatureLevel[LoadedFeatureLevel].IsValid())
+			{
+				KernelResourcesByFeatureLevel[LoadedFeatureLevel] = MakeUnique<FComputeKernelResource>();
+			}
+
+			KernelResourcesByFeatureLevel[LoadedFeatureLevel]->SetInlineShaderMap(LoadedShaderMap);
+		}
+		else
+		{
+			LoadedResource->DiscardShaderMap();
+		}
+	}
+
+	LoadedKernelResources.Reset();
+#endif
+}

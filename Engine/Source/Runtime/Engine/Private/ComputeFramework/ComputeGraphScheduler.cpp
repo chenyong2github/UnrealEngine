@@ -14,17 +14,20 @@ DECLARE_GPU_STAT_NAMED(ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::
 
 void FComputeGraphProxy::Initialize(UComputeGraph* ComputeGraph)
 {
-	for (int32 KernelIndex = 0; KernelIndex < ComputeGraph->GetKernelInvocations().Num(); ++KernelIndex)
+	const int32 NumKernels = ComputeGraph->GetNumKernelInvocations();
+	for (int32 KernelIndex = 0; KernelIndex < NumKernels; ++KernelIndex)
 	{
-		UComputeKernel* Kernel = ComputeGraph->GetKernelInvocations()[KernelIndex];
-		FComputeKernelResource* KernelResource = ComputeGraph->GetKernelResources()[KernelIndex].Get();
+		UComputeKernel const* Kernel = ComputeGraph->GetKernelInvocation(KernelIndex);
+		FComputeKernelResource const* KernelResource = ComputeGraph->GetKernelResource(KernelIndex);
+		FShaderParametersMetadata const* ShaderMetadata = ComputeGraph->GetKernelShaderMetadata(KernelIndex);
 
-		if (Kernel != nullptr && KernelResource != nullptr)
+		if (Kernel != nullptr && KernelResource != nullptr && ShaderMetadata != nullptr)
 		{
 			FKernelInvocation KernelInvocation = {
 				Kernel->GetFName(),
 				FName("InvocationName"),
-				FIntVector(32, 1, 1), // todo: read from kernel
+				FIntVector(32, 1, 1), // todo[CF]: read group size from kernel (or possibly apply it through defines)
+				ShaderMetadata,
 				KernelResource };
 
 			KernelInvocations.Emplace(KernelInvocation);
