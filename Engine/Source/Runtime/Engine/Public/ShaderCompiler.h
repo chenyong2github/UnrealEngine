@@ -21,6 +21,7 @@
 #include "GBufferInfo.h"
 #include "ShaderMaterial.h"
 #include "Misc/ScopeRWLock.h"
+#include "AsyncCompilationHelpers.h"
 #include "AssetCompilingManager.h"
 #include "Containers/HashTable.h"
 #include "Containers/List.h"
@@ -1118,6 +1119,8 @@ public:
 	 * Returns true if the given shader compile worker is still running.
 	 */
 	static bool IsShaderCompilerWorkerRunning(FProcHandle & WorkerHandle);
+
+	FAsyncCompilationNotification Notification;
 };
 
 /** The global shader compiling thread manager. */

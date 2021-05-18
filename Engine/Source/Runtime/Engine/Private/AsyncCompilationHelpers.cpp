@@ -24,38 +24,23 @@
 
 DEFINE_LOG_CATEGORY(LogAsyncCompilation);
 
-#if WITH_EDITOR
-
 #define LOCTEXT_NAMESPACE "AsyncCompilation"
-
-namespace AsyncCompilationHelpers
-{
-	void DumpStallStacks();
-}
-
-static FAutoConsoleCommand CVarAsyncAssetDumpStallStacks(
-	TEXT("Editor.AsyncAssetDumpStallStacks"),
-	TEXT("Dump all the callstacks that have caused waits on async compilation."),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
-	{
-		AsyncCompilationHelpers::DumpStallStacks();
-	})
-);
 
 void FAsyncCompilationNotification::Update(int32 NumJobs)
 {
+#if WITH_EDITOR
 	check(IsInGameThread());
 
 	// Use a lambda to only for progress message in code-path where it's needed
 	auto GetProgressMessage =
 		[this, NumJobs]()
-		{
-			FFormatNamedArguments Args;
-			// Always use the plural form when displaying the notification
-			Args.Add(TEXT("AssetType"), FText::Format(AssetNameFormat, FText::AsNumber(100)));
-			Args.Add(TEXT("NumJobs"), FText::AsNumber(NumJobs));
-			return FText::Format(LOCTEXT("AsyncCompilationProgress", "Preparing {AssetType} ({NumJobs})"), Args);
-		};
+	{
+		FFormatNamedArguments Args;
+		// Always use the plural form when displaying the notification
+		Args.Add(TEXT("AssetType"), FText::Format(AssetNameFormat, FText::AsNumber(100)));
+		Args.Add(TEXT("NumJobs"), FText::AsNumber(NumJobs));
+		return FText::Format(LOCTEXT("AsyncCompilationProgress", "Preparing {AssetType} ({NumJobs})"), Args);
+	};
 
 	if (NumJobs == 0)
 	{
@@ -66,7 +51,7 @@ void FAsyncCompilationNotification::Update(int32 NumJobs)
 		StartNumJobs = 0;
 		NotificationHandle = FProgressNotificationHandle();
 	}
-	else 
+	else
 	{
 		if (!NotificationHandle.IsValid())
 		{
@@ -82,7 +67,24 @@ void FAsyncCompilationNotification::Update(int32 NumJobs)
 			FSlateNotificationManager::Get().UpdateProgressNotification(NotificationHandle, StartNumJobs - NumJobs, StartNumJobs, GetProgressMessage());
 		}
 	}
+#endif
 };
+
+#if WITH_EDITOR
+
+namespace AsyncCompilationHelpers
+{
+	void DumpStallStacks();
+}
+
+static FAutoConsoleCommand CVarAsyncAssetDumpStallStacks(
+	TEXT("Editor.AsyncAssetDumpStallStacks"),
+	TEXT("Dump all the callstacks that have caused waits on async compilation."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		AsyncCompilationHelpers::DumpStallStacks();
+	})
+);
 
 namespace AsyncCompilationHelpers
 {
@@ -397,6 +399,6 @@ namespace AsyncCompilationHelpers
 	}
 }
 
-#undef LOCTEXT_NAMESPACE
-
 #endif // #if WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE
