@@ -1212,7 +1212,7 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		const TManagedArray<FVector3f>& TangentU = Collection->TangentU;
 		const TManagedArray<FVector3f>& TangentV = Collection->TangentV;
 		const TManagedArray<FVector3f>& Normal = Collection->Normal;
-		const TManagedArray<FVector2D>& UV = Collection->UV;
+		const TManagedArray<TArray<FVector2D>>& UVs = Collection->UVs;
 		const TManagedArray<FLinearColor>& Color = Collection->Color;
 		const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
 
@@ -1221,7 +1221,7 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		ConstantData->TangentU = TArray<FVector3f>(TangentU.GetData(), TangentU.Num());
 		ConstantData->TangentV = TArray<FVector3f>(TangentV.GetData(), TangentV.Num());
 		ConstantData->Normals = TArray<FVector3f>(Normal.GetData(), Normal.Num());
-		ConstantData->UVs = TArray<FVector2D>(UV.GetData(), UV.Num());
+		ConstantData->UVs = TArray<TArray<FVector2D>>(UVs.GetData(), UVs.Num());
 		ConstantData->Colors = TArray<FLinearColor>(Color.GetData(), Color.Num());
 
 		ConstantData->BoneColors.AddUninitialized(NumPoints);
@@ -2577,18 +2577,22 @@ void FScopedColorEdit::UpdateBoneColors()
 
 void UGeometryCollectionComponent::ApplyKinematicField(float Radius, FVector Position)
 {
-	FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(EFieldPhysicsType::Field_DynamicState, new FRadialIntMask(Radius, Position, (int32)Chaos::EObjectStateType::Dynamic,
-			(int32)Chaos::EObjectStateType::Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior));
-	DispatchFieldCommand(Command);
+	/*
+	FName TargetName = GetGeometryCollectionPhysicsTypeName(EGeometryCollectionPhysicsTypeEnum::Chaos_DynamicState);
+	DispatchFieldCommand({ TargetName,new FRadialIntMask(Radius, Position, (int32)Chaos::EObjectStateType::Dynamic,
+		(int32)Chaos::EObjectStateType::Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior) });
+		*/
 }
 
 void UGeometryCollectionComponent::ApplyPhysicsField(bool Enabled, EGeometryCollectionPhysicsTypeEnum Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
 {
+	/*
 	if (Enabled && Field)
 	{
-		FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetGeometryCollectionPhysicsType(Target), Field, MetaData);  
+		FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetGeometryCollectionPhysicsTypeName(Target), Field, MetaData);
 		DispatchFieldCommand(Command);
 	}
+	*/
 }
 
 void UGeometryCollectionComponent::DispatchFieldCommand(const FFieldSystemCommand& InCommand)

@@ -111,11 +111,11 @@ void FInternalSurfaceMaterials::SetUVScaleFromCollection(const FGeometryCollecti
 	{
 		const FIntVector& Tri = Collection.Indices[FaceIdx];
 		WorldDistance += FVector::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Y]);
-		UVDistance += FVector2D::Distance(Collection.UV[Tri.X], Collection.UV[Tri.Y]);
+		UVDistance += FVector2D::Distance(Collection.UVs[Tri.X][0], Collection.UVs[Tri.Y][0]);
 		WorldDistance += FVector::Distance(Collection.Vertex[Tri.Z], Collection.Vertex[Tri.Y]);
-		UVDistance += FVector2D::Distance(Collection.UV[Tri.Z], Collection.UV[Tri.Y]);
+		UVDistance += FVector2D::Distance(Collection.UVs[Tri.Z][0], Collection.UVs[Tri.Y][0]);
 		WorldDistance += FVector::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Z]);
-		UVDistance += FVector2D::Distance(Collection.UV[Tri.X], Collection.UV[Tri.Z]);
+		UVDistance += FVector2D::Distance(Collection.UVs[Tri.X][0], Collection.UVs[Tri.Z][0]);
 	}
 
 	if (WorldDistance > 0)
@@ -589,7 +589,6 @@ int32 CutMultipleWithMultiplePlanes(
 	return NewGeomStartIdx;
 }
 
-
 // Cut multiple Geometry groups inside a GeometryCollection with PlanarCells, and add each cut cell back to the GeometryCollection as a new child of their source Geometry
 int32 CutMultipleWithPlanarCells(
 	FPlanarCells& Cells,
@@ -618,7 +617,7 @@ int32 CutMultipleWithPlanarCells(
 
 	FDynamicMeshCollection MeshCollection(&Source, TransformIndices, CollectionToWorld);
 	double OnePercentExtend = MeshCollection.Bounds.MaxDim() * .01;
-	FCellMeshes CellMeshes(Cells, MeshCollection.Bounds, Grout, OnePercentExtend, bIncludeOutsideCellInOutput);
+	FCellMeshes CellMeshes(Source.NumUVLayers(), Cells, MeshCollection.Bounds, Grout, OnePercentExtend, bIncludeOutsideCellInOutput);
 
 	int32 NewGeomStartIdx = -1;
 
@@ -627,7 +626,6 @@ int32 CutMultipleWithPlanarCells(
 	Source.ReindexMaterials();
 	return NewGeomStartIdx;
 }
-
 
 int32 CutWithMesh(
 	FMeshDescription* CuttingMesh,
@@ -662,7 +660,9 @@ int32 CutWithMesh(
 	}
 
 	FDynamicMesh3 DynamicCuttingMesh; // version of mesh that is split apart at seams to be compatible w/ geometry collection, with corresponding attributes set
-	SetGeometryCollectionAttributes(DynamicCuttingMesh);
+	int32 NumUVLayers = Collection.NumUVLayers();
+	SetGeometryCollectionAttributes(DynamicCuttingMesh, NumUVLayers);
+
 	// Note: This conversion will likely go away, b/c I plan to switch over to doing the boolean operations on the fuller rep, but the code can be adapted
 	//		 to the dynamic mesh -> geometry collection conversion phase, as this same splitting will then need to happen there.
 	if (ensure(FullMesh.HasAttributes() && FullMesh.Attributes()->NumUVLayers() >= 1 && FullMesh.Attributes()->NumNormalLayers() == 3))
@@ -686,7 +686,7 @@ int32 CutWithMesh(
 			FVector3d Pos = FullMesh.GetVertex(VID);
 
 			ElIDsToVID.Reset();
-			FullMesh.EnumerateVertexTriangles(VID, [&FullMesh, &Triangles, &OutMesh, &NTB, &UV, &ElIDsToVID, Pos, VID](int32 TID)
+			FullMesh.EnumerateVertexTriangles(VID, [&FullMesh, &Triangles, &OutMesh, &NTB, &UV, &ElIDsToVID, Pos, VID, NumUVLayers](int32 TID)
 			{
 				FIndex3i InTri = FullMesh.GetTriangle(TID);
 				int VOnT = IndexUtil::FindTriIndex(VID, InTri);
@@ -705,11 +705,15 @@ int32 CutWithMesh(
 				else
 				{
 					FVector3f Normal = NTB[0]->GetElement(ElIDs.A);
-					FVertexInfo Info(Pos, Normal, FVector3f(1, 1, 1), UV->GetElement(ElIDs.D));
+					FVertexInfo Info(Pos, Normal, FVector3f(1, 1, 1));
 
 					int OutVID = OutMesh.AppendVertex(Info);
 					OutTri[VOnT] = OutVID;
 					AugmentedDynamicMesh::SetTangent(OutMesh, OutVID, Normal, NTB[1]->GetElement(ElIDs.B), NTB[2]->GetElement(ElIDs.C));
+					for (int32 UVLayerIdx = 0; UVLayerIdx < NumUVLayers; UVLayerIdx++)
+					{
+						AugmentedDynamicMesh::SetUV(OutMesh, OutVID, UV->GetElement(ElIDs.D), UVLayerIdx);
+					}
 					ElIDsToVID.Add(ElIDs, OutVID);
 				}
 			});
@@ -744,7 +748,7 @@ int32 CutWithMesh(
 	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
 
 	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
-	FCellMeshes CellMeshes(DynamicCuttingMesh, InternalSurfaceMaterials, CuttingMeshTransform);
+	FCellMeshes CellMeshes(NumUVLayers, DynamicCuttingMesh, InternalSurfaceMaterials, CuttingMeshTransform);
 
 	TArray<TPair<int32, int32>> CellConnectivity;
 	CellConnectivity.Add(TPair<int32, int32>(0, -1)); // there's only one 'inside' cell (0), so all cut surfaces are connecting the 'inside' cell (0) to the 'outside' cell (-1)
@@ -793,7 +797,6 @@ int32 AddCollisionSampleVertices(double CollisionSampleSpacing, FGeometryCollect
 }
 
 
-
 void ConvertToMeshDescription(
 	FMeshDescription& MeshOut,
 	FTransform& TransformOut,
@@ -808,7 +811,7 @@ void ConvertToMeshDescription(
 	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CellsToWorld);
 	
 	FDynamicMesh3 CombinedMesh;
-	SetGeometryCollectionAttributes(CombinedMesh);
+	SetGeometryCollectionAttributes(CombinedMesh, Collection.NumUVLayers());
 	CombinedMesh.Attributes()->EnableTangents();
 
 	int32 NumMeshes = MeshCollection.Meshes.Num();
@@ -825,7 +828,7 @@ void ConvertToMeshDescription(
 		}
 
 		FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
-		AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh);
+		AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, Collection.NumUVLayers());
 		AugmentedDynamicMesh::InitializeOverlayToPerVertexTangents(Mesh);
 
 		FMergeCoincidentMeshEdges EdgeMerge(&Mesh);

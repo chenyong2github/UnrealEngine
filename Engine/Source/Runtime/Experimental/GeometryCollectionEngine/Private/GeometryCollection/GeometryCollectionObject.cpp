@@ -632,7 +632,7 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 
 	// Vertices Group
 	const TManagedArray<FVector3f>& VertexArray = Collection->Vertex;
-	const TManagedArray<FVector2D>& UVArray = Collection->UV;
+	const TManagedArray<TArray<FVector2D>>& UVsArray = Collection->UVs;
 	const TManagedArray<FLinearColor>& ColorArray = Collection->Color;
 	const TManagedArray<FVector3f>& TangentUArray = Collection->TangentU;
 	const TManagedArray<FVector3f>& TangentVArray = Collection->TangentV;
@@ -658,7 +658,7 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 	// Material Group
 	const int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
 
-	const uint32 NumTexCoords = 1;// NumTextureCoord;
+	const uint32 NumTexCoords = Collection->NumUVLayers();
 	const bool bHasColors = ColorArray.Num() > 0;
 
 	TArray<FStaticMeshBuildVertex> BuildVertices;
@@ -683,10 +683,13 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 			Vertex.TangentX = FVector3f::ZeroVector;
 			Vertex.TangentY = FVector3f::ZeroVector;
 			Vertex.TangentZ = NormalArray[VertexStart + VertexIndex];
-			Vertex.UVs[0] = UVArray[VertexStart + VertexIndex];
-			if (Vertex.UVs[0].ContainsNaN())
+			for (int32 UVIdx = 0; UVIdx < UVsArray[VertexStart + VertexIndex].Num(); ++UVIdx)
 			{
-				Vertex.UVs[0] = FVector2D::ZeroVector;
+				Vertex.UVs[UVIdx] = UVsArray[VertexStart + VertexIndex][UVIdx];
+				if (Vertex.UVs[UVIdx].ContainsNaN())
+				{
+					Vertex.UVs[UVIdx] = FVector2D::ZeroVector;
+				}
 			}
 		}
 

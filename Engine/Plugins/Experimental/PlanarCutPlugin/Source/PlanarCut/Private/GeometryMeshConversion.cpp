@@ -61,33 +61,68 @@ namespace AugmentedDynamicMesh
 	FName TangentUAttribName = "TangentUAttrib";
 	FName TangentVAttribName = "TangentVAttrib";
 	FName VisibleAttribName = "VisibleAttrib";
+	enum
+	{
+		MAX_NUM_UV_CHANNELS = 8,
+	};
+	FName UVChannelNames[MAX_NUM_UV_CHANNELS] = {
+		"UVAttrib0",
+		"UVAttrib1",
+		"UVAttrib2",
+		"UVAttrib3",
+		"UVAttrib4",
+		"UVAttrib5",
+		"UVAttrib6",
+		"UVAttrib7"
+	};
 
-	void Augment(FDynamicMesh3& Mesh)
+	void EnableUVChannels(FDynamicMesh3& Mesh, int32 NumUVChannels, bool bResetExisting = false, bool bDisablePrevious = true)
+	{
+		Mesh.EnableAttributes();
+		if (!ensure(NumUVChannels <= MAX_NUM_UV_CHANNELS))
+		{
+			NumUVChannels = MAX_NUM_UV_CHANNELS;
+		}
+		for (int32 UVIdx = 0; UVIdx < NumUVChannels; UVIdx++)
+		{
+			if (!bResetExisting && Mesh.Attributes()->HasAttachedAttribute(UVChannelNames[UVIdx]))
+			{
+				continue;
+			}
+			Mesh.Attributes()->AttachAttribute(UVChannelNames[UVIdx], new TDynamicMeshVertexAttribute<float, 2>(&Mesh));
+		}
+		if (bDisablePrevious)
+		{
+			for (int32 UVIdx = NumUVChannels; UVIdx < MAX_NUM_UV_CHANNELS; UVIdx++)
+			{
+				Mesh.Attributes()->RemoveAttribute(UVChannelNames[UVIdx]);
+			}
+		}
+	}
+
+	void Augment(FDynamicMesh3& Mesh, int32 NumUVChannels)
 	{
 		Mesh.EnableVertexColors(FVector3f(1, 1, 1));
 		Mesh.EnableVertexNormals(FVector3f::UnitZ());
-		Mesh.EnableVertexUVs(FVector2f(0, 0));
 		Mesh.EnableAttributes();
 		Mesh.Attributes()->EnableMaterialID();
-		ensure(Mesh.Attributes()->NumAttachedAttributes() == 0);
 		Mesh.Attributes()->AttachAttribute(TangentUAttribName, new TDynamicMeshVertexAttribute<float, 3>(&Mesh));
 		Mesh.Attributes()->AttachAttribute(TangentVAttribName, new TDynamicMeshVertexAttribute<float, 3>(&Mesh));
 		TDynamicMeshScalarTriangleAttribute<bool>* VisAttrib = new TDynamicMeshScalarTriangleAttribute<bool>(&Mesh);
 		VisAttrib->Initialize(true);
 		Mesh.Attributes()->AttachAttribute(VisibleAttribName, VisAttrib);
+		EnableUVChannels(Mesh, NumUVChannels);
 	}
 
 	bool IsAugmented(const FDynamicMesh3& Mesh)
 	{
 		return Mesh.HasAttributes()
-			&& Mesh.Attributes()->NumAttachedAttributes() == 3
 			&& Mesh.Attributes()->HasAttachedAttribute(TangentUAttribName)
 			&& Mesh.Attributes()->HasAttachedAttribute(TangentVAttribName)
 			&& Mesh.Attributes()->HasAttachedAttribute(VisibleAttribName)
 			&& Mesh.Attributes()->HasMaterialID()
 			&& Mesh.HasVertexColors()
-			&& Mesh.HasVertexNormals()
-			&& Mesh.HasVertexUVs();
+			&& Mesh.HasVertexNormals();
 	}
 
 	void SetDefaultAttributes(FDynamicMesh3& Mesh, bool bGlobalVisibility)
@@ -131,6 +166,52 @@ namespace AugmentedDynamicMesh
 		return Visible->GetValue(TID);
 	}
 
+	void SetUV(FDynamicMesh3& Mesh, int VID, FVector2f UV, int UVLayer)
+	{
+		if (!ensure(UVLayer < MAX_NUM_UV_CHANNELS))
+		{
+			return;
+		}
+		TDynamicMeshVertexAttribute<float, 2>* UVs =
+			static_cast<TDynamicMeshVertexAttribute<float, 2>*>(Mesh.Attributes()->GetAttachedAttribute(UVChannelNames[UVLayer]));
+		if (ensure(UVs))
+		{
+			UVs->SetValue(VID, UV);
+		}
+	}
+
+	void SetAllUV(FDynamicMesh3& Mesh, int VID, FVector2f UV, int NumUVLayers)
+	{
+		if (!ensure(NumUVLayers < MAX_NUM_UV_CHANNELS))
+		{
+			NumUVLayers = MAX_NUM_UV_CHANNELS;
+		}
+		for (int32 Layer = 0; Layer < NumUVLayers; Layer++)
+		{
+			TDynamicMeshVertexAttribute<float, 2>* UVs =
+				static_cast<TDynamicMeshVertexAttribute<float, 2>*>(Mesh.Attributes()->GetAttachedAttribute(UVChannelNames[Layer]));
+			if (ensure(UVs))
+			{
+				UVs->SetValue(VID, UV);
+			}
+		}
+	}
+
+	void GetUV(const FDynamicMesh3& Mesh, int VID, FVector2f& UV, int UVLayer)
+	{
+		if (!ensure(UVLayer < MAX_NUM_UV_CHANNELS))
+		{
+			UV = FVector2f::Zero();
+			return;
+		}
+		TDynamicMeshVertexAttribute<float, 2>* UVs =
+			static_cast<TDynamicMeshVertexAttribute<float, 2>*>(Mesh.Attributes()->GetAttachedAttribute(UVChannelNames[UVLayer]));
+		if (ensure(UVs))
+		{
+			UVs->GetValue(VID, UV);
+		}
+	}
+
 	void SetTangent(FDynamicMesh3& Mesh, int VID, FVector3f Normal, FVector3f TangentU, FVector3f TangentV)
 	{
 		checkSlow(IsAugmented(Mesh));
@@ -154,25 +235,30 @@ namespace AugmentedDynamicMesh
 		Vs->GetValue(VID, V);
 	}
 
-	void InitializeOverlayToPerVertexUVs(FDynamicMesh3& Mesh)
+	void InitializeOverlayToPerVertexUVs(FDynamicMesh3& Mesh, int32 NumUVLayers)
 	{
-		FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->PrimaryUV();
-		UVs->ClearElements();
-		TArray<int> VertToUVMap;
-		VertToUVMap.SetNumUninitialized(Mesh.MaxVertexID());
-		for (int VID : Mesh.VertexIndicesItr())
+		Mesh.Attributes()->SetNumUVLayers(NumUVLayers);
+		for (int UVLayer = 0; UVLayer < NumUVLayers; ++UVLayer)
 		{
-			FVector2f UV = Mesh.GetVertexUV(VID);
-			int UVID = UVs->AppendElement(UV);
-			VertToUVMap[VID] = UVID;
-		}
-		for (int TID : Mesh.TriangleIndicesItr())
-		{
-			FIndex3i Tri = Mesh.GetTriangle(TID);
-			Tri.A = VertToUVMap[Tri.A];
-			Tri.B = VertToUVMap[Tri.B];
-			Tri.C = VertToUVMap[Tri.C];
-			UVs->SetTriangle(TID, Tri);
+			FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->GetUVLayer(UVLayer);
+			UVs->ClearElements();
+			TArray<int> VertToUVMap;
+			VertToUVMap.SetNumUninitialized(Mesh.MaxVertexID());
+			for (int VID : Mesh.VertexIndicesItr())
+			{
+				FVector2f UV;
+				GetUV(Mesh, VID, UV, UVLayer);
+				int UVID = UVs->AppendElement(UV);
+				VertToUVMap[VID] = UVID;
+			}
+			for (int TID : Mesh.TriangleIndicesItr())
+			{
+				FIndex3i Tri = Mesh.GetTriangle(TID);
+				Tri.A = VertToUVMap[Tri.A];
+				Tri.B = VertToUVMap[Tri.B];
+				Tri.C = VertToUVMap[Tri.C];
+				UVs->SetTriangle(TID, Tri);
+			}
 		}
 	}
 
@@ -215,7 +301,7 @@ namespace AugmentedDynamicMesh
 
 		// Copy per-vertex UVs to a UV overlay, because that's what the tangents code uses
 		// (TODO: consider making a tangent computation path that uses vertex normals / UVs)
-		InitializeOverlayToPerVertexUVs(Mesh);
+		InitializeOverlayToPerVertexUVs(Mesh, 1); // tangents only use the first layer
 		FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->PrimaryUV();
 
 		FComputeTangentsOptions Options;
@@ -367,20 +453,21 @@ namespace AugmentedDynamicMesh
 }
 
 
-void SetGeometryCollectionAttributes(FDynamicMesh3& Mesh)
+void SetGeometryCollectionAttributes(FDynamicMesh3& Mesh, int32 NumUVLayers)
 {
-	AugmentedDynamicMesh::Augment(Mesh);
+	AugmentedDynamicMesh::Augment(Mesh, NumUVLayers);
 }
 
 
-FCellMeshes::FCellMeshes(const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
+FCellMeshes::FCellMeshes(int32 NumUVLayersIn, const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
 {
-	Init(Cells, DomainBounds, Grout, ExtendDomain, bIncludeOutsideCell);
+	Init(NumUVLayersIn, Cells, DomainBounds, Grout, ExtendDomain, bIncludeOutsideCell);
 }
 
 
-FCellMeshes::FCellMeshes(FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform)
+FCellMeshes::FCellMeshes(int32 NumUVLayersIn, FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform)
 {
+	NumUVLayers = NumUVLayersIn;
 	SetNumCells(2);
 
 	if (Transform.IsSet())
@@ -391,7 +478,7 @@ FCellMeshes::FCellMeshes(FDynamicMesh3& SingleCutter, const FInternalSurfaceMate
 	// Mesh should already be augmented
 	if (!ensure(AugmentedDynamicMesh::IsAugmented(SingleCutter)))
 	{
-		AugmentedDynamicMesh::Augment(SingleCutter);
+		AugmentedDynamicMesh::Augment(SingleCutter, NumUVLayers);
 	}
 
 	CellMeshes[0].AugMesh = SingleCutter;
@@ -527,8 +614,9 @@ void FCellMeshes::ApplyNoise(FDynamicMesh3& Mesh, FVector3d Normal, const FNoise
 }
 
 
-void FCellMeshes::Init(const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
+void FCellMeshes::Init(int32 NumUVLayersIn, const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
 {
+	NumUVLayers = NumUVLayersIn;
 	InitEmpty();
 
 	float GlobalUVScale = Cells.InternalSurfaceMaterials.GlobalUVScale;
@@ -621,7 +709,7 @@ void FCellMeshes::ApplyGeneralGrout(double Grout)
 		{
 			// if the grout scale factor would be ~zero or negative, just clear the mesh instead
 			Mesh.Clear();
-			AugmentedDynamicMesh::Augment(Mesh);
+			AugmentedDynamicMesh::Augment(Mesh, NumUVLayers);
 		}
 		else
 		{
@@ -634,7 +722,7 @@ void FCellMeshes::ApplyGeneralGrout(double Grout)
 	{
 		FDynamicMesh3& OutsideMesh = CellMeshes[OutsideCellIndex].AugMesh;
 		OutsideMesh.Clear();
-		AugmentedDynamicMesh::Augment(OutsideMesh);
+		AugmentedDynamicMesh::Augment(OutsideMesh, NumUVLayers);
 		FDynamicMeshEditor OutsideMeshEditor(&OutsideMesh);
 		for (int MeshIdx = 0; MeshIdx < CellMeshes.Num(); MeshIdx++)
 		{
@@ -689,7 +777,7 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithoutNoise(int NumCells, const F
 		FFrame3d PlaneFrame(Cells.Planes[PlaneIdx]);
 		FVertexInfo PlaneVertInfo;
 		PlaneVertInfo.bHaveC = true;
-		PlaneVertInfo.bHaveUV = true;
+		PlaneVertInfo.bHaveUV = false;
 		PlaneVertInfo.bHaveN = true;
 		PlaneVertInfo.Color = FVector3f(1, 1, 1);
 		int VertStart[2]{ -1, -1 };
@@ -712,8 +800,9 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithoutNoise(int NumCells, const F
 			for (int BoundaryVertex : PlaneBoundary)
 			{
 				PlaneVertInfo.Position = FVector3d(Cells.PlaneBoundaryVertices[BoundaryVertex]);
-				PlaneVertInfo.UV = (FVector2f(PlaneFrame.ToPlaneUV(PlaneVertInfo.Position)) - MinUV) * GlobalUVScale;
-				Meshes[MeshIdx]->AppendVertex(PlaneVertInfo);
+				FVector2f UV = (FVector2f(PlaneFrame.ToPlaneUV(PlaneVertInfo.Position)) - MinUV) * GlobalUVScale;
+				int VID = Meshes[MeshIdx]->AppendVertex(PlaneVertInfo);
+				AugmentedDynamicMesh::SetAllUV(*Meshes[MeshIdx], VID, UV, NumUVLayers);
 			}
 		}
 
@@ -745,7 +834,9 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithoutNoise(int NumCells, const F
 			FPolygon2f Polygon;
 			for (int V = 0; V < PlaneBoundary.Num(); V++)
 			{
-				Polygon.AppendVertex(Meshes[0]->GetVertexUV(VertStart[0] + V));
+				FVector2f UV;
+				AugmentedDynamicMesh::GetUV(*Meshes[0], VertStart[0] + V, UV, 0);
+				Polygon.AppendVertex(UV);
 			}
 
 			FGeneralPolygon2f GeneralPolygon(Polygon);
@@ -799,7 +890,7 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithNoise(int NumCells, const FPla
 	FName OriginalPositionAttribute = "OriginalPosition";
 	for (FDynamicMesh3& PlaneMesh : PlaneMeshes)
 	{
-		PlaneMesh.EnableVertexUVs(FVector2f(0, 0));
+		AugmentedDynamicMesh::EnableUVChannels(PlaneMesh, NumUVLayers);
 		PlaneMesh.EnableVertexNormals(FVector3f::UnitZ());
 		PlaneMesh.EnableVertexColors(FVector3f(1, 1, 1));
 		PlaneMesh.EnableAttributes();
@@ -854,10 +945,10 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithNoise(int NumCells, const FPla
 			FFrame3d PlaneFrame(Cells.Planes[PlaneIdx]);
 			FVertexInfo PlaneVertInfo;
 			PlaneVertInfo.bHaveC = true;
-			PlaneVertInfo.bHaveUV = true;
+			PlaneVertInfo.bHaveUV = false;
 			PlaneVertInfo.bHaveN = true;
 			PlaneVertInfo.Normal = Normal;
-			PlaneVertInfo.UV = FVector2f(0, 0); // UVs will be set below, after noise is added
+			// UVs will be set below, after noise is added
 			PlaneVertInfo.Color = FVector3f(1, 1, 1);
 
 			FPolygon2f Polygon;
@@ -1133,7 +1224,10 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithNoise(int NumCells, const FPla
 				for (int Idx = 0; Idx < 3; Idx++)
 				{
 					FVector2f UV = ((FVector2f)PlaneFrames[PlaneIdx].ToPlaneUV(Mesh.GetVertex(Tri[Idx])) - PlaneMinUVs[PlaneIdx]) * GlobalUVScale;
-					Mesh.SetVertexUV(Tri[Idx], UV);
+					for (int UVLayerIdx = 0; UVLayerIdx < NumUVLayers; UVLayerIdx++)
+					{
+						AugmentedDynamicMesh::SetUV(Mesh, Tri[Idx], UV, UVLayerIdx);
+					}
 				}
 			}
 		}
@@ -1162,10 +1256,10 @@ void FCellMeshes::CreateMeshesForSinglePlane(const FPlanarCells& Cells, const FA
 	//	// TODO: early out for plane that doesn't even intersect the domain bounding box?
 	//}
 
-	FDynamicMesh3 PlaneMesh(true, true, true, false);
+	FDynamicMesh3 PlaneMesh(true, true, false, false);
+	AugmentedDynamicMesh::EnableUVChannels(PlaneMesh, NumUVLayers);
 	FVertexInfo PlaneVertInfo;
 	PlaneVertInfo.bHaveC = true;
-	PlaneVertInfo.bHaveUV = true;
 	PlaneVertInfo.bHaveN = true;
 	PlaneVertInfo.Color = FVector3f(1, 1, 1);
 	PlaneVertInfo.Normal = -FVector3f(Plane.GetNormal());
@@ -1173,8 +1267,9 @@ void FCellMeshes::CreateMeshesForSinglePlane(const FPlanarCells& Cells, const FA
 	for (int CornerIdx = 0; CornerIdx < 4; CornerIdx++)
 	{
 		PlaneVertInfo.Position = PlaneFrame.FromPlaneUV(XYRange.GetCorner(CornerIdx));
-		PlaneVertInfo.UV = FVector2f(XYRange.GetCorner(CornerIdx) - XYRange.Min) * GlobalUVScale;
-		PlaneMesh.AppendVertex(PlaneVertInfo);
+		FVector2f UV = FVector2f(XYRange.GetCorner(CornerIdx) - XYRange.Min) * GlobalUVScale;
+		int VID = PlaneMesh.AppendVertex(PlaneVertInfo);
+		AugmentedDynamicMesh::SetAllUV(PlaneMesh, VID, UV, NumUVLayers);
 	}
 	PlaneMesh.AppendTriangle(0, 1, 2);
 	PlaneMesh.AppendTriangle(0, 2, 3);
@@ -1221,6 +1316,7 @@ void FCellMeshes::CreateMeshesForSinglePlane(const FPlanarCells& Cells, const FA
 		{
 			Meshes[Side] = &CellMeshes[Side].AugMesh;
 			*Meshes[Side] = PlaneMesh;
+
 			double Offset = ZRange.Max;
 			TArray<int> CapBoundary, CapBoundaryCornerIndices;
 
@@ -1289,8 +1385,9 @@ void FCellMeshes::CreateMeshesForSinglePlane(const FPlanarCells& Cells, const FA
 	for (int CellIdx = 0; CellIdx < CellMeshes.Num(); CellIdx++)
 	{
 		FDynamicMesh3& Mesh = CellMeshes[CellIdx].AugMesh;
+
 		// re-enable tangents and visibility attributes, since these are lost when we set the mesh to a copy of the plane mesh
-		AugmentedDynamicMesh::Augment(Mesh);
+		AugmentedDynamicMesh::Augment(Mesh, NumUVLayers);
 
 		// Set all material IDs to the one plane's corresponding material ID
 		for (int TID : Mesh.TriangleIndicesItr())
@@ -1303,6 +1400,7 @@ void FCellMeshes::CreateMeshesForSinglePlane(const FPlanarCells& Cells, const FA
 
 void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices)
 {
+	int32 NumUVLayers = Collection->NumUVLayers();
 	Meshes.Reset();
 	Bounds = FAxisAlignedBox3d::Empty();
 
@@ -1316,7 +1414,7 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 
 		FTransform3d CollectionToLocal = FTransform3d(GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, TransformIdx) * TransformCollection);
 
-		int32 AddedMeshIdx = Meshes.Add(new FMeshData);
+		int32 AddedMeshIdx = Meshes.Add(new FMeshData(NumUVLayers));
 		FMeshData& MeshData = Meshes[AddedMeshIdx];
 		MeshData.TransformIndex = TransformIdx;
 		MeshData.ToCollection = FTransform(CollectionToLocal.Inverse());
@@ -1326,6 +1424,9 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 		Mesh.EnableAttributes();
 		Mesh.Attributes()->EnableMaterialID();
 
+		//int32 NumUVLayers = Collection->NumUVLayers();
+		//AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, NumUVLayers);
+
 		int32 VertexStart = Collection->VertexStart[GeometryIdx];
 		int32 VertexCount = Collection->VertexCount[GeometryIdx];
 		int32 FaceCount = Collection->FaceCount[GeometryIdx];
@@ -1333,17 +1434,21 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 		FVertexInfo VertexInfo;
 		VertexInfo.bHaveC = true;
 		VertexInfo.bHaveN = true;
-		VertexInfo.bHaveUV = true;
+		VertexInfo.bHaveUV = false;
 		for (int32 Idx = VertexStart, N = VertexStart + VertexCount; Idx < N; Idx++)
 		{
 			VertexInfo.Position = CollectionToLocal.TransformPosition(FVector3d(Collection->Vertex[Idx]));
-			VertexInfo.UV = FVector2f(Collection->UV[Idx]);
 			VertexInfo.Color = FVector3f(Collection->Color[Idx]);
 			VertexInfo.Normal = (FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->Normal[Idx]));
 			int VID = Mesh.AppendVertex(VertexInfo);
 			AugmentedDynamicMesh::SetTangent(Mesh, VID, VertexInfo.Normal,
 				(FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->TangentU[Idx])),
 				(FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->TangentV[Idx])));
+			
+			for (int32 UVLayer = 0; UVLayer < NumUVLayers; ++UVLayer)
+			{
+				AugmentedDynamicMesh::SetUV(Mesh, VID, Collection->UVs[Idx][UVLayer], UVLayer);
+			}
 		}
 		FIntVector VertexOffset(VertexStart, VertexStart, VertexStart);
 		for (int32 Idx = Collection->FaceStart[GeometryIdx], N = Collection->FaceStart[GeometryIdx] + FaceCount; Idx < N; Idx++)
@@ -1362,6 +1467,12 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 						Mesh.GetVertexNormal(NewVID), // TODO: we don't actually use the vertex normal; consider removing this arg from the function entirely
 						(FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->TangentU[SrcIdx])),
 						(FVector3f)CollectionToLocal.TransformVectorNoScale(FVector3d(Collection->TangentV[SrcIdx])));
+
+					for (int32 UVLayer = 0; UVLayer < NumUVLayers; ++UVLayer)
+					{
+						AugmentedDynamicMesh::SetUV(Mesh, NewVID, Collection->UVs[SrcIdx][UVLayer], UVLayer);
+					}
+
 					NewTri[SubIdx] = NewVID;
 				}
 				TID = Mesh.AppendTriangle(NewTri, 0);
@@ -1416,6 +1527,8 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 
 	bool bHasGrout = Grout > 0;
 
+	int32 NumUVLayers = Collection->NumUVLayers();
+
 	if (bHasGrout)
 	{
 		// For multi-plane cuts with grout specifically, the easiest path seems to be:
@@ -1424,7 +1537,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 		// 3. Use the generic CutWithCellMeshes path, where that grout mesh is both the inner and outside cell mesh
 		//    (Note the outside cell mesh is subtracted, not intersected)
 		//    (Note this relies on island splitting to separate all the pieces afterwards.)
-		FCellMeshes GroutCells;
+		FCellMeshes GroutCells(NumUVLayers);
 		GroutCells.SetNumCells(2);
 		FDynamicMesh3& GroutMesh = GroutCells.CellMeshes[0].AugMesh;
 		FDynamicMeshEditor GroutAppender(&GroutMesh);
@@ -1434,7 +1547,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 			EnterProgressFrame(.5);
 			FPlanarCells PlaneCells(Planes[PlaneIdx]);
 			PlaneCells.InternalSurfaceMaterials = InternalSurfaceMaterials;
-			FCellMeshes PlaneGroutMesh;
+			FCellMeshes PlaneGroutMesh(NumUVLayers);
 			PlaneGroutMesh.MakeOnlyPlanarGroutCell(PlaneCells, Bounds, Grout);
 			GroutAppender.AppendMesh(&PlaneGroutMesh.CellMeshes[0].AugMesh, IndexMaps);
 		}
@@ -1540,7 +1653,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 		FPlanarCells PlaneCells(Planes[PlaneIdx]);
 		PlaneCells.InternalSurfaceMaterials = InternalSurfaceMaterials;
 		double OnePercentExtend = Bounds.MaxDim() * .01;
-		FCellMeshes CellMeshes(PlaneCells, Bounds, 0, OnePercentExtend, false);
+		FCellMeshes CellMeshes(NumUVLayers, PlaneCells, Bounds, 0, OnePercentExtend, false);
 
 		// TODO: we could do these cuts in parallel (will takes some rework of the proximity and how results are added to the ToCut array)
 		for (int32 ToCutIdx = 0, ToCutNum = ToCut.Num(); ToCutIdx < ToCutNum; ToCutIdx++)
@@ -1562,7 +1675,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 			TArray<TUniquePtr<FMeshData>> BoolResults;
 			for (int ResultIdx = 0; ResultIdx < 2; ResultIdx++)
 			{
-				BoolResults.Add(MakeUnique<FMeshData>());
+				BoolResults.Add(MakeUnique<FMeshData>(NumUVLayers));
 				BoolResults[ResultIdx]->TransformIndex = TransformIndex;
 				BoolResults[ResultIdx]->ToCollection = ToCollection;
 			}
@@ -1764,7 +1877,6 @@ int32 FDynamicMeshCollection::CutWithCellMeshes(const FInternalSurfaceMaterials&
 				{
 					BooleanResults[CellIdx] = MakeUnique<FDynamicMesh3>();
 					FDynamicMesh3& AugBoolResult = *BooleanResults[CellIdx];
-
 					FMeshBoolean::EBooleanOp Op = FMeshBoolean::EBooleanOp::Intersect;
 					if (CellIdx == CellMeshes.OutsideCellIndex)
 					{
@@ -2078,6 +2190,8 @@ bool FDynamicMeshCollection::UpdateCollection(const FTransform& ToCollection, FD
 	int32 OldVertexCount = Output.VertexCount[GeometryIdx];
 	int32 OldTriangleCount = Output.FaceCount[GeometryIdx];
 
+	int32 UVLayerCount = Output.NumUVLayers();
+
 	int32 NewVertexCount = Mesh.VertexCount();
 	int32 NewTriangleCount = Mesh.TriangleCount();
 
@@ -2096,7 +2210,14 @@ bool FDynamicMeshCollection::UpdateCollection(const FTransform& ToCollection, FD
 		int32 CopyToIdx = VerticesStart + VID;
 		Output.Vertex[CopyToIdx] = ToCollection.TransformPosition(FVector(Mesh.GetVertex(VID)));
 		Output.Normal[CopyToIdx] = ToCollection.TransformVectorNoScale(FVector(Mesh.GetVertexNormal(VID)));
-		Output.UV[CopyToIdx] = FVector2D(Mesh.GetVertexUV(VID));
+		
+		for (int32 UVLayer = 0; UVLayer < UVLayerCount; ++UVLayer)
+		{
+			FVector2f UV;
+			AugmentedDynamicMesh::GetUV(Mesh, VID, UV, UVLayer);
+			Output.UVs[CopyToIdx][UVLayer] = FVector2D(UV);
+		}
+		
 		FVector3f TangentU, TangentV;
 		AugmentedDynamicMesh::GetTangent(Mesh, VID, TangentU, TangentV);
 		Output.TangentU[CopyToIdx] = ToCollection.TransformVectorNoScale(FVector(TangentU));
@@ -2151,6 +2272,7 @@ int32 FDynamicMeshCollection::AppendToCollection(const FTransform& ToCollection,
 	int32 NewGeometryStartIdx = Output.FaceStart.Num();
 	int32 OriginalVertexNum = Output.Vertex.Num();
 	int32 OriginalFaceNum = Output.Indices.Num();
+	int32 UVLayerCount = Output.NumUVLayers();
 
 	int32 GeometryIdx = Output.AddElements(1, FGeometryCollection::GeometryGroup);
 	int32 TransformIdx = Output.AddElements(1, FGeometryCollection::TransformGroup);
@@ -2185,7 +2307,15 @@ int32 FDynamicMeshCollection::AppendToCollection(const FTransform& ToCollection,
 		int32 CopyToIdx = VerticesStart + VID;
 		Output.Vertex[CopyToIdx] = ToCollection.TransformPosition(FVector(Mesh.GetVertex(VID)));
 		Output.Normal[CopyToIdx] = ToCollection.TransformVectorNoScale(FVector(Mesh.GetVertexNormal(VID)));
-		Output.UV[CopyToIdx] = FVector2D(Mesh.GetVertexUV(VID));
+		
+		Output.UVs[CopyToIdx].SetNum(UVLayerCount);
+		for (int32 UVLayer = 0; UVLayer < UVLayerCount; ++UVLayer)
+		{
+			FVector2f UV;
+			AugmentedDynamicMesh::GetUV(Mesh, VID, UV, UVLayer);
+			Output.UVs[CopyToIdx][UVLayer] = FVector2D(UV);
+		}
+
 		FVector3f TangentU, TangentV;
 		AugmentedDynamicMesh::GetTangent(Mesh, VID, TangentU, TangentV);
 		Output.TangentU[CopyToIdx] = ToCollection.TransformVectorNoScale(FVector(TangentU));
