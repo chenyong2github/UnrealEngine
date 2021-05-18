@@ -77,12 +77,18 @@ void UGameFeatureAction_DataRegistrySource::OnGameFeatureDeactivating(FGameFeatu
 		{
 			if (!RegistrySource.DataTableToAdd.IsNull())
 			{
-				DataRegistrySubsystem->UnregisterSpecificAsset(RegistrySource.RegistryToAddTo, RegistrySource.DataTableToAdd.ToSoftObjectPath());
+				if (!DataRegistrySubsystem->UnregisterSpecificAsset(RegistrySource.RegistryToAddTo, RegistrySource.DataTableToAdd.ToSoftObjectPath()))
+				{
+					UE_LOG(LogGameFeatures, Log, TEXT("OnGameFeatureDeactivating %s: DataRegistry data table %s failed to unregister"), *GetPathName(), *RegistrySource.DataTableToAdd.ToString())
+				}
 			}
 
 			if (!RegistrySource.CurveTableToAdd.IsNull())
 			{
-				DataRegistrySubsystem->UnregisterSpecificAsset(RegistrySource.RegistryToAddTo, RegistrySource.CurveTableToAdd.ToSoftObjectPath());
+				if (!DataRegistrySubsystem->UnregisterSpecificAsset(RegistrySource.RegistryToAddTo, RegistrySource.CurveTableToAdd.ToSoftObjectPath()))
+				{
+					UE_LOG(LogGameFeatures, Log, TEXT("OnGameFeatureDeactivating %s: DataRegistry curve table %s failed to unregister"), *GetPathName(), *RegistrySource.CurveTableToAdd.ToString())
+				}
 			}
 		}
 	}
