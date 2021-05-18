@@ -1,126 +1,179 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessHistogram.usf: PostProcessing histogram
-=============================================================================*/
-
 #include "Common.ush"
-#include "ScreenPass.ush"
 #include "PostProcessHistogramCommon.ush"
 
-SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+//------------------------------------------------------- CONFIG
 
-Texture2D InputTexture;
+#define GROUP_SIZE 16
 
-// Output histogram texture (UAV)
-RWTexture2D<float4> HistogramRWTexture;
+// Number of independent histogram in DLS to reduce atomic contention.
+#define CONFIG_HISTOGRAM_COUNT ((GROUP_SIZE * GROUP_SIZE) / HISTOGRAM_SIZE)
 
-// Number of thread groups in the dispatch
-uint2 ThreadGroupCount;
+#define CONFIG_LOOP_SIZE 8
 
-// THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms of the size HISTOGRAM_SIZE
-groupshared float SharedHistogram[HISTOGRAM_SIZE][THREADGROUP_SIZEX][THREADGROUP_SIZEY];
+#define CONFIG_QUANTIZATION 64.0
 
-[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+
+//------------------------------------------------------- PARAMETERS
+
+
+float2 InputSceneColorViewportExtentInverse;
+uint4 InputSceneColorViewportMinMax;
+Texture2D<float3> InputSceneColorTexture;
+RWStructuredBuffer<uint> HistogramOutput;
+
+float AreaNormalizeFactor;
+Texture2D EyeAdaptationTexture;
+StructuredBuffer<uint> HistogramBuffer;
+RWTexture2D<float4> HistogramTextureOutput;
+
+
+//------------------------------------------------------- LDS
+
+groupshared uint SharedHistograms[HISTOGRAM_SIZE * CONFIG_HISTOGRAM_COUNT];
+
+
+//------------------------------------------------------- ENTRY POINT
+
+[numthreads(GROUP_SIZE, GROUP_SIZE, 1)]
 void MainCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-    uint3 GroupThreadId : SV_GroupThreadID,
-	uint GroupIndex: SV_GroupIndex)
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
 {
-	// todo: can be cleared more efficiently
-	// clear all THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms
-	UNROLL for (uint i = 0; i < HISTOGRAM_SIZE; ++i)
-	{
-		SharedHistogram[i][GroupThreadId.x][GroupThreadId.y] = 0.0f;
-	}
-	
+	// Clear the shared histogram in one go. Use all 256 threads to clear 4x 64 bin histograms.
+	SharedHistograms[GroupThreadIndex] = 0;
+	 
 	GroupMemoryBarrierWithGroupSync();
 
-	// Each thread group processes LoopX * LoopY texels of the input.
-	uint2 TileSize = uint2(LOOP_SIZEX, LOOP_SIZEY);
+	uint2 GroupThreadId = uint2(GroupThreadIndex % GROUP_SIZE, GroupThreadIndex / GROUP_SIZE);
+	uint2 GroupOffset = uint(GROUP_SIZE * CONFIG_LOOP_SIZE) * GroupId.xy + InputSceneColorViewportMinMax.xy;
 
-	// Top left input texel for this group.
-	uint2 LeftTop = Input_ViewportMin + DispatchThreadId.xy * TileSize;
-
-	float2 InvViewSize = Input_ViewportSizeInverse.xy;
-
-	// Accumulate all pixels into THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms
-	LOOP for (uint y = 0; y < LOOP_SIZEY; ++y)
+	LOOP
+	for (uint y = 0; y < CONFIG_LOOP_SIZE; y ++)
 	{
-		LOOP for (uint x = 0; x < LOOP_SIZEX; ++x)
+		BRANCH
+		if (GroupOffset.y + y * CONFIG_LOOP_SIZE >= InputSceneColorViewportMinMax.w)
 		{
-			uint2 Tile = uint2(x, y);
-			uint2 TexelPos = LeftTop + Tile;
+			break;
+		}
 
-			if(TexelPos.x < Input_ViewportMax.x && TexelPos.y < Input_ViewportMax.y)
+		bool bProcess[CONFIG_LOOP_SIZE];
+		float3 SceneColor[CONFIG_LOOP_SIZE];
+		float ScreenWeight[CONFIG_LOOP_SIZE];
+		ISOLATE
+		{
+			UNROLL_N(CONFIG_LOOP_SIZE)
+			for (uint x = 0; x < CONFIG_LOOP_SIZE; x++)
 			{
-				float4 SceneColor = InputTexture.Load(int3(TexelPos, 0));
+				const uint2 TileOffset = uint2(x, y) * GROUP_SIZE;
+				uint2 TexelPos = (GroupOffset + TileOffset) + GroupThreadId;
+				
+				const uint SampleId = x;
+				bProcess[SampleId] = all(TexelPos < InputSceneColorViewportMinMax.zw);
+				SceneColor[SampleId] = InputSceneColorTexture[TexelPos];
 
-				SceneColor.xyz *= View.OneOverPreExposure;
-
-				float LuminanceVal = max(dot(SceneColor.xyz, float3(1.0f, 1.0f, 1.0f)/3.0f), EyeAdaptation_LuminanceMin);
-
-				float LogLuminance = ComputeHistogramPositionFromLuminance(LuminanceVal);
-				float2 ScreenUV = (TexelPos.xy - Input_ViewportMin) * InvViewSize;
-				float ScreenWeight = AdaptationWeightTexture(ScreenUV);
-
-				// Map the normalized histogram position into texels.
-				float fBucket = saturate(LogLuminance) * (HISTOGRAM_SIZE-1);// * 0.9999f;
-
-				// Find two discrete buckets that straddle the continuous histogram position.
-				uint Bucket0 = (uint)(fBucket);
-				uint Bucket1 = Bucket0 + 1;
-
-				Bucket0 = min(Bucket0, uint(HISTOGRAM_SIZE - 1));
-				Bucket1 = min(Bucket1, uint(HISTOGRAM_SIZE - 1));
-
-				// Weighted blend between the two buckets.
-				float Weight1 = frac(fBucket);
-				float Weight0 = 1.0f - Weight1;
-
-				// When EyeAdaptation_BlackHistogramBucketInfluence=.0, we will ignore the last bucket. The main use
-				// case is so the black background pixels in the editor have no effect. But if we have cases where
-				// pixel values can actually be black, we want to set EyeAdaptation_LastHistogramBucketInfluence=1.0.
-				// This value is controlled by the cvar "r.EyeAdaptation.BlackHistogramBucketInfluence"
-				if (Bucket0 == 0)
-				{
-					Weight0 *= EyeAdaptation_BlackHistogramBucketInfluence;
-				}
-
-				// Accumulate the weight to the nearby history buckets.
-				SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0 * ScreenWeight;
-				SharedHistogram[Bucket1][GroupThreadId.x][GroupThreadId.y] += Weight1 * ScreenWeight;
+				float2 ScreenUV = float2(TexelPos - InputSceneColorViewportMinMax.xy) * InputSceneColorViewportExtentInverse;
+				ScreenWeight[SampleId] = AdaptationWeightTexture(ScreenUV);
 			}
 		}
-	}
+			
+		UNROLL_N(CONFIG_LOOP_SIZE)
+		for (uint SampleId = 0; SampleId < CONFIG_LOOP_SIZE; SampleId++)
+		{
+			float LuminanceVal = max(dot(SceneColor[SampleId].xyz, float3(1.0f, 1.0f, 1.0f)/3.0f), EyeAdaptation_LuminanceMin);
+			float LogLuminance = ComputeHistogramPositionFromLuminance(LuminanceVal);
+			
+			float fBucket = saturate(LogLuminance) * float((HISTOGRAM_SIZE - 1) * 0.9999f);
+			fBucket = clamp(fBucket, float(0.0), float(HISTOGRAM_SIZE - 1.0));
+
+			uint Bucket0 = (uint)(fBucket);
+			Bucket0 = clamp(fBucket, 0, HISTOGRAM_SIZE - 1);
+
+			float Weight1 = frac(fBucket) * ScreenWeight[SampleId];
+			float Weight0 = (1.0f - Weight1) * ScreenWeight[SampleId];
+			
+			// accumulate the weight to the nearby history buckets
+			// NOTE: Pack "overflow" to next bucket to same counter high bits. This halves the number of atomics. 
+			uint PackedHistogram = (uint(Weight1 * CONFIG_QUANTIZATION) << 16) | uint(Weight0 * CONFIG_QUANTIZATION);
+                   
+			uint Offset = HISTOGRAM_SIZE * (GroupThreadIndex % CONFIG_HISTOGRAM_COUNT);
+			
+			if (bProcess[SampleId])
+			{
+				InterlockedAdd(SharedHistograms[Bucket0 + Offset], PackedHistogram);
+			}
+		}
+	} // for (uint y = 0; y < CONFIG_LOOP_SIZE; y ++)
 
 	GroupMemoryBarrierWithGroupSync();
 
-	// Accumulate all histograms into one.
-	if (GroupIndex < HISTOGRAM_SIZE / 4) 
+	BRANCH
+	if (GroupThreadIndex < HISTOGRAM_SIZE)
 	{
-		float4 Sum = 0;
-
-		LOOP for (uint y = 0; y < THREADGROUP_SIZEY; ++y)
+		uint Sum = 0;
+		
 		{
-			LOOP for (uint x = 0; x < THREADGROUP_SIZEX; ++x)
+			uint SumLow = 0;
+			uint SumHi = 0;
+
+			UNROLL_N(CONFIG_HISTOGRAM_COUNT)
+			for (uint LDSHistogramId = 0; LDSHistogramId < CONFIG_HISTOGRAM_COUNT; LDSHistogramId++)
 			{
-				Sum += float4(
-					SharedHistogram[GroupIndex * 4 + 0][x][y],
-					SharedHistogram[GroupIndex * 4 + 1][x][y],
-					SharedHistogram[GroupIndex * 4 + 2][x][y],
-					SharedHistogram[GroupIndex * 4 + 3][x][y]);
+				SumLow += SharedHistograms[GroupThreadIndex + HISTOGRAM_SIZE * LDSHistogramId];
+				SumHi += SharedHistograms[GroupThreadIndex + HISTOGRAM_SIZE * LDSHistogramId - 1];
 			}
+
+			FLATTEN
+			if (GroupThreadIndex == 0)
+			{
+				Sum = SumLow;
+			}
+			else
+			{
+				Sum = (SumLow + (SumHi >> 16));
+			}
+
+			Sum = Sum & 0xFFFF;
 		}
 
-		float2 MaxExtent = Input_ViewportSize;
-		float Area = MaxExtent.x * MaxExtent.y;
-	
-		// Fixed to include borders.
-		float NormalizeFactor = 1.0f / Area;
+		// Accumulate groups to shared histogram
+		InterlockedAdd(HistogramOutput[GroupThreadIndex], Sum);
+	}
+}
 
-		// Output texture with one histogram per line, x and y unwrapped into all the lines
-		HistogramRWTexture[uint2(GroupIndex, GroupId.x + GroupId.y * ThreadGroupCount.x)] = Sum * NormalizeFactor;
+
+//------------------------------------------------------- ENTRY POINT
+
+[numthreads(HISTOGRAM_SIZE / 4, 1, 1)]
+void MainConvertCS(
+	uint GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	BRANCH
+	if (GroupId.x == 0)
+	{
+		uint4 HistogramUint = uint4(
+			HistogramBuffer[GroupThreadIndex * 4 + 0],
+			HistogramBuffer[GroupThreadIndex * 4 + 1],
+			HistogramBuffer[GroupThreadIndex * 4 + 2],
+			HistogramBuffer[GroupThreadIndex * 4 + 3]);
+	
+		float4 Luma = float4(HistogramUint) * (rcp(CONFIG_QUANTIZATION) * AreaNormalizeFactor);
+
+		// When EyeAdaptation_BlackHistogramBucketInfluence=.0, we will ignore the last bucket. The main use
+		// case is so the black background pixels in the editor have no effect. But if we have cases where
+		// pixel values can actually be black, we want to set EyeAdaptation_LastHistogramBucketInfluence=1.0.
+		// This value is controlled by the cvar "r.EyeAdaptation.BlackHistogramBucketInfluence"
+		Luma.r *= GroupThreadIndex == 0 ? EyeAdaptation_BlackHistogramBucketInfluence : 1.0;
+
+		HistogramTextureOutput[uint2(GroupThreadIndex, 0)] = Luma;
+	}
+	else
+	{
+		// line 1: store 4 channels of EyeAdaptationTexture (copied over so we can read the value in EyeAdaptation pass which is writing to eye adaptation)
+		float4 OldExposureScale = EyeAdaptationTexture.Load(int3(0, 0, 0));
+		
+		HistogramTextureOutput[uint2(GroupThreadIndex, 1)] = OldExposureScale;
 	}
 }
