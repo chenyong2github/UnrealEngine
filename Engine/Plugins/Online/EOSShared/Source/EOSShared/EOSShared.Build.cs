@@ -15,9 +15,18 @@ public class EOSShared : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"EOSSDK",
-				"Settings"
+				"EOSSDK"
 			}
 		);
+
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Settings"
+				}
+			);
+		}
 	}
 }
