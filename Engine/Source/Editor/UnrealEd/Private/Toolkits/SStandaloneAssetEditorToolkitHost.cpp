@@ -25,6 +25,7 @@ void SStandaloneAssetEditorToolkitHost::Construct( const SStandaloneAssetEditorT
 	ToolbarSlot = nullptr;
 
 	EditorCloseRequest = InArgs._OnRequestClose;
+	EditorClosing = InArgs._OnClose;
 	AppName = InitAppName;
 
 	MyTabManager = InTabManager;
@@ -381,6 +382,8 @@ FReply SStandaloneAssetEditorToolkitHost::OnKeyDown( const FGeometry& MyGeometry
 void SStandaloneAssetEditorToolkitHost::OnTabClosed(TSharedRef<SDockTab> TabClosed) const
 {
 	check(TabClosed == HostTabPtr.Pin());
+
+	EditorClosing.ExecuteIfBound();
 
 	MyTabManager->SetMenuMultiBox(nullptr, nullptr);
 	
