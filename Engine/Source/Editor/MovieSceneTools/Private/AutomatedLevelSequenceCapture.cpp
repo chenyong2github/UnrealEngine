@@ -20,10 +20,10 @@
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneToolHelpers.h"
 #include "Protocols/AudioCaptureProtocol.h"
-#include "Evaluation/IMovieSceneMotionVectorSimulation.h"
-#include "Rendering/MotionVectorSimulation.h"
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "Systems/MovieSceneMotionVectorSimulationSystem.h"
 
 const FName UAutomatedLevelSequenceCapture::AutomatedLevelSequenceCaptureUIName = FName(TEXT("AutomatedLevelSequenceCaptureUIInstance"));
 
@@ -100,6 +100,11 @@ UMovieSceneCinematicShotTrack* GetCinematicShotTrack(TWeakObjectPtr<ALevelSequen
 	}
 
 	return MovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
+}
+
+UMovieSceneMotionVectorSimulationSystem* FindMotionVectorSimulation(ALevelSequenceActor* LevelSequenceActor)
+{
+	return static_cast<IMovieScenePlayer*>(LevelSequenceActor->SequencePlayer)->GetEvaluationTemplate().GetEntitySystemLinker()->FindSystem<UMovieSceneMotionVectorSimulationSystem>();
 }
 
 UAutomatedLevelSequenceCapture::UAutomatedLevelSequenceCapture(const FObjectInitializer& Init)
@@ -591,12 +596,10 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 				 	PlaybackStartFrame -= RemainingWarmUpFrames;
 				}
 
-				if (Actor->SequencePlayer->MotionVectorSimulation.IsValid())
+				if (UMovieSceneMotionVectorSimulationSystem* MotionVectorSim = FindMotionVectorSimulation(Actor))
 				{
-					Actor->SequencePlayer->MotionVectorSimulation->PreserveSimulatedMotion(true);
+					MotionVectorSim->PreserveSimulatedMotion(true);
 				}
-
-
 
 				// Override the movie scene's playback range
 				Actor->SequencePlayer->SetFrameRate(Settings.GetFrameRate());
@@ -849,9 +852,9 @@ void UAutomatedLevelSequenceCapture::SequenceUpdated(const UMovieSceneSequencePl
 				
 				CaptureState = ELevelSequenceCaptureState::Paused;
 
-				if (Actor->SequencePlayer->MotionVectorSimulation.IsValid())
+				if (UMovieSceneMotionVectorSimulationSystem* MotionVectorSim = FindMotionVectorSimulation(Actor))
 				{
-					Actor->SequencePlayer->MotionVectorSimulation->PreserveSimulatedMotion(true);
+					MotionVectorSim->PreserveSimulatedMotion(true);
 				}
 
 				Actor->GetWorld()->GetTimerManager().SetTimer(DelayTimer, FTimerDelegate::CreateUObject(this, &UAutomatedLevelSequenceCapture::PauseFinished), DelayBeforeShotWarmUp + DelayEveryFrame, false);
@@ -860,9 +863,9 @@ void UAutomatedLevelSequenceCapture::SequenceUpdated(const UMovieSceneSequencePl
 			else if (CaptureState == ELevelSequenceCaptureState::FinishedWarmUp)
 			{
 				// If we were preserving simulated motion, now's the time to stop that since we've captured the frame that was being simulated
-				if (Actor->SequencePlayer->MotionVectorSimulation.IsValid())
+				if (UMovieSceneMotionVectorSimulationSystem* MotionVectorSim = FindMotionVectorSimulation(Actor))
 				{
-					Actor->SequencePlayer->MotionVectorSimulation->PreserveSimulatedMotion(false);
+					MotionVectorSim->PreserveSimulatedMotion(false);
 				}
 
 				// These are called each frame to allow the state machine inside the protocol to transition back to capturing

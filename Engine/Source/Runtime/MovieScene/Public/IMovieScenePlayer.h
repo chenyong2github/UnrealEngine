@@ -12,7 +12,6 @@
 #include "Containers/ArrayView.h"
 #include "Evaluation/MovieSceneEvaluationState.h"
 #include "Misc/InlineValue.h"
-#include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
 #include "Generators/MovieSceneEasingCurves.h"
 
@@ -333,9 +332,6 @@ public:
 
 	/** Container that stores any per-animated state tokens  */
 	FMovieScenePreAnimatedState PreAnimatedState;
-
-	/** Motion Vector Simulation */
-	TInlineValue<IMovieSceneMotionVectorSimulation> MotionVectorSimulation;
 
 	/** List of binding overrides to use for the sequence */
 	TMap<FMovieSceneEvaluationOperand, FMovieSceneEvaluationOperand> BindingOverrides;
