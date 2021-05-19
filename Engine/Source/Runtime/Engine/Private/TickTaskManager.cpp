@@ -1007,7 +1007,7 @@ public:
 		Context.TickGroup = CurrentTickGroup;
 		int32 Num = 0;
 
-		// Calling Empty() on an empty set is not free, as it resets the previously reserved hash entries
+		// Constructing set iterators is not trivial, so avoid the following block if it will have no effect
 		if (NewlySpawnedTickFunctions.Num() != 0)
 		{
 			FTickTaskSequencer& TTS = FTickTaskSequencer::Get();
