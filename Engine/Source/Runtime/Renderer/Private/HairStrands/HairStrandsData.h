@@ -8,11 +8,11 @@
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
+#include "RHIGPUReadback.h"
 #include "Shader.h"
 
 class FPrimitiveSceneProxy;
 class FViewInfo;
-class FRHIGPUBufferReadback;
 struct FMeshBatch;
 
 ////////////////////////////////////////////////////////////////////////////////////

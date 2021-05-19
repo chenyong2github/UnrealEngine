@@ -5,6 +5,8 @@
 #include "GraphEditorSettings.h"
 #include "EdGraphSchema_K2.h"
 #include "DynamicCastHandler.h"
+#include "Engine/Blueprint.h"
+#include "UObject/Interface.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_ClassDynamicCast"
 
