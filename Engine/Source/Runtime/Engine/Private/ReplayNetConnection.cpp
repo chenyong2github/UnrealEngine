@@ -4,6 +4,7 @@
 #include "Net/NetworkProfiler.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Engine/LevelStreaming.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Engine/ActorChannel.h"
 #include "Engine/NetworkObjectList.h"

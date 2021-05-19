@@ -17,6 +17,10 @@
 #include "Misc/BufferedOutputDevice.h"
 #include "Misc/OutputDeviceFile.h"
 
+#if RHI_WANT_RESOURCE_INFO
+#include "HAL/FileManager.h"
+#endif
+
 IMPLEMENT_MODULE(FDefaultModuleImpl, RHI);
 
 /** RHI Logging. */
