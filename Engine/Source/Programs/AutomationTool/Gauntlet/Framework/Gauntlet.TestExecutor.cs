@@ -528,14 +528,11 @@ namespace Gauntlet
 			// display the final result
 			if (TestInfo.FinalResult != TestResult.Passed)
 			{
-				string Cause = TestInfo.FinalResult.ToString();
-
+				Log.Info("{0} result={1}", TestInfo, TestInfo.FinalResult);
 				if (string.IsNullOrEmpty(TestInfo.CancellationReason) == false)
 				{
-					Cause = TestInfo.CancellationReason;
-				}
-
-				Log.Info("{0} result={1}", TestInfo, Cause);
+					Log.Info("\tReason: {0}", TestInfo.CancellationReason);
+				}				
 			}
 			else
 			{
@@ -650,7 +647,7 @@ namespace Gauntlet
 				{
 					TestInfo.CancellationReason = string.Format("Terminating Test {0} due to maximum duration of {1} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration);
 					TestInfo.FinalResult = TestResult.TimedOut;
-					Log.Info("{0}", TestInfo.CancellationReason);
+					Log.Error("{0}", TestInfo.CancellationReason);
 				}
 				else if (TestInfo.TestNode.MaxDurationReachedResult == EMaxDurationReachedResult.Success)
 				{
