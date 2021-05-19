@@ -1160,13 +1160,16 @@ namespace
 					InValue.ParseIntoArray(RawGroupings, TEXT(","), false);
 
 					FProperty* FirstInput = nullptr;
-					for (const FString& RawGroup : RawGroupings)
+					for (FString& RawGroup : RawGroupings)
 					{
+						RawGroup.TrimStartAndEndInline();
+
 						TArray<FString> IndividualEntries;
 						RawGroup.ParseIntoArray(IndividualEntries, TEXT("|"));
 
-						for (const FString& Entry : IndividualEntries)
+						for (FString& Entry : IndividualEntries)
 						{
+							Entry.TrimStartAndEndInline();
 							if (Entry.IsEmpty())
 							{
 								continue;
