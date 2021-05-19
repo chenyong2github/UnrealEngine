@@ -775,26 +775,16 @@ static void AddHairMaterialGBufferPass(
 		ERenderTargetLoadAction::ELoad,
 		FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrandsMaterialGBufferPass"),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, Resolution](FRHICommandListImmediate& RHICmdList)
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, *ViewInfo, &InstanceCullingManager, RDG_EVENT_NAME("HairStrandsMaterialGBufferPass"), FIntRect(0, 0, Resolution.X, Resolution.Y),
+		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, Resolution](FDynamicPassMeshDrawListContext* ShadowContext)
 		{
 			FMeshPassProcessorRenderState DrawRenderState;
 
 			{
-				RHICmdList.SetViewport(0, 0, 0.0f, Resolution.X, Resolution.Y, 1.0f);
 				DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState <true, CF_Always> ::GetRHI());
 
-				FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
-				FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-				FGraphicsMinimalPipelineStateSet PipelineStateSet;
-				// @todo loadtime arnes: do we need to pass this along to somewhere?
-				bool NeedsShaderInitialization;
-				FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, PipelineStateSet, NeedsShaderInitialization);
-				FHairMaterialGBufferProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, &ShadowContext);
+				FHairMaterialGBufferProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, ShadowContext);
 
 				for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
 				{
@@ -804,13 +794,6 @@ static void AddHairMaterialGBufferPass(
 						const uint64 BatchElementMask = ~0ull;
 						MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId);
 					}
-				}
-
-				if (VisibleMeshDrawCommands.Num() > 0)
-				{
-					FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
-					SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange());
-					SubmitMeshDrawCommands(VisibleMeshDrawCommands, PipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 				}
 			}
 		});
@@ -1257,16 +1240,12 @@ static FMaterialPassOutput AddHairMaterialPass(
 	}
 	
 
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrandsMaterialPass"),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize, bUpdateSampleCoverage, bOutputEmissive](FRHICommandListImmediate& RHICmdList)
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, *ViewInfo, &InstanceCullingManager, RDG_EVENT_NAME("HairStrandsMaterialPass"), FIntRect(0, 0, Resolution.X, Resolution.Y),
+		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize, bUpdateSampleCoverage, bOutputEmissive](FDynamicPassMeshDrawListContext* ShadowContext)
 	{
 		FMeshPassProcessorRenderState DrawRenderState;
 
 		{
-			RHICmdList.SetViewport(0, 0, 0.0f, Resolution.X, Resolution.Y, 1.0f);
 			if (bOutputEmissive)
 			{
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_Zero>::GetRHI());
@@ -1276,14 +1255,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 				DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 			}
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState <false, CF_Always> ::GetRHI());
-			
-			FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
-			FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-			FGraphicsMinimalPipelineStateSet PipelineStateSet;
-			// @todo loadtime arnes: do we need to pass this along to somewhere?
-			bool NeedsShaderInitialization;
-			FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, PipelineStateSet, NeedsShaderInitialization);
-			FHairMaterialProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, &ShadowContext);
+			FHairMaterialProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, ShadowContext);
 
 			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
 			{
@@ -1293,13 +1265,6 @@ static FMaterialPassOutput AddHairMaterialPass(
 					const uint64 BatchElementMask = ~0ull;
 					MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId);
 				}
-			}
-
-			if (VisibleMeshDrawCommands.Num() > 0)
-			{
-				FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
-				SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange());
-				SubmitMeshDrawCommands(VisibleMeshDrawCommands, PipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 			}
 		}
 	});
@@ -2468,19 +2433,14 @@ static void AddHairVisibilityCommonPass(
 		PassParameters->View = ViewInfo->ViewUniformBuffer;
 	}
 
-	GraphBuilder.AddPass(
-		GetPassName(),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, RenderMode](FRHICommandListImmediate& RHICmdList)
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, *ViewInfo, &InstanceCullingManager, GetPassName(), FIntRect(0, 0, ViewInfo->ViewRect.Width(), ViewInfo->ViewRect.Height()),
+		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, RenderMode](FDynamicPassMeshDrawListContext* ShadowContext)
 	{
-		check(RHICmdList.IsInsideRenderPass());
 		check(IsInRenderingThread());
 
 		FMeshPassProcessorRenderState DrawRenderState;
 
 		{
-			RHICmdList.SetViewport(0, 0, 0.0f, ViewInfo->ViewRect.Width(), ViewInfo->ViewRect.Height(), 1.0f);
 			if (RenderMode == HairVisibilityRenderMode_MSAA_Visibility)
 			{
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI());
@@ -2504,12 +2464,7 @@ static void AddHairVisibilityCommonPass(
 				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 			}
 
-			FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
-			FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-			FGraphicsMinimalPipelineStateSet PipelineStateSet;
-			bool NeedsShaderInitialization;
-			FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, PipelineStateSet, NeedsShaderInitialization);
-			FHairVisibilityProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, RenderMode, &ShadowContext);
+			FHairVisibilityProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, RenderMode, ShadowContext);
 			
 			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
 			{
@@ -2519,13 +2474,6 @@ static void AddHairVisibilityCommonPass(
 					const uint64 BatchElementMask = ~0ull;
 					MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId, PrimitiveInfo.IsCullingEnable());
 				}
-			}
-
-			if (VisibleMeshDrawCommands.Num() > 0)
-			{
-				FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
-				SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange());
-				SubmitMeshDrawCommands(VisibleMeshDrawCommands, PipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 			}
 		}
 	});

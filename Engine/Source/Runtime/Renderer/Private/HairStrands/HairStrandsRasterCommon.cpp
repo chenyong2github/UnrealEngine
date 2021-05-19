@@ -286,17 +286,12 @@ void AddHairStrandsRasterPass(
 		ViewInfo->CachedViewUniformShaderParameters->ViewForward = SavedViewForward;
 	}
 
-	GraphBuilder.AddPass(
-		GetPassName(RasterPassType),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[PassParameters, Scene = Scene, ViewInfo, RasterPassType, &PrimitiveSceneInfos, ViewportRect, HairRenderInfo, HairRenderInfoBits, RasterDirection](FRHICommandListImmediate& RHICmdList)
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, *ViewInfo, &InstanceCullingManager, GetPassName(RasterPassType), ViewportRect,
+		[PassParameters, Scene = Scene, ViewInfo, RasterPassType, &PrimitiveSceneInfos, HairRenderInfo, HairRenderInfoBits, RasterDirection](FDynamicPassMeshDrawListContext* ShadowContext)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_RenderPerObjectShadowDepthsTime);
 
 		FMeshPassProcessorRenderState DrawRenderState;
-
-		RHICmdList.SetViewport(ViewportRect.Min.X, ViewportRect.Min.Y, 0.0f, ViewportRect.Max.X, ViewportRect.Max.Y, 1.0f);
 
 		if (RasterPassType == EHairStrandsRasterPassType::DeepOpacityMap)
 		{
@@ -313,13 +308,7 @@ void AddHairStrandsRasterPass(
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 		}
 
-		FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage; // << Were would thid be stored?
-		FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-		FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-		bool bNeedsInitialization;
-		FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, bNeedsInitialization);
-
-		FHairRasterMeshProcessor HairRasterMeshProcessor(Scene, ViewInfo /* is a SceneView */, DrawRenderState, &ShadowContext, RasterPassType);
+		FHairRasterMeshProcessor HairRasterMeshProcessor(Scene, ViewInfo /* is a SceneView */, DrawRenderState, ShadowContext, RasterPassType);
 
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : PrimitiveSceneInfos)
 		{
@@ -327,13 +316,6 @@ void AddHairStrandsRasterPass(
 			const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
 			const uint64 BatchElementMask = ~0ull;
 			HairRasterMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1 , bCullingEnable);
-		}
-
-		if (VisibleMeshDrawCommands.Num() > 0)
-		{
-			FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
-			SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange());
-			SubmitMeshDrawCommands(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 		}
 	});
 }
