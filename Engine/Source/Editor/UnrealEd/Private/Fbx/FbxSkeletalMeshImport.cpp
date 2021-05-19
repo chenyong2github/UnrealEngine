@@ -1778,6 +1778,10 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			//Copy all the build option to reflect any change in the setting using the re-import UI
 			LODInfoPtr->BuildSettings = BuildOptions;
 		}
+
+		// Before calling SaveExistingSkelMeshData() we must remove the existing fbx metadata as we don't want to restore those.
+		RemoveFBXMetaData(ExistingSkelMesh);
+
 		//The backup of the skeletal mesh data empty the LOD array in the ImportedResource of the skeletal mesh
 		//If the import fail after this step the editor can crash when updating the bone later since the LODModel will not exist anymore
 		ExistSkelMeshDataPtr = SkeletalMeshImportUtils::SaveExistingSkelMeshData(ExistingSkelMesh, !ImportOptions->bImportMaterials, ImportSkeletalMeshArgs.LodIndex);
