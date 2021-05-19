@@ -13,6 +13,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "PhysicsSettingsEnums.h"
 #include "BodySetupEnums.h"
+#include "Chaos/ChaosEngineInterface.h"
 #include "GameFramework/WorldSettings.h"
 #include "PhysicsCoreTypes.h"
 #include "PhysicsSettingsCore.h"
