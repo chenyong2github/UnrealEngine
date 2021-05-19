@@ -141,7 +141,7 @@ export const _api = {
     },
     execute: (func: string) => {
       const preset = _internal.getPreset();
-      _socket.emit('execute', null, preset, func);
+      _socket.emit('execute', preset, null, func);
     },
     asset: (asset: string, action: AssetAction, meta?: any) => {
       _socket.emit('asset', asset, action, meta);
