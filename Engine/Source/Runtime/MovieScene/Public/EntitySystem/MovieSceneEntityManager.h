@@ -734,6 +734,26 @@ public:
 	}
 
 	/**
+	 * Retrieve the entity filter that should be used for any entity iteration. Can be used to constrain all iterations to specific types
+	 */
+	const FEntityComponentFilter& GetGlobalIterationFilter() const
+	{
+		return GlobalIterationFilter;
+	}
+
+	/**
+	 * Modify the entity filter that should be used for any entity iteration.
+	 * @note: Care should be take to reset this back to its original state when done,
+	 *        as leaving this populated during the instantiation phase can result in 
+	 *        undefined results.
+	 */
+	FEntityComponentFilter& ModifyGlobalIterationFilter()
+	{
+		ensureMsgf(!IsLockedDown() && IterationCount == 0, TEXT("Manipulating the global iteration filter while locked down or iterating is not recommended"));
+		return GlobalIterationFilter;
+	}
+
+	/**
 	 * Increment the current serial number for systems observing this manager. Should be called after any system is run
 	 */
 	void IncrementSystemSerial()
@@ -918,6 +938,7 @@ private:
 	TMap<FMovieSceneEntityID, uint32> EntityGenerationMap;
 
 	FComponentMask AccumulatedMask;
+	FEntityComponentFilter GlobalIterationFilter;
 
 	FComponentRegistry* ComponentRegistry;
 
