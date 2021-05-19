@@ -131,6 +131,7 @@ void FPBDConstraintGraph::ParticleRemove(FGeometryParticleHandle* RemovedParticl
 
 		Visited[NodeIdx]=0;
 		ParticleToNodeIndex.Remove(RemovedParticle);
+		UpdatedNodes.RemoveSwap(NodeIdx, false);
 	}
 }
 
@@ -187,7 +188,7 @@ void FPBDConstraintGraph::InitializeGraph(const TParticleView<FGeometryParticles
 	}
 	else
 	{
-		if (!CHAOS_ENSURE(NumNonDisabledParticles <= Nodes.Num()))
+		if (!(NumNonDisabledParticles <= Nodes.Num())) 
 		{
 			for (auto& Particle : Particles)
 			{
