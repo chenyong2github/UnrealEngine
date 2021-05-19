@@ -17,7 +17,9 @@ public:
 
 	static const ISlateStyle& Get()
 	{
-		return *(Instance.Get());
+		// UE-116081
+		// return *(Instance.Get());
+		return FAppStyle::Get();
 	}
 
 	/** Get the default font for Slate */
