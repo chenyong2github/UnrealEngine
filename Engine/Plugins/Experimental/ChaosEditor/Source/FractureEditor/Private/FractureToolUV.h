@@ -30,6 +30,14 @@ enum class ETextureType
 	SpatialGradients
 };
 
+UENUM()
+enum class ETargetMaterialIDs
+{
+	OddIDs,
+	OddAndSelectedIDs,
+	SelectedIDs
+};
+
 /** Settings specifically related to the one-time destructive fracturing of a mesh **/
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureAutoUVSettings : public UFractureToolSettings
@@ -57,6 +65,14 @@ public:
 	/** The resulting automatically-generated texture map */
 	UPROPERTY(VisibleAnywhere, Category = MapSettings)
 	UTexture2D* Result;
+
+	/** Choose whether to texture only odd material IDs (corresponding to internal faces) or a custom selection */
+	UPROPERTY(EditAnywhere, Category = MapSettings)
+	ETargetMaterialIDs TargetMaterialIDs;
+
+	/** Custom selection of material IDs to target for texturing */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (EditCondition = "TargetMaterialIDs != ETargetMaterialIDs::OddIDs", EditConditionHides))
+	TArray<int32> MaterialIDs;
 
 	/** Whether to prompt user for an asset name for each generated texture, or automatically place them next to the source geometry collections */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
