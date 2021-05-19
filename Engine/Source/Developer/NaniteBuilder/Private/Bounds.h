@@ -6,27 +6,27 @@
 
 struct FBounds
 {
-	FVector	Min = {  MAX_flt,  MAX_flt,  MAX_flt };
-	FVector	Max = { -MAX_flt, -MAX_flt, -MAX_flt };
+	FVector3f	Min = {  MAX_flt,  MAX_flt,  MAX_flt };
+	FVector3f	Max = { -MAX_flt, -MAX_flt, -MAX_flt };
 
-	FORCEINLINE FBounds& operator=( const FVector& Other )
+	FORCEINLINE FBounds& operator=( const FVector3f& Other )
 	{
 		Min = Other;
 		Max = Other;
 		return *this;
 	}
 
-	FORCEINLINE FBounds& operator+=( const FVector& Other )
+	FORCEINLINE FBounds& operator+=( const FVector3f& Other )
 	{
-		Min = FVector::Min( Min, Other );
-		Max = FVector::Max( Max, Other );
+		Min = FVector3f::Min( Min, Other );
+		Max = FVector3f::Max( Max, Other );
 		return *this;
 	}
 
 	FORCEINLINE FBounds& operator+=( const FBounds& Other )
 	{
-		Min = FVector::Min( Min, Other.Min );
-		Max = FVector::Max( Max, Other.Max );
+		Min = FVector3f::Min( Min, Other.Min );
+		Max = FVector3f::Max( Max, Other.Max );
 		return *this;
 	}
 
@@ -35,19 +35,19 @@ struct FBounds
 		return FBounds(*this) += Other;
 	}
 
-	FORCEINLINE FVector GetCenter() const
+	FORCEINLINE FVector3f GetCenter() const
 	{
 		return (Max + Min) * 0.5f;
 	}
 
-	FORCEINLINE FVector GetExtent() const
+	FORCEINLINE FVector3f GetExtent() const
 	{
 		return (Max - Min) * 0.5f;
 	}
 
 	FORCEINLINE float GetSurfaceArea() const
 	{
-		FVector Size = Max - Min;
+		FVector3f Size = Max - Min;
 		return 0.5f * ( Size.X * Size.Y + Size.X * Size.Z + Size.Y * Size.Z );
 	}
 

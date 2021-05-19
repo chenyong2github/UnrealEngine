@@ -70,9 +70,10 @@ const FString& FBuilderModule::GetVersionString() const
 
 	if (VersionString.IsEmpty())
 	{
-		VersionString = FString::Printf(TEXT("%s%s%s"), NANITE_DERIVEDDATA_VER,
+		VersionString = FString::Printf(TEXT("%s%s%s%s"), NANITE_DERIVEDDATA_VER,
 										USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
-										USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""));
+										USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""),
+										!UE_LARGE_WORLD_COORDINATES_DISABLED ? TEXT("_LWC") : TEXT(""));
 	}
 
 	return VersionString;
@@ -124,7 +125,7 @@ static void MikkSetTSpaceBasic( const SMikkTSpaceContext* Context, const float T
 	for( int32 i = 0; i < 3; i++ )
 		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentX[i] = Tangent[i];
 
-	FVector Bitangent = BitangentSign * FVector::CrossProduct(
+	FVector3f Bitangent = BitangentSign * FVector3f::CrossProduct(
 		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentZ,
 		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentX );
 
@@ -190,8 +191,8 @@ static void BuildCoarseRepresentation(
 	{
 		FStaticMeshBuildVertex Vertex = {};
 		Vertex.Position = CoarseRepresentation.GetPosition(Iter);
-		Vertex.TangentX = FVector::ZeroVector;
-		Vertex.TangentY = FVector::ZeroVector;
+		Vertex.TangentX = FVector3f::ZeroVector;
+		Vertex.TangentY = FVector3f::ZeroVector;
 		Vertex.TangentZ = CoarseRepresentation.GetNormal(Iter);
 
 		const FVector2D* UVs = CoarseRepresentation.GetUVs(Iter);
@@ -301,8 +302,8 @@ static void ClusterTriangles(
 			uint32 VertIndex0 = Indexes[ EdgeIndex ];
 			uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
 	
-			const FVector& Position0 = Verts[ VertIndex0 ].Position;
-			const FVector& Position1 = Verts[ VertIndex1 ].Position;
+			const FVector3f& Position0 = Verts[ VertIndex0 ].Position;
+			const FVector3f& Position1 = Verts[ VertIndex1 ].Position;
 				
 			uint32 Hash0 = HashPosition( Position0 );
 			uint32 Hash1 = HashPosition( Position1 );
@@ -328,8 +329,8 @@ static void ClusterTriangles(
 				uint32 VertIndex0 = Indexes[ EdgeIndex ];
 				uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
 	
-				const FVector& Position0 = Verts[ VertIndex0 ].Position;
-				const FVector& Position1 = Verts[ VertIndex1 ].Position;
+				const FVector3f& Position0 = Verts[ VertIndex0 ].Position;
+				const FVector3f& Position1 = Verts[ VertIndex1 ].Position;
 				
 				uint32 Hash0 = HashPosition( Position0 );
 				uint32 Hash1 = HashPosition( Position1 );
@@ -411,7 +412,7 @@ static void ClusterTriangles(
 
 		auto GetCenter = [ &Verts, &Indexes ]( uint32 TriIndex )
 		{
-			FVector Center;
+			FVector3f Center;
 			Center  = Verts[ Indexes[ TriIndex * 3 + 0 ] ].Position;
 			Center += Verts[ Indexes[ TriIndex * 3 + 1 ] ].Position;
 			Center += Verts[ Indexes[ TriIndex * 3 + 2 ] ].Position;

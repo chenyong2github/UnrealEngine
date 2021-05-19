@@ -125,17 +125,17 @@ struct FUIntVector
 
 struct FPackedHierarchyNode
 {
-	FSphere		LODBounds[MAX_BVH_NODE_FANOUT];
+	FVector4		LODBounds[MAX_BVH_NODE_FANOUT];
 	
 	struct
 	{
-		FVector		BoxBoundsCenter;
+		FVector3f	BoxBoundsCenter;
 		uint32		MinLODError_MaxParentLODError;
 	} Misc0[MAX_BVH_NODE_FANOUT];
 
 	struct
 	{
-		FVector		BoxBoundsExtent;
+		FVector3f	BoxBoundsExtent;
 		uint32		ChildStartReference;
 	} Misc1[MAX_BVH_NODE_FANOUT];
 	
@@ -183,7 +183,7 @@ struct FPackedCluster
 	uint32		BitsPerIndex_QuantizedPosShift_PosBits;		// BitsPerIndex:4, QuantizedPosShift:6, QuantizedPosBits:5.5.5
 	
 	// Members needed for culling
-	FVector4	LODBounds;											// LWC_TODO: Was FSphere, but that's now twice as big and won't work on GPU.
+	FVector4	LODBounds;									// LWC_TODO: Was FSphere, but that's now twice as big and won't work on GPU.
 
 	FVector3f	BoxBoundsCenter;
 	uint32		LODErrorAndEdgeLength;
