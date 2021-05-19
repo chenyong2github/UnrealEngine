@@ -572,6 +572,15 @@ public:
 **/
 class COREUOBJECT_API FUObjectArray
 {
+	friend class UObject;
+private:
+	/**
+	 * Reset the serial number from the game thread to invalidate all weak object pointers to it
+	 *
+	 * @param Object to reset
+	 */
+	void ResetSerialNumber(UObjectBase* Object);
+
 public:
 
 	enum ESerialNumberConstants

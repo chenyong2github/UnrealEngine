@@ -1026,6 +1026,9 @@ bool UObject::ConditionalFinishDestroy()
 #endif
 		FinishDestroy();
 
+		// Make sure this object can't be accessed via weak pointers after it's been FinishDestroyed
+		GUObjectArray.ResetSerialNumber(this);
+
 		// Make sure this object can't be found through any delete listeners (annotation maps etc) after it's been FinishDestroyed
 		GUObjectArray.RemoveObjectFromDeleteListeners(this);
 
