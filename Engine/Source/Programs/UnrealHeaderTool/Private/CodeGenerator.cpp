@@ -6426,28 +6426,44 @@ void ResolveSuperClasses(UPackage* Package)
 			continue;
 		}
 
-		const FUnrealClassDefinitionInfo& ClassDef = GTypeDefinitionInfoMap.FindChecked(DefinedClass).AsClassChecked();
+		FUnrealClassDefinitionInfo& ClassDef = GTypeDefinitionInfoMap.FindChecked(DefinedClass).AsClassChecked();
 
-		const FString& BaseClassName         = ClassDef.GetBaseClassNameCPP();
-		const FString& BaseClassNameStripped = GetClassNameWithPrefixRemoved(BaseClassName);
-
-		if (!BaseClassNameStripped.IsEmpty() && !DefinedClass->GetSuperClass())
+		// Resolve the base class
 		{
-			UClass* FoundBaseClass = FindObject<UClass>(Package, *BaseClassNameStripped);
+			FUnrealStructDefinitionInfo::FBaseClassInfo& SuperClassInfo = ClassDef.GetSuperClassInfo();
+			const FString& BaseClassName = SuperClassInfo.Name;
+			const FString& BaseClassNameStripped = GetClassNameWithPrefixRemoved(BaseClassName);
 
-			if (FoundBaseClass == nullptr)
+			if (!BaseClassNameStripped.IsEmpty() && !DefinedClass->GetSuperClass())
 			{
-				FoundBaseClass = FindObject<UClass>(ANY_PACKAGE, *BaseClassNameStripped);
-			}
+				UClass* FoundBaseClass = FindObject<UClass>(Package, *BaseClassNameStripped);
 
-			if (FoundBaseClass == nullptr)
+				if (FoundBaseClass == nullptr)
+				{
+					FoundBaseClass = FindObject<UClass>(ANY_PACKAGE, *BaseClassNameStripped);
+				}
+
+				if (FoundBaseClass == nullptr)
+				{
+					// Don't know its parent class. Raise error.
+					FError::Throwf(TEXT("Couldn't find parent type for '%s' named '%s' in current module (Package: %s) or any other module parsed so far."), *DefinedClass->GetName(), *BaseClassName, *GetNameSafe(Package));
+				}
+
+				DefinedClass->SetSuperStruct(FoundBaseClass);
+				DefinedClass->ClassCastFlags |= FoundBaseClass->ClassCastFlags;
+				SuperClassInfo.Struct = GTypeDefinitionInfoMap.FindChecked(FoundBaseClass).AsStruct();
+			}
+		}
+
+		// Resolve the inherited classes
+		{
+			for (FUnrealStructDefinitionInfo::FBaseClassInfo& BaseClassInfo : ClassDef.GetBaseClassInfo())
 			{
-				// Don't know its parent class. Raise error.
-				FError::Throwf(TEXT("Couldn't find parent type for '%s' named '%s' in current module (Package: %s) or any other module parsed so far."), *DefinedClass->GetName(), *BaseClassName, *GetNameSafe(Package));
+				if (UClass* FoundClass = FClasses::FindScriptClass(BaseClassInfo.Name))
+				{
+					BaseClassInfo.Struct = GTypeDefinitionInfoMap.FindChecked(FoundClass).AsStruct();
+				}
 			}
-
-			DefinedClass->SetSuperStruct(FoundBaseClass);
-			DefinedClass->ClassCastFlags |= FoundBaseClass->ClassCastFlags;
 		}
 	}
 }
@@ -6699,7 +6715,7 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedClasses())
 				{
 					FUnrealClassDefinitionInfo& ClassDef = TypeDef->AsClassChecked();
-					UClass* ResultClass = ProcessParsedClass(ClassDef.IsInterface(), ClassDef.GetNameCPP(), ClassDef.GetBaseClassNameCPP(), Package, RF_Public | RF_Standalone);
+					UClass* ResultClass = ProcessParsedClass(ClassDef.IsInterface(), ClassDef.GetNameCPP(), ClassDef.GetSuperClassInfo().Name, Package, RF_Public | RF_Standalone);
 					GTypeDefinitionInfoMap.Add(ResultClass, TypeDef);
 					ClassDef.SetObject(ResultClass);
 					AllClasses.Add(ResultClass);
@@ -7167,6 +7183,10 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 		if (RefFileNames.Num() != VerFileNames.Num())
 		{
 			UE_LOG(LogCompile, Error, TEXT("Number of generated files mismatch ref=%d, ver=%d"), RefFileNames.Num(), VerFileNames.Num());
+		}
+		if (ChangeMessages.Num() > 0 || RefFileNames.Num() != VerFileNames.Num())
+		{
+			FResults::SetResult(ECompilationResult::OtherCompilationError);
 		}
 	}
 

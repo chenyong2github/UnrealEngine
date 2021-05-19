@@ -1172,37 +1172,6 @@ struct FFuncInfo
 	}
 };
 
-/**
- * Tracks information about a multiple inheritance parent declaration for native script classes.
- */
-struct FMultipleInheritanceBaseClass
-{
-	/**
-	 * The name to use for the base class when exporting the script class to header file.
-	 */
-	FString ClassName;
-
-	/**
-	 * For multiple inheritance parents declared using 'Implements', corresponds to the UClass for the interface.  For multiple inheritance parents declared
-	 * using 'Inherits', this value will be NULL.
-	 */
-	UClass* InterfaceClass = nullptr;
-
-	/**
-	 * Constructors
-	 */
-	explicit FMultipleInheritanceBaseClass(FString&& BaseClassName)
-		: ClassName(MoveTemp(BaseClassName))
-	{
-	}
-
-	explicit FMultipleInheritanceBaseClass(UClass* ImplementedInterfaceClass)
-		: InterfaceClass(ImplementedInterfaceClass)
-	{
-		ClassName = FString::Printf(TEXT("I%s"), *ImplementedInterfaceClass->GetName());
-	}
-};
-
 enum class EParsedInterface
 {
 	NotAnInterface,
@@ -1215,9 +1184,6 @@ enum class EParsedInterface
  */
 class FStructMetaData
 {
-	/** base classes to multiply inherit from (other than the main base class */
-	TArray<FMultipleInheritanceBaseClass*>					MultipleInheritanceParents;
-
 	/** whether this class declares delegate functions or properties */
 	bool													bContainsDelegates;
 
@@ -1364,30 +1330,6 @@ public:
 				Field->SetMetaData(MetaKeyValue.Key, MoveTemp(MetaKeyValue.Value));
 			}
 		}
-	}
-
-	/**
-	 * Add a string to the list of inheritance parents for this class.
-	 *
-	 * @param Inparent The C++ class name to add to the multiple inheritance list
-	 * @param UnrealSourceFile Currently parsed source file.
-	 */
-	void AddInheritanceParent(FString&& InParent, FUnrealSourceFile* UnrealSourceFile);
-
-	/**
-	 * Add a string to the list of inheritance parents for this class.
-	 *
-	 * @param Inparent	The C++ class name to add to the multiple inheritance list
-	 * @param UnrealSourceFile Currently parsed source file.
-	 */
-	void AddInheritanceParent(UClass* ImplementedInterfaceClass, FUnrealSourceFile* UnrealSourceFile);
-
-	/**
-	 * Return the list of inheritance parents
-	 */
-	const TArray<FMultipleInheritanceBaseClass*>& GetInheritanceParents() const
-	{
-		return MultipleInheritanceParents;
 	}
 
 	/**
