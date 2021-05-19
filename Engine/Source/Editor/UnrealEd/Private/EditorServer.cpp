@@ -3567,8 +3567,17 @@ void UEditorEngine::CopySelectedActorsToClipboard( UWorld* InWorld, bool bShould
 					}
 				}
 
-				// Update the clipboard with the final string
-				FPlatformApplicationMisc::ClipboardCopy( *ClipboardString );
+				if (DestinationData)
+				{
+					// Fill DestinationData with the final string
+					*DestinationData = ClipboardString;
+				}
+				else
+				{
+					// Update the clipboard with the final string
+					FPlatformApplicationMisc::ClipboardCopy(*ClipboardString);
+				}
+				
 
 				// Cleanup.
 				for ( CopyJobMap::TIterator It( CopyJobs ) ; It ; ++It )
