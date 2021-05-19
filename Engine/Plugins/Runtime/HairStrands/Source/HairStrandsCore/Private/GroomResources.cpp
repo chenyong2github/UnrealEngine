@@ -91,7 +91,7 @@ void CreateBuffer(const TArray<typename FormatType::Type>& InData, FHairCardsVer
 /////////////////////////////////////////////////////////////////////////////////////////
 // RDG buffers utils 
 template<typename FormatType>
-void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, const TArray<typename FormatType::Type>& InData, FRDGExternalBuffer& Out, const TCHAR* DebugName)
+void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, const TArray<typename FormatType::Type>& InData, FRDGExternalBuffer& Out, const TCHAR* DebugName, ERDGInitialDataFlags InitialDataFlags= ERDGInitialDataFlags::NoCopy)
 {
 	FRDGBufferRef Buffer = nullptr;
 
@@ -110,7 +110,7 @@ void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, const TArray<typen
 		Desc,
 		InData.GetData(),
 		DataSizeInBytes,
-		ERDGInitialDataFlags::NoCopy);
+		InitialDataFlags);
 
 	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, FormatType::Format);
 }
@@ -580,8 +580,8 @@ void FHairStrandsDeformedResource::InitRHI()
 
 	TArray<FVector4> DefaultOffsets;
 	DefaultOffsets.Add(DefaultOffset);
-	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[0], TEXT("HairStrandsDeformed_DeformedOffsetBuffer0"));
-	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[1], TEXT("HairStrandsDeformed_DeformedOffsetBuffer1"));
+	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[0], TEXT("HairStrandsDeformed_DeformedOffsetBuffer0"), ERDGInitialDataFlags::None);
+	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[1], TEXT("HairStrandsDeformed_DeformedOffsetBuffer1"), ERDGInitialDataFlags::None);
 
 	GraphBuilder.Execute();
 }
