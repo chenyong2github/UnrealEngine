@@ -22,6 +22,7 @@
 #include "EditorStyleSet.h"
 #include "Selection.h"
 #include "Engine/World.h"
+#include "Engine/Texture2D.h"
 #include "Engine/Texture2DDynamic.h"
 #include "Misc/HashBuilder.h"
 
