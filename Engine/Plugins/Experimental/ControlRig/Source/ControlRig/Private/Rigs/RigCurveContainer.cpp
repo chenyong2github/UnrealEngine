@@ -302,7 +302,12 @@ TArray<FRigElementKey> FRigCurveContainer::ImportCurvesFromSkeleton(const USkele
 		{
 			Name = *FString::Printf(TEXT("%s::%s"), *InNameSpace.ToString(), *Name.ToString());
 		}
-		Add(Name);
+
+		if (GetIndexSlow(Name) == INDEX_NONE)
+		{
+			Add(Name);
+		}
+
 		Select(Name, true);
 		Keys.Add(FRigElementKey(Name, ERigElementType::Curve));
 	}
