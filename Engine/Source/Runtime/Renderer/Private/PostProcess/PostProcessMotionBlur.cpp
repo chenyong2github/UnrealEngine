@@ -175,6 +175,18 @@ FRHISamplerState* GetMotionBlurVelocitySampler()
 	return TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 }
 
+FRHISamplerState* GetPostMotionBlurTranslucencySampler(bool bUpscale)
+{
+	if (bUpscale)
+	{
+		return TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	}
+	else 
+	{
+		return TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	}
+}
+
 // Set of common shader parameters shared by all motion blur shaders.
 BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurParameters, )
 	SHADER_PARAMETER(float, AspectRatio)
@@ -303,8 +315,9 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterPS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityScatterPS", SF_Pixel);
 
 class FMotionBlurQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("MOTION_BLUR_QUALITY", EMotionBlurQuality);
+class FPostMotionBlurTranslucencyDimension : SHADER_PERMUTATION_BOOL("USE_POST_MOTION_BLUR_TRANSLUCENCY");
 
-using FMotionBlurFilterPermutationDomain = TShaderPermutationDomain<FMotionBlurQualityDimension>;
+using FMotionBlurFilterPermutationDomain = TShaderPermutationDomain<FMotionBlurQualityDimension, FPostMotionBlurTranslucencyDimension>;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurFilterParameters, )
 	SHADER_PARAMETER_STRUCT(FMotionBlurParameters, MotionBlur)
@@ -315,14 +328,19 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurFilterParameters, )
 
 	SHADER_PARAMETER(FScreenTransform, ColorToVelocity)
 
+	SHADER_PARAMETER(FVector2D, ScreenPosToPostMotionBlurTranslucencyUV)
+	SHADER_PARAMETER(FVector2D, PostMotionBlurTranslucencyUVMax)
+
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityFlatTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTileTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PostMotionBlurTranslucencyTexture)
 
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, VelocitySampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTileSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, VelocityFlatSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, PostMotionBlurTranslucencySampler)
 END_SHADER_PARAMETER_STRUCT()
 
 class FMotionBlurFilterPS : public FMotionBlurShader
@@ -628,6 +646,8 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	FRDGTextureRef ColorTexture,
 	FRDGTextureRef VelocityFlatTexture,
 	FRDGTextureRef VelocityTileTexture,
+	FRDGTextureRef PostMotionBlurTranslucency,
+	const FIntPoint& PostMotionBlurTranslucencySize,
 	EMotionBlurFilterPass MotionBlurFilterPass,
 	EMotionBlurQuality MotionBlurQuality)
 {
@@ -684,6 +704,21 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	MotionBlurFilterParameters.VelocityTileSampler = GetMotionBlurVelocitySampler();
 	MotionBlurFilterParameters.VelocityFlatSampler = GetMotionBlurVelocitySampler();
 
+	const bool bPostMotionBlurTranslucency = (PostMotionBlurTranslucency != nullptr);
+	if (bPostMotionBlurTranslucency)
+	{
+		const bool bScaleTranslucency = Viewports.Color.Rect.Size() != PostMotionBlurTranslucencySize;
+		const FVector2D OutputSize(Viewports.Color.Rect.Size());
+		const FVector2D OutputSizeInv = FVector2D(1.0f, 1.0f) / OutputSize;
+		const FVector2D PostMotionBlurTranslucencyExtent(PostMotionBlurTranslucency->Desc.Extent);
+		const FVector2D PostMotionBlurTranslucencyExtentInv = FVector2D(1.0f, 1.0f) / PostMotionBlurTranslucencyExtent;
+
+		MotionBlurFilterParameters.PostMotionBlurTranslucencyTexture = PostMotionBlurTranslucency;
+		MotionBlurFilterParameters.PostMotionBlurTranslucencySampler = GetPostMotionBlurTranslucencySampler(bScaleTranslucency);
+		MotionBlurFilterParameters.ScreenPosToPostMotionBlurTranslucencyUV = OutputSizeInv * FVector2D(PostMotionBlurTranslucencySize) * PostMotionBlurTranslucencyExtentInv;
+		MotionBlurFilterParameters.PostMotionBlurTranslucencyUVMax = (FVector2D(PostMotionBlurTranslucencySize) - FVector2D(0.5f, 0.5f)) * PostMotionBlurTranslucencyExtentInv;
+	}
+
 	FRDGTextureDesc OutColorDesc = FRDGTextureDesc::Create2D(
 		ColorTexture->Desc.Extent,
 		IsPostProcessingWithAlphaChannelSupported() ? PF_FloatRGBA : PF_FloatRGB,
@@ -694,6 +729,7 @@ FRDGTextureRef AddMotionBlurFilterPass(
 
 	FMotionBlurFilterPermutationDomain PermutationVector;
 	PermutationVector.Set<FMotionBlurQualityDimension>(MotionBlurQuality);
+	PermutationVector.Set<FPostMotionBlurTranslucencyDimension>(PostMotionBlurTranslucency != nullptr);
 
 	if (bUseCompute)
 	{
@@ -847,6 +883,8 @@ FScreenPassTexture AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 			Inputs.SceneColor.Texture,
 			VelocityFlatTexture,
 			VelocityTileTexture,
+			nullptr,
+			FIntPoint(0, 0),
 			EMotionBlurFilterPass::Separable0,
 			Inputs.Quality);
 
@@ -857,6 +895,8 @@ FScreenPassTexture AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 			MotionBlurFilterTexture,
 			VelocityFlatTexture,
 			VelocityTileTexture,
+			Inputs.PostMotionBlurTranslucency.Texture,
+			Inputs.PostMotionBlurTranslucency.ViewRect.Size(),
 			EMotionBlurFilterPass::Separable1,
 			Inputs.Quality);
 	}
@@ -869,6 +909,8 @@ FScreenPassTexture AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 			Inputs.SceneColor.Texture,
 			VelocityFlatTexture,
 			VelocityTileTexture,
+			Inputs.PostMotionBlurTranslucency.Texture,
+			Inputs.PostMotionBlurTranslucency.ViewRect.Size(),
 			EMotionBlurFilterPass::Unified,
 			Inputs.Quality);
 	}

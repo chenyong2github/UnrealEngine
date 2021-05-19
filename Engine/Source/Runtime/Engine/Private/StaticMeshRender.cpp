@@ -1805,7 +1805,7 @@ void FStaticMeshSceneProxy::GetLCIs(FLCIArray& LCIs)
 
 bool FStaticMeshSceneProxy::CanBeOccluded() const
 {
-	return !MaterialRelevance.bDisableDepthTest && !ShouldRenderCustomDepth();
+	return !MaterialRelevance.bDisableDepthTest && !MaterialRelevance.bPostMotionBlurTranslucency && !ShouldRenderCustomDepth();
 }
 
 bool FStaticMeshSceneProxy::IsUsingDistanceCullFade() const

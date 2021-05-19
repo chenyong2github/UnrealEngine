@@ -1413,7 +1413,16 @@ bool FMaterialResource::IsUsedWithAPEXCloth() const
 
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
 { 
-	return Material->bEnableSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
+	return Material->TranslucencyPass == MTP_AfterDOF
+		&& !IsUIMaterial()
+		&& !IsDeferredDecal();
+}
+
+bool FMaterialResource::IsTranslucencyAfterMotionBlurEnabled() const 
+{ 
+	return Material->TranslucencyPass == MTP_AfterMotionBlur
+		&& !IsUIMaterial()
+		&& !IsDeferredDecal();
 }
 
 bool FMaterialResource::IsDualBlendingEnabled(EShaderPlatform Platform) const

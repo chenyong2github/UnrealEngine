@@ -2,9 +2,6 @@
 
 #include "Common.ush"
 
-float4 SeparateTranslucencyBilinearUVMinMax;
-
-
 Texture2D SceneColor;
 SamplerState SceneColorSampler;
 
@@ -14,7 +11,10 @@ SamplerState SeparateTranslucencySampler;
 Texture2D SeparateModulation;
 SamplerState SeparateModulationSampler;
 
-float2 LowResExtentInverse;
+float2 ScreenPosToSceneColorUV;
+float2 ScreenPosToSeparateTranslucencyUV;
+float2 SeparateTranslucencyUVMax;
+float2 SeparateTranslucencyExtentInverse;
 
 #if PERMUTATION_NEARESTDEPTHNEIGHBOR 
 
@@ -26,15 +26,14 @@ void MainPS(
 	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	float2 BufferUV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
+	float2 BufferUV = SvPosition.xy * ScreenPosToSceneColorUV;
+	float2 SeparateTranslucencyBufferUV = min(SvPosition.xy * ScreenPosToSeparateTranslucencyUV, SeparateTranslucencyUVMax);
 
 	float4 SceneColorSample = SceneColor.SampleLevel(SceneColorSampler, BufferUV, 0);
 
 #if PERMUTATION_NEARESTDEPTHNEIGHBOR 
 
-	float2 SeparateTranslucencyBufferUV = clamp(BufferUV, SeparateTranslucencyBilinearUVMinMax.xy, SeparateTranslucencyBilinearUVMinMax.zw);
-
-	NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(SvPosition.xy, BufferUV, LowResExtentInverse);
+	NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(SvPosition.xy, BufferUV, SeparateTranslucencyExtentInverse);
 
 	float4 SeparateTranslucencySample = 0;
 	float4 SeparateModulationSample = 0;
@@ -50,9 +49,7 @@ void MainPS(
 	}
 
 #else // PERMUTATION_NEARESTDEPTHNEIGHBOR
-
-	float2 SeparateTranslucencyBufferUV = clamp(BufferUV, SeparateTranslucencyBilinearUVMinMax.xy, SeparateTranslucencyBilinearUVMinMax.zw);
-
+	
 	float4 SeparateTranslucencySample = SeparateTranslucency.SampleLevel(SeparateTranslucencySampler, SeparateTranslucencyBufferUV, 0);
 	float4 SeparateModulationSample   = SeparateModulation.SampleLevel(	 SeparateModulationSampler, SeparateTranslucencyBufferUV, 0);
 

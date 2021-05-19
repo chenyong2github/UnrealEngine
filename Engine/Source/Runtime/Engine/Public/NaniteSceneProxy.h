@@ -41,7 +41,8 @@ public:
 			!MaterialRelevance.bDecal &&
 			!MaterialRelevance.bMasked &&
 			!MaterialRelevance.bNormalTranslucency &&
-			!MaterialRelevance.bSeparateTranslucency;
+			!MaterialRelevance.bSeparateTranslucency &&
+			!MaterialRelevance.bPostMotionBlurTranslucency;
 	}
 
 	virtual bool CanBeOccluded() const override

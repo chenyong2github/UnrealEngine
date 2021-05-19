@@ -50,6 +50,9 @@ struct FMotionBlurInputs
 	// [Required] The input scene velocity and view rect.
 	FScreenPassTexture SceneVelocity;
 
+	// [Optional] The separate translucency buffer to be composited after motion blur
+	FScreenPassTexture PostMotionBlurTranslucency;
+
 	// [Required] Quality to use when processing motion blur.
 	EMotionBlurQuality Quality = EMotionBlurQuality::VeryHigh;
 

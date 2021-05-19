@@ -746,7 +746,7 @@ private:
 
 	virtual bool CanBeOccluded() const override
 	{
-		// TODO account for MaterialRelevance.bDisableDepthTest as well
+		// TODO account for MaterialRelevance.bDisableDepthTest and MaterialRelevance.bPostMotionBlurTranslucency as well
 		return !ShouldRenderCustomDepth();
 	}
 

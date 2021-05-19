@@ -488,7 +488,7 @@ private:
 		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
 		TMicRecursionGuard RecursionGuard;
-		Result.bSeparateTranslucency = MaterialToUse->GetMaterial_Concurrent(RecursionGuard)->bEnableSeparateTranslucency;
+		Result.bSeparateTranslucency = MaterialToUse->GetMaterial_Concurrent(RecursionGuard)->TranslucencyPass == MTP_AfterDOF;
 		//MaterialRelevance.SetPrimitiveViewRelevance(Result);
 		return Result;
 	}
