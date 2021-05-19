@@ -122,7 +122,8 @@ namespace Electra
 				if (last0 != INDEX_NONE)
 				{
 					frc.MidInline(0, last0 + 1);
-					for (int32 i = 0; i < frc.Len(); ++i)
+					// Convert at most 7 fractional digits (giving us hundreds of nanoseconds (HNS))
+					for(int32 i = 0; i < frc.Len() && i<7; ++i)
 					{
 						Numerator = Numerator * 10 + (frc[i] - TCHAR('0'));
 						Denominator *= 10;
