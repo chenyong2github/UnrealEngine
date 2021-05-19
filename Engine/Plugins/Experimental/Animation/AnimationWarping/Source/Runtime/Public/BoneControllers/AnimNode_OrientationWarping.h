@@ -91,6 +91,15 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNo
 
 	FCompactPoseBoneIndex IKFootRootBoneIndex;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault, EditCondition = "Mode == EWarpingEvaluationMode::Graph"))
+	float LocomotionInversionThresholdAngle = 90.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	float InterpSpeed = 0.f;
+
+	UPROPERTY(Transient)
+	float LastRotationAngle = 0.f;
+
 public:
 	FAnimNode_OrientationWarping();
 

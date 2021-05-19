@@ -7,6 +7,11 @@
 
 DECLARE_CYCLE_STAT(TEXT("OrientationWarping Eval"), STAT_OrientationWarping_Eval, STATGROUP_Anim);
 
+#if ENABLE_ANIM_DEBUG
+TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingDebug(TEXT("a.AnimNode.OrientationWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_OrientationWarping"));
+TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingEnable(TEXT("a.AnimNode.OrientationWarping.Enable"), 1, TEXT("Toggle Orientation Warping"));
+#endif
+
 FAnimNode_OrientationWarping::FAnimNode_OrientationWarping()
 	: Mode(EWarpingEvaluationMode::Manual)
 	, LocomotionAngle(0.f)
@@ -78,11 +83,6 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 	// Graph driven orientation warping will modify the incoming root motion to orient towards the intended locomotion angle
 	if (bGraphDrivenWarping)
 	{
-		if (IsInvalidWarpingAngle(LocomotionRotationAngle, KINDA_SMALL_NUMBER))
-		{
-			return;
-		}
-
 		FTransform RootMotionTransformDelta;
 		const bool bRootMotionDeltaPresent = RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
 
@@ -103,12 +103,17 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 			const FVector RootMotionDeltaDir = RootMotionTransformDelta.GetTranslation();
 
 			// Capture the delta rotation from the axis of motion we care about
-			const FQuat WarpedRotation = FQuat::FindBetween(RootMotionDeltaDir, LocomotionForwardDir);
+			FQuat WarpedRotation = FQuat::FindBetween(RootMotionDeltaDir, LocomotionForwardDir);
 			LocomotionRotationAngle = WarpedRotation.GetTwistAngle(LocomotionRotationAxis);
 
-			if (IsInvalidWarpingAngle(LocomotionRotationAngle, KINDA_SMALL_NUMBER))
+			// Motion Matching may return an animation that deviates a lot from the movement direction (e.g movement direction going bwd and motion matching could return the fwd animation for a few frames)
+			// When that happens, since we use the delta between root motion and movement direction, we would be over-rotating the lower body and breaking the pose during those frames
+			// So, when that happens we use the inverse of the movement direction to calculate our target rotation. 
+			// This feels a bit 'hacky' but its the only option I've found so far to mitigate the problem
+			if (LocomotionInversionThresholdAngle > 0.f && FMath::Abs(FMath::RadiansToDegrees(LocomotionRotationAngle)) > LocomotionInversionThresholdAngle)
 			{
-				return;
+				WarpedRotation = FQuat::FindBetween(RootMotionDeltaDir, -LocomotionForwardDir);
+				LocomotionRotationAngle = WarpedRotation.GetTwistAngle(LocomotionRotationAxis);
 			}
 
 			// Rotate the root motion delta fully by the warped angle
@@ -119,12 +124,41 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 			// Forward the side effects of orientation warping on the root motion contribution for this sub-graph
 			const bool bRootMotionOverridden = RootMotionProvider->OverrideRootMotion(RootMotionTransformDelta, Output.CustomAttributes);
 			ensure(bRootMotionOverridden);
+
+#if ENABLE_ANIM_DEBUG
+			const bool bShowDebug = (CVarAnimNodeOrientationWarpingDebug.GetValueOnAnyThread() == 1);
+			if (bShowDebug)
+			{
+				const FVector LocomotionDirWS = Output.AnimInstanceProxy->GetActorTransform().TransformVectorNoScale(LocomotionRotation.GetForwardVector()).GetSafeNormal();
+				const FVector RootMotionDirWS = Output.AnimInstanceProxy->GetActorTransform().TransformVectorNoScale(SkeletalMeshRelativeRotation.RotateVector(RootMotionDeltaDir)).GetSafeNormal();
+
+				const float DrawDebugArrowScale = 100.f;
+				Output.AnimInstanceProxy->AnimDrawDebugLine(
+					Output.AnimInstanceProxy->GetComponentTransform().GetLocation(),
+					Output.AnimInstanceProxy->GetComponentTransform().GetLocation() + LocomotionDirWS * DrawDebugArrowScale,
+					FColor::Red, false, 0.f, 1.f);
+
+				Output.AnimInstanceProxy->AnimDrawDebugLine(
+					Output.AnimInstanceProxy->GetComponentTransform().GetLocation(),
+					Output.AnimInstanceProxy->GetComponentTransform().GetLocation() + RootMotionDirWS * DrawDebugArrowScale,
+					FColor::Blue, false, 0.f, 1.f);
+			}
+#endif
 		}
 	} 
 	else if (IsInvalidWarpingAngle(LocomotionRotationAngle, KINDA_SMALL_NUMBER))
 	{
 		return;
 	}
+
+	if (InterpSpeed > 0.f)
+	{
+		LocomotionRotationAngle = FMath::FInterpTo(LastRotationAngle, LocomotionRotationAngle, Output.AnimInstanceProxy->GetDeltaSeconds(), InterpSpeed);
+		LastRotationAngle = LocomotionRotationAngle;
+	}
+
+	// Allow the alpha value of the node to affect the final rotation
+	LocomotionRotationAngle *= ActualAlpha;
 
 	const float BodyOrientationAlpha = FMath::Clamp(Settings.BodyOrientationAlpha, 0.f, 1.f);
 
@@ -200,6 +234,13 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 
 bool FAnimNode_OrientationWarping::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
 {
+#if ENABLE_ANIM_DEBUG
+	if (CVarAnimNodeOrientationWarpingEnable.GetValueOnAnyThread() == 0)
+	{
+		return false;
+	}
+#endif
+
 	bool bIKFootRootIsValid = IKFootRootBoneIndex != INDEX_NONE;
 	bool bIKFeetAreValid = IKFootBoneIndexArray.Num() > 0;
 	for (const auto& IKFootBoneIndex : IKFootBoneIndexArray)
