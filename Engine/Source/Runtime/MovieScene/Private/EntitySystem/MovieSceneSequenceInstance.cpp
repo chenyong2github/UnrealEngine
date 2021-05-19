@@ -179,6 +179,11 @@ void FSequenceInstance::EnableGlobalPreAnimatedStateCapture(UMovieSceneEntitySys
 	}
 }
 
+bool FSequenceInstance::IsCapturingGlobalPreAnimatedState() const
+{
+	return GlobalPreAnimatedState != nullptr;
+}
+
 void FSequenceInstance::Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)
 {
 	check(SequenceID == MovieSceneSequenceID::Root);
