@@ -391,9 +391,13 @@ uint32 FD3D11DynamicRHI::GetMaxMSAAQuality(uint32 SampleCount)
 
 static bool GFormatSupportsTypedUAVLoad[PF_MAX];
 
+#if !defined(D3D11_PLATFORM_HAS_OPTIONS3)
+	#define D3D11_PLATFORM_HAS_OPTIONS3 PLATFORM_HOLOLENS
+#endif
+
 // The D3D11 header is not recent enough to check support for this
 static const D3D11_FEATURE D3D11_FEATURE_FORMAT_SUPPORT3 = (D3D11_FEATURE)15;
-#if !PLATFORM_HOLOLENS
+#if !D3D11_PLATFORM_HAS_OPTIONS3
 typedef struct D3D11_FEATURE_DATA_D3D11_OPTIONS3
 {
 	BOOL VPAndRTArrayIndexFromAnyShaderFeedingRasterizer;

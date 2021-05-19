@@ -15,7 +15,7 @@
 #include "SceneUtils.h"
 #include "EngineGlobals.h"
 
-#if PLATFORM_DESKTOP
+#if !PLATFORM_HOLOLENS
 // For Depth Bounds Test interface
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include "nvapi.h"
