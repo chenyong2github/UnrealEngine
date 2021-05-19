@@ -1941,10 +1941,13 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				{
 					for (FViewInfo& View : Views)
 					{
-						FHairStrandsTransmittanceMaskData TransmittanceMaskData = DummyTransmittanceMaskData;
 						if (bDrawHairShadow && HairStrands::HasViewHairStrandsData(View))
 						{
-							TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, &LightSceneInfo, ScreenShadowMaskSubPixelTexture);
+							FHairStrandsTransmittanceMaskData TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, &LightSceneInfo, ScreenShadowMaskSubPixelTexture);							
+							if (TransmittanceMaskData.TransmittanceMask == nullptr)
+							{
+								TransmittanceMaskData = DummyTransmittanceMaskData;
+							}
 
 							// Note: ideally the light should still be evaluated for hair when not casting shadow, but for preserving the old behavior, and not adding 
 							// any perf. regression, we disable this light for hair rendering 
@@ -2476,7 +2479,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 	FRDGTextureRef LightingChannelsTexture,
 	const FHairStrandsTransmittanceMaskData& InTransmittanceMaskData)
 {
-	const bool bHairRenderingEnabled = HairStrands::HasViewHairStrandsData(View) && (LightSceneInfo->Proxy->CastsHairStrandsDeepShadow() || IsHairStrandsVoxelizationEnable());
+	const bool bHairRenderingEnabled = HairStrands::HasViewHairStrandsData(View);
 	if (!bHairRenderingEnabled)
 	{
 		return;
