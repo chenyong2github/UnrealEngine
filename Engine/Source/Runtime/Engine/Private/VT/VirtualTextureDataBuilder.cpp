@@ -639,12 +639,12 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
  
 		GeneratedData.TilePayload.AddDefaulted(TileList.Num());
 
-		// ParallelFor is implemented with TaskGraph so it can cause deadlock if it invokes a compressor that also
-		// uses TaskGraph in combination with FAsyncTask.
-		bool bUsesTaskGraph = Compressor->UsesTaskGraph(TBSettings);
-
-		const bool bIsSingleThreaded = !bAllowAsync || bUsesTaskGraph;
-		ParallelFor(TileList.Num(), [&](int32 TileIndex)
+		// ParallelFor is on TaskGraph for VT tiles
+		//	TextureFormats should disable their own internal use of TaskGraph for VT tiles if necessary
+		
+		const bool bIsSingleThreaded = !bAllowAsync;
+		int NumTiles = TileList.Num();
+		ParallelFor(NumTiles, [&](int32 TileIndex)
 		{
 			const FVTSourceTileEntry& Tile = TileList[TileIndex];
 
