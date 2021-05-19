@@ -172,8 +172,8 @@ struct FStrataBSDF
 #define BSDF_SETHASSSSPROFILE(X, Profi)	WRITE_BITS(X.State, STATE_BIT_COUNT_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE, Profi)
 
 // Indicates if the BSDF weight is grey scale so that it can be stored in a single float (e.g. top layer BSDFs)
-#define BSDF_GETGREYWEIGHT(X)			READ_BITS(X.State,  STATE_BIT_COUNT_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT)
-#define BSDF_SETGREYWEIGHT(X, Grey)		WRITE_BITS(X.State, STATE_BIT_COUNT_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT, Grey)
+#define BSDF_GETHASGREYWEIGHT(X)		READ_BITS(X.State,  STATE_BIT_COUNT_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT)
+#define BSDF_SETHASGREYWEIGHT(X, Grey)	WRITE_BITS(X.State, STATE_BIT_COUNT_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT, Grey)
 
 // Indicates if the BSDF has haziness data
 #define BSDF_GETHASHAZINESS(X)			READ_BITS(X.State,  STATE_BIT_COUNT_HAZINESS, STATE_BIT_OFFSET_HAZINESS)
@@ -1777,7 +1777,7 @@ void PackStrataOut(
 			FStrataBSDF BSDF = Layer.BSDFs[i];
 
 			const uint GreyScaleWeight = StrataHasGreyScaleWeight(BSDF.Weight) ? 1 : 0;
-			BSDF_SETGREYWEIGHT(BSDF, GreyScaleWeight);
+			BSDF_SETHASGREYWEIGHT(BSDF, GreyScaleWeight);
 			if (GreyScaleWeight > 0)
 			{
 				BSDF_SETWEIGHT10F(BSDF, Pack10F(BSDF.Weight.x));
@@ -1973,7 +1973,7 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddr
 	float DummyFloat = 0.0f;
 
 	STRATA_LOAD_UINT1(OutBSDF.State);
-	if (BSDF_GETGREYWEIGHT(OutBSDF))
+	if (BSDF_GETHASGREYWEIGHT(OutBSDF))
 	{
 		OutBSDF.Weight = Unpack10F(BSDF_GETWEIGHT10F(OutBSDF));
 	}
