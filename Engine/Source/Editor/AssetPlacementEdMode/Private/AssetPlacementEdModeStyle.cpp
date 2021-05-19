@@ -2,6 +2,7 @@
 
 #include "AssetPlacementEdModeStyle.h"
 
+#include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
