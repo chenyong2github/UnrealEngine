@@ -14,6 +14,7 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "FbxImporter.h"
+#include "ImportUtils/InternalImportUtils.h"
 #include "ImportUtils/SkelImport.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -37,8 +38,6 @@ namespace SkeletalMesUtilsImpl
 {
 	/** Check that root bone is the same, and that any bones that are common have the correct parent. */
 	bool SkeletonsAreCompatible(const FReferenceSkeleton& NewSkel, const FReferenceSkeleton& ExistSkel, bool bFailNoError);
-
-	bool SkeletalMeshIsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData);
 
 	void SaveSkeletalMeshLODModelSections(USkeletalMesh* SourceSkeletalMesh, TSharedPtr<FExistingSkelMeshData>& ExistingMeshDataPtr, int32 LodIndex, bool bSaveNonReducedMeshData);
 
@@ -223,25 +222,6 @@ void SkeletalMeshImportUtils::ProcessImportMeshInfluences(FSkeletalMeshImportDat
 	FLODUtilities::ProcessImportMeshInfluences(ImportData.Wedges.Num(), ImportData.Influences, SkeletalMeshName);
 }
 
-bool SkeletalMesUtilsImpl::SkeletalMeshIsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)
-{
-	UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(AssetImportData);
-	if (ImportData == nullptr || ImportData->ImportMaterialOriginalNameData.Num() <= 0)
-	{
-		return false;
-	}
-	bool AllNameAreNone = true;
-	for (FName ImportMaterialName : ImportData->ImportMaterialOriginalNameData)
-	{
-		if (ImportMaterialName != NAME_None)
-		{
-			AllNameAreNone = false;
-			break;
-		}
-	}
-	return !AllNameAreNone;
-}
-
 void SkeletalMesUtilsImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* SourceSkeletalMesh, TSharedPtr<FExistingSkelMeshData>& ExistingMeshDataPtr, int32 LodIndex, bool bSaveNonReducedMeshData)
 {
 	const FSkeletalMeshModel* SourceMeshModel = SourceSkeletalMesh->GetImportedModel();
@@ -394,7 +374,7 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshImportUtils::SaveExistingSkelMeshD
 	{
 		ExistingMeshDataPtr->ExistingUMetaDataTagValues = *MetaDataTagValues;
 	}
-	ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = SkeletalMeshIsUsingMaterialSlotNameWorkflow(SourceSkeletalMesh->GetAssetImportData());
+	ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = InternalImportUtils::IsUsingMaterialSlotNameWorkflow(SourceSkeletalMesh->GetAssetImportData());
 	ExistingMeshDataPtr->MinLOD = SourceSkeletalMesh->GetMinLod();
 	ExistingMeshDataPtr->DisableBelowMinLodStripping = SourceSkeletalMesh->GetDisableBelowMinLodStripping();
 	ExistingMeshDataPtr->bOverrideLODStreamingSettings = SourceSkeletalMesh->GetOverrideLODStreamingSettings();
@@ -691,12 +671,7 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 	}
 
 	//Restore the package metadata
-	if (MeshData->ExistingUMetaDataTagValues.Num() > 0)
-	{
-		UMetaData* PackageMetaData = SkeletalMesh->GetOutermost()->GetMetaData();
-		checkSlow(PackageMetaData);
-		PackageMetaData->SetObjectValues(SkeletalMesh, MeshData->ExistingUMetaDataTagValues);
-	}
+	InternalImportUtils::RestoreMetaData(SkeletalMesh, MeshData->ExistingUMetaDataTagValues);
 
 	int32 SafeReimportLODIndex = ReimportLODIndex < 0 ? 0 : ReimportLODIndex;
 	SkeletalMesh->SetMinLod(MeshData->MinLOD);
