@@ -567,6 +567,11 @@ bool FBlueprintEditor::IsInAScriptingMode() const
 
 bool FBlueprintEditor::OnRequestClose()
 {
+	return FWorkflowCentricApplication::OnRequestClose();
+}
+
+void FBlueprintEditor::OnClose()
+{
 	// Also close the Find Results tab if we're not in full edit mode and the option to host Global Find Results is enabled.
 	TSharedPtr<SDockTab> FindResultsTab = TabManager->FindExistingLiveTab(FBlueprintEditorTabs::FindResultsID);
 	if (FindResultsTab.IsValid() && !IsInAScriptingMode() && GetDefault<UBlueprintEditorSettings>()->bHostFindInBlueprintsInGlobalTab)
@@ -582,8 +587,8 @@ bool FBlueprintEditor::OnRequestClose()
 	}
 
 	bEditorMarkedAsClosed = true;
-	
-	return FWorkflowCentricApplication::OnRequestClose();
+
+	FWorkflowCentricApplication::OnClose();
 }
 
 bool FBlueprintEditor::InEditingMode() const
