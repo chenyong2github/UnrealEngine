@@ -118,9 +118,22 @@ private:
 	 */
 	void ProcessAndApplyProtocolValue(const FDMXSignalSharedPtr& InSignal, int32 InDMXOffset, const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr);
 
+#if WITH_EDITOR
+	/**
+	 * Process the AutoBinding to the Remote Control Entity
+	 * @param InProtocolEntityPtr	Protocol entity pointer
+	 */
+	void ProcessAutoBinding(const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr);
+#endif
+
 private:
 	/** Binding for the DMX protocol */
 	TArray<FRemoteControlProtocolEntityWeakPtr> ProtocolsBindings;
+
+#if WITH_EDITORONLY_DATA
+	/** DMX universe cache buffer.*/
+	TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>> CacheUniverseDMXBuffer;
+#endif
 
 public:
 	/** DMX protocol name */

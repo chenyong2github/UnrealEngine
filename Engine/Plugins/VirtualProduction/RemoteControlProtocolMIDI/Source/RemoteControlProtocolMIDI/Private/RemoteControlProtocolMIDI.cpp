@@ -7,6 +7,11 @@
 #include "RemoteControlProtocolMIDIModule.h"
 #include "RemoteControlProtocolMIDISettings.h"
 
+#if WITH_EDITOR
+#include "IRCProtocolBindingList.h"
+#include "IRemoteControlProtocolWidgetsModule.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "FRemoteControlProtocolMIDI"
 
 const FName FRemoteControlProtocolMIDI::ProtocolName = TEXT("MIDI");
@@ -210,6 +215,10 @@ void FRemoteControlProtocolMIDI::OnReceiveEvent(UMIDIDeviceInputController* MIDI
 	const EMIDIEventType MIDIEventType = static_cast<EMIDIEventType>(Type);
 
 #if WITH_EDITOR
+	ProcessAutoBinding(MIDIEventType, Channel, MessageData1);
+#endif
+
+#if WITH_EDITOR
 	{		
 		FRemoteControlLogger::Get().Log(ProtocolName, [Type, Channel, MessageData1, MessageData2]
 		{
@@ -275,6 +284,40 @@ void FRemoteControlProtocolMIDI::OnReceiveEvent(UMIDIDeviceInputController* MIDI
 		}	
 	}
 }
+
+#if WITH_EDITOR
+void FRemoteControlProtocolMIDI::ProcessAutoBinding(EMIDIEventType MIDIEventType, int32 Channel, int32 MessageData1)
+{
+	// Bind only in Editor
+	if (!GIsEditor)
+	{
+		return;
+	}
+		
+	IRemoteControlProtocolWidgetsModule& RCWidgetsModule = IRemoteControlProtocolWidgetsModule::Get();
+	const TSharedPtr<IRCProtocolBindingList> RCProtocolBindingList = RCWidgetsModule.GetProtocolBindingList();
+	if (RCProtocolBindingList.IsValid())
+	{
+		for (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>>& ProtocolEntityPtr : RCProtocolBindingList->GetAwaitingProtocolEntities())
+		{
+			if (ProtocolEntityPtr.IsValid())
+			{
+				if ((*ProtocolEntityPtr)->GetBindingStatus() == ERCBindingStatus::Awaiting)
+				{
+					Unbind(ProtocolEntityPtr);
+					
+					FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
+					MIDIProtocolEntity->EventType = MIDIEventType;
+					MIDIProtocolEntity->Channel = Channel;
+					MIDIProtocolEntity->MessageData1 = MessageData1;
+
+					Bind(ProtocolEntityPtr);
+				}
+			}	
+		}
+	}
+}
+#endif
 
 void FRemoteControlProtocolMIDI::UnbindAll()
 {

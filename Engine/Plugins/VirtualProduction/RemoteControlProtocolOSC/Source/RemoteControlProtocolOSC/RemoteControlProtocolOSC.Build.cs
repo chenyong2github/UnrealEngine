@@ -27,6 +27,7 @@ public class RemoteControlProtocolOSC : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+				    "RemoteControlProtocolWidgets",
 					"Settings"
 				}
 			);
