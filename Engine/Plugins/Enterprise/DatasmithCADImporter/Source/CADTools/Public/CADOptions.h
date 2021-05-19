@@ -43,6 +43,7 @@ namespace CADLibrary
 		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
 		bool bScaleUVMap = true;
 		bool bEnableCacheUsage = true;
+		bool bEnableTimeControl = true;
 
 		uint32 GetHash() const
 		{
