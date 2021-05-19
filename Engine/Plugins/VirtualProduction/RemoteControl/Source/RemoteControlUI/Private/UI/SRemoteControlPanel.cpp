@@ -326,6 +326,10 @@ SRemoteControlPanel::~SRemoteControlPanel()
 
 	// Clear the log
 	FRemoteControlLogger::Get().ClearLog();
+
+	// Remove protocol bindings
+	IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>("RemoteControlProtocolWidgets");
+	ProtocolWidgetsModule.ResetProtocolBindingList();	
 }
 
 void SRemoteControlPanel::PostUndo(bool bSuccess)

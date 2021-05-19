@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 
-
+#include "IRCProtocolBindingList.h"
 #include "SRCProtocolShared.h"
-#include "UObject/StrongObjectPtr.h"
+
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 
@@ -20,7 +20,7 @@ class URemoteControlProtocolWidgetsSettings;
 template <typename ItemType> class SListView;
 
 /** The root view for a given entity. A (vertical) list of bindings, where each binding has a protocol. */
-class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolBindingList final : public SCompoundWidget
+class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolBindingList final : public SCompoundWidget, public IRCProtocolBindingList
 {
 public:
 	SLATE_BEGIN_ARGS(SRCProtocolBindingList)
@@ -30,10 +30,14 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FProtocolEntityViewModel> InViewModel);
 	virtual ~SRCProtocolBindingList();
 
+	//~ Begin IRCProtocolBindingList Interface
+	virtual FRemoteControlProtocolEntitySet GetAwaitingProtocolEntities() const override { return AwaitingProtocolEntities; }
+	//~ End IRCProtocolBindingList Interface
+
 private:
-	TSharedRef<SRCProtocolBinding> ConstructBindingWidget(const TSharedRef<STableViewBase>&, TSharedPtr<FProtocolBindingViewModel> InViewModel) const;
+	TSharedRef<SRCProtocolBinding> ConstructBindingWidget(const TSharedRef<STableViewBase>&, TSharedPtr<FProtocolBindingViewModel> InViewModel);
 	
-	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FProtocolBindingViewModel> InViewModel, const TSharedRef<STableViewBase>& OwnerTable) const;
+	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FProtocolBindingViewModel> InViewModel, const TSharedRef<STableViewBase>& OwnerTable);
 
 	bool CanAddProtocol();
 
@@ -52,6 +56,12 @@ private:
 	float OnGetSecondaryLeftColumnWidth() const { return 1.0f - SecondaryColumnWidth; }
 	float OnGetSecondaryRightColumnWidth() const { return SecondaryColumnWidth; }
 	void OnSetSecondaryColumnWidth(float InWidth) { SecondaryColumnWidth = InWidth; }
+
+	/** Start recording incoming protocol message handler */
+	void OnStartRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity);
+
+	/** Stop recording incoming protocol message handler */
+	void OnStopRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity);
 
 	/** Get (mutable) module settings */
 	URemoteControlProtocolWidgetsSettings* GetSettings();
@@ -88,4 +98,7 @@ private:
 
 	/** Reference to (mutable) settings class for this module */
 	TWeakObjectPtr<URemoteControlProtocolWidgetsSettings> Settings;
+
+	/** Set of protocol entities with awaiting state and waiting for binding */
+	FRemoteControlProtocolEntitySet AwaitingProtocolEntities;
 };

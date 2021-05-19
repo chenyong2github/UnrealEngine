@@ -498,6 +498,25 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 	return bSuccess;
 }
 
+ERCBindingStatus FRemoteControlProtocolEntity::ToggleBindingStatus()
+{
+	if (BindingStatus == ERCBindingStatus::Awaiting)
+	{
+		BindingStatus = ERCBindingStatus::Bound;
+	}
+	else if (BindingStatus == ERCBindingStatus::Bound || BindingStatus == ERCBindingStatus::Unassigned)
+	{
+		BindingStatus = ERCBindingStatus::Awaiting;
+	}
+
+	return BindingStatus;
+}
+
+void FRemoteControlProtocolEntity::ResetDefaultBindingState()
+{
+	BindingStatus = ERCBindingStatus::Unassigned;
+}
+
 bool FRemoteControlProtocolEntity::GetInterpolatedPropertyBuffer(FProperty* InProperty, double InProtocolValue, TArray<uint8>& OutBuffer) const
 {
 	OutBuffer.Empty();

@@ -158,8 +158,27 @@ public:
 	//~ End IRemoteControlProtocol interface
 
 private:
-	/** On receive MIDI buffer callback */
+	/**
+	 * On receive MIDI buffer callback
+	 * @param	MIDIDeviceController	The MIDI Input Device Controller
+	 * @param	Timestamp				The MIDI timestamp
+	 * @param	Channel					The MIDI channel to send 
+	 * @param	MessageData1			The first part of the MIDI data
+	 * @param	MessageData2			The second part of the MIDI data
+	 */
 	void OnReceiveEvent(UMIDIDeviceInputController* MIDIDeviceController, int32 Timestamp, int32 Type, int32 Channel, int32 MessageData1, int32 MessageData2);
+
+#if WITH_EDITOR
+	/**
+	 * Process the AutoBinding to the Remote Control Entity
+	 * @param	MIDIEventType		The event type as specified in the EMIDIEventType struct
+	 * @param	Channel				The MIDI channel 
+	 * @param	MessageData1		The first part of the MIDI data
+	 */
+	void ProcessAutoBinding(EMIDIEventType MIDIEventType, int32 Channel, int32 MessageData1);
+#endif
+
+private:
 
 	/** Binding for ControlChange (11) MIDI protocol */
 	TMap<UMIDIDeviceInputController*, TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>> MIDIDeviceBindings_ControlChange;
