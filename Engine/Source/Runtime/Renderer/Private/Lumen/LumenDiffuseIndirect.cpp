@@ -105,10 +105,20 @@ FAutoConsoleVariableRef CVarLumenMaxTraceDistance(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+// Project setting driven by RendererSettings
 int32 GLumenTraceMeshSDFs = 1;
 FAutoConsoleVariableRef CVarLumenTraceMeshSDFs(
 	TEXT("r.Lumen.TraceMeshSDFs"),
 	GLumenTraceMeshSDFs,
+	TEXT("Whether Lumen should trace against Mesh Signed Distance fields.  When enabled, Lumen's Software Tracing will be more accurate, but scenes with high instance density (overlapping meshes) will have high tracing costs.  When disabled, lower resolution Global Signed Distance Field will be used instead."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+// Scalability setting driven by scalability ini
+int32 GLumenAllowTracingMeshSDFs = 1;
+FAutoConsoleVariableRef CVarLumenAllowTraceMeshSDFs(
+	TEXT("r.Lumen.TraceMeshSDFs.Allow"),
+	GLumenAllowTracingMeshSDFs,
 	TEXT("Whether Lumen should trace against Mesh Signed Distance fields.  When enabled, Lumen's Software Tracing will be more accurate, but scenes with high instance density (overlapping meshes) will have high tracing costs.  When disabled, lower resolution Global Signed Distance Field will be used instead."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -147,7 +157,7 @@ FAutoConsoleVariableRef CVarCardGridDistributionZScale(
 
 bool Lumen::UseMeshSDFTracing()
 {
-	return GLumenTraceMeshSDFs != 0;
+	return GLumenTraceMeshSDFs != 0 && GLumenAllowTracingMeshSDFs != 0;
 }
 
 float Lumen::GetMaxTraceDistance()
