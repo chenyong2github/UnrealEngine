@@ -459,6 +459,7 @@ public:
 		return FString::Printf(TEXT("SHAREDLOCALBASIS_INDEX_%u"), SharedLocalBasis.GraphSharedLocalBasisIndex);
 	}
 	virtual int32 StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk) = 0;
+	virtual int32 StrataVerticalLayeringParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 TopCodeChunk) = 0;
 
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) = 0;
@@ -1030,6 +1031,11 @@ public:
 	virtual int32 StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk) override
 	{
 		return Compiler->StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(ACodeChunk, BCodeChunk);
+	}
+
+	virtual int32 StrataVerticalLayeringParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 TopCodeChunk) override
+	{
+		return Compiler->StrataVerticalLayeringParameterBlendingBSDFWeightToNormalMixCodeChunk(TopCodeChunk);
 	}
 	
 	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override
