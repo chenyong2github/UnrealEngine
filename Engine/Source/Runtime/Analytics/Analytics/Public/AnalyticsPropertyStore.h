@@ -93,7 +93,7 @@ public:
 	virtual EStatusCode Get(const FString& Key, bool& OutValue) const override;
 	virtual EStatusCode Get(const FString& Key, FString& OutValue) const override;
 	virtual EStatusCode Get(const FString& Key, FDateTime& OutValue) const override;
-	virtual void VisitAll(const TFunction<void(const FString& /*Key*/, FString&& /*Value*/)>& VisitFn) const override;
+	virtual void VisitAll(const TFunction<void(FAnalyticsEventAttribute&&)>& VisitFn) const override;
 
 	/**
 	 * Flushes cached values to disk. Only one thread can flush at a time, causing possible latency if a flush is alreary happenning.

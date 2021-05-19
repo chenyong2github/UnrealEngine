@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Interfaces/IAnalyticsPropertyStore.h"
+#include "AnalyticsEventAttribute.h"
 
 class IAnalyticsSessionSummarySender;
 
@@ -148,7 +149,7 @@ private:
 	void ProcessSummary(const FString& ProcessGroupId, const FProcessGroup& ProcessGroup);
 
 	/** Loads the summaries created for the application and its subsidiary processes (like Editor/CRC combo) and aggregates summary properties. */
-	bool AggregateSummaries(const FString& ProcessGroupId, const TArray<FPropertyFileInfo>& PropertyFiles, TMap<FString, FString>& OutSummaryProperties, TMap<FString, FString>& OutInternalProperties);
+	bool AggregateSummaries(const FString& ProcessGroupId, const FProcessGroup& ProcessGroup, TArray<FAnalyticsEventAttribute>& OutSummaryProperties, TArray<FAnalyticsEventAttribute>& OutInternalProperties);
 
 	/** Deletes the files used to record and perist the properties. */
 	bool CleanupFiles(const TArray<FPropertyFileInfo>& PropertyFiles, bool bOnSuccess);

@@ -11,6 +11,7 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "HAL/PlatformTime.h"
 #include "Logging/LogMacros.h"
+#include "Misc/EngineVersion.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/UnrealTemplate.h"
@@ -43,11 +44,18 @@ LRESULT CALLBACK CrashReportAnalyticsSessionSummaryWindowProc(HWND Hwnd, UINT Ms
 
 namespace CrcAnalyticsProperties
 {
+	//NOTE: Update this when you add/remove/change key behavior.
+	constexpr uint32 CrcAnalyticsSummaryVersion = 1;
+
 	/** The exit code of the monitored application. */
 	static const TAnalyticsProperty<int32> MonitoredAppExitCode(TEXT("ExitCode"));
 	/** Track when CRC detected the death of the monitored app. */
 	static const TAnalyticsProperty<FDateTime> MonitoredAppDeathTimestamp(TEXT("DeathTimestamp"));
 
+	/** CRC engine version. In-dev, people don't always recompile CRC and we get disparity between the monitored app and CRC version. */
+	static const TAnalyticsProperty<FString> EngineVersion(TEXT("MonitorEngineVersion"));
+	/** The version number of the key/set used by CRC. */
+	static const TAnalyticsProperty<uint32> SummaryVersionNumber(TEXT("MonitorSummaryVersion"));
 	/** The CRC startup timestamp. */
 	static const TAnalyticsProperty<FDateTime> StartupTimestamp(TEXT("MonitorStartupTimestamp"));
 	/** The CRC timestamp. */
@@ -76,6 +84,12 @@ namespace CrcAnalyticsProperties
 	static const TAnalyticsProperty<bool> IsCrashing(TEXT("MonitorCrashed"));
 	/** Whether CRC was shutdown. */
 	static const TAnalyticsProperty<bool> WasShutdown(TEXT("MonitorWasShutdown"));
+	/** Number of crash event passed to CRC. (Ensure, Assert, Crash, etc). */
+	static const TAnalyticsProperty<uint32> ReportCount(TEXT("MonitorReportCount"));
+	/** Number of ensures handled by CRC. */
+	static const TAnalyticsProperty<uint32> EnsureCount(TEXT("MonitorEnsureCount"));
+	/** Number of assert handled by CRC.*/
+	static const TAnalyticsProperty<uint32> AssertCount(TEXT("MonitorAssertCount"));
 }
 
 namespace CrashReportClientUtils
@@ -184,7 +198,7 @@ public:
 	{
 	}
 
-	virtual bool SendSessionSummary(const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const TMap<FString, FString>& Properties) override
+	virtual bool SendSessionSummary(const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const TArray<FAnalyticsEventAttribute>& Properties) override
 	{
 		// CRC should only send one session (its own), but do a reset in case this convention changes.
 		bAbnormalShutdown = false;
@@ -192,14 +206,14 @@ public:
 
 		// Analyze the report to be sent and try to figure out if this is an abnormal shutdown. They keys are taken from the engine analytics session summary. To prevent dependencies
 		// between CRC and Engine analytics, we duplicate the keys here.
-		if (const FString* ShutdownTypeCode = Properties.Find(FAnalyticsSessionSummaryManager::ShutdownTypeCodeProperty.Key))
+		if (const FAnalyticsEventAttribute* ShutdownTypeCode = Properties.FindByPredicate([](const FAnalyticsEventAttribute& Candidate) { return Candidate.GetName() == FAnalyticsSessionSummaryManager::ShutdownTypeCodeProperty.Key; }))
 		{
-			bAbnormalShutdown = (*ShutdownTypeCode == LexToString((int32)EAnalyticsSessionShutdownType::Abnormal));
+			bAbnormalShutdown = (ShutdownTypeCode->GetValue() == LexToString((int32)EAnalyticsSessionShutdownType::Abnormal));
 			if (bAbnormalShutdown)
 			{
-				if (const FString* UserLoggingOut = Properties.Find(FAnalyticsSessionSummaryManager::IsUserLoggingOutProperty.Key))
+				if (const FAnalyticsEventAttribute* UserLoggingOut = Properties.FindByPredicate([](const FAnalyticsEventAttribute& Candidate) { return Candidate.GetName() == FAnalyticsSessionSummaryManager::IsUserLoggingOutProperty.Key; }))
 				{
-					bUserLoggingOut = (*UserLoggingOut == LexToString(true));
+					bUserLoggingOut = (UserLoggingOut->GetValue() == LexToString(true));
 				}
 			}
 		}
@@ -255,6 +269,8 @@ void FCrashReportAnalyticsSessionSummary::Initialize(const FString& ProcessGroup
 				FCoreDelegates::ApplicationWillTerminateDelegate.AddRaw(this, &FCrashReportAnalyticsSessionSummary::OnApplicationWillTerminate);
 				FCoreDelegates::OnHandleSystemError.AddRaw(this, &FCrashReportAnalyticsSessionSummary::OnHandleSystemError);
 
+				CrcAnalyticsProperties::EngineVersion.Set(PropertyStore.Get(), FEngineVersion::Current().ToString(EVersionComponent::Changelist));
+				CrcAnalyticsProperties::SummaryVersionNumber.Set(PropertyStore.Get(), CrcAnalyticsProperties::CrcAnalyticsSummaryVersion);
 				CrcAnalyticsProperties::StartupTimestamp.Set(PropertyStore.Get(), FDateTime::UtcNow());
 				CrcAnalyticsProperties::Timestamp.Set(PropertyStore.Get(), FDateTime::UtcNow());
 				CrcAnalyticsProperties::SessionDurationSecs.Set(PropertyStore.Get(), FMath::FloorToInt(static_cast<float>(FPlatformTime::Seconds() - SessionStartTimeSecs)));
@@ -266,6 +282,9 @@ void FCrashReportAnalyticsSessionSummary::Initialize(const FString& ProcessGroup
 				CrcAnalyticsProperties::IsCrashing.Set(PropertyStore.Get(), false);
 				CrcAnalyticsProperties::WasShutdown.Set(PropertyStore.Get(), false);
 				CrcAnalyticsProperties::QuitSignalRecv.Set(PropertyStore.Get(), false);
+				CrcAnalyticsProperties::ReportCount.Set(PropertyStore.Get(), 0);
+				CrcAnalyticsProperties::EnsureCount.Set(PropertyStore.Get(), 0);
+				CrcAnalyticsProperties::AssertCount.Set(PropertyStore.Get(), 0);
 
 				UpdatePowerStatus();
 				Flush();
@@ -551,15 +570,18 @@ void FCrashReportAnalyticsSessionSummary::OnCrashReportStarted(ECrashContextType
 	CrashReportStartTimeSecs = FPlatformTime::Seconds();
 
 	CrcAnalyticsProperties::IsReportingCrash.Set(PropertyStore.Get(), true);
+	CrcAnalyticsProperties::ReportCount.Update(PropertyStore.Get(), [](uint32& Actual) { ++Actual; return true; });
 	LogEvent(FString::Printf(TEXT("Report/Start:%s"), *FDateTime::UtcNow().ToString()));
 
 	// Log the assert and ensure condition/file/line/message to the diagnostic log gathered by the analytics to enable searching/grouping them later on.
 	if (CrashType == ECrashContextType::Assert)
 	{
+		CrcAnalyticsProperties::AssertCount.Update(PropertyStore.Get(), [](uint32& Actual) { ++Actual; return true; });
 		LogEvent(FString::Printf(TEXT("Assert/Msg: %s"), ErrorMsg));
 	}
 	else if (CrashType == ECrashContextType::Ensure)
 	{
+		CrcAnalyticsProperties::EnsureCount.Update(PropertyStore.Get(), [](uint32& Actual) { ++Actual; return true; });
 		LogEvent(FString::Printf(TEXT("Ensure/Msg: %s"), ErrorMsg));
 	}
 }

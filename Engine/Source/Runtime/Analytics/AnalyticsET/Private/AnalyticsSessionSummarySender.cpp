@@ -9,13 +9,13 @@
 DEFINE_LOG_CATEGORY_STATIC(LogAnalyticsSessionSummarySender, Verbose, All);
 
 
-FAnalyticsSessionSummarySender::FAnalyticsSessionSummarySender(IAnalyticsProviderET& Provider, TFunction<bool(const FString&, const FString&)> ShouldEmitFilterFunc)
+FAnalyticsSessionSummarySender::FAnalyticsSessionSummarySender(IAnalyticsProviderET& Provider, TFunction<bool(const FAnalyticsEventAttribute&)> ShouldEmitFilterFunc)
 	: AnalyticsProvider(Provider)
 	, ShouldEmitPropFunc(MoveTemp(ShouldEmitFilterFunc))
 {
 }
 
-bool FAnalyticsSessionSummarySender::SendSessionSummary(const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const TMap<FString, FString>& Properties)
+bool FAnalyticsSessionSummarySender::SendSessionSummary(const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const TArray<FAnalyticsEventAttribute>& Properties)
 {
 	TArray<FAnalyticsEventAttribute> AnalyticsAttributes;
 
@@ -26,12 +26,12 @@ bool FAnalyticsSessionSummarySender::SendSessionSummary(const FString& UserId, c
 	AnalyticsAttributes.Emplace(TEXT("SummarySenderUserId"), AnalyticsProvider.GetUserID());
 	AnalyticsAttributes.Emplace(TEXT("SummarySenderSessionId"), AnalyticsProvider.GetSessionID()); // Not stripping the {} around the GUID like EditorSessionSummaryWriter does with SessionId.
 
-	for (const TPair<FString, FString>& Property : Properties)
+	for (const FAnalyticsEventAttribute& Property : Properties)
 	{
 		// Function is not bound or returns true.
-		if (!ShouldEmitPropFunc || ShouldEmitPropFunc(Property.Key, Property.Value))
+		if (!ShouldEmitPropFunc || ShouldEmitPropFunc(Property))
 		{
-			AnalyticsAttributes.Emplace(Property.Key, Property.Value);
+			AnalyticsAttributes.Emplace(Property);
 		}
 	}
 
