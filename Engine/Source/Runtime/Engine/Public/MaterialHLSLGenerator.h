@@ -33,7 +33,6 @@ class FExpressionConstant;
 class FExpressionExternalInput;
 class FExpressionSwizzle;
 class FExpressionCast;
-class FFunctionCall;
 }
 }
 
@@ -74,7 +73,6 @@ public:
 
 	UE::HLSLTree::FExpression* NewFunctionInput(UE::HLSLTree::FScope& Scope, int32 InputIndex, UMaterialExpressionFunctionInput* MaterialFunctionInput);
 
-	UE::HLSLTree::FLocalDeclaration* AcquireLocalDeclaration(UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type, const FName& Name);
 	UE::HLSLTree::FParameterDeclaration* AcquireParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::Shader::FValue& DefaultValue);
 
 	/** Returns a declaration to access the given texture, with no parameter */
@@ -84,6 +82,9 @@ public:
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::HLSLTree::FTextureDescription& DefaultValue);
 
 	UE::HLSLTree::FFunctionCall* AcquireFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<UE::HLSLTree::FExpression*> Inputs);
+
+	bool GenerateAssignLocal(UE::HLSLTree::FScope& Scope, const FName& LocalName, UE::HLSLTree::FExpression* Value);
+	UE::HLSLTree::FExpression* AcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName);
 
 	/**
 	 * Returns the appropriate HLSLNode representing the given UMaterialExpression.
@@ -95,6 +96,7 @@ public:
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
 
 private:
+	static constexpr int32 MaxNumPreviousScopes = UE::HLSLTree::MaxNumPreviousScopes;
 	struct FExpressionKey
 	{
 		explicit FExpressionKey(UMaterialExpression* InExpression, int32 InOutputIndex = INDEX_NONE) : Expression(InExpression), OutputIndex(InOutputIndex) {}
@@ -129,8 +131,27 @@ private:
 		}
 	};
 
+	struct FLocalKey
+	{
+		FLocalKey(UE::HLSLTree::FScope* InScope, const FName& InName) : Scope(InScope), Name(InName) {}
+
+		UE::HLSLTree::FScope* Scope;
+		FName Name;
+
+		friend inline uint32 GetTypeHash(const FLocalKey& Value)
+		{
+			return HashCombine(GetTypeHash(Value.Scope), GetTypeHash(Value.Name));
+		}
+
+		friend inline bool operator==(const FLocalKey& Lhs, const FLocalKey& Rhs)
+		{
+			return Lhs.Scope == Rhs.Scope && Lhs.Name == Rhs.Name;
+		}
+	};
+
 	struct FStatementEntry
 	{
+		UE::HLSLTree::FScope* PreviousScope[MaxNumPreviousScopes];
 		int32 NumInputs = 0;
 	};
 
@@ -142,11 +163,11 @@ private:
 	TArray<FExpressionKey> ExpressionStack;
 	TArray<FString> CompileErrors;
 	TArray<UMaterialExpression*> ErrorExpressions;
-	TMap<FName, UE::HLSLTree::FLocalDeclaration*> LocalDeclarationMap;
 	TMap<FName, UE::HLSLTree::FParameterDeclaration*> ParameterDeclarationMap;
 	TMap<UE::HLSLTree::FTextureDescription, UE::HLSLTree::FTextureParameterDeclaration*> TextureDeclarationMap;
 	TMap<FName, UE::HLSLTree::FTextureParameterDeclaration*> TextureParameterDeclarationMap;
 	TMap<FFunctionCallKey, UE::HLSLTree::FFunctionCall*> FunctionCallMap;
+	TMap<FLocalKey, UE::HLSLTree::FExpression*> LocalMap;
 	TMap<FExpressionKey, UE::HLSLTree::FExpression*> ExpressionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
 	bool bGeneratedResult;

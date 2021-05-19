@@ -12,7 +12,7 @@ public:
 	TStringBuilder<2048> LocalStringBuilder;
 };
 
-UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::CombineEvaluationTypes(UE::HLSLTree::EExpressionEvaluationType Lhs, UE::HLSLTree::EExpressionEvaluationType Rhs)
+UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::CombineEvaluationTypes(EExpressionEvaluationType Lhs, EExpressionEvaluationType Rhs)
 {
 	if (Lhs == EExpressionEvaluationType::Constant && Rhs == EExpressionEvaluationType::Constant)
 	{
@@ -165,30 +165,10 @@ UE::HLSLTree::FEmitContext::~FEmitContext()
 	}
 }
 
-UE::HLSLTree::FEmitContext::FScopeEntry* UE::HLSLTree::FEmitContext::FindScope(UE::HLSLTree::FScope* Scope)
+UE::HLSLTree::FEmitContext::FScopeEntry* UE::HLSLTree::FEmitContext::FindScopeEntry(const FScope* Scope)
 {
-	for (int32 Index = ScopeStack.Num() - 1; Index >= 0; --Index)
-	{
-		FScopeEntry& Entry = ScopeStack[Index];
-		if (Entry.Scope == Scope)
-		{
-			return &Entry;
-		}
-	}
-	return nullptr;
-}
-
-int32 UE::HLSLTree::FEmitContext::FindScopeIndex(FScope* Scope)
-{
-	for (int32 Index = ScopeStack.Num() - 1; Index >= 0; --Index)
-	{
-		FScopeEntry& Entry = ScopeStack[Index];
-		if (Entry.Scope == Scope)
-		{
-			return Index;
-		}
-	}
-	return INDEX_NONE;
+	FEmitContext::FScopeEntry** FoundEntry = ScopeMap.Find(Scope);
+	return FoundEntry ? *FoundEntry : nullptr;
 }
 
 void UE::HLSLTree::FExpressionEmitResult::ForwardValue(FEmitContext& Context, const FEmitValue* InValue)
@@ -207,35 +187,7 @@ void UE::HLSLTree::FExpressionEmitResult::ForwardValue(FEmitContext& Context, co
 	}
 }
 
-const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(UE::HLSLTree::FLocalDeclaration* Declaration)
-{
-	check(Declaration);
-	check(Declaration->Type != Shader::EValueType::Void);
-
-	FDeclarationEntry*& Entry = FunctionStack.Last().DeclarationMap.FindOrAdd(Declaration);
-	if (!Entry)
-	{
-		FScopeEntry* ScopeEntry = FindScope(Declaration->ParentScope);
-		check(ScopeEntry);
-		Entry = new(*Allocator) FDeclarationEntry();
-		Entry->Value.EvaluationType = EExpressionEvaluationType::Shader;
-		Entry->Value.ExpressionType = Declaration->Type;
-
-		FLocalHLSLCodeWriter LocalWriter;
-		LocalWriter.WriteConstant(Shader::FValue(Declaration->Type));
-
-		Entry->Value.Code = AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
-		const Shader::FValueTypeDescription& TypeDesc = Shader::GetValueTypeDescription(Declaration->Type);
-		ScopeEntry->ExpressionCodeWriter->WriteLinef(TEXT("%s %s = %s;"),
-			TypeDesc.Name,
-			Entry->Value.Code,
-			LocalWriter.StringBuilder->ToString());
-	}
-
-	return &Entry->Value;
-}
-
-const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(UE::HLSLTree::FExpression* Expression)
+const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpression* Expression)
 {
 	if (!Expression)
 	{
@@ -281,33 +233,39 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(UE::HLS
 				}
 				else
 				{
-					const int32 ScopeIndex = FindScopeIndex(Expression->ParentScope);
-					check(ScopeIndex != INDEX_NONE);
+					FScopeEntry* ScopeEntry = FindScopeEntry(Expression->ParentScope);
+					check(ScopeEntry);
 
 					// Check to see if we've already generated code for an equivalent expression in either this scope, or any outer visible scope
 					const FSHAHash Hash = LocalWriter.GetCodeHash();
 					const TCHAR* Declaration = nullptr;
-					for (int32 CheckScopeIndex = ScopeIndex; CheckScopeIndex >= 0; --CheckScopeIndex)
+
+					FScopeEntry* CheckScopeEntry = ScopeEntry;
+					while (CheckScopeEntry)
 					{
-						const FScopeEntry& CheckScopeEntry = ScopeStack[CheckScopeIndex];
-						const TCHAR** FoundDeclaration = CheckScopeEntry.ExpressionMap->Find(Hash);
+						const TCHAR** FoundDeclaration = CheckScopeEntry->ExpressionMap.Find(Hash);
 						if (FoundDeclaration)
 						{
 							// Re-use results from previous matching expression
 							Declaration = *FoundDeclaration;
 							break;
 						}
+						CheckScopeEntry = CheckScopeEntry->ParentEntry;
 					}
 
 					if (!Declaration)
 					{
 						const Shader::FValueTypeDescription& TypeDesc = Shader::GetValueTypeDescription(EmitResult.Type);
-						Declaration = AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
-						ScopeStack[ScopeIndex].ExpressionCodeWriter->WriteLinef(TEXT("const %s %s = %s;"),
+						Declaration = AcquireLocalDeclarationCode();
+						/*ScopeStack[ScopeIndex].ExpressionCodeWriter->WriteLinef(TEXT("const %s %s = %s;"),
+							TypeDesc.Name,
+							Declaration,
+							LocalWriter.GetStringBuilder().ToString());*/
+						AppendHLSLf(*ScopeEntry->ScopeCode, TEXT("const %s %s = %s;"),
 							TypeDesc.Name,
 							Declaration,
 							LocalWriter.GetStringBuilder().ToString());
-						ScopeStack[ScopeIndex].ExpressionMap->Add(Hash, Declaration);
+						ScopeEntry->ExpressionMap.Add(Hash, Declaration);
 					}
 					Entry->Value.Code = Declaration;
 				}
@@ -325,7 +283,7 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FFuncti
 	FFunctionCallEntry*& Entry = FunctionStack.Last().FunctionCallMap.FindOrAdd(FunctionCall);
 	if (!Entry)
 	{
-		FScopeEntry* ParentScopeEntry = FindScope(FunctionCall->ParentScope);
+		FScopeEntry* ParentScopeEntry = FindScopeEntry(FunctionCall->ParentScope);
 		check(ParentScopeEntry);
 
 		{
@@ -333,17 +291,11 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FFuncti
 			StackEntry.FunctionCall = FunctionCall;
 		}
 
-		{
-			FScopeEntry& ScopeEntry = ScopeStack.AddDefaulted_GetRef();
-			ScopeEntry.Scope = FunctionCall->FunctionScope;
-			ScopeEntry.ExpressionCodeWriter = ParentScopeEntry->ExpressionCodeWriter;
-			ScopeEntry.ExpressionMap = ParentScopeEntry->ExpressionMap;
-		}
+		// Link the function scope to our parent scope
+		ScopeMap.Add(FunctionCall->FunctionScope, ParentScopeEntry);
 
 		// Emit the function's HLSL into the current scope (allows sharing expressions across functions called from the same scope)
-		FLocalHLSLCodeWriter LocalWriter;
-		FunctionCall->FunctionScope->EmitUnscopedHLSL(*this, LocalWriter);
-		ParentScopeEntry->ExpressionCodeWriter->Append(LocalWriter);
+		FunctionCall->FunctionScope->EmitUnscopedHLSL(*this, *ParentScopeEntry->ScopeCode);
 
 		// Assign function outputs
 		FEmitValue* OutputValues = new(*Allocator) FEmitValue[FunctionCall->NumOutputs];
@@ -365,10 +317,7 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FFuncti
 			}
 		}
 
-		{
-			const FScopeEntry PoppedScopeEntry = ScopeStack.Pop(false);
-			check(PoppedScopeEntry.Scope == FunctionCall->FunctionScope);
-		}
+		verify(ScopeMap.Remove(FunctionCall->FunctionScope) == 1);
 
 		{
 			const FFunctionStackEntry PoppedStackEntry = FunctionStack.Pop(false);
@@ -383,6 +332,11 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FFuncti
 	check(Entry->NumOutputs == FunctionCall->NumOutputs);
 	check(OutputIndex >= 0 && OutputIndex < Entry->NumOutputs);
 	return &Entry->OutputValues[OutputIndex];
+}
+
+const TCHAR* UE::HLSLTree::FEmitContext::AcquireLocalDeclarationCode()
+{
+	return AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
 }
 
 const TCHAR* UE::HLSLTree::FEmitContext::GetCode(const FEmitValue* Value) const
@@ -453,7 +407,104 @@ void UE::HLSLTree::FEmitContext::AppendPreshader(const FEmitValue* Value, Shader
 	}
 }
 
-void UE::HLSLTree::FNodeVisitor::VisitNode(UE::HLSLTree::FNode* Node)
+UE::HLSLTree::FEmitCode* UE::HLSLTree::FEmitContext::AppendHLSL(FEmitCode& Scope, const TCHAR* Code, int32 InLength)
+{
+	const int32 Length = InLength > 0 ? InLength : FCString::Strlen(Code);
+	TCHAR* InternedCode = new(*Allocator) TCHAR[Length + 1];
+	FMemory::Memcpy(InternedCode, Code, Length * sizeof(TCHAR));
+	InternedCode[Length] = 0;
+
+	FEmitCode* EmitCode = new(*Allocator) FEmitCode();
+	EmitCode->CodeLength = Length;
+	EmitCode->Code = InternedCode;
+	EmitCode->ParentScope = &Scope;
+
+	if (Scope.LastScopeCode)
+	{
+		Scope.LastScopeCode->NextCode = EmitCode;
+	}
+	EmitCode->PrevCode = Scope.LastScopeCode;
+	Scope.LastScopeCode = EmitCode;
+	if (!Scope.FirstScopeCode)
+	{
+		Scope.FirstScopeCode = EmitCode;
+	}
+
+	TotalCodeLength += Length + 1; // include newline
+
+	return EmitCode;
+}
+
+UE::HLSLTree::FEmitCode* UE::HLSLTree::FEmitContext::InsertHLSL(FEmitCode& Scope, FEmitCode* InsertAfter, const TCHAR* Code, int32 InLength)
+{
+	const int32 Length = InLength > 0 ? InLength : FCString::Strlen(Code);
+	TCHAR* InternedCode = new(*Allocator) TCHAR[Length + 1];
+	FMemory::Memcpy(InternedCode, Code, Length * sizeof(TCHAR));
+	InternedCode[Length] = 0;
+
+	FEmitCode* EmitCode = new(*Allocator) FEmitCode();
+	EmitCode->CodeLength = Length;
+	EmitCode->Code = InternedCode;
+	EmitCode->ParentScope = &Scope;
+	EmitCode->PrevCode = InsertAfter;
+	if (InsertAfter)
+	{
+		check(InsertAfter->ParentScope == &Scope);
+
+		EmitCode->NextCode = InsertAfter;
+		if (InsertAfter->NextCode)
+		{
+			InsertAfter->NextCode->PrevCode = EmitCode;
+		}
+		InsertAfter->NextCode = EmitCode;
+	}
+	else
+	{
+		EmitCode->NextCode = Scope.FirstScopeCode;
+		if (Scope.FirstScopeCode)
+		{
+			Scope.FirstScopeCode->PrevCode = EmitCode;
+		}
+		Scope.FirstScopeCode = EmitCode;
+	}
+
+	if (Scope.LastScopeCode == InsertAfter)
+	{
+		Scope.LastScopeCode = EmitCode;
+	}
+
+	TotalCodeLength += Length + 1; // include newline
+
+	return EmitCode;
+}
+
+UE::HLSLTree::FEmitCode* UE::HLSLTree::FEmitContext::AppendHLSLf(FEmitCode& Scope, const TCHAR* Format, ...)
+{
+	TCHAR Code[1024];
+
+	va_list va;
+	va_start(va, Format);
+	const int32 Length = FCString::GetVarArgs(Code, UE_ARRAY_COUNT(Code), Format, va);
+	check(Length >= 0 && Length < UE_ARRAY_COUNT(Code));
+	va_end(va);
+
+	return AppendHLSL(Scope, Code, Length);
+}
+
+UE::HLSLTree::FEmitCode* UE::HLSLTree::FEmitContext::InsertHLSLf(FEmitCode& Scope, FEmitCode* InsertAfter, const TCHAR* Format, ...)
+{
+	TCHAR Code[1024];
+
+	va_list va;
+	va_start(va, Format);
+	const int32 Length = FCString::GetVarArgs(Code, UE_ARRAY_COUNT(Code), Format, va);
+	check(Length >= 0 && Length < UE_ARRAY_COUNT(Code));
+	va_end(va);
+
+	return InsertHLSL(Scope, InsertAfter, Code, Length);
+}
+
+void UE::HLSLTree::FNodeVisitor::VisitNode(FNode* Node)
 {
 	if (Node)
 	{
@@ -461,27 +512,22 @@ void UE::HLSLTree::FNodeVisitor::VisitNode(UE::HLSLTree::FNode* Node)
 	}
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FStatement::Visit(UE::HLSLTree::FNodeVisitor& Visitor)
+UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FStatement::Visit(FNodeVisitor& Visitor)
 {
 	return Visitor.OnStatement(*this);
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FExpression::Visit(UE::HLSLTree::FNodeVisitor& Visitor)
+UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FExpression::Visit(FNodeVisitor& Visitor)
 {
 	return Visitor.OnExpression(*this);
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FLocalDeclaration::Visit(UE::HLSLTree::FNodeVisitor& Visitor)
-{
-	return Visitor.OnLocalDeclaration(*this);
-}
-
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FParameterDeclaration::Visit(UE::HLSLTree::FNodeVisitor& Visitor)
+UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FParameterDeclaration::Visit(FNodeVisitor& Visitor)
 {
 	return Visitor.OnParameterDeclaration(*this);
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FTextureParameterDeclaration::Visit(UE::HLSLTree::FNodeVisitor& Visitor)
+UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FTextureParameterDeclaration::Visit(FNodeVisitor& Visitor)
 {
 	return Visitor.OnTextureParameterDeclaration(*this);
 }
@@ -500,7 +546,7 @@ UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FFunctionCall::Visit(FNodeVisitor& 
 	return Result;
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(UE::HLSLTree::FNodeVisitor& Visitor)
+UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(FNodeVisitor& Visitor)
 {
 	const ENodeVisitResult Result = Visitor.OnScope(*this);
 	if (ShouldVisitDependentNodes(Result))
@@ -515,91 +561,56 @@ UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(UE::HLSLTree::FNodeVi
 	return Result;
 }
 
-bool UE::HLSLTree::FScope::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
+bool UE::HLSLTree::FScope::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
 {
-	const int32 ScopeIndentLevel = OutWriter.IndentLevel + 1;
+	FEmitContext::FScopeEntry* ScopeEntry = new(*Context.Allocator) FEmitContext::FScopeEntry();
+	ScopeEntry->ParentEntry = Context.CurrentScopeEntry;
+	ScopeEntry->Scope = this;
+	ScopeEntry->ScopeCode = &Scope;
 
-	FLocalHLSLCodeWriter DeclarationCodeWriter;
-	DeclarationCodeWriter.IndentLevel = ScopeIndentLevel;
+	Context.ScopeMap.Add(this, ScopeEntry);
+	Context.CurrentScopeEntry = ScopeEntry;
 
-	TMap<FSHAHash, const TCHAR*> LocalExpressionMap;
-
-	FEmitContext::FScopeEntry& ScopeEntry = Context.ScopeStack.AddDefaulted_GetRef();
-	ScopeEntry.Scope = this;
-	ScopeEntry.ExpressionCodeWriter = &DeclarationCodeWriter;
-	ScopeEntry.ExpressionMap = &LocalExpressionMap;
-
-	OutWriter.WriteLine(TEXT("{"));
-
-	FLocalHLSLCodeWriter StatementCodeWriter;
-	StatementCodeWriter.IndentLevel = ScopeIndentLevel;
 	const FStatement* Statement = FirstStatement;
 	bool bResult = true;
 	while (Statement)
 	{
-		if (!Statement->EmitHLSL(Context, StatementCodeWriter))
+		if (!Statement->EmitHLSL(Context, Scope))
 		{
 			bResult = false;
 			break;
 		}
-
-		// First write any expressions needed by the statement, then the statement itself
-		OutWriter.Append(DeclarationCodeWriter);
-		OutWriter.Append(StatementCodeWriter);
-
-		DeclarationCodeWriter.Reset();
-		StatementCodeWriter.Reset();
-
 		Statement = Statement->NextStatement;
 	}
 
-	OutWriter.WriteLine(TEXT("}"));
-	Context.ScopeStack.Pop(false);
+	Context.CurrentScopeEntry = ScopeEntry->ParentEntry;
 
 	return bResult;
 }
 
-bool UE::HLSLTree::FScope::EmitUnscopedHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
+bool UE::HLSLTree::FScope::EmitUnscopedHLSL(FEmitContext& Context, FEmitCode& Scope) const
 {
-	FCodeWriter& DeclarationCodeWriter = *Context.ScopeStack.Last().ExpressionCodeWriter;
-
-	FLocalHLSLCodeWriter StatementCodeWriter;
-	StatementCodeWriter.IndentLevel = OutWriter.IndentLevel;
 	const FStatement* Statement = FirstStatement;
 	bool bResult = true;
 	while (Statement)
 	{
-		if (!Statement->EmitHLSL(Context, StatementCodeWriter))
+		if (!Statement->EmitHLSL(Context, Scope))
 		{
 			bResult = false;
 			break;
 		}
-
-		// First write any expressions needed by the statement, then the statement itself
-		OutWriter.Append(DeclarationCodeWriter);
-		OutWriter.Append(StatementCodeWriter);
-
-		DeclarationCodeWriter.Reset();
-		StatementCodeWriter.Reset();
-
 		Statement = Statement->NextStatement;
 	}
 	return bResult;
 }
 
-void UE::HLSLTree::FScope::AddDeclaration(UE::HLSLTree::FLocalDeclaration* Declaration)
-{
-	check(!Declaration->ParentScope);
-	Declaration->ParentScope = this;
-}
-
-void UE::HLSLTree::FScope::AddExpression(UE::HLSLTree::FExpression* Expression)
+void UE::HLSLTree::FScope::AddExpression(FExpression* Expression)
 {
 	check(!Expression->ParentScope);
 	Expression->ParentScope = this;
 }
 
-void UE::HLSLTree::FScope::UseNode(UE::HLSLTree::FNode* Node)
+void UE::HLSLTree::FScope::UseNode(FNode* Node)
 {
 	FScope* Scope0 = this;
 	FScope* Scope1 = Node->ParentScope;
@@ -620,11 +631,6 @@ void UE::HLSLTree::FScope::UseNode(UE::HLSLTree::FNode* Node)
 		}
 	}
 	Node->ParentScope = Scope0;
-}
-
-void UE::HLSLTree::FScope::UseDeclaration(UE::HLSLTree::FLocalDeclaration* Declaration)
-{
-	UseNode(Declaration);
 }
 
 namespace UE
@@ -649,12 +655,6 @@ public:
 		return ENodeVisitResult::VisitDependentNodes;
 	}
 
-	virtual ENodeVisitResult OnLocalDeclaration(FLocalDeclaration& InDeclaration) override
-	{
-		Scope->UseNode(&InDeclaration);
-		return ENodeVisitResult::VisitDependentNodes;
-	}
-
 	virtual ENodeVisitResult OnFunctionCall(FFunctionCall& InFunctionCall) override
 	{
 		Scope->UseNode(&InFunctionCall);
@@ -666,7 +666,7 @@ public:
 } // namespace HLSLTree
 } // namespace UE
 
-void UE::HLSLTree::FScope::UseExpression(UE::HLSLTree::FExpression* Expression)
+void UE::HLSLTree::FScope::UseExpression(FExpression* Expression)
 {
 	// Need to move all dependent expressions/declarations into this scope
 	FNodeVisitor_MoveToScope Visitor(this);
@@ -679,7 +679,7 @@ void UE::HLSLTree::FScope::UseFunctionCall(FFunctionCall* FunctionCall)
 	Visitor.VisitNode(FunctionCall);
 }
 
-void UE::HLSLTree::FScope::AddStatement(UE::HLSLTree::FStatement* Statement)
+void UE::HLSLTree::FScope::AddStatement(FStatement* Statement)
 {
 	check(!Statement->ParentScope);
 	check(!Statement->NextStatement);
@@ -706,34 +706,70 @@ UE::HLSLTree::FTree* UE::HLSLTree::FTree::Create(FMemStackBase& Allocator)
 	return Tree;
 }
 
-bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, UE::HLSLTree::FCodeWriter& Writer) const
+//
+static void WriteIndent(int32 IndentLevel, FStringBuilderBase& InOutString)
 {
-	return RootScope->EmitHLSL(Context, Writer);
+	for (int32 i = 0; i < IndentLevel; ++i)
+	{
+		InOutString.Append(TCHAR('\t'));
+	}
 }
 
-UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewScope(UE::HLSLTree::FScope& Scope)
+static void WriteScope(const UE::HLSLTree::FEmitCode& Code, int32 IndentLevel, FStringBuilderBase& InOutString)
+{
+	const UE::HLSLTree::FEmitCode* EmitCode = &Code;
+	while (EmitCode)
+	{
+		WriteIndent(IndentLevel, InOutString);
+		InOutString.Append(EmitCode->Code, EmitCode->CodeLength);
+		InOutString.Append(TCHAR('\n'));
+
+		if (EmitCode->FirstScopeCode)
+		{
+			WriteIndent(IndentLevel, InOutString);
+			InOutString.Append(TEXT("{\n"));
+			WriteScope(*EmitCode->FirstScopeCode, IndentLevel + 1, InOutString);
+			WriteIndent(IndentLevel, InOutString);
+			InOutString.Append(TEXT("}\n"));
+		}
+		EmitCode = EmitCode->NextCode;
+	}
+}
+
+bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FCodeWriter& Writer) const
+{
+	FEmitCode RootCode;
+	if (RootScope->EmitHLSL(Context, RootCode))
+	{
+		WriteScope(*RootCode.FirstScopeCode, 0, *Writer.StringBuilder);
+		return true;
+	}
+
+	return false;
+}
+
+UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewScope(FScope& Scope, FScope** PreviousScopes, int32 NumPreviousScopes)
 {
 	FScope* NewScope = NewNode<FScope>();
 	NewScope->ParentScope = &Scope;
 	NewScope->NestedLevel = Scope.NestedLevel + 1;
+	NewScope->NumPreviousScopes = NumPreviousScopes;
+	if (NumPreviousScopes > 0)
+	{
+		check(PreviousScopes);
+		FMemory::Memcpy(NewScope->PreviousScope, PreviousScopes, sizeof(FScope*) * NumPreviousScopes);
+	}
 	return NewScope;
 }
 
-UE::HLSLTree::FLocalDeclaration* UE::HLSLTree::FTree::NewLocalDeclaration(UE::HLSLTree::FScope& Scope, Shader::EValueType Type, const FName& Name)
-{
-	FLocalDeclaration* Declaration = NewNode<FLocalDeclaration>(Name, Type);
-	Scope.AddDeclaration(Declaration);
-	return Declaration;
-}
-
-UE::HLSLTree::FParameterDeclaration* UE::HLSLTree::FTree::NewParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const Shader::FValue& DefaultValue)
+UE::HLSLTree::FParameterDeclaration* UE::HLSLTree::FTree::NewParameterDeclaration(FScope& Scope, const FName& Name, const Shader::FValue& DefaultValue)
 {
 	FParameterDeclaration* Declaration = NewNode<FParameterDeclaration>(Name, DefaultValue);
 	Declaration->ParentScope = &Scope;
 	return Declaration;
 }
 
-UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::HLSLTree::FTextureDescription& DefaultValue)
+UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParameterDeclaration(FScope& Scope, const FName& Name, const FTextureDescription& DefaultValue)
 {
 	FTextureParameterDeclaration* Declaration = NewNode<FTextureParameterDeclaration>(Name, DefaultValue);
 	Declaration->ParentScope = &Scope;
