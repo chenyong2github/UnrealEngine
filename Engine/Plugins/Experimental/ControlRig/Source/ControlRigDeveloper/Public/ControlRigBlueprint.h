@@ -491,6 +491,9 @@ private:
 		TMap<FName, FRigControlValue> ControlValues;
 	};
 
+	UPROPERTY()
+	float DebugBoneRadius;
+
 #if WITH_EDITOR
 
 public:
@@ -594,4 +597,5 @@ private:
 	friend class UControlRigThumbnailRenderer;
 	friend class FControlRigGraphDetails;
 	friend class FControlRigEditorModule;
+	friend class UControlRigComponent;
 };

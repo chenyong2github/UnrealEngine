@@ -552,6 +552,8 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	float GetDebugBoneRadiusMultiplier() const { return DebugBoneRadiusMultiplier; }
+
 public:
 	//~ Begin IInterface_AssetUserData Interface
 	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
@@ -650,6 +652,8 @@ private:
 	bool bIsInDebugMode;
 
 #endif
+
+	float DebugBoneRadiusMultiplier;
 	
 #if WITH_EDITOR	
 

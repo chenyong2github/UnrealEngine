@@ -73,6 +73,7 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, VMSnapshotBeforeExecution(nullptr)
 #endif
+	, DebugBoneRadiusMultiplier(1.f)
 {
 	SetVM(ObjectInitializer.CreateDefaultSubobject<URigVM>(this, TEXT("VM")));
 	DynamicHierarchy = ObjectInitializer.CreateDefaultSubobject<URigHierarchy>(this, TEXT("DynamicHierarchy"));
