@@ -1553,7 +1553,8 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 	//if (bRenderStateDirty && DynamicCollection)	//todo: always send for now
 	if(RestCollection)
 	{
-		if(CHAOS_ENSURE(DynamicCollection)) //, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
+		// In editor mode we have no DynamicCollection so this test is necessary
+		if(DynamicCollection) //, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
 		{
 			if(RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
 			{
