@@ -1006,20 +1006,25 @@ public:
 	{
 		Context.TickGroup = CurrentTickGroup;
 		int32 Num = 0;
-		FTickTaskSequencer& TTS = FTickTaskSequencer::Get();
-		for (TSet<FTickFunction*>::TIterator It(NewlySpawnedTickFunctions); It; ++It)
-		{
-			FTickFunction* TickFunction = *It;
-			TickFunction->QueueTickFunction(TTS, Context);
-			Num++;
 
-			if (TickFunction->TickInterval > 0.f)
+		// Calling Empty() on an empty set is not free, as it resets the previously reserved hash entries
+		if (NewlySpawnedTickFunctions.Num() != 0)
+		{
+			FTickTaskSequencer& TTS = FTickTaskSequencer::Get();
+			for (TSet<FTickFunction*>::TIterator It(NewlySpawnedTickFunctions); It; ++It)
 			{
-				AllEnabledTickFunctions.Remove(TickFunction);
-				RescheduleForInterval(TickFunction, TickFunction->TickInterval);
+				FTickFunction* TickFunction = *It;
+				TickFunction->QueueTickFunction(TTS, Context);
+				Num++;
+
+				if (TickFunction->TickInterval > 0.f)
+				{
+					AllEnabledTickFunctions.Remove(TickFunction);
+					RescheduleForInterval(TickFunction, TickFunction->TickInterval);
+				}
 			}
+			NewlySpawnedTickFunctions.Empty();
 		}
-		NewlySpawnedTickFunctions.Empty();
 		return Num;
 	}
 	/**
