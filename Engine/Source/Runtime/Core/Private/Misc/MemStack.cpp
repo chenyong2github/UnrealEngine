@@ -12,19 +12,32 @@ DECLARE_MEMORY_STAT(TEXT("MemStack Large Block"), STAT_MemStackLargeBLock,STATGR
 DECLARE_MEMORY_STAT(TEXT("PageAllocator Free"), STAT_PageAllocatorFree, STATGROUP_Memory);
 DECLARE_MEMORY_STAT(TEXT("PageAllocator Used"), STAT_PageAllocatorUsed, STATGROUP_Memory);
 
+FPageAllocator* FPageAllocator::Instance = nullptr;
+
+FPageAllocator::FPageAllocator()
+{
+	Instance = this;
+}
+
+FPageAllocator::~FPageAllocator()
+{
+	Instance = nullptr;
+}
+
 FPageAllocator& FPageAllocator::Get()
 {
-	static std::atomic<FPageAllocator*> ThePageAllocator;
-
-	FPageAllocator* LocalPageAllocator = ThePageAllocator.load(std::memory_order_acquire);
-	if (!LocalPageAllocator)
+	if (LIKELY(Instance != nullptr))
 	{
-		static FPageAllocator Instance;
-		LocalPageAllocator = &Instance;
-		ThePageAllocator.store(LocalPageAllocator, std::memory_order_release);
+		return *Instance;
 	}
 
-	return *LocalPageAllocator;
+	return Construct();
+}
+
+FORCENOINLINE FPageAllocator& FPageAllocator::Construct()
+{
+	static FPageAllocator PageAllocator;
+	return *Instance;
 }
 
 #define USE_MEMSTACK_PUGATORY (0)
@@ -283,6 +296,19 @@ void FPageAllocator::UpdateStats()
 /*-----------------------------------------------------------------------------
 	FMemStack implementation.
 -----------------------------------------------------------------------------*/
+
+FMemStackBase::FMemStackBase()
+: Top(nullptr)
+, End(nullptr)
+, TopChunk(nullptr)
+, TopMark(nullptr)
+, NumMarks(0)
+, bShouldEnforceAllocMarks(false)
+{
+	// By fetching the FPageAllocator singleton's address here we can guarantee
+	// that its lifetime spans that of all FMemStackBase objects.
+	FPageAllocator::Get();
+}
 
 int32 FMemStackBase::GetByteCount() const
 {
