@@ -78,14 +78,27 @@ FEntityAllocationIteratorItem FEntityAllocationIterator::operator*() const
 
 int32 FEntityAllocationIterator::FindMatchingAllocationStartingAt(int32 Index) const
 {
-	while (Index < Manager->EntityAllocationMasks.GetMaxIndex())
+	const FEntityComponentFilter& GlobalIterationFilter = Manager->GetGlobalIterationFilter();
+	const bool bHasGlobalFilter = GlobalIterationFilter.IsValid();
+	for ( ; Index < Manager->EntityAllocationMasks.GetMaxIndex(); ++Index)
 	{
-		if (Manager->EntityAllocationMasks.IsAllocated(Index) && Filter->Match(Manager->EntityAllocationMasks[Index]) && Manager->EntityAllocations[Index]->Num() > 0)
+		if (!Manager->EntityAllocationMasks.IsAllocated(Index))
+		{
+			continue;
+		}
+
+		if (bHasGlobalFilter == true)
+		{
+			if (!GlobalIterationFilter.Match(Manager->EntityAllocationMasks[Index]))
+			{
+				continue;
+			}
+		}
+
+		if (Filter->Match(Manager->EntityAllocationMasks[Index]) && Manager->EntityAllocations[Index]->Num() > 0)
 		{
 			return Index;
 		}
-
-		++Index;
 	}
 
 	return Index;
