@@ -199,6 +199,9 @@ const FName FBlueprintMetadata::MD_AllowAbstractClasses(TEXT("AllowAbstract"));
 
 const FName FBlueprintMetadata::MD_Namespace(TEXT("Namespace"));
 
+const FName FBlueprintMetadata::MD_ThreadSafe(TEXT("BlueprintThreadSafe"));
+const FName FBlueprintMetadata::MD_NotThreadSafe(TEXT("NotBlueprintThreadSafe"));
+
 //////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "KismetSchema"
@@ -971,8 +974,8 @@ bool UEdGraphSchema_K2::HasFunctionAnyOutputParameter(const UFunction* InFunctio
 
 bool UEdGraphSchema_K2::FunctionCanBePlacedAsEvent(const UFunction* InFunction)
 {
-	// First check we are override-able, non-static and non-const
-	if (!InFunction || !CanKismetOverrideFunction(InFunction) || InFunction->HasAnyFunctionFlags(FUNC_Static|FUNC_Const))
+	// First check we are override-able, non-static, non-const and not marked thread safe
+	if (!InFunction || !CanKismetOverrideFunction(InFunction) || InFunction->HasAnyFunctionFlags(FUNC_Static|FUNC_Const) || FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(InFunction))
 	{
 		return false;
 	}
@@ -1265,6 +1268,29 @@ bool UEdGraphSchema_K2::DoesGraphSupportImpureFunctions(const UEdGraph* InGraph)
 	const bool bAllowImpureFuncs = GraphType != GT_Animation; //@TODO: It's really more nuanced than this (e.g., in a function someone wants to write as pure)
 
 	return bAllowImpureFuncs;
+}
+
+bool UEdGraphSchema_K2::IsGraphMarkedThreadSafe(const UEdGraph* InGraph) const
+{
+	TArray<UK2Node_FunctionEntry*> EntryNodes;
+	InGraph->GetNodesOfClass(EntryNodes);
+
+	for(UK2Node_FunctionEntry* EntryNode : EntryNodes)
+	{
+		if(EntryNode->MetaData.bThreadSafe)
+		{
+			return true;
+		}
+		else if(UFunction* Function = FFunctionFromNodeHelper::FunctionFromNode(EntryNode))
+		{
+			if(FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 bool UEdGraphSchema_K2::IsPropertyExposedOnSpawn(const FProperty* Property)
