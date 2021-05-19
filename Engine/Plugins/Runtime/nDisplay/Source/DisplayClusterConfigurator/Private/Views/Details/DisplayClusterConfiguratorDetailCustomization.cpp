@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
+#include "Views/Details/DisplayClusterConfiguratorDetailCustomizationUtils.h"
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
 #include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorExternalImagePicker.h"
 #include "DisplayClusterConfiguratorUtils.h"
@@ -20,6 +21,7 @@
 #include "DetailWidgetRow.h"
 #include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "IDetailChildrenBuilder.h"
+#include "IDetailGroup.h"
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -30,31 +32,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 
-#define BEGIN_CATEGORY(CategoryName) { \
-	IDetailCategoryBuilder& CurrentCategory = InLayoutBuilder.EditCategory(CategoryName);
-
-#define END_CATEGORY() }
-
-#define ADD_PROPERTY(ClassName, PropertyName) { \
-	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
-	check(PropertyHandle->IsValidHandle()); \
-	CurrentCategory.AddProperty(PropertyHandle); \
-}
-
-#define ADD_EXPANDED_PROPERTY(ClassName, PropertyName) { \
-	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
-	check(PropertyHandle->IsValidHandle()); \
-	CurrentCategory.AddProperty(PropertyHandle).ShouldAutoExpand(true); \
-}
-
-#define ADD_CUSTOM_PROPERTY(FilterText) CurrentCategory.AddCustomRow(FilterText)
-
-#define REPLACE_PROPERTY_WITH_CUSTOM(ClassName, PropertyName, Widget) { \
-	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
-	check(PropertyHandle->IsValidHandle()); \
-	InLayoutBuilder.HideProperty(PropertyHandle); \
-	CurrentCategory.AddCustomRow(PropertyHandle->GetPropertyDisplayName()).NameContent()[PropertyHandle->CreatePropertyNameWidget()].ValueContent()[Widget]; \
-}
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorDetailCustomization"
 
@@ -196,14 +173,35 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 	ClusterNodesHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes));
 	check(ClusterNodesHandle->IsValidHandle());
 
+	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
+
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterCategory)
 		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Nodes);
 	END_CATEGORY()
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
-	END_CATEGORY()
+		BEGIN_GROUP(TEXT("GlobalPostProcess"), LOCTEXT("GlobalPostprocessLabel", "All Viewports"))
+			ADD_GROUP_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
+			ADD_GROUP_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
+		END_GROUP();
+
+		TArray<FString> ViewportNames;
+		NestedPropertyHelper.GetNestedPropertyKeys(TEXT("Nodes.Viewports"), ViewportNames);
+
+		TArray<TSharedPtr<IPropertyHandle>> ViewportPostProcessSettings;
+		NestedPropertyHelper.GetNestedProperties(TEXT("Nodes.Viewports.PostProcessSettings"), ViewportPostProcessSettings);
+
+		check(ViewportNames.Num() == ViewportPostProcessSettings.Num());
+
+		for (int32 Index = 0; Index < ViewportNames.Num(); ++Index)
+		{
+			BEGIN_GROUP(FName(*ViewportNames[Index]), FText::FromString(ViewportNames[Index]))
+				CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
+				CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bIsEnabled)).ToSharedRef());
+				CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, ViewportSettings)).ToSharedRef()).ShouldAutoExpand(true);
+			END_GROUP();
+		}
+	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterConfigurationCategory)
 		ADD_PROPERTY(UDisplayClusterConfigurationCluster, MasterNode);
