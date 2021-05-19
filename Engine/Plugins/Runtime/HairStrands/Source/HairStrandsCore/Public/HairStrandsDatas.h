@@ -315,9 +315,11 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
 		DataFlags_HasSingleGuideData = 1,
 	};
 
+	void Reset();
 	void Serialize(FArchive& Ar);
-	uint32 Flags;
 	uint32 GetPointCount() const { return (!!(Flags & DataFlags_HasSingleGuideData)) ? Interpolation.Num() : Interpolation0.Num(); };
+
+	uint32 Flags;
 	TArray<FHairStrandsInterpolationFormat::Type> Interpolation;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a single guide
 	TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
 	TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides

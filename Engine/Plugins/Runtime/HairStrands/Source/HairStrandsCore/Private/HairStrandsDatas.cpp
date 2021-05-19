@@ -163,6 +163,14 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 	return Ar;
 }
 
+void FHairStrandsInterpolationBulkData::Reset()
+{
+	Interpolation.Empty();
+	Interpolation0.Empty();
+	Interpolation1.Empty();
+	SimRootPointIndex.Empty();
+}
+
 void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 {
 	static_assert(sizeof(FHairInterpolationVertex::BulkType) == sizeof(FHairInterpolationVertex));
