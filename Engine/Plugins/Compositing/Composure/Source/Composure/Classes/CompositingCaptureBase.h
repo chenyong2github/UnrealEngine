@@ -63,4 +63,7 @@ public:
 
 	/** Sets which distortion handler to use when bInApplyDistortion is enabled */
 	void SetDistortionHandler(ULensDistortionModelHandlerBase* InDistortionHandler);
+
+	/** Returns the current distortion handler */
+	ULensDistortionModelHandlerBase* GetDistortionHandler();
 };

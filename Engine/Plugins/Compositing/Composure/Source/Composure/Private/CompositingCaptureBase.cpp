@@ -150,3 +150,15 @@ void ACompositingCaptureBase::SetDistortionHandler(ULensDistortionModelHandlerBa
 
 	UpdateDistortion();
 }
+
+ULensDistortionModelHandlerBase* ACompositingCaptureBase::GetDistortionHandler()
+{
+	UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+
+	if (!SubSystem)
+	{
+		return nullptr;
+	}
+
+	return SubSystem->FindDistortionModelHandler(DistortionSource);
+}
