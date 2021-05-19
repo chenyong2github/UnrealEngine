@@ -232,6 +232,10 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	UPROPERTY(transient)
 	uint32 bRequiredBonesUpToDateDuringTick : 1;
 
+	/** Multiplier for the bone radius rendering */
+	UPROPERTY(transient)
+	float BoneRadiusMultiplier;
+
 	/* Bounds computed from cloth. */
 	FBoxSphereBounds CachedClothBounds;
 

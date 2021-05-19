@@ -43,6 +43,8 @@ UDebugSkelMeshComponent::UDebugSkelMeshComponent(const FObjectInitializer& Objec
 	bPauseClothingSimulationWithAnim = false;
 	bPerformSingleClothingTick = false;
 
+	BoneRadiusMultiplier = 1.f;
+	
 	CachedClothBounds = FBoxSphereBounds(ForceInit);
 }
 
