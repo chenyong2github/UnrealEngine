@@ -89,22 +89,25 @@ TSharedRef<SWidget> FDistortionHandlerPickerDetailCustomization::PopulateDistort
 			Handlers = SubSystem->GetDistortionModelHandlers(InDistortionHandlerPicker->TargetCameraComponent);
 		}
 
-		ULensDistortionModelHandlerBase* NullHandler = nullptr;
-		FString EmptyString;
+		if (Handlers.Num() == 0)
+		{
+			ULensDistortionModelHandlerBase* NullHandler = nullptr;
+			FString EmptyString;
 
- 		//Always add a None entry
-		MenuBuilder.AddMenuEntry(
-			FText::FromName(NAME_None),
-			FText::FromName(NAME_None),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FDistortionHandlerPickerDetailCustomization::OnDistortionHandlerSelected, InDistortionHandlerPicker, NullHandler),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &FDistortionHandlerPickerDetailCustomization::IsDistortionHandlerSelected, InDistortionHandlerPicker, EmptyString)
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
+			//Always add a None entry
+			MenuBuilder.AddMenuEntry(
+				FText::FromName(NAME_None),
+				FText::FromName(NAME_None),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FDistortionHandlerPickerDetailCustomization::OnDistortionHandlerSelected, InDistortionHandlerPicker, NullHandler),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(this, &FDistortionHandlerPickerDetailCustomization::IsDistortionHandlerSelected, InDistortionHandlerPicker, EmptyString)
+				),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
+			);
+		}
 
 		for (ULensDistortionModelHandlerBase* Handler : Handlers)
 		{
