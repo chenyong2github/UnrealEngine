@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Docking/LayoutService.h"
+#include "HAL/FileManager.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
@@ -12,6 +13,26 @@ DEFINE_LOG_CATEGORY_STATIC(LogLayoutService, Log, All);
 
 const TCHAR* EditorLayoutsSectionName = TEXT("EditorLayouts");
 
+static FString PrepareLayoutStringForIni(const FString& LayoutString)
+{
+	// Have to store braces as parentheses due to braces causing ini issues
+	return LayoutString
+		.Replace(TEXT("{"), TEXT("("))
+		.Replace(TEXT("}"), TEXT(")"))
+		.Replace(TEXT("\r"), TEXT(""))
+		.Replace(TEXT("\n"), TEXT(""))
+		.Replace(TEXT("\t"), TEXT(""));
+}
+
+static FString GetLayoutStringFromIni(const FString& LayoutString)
+{
+	// Revert parenthesis to braces, from ini readable to Json readable
+	return LayoutString
+		.Replace(TEXT("("), TEXT("{"))
+		.Replace(TEXT(")"), TEXT("}"))
+		.Replace(TEXT("\\") LINE_TERMINATOR, LINE_TERMINATOR);
+}
+
 
 const FString& FLayoutSaveRestore::GetAdditionalLayoutConfigIni()
 {
@@ -19,58 +40,97 @@ const FString& FLayoutSaveRestore::GetAdditionalLayoutConfigIni()
 	return IniSectionAdditionalConfig;
 }
 
-static void SaveLayoutToJson(const FString& InConfigFileName, const TSharedRef<FTabManager::FLayout>& InLayoutToSave)
+static TSharedPtr<FJsonObject> ConvertSectionToJson(const TArray<FString>& SectionStrings)
+{
+	TSharedPtr<FJsonObject> RootObject = MakeShared<FJsonObject>();
+
+	for (const FString& SectionPair : SectionStrings)
+	{
+		FString Key, Value;
+		if (SectionPair.Split(TEXT("="), &Key, &Value))
+		{
+			Value = GetLayoutStringFromIni(Value);
+
+			TSharedPtr<FJsonObject> ChildObject = MakeShared<FJsonObject>();
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Value);
+			if (FJsonSerializer::Deserialize(Reader, ChildObject))
+			{
+				RootObject->SetObjectField(Key, ChildObject);
+			}
+			else
+			{
+				RootObject->SetStringField(Key, Value);
+			}
+		}
+	}
+
+	return RootObject;
+}
+
+static FString GetLayoutJsonFileName(const FString& InConfigFileName)
 {
 	const FString JsonFileName = FPaths::GetBaseFilename(InConfigFileName) + TEXT(".json");
 	const FString UserSettingsPath = FPaths::Combine(FPlatformProcess::UserSettingsDir(), FApp::GetEpicProductIdentifier(), TEXT("Editor"), JsonFileName);
+	return UserSettingsPath;
+}
 
-	TSharedPtr<FJsonObject> AllLayoutsObject;
+static TSharedPtr<FJsonObject> LoadJsonFile(const FString& InFileName)
+{
+	TSharedPtr<FJsonObject> JsonObject;
 
-	FString ExistingJsonContents;
-	if (FFileHelper::LoadFileToString(ExistingJsonContents, *UserSettingsPath))
+	FString JsonContents;
+	if (FFileHelper::LoadFileToString(JsonContents, *InFileName))
 	{
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ExistingJsonContents);
-		FJsonSerializer::Deserialize(Reader, AllLayoutsObject);
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonContents);
+		FJsonSerializer::Deserialize(Reader, JsonObject);
 	}
-	
+
+	return JsonObject;
+}
+
+static bool SaveJsonFile(const FString& InFileName, TSharedPtr<FJsonObject> JsonObject)
+{
+	FString NewJsonContents;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NewJsonContents);
+	if (FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer))
+	{
+		return FFileHelper::SaveStringToFile(NewJsonContents, *InFileName);
+	}
+
+	return false;
+}
+
+static void SaveLayoutToJson(const FString& InConfigFileName, const TSharedRef<FTabManager::FLayout>& InLayoutToSave)
+{
+	const FString UserSettingsPath = GetLayoutJsonFileName(InConfigFileName);
+
+	TSharedPtr<FJsonObject> AllLayoutsObject = LoadJsonFile(UserSettingsPath);
 	if (!AllLayoutsObject.IsValid())
 	{
 		// doesn't exist
 		AllLayoutsObject = MakeShared<FJsonObject>();
 	}
 
-	TSharedRef<FJsonObject> LayoutJson = InLayoutToSave->ToJson();
-	AllLayoutsObject->SetObjectField(InLayoutToSave->GetLayoutName().ToString(), LayoutJson);
+	AllLayoutsObject->SetObjectField(InLayoutToSave->GetLayoutName().ToString(), InLayoutToSave->ToJson());
 
-	FString NewJsonContents;
-	NewJsonContents.Reserve(ExistingJsonContents.Len());
-	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NewJsonContents);
-	if (FJsonSerializer::Serialize(AllLayoutsObject.ToSharedRef(), Writer))
-	{
-		FFileHelper::SaveStringToFile(NewJsonContents, *UserSettingsPath);
-	}
+	SaveJsonFile(UserSettingsPath, AllLayoutsObject);
 }
 
 static bool LoadLayoutFromJson(const FString& InConfigFileName, const FString& InLayoutName, TSharedPtr<FTabManager::FLayout>& OutLayout)
 {
-	const FString JsonFileName = FPaths::GetBaseFilename(InConfigFileName) + TEXT(".json");
-	const FString UserSettingsPath = FPaths::Combine(FPlatformProcess::UserSettingsDir(), FApp::GetEpicProductIdentifier(), TEXT("Editor"), JsonFileName);
+	const FString UserSettingsPath = GetLayoutJsonFileName(InConfigFileName);
 
-	FString ExistingJsonContents;
-	if (FFileHelper::LoadFileToString(ExistingJsonContents, *UserSettingsPath))
+	TSharedPtr<FJsonObject> JsonObject = LoadJsonFile(InConfigFileName);
+	if (!JsonObject.IsValid())
 	{
-		TSharedPtr<FJsonObject> AllLayoutsObject;
+		return false;
+	}
 
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ExistingJsonContents);
-		if (FJsonSerializer::Deserialize(Reader, AllLayoutsObject))
-		{
-			const TSharedPtr<FJsonObject>* LayoutJson = nullptr;
-			if (AllLayoutsObject->TryGetObjectField(InLayoutName, LayoutJson))
-			{
-				OutLayout = FTabManager::FLayout::NewFromJson(*LayoutJson);
-				return true;
-			}
-		}
+	const TSharedPtr<FJsonObject>* LayoutJson = nullptr;
+	if (JsonObject->TryGetObjectField(InLayoutName, LayoutJson))
+	{
+		OutLayout = FTabManager::FLayout::NewFromJson(*LayoutJson);
+		return true;
 	}
 
 	return false;
@@ -81,7 +141,7 @@ void FLayoutSaveRestore::SaveToConfig( const FString& InConfigFileName, const TS
 	// Only save to config if it's not the FTabManager::FLayout::NullLayout
 	if (InLayoutToSave->GetLayoutName() != FTabManager::FLayout::NullLayout->GetLayoutName())
 	{
-		const FString LayoutAsString = FLayoutSaveRestore::PrepareLayoutStringForIni(InLayoutToSave->ToString());
+		const FString LayoutAsString = PrepareLayoutStringForIni(InLayoutToSave->ToString());
 		GConfig->SetString(EditorLayoutsSectionName, *InLayoutToSave->GetLayoutName().ToString(), *LayoutAsString, InConfigFileName);
 
 		SaveLayoutToJson(InConfigFileName, InLayoutToSave);
@@ -116,7 +176,7 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 		FString IniLayoutString;
 		// If the Key (InDefaultLayout->GetLayoutName()) already exists in the section EditorLayoutsSectionName of the file InConfigFileName, try to load the layout from that file
 		GConfig->GetString(EditorLayoutsSectionName, *LayoutNameString, IniLayoutString, InConfigFileName);
-		UserLayout = FTabManager::FLayout::NewFromString( FLayoutSaveRestore::GetLayoutStringFromIni( IniLayoutString ) );
+		UserLayout = FTabManager::FLayout::NewFromString( GetLayoutStringFromIni( IniLayoutString ) );
 	}
 
 	if (UserLayout.IsValid())
@@ -174,19 +234,65 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 	return InDefaultLayout;
 }
 
-
 void FLayoutSaveRestore::SaveSectionToConfig(const FString& InConfigFileName, const FString& InSectionName, const FText& InSectionValue)
 {
-	GConfig->SetText(EditorLayoutsSectionName, *InSectionName, InSectionValue, InConfigFileName);
+	FString StrValue;
+	FTextStringHelper::WriteToBuffer(StrValue, InSectionValue);
+
+	GConfig->SetString(EditorLayoutsSectionName, *InSectionName, *StrValue, InConfigFileName);
+
+	const FString JsonFileName = GetLayoutJsonFileName(InConfigFileName);
+	TSharedPtr<FJsonObject> JsonObject = LoadJsonFile(JsonFileName);
+	if (JsonObject.IsValid())
+	{
+		JsonObject->SetStringField(InSectionName, *StrValue);
+		SaveJsonFile(JsonFileName, JsonObject);
+	}
 }
 
 FText FLayoutSaveRestore::LoadSectionFromConfig(const FString& InConfigFileName, const FString& InSectionName)
 {
-	FText LayoutString;
-	GConfig->GetText(EditorLayoutsSectionName, *InSectionName, LayoutString, InConfigFileName);
-	return LayoutString;
+	FString ValueString;
+	const FString JsonFileName = GetLayoutJsonFileName(InConfigFileName);
+	TSharedPtr<FJsonObject> JsonObject = LoadJsonFile(JsonFileName);
+	if (JsonObject.IsValid())
+	{
+		ValueString = JsonObject->GetStringField(InSectionName);
+	}
+
+	if (ValueString.IsEmpty())
+	{
+		GConfig->GetString(EditorLayoutsSectionName, *InSectionName, ValueString, InConfigFileName);
+	}
+
+	FText ValueText;
+	FTextStringHelper::ReadFromBuffer(*ValueString, ValueText, EditorLayoutsSectionName);
+	
+	return ValueText;
 }
 
+bool FLayoutSaveRestore::DuplicateConfig(const FString& SourceConfigFileName, const FString& TargetConfigFileName)
+{
+	const bool bShouldReplace = true;
+	const bool bCopyEvenIfReadOnly = true;
+	const bool bCopyAttributes = false; // If true, we could copy the read-only flag of DefaultLayout.ini and cause save/load to stop working
+
+	if (IFileManager::Get().Copy(*TargetConfigFileName, *SourceConfigFileName, bShouldReplace, bCopyEvenIfReadOnly, bCopyAttributes) == COPY_Fail)
+	{
+		return false;
+	}
+
+	// convert this layout to a JSON file
+	TArray<FString> SectionPairs;
+	GConfig->GetSection(EditorLayoutsSectionName, SectionPairs, TargetConfigFileName);
+
+	TSharedPtr<FJsonObject> RootObject = ConvertSectionToJson(SectionPairs);
+
+	const FString TargetJsonFilename = GetLayoutJsonFileName(TargetConfigFileName);
+	SaveJsonFile(TargetJsonFilename, RootObject);
+
+	return true;
+}
 
 void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const FString& NewConfigFileName )
 {
@@ -205,7 +311,7 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 	{
 		FString Key, Value;
 
-		for (auto SectionString : OldSectionStrings)
+		for (const FString& SectionString : OldSectionStrings)
 		{
 			if (SectionString.Split(TEXT("="), &Key, &Value))
 			{
@@ -218,24 +324,25 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 	GConfig->EmptySection(EditorLayoutsSectionName, OldConfigFileName);
 	GConfig->Flush(false, OldConfigFileName);
 	GConfig->Flush(false, NewConfigFileName);
+
+	// migrate layout to JSON as well
+	const FString NewLayoutJsonFileName = GetLayoutJsonFileName(NewConfigFileName);
+	TSharedPtr<FJsonObject> JsonObject = LoadJsonFile(NewLayoutJsonFileName);
+	if (!JsonObject.IsValid() || JsonObject->Values.Num() == 0)
+	{
+		TSharedPtr<FJsonObject> RootObject = ConvertSectionToJson(OldSectionStrings);
+		SaveJsonFile(NewLayoutJsonFileName, RootObject);
+	}
 }
 
 
 bool FLayoutSaveRestore::IsValidConfig(const FString& InConfigFileName)
 {
-	return GConfig->DoesSectionExist(EditorLayoutsSectionName, *InConfigFileName);
-}
+	if (GConfig->DoesSectionExist(EditorLayoutsSectionName, *InConfigFileName))
+	{
+		return true;
+	}
 
-
-FString FLayoutSaveRestore::PrepareLayoutStringForIni(const FString& LayoutString)
-{
-	// Have to store braces as parentheses due to braces causing ini issues
-	return LayoutString.Replace(TEXT("{"), TEXT("(")).Replace(TEXT("}"), TEXT(")")).Replace(LINE_TERMINATOR, TEXT("\\") LINE_TERMINATOR);
-}
-
-
-FString FLayoutSaveRestore::GetLayoutStringFromIni(const FString& LayoutString)
-{
-	// Revert parenthesis to braces, from ini readable to Json readable
-	return LayoutString.Replace(TEXT("("), TEXT("{")).Replace(TEXT(")"), TEXT("}")).Replace(TEXT("\\") LINE_TERMINATOR, LINE_TERMINATOR);
+	const FString JsonFileName = GetLayoutJsonFileName(InConfigFileName);
+	return IFileManager::Get().FileExists(*JsonFileName);
 }
