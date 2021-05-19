@@ -147,17 +147,23 @@ TArray<FString> FPrivateLayoutsMenu::GetIniFilesInFolderInternal(const FString& 
 bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFilePath, const FString& InTargetFilePath, const FText& InWhatIsThis,
 	const bool bCleanLayoutNameAndDescriptionFieldsIfNoSameValues, const bool bShouldAskBeforeCleaningLayoutNameAndDescriptionFields, const bool bShowSaveToast)
 {
-	// If desired, ask user whether to keep the LayoutName and LayoutDescription fields
+	// We must re-read configs to avoid the Editor using a previously cached version
+	GConfig->UnloadFile(InSourceFilePath); 
+	GConfig->UnloadFile(InTargetFilePath);
+
 	bool bCleanLayoutNameAndDescriptionFields = false;
+
 	// If we are checking whether to clean the fields, we only want to maintain them if we are saving the file into an existing file that already has the same field values
 	if (bCleanLayoutNameAndDescriptionFieldsIfNoSameValues)
 	{
-		GConfig->UnloadFile(InSourceFilePath); // We must re-read it to avoid the Editor to use a previously cached name and description
+		// read the source name and description
 		const FText LayoutNameSource = FLayoutSaveRestore::LoadSectionFromConfig(InSourceFilePath, "LayoutName");
 		const FText LayoutDescriptionSource = FLayoutSaveRestore::LoadSectionFromConfig(InSourceFilePath, "LayoutDescription");
-		GConfig->UnloadFile(InTargetFilePath); // We must re-read it to avoid the Editor to use a previously cached name and description
+
+		// read the target name and description
 		const FText LayoutNameTarget = FLayoutSaveRestore::LoadSectionFromConfig(InTargetFilePath, "LayoutName");
 		const FText LayoutDescriptionTarget = FLayoutSaveRestore::LoadSectionFromConfig(InTargetFilePath, "LayoutDescription");
+
 		// The output target exists (overriding)
 		// These fields are not empty in source
 		if (!LayoutNameSource.IsEmpty() || !LayoutDescriptionSource.IsEmpty())
@@ -174,6 +180,7 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 					const FText TextBody = FText::Format(
 						LOCTEXT("OverrideLayoutNameAndDescriptionFieldBody", "You are saving a layout that contains a custom layout name and/or description. Do you also want to copy these 2 properties?\n - Current layout name: {0}\n - Current layout description: {1}\n\nIf you select \"Preserve Values\", the displayed name and description of the original layout customization will also be copied into the new configuration file.\n\nIf you select \"Clear Values\", these fields will be emptied.\n\nIf you are not sure, select \"Preserve Values\" if you are exporting the layout configuration without making any changes, or \"Clear Values\" if you"" have made or plan to make changes to the layout.\n\n"),
 						LayoutNameSource, LayoutDescriptionSource);
+
 					// Dialog SWidget
 					TSharedRef<SVerticalBox> DialogContents = SNew(SVerticalBox);
 					DialogContents->AddSlot()
@@ -182,14 +189,15 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 							SNew(STextBlock)
 							.Text(TextBody)
 						];
+
 					const FText PreserveValuesText = LOCTEXT("PreserveValuesText", "Preserve Values");
 					const FText ClearValuesText = LOCTEXT("ClearValuesText", "Clear Values");
 					const FText CancelText = NSLOCTEXT("Dialogs", "EAppReturnTypeCancel", "Cancel");
 					TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
 						.Title(TextTitle)
 						.DialogContent(DialogContents)
-						.Buttons({ SCustomDialog::FButton(PreserveValuesText), SCustomDialog::FButton(ClearValuesText), SCustomDialog::FButton(CancelText) })
-					;
+						.Buttons({ SCustomDialog::FButton(PreserveValuesText), SCustomDialog::FButton(ClearValuesText), SCustomDialog::FButton(CancelText) });
+
 					// Returns 0 when "Preserve Values" is pressed, 1 when "Clear Values" is pressed, or 2 when Cancel/Esc is pressed
 					const int32 ButtonPressed = CustomDialog->ShowModal();
 					// Preserve Values
@@ -217,51 +225,54 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 			}
 		}
 	}
-	// Copy: Replace main layout with desired one
+
 	const FString TargetAbsoluteFilePath = FPaths::ConvertRelativePathToFull(InTargetFilePath);
-	const bool bShouldReplace = true;
-	const bool bCopyEvenIfReadOnly = true;
-	const bool bCopyAttributes = false; // If true, it could e.g., copy the read-only flag of DefaultLayout.ini and make all the save/load stuff stop working
-	if (COPY_Fail == IFileManager::Get().Copy(*InTargetFilePath, *InSourceFilePath, bShouldReplace, bCopyEvenIfReadOnly, bCopyAttributes))
+	if (!FLayoutSaveRestore::DuplicateConfig(InSourceFilePath, InTargetFilePath))
 	{
+		const FText SourceAbsoluteFilePathText = FText::FromString(FPaths::ConvertRelativePathToFull(InSourceFilePath));		
+		const FText TargetAbsoluteFilePathText = FText::FromString(TargetAbsoluteFilePath);
+
 		FMessageLog EditorErrors("EditorErrors");
 		FText TextBody;
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("WhatIs"), InWhatIsThis);
+
 		// Source does not exist
 		if (!FPaths::FileExists(InSourceFilePath))
 		{
-			Arguments.Add(TEXT("FileName"), FText::FromString(FPaths::ConvertRelativePathToFull(InSourceFilePath)));
+			Arguments.Add(TEXT("FileName"), SourceAbsoluteFilePathText);
 			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_NoExist_Notification", "The requested operation ({WhatIs}) was unsuccessful, the desired file does not exist. File path:\n{FileName}"), Arguments);
 			EditorErrors.Warning(TextBody);
 		}
 		// Target is read-only
 		else if (IFileManager::Get().IsReadOnly(*InTargetFilePath))
 		{
-			Arguments.Add(TEXT("FileName"), FText::FromString(TargetAbsoluteFilePath));
+			Arguments.Add(TEXT("FileName"), TargetAbsoluteFilePathText);
 			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_ReadOnly_Notification", "The requested operation ({WhatIs}) was unsuccessful, the target file path is read-only. File path:\n{FileName}"), Arguments);
 			EditorErrors.Warning(TextBody);
 		}
 		// Target and source are the same
-		else if (TargetAbsoluteFilePath == FPaths::ConvertRelativePathToFull(InSourceFilePath))
+		else if (TargetAbsoluteFilePathText.EqualTo(SourceAbsoluteFilePathText))
 		{
-			Arguments.Add(TEXT("SourceFileName"), FText::FromString(FPaths::ConvertRelativePathToFull(InSourceFilePath)));
-			Arguments.Add(TEXT("FinalFileName"), FText::FromString(TargetAbsoluteFilePath));
+			Arguments.Add(TEXT("SourceFileName"), SourceAbsoluteFilePathText);
+			Arguments.Add(TEXT("FinalFileName"), TargetAbsoluteFilePathText);
 			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_Identical_Notification", "The requested operation ({WhatIs}) was unsuccessful, target and source layout file paths are the same ({SourceFileName})!\nAre you trying to import or replace a file that is already in the layouts folder? If so, remove the current file first."), Arguments);
 			EditorErrors.Warning(TextBody);
 		}
 		// We don't specifically know why it failed, this is a fallback
 		else
 		{
-			Arguments.Add(TEXT("SourceFileName"), FText::FromString(FPaths::ConvertRelativePathToFull(InSourceFilePath)));
-			Arguments.Add(TEXT("FinalFileName"), FText::FromString(TargetAbsoluteFilePath));
+			Arguments.Add(TEXT("SourceFileName"), SourceAbsoluteFilePathText);
+			Arguments.Add(TEXT("FinalFileName"), TargetAbsoluteFilePathText);
 			TextBody = FText::Format(LOCTEXT("UnsuccessfulSave_Fallback_Notification", "The requested operation ({WhatIs}) was unsuccessful while copying the layout file from\n{SourceFileName}\ninto\n{FinalFileName}\n\nUsually, this occurs when the introduced file name contains unsupported characters or the total path length exceeds the OS limit."), Arguments);
 			EditorErrors.Warning(TextBody);
 		}
 		EditorErrors.Notify(LOCTEXT("LoadUnsuccessful_Title", "Load Unsuccessful!"));
+
 		// Show reason
 		const FText TextTitle = LOCTEXT("UnsuccessfulCopyHeader", "Unsuccessful copy!");
 		FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
+
 		// Return
 		return false;
 	}
@@ -277,17 +288,21 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 			// Update fields
 			FLayoutSaveRestore::SaveSectionToConfig(GEditorLayoutIni, "LayoutName", FText::FromString(""));
 			FLayoutSaveRestore::SaveSectionToConfig(GEditorLayoutIni, "LayoutDescription", FText::FromString(""));
+
 			// Flush file
 			const bool bRead = true;
 			GConfig->Flush(bRead, GEditorLayoutIni);
+
 			// Re-copy file
 			if (TargetAbsoluteFilePath != FPaths::ConvertRelativePathToFull(GEditorLayoutIni))
 			{
-				IFileManager::Get().Copy(*InTargetFilePath, *GEditorLayoutIni, bShouldReplace, bCopyEvenIfReadOnly, bCopyAttributes);
+				const bool bShouldReplace = true;
+				const bool bCopyEvenIfReadOnly = true;
+				const bool bCopyAttributes = false;
+				IFileManager::Get().Copy(*TargetAbsoluteFilePath, *GEditorLayoutIni, bShouldReplace, bCopyEvenIfReadOnly, bCopyAttributes);
 			}
 		}
-		// Unload target file so it can be re-read into cache properly the next time it is used
-		GConfig->UnloadFile(InTargetFilePath); // We must re-read it to avoid the Editor to use a previously cached name and description
+
 		// Display Editor toast to inform the user of the result of the operation
 		if (bShowSaveToast)
 		{
@@ -296,22 +311,23 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 			Info.ExpireDuration = 5.0f;
 			Info.bUseSuccessFailIcons = false;
 			Info.bUseLargeFont = false;
+
 			TSharedPtr<SNotificationItem> SaveMessagePtr = FSlateNotificationManager::Get().AddNotification(Info);
 			if (SaveMessagePtr.IsValid())
 			{
-				const FString& HyperLinkString = TargetAbsoluteFilePath;
+				const FString HyperLinkString = TargetAbsoluteFilePath;
 				auto OpenScreenshotFolder = [HyperLinkString]
 				{
-					FPlatformProcess::ExploreFolder(*FPaths::GetPath(HyperLinkString));
+					FPlatformProcess::ExploreFolder(*HyperLinkString);
 				};
 				SaveMessagePtr->SetText(LOCTEXT("SuccessfulSave_Toast", "Editor layout file saved as"));
 				SaveMessagePtr->SetHyperlink(FSimpleDelegate::CreateLambda(OpenScreenshotFolder), FText::FromString(HyperLinkString));
 				SaveMessagePtr->SetCompletionState(SNotificationItem::CS_Success);
 			}
 		}
-		// Return successful copy message
-		return true;
 	}
+
+	return true;
 }
 
 FText FPrivateLayoutsMenu::GetDisplayTextInternal(const FString& InString)
