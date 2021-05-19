@@ -342,6 +342,11 @@ void FNiagaraEditorUtilities::FixUpPastedNodes(UEdGraph* Graph, TSet<UEdGraphNod
 				ExistingNames.Add(ActualPastedFunctionCallName);
 				OldFunctionToNewFunctionNameMap.Add(FunctionCallName, ActualPastedFunctionCallName);
 			}
+			UNiagaraGraph* NiagaraGraph = CastChecked<UNiagaraGraph>(Graph);
+			for (const FNiagaraPropagatedVariable& PropagatedVariable : PastedFunctionCallNode->PropagatedStaticSwitchParameters)
+			{
+				NiagaraGraph->AddParameter(PropagatedVariable.ToVariable(), true);
+			}
 		}
 	}
 
