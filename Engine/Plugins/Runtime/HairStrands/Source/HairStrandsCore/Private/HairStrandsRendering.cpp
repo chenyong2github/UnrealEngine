@@ -1609,7 +1609,7 @@ void ComputeHairStrandsInterpolation(
 				// 2.1 Compute deformation position based on simulation/skinning/RBF
 				if (Instance->Debug.GroomCacheType != EGroomCacheType::Strands)
 				{
-					const bool bUseSingleGuide = Instance->Strands.InterpolationResource->UseSingleGuide();
+					const bool bUseSingleGuide = bValidGuide && Instance->Strands.InterpolationResource->UseSingleGuide();
 					AddHairStrandsInterpolationPass(
 						GraphBuilder,
 						ShaderMap,
