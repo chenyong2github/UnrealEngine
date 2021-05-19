@@ -7,6 +7,9 @@
 #include "DatasmithDispatcherConfig.h"
 
 #include "HAL/FileManager.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/Thread.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "SocketSubsystem.h"
@@ -117,6 +120,34 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FImportParametersCommand& Imp
 	ImportParameters = ImportParametersCommand.ImportParameters;
 }
 
+uint64 DefineMaximumAllowedDuration(const CADLibrary::FFileDescription& FileDescription)
+{
+	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
+	double MaxTimePerMb = 5e-6;
+	double SafetyCoeficient = 5;
+	
+	if (FileDescription.Extension.StartsWith(TEXT("sld"))) // SW
+	{
+		MaxTimePerMb = 1e-5;
+	}
+	else if (FileDescription.Extension == TEXT("3dxml") || FileDescription.Extension == TEXT("3drep")) // Catia V5 CGR
+	{
+		MaxTimePerMb = 1e-5;
+	}
+	else if (FileDescription.Extension == TEXT("cgr")) 
+	{
+		MaxTimePerMb = 5e-7;
+	}
+	else if (FileDescription.Extension.StartsWith(TEXT("ig"))) // Iges
+	{
+		MaxTimePerMb = 1e-6;
+	}
+
+	uint64 MaximumDuration = ((double)FileStatData.FileSize) * MaxTimePerMb * SafetyCoeficient;
+	return FMath::Max(MaximumDuration, (uint64) 30);
+}
+
+
 void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskCommand)
 {
 	const CADLibrary::FFileDescription& FileToProcess = RunTaskCommand.JobFileDescription;
@@ -124,8 +155,15 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 
 	FCompletedTaskCommand CompletedTask;
 
+	bProcessIsRunning = true;
+	int64 MaxDuration = DefineMaximumAllowedDuration(FileToProcess);
+	FThread TimeCheckerThread = FThread(TEXT("TimeCheckerThread"), [&]() { CheckDuration(FileToProcess, MaxDuration); });
+
 	CADLibrary::FCoreTechFileParser FileParser(ImportParameters, EnginePluginsPath, CachePath);
 	CADLibrary::ECoreTechParsingResult ProcessResult = FileParser.ProcessFile(FileToProcess);
+
+	bProcessIsRunning = false;
+	TimeCheckerThread.Join();
 
 	CompletedTask.ProcessResult = ProcessResult;
 
@@ -142,3 +180,25 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s %s saved in %s"), *FileToProcess.Name, *FileToProcess.Configuration, *CompletedTask.GeomFileName);
 }
 
+void FDatasmithCADWorkerImpl::CheckDuration(const CADLibrary::FFileDescription& FileToProcess, const int64 MaxDuration)
+{
+	if (!ImportParameters.bEnableTimeControl)
+	{
+		return;
+	}
+
+	const uint64 StartTime = FPlatformTime::Cycles64();
+	const uint64 MaxCycles = MaxDuration / FPlatformTime::GetSecondsPerCycle64() + StartTime;
+
+	while(bProcessIsRunning)
+	{
+		FPlatformProcess::Sleep(0.1f);
+		if (FPlatformTime::Cycles64() > MaxCycles)
+		{
+			UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("Time exceeded to process %s %s. The maximum allowed duration is %ld s"), *FileToProcess.Name, *FileToProcess.Configuration, MaxDuration);
+			FPlatformMisc::RequestExit(true);
+		}
+	}
+	double Duration = (FPlatformTime::Cycles64() - StartTime) * FPlatformTime::GetSecondsPerCycle64();
+	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    Processing Time: %f s"), Duration);
+}
