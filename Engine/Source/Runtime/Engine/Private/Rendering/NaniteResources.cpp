@@ -570,7 +570,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		{
 			FVector4 InstanceTransformVec[3];
 			FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-			FVector4 InstanceOrigin = FVector::ZeroVector;
+			FVector4 InstanceOrigin = FVector3f::ZeroVector;
 
 			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 			{

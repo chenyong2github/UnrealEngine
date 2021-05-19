@@ -14,7 +14,7 @@ FORCEINLINE uint32 Hash3( const uint32 x, const uint32 y, const uint32 z )
 	return Murmur32( { x, y, z } );
 }
 
-FORCEINLINE uint32 HashPoint( const FVector Point )
+FORCEINLINE uint32 HashPoint( const FVector3f Point )
 {
 	int32 x = FMath::FloorToInt( Point.X / ( 2.0f * THRESH_POINTS_ARE_SAME ) );
 	int32 y = FMath::FloorToInt( Point.Y / ( 2.0f * THRESH_POINTS_ARE_SAME ) );
@@ -23,7 +23,7 @@ FORCEINLINE uint32 HashPoint( const FVector Point )
 	return Hash3( x, y, z );
 }
 
-FORCEINLINE uint32 HashPoint( const FVector Point, const uint32 Octant )
+FORCEINLINE uint32 HashPoint( const FVector3f Point, const uint32 Octant )
 {
 	int32 x = FMath::FloorToInt( Point.X / ( 2.0f * THRESH_POINTS_ARE_SAME ) - 0.5f );
 	int32 y = FMath::FloorToInt( Point.Y / ( 2.0f * THRESH_POINTS_ARE_SAME ) - 0.5f );
@@ -37,10 +37,10 @@ FORCEINLINE uint32 HashPoint( const FVector Point, const uint32 Octant )
 }
 
 template< typename T >
-FORCEINLINE FVector GetPosition( const T& Vert )
+FORCEINLINE FVector3f GetPosition( const T& Vert )
 {
 	// Assumes XYZ floats at start of type T
-	return *reinterpret_cast< const FVector* >( &Vert );
+	return *reinterpret_cast< const FVector3f* >( &Vert );
 }
 
 /** Split edges until less than MaxEdgeSize */
@@ -76,8 +76,8 @@ void MeshTessellate( TArray<T>& Verts, TArray< uint32 >& Indexes, float MaxEdgeS
 			const uint32 i0 = i;
 			const uint32 i1 = (1 << i0) & 3;
 
-			FVector p0 = GetPosition( Verts[ Indexes[ Tri + i0 ] ] );
-			FVector p1 = GetPosition( Verts[ Indexes[ Tri + i1 ] ] );
+			FVector3f p0 = GetPosition( Verts[ Indexes[ Tri + i0 ] ] );
+			FVector3f p1 = GetPosition( Verts[ Indexes[ Tri + i1 ] ] );
 
 			EdgeLength2[i] = ( p0 - p1 ).SizeSquared();
 		}
@@ -99,7 +99,7 @@ void MeshTessellate( TArray<T>& Verts, TArray< uint32 >& Indexes, float MaxEdgeS
 		const T MidV = Lerp( Verts[i0], Verts[i1], 0.5f );
 		uint32  MidI = ~0u;
 
-		FVector MidPosition = GetPosition( MidV );
+		FVector3f MidPosition = GetPosition( MidV );
 
 		// Find if there already exists one
 		for( uint32 Octant = 0; Octant < 8; Octant++ )
@@ -160,7 +160,7 @@ void WeldVerts( TArray<T>& Verts, TArray< uint32 >& Indexes, ShouldWeldClass Sho
 		const T& Vert = Verts[ Indexes[i] ];
 		
 		// Assumes XYZ floats at start of type T
-		FVector Position = *reinterpret_cast< const FVector* >( &Vert );
+		FVector3f Position = *reinterpret_cast< const FVector3f* >( &Vert );
 
 		// Find if there already exists one within Equals threshold
 		uint32 Index = ~0u;

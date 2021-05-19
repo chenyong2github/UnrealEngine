@@ -4,9 +4,9 @@
 #include "Rasterizer.h"
 #include "Cluster.h"
 
-inline FVector OctahedronToUnitVector( const FVector2D& Oct )
+inline FVector3f OctahedronToUnitVector( const FVector2D& Oct )
 {
-	FVector N( Oct.X, Oct.Y, 1.0f - FMath::Abs( Oct.X ) - FMath::Abs( Oct.Y ) );
+	FVector3f N( Oct.X, Oct.Y, 1.0f - FMath::Abs( Oct.X ) - FMath::Abs( Oct.Y ) );
 	float t = FMath::Max( -N.Z, 0.0f );
 	N.X += N.X >= 0.0f ? -t : t;
 	N.Y += N.Y >= 0.0f ? -t : t;
@@ -25,31 +25,31 @@ FImposterAtlas::FImposterAtlas( TArray< uint16 >& InPixels, const FBounds& Bound
 	Pixels.AddZeroed( FMath::Square( AtlasSize * TileSize ) );
 }
 
-FMatrix FImposterAtlas::GetLocalToImposter( const FIntPoint& TilePos ) const
+FMatrix44f FImposterAtlas::GetLocalToImposter( const FIntPoint& TilePos ) const
 {
 	FVector2D Oct = ( FVector2D( TilePos ) + 0.5f ) / AtlasSize * 2.0f - 1.0f;
 
-	FVector ImposterZ = OctahedronToUnitVector( Oct );
+	FVector3f ImposterZ = OctahedronToUnitVector( Oct );
 
 	// [Frisvad 2012, "Building an Orthonormal Basis from a 3D Unit Vector Without Normalization"]
 	// Invalid for ImposterZ.z == -1
 	float A = 1.0f / ( 1.0f + ImposterZ.Z );
 	float B = -ImposterZ.X * ImposterZ.Y * A;
-	FVector ImposterX( 1.0f - FMath::Square( ImposterZ.X ) * A, B, -ImposterZ.X );
-	FVector ImposterY( B, 1.0f - FMath::Square( ImposterZ.Y ) * A, -ImposterZ.Y );
+	FVector3f ImposterX( 1.0f - FMath::Square( ImposterZ.X ) * A, B, -ImposterZ.X );
+	FVector3f ImposterY( B, 1.0f - FMath::Square( ImposterZ.Y ) * A, -ImposterZ.Y );
 
-	FVector ImposterExtent(
+	FVector3f ImposterExtent(
 		BoundsExtent | ImposterX.GetAbs(),
 		BoundsExtent | ImposterY.GetAbs(),
 		BoundsExtent | ImposterZ.GetAbs() );
 	
-	FMatrix LocalToImposter = FMatrix(
+	FMatrix44f LocalToImposter = FMatrix44f(
 		ImposterX,
 		ImposterY,
 		ImposterZ,
-		FVector::ZeroVector ).GetTransposed();
+		FVector3f::ZeroVector ).GetTransposed();
 
-	return FTranslationMatrix( -BoundsCenter ) * LocalToImposter * FScaleMatrix( FVector::OneVector / ImposterExtent );
+	return FTranslationMatrix( -BoundsCenter ) * LocalToImposter * FScaleMatrix( FVector3f::OneVector / ImposterExtent );
 }
 
 void FImposterAtlas::Rasterize( const FIntPoint& TilePos, const FCluster& Cluster, uint32 ClusterIndex )
@@ -58,14 +58,14 @@ void FImposterAtlas::Rasterize( const FIntPoint& TilePos, const FCluster& Cluste
 
 	FIntRect Scissor( 0, 0, ViewSize, ViewSize );
 
-	FMatrix LocalToImposter = GetLocalToImposter( TilePos );
+	FMatrix44f LocalToImposter = GetLocalToImposter( TilePos );
 
-	TArray< FVector, TInlineAllocator<128> > Positions;
+	TArray< FVector3f, TInlineAllocator<128> > Positions;
 	Positions.SetNum( Cluster.NumVerts, false );
 
 	for( uint32 VertIndex = 0; VertIndex < Cluster.NumVerts; VertIndex++ )
 	{
-		FVector Position = Cluster.GetPosition( VertIndex );
+		FVector3f Position = Cluster.GetPosition( VertIndex );
 		//checkSlow( FBox( BoundsCenter - BoundsExtent, BoundsCenter + BoundsExtent ).ExpandBy( KINDA_SMALL_NUMBER ).IsInside( Position ) );
 
 		Position = LocalToImposter.TransformPosition( Position );
@@ -79,7 +79,7 @@ void FImposterAtlas::Rasterize( const FIntPoint& TilePos, const FCluster& Cluste
 
 	for( uint32 TriIndex = 0; TriIndex < Cluster.NumTris; TriIndex++ )
 	{
-		FVector Verts[3];
+		FVector3f Verts[3];
 		Verts[0] = Positions[ Cluster.Indexes[ TriIndex * 3 + 0 ] ];
 		Verts[1] = Positions[ Cluster.Indexes[ TriIndex * 3 + 1 ] ];
 		Verts[2] = Positions[ Cluster.Indexes[ TriIndex * 3 + 2 ] ];

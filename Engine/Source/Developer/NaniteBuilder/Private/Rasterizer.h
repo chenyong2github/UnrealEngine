@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-inline FIntPoint ToIntPoint( const FVector& V )
+inline FIntPoint ToIntPoint( const FVector3f& V )
 {
 	return FIntPoint(
 		FMath::RoundToInt( V.X ),
@@ -12,13 +12,13 @@ inline FIntPoint ToIntPoint( const FVector& V )
 }
 
 template< typename FWritePixel >
-void RasterizeTri( const FVector Verts[3], const FIntRect& ScissorRect, uint32 SubpixelDilate, FWritePixel WritePixel )
+void RasterizeTri( const FVector3f Verts[3], const FIntRect& ScissorRect, uint32 SubpixelDilate, FWritePixel WritePixel )
 {
 	constexpr uint32 SubpixelBits		= 8;
 	constexpr uint32 SubpixelSamples	= 1 << SubpixelBits;
 
-	FVector v01 = Verts[1] - Verts[0];
-	FVector v02 = Verts[2] - Verts[0];
+	FVector3f v01 = Verts[1] - Verts[0];
+	FVector3f v02 = Verts[2] - Verts[0];
 
 	float DetXY = v01.X * v02.Y - v01.Y * v02.X;
 	if( DetXY >= 0.0f )
