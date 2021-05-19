@@ -18,7 +18,7 @@ void FAnimSequencerInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 
 
 	SnapshotNode.SnapshotName = UAnimSequencerInstance::SequencerPoseName;
-	ClearSequencePlayerMap();
+	ClearSequencePlayerAndMirrorMaps();
 	UpdateCounter.Reset();
 	RootMotionOverride.Reset();
 }
@@ -78,7 +78,7 @@ void FAnimSequencerInstanceProxy::ConstructNodes()
 
 }
 
-void FAnimSequencerInstanceProxy::ClearSequencePlayerMap()
+void FAnimSequencerInstanceProxy::ClearSequencePlayerAndMirrorMaps()
 {
 	for (TPair<uint32, FSequencerPlayerBase*>& Iter : SequencerToPlayerMap)
 	{
@@ -86,6 +86,13 @@ void FAnimSequencerInstanceProxy::ClearSequencePlayerMap()
 	}
 
 	SequencerToPlayerMap.Empty();
+
+	for (TPair<uint32, FAnimNode_Mirror*>& Iter : SequencerToMirrorMap)
+	{
+		delete Iter.Value;
+	}
+
+	SequencerToMirrorMap.Empty();
 }
 
 void FAnimSequencerInstanceProxy::ResetPose()
@@ -101,7 +108,7 @@ void FAnimSequencerInstanceProxy::ResetNodes()
 
 FAnimSequencerInstanceProxy::~FAnimSequencerInstanceProxy()
 {
-	ClearSequencePlayerMap();
+	ClearSequencePlayerAndMirrorMaps();
 }
 
 void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId)
@@ -131,9 +138,15 @@ void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequenc
 			
 			SequencerToPlayerMap.Add(SequenceId, NewPlayerState);
 
-			// link player to blendnode, this will let you trigger notifies and so on
+			// link player to mirror node,
+			FAnimNode_Mirror* NewMirrorNode = new FAnimNode_Mirror();
+			NewMirrorNode->bMirror = false;
+			NewMirrorNode->Source.SetLinkNode(&NewPlayerState->PlayerNode);
+			SequencerToMirrorMap.Add(SequenceId, NewMirrorNode); 
+
+			// link mirror to blendnode, this will let you trigger notifies and so on
 			NewPlayerState->PlayerNode.SetTeleportToExplicitTime(false);
-			BlendNode.Poses[PoseIndex].SetLinkNode(&NewPlayerState->PlayerNode);
+			BlendNode.Poses[PoseIndex].SetLinkNode(NewMirrorNode);
 
 			// set player state
 			PlayerState = NewPlayerState;
@@ -145,6 +158,13 @@ void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequenc
 
 		// initialize player
 		PlayerState->PlayerNode.Initialize_AnyThread(FAnimationInitializeContext(this));
+
+		FAnimNode_Mirror* Mirror = SequencerToMirrorMap.FindRef(SequenceId);
+		if (Mirror)
+		{
+			Mirror->Initialize_AnyThread(FAnimationInitializeContext(this));
+			Mirror->CacheBones_AnyThread(FAnimationCacheBonesContext(this));
+		}
 	}
 }
 
@@ -173,21 +193,25 @@ void FAnimSequencerInstanceProxy::TermAnimTrack(int32 SequenceId)
 
 void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, float InPosition, float Weight, bool bFireNotifies)
 {
-	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<FRootMotionOverride>(), TOptional<float>(), InPosition, Weight, bFireNotifies);
+	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<FRootMotionOverride>(), TOptional<float>(), InPosition, Weight, bFireNotifies, nullptr);
 }
 
 void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
 {
-	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<FRootMotionOverride>(), InFromPosition, InToPosition, Weight, bFireNotifies);
+	UpdateAnimTrack(InAnimSequence, SequenceId, TOptional<FRootMotionOverride>(), InFromPosition, InToPosition, Weight, bFireNotifies, nullptr);
 }
-
 
 void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
 {
-	UpdateAnimTrack(InAnimSequence, SequenceId, RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies);
-
+	UpdateAnimTrack(InAnimSequence, SequenceId, RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, nullptr);
 }
-void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, const TOptional<FRootMotionOverride>& InRootMotionOverride, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
+
+void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable)
+{
+	UpdateAnimTrack(InAnimSequence, SequenceId, RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, InMirrorDataTable);
+}
+
+void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, const TOptional<FRootMotionOverride>& InRootMotionOverride, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable)
 {
 	EnsureAnimTrack(InAnimSequence, SequenceId);
 
@@ -202,6 +226,20 @@ void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSeque
 		PlayerState->PlayerNode.SetExplicitPreviousTime(InFromPosition.GetValue());
 		PlayerState->PlayerNode.SetReinitializationBehavior(ESequenceEvalReinit::NoReset);
 	}
+
+	FAnimNode_Mirror* MirrorNode = SequencerToMirrorMap.FindRef(SequenceId);
+	if (MirrorNode)
+	{
+		MirrorNode->bMirror = InMirrorDataTable != nullptr;
+		UMirrorDataTable* OldMirrorDataTable = MirrorNode->GetMirrorDataTable();
+		MirrorNode->SetMirrorDataTable(InMirrorDataTable);
+
+		if (InMirrorDataTable && OldMirrorDataTable != InMirrorDataTable)
+		{
+			MirrorNode->CacheBones_AnyThread(FAnimationCacheBonesContext(this));
+		}
+	}
+
 	// if no fire notifies, we can teleport to explicit time
 	PlayerState->PlayerNode.SetTeleportToExplicitTime(!bFireNotifies);
 	// if moving to 0.f, we mark this to teleport. Otherwise, do not use explicit time

@@ -27,11 +27,14 @@ public:
 
 	float GetBlendTimeOnMirrorStateChange() const { return BlendTimeOnMirrorStateChange; }
 
-#if WITH_EDITOR
 	UMirrorDataTable* GetMirrorDataTable() const;
 	void SetMirrorDataTable(UMirrorDataTable* MirrorTable);
-#endif 
 
+	UPROPERTY(EditAnywhere, Category = Links)
+	FPoseLink Source;
+
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinShownByDefault))
+	bool bMirror;
 private:
 
 	UPROPERTY(EditAnywhere, Category = Settings)
@@ -39,12 +42,6 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	float BlendTimeOnMirrorStateChange;
-
-	UPROPERTY(EditAnywhere, Category = Links)
-	FPoseLink Source;
-
-	UPROPERTY(EditAnywhere,  Category = Settings, meta = (PinShownByDefault))
-	bool bMirror;
 
 	UPROPERTY(EditAnywhere, Category = MirroredChannels, meta=(DisplayName="Bone"))
 	bool bBoneMirroring;
@@ -63,6 +60,7 @@ private:
 	bool bMirrorState;
 	bool bMirrorStateIsValid;
 
+	void FillCompactPoseAndComponentRefRotations(const FBoneContainer& BoneContainer);
 	// Compact pose format of Mirror Bone Map
 	TArray<FCompactPoseBoneIndex> CompactPoseMirrorBones;
 
