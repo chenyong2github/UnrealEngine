@@ -12,6 +12,8 @@
 
 #include "VolumeDynamicMeshToolTarget.generated.h"
 
+struct FMeshDescription;
+
 /**
  * A tool target backed by AVolume
  */

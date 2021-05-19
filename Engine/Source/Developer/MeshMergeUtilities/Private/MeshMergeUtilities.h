@@ -6,6 +6,7 @@
 #include "SceneTypes.h"
 
 class FMeshMergeDataTracker;
+class FMaterialUpdateContext;
 struct FMeshLODKey;
 
 typedef TPair<uint32, uint32> MaterialRemapPair;

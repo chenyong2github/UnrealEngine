@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "HAL/IConsoleManager.h"
+
+#include "Engine/Level.h"
+#include "GameFramework/Actor.h"
+#include "HAL/ConsoleManager.h"
 
 static float GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance = 0.4f; // Value between [0, 1]
 static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributionToCellImportance(
