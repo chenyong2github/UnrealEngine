@@ -439,7 +439,11 @@ class REMOTECONTROL_API URemoteControlPreset : public UObject
 {
 public:
 	GENERATED_BODY()
-
+	
+	/** Callback for post remote control preset load, called by URemoteControlPreset::PostLoad function */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostLoadRemoteControlPreset, URemoteControlPreset* /* InPreset */);
+	static FOnPostLoadRemoteControlPreset OnPostLoadRemoteControlPreset;
+	
 	URemoteControlPreset();
 
 	//~ Begin UObject interface

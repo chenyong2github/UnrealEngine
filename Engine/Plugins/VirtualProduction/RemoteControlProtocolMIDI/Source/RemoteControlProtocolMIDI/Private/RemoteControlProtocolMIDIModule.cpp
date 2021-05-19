@@ -37,8 +37,13 @@ void FRemoteControlProtocolMIDIModule::StartupModule()
 	}
 #endif // WITH_EDITOR
 
-	GetOnMIDIDevicesUpdated().AddRaw(this, &FRemoteControlProtocolMIDIModule::HandleMIDIDevicesUpdated);
-	IRemoteControlProtocolModule::Get().AddProtocol(FRemoteControlProtocolMIDI::ProtocolName, MakeShared<FRemoteControlProtocolMIDI>());
+
+	const IRemoteControlProtocolModule& RemoteControlProtocolModule = IRemoteControlProtocolModule::Get();
+	if (!RemoteControlProtocolModule.IsRCProtocolsDisable())
+	{
+		IRemoteControlProtocolModule::Get().AddProtocol(FRemoteControlProtocolMIDI::ProtocolName, MakeShared<FRemoteControlProtocolMIDI>());
+		GetOnMIDIDevicesUpdated().AddRaw(this, &FRemoteControlProtocolMIDIModule::HandleMIDIDevicesUpdated);
+	}
 }
 
 void FRemoteControlProtocolMIDIModule::ShutdownModule()
@@ -76,7 +81,7 @@ void FRemoteControlProtocolMIDIModule::HandleMIDIDevicesUpdated(FMIDIDeviceColle
 			// Iterate over each contained property
 			for(TWeakPtr<FRemoteControlProperty> ExposedProperty : Preset->GetExposedEntities<FRemoteControlProperty>())
 			{
-				for(FRemoteControlProtocolBinding& Binding : ExposedProperty.Pin()->ProtocolBinding)
+				for(FRemoteControlProtocolBinding& Binding : ExposedProperty.Pin()->ProtocolBindings)
 				{
 					if(Binding.GetProtocolName() == ProtocolName)
 					{

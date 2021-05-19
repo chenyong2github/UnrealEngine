@@ -37,7 +37,7 @@ namespace Commands
 
 				FRemoteControlProtocolBinding ProtocolBinding(InArgs.ProtocolName, InArgs.EntityId, RemoteControlProtocolEntityPtr);
 				Protocol->Bind(ProtocolBinding.GetRemoteControlProtocolEntityPtr());
-				RCProperty->ProtocolBinding.Emplace(MoveTemp(ProtocolBinding));
+				RCProperty->ProtocolBindings.Emplace(MoveTemp(ProtocolBinding));
 
 				return MakeShared<FRemoteControlProtocolBinding>(ProtocolBinding);
 			}
@@ -50,7 +50,7 @@ namespace Commands
 	{
 		if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 		{
-			TSet<FRemoteControlProtocolBinding>& Test = RCProperty->ProtocolBinding;
+			TSet<FRemoteControlProtocolBinding>& Test = RCProperty->ProtocolBindings;
 			FRemoteControlProtocolBinding* FoundElement = Test.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
 			if (FoundElement)
 			{
@@ -92,7 +92,7 @@ void FProtocolEntityViewModel::Initialize()
 	if (TSharedPtr<FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(PropertyId).Pin())
 	{
 		Property = RCProperty->GetProperty();
-		for(FRemoteControlProtocolBinding& Binding : RCProperty->ProtocolBinding)
+		for(FRemoteControlProtocolBinding& Binding : RCProperty->ProtocolBindings)
 		{
 			const TSharedPtr<IRemoteControlProtocol> Protocol = IRemoteControlProtocolModule::Get().GetProtocolByName(Binding.GetProtocolName());
 			// Supporting plugin needs to be loaded/protocol available
