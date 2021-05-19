@@ -38,8 +38,9 @@ public:
 	 * Register the protocol
 	 * @param InProtocolName protocol name
 	 * @param InProtocol protocol shared reference
+	 * @return true if protocol added
 	 */
-	virtual void AddProtocol(FName InProtocolName, TSharedRef<IRemoteControlProtocol> InProtocol) = 0;
+	virtual bool AddProtocol(FName InProtocolName, TSharedRef<IRemoteControlProtocol> InProtocol) = 0;
 
 	/**
 	 * Unregister the protocol
@@ -50,4 +51,7 @@ public:
 
 	/** Unregister all protocols */
 	virtual void EmptyProtocols() = 0;
+
+	/** Whether protocol disabled */
+	virtual bool IsRCProtocolsDisable() const = 0;
 };

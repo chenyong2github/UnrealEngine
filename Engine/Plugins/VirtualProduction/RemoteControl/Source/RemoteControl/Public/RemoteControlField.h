@@ -77,7 +77,7 @@ public:
 	 * The map holds protocol bindings stores the protocol mapping and protocol-specific mapping
 	 */
 	UPROPERTY()
-	TSet<FRemoteControlProtocolBinding> ProtocolBinding;
+	TSet<FRemoteControlProtocolBinding> ProtocolBindings;
 	
 protected:
 	/**

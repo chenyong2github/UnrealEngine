@@ -26,6 +26,7 @@
 #include "TimerManager.h"
 #endif
 
+URemoteControlPreset::FOnPostLoadRemoteControlPreset URemoteControlPreset::OnPostLoadRemoteControlPreset;
 
 #define LOCTEXT_NAMESPACE "RemoteControlPreset" 
 
@@ -654,6 +655,8 @@ void URemoteControlPreset::PostEditChangeProperty(struct FPropertyChangedEvent& 
 void URemoteControlPreset::PostLoad()
 {
 	Super::PostLoad();
+
+	OnPostLoadRemoteControlPreset.Broadcast(this);
 
 	RegisterDelegates();
 

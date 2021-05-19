@@ -26,12 +26,12 @@ namespace Commands
 	{
 		if(TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 		{
-			FRemoteControlProtocolBinding* ProtocolBinding = RCProperty->ProtocolBinding.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
-			check(ProtocolBinding);
+			FRemoteControlProtocolBinding* ProtocolBindings = RCProperty->ProtocolBindings.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
+			check(ProtocolBindings);
 
-			const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> EntityPtr = ProtocolBinding->GetRemoteControlProtocolEntityPtr();
+			const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> EntityPtr = ProtocolBindings->GetRemoteControlProtocolEntityPtr();
 			const FRemoteControlProtocolMapping RangesData(RCProperty->GetProperty(), (*EntityPtr)->GetRangePropertySize());
-			ProtocolBinding->AddMapping(RangesData);
+			ProtocolBindings->AddMapping(RangesData);
 
 			return RangesData.GetId();
 		}
@@ -43,10 +43,10 @@ namespace Commands
 	{
 		if(TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 		{
-			FRemoteControlProtocolBinding* ProtocolBinding = RCProperty->ProtocolBinding.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
-			check(ProtocolBinding);
+			FRemoteControlProtocolBinding* ProtocolBindings = RCProperty->ProtocolBindings.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
+			check(ProtocolBindings);
 
-			const int32 NumRemoved = ProtocolBinding->RemoveMapping(InArgs.RangeId);
+			const int32 NumRemoved = ProtocolBindings->RemoveMapping(InArgs.RangeId);
 			return NumRemoved > 0;
 		}
 		
@@ -385,7 +385,7 @@ FRemoteControlProtocolBinding* FProtocolBindingViewModel::GetBinding() const
 
 	if (TSharedPtr<FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(PropertyId).Pin())
 	{
-		return RCProperty->ProtocolBinding.FindByHash(GetTypeHash(BindingId), BindingId);
+		return RCProperty->ProtocolBindings.FindByHash(GetTypeHash(BindingId), BindingId);
 	}
 
 	checkNoEntry();
