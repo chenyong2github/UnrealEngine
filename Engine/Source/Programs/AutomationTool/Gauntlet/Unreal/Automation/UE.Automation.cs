@@ -605,8 +605,19 @@ namespace UE
 				{
 					// Use the paths from the report. If we passed these in they should be the same, and if not
 					// they'll be valid defaults
-					string AutomationReportPath = string.IsNullOrEmpty(Parser.AutomationReportPath) ? GetConfiguration().ReportExportPath : Parser.AutomationReportPath;
-					string AutomationReportURL = string.IsNullOrEmpty(Parser.AutomationReportURL) ? GetConfiguration().ReportURL : Parser.AutomationReportURL;
+					string AutomationReportPath = Parser.AutomationReportPath;
+					string AutomationReportURL = Parser.AutomationReportURL;
+					if (GetConfiguration() is AutomationTestConfig Config)
+					{
+						if (string.IsNullOrEmpty(AutomationReportPath))
+						{
+							AutomationReportPath = Config.ReportExportPath;
+						}
+						if (string.IsNullOrEmpty(AutomationReportURL))
+						{
+							AutomationReportURL = Config.ReportURL;
+						}
+					}
 					if (!string.IsNullOrEmpty(AutomationReportPath) || !string.IsNullOrEmpty(AutomationReportURL))
 					{
 						MB.H3("Links");
