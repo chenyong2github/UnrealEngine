@@ -29,12 +29,15 @@ public:
 	float GetDuration() const;
 
 	/** Get the frame number at the specified time within the animation range which might not start at 0 */
-	int32  GetFrameNumberAtTime(const float Time) const;
+	int32  GetFrameNumberAtTime(const float Time, bool bLooping) const;
 
-	/** Get the frame index at the specified time with the index 0 being the start of the animation */
-	int32  GetFrameIndexAtTime(const float Time) const;
+	/** Get the (floored) frame index at the specified time with the index 0 being the start of the animation */
+	int32  GetFrameIndexAtTime(const float Time, bool bLooping) const;
 
-	bool GetGroomDataAtTime(float Time, FGroomCacheAnimationData& AnimData);
+	/** Get the frame indices and interpolation factor between them that correspond to the specified time */
+	void FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InterpolationFactor);
+
+	bool GetGroomDataAtTime(float Time, bool bLooping, FGroomCacheAnimationData& AnimData);
 	bool GetGroomDataAtFrameIndex(int32 FrameIndex, FGroomCacheAnimationData& AnimData);
 
 	void SetGroomAnimationInfo(const FGroomAnimationInfo& AnimInfo);
