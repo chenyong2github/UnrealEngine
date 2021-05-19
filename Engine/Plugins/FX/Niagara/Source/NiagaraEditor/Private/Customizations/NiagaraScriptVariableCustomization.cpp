@@ -534,7 +534,7 @@ void FNiagaraScriptVariableDetails::OnEndLibraryValueChanged()
 	if (TypeUtilityLibraryValue && ParameterEditorLibraryValue && CachedDetailBuilder.IsValid())
 	{
 		const TSharedPtr<IPropertyHandle> DefaultValueHandle = CachedDetailBuilder.Pin()->GetProperty("DefaultValueVariant", UNiagaraScriptVariable::StaticClass());
-		DefaultValueHandle->NotifyPostChange();
+		DefaultValueHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		DefaultValueHandle->NotifyFinishedChangingProperties();
 	}
 
@@ -586,7 +586,7 @@ void FNiagaraScriptVariableDetails::OnLibraryValueChanged()
 			{
 				Variable->UpdateChangeId();
 
-				DefaultValueHandle->NotifyPostChange();
+				DefaultValueHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 				DefaultValueHandle->NotifyFinishedChangingProperties();
 
 				if (UNiagaraParameterDefinitions* OuterParameterDefinitions = Cast<UNiagaraParameterDefinitions>(Variable->GetOuter()))
