@@ -951,6 +951,7 @@ void UNiagaraGraph::FindEquivalentOutputNodes(ENiagaraScriptUsage TargetUsageTyp
 
 UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
 {
+	check(!bIsForCompilationOnly);
 	UNiagaraGraph* Result = NewObject<UNiagaraGraph>();
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 
@@ -966,7 +967,7 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
 	Result->bIsForCompilationOnly = true;
 
 	// get new script variables from the pool
-	for (auto& It : VariableToScriptVariable)
+	for (auto& It : Result->VariableToScriptVariable)
 	{
 		It.Value = CastChecked<UNiagaraScriptVariable>(NiagaraEditorModule.GetPooledDuplicateObject(It.Value));
 	}
@@ -995,6 +996,10 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
 		}
 	}
 	Result->Nodes = NewNodes;
+
+	// probably not necessary for compilation, but remove references to the original graph
+	Result->ParameterToReferencesMap.Empty();
+	Result->RefreshParameterReferences();
 	
 	return Result;
 }
@@ -1010,7 +1015,10 @@ void UNiagaraGraph::ReleaseCompilationCopy()
 	{
 		NiagaraEditorModule.ReleaseObjectToPool(It.Value);
 	}
+
+	// clear script variables and kill this object to surface any invalid access after it's released
 	VariableToScriptVariable.Empty();
+	MarkPendingKill();
 }
 
 UNiagaraNodeOutput* UNiagaraGraph::FindOutputNode(ENiagaraScriptUsage TargetUsageType, FGuid TargetUsageId) const

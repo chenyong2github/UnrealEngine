@@ -2633,6 +2633,9 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 			}
 		}
 
+		// clean up copies from precompile data
+		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData = ActiveCompilation.MappedData.FindChecked(SystemSpawnScript);
+		SystemPrecompiledData->ReleaseCompilationCopies();
 	}
 
 

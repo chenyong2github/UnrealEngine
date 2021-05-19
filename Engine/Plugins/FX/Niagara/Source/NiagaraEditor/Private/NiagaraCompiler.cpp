@@ -363,21 +363,6 @@ void FNiagaraCompileRequestData::GetReferencedObjects(TArray<UObject*>& Objects)
 	}
 }
 
-FNiagaraCompileRequestData::~FNiagaraCompileRequestData()
-{
-	if (NodeGraphDeepCopy.IsValid())
-	{
-		NodeGraphDeepCopy->ReleaseCompilationCopy();
-	}
-	for (TWeakObjectPtr<UNiagaraGraph> Graph : ClonedGraphs)
-	{
-		if (Graph.IsValid())
-		{
-			Graph->ReleaseCompilationCopy();
-		}
-	}
-}
-
 bool FNiagaraCompileRequestData::GatherPreCompiledVariables(const FString& InNamespaceFilter, TArray<FNiagaraVariable>& OutVars)
 {
 	if (PrecompiledHistories.Num() == 0)
@@ -479,6 +464,19 @@ void FNiagaraCompileRequestData::AddRapidIterationParameters(const FNiagaraParam
 				}
 			}
 		}
+	}
+}
+
+void FNiagaraCompileRequestData::ReleaseCompilationCopies()
+{
+	// clean up graph copies
+	for (auto& ClonedGraph : ClonedGraphs)
+	{
+		ClonedGraph->ReleaseCompilationCopy();
+	}
+	for (auto& EmitterCompileData : EmitterData)
+	{
+		EmitterCompileData->ReleaseCompilationCopies();
 	}
 }
 
@@ -644,12 +642,6 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 					}
 				}
 			}
-		}
-
-		// clean up graph copies
-		for (auto& ClonedGraph : ClonedGraphs)
-		{
-			ClonedGraph->ReleaseCompilationCopy();
 		}
 	}
 

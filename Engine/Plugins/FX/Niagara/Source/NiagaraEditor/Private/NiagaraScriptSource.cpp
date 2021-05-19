@@ -107,7 +107,7 @@ void UNiagaraScriptSource::PostLoad()
 UNiagaraScriptSource* UNiagaraScriptSource::CreateCompilationCopy()
 {
 	UNiagaraScriptSource* Result = NewObject<UNiagaraScriptSource>();
-	Result->NodeGraph = DuplicateObject(NodeGraph, GetTransientPackage());// NodeGraph->CreateCompilationCopy();
+	Result->NodeGraph = NodeGraph->CreateCompilationCopy();
 	return Result;
 }
 
