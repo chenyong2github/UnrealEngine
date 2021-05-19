@@ -528,6 +528,8 @@ namespace DatasmithRuntime
 
 		void IncrementalModifications(TArray<TSharedPtr<IDatasmithElement>>& Modifications);
 
+		void IncrementalDeletions(TArray<DirectLink::FSceneGraphId>& Deletions);
+
 		/** Add an FAssetData object associated with the element's id to the map */
 		void AddAsset(TSharedPtr<IDatasmithElement>&& ElementPtr, const FString& Prefix, EDataType InType = EDataType::None);
 

@@ -125,7 +125,7 @@ namespace DatasmithRuntime
 		return ParametersRef;
 	}
 
-	int32 ProcessMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement > MasterMaterialElement, const TCHAR* Host, FTextureCallback TextureCallback)
+	int32 ProcessMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement > MasterMaterialElement, FTextureCallback TextureCallback)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::ProcessMasterMaterialElement);
 
@@ -137,7 +137,7 @@ namespace DatasmithRuntime
 			return MaterialRequirement;
 		}
 
-		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = FDatasmithMasterMaterialManager::Get().GetSelector(Host);
+		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = FDatasmithMasterMaterialManager::Get().GetSelector(MATERIAL_HOST);
 
 		UMaterialInterface* Material = nullptr;
 
