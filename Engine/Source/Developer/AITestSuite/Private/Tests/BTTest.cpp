@@ -65,7 +65,8 @@ struct FAITest_SimpleBT : public FAITestBase
 			}
 		}
 
-		return VerifyResults();
+		VerifyResults();
+		return true;
 	}
 
 	bool VerifyResults()
