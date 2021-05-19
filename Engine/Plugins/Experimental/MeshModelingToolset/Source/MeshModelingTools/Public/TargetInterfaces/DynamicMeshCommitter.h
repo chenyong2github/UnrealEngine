@@ -13,12 +13,12 @@ PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 
 UINTERFACE()
-class DYNAMICMESH_API UDynamicMeshCommitter : public UInterface
+class MESHMODELINGTOOLS_API UDynamicMeshCommitter : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class DYNAMICMESH_API IDynamicMeshCommitter
+class MESHMODELINGTOOLS_API IDynamicMeshCommitter
 {
 	GENERATED_BODY()
 
@@ -31,7 +31,7 @@ public:
 	 * update everything. But it may help some targets do faster updates by not
 	 * updating things that stayed the same.
 	 */
-	struct DYNAMICMESH_API FDynamicMeshCommitInfo
+	struct MESHMODELINGTOOLS_API FDynamicMeshCommitInfo
 	{
 		/** Initializes everything to bInitValue */
 		FDynamicMeshCommitInfo(bool bInitValue)

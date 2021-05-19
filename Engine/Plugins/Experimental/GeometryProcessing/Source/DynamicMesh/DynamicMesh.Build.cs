@@ -25,9 +25,12 @@ public class DynamicMesh : ModuleRules
 			}
 		);
 
+		// Note: The module purposefully doesn't have a dependency on CoreUObject.
+		// If possible, we would like avoid having UObjects in GeometryProcessing
+		// modules to keep the door open for writing standalone command-line programs
+		// (which won't have UObject garbage collection).
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"CoreUObject",
 				"Eigen"
 			}
 		);
