@@ -4,33 +4,33 @@
 
 #include "CoreTypes.h"
 #include "MovieSceneTracksPropertyTypes.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectStorage.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedPropertyStorage.h"
 
 namespace UE
 {
 namespace MovieScene
 {
 
-struct MOVIESCENETRACKS_API FComponentTransformPreAnimatedTraits
+struct FComponentTransformPreAnimatedTraits : FComponentTransformPropertyTraits
 {
 	using KeyType     = FObjectKey;
 	using StorageType = FIntermediate3DTransform;
 
-	static void CachePreAnimatedValue(UObject* InObject, FIntermediate3DTransform& OutCachedTransform);
-	static void RestorePreAnimatedValue(const FObjectKey& InKey, FIntermediate3DTransform& CachedTransform, const FRestoreStateParams& Params);
+	/** These override the functions in FComponentTransformPropertyTraits in order to wrap them with a temporary mobility assignment */
+	static void SetObjectPropertyValue(UObject* InObject, const FCustomPropertyAccessor& BaseCustomAccessor, const FIntermediate3DTransform& CachedTransform);
+	static void SetObjectPropertyValue(UObject* InObject, uint16 PropertyOffset, const FIntermediate3DTransform& CachedTransform);
+	static void SetObjectPropertyValue(UObject* InObject, FTrackInstancePropertyBindings* PropertyBindings, const FIntermediate3DTransform& CachedTransform);
 };
 
 struct MOVIESCENETRACKS_API FPreAnimatedComponentTransformStorage
-	: TPreAnimatedStateStorage_ObjectTraits<FComponentTransformPreAnimatedTraits>
+	: TPreAnimatedPropertyStorage<FComponentTransformPreAnimatedTraits>
 {
+	FPreAnimatedComponentTransformStorage();
+
 	static TAutoRegisterPreAnimatedStorageID<FPreAnimatedComponentTransformStorage> StorageID;
 
-	FPreAnimatedStorageID GetStorageType() const override { return StorageID; }
-
-	void OnObjectReplaced(FPreAnimatedStorageIndex StorageIndex, const FObjectKey& OldObject, const FObjectKey& NewObject) override
-	{
-		ReplaceKey(StorageIndex, NewObject);
-	}
+	void CachePreAnimatedTransforms(const FCachePreAnimatedValueParams& Params, TArrayView<UObject* const> BoundObjects);
 };
 
 
