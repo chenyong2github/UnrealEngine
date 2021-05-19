@@ -31,7 +31,7 @@ public:
 
 	/** Whether to center the pivot for each mesh, or use the pivot from the geometry collection */
 	UPROPERTY(EditAnywhere, Category = GeometrySettings)
-	bool bCenterPivots = true;
+	bool bCenterPivots = false;
 };
 
 
