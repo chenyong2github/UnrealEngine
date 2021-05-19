@@ -6,16 +6,13 @@
 #include "IDisplayCluster.h"
 #include "Cluster/DisplayClusterClusterEvent.h"
 
-#include "Backends/CborStructDeserializerBackend.h"
-#include "Backends/JsonStructDeserializerBackend.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
-#include "UObject/FieldPath.h"
 
 #include "Features/IModularFeatures.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/CommandLine.h"
-
 
 // Data interception source
 static TAutoConsoleVariable<int32> CVarInterceptOnMasterOnly(
@@ -30,10 +27,7 @@ static TAutoConsoleVariable<int32> CVarInterceptOnMasterOnly(
 
 // Magic numbers for now. Unfortunately there is no any ID management for binary events yet.
 // This will be refactored once we have some global events registry to prevent any ID conflicts.
-const int32 EventId_SetObjectProperties		= 0xaabb0701;
-const int32 EventId_ResetObjectProperties	= 0xaabb0702;
-const int32 EventId_InvokeCall				= 0xaabb0703;
-
+const int32 EventId_InterceptorQueue		= 0xaabb0704;
 
 FDisplayClusterRemoteControlInterceptor::FDisplayClusterRemoteControlInterceptor()
 	: bInterceptOnMasterOnly(CVarInterceptOnMasterOnly.GetValueOnGameThread() == 1)
@@ -45,6 +39,8 @@ FDisplayClusterRemoteControlInterceptor::FDisplayClusterRemoteControlInterceptor
 	EventsListener.BindRaw(this, &FDisplayClusterRemoteControlInterceptor::OnClusterEventBinaryHandler);
 	// Subscribe for cluster events
 	IDisplayCluster::Get().GetClusterMgr()->AddClusterEventBinaryListener(EventsListener);
+	// Send the queue of replication events at the end of the tick
+	FCoreDelegates::OnEndFrame.AddRaw(this, &FDisplayClusterRemoteControlInterceptor::SendReplicationQueue);
 
 	UE_LOG(LogDisplayClusterRemoteControlInterceptor, Log, TEXT("DisplayClusterRemoteControlInterceptor has been registered"));
 }
@@ -55,6 +51,8 @@ FDisplayClusterRemoteControlInterceptor::~FDisplayClusterRemoteControlIntercepto
 	IDisplayCluster::Get().GetClusterMgr()->RemoveClusterEventBinaryListener(EventsListener);
 	// Unbind cluster events handler
 	EventsListener.Unbind();
+	// Remove delegates from end of the engine frame
+	FCoreDelegates::OnEndFrame.RemoveAll(this);
 
 	UE_LOG(LogDisplayClusterRemoteControlInterceptor, Log, TEXT("DisplayClusterRemoteControlInterceptor has been unregistered"));
 }
@@ -66,9 +64,8 @@ ERCIResponse FDisplayClusterRemoteControlInterceptor::SetObjectProperties(FRCIPr
 	FMemoryWriter MemoryWriter(Buffer);
 	MemoryWriter << InProperties;
 
-	// Replicate data
-	static const FString EventName = FString(TEXT("SetObjectProperties"));
-	EmitReplicationEvent(EventId_SetObjectProperties, Buffer, EventName);
+	// Queue interception sending
+	QueueInterceptEvent(FRCIPropertiesMetadata::Name, InProperties.GetUniquePath(), MoveTemp(Buffer));
 
 	if (bForceApply)
 	{
@@ -82,13 +79,12 @@ ERCIResponse FDisplayClusterRemoteControlInterceptor::ResetObjectProperties(FRCI
 {
 	// Serialize command data to binary
 	TArray<uint8> Buffer;
-	FMemoryWriter MemoryWiter(Buffer);
-	MemoryWiter << InObject;
+	FMemoryWriter MemoryWriter(Buffer);
+	MemoryWriter << InObject;
 
-	// Replicate data
-	static const FString EventName = FString(TEXT("ResetObjectProperties"));
-	EmitReplicationEvent(EventId_ResetObjectProperties, Buffer, EventName);
-
+	// Queue interception sending
+	QueueInterceptEvent(FRCIObjectMetadata::Name, InObject.GetUniquePath(), MoveTemp(Buffer));
+	
 	if (bForceApply)
 	{
 		return ERCIResponse::Apply;
@@ -101,12 +97,11 @@ ERCIResponse FDisplayClusterRemoteControlInterceptor::InvokeCall(FRCIFunctionMet
 {
 	// Serialize command data to binary
 	TArray<uint8> Buffer;
-	FMemoryWriter MemoryWiter(Buffer);
-	MemoryWiter << InFunction;
+	FMemoryWriter MemoryWriter(Buffer);
+	MemoryWriter << InFunction;
 
-	// Replicate data
-	static const FString EventName = FString(TEXT("InvokeCall"));
-	EmitReplicationEvent(EventId_InvokeCall, Buffer, EventName);
+	// Queue interception sending
+	QueueInterceptEvent(FRCIFunctionMetadata::Name, InFunction.GetUniquePath(), MoveTemp(Buffer));
 
 	if (bForceApply)
 	{
@@ -116,52 +111,53 @@ ERCIResponse FDisplayClusterRemoteControlInterceptor::InvokeCall(FRCIFunctionMet
 	return ERCIResponse::Intercept;
 }
 
-void FDisplayClusterRemoteControlInterceptor::EmitReplicationEvent(int32 EventId, TArray<uint8>& Buffer, const FString& EventName)
-{
-	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Sending replication event %s (0x%x): %d bytes"), *EventName, EventId, Buffer.Num());
-
-	// Cluster event instance
-	FDisplayClusterClusterEventBinary Event;
-
-	// Fill the event with data
-	Event.EventId                = EventId;
-	Event.bIsSystemEvent         = true;
-	Event.bShouldDiscardOnRepeat = false;
-	Event.EventData              = MoveTemp(Buffer);
-
-	// Emit cluster event (or not, it depends on the bInterceptOnMasterOnly value and the role of this cluster node)
-	IDisplayCluster::Get().GetClusterMgr()->EmitClusterEventBinary(Event, bInterceptOnMasterOnly);
-}
-
 void FDisplayClusterRemoteControlInterceptor::OnClusterEventBinaryHandler(const FDisplayClusterClusterEventBinary& Event)
 {
 	// Dispatch data to a proper handler
 	if (Event.bIsSystemEvent)
 	{
-		switch (Event.EventId)
+		// Deserialize command data
+		TMap<FName, TMap<FString, TArray<uint8>>> ReceivedInterceptQueueMap;
+		FMemoryReader MemoryReader(Event.EventData);
+		MemoryReader << ReceivedInterceptQueueMap;
+
+		for (const TPair<FName, TMap<FString, TArray<uint8>>>& InterceptorTypeMapPair : ReceivedInterceptQueueMap)
 		{
-		case EventId_SetObjectProperties:
-			OnReplication_SetObjectProperties(Event.EventData);
-			break;
+			const FName MetadataName = InterceptorTypeMapPair.Key;
+			const TMap<FString, TArray<uint8>>& EventPayloadMap = InterceptorTypeMapPair.Value;
 
-		case EventId_ResetObjectProperties:
-			OnReplication_ResetObjectProperties(Event.EventData);
-			break;
-
-		case EventId_InvokeCall:
-			OnReplication_InvokeCall(Event.EventData);
-			break;
-
-		default:
-			// Unsupported event, skipping it
-			break;
+			for (const TPair<FString, TArray<uint8>>& EventPayloadPair : EventPayloadMap)
+			{
+				const TArray<uint8>& EventPayload = EventPayloadPair.Value;
+				
+				if (MetadataName == FRCIPropertiesMetadata::Name)
+				{
+					OnReplication_SetObjectProperties(EventPayload);
+				}
+				else if (MetadataName == FRCIObjectMetadata::Name)
+				{
+					OnReplication_ResetObjectProperties(EventPayload);
+				}
+				else if (MetadataName == FRCIFunctionMetadata::Name)
+				{
+					OnReplication_InvokeCall(EventPayload);
+				}
+			}
 		}
 	}
 }
 
+void FDisplayClusterRemoteControlInterceptor::QueueInterceptEvent(const FName& InterceptEventType, const FName& InUniquePath, TArray<uint8>&& InBuffer)
+{
+	check(IsInGameThread());
+	
+	TMap<FName, TArray<uint8>>& InterceptorTypeMap = InterceptQueueMap.FindOrAdd(InterceptEventType);
+	InterceptorTypeMap.Add(InUniquePath, MoveTemp(InBuffer));
+}
+
 void FDisplayClusterRemoteControlInterceptor::OnReplication_SetObjectProperties(const TArray<uint8>& Buffer)
 {
-	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Processing replication event SetObjectProperties (0x%d): %d bytes"), EventId_SetObjectProperties, Buffer.Num());
+	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Processing replication event SetObjectProperties: %d bytes"), Buffer.Num());
 
 	// Deserialize command data
 	FMemoryReader MemoryReader(Buffer);
@@ -186,7 +182,7 @@ void FDisplayClusterRemoteControlInterceptor::OnReplication_SetObjectProperties(
 
 void FDisplayClusterRemoteControlInterceptor::OnReplication_ResetObjectProperties(const TArray<uint8>& Buffer)
 {
-	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Processing replication event ResetObjectProperties (0x%d): %d bytes"), EventId_ResetObjectProperties, Buffer.Num());
+	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Processing replication event ResetObjectProperties: %d bytes"), Buffer.Num());
 
 	// Deserialize command data
 	FMemoryReader MemoryReader(Buffer);
@@ -211,7 +207,7 @@ void FDisplayClusterRemoteControlInterceptor::OnReplication_ResetObjectPropertie
 
 void FDisplayClusterRemoteControlInterceptor::OnReplication_InvokeCall(const TArray<uint8>& Buffer)
 {
-	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Processing replication event InvokeCall (0x%d): %d bytes"), EventId_InvokeCall, Buffer.Num());
+	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Processing replication event InvokeCall: %d bytes"), Buffer.Num());
 
 	// Deserialize command data
 	FMemoryReader MemoryReader(Buffer);
@@ -232,4 +228,31 @@ void FDisplayClusterRemoteControlInterceptor::OnReplication_InvokeCall(const TAr
 			Processor->InvokeCall(FunctionMetadata);
 		}
 	}
+}
+
+void FDisplayClusterRemoteControlInterceptor::SendReplicationQueue()
+{
+	if (!InterceptQueueMap.Num())
+	{
+		return;
+	}
+	
+	// Serialize the InterceptQueueMap into the buffer
+	TArray<uint8> Buffer;
+	FMemoryWriter MemoryWriter(Buffer);
+	MemoryWriter << InterceptQueueMap;
+
+	// Cluster event instance
+	FDisplayClusterClusterEventBinary Event;
+
+	// Fill the event with data
+	Event.EventId                = EventId_InterceptorQueue;
+	Event.bIsSystemEvent         = true;
+	Event.bShouldDiscardOnRepeat = false;
+	Event.EventData              = MoveTemp(Buffer);
+
+	// Emit cluster event (or not, it depends on the bInterceptOnMasterOnly value and the role of this cluster node)
+	IDisplayCluster::Get().GetClusterMgr()->EmitClusterEventBinary(Event, bInterceptOnMasterOnly);
+
+	InterceptQueueMap.Empty();
 }
