@@ -451,12 +451,6 @@ namespace UE
 		{
 			MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
 
-			// If there were abnormal exits then don't add any custom summary. It just confuses things.
-			if (GetArtifactsThatExitedAbnormally().Any())
-			{
-				return MB.ToString();
-			}
-
 			// Everything we need is in the editor artifacts
 			var EditorArtifacts = SessionArtifacts.Where(A => A.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
 
@@ -470,6 +464,27 @@ namespace UE
 				IEnumerable<AutomationTestResult> IncompleteTests = AllTests.Where(R => !R.Completed);
 				IEnumerable<AutomationTestResult> FailedTests = AllTests.Where(R => R.Completed && !R.Passed);
 				IEnumerable<AutomationTestResult> TestsWithWarnings = AllTests.Where(R => R.Completed && R.Passed && R.WarningEvents.Any());
+
+				// If there were abnormal exits then look only at the incomplete tests to avoid confusing things.
+				if (GetArtifactsThatExitedAbnormally().Any())
+				{
+					if (AllTests.Count() == 0)
+					{
+						MB.H3("No tests were executed.");
+					}
+					else if (IncompleteTests.Count() > 0)
+					{
+						MB.H3("The following test(s) were incomplete:");
+
+						foreach (AutomationTestResult Result in IncompleteTests)
+						{
+							MB.H4(string.Format("{0}", Result.FullName));
+							MB.UnorderedList(Result.WarningAndErrorEvents.Distinct());
+						}
+					}
+
+					return MB.ToString();
+				}
 
 				if (AllTests.Count() == 0)
 				{
