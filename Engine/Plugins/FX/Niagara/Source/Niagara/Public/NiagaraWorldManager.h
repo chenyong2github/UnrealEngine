@@ -30,64 +30,6 @@ class UNiagaraParameterCollectionInstance;
 class UNiagaraComponentPool;
 struct FNiagaraScalabilityState;
 
-BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraSceneTextureParameters, )
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, MobileSceneTextures)
-	RDG_TEXTURE_ACCESS(Depth, ERHIAccess::SRVCompute)
-	RDG_TEXTURE_ACCESS(Normal, ERHIAccess::SRVCompute)
-	RDG_TEXTURE_ACCESS(Velocity, ERHIAccess::SRVCompute)
-END_SHADER_PARAMETER_STRUCT()
-
-class FNiagaraViewDataMgr : public FRenderResource
-{
-public:
-	FNiagaraViewDataMgr();
-
-	static void Init();
-	static void Shutdown();
-
-	NIAGARA_API void PostOpaqueRender(FPostOpaqueRenderParameters& Params);
-
-	void BeginPass();
-	void EndPass();
-	void ClearSceneTextureParameters();
-
-	void GetSceneTextureParameters(FRDGBuilder& GraphBuilder, FNiagaraSceneTextureParameters& InParameters) const;
-
-	FRHITexture2D* GetSceneDepthTexture() { check(bInsidePass); return (FRHITexture2D*)TryGetRHI(Parameters.Depth); }
-	FRHITexture2D* GetSceneNormalTexture() { check(bInsidePass); return (FRHITexture2D*)TryGetRHI(Parameters.Normal); }
-	FRHITexture2D* GetSceneVelocityTexture() { check(bInsidePass); return (FRHITexture2D*)TryGetRHI(Parameters.Velocity); }
-	FRHIUniformBuffer* GetViewUniformBuffer() { return ViewUniformBuffer; }
-
-	virtual void InitDynamicRHI() override;
-
-	virtual void ReleaseDynamicRHI() override;
-
-private:
-	FNiagaraSceneTextureParameters Parameters;
-	FRHIUniformBuffer* ViewUniformBuffer = nullptr;
-
-	FPostOpaqueRenderDelegate PostOpaqueDelegate;
-	FDelegateHandle PostOpaqueDelegateHandle;
-	bool bInsidePass = false;
-};
-
-extern TGlobalResource<FNiagaraViewDataMgr> GNiagaraViewDataManager;
-
-class FNiagaraSceneTextureScope
-{
-public:
-	FNiagaraSceneTextureScope()
-	{
-		GNiagaraViewDataManager.BeginPass();
-	}
-
-	~FNiagaraSceneTextureScope()
-	{
-		GNiagaraViewDataManager.EndPass();
-	}
-};
-
 USTRUCT()
 struct FNiagaraWorldManagerTickFunction : public FTickFunction
 {
