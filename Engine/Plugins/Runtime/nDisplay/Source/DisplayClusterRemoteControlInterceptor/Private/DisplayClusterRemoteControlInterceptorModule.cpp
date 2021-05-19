@@ -29,6 +29,9 @@ void FDisplayClusterRemoteControlInterceptorModule::StartupModule()
 
 void FDisplayClusterRemoteControlInterceptorModule::ShutdownModule()
 {
+	// Clean delegates
+	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
+
 	// Add Interceptor only in Cluster mode
 	if (IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
