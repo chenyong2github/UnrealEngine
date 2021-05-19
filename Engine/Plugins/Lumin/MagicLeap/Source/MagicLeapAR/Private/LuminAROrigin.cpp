@@ -5,6 +5,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "AugmentedReality/Public/ARSessionConfig.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
+#include "Materials/MaterialInterface.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMagicLeap, Log, All);
 

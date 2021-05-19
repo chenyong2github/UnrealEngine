@@ -14,6 +14,7 @@
 
 UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionConvertCommandlet, Log, All);
 
+class ULevelStreaming;
 class UWorldPartition;
 class UWorldComposition;
 
