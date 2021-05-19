@@ -12,6 +12,17 @@ namespace UE::Virtualization
 
 class FPayloadId;
 
+/** Describes the result of a IVirtualizationBackend::Push operation */
+enum class EPushResult
+{
+	/** The push failed, the backend should print an error message to 'LogVirtualization'.*/
+	Failed = 0,
+	/** The payload already exists in the backend and does not need to be pushed. */
+	PayloadAlreadyExisted,
+	/** The payload was successfully pushed to the backend. */
+	Success
+};
+
 /**
  * The interface to derive from to create a new backend implementation.
  * 
@@ -68,7 +79,7 @@ public:
 	 * @param Payload	A potentially compressed buffer representing the payload
 	 * @return			The result of the push operation
 	 */
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) = 0;
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) = 0;
 
 	/** 
 	 * The backend will attempt to retrieve the given payload by what ever method the backend uses.
