@@ -102,7 +102,7 @@ public:
 		return true;
 	}
 
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override
 	{
 		// This backend will not actually push data to source control, that will be done by
 		// a separate submission tool. Since files submitted to source control are there forever 
@@ -113,7 +113,7 @@ public:
 		// Especially considering that it is most likely that no backend will push.
 
 		checkNoEntry(); 
-		return false;
+		return EPushResult::Failed;
 	}
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override
