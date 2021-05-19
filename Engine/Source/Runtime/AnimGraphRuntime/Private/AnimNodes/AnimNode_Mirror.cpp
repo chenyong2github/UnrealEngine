@@ -10,9 +10,9 @@
 #define LOCTEXT_NAMESPACE "AnimNode_Mirror"
 
 FAnimNode_Mirror::FAnimNode_Mirror()
-	: MirrorDataTable(nullptr)
+	: bMirror(true)
+	, MirrorDataTable(nullptr)
 	, BlendTimeOnMirrorStateChange(0.0f)
-	, bMirror(true)
 	, bBoneMirroring(true)
 	, bCurveMirroring(true)
 	, bAttributeMirroring(true)
@@ -22,7 +22,6 @@ FAnimNode_Mirror::FAnimNode_Mirror()
 {
 }
 
-#if WITH_EDITOR
 UMirrorDataTable* FAnimNode_Mirror::GetMirrorDataTable() const 
 { 
 	return MirrorDataTable.Get();
@@ -32,8 +31,6 @@ void FAnimNode_Mirror::SetMirrorDataTable(UMirrorDataTable* MirrorTable)
 {
 	MirrorDataTable = MirrorTable; 
 }
-
-#endif 
 
 void FAnimNode_Mirror::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
@@ -46,12 +43,16 @@ void FAnimNode_Mirror::CacheBones_AnyThread(const FAnimationCacheBonesContext& C
 	Source.CacheBones(Context);
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	Super::CacheBones_AnyThread(Context);
+	const FBoneContainer& BoneContainer = Context.AnimInstanceProxy->GetRequiredBones();
+	FillCompactPoseAndComponentRefRotations(BoneContainer);
+}
 
-	if (MirrorDataTable && Context.AnimInstanceProxy)
+void FAnimNode_Mirror::FillCompactPoseAndComponentRefRotations(const FBoneContainer& BoneContainer)
+{
+	if (MirrorDataTable)
 	{
-		const FBoneContainer& BoneContainer = Context.AnimInstanceProxy->GetRequiredBones();
 		bool bSharesSkeleton = BoneContainer.GetSkeletonAsset() == MirrorDataTable->Skeleton;
-		bool bIdenticalJointCount = BoneContainer.GetReferenceSkeleton().GetNum() == MirrorDataTable->BoneToMirrorBoneIndex.Num(); 
+		bool bIdenticalJointCount = BoneContainer.GetReferenceSkeleton().GetNum() == MirrorDataTable->BoneToMirrorBoneIndex.Num();
 
 		if (bSharesSkeleton && bIdenticalJointCount)
 		{
@@ -76,7 +77,7 @@ void FAnimNode_Mirror::CacheBones_AnyThread(const FAnimationCacheBonesContext& C
 	else
 	{
 		CompactPoseMirrorBones.Reset();
-		ComponentSpaceRefRotations.Reset(); 
+		ComponentSpaceRefRotations.Reset();
 	}
 }
 
@@ -125,6 +126,13 @@ void FAnimNode_Mirror::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		if (bBoneMirroring)
 		{
+			const FBoneContainer& BoneContainer = Output.Pose.GetBoneContainer();
+			const TArray<FBoneIndexType>& RequiredBoneIndices = BoneContainer.GetBoneIndicesArray();
+			int32 NumReqBones = RequiredBoneIndices.Num();
+			if (CompactPoseMirrorBones.Num() != NumReqBones)
+			{
+				FillCompactPoseAndComponentRefRotations(BoneContainer);
+			}
 			FAnimationRuntime::MirrorPose(Output.Pose, MirrorDataTable->MirrorAxis, CompactPoseMirrorBones, ComponentSpaceRefRotations);
 		}
 

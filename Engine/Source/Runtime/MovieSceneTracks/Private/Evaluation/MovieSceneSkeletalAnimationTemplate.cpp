@@ -459,8 +459,7 @@ namespace MovieScene
 					RootMotion.GetValue().bBlendFirstChildOfRoot = bBlendFirstChildOfRoot;
 				}
 
-				SequencerInst->UpdateAnimTrackWithRootMotion(InAnimSequence, GetTypeHash(AnimTypeID),RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies);
-
+				SequencerInst->UpdateAnimTrackWithRootMotion(InAnimSequence, GetTypeHash(AnimTypeID),RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, AnimSection->Params.MirrorDataTable.Get());
 			}
 			else if (UAnimInstance* AnimInst = GetSourceAnimInstance(SkeletalMeshComponent))
 			{
@@ -519,8 +518,8 @@ namespace MovieScene
 					RootMotion.GetValue().RootMotion = RootMotionTransform.GetValue();
 					RootMotion.GetValue().bBlendFirstChildOfRoot = bBlendFirstChildOfRoot;
 				}
-				SequencerInst->UpdateAnimTrackWithRootMotion(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies);
 
+				SequencerInst->UpdateAnimTrackWithRootMotion(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, AnimSection->Params.MirrorDataTable.Get());
 			}
 			else if (UAnimInstance* AnimInst = GetSourceAnimInstance(SkeletalMeshComponent))
 			{
