@@ -3210,7 +3210,7 @@ void FBodyInstance::UpdateMassProperties()
 						// The component scale is already built into the geometry, but if the user has set up a CoM
 						// modifier, it will need to be transformed by the component scale.
 						FTransform MassModifierTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), Scale3D);
-						TotalMassProperties = BodyUtils::ComputeMassProperties(this, Shapes, MassModifierTransform);
+						TotalMassProperties = BodyUtils::ComputeMassProperties(this, Shapes, MassModifierTransform, false/*bInertiaScaleIncludeMass*/);
 
 #if WITH_CHAOS
 						// @todo(chaos): this is starting to get messy - we should probably just split off the PhysX implementation now
