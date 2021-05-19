@@ -258,7 +258,7 @@ public:
 
 private:
 	bool IsValidInternal() const;
-	void EnsureFullyLoaded() const;
+	
 public:
 	/** Returns true if this system is valid and can be instanced. False otherwise. */
 	bool IsValid() const { return FPlatformProperties::RequiresCookedData() ? bIsValidCached : IsValidInternal(); }
@@ -411,6 +411,7 @@ public:
 #endif
 
 	void UpdateSystemAfterLoad();
+	void EnsureFullyLoaded() const;
 
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
 	bool IsLooping() const;
