@@ -157,23 +157,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			// Activation superseeds Loading
 			LoadStreamingCells = LoadStreamingCells.Difference(ActivateStreamingCells);
 		}
-
-		if (!UHLODSubsystem::IsHLODEnabled())
-		{
-			// Remove all HLOD cells from the Activate & Load cells
-			auto RemoveHLODCells = [](TSet<const UWorldPartitionRuntimeCell*>& Cells)
-			{
-				for (auto It = Cells.CreateIterator(); It; ++It)
-				{
-					if ((*It)->HasCellData<UWorldPartitionRuntimeHLODCellData>())
-					{
-						It.RemoveCurrent();
-					}
-				}
-			};
-			RemoveHLODCells(ActivateStreamingCells);
-			RemoveHLODCells(LoadStreamingCells);
-		}
 	} 
 	else 
 	{
@@ -197,6 +180,23 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		{
 			WorldPartition->RuntimeHash->GetAllStreamingCells(LoadStreamingCells, /*bAllDataLayers=*/ false, /*bDataLayersOnly=*/ true, DataLayerSubsystem->GetLoadedDataLayerNames());
 		}
+	}
+
+	if (!UHLODSubsystem::IsHLODEnabled())
+	{
+		// Remove all HLOD cells from the Activate & Load cells
+		auto RemoveHLODCells = [](TSet<const UWorldPartitionRuntimeCell*>& Cells)
+		{
+			for (auto It = Cells.CreateIterator(); It; ++It)
+			{
+				if ((*It)->HasCellData<UWorldPartitionRuntimeHLODCellData>())
+				{
+					It.RemoveCurrent();
+				}
+			}
+		};
+		RemoveHLODCells(ActivateStreamingCells);
+		RemoveHLODCells(LoadStreamingCells);
 	}
 
 	// Determine cells to load/unload

@@ -73,6 +73,7 @@ FSpatialHashStreamingGrid::FSpatialHashStreamingGrid()
 	, LoadingRange(0.0f)
 	, DebugColor(ForceInitToZero)
 	, WorldBounds(ForceInitToZero)
+	, bClientOnlyVisible(false)
 	, OverrideLoadingRange(-1.f)
 	, GridHelper(nullptr)
 {
@@ -767,6 +768,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	CurrentStreamingGrid.WorldBounds = PartionedActors.WorldBounds;
 	CurrentStreamingGrid.LoadingRange = RuntimeGrid.LoadingRange;
 	CurrentStreamingGrid.DebugColor = RuntimeGrid.DebugColor;
+	CurrentStreamingGrid.bClientOnlyVisible = RuntimeGrid.bClientOnlyVisible;
 
 	// Move actors into the final streaming grids
 	CurrentStreamingGrid.GridLevels.Reserve(PartionedActors.Levels.Num());
@@ -864,6 +866,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				verify(TempLevel.GetCellBounds(FIntVector2(CellCoordX, CellCoordY), Bounds));
 				StreamingCell->Position = FVector(Bounds.GetCenter(), 0.f);
 				StreamingCell->SetDebugInfo(CellGlobalCoords, CurrentStreamingGrid.GridName);
+				StreamingCell->SetClientOnlyVisible(CurrentStreamingGrid.bClientOnlyVisible);
 
 				UE_LOG(LogWorldPartition, Verbose, TEXT("Cell%s %s Actors = %d Bounds (%s)"), bIsCellAlwaysLoaded ? TEXT(" (AlwaysLoaded)") : TEXT(""), *StreamingCell->GetName(), FilteredActors.Num(), *Bounds.ToString());
 
@@ -1013,24 +1016,43 @@ FAutoConsoleCommand UWorldPartitionRuntimeSpatialHash::OverrideLoadingRangeComma
 	})
 );
 
+bool UWorldPartitionRuntimeSpatialHash::ShouldConsiderClientOnlyVisibleCells() const
+{
+	const UWorld* World = GetWorld();
+	if (World->IsGameWorld())
+	{
+		ENetMode NetMode = World->GetNetMode();
+		if (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 // Streaming interface
 int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldPartitionRuntimeCell*>& Cells, bool bAllDataLayers, bool bDataLayersOnly, const TSet<FName>& InDataLayers) const
 {
+	const bool bShouldConsiderClientOnlyVisible = ShouldConsiderClientOnlyVisibleCells();
+
 	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 	{
-		for (const FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
+		if (!StreamingGrid.bClientOnlyVisible || bShouldConsiderClientOnlyVisible)
 		{
-			for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
+			for (const FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
 			{
-				for (const UWorldPartitionRuntimeSpatialHashCell* Cell : LayerCell.GridCells)
+				for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
 				{
-					if (!bDataLayersOnly && !Cell->HasDataLayers())
+					for (const UWorldPartitionRuntimeSpatialHashCell* Cell : LayerCell.GridCells)
 					{
-						Cells.Add(Cell);
-					}
-					else if (Cell->HasDataLayers() && (bAllDataLayers || Cell->HasAnyDataLayer(InDataLayers)))
-					{
-						Cells.Add(Cell);
+						if (!bDataLayersOnly && !Cell->HasDataLayers())
+						{
+							Cells.Add(Cell);
+						}
+						else if (Cell->HasDataLayers() && (bAllDataLayers || Cell->HasAnyDataLayer(InDataLayers)))
+						{
+							Cells.Add(Cell);
+						}
 					}
 				}
 			}
@@ -1042,9 +1064,14 @@ int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldP
 
 bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const 
 {
+	const bool bShouldConsiderClientOnlyVisible = ShouldConsiderClientOnlyVisibleCells();
+
 	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 	{
-		StreamingGrid.GetCells(QuerySource, OutCells);
+		if (!StreamingGrid.bClientOnlyVisible || bShouldConsiderClientOnlyVisible)
+		{
+			StreamingGrid.GetCells(QuerySource, OutCells);
+		}
 	}
 
 	return !!OutCells.Num();
@@ -1055,13 +1082,17 @@ bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPar
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GetStreamingCells);
 
 	const UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+	const bool bShouldConsiderClientOnlyVisible = ShouldConsiderClientOnlyVisibleCells();
 
 	if (Sources.Num() == 0)
 	{
 		// Get always loaded cells
 		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 		{
-			StreamingGrid.GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells.GetCells(), OutLoadCells.GetCells());
+			if (!StreamingGrid.bClientOnlyVisible || bShouldConsiderClientOnlyVisible)
+			{
+				StreamingGrid.GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells.GetCells(), OutLoadCells.GetCells());
+			}
 		}
 	}
 	else
@@ -1069,7 +1100,10 @@ bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPar
 		// Get cells based on streaming sources
 		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 		{
-			StreamingGrid.GetCells(Sources, DataLayerSubsystem, OutActivateCells, OutLoadCells);
+			if (!StreamingGrid.bClientOnlyVisible || bShouldConsiderClientOnlyVisible)
+			{
+				StreamingGrid.GetCells(Sources, DataLayerSubsystem, OutActivateCells, OutLoadCells);
+			}
 		}
 	}
 

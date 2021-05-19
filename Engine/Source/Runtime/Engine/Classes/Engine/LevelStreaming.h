@@ -164,6 +164,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=LevelStreaming, BlueprintReadWrite)
 	FTransform LevelTransform;
 
+	/** Applied to LoadedLevel						                                                                            */
+	UPROPERTY()
+	bool bClientOnlyVisible;
+
 private:
 
 	/** Requested LOD. Non LOD sub-levels have Index = -1  */
