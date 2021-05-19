@@ -19,6 +19,7 @@
 #include "AssetToolsSettings.h"
 #include "Misc/PackageName.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "AdvancedCopyReportDialog"
 
@@ -274,9 +275,24 @@ void SAdvancedCopyReportDialog::Construct( const FArguments& InArgs, const FAdva
 	];
 
 	// Make sure the initially selected packages begin as part of the set we're definitely cloning.
-	for (FName SelectedPackageName : InParams.GetSelectedPackageNames())
+	IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
+
+	for (FName OriginalName : InParams.GetSelectedPackageOrFolderNames())
 	{
-		CloneSet->Add(SelectedPackageName.ToString());
+		const FString& OriginalNameString = OriginalName.ToString();
+		if (!FPackageName::DoesPackageExist(OriginalNameString))
+		{
+			TArray<FAssetData> AssetsInFolder;
+			AssetRegistry.GetAssetsByPath(OriginalName, AssetsInFolder, true, false);
+			for (const FAssetData& Asset : AssetsInFolder)
+			{
+				CloneSet->Add(Asset.PackageName.ToString());
+			}
+		}
+		else
+		{
+			CloneSet->Add(OriginalName.ToString());
+		}
 	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -398,9 +414,14 @@ FReply SAdvancedCopyReportDialog::OkClicked()
 					FString OutPackageRoot, OutPackagePath, OutPackageName;
 					FPackageName::SplitLongPackageName(It.Value(), OutPackageRoot, OutPackagePath, OutPackageName);
 
-					FString RenamedPackageName = OutPackageName.Replace(*FindString, *ReplaceString);
+					FString CroppedDestination = It.Value();
+					const bool bDidRemovePrefix = CroppedDestination.RemoveFromStart(ReportString);
+					if (bDidRemovePrefix)
+					{
+						CroppedDestination = CroppedDestination;
 
-					It.Value() = OutPackageRoot / OutPackagePath / RenamedPackageName;
+						It.Value() = ReportString / CroppedDestination.Replace(*FindString, *ReplaceString);
+					}
 				}
 			}
 		}
@@ -540,6 +561,7 @@ const TSharedRef< SWidget > SAdvancedCopyColumn::ConstructRowWidget(TSharedPtr<s
 		if (bDidRemovePrefix)
 		{
 			CroppedDestination = TEXT(".") + CroppedDestination;
+
 		}
 		return SNew(STextBlock)
 			.Text(FText::FromString(FPaths::GetPath(CroppedDestination)));

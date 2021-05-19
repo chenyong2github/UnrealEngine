@@ -107,15 +107,20 @@ struct FAdvancedCopyParams
 {
 	GENERATED_USTRUCT_BODY()
 
-	bool bShouldForceSave;
-	bool bCopyOverAllDestinationOverlaps;
-	bool bGenerateUniqueNames;
-	bool bShouldSuppressUI;
-	bool bShouldCheckForDependencies;
+	bool bShouldForceSave = false;
+	bool bCopyOverAllDestinationOverlaps = false;
+	bool bShouldSuppressUI = false;
+	bool bShouldCheckForDependencies = false;
 
+	UE_DEPRECATED(5.0, "This function has been deprecated, use GetSelectedPackageOrFolderNames")
 	const TArray<FName>& GetSelectedPackageNames() const
 	{
-		return SelectedPackageNames;
+		return SelectedPackageOrFolderNames;
+	}
+
+	const TArray<FName>& GetSelectedPackageOrFolderNames() const
+	{
+		return SelectedPackageOrFolderNames;
 	}
 
 	const FString& GetDropLocationForAdvancedCopy() const
@@ -133,13 +138,12 @@ struct FAdvancedCopyParams
 		CustomizationsToUse.Add(InCustomization);
 	}
 
-	FAdvancedCopyParams(TArray<FName> InSelectedPackageNames, FString InDropLocationForAdvancedCopy)
+	FAdvancedCopyParams(TArray<FName> InSelectedPackageOrFolderNames, FString InDropLocationForAdvancedCopy)
 		: bShouldForceSave(false)
 		, bCopyOverAllDestinationOverlaps(true)
-		, bGenerateUniqueNames(false)
 		, bShouldSuppressUI(false)
 		, bShouldCheckForDependencies(true)
-		, SelectedPackageNames(InSelectedPackageNames)
+		, SelectedPackageOrFolderNames(InSelectedPackageOrFolderNames)
 		, DropLocationForAdvancedCopy(InDropLocationForAdvancedCopy)
 	{
 	}
@@ -147,10 +151,9 @@ struct FAdvancedCopyParams
 	FAdvancedCopyParams() {}
 
 private:
-	TArray<FName> SelectedPackageNames;
+	TArray<FName> SelectedPackageOrFolderNames;
 	TArray<UAdvancedCopyCustomization*> CustomizationsToUse;
 	FString DropLocationForAdvancedCopy;
-
 };
 
 UINTERFACE(MinimalApi, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
