@@ -280,10 +280,17 @@ export namespace UnrealEngine {
       Preset.Exposed = {};
 
       for (const Group of Preset.Groups) {
-        for (const Function of Group.ExposedFunctions)
-          Preset.Exposed[Function.ID] = Function;
-        for (const Property of Group.ExposedProperties)
+        for (const Property of Group.ExposedProperties) {
           Preset.Exposed[Property.ID] = Property;
+        }
+
+        for (const Function of Group.ExposedFunctions) {
+          if (!Function.Metadata)
+            Function.Metadata = {};
+
+          Function.Metadata.Widget = WidgetTypes.Button;
+          Preset.Exposed[Function.ID] = Function;
+        }
 
         Preset.ExposedProperties.push(...Group.ExposedProperties);
         Preset.ExposedFunctions.push(...Group.ExposedFunctions);
