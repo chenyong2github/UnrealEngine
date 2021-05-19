@@ -166,7 +166,7 @@ private:
 	virtual void Tick( float DeltaTime ) override;
 	virtual void GenerateHeaderRowContent( FDetailWidgetRow& NodeRow ) override;
 	virtual void GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder ) override;
-	virtual FName GetName() const override { return NAME_None; }
+	virtual FName GetName() const override { return "MaterialList"; }
 	virtual bool InitiallyCollapsed() const override { return bAllowCollpase; }
 
 	/**

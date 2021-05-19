@@ -425,6 +425,7 @@ void FMaterialList::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilde
 	DisplayedMaterials.Empty();
 	if( MaterialListBuilder->GetNumMaterials() > 0 )
 	{
+		const FName RowTagName = "Material";
 		DisplayedMaterials = MaterialListBuilder->MaterialSlots;
 
 		MaterialListBuilder->Sort();
@@ -454,6 +455,7 @@ void FMaterialList::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilde
 					FFormatNamedArguments Arguments;
 					Arguments.Add(TEXT("ElementSlot"), CurrentSlot);
 					ChildRow
+					.RowTag(RowTagName)
 					.ValueContent()
 					.MaxDesiredWidth(0.0f)// No Max Width
 					[
@@ -474,6 +476,7 @@ void FMaterialList::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilde
 					bDisplayAllMaterialsInSlot = false;
 
 					FDetailWidgetRow& ChildRow = ChildrenBuilder.AddCustomRow( FText::GetEmpty() );
+					ChildRow.RowTag(RowTagName);
 
 					AddMaterialItem( ChildRow, CurrentSlot, FMaterialListItem( NULL, CurrentSlot, true ), !bDisplayAllMaterialsInSlot );
 				}
@@ -488,6 +491,7 @@ void FMaterialList::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilde
 			if( bDisplayAllMaterialsInSlot )
 			{
 				FDetailWidgetRow& ChildRow = ChildrenBuilder.AddCustomRow( Material.Material.IsValid()? FText::FromString(Material.Material->GetName()) : FText::GetEmpty() );
+				ChildRow.RowTag(RowTagName);
 
 				AddMaterialItem( ChildRow, CurrentSlot, Material, !bDisplayAllMaterialsInSlot );
 			}

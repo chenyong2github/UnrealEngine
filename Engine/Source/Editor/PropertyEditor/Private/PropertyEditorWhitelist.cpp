@@ -28,36 +28,36 @@ void FPropertyEditorWhitelist::ClearWhitelist()
 	WhitelistUpdatedDelegate.Broadcast();
 }
 
-void FPropertyEditorWhitelist::AddToWhitelist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName)
+void FPropertyEditorWhitelist::AddToWhitelist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner)
 {
 	FBlacklistNames& Blacklist = RawPropertyEditorWhitelist.FindOrAdd(Struct);
-	Blacklist.AddWhitelistItem(NAME_None, PropertyName);
+	Blacklist.AddWhitelistItem(Owner, PropertyName);
 	CachedPropertyEditorWhitelist.Reset();
 	WhitelistUpdatedDelegate.Broadcast();
 }
 
-void FPropertyEditorWhitelist::RemoveFromWhitelist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName)
+void FPropertyEditorWhitelist::RemoveFromWhitelist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner)
 {
 	FBlacklistNames& Blacklist = RawPropertyEditorWhitelist.FindOrAdd(Struct);
-	if (Blacklist.RemoveWhitelistItem(NAME_None, PropertyName))
+	if (Blacklist.RemoveWhitelistItem(Owner, PropertyName))
 	{
 		CachedPropertyEditorWhitelist.Reset();
 		WhitelistUpdatedDelegate.Broadcast();
 	}
 }
 
-void FPropertyEditorWhitelist::AddToBlacklist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName)
+void FPropertyEditorWhitelist::AddToBlacklist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner)
 {
 	FBlacklistNames& Blacklist = RawPropertyEditorWhitelist.FindOrAdd(Struct);
-	Blacklist.AddBlacklistItem(NAME_None, PropertyName);
+	Blacklist.AddBlacklistItem(Owner, PropertyName);
 	CachedPropertyEditorWhitelist.Reset();
 	WhitelistUpdatedDelegate.Broadcast();
 }
 
-void FPropertyEditorWhitelist::RemoveFromBlacklist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName)
+void FPropertyEditorWhitelist::RemoveFromBlacklist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner)
 {
 	FBlacklistNames& Blacklist = RawPropertyEditorWhitelist.FindOrAdd(Struct);
-	if (Blacklist.RemoveBlacklistItem(NAME_None, PropertyName))
+	if (Blacklist.RemoveBlacklistItem(Owner, PropertyName))
 	{
 		CachedPropertyEditorWhitelist.Reset();
 		WhitelistUpdatedDelegate.Broadcast();
