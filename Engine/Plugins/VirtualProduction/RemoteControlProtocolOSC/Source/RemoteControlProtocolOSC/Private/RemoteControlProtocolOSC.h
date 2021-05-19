@@ -7,6 +7,7 @@
 
 #include "RemoteControlProtocolOSC.generated.h"
 
+struct FOSCAddress;
 struct FOSCMessage;
 
 /**
@@ -49,8 +50,16 @@ public:
 	virtual UScriptStruct* GetProtocolScriptStruct() const override { return FRemoteControlOSCProtocolEntity::StaticStruct(); }
 	//~ End IRemoteControlProtocol interface
 
-	/** Recieve OSC server message handler */
+	/** Receive OSC server message handler */
 	void OSCReceivedMessageEvent(const FOSCMessage& Message, const FString& IPAddress, uint16 Port);
+
+#if WITH_EDITOR
+	/**
+	 * Process the AutoBinding to the Remote Control Entity
+	 * @param InAddress	OSC address structure
+	 */
+	void ProcessAutoBinding(const FOSCAddress& InAddress);
+#endif
 
 private:
 	/** Map of the OSC bindings */

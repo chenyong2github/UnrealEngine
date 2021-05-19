@@ -2,6 +2,8 @@
 
 #include "SRCProtocolBinding.h"
 
+#include "EditorFontGlyphs.h"
+
 #include "SDropTarget.h"
 #include "SRCProtocolRangeList.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
@@ -18,6 +20,8 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 	ViewModel = InViewModel;
 	PrimaryColumnSizeData = InArgs._PrimaryColumnSizeData;
 	SecondaryColumnSizeData = InArgs._SecondaryColumnSizeData;
+	OnStartRecording = InArgs._OnStartRecording;
+	OnStopRecording = InArgs._OnStopRecording;
 	
 	TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
 
@@ -45,6 +49,25 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 			SNew(STextBlock)
 			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FText::FromString(FString(TEXT("\xf00d"))))
+		]
+	];
+
+	RowBox->AddSlot()
+	.AutoWidth()
+	.VAlign(VAlign_Center)
+	.Padding(0)
+	[
+		SNew(SButton)
+		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ToolTipText(LOCTEXT("RecordingButtonToolTip", "Status of the protocol entity binding"))
+		.ForegroundColor(FSlateColor::UseForeground())
+		.OnClicked(this, &SRCProtocolBinding::ToggleRecording)
+		.Content()
+		[
+			SNew(STextBlock)
+			.ColorAndOpacity_Raw(this, &SRCProtocolBinding::GetRecordingButtonColor)
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.Text(FEditorFontGlyphs::Circle)
 		]
 	];
 	
@@ -107,6 +130,59 @@ FReply SRCProtocolBinding::OnDelete() const
 {
 	ViewModel->Remove();
 	return FReply::Handled();
+}
+
+FReply SRCProtocolBinding::ToggleRecording() const
+{
+	// Binding can't be nullptr
+	FRemoteControlProtocolBinding* Binding = ViewModel->GetBinding();
+	check(Binding);
+
+	if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntity = Binding->GetRemoteControlProtocolEntityPtr())
+	{
+		const ERCBindingStatus BindingStatus = (*ProtocolEntity)->ToggleBindingStatus();
+		if (BindingStatus == ERCBindingStatus::Awaiting)
+		{
+			OnStartRecording.ExecuteIfBound(ProtocolEntity);
+		}
+		else if (BindingStatus == ERCBindingStatus::Bound)
+		{
+			OnStopRecording.ExecuteIfBound(ProtocolEntity);
+		}
+		else
+		{
+			checkNoEntry();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FSlateColor SRCProtocolBinding::GetRecordingButtonColor() const
+{
+	// Binding can't be nullptr
+	FRemoteControlProtocolBinding* Binding = ViewModel->GetBinding();
+	check(Binding);
+
+	if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntity = Binding->GetRemoteControlProtocolEntityPtr())
+	{
+		const ERCBindingStatus BindingStatus = (*ProtocolEntity)->GetBindingStatus();
+
+		switch (BindingStatus)
+		{
+			case ERCBindingStatus::Awaiting:
+				return FLinearColor::Red;
+			case ERCBindingStatus::Bound:
+				return FLinearColor::Green;
+			case ERCBindingStatus::Unassigned:
+				return FLinearColor::Gray;
+			default:
+				checkNoEntry();
+		}
+	}
+
+	ensure(false);
+	return FLinearColor::Black;
 }
 
 #undef LOCTEXT_NAMESPACE

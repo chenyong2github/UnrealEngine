@@ -4,6 +4,11 @@
 
 #include "RemoteControlLogger.h"
 
+#if WITH_EDITOR
+#include "IRCProtocolBindingList.h"
+#include "IRemoteControlProtocolWidgetsModule.h"
+#endif
+
 #include "OSCManager.h"
 #include "OSCMessage.h"
 
@@ -41,6 +46,11 @@ void FRemoteControlProtocolOSC::Unbind(FRemoteControlProtocolEntityPtr InRemoteC
 void FRemoteControlProtocolOSC::OSCReceivedMessageEvent(const FOSCMessage& Message, const FString& IPAddress, uint16 Port)
 {	
 	const FOSCAddress& Address = Message.GetAddress();
+	
+#if WITH_EDITOR
+	ProcessAutoBinding(Address);
+#endif
+	
 	TArray<float> FloatValues;
 	UOSCManager::GetAllFloats(Message, FloatValues);
 
@@ -85,6 +95,38 @@ void FRemoteControlProtocolOSC::OSCReceivedMessageEvent(const FOSCMessage& Messa
 		}
 	}
 }
+
+#if WITH_EDITOR
+void FRemoteControlProtocolOSC::ProcessAutoBinding(const FOSCAddress& InAddress)
+{
+	// Bind only in Editor
+	if (!GIsEditor)
+	{
+		return;
+	}
+	
+	IRemoteControlProtocolWidgetsModule& RCWidgetsModule = IRemoteControlProtocolWidgetsModule::Get();
+	const TSharedPtr<IRCProtocolBindingList> RCProtocolBindingList = RCWidgetsModule.GetProtocolBindingList();
+	if (RCProtocolBindingList.IsValid())
+	{
+		for (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>>& ProtocolEntityPtr : RCProtocolBindingList->GetAwaitingProtocolEntities())
+		{
+			if (ProtocolEntityPtr.IsValid())
+			{
+				if ((*ProtocolEntityPtr)->GetBindingStatus() == ERCBindingStatus::Awaiting)
+				{
+					Unbind(ProtocolEntityPtr);
+
+					FRemoteControlOSCProtocolEntity* OSCProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlOSCProtocolEntity>();
+					OSCProtocolEntity->PathName = *InAddress.GetFullPath();
+
+					Bind(ProtocolEntityPtr);
+				}
+			}	
+		}
+	}
+}
+#endif
 
 void FRemoteControlProtocolOSC::UnbindAll()
 {

@@ -11,14 +11,26 @@ DEFINE_LOG_CATEGORY(LogRemoteControlProtocolWidgets);
 TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType)
 {
 	check(InPreset);
-
+ 
+	ResetProtocolBindingList();
+ 
 	// Currently only supports Properties
 	if(InFieldId.IsValid() && InFieldType == EExposedFieldType::Property)
 	{
-		return SNew(SRCProtocolBindingList, FProtocolEntityViewModel::Create(InPreset, InFieldId));
+		return SAssignNew(RCProtocolBindingList, SRCProtocolBindingList, FProtocolEntityViewModel::Create(InPreset, InFieldId));
 	}
-
+ 
 	return SNullWidget::NullWidget;
 }
 
 IMPLEMENT_MODULE(FRemoteControlProtocolWidgetsModule, RemoteControlProtocolWidgets);
+ 
+void FRemoteControlProtocolWidgetsModule::ResetProtocolBindingList()
+{
+	RCProtocolBindingList = nullptr;
+}
+ 
+TSharedPtr<IRCProtocolBindingList> FRemoteControlProtocolWidgetsModule::GetProtocolBindingList() const 
+{
+	return RCProtocolBindingList;
+}
