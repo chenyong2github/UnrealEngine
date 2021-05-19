@@ -52,14 +52,14 @@ private:
 
 public:
 	uint32				GetVertSize() const;
-	FVector&			GetPosition( uint32 VertIndex );
+	FVector3f&			GetPosition( uint32 VertIndex );
 	float*				GetAttributes( uint32 VertIndex );
-	FVector&			GetNormal( uint32 VertIndex );
+	FVector3f&			GetNormal( uint32 VertIndex );
 	FLinearColor&		GetColor( uint32 VertIndex );
 	FVector2D*			GetUVs( uint32 VertIndex );
 
-	const FVector&		GetPosition( uint32 VertIndex ) const;
-	const FVector&		GetNormal( uint32 VertIndex ) const;
+	const FVector3f&	GetPosition( uint32 VertIndex ) const;
+	const FVector3f&	GetNormal( uint32 VertIndex ) const;
 	const FLinearColor&	GetColor( uint32 VertIndex ) const;
 	const FVector2D*	GetUVs( uint32 VertIndex ) const;
 
@@ -90,8 +90,8 @@ public:
 	uint32		QuantizedPosShift	= 0u;
 	FIntVector  QuantizedPosBits	= {};
 
-	FVector		MeshBoundsMin;
-	FVector		MeshBoundsDelta;
+	FVector3f	MeshBoundsMin;
+	FVector3f	MeshBoundsDelta;
 
 	float		EdgeLength = 0.0f;
 	float		LODError = 0.0f;
@@ -115,14 +115,14 @@ FORCEINLINE uint32 FCluster::GetVertSize() const
 	return 6 + ( bHasColors ? 4 : 0 ) + NumTexCoords * 2;
 }
 
-FORCEINLINE FVector& FCluster::GetPosition( uint32 VertIndex )
+FORCEINLINE FVector3f& FCluster::GetPosition( uint32 VertIndex )
 {
-	return *reinterpret_cast< FVector* >( &Verts[ VertIndex * GetVertSize() ] );
+	return *reinterpret_cast< FVector3f* >( &Verts[ VertIndex * GetVertSize() ] );
 }
 
-FORCEINLINE const FVector& FCluster::GetPosition( uint32 VertIndex ) const
+FORCEINLINE const FVector3f& FCluster::GetPosition( uint32 VertIndex ) const
 {
-	return *reinterpret_cast< const FVector* >( &Verts[ VertIndex * GetVertSize() ] );
+	return *reinterpret_cast< const FVector3f* >( &Verts[ VertIndex * GetVertSize() ] );
 }
 
 FORCEINLINE float* FCluster::GetAttributes( uint32 VertIndex )
@@ -130,14 +130,14 @@ FORCEINLINE float* FCluster::GetAttributes( uint32 VertIndex )
 	return &Verts[ VertIndex * GetVertSize() + 3 ];
 }
 
-FORCEINLINE FVector& FCluster::GetNormal( uint32 VertIndex )
+FORCEINLINE FVector3f& FCluster::GetNormal( uint32 VertIndex )
 {
-	return *reinterpret_cast< FVector* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
+	return *reinterpret_cast< FVector3f* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
 }
 
-FORCEINLINE const FVector& FCluster::GetNormal( uint32 VertIndex ) const
+FORCEINLINE const FVector3f& FCluster::GetNormal( uint32 VertIndex ) const
 {
-	return *reinterpret_cast< const FVector* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
+	return *reinterpret_cast< const FVector3f* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
 }
 
 FORCEINLINE FLinearColor& FCluster::GetColor( uint32 VertIndex )

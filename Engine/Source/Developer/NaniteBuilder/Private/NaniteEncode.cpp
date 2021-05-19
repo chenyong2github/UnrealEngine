@@ -285,9 +285,9 @@ FORCEINLINE void RemoveRootPagesFromRange(uint32& StartPage, uint32& NumPages)
 	}
 }
 
-FORCEINLINE static FVector2D OctahedronEncode(FVector N)
+FORCEINLINE static FVector2D OctahedronEncode(FVector3f N)
 {
-	FVector AbsN = N.GetAbs();
+	FVector3f AbsN = N.GetAbs();
 	N /= (AbsN.X + AbsN.Y + AbsN.Z);
 
 	if (N.Z < 0.0)
@@ -300,7 +300,7 @@ FORCEINLINE static FVector2D OctahedronEncode(FVector N)
 	return FVector2D(N.X, N.Y);
 }
 
-FORCEINLINE static void OctahedronEncode(FVector N, int32& X, int32& Y, int32 QuantizationBits)
+FORCEINLINE static void OctahedronEncode(FVector3f N, int32& X, int32& Y, int32 QuantizationBits)
 {
 	const int32 QuantizationMaxValue = (1 << QuantizationBits) - 1;
 	const float Scale = 0.5f * QuantizationMaxValue;
@@ -312,7 +312,7 @@ FORCEINLINE static void OctahedronEncode(FVector N, int32& X, int32& Y, int32 Qu
 	Y = FMath::Clamp(int32(Coord.Y * Scale + Bias), 0, QuantizationMaxValue);
 }
 
-FORCEINLINE static FVector OctahedronDecode(int32 X, int32 Y, int32 QuantizationBits)
+FORCEINLINE static FVector3f OctahedronDecode(int32 X, int32 Y, int32 QuantizationBits)
 {
 	const int32 QuantizationMaxValue = (1 << QuantizationBits) - 1;
 	float fx = X * (2.0f / QuantizationMaxValue) - 1.0f;
@@ -322,7 +322,7 @@ FORCEINLINE static FVector OctahedronDecode(int32 X, int32 Y, int32 Quantization
 	fx += (fx >= 0.0f ? -t : t);
 	fy += (fy >= 0.0f ? -t : t);
 
-	return FVector(fx, fy, fz).GetUnsafeNormal();
+	return FVector3f(fx, fy, fz).GetUnsafeNormal();
 }
 
 FORCEINLINE static void OctahedronEncodePreciseSIMD( FVector3f N, int32& X, int32& Y, int32 QuantizationBits )
@@ -370,7 +370,7 @@ FORCEINLINE static void OctahedronEncodePreciseSIMD( FVector3f N, int32& X, int3
 	Y = FMath::Clamp((int32)(IntCoordValues[1] + ( ( Index >> 1 ) & 1 )), 0, QuantizationMaxValue);
 }
 
-FORCEINLINE static void OctahedronEncodePrecise(FVector N, int32& X, int32& Y, int32 QuantizationBits)
+FORCEINLINE static void OctahedronEncodePrecise(FVector3f N, int32& X, int32& Y, int32 QuantizationBits)
 {
 	const int32 QuantizationMaxValue = (1 << QuantizationBits) - 1;
 	FVector2D Coord = OctahedronEncode(N);
@@ -391,7 +391,7 @@ FORCEINLINE static void OctahedronEncodePrecise(FVector N, int32& X, int32& Y, i
 			int32 TY = NY + OffsetY;
 			if (TX <= QuantizationMaxValue && TY <= QuantizationMaxValue)
 			{
-				FVector RN = OctahedronDecode(TX, TY, QuantizationBits);
+				FVector3f RN = OctahedronDecode(TX, TY, QuantizationBits);
 				float Error = FMath::Abs(1.0f - (RN | N));
 				if (Error < MinError)
 				{
@@ -407,7 +407,7 @@ FORCEINLINE static void OctahedronEncodePrecise(FVector N, int32& X, int32& Y, i
 	Y = BestNY;
 }
 
-FORCEINLINE static uint32 PackNormal(FVector Normal, uint32 QuantizationBits)
+FORCEINLINE static uint32 PackNormal(FVector3f Normal, uint32 QuantizationBits)
 {
 	int32 X, Y;
 	OctahedronEncodePreciseSIMD(Normal, X, Y, QuantizationBits);
@@ -416,8 +416,8 @@ FORCEINLINE static uint32 PackNormal(FVector Normal, uint32 QuantizationBits)
 	// Test against non-SIMD version
 	int32 X2, Y2;
 	OctahedronEncodePrecise(Normal, X2, Y2, QuantizationBits);
-	FVector N0 = OctahedronDecode( X, Y, QuantizationBits );
-	FVector N1 = OctahedronDecode( X2, Y2, QuantizationBits );
+	FVector3f N0 = OctahedronDecode( X, Y, QuantizationBits );
+	FVector3f N1 = OctahedronDecode( X2, Y2, QuantizationBits );
 	float dt0 = Normal | N0;
 	float dt1 = Normal | N1;
 	check( dt0 >= dt1*0.99999f );
@@ -624,7 +624,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 	static_assert( MAX_RESOURCE_PAGES_BITS + MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS <= 32, "" );
 	for (uint32 i = 0; i < MAX_BVH_NODE_FANOUT; i++)
 	{
-		OutNode.LODBounds[i] = InNode.LODBounds[i];
+		OutNode.LODBounds[i] = FVector4(InNode.LODBounds[i].Center, InNode.LODBounds[i].W);
 
 		const FBounds& Bounds = InNode.Bounds[i];
 		OutNode.Misc0[i].BoxBoundsCenter = Bounds.GetCenter();
@@ -748,7 +748,7 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 
 		for (uint32 i = 0; i < NumClusterVerts; i++)
 		{
-			const FVector Position = Cluster.GetPosition(i);
+			const FVector3f Position = Cluster.GetPosition(i);
 
 			FIntVector& IntPosition = Cluster.QuantizedPositions[i];
 			float PosX = FMath::RoundToFloat(Position.X * QuantizationScale);
@@ -778,7 +778,7 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 			FIntVector& IntPosition = Cluster.QuantizedPositions[i];
 
 			// Update float position with quantized data
-			Cluster.GetPosition(i) = FVector(IntPosition.X * RcpQuantizationScale, IntPosition.Y * RcpQuantizationScale, IntPosition.Z * RcpQuantizationScale);
+			Cluster.GetPosition(i) = FVector3f(IntPosition.X * RcpQuantizationScale, IntPosition.Y * RcpQuantizationScale, IntPosition.Z * RcpQuantizationScale);
 			
 			IntPosition.X -= IntClusterMin.X;
 			IntPosition.Y -= IntClusterMin.Y;
@@ -790,11 +790,11 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 
 
 		// Update bounds
-		Cluster.Bounds.Min = FVector(IntClusterMin.X * RcpQuantizationScale, IntClusterMin.Y * RcpQuantizationScale, IntClusterMin.Z * RcpQuantizationScale);
-		Cluster.Bounds.Max = FVector(IntClusterMax.X * RcpQuantizationScale, IntClusterMax.Y * RcpQuantizationScale, IntClusterMax.Z * RcpQuantizationScale);
+		Cluster.Bounds.Min = FVector3f(IntClusterMin.X * RcpQuantizationScale, IntClusterMin.Y * RcpQuantizationScale, IntClusterMin.Z * RcpQuantizationScale);
+		Cluster.Bounds.Max = FVector3f(IntClusterMax.X * RcpQuantizationScale, IntClusterMax.Y * RcpQuantizationScale, IntClusterMax.Z * RcpQuantizationScale);
 
-		Cluster.MeshBoundsMin = FVector::ZeroVector;
-		Cluster.MeshBoundsDelta = FVector(RcpQuantizationScale);
+		Cluster.MeshBoundsMin = FVector3f::ZeroVector;
+		Cluster.MeshBoundsDelta = FVector3f(RcpQuantizationScale);
 
 		Cluster.QuantizedPosBits = FIntVector(NumBitsX, NumBitsY, NumBitsZ);
 		Cluster.QuantizedPosStart = IntClusterMin;
@@ -859,7 +859,7 @@ static void CalculateQuantizedPositionsOld(TArray< FCluster >& Clusters, const F
 			for( uint32 i = 0; i < NumVertices; i++ )
 			{
 				// Quantize to UINT
-				FVector UnitPosition = ( Cluster.GetPosition(i) - MeshBounds.Min ) / ( MeshBounds.Max - MeshBounds.Min );
+				FVector3f UnitPosition = ( Cluster.GetPosition(i) - MeshBounds.Min ) / ( MeshBounds.Max - MeshBounds.Min );
 
 				uint32 VertexIndex = VertexOffset + i;
 				UIntPositions[ VertexIndex ].Position.X = (uint32)FMath::Clamp( (double)UnitPosition.X * (double)MaxQuantizedValue + 0.5, 0.0, (double)MaxQuantizedValue);
@@ -936,7 +936,7 @@ static void CalculateQuantizedPositionsOld(TArray< FCluster >& Clusters, const F
 				UIntClusterMin = { MAX_uint32, MAX_uint32, MAX_uint32 };
 				for (uint32 i = 0; i < NumClusterVerts; i++)
 				{
-					FVector VertPosition = Cluster.GetPosition(i);
+					FVector3f VertPosition = Cluster.GetPosition(i);
 					const FUIntVector& UIntPosition = UIntPositions[ClusterVertexOffset + i].Position;
 					uint32 ID = UIntPositions[ClusterVertexOffset + i].ID;
 
@@ -973,7 +973,7 @@ static void CalculateQuantizedPositionsOld(TArray< FCluster >& Clusters, const F
 		}
 	}
 
-	FVector MeshBoundsScale = (MeshBounds.Max - MeshBounds.Min) / MaxQuantizedValue;
+	FVector3f MeshBoundsScale = (MeshBounds.Max - MeshBounds.Min) / MaxQuantizedValue;
 
 	ParallelFor( NumClusters,
 		[&]( uint32 ClusterIndex )
@@ -1024,9 +1024,9 @@ static void CalculateQuantizedPositionsOld(TArray< FCluster >& Clusters, const F
 		for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
 		{
 			const FUIntVector& QuantizedPosition = Cluster.QuantizedPositions[VertexIndex];
-			FVector Position = Cluster.GetPosition(VertexIndex);
-			FVector DecodedPosition = FVector(QuantizedPosition.X + Cluster.QuantizedPosStart.X, QuantizedPosition.Y + Cluster.QuantizedPosStart.Y, QuantizedPosition.Z + Cluster.QuantizedPosStart.Z) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
-			FVector AbsError = (Position - DecodedPosition).GetAbs();
+			FVector3f Position = Cluster.GetPosition(VertexIndex);
+			FVector3f DecodedPosition = FVector3f(QuantizedPosition.X + Cluster.QuantizedPosStart.X, QuantizedPosition.Y + Cluster.QuantizedPosStart.Y, QuantizedPosition.Z + Cluster.QuantizedPosStart.Z) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
+			FVector3f AbsError = (Position - DecodedPosition).GetAbs();
 			MaxError = FMath::Max(MaxError, AbsError.GetMax());
 			TotalError += AbsError.X + AbsError.Y + AbsError.Z;
 			TotalRelativeError += AbsError.X / Cluster.MeshBoundsDelta.X + AbsError.Y / Cluster.MeshBoundsDelta.Y + AbsError.Z / Cluster.MeshBoundsDelta.Z;
@@ -1323,7 +1323,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 #if USE_UNCOMPRESSED_VERTEX_DATA
 	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
 	{
-		const FVector& Position = Cluster.GetPosition(VertexIndex);
+		const FVector3f& Position = Cluster.GetPosition(VertexIndex);
 		BitWriter_Position.PutBits(*(uint32*)&Position.X, 32);
 		BitWriter_Position.PutBits(*(uint32*)&Position.Y, 32);
 		BitWriter_Position.PutBits(*(uint32*)&Position.Z, 32);
@@ -1333,7 +1333,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
 	{
 		// Normal
-		const FVector& Normal = Cluster.GetNormal(VertexIndex);
+		const FVector3f& Normal = Cluster.GetNormal(VertexIndex);
 		BitWriter_Attribute.PutBits(*(uint32*)&Normal.X, 32);
 		BitWriter_Attribute.PutBits(*(uint32*)&Normal.Y, 32);
 		BitWriter_Attribute.PutBits(*(uint32*)&Normal.Z, 32);
@@ -1460,21 +1460,21 @@ static TArray<uint32> CalculateClusterGroupPermutation( const TArray< FClusterGr
 	TArray< FClusterGroupSortEntry > ClusterGroupSortEntries;
 	ClusterGroupSortEntries.SetNumUninitialized( NumClusterGroups );
 
-	FVector MinCenter = FVector( FLT_MAX, FLT_MAX, FLT_MAX );
-	FVector MaxCenter = FVector( -FLT_MAX, -FLT_MAX, -FLT_MAX );
+	FVector3f MinCenter = FVector3f( FLT_MAX, FLT_MAX, FLT_MAX );
+	FVector3f MaxCenter = FVector3f( -FLT_MAX, -FLT_MAX, -FLT_MAX );
 	for( const FClusterGroup& ClusterGroup : ClusterGroups )
 	{
-		const FVector& Center = ClusterGroup.LODBounds.Center;
-		MinCenter = FVector::Min( MinCenter, Center );
-		MaxCenter = FVector::Max( MaxCenter, Center );
+		const FVector3f& Center = ClusterGroup.LODBounds.Center;
+		MinCenter = FVector3f::Min( MinCenter, Center );
+		MaxCenter = FVector3f::Max( MaxCenter, Center );
 	}
 
 	for( uint32 i = 0; i < NumClusterGroups; i++ )
 	{
 		const FClusterGroup& ClusterGroup = ClusterGroups[ i ];
 		FClusterGroupSortEntry& SortEntry = ClusterGroupSortEntries[ i ];
-		const FVector& Center = ClusterGroup.LODBounds.Center;
-		const FVector ScaledCenter = ( Center - MinCenter ) / ( MaxCenter - MinCenter ) * 1023.0f + 0.5f;
+		const FVector3f& Center = ClusterGroup.LODBounds.Center;
+		const FVector3f ScaledCenter = ( Center - MinCenter ) / ( MaxCenter - MinCenter ) * 1023.0f + 0.5f;
 		uint32 X = FMath::Clamp( (int32)ScaledCenter.X, 0, 1023 );
 		uint32 Y = FMath::Clamp( (int32)ScaledCenter.Y, 0, 1023 );
 		uint32 Z = FMath::Clamp( (int32)ScaledCenter.Z, 0, 1023 );
@@ -1501,12 +1501,12 @@ static void SortGroupClusters(TArray<FClusterGroup>& ClusterGroups, const TArray
 {
 	for (FClusterGroup& Group : ClusterGroups)
 	{
-		FVector SortDirection = FVector(1.0f, 1.0f, 1.0f);
+		FVector3f SortDirection = FVector3f(1.0f, 1.0f, 1.0f);
 		Group.Children.Sort([&Clusters, SortDirection](uint32 ClusterIndexA, uint32 ClusterIndexB) {
 			const FCluster& ClusterA = Clusters[ClusterIndexA];
 			const FCluster& ClusterB = Clusters[ClusterIndexB];
-			float DotA = FVector::DotProduct(ClusterA.SphereBounds.Center, SortDirection);
-			float DotB = FVector::DotProduct(ClusterB.SphereBounds.Center, SortDirection);
+			float DotA = FVector3f::DotProduct(ClusterA.SphereBounds.Center, SortDirection);
+			float DotB = FVector3f::DotProduct(ClusterB.SphereBounds.Center, SortDirection);
 			return DotA < DotB;
 		});
 	}
@@ -3431,7 +3431,7 @@ class FStripifier
 			VertexToTriangleMasks[ i1 ][ i >> 5 ] |= 1 << ( i & 31 );
 			VertexToTriangleMasks[ i2 ][ i >> 5 ] |= 1 << ( i & 31 );
 
-			FVector ScaledCenter = Cluster.GetPosition( i0 ) + Cluster.GetPosition( i1 ) + Cluster.GetPosition( i2 );
+			FVector3f ScaledCenter = Cluster.GetPosition( i0 ) + Cluster.GetPosition( i1 ) + Cluster.GetPosition( i2 );
 			TrianglePriorities[ i ] = ScaledCenter.X;	//TODO: Find a good direction to sort by instead of just picking x?
 
 			FEdgeNode& Node0 = EdgeNodes[ i * 3 + 0 ];

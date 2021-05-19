@@ -97,13 +97,13 @@ FCluster::FCluster(
 		}
 
 		{
-			const FVector& Position0 = InVerts[ InIndexes[ TriIndex * 3 + 0 ] ].Position;
-			const FVector& Position1 = InVerts[ InIndexes[ TriIndex * 3 + 1 ] ].Position;
-			const FVector& Position2 = InVerts[ InIndexes[ TriIndex * 3 + 2 ] ].Position;
+			const FVector3f& Position0 = InVerts[ InIndexes[ TriIndex * 3 + 0 ] ].Position;
+			const FVector3f& Position1 = InVerts[ InIndexes[ TriIndex * 3 + 1 ] ].Position;
+			const FVector3f& Position2 = InVerts[ InIndexes[ TriIndex * 3 + 2 ] ].Position;
 
-			FVector Edge01 = Position1 - Position0;
-			FVector Edge12 = Position2 - Position1;
-			FVector Edge20 = Position0 - Position2;
+			FVector3f Edge01 = Position1 - Position0;
+			FVector3f Edge12 = Position2 - Position1;
+			FVector3f Edge20 = Position0 - Position2;
 
 			float TriArea = 0.5f * ( Edge01 ^ Edge20 ).Size();
 			SurfaceArea += TriArea;
@@ -159,13 +159,13 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 		}
 
 		{
-			const FVector& Position0 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 0 ] );
-			const FVector& Position1 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 1 ] );
-			const FVector& Position2 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 2 ] );
+			const FVector3f& Position0 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 0 ] );
+			const FVector3f& Position1 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 1 ] );
+			const FVector3f& Position2 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 2 ] );
 
-			FVector Edge01 = Position1 - Position0;
-			FVector Edge12 = Position2 - Position1;
-			FVector Edge20 = Position0 - Position2;
+			FVector3f Edge01 = Position1 - Position0;
+			FVector3f Edge12 = Position2 - Position1;
+			FVector3f Edge20 = Position0 - Position2;
 
 			float TriArea = 0.5f * ( Edge01 ^ Edge20 ).Size();
 			SurfaceArea += TriArea;
@@ -205,7 +205,7 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<16> >& Merge
 
 		for( int32 i = 0; i < Child->Indexes.Num(); i++ )
 		{
-			const FVector& Position = Child->GetPosition( Child->Indexes[i] );
+			const FVector3f& Position = Child->GetPosition( Child->Indexes[i] );
 
 			uint32 Hash = HashPosition( Position );
 			uint32 NewIndex;
@@ -387,7 +387,7 @@ void FCluster::Split( FGraphPartitioner& Partitioner ) const
 
 	auto GetCenter = [ this ]( uint32 TriIndex )
 	{
-		FVector Center;
+		FVector3f Center;
 		Center  = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
 		Center += GetPosition( Indexes[ TriIndex * 3 + 1 ] );
 		Center += GetPosition( Indexes[ TriIndex * 3 + 2 ] );
@@ -440,8 +440,8 @@ void FCluster::FindExternalEdges()
 		uint32 VertIndex0 = Indexes[ EdgeIndex ];
 		uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
 	
-		const FVector& Position0 = GetPosition( VertIndex0 );
-		const FVector& Position1 = GetPosition( VertIndex1 );
+		const FVector3f& Position0 = GetPosition( VertIndex0 );
+		const FVector3f& Position1 = GetPosition( VertIndex1 );
 	
 		// Find edge with opposite direction that shares these 2 verts.
 		/*
@@ -487,39 +487,39 @@ void FCluster::FindExternalEdges()
 
 struct FNormalCone
 {
-	FVector	Axis;
+	FVector3f	Axis;
 	float	CosAngle;
 
 	FNormalCone() {}
-	FNormalCone( const FVector& InAxis )
+	FNormalCone( const FVector3f& InAxis )
 		: Axis( InAxis )
 		, CosAngle( 1.0f )
 	{
 		if( !Axis.Normalize() )
 		{
-			Axis = FVector( 0.0f, 0.0f, 1.0f );
+			Axis = FVector3f( 0.0f, 0.0f, 1.0f );
 		}
 	}
 };
 
-FORCEINLINE FMatrix OrthonormalBasis( const FVector& Vec )
+FORCEINLINE FMatrix44f OrthonormalBasis( const FVector3f& Vec )
 {
 	float Sign = Vec.Z >= 0.0f ? 1.0f : -1.0f;
 	float a = -1.0f / ( Sign + Vec.Z );
 	float b = Vec.X * Vec.Y * a;
 	
-	return FMatrix(
+	return FMatrix44f(
 		{ 1.0f + Sign * a * FMath::Square( Vec.X ), Sign * b, -Vec.X * Sign },
 		{ b,     Sign + a * FMath::Square( Vec.Y ),           -Vec.Y },
 		Vec,
-		FVector::ZeroVector );
+		FVector3f::ZeroVector );
 }
 
-FMatrix CovarianceToBasis( const FMatrix& Covariance )
+FMatrix44f CovarianceToBasis( const FMatrix44f& Covariance )
 {
 #if 0
-	FMatrix Eigenvectors;
-	FVector Eigenvalues;
+	FMatrix44f Eigenvectors;
+	FVector3f Eigenvalues;
 	diagonalizeSymmetricMatrix( Covariance, Eigenvectors, Eigenvalues );
 
 	//Eigenvectors = Eigenvectors.GetTransposed();
@@ -529,18 +529,18 @@ FMatrix CovarianceToBasis( const FMatrix& Covariance )
 	uint32 i2 = (1 << i1) & 3;
 	i1 = Eigenvalues[ i1 ] > Eigenvalues[ i2 ] ? i1 : i2;
 
-	FVector Eigenvector0 = Eigenvectors.GetColumn( i0 );
-	FVector Eigenvector1 = Eigenvectors.GetColumn( i1 );
+	FVector3f Eigenvector0 = Eigenvectors.GetColumn( i0 );
+	FVector3f Eigenvector1 = Eigenvectors.GetColumn( i1 );
 
 	Eigenvector0.Normalize();
 	Eigenvector1 -= ( Eigenvector0 | Eigenvector1 ) * Eigenvector1;
 	Eigenvector1.Normalize();
 
-	return FMatrix( Eigenvector0, Eigenvector1, Eigenvector0 ^ Eigenvector1, FVector::ZeroVector );
+	return FMatrix44f( Eigenvector0, Eigenvector1, Eigenvector0 ^ Eigenvector1, FVector3f::ZeroVector );
 #else
 	// Start with highest variance cardinal direction
 	uint32 HighestVarianceDim = Max3Index( Covariance.M[0][0], Covariance.M[1][1], Covariance.M[2][2] );
-	FVector Eigenvector0 = FMatrix::Identity.GetColumn( HighestVarianceDim );
+	FVector3f Eigenvector0 = FMatrix44f::Identity.GetColumn( HighestVarianceDim );
 	
 	// Compute dominant eigenvector using power method
 	for( int i = 0; i < 32; i++ )
@@ -550,12 +550,12 @@ FMatrix CovarianceToBasis( const FMatrix& Covariance )
 	}
 	if( !Eigenvector0.IsNormalized() )
 	{
-		Eigenvector0 = FVector( 0.0f, 0.0f, 1.0f );
+		Eigenvector0 = FVector3f( 0.0f, 0.0f, 1.0f );
 	}
 
 	// Rotate matrix so that Z is Eigenvector0. This allows us to ignore Z dimension and turn this into a 2D problem.
-	FMatrix ZSpace = OrthonormalBasis( Eigenvector0 );
-	FMatrix ZLocalCovariance = Covariance * ZSpace;
+	FMatrix44f ZSpace = OrthonormalBasis( Eigenvector0 );
+	FMatrix44f ZLocalCovariance = Covariance * ZSpace;
 
 	// Compute eigenvalues in XY plane. Solve for 2x2.
 	float Det = ZLocalCovariance.M[0][0] * ZLocalCovariance.M[1][1] - ZLocalCovariance.M[0][1] * ZLocalCovariance.M[1][0];
@@ -574,21 +574,21 @@ FMatrix CovarianceToBasis( const FMatrix& Covariance )
 	float MaxEigenvalue = FMath::Max( Eigenvalue1, Eigenvalue2 );
 
 	// Solve ( Eigenvalue * I - M ) * Eigenvector = 0
-	FVector Eigenvector1;
+	FVector3f Eigenvector1;
 	if( FMath::Abs( ZLocalCovariance.M[0][1] ) > FMath::Abs( ZLocalCovariance.M[1][0] ) )
 	{
-		Eigenvector1 = FVector( ZLocalCovariance.M[0][1], MaxEigenvalue - ZLocalCovariance.M[0][0], 0.0f );
+		Eigenvector1 = FVector3f( ZLocalCovariance.M[0][1], MaxEigenvalue - ZLocalCovariance.M[0][0], 0.0f );
 	}
 	else
 	{
-		Eigenvector1 = FVector( MaxEigenvalue - ZLocalCovariance.M[1][1], ZLocalCovariance.M[1][0], 0.0f );
+		Eigenvector1 = FVector3f( MaxEigenvalue - ZLocalCovariance.M[1][1], ZLocalCovariance.M[1][0], 0.0f );
 	}
 
 	Eigenvector1 = ZSpace.TransformVector( Eigenvector1 );
 	//Eigenvector1 -= ( Eigenvector0 | Eigenvector1 ) * Eigenvector1;
 	Eigenvector1.Normalize();
 
-	return FMatrix( Eigenvector0, Eigenvector1, Eigenvector0 ^ Eigenvector1, FVector::ZeroVector );
+	return FMatrix44f( Eigenvector0, Eigenvector1, Eigenvector0 ^ Eigenvector1, FVector3f::ZeroVector );
 #endif
 }
 
@@ -597,7 +597,7 @@ void FCluster::Bound()
 	NumTris = Indexes.Num() / 3;
 	Bounds = FBounds();
 	
-	TArray< FVector, TInlineAllocator<128> > Positions;
+	TArray< FVector, TInlineAllocator<128> > Positions;	//TODO: convert me to FVector3f when FSphere also has a float version
 	Positions.SetNum( NumVerts, false );
 
 	for( uint32 i = 0; i < NumVerts; i++ )
@@ -611,20 +611,20 @@ void FCluster::Bound()
 	//auto& Normals = Positions;
 	//Normals.Reset( Cluster.NumTris );
 
-	FVector SurfaceMean( 0.0f );
+	FVector3f SurfaceMean( 0.0f );
 	
 	float MaxEdgeLength2 = 0.0f;
-	FVector AvgNormal = FVector::ZeroVector;
+	FVector3f AvgNormal = FVector3f::ZeroVector;
 	for( int i = 0; i < Indexes.Num(); i += 3 )
 	{
-		FVector v[3];
+		FVector3f v[3];
 		v[0] = GetPosition( Indexes[ i + 0 ] );
 		v[1] = GetPosition( Indexes[ i + 1 ] );
 		v[2] = GetPosition( Indexes[ i + 2 ] );
 
-		FVector Edge01 = v[1] - v[0];
-		FVector Edge12 = v[2] - v[1];
-		FVector Edge20 = v[0] - v[2];
+		FVector3f Edge01 = v[1] - v[0];
+		FVector3f Edge12 = v[2] - v[1];
+		FVector3f Edge20 = v[0] - v[2];
 
 		MaxEdgeLength2 = FMath::Max( MaxEdgeLength2, Edge01.SizeSquared() );
 		MaxEdgeLength2 = FMath::Max( MaxEdgeLength2, Edge12.SizeSquared() );
@@ -632,7 +632,7 @@ void FCluster::Bound()
 
 #if 0
 		// Calculate normals
-		FVector Normal = Edge01 ^ Edge20;
+		FVector3f Normal = Edge01 ^ Edge20;
 		if( Normal.Normalize( 1e-12 ) )
 		{
 			Normals.Add( Normal );
@@ -654,7 +654,7 @@ void FCluster::Bound()
 	float Covariance[6] = { 0 };
 	for( int i = 0; i < Cluster.Indexes.Num(); i += 3 )
 	{
-		FVector v[3];
+		FVector3f v[3];
 		v[0] = Cluster.Verts[ Cluster.Indexes[ i + 0 ] ].Position;
 		v[1] = Cluster.Verts[ Cluster.Indexes[ i + 1 ] ].Position;
 		v[2] = Cluster.Verts[ Cluster.Indexes[ i + 2 ] ].Position;
@@ -663,7 +663,7 @@ void FCluster::Bound()
 
 		for( int k = 0; k < 3; k++ )
 		{
-			FVector Diff = v[k] - SurfaceMean;
+			FVector3f Diff = v[k] - SurfaceMean;
 			Covariance[0] += TriArea * Diff[0] * Diff[0];
 			Covariance[1] += TriArea * Diff[0] * Diff[1];
 			Covariance[2] += TriArea * Diff[0] * Diff[2];
@@ -675,13 +675,13 @@ void FCluster::Bound()
 	for( int j = 0; j < 6; j++ )
 		Covariance[j] /= 12.0f * SurfaceArea;
 
-	FMatrix Axis = CovarianceToBasis( FMatrix(
+	FMatrix44f Axis = CovarianceToBasis( FMatrix44f(
 		{ Covariance[0], Covariance[1], Covariance[2] },
 		{ Covariance[1], Covariance[3], Covariance[4] },
 		{ Covariance[2], Covariance[4], Covariance[5] },
-		FVector::ZeroVector ) );
+		FVector3f::ZeroVector ) );
 
-	FMatrix InvAxis = Axis.GetTransposed();
+	FMatrix44f InvAxis = Axis.GetTransposed();
 
 	FBounds Bounds;
 	for( int i = 0; i < Cluster.NumVerts; i++ )
@@ -689,11 +689,11 @@ void FCluster::Bound()
 		Bounds += InvAxis.TransformVector( Cluster.Verts[i].Position );
 	}
 
-	FVector Center = 0.5f * ( Bounds[1] + Bounds[0] );
-	FVector Extent = 0.5f * ( Bounds[1] - Bounds[0] );
+	FVector3f Center = 0.5f * ( Bounds[1] + Bounds[0] );
+	FVector3f Extent = 0.5f * ( Bounds[1] - Bounds[0] );
 
 	// Cluster space is [-1,1] cube.
-	FMatrix BoundsToLocal = FScaleMatrix( Extent ) * FTranslationMatrix( Center ) * Axis;
+	FMatrix44f BoundsToLocal = FScaleMatrix( Extent ) * FTranslationMatrix( Center ) * Axis;
 #endif
 
 #if 0
@@ -705,7 +705,7 @@ void FCluster::Bound()
 
 	FNormalCone SphereCone( NormalBounds.Center );
 	FNormalCone AvgCone( AvgNormal );
-	for( FVector& Normal : Normals )
+	for( FVector3f& Normal : Normals )
 	{
 		SphereCone.CosAngle	= FMath::Min( Normal | SphereCone.Axis, SphereCone.CosAngle );
 		AvgCone.CosAngle	= FMath::Min( Normal | AvgCone.Axis, AvgCone.CosAngle );
@@ -736,12 +736,12 @@ void FCluster::Bound()
 		// Push half space cone outside of every triangle's half space.
 		for( int i = 0; i < Cluster.Indexes.Num(); i += 3 )
 		{
-			FVector v[3];
+			FVector3f v[3];
 			v[0] = Cluster.Verts[ Cluster.Indexes[ i + 0 ] ].Position;
 			v[1] = Cluster.Verts[ Cluster.Indexes[ i + 1 ] ].Position;
 			v[2] = Cluster.Verts[ Cluster.Indexes[ i + 2 ] ].Position;
 
-			FVector Normal = (v[2] - v[0]) ^ (v[1] - v[0]);
+			FVector3f Normal = (v[2] - v[0]) ^ (v[1] - v[0]);
 			if( Normal.Normalize( 1e-12 ) )
 			{
 				FPlane Plane( v[0] - Cluster.Bounds.Center, Normal );
@@ -757,7 +757,7 @@ void FCluster::Bound()
 	else
 	{
 		// No valid region to backface cull
-		Cluster.ConeAxis = FVector( 0.0f, 0.0f, 1.0f );
+		Cluster.ConeAxis = FVector3f( 0.0f, 0.0f, 1.0f );
 		Cluster.ConeCosAngle = 2.0f;
 		Cluster.ConeStart = FVector2D::ZeroVector;
 	}

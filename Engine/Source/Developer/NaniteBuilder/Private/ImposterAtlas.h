@@ -23,10 +23,10 @@ public:
 private:
 	TArray< uint16 >&	Pixels;
 
-	FVector		BoundsCenter;
-	FVector		BoundsExtent;
+	FVector3f	BoundsCenter;
+	FVector3f	BoundsExtent;
 
-	FMatrix		GetLocalToImposter( const FIntPoint& TilePos ) const;
+	FMatrix44f	GetLocalToImposter(const FIntPoint& TilePos) const;
 };
 
 } // namespace Nanite

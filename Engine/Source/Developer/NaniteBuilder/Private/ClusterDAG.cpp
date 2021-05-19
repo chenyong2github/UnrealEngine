@@ -88,8 +88,8 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 					uint32 VertIndex0 = Cluster.Indexes[ EdgeIndex ];
 					uint32 VertIndex1 = Cluster.Indexes[ Cycle3( EdgeIndex ) ];
 	
-					const FVector& Position0 = Cluster.GetPosition( VertIndex0 );
-					const FVector& Position1 = Cluster.GetPosition( VertIndex1 );
+					const FVector3f& Position0 = Cluster.GetPosition( VertIndex0 );
+					const FVector3f& Position1 = Cluster.GetPosition( VertIndex1 );
 
 					uint32 Hash0 = HashPosition( Position0 );
 					uint32 Hash1 = HashPosition( Position1 );
@@ -118,8 +118,8 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 					uint32 VertIndex0 = Cluster.Indexes[ EdgeIndex ];
 					uint32 VertIndex1 = Cluster.Indexes[ Cycle3( EdgeIndex ) ];
 	
-					const FVector& Position0 = Cluster.GetPosition( VertIndex0 );
-					const FVector& Position1 = Cluster.GetPosition( VertIndex1 );
+					const FVector3f& Position0 = Cluster.GetPosition( VertIndex0 );
+					const FVector3f& Position1 = Cluster.GetPosition( VertIndex1 );
 
 					uint32 Hash0 = HashPosition( Position0 );
 					uint32 Hash1 = HashPosition( Position1 );

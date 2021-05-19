@@ -91,8 +91,8 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 	ParallelFor( NumElements,
 		[&]( uint32 Index )
 		{
-			FVector Center = GetCenter( Index );
-			FVector CenterLocal = ( Center - Bounds.Min ) / ( Bounds.Max - Bounds.Min );
+			FVector3f Center = GetCenter( Index );
+			FVector3f CenterLocal = ( Center - Bounds.Min ) / ( Bounds.Max - Bounds.Min );
 
 			uint32 Morton;
 			Morton  = FMath::MortonCode3( CenterLocal.X * 1023 );
@@ -160,7 +160,7 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 		{
 			uint32 IslandID = DisjointSet[ Index ];
 
-			FVector Center = GetCenter( Index );
+			FVector3f Center = GetCenter( Index );
 
 			uint32 ClosestIndex[3] = { ~0u, ~0u, ~0u };
 			float  ClosestDist2[3] = { MAX_flt, MAX_flt, MAX_flt };
