@@ -15,11 +15,22 @@ UTestBTService_Log::UTestBTService_Log(const FObjectInitializer& ObjectInitializ
 	LogDeactivation = INDEX_NONE;
 	KeyNameTick = NAME_None;
 	LogTick = INDEX_NONE;
+	KeyNameBecomeRelevant = NAME_None;
+	KeyNameCeaseRelevant = NAME_None;
+
+	// Force the service to tick every frame
+	Interval = 0.0f;
+	RandomDeviation = 0.0f;
 }
 
 void UTestBTService_Log::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	Super::OnBecomeRelevant(OwnerComp, NodeMemory);
+
+	if (KeyNameBecomeRelevant != NAME_None)
+	{
+		OwnerComp.GetBlackboardComponent()->SetValueAsBool(KeyNameBecomeRelevant, true);
+	}
 
 	if (LogActivation >= 0)
 	{
@@ -30,6 +41,11 @@ void UTestBTService_Log::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uin
 void UTestBTService_Log::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
+
+	if (KeyNameCeaseRelevant != NAME_None)
+	{
+		OwnerComp.GetBlackboardComponent()->SetValueAsBool(KeyNameCeaseRelevant, true);
+	}
 
 	if (LogDeactivation >= 0)
 	{
