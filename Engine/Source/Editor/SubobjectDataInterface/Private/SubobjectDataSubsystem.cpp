@@ -309,6 +309,12 @@ void USubobjectDataSubsystem::GatherSubobjectData(UObject* Context, TArray<FSubo
 				}
 			}
 		}
+
+		// Sort subobjects by type (always put scene components first in the tree)
+		OutArray.Sort([](const FSubobjectDataHandle& A, const FSubobjectDataHandle& B)
+		{
+			return A.GetData()->IsActor() || (A.GetData()->IsSceneComponent() && !B.GetData()->IsActor());
+		});
 	}
 	// Otherwise, this is an actor instance in a level
 	else
@@ -714,14 +720,17 @@ FSubobjectDataHandle USubobjectDataSubsystem::FindParentForNewSubobject(const UO
 	}
 	else
 	{
-		if (TargetParentData->IsValid())
+		// Non-scene components should be parented to the base actor in the hierarchy
+		FSubobjectDataHandle CurrentHandle = SelectedParent;
+		FSubobjectData* CurrentData = CurrentHandle.GetData();
+
+		while (CurrentData && !CurrentData->IsActor())
 		{
-			TargetParentHandle = FindSceneRootForSubobject(SelectedParent);
+			CurrentHandle = CurrentData->GetParentHandle();
+			CurrentData = CurrentHandle.GetData();
 		}
-		else
-		{
-			TargetParentHandle = SelectedParent;
-		}
+
+		TargetParentHandle = CurrentHandle;
 	}
 	
 	return TargetParentHandle;
