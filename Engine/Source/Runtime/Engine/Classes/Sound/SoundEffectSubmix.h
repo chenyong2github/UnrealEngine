@@ -153,5 +153,4 @@ private:
 	}
 
 	FSoundEffectSubmixInitData InitData_Internal;
-	uint32 ParentPresetUniqueId = INDEX_NONE;
 };
