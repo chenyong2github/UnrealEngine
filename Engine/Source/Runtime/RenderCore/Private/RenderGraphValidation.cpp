@@ -155,7 +155,6 @@ void FRDGUniformBuffer::MarkResourceAsUsed()
 
 FRDGUserValidation::FRDGUserValidation(FRDGAllocator& InAllocator)
 	: Allocator(InAllocator)
-	, ExpectedNumMarks(FMemStack::Get().GetNumMarks())
 {
 	checkf(!GRDGBuilderActive, TEXT("Another FRDGBuilder already exists on the stack. Only one builder can be created at a time. This builder instance should be merged into the parent one."));
 	GRDGBuilderActive = true;
@@ -167,20 +166,13 @@ FRDGUserValidation::~FRDGUserValidation()
 	GRDGBuilderActive = false;
 }
 
-void FRDGUserValidation::MemStackGuard()
-{
-	checkf(ExpectedNumMarks == FMemStack::Get().GetNumMarks(), TEXT("A MemStack mark was added during the FRDGBuilder lifetime. This is not allowed as it will free memory still used by the builder."));
-}
-
 void FRDGUserValidation::ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName)
 {
 	checkf(!bHasExecuted, TEXT("Render graph operation '%s' with resource '%s' must be performed prior to graph execution."), Operation, ResourceName);
-	MemStackGuard();
 }
 
 void FRDGUserValidation::ValidateCreateResource(FRDGResourceRef Resource)
 {
-	MemStackGuard();
 	check(Resource);
 	Resource->DebugData = Allocator.Alloc<FRDGResourceDebugData>();
 
@@ -397,8 +389,11 @@ void FRDGUserValidation::ValidateExtractBuffer(FRDGBufferRef Buffer, TRefCountPt
 
 void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 {
-	MemStackGuard();
 	check(Resource);
+
+	checkf(!bHasExecuteBegun || !Resource->bTransient,
+		TEXT("Unable to queue the extraction of the resource %s because passes in the graph have already executed and it was made transient."),
+		Resource->Name);
 
 	checkf(Resource->bProduced || Resource->bExternal,
 		TEXT("Unable to queue the extraction of the resource %s because it has not been produced by any pass."),
@@ -409,6 +404,14 @@ void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 	 *  resources to be able to emit a proper warning.
 	 */
 	Resource->GetParentDebugData().PassAccessCount++;
+}
+
+void FRDGUserValidation::ValidateConvertToExternalResource(FRDGParentResourceRef Resource)
+{
+	check(Resource);
+	checkf(!bHasExecuteBegun || !Resource->bTransient,
+		TEXT("Unable to convert resource %s to external because passes in the graph have already executed."),
+		Resource->Name);
 }
 
 void FRDGUserValidation::RemoveUnusedWarning(FRDGParentResourceRef Resource)
@@ -509,8 +512,6 @@ void FRDGUserValidation::ValidateAddPass(const void* ParameterStruct, const FSha
 
 void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking)
 {
-	MemStackGuard();
-
 	const FRenderTargetBindingSlots* RenderTargetBindingSlots = nullptr;
 
 	// Pass flags are validated as early as possible by the builder in AddPass.
@@ -826,13 +827,14 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 void FRDGUserValidation::ValidateExecuteBegin()
 {
-	MemStackGuard();
 	checkf(!bHasExecuted, TEXT("Render graph execution should only happen once to ensure consistency with immediate mode."));
+	check(!bHasExecuteBegun);
+	bHasExecuteBegun = true;
 }
 
 void FRDGUserValidation::ValidateExecuteEnd()
 {
-	MemStackGuard();
+	check(bHasExecuteBegun);
 
 	bHasExecuted = true;
 
@@ -1362,26 +1364,14 @@ namespace
 
 FString FRDGLogFile::GetProducerName(FRDGPassHandle PassHandle)
 {
-	if (PassHandle.IsValid())
-	{
-		return GetNodeName(PassHandle);
-	}
-	else
-	{
-		return GetNodeName(ProloguePassHandle);
-	}
+	check(PassHandle.IsValid());
+	return GetNodeName(PassHandle);
 }
 
 FString FRDGLogFile::GetConsumerName(FRDGPassHandle PassHandle)
 {
-	if (PassHandle.IsValid())
-	{
-		return GetNodeName(PassHandle);
-	}
-	else
-	{
-		return GetNodeName(EpiloguePassHandle);
-	}
+	check(PassHandle.IsValid());
+	return GetNodeName(PassHandle);
 }
 
 FString FRDGLogFile::GetNodeName(FRDGPassHandle PassHandle)
@@ -1419,12 +1409,7 @@ void FRDGLogFile::AddBraceEnd()
 	AddLine(TEXT("}"));
 }
 
-void FRDGLogFile::Begin(
-	const FRDGEventName& InGraphName,
-	const FRDGPassRegistry* InPasses,
-	FRDGPassBitArray InPassesCulled,
-	FRDGPassHandle InProloguePassHandle,
-	FRDGPassHandle InEpiloguePassHandle)
+void FRDGLogFile::Begin(const FRDGEventName& InGraphName)
 {
 	if (GRDGDumpGraph)
 	{
@@ -1435,12 +1420,7 @@ void FRDGLogFile::Begin(
 		}
 
 		check(File.IsEmpty());
-		check(InPasses && InEpiloguePassHandle.IsValid());
 
-		Passes = InPasses;
-		PassesCulled = InPassesCulled;
-		ProloguePassHandle = InProloguePassHandle;
-		EpiloguePassHandle = InEpiloguePassHandle;
 		GraphName = InGraphName.GetTCHAR();
 
 		if (GraphName.IsEmpty())
@@ -1467,9 +1447,9 @@ void FRDGLogFile::End()
 	TArray<FRDGPassHandle> PassesGraphics;
 	TArray<FRDGPassHandle> PassesAsyncCompute;
 
-	for (FRDGPassHandle PassHandle = Passes->Begin(); PassHandle != Passes->End(); ++PassHandle)
+	for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
 	{
-		const FRDGPass* Pass = Passes->Get(PassHandle);
+		const FRDGPass* Pass = Passes[PassHandle];
 		const ERHIPipeline Pipeline = Pass->GetPipeline();
 
 		switch (Pipeline)
@@ -1489,9 +1469,9 @@ void FRDGLogFile::End()
 	{
 		FRDGPassHandle PrevPassesByPipeline[uint32(ERHIPipeline::Num)];
 
-		for (FRDGPassHandle PassHandle = Passes->Begin(); PassHandle != Passes->End(); ++PassHandle)
+		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle != Passes.End(); ++PassHandle)
 		{
-			const FRDGPass* Pass = Passes->Get(PassHandle);
+			const FRDGPass* Pass = Passes[PassHandle];
 
 			if (!EnumHasAnyFlags(Pass->GetFlags(), ERDGPassFlags::Copy | ERDGPassFlags::Raster | ERDGPassFlags::Compute | ERDGPassFlags::AsyncCompute))
 			{
@@ -1534,24 +1514,16 @@ void FRDGLogFile::End()
 	}
 	else if (GRDGDumpGraph == RDG_DUMP_GRAPH_PRODUCERS)
 	{
-		for (FRDGPassHandle PassHandle = Passes->Begin(); PassHandle != Passes->End(); ++PassHandle)
+		for (FRDGPassHandle PassHandle = Passes.Begin(); PassHandle < Passes.Last(); ++PassHandle)
 		{
-			if (PassHandle == EpiloguePassHandle)
-			{
-				break;
-			}
-
-			const FRDGPass* Pass = Passes->Get(PassHandle);
+			const FRDGPass* Pass = Passes[PassHandle];
 
 			for (const FRDGPassHandle ProducerHandle : Pass->GetProducers())
 			{
-				if (ProducerHandle != ProloguePassHandle)
-				{
-					const FRDGPass* Producer = Passes->Get(ProducerHandle);
+				const FRDGPass* Producer = Passes[ProducerHandle];
 
-					File += FString::Printf(TEXT("\t\"%s\" -> \"%s\" [penwidth=2, color=\"%s:%s\"]\n"),
-						*GetNodeName(ProducerHandle), *GetNodeName(PassHandle), GetPassColorName(Pass->GetFlags()), GetPassColorName(Producer->GetFlags()));
-				}
+				File += FString::Printf(TEXT("\t\"%s\" -> \"%s\" [penwidth=2, color=\"%s:%s\"]\n"),
+					*GetNodeName(ProducerHandle), *GetNodeName(PassHandle), GetPassColorName(Pass->GetFlags()), GetPassColorName(Producer->GetFlags()));
 			}
 		}
 	}
@@ -1566,8 +1538,8 @@ void FRDGLogFile::End()
 			return;
 		}
 
-		const FRDGPass* Pass = Passes->Get(PassHandle);
-		const TCHAR* Style = PassesCulled[PassHandle] ? TEXT("dashed") : TEXT("filled");
+		const FRDGPass* Pass = Passes[PassHandle];
+		const TCHAR* Style = Pass->IsCulled() ? TEXT("dashed") : TEXT("filled");
 		FString PassName = FString::Printf(TEXT("[%d]: %s"), PassHandle.GetIndex(), Pass->GetName());
 
 		if (Pass->GetParameters().HasExternalOutputs())
@@ -1583,7 +1555,7 @@ void FRDGLogFile::End()
 
 		for (FRDGPassHandle PassHandle : PassesGraphics)
 		{
-			const FRDGPass* Pass = Passes->Get(PassHandle);
+			const FRDGPass* Pass = Passes[PassHandle];
 
 			if (Pass->IsMergedRenderPassBegin())
 			{
@@ -1640,9 +1612,10 @@ void FRDGLogFile::End()
 
 	uint32 NumPassesActive = 0;
 	uint32 NumPassesCulled = 0;
-	for (FRDGPassHandle PassHandle = Passes->Begin(); PassHandle != Passes->End(); ++PassHandle)
+
+	Passes.Enumerate([&](const FRDGPass* Pass)
 	{
-		if (PassesCulled[PassHandle])
+		if (Pass->IsCulled())
 		{
 			NumPassesCulled++;
 		}
@@ -1650,7 +1623,7 @@ void FRDGLogFile::End()
 		{
 			NumPassesActive++;
 		}
-	}
+	});
 
 	AddLine(FString::Printf(TEXT("label=\"%s [Active Passes: %d, Culled Passes: %d, Textures: %d, Buffers: %d]\""), *GraphName, NumPassesActive, NumPassesCulled, Textures.Num(), Buffers.Num()));
 
@@ -1679,7 +1652,7 @@ void FRDGLogFile::End()
 
 bool FRDGLogFile::IncludeTransitionEdgeInGraph(FRDGPassHandle Pass) const
 {
-	return Pass.IsValid() && Pass != ProloguePassHandle && Pass != EpiloguePassHandle;
+	return Pass.IsValid() && !Passes[Pass]->IsSentinel();
 }
 
 bool FRDGLogFile::IncludeTransitionEdgeInGraph(FRDGPassHandle PassBefore, FRDGPassHandle PassAfter) const

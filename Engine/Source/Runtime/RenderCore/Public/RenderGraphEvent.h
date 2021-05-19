@@ -376,7 +376,7 @@ public:
 class RENDERCORE_API FRDGCSVStatScopeStack final
 {
 public:
-	FRDGCSVStatScopeStack(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator, const char* UnaccountedStatName);
+	FRDGCSVStatScopeStack(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator);
 
 	void BeginScope(const char* StatName);
 
@@ -396,7 +396,6 @@ public:
 private:
 	static bool IsEnabled();
 	TRDGScopeStack<FRDGCSVStatScope> ScopeStack;
-	const char* const UnaccountedStatName;
 };
 
 #if CSV_PROFILER
@@ -430,7 +429,7 @@ struct FRDGCPUScopes
 
 struct FRDGCPUScopeStacks
 {
-	FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator, const char* UnaccountedCSVStat);
+	FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator);
 
 	void BeginExecute();
 

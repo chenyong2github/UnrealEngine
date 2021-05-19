@@ -810,12 +810,11 @@ enum class ERHIPipeline : uint8
 };
 ENUM_CLASS_FLAGS(ERHIPipeline)
 
-inline uint32 GetRHIPipelineIndex(ERHIPipeline Pipeline)
+inline constexpr uint32 GetRHIPipelineIndex(ERHIPipeline Pipeline)
 {
 	switch (Pipeline)
 	{
 	default:
-		checkf(false, TEXT("Attempted to get a pipeline index but the pipeline mask is not exclusively Graphics or AsyncCompute."));
 	case ERHIPipeline::Graphics:
 		return 0;
 	case ERHIPipeline::AsyncCompute:
@@ -852,9 +851,7 @@ class TRHIPipelineArray : public TStaticArray<ElementType, GetRHIPipelineCount()
 {
 	using Base = TStaticArray<ElementType, GetRHIPipelineCount()>;
 public:
-	TRHIPipelineArray() = default;
-	TRHIPipelineArray(const TRHIPipelineArray&) = default;
-	TRHIPipelineArray& operator=(const TRHIPipelineArray&) = default;
+	using Base::Base;
 
 	FORCEINLINE ElementType& operator[](ERHIPipeline Pipeline)
 	{

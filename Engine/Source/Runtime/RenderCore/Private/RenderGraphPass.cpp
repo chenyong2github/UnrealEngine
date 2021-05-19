@@ -4,14 +4,6 @@
 #include "RenderGraphPrivate.h"
 #include "RenderGraphUtils.h"
 
-static FRDGPassHandlesByPipeline GetPassesByPipeline(const FRDGPass* Pass)
-{
-	check(Pass);
-	FRDGPassHandlesByPipeline Passes;
-	Passes[Pass->GetPipeline()] = Pass->GetHandle();
-	return Passes;
-}
-
 FUniformBufferStaticBindings FRDGParameterStruct::GetStaticUniformBuffers() const
 {
 	FUniformBufferStaticBindings GlobalUniformBuffers;
@@ -110,46 +102,22 @@ FRHIRenderPassInfo FRDGParameterStruct::GetRenderPassInfo() const
 	return RenderPassInfo;
 }
 
-uint32 GetTypeHash(FRDGBarrierBatchBeginId Id)
+FRDGBarrierBatchBegin::FRDGBarrierBatchBegin(ERHIPipeline InPipelineToBegin, ERHIPipeline InPipelinesToEnd, const TCHAR* InDebugName, FRDGPass* InDebugPass)
+	: PipelinesToBegin(InPipelineToBegin)
+	, PipelinesToEnd(InPipelinesToEnd)
+#if RDG_ENABLE_DEBUG
+	, DebugPasses(InPlace, nullptr)
+	, DebugName(InDebugName)
+	, DebugPipelinesToBegin(InPipelineToBegin)
+	, DebugPipelinesToEnd(InPipelinesToEnd)
+#endif
 {
-	static_assert(sizeof(Id.Passes) == 4, "Hash expects the Passes array to be 4 bytes (2 uint16's).");
-	uint32 Hash = *(const uint32*)Id.Passes.GetData();
-	return (Hash << GetRHIPipelineCount()) | uint32(Id.PipelinesAfter);
+#if RDG_ENABLE_DEBUG
+	DebugPasses[InPipelineToBegin] = InDebugPass;
+#endif
 }
 
-FRDGTransitionQueue::FRDGTransitionQueue(uint32 ReservedCount)
-{
-	Queue.Reserve(ReservedCount);
-}
-
-void FRDGTransitionQueue::Insert(const FRHITransition* Transition, ERHITransitionCreateFlags TransitionFlags)
-{
-	Queue.Add(Transition);
-}
-
-void FRDGTransitionQueue::Begin(FRHIComputeCommandList& RHICmdList)
-{
-	if (Queue.Num())
-	{
-		RHICmdList.BeginTransitions(Queue);
-		Queue.Empty();
-	}
-}
-
-void FRDGTransitionQueue::End(FRHIComputeCommandList& RHICmdList)
-{
-	if (Queue.Num())
-	{
-		RHICmdList.EndTransitions(Queue);
-		Queue.Empty();
-	}
-}
-
-FRDGBarrierBatchBegin::FRDGBarrierBatchBegin(ERHIPipeline InPipelinesToBegin, ERHIPipeline InPipelinesToEnd, const TCHAR* InDebugName, const FRDGPass* InDebugPass)
-	: FRDGBarrierBatchBegin(InPipelinesToBegin, InPipelinesToEnd, InDebugName, GetPassesByPipeline(InDebugPass))
-{}
-
-FRDGBarrierBatchBegin::FRDGBarrierBatchBegin(ERHIPipeline InPipelinesToBegin, ERHIPipeline InPipelinesToEnd, const TCHAR* InDebugName, FRDGPassHandlesByPipeline InDebugPasses)
+FRDGBarrierBatchBegin::FRDGBarrierBatchBegin(ERHIPipeline InPipelinesToBegin, ERHIPipeline InPipelinesToEnd, const TCHAR* InDebugName, FRDGPassesByPipeline InDebugPasses)
 	: PipelinesToBegin(InPipelinesToBegin)
 	, PipelinesToEnd(InPipelinesToEnd)
 #if RDG_ENABLE_DEBUG
@@ -158,15 +126,7 @@ FRDGBarrierBatchBegin::FRDGBarrierBatchBegin(ERHIPipeline InPipelinesToBegin, ER
 	, DebugPipelinesToBegin(InPipelinesToBegin)
 	, DebugPipelinesToEnd(InPipelinesToEnd)
 #endif
-{
-#if RDG_ENABLE_DEBUG
-	for (ERHIPipeline Pipeline : GetRHIPipelines())
-	{
-		// We should have provided corresponding debug passes to match the pipeline flags.
-		check(InDebugPasses[Pipeline].IsValid() == EnumHasAllFlags(InPipelinesToBegin, Pipeline));
-	}
-#endif
-}
+{}
 
 void FRDGBarrierBatchBegin::AddTransition(FRDGParentResourceRef Resource, const FRHITransitionInfo& Info)
 {
@@ -196,19 +156,19 @@ void FRDGBarrierBatchBegin::AddAlias(FRDGParentResourceRef Resource, const FRHIT
 #endif
 }
 
+void FRDGBarrierBatchBegin::CreateTransition()
+{
+	check(bTransitionNeeded && !Transition);
+	Transition = RHICreateTransition(FRHITransitionCreateInfo(PipelinesToBegin, PipelinesToEnd, TransitionFlags, Transitions, Aliases));
+}
+
 void FRDGBarrierBatchBegin::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline, FRDGTransitionQueue& TransitionsToBegin)
 {
-	// Submit may be called once for each pipe. The first to submit creates the transition.
-	if (!Transition && bTransitionNeeded)
-	{
-		Transition = RHICreateTransition(FRHITransitionCreateInfo(PipelinesToBegin, PipelinesToEnd, TransitionFlags, Transitions, Aliases));
-	}
-
 	if (Transition)
 	{
 		check(EnumHasAnyFlags(PipelinesToBegin, Pipeline));
 		EnumRemoveFlags(PipelinesToBegin, Pipeline);
-		TransitionsToBegin.Insert(Transition, TransitionFlags);
+		TransitionsToBegin.Emplace(Transition);
 	}
 
 #if STATS
@@ -220,7 +180,11 @@ void FRDGBarrierBatchBegin::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipel
 {
 	FRDGTransitionQueue TransitionsToBegin;
 	Submit(RHICmdList, Pipeline, TransitionsToBegin);
-	TransitionsToBegin.Begin(RHICmdList);
+
+	if (!TransitionsToBegin.IsEmpty())
+	{
+		RHICmdList.BeginTransitions(TransitionsToBegin);
+	}
 }
 
 void FRDGBarrierBatchEnd::AddDependency(FRDGBarrierBatchBegin* BeginBatch)
@@ -230,10 +194,10 @@ void FRDGBarrierBatchEnd::AddDependency(FRDGBarrierBatchBegin* BeginBatch)
 
 	for (ERHIPipeline Pipeline : GetRHIPipelines())
 	{
-		const FRDGPassHandle BeginPassHandle = BeginBatch->DebugPasses[Pipeline];
-		if (BeginPassHandle.IsValid())
+		const FRDGPass* BeginPass = BeginBatch->DebugPasses[Pipeline];
+		if (BeginPass)
 		{
-			checkf(BeginPassHandle <= PassHandle, TEXT("A transition end batch for pass %d is dependent on begin batch for pass %d."), PassHandle.GetIndex(), BeginPassHandle.GetIndex());
+			checkf(BeginPass->GetHandle() <= Pass->GetHandle(), TEXT("A transition end batch for pass %s is dependent on begin batch for pass %s."), Pass->GetName(), BeginPass->GetName());
 		}
 	}
 #endif
@@ -243,7 +207,8 @@ void FRDGBarrierBatchEnd::AddDependency(FRDGBarrierBatchBegin* BeginBatch)
 
 void FRDGBarrierBatchEnd::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline)
 {
-	FRDGTransitionQueue Transitions(Dependencies.Num());
+	FRDGTransitionQueue Transitions;
+	Transitions.Reserve(Dependencies.Num());
 
 	for (FRDGBarrierBatchBegin* Dependent : Dependencies)
 	{
@@ -251,63 +216,66 @@ void FRDGBarrierBatchEnd::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipelin
 		{
 			check(Dependent->Transition);
 			EnumRemoveFlags(Dependent->PipelinesToEnd, Pipeline);
-			Transitions.Insert(Dependent->Transition, Dependent->TransitionFlags);
+			Transitions.Emplace(Dependent->Transition);
 		}
 	}
 
-	Transitions.End(RHICmdList);
+	if (!Transitions.IsEmpty())
+	{
+		RHICmdList.EndTransitions(Transitions);
+	}
 }
 
-FRDGBarrierBatchBegin& FRDGPass::GetPrologueBarriersToBegin(FRDGAllocator& Allocator)
+FRDGBarrierBatchBegin& FRDGPass::GetPrologueBarriersToBegin(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue)
 {
 	if (!PrologueBarriersToBegin)
 	{
 		PrologueBarriersToBegin = Allocator.AllocNoDestruct<FRDGBarrierBatchBegin>(Pipeline, Pipeline, TEXT("Prologue"), this);
+		CreateQueue.Emplace(PrologueBarriersToBegin);
 	}
 	return *PrologueBarriersToBegin;
 }
 
-FRDGBarrierBatchBegin& FRDGPass::GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator)
+FRDGBarrierBatchBegin& FRDGPass::GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue)
 {
-	if (!EpilogueBarriersToBeginForGraphics)
+	if (!EpilogueBarriersToBeginForGraphics.IsTransitionNeeded())
 	{
-		EpilogueBarriersToBeginForGraphics = Allocator.AllocNoDestruct<FRDGBarrierBatchBegin>(Pipeline, ERHIPipeline::Graphics, GetEpilogueBarriersToBeginDebugName(ERHIPipeline::Graphics), this);
+		EpilogueBarriersToBeginForGraphics.Reserve(TextureStates.Num() + BufferStates.Num());
+		CreateQueue.Emplace(&EpilogueBarriersToBeginForGraphics);
 	}
-	return *EpilogueBarriersToBeginForGraphics;
+	return EpilogueBarriersToBeginForGraphics;
 }
 
-FRDGBarrierBatchBegin& FRDGPass::GetEpilogueBarriersToBeginForAsyncCompute(FRDGAllocator& Allocator)
+FRDGBarrierBatchBegin& FRDGPass::GetEpilogueBarriersToBeginForAsyncCompute(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue)
 {
 	if (!EpilogueBarriersToBeginForAsyncCompute)
 	{
 		EpilogueBarriersToBeginForAsyncCompute = Allocator.AllocNoDestruct<FRDGBarrierBatchBegin>(Pipeline, ERHIPipeline::AsyncCompute, GetEpilogueBarriersToBeginDebugName(ERHIPipeline::AsyncCompute), this);
+		CreateQueue.Emplace(EpilogueBarriersToBeginForAsyncCompute);
 	}
 	return *EpilogueBarriersToBeginForAsyncCompute;
 }
 
-FRDGBarrierBatchBegin& FRDGPass::GetEpilogueBarriersToBeginForAll(FRDGAllocator& Allocator)
+FRDGBarrierBatchBegin& FRDGPass::GetEpilogueBarriersToBeginForAll(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue)
 {
 	if (!EpilogueBarriersToBeginForAll)
 	{
 		EpilogueBarriersToBeginForAll = Allocator.AllocNoDestruct<FRDGBarrierBatchBegin>(Pipeline, ERHIPipeline::All, GetEpilogueBarriersToBeginDebugName(ERHIPipeline::AsyncCompute), this);
+		CreateQueue.Emplace(EpilogueBarriersToBeginForAll);
 	}
 	return *EpilogueBarriersToBeginForAll;
 }
 
 FRDGBarrierBatchEnd& FRDGPass::GetPrologueBarriersToEnd(FRDGAllocator& Allocator)
 {
-	if (!PrologueBarriersToEnd)
-	{
-		PrologueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>(Handle);
-	}
-	return *PrologueBarriersToEnd;
+	return PrologueBarriersToEnd;
 }
 
 FRDGBarrierBatchEnd& FRDGPass::GetEpilogueBarriersToEnd(FRDGAllocator& Allocator)
 {
 	if (!EpilogueBarriersToEnd)
 	{
-		EpilogueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>(Handle);
+		EpilogueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>(this);
 	}
 	return *EpilogueBarriersToEnd;
 }
@@ -320,6 +288,8 @@ FRDGPass::FRDGPass(
 	, ParameterStruct(InParameterStruct)
 	, Flags(InFlags)
 	, Pipeline(EnumHasAnyFlags(Flags, ERDGPassFlags::AsyncCompute) ? ERHIPipeline::AsyncCompute : ERHIPipeline::Graphics)
+	, PrologueBarriersToEnd(this)
+	, EpilogueBarriersToBeginForGraphics(Pipeline, ERHIPipeline::Graphics, GetEpilogueBarriersToBeginDebugName(ERHIPipeline::Graphics), this)
 {}
 
 #if RDG_ENABLE_DEBUG
@@ -336,10 +306,3 @@ const TCHAR* FRDGPass::GetName() const
 	}
 }
 #endif
-
-void FRDGPass::Execute(FRHIComputeCommandList& RHICmdList)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGPass_Execute);
-	RHICmdList.SetStaticUniformBuffers(ParameterStruct.GetStaticUniformBuffers());
-	ExecuteImpl(RHICmdList);
-}
