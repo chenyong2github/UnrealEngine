@@ -10,6 +10,7 @@
 #include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "NiagaraWorldManager.h"
+#include "NiagaraRenderViewDataManager.h"
 #include "VectorVM.h"
 #include "NiagaraConstants.h"
 #include "NiagaraLightRendererProperties.h"
@@ -181,7 +182,7 @@ void INiagaraModule::StartupModule()
 {
 	VectorVM::Init();
 	FNiagaraTypeDefinition::Init();
-	FNiagaraViewDataMgr::Init();
+	FNiagaraRenderViewDataManager::Init();
 
 	FNiagaraWorldManager::OnStartup();
 
@@ -387,7 +388,7 @@ void INiagaraModule::ShutdownRenderingResources()
 {
 	FFXSystemInterface::UnregisterCustomFXSystem(NiagaraEmitterInstanceBatcher::Name);
 
-	FNiagaraViewDataMgr::Shutdown();
+	FNiagaraRenderViewDataManager::Shutdown();
 }
 
 void INiagaraModule::ShutdownModule()

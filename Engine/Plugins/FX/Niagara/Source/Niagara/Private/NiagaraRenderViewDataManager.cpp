@@ -1,0 +1,78 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NiagaraRenderViewDataManager.h"
+
+#include "EngineModule.h"
+#include "SceneRenderTargetParameters.h"
+
+TGlobalResource<FNiagaraRenderViewDataManager> GNiagaraViewDataManager;
+
+void FNiagaraRenderViewDataManager::PostOpaqueRender(FPostOpaqueRenderParameters& Params)
+{
+	ViewUniformBuffer = Params.ViewUniformBuffer;
+	Parameters.SceneTextures = Params.SceneTexturesUniformParams;
+	Parameters.MobileSceneTextures = Params.MobileSceneTexturesUniformParams;
+	Parameters.Depth = Params.DepthTexture;
+	Parameters.Normal = Params.NormalTexture;
+	Parameters.Velocity = Params.VelocityTexture;
+}
+
+void FNiagaraRenderViewDataManager::GetSceneTextureParameters(FRDGBuilder& GraphBuilder, FNiagaraSceneTextureParameters& OutParameters) const
+{
+	OutParameters = Parameters;
+
+	ERHIFeatureLevel::Type LocalFeatureLevel = GetFeatureLevel();
+	if (FSceneInterface::GetShadingPath(LocalFeatureLevel) == EShadingPath::Deferred)
+	{
+		if ( !Parameters.SceneTextures )
+		{
+			OutParameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, LocalFeatureLevel, ESceneTextureSetupMode::SceneVelocity);
+		}
+	}
+	else if (FSceneInterface::GetShadingPath(LocalFeatureLevel) == EShadingPath::Mobile)
+	{
+		if ( !Parameters.MobileSceneTextures )
+		{
+			OutParameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::None);
+		}
+	}
+	OutParameters.Depth = Parameters.Depth;
+	OutParameters.Normal = Parameters.Normal;
+	OutParameters.Velocity = Parameters.Velocity;
+}
+
+void FNiagaraRenderViewDataManager::ClearSceneTextureParameters()
+{
+	Parameters = {};
+}
+
+FNiagaraRenderViewDataManager::FNiagaraRenderViewDataManager()
+	: FRenderResource()
+{
+
+}
+
+void FNiagaraRenderViewDataManager::Init()
+{
+	IRendererModule& RendererModule = GetRendererModule();
+
+	GNiagaraViewDataManager.PostOpaqueDelegate.BindRaw(&GNiagaraViewDataManager, &FNiagaraRenderViewDataManager::PostOpaqueRender);
+	GNiagaraViewDataManager.PostOpaqueDelegateHandle = RendererModule.RegisterPostOpaqueRenderDelegate(GNiagaraViewDataManager.PostOpaqueDelegate);
+}
+
+void FNiagaraRenderViewDataManager::Shutdown()
+{
+	IRendererModule& RendererModule = GetRendererModule();
+
+	RendererModule.RemovePostOpaqueRenderDelegate(GNiagaraViewDataManager.PostOpaqueDelegateHandle);
+	GNiagaraViewDataManager.ReleaseDynamicRHI();
+}
+
+void FNiagaraRenderViewDataManager::InitDynamicRHI()
+{
+
+}
+
+void FNiagaraRenderViewDataManager::ReleaseDynamicRHI()
+{
+}
