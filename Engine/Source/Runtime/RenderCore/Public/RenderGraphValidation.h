@@ -63,6 +63,8 @@ public:
 	void ValidateExtractTexture(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr);
 	void ValidateExtractBuffer(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr);
 
+	void ValidateConvertToExternalResource(FRDGParentResourceRef Resource);
+
 	/** Tracks and validates the addition of a new pass to the graph.
 	 *  @param bSkipPassAccessMarking Skips marking the pass as a producer or incrementing the pass access. Useful when
 	 *      the builder needs to inject a pass for debugging while preserving error messages and warnings for the original
@@ -111,12 +113,11 @@ private:
 
 	/** Whether the Execute() has already been called. */
 	bool bHasExecuted = false;
+	bool bHasExecuteBegun = false;
 
-	void MemStackGuard();
 	void ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName);
 
 	FRDGAllocator& Allocator;
-	int32 ExpectedNumMarks;
 };
 
 /** This class validates and logs barriers submitted by the graph. */
@@ -151,14 +152,11 @@ private:
 class FRDGLogFile
 {
 public:
-	FRDGLogFile() = default;
+	FRDGLogFile(const FRDGPassRegistry& InPasses)
+		: Passes(InPasses)
+	{}
 
-	void Begin(
-		const FRDGEventName& GraphName,
-		const FRDGPassRegistry* InPassRegistry,
-		FRDGPassBitArray InPassesCulled,
-		FRDGPassHandle InProloguePassHandle,
-		FRDGPassHandle InEpiloguePassHandle);
+	void Begin(const FRDGEventName& GraphName);
 
 	void AddFirstEdge(const FRDGTextureRef Texture, FRDGPassHandle FirstPass);
 
@@ -193,14 +191,11 @@ private:
 
 	bool bOpen = false;
 
+	const FRDGPassRegistry& Passes;
+
 	TSet<FRDGPassHandle> PassesReferenced;
 	TArray<const FRDGTexture*> Textures;
 	TArray<const FRDGBuffer*> Buffers;
-
-	const FRDGPassRegistry* Passes = nullptr;
-	FRDGPassBitArray PassesCulled;
-	FRDGPassHandle ProloguePassHandle;
-	FRDGPassHandle EpiloguePassHandle;
 
 	FString Indentation;
 	FString File;

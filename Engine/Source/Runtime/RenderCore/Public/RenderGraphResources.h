@@ -77,6 +77,9 @@ using FRDGTextureSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceS
 using FRDGTextureTransientSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceState, FRDGArrayAllocator>;
 using FRDGTextureTransientSubresourceStateIndirect = TRDGTextureSubresourceArray<FRDGSubresourceState*, FRDGArrayAllocator>;
 
+using FRDGPooledTextureArray = TArray<TRefCountPtr<FPooledRenderTarget>, FRDGArrayAllocator>;
+using FRDGPooledBufferArray = TArray<TRefCountPtr<FRDGPooledBuffer>, FRDGArrayAllocator>;
+
 /** Generic graph resource. */
 class RENDERCORE_API FRDGResource
 {
@@ -113,6 +116,11 @@ protected:
 	FRHIResource* GetRHIUnchecked() const
 	{
 		return ResourceRHI;
+	}
+
+	bool HasRHI() const
+	{
+		return ResourceRHI != nullptr;
 	}
 
 	FRHIResource* ResourceRHI = nullptr;
@@ -165,10 +173,17 @@ protected:
 	{}
 
 private:
+	FRHIUniformBuffer* GetRHIUnchecked() const
+	{
+		return static_cast<FRHIUniformBuffer*>(FRDGResource::GetRHIUnchecked());
+	}
+
+	void InitRHI();
 
 	const FRDGParameterStruct ParameterStruct;
 	TRefCountPtr<FRHIUniformBuffer> UniformBufferRHI;
 	FRDGUniformBufferHandle Handle;
+	bool bQueuedForCreate = false;
 
 	friend FRDGBuilder;
 	friend FRDGUniformBufferRegistry;
@@ -244,7 +259,6 @@ public:
 
 protected:
 	FRDGParentResource(const TCHAR* InName, ERDGParentResourceType InType);
-	~FRDGParentResource();
 
 	/** Whether this is an externally registered resource. */
 	uint8 bExternal : 1;
@@ -393,11 +407,7 @@ public:
 
 	/** Returns the allocated pooled render target. */
 	UE_DEPRECATED(5.0, "Accessing the underlying pooled render target has been deprecated. Use GetRHI() instead.")
-	IPooledRenderTarget* GetPooledRenderTarget() const
-	{
-		IF_RDG_ENABLE_DEBUG(ValidateRHIAccess());
-		return PooledRenderTarget;
-	}
+	IPooledRenderTarget* GetPooledRenderTarget() const;
 
 	/** Returns the allocated RHI texture. */
 	FRHITexture* GetRHI() const
@@ -419,7 +429,7 @@ public:
 
 	FRDGTextureSubresourceRange GetSubresourceRange() const
 	{
-		return FRDGTextureSubresourceRange(Layout);
+		return WholeRange;
 	}
 
 	FORCEINLINE uint32 GetSubresourceCount() const
@@ -436,6 +446,7 @@ private:
 		, Flags(InFlags)
 		, RenderTargetTexture(InRenderTargetTexture)
 		, Layout(InDesc)
+		, WholeRange(Layout)
 	{
 		const uint32 SubresourceCount = GetSubresourceCount();
 		MergeState.SetNum(SubresourceCount);
@@ -452,7 +463,7 @@ private:
 	void SetRHI(FRHITransientTexture* TransientTexture, FRDGAllocator& Allocator);
 
 	/** Finalizes the texture for execution; no other transitions are allowed after calling this. */
-	void Finalize();
+	void Finalize(FRDGPooledTextureArray& PooledTextureArray);
 
 	/** Returns RHI texture without access checks. */
 	FRHITexture* GetRHIUnchecked() const
@@ -476,17 +487,21 @@ private:
 	/** Describes which RHI texture this RDG texture represents on a pooled texture. Must be default unless the texture is externally registered. */
 	const ERenderTargetTexture RenderTargetTexture;
 
-	/** The layout used to facilitate subresource transitions. */
-	FRDGTextureSubresourceLayout Layout;
-
 	/** The next texture to own the PooledTexture allocation during execution. */
 	FRDGTextureHandle NextOwner;
 
 	/** The handle registered with the builder. */
 	FRDGTextureHandle Handle;
 
+	/** The layout used to facilitate subresource transitions. */
+	FRDGTextureSubresourceLayout Layout;
+	FRDGTextureSubresourceRange  WholeRange;
+
+	/** Cached state pointer from the pooled texture. */
+	FRDGTextureSubresourceState* State = nullptr;
+
 	/** The assigned pooled render target to use during execution. Never reset. */
-	IPooledRenderTarget* PooledRenderTarget = nullptr;
+	FPooledRenderTarget* PooledRenderTarget = nullptr;
 
 	union
 	{
@@ -499,9 +514,6 @@ private:
 
 	/** The assigned view cache for this texture (sourced from transient / pooled texture). Never reset. */
 	FRHITextureViewCache* ViewCache = nullptr;
-
-	/** Cached state pointer from the pooled texture. */
-	FRDGTextureSubresourceState* State = nullptr;
 
 	/** Valid strictly when holding a strong reference; use PooledRenderTarget instead. */
 	TRefCountPtr<IPooledRenderTarget> Allocation;
@@ -965,7 +977,7 @@ private:
 	void SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& Allocator);
 
 	/** Finalizes the buffer for execution; no other transitions are allowed after calling this. */
-	void Finalize();
+	void Finalize(FRDGPooledBufferArray& PooledBufferArray);
 
 	FRHIBuffer* GetRHIUnchecked() const
 	{

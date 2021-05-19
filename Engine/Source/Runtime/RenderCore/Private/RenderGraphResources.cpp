@@ -30,15 +30,9 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bUserSetNonTransient(0)
 	, bFinalizedAccess(0)
 	, bLastOwner(1)
-	// Culling logic runs only when immediate mode is off.
-	, bCulled(1)
+	, bCulled(0)
 	, bUsedByAsyncComputePass(0)
 {}
-
-FRDGParentResource::~FRDGParentResource()
-{
-	check(IsImmediateMode() || ReferenceCount == 0);
-}
 
 bool FRDGProducerState::IsDependencyRequired(FRDGProducerState LastProducer, ERHIPipeline LastPipeline, FRDGProducerState NextState, ERHIPipeline NextPipeline)
 {
@@ -159,6 +153,22 @@ bool FRDGSubresourceState::IsTransitionRequired(const FRDGSubresourceState& Prev
 	return false;
 }
 
+void FRDGUniformBuffer::InitRHI()
+{
+	check(!HasRHI());
+
+	const EUniformBufferValidation Validation =
+#if RDG_ENABLE_DEBUG
+		EUniformBufferValidation::ValidateResources;
+#else
+		EUniformBufferValidation::None;
+#endif
+
+	const FRDGParameterStruct PassParameters = GetParameters();
+	UniformBufferRHI = RHICreateUniformBuffer(PassParameters.GetContents(), PassParameters.GetLayout(), UniformBuffer_SingleFrame, Validation);
+	ResourceRHI = UniformBufferRHI;
+}
+
 void FRDGPooledTexture::Finalize()
 {
 	for (FRDGSubresourceState& SubresourceState : State)
@@ -186,9 +196,15 @@ FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
 	return Range;
 }
 
+IPooledRenderTarget* FRDGTexture::GetPooledRenderTarget() const
+{
+	IF_RDG_ENABLE_DEBUG(ValidateRHIAccess());
+	return PooledRenderTarget;
+}
+
 void FRDGTexture::SetRHI(FPooledRenderTarget* InPooledRenderTarget)
 {
-	Allocation = InPooledRenderTarget;
+	Allocation = TRefCountPtr<FPooledRenderTarget>(InPooledRenderTarget);
 	PooledRenderTarget = InPooledRenderTarget;
 
 	if (!InPooledRenderTarget->HasRDG())
@@ -229,7 +245,7 @@ void FRDGTexture::SetRHI(FRHITransientTexture* InTransientTexture, FRDGAllocator
 	bTransient = true;
 }
 
-void FRDGTexture::Finalize()
+void FRDGTexture::Finalize(FRDGPooledTextureArray& PooledTextureArray)
 {
 	checkf(NextOwner.IsNull() == !!bLastOwner, TEXT("NextOwner must match bLastOwner."));
 	checkf(!bExtracted || bLastOwner, TEXT("Extracted resources must be the last owner of a resource."));
@@ -257,10 +273,13 @@ void FRDGTexture::Finalize()
 			// Restore the reference to the last owner in the aliasing chain; not necessary for the transient resource allocator.
 			if (PooledRenderTarget)
 			{
-				Allocation = PooledRenderTarget;
+				PooledTextureArray.Emplace(PooledRenderTarget);
 			}
 		}
 	}
+
+	// This releases the reference without invoking a virtual function call.
+	TRefCountPtr<FPooledRenderTarget>(MoveTemp(Allocation));
 }
 
 void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
@@ -293,7 +312,7 @@ void FRDGBuffer::SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& A
 	bTransient = true;;
 }
 
-void FRDGBuffer::Finalize()
+void FRDGBuffer::Finalize(FRDGPooledBufferArray& PooledBufferArray)
 {
 	// If these fire, the graph is not tracking state properly.
 	checkf(NextOwner.IsNull() == !!bLastOwner, TEXT("NextOwner must match bLastOwner."));
@@ -316,8 +335,9 @@ void FRDGBuffer::Finalize()
 				PooledBuffer->Finalize();
 			}
 
-			// Restore the reference to the last owner in the aliasing chain.
-			Allocation = PooledBuffer;
+			PooledBufferArray.Emplace(PooledBuffer);
 		}
 	}
+
+	Allocation = nullptr;
 }

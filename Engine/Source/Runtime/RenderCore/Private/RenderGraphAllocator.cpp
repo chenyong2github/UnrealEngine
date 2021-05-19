@@ -16,7 +16,7 @@ FRDGAllocator::~FRDGAllocator()
 
 void FRDGAllocator::ReleaseAll()
 {
-	SCOPE_CYCLE_COUNTER(STAT_RDG_ClearTime);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGAllocator::ReleaseAll);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGAllocator_Clear, GRDGVerboseCSVStats != 0);
 	for (int32 Index = TrackedAllocs.Num() - 1; Index >= 0; --Index)
 	{

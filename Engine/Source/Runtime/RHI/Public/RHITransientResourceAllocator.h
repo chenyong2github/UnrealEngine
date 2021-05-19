@@ -148,6 +148,9 @@ public:
 	virtual void DeallocateMemory(FRHITransientTexture* InTexture) = 0;
 	virtual void DeallocateMemory(FRHITransientBuffer* InBuffer) = 0;
 
+	// Flushes any pending allocations in preparation for rendering. Resources are not required to be deallocated yet. Use when interleaving execution with allocation.
+	virtual void Flush(FRHICommandListImmediate& RHICmdList) {}
+
 	// Freezes all allocations and validates that all resources have their memory deallocated.
 	virtual void Freeze(FRHICommandListImmediate& RHICmdList) = 0;
 

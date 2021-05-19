@@ -381,12 +381,9 @@ static void OnPopCSVStat(FRHIComputeCommandList&, const FRDGCSVStatScope* Scope,
 #endif
 }
 
-FRDGCSVStatScopeStack::FRDGCSVStatScopeStack(FRHIComputeCommandList& InRHICmdList, FRDGAllocator& Allocator, const char* InUnaccountedStatName)
+FRDGCSVStatScopeStack::FRDGCSVStatScopeStack(FRHIComputeCommandList& InRHICmdList, FRDGAllocator& Allocator)
 	: ScopeStack(InRHICmdList, Allocator, &OnPushCSVStat, &OnPopCSVStat, GetEmitRDGEvents())
-	, UnaccountedStatName(InUnaccountedStatName)
-{
-	BeginScope(UnaccountedStatName);
-}
+{}
 
 bool FRDGCSVStatScopeStack::IsEnabled()
 {
@@ -417,7 +414,6 @@ void FRDGCSVStatScopeStack::BeginExecute()
 {
 	if (IsEnabled())
 	{
-		EndScope();
 		ScopeStack.BeginExecute();
 	}
 }

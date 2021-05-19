@@ -37,38 +37,12 @@ inline bool FRDGSubresourceState::IsUsedBy(ERHIPipeline Pipeline) const
 
 inline FRDGPassHandle FRDGSubresourceState::GetLastPass() const
 {
-	const FRDGPassHandle GraphicsPass = LastPass[ERHIPipeline::Graphics];
-	const FRDGPassHandle AsyncComputePass = LastPass[ERHIPipeline::AsyncCompute];
-
-	if (GraphicsPass.IsNull())
-	{
-		return AsyncComputePass;
-	}
-	
-	if (AsyncComputePass.IsNull())
-	{
-		return GraphicsPass;
-	}
-
-	return FMath::Max(GraphicsPass, AsyncComputePass);
+	return FRDGPassHandle::Max(LastPass[ERHIPipeline::Graphics], LastPass[ERHIPipeline::AsyncCompute]);
 }
 
 inline FRDGPassHandle FRDGSubresourceState::GetFirstPass() const
 {
-	const FRDGPassHandle GraphicsPass = FirstPass[ERHIPipeline::Graphics];
-	const FRDGPassHandle AsyncComputePass = FirstPass[ERHIPipeline::AsyncCompute];
-
-	if (GraphicsPass.IsNull())
-	{
-		return AsyncComputePass;
-	}
-
-	if (AsyncComputePass.IsNull())
-	{
-		return GraphicsPass;
-	}
-
-	return FMath::Min(GraphicsPass, AsyncComputePass);
+	return FRDGPassHandle::Min(FirstPass[ERHIPipeline::Graphics], FirstPass[ERHIPipeline::AsyncCompute]);
 }
 
 FORCEINLINE ERHIPipeline FRDGSubresourceState::GetPipelines() const

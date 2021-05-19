@@ -237,7 +237,6 @@ DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intention
 
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer UpdateDownsampledDepthSurface"), STAT_FDeferredShadingSceneRenderer_UpdateDownsampledDepthSurface, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer Render Init"), STAT_FDeferredShadingSceneRenderer_Render_Init, STATGROUP_SceneRendering);
-DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer Render ServiceLocalQueue"), STAT_FDeferredShadingSceneRenderer_Render_ServiceLocalQueue, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer FGlobalDynamicVertexBuffer Commit"), STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer FXSystem PreRender"), STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer AllocGBufferTargets"), STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets, STATGROUP_SceneRendering);
@@ -407,32 +406,6 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTex
 	return FamilyPipelineState->bHZBOcclusion;
 }
 
-// The render thread is involved in sending stuff to the RHI, so we will periodically service that queue
-void ServiceLocalQueue()
-{
-	SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Render_ServiceLocalQueue);
-	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GetRenderThread_Local());
-
-	if (IsRunningRHIInSeparateThread())
-	{
-		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-	}
-}
-
-void AddServiceLocalQueuePass(FRDGBuilder& GraphBuilder)
-{
-	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Render_ServiceLocalQueue);
-		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GetRenderThread_Local());
-
-		if (IsRunningRHIInSeparateThread())
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-		}
-	});
-}
-
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderOpaqueFXPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 END_SHADER_PARAMETER_STRUCT()
@@ -472,7 +445,7 @@ static void RenderOpaqueFX(
 			GPUSortManager->OnPostRenderOpaque(GraphBuilder);
 		}
 
-		ServiceLocalQueue();
+		GraphBuilder.AddDispatchHint();
 	}
 }
 
@@ -1851,8 +1824,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		return;
 	}
 
-	RDG_RHI_EVENT_SCOPE(GraphBuilder, Scene);
-	RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, Unaccounted);
+	RDG_EVENT_SCOPE(GraphBuilder, "Scene");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, Unaccounted);
 	
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Render_Init);
@@ -2191,25 +2164,42 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Opaque, bHairEnable);
 			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterVelocity));
 		}
+	}
 
-		if (bDoInitViewAftersPrepass)
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+
+		if (((View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::ScreenSpace && ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
+			|| GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+			&& !View.bStatePrevViewInfoIsReadOnly)
 		{
-			{
-				RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-				InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
-			}
+			// Keep scene color and depth for next frame screen space ray tracing.
+			FSceneViewState* ViewState = View.ViewState;
+			ViewState->PrevFrameViewInfo.DepthBuffer = GraphBuilder.ConvertToExternalTexture(SceneTextures.Depth.Resolve);
+			ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput = GraphBuilder.ConvertToExternalTexture(SceneTextures.Color.Resolve);
+		}
+	}
 
-			{
-				RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
-				PrepareDistanceFieldScene(GraphBuilder, false);
-			}
+	if (bDoInitViewAftersPrepass)
+	{
+		GraphBuilder.Drain();
 
-			{
-				SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-				DynamicVertexBufferForInitShadows.Commit();
-				DynamicIndexBufferForInitShadows.Commit();
-				DynamicReadBufferForInitShadows.Commit();
-			}
+		{
+			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
+			InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
+		}
+
+		{
+			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
+			PrepareDistanceFieldScene(GraphBuilder, false);
+		}
+
+		{
+			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+			DynamicVertexBufferForInitShadows.Commit();
+			DynamicIndexBufferForInitShadows.Commit();
+			DynamicReadBufferForInitShadows.Commit();
 		}
 	}
 
@@ -2361,6 +2351,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			CompositionLightingAsyncResults = CompositionLighting::ProcessAsync(GraphBuilder, Views, SceneTextures);
 		}
+
+		GraphBuilder.Drain();
 	};
 
 	// Early occlusion queries
@@ -2376,7 +2368,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderOcclusionLambda();
 	}
 
-	AddServiceLocalQueuePass(GraphBuilder);
 	// End early occlusion queries
 
 	// Early Shadow depth rendering
@@ -2517,8 +2508,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	{
 		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture, InstanceCullingManager);
-		AddServiceLocalQueuePass(GraphBuilder);
-		
+		GraphBuilder.AddDispatchHint();
+
 		if (bNaniteEnabled && bShouldApplyNaniteMaterials)
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
@@ -3158,28 +3149,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	DoCrossGPUTransfers(GraphBuilder, RenderTargetGPUMask, ViewFamilyTexture);
 #endif
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-	{
-		const FViewInfo& View = Views[ViewIndex];
-
-		if (((View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::ScreenSpace && ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
-				|| GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
-			&& !View.bStatePrevViewInfoIsReadOnly)
-		{
-			// Keep scene color and depth for next frame screen space ray tracing.
-			FSceneViewState* ViewState = View.ViewState;
-			GraphBuilder.QueueTextureExtraction(SceneTextures.Depth.Resolve, &ViewState->PrevFrameViewInfo.DepthBuffer);
-			GraphBuilder.QueueTextureExtraction(SceneTextures.Color.Resolve, &ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput);
-		}
-	}
-
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFinish);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, FrameRenderFinish);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_RenderFinish));
 		RenderFinish(GraphBuilder, ViewFamilyTexture);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterFrame));
-		AddServiceLocalQueuePass(GraphBuilder);
+		GraphBuilder.AddDispatchHint();
 	}
 
 	QueueSceneTextureExtractions(GraphBuilder, SceneTextures);

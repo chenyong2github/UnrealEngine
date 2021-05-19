@@ -221,12 +221,41 @@ public:
 	FORCEINLINE IndexType GetIndexUnchecked() const { return Index; }
 	FORCEINLINE bool IsNull()  const { return Index == kNullIndex; }
 	FORCEINLINE bool IsValid() const { return Index != kNullIndex; }
+	FORCEINLINE operator bool() const { return IsValid(); }
 	FORCEINLINE bool operator==(TRDGHandle Other) const { return Index == Other.Index; }
 	FORCEINLINE bool operator!=(TRDGHandle Other) const { return Index != Other.Index; }
 	FORCEINLINE bool operator<=(TRDGHandle Other) const { check(IsValid() && Other.IsValid()); return Index <= Other.Index; }
 	FORCEINLINE bool operator>=(TRDGHandle Other) const { check(IsValid() && Other.IsValid()); return Index >= Other.Index; }
 	FORCEINLINE bool operator< (TRDGHandle Other) const { check(IsValid() && Other.IsValid()); return Index <  Other.Index; }
 	FORCEINLINE bool operator> (TRDGHandle Other) const { check(IsValid() && Other.IsValid()); return Index >  Other.Index; }
+
+	FORCEINLINE TRDGHandle& operator+=(int32 Increment)
+	{
+		check(int64(Index + Increment) <= int64(kNullIndex));
+		Index += Increment;
+		return *this;
+	}
+
+	FORCEINLINE TRDGHandle& operator-=(int32 Decrement)
+	{
+		check(int64(Index - Decrement) > 0);
+		Index -= Decrement;
+		return *this;
+	}
+
+	FORCEINLINE TRDGHandle operator-(int32 Subtract) const
+	{
+		TRDGHandle Handle = *this;
+		Handle -= Subtract;
+		return Handle;
+	}
+
+	FORCEINLINE TRDGHandle operator+(int32 Add) const
+	{
+		TRDGHandle Handle = *this;
+		Handle += Add;
+		return Handle;
+	}
 
 	FORCEINLINE TRDGHandle& operator++()
 	{
@@ -242,6 +271,20 @@ public:
 		return *this;
 	}
 
+	// Returns the min of two pass handles. Returns null if both are null; returns the valid handle if one is null.
+	FORCEINLINE static TRDGHandle Min(TRDGHandle A, TRDGHandle B)
+	{
+		// If either index is null is will fail the comparison.
+		return A.Index < B.Index ? A : B;
+	}
+
+	// Returns the max of two pass handles. Returns null if both are null; returns the valid handle if one is null.
+	FORCEINLINE static TRDGHandle Max(TRDGHandle A, TRDGHandle B)
+	{
+		// If either index is null, it will wrap around to 0 and fail the comparison.
+		return (IndexType)(A.Index + 1) > (IndexType)(B.Index + 1) ? A : B;
+	}
+
 private:
 	static const IndexType kNullIndex = TNumericLimits<IndexType>::Max();
 	IndexType Index = kNullIndex;
@@ -253,8 +296,15 @@ FORCEINLINE uint32 GetTypeHash(TRDGHandle<ObjectType, IndexType> Handle)
 	return Handle.GetIndex();
 }
 
+enum class ERDGHandleRegistryDestructPolicy
+{
+	Registry,
+	Allocator,
+	Never
+};
+
 /** Helper handle registry class for internal tracking of RDG types. */
-template <typename LocalHandleType>
+template <typename LocalHandleType, ERDGHandleRegistryDestructPolicy DestructPolicy = ERDGHandleRegistryDestructPolicy::Registry>
 class TRDGHandleRegistry
 {
 public:
@@ -272,18 +322,47 @@ public:
 	DerivedType* Allocate(FRDGAllocator& Allocator, TArgs&&... Args)
 	{
 		static_assert(TIsDerivedFrom<DerivedType, ObjectType>::Value, "You must specify a type that derives from ObjectType");
-		DerivedType* Object = Allocator.AllocNoDestruct<DerivedType>(Forward<TArgs>(Args)...);
+		DerivedType* Object;
+		if (DestructPolicy == ERDGHandleRegistryDestructPolicy::Allocator)
+		{
+			Object = Allocator.Alloc<DerivedType>(Forward<TArgs>(Args)...);
+		}
+		else
+		{
+			Object = Allocator.AllocNoDestruct<DerivedType>(Forward<TArgs>(Args)...);
+		}
 		Insert(Object);
 		return Object;
 	}
 
 	void Clear()
 	{
-		for (int32 Index = Array.Num() - 1; Index >= 0; --Index)
+		if (DestructPolicy == ERDGHandleRegistryDestructPolicy::Registry)
 		{
-			Array[Index]->~ObjectType();
+			for (int32 Index = Array.Num() - 1; Index >= 0; --Index)
+			{
+				Array[Index]->~ObjectType();
+			}
 		}
 		Array.Empty();
+	}
+
+	template <typename FunctionType>
+	void Enumerate(FunctionType Function)
+	{
+		for (ObjectType* Object : Array)
+		{
+			Function(Object);
+		}
+	}
+
+	template <typename FunctionType>
+	void Enumerate(FunctionType Function) const
+	{
+		for (const ObjectType* Object : Array)
+		{
+			Function(Object);
+		}
 	}
 
 	FORCEINLINE const ObjectType* Get(HandleType Handle) const
@@ -439,7 +518,7 @@ class FRDGBufferUAV;
 using FRDGBufferUAVRef = FRDGBufferUAV*;
 
 class FRDGPass;
-using FRDGPassRef = const FRDGPass*;
+using FRDGPassRef = FRDGPass*;
 using FRDGPassHandle = TRDGHandle<FRDGPass, uint16>;
 using FRDGPassRegistry = TRDGHandleRegistry<FRDGPassHandle>;
 using FRDGPassHandleArray = TArray<FRDGPassHandle, TInlineAllocator<4, FRDGArrayAllocator>>;
@@ -454,19 +533,19 @@ using FRDGUniformBufferBitArray = TRDGHandleBitArray<FRDGUniformBufferHandle>;
 class FRDGView;
 using FRDGViewRef = FRDGView*;
 using FRDGViewHandle = TRDGHandle<FRDGView, uint16>;
-using FRDGViewRegistry = TRDGHandleRegistry<FRDGViewHandle>;
+using FRDGViewRegistry = TRDGHandleRegistry<FRDGViewHandle, ERDGHandleRegistryDestructPolicy::Never>;
 using FRDGViewUniqueFilter = TRDGHandleUniqueFilter<FRDGViewHandle>;
 
 class FRDGTexture;
 using FRDGTextureRef = FRDGTexture*;
 using FRDGTextureHandle = TRDGHandle<FRDGTexture, uint16>;
-using FRDGTextureRegistry = TRDGHandleRegistry<FRDGTextureHandle>;
+using FRDGTextureRegistry = TRDGHandleRegistry<FRDGTextureHandle, ERDGHandleRegistryDestructPolicy::Never>;
 using FRDGTextureBitArray = TRDGHandleBitArray<FRDGTextureHandle>;
 
 class FRDGBuffer;
 using FRDGBufferRef = FRDGBuffer*;
 using FRDGBufferHandle = TRDGHandle<FRDGBuffer, uint16>;
-using FRDGBufferRegistry = TRDGHandleRegistry<FRDGBufferHandle>;
+using FRDGBufferRegistry = TRDGHandleRegistry<FRDGBufferHandle, ERDGHandleRegistryDestructPolicy::Never>;
 using FRDGBufferBitArray = TRDGHandleBitArray<FRDGBufferHandle>;
 
 class FRDGPooledTexture;
@@ -479,5 +558,6 @@ template <typename InElementType, typename InAllocatorType = FDefaultAllocator>
 using TRDGTextureSubresourceArray = TArray<InElementType, TInlineAllocator<1, InAllocatorType>>;
 
 using FRDGPassHandlesByPipeline = TRHIPipelineArray<FRDGPassHandle>;
+using FRDGPassesByPipeline = TRHIPipelineArray<FRDGPass*>;
 
 class FRDGTrace;
