@@ -102,8 +102,11 @@ EMaterialGenerateHLSLStatus UMaterialExpressionStaticSwitch::GenerateHLSLExpress
 
 EMaterialGenerateHLSLStatus UMaterialExpressionGetLocal::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::HLSLTree::FLocalDeclaration* Declaration = Generator.AcquireLocalDeclaration(Scope, UE::Shader::EValueType::Float3, LocalName);
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionLocalVariable>(Scope, Declaration);
+	OutExpression = Generator.AcquireLocalValue(Scope, LocalName);
+	if (!OutExpression)
+	{
+		return Generator.Error(TEXT("Local accessed before assigned"));
+	}
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
@@ -258,30 +261,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionReflectionVectorWS::GenerateHLSLE
 
 EMaterialGenerateHLSLStatus UMaterialExpressionFunctionInput::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::Shader::EValueType ExpressionType = UE::Shader::EValueType::Void;
-	switch (InputType)
-	{
-	case FunctionInput_Scalar: ExpressionType = UE::Shader::EValueType::Float1; break;
-	case FunctionInput_Vector2: ExpressionType = UE::Shader::EValueType::Float2; break;
-	case FunctionInput_Vector3: ExpressionType = UE::Shader::EValueType::Float3; break;
-	case FunctionInput_Vector4: ExpressionType = UE::Shader::EValueType::Float4; break;
-	case FunctionInput_Texture2D:
-	case FunctionInput_TextureCube:
-	case FunctionInput_Texture2DArray:
-	case FunctionInput_VolumeTexture:
-	case FunctionInput_StaticBool:
-	case FunctionInput_MaterialAttributes:
-	case FunctionInput_TextureExternal:
-		break;
-	}
-	if (ExpressionType == UE::Shader::EValueType::Void)
-	{
-		return Generator.Error(TEXT("Invalid input connection"));
-	}
-
-	UE::HLSLTree::FLocalDeclaration* Declaration = Generator.AcquireLocalDeclaration(Scope, ExpressionType, InputName);
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionLocalVariable>(Scope, Declaration);
-	return EMaterialGenerateHLSLStatus::Success;
+	return Generator.Error(TEXT("Invalid"));
 }
 
 EMaterialGenerateHLSLStatus UMaterialExpressionMaterialFunctionCall::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
@@ -325,24 +305,14 @@ EMaterialGenerateHLSLStatus UMaterialExpressionExecEnd::GenerateHLSLStatements(F
 
 EMaterialGenerateHLSLStatus UMaterialExpressionSetLocal::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
 {
-	UE::HLSLTree::FExpression* ValueExpression = Value.AcquireHLSLExpressionWithCast(Generator, Scope, UE::Shader::EValueType::Float3);
+	UE::HLSLTree::FExpression* ValueExpression = Value.AcquireHLSLExpression(Generator, Scope);
 	if (!ValueExpression)
 	{
 		return Generator.Error(TEXT("Missing value connection"));
 	}
 
-	UE::HLSLTree::FLocalDeclaration* Declaration = Generator.AcquireLocalDeclaration(Scope, UE::Shader::EValueType::Float3, LocalName);
-	if (!Declaration)
-	{
-		return EMaterialGenerateHLSLStatus::Error;
-	}
-
-	UE::HLSLTree::FStatementSetLocalVariable* Statement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementSetLocalVariable>(Scope);
-	Statement->Declaration = Declaration;
-	Statement->Expression = ValueExpression;
-
+	Generator.GenerateAssignLocal(Scope, LocalName, ValueExpression);
 	Exec.GenerateHLSLStatements(Generator, Scope);
-
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
@@ -392,12 +362,10 @@ EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLStatements(F
 		return Generator.Error(TEXT("Missing EndIndex connection"));
 	}
 
-	UE::HLSLTree::FLocalDeclaration* LoopControlDeclaration = Generator.GetTree().NewLocalDeclaration(Scope, UE::Shader::EValueType::Int1, TEXT("ForLoopControl"));
 	UE::HLSLTree::FScope* LoopScope = Generator.GetTree().NewScope(Scope);
 	LoopBody.GenerateHLSLStatements(Generator, *LoopScope);
 
 	UE::HLSLTree::FStatementFor* ForStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementFor>(Scope);
-	ForStatement->LoopControlDeclaration = LoopControlDeclaration;
 	ForStatement->StartExpression = StartExpression;
 	ForStatement->EndExpression = EndExpression;
 	ForStatement->LoopScope = LoopScope;

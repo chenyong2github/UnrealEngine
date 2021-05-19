@@ -68,18 +68,6 @@ bool UE::HLSLTree::FExpressionConstant::EmitCode(FEmitContext& Context, FExpress
 	return true;
 }
 
-bool UE::HLSLTree::FExpressionLocalVariable::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
-{
-	const FEmitValue* DeclarationValue = Context.AcquireValue(Declaration);
-	if (!DeclarationValue)
-	{
-		return false;
-	}
-
-	OutResult.ForwardValue(Context, DeclarationValue);
-	return true;
-}
-
 bool UE::HLSLTree::FExpressionParameter::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
 	OutResult.Type = Declaration->DefaultValue.GetType();
@@ -113,6 +101,55 @@ bool UE::HLSLTree::FExpressionParameter::EmitCode(FEmitContext& Context, FExpres
 		OutResult.EvaluationType = EExpressionEvaluationType::Preshader;
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::VectorParameter).Write((uint16)ParameterIndex);
 	}
+	return true;
+}
+
+bool UE::HLSLTree::FExpressionLocalPHI::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
+{
+	FEmitContext::FScopeEntry* ScopeEntries[MaxNumPreviousScopes] = { nullptr };
+	const FEmitValue* EmitValues[MaxNumPreviousScopes] = { nullptr };
+	Shader::EValueType CombinedValueType = Shader::EValueType::Void;
+	for (int32 i = 0; i < NumValues; ++i)
+	{
+		const FEmitValue* Value = Context.AcquireValue(Values[i]);
+		if (Value)
+		{
+			const Shader::EValueType ValueType = Value->GetExpressionType();
+			if (CombinedValueType == Shader::EValueType::Void)
+			{
+				CombinedValueType = ValueType;
+			}
+			else if (ValueType != CombinedValueType)
+			{
+				return false;
+			}
+
+			EmitValues[i] = Value;
+		}
+		ScopeEntries[i] = Context.FindScopeEntry(Scopes[i]);
+		check(ScopeEntries[i]);
+	}
+
+	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(CombinedValueType);
+	const TCHAR* Declaration = Context.AcquireLocalDeclarationCode();
+
+	// Declare the local before the scopes
+	FEmitCode& ScopeCode = *ScopeEntries[0]->ScopeCode;
+	Context.InsertHLSLf(*ScopeCode.ParentScope, ScopeCode.PrevCode, TEXT("%s %s;"), TypeDesc.Name, Declaration);
+
+	// Emit code to assign the value within each scope
+	for (int32 i = 0; i < NumValues; ++i)
+	{
+		if (EmitValues[i])
+		{
+			Context.AppendHLSLf(*ScopeEntries[i]->ScopeCode, TEXT("%s = %s;"), Declaration, Context.GetCode(EmitValues[i]));
+		}
+	}
+
+	OutResult.EvaluationType = EExpressionEvaluationType::Shader;
+	OutResult.Type = CombinedValueType;
+	OutResult.bInline = true;
+	OutResult.Writer.Writef(TEXT("%s"), Declaration);
 	return true;
 }
 
@@ -505,7 +542,12 @@ bool UE::HLSLTree::FExpressionFunctionOutput::EmitCode(FEmitContext& Context, FE
 	return true;
 }
 
-bool UE::HLSLTree::FStatementReturn::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
+bool UE::HLSLTree::FStatementJump::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
+{
+	return TargetScope->EmitHLSL(Context, Scope);
+}
+
+bool UE::HLSLTree::FStatementReturn::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
 {
 	const FEmitValue* Value = Context.AcquireValue(Expression);
 	if (!Value)
@@ -513,24 +555,11 @@ bool UE::HLSLTree::FStatementReturn::EmitHLSL(FEmitContext& Context, FCodeWriter
 		return false;
 	}
 
-	OutWriter.WriteLinef(TEXT("return %s;"), Context.GetCode(Value));
+	Context.AppendHLSLf(Scope, TEXT("return %s;"), Context.GetCode(Value));
 	return true;
 }
 
-bool UE::HLSLTree::FStatementSetLocalVariable::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
-{
-	const FEmitValue* DeclarationValue = Context.AcquireValue(Declaration);
-	const FEmitValue* ExpressionValue = Context.AcquireValue(Expression);
-	if (!DeclarationValue || !ExpressionValue)
-	{
-		return false;
-	}
-
-	OutWriter.WriteLinef(TEXT("%s = %s;"), Context.GetCode(DeclarationValue), Context.GetCode(ExpressionValue));
-	return true;
-}
-
-bool UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
+bool UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
 {
 	const FEmitValue* ConditionValue = Context.AcquireValue(ConditionExpression);
 	if (!ConditionValue)
@@ -538,34 +567,33 @@ bool UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context, FCodeWriter& Ou
 		return false;
 	}
 
-	OutWriter.WriteLinef(TEXT("if (%s)"), Context.GetCode(ConditionValue));
-	ThenScope->EmitHLSL(Context, OutWriter);
+	FEmitCode* ThenScopeCode = Context.AppendHLSLf(Scope, TEXT("if (%s)"), Context.GetCode(ConditionValue));
+	ThenScope->EmitHLSL(Context, *ThenScopeCode);
 	if (ElseScope)
 	{
-		OutWriter.WriteLine(TEXT("else"));
-		ElseScope->EmitHLSL(Context, OutWriter);
+		FEmitCode* ElseScopeCode = Context.AppendHLSLf(Scope, TEXT("else"));
+		ElseScope->EmitHLSL(Context, *ElseScopeCode);
 	}
 	return true;
 }
 
-bool UE::HLSLTree::FStatementFor::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
+bool UE::HLSLTree::FStatementFor::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
 {
-	const FEmitValue* DeclarationValue = Context.AcquireValue(LoopControlDeclaration);
 	const FEmitValue* StartExpressionValue = Context.AcquireValue(StartExpression);
 	const FEmitValue* EndExpressionValue = Context.AcquireValue(StartExpression);
-	if (!DeclarationValue || !StartExpressionValue || !EndExpressionValue)
+	if (!!StartExpressionValue || !EndExpressionValue)
 	{
 		return false;
 	}
 
-	const TCHAR* DeclarationCode = Context.GetCode(DeclarationValue);
+	const TCHAR* DeclarationCode = TEXT("");
 
-	OutWriter.WriteLinef(TEXT("for (%s = %s; %s < %s; %s++"),
+	FEmitCode* LoopScopeCode = Context.AppendHLSLf(Scope, TEXT("for (%s = %s; %s < %s; %s++"),
 		DeclarationCode,
 		Context.GetCode(StartExpressionValue),
 		DeclarationCode,
 		Context.GetCode(EndExpressionValue),
 		DeclarationCode);
-	LoopScope->EmitHLSL(Context, OutWriter);
+	LoopScope->EmitHLSL(Context, *LoopScopeCode);
 	return true;
 }

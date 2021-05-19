@@ -29,26 +29,6 @@ public:
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
-class FExpressionLocalVariable : public FExpression
-{
-public:
-	explicit FExpressionLocalVariable(FLocalDeclaration* InDeclaration) : Declaration(InDeclaration) {}
-
-	FLocalDeclaration* Declaration;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Declaration);
-		}
-		return Result;
-	}
-
-	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
-};
-
 class FExpressionParameter : public FExpression
 {
 public:
@@ -69,6 +49,21 @@ public:
 	}
 
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+};
+
+/**
+ * Represents a phi node (see various topics on single static assignment)
+ * A phi node takes on a value based on the previous scope that was executed.
+ * In practice, this means the generated HLSL code will declare a local variable before all the previous scopes, then assign that variable the proper value from within each scope
+ */
+class FExpressionLocalPHI final : public FExpression
+{
+public:
+	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+
+	FScope* Scopes[MaxNumPreviousScopes];
+	FExpression* Values[MaxNumPreviousScopes];
+	int32 NumValues;
 };
 
 enum class EExternalInputType
@@ -323,6 +318,24 @@ public:
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
+class FStatementJump : public FStatement
+{
+public:
+	FScope* TargetScope;
+
+	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
+	{
+		const ENodeVisitResult Result = FStatement::Visit(Visitor);
+		if (ShouldVisitDependentNodes(Result))
+		{
+			Visitor.VisitNode(TargetScope);
+		}
+		return Result;
+	}
+
+	virtual bool EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const override;
+};
+
 class FStatementReturn : public FStatement
 {
 public:
@@ -338,27 +351,7 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
-};
-
-class FStatementSetLocalVariable : public FStatement
-{
-public:
-	FLocalDeclaration* Declaration;
-	FExpression* Expression;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FStatement::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Declaration);
-			Visitor.VisitNode(Expression);
-		}
-		return Result;
-	}
-
-	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual bool EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const override;
 };
 
 class FStatementIf : public FStatement
@@ -380,13 +373,12 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual bool EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const override;
 };
 
 class FStatementFor : public FStatement
 {
 public:
-	FLocalDeclaration* LoopControlDeclaration;
 	FExpression* StartExpression;
 	FExpression* EndExpression;
 	FScope* LoopScope;
@@ -396,7 +388,6 @@ public:
 		const ENodeVisitResult Result = FStatement::Visit(Visitor);
 		if (ShouldVisitDependentNodes(Result))
 		{
-			Visitor.VisitNode(LoopControlDeclaration);
 			Visitor.VisitNode(StartExpression);
 			Visitor.VisitNode(EndExpression);
 			Visitor.VisitNode(LoopScope);
@@ -404,7 +395,7 @@ public:
 		return Result;
 	}
 
-	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual bool EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const override;
 };
 
 }
