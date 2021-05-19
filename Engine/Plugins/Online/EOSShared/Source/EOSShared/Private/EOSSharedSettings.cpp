@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EOSSharedSettings.h"
-#include "EOSShared.h"
 
 #include "Algo/Transform.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "EOSShared.h"
+#include "IEOSSDKManager.h"
 
-#if WITH_EDITOR
-#include "Misc/MessageDialog.h"
-#endif
+#include "eos_logging.h"
 
 #define LOCTEXT_NAMESPACE "EOS"
 #define INI_SECTION TEXT("/Script/EOSShared.EOSSharedSettings")
