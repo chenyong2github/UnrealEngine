@@ -116,16 +116,16 @@ namespace {
 			return false;
 		}
 
-		if (bOddMaterialAreInside && ((MaterialID % 2) == 0) == bActivateInsideTriangles)
+		if (bOddMaterialAreInside && ((MaterialID % 2) == 1) == bActivateInsideTriangles)
 		{
-			return false;
+			return true;
 		}
-		if (InsideMaterials.Num() > 0 && (InsideMaterials.Contains(MaterialID) != bActivateInsideTriangles))
+		if (InsideMaterials.Num() > 0 && (InsideMaterials.Contains(MaterialID) == bActivateInsideTriangles))
 		{
-			return false;
+			return true;
 		}
 
-		return true;
+		return false;
 	}
 }
 
@@ -484,20 +484,21 @@ void TextureInternalSurfaces(
 	TArrayView<int32> WhichMaterials
 )
 {
-	TArray<bool> InsideTriangles;
-	int32 NumInsideTris = SetActiveTriangles(&Collection, InsideTriangles, true, bOnlyOddMaterials, WhichMaterials);
-	FGeomFlatUVMesh UVMesh(&Collection, InsideTriangles, NumInsideTris);
+	TArray<bool> ToTextureTriangles;
+	int32 NumTextureTris = SetActiveTriangles(&Collection, ToTextureTriangles, true, bOnlyOddMaterials, WhichMaterials);
+	FGeomFlatUVMesh UVMesh(&Collection, ToTextureTriangles, NumTextureTris);
 
 	FImageOccupancyMap OccupancyMap;
 	OccupancyMap.GutterSize = GutterSize;
 	OccupancyMap.Initialize(TextureOut.GetDimensions());
 	OccupancyMap.ComputeFromUVSpaceMesh(UVMesh, [](int32 TriangleID) { return TriangleID; });
 
-	FGeomMesh InsideMesh(&Collection, InsideTriangles, NumInsideTris);
+	FGeomMesh ToTextureMesh(&Collection, ToTextureTriangles, NumTextureTris);
 
+	// Outside triangles are identified by odd material ID
 	TArray<bool> OutsideTriangles;
-	int32 NumOutsideTris = SetActiveTriangles(&Collection, OutsideTriangles, false, bOnlyOddMaterials, WhichMaterials);
-	FGeomMesh OutsideMesh(InsideMesh, OutsideTriangles, NumOutsideTris);
+	int32 NumOutsideTris = SetActiveTriangles(&Collection, OutsideTriangles, false, true, {});
+	FGeomMesh OutsideMesh(ToTextureMesh, OutsideTriangles, NumOutsideTris);
 	TMeshAABBTree3<FGeomMesh> OutsideSpatial(&OutsideMesh);
 
 	int DistanceToExternalIdx = BakeAttributes.IndexOf((int)EBakeAttributes::DistanceToExternal);
@@ -523,10 +524,10 @@ void TextureInternalSurfaces(
 	FDynamicMeshCollection CollectionMeshes(&Collection, TransformIndices, FTransform::Identity, false);
 	if (bNeedsDynamicMeshes)
 	{
-		TSet<int32> InsideMaterials;
+		TSet<int32> TargetMaterials;
 		for (int32 MatID : WhichMaterials)
 		{
-			InsideMaterials.Add(MatID);
+			TargetMaterials.Add(MatID);
 		}
 
 		// To bake only internal faces, unset texture on everything else
@@ -539,10 +540,11 @@ void TextureInternalSurfaces(
 			FDynamicMeshUVOverlay* UV = Mesh.Attributes()->PrimaryUV();
 			for (int TID : Mesh.TriangleIndicesItr())
 			{
-				bool bIsInsideTri = IsTriActive(
+				// TODO: separate the concept of inside from the concept of needs texture!!
+				bool bIsTextureTri = IsTriActive(
 					AugmentedDynamicMesh::GetVisibility(Mesh, TID), 
-					Mesh.Attributes()->GetMaterialID()->GetValue(TID), InsideMaterials, true, bOnlyOddMaterials);
-				if (!bIsInsideTri)
+					Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, bOnlyOddMaterials);
+				if (!bIsTextureTri)
 				{
 					UV->UnsetTriangle(TID);
 				}
@@ -630,7 +632,7 @@ void TextureInternalSurfaces(
 	{
 		FImageDimensions Dimensions = TextureOut.GetDimensions();
 		int64 TexelsNum = Dimensions.Num();
-		AmbientValues.SetNumZeroed(TexelsNum);
+		AmbientValues.Init(1.0f, TexelsNum);
 		for (int MeshIdx = 0; MeshIdx < CollectionMeshes.Meshes.Num(); MeshIdx++)
 		{
 			int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
@@ -645,8 +647,8 @@ void TextureInternalSurfaces(
 			BakeCache.SetBakeTargetMesh(&Mesh);
 			BakeCache.SetDimensions(Dimensions);
 			BakeCache.SetUVLayer(0);
-			// thickness is used for raycasting correspondences between detail and target mesh
-			// TODO: make cache aware that detail mesh == target mesh so it doesn't have to do this?
+			BakeCache.SetCorrespondenceStrategy(FMeshImageBakingCache::ECorrespondenceStrategy::Identity);
+			// thickness shouldn't matter because we're using Identity ECorrespondenceStrategy::Identity
 			BakeCache.SetThickness(KINDA_SMALL_NUMBER);
 			BakeCache.ValidateCache();
 
@@ -666,13 +668,13 @@ void TextureInternalSurfaces(
 			for (int64 LinearIdx = 0; LinearIdx < TexelsNum; LinearIdx++)
 			{
 				float& AmbientOut = AmbientValues[LinearIdx];
-				AmbientOut = FMathf::Max(AmbientOut, Result->GetPixel(LinearIdx).X);
+				AmbientOut = FMathf::Min(AmbientOut, Result->GetPixel(LinearIdx).X);
 			}
 		}
 	}
 
 	ParallelFor(OccupancyMap.Dimensions.GetHeight(),
-		[&AttributeSettings, &TextureOut, &UVMesh, &OccupancyMap, &InsideMesh, &OutsideSpatial,
+		[&AttributeSettings, &TextureOut, &UVMesh, &OccupancyMap, &ToTextureMesh, &OutsideSpatial,
 		 &DistanceToExternalIdx, &AmbientIdx, &NormalZIdx, &PosXIdx, &PosYIdx, &PosZIdx](int32 Y)
 	{
 		for (int32 X = 0; X < OccupancyMap.Dimensions.GetWidth(); X++)
@@ -692,13 +694,13 @@ void TextureInternalSurfaces(
 				bool bNeedsNormal = NormalZIdx > -1 || AmbientIdx > -1;
 				if (bNeedsNormal)
 				{
-					Normal = InsideMesh.GetInterpolatedNormal(TID, Bary);
+					Normal = ToTextureMesh.GetInterpolatedNormal(TID, Bary);
 				}
 
 				if (DistanceToExternalIdx > -1 || PosXIdx > -1 || PosYIdx > -1 || PosZIdx > -1)
 				{
 					FTriangle3d Tri;
-					InsideMesh.GetTriVertices(TID, Tri.V[0], Tri.V[1], Tri.V[2]);
+					ToTextureMesh.GetTriVertices(TID, Tri.V[0], Tri.V[1], Tri.V[2]);
 					FVector3d InsidePoint = Tri.BarycentricPoint(Bary);
 
 					if (DistanceToExternalIdx > -1)
