@@ -6957,8 +6957,11 @@ void FSequencer::OnNodePathChanged(const FString& OldPath, const FString& NewPat
 			if (NewNodePath.RemoveFromStart(PathPrefix))
 			{
 				NewNodePath = NewPath + '.' + NewNodePath;
-				MovieScene->GetSoloNodes().Remove(NodePath);
-				MovieScene->GetSoloNodes().Add(NewNodePath);
+				if (NodeTree->GetNodeAtPath(NewNodePath))
+				{
+					MovieScene->GetSoloNodes().Remove(NodePath);
+					MovieScene->GetSoloNodes().Add(NewNodePath);
+				}
 			}
 		}
 
@@ -6977,8 +6980,11 @@ void FSequencer::OnNodePathChanged(const FString& OldPath, const FString& NewPat
 			if (NewNodePath.RemoveFromStart(PathPrefix))
 			{
 				NewNodePath = NewPath + '.' + NewNodePath;
-				MovieScene->GetMuteNodes().Remove(NodePath);
-				MovieScene->GetMuteNodes().Add(NewNodePath);
+				if (NodeTree->GetNodeAtPath(NewNodePath))
+				{
+					MovieScene->GetMuteNodes().Remove(NodePath);
+					MovieScene->GetMuteNodes().Add(NewNodePath);
+				}
 			}
 		}
 	}
