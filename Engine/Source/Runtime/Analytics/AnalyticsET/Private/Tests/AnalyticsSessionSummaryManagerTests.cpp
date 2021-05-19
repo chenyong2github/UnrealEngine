@@ -18,7 +18,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnalyticsSessionSummaryManagerAutomationTest, 
 class FDummyAnalyticsSummarySender : public IAnalyticsSessionSummarySender
 {
 public:
-	virtual bool SendSessionSummary(const FString& InUserId, const FString& InAppId, const FString& InAppVersion, const FString& InSessionId, const TMap<FString, FString>& InProperties) override
+	virtual bool SendSessionSummary(const FString& InUserId, const FString& InAppId, const FString& InAppVersion, const FString& InSessionId, const TArray<FAnalyticsEventAttribute>& InProperties) override
 	{
 		UserId = InUserId;
 		AppId = InAppId;
@@ -34,7 +34,7 @@ public:
 	FString AppId;
 	FString AppVersion;
 	FString SessionId;
-	TMap<FString, FString> Properties;
+	TArray<FAnalyticsEventAttribute> Properties;
 };
 
 bool FAnalyticsSessionSummaryManagerAutomationTest::RunTest(const FString& Parameters)
@@ -91,12 +91,12 @@ bool FAnalyticsSessionSummaryManagerAutomationTest::RunTest(const FString& Param
 		check(SummarySender->SessionId  == PrincipalProcessSessionId);
 
 		// Check the automatically embedded keys.
-		check(*SummarySender->Properties.Find(DelayedSendProp.Key)  == LexToString(false));
-		check(*SummarySender->Properties.Find(SessionIdProp.Key)    == PrincipalProcessSessionId);
-		check(*SummarySender->Properties.Find(SentFromProp.Key)     == PrincipalProcessName);
+		check(SummarySender->Properties.FindByPredicate([&](const FAnalyticsEventAttribute& Attr) { return Attr.GetName() == DelayedSendProp.Key; })->GetValue() == LexToString(false));
+		check(SummarySender->Properties.FindByPredicate([&](const FAnalyticsEventAttribute& Attr) { return Attr.GetName() == SessionIdProp.Key; })->GetValue()   == PrincipalProcessSessionId);
+		check(SummarySender->Properties.FindByPredicate([&](const FAnalyticsEventAttribute& Attr) { return Attr.GetName() == SentFromProp.Key; })->GetValue()    == PrincipalProcessName);
 
 		// Check the custom property.
-		check(*SummarySender->Properties.Find(Prop1.Key) == LexToString(Prop1Value));
+		check(SummarySender->Properties.FindByPredicate([&](const FAnalyticsEventAttribute& Attr) { return Attr.GetName() == Prop1.Key; })->GetValue() == LexToString(Prop1Value));
 	}
 
 	//

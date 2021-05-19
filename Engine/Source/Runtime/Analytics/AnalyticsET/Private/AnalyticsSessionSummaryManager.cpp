@@ -25,15 +25,18 @@ namespace AnalyticsManagerProperties
 	static const TAnalyticsProperty<bool>    InternalWasProcessed      = TEXT("Internal.WasProcessed");
 
 	// Those values are implicitely added by the manager into the report because the analytics backend expecpts them.
-	static const TAnalyticsProperty<FString> ShutdownType      = TEXT("ShutdownType");
-	static const TAnalyticsProperty<bool>    DelayedSend       = TEXT("DelayedSend");
-	static const TAnalyticsProperty<FString> SentFrom          = TEXT("SentFrom");
+	static const TAnalyticsProperty<FString> SessionId       = TEXT("SessionId");
+	static const TAnalyticsProperty<FString> ShutdownType    = TEXT("ShutdownType");
+	static const TAnalyticsProperty<bool>    DelayedSend     = TEXT("DelayedSend");
+	static const TAnalyticsProperty<FString> SentFrom        = TEXT("SentFrom");
+	static const TAnalyticsProperty<FString> MissingDataFrom = TEXT("MissingDataFrom");
 
 	// List of reserved property key.
 	static TSet<FString> ReservedKeys = {
 			AnalyticsManagerProperties::ShutdownType.Key,
 			AnalyticsManagerProperties::DelayedSend.Key,
-			AnalyticsManagerProperties::SentFrom.Key
+			AnalyticsManagerProperties::SentFrom.Key,
+			AnalyticsManagerProperties::MissingDataFrom.Key
 		};
 
 	bool IsReserved(const FString& Key)
@@ -426,9 +429,9 @@ void FAnalyticsSessionSummaryManager::ProcessSummary(const FString& InProcessGro
 	}
 
 	// Aggregate the principal and subsidiary process summaries.
-	TMap<FString, FString> InternalProperties;
-	TMap<FString, FString> SummaryProperties;
-	if (!AggregateSummaries(InProcessGroupId, InProcessGroup.PropertyFiles, SummaryProperties, InternalProperties))
+	TArray<FAnalyticsEventAttribute> InternalProperties;
+	TArray<FAnalyticsEventAttribute> SummaryProperties;
+	if (!AggregateSummaries(InProcessGroupId, InProcessGroup, SummaryProperties, InternalProperties))
 	{
 		CleanupFiles(InProcessGroup.PropertyFiles, /*bOnSuccess*/false);
 		return;
@@ -445,15 +448,15 @@ void FAnalyticsSessionSummaryManager::ProcessSummary(const FString& InProcessGro
 	else
 	{
 		// The principal process saves those internal properties to let a subsidiary or another principal processes submit the summary on its behalf.
-		const FString* UserIdProp = InternalProperties.Find(AnalyticsManagerProperties::InternalSessionUserId.Key);
-		const FString* AppIdProp = InternalProperties.Find(AnalyticsManagerProperties::InternalSessionAppId.Key);
-		const FString* AppVersionProp = InternalProperties.Find(AnalyticsManagerProperties::InternalSessionAppVersion.Key);
-		const FString* SessionIdProp = InternalProperties.Find(AnalyticsManagerProperties::InternalSessionId.Key);
+		const FAnalyticsEventAttribute* UserIdProp = InternalProperties.FindByPredicate([](const FAnalyticsEventAttribute& Candidate) { return Candidate.GetName() == AnalyticsManagerProperties::InternalSessionUserId.Key; });
+		const FAnalyticsEventAttribute* AppIdProp = InternalProperties.FindByPredicate([](const FAnalyticsEventAttribute& Candidate) { return Candidate.GetName() == AnalyticsManagerProperties::InternalSessionAppId.Key; });
+		const FAnalyticsEventAttribute* AppVersionProp = InternalProperties.FindByPredicate([](const FAnalyticsEventAttribute& Candidate) { return Candidate.GetName() == AnalyticsManagerProperties::InternalSessionAppVersion.Key; });
+		const FAnalyticsEventAttribute* SessionIdProp = InternalProperties.FindByPredicate([](const FAnalyticsEventAttribute& Candidate) { return Candidate.GetName() == AnalyticsManagerProperties::InternalSessionId.Key; });
 
 		if (UserIdProp && AppIdProp && AppVersionProp && SessionIdProp)
 		{
 			CleanupFiles(InProcessGroup.PropertyFiles, /*bOnSuccess*/true);
-			SummarySender->SendSessionSummary(*UserIdProp, *AppIdProp, *AppVersionProp, *SessionIdProp, SummaryProperties);
+			SummarySender->SendSessionSummary(UserIdProp->GetValue(), AppIdProp->GetValue(), AppVersionProp->GetValue(), SessionIdProp->GetValue(), SummaryProperties);
 		}
 		else
 		{
@@ -462,11 +465,13 @@ void FAnalyticsSessionSummaryManager::ProcessSummary(const FString& InProcessGro
 	}
 }
 
-bool FAnalyticsSessionSummaryManager::AggregateSummaries(const FString& InProcessGroupId, const TArray<FPropertyFileInfo>& PropertyFiles, TMap<FString, FString>& OutSummaryProperties, TMap<FString, FString>& OutInternalProperties)
+bool FAnalyticsSessionSummaryManager::AggregateSummaries(const FString& InProcessGroupId, const FProcessGroup& ProcessGroup, TArray<FAnalyticsEventAttribute>& OutSummaryProperties, TArray<FAnalyticsEventAttribute>& OutInternalProperties)
 {
 	FAnalyticsPropertyStore PropertyStore;
 
-	auto RenameKey = [](const FString& KeyToRename, const FString& FromProcess, const TMap<FString, FString>& ExistingKeys, const TCHAR* Reason)
+	TSet<FString> SummaryKeys;
+
+	auto RenameKey = [](const FString& KeyToRename, const FString& FromProcess, const TSet<FString>& ExistingKeys, const TCHAR* Reason)
 	{
 		FString RenamedKey;
 		int32 Index = 1;
@@ -479,8 +484,10 @@ bool FAnalyticsSessionSummaryManager::AggregateSummaries(const FString& InProces
 		return RenamedKey;
 	};
 
+	TArray<FString> MissingDataFromProcesses;
+
 	// Merge the properties collected by the principal and its subsidiary processes.
-	for (const FPropertyFileInfo& PropertyFileInfo : PropertyFiles)
+	for (const FPropertyFileInfo& PropertyFileInfo : ProcessGroup.PropertyFiles)
 	{
 		if (PropertyStore.Load(PropertyFileInfo.Pathname))
 		{
@@ -493,32 +500,37 @@ bool FAnalyticsSessionSummaryManager::AggregateSummaries(const FString& InProces
 			if (PropertyStore.Get(ShutdownTypeCodeProperty.Key, ShutdownTypeCode) == IAnalyticsPropertyStore::EStatusCode::Success)
 			{
 				// Don't add 'ShutdownType' more than once. If 'ShutdownTypeCode' key used to derive the 'ShutdownType' is duplicated, the code will emit a warning and rename the second instance.
-				if (!OutSummaryProperties.Contains(AnalyticsManagerProperties::ShutdownType.Key))
+				if (!SummaryKeys.Contains(AnalyticsManagerProperties::ShutdownType.Key))
 				{
 					// Convert 'ShutdownTypeCode' into its string representation and emit it as 'ShutdownType' as known by the analytics backend.
 					OutSummaryProperties.Emplace(AnalyticsManagerProperties::ShutdownType.Key, LexToString(static_cast<EAnalyticsSessionShutdownType>(ShutdownTypeCode)));
+					SummaryKeys.Add(AnalyticsManagerProperties::ShutdownType.Key);
 				}
 			}
 
-			PropertyStore.VisitAll([&PropertyFileInfo, &OutSummaryProperties, &OutInternalProperties, &RenameKey](const FString& InKey, FString&& InValue)
+			PropertyStore.VisitAll([&PropertyFileInfo, &OutSummaryProperties, &OutInternalProperties, &RenameKey, &SummaryKeys](FAnalyticsEventAttribute&& Attr)
 			{
-				if (InKey.StartsWith(AnalyticsManagerProperties::InternalPropertyPrefix))
+				if (Attr.GetName().StartsWith(AnalyticsManagerProperties::InternalPropertyPrefix))
 				{
-					OutInternalProperties.Emplace(InKey, InValue);
+					SummaryKeys.Add(Attr.GetName());
+					OutInternalProperties.Emplace(Attr);
 				}
-				else if (AnalyticsManagerProperties::IsReserved(InKey))
+				else if (AnalyticsManagerProperties::IsReserved(Attr.GetName()))
 				{
-					FString RenamedKey = RenameKey(InKey, PropertyFileInfo.ProcessName, OutSummaryProperties, TEXT("Key name is reserved."));
-					OutSummaryProperties.Emplace(RenamedKey, InValue);
+					FString RenamedKey = RenameKey(Attr.GetName(), PropertyFileInfo.ProcessName, SummaryKeys, TEXT("Key name is reserved."));
+					SummaryKeys.Add(RenamedKey);
+					OutSummaryProperties.Emplace(RenamedKey, Attr.GetValue());
 				}
-				else if (!OutSummaryProperties.Contains(InKey))
+				else if (!SummaryKeys.Contains(Attr.GetName()))
 				{
-					OutSummaryProperties.Emplace(InKey, InValue);
+					SummaryKeys.Add(Attr.GetName());
+					OutSummaryProperties.Emplace(Attr);
 				}
 				else // Deal with key collisions. Keys are supposed to be unique. Duplication should be easy to spot during developement.
 				{
-					FString RenamedKey = RenameKey(InKey, PropertyFileInfo.ProcessName, OutSummaryProperties, TEXT("Key collision between processes of a group."));
-					OutSummaryProperties.Emplace(RenamedKey, InValue);
+					FString RenamedKey = RenameKey(Attr.GetName(), PropertyFileInfo.ProcessName, SummaryKeys, TEXT("Key collision between processes of a group."));
+					SummaryKeys.Add(Attr.GetName());
+					OutSummaryProperties.Emplace(RenamedKey, Attr.GetValue());
 				}
 			});
 
@@ -526,20 +538,32 @@ bool FAnalyticsSessionSummaryManager::AggregateSummaries(const FString& InProces
 			AnalyticsManagerProperties::InternalWasProcessed.Set(&PropertyStore, true);
 			PropertyStore.Flush();
 		}
+		else if (PropertyFileInfo.ProcessId == ProcessGroup.PrincipalProcessId)
+		{
+			// Without the principal process data, too much data is missing, abort.
+			return false;
+		}
 		else
 		{
-			return false; // The file failed to load. Was it deleted? locked? internal checksum failed?
+			// Subsidiary process data will be missing. Not ideal, but this should only be complementary info for the principal process, flag it and continue.
+			MissingDataFromProcesses.Add(PropertyFileInfo.ProcessName);
 		}
 	}
 
 	// The manager saves this key in the store it creates.
-	if (const FString* InternalSessionId = OutInternalProperties.Find(AnalyticsManagerProperties::InternalSessionId.Key))
+	if (const FAnalyticsEventAttribute* InternalSessionId = OutInternalProperties.FindByPredicate([](const FAnalyticsEventAttribute& Candidate) { return Candidate.GetName() == AnalyticsManagerProperties::InternalSessionId.Key; }))
 	{
-		OutSummaryProperties.Emplace(TEXT("SessionId"), *InternalSessionId);
+		OutSummaryProperties.Emplace(AnalyticsManagerProperties::SessionId.Key, InternalSessionId->GetValue());
+	}
+
+	if (!MissingDataFromProcesses.IsEmpty())
+	{
+		// Add the subsidiary process tag name(s) for which the data file couldn't be loaded (file was locked, corrupted, ...)
+		OutSummaryProperties.Emplace(AnalyticsManagerProperties::MissingDataFrom.Key, FString::Join(MissingDataFromProcesses, TEXT(",")));
 	}
 
 	// The summary is sent delayed when it is processed from another group.
-	OutSummaryProperties.Emplace(AnalyticsManagerProperties::DelayedSend.Key, LexToString(InProcessGroupId != ProcessGroupId));
+	OutSummaryProperties.Emplace(AnalyticsManagerProperties::DelayedSend.Key, InProcessGroupId != ProcessGroupId);
 
 	// This process is about to send the report, record the process name in the summary.
 	OutSummaryProperties.Emplace(AnalyticsManagerProperties::SentFrom.Key, ProcessName);

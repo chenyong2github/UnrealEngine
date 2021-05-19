@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AnalyticsEventAttribute.h"
 
 /**
  * Sends the analytics session summary to a backend service.
@@ -20,5 +21,5 @@ public:
 	 * @param SessionId The session is for which the report is emitted.
 	 * @param Properties The list of properties that makes up the summary event.
 	 */
-	virtual bool SendSessionSummary(const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const TMap<FString, FString>& Properties) = 0;
+	virtual bool SendSessionSummary(const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const TArray<FAnalyticsEventAttribute>& Properties) = 0;
 };
