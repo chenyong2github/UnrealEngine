@@ -94,11 +94,17 @@ public:
 		, PropertyPath(InPropertyPath)
 		, PropertyPathInfo(InPropertyPathInfo)
 		, Access(InAccess)
-	{ }
+	{
+		UniquePath = *FString::Printf(TEXT("%s:%s"), *ObjectPath, *PropertyPath);
+	}
 
 	virtual ~FRCIObjectMetadata() = default;
 
 public:
+	/** Get Unique Path for Object metadata */
+	const FName& GetUniquePath() const
+	{ return UniquePath; }
+	
 	/** Returns true if reference is valid */
 	virtual bool IsValid() const
 	{
@@ -134,6 +140,14 @@ public:
 
 	/** Property access type */
 	ERCIAccess Access = ERCIAccess::NO_ACCESS;
+
+public:
+	/** Structure Name */
+	static constexpr TCHAR const* Name = TEXT("RCIObjectMetadata");
+	
+private:
+	/** Object Path + Property Path */
+    FName UniquePath;
 };
 
 
@@ -187,6 +201,10 @@ public:
 
 	/** Property payload to intercept */
 	const TArray<uint8> Payload;
+
+public:
+	/** Structure Name */
+	static constexpr TCHAR const* Name = TEXT("RCIPropertiesMetadata");
 };
 
 /**
@@ -206,9 +224,15 @@ public:
 		, bGenerateTransaction(bInGenerateTransaction)
 		, PayloadType(InPayloadType)
 		, Payload(InPayload)
-	{ }
+	{
+		UniquePath = *FString::Printf(TEXT("%s:%s"), *ObjectPath, *FunctionPath);
+	}
 
 public:
+	/** Get Unique Path for Function metadata */
+	const FName& GetUniquePath() const
+	{ return UniquePath; }
+
 	/** Returns true if reference is valid */
 	bool IsValid() const
 	{
@@ -249,4 +273,12 @@ public:
 
 	/** Property payload to intercept */
 	const TArray<uint8> Payload;
+
+public:
+	/** Structure Name */
+	static constexpr TCHAR const* Name = TEXT("RCIFunctionMetadata");
+
+private:
+	/** Object Path + Function Path */
+	FName UniquePath;
 };
