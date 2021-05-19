@@ -77,6 +77,12 @@ static TAutoConsoleVariable<int32> CVarParallelBasePass(
 	TEXT("Toggles parallel base pass rendering. Parallel rendering must be enabled for this to have an effect."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarClearGBufferDBeforeBasePass(
+	TEXT("r.ClearGBufferDBeforeBasePass"),
+	1,
+	TEXT("Whether to clear GBuffer D before basepass"),
+	ECVF_RenderThreadSafe);
+
 // Scene color alpha is used during scene captures and planar reflections.  1 indicates background should be shown, 0 indicates foreground is fully present.
 static const float kSceneColorClearAlpha = 1.0f;
 
@@ -798,6 +804,11 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
 		PassParameters->RenderTargets = GetRenderTargetBindings(ColorLoadAction, BasePassTexturesView);
+
+		if (!CVarClearGBufferDBeforeBasePass.GetValueOnRenderThread() && SceneTextures.Config.GBufferD.Index > 0 && SceneTextures.Config.GBufferD.Index < (int32)BasePassTextureCount)
+		{
+			PassParameters->RenderTargets[SceneTextures.Config.GBufferD.Index].SetLoadAction(ERenderTargetLoadAction::ENoAction);
+		}
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("GBufferClear"), PassParameters, ERDGPassFlags::Raster,
 			[PassParameters, ColorLoadAction, SceneColorClearValue](FRHICommandList& RHICmdList)
