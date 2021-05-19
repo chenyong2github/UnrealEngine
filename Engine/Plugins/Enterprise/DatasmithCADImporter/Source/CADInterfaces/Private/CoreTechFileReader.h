@@ -75,7 +75,7 @@ namespace CADLibrary
 		FCoreTechFileReader(const FContext& InContext, const FString& EnginePluginsPath = TEXT(""));
 
 		ECoreTechParsingResult ProcessFile(const CADLibrary::FFileDescription& InCTFileDescription);
-
+		
 	private:
 		bool ReadNode(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 		bool ReadInstance(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);

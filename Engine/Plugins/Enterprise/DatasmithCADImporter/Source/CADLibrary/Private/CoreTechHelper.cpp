@@ -658,7 +658,7 @@ namespace CADLibrary
 
 	bool LoadFile(const FString& FileName, FMeshDescription& MeshDescription, const FImportParameters& ImportParameters, FMeshParameters& MeshParameters)
 	{
-		FCoreTechSessionBase Session(TEXT("CoreTechMeshLoader::LoadFile"), ImportParameters.MetricUnit);
+		FCoreTechSessionBase Session(TEXT("CoreTechMeshLoader::LoadFile"));
 		if (!Session.IsSessionValid())
 		{
 			return false;
@@ -670,10 +670,11 @@ namespace CADLibrary
 			// Something wrong happened during the load, abort
 			return false;
 		}
+		CTKIO_ChangeUnit(ImportParameters.MetricUnit);
 
 		if (ImportParameters.StitchingTechnique != StitchingNone)
 		{
-			CTKIO_Repair(MainObjectID, StitchingHeal);
+			CTKIO_Repair(MainObjectID, StitchingSew);
 		}
 
 		return Tessellate(MainObjectID, ImportParameters, MeshDescription, MeshParameters);

@@ -23,11 +23,9 @@ public:
 	 * @param FileMetricUnit: number of meters per file unit.
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
-	FCTSession(const TCHAR* InOwner, double InFileMetricUnit, double InScaleFactor)
-		: FCoreTechSessionBase(InOwner, InFileMetricUnit)
+	FCTSession(const TCHAR* InOwner)
+		: FCoreTechSessionBase(InOwner)
 	{
-		ImportParams.ScaleFactor = InScaleFactor;
-		ImportParams.MetricUnit = InFileMetricUnit;
 	}
 
 	void ClearData();
@@ -49,6 +47,8 @@ public:
 	{
 		ImportParams.ScaleFactor = InScaleFactor;
 	}
+
+	void SetSceneUnit(double InMetricUnit);
 
 	/**
 	 * Set Import parameters,
