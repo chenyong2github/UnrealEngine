@@ -2042,7 +2042,7 @@ void USkeletalMesh::Build()
 		EQueuedWorkPriority BasePriority = FSkeletalMeshCompilingManager::Get().GetBasePriority(this);
 		check(AsyncTask == nullptr);
 		AsyncTask = MakeUnique<FSkeletalMeshAsyncBuildTask>(this, MoveTemp(Context));
-		AsyncTask->StartBackgroundTask(SkeletalMeshThreadPool, BasePriority);
+		AsyncTask->StartBackgroundTask(SkeletalMeshThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait);
 		FSkeletalMeshCompilingManager::Get().AddSkeletalMeshes({ this });
 	}
 	else
@@ -3155,7 +3155,7 @@ void USkeletalMesh::PostLoad()
 		EQueuedWorkPriority BasePriority = FSkeletalMeshCompilingManager::Get().GetBasePriority(this);
 
 		AsyncTask = MakeUnique<FSkeletalMeshAsyncBuildTask>(this, MoveTemp(Context));
-		AsyncTask->StartBackgroundTask(SkeletalMeshThreadPool, BasePriority);
+		AsyncTask->StartBackgroundTask(SkeletalMeshThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait);
 		FSkeletalMeshCompilingManager::Get().AddSkeletalMeshes({ this });
 	}
 	else

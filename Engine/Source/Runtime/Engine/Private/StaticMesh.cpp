@@ -5027,7 +5027,7 @@ void UStaticMesh::PostLoad()
 		}
 
 		AsyncTask = MakeUnique<FStaticMeshAsyncBuildTask>(this, MakeUnique<FStaticMeshPostLoadContext>(MoveTemp(Context)));
-		AsyncTask->StartBackgroundTask(StaticMeshThreadPool, BasePriority, EQueuedWorkFlags::None, GetBuildRequiredMemory());
+		AsyncTask->StartBackgroundTask(StaticMeshThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, GetBuildRequiredMemory());
 		FStaticMeshCompilingManager::Get().AddStaticMeshes({this});
 	}
 	else
