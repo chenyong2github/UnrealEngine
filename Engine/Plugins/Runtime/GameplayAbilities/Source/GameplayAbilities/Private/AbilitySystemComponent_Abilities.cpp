@@ -320,7 +320,6 @@ void UAbilitySystemComponent::SetRemoveAbilityOnEnd(FGameplayAbilitySpecHandle A
 		if (FoundSpec->IsActive())
 		{
 			FoundSpec->RemoveAfterActivation = true;
-			FoundSpec->InputID = INDEX_NONE;
 		}
 		else
 		{
@@ -1083,6 +1082,12 @@ bool UAbilitySystemComponent::TryActivateAbility(FGameplayAbilitySpecHandle Abil
 	if (!Spec)
 	{
 		ABILITY_LOG(Warning, TEXT("TryActivateAbility called with invalid Handle"));
+		return false;
+	}
+
+	// don't activate abilities that are waiting to be removed
+	if (Spec->PendingRemove || Spec->RemoveAfterActivation)
+	{
 		return false;
 	}
 
