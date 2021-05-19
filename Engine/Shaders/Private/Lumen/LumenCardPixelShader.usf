@@ -4,6 +4,8 @@
 	LumenCardPixelShader.usf
 =============================================================================*/
 
+#define LUMEN_CARD_CAPTURE 1
+
 #include "../Common.ush"
 #include "../BRDF.ush"
 
