@@ -131,6 +131,19 @@ enum EMaterialDecalResponse
 	MDR_MAX
 };
 
+/** Specifies which separate translucency pass to render in. */
+UENUM()
+enum EMaterialTranslucencyPass
+{
+	/** Render after depth of field. */
+	MTP_BeforeDOF UMETA(DisplayName="Before DOF"),
+	/** Render after depth of field. */
+	MTP_AfterDOF UMETA(DisplayName="After DOF"),
+	/** Render after motion blur. */
+	MTP_AfterMotionBlur UMETA(DisplayName="After Motion Blur"),
+	MTP_MAX
+};
+
 // Material input structs.
 //@warning: manually mirrored in MaterialShared.h
 #if !CPP      //noexport struct
@@ -467,10 +480,12 @@ public:
 	UPROPERTY()
 	FStrataMaterialInput FrontMaterial;
 
-	/** Indicates that the material should be rendered in the SeparateTranslucency Pass (not affected by DOF, requires bAllowSeparateTranslucency to be set in .ini). */
-	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render After DOF"), AdvancedDisplay)
-	uint8 bEnableSeparateTranslucency : 1;
+private:
+	/** Deprecated. Use TranslucencyPass instead. */
+	UPROPERTY()
+	uint8 bEnableSeparateTranslucency_DEPRECATED : 1;
 
+public:
 	/**
 	 * Indicates that the material should be rendered using responsive anti-aliasing. Improves sharpness of small moving particles such as sparks.
 	 * Only use for small moving features because it will cause aliasing of the background.
@@ -501,6 +516,13 @@ public:
 	/** Whether the material should allow outputting negative emissive color values.  Only allowed on unlit materials. */
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 bAllowNegativeEmissiveColor : 1;
+
+	/**
+	 * Specifies the separate pass in which to render translucency.
+	 * This can be used to avoid artifacts caused by certain post processing effects.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Translucency)
+	TEnumAsByte<enum EMaterialTranslucencyPass> TranslucencyPass;
 
 	/** Sets the lighting mode that will be used on this material if it is translucent. */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category=Translucency, meta=(DisplayName = "Lighting Mode"))

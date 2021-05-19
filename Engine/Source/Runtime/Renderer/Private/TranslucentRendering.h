@@ -51,6 +51,14 @@ public:
 	FRDGTextureMSAA GetColorModulateForWrite(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef  GetColorModulateForRead(FRDGBuilder& GraphBuilder) const;
 
+	bool IsPostMotionBlurColorValid() const
+	{
+		return PostMotionBlurColorTexture.IsValid();
+	}
+	
+	FRDGTextureMSAA GetPostMotionBlurColorForWrite(FRDGBuilder& GraphBuilder);
+	FRDGTextureRef  GetPostMotionBlurColorForRead(FRDGBuilder& GraphBuilder) const;
+
 	FRDGTextureMSAA GetDepthForWrite(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef  GetDepthForRead(FRDGBuilder& GraphBuilder) const;
 
@@ -65,6 +73,7 @@ private:
 	FSeparateTranslucencyDimensions Dimensions;
 	FRDGTextureMSAA ColorTexture;
 	FRDGTextureMSAA ColorModulateTexture;
+	FRDGTextureMSAA PostMotionBlurColorTexture;
 	FRDGTextureMSAA DepthTexture;
 };
 

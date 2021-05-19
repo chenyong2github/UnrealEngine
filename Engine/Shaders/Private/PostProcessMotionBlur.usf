@@ -42,6 +42,16 @@ SamplerState VelocityTileSampler;
 SamplerState VelocityFlatSampler;
 SamplerState DepthSampler;
 
+#if USE_POST_MOTION_BLUR_TRANSLUCENCY
+
+Texture2D PostMotionBlurTranslucencyTexture;
+SamplerState PostMotionBlurTranslucencySampler;
+
+float2 ScreenPosToPostMotionBlurTranslucencyUV;
+float2 PostMotionBlurTranslucencyUVMax;
+
+#endif // USE_POST_MOTION_BLUR_TRANSLUCENCY
+
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define SharedVelocitySampler VelocitySampler
 	#define SharedVelocityTileSampler VelocitySampler
@@ -149,7 +159,13 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 	float4 SearchVector = SearchVectorPixels * Color_ExtentInverse.xyxy;
 
 	// converts pixel length to sample steps
-	float PixelToSampleScale = StepCount * rsqrt(dot(MaxVelocityPixels, MaxVelocityPixels));
+	float PixelToSampleScale = StepCount * rsqrt(dot(MaxVelocityPixels, MaxVelocityPixels));	
+		
+	#if USE_POST_MOTION_BLUR_TRANSLUCENCY
+		const float2 PostMotionBlurTranslucencyUV = min((ColorPixelPos + (float2)0.5f) * ScreenPosToPostMotionBlurTranslucencyUV, PostMotionBlurTranslucencyUVMax);
+		float4 PostMotionBlurTranslucency = PostMotionBlurTranslucencyTexture.SampleLevel(PostMotionBlurTranslucencySampler, PostMotionBlurTranslucencyUV, 0);
+	#endif
+
 	
 	// TODO expose cvars
 	bool bSkipPath = MaxVelocityLengthSqrPixels < 0.25;
@@ -176,6 +192,9 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 	BRANCH
 	if (bSkipPath)
 	{
+		#if USE_POST_MOTION_BLUR_TRANSLUCENCY
+			CenterColor.rgb = CenterColor.rgb * PostMotionBlurTranslucency.a + PostMotionBlurTranslucency.rgb;
+		#endif
 		#if !POST_PROCESS_ALPHA
 			CenterColor.a = 0;
 		#endif
@@ -265,6 +284,10 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 
 		OutColor = ColorAccum + (1 - ColorAccumWeight) * CenterColor;
 	}
+	
+#if USE_POST_MOTION_BLUR_TRANSLUCENCY
+	OutColor.rgb = OutColor.rgb * PostMotionBlurTranslucency.a + PostMotionBlurTranslucency.rgb;
+#endif
 
 #if !POST_PROCESS_ALPHA
 	OutColor.a = 0;

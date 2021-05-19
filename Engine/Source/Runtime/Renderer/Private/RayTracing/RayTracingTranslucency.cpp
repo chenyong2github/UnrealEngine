@@ -147,6 +147,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRDGBuilder& Gr
 	if (!ShouldRenderTranslucency(ETranslucencyPass::TPT_StandardTranslucency)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterDOF)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterDOFModulate)
+		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterMotionBlur)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency)
 		)
 	{

@@ -1058,6 +1058,7 @@ public:
 	FLatentGPUTimer TranslucencyTimer;
 	FLatentGPUTimer SeparateTranslucencyTimer;
 	FLatentGPUTimer SeparateTranslucencyModulateTimer;
+	FLatentGPUTimer PostMotionBlurTranslucencyTimer;
 
 	/** This is float since it is derived off of UWorld::RealTimeSeconds, which is relative to BeginPlay time. */
 	float LastAutoDownsampleChangeTime;

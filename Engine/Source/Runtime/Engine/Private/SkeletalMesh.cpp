@@ -6404,7 +6404,7 @@ FPrimitiveViewRelevance FSkeletalMeshSceneProxy::GetViewRelevance(const FSceneVi
 
 bool FSkeletalMeshSceneProxy::CanBeOccluded() const
 {
-	return !MaterialRelevance.bDisableDepthTest && !ShouldRenderCustomDepth();
+	return !MaterialRelevance.bDisableDepthTest && !MaterialRelevance.bPostMotionBlurTranslucency && !ShouldRenderCustomDepth();
 }
 
 bool FSkeletalMeshSceneProxy::IsUsingDistanceCullFade() const
