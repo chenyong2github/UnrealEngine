@@ -117,7 +117,6 @@ TRDGUniformBufferRef<ParameterStructType> FRDGBuilder::CreateUniformBuffer(const
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUniformBuffer(ParameterStruct, &ParameterStructType::StaticStructMetadata));
 	auto* UniformBuffer = UniformBuffers.Allocate<TRDGUniformBuffer<ParameterStructType>>(Allocator, ParameterStruct, ParameterStructType::StaticStructMetadata.GetShaderVariableName());
-	UniformBuffersToCreate.Add(false);
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUniformBuffer(UniformBuffer));
 	return UniformBuffer;
 }
@@ -195,6 +194,7 @@ inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCoun
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExtractTexture(Texture, OutTexturePtr));
 
+	Texture->ReferenceCount++;
 	Texture->bExtracted = true;
 	Texture->bCulled = false;
 	ExtractedTextures.Emplace(Texture, OutTexturePtr);
@@ -209,6 +209,7 @@ inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPt
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExtractBuffer(Buffer, OutBufferPtr));
 
+	Buffer->ReferenceCount++;
 	Buffer->bExtracted = true;
 	Buffer->bCulled = false;
 	ExtractedBuffers.Emplace(Buffer, OutBufferPtr);
@@ -228,9 +229,14 @@ inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPt
 inline void FRDGBuilder::SetCommandListStat(TStatId StatId)
 {
 #if RDG_CMDLIST_STATS
-	CommandListStat = StatId;
+	CommandListStatScope = StatId;
 	RHICmdList.SetCurrentStat(StatId);
 #endif
+}
+
+inline void FRDGBuilder::AddDispatchHint()
+{
+	bDispatchHint = true;
 }
 
 inline const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::GetPooledTexture(FRDGTextureRef Texture) const

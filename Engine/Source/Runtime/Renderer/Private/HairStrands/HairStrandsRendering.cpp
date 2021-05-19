@@ -80,7 +80,6 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, "HairStrands");
 
-void AddServiceLocalQueuePass(FRDGBuilder& GraphBuilder);
 bool GetHairStrandsSkyLightingDebugEnable();
 bool IsHairStrandsAdaptiveVoxelAllocationEnable();
 
@@ -118,13 +117,12 @@ void RenderHairPrePass(
 
 		//SCOPED_GPU_STAT(RHICmdList, HairRendering);
 		CreateHairStrandsMacroGroups(GraphBuilder, Scene, View);
-		AddServiceLocalQueuePass(GraphBuilder);
+		GraphBuilder.AddDispatchHint();
 
 		// Voxelization and Deep Opacity Maps
 		VoxelizeHairStrands(GraphBuilder, Scene, View, InstanceCullingManager);
 		RenderHairStrandsDeepShadows(GraphBuilder, Scene, View, InstanceCullingManager);
-
-		AddServiceLocalQueuePass(GraphBuilder);
+		GraphBuilder.AddDispatchHint();;
 	}
 }
 

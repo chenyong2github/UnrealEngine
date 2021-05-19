@@ -20,14 +20,11 @@ public:
 	virtual FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) override final;
 	virtual void DeallocateMemory(FRHITransientTexture* InTexture) override final;
 	virtual void DeallocateMemory(FRHITransientBuffer* InBuffer) override final;
+	virtual void Flush(FRHICommandListImmediate&) override final;
 	virtual void Freeze(FRHICommandListImmediate&) override final;
 	virtual void Release(FRHICommandListImmediate&) override final;
 
 private:
-
-	friend class FValidationContext;
-	void InitBarrierTracking();
-
 	// Actual RHI transient allocator which will get all functions forwarded
 	IRHITransientResourceAllocator* RHIAllocator = nullptr;
 
@@ -46,7 +43,6 @@ private:
 		const TCHAR* DebugName = nullptr;
 		EType ResourceType = EType::Texture;
 		bool bMemoryAllocated = false;
-		bool bReinitializeBarrierTracking = false;
 
 		struct FTexture
 		{
@@ -56,7 +52,15 @@ private:
 			uint8 NumMips = 0;
 		} Texture;
 	};
-	TMap<FRHIResource*, FAllocatedResourceData> AllocatedResourceMap;
+
+	using FAllocatedResourceDataMap = TMap<FRHIResource*, FAllocatedResourceData>;
+	using FAllocatedResourceDataArray = TArray<TPair<FRHIResource*, FAllocatedResourceData>>;
+
+	friend class FValidationContext;
+	static void InitBarrierTracking(const FAllocatedResourceDataArray& AllocatedResourcesToInit);
+
+	FAllocatedResourceDataMap AllocatedResourceMap;
+	FAllocatedResourceDataArray AllocatedResourcesToInit;
 };
 
 #endif	// ENABLE_RHI_VALIDATION

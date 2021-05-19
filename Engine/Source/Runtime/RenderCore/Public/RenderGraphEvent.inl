@@ -109,7 +109,6 @@ void TRDGScopeStack<TScopeType>::EndScope()
 template <typename TScopeType>
 void TRDGScopeStack<TScopeType>::BeginExecute()
 {
-	checkf(CurrentScope == nullptr, TEXT("Render graph needs to have all scopes ended to execute."));
 }
 
 template <typename ScopeType>
@@ -130,6 +129,7 @@ void TRDGScopeStack<ScopeType>::BeginExecutePass(const ScopeType* ParentScope)
 template <typename TScopeType>
 void TRDGScopeStack<TScopeType>::EndExecute()
 {
+	checkf(CurrentScope == nullptr, TEXT("Render graph needs to have all scopes ended to execute."));
 	Helper.EndExecute([this](const TScopeType* Scope)
 	{
 		PopFunction(RHICmdList, Scope, bRDGEvents);
@@ -336,8 +336,8 @@ inline FRDGGPUScopes FRDGGPUScopeStacksByPipeline::GetCurrentScopes(ERHIPipeline
 
 #if RDG_CPU_SCOPES
 
-inline FRDGCPUScopeStacks::FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator, const char* UnaccountedCSVStat)
-	: CSV(RHICmdList, Allocator, UnaccountedCSVStat)
+inline FRDGCPUScopeStacks::FRDGCPUScopeStacks(FRHIComputeCommandList& RHICmdList, FRDGAllocator& Allocator)
+	: CSV(RHICmdList, Allocator)
 {}
 
 inline void FRDGCPUScopeStacks::BeginExecute()

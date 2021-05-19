@@ -6,19 +6,7 @@
 #include "RenderGraphEvent.h"
 #include "Containers/SortedMap.h"
 
-class FRDGTransitionQueue
-{
-public:
-	FRDGTransitionQueue() = default;
-	FRDGTransitionQueue(uint32 ReservedCount);
-
-	void Insert(const FRHITransition* Transition, ERHITransitionCreateFlags TransitionFlags);
-	void Begin(FRHIComputeCommandList& RHICmdList);
-	void End(FRHIComputeCommandList& RHICmdList);
-
-private:
-	TArray<const FRHITransition*, TInlineAllocator<1, FRDGArrayAllocator>> Queue;
-};
+using FRDGTransitionQueue = TArray<const FRHITransition*, TInlineAllocator<4, FRDGArrayAllocator>>;
 
 struct FRDGBarrierBatchBeginId
 {
@@ -34,17 +22,22 @@ struct FRDGBarrierBatchBeginId
 		return !(*this == Other);
 	}
 
+	friend uint32 GetTypeHash(FRDGBarrierBatchBeginId Id)
+	{
+		static_assert(sizeof(Id.Passes) == 4);
+		uint32 Hash = *(const uint32*)Id.Passes.GetData();
+		return (Hash << GetRHIPipelineCount()) | uint32(Id.PipelinesAfter);
+	}
+
 	FRDGPassHandlesByPipeline Passes;
 	ERHIPipeline PipelinesAfter = ERHIPipeline::None;
 };
 
-RENDERCORE_API uint32 GetTypeHash(FRDGBarrierBatchBeginId Id);
-
 class RENDERCORE_API FRDGBarrierBatchBegin
 {
 public:
-	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, const FRDGPass* DebugPass);
-	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPassHandlesByPipeline DebugPasses);
+	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPass* DebugPass);
+	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPassesByPipeline DebugPasses);
 
 	void AddTransition(FRDGParentResourceRef Resource, const FRHITransitionInfo& Info);
 
@@ -56,12 +49,19 @@ public:
 		bTransitionNeeded = true;
 	}
 
+	void CreateTransition();
+
 	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
 	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline, FRDGTransitionQueue& TransitionsToBegin);
 
 	void Reserve(uint32 TransitionCount)
 	{
 		Transitions.Reserve(TransitionCount);
+	}
+
+	bool IsTransitionNeeded() const
+	{
+		return bTransitionNeeded;
 	}
 
 private:
@@ -76,7 +76,7 @@ private:
 	ERHIPipeline PipelinesToEnd;
 
 #if RDG_ENABLE_DEBUG
-	FRDGPassHandlesByPipeline DebugPasses;
+	FRDGPassesByPipeline DebugPasses;
 	TArray<FRDGParentResource*, FRDGArrayAllocator> DebugTransitionResources;
 	TArray<FRDGParentResource*, FRDGArrayAllocator> DebugAliasingResources;
 	const TCHAR* DebugName;
@@ -89,12 +89,14 @@ private:
 	friend class FRDGBarrierValidation;
 };
 
+using FRDGTransitionCreateQueue = TArray<FRDGBarrierBatchBegin*, FRDGArrayAllocator>;
+
 class RENDERCORE_API FRDGBarrierBatchEnd
 {
 public:
-	FRDGBarrierBatchEnd(FRDGPassHandle InPassHandle)
+	FRDGBarrierBatchEnd(FRDGPass* InPass)
 #if RDG_ENABLE_DEBUG
-		: PassHandle(InPassHandle)
+		: Pass(InPass)
 #endif
 	{}
 
@@ -109,10 +111,10 @@ public:
 	}
 
 private:
-	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<1, FRDGArrayAllocator>> Dependencies;
+	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<4, FRDGArrayAllocator>> Dependencies;
 
 #if RDG_ENABLE_DEBUG
-	FRDGPassHandle PassHandle;
+	FRDGPass* Pass;
 #endif
 
 	friend class FRDGBarrierValidation;
@@ -205,6 +207,16 @@ public:
 		return bGraphicsJoin;
 	}
 
+	bool IsCulled() const
+	{
+		return bCulled;
+	}
+
+	bool IsSentinel() const
+	{
+		return bSentinel;
+	}
+
 	const FRDGPassHandleArray& GetProducers() const
 	{
 		return Producers;
@@ -249,12 +261,12 @@ public:
 #endif
 
 protected:
-	FRDGBarrierBatchBegin& GetPrologueBarriersToBegin(FRDGAllocator& Allocator);
-	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator);
-	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAsyncCompute(FRDGAllocator& Allocator);
-	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAll(FRDGAllocator& Allocator);
+	FRDGBarrierBatchBegin& GetPrologueBarriersToBegin(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
+	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
+	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAsyncCompute(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
+	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAll(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
 
-	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginFor(FRDGAllocator& Allocator, ERHIPipeline PipelineForEnd)
+	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginFor(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue, ERHIPipeline PipelineForEnd)
 	{
 		switch (PipelineForEnd)
 		{
@@ -263,27 +275,20 @@ protected:
 			// fall through
 
 		case ERHIPipeline::Graphics:
-			return GetEpilogueBarriersToBeginForGraphics(Allocator);
+			return GetEpilogueBarriersToBeginForGraphics(Allocator, CreateQueue);
 
 		case ERHIPipeline::AsyncCompute:
-			return GetEpilogueBarriersToBeginForAsyncCompute(Allocator);
+			return GetEpilogueBarriersToBeginForAsyncCompute(Allocator, CreateQueue);
 
 		case ERHIPipeline::All:
-			return GetEpilogueBarriersToBeginForAll(Allocator);
+			return GetEpilogueBarriersToBeginForAll(Allocator, CreateQueue);
 		}
 	}
 
 	FRDGBarrierBatchEnd& GetPrologueBarriersToEnd(FRDGAllocator& Allocator);
 	FRDGBarrierBatchEnd& GetEpilogueBarriersToEnd(FRDGAllocator& Allocator);
 
-	//////////////////////////////////////////////////////////////////////////
-	//! User Methods to Override
-
-	virtual void ExecuteImpl(FRHIComputeCommandList& RHICmdList) = 0;
-
-	//////////////////////////////////////////////////////////////////////////
-
-	void Execute(FRHIComputeCommandList& RHICmdList);
+	virtual void Execute(FRHIComputeCommandList& RHICmdList) {}
 
 	// When r.RDG.Debug is enabled, this will include a full namespace path with event scopes included.
 	IF_RDG_ENABLE_DEBUG(FString FullPathIfDebug);
@@ -321,6 +326,18 @@ protected:
 
 			/** Whether this pass has non-RDG UAV outputs. */
 			uint32 bHasExternalOutputs : 1;
+
+			/** Whether this pass is a sentinel (prologue / epilogue) pass. */
+			uint32 bSentinel : 1;
+
+			/** Whether this pass has been culled. */
+			uint32 bCulled : 1;
+
+			/** Whether this pass does not contain parameters. */
+			uint32 bEmptyParameters : 1;
+
+			/** If set, dispatches to the RHI thread before executing this pass. */
+			uint32 bDispatchAfterExecute : 1;
 
 			/** Whether this pass allocated a texture through the pool. */
 			IF_RDG_ENABLE_DEBUG(uint32 bFirstTextureAllocated : 1);
@@ -390,8 +407,8 @@ protected:
 
 	/** Split-barrier batches at various points of execution of the pass. */
 	FRDGBarrierBatchBegin* PrologueBarriersToBegin = nullptr;
-	FRDGBarrierBatchEnd* PrologueBarriersToEnd = nullptr;
-	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForGraphics = nullptr;
+	FRDGBarrierBatchEnd PrologueBarriersToEnd;
+	FRDGBarrierBatchBegin EpilogueBarriersToBeginForGraphics;
 	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForAsyncCompute = nullptr;
 	FRDGBarrierBatchBegin* EpilogueBarriersToBeginForAll = nullptr;
 	TArray<FRDGBarrierBatchBegin*, FRDGArrayAllocator> SharedEpilogueBarriersToBegin;
@@ -420,6 +437,7 @@ protected:
 	friend FRDGBuilder;
 	friend FRDGPassRegistry;
 	friend FRDGTrace;
+	friend FRDGUserValidation;
 };
 
 /** Render graph pass with lambda execute function. */
@@ -470,9 +488,11 @@ public:
 	}
 
 private:
-	void ExecuteImpl(FRHIComputeCommandList& RHICmdList) override
+	void Execute(FRHIComputeCommandList& RHICmdList) override
 	{
 		check(!kSupportsRaster || RHICmdList.IsImmediate());
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGPass_Execute);
+		RHICmdList.SetStaticUniformBuffers(ParameterStruct.GetStaticUniformBuffers());
 		ExecuteLambda(static_cast<TRHICommandList&>(RHICmdList));
 	}
 
@@ -500,12 +520,13 @@ class FRDGSentinelPass final
 	: public FRDGPass
 {
 public:
-	FRDGSentinelPass(FRDGEventName&& Name)
-		: FRDGPass(MoveTemp(Name), FRDGParameterStruct(&EmptyShaderParameters), ERDGPassFlags::NeverCull)
-	{}
+	FRDGSentinelPass(FRDGEventName&& Name, ERDGPassFlags InPassFlagsToAdd = ERDGPassFlags::None)
+		: FRDGPass(MoveTemp(Name), FRDGParameterStruct(&EmptyShaderParameters), ERDGPassFlags::NeverCull | InPassFlagsToAdd)
+	{
+		bSentinel = 1;
+	}
 
 private:
-	void ExecuteImpl(FRHIComputeCommandList&) override {}
 	FEmptyShaderParameters EmptyShaderParameters;
 };
 
