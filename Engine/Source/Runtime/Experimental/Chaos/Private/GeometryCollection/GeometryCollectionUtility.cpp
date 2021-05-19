@@ -66,15 +66,14 @@ namespace GeometryCollection
 		Normals[6] = FVector3f(-1.f, 1.f, 1.f).GetSafeNormal();
 		Normals[7] = FVector3f(1.f, 1.f, 1.f).GetSafeNormal();
 
-		const int32 UVChannel = 0;
-		UVs[0][UVChannel] = FVector2D(0, 0);
-		UVs[1][UVChannel] = FVector2D(1, 0);
-		UVs[2][UVChannel] = FVector2D(0, 1);
-		UVs[3][UVChannel] = FVector2D(1, 1);
-		UVs[4][UVChannel] = FVector2D(0, 0);
-		UVs[5][UVChannel] = FVector2D(1, 0);
-		UVs[6][UVChannel] = FVector2D(0, 1);
-		UVs[7][UVChannel] = FVector2D(1, 1);
+		UVs[0].Add(FVector2D(0, 0));
+		UVs[1].Add(FVector2D(1, 0));
+		UVs[2].Add(FVector2D(0, 1));
+		UVs[3].Add(FVector2D(1, 1));
+		UVs[4].Add(FVector2D(0, 0));
+		UVs[5].Add(FVector2D(1, 0));
+		UVs[6].Add(FVector2D(0, 1));
+		UVs[7].Add(FVector2D(1, 1));
 
 		Colors[0] = FLinearColor::White;
 		Colors[1] = FLinearColor::White;
