@@ -1264,6 +1264,32 @@ void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 	}
 }
 
+void FFbxImporter::RemoveFBXMetaData(const UObject* Object)
+{
+	TArray<FName> KeysToRemove;
+	if (const TMap<FName, FString>* ExistingUMetaDataTagValues = UMetaData::GetMapForObject(Object))
+	{
+		for (const TPair<FName, FString>& KeyValue : *ExistingUMetaDataTagValues)
+		{
+			if (KeyValue.Key.ToString().StartsWith(FBX_METADATA_PREFIX, ESearchCase::IgnoreCase))
+			{
+				KeysToRemove.Add(KeyValue.Key);
+			}
+		}
+	}
+
+	if (KeysToRemove.Num() > 0)
+	{
+		UMetaData* PackageMetaData = Object->GetOutermost()->GetMetaData();
+		checkSlow(PackageMetaData);
+		for (const FName& KeyToRemove : KeysToRemove)
+		{
+			PackageMetaData->RemoveValue(Object, KeyToRemove);
+		}
+	}
+}
+
+
 FString FFbxImporter::GetFileAxisDirection()
 {
 	FString AxisDirection;

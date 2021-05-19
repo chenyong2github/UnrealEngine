@@ -1220,6 +1220,14 @@ private:
 	*/
 	void EnsureNodeNameAreValid(const FString& BaseFilename);
 
+	/**
+	 * Remove metadata starting with the FBX_METADATA_PREFIX value associated to the specified UObject.
+	 * This is used to ensure we do not restore old fbx meta data during reimports.
+	 * 
+	 * @param Object	The UObject for which we want the FBX metadata removed.
+	 */
+	static void RemoveFBXMetaData(const UObject* Object);
+
 private:
 	/**
 	 * Helper structure to pass around the common animation parameters.

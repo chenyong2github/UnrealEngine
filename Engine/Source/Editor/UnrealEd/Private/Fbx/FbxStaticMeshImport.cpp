@@ -1354,6 +1354,8 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 	ImportOptions->bImportMaterials = false;
 	ImportOptions->bImportTextures = false;
 
+	// Before calling SaveExistingStaticMeshData() we must remove the existing fbx metadata as we don't want to restore those.
+	RemoveFBXMetaData(Mesh);
 	TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr = StaticMeshImportUtils::SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
 
 	TArray<int32> ReimportLodList;
