@@ -183,8 +183,6 @@ FDelegateHandle FNiagaraWorldManager::PostGCHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCBeginDestroyHandle; 
 TMap<class UWorld*, class FNiagaraWorldManager*> FNiagaraWorldManager::WorldManagers;
 
-TGlobalResource<FNiagaraViewDataMgr> GNiagaraViewDataManager;
-
 namespace FNiagaraUtilities
 {
 	int GetNiagaraTickGroup(ETickingGroup TickGroup)
@@ -192,85 +190,6 @@ namespace FNiagaraUtilities
 		const int ActualTickGroup = FMath::Clamp(TickGroup - NiagaraFirstTickGroup, 0, NiagaraNumTickGroups - 1);
 		return ActualTickGroup;
 	}
-}
-
-void FNiagaraViewDataMgr::PostOpaqueRender(FPostOpaqueRenderParameters& Params)
-{
-	ViewUniformBuffer = Params.ViewUniformBuffer;
-	Parameters.SceneTextures = Params.SceneTexturesUniformParams;
-	Parameters.MobileSceneTextures = Params.MobileSceneTexturesUniformParams;
-	Parameters.Depth = Params.DepthTexture;
-	Parameters.Normal = Params.NormalTexture;
-	Parameters.Velocity = Params.VelocityTexture;
-}
-
-void FNiagaraViewDataMgr::GetSceneTextureParameters(FRDGBuilder& GraphBuilder, FNiagaraSceneTextureParameters& OutParameters) const
-{
-	OutParameters = Parameters;
-
-	ERHIFeatureLevel::Type LocalFeatureLevel = GetFeatureLevel();
-	if (FSceneInterface::GetShadingPath(LocalFeatureLevel) == EShadingPath::Deferred)
-	{
-		if ( !Parameters.SceneTextures )
-		{
-			OutParameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, LocalFeatureLevel, ESceneTextureSetupMode::None);
-		}
-	}
-	else if (FSceneInterface::GetShadingPath(LocalFeatureLevel) == EShadingPath::Mobile)
-	{
-		if ( !Parameters.MobileSceneTextures )
-		{
-			OutParameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::None);
-		}
-	}
-}
-
-void FNiagaraViewDataMgr::BeginPass()
-{
-	check(!bInsidePass);
-	bInsidePass = true;
-}
-
-void FNiagaraViewDataMgr::EndPass()
-{
-	check(bInsidePass);
-	bInsidePass = false;
-}
-
-void FNiagaraViewDataMgr::ClearSceneTextureParameters()
-{
-	Parameters = {};
-}
-
-FNiagaraViewDataMgr::FNiagaraViewDataMgr()
-	: FRenderResource()
-{
-
-}
-
-void FNiagaraViewDataMgr::Init()
-{
-	IRendererModule& RendererModule = GetRendererModule();
-
-	GNiagaraViewDataManager.PostOpaqueDelegate.BindRaw(&GNiagaraViewDataManager, &FNiagaraViewDataMgr::PostOpaqueRender);
-	GNiagaraViewDataManager.PostOpaqueDelegateHandle = RendererModule.RegisterPostOpaqueRenderDelegate(GNiagaraViewDataManager.PostOpaqueDelegate);
-}
-
-void FNiagaraViewDataMgr::Shutdown()
-{
-	IRendererModule& RendererModule = GetRendererModule();
-
-	RendererModule.RemovePostOpaqueRenderDelegate(GNiagaraViewDataManager.PostOpaqueDelegateHandle);
-	GNiagaraViewDataManager.ReleaseDynamicRHI();
-}
-
-void FNiagaraViewDataMgr::InitDynamicRHI()
-{
-
-}
-
-void FNiagaraViewDataMgr::ReleaseDynamicRHI()
-{
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -21,6 +21,7 @@
 #include "NiagaraShaderParticleID.h"
 #include "NiagaraSortingGPU.h"
 #include "NiagaraStats.h"
+#include "NiagaraRenderViewDataManager.h"
 #include "NiagaraWorldManager.h"
 #include "RHI.h"
 #include "RHIGPUReadback.h"
@@ -1581,9 +1582,11 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRDGBuilder& GraphBuilder, bool
 			RDG_EVENT_NAME("Niagara::PreInitViews"),
 			PassParameters,
 			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[this](FRHICommandListImmediate& RHICmdList)
+			[this, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			FNiagaraSceneTextureScope Scope;
+			NiagaraSceneTextures = PassParameters;
+			ON_SCOPE_EXIT { NiagaraSceneTextures = nullptr; };
+
 			ExecuteTicks(RHICmdList, nullptr, ENiagaraGpuComputeTickStage::PreInitViews);
 		});
 	}
@@ -1609,10 +1612,12 @@ void NiagaraEmitterInstanceBatcher::PostInitViews(FRDGBuilder& GraphBuilder, TAr
 			RDG_EVENT_NAME("Niagara::PostInitViews"),
 			PassParameters,
 			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[this, Views](FRHICommandListImmediate& RHICmdList)
+			[this, PassParameters, Views](FRHICommandListImmediate& RHICmdList)
 		{
+			NiagaraSceneTextures = PassParameters;
+			ON_SCOPE_EXIT{ NiagaraSceneTextures = nullptr; };
+
 			FRHIUniformBuffer* ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
-			FNiagaraSceneTextureScope Scope;
 			ExecuteTicks(RHICmdList, ViewUniformBuffer, ENiagaraGpuComputeTickStage::PostInitViews);
 		});
 	}
@@ -1631,12 +1636,13 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 		RDG_EVENT_NAME("Niagara::PostRenderOpaque"),
 		PassParameters,
 		ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-		[this, Views, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
+		[this, PassParameters, Views, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
 	{
-		FNiagaraSceneTextureScope Scope;
-
 		if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 		{
+			NiagaraSceneTextures = PassParameters;
+			ON_SCOPE_EXIT{ NiagaraSceneTextures = nullptr; };
+
 #if RHI_RAYTRACING
 			BuildRayTracingSceneInfo(RHICmdList, Views);
 			ON_SCOPE_EXIT
