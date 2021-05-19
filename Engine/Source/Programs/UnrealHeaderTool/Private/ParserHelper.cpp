@@ -35,16 +35,6 @@ void FStructMetaData::AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
 	}
 }
 
-void FStructMetaData::AddInheritanceParent(FString&& InParent, FUnrealSourceFile* UnrealSourceFile)
-{
-	MultipleInheritanceParents.Add(new FMultipleInheritanceBaseClass(MoveTemp(InParent)));
-}
-
-void FStructMetaData::AddInheritanceParent(UClass* ImplementedInterfaceClass, FUnrealSourceFile* UnrealSourceFile)
-{
-	MultipleInheritanceParents.Add(new FMultipleInheritanceBaseClass(ImplementedInterfaceClass));
-}
-
 /////////////////////////////////////////////////////
 // FPropertyBase
 

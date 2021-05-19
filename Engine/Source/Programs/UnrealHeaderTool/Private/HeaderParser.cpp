@@ -2584,128 +2584,83 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration()
 		}
 	}
 
-	// Get optional superstruct.
-	bool bExtendsBaseStruct = false;
-	
-	if (MatchSymbol(TEXT(':')))
-	{
-		RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("struct inheritance"));
-		bExtendsBaseStruct = true;
-	}
+	// Parse the inheritance list
+	ParseInheritance(TEXT("struct"), [](const TCHAR* StructName, bool bIsSuperClass) {}); // Eat the results, already been parsed
 
-	UScriptStruct* BaseStruct = NULL;
-	if (bExtendsBaseStruct)
+	// if we have a base struct, propagate inherited struct flags now
+	//ETSTODO - Move base class resolution to the post declaration phase
+	FUnrealFieldDefinitionInfo* BaseStructDef = nullptr;
+	if (!StructDef.GetSuperClassInfo().Name.IsEmpty())
 	{
-		FToken ParentScope, ParentName;
-		if (GetIdentifier( ParentScope ))
+		const FString& ParentStructNameInScript = StructDef.GetSuperClassInfo().Name;
+		FString ParentStructNameStripped;
+		bool bOverrideParentStructName = false;
+
+		if (!UHTConfig.StructsWithNoPrefix.Contains(ParentStructNameInScript))
 		{
-			RedirectTypeIdentifier(ParentScope);
+			bOverrideParentStructName = true;
+			ParentStructNameStripped = GetClassNameWithPrefixRemoved(ParentStructNameInScript);
+		}
 
-			TSharedPtr<FScope> StructScope = Scope;
-			FString ParentStructNameInScript = FString(ParentScope.Identifier);
-			if (MatchSymbol(TEXT('.')))
-			{
-				if (GetIdentifier(ParentName))
-				{
-					RedirectTypeIdentifier(ParentName);
+		// If we're expecting a prefix, first try finding the correct field with the stripped struct name
+		if (bOverrideParentStructName)
+		{
+			BaseStructDef = Scope->FindTypeByName(*ParentStructNameStripped);
+		}
 
-					ParentStructNameInScript = FString(ParentName.Identifier);
-					FString ParentNameStripped = GetClassNameWithPrefixRemoved(ParentScope.Identifier);
-					FClass* StructClass = FClasses::FindClass(*ParentNameStripped);
-					if( !StructClass )
-					{
-						// If we find the literal class name, the user didn't use a prefix
-						StructClass = FClasses::FindClass(ParentScope.Identifier);
-						if( StructClass )
-						{
-							FError::Throwf(TEXT("'struct': Parent struct class '%s' is missing a prefix, expecting '%s'"), ParentScope.Identifier, *FString::Printf(TEXT("%s%s"),StructClass->GetPrefixCPP(),ParentScope.Identifier) );
-						}
-						else
-						{
-							FError::Throwf(TEXT("'struct': Can't find parent struct class '%s'"), ParentScope.Identifier );
-						}
-					}
+		// If it wasn't found, try to find the literal name given
+		if (BaseStructDef == nullptr)
+		{
+			BaseStructDef = Scope->FindTypeByName(*ParentStructNameInScript);
+		}
 
-					StructScope = FScope::GetTypeScope(StructClass);
-				}
-				else
-				{
-					FError::Throwf( TEXT("'struct': Missing parent struct type after '%s.'"), ParentScope.Identifier );
-				}
-			}
-			
-			FString ParentStructNameStripped;
-			FUnrealFieldDefinitionInfo* TypeDef = nullptr;
-			const UField* Type = nullptr;
-			bool bOverrideParentStructName = false;
-
-			if( !UHTConfig.StructsWithNoPrefix.Contains(ParentStructNameInScript) )
-			{
-				bOverrideParentStructName = true;
-				ParentStructNameStripped = GetClassNameWithPrefixRemoved(ParentStructNameInScript);
-			}
-
-			// If we're expecting a prefix, first try finding the correct field with the stripped struct name
+		// Resolve structs declared in another class  //@TODO: UCREMOVAL: This seems extreme
+		if (BaseStructDef == nullptr)
+		{
+			UScriptStruct* Type = nullptr;
 			if (bOverrideParentStructName)
 			{
-				TypeDef = StructScope->FindTypeByName(*ParentStructNameStripped);
+				Type = FindObject<UScriptStruct>(ANY_PACKAGE, *ParentStructNameStripped);
 			}
 
-			// If it wasn't found, try to find the literal name given
-			if (TypeDef == nullptr)
+			if (Type == nullptr)
 			{
-				TypeDef = StructScope->FindTypeByName(*ParentStructNameInScript);
+				Type = FindObject<UScriptStruct>(ANY_PACKAGE, *ParentStructNameInScript);
 			}
 
-			// Resolve structs declared in another class  //@TODO: UCREMOVAL: This seems extreme
-			if (TypeDef == nullptr)
+			if (Type != nullptr)
 			{
-				if (bOverrideParentStructName)
-				{
-					Type = FindObject<UScriptStruct>(ANY_PACKAGE, *ParentStructNameStripped);
-				}
+				BaseStructDef = &GTypeDefinitionInfoMap.FindChecked(Type).AsFieldChecked();
+			}
+		}
 
-				if (Type == nullptr)
-				{
-					Type = FindObject<UScriptStruct>(ANY_PACKAGE, *ParentStructNameInScript);
-				}
-			}
-			else
-			{
-				Type = TypeDef->GetField();
-			}
-
-			// If the struct still wasn't found, throw an error
-			if (Type == NULL)
-			{
-				FError::Throwf(TEXT("'struct': Can't find struct '%s'"), *ParentStructNameInScript );
-			}
-			else
-			{
-				// If the struct was found, confirm it adheres to the correct syntax. This should always fail if we were expecting an override that was not found.
-				BaseStruct = ((UScriptStruct*)Type);
-				if( bOverrideParentStructName )
-				{
-					const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(ParentStructNameStripped) ? TEXT("T") : BaseStruct->GetPrefixCPP();
-					if( ParentStructNameInScript != FString::Printf(TEXT("%s%s"), PrefixCPP, *ParentStructNameStripped) )
-					{
-						BaseStruct = nullptr;
-						FError::Throwf(TEXT("Parent Struct '%s' is missing a valid Unreal prefix, expecting '%s'"), *ParentStructNameInScript, *FString::Printf(TEXT("%s%s"), PrefixCPP, *Type->GetName()));
-					}
-				}
-			}
+		// If the struct still wasn't found, throw an error
+		if (BaseStructDef == NULL)
+		{
+			FError::Throwf(TEXT("'struct': Can't find struct '%s'"), *ParentStructNameInScript);
 		}
 		else
 		{
-			FError::Throwf(TEXT("'struct': Missing parent struct after ': public'") );
+			// If the struct was found, confirm it adheres to the correct syntax. This should always fail if we were expecting an override that was not found.
+			if (bOverrideParentStructName)
+			{
+				UScriptStruct* BaseStruct = BaseStructDef->AsScriptStructChecked().GetScriptStruct();
+				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(ParentStructNameStripped) ? TEXT("T") : BaseStruct->GetPrefixCPP();
+				if (ParentStructNameInScript != FString::Printf(TEXT("%s%s"), PrefixCPP, *ParentStructNameStripped))
+				{
+					BaseStructDef = nullptr;
+					FError::Throwf(TEXT("Parent Struct '%s' is missing a valid Unreal prefix, expecting '%s'"), *ParentStructNameInScript, *FString::Printf(TEXT("%s%s"), PrefixCPP, *BaseStruct->GetName()));
+				}
+			}
 		}
 	}
 
-	// if we have a base struct, propagate inherited struct flags now
-	if (BaseStruct != NULL)
+	if (BaseStructDef != NULL)
 	{
+		UScriptStruct* BaseStruct = BaseStructDef->AsScriptStructChecked().GetScriptStruct();
 		Struct->SetSuperStruct(BaseStruct);
-		StructFlags |= (BaseStruct->StructFlags&STRUCT_Inherit);
+		StructFlags |= (BaseStruct->StructFlags & STRUCT_Inherit);
+		StructDef.GetSuperClassInfo().Struct = BaseStructDef->AsStruct();
 	}
 
 	Scope->AddType(StructDef);
@@ -6270,147 +6225,44 @@ bool FHeaderParser::SafeMatchSymbol( const TCHAR Match )
 	return false;
 }
 
-FClass* FHeaderParser::ParseClassNameDeclaration(FString& DeclaredClassName, FString& RequiredAPIMacroIfPresent)
+FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& DeclaredClassName, FString& RequiredAPIMacroIfPresent)
 {
 	ParseNameWithPotentialAPIMacroPrefix(/*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent, TEXT("class"));
 
 	FClass* FoundClass = FClasses::FindClass(*GetClassNameWithPrefixRemoved(*DeclaredClassName));
 	check(FoundClass);
-	FStructMetaData& StructMetaData = GTypeDefinitionInfoMap.FindChecked(FoundClass).AsStructChecked().GetStructMetaData();
+	FoundClass->ClassCastFlags |= ClassCastFlagMap::Get().GetCastFlag(DeclaredClassName);
 
-	// Get parent class.
-	bool bSpecifiesParentClass = false;
+	FUnrealClassDefinitionInfo& ClassDef = GTypeDefinitionInfoMap.FindChecked(FoundClass).AsClassChecked();
 
 	// Skip optional final keyword
 	MatchIdentifier(TEXT("final"), ESearchCase::CaseSensitive);
 
-	if (MatchSymbol(TEXT(':')))
+	// Parse the inheritance list
+	ParseInheritance(TEXT("class"), [](const TCHAR* ClassName, bool bIsSuperClass) {}); // Eat the results, already been parsed
+
+	// Collect data about the super and base classes
+	if (FUnrealStructDefinitionInfo* SuperStruct = ClassDef.GetSuperClassInfo().Struct)
 	{
-		RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("class inheritance"));
-		bSpecifiesParentClass = true;
+		UClass* SuperClass = SuperStruct->AsClassChecked().GetClass();
+		FoundClass->ClassCastFlags |= SuperClass->ClassCastFlags;
 	}
-
-	// Add class cast flag
-	FoundClass->ClassCastFlags |= ClassCastFlagMap::Get().GetCastFlag(DeclaredClassName);
-
-	if (bSpecifiesParentClass)
+	for (FUnrealStructDefinitionInfo::FBaseClassInfo& BaseClassInfo : ClassDef.GetBaseClassInfo())
 	{
-		// Set the base class.
-		UClass* TempClass = GetQualifiedClass(TEXT("'extends'"));
-		check(TempClass);
-		// a class cannot 'extends' an interface, use 'implements'
-		if (TempClass->ClassFlags & CLASS_Interface)
+		if (BaseClassInfo.Struct != nullptr)
 		{
-			FError::Throwf(TEXT("Class '%s' cannot extend interface '%s', use 'implements'"), *FoundClass->GetName(), *TempClass->GetName());
-		}
-
-		UClass* SuperClass = FoundClass->GetSuperClass();
-		if( SuperClass == NULL )
-		{
-			FoundClass->SetSuperStruct(TempClass);
-		}
-		else if( SuperClass != TempClass )
-		{
-			FError::Throwf(TEXT("%s's superclass must be %s, not %s"), *FoundClass->GetPathName(), *SuperClass->GetPathName(), *TempClass->GetPathName());
-		}
-
-		FoundClass->ClassCastFlags |= FoundClass->GetSuperClass()->ClassCastFlags;
-
-		// Handle additional inherited interface classes
-		while (MatchSymbol(TEXT(',')))
-		{
-			RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("Interface inheritance must be public"));
-
-			FString InterfaceName;
-
-			FToken Token;
-			for (;;)
+			UClass* BaseClass = BaseClassInfo.Struct->AsClassChecked().GetClass();
+			if (!BaseClass->HasAnyClassFlags(CLASS_Interface))
 			{
-				if (!GetIdentifier(Token, true))
-				{
-					FError::Throwf(TEXT("Failed to get interface class identifier"));
-				}
-
-				InterfaceName += Token.Identifier;
-
-				// Handle templated native classes
-				if (MatchSymbol(TEXT('<')))
-				{
-					InterfaceName += TEXT('<');
-
-					int32 NestedScopes = 1;
-					while (NestedScopes)
-					{
-						if (!GetToken(Token))
-						{
-							FError::Throwf(TEXT("Unexpected end of file"));
-						}
-
-						if (Token.TokenType == TOKEN_Symbol)
-						{
-							if (Token.Matches(TEXT('<')))
-							{
-								++NestedScopes;
-							}
-							else if (Token.Matches(TEXT('>')))
-							{
-								--NestedScopes;
-							}
-						}
-
-						InterfaceName += Token.Identifier;
-					}
-				}
-
-				// Handle scoped native classes
-				if (MatchSymbol(TEXT("::")))
-				{
-					InterfaceName += TEXT("::");
-
-					// Keep reading nested identifiers
-					continue;
-				}
-
-				break;
+				FError::Throwf(TEXT("Implements: Class %s is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces"), *BaseClass->GetName());
 			}
 
-			HandleOneInheritedClass(StructMetaData, FoundClass, MoveTemp(InterfaceName));
+			// Propagate the inheritable ClassFlags
+			FoundClass->ClassFlags |= (BaseClass->ClassFlags & CLASS_ScriptInherit);
+			FoundClass->Interfaces.Emplace(BaseClass, 0, false);
 		}
 	}
-	else if (FoundClass->GetSuperClass())
-	{
-		FError::Throwf(TEXT("class: missing 'Extends %s'"), *FoundClass->GetSuperClass()->GetName());
-	}
-
-	return FoundClass;
-}
-
-void FHeaderParser::HandleOneInheritedClass(FStructMetaData& StructMetaData, UClass* Class, FString&& InterfaceName)
-{
-
-	// Check for UInterface derived interface inheritance
-	if (UClass* Interface = FClasses::FindScriptClass(InterfaceName))
-	{
-		// Try to find the interface
-		if ( !Interface->HasAnyClassFlags(CLASS_Interface) )
-		{
-			FError::Throwf(TEXT("Implements: Class %s is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces"), *Interface->GetName() );
-		}
-
-		// Propagate the inheritable ClassFlags
-		Class->ClassFlags |= (Interface->ClassFlags) & CLASS_ScriptInherit;
-
-		new (Class->Interfaces) FImplementedInterface(Interface, 0, false);
-		if (Interface->HasAnyClassFlags(CLASS_Native))
-		{
-			StructMetaData.AddInheritanceParent(Interface, &SourceFile);
-		}
-	}
-	else
-	{
-		// Non-UObject inheritance
-		StructMetaData.AddInheritanceParent(MoveTemp(InterfaceName), &SourceFile);
-	}
+	return ClassDef;
 }
 
 /**
@@ -6488,10 +6340,8 @@ UClass* FHeaderParser::CompileClassDeclaration()
 	FString DeclaredClassName;
 	FString RequiredAPIMacroIfPresent;
 	
-	FClass* Class = ParseClassNameDeclaration(/*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent);
-	check(Class);
-
-	FUnrealClassDefinitionInfo& ClassDeclarationData = GTypeDefinitionInfoMap.FindChecked(Class).AsClassChecked();
+	FUnrealClassDefinitionInfo& ClassDeclarationData = ParseClassNameDeclaration(/*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent);
+	FClass* Class = static_cast<FClass*>(ClassDeclarationData.GetClass());
 
 	ClassDefinitionRanges.Add(Class, ClassDefinitionRange(&Input[InputPos], nullptr));
 
@@ -6563,22 +6413,26 @@ UClass* FHeaderParser::CompileClassDeclaration()
 
 	// auto-create properties for all of the VFTables needed for the multiple inheritances
 	// get the inheritance parents
-	const TArray<FMultipleInheritanceBaseClass*>& InheritanceParents = StructData.GetInheritanceParents();
+	const TArray<FUnrealStructDefinitionInfo::FBaseClassInfo>& BaseClassInfos = ClassDeclarationData.GetBaseClassInfo();
 
 	// for all base class types, make a VfTable property
-	for (int32 ParentIndex = InheritanceParents.Num() - 1; ParentIndex >= 0; ParentIndex--)
+	for (int32 ParentIndex = BaseClassInfos.Num() - 1; ParentIndex >= 0; ParentIndex--)
 	{
 		// if this base class corresponds to an interface class, assign the vtable FProperty in the class's Interfaces map now...
-		if (UClass* InheritedInterface = InheritanceParents[ParentIndex]->InterfaceClass)
+		if (FUnrealStructDefinitionInfo* BaseClassStruct = BaseClassInfos[ParentIndex].Struct)
 		{
-			FImplementedInterface* Found = Class->Interfaces.FindByPredicate([=](const FImplementedInterface& Impl) { return Impl.Class == InheritedInterface; });
-			if (Found)
+			UClass* BaseClass = BaseClassStruct->AsClassChecked().GetClass();
+			if (BaseClass->HasAnyClassFlags(CLASS_Native))
 			{
-				Found->PointerOffset = 1;
-			}
-			else
-			{
-				Class->Interfaces.Add(FImplementedInterface(InheritedInterface, 1, false));
+				FImplementedInterface* Found = Class->Interfaces.FindByPredicate([&BaseClass](const FImplementedInterface& Impl) { return Impl.Class == BaseClass; });
+				if (Found)
+				{
+					Found->PointerOffset = 1;
+				}
+				else
+				{
+					Class->Interfaces.Add(FImplementedInterface(BaseClass, 1, false));
+				}
 			}
 		}
 	}
@@ -9591,40 +9445,26 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseClassDeclaration(FU
 	// Skip optional final keyword
 	MatchIdentifier(TEXT("final"), ESearchCase::CaseSensitive);
 
-	// Handle inheritance
-	FString BaseClassName;
-	if (MatchSymbol(TEXT(':')))
+
+	// Create the definition
+	TSharedRef<FUnrealClassDefinitionInfo> ClassDef = MakeShareable(new FUnrealClassDefinitionInfo(SourceFile, InLineNumber, MoveTemp(ClassName), bClassIsAnInterface));
+
+	// Parse the inheritance list
+	ParseInheritance(TEXT("class"), [this, &SourceFile, &ClassNameWithoutPrefixStr, &ClassDef = *ClassDef](const TCHAR* ClassName, bool bIsSuperClass)
 	{
-		// Require 'public'
-		RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, ErrorMsg);
-
-		// Inherits from something
-		FToken BaseClassNameToken;
-		if (!GetIdentifier(BaseClassNameToken, true))
+		FString ClassNameStr(ClassName);
+		SourceFile.AddClassIncludeIfNeeded(InputLine, ClassNameWithoutPrefixStr, ClassNameStr);
+		if (bIsSuperClass)
 		{
-			FError::Throwf(TEXT("Expected a base class name"));
+			ClassDef.GetSuperClassInfo().Name = MoveTemp(ClassNameStr);
 		}
-
-		BaseClassName = BaseClassNameToken.Identifier;
-		SourceFile.AddClassIncludeIfNeeded(InputLine, ClassNameWithoutPrefixStr, BaseClassName);
-
-		// Get additional inheritance links and rack them up as dependencies if they're UObject derived
-		while (MatchSymbol(TEXT(',')))
+		else
 		{
-			// Require 'public'
-			RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, ErrorMsg);
-
-			FToken InterfaceClassNameToken;
-			if (!GetIdentifier(InterfaceClassNameToken, true))
-			{
-				FUHTException::Throwf(SourceFile, InputLine, TEXT("Expected an interface class name"));
-			}
-
-			SourceFile.AddClassIncludeIfNeeded(InputLine, ClassNameWithoutPrefixStr, FString(InterfaceClassNameToken.Identifier));
+			ClassDef.GetBaseClassInfo().Emplace(FUnrealStructDefinitionInfo::FBaseClassInfo{ MoveTemp(ClassNameStr) });
 		}
 	}
+	);
 
-	TSharedRef<FUnrealClassDefinitionInfo> ClassDef = MakeShareable(new FUnrealClassDefinitionInfo(SourceFile, InLineNumber, MoveTemp(ClassName), MoveTemp(BaseClassName), bClassIsAnInterface));
 	ClassDef->MetaData = MoveTemp(MetaData);
 	ClassDef->ParseClassProperties(MoveTemp(SpecifiersFound), RequiredAPIMacroIfPresent);
 	return ClassDef;
@@ -9730,35 +9570,24 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(F
 	FString StructNameStripped = GetClassNameWithPrefixRemoved(StructNameInScript);
 
 
-	// Get optional superstruct.
-	FString ParentScopeCPP;
-	FString ParentNameCPP;
-	if (MatchSymbol(TEXT(':')))
+	// Create the structure definition
+	TSharedRef<FUnrealScriptStructDefinitionInfo> StructDef = MakeShareable(new FUnrealScriptStructDefinitionInfo(SourceFile, InLineNumber, MoveTemp(StructNameInScript)));
+
+	// Parse the inheritance list
+	ParseInheritance(TEXT("struct"), [this, &SourceFile, &StructNameStripped, &StructDef = *StructDef](const TCHAR* StructName, bool bIsSuperClass)
 	{
-		RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("struct inheritance"));
-		FToken ParentScope, ParentName;
-		if (GetIdentifier(ParentScope))
+		FString StructNameStr(StructName);
+		SourceFile.AddScriptStructIncludeIfNeeded(InputLine, StructNameStripped, StructNameStr);
+		if (bIsSuperClass)
 		{
-			RedirectTypeIdentifier(ParentScope);
-			if (MatchSymbol(TEXT('.')))
-			{
-				if (GetIdentifier(ParentName))
-				{
-					RedirectTypeIdentifier(ParentName);
-					ParentScopeCPP = ParentName.Identifier;
-					ParentNameCPP = ParentScope.Identifier;
-					SourceFile.AddClassIncludeIfNeeded(InputLine, TEXT(""), ParentScopeCPP);
-				}
-			}
-			else
-			{
-				ParentNameCPP = ParentScope.Identifier;
-				SourceFile.AddScriptStructIncludeIfNeeded(InputLine, StructNameStripped, ParentNameCPP);
-			}
+			StructDef.GetSuperClassInfo().Name = MoveTemp(StructNameStr);
+		}
+		else
+		{
+			StructDef.GetBaseClassInfo().Emplace(FUnrealStructDefinitionInfo::FBaseClassInfo{ MoveTemp(StructNameStr) });
 		}
 	}
-	TSharedRef<FUnrealScriptStructDefinitionInfo> StructDef = MakeShareable(new FUnrealScriptStructDefinitionInfo(SourceFile, 
-		InLineNumber, MoveTemp(StructNameInScript), MoveTemp(ParentScopeCPP), MoveTemp(ParentNameCPP)));
+	);
 	return StructDef;
 }
 
