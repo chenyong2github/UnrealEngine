@@ -43,6 +43,7 @@ public:
 
 	static FPageAllocator& Get();
 
+	~FPageAllocator();
 	void* Alloc();
 	void Free(void* Mem);
 	void* AllocSmall();
@@ -52,7 +53,9 @@ public:
 	void LatchProtectedMode();
 private:
 
-	FPageAllocator() {}
+	static FPageAllocator* Instance;
+	static FPageAllocator& Construct();
+	FPageAllocator();
 
 #if STATS
 	void UpdateStats();
@@ -70,16 +73,7 @@ class CORE_API FMemStackBase //-V1062
 {
 public:
 
-	FMemStackBase()
-		: Top(nullptr)
-		, End(nullptr)
-		, TopChunk(nullptr)
-		, TopMark(nullptr)
-		, NumMarks(0)
-		, bShouldEnforceAllocMarks(false)
-	{
-		
-	}
+	FMemStackBase();
 
 	FMemStackBase(const FMemStackBase&) = delete;
 	FMemStackBase(FMemStackBase&& Other)
