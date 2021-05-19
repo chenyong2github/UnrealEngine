@@ -3,10 +3,11 @@
 #include "Data/SnapshotVersion.h"
 #include "Misc/EngineVersion.h"
 #include "Serialization/CustomVersion.h"
+
 void FSnapshotFileVersionInfo::Initialize()
 {
-	FileVersionUE4 = GPackageFileUE4Version;
-	FileVersionLicenseeUE4 = GPackageFileLicenseeUE4Version;
+	FileVersion = GPackageFileUEVersion;
+	FileVersionLicensee = GPackageFileLicenseeUEVersion;
 }
 
 void FSnapshotEngineVersionInfo::Initialize(const FEngineVersion& InVersion)

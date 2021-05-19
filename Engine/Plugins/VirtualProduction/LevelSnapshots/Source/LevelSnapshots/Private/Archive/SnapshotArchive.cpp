@@ -166,8 +166,8 @@ FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnap
 	{
 		const FSnapshotVersionInfo& VersionInfo = InSharedData.GetSnapshotVersionInfo();
 		
-		Super::SetUE4Ver(VersionInfo.FileVersion.FileVersionUE4);
-		Super::SetLicenseeUE4Ver(VersionInfo.FileVersion.FileVersionLicenseeUE4);
+		Super::SetUEVer(VersionInfo.FileVersion.FileVersion);
+		Super::SetLicenseeUEVer(VersionInfo.FileVersion.FileVersionLicensee);
 		Super::SetEngineVer(FEngineVersionBase(VersionInfo.EngineVersion.Major, VersionInfo.EngineVersion.Minor, VersionInfo.EngineVersion.Patch, VersionInfo.EngineVersion.Changelist));
 
 		FCustomVersionContainer EngineCustomVersions;
