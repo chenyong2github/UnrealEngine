@@ -10,6 +10,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/App.h"
 #include "Misc/Optional.h"
+#include "Misc/Paths.h"
 #include "Internationalization/Regex.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAnalyticsSessionSummary, Verbose, All);
