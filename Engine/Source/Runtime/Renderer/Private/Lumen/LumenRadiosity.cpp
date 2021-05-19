@@ -20,7 +20,7 @@ FAutoConsoleVariableRef CVarLumenRadiosity(
 	TEXT("r.LumenScene.Radiosity"),
 	GLumenRadiosity,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GLumenRadiosityDownsampleFactor = 2;
