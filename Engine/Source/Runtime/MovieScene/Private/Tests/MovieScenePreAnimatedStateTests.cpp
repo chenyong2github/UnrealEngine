@@ -439,6 +439,83 @@ bool FMovieScenePreAnimatedStateTrackTypesTest::RunTest(const FString& Parameter
 	return true;
 }
 
+/** Simulates the flow of FSequencer transitioning into/out of PIE */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateContextChangedTest, "System.Engine.Sequencer.Pre-Animated State.Context Changed", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMovieScenePreAnimatedStateContextChangedTest::RunTest(const FString& Parameters)
+{
+	using namespace Impl;
+	using namespace UE::MovieScene;
+
+	ResetValues();
+
+	static const int32 StartValue    = 1000;
+	static const int32 EndValue      = 2000;
+	static const int32 SectionLength = 1000;
+
+	FFrameRate TickResolution(1000, 1);
+
+	UTestMovieSceneSequence* Sequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());
+	Sequence->MovieScene->SetTickResolutionDirectly(TickResolution);
+
+	// Make a keep-state eval hook section
+	{
+		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneEvalHookTrack>();
+		UTestMovieSceneEvalHookSection* Section = NewObject<UTestMovieSceneEvalHookSection>(Track);
+
+		Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
+		Section->StartValue   = StartValue;
+		Section->EndValue     = EndValue;
+
+		Section->SetRange(TRange<FFrameNumber>(0, SectionLength));
+		Track->SectionArray.Add(Section);
+	}
+
+	FTestMovieScenePlayer TestPlayer;
+
+	UMovieSceneCompiledDataManager* CompiledDataManager = UMovieSceneCompiledDataManager::GetPrecompiledData();
+
+	FMovieSceneCompiledDataID DataID = CompiledDataManager->Compile(Sequence);
+	TestPlayer.Template.Initialize(*Sequence, TestPlayer, CompiledDataManager);
+	TestPlayer.Template.EnableGlobalPreAnimatedStateCapture();
+
+	// ---------------------------------------------
+	// Simulate in-editor
+	{
+		static const int32 NumEvaluations = 5;
+		for (int32 i = 0; i < NumEvaluations; ++i)
+		{
+			FMovieSceneEvaluationRange EvaluatedRange(TRange<FFrameTime>(i*(SectionLength/NumEvaluations), (i+1)*(SectionLength/NumEvaluations)), TickResolution, EPlayDirection::Forwards);
+			TestPlayer.Template.Evaluate(EvaluatedRange, TestPlayer);
+
+			Assert(this, TestValue1, StartValue + i, TEXT("In-Editor 1: EvaluationHook did not Begin or Update correctly."));
+		}
+
+		TestPlayer.Template.PlaybackContextChanged(TestPlayer);
+		TestEqual(TEXT("Pre-Animated State still exists for In-Editor 1."), TestPlayer.PreAnimatedState.ContainsAnyStateForSequence(), false);
+		Assert(this, TestValue1, TestMagicNumber, TEXT("In-Editor 1: Global pre-animated state did not restore correctly."));
+	}
+
+	// ---------------------------------------------
+	// Simulate PIE 
+	{
+		static const int32 NumEvaluations = 5;
+		for (int32 i = 0; i < NumEvaluations; ++i)
+		{
+			FMovieSceneEvaluationRange EvaluatedRange(TRange<FFrameTime>(i*(SectionLength/NumEvaluations), (i+1)*(SectionLength/NumEvaluations)), TickResolution, EPlayDirection::Forwards);
+			TestPlayer.Template.Evaluate(EvaluatedRange, TestPlayer);
+
+			Assert(this, TestValue1, StartValue + i, TEXT("PIE: EvaluationHook did not Begin or Update correctly."));
+		}
+
+		TestPlayer.Template.PlaybackContextChanged(TestPlayer);
+		TestEqual(TEXT("Pre-Animated State still exists for PIE."), TestPlayer.PreAnimatedState.ContainsAnyStateForSequence(), false);
+		Assert(this, TestValue1, TestMagicNumber, TEXT("PIE: Global pre-animated state did not restore correctly."));
+	}
+
+	Assert(this, TestValue1, TestMagicNumber, TEXT("Post PIE: Global pre-animated state did not restore correctly."));
+	return true;
+}
+
 /** Tests an edge case where one section keeps state, while another subsequent section restores state. the second section should restore to its starting value, not the original state before the first section. */
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStatePerformanceTest, "System.Engine.Sequencer.Pre-Animated State.Performance", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled)
 bool FMovieScenePreAnimatedStatePerformanceTest::RunTest(const FString& Parameters)

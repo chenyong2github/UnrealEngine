@@ -342,11 +342,21 @@ UObject* FMovieSceneRootEvaluationTemplateInstance::GetOrCreateDirectorInstance(
 
 void FMovieSceneRootEvaluationTemplateInstance::PlaybackContextChanged(IMovieScenePlayer& Player)
 {
+	using namespace UE::MovieScene;
+
+	const bool bGlobalCapture = EntitySystemLinker
+		&& RootInstanceHandle.IsValid()
+		&& EntitySystemLinker->GetInstanceRegistry()->GetInstance(RootInstanceHandle).IsCapturingGlobalPreAnimatedState();
+
 	if (EntitySystemLinker && !EntitySystemLinker->IsPendingKillOrUnreachable() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
 	{
 		EntitySystemLinker->CleanupInvalidBoundObjects();
 
 		Finish(Player);
+		if (bGlobalCapture)
+		{
+			Player.RestorePreAnimatedState();
+		}
 		EntitySystemLinker->GetInstanceRegistry()->DestroyInstance(RootInstanceHandle);
 	}
 
@@ -359,6 +369,12 @@ void FMovieSceneRootEvaluationTemplateInstance::PlaybackContextChanged(IMovieSce
 
 	RootInstanceHandle = EntitySystemLinker->GetInstanceRegistry()->AllocateRootInstance(&Player);
 	DirectorInstances.Reset();
+
+	Player.PreAnimatedState.Initialize(EntitySystemLinker, RootInstanceHandle);
+	if (bGlobalCapture)
+	{
+		EnableGlobalPreAnimatedStateCapture();
+	}
 }
 
 

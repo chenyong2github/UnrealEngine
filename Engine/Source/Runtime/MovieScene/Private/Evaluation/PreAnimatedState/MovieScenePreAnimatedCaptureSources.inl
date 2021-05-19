@@ -113,6 +113,21 @@ void TPreAnimatedCaptureSources<KeyType>::GatherAndRemoveMetaDataForGroup(FPreAn
 	}
 }
 
+template<typename KeyType>
+bool TPreAnimatedCaptureSources<KeyType>::ContainsInstanceHandle(FInstanceHandle RootInstanceHandle) const
+{
+	for (const TPair<KeyType, FPreAnimatedStateMetaDataArray>& Pair : KeyToMetaData)
+	{
+		for (const FPreAnimatedStateMetaData& MetaData : Pair.Value)
+		{
+			if (MetaData.RootInstanceHandle == RootInstanceHandle)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
 
 } // namespace MovieScene
 } // namespace UE
