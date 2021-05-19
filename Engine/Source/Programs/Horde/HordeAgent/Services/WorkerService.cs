@@ -777,7 +777,12 @@ namespace HordeAgent.Services
 					if (!string.IsNullOrEmpty(Token))
 						return GrpcService.CreateGrpcChannel(Url, new AuthenticationHeaderValue("ServiceAccount", Token));
 					
-					return GrpcChannel.ForAddress(Url);
+					return GrpcChannel.ForAddress(Url, new GrpcChannelOptions
+					{
+						// Required payloads coming from CAS service can be large
+						MaxReceiveMessageSize = 1024 * 1024 * 1024, // 1 GB
+						MaxSendMessageSize = 1024 * 1024 * 1024 // 1 GB
+					});
 				}
 
 				GrpcChannel CasChannel = GetChannel(ActionTask.CasUrl, ActionTask.ServiceAccountToken);// == null ? Client.Channel : GrpcChannel.ForAddress(ActionTask.CasUrl);
