@@ -5,6 +5,7 @@
 
 #include "Common/UdpSocketBuilder.h"
 #include "Common/UdpSocketReceiver.h"
+#include "Containers/Ticker.h"
 #include "HAL/RunnableThread.h"
 #include "IMessageContext.h"
 #include "IMessageTransportHandler.h"
@@ -12,8 +13,10 @@
 #include "Serialization/ArrayReader.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
+#include "UObject/UObjectBase.h"
 #include "Async/Async.h"
 
+#include "Shared/UdpMessagingSettings.h"
 #include "Transport/UdpReassembledMessage.h"
 #include "Transport/UdpDeserializedMessage.h"
 #include "Transport/UdpSerializedMessage.h"
@@ -50,9 +53,6 @@ FUdpMessageTransport::~FUdpMessageTransport()
 
 void FUdpMessageTransport::OnAppPreExit()
 {
-	// Remove any bound delegates. It's no longer relavent for us to send a transport error if we
-	// are in the shutdown phase.
-	TransportErrorDelegate.Unbind();
 	if (MessageProcessor)
 	{
 		MessageProcessor->WaitAsyncTaskCompletion();
@@ -80,13 +80,6 @@ void FUdpMessageTransport::RemoveStaticEndpoint(const FIPv4Endpoint& InEndpoint)
 		MessageProcessor->RemoveStaticEndpoint(InEndpoint);
 	}
 	UE_LOG(LogUdpMessaging, Verbose, TEXT("Removed StaticEndpoint at %s"), *InEndpoint.ToString());
-}
-
-bool FUdpMessageTransport::RestartTransport()
-{
-	IMessageTransportHandler* Handler = TransportHandler;
-	StopTransport();
-	return StartTransport(*Handler);
 }
 
 /* IMessageTransport interface
@@ -196,6 +189,8 @@ bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 
 void FUdpMessageTransport::StopTransport()
 {
+	StopAutoRepairRoutine();
+
 	// shut down threads
 	delete MulticastReceiver;
 	MulticastReceiver = nullptr;
@@ -284,13 +279,85 @@ void FUdpMessageTransport::HandleProcessorNodeLost(const FGuid& LostNodeId)
 
 void FUdpMessageTransport::HandleProcessorError()
 {
-	if (!ErrorFuture.IsValid() && TransportErrorDelegate.IsBound())
-	{
-		ErrorFuture = Async(EAsyncExecution::TaskGraphMainThread, [ErrorDelegate = TransportErrorDelegate]()
+	if (!ErrorFuture.IsValid()) {
+		// Capture a weak pointer to this transport in the lambda to be executed later, and
+		// try to pin it again when the function actually runs. This guards against the transport
+		// being deleted in between the async task being scheduled and when it starts running.
+		TWeakPtr<FUdpMessageTransport, ESPMode::ThreadSafe> WeakTransportPtr = AsShared();
+		ErrorFuture = Async(EAsyncExecution::TaskGraphMainThread, [WeakTransport = WeakTransportPtr]()
 		{
-			ErrorDelegate.ExecuteIfBound();
+			// Bail out early if the UObject system is not initialized (e.g. at shutdown), since we
+			// won't be able to access the settings CDO even if the transport still exists.
+			if (!UObjectInitialized())
+			{
+					return;
+			}
+
+			if (TSharedPtr<FUdpMessageTransport, ESPMode::ThreadSafe> Transport = WeakTransport.Pin())
+			{
+				const UUdpMessagingSettings* Settings = GetDefault<UUdpMessagingSettings>();
+				if (Settings->bAutoRepair)
+				{
+					Transport->StartAutoRepairRoutine(Settings->AutoRepairAttemptLimit);
+				}
+				else
+				{
+					UE_LOG(LogUdpMessaging, Error, TEXT("UDP messaging encountered an error. Please restart the service for proper functionality"));
+				}
+			}
 		});
 	}
+}
+
+
+void FUdpMessageTransport::StartAutoRepairRoutine(uint32 MaxRetryAttempt)
+{
+	StopAutoRepairRoutine();
+
+	TWeakPtr<FUdpMessageTransport, ESPMode::ThreadSafe> WeakTransportPtr = AsShared();
+	FTimespan CheckDelay(0, 0, 1);
+	uint32 CheckNumber = 1;
+	AutoRepairHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakTransport = WeakTransportPtr, LastTime = FDateTime::UtcNow(), CheckDelay, CheckNumber, MaxRetryAttempt](float DeltaTime) mutable
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FUdpMessageTransport_AutoRepair);
+		bool bContinue = true;
+		FDateTime UtcNow = FDateTime::UtcNow();
+		if (LastTime + (CheckDelay * CheckNumber) <= UtcNow)
+		{
+			if (auto Transport = WeakTransport.Pin())
+			{
+				// if the restart fail, continue the routine if we are still under the retry attempt limit
+				bContinue = !Transport->RestartTransport();
+				bContinue = bContinue && CheckNumber <= MaxRetryAttempt;
+			}
+			// if we do not have a valid transport also stop the routine
+			else
+			{
+				bContinue = false;
+			}
+			++CheckNumber;
+			LastTime = UtcNow;
+		}
+		return bContinue;
+	}), 1.0f);
+	UE_LOG(LogUdpMessaging, Warning, TEXT("UDP messaging encountered an error. Auto repair routine started for reinitialization"));
+}
+
+
+void FUdpMessageTransport::StopAutoRepairRoutine()
+{
+	if (AutoRepairHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(AutoRepairHandle);
+	}
+}
+
+
+bool FUdpMessageTransport::RestartTransport()
+{
+	IMessageTransportHandler* Handler = TransportHandler;
+	StopTransport();
+	return StartTransport(*Handler);
 }
 
 
