@@ -168,7 +168,7 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 		}
 	}
 
-private:
+protected:
 
 	struct FAnimatedPropertyKey
 	{
@@ -225,8 +225,6 @@ private:
 	TPreAnimatedStateStorage<FPropertyStorageTraits> Storage;
 	FPreAnimatedStorageID StorageID;
 	FPreAnimatedStateExtension* ParentExtension;
-
-private:
 
 	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager;
 };
