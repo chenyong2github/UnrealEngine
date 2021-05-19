@@ -89,7 +89,15 @@ namespace HordeAgent.Services
 			HttpClient.Timeout = TimeSpan.FromSeconds(210); // Need to make sure this doesn't cancel any long running gRPC streaming calls (eg. session update)
 
 			Logger.LogInformation("Connecting to rpc server {BaseUrl}", ServerProfile.Url);
-			return GrpcChannel.ForAddress(Address, new GrpcChannelOptions { HttpClient = HttpClient, DisposeHttpClient = true });
+			return GrpcChannel.ForAddress(Address, new GrpcChannelOptions
+			{
+				// Required payloads coming from CAS service can be large
+				MaxReceiveMessageSize = 1024 * 1024 * 1024, // 1 GB
+				MaxSendMessageSize = 1024 * 1024 * 1024, // 1 GB
+				
+				HttpClient = HttpClient,
+				DisposeHttpClient = true
+			});
 		}
 	}
 }
