@@ -7,6 +7,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "CineCameraActor.h"
 #include "Containers/ArrayView.h"
+#include "Engine/World.h"
 #include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.h"

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EngineDefines.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -14,6 +15,7 @@
 
 #include "HLODLayer.generated.h"
 
+class UMaterial;
 class UWorldPartition;
 class AActor;
 
