@@ -3014,6 +3014,10 @@ FRasterContext InitRasterContext(
 	{
 		// Determine what is providing support for atomics.
 	#if PLATFORM_WINDOWS
+		// TODO: This... should be cleaned up. No way to query the RHI in another capacity.
+		const TCHAR* RHIName = GDynamicRHI->GetName();
+		static const bool bIsDx12 = FCString::Stristr(RHIName, TEXT("D3D12")) != nullptr; // Also covers -rhivalidation => D3D12_Validation
+
 		if (IsRHIDeviceNVIDIA())
 		{
 			// Support is provided through NVAPI.
@@ -3021,10 +3025,6 @@ FRasterContext InitRasterContext(
 		}
 		else if (IsRHIDeviceAMD())
 		{
-			// TODO: This... should be cleaned up. No way to query the RHI in another capacity. Should be cleaned up
-			//       after switching over to DXC.
-			static const bool bIsDx12 = FCString::Strcmp(GDynamicRHI->GetName(), TEXT("D3D12")) == 0;
-
 			// Support is provided through AGS.
 			RasterContext.RasterTechnique = bIsDx12 ? ERasterTechnique::AMDAtomicsD3D12 : ERasterTechnique::AMDAtomicsD3D11;
 
