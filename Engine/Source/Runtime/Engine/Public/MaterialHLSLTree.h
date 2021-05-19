@@ -17,7 +17,6 @@ namespace HLSLTree
 class FTree;
 class FScope;
 class FExpression;
-class FLocalDeclaration;
 class FFunctionCall;
 }
 }

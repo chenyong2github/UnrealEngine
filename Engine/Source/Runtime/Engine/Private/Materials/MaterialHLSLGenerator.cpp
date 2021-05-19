@@ -256,30 +256,6 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewFunctionInput(UE::HLSLTree
 	return Expression;
 }
 
-UE::HLSLTree::FLocalDeclaration* FMaterialHLSLGenerator::AcquireLocalDeclaration(UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type, const FName& Name)
-{
-	UE::HLSLTree::FLocalDeclaration*& Declaration = LocalDeclarationMap.FindOrAdd(Name);
-	if (!Declaration)
-	{
-		Declaration = HLSLTree->NewLocalDeclaration(Scope, Type, Name);
-	}
-	else
-	{
-		if (Declaration->Type == Type)
-		{
-			Scope.UseDeclaration(Declaration);
-		}
-		else
-		{
-			Errorf(TEXT("Local %s first accessed as type %s, now type %s"), *Name.ToString(),
-				UE::Shader::GetValueTypeDescription(Declaration->Type).Name,
-				UE::Shader::GetValueTypeDescription(Type).Name);
-			return nullptr;
-		}
-	}
-	return Declaration;
-}
-
 UE::HLSLTree::FParameterDeclaration* FMaterialHLSLGenerator::AcquireParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::Shader::FValue& DefaultValue)
 {
 	UE::HLSLTree::FParameterDeclaration*& Declaration = ParameterDeclarationMap.FindOrAdd(Name);
@@ -353,6 +329,43 @@ UE::HLSLTree::FFunctionCall* FMaterialHLSLGenerator::AcquireFunctionCall(UE::HLS
 	return FunctionCall;
 }
 
+bool FMaterialHLSLGenerator::GenerateAssignLocal(UE::HLSLTree::FScope& Scope, const FName& LocalName, UE::HLSLTree::FExpression* Value)
+{
+	const FLocalKey Key(&Scope, LocalName);
+	LocalMap.Add(Key, Value);
+	return true;
+}
+
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName)
+{
+	const FLocalKey Key(&Scope, LocalName);
+	UE::HLSLTree::FExpression** FoundExpression = LocalMap.Find(Key);
+	if (FoundExpression)
+	{
+		return *FoundExpression;
+	}
+
+	const TArrayView<UE::HLSLTree::FScope*> PreviousScopes = Scope.GetPreviousScopes();
+	if (PreviousScopes.Num() > 1)
+	{
+		UE::HLSLTree::FExpressionLocalPHI* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionLocalPHI>(Scope);
+		Expression->NumValues = PreviousScopes.Num();
+		for (int32 i = 0; i < PreviousScopes.Num(); ++i)
+		{
+			Expression->Scopes[i] = PreviousScopes[i];
+			Expression->Values[i] = AcquireLocalValue(*PreviousScopes[i], LocalName);
+		}
+		LocalMap.Add(Key, Expression);
+		return Expression;
+	}
+
+	if (Scope.ParentScope)
+	{
+		return AcquireLocalValue(*Scope.ParentScope, LocalName);
+	}
+	return nullptr;
+}
+
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex)
 {
 	const FExpressionKey Key(MaterialExpression, OutputIndex);
@@ -384,7 +397,8 @@ UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextu
 bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression)
 {
 	FStatementEntry& Entry = StatementMap.FindOrAdd(MaterialExpression);
-	Entry.NumInputs++;
+	Entry.PreviousScope[Entry.NumInputs++] = &Scope;
+	check(Entry.NumInputs <= MaxNumPreviousScopes);
 	check(Entry.NumInputs <= MaterialExpression->NumExecutionInputs);
 
 	bool bResult = true;
@@ -393,7 +407,10 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 		UE::HLSLTree::FScope* ScopeToUse = &Scope;
 		if (MaterialExpression->NumExecutionInputs > 1u)
 		{
-			ScopeToUse = ScopeToUse->ParentScope;
+			ScopeToUse = HLSLTree->NewScope(*ScopeToUse->ParentScope, Entry.PreviousScope, Entry.NumInputs);
+			// Add a jump to link the previous scope to this new scope
+			UE::HLSLTree::FStatementJump* JumpStatement = HLSLTree->NewStatement<UE::HLSLTree::FStatementJump>(*Scope.ParentScope);
+			JumpStatement->TargetScope = ScopeToUse;
 		}
 
 		const FExpressionKey Key(MaterialExpression);

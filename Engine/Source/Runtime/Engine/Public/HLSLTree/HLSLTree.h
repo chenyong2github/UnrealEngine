@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "Containers/ArrayView.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/MemStack.h"
 #include "HLSLTree/HLSLTreeTypes.h"
@@ -26,6 +27,8 @@ class FPreshaderData;
  */
 namespace HLSLTree
 {
+
+static constexpr int32 MaxNumPreviousScopes = 2;
 
 /** Allows building a string incrementally, with some additional features to support code generation, such as indent handling */
 class FCodeWriter
@@ -85,6 +88,20 @@ public:
 	int32 IndentLevel;
 };
 
+class FEmitCode
+{
+public:
+	const TCHAR* Code = nullptr;
+	FEmitCode* ParentScope = nullptr;
+	FEmitCode* NextCode = nullptr;
+	FEmitCode* PrevCode = nullptr;
+	FEmitCode* FirstScopeCode = nullptr;
+	FEmitCode* LastScopeCode = nullptr;
+	int32 CodeLength = 0;
+
+	friend class FEmitContext;
+};
+
 class FEmitValue
 {
 public:
@@ -112,11 +129,11 @@ public:
 	/** Returns a value that references the given expression */
 	const FEmitValue* AcquireValue(FExpression* Expression);
 
-	/** Returns value that references the given local variable */
-	const FEmitValue* AcquireValue(FLocalDeclaration* Declaration);
-
 	/** Returns value that references the given local function output */
 	const FEmitValue* AcquireValue(FFunctionCall* FunctionCall, int32 OutputIndex);
+
+	/** Get a unique local variable name */
+	const TCHAR* AcquireLocalDeclarationCode();
 
 	/** Gets HLSL code that references the given value */
 	const TCHAR* GetCode(const FEmitValue* Value) const;
@@ -124,11 +141,18 @@ public:
 	/** Append preshader bytecode that represents the given value */
 	void AppendPreshader(const FEmitValue* Value, Shader::FPreshaderData& InOutPreshader) const;
 
+	FEmitCode* AppendHLSL(FEmitCode& Scope, const TCHAR* Code, int32 Length = 0);
+	FEmitCode* InsertHLSL(FEmitCode& Scope, FEmitCode* InsertAfter, const TCHAR* Code, int32 Length = 0);
+
+	FEmitCode* AppendHLSLf(FEmitCode& Scope, const TCHAR* Format, ...);
+	FEmitCode* InsertHLSLf(FEmitCode& Scope, FEmitCode* InsertAfter, const TCHAR* Format, ...);
+
 	struct FScopeEntry
 	{
+		FScopeEntry* ParentEntry;
 		const FScope* Scope;
-		FCodeWriter* ExpressionCodeWriter;
-		TMap<FSHAHash, const TCHAR*>* ExpressionMap;
+		FEmitCode* ScopeCode;
+		TMap<FSHAHash, const TCHAR*> ExpressionMap;
 	};
 
 	struct FDeclarationEntry
@@ -150,16 +174,18 @@ public:
 		TMap<FFunctionCall*, FFunctionCallEntry*> FunctionCallMap;
 	};
 
-	FScopeEntry* FindScope(FScope* Scope);
-	int32 FindScopeIndex(FScope* Scope);
+	FScopeEntry* FindScopeEntry(const FScope* Scope);
 
-	TArray<FScopeEntry> ScopeStack;
+	TMap<const FScope*, FScopeEntry*> ScopeMap;
+	FScopeEntry* CurrentScopeEntry = nullptr;
+
 	TArray<FFunctionStackEntry> FunctionStack;
 	TArray<Shader::FPreshaderData*> TempPreshaders;
 	FMemStackBase* Allocator = nullptr;
 	const FMaterial* Material = nullptr; // TODO - remove preshader material dependency
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
+	int32 TotalCodeLength = 0;
 	int32 NumExpressionLocals = 0;
 	int32 NumTexCoords = 0;
 };
@@ -200,7 +226,6 @@ public:
 	virtual ENodeVisitResult OnScope(FScope& Scope) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnStatement(FStatement& Statement) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnExpression(FExpression& Expression) { return ENodeVisitResult::VisitDependentNodes; }
-	virtual ENodeVisitResult OnLocalDeclaration(FLocalDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnParameterDeclaration(FParameterDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnTextureParameterDeclaration(FTextureParameterDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnFunctionCall(FFunctionCall& FunctionCall) { return ENodeVisitResult::VisitDependentNodes; }
@@ -227,10 +252,10 @@ public:
 class FStatement : public FNode
 {
 public:
-	/** Emits HLSL code for the statement. The generated code should include any required semi-colons and newlines */
-	virtual bool EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const = 0;
-
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
+
+	/** Emits HLSL code for the statement. The generated code should include any required semi-colons and newlines */
+	virtual bool EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const = 0;
 
 	FStatement* NextStatement = nullptr;
 };
@@ -241,7 +266,6 @@ public:
  * Expressions track the outer-most scope in which they're accessed. The generated HLSL code will ensure they are defined in that scope.
  * Examples include constant literals, variable accessors, and various types of math operations
  * This is an abstract base class, with derived classes representing various types of expression
- * Derived classes are expected to implement at least one of EmitHLSL or EmitPreshader
  */
 class FExpression : public FNode
 {
@@ -250,20 +274,6 @@ public:
 
 	/** Emits code for the given expression, either HLSL code or preshader bytecode */
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
-};
-
-/**
- * Represents an HLSL local variable.  This is used by statements/expressions to refer to a particular variable
- */
-class FLocalDeclaration final : public FNode
-{
-public:
-	FLocalDeclaration(const FName& InName, Shader::EValueType InType) : Name(InName), Type(InType) {}
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-
-	FName Name;
-	Shader::EValueType Type;
 };
 
 /**
@@ -322,16 +332,20 @@ public:
 class FScope final : public FNode
 {
 public:
+	inline TArrayView<FScope*> GetPreviousScopes() const
+	{
+		// const_cast needed, otherwise type of array view is 'FScope*const' which doesn't make sense
+		return MakeArrayView(const_cast<FScope*>(this)->PreviousScope, NumPreviousScopes);
+	}
+
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-	bool EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const;
+	bool EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const;
 
-	bool EmitUnscopedHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const;
+	bool EmitUnscopedHLSL(FEmitContext& Context, FEmitCode& Scope) const;
 
-	void AddDeclaration(FLocalDeclaration* Declaration);
 	void AddExpression(FExpression* Expression);
 	void AddStatement(FStatement* Statement);
 
-	void UseDeclaration(FLocalDeclaration* Declaration);
 	void UseFunctionCall(FFunctionCall* FunctionCall);
 	void UseExpression(FExpression* Expression);
 private:
@@ -340,8 +354,10 @@ private:
 
 	void UseNode(FNode* Node);
 
+	FScope* PreviousScope[MaxNumPreviousScopes];
 	FStatement* FirstStatement = nullptr;
 	FStatement* LastStatement = nullptr;
+	int32 NumPreviousScopes = 0;
 	int32 NestedLevel = 0;
 };
 
@@ -373,8 +389,7 @@ public:
 		return Statement;
 	}
 
-	FScope* NewScope(FScope& Scope);
-	FLocalDeclaration* NewLocalDeclaration(FScope& Scope, Shader::EValueType Type, const FName& Name);
+	FScope* NewScope(FScope& Scope, FScope** PreviousScopes = nullptr, int32 NumPreviousScopes = 0);
 	FParameterDeclaration* NewParameterDeclaration(FScope& Scope, const FName& Name, const Shader::FValue& DefaultValue);
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(FScope& Scope, const FName& Name, const FTextureDescription& DefaultValue);
 
