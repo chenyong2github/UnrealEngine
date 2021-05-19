@@ -116,7 +116,7 @@ static int32 GNiagaraSystemSimulationTickTaskShouldWait = 1;
 static FAutoConsoleVariableRef CVarNiagaraSystemSimulationTickTaskShouldWait(
 	TEXT("fx.Niagara.SystemSimulation.TickTaskShouldWait"),
 	GNiagaraSystemSimulationTickTaskShouldWait,
-	TEXT("When enabled the tick task will wait for concurrent work to complete, when disabled the task is complete one the GT tick is complete."),
+	TEXT("When enabled the tick task will wait for concurrent work to complete, when disabled the task is complete once the GT tick is complete."),
 	ECVF_Default
 );
 

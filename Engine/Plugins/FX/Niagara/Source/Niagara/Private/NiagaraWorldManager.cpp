@@ -689,7 +689,6 @@ void FNiagaraWorldManager::PreSendAllEndOfFrameUpdates()
 {
 	if ( SimulationsWithPostActorWork.Num() > 0 )
 	{
-		//-TODO: This should not happen
 		for (const auto& Simulation : SimulationsWithPostActorWork)
 		{
 			if (Simulation->IsValid())
