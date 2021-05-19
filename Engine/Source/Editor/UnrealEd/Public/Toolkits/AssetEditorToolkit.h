@@ -278,6 +278,9 @@ protected:
 	 */
 	virtual void PostInitAssetEditor() {}
 
+	/**	Returns true if this toolkit has any objects being edited */
+	bool HasEditingObject() const { return !EditingObjects.IsEmpty(); }
+
 	/**	Returns the single object currently being edited. Asserts if currently editing no object or multiple objects */
 	UObject* GetEditingObject() const;
 

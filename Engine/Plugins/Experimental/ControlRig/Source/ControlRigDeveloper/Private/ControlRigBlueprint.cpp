@@ -87,6 +87,8 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
 
+	DebugBoneRadius = 1.f;
+	
 	bDirtyDuringLoad = false;
 	bErrorsDuringCompilation = false;
 

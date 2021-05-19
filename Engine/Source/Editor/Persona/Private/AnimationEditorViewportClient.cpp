@@ -1346,11 +1346,11 @@ void FAnimationViewportClient::DrawMeshBones(UDebugSkelMeshComponent * MeshCompo
 			}
 		}
 
-		DrawBones(DrawBoneIndices, MeshComponent->GetReferenceSkeleton(), WorldTransforms, MeshComponent->BonesOfInterest, PDI, BoneColours, MeshComponent->Bounds.SphereRadius);
+		DrawBones(DrawBoneIndices, MeshComponent->GetReferenceSkeleton(), WorldTransforms, MeshComponent->BonesOfInterest, PDI, BoneColours, MeshComponent->Bounds.SphereRadius, 0.f, false, MeshComponent->BoneRadiusMultiplier);
 	}
 }
 
-void FAnimationViewportClient::DrawBones(const TArray<FBoneIndexType>& RequiredBones, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> & WorldTransforms, const TArray<int32>& InSelectedBones, FPrimitiveDrawInterface* PDI, const TArray<FLinearColor>& BoneColours, float BoundRadius, float LineThickness/*=0.f*/, bool bForceDraw/*=false*/) const
+void FAnimationViewportClient::DrawBones(const TArray<FBoneIndexType>& RequiredBones, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> & WorldTransforms, const TArray<int32>& InSelectedBones, FPrimitiveDrawInterface* PDI, const TArray<FLinearColor>& BoneColours, float BoundRadius, float LineThickness/*=0.f*/, bool bForceDraw/*=false*/, float InBoneRadius/*=1.f*/) const
 {
 	TArray<int32> SelectedBones = InSelectedBones;
 	if(InSelectedBones.Num() > 0 && GetBoneDrawMode() == EBoneDrawMode::SelectedAndParents)
@@ -1395,8 +1395,9 @@ void FAnimationViewportClient::DrawBones(const TArray<FBoneIndexType>& RequiredB
 			}
 
 			const float BoneLength = (End - Start).Size();
+
 			// clamp by bound, we don't want too long or big
-			const float Radius = FMath::Clamp(BoneLength * 0.05f, 0.1f, MaxDrawRadius);
+			const float Radius = FMath::Clamp(BoneLength * 0.05f, 0.1f, MaxDrawRadius) * InBoneRadius;
 			//Render Sphere for bone end point and a cone between it and its parent.
 			PDI->SetHitProxy(new HPersonaBoneProxy(RefSkeleton.GetBoneName(BoneIndex)));
 			SkeletalDebugRendering::DrawWireBone(PDI, Start, End, LineColor, SDPG_Foreground, Radius);

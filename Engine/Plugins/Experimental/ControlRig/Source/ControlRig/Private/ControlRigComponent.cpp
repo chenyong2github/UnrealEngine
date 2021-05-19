@@ -1645,11 +1645,12 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 			if (bShouldDrawBones)
 			{
+				const float RadiusMultiplier = ControlRigComponent->ControlRig->GetDebugBoneRadiusMultiplier();
 				const FTransform Transform = ControlRigComponent->GetComponentToWorld();
 				const float MaxDrawRadius = ControlRigComponent->Bounds.SphereRadius * 0.02f;
 
 				URigHierarchy* Hierarchy = ControlRigComponent->ControlRig->GetHierarchy();
-				Hierarchy->ForEach<FRigBoneElement>([PDI, Hierarchy, Transform, MaxDrawRadius](FRigBoneElement* BoneElement) -> bool
+				Hierarchy->ForEach<FRigBoneElement>([PDI, Hierarchy, Transform, MaxDrawRadius, RadiusMultiplier](FRigBoneElement* BoneElement) -> bool
                 {
                     const int32 ParentIndex = Hierarchy->GetFirstParent(BoneElement->GetIndex());
 					const FLinearColor LineColor = FLinearColor::White;
@@ -1671,7 +1672,7 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 					const float BoneLength = (End - Start).Size();
 					// clamp by bound, we don't want too long or big
-					const float Radius = FMath::Clamp(BoneLength * 0.05f, 0.1f, MaxDrawRadius);
+					const float Radius = FMath::Clamp(BoneLength * 0.05f, 0.1f, MaxDrawRadius) * RadiusMultiplier;
 
 					//Render Sphere for bone end point and a cone between it and its parent.
 					SkeletalDebugRendering::DrawWireBone(PDI, Start, End, LineColor, SDPG_Foreground, Radius);
