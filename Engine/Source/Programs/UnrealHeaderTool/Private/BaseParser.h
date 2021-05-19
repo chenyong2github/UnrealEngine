@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/UnrealString.h"
 #include "GeneratedCodeVersion.h"
+#include "ParserHelper.h"
+#include "Containers/UnrealString.h"
+#include "UObject/ErrorException.h"
 
 class FToken;
 
@@ -230,8 +232,100 @@ public:
 	// Validates and inserts one key-value pair into the meta data map
 	static void InsertMetaDataPair(TMap<FName, FString>& MetaData, FName InKey, FString InValue);
 
+	/**
+	 * Parse class/struct inheritance.
+	 *
+	 * @param What				The name of the statement we are parsing.  (i.e. 'class')
+	 * @param InLambda			Function to call for every parent.  Must be in the form of
+	 *							Lambda(const TCHAR* Identifier, bool bSuperClass)
+	 */
+	template <typename Lambda>
+	void ParseInheritance(const TCHAR* What, Lambda&& InLambda);
+
 	//////////////
 
 	// Initialize the metadata keywords prior to parsing
 	static void InitMetadataKeywords();
 };
+
+template <typename Lambda>
+void FBaseParser::ParseInheritance(const TCHAR* What, Lambda&& InLambda)
+{
+
+	if (!MatchSymbol(TEXT(':')))
+	{
+		return;
+	}
+
+	// Process the super class 
+	{
+		FToken Token;
+		RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("inheritance"));
+		if (!GetIdentifier(Token))
+		{
+			FError::Throwf(TEXT("Missing %s name"), What);
+		}
+		RedirectTypeIdentifier(Token);
+		InLambda(Token.Identifier, true);
+	}
+
+	// Handle additional inherited interface classes
+	while (MatchSymbol(TEXT(',')))
+	{
+		RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("Interface inheritance must be public"));
+
+		FString InterfaceName;
+
+		for (;;)
+		{
+			FToken Token;
+			if (!GetIdentifier(Token, true))
+			{
+				FError::Throwf(TEXT("Failed to get interface class identifier"));
+			}
+
+			InterfaceName += Token.Identifier;
+
+			// Handle templated native classes
+			if (MatchSymbol(TEXT('<')))
+			{
+				InterfaceName += TEXT('<');
+
+				int32 NestedScopes = 1;
+				while (NestedScopes)
+				{
+					if (!GetToken(Token))
+					{
+						FError::Throwf(TEXT("Unexpected end of file"));
+					}
+
+					if (Token.TokenType == TOKEN_Symbol)
+					{
+						if (Token.Matches(TEXT('<')))
+						{
+							++NestedScopes;
+						}
+						else if (Token.Matches(TEXT('>')))
+						{
+							--NestedScopes;
+						}
+					}
+
+					InterfaceName += Token.Identifier;
+				}
+			}
+
+			// Handle scoped native classes
+			if (MatchSymbol(TEXT("::")))
+			{
+				InterfaceName += TEXT("::");
+
+				// Keep reading nested identifiers
+				continue;
+			}
+
+			break;
+		}
+		InLambda(*InterfaceName, false);
+	}
+}

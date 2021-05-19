@@ -717,6 +717,13 @@ private:
 class FUnrealStructDefinitionInfo : public FUnrealFieldDefinitionInfo
 {
 public:
+	struct FBaseClassInfo
+	{
+		FString Name;
+		FUnrealStructDefinitionInfo* Struct = nullptr;
+	};
+
+public:
 	using FUnrealFieldDefinitionInfo::FUnrealFieldDefinitionInfo;
 
 	virtual FUnrealStructDefinitionInfo* AsStruct() override
@@ -764,6 +771,19 @@ public:
 		return StructMetaData;
 	}
 
+	/**
+	 * Return the super class information
+	 */
+	FBaseClassInfo& GetSuperClassInfo()
+	{
+		return SuperClassInfo;
+	}
+
+	TArray<FBaseClassInfo>& GetBaseClassInfo()
+	{
+		return BaseClassInfo;
+	}
+
 private:
 	TSharedPtr<FScope> StructScope;
 
@@ -771,6 +791,8 @@ private:
 	TArray<FUnrealPropertyDefinitionInfo*> Properties;
 
 	FStructMetaData StructMetaData;
+	FBaseClassInfo SuperClassInfo;
+	TArray<FBaseClassInfo> BaseClassInfo;
 };
 
 /**
@@ -779,10 +801,8 @@ private:
 class FUnrealScriptStructDefinitionInfo : public FUnrealStructDefinitionInfo
 {
 public:
-	FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FString&& InParentScopeCPP, FString&& InParentNameCPP)
+	FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
 		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
-		, ParentScopeCPP(MoveTemp(InParentScopeCPP))
-		, ParentNameCPP(MoveTemp(InParentNameCPP))
 	{ }
 
 	virtual FUnrealScriptStructDefinitionInfo* AsScriptStruct() override
@@ -807,26 +827,6 @@ public:
 	{
 		return static_cast<UScriptStruct*>(GetObject());
 	}
-
-	/**
-	 * Return the parent structure scoped name (currently blank)
-	 */
-	const FString& GetParentScopeCPP() const
-	{
-		return ParentScopeCPP;
-	}
-
-	/**
-	 * Return the name of the parent structure.  If not derived from another struct, it will be empty
-	 */
-	const FString& GetParentNameCPP() const
-	{
-		return ParentNameCPP;
-	}
-
-private:
-	FString ParentScopeCPP;
-	FString ParentNameCPP;
 };
 
 /**
@@ -931,9 +931,8 @@ class FUnrealClassDefinitionInfo
 	, public FClassDeclarationMetaData
 {
 public:
-	FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FString&& InBaseClassNameCPP, bool bInIsInterface)
+	FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, bool bInIsInterface)
 		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
-		, BaseClassNameCPP(MoveTemp(InBaseClassNameCPP))
 		, bIsInterface(bInIsInterface)
 	{
 		if (bInIsInterface)
@@ -1014,16 +1013,7 @@ public:
 		return bIsInterface;
 	}
 
-	/** 
-	 * Return the CPP name of the base class or blank if there is none.
-	 */
-	const FString& GetBaseClassNameCPP() const
-	{
-		return BaseClassNameCPP;
-	}
-
 private:
-	FString BaseClassNameCPP;
 	FString EnclosingDefine;
 	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
 	bool bIsInterface = false;
