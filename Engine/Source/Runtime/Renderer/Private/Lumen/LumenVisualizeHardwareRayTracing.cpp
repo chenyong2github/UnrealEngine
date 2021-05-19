@@ -68,7 +68,8 @@ namespace Lumen
 	EHardwareRayTracingLightingMode GetVisualizeHardwareRayTracingLightingMode()
 	{
 #if RHI_RAYTRACING
-		return EHardwareRayTracingLightingMode(FMath::Clamp(CVarLumenVisualizeHardwareRayTracingLightingMode.GetValueOnRenderThread(), 0, (int32)EHardwareRayTracingLightingMode::MAX));
+		return EHardwareRayTracingLightingMode(
+			FMath::Clamp(CVarLumenVisualizeHardwareRayTracingLightingMode.GetValueOnRenderThread(), 0, static_cast<int32>(EHardwareRayTracingLightingMode::MAX) - 1));
 #else
 		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 #endif
@@ -105,7 +106,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenVisualizeHardwareRayTracingRGS, FLumenHardwareRayTracingRGS)
 
 	class FDeferredMaterialModeDim : SHADER_PERMUTATION_BOOL("DIM_DEFERRED_MATERIAL_MODE");
-	class FLightingModeDim : SHADER_PERMUTATION_INT("DIM_LIGHTING_MODE", 3);
+	class FLightingModeDim : SHADER_PERMUTATION_INT("DIM_LIGHTING_MODE", static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::MAX));
 	using FPermutationDomain = TShaderPermutationDomain<FDeferredMaterialModeDim, FLightingModeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
