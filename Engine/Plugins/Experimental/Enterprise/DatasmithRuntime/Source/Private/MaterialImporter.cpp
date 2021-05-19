@@ -105,7 +105,7 @@ namespace DatasmithRuntime
 		}
 		else if( Element->IsA( EDatasmithElementType::MasterMaterial ) )
 		{
-			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), *Host, TextureCallback);
+			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), TextureCallback);
 		}
 
 		MaterialData.SetState(EAssetState::Processed);
