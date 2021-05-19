@@ -625,6 +625,9 @@ bool FRewindData::RewindToFrame(int32 Frame)
 		DirtyParticleInfo.bDesync = false;	//after rewind particle is pristine
 		DirtyParticleInfo.MostDesynced = ESyncState::InSync;
 
+		//Rewind so want to make sure data is pushed back to external thread
+		Solver->GetEvolution()->GetParticles().MarkTransientDirtyParticle(DirtyParticleInfo.GetPTParticle());
+
 		//Note: it's debatable if we should rewind to PrePushData or PostPushData
 		//If you rewind to PrePushData and resim the data will be reapplied automatically
 		//The downside with this is that for unit testing it makes it harder to see that the GT data is being properly aligned as an input for the solver step
