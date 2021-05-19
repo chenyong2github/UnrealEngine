@@ -32,11 +32,11 @@
 bCompressed=True
 bForceUseProjectCompressionFormat=False
 PackageCompressionFormat=Oodle
-PackageAdditionalCompressionOptions=-compressionblocksize=1MB -asynccompression
-PackageCompressionMethod=Mermaid
-PackageCompressionLevel_Distribution=8
+PackageAdditionalCompressionOptions=-compressionblocksize=256KB
+PackageCompressionMethod=Kraken
+PackageCompressionLevel_Distribution=7
 PackageCompressionLevel_TestShipping=5
-PackageCompressionLevel_DebugDevelopment=3
+PackageCompressionLevel_DebugDevelopment=4
 
 * This can be set in DefaultGame.ini then overrides set up per-platform.
 * 
