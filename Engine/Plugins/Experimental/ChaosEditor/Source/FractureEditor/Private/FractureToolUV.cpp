@@ -216,11 +216,14 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
 		
 		int32 OutputRes = (int32)AutoUVSettings->Resolution;
+		TArray<int32> EmptyMaterialIDs;
 
 		if (AutoUVSettings->bDoUVLayout)
 		{
 			UVTask.EnterProgressFrame(1, LOCTEXT("LayOutUVIslands", "Laying out UV islands"));
-			if (!UE::PlanarCut::UVLayout(Collection, OutputRes, AutoUVSettings->GutterSize))
+			if (!UE::PlanarCut::UVLayout(Collection, OutputRes, AutoUVSettings->GutterSize,
+				AutoUVSettings->TargetMaterialIDs != ETargetMaterialIDs::SelectedIDs,
+				AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs))
 			{
 				// failed to do layout
 				return INDEX_NONE;
@@ -269,7 +272,9 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		AttribSettings.Curvature_ThicknessFactor = AutoUVSettings->ThicknessFactor;
 		AttribSettings.Curvature_MaxValue = AutoUVSettings->MaxCurvature;
 		AttribSettings.bNormalZ_TakeAbs = AutoUVSettings->bUseAbsoluteValue;
-		UE::PlanarCut::TextureInternalSurfaces(Collection, FMath::CeilToInt(AutoUVSettings->GutterSize), Attributes, AttribSettings, ImageBuilder);
+		UE::PlanarCut::TextureInternalSurfaces(Collection, FMath::CeilToInt(AutoUVSettings->GutterSize), Attributes, AttribSettings, ImageBuilder,
+			AutoUVSettings->TargetMaterialIDs != ETargetMaterialIDs::SelectedIDs, 
+			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs: AutoUVSettings->MaterialIDs);
 
 		UVTask.EnterProgressFrame(1, LOCTEXT("SavingTexture", "Saving result"));
 
