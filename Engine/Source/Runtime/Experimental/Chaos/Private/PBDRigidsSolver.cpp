@@ -154,6 +154,15 @@ FAutoConsoleVariableRef CVarChaosSolverJointPairIterations(TEXT("p.Chaos.Solver.
 int32 ChaosSolverJointPushOutPairIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverJointPushOutPairIterations(TEXT("p.Chaos.Solver.Joint.PushOutPairIterations"), ChaosSolverJointPushOutPairIterations, TEXT("Override number of push out iterations per joint during a solver iteration (-1 to use config)"));
 
+// Copied from RBAN
+Chaos::FRealSingle ChaosSolverJointPositionTolerance = 0.025f;
+FAutoConsoleVariableRef CVarChaosSolverJointPositionTolerance(TEXT("p.Chaos.Solver.Joint.PositionTolerance"), ChaosSolverJointPositionTolerance, TEXT("PositionTolerance."));
+Chaos::FRealSingle ChaosSolverJointAngleTolerance = 0.001f;
+FAutoConsoleVariableRef CVarChaosSolverJointAngleTolerance(TEXT("p.Chaos.Solver.Joint.AngleTolerance"), ChaosSolverJointAngleTolerance, TEXT("AngleTolerance."));
+Chaos::FRealSingle ChaosSolverJointMinParentMassRatio = 0.2f;
+FAutoConsoleVariableRef CVarChaosSolverJointMinParentMassRatio(TEXT("p.Chaos.Solver.Joint.MinParentMassRatio"), ChaosSolverJointMinParentMassRatio, TEXT("6Dof joint MinParentMassRatio (if > 0)"));
+Chaos::FRealSingle ChaosSolverJointMaxInertiaRatio = 5.0f;
+FAutoConsoleVariableRef CVarChaosSolverJointMaxInertiaRatio(TEXT("p.Chaos.Solver.Joint.MaxInertiaRatio"), ChaosSolverJointMaxInertiaRatio, TEXT("6Dof joint MaxInertiaRatio (if > 0)"));
 
 // Collision detection cvars
 // These override the engine config if >= 0
@@ -756,6 +765,12 @@ namespace Chaos
 			{
 				SetCollisionCullDistance(ChaosSolverCullDistance);
 			}
+			// Joint settings overrides
+			JointsSettings.PositionTolerance = ChaosSolverJointPositionTolerance;
+			JointsSettings.AngleTolerance = ChaosSolverJointAngleTolerance;
+			JointsSettings.MinParentMassRatio = ChaosSolverJointMinParentMassRatio;
+			JointsSettings.MaxInertiaRatio = ChaosSolverJointMaxInertiaRatio;
+			JointConstraints.SetSettings(JointsSettings);
 		}
 
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::Tick(%3.5f)"), DeltaTime);
