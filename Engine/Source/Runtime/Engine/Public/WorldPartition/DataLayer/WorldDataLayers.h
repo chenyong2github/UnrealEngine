@@ -40,7 +40,6 @@ public:
 	void ForEachDataLayer(TFunctionRef<bool(class UDataLayer*)> Func);
 	void ForEachDataLayer(TFunctionRef<bool(class UDataLayer*)> Func) const;
 
-	UFUNCTION(Server, Reliable)
 	void SetDataLayerState(FActorDataLayer InDataLayer, EDataLayerState InState);
 
 	UFUNCTION(NetMulticast, Reliable)

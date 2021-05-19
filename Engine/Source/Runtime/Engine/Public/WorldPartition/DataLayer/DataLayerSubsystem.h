@@ -30,27 +30,36 @@ public:
 	//~ End USubsystem Interface.
 
 	//~ Begin Blueprint callable functions
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
+
+	/** Set the Data Layer state using its name. */
+	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
 	void SetDataLayerState(const FActorDataLayer& InDataLayer, EDataLayerState InState);
 
+	/** Find a Data Layer by name. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	UDataLayer* GetDataLayer(const FActorDataLayer& InDataLayer) const;
 
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	/** Set the Data Layer state using its label. */
+	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
 	void SetDataLayerStateByLabel(const FName& InDataLayerLabel, EDataLayerState InState);
 		
+	/** Get the Data Layer state using its name. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	EDataLayerState GetDataLayerState(const FActorDataLayer& InDataLayer) const;
 
+	/** Get the Data Layer state using its label. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	EDataLayerState GetDataLayerStateByLabel(const FName& InDataLayerLabel) const;
 
+	/** Called when a Data Layer changes state. */
 	UPROPERTY(BlueprintAssignable)
 	FOnDataLayerStateChanged OnDataLayerStateChanged;
 
+	/** Find a Data Layer by label. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	UDataLayer* GetDataLayerFromLabel(FName InDataLayerLabel) const;
 
+	/** Find a Data Layer by name. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	UDataLayer* GetDataLayerFromName(FName InDataLayerName) const;
 	//~ End Blueprint callable functions

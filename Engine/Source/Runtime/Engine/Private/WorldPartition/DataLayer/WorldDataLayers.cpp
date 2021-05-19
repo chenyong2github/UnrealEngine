@@ -57,36 +57,39 @@ void AWorldDataLayers::InitializeDataLayerStates()
 	}
 }
 
-void AWorldDataLayers::SetDataLayerState_Implementation(FActorDataLayer InDataLayer, EDataLayerState InState)
+void AWorldDataLayers::SetDataLayerState(FActorDataLayer InDataLayer, EDataLayerState InState)
 {
-	const UDataLayer* DataLayer = GetDataLayerFromName(InDataLayer.Name);
-	if (!DataLayer || !DataLayer->IsDynamicallyLoaded())
+	if (ensure(GetLocalRole() == ROLE_Authority))
 	{
-		return;
-	}
-
-	EDataLayerState CurrentState = GetDataLayerStateByName(InDataLayer.Name);
-	if (CurrentState != InState)
-	{
-		LoadedDataLayerNames.Remove(InDataLayer.Name);
-		ActiveDataLayerNames.Remove(InDataLayer.Name);
-
-		if (InState == EDataLayerState::Loaded)
+		const UDataLayer* DataLayer = GetDataLayerFromName(InDataLayer.Name);
+		if (!DataLayer || !DataLayer->IsDynamicallyLoaded())
 		{
-			LoadedDataLayerNames.Add(InDataLayer.Name);
+			return;
 		}
-		else if (InState == EDataLayerState::Activated)
+
+		EDataLayerState CurrentState = GetDataLayerStateByName(InDataLayer.Name);
+		if (CurrentState != InState)
 		{
-			ActiveDataLayerNames.Add(InDataLayer.Name);
+			LoadedDataLayerNames.Remove(InDataLayer.Name);
+			ActiveDataLayerNames.Remove(InDataLayer.Name);
+
+			if (InState == EDataLayerState::Loaded)
+			{
+				LoadedDataLayerNames.Add(InDataLayer.Name);
+			}
+			else if (InState == EDataLayerState::Activated)
+			{
+				ActiveDataLayerNames.Add(InDataLayer.Name);
+			}
+
+			// Update Replicated Properties
+			RepActiveDataLayerNames = ActiveDataLayerNames.Array();
+			RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
+
+			++DataLayersStateEpoch;
+
+			OnDataLayerStateChanged(DataLayer, InState);
 		}
-			
-		// Update Replicated Properties
-		RepActiveDataLayerNames = ActiveDataLayerNames.Array();
-		RepLoadedDataLayerNames = LoadedDataLayerNames.Array();
-
-		++DataLayersStateEpoch;
-
-		OnDataLayerStateChanged(DataLayer, InState);
 	}
 }
 
