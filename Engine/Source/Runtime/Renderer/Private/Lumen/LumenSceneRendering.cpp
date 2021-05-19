@@ -1876,7 +1876,7 @@ class FClearLumenCardsPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSurfaceCache.usf", "ClearLumenCardsPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenCardsParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
