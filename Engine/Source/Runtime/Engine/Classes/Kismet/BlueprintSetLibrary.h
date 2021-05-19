@@ -10,7 +10,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "BlueprintSetLibrary.generated.h"
 
-UCLASS()
+UCLASS(meta=(BlueprintThreadSafe))
 class ENGINE_API UBlueprintSetLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
