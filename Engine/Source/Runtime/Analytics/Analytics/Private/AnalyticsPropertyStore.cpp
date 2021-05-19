@@ -125,8 +125,7 @@ bool FAnalyticsPropertyStore::Create(const FString& Pathname, uint32 CapacityHin
 	// Reserve the space in the file. Nothing else until the store is flushed the first time.
 	uint8 Dummy = 0;
 	FileHandle->Seek(ReservedSize - sizeof(Dummy));
-	FileHandle->Write(&Dummy, sizeof(Dummy));
-	return true;
+	return FileHandle->Write(&Dummy, sizeof(Dummy));
 }
 
 bool FAnalyticsPropertyStore::Load(const FString& Pathname)
@@ -805,7 +804,7 @@ void FAnalyticsPropertyStore::Defragment()
 	bFragmented = false;
 }
 
-void FAnalyticsPropertyStore::VisitAll(const TFunction<void(const FString&, FString&&)>& VisitFn) const
+void FAnalyticsPropertyStore::VisitAll(const TFunction<void(FAnalyticsEventAttribute&&)>& VisitFn) const
 {
 	FScopeLock Lock(&StoreLock);
 
@@ -820,7 +819,7 @@ void FAnalyticsPropertyStore::VisitAll(const TFunction<void(const FString&, FStr
 			{
 				int32 V;
 				StorageReader.Serialize(&V, sizeof(V));
-				VisitFn(NameOffsetPair.Key, LexToString(V));
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V));
 				break;
 			}
 
@@ -828,7 +827,7 @@ void FAnalyticsPropertyStore::VisitAll(const TFunction<void(const FString&, FStr
 			{
 				uint32 V;
 				StorageReader.Serialize(&V, sizeof(V));
-				VisitFn(NameOffsetPair.Key, LexToString(V));
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V));
 				break;
 			}
 
@@ -836,7 +835,7 @@ void FAnalyticsPropertyStore::VisitAll(const TFunction<void(const FString&, FStr
 			{
 				int64 V;
 				StorageReader.Serialize(&V, sizeof(V));
-				VisitFn(NameOffsetPair.Key, LexToString(V));
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V));
 				break;
 			}
 
@@ -844,7 +843,7 @@ void FAnalyticsPropertyStore::VisitAll(const TFunction<void(const FString&, FStr
 			{
 				uint64 V;
 				StorageReader.Serialize(&V, sizeof(V));
-				VisitFn(NameOffsetPair.Key, LexToString(V));
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V));
 				break;
 			}
 
@@ -852,7 +851,7 @@ void FAnalyticsPropertyStore::VisitAll(const TFunction<void(const FString&, FStr
 			{
 				float V;
 				StorageReader.Serialize(&V, sizeof(V));
-				VisitFn(NameOffsetPair.Key, FString::SanitizeFloat(V));
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V));
 				break;
 			}
 
@@ -860,7 +859,7 @@ void FAnalyticsPropertyStore::VisitAll(const TFunction<void(const FString&, FStr
 			{
 				double V;
 				StorageReader.Serialize(&V, sizeof(V));
-				VisitFn(NameOffsetPair.Key, FString::SanitizeFloat(V));
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V));
 				break;
 			}
 
@@ -868,23 +867,23 @@ void FAnalyticsPropertyStore::VisitAll(const TFunction<void(const FString&, FStr
 			{
 				bool V;
 				StorageReader.Serialize(&V, sizeof(V));
-				VisitFn(NameOffsetPair.Key, LexToString(V)); // Convert to "true" or "false".
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V)); // Convert to "true" or "false".
 				break;
 			}
 
 			case ETypeCode::Str:
 			{
-				FString Value;
-				GetStringValueInternal(NameOffsetPair.Key, Value);
-				VisitFn(NameOffsetPair.Key, MoveTemp(Value));
+				FString V;
+				GetStringValueInternal(NameOffsetPair.Key, V);
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V));
 				break;
 			}
 
 			case ETypeCode::Date:
 			{
-				FDateTime Value;
-				GetDateTimeValueInternal(NameOffsetPair.Key, Value);
-				VisitFn(NameOffsetPair.Key, Value.ToIso8601()); // Iso-8601 is the format used by Analytics in general for date/time.
+				FDateTime V;
+				GetDateTimeValueInternal(NameOffsetPair.Key, V);
+				VisitFn(FAnalyticsEventAttribute(NameOffsetPair.Key, V.ToIso8601())); // Iso-8601 is the format used by Analytics in general for date/time.
 				break;
 			}
 

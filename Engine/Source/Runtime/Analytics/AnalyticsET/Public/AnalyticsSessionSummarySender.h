@@ -18,7 +18,7 @@ public:
 	 * @param Provider The analytics provider that will be used to emits the summary event.
 	 * @param ShouldEmitFilterFunc A filter function invoked for each properties before sending. If the function is bound and returns false, the property will be filtered out. If unbound, all properties passed to SendSesionSummary() are emitted.
 	 */
-	FAnalyticsSessionSummarySender(IAnalyticsProviderET& Provider, TFunction<bool(const FString&, const FString&)> ShouldEmitFilterFunc = TFunction<bool(const FString&, const FString&)>());
+	FAnalyticsSessionSummarySender(IAnalyticsProviderET& Provider, TFunction<bool(const FAnalyticsEventAttribute&)> ShouldEmitFilterFunc = TFunction<bool(const FAnalyticsEventAttribute&)>());
 
 	/**
 	 * Emits the summary events for the specified session id on behalf of the specified user/app/appversion. The function filters the properties by invoking the functor specified at construction.
@@ -28,9 +28,9 @@ public:
 	 * @param SessionId The session is for which the report is emitted.
 	 * @param Properties The list of properties that makes up the summary event.
 	 */
-	virtual bool SendSessionSummary(const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const TMap<FString, FString>& Properties) override;
+	virtual bool SendSessionSummary(const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const TArray<FAnalyticsEventAttribute>& Properties) override;
 
 private:
 	IAnalyticsProviderET& AnalyticsProvider;
-	TFunction<bool(const FString&, const FString&)> ShouldEmitPropFunc;
+	TFunction<bool(const FAnalyticsEventAttribute&)> ShouldEmitPropFunc;
 };

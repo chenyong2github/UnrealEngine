@@ -175,47 +175,47 @@ bool FAnalyticsPropertyStoreAutomationTest::RunTest(const FString& Parameters)
 		check(Store.Get(BoolKey, Actual_Bool) == IAnalyticsPropertyStore::EStatusCode::Success && Actual_Bool == Expected_Bool);
 
 		// Test string conversion.
-		Store.VisitAll([&](const FString& Name, FString&& Value)
+		Store.VisitAll([&](FAnalyticsEventAttribute&& Attr)
 		{
-			if (Name == I32Key)
+			if (Attr.GetName() == I32Key)
 			{
-				check(Value == LexToString(Expected_I32));
+				check(Attr.GetValue() == LexToString(Expected_I32));
 			}
-			else if (Name == U32Key)
+			else if (Attr.GetName() == U32Key)
 			{
-				check(Value == LexToString(Expected_U32));
+				check(Attr.GetValue() == LexToString(Expected_U32));
 			}
-			else if (Name == I64Key)
+			else if (Attr.GetName() == I64Key)
 			{
-				check(Value == LexToString(Expected_I64));
+				check(Attr.GetValue() == LexToString(Expected_I64));
 			}
-			else if (Name == U64Key)
+			else if (Attr.GetName() == U64Key)
 			{
-				check(Value == LexToString(Expected_U64));
+				check(Attr.GetValue() == LexToString(Expected_U64));
 			}
-			else if (Name == FltKey)
+			else if (Attr.GetName() == FltKey)
 			{
-				check(Value == FString::SanitizeFloat(Expected_Flt));
+				check(Attr.GetValue() == FString::SanitizeFloat(Expected_Flt));
 			}
-			else if (Name == DblKey)
+			else if (Attr.GetName() == DblKey)
 			{
-				check(Value == FString::SanitizeFloat(Expected_Dbl));
+				check(Attr.GetValue() == FString::SanitizeFloat(Expected_Dbl));
 			}
-			else if (Name == BoolKey)
+			else if (Attr.GetName() == BoolKey)
 			{
-				check(Value == LexToString(Expected_Bool));
+				check(Attr.GetValue() == LexToString(Expected_Bool));
 			}
-			else if (Name == Str1Key)
+			else if (Attr.GetName() == Str1Key)
 			{
-				check(Value == Expected_Str1);
+				check(Attr.GetValue() == Expected_Str1);
 			}
-			else if (Name == DateKey)
+			else if (Attr.GetName() == DateKey)
 			{
-				check(Value == Expected_Date.ToIso8601());
+				check(Attr.GetValue() == Expected_Date.ToIso8601());
 			}
-			else if (Name == Str2Key)
+			else if (Attr.GetName() == Str2Key)
 			{
-				check(Value == Expected_Str2);
+				check(Attr.GetValue() == Expected_Str2);
 			}
 			else
 			{

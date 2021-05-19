@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/DateTime.h"
 #include "Templates/Function.h"
+#include "AnalyticsEventAttribute.h"
 
 /**
  * Implements a fast type safe key/value database to store analytics properties collected during a session.
@@ -132,7 +133,7 @@ public:
 	 * Iterates the keys currently stored and invokes the visitor function for each key, converting the value to its string representation.
 	 * @param VisitFn The callback invoked for each key/value pair visited.
 	 */
-	virtual void VisitAll(const TFunction<void(const FString& /*Key*/, FString&& /*Value*/)>& VisitFn) const = 0;
+	virtual void VisitAll(const TFunction<void(FAnalyticsEventAttribute&&)>& VisitFn) const = 0;
 
 	/**
 	 * Flushes cached values to persistent storage.
