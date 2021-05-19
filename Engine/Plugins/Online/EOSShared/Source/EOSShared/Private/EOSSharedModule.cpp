@@ -5,6 +5,7 @@
 #include "Features/IModularFeatures.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
+#include "EOSSharedSettings.h"
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"
