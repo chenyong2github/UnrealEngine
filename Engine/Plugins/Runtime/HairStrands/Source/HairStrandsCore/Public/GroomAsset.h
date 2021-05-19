@@ -534,6 +534,7 @@ public:
 	EGroomBindingType GetBindingType(int32 GroupIndex, int32 LODIndex) const;
 	bool IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const;
 	bool IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex) const;
+	bool NeedsInterpolationData(int32 GroupIndex) const;
 
 #if WITH_EDITORONLY_DATA
 	void SetDebugMode(EHairStrandsDebugMode InMode) { DebugMode = InMode; OnGroomAssetChanged.Broadcast(); }
