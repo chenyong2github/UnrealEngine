@@ -9,9 +9,8 @@
 
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingDebug(TEXT("a.AnimNode.StrideWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_StrideWarping"));
+TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingEnable(TEXT("a.AnimNode.StrideWarping.Enable"), 1, TEXT("Toggle Stride Warping"));
 #endif
-
-TAutoConsoleVariable<int32> CVarStrideWarpingEnable(TEXT("a.AnimNode.StrideWarping.Enable"), 1, TEXT("Toggle Stride Warping"));
 
 DECLARE_CYCLE_STAT(TEXT("StrideWarping Eval"), STAT_StrideWarping_Eval, STATGROUP_Anim);
 
@@ -151,14 +150,17 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		}
 
 		const float RootMotionSpeed = RootMotionTransformDelta.GetTranslation().Size() / CachedDeltaTime;
-		if (FMath::IsNearlyZero(RootMotionSpeed, KINDA_SMALL_NUMBER))
-		{
-			return;
-		}
 
-		// Graph driven stride scale factor will be determined by the ratio of the
-		// locomotion (capsule/physics) speed against the animation root motion speed
-		ComputedStrideScaling = LocomotionSpeed / RootMotionSpeed;
+		if (FMath::IsNearlyZero(RootMotionSpeed, MinSpeedTolerance) || FMath::IsNearlyZero(LocomotionSpeed, MinSpeedTolerance))
+		{
+			ComputedStrideScaling = 1.f;
+		}
+		else
+		{
+			// Graph driven stride scale factor will be determined by the ratio of the
+			// locomotion (capsule/physics) speed against the animation root motion speed
+			ComputedStrideScaling = LocomotionSpeed / RootMotionSpeed;
+		}
 	}
 
 	// Allow the opportunity for stride scale clamping and biasing regardless of evaluation mode
@@ -347,8 +349,14 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 bool FAnimNode_StrideWarping::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
 {
-	const bool bIsEnabled = (CVarStrideWarpingEnable.GetValueOnAnyThread() == 1);
-	return bIsEnabled && (FeetData.Num() > 0) 
+#if ENABLE_ANIM_DEBUG
+	if(CVarAnimNodeStrideWarpingEnable.GetValueOnAnyThread() == 0)
+	{
+		return false;
+	}
+#endif
+
+	return (FeetData.Num() > 0) 
 		&& (PelvisBone.GetCompactPoseIndex(RequiredBones) != INDEX_NONE) 
 		&& (IKFootRootBone.GetCompactPoseIndex(RequiredBones) != INDEX_NONE) 
 		&& (!FMath::IsNearlyEqual(StrideScalingScaleBiasClamp.ApplyTo(ManualStrideScaling, 0.f), 1.f, 0.001f) || PelvisAdjustmentInterp.IsInMotion() || Mode == EWarpingEvaluationMode::Graph);
