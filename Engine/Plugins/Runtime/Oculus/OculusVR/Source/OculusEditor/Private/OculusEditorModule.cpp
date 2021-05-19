@@ -34,15 +34,6 @@ void FOculusEditorModule::PostLoadCallback()
 
 void FOculusEditorModule::StartupModule()
 {
-	void* ModuleCheck = FPlatformProcess::GetDllHandle(TEXT("OVRPlugin.dll"));
-	if (!ModuleCheck)
-	{
-		return;
-	}
-
-	FPlatformProcess::FreeDllHandle(ModuleCheck);
-	ModuleCheck = nullptr;
-
 	bModuleValid = true;
 	RegisterSettings();
 	FOculusAssetDirectory::LoadForCook();
