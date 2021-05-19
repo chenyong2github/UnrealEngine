@@ -146,6 +146,7 @@
 
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
+#include "Systems/MovieSceneMotionVectorSimulationSystem.h"
 
 
 #define LOCTEXT_NAMESPACE "Sequencer"
@@ -4093,6 +4094,11 @@ void FSequencer::PossessPIEViewports(UObject* CameraObject, const EMovieSceneCam
 			{
 				CameraComponent->NotifyCameraCut();
 			}
+
+			if (UMovieSceneMotionVectorSimulationSystem* MotionVectorSim = RootTemplateInstance.GetEntitySystemLinker()->FindSystem<UMovieSceneMotionVectorSimulationSystem>())
+			{
+				MotionVectorSim->SimulateAllTransforms();
+			}
 		}
 		return;
 	}
@@ -4131,6 +4137,11 @@ void FSequencer::PossessPIEViewports(UObject* CameraObject, const EMovieSceneCam
 	{
 		PC->PlayerCameraManager->bClientSimulatingViewTarget = (CameraActor != nullptr);
 		PC->PlayerCameraManager->SetGameCameraCutThisFrame();
+	}
+
+	if (UMovieSceneMotionVectorSimulationSystem* MotionVectorSim = RootTemplateInstance.GetEntitySystemLinker()->FindSystem<UMovieSceneMotionVectorSimulationSystem>())
+	{
+		MotionVectorSim->SimulateAllTransforms();
 	}
 }
 
@@ -6044,6 +6055,11 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	if (bCameraHasBeenCut)
 	{
 		InViewportClient.SetIsCameraCut();
+
+		if (UMovieSceneMotionVectorSimulationSystem* MotionVectorSim = RootTemplateInstance.GetEntitySystemLinker()->FindSystem<UMovieSceneMotionVectorSimulationSystem>())
+		{
+			MotionVectorSim->SimulateAllTransforms();
+		}
 	}
 
 	// Set the actor lock.
