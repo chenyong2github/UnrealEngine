@@ -18,6 +18,7 @@
 class UMaterial;
 class UWorldPartition;
 class AActor;
+class FWorldPartitionActorDesc;
 
 UENUM()
 enum class EHLODLayerType : uint8

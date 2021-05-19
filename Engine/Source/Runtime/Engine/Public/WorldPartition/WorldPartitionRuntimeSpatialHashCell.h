@@ -5,6 +5,8 @@
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartitionRuntimeSpatialHashCell.generated.h"
 
+class UActorContainer;
+
 UCLASS(Abstract, Within = WorldPartition)
 class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 {

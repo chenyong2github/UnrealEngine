@@ -11,6 +11,7 @@
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 
+#include "Engine/Engine.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"

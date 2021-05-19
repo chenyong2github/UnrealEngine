@@ -4,7 +4,7 @@
 #include "Widgets/Input/SButton.h"
 #include "WorldPartition/WorldPartitionConvertOptions.h"
 #include "Modules/ModuleManager.h"
-
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionConvertDialog"
 
