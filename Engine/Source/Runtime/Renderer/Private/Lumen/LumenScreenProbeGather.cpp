@@ -322,7 +322,7 @@ FAutoConsoleVariableRef CVarRadianceCacheProbeResolution(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.ProbeResolution"),
 	GRadianceCacheProbeResolution,
 	TEXT("Resolution of the probe's 2d radiance layout.  The number of rays traced for the probe will be ProbeResolution ^ 2"),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GRadianceCacheNumMipmaps = 1;
