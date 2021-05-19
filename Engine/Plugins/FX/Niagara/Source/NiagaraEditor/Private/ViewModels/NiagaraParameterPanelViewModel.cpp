@@ -653,7 +653,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Cleanup()
 		return CastChecked<UNiagaraScriptSource>(Script->GetLatestSource())->NodeGraph;
 	};
 
-	TArray<UNiagaraGraph*> GraphsToRemoveCallbacks;
+	TSet<UNiagaraGraph*> GraphsToRemoveCallbacks;
 	GraphsToRemoveCallbacks.Add(GetGraphFromScript(System.GetSystemSpawnScript()));
 	GraphsToRemoveCallbacks.Add(GetGraphFromScript(System.GetSystemUpdateScript()));
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
@@ -708,7 +708,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUICo
 		return CastChecked<UNiagaraScriptSource>(Script->GetLatestSource())->NodeGraph;
 	};
 
-	TArray<UNiagaraGraph*> GraphsToAddCallbacks;
+	TSet<UNiagaraGraph*> GraphsToAddCallbacks;
 	GraphsToAddCallbacks.Add(GetGraphFromScript(System.GetSystemSpawnScript()));
 	GraphsToAddCallbacks.Add(GetGraphFromScript(System.GetSystemUpdateScript()));
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
@@ -1751,7 +1751,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::ReconcileOnGraphChangedBindin
 	UnvisitedGraphIds.Remove(GetGraphFromScript(System.GetSystemSpawnScript())->GetUniqueID());
 	UnvisitedGraphIds.Remove(GetGraphFromScript(System.GetSystemUpdateScript())->GetUniqueID());
 
-	TArray<UNiagaraGraph*> GraphsToAddCallbacks;
+	TSet<UNiagaraGraph*> GraphsToAddCallbacks;
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 	{
 		if (FNiagaraEmitterHandle* EmitterHandle = EmitterHandleViewModel->GetEmitterHandle())
