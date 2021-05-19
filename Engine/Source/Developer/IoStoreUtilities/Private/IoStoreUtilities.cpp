@@ -3436,7 +3436,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
-	Arguments.bClusterByOrderFilePriority = FParse::Param(CmdLine, TEXT("ClusterByOrderPriority"));
+	Arguments.bClusterByOrderFilePriority = !FParse::Param(CmdLine, TEXT("DoNotClusterByOrderPriority"));
 
 	FIoStoreWriterSettings GeneralIoWriterSettings { DefaultCompressionMethod, DefaultCompressionBlockSize, false };
 	GeneralIoWriterSettings.bEnableCsvOutput = FParse::Param(CmdLine, TEXT("-csvoutput"));
