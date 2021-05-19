@@ -418,8 +418,6 @@ FReply SAdvancedCopyReportDialog::OkClicked()
 					const bool bDidRemovePrefix = CroppedDestination.RemoveFromStart(ReportString);
 					if (bDidRemovePrefix)
 					{
-						CroppedDestination = CroppedDestination;
-
 						It.Value() = ReportString / CroppedDestination.Replace(*FindString, *ReplaceString);
 					}
 				}
