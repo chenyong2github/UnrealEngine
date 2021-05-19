@@ -254,7 +254,7 @@ void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool 
 
 			for (UActorComponent* PastedComponent : PastedComponents)
 			{
-				GEditor->SelectComponent(PastedComponent, true, false);
+				GEditor->SelectComponent(PastedComponent, true, false, true);
 			}
 
 			ComponentSelection->EndBatchSelectOperation(true);
@@ -275,7 +275,7 @@ void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool 
 
 			for (AActor* PastedActor : PastedActors)
 			{
-				GEditor->SelectActor(PastedActor, true, false);
+				GEditor->SelectActor(PastedActor, true, false, true);
 			}
 
 			ActorSelection->EndBatchSelectOperation(true);
