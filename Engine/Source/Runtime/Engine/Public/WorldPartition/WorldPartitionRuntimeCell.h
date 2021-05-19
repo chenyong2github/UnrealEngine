@@ -143,6 +143,9 @@ class UWorldPartitionRuntimeCell : public UObject
 	}
 
 #if WITH_EDITOR
+	void SetClientOnlyVisible(bool bInClientOnlyVisible) { bClientOnlyVisible = bInClientOnlyVisible; }
+	bool GetClientOnlyVisible() const { return bClientOnlyVisible; }
+
 	void SetDataLayers(const TArray<const UDataLayer*>& InDataLayers);
 	void SetDebugInfo(FIntVector InCoords, FName InGridName);
 	void AddCellData(const UWorldPartitionRuntimeCellData* InCellData);
@@ -188,6 +191,9 @@ private:
 	// Custom Priority
 	UPROPERTY()
 	int32 Priority;
+
+	UPROPERTY()
+	bool bClientOnlyVisible;
 
 	// Source Priority
 	mutable int32 CachedSourcePriority;

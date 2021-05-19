@@ -289,6 +289,7 @@ static void GatherHLODGrids(UWorldPartition* WorldPartition, TMap<FName, FSpatia
 		HLODGrid.LoadingRange = HLODLayer->GetLoadingRange();
 		HLODGrid.DebugColor = FLinearColor::Red;
 		HLODGrid.GridName = HLODLayer->GetRuntimeGrid(InitialHLODLevel);
+		HLODGrid.bClientOnlyVisible = true;
 
 		OutHLODGrids.Emplace(HLODGrid.GridName, HLODGrid);
 
