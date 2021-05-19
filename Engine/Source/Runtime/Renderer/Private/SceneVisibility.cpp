@@ -2119,6 +2119,11 @@ struct FRelevancePacket
 					{
 						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterDOFModulate, ViewRelevance.bUsesSceneColorCopy);
 					}
+
+					if (ViewRelevance.bPostMotionBlurTranslucency)
+					{
+						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterMotionBlur, ViewRelevance.bUsesSceneColorCopy);
+					}
 				}
 				else // Otherwise, everything is rendered in a single bucket. This is not related to whether DOF is currently enabled or not.
 				{
@@ -2423,6 +2428,11 @@ struct FRelevancePacket
 								if (ViewRelevance.bSeparateTranslucencyModulate)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAfterDOFModulate);
+								}
+
+								if (ViewRelevance.bPostMotionBlurTranslucency)
+								{
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAfterMotionBlur);
 								}
 							}
 							else
@@ -2877,6 +2887,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			{
 				PassMask.Set(EMeshPass::TranslucencyAfterDOFModulate);
 				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAfterDOFModulate] += NumElements;
+			}
+
+			if (ViewRelevance.bPostMotionBlurTranslucency)
+			{
+				PassMask.Set(EMeshPass::TranslucencyAfterMotionBlur);
+				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAfterMotionBlur] += NumElements;
 			}
 		}
 		else

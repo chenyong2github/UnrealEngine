@@ -189,22 +189,37 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 		else
 		{
 			// Check whether the material can be drawn in the separate translucency pass as per FMaterialResource::IsTranslucencyAfterDOFEnabled and IsMobileSeparateTranslucencyEnabled
-			bool bSupportsSeparateTranslucency = Material->MaterialDomain != MD_UI && Material->MaterialDomain != MD_DeferredDecal;
-			bool bMaterialSeparateTranslucency = bSupportsSeparateTranslucency && (bIsMobile ? Material->bEnableMobileSeparateTranslucency : Material->bEnableSeparateTranslucency);
+			EMaterialTranslucencyPass TranslucencyPass = MTP_BeforeDOF;
+			const bool bSupportsSeparateTranslucency = Material->MaterialDomain != MD_UI && Material->MaterialDomain != MD_DeferredDecal;
+			if (bIsTranslucent && bSupportsSeparateTranslucency)
+			{
+				if (bIsMobile)
+				{
+					if (Material->bEnableMobileSeparateTranslucency)
+					{
+						TranslucencyPass = MTP_AfterDOF;
+					}
+				}
+				else
+				{
+					TranslucencyPass = Material->TranslucencyPass;
+				}
+			}			
 
-			// If dual blending is supported, and we are rendering separate translucency, then we also need to render a second pass to the modulation buffer.
+			// If dual blending is supported, and we are rendering post-DOF translucency, then we also need to render a second pass to the modulation buffer.
 			// The modulation buffer can also be used for regular modulation shaders after DoF.
-			bool bMaterialSeparateModulation =
+			const bool bMaterialSeparateModulation =
 				(MaterialResource->IsDualBlendingEnabled(GShaderPlatformForFeatureLevel[InFeatureLevel]) || BlendMode == BLEND_Modulate)
-				&& bMaterialSeparateTranslucency;
+				&& TranslucencyPass == MTP_AfterDOF;
 
 			MaterialRelevance.bOpaque = !bIsTranslucent;
 			MaterialRelevance.bMasked = IsMasked();
 			MaterialRelevance.bDistortion = MaterialResource->IsDistorted();
 			MaterialRelevance.bHairStrands = IsCompatibleWithHairStrands(MaterialResource, InFeatureLevel);
-			MaterialRelevance.bSeparateTranslucency = bIsTranslucent && bMaterialSeparateTranslucency;
-			MaterialRelevance.bSeparateTranslucencyModulate = bIsTranslucent && bMaterialSeparateModulation;
-			MaterialRelevance.bNormalTranslucency = bIsTranslucent && !bMaterialSeparateTranslucency;
+			MaterialRelevance.bSeparateTranslucency = (TranslucencyPass == MTP_AfterDOF);
+			MaterialRelevance.bSeparateTranslucencyModulate = bMaterialSeparateModulation;
+			MaterialRelevance.bPostMotionBlurTranslucency = (TranslucencyPass == MTP_AfterMotionBlur);
+			MaterialRelevance.bNormalTranslucency = bIsTranslucent && (TranslucencyPass == MTP_BeforeDOF);
 			MaterialRelevance.bDisableDepthTest = bIsTranslucent && Material->bDisableDepthTest;		
 			MaterialRelevance.bUsesSceneColorCopy = bIsTranslucent && MaterialResource->RequiresSceneColorCopy_GameThread();
 			MaterialRelevance.bOutputsTranslucentVelocity = Material->IsTranslucencyWritingVelocity();

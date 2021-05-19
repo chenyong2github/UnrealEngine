@@ -39,6 +39,7 @@ namespace EMeshPass
 		TranslucencyStandard,
 		TranslucencyAfterDOF,
 		TranslucencyAfterDOFModulate,
+		TranslucencyAfterMotionBlur,
 		TranslucencyAll, /** Drawing all translucency, regardless of separate or standard.  Used when drawing translucency outside of the main renderer, eg FRendererModule::DrawTile. */
 		LightmapDensity,
 		DebugViewMode, /** Any of EDebugViewShaderMode */
@@ -79,6 +80,7 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 	case EMeshPass::TranslucencyStandard: return TEXT("TranslucencyStandard");
 	case EMeshPass::TranslucencyAfterDOF: return TEXT("TranslucencyAfterDOF");
 	case EMeshPass::TranslucencyAfterDOFModulate: return TEXT("TranslucencyAfterDOFModulate");
+	case EMeshPass::TranslucencyAfterMotionBlur: return TEXT("TranslucencyAfterMotionBlur");
 	case EMeshPass::TranslucencyAll: return TEXT("TranslucencyAll");
 	case EMeshPass::LightmapDensity: return TEXT("LightmapDensity");
 	case EMeshPass::DebugViewMode: return TEXT("DebugViewMode");
@@ -97,9 +99,9 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 	}
 
 #if WITH_EDITOR
-	static_assert(EMeshPass::Num == 22 + 4, "Need to update switch(MeshPass) after changing EMeshPass");
+	static_assert(EMeshPass::Num == 23 + 4, "Need to update switch(MeshPass) after changing EMeshPass");
 #else
-	static_assert(EMeshPass::Num == 22, "Need to update switch(MeshPass) after changing EMeshPass");
+	static_assert(EMeshPass::Num == 23, "Need to update switch(MeshPass) after changing EMeshPass");
 #endif
 
 	checkf(0, TEXT("Missing case for EMeshPass %u"), (uint32)MeshPass);

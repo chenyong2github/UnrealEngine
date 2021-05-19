@@ -172,6 +172,7 @@ FSceneViewState::FSceneViewState()
 	, TranslucencyTimer(TimerQueryPool)
 	, SeparateTranslucencyTimer(TimerQueryPool)
 	, SeparateTranslucencyModulateTimer(TimerQueryPool)
+	, PostMotionBlurTranslucencyTimer(TimerQueryPool)
 {
 	// Set FeatureLevel to a valid value, so we get Init/ReleaseDynamicRHI calls on FeatureLevel changes
 	SetFeatureLevel(GMaxRHIFeatureLevel);

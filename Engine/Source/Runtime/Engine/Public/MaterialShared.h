@@ -1685,6 +1685,7 @@ public:
 	virtual float GetTranslucentSelfShadowSecondOpacity() const { return 1.0f; }
 	virtual float GetTranslucentBackscatteringExponent() const { return 1.0f; }
 	virtual bool IsTranslucencyAfterDOFEnabled() const { return false; }
+	virtual bool IsTranslucencyAfterMotionBlurEnabled() const { return false; }
 	virtual bool IsDualBlendingEnabled(EShaderPlatform Platform) const { return false; }
 	virtual bool IsMobileSeparateTranslucencyEnabled() const { return false; }
 	virtual FLinearColor GetTranslucentMultipleScatteringExtinction() const { return FLinearColor::White; }
@@ -2573,6 +2574,7 @@ public:
 	ENGINE_API virtual float GetTranslucentSelfShadowSecondOpacity() const override;
 	ENGINE_API virtual float GetTranslucentBackscatteringExponent() const override;
 	ENGINE_API virtual bool IsTranslucencyAfterDOFEnabled() const override;
+	ENGINE_API virtual bool IsTranslucencyAfterMotionBlurEnabled() const override;
 	ENGINE_API virtual bool IsDualBlendingEnabled(EShaderPlatform Platform) const override;
 	ENGINE_API virtual bool IsMobileSeparateTranslucencyEnabled() const override;
 	ENGINE_API virtual FLinearColor GetTranslucentMultipleScatteringExtinction() const override;

@@ -977,8 +977,9 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	OpacityMaskClipValue = 0.3333f;
 	bCastDynamicShadowAsMasked = false;
 	bUsedWithStaticLighting = false;
-	bEnableSeparateTranslucency = true;
+	bEnableSeparateTranslucency_DEPRECATED = true;
 	bEnableMobileSeparateTranslucency = false;
+	TranslucencyPass = MTP_AfterDOF;
 	bEnableResponsiveAA = false;
 	bScreenSpaceReflections = false;
 	bContactShadows = false;
@@ -3383,6 +3384,14 @@ void UMaterial::Serialize(FArchive& Ar)
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MaterialTranslucencyPass)
+	{
+		if (bEnableSeparateTranslucency_DEPRECATED == false)
+		{
+			TranslucencyPass = MTP_BeforeDOF;
+		}
+	}
 }
 
 void UMaterial::PostDuplicate(bool bDuplicateForPIE)
@@ -4513,7 +4522,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			return Refraction.IsConnected();
 		}
 	
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableSeparateTranslucency)
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucencyPass)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableResponsiveAA)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bScreenSpaceReflections)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bContactShadows)
@@ -6446,8 +6455,8 @@ static void ListSceneColorMaterials()
 			if (MatRes && MatRes->RequiresSceneColorCopy_GameThread())
 			{
 				UMaterial* BaseMat = Mat->GetMaterial();
-				UE_LOG(LogConsoleResponse, Display, TEXT("[SepTrans=%d][FeatureLevel=%s] %s"),
-					BaseMat ? BaseMat->bEnableSeparateTranslucency : 3,
+				UE_LOG(LogConsoleResponse, Display, TEXT("[TransPass=%d][FeatureLevel=%s] %s"),
+					BaseMat ? (int32)BaseMat->TranslucencyPass : (int32)MTP_MAX,
 					*FeatureLevelName,
 					*Mat->GetPathName()
 					);

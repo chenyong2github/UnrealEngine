@@ -142,6 +142,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// RigVM to store more information alongside the Copy Operator
 		RigVMCopyOpStoreNumBytes,
 
+		// Expanded separate translucency into multiple passes
+		MaterialTranslucencyPass,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
