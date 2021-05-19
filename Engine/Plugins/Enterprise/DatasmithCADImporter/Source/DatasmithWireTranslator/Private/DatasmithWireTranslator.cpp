@@ -1774,6 +1774,9 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 {
 	LocalSession->ClearData();
 
+	// Wire unit is cm
+	LocalSession->SetSceneUnit(0.01);
+
 	FString Filename = DagNode.name();
 
 	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
@@ -1807,6 +1810,9 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(TSharedRef<BodyData> Body, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
 	LocalSession->ClearData();
+
+	// Wire unit is cm
+	LocalSession->SetSceneUnit(0.01);
 
 	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
 	if (MeshParameters.bIsSymmetric)

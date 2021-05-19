@@ -241,7 +241,6 @@ namespace CADLibrary
 		return false;
 	}
 
-
 	ECoreTechParsingResult FCoreTechFileReader::ProcessFile(const FFileDescription& InFileDescription)
 	{
 		FileDescription = InFileDescription;
@@ -296,6 +295,7 @@ namespace CADLibrary
 			CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
 			Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTReImportOption, 0, *LoadOption);
 		}
+		CTKIO_ChangeUnit(Context.ImportParameters.MetricUnit);
 
 		// the file is loaded but it's empty, so no data is generate
 		if (Result == IO_ERROR_EMPTY_ASSEMBLY)

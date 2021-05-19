@@ -29,7 +29,7 @@ namespace CADLibrary
 #endif
 	}
 
-	bool CTKIO_InitializeKernel(double Unit, const TCHAR* InEnginePluginsPath)
+	bool CTKIO_InitializeKernel(const TCHAR* InEnginePluginsPath)
 	{
 		if (!CoreTechInterface.IsValid())
 		{
@@ -43,7 +43,7 @@ namespace CADLibrary
 			EnginePluginsPath = FPaths::EnginePluginsDir();
 		}
 		
-		return CoreTechInterface->InitializeKernel(Unit, *EnginePluginsPath);
+		return CoreTechInterface->InitializeKernel(*EnginePluginsPath);
 	}
 
 	bool CTKIO_ShutdownKernel()
@@ -54,6 +54,11 @@ namespace CADLibrary
 	bool CTKIO_UnloadModel()
 	{
 		return CoreTechInterface.IsValid() ? CoreTechInterface->UnloadModel() : false;
+	}
+
+	bool CTKIO_ChangeUnit(double SceneUnit)
+	{
+		return CoreTechInterface.IsValid() ? CoreTechInterface->ChangeUnit(SceneUnit) : false;
 	}
 
 	bool CTKIO_CreateModel(uint64& OutMainObjectId)
@@ -205,14 +210,15 @@ namespace CADLibrary
 
 	const TCHAR* FCoreTechSessionBase::Owner = nullptr;
 
-	FCoreTechSessionBase::FCoreTechSessionBase(const TCHAR* InOwner, double Unit)
+	FCoreTechSessionBase::FCoreTechSessionBase(const TCHAR* InOwner)
 	{
 		// Lib init
 		ensureAlways(InOwner != nullptr); // arg must be valid
 		ensureAlways(Owner == nullptr); // static Owner must be unset
 
-		CTKIO_ShutdownKernel(); // ignorable. Just in case CT was not previously stopped
-		Owner = CTKIO_InitializeKernel(Unit) ? InOwner : nullptr;
+		Owner = CTKIO_InitializeKernel() ? InOwner : nullptr;
+		// ignorable. Just in case CT was not previously emptied 
+		CTKIO_UnloadModel();
 
 		if (Owner)
 		{
@@ -226,7 +232,6 @@ namespace CADLibrary
 		if (Owner != nullptr)
 		{
 			CTKIO_UnloadModel();
-			CTKIO_ShutdownKernel();
 			Owner = nullptr;
 		}
 	}

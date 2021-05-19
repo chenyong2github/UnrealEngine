@@ -46,8 +46,8 @@ public:
 	 * @param ScaleFactor scale factor to apply to the mesh to be in UE4 unit (cm).
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
-	FRhinoCoretechWrapper(const TCHAR* InOwner, double FileMetricUnit, double ScaleFactor)
-		: FCTSession(InOwner, FileMetricUnit, ScaleFactor)
+	FRhinoCoretechWrapper(const TCHAR* InOwner)
+		: FCTSession(InOwner)
 	{
 	}
 
@@ -59,7 +59,7 @@ public:
 	 */
 	bool AddBRep(ON_Brep& Brep, const ON_3dVector& Offset);
 	
-	static TSharedPtr<FRhinoCoretechWrapper> GetSharedSession(double SceneUnit, double ScaleFactor);
+	static TSharedPtr<FRhinoCoretechWrapper> GetSharedSession();
 
 	bool Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);
 
