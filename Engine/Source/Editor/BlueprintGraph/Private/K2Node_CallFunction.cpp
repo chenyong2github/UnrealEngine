@@ -956,8 +956,10 @@ void UK2Node_CallFunction::GetExpandEnumPinNames(const UFunction* Function, TArr
 
 	TArray<FString> RawGroupings;
 	EnumParamString.ParseIntoArray(RawGroupings, TEXT(","), false);
-	for (const FString& RawGroup : RawGroupings)
+	for (FString& RawGroup : RawGroupings)
 	{
+		RawGroup.TrimStartAndEndInline();
+
 		TArray<FString> IndividualEntries;
 		RawGroup.ParseIntoArray(IndividualEntries, TEXT("|"));
 
