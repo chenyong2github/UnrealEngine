@@ -284,6 +284,8 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_BehaviorTree_StopTree);
 
+	UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("StopTree %s, mode:%s"), *GetNameSafe(GetRootTree()), StopMode == EBTStopMode::Forced ? TEXT("Forced") : TEXT("Safe"));
+
 	if (StopTreeLock)
 	{
 		bDeferredStopTree = true;
@@ -1692,7 +1694,7 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 
 				if (TestNode)
 				{
-					TestNode->OnChildDeactivation(SearchData, *ChildNode, NodeResult);
+					TestNode->OnChildDeactivation(SearchData, *ChildNode, NodeResult, ActiveInstanceIdx == ExecutionRequest.ExecuteInstanceIdx  /*bIsRequestInSameInstance*/);
 				}
 			}
 			else if (TestNode->Children.IsValidIndex(ChildBranchIdx))
@@ -1886,7 +1888,7 @@ bool UBehaviorTreeComponent::DeactivateUpTo(UBTCompositeNode* Node, uint16 NodeI
 		if (NotifyParent)
 		{
 			OutLastDeactivatedChildIndex = NotifyParent->GetChildIndex(SearchData, *DeactivatedChild);
-			NotifyParent->OnChildDeactivation(SearchData, OutLastDeactivatedChildIndex, NodeResult);
+			NotifyParent->OnChildDeactivation(SearchData, OutLastDeactivatedChildIndex, NodeResult, ActiveInstanceIdx == NodeInstanceIdx /*bIsRequestInSameInstance*/);
 
 			BT_SEARCHLOG(SearchData, Verbose, TEXT("Deactivate node: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(DeactivatedChild));
 			StoreDebuggerSearchStep(DeactivatedChild, ActiveInstanceIdx, NodeResult);

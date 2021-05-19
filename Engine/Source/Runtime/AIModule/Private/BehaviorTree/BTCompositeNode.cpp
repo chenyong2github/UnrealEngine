@@ -121,12 +121,12 @@ void UBTCompositeNode::OnChildActivation(FBehaviorTreeSearchData& SearchData, in
 	NodeMemory->CurrentChild = ChildIndex;
 }
 
-void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult) const
+void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const
 {
-	OnChildDeactivation(SearchData, GetChildIndex(SearchData, ChildNode), NodeResult);
+	OnChildDeactivation(SearchData, GetChildIndex(SearchData, ChildNode), NodeResult, bIsRequestFromActiveInstance);
 }
 
-void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult) const
+void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const
 {
 	const FBTCompositeChild& ChildInfo = Children[ChildIndex];
 
@@ -149,7 +149,7 @@ void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, 
 	const bool bCanNotify = !bUseDecoratorsDeactivationCheck || CanNotifyDecoratorsOnDeactivation(SearchData, ChildIndex, NodeResult);
 	if (bCanNotify)
 	{
-		NotifyDecoratorsOnDeactivation(SearchData, ChildIndex, NodeResult);
+		NotifyDecoratorsOnDeactivation(SearchData, ChildIndex, NodeResult, bIsRequestFromActiveInstance);
 	}
 }
 
@@ -247,7 +247,7 @@ void UBTCompositeNode::NotifyDecoratorsOnActivation(FBehaviorTreeSearchData& Sea
 	}
 }
 
-void UBTCompositeNode::NotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult) const
+void UBTCompositeNode::NotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const
 {
 	const FBTCompositeChild& ChildInfo = Children[ChildIdx];
 	if (NodeResult == EBTNodeResult::Aborted)
@@ -270,14 +270,21 @@ void UBTCompositeNode::NotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& S
 			DecoratorOb->WrappedOnNodeProcessed(SearchData, NodeResult);
 			DecoratorOb->WrappedOnNodeDeactivation(SearchData, NodeResult);
 
-			// leaving child branch: 
-			if (DecoratorOb->GetFlowAbortMode() == EBTFlowAbortMode::Self)
+			if (!bIsRequestFromActiveInstance)
 			{
+				UE_VLOG(SearchData.OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Removing decorator(%s) as request is not in active instance"), *UBehaviorTreeTypes::DescribeNodeHelper(this));
+				SearchData.AddUniqueUpdate(FBehaviorTreeSearchUpdate(DecoratorOb, SearchData.OwnerComp.GetActiveInstanceIdx(), EBTNodeUpdateMode::Remove));
+			}
+			// leaving child branch: 
+			else if (DecoratorOb->GetFlowAbortMode() == EBTFlowAbortMode::Self)
+			{
+				UE_VLOG(SearchData.OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Removing out of scope decorator(%s) because of self abort type"), *UBehaviorTreeTypes::DescribeNodeHelper(this));
 				// - observers with mode "Self" are now out of scope, remove them
 				SearchData.AddUniqueUpdate(FBehaviorTreeSearchUpdate(DecoratorOb, SearchData.OwnerComp.GetActiveInstanceIdx(), EBTNodeUpdateMode::Remove));
 			}
 			else if (DecoratorOb->GetFlowAbortMode() == EBTFlowAbortMode::LowerPriority)
 			{
+				UE_VLOG(SearchData.OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Reactivating decorator(%s) because of lower priority abort type"), *UBehaviorTreeTypes::DescribeNodeHelper(this));
 				// - observers with mode "Lower Priority" will try to reactivate themselves ("Both" is not removed on node activation)
 				SearchData.AddUniqueUpdate(FBehaviorTreeSearchUpdate(DecoratorOb, SearchData.OwnerComp.GetActiveInstanceIdx(), EBTNodeUpdateMode::Add));
 			}

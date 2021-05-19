@@ -1307,6 +1307,63 @@ struct FAITest_BTSubtreeAbortOut : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTSubtreeAbortOut, "System.AI.Behavior Trees.Subtree: abort out")
 
+/* This unittest come from UDN case 00320135 */
+struct FAITest_BTSubtreeAbortOutToLowerPrio : public FAITest_SimpleBT
+{
+	FAITest_BTSubtreeAbortOutToLowerPrio()
+	{
+		UBehaviorTree* ChildAsset = &FBTBuilder::CreateBehaviorTree(*BTAsset);
+		if (ChildAsset)
+		{
+			AddAutoDestroyObject(*ChildAsset);
+			UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*ChildAsset);
+			{
+				UBTCompositeNode& CompNode2 = FBTBuilder::AddSequence(CompNode);
+				{
+					FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool2"), 3/*LogIndexBecomeRelevant*/, 4/*LogIndexCeaseRelevant*/);
+					FBTBuilder::AddTaskFlagChange(CompNode2, true, EBTNodeResult::Succeeded, TEXT("Bool3"));
+				}
+
+				UBTCompositeNode& CompNode3 = FBTBuilder::AddSequence(CompNode);
+				{
+					FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::LowerPriority, TEXT("Bool3"), 5/*LogIndexBecomeRelevant*/, 6/*LogIndexCeaseRelevant*/);
+					FBTBuilder::AddTask(CompNode3, 12, EBTNodeResult::Succeeded, 10/*ExecutionTicks*/);
+					FBTBuilder::WithTaskServiceLog(CompNode3, 13/*ActivationIndex*/, 14/*DeactivationIndex*/, 15/*TickIndex*/, TEXT("Bool1"));
+				}
+			}
+		}
+
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			FBTBuilder::AddTaskFlagChange(CompNode, true, EBTNodeResult::Failed, TEXT("Bool3"));
+			FBTBuilder::AddTaskSubtree(CompNode, ChildAsset);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"), 1/*LogIndexBecomeRelevant*/, 2/*LogIndexCeaseRelevant*/);
+			}
+
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSequence(CompNode);
+			{
+				FBTBuilder::AddTaskFlagChange(CompNode2, false, EBTNodeResult::Succeeded, TEXT("Bool3"));
+				FBTBuilder::AddTaskFlagChange(CompNode2, true, EBTNodeResult::Succeeded, TEXT("Bool2"));
+				FBTBuilder::AddTaskFlagChange(CompNode2, false, EBTNodeResult::Succeeded, TEXT("Bool1"));
+			}
+		}
+
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(13);
+		ExpectedResult.Add(15);
+		ExpectedResult.Add(12);
+		ExpectedResult.Add(15); // Extra service tick because aux nodes are always ticked before any pending requests are processed
+		ExpectedResult.Add(14);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(2);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTSubtreeAbortOutToLowerPrio, "System.AI.Behavior Trees.Subtree: abort out lower prio")
+
 struct FAITest_BTServiceInstantTask : public FAITest_SimpleBT
 {
 	FAITest_BTServiceInstantTask()
