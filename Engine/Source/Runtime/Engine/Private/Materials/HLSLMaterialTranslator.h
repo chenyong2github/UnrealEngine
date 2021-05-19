@@ -1012,6 +1012,7 @@ protected:
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk, int32 TangentCodeChunk) override;
 	virtual uint8 StrataCompilationInfoGetSharedLocalBasesCount() override;
 	virtual int32 StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk) override;
+	virtual int32 StrataVerticalLayeringParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 TopCodeChunk) override;
 
 	FStrataSharedLocalBasesInfo StrataCompilationInfoGetMatchingSharedLocalBasisInfo(const FStrataRegisteredSharedLocalBasis& SearchedSharedLocalBasis);
 

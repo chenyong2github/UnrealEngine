@@ -20971,8 +20971,7 @@ int32 UMaterialExpressionStrataVerticalLayering::Compile(class FMaterialCompiler
 	const FStrataMaterialCompilationInfo& TopStrataData = Compiler->GetStrataCompilationInfo(TopCodeChunk);
 	const FStrataMaterialCompilationInfo& BaseStrataData = Compiler->GetStrataCompilationInfo(BaseCodeChunk);
 
-	// STRATA_TODO: use a weight accounting for weights and transmittance?
-	const int32 NormalMixCodeChunk = Compiler->Constant(0.5f);
+	const int32 TopNormalMixCodeChunk = Compiler->StrataVerticalLayeringParameterBlendingBSDFWeightToNormalMixCodeChunk(TopCodeChunk);
 
 	int32 OutputCodeChunk = INDEX_NONE;
 	if (bUseParameterBlending)
@@ -20998,12 +20997,12 @@ int32 UMaterialExpressionStrataVerticalLayering::Compile(class FMaterialCompiler
 		}
 
 		// Compute the new Normal and Tangent resulting from the blending using code chunk
-		const int32 NewNormalCodeChunk = StrataBlendNormal(Compiler, TopBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, BaseBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, NormalMixCodeChunk);
+		const int32 NewNormalCodeChunk = StrataBlendNormal(Compiler, BaseBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, TopBSDF.RegisteredSharedLocalBasis.NormalCodeChunk, TopNormalMixCodeChunk);
 		// The tangent is optional so we treat it differently if INDEX_NONE is specified
 		int32 NewTangentCodeChunk = INDEX_NONE;
 		if (TopBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE && BaseBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{
-			NewTangentCodeChunk = StrataBlendNormal(Compiler, TopBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, BaseBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, NormalMixCodeChunk);
+			NewTangentCodeChunk = StrataBlendNormal(Compiler, BaseBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, TopBSDF.RegisteredSharedLocalBasis.TangentCodeChunk, TopNormalMixCodeChunk);
 		}
 		else if (TopBSDF.RegisteredSharedLocalBasis.TangentCodeChunk != INDEX_NONE)
 		{

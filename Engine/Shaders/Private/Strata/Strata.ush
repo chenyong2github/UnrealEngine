@@ -1077,6 +1077,14 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	return Result;
 }
 
+float VerticalLayeringParameterBlendingBSDFWeightToNormalMix(FStrataData TopStrata)
+{
+	const float3 SafeTopBSDFWeight = saturate(TopStrata.Layers[0].BSDFs[0].Weight);
+	const float SafeGreyTopBSDFWeight = dot(SafeTopBSDFWeight, 1.0f / 3.0f);
+	const float TopNormalContributionForWeightOfOne = 0.5f;
+	return SafeGreyTopBSDFWeight * TopNormalContributionForWeightOfOne;
+}
+
 // ==> NOTE: Always pair with the compiler behavior in StrataCompilationInfoVerticalLayeringParamBlend
 FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData Base, uint NewNormalIndex, float NoV)
 {
@@ -1112,20 +1120,20 @@ FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData
 	const float GreyThroughput			= dot(ColorThroughput, 1.0f / 3.0f);
 	
 	// Add both layers thickness
-	BSDF_SETTHICKNESSCM(ResultBSDF,		BSDF_GETTHICKNESSCM(BaseBSDF)					+ BSDF_GETTHICKNESSCM(TopBSDF));
+	BSDF_SETTHICKNESSCM(ResultBSDF,		BSDF_GETTHICKNESSCM(BaseBSDF)					+ SafeTopBSDFWeight * BSDF_GETTHICKNESSCM(TopBSDF));
 
 	// Now add bottom layer component weights by throughput to the top layer.
 	// Those parameters will contribute to added luminance, in this case we add them together and saturate to not go out of the safe range
 	// Some parameters are not contributing to added luminance: in this case we simply lerp them
-	BSDF_SETEMISSIVE(ResultBSDF,		ColorThroughput * BSDF_GETEMISSIVE(BaseBSDF)	+ BSDF_GETEMISSIVE(TopBSDF));
+	BSDF_SETEMISSIVE(ResultBSDF,		ColorThroughput * BSDF_GETEMISSIVE(BaseBSDF)	+ SafeTopBSDFWeight * BSDF_GETEMISSIVE(TopBSDF));
 
 	// Strata TODO: we should also add the scattering light contribution from the top layer there.
-	SLAB_DIFFUSEALBEDO(ResultBSDF) =	saturate(ColorThroughput * SLAB_DIFFUSEALBEDO(BaseBSDF)+ SLAB_DIFFUSEALBEDO(TopBSDF));
-	SLAB_F0(ResultBSDF) =				saturate(ColorThroughput * SLAB_F0(BaseBSDF)	+ SLAB_F0(TopBSDF));
-	SLAB_F90(ResultBSDF) =				saturate(ColorThroughput * SLAB_F90(BaseBSDF)	+ SLAB_F90(TopBSDF));
+	SLAB_DIFFUSEALBEDO(ResultBSDF) =	saturate(ColorThroughput * SLAB_DIFFUSEALBEDO(BaseBSDF) + SafeTopBSDFWeight * SLAB_DIFFUSEALBEDO(TopBSDF));
+	SLAB_F0(ResultBSDF) =				saturate(ColorThroughput * SLAB_F0(BaseBSDF)	+ SafeTopBSDFWeight * SLAB_F0(TopBSDF));
+	SLAB_F90(ResultBSDF) =				saturate(ColorThroughput * SLAB_F90(BaseBSDF)	+ SafeTopBSDFWeight * SLAB_F90(TopBSDF));
 
-	SLAB_FUZZ_AMOUNT(ResultBSDF) =		saturate(GreyThroughput * SLAB_FUZZ_AMOUNT(BaseBSDF)+ SLAB_FUZZ_AMOUNT(TopBSDF));
-	SLAB_FUZZ_COLOR(ResultBSDF) =		saturate(ColorThroughput * SLAB_FUZZ_COLOR(BaseBSDF)+ SLAB_FUZZ_COLOR(TopBSDF));
+	SLAB_FUZZ_AMOUNT(ResultBSDF) =		saturate(GreyThroughput * SLAB_FUZZ_AMOUNT(BaseBSDF) + SafeTopBSDFWeight * SLAB_FUZZ_AMOUNT(TopBSDF));
+	SLAB_FUZZ_COLOR(ResultBSDF) =		saturate(ColorThroughput * SLAB_FUZZ_COLOR(BaseBSDF) + SafeTopBSDFWeight * SLAB_FUZZ_COLOR(TopBSDF));
 
 	// Simple blend for now. 
 	// STRATA_TODO find someting smarter?
@@ -1133,13 +1141,13 @@ FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData
 	SLAB_ROUGHNESSX(ResultBSDF) =		lerp(SLAB_ROUGHNESSX(TopBSDF),					SLAB_ROUGHNESSX(BaseBSDF),					GreyThroughput);
 	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(TopBSDF),					SLAB_HAZINESS(BaseBSDF),					GreyThroughput);
 
-	// No anisotropy 
+	// Anisotropy is disabled with vertical blending. 
 	SLAB_ROUGHNESSY(ResultBSDF) =		SLAB_ROUGHNESSX(ResultBSDF);
 
-	// Only keep thin film and for the top layer
+	// Only keep thin film and for the top layer.
 	SLAB_THINFILM_THICKNESS(ResultBSDF)=SLAB_THINFILM_THICKNESS(TopBSDF);
 
-	// Keep the DMFP form the bottom layer only (top layer simple volume is backed in parameters)
+	// Keep the DMFP form the bottom layer only (top layer simple volume is backed in parameters).
 	SLAB_SSSDMFP(ResultBSDF) =			SLAB_SSSDMFP(BaseBSDF);
 
 #if STRATA_INLINE_SHADING
