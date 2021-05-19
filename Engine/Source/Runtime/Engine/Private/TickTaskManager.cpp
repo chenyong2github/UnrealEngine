@@ -1060,13 +1060,12 @@ public:
 			CumulativeCooldown += TickFunction->InternalData->RelativeTickCooldown;
 			if (TickFunction->bTickEvenWhenPaused)
 			{
+				bool bExecuteTick = false;
 				TickFunction->InternalData->TaskPointer = nullptr; // this is stale, clear it out now
 				if (CumulativeCooldown < InContext.DeltaSeconds)
 				{
-					TickFunction->InternalData->TickVisitedGFrameCounter = GFrameCounter;
-					TickFunction->InternalData->TickQueuedGFrameCounter = GFrameCounter;
-					TickFunction->ExecuteTick(TickFunction->CalculateDeltaTime(InContext), InContext.TickType, ENamedThreads::GameThread, FGraphEventRef());
-
+					// Do any rescheduling before the ticking as users can call methods inside the tick that can affect the current tick function state and we end up into a inconsistent state.
+					bExecuteTick = true;
 					RescheduleForInterval(TickFunction, TickFunction->TickInterval - (InContext.DeltaSeconds - CumulativeCooldown)); // Give credit for any overrun
 				}
 				else
@@ -1086,6 +1085,13 @@ public:
 				{
 					TickFunction->InternalData->Next->InternalData->RelativeTickCooldown += TickFunction->InternalData->RelativeTickCooldown;
 					CumulativeCooldown -= TickFunction->InternalData->RelativeTickCooldown; // Since the next object in the list will have this cooldown included take it back out of the cumulative
+				}
+
+				if (bExecuteTick)
+				{
+					TickFunction->InternalData->TickVisitedGFrameCounter = GFrameCounter;
+					TickFunction->InternalData->TickQueuedGFrameCounter = GFrameCounter;
+					TickFunction->ExecuteTick(TickFunction->CalculateDeltaTime(InContext), InContext.TickType, ENamedThreads::GameThread, FGraphEventRef());
 				}
 			}
 			else
