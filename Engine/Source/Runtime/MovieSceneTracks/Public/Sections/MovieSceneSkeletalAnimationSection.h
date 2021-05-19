@@ -11,6 +11,7 @@
 
 struct FMovieSceneSkeletalAnimRootMotionTrackParams;
 struct FAnimationPoseData;
+class UMirrorDataTable;
 
 USTRUCT(BlueprintType)
 struct FMovieSceneSkeletalAnimationParams
@@ -52,6 +53,9 @@ struct FMovieSceneSkeletalAnimationParams
 	/** The slot name to use for the animation */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Animation" )
 	FName SlotName;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Animation")
+	TObjectPtr<class UMirrorDataTable> MirrorDataTable;
 
 	/** The weight curve for this animation section */
 	UPROPERTY()

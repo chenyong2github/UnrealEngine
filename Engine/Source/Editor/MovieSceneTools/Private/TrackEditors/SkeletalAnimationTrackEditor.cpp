@@ -29,6 +29,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/PoseAsset.h"
+#include "Animation/MirrorDataTable.h"
 #include "EditorStyleSet.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "MovieSceneTimeHelpers.h"
@@ -410,6 +411,7 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override
 	{
 		const FName AnimationPropertyName = GET_MEMBER_NAME_CHECKED(FMovieSceneSkeletalAnimationParams, Animation);
+		const FName MirrorDataTableName = GET_MEMBER_NAME_CHECKED(FMovieSceneSkeletalAnimationParams, MirrorDataTable);
 
 		uint32 NumChildren;
 		PropertyHandle->GetNumChildren(NumChildren);
@@ -417,10 +419,10 @@ public:
 		{
 			TSharedPtr<IPropertyHandle> ChildPropertyHandle = PropertyHandle->GetChildHandle(i);
 			IDetailPropertyRow& ChildPropertyRow = ChildBuilder.AddProperty(ChildPropertyHandle.ToSharedRef());
-
-			// Let most properties be whatever they want to be... we just want to customize the `Animation` property
+			FName ChildPropertyName = ChildPropertyHandle->GetProperty()->GetFName();
+			// Let most properties be whatever they want to be... we just want to customize the `Animation` and `MirrorDataTable` properties
 			// by making it look like a normal asset reference property, but with some custom filtering.
-			if (ChildPropertyHandle->GetProperty()->GetFName() == AnimationPropertyName)
+			if (ChildPropertyName == AnimationPropertyName || ChildPropertyName == MirrorDataTableName)
 			{
 				FDetailWidgetRow& Row = ChildPropertyRow.CustomWidget();
 
@@ -432,10 +434,11 @@ public:
 					SkeletonName = FAssetData(Skeleton).GetExportTextName();
 
 					TSharedPtr<IPropertyUtilities> PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
+					UClass* AllowedStaticClass = ChildPropertyName == AnimationPropertyName ? UAnimSequenceBase::StaticClass() : UMirrorDataTable::StaticClass(); 
 
 					TSharedRef<SObjectPropertyEntryBox> ContentWidget = SNew(SObjectPropertyEntryBox)
 						.PropertyHandle(ChildPropertyHandle)
-						.AllowedClass(UAnimSequenceBase::StaticClass())
+						.AllowedClass(AllowedStaticClass)
 						.DisplayThumbnail(true)
 						.ThumbnailPool(PropertyUtilities.IsValid() ? PropertyUtilities->GetThumbnailPool() : nullptr)
 						.OnShouldFilterAsset(FOnShouldFilterAsset::CreateRaw(this, &FMovieSceneSkeletalAnimationParamsDetailCustomization::ShouldFilterAsset));
@@ -505,7 +508,14 @@ FText FSkeletalAnimationSection::GetSectionTitle() const
 {
 	if (Section.Params.Animation != nullptr)
 	{
-		return FText::FromString( Section.Params.Animation->GetName() );
+		if (Section.Params.MirrorDataTable.IsNull())
+		{
+			return FText::FromString( Section.Params.Animation->GetName() );
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("SectionTitleContentFormat", "{0} mirrored with {1}"), FText::FromString(Section.Params.Animation->GetName()), FText::FromString(Section.Params.MirrorDataTable->GetName()));
+		}
 	}
 	return LOCTEXT("NoAnimationSection", "No Animation");
 }

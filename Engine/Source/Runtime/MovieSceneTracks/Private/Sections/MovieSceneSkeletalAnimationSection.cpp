@@ -24,6 +24,7 @@ namespace
 FMovieSceneSkeletalAnimationParams::FMovieSceneSkeletalAnimationParams()
 {
 	Animation = nullptr;
+	MirrorDataTable = nullptr; 
 	StartOffset_DEPRECATED = SkeletalDeprecatedMagicNumber;
 	EndOffset_DEPRECATED = SkeletalDeprecatedMagicNumber;
 	PlayRate = 1.f;
