@@ -1315,14 +1315,16 @@ struct FAITest_BTServiceInstantTask : public FAITest_SimpleBT
 		{
 			FBTBuilder::AddTask(CompNode, 0, EBTNodeResult::Succeeded);
 			{
-				FBTBuilder::WithTaskServiceLog(CompNode, 1, 2);
+				FBTBuilder::WithTaskServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 4/*TickIndex*/);
 			}
 
 			FBTBuilder::AddTask(CompNode, 3, EBTNodeResult::Succeeded);
 		}
 
 		ExpectedResult.Add(1);
+		ExpectedResult.Add(4);
 		ExpectedResult.Add(0);
+		ExpectedResult.Add(4); // Extra service tick because aux nodes are always ticked before any pending requests are processed
 		ExpectedResult.Add(2);
 		ExpectedResult.Add(3);
 	}
@@ -1337,14 +1339,18 @@ struct FAITest_BTServiceLatentTask : public FAITest_SimpleBT
 		{
 			FBTBuilder::AddTask(CompNode, 0, EBTNodeResult::Succeeded, 2);
 			{
-				FBTBuilder::WithTaskServiceLog(CompNode, 1, 2);
+				FBTBuilder::WithTaskServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 4/*TickIndex*/);
 			}
 
 			FBTBuilder::AddTask(CompNode, 3, EBTNodeResult::Succeeded);
 		}
 
 		ExpectedResult.Add(1);
+		ExpectedResult.Add(4);
 		ExpectedResult.Add(0);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(4);// Extra service tick because aux nodes are always ticked before any pending requests are processed
 		ExpectedResult.Add(2);
 		ExpectedResult.Add(3);
 	}
@@ -1364,14 +1370,17 @@ struct FAITest_BTServiceAbortingTask : public FAITest_SimpleBT
 
 			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, 1, TEXT("Bool1"), 1, 2, 0, NAME_None, 3, 4);
 			{
-				FBTBuilder::WithTaskServiceLog(CompNode, 5, 6);
+				FBTBuilder::WithTaskServiceLog(CompNode, 5/*ActivationIndex*/, 6/*DeactivationIndex*/, 8/*TickIndex*/);
 			}
 
 			FBTBuilder::AddTask(CompNode, 7, EBTNodeResult::Succeeded);
 		}
 
 		ExpectedResult.Add(5);
+		ExpectedResult.Add(8);
 		ExpectedResult.Add(1);
+		ExpectedResult.Add(8);
+		ExpectedResult.Add(8); // Extra service tick because aux nodes are always ticked before any pending requests are processed
 		ExpectedResult.Add(3);
 		ExpectedResult.Add(4);
 		ExpectedResult.Add(6);
