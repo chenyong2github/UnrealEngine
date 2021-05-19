@@ -100,6 +100,11 @@ public:
 	 */
 	void EnableGlobalPreAnimatedStateCapture(UMovieSceneEntitySystemLinker* Linker);
 
+	/**
+	 * Check whether this sequence instance is capturing any and all changes of state so they can be restored later
+	 */
+	bool IsCapturingGlobalPreAnimatedState() const;
+
 public:
 
 	/**

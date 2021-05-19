@@ -115,6 +115,20 @@ void FPreAnimatedEntityCaptureSource::GatherAndRemoveMetaDataForGroup(FPreAnimat
 	}
 }
 
+bool FPreAnimatedEntityCaptureSource::ContainsInstanceHandle(FInstanceHandle RootInstanceHandle) const
+{
+	for (const TPair<FMovieSceneEntityID, FPreAnimatedStateMetaDataArray>& Pair : KeyToMetaData)
+	{
+		for (const FPreAnimatedStateMetaData& MetaData : Pair.Value)
+		{
+			if (MetaData.RootInstanceHandle == RootInstanceHandle)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
 
 } // namespace MovieScene
 } // namespace UE

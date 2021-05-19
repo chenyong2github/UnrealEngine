@@ -24,6 +24,7 @@ IMovieScenePlayer* FRestoreStateParams::GetTerminalPlayer() const
 		return Linker->GetInstanceRegistry()->GetInstance(TerminalInstanceHandle).GetPlayer();
 	}
 
+	ensureAlways(false);
 	return nullptr;
 }
 
@@ -66,6 +67,15 @@ FMovieScenePreAnimatedState::~FMovieScenePreAnimatedState()
 
 void FMovieScenePreAnimatedState::Initialize(UMovieSceneEntitySystemLinker* Linker, UE::MovieScene::FInstanceHandle InInstanceHandle)
 {
+	using namespace UE::MovieScene;
+
+	WeakExtension = nullptr;
+	EntityExtensionRef = nullptr;
+	WeakObjectStorage = nullptr;
+	WeakMasterStorage = nullptr;
+	TemplateMetaData = nullptr;
+	EvaluationHookMetaData = nullptr;
+
 	WeakLinker = Linker;
 	InstanceHandle = InInstanceHandle;
 }
@@ -427,4 +437,12 @@ void FMovieScenePreAnimatedState::OnObjectsReplaced(const TMap<UObject*, UObject
 	{
 		ObjectGroupManager->OnObjectsReplaced(ReplacementMap);
 	}
+}
+
+bool FMovieScenePreAnimatedState::ContainsAnyStateForSequence() const
+{
+	using namespace UE::MovieScene;
+
+	TSharedPtr<FPreAnimatedStateExtension> Extension = WeakExtension.Pin();
+	return Extension && InstanceHandle.IsValid() && Extension->ContainsAnyStateForInstanceHandle(InstanceHandle);
 }
