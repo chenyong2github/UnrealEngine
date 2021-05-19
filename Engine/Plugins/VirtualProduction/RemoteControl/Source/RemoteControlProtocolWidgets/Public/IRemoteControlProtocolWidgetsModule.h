@@ -1,9 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "Templates/SharedPointer.h"
+#include "Modules/ModuleManager.h"
 #include "RemoteControlField.h"
 
 class SWidget;
