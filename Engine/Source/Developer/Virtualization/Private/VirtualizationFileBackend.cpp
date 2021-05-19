@@ -60,14 +60,14 @@ private:
 		return true;
 	}
 
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PushData);
 
 		if (DoesExist(Id))
 		{
 			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugString(), *Id.ToString());
-			return true;
+			return EPushResult::PayloadAlreadyExisted;
 		}
 
 		TStringBuilder<512> FilePath;
@@ -79,7 +79,7 @@ private:
 			if (FileAr == nullptr)
 			{
 				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to push payload '%s' to '%s'"), *GetDebugString(), *Id.ToString(), FilePath.ToString());
-				return false;
+				return EPushResult::Failed;
 			}
 
 			for (const FSharedBuffer& Buffer : Payload.GetCompressed().GetSegments())
@@ -89,7 +89,7 @@ private:
 			}
 		}
 
-		return true;
+		return EPushResult::Success;
 	}
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override

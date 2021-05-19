@@ -1397,7 +1397,7 @@ private:
 		return true; 
 	}
 
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload) override
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload) override
 	{
 		using namespace Utility;
 
@@ -1407,7 +1407,7 @@ private:
 		if (DoesPayloadExist(Id))
 		{
 			UE_LOG(LogVirtualization, Verbose, TEXT("Jupiter already has a copy of the payload '%s'"), *Id.ToString());
-			return true;
+			return EPushResult::PayloadAlreadyExisted;
 		}
 #endif // UE_CHECK_FOR_EXISTING_PAYLOADS
 
@@ -1423,7 +1423,7 @@ private:
 		if (NumChunks > MAX_int32)
 		{
 			UE_LOG(LogVirtualization, Error, TEXT("Too many chunks (%d) are required for the payload '%s', try increasing the ChunkSize"), NumChunks, *Id.ToString());
-			return false;
+			return EPushResult::Failed;
 		}
 
 		PUTRequest.ChunkHashes.SetNum((int32)NumChunks);
@@ -1473,7 +1473,7 @@ private:
 		if (NumFailedChunks > 0)
 		{
 			UE_LOG(LogVirtualization, Error, TEXT("Failed to upload %d chunks for the payload '%s'."), NumFailedChunks.load(), *Id.ToString());
-			return false;
+			return EPushResult::Failed;
 		}
 
 		UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded all chunks for the payload '%s'"), *Id.ToString());	
@@ -1500,19 +1500,19 @@ private:
 				if (ResponseCode == 200)
 				{
 					UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded the description for the payload '%s'"), *Id.ToString());	
-					return true;
+					return EPushResult::Success;
 				}
 
 				if (!ShouldRetryOnError(ResponseCode))
 				{
 					UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to upload header infomation about payload '%s'"), ResponseCode, *Id.ToString());
-					return false;
+					return EPushResult::Failed;
 				}
 			}
 		}
 
 		UE_LOG(LogVirtualization, Error, TEXT("Failed  '%d' attempts to upload header infomation about payload '%s'"), UE_MIRAGE_MAX_ATTEMPTS, *Id.ToString());
-		return false;
+		return EPushResult::Failed;
 	}
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override

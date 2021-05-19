@@ -185,16 +185,19 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 	bool bWasPayloadPushed = false;
 	for (IVirtualizationBackend* Backend : PushEnabledBackendsArray)
 	{
-		const bool bDidPushPayload = Backend->PushData(Id, Payload);
-		
-		UE_CLOG(bDidPushPayload, LogVirtualization, Verbose, TEXT("[%s] Pushed the payload '%s'"), *Backend->GetDebugString(), *Id.ToString());
-		UE_CLOG(!bDidPushPayload, LogVirtualization, Error, TEXT("[%s] Failed to push the payload '%s'"), *Backend->GetDebugString(), *Id.ToString());
+		const EPushResult Result = Backend->PushData(Id, Payload);
 
-		bWasPayloadPushed |= bDidPushPayload;
+		UE_CLOG(Result != EPushResult::Failed, LogVirtualization, Verbose, TEXT("[%s] Pushed the payload '%s'"), *Backend->GetDebugString(), *Id.ToString());
+		UE_CLOG(Result == EPushResult::Failed, LogVirtualization, Error, TEXT("[%s] Failed to push the payload '%s'"), *Backend->GetDebugString(), *Id.ToString());
+
+		if (Result != EPushResult::Failed)
+		{
+			bWasPayloadPushed = true;
+		}
 		
 		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
 		// that the pulled payload is the same as the original
-		if (bValidateAfterPushOperation && bDidPushPayload && Backend->SupportsPullOperations())
+		if (bValidateAfterPushOperation && Result != EPushResult::Failed && Backend->SupportsPullOperations())
 		{
 			FCompressedBuffer PulledPayload = Backend->PullData(Id);
 			checkf(Payload.GetRawHash() == PulledPayload.GetRawHash(), TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"), 
