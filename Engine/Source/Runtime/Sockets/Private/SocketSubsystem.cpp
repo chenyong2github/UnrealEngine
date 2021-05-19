@@ -94,12 +94,12 @@ static bool GetLocalHostAddrViaConnect(TSharedRef<FInternetAddr>& IO)
 
 	if ( connect(Socket, (struct sockaddr*)&Addr, sizeof(Addr)) != 0 )
 	{
-		close(Socket);
+		closesocket(Socket);
 		return false;
 	}
 	if ( getsockname(Socket, (struct sockaddr*)&Addr, &AddrSize) != 0 )
 	{
-		close(Socket);
+		closesocket(Socket);
 		return false;
 	}
 	
@@ -110,7 +110,7 @@ static bool GetLocalHostAddrViaConnect(TSharedRef<FInternetAddr>& IO)
 
 	UE_LOG(LogSockets, VeryVerbose, TEXT("GetLocalHostAddrViaConnect: %s"), *IO->ToString(true));
 	
-	close(Socket);
+	closesocket(Socket);
 	
 	return true;
 }
