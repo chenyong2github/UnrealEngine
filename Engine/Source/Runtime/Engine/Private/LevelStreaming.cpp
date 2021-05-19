@@ -1284,6 +1284,9 @@ void ULevelStreaming::AsyncLevelLoadComplete(const FName& InPackageName, UPackag
 						Level->bClientOnlyVisible = LODPackageNames.Contains(InLoadedPackage->GetFName());
 					}
 				}
+
+				// Apply streaming level property to level
+				Level->bClientOnlyVisible |= bClientOnlyVisible;
 			
 				// In the editor levels must be in the levels array regardless of whether they are visible or not
 				if (ensure(LevelOwningWorld) && LevelOwningWorld->WorldType == EWorldType::Editor)

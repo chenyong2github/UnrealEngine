@@ -112,6 +112,9 @@ struct FSpatialHashStreamingGrid
 	UPROPERTY()
 	FBox WorldBounds;
 
+	UPROPERTY()
+	bool bClientOnlyVisible;
+
 	float OverrideLoadingRange;
 
 	float GetLoadingRange() const
@@ -153,6 +156,7 @@ struct FSpatialHashRuntimeGrid
 		, LoadingRange(1000)
 		, Priority(0)
 		, DebugColor(FLinearColor::MakeRandomColor())
+		, bClientOnlyVisible(false)
 #endif
 	{}
 
@@ -171,6 +175,9 @@ struct FSpatialHashRuntimeGrid
 
 	UPROPERTY(EditAnywhere, Category=Settings, meta = (IgnoreForMemberInitializationTest))
 	FLinearColor DebugColor;
+
+	UPROPERTY()
+	bool bClientOnlyVisible;
 #endif
 };
 
@@ -224,6 +231,7 @@ public:
 	static FString GetCellCoordString(const FIntVector& InCellGlobalCoord);
 
 protected:
+	bool ShouldConsiderClientOnlyVisibleCells() const;
 
 #if WITH_EDITOR
 	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate = nullptr) override;

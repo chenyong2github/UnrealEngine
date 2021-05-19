@@ -20,6 +20,7 @@
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "WorldPartition/HLOD/HLODActor.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "World"
@@ -88,6 +89,9 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 	// Create streaming cell Level package
 	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(PlayWorld, GetWorldAsset().ToString());
 	check(RuntimeLevel);
+
+	// Set flag here as this level isn't async loaded
+	RuntimeLevel->bClientOnlyVisible = bClientOnlyVisible;
 
 	// Attach ourself to Level cleanup to do our own cleanup
 	OnCleanupLevelDelegateHandle = RuntimeLevel->OnCleanupLevel.AddUObject(this, &UWorldPartitionLevelStreamingDynamic::OnCleanupLevel);
