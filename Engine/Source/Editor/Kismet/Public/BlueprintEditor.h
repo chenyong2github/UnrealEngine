@@ -458,7 +458,7 @@ public:
 	/** Called when a token in a log message is clicked */
 	void LogToken_OnClicked(const class IMessageToken& Token);
 
-	void FocusInspectorOnGraphSelection(const TSet<class UObject*>& NewSelection, bool bForceRefresh = false);
+	virtual void FocusInspectorOnGraphSelection(const TSet<class UObject*>& NewSelection, bool bForceRefresh = false);
 
 	/** Variable list window calls this after it is updated */
 	void VariableListWasUpdated();
