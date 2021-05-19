@@ -8990,6 +8990,11 @@ int32 FHLSLMaterialTranslator::StrataAddParameterBlendingBSDFWeightToNormalMixCo
 	return AddCodeChunk(MCT_Float, TEXT("AddParameterBlendingBSDFWeightToNormalMix(%s, %s)"), *GetParameterCode(ACodeChunk), *GetParameterCode(BCodeChunk));
 }
 
+int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 TopCodeChunk)
+{
+	return AddCodeChunk(MCT_Float, TEXT("VerticalLayeringParameterBlendingBSDFWeightToNormalMix(%s)"), *GetParameterCode(TopCodeChunk));
+}
+
 int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()
 {
 	int32 OutputCodeChunk = AddInlinedCodeChunk(MCT_Strata, TEXT("GetInitialisedStrataData()"));
