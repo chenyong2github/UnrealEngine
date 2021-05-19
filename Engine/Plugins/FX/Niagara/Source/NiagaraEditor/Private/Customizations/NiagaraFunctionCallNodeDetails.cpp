@@ -132,6 +132,7 @@ void FNiagaraFunctionCallNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 						CopyMetadataFromCalledGraph(SwitchInput);
 					}
 					Node->RefreshFromExternalChanges();
+					Node->GetGraph()->NotifyGraphChanged();
 				})
 			]
 			+ SVerticalBox::Slot()
