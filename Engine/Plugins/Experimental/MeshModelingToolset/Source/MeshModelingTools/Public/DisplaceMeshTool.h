@@ -102,6 +102,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	UTexture2D* DisplacementMap = nullptr;
 
+	//~ TODO: Consider making this an enum
+	/** Channel in the displacement map to use. 0-3 coresponding to the four channels (RGBA) */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (ClampMin = "0", ClampMax = "3"))
+	int32 Channel = 0;
+
 	/** The value in the texture map that corresponds to no displacement. For instance, if set to 0, then all
 	 displacement will be positive. If set to 0.5, displacement below 0.5 will be negative, and above will be
 	 positive. Default is for 128/255 to be no displacement. */
