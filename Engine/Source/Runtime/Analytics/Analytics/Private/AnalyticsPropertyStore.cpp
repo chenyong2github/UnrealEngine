@@ -8,6 +8,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/SecureHash.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ScopeExit.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
 namespace AnalyticsPropertyStoreUtils
