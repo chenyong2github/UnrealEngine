@@ -3,7 +3,6 @@
 #include "ActorSnapshotData.h"
 
 #include "ApplySnapshotDataArchiveV2.h"
-#include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsLog.h"
 #include "PropertySelectionMap.h"
 #include "TakeWorldObjectSnapshotArchive.h"

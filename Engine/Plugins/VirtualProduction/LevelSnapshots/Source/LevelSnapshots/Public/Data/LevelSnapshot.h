@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ActorSnapshot.h"
 #include "WorldSnapshotData.h"
 #include "LevelSnapshot.generated.h"
 
@@ -75,16 +74,6 @@ private:
 
 	void EnsureWorldInitialised();
 	void DestroyWorld();
-	
-	/****************************** Start legacy members ******************************/
-
-	void LegacyApplySnapshotToWorld(const FPropertySelectionMap& SelectionSet);
-	
-	// Map of Actor Snapshots mapping from the object path to the actual snapshot
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot|Deprecated")
-	TMap<FSoftObjectPath, FLevelSnapshot_Actor> ActorSnapshots;
-
-	/****************************** End legacy members ******************************/
 
 	
 	/* The world we will be adding temporary actors to */
