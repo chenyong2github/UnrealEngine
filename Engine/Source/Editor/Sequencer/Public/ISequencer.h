@@ -331,6 +331,9 @@ public:
 		return GetAllowEditsMode() != EAllowEditsMode::AllowLevelEditsOnly || GetAutoChangeMode() != EAutoChangeMode::None;
 	}
 
+	/** Returns the Toolkit hosting the sequencer instance, if any */	
+	virtual TSharedPtr<IToolkitHost> GetToolkitHost() const = 0;
+
 	/**
 	 * Gets the current time of the time slider relative to the currently focused movie scene
 	 */
