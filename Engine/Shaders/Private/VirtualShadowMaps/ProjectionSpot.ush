@@ -23,6 +23,10 @@ struct FSMRTSingleRayState
 	int VirtualShadowMapId;
 	float3 RayStartUVz;	
 	float3 RayStepUVz;
+	// Debug output
+	int MipLevel;
+	uint2 VirtualTexelAddress;
+	uint2 PhysicalTexelAddress;
 };
 
 FSMRTSingleRayState SMRTSingleRayInitialize(
@@ -48,6 +52,9 @@ FSMRTSingleRayState SMRTSingleRayInitialize(
 	Result.VirtualShadowMapId = VirtualShadowMapId;
 	Result.RayStartUVz = RayStartUVz.xyz;
 	Result.RayStepUVz = RayStepUVz.xyz;
+	Result.MipLevel = 0;
+	Result.VirtualTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
+	Result.PhysicalTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	return Result;
 }
 
@@ -66,6 +73,10 @@ FSMRTSample SMRTFindSample(inout FSMRTSingleRayState RayState, float SampleTime)
 			Sample.SampleDepth = SmSample.Depth;
 			Sample.ReferenceDepth = UVz.z;
 			Sample.CompareToleranceScale = RayState.RayStepUVz.z;
+			// Debug output
+			RayState.MipLevel = SmSample.MipLevel;
+			RayState.PhysicalTexelAddress = SmSample.PhysicalTexelAddress;
+			RayState.VirtualTexelAddress = SmSample.VirtualTexelAddress;
 		}
 	}
 
@@ -144,10 +155,12 @@ FSMRTResult ShadowRayCastSpotLight(
 	float3 RayStart,
 	float3 RayEnd,
 	int NumSteps,
-	half StepOffset)
+	half StepOffset,
+	// To get debug data out
+	inout FSMRTSingleRayState OutRayState)
 {
-	FSMRTSingleRayState RayState = SMRTSingleRayInitialize(VirtualShadowMapId, RayStart, RayEnd);
-	return SMRTRayCast(RayState, NumSteps, StepOffset);
+	OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId, RayStart, RayEnd);
+	return SMRTRayCast(OutRayState, NumSteps, StepOffset);
 }
 
 FSMRTResult ShadowRayCastPointLight(
@@ -155,7 +168,9 @@ FSMRTResult ShadowRayCastPointLight(
 	float3 RayStart,
 	float3 RayEnd,
 	int NumSteps,
-	half StepOffset)
+	half StepOffset,
+	// To get debug data out
+	inout FSMRTSingleRayState OutRayState)
 {
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
@@ -170,12 +185,21 @@ FSMRTResult ShadowRayCastPointLight(
 			VirtualShadowMapId + RayEndFace,
 			RayStart, RayEnd);
 		Result = SMRTRayCast(RayState, NumSteps, StepOffset);
+
+		if (RayState.bSampleInFace0)
+		{
+			OutRayState = RayState.Face0;
+		}
+		else
+		{
+			OutRayState = RayState.Face1;
+		}
 	}
 	else
 	{
 		// Fast path: ray stays on a single cube map face (effectively a spot light)
-		FSMRTSingleRayState RayState = SMRTSingleRayInitialize(VirtualShadowMapId + RayEndFace, RayStart, RayEnd);
-		Result = SMRTRayCast(RayState, NumSteps, StepOffset);
+		OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId + RayEndFace, RayStart, RayEnd);
+		Result = SMRTRayCast(OutRayState, NumSteps, StepOffset);
 	}
 
 	return Result;
@@ -209,7 +233,7 @@ float4 SobolSampler(uint SampleIndex, inout uint Seed, uint MaxBits)
 
 
 
-float TraceLocalLight(
+FVirtualShadowMapSampleResult TraceLocalLight(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
 	uint LightType,
@@ -217,7 +241,7 @@ float TraceLocalLight(
 	const float SceneDepth,
 	float3 TranslatedWorldPosition,
 	float RayStartOffset,
-	uint RayCount,
+	uint MaxRayCount,
 	uint SamplesPerRay,
 	float CotMaxRayAngleFromLight,
 	const half Noise,
@@ -237,10 +261,14 @@ float TraceLocalLight(
 
 	half SinAlphaSqr = saturate(Pow2(Light.SourceRadius) * Falloff);
 	half SinAlpha = sqrt(SinAlphaSqr);
-	bool bBackFace = bCullBackface ? dot( N, ConeAxis ) < -SinAlpha : false;
+	bool bBackFace = dot( N, ConeAxis ) < -SinAlpha;
+
+	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
+	Result.bValid = true;
+	Result.ShadowFactor = 0.0f;
 
 	half RayMissFactor = 0;
-	if (!bBackFace)
+	if (!bBackFace || !bCullBackface)
 	{
 		float StepOffset = Noise;
 
@@ -250,16 +278,16 @@ float TraceLocalLight(
 		uint TileID = MortonEncode( PixelPos );
 
 		uint i = 0;
-		for( ; i < RayCount; i++ )
+		for( ; i < MaxRayCount; i++ )
 		{
 			RandomSequence RandSequence;
 #if 0
-			RandomSequence_Initialize( RandSequence, PixelPos, i, View.StateFrameIndex, RayCount );
+			RandomSequence_Initialize( RandSequence, PixelPos, i, View.StateFrameIndex, MaxRayCount );
 
 			float4 RandSample = RandomSequence_GenerateSample4D( RandSequence );
 #else
 			// Combine pixel-level and sample-level bits into the sample index (visible structure will be hidden by owen scrambling of the index)
-			RandSequence.SampleIndex = reversebits((65536 * View.StateFrameIndex + TileID) * RayCount + i);
+			RandSequence.SampleIndex = reversebits((65536 * View.StateFrameIndex + TileID) * MaxRayCount + i);
 			RandSequence.SampleSeed = 0; // always use the same sequence
 
 			float4 RandSample = SobolSampler( RandSequence.SampleIndex, RandSequence.SampleSeed, 8 );
@@ -286,42 +314,51 @@ float TraceLocalLight(
 			float3 RayStart = WorldPosition + Dir * RayStartOffset;
 			float3 RayEnd = WorldPosition + Dir * ClampedLength;
 
-			FSMRTResult Result;
+			FSMRTResult SMRTResult;
+			FSMRTSingleRayState RayState;	// For debug output
 			if ( LightType == LIGHT_TYPE_SPOT )
 			{
-				Result = ShadowRayCastSpotLight(
+				SMRTResult = ShadowRayCastSpotLight(
 					VirtualShadowMapId,
 					RayStart,
 					RayEnd,
 					SamplesPerRay,
-					StepOffset);
+					StepOffset,
+					RayState);
 			}
 			else
 			{
-				Result = ShadowRayCastPointLight(
+				SMRTResult = ShadowRayCastPointLight(
 					VirtualShadowMapId,
 					RayStart,
 					RayEnd,
 					SamplesPerRay,
-					StepOffset);
+					StepOffset,
+					RayState);
 			}
 
-			RayMissFactor += Result.bValidHit ? 0 : 1;
+			RayMissFactor += SMRTResult.bValidHit ? 0 : 1;
 			
+			// Debug output (DCE'd if not used)
+			Result.ClipmapIndexOrMipLevel = RayState.MipLevel;
+			Result.VirtualTexelAddress = RayState.VirtualTexelAddress;
+			Result.PhysicalTexelAddress = RayState.PhysicalTexelAddress;
+			Result.OccluderDistance = SMRTResult.OccluderDistance;
+
 #if SMRT_ADAPTIVE_RAY_COUNT && COMPILER_SUPPORTS_WAVE_VOTE
 			if( i == 0 )
 			{
-				bool bHit = Result.bValidHit;
+				bool bHit = SMRTResult.bValidHit;
 				if( bHit )
 				{
 				#if 0
-					//float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, Result.OccluderDistance );
+					//float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, SMRTResult.OccluderDistance );
 					//float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
-					float WorldBluringRadius = Light.SourceRadius * Result.OccluderDistance / max( DistToLight - Result.OccluderDistance, 0.001 );
+					float WorldBluringRadius = Light.SourceRadius * SMRTResult.OccluderDistance / max( DistToLight - SMRTResult.OccluderDistance, 0.001 );
 					float PixelBluringRadius = WorldBluringRadius * View.ViewSizeAndInvSize.x * 0.5 / ( SceneDepth * View.ClipToView[0][0] );
 					bHit = PixelBluringRadius > 2;
 				#else
-					bHit = Result.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
+					bHit = SMRTResult.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
 				#endif
 				}
 
@@ -345,11 +382,14 @@ float TraceLocalLight(
 			uint Seed = asuint( StepOffset );
 			StepOffset = ( EvolveSobolSeed( Seed ) >> 8 ) * 5.96046447754e-08; // * 2^-24;
 		}
-		uint SampleCount = min(i + 1, RayCount);		// break vs regular for loop exit
-		RayMissFactor /= float(SampleCount);
+		uint RayCount = min(i + 1, MaxRayCount);		// break vs regular for loop exit
+		RayMissFactor /= float(RayCount);
+
+		Result.ShadowFactor = RayMissFactor;
+		Result.RayCount = RayCount;
 	}
 
-	return RayMissFactor;
+	return Result;
 }
 
 // Generate ray based on light source geometry

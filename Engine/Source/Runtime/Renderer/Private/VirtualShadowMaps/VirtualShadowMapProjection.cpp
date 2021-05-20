@@ -40,13 +40,6 @@ static TAutoConsoleVariable<float> CVarNormalBias(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
-	TEXT( "r.Shadow.Virtual.DebugProjection" ),
-	0,
-	TEXT( "Projection pass debug output visualization for use with 'vis Shadow.Virtual.DebugProjection'." ),
-	ECVF_RenderThreadSafe
-);
-
 TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection(
 	TEXT("r.Shadow.Virtual.OnePassProjection"),
 	0,
@@ -172,13 +165,15 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	class FTwoPhysicalTexturesDim	: SHADER_PERMUTATION_BOOL("TWO_PHYSICAL_TEXTURES");
 	class FOnePassProjectionDim		: SHADER_PERMUTATION_BOOL("ONE_PASS_PROJECTION");
 	class FHairStrandsDim			: SHADER_PERMUTATION_BOOL("HAS_HAIR_STRANDS");
+	class FDebugOutputDim			: SHADER_PERMUTATION_BOOL("DEBUG_OUTPUT");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FDirectionalLightDim,
 		FOnePassProjectionDim,
 		FSMRTAdaptiveRayCountDim,
 		FTwoPhysicalTexturesDim,
-		FHairStrandsDim>;
+		FHairStrandsDim,
+		FDebugOutputDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
@@ -193,16 +188,20 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, SMRTSamplesPerRay)
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
 		SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
-		SHADER_PARAMETER(int32, DebugOutputType)
 		SHADER_PARAMETER(uint32, InputType)
 		// One pass projection parameters
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)	// TODO: Move to VSM UB?
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)	// TODO: Move to VSM UB? Per-view though
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D< uint >, RWShadowMaskBits)
 		// Pass per light parameters
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 		SHADER_PARAMETER(int32, LightUniformVirtualShadowMapId)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWShadowFactor)
+		// Debug output
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPhysicalPageMetaData >, PhysicalPageMetaData)
+		SHADER_PARAMETER(int32, DebugOutputType)
+		SHADER_PARAMETER(int32, DebugVirtualShadowMapId)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWDebug)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -259,13 +258,13 @@ static void RenderVirtualShadowMapProjectionCommon(
 {
 	// Use hair strands data (i.e., hair voxel tracing) only for Gbuffer input for casting hair shadow onto opaque geometry.
 	const bool bHasHairStrandsData = HairStrands::HasViewHairStrandsData(View);
+	const bool bAdaptiveRayCount = GRHISupportsWaveOperations && CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0;
 
 	FVirtualShadowMapProjectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FVirtualShadowMapProjectionCS::FParameters >();
 	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->ProjectionRect = FIntVector4(ProjectionRect.Min.X, ProjectionRect.Min.Y, ProjectionRect.Max.X, ProjectionRect.Max.Y);
-	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
 	PassParameters->NormalBias = GetNormalBiasForShader();
 	PassParameters->InputType = uint32(InputType);
@@ -310,14 +309,26 @@ static void RenderVirtualShadowMapProjectionCommon(
 		PassParameters->SMRTCotMaxRayAngleFromLight = 1.0f / FMath::Tan(CVarSMRTMaxRayAngleFromLight.GetValueOnRenderThread());
 	}
 	
-	bool bAdaptiveRayCount = GRHISupportsWaveOperations && CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0;
+	bool bDebugOutput = false;
+#if !UE_BUILD_SHIPPING
+	if ( VirtualShadowMapArray.DebugVisualizationProjectionOutput && InputType == EVirtualShadowMapProjectionInputType::GBuffer )
+	{
+		bDebugOutput = true;
+		PassParameters->DebugOutputType = VirtualShadowMapArray.DebugOutputType;
+		PassParameters->DebugVirtualShadowMapId = VirtualShadowMapArray.DebugVirtualShadowMapId;
+		PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV( VirtualShadowMapArray.PhysicalPageMetaDataRDG );
+		PassParameters->RWDebug = GraphBuilder.CreateUAV( VirtualShadowMapArray.DebugVisualizationProjectionOutput );
+	}
+#endif
 
 	FVirtualShadowMapProjectionCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDirectionalLightDim >( bDirectionalLight );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FOnePassProjectionDim >( bOnePassProjection );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( bAdaptiveRayCount );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FTwoPhysicalTexturesDim >( GVirtualShadowMapAtomicWrites == 0 );
-	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >(bHasHairStrandsData ? 1 : 0);
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >( bHasHairStrandsData ? 1 : 0 );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDebugOutputDim >( bDebugOutput );
+
 	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );
 	ClearUnusedGraphResources( ComputeShader, PassParameters );
 	ValidateShaderParameters( ComputeShader, *PassParameters );
@@ -325,9 +336,10 @@ static void RenderVirtualShadowMapProjectionCommon(
 	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( ProjectionRect.Size(), 8 );
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%s,Input:%s)", 
+		RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%s,Input:%s%s)", 
 			bAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"), 
-			(InputType == EVirtualShadowMapProjectionInputType::HairStrands) ? TEXT("HairStrands") : TEXT("GBuffer")),
+			(InputType == EVirtualShadowMapProjectionInputType::HairStrands) ? TEXT("HairStrands") : TEXT("GBuffer"),
+			bDebugOutput ? TEXT(",Debug") : TEXT("")),
 		ComputeShader,
 		PassParameters,
 		FIntVector( GroupCount.X, GroupCount.Y, 1 )
@@ -386,7 +398,7 @@ FRDGTextureRef RenderVirtualShadowMapProjection(
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
 	FProjectedShadowInfo* ShadowInfo)
-{	
+{
 	FRDGTextureRef OutputTexture = CreateShadowFactorTexture(GraphBuilder, SceneTextures.Config.Extent);
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,

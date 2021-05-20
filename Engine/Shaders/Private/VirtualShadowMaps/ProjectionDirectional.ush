@@ -22,6 +22,8 @@ struct FSMRTClipmapRayState
 	float3 RayStepShadowTexelsZ;
 	float4 AdjacentTexelScaleBias;
 	float2 AdjacentToBaseDepthScaleBias;
+	uint2 PhysicalTexelAddress;
+	uint2 VirtualTexelAddress;
 };
 
 FSMRTClipmapRayState SMRTClipmapRayInitialize(
@@ -70,6 +72,8 @@ FSMRTClipmapRayState SMRTClipmapRayInitialize(
 	Result.RayStepShadowTexelsZ = RayStepShadowTexelsZ;
 	Result.AdjacentTexelScaleBias = float4(AdjacentTexelScale, AdjacentTexelBias);
 	Result.AdjacentToBaseDepthScaleBias = float2(AdjacentToBaseDepthScale, AdjacentToBaseDepthBias);
+	Result.VirtualTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
+	Result.PhysicalTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	return Result;
 
 }
@@ -82,14 +86,16 @@ FSMRTSample SMRTFindSample(inout FSMRTClipmapRayState RayState, float SampleTime
 	const float3 SampleTexelsZ = RayState.RayStartShadowTexelsZ + RayState.RayStepShadowTexelsZ * SampleTime;
 
 	uint2 PhysicalTexelAddress = uint2(0, 0);
-	bool bValid = VirtualToPhysicalTexel(RayState.ClipmapId, 0, uint2(SampleTexelsZ.xy), PhysicalTexelAddress);
+	uint2 VirtualTexelAddress = uint2(SampleTexelsZ.xy);
+	bool bValid = VirtualToPhysicalTexel(RayState.ClipmapId, 0, VirtualTexelAddress, PhysicalTexelAddress);
 
 	float2 ToBaseDepthScaleBias = float2(1.0f, 0.0f);
 	if (!bValid)
 	{
 		// Replace with adjacent level sample
 		float2 AdjacentTexels = SampleTexelsZ.xy * RayState.AdjacentTexelScaleBias.xy + RayState.AdjacentTexelScaleBias.zw;
-		bValid = VirtualToPhysicalTexel(RayState.ClipmapIdAdjacent, 0, uint2(AdjacentTexels), PhysicalTexelAddress);
+		VirtualTexelAddress = uint2(AdjacentTexels.xy);
+		bValid = VirtualToPhysicalTexel(RayState.ClipmapIdAdjacent, 0, VirtualTexelAddress, PhysicalTexelAddress);
 		ToBaseDepthScaleBias = RayState.AdjacentToBaseDepthScaleBias;
 	}
 
@@ -100,6 +106,10 @@ FSMRTSample SMRTFindSample(inout FSMRTClipmapRayState RayState, float SampleTime
 		Sample.SampleDepth = SampleDepth;
 		Sample.ReferenceDepth = SampleTexelsZ.z;
 		Sample.CompareToleranceScale = RayState.RayStepShadowTexelsZ.z;
+
+		// Debug
+		RayState.VirtualTexelAddress = VirtualTexelAddress;
+		RayState.PhysicalTexelAddress = PhysicalTexelAddress;
 	}
 
 	return Sample;
@@ -121,20 +131,6 @@ float SMRTComputeOccluderDistance(FSMRTClipmapRayState RayState, float SampleDep
 #include "SMRTTemplate.ush"
 #undef SMRT_TEMPLATE_RAY_STRUCT
 
-
-
-FSMRTResult ShadowRayCastDirectional(
-	int VirtualShadowMapId,
-	float3 ViewPosition,
-	float3 RayStart,
-	float3 RayVector,	// RayEnd - RayStart
-	int NumSteps,
-	float StepOffset)
-{	
-	FSMRTClipmapRayState RayState = SMRTClipmapRayInitialize(VirtualShadowMapId, RayStart, RayVector);
-	return SMRTRayCast(RayState, NumSteps, StepOffset);
-}
-
 float3 GetRandomDirectionalLightRayDir(FLightShaderParameters Light, float2 E)
 {
 	float3 RayDir = Light.Direction;
@@ -148,88 +144,101 @@ float3 GetRandomDirectionalLightRayDir(FLightShaderParameters Light, float2 E)
 	return normalize(RayDir);
 }
 
-float TraceDirectional(
+FVirtualShadowMapSampleResult TraceDirectional(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
 	uint2 PixelPos,
 	const float SceneDepth,
 	float3 TranslatedWorldPosition,
 	float RayStartOffset,
-	uint RayCount,
+	uint MaxRayCount,
 	uint SamplesPerRay,
 	float RayLengthScale,
-	const half Noise)
+	const half Noise,
+	bool bCullBackface)
 {
 	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
 	float DistanceFromViewOrigin = length(ViewPosition);
 
-	// Compute max ray length based on view depth
-	// This affects both how far we are willing to trace across the shadow map (for clipmaps this is related to view depth)
-	// and the maximum size a penumbra can be.
-	// Too high values will cause shadows to detach from their contact points (unless more samples are used).
-	// Too low values will greatly restrict how large penumbras can be in screen space.
-	float RayLength = RayLengthScale * DistanceFromViewOrigin;
+	const half3 N = GetGBufferDataUint( PixelPos, true ).WorldNormal;
+	half SinAlphaSqr = saturate(Pow2(Light.SourceRadius));
+	half SinAlpha = sqrt(SinAlphaSqr);
+	bool bBackFace = dot( N, Light.Direction ) < -SinAlpha;
 
-	float StepOffset = Noise;
+	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
+	Result.bValid = true;	// TODO: false if all samples of all rays miss?
+	Result.ShadowFactor = 0.0f;
 
-	uint RayMissCount = 0;
-	uint i = 0;
-	for ( ; i < RayCount; i++)
+	if (!bBackFace || !bCullBackface)
 	{
-		RandomSequence RandSequence;
-		RandomSequence_Initialize(RandSequence, PixelPos, i, View.StateFrameIndexMod8, RayCount);
-#if 1
-		float2 E = RandomSequence_GenerateSample2D(RandSequence);
-#else
-		float2 E = float2(SobolIndex(SobolFrame, i << 3)) / 0x10000;
-#endif
+		// Compute max ray length based on view depth
+		// This affects both how far we are willing to trace across the shadow map (for clipmaps this is related to view depth)
+		// and the maximum size a penumbra can be.
+		// Too high values will cause shadows to detach from their contact points (unless more samples are used).
+		// Too low values will greatly restrict how large penumbras can be in screen space.
+		float RayLength = RayLengthScale * DistanceFromViewOrigin;
 
-		float3 RayDir = GetRandomDirectionalLightRayDir(Light, E);
-		// TODO, move the clipmap selection outside/before this offset
-		float3 RayStart = WorldPosition + RayDir * RayStartOffset;
+		float StepOffset = Noise;
 
-		FSMRTResult Result = ShadowRayCastDirectional(
-			VirtualShadowMapId,
-			ViewPosition,
-			RayStart,
-			RayDir * RayLength,
-			SamplesPerRay,
-			StepOffset);
-
-		RayMissCount += Result.bValidHit ? 0 : 1;
-
-#if SMRT_ADAPTIVE_RAY_COUNT && COMPILER_SUPPORTS_WAVE_VOTE
-		if( i == 0 )
+		uint RayMissCount = 0;
+		uint i = 0;
+		for ( ; i < MaxRayCount; i++)
 		{
-			bool bHit = Result.bValidHit;
-			if( bHit )
-			{
-				// TODO: Some simple heuristic for directional lights
-				//bHit = Result.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
-			}
+			RandomSequence RandSequence;
+			RandomSequence_Initialize(RandSequence, PixelPos, i, View.StateFrameIndexMod8, MaxRayCount);
+			float2 E = RandomSequence_GenerateSample2D(RandSequence);
 
-			// All lanes miss or hit something close enough to not be noisy.
-			bool bAllLanesMiss = WaveActiveAllTrue( !bHit );
-			if( bAllLanesMiss )
+			float3 RayDir = GetRandomDirectionalLightRayDir(Light, E);
+			// TODO, move the clipmap selection outside/before this offset
+			float3 RayStart = WorldPosition + RayDir * RayStartOffset;
+			float3 RayVector = RayDir * RayLength;
+
+			FSMRTClipmapRayState RayState = SMRTClipmapRayInitialize(VirtualShadowMapId, RayStart, RayVector);
+			FSMRTResult SMRTResult = SMRTRayCast(RayState, SamplesPerRay, StepOffset);
+
+			RayMissCount += SMRTResult.bValidHit ? 0 : 1;
+
+			// Debug output (DCE'd if not used)
+			Result.ClipmapIndexOrMipLevel = RayState.ClipmapId - VirtualShadowMapId;
+			Result.VirtualTexelAddress = RayState.VirtualTexelAddress;
+			Result.PhysicalTexelAddress =  RayState.PhysicalTexelAddress;
+
+	#if SMRT_ADAPTIVE_RAY_COUNT && COMPILER_SUPPORTS_WAVE_VOTE
+			if( i == 0 )
 			{
-				break;
+				bool bHit = SMRTResult.bValidHit;
+				if( bHit )
+				{
+					// TODO: Some simple heuristic for directional lights
+				}
+
+				// All lanes miss or hit something close enough to not be noisy.
+				bool bAllLanesMiss = WaveActiveAllTrue( !bHit );
+				if( bAllLanesMiss )
+				{
+					break;
+				}
 			}
-		}
-		else if( i == 1 )
-		{
-			// After 2 iterations and all have hit, must be in umbra.
-			bool bAllLanesHit = WaveActiveAllTrue( RayMissCount == 0 );
-			if( bAllLanesHit )
+			else if( i == 1 )
 			{
-				break;
+				// After 2 iterations and all have hit, must be in umbra.
+				bool bAllLanesHit = WaveActiveAllTrue( RayMissCount == 0 );
+				if( bAllLanesHit )
+				{
+					break;
+				}
 			}
+	#endif
 		}
-#endif
+		uint RayCount = min(i + 1, MaxRayCount);		// break vs regular for loop exit
+
+		Result.ShadowFactor = float(RayMissCount) / float(RayCount);
+		Result.OccluderDistance = -1.0f;	// TODO?
+		Result.RayCount = RayCount;
 	}
-	uint SampleCount = min(i + 1, RayCount);		// break vs regular for loop exit
-	float RayMissFactor = float(RayMissCount) / float(SampleCount);
-	return RayMissFactor;
+
+	return Result;
 }
 
 // Generate a ray based on directional light source geometry (e.g, source radius)
