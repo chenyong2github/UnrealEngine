@@ -35,10 +35,13 @@
 class FControlRigEditModeGenericDetails : public IDetailCustomization
 {
 public:
+	FControlRigEditModeGenericDetails() = delete;
+	FControlRigEditModeGenericDetails(FEditorModeTools* InModeTools) : ModeTools(InModeTools) {}
+	
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedRef<IDetailCustomization> MakeInstance()
+	static TSharedRef<IDetailCustomization> MakeInstance(FEditorModeTools* InModeTools)
 	{
-		return MakeShareable(new FControlRigEditModeGenericDetails);
+		return MakeShareable(new FControlRigEditModeGenericDetails(InModeTools));
 	}
 
 	/** IDetailCustomization interface */
@@ -108,7 +111,7 @@ public:
 			}
 
 			URigHierarchy* Hierarchy = Proxy->ControlRig->GetHierarchy();
-			Hierarchy->ForEach<FRigControlElement>([Hierarchy, Proxy, &Category](FRigControlElement* ControlElement) -> bool
+			Hierarchy->ForEach<FRigControlElement>([Hierarchy, Proxy, &Category, this](FRigControlElement* ControlElement) -> bool
             {
 				FName ParentControlName = NAME_None;
 				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement));
@@ -119,7 +122,7 @@ public:
 				
 				if (ParentControlName == ControlElement->GetName())
 				{
-					if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
+					if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 					{
 						if (UObject* NestedProxy = EditMode->ControlProxy->FindProxy(ControlElement->GetName()))
 						{
@@ -180,6 +183,8 @@ public:
 			});
 		}
 	}
+protected:
+	FEditorModeTools* ModeTools = nullptr;
 };
 
 void SControlRigEditModeTools::SetControlRig(UControlRig* ControlRig)
@@ -219,12 +224,14 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 		DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 		DetailsViewArgs.bShowScrollBar = false; // Don't need to show this, as we are putting it in a scroll box
 	}
+	
+	ModeTools = InEditMode.GetModeManager();
 
 	ControlDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
 	ControlDetailsView->SetKeyframeHandler(SharedThis(this));
 	ControlDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization));
 	ControlDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization));
-	ControlDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance));
+	ControlDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
 
 	RigOptionsDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
 	RigOptionsDetailsView->SetKeyframeHandler(SharedThis(this));
@@ -440,7 +447,7 @@ static bool bPickerChangingSelection = false;
 
 void SControlRigEditModeTools::OnManipulatorsPicked(const TArray<FName>& Manipulators)
 {
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
 		if (!bPickerChangingSelection)
@@ -496,7 +503,7 @@ void SControlRigEditModeTools::OnRigOptionFinishedChange(const FPropertyChangedE
 {
 	SetControlRig(SequencerRig.Get());
 
-	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
+	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 	{
 		EditMode->SetObjects_Internal();
 	}
@@ -508,15 +515,15 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 	ToolBarBuilder.AddToolBarButton(
 		FUIAction(
 			FExecuteAction::CreateLambda([this] {
-		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
 		if (ControlRigEditMode)
 		{
 			ControlRigEditMode->SetOnlySelectRigControls(!ControlRigEditMode->GetOnlySelectRigControls());
 		}
 	}),
 			FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([] {
-		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+		FIsActionChecked::CreateLambda([this] {
+		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
 		if (ControlRigEditMode)
 		{
 			return ControlRigEditMode->GetOnlySelectRigControls();
@@ -578,7 +585,7 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 
 void SControlRigEditModeTools::MakePoseDialog()
 {
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigPoseTab);
@@ -587,7 +594,7 @@ void SControlRigEditModeTools::MakePoseDialog()
 
 void SControlRigEditModeTools::MakeTweenDialog()
 {
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigTweenTab);
@@ -597,7 +604,7 @@ void SControlRigEditModeTools::MakeTweenDialog()
 
 void SControlRigEditModeTools::MakeSnapperDialog()
 {
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigSnapperTab);
@@ -608,7 +615,7 @@ void SControlRigEditModeTools::MakeSnapperDialog()
 
 void SControlRigEditModeTools::MakeTempPivotDialog()
 {
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigTempPivotTab);
