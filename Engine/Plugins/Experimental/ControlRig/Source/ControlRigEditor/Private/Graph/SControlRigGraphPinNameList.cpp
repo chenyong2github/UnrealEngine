@@ -135,5 +135,6 @@ void SControlRigGraphPinNameList::OnNameListComboBox()
 			CurrentlySelected = Item;
 		}
 	}
+	NameListComboBox->SetOptionsSource(CurrentList);
 	NameListComboBox->SetSelectedItem(CurrentlySelected);
 }
