@@ -14,7 +14,7 @@ struct FUserActivity;
 /**
  * Collects engine events/stats and stores a summary on disk until reported by the analytics session summary manager.
  */
-class FEngineAnalyticsSessionSummary
+class ENGINE_API FEngineAnalyticsSessionSummary
 {
 public:
 	/**
