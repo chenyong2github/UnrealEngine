@@ -100,7 +100,7 @@ namespace WindowsMixedReality
 	class TrackingFrame;
 	class HolographicCameraResources;
 
-	void StartMeshObserver(
+	bool StartMeshObserver(
 		float InTriangleDensity,
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
@@ -109,7 +109,7 @@ namespace WindowsMixedReality
 		void(*FinishFunctionPointer)()
 	);
 	void UpdateMeshObserverBoundingVolume(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem, winrt::Windows::Foundation::Numerics::float3 Position);
-	void StopMeshObserver();
+	bool StopMeshObserver();
 
 	void StartSceneUnderstandingObserver(
 		bool bGeneratePlanes,
@@ -125,9 +125,9 @@ namespace WindowsMixedReality
 	void StopSceneUnderstandingObserver();
 	void _SetSUCoordinateSystem();
 
-	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
+	bool StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
 	void UpdateQRCodeObserverCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem);
-	void StopQRCodeObserver();
+	bool StopQRCodeObserver();
 
 	bool bInitialized = false;
 	bool isRemoteHolographicSpace = false;
@@ -4080,7 +4080,7 @@ namespace WindowsMixedReality
 		return failureString;
 	}
 
-	void MixedRealityInterop::StartSpatialMapping(
+	bool MixedRealityInterop::StartSpatialMapping(
 		float InTriangleDensity,
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
@@ -4092,7 +4092,7 @@ namespace WindowsMixedReality
 		// HL1 does not support spatial mapping.
 		if (!m_isHL1Remoting)
 		{
-			StartMeshObserver(
+			return StartMeshObserver(
 				InTriangleDensity,
 				InVolumeSize,
 				StartFunctionPointer,
@@ -4101,14 +4101,18 @@ namespace WindowsMixedReality
 				FinishFunctionPointer
 			);
 		}
+
+		return false;
 	}
 
-	void MixedRealityInterop::StopSpatialMapping()
+	bool MixedRealityInterop::StopSpatialMapping()
 	{
 		if (!m_isHL1Remoting)
 		{
-			StopMeshObserver();
+			return StopMeshObserver();
 		}
+
+		return false;
 	}
 
 	void MixedRealityInterop::StartSceneUnderstanding(
@@ -4143,14 +4147,14 @@ namespace WindowsMixedReality
 	{
 		_SetSUCoordinateSystem();
 	}
-	void MixedRealityInterop::StartQRCodeTracking(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
+	bool MixedRealityInterop::StartQRCodeTracking(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
 	{
-		StartQRCodeObserver(AddedFunctionPointer, UpdatedFunctionPointer, RemovedFunctionPointer);
+		return StartQRCodeObserver(AddedFunctionPointer, UpdatedFunctionPointer, RemovedFunctionPointer);
 	}
 
-	void MixedRealityInterop::StopQRCodeTracking()
+	bool MixedRealityInterop::StopQRCodeTracking()
 	{
-		StopQRCodeObserver();
+		return StopQRCodeObserver();
 	}
 
 	bool MixedRealityInterop::IsThirdCameraActive()
@@ -4238,7 +4242,7 @@ namespace WindowsMixedReality
 
 namespace WindowsMixedReality
 {
-	void StartMeshObserver(
+	bool StartMeshObserver(
 		float InTriangleDensity,
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
@@ -4250,14 +4254,16 @@ namespace WindowsMixedReality
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		if (m_isHL1Remoting)
 		{
-			return;
+			return false;
 		}
 
 		MeshUpdateObserver& Instance = MeshUpdateObserver::Get();
 		// Pass any logging callback on
 		Instance.SetOnLog(m_logCallback);
 
-		Instance.StartMeshObserver(
+		HandMeshUpdateObserver::InitStatic(StartFunctionPointer, AllocFunctionPointer, FinishFunctionPointer);
+
+		return Instance.StartMeshObserver(
 			InTriangleDensity,
 			InVolumeSize,
 			StartFunctionPointer,
@@ -4265,9 +4271,8 @@ namespace WindowsMixedReality
 			RemovedMeshPointer,
 			FinishFunctionPointer
 		);
-
-		HandMeshUpdateObserver::InitStatic(StartFunctionPointer, AllocFunctionPointer, FinishFunctionPointer);
 #endif
+		return true;
 	}
 
 	void UpdateMeshObserverBoundingVolume(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem, winrt::Windows::Foundation::Numerics::float3 InPosition)
@@ -4278,12 +4283,12 @@ namespace WindowsMixedReality
 #endif
 	}
 
-	void StopMeshObserver()
+	bool StopMeshObserver()
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		if (m_isHL1Remoting)
 		{
-			return;
+			return false;
 		}
 
 		MeshUpdateObserver::Release();
@@ -4293,6 +4298,7 @@ namespace WindowsMixedReality
 		MeshUpdateObserverMap.clear();
 
 #endif
+		return true;
 	}
 }
 
@@ -4353,14 +4359,16 @@ namespace WindowsMixedReality
 
 namespace WindowsMixedReality
 {
-	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
+	bool StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		QRCodeUpdateObserver& Instance = QRCodeUpdateObserver::Get();
 		// Pass any logging callback on
 		Instance.SetOnLog(m_logCallback);
-		Instance.StartQRCodeObserver(AddedFunctionPointer, UpdatedFunctionPointer, RemovedFunctionPointer);
+		return Instance.StartQRCodeObserver(AddedFunctionPointer, UpdatedFunctionPointer, RemovedFunctionPointer);
 #endif
+
+		return false;
 	}
 
 	void UpdateQRCodeObserverCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem)
@@ -4371,11 +4379,13 @@ namespace WindowsMixedReality
 #endif
 	}
 
-	void StopQRCodeObserver()
+bool StopQRCodeObserver()
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		QRCodeUpdateObserver& Instance = QRCodeUpdateObserver::Get();
 		Instance.Release();
 #endif
+
+		return true;
 	}
 }

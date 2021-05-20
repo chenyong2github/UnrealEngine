@@ -142,14 +142,14 @@ public:
 	FTransform GetPVCameraToWorldTransform();
 	bool GetPVCameraIntrinsics(FVector2D& focalLength, int& width, int& height, FVector2D& principalPoint, FVector& radialDistortion, FVector2D& tangentialDistortion);
 	FVector GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate);
-	void StartCameraCapture();
-	void StopCameraCapture();
+	bool StartCameraCapture();
+	bool StopCameraCapture();
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	/** Starts the camera with the desired settings */
-	void SetupCameraImageSupport();
+	bool SetupCameraImageSupport();
 	/** Starts the interop layer mesh observer that will notify us of mesh changes */
-	void SetupMeshObserver();
+	bool SetupMeshObserver();
 
 	// Mesh observer callback support
 	static void StartMeshUpdates_Raw();
@@ -177,8 +177,8 @@ public:
 
 public:
 	/** Starts the interop layer QR code observer that will notify us of QR codes tracked by the system */
-	void SetupQRCodeTracking();
-	void StopQRCodeTracking();
+	bool SetupQRCodeTracking();
+	bool StopQRCodeTracking();
 
 private:
 	// QR Code observer callback support
