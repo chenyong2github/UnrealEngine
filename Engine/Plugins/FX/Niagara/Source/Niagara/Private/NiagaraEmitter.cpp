@@ -485,6 +485,11 @@ void UNiagaraEmitter::PostLoad()
 	}
 	
 #if WITH_EDITORONLY_DATA
+	if (EditorData != nullptr)
+	{
+		EditorData->ConditionalPostLoad();
+	}
+	
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
@@ -571,9 +576,19 @@ void UNiagaraEmitter::PostLoad()
 
 	FGraphEventArray ParentPrerequisiteTasks;
 #if WITH_EDITORONLY_DATA
-	if (Parent != nullptr && Parent->UpdateTaskRef.IsValid())
+	if (Parent != nullptr)
 	{
-		ParentPrerequisiteTasks.Add(Parent->UpdateTaskRef);
+		if (Parent->UpdateTaskRef.IsValid())
+		{
+			ParentPrerequisiteTasks.Add(Parent->UpdateTaskRef);
+		}
+	}
+	if (ParentAtLastMerge != nullptr)
+	{
+		if (ParentAtLastMerge->UpdateTaskRef.IsValid())
+		{
+			ParentPrerequisiteTasks.Add(ParentAtLastMerge->UpdateTaskRef);
+		}
 	}
 	// this can only ever be true for old assets that haven't been loaded yet, so this won't overwrite subsequent changes to the template specification
 	if(bIsTemplateAsset_DEPRECATED)
