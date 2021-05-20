@@ -87,10 +87,18 @@ static void WriteCbField(FCbWriter& Writer, const FAnsiStringView& Name, const F
 	Writer.EndArray();
 }
 
-static void WriteBuildSettingsToCompactBinary(FCbWriter& Writer, const FAnsiStringView& Name, const FTextureBuildSettings& BuildSettings)
+static void WriteBuildSettingsToCompactBinary(FCbWriter& Writer, const FAnsiStringView& Name, const FTextureBuildSettings& BuildSettings, const ITextureFormat* TextureFormat)
 {
 	Writer.BeginObject(Name);
 
+	if (BuildSettings.FormatConfigOverride)
+	{
+		Writer.AddObject("FormatConfigOverride", BuildSettings.FormatConfigOverride);
+	}
+	else if (FCbObject TextureFormatConfig = TextureFormat->ExportGlobalFormatConfig(BuildSettings))
+	{
+		Writer.AddObject("FormatConfigOverride", TextureFormatConfig);
+	}
 	Writer.BeginObject("ColorAdjustment");
 	Writer.AddFloat("AdjustBrightness", BuildSettings.ColorAdjustment.AdjustBrightness);
 	Writer.AddFloat("AdjustBrightnessCurve", BuildSettings.ColorAdjustment.AdjustBrightnessCurve);
@@ -118,6 +126,7 @@ static void WriteBuildSettingsToCompactBinary(FCbWriter& Writer, const FAnsiStri
 	Writer.AddBool("bSRGB", BuildSettings.bSRGB);
 	Writer.AddBool("bUseLegacyGamma", BuildSettings.bUseLegacyGamma);
 	Writer.AddBool("bPreserveBorder", BuildSettings.bPreserveBorder);
+	Writer.AddBool("bForceNoAlphaChannel", BuildSettings.bForceNoAlphaChannel);
 	Writer.AddBool("bForceAlphaChannel", BuildSettings.bForceAlphaChannel);
 	Writer.AddBool("bDitherMipMapAlpha", BuildSettings.bDitherMipMapAlpha);
 	Writer.AddBool("bComputeBokehAlpha", BuildSettings.bComputeBokehAlpha);
@@ -323,7 +332,7 @@ void FTextureDerivedDataBuildExporter::ExportTextureBuild(const UTexture& Textur
 	BuildWriter.EndObject();
 
 	BuildWriter.BeginObject("Constants");
-	WriteBuildSettingsToCompactBinary(BuildWriter, "TextureBuildSettings", BuildSettings);
+	WriteBuildSettingsToCompactBinary(BuildWriter, "TextureBuildSettings", BuildSettings, TextureFormat);
 	WriteOutputSettingsToCompactBinary(BuildWriter, "TextureOutputSettings", NumInlineMips, KeySuffix);
 
 	FTextureFormatSettings TextureFormatSettings;

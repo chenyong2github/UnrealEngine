@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Serialization/CompactBinary.h"
 
 #define TEXTURE_COMPRESSOR_MODULENAME "TextureCompressor"
 
@@ -67,6 +68,8 @@ struct FColorAdjustmentParameters
  */
 struct FTextureBuildSettings
 {
+	/** Format specific config object view or null if no format specific config is applied as part of this build. */
+	FCbObjectView FormatConfigOverride;
 	/** Color adjustment parameters. */
 	FColorAdjustmentParameters ColorAdjustment;
 	/** Channel values to compare to when preserving alpha coverage. */
@@ -99,6 +102,8 @@ struct FTextureBuildSettings
 	uint32 bUseLegacyGamma : 1;
 	/** Whether the border of the image should be maintained during mipmap generation. */
 	uint32 bPreserveBorder : 1;
+	/** Whether we should discard the alpha channel even if it contains non-zero values in the pixel data. */
+	uint32 bForceNoAlphaChannel : 1;
 	/** Whether we should not discard the alpha channel when it contains 1 for the entire texture. */
 	uint32 bForceAlphaChannel : 1;
 	/** Whether the alpha channel should contain a dithered alpha value. */
@@ -189,6 +194,7 @@ struct FTextureBuildSettings
 		, bSRGB(false)
 		, bUseLegacyGamma(false)
 		, bPreserveBorder(false)
+		, bForceNoAlphaChannel(false)
 		, bForceAlphaChannel(false)
 		, bDitherMipMapAlpha(false)
 		, bComputeBokehAlpha(false)

@@ -5,6 +5,8 @@
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
 #include "Interfaces/ITextureFormatManagerModule.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "TextureCompressorModule.h"
 
 /**
@@ -43,6 +45,19 @@ protected:
 		return FName(*(PlatformName.ToString().Replace(*FormatPrefix, TEXT(""))));
 	}
 
+	FCbObjectView GetBaseFormatConfigOverride(const FCbObjectView& ObjView) const
+	{
+		return ObjView.FindView("BaseTextureFormatConfig").AsObjectView();
+	}
+
+	FTextureBuildSettings GetBaseTextureBuildSettings(const FTextureBuildSettings& BuildSettings) const
+	{
+		FTextureBuildSettings BaseSettings = BuildSettings;
+		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+		BaseSettings.FormatConfigOverride = GetBaseFormatConfigOverride(BuildSettings.FormatConfigOverride);
+		return BaseSettings;
+	}
+
 	/**
 	 * Given a platform specific format name, get the parent texture format object
 	 */
@@ -68,6 +83,27 @@ protected:
 	 */
 	virtual FString GetChildDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const = 0;
 
+	/**
+	 * Obtains the global format config object for this texture format.
+	 * 
+	 * @param BuildSettings Build settings.
+	 * @returns The global format config object or an empty object if no format settings are defined for this texture format.
+	 */
+	virtual FCbObject ExportGlobalChildFormatConfig(const struct FTextureBuildSettings& BuildSettings) const
+	{
+		return FCbObject();
+	}
+
+	/**
+	 * Obtains the format config appropriate for the build .
+	 * 
+	 * @param ObjView A view of the entire format config container or null if none exists.
+	 * @returns The format settings object view or a null view if the active global format config should be used.
+	 */
+	virtual FCbObjectView GetChildFormatConfigOverride(const FCbObjectView& ObjView) const
+	{
+		return ObjView.FindView("ChildTextureFormatConfig").AsObjectView();
+	}
 
 public:
 
@@ -95,8 +131,7 @@ public:
 
 	virtual FString GetDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const final
 	{
-		FTextureBuildSettings BaseSettings = *BuildSettings;
-		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings->TextureFormatName);
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(*BuildSettings);
 
 		FString BaseString = GetBaseFormatObject(BuildSettings->TextureFormatName)->GetDerivedDataKeyString(Texture, &BaseSettings);
 		FString ChildString = GetChildDerivedDataKeyString(Texture, BuildSettings);
@@ -106,8 +141,7 @@ public:
 
 	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const override 
 	{
-		FTextureBuildSettings Settings = BuildSettings;
-		Settings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+		FTextureBuildSettings Settings = GetBaseTextureBuildSettings(BuildSettings);
 		return GetBaseFormatObject(BuildSettings.TextureFormatName)->GetPixelFormatForImage(Settings, ExampleImage, bImageHasAlphaChannel);
 	}
 
@@ -118,8 +152,7 @@ public:
 		FCompressedImage2D& OutCompressedImage
 	) const
 	{
-		FTextureBuildSettings BaseSettings = BuildSettings;
-		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
 		// pass along the compression to the base format
 		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImage(InImage, BaseSettings, bImageHasAlphaChannel, OutCompressedImage) == false)
@@ -139,8 +172,7 @@ public:
 		FCompressedImage2D& OutCompressedImage
 	) const
 	{
-		FTextureBuildSettings BaseSettings = BuildSettings;
-		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
 		// pass along the compression to the base format
 		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImageTiled(Images, NumImages, BaseSettings, bImageHasAlphaChannel, TilerSettings, OutCompressedImage) == false)
@@ -160,8 +192,7 @@ public:
 		TArray<FCompressedImage2D>& OutCompressedImages
 	) const override
 	{
-		FTextureBuildSettings BaseSettings = BuildSettings;
-		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
 		return GetBaseFormatObject(BuildSettings.TextureFormatName)->PrepareTiling(Images, NumImages, BaseSettings, bImageHasAlphaChannel, OutTilerSettings, OutCompressedImages);
 	}
@@ -173,18 +204,47 @@ public:
 		uint32 NumBlocks
 	) const override
 	{
-		FTextureBuildSettings BaseSettings = BuildSettings;
-		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
 		return GetBaseFormatObject(BuildSettings.TextureFormatName)->SetTiling(BaseSettings, TilerSettings, ReorderedBlocks, NumBlocks);
 	}
 
 	void ReleaseTiling(const struct FTextureBuildSettings& BuildSettings, TSharedPtr<FTilerSettings>& TilerSettings) const override
 	{
-		FTextureBuildSettings BaseSettings = BuildSettings;
-		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
 		return GetBaseFormatObject(BuildSettings.TextureFormatName)->ReleaseTiling(BuildSettings, TilerSettings);
+	}
+
+
+	virtual FCbObject ExportGlobalFormatConfig(const struct FTextureBuildSettings& BuildSettings) const override
+	{
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
+
+		FCbObject BaseObj = GetBaseFormatObject(BuildSettings.TextureFormatName)->ExportGlobalFormatConfig(BaseSettings);
+		FCbObject ChildObj = ExportGlobalChildFormatConfig(BuildSettings);
+
+		if (!BaseObj && !ChildObj)
+		{
+			return FCbObject();
+		}
+
+		FCbWriter Writer;
+		Writer.BeginObject("TextureFormatConfig");
+
+		if (BaseObj)
+		{
+			Writer.AddObject("BaseTextureFormatConfig", BaseObj);
+		}
+
+		if (ChildObj)
+		{
+			Writer.AddObject("ChildTextureFormatConfig", ChildObj);
+		}
+
+		Writer.EndObject();
+
+		return Writer.Save().AsObject();
 	}
 
 protected:
