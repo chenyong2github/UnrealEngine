@@ -70,22 +70,24 @@ public:
 	
 	/**
 	* Find or create a Control Rig track of a specific class based upon the binding
+	* @param World The world used to spawn into temporarily if binding is a spawnable
 	* @param LevelSequence The LevelSequence to find or create
 	* @param ControlRigClass The class of the Control Rig
 	* @param InBinding The binding (actor or component binding) to find or create the Control Rig track
 	* @return returns Return the found or created track
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static UMovieSceneTrack* FindOrCreateControlRigTrack(ULevelSequence* LevelSequence, const UClass* ControlRigClass, const FSequencerBindingProxy& InBinding);
+	static UMovieSceneTrack* FindOrCreateControlRigTrack(UWorld* World, ULevelSequence* LevelSequence, const UClass* ControlRigClass, const FSequencerBindingProxy& InBinding);
 
 	/**
 	* Find or create a Control Rig Component
+	* @param World The world used to spawn into temporarily if binding is a spawnable
 	* @param LevelSequence The LevelSequence to find or create
 	* @param InBinding The binding (actor or component binding) to find or create the Control Rig tracks
 	* @return returns Find array of component Control Rigs that were found or created
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static TArray<UMovieSceneTrack*> FindOrCreateControlRigComponentTrack(ULevelSequence* LevelSequence, const FSequencerBindingProxy& InBinding);
+	static TArray<UMovieSceneTrack*> FindOrCreateControlRigComponentTrack(UWorld* World, ULevelSequence* LevelSequence, const FSequencerBindingProxy& InBinding);
 	
 	/**
 	* Load anim sequence into this control rig section

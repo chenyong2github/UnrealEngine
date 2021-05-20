@@ -79,6 +79,28 @@ TArray<FControlRigSequencerBindingProxy> UControlRigSequencerEditorLibrary::GetC
 	return ControlRigBindingProxies;
 }
 
+static TArray<UObject*> GetBoundObjects(UWorld* World, ULevelSequence* LevelSequence, const FSequencerBindingProxy& Binding, ULevelSequencePlayer** OutPlayer, ALevelSequenceActor** OutActor)
+{
+	FMovieSceneSequencePlaybackSettings Settings;
+	FLevelSequenceCameraSettings CameraSettings;
+
+	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, Settings, *OutActor);
+	*OutPlayer = Player;
+
+	Player->Initialize(LevelSequence, World->PersistentLevel, Settings, CameraSettings);
+	Player->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
+
+	// Evaluation needs to occur in order to obtain spawnables
+	Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue().Value, EUpdatePositionMethod::Play));
+
+	FMovieSceneSequenceID SequenceId = Player->State.FindSequenceId(LevelSequence);
+
+	FMovieSceneObjectBindingID ObjectBinding = UE::MovieScene::FFixedObjectBindingID(Binding.BindingID, SequenceId);
+	TArray<UObject*> BoundObjects = Player->GetBoundObjects(ObjectBinding);
+	
+	return BoundObjects;
+}
+
 static void AcquireSkeletonAndSkelMeshCompFromObject(UObject* BoundObject, USkeleton** OutSkeleton, USkeletalMeshComponent** OutSkeletalMeshComponent)
 {
 	*OutSkeletalMeshComponent = nullptr;
@@ -233,8 +255,7 @@ static UMovieSceneControlRigParameterTrack* AddControlRig(ULevelSequence* LevelS
 	return nullptr;
 }
 
-
-UMovieSceneTrack* UControlRigSequencerEditorLibrary::FindOrCreateControlRigTrack(ULevelSequence* LevelSequence, const UClass* ControlRigClass, const FSequencerBindingProxy& InBinding)
+UMovieSceneTrack* UControlRigSequencerEditorLibrary::FindOrCreateControlRigTrack(UWorld* World, ULevelSequence* LevelSequence, const UClass* ControlRigClass, const FSequencerBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.Sequence ? InBinding.Sequence->GetMovieScene() : nullptr;
 	UMovieSceneTrack* BaseTrack = nullptr;
@@ -257,7 +278,9 @@ UMovieSceneTrack* UControlRigSequencerEditorLibrary::FindOrCreateControlRigTrack
 
 				TArray<UObject*, TInlineAllocator<1>> Result;
 				UObject* Context = nullptr;
-				LevelSequence->LocateBoundObjects(InBinding.BindingID, Context, Result);
+				ALevelSequenceActor* OutActor = nullptr;
+				ULevelSequencePlayer* OutPlayer = nullptr;
+				Result = GetBoundObjects(World, LevelSequence, InBinding, &OutPlayer, &OutActor);
 				if (Result.Num() > 0 && Result[0])
 				{
 					UObject* BoundObject = Result[0];
@@ -276,13 +299,24 @@ UMovieSceneTrack* UControlRigSequencerEditorLibrary::FindOrCreateControlRigTrack
 						}
 					}
 				}
+
+				if (OutPlayer)
+				{
+					OutPlayer->Stop();
+				}
+
+				if (OutActor)
+				{
+					World->DestroyActor(OutActor);
+				}
 			}
 		}
 	}
 	return BaseTrack;
 }
 
-TArray<UMovieSceneTrack*> UControlRigSequencerEditorLibrary::FindOrCreateControlRigComponentTrack(ULevelSequence* LevelSequence, const FSequencerBindingProxy& InBinding)
+
+TArray<UMovieSceneTrack*> UControlRigSequencerEditorLibrary::FindOrCreateControlRigComponentTrack(UWorld* World, ULevelSequence* LevelSequence, const FSequencerBindingProxy& InBinding)
 {
 	TArray< UMovieSceneTrack*> Tracks;
 	TArray<UObject*, TInlineAllocator<1>> Result;
@@ -292,7 +326,9 @@ TArray<UMovieSceneTrack*> UControlRigSequencerEditorLibrary::FindOrCreateControl
 	}
 	UMovieScene* MovieScene = LevelSequence->GetMovieScene();
 	UObject* Context = nullptr;
-	LevelSequence->LocateBoundObjects(InBinding.BindingID, Context, Result);
+	ALevelSequenceActor* OutActor = nullptr;
+	ULevelSequencePlayer* OutPlayer = nullptr;
+	Result = GetBoundObjects(World, LevelSequence, InBinding, &OutPlayer, &OutActor);
 	if (Result.Num() > 0 && Result[0])
 	{
 		UObject* BoundObject = Result[0];
@@ -329,9 +365,19 @@ TArray<UMovieSceneTrack*> UControlRigSequencerEditorLibrary::FindOrCreateControl
 			}
 		}
 	}
+
+	if (OutPlayer)
+	{
+		OutPlayer->Stop();
+	}
+
+	if (OutActor)
+	{
+		World->DestroyActor(OutActor);
+	}
+
 	return Tracks;
 }
-
 
 bool UControlRigSequencerEditorLibrary::TweenControlRig(ULevelSequence* LevelSequence, UControlRig* ControlRig, float TweenValue)
 {
