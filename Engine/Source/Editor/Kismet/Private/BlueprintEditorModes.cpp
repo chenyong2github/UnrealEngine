@@ -5,7 +5,6 @@
 #include "ToolMenus.h"
 
 // Core kismet tabs
-#include "SSCSEditor.h"
 #include "SSCSEditorViewport.h"
 #include "SKismetInspector.h"
 #include "SMyBlueprint.h"
