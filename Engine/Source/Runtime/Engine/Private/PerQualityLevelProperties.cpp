@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PerQualityLevelProperties.h"
 #include "Serialization/Archive.h"
+#include "Misc/ConfigCacheIni.h"
 
 namespace QualityLevelProperty
 {

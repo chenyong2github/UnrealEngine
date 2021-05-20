@@ -13,7 +13,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Images/SImage.h"
-
+#include "PerQualityLevelProperties.h"
 
 void SPerPlatformPropertiesRow::Construct(const FArguments& InArgs, FName PlatformName)
 {
