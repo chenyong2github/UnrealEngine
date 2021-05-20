@@ -20,6 +20,8 @@ void SDisplayClusterConfiguratorResizer::Construct(const FArguments& InArgs, con
 	CurrentAspectRatio = 1;
 	bResizing = false;
 
+	MinimumSize = InArgs._MinimumSize;
+	MaximumSize = InArgs._MaximumSize;
 	IsFixedAspectRatio = InArgs._IsFixedAspectRatio;
 
 	ScopedTransaction.Reset();
@@ -112,15 +114,12 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 
 		NewNodeSize /= (GraphPanel->GetZoomAmount() * DPIScale);
 
-		// Never node size less then 0
-		if (NewNodeSize.X < 0.f)
-		{
-			NewNodeSize.X = 0.f;
-		}
-		if (NewNodeSize.Y < 0.f)
-		{
-			NewNodeSize.Y = 0.f;
-		}
+		// Bound the node's size between the minimum and maximum. Also never let the size become negative.
+		float Minimum = FMath::Max(MinimumSize.Get(0.0f), 0.0f);
+		float Maximum = FMath::Max(MaximumSize.Get(FLT_MAX), Minimum);
+		
+		NewNodeSize.X = FMath::Clamp(NewNodeSize.X, Minimum, Maximum);
+		NewNodeSize.Y = FMath::Clamp(NewNodeSize.Y, Minimum, Maximum);
 
 		// If we don't have a scoped transaction for the resize, create a new one.
 		if (!ScopedTransaction.IsValid())
