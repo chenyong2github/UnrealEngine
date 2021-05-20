@@ -285,11 +285,10 @@ public:
 	 * @return          The number of bytes written to Dest, up to DestLen, or -1 if the entire Source string could did not fit in DestLen bytes.
 	 */
 	template <
-		typename DestBufferType,
 		typename SrcBufferType,
 		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
 	>
-	static FORCEINLINE int32 Convert(DestBufferType Dest, int32 DestLen, const SrcBufferType* Source, int32 SourceLen)
+	static FORCEINLINE int32 Convert(ToType* Dest, int32 DestLen, const SrcBufferType* Source, int32 SourceLen)
 	{
 		return (int32)(FPlatformString::Convert((IntendedToType*)Dest, DestLen, (const FromType*)Source, SourceLen) - (IntendedToType*)Dest);
 	}
