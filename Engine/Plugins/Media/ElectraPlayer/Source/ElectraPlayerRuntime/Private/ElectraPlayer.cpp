@@ -1072,7 +1072,7 @@ void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingP
 	if (TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin())
 	{
 		// Create a binary media sample of our extended format and pass it up.
-		TSharedRef<FElectraBinarySample, ESPMode::ThreadSafe> Meta = MakeShared<FElectraBinarySample>();
+		TSharedRef<FElectraBinarySample, ESPMode::ThreadSafe> Meta = MakeShared<FElectraBinarySample, ESPMode::ThreadSafe>();
 		switch(InDispatchMode)
 		{
 			default:
