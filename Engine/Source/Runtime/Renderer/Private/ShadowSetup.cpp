@@ -705,6 +705,10 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 
 FProjectedShadowInfo::~FProjectedShadowInfo()
 {
+	for (auto ProjectionStencilingPass : ProjectionStencilingPasses)
+	{
+		delete ProjectionStencilingPass;
+	}
 }
 
 /** Shadow border needs to be wide enough to prevent the shadow filtering from picking up content in other shadowmaps in the atlas. */
