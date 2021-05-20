@@ -21,11 +21,14 @@ namespace DisplayClusterConfigurationStrings
 
 		static constexpr auto ClusterCategory              = TEXT("NDisplay Cluster");
 		static constexpr auto ClusterConfigurationCategory = TEXT("NDisplay Cluster Configuration");
-		static constexpr auto ClusterPostprocessCategory   = TEXT("NDisplay Cluster Postprocess");
-
-		static constexpr auto ICVFXCategory                = TEXT("NDisplay ICVFX");
+		static constexpr auto ClusterPostprocessCategory   = TEXT("Post Process");
+		static constexpr auto ChromaKeyCategory            = TEXT("Chromakey");
+		static constexpr auto LightcardCategory            = TEXT("Light Cards");
+		
+		static constexpr auto ICVFXCategory                = TEXT("In Camera ICVFX");
 		static constexpr auto ConfigurationCategory        = TEXT("NDisplay Configuration");
-		static constexpr auto PreviewCategory              = TEXT("NDisplay Preview (Editor only)");
+		static constexpr auto PreviewCategory              = TEXT("Editor Preview");
+		static constexpr auto AdvancedCategory              = TEXT("Advanced");
 	}
 
 	// Command line arguments
