@@ -136,17 +136,10 @@ struct FDatasmithRuntimeImportOptions
 	TEnumAsByte<ECollisionTraceFlag> CollisionType = ECollisionTraceFlag::CTF_UseComplexAsSimple;
 	/**
 	 * Indicates whether meta-data should be imported or not
-	 * Meta-data are not imported by default
+	 * Meta-data are imported by default
 	 */
 	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
-	bool bImportMetaData = false;
-
-	/**
-	* Indicates whether the viewpoint should be modified to match the one of the first imported camera element
-	* By default, the viewpoint is not modified
-	*/
-	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadWrite)
-	bool bModifyViewpoint = false;
+	bool bImportMetaData = true;
 };
 
 UCLASS(meta = (DisplayName = "Datasmith Destination"))
