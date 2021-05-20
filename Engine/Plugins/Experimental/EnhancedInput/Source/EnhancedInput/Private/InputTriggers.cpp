@@ -4,7 +4,7 @@
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "EnhancedPlayerInput.h"
-
+#include "GameFramework/PlayerController.h"
 
 // Abstract trigger bases
 ETriggerState UInputTrigger::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)

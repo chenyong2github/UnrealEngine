@@ -3,6 +3,7 @@
 #include "IEyeTracker.h"
 #include "Modules/ModuleManager.h"
 #include "GameFramework/WorldSettings.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "WindowsMixedRealityInteropLoader.h"
 #include "IXRTrackingSystem.h"
