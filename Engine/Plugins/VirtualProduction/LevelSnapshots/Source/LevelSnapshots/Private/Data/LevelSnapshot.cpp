@@ -2,7 +2,6 @@
 
 #include "Data/LevelSnapshot.h"
 
-#include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "LevelSnapshotsStats.h"
@@ -106,17 +105,7 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 #if WITH_EDITOR
 	FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
 #endif
-	
-	// Temporary fix until asset migration is implemented: simply use old system for old data.
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	if (bHasLegacyData)
-	{
-		LegacyApplySnapshotToWorld(SelectionSet);
-	}
-	else
-	{
-		SerializedData.ApplyToWorld(TargetWorld, GetPackage(), SelectionSet);
-	}
+	SerializedData.ApplyToWorld(TargetWorld, GetPackage(), SelectionSet);
 }
 
 void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
@@ -139,12 +128,6 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		}
 #endif
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Level snapshots currently only support editors. Snapshots taken in other world types are experimental any may not function as expected."));
-	}
-	
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	if (bHasLegacyData)
-	{
-		ActorSnapshots.Empty();
 	}
 	
 	EnsureWorldInitialised();
@@ -296,25 +279,14 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 TOptional<AActor*> ULevelSnapshot::GetDeserializedActor(const FSoftObjectPath& OriginalActorPath)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("GetDeserializedActor"), STAT_GetDeserializedActor, STATGROUP_LevelSnapshots);
+	
 	EnsureWorldInitialised();
-
-	// Temporary fix until asset migration is implemented: simply use old system for old data.
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	if (bHasLegacyData)
-	{
-		FLevelSnapshot_Actor* LegacySnapshotData = ActorSnapshots.Find(OriginalActorPath);
-		return LegacySnapshotData ? LegacySnapshotData->GetDeserializedActor(SnapshotContainerWorld) : TOptional<AActor*>();
-	}
-	else
-	{
-		return SerializedData.GetDeserializedActor(OriginalActorPath, GetPackage());
-	}
+	return SerializedData.GetDeserializedActor(OriginalActorPath, GetPackage());
 }
 
 int32 ULevelSnapshot::GetNumSavedActors() const
 {
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	return bHasLegacyData ? ActorSnapshots.Num() : SerializedData.GetNumSavedActors();
+	return SerializedData.GetNumSavedActors();
 }
 
 void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const
@@ -322,16 +294,6 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("DiffWorld"), STAT_DiffWorld, STATGROUP_LevelSnapshots);
 	if (!ensure(World && HandleMatchedActor.IsBound() && HandleRemovedActor.IsBound() && HandleAddedActor.IsBound()))
 	{
-		return;
-	}
-
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	if (bHasLegacyData)
-	{
-		for (auto It = ActorSnapshots.CreateConstIterator(); It; ++It)
-		{
-			HandleMatchedActor.Execute(It->Key);
-		}
 		return;
 	}
 
@@ -463,50 +425,5 @@ void ULevelSnapshot::DestroyWorld()
 	
 		SnapshotContainerWorld->CleanupWorld();
 		SnapshotContainerWorld = nullptr;
-	}
-}
-
-void ULevelSnapshot::LegacyApplySnapshotToWorld(const FPropertySelectionMap& SelectionSet)
-{
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ApplySnapshotToWorld"), STAT_ApplySnapshotToWorld, STATGROUP_LevelSnapshots);
-
-	ULevelSnapshotSelectionSet* LegacySelectionSet = NewObject<ULevelSnapshotSelectionSet>();
-	LegacySelectionSet->AddPropertyMap(SelectionSet);
-	
-	TSet<AActor*> EvaluatedActors;
-	for (const FSoftObjectPath& Path : LegacySelectionSet->GetSelectedWorldObjectPaths())
-	{
-		if (Path.IsValid())
-		{
-			AActor* ActorToPass = nullptr;
-				
-			if (UObject* SelectedObject = Path.ResolveObject())
-			{
-				if (AActor* AsActor = Cast<AActor>(SelectedObject))
-				{
-					ActorToPass = AsActor;
-				}
-				else if (UActorComponent* AsComponent = Cast<UActorComponent>(SelectedObject))
-				{
-					if (AActor* OwningActor = AsComponent->GetOwner())
-					{
-						ActorToPass = OwningActor;
-					}
-				}
-			}
-
-			if (ensure(ActorToPass))
-			{
-				if (!EvaluatedActors.Contains(ActorToPass))
-				{
-					if (const FLevelSnapshot_Actor* ActorSnapshot = ActorSnapshots.Find(ActorToPass))
-					{
-						ActorSnapshot->DeserializeIntoWorldActor(ActorToPass, LegacySelectionSet);
-					}
-						
-					EvaluatedActors.Add(ActorToPass);
-				}
-			}
-		}
 	}
 }

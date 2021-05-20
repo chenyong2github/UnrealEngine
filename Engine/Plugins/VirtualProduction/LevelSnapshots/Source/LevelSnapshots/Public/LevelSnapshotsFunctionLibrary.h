@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "LevelSnapshotSelections.h"
 #include "PropertySelectionMap.h"
 #include "LevelSnapshotsFunctionLibrary.generated.h"
 
