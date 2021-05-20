@@ -4,7 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "InteractiveGizmoManager.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "ToolSceneQueriesUtil.h"
 
@@ -31,7 +31,7 @@ void UConstructionPlaneMechanic::Initialize(UWorld* TargetWorld, const FFrame3d&
 	UInteractiveGizmoManager* GizmoManager = GetParentTool()->GetToolManager()->GetPairedGizmoManager();
 
 	PlaneTransformProxy = NewObject<UTransformProxy>(this);
-	PlaneTransformGizmo = GizmoManager->CreateCustomTransformGizmo(
+	PlaneTransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager,
 		ETransformGizmoSubElements::StandardTranslateRotate, this);
 	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UConstructionPlaneMechanic::TransformChanged);
 

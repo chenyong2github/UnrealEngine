@@ -4,6 +4,7 @@
 #include "CompositionOps/BooleanMeshesOp.h"
 
 #include "ToolSetupUtil.h"
+#include "BaseGizmos/TransformProxy.h"
 
 #include "DynamicMesh3.h"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transforms/MultiTransformer.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -236,8 +237,8 @@ void UMultiTransformer::UpdateShowGizmoState(bool bNewVisibility)
 	else
 	{
 		check(TransformGizmo == nullptr);
-		TransformGizmo = bRepositionableGizmo ? GizmoManager->CreateCustomRepositionableTransformGizmo(ActiveGizmoSubElements, this)
-			: GizmoManager->CreateCustomTransformGizmo(ActiveGizmoSubElements, this);
+		TransformGizmo = bRepositionableGizmo ? UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(GizmoManager, ActiveGizmoSubElements, this)
+			: UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager, ActiveGizmoSubElements, this);
 		if (bForceGizmoCoordSystem)
 		{
 			TransformGizmo->bUseContextCoordinateSystem = false;

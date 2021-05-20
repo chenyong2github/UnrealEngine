@@ -11,7 +11,7 @@
 #include "ToolSceneQueriesUtil.h"
 
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
@@ -239,7 +239,7 @@ void UTransformMeshesTool::SetActiveGizmos_Single(bool bLocalRotations)
 	bool bCanNonUniformScale = Targets.Num() == 1 || bLocalRotations;
 	ETransformGizmoSubElements GizmoElements = (bCanNonUniformScale) ?
 		ETransformGizmoSubElements::FullTranslateRotateScale : ETransformGizmoSubElements::TranslateRotateUniformScale;
-	Transformable.TransformGizmo = GizmoManager->CreateCustomRepositionableTransformGizmo(GizmoElements, this);
+	Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(GetToolManager(), GizmoElements, this);
 	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
 
 	DragAlignmentMechanic->AddToGizmo(Transformable.TransformGizmo, &ComponentsToIgnoreInAlignment);
@@ -264,7 +264,7 @@ void UTransformMeshesTool::SetActiveGizmos_PerObject()
 		ComponentsToIgnoreInAlignment.Add(TargetComponent->GetOwnerComponent());
 
 		ETransformGizmoSubElements GizmoElements = ETransformGizmoSubElements::FullTranslateRotateScale;
-		Transformable.TransformGizmo = GizmoManager->CreateCustomRepositionableTransformGizmo(GizmoElements, this);
+		Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(GetToolManager(), GizmoElements, this);
 		Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
 
 		DragAlignmentMechanic->AddToGizmo(Transformable.TransformGizmo, &ComponentsToIgnoreInAlignment);

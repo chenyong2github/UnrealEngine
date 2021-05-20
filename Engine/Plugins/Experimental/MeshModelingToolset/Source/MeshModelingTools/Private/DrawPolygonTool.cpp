@@ -27,7 +27,7 @@
 #include "DynamicMeshEditor.h"
 
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 
 #include "Selection/SelectClickedAction.h"
@@ -126,7 +126,7 @@ void UDrawPolygonTool::Setup()
 	// parent of any Components in this case, we just use it's transform and change delegate.
 	PlaneTransformProxy = NewObject<UTransformProxy>(this);
 	PlaneTransformProxy->SetTransform(FTransform((FQuat)DrawPlaneOrientation, (FVector)DrawPlaneOrigin));
-	PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
+	PlaneTransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GetToolManager(),
 		ETransformGizmoSubElements::StandardTranslateRotate, this);
 	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
 	// listen for changes to the proxy and update the plane when that happens
@@ -986,7 +986,7 @@ void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
 	else
 	{
 		if (!PlaneTransformGizmo) {
-			PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
+			PlaneTransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GetToolManager(),
 				ETransformGizmoSubElements::StandardTranslateRotate, this);
 		}
 		PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
