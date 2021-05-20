@@ -3,8 +3,8 @@
 set -x
 set -eu
 
-ToolChainVersion=v17
-LLVM_VERSION=10.0.1
+ToolChainVersion=v18
+LLVM_VERSION=11.0.1
 LLVM_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}
 
 ToolChainVersionName="${ToolChainVersion}_clang-${LLVM_VERSION}-centos7"
