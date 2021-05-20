@@ -1,6 +1,6 @@
 @echo off
 
-REM Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+REM Copyright Epic Games, Inc. All Rights Reserved.
 
 rem It is recommended to have the latest CMake 3.10+ installed for VS2017 support
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+# Copyright Epic Games, Inc. All Rights Reserved.
 
 # Set your UE4 root dir here (The folder that has Engine in it)
 export UE4_ENGINE_ROOT_DIR=/path/to/your/ue4/depot
