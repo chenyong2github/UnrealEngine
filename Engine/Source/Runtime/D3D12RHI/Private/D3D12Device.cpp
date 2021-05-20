@@ -397,7 +397,8 @@ void FD3D12Device::Cleanup()
 	ReleasePooledUniformBuffers();
 
 	// Flush all pending deletes before destroying the device or any command contexts.
-	FRHIResource::FlushPendingDeletes();
+	FRHIResource::FlushPendingDeletes(RHICmdList);
+	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
 	// Delete array index 0 (the default context) last
 	for (int32 i = CommandContextArray.Num() - 1; i >= 0; i--)

@@ -1305,7 +1305,7 @@ void FlushPendingDeleteRHIResources_RenderThread()
 {
 	if (!IsRunningRHIInSeparateThread())
 	{
-		FRHIResource::FlushPendingDeletes();
+		FRHIResource::FlushPendingDeletes(FRHICommandListExecutor::GetImmediateCommandList());
 	}
 }
 

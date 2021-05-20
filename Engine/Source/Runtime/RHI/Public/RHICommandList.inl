@@ -95,7 +95,7 @@ FORCEINLINE_DEBUGGABLE void FRHICommandListImmediate::ImmediateFlush(EImmediateF
 		{
 			CSV_SCOPED_TIMING_STAT(RHITFlushes, FlushRHIThreadFlushResourcesTotal);
 			PipelineStateCache::FlushResources();
-			FRHIResource::FlushPendingDeletes();
+			FRHIResource::FlushPendingDeletes(FRHICommandListExecutor::GetImmediateCommandList());
 		}
 	//this fall-through is intentional
 	case EImmediateFlushType::FlushRHIThread:

@@ -29,6 +29,7 @@
 #define RHI_WANT_RESOURCE_INFO 0
 #endif
 
+class FRHICommandListImmediate;
 struct FClearValueBinding;
 struct FRHIResourceInfo;
 struct FGenerateMipsStruct;
@@ -99,7 +100,7 @@ public:
 		return uint32(CurrentValue);
 	}
 
-	static void FlushPendingDeletes();
+	static void FlushPendingDeletes(FRHICommandListImmediate& RHICmdList);
 
 	static bool Bypass();
 

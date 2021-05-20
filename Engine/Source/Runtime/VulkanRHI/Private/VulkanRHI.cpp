@@ -335,11 +335,15 @@ void FVulkanDynamicRHI::Shutdown()
 		Device->CleanUpRayTracing();
 #endif // VULKAN_RHI_RAYTRACING
 
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
 		// Flush all pending deletes before destroying the device.
-		FRHIResource::FlushPendingDeletes();
+		FRHIResource::FlushPendingDeletes(RHICmdList);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
 		// And again since some might get on a pending queue
-		FRHIResource::FlushPendingDeletes();
+		FRHIResource::FlushPendingDeletes(RHICmdList);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	}
 
 	Device->Destroy();
