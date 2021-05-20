@@ -749,6 +749,11 @@ void FNiagaraParameterMapHistoryBuilder::EnableScriptWhitelist(bool bInEnable, E
 	FilterScriptType = InScriptType;
 }
 
+bool FNiagaraParameterMapHistoryBuilder::HasCurrentUsageContext() const
+{
+	return RelevantScriptUsageContext.Num() > 0;
+}
+
 
 bool FNiagaraParameterMapHistoryBuilder::ContextContains(ENiagaraScriptUsage InUsage) const
 {
@@ -1617,11 +1622,18 @@ ENiagaraFunctionDebugState FCompileConstantResolver::GetDebugState() const
 }
 
 
-ENiagaraFunctionDebugState FCompileConstantResolver::SetDebugState(ENiagaraFunctionDebugState InDebugState)
+FCompileConstantResolver FCompileConstantResolver::WithDebugState(ENiagaraFunctionDebugState InDebugState) const
 {
-	ENiagaraFunctionDebugState OldState = DebugState;
-	DebugState = InDebugState; 
-	return OldState;
+	FCompileConstantResolver Copy = *this;
+	Copy.DebugState = InDebugState;
+	return Copy;
+}
+
+FCompileConstantResolver FCompileConstantResolver::WithUsage(ENiagaraScriptUsage ScriptUsage) const
+{
+	FCompileConstantResolver Copy = *this;
+	Copy.Usage = ScriptUsage;
+	return Copy;
 }
 
 int32 FNiagaraParameterMapHistoryWithMetaDataBuilder::AddVariableToHistory(FNiagaraParameterMapHistory& History, const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin)
