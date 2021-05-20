@@ -52,6 +52,10 @@ class SdfAssetPath;
 
 /// \class UsdRiLightAPI
 ///
+/// 
+/// \deprecated RenderMan-specific light settings will move to a
+/// new schema in a future release.
+/// 
 /// RiLightAPI is an API schema that provides an interface
 /// to add Renderman-specific attributes to lights.
 ///
@@ -60,8 +64,13 @@ class UsdRiLightAPI : public UsdAPISchemaBase
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaType
-    static const UsdSchemaType schemaType = UsdSchemaType::SingleApplyAPI;
+    /// \sa UsdSchemaKind
+    static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
+
+    /// \deprecated
+    /// Same as schemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    static const UsdSchemaKind schemaType = UsdSchemaKind::SingleApplyAPI;
 
     /// Construct a UsdRiLightAPI on UsdPrim \p prim .
     /// Equivalent to UsdRiLightAPI::Get(prim.GetStage(), prim.GetPath())
@@ -111,22 +120,30 @@ public:
     /// 
     /// \return A valid UsdRiLightAPI object is returned upon success. 
     /// An invalid (or empty) UsdRiLightAPI object is returned upon 
-    /// failure. See \ref UsdAPISchemaBase::_ApplyAPISchema() for conditions 
+    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
     /// resulting in failure. 
     /// 
     /// \sa UsdPrim::GetAppliedSchemas()
     /// \sa UsdPrim::HasAPI()
+    /// \sa UsdPrim::ApplyAPI()
+    /// \sa UsdPrim::RemoveAPI()
     ///
     USDRI_API
     static UsdRiLightAPI 
     Apply(const UsdPrim &prim);
 
 protected:
-    /// Returns the type of schema this class belongs to.
+    /// Returns the kind of schema this class belongs to.
     ///
-    /// \sa UsdSchemaType
+    /// \sa UsdSchemaKind
     USDRI_API
-    UsdSchemaType _GetSchemaType() const override;
+    UsdSchemaKind _GetSchemaKind() const override;
+
+    /// \deprecated
+    /// Same as _GetSchemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    USDRI_API
+    UsdSchemaKind _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
