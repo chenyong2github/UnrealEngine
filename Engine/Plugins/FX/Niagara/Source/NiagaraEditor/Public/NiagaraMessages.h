@@ -25,7 +25,8 @@ enum class ENiagaraMessageSeverity : uint8
 	Error = 1,
 	PerformanceWarning = 2,
 	Warning = 3,
-	Info = 4,	// Should be last
+	Info = 4,
+	CustomNote = 5 // Should be last
 };
 
 //Struct for passing around script asset info from compile event message job to message types
@@ -249,7 +250,7 @@ struct NIAGARAEDITOR_API FNiagaraStackMessage
 	FText ShortDescription;
 
 	UPROPERTY()
-	ENiagaraMessageSeverity MessageSeverity = ENiagaraMessageSeverity::Info;
+	ENiagaraMessageSeverity MessageSeverity = ENiagaraMessageSeverity::CustomNote;
 
 	UPROPERTY()
 	bool bAllowDismissal = true;
