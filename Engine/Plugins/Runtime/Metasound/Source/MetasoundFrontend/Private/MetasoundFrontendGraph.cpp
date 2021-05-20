@@ -4,6 +4,7 @@
 
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
+#include "Algo/TopologicalSort.h"
 #include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
@@ -13,12 +14,13 @@
 
 namespace Metasound
 {
+
 	FFrontendGraph::FFrontendGraph(const FString& InInstanceName, const FGuid& InInstanceID)
 	:	FGraph(InInstanceName, InInstanceID)
 	{
 	}
 
-	void FFrontendGraph::AddInputNode(FGuid InDependencyId, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode)
+	void FFrontendGraph::AddInputNode(FGuid InDependencyId, int32 InIndex, const FVertexKey& InVertexKey, TSharedPtr<const INode> InNode)
 	{
 		if (InNode.IsValid())
 		{
@@ -28,11 +30,11 @@ namespace Metasound
 			// Input nodes need an extra Index value to keep track of their position in the graph's inputs.
 			InputNodes.Add(InIndex, InNode.Get());
 			AddInputDataDestination(*InNode, InVertexKey);
-			AddNode(InDependencyId, MoveTemp(InNode));
+			AddNode(InDependencyId, InNode);
 		}
 	}
 
-	void FFrontendGraph::AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode)
+	void FFrontendGraph::AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TSharedPtr<const INode> InNode)
 	{
 		if (InNode.IsValid())
 		{
@@ -42,12 +44,12 @@ namespace Metasound
 			// Output nodes need an extra Index value to keep track of their position in the graph's inputs.
 			OutputNodes.Add(InIndex, InNode.Get());
 			AddOutputDataSource(*InNode, InVertexKey);
-			AddNode(InNodeID, MoveTemp(InNode));
+			AddNode(InNodeID, InNode);
 		}
 	}
 
 	/** Store a node on this graph. */
-	void FFrontendGraph::AddNode(FGuid InNodeID, TUniquePtr<INode> InNode)
+	void FFrontendGraph::AddNode(FGuid InNodeID, TSharedPtr<const INode> InNode)
 	{
 		if (InNode.IsValid())
 		{
@@ -55,13 +57,13 @@ namespace Metasound
 			check(!NodeMap.Contains(InNodeID));
 
 			NodeMap.Add(InNodeID, InNode.Get());
-			StoreNode(MoveTemp(InNode));
+			StoreNode(InNode);
 		}
 	}
 
 	const INode* FFrontendGraph::FindNode(FGuid InNodeID) const
 	{
-		INode* const* NodePtr = NodeMap.Find(InNodeID);
+		const INode* const* NodePtr = NodeMap.Find(InNodeID);
 
 		if (nullptr != NodePtr)
 		{
@@ -73,7 +75,7 @@ namespace Metasound
 
 	const INode* FFrontendGraph::FindInputNode(int32 InIndex) const
 	{
-		INode* const* NodePtr = InputNodes.Find(InIndex);
+		const INode* const* NodePtr = InputNodes.Find(InIndex);
 
 		if (nullptr != NodePtr)
 		{
@@ -85,7 +87,7 @@ namespace Metasound
 
 	const INode* FFrontendGraph::FindOutputNode(int32 InIndex) const
 	{
-		INode* const* NodePtr = OutputNodes.Find(InIndex);
+		const INode* const* NodePtr = OutputNodes.Find(InIndex);
 
 		if (nullptr != NodePtr)
 		{
@@ -134,14 +136,12 @@ namespace Metasound
 		return true;
 	}
 
-
-	void FFrontendGraph::StoreNode(TUniquePtr<INode> InNode)
+	void FFrontendGraph::StoreNode(TSharedPtr<const INode> InNode)
 	{
 		check(InNode.IsValid());
 		StoredNodes.Add(InNode.Get());
-		Storage.Add(MoveTemp(InNode));
+		NodeStorage.Add(InNode);
 	}
-
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
 	{
@@ -219,20 +219,6 @@ namespace Metasound
 
 		InitData.InstanceID = InNode.ID;
 
-
-		// Copy over our initialization params.
-		/*
-		for (auto& StaticParamTuple : InNode.StaticParameters)
-		{
-			FLiteral LiteralParam = Frontend::GetLiteralParam(StaticParamTuple.Value);
-
-			if (LiteralParam.IsValid())
-			{
-				InitData.ParamMap.Add(StaticParamTuple.Key, MoveTemp(LiteralParam));
-			}
-		}
-		*/
-		
 		// TODO: handle check to see if node interface conforms to class interface here. 
 		// TODO: check to see if external object supports class interface.
 
@@ -246,7 +232,7 @@ namespace Metasound
 	{
 		OutClassInputIndex = INDEX_NONE;
 
-		// TODO: assumes input node has exactly one input 
+		// Input nodes should have exactly one input.
 		if (ensure(InInputNode.Interface.Inputs.Num() == 1))
 		{
 			const FName& TypeName = InInputNode.Interface.Inputs[0].TypeName;
@@ -269,7 +255,7 @@ namespace Metasound
 	{
 		OutClassOutputIndex = INDEX_NONE;
 
-		// TODO: assumes input node has exactly one input 
+		// Output nodes should have exactly one output
 		if (ensure(InOutputNode.Interface.Outputs.Num() == 1))
 		{
 			const FName& TypeName = InOutputNode.Interface.Outputs[0].TypeName;
@@ -342,7 +328,7 @@ namespace Metasound
 	}
 
 	// TODO: add errors here. Most will be a "PromptIfMissing"...
-	void FFrontendGraphBuilder::AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TMap<FGuid, const FMetasoundFrontendClass*>& InClasses, FFrontendGraph& OutGraph) const
+	void FFrontendGraphBuilder::AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const FDependencyByIDMap& InClasses, const FSharedNodeByIDMap& InSubgraphs, FFrontendGraph& OutGraph) const
 	{
 		for (const FMetasoundFrontendNode& Node : InGraphClass.Graph.Nodes)
 		{
@@ -359,8 +345,8 @@ namespace Metasound
 
 							if ((nullptr != ClassInput) && (INDEX_NONE != InputIndex))
 							{
-
-								OutGraph.AddInputNode(Node.ID, InputIndex, ClassInput->Name, CreateInputNode(Node, *NodeClass, *ClassInput));
+								TSharedPtr<const INode> InputNode(CreateInputNode(Node, *NodeClass, *ClassInput).Release());
+								OutGraph.AddInputNode(Node.ID, InputIndex, ClassInput->Name, InputNode);
 							}
 							else
 							{
@@ -377,7 +363,8 @@ namespace Metasound
 
 							if ((nullptr != ClassOutput) && (INDEX_NONE != OutputIndex))
 							{
-								OutGraph.AddOutputNode(Node.ID, OutputIndex, ClassOutput->Name, CreateOutputNode(Node, *NodeClass));
+								TSharedPtr<const INode> OutputNode(CreateOutputNode(Node, *NodeClass).Release());
+								OutGraph.AddOutputNode(Node.ID, OutputIndex, ClassOutput->Name, OutputNode);
 							}
 							else
 							{
@@ -387,8 +374,27 @@ namespace Metasound
 
 						break;
 
+					case EMetasoundFrontendClassType::Graph:
+						{
+							const TSharedPtr<const INode>* SubgraphPtr = InSubgraphs.Find(Node.ClassID);
+
+							if (nullptr == SubgraphPtr)
+							{
+								UE_LOG(LogMetaSound, Error, TEXT("Failed to find subgraph for node [NodeID:%s, NodeName:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.Name, *Node.ClassID.ToString());
+							}
+							else
+							{
+								OutGraph.AddNode(Node.ID, *SubgraphPtr);
+							}
+						}
+						break;
+
+					case EMetasoundFrontendClassType::External:
 					default:
-						OutGraph.AddNode(Node.ID, CreateExternalNode(Node, *NodeClass));
+						{
+							TSharedPtr<const INode> ExternalNode(CreateExternalNode(Node, *NodeClass).Release());
+							OutGraph.AddNode(Node.ID, ExternalNode);
+						}
 				}
 			}
 		}
@@ -404,7 +410,6 @@ namespace Metasound
 			const FMetasoundFrontendVertex* Vertex = nullptr;
 		};
 
-		// TODO: add support for array vertices.
 		typedef TTuple<FGuid, FGuid> FNodeIDVertexID;
 
 		TMap<FNodeIDVertexID, FCoreNodeAndFrontendVertex> NodeSourcesByID;
@@ -524,35 +529,113 @@ namespace Metasound
 		return bIsEveryDependencyMet;
 	}
 
-	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundFrontendGraphClass& InGraph, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies) const
+	bool FFrontendGraphBuilder::SortSubgraphDependencies(TArray<const FMetasoundFrontendGraphClass*>& Subgraphs) const
 	{
-		if (!IsFlat(InGraph, InDependencies))
+		// Helper for caching and querying subgraph dependencies
+		struct FSubgraphDependencyLookup
 		{
-			// Likely this will change in the future and the builder will be able
-			// to build graphs with subgraphs..
-			UE_LOG(LogMetaSound, Error, TEXT("Provided graph not flat. FFrontendGraphBuilder can only build flat graphs"));
-			return TUniquePtr<FFrontendGraph>(nullptr);
+			FSubgraphDependencyLookup(TArrayView<const FMetasoundFrontendGraphClass*> InGraphs)
+			{
+				// Map ClassID to graph pointer. 
+				TMap<FGuid, const FMetasoundFrontendGraphClass*> ClassIDAndGraph;
+				for (const FMetasoundFrontendGraphClass* Graph: InGraphs)
+				{
+					ClassIDAndGraph.Add(Graph->ID, Graph);
+				}
+
+				// Cache subgraph dependencies.
+				for (const FMetasoundFrontendGraphClass* GraphClass : InGraphs)
+				{
+					for (const FMetasoundFrontendNode& Node : GraphClass->Graph.Nodes)
+					{
+						if (ClassIDAndGraph.Contains(Node.ClassID))
+						{
+							DependencyMap.Add(GraphClass, ClassIDAndGraph[Node.ClassID]);
+						}
+					}
+				}
+			}
+
+			TArray<const FMetasoundFrontendGraphClass*> operator()(const FMetasoundFrontendGraphClass* InParent) const
+			{
+				TArray<const FMetasoundFrontendGraphClass*> Dependencies;
+				DependencyMap.MultiFind(InParent, Dependencies);
+				return Dependencies;
+			}
+
+		private:
+
+			TMultiMap<const FMetasoundFrontendGraphClass*, const FMetasoundFrontendGraphClass*> DependencyMap;
+		};
+
+		bool bSuccess = Algo::TopologicalSort(Subgraphs, FSubgraphDependencyLookup(Subgraphs));
+		if (!bSuccess)
+		{
+			UE_LOG(LogMetaSound, Error, TEXT("Failed to topologically sort subgraphs. Possible recursive subgraph dependency"));
 		}
 
+		return bSuccess;
+	}
 
-		TMap<FGuid, const FMetasoundFrontendClass*> ClassMap;
-
-		for (const FMetasoundFrontendClass& ExtClass : InDependencies)
-		{
-			ClassMap.Add(ExtClass.ID, &ExtClass);
-		}
+	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(FBuildContext& InContext, const FMetasoundFrontendGraphClass& InGraph) const
+	{
 
 		TUniquePtr<FFrontendGraph> MetasoundGraph = MakeUnique<FFrontendGraph>(InGraph.Metadata.ClassName.GetFullName().ToString(), FGuid::NewGuid());
 
 		// TODO: will likely want to bubble up errors here for case where
 		// a datatype or node is not registered. 
-		AddNodesToGraph(InGraph, ClassMap, *MetasoundGraph);
+		AddNodesToGraph(InGraph, InContext.FrontendClasses, InContext.Graphs, *MetasoundGraph);
 
 		AddEdgesToGraph(InGraph.Graph, *MetasoundGraph);
 
 		check(MetasoundGraph->OwnsAllReferencedNodes());
 
 		return MoveTemp(MetasoundGraph);
+	}
+
+
+	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundFrontendGraphClass& InGraph, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies) const
+	{
+		FBuildContext Context;
+
+		// Gather all references to node classes from external dependencies and subgraphs.
+		for (const FMetasoundFrontendClass& ExtClass : InDependencies)
+		{
+			Context.FrontendClasses.Add(ExtClass.ID, &ExtClass);
+		}
+		for (const FMetasoundFrontendClass& ExtClass : InSubgraphs)
+		{
+			Context.FrontendClasses.Add(ExtClass.ID, &ExtClass);
+		}
+
+		// Sort subgraphs so that dependent subgraphs are created in correct order.
+		TArray<const FMetasoundFrontendGraphClass*> FrontendSubgraphPtrs;
+		Algo::Transform(InSubgraphs, FrontendSubgraphPtrs, [](const FMetasoundFrontendGraphClass& InClass) { return &InClass; });
+
+		bool bSuccess = SortSubgraphDependencies(FrontendSubgraphPtrs);
+		if (!bSuccess)
+		{
+			UE_LOG(LogMetaSound, Error, TEXT("Failed to create graph due to failed subgraph ordering."));
+			return TUniquePtr<FFrontendGraph>(nullptr);
+		}
+
+		// Create each subgraph.
+		for (const FMetasoundFrontendGraphClass* FrontendSubgraphPtr : FrontendSubgraphPtrs)
+		{
+			TSharedPtr<const INode> Subgraph(CreateGraph(Context, *FrontendSubgraphPtr).Release());
+			if (!Subgraph.IsValid())
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create subgraph [SubgraphName: %s]"), *FrontendSubgraphPtr->Metadata.ClassName.ToString());
+			}
+			else
+			{
+				// Add subgraphs to context so they are accessible for subsequent graphs.
+				Context.Graphs.Add(FrontendSubgraphPtr->ID, Subgraph);
+			}
+		}
+
+		// Create parent graph.
+		return CreateGraph(Context, InGraph); 
 	}
 	
 	/* Metasound document should be inflated by now. */

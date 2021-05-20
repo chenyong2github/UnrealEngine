@@ -9,6 +9,9 @@
 
 namespace Metasound
 {
+	// Forward Declare
+	class IOperatorBuilder;
+
 	/** IOperatorBuildError
 	 *
 	 * This interface is intended for errors encountered when building an GraphOperator.
@@ -42,6 +45,7 @@ namespace Metasound
 	 */
 	struct FCreateOperatorParams
 	{
+
 		/** The node associated with this factory and the desired IOperator. */
 		const INode& Node;
 
@@ -54,15 +58,11 @@ namespace Metasound
 		/** Environment settings available. */
 		const FMetasoundEnvironment& Environment;
 
-		FCreateOperatorParams(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, const FMetasoundEnvironment& InEnvironment)
-		:	Node(InNode)
-		,	OperatorSettings(InOperatorSettings)
-		,	InputDataReferences(InInputDataReferences)
-		,	Environment(InEnvironment)
-		{
-		}
+		/** Pointer to builder actively building graph. */
+		const IOperatorBuilder* Builder = nullptr;
 	};
 
+	/** Array of build errors. */
 	typedef TArray<TUniquePtr<IOperatorBuildError>> FBuildErrorArray;
 
 	/** Convenience template for adding build errors.
@@ -102,6 +102,20 @@ namespace Metasound
 			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) = 0;
 	};
 
+	struct FBuildGraphParams
+	{
+		/** Reference to graph being built. */
+		const IGraph& Graph;
+
+		/** General operator settings for the graph. */
+		const FOperatorSettings& OperatorSettings;
+
+		/** Collection of input parameters available for to an IOperator. */
+		const FDataReferenceCollection& InputDataReferences;
+
+		/** Environment settings available. */
+		const FMetasoundEnvironment& Environment;
+	};
 
 	/** IOperatorBuilder
 	 *
@@ -117,14 +131,12 @@ namespace Metasound
 
 			/** Build a graph operator from a graph. 
 			 *
-			 * @params InGraph - The input graph object containing edges, input vertices and output vertices.
-			 * @param InOperatorSettings - Settings to be passed to all operators on creation.
-			 * @param InEnvironment - The environment variables to use during construction. 
+			 * @params InParams - Input parameters for building a graph.
 			 * @param OutErrors - An array of errors. Errors can be added if issues occur while creating the IOperator.
 			 *
 			 * @return A unique pointer to an IOperator. 
 			 */
-			virtual TUniquePtr<IOperator> BuildGraphOperator(const IGraph& InGraph, const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment, TArray<FBuildErrorPtr>& OutErrors) = 0;
+			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildErrorArray& OutErrors) const = 0;
 	};
 }
 

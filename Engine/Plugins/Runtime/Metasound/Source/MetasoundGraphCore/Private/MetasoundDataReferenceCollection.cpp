@@ -44,6 +44,12 @@ namespace Metasound
 
 			return true;
 		}
+		else if (OtherCollection.ContainsDataWriteReference(OtherName, OtherTypeName))
+		{
+			DataReadRefMap.Add(InName, OtherCollection.DataWriteRefMap[OtherName]);
+
+			return true;
+		}
 
 		return false;
 	}

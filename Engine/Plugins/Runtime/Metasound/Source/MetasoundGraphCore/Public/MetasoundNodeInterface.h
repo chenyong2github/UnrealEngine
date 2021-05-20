@@ -320,7 +320,7 @@ namespace Metasound
 
 
 	/** Interface for graph of nodes. */
-	class IGraph : public INodeBase
+	class IGraph : public INode
 	{
 		public:
 			virtual ~IGraph() {}

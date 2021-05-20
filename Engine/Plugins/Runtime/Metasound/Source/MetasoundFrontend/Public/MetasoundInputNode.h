@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
+#include "MetasoundDataReference.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundTrigger.h"
@@ -28,10 +29,26 @@ namespace Metasound
 			{
 			}
 
-			virtual ~TInputOperator() {}
+			virtual ~TInputOperator() = default;
 
 			virtual FDataReferenceCollection GetInputs() const override
 			{
+				// TODO: Expose a readable reference instead of a writable reference.
+				//
+				// If data needs to be written to, outside entities should create
+				// it and pass it in as a readable reference. Currently, the workflow
+				// is to have the input node create a writable reference which is then
+				// queried by the outside world. Exposing writable references causes 
+				// code maintainability issues where TInputNode<> specializations need
+				// to handle multiple situations which can happen in an input node.
+				//
+				// The only reason that this code is not removed immediately is because
+				// of the `TExecutableDataType<>` which primarily supports the FTrigger.
+				// The TExecutableDataType<> advances the trigger within the graph. But,
+				// with graph composition, the owner of the data type becomes more 
+				// complicated and hence triggers advancing should be managed by a 
+				// different object. Preferably the graph operator itself, or an
+				// explicit trigger manager tied to the environment.
 				FDataReferenceCollection Inputs;
 				Inputs.AddDataWriteReference<DataType>(DataReferenceName, InputValue);
 				return Inputs;
@@ -47,6 +64,14 @@ namespace Metasound
 			void Execute()
 			{
 				TExecutableDataType<DataType>::Execute(*InputValue, *OutputValue);
+			}
+
+			void ExecutPassThrough()
+			{
+				if (TExecutableDataType<DataType>::bIsExecutable)
+				{
+					*OutputValue = *InputValue;
+				}
 			}
 
 			static void ExecuteFunction(IOperator* InOperator)
@@ -71,53 +96,160 @@ namespace Metasound
 
 	};
 
-	/** TInputOperatorLiteralFactory creates an input by passing it a literal. */
-	template<typename DataType>
-	class TInputOperatorLiteralFactory : public IOperatorFactory
-	{
-		public:
-			// If the data type is parsable from a literal type, then the data type 
-			// can be registered as an input type with the frontend.  To make a 
-			// DataType registrable, either create a constructor for the data type
-			// which accepts the one of the supported literal types with an optional 
-			// FOperatorSettings argument, or create a default constructor, or specialize
-			// this factory with an implementation for that specific data type.
-			static constexpr bool bCanRegister = TLiteralTraits<DataType>::bIsParsableFromAnyLiteralType;
-
-			using FDataWriteReference = TDataWriteReference<DataType>;
-
-			TInputOperatorLiteralFactory(FLiteral&& InInitParam)
-			:	InitParam(MoveTemp(InInitParam))
-			{
-			}
-
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
-
-		private:
-
-			FLiteral InitParam;
-	};
-
-	/** TInputOperatorFactory initializes the DataType at construction. It uses
-	 * the DataType's copy operator to create additional version. 
+	/** TPassThroughOperator supplies a readable input and a readable output. 
+	 *
+	 * It does *not* invoke executable data types (see `TExecutableDataType<>`).
 	 */
 	template<typename DataType>
+	class TPassThroughOperator : public TInputOperator<DataType>
+	{
+	public:
+		using FDataReadReference = TDataReadReference<DataType>;
+		using Super = TInputOperator<DataType>;
+
+		TPassThroughOperator(const FVertexKey& InDataReferenceName, FDataReadReference InDataReference)
+		: TInputOperator<DataType>(InDataReferenceName, WriteCast(InDataReference)) // Write cast is safe because `GetExecuteFunction() and GetInputs() are overridden, ensuring that data is not written.
+		, DataReferenceName(InDataReferenceName)
+		{
+		}
+
+		virtual ~TPassThroughOperator() = default;
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			FDataReferenceCollection Inputs;
+			ensure(Inputs.AddDataReadReferenceFrom(DataReferenceName, Super::GetInputs(), DataReferenceName, GetMetasoundDataTypeName<DataType>()));
+			return Inputs;
+		}
+
+		static void ExecuteFunction(IOperator* InOperator)
+		{
+			static_cast<TPassThroughOperator<DataType>*>(InOperator)->ExecutPassThrough();
+		}
+
+		virtual IOperator::FExecuteFunction GetExecuteFunction() override
+		{
+			// TODO: this is a hack until we can remove TExecutableOperator<>.
+			//
+			// The primary contention is that we would like to allow developers 
+			// to specialize `TInputNode<>` as in `TInputNode<FStereoAudioFormat>`.
+			// `TExecutableOperator<>` adds in a level of complexity that makes it 
+			// difficult to allow specialization of TInputNode and to derive from
+			// TInputNode to create the TPassThroughOperator. Particularly because
+			// TExecutableOperator<> alters which output data reference is used. 
+			// Specializations of TInputNode also tend to alter the output data
+			// references. Supporting both is likely to cause issues. 
+			//
+			// We may need to ensure that input nodes do not provide execution
+			// functions. Or we may need a more explicit way of only allowing
+			// outputs to be modified. Likely a mix of the `final` keyword
+			// and disabling template specialization of a base class. 
+			//
+			// namespace Private
+			// {
+			//     class TInputNodePrivate<>
+			//     {
+			//         GetInputs() final
+			//         GetExecutionFunction() final
+			//         GetOutputs()
+			//     }
+			// }
+			// 
+			// template<DataType>
+			// using TInputNodeBase<DataType> = TInputNodePrivate<DataType>; // Do not allow specialization of TInputNodePrivate<> or TInputNodeBase<> (this works because you can't specialize a template alias)
+			//
+			// // DO ALLOW specialization of TInputNode
+			// template<DataType>
+			// class TInputNode<DataType> : public TInputNodeBase<DataType>
+			// {
+			// };
+			// 
+			// template<>
+			// class TInputNode<MyType> : public TInputNodeBase<MyType>
+			// {
+			// 	 GetOutputs() <-- OK to override
+			// }
+			//
+			if (TExecutableDataType<DataType>::bIsExecutable)
+			{
+				return &TPassThroughOperator<DataType>::ExecuteFunction;
+			}
+			return nullptr;
+		}
+
+	private:
+		FVertexKey DataReferenceName;
+	};
+
+
+	/** Data type creation policy to create by copy construction. */
+	template<typename DataType>
+	struct FCreateDataReferenceWithCopy
+	{
+		template<typename... ArgTypes>
+		FCreateDataReferenceWithCopy(ArgTypes&&... Args)
+		:	Data(Forward<ArgTypes>(Args)...)
+		{
+		}
+
+		TDataWriteReference<DataType> CreateDataReference(const FOperatorSettings& InOperatorSettings) const
+		{
+			return TDataWriteReferenceFactory<DataType>::CreateExplicitArgs(InOperatorSettings, Data);
+		}
+
+	private:
+		DataType Data;
+	};
+
+	/** Data type creation policy to create by literal construction. */
+	template<typename DataType>
+	struct FCreateDataReferenceWithLiteral
+	{
+		// If the data type is parsable from a literal type, then the data type 
+		// can be registered as an input type with the frontend.  To make a 
+		// DataType registrable, either create a constructor for the data type
+		// which accepts the one of the supported literal types with an optional 
+		// FOperatorSettings argument, or create a default constructor, or specialize
+		// this factory with an implementation for that specific data type.
+		static constexpr bool bCanCreateWithLiteral = TLiteralTraits<DataType>::bIsParsableFromAnyLiteralType;
+
+		FCreateDataReferenceWithLiteral(FLiteral&& InLiteral)
+		:	Literal(MoveTemp(InLiteral))
+		{
+		}
+
+		TDataWriteReference<DataType> CreateDataReference(const FOperatorSettings& InOperatorSettings) const
+		{
+			return TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InOperatorSettings, Literal);
+		}
+
+	private:
+
+		FLiteral Literal;
+	};
+
+	
+
+	/** TInputOperatorFactory initializes the DataType at construction. It uses
+	 * the ReferenceCreatorType to create a data reference if one is not passed in.
+	 */
+	template<typename DataType, typename ReferenceCreatorType>
 	class TInputOperatorFactory : public IOperatorFactory
 	{
 		public:
 
 			using FDataWriteReference = TDataWriteReference<DataType>;
+			using FDataReadReference = TDataReadReference<DataType>;
 
-			template<typename... ArgTypes>
-			TInputOperatorFactory(ArgTypes&&... Args)
-			:	Data(Forward<ArgTypes>(Args)...)
+			TInputOperatorFactory(ReferenceCreatorType&& InReferenceCreator)
+			:	ReferenceCreator(MoveTemp(InReferenceCreator))
 			{
 			}
 
 			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
 
 		private:
-			DataType Data;
+			ReferenceCreatorType ReferenceCreator;
 	};
 
 	/** TInputNode represents an input to a metasound graph. */
@@ -126,9 +258,8 @@ namespace Metasound
 	{
 
 		public:
-
 			// If true, this node can be instantiated by the FrontEnd.
-			static constexpr bool bCanRegister = TInputOperatorLiteralFactory<DataType>::bCanRegister;
+			static constexpr bool bCanRegister = FCreateDataReferenceWithLiteral<DataType>::bCanCreateWithLiteral;
 
 			static FVertexInterface DeclareVertexInterface(const FVertexKey& InVertexName)
 			{
@@ -158,6 +289,23 @@ namespace Metasound
 				return Info;
 			}
 
+			template<typename... ArgTypes>
+			static FOperatorFactorySharedRef CreateOperatorFactoryWithArgs(ArgTypes&&... Args)
+			{
+				using FCreatorType = FCreateDataReferenceWithCopy<DataType>;
+				using FFactoryType = TInputOperatorFactory<DataType, FCreatorType>;
+
+				return MakeOperatorFactoryRef<FFactoryType>(FCreatorType(Forward<ArgTypes>(Args)...));
+			}
+
+			static FOperatorFactorySharedRef CreateOperatorFactoryWithLiteral(FLiteral&& InLiteral)
+			{
+				using FCreatorType = FCreateDataReferenceWithLiteral<DataType>;
+				using FFactoryType = TInputOperatorFactory<DataType, FCreatorType>;
+
+				return MakeOperatorFactoryRef<FFactoryType>(FCreatorType(MoveTemp(InLiteral)));
+			}
+
 
 			/* Construct a TInputNode using the TInputOperatorFactory<> and forwarding 
 			 * Args to the TInputOperatorFactory constructor.*/
@@ -166,7 +314,7 @@ namespace Metasound
 			:	FNode(InNodeDescription, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
-			,	Factory(MakeOperatorFactoryRef<TInputOperatorFactory<DataType>>(Forward<ArgTypes>(Args)...))
+			,	Factory(CreateOperatorFactoryWithArgs(Forward<ArgTypes>(Args)...))
 			{
 			}
 
@@ -176,7 +324,7 @@ namespace Metasound
 			:	FNode(InNodeDescription, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
-			, 	Factory(MakeOperatorFactoryRef<TInputOperatorLiteralFactory<DataType>>(MoveTemp(InParam)))
+			, 	Factory(CreateOperatorFactoryWithLiteral(MoveTemp(InParam)))
 			{
 			}
 
@@ -213,31 +361,32 @@ namespace Metasound
 	};
 
 
-	template<typename DataType>
-	TUniquePtr<IOperator> TInputOperatorLiteralFactory<DataType>::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
+	template<typename DataType, typename ReferenceCreatorType>
+	TUniquePtr<IOperator> TInputOperatorFactory<DataType, ReferenceCreatorType>::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
 	{
 		using FInputNodeType = TInputNode<DataType>;
 
-		// Create write reference by calling compatible constructor with literal.
-		FDataWriteReference DataRef = TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, InitParam);
-
 		const FInputNodeType& InputNode = static_cast<const FInputNodeType&>(InParams.Node);
+		const FVertexKey& VertexKey = InputNode.GetVertexName();
 
-		return MakeUnique<TInputOperator<DataType>>(InputNode.GetVertexName(), DataRef);
+		if (InParams.InputDataReferences.ContainsDataWriteReference<DataType>(VertexKey))
+		{
+			// Data is externally owned. Use pass through operator
+			FDataWriteReference DataRef = InParams.InputDataReferences.GetDataWriteReference<DataType>(VertexKey);
+			return MakeUnique<TPassThroughOperator<DataType>>(InputNode.GetVertexName(), DataRef);
+		}
+		else if (InParams.InputDataReferences.ContainsDataReadReference<DataType>(VertexKey))
+		{
+			// Data is externally owned. Use pass through operator
+			FDataReadReference DataRef = InParams.InputDataReferences.GetDataReadReference<DataType>(VertexKey);
+			return MakeUnique<TPassThroughOperator<DataType>>(InputNode.GetVertexName(), DataRef);
+		}
+		else
+		{
+			// Create write reference by calling compatible constructor with literal.
+			FDataWriteReference DataRef = ReferenceCreator.CreateDataReference(InParams.OperatorSettings);
+			return MakeUnique<TInputOperator<DataType>>(InputNode.GetVertexName(), DataRef);
+		}
 	}
-
-	template<typename DataType>
-	TUniquePtr<IOperator> TInputOperatorFactory<DataType>::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
-	{
-		using FInputNodeType = TInputNode<DataType>;
-
-		// Create write reference by calling copy constructor.
-		FDataWriteReference DataRef = TDataWriteReferenceFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, Data);
-
-		const FInputNodeType& InputNode = static_cast<const FInputNodeType&>(InParams.Node);
-
-		return MakeUnique<TInputOperator<DataType>>(InputNode.GetVertexName(), DataRef);
-	}
-
 } // namespace Metasound
 #undef LOCTEXT_NAMESPACE //MetasoundOutputNode
