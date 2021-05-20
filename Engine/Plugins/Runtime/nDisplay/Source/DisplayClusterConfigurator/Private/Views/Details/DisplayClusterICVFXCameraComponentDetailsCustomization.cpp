@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DetailsCustomization/DisplayClusterICVFXCameraComponentDetailsCustomization.h"
+#include "DisplayClusterICVFXCameraComponentDetailsCustomization.h"
 
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 

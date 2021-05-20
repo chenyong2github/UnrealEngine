@@ -400,4 +400,18 @@ private:
 	TSharedPtr<IPropertyHandle> ImagePathHandle;
 };
 
+
+/**
+ * Component Ref Type Customization (Prevents struct from expanding)
+ */
+class FDisplayClusterConfiguratorComponentRefCustomization final
+	: public FDisplayClusterConfiguratorTypeCustomization
+{
+protected:
+	//~ IPropertyTypeCustomization interface begin
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	//~ IPropertyTypeCustomization interface end
+};
+
+
 #undef CONSTRUCT_CUSTOMIZATION

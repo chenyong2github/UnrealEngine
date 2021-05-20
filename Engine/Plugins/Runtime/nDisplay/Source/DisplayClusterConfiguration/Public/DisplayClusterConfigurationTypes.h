@@ -510,31 +510,31 @@ public:
 public:
 	FDisplayClusterConfigurationDataMetaInfo Meta;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = Advanced)
 	FDisplayClusterConfigurationInfo Info;
 
 	UPROPERTY()
 	UDisplayClusterConfigurationScene* Scene;
 
-	UPROPERTY(VisibleInstanceOnly, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties))
+	UPROPERTY(VisibleInstanceOnly, Instanced, Category = Advanced, meta = (DisplayThumbnail = false, ShowInnerProperties))
 	UDisplayClusterConfigurationCluster* Cluster;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = Advanced)
 	TMap<FString, FString> CustomParameters;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = Advanced)
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
 	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_StageSettings StageSettings;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = Advanced)
 	FDisplayClusterConfigurationRenderFrame RenderFrameSettings;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Follow Local Player Camera"))
+	UPROPERTY(EditAnywhere, Category = Advanced, meta = (DisplayName = "Follow Local Player Camera"))
 	bool bFollowLocalPlayerCamera = false;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Exit when ESC pressed"))
+	UPROPERTY(EditAnywhere, Category = Advanced, meta = (DisplayName = "Exit when ESC pressed"))
 	bool bExitOnEsc = true;
 
 	/** Create empty config data. */

@@ -2,17 +2,9 @@
 
 #include "DisplayClusterEditorModule.h"
 
-#include "DisplayClusterRootActor.h"
-#include "Components/DisplayClusterICVFXCameraComponent.h"
-#include "DetailsCustomization/DisplayClusterRootActorDetailsCustomization.h"
-#include "DetailsCustomization/DisplayClusterICVFXCameraComponentDetailsCustomization.h"
-
-#include "Components/DisplayClusterPreviewComponent.h"
-
 #include "Settings/DisplayClusterEditorSettings.h"
 
 #include "ISettingsModule.h"
-#include "PropertyEditorModule.h"
 
 
 #define LOCTEXT_NAMESPACE "DisplayClusterEditor"
@@ -20,7 +12,6 @@
 void FDisplayClusterEditorModule::StartupModule()
 {
 	RegisterSettings();
-	RegisterCustomizations();
 }
 
 void FDisplayClusterEditorModule::ShutdownModule()
@@ -28,7 +19,6 @@ void FDisplayClusterEditorModule::ShutdownModule()
 	if (UObjectInitialized())
 	{
 		UnregisterSettings();
-		UnregisterCustomizations();
 	}
 }
 
@@ -54,23 +44,6 @@ void FDisplayClusterEditorModule::UnregisterSettings()
 	{
 		SettingsModule->UnregisterSettings(UDisplayClusterEditorSettings::Container, UDisplayClusterEditorSettings::Category, UDisplayClusterEditorSettings::Section);
 	}
-}
-
-
-void FDisplayClusterEditorModule::RegisterCustomizations()
-{
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	PropertyEditorModule.RegisterCustomClassLayout(ADisplayClusterRootActor::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterRootActorDetailsCustomization::MakeInstance));
-	PropertyEditorModule.RegisterCustomClassLayout(UDisplayClusterICVFXCameraComponent::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterICVFXCameraComponentDetailsCustomization::MakeInstance));
-}
-
-void FDisplayClusterEditorModule::UnregisterCustomizations()
-{
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	PropertyEditorModule.UnregisterCustomClassLayout(ADisplayClusterRootActor::StaticClass()->GetFName());
-	PropertyEditorModule.UnregisterCustomClassLayout(UDisplayClusterICVFXCameraComponent::StaticClass()->GetFName());
 }
 
 IMPLEMENT_MODULE(FDisplayClusterEditorModule, DisplayClusterEditor);

@@ -148,10 +148,6 @@ void FDisplayClusterConfiguratorDataDetailCustomization::CustomizeDetails(IDetai
 {
 	Super::CustomizeDetails(InLayoutBuilder);
 
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
-		ADD_PROPERTY(UDisplayClusterConfigurationData, StageSettings);
-	END_CATEGORY()
-
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
 		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationData, RenderFrameSettings);
 		ADD_PROPERTY(UDisplayClusterConfigurationData, Info);
@@ -174,11 +170,7 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 	check(ClusterNodesHandle->IsValidHandle());
 
 	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
-
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterCategory)
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Nodes);
-	END_CATEGORY()
-
+	
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
 		BEGIN_GROUP(TEXT("GlobalPostProcess"), LOCTEXT("GlobalPostprocessLabel", "All Viewports"))
 			ADD_GROUP_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
@@ -203,7 +195,7 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 		}
 	END_CATEGORY();
 
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterConfigurationCategory)
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::AdvancedCategory)
 		ADD_PROPERTY(UDisplayClusterConfigurationCluster, MasterNode);
 		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Sync);
 		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Network);
@@ -232,6 +224,7 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 				];
 		}
 
+		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Nodes);
 	END_CATEGORY()
 }
 
@@ -1176,6 +1169,22 @@ void FDisplayClusterConfiguratorExternalImageTypeCustomization::CustomizeHeader(
 void FDisplayClusterConfiguratorExternalImageTypeCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	FDisplayClusterConfiguratorTypeCustomization::CustomizeChildren(InPropertyHandle, InChildBuilder, CustomizationUtils);
+}
+
+void FDisplayClusterConfiguratorComponentRefCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
+	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	// This will prevent the struct from being expanded.
+
+	HeaderRow.NameContent()
+	[
+		PropertyHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	[
+		// Automatically retrieves the TitleProperty
+		PropertyHandle->CreatePropertyValueWidget(false)
+	];
 }
 
 #undef LOCTEXT_NAMESPACE

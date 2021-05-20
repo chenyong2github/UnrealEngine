@@ -10,6 +10,7 @@
 #include "Components/DisplayClusterXformComponent.h"
 #include "Components/DisplayClusterSceneComponentSyncParent.h"
 #include "Components/DisplayClusterPreviewComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterConfigurationStrings.h"
@@ -107,6 +108,8 @@ void ADisplayClusterRootActor::RerunConstructionScripts_Editor()
 {
 	/* We need to reinitialize since our components are being regenerated here. */
 	InitializeRootActor();
+
+	UpdateInnerFrustumPriority();
 }
 
 bool ADisplayClusterRootActor::IsPreviewEnabled() const
@@ -192,6 +195,69 @@ void ADisplayClusterRootActor::UpdateXformGizmos()
 		XformPair.Value->SetVisXformScale(Scale);
 		XformPair.Value->SetVisXformVisibility(bIsVisible);
 	}
+}
+
+void ADisplayClusterRootActor::UpdateInnerFrustumPriority()
+{
+	if (InnerFrustumPriority.Num() == 0)
+	{
+		ResetInnerFrustumPriority();
+		return;
+	}
+	
+	TArray<UDisplayClusterICVFXCameraComponent*> Components;
+	GetComponents<UDisplayClusterICVFXCameraComponent>(Components);
+
+	TArray<FString> ValidCameras;
+	for (UDisplayClusterICVFXCameraComponent* Camera : Components)
+	{
+		FString CameraName = Camera->GetName();
+		InnerFrustumPriority.AddUnique(CameraName);
+		ValidCameras.Add(CameraName);
+	}
+
+	// Removes invalid cameras or duplicate cameras.
+	InnerFrustumPriority.RemoveAll([ValidCameras, this](const FDisplayClusterComponentRef& CameraRef)
+	{
+		return !ValidCameras.Contains(CameraRef.Name) || InnerFrustumPriority.FilterByPredicate([CameraRef](const FDisplayClusterComponentRef& CameraRefN2)
+		{
+			return CameraRef == CameraRefN2;
+		}).Num() > 1;
+	});
+	
+	for (int32 Idx = 0; Idx < InnerFrustumPriority.Num(); ++Idx)
+	{
+		if (UDisplayClusterICVFXCameraComponent* CameraComponent = FindObjectFast<UDisplayClusterICVFXCameraComponent>(this, *InnerFrustumPriority[Idx].Name))
+		{
+			CameraComponent->CameraSettings.RenderSettings.RenderOrder = Idx;
+		}
+	}
+}
+
+void ADisplayClusterRootActor::ResetInnerFrustumPriority()
+{
+	TArray<UDisplayClusterICVFXCameraComponent*> Components;
+	GetComponents<UDisplayClusterICVFXCameraComponent>(Components);
+
+	InnerFrustumPriority.Reset(Components.Num());
+	for (UDisplayClusterICVFXCameraComponent* Camera : Components)
+	{
+		InnerFrustumPriority.Add(Camera->GetName());
+	}
+	
+	// Initialize based on current render priority.
+	InnerFrustumPriority.Sort([this](const FDisplayClusterComponentRef& CameraA, const FDisplayClusterComponentRef& CameraB)
+	{
+		UDisplayClusterICVFXCameraComponent* CameraComponentA = FindObjectFast<UDisplayClusterICVFXCameraComponent>(this, *CameraA.Name);
+		UDisplayClusterICVFXCameraComponent* CameraComponentB = FindObjectFast<UDisplayClusterICVFXCameraComponent>(this, *CameraB.Name);
+
+		if (CameraComponentA && CameraComponentB)
+		{
+			return CameraComponentA->CameraSettings.RenderSettings.RenderOrder < CameraComponentB->CameraSettings.RenderSettings.RenderOrder;
+		}
+
+		return false;
+	});
 }
 
 bool ADisplayClusterRootActor::IsSelectedInEditor() const
@@ -287,6 +353,10 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			 PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, bAreXformGizmosVisible))
 	{
 		UpdateXformGizmos();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, InnerFrustumPriority))
+	{
+		ResetInnerFrustumPriority();
 	}
 
 	if (bReinitializeActor)

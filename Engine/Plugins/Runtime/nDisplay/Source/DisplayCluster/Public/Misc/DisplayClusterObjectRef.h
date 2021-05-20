@@ -13,6 +13,8 @@
 #include "Editor.h"
 #endif
 
+#include "DisplayClusterObjectRef.generated.h"
+
 class DISPLAYCLUSTER_API FDisplayClusterActorRef
 {
 public:
@@ -232,4 +234,25 @@ private:
 	// Find component new object ptr by name and save to ComponentPtr
 	FName   ComponentName;
 	mutable TWeakObjectPtr<USceneComponent> ComponentPtr;
+};
+
+USTRUCT()
+struct DISPLAYCLUSTER_API FDisplayClusterComponentRef
+{
+	GENERATED_BODY()
+	
+	FDisplayClusterComponentRef() {}
+	
+	FDisplayClusterComponentRef(const FString& InName)
+	{
+		Name = InName;
+	}
+	
+	UPROPERTY(VisibleAnywhere, Category = Component)
+	FString Name;
+	
+	FORCEINLINE bool operator==(const FDisplayClusterComponentRef& OtherRef) const
+	{
+		return Name == OtherRef.Name;
+	}
 };

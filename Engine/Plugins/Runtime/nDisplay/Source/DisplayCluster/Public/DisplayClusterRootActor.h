@@ -37,6 +37,7 @@ class UDisplayClusterXformComponent;
 class UDisplayClusterSyncTickComponent;
 class UDisplayClusterPreviewComponent;
 
+
 /**
  * VR root. This contains nDisplay VR hierarchy in the game.
  */
@@ -227,30 +228,30 @@ private:
 //////////////////////////////////////////////////////////////////////////////////////////////
 #if WITH_EDITORONLY_DATA 
 public:
+	// Allow preview render
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
+	bool bPreviewEnable = true;
+	
 	// Render single node preview or whole cluster
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
 	// Render mode for PIE
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
 
-	// Allow preview render
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
-	bool bPreviewEnable = true;
-
 	// Update preview texture period in tick
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
 	int TickPerFrame = 1;
 
 	// Preview texture size get from viewport, and scaled by this value
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	float XformGizmoScale = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	bool bAreXformGizmosVisible = true;
 
 private:
@@ -321,9 +322,19 @@ public:
 
 	void UpdateXformGizmos();
 
+	void UpdateInnerFrustumPriority();
+	void ResetInnerFrustumPriority();
+	
 	virtual bool IsSelectedInEditor() const override;
 	void SetIsSelectedInEditor(bool bValue);
 
+public:
+	UPROPERTY(EditInstanceOnly, Category = NDisplay)
+	bool EnableInnerFrustum = true;
+
+	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera ICVFX", meta = (TitleProperty = "Name"))
+	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
+		
 private:
 	/** The number of times to update the render target via deferred update. */
 	int32 PreviewRenderTargetUpdatesRequired = 0;
