@@ -1259,9 +1259,13 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		FPinCollectorArray InputPins;
 		GetInputPins(InputPins);
 
-		ENiagaraFunctionDebugState OldDebugState = OutHistory.ConstantResolver.SetDebugState(DebugState);
-		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, OutHistory.ConstantResolver);
-		OutHistory.ConstantResolver.SetDebugState(OldDebugState);
+		FCompileConstantResolver FunctionResolver = OutHistory.ConstantResolver.WithDebugState(DebugState);
+		if (OutHistory.HasCurrentUsageContext())
+		{
+			// if we traverse a full emitter graph the usage might change during the traversal, so we need to update the constant resolver
+			FunctionResolver = FunctionResolver.WithUsage(OutHistory.GetCurrentUsageContext());
+		}
+		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, FunctionResolver);
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
@@ -1401,9 +1405,7 @@ UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FNa
 			TArray<UEdGraphPin*> InputPins;
 			GetInputPins(InputPins);
 
-			ENiagaraFunctionDebugState PreviousDebugState = ConstantResolver.SetDebugState(DebugState);
-			FNiagaraEditorUtilities::SetStaticSwitchConstants(ScriptSource->NodeGraph, InputPins, ConstantResolver);
-			ConstantResolver.SetDebugState(PreviousDebugState);
+			FNiagaraEditorUtilities::SetStaticSwitchConstants(ScriptSource->NodeGraph, InputPins, ConstantResolver.WithDebugState(DebugState));
 			
 			return ScriptSource->NodeGraph->FindParameterMapDefaultValuePin(VariableName, FunctionScript->GetUsage(), InParentUsage);
 		}

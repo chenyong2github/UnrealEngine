@@ -24,7 +24,8 @@ public:
 	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
 
 	ENiagaraFunctionDebugState GetDebugState() const;
-	ENiagaraFunctionDebugState SetDebugState(ENiagaraFunctionDebugState InDebugState);
+	FCompileConstantResolver WithDebugState(ENiagaraFunctionDebugState InDebugState) const;
+	FCompileConstantResolver WithUsage(ENiagaraScriptUsage ScriptUsage) const;
 private:
 	const UNiagaraEmitter* Emitter;
 	const UNiagaraSystem* System;
@@ -371,6 +372,7 @@ public:
 	*/
 	void EnableScriptWhitelist(bool bInEnable, ENiagaraScriptUsage InScriptType);
 
+	bool HasCurrentUsageContext() const;
 	ENiagaraScriptUsage GetCurrentUsageContext()const;
 	ENiagaraScriptUsage GetBaseUsageContext()const;
 	bool ContextContains(ENiagaraScriptUsage InUsage) const;
