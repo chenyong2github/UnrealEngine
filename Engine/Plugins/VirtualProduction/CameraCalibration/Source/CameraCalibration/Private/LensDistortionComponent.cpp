@@ -4,6 +4,7 @@
 
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
+#include "Engine/Engine.h"
 #include "LiveLinkComponentController.h"
 
 ULensDistortionComponent::ULensDistortionComponent()

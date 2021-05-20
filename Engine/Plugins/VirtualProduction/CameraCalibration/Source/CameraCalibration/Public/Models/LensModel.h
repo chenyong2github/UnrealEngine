@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "UObject/StructOnScope.h"
+
 #include "LensModel.generated.h"
 
 
@@ -25,6 +27,11 @@ public:
 	/** Get the struct of distortion parameters supported by this model */
 	virtual UScriptStruct* GetParameterStruct() const PURE_VIRTUAL(ULensModel::GetParameterStruct, return nullptr;);
 
+#if WITH_EDITOR
+	/** Get the names of each float parameters supported by this model */
+	virtual TArray<FText> GetParameterDisplayNames() const;
+#endif //WITH_EDITOR
+
 	/** Get the number of float fields in the parameter struct supported by this model */
 	virtual uint32 GetNumParameters() const;
 
@@ -33,9 +40,18 @@ public:
 	 * Note: the template type must be a UStruct
 	 */
 	template<typename StructType>
-	void ToArray(StructType& SrcData, TArray<float>& DstArray) const
+	void ToArray(const StructType& SrcData, TArray<float>& DstArray) const
 	{
 		ToArray_Internal(StructType::StaticStruct(), &SrcData, DstArray);
+	}
+
+	/** 
+	 * ToArray specialization taking a StructOnScope containing type and data 
+	 */
+	template<>
+	void ToArray<FStructOnScope>(const FStructOnScope& SrcData, TArray<float>& DstArray) const
+	{
+		ToArray_Internal(static_cast<const UScriptStruct*>(SrcData.GetStruct()), reinterpret_cast<const void*>(SrcData.GetStructMemory()), DstArray);
 	}
 
 	/**
@@ -53,7 +69,7 @@ public:
 
 protected:
 	/** Internal implementation of ToArray. See declaration of public template method. */
-	virtual void ToArray_Internal(UScriptStruct* TypeStruct, void* SrcData, TArray<float>& DstArray) const;
+	virtual void ToArray_Internal(const UScriptStruct* TypeStruct, const void* SrcData, TArray<float>& DstArray) const;
 
 	/** Internal implementation of FromArray. See declaration of public template method. */
 	virtual void FromArray_Internal(UScriptStruct* TypeStruct, const TArray<float>& SrcArray, void* DstData);

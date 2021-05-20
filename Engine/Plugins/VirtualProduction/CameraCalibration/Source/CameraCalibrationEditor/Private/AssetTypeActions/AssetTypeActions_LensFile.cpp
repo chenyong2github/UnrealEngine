@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_LensFile.h"
 
-#include "AssetEditor/LensFileEditorToolkit.h"
+#include "AssetEditor/CameraCalibrationToolkit.h"
 #include "LensFile.h"
 
 #define LOCTEXT_NAMESPACE "LensFileTypeActions"
@@ -17,15 +17,17 @@ UClass* FAssetTypeActions_LensFile::GetSupportedClass() const
 	return ULensFile::StaticClass();
 }
 
-//void FAssetTypeActions_LensFile::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
-//{
-//	for (UObject* Object : InObjects)
-//	{
-//		if (ULensFile* Asset = Cast<ULensFile>(Object))
-//		{
-//			FLensFileEditorToolkit::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, Asset);
-//		}
-//	}
-//}
+void FAssetTypeActions_LensFile::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
+{
+	const EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+
+	for (UObject* Object : InObjects)
+	{
+		if (ULensFile* Asset = Cast<ULensFile>(Object))
+		{
+			FCameraCalibrationToolkit::CreateEditor(Mode, EditWithinLevelEditor, Asset);
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
