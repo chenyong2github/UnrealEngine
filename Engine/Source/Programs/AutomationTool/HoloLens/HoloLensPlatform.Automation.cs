@@ -709,6 +709,9 @@ namespace HoloLens.Automation
 			var AppXRecipeBuiltFiles = new StringBuilder();
 
 			string MapFilename = Path.Combine(SC.StageDirectory.FullName, OutputName + ".pkgmap");
+			AppXRecipeBuiltFiles.AppendLine("[ResourceMetadata]");
+			AppXRecipeBuiltFiles.AppendLine("\"ResourceId\"\t\"UnrealAssets\"");
+			AppXRecipeBuiltFiles.AppendLine("");
 			AppXRecipeBuiltFiles.AppendLine(@"[Files]");
 
 			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + Extension);
@@ -736,11 +739,11 @@ namespace HoloLens.Automation
 				}
 			}
 
-			AppXRecipeBuiltFiles.AppendLine(String.Format("\"{0}\"\t\"{1}\"", Path.Combine(SC.StageDirectory.FullName, "AppxManifest_assets.xml"), "AppxManifest.xml"));
+			//AppXRecipeBuiltFiles.AppendLine(String.Format("\"{0}\"\t\"{1}\"", Path.Combine(SC.StageDirectory.FullName, "AppxManifest_assets.xml"), "AppxManifest.xml"));
 
 			File.WriteAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
 
-			string MakeAppXCommandLine = String.Format(@"pack /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
+			string MakeAppXCommandLine = String.Format(@"pack /r /o /f ""{0}"" /p ""{1}"" /m ""{2}""", MapFilename, OutputAppX, Path.Combine(SC.StageDirectory.FullName, "AppxManifest_assets.xml"));
 			RunAndLog(CmdEnv, MakeAppXPath.FullName, MakeAppXCommandLine, null, 0, null, ERunOptions.None);
 			SignPackage(Params, SC, OutputAppX);
 		}
@@ -1026,7 +1029,7 @@ namespace HoloLens.Automation
 			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputNameBase + Extension);
 			{
 				OutputAppX += "bundle";
-				bool SeparateAssetPackaging = false;
+				bool SeparateAssetPackaging = true;
 				bool bStartInVR = false;
 
 				//auto update
@@ -1037,7 +1040,7 @@ namespace HoloLens.Automation
 				ConfigHierarchy PlatformEngineConfig = null;
 				if (Params.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
 				{
-					PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bUseAssetPackage", out SeparateAssetPackaging);
+					//PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bUseAssetPackage", out SeparateAssetPackaging);
 					
 					// Get auto update vars
 					PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bShouldCreateAppInstaller", out bShouldCreateAppInstaller);
