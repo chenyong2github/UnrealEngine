@@ -104,6 +104,7 @@ enum class EEditMeshPolygonsToolActions
 	Retriangulate,
 	Decompose,
 	Disconnect,
+	Duplicate,
 
 	CollapseEdge,
 	WeldEdges,
@@ -230,6 +231,11 @@ public:
 	/** Separate the selected faces at their borders */
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Disconnect", DisplayPriority = 11))
 	void Disconnect() { PostAction(EEditMeshPolygonsToolActions::Disconnect); }
+
+	/** Duplicate the selected faces at their borders */
+	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Duplicate", DisplayPriority = 12))
+	void Duplicate() { PostAction(EEditMeshPolygonsToolActions::Duplicate); }
+
 };
 
 
@@ -275,8 +281,12 @@ public:
 	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Disconnect", DisplayPriority = 11))
 	void Disconnect() { PostAction(EEditMeshPolygonsToolActions::Disconnect); }
 
+	/** Duplicate the selected faces */
+	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Duplicate", DisplayPriority = 12))
+	void Duplicate() { PostAction(EEditMeshPolygonsToolActions::Duplicate); }
+
 	/** Poke each face at its center point */
-	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Poke", DisplayPriority = 12))
+	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Poke", DisplayPriority = 13))
 	void Poke() { PostAction(EEditMeshPolygonsToolActions::PokeSingleFace); }
 };
 
@@ -674,6 +684,7 @@ protected:
 	void ApplyRetriangulate();
 	void ApplyDecompose();
 	void ApplyDisconnect();
+	void ApplyDuplicate();
 	void ApplyPokeSingleFace();
 
 	void ApplyCollapseEdge();
