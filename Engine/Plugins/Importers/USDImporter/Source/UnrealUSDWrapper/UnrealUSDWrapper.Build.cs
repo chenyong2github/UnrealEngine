@@ -28,7 +28,6 @@ namespace UnrealBuildTool.Rules
 				PublicDependencyModuleNames.Add("Python3");
 
 				PublicDefinitions.Add("USE_USD_SDK=1");
-				PublicDefinitions.Add("BOOST_LIB_TOOLSET=\"vc141\"");
 
 				var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 				var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python3", Target.Platform.ToString());
@@ -147,7 +146,7 @@ namespace UnrealBuildTool.Rules
 							System.Console.WriteLine(Err);
 							throw new BuildException(Err);
 						}
-
+						
 						PublicDelayLoadDLLs.Add(RuntimeModulePath);
 						RuntimeDependencies.Add(RuntimeModulePath);
 					}

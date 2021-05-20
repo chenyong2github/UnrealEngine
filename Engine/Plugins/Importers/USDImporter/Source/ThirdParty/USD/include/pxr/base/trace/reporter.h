@@ -28,39 +28,31 @@
 #include "pxr/pxr.h"
 
 #include "pxr/base/trace/api.h"
-#include "pxr/base/trace/collector.h"
 #include "pxr/base/trace/event.h"
 #include "pxr/base/trace/aggregateNode.h"
-#include "pxr/base/trace/key.h"
 #include "pxr/base/trace/reporterBase.h"
 
 #include "pxr/base/tf/declarePtrs.h"
 #include "pxr/base/tf/mallocTag.h"
 #include "pxr/base/tf/staticTokens.h"
 
-#include <tbb/concurrent_queue.h>
-
-#include <map>
-#include <ostream>
+#include <iosfwd>
 #include <string>
-#include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
 #define TRACE_REPORTER_TOKENS       \
     ((warningString, "WARNING:"))
 
-TF_DECLARE_PUBLIC_TOKENS(TraceReporterTokens, TRACE_REPORTER_TOKENS);
+TF_DECLARE_PUBLIC_TOKENS(TraceReporterTokens, TRACE_API, TRACE_REPORTER_TOKENS);
 
 
-TF_DECLARE_WEAK_AND_REF_PTRS(TraceAggregateNode);
 TF_DECLARE_WEAK_AND_REF_PTRS(TraceAggregateTree);
 TF_DECLARE_WEAK_AND_REF_PTRS(TraceEventNode);
 TF_DECLARE_WEAK_AND_REF_PTRS(TraceEventTree);
 
 TF_DECLARE_WEAK_AND_REF_PTRS(TraceReporter);
 
-class TraceAggregateNode;
 class TraceCollectionAvailable;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -159,10 +151,7 @@ public:
     /// If we want to have multiple reporters per collector, this will need to
     /// be changed so that all reporters reporting on a collector update their
     /// respective trees. 
-    TRACE_API void UpdateAggregateTree();
-
-    /// Placeholder for UpdateAggregateTree().
-    TRACE_API void UpdateEventTree();
+    TRACE_API void UpdateTraceTrees();
     
     /// Clears event tree and counters.
     TRACE_API void ClearTree();
@@ -203,19 +192,9 @@ protected:
 private:
     void _ProcessCollection(const TraceReporterBase::CollectionPtr&) override;
     void _RebuildEventAndAggregateTrees();
-    void _PrintRecursionMarker(std::ostream &s, const std::string &label, 
-                               int indent);
-    void _PrintLineTimes(std::ostream &s, double inclusive, double exclusive,
-                    int count, const std::string& label, int indent,
-                    bool recursive_node, int iterationCount=1);
-    void _PrintNodeTimes(std::ostream &s, TraceAggregateNodeRefPtr node, 
-                        int indent, int iterationCount=1);
-    void _PrintLineCalls(std::ostream &s, int inclusive, int exclusive,
-                         int total, const std::string& label, int indent);
     void _PrintTimes(std::ostream &s);
 
-    std::string _GetKeyName(const TfToken&) const;
-
+private:
     std::string _label;
 
     bool _groupByFunction;
@@ -223,8 +202,6 @@ private:
 
     TraceAggregateTreeRefPtr _aggregateTree;
     TraceEventTreeRefPtr _eventTree;
-
-    bool _buildEventTree;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
