@@ -19,7 +19,7 @@
 #include "AssetGenerationUtil.h"
 
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -193,7 +193,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 			TransformProxy->SetTransform(LocalXF * TargetComponentInterface(PreviewIdx)->GetWorldTransform());
 			TransformProxy->OnTransformChanged.AddUObject(this, &UUVProjectionTool::TransformChanged);
 
-			UTransformGizmo* TransformGizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
+			UTransformGizmo* TransformGizmo = TransformGizmos.Add_GetRef(UE::TransformGizmoUtil::Create3AxisTransformGizmo(GizmoManager, this));
 			TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
 		}
 		check(TransformProxies.Num() == TargetNumPreview);

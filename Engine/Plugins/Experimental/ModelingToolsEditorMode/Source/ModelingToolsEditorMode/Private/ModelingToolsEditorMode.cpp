@@ -14,6 +14,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorViewportClient.h"
 #include "EngineAnalytics.h"
+#include "BaseGIzmos/TransformGizmoUtil.h"
 
 #include "Features/IModularFeatures.h"
 #include "ModelingModeToolExtensions.h"
@@ -302,6 +303,10 @@ void UModelingToolsEditorMode::Enter()
 
 	// register stylus event handler
 	StylusStateTracker = MakeUnique<FStylusStateTracker>();
+
+	// register gizmo helper
+	ModelingGizmoHelper = NewObject<UTransformGizmoContextObject>(ToolsContext->ToolManager);
+	ModelingGizmoHelper->RegisterGizmosWithManager(ToolsContext->ToolManager);
 
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
 
@@ -671,6 +676,8 @@ void UModelingToolsEditorMode::Exit()
 
 	StylusStateTracker = nullptr;
 
+	ModelingGizmoHelper->DeregisterGizmosWithManager(ToolsContext->ToolManager);
+	
 	FModelingModeActionCommands::UnRegisterCommandBindings(Toolkit->GetToolkitCommands());
 
 	// clear realtime viewport override

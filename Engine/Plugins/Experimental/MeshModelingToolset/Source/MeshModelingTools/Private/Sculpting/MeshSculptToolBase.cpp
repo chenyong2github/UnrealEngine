@@ -8,7 +8,7 @@
 #include "ToolSceneQueriesUtil.h"
 #include "PreviewMesh.h"
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 
 #include "Sculpting/StampFalloffs.h"
@@ -1204,7 +1204,7 @@ void UMeshSculptToolBase::UpdateFixedPlaneGizmoVisibility(bool bVisible)
 	{
 		if (PlaneTransformGizmo == nullptr)
 		{
-			PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
+			PlaneTransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GetToolManager(),
 				ETransformGizmoSubElements::StandardTranslateRotate, this);
 			PlaneTransformGizmo->bUseContextCoordinateSystem = false;
 			PlaneTransformGizmo->CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;

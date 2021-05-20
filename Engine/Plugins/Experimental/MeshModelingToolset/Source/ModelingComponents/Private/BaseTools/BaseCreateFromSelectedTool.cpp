@@ -5,6 +5,7 @@
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "SimpleDynamicMeshComponent.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "Async/Async.h"
 
 #include "MeshNormals.h"
@@ -184,7 +185,7 @@ void UBaseCreateFromSelectedTool::SetTransformGizmos()
 	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		UTransformProxy* Proxy = TransformProxies.Add_GetRef(NewObject<UTransformProxy>(this));
-		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
+		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(UE::TransformGizmoUtil::Create3AxisTransformGizmo(GizmoManager, this));
 		Proxy->SetTransform(TargetComponentInterface(ComponentIdx)->GetWorldTransform());
 		Gizmo->SetActiveTarget(Proxy, GetToolManager());
 		Proxy->OnTransformChanged.AddUObject(this, &UBaseCreateFromSelectedTool::TransformChanged);

@@ -4,6 +4,7 @@
 #include "CompositionOps/SelfUnionMeshesOp.h"
 #include "InteractiveToolManager.h"
 #include "ToolSetupUtil.h"
+#include "BaseGizmos/TransformProxy.h"
 
 #include "DynamicMesh3.h"
 #include "DynamicMeshEditor.h"

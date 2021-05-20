@@ -3,6 +3,7 @@
 #include "CutMeshWithMeshTool.h"
 #include "CompositionOps/BooleanMeshesOp.h"
 #include "ToolSetupUtil.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "AssetGenerationUtil.h"
 #include "DynamicMesh3.h"

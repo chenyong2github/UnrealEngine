@@ -31,7 +31,7 @@
 
 #include "InteractiveGizmoManager.h"
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "UObject/ObjectMacros.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -2671,7 +2671,7 @@ void UDynamicMeshSculptTool::UpdateFixedPlaneGizmoVisibility(bool bVisible)
 	{
 		if (PlaneTransformGizmo == nullptr)
 		{
-			PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
+			PlaneTransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GetToolManager(),
 				ETransformGizmoSubElements::StandardTranslateRotate, this);
 			PlaneTransformGizmo->bUseContextCoordinateSystem = false;
 			PlaneTransformGizmo->CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;

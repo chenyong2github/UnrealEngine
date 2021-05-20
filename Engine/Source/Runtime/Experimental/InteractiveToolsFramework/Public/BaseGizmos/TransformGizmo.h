@@ -189,6 +189,15 @@ class INTERACTIVETOOLSFRAMEWORK_API UTransformGizmoBuilder : public UInteractive
 	GENERATED_BODY()
 
 public:
+
+	/**
+	 * strings identifing GizmoBuilders already registered with GizmoManager. These builders will be used
+	 * to spawn the various sub-gizmos
+	 */
+	FString AxisPositionBuilderIdentifier;
+	FString PlanePositionBuilderIdentifier;
+	FString AxisAngleBuilderIdentifier;
+
 	/**
 	 * If set, this Actor Builder will be passed to UTransformGizmo instances.
 	 * Otherwise new instances of the base FTransformGizmoActorFactory are created internally.
@@ -244,6 +253,7 @@ public:
 
 	virtual void SetWorld(UWorld* World);
 	virtual void SetGizmoActorBuilder(TSharedPtr<FTransformGizmoActorFactory> Builder);
+	virtual void SetSubGizmoBuilderIdentifiers(FString AxisPositionBuilderIdentifier, FString PlanePositionBuilderIdentifier, FString AxisAngleBuilderIdentifier);
 	virtual void SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction);
 	virtual void SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction);
 	
@@ -375,6 +385,10 @@ public:
 
 protected:
 	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;
+
+	FString AxisPositionBuilderIdentifier;
+	FString PlanePositionBuilderIdentifier;
+	FString AxisAngleBuilderIdentifier;
 
 	// This function is called on each active GizmoActor Component to update it's hover state.
 	// If the Component is not a UGizmoBaseCmponent, the client needs to provide a different implementation

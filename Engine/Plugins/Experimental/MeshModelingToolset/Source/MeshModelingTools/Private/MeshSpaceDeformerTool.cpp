@@ -19,7 +19,7 @@
 #include "Selection/SelectClickedAction.h"
 
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/IntervalGizmo.h"
 #include "PositionPlaneGizmo.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -200,7 +200,7 @@ void UMeshSpaceDeformerTool::Setup()
 	// parent of any Components in this case, we just use it's transform and change delegate.
 	TransformProxy = NewObject<UTransformProxy>(this);
 	TransformProxy->SetTransform(GizmoFrame.ToFTransform());
-	TransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
+	TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GetToolManager(),
 		ETransformGizmoSubElements::StandardTranslateRotate, this);
 	TransformGizmo->bSnapToWorldGrid = Settings->bSnapToWorldGrid;
 
@@ -244,6 +244,7 @@ void UMeshSpaceDeformerTool::Setup()
 	});
 
 	// add the interval gizmo
+	GetToolManager()->GetPairedGizmoManager()->RegisterGizmoType(UIntervalGizmo::GizmoName, NewObject<UIntervalGizmoBuilder>());
 	IntervalGizmo = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UIntervalGizmo>(UIntervalGizmo::GizmoName, TEXT("MeshSpaceDefomerInterval"), this);
 
 	// wire in the transform and the interval sources.
@@ -338,6 +339,7 @@ void UMeshSpaceDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
 	GizmoManager->DestroyAllGizmosByOwner(this);
+	GizmoManager->DeregisterGizmoType(UIntervalGizmo::GizmoName);
 }
 
 

@@ -224,6 +224,8 @@ UInteractiveGizmo* UTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& S
 	// use default gizmo actor if client has not given us a new builder
 	NewGizmo->SetGizmoActorBuilder( (GizmoActorBuilder) ? GizmoActorBuilder : MakeShared<FTransformGizmoActorFactory>() );
 
+	NewGizmo->SetSubGizmoBuilderIdentifiers(AxisPositionBuilderIdentifier, PlanePositionBuilderIdentifier, AxisAngleBuilderIdentifier);
+
 	// override default hover function if proposed
 	if (UpdateHoverFunction)
 	{
@@ -249,6 +251,13 @@ void UTransformGizmo::SetWorld(UWorld* WorldIn)
 void UTransformGizmo::SetGizmoActorBuilder(TSharedPtr<FTransformGizmoActorFactory> Builder)
 {
 	GizmoActorBuilder = Builder;
+}
+
+void UTransformGizmo::SetSubGizmoBuilderIdentifiers(FString AxisPositionBuilderIdentifierIn, FString PlanePositionBuilderIdentifierIn, FString AxisAngleBuilderIdentifierIn)
+{
+	AxisPositionBuilderIdentifier = AxisPositionBuilderIdentifierIn;
+	PlanePositionBuilderIdentifier = PlanePositionBuilderIdentifierIn;
+	AxisAngleBuilderIdentifier = AxisAngleBuilderIdentifierIn;
 }
 
 void UTransformGizmo::SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction)
@@ -647,8 +656,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 	IGizmoStateTarget* StateTargetIn)
 {
 	// create axis-position gizmo, axis-position parameter will drive translation
-	UAxisPositionGizmo* TranslateGizmo = Cast<UAxisPositionGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultAxisPositionBuilderIdentifier));
+	UAxisPositionGizmo* TranslateGizmo = Cast<UAxisPositionGizmo>(GetGizmoManager()->CreateGizmo(AxisPositionBuilderIdentifier));
 	check(TranslateGizmo);
 
 	// axis source provides the translation axis
@@ -688,8 +696,7 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 	IGizmoStateTarget* StateTargetIn)
 {
 	// create axis-position gizmo, axis-position parameter will drive translation
-	UPlanePositionGizmo* TranslateGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier));
+	UPlanePositionGizmo* TranslateGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(PlanePositionBuilderIdentifier));
 	check(TranslateGizmo);
 
 	// axis source provides the translation axis
@@ -731,8 +738,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
 	IGizmoStateTarget* StateTargetIn)
 {
 	// create axis-angle gizmo, angle will drive axis-rotation
-	UAxisAngleGizmo* RotateGizmo = Cast<UAxisAngleGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultAxisAngleBuilderIdentifier));
+	UAxisAngleGizmo* RotateGizmo = Cast<UAxisAngleGizmo>(GetGizmoManager()->CreateGizmo(AxisAngleBuilderIdentifier));
 	check(RotateGizmo);
 
 	// axis source provides the rotation axis
@@ -773,8 +779,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisScaleGizmo(
 	IGizmoStateTarget* StateTargetIn)
 {
 	// create axis-position gizmo, axis-position parameter will drive scale
-	UAxisPositionGizmo* ScaleGizmo = Cast<UAxisPositionGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultAxisPositionBuilderIdentifier));
+	UAxisPositionGizmo* ScaleGizmo = Cast<UAxisPositionGizmo>(GetGizmoManager()->CreateGizmo(AxisPositionBuilderIdentifier));
 	ScaleGizmo->bEnableSignedAxis = true;
 	check(ScaleGizmo);
 
@@ -809,8 +814,7 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneScaleGizmo(
 	IGizmoStateTarget* StateTargetIn)
 {
 	// create axis-position gizmo, axis-position parameter will drive scale
-	UPlanePositionGizmo* ScaleGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier));
+	UPlanePositionGizmo* ScaleGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(PlanePositionBuilderIdentifier));
 	ScaleGizmo->bEnableSignedAxis = true;
 	check(ScaleGizmo);
 
@@ -848,8 +852,7 @@ UInteractiveGizmo* UTransformGizmo::AddUniformScaleGizmo(
 	IGizmoStateTarget* StateTargetIn)
 {
 	// create plane-position gizmo, plane-position parameter will drive scale
-	UPlanePositionGizmo* ScaleGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(
-		UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier));
+	UPlanePositionGizmo* ScaleGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(PlanePositionBuilderIdentifier));
 	check(ScaleGizmo);
 
 	// axis source provides the translation plane
