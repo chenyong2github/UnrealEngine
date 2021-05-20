@@ -16,7 +16,7 @@ struct CONTROLRIG_API FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 	
 	FRigUnit_VerletIntegrateVector()
 	{
-		Target = Position = Velocity = Acceleration = FVector::ZeroVector;
+		Target = Force = Position = Velocity = Acceleration = FVector::ZeroVector;
 		Strength = 64.f;
 		Damp = 0.01;
 		Blend = 5.f;
@@ -41,6 +41,10 @@ struct CONTROLRIG_API FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 	/** The amount of blending to apply per second */
 	UPROPERTY(meta = (Input))
 	float Blend;
+
+	/** The force feeding into the solver. Can be used for gravity. */
+	UPROPERTY(meta = (Input))
+	FVector Force;
 
 	UPROPERTY(meta = (Output))
 	FVector Position;
