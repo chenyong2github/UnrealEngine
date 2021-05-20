@@ -258,11 +258,6 @@ public:
 	virtual void		MakeUniquePakFilesForTheseFiles(const TArray<TArray<FString>>& InFiles) { }
 
 	/**
-	 * Get servicable pending read requests based on priority and in flight read tasks
-	 */
-	virtual void		GetServicableReadRequestsAndInFlightReadTasks(int& ReadRequests, int& ReadTasks) { ReadRequests = 0; ReadTasks = 0; }
-
-	/**
 	* Performs initialization of the platform file after the new async IO has been enabled
 	*/
 	virtual void		InitializeNewAsyncIO() { }
@@ -429,12 +424,7 @@ public:
 	{
 	}
 
-	virtual EAsyncIOPriorityAndFlags GetAsyncMinimumPriority()
-	{
-		return EAsyncIOPriorityAndFlags::AIOP_MIN;
-	}
-
-	/** Open a file for async reading. This call does hit the disk; it is synchronous open.
+	/** Open a file for async reading. This call does hit the disk; it is synchronous open. 
 	*
 	* @param Filename file to be mapped. This doesn't actually map anything, just opens the file.
 	* @return Close the file by delete'ing the handle. A non-null return value does mean the file exists. 
