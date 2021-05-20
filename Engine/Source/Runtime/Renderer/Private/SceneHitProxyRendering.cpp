@@ -530,7 +530,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList
 {
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 	
-	PrepareViewRectsForRendering();
+	PrepareViewRectsForRendering(RHICmdList);
 
 #if WITH_EDITOR
 	TRefCountPtr<IPooledRenderTarget> HitProxyRT;
@@ -570,7 +570,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 {
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 
-	PrepareViewRectsForRendering();
+	PrepareViewRectsForRendering(RHICmdList);
 
 #if WITH_EDITOR
 	// HitProxyRT==0 should never happen but better we don't crash

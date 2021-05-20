@@ -626,7 +626,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 
-	PrepareViewRectsForRendering();
+	PrepareViewRectsForRendering(RHICmdList);
 
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{

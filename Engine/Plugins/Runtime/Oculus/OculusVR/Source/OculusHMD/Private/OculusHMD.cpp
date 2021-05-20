@@ -1276,7 +1276,7 @@ namespace OculusHMD
 		}
 	}
 
-	void FOculusHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const FIntRect& FinalViewRect)
+	void FOculusHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const enum EStereoscopicPass StereoPass, const FIntRect& FinalViewRect)
 	{
 		CheckInRenderThread();
 
