@@ -19,7 +19,7 @@ namespace Metasound
 		/** FBaseOutputController provides common functionality for multiple derived
 		 * output controllers.
 		 */
-		class METASOUNDFRONTEND_API FBaseOutputController : public IOutputController
+		class FBaseOutputController : public IOutputController
 		{
 		public:
 
@@ -56,8 +56,9 @@ namespace Metasound
 			FNodeHandle GetOwningNode() override;
 			FConstNodeHandle GetOwningNode() const override;
 
-			TArray<FInputHandle> GetCurrentlyConnectedInputs() override;
-			TArray<FConstInputHandle> GetCurrentlyConnectedInputs() const override;
+			bool IsConnected() const override;
+			TArray<FInputHandle> GetConnectedInputs() override;
+			TArray<FConstInputHandle> GetConstConnectedInputs() const override;
 			bool Disconnect() override;
 
 			// Connection logic.
@@ -89,7 +90,7 @@ namespace Metasound
 		 * FInputNodeOutputController is largely to represent inputs coming into 
 		 * graph. 
 		 */
-		class METASOUNDFRONTEND_API FInputNodeOutputController : public FBaseOutputController
+		class FInputNodeOutputController : public FBaseOutputController
 		{
 		public:
 			struct FInitParams
@@ -133,7 +134,7 @@ namespace Metasound
 		 * FOutputNodeOutputController is largely to represent inputs coming into 
 		 * graph. 
 		 */
-		class METASOUNDFRONTEND_API FOutputNodeOutputController : public FBaseOutputController
+		class FOutputNodeOutputController : public FBaseOutputController
 		{
 		public:
 			struct FInitParams
@@ -173,7 +174,7 @@ namespace Metasound
 		/** FBaseInputController provides common functionality for multiple derived
 		 * input controllers.
 		 */
-		class METASOUNDFRONTEND_API FBaseInputController : public IInputController 
+		class FBaseInputController : public IInputController 
 		{
 		public:
 
@@ -211,8 +212,8 @@ namespace Metasound
 
 			// Connection info
 			bool IsConnected() const override;
-			FOutputHandle GetCurrentlyConnectedOutput() override;
-			FConstOutputHandle GetCurrentlyConnectedOutput() const override;
+			FOutputHandle GetConnectedOutput() override;
+			FConstOutputHandle GetConnectedOutput() const override;
 
 			FConnectability CanConnectTo(const IOutputController& InController) const override;
 			bool Connect(IOutputController& InController) override;
@@ -246,7 +247,7 @@ namespace Metasound
 		 * FOutputNodeInputController is largely to represent outputs exposed from
 		 * a graph. 
 		 */
-		class METASOUNDFRONTEND_API FOutputNodeInputController : public FBaseInputController 
+		class FOutputNodeInputController : public FBaseInputController 
 		{
 		public:
 			struct FInitParams
@@ -289,7 +290,7 @@ namespace Metasound
 		 * FInputNodeInputController is largely to represent outputs exposed from
 		 * a graph. 
 		 */
-		class METASOUNDFRONTEND_API FInputNodeInputController : public FBaseInputController 
+		class FInputNodeInputController : public FBaseInputController 
 		{
 		public:
 			struct FInitParams
@@ -327,7 +328,7 @@ namespace Metasound
 		/** FBaseNodeController provides common functionality for multiple derived
 		 * node controllers.
 		 */
-		class METASOUNDFRONTEND_API FBaseNodeController : public INodeController
+		class FBaseNodeController : public INodeController
 		{
 		public:
 
@@ -366,17 +367,6 @@ namespace Metasound
 
 			const FString& GetNodeName() const override;
 
-			bool CanAddInput(const FString& InVertexName) const override;
-			FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
-			bool RemoveInput(FGuid InVertexID) override;
-
-			bool CanAddOutput(const FString& InVertexName) const override;
-			FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
-			bool RemoveOutput(FGuid InVertexID) override;
-
-			/** Returns all node inputs. */
-			TArray<FInputHandle> GetInputs() override;
-
 			/** Returns the human-readable display name of the given node. */
 			const FText& GetDisplayName() const override;
 
@@ -388,6 +378,17 @@ namespace Metasound
 
 			/** Returns the title of the given node (what to label in visual node). */
 			const FText& GetDisplayTitle() const override;
+
+			bool CanAddInput(const FString& InVertexName) const override;
+			FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
+			bool RemoveInput(FGuid InVertexID) override;
+
+			bool CanAddOutput(const FString& InVertexName) const override;
+			FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
+			bool RemoveOutput(FGuid InVertexID) override;
+
+			/** Returns all node inputs. */
+			TArray<FInputHandle> GetInputs() override;
 
 			/** Returns all node inputs. */
 			TArray<FConstInputHandle> GetConstInputs() const override;
@@ -402,7 +403,7 @@ namespace Metasound
 			int32 GetNumOutputs() const override;
 
 			TArray<FInputHandle> GetInputsWithVertexName(const FString& InName) override;
-			TArray<FConstInputHandle> GetInputsWithVertexName(const FString& InName) const override;
+			TArray<FConstInputHandle> GetConstInputsWithVertexName(const FString& InName) const override;
 
 			/** Returns all node outputs. */
 			TArray<FOutputHandle> GetOutputs() override;
@@ -411,7 +412,7 @@ namespace Metasound
 			TArray<FConstOutputHandle> GetConstOutputs() const override;
 
 			TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) override;
-			TArray<FConstOutputHandle> GetOutputsWithVertexName(const FString& InName) const override;
+			TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FString& InName) const override;
 
 			bool IsRequired() const override;
 
@@ -451,8 +452,6 @@ namespace Metasound
 			FConstClassAccessPtr ClassPtr;
 			FGraphHandle OwningGraph;
 
-		private:
-
 			struct FInputControllerParams
 			{
 				FGuid VertexID;
@@ -467,27 +466,23 @@ namespace Metasound
 				FConstClassOutputAccessPtr ClassOutputPtr;
 			};
 
-			TArray<FInputControllerParams> GetInputControllerParams() const;
-			TArray<FOutputControllerParams> GetOutputControllerParams() const;
+			virtual TArray<FInputControllerParams> GetInputControllerParams() const;
+			virtual TArray<FOutputControllerParams> GetOutputControllerParams() const;
 
-			TArray<FInputControllerParams> GetInputControllerParamsWithVertexName(const FString& InName) const;
-			TArray<FOutputControllerParams> GetOutputControllerParamsWithVertexName(const FString& InName) const;
+			virtual TArray<FInputControllerParams> GetInputControllerParamsWithVertexName(const FString& InName) const;
+			virtual TArray<FOutputControllerParams> GetOutputControllerParamsWithVertexName(const FString& InName) const;
 
-			bool FindInputControllerParamsWithID(FGuid InVertexID, FInputControllerParams& OutParams) const;
-			bool FindOutputControllerParamsWithID(FGuid InVertexID, FOutputControllerParams& OutParams) const;
+			virtual bool FindInputControllerParamsWithID(FGuid InVertexID, FInputControllerParams& OutParams) const;
+			virtual bool FindOutputControllerParamsWithID(FGuid InVertexID, FOutputControllerParams& OutParams) const;
 
-			const FMetasoundFrontendClassInput* FindClassInputWithName(const FString& InName) const;
-			const FMetasoundFrontendClassOutput* FindClassOutputWithName(const FString& InName) const;
-
-			const FMetasoundFrontendVertex* FindNodeInputWithName(const FString& InName) const;
-			const FMetasoundFrontendVertex* FindNodeOutputWithName(const FString& InName) const;
+		private:
 
 			virtual FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const = 0;
 			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const = 0;
 		};
 
 		/** FNodeController represents a external or subgraph node. */
-		class METASOUNDFRONTEND_API FNodeController : public FBaseNodeController
+		class FNodeController : public FBaseNodeController
 		{
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
@@ -537,7 +532,7 @@ namespace Metasound
 		};
 
 		/** FOutputNodeController represents an output node. */
-		class METASOUNDFRONTEND_API FOutputNodeController: public FBaseNodeController
+		class FOutputNodeController: public FBaseNodeController
 		{
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
@@ -598,7 +593,7 @@ namespace Metasound
 		};
 
 		/** FInputNodeController represents an input node. */
-		class METASOUNDFRONTEND_API FInputNodeController: public FBaseNodeController
+		class FInputNodeController: public FBaseNodeController
 		{
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
@@ -659,7 +654,7 @@ namespace Metasound
 		};
 
 		/** FGraphController represents a Metasound graph class. */
-		class METASOUNDFRONTEND_API FGraphController : public IGraphController
+		class FGraphController : public IGraphController
 		{
 
 			// Private token only allows members or friends to call constructor.
@@ -697,8 +692,7 @@ namespace Metasound
 			bool IsValid() const override;
 
 			FGuid GetClassID() const override;
-
-			FGuid GetNewVertexID() const override;
+			const FText& GetDisplayName() const override;
 
 			TArray<FString> GetInputVertexNames() const override;
 			TArray<FString> GetOutputVertexNames() const override;
@@ -776,6 +770,7 @@ namespace Metasound
 			FNodeHandle AddNode(const FNodeClassInfo& InNodeClass) override;
 			FNodeHandle AddNode(const FNodeRegistryKey& InNodeClass) override;
 			FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata) override;
+			FNodeHandle AddDuplicateNode(const INodeController& InNode) override;
 
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.
@@ -783,8 +778,6 @@ namespace Metasound
 
 			// Returns the metadata for the current graph, including the name, description and author.
 			const FMetasoundFrontendClassMetadata& GetGraphMetadata() const override;
-
-			bool InflateNodeDirectlyIntoGraph(const INodeController& InNode) override;
 
 			FNodeHandle CreateEmptySubgraph(const FMetasoundFrontendClassMetadata& InInfo) override;
 
@@ -807,8 +800,6 @@ namespace Metasound
 			// Remove inputs
 			bool RemoveInput(const FMetasoundFrontendNode& InNode);
 			bool RemoveOutput(const FMetasoundFrontendNode& InNode);
-
-			FGuid NewNodeID() const;
 
 			FNodeHandle GetNodeByPredicate(TFunctionRef<bool (const FMetasoundFrontendClass&, const FMetasoundFrontendNode&)> InPredicate);
 			FConstNodeHandle GetNodeByPredicate(TFunctionRef<bool (const FMetasoundFrontendClass&, const FMetasoundFrontendNode&)> InPredicate) const;
@@ -873,7 +864,7 @@ namespace Metasound
 		};
 
 		/** FDocumentController represents an entire Metasound document. */
-		class METASOUNDFRONTEND_API FDocumentController : public IDocumentController 
+		class FDocumentController : public IDocumentController 
 		{
 			using FRegistry = FMetasoundFrontendRegistryContainer;
 
@@ -916,6 +907,8 @@ namespace Metasound
 			FConstClassAccessPtr FindOrAddClass(const FNodeClassInfo& InNodeClass) override;
 			FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override;
 
+			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override;
+
 			void SynchronizeDependencies() override;
 
 			FGraphHandle GetRootGraph() override;
@@ -944,7 +937,7 @@ namespace Metasound
 			FConstDocumentAccess ShareAccess() const override;
 		private:
 
-			FGuid NewClassID() const;
+			bool AddDuplicateSubgraph(const FMetasoundFrontendGraphClass& InGraphToCopy, const FMetasoundFrontendDocument& InOtherDocument);
 
 			FDocumentAccessPtr DocumentPtr;
 		};

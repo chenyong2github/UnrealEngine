@@ -54,8 +54,9 @@ namespace Metasound
 			TSharedRef<INodeController> GetOwningNode() override;
 			TSharedRef<const INodeController> GetOwningNode() const override;
 
-			TArray<FInputHandle> GetCurrentlyConnectedInputs() override { return TArray<FInputHandle>(); }
-			TArray<FConstInputHandle> GetCurrentlyConnectedInputs() const override { return TArray<FConstInputHandle>(); }
+			bool IsConnected() const override { return false; }
+			TArray<FInputHandle> GetConnectedInputs() override { return TArray<FInputHandle>(); }
+			TArray<FConstInputHandle> GetConstConnectedInputs() const override { return TArray<FConstInputHandle>(); }
 			bool Disconnect() override { return false; }
 
 			FConnectability CanConnectTo(const IInputController& InController) const override { return FConnectability(); }
@@ -98,8 +99,8 @@ namespace Metasound
 			TSharedRef<INodeController> GetOwningNode() override;
 			TSharedRef<const INodeController> GetOwningNode() const override;
 
-			virtual TSharedRef<IOutputController> GetCurrentlyConnectedOutput() override { return FInvalidOutputController::GetInvalid(); }
-			virtual TSharedRef<const IOutputController> GetCurrentlyConnectedOutput() const override { return FInvalidOutputController::GetInvalid(); }
+			virtual TSharedRef<IOutputController> GetConnectedOutput() override { return FInvalidOutputController::GetInvalid(); }
+			virtual TSharedRef<const IOutputController> GetConnectedOutput() const override { return FInvalidOutputController::GetInvalid(); }
 			bool Disconnect() override { return false; }
 
 			virtual FConnectability CanConnectTo(const IOutputController& InController) const override { return FConnectability(); }
@@ -136,9 +137,9 @@ namespace Metasound
 			TArray<TSharedRef<const IOutputController>> GetConstOutputs() const override { return TArray<TSharedRef<const IOutputController>>(); }
 
 			TArray<FInputHandle> GetInputsWithVertexName(const FString& InName) override { return TArray<FInputHandle>(); }
-			TArray<FConstInputHandle> GetInputsWithVertexName(const FString& InName) const override { return TArray<FConstInputHandle>(); }
+			TArray<FConstInputHandle> GetConstInputsWithVertexName(const FString& InName) const override { return TArray<FConstInputHandle>(); }
 			TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) override { return TArray<FOutputHandle>(); }
-			TArray<FConstOutputHandle> GetOutputsWithVertexName(const FString& InName) const override { return TArray<FConstOutputHandle>(); }
+			TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FString& InName) const override { return TArray<FConstOutputHandle>(); }
 			TSharedRef<IInputController> GetInputWithID(FGuid InVertexID) override { return FInvalidInputController::GetInvalid(); }
 			TSharedRef<IOutputController> GetOutputWithID(FGuid InVertexID) override { return FInvalidOutputController::GetInvalid(); }
 			TSharedRef<const IInputController> GetInputWithID(FGuid InVertexID) const override { return FInvalidInputController::GetInvalid(); }
@@ -212,15 +213,15 @@ namespace Metasound
 			}
 
 			bool IsValid() const override { return false; }
+			FGuid GetClassID() const override { return Metasound::FrontendInvalidID; }
+			const FText& GetDisplayName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
 
-			FGuid GetNewVertexID() const override { return Metasound::FrontendInvalidID; }
 			TArray<FString> GetInputVertexNames() const override { return TArray<FString>(); }
 			TArray<FString> GetOutputVertexNames() const override { return TArray<FString>(); }
 
 			TArray<TSharedRef<INodeController>> GetNodes() override { return TArray<TSharedRef<INodeController>>(); }
 			TArray<TSharedRef<const INodeController>> GetConstNodes() const override { return TArray<TSharedRef<const INodeController>>(); }
 
-			FGuid GetClassID() const override { return Metasound::FrontendInvalidID; }
 			TSharedRef<const INodeController> GetNodeWithID(FGuid InNodeID) const override { return FInvalidNodeController::GetInvalid(); }
 			TSharedRef<INodeController> GetNodeWithID(FGuid InNodeID) override { return FInvalidNodeController::GetInvalid(); }
 
@@ -280,6 +281,7 @@ namespace Metasound
 			TSharedRef<INodeController> AddNode(const FNodeClassInfo& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
 			TSharedRef<INodeController> AddNode(const FNodeRegistryKey& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
 			TSharedRef<INodeController> AddNode(const FMetasoundFrontendClassMetadata& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
+			TSharedRef<INodeController> AddDuplicateNode(const INodeController& InNode) override { return FInvalidNodeController::GetInvalid(); }
 
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.
@@ -287,14 +289,6 @@ namespace Metasound
 
 			// Returns the metadata for the current graph, including the name, description and author.
 			const FMetasoundFrontendClassMetadata& GetGraphMetadata() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassMetadata>(); }
-
-			// If the FNodeController given is itself a Metasound graph,
-			// and the FNodeController is a direct member of this FGraphController,
-			// If successful, this will invalidate the FNodeController and paste the graph for this node directly
-			// into the graph.
-			// If not successful, InNode will not be affected.
-			// @returns true on success, false on failure.
-			bool InflateNodeDirectlyIntoGraph(const INodeController& InNode) override { return false; }
 
 			TSharedRef<INodeController> CreateEmptySubgraph(const FMetasoundFrontendClassMetadata& InInfo) override { return FInvalidNodeController::GetInvalid(); }
 
@@ -343,6 +337,7 @@ namespace Metasound
 				FConstClassAccessPtr FindOrAddClass(const FNodeClassInfo& InNodeClass) override { return FConstClassAccessPtr(); }
 				FConstClassAccessPtr FindClass(const FMetasoundFrontendClassMetadata& InMetadata) const override{ return FConstClassAccessPtr(); }
 				FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override{ return FConstClassAccessPtr(); }
+				FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override { return FInvalidGraphController::GetInvalid(); }
 
 				void SynchronizeDependencies() override { }
 

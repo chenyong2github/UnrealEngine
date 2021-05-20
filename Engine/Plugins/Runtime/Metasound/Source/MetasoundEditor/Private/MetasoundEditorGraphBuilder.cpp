@@ -372,7 +372,7 @@ namespace Metasound
 				return;
 			}
 
-			FOutputHandle OutputHandle = InputHandle->GetCurrentlyConnectedOutput();
+			FOutputHandle OutputHandle = InputHandle->GetConnectedOutput();
 			if (OutputHandle->IsValid())
 			{
 				FNodeHandle InputNode = OutputHandle->GetOwningNode();
@@ -648,7 +648,7 @@ namespace Metasound
 			check(MetasoundAsset);
 
 			Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-			const FGuid VertexID = GraphHandle->GetNewVertexID();
+			const FGuid VertexID = FGuid::NewGuid();
 
 			FMetasoundFrontendClassInput Description;
 			Description.Name = InName;
@@ -690,7 +690,7 @@ namespace Metasound
 			Description.Name = InName;
 			Description.TypeName = InTypeName;
 			Description.Metadata.Description = InToolTip;
-			Description.VertexID = GraphHandle->GetNewVertexID();
+			Description.VertexID = FGuid::NewGuid();
 
 			Frontend::FNodeHandle NodeHandle = GraphHandle->AddOutputVertex(Description);
 			GraphHandle->SetOutputDisplayName(InName, FText::FromString(InName));
@@ -760,7 +760,7 @@ namespace Metasound
 				return false;
 			}
 
-			FOutputHandle ExistingOutput = InputHandle->GetCurrentlyConnectedOutput();
+			FOutputHandle ExistingOutput = InputHandle->GetConnectedOutput();
 			if (ExistingOutput->IsValid())
 			{
 				FNodeHandle NodeHandle = ExistingOutput->GetOwningNode();
@@ -813,7 +813,7 @@ namespace Metasound
 			for (int32 i = 0; i < InputHandles.Num(); ++i)
 			{
 				FInputHandle InputHandle = InputHandles[i];
-				FConstOutputHandle OutputHandle = InputHandle->GetCurrentlyConnectedOutput();
+				FConstOutputHandle OutputHandle = InputHandle->GetConnectedOutput();
 				const FMetasoundFrontendNodeStyle& Style = OutputHandle->GetOwningNode()->GetNodeStyle();
 
 				// Hidden nodes are not "connected" from the perspective of EdGraph,
@@ -900,7 +900,7 @@ namespace Metasound
 					{
 						case EEdGraphPinDirection::EGPD_Input:
 						{
-							FOutputHandle OutputHandle = NodeInputs[InputIndex]->GetCurrentlyConnectedOutput();
+							FOutputHandle OutputHandle = NodeInputs[InputIndex]->GetConnectedOutput();
 							if (OutputHandle->IsValid())
 							{
 								const FMetasoundFrontendNodeStyle& Style = OutputHandle->GetOwningNode()->GetNodeStyle();
@@ -958,7 +958,7 @@ namespace Metasound
 			TArray<FInputHandle> Inputs = NodeHandle->GetInputs();
 			for (FInputHandle& Input : Inputs)
 			{
-				FOutputHandle Output = Input->GetCurrentlyConnectedOutput();
+				FOutputHandle Output = Input->GetConnectedOutput();
 				if (Output->IsValid())
 				{
 					FNodeHandle InputHandle = Output->GetOwningNode();
@@ -1259,7 +1259,7 @@ namespace Metasound
 					bool bShowConnectionInEditor = true;
 					bool bIsConnectedToLiteralInput = false;
 
-					FOutputHandle OutputHandle = NodeInput->GetCurrentlyConnectedOutput();
+					FOutputHandle OutputHandle = NodeInput->GetConnectedOutput();
 					if (OutputHandle->IsValid())
 					{
 						FNodeHandle InputNodeHandle = OutputHandle->GetOwningNode();

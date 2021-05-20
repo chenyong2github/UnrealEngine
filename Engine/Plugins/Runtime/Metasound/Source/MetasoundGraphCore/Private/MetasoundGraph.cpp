@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundGraph.h"
 
-#include "Internationalization/Text.h"
-
+#include "MetasoundOperatorBuilder.h"
 
 namespace Metasound
 {
@@ -133,5 +132,28 @@ namespace Metasound
 	bool FGraph::IsVertexInterfaceSupported(const FVertexInterface& InInterface) const
 	{
 		return InInterface == Metadata.DefaultInterface;
+	}
+
+	FOperatorFactorySharedRef FGraph::GetDefaultOperatorFactory() const 
+	{
+		return MakeShared<FGraph::FFactory>();
+	}
+
+	TUniquePtr<IOperator> FGraph::FFactory::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
+	{
+		const FGraph& Graph = static_cast<const FGraph&>(InParams.Node);
+
+		FBuildGraphParams BuildParams{Graph, InParams.OperatorSettings, InParams.InputDataReferences, InParams.Environment};
+
+		if (nullptr != InParams.Builder)
+		{
+			// Use the provided builder if it exists. 
+			return InParams.Builder->BuildGraphOperator(BuildParams, OutErrors);
+		}
+		else
+		{
+			// Use a builder with default settings if no builder was provided. 
+			return FOperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings()).BuildGraphOperator(BuildParams, OutErrors);
+		}
 	}
 }
