@@ -354,7 +354,7 @@ public:
 	const UViewportInteractionAssetContainer& GetAssetContainer() const;
 
 	/** Static function to load the asset container */
-	static const UViewportInteractionAssetContainer& LoadAssetContainer();
+	static const UViewportInteractionAssetContainer* LoadAssetContainer();
 
 	/** Plays sound at location. */
 	void PlaySound(USoundBase* SoundBase, const FVector& InWorldLocation, const float InVolume = 1.0f);
