@@ -105,9 +105,9 @@ namespace HordeAgent
 				DirectoryReference.CreateDirectory(OutputFileLocation.Directory);
 			}
 
-			if (Command.OutputPaths.Count > 0 || Command.OutputDirectories.Count > 0)
+			if (Command.OutputFiles.Count > 0 || Command.OutputDirectories.Count > 0)
 			{
-				throw new NotImplementedException();
+				throw new NotImplementedException("OutputFiles/OutputDirectories are deprecated. Use OutputPaths instead.");
 			}
 
 			ActionResult Result;
@@ -156,16 +156,16 @@ namespace HordeAgent
 
 					Logger.LogInformation("exit: {ExitCode}", Process.ExitCode);
 
-					foreach (string OutputFile in Command.OutputFiles)
+					foreach (string OutputPath in Command.OutputPaths)
 					{
-						FileReference FileRef = FileReference.Combine(SandboxDir, OutputFile);
+						FileReference FileRef = FileReference.Combine(SandboxDir, OutputPath);
 						if (FileReference.Exists(FileRef))
 						{
 							byte[] Bytes = await FileReference.ReadAllBytesAsync(FileRef);
 							Digest Digest = await Storage.PutBulkDataAsync(InstanceName, Bytes);
 
 							OutputFile OutputFileInfo = new OutputFile();
-							OutputFileInfo.Path = OutputFile;
+							OutputFileInfo.Path = OutputPath;
 							OutputFileInfo.Digest = Digest;
 							Result.OutputFiles.Add(OutputFileInfo);
 
