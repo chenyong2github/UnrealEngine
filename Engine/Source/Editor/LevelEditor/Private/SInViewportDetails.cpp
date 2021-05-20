@@ -20,7 +20,6 @@
 #include "UnrealEdGlobals.h"
 #include "LevelEditor.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "SSCSEditor.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "LevelEditorGenericDetails.h"
