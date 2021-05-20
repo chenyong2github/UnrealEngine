@@ -27,5 +27,11 @@ public class OnlineSubsystemEOS : ModuleRules
 				"Json"
 			}
 		);
+
+		PrivateDefinitions.Add("USE_XBL_XSTS_TOKEN=" + (bUseXblXstsToken ? "1" : "0"));
+		PrivateDefinitions.Add("USE_PSN_ID_TOKEN=" + (bUsePsnIdToken ? "1" : "0"));
 	}
+
+	protected virtual bool bUseXblXstsToken { get { return false; } }
+	protected virtual bool bUsePsnIdToken { get { return false; } }
 }
