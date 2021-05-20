@@ -167,6 +167,7 @@ namespace Chaos
 		, AngularDriveDamping(0)
 		, LinearBreakForce(FLT_MAX)
 		, LinearPlasticityLimit(FLT_MAX)
+		, InitCOMDistance(-1)
 		, AngularBreakTorque(FLT_MAX)
 		, AngularPlasticityLimit(FLT_MAX)
 		, UserData(nullptr)
@@ -789,6 +790,17 @@ namespace Chaos
 					Particle1->InvI().GetDiagonal(),
 					FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
 					FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
+
+				// Plasticity should not be turned on in the middle of simulation.
+				const bool bUseLinearPlasticity = JointSettings.LinearPlasticityLimit != FLT_MAX;
+				if(bUseLinearPlasticity)
+				{
+					const bool bIsCOMDistanceInitialized = JointSettings.InitCOMDistance >= 0;
+					if(!bIsCOMDistanceInitialized)
+					{
+						ConstraintSettings[JointIndex].InitCOMDistance = (FParticleUtilitiesXR::GetCoMWorldPosition(Particle0) - FParticleUtilitiesXR::GetCoMWorldPosition(Particle1)).Size();
+					}
+				} 
 			}
 		}
 	}
@@ -1511,7 +1523,8 @@ namespace Chaos
 				}
 			}
 			// Assuming that the dimensions which are locked or have no targets are 0. in LinearDrivePositionTarget
-			if((LinearDisplacement - JointSettings.LinearDrivePositionTarget).SizeSquared() > JointSettings.LinearPlasticityLimit * JointSettings.LinearPlasticityLimit)
+			FReal LinearPlasticityDistanceThreshold = JointSettings.LinearPlasticityLimit * JointSettings.InitCOMDistance;
+			if((LinearDisplacement - JointSettings.LinearDrivePositionTarget).SizeSquared() > LinearPlasticityDistanceThreshold * LinearPlasticityDistanceThreshold)
 			{
 				JointSettings.LinearDrivePositionTarget = LinearDisplacement;
 			}
