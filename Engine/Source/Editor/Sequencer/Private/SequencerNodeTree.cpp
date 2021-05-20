@@ -616,8 +616,8 @@ void FSequencerNodeTree::MoveDisplayNodeToRoot(TSharedRef<FSequencerDisplayNode>
 		}
 	}
 
-	// Clear the node's parent so that subsequent calls for GetNodePath correctly indicate that they no longer have a parent.
-	Node->SetParent(nullptr);
+	// Reset to the root node
+	Node->SetParent(RootNode);
 
 	// Our children have changed parents which means that on subsequent creation they will retrieve their expansion state
 	// from the map using their new path. If the new path already exists the object goes to the state stored at that path.
