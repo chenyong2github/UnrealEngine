@@ -15,6 +15,10 @@
 #include "IPAddress.h"
 
 #if WITH_EOS_SDK
+	#if defined(EOS_PLATFORM_BASE_FILE_NAME)
+	#include EOS_PLATFORM_BASE_FILE_NAME
+	#endif
+
 	#include "eos_common.h"
 #endif
 
@@ -728,6 +732,8 @@ PACKAGE_SCOPE:
 	}
 
 	FOnlineSessionInfoEOS(const FString& InHostIp, const FString& InSessionId, EOS_HSessionDetails InSessionHandle);
+
+	FOnlineSessionInfoEOS(const FString& InHostIp, FUniqueNetIdEOSRef UniqueNetId, EOS_HSessionDetails InSessionHandle);
 
 	/**
 	 * Initialize LAN session

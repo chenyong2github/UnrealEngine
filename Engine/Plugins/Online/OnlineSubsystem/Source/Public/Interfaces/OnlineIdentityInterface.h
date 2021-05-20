@@ -182,10 +182,21 @@ DECLARE_DELEGATE_TwoParams(FOnRevokeAuthTokenCompleteDelegate, const FUniqueNetI
 struct FExternalAuthToken
 {
 	TArray<uint8> TokenData;
+	FString TokenString;
 
 	inline bool HasTokenData() const
 	{
 		return TokenData.Num() > 0;
+	}
+
+	inline bool HasTokenString() const
+	{
+		return !TokenString.IsEmpty();
+	}
+
+	inline bool IsValid() const
+	{
+		return HasTokenData() || HasTokenString();
 	}
 };
 

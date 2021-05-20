@@ -4,6 +4,10 @@
 
 #if WITH_EOS_SDK
 
+#if defined(EOS_PLATFORM_BASE_FILE_NAME)
+#include EOS_PLATFORM_BASE_FILE_NAME
+#endif
+
 #include "eos_auth_types.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 
