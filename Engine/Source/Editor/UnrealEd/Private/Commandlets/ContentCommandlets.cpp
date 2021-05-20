@@ -3389,9 +3389,9 @@ int32 UStaticMeshMinLodCommandlet::Main(const FString& Params)
 				}
 			}
 
-			if (const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName))
+			if (const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName))
 			{
-				GroupToPlatform.AddUnique(PlatformInfo->PlatformGroupName, PlatformName);
+				GroupToPlatform.AddUnique(PlatformInfo->DataDrivenPlatformInfo->PlatformGroupName, PlatformName);
 			}
 			return true;
 		});
