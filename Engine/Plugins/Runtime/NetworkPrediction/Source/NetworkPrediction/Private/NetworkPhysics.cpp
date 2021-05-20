@@ -31,11 +31,23 @@ namespace UE_NETWORK_PHYSICS
 	float V = 1.0;	FAutoConsoleVariableRef CVarV(TEXT("np2.Tolerance.V"), V, TEXT("Velocity Tolerance"));
 	float W = 1.0;	FAutoConsoleVariableRef CVarW(TEXT("np2.Tolerance.W"), W, TEXT("Rotational Velocity Tolerance"));
 
+	float DebugDrawTolerance_X = 5.0;
+	FAutoConsoleVariableRef CVarDebugX(TEXT("np2.Debug.Tolerance.X"), DebugDrawTolerance_X, TEXT("Location Debug Drawing Toleration"));
+
+	float DebugDrawTolerance_R = 2.0;
+	FAutoConsoleVariableRef CVarDebugR(TEXT("np2.Debug.Tolerance.R"), DebugDrawTolerance_R, TEXT("Rotation Debug Drawing Tolerance"));
+
 	int32 Debug = 0;
 	FAutoConsoleVariableRef CVarDebug(TEXT("np2.Debug"), Debug, TEXT("Debug mode for in world drawing"));
 
+	int32 DebugTolerance = 0;
+	FAutoConsoleVariableRef CVarDebugTolerance(TEXT("np2.Debug.Tolerance"), DebugTolerance, TEXT("If enabled, only draw large corrections in world."));
+
 	bool bForceResim=false;
 	FAutoConsoleVariableRef CVarResim(TEXT("np2.ForceResim"), bForceResim, TEXT("Forces near constant resimming"));
+
+	bool ForceResimWithoutCorrection=false;
+	FAutoConsoleVariableRef CVarForceResimWithoutCorrection(TEXT("np2.ForceResimWithoutCorrection"), ForceResimWithoutCorrection, TEXT("Forces near constant resimming WITHOUT applying server data"));
 
 	bool bEnable=false;
 	FAutoConsoleVariableRef CVarEnable(TEXT("np2.bEnable"), bEnable, TEXT("Enabled rollback physics. Must be set before starting game"));
@@ -79,24 +91,27 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 	int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
 	{
+		if (bIsServer)
+		{
+			return INDEX_NONE;
+		}
+
 		if (ResimEndFrame != INDEX_NONE)
 		{
 			// We are already in a resim and shouldn't trigger a new one
 			return INDEX_NONE;
 		}
 
-		/*
-		if (UE_NETWORK_PHYSICS::bForceResim)
+		PendingCorrections.Reset();
+
+		if (UE_NETWORK_PHYSICS::ForceResimWithoutCorrection)
 		{
-			DataFromNetwork.Empty();
-			if (LastCompletedStep > 100 && LastCompletedStep > LastResim+4)
-			{
-				LastResim = LastCompletedStep;
-				return LastCompletedStep - 4;
-			}
-			return INDEX_NONE;
+			//const int32 ForceRewindFrame = RewindData->GetEarliestFrame_Internal()+1; // This was causing us to back > 64 frames?
+			const int32 ForceRewindFrame = LastCompletedStep - 9;
+			ResimEndFrame = LastCompletedStep;
+			//UE_LOG(LogTemp, Warning, TEXT("Forcing rewind to %d. LastCompletedStep: %d"), ForceRewindFrame, LastCompletedStep);
+			return ForceRewindFrame;
 		}
-		*/
 
 		FStats Stats;
 		Stats.LatestSimFrame = RewindData->CurrentFrame();
@@ -112,9 +127,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		};
 		
 		checkSlow(RewindData);
-		const int32 MinFrame = RewindData->CurrentFrame() - RewindData->GetFramesSaved();
-		
-		PendingCorrections.Reset();
+		const int32 MinFrame = RewindData->CurrentFrame() - RewindData->GetFramesSaved();				
 
 		FSnapshot Snapshot;
 		int32 RewindToFrame = INDEX_NONE;
@@ -225,7 +238,6 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 			return INDEX_NONE;
 		}
 		
-		ResimEndFrame = LastCompletedStep;
 		return RewindToFrame;
 	}
 	
@@ -244,7 +256,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 				if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
 				{
-					UE_LOG(LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d). Location: %s"), CorrectionState.Frame, PhysicsStep, *FVector(CorrectionState.Physics.Location).ToString());
+					UE_CLOG(UE_NETWORK_PHYSICS::bLogCorrections, LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d). Location: %s"), CorrectionState.Frame, PhysicsStep, *FVector(CorrectionState.Physics.Location).ToString());
 				
 					PT->SetX(CorrectionState.Physics.Location, false);
 					PT->SetV(CorrectionState.Physics.LinearVelocity, false);
@@ -254,7 +266,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					//if (PT->ObjectState() != CorrectionState.Physics.ObjectState)
 					{
 						ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
-						UE_LOG(LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
+						UE_CLOG(UE_NETWORK_PHYSICS::bLogCorrections, LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
 						PT->SetObjectState(CorrectionState.Physics.ObjectState);
 					}
 				}
@@ -386,6 +398,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 	TArray<Chaos::ISimCallbackObject*> SimObjectCallbacks;
 	UNetworkPhysicsManager* NetworkPhysicsManager = nullptr;
 
+	bool bIsServer = false;
 
 	// Debugging
 	struct FStats
@@ -491,6 +504,7 @@ void UNetworkPhysicsManager::PostNetRecv()
 	checkSlow(World);
 
 	const bool bIsServer = World->GetNetMode() != NM_Client;
+	RewindCallback->bIsServer = bIsServer;
 
 	// Iterate through all objects we are managing and coalease them into a snapshot that is marshalled to PT for rollback consideration
 	if (bIsServer)
@@ -991,6 +1005,19 @@ void UNetworkPhysicsManager::TickDrawDebug()
 
 			for (auto& Correction : Stats.Corrections)
 			{
+				if (UE_NETWORK_PHYSICS::DebugTolerance > 0)
+				{
+					if (FVector::Distance(Correction.LocalState.Location, Correction.AuthorityState.Location) < UE_NETWORK_PHYSICS::DebugDrawTolerance_X)
+					{
+						continue;
+					}
+
+					if (FQuat::ErrorAutoNormalize(Correction.LocalState.Rotation, Correction.AuthorityState.Rotation) < UE_NETWORK_PHYSICS::DebugDrawTolerance_R)
+					{
+						continue;
+					}
+				}
+
 				if (auto Func = DrawDebugMap.Find(Correction.Proxy))
 				{
 					P.Color = FColor::Red;

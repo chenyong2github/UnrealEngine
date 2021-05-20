@@ -144,6 +144,9 @@ namespace UE_NETWORK_PHYSICS
 
 	int32 JumpFudgeFrames=10;
 	FAutoConsoleVariableRef CVarJumpFudgeFrames(TEXT("np2.Mock.JumpFudgeFrames"), JumpFudgeFrames, TEXT("How many frames after being in air do we still allow a jump to begin"));
+
+	bool JumpHack=false;
+	FAutoConsoleVariableRef CVarJumpHack(TEXT("np2.Mock.JumpHack"), JumpHack, TEXT("Make jump not rely on trace which currently causes non determinism"));
 }
 
 void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const int32 SimulationFrame, const int32 LocalStorageFrame)
@@ -163,8 +166,7 @@ void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, 
 			FCollisionObjectQueryParams ObjectParams(ECollisionChannel::ECC_PhysicsBody);
 
 			FHitResult OutHit;
-			const bool bInAir = !World->LineTraceSingleByChannel(OutHit, TracePosition, EndPosition, ECollisionChannel::ECC_WorldStatic, QueryParams, ResponseParams);
-
+			const bool bInAir = !UE_NETWORK_PHYSICS::JumpHack && !World->LineTraceSingleByChannel(OutHit, TracePosition, EndPosition, ECollisionChannel::ECC_WorldStatic, QueryParams, ResponseParams);
 			const float UpDot = FVector::DotProduct(PT->R().GetUpVector(), FVector::UpVector);
 
 			// ---------------------------------------------------------------------------------------------
@@ -471,8 +473,8 @@ public:
 					{
 						//UE_CLOG(UE_NETWORK_PHYSICS::bLogCorrections, LogNetworkPhysics, Log, TEXT("Rewind Needed for MockPersistState. Obj.Frame: %d. LastCompletedStep: %d."), Obj.Frame, LastCompletedStep);
 						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Error, TEXT("[%d] Rewind Needed for MockPersistState. Obj.Frame: %d. LastCompletedStep: %d. JumpCnt: %d (auth) vs %d (pred)"), Obj.Frame - this->LocalFrameOffset, Obj.Frame, LastCompletedStep, Obj.PT_State.JumpCount, LocalState.PT_State.JumpCount);
- 						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Error, TEXT("     Server: JumpCnt: %d. JumpCooldownMS: %d"), Obj.PT_State.JumpCount, Obj.PT_State.JumpCooldownMS);
-						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Error, TEXT("     Local:  JumpCnt: %d. JumpCooldownMS: %d"), LocalState.PT_State.JumpCount, LocalState.PT_State.JumpCooldownMS);
+   						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Error, TEXT("     Server: JumpCnt: %d. JumpCooldownMS: %d. Airframe: %d. JumpFrame: %d."), Obj.PT_State.JumpCount, Obj.PT_State.JumpCooldownMS, Obj.PT_State.InAirFrame, Obj.PT_State.JumpStartFrame);
+						UE_CLOG(UE_NETWORK_PHYSICS::MockDebug, LogNetworkPhysics, Error, TEXT("     Local:  JumpCnt: %d. JumpCooldownMS: %d. Airframe: %d. JumpFrame: %d."), LocalState.PT_State.JumpCount, LocalState.PT_State.JumpCooldownMS, LocalState.PT_State.InAirFrame, LocalState.PT_State.JumpStartFrame);
 
 
 						RewindToFrame = RewindToFrame == INDEX_NONE ? Obj.Frame : FMath::Min(RewindToFrame, Obj.Frame);
@@ -1073,7 +1075,7 @@ AActor* ANetworkPredictionSpawner::Spawn(FName StreamName)
 	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
 	{
 		// Saved inputs are saved on the map version, so we need to copy them over to the server version
-		if (WorldIt->WorldType == EWorldType::Editor)
+		if (WorldIt->WorldType == EWorldType::Editor || WorldIt->WorldType == EWorldType::Game)
 		{
 			for (TActorIterator<ANetworkPredictionSpawner> It(*WorldIt); It; ++It)
 			{

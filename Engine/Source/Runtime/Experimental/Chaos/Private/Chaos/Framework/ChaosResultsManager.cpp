@@ -379,7 +379,7 @@ namespace Chaos
 					FResimParticleInfo* ResimInfo = ParticleToResimInfo.Find(OriginalProxy);
 					if(ensure(ResimInfo))
 					{
-						ResimInfo->bDiverged = (ResimInfo->LeashStartTime == OriginalData->ExternalEndTime) ? StateDiverged(ResimInfo->Next, OriginalDirty) : true;
+						ResimInfo->bDiverged = (ResimInfo->EntryTime == OriginalData->ExternalEndTime) ? StateDiverged(ResimInfo->Next, OriginalDirty) : true;
 						if(ResimInfo->bDiverged)
 						{
 							//We still use resim's latest target (i.e. maybe it stopped moving a few frames ago)
@@ -389,6 +389,17 @@ namespace Chaos
 							ResimInfo->LeashStartTime = LatestTimeSeen;
 						
 						}
+					}
+				}
+			}
+
+			for (const FDirtyRigidParticleData& ResimDirty : Results.Next->DirtyRigids)
+			{
+				if (FSingleParticlePhysicsProxy* ResimProxy = ResimDirty.GetProxy())
+				{
+					if (ParticleToResimInfo.FindChecked(ResimProxy).bDiverged)
+					{
+						UE_LOG(LogTemp, Warning, TEXT("Diverged"));
 					}
 				}
 			}
