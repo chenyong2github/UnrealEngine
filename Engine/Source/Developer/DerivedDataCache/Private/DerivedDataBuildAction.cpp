@@ -88,6 +88,9 @@ public:
 	const FGuid& GetFunctionVersion() const final { return FunctionVersion; }
 	const FGuid& GetBuildSystemVersion() const final { return BuildSystemVersion; }
 
+	bool HasConstants() const final;
+	bool HasInputs() const final;
+
 	void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const final;
 	void IterateInputs(TFunctionRef<void (FStringView Key, const FIoHash& RawHash, uint64 RawSize)> Visitor) const final;
 
@@ -204,6 +207,16 @@ FBuildActionInternal::FBuildActionInternal(FStringView InName, FCbObject&& InAct
 					&& Field.AsObjectView()["RawHash"_ASV].IsBinaryAttachment()
 					&& Field.AsObjectView()["RawSize"_ASV].IsInteger();
 			});
+}
+
+bool FBuildActionInternal::HasConstants() const
+{
+	return Action["Constants"_ASV].HasValue();
+}
+
+bool FBuildActionInternal::HasInputs() const
+{
+	return Action["Inputs"_ASV].HasValue();
 }
 
 void FBuildActionInternal::IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const
