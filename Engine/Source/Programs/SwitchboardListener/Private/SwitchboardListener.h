@@ -32,6 +32,7 @@ class FTcpListener;
 struct FSwitchboardCommandLineOptions
 {
 	bool OutputVersion = false;
+	bool MinimizeOnLaunch = true;
 
 	TOptional<FIPv4Address> Address;
 	TOptional<uint16> Port;
