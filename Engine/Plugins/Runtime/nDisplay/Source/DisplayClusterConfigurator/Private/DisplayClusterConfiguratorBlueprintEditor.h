@@ -39,6 +39,11 @@ public:
 	virtual bool IsObjectSelected(UObject* Obj) const override;
 	//~ End IDisplayClusterConfiguratorBlueprintEditor Interface
 
+	//~ Begin FEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~ End FEditorUndoClient interface
+
 	virtual void SelectObjects(TArray<UObject*>& InSelectedObjects, bool bFullRefresh = false);
 	virtual void SelectAncillaryComponents(const TArray<FString>& ComponentNames);
 	virtual void SelectAncillaryViewports(const TArray<FString>& ComponentNames);
