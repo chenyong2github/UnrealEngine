@@ -637,7 +637,7 @@ FGuid ULevelSequence::CreateSpawnable(UObject* ObjectToSpawn)
 
 #endif // WITH_EDITOR
 
-UObject* ULevelSequence::CreateDirectorInstance(IMovieScenePlayer& Player)
+UObject* ULevelSequence::CreateDirectorInstance(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID)
 {
 	ULevelSequencePlayer* LevelSequencePlayer = Cast<ULevelSequencePlayer>(Player.AsUObject());
 	UObject*              DirectorOuter       = LevelSequencePlayer ? LevelSequencePlayer : Player.GetPlaybackContext();
@@ -653,6 +653,8 @@ UObject* ULevelSequence::CreateDirectorInstance(IMovieScenePlayer& Player)
 
 		ULevelSequenceDirector* NewDirector = NewObject<ULevelSequenceDirector>(DirectorOuter, DirectorClass, DirectorName, RF_Transient);
 		NewDirector->Player = LevelSequencePlayer;
+		NewDirector->MovieScenePlayerIndex = Player.GetUniqueIndex();
+		NewDirector->SubSequenceID = SequenceID.GetInternalValue();
 		NewDirector->OnCreated();
 		return NewDirector;
 	}
