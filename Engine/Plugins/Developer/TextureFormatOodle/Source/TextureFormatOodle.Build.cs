@@ -29,6 +29,7 @@ public class TextureFormatOodle : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
+				"CoreUObject",
 				"TargetPlatform",
 				"TextureCompressor",
 				"Engine"
@@ -38,13 +39,8 @@ public class TextureFormatOodle : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-                "Engine",
 				"ImageCore",
 				"ImageWrapper",
-                "RenderCore",
-                "AssetRegistry",
-                "InputCore",
-                "SlateCore"
 			}
         );
 
