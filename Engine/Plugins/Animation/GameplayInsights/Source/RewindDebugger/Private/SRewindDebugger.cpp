@@ -20,15 +20,10 @@
 #include "SceneOutlinerModule.h"
 #include "Selection.h"
 #include "Styling/SlateIconFinder.h"
-#include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Views/SListView.h"
 
 
 #define LOCTEXT_NAMESPACE "SAnimationInsights"
@@ -186,7 +181,6 @@ TSharedRef<SWidget> SRewindDebugger::MakeSelectActorMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-
 void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandList> CommandList, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
 {
 	OnScrubPositionChanged = InArgs._OnScrubPositionChanged;
@@ -237,13 +231,9 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	TimeSliderController = MakeShared<FTimeSliderController>(InitArgs);
     TSharedRef<STimeSlider> TimeSlider = SNew(STimeSlider, TimeSliderController.ToSharedRef());
 
-	ComponentListView =	SNew(SListView<TSharedPtr<FDebugObjectInfo>>)
-									.ItemHeight(16.0f)
-									.ListItemsSource(DebugComponents)
-									.OnGenerateRow(this, &SRewindDebugger::ComponentListViewGenerateRow)
-									.SelectionMode(ESelectionMode::Single)
-									.OnSelectionChanged(this, &SRewindDebugger::OnComponentSelectionChanged);
-
+	ComponentTreeView =	SNew(SRewindDebuggerComponentTree)
+				.DebugComponents(InArgs._DebugComponents)
+				.OnSelectionChanged(this, &SRewindDebugger::OnComponentSelectionChanged);
 
 	// everything related to creating SAnimGraphSchematicView should be moved to a separate file
 	IUnrealInsightsModule &UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
@@ -252,8 +242,6 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 
 	AnimGraphView = GameplayInsightsModule.CreateAnimGraphSchematicView(0, TraceTime.Get(), *Session);
 	TraceTime.OnPropertyChanged = TraceTime.OnPropertyChanged.CreateSP(AnimGraphView.Get(), &IAnimGraphSchematicView::SetTimeMarker);
-
-	FSlateIcon ActorIcon = FSlateIconFinder::FindIconForClass(AActor::StaticClass());
 
 	ChildSlot
 	[
@@ -274,11 +262,47 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 					.OnGetMenuContent(this, &SRewindDebugger::MakeSelectActorMenu)
 					.ButtonContent()
 					[
-						SNew(STextBlock)
-						.Text_Lambda([this](){
-							const FString& TargetName = DebugTargetActor.Get();
-							return (TargetName.IsEmpty()) ? LOCTEXT("Select Actor", "Debug Target Actor") : FText::FromString(TargetName);
-						 } )
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot().AutoWidth().Padding(3)
+						[
+							SNew(SImage)
+							.Image_Lambda([this]
+								{
+									FSlateIcon ActorIcon = FSlateIconFinder::FindIconForClass(AActor::StaticClass());
+									if (DebugComponents != nullptr && DebugComponents->Num()>0)
+									{
+										if (UObject* Object = FObjectTrace::GetObjectFromId((*DebugComponents)[0]->ObjectId))
+										{
+											ActorIcon = FSlateIconFinder::FindIconForClass(Object->GetClass());
+										}
+									}
+
+									return ActorIcon.GetIcon();
+								}
+							)
+						]
+						+SHorizontalBox::Slot().Padding(3)
+						[
+							SNew(STextBlock)
+							.Text_Lambda([this](){
+								if (DebugComponents == nullptr || DebugComponents->Num()==0)
+								{
+									return LOCTEXT("Select Actor", "Debug Target Actor");
+								}
+
+								FString ReadableName = (*DebugComponents)[0]->ObjectName;
+
+								if (UObject* Object = FObjectTrace::GetObjectFromId((*DebugComponents)[0]->ObjectId))
+								{
+									if (AActor* Actor = Cast<AActor>(Object))
+									{
+										ReadableName = Actor->GetActorLabel();
+									}
+								}
+
+								return FText::FromString(ReadableName);
+							} )
+						]
 					]
 				]
 				+SHorizontalBox::Slot().AutoWidth().HAlign(HAlign_Right)
@@ -294,7 +318,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 			]
 			+SVerticalBox::Slot().VAlign(VAlign_Top) .FillHeight(1.0f)
 			[
-				ComponentListView.ToSharedRef()
+				ComponentTreeView.ToSharedRef()
 			]
 		]
 		+SSplitter::Slot() 
@@ -313,19 +337,9 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	];
 }
 
-TSharedRef<ITableRow> SRewindDebugger::ComponentListViewGenerateRow(TSharedPtr<FDebugObjectInfo> InItem, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return 
-		SNew(STableRow<TSharedPtr<FDebugObjectInfo>>, OwnerTable)
-		[
-			SNew(STextBlock)
-			.Text(FText::FromString(InItem->ObjectName))
-		];
-}
-
 void SRewindDebugger::RefreshDebugComponents()
 {
-	ComponentListView->RebuildList();
+	ComponentTreeView->Refresh();
 }
 
 void SRewindDebugger::OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo)
