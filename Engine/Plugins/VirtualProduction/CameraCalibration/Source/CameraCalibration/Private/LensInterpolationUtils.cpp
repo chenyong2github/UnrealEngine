@@ -303,57 +303,6 @@ namespace LensInterpolationUtils
 		}
 	}
 
-	bool FindInterpolationIndex(float InRawValue, TArrayView<FEncoderPoint> InSourceData, int32& OutPointIndexA, int32& OutPointIndexB)
-	{
-		if (InSourceData.Num() <= 0)
-		{
-			return false;
-		}
-
-		for (int32 Index = InSourceData.Num() - 1; Index >= 0; --Index)
-		{
-			const FEncoderPoint& DataPoint = InSourceData[Index];
-			if (DataPoint.NormalizedValue <= InRawValue)
-			{
-				if (Index == InSourceData.Num() - 1)
-				{
-					OutPointIndexA = Index;
-					OutPointIndexB = Index;
-					return true;
-				}
-				else
-				{
-					OutPointIndexA = Index;
-					OutPointIndexB = Index + 1;
-					return true;
-				}
-			}
-		}
-
-		OutPointIndexA = 0;
-		OutPointIndexB = 0;
-		return true;
-	}
-
-	bool InterpolateEncoderValue(float InNormalizedValue, TArrayView<FEncoderPoint> InSourceData, float& OutEvaluatedValue)
-	{
-		int32 PointAIndex = 0;
-		int32 PointBIndex = 0;
-		if (FindInterpolationIndex(InNormalizedValue, InSourceData, PointAIndex, PointBIndex))
-		{
-			check(InSourceData.IsValidIndex(PointAIndex) && InSourceData.IsValidIndex(PointBIndex));
-
-			const FEncoderPoint& PointA = InSourceData[PointAIndex];
-			const FEncoderPoint& PointB = InSourceData[PointBIndex];
-
-			const float BlendingFactor = GetBlendFactor(InNormalizedValue, PointA.NormalizedValue, PointB.NormalizedValue);
-			OutEvaluatedValue = BlendValue(BlendingFactor, PointA.ValueInPhysicalUnits, PointB.ValueInPhysicalUnits);
-			return true;
-		}
-
-		return false;
-	}
-
 	float GetBlendFactor(float InValue, float ValueA, float ValueB)
 	{
 		//Keep input in range

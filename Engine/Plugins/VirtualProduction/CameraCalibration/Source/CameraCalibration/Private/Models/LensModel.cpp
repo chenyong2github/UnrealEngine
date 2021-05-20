@@ -10,6 +10,30 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLensModel, Log, All);
 
+#if WITH_EDITOR
+
+TArray<FText> ULensModel::GetParameterDisplayNames() const
+{
+	TArray<FText> ParameterNames;
+
+	UScriptStruct* TypeStruct = GetParameterStruct();
+
+	for (TFieldIterator<FProperty> It(TypeStruct); It; ++It)
+	{
+		if (FFloatProperty* Property = CastField<FFloatProperty>(*It))
+		{
+			ParameterNames.Add(Property->GetDisplayNameText());
+		}
+		else
+		{
+			UE_LOG(LogLensModel, Warning, TEXT("Property '%s' was skipped because its type was not float"), *(It->GetNameCPP()));
+		}
+	}
+
+	return ParameterNames;
+}
+
+#endif //WITH_EDITOR
 
 uint32 ULensModel::GetNumParameters() const
 {
@@ -18,7 +42,7 @@ uint32 ULensModel::GetNumParameters() const
 	uint32 NumParameters = 0;
 	for (TFieldIterator<FProperty> It(TypeStruct); It; ++It)
 	{
-		if (FFloatProperty* Prop = CastField<FFloatProperty>(*It))
+		if (FFloatProperty* Property = CastField<FFloatProperty>(*It))
 		{
 			++NumParameters;
 		}
@@ -50,7 +74,7 @@ TSubclassOf<ULensDistortionModelHandlerBase> ULensModel::GetHandlerClass(TSubcla
 	return nullptr;
 }
 
-void ULensModel::ToArray_Internal(UScriptStruct* TypeStruct, void* SrcData, TArray<float>& DstArray) const
+void ULensModel::ToArray_Internal(const UScriptStruct* TypeStruct, const void* SrcData, TArray<float>& DstArray) const
 {
 	if (TypeStruct != GetParameterStruct())
 	{
@@ -58,7 +82,7 @@ void ULensModel::ToArray_Internal(UScriptStruct* TypeStruct, void* SrcData, TArr
 		return;
 	}
 
-	DstArray.Reserve(GetNumParameters());
+	DstArray.Reset(GetNumParameters());
 	for (TFieldIterator<FProperty> It(TypeStruct); It; ++It)
 	{
 		if (FFloatProperty* Prop = CastField<FFloatProperty>(*It))

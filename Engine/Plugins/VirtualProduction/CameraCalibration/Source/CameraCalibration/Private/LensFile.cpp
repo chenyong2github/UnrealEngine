@@ -628,51 +628,32 @@ bool ULensFile::EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPoin
 
 bool ULensFile::HasFocusEncoderMapping() const
 {
-	return EncoderMapping.Focus.Num() > 0;
+	return EncoderMapping.Focus.GetNumKeys() > 0;
 }
 
-bool ULensFile::EvaluateNormalizedFocus(float InNormalizedValue, float& OutEvaluatedValue)
+float ULensFile::EvaluateNormalizedFocus(float InNormalizedValue)
 {
-	/***TEMP TEMP TEMP*******/
-	/** Once there is a UI + methods to add encoder points we can get rid of that. */
-	TArray<FEncoderPoint> CopiedSorted = EncoderMapping.Focus;
-	CopiedSorted.Sort([](const FEncoderPoint& LHS, const FEncoderPoint& RHS) { return LHS.NormalizedValue <= RHS.NormalizedValue; });
-	/************************/
-
-	return LensInterpolationUtils::InterpolateEncoderValue(InNormalizedValue, CopiedSorted, OutEvaluatedValue);
+	return EncoderMapping.Focus.Eval(InNormalizedValue);
 }
 
 bool ULensFile::HasIrisEncoderMapping() const
 {
-	return EncoderMapping.Iris.Num() > 0;
-
+	return EncoderMapping.Iris.GetNumKeys() > 0;
 }
 
-float ULensFile::EvaluateNormalizedIris(float InNormalizedValue, float& OutEvaluatedValue)
+float ULensFile::EvaluateNormalizedIris(float InNormalizedValue)
 {
-	/***TEMP TEMP TEMP*******/
-	/** Once there is a UI + methods to add encoder points we can get rid of that. */
-	TArray<FEncoderPoint> CopiedSorted = EncoderMapping.Iris;
-	CopiedSorted.Sort([](const FEncoderPoint& LHS, const FEncoderPoint& RHS) { return LHS.NormalizedValue <= RHS.NormalizedValue; });
-	/************************/
-
-	return LensInterpolationUtils::InterpolateEncoderValue(InNormalizedValue, CopiedSorted, OutEvaluatedValue);
+	return EncoderMapping.Iris.Eval(InNormalizedValue);
 }
 
 bool ULensFile::HasZoomEncoderMapping() const
 {
-	return EncoderMapping.Zoom.Num() > 0;
+	return EncoderMapping.Zoom.GetNumKeys() > 0;
 }
 
-float ULensFile::EvaluateNormalizedZoom(float InNormalizedValue, float& OutEvaluatedValue)
+float ULensFile::EvaluateNormalizedZoom(float InNormalizedValue)
 {
-	/***TEMP TEMP TEMP*******/
-	/** Once there is a UI + methods to add encoder points we can get rid of that. */
-	TArray<FEncoderPoint> CopiedSorted = EncoderMapping.Zoom;
-	CopiedSorted.Sort([](const FEncoderPoint& LHS, const FEncoderPoint& RHS) { return LHS.NormalizedValue <= RHS.NormalizedValue; });
-	/************************/
-
-	return LensInterpolationUtils::InterpolateEncoderValue(InNormalizedValue, CopiedSorted, OutEvaluatedValue);
+	return EncoderMapping.Zoom.Eval(InNormalizedValue);
 }
 
 void ULensFile::OnDistortionDerivedDataJobCompleted(const FDerivedDistortionDataJobOutput& JobOutput)
@@ -799,3 +780,4 @@ ULensFile* FLensFilePicker::GetLensFile() const
 
 	return ReturnedLens;
 }
+

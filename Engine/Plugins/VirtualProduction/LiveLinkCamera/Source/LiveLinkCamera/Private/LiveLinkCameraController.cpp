@@ -215,10 +215,9 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 		{
 			if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance)
 			{
-				float NewFocusDistance;
-				if (LensFile->EvaluateNormalizedFocus(FrameData->FocusDistance, NewFocusDistance))
+				if (LensFile->HasFocusEncoderMapping())
 				{
-					CineCameraComponent->FocusSettings.ManualFocusDistance = NewFocusDistance;
+					CineCameraComponent->FocusSettings.ManualFocusDistance = LensFile->EvaluateNormalizedFocus(FrameData->FocusDistance);
 				}
 				else
 				{
@@ -228,10 +227,9 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 
 			if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture)
 			{
-				float NewAperture;
-				if (LensFile->EvaluateNormalizedIris(FrameData->Aperture, NewAperture))
+				if (LensFile->HasIrisEncoderMapping())
 				{
-					CineCameraComponent->CurrentAperture = NewAperture;
+					CineCameraComponent->CurrentAperture = LensFile->EvaluateNormalizedIris(FrameData->Aperture);
 				}
 				else
 				{
@@ -241,10 +239,9 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 
 			if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
 			{
-				float NewZoom;
-				if (LensFile->EvaluateNormalizedZoom(FrameData->FocalLength, NewZoom))
+				if (LensFile->HasZoomEncoderMapping())
 				{
-					CineCameraComponent->SetCurrentFocalLength(NewZoom);
+					CineCameraComponent->SetCurrentFocalLength(LensFile->EvaluateNormalizedZoom(FrameData->FocalLength));
 				}
 				else
 				{
