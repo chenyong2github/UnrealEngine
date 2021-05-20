@@ -19,7 +19,7 @@ Required parameters before including this file:
 // before HLSL supports templates natively.
 
 FSMRTResult SMRTRayCast(
-	SMRT_TEMPLATE_RAY_STRUCT RayState,
+	inout SMRT_TEMPLATE_RAY_STRUCT RayState,
 	int NumSteps,
 	float StepOffset)
 {

@@ -11,16 +11,15 @@
 #include "../SceneTexturesCommon.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../DeferredLightingCommon.ush"
-#include "../ScreenSpaceDenoise/SSDPublic.ush"
-#include "../ScreenSpaceDenoise/SSDDefinitions.ush"
-#include "../ScreenSpaceDenoise/SSDPublicHarmonics.ush"
 #include "../LightShaderParameters.ush"
 #include "../LightGridCommon.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
+#include "../Visualization.ush"
 #include "PageAccessCommon.ush"
 #include "ProjectionCommon.ush"
 #include "ProjectionDirectional.ush"
 #include "ProjectionSpot.ush"
+#include "PageCacheCommon.ush"
 
 #if HAS_HAIR_STRANDS
 #define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
@@ -31,6 +30,10 @@
 
 #ifndef DIRECTIONAL_LIGHT
 #define DIRECTIONAL_LIGHT 0
+#endif
+
+#ifndef DEBUG_OUTPUT
+#define DEBUG_OUTPUT 0
 #endif
 
 #define CONTACT_SHADOW_SAMPLES 8
@@ -76,19 +79,6 @@ float VirtualShadowMapScreenRayCast(
 		NumSteps, StepOffset, bHitCastContactShadow);
 
 	return (bHitCastContactShadow) ? HitDistance : -1.0f;
-}
-
-float ProjectSingleSample(
-	int VirtualShadowMapId,
-	float3 L,
-	float3 TranslatedWorldPosition,
-	float3 EstimatedGeoWorldNormal,
-	float ContactShadowLengthWorld)
-{
-	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
-	FVirtualShadowMapSampleResult Sample =
-		SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, ContactShadowLengthWorld, EstimatedGeoWorldNormal);
-	return Sample.ShadowFactor;
 }
 
 float3 GetEstimatedGeoWorldNormal(float3 TranslatedWorldPosition, float2 ScreenUV)
@@ -161,17 +151,18 @@ RWTexture2D< uint > RWShadowMaskBits;
 int LightUniformVirtualShadowMapId;
 RWTexture2D< float4 > RWShadowFactor;
 
+// Debug output pass
+StructuredBuffer< FPhysicalPageMetaData > PhysicalPageMetaData;
+RWTexture2D< float4 > RWDebug;
+int DebugOutputType;
+int DebugVirtualShadowMapId;
+
 // Type of input data consume by the page allocation (i.e., data read from the source buffer: Gbuffer, HairStrands data, ...)
 #define INPUT_TYPE_GBUFFER 0
 #define INPUT_TYPE_HAIRSTRANDS 1
 uint InputType;
 
-struct FProjectLightResult
-{
-	half ShadowFactor;
-};
-
-FProjectLightResult ProjectLight(
+FVirtualShadowMapSampleResult ProjectLight(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
 	uint2 PixelPos,
@@ -181,7 +172,7 @@ FProjectLightResult ProjectLight(
 	half3 GBufferNormal,
 	const half Noise)
 {
-	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	const float3 BaseWorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 	// NOTE: If View.PreViewTranslation is guaranteed to be the camera position we can simplify
 	const float DistanceToCamera = length(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 	const float NormalBiasLength = max(0.01f, NormalBias * DistanceToCamera / View.ViewToClip._11);
@@ -194,7 +185,7 @@ FProjectLightResult ProjectLight(
 	bool bInLightRegion = true;
 #else
 	uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
-	float3 ToLight = Light.Position - WorldPosition;
+	float3 ToLight = Light.Position - BaseWorldPosition;
 	float d2 = dot( ToLight, ToLight );
 	float InvDist = rsqrt( d2 );
 	half3 L = ToLight * InvDist;
@@ -205,12 +196,13 @@ FProjectLightResult ProjectLight(
 	
 #endif // DIRECTIONAL_LIGHT
 
-	float ShadowFactor = 1.0f;
+	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
 
 	BRANCH
 	if (bInLightRegion)
 	{
 		const bool bIsHair = InputType == INPUT_TYPE_HAIRSTRANDS;
+		const bool bBackfaceCull = false;		// TODO
 		const half3 EstimatedGeoWorldNormal = bIsHair ? L : GBufferNormal;
 		
 		TranslatedWorldPosition += EstimatedGeoWorldNormal * NormalBiasLength;
@@ -218,7 +210,7 @@ FProjectLightResult ProjectLight(
 		if (SMRTRayCount > 0)
 		{
 		#if DIRECTIONAL_LIGHT
-			ShadowFactor = TraceDirectional(
+			Result = TraceDirectional(
 				VirtualShadowMapId,
 				Light,
 				PixelPos,
@@ -228,9 +220,10 @@ FProjectLightResult ProjectLight(
 				SMRTRayCount,
 				SMRTSamplesPerRay,
 				SMRTRayLengthScale,
-				Noise);
+				Noise,
+				bBackfaceCull);
 		#else
-			ShadowFactor = TraceLocalLight(
+			Result = TraceLocalLight(
 				VirtualShadowMapId,
 				Light,
 				LightType,
@@ -242,17 +235,16 @@ FProjectLightResult ProjectLight(
 				SMRTSamplesPerRay,
 				SMRTCotMaxRayAngleFromLight,
 				Noise,
-				/*bCullBackface*/ !bIsHair);
+				bBackfaceCull);
 		#endif // DIRECTIONAL_LIGHT
 		}
 		else
 		{
-			ShadowFactor = ProjectSingleSample(
+			Result = SampleVirtualShadowMap(
 				VirtualShadowMapId,
-				L,
-				TranslatedWorldPosition,
-				EstimatedGeoWorldNormal,
-				ContactShadowLengthWorld);
+				TranslatedWorldPosition - View.PreViewTranslation,
+				ContactShadowLengthWorld,
+				EstimatedGeoWorldNormal);
 		}
 
 		// Do not run contact shadow when computing the hair shadow mask (i.e. shadow mask applied on hair, has the scene 
@@ -262,7 +254,7 @@ FProjectLightResult ProjectLight(
 			half ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, Noise);
 			if (ContactShadowHitDistance >= 0.0f)
 			{
-				ShadowFactor = 0.0f;
+				Result.ShadowFactor = 0.0f;
 			}
 		}
 
@@ -274,7 +266,7 @@ FProjectLightResult ProjectLight(
 			float3 RayEnd = 0;
 			bool bCastHairRay = false;
 			float4 Random = 0;
-			if (ShadowFactor > 0)
+			if (Result.ShadowFactor > 0)
 			{
 				Random = ComputeRandom4(PixelPos);
 				uint RayIndex = min(Random.w * SMRTRayCount, SMRTRayCount - 1);
@@ -336,8 +328,8 @@ FProjectLightResult ProjectLight(
 					const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[VoxelDescIt];
 					const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
-					FHairTraversalResult Result = InitHairTraversalResult();
-					Result = ComputeHairCountVirtualVoxel(
+					FHairTraversalResult HairResult = InitHairTraversalResult();
+					HairResult = ComputeHairCountVirtualVoxel(
 						RayStart,
 						RayEnd,
 						CommonDesc,
@@ -347,16 +339,57 @@ FProjectLightResult ProjectLight(
 						VirtualVoxel.PageTexture,
 						TraversalSettings);
 
-					ShadowFactor = min(ShadowFactor, saturate(1 - Result.HairCount));
+					Result.ShadowFactor = min(Result.ShadowFactor, saturate(1 - HairResult.HairCount));
 				}
 			}
 		}
 		#endif
 	}
 
-	FProjectLightResult Result;
-	Result.ShadowFactor = ShadowFactor;
 	return Result;
+}
+
+void OutputDebug( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
+{
+	float3 Output = float3( 1, 0, 1 );
+		
+	if ( Result.bValid )
+	{
+		uint2 vPage = Result.VirtualTexelAddress.xy >> VSM_LOG2_PAGE_SIZE;
+		uint2 pPage = Result.PhysicalTexelAddress.xy >> VSM_LOG2_PAGE_SIZE;
+		bool bValidPageAddress = all( pPage < uint2(VirtualShadowMap.PhysicalPoolSizePages) );
+
+		if ( DebugOutputType == 1 )			// ShadowFactor
+		{
+			Output = Result.ShadowFactor.xxx;
+		}
+		if ( DebugOutputType == 2 )			// ClipmapIndexOrMip (mix in a bit of shadow for clarity)
+		{
+			float3 Color = IntToColor( Result.ClipmapIndexOrMipLevel );
+			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );
+		}
+		else if ( DebugOutputType == 3 && bValidPageAddress )	// Virtual page (mix in a bit of shadow for clarity)
+		{
+			float3 Color = IntToColor( vPage.x + ( vPage.y << 10U ) + (Result.ClipmapIndexOrMipLevel << 20U) );
+			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );
+		}
+		else if ( DebugOutputType == 4 && bValidPageAddress )	// Physical page age (mix in a bit of shadow for clarity)
+		{
+			uint Age = PhysicalPageMetaData[ PhysPageAddressToIndex(pPage) ].Age;
+			float3 Color = GreenToRedTurbo( 1.0f - 0.1f * float(Age) );
+			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );
+		}
+		else if ( DebugOutputType == 5 )	// RayCount
+		{
+			Output = GreenToRedTurbo( float( Result.RayCount ) / float( SMRTRayCount ) );
+		}
+		else if ( DebugOutputType == 6 )	// OccluderDistance
+		{
+			Output = ColorMapViridis( 0.001f * Result.OccluderDistance );
+		}
+	}
+
+	RWDebug[ PixelPos ] = float4( Output, 1.0f );
 }
 
 [numthreads(8, 8, 1)]
@@ -395,7 +428,10 @@ void VirtualShadowMapProjection(
 	const half Noise = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
 
 	const half3 GBufferNormal = GetGBufferDataUint( PixelPos, true ).WorldNormal;
-		
+
+	FVirtualShadowMapSampleResult DebugResult = InitVirtualShadowMapSampleResult();
+	bool bWriteDebug = false;
+
 #if ONE_PASS_PROJECTION
 	uint EyeIndex = 0; // TODO: Instanced stereo
 	uint GridLinearIndex = ComputeLightGridCellIndex( LocalPixelPos, SceneDepth, EyeIndex );
@@ -418,7 +454,7 @@ void VirtualShadowMapProjection(
 			const FLocalLightData LightData = GetLocalLightData( CulledLightGridData.DataStartIndex + Index, EyeIndex );
 			FLightShaderParameters Light = ConvertFromLocal( LightData );
 
-			FProjectLightResult Result = ProjectLight(
+			FVirtualShadowMapSampleResult Result = ProjectLight(
 				VirtualShadowMapId,
 				Light,
 				PixelPos,
@@ -429,25 +465,46 @@ void VirtualShadowMapProjection(
 				Noise);
 
 			PackShadowMask(ShadowMask, Result.ShadowFactor, Index);
+
+			if (DebugVirtualShadowMapId == VirtualShadowMapId)
+			{
+				DebugResult = Result;
+				bWriteDebug = true;
+			}
 		}
 	}
 
 	RWShadowMaskBits[ PixelPos ] = ~ShadowMask;
 
 #else // !ONE_PASS_PROJECTION
-	int VirtualShadowMapId = LightUniformVirtualShadowMapId;
-	FLightShaderParameters Light = GetRootLightShaderParameters();
+	{
+		int VirtualShadowMapId = LightUniformVirtualShadowMapId;
+		FLightShaderParameters Light = GetRootLightShaderParameters();
 
-	FProjectLightResult Result = ProjectLight(
-		VirtualShadowMapId,
-		Light,
-		PixelPos,
-		SceneDepth,
-		ContactShadowLengthWorld,
-		TranslatedWorldPosition,
-		GBufferNormal,
-		Noise);
+		FVirtualShadowMapSampleResult Result = ProjectLight(
+			VirtualShadowMapId,
+			Light,
+			PixelPos,
+			SceneDepth,
+			ContactShadowLengthWorld,
+			TranslatedWorldPosition,
+			GBufferNormal,
+			Noise);
 
-	RWShadowFactor[ PixelPos ] = Result.ShadowFactor;
+		RWShadowFactor[ PixelPos ] = Result.ShadowFactor;
+
+		if (DebugVirtualShadowMapId == VirtualShadowMapId)
+		{
+			DebugResult = Result;
+			bWriteDebug = true;
+		}
+	}
 #endif // ONE_PASS_PROJECTION
+
+#if DEBUG_OUTPUT
+	if (bWriteDebug && InputType == INPUT_TYPE_GBUFFER)
+	{
+		OutputDebug( PixelPos, DebugResult );
+	}
+#endif // DEBUG_OUTPUT
 }

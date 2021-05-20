@@ -234,8 +234,8 @@ void LumenCardDirectLightingPS(
 							FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSurfaceBias, WorldNormal);
 
 							bVSMValid = VirtualShadowMapSample.bValid;
-							bShadowFactorComplete = VirtualShadowMapSample.bValid && VirtualShadowMapSample.bOccluded;
 							ShadowFactor = VirtualShadowMapSample.ShadowFactor;
+							bShadowFactorComplete = VirtualShadowMapSample.bValid && ShadowFactor == 0.0f;
 						}
 						#endif
 

@@ -6,9 +6,14 @@ ProjectionCommon.ush:
 #pragma once
 
 #include "../Common.ush"
-#include "../ScreenSpaceDenoise/SSDDefinitions.ush"		// For LIGHT_TYPE's
 #include "PageAccessCommon.ush"
 #include "ProjectionStructs.ush"
+
+/** Light types */
+#define LIGHT_TYPE_DIRECTIONAL 0
+#define LIGHT_TYPE_POINT 1
+#define LIGHT_TYPE_SPOT 2
+#define LIGHT_TYPE_RECT 3
 
 #define VIRTUAL_SHADOW_MAP_MIN_OCCLUDER_DISTANCE 1e-6f
 
@@ -239,17 +244,31 @@ uint VirtualShadowMapGetCubeFace( float3 Dir )
 struct FVirtualShadowMapSampleResult
 {
 	bool bValid;
-	float ShadowFactor;	// 0 = fully occluded, 1 = no occlusion
-	bool bOccluded;
+	half ShadowFactor;	// 0 = fully occluded, 1 = no occlusion
 	float OccluderDistance;
 
-	// Offset from expected clipmap level that this sample represents. If >0 data is courser than calculated LOD.
-	// Only valid for directional lights.
-	int ClipmapLevelOffset;
-
-	// Debug data	
-	int ClipmapIndexOrMipLevel;
+	// Debug data; do not reference in non-debug permutations or performance may be affected!
+	uint ClipmapIndexOrMipLevel;	
+	uint RayCount;
+	uint2 VirtualTexelAddress;
+	uint2 PhysicalTexelAddress;
 };
+
+
+FVirtualShadowMapSampleResult InitVirtualShadowMapSampleResult()
+{
+	FVirtualShadowMapSampleResult Result;
+	Result.bValid = false;
+	Result.ShadowFactor = 1.0f;
+	Result.OccluderDistance = -1.0f;
+	Result.ClipmapIndexOrMipLevel = 0;
+	Result.VirtualTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
+	Result.PhysicalTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
+	Result.RayCount = 0;
+	return Result;
+}
+
+
 
 /**
 * VirtualShadowMapId is the ID of the virtual shadow map to sample
@@ -293,10 +312,12 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 
 				FVirtualShadowMapSampleResult Result;
 				Result.bValid = true;
-				Result.bOccluded = false;
+				Result.ShadowFactor = 1.0f;
 				Result.OccluderDistance = -1.0f;
-				Result.ClipmapLevelOffset = SmSample.VirtualShadowMapId - ClipmapLevelVirtualShadowMapId;
 				Result.ClipmapIndexOrMipLevel = SampledClipmapIndex;
+				Result.VirtualTexelAddress = SmSample.VirtualTexelAddress;
+				Result.PhysicalTexelAddress = SmSample.PhysicalTexelAddress;
+				Result.RayCount = 1;
 
 				float OptimalSlopeBias = bUseOptimalBias 
 					? ComputeVirtualShadowMapOptimalSlopeBias(ClipmapLevelVirtualShadowMapId, SmSample, WorldPosition, EstimatedGeoWorldNormal)
@@ -307,14 +328,13 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 
 				if (BiasedDepth > ShadowUVz.z)
 				{
-					Result.bOccluded = true;
+					Result.ShadowFactor = 0.0f;
 					Result.OccluderDistance = ComputeOccluderDistanceOrtho(
 						ProjectionData.ShadowViewToClipMatrix,
 						SmSample.Depth,
 						ShadowUVz.z);
 				}
 
-				Result.ShadowFactor = Result.bOccluded ? 0.0f : 1.0f;
 				return Result;
 			}
 		}
@@ -338,10 +358,12 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 		{
 			FVirtualShadowMapSampleResult Result;
 			Result.bValid = true;
-			Result.bOccluded = false;
+			Result.ShadowFactor = 1.0f;
 			Result.OccluderDistance = -1.0f;
-			Result.ClipmapLevelOffset = 0;
 			Result.ClipmapIndexOrMipLevel = SmSample.MipLevel;
+			Result.VirtualTexelAddress = SmSample.VirtualTexelAddress;
+			Result.PhysicalTexelAddress = SmSample.PhysicalTexelAddress;
+			Result.RayCount = 1;
 
 			float OptimalSlopeBias = bUseOptimalBias 
 				? ComputeVirtualShadowMapOptimalSlopeBias(VirtualShadowMapId, SmSample, WorldPosition, EstimatedGeoWorldNormal)
@@ -352,7 +374,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 
 			if (BiasedDepth > ShadowUVz.z)
 			{
-				Result.bOccluded = true;
+				Result.ShadowFactor = 0.0f;
 				// Shadow view matrix is rotation
 				float ReceiverDistance = length(TranslatedWorldPosition);
 				Result.OccluderDistance = RayStartDistance + ComputeOccluderDistancePerspective(
@@ -362,20 +384,12 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 					ReceiverDistance);
 			}
 
-			Result.ShadowFactor = Result.bOccluded ? 0.0f : 1.0f;
 			return Result;
 		}
 	}
 
 	// Invalid
-	FVirtualShadowMapSampleResult Result = (FVirtualShadowMapSampleResult)0;
-	Result.bValid = false;
-	Result.bOccluded = false;
-	Result.ShadowFactor = 1.0f;
-	Result.OccluderDistance = -1.0f;
-	Result.ClipmapLevelOffset = 0;
-	Result.ClipmapIndexOrMipLevel = -1;
-	return Result;
+	return InitVirtualShadowMapSampleResult();
 }
 
 FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, float3 WorldPosition, float RayStartDistance = 0.0f)
