@@ -6,6 +6,7 @@
 #include "Misc/Optional.h"
 #include "Misc/Timecode.h"
 #include "Misc/Timespan.h"
+#include "Misc/Guid.h"
 #include "IMediaTimeSource.h"
 
 
@@ -59,6 +60,15 @@ public:
 	 * @see GetTime
 	 */
 	virtual TOptional<FTimecode> GetTimecode() const { return TOptional<FTimecode>(); }
+
+
+	/**
+	 * Get the GUID identifying the derived type that may implement additional,
+	 * type specific methods. If the GUID matches a type known type it is safe
+	 * to static cast this class to the derived type.
+	 * This is usually done to identify the format of the binary data carried here.
+	 */
+	virtual FGuid GetGUID() const { return FGuid(); }
 
 public:
 
