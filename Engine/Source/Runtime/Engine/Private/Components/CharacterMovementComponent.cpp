@@ -12333,6 +12333,13 @@ void UCharacterMovementComponent::PostBuildAsyncInput()
 {
 	// Reset so we can tell if movement mode change comes from game thread.
 	bMovementModeDirty = false;
+	
+	// This is slightly sketchy, but bIsValid will only ever be set on game thread so this is threadsafe.
+	// TODO make that more clear.
+	if (AsyncSimState->IsValid() == false)
+	{
+		AsyncSimState->bIsValid = true;
+	}
 }
 
 void UCharacterMovementComponent::ApplyAsyncOutput(FCharacterMovementAsyncOutput& Output)
