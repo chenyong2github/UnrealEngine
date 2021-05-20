@@ -552,6 +552,7 @@ private:
 	void RefreshInstructionsIfRequired();
 	void InvalidateCachedMemory();
 	void CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory);
+	void RebuildByteCodeOnLoad();
 
 	UPROPERTY(transient)
 	FRigVMInstructionArray Instructions;
