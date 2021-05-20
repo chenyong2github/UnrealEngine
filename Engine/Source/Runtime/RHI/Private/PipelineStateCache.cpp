@@ -78,7 +78,7 @@ static FAutoConsoleCommand DumpPipelineCmd(
 	FConsoleCommandDelegate::CreateStatic(DumpPipelineCacheStats)
 );
 
-void SetComputePipelineState(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader)
+void SetComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader)
 {
 	RHICmdList.SetComputePipelineState(PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeShader), ComputeShader);
 }
@@ -990,7 +990,7 @@ void PipelineStateCache::FlushResources()
 
 }
 
-static bool IsAsyncCompilationAllowed(FRHICommandList& RHICmdList)
+static bool IsAsyncCompilationAllowed(FRHIComputeCommandList& RHICmdList)
 {
 	return !IsOpenGLPlatform(GMaxRHIShaderPlatform) &&  // The PSO cache is a waste of time on OpenGL and async compilation is a double waste of time.
 		!IsSwitchPlatform(GMaxRHIShaderPlatform) &&
@@ -1003,7 +1003,7 @@ uint64 PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(FGraphicsPipelin
 	return GraphicsPipelineState != nullptr ? GraphicsPipelineState->SortKey : 0;
 }
 
-FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader)
+FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader)
 {	
 	bool DoAsyncCompile = IsAsyncCompilationAllowed(RHICmdList);
 

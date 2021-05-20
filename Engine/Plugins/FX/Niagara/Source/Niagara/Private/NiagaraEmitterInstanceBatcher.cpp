@@ -27,6 +27,7 @@
 #include "RHIGPUReadback.h"
 #include "Runtime/Renderer/Private/SceneRendering.h"
 #include "Runtime/Renderer/Private/PostProcess/SceneRenderTargets.h"
+#include "PipelineStateCache.h"
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
 
@@ -1379,7 +1380,7 @@ void NiagaraEmitterInstanceBatcher::DispatchStage(FRHICommandList& RHICmdList, F
 	const int32 PermutationId = Tick.NumInstancesWithSimStages > 0 ? InstanceData.Context->GPUScript_RT->ShaderStageIndexToPermutationId_RenderThread(SimStageData.StageIndex) : 0;
 	const FNiagaraShaderRef ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(PermutationId);
 	FRHIComputeShader* RHIComputeShader = ComputeShader.GetComputeShader();
-	RHICmdList.SetComputeShader(RHIComputeShader);
+	SetComputePipelineState(RHICmdList, RHIComputeShader);
 
 	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS,
 		TEXT("NiagaraGpuSim(%s) DispatchCount(%u) Stage(%s %u) NumInstructions(%u)"),
@@ -1875,7 +1876,7 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 
 			// Choose the shader to bind
 			TShaderMapRef<FNiagaraSortKeyGenCS> KeyGenCS = SortInfo.bEnableCulling ? SortAndCullKeyGenCS : SortKeyGenCS;
-			RHICmdList.SetComputeShader(KeyGenCS.GetComputeShader());
+			SetComputePipelineState(RHICmdList, KeyGenCS.GetComputeShader());
 
 			SetShaderParameters(RHICmdList, KeyGenCS, KeyGenCS.GetComputeShader(), Params);
 			DispatchComputeShader(RHICmdList, KeyGenCS, FMath::DivideAndRoundUp(SortInfo.ParticleCount, NIAGARA_KEY_GEN_THREAD_COUNT), 1, 1);

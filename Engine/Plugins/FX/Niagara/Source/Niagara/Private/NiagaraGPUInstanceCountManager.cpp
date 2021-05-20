@@ -8,7 +8,7 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "ClearQuad.h"
-
+#include "PipelineStateCache.h"
 
 int32 GNiagaraMinGPUInstanceCount = 2048;
 static FAutoConsoleVariableRef CVarNiagaraMinGPUInstanceCount(
@@ -437,7 +437,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 				const bool bIsLastDispatch = DispatchIdx == (NumDispatches - 1);
 				const int32 NumInstanceCountClearTasks = bIsLastDispatch ? InstanceCountClearTasks.Num() : 0;
 
-				RHICmdList.SetComputeShader(DrawIndirectArgsGenCS.GetComputeShader());
+				SetComputePipelineState(RHICmdList, DrawIndirectArgsGenCS.GetComputeShader());
 				DrawIndirectArgsGenCS->SetOutput(RHICmdList, ArgsUAV, CountsUAV);
 				DrawIndirectArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, CulledCountsSRV, ArgGenTaskOffset, NumArgGenTasks, NumInstanceCountClearTasks);
 
@@ -459,7 +459,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 					{
 						FNiagaraDrawIndirectResetCountsCS::FPermutationDomain PermutationVectorResetCounts;
 						TShaderMapRef<FNiagaraDrawIndirectResetCountsCS> DrawIndirectResetCountsArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVectorResetCounts);
-						RHICmdList.SetComputeShader(DrawIndirectResetCountsArgsGenCS.GetComputeShader());
+						SetComputePipelineState(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetComputeShader());
 						DrawIndirectResetCountsArgsGenCS->SetOutput(RHICmdList, CountBuffer.UAV);
 						DrawIndirectResetCountsArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, DrawIndirectArgGenTasks.Num(), NumInstanceCountClearTasks);
 						DispatchComputeShader(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);

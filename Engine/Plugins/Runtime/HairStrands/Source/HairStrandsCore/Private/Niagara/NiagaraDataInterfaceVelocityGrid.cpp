@@ -13,6 +13,7 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
+#include "PipelineStateCache.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceVelocityGrid"
 DEFINE_LOG_CATEGORY_STATIC(LogVelocityGrid, Log, All);
@@ -713,7 +714,7 @@ inline void CopyTexture(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type Feat
 	if (DestinationGridBufferUAV != nullptr && CurrentGridBufferSRV != nullptr && CurrentGridBufferUAV != nullptr)
 	{
 		TShaderMapRef<FCopyVelocityGridCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+		SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
 		FRHITransitionInfo Transitions[] = {
 			FRHITransitionInfo(CurrentGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),

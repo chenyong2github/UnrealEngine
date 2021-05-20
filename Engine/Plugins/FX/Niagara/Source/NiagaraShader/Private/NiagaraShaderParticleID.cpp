@@ -3,6 +3,7 @@
 #include "NiagaraShaderParticleID.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
+#include "PipelineStateCache.h"
 
 int32 GNiagaraWaveIntrinsics = 0; // TODO: Enable this
 FAutoConsoleVariableRef CVarGNiagaraWaveIntrinsics(
@@ -46,7 +47,7 @@ public:
 		check(NumElementsToAlloc >= NumExistingElements);
 		uint32 NumNewElements = NumElementsToAlloc - NumExistingElements;
 
-		RHICmdList.SetComputeShader(ComputeShader);
+		SetComputePipelineState(RHICmdList, ComputeShader);
 
 		NewBufferParam.SetBuffer(RHICmdList, ComputeShader, NewBuffer);
 		SetSRVParameter(RHICmdList, ComputeShader, ExistingBufferParam, ExistingBuffer);
@@ -123,7 +124,7 @@ public:
 		// To simplify the shader code, the size of the ID table must be a multiple of the thread count.
 		check(NumIDs % ThreadCount == 0);
 
-		RHICmdList.SetComputeShader(ComputeShader);
+		SetComputePipelineState(RHICmdList, ComputeShader);
 
 		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, IDToIndexTable);
 		FreeIDListParam.SetBuffer(RHICmdList, ComputeShader, FreeIDList);
@@ -187,7 +188,7 @@ public:
 		const uint32 NumInts = Buffer.NumBytes / sizeof(int32);
 		const uint32 ThreadGroups = FMath::DivideAndRoundUp(NumInts, THREAD_COUNT);
 
-		RHICmdList.SetComputeShader(ComputeShader);
+		SetComputePipelineState(RHICmdList, ComputeShader);
 
 		SetUAVParameter(RHICmdList, ComputeShader, TargetBufferParam, Buffer.UAV);
 		SetShaderValue(RHICmdList, ComputeShader, FillValueParam, Value);

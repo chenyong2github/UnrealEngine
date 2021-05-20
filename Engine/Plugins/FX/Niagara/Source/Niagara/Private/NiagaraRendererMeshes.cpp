@@ -15,6 +15,7 @@
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
 #include "Renderer/Private/ScenePrivate.h"
+#include "PipelineStateCache.h"
 #include "IXRTrackingSystem.h"
 
 #ifdef HMD_MODULE_INCLUDED
@@ -1434,7 +1435,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			FNiagaraGPURayTracingTransformsCS::FPermutationDomain PermutationVector;
 
 			TShaderMapRef<FNiagaraGPURayTracingTransformsCS> GPURayTracingTransformsCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
-			RHICmdList.SetComputeShader(GPURayTracingTransformsCS.GetComputeShader());
+			SetComputePipelineState(RHICmdList, GPURayTracingTransformsCS.GetComputeShader());
 
 			const FUintVector4 NiagaraOffsets(
 				VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset(),

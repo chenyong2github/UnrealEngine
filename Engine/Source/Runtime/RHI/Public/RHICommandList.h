@@ -640,6 +640,11 @@ protected:
 public:
 	TStatId	ExecuteStat;
 
+	bool AsyncPSOCompileAllowed() const
+	{
+		return bAsyncPSOCompileAllowed;
+	}
+
 protected:
 	//the values of this struct must be copied when the commandlist is split 
 	struct FPSOContext
@@ -2950,11 +2955,6 @@ class RHI_API FRHICommandList : public FRHIComputeCommandList
 {
 public:
 	FRHICommandList(FRHIGPUMask GPUMask) : FRHIComputeCommandList(GPUMask) {}
-
-	bool AsyncPSOCompileAllowed() const
-	{
-		return bAsyncPSOCompileAllowed;
-	}
 
 	/** Custom new/delete with recycling */
 	void* operator new(size_t Size);
