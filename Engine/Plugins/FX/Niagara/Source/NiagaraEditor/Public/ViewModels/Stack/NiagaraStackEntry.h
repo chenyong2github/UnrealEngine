@@ -21,6 +21,7 @@ enum class EStackIssueSeverity : uint8
 	Error = 0,
 	Warning, 
 	Info,
+	CustomNote,
 	None
 };
 
@@ -364,6 +365,8 @@ public:
 
 	bool HasIssuesOrAnyChildHasIssues() const;
 
+	int32 GetTotalNumberOfCustomNotes() const;
+	
 	int32 GetTotalNumberOfInfoIssues() const;
 
 	int32 GetTotalNumberOfWarningIssues() const;
@@ -467,14 +470,16 @@ private:
 			: TotalNumberOfInfoIssues(0)
 			, TotalNumberOfWarningIssues(0)
 			, TotalNumberOfErrorIssues(0)
+			, TotalNumberOfCustomNotes(0)
 		{
 		}
 
-		bool HasAnyIssues() const { return TotalNumberOfInfoIssues > 0 || TotalNumberOfWarningIssues > 0 || TotalNumberOfErrorIssues > 0; }
+		bool HasAnyIssues() const { return TotalNumberOfInfoIssues > 0 || TotalNumberOfWarningIssues > 0 || TotalNumberOfErrorIssues > 0 || TotalNumberOfCustomNotes > 0; }
 
 		int32 TotalNumberOfInfoIssues;
 		int32 TotalNumberOfWarningIssues;
 		int32 TotalNumberOfErrorIssues;
+		int32 TotalNumberOfCustomNotes;
 		TArray<UNiagaraStackEntry*> ChildrenWithIssues;
 	};
 

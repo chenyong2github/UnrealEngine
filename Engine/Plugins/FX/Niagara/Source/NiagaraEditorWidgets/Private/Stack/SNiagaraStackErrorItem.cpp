@@ -31,6 +31,9 @@ void SNiagaraStackErrorItem::Construct(const FArguments& InArgs, UNiagaraStackEr
 	case EStackIssueSeverity::Info:
 		IconBrush = FEditorStyle::GetBrush("Icons.Info");
 		break;
+	case EStackIssueSeverity::CustomNote:
+		IconBrush = FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Message.CustomNote");
+		break;
 	default:
 		IconBrush = FEditorStyle::GetBrush("NoBrush");
 		break;

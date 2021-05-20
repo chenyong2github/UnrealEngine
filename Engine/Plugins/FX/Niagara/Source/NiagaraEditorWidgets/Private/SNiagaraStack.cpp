@@ -855,6 +855,9 @@ TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiag
 			case EStackIssueSeverity::Info:
 				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.InfoBackgroundColor");
 				break;
+			case EStackIssueSeverity::CustomNote:
+				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.CustomNoteBackgroundColor");
+				break;
 			default:
 				checkf(false, TEXT("Issue severity not set for stack issue."));
 		}

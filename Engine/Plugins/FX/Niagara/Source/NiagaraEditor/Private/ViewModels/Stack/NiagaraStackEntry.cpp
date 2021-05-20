@@ -500,6 +500,11 @@ bool UNiagaraStackEntry::HasIssuesOrAnyChildHasIssues() const
 	return GetCollectedIssueData().HasAnyIssues();
 }
 
+int32 UNiagaraStackEntry::GetTotalNumberOfCustomNotes() const
+{
+	return GetCollectedIssueData().TotalNumberOfCustomNotes;
+}
+
 int32 UNiagaraStackEntry::GetTotalNumberOfInfoIssues() const
 {
 	return GetCollectedIssueData().TotalNumberOfInfoIssues;
@@ -747,6 +752,7 @@ const UNiagaraStackEntry::FCollectedIssueData& UNiagaraStackEntry::GetCollectedI
 			CachedCollectedIssueData->TotalNumberOfInfoIssues += ChildStackEntry->GetTotalNumberOfInfoIssues();
 			CachedCollectedIssueData->TotalNumberOfWarningIssues += ChildStackEntry->GetTotalNumberOfWarningIssues();
 			CachedCollectedIssueData->TotalNumberOfErrorIssues += ChildStackEntry->GetTotalNumberOfErrorIssues();
+			CachedCollectedIssueData->TotalNumberOfCustomNotes += ChildStackEntry->GetTotalNumberOfCustomNotes();
 			
 			if (ChildStackEntry->GetIssues().Num() > 0)
 			{
@@ -769,6 +775,10 @@ const UNiagaraStackEntry::FCollectedIssueData& UNiagaraStackEntry::GetCollectedI
 			else if (Issue.GetSeverity() == EStackIssueSeverity::Error)
 			{
 				CachedCollectedIssueData->TotalNumberOfErrorIssues++;
+			}
+			else if (Issue.GetSeverity() == EStackIssueSeverity::CustomNote)
+			{
+				CachedCollectedIssueData->TotalNumberOfCustomNotes++;
 			}
 		}
 	}
