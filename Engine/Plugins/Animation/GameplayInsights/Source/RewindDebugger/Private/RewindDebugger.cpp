@@ -107,6 +107,42 @@ void FRewindDebugger::OnPIEStopped(bool bSimulating)
 	SetCurrentScrubTime(0);
 }
 
+bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& ComponentList)
+{
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule->GetAnalysisSession();
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+	UWorld* World = GetWorldToVisualize();
+
+	const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
+
+	bool bChanged = false;
+
+	GameplayProvider->EnumerateObjects([this, &bChanged, ParentId, GameplayProvider, &ComponentList](const FObjectInfo& InObjectInfo)
+	{
+		// todo: filter components based on creation/destruction frame, and the current scrubbing time (so dynamically created and destroyed components won't add up)
+
+		const FObjectInfo* ObjectInfo = &InObjectInfo;
+		if(ObjectInfo->OuterId == ParentId)
+		{
+			int32 FoundIndex = ComponentList.FindLastByPredicate([ObjectInfo](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectName == ObjectInfo->Name; });
+
+			if (FoundIndex >= 0 && ComponentList[FoundIndex]->ObjectName == InObjectInfo.Name)
+			{
+				ComponentList[FoundIndex]->ObjectId = ObjectInfo->Id; // there is an issue with skeletal mesh components changing ids
+				bChanged = bChanged || UpdateComponentList(ObjectInfo->Id, ComponentList[FoundIndex]->Children);
+			}
+			else
+			{
+				bChanged = true;
+				ComponentList.Add(MakeShared<FDebugObjectInfo>(ObjectInfo->Id,InObjectInfo.Name));
+				UpdateComponentList(ObjectInfo->Id, ComponentList.Last()->Children);
+			}
+		}
+	});
+
+	return bChanged;
+}
+
 void FRewindDebugger::RefreshDebugComponents()
 {
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
@@ -116,8 +152,6 @@ void FRewindDebugger::RefreshDebugComponents()
 
 		if (const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider"))
 		{
-			TArray<TSharedPtr<FDebugObjectInfo>> NewComponentList;	
-			
 			if (DebugTargetActor.Get() == "")
 			{
 				return;
@@ -134,53 +168,30 @@ void FRewindDebugger::RefreshDebugComponents()
 				}
 			});
 
+			bool bChanged = false;
+
 			// add actor (even if it isn't found in the gameplay provider)
-			if (DebugComponents.Num() > 0 && DebugComponents[0]->ObjectName == DebugTargetActor.Get() && DebugComponents[0]->ObjectId == TargetActorId)
+			if (DebugComponents.Num() == 0)
 			{
-				// re-use the version from the old array if it exists, to maintain selection in the list view
-				NewComponentList.Add(DebugComponents[0]);
+				bChanged = true;
+				DebugComponents.Add(MakeShared<FDebugObjectInfo>(TargetActorId, DebugTargetActor.Get()));
 			}
 			else
 			{
-				NewComponentList.Add(MakeShared<FDebugObjectInfo>(TargetActorId, DebugTargetActor.Get()));
-			}
-
-			if (TargetActorId != 0)
-			{
-				GameplayProvider->EnumerateObjects([this, TargetActorId, GameplayProvider, &NewComponentList](const FObjectInfo& InObjectInfo)
+				if (DebugComponents[0]->ObjectName != DebugTargetActor.Get() || DebugComponents[0]->ObjectId != TargetActorId)
 				{
-					// todo: filter components based on creation/destruction frame, and the current scrubbing time (so dynamically created and destroyed components won't add up)
-
-					const FObjectInfo* ObjectInfo = &InObjectInfo;
-					uint64 ObjectId = ObjectInfo->Id;
-					
-					// find any objects that have TargetActorId as OuterId (or of any outer object recursively)
-					while (ObjectInfo && ObjectInfo->OuterId != 0)
-					{
-						if(ObjectInfo->OuterId == TargetActorId)
-						{
-							// re-use the version from the old array if it exists, to maintain selection in the list view
-							int32 FoundIndex = DebugComponents.FindLastByPredicate([ObjectId](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectId == ObjectId; });
-
-							if (FoundIndex >= 0 && DebugComponents[FoundIndex]->ObjectName == InObjectInfo.Name)
-							{
-								NewComponentList.Add(DebugComponents[FoundIndex]);
-							}
-							else
-							{
-								NewComponentList.Add(MakeShared<FDebugObjectInfo>(ObjectId,InObjectInfo.Name));
-							}
-							return;
-						}
-
-						ObjectInfo = GameplayProvider->FindObjectInfo(ObjectInfo->OuterId);
-					}
-				});
+					bChanged = true;
+					DebugComponents[0] = MakeShared<FDebugObjectInfo>(TargetActorId, DebugTargetActor.Get());
+				}
 			}
 
-			if (DebugComponents != NewComponentList) // since we reused old SharedPtr for any entries that existed, array equality will tell us if anything has changed
+			if (TargetActorId != 0 && DebugComponents.Num() > 0)
 			{
-				DebugComponents = NewComponentList;
+				bChanged = bChanged || UpdateComponentList(TargetActorId, DebugComponents[0]->Children);
+			}
+
+			if (bChanged)
+			{
 				ComponentListChangedDelegate.ExecuteIfBound();
 			}
 		}
@@ -497,6 +508,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 										MeshComponentsToReset.Add(ObjectId, ResetData);
 									}
 
+									// todo: we probably need to take into account tick order requirements for attached objects here
 									MeshComponent->SetWorldTransform(ComponentWorldTransform);
 									MeshComponent->SetForcedLOD(PoseMessage.LodIndex + 1);
 								}

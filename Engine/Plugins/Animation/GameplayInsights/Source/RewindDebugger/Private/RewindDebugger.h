@@ -94,6 +94,7 @@ private:
 	const TraceServices::IAnalysisSession* GetAnalysisSession();
 	UWorld* GetWorldToVisualize() const;
 
+	bool UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& NewComponentList);
 	void SetCurrentScrubTime(float Time);
 	void UpdateTraceTime();
 
