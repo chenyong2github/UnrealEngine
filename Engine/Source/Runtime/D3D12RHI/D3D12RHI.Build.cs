@@ -42,8 +42,16 @@ public class D3D12RHI : ModuleRules
             Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
+
+			if (Target.WindowsPlatform.bPixProfilingEnabled &&
+				Target.Configuration != UnrealTargetConfiguration.Shipping &&
+				Target.Configuration != UnrealTargetConfiguration.Test)
+            {
+				PublicDefinitions.Add("PROFILE");
+				PublicDependencyModuleNames.Add("WinPixEventRuntime");
+			}
+
 			if (Target.Platform != UnrealTargetPlatform.HoloLens)
             {
 				PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
