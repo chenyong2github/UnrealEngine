@@ -986,6 +986,9 @@ namespace UnrealBuildTool
 				Execute("/", String.Format("rm -rf {0}/Intermediate/TVOS/*.plist", GetRemotePath(ProjectFile.Directory)));
 			}
 
+			// Convert CRLF to LF for all shell scripts
+			Execute(RemoteBaseDir, String.Format("for i in {0}/Build/BatchFiles/Mac/*.sh; do mv $i $i.crlf; tr -d '\r' < $i.crlf > $i; done", EscapeShellArgument(GetRemotePath(UnrealBuildTool.EngineDirectory))));
+
 			// Fixup permissions on any shell scripts
 			Execute(RemoteBaseDir, String.Format("chmod +x {0}/Build/BatchFiles/Mac/*.sh", EscapeShellArgument(GetRemotePath(UnrealBuildTool.EngineDirectory))));
 		}
@@ -1097,11 +1100,14 @@ namespace UnrealBuildTool
 		{
 			using(Process RsyncProcess = new Process())
 			{
+				DataReceivedEventHandler OutputHandler = (E, Args) => { RsyncOutput(Args, false); };
+				DataReceivedEventHandler ErrorHandler = (E, Args) => { RsyncOutput(Args, true); };
+
 				RsyncProcess.StartInfo.FileName = RsyncExe.FullName;
 				RsyncProcess.StartInfo.Arguments = Arguments;
 				RsyncProcess.StartInfo.WorkingDirectory = SshExe.Directory.FullName;
-				RsyncProcess.OutputDataReceived += RsyncOutput;
-				RsyncProcess.ErrorDataReceived += RsyncOutput;
+				RsyncProcess.OutputDataReceived += OutputHandler;
+				RsyncProcess.ErrorDataReceived += ErrorHandler;
 
 				Log.TraceLog("[Rsync] {0} {1}", Utils.MakePathSafeToUseWithCommandLine(RsyncProcess.StartInfo.FileName), RsyncProcess.StartInfo.Arguments);
 				return Utils.RunLocalProcess(RsyncProcess);
@@ -1111,13 +1117,20 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Handles data output by rsync
 		/// </summary>
-		/// <param name="Sender">The object sending the messag</param>
 		/// <param name="Args">The received data</param>e
-		private void RsyncOutput(object Sender, DataReceivedEventArgs Args)
+		/// <param name="bStdErr">whether the data was received on stderr</param>
+		private void RsyncOutput(DataReceivedEventArgs Args, bool bStdErr)
 		{
-			if(Args.Data != null)
+			if (Args.Data != null)
 			{
-				Log.TraceInformation("  {0}", Args.Data);
+				if (bStdErr)
+				{
+					Log.TraceError("  {0}", Args.Data);
+				}
+				else
+				{
+					Log.TraceInformation("  {0}", Args.Data);
+				}
 			}
 		}
 
@@ -1141,15 +1154,16 @@ namespace UnrealBuildTool
 		protected int Execute(string WorkingDirectory, string Command)
 		{
 			string FullCommand = String.Format("cd {0} && {1}", EscapeShellArgument(WorkingDirectory), Command);
-			using(Process SSHProcess = new Process())
+			using (Process SSHProcess = new Process())
 			{
-				DataReceivedEventHandler OutputHandler = (E, Args) => { SshOutput(Args); };
+				DataReceivedEventHandler OutputHandler = (E, Args) => { SshOutput(Args, false); };
+				DataReceivedEventHandler ErrorHandler = (E, Args) => { SshOutput(Args, true); };
 
 				SSHProcess.StartInfo.FileName = SshExe.FullName;
 				SSHProcess.StartInfo.WorkingDirectory = SshExe.Directory.FullName;
-				SSHProcess.StartInfo.Arguments = String.Format("{0} {1}", String.Join(" ", CommonSshArguments), FullCommand.Replace("\"", "\\\""));
+				SSHProcess.StartInfo.Arguments = String.Format("{0} {1}", String.Join(" ", CommonSshArguments), FullCommand);
 				SSHProcess.OutputDataReceived += OutputHandler;
-				SSHProcess.ErrorDataReceived += OutputHandler;
+				SSHProcess.ErrorDataReceived += ErrorHandler;
 
 				Log.TraceLog("[SSH] {0} {1}", Utils.MakePathSafeToUseWithCommandLine(SSHProcess.StartInfo.FileName), SSHProcess.StartInfo.Arguments);
 				return Utils.RunLocalProcess(SSHProcess);
@@ -1160,12 +1174,20 @@ namespace UnrealBuildTool
 		/// Handler for output from running remote SSH commands
 		/// </summary>
 		/// <param name="Args"></param>
-		private void SshOutput(DataReceivedEventArgs Args)
+		/// <param name="bStdErr">whether the data was received on stderr</param>
+		private void SshOutput(DataReceivedEventArgs Args, bool bStdErr)
 		{
-			if(Args.Data != null)
+			if (Args.Data != null)
 			{
 				string FormattedOutput = ConvertRemotePathsToLocal(Args.Data);
-				Log.TraceInformation("  {0}", FormattedOutput);
+				if (bStdErr)
+				{
+					Log.TraceError("  {0}", FormattedOutput);
+				}
+				else
+				{
+					Log.TraceInformation("  {0}", FormattedOutput);
+				}
 			}
 		}
 
