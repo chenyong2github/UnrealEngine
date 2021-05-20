@@ -19,6 +19,7 @@
 #include "DatasmithMaxAttributes.h"
 #include "DatasmithMaxClassIDs.h"
 #include "DatasmithMaxExporterDefines.h"
+#include "DatasmithMaxHelper.h"
 #include "DatasmithMaxMeshExporter.h"
 #include "DatasmithMaxSceneParser.h"
 #include "DatasmithMaxSceneExporter.h"
@@ -58,6 +59,10 @@ public:
 	const TCHAR* Category() { return TEXT("Unreal Datasmith Exporter"); }
 	bool UseOnlyInternalNameForMAXScriptExposure() { return true; }
 	const TCHAR* InternalName() { return TEXT("DatasmithExport"); }
+
+#if MAX_PRODUCT_YEAR_NUMBER > 2021
+	virtual const MCHAR* NonLocalizedClassName() override { return _M("datasmithmaxexporter"); }
+#endif
 
 #ifdef UNICODE_
 	virtual const MCHAR* GetRsrcString(int id) { return _M(""); }
@@ -339,7 +344,7 @@ namespace DatasmithMaxExporterUtils
 
 int FDatasmithMaxExporter::ExportScene(FDatasmithSceneExporter* DatasmithSceneExporter, TSharedRef< IDatasmithScene > DatasmithScene, FDatasmithMaxSceneParser& InSceneParser, const TCHAR* Filename, const FDatasmithMaxExportOptions& ExporterOptions, TSharedPtr < FDatasmithMaxProgressManager >& ProgressManager)
 {
-	float UnitMultiplier = FMath::Abs(GetMasterScale(UNITS_CENTIMETERS));
+	float UnitMultiplier = FMath::Abs(GetSystemUnitScale(UNITS_CENTIMETERS));
 
 	MSTR Renderer;
 	FString Host;
