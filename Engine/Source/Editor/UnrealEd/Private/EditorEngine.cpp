@@ -7450,6 +7450,8 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 	{
 		UMaterialShaderQualitySettings* MaterialShaderQualitySettings = UMaterialShaderQualitySettings::Get();
 		MaterialShaderQualitySettings->SetPreviewPlatform(PreviewPlatform.PreviewShaderFormatName);
+
+		UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
 	}
 
 	if (bChangedFeatureLevel)
@@ -7503,6 +7505,8 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 
 	UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
 
+	UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
+
 	//Override the current device profile.
 	if (PreviewPlatform.DeviceProfileName != NAME_None)
 	{
@@ -7551,6 +7555,8 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	}
 
 	PreviewPlatformChanged.Broadcast();
+
+	UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
 
 	GEditor->RedrawAllViewports();
 	
