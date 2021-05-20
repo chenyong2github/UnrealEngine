@@ -392,17 +392,6 @@ namespace Chaos
 					}
 				}
 			}
-
-			for (const FDirtyRigidParticleData& ResimDirty : Results.Next->DirtyRigids)
-			{
-				if (FSingleParticlePhysicsProxy* ResimProxy = ResimDirty.GetProxy())
-				{
-					if (ParticleToResimInfo.FindChecked(ResimProxy).bDiverged)
-					{
-						UE_LOG(LogTemp, Warning, TEXT("Diverged"));
-					}
-				}
-			}
 		}
 	}
 
