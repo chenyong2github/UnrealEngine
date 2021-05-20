@@ -99,6 +99,13 @@ void SControlRigGraphPinNameListValueWidget::SetSelectedItem(TSharedPtr<FString>
 	}
 }
 
+void SControlRigGraphPinNameListValueWidget::SetOptionsSource(const TArray<TSharedPtr<FString>>* InOptionsSource)
+{
+	check(InOptionsSource);
+	OptionsSource = InOptionsSource;
+	ComboListView->SetListItemsSource(*OptionsSource);
+}
+
 TSharedPtr<FString> SControlRigGraphPinNameListValueWidget::GetSelectedItem()
 {
 	return SelectedItem;

@@ -75,6 +75,7 @@ public:
 	void ClearSelection();
 
 	void SetSelectedItem(TSharedPtr<FString> InSelectedItem);
+	void SetOptionsSource(const TArray< TSharedPtr<FString> >* InOptionsSource);
 
 	/** @return the item currently selected by the combo box. */
 	TSharedPtr<FString> GetSelectedItem();
