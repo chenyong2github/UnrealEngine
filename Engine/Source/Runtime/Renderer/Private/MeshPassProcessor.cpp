@@ -1117,6 +1117,11 @@ void FMeshDrawCommand::SubmitDraw(
 	FRHIBuffer* IndirectArgsOverrideBuffer,
 	uint32 IndirectArgsOverrideByteOffset)
 {
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+	BREADCRUMB_EVENTF(RHICmdList, MeshDrawCommand, TEXT("%s %s"),
+		*MeshDrawCommand.DebugData.MaterialName,
+		MeshDrawCommand.DebugData.ResourceName.IsValid() ? *MeshDrawCommand.DebugData.ResourceName.ToString() : TEXT(""));
+#endif
 #if WANTS_DRAW_MESH_EVENTS
 	FMeshDrawEvent MeshEvent(MeshDrawCommand, InstanceFactor, RHICmdList);
 #endif
