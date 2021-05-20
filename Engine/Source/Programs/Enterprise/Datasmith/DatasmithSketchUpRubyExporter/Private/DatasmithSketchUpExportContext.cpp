@@ -284,11 +284,37 @@ TSharedPtr<FComponentDefinition>* FComponentDefinitionCollection::FindComponentD
 	return ComponentDefinitionMap.Find(ComponentDefinitionID);
 }
 
-void FEntitiesObjectCollection::RegisterEntitiesFaces(DatasmithSketchUp::FEntities& Entities, const TSet<int32>& FaceIds)
+void FEntitiesObjectCollection::RegisterEntities(DatasmithSketchUp::FEntities& Entities)
 {
-	for (int32 FaceId : FaceIds)
+	for (int32 FaceId : Entities.EntitiesGeometry->FaceIds)
 	{
 		FaceIdForEntitiesMap.Add(FaceId, &Entities);
+	}
+
+	for (DatasmithSketchUp::FEntityIDType LayerId : Entities.EntitiesGeometry->Layers)
+	{
+		LayerIdForEntitiesMap.FindOrAdd(LayerId).Add(&Entities);
+	}
+}
+
+void FEntitiesObjectCollection::UnregisterEntities(DatasmithSketchUp::FEntities& Entities)
+{
+	if (!Entities.EntitiesGeometry)
+	{
+		return;
+	}
+
+	for (int32 FaceId : Entities.EntitiesGeometry->FaceIds)
+	{
+		FaceIdForEntitiesMap.Remove(FaceId);
+	}
+
+	for (DatasmithSketchUp::FEntityIDType LayerId : Entities.EntitiesGeometry->Layers)
+	{
+		if(TSet<DatasmithSketchUp::FEntities*>* Ptr = LayerIdForEntitiesMap.Find(LayerId))
+		{
+			Ptr->Remove(&Entities);
+		}
 	}
 }
 
@@ -309,6 +335,16 @@ DatasmithSketchUp::FEntities* FEntitiesObjectCollection::FindFace(int32 FaceId)
 	return nullptr;
 }
 
+void FEntitiesObjectCollection::LayerModified(FEntityIDType LayerId)
+{
+	if (TSet<DatasmithSketchUp::FEntities*>* Ptr = LayerIdForEntitiesMap.Find(LayerId))
+	{
+		for (DatasmithSketchUp::FEntities* Entities : *Ptr)
+		{
+			Entities->Definition.InvalidateDefinitionGeometry();
+		}
+	}
+}
 
 TSharedPtr<FComponentInstance> FComponentInstanceCollection::AddComponentInstance(FDefinition& ParentDefinition, SUComponentInstanceRef InComponentInstanceRef)
 {
@@ -418,6 +454,18 @@ void FComponentInstanceCollection::UpdateGeometry()
 	{
 		TSharedPtr<FComponentInstance> ComponentInstance = KeyValue.Value;
 		ComponentInstance->UpdateEntityGeometry(Context);
+	}
+}
+
+void FComponentInstanceCollection::LayerModified(DatasmithSketchUp::FEntityIDType LayerId)
+{
+	for (const auto& KeyValue : ComponentInstanceMap)
+	{
+		TSharedPtr<DatasmithSketchUp::FComponentInstance> ComponentInstance = KeyValue.Value;
+		if (SUIsValid(ComponentInstance->LayerRef) && (LayerId == DatasmithSketchUpUtils::GetEntityID(SULayerToEntity(ComponentInstance->LayerRef))))
+		{
+			ComponentInstance->InvalidateEntityProperties();
+		}
 	}
 }
 
