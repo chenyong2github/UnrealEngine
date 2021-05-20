@@ -97,6 +97,9 @@ public:
 		int32 FixedTriangleCount = 5000;
 		double SimplificationTargetMetric = 0.1;		// interpretation varies depending on MeshSimplificationPolicy
 
+		bool bCalculateHardNormals = true;
+		double HardNormalsAngleDeg = 60.0;
+
 		//
 		// Material approximation settings
 		//

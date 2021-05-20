@@ -363,6 +363,73 @@ void FSparseDynamicOctree3::ContainmentQuery(
 }
 
 
+
+
+bool FSparseDynamicOctree3::ContainmentQueryCancellable(
+	const FVector3d& Point,
+	TFunctionRef<bool(int)> ObjectIDFunc) const
+{
+	// todo: this should take advantage of raster!
+
+	// always process spill objects
+	for (int ObjectID : SpillObjectSet)
+	{
+		if (ObjectIDFunc(ObjectID) == false)
+		{
+			return false;
+		}
+	}
+
+	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue;
+
+	// start at root cells
+	RootCells.AllocatedIteration([&](const uint32* RootCellID)
+	{
+		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
+		if ( GetCellBox(*RootCell, MaxExpandFactor).Contains(Point) )
+		{
+			Queue.Add(&Cells[*RootCellID]);
+		}
+	});
+
+
+	while (Queue.Num() > 0)
+	{
+		const FSparseOctreeCell* CurCell = Queue.Pop(false);
+
+		// process elements
+		bool bContinue = true;
+		CellObjectLists.Enumerate(CurCell->CellID, [&](int32 ObjectID)
+		{
+			if ( bContinue && ObjectIDFunc(ObjectID) == false )
+			{
+				bContinue = false;
+			}
+		});
+		if (!bContinue)
+		{
+			return false;
+		}
+
+		for (int k = 0; k < 8; ++k)
+		{
+			if (CurCell->HasChild(k))
+			{
+				const FSparseOctreeCell* ChildCell = &Cells[CurCell->GetChildCellID(k)];
+				if (GetCellBox(*ChildCell, MaxExpandFactor).Contains(Point))
+				{
+					Queue.Add(ChildCell);
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+
+
+
 void FSparseDynamicOctree3::RangeQuery(
 	const FAxisAlignedBox3d& Bounds,
 	TFunctionRef<void(int)> ObjectIDFunc) const

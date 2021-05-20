@@ -18,6 +18,7 @@ namespace UE
 namespace Geometry
 {
 
+class FSparseDynamicOctree3;
 
 /**
  * ESceneMeshType is used to indicate which type of Mesh a FMeshTypeContainer contains.
@@ -69,6 +70,9 @@ struct FMeshSceneAdapterBuildOptions
 	bool bThickenThinMeshes = false;
 	/** Thickness used for bThickenThinMeshes processing */
 	double DesiredMinThickness = 0.1;
+
+
+	bool bBuildSpatialDataStructures = true;
 };
 
 
@@ -231,8 +235,11 @@ public:
 	/** @return a set of points on the surface of the meshes, can be used to initialize the MarchingCubes mesher */
 	virtual void CollectMeshSeedPoints(TArray<FVector3d>& PointsOut);
 
+	/** Precompute data structures that accelerate spatial evaluation queries. Precondition for calling FastWindingNumber() */
+	virtual void BuildSpatialEvaluationCache();
+
 	/** @return FastWindingNumber computed across all mesh Actors/Components */
-	virtual double FastWindingNumber(const FVector3d& P);
+	virtual double FastWindingNumber(const FVector3d& P, bool bFastEarlyOutIfPossible = true);
 
 	/** Append all instance triangles to a single mesh. May be very large. */
 	virtual void GetAccumulatedMesh(FDynamicMesh3& AccumMesh);
@@ -253,8 +260,24 @@ protected:
 	// Unique set of spatial data structure query interfaces, one for each Mesh object, which is identified by void* pointer
 	TMap<void*, TSharedPtr<FSpatialWrapperInfo>> SpatialAdapters;
 
-	bool bEnableClipPlane = false;
-	FFrame3d ClipPlane;
+	bool bSceneIsAllSolids = false;
+
+	void UpdateActorBounds(FActorAdapter& Actor);
+
+	void Build_FullDecompose(const FMeshSceneAdapterBuildOptions& BuildOptions);
+
+
+	struct FSpatialCacheInfo
+	{
+		FActorAdapter* Actor;
+		FActorChildMesh* ChildMesh;
+		IMeshSpatialWrapper* Spatial;
+		FAxisAlignedBox3d Bounds;
+	};
+	TArray<FSpatialCacheInfo> SortedSpatials;
+	TSharedPtr<FSparseDynamicOctree3> Octree;
+	FAxisAlignedBox3d CachedWorldBounds;
+	bool bHaveSpatialEvaluationCache = false;
 };
 
 
