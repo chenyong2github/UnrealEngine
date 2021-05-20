@@ -742,11 +742,17 @@ UEdGraphPin* UK2Node_PromotableOperator::FindTolerancePin() const
 // UK2Node_CallFunction interface
 void UK2Node_PromotableOperator::SetFromFunction(const UFunction* Function)
 {
-	Super::SetFromFunction(Function);
-
 	if(Function)
 	{
 		OperationName = FTypePromotion::GetOpNameFromFunction(Function);
+	}
+
+	// During compilation of an Anim BP, if this node gets pruned then the outer will be the /Engine/Transient/
+	// package which will result in this node not having a valid SelfContext, so there is no need
+	// to set any further information based on this function as it will not be used. 
+	if(GetBlueprintClassFromNode())
+	{
+		Super::SetFromFunction(Function);
 	}
 }
 
