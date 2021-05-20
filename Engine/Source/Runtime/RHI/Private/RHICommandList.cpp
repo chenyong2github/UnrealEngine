@@ -947,7 +947,7 @@ void FRHICommandListExecutor::LatchBypass()
 
 		if (NewBypass && !bLatchedBypass)
 		{
-			FRHIResource::FlushPendingDeletes();
+			FRHIResource::FlushPendingDeletes(FRHICommandListExecutor::GetImmediateCommandList());
 		}
 		bLatchedBypass = NewBypass;
 	}

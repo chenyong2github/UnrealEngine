@@ -327,6 +327,9 @@ void RHIExit()
 		// Clean up all cached pipelines
 		PipelineStateCache::Shutdown();
 
+		// Flush any potential commands queued before we shut things down.
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
 		// Destruct the dynamic RHI.
 		GDynamicRHI->Shutdown();
 		delete GDynamicRHI;
