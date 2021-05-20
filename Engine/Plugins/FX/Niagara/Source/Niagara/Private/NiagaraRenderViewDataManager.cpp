@@ -3,6 +3,7 @@
 #include "NiagaraRenderViewDataManager.h"
 
 #include "EngineModule.h"
+#include "SceneInterface.h"
 #include "SceneRenderTargetParameters.h"
 
 TGlobalResource<FNiagaraRenderViewDataManager> GNiagaraViewDataManager;

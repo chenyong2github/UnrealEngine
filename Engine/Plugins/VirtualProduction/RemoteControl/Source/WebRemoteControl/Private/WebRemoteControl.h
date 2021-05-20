@@ -15,6 +15,7 @@
 #include "WebRemoteControlEditorRoutes.h"
 
 struct FHttpServerRequest;
+class FMemoryWriter;
 class IHttpRouter;
 class FWebSocketMessageHandler;
 

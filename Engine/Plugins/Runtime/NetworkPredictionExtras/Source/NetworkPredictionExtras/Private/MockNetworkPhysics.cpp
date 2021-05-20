@@ -87,6 +87,7 @@ FMockState_PT
 =============================================================================*/
 
 #include "MockNetworkPhysics.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PBDRigidsSolver.h"

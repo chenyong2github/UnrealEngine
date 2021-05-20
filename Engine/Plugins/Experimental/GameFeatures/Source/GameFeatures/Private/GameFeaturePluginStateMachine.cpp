@@ -16,6 +16,7 @@
 #include "Misc/Paths.h"
 #include "Algo/AllOf.h"
 #include "Serialization/ArrayReader.h"
+#include "Serialization/MemoryReader.h"
 #include "Stats/Stats.h"
 #include "EngineUtils.h"
 #include "GameFeaturesSubsystem.h"
