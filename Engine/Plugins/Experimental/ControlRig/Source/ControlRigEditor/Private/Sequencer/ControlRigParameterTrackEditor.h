@@ -89,7 +89,9 @@ private:
 	/** Delegate for Selection Changed Event */
 	void OnSelectionChanged(TArray<UMovieSceneTrack*> InTracks);
 
-
+	/** Returns the Edit Mode tools manager hosting the edit mode */
+	FEditorModeTools* GetEditorModeTools() const;
+	FControlRigEditMode* GetEditMode(bool bForceActivate = false) const;
 
 	/** Delegate for  Tree View Changed Event */
 	void OnTreeViewChanged();
@@ -115,8 +117,6 @@ private:
 	void HandleControlModified(UControlRig* Subject, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context);
 	void HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
 	void HandleOnInitialized(UControlRig* Subject, const EControlRigState InState, const FName& InEventName);
-	/** Post Edit Delegates */
-	void OnPropagateObjectChanges(UObject* InChangedObject);
 
 	/** Handle Creation for SkelMeshComp or Actor Owner, either may have a binding*/
 	FMovieSceneTrackEditor::FFindOrCreateHandleResult FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp);

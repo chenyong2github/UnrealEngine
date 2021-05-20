@@ -499,7 +499,7 @@ public:
 	EPlaybackMode::Type GetPlaybackMode() const;
 
 	/** @return The toolkit that this sequencer is hosted in (if any) */
-	TSharedPtr<IToolkitHost> GetToolkitHost() const { return ToolkitHost.Pin(); }
+	virtual TSharedPtr<IToolkitHost> GetToolkitHost() const override { return ToolkitHost.Pin(); }
 
 	const FSequencerHostCapabilities& GetHostCapabilities() const { return HostCapabilities; }
 

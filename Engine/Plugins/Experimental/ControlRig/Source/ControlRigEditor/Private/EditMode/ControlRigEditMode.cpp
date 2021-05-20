@@ -209,6 +209,11 @@ void FControlRigEditMode::SetObjects(const TWeakObjectPtr<>& InSelectedObject,  
 	SetObjects_Internal();
 }
 
+bool FControlRigEditMode::IsInLevelEditor() const
+{
+	return GetModeManager() == &GLevelEditorModeTools();
+}
+
 void FControlRigEditMode::SetUpDetailPanel()
 {
 	if (IsInLevelEditor())
@@ -303,20 +308,21 @@ void FControlRigEditMode::Enter()
 
 		Toolkit->Init(Owner->GetToolkitHost());
 
+		FEditorModeTools* ModeManager = GetModeManager();
+
 		bIsChangingCoordSystem = false;
 		if (CoordSystemPerWidgetMode.Num() < (UE::Widget::WM_Max))
 		{
 			CoordSystemPerWidgetMode.SetNum(UE::Widget::WM_Max);
-			ECoordSystem CoordSystem = GLevelEditorModeTools().GetCoordSystem();
+			ECoordSystem CoordSystem = ModeManager->GetCoordSystem();
 			for (int32 i = 0; i < UE::Widget::WM_Max; ++i)
 			{
 				CoordSystemPerWidgetMode[i] = CoordSystem;
 			}
 		}
 	
-		GLevelEditorModeTools().OnWidgetModeChanged().AddSP(this, &FControlRigEditMode::OnWidgetModeChanged);
-		GLevelEditorModeTools().OnCoordSystemChanged().AddSP(this, &FControlRigEditMode::OnCoordSystemChanged);
-
+		ModeManager->OnWidgetModeChanged().AddSP(this, &FControlRigEditMode::OnWidgetModeChanged);
+		ModeManager->OnCoordSystemChanged().AddSP(this, &FControlRigEditMode::OnCoordSystemChanged);
 	}
 
 	if (DelegateHelper.IsValid())
@@ -375,8 +381,9 @@ void FControlRigEditMode::Exit()
 	}
 
 	//clear delegates
-	GLevelEditorModeTools().OnWidgetModeChanged().RemoveAll(this);
-	GLevelEditorModeTools().OnCoordSystemChanged().RemoveAll(this);
+	FEditorModeTools* ModeManager = GetModeManager();
+	ModeManager->OnWidgetModeChanged().RemoveAll(this);
+	ModeManager->OnCoordSystemChanged().RemoveAll(this);
 
 	//clear proxies
 	ControlProxy->RemoveAllProxies();
@@ -1702,22 +1709,19 @@ void FControlRigEditMode::FrameSelection()
 void FControlRigEditMode::IncreaseGizmoSize()
 {
 	Settings->GizmoScale += 0.1f;
-	FEditorModeTools& ModeTools = GLevelEditorModeTools();
-	ModeTools.SetWidgetScale(Settings->GizmoScale);
+	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
 void FControlRigEditMode::DecreaseGizmoSize()
 {
 	Settings->GizmoScale -= 0.1f;
-	FEditorModeTools& ModeTools = GLevelEditorModeTools();
-	ModeTools.SetWidgetScale(Settings->GizmoScale);
+	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
 void FControlRigEditMode::ResetGizmoSize()
 {
 	Settings->GizmoScale = 1.0f;
-	FEditorModeTools& ModeTools = GLevelEditorModeTools();
-	ModeTools.SetWidgetScale(Settings->GizmoScale);
+	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
 void FControlRigEditMode::ToggleManipulators()
@@ -2039,10 +2043,11 @@ void FControlRigEditMode::OnWidgetModeChanged(UE::Widget::EWidgetMode InWidgetMo
 	{
 		TGuardValue<bool> ReentrantGuardSelf(bIsChangingCoordSystem, true);
 
-		int32 WidgetMode = (int32)GLevelEditorModeTools().GetWidgetMode();
+		FEditorModeTools* ModeManager = GetModeManager();
+		int32 WidgetMode = (int32)ModeManager->GetWidgetMode();
 		if (WidgetMode >= 0 && WidgetMode < CoordSystemPerWidgetMode.Num())
 		{
-			GLevelEditorModeTools().SetCoordSystem(CoordSystemPerWidgetMode[WidgetMode]);
+			ModeManager->SetCoordSystem(CoordSystemPerWidgetMode[WidgetMode]);
 		}
 	}
 }
@@ -2051,8 +2056,9 @@ void FControlRigEditMode::OnCoordSystemChanged(ECoordSystem InCoordSystem)
 {
 	TGuardValue<bool> ReentrantGuardSelf(bIsChangingCoordSystem, true);
 
-	int32 WidgetMode = (int32)GLevelEditorModeTools().GetWidgetMode();
-	ECoordSystem CoordSystem = GLevelEditorModeTools().GetCoordSystem();
+	FEditorModeTools* ModeManager = GetModeManager();
+	int32 WidgetMode = (int32)ModeManager->GetWidgetMode();
+	ECoordSystem CoordSystem = ModeManager->GetCoordSystem();
 	if (WidgetMode >= 0 && WidgetMode < CoordSystemPerWidgetMode.Num())
 	{
 		CoordSystemPerWidgetMode[WidgetMode] = CoordSystem;

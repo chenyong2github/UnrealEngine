@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "IPersonaEditMode.h"
 #include "IControlRigObjectBinding.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "Rigs/RigHierarchyContainer.h"
@@ -12,6 +11,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "UObject/StrongObjectPtr.h"
 #include "UnrealWidgetFwd.h"
+#include "IControlRigEditMode.h"
 #include "ControlRigEditMode.generated.h"
 
 
@@ -69,7 +69,7 @@ private:
 	FDelegateHandle OnBoneTransformsFinalizedHandle;
 };
 
-class FControlRigEditMode : public IPersonaEditMode
+class FControlRigEditMode : public IControlRigEditMode
 {
 public:
 	static FName ModeName;
@@ -78,10 +78,10 @@ public:
 	~FControlRigEditMode();
 
 	/** Set the objects to be displayed in the details panel */
-	void SetObjects(const TWeakObjectPtr<>& InSelectedObject,  UObject* BindingObject, TWeakPtr<ISequencer> InSequencer);
+	virtual void SetObjects(const TWeakObjectPtr<>& InSelectedObject,  UObject* BindingObject, TWeakPtr<ISequencer> InSequencer) override;
 
 	/** This edit mode is re-used between the level editor and the control rig editor. Calling this indicates which context we are in */
-	virtual bool IsInLevelEditor() const { return true; }
+	bool IsInLevelEditor() const;
 
 	// FEdMode interface
 	virtual bool UsesToolkits() const override;

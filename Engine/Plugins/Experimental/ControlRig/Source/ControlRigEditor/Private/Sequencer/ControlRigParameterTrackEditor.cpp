@@ -192,8 +192,6 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 	OnActorAddedToSequencerHandle = InSequencer->OnActorAddedToSequencer().AddRaw(this, &FControlRigParameterTrackEditor::HandleActorAdded);
 	OnTreeViewChangedHandle = InSequencer->OnTreeViewChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnTreeViewChanged);
 
-	//REMOVE ME IN UE5
-	//InSequencer->GetObjectChangeListener().GetOnPropagateObjectChanges().AddRaw(this, &FControlRigParameterTrackEditor::OnPropagateObjectChanges);
 	{
 		//we check for two things, one if the control rig has been replaced if so we need to switch.
 		//the other is if bound object on the edit mode is null we request a re-evaluate which will reset it up.
@@ -202,7 +200,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 			if (GetSequencer().IsValid())
 			{
 				TMap<UControlRig*, UControlRig*> OldToNewControlRigs;
-				FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+				FControlRigEditMode* ControlRigEditMode = GetEditMode();
 				if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true) && ControlRigEditMode->GetControlRig(true)->GetObjectBinding())
 				{
 					if (ControlRigEditMode->GetControlRig(true)->GetObjectBinding()->GetBoundObject() == nullptr)
@@ -413,12 +411,12 @@ void FControlRigParameterTrackEditor::OnRelease()
 			}
 		}
 	}
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 	if (ControlRigEditMode)
 	{
-		if (GLevelEditorModeTools().HasToolkitHost())
+		if (FEditorModeTools* Tools = GetEditorModeTools())
 		{
-			GLevelEditorModeTools().DeactivateMode(FControlRigEditMode::ModeName);
+			Tools->DeactivateMode(FControlRigEditMode::ModeName);
 		}
 
 		ControlRigEditMode->SetObjects(nullptr, nullptr, GetSequencer());
@@ -925,12 +923,10 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 						return;
 					}
 
-					FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+					FControlRigEditMode* ControlRigEditMode = GetEditMode();
 					if (!ControlRigEditMode)
 					{
-						GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-						ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-
+						ControlRigEditMode = GetEditMode(true);
 					}
 					else
 					{
@@ -1282,13 +1278,8 @@ void FControlRigParameterTrackEditor::AddControlRig(UClass* InClass, UObject* Bo
 			GetSequencer()->ThrobSectionSelection();
 			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 
-			FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-			if (!ControlRigEditMode)
-			{
-				GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-				ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-
-			}
+			FControlRigEditMode* ControlRigEditMode = GetEditMode(true);
+			
 			if (ControlRigEditMode)
 			{
 				ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
@@ -1360,7 +1351,7 @@ bool FControlRigParameterTrackEditor::CanAddTransformKeysForSelectedObjects() co
 		return false;
 	}
 
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(false))
 	{
 		UControlRig* ControlRig = ControlRigEditMode->GetControlRig(false);
@@ -1382,7 +1373,7 @@ void FControlRigParameterTrackEditor::OnAddTransformKeysForSelectedObjects(EMovi
 		return;
 	}
 
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(false))
 	{
 		UControlRig* ControlRig = ControlRigEditMode->GetControlRig(false);
@@ -1502,7 +1493,7 @@ void FControlRigParameterTrackEditor::OnActivateSequenceChanged(FMovieSceneSeque
 void FControlRigParameterTrackEditor::OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType)
 {
 	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 
 	//if we have a valid control rig edit mode need to check and see the control rig in that mode is still in a track
 	//if not we get rid of it.
@@ -1521,10 +1512,10 @@ void FControlRigParameterTrackEditor::OnSequencerDataChanged(EMovieSceneDataChan
 				return; //just exit out we still have a good track
 			}
 		}
-		//okay no good track so deactive it and delete it's Control Rig and bingings.
-		if (GLevelEditorModeTools().HasToolkitHost())
+		//okay no good track so deactive it and delete it's Control Rig and bindings.
+		if (FEditorModeTools* Tools = GetEditorModeTools())
 		{
-			GLevelEditorModeTools().DeactivateMode(FControlRigEditMode::ModeName);
+			Tools->DeactivateMode(FControlRigEditMode::ModeName);
 		}
 		ControlRigEditMode->SetObjects(nullptr, nullptr, GetSequencer());
 	}
@@ -1540,7 +1531,7 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
 
 	TArray<FString> StringArray;
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 	UControlRig* ControlRig = nullptr;
 
 	if (CurveModel)
@@ -1552,8 +1543,7 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 			//Only create the edit mode if we have a  curve selected and it's not set and we have some boundobjects.
 			if (!ControlRigEditMode)
 			{
-				GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-				ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+				ControlRigEditMode = GetEditMode(true);
 				if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
 				{
 					if (ControlRigEditMode)
@@ -1642,7 +1632,7 @@ void FControlRigParameterTrackEditor::OnTreeViewChanged()
 {
 	if (!bIsDoingSelection)
 	{
-		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+		FControlRigEditMode* ControlRigEditMode = GetEditMode();
 		if (ControlRigEditMode)
 		{
 			if (UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true))
@@ -1696,7 +1686,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
 	TArray<FString> StringArray;
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 	UControlRig* ControlRig = nullptr;
 
 	TArray<const IKeyArea*> KeyAreas;
@@ -1732,8 +1722,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 					}
 					else
 					{
-						GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-						ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+						ControlRigEditMode = GetEditMode(true);
 						if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = TrackControlRig->GetObjectBinding())
 						{
 							if (ControlRigEditMode)
@@ -1758,8 +1747,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 			//Only create the edit mode if we have a KeyAra selected and it's not set and we have some boundobjects.
 			if (!ControlRigEditMode)
 			{
-				GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-				ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+				ControlRigEditMode = GetEditMode(true);
 				if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
 				{
 					if (ControlRigEditMode)
@@ -2001,42 +1989,6 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 	}
 }
 
-//REMOVE ME IN UE5
-void FControlRigParameterTrackEditor::OnPropagateObjectChanges(UObject* InChangedObject)
-{
-	//not needed
-	/*
-	if (AActor* Actor = Cast<AActor>(InChangedObject))
-	{
-		if (UMovieScene* MovieScene = GetFocusedMovieScene())
-		{
-			const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-			for (const FMovieSceneBinding& Binding : Bindings)
-			{
-				if (UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None)))
-				{
-					if (UControlRig* ControlRig = Track->GetControlRig())
-					{
-						if (ControlRig->GetObjectBinding())
-						{
-							if (USceneComponent* SceneComponent = Cast<USceneComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
-							{
-								if (SceneComponent->GetOwner() == Actor)
-								{
-									if (GetSequencer().IsValid())
-									{
-										GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::Unknown);
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	*/
-}
 
 void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRig, const EControlRigState InState, const FName& InEventName)
 {
@@ -2053,7 +2005,7 @@ void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRi
 
 void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* ControlRig, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context)
 {
-	if (GetSequencer().IsValid() && !GetSequencer()->IsAllowedToChange())
+	if (!GetSequencer().IsValid() || !GetSequencer()->IsAllowedToChange())
 	{
 		return;
 	}
@@ -3319,6 +3271,36 @@ void FControlRigParameterSection::OnAnimationAssetEnterPressedForFK(const TArray
 	{
 		OnAnimationAssetSelectedForFK(AssetData[0].GetAsset(), ObjectBinding, Section);
 	}
+}
+
+FEditorModeTools* FControlRigParameterTrackEditor::GetEditorModeTools() const
+{
+	TSharedPtr<ISequencer> SharedSequencer = GetSequencer();
+	if (SharedSequencer.IsValid())
+	{
+		TSharedPtr<IToolkitHost> ToolkitHost = SharedSequencer->GetToolkitHost();
+		if(ToolkitHost.IsValid())
+		{
+			return &ToolkitHost->GetEditorModeManager();
+		}
+	}
+
+	return nullptr;
+}
+
+FControlRigEditMode* FControlRigParameterTrackEditor::GetEditMode(bool bForceActivate /*= false*/) const
+{
+	if (FEditorModeTools* EditorModetools = GetEditorModeTools())
+	{
+		if(bForceActivate && !EditorModetools->IsModeActive(FControlRigEditMode::ModeName))
+		{
+			EditorModetools->ActivateMode(FControlRigEditMode::ModeName);
+		}
+		
+		return static_cast<FControlRigEditMode*>(EditorModetools->GetActiveMode(FControlRigEditMode::ModeName));
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE
