@@ -334,6 +334,7 @@ static void FinalizeBuildSettingsForLayer(const UTexture& Texture, int32 LayerIn
 
 	OutSettings.bHDRSource = Texture.HasHDRSource(LayerIndex);
 	OutSettings.bSRGB = FormatSettings.SRGB;
+	OutSettings.bForceNoAlphaChannel = FormatSettings.CompressionNoAlpha;
 	OutSettings.bForceAlphaChannel = FormatSettings.CompressionForceAlpha;
 	OutSettings.bApplyYCoCgBlockScale = FormatSettings.CompressionYCoCg;
 

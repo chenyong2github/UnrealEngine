@@ -4,21 +4,20 @@
 #include "CoreMinimal.h"
 #include "ImageCore.h"
 #include "Modules/ModuleManager.h"
+#include "TextureCompressorModule.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
-#include "TextureCompressorModule.h"
-#include "Engine/TextureLODSettings.h"
 #include "PixelFormat.h"
-#include "DeviceProfiles/DeviceProfile.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Engine/Texture.h"
+#include "Engine/TextureDefines.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/SecureHash.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "Misc/FileHelper.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 #include "oodle2tex.h"
 
@@ -193,9 +192,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatOodle, Log, All);
 static int OodleJobifyNumThreads = 0;
 static void *OodleJobifyUserPointer = nullptr;
 
-// enable this to make the DDC key unique (per build) for testing
-//#define DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
-
 #define ENUSUPPORTED_FORMATS(op) \
     op(DXT1) \
     op(DXT3) \
@@ -298,15 +294,7 @@ public:
 		FString ImageHash = MD5.HashBytes(static_cast<const uint8*>(InRawData), InRawSize);
 		FString OodleBCName(OodleTex_BC_GetName(InOodleBCN));
 		FString Filename = FString::Printf(TEXT("%s.w%d.h%d.s%d.rdo%d.%s%s"), *ImageHash, InWidth, InHeight, InSlice, InRDOLambda, *OodleBCName, Extension);
-		
-		// put in subdir by format and size
-		// helps reduce the count of files in a single dir, which stresses the file system
-		FString Subdir = FString::Printf(TEXT("%s.w%d.h%d"), *OodleBCName, InWidth, InHeight);
-
-		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Subdir / Filename;
-
-		//UE_LOG(LogTextureFormatOodle, Display, TEXT("DumpImage : %s"), *Filename );
-
+		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Filename;
 		const TArray64<uint8>& CompressedImage = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Uncompressed);
 		return FFileHelper::SaveArrayToFile(CompressedImage, *Path);
 	}
@@ -323,65 +311,41 @@ private:
 	const TCHAR* Extension;
 };
 
-class FTextureFormatOodle : public ITextureFormat
+class FTextureFormatOodleConfig
 {
 public:
+	struct FLocalDebugConfig
+	{
+		FLocalDebugConfig() :
+			bDebugDump(false),
+			LogVerbosity(0)
+		{
+		}
 
-	// the sense of these bools is set so that default behavior = all false
-	bool bForceAllBC23ToBC7; // change BC2 & 3 (aka DXT3 and DXT5) to BC7 
-	bool bForceRDOOff_NoEditor; // use Oodle Texture but without RDO ; for debugging/testing , use LossyCompresionAmount to do this per-Texture
-	bool bForceRDOOff_Editor; // bForceRDOOff in Editor
-	int CompressEffortLevel_NoEditor; // how much time to spend encoding to get higher quality 
-	int CompressEffortLevel_Editor; // CompressEffortLevel in Editor
-	bool bDebugColor; // color textures by their BCN, for data discovery
-	bool bDebugDump; // dump textures that were encoded
-	int LogVerbosity; // 0-2 ; 0=never, 1=large only, 2=always
-	// if no lambda is set on Texture or lodgroup, fall through to this global default :
-	int DefaultRDOLambda;
-	// after lambda is set, multiply by this scale factor :
-	//	(multiplies the default and per-Texture overrides)
-	//	is intended to let you do last minute whole-game adjustment
-	float GlobalLambdaMultiplier;
+		bool bDebugDump; // dump textures that were encoded
+		int LogVerbosity; // 0-2 ; 0=never, 1=large only, 2=always
+	};
 
-	FTextureFormatOodle() :
+	FTextureFormatOodleConfig() :
 		bForceAllBC23ToBC7(false),
 		bForceRDOOff_NoEditor(true),
 		bForceRDOOff_Editor(true),
 		CompressEffortLevel_NoEditor(OodleTex_EncodeEffortLevel_High),
 		CompressEffortLevel_Editor(OodleTex_EncodeEffortLevel_Normal),
 		bDebugColor(false),
-		bDebugDump(false),
-		LogVerbosity(0),
 		DefaultRDOLambda(OodleTex_RDOLagrangeLambda_Default),
 		GlobalLambdaMultiplier(1.f)
 	{
 	}
 
-
-	virtual ~FTextureFormatOodle()
+	const FLocalDebugConfig& GetLocalDebugConfig() const
 	{
-	}
-	
-	virtual bool AllowParallelBuild() const override
-	{
-		return true;
-	}
-	
-	virtual bool UsesTaskGraph() const override
-	{
-		// @todo the UsesTaskGraph function should go away entirely from ITextureFormat
-		//	it's only being used by VirtualTextureDataBuilder
-		//	it's none of his business
-		//	if that's a deadlock, there should be a better solution
-		//	like let me ask if I'm being called from a ParallelFor
-		return true;
+		return LocalDebugConfig;
 	}
 
-	void Init()
+	void ImportFromConfigCache()
 	{
-		// this is done at Singleton init time, the first time GetTextureFormat() is called
-
-		#define OODLETEXTURE_INI_SECTION	TEXT("TextureFormatOodleSettings")
+		const TCHAR* IniSection = TEXT("TextureFormatOodleSettings");
 		
 		#if 0
 		// Check that our config section exists, and if not, init with defaults
@@ -406,16 +370,16 @@ public:
 		#endif
 		
 		// Class config variables
-		GConfig->GetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
-		GConfig->GetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_NoEditor"), bForceRDOOff_NoEditor, GEngineIni);
-		GConfig->GetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_Editor"), bForceRDOOff_Editor, GEngineIni);
-		GConfig->GetInt(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_NoEditor"), CompressEffortLevel_NoEditor, GEngineIni);
-		GConfig->GetInt(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_Editor"), CompressEffortLevel_Editor, GEngineIni);
-		GConfig->GetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugColor"), bDebugColor, GEngineIni);
-		GConfig->GetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugDump"), bDebugDump, GEngineIni);
-		GConfig->GetInt(OODLETEXTURE_INI_SECTION, TEXT("LogVerbosity"), LogVerbosity, GEngineIni);
-		GConfig->GetFloat(OODLETEXTURE_INI_SECTION, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
-		GConfig->GetInt(OODLETEXTURE_INI_SECTION, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
+		GConfig->GetBool(IniSection, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
+		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_NoEditor"), bForceRDOOff_NoEditor, GEngineIni);
+		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_Editor"), bForceRDOOff_Editor, GEngineIni);
+		GConfig->GetInt(IniSection, TEXT("CompressEffortLevel_NoEditor"), CompressEffortLevel_NoEditor, GEngineIni);
+		GConfig->GetInt(IniSection, TEXT("CompressEffortLevel_Editor"), CompressEffortLevel_Editor, GEngineIni);
+		GConfig->GetBool(IniSection, TEXT("bDebugColor"), bDebugColor, GEngineIni);
+		GConfig->GetBool(IniSection, TEXT("bDebugDump"), LocalDebugConfig.bDebugDump, GEngineIni);
+		GConfig->GetInt(IniSection, TEXT("LogVerbosity"), LocalDebugConfig.LogVerbosity, GEngineIni);
+		GConfig->GetFloat(IniSection, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
+		GConfig->GetInt(IniSection, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
 
 		// sanitize config values :
 		DefaultRDOLambda = FMath::Clamp(DefaultRDOLambda,0,100);
@@ -424,19 +388,44 @@ public:
 		{
 			GlobalLambdaMultiplier = 1.f;
 		}
-		
+
 		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init {cook RDO %s %d , Editor RDO %s %d } with DefaultRDOLambda=%d"),
 			TEXT(OodleTextureVersion),
 			bForceRDOOff_NoEditor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_NoEditor,
 			bForceRDOOff_Editor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_Editor,
 			DefaultRDOLambda);
-			
-		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
-		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD"));
-		#endif
 	}
-	
-	void GetOodleCompressSettings(EPixelFormat * OutCompressedPixelFormat,int * OutRDOLambda, OodleTex_EncodeEffortLevel * OutEffortLevel, const struct FTextureBuildSettings& InBuildSettings, bool bHasAlpha) const
+
+	FCbObject ExportToCb(const struct FTextureBuildSettings& BuildSettings) const
+	{
+		int RDOLambda;
+		OodleTex_EncodeEffortLevel EffortLevel;
+		EPixelFormat CompressedPixelFormat;
+		bool bLocalDebugColor;
+		const bool bHasAlpha = !BuildSettings.bForceNoAlphaChannel; 
+		
+		GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel, &bLocalDebugColor,BuildSettings,bHasAlpha);
+
+		FCbWriter Writer;
+		Writer.BeginObject("TextureFormatOodleSettings");
+
+		if ((BuildSettings.TextureFormatName == GTextureFormatNameDXT3) ||
+			(BuildSettings.TextureFormatName == GTextureFormatNameDXT5) ||
+			(BuildSettings.TextureFormatName == GTextureFormatNameDXT5n) ||
+			(BuildSettings.TextureFormatName == GTextureFormatNameAutoDXT) )
+		{
+			Writer.AddBool("bForceAllBC23ToBC7", bForceAllBC23ToBC7);
+		}
+		Writer.AddInteger("RDOLambda", RDOLambda);
+		Writer.AddInteger("EffortLevel", EffortLevel);
+		Writer.AddBool("bDebugColor", bLocalDebugColor);
+
+		Writer.EndObject();
+
+		return Writer.Save().AsObject();
+	}
+
+	void GetOodleCompressParameters(EPixelFormat * OutCompressedPixelFormat,int * OutRDOLambda, OodleTex_EncodeEffortLevel * OutEffortLevel, bool * bOutDebugColor, const struct FTextureBuildSettings& InBuildSettings, bool bHasAlpha) const
 	{
 		FName TextureFormatName = InBuildSettings.TextureFormatName;
 
@@ -497,13 +486,38 @@ public:
 		
 		// BC7 is just always better than BC2 & BC3
 		//	so anything that came through as BC23, force to BC7 : (AutoDXT-alpha and Normals)
-		if ( bForceAllBC23ToBC7 &&
+		// Note that we are using the value from the FormatConfigOverride if we have one, otherwise the default will be the value we have locally
+		if ( InBuildSettings.FormatConfigOverride.FindView("bForceAllBC23ToBC7").AsBool(bForceAllBC23ToBC7) &&
 			(CompressedPixelFormat == PF_DXT3 || CompressedPixelFormat == PF_DXT5 ) )
 		{
 			CompressedPixelFormat = PF_BC7;
 		}
 
 		*OutCompressedPixelFormat = CompressedPixelFormat;
+
+		if (InBuildSettings.FormatConfigOverride)
+		{
+			// If we have an explicit format config, then use it directly
+			FCbFieldView FieldView;
+			FieldView = InBuildSettings.FormatConfigOverride.FindView("RDOLambda");
+			checkf(FieldView.HasValue(), TEXT("Missing RDOLambda key from FormatConfigOverride"));
+			*OutRDOLambda = FieldView.AsInt32();
+			checkf(!FieldView.HasError(), TEXT("Failed to parse RDOLambda value from FormatConfigOverride"));
+
+			FieldView = InBuildSettings.FormatConfigOverride.FindView("EffortLevel");
+			checkf(FieldView.HasValue(), TEXT("Missing EffortLevel key from FormatConfigOverride"));
+			*OutEffortLevel = (OodleTex_EncodeEffortLevel)FieldView.AsUInt32();
+			checkf(!FieldView.HasError(), TEXT("Failed to parse EffortLevel value from FormatConfigOverride"));
+
+			FieldView = InBuildSettings.FormatConfigOverride.FindView("bDebugColor");
+			checkf(FieldView.HasValue(), TEXT("Missing bDebugColor key from FormatConfigOverride"));
+			*bOutDebugColor = FieldView.AsBool();
+			checkf(!FieldView.HasError(), TEXT("Failed to parse bDebugColor value from FormatConfigOverride"));
+
+			return;
+		}
+
+		*bOutDebugColor = bDebugColor;
 
 		int RDOLambda = -1;
 
@@ -587,6 +601,60 @@ public:
 		*OutRDOLambda = RDOLambda;
 		*OutEffortLevel = EffortLevel;
 	}
+
+private:
+	// the sense of these bools is set so that default behavior = all false
+	bool bForceAllBC23ToBC7; // change BC2 & 3 (aka DXT3 and DXT5) to BC7 
+	bool bForceRDOOff_NoEditor; // use Oodle Texture but without RDO ; for debugging/testing , use LossyCompresionAmount to do this per-Texture
+	bool bForceRDOOff_Editor; // bForceRDOOff in Editor
+	int CompressEffortLevel_NoEditor; // how much time to spend encoding to get higher quality 
+	int CompressEffortLevel_Editor; // CompressEffortLevel in Editor
+	bool bDebugColor; // color textures by their BCN, for data discovery
+	// if no lambda is set on Texture or lodgroup, fall through to this global default :
+	int DefaultRDOLambda;
+	// after lambda is set, multiply by this scale factor :
+	//	(multiplies the default and per-Texture overrides)
+	//	is intended to let you do last minute whole-game adjustment
+	float GlobalLambdaMultiplier;
+	FLocalDebugConfig LocalDebugConfig;
+};
+
+class FTextureFormatOodle : public ITextureFormat
+{
+public:
+
+	FTextureFormatOodleConfig GlobalFormatConfig;
+
+	FTextureFormatOodle()
+	{
+	}
+
+
+	virtual ~FTextureFormatOodle()
+	{
+	}
+	
+	virtual bool AllowParallelBuild() const override
+	{
+		return true;
+	}
+	
+	virtual bool UsesTaskGraph() const override
+	{
+		return true;
+	}
+
+	virtual FCbObject ExportGlobalFormatConfig(const struct FTextureBuildSettings& BuildSettings) const override
+	{
+		return GlobalFormatConfig.ExportToCb(BuildSettings);
+	}
+
+	void Init()
+	{
+		// this is done at Singleton init time, the first time GetTextureFormat() is called
+		GlobalFormatConfig.ImportFromConfigCache();
+	}
+	
 	
 	// increment this to invalidate Derived Data Cache to recompress everything
 	#define DDC_OODLE_TEXTURE_VERSION 11
@@ -602,21 +670,21 @@ public:
 	virtual FString GetDerivedDataKeyString(const class UTexture& InTexture, const struct FTextureBuildSettings* InBuildSettings) const override
 	{
 		check( InBuildSettings != NULL );
-
 		// return all parameters that affect our output Texture
 		// so if any of them change, we rebuild
 		
 		int RDOLambda;
 		OodleTex_EncodeEffortLevel EffortLevel;
 		EPixelFormat CompressedPixelFormat;
+		bool bDebugColor;
 
 		// @todo Oodle this is not quite the same "bHasAlpha" that Compress will see
 		//	bHasAlpha is used for AutoDXT -> DXT1/5
-		//	we do have Texture.CompressionNoAlpha but that's not quite what we want
-		// do go ahead and read CompressionNoAlpha so that we invalidate DDC when that changes
-		bool bHasAlpha = ! InTexture.CompressionNoAlpha; 
+		//	we do have Texture.bForceNoAlphaChannel/CompressionNoAlpha but that's not quite what we want
+		// do go ahead and read bForceNoAlphaChannel/CompressionNoAlpha so that we invalidate DDC when that changes
+		bool bHasAlpha = ! InBuildSettings->bForceNoAlphaChannel; 
 		
-		GetOodleCompressSettings(&CompressedPixelFormat,&RDOLambda,&EffortLevel,*InBuildSettings,bHasAlpha);
+		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel, &bDebugColor,*InBuildSettings,bHasAlpha);
 
 		// store the actual lambda in DDC key (rather than "LossyCompressionAmount")
 		// that way any changes in how LossyCompressionAmount maps to lambda get rebuilt
@@ -630,14 +698,7 @@ public:
 			EffortLevel = OodleTex_EncodeEffortLevel_Default;
 		}
 		
-		FString DDCString = FString::Printf(TEXT("Oodle_CPF%d_L%d_E%d"), icpf, (int)RDOLambda, (int)EffortLevel);
-
-		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
-		DDCString += TEXT(__DATE__);
-		DDCString += TEXT(__TIME__);
-		#endif
-
-		return DDCString;
+		return FString::Printf(TEXT("Oodle_CPF%d_L%d_E%d"), icpf, (int)RDOLambda, (int)EffortLevel);
 	}
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
@@ -655,7 +716,9 @@ public:
 		int RDOLambda;
 		OodleTex_EncodeEffortLevel EffortLevel;		
 		EPixelFormat CompressedPixelFormat;
-		GetOodleCompressSettings(&CompressedPixelFormat,&RDOLambda,&EffortLevel,InBuildSettings,bHasAlpha);
+		bool bDebugColor;
+
+		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,InBuildSettings,bHasAlpha);
 		return CompressedPixelFormat;
 	}
 
@@ -676,7 +739,8 @@ public:
 		int RDOLambda;
 		OodleTex_EncodeEffortLevel EffortLevel;		
 		EPixelFormat CompressedPixelFormat;
-		GetOodleCompressSettings(&CompressedPixelFormat,&RDOLambda,&EffortLevel,InBuildSettings,bHasAlpha);
+		bool bDebugColor;
+		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,InBuildSettings,bHasAlpha);
 
 		OodleTex_BC OodleBCN = OodleTex_BC_Invalid;
 		if ( CompressedPixelFormat == PF_DXT1 ) { OodleBCN = OodleTex_BC1_WithTransparency; bHasAlpha = false; }
@@ -701,7 +765,7 @@ public:
 		// LogVerbosity 2 : always
 		bool bIsLargeMip = InImage.SizeX >= 1024 || InImage.SizeY >= 1024;
 
-		if ( LogVerbosity >= 2 || (LogVerbosity && bIsLargeMip) )
+		if ( GlobalFormatConfig.GetLocalDebugConfig().LogVerbosity >= 2 || (GlobalFormatConfig.GetLocalDebugConfig().LogVerbosity && bIsLargeMip) )
 		{
 			UE_LOG(LogTextureFormatOodle, Display, TEXT("%s encode %i x %i x %i to format %s (Oodle %s) lambda=%i effort=%i "), \
 				RDOLambda ? TEXT("RDO") : TEXT("non-RDO"), InImage.SizeX, InImage.SizeY, InImage.NumSlices, 
@@ -888,7 +952,7 @@ public:
 
 		FImageDumper ImageDumper;
 		bool bImageDump = false;
-		if (bDebugDump && !bDebugColor)
+		if (GlobalFormatConfig.GetLocalDebugConfig().bDebugDump && !bDebugColor)
 		{
 			if (ImageDumper.Initialize(ImageFormat))
 			{
@@ -900,35 +964,12 @@ public:
 			}
 		}
 
-		bool bIsVT = InBuildSettings.bVirtualStreamable;
-		
-		int CurJobifyNumThreads = OodleJobifyNumThreads;
-		void * CurJobifyUserPointer = OodleJobifyUserPointer;
-
-		// @todo check its safe to do TaskGraph waits from inside TaskGraph threads?
-		//	see also VirtualTextureDataBuilder.cpp UsesTaskGraph
-		//const bool bVTDisableInternalThreading = false; // false = DO use internal threads on VT
-		const bool bVTDisableInternalThreading = true; // true = DO NOT use internal threads on VT
-		
-		if ( bIsVT && bVTDisableInternalThreading )
-		{
-			// VT runs its tiles in a ParallelFor on the TaskGraph
-			// if we use TaskGraph internally there's a chance of deadlock (?)
-			// disable our own internal threading for VT tiles :
-			CurJobifyNumThreads = 1;
-			CurJobifyUserPointer = nullptr;
-
-			// @todo Oodle CurJobifyNumThreads=1 currently does NOT disable jobify in Oodle; need to fix that!
-			//	CurJobifyUserPointer == nullptr is checked in our plugin TFO_RunJob to run jobs immediately
-		}
-
-
 		// encode each slice
 		// @todo Oodle alternatively could do [Image.NumSlices] array of OodleTex_Surface
 		//	and call OodleTex_Encode with the array
 		//  would be slightly better for parallelism with multi-slice images & cube maps
 		//	that's a rare case so don't bother for now
-		// (the main parallelism is from running many mips or VT tiles at once which is done by our caller)
+		// (the main parallelism is from running many mips at once which is done by our caller)
 		bool bCompressionSucceeded = true;
 		for (int Slice = 0; Slice < Image.NumSlices; ++Slice)
 		{
@@ -945,13 +986,13 @@ public:
 			{
 				OodleErr = OodleTex_EncodeBCN_LinearSurfaces(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
 					&InSurf, 1, OodlePF, NULL, EffortLevel,
-					OodleTex_BCNFlags_None, CurJobifyNumThreads, CurJobifyUserPointer);
+					OodleTex_BCNFlags_None, OodleJobifyNumThreads, OodleJobifyUserPointer);
 			}
 			else
 			{
 				OodleErr = OodleTex_EncodeBCN_RDO(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
 					&InSurf, 1, OodlePF, NULL, RDOLambda, 
-					OodleTex_BCNFlags_None, OodleTex_RDO_ErrorMetric_Default, CurJobifyNumThreads, CurJobifyUserPointer);
+					OodleTex_BCNFlags_None, OodleTex_RDO_ErrorMetric_Default, OodleJobifyNumThreads, OodleJobifyUserPointer);
 			}
 			if (OodleErr != OodleTex_Err_OK)
 			{
@@ -985,73 +1026,52 @@ static uint8 PadToCacheLine2[64];
 
 static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobData, OO_U64* Dependencies, int NumDependencies, void* UserPtr)
 {
-	if ( UserPtr == nullptr )
+	FGraphEventArray Prerequisites;
+	if ( NumDependencies > 0 )
 	{
-		// run synchronous
-		// Dependencies must already be done because they also ran to completion on creation
-
-		JobFunction(JobData);
-		#define	TFO_SYNCHRONOUS_JOB_HANDLE  (0xD0A)
-		return TFO_SYNCHRONOUS_JOB_HANDLE;
-	}
-	else
-	{
-		FGraphEventArray Prerequisites;
-		if ( NumDependencies > 0 )
+		// map uint64 dependencies to TaskGraph refs
+		FScopeLock Lock(&TaskIdMapLock);
+		Prerequisites.Reserve(NumDependencies);
+		for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
 		{
-			// map uint64 dependencies to TaskGraph refs
-			Prerequisites.Reserve(NumDependencies);
-
-			FScopeLock Lock(&TaskIdMapLock);
-			for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
-			{
-				uint64 Id = Dependencies[DependencyIndex];
-				FGraphEventRef Task = TaskIdMap[Id];
-				// operator [] does a check that Task was found
-				Prerequisites.Add(Task);
-			}
+			uint64 Id = Dependencies[DependencyIndex];
+			FGraphEventRef Task = TaskIdMap[Id];
+			// operator [] does a check that Task was found
+			Prerequisites.Add(Task);
 		}
-
-		// don't hold TaskIdMapLock while dispatching task
-
-		// Use AnyBackgroundThreadNormalTask priority so we don't use Foreground time in the Editor
-		// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
-		FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[JobFunction, JobData]()
-			{
-				JobFunction(JobData);
-			}, TStatId(), &Prerequisites, IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask);
-	
-		// scope lock for NextTaskId and TaskIdMap
-		TaskIdMapLock.Lock();
-		uint64 Id = NextTaskId++;
-		TaskIdMap.Add(Id, MoveTemp(Task));
-		TaskIdMapLock.Unlock();
-
-		return Id;
 	}
+
+	// don't hold lock while dispatching task
+
+	// Use AnyBackgroundThreadNormalTask priority so we don't use Foreground time in the Editor
+	// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
+	FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
+		[JobFunction, JobData]()
+		{
+			JobFunction(JobData);
+		}, TStatId(), &Prerequisites, IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask);
+	
+	// scope lock for NextTaskId and TaskIdMap
+	TaskIdMapLock.Lock();
+	uint64 Id = NextTaskId++;
+	TaskIdMap.Add(Id, MoveTemp(Task));
+	TaskIdMapLock.Unlock();
+
+	return Id;
 }
 
 static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 {
-	if ( UserPtr == nullptr )
-	{
-		// must already be done
-		check( JobHandle == TFO_SYNCHRONOUS_JOB_HANDLE );
-	}
-	else
-	{
-		TaskIdMapLock.Lock();
-		FGraphEventRef Task = TaskIdMap[JobHandle];
-		// TMap operator [] checks that value is found
-		// can remove immediately (task may still be running)
-		//	because once WaitJob is called this handle can never be referred to by calling code
-		TaskIdMap.Remove(JobHandle);
-		TaskIdMapLock.Unlock();
+	TaskIdMapLock.Lock();
+	FGraphEventRef Task = TaskIdMap[JobHandle];
+	// TMap operator [] checks that value is found
+	// can remove immediately (task may still be running)
+	//	because once WaitJob is called this handle can never be referred to by calling code
+	TaskIdMap.Remove(JobHandle);
+	TaskIdMapLock.Unlock();
 	
-		// don't hold TaskIdMapLock while waiting
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
-	}
+	// don't hold lock while waiting
+	FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
 }
 
 static OO_BOOL OODLE_CALLBACK TFO_OodleAssert(const char* file, const int line, const char* function, const char* message)
@@ -1095,7 +1115,7 @@ static void TFO_InstallPlugins()
 	// and should be done before any other Oodle calls
 	// plugins to Core/Tex/Net are independent
 
-	OodleJobifyUserPointer = (void *)1; //anything non-null
+	OodleJobifyUserPointer = nullptr;
 	OodleJobifyNumThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
 
 	// @@ TEMP @todo clamp OodleJobifyNumThreads to avoid int overflow

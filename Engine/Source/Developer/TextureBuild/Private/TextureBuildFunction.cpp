@@ -62,6 +62,7 @@ static void ReadCbField(FCbFieldView FieldView, FIntPoint& OutIntPoint)
 
 static void ReadBuildSettingsFromCompactBinary(const FCbObject& Object, FTextureBuildSettings& OutBuildSettings)
 {
+	OutBuildSettings.FormatConfigOverride = Object.FindView("FormatConfigOverride").AsObjectView();
 	FCbObjectView ColorAdjustmentCbObj = Object.FindView("ColorAdjustment").AsObjectView();
 	FColorAdjustmentParameters& ColorAdjustment = OutBuildSettings.ColorAdjustment;
 	ColorAdjustment.AdjustBrightness = ColorAdjustmentCbObj.FindView("AdjustBrightness").AsFloat();
@@ -87,6 +88,7 @@ static void ReadBuildSettingsFromCompactBinary(const FCbObject& Object, FTexture
 	OutBuildSettings.bSRGB = Object.FindView("bSRGB").AsBool();
 	OutBuildSettings.bUseLegacyGamma = Object.FindView("bUseLegacyGamma").AsBool();
 	OutBuildSettings.bPreserveBorder = Object.FindView("bPreserveBorder").AsBool();
+	OutBuildSettings.bForceNoAlphaChannel = Object.FindView("bForceNoAlphaChannel").AsBool();
 	OutBuildSettings.bForceAlphaChannel = Object.FindView("bForceAlphaChannel").AsBool();
 	OutBuildSettings.bDitherMipMapAlpha = Object.FindView("bDitherMipMapAlpha").AsBool();
 	OutBuildSettings.bComputeBokehAlpha = Object.FindView("bComputeBokehAlpha").AsBool();

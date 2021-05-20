@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PixelFormat.h"
+#include "Serialization/CompactBinary.h"
 /**
  * Structure for texture format compressor capabilities.
  */
@@ -236,6 +237,17 @@ public:
 	virtual bool UsesTaskGraph() const
 	{
 		return false;
+	}
+
+	/**
+	 * Obtains the current global format config object for this texture format.
+	 * 
+	 * @param BuildSettings Build settings.
+	 * @returns The current format config object or an empty object if no format config is defined for this texture format.
+	 */
+	virtual FCbObject ExportGlobalFormatConfig(const struct FTextureBuildSettings& BuildSettings) const
+	{
+		return FCbObject();
 	}
 
 public:
