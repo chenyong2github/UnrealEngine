@@ -120,6 +120,9 @@ private:
 	/** Time at which processing the last crash started. */
 	double CrashReportProcessingStartTimeSecs = 0.0;
 
+	/** Whether the crash being processed unattended. */
+	bool bProcessingCrashUnattended = false;
+
 	/** Prevent a reentrency in the diagnostic logger. */
 	bool bLoggerReentrantGuard = false;
 
