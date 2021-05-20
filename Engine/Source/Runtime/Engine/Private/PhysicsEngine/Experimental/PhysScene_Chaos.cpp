@@ -706,7 +706,13 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 							int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
 							Chaos::FCollidingData const& CollisionDataItem = CollisionData[CollisionIdx];
-							IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.Particle->PhysicsProxy() : CollisionDataItem.Levelset->PhysicsProxy();
+							IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.Proxy1 : CollisionDataItem.Proxy2;
+
+							// Are the proxies pending destruction? If they are no longer tracked by the PhysScene, the proxy is deleted or pending deletion.
+							if (GetOwningComponent<UPrimitiveComponent>(PhysicsProxy0) == nullptr || GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1) == nullptr)
+							{
+								continue;
+							}
 
 							bool bNewEntry = false;
 							FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);

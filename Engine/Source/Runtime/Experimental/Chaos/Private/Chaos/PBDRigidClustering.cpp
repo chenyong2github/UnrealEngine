@@ -21,6 +21,7 @@
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "CoreMinimal.h"
 
 namespace Chaos
@@ -797,11 +798,24 @@ namespace Chaos
 					{
 						const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
 						FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
-						ClusterBreak.Particle = Child;
+						ClusterBreak.Proxy = Child->PhysicsProxy();
 						ClusterBreak.Location = Child->X();
 						ClusterBreak.Velocity = Child->V();
 						ClusterBreak.AngularVelocity = Child->W();
 						ClusterBreak.Mass = Child->M();
+						if (Child->Geometry()->HasBoundingBox())
+						{
+							ClusterBreak.BoundingBox = Child->Geometry()->BoundingBox();
+						}
+						if (ClusterBreak.Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+						{
+							FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ClusterBreak.Proxy);
+							ClusterBreak.TransformGroupIndex = ConcreteProxy->GetTransformGroupIndexFromHandle(Child);
+						}
+						else
+						{
+							ClusterBreak.TransformGroupIndex = INDEX_NONE;
+						}
 					}
 				}
 			}
@@ -1065,11 +1079,24 @@ namespace Chaos
 					{
 						const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
 						FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
-						ClusterBreak.Particle = Child;
+						ClusterBreak.Proxy = Child->PhysicsProxy();
 						ClusterBreak.Location = Child->X();
 						ClusterBreak.Velocity = Child->V();
 						ClusterBreak.AngularVelocity = Child->W();
 						ClusterBreak.Mass = Child->M();
+						if (Child->Geometry()->HasBoundingBox())
+						{
+							ClusterBreak.BoundingBox = Child->Geometry()->BoundingBox();
+						}
+						if (ClusterBreak.Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+						{
+							FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ClusterBreak.Proxy);
+							ClusterBreak.TransformGroupIndex = ConcreteProxy->GetTransformGroupIndexFromHandle(Child);
+						}
+						else
+						{
+							ClusterBreak.TransformGroupIndex = INDEX_NONE;
+						}
 					}
 				}
 			}
@@ -1380,11 +1407,24 @@ namespace Chaos
 						{
 							int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
 							FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
-							ClusterBreak.Particle = ClusteredParticle;
+							ClusterBreak.Proxy = ClusteredParticle->PhysicsProxy();
 							ClusterBreak.Location = ClusteredParticle->X();
 							ClusterBreak.Velocity = ClusteredParticle->V();
 							ClusterBreak.AngularVelocity = ClusteredParticle->W();
 							ClusterBreak.Mass = ClusteredParticle->M();
+							if (ClusteredParticle->Geometry()->HasBoundingBox())
+							{
+								ClusterBreak.BoundingBox = ClusteredParticle->Geometry()->BoundingBox();
+							}
+							if (ClusterBreak.Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+							{
+								FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ClusterBreak.Proxy);
+								ClusterBreak.TransformGroupIndex = ConcreteProxy->GetTransformGroupIndexFromHandle(ClusteredParticle);
+							}
+							else
+							{
+								ClusterBreak.TransformGroupIndex = INDEX_NONE;
+							}
 						}
 					}
 				}
@@ -2007,11 +2047,25 @@ namespace Chaos
 		{
 			const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
 			FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
-			ClusterBreak.Particle = Particle;
+			ClusterBreak.Proxy = Particle->PhysicsProxy();
 			ClusterBreak.Location = Particle->X();
 			ClusterBreak.Velocity = Particle->V();
 			ClusterBreak.AngularVelocity = Particle->W();
 			ClusterBreak.Mass = Particle->M();
+			if (Particle->Geometry()->HasBoundingBox())
+			{
+				ClusterBreak.BoundingBox = Particle->Geometry()->BoundingBox();
+			}
+			if (ClusterBreak.Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+			{
+				FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ClusterBreak.Proxy);
+				ClusterBreak.TransformGroupIndex = ConcreteProxy->GetTransformGroupIndexFromHandle(Particle);
+			}
+			else
+			{
+				ClusterBreak.TransformGroupIndex = INDEX_NONE;
+			}
+			
 		}
 	}
 
