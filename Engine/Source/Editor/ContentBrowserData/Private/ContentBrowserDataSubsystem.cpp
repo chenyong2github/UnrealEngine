@@ -544,6 +544,12 @@ void UContentBrowserDataSubsystem::Tick(const float InDeltaTime)
 		return;
 	}
 
+	if (TickSuppressionCount > 0)
+	{
+		// Not safe to Tick right now, as we've been asked not to
+		return;
+	}
+
 	for (const auto& AvailableDataSourcePair : AvailableDataSources)
 	{
 		AvailableDataSourcePair.Value->Tick(InDeltaTime);

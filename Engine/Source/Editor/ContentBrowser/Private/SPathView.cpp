@@ -1591,6 +1591,9 @@ void SPathView::FolderNameChanged( const TSharedPtr< FTreeItem >& TreeItem, cons
 		}
 		else
 		{
+			UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+			FScopedSuppressContentBrowserDataTick TickSuppression(ContentBrowserData);
+
 			if (PendingNewFolderContext.ValidateItem(ProposedName, &ErrorMessage))
 			{
 				NewItem = PendingNewFolderContext.FinalizeItem(ProposedName, &ErrorMessage);
@@ -1605,6 +1608,9 @@ void SPathView::FolderNameChanged( const TSharedPtr< FTreeItem >& TreeItem, cons
 	}
 	else if (CommitType != ETextCommit::OnCleared && !TreeItem->GetItem().GetItemName().ToString().Equals(ProposedName))
 	{
+		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+		FScopedSuppressContentBrowserDataTick TickSuppression(ContentBrowserData);
+
 		if (TreeItem->GetItem().CanRename(&ProposedName, &ErrorMessage) && TreeItem->GetItem().Rename(ProposedName, &NewItem))
 		{
 			bSuccess = true;

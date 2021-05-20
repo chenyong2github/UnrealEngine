@@ -61,6 +61,8 @@ class CONTENTBROWSERDATA_API UContentBrowserDataSubsystem : public UEditorSubsys
 	GENERATED_BODY()
 
 public:
+	friend class FScopedSuppressContentBrowserDataTick;
+
 	//~ UEditorSubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
@@ -337,6 +339,12 @@ private:
 	bool bPendingItemDataRefreshedNotification = false;
 
 	/**
+	 * >0 if Tick events have currently been suppressed.
+	 * @see FScopedSuppressContentBrowserDataTick
+	 */
+	int32 TickSuppressionCount = 0;
+
+	/**
 	 * Delegate called for incremental item data updates from data sources that can provide delta-updates.
 	 */
 	FOnContentBrowserItemDataUpdated ItemDataUpdatedDelegate;
@@ -371,4 +379,30 @@ private:
 	 * Prefix to use when generating virtual paths and "Show All Folder" option is enabled
 	 */
 	FString AllFolderPrefix;
+};
+
+/**
+ * Helper to suppress Tick events during critical times, when the underlying data should not be updated.
+ */
+class FScopedSuppressContentBrowserDataTick
+{
+public:
+	explicit FScopedSuppressContentBrowserDataTick(UContentBrowserDataSubsystem* InContentBrowserData)
+		: ContentBrowserData(InContentBrowserData)
+	{
+		check(ContentBrowserData);
+		++ContentBrowserData->TickSuppressionCount;
+	}
+
+	~FScopedSuppressContentBrowserDataTick()
+	{
+		checkf(ContentBrowserData->TickSuppressionCount > 0, TEXT("TickSuppressionCount underflow!"));
+		--ContentBrowserData->TickSuppressionCount;
+	}
+
+	FScopedSuppressContentBrowserDataTick(const FScopedSuppressContentBrowserDataTick&) = delete;
+	FScopedSuppressContentBrowserDataTick& operator=(const FScopedSuppressContentBrowserDataTick&) = delete;
+
+private:
+	UContentBrowserDataSubsystem* ContentBrowserData = nullptr;
 };
