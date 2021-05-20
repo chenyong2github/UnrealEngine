@@ -594,7 +594,7 @@ void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
 				})
 			),
 			NAME_None,
-			EUserInterfaceActionType::Check
+			EUserInterfaceActionType::RadioButton
 		);
 	};
 
