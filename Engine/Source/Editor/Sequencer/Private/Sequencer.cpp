@@ -49,6 +49,7 @@
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "MovieSceneClipboard.h"
 #include "SequencerCommonHelpers.h"
+#include "SequencerMarkedFrameHelper.h"
 #include "SSequencer.h"
 #include "SSequencerSection.h"
 #include "SequencerKeyCollection.h"
@@ -11559,67 +11560,6 @@ TArray<FMovieSceneMarkedFrame> FSequencer::GetMarkedFrames() const
 	return TArray<FMovieSceneMarkedFrame>();
 }
 
-void FindGlobalMarkedFrames(TArray<FMovieSceneMarkedFrame>& GlobalMarkedFrames, const UMovieScene* MovieScene, const FFrameNumber FrameOffset, const UMovieScene* FocusedMovieScene)
-{
-	if (MovieScene == nullptr)
-	{
-		return;
-	}
-
-	if (MovieScene != FocusedMovieScene && MovieScene->GetGloballyShowMarkedFrames())
-	{
-		TArray<FMovieSceneMarkedFrame> MarkedFrames = MovieScene->GetMarkedFrames();
-		for (FMovieSceneMarkedFrame MarkedFrame : MarkedFrames)
-		{
-			MarkedFrame.FrameNumber += FrameOffset;
-			GlobalMarkedFrames.Add(MarkedFrame);
-		}
-	}
-
-	const TArray<UMovieSceneTrack*>& Tracks = MovieScene->GetMasterTracks();
-	for (const UMovieSceneTrack* Track : Tracks)
-	{
-		if (Track->SupportsType(UMovieSceneSubSection::StaticClass()))
-		{
-			for (const UMovieSceneSection* Section : Track->GetAllSections())
-			{
-				const UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
-				if (SubSection != nullptr)
-				{
-					const UMovieSceneSequence* SubSequence = SubSection->GetSequence();
-					if (SubSequence != nullptr)
-					{
-						const UMovieScene* SubSequenceScene = SubSequence->GetMovieScene();
-						if (SubSequenceScene != nullptr)
-						{
-							FindGlobalMarkedFrames(GlobalMarkedFrames, SubSequenceScene, SubSection->GetInclusiveStartFrame() + FrameOffset, FocusedMovieScene);
-						}
-					}
-				}
-			}
-		}
-		else if(Track->SupportsType(UMovieSceneCinematicShotSection::StaticClass()))
-		{
-			for (const UMovieSceneSection* Section : Track->GetAllSections())
-			{
-				const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(Section);
-				if (ShotSection != nullptr)
-				{
-					const UMovieSceneSequence* SubSequence = ShotSection->GetSequence();
-					if (SubSequence != nullptr)
-					{
-						const UMovieScene* SubSequenceScene = SubSequence->GetMovieScene();
-						if (SubSequenceScene != nullptr)
-						{
-							FindGlobalMarkedFrames(GlobalMarkedFrames, SubSequenceScene, ShotSection->GetInclusiveStartFrame() + FrameOffset, FocusedMovieScene);
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 TArray<FMovieSceneMarkedFrame> FSequencer::GetGlobalMarkedFrames() const
 {
 	return GlobalMarkedFramesCache;
@@ -11629,51 +11569,16 @@ void FSequencer::UpdateGlobalMarkedFramesCache()
 {
 	GlobalMarkedFramesCache.Empty();
 
-	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
-	UMovieScene* FocusedMovieScene = nullptr;
-	if (FocusedMovieSequence != nullptr)
-	{
-		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
-	}
-
-	UMovieSceneSequence* RootMovieSequence = GetRootMovieSceneSequence();
-	if (RootMovieSequence != nullptr)
-	{
-		UMovieScene* RootMovieScene = RootMovieSequence->GetMovieScene();
-		if (RootMovieScene != nullptr)
-		{
-
-			TRange<FFrameTime> Range(0,0);
-			Range = RootToLocalTransform.TransformRangeUnwarped(Range);
-			FFrameNumber FocusedMovieSceneFrameOffset = Range.GetLowerBoundValue().FrameNumber;
-
-			FindGlobalMarkedFrames(GlobalMarkedFramesCache, RootMovieScene, FocusedMovieSceneFrameOffset, FocusedMovieScene);
-		}
-	}
+	FSequencerMarkedFrameHelper::FindGlobalMarkedFrames(*this, GlobalMarkedFramesCache);
 	
 	bGlobalMarkedFramesCached = true;
 }
 
 void FSequencer::ClearGlobalMarkedFrames()
 {
+	FSequencerMarkedFrameHelper::ClearGlobalMarkedFrames(*this);
+
 	bGlobalMarkedFramesCached = false;
-
-	const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(RootTemplateInstance.GetCompiledDataID());
-	if (!Hierarchy)
-	{
-		return;
-	}
-
-	for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
-	{
-		if (UMovieSceneSequence* Sequence = Pair.Value.GetSequence())
-		{
-			if (UMovieScene* MovieScene = Sequence->GetMovieScene())
-			{
-				MovieScene->SetGloballyShowMarkedFrames(false);
-			}
-		}
-	}
 }
 
 void FSequencer::ToggleMarkAtPlayPosition()
