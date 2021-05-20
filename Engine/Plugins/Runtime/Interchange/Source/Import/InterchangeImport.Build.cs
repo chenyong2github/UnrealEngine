@@ -31,10 +31,6 @@ namespace UnrealBuildTool.Rules
 					"TextureUtilitiesCommon",
 				}
 			);
-
-			OptimizeCode = CodeOptimization.Never;
-			bUseUnity = false;
-			PCHUsage = PCHUsageMode.NoPCHs;
 		}
 	}
 }
