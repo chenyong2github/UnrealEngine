@@ -2243,7 +2243,7 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 		//Set the minimum LOD
 		if (ImportOptions->MinimumLodNumber > 0)
 		{
-			StaticMesh->SetMinLOD(ImportOptions->MinimumLodNumber);
+			StaticMesh->SetMinLODIdx(ImportOptions->MinimumLodNumber);
 		}
 
 		//User specify a number of LOD.

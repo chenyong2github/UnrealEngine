@@ -3454,7 +3454,7 @@ int32 UStaticMeshMinLodCommandlet::Main(const FString& Params)
 							}
 						}
 					}
-					//StaticMesh->SetQualityLevelMinLOD(MoveTemp(QualityLevelMinLOD));
+					StaticMesh->SetQualityLevelMinLOD(MoveTemp(QualityLevelMinLOD));
 				}
 
 				//generate a unique group name to collect stats
