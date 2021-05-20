@@ -809,7 +809,7 @@ void FUnrealEdMisc::EditorAnalyticsHeartbeat()
 
 void FUnrealEdMisc::TickAssetAnalytics()
 {
-	if( bIsAssetAnalyticsPending )
+	if( bIsAssetAnalyticsPending && FEngineAnalytics::IsAvailable())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FUnrealEdMisc::TickAssetAnalytics);
 
