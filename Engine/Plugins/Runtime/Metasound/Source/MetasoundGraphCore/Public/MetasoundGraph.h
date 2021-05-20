@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundBuilderInterface.h"
 #include "MetasoundNode.h"
 
 // Forward Declarations
@@ -106,7 +107,18 @@ namespace Metasound
 
 			// TODO: Add ability to remove things.
 
+			/** Return a reference to the default operator factory. */
+			virtual FOperatorFactorySharedRef GetDefaultOperatorFactory() const override;
+
 		private:
+			class FFactory : public IOperatorFactory
+			{
+			public:
+				virtual ~FFactory() = default;
+
+				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
+			};
+
 			FString InstanceName;
 			FGuid InstanceID;
 

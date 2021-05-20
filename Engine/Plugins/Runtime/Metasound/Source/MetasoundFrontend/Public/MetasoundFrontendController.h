@@ -161,13 +161,16 @@ namespace Metasound
 			/** Returns a FConstNodeHandle to the node which owns this output. */
 			virtual FConstNodeHandle GetOwningNode() const = 0;
 
-			/** Returns the currently connected output. If this input is not
-			 * connected, the returned handle will be invalid. */
-			virtual TArray<FInputHandle> GetCurrentlyConnectedInputs() = 0;
+			/** Return true if the input is connect to an output. */
+			virtual bool IsConnected() const = 0;
 
 			/** Returns the currently connected output. If this input is not
 			 * connected, the returned handle will be invalid. */
-			virtual TArray<FConstInputHandle> GetCurrentlyConnectedInputs() const = 0;
+			virtual TArray<FInputHandle> GetConnectedInputs() = 0;
+
+			/** Returns the currently connected output. If this input is not
+			 * connected, the returned handle will be invalid. */
+			virtual TArray<FConstInputHandle> GetConstConnectedInputs() const = 0;
 
 			virtual bool Disconnect() = 0;
 
@@ -237,11 +240,11 @@ namespace Metasound
 			
 			/** Returns the currently connected output. If this input is not
 			 * connected, the returned handle will be invalid. */
-			virtual FOutputHandle GetCurrentlyConnectedOutput() = 0;
+			virtual FOutputHandle GetConnectedOutput() = 0;
 
 			/** Returns the currently connected output. If this input is not
 			 * connected, the returned handle will be invalid. */
-			virtual FConstOutputHandle GetCurrentlyConnectedOutput() const = 0;
+			virtual FConstOutputHandle GetConnectedOutput() const = 0;
 
 			/** Returns information describing connectability between this input and the supplied output. */
 			virtual FConnectability CanConnectTo(const IOutputController& InController) const = 0;
@@ -321,7 +324,7 @@ namespace Metasound
 			virtual int32 GetNumOutputs() const = 0;
 
 			virtual TArray<FInputHandle> GetInputsWithVertexName(const FString& InName) = 0;
-			virtual TArray<FConstInputHandle> GetInputsWithVertexName(const FString& InName) const = 0;
+			virtual TArray<FConstInputHandle> GetConstInputsWithVertexName(const FString& InName) const = 0;
 
 			/** Returns all node outputs. */
 			virtual TArray<FOutputHandle> GetOutputs() = 0;
@@ -330,7 +333,7 @@ namespace Metasound
 			virtual TArray<FConstOutputHandle> GetConstOutputs() const = 0;
 
 			virtual TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) = 0;
-			virtual TArray<FConstOutputHandle> GetOutputsWithVertexName(const FString& InName) const = 0;
+			virtual TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FString& InName) const = 0;
 
 			/** Returns true if node is required to satisfy the document archetype. */
 			virtual bool IsRequired() const = 0;
@@ -422,7 +425,14 @@ namespace Metasound
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
 
-			virtual FGuid GetNewVertexID() const = 0;
+			/** Returns the ClassID associated with this graph. */
+			virtual FGuid GetClassID() const = 0;
+
+			/** Return the metadata for the current graph. */
+			virtual const FMetasoundFrontendClassMetadata& GetGraphMetadata() const = 0;
+
+			/** Return the display name of the graph. */
+			virtual const FText& GetDisplayName() const = 0;
 
 			virtual TArray<FString> GetInputVertexNames() const = 0;
 			virtual TArray<FString> GetOutputVertexNames() const = 0;
@@ -602,36 +612,27 @@ namespace Metasound
 
 			/** Add a new node to this graph.
 			 *
-			 * @param InClassMetadat - Info for node class.
+			 * @param InClassMetadata - Info for node class.
 			 * 
 			 * @return Node handle for class. On error, an invalid handle is returned. 
 			 */
 			virtual FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata) = 0;
+
+			/** Add a new node to this graph by duplicating the input node.
+			 * The new node has the same interface and node class as the input node.
+			 * This method will not duplicate node connections.
+			 *
+			 * @param InNodeController - Node to duplicate.
+			 *
+			 * @return Node handle for new node. On error, an invalid handle is returned. 
+			 */
+			virtual FNodeHandle AddDuplicateNode(const INodeController& InNodeController) = 0;
 
 			/** Remove the node corresponding to this node handle.
 			 *
 			 * @return True on success, false on failure. 
 			 */
 			virtual bool RemoveNode(INodeController& InNode) = 0;
-
-			/** Returns the ClassID associated with this graph. */
-			virtual FGuid GetClassID() const = 0;
-
-			/** Return the metadata for the current graph. */
-			virtual const FMetasoundFrontendClassMetadata& GetGraphMetadata() const = 0;
-
-			/** Inflates a subgraph of this graph into the this graph.
-			 *
-			 * If the INodeController given is itself a Metasound graph,
-			 * and the INodeController is a direct member of this IGraphController,
-			 * this will invalidate the FNodeController and paste the graph for this 
-			 * node directly into this graph.
-			 *
-			 * If not successful, InNode will not be affected.
-			 *
-			 * @returns True on success, false on failure.
-			 */
-			virtual bool InflateNodeDirectlyIntoGraph(const INodeController& InNode) = 0;
 
 			/** Creates and inserts a new subgraph into this graph using the given metadata.
 			 * By calling AsGraph() on the returned node handle, callers can modify
@@ -668,8 +669,11 @@ namespace Metasound
 
 			/** Create a document from FMetasoundFrontendDocument description pointer. */
 			static FDocumentHandle CreateDocumentHandle(FDocumentAccessPtr InDocument);
+			static FDocumentHandle CreateDocumentHandle(FMetasoundFrontendDocument& InDocument);
+
 			/** Create a document from FMetasoundFrontendDocument description pointer. */
 			static FConstDocumentHandle CreateDocumentHandle(FConstDocumentAccessPtr InDocument);
+			static FConstDocumentHandle CreateDocumentHandle(const FMetasoundFrontendDocument& InDocument);
 
 			IDocumentController() = default;
 			virtual ~IDocumentController() = default;
@@ -728,6 +732,15 @@ namespace Metasound
 			 * @return A pointer to the object, or nullptr on error.
 			 */
 			virtual FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
+
+			/** Adds a duplicate subgraph to the document. This method creates a 
+			 * copy of the graph and adds all the graph dependencies to this document.
+			 * 
+			 * @param InGraph - Graph to copy.
+			 *
+			 * @return Handle to new graph. On error, an invalid handle is returned.
+			 */
+			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) = 0;
 
 			/** Removes all dependencies which are no longer referenced by any graphs within this document
 			  * and updates dependency Metadata where necessary with that found in the registry.  */

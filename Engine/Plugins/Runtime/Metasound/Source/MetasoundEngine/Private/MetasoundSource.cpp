@@ -202,7 +202,7 @@ bool UMetaSoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName
 Metasound::Frontend::FNodeHandle UMetaSoundSource::AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
 {
 	FMetasoundFrontendClassInput Description;
-	FGuid VertexID = InGraph->GetNewVertexID();
+	FGuid VertexID = FGuid::NewGuid();
 
 	Description.Name = InSendInfo.Address.ChannelName.ToString();
 	Description.TypeName = Metasound::GetMetasoundDataTypeName<Metasound::FSendAddress>();
@@ -283,7 +283,7 @@ bool UMetaSoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, co
 			if (ensure(ReceiveDefaultInputs.Num() == 1))
 			{
 				FOutputHandle ReceiverNodeOutput = ReceiveNodeOutputs[0];
-				for (FInputHandle NodeInput : InputNodeOutput->GetCurrentlyConnectedInputs())
+				for (FInputHandle NodeInput : InputNodeOutput->GetConnectedInputs())
 				{
 					// Swap connections to receiver node
 					ensure(InputNodeOutput->Disconnect(*NodeInput));

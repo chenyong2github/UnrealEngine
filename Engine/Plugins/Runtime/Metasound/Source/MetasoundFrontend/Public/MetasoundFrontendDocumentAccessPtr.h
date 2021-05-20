@@ -27,7 +27,7 @@ namespace Metasound
 		using FClassOutputAccessPtr = TAccessPtr<FMetasoundFrontendClassOutput>;
 		using FConstClassOutputAccessPtr = TAccessPtr<const FMetasoundFrontendClassOutput>;
 
-		class FNodeAccessPtr : public TAccessPtr<FMetasoundFrontendNode>
+		class METASOUNDFRONTEND_API FNodeAccessPtr : public TAccessPtr<FMetasoundFrontendNode>
 		{
 		public:
 			using Super = TAccessPtr<FMetasoundFrontendNode>;
@@ -46,7 +46,7 @@ namespace Metasound
 			FConstVertexAccessPtr GetOutputWithVertexID(const FGuid& InID) const;
 		};
 
-		class FConstNodeAccessPtr : public TAccessPtr<const FMetasoundFrontendNode>
+		class METASOUNDFRONTEND_API FConstNodeAccessPtr : public TAccessPtr<const FMetasoundFrontendNode>
 		{
 		public:
 			using Super = TAccessPtr<const FMetasoundFrontendNode>;
@@ -63,7 +63,7 @@ namespace Metasound
 		using FGraphAccessPtr = TAccessPtr<FMetasoundFrontendGraph>;
 		using FConstGraphAccessPtr = TAccessPtr<const FMetasoundFrontendGraph>;
 
-		class FClassAccessPtr : public TAccessPtr<FMetasoundFrontendClass>
+		class METASOUNDFRONTEND_API FClassAccessPtr : public TAccessPtr<FMetasoundFrontendClass>
 		{
 		public:
 			using Super = TAccessPtr<FMetasoundFrontendClass>;
@@ -77,7 +77,7 @@ namespace Metasound
 			FConstClassOutputAccessPtr GetOutputWithName(const FString& InName) const;
 		};
 
-		class FConstClassAccessPtr : public TAccessPtr<const FMetasoundFrontendClass>
+		class METASOUNDFRONTEND_API FConstClassAccessPtr : public TAccessPtr<const FMetasoundFrontendClass>
 		{
 		public:
 			using Super = TAccessPtr<const FMetasoundFrontendClass>;
@@ -89,7 +89,7 @@ namespace Metasound
 			FConstClassOutputAccessPtr GetOutputWithName(const FString& InName) const;
 		};
 
-		class FGraphClassAccessPtr : public TAccessPtr<FMetasoundFrontendGraphClass>
+		class METASOUNDFRONTEND_API FGraphClassAccessPtr : public TAccessPtr<FMetasoundFrontendGraphClass>
 		{
 		public:
 			using Super = TAccessPtr<FMetasoundFrontendGraphClass>;
@@ -114,7 +114,7 @@ namespace Metasound
 			FConstGraphAccessPtr GetGraph() const;
 		};
 
-		class FConstGraphClassAccessPtr : public TAccessPtr<const FMetasoundFrontendGraphClass>
+		class METASOUNDFRONTEND_API FConstGraphClassAccessPtr : public TAccessPtr<const FMetasoundFrontendGraphClass>
 		{
 			using Super = TAccessPtr<const FMetasoundFrontendGraphClass>;
 
@@ -129,7 +129,7 @@ namespace Metasound
 			FConstGraphAccessPtr GetGraph() const;
 		};
 
-		class FDocumentAccessPtr : public TAccessPtr<FMetasoundFrontendDocument>
+		class METASOUNDFRONTEND_API FDocumentAccessPtr : public TAccessPtr<FMetasoundFrontendDocument>
 		{
 		public:
 			using Super = TAccessPtr<FMetasoundFrontendDocument>;
@@ -152,7 +152,7 @@ namespace Metasound
 			FConstClassAccessPtr GetClassWithInfo(const FNodeClassInfo& InInfo) const;
 		};
 
-		class FConstDocumentAccessPtr : public TAccessPtr<const FMetasoundFrontendDocument>
+		class METASOUNDFRONTEND_API FConstDocumentAccessPtr : public TAccessPtr<const FMetasoundFrontendDocument>
 		{
 		public:
 			using Super = TAccessPtr<const FMetasoundFrontendDocument>;

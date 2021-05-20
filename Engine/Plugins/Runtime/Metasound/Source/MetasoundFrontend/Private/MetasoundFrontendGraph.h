@@ -16,7 +16,6 @@ namespace Metasound
 	 */
 	class FFrontendGraph : public FGraph
 	{
-		// - TODO: consider adding ability to add in another sub graph
 		public:
 			/** FFrontendGraph constructor.
 			 *
@@ -32,27 +31,27 @@ namespace Metasound
 			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
 			 * @param InIndex - The positional index for the input.
 			 * @param InVertexKey - The key for the graph input vertex.
-			 * @param InNode - A unique pointer to an input node. 
+			 * @param InNode - A shared pointer to an input node. 
 			 */
-			void AddInputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode);
+			void AddInputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TSharedPtr<const INode> InNode);
 
 			/** Add an output node to this graph.
 			 *
 			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
 			 * @param InIndex - The positional index for the output.
 			 * @param InVertexKey - The key for the graph output vertex.
-			 * @param InNode - A unique pointer to an output node. 
+			 * @param InNode - A shared pointer to an output node. 
 			 */
-			void AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode);
+			void AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TSharedPtr<const INode> InNode);
 
 			/** Store a node on this graph. 
 			 *
 			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
-			 * @param InNode - A unique pointer to a node. 
+			 * @param InNode - A shared pointer to a node. 
 			 */
-			void AddNode(FGuid InNodeID, TUniquePtr<INode> InNode);
+			void AddNode(FGuid InNodeID, TSharedPtr<const INode> InNode);
 
-			/** Retrieve node by dependency ID.
+			/** Retrieve node by node ID.
 			 *
 			 * @param InNodeID - The NodeID of the requested Node.
 			 *
@@ -82,14 +81,14 @@ namespace Metasound
 
 		private:
 
-			void StoreNode(TUniquePtr<INode> InNode);
+			void StoreNode(TSharedPtr<const INode> InNode);
 
-			TMap<int32, INode*> InputNodes;
-			TMap<int32, INode*> OutputNodes;
+			TMap<int32, const INode*> InputNodes;
+			TMap<int32, const INode*> OutputNodes;
 
-			TMap<FGuid, INode*> NodeMap;
+			TMap<FGuid, const INode*> NodeMap;
 			TSet<const INode*> StoredNodes;
-			TArray<TUniquePtr<INode>> Storage;
+			TArray<TSharedPtr<const INode>> NodeStorage;
 	};
 
 	/** FFrontendGraphBuilder builds a FFrontendGraph from a FMetasoundDoucment
@@ -117,6 +116,18 @@ namespace Metasound
 
 
 	private:
+		using FDependencyByIDMap = TMap<FGuid, const FMetasoundFrontendClass*>;
+		using FSharedNodeByIDMap = TMap<FGuid, TSharedPtr<const INode>>;
+
+		struct FBuildContext
+		{
+			FDependencyByIDMap FrontendClasses;
+			FSharedNodeByIDMap Graphs;
+		};
+
+		bool SortSubgraphDependencies(TArray<const FMetasoundFrontendGraphClass*>& Subgraphs) const;
+
+		TUniquePtr<FFrontendGraph> CreateGraph(FBuildContext& InContext, const FMetasoundFrontendGraphClass& InSubgraph) const;
 
 		const FMetasoundFrontendClassInput* FindClassInputForInputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InInputNode, int32& OutClassInputIndex) const;
 
@@ -131,7 +142,7 @@ namespace Metasound
 		TUniquePtr<INode> CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass) const;
 
 		// TODO: add errors here. Most will be a "PromptIfMissing"...
-		void AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TMap<FGuid, const FMetasoundFrontendClass*>& InClasses, FFrontendGraph& OutGraph) const;
+		void AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const FDependencyByIDMap& InClasses, const FSharedNodeByIDMap& InSubgraphs, FFrontendGraph& OutGraph) const;
 
 		void AddEdgesToGraph(const FMetasoundFrontendGraph& InGraphDescription, FFrontendGraph& OutGraph) const;
 	};
