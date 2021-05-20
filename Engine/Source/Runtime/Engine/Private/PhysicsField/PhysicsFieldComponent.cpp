@@ -1062,8 +1062,8 @@ void FPhysicsFieldInstance::BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& 
 		{
 			FBoxFalloff* LocalNode = StaticCast<FBoxFalloff*>(FieldNode);
 
-			MinBounds = (LocalNode->Default == 0) ? LocalNode->Transform.GetTranslation() - LocalNode->Transform.GetScale3D() : FVector(-FLT_MAX);
-			MaxBounds = (LocalNode->Default == 0) ? LocalNode->Transform.GetTranslation() + LocalNode->Transform.GetScale3D() : FVector(FLT_MAX);
+			MinBounds = (LocalNode->Default == 0) ? LocalNode->Transform.GetTranslation() - 50 * LocalNode->Transform.GetScale3D() : FVector(-FLT_MAX);
+			MaxBounds = (LocalNode->Default == 0) ? LocalNode->Transform.GetTranslation() + 50 * LocalNode->Transform.GetScale3D() : FVector(FLT_MAX);
 		}
 		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FSumScalar)
 		{
