@@ -2636,7 +2636,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 						TArray<int32>& FinalResults = ExecutionDatas.IntegerResults[(uint8)EFieldCommandResultType::FinalResult];
 						ResetResultsArray < int32 >(ExecutionDatas.SamplePositions.Num(), FinalResults, 0);
 
-						TArrayView<int32> ResultsView(&(FinalResults[0]), FinalResults.Num());
+						TFieldArrayView<int32> ResultsView(FinalResults, 0, FinalResults.Num());
 
 						if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_DynamicState)
 						{
@@ -2691,7 +2691,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 						TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
 						ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
 
-						TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
+						TFieldArrayView<FVector> ResultsView(FinalResults, 0, FinalResults.Num());
 
 						if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_InitialLinearVelocity)
 						{

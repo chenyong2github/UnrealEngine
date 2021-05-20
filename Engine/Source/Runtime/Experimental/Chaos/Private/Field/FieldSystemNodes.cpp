@@ -94,7 +94,7 @@ void SerializeInternal(FArchive& Ar, Enum& Var)
 /**
 * FUniformInteger
 */
-void FUniformInteger::Evaluate(FFieldContext& Context, TArrayView<int32>& Results) const
+void FUniformInteger::Evaluate(FFieldContext& Context, TFieldArrayView<int32>& Results) const
 {
 	int32 MagnitudeVal = Magnitude;
 
@@ -123,7 +123,7 @@ bool FUniformInteger::operator==(const FFieldNodeBase& Node)
 /**
 * FRadialIntMask
 */
-void FRadialIntMask::Evaluate(FFieldContext& Context, TArrayView<int32>& Results) const
+void FRadialIntMask::Evaluate(FFieldContext& Context, TFieldArrayView<int32>& Results) const
 {
 	float Radius2 = Radius * Radius;
 
@@ -194,7 +194,7 @@ bool FRadialIntMask::operator==(const FFieldNodeBase& Node)
 /**
 * FUniformScalar
 */
-void FUniformScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
+void FUniformScalar::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	float MagnitudeVal = Magnitude;
 
@@ -222,7 +222,7 @@ bool FUniformScalar::operator==(const FFieldNodeBase& Node)
 /**
 * FWaveScalar
 */
-void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
+void FWaveScalar::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	const float Velocity = (Period != 0.0f ) ? Wavelength / Period : 0.0f;
 
@@ -364,7 +364,7 @@ float EvalFalloffFunction<EFieldFalloffType::Field_Falloff_Logarithmic>(const fl
 */
 
 template<EFieldFalloffType FalloffType>
-void FRadialFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& Results) const  
+void FRadialFalloff::Evaluator(const FFieldContext& Context, TFieldArrayView<float>& Results) const  
 {
 	if (Radius > 0.f)
 	{
@@ -388,7 +388,7 @@ void FRadialFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& 
 	}
 }
 
-void FRadialFalloff::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
+void FRadialFalloff::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	switch (Falloff)
 	{
@@ -443,7 +443,7 @@ bool FRadialFalloff::operator==(const FFieldNodeBase& Node)
 */
 
 template<EFieldFalloffType FalloffType>
-void FPlaneFalloff::Evaluator(const FFieldContext& Context, const FPlane& Plane, TArrayView<float>& Results) const
+void FPlaneFalloff::Evaluator(const FFieldContext& Context, const FPlane& Plane, TFieldArrayView<float>& Results) const
 {
 	if (Distance > 0.f)
 	{
@@ -467,7 +467,7 @@ void FPlaneFalloff::Evaluator(const FFieldContext& Context, const FPlane& Plane,
 }
 
 void
-FPlaneFalloff::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
+FPlaneFalloff::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	FPlane Plane(Position, Normal);
 	switch (Falloff)
@@ -525,7 +525,7 @@ bool FPlaneFalloff::operator==(const FFieldNodeBase& Node)
 */
 
 template<EFieldFalloffType FalloffType>
-void FBoxFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& Results) const
+void FBoxFalloff::Evaluator(const FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	const float DeltaRange = (MaxRange - MinRange);
 
@@ -552,7 +552,7 @@ void FBoxFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& Res
 }
 
 void
-FBoxFalloff::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
+FBoxFalloff::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	switch (Falloff)
 	{
@@ -605,7 +605,7 @@ bool FBoxFalloff::operator==(const FFieldNodeBase& Node)
 * FNoiseField
 */
 void
-FNoiseField::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
+FNoiseField::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	const float DeltaRange = (MaxRange - MinRange);
 	const int32 NumSamples = Context.SampleIndices.Num();
@@ -653,7 +653,7 @@ bool FNoiseField::operator==(const FFieldNodeBase& Node)
 /**
 * FUniformVector
 */
-void FUniformVector::Evaluate(FFieldContext& Context, TArrayView<FVector>& Results) const
+void FUniformVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& Results) const
 {
 	const FVector DirectionVal = Direction;
 	const float MagnitudeVal = Magnitude;
@@ -685,7 +685,7 @@ bool FUniformVector::operator==(const FFieldNodeBase& Node)
 /**
 * FRadialVector
 */
-void FRadialVector::Evaluate(FFieldContext& Context, TArrayView<FVector>& Results) const
+void FRadialVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& Results) const
 {
 	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -718,7 +718,7 @@ bool FRadialVector::operator==(const FFieldNodeBase& Node)
 /**
 * FRandomVector
 */
-void FRandomVector::Evaluate(FFieldContext& Context, TArrayView<FVector>& Results) const
+void FRandomVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& Results) const
 {
 	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -753,7 +753,7 @@ bool FRandomVector::operator==(const FFieldNodeBase& Node)
 * FSumScalar 
 * 
 */
-void FSumScalar::Evaluate(FFieldContext& ContextIn, TArrayView<float>& Results) const
+void FSumScalar::Evaluate(FFieldContext& ContextIn, TFieldArrayView<float>& Results) const
 {
 	TUniquePtr<FFieldSystemMetaDataResults<float> > ResultsData(new FFieldSystemMetaDataResults<float>(Results));
 	FScopedFieldContextMetaData ScopedMetaData(ContextIn, ResultsData.Get());
@@ -770,9 +770,9 @@ void FSumScalar::Evaluate(FFieldContext& ContextIn, TArrayView<float>& Results) 
 		const uint32 BufferOffset = ContextIn.ScalarResults.Num();
 		ContextIn.ScalarResults.SetNum(BufferOffset + 2* NumResults, false);
 
-		TArrayView<float> Buffers[2] = {
-			TArrayView<float>(&ContextIn.ScalarResults[BufferOffset],NumResults),
-			TArrayView<float>(&ContextIn.ScalarResults[BufferOffset+NumResults],NumResults),
+		TFieldArrayView<float> Buffers[2] = {
+			TFieldArrayView<float>(ContextIn.ScalarResults,BufferOffset,NumResults),
+			TFieldArrayView<float>(ContextIn.ScalarResults,BufferOffset+NumResults,NumResults),
 		};
 
 		TArray<const FFieldNode<float> * > FieldNodes = { LeftField,RightField };
@@ -876,7 +876,7 @@ bool FSumScalar::operator==(const FFieldNodeBase& Node)
 /**
 * FSumVector
 */
-void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results) const
+void FSumVector::Evaluate(FFieldContext& ContextIn, TFieldArrayView<FVector>& Results) const
 {
 	TUniquePtr<FFieldSystemMetaDataResults<FVector>> ResultsData(new FFieldSystemMetaDataResults<FVector>(Results));
 	FScopedFieldContextMetaData ScopedMetaData(ContextIn, ResultsData.Get());
@@ -894,9 +894,9 @@ void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results
 		const uint32 BufferOffset = ContextIn.VectorResults.Num();
 		ContextIn.VectorResults.SetNum(BufferOffset + 2 * NumResults, false);
 
-		TArrayView<FVector> Buffers[2] = {
-			TArrayView<FVector>(&ContextIn.VectorResults[BufferOffset], NumResults),
-			TArrayView<FVector>(&ContextIn.VectorResults[BufferOffset + NumResults], NumResults),
+		TFieldArrayView<FVector> Buffers[2] = {
+			TFieldArrayView<FVector>(ContextIn.VectorResults, BufferOffset, NumResults),
+			TFieldArrayView<FVector>(ContextIn.VectorResults, BufferOffset + NumResults, NumResults),
 		};
 
 		LeftVectorField->Evaluate(ContextIn, Buffers[0]);
@@ -957,7 +957,7 @@ void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results
 		const uint32 BufferOffset = ContextIn.ScalarResults.Num();
 		ContextIn.ScalarResults.SetNum(BufferOffset + NumResults, false);
 
-		TArrayView<float> Buffer(&ContextIn.ScalarResults[BufferOffset], NumResults);
+		TFieldArrayView<float> Buffer(ContextIn.ScalarResults, BufferOffset, NumResults);
 
 		ScalarField->Evaluate(ContextIn, Buffer);
 
@@ -1012,7 +1012,7 @@ bool FSumVector::operator==(const FFieldNodeBase& Node)
 * FConversionField<InT,OutT>
 */
 template<class InT, class OutT>
-void FConversionField<InT,OutT>::Evaluate(FFieldContext& Context, TArrayView<OutT>& Results) const
+void FConversionField<InT,OutT>::Evaluate(FFieldContext& Context, TFieldArrayView<OutT>& Results) const
 {
 	static_assert(std::is_arithmetic_v<InT>, "Arithmetic types required for field conversion");
 	static_assert(std::is_arithmetic_v<OutT>, "Arithmetic types required for field conversion");
@@ -1026,7 +1026,7 @@ void FConversionField<InT,OutT>::Evaluate(FFieldContext& Context, TArrayView<Out
 	ResultsArray.SetNum(BufferOffset + NumResults, false);
 	FMemory::Memzero(&ResultsArray[BufferOffset], sizeof(InT) * NumResults);
 
-	TArrayView<InT> BufferView(&ResultsArray[BufferOffset], NumResults);
+	TFieldArrayView<InT> BufferView(ResultsArray, BufferOffset, NumResults);
 	InputField->Evaluate(Context, BufferView);
 
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -1061,7 +1061,7 @@ template class FConversionField<float, int32>;
 *  FCullingField<T>
 */
 template<class T>
-void FCullingField<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) const
+void FCullingField<T>::Evaluate(FFieldContext& Context, TFieldArrayView<T>& Results) const
 {
 	int32 NumResults = Results.Num();
 	int32 NumSamples = Context.SampleIndices.Num();
@@ -1076,14 +1076,14 @@ void FCullingField<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) 
 		{
 			const uint32 BufferOffset = Context.ScalarResults.Num();
 			Context.ScalarResults.SetNum(BufferOffset + NumResults, false);
-			TArrayView<float> CullingBuffer(&Context.ScalarResults[BufferOffset], NumResults);
+			TFieldArrayView<float> CullingBuffer(Context.ScalarResults, BufferOffset, NumResults);
 
 			FMemory::Memzero(&Context.ScalarResults[BufferOffset], sizeof(float) * NumResults);
 			CullingField->Evaluate(Context, CullingBuffer);
 
 			const uint32 IndexOffset = Context.IndexResults.Num();
 			Context.IndexResults.SetNum(IndexOffset + NumResults, false);
-			TArrayView<FFieldContextIndex> IndexBuffer(&Context.IndexResults[IndexOffset], NumResults);
+			TFieldArrayView<FFieldContextIndex> IndexBuffer(Context.IndexResults, IndexOffset, NumResults);
 
 			int NewEvaluationSize = 0;
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -1122,7 +1122,7 @@ void FCullingField<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) 
 
 					if (InputField)
 					{
-						TArrayView<FFieldContextIndex> LocalIndices(&Context.IndexResults[IndexOffset], NewEvaluationSize);
+						TFieldArrayView<FFieldContextIndex> LocalIndices(Context.IndexResults, IndexOffset, NewEvaluationSize);
 						FFieldContext LocalContext(LocalIndices, Context.SamplePositions, Context.MetaData, Context.TimeSeconds,
 							Context.VectorResults, Context.ScalarResults, Context.IntegerResults, Context.IndexResults, CullingData->CullingIndices);
 						InputField->Evaluate(LocalContext, Results);
@@ -1167,7 +1167,7 @@ template class CHAOS_API FCullingField<FVector>;
 * FReturnResultsTerminal<T>
 */
 template<class T>
-void FReturnResultsTerminal<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) const
+void FReturnResultsTerminal<T>::Evaluate(FFieldContext& Context, TFieldArrayView<T>& Results) const
 {
 	if (ensureMsgf(Context.MetaData.Contains(FFieldSystemMetaData::EMetaType::ECommandData_Results),
 		TEXT("Return results nodes can only be used upstream from a 'results expector', for example as an input "
