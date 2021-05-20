@@ -9,6 +9,7 @@
 #include "ViewportWorldInteraction.h"
 #include "ViewportInteractionDragOperations.h"
 #include "ViewportInteractionAssetContainer.h"
+#include "UObject/StrongObjectPtr.h"
 
 UUniformScaleGizmoHandleGroup::UUniformScaleGizmoHandleGroup()
 	: Super(),
@@ -20,8 +21,8 @@ UUniformScaleGizmoHandleGroup::UUniformScaleGizmoHandleGroup()
 	}
 
 	// Setup uniform scaling
-	const UViewportInteractionAssetContainer& AssetContainer = UViewportWorldInteraction::LoadAssetContainer(); 
-	UStaticMesh* UniformScaleMesh = AssetContainer.UniformScaleHandleMesh;
+	TStrongObjectPtr<const UViewportInteractionAssetContainer> AssetContainer(UViewportWorldInteraction::LoadAssetContainer()); 
+	UStaticMesh* UniformScaleMesh = AssetContainer->UniformScaleHandleMesh;
 	check( UniformScaleMesh != nullptr );
 
 	UGizmoHandleMeshComponent* UniformScaleHandle = CreateMeshHandle( UniformScaleMesh, FString( "UniformScaleHandle" ) );
