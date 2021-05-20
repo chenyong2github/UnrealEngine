@@ -130,7 +130,7 @@ const FEditorModeID UOptimusToolsSkelMeshEditorMode::Id("OptimusToolsSkelMeshEdi
 
 UOptimusToolsSkelMeshEditorMode::UOptimusToolsSkelMeshEditorMode() 
 {
-	Info = FEditorModeInfo(Id, LOCTEXT("ModelingMode", "Modeling"), FSlateIcon(), true);
+	Info = FEditorModeInfo(Id, LOCTEXT("ModelingMode", "Modeling"), FSlateIcon(), false);
 }
 
 
