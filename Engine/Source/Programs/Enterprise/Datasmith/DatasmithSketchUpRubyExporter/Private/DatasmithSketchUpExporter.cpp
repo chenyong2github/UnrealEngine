@@ -312,45 +312,6 @@ public:
 		return false;
 	}
 
-	bool OnEntityModified(SUEntityRef Entity)
-	{
-		switch (SUEntityGetType(Entity))
-		{
-		case SURefType_Group:
-		case SURefType_ComponentInstance:
-		{
-			OnComponentInstanceChanged(Entity);
-			break;
-		}
-		case SURefType_Face:
-		{
-			int32_t FaceId = 0;
-			if (SUEntityGetID(Entity, &FaceId) == SU_ERROR_NONE)
-			{
-				InvalidateGeometryForFace(DatasmithSketchUp::FEntityIDType(FaceId));
-				// todo: can we change DatasmithMesh in-place?
-				// - In case mesh need to be updated on DatasmithMeshActors:
-				// - and reset on every MeshActor, (or create if was empty? or not - modified, not added, not expected)
-			}
-			else
-			{
-				// todo: unexpected
-			}
-			break;
-		}
-		case SURefType_Material:
-		{
-			Context.Materials.InvalidateMaterial(SUMaterialFromEntity(Entity));
-			break;
-		}
-		default:
-		{
-			// todo: not expected
-		}
-		}
-		return true;
-	}
-
 	bool OnGeometryModified(DatasmithSketchUp::FEntityIDType EntityId)
 	{
 		DatasmithSketchUp::FDefinition* DefinitionPtr = Context.GetDefinition(EntityId);
@@ -449,6 +410,16 @@ public:
 		Context.Materials.CreateMaterial(EntityId);
 		return true;
 	}
+
+	bool OnLayerModified(SUEntityRef Entity)
+	{
+		DatasmithSketchUp::FEntityIDType LayerId = DatasmithSketchUpUtils::GetEntityID(Entity);
+		Context.ComponentInstances.LayerModified(LayerId);
+		Context.EntitiesObjects.LayerModified(LayerId);
+		return true;
+	}
+
+
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -575,26 +546,6 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_component_instance_changed(VALUE se
 	return Qtrue;
 }
 
-VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified(VALUE self, VALUE ruby_entity)
-{
-	// Converting args
-	FDatasmithSketchUpDirectLinkExporter* Ptr;
-	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
-
-	int RubyEntityRubyObjectType = TYPE(ruby_entity);
-
-	SUEntityRef Entity = SU_INVALID;
-
-	if (SUEntityFromRuby(ruby_entity, &Entity) != SU_ERROR_NONE) {
-		rb_raise(rb_eTypeError, "Expected SketchUp Entity or nil");
-	}
-	// Done converting args
-
-	Ptr->OnEntityModified(Entity);
-
-	return Qtrue;
-}
-
 VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby_parent_entity, VALUE ruby_entity)
 {
 	// Converting args
@@ -617,6 +568,27 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby
 
 	return Qtrue;
 }
+
+VALUE DatasmithSketchUpDirectLinkExporter_on_layer_modified(VALUE self, VALUE ruby_entity)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	int RubyEntityRubyObjectType = TYPE(ruby_entity);
+
+	SUEntityRef Entity = SU_INVALID;
+
+	if (SUEntityFromRuby(ruby_entity, &Entity) != SU_ERROR_NONE) {
+		rb_raise(rb_eTypeError, "Expected SketchUp Entity or nil");
+	}
+	// Done converting args
+
+	Ptr->OnLayerModified(Entity);
+
+	return Qtrue;
+}
+
 #endif
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id(VALUE self, VALUE ruby_entity_id)
@@ -769,8 +741,8 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUpRuby()
 
 #ifndef SKP_SDK_2019
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_component_instance_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_component_instance_changed), 1);
-	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified), 1);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_added", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_added), 2);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_layer_modified", ToRuby(DatasmithSketchUpDirectLinkExporter_on_layer_modified), 1);
 #endif
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id), 1);

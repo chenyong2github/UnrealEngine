@@ -343,7 +343,7 @@ const TCHAR* FEntitiesGeometry::GetMeshElementName(int32 MeshIndex)
 	return Meshes[MeshIndex]->DatasmithMesh->GetName();
 }
 
-void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, TSet<int32>& ScannedFaceIDSet, TFunctionRef<void(TSharedPtr<FDatasmithSketchUpMesh> ExtractedMesh)> OnNewExtractedMesh);
+void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, FEntitiesGeometry& Geometry, TFunctionRef<void(TSharedPtr<FDatasmithSketchUpMesh> ExtractedMesh)> OnNewExtractedMesh);
 
 void FEntities::UpdateGeometry(FExportContext& Context)
 {
@@ -356,6 +356,9 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 			Context.DatasmithScene->RemoveMesh(Mesh->DatasmithMesh);
 		}
 
+		Context.EntitiesObjects.UnregisterEntities(*this);
+		EntitiesGeometry->FaceIds.Reset();
+		EntitiesGeometry->Layers.Reset();
 	}
 	else
 	{
@@ -415,14 +418,11 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 		}
 	};
 
-	TSet<int32> FaceIds;
-	ScanSketchUpEntitiesFaces(EntitiesRef, FaceIds, ProcessExtractedMesh);
-
+	ScanSketchUpEntitiesFaces(EntitiesRef, *EntitiesGeometry, ProcessExtractedMesh);
 	EntitiesGeometry->Meshes.SetNum(MeshCount);
 
-	Context.EntitiesObjects.RegisterEntitiesFaces(*this, FaceIds);
+	Context.EntitiesObjects.RegisterEntities(*this);
 }
-
 
 void FEntities::AddMeshesToDatasmithScene(FExportContext& Context)
 {
@@ -483,7 +483,7 @@ TArray<SUComponentInstanceRef> FEntities::GetComponentInstances()
 }
 
 
-void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, TSet<int32>& ScannedFaceIDSet, TFunctionRef<void(TSharedPtr<FDatasmithSketchUpMesh> ExtractedMesh)> OnNewExtractedMesh)
+void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, FEntitiesGeometry& Geometry, TFunctionRef<void(TSharedPtr<FDatasmithSketchUpMesh> ExtractedMesh)> OnNewExtractedMesh)
 {
 	// Get the number of faces in the source SketchUp entities.
 	size_t SFaceCount = 0;
@@ -511,7 +511,7 @@ void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, TSet<int32>& ScannedFa
 		int32 SSourceFaceID = DatasmithSketchUpUtils::GetFaceID(SSourceFaceRef);
 
 		// Do not scan more than once a valid SketckUp face.
-		if (SUIsInvalid(SSourceFaceRef) || ScannedFaceIDSet.Contains(SSourceFaceID))
+		if (SUIsInvalid(SSourceFaceRef) || Geometry.FaceIds.Contains(SSourceFaceID))
 		{
 			continue;
 		}
@@ -523,7 +523,7 @@ void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, TSet<int32>& ScannedFa
 		// The source SketchUp face needs to be scanned once.
 		TArray<SUFaceRef> FacesToScan;
 		FacesToScan.Add(SSourceFaceRef);
-		ScannedFaceIDSet.Add(SSourceFaceID);
+		Geometry.FaceIds.Add(SSourceFaceID);
 
 		// Collect all connected faces
 		while (FacesToScan.Num() > 0)
@@ -534,10 +534,16 @@ void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, TSet<int32>& ScannedFa
 			// SUEntityGetPersistentID(SUFaceToEntity(SScannedFaceRef), &SFacePID);
 			// ADD_TRACE_LINE(TEXT("   Face %lld"), SFacePID);
 
+			// Record every face's layer(even for invisible faces!). When face layer visibility changes 
+			// this geometry needs to be rebuilt
+			SULayerRef LayerRef = SU_INVALID;
+			SUDrawingElementGetLayer(SUFaceToDrawingElement(SScannedFaceRef), &LayerRef);
+			Geometry.Layers.Add(DatasmithSketchUpUtils::GetEntityID(SULayerToEntity(LayerRef)));
+
+
 			// Get whether or not the SketckUp face is visible in the current SketchUp scene.
 			if (DatasmithSketchUpUtils::IsVisible(SScannedFaceRef))
 			{
-				// Tessellate the SketchUp face into a triangle mesh merged into the combined mesh.
 				ExtractedMesh.AddFace(SScannedFaceRef);
 			}
 
@@ -577,9 +583,9 @@ void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, TSet<int32>& ScannedFa
 						int32 SFaceID = DatasmithSketchUpUtils::GetFaceID(SFaceRef);
 
 						// Avoid scanning more than once this SketckUp face.
-						if (!ScannedFaceIDSet.Contains(SFaceID))
+						if (!Geometry.FaceIds.Contains(SFaceID))
 						{
-							ScannedFaceIDSet.Add(SFaceID);
+							Geometry.FaceIds.Add(SFaceID);
 
 							// This SketchUp face is connected and needs to be scanned further.
 							FacesToScan.Add(SFaceRef);
