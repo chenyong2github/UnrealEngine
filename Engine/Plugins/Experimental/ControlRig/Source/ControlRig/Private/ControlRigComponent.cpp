@@ -1278,7 +1278,7 @@ void UControlRigComponent::TransferOutputs()
 						}
 					}
 
-					if (Proxy)
+					if (Proxy && (MappedElement.SceneComponent != nullptr))
 					{
 						ComponentsToTick.AddUnique(Cast<USkeletalMeshComponent>(MappedElement.SceneComponent));
 						if(MappedElement.Space == EControlRigComponentSpace::WorldSpace)
