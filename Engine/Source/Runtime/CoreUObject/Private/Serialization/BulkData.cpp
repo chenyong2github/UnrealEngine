@@ -831,7 +831,7 @@ uint32 FUntypedBulkData::GetBulkDataFlags() const
  *
  * @param BulkDataAlignmentToSet	Bulk data alignment to set
  */
-void FUntypedBulkData::SetBulkDataAlignment( uint32 BulkDataAlignmentToSet )
+void FUntypedBulkData::SetBulkDataAlignment(uint16 BulkDataAlignmentToSet)
 {
 	BulkDataAlignment = BulkDataAlignmentToSet;
 }
@@ -2376,7 +2376,7 @@ void FFloatBulkDataOld::SerializeElement( FArchive& Ar, void* Data, int64 Elemen
 	Ar << FloatData;
 }
 
-void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave, bool bSingleUse, uint32 InAlignment, bool bInline, bool bMapped)
+void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave, bool bSingleUse, uint16 InAlignment, bool bInline, bool bMapped)
 {
 	if (Ar.IsLoading())
 	{

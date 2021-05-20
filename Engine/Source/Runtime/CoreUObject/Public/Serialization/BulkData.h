@@ -491,7 +491,7 @@ public:
 	 *
 	 * @param BulkDataAlignmentToSet	Bulk data alignment to set
 	 */
-	void SetBulkDataAlignment( uint32 BulkDataAlignmentToSet );
+	void SetBulkDataAlignment(uint16 BulkDataAlignmentToSet);
 
 	/**
 	* Gets the current bulk data alignment.
@@ -1089,6 +1089,6 @@ public:
 		}
 		Formats.Empty();
 	}
-	COREUOBJECT_API void Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave = nullptr, bool bSingleUse = true, uint32 InAlignment = DEFAULT_ALIGNMENT, bool bInline = true, bool bMapped = false);
+	COREUOBJECT_API void Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave = nullptr, bool bSingleUse = true, uint16 InAlignment = DEFAULT_ALIGNMENT, bool bInline = true, bool bMapped = false);
 	COREUOBJECT_API void SerializeAttemptMappedLoad(FArchive& Ar, UObject* Owner);
 };
