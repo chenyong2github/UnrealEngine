@@ -147,6 +147,11 @@ FSwitchboardCommandLineOptions FSwitchboardCommandLineOptions::FromString(const 
 		OutOptions.OutputVersion = true;
 	}
 
+	if (Switches.Contains(TEXT("noMinimizeOnLaunch")))
+	{
+		OutOptions.MinimizeOnLaunch = false;
+	}
+
 	if (SwitchPairs.Contains(TEXT("ip")))
 	{
 		FIPv4Address ParseAddr;
@@ -172,6 +177,11 @@ FSwitchboardCommandLineOptions FSwitchboardCommandLineOptions::FromString(const 
 FString FSwitchboardCommandLineOptions::ToString(bool bIncludeRedeploy /* = false */) const
 {
 	TArray<FString> Args;
+
+	if (!MinimizeOnLaunch)
+	{
+		Args.Add(TEXT("-noMinimizeOnLaunch"));
+	}
 
 	if (Address.IsSet())
 	{
