@@ -308,33 +308,43 @@ public:
 		FString Name;
 		uint64 Count = 0;
 		double TotalSeconds = 0.0;
+
 		double FirstStartSeconds = 0.0;
 		double FirstEndSeconds = 0.0;
-		double FirstSeconds = 0.0;
-		double MinSeconds = 1e10;
-		double MaxSeconds = -1e10;
-		double MeanSeconds = 0.0;
+		double FirstDurationSeconds = 0.0;
+
+		double LastStartSeconds = 0.0;
+		double LastEndSeconds = 0.0;
+		double LastDurationSeconds = 0.0;
+
+		double MinDurationSeconds = 1e10;
+		double MaxDurationSeconds = -1e10;
+		double MeanDurationSeconds = 0.0;
 		double VarianceAcc = 0.0; // Accumulator for Welford's
 
 		void AddDuration(double StartSeconds, double EndSeconds)
 		{
 			Count += 1;
 
+			// compute the duration
+			double DurationSeconds = EndSeconds - StartSeconds;
+
 			// only set first for the first sample, compare exact zero
 			if (FirstStartSeconds == 0.0)
 			{
 				FirstStartSeconds = StartSeconds;
 				FirstEndSeconds = EndSeconds;
-				FirstSeconds = FirstEndSeconds - FirstStartSeconds;
+				FirstDurationSeconds = DurationSeconds;
 			}
 
-			// compute the duration
-			double DurationSeconds = EndSeconds - StartSeconds;
+			LastStartSeconds = StartSeconds;
+			LastEndSeconds = EndSeconds;
+			LastDurationSeconds = DurationSeconds;
 
 			// set duration statistics
 			TotalSeconds += DurationSeconds;
-			MinSeconds = FMath::Min(MinSeconds, DurationSeconds);
-			MaxSeconds = FMath::Max(MaxSeconds, DurationSeconds);
+			MinDurationSeconds = FMath::Min(MinDurationSeconds, DurationSeconds);
+			MaxDurationSeconds = FMath::Max(MaxDurationSeconds, DurationSeconds);
 			UpdateVariance(DurationSeconds);
 		}
 
@@ -343,12 +353,12 @@ public:
 			ensure(Count);
 
 			// Welford's increment
-			double OldMeanSeconds = MeanSeconds;
-			MeanSeconds = MeanSeconds + ((DurationSeconds - MeanSeconds) / double(Count));
-			VarianceAcc = VarianceAcc + ((DurationSeconds - MeanSeconds) * (DurationSeconds - OldMeanSeconds));
+			double OldMeanDurationSeconds = MeanDurationSeconds;
+			MeanDurationSeconds = MeanDurationSeconds + ((DurationSeconds - MeanDurationSeconds) / double(Count));
+			VarianceAcc = VarianceAcc + ((DurationSeconds - MeanDurationSeconds) * (DurationSeconds - OldMeanDurationSeconds));
 		}
 
-		double GetDeviationSeconds() const
+		double GetDeviationDurationSeconds() const
 		{
 			if (Count > 1)
 			{
@@ -368,8 +378,8 @@ public:
 		{
 			check(Name == Scope.Name);
 			TotalSeconds += Scope.TotalSeconds;
-			MinSeconds = FMath::Min(MinSeconds, Scope.MinSeconds);
-			MaxSeconds = FMath::Max(MaxSeconds, Scope.MaxSeconds);
+			MinDurationSeconds = FMath::Min(MinDurationSeconds, Scope.MinDurationSeconds);
+			MaxDurationSeconds = FMath::Max(MaxDurationSeconds, Scope.MaxDurationSeconds);
 			Count += Scope.Count;
 		}
 
@@ -395,25 +405,37 @@ public:
 			{
 				return FString::Printf(TEXT("%f"), FirstEndSeconds);
 			}
-			else if (Statistic == TEXT("FirstSeconds"))
+			else if (Statistic == TEXT("FirstDurationSeconds"))
 			{
-				return FString::Printf(TEXT("%f"), FirstSeconds);
+				return FString::Printf(TEXT("%f"), FirstDurationSeconds);
 			}
-			else if (Statistic == TEXT("MinSeconds"))
+			else if (Statistic == TEXT("LastStartSeconds"))
 			{
-				return FString::Printf(TEXT("%f"), MinSeconds);
+				return FString::Printf(TEXT("%f"), LastStartSeconds);
 			}
-			else if (Statistic == TEXT("MaxSeconds"))
+			else if (Statistic == TEXT("LastEndSeconds"))
 			{
-				return FString::Printf(TEXT("%f"), MaxSeconds);
+				return FString::Printf(TEXT("%f"), LastEndSeconds);
 			}
-			else if (Statistic == TEXT("MeanSeconds"))
+			else if (Statistic == TEXT("LastDurationSeconds"))
 			{
-				return FString::Printf(TEXT("%f"), MeanSeconds);
+				return FString::Printf(TEXT("%f"), LastDurationSeconds);
 			}
-			else if (Statistic == TEXT("DeviationSeconds"))
+			else if (Statistic == TEXT("MinDurationSeconds"))
 			{
-				return FString::Printf(TEXT("%f"), GetDeviationSeconds());
+				return FString::Printf(TEXT("%f"), MinDurationSeconds);
+			}
+			else if (Statistic == TEXT("MaxDurationSeconds"))
+			{
+				return FString::Printf(TEXT("%f"), MaxDurationSeconds);
+			}
+			else if (Statistic == TEXT("MeanDurationSeconds"))
+			{
+				return FString::Printf(TEXT("%f"), MeanDurationSeconds);
+			}
+			else if (Statistic == TEXT("DeviationDurationSeconds"))
+			{
+				return FString::Printf(TEXT("%f"), GetDeviationDurationSeconds());
 			}
 			return FString();
 		}
@@ -582,6 +604,282 @@ void FSummarizeCountersAnalyzer::OnCounterFloatValue(const FCounterFloatValue& N
 	}
 }
 
+/*
+* Helper class for the stats csv file
+*/
+
+struct StatisticDefinition
+{
+	StatisticDefinition()
+	{}
+
+	StatisticDefinition(const FString& InName, const FString& InStatistic, const FString& InWarningThreshold, const FString& InErrorThreshold)
+		: Name(InName)
+		, Statistic(InStatistic)
+		, WarningThreshold(InWarningThreshold)
+		, ErrorThreshold(InErrorThreshold)
+	{}
+
+	StatisticDefinition(const StatisticDefinition& InStatistic)
+		: Name(InStatistic.Name)
+		, Statistic(InStatistic.Statistic)
+		, WarningThreshold(InStatistic.WarningThreshold)
+		, ErrorThreshold(InStatistic.ErrorThreshold)
+	{}
+
+	bool operator==(const StatisticDefinition& InStatistic) const
+	{
+		return Name == InStatistic.Name
+			&& Statistic == InStatistic.Statistic
+			&& WarningThreshold == InStatistic.WarningThreshold
+			&& ErrorThreshold == InStatistic.ErrorThreshold;
+	}
+
+	static bool LoadFromCSV(const FString& FilePath, TMultiMap<FString, StatisticDefinition>& NameToDefinitionMap);
+
+	FString Name;
+	FString Statistic;
+	FString WarningThreshold;
+	FString ErrorThreshold;
+};
+
+bool StatisticDefinition::LoadFromCSV(const FString& FilePath, TMultiMap<FString, StatisticDefinition>& NameToDefinitionMap)
+{
+	TArray<FString> ParsedCSVFile;
+	FFileHelper::LoadFileToStringArray(ParsedCSVFile, *FilePath);
+
+	int NameColumn = -1;
+	int StatisticColumn = -1;
+	int WarningThresholdColumn = -1;
+	int ErrorThresholdColumn = -1;
+	struct Column
+	{
+		const TCHAR* Name = nullptr;
+		int* Index = nullptr;
+	}
+	Columns[] =
+	{
+		{ TEXT("Name"), &NameColumn },
+		{ TEXT("Statistic"), &StatisticColumn },
+		{ TEXT("WarningThreshold"), &WarningThresholdColumn },
+		{ TEXT("ErrorThreshold"), &ErrorThresholdColumn },
+	};
+
+	bool bValidColumns = true;
+	for (int CSVIndex = 0; CSVIndex < ParsedCSVFile.Num() && bValidColumns; ++CSVIndex)
+	{
+		const FString& CSVEntry = ParsedCSVFile[CSVIndex];
+		TArray<FString> Fields;
+		UE::String::ParseTokens(CSVEntry.TrimStartAndEnd(), TEXT(','),
+			[&Fields](FStringView Field)
+			{
+				Fields.Add(FString(Field));
+			});
+
+		if (CSVIndex == 0) // is this the header row?
+		{
+			for (struct Column& Column : Columns)
+			{
+				for (int FieldIndex = 0; FieldIndex < Fields.Num(); ++FieldIndex)
+				{
+					if (Fields[FieldIndex] == Column.Name)
+					{
+						(*Column.Index) = FieldIndex;
+						break;
+					}
+				}
+
+				if (*Column.Index == -1)
+				{
+					bValidColumns = false;
+				}
+			}
+		}
+		else // else it is a data row, pull each element from appropriate column
+		{
+			const FString& Name(Fields[NameColumn]);
+			const FString& Statistic(Fields[StatisticColumn]);
+			const FString& WarningThreshold(Fields[WarningThresholdColumn]);
+			const FString& ErrorThreshold(Fields[ErrorThresholdColumn]);
+			NameToDefinitionMap.AddUnique(Name, StatisticDefinition(Name, Statistic, WarningThreshold, ErrorThreshold));
+		}
+	}
+
+	return bValidColumns;
+}
+
+/*
+* Helper class for the telemetry csv file
+*/
+
+struct TelemetryDefinition
+{
+	TelemetryDefinition()
+	{}
+
+	TelemetryDefinition(const FString& InTestName, const FString& InContext, const FString& InDataPoint, const FString& InMeasurement)
+		: TestName(InTestName)
+		, Context(InContext)
+		, DataPoint(InDataPoint)
+		, Measurement(InMeasurement)
+	{}
+
+	TelemetryDefinition(const TelemetryDefinition& InStatistic)
+		: TestName(InStatistic.TestName)
+		, Context(InStatistic.Context)
+		, DataPoint(InStatistic.DataPoint)
+		, Measurement(InStatistic.Measurement)
+	{}
+
+	bool operator==(const TelemetryDefinition& InStatistic) const
+	{
+		return TestName == InStatistic.TestName
+			&& Context == InStatistic.Context
+			&& DataPoint == InStatistic.DataPoint
+			&& Measurement == InStatistic.Measurement;
+	}
+
+	static bool LoadFromCSV(const FString& FilePath, TMap<TPair<FString,FString>, TelemetryDefinition>& ContextAndDataPointToDefinitionMap);
+	static bool MeasurementWithinThreshold(const FString& Value, const FString& BaselineValue, const FString& Threshold);
+
+	FString TestName;
+	FString Context;
+	FString DataPoint;
+	FString Measurement;
+};
+
+bool TelemetryDefinition::LoadFromCSV(const FString& FilePath, TMap<TPair<FString, FString>, TelemetryDefinition>& ContextAndDataPointToDefinitionMap)
+{
+	TArray<FString> ParsedCSVFile;
+	FFileHelper::LoadFileToStringArray(ParsedCSVFile, *FilePath);
+
+	int TestNameColumn = -1;
+	int ContextColumn = -1;
+	int DataPointColumn = -1;
+	int MeasurementColumn = -1;
+	struct Column
+	{
+		const TCHAR* Name = nullptr;
+		int* Index = nullptr;
+	}
+	Columns[] =
+	{
+		{ TEXT("TestName"), &TestNameColumn },
+		{ TEXT("Context"), &ContextColumn },
+		{ TEXT("DataPoint"), &DataPointColumn },
+		{ TEXT("Measurement"), &MeasurementColumn },
+	};
+
+	bool bValidColumns = true;
+	for (int CSVIndex = 0; CSVIndex < ParsedCSVFile.Num() && bValidColumns; ++CSVIndex)
+	{
+		const FString& CSVEntry = ParsedCSVFile[CSVIndex];
+		TArray<FString> Fields;
+		UE::String::ParseTokens(CSVEntry.TrimStartAndEnd(), TEXT(','),
+			[&Fields](FStringView Field)
+			{
+				Fields.Add(FString(Field));
+			});
+
+		if (CSVIndex == 0) // is this the header row?
+		{
+			for (struct Column& Column : Columns)
+			{
+				for (int FieldIndex = 0; FieldIndex < Fields.Num(); ++FieldIndex)
+				{
+					if (Fields[FieldIndex] == Column.Name)
+					{
+						(*Column.Index) = FieldIndex;
+						break;
+					}
+				}
+
+				if (*Column.Index == -1)
+				{
+					bValidColumns = false;
+				}
+			}
+		}
+		else // else it is a data row, pull each element from appropriate column
+		{
+			const FString& TestName(Fields[TestNameColumn]);
+			const FString& Context(Fields[ContextColumn]);
+			const FString& DataPoint(Fields[DataPointColumn]);
+			const FString& Measurement(Fields[MeasurementColumn]);
+			ContextAndDataPointToDefinitionMap.Add(TPair<FString, FString>(Context, DataPoint), TelemetryDefinition(TestName, Context, DataPoint, Measurement));
+		}
+	}
+
+	return bValidColumns;
+}
+
+bool TelemetryDefinition::MeasurementWithinThreshold(const FString& MeasurementValue, const FString& BaselineValue, const FString& Threshold)
+{
+	if (Threshold.IsEmpty())
+	{
+		return true;
+	}
+
+	// detect threshold as delta percentage
+	int32 PercentIndex = INDEX_NONE;
+	if (Threshold.FindChar(TEXT('%'), PercentIndex))
+	{
+		FString ThresholdWithoutPercentSign = Threshold;
+		ThresholdWithoutPercentSign.RemoveAt(PercentIndex);
+
+		double Factor = 1.0 + (FCString::Atod(*ThresholdWithoutPercentSign) / 100.0);
+		double RationalValue = FCString::Atod(*MeasurementValue);
+		double RationalBaselineValue = FCString::Atod(*BaselineValue);
+		if (Factor >= 1.0)
+		{
+			return RationalValue < (RationalBaselineValue * Factor);
+		}
+		else
+		{
+			return RationalValue > (RationalBaselineValue * Factor);
+		}
+	}
+	else // threshold as delta cardinal value
+	{
+		// rational number, use float math
+		if (Threshold.Contains(TEXT(".")))
+		{
+			double Delta = FCString::Atod(*Threshold);
+			double RationalValue = FCString::Atod(*MeasurementValue);
+			double RationalBaselineValue = FCString::Atod(*BaselineValue);
+			if (Delta > 0.0)
+			{
+				return RationalValue <= (RationalBaselineValue + Delta);
+			}
+			else if (Delta < 0.0)
+			{
+				return RationalValue >= (RationalBaselineValue + Delta);
+			}
+			else
+			{
+				return fabs(RationalBaselineValue - RationalValue) < FLT_EPSILON;
+			}
+		}
+		else // natural number, use int math
+		{
+			int64 Delta = FCString::Strtoi64(*Threshold, nullptr, 10);
+			int64 NaturalValue = FCString::Strtoi64(*MeasurementValue, nullptr, 10);
+			int64 NaturalBaselineValue = FCString::Strtoi64(*BaselineValue, nullptr, 10);
+			if (Delta > 0)
+			{
+				return NaturalValue <= (NaturalBaselineValue + Delta);
+			}
+			else if (Delta < 0)
+			{
+				return NaturalValue >= (NaturalBaselineValue + Delta);
+			}
+			else
+			{
+				return NaturalValue == NaturalBaselineValue;
+			}
+		}
+	}
+}
 
 /*
  * SummarizeTrace commandlet ingests a utrace file and summarizes the
@@ -595,13 +893,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogSummarizeTrace, Log, All);
 USummarizeTraceCommandlet::USummarizeTraceCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-}
-
-// helper for USummarizeTraceCommandlet::Main
-static void FilePrint(IFileHandle* Handle, const FString& String)
-{
-	const auto& UTF8String = StringCast<ANSICHAR>(*String);
-	Handle->Write(reinterpret_cast<const uint8*>(UTF8String.Get()), UTF8String.Length());
 }
 
 int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
@@ -620,6 +911,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		UE_LOG(LogSummarizeTrace, Log, TEXT(" Required: -inputfile=<utrace path>   (The utrace you wish to process)"));
 		UE_LOG(LogSummarizeTrace, Log, TEXT(" Optional: -statsfile=<csv path>      (The csv of statistics to generate)"));
 		UE_LOG(LogSummarizeTrace, Log, TEXT(" Optional: -testname=<string>         (Test name to use in telemetry csv)"));
+		UE_LOG(LogSummarizeTrace, Log, TEXT(" Optional: -skipbaseline              (Skip comparing values vs. baselines)"));
 		return 0;
 	}
 
@@ -637,65 +929,12 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	// load the stats file to know which event name and statistic name to generate in the telementry csv
 	// the telemetry csv is ingested completely, so this just whitelists specific data elements we want to track
 	FString StatisticsFileName;
-	TMultiMap<FString, FString> NameToStatisticMap;
+	TMultiMap<FString, StatisticDefinition> NameToDefinitionMap;
 	if (FParse::Value(*CmdLineParams, TEXT("statsfile="), StatisticsFileName, true))
 	{
-		UE_LOG(LogSummarizeTrace, Display, TEXT("Generating statistics from %s"), *StatisticsFileName);
-
-		TArray<FString> ParsedCSVFile;
-		FFileHelper::LoadFileToStringArray(ParsedCSVFile, *StatisticsFileName);
-
-		int NameColumn = -1;
-		int StatisticColumn = -1;
-		struct Column
-		{
-			const TCHAR* Name = nullptr;
-			int* Index = nullptr;
-		}
-		Columns[] =
-		{
-			{ TEXT("Name"), &NameColumn },
-			{ TEXT("Statistic"), &StatisticColumn },
-		};
-
-		bool bValidColumns = true;
-		for (int CSVIndex = 0; CSVIndex < ParsedCSVFile.Num() && bValidColumns; ++CSVIndex)
-		{
-			const FString& CSVEntry = ParsedCSVFile[CSVIndex];
-			TArray<FString> Fields;
-			UE::String::ParseTokens(CSVEntry.TrimStartAndEnd(), TEXT(','),
-				[&Fields](FStringView Field)
-				{
-					if (!Field.IsEmpty())
-					{
-						Fields.Add(FString(Field));
-					}
-				});
-
-			for (struct Column& Column : Columns)
-			{
-				if (CSVIndex == 0) // is this the header row?
-				{
-					for (int FieldIndex = 0; FieldIndex < Fields.Num(); ++FieldIndex)
-					{
-						if (Fields[FieldIndex] == Column.Name)
-						{
-							(*Column.Index) = FieldIndex;
-							break;
-						}
-					}
-
-					if (*Column.Index == -1)
-					{
-						bValidColumns = false;
-					}
-				}
-				else // else it is a data row, pull each element from appropriate column
-				{
-					NameToStatisticMap.AddUnique(FString(Fields[NameColumn]), FString(Fields[StatisticColumn]));
-				}
-			}
-		}
+		UE_LOG(LogSummarizeTrace, Display, TEXT("Loading statistics from %s"), *StatisticsFileName);
+		bool bCSVOk = StatisticDefinition::LoadFromCSV(StatisticsFileName, NameToDefinitionMap);
+		check(bCSVOk);
 	}
 
 	bool bFound;
@@ -736,17 +975,17 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	}
 
 	// setup analysis context with analyzers
-	UE::Trace::FAnalysisContext Context;
+	UE::Trace::FAnalysisContext AnalysisContext;
 	FSummarizeCpuAnalyzer CpuAnalyzer;
-	Context.AddAnalyzer(CpuAnalyzer);
+	AnalysisContext.AddAnalyzer(CpuAnalyzer);
 	FSummarizeCountersAnalyzer CountersAnalyzer;
-	Context.AddAnalyzer(CountersAnalyzer);
+	AnalysisContext.AddAnalyzer(CountersAnalyzer);
 
 	// kick processing on a thread
-	UE::Trace::FAnalysisProcessor Processor = Context.Process(DataStream);
+	UE::Trace::FAnalysisProcessor AnalysisProcessor = AnalysisContext.Process(DataStream);
 
 	// sync on completion
-	Processor.Wait();
+	AnalysisProcessor.Wait();
 
 	TSet<FSummarizeCpuAnalyzer::FScope> DeduplicatedScopes;
 
@@ -827,6 +1066,13 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	}
 	SortedScopes.Sort();
 
+	// csv is UTF-8, so encode every string we print
+	auto WriteUTF8 = [](IFileHandle* Handle, const FString& String)
+	{
+		const auto& UTF8String = StringCast<ANSICHAR>(*String);
+		Handle->Write(reinterpret_cast<const uint8*>(UTF8String.Get()), UTF8String.Length());
+	};
+
 	// generate a summary csv, always
 	FString CsvFileName = FPaths::SetExtension(TraceFileName, "csv");
 	UE_LOG(LogSummarizeTrace, Display, TEXT("Writing summary to %s..."), *CsvFileName);
@@ -834,16 +1080,16 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	if (CsvHandle)
 	{
 		// no newline, see row printfs
-		FilePrint(CsvHandle, FString::Printf(TEXT("Name,Count,TotalSeconds,FirstStartSeconds,FirstEndSeconds,FirstSeconds,MinSeconds,MaxSeconds,MeanSeconds,DeviationSeconds")));
+		WriteUTF8(CsvHandle, FString::Printf(TEXT("Name,Count,TotalSeconds,FirstStartSeconds,FirstEndSeconds,FirstDurationSeconds,LastStartSeconds,LastEndSeconds,LastDurationSeconds,MinDurationSeconds,MaxDurationSeconds,MeanDurationSeconds,DeviationDurationSeconds,")));
 		for (const FSummarizeCpuAnalyzer::FScope& Scope : SortedScopes)
 		{
 			// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
-			FilePrint(CsvHandle, FString::Printf(TEXT("\n%s,%llu,%f,%f,%f,%f,%f,%f,%f,%f,"), *Scope.Name, Scope.Count, Scope.TotalSeconds, Scope.FirstStartSeconds, Scope.FirstEndSeconds, Scope.FirstSeconds, Scope.MinSeconds, Scope.MaxSeconds, Scope.MeanSeconds, Scope.GetDeviationSeconds()));
+			WriteUTF8(CsvHandle, FString::Printf(TEXT("\n%s,%llu,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,"), *Scope.Name, Scope.Count, Scope.TotalSeconds, Scope.FirstStartSeconds, Scope.FirstEndSeconds, Scope.FirstDurationSeconds, Scope.FirstStartSeconds, Scope.FirstEndSeconds, Scope.FirstDurationSeconds, Scope.MinDurationSeconds, Scope.MaxDurationSeconds, Scope.MeanDurationSeconds, Scope.GetDeviationDurationSeconds()));
 		}
 		for (const TMap<uint16, FSummarizeCountersAnalyzer::FCounter>::ElementType& Counter : CountersAnalyzer.Counters)
 		{
 			// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
-			FilePrint(CsvHandle, FString::Printf(TEXT("\n%s,%s,,,,,,,,,"), *Counter.Value.Name, *Counter.Value.GetValue()));
+			WriteUTF8(CsvHandle, FString::Printf(TEXT("\n%s,%s,,,,,,,,,,,,"), *Counter.Value.Name, *Counter.Value.GetValue()));
 		}
 		CsvHandle->Flush();
 		delete CsvHandle;
@@ -856,42 +1102,53 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	}
 
 	// if we were asked to generate a telememtry file, generate it
-	if (!NameToStatisticMap.IsEmpty())
+	if (!NameToDefinitionMap.IsEmpty())
 	{
 		FString TracePath = FPaths::GetPath(TraceFileName);
 		FString TraceFileBasename = FPaths::GetBaseFilename(TraceFileName);
 		FString TelemetryCsvFileName = TraceFileBasename + TEXT("Telemetry");
 		TelemetryCsvFileName = FPaths::Combine(TracePath, FPaths::SetExtension(TelemetryCsvFileName, "csv"));
+
 		UE_LOG(LogSummarizeTrace, Display, TEXT("Writing telemetry to %s..."), *TelemetryCsvFileName);
 		IFileHandle* TelemetryCsvHandle = FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*TelemetryCsvFileName);
+		TArray<TelemetryDefinition> TelemetryWritten;
 		if (TelemetryCsvHandle)
 		{
 			// override the test name
 			FString TestName = TraceFileBasename;
 			FParse::Value(*CmdLineParams, TEXT("testname="), TestName, true);
 
-			// no newline, see row printfs
-			FilePrint(TelemetryCsvHandle, FString::Printf(TEXT("TestName,Context,DataPoint,Measurement")));
+			// resolve scopes to telemetry
 			for (const FSummarizeCpuAnalyzer::FScope& Scope : SortedScopes)
 			{
-				TArray<FString> Statistics;
-				NameToStatisticMap.MultiFind(Scope.Name, Statistics, true);
-				for (const FString& Statistic : Statistics)
+				TArray<StatisticDefinition> Statistics;
+				NameToDefinitionMap.MultiFind(Scope.Name, Statistics, true);
+				for (const StatisticDefinition& Statistic : Statistics)
 				{
-					// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
-					FilePrint(TelemetryCsvHandle, FString::Printf(TEXT("\n%s,%s,%s,%s,"), *TestName, *Scope.Name, *Statistic, *Scope.GetValue(Statistic)));
+					TelemetryWritten.Add(TelemetryDefinition(TestName, Scope.Name, Statistic.Statistic, Scope.GetValue(Statistic.Statistic)));
 				}
 			}
+
+			// resolve counters to telemetry
 			for (const TMap<uint16, FSummarizeCountersAnalyzer::FCounter>::ElementType& Counter : CountersAnalyzer.Counters)
 			{
-				TArray<FString> Statistics;
-				NameToStatisticMap.MultiFind(Counter.Value.Name, Statistics, true);
-				for (const FString& Statistic : Statistics)
+				TArray<StatisticDefinition> Statistics;
+				NameToDefinitionMap.MultiFind(Counter.Value.Name, Statistics, true);
+				ensure(Statistics.Num() <= 1); // there should only be one, the counter value
+				for (const StatisticDefinition& Statistic : Statistics)
 				{
-					// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
-					FilePrint(TelemetryCsvHandle, FString::Printf(TEXT("\n%s,%s,%s,%s,"), *TestName, *Counter.Value.Name, *Statistic, *Counter.Value.GetValue()));
+					TelemetryWritten.Add(TelemetryDefinition(TestName, Counter.Value.Name, Statistic.Statistic, Counter.Value.GetValue()));
 				}
 			}
+
+			// no newline, see row printfs
+			WriteUTF8(TelemetryCsvHandle, FString::Printf(TEXT("TestName,Context,DataPoint,Measurement,")));
+			for (const TelemetryDefinition& Telemetry : TelemetryWritten)
+			{
+				// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
+				WriteUTF8(TelemetryCsvHandle, FString::Printf(TEXT("\n%s,%s,%s,%s,"), *Telemetry.TestName, *Telemetry.Context, *Telemetry.DataPoint, *Telemetry.Measurement));
+			}
+
 			TelemetryCsvHandle->Flush();
 			delete TelemetryCsvHandle;
 			TelemetryCsvHandle = nullptr;
@@ -900,6 +1157,80 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		{
 			UE_LOG(LogSummarizeTrace, Error, TEXT("Unable to open telemetry csv '%s' for write"), *TelemetryCsvFileName);
 			return 1;
+		}
+
+		// compare vs. baseline telemetry file, if it exists
+		// note this does assume that the tracefile basename is directly comparable to a file in the baseline folder
+		FString BaselineTelemetryCsvFilePath = FPaths::Combine(FPaths::EngineDir(), TEXT("Build"), TEXT("Baseline"), FPaths::SetExtension(TraceFileBasename + TEXT("Telemetry"), "csv"));
+		if (FParse::Param(*CmdLineParams, TEXT("skipbaseline")))
+		{
+			BaselineTelemetryCsvFilePath.Empty();
+		}
+		if (FPaths::FileExists(BaselineTelemetryCsvFilePath))
+		{
+			UE_LOG(LogSummarizeTrace, Display, TEXT("Comparing telemetry to baseline telemetry %s..."), *TelemetryCsvFileName);
+
+			// each context (scope name or coutner name) and data point (statistic name) pair form a key, an item to check
+			TMap<TPair<FString, FString>, TelemetryDefinition> ContextAndDataPointToDefinitionMap;
+			bool bCSVOk = TelemetryDefinition::LoadFromCSV(*BaselineTelemetryCsvFilePath, ContextAndDataPointToDefinitionMap);
+			check(bCSVOk);
+
+			// for every telemetry item we wrote for this trace...
+			for (const TelemetryDefinition& Telemetry : TelemetryWritten)
+			{
+				// find the corresponding keyed telemetry item in the baseline telemetry file...
+				TelemetryDefinition* BaselineTelemetry = ContextAndDataPointToDefinitionMap.Find(TPair<FString, FString>(Telemetry.Context, Telemetry.DataPoint));
+				if (BaselineTelemetry)
+				{
+					// the threshold is defined along with the original statistic map
+					const StatisticDefinition* RelatedStatistic = nullptr;
+
+					// find the statistic definition
+					TArray<StatisticDefinition> Statistics;
+					NameToDefinitionMap.MultiFind(Telemetry.Context, Statistics, true);
+					for (const StatisticDefinition& Statistic : Statistics)
+					{
+						// the find will match on name, here we just need to find the right statistic for that named item
+						if (Statistic.Statistic == Telemetry.DataPoint)
+						{
+							// we found it!
+							RelatedStatistic = &Statistic;
+							break;
+						}
+					}
+
+					// do we still have the statistic definition in our current stats file? (if we don't that's fine, we don't care about it anymore)
+					if (RelatedStatistic)
+					{
+						// verify that this telemetry measurement is within the allowed threshold as defined in the current stats file
+						if (TelemetryDefinition::MeasurementWithinThreshold(Telemetry.Measurement, BaselineTelemetry->Measurement, RelatedStatistic->WarningThreshold))
+						{
+							UE_LOG(LogSummarizeTrace, Display, TEXT("Telemetry %s,%s,%s,%s within baseline value %s using warning threshold %s"),
+								*Telemetry.TestName, *Telemetry.Context, *Telemetry.DataPoint, *Telemetry.Measurement,
+								*BaselineTelemetry->Measurement, *RelatedStatistic->WarningThreshold);
+						}
+						else
+						{
+							if (TelemetryDefinition::MeasurementWithinThreshold(Telemetry.Measurement, BaselineTelemetry->Measurement, RelatedStatistic->ErrorThreshold))
+							{
+								UE_LOG(LogSummarizeTrace, Warning, TEXT("Telemetry %s,%s,%s,%s beyond baseline value %s using warning threshold %s"),
+									*Telemetry.TestName, *Telemetry.Context, *Telemetry.DataPoint, *Telemetry.Measurement,
+									*BaselineTelemetry->Measurement, *RelatedStatistic->WarningThreshold);
+							}
+							else
+							{
+								UE_LOG(LogSummarizeTrace, Error, TEXT("Telemetry %s,%s,%s,%s beyond baseline value %s using error threshold %s"),
+									*Telemetry.TestName, *Telemetry.Context, *Telemetry.DataPoint, *Telemetry.Measurement,
+									*BaselineTelemetry->Measurement, *RelatedStatistic->ErrorThreshold);
+							}
+						}
+					}
+				}
+				else
+				{
+					UE_LOG(LogSummarizeTrace, Display, TEXT("Telemetry for %s,%s has no baseline measurement, skipping..."), *Telemetry.Context, *Telemetry.DataPoint);
+				}
+			}
 		}
 	}
 
