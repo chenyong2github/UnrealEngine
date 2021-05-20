@@ -2774,6 +2774,11 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 		{
 			continue;
 		}
+		if (Source->NodeGraph == nullptr)
+		{
+			ensureMsgf(false, TEXT("Encountered null nodegraph on source script: %s (outer: %s)"), *Source->GetName(), *Source->GetOuter()->GetName());
+			continue;
+		}
 		TArray<UNiagaraNode*> NiagaraNodes;
 		Source->NodeGraph->GetNodesOfClass<UNiagaraNode>(NiagaraNodes);
 		bool bRefreshed = false;
