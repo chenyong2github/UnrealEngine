@@ -96,6 +96,9 @@ public:
 	CORE_API void IterateRange(uint64 Offset, uint64 Size,
 		TFunctionRef<void (FMemoryView View, const FSharedBuffer& ViewOuter)> Visitor) const;
 
+	/** A null composite buffer. */
+	static const FCompositeBuffer Null;
+
 private:
 	static inline int32 GetBufferCount(const FCompositeBuffer& Buffer) { return Buffer.Segments.Num(); }
 	inline void AppendBuffers(const FCompositeBuffer& Buffer) { Segments.Append(Buffer.Segments); }
@@ -113,3 +116,5 @@ private:
 private:
 	TArray<FSharedBuffer, TInlineAllocator<1>> Segments;
 };
+
+inline const FCompositeBuffer FCompositeBuffer::Null;
