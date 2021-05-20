@@ -36,6 +36,9 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Nanite"), STAT_NaniteLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Nanite"), STAT_NaniteSummaryLLM, STATGROUP_LLM);
 LLM_DEFINE_TAG(Nanite, NAME_None, NAME_None, GET_STATFNAME(STAT_NaniteLLM), GET_STATFNAME(STAT_NaniteSummaryLLM));
 
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Total Instances"), STAT_NaniteInstanceCount, STATGROUP_Nanite);
+DECLARE_MEMORY_STAT(TEXT("Nanite Proxy Instance Memory"), STAT_ProxyInstanceMemory, STATGROUP_Nanite);
+
 #define MAX_CLUSTERS	(16 * 1024 * 1024)
 #define MAX_NODES		 (2 * 1024 * 1024)
 
@@ -516,6 +519,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	}
 #endif
 
+	Instances.Reserve(1);
 	Instances.SetNumZeroed(1);
 	FPrimitiveInstance& Instance = Instances[0];
 	Instance.PrimitiveId = ~uint32(0);
@@ -533,6 +537,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
+	Instances.Reserve(Component->GetInstanceCount());
 	Instances.SetNumZeroed(Component->GetInstanceCount());
 	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 	{
@@ -588,6 +593,9 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		}
 	});
 
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, Instances.GetAllocatedSize());
+	INC_DWORD_STAT_BY(STAT_NaniteInstanceCount, Instances.Num());
+
 #if RHI_RAYTRACING
 	if (Instances.Num() == 0)
 	{
@@ -599,6 +607,12 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 FSceneProxy::FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component)
 : FSceneProxy(static_cast<UInstancedStaticMeshComponent*>(Component))
 {
+}
+
+FSceneProxy::~FSceneProxy()
+{
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, Instances.GetAllocatedSize());
+	DEC_DWORD_STAT_BY(STAT_NaniteInstanceCount, Instances.Num());
 }
 
 void FSceneProxy::CreateRenderThreadResources()
