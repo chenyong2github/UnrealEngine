@@ -2446,7 +2446,9 @@ TArrayView<const uint8> USoundWave::GetZerothChunk(bool bForImmediatePlayback)
 			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InternalProxy, 1, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bForImmediatePlayback);
 		}
 
-		return ZerothChunkData->GetView();
+		FBulkDataBuffer<uint8>::ViewType View = ZerothChunkData->GetView();
+		check(View.Num() <= MAX_int32);
+		return TArrayView<uint8>(View.GetData(), static_cast<int32>(View.Num()));
 	}
 	else
 	{
@@ -3239,7 +3241,9 @@ bool FSoundWaveProxy::IsZerothChunkDataLoaded() const
 
 const TArrayView<uint8> FSoundWaveProxy::GetZerothChunkDataView() const
 {
-	return ZerothChunkData->GetView();
+	FBulkDataBuffer<uint8>::ViewType View = ZerothChunkData->GetView();
+	check(View.Num() <= MAX_int32);
+	return TArrayView<uint8>(View.GetData(), static_cast<int32>(View.Num()));
 }
 
 void FSoundWaveProxy::EnsureZerothChunkIsLoaded()

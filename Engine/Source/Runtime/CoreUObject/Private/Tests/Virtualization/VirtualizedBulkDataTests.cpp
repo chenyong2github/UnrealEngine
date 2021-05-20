@@ -132,7 +132,7 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Updated payload length"), (int64)Payload.GetSize(), BufferSize);
 		TestEqual(TEXT("Payload and EditablePayload should have the same memory addresses"), (uint8*)Payload.GetData(), (uint8*)EditedPayload.GetData());
 
-		const bool bAllElementsCorrect = Algo::AllOf(TArrayView<uint8>((uint8*)Payload.GetData(), Payload.GetSize()), [NewValue](uint8 Val)
+		const bool bAllElementsCorrect = Algo::AllOf(TArrayView64<uint8>((uint8*)Payload.GetData(), (int64)Payload.GetSize()), [NewValue](uint8 Val)
 			{ 
 				return Val == NewValue; 
 			});
@@ -154,7 +154,7 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Payload and OriginalDataPtr should have the same memory addresses"), (uint8*)Payload.GetData(), OriginalDataPtr);
 
 		// The original data was all zeros, so we can test for that to make sure that the contents are correct.
-		const bool bAllElementsCorrect = Algo::AllOf(TArrayView<uint8>((uint8*)Payload.GetData(), Payload.GetSize()), [](uint8 Val)
+		const bool bAllElementsCorrect = Algo::AllOf(TArrayView64<uint8>((uint8*)Payload.GetData(), (int64)Payload.GetSize()), [](uint8 Val)
 			{
 				return Val == 0;
 			});

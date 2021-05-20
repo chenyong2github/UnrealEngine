@@ -100,7 +100,7 @@ inline void SerializeBulkDataSizeInt(FArchive& Ar, int64& Value, EBulkDataFlags 
 	else
 	{
 		check(!Ar.IsSaving() || (MIN_int32 <= Value && Value <= MAX_int32));
-		int32 ValueAsInt32 = Value;
+		int32 ValueAsInt32 = static_cast<int32>(Value);
 		Ar << ValueAsInt32;
 		Value = ValueAsInt32;
 	}
