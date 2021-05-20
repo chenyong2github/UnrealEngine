@@ -471,7 +471,7 @@ static void UpdatePlanarReflectionContentsWithoutRendering_RenderThread(
 			}
 		}
 
-		SceneRenderer->PrepareViewRectsForRendering();
+		SceneRenderer->PrepareViewRectsForRendering(RHICmdList);
 
 		SceneProxy->RenderTarget = RenderTarget;
 

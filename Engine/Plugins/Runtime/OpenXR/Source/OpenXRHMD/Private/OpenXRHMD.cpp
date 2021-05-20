@@ -1144,7 +1144,7 @@ void FOpenXRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y
 	SizeY = Config.recommendedImageRectHeight;
 }
 
-void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const FIntRect& FinalViewRect)
+void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const enum EStereoscopicPass StereoPass, const FIntRect& FinalViewRect)
 {
 	if (StereoPass == eSSP_FULL)
 	{
@@ -1214,6 +1214,11 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 	{
 		Projection.next = Module->OnBeginProjectionView(Session, 0, ViewIndex, Projection.next);
 	}
+
+	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+	{
+		PipelinedLayerStateRHI = PipelinedLayerStateRendering;
+	});
 }
 
 EStereoscopicPass FOpenXRHMD::GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const
@@ -2539,8 +2544,8 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 		return;
 	}
 
+	// The layer state will be copied after SetFinalViewRect
 	PipelinedFrameStateRHI = PipelinedFrameStateRendering;
-	PipelinedLayerStateRHI = PipelinedLayerStateRendering;
 
 	XrFrameBeginInfo BeginInfo;
 	BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
