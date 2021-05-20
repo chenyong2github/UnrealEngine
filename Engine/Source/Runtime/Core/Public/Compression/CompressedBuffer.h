@@ -98,8 +98,13 @@ public:
 	 */
 	[[nodiscard]] CORE_API FCompositeBuffer DecompressToComposite() const;
 
+	/** A null compressed buffer. */
+	static const FCompressedBuffer Null;
+
 private:
 	FCompositeBuffer CompressedData;
 };
+
+inline const FCompressedBuffer FCompressedBuffer::Null;
 
 CORE_API FArchive& operator<<(FArchive& Ar, FCompressedBuffer& Buffer);
