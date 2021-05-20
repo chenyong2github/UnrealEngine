@@ -315,13 +315,13 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 }
 
 #if  SUPPORTS_WINDOWS_MIXED_REALITY_AR
-void FHoloLensARSystem::SetupCameraImageSupport()
+bool FHoloLensARSystem::SetupCameraImageSupport()
 {
 	// Remoting does not support CameraCapture currently.
 	if (WMRInterop->IsRemoting())
 	{
 		UE_LOG(LogHoloLensAR, Warning, TEXT("HoloLens remoting does not support the device forward facing camera.  No images will be collected."));
-		return;
+		return false;
 	}
 
 	// Start the camera capture device
@@ -332,12 +332,14 @@ void FHoloLensARSystem::SetupCameraImageSupport()
 	if (SessionConfig)
 	{
 		const FARVideoFormat Format = SessionConfig->GetDesiredVideoFormat();
-		CameraCapture.StartCameraCapture(&OnCameraImageReceived_Raw, Format.Width, Format.Height, Format.FPS);
+		return CameraCapture.StartCameraCapture(&OnCameraImageReceived_Raw, Format.Width, Format.Height, Format.FPS);
 	}
 	else
 	{
 		UE_LOG(LogHoloLensAR, Warning, TEXT("Session Config must be specified before using SetupCameraImageSupport."));
 	}
+
+	return false;
 }
 #endif
 
@@ -465,34 +467,41 @@ bool FHoloLensARSystem::OnIsTrackingTypeSupported(EARSessionType SessionType) co
 
 bool FHoloLensARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType)
 {
-	bool bSuccess = true;
 	switch (CaptureType)
 	{
 		case EARCaptureType::Camera:
 			if (bOnOff)
 			{
-				UHoloLensARFunctionLibrary::StartCameraCapture();
+				return UHoloLensARFunctionLibrary::StartCameraCapture();
 			}
 			else
 			{
-				UHoloLensARFunctionLibrary::StopCameraCapture();
+				return UHoloLensARFunctionLibrary::StopCameraCapture();
 			}
 			break;
 		case EARCaptureType::QRCode:
 			if (bOnOff)
 			{
-				UHoloLensARFunctionLibrary::StartQRCodeCapture();
+				return UHoloLensARFunctionLibrary::StartQRCodeCapture();
 			}
 			else
 			{
-				UHoloLensARFunctionLibrary::StopQRCodeCapture();
+				return UHoloLensARFunctionLibrary::StopQRCodeCapture();
 			}
 			break;
-		default:
-			bSuccess = false;
+		case EARCaptureType::SpatialMapping:
+			if (bOnOff)
+			{
+				return SetupMeshObserver();
+			}
+			else
+			{
+				return WMRInterop->StopSpatialMapping();
+			}
 			break;
 	}
-	return bSuccess;
+
+	return false;
 }
 
 void FHoloLensARSystem::OnSetEnabledXRCamera(bool bOnOff)
@@ -872,15 +881,15 @@ FVector FHoloLensARSystem::GetWorldSpaceRayFromCameraPoint(FVector2D PixelCoordi
 	return PVCameraToWorldMatrix.TransformVector(Ray);
 }
 
-void FHoloLensARSystem::StartCameraCapture()
+bool FHoloLensARSystem::StartCameraCapture()
 {
-	SetupCameraImageSupport();
+	return SetupCameraImageSupport();
 }
 
-void FHoloLensARSystem::StopCameraCapture()
+bool FHoloLensARSystem::StopCameraCapture()
 {
 	CameraImageCapture& CameraCapture = CameraImageCapture::Get();
-	CameraCapture.StopCameraCapture();
+	return CameraCapture.StopCameraCapture();
 }
 
 void FHoloLensARSystem::OnLog(const wchar_t* LogMsg)
@@ -921,9 +930,12 @@ void FHoloLensARSystem::EndMeshUpdates_Raw()
 	HoloLensARThis->EndMeshUpdates();
 }
 
-void FHoloLensARSystem::SetupMeshObserver()
+bool FHoloLensARSystem::SetupMeshObserver()
 {
-	check(WMRInterop != nullptr);
+	if (WMRInterop == nullptr)
+	{
+		return false;
+	}
 
 	// Start the mesh observer. If the user says no to spatial mapping, then no updates will occur
 
@@ -939,7 +951,7 @@ void FHoloLensARSystem::SetupMeshObserver()
 	float VolumeSize = 1.f;
 	GConfig->GetFloat(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("SpatialMeshingVolumeSize"), VolumeSize, *iniFile);
 
-	WMRInterop->StartSpatialMapping(TriangleDensity, VolumeSize, &StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &RemovedMesh_Raw, &EndMeshUpdates_Raw);
+	return WMRInterop->StartSpatialMapping(TriangleDensity, VolumeSize, &StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &RemovedMesh_Raw, &EndMeshUpdates_Raw);
 }
 
 void FHoloLensARSystem::StartMeshUpdates()
@@ -1176,20 +1188,26 @@ void FHoloLensARSystem::QRCodeRemoved_Raw(QRCodeData* InCode)
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(CameraImageTask, GET_STATID(STAT_FHoloLensARSystem_QRCodeRemoved_GameThread), nullptr, ENamedThreads::GameThread);
 }
 
-void FHoloLensARSystem::SetupQRCodeTracking()
+bool FHoloLensARSystem::SetupQRCodeTracking()
 {
-	check(WMRInterop != nullptr);
+	if (WMRInterop == nullptr)
+	{
+		return false;
+	}
 
-	WMRInterop->StartQRCodeTracking(&QRCodeAdded_Raw, &QRCodeUpdated_Raw, &QRCodeRemoved_Raw);
 	UE_LOG(LogHoloLensAR, Verbose, TEXT("FHoloLensARSystem::SetupQRCodeTracking() called"));
+	return WMRInterop->StartQRCodeTracking(&QRCodeAdded_Raw, &QRCodeUpdated_Raw, &QRCodeRemoved_Raw);
 }
 
-void FHoloLensARSystem::StopQRCodeTracking()
+bool FHoloLensARSystem::StopQRCodeTracking()
 {
-	check(WMRInterop != nullptr);
+	if (WMRInterop == nullptr)
+	{
+		return false;
+	}
 
-	WMRInterop->StopQRCodeTracking();
 	UE_LOG(LogHoloLensAR, Verbose, TEXT("FHoloLensARSystem::StopQRCodeTracking() called"));
+	return WMRInterop->StopQRCodeTracking();
 }
 
 static void DebugDumpQRData(QRCodeData* InCode)

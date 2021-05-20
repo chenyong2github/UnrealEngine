@@ -228,19 +228,19 @@ void CameraImageCapture::NotifyReceivedFrame(void* handle, DirectX::XMFLOAT4X4 C
 	OnReceivedFrame(handle, CamToTracking);
 }
 
-void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, DirectX::XMFLOAT4X4), int DesiredWidth, int DesiredHeight, int DesiredFPS)
+bool CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, DirectX::XMFLOAT4X4), int DesiredWidth, int DesiredHeight, int DesiredFPS)
 {
 	if (CameraFrameReader)
 	{
 		Log(L"Camera is already capturing frames. Aborting.");
-		return;
+		return true;
 	}
 
 	OnReceivedFrame = FunctionPointer;
 	if (OnReceivedFrame == nullptr)
 	{
 		Log(L"Null function pointer passed to StartCameraCapture() for new image callbacks. Aborting.");
-		return;
+		return false;
 	}
 
 	MediaFrameSourceGroup::FindAllAsync().Completed([this, DesiredWidth, DesiredHeight, DesiredFPS](auto&& asyncInfo, auto&&  asyncStatus)
@@ -386,9 +386,11 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, Direct
 			});
 		});
 	});
+
+	return true;
 }
 
-void CameraImageCapture::StopCameraCapture()
+bool CameraImageCapture::StopCameraCapture()
 {
 	if (CameraFrameReader)
 	{
@@ -402,4 +404,6 @@ void CameraImageCapture::StopCameraCapture()
 			OnReceivedFrame = nullptr;
 		});
 	}
+
+	return true;
 }

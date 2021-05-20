@@ -114,48 +114,48 @@ FVector UHoloLensARFunctionLibrary::GetWorldSpaceRayFromCameraPoint(FVector2D pi
 	return ARSystem->GetWorldSpaceRayFromCameraPoint(pixelCoordinate);
 }
 
-void UHoloLensARFunctionLibrary::StartCameraCapture()
+bool UHoloLensARFunctionLibrary::StartCameraCapture()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
 	{
-		return;
+		return false;
 	}
 
-	ARSystem->StartCameraCapture();
+	return ARSystem->StartCameraCapture();
 }
 
-void UHoloLensARFunctionLibrary::StopCameraCapture()
+bool UHoloLensARFunctionLibrary::StopCameraCapture()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
 	{
-		return;
+		return false;
 	}
 
-	ARSystem->StopCameraCapture();
+	return ARSystem->StopCameraCapture();
 }
 
-void UHoloLensARFunctionLibrary::StartQRCodeCapture()
+bool UHoloLensARFunctionLibrary::StartQRCodeCapture()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
 	{
-		return;
+		return false;
 	}
 
-	ARSystem->SetupQRCodeTracking();
+	return ARSystem->SetupQRCodeTracking();
 }
 
-void UHoloLensARFunctionLibrary::StopQRCodeCapture()
+bool UHoloLensARFunctionLibrary::StopQRCodeCapture()
 {
 	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
 	if (!ARSystem.IsValid())
 	{
-		return;
+		return false;
 	}
 
-	ARSystem->StopQRCodeTracking();
+	return ARSystem->StopQRCodeTracking();
 }
 
 bool UHoloLensARFunctionLibrary::ShowKeyboard()
