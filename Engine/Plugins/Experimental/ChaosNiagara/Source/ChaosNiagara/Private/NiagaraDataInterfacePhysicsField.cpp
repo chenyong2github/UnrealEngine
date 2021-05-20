@@ -491,7 +491,7 @@ void EvaluateFieldNodes(TArray<FFieldSystemCommand>& FieldCommands, const EField
 	if (FieldCommands.Num() > 0 && ResultsArray.Num() == MaxArray.Num())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraUpdateField_Object);
-		TArrayView<DataType> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TFieldArrayView<DataType> ResultsView(ResultsArray, 0, ResultsArray.Num());
 
 		const float TimeSeconds = FieldContext.TimeSeconds;
 		for (int32 CommandIndex = 0; CommandIndex < FieldCommands.Num(); ++CommandIndex)

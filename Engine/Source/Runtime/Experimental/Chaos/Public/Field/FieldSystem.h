@@ -7,6 +7,7 @@
 #include "Containers/ArrayView.h"
 #include "Containers/Queue.h"
 #include "Field/FieldSystemTypes.h"
+#include "Field/FieldArrayView.h"
 #include "Chaos/ParticleHandle.h"
 #include "Math/Vector.h"
 
@@ -196,12 +197,12 @@ public:
 template<class T>
 class CHAOS_API FFieldSystemMetaDataResults : public FFieldSystemMetaData {
 public:
-	FFieldSystemMetaDataResults(const TArrayView<T>& ResultsIn) : Results(ResultsIn) {};
+	FFieldSystemMetaDataResults(const TFieldArrayView<T>& ResultsIn) : Results(ResultsIn) {};
 	virtual ~FFieldSystemMetaDataResults() {};
 	virtual EMetaType Type() const { return EMetaType::ECommandData_Results; }
 	virtual FFieldSystemMetaData* NewCopy() const { return new FFieldSystemMetaDataResults(Results); }
 
-	const TArrayView<T>& Results;
+	const TFieldArrayView<T>& Results;
 };
 
 class CHAOS_API FFieldSystemMetaDataIteration : public FFieldSystemMetaData {
@@ -249,7 +250,7 @@ struct CHAOS_API FFieldContext
 	FFieldContext& operator =(const FFieldContext&) = delete;
 	FFieldContext & operator =(FFieldContext&&) = delete;
 
-	FFieldContext(const TArrayView< FFieldContextIndex >& SampleIndicesIn, const TArrayView<FVector>& SamplePositionsIn,
+	FFieldContext(const TFieldArrayView< FFieldContextIndex >& SampleIndicesIn, const TFieldArrayView<FVector>& SamplePositionsIn,
 		const UniquePointerMap & MetaDataIn, const float TimeSecondsIn, TArray<FVector>& VectorResultsIn, TArray<float>& ScalarResultsIn, 
 		TArray<int32>& IntegerResultsIn, TArray<FFieldContextIndex>& IndexResultsIn, TArray<FFieldContextIndex>& CullingResultsIn)
 		: SampleIndices(SampleIndicesIn)
@@ -269,7 +270,7 @@ struct CHAOS_API FFieldContext
 		CullingData = MakeUnique<FFieldSystemMetaDataCulling>(CullingResultsIn);
 		MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Culling, CullingData.Get());
 	}
-	FFieldContext(const TArrayView< FFieldContextIndex >& SampleIndicesIn, const TArrayView<FVector>& SamplePositionsIn,
+	FFieldContext(const TFieldArrayView< FFieldContextIndex >& SampleIndicesIn, const TFieldArrayView<FVector>& SamplePositionsIn,
 		const PointerMap & MetaDataIn, const float TimeSecondsIn, TArray<FVector>& VectorResultsIn, TArray<float>& ScalarResultsIn, 
 				TArray<int32>& IntegerResultsIn, TArray<FFieldContextIndex>& IndexResultsIn, TArray<FFieldContextIndex>& CullingResultsIn)
 		: SampleIndices(SampleIndicesIn)
@@ -287,15 +288,14 @@ struct CHAOS_API FFieldContext
 
 	FFieldContext(FFieldExecutionDatas& ExecutionDatas,
 		const UniquePointerMap& MetaDataIn, const float TimeSecondsIn)
-		: TimeSeconds(TimeSecondsIn)
+		: SampleIndices(ExecutionDatas.SampleIndices, 0, ExecutionDatas.SampleIndices.Num())
+		, SamplePositions(ExecutionDatas.SamplePositions, 0, ExecutionDatas.SamplePositions.Num())
+		, TimeSeconds(TimeSecondsIn)
 		, VectorResults(ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::TransientResult])
 		, ScalarResults(ExecutionDatas.ScalarResults[(uint8)EFieldCommandResultType::TransientResult])
 		, IntegerResults(ExecutionDatas.IntegerResults[(uint8)EFieldCommandResultType::TransientResult])
 		, IndexResults(ExecutionDatas.IndexResults[(uint8)EFieldCommandResultType::TransientResult])
 	{
-		SamplePositions = TArrayView<FVector>(&(ExecutionDatas.SamplePositions[0]), ExecutionDatas.SamplePositions.Num());
-		SampleIndices = TArrayView<FFieldContextIndex>(&(ExecutionDatas.SampleIndices[0]), ExecutionDatas.SampleIndices.Num());
-
 		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : MetaDataIn)
 		{
 			MetaData.Add(Meta.Key) = Meta.Value.Get();
@@ -305,7 +305,7 @@ struct CHAOS_API FFieldContext
 		MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Culling, CullingData.Get());
 	}
 
-	TArrayView<FFieldContextIndex> GetEvaluatedSamples()
+	TFieldArrayView<FFieldContextIndex> GetEvaluatedSamples()
 	{
 		if(!CullingData->bCullingActive)
 		{
@@ -314,7 +314,7 @@ struct CHAOS_API FFieldContext
 		}
 
 		// Culling fields created an evaluation set
-		return MakeArrayView(CullingData->CullingIndices);
+		return TFieldArrayView<FFieldContextIndex>(CullingData->CullingIndices, 0, CullingData->CullingIndices.Num());
 	}
 
 	//
@@ -324,8 +324,8 @@ struct CHAOS_API FFieldContext
 	// traversed also needs to change; possibly to some load balanced threaded iterator 
 	// or task based paradigm.
 
-	TArrayView<FFieldContextIndex> SampleIndices;
-	TArrayView<FVector> SamplePositions;
+	TFieldArrayView<FFieldContextIndex> SampleIndices;
+	TFieldArrayView<FVector> SamplePositions;
 
 	PointerMap MetaData;
 	TUniquePtr<FFieldSystemMetaDataCulling> CullingData;
@@ -456,7 +456,7 @@ private:
 *
 *  Typed field nodes are used for the evaluation of specific types of data arrays.
 *  For exampe, The FFieldNode<FVector>::Evaluate(...) will expect resutls 
-*  of type TArrayView<FVector>, and an example implementation is the UniformVectorField.
+*  of type TFieldArrayView<FVector>, and an example implementation is the UniformVectorField.
 *
 */
 template<class T>
@@ -466,7 +466,7 @@ public:
 	
 	virtual ~FFieldNode() {}
 
-	virtual void Evaluate(FFieldContext&, TArrayView<T>& Results) const = 0;
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<T>& Results) const = 0;
 
 	static EFieldType StaticType();
 	virtual EFieldType Type() const { return StaticType(); }

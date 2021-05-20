@@ -348,7 +348,7 @@ namespace Chaos
 		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, TArray<int32>& FinalResults)
 	{
-		TArrayView<int32> ResultsView(&(FinalResults[0]), FinalResults.Num());
+		TFieldArrayView<int32> ResultsView(FinalResults, 0, FinalResults.Num());
 
 		if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_DynamicState)
 		{
@@ -456,7 +456,7 @@ namespace Chaos
 		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, TArray<float>& FinalResults)
 	{
-		TArrayView<float> ResultsView(&(FinalResults[0]), FinalResults.Num());
+		TFieldArrayView<float> ResultsView(FinalResults, 0, FinalResults.Num());
 
 		if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_ExternalClusterStrain)
 		{
@@ -553,7 +553,7 @@ namespace Chaos
 		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, TArray<FVector>& FinalResults)
 	{
-		TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
+		TFieldArrayView<FVector> ResultsView(FinalResults, 0, FinalResults.Num());
 
 		if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearVelocity)
 		{
@@ -624,7 +624,7 @@ namespace Chaos
 	static void FieldVectorForceUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<FVector>& FinalResults)
 	{
-		TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
+		TFieldArrayView<FVector> ResultsView(FinalResults, 0, FinalResults.Num());
 
 		static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 
