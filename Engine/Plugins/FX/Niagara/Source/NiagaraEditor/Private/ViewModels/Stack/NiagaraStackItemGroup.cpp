@@ -54,7 +54,7 @@ uint32 UNiagaraStackItemGroup::GetRecursiveStackIssuesCount() const
 		TArray<UNiagaraStackErrorItem*> RecursiveIssues;
 		FNiagaraStackGraphUtilities::GetStackIssuesRecursively(this, RecursiveIssues);
 		RecursiveStackIssuesCount = RecursiveIssues.Num();
-		EStackIssueSeverity MinSeverity = EStackIssueSeverity::Info;
+		EStackIssueSeverity MinSeverity = EStackIssueSeverity::CustomNote;
 		for (auto Issue : RecursiveIssues)
 		{
 			if (Issue->GetStackIssue().GetSeverity() < MinSeverity)
