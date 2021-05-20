@@ -1254,15 +1254,19 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 
 			UPhysicalMaterial* PhysicalMaterial = nullptr;
 			int32 MaterialID = 0;
+			
+			// #todo (bmiller) Need to have a better way to get at this data now that particle handle isn't in the Breaking event payload.
+			/*
 			if(DataIn.Particle && DataIn.Particle->Geometry() )
 				MaterialID = DataIn.Particle->Geometry()->GetMaterialIndex(0);
+			*/
 
 			UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
 			UMaterialInterface* Material = nullptr;
 #if INCLUDE_CHAOS
 			for (auto& Solver : Solvers)
 			{
-				GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.Particle->PhysicsProxy());
+				GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.Proxy);
 				if (GeometryCollectionComponent)
 					break;
 			}

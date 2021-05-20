@@ -41,14 +41,6 @@ struct FChaosCollisionEventData
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
 	FVector Impulse;
 
-	// The particle of the collision event
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
-	Chaos::FGeometryParticleHandle* Particle;
-
-	// The level set of the collision event
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
-	Chaos::FGeometryParticleHandle* Levelset;
-
 	FChaosCollisionEventData()
 		: Location(FVector::ZeroVector)
 		, Normal(FVector::ZeroVector)
@@ -57,8 +49,6 @@ struct FChaosCollisionEventData
 		, Mass1(0.0f)
 		, Mass2(0.0f)
 		, Impulse(FVector::ZeroVector)
-		, Particle(nullptr)
-		, Levelset(nullptr)
 	{
 	}
 };

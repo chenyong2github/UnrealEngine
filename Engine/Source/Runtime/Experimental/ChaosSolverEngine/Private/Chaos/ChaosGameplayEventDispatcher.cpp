@@ -296,85 +296,86 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 
 								Chaos::FCollidingData const& CollisionDataItem = CollisionData[CollisionIdx];
 
-								// If we have no LevelSet pointer (which can be the case if we're reading a cache), force which proxy we use.
-								bool bUseParticle = CollisionDataItem.Levelset ? bSwapOrder : true;
-								if (CollisionDataItem.Particle)
+								IPhysicsProxyBase* const PhysicsProxy1 = CollisionDataItem.Proxy2 ? PhysicsProxy0 : CollisionDataItem.Proxy2;
+
+								// Are the proxies pending destruction? If they are no longer tracked by the PhysScene, the proxy is deleted or pending deletion.
+								if (Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy0) == nullptr || Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1) == nullptr)
 								{
-									IPhysicsProxyBase* const PhysicsProxy1 = bUseParticle ? CollisionDataItem.Particle->PhysicsProxy() : CollisionDataItem.Levelset->PhysicsProxy();
+									continue;
+								}
 
+								{
+									bool bNewEntry = false;
+									FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
+
+									// #note: we only notify on the first contact, though we will still accumulate the impulse data from subsequent contacts
+									const FVector NormalImpulse = FVector::DotProduct(CollisionDataItem.AccumulatedImpulse, CollisionDataItem.Normal) * CollisionDataItem.Normal;	// project impulse along normal
+									const FVector FrictionImpulse = FVector(CollisionDataItem.AccumulatedImpulse) - NormalImpulse; // friction is component not along contact normal
+									NotifyInfo.RigidCollisionData.TotalNormalImpulse += NormalImpulse;
+									NotifyInfo.RigidCollisionData.TotalFrictionImpulse += FrictionImpulse;
+
+									if (bNewEntry)
 									{
-										bool bNewEntry = false;
-										FCollisionNotifyInfo& NotifyInfo = GetPendingCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
+										UPrimitiveComponent* const Comp1 = Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
 
-										// #note: we only notify on the first contact, though we will still accumulate the impulse data from subsequent contacts
-										const FVector NormalImpulse = FVector::DotProduct(CollisionDataItem.AccumulatedImpulse, CollisionDataItem.Normal) * CollisionDataItem.Normal;	// project impulse along normal
-										const FVector FrictionImpulse = FVector(CollisionDataItem.AccumulatedImpulse) - NormalImpulse; // friction is component not along contact normal
-										NotifyInfo.RigidCollisionData.TotalNormalImpulse += NormalImpulse;
-										NotifyInfo.RigidCollisionData.TotalFrictionImpulse += FrictionImpulse;
+										// fill in legacy contact data
+										NotifyInfo.bCallEvent0 = true;
+										// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
 
-										if (bNewEntry)
-										{
-											UPrimitiveComponent* const Comp1 = Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
+										SetCollisionInfoFromComp(NotifyInfo.Info0, Comp0);
+										SetCollisionInfoFromComp(NotifyInfo.Info1, Comp1);
 
-											// fill in legacy contact data
-											NotifyInfo.bCallEvent0 = true;
-											// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
-
-											SetCollisionInfoFromComp(NotifyInfo.Info0, Comp0);
-											SetCollisionInfoFromComp(NotifyInfo.Info1, Comp1);
-
-											FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
-											NewContact.ContactNormal = CollisionDataItem.Normal;
-											NewContact.ContactPosition = CollisionDataItem.Location;
-											NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
-											// NewContact.PhysMaterial[1] UPhysicalMaterial required here
-										}
-
+										FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
+										NewContact.ContactNormal = CollisionDataItem.Normal;
+										NewContact.ContactPosition = CollisionDataItem.Location;
+										NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
+										// NewContact.PhysMaterial[1] UPhysicalMaterial required here
 									}
 
+								}
 
-									if (HandlerSet.ChaosHandlers.Num() > 0)
+
+								if (HandlerSet.ChaosHandlers.Num() > 0)
+								{
+									bool bNewEntry = false;
+									FChaosPendingCollisionNotify& ChaosNotifyInfo = GetPendingChaosCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
+
+									// #note: we only notify on the first contact, though we will still accumulate the impulse data from subsequent contacts
+									ChaosNotifyInfo.CollisionInfo.AccumulatedImpulse += CollisionDataItem.AccumulatedImpulse;
+
+									if (bNewEntry)
 									{
-										bool bNewEntry = false;
-										FChaosPendingCollisionNotify& ChaosNotifyInfo = GetPendingChaosCollisionForContactPair(PhysicsProxy0, PhysicsProxy1, bNewEntry);
+										UPrimitiveComponent* const Comp1 = Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
 
-										// #note: we only notify on the first contact, though we will still accumulate the impulse data from subsequent contacts
-										ChaosNotifyInfo.CollisionInfo.AccumulatedImpulse += CollisionDataItem.AccumulatedImpulse;
+										// fill in Chaos contact data
+										ChaosNotifyInfo.CollisionInfo.Component = Comp0;
+										ChaosNotifyInfo.CollisionInfo.OtherComponent = Comp1;
+										ChaosNotifyInfo.CollisionInfo.Location = CollisionDataItem.Location;
+										ChaosNotifyInfo.NotifyRecipients = HandlerSet.ChaosHandlers;
 
-										if (bNewEntry)
+										if (bSwapOrder)
 										{
-											UPrimitiveComponent* const Comp1 = Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
+											ChaosNotifyInfo.CollisionInfo.AccumulatedImpulse = -CollisionDataItem.AccumulatedImpulse;
+											ChaosNotifyInfo.CollisionInfo.Normal = -CollisionDataItem.Normal;
 
-											// fill in Chaos contact data
-											ChaosNotifyInfo.CollisionInfo.Component = Comp0;
-											ChaosNotifyInfo.CollisionInfo.OtherComponent = Comp1;
-											ChaosNotifyInfo.CollisionInfo.Location = CollisionDataItem.Location;
-											ChaosNotifyInfo.NotifyRecipients = HandlerSet.ChaosHandlers;
+											ChaosNotifyInfo.CollisionInfo.Velocity = CollisionDataItem.Velocity2;
+											ChaosNotifyInfo.CollisionInfo.OtherVelocity = CollisionDataItem.Velocity1;
+											ChaosNotifyInfo.CollisionInfo.AngularVelocity = CollisionDataItem.AngularVelocity2;
+											ChaosNotifyInfo.CollisionInfo.OtherAngularVelocity = CollisionDataItem.AngularVelocity1;
+											ChaosNotifyInfo.CollisionInfo.Mass = CollisionDataItem.Mass2;
+											ChaosNotifyInfo.CollisionInfo.OtherMass = CollisionDataItem.Mass1;
+										}
+										else
+										{
+											ChaosNotifyInfo.CollisionInfo.AccumulatedImpulse = CollisionDataItem.AccumulatedImpulse;
+											ChaosNotifyInfo.CollisionInfo.Normal = CollisionDataItem.Normal;
 
-											if (bSwapOrder)
-											{
-												ChaosNotifyInfo.CollisionInfo.AccumulatedImpulse = -CollisionDataItem.AccumulatedImpulse;
-												ChaosNotifyInfo.CollisionInfo.Normal = -CollisionDataItem.Normal;
-
-												ChaosNotifyInfo.CollisionInfo.Velocity = CollisionDataItem.Velocity2;
-												ChaosNotifyInfo.CollisionInfo.OtherVelocity = CollisionDataItem.Velocity1;
-												ChaosNotifyInfo.CollisionInfo.AngularVelocity = CollisionDataItem.AngularVelocity2;
-												ChaosNotifyInfo.CollisionInfo.OtherAngularVelocity = CollisionDataItem.AngularVelocity1;
-												ChaosNotifyInfo.CollisionInfo.Mass = CollisionDataItem.Mass2;
-												ChaosNotifyInfo.CollisionInfo.OtherMass = CollisionDataItem.Mass1;
-											}
-											else
-											{
-												ChaosNotifyInfo.CollisionInfo.AccumulatedImpulse = CollisionDataItem.AccumulatedImpulse;
-												ChaosNotifyInfo.CollisionInfo.Normal = CollisionDataItem.Normal;
-
-												ChaosNotifyInfo.CollisionInfo.Velocity = CollisionDataItem.Velocity1;
-												ChaosNotifyInfo.CollisionInfo.OtherVelocity = CollisionDataItem.Velocity2;
-												ChaosNotifyInfo.CollisionInfo.AngularVelocity = CollisionDataItem.AngularVelocity1;
-												ChaosNotifyInfo.CollisionInfo.OtherAngularVelocity = CollisionDataItem.AngularVelocity2;
-												ChaosNotifyInfo.CollisionInfo.Mass = CollisionDataItem.Mass1;
-												ChaosNotifyInfo.CollisionInfo.OtherMass = CollisionDataItem.Mass2;
-											}
+											ChaosNotifyInfo.CollisionInfo.Velocity = CollisionDataItem.Velocity1;
+											ChaosNotifyInfo.CollisionInfo.OtherVelocity = CollisionDataItem.Velocity2;
+											ChaosNotifyInfo.CollisionInfo.AngularVelocity = CollisionDataItem.AngularVelocity1;
+											ChaosNotifyInfo.CollisionInfo.OtherAngularVelocity = CollisionDataItem.AngularVelocity2;
+											ChaosNotifyInfo.CollisionInfo.Mass = CollisionDataItem.Mass1;
+											ChaosNotifyInfo.CollisionInfo.OtherMass = CollisionDataItem.Mass2;
 										}
 									}
 								}
@@ -394,7 +395,6 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 
 void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
 {
-
 	SCOPE_CYCLE_COUNTER(STAT_DispatchBreakEvents);
 
 	// BREAK EVENTS
@@ -414,9 +414,9 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 		{
 			for (Chaos::FBreakingData const& BreakingDataItem : BreakingData)
 			{	
-				if (BreakingDataItem.Particle)
+				if (BreakingDataItem.Proxy)
 				{
-					UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(BreakingDataItem.Particle->PhysicsProxy()->GetOwner());
+					UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(BreakingDataItem.Proxy->GetOwner());
 					if (PrimComp && BreakEventRegistrations.Contains(PrimComp))
 					{
 						// queue them up so we can release the physics data before trigging BP events
@@ -436,16 +436,17 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 
 }
 
-
 void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingEventData& SleepingData)
 {
+	FPhysScene_Chaos& Scene = *(GetWorld()->GetPhysicsScene());
+
 	const Chaos::FSleepingDataArray& SleepingArray = SleepingData.SleepingData;
 
 	for (const Chaos::FSleepingData& SleepData : SleepingArray)
 	{
-		if (SleepData.Particle->GetProxy()!= nullptr)
+		if (SleepData.Proxy!= nullptr && Scene.GetOwningComponent<UPrimitiveComponent>(SleepData.Proxy) != nullptr)
 		{
-			if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(SleepData.Particle->UserData()))
+			if (FBodyInstance* BodyInstance = Scene.GetBodyInstanceFromProxy(SleepData.Proxy))
 			{
 				if (BodyInstance->bGenerateWakeEvents)
 				{
@@ -458,7 +459,6 @@ void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingE
 
 	DispatchPendingWakeNotifies();
 }
-
 
 void UChaosGameplayEventDispatcher::AddPendingSleepingNotify(FBodyInstance* BodyInstance, ESleepEvent SleepEventType)
 {
