@@ -459,6 +459,9 @@ bool FVideoDecoderH264::FallbackToSwDecoding(FString Reason)
 		// Once multithread protection is enabled we don't disable it, so UE4's rendering device stays protected for the rest of its lifetime.
 		// Some other system could enable multithread protection after we did it, we have no means to know about this, and so disabling it
 		// at the end of playback can cause GPU driver crash
+		//
+		// The DX11 rendering device will also come in as null if DX12 or a non-DX rendering API is used on the PC.
+		//
 		if (Electra::FDXDeviceInfo::s_DXDeviceInfo->RenderingDx11Device)
 		{
 			HRESULT res;
@@ -1293,6 +1296,7 @@ void FVideoDecoderH264::WorkerThread()
 
 	bool bDone = false;
 	bool bInDummyDecodeMode = false;
+	bool bGotLastSequenceAU = false;
 
 	// Require a new media input type based on the actual first access unit.
 	bool bNeedInitialReconfig = true;
@@ -1351,7 +1355,7 @@ void FVideoDecoderH264::WorkerThread()
 					if (!bError)
 					{
 						// Update the buffer acquisition after a change in streams?
-						bool bFormatChangedJustNow = CurrentSampleInfo.IsDifferentFromOtherVideo(NewSampleInfo);
+						bool bFormatChangedJustNow = CurrentSampleInfo.IsDifferentFromOtherVideo(NewSampleInfo) || bGotLastSequenceAU;
 
 						if (bInDummyDecodeMode)
 						{
@@ -1380,7 +1384,7 @@ void FVideoDecoderH264::WorkerThread()
 							SetupBufferAcquisitionProperties();
 						}
 						bNeedInitialReconfig = false;
-
+						bGotLastSequenceAU = CurrentAccessUnit->bIsLastInPeriod;
 						if (!Decode(CurrentAccessUnit, false))
 						{
 							bError = true;

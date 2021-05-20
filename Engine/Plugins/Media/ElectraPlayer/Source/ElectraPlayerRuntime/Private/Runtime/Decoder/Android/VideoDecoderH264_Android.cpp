@@ -1449,6 +1449,7 @@ void FVideoDecoderH264::WorkerThread()
 
 	int32 result = 0;
 	bool bDone  = false;
+	bool bGotLastSequenceAU = false;
 
 	bError = false;
 
@@ -1614,7 +1615,8 @@ void FVideoDecoderH264::WorkerThread()
 						}
 					}
 
-					bool bStreamFormatChanged = CurrentStreamFormatInfo.IsDifferentFrom(CurrentAccessUnit);
+					bool bStreamFormatChanged = CurrentStreamFormatInfo.IsDifferentFrom(CurrentAccessUnit) || bGotLastSequenceAU;
+					bGotLastSequenceAU = CurrentAccessUnit->bIsLastInPeriod;
 
 					// A new AU following dummy data?
 					bool bPrevWasDummy = false;
