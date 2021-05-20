@@ -36,6 +36,7 @@
 #include "GameFramework/Actor.h"
 
 #include "EditorDirectories.h"
+#include "EditorSupportDelegates.h"
 #include "EditorViewportTabContent.h"
 #include "ISCSEditorUICustomization.h"
 #include "SBlueprintEditorToolbar.h"
@@ -195,6 +196,30 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 
 	RenameVariableHandle = FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable);
 	FocusChangedHandle = FSlateApplication::Get().OnFocusChanging().AddSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnFocusChanged);
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::PostUndo(bool bSuccess)
+{
+	FBlueprintEditor::PostUndo(bSuccess);
+
+	// Make sure to force any property window displaying this actor class to refresh in case 
+	// the cluster hierarchy was changed in the undo transaction
+	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
+	{
+		FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(Actor->GetClass());
+	}
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::PostRedo(bool bSuccess)
+{
+	FBlueprintEditor::PostRedo(bSuccess);
+
+	// Make sure to force any property window displaying this actor class to refresh in case 
+	// the cluster hierarchy was changed in the redo transaction
+	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
+	{
+		FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(Actor->GetClass());
+	}
 }
 
 UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::GetEditorData() const
@@ -375,6 +400,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::ClusterChanged(bool bStructureC
 	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
 	{
 		Actor->UpdatePreviewComponents();
+		FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(Actor->GetClass());
 	}
 
 	OnClusterChanged.Broadcast();

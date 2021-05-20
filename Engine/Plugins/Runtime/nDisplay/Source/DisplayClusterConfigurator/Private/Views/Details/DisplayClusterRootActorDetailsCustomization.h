@@ -20,6 +20,8 @@ class FDisplayClusterRootActorDetailsCustomization : public IDetailCustomization
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
+	~FDisplayClusterRootActorDetailsCustomization();
+
 protected:
 	// IDetailCustomization interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
@@ -71,7 +73,12 @@ protected:
 	// Create combobox widget
 	TSharedRef<SWidget> CreateComboWidget(TSharedPtr<FString> InItem);
 
+	void OnForcePropertyWindowRebuild(UObject* Object);
+
 protected:
 	// ADisplayClusterRootActor on which we're acting
 	TWeakObjectPtr<ADisplayClusterRootActor> EditedObject;
+	IDetailLayoutBuilder* LayoutBuilder;
+
+	FDelegateHandle ForcePropertyWindowRebuildHandle;
 };
