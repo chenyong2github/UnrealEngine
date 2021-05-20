@@ -2,11 +2,12 @@
 #include "DatasmithMaxCameraExporter.h"
 
 #include "DatasmithMaxExporterDefines.h"
-#include "DatasmithSceneFactory.h"
-#include "DatasmithSceneExporter.h"
+#include "DatasmithMaxHelper.h"
 #include "DatasmithMaxSceneParser.h"
 #include "DatasmithMaxWriter.h"
 #include "DatasmithMaxLogger.h"
+#include "DatasmithSceneFactory.h"
+#include "DatasmithSceneExporter.h"
 #include "VRayLights.h"
 
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -85,7 +86,7 @@ namespace DatasmithMaxCameraExporterImpl
 
 	FMaxCameraParameters ParseCameraParameters(Animatable& MaxObject)
 	{
-		const float CustomUnit = FMath::Abs( (float)GetMasterScale(UNITS_CENTIMETERS) );
+		const float CustomUnit = FMath::Abs( (float)GetSystemUnitScale(UNITS_CENTIMETERS) );
 		const TimeValue CurrentTime = GetCOREInterface()->GetTime();
 
 		FMaxCameraParameters CameraParameters;
@@ -296,11 +297,11 @@ namespace DatasmithMaxCameraExporterImpl
 					}
 					else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("focus_distance")) == 0 )
 					{
-						CameraParameters.FocusDistance = ParamBlock2->GetFloat( ParamDefinition.ID, CurrentTime, ValidInterval ) * (float)GetMasterScale( UNITS_CENTIMETERS );
+						CameraParameters.FocusDistance = ParamBlock2->GetFloat( ParamDefinition.ID, CurrentTime, ValidInterval ) * (float)GetSystemUnitScale( UNITS_CENTIMETERS );
 					}
 					else if ( FCString::Stricmp( ParamDefinition.int_name, TEXT("target_distance") ) == 0 )
 					{
-						CameraParameters.TargetDistance = ParamBlock2->GetFloat( ParamDefinition.ID, CurrentTime, ValidInterval ) * (float)GetMasterScale( UNITS_CENTIMETERS );
+						CameraParameters.TargetDistance = ParamBlock2->GetFloat( ParamDefinition.ID, CurrentTime, ValidInterval ) * (float)GetSystemUnitScale( UNITS_CENTIMETERS );
 					}
 					else if ( FCString::Stricmp( ParamDefinition.int_name, TEXT("ISO") ) == 0 )
 					{
@@ -405,7 +406,7 @@ bool FDatasmithMaxCameraExporter::ExportCamera(INode& Node, TSharedRef< IDatasmi
 	Camera->SetFocalLength( GetCOREInterface()->GetRendApertureWidth() / (2.f * FMath::Tan(CamObj->GetFOV(GetCOREInterface()->GetTime()) * 0.5f)) );
 
 	int NumParamBlocks = CamObj->NumParamBlocks();
-	float CustomUnit = FMath::Abs((float)GetMasterScale(UNITS_CENTIMETERS));
+	float CustomUnit = FMath::Abs((float)GetSystemUnitScale(UNITS_CENTIMETERS));
 
 	DatasmithMaxCameraExporterImpl::FMaxCameraParameters MaxCameraParameters = DatasmithMaxCameraExporterImpl::ParseCameraParameters( *CamObj );
 
