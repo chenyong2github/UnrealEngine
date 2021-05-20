@@ -227,6 +227,9 @@ namespace DatasmithRuntime
 
 		if (Texture)
 		{
+			// Apply metadata on newly created texture if any
+			ApplyMetadata(AssetData.MetadataId, Texture);
+
 			uint32 TextureHash = GetTypeHash(TextureElement->CalculateElementHash(true), EDataType::Texture);
 
 			FAssetRegistry::UnregisteredAssetsData(THelper, SceneKey, [this, &Texture, TextureHash](FAssetData& AssetData) -> void

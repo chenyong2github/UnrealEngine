@@ -114,7 +114,10 @@ namespace DatasmithRuntime
 				};
 
 				AddToQueue(EQueueTask::MeshQueue, { TaskFunc, {EDataType::Mesh, MeshData.ElementId, 0 } });
-				TasksToComplete |=  EWorkerTask::MeshCreate;
+				TasksToComplete |= EWorkerTask::MeshCreate;
+
+				// If applicable, Apply metadata on newly created static mesh
+				ApplyMetadata(MeshData.MetadataId, StaticMesh);
 
 				MeshElementSet.Add(MeshData.ElementId);
 			}

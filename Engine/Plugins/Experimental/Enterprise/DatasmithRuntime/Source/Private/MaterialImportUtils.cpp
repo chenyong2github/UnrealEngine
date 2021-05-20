@@ -236,7 +236,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		for (int Index = 0; Index < MaterialElement->GetPropertiesCount(); ++Index)
 		{
-			const TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement->GetProperty(Index);
+			const TSharedPtr< IDatasmithKeyValueProperty >& Property = MaterialElement->GetProperty(Index);
 			FName PropertyName(Property->GetName());
 
 			// Vector Params

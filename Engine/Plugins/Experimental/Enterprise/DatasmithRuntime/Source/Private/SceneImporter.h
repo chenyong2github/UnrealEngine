@@ -26,6 +26,7 @@ class IDatasmithActorElement;
 class IDatasmithElement;
 class IDatasmithCameraActorElement;
 class IDatasmithLightActorElement;
+class IDatasmithMetaDataElement;
 class IDatasmithMeshActorElement;
 class IDatasmithScene;
 class IDatasmithTranslator;
@@ -134,6 +135,7 @@ namespace DatasmithRuntime
 		Actor       = 5,
 		MeshActor   = 6,
 		LightActor  = 7,
+		Metadata    = 8,
 	};
 
 	/**
@@ -173,6 +175,7 @@ namespace DatasmithRuntime
 		{
 		}
 
+		EDataType GetType() const { return EDataType(Type); }
 		FSceneGraphId GetId() const { return (FSceneGraphId)ElementId; }
 	};
 
@@ -185,6 +188,9 @@ namespace DatasmithRuntime
 	{
 		/** Identifier of the associated Datasmith element */
 		FSceneGraphId ElementId;
+
+		/** Identifier of the associated metadata element */
+		FSceneGraphId MetadataId;
 
 		EDataType Type;
 
@@ -199,6 +205,7 @@ namespace DatasmithRuntime
 
 		FBaseData(FSceneGraphId InElementId, EDataType InType = EDataType::None)
 			: ElementId(InElementId)
+			, MetadataId(DirectLink::InvalidId)
 			, Type(InType)
 		{
 			DataState.store(EAssetState::Unknown);
@@ -207,6 +214,7 @@ namespace DatasmithRuntime
 		FBaseData(const FBaseData& Other)
 		{
 			ElementId = Other.ElementId;
+			MetadataId = Other.MetadataId;
 			Type = Other.Type;
 			Object = Other.Object;
 			DataState.store(Other.DataState.load());
@@ -638,6 +646,12 @@ namespace DatasmithRuntime
 
 		FActorData& FindOrAddActorData(const TSharedPtr< IDatasmithActorElement >& ActorElement);
 
+		/** Add metadata to the tracking system if it applies to any tracked asset or actor or the scene */
+		void ProcessMetdata(const TSharedPtr< IDatasmithMetaDataElement >& MetadataElement);
+
+		/** Apply metadata to input object if applicable */
+		void ApplyMetadata(FSceneGraphId MetadataId, UObject* Object);
+
 	private:
 		/** DatasmithRuntime actor associated with this importer */
 		TWeakObjectPtr<USceneComponent> RootComponent;
@@ -680,6 +694,7 @@ namespace DatasmithRuntime
 		/** Array of queues dequeued during the import process */
 		TQueue< FActionTask, EQueueMode::Mpsc > ActionQueues[EQueueTask::MaxQueues];
 
+		/** Array of asynchronous tasks started during the import */
 		TArray<TFuture<bool>> OnGoingTasks;
 
 		/** Flag used to properly sequence the import process */
@@ -690,6 +705,9 @@ namespace DatasmithRuntime
 
 		/** Specifies options to use during the import */
 		FDatasmithRuntimeImportOptions ImportOptions;
+
+		/** Future for asynchronous task to collect metadata */
+		TFuture<void> MetadataCollect;
 
 		/** Miscellaneous counters used to report progress */
 		float& OverallProgress;
