@@ -175,7 +175,7 @@ void FPerSolverFieldSystem::FieldForcesUpdateCallback(
 FORCEINLINE void EvaluateImpulseField(
 	const FFieldSystemCommand& FieldCommand,
 	FFieldContext& FieldContext,
-	TArrayView<FVector>& ResultsView,
+	TFieldArrayView<FVector>& ResultsView,
 	TArray<FVector>& OutputImpulse)
 {
 	static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
@@ -237,7 +237,7 @@ void ComputeFieldRigidImpulseInternal(
 					TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
 					ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
 
-					TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
+					TFieldArrayView<FVector> ResultsView(FinalResults, 0, FinalResults.Num());
 
 					if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearVelocity)
 					{
@@ -327,7 +327,7 @@ void ComputeFieldLinearImpulseInternal(
 					TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
 					ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
 
-					TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
+					TFieldArrayView<FVector> ResultsView(FinalResults, 0, FinalResults.Num());
 
 					if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearVelocity)
 					{

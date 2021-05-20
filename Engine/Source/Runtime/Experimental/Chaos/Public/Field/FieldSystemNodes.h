@@ -6,7 +6,6 @@
 #include "Math/Vector.h"
 #include "Chaos/Box.h"
 
-
 /**
 * FUniformInteger
 **/
@@ -24,7 +23,7 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FUniformInteger(Magnitude); }
 	virtual ~FUniformInteger() {}
 
-	void Evaluate(FFieldContext&, TArrayView<int32>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<int32>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -61,7 +60,7 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FRadialIntMask(Radius,Position,InteriorValue,ExteriorValue,SetMaskCondition); }
 	virtual ~FRadialIntMask() {}
 
-	void Evaluate(FFieldContext&, TArrayView<int32>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<int32>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -94,7 +93,7 @@ public:
 
 	virtual ~FUniformScalar() {}
 
-	void Evaluate(FFieldContext&, TArrayView<float>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -128,7 +127,7 @@ public:
 
 	virtual ~FWaveScalar() {}
 
-	void Evaluate(FFieldContext&, TArrayView<float>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -174,7 +173,7 @@ public:
 
 	virtual ~FRadialFalloff() {}
 
-	void Evaluate(FFieldContext&, TArrayView<float>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -190,7 +189,7 @@ public:
 	EFieldFalloffType Falloff;
 
 protected:
-	template<EFieldFalloffType> void Evaluator(const FFieldContext& Context, TArrayView<float>& Results) const;
+	template<EFieldFalloffType> void Evaluator(const FFieldContext& Context, TFieldArrayView<float>& Results) const;
 };
 
 
@@ -226,7 +225,7 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FPlaneFalloff(Magnitude, MinRange, MaxRange, Default, Distance, Position, Normal, Falloff); }
 	virtual ~FPlaneFalloff() {}
 
-	void Evaluate(FFieldContext&, TArrayView<float>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -243,7 +242,7 @@ public:
 	EFieldFalloffType Falloff;
 
 protected :
-	template<EFieldFalloffType> void Evaluator(const FFieldContext& Context, const FPlane& Plane, TArrayView<float>& Results) const;
+	template<EFieldFalloffType> void Evaluator(const FFieldContext& Context, const FPlane& Plane, TFieldArrayView<float>& Results) const;
 
 };
 
@@ -275,7 +274,7 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FBoxFalloff(Magnitude, MinRange, MaxRange, Default, Transform, Falloff); }
 	virtual ~FBoxFalloff() {}
 
-	void Evaluate(FFieldContext&, TArrayView<float>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -290,7 +289,7 @@ public:
 	EFieldFalloffType Falloff;
 
 protected:
-	template<EFieldFalloffType> void Evaluator(const FFieldContext& Context, TArrayView<float>& Results) const;
+	template<EFieldFalloffType> void Evaluator(const FFieldContext& Context, TFieldArrayView<float>& Results) const;
 
 };
 
@@ -313,7 +312,7 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FNoiseField(MinRange,MaxRange,Transform); }
 	virtual ~FNoiseField() {}
 
-	void Evaluate(FFieldContext&, TArrayView<float>& Results) const override;	
+	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;	
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -347,7 +346,7 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FUniformVector(Magnitude,Direction); }
 	virtual ~FUniformVector() {}
 
-	void Evaluate(FFieldContext&, TArrayView<FVector>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -378,7 +377,7 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FRadialVector(Magnitude,Position); }
 	virtual ~FRadialVector() {}
 
-	void Evaluate(FFieldContext&, TArrayView<FVector>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -408,7 +407,7 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FRandomVector(Magnitude); }
 	virtual ~FRandomVector() {}
 
-	void Evaluate(FFieldContext&, TArrayView<FVector>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -448,7 +447,7 @@ public:
 	}
 	virtual ~FSumScalar() {}
 
-	void Evaluate(FFieldContext&, TArrayView<float>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -493,7 +492,7 @@ public:
 	}
 	virtual ~FSumVector() {}
 
-	void Evaluate(FFieldContext&, TArrayView<FVector>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -528,7 +527,7 @@ public:
 	}
 	virtual ~FConversionField() {}
 
-	void Evaluate(FFieldContext&, TArrayView<OutT>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<OutT>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -568,7 +567,7 @@ public:
 	}
 	virtual ~FCullingField() {}
 
-	void Evaluate(FFieldContext&, TArrayView<T>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<T>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
@@ -605,7 +604,7 @@ public:
 	}
 	virtual ~FReturnResultsTerminal() {}
 
-	void Evaluate(FFieldContext&, TArrayView<T>& Results) const override;
+	void Evaluate(FFieldContext&, TFieldArrayView<T>& Results) const override;
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
