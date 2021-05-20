@@ -25,9 +25,9 @@ FRigUnit_VerletIntegrateVector_Execute()
 	if (Context.DeltaTime > SMALL_NUMBER)
 	{
 		float U = FMath::Clamp<float>(Blend * Context.DeltaTime, 0.f, 1.f);
-		FVector Force = (Target - Point.Position) * FMath::Max(Strength, 0.0001f);
-		FVector PreviousVelocity = Point.LinearVelocity;
-		Point = Point.IntegrateVerlet(Force, Blend, Context.DeltaTime);
+		const FVector CombinedForce = (Target - Point.Position) * FMath::Max(Strength, 0.0001f) + Force * Context.DeltaTime * 60.f;
+		const FVector PreviousVelocity = Point.LinearVelocity;
+		Point = Point.IntegrateVerlet(CombinedForce, Blend, Context.DeltaTime);
 		Acceleration = (Point.LinearVelocity - PreviousVelocity) / Context.DeltaTime;
 		Position = Point.Position;
 		Velocity = Point.LinearVelocity;
