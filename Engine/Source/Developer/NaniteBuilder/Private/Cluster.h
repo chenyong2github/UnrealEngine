@@ -82,7 +82,6 @@ public:
 	TMap< uint32, uint32 >	AdjacentClusters;
 
 	FBounds		Bounds;
-	float		SurfaceArea = 0.0f;
 	uint32		GUID = 0;
 	int32		MipLevel = 0;
 
