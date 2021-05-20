@@ -66,5 +66,10 @@ bool FIterationOpenAssets::RunTest(const FString& LongAssetPath)
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}));
 
+	bool bSimulateInEditor = false;
+	AddCommand(new FStartPIECommand(bSimulateInEditor));
+	AddCommand(new FWaitLatentCommand(10.0f));
+	AddCommand(new FEndPlayMapCommand());
+
 	return true;
 }
