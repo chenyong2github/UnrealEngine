@@ -20,6 +20,7 @@
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildDefinition.h"
+#include "DerivedDataBuildInput.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCachePrivate.h"
@@ -737,6 +738,11 @@ public:
 	FOptionalBuildAction LoadAction(FStringView Name, FCbObject&& Action) final
 	{
 		return Private::LoadBuildAction(Name, MoveTemp(Action));
+	}
+
+	FBuildInputBuilder CreateInput(FStringView Name) final
+	{
+		return Private::CreateBuildInput(Name);
 	}
 
 	FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) final
