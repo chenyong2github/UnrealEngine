@@ -154,6 +154,8 @@ private:
 	TArray<FSwitchboardMessageFuture> MessagesFutures;
 	TSharedPtr<FCpuUtilizationMonitor, ESPMode::ThreadSafe> CpuMonitor;
 
+	bool bIsNvAPIInitialized;
+
 	TSharedPtr<FRWLock, ESPMode::ThreadSafe> CachedMosaicToposLock;
 	TSharedPtr<TArray<FMosaicTopo>, ESPMode::ThreadSafe> CachedMosaicTopos;
 
