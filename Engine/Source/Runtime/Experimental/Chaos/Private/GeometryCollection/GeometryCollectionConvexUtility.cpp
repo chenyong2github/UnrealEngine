@@ -19,7 +19,7 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	if (!GeometryCollection->HasAttribute("TransformToConvexIndices", FTransformCollection::TransformGroup))
 	{
 		FManagedArrayCollection::FConstructionParameters ConvexDependency("Convex");
-		TManagedArray<TSet<int32>>& IndexArray = GeometryCollection->AddAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup, ConvexDependency);
+		GeometryCollection->AddAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup, ConvexDependency);
 	}
 
 	if (!GeometryCollection->HasAttribute("ConvexHull", "Convex"))
@@ -27,35 +27,20 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 		GeometryCollection->AddAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
 	}
 
-	// Check for correct population. All (and only) rigid nodes should have a convex associated.
+	// Check for correct population. Make sure all rigid nodes should have a convex associated; leave convex hulls for transform nodes alone for now
 	const TManagedArray<int32>& SimulationType = GeometryCollection->GetAttribute<int32>("SimulationType", FTransformCollection::TransformGroup);
 	const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FTransformCollection::TransformGroup);
 	TManagedArray<TSet<int32>>& TransformToConvexIndices = GeometryCollection->GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 	TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHull = GeometryCollection->GetAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
-
+	
 	TArray<int32> ProduceConvexHulls;
 	ProduceConvexHulls.Reserve(SimulationType.Num());
-	TArray<int32> EliminateConvexHulls;
-	EliminateConvexHulls.Reserve(SimulationType.Num());
 
 	for (int32 Idx = 0; Idx < SimulationType.Num(); ++Idx)
 	{
 		if ((SimulationType[Idx] == FGeometryCollection::ESimulationTypes::FST_Rigid) && (TransformToConvexIndices[Idx].Num() == 0))
 		{
 			ProduceConvexHulls.Add(Idx);
-		}
-		else if ((SimulationType[Idx] != FGeometryCollection::ESimulationTypes::FST_Rigid) && (TransformToConvexIndices[Idx].Num() > 0))
-		{
-			EliminateConvexHulls.Add(Idx);
-		}
-	}
-
-	if (EliminateConvexHulls.Num())
-	{
-		GeometryCollection->RemoveElements("Convex", EliminateConvexHulls);
-		for (int32 Idx : EliminateConvexHulls)
-		{
-			TransformToConvexIndices[Idx].Reset();
 		}
 	}
 
@@ -191,7 +176,7 @@ void CreateNonoverlappingConvexHulls(
 	const TManagedArray<int32>& SimulationType,
 	int32 LeafType,
 	const TManagedArray<int32>& Parents,
-	const TManagedArray<TSet<int32>>& GeoProximity,
+	const TManagedArray<TSet<int32>>* GeoProximity,
 	const TManagedArray<int32>& GeometryToTransformIndex,
 	double FracAllowRemove
 )
@@ -211,13 +196,20 @@ void CreateNonoverlappingConvexHulls(
 
 	TArray<TSet<int32>> LeafProximity;
 	LeafProximity.SetNum(NumBones);
-	for (int32 GeomIdx = 0; GeomIdx < GeoProximity.Num(); GeomIdx++)
+	if (GeoProximity)
 	{
-		int32 TransformIdx = GeometryToTransformIndex[GeomIdx];
-		for (int32 NbrGeomIdx : GeoProximity[GeomIdx])
+		for (int32 GeomIdx = 0; GeomIdx < GeoProximity->Num(); GeomIdx++)
 		{
-			LeafProximity[TransformIdx].Add(GeometryToTransformIndex[NbrGeomIdx]);
+			int32 TransformIdx = GeometryToTransformIndex[GeomIdx];
+			for (int32 NbrGeomIdx : (*GeoProximity)[GeomIdx])
+			{
+				LeafProximity[TransformIdx].Add(GeometryToTransformIndex[NbrGeomIdx]);
+			}
 		}
+	}
+	else
+	{
+		// TODO: fill out LeafProximity by doing IsColliding calls (may have to construct Children array before this)
 	}
 
 	auto IsColliding2 = [&Convexes](int32 ConvexA, int32 ConvexB)
@@ -659,11 +651,8 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 {
 	check(GeometryCollection);
 
-	// TODO: add fallback in case we don't have proximity data
 	bool bHasProximity = GeometryCollection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup);
-	ensure(bHasProximity);
-	
-	const TManagedArray<TSet<int32>>& GCProximity = GeometryCollection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+	const TManagedArray<TSet<int32>>* GCProximity = GeometryCollection->FindAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 	TArray<TUniquePtr<Chaos::FConvex>> Convexes;
 	TArray<TSet<int32>> TransformToConvexIndexArr;
 	TArray<FTransform> GlobalTransformArray;
@@ -682,7 +671,7 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	if (!GeometryCollection->HasAttribute("TransformToConvexIndices", FTransformCollection::TransformGroup))
 	{
 		FManagedArrayCollection::FConstructionParameters ConvexDependency("Convex");
-		TManagedArray<TSet<int32>>& IndexArray = GeometryCollection->AddAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup, ConvexDependency);
+		GeometryCollection->AddAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup, ConvexDependency);
 	}
 
 	if (!GeometryCollection->HasAttribute("ConvexHull", "Convex"))
@@ -693,6 +682,7 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	TManagedArray<TSet<int32>>& TransformToConvexIndices = GeometryCollection->GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 	TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHull = GeometryCollection->GetAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
 	TransformToConvexIndices = MoveTemp(TransformToConvexIndexArr);
+	GeometryCollection->Resize(Convexes.Num(), "Convex");
 	ConvexHull = MoveTemp(Convexes);
 
 	return { TransformToConvexIndices, ConvexHull };
@@ -722,14 +712,17 @@ void FGeometryCollectionConvexUtility::RemoveConvexHulls(FGeometryCollection* Ge
 {
 	if (GeometryCollection->HasGroup("Convex") && GeometryCollection->HasAttribute("TransformToConvexIndices", FTransformCollection::TransformGroup))
 	{
-		TManagedArray<int32>& TransformToConvexIndices = GeometryCollection->GetAttribute<int32>("TransformToConvexIndices", FTransformCollection::TransformGroup);
+		TManagedArray<TSet<int32>>& TransformToConvexIndices = GeometryCollection->GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 		TArray<int32> ConvexIndices;
 		for (int32 TransformIdx : SortedTransformDeletes)
 		{
-			if (TransformToConvexIndices[TransformIdx] > INDEX_NONE)
+			if (TransformToConvexIndices[TransformIdx].Num() > 0)
 			{
-				ConvexIndices.Add(TransformToConvexIndices[TransformIdx]);
-				TransformToConvexIndices[TransformIdx] = INDEX_NONE;
+				for (int32 ConvexIdx : TransformToConvexIndices[TransformIdx])
+				{
+					ConvexIndices.Add(ConvexIdx);
+				}
+				TransformToConvexIndices[TransformIdx].Empty();
 			}
 		}
 
@@ -744,16 +737,4 @@ void FGeometryCollectionConvexUtility::RemoveConvexHulls(FGeometryCollection* Ge
 
 void FGeometryCollectionConvexUtility::SetDefaults(FGeometryCollection* GeometryCollection, FName Group, uint32 StartSize, uint32 NumElements)
 {
-	if (Group == FTransformCollection::TransformGroup)
-	{
-		if (GeometryCollection->HasAttribute("TransformToConvexIndices", FTransformCollection::TransformGroup))
-		{
-			TManagedArray<int32>& TransformToConvexIndices = GeometryCollection->GetAttribute<int32>("TransformToConvexIndices", FTransformCollection::TransformGroup);
-
-			for (uint32 Idx = StartSize; Idx < StartSize + NumElements; ++Idx)
-			{
-				TransformToConvexIndices[Idx] = INDEX_NONE;
-			}
-		}
-	}
 }
