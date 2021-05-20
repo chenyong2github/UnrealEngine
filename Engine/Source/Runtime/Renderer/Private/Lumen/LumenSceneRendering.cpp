@@ -772,8 +772,8 @@ void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 	// Pull the view location back so the entire preview box is in front of the near plane
 	ViewLocation += FaceLocalExtent.Z * LocalToWorldRotationZ;
 
-	const float NearPlane = 0;
-	const float FarPlane = FaceLocalExtent.Z * 2;
+	const float NearPlane = 0.0f;
+	const float FarPlane = NearPlane + FaceLocalExtent.Z * 2.0f;
 
 	const float ZScale = 1.0f / (FarPlane - NearPlane);
 	const float ZOffset = -NearPlane;
