@@ -2693,6 +2693,9 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 			RotationsAttr.Set( Rotations, pxr::UsdTimeCode( TimeCode ) );
 			ScalesAttr.Set( Scales, pxr::UsdTimeCode( TimeCode ) );
 		}
+
+		// Actively delete it or else it will remain visible on the viewport
+		DebugSkelMeshComponent->DestroyComponent();
 	}
 
 	const int32 StageEndTimeCode = SkelAnimPrim.GetStage()->GetEndTimeCode();
