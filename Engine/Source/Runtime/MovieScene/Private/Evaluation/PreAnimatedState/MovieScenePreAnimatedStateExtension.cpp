@@ -186,7 +186,7 @@ void FPreAnimatedStateExtension::UpdateMetaData(const FPreAnimatedStateMetaData&
 	}
 }
 
-FPreAnimatedEntityCaptureSource* FPreAnimatedStateExtension::GetEntityMetaData()
+FPreAnimatedEntityCaptureSource* FPreAnimatedStateExtension::GetEntityMetaData() const
 {
 	return EntityCaptureSource.Get();
 }
@@ -200,7 +200,7 @@ FPreAnimatedEntityCaptureSource* FPreAnimatedStateExtension::GetOrCreateEntityMe
 	return EntityCaptureSource.Get();
 }
 
-FPreAnimatedTrackInstanceCaptureSources* FPreAnimatedStateExtension::GetTrackInstanceMetaData()
+FPreAnimatedTrackInstanceCaptureSources* FPreAnimatedStateExtension::GetTrackInstanceMetaData() const
 {
 	return TrackInstanceCaptureSource.Get();
 }
@@ -377,6 +377,28 @@ void FPreAnimatedStateExtension::DiscardStateForGroup(FPreAnimatedStorageGroupHa
 	GroupMetaData.RemoveAt(GroupHandle.Value, 1);
 
 	bEntriesInvalidated = true;
+}
+
+bool FPreAnimatedStateExtension::ContainsAnyStateForInstanceHandle(FInstanceHandle RootInstanceHandle) const
+{
+	if (FPreAnimatedEntityCaptureSource* EntityMetaData = GetEntityMetaData())
+	{
+		if (EntityMetaData->ContainsInstanceHandle(RootInstanceHandle))
+		{
+			return true;
+		}
+	}
+
+	for (int32 Index = WeakExternalCaptureSources.Num()-1; Index >= 0; --Index)
+	{
+		TSharedPtr<IPreAnimatedCaptureSource> MetaData = WeakExternalCaptureSources[Index].Pin();
+		if (MetaData && MetaData->ContainsInstanceHandle(RootInstanceHandle))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 } // namespace MovieScene

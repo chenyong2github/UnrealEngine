@@ -243,12 +243,18 @@ public:
 	 */
 	void DiscardStateForGroup(FPreAnimatedStorageGroupHandle GroupHandle);
 
+	/**
+	 * Search for any captured state that originated from the specified root instance handle
+	 * WARNING: This is a linear search across all state, and so is potentially very slow
+	 */
+	bool ContainsAnyStateForInstanceHandle(FInstanceHandle RootInstanceHandle) const;
+
 public:
 
-	FPreAnimatedEntityCaptureSource* GetEntityMetaData();
+	FPreAnimatedEntityCaptureSource* GetEntityMetaData() const;
 	FPreAnimatedEntityCaptureSource* GetOrCreateEntityMetaData();
 
-	FPreAnimatedTrackInstanceCaptureSources* GetTrackInstanceMetaData();
+	FPreAnimatedTrackInstanceCaptureSources* GetTrackInstanceMetaData() const;
 	FPreAnimatedTrackInstanceCaptureSources* GetOrCreateTrackInstanceMetaData();
 
 	void AddWeakCaptureSource(TWeakPtr<IPreAnimatedCaptureSource> InWeakMetaData);
