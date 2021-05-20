@@ -1435,7 +1435,14 @@ namespace Audio
 			TArray<TTuple<EBusSendType, FSoundSourceBusSendInfo>> NewBusSends = ActiveSound->GetNewBusSends();
 			for (TTuple<EBusSendType, FSoundSourceBusSendInfo>& newSend : NewBusSends)
 			{
-				MixerSourceVoice->SetAudioBusSendInfo(newSend.Key, newSend.Value.SoundSourceBus->GetUniqueID(), newSend.Value.SendLevel);
+				if (newSend.Value.SoundSourceBus)
+				{
+					MixerSourceVoice->SetAudioBusSendInfo(newSend.Key, newSend.Value.SoundSourceBus->GetUniqueID(), newSend.Value.SendLevel);
+				}
+				else if (newSend.Value.AudioBus)
+				{
+					MixerSourceVoice->SetAudioBusSendInfo(newSend.Key, newSend.Value.AudioBus->GetUniqueID(), newSend.Value.SendLevel);
+				}
 			}
 
 			ActiveSound->ResetNewBusSends();
