@@ -14,6 +14,7 @@
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Images/SImage.h"
 #include "Scalability.h"
+#include "PerQualityLevelProperties.h"
 
 void SOverridePropertiesWidget::Construct(const typename SOverridePropertiesWidget::FArguments& InArgs)
 {

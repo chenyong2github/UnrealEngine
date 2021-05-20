@@ -89,6 +89,7 @@ DEFINE_LOG_CATEGORY(LogContentCommandlet);
 #include "CollectionManagerModule.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Engine/LODActor.h"
+#include "PerQualityLevelProperties.h"
 
 /**-----------------------------------------------------------------------------
  *	UResavePackages commandlet.
