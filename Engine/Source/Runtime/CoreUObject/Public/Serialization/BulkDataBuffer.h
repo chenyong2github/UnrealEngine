@@ -15,7 +15,7 @@ template<typename DataType>
 class FBulkDataBuffer
 {
 public:
-	using ViewType = TArrayView<DataType>;
+	using ViewType = TArrayView64<DataType>;
 
 	/** Constructor. */
 	FBulkDataBuffer() = default;
@@ -47,10 +47,10 @@ public:
 	* @param InBuffer Pointer to memory to take ownership of, must've have been allocated via FMemory::Malloc/Realloc.
 	* @param InNumberOfElements The number of elements in the buffer.
 	*/
-	FBulkDataBuffer(DataType* InBuffer, uint64 InNumberOfElements)
+	FBulkDataBuffer(DataType* InBuffer, int64 InNumberOfElements)
 		: View(InBuffer, InNumberOfElements)
 	{
-		check(InNumberOfElements <= TNumericLimits<uint32>::Max());
+
 	}
 
 	/** Destructor. */
