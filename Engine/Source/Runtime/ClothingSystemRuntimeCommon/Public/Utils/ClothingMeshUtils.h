@@ -9,6 +9,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogClothingMeshUtils, Log, All);
 
 struct FClothPhysicalMeshData;
+struct FPointWeightMap;
 
 namespace ClothingMeshUtils
 {
@@ -120,6 +121,16 @@ namespace ClothingMeshUtils
 		TArray<FVector4>& OutEmbeddedPositions, 
 		TArray<int32>& OutSourceIndices);
 
+	/**
+	 * Computes how much each vertex contributes to the final mesh. The final mesh is a blend
+	 * between the cloth and the skinned mesh.
+	 */
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API ComputeVertexContributions(
+		TArray<FMeshToMeshVertData> &InOutSkinningData,
+		const FPointWeightMap* const InMaxDistances,
+		const bool bInSmoothTransition
+		);
+	
 	/**
 	* Given a triangle ABC with normals at each vertex NA, NB and NC, get a barycentric coordinate
 	* and corresponding distance from the triangle encoded in an FVector4 where the components are

@@ -100,8 +100,12 @@ protected:
 
 	ECheckBoxState GetCurrentUseMultipleInfluences() const;
 	void OnCurrentUseMultipleInfluencesChanged(ECheckBoxState InValue);
-	bool CurrentUseMultipleInfluencesIsEnabled() const;
 
+	ECheckBoxState GetCurrentSmoothTransition() const;
+	void OnCurrentSmoothTransitionChanged(ECheckBoxState InValue);
+
+	bool IsValidClothLodSelected() const;
+	
 	void OnClothingLodSelected(int32 InNewLod);
 
 	// Setters for the list selections so we can handle list selections changing properly

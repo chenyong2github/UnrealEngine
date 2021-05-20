@@ -961,6 +961,16 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 						.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 						.Text(LOCTEXT("CurrentRadius", "Kernel Radius"))
 					]
+					
+					+ SVerticalBox::Slot()
+					.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+					.AutoHeight()
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+						.Text(LOCTEXT("SmoothTransition", "Smooth Transition From Skin to Cloth"))
+						.ShadowOffset(FVector2D(1, 1))
+					]
 				]
 
 				+ SSplitter::Slot()
@@ -974,7 +984,7 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 						SNew(SCheckBox)
 						.IsChecked(this, &SClothAssetSelector::GetCurrentUseMultipleInfluences)
 						.OnCheckStateChanged(this, &SClothAssetSelector::OnCurrentUseMultipleInfluencesChanged)
-						.IsEnabled(this, &SClothAssetSelector::CurrentUseMultipleInfluencesIsEnabled)
+						.IsEnabled(this, &SClothAssetSelector::IsValidClothLodSelected)
 					]
 
 					+ SVerticalBox::Slot()
@@ -992,6 +1002,16 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 						.OnValueCommitted(this, &SClothAssetSelector::OnCurrentKernelRadiusCommitted)
 						.OnValueChanged(this, &SClothAssetSelector::OnCurrentKernelRadiusChanged)
 						.LabelPadding(0)
+					]
+					
+					+ SVerticalBox::Slot()
+					.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+					.AutoHeight()
+					[
+						SNew(SCheckBox)
+						.IsChecked(this, &SClothAssetSelector::GetCurrentSmoothTransition)
+						.OnCheckStateChanged(this, &SClothAssetSelector::OnCurrentSmoothTransitionChanged)
+						.IsEnabled(this, &SClothAssetSelector::IsValidClothLodSelected)
 					]
 				]
 
@@ -1082,7 +1102,43 @@ void SClothAssetSelector::OnCurrentUseMultipleInfluencesChanged(ECheckBoxState I
 	}
 }
 
-bool SClothAssetSelector::CurrentUseMultipleInfluencesIsEnabled() const
+
+ECheckBoxState SClothAssetSelector::GetCurrentSmoothTransition() const
+{
+	UClothingAssetCommon* Asset = SelectedAsset.Get();
+	if (Asset && Asset->IsValidLod(SelectedLod))
+	{
+		const FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+		return LodData.bSmoothTransition ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	return ECheckBoxState::Undetermined;
+}
+
+
+void SClothAssetSelector::OnCurrentSmoothTransitionChanged(ECheckBoxState InValue)
+{
+	if (InValue == ECheckBoxState::Undetermined)
+	{
+		return;
+	}
+
+	UClothingAssetCommon* Asset = SelectedAsset.Get();
+	if (Asset && Asset->IsValidLod(SelectedLod))
+	{
+		FClothLODDataCommon& LodData = Asset->LodData[SelectedLod];
+		LodData.bSmoothTransition = (InValue == ECheckBoxState::Checked);
+
+		// Recompute weights
+		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset->GetOuter()))
+		{
+			FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(SkeletalMesh);
+			SkeletalMesh->InvalidateDeriveDataCacheGUID();
+		}
+	}
+}
+
+bool SClothAssetSelector::IsValidClothLodSelected() const
 {
 	UClothingAssetCommon* Asset = SelectedAsset.Get();
 	return (Asset && Asset->IsValidLod(SelectedLod));

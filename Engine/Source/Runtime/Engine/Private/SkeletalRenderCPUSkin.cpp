@@ -995,8 +995,10 @@ static void SkinVertexSection(
 				// transform back to local space
 				FVector3f SimulatedPosition = WorldToLocal.TransformPosition(SimulatedPositionWorld);
 
+				const float VertexBlend = ClothBlendWeight * (1.0f - (ClothVertData->SourceMeshVertIndices[3] / 65535.0f));
+				
 				// Lerp between skinned and simulated position
-				DestVertex->Position = FMath::Lerp(DestVertex->Position, SimulatedPosition, ClothBlendWeight);
+				DestVertex->Position = FMath::Lerp(DestVertex->Position, SimulatedPosition, VertexBlend);
 
 				// recompute tangent & normal
 				FVector TangentX;
@@ -1006,8 +1008,8 @@ static void SkinVertexSection(
 				// Lerp between skinned and simulated tangents
 				FVector SkinnedTangentX = DestVertex->TangentX.ToFVector();
 				FVector4 SkinnedTangentZ = DestVertex->TangentZ.ToFVector4();
-				DestVertex->TangentX = (TangentX * ClothBlendWeight) + (SkinnedTangentX * (1.0f - ClothBlendWeight));
-				DestVertex->TangentZ = FVector4((TangentZ * ClothBlendWeight) + (SkinnedTangentZ * (1.0f - ClothBlendWeight)), SkinnedTangentZ.W);
+				DestVertex->TangentX = (TangentX * VertexBlend) + (SkinnedTangentX * (1.0f - VertexBlend));
+				DestVertex->TangentZ = FVector4((TangentZ * VertexBlend) + (SkinnedTangentZ * (1.0f - VertexBlend)), SkinnedTangentZ.W);
 			}
 
 			// Copy UVs.
