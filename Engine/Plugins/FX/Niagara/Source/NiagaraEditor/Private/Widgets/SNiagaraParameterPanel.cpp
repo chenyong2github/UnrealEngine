@@ -78,6 +78,8 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	ParameterPanelViewModel->GetParametersWithNamespaceModifierRenamePendingDelegate().BindSP(this, &SNiagaraParameterPanel::GetParametersWithNamespaceModifierRenamePending);
 
 	SAssignNew(ItemSelector, SNiagaraParameterPanelSelector)
+	.PreserveSelectionOnRefresh(true)
+	.PreserveExpansionOnRefresh(true)
 	.Items(ParameterPanelViewModel->GetViewedParameterItems())
 	.OnGetCategoriesForItem(this, &SNiagaraParameterPanel::OnGetCategoriesForItem)
 	.OnCompareCategoriesForEquality(this, &SNiagaraParameterPanel::OnCompareCategoriesForEquality)
@@ -98,7 +100,9 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	.OnGetCategoryBackgroundImage(this, &SNiagaraParameterPanel::GetCategoryBackgroundImage)
 	.CategoryBorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 	.CategoryChildSlotPadding(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
-	.CategoryBorderBackgroundPadding(FMargin(0.0f, 3.0f));
+	.CategoryBorderBackgroundPadding(FMargin(0.0f, 3.0f))
+	.OnGetKeyForItem(this, &SNiagaraParameterPanel::OnGetKeyForItem)
+	.OnGetKeyForCategory(this, &SNiagaraParameterPanel::OnGetKeyForCategory);
 
 	// View options
 	TSharedRef<SWidget> ViewOptionsWidget = SNew(SBorder)
@@ -183,6 +187,11 @@ bool SNiagaraParameterPanel::OnCompareCategoriesForSorting(const FNiagaraParamet
 	return CategoryA.NamespaceMetaData.SortId < CategoryB.NamespaceMetaData.SortId;
 }
 
+const FGuid& SNiagaraParameterPanel::OnGetKeyForCategory(const FNiagaraParameterPanelCategory& Category) const
+{
+	return Category.NamespaceMetaData.GetGuid();
+}
+
 bool SNiagaraParameterPanel::OnCompareItemsForEquality(const FNiagaraParameterPanelItem& ItemA, const FNiagaraParameterPanelItem& ItemB) const
 {
 	return ItemA.GetVariable()  == ItemB.GetVariable();
@@ -191,6 +200,11 @@ bool SNiagaraParameterPanel::OnCompareItemsForEquality(const FNiagaraParameterPa
 bool SNiagaraParameterPanel::OnCompareItemsForSorting(const FNiagaraParameterPanelItem& ItemA, const FNiagaraParameterPanelItem& ItemB) const
 {
 	return ItemA.GetVariable().GetName().LexicalLess(ItemB.GetVariable().GetName());
+}
+
+const FNiagaraVariableBase& SNiagaraParameterPanel::OnGetKeyForItem(const FNiagaraParameterPanelItem& Item) const
+{
+	return Item.GetVariable();
 }
 
 bool SNiagaraParameterPanel::OnDoesItemMatchFilterText(const FText& FilterText, const FNiagaraParameterPanelItem& Item)
