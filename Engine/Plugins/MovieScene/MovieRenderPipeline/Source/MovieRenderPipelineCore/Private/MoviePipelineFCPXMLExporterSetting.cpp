@@ -12,7 +12,9 @@
 #include "MovieSceneExportMetadata.h"
 #include "MovieSceneToolHelpers.h"
 #endif
+
 #include "LevelSequence.h"
+#include "MoviePipelineUtils.h"
 
 // For logs
 #include "MovieRenderPipelineCoreModule.h"
@@ -25,7 +27,17 @@ void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 
 	// Use our file name format on the end of the shared common directory.
+	FString FileNameFormat = FileNameFormatOverride.Len() > 0 ? FileNameFormatOverride : OutputSetting->FileNameFormat;
+
 	FString FileNameFormatString = OutputSetting->OutputDirectory.Path / FileNameFormat;
+
+	const bool bIncludeRenderPass = false;
+	const bool bTestFrameNumber = false;
+
+	UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
+
+	// Strip any frame number tags.
+	UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
 	
 	TMap<FString, FString> FormatOverrides;
 	FormatOverrides.Add(TEXT("ext"), TEXT("xml"));
@@ -48,6 +60,7 @@ void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 		UMovieSceneCinematicShotTrack* ShotTrack = MovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
 		if (!ShotTrack)
 		{
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("FCPXML Export only works with a Cinematic Shot track. No FCPXML file will be written."));
 			return;
 		}
 		
