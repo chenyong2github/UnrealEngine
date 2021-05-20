@@ -56,6 +56,12 @@ namespace UnrealEditor
 		public string GameInstanceLostTimerSeconds = string.Empty;
 
 		/// <summary>
+		/// Disable loading a level at startup (for profiling the map load)
+		/// </summary>
+		[AutoParam]
+		public bool NoLoadLevelAtStartup = false;
+
+		/// <summary>
 		/// Disable distribution of shader builds (but use worker processes still)
 		/// </summary>
 		[AutoParam]
@@ -95,6 +101,11 @@ namespace UnrealEditor
 			if (GameInstanceLostTimerSeconds != string.Empty)
 			{
 				AppConfig.CommandLineParams.Add(string.Format("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:GameInstanceLostTimerSeconds={0}", GameInstanceLostTimerSeconds));
+			}
+
+			if (NoLoadLevelAtStartup)
+			{
+				AppConfig.CommandLineParams.Add("ini:EditorPerProjectUserSettings:[/Script/UnrealEd.EditorLoadingSavingSettings]:LoadLevelAtStartup=None");
 			}
 
 			if (NoShaderDistrib)
