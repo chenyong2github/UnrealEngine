@@ -66,20 +66,9 @@ namespace UE { namespace TasksTests
 			));
 		}
 
-		for (FTask& SpawnerGroup : SpawnerGroups)
-		{
-			SpawnerGroup.Wait();
-		}
-
-		for (FTask& Spawner : Spawners)
-		{
-			Spawner.Wait();
-		}
-
-		for (FTask& Task : Tasks)
-		{
-			Task.Wait();
-		}
+		Wait(SpawnerGroups);
+		Wait(Spawners);
+		Wait(Tasks);
 
 		check(TasksExecutedNum == TasksNum);
 	}
@@ -419,20 +408,9 @@ namespace UE { namespace TasksTests
 				));
 		}
 
-		for (FTask& SpawnerGroup : SpawnerGroups)
-		{
-			SpawnerGroup.Wait();
-		}
-
-		for (FTask& Spawner : Spawners)
-		{
-			Spawner.Wait();
-		}
-
-		for (FTask& Task : Tasks)
-		{
-			Task.Wait();
-		}
+		Wait(SpawnerGroups);
+		Wait(Spawners);
+		Wait(Tasks);
 
 		check(TasksExecutedNum == TasksNum);
 	}
