@@ -11,7 +11,6 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "SSCSEditor.h"
 #include "BlueprintEditorTabs.h"
 #include "ScopedTransaction.h"
 #include "ISequencerModule.h"

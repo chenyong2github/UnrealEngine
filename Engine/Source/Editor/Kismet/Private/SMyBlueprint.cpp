@@ -29,7 +29,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "DetailLayoutBuilder.h"
 #include "SKismetInspector.h"
-#include "SSCSEditor.h"
+#include "SSubobjectBlueprintEditor.h"
 #include "GraphEditorDragDropAction.h"
 #include "BPFunctionDragDropAction.h"
 #include "BPVariableDragDropAction.h"
@@ -2189,7 +2189,7 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 					// of events appropriate to the component.
 					MenuBuilder.AddSubMenu(	LOCTEXT("AddEventSubMenu", "Add Event"), 
 											LOCTEXT("AddEventSubMenu_ToolTip", "Add Event"), 
-											FNewMenuDelegate::CreateStatic(	&SSCSEditor::BuildMenuEventsSection,
+											FNewMenuDelegate::CreateStatic(	&SSubobjectBlueprintEditor::BuildMenuEventsSection,
 												BlueprintEditor->GetBlueprintObj(), ComponentProperty->PropertyClass, 
 												FCanExecuteAction::CreateRaw(this, &SMyBlueprint::IsEditingMode),
 												FGetSelectedObjectsDelegate::CreateSP(this, &SMyBlueprint::GetSelectedItemsForContextMenu)));
