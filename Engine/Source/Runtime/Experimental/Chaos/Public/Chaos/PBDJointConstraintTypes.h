@@ -163,6 +163,7 @@ namespace Chaos
 
 		FReal LinearBreakForce;
 		FReal LinearPlasticityLimit;
+		FReal InitCOMDistance;
 		FReal AngularBreakTorque;
 		FReal AngularPlasticityLimit;
 

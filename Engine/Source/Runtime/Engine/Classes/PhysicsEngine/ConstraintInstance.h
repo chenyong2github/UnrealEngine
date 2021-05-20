@@ -46,7 +46,7 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear, meta = (editcondition = "bLinearBreakable", ClampMin = "0.0"))
 	float LinearBreakThreshold;
 
-	/** Percent threshold from target position needed to reset the spring rest length.*/
+	/** [Chaos Only] Percent threshold from center of mass distance needed to reset the linear drive position target. This value can be greater than 1. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear, meta = (editcondition = "bLinearPlasticity", ClampMin = "0.0"))
 	float LinearPlasticityThreshold;
 
@@ -54,7 +54,7 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular, meta = (editcondition = "bAngularBreakable", ClampMin = "0.0"))
 	float AngularBreakThreshold;
 
-	/** Degree threshold from target angle needed to reset the target angle.*/
+	/** [Chaos Only] Degree threshold from target angle needed to reset the target angle.*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular, meta = (editcondition = "bAngularPlasticity", ClampMin = "0.0"))
 	float AngularPlasticityThreshold;
 
