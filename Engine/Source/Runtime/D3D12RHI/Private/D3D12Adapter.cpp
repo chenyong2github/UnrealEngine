@@ -1106,7 +1106,11 @@ void FD3D12Adapter::Cleanup()
 	// Ask all initialized FRenderResources to release their RHI resources.
 	FRenderResource::ReleaseRHIForAllResources();
 
-	FRHIResource::FlushPendingDeletes();
+	{
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		FRHIResource::FlushPendingDeletes(RHICmdList);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+	}
 
 	// Cleanup resources
 	DeferredDeletionQueue.ReleaseResources(true, true);

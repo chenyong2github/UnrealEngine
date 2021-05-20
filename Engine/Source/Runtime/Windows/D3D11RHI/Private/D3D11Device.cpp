@@ -528,7 +528,11 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		StateCache.SetContext(nullptr);
 
 		// Flush all pending deletes before destroying the device.
-		FRHIResource::FlushPendingDeletes();
+		{
+			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+			FRHIResource::FlushPendingDeletes(RHICmdList);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		}
 
 		ReleasePooledUniformBuffers();
 		ReleasePooledTextures();

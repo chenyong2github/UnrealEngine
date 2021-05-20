@@ -991,13 +991,12 @@ bool FRHIResource::Bypass()
 
 DECLARE_CYCLE_STAT(TEXT("Delete Resources"), STAT_DeleteResources, STATGROUP_RHICMDLIST);
 
-void FRHIResource::FlushPendingDeletes()
+void FRHIResource::FlushPendingDeletes(FRHICommandListImmediate& RHICmdList)
 {
 	SCOPE_CYCLE_COUNTER(STAT_DeleteResources);
 
 	check(IsInRenderingThread());
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 #if ENABLE_RHI_VALIDATION
 	if (GDynamicRHI)
 	{
@@ -1011,7 +1010,7 @@ void FRHIResource::FlushPendingDeletes()
 	TClosableMpscQueue<FRHIResource*>* PendingDeletesPtr = PendingDeletes.exchange(new TClosableMpscQueue<FRHIResource*>());
 	PendingDeletesPtr->Close([&DeletedResources](FRHIResource* Resource)
 	{	
-		DeletedResources.Push(Resource);		
+		DeletedResources.Push(Resource);
 	});
 	PendingDeletesHPC.Delete(PendingDeletesPtr);
 

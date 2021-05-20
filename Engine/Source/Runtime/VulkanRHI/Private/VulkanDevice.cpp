@@ -1238,7 +1238,11 @@ void FVulkanDevice::Destroy()
 #endif
 
 	// Flush all pending deletes before destroying the device and any Vulkan context objects.
-	FRHIResource::FlushPendingDeletes();
+	{
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		FRHIResource::FlushPendingDeletes(RHICmdList);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+	}
 
 	VulkanRHI::vkDestroyImageView(GetInstanceHandle(), DefaultTextureView.View, VULKAN_CPU_ALLOCATOR);
 	DefaultTextureView = {};
