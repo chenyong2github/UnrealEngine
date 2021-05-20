@@ -117,6 +117,12 @@ public:
 	/** @return Whether this node can be resized using the resize widget. */
 	virtual bool CanNodeBeResized() const { return true; }
 
+	/** @return The minimum size this node can be resized to. */
+	virtual float GetNodeMinimumSize() const { return 0; }
+
+	/** @return The maximum size this node can be resized to. */
+	virtual float GetNodeMaximumSize() const { return FLT_MAX; }
+
 	/** @return Whether this node's size is fixed to a specific aspect ratio. */
 	virtual bool IsAspectRatioFixed() const { return false; }
 
