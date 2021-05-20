@@ -176,7 +176,7 @@ void AGameplayAbilityTargetActor_Trace::StartTargeting(UGameplayAbility* InAbili
 void AGameplayAbilityTargetActor_Trace::Tick(float DeltaSeconds)
 {
 	// very temp - do a mostly hardcoded trace from the source actor
-	if (SourceActor)
+	if (SourceActor && SourceActor->GetLocalRole() != ENetRole::ROLE_SimulatedProxy)
 	{
 		FHitResult HitResult = PerformTrace(SourceActor);
 		FVector EndPoint = HitResult.Component.IsValid() ? HitResult.ImpactPoint : HitResult.TraceEnd;
