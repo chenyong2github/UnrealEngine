@@ -335,18 +335,25 @@ public:
 	}
 
 #if RHI_WANT_BREADCRUMB_EVENTS
-	inline void RHISetBreadcrumbStackTop(FRHIBreadcrumb* Breadcrumb)
+	inline void RHISetBreadcrumbStackTop(const FRHIBreadcrumb* InBreadcrumbStackTop)
 	{
-		BreadcrumbStackTop = Breadcrumb;
+		if (ensure(BreadcrumbStackIndex >= 0))
+		{
+			BreadcrumbStackTop[BreadcrumbStackIndex] = InBreadcrumbStackTop;
+		}
+	}
+	
+	const FRHIBreadcrumb* GetBreadcrumbStackTop() const
+	{
+		return BreadcrumbStackIndex >= 0 ? BreadcrumbStackTop[BreadcrumbStackIndex] : nullptr;
 	}
 
-	const FRHIBreadcrumb* const * GetBreadcrumbStackTopRef() const
-	{
-		return &BreadcrumbStackTop;
-	}
+	enum { MaxBreadcrumbStacks = 4 };
 
 	// Top of the breadcrumb stack on the RHI thread.
-	FRHIBreadcrumb* BreadcrumbStackTop = nullptr;
+	const FRHIBreadcrumb* BreadcrumbStackTop[MaxBreadcrumbStacks]{};
+	// Index into the breadcrumbs, incremented for each command list submit and decremented when complete.
+	int32 BreadcrumbStackIndex{ -1 };
 #endif
 
 #if ENABLE_RHI_VALIDATION

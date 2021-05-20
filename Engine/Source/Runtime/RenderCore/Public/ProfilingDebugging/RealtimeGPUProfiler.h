@@ -30,12 +30,22 @@ struct RENDERCORE_API FBreadcrumbEvent
 {
 	FRHIComputeCommandList* RHICmdList{};
 
-	FORCEINLINE FBreadcrumbEvent(FRHIComputeCommandList& InRHICmdList, const TCHAR* String)
+	FORCEINLINE FBreadcrumbEvent(FRHIComputeCommandList& InRHICmdList, const TCHAR* InText)
 		: RHICmdList(&InRHICmdList)
 	{
 		if (RHICmdList)
 		{
-			RHICmdList->PushBreadcrumb(String);
+			RHICmdList->PushBreadcrumb(InText);
+		}
+	}
+
+	template<typename... Types>
+	FORCEINLINE FBreadcrumbEvent(FRHIComputeCommandList& InRHICmdList, const TCHAR* Format, Types... Arguments)
+		: RHICmdList(&InRHICmdList)
+	{
+		if (RHICmdList)
+		{
+			RHICmdList->PushBreadcrumbPrintf(Format, Arguments...);
 		}
 	}
 
@@ -50,8 +60,10 @@ struct RENDERCORE_API FBreadcrumbEvent
 };
 
 	#define BREADCRUMB_EVENT(RHICmdList, Name) FBreadcrumbEvent PREPROCESSOR_JOIN(BreadcrumbEvent_##Name,__LINE__)(RHICmdList, TEXT(#Name));
+	#define BREADCRUMB_EVENTF(RHICmdList, Name, Format, ...) FBreadcrumbEvent PREPROCESSOR_JOIN(BreadcrumbEvent_##Name,__LINE__)(RHICmdList, Format, ##__VA_ARGS__);
 #else
 	#define BREADCRUMB_EVENT(RHICmdList, Name) do { } while(0)
+	#define BREADCRUMB_EVENTF(RHICmdList, Name, Format, ...) do { } while(0)
 #endif
 
 #if WANTS_DRAW_MESH_EVENTS
