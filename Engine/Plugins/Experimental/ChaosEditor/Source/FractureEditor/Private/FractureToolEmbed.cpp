@@ -230,10 +230,19 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 				// Which bone points to the closest convex?
 				const TManagedArray<FTransform>& Transform = ClosestGeometryCollection->Transform;
 				const TManagedArray<int32>& Parent = ClosestGeometryCollection->Parent;
-				TManagedArray<int32>& TransformToConvexIndices =
-					ClosestGeometryCollection->GetAttribute<int32>("TransformToConvexIndices", FTransformCollection::TransformGroup);
+				TManagedArray<TSet<int32>>& TransformToConvexIndices =
+					ClosestGeometryCollection->GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 
-				const int32 BoneIndex = TransformToConvexIndices.Find(ClosestConvex);
+				int32 BoneIndex = INDEX_NONE;
+				for (int32 SearchIndex = 0; SearchIndex < TransformToConvexIndices.Num(); SearchIndex++)
+				{
+					const TSet<int32>& ConvexSet = TransformToConvexIndices[SearchIndex];
+					if (ConvexSet.Contains(ClosestConvex))
+					{
+						BoneIndex = SearchIndex;
+						break;
+					}
+				}
 
 				if (BoneIndex > INDEX_NONE)
 				{
