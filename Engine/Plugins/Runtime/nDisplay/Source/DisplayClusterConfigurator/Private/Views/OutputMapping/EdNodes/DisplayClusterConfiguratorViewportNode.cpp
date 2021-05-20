@@ -40,18 +40,33 @@ TSharedPtr<SGraphNode> UDisplayClusterConfiguratorViewportNode::CreateVisualWidg
 
 bool UDisplayClusterConfiguratorViewportNode::IsNodeVisible() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 	return Viewport->bIsVisible;
 }
 
 bool UDisplayClusterConfiguratorViewportNode::IsNodeEnabled() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 	return Viewport->bIsEnabled;
 }
 
 void UDisplayClusterConfiguratorViewportNode::DeleteObject()
 {
+	if (!IsObjectValid())
+	{
+		return;
+	}
+
 	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 	FDisplayClusterConfiguratorClusterUtils::RemoveViewportFromClusterNode(Viewport);
 }
@@ -86,6 +101,11 @@ const FDisplayClusterConfigurationRectangle& UDisplayClusterConfiguratorViewport
 
 bool UDisplayClusterConfiguratorViewportNode::IsFixedAspectRatio() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationViewport* CfgViewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 	return CfgViewport->bFixedAspectRatio;
 }
@@ -115,6 +135,12 @@ void UDisplayClusterConfiguratorViewportNode::OnPostEditChangeChainProperty(cons
 	// If the pointer to the blueprint editor is no longer valid, its likely that the editor this node was created for was closed,
 	// and this node is orphaned and will eventually be GCed.
 	if (!ToolkitPtr.IsValid())
+	{
+		return;
+	}
+	
+	// If the object is no longer valid, don't attempt to sync properties
+	if (!IsObjectValid())
 	{
 		return;
 	}

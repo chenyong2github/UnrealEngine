@@ -123,6 +123,7 @@ public:
 	virtual void UpdateNode();
 	virtual void UpdateObject();
 	virtual void DeleteObject() { }
+	virtual bool IsObjectValid() const;
 
 	virtual void OnNodeAligned(bool bUpdateChildren = false);
 

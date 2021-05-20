@@ -28,14 +28,19 @@ void UDisplayClusterConfiguratorBaseNode::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	UpdateObject();
-
-	// Don't update the child nodes if this node is auto-positioned because this node is probably in the undo stack as part of
-	// a change to a child, and we don't want to overwrite the child's undo. If the children need updating, it will be handled on
-	// the next position tick.
-	if (!IsNodeAutoPositioned())
+	// Make sure the undo operation isn't going to a state where this node or the object it edits isn't valid
+	// before attempting to update the object or its children
+	if (IsObjectValid())
 	{
-		UpdateChildNodes();
+		UpdateObject();
+
+		// Don't update the child nodes if this node is auto-positioned because this node is probably in the undo stack as part of
+		// a change to a child, and we don't want to overwrite the child's undo. If the children need updating, it will be handled on
+		// the next position tick.
+		if (!IsNodeAutoPositioned())
+		{
+			UpdateChildNodes();
+		}
 	}
 }
 #endif
@@ -417,7 +422,7 @@ bool UDisplayClusterConfiguratorBaseNode::IsUserInteractingWithNode(bool bCheckD
 
 void UDisplayClusterConfiguratorBaseNode::UpdateNode()
 {
-	if (!IsPendingKill())
+	if (IsObjectValid())
 	{
 		ReadNodeStateFromObject();
 
@@ -427,7 +432,7 @@ void UDisplayClusterConfiguratorBaseNode::UpdateNode()
 
 void UDisplayClusterConfiguratorBaseNode::UpdateObject()
 {
-	if (!IsPendingKill())
+	if (IsObjectValid())
 	{
 		WriteNodeStateToObject();
 
@@ -436,6 +441,11 @@ void UDisplayClusterConfiguratorBaseNode::UpdateObject()
 			ObjectToEdit->MarkPackageDirty();
 		}
 	}
+}
+
+bool UDisplayClusterConfiguratorBaseNode::IsObjectValid() const
+{
+	return !IsPendingKill() && ObjectToEdit.IsValid();
 }
 
 void UDisplayClusterConfiguratorBaseNode::OnNodeAligned(bool bUpdateChildren)
