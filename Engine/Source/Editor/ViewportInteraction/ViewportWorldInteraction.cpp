@@ -316,7 +316,7 @@ void UViewportWorldInteraction::Init()
 	AppTimeEntered = FTimespan::FromSeconds( FApp::GetCurrentTime() );
 
 	// Setup the asset container.
-	AssetContainer = &LoadAssetContainer();
+	AssetContainer = LoadAssetContainer();
 
 	// Start with the default transformer
 	SetTransformer( nullptr );
@@ -3136,11 +3136,11 @@ const UViewportInteractionAssetContainer& UViewportWorldInteraction::GetAssetCon
 	return *AssetContainer;
 }
 
-const class UViewportInteractionAssetContainer& UViewportWorldInteraction::LoadAssetContainer()
+const UViewportInteractionAssetContainer* UViewportWorldInteraction::LoadAssetContainer()
 {
 	UViewportInteractionAssetContainer* AssetContainer = LoadObject<UViewportInteractionAssetContainer>(nullptr, UViewportWorldInteraction::AssetContainerPath);
 	checkf(AssetContainer, TEXT("Failed to load ViewportInteractionAssetContainer (%s). See log for reason."), UViewportWorldInteraction::AssetContainerPath);
-	return *AssetContainer;
+	return AssetContainer;
 }
 
 void UViewportWorldInteraction::PlaySound(USoundBase* SoundBase, const FVector& InWorldLocation, const float InVolume /*= 1.0f*/)
@@ -3771,7 +3771,7 @@ void UViewportWorldInteraction::UseVWInteractions()
 	InitColors();
 
 	// Setup the asset container.
-	AssetContainer = &LoadAssetContainer();
+	AssetContainer = LoadAssetContainer();
 
 	if (DefaultMouseCursorInteractorRefCount == 0)
 	{
