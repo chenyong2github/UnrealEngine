@@ -37,6 +37,8 @@ public:
 	virtual bool IsNodeVisible() const override;
 	virtual bool CanNodeBeSnapAligned() const override { return true; }
 	virtual bool CanNodeBeResized() const { return !IsViewportLocked(); }
+	virtual float GetNodeMinimumSize() const override;
+	virtual float GetNodeMaximumSize() const override;
 	virtual bool IsAspectRatioFixed() const override;
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 

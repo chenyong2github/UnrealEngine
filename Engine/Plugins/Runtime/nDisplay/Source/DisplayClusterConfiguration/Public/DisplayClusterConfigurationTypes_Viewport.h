@@ -343,6 +343,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
 	bool bIsVisible = true;
 #endif
+
+public:
+	static const float ViewportMinimumSize;
+	static const float ViewportMaximumSize;
 };
 
 // This struct now stored in UDisplayClusterConfigurationData, and replicated with MultiUser

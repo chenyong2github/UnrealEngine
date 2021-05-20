@@ -17,7 +17,12 @@ class SDisplayClusterConfiguratorResizer
 public:
 
 	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorResizer)
-		: _IsFixedAspectRatio(false) {}
+		: _MinimumSize(0)
+		, _MaximumSize(FLT_MAX)
+		, _IsFixedAspectRatio(false)
+	{}
+		SLATE_ATTRIBUTE(float, MinimumSize)
+		SLATE_ATTRIBUTE(float, MaximumSize)
 		SLATE_ATTRIBUTE(bool, IsFixedAspectRatio)
 	SLATE_END_ARGS()
 
@@ -40,6 +45,8 @@ private:
 	bool bResizing;
 	float CurrentAspectRatio;
 
+	TAttribute<float> MinimumSize;
+	TAttribute<float> MaximumSize;
 	TAttribute<bool> IsFixedAspectRatio;
 };
 

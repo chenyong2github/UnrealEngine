@@ -141,6 +141,8 @@ void SDisplayClusterConfiguratorBaseNode::UpdateGraphNode()
 			.Visibility(this, &SDisplayClusterConfiguratorBaseNode::GetResizeHandleVisibility)
 			[
 				SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
+				.MinimumSize(this, &SDisplayClusterConfiguratorBaseNode::GetNodeMinimumSize)
+				.MaximumSize(this, &SDisplayClusterConfiguratorBaseNode::GetNodeMaximumSize)
 				.IsFixedAspectRatio(this, &SDisplayClusterConfiguratorBaseNode::IsAspectRatioFixed)
 			]
 		];
