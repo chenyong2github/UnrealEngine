@@ -26,23 +26,21 @@ namespace HordeAgent.Parser.Matchers
 			{
 				return new LogEventBuilder(Cursor).ToLogEvent(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
 			}
-			if (Cursor.IsMatch(@"(?<!\w)(ERROR|[Ee]rror) ?(\([^)]+\)|\[[^\]]+\])?: "))
+			if (Cursor.TryMatch(@"(?<!\w)(?i)(WARNING|ERROR) ?(\([^)]+\)|\[[^\]]+\])?: ", out Match))
 			{
+				// Careful to match the first WARNING or ERROR in the line here.
+				LogLevel Level = LogLevel.Error;
+				if(Match.Groups[1].Value.Equals("WARNING", StringComparison.OrdinalIgnoreCase))
+				{
+					Level = LogLevel.Warning;
+				}
+
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
 				while (Cursor.IsMatch(Builder.MaxOffset + 1, String.Format(@"^({0} | *$)", ExtractIndent(Cursor[0]!))))
 				{
 					Builder.MaxOffset++;
 				}
-				return Builder.ToLogEvent(LogEventPriority.Lowest, LogLevel.Error, KnownLogEvents.Generic);
-			}
-			if (Cursor.IsMatch(@"(?<!\w)(WARNING|[Ww]arning) ?(\([^)]+\)|\[[^\]]+\])?: "))
-			{
-				LogEventBuilder Builder = new LogEventBuilder(Cursor);
-				while (Cursor.IsMatch(Builder.MaxOffset + 1, String.Format(@"^({0} | *$)", ExtractIndent(Cursor[0]!))))
-				{
-					Builder.MaxOffset++;
-				}
-				return Builder.ToLogEvent(LogEventPriority.Lowest, LogLevel.Warning, KnownLogEvents.Generic);
+				return Builder.ToLogEvent(LogEventPriority.Lowest, Level, KnownLogEvents.Generic);
 			}
 			if (Cursor.IsMatch(@"[Ee]rror [A-Z]\d+\s:"))
 			{
