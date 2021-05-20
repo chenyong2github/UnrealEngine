@@ -9,6 +9,10 @@ source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchF
 
 # If this is a source drop of the engine make sure that the UnrealBuildTool is up-to-date
 if [ ! -f Engine/Build/InstalledBuild.txt ]; then
+	# When invoked from within Xcode, TARGETNAME may be set to UE4_Build, which may cause xbuild to look for a
+	# non-existent UE4_Build.dll - rather than DotNETUtilities.dll - when building UnrealBuildTool.csproj
+	# Unsetting this variable allows the build to complete correctly.
+	unset TARGETNAME
 	if ! xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj; then
 		echo "Failed to build to build tool (UnrealBuildTool)"
 		exit 1
