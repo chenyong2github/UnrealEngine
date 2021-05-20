@@ -8,6 +8,7 @@
 #include "DetailWidgetRow.h"
 #include "PropertyHandle.h"
 
+#include "EditorSupportDelegates.h"
 #include "SSearchableComboBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "IDetailGroup.h"
@@ -26,8 +27,16 @@ TSharedRef<IDetailCustomization> FDisplayClusterRootActorDetailsCustomization::M
 	return MakeShared<FDisplayClusterRootActorDetailsCustomization>();
 }
 
+FDisplayClusterRootActorDetailsCustomization::~FDisplayClusterRootActorDetailsCustomization()
+{
+	FEditorSupportDelegates::ForcePropertyWindowRebuild.Remove(ForcePropertyWindowRebuildHandle);
+}
+
 void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
 {
+	LayoutBuilder = &InLayoutBuilder;
+	ForcePropertyWindowRebuildHandle = FEditorSupportDelegates::ForcePropertyWindowRebuild.AddSP(this, &FDisplayClusterRootActorDetailsCustomization::OnForcePropertyWindowRebuild);
+
 	// Hide the following categories, we don't really need them
 	InLayoutBuilder.HideCategory(TEXT("Rendering"));
 	InLayoutBuilder.HideCategory(TEXT("Replication"));
@@ -353,6 +362,17 @@ void FDisplayClusterRootActorDetailsCustomization::OnPreviewConfigChanged()
 TSharedRef<SWidget> FDisplayClusterRootActorDetailsCustomization::CreateComboWidget(TSharedPtr<FString> InItem)
 {
 	return SNew(STextBlock).Text(FText::FromString(*InItem));
+}
+
+void FDisplayClusterRootActorDetailsCustomization::OnForcePropertyWindowRebuild(UObject* Object)
+{
+	if (LayoutBuilder && EditedObject.IsValid())
+	{
+		if (EditedObject->GetClass() == Object)
+		{
+			LayoutBuilder->ForceRefreshDetails();
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
