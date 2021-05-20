@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DetailsCustomization/DisplayClusterRootActorDetailsCustomization.h"
+#include "DisplayClusterRootActorDetailsCustomization.h"
+#include "DisplayClusterConfiguratorDetailCustomizationUtils.h"
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -9,39 +10,13 @@
 
 #include "SSearchableComboBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "IDetailGroup.h"
 
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterConfigurationStrings.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationTypes_Viewport.h"
 
-// TODO: Macros duplicated from DisplayClusterConfiguratorDetailCustomization.h. Eventually, we will want to move the RootActor details customization into the same module
-// as the other details customizations to unify this and remove these duplicate macros.
-#define BEGIN_CATEGORY(CategoryName) { \
-	IDetailCategoryBuilder& CurrentCategory = InLayoutBuilder.EditCategory(CategoryName);
-
-#define END_CATEGORY() }
-
-#define ADD_PROPERTY(ClassName, PropertyName) { \
-	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
-	check(PropertyHandle->IsValidHandle()); \
-	CurrentCategory.AddProperty(PropertyHandle); \
-}
-
-#define ADD_EXPANDED_PROPERTY(ClassName, PropertyName) { \
-	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
-	check(PropertyHandle->IsValidHandle()); \
-	CurrentCategory.AddProperty(PropertyHandle).ShouldAutoExpand(true); \
-}
-
-#define ADD_CUSTOM_PROPERTY(FilterText) CurrentCategory.AddCustomRow(FilterText)
-
-#define REPLACE_PROPERTY_WITH_CUSTOM(ClassName, PropertyName, Widget) { \
-	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
-	check(PropertyHandle->IsValidHandle()); \
-	InLayoutBuilder.HideProperty(PropertyHandle); \
-	CurrentCategory.AddCustomRow(PropertyHandle->GetPropertyDisplayName()).NameContent()[PropertyHandle->CreatePropertyNameWidget()].ValueContent()[Widget]; \
-}
 
 #define LOCTEXT_NAMESPACE "DisplayClusterRootActorDetailsCustomization"
 
@@ -61,7 +36,7 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	InLayoutBuilder.HideCategory(TEXT("Actor"));
 	InLayoutBuilder.HideCategory(TEXT("LOD"));
 	InLayoutBuilder.HideCategory(TEXT("Cooking"));
-
+	
 	// Only single selection is allowed
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects = InLayoutBuilder.GetSelectedObjects();
 	if (SelectedObjects.Num() != 1)
@@ -80,6 +55,14 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	PropertyNodeId = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewNodeId), ADisplayClusterRootActor::StaticClass());
 	check(PropertyNodeId->IsValidHandle());
 
+	if (EditedObject.IsValid() && !EditedObject->IsTemplate(RF_ClassDefaultObject))
+	{
+		InLayoutBuilder.HideCategory(TEXT("NDisplay"));
+		InLayoutBuilder.HideCategory(TEXT("NDisplay Configuration"));
+		InLayoutBuilder.HideCategory(TEXT("NDisplay Cluster"));
+		InLayoutBuilder.HideCategory(TEXT("NDisplay Cluster Configuration"));
+	}
+	
 	// Lay out all of the root actor properties into their correct orders and categories. Because we are adding custom properties,
 	// most of the actor's properties will need to be laid out manually here even if they aren't being customized.
 	BuildLayout(InLayoutBuilder);
@@ -90,13 +73,111 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 
 void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuilder& InLayoutBuilder)
 {
-	// Force a particular order that the property categories show up in the details panel
 	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::DefaultCategory);
+	
+	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
+	
+	if (EditedObject.IsValid() && !EditedObject->IsTemplate(RF_ClassDefaultObject))
+	{
+		// Build ICVFX category.
+		
+		TArray<FString> ViewportNames;
+		NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
+
+		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
+
+			const TSharedRef<IPropertyHandle> EnableInnerFrustumPropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, EnableInnerFrustum));
+			{
+				check(EnableInnerFrustumPropertyHandle->IsValidHandle());
+				CurrentCategory.AddProperty(EnableInnerFrustumPropertyHandle);
+			}
+
+			const TAttribute<bool> AllowICVFXEditCondition = TAttribute<bool>::Create([this, EnableInnerFrustumPropertyHandle]()
+			{
+				bool bFrustumEnabled = false;
+				EnableInnerFrustumPropertyHandle->GetValue(bFrustumEnabled);
+				return bFrustumEnabled;
+			});
+		
+			if (ViewportNames.Num() > 0)
+			{
+				TArray<TSharedPtr<IPropertyHandle>> AllowICVFXHandles;
+				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.ICVFX.bAllowICVFX"), AllowICVFXHandles);
+
+				BEGIN_GROUP("InnerFrustumEnabledInViewports", LOCTEXT("InnerFrustumEnabledInViewports", "Inner Frustum Enabled in Viewports"))
+					for (int32 VPIdx = 0; VPIdx < AllowICVFXHandles.Num(); ++VPIdx)
+					{
+						TSharedPtr<IPropertyHandle>& Handle = AllowICVFXHandles[VPIdx];
+
+						Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
+						IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
+						PropertyRow.EditCondition(AllowICVFXEditCondition, nullptr);
+					}
+				END_GROUP();
+
+				ADD_PROPERTY(ADisplayClusterRootActor, InnerFrustumPriority);
+
+				{
+					TArray<TSharedPtr<IPropertyHandle>> GlobalScreenPercentageHandles;
+					NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.RenderFrameSettings.ClusterRenderTargetRatioMult"), GlobalScreenPercentageHandles);
+					check(GlobalScreenPercentageHandles.Num() == 1);
+
+					GlobalScreenPercentageHandles[0]->SetPropertyDisplayName(LOCTEXT("OuterViewportScreenPercentageMult", "Outer Viewport Screen Percentage Multiplier"));
+					CurrentCategory.AddProperty(GlobalScreenPercentageHandles[0]);
+				}
+				
+				TArray<TSharedPtr<IPropertyHandle>> ScreenPercentageHandles;
+				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.BufferRatio"), ScreenPercentageHandles);
+
+				BEGIN_GROUP("OuterViewportScreenPercentage", LOCTEXT("OuterViewportScreenPercentage", "Outer Viewport Screen Percentage"))
+					for (int32 VPIdx = 0; VPIdx < ScreenPercentageHandles.Num(); ++VPIdx)
+					{
+						TSharedPtr<IPropertyHandle>& Handle = ScreenPercentageHandles[VPIdx];
+
+						Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
+						CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
+					}
+				END_GROUP();
+			}
+
+		END_CATEGORY();
+
+		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ChromaKeyCategory)
+		{
+			TArray<TSharedPtr<IPropertyHandle>> Handles;
+			NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.StageSettings.Chromakey"), Handles);
+			
+			check(Handles.Num() == 1);
+			CurrentCategory.AddProperty(Handles[0]).ShouldAutoExpand(true);
+		}
+		END_CATEGORY();
+		
+		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::LightcardCategory)
+		{
+			TArray<TSharedPtr<IPropertyHandle>> Handles;
+			NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.StageSettings.Lightcard.bEnable"), Handles);
+			check(Handles.Num() == 1);
+			Handles[0]->SetPropertyDisplayName(LOCTEXT("LightCardDisplayName", "Enable Light Cards"));
+			CurrentCategory.AddProperty(Handles[0]);
+		}
+		{
+			TArray<TSharedPtr<IPropertyHandle>> Handles;
+			NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.StageSettings.Lightcard.BlendingMode"), Handles);
+			check(Handles.Num() == 1);
+
+			CurrentCategory.AddProperty(Handles[0]);
+		}
+		END_CATEGORY();
+	}
+	
+	// Force a particular order that the property categories show up in the details panel
+
 	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::ConfigurationCategory);
 	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::ClusterCategory);
 	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory);
 	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::PreviewCategory);
-
+	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::AdvancedCategory).SetCategoryVisibility(false); // Re-enable for access to more adv control.
+	
 	// Add custom properties and lay out/order properties into their correct categories.
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::PreviewCategory)
 		if (RebuildNodeIdOptionsList())

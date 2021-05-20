@@ -489,7 +489,10 @@ public:
 		{
 			EDisplayClusterViewportICVFXFlags& TargetFlags = DstViewport.RenderSettingsICVFX.Flags;
 
-			if (InConfigurationViewport.ICVFX.bAllowICVFX)
+			ADisplayClusterRootActor* RootActor = InConfigurationViewport.GetTypedOuter<ADisplayClusterRootActor>();
+			check(RootActor);
+			
+			if (InConfigurationViewport.ICVFX.bAllowICVFX && RootActor->EnableInnerFrustum)
 			{
 				TargetFlags |= ViewportICVFX_Enable;
 

@@ -9,17 +9,12 @@ public class DisplayClusterEditor : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"CinematicCamera",
+				"DisplayCluster",
+
 				"Core",
 				"CoreUObject",
-				"DisplayCluster",
-				"DisplayClusterConfiguration",
 				"Engine",
-				"EditorWidgets",
-				"PropertyEditor",
-				"Slate",
-				"SlateCore",
-				"UnrealEd",
+				"UnrealEd"
 			});
 	}
 }

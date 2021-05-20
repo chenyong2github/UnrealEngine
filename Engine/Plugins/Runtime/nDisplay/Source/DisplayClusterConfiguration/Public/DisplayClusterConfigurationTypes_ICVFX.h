@@ -180,7 +180,7 @@ public:
 	bool bEnable = true;
 
 	// Global lighcard rendering mode
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Blending Mode"))
 	EDisplayClusterConfigurationICVFX_LightcardRenderMode Blendingmode = EDisplayClusterConfigurationICVFX_LightcardRenderMode::Under;
 
 	// Render actors from this layers to lightcard textures
