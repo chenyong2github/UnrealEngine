@@ -14,6 +14,7 @@
 class FTransformGizmoActorFactory;
 class UTransformGizmo;
 class UTransformGizmoBuilder;
+class UContextObjectStore;
 
 USTRUCT()
 struct FActiveGizmo
@@ -181,6 +182,10 @@ public:
 	/** @return current IToolsContextQueriesAPI */
 	virtual IToolsContextQueriesAPI* GetContextQueriesAPI() { return QueriesAPI; }
 
+	/**
+	 * @return the context object store from the owning tools context.
+	 */
+	UContextObjectStore* GetContextObjectStore() const;
 
 
 

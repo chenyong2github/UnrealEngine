@@ -4,7 +4,7 @@
 
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "Drawing/LineSetComponent.h"
@@ -72,7 +72,7 @@ void USpaceCurveDeformationMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 	UInteractiveGizmoManager* GizmoManager = GetParentTool()->GetToolManager()->GetPairedGizmoManager();
 	PointTransformProxy = NewObject<UTransformProxy>(this);
-	PointTransformGizmo = GizmoManager->CreateCustomTransformGizmo( ETransformGizmoSubElements::StandardTranslateRotate, GetParentTool());
+	PointTransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager, ETransformGizmoSubElements::StandardTranslateRotate, GetParentTool());
 	PointTransformProxy->OnTransformChanged.AddUObject(this, &USpaceCurveDeformationMechanic::GizmoTransformChanged);
 	PointTransformProxy->OnBeginTransformEdit.AddUObject(this, &USpaceCurveDeformationMechanic::GizmoTransformStarted);
 	PointTransformProxy->OnEndTransformEdit.AddUObject(this, &USpaceCurveDeformationMechanic::GizmoTransformEnded);

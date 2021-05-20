@@ -8,7 +8,6 @@
 #include "BaseGizmos/PlanePositionGizmo.h"
 #include "BaseGizmos/AxisAngleGizmo.h"
 #include "BaseGizmos/TransformGizmo.h"
-#include "BaseGizmos/IntervalGizmo.h"
 #include "BaseGizmos/RepositionableTransformGizmo.h"
 #include "BaseGizmos/ScalableSphereGizmo.h"
 
@@ -262,6 +261,10 @@ void UInteractiveGizmoManager::EmitObjectChange(UObject* TargetObject, TUniquePt
 	TransactionsAPI->AppendChange(TargetObject, MoveTemp(Change), Description );
 }
 
+UContextObjectStore* UInteractiveGizmoManager::GetContextObjectStore() const
+{
+	return Cast<UInteractiveToolsContext>(GetOuter())->ContextObjectStore;
+}
 
 
 
@@ -287,20 +290,26 @@ void UInteractiveGizmoManager::RegisterDefaultGizmos()
 	RegisterGizmoType(DefaultAxisAngleBuilderIdentifier, AxisRotationBuilder);
 
 	UTransformGizmoBuilder* TransformBuilder = NewObject<UTransformGizmoBuilder>();
+	TransformBuilder->AxisPositionBuilderIdentifier = DefaultAxisPositionBuilderIdentifier;
+	TransformBuilder->PlanePositionBuilderIdentifier = DefaultPlanePositionBuilderIdentifier;
+	TransformBuilder->AxisAngleBuilderIdentifier = DefaultAxisAngleBuilderIdentifier;
 	RegisterGizmoType(DefaultThreeAxisTransformBuilderIdentifier, TransformBuilder);
 
 	GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>();
 
 	UTransformGizmoBuilder* CustomThreeAxisBuilder = NewObject<UTransformGizmoBuilder>();
+	CustomThreeAxisBuilder->AxisPositionBuilderIdentifier = DefaultAxisPositionBuilderIdentifier;
+	CustomThreeAxisBuilder->PlanePositionBuilderIdentifier = DefaultPlanePositionBuilderIdentifier;
+	CustomThreeAxisBuilder->AxisAngleBuilderIdentifier = DefaultAxisAngleBuilderIdentifier;
 	CustomThreeAxisBuilder->GizmoActorBuilder = GizmoActorBuilder;
 	RegisterGizmoType(CustomThreeAxisTransformBuilderIdentifier, CustomThreeAxisBuilder);
 
 	URepositionableTransformGizmoBuilder* CustomRepositionableThreeAxisBuilder = NewObject<URepositionableTransformGizmoBuilder>();
+	CustomRepositionableThreeAxisBuilder->AxisPositionBuilderIdentifier = DefaultAxisPositionBuilderIdentifier;
+	CustomRepositionableThreeAxisBuilder->PlanePositionBuilderIdentifier = DefaultPlanePositionBuilderIdentifier;
+	CustomRepositionableThreeAxisBuilder->AxisAngleBuilderIdentifier = DefaultAxisAngleBuilderIdentifier;
 	CustomRepositionableThreeAxisBuilder->GizmoActorBuilder = GizmoActorBuilder;
 	RegisterGizmoType(CustomRepositionableThreeAxisTransformBuilderIdentifier, CustomRepositionableThreeAxisBuilder);
-
-	UIntervalGizmoBuilder* IntervalGizmoBuilder = NewObject<UIntervalGizmoBuilder>();
-	RegisterGizmoType(UIntervalGizmo::GizmoName, IntervalGizmoBuilder);
 
 	UScalableSphereGizmoBuilder* ScalableSphereBuilder = NewObject<UScalableSphereGizmoBuilder>();
 	RegisterGizmoType(DefaultScalableSphereBuilderIdentifier, ScalableSphereBuilder);

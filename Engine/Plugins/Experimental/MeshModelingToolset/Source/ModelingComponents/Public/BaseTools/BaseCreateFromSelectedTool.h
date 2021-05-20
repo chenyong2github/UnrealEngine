@@ -5,12 +5,13 @@
 #include "CoreMinimal.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "BaseGizmos/TransformGizmo.h"
 #include "MeshOpPreviewHelpers.h"
 #include "PropertySets/OnAcceptProperties.h"
 #include "BaseCreateFromSelectedTool.generated.h"
 
 class IAssetGenerationAPI;
+class UTransformGizmo;
+class UTransformProxy;
 
 /**
  * ToolBuilder for UBaseCreateFromSelectedTool

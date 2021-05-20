@@ -23,6 +23,9 @@ UInteractiveGizmo* URepositionableTransformGizmoBuilder::BuildGizmo(const FToolB
 	// use default gizmo actor if client has not given us a new builder
 	NewGizmo->SetGizmoActorBuilder((GizmoActorBuilder) ? GizmoActorBuilder : MakeShared<FTransformGizmoActorFactory>());
 
+	NewGizmo->SetSubGizmoBuilderIdentifiers(AxisPositionBuilderIdentifier, PlanePositionBuilderIdentifier, AxisAngleBuilderIdentifier);
+
+
 	// override default hover function if proposed
 	if (UpdateHoverFunction)
 	{

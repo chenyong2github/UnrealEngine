@@ -9,11 +9,13 @@
 #include "FrameTypes.h"
 #include "InteractiveGizmo.h"
 #include "Mechanics/DragAlignmentMechanic.h"
-#include "BaseGizmos/TransformGizmo.h"
 #include "InteractiveGizmoManager.h"
 
 #include "MultiTransformer.generated.h"
 
+
+class UTransformGizmo;
+class UTransformProxy;
 
 UENUM()
 enum class EMultiTransformerMode

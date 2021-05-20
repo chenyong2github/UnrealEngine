@@ -17,6 +17,7 @@ class FEditorToolAssetAPI;
 class FUICommandList;
 class FStylusStateTracker;		// for stylus events
 class FModelingModeAssetAPI;
+class UTransformGizmoContextObject;
 
 UCLASS(Transient)
 class UModelingToolsEditorMode : public UBaseLegacyWidgetEdMode
@@ -67,6 +68,8 @@ protected:
 	TSharedPtr<FModelingModeAssetAPI> ModelingModeAssetGenerationAPI;
 
 	TUniquePtr<FStylusStateTracker> StylusStateTracker;
+
+	TObjectPtr<UTransformGizmoContextObject> ModelingGizmoHelper;
 
 	void ModelingModeShortcutRequested(EModelingModeActionCommands Command);
 	void FocusCameraAtCursorHotkey();

@@ -5,7 +5,7 @@
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "Drawing/LineSetComponent.h"
@@ -98,7 +98,7 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PointTransformProxy = NewObject<UTransformProxy>(this);
 	
 	// TODO: Maybe don't have the gizmo's axes flip around when it crosses the origin, if possible?
-	PointTransformGizmo = GizmoManager->CreateCustomTransformGizmo(
+	PointTransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager,
 		ETransformGizmoSubElements::FullTranslateRotateScale, this);
 
 	PointTransformProxy->OnTransformChanged.AddUObject(this, &ULatticeControlPointsMechanic::GizmoTransformChanged);

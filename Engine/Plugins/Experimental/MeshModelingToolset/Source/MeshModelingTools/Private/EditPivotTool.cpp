@@ -17,7 +17,7 @@
 #include "Physics/ComponentCollisionUtil.h"
 
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
@@ -316,7 +316,7 @@ void UEditPivotTool::SetActiveGizmos_Single(bool bLocalRotations)
 	{
 		Transformable.TransformProxy->AddComponent(TargetComponentInterface(ComponentIdx)->GetOwnerComponent());
 	}
-	Transformable.TransformGizmo = GizmoManager->CreateCustomTransformGizmo(
+	Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager,
 		ETransformGizmoSubElements::StandardTranslateRotate, this
 	);
 	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy, GetToolManager());
