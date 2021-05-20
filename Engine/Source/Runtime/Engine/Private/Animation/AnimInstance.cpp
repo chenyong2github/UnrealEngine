@@ -476,12 +476,6 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 		UpdateMontageEvaluationData();
 	}
 
-	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
-	{
-		// Process internal batched property copies
-		PropertyAccess::ProcessCopies(this, AnimBlueprintClass->GetPropertyAccessLibrary(), EPropertyAccessCopyBatch::ExternalBatched);
-	}
-
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
 		CSV_SCOPED_TIMING_STAT(Animation, NativeUpdate);
@@ -496,6 +490,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		SCOPE_CYCLE_COUNTER(STAT_BlueprintUpdateAnimation);
 		CSV_SCOPED_TIMING_STAT(Animation, BlueprintUpdate);
 		BlueprintUpdateAnimation(DeltaSeconds);
+	}
+
+	// Perform property access copies after the event graph work - this allows properties that are transformed and
+	// accessed via BP functions to be correctly transformed.
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		// Process internal batched property copies
+		PropertyAccess::ProcessCopies(this, AnimBlueprintClass->GetPropertyAccessLibrary(), EPropertyAccessCopyBatch::ExternalBatched);
 	}
 	
 	// Determine whether or not the animation should be immediately updated according to current state
