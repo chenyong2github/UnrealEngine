@@ -671,6 +671,9 @@ FContentBrowserItem SAssetView::EndCreateDeferredItem(const TSharedPtr<FAssetVie
 		// If not finalizing then we just discard the temporary
 		if (bFinalize)
 		{
+			UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+			FScopedSuppressContentBrowserDataTick TickSuppression(ContentBrowserData);
+
 			if (DeferredItemToCreate->ItemContext.ValidateItem(InName, &OutErrorText))
 			{
 				FinalizedItem = DeferredItemToCreate->ItemContext.FinalizeItem(InName, &OutErrorText);
@@ -3693,6 +3696,9 @@ void SAssetView::AssetRenameCommit(const TSharedPtr<FAssetViewItem>& Item, const
 	}
 	else if (CommitType != ETextCommit::OnCleared && !Item->GetItem().GetItemName().ToString().Equals(NewName))
 	{
+		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+		FScopedSuppressContentBrowserDataTick TickSuppression(ContentBrowserData);
+
 		FContentBrowserItem NewItem;
 		if (Item->GetItem().CanRename(&NewName, &ErrorMessage) && Item->GetItem().Rename(NewName, &NewItem))
 		{
