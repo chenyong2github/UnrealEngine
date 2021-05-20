@@ -6,6 +6,7 @@
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "MovieSceneSequenceID.h"
+#include "MovieSceneObjectBindingID.h"
 #include "LevelSequenceDirector.generated.h"
 
 class IMovieScenePlayer;
