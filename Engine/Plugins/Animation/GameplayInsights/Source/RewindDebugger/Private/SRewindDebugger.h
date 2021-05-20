@@ -8,10 +8,10 @@
 #include "IAnimGraphSchematicView.h"
 #include "RewindDebuggerModule.h"
 #include "RewindDebuggerTimeSliderController.h"
+#include "SRewindDebuggerComponentTree.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
 
 
 class SRewindDebugger : public SCompoundWidget
@@ -68,11 +68,10 @@ private:
 	TBindableProperty<float> RecordingDuration;
 	TBindableProperty<float> DebugTargetAnimInstanceId;
 
-	// debug components list
+	// component tree view
 	TArray<TSharedPtr<FDebugObjectInfo>>* DebugComponents;
     void OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo);
-	TSharedPtr<SListView<TSharedPtr<FDebugObjectInfo>>> ComponentListView;
-	TSharedRef<ITableRow> ComponentListViewGenerateRow(TSharedPtr<FDebugObjectInfo> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedPtr<SRewindDebuggerComponentTree> ComponentTreeView;
 
 	// anim graph view 
 	TSharedPtr<IAnimGraphSchematicView> AnimGraphView;
