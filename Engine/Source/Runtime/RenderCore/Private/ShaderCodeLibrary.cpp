@@ -45,6 +45,8 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #if WITH_EDITOR
 #include "PakFileUtilities.h"
 #include "PipelineCacheUtilities.h"
+#include "UObject/Object.h"
+#include "UObject/Class.h"
 #endif
 
 // allow introspection (e.g. dumping the contents) for easier debugging
@@ -402,6 +404,28 @@ void FCompactFullName::ParseFromString(const FStringView& InSrc)
 		}
 	}
 }
+
+#if WITH_EDITOR
+void FCompactFullName::SetCompactFullNameFromObject(UObject* InDepObject)
+{
+	ObjectClassAndPath.Empty();
+
+	UObject* DepObject = InDepObject;
+	if (DepObject)
+	{
+		ObjectClassAndPath.Add(DepObject->GetClass()->GetFName());
+		while (DepObject)
+		{
+			ObjectClassAndPath.Insert(DepObject->GetFName(), 1);
+			DepObject = DepObject->GetOuter();
+		}
+	}
+	else
+	{
+		ObjectClassAndPath.Add(FName("null"));
+	}
+}
+#endif
 
 uint32 GetTypeHash(const FCompactFullName& A)
 {

@@ -1317,8 +1317,36 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		}
 	}
 
+#if WITH_EDITOR
+	if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && FShaderLibraryCooker::NeedsShaderStableKeys(EShaderPlatform::SP_NumPlatforms))
+	{
+		SaveShaderStableKeys(Ar.CookingTarget());
+	}
+#endif
+
 	SerializeNiagaraShaderMaps(Ar, NiagaraVer, IsValidShaderScript);
 }
+
+#if WITH_EDITOR
+void UNiagaraScript::SaveShaderStableKeys(const class ITargetPlatform* TP)
+{
+	FStableShaderKeyAndValue SaveKeyVal;
+	SaveKeyVal.ClassNameAndObjectPath.SetCompactFullNameFromObject(this);
+	static FName FName_Niagara(TEXT("Niagara"));
+	SaveKeyVal.MaterialDomain = FName_Niagara;
+	const TArray<FNiagaraShaderScript*>* ScriptResourcesToSavePtr = CachedScriptResourcesForCooking.Find(TP);
+	if (ScriptResourcesToSavePtr != nullptr)
+	{
+		for (FNiagaraShaderScript* Resource : *ScriptResourcesToSavePtr)
+		{
+			if (Resource)
+			{
+				Resource->SaveShaderStableKeys(EShaderPlatform::SP_NumPlatforms, SaveKeyVal);
+			}
+		}
+	}
+}
+#endif
 
 FNiagaraCompilerTag* FNiagaraCompilerTag::FindTag(TArray< FNiagaraCompilerTag>& InTags, const FNiagaraVariableBase& InSearchVar)
 {

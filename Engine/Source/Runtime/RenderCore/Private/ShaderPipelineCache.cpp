@@ -256,7 +256,14 @@ static FAutoConsoleCommand SwitchModePipelineCacheCmd(
                                                 FConsoleCommandWithArgsDelegate::CreateStatic(ConsoleCommandSwitchModePipelineCacheCmd)
                                                 );
  
- 
+int32 GShaderPipelineCacheDoNotPrecompileComputePSO = 0;
+static FAutoConsoleVariableRef CVarShaderPipelineCacheDoNotPrecompileComputePSO(
+												TEXT("r.ShaderPipelineCache.DoNotPrecompileComputePSO"),
+												GShaderPipelineCacheDoNotPrecompileComputePSO,
+												TEXT("Disables precompilation of compute PSOs (replayed from a recorded file) on start. This is a safety switch in case things go wrong"),
+												ECVF_Default
+												);
+
 class FShaderPipelineCacheArchive final : public FArchive
 {
 public:
@@ -616,6 +623,8 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 	{
 		if(FPipelineCacheFileFormatPSO::DescriptorType::Graphics == PSO.Type)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FShaderPipelineCache::PrecompileGraphics);
+
 			FGraphicsPipelineStateInitializer GraphicsInitializer;
 
 			if (PSO.GraphicsDesc.MeshShader != FSHAHash())
@@ -699,11 +708,20 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 		}
 		else if(FPipelineCacheFileFormatPSO::DescriptorType::Compute == PSO.Type)
 		{
-			FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(Platform, PSO.ComputeDesc.ComputeShader);
-			if(ComputeInitializer.IsValid())
+			TRACE_CPUPROFILER_EVENT_SCOPE(FShaderPipelineCache::PrecompileCompute);
+			
+			if (LIKELY(!GShaderPipelineCacheDoNotPrecompileComputePSO))
 			{
-				FComputePipelineState* ComputeResult = PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeInitializer);
-				bOk = ComputeResult != nullptr;
+				FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(Platform, PSO.ComputeDesc.ComputeShader);
+				if (ComputeInitializer.IsValid())
+				{
+					FComputePipelineState* ComputeResult = PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeInitializer);
+					bOk = ComputeResult != nullptr;
+				}
+			}
+			else
+			{
+				bOk = true;
 			}
 		}
 		else if (FPipelineCacheFileFormatPSO::DescriptorType::RayTracing == PSO.Type)

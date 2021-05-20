@@ -558,7 +558,6 @@ int32 DumpSCLCSV(const FString& Token)
 	for (const auto& Pair : StableMap)
 	{
 		FStableShaderKeyAndValue Temp(Pair.Key);
-		Temp.OutputHash = Pair.Value;
 		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    %s"), *Temp.ToString());
 	}
 	return 0;
@@ -1810,6 +1809,38 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Number of PSOs after sanity checks:...................................................... %6d PSOs"), InOutPSOs.Num());
 }
 
+/** Adds compute PSOs directly from the stable shader map of this build */
+void AddComputePSOs(TSet<FPipelineCacheFileFormatPSO>& OutPSOs, const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableShaderMap)
+{
+	static FName NAME_SF_Compute("SF_Compute");
+
+	for (TMultiMap<FStableShaderKeyAndValue, FSHAHash>::TConstIterator Iter(StableShaderMap); Iter; ++Iter)
+	{
+		if (Iter.Key().TargetFrequency == NAME_SF_Compute)
+		{
+			// add a new Compute PSO
+			FPipelineCacheFileFormatPSO NewPso;
+			NewPso.Type = FPipelineCacheFileFormatPSO::DescriptorType::Compute;
+			NewPso.ComputeDesc.ComputeShader = Iter.Value();
+			NewPso.Hash = 0;
+			NewPso.UsageMask = uint64(-1);
+			NewPso.BindCount = 0;
+			OutPSOs.Add(NewPso);
+		}
+	}
+}
+
+/** Function that gets the target platform name from the stable map. Shouldn't exist, and we should be passing the target platform explicitly. */
+FName GetTargetPlatformFromStableShaderKeys(const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableShaderMap)
+{
+	TMultiMap<FStableShaderKeyAndValue, FSHAHash>::TConstIterator Iter(StableShaderMap);
+	if (Iter)
+	{
+		return Iter.Key().TargetPlatform;
+	}
+
+	return NAME_None;
+}
 
 int32 BuildPSOSC(const TArray<FString>& Tokens)
 {
@@ -1982,6 +2013,10 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 	}
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Re-deduplicated into %d binary PSOs [Usage Mask Merged = %d]."), PSOs.Num(), MergeCount);
 
+	// need to make sure that the stable map task is done at this point (if there are no graphics PSOs it may not yet be)
+	FTaskGraphInterface::Get().WaitUntilTaskCompletes(StableMapTask);
+	AddComputePSOs(PSOs, StableMap);
+
 	if (PSOs.Num() < 1)
 	{
 		UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("No PSOs were created!"));
@@ -2018,6 +2053,11 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 		}
 	}
 
+	if (TargetPlatform == NAME_None)
+	{
+		// get it from the StableMap
+		TargetPlatform = GetTargetPlatformFromStableShaderKeys(StableMap);
+	}
 	check(TargetPlatform != NAME_None);
 	EShaderPlatform Platform = ShaderFormatToLegacyShaderPlatform(TargetPlatform);
 	check(Platform != SP_NumPlatforms);
@@ -2086,7 +2126,15 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 	{
 		UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to write %s"), *Tokens.Last());
 	}
-	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Wrote binary PSOs, (%lldKB) to %s"), (Size + 1023) / 1024, *Tokens.Last());
+
+	// count PSOs
+	const int32 NumGraphicsPSOs = Algo::Accumulate(PSOs, 0, [](int32 Acc, const FPipelineCacheFileFormatPSO& PSO) { return (PSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics) ? Acc + 1 : Acc; });
+	const int32 NumComputePSOs = Algo::Accumulate(PSOs, 0, [](int32 Acc, const FPipelineCacheFileFormatPSO& PSO) { return (PSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute) ? Acc + 1 : Acc; });
+	const int32 NumRTPSOs = PSOs.Num() - NumGraphicsPSOs - NumComputePSOs;
+
+	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Wrote %d binary PSOs (graphics: %d compute: %d RT: %d), (%lldKB) to %s"), 
+		PSOs.Num(), NumGraphicsPSOs, NumComputePSOs, NumRTPSOs,
+		(Size + 1023) / 1024, *Tokens.Last());
 	return 0;
 }
 
