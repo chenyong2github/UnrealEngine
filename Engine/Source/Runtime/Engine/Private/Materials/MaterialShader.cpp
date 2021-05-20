@@ -1161,7 +1161,8 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 				//InOutShaderMap->RegisterSerializedShaders(false);
 		
 				const FString InDataKey = GetMaterialShaderMapKeyString(InOutShaderMap->GetShaderMapId(), InPlatform, TargetPlatform);
-				checkSlow(InOutShaderMap->GetShaderMapId() == ShaderMapId);
+				checkf(InDataKey == DataKey, TEXT("Data deserialized from the DDC would need a different DDC key!"));
+				checkf(InOutShaderMap->GetShaderMapId() == ShaderMapId, TEXT("Shadermap data deserialized from the DDC does not match the ID we used to build the key!"));
 
 				// Register in the global map
 				InOutShaderMap->Register(InPlatform);
