@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
+#include "BodySetupEnums.h"
 
 class UPackage;
 class UStaticMesh;
@@ -63,8 +64,8 @@ namespace AssetUtils
 
 		// Controls whether the UBodySetup on the Asset will be created (generally should be true)
 		bool bCreatePhysicsBody = true;
-		// If true, Asset will be configured to UseComplexAsSimple mode
-		bool bEnableComplexAsSimple = true;
+		// set asset collision type
+		ECollisionTraceFlag CollisionType = ECollisionTraceFlag::CTF_UseDefault;
 		// TODO: option for simple collision geo
 
 		// Optional list of materials to initialize the Asset with. If defined, size must be the same as NumMaterialSlots
