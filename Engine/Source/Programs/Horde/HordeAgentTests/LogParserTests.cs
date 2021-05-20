@@ -287,6 +287,21 @@ namespace HordeAgentTests
 		}
 
 		[TestMethod]
+		public void HttpEventMatcher()
+		{
+			string[] Lines =
+			{
+				@"WARNING: Failed to resolve binaries for artifact fe1b277b-7751-4a52-8059-ec3f943811de:xsx with error: fe1b277b-7751-4a52-8059-ec3f943811de:xsx Failed.Unexpected error retrieving response.BaseUrl = https://content-service-latest-gamedev.cdae.dev.use1a.on.epicgames.com/api. Status = Timeout. McpConfig = ValkyrieDevLatest."
+			};
+
+			List<CapturedEvent> Events = Parse(String.Join("\n", Lines));
+			Assert.AreEqual(1, Events.Count);
+
+			Assert.AreEqual(LogLevel.Warning, Events[0].Level);
+			Assert.AreEqual(KnownLogEvents.Generic, Events[0].Id);
+		}
+
+		[TestMethod]
 		public void MicrosoftEventMatcher()
 		{
 			// Generic Microsoft errors which can be parsed by visual studio
