@@ -439,6 +439,9 @@ private:
 	/** Identifier for the external UI notification callback */
 	EOS_NotificationId DisplaySettingsUpdatedId;
 	FCallbackBase* DisplaySettingsUpdatedCallback;
+
+	/** Last Login Credentials used for a login attempt */
+	TMap<int32, TSharedRef<FOnlineAccountCredentials>> LocalUserNumToLastLoginCredentials;
 };
 
 #endif

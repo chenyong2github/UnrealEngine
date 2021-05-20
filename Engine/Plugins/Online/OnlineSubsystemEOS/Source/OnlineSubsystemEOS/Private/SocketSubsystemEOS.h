@@ -6,6 +6,10 @@
 #include "SocketSubsystem.h"
 
 #if WITH_EOS_SDK
+	#if defined(EOS_PLATFORM_BASE_FILE_NAME)
+	#include EOS_PLATFORM_BASE_FILE_NAME
+	#endif
+
 	#include "eos_p2p_types.h"
 #endif
 
