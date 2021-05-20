@@ -94,8 +94,7 @@ struct FCollisionEvent : public FCacheEventBase
 	static FName EventName;
 
 	FCollisionEvent()
-		: Index(INDEX_NONE)
-		, Location(0.0f, 0.0f, 0.0f)
+		: Location(0.0f, 0.0f, 0.0f)
 		, AccumulatedImpulse(0.0f, 0.0f, 0.0f)
 		, Normal(0.0f, 0.0f, 1.0f)
 		, Velocity1(0.0f, 0.0f, 0.0f)
@@ -109,9 +108,8 @@ struct FCollisionEvent : public FCacheEventBase
 		, PenetrationDepth(0.0f)
 	{}
 
-	FCollisionEvent(int32 InIndex, const Chaos::FCollidingData& InData, const FTransform& WorldToComponent)
-		: Index(InIndex)
-		, Location(WorldToComponent.TransformPosition(InData.Location))
+	FCollisionEvent(const Chaos::FCollidingData& InData, const FTransform& WorldToComponent)
+		: Location(WorldToComponent.TransformPosition(InData.Location))
 		, AccumulatedImpulse(WorldToComponent.TransformVector(InData.AccumulatedImpulse))
 		, Normal(WorldToComponent.TransformVector(InData.Normal))
 		, Velocity1(WorldToComponent.TransformVector(InData.Velocity1))
@@ -124,10 +122,7 @@ struct FCollisionEvent : public FCacheEventBase
 		, Mass2(InData.Mass2)
 		, PenetrationDepth(InData.PenetrationDepth)
 	{}
-
-	UPROPERTY()
-	int32 Index; 
-		
+	
 	UPROPERTY()
 	FVector Location;
 	
