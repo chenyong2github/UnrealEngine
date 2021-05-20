@@ -164,6 +164,9 @@ void URigVM::Load(FArchive& Ar)
 			ParametersNameMap.Add(Parameters[Index].Name, Index);
 		}
 
+		// rebuild the bytecode to adjust for byte shifts in shipping
+		RebuildByteCodeOnLoad();
+
 		InvalidateCachedMemory();
 	}
 }
@@ -677,6 +680,34 @@ void URigVM::CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory
 	if (FirstHandleForInstruction.Num() < Instructions.Num())
 	{
 		FirstHandleForInstruction.Add(CachedMemoryHandles.Num());
+	}
+}
+
+void URigVM::RebuildByteCodeOnLoad()
+{
+	Instructions = GetByteCode().GetInstructions();
+	for(int32 InstructionIndex = 0; InstructionIndex < Instructions.Num(); InstructionIndex++)
+	{
+		const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
+		switch(Instruction.OpCode)
+		{
+			case ERigVMOpCode::Copy:
+			{
+				// create a local copy of the original op
+				FRigVMCopyOp OldCopyOp = GetByteCode().GetOpAt<FRigVMCopyOp>(Instruction);
+				FRigVMCopyOp& NewCopyOp = GetByteCode().GetOpAt<FRigVMCopyOp>(Instruction);
+				NewCopyOp = GetCopyOpForOperands(OldCopyOp.Source, OldCopyOp.Target);
+				check(OldCopyOp.Source == NewCopyOp.Source);
+				check(OldCopyOp.Target == NewCopyOp.Target);
+				//check(OldCopyOp.NumBytes == NewCopyOp.NumBytes);
+				check(OldCopyOp.RegisterType == NewCopyOp.RegisterType);
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
 	}
 }
 
