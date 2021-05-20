@@ -25,31 +25,6 @@ void ResetIndicesArray(TArray<int32>& IndicesArray, int32 Size)
 // FPerSolverFieldSystem
 //==============================================================================
 
-FORCEINLINE bool IsParameterFieldValid(const FFieldSystemCommand& FieldCommand)
-{
-	if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_Int32)
-	{
-		return (FieldCommand.PhysicsType == EFieldPhysicsType::Field_DynamicState) ||
-			   (FieldCommand.PhysicsType == EFieldPhysicsType::Field_ActivateDisabled) ||
-			   (FieldCommand.PhysicsType == EFieldPhysicsType::Field_CollisionGroup);
-
-	}
-	else if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_Float)
-	{
-		return (FieldCommand.PhysicsType == EFieldPhysicsType::Field_ExternalClusterStrain) ||
-			   (FieldCommand.PhysicsType == EFieldPhysicsType::Field_Kill) ||
-			   (FieldCommand.PhysicsType == EFieldPhysicsType::Field_SleepingThreshold) ||
-			   (FieldCommand.PhysicsType == EFieldPhysicsType::Field_DisableThreshold) ||
-			   (FieldCommand.PhysicsType == EFieldPhysicsType::Field_InternalClusterStrain);
-	}
-	else if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_FVector)
-	{
-		return (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearVelocity) ||
-			   (FieldCommand.PhysicsType == EFieldPhysicsType::Field_AngularVelociy);
-	}
-	return false;
-}
-
 void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 	Chaos::FPBDRigidsSolver* RigidSolver,
 	Chaos::FPBDPositionConstraints& PositionTarget,
@@ -72,41 +47,45 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 		for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
 		{
 			const FFieldSystemCommand& FieldCommand = Commands[CommandIndex];
-			if(IsParameterFieldValid(FieldCommand) && Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType) )
+			if(IsParameterFieldValid(FieldCommand))
 			{
-				const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
-
-				FFieldContext FieldContext(
-					ExecutionDatas,
-					FieldCommand.MetaData,
-					TimeSeconds);
-
-				TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles = ExecutionDatas.ParticleHandles[(uint8)EFieldCommandHandlesType::InsideHandles];
-
-				if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_Int32)
+				if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
 				{
-					TArray<int32>& FinalResults = ExecutionDatas.IntegerResults[(uint8)EFieldCommandResultType::FinalResult];
-					ResetResultsArray < int32 >(ExecutionDatas.SamplePositions.Num(), FinalResults, 0);
+					const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
-					Chaos::FieldIntegerParameterUpdate(RigidSolver, FieldCommand, ParticleHandles,
-						FieldContext, CommandsToRemove, PositionTarget, TargetedParticles, CommandIndex, FinalResults);
-				}
-				else if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_Float)
-				{
-					TArray<float>& FinalResults = ExecutionDatas.ScalarResults[(uint8)EFieldCommandResultType::FinalResult];
-					ResetResultsArray < float >(ExecutionDatas.SamplePositions.Num(), FinalResults, 0.0);
+					FFieldContext FieldContext(
+						ExecutionDatas,
+						FieldCommand.MetaData,
+						TimeSeconds);
 
-					Chaos::FieldScalarParameterUpdate(RigidSolver, FieldCommand, ParticleHandles,
-						FieldContext, CommandsToRemove, PositionTarget, TargetedParticles, CommandIndex, FinalResults);
-				}
-				else if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_FVector)
-				{
-					TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
-					ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
+					TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles = ExecutionDatas.ParticleHandles[(uint8)EFieldCommandHandlesType::InsideHandles];
 
-					Chaos::FieldVectorParameterUpdate(RigidSolver, FieldCommand, ParticleHandles,
-						FieldContext, CommandsToRemove, PositionTarget, TargetedParticles, CommandIndex, FinalResults);
+					if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_Int32)
+					{
+						TArray<int32>& FinalResults = ExecutionDatas.IntegerResults[(uint8)EFieldCommandResultType::FinalResult];
+						ResetResultsArray < int32 >(ExecutionDatas.SamplePositions.Num(), FinalResults, 0);
+
+						Chaos::FieldIntegerParameterUpdate(RigidSolver, FieldCommand, ParticleHandles,
+							FieldContext, PositionTarget, TargetedParticles, FinalResults);
+					}
+					else if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_Float)
+					{
+						TArray<float>& FinalResults = ExecutionDatas.ScalarResults[(uint8)EFieldCommandResultType::FinalResult];
+						ResetResultsArray < float >(ExecutionDatas.SamplePositions.Num(), FinalResults, 0.0);
+
+						Chaos::FieldScalarParameterUpdate(RigidSolver, FieldCommand, ParticleHandles,
+							FieldContext, PositionTarget, TargetedParticles, FinalResults);
+					}
+					else if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_FVector)
+					{
+						TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
+						ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
+
+						Chaos::FieldVectorParameterUpdate(RigidSolver, FieldCommand, ParticleHandles,
+							FieldContext, PositionTarget, TargetedParticles, FinalResults);
+					}
 				}
+				CommandsToRemove.Add(CommandIndex);
 			}
 		}
 		if (IsTransient)
@@ -119,15 +98,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 	}
 }
 
-FORCEINLINE bool IsForceFieldValid(const FFieldSystemCommand& FieldCommand)
-{
-	if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_FVector)
-	{
-		return (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearForce) ||
-			   (FieldCommand.PhysicsType == EFieldPhysicsType::Field_AngularTorque);
-	}
-	return false;
-}
+
 
 void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 	Chaos::FPBDRigidsSolver* InSolver,
@@ -159,25 +130,29 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 		{
 			const FFieldSystemCommand& FieldCommand = Commands[CommandIndex];
 
-			if (IsForceFieldValid(FieldCommand) && Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
+			if (IsForceFieldValid(FieldCommand))
 			{
-				const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
-
-				FFieldContext FieldContext(
-					ExecutionDatas,
-					FieldCommand.MetaData,
-					TimeSeconds);
-
-				TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles = ExecutionDatas.ParticleHandles[(uint8)EFieldCommandHandlesType::InsideHandles];
-
-				if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_FVector)
+				if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
 				{
-					TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
-					ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
+					const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
-					Chaos::FieldVectorForceUpdate(RigidSolver, FieldCommand, ParticleHandles,
-						FieldContext, CommandsToRemove, CommandIndex, FinalResults);
+					FFieldContext FieldContext(
+						ExecutionDatas,
+						FieldCommand.MetaData,
+						TimeSeconds);
+
+					TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles = ExecutionDatas.ParticleHandles[(uint8)EFieldCommandHandlesType::InsideHandles];
+
+					if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_FVector)
+					{
+						TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
+						ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
+
+						Chaos::FieldVectorForceUpdate(RigidSolver, FieldCommand, ParticleHandles,
+							FieldContext, FinalResults);
+					}
 				}
+				CommandsToRemove.Add(CommandIndex);
 			}
 		}
 		if (IsTransient)
