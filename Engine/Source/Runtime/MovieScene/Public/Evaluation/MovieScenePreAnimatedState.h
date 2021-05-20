@@ -166,6 +166,14 @@ public:
 	 */
 	MOVIESCENE_API void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
+public:
+
+	/**
+	 * Search the global pre-animated state extension for any captured state that originated from this sequence
+	 * WARNING: This is a linear search across all state, and so is potentially very slow
+	 */
+	MOVIESCENE_API bool ContainsAnyStateForSequence() const;
+
 private:
 
 	void ConditionalInitializeEntityStorage(bool bOverrideWantsRestoreState);

@@ -62,10 +62,8 @@ struct TPreAnimatedCaptureSources : IPreAnimatedCaptureSource
 	 */
 	void StopTrackingCaptureSource(const KeyType& InKey);
 
-	/**
-	 * Gather and remove all meta data that matches the specified restoration parameters
-	 */
 	void Reset() override;
+	bool ContainsInstanceHandle(FInstanceHandle RootInstanceHandle) const override;
 	void GatherAndRemoveExpiredMetaData(const FRestoreStateParams& Params, TArray<FPreAnimatedStateMetaData>& OutExpiredMetaData) override;
 	void GatherAndRemoveMetaDataForGroup(FPreAnimatedStorageGroupHandle Group, TArray<FPreAnimatedStateMetaData>& OutExpiredMetaData) override;
 
