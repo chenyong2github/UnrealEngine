@@ -289,7 +289,7 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 
 	TSharedPtr<FApproximationMeshData> Result = MakeShared<FApproximationMeshData>();
 
-	// collect seed poitns
+	// collect seed points
 	TArray<FVector3d> SeedPoints;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_SeedPoints);
@@ -315,7 +315,7 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 	Progress.EnterProgressFrame(1.f, LOCTEXT("SolidifyMesh", "Approximating Mesh..."));
 
 	FWindingNumberBasedSolidify Solidify(
-		[&Scene](const FVector3d& Position) { return Scene.FastWindingNumber(Position); },
+		[&Scene](const FVector3d& Position) { return Scene.FastWindingNumber(Position, true); },
 		SceneBounds, SeedPoints);
 	Solidify.SetCellSizeAndExtendBounds(SceneBounds, 2.0 * ApproxAccuracy, VoxelDimTarget);
 	Solidify.WindingThreshold = Options.WindingThreshold;
@@ -351,6 +351,11 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 		MorphologyMesh = FDynamicMesh3(&ImplicitMorphology.Generate());
 		MorphologyMesh.DiscardAttributes();
 		CurResultMesh = &MorphologyMesh;
+
+		if (Options.bVerbose)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ApproximateActors] Morphology mesh has %d triangles"), CurResultMesh->TriangleCount());
+		}
 	}
 
 	// if mesh has no triangles, something has gone wrong
@@ -369,18 +374,25 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 		Remover.InsideMode = EOcclusionCalculationMode::SimpleOcclusionTest;
 		Remover.TriangleSamplingMethod = EOcclusionTriangleSampling::Centroids;
 		Remover.AddTriangleSamples = 5;
-		FDynamicMeshAABBTree3 CurResultMeshSpatial(CurResultMesh, true);
+		FDynamicMeshAABBTree3 CurResultMeshSpatial(CurResultMesh, false);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Spatial);
+			CurResultMeshSpatial.Build();
+		}
 
 		TArray<FTransform3d> NoTransforms;
 		NoTransforms.Add(FTransform3d::Identity());
 		TArray<FDynamicMeshAABBTree3*> Spatials;
 		Spatials.Add(&CurResultMeshSpatial);
-		Remover.Select(NoTransforms, Spatials, {}, NoTransforms);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Compute);
+			Remover.Select(NoTransforms, Spatials, {}, NoTransforms);
+		}
 		if (Remover.RemovedT.Num() > 0)
 		{
 			FMeshFaceSelection Selection(CurResultMesh);
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Build);
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Clean);
 				Selection.Select(Remover.RemovedT);
 				Selection.ExpandToOneRingNeighbours(1);
 				Selection.ContractBorderByOneRingNeighbours(4);
@@ -390,6 +402,11 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Delete);
 				Editor.RemoveTriangles(Selection.AsArray(), true);
 			}
+		}
+
+		if (Options.bVerbose)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ApproximateActors] Occlusion-Filtered mesh has %d triangles"), CurResultMesh->TriangleCount());
 		}
 	}
 
@@ -417,11 +434,18 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			double UseTargetTolerance = Options.SimplificationTargetMetric * 100.0;		// convert to cm (UE Units)
 
 			// first do fast collapse
-			Simplifier.FastCollapsePass(0.1 * UseTargetTolerance, 5);
+			// (this does not seem to help perf and probably makes the results slightly worse)
+			//{
+			//	TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_PrePass);
+			//	Simplifier.FastCollapsePass(0.1 * UseTargetTolerance, 5);
+			//}
 
 			// now simplify down to a reasonable tri count, as geometric metric is (relatively) expensive
 			// (still, this is all incredibly cheap compared to the cost of the rest of this method in practice)
-			Simplifier.SimplifyToTriangleCount(50000);
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_Pass1);
+				Simplifier.SimplifyToTriangleCount(50000);
+			}
 
 			FDynamicMesh3 MeshCopy(*CurResultMesh);
 			FDynamicMeshAABBTree3 MeshCopySpatial(&MeshCopy, true);
@@ -429,7 +453,10 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			Simplifier.SetProjectionTarget(&ProjectionTarget);
 			Simplifier.GeometricErrorConstraint = FVolPresMeshSimplification::EGeometricErrorCriteria::PredictedPointToProjectionTarget;
 			Simplifier.GeometricErrorTolerance = UseTargetTolerance;
-			Simplifier.SimplifyToTriangleCount(8);
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_Pass2);
+				Simplifier.SimplifyToTriangleCount(8);
+			}
 		}
 		else
 		{
@@ -451,7 +478,15 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 	// compute normals
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Normals);
-		FMeshNormals::InitializeOverlayToPerVertexNormals(CurResultMesh->Attributes()->PrimaryNormals());
+		if (Options.bCalculateHardNormals)
+		{
+			FMeshNormals::InitializeOverlayTopologyFromOpeningAngle(CurResultMesh, CurResultMesh->Attributes()->PrimaryNormals(), Options.HardNormalsAngleDeg);
+			FMeshNormals::QuickRecomputeOverlayNormals(*CurResultMesh);
+		}
+		else
+		{
+			FMeshNormals::InitializeOverlayToPerVertexNormals(CurResultMesh->Attributes()->PrimaryNormals());
+		}
 	}
 
 	// exit here if we are just generating a merged collision mesh
@@ -590,6 +625,9 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 		WriteDebugMesh = &DebugMesh;
 	}
 
+	// build spatial evaluation cache
+	Scene.BuildSpatialEvaluationCache();
+
 	// if we are only generating collision mesh, we are going to exit after mesh generation
 	if (Options.BasePolicy == IGeometryProcessing_ApproximateActors::EApproximationPolicy::CollisionMesh)
 	{
@@ -725,6 +763,10 @@ UStaticMesh* FApproximateActorsImpl::EmitGeneratedMeshAsset(
 	FDynamicMesh3* DebugMesh)
 {
 	FStaticMeshAssetOptions MeshAssetOptions;
+
+	MeshAssetOptions.CollisionType = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
+	MeshAssetOptions.bEnableRecomputeTangents = false;
+
 	MeshAssetOptions.NewAssetPath = Options.BasePackagePath;
 	MeshAssetOptions.SourceMeshes.DynamicMeshes.Add(FinalMesh);
 	if (Material)
@@ -740,6 +782,8 @@ UStaticMesh* FApproximateActorsImpl::EmitGeneratedMeshAsset(
 	if (DebugMesh != nullptr)
 	{
 		FStaticMeshAssetOptions DebugMeshAssetOptions;
+		DebugMeshAssetOptions.CollisionType = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
+		DebugMeshAssetOptions.bEnableRecomputeTangents = false;
 		DebugMeshAssetOptions.NewAssetPath = Options.BasePackagePath + TEXT("_DEBUG");
 		DebugMeshAssetOptions.SourceMeshes.DynamicMeshes.Add(DebugMesh);
 		FStaticMeshResults DebugMeshAssetOutputs;

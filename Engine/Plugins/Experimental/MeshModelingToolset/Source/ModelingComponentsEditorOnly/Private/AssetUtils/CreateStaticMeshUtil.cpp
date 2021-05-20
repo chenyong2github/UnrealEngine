@@ -61,11 +61,7 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 	if (Options.bCreatePhysicsBody)
 	{
 		NewStaticMesh->CreateBodySetup();
-		if (Options.bEnableComplexAsSimple)
-		{
-			// enable complex as simple collision to use mesh directly
-			NewStaticMesh->GetBodySetup()->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
-		}
+		NewStaticMesh->GetBodySetup()->CollisionTraceFlag = Options.CollisionType;
 	}
 
 	// add a material slot. Must always have one material slot.
