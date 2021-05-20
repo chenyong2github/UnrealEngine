@@ -1012,6 +1012,10 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		{
 			ApplyDisconnect();
 		}
+		else if (PendingAction == EEditMeshPolygonsToolActions::Duplicate)
+		{
+			ApplyDuplicate();
+		}
 		else if (PendingAction == EEditMeshPolygonsToolActions::PokeSingleFace)
 		{
 			ApplyPokeSingleFace();
@@ -1890,6 +1894,42 @@ void UEditMeshPolygonsTool::ApplyDisconnect()
 
 	TUniquePtr<FMeshChange> MeshChange = MakeUnique<FMeshChange>(ChangeTracker.EndChange());
 	CompleteMeshEditChange(LOCTEXT("PolyMeshDisconnectChange", "Disconnect"), MoveTemp(MeshChange), ActiveSelection);
+	CurrentToolMode = ECurrentToolMode::TransformSelection;
+}
+
+
+
+
+void UEditMeshPolygonsTool::ApplyDuplicate()
+{
+	if (BeginMeshFaceEditChange() == false)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("OnDuplicateFailed", "Cannot Duplicate Current Selection"), EToolMessageLevel::UserWarning);
+		return;
+	}
+
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	FDynamicMeshChangeTracker ChangeTracker(Mesh);
+	ChangeTracker.BeginChange();
+	FGroupTopologySelection ActiveSelection = SelectionMechanic->GetActiveSelection();
+	TArray<int32> AllTriangles;
+	for (int32 GroupID : ActiveSelection.SelectedGroupIDs)
+	{
+		AllTriangles.Append(Topology->GetGroupTriangles(GroupID));
+	}
+	FDynamicMeshEditor Editor(Mesh);
+	FMeshIndexMappings Mappings;
+	FDynamicMeshEditResult EditResult;
+	Editor.DuplicateTriangles(AllTriangles, Mappings, EditResult);
+
+	FGroupTopologySelection NewSelection;
+	for ( int NewGroupID : EditResult.NewGroups )
+	{ 
+		NewSelection.SelectedGroupIDs.Add(NewGroupID);
+	}
+
+	TUniquePtr<FMeshChange> MeshChange = MakeUnique<FMeshChange>(ChangeTracker.EndChange());
+	CompleteMeshEditChange(LOCTEXT("PolyMeshDisconnectChange", "Disconnect"), MoveTemp(MeshChange), NewSelection);
 	CurrentToolMode = ECurrentToolMode::TransformSelection;
 }
 
