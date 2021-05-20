@@ -90,7 +90,7 @@ public:
 	FSceneProxy(UInstancedStaticMeshComponent* Component);
 	FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component);
 
-	virtual ~FSceneProxy() = default;
+	virtual ~FSceneProxy();
 
 public:
 	// FPrimitiveSceneProxy interface.
