@@ -32,6 +32,10 @@
 #define NOINITCRASHREPORTER 0
 #endif
 
+#ifndef CRASH_REPORTER_WITH_ANALYTICS
+#define CRASH_REPORTER_WITH_ANALYTICS 0
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogCrashContext, Display, All);
 
 extern CORE_API bool GIsGPUCrashed;
@@ -416,9 +420,14 @@ void FGenericCrashContext::InitializeFromConfig()
 	// Read the initial un-localized crash context text
 	UpdateLocalizedStrings();
 
+#if WITH_EDITOR
 	// Set privacy settings -> WARNING: Ensure those setting have a default values in Engine/Config/BaseEditorSettings.ini file, otherwise, they will not be found.
 	GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), NCached::UserSettings.bSendUnattendedBugReports, GEditorSettingsIni);
 	GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), NCached::UserSettings.bSendUsageData, GEditorSettingsIni);
+#elif CRASH_REPORTER_WITH_ANALYTICS
+	NCached::UserSettings.bSendUnattendedBugReports = true; // Give CRC permission to generate and send an 'AbnormalShutdown' report if the application died suddently, mainly to collect the logs post-mortem and count those occurrences.
+	NCached::UserSettings.bSendUsageData = true; // Give CRC permission to send its analytics and the application session summary (if one exist)
+#endif
 	
 	// Write a marker file to disk indicating the user has allowed unattended crash reports being
 	// sent. This allows us to submit reports for crashes during static initialization when user
