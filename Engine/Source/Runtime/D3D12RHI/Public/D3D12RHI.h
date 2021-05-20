@@ -50,11 +50,15 @@
 #define D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO  0
 #endif
 
+#if !defined(WITH_PIX_EVENT_RUNTIME)
+	#define WITH_PIX_EVENT_RUNTIME 0
+#endif
+
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#define ENABLE_RESIDENCY_MANAGEMENT				1
 	#define ASYNC_DEFERRED_DELETION					1
 	#define PIPELINE_STATE_FILE_LOCATION			FPaths::ProjectSavedDir()
-	#define USE_PIX									D3D12_PROFILING_ENABLED
+	#define USE_PIX									WITH_PIX_EVENT_RUNTIME
 #else
 	#include "D3D12RHIPlatformPublic.h"
 #endif
