@@ -145,9 +145,9 @@ protected:
 /// Originally, VtArray was built to mimic the arrays in menv2x's MDL language,
 /// but since VtArray has typed elements, the multidimensionality has found
 /// little use.  For example, if you have only scalar elements, then to
-/// represent a list of vectors you need an two dimensional array.  To represent
+/// represent a list of vectors you need a two dimensional array.  To represent
 /// a list of matrices you need a three dimensional array.  However with
-/// VtArray<GfVec3d> and VtArray<GfMatrix4d>, the VtArray is one dimensional,
+/// VtArray<GfVec3d> and VtArray<GfMatrix4d>, the VtArray is one dimensional and
 /// the extra dimensions are encoded in the element types themselves.
 ///
 /// For this reason, VtArray has been moving toward being more like std::vector,
@@ -157,7 +157,7 @@ protected:
 /// First, VtArray shares data between instances using a copy-on-write scheme.
 /// This means that making copies of VtArray instances is cheap: it only copies
 /// the pointer to the data.  But on the other hand, invoking any non-const
-/// member function will incur a copy of the underlying data if it is not
+/// member function incurs a copy of the underlying data if it is not
 /// uniquely owned.  For example, assume 'a' and 'b' are VtArray<int>:
 ///
 /// \code
@@ -189,6 +189,41 @@ protected:
 ///    sum += *i;
 /// }
 /// \endcode
+///
+/// This can be quite subtle.  In C++, calling a member function that has const
+/// and non-const overloads on a non-const object must invoke the non-const
+/// version, even if the const version would suffice.  So something as simple
+/// this:
+///
+/// \code
+/// float x = array[123];
+/// \endcode
+///
+/// Invokes the non-const operator[] if \p array is non-const.  That means this
+/// kind of benign looking code can cause a copy-on-write detachment of the
+/// entire array, and thus is not safe to invoke concurrently with any other
+/// member function.  If we were building this class today we would make
+/// different choices about this API, but changing this now is a gargantuan
+/// task, so it remains.
+///
+/// So, it is best practice to ensure you use const VtArray, or const VtArray &,
+/// or VtArray::AsConst(), as well as the `c`-prefixed member functions like
+/// cbegin()/cend(), cfront()/cback() to avoid these pitfalls when your intent
+/// is not to mutate the array.
+///
+/// Regarding thread safety, for the same reasons spelled out above, all
+/// mutating member functions must be invoked exclusively to all other member
+/// functions, even if they are invoked in a way that does not mutate (as in the
+/// operator[] example above).  This is the same general rule that the STL
+/// abides by.
+///
+/// Also, and again for the same reasons, all mutating member functions can
+/// invalidate iterators, even if the member functions are invoked in a way that
+/// does not mutate (as in the operator[] example above).
+///
+/// The TfEnvSetting 'VT_LOG_STACK_ON_ARRAY_DETACH_COPY' can be set to help
+/// determine where unintended copy-on-write detaches come from.  When set,
+/// VtArray will log a stack trace for every copy-on-write detach that occurs.
 ///
 template<typename ELEM>
 class VtArray : public Vt_ArrayBase {
@@ -344,6 +379,18 @@ class VtArray : public Vt_ArrayBase {
 
     ~VtArray() { _DecRef(); }
     
+    /// Return *this as a const reference.  This ensures that all operations on
+    /// the result do not mutate and thus are safe to invoke concurrently with
+    /// other non-mutating operations, and will never cause a copy-on-write
+    /// detach.
+    ///
+    /// Note that the return is a const reference to this object, so it is only
+    /// valid within the lifetime of this array object.  Take special care
+    /// invoking AsConst() on VtArray temporaries/rvalues.
+    VtArray const &AsConst() const noexcept {
+        return *this;
+    }
+
     /// \addtogroup STL_API
     /// @{
     
@@ -393,9 +440,13 @@ class VtArray : public Vt_ArrayBase {
     /// Return a const pointer to the data held by this array.
     const_pointer cdata() const { return _data; }
 
-    /// Append an element to array.  The underlying data is first copied if it
-    /// is not uniquely owned.
-    void push_back(ElementType const &elem) {
+    /// Initializes a new element at the end of the array. The underlying data
+    /// is first copied if it is not uniquely owned.
+    ///
+    /// \sa push_back(ElementType const&)
+    /// \sa push_back(ElementType&&)
+    template <typename... Args>
+    void emplace_back(Args&&... args) {
         // If this is a non-pxr array with rank > 1, disallow push_back.
         if (ARCH_UNLIKELY(_shapeData.otherDims[0])) {
             TF_CODING_ERROR("Array rank %u != 1", _shapeData.GetRank());
@@ -411,9 +462,28 @@ class VtArray : public Vt_ArrayBase {
             _data = newData;
         }
         // Copy the value.
-        ::new (static_cast<void*>(_data + curSize)) value_type(elem);
+        ::new (static_cast<void*>(_data + curSize)) value_type(
+            std::forward<Args>(args)...);
         // Adjust size.
         ++_shapeData.totalSize;
+    }
+
+    /// Appends an element at the end of the array. The underlying data
+    /// is first copied if it is not uniquely owned.
+    ///
+    /// \sa emplace_back
+    /// \sa push_back(ElementType&&)
+    void push_back(ElementType const& element) {
+        emplace_back(element);
+    }
+
+    /// Appends an element at the end of the array. The underlying data
+    /// is first copied if it is not uniquely owned.
+    ///
+    /// \sa emplace_back
+    /// \sa push_back(ElementType const&)
+    void push_back(ElementType&& element) {
+        emplace_back(std::move(element));
     }
 
     /// Remove the last element of an array.  The underlying data is first
@@ -471,6 +541,9 @@ class VtArray : public Vt_ArrayBase {
     /// Return a const reference to the first element in this array.  Invokes
     /// undefined behavior if the array is empty.
     const_reference front() const { return *begin(); }
+    /// Return a const reference to the first element in this array.  Invokes
+    /// undefined behavior if the array is empty.
+    const_reference cfront() const { return *begin(); }
 
     /// Return a reference to the last element in this array.  The underlying
     /// data is copied if it is not uniquely owned.  Invokes undefined behavior
@@ -479,6 +552,9 @@ class VtArray : public Vt_ArrayBase {
     /// Return a const reference to the last element in this array.  Invokes
     /// undefined behavior if the array is empty.
     const_reference back() const { return *rbegin(); }
+    /// Return a const reference to the last element in this array.  Invokes
+    /// undefined behavior if the array is empty.
+    const_reference cback() const { return *rbegin(); }
 
     /// Resize this array.  Preserve existing elements that remain,
     /// value-initialize any newly added elements.  For example, calling
@@ -568,6 +644,82 @@ class VtArray : public Vt_ArrayBase {
             _DecRef();
         }
         _shapeData.totalSize = 0;
+    }
+
+    /// Removes a single element at \p pos from the array
+    /// 
+    /// To match the behavior of std::vector, returns an iterator
+    /// pointing to the position following the removed element.
+    /// 
+    /// Since the returned iterator is mutable, when the array is
+    /// not uniquely owned, a copy will be required.
+    ///
+    /// Erase invalidates all iterators (unlike std::vector
+    /// where iterators prior to \p pos remain valid).
+    ///
+    /// \sa erase(const_iterator, const_iterator)
+    iterator erase(const_iterator pos) {
+        TF_DEV_AXIOM(pos != cend());
+        return erase(pos, pos+1);
+    }
+
+    /// Remove a range of elements [\p first, \p last) from the array.
+    /// 
+    /// To match the behavior of std::vector, returns an iterator
+    /// at the position following the removed element.
+    /// If no elements are removed, a non-const iterator pointing
+    /// to last will be returned.
+    /// 
+    /// Since the returned iterator is mutable, when the array is
+    /// not uniquely owned, a copy will be required even when
+    /// the contents are unchanged.
+    ///
+    /// Erase invalidates all iterators (unlike std::vector
+    /// where iterators prior to \p first remain valid).
+    ///
+    /// \sa erase(const_iterator)
+    iterator erase(const_iterator first, const_iterator last) {
+        if (first == last){
+            return std::next(begin(), std::distance(cbegin(), last));
+        }
+        if ((first == cbegin()) && (last == cend())){
+            clear();
+            return end();
+        }
+        // Given the previous two conditions, we know that we are removing
+        // at least one element and the result array will contain at least one
+        // element.
+        value_type* removeStart = std::next(_data, std::distance(cbegin(), first));
+        value_type* removeEnd = std::next(_data, std::distance(cbegin(), last));
+        value_type* endIt = std::next(_data, size());
+        size_t newSize = size() - std::distance(first, last);
+        if (_IsUnique()){
+            // If the array is unique, we can simply move the tail elements
+            // and free to the end of the array.
+            value_type* deleteIt = std::move(removeEnd, endIt, removeStart);
+            for (; deleteIt != endIt; ++deleteIt) {
+                deleteIt->~value_type();
+            }
+            _shapeData.totalSize = newSize;
+            return iterator(removeStart);
+        } else{
+            // If the array is not unique, we want to avoid copying the
+            // elements in the range we are erasing. We allocate a
+            // new buffer and copy the head and tail ranges, omitting
+            // [first, last)
+            value_type* newData = _AllocateNew(newSize);
+            value_type* newMiddle = std::uninitialized_copy(
+                _data, removeStart, newData);
+            value_type* newEnd = std::uninitialized_copy(
+                removeEnd, endIt, newMiddle);
+            TF_DEV_AXIOM(newEnd == std::next(newData, newSize));
+            TF_DEV_AXIOM(std::distance(newData, newMiddle) == 
+                         std::distance(_data, removeStart));
+            _DecRef();
+            _data = newData;
+            _shapeData.totalSize = newSize;
+            return iterator(newMiddle);
+        }
     }
 
     /// Assign array contents.

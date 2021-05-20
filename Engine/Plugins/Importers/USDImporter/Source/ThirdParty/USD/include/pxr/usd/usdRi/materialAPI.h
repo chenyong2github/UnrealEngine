@@ -57,6 +57,10 @@ class SdfAssetPath;
 
 /// \class UsdRiMaterialAPI
 ///
+/// 
+/// \deprecated Materials should use UsdShadeMaterial instead.
+/// This schema will be removed in a future release.
+/// 
 /// This API provides outputs that connect a material prim to prman 
 /// shaders and RIS objects.
 ///
@@ -70,8 +74,13 @@ class UsdRiMaterialAPI : public UsdAPISchemaBase
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaType
-    static const UsdSchemaType schemaType = UsdSchemaType::SingleApplyAPI;
+    /// \sa UsdSchemaKind
+    static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
+
+    /// \deprecated
+    /// Same as schemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    static const UsdSchemaKind schemaType = UsdSchemaKind::SingleApplyAPI;
 
     /// Construct a UsdRiMaterialAPI on UsdPrim \p prim .
     /// Equivalent to UsdRiMaterialAPI::Get(prim.GetStage(), prim.GetPath())
@@ -121,22 +130,30 @@ public:
     /// 
     /// \return A valid UsdRiMaterialAPI object is returned upon success. 
     /// An invalid (or empty) UsdRiMaterialAPI object is returned upon 
-    /// failure. See \ref UsdAPISchemaBase::_ApplyAPISchema() for conditions 
+    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
     /// resulting in failure. 
     /// 
     /// \sa UsdPrim::GetAppliedSchemas()
     /// \sa UsdPrim::HasAPI()
+    /// \sa UsdPrim::ApplyAPI()
+    /// \sa UsdPrim::RemoveAPI()
     ///
     USDRI_API
     static UsdRiMaterialAPI 
     Apply(const UsdPrim &prim);
 
 protected:
-    /// Returns the type of schema this class belongs to.
+    /// Returns the kind of schema this class belongs to.
     ///
-    /// \sa UsdSchemaType
+    /// \sa UsdSchemaKind
     USDRI_API
-    UsdSchemaType _GetSchemaType() const override;
+    UsdSchemaKind _GetSchemaKind() const override;
+
+    /// \deprecated
+    /// Same as _GetSchemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    USDRI_API
+    UsdSchemaKind _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.

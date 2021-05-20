@@ -31,13 +31,16 @@
 #include "pxr/usd/sdf/data.h"
 #include "pxr/usd/sdf/declareHandles.h"
 #include "pxr/usd/sdf/identity.h"
+#include "pxr/usd/sdf/layerHints.h"
 #include "pxr/usd/sdf/layerOffset.h"
 #include "pxr/usd/sdf/namespaceEdit.h"
 #include "pxr/usd/sdf/path.h"
 #include "pxr/usd/sdf/proxyTypes.h"
 #include "pxr/usd/sdf/spec.h"
 #include "pxr/usd/sdf/types.h"
+#include "pxr/usd/ar/ar.h"
 #include "pxr/usd/ar/assetInfo.h"
+#include "pxr/usd/ar/resolvedPath.h"
 #include "pxr/base/tf/declarePtrs.h"
 #include "pxr/base/vt/value.h"
 
@@ -124,18 +127,11 @@ public:
 
     /// Creates a new empty layer with the given identifier.
     ///
-    /// The \p identifier must be either a real filesystem path or an asset
-    /// path without version modifier. Attempting to create a layer using an
-    /// identifier with a version specifier (e.g.  layer.menva@300100,
-    /// layer.menva#5) raises a coding error, and returns a null layer
-    /// pointer.
-    ///
     /// Additional arguments may be supplied via the \p args parameter.
     /// These arguments may control behavior specific to the layer's
     /// file format.
     SDF_API
     static SdfLayerRefPtr CreateNew(const std::string &identifier,
-                                    const std::string &realPath = std::string(),
                                     const FileFormatArguments &args =
                                     FileFormatArguments());
 
@@ -148,19 +144,13 @@ public:
     SDF_API
     static SdfLayerRefPtr CreateNew(const SdfFileFormatConstPtr& fileFormat,
                                     const std::string &identifier,
-                                    const std::string &realPath = std::string(),
                                     const FileFormatArguments &args =
                                     FileFormatArguments());
 
     /// Creates a new empty layer with the given identifier for a given file
     /// format class.
     ///
-    /// This is so that Python File Format classes can create layers
-    /// (CreateNew() doesn't work, because it already saves during
-    /// construction of the layer. That is something specific (python
-    /// generated) layer types may choose to not do.)
-    ///
-    /// The new layer will not be dirty.
+    /// The new layer will not be dirty and will not be saved.
     ///
     /// Additional arguments may be supplied via the \p args parameter. 
     /// These arguments may control behavior specific to the layer's
@@ -168,35 +158,60 @@ public:
     SDF_API
     static SdfLayerRefPtr New(const SdfFileFormatConstPtr& fileFormat,
                               const std::string &identifier,
-                              const std::string &realPath = std::string(),
                               const FileFormatArguments &args = 
                               FileFormatArguments());
 
-    /// Returns the layer for the given path if found in the layer registry.
-    /// If the layer cannot be found, a null handle is returned.
+    /// Return an existing layer with the given \p identifier and \p args.  If
+    /// the layer can't be found, an error is posted and a null layer is
+    /// returned.
+    ///
+    /// Arguments in \p args will override any arguments specified in
+    /// \p identifier.
     SDF_API
     static SdfLayerHandle Find(
         const std::string &identifier,
         const FileFormatArguments &args = FileFormatArguments());
 
-    /// Returns the layer for \p layerPath, assumed to be relative to the path
-    /// of the \p anchor layer. If the \p anchor layer is invalid, a coding
-    /// error is raised, and a null handle is returned. If \p layerPath is not
-    /// relative, this method is equivalent to \c Find(layerPath).
+    /// Return an existing layer with the given \p identifier and \p args.
+    /// The given \p identifier will be resolved relative to the \p anchor
+    /// layer. If the layer can't be found, an error is posted and a null
+    /// layer is returned.
+    ///
+    /// If the \p anchor layer is invalid, a coding error is raised, and a null
+    /// handle is returned.
+    ///
+    /// Arguments in \p args will override any arguments specified in
+    /// \p identifier.
     SDF_API
     static SdfLayerHandle FindRelativeToLayer(
         const SdfLayerHandle &anchor,
-        const std::string &layerPath,
+        const std::string &identifier,
         const FileFormatArguments &args = FileFormatArguments());
 
-    /// Return an existing layer with the given \p identifier and \p args, or 
-    /// else load it from disk. If the layer can't be found or loaded, 
-    /// an error is posted and a null layer is returned.
+    /// Return an existing layer with the given \p identifier and \p args, or
+    /// else load it. If the layer can't be found or loaded, an error is posted
+    /// and a null layer is returned.
     ///
     /// Arguments in \p args will override any arguments specified in
     /// \p identifier.
     SDF_API
     static SdfLayerRefPtr FindOrOpen(
+        const std::string &identifier,
+        const FileFormatArguments &args = FileFormatArguments());
+
+    /// Return an existing layer with the given \p identifier and \p args, or
+    /// else load it. The given \p identifier will be resolved relative to the
+    /// \p anchor layer. If the layer can't be found or loaded, an error is
+    /// posted and a null layer is returned.
+    ///
+    /// If the \p anchor layer is invalid, issues a coding error and returns
+    /// a null handle.
+    ///
+    /// Arguments in \p args will override any arguments specified in
+    /// \p identifier.
+    SDF_API
+    static SdfLayerRefPtr FindOrOpenRelativeToLayer(
+        const SdfLayerHandle &anchor,
         const std::string &identifier,
         const FileFormatArguments &args = FileFormatArguments());
         
@@ -222,6 +237,12 @@ public:
     /// Returns the data from the absolute root path of this layer.
     SDF_API
     SdfDataRefPtr GetMetadata() const;
+
+    /// Return hints about the layer's current contents.  Any operation that
+    /// dirties the layer will invalidate all hints.
+    /// \sa SdfLayerHints
+    SDF_API
+    SdfLayerHints GetHints() const;
 
     /// Returns handles for all layers currently held by the layer registry.
     SDF_API
@@ -343,7 +364,11 @@ public:
     /// avoid reloading layers that have not changed on disk. It does so
     /// by comparing the file's modification time (mtime) to when the
     /// file was loaded. If the layer has unsaved modifications, this
-    /// mechanism is not used, and the layer is reloaded from disk.
+    /// mechanism is not used, and the layer is reloaded from disk. If the 
+    /// layer has any 
+    /// \ref GetExternalAssetDependencies "external asset dependencies"
+    /// their modification state will also be consulted when determining if 
+    /// the layer needs to be reloaded.
     ///
     /// Passing true to the \p force parameter overrides this behavior,
     /// forcing the layer to be reloaded from disk regardless of whether
@@ -375,7 +400,7 @@ public:
 
     /// Return paths of all external references of layer.
     SDF_API
-    std::set<std::string> GetExternalReferences();
+    std::set<std::string> GetExternalReferences() const;
 
     /// Updates the external references of the layer.
     ///
@@ -389,6 +414,17 @@ public:
     bool UpdateExternalReference(
         const std::string &oldAssetPath,
         const std::string &newAssetPath=std::string());
+
+    /// Returns a set of resolved paths to all external asset dependencies
+    /// the layer needs to generate its contents. These are additional asset 
+    /// dependencies that are determined by the layer's 
+    /// \ref SdfFileFormat::GetExternalAssetDependencies "file format" and
+    /// will be consulted during Reload() when determining if the layer needs 
+    /// to be reloaded. This specifically does not include dependencies related 
+    /// to composition, i.e. this will not include assets from references, 
+    /// payloads, and sublayers.
+    SDF_API
+    std::set<std::string> GetExternalAssetDependencies() const;
 
     /// @}
     /// \name Identification
@@ -435,14 +471,16 @@ public:
     void SetIdentifier(const std::string& identifier);
 
     /// Update layer asset information. Calling this method re-resolves the
-    /// layer identifier, which updates asset information such as the layer
-    /// file revision, real path, and repository path. If \p fileVersion is
-    /// supplied, it is used as the layer version if the identifier does not
-    /// have a version or label specifier. This is typically used to tell Sd
-    /// what the version of a layer is after submitting a new revision to the
-    /// asset system.
+    /// layer identifier, which updates asset information such as the layer's
+    /// resolved path and other asset info. This may be used to update the
+    /// layer after external changes to the underlying asset system.
+#if AR_VERSION == 1
     SDF_API
     void UpdateAssetInfo(const std::string& fileVersion = std::string());
+#else
+    SDF_API
+    void UpdateAssetInfo();
+#endif
 
     /// Returns the layer's display name.
     ///
@@ -450,8 +488,13 @@ public:
     SDF_API
     std::string GetDisplayName() const;
 
-    /// Returns the file system path where this layer exists or may exist
-    /// after a call to Save.
+    /// Returns the resolved path for this layer. This is the path where
+    /// this layer exists or may exist after a call to Save().
+    SDF_API
+    const ArResolvedPath& GetResolvedPath() const;
+
+    /// Returns the resolved path for this layer. This is equivalent to
+    /// GetResolvedPath().GetPathString().
     SDF_API
     const std::string& GetRealPath() const;
 
@@ -505,8 +548,8 @@ public:
     ///
     /// @{
 
-    /// Return the specifiers for \a path. This returns default constructed
-    /// specifiers if no spec exists at \a path.
+    /// Return the spec type for \a path. This returns SdfSpecTypeUnknown if no
+    /// spec exists at \a path.
     SDF_API
     SdfSpecType GetSpecType(const SdfPath& path) const;
 
@@ -1376,9 +1419,7 @@ private:
     static SdfLayerRefPtr _CreateNew(
         SdfFileFormatConstPtr fileFormat,
         const std::string& identifier,
-        const std::string& realPath,
-        const ArAssetInfo& assetInfo = ArAssetInfo(),
-        const FileFormatArguments& args = FileFormatArguments());
+        const FileFormatArguments& args);
 
     static SdfLayerRefPtr _CreateNewWithFormat(
         const SdfFileFormatConstPtr &fileFormat,
@@ -1533,6 +1574,33 @@ private:
                          const TfToken &fieldName,
                          SdfSpecType specType = SdfSpecTypeUnknown) const;
 
+    // Return the field definition for \p fieldName if \p fieldName is a
+    // required field for \p specType subject to \p schema.
+    static inline SdfSchema::FieldDefinition const *
+    _GetRequiredFieldDef(const SdfSchemaBase &schema,
+                         const TfToken &fieldName,
+                         SdfSpecType specType);
+
+    // Helper to list all fields on \p data at \p path subject to \p schema.
+    static std::vector<TfToken>
+    _ListFields(SdfSchemaBase const &schema,
+                SdfAbstractData const &data, const SdfPath& path);
+
+    // Helper for HasField for \p path in \p data subject to \p schema.
+    static inline bool
+    _HasField(const SdfSchemaBase &schema,
+              const SdfAbstractData &data,
+              const SdfPath& path,
+              const TfToken& fieldName,
+              VtValue *value);
+
+    // Helper to get a field value for \p path in \p data subject to \p schema.
+    static inline VtValue
+    _GetField(const SdfSchemaBase &schema,
+              const SdfAbstractData &data,
+              const SdfPath& path,
+              const TfToken& fieldName);
+    
     // Set a value.
     template <class T>
     void _SetValue(const TfToken& key, T value);
@@ -1571,9 +1639,15 @@ private:
     // inverses or emit change notification.
     void _SwapData(SdfAbstractDataRefPtr &data);
 
-    // Set _data to match data, calling other primitive setter methods
-    // to provide fine-grained inverses and notification.
-    void _SetData(const SdfAbstractDataPtr &data);
+    // Set _data to match data, calling other primitive setter methods to
+    // provide fine-grained inverses and notification.  If \p data might adhere
+    // to a different schema than this layer's, pass a pointer to it as \p
+    // newDataSchema.  In this case, check to see if fields from \p data are
+    // known to this layer's schema, and if not, omit them and issue a TfError
+    // with SdfAuthoringErrorUnrecognizedFields, but continue to set all other
+    // known fields.
+    void _SetData(const SdfAbstractDataPtr &newData,
+                  const SdfSchemaBase *newDataSchema=nullptr);
 
     // Returns const handle to _data.
     SdfAbstractDataConstPtr _GetData() const;
@@ -1680,6 +1754,10 @@ private:
     // Modification timestamp of the backing file asset when last read.
     mutable VtValue _assetModificationTime;
 
+    // All external asset dependencies, with their modification timestamps, of
+    // the layer when last read.
+    mutable VtDictionary _externalAssetModificationTimes;
+
     // Mutable revision number for cache invalidation.
     mutable size_t _mutedLayersRevisionCache;
 
@@ -1693,6 +1771,9 @@ private:
 
     // Whether layer edits are validated.
     bool _validateAuthoring;
+
+    // Layer hints as of the most recent save operation.
+    mutable SdfLayerHints _hints;
 
     // Allow access to _ValidateAuthoring() and _IsInert().
     friend class SdfSpec;
