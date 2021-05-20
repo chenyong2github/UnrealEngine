@@ -274,7 +274,11 @@ public:
 	FRDGTextureRef HZBPhysical = nullptr;
 	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;
 
-	// Convert also?
-	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationOutput;
-	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationProjectionOutput;
+	// Convert also
+	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
+
+	int DebugOutputType = 0;	// 0 = Disabled
+	// Base ID of the light that the user has selected for debug output (if present)
+	int DebugVirtualShadowMapId = INDEX_NONE;
+	FRDGTextureRef DebugVisualizationProjectionOutput = nullptr;
 };

@@ -4,6 +4,7 @@
 =============================================================================*/
 #include "VirtualShadowMapArray.h"
 #include "../BasePassRendering.h"
+#include "Components/LightComponent.h"
 #include "RendererModule.h"
 #include "Rendering/NaniteResources.h"
 #include "ShaderPrint.h"
@@ -143,7 +144,6 @@ static TAutoConsoleVariable<int32> CVarShowClipmapStats(
 );
 
 int32 GEnableNonNaniteVSM = 1;
-
 FAutoConsoleVariableRef CVarEnableNonNaniteVSM(
 	TEXT("r.Shadow.Virtual.NonNaniteVSM"),
 	GEnableNonNaniteVSM,
@@ -151,6 +151,39 @@ FAutoConsoleVariableRef CVarEnableNonNaniteVSM(
 	TEXT("Read-only and to be set in a config file (requires restart)."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
+
+#if !UE_BUILD_SHIPPING
+bool GDumpVSMLightNames = false;
+void DumpVSMLightNames()
+{
+	ENQUEUE_RENDER_COMMAND(DumpVSMLightNames)(
+		[](FRHICommandList& RHICmdList)
+		{
+			GDumpVSMLightNames = true;
+		});
+}
+
+FAutoConsoleCommand CmdDumpVSMLightNames(
+	TEXT("r.Shadow.Virtual.DumpLightNames"),
+	TEXT("Dump light names with Virtual Shadow Maps (for developer only, only for non shiping build)"),
+	FConsoleCommandDelegate::CreateStatic(DumpVSMLightNames)
+);
+
+FString GVirtualShadowMapDebugLight;
+FAutoConsoleVariableRef CVarDebugLight(
+	TEXT("r.Shadow.Virtual.DebugLight"),
+	GVirtualShadowMapDebugLight,
+	TEXT("Sets the name of a specific light to debug."),
+	ECVF_RenderThreadSafe
+);	// !UE_BUILD_SHIPPING
+
+static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
+	TEXT( "r.Shadow.Virtual.DebugProjection" ),
+	0,
+	TEXT( "Projection pass debug output visualization for use with 'vis Shadow.Virtual.DebugProjection'." ),
+	ECVF_RenderThreadSafe
+);
+#endif // !UE_BUILD_SHIPPING
 
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
@@ -744,6 +777,73 @@ class FAllocatePagesUsingRectsCS : public FVirtualPageManagementShader
 };
 IMPLEMENT_GLOBAL_SHADER(FAllocatePagesUsingRectsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "AllocatePagesUsingRects", SF_Compute);
 
+static FString GetLightNameForDebug(const FLightSceneProxy* Proxy)
+{
+	// TODO: ActorLabel is editor-only... need a better solution that goes right into Proxy->GetComponentName()
+#if WITH_EDITOR
+	const ULightComponent* Component = Proxy->GetLightComponent();
+	const AActor* Owner = Component->GetOwner();
+	// TODO: Sometimes Owner is null... not sure why but best we can do for now
+	return Owner ? Owner->GetActorLabel() : Proxy->GetComponentName().ToString();
+#else
+	return Proxy->GetComponentName().ToString();
+#endif
+}
+
+#if !UE_BUILD_SHIPPING
+struct FDebugLightSearch
+{
+public:
+	void CheckDebugLight(const FLightSceneProxy* Proxy, int CheckVirtualShadowMapId)
+	{
+		if (bFoundExactMatch)
+		{
+			return;
+		}
+
+		FString LightName = GetLightNameForDebug(Proxy);
+		if (GDumpVSMLightNames)
+		{
+			UE_LOG(LogRenderer, Display, TEXT("%s"), *LightName);
+		}
+		
+		bFoundExactMatch = (LightName == GVirtualShadowMapDebugLight);
+		bool bPartialMatch = LightName.Contains(GVirtualShadowMapDebugLight);
+		bool bDirectionalLight = Proxy->GetLightType() == LightType_Directional;
+
+		// Priority: exact match, partial match, directional light, anything
+		if (bFoundExactMatch ||
+			VirtualShadowMapId == INDEX_NONE ||
+			(!bFoundPartialMatch && (bPartialMatch || (!bFoundDirectionalLight && bDirectionalLight))))
+		{
+			bFoundDirectionalLight = bDirectionalLight;
+			bFoundPartialMatch = bPartialMatch;
+			VirtualShadowMapId = CheckVirtualShadowMapId;
+		}
+	}
+
+	bool bFoundDirectionalLight = false;
+	bool bFoundPartialMatch = false;
+	bool bFoundExactMatch = false;
+	int VirtualShadowMapId = INDEX_NONE;
+};
+
+static FRDGTextureRef CreateDebugOutputTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
+{
+	const FLinearColor ClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+
+	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+		Extent,
+		PF_R8G8B8A8,
+		FClearValueBinding(ClearColor),
+		TexCreate_ShaderResource | TexCreate_UAV);
+
+	FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, TEXT("Shadow.Virtual.DebugProjection"));
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Texture), ClearColor);
+	return Texture;
+}
+#endif // !UE_BUILD_SHIPPING
+
 void FVirtualShadowMapArray::BuildPageAllocations(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
@@ -758,7 +858,25 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 	const float ResolutionLodBiasLocal = CVarResolutionLodBiasLocal.GetValueOnRenderThread();
 	const float PageDilationBorderSize = CVarPageDilationBorderSize.GetValueOnRenderThread();
-	
+
+#if !UE_BUILD_SHIPPING
+	bool bDebugOutputEnabled = false;
+	if (GDumpVSMLightNames)
+	{
+		bDebugOutputEnabled = true;
+		UE_LOG(LogRenderer, Display, TEXT("Lights with Virtual Shadow Maps:"));
+	}
+
+	// Setup debug output
+	DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
+	FDebugLightSearch DebugLightSearch;
+	if (DebugOutputType > 0)
+	{
+		bDebugOutputEnabled = true;
+		DebugVisualizationProjectionOutput = CreateDebugOutputTexture(GraphBuilder, SceneTextures.Config.Extent);
+	}
+#endif //!UE_BUILD_SHIPPING
+
 	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightsInfo.SortedLights;
 	if (ShadowMaps.Num())
 	{
@@ -779,6 +897,13 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				{
 					ShadowMapProjectionData[ClipmapID + ClipmapLevel] = Clipmap->GetProjectionShaderData(ClipmapLevel);
 				}
+
+			#if !UE_BUILD_SHIPPING
+				if (bDebugOutputEnabled)
+				{
+					DebugLightSearch.CheckDebugLight(Clipmap->GetLightSceneInfo().Proxy, ClipmapID);
+				}
+			#endif // !UE_BUILD_SHIPPING
 			}
 
 			for (FProjectedShadowInfo* ProjectedShadowInfo : VisibleLightInfo.AllProjectedShadows)
@@ -816,9 +941,19 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						Data.VirtualShadowMapId						= ID;
 						Data.LightType								= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
 					}
+
+				#if !UE_BUILD_SHIPPING
+					if (bDebugOutputEnabled)
+					{
+						DebugLightSearch.CheckDebugLight(ProjectedShadowInfo->GetLightSceneInfo().Proxy, ProjectedShadowInfo->VirtualShadowMaps[0]->ID);
+					}
+				#endif // !UE_BUILD_SHIPPING
 				}
 			}
 		}
+	#if !UE_BUILD_SHIPPING
+		DebugVirtualShadowMapId = DebugLightSearch.VirtualShadowMapId;
+	#endif
 
 		UniformParameters.NumShadowMaps = ShadowMaps.Num();
 		UniformParameters.NumDirectionalLights = DirectionalLightSmInds.Num();
@@ -1154,6 +1289,11 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 		UniformParameters.PageTable = GraphBuilder.CreateSRV(PageTableRDG);
 	}
+
+#if !UE_BUILD_SHIPPING
+	// Only dump one frame of light data
+	GDumpVSMLightNames = false;
+#endif
 }
 
 void FVirtualShadowMapArray::SetupProjectionParameters(FRDGBuilder& GraphBuilder)
