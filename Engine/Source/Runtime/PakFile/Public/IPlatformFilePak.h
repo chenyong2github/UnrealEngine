@@ -2241,6 +2241,12 @@ public:
 	 */
 	virtual void MakeUniquePakFilesForTheseFiles(const TArray<TArray<FString>>& InFiles);
 
+	/**
+	 * Get servicable pending read requests based on priority and in flight read tasks
+	 */
+	virtual void GetServicableReadRequestsAndInFlightReadTasks(int& ReadRequests, int& ReadTasks);
+
+
 
 	/** Overload needed for deprecation; remove this when removing the version with a FPakFile** OutPakFile */
 	static bool FindFileInPakFiles(TArray<FPakListEntry>& Paks, const TCHAR* Filename, nullptr_t OutPakFile, FPakEntry* OutEntry = nullptr)
@@ -2952,6 +2958,7 @@ public:
 
 	virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename) override;
 	virtual void SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority) override;
+	virtual EAsyncIOPriorityAndFlags GetAsyncMinimumPriority() override;
 
 	virtual IMappedFileHandle* OpenMapped(const TCHAR* Filename) override;
 	/**
