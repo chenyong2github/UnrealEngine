@@ -128,6 +128,16 @@ void UK2Node_GetSequenceBinding::AllocateDefaultPins()
 	Super::AllocateDefaultPins();
 }
 
+void UK2Node_GetSequenceBinding::PostPlacedNewNode()
+{
+	// Attempt to assign the sequence asset from our outer if this BP is contained within a sequence
+	if (UMovieSceneSequence* OuterSequence = GetTypedOuter<UMovieSceneSequence>())
+	{
+		SourceSequence = OuterSequence;
+	}
+	Super::PostPlacedNewNode();
+}
+
 UMovieScene* UK2Node_GetSequenceBinding::GetObjectMovieScene() const
 {
 	UMovieSceneSequence* Sequence = GetSequence();
@@ -309,6 +319,10 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 	public:
 		SLATE_BEGIN_ARGS(SGraphNodeGetSequenceBinding){}
 		SLATE_END_ARGS()
+
+		SGraphNodeGetSequenceBinding()
+			: FMovieSceneObjectBindingIDPicker(MovieSceneSequenceID::Root, nullptr)
+		{}
 
 		void Construct(const FArguments& InArgs, UK2Node_GetSequenceBinding* InNode)
 		{

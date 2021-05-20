@@ -56,7 +56,7 @@ public:
 	virtual bool CanRebindPossessable(const FMovieScenePossessable& InPossessable) const override;
 	virtual UObject* MakeSpawnableTemplateFromInstance(UObject& InSourceObject, FName ObjectName) override;
 	virtual bool CanAnimateObject(UObject& InObject) const override;
-	virtual UObject* CreateDirectorInstance(IMovieScenePlayer& Player) override;
+	virtual UObject* CreateDirectorInstance(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID) override;
 	virtual void PostLoad() override;
 	virtual bool Rename(const TCHAR* NewName = nullptr, UObject* NewOuter = nullptr, ERenameFlags Flags = REN_None) override;
 
