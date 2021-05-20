@@ -222,6 +222,7 @@ public:
 	 */
 	FORCEINLINE static FGuid GetInstanceId()
 	{
+		static FGuid InstanceId = FGuid::NewGuid();
 		return InstanceId;
 	}
 
@@ -316,7 +317,7 @@ public:
 	 */
 	FORCEINLINE static bool IsThisInstance(const FGuid& InInstanceId)
 	{
-		return (InInstanceId == InstanceId);
+		return (InInstanceId == GetInstanceId());
 	};
 
 	/**
@@ -741,9 +742,6 @@ private:
 	/** The current build configuration */
 	static bool bIsDebugGame;
 #endif
-
-	/** Holds the instance identifier. */
-	static FGuid InstanceId;
 
 	/** Holds the session identifier. */
 	static FGuid SessionId;

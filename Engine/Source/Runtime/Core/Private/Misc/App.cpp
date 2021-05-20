@@ -20,7 +20,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogApp, Log, All);
 bool FApp::bIsDebugGame = false;
 #endif
 
-FGuid FApp::InstanceId = FGuid::NewGuid();
 FGuid FApp::SessionId = FGuid::NewGuid();
 FString FApp::SessionName = FString();
 FString FApp::SessionOwner = FString();
@@ -130,6 +129,7 @@ void FApp::InitializeSession()
 {
 	// parse session details on command line
 	FString InstanceIdString;
+	FGuid InstanceId = GetInstanceId();
 
 	if (FParse::Value(FCommandLine::Get(), TEXT("-InstanceId="), InstanceIdString))
 	{
@@ -137,11 +137,6 @@ void FApp::InitializeSession()
 		{
 			UE_LOG(LogInit, Warning, TEXT("Invalid InstanceId on command line: %s"), *InstanceIdString);
 		}
-	}
-
-	if (!InstanceId.IsValid())
-	{
-		InstanceId = FGuid::NewGuid();
 	}
 
 	FString SessionIdString;
