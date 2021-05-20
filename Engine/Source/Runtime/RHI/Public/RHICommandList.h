@@ -568,15 +568,20 @@ public:
 
 	FORCEINLINE const FRHIGPUMask& GetGPUMask() const { return GPUMask; }
 
+#if RHI_WANT_BREADCRUMB_EVENTS
+	void ExportBreadcrumbState(FRHIBreadcrumbState& State);
+	void ImportBreadcrumbState(const FRHIBreadcrumbState& State);
+#endif
+
 protected:
 #if RHI_WANT_BREADCRUMB_EVENTS
-	FRHIBreadcrumb* PushBreadcrumb_Internal(const TCHAR* InName)
+	FRHIBreadcrumb* PushBreadcrumb_Internal(const TCHAR* InText, int32 InLen = 0)
 	{
 		FRHIBreadcrumb* NewBreadcrumb = (FRHIBreadcrumb*)MemManager.Alloc(sizeof(FRHIBreadcrumb), alignof(FRHIBreadcrumb));
 
-		int32 Len = FCString::Strlen(InName) + 1;
+		int32 Len = (InLen > 0 ? InLen : FCString::Strlen(InText)) + 1;
 		TCHAR* NewName = (TCHAR*)MemManager.Alloc(Len * sizeof(TCHAR), alignof(TCHAR));
-		FCString::Strcpy(NewName, Len, InName);
+		FCString::Strcpy(NewName, Len, InText);
 
 		NewBreadcrumb->Parent = BreadcrumbStackTop;
 		NewBreadcrumb->Name = NewName;
@@ -589,6 +594,16 @@ protected:
 		return NewBreadcrumb;
 	}
 
+	FRHIBreadcrumb* PushBreadcrumbPrintf_Internal(const TCHAR* InFormat, ...)
+	{
+		TCHAR BreadcrumbString[1024];
+		int32 WrittenLength = 0;
+
+		GET_VARARGS_RESULT(BreadcrumbString, UE_ARRAY_COUNT(BreadcrumbString), UE_ARRAY_COUNT(BreadcrumbString) - 1, InFormat, InFormat, WrittenLength);
+
+		return PushBreadcrumb_Internal(BreadcrumbString, WrittenLength);
+	}
+
 	FRHIBreadcrumb* PopBreadcrumb_Internal()
 	{
 		check(BreadcrumbStackTop != nullptr); // popping more than pushing
@@ -596,14 +611,18 @@ protected:
 		return BreadcrumbStackTop;
 	}
 
-	FRHIBreadcrumb* GetBreadcrumbStackTop() const { return BreadcrumbStackTop; }
+	FRHIBreadcrumb* GetBreadcrumbStackTop() const
+	{
+		return BreadcrumbStackTop;
+	}
+
 	FRHIBreadcrumb* PopFirstUnsubmittedBreadcrumb()
 	{
 		FRHIBreadcrumb* Breadcrumb = FirstUnsubmittedBreadcrumb;
 		FirstUnsubmittedBreadcrumb = nullptr;
 		return Breadcrumb;
 	}
-#endif
+#endif // RHI_WANT_BREADCRUMB_EVENTS
 
 private:
 	FRHICommandBase* Root;
@@ -2742,10 +2761,24 @@ public:
 		ALLOC_COMMAND(FRHICommandPopEvent)();
 	}
 
-	FORCEINLINE_DEBUGGABLE void PushBreadcrumb(const TCHAR* Name)
+	FORCEINLINE_DEBUGGABLE void PushBreadcrumb(const TCHAR* InText)
 	{
 #if RHI_WANT_BREADCRUMB_EVENTS
-		FRHIBreadcrumb* Breadcrumb = PushBreadcrumb_Internal(Name);
+		FRHIBreadcrumb* Breadcrumb = PushBreadcrumb_Internal(InText);
+		if (Bypass())
+		{
+			GetComputeContext().RHISetBreadcrumbStackTop(Breadcrumb);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandSetBreadcrumbStackTop)(Breadcrumb);
+#endif
+	}
+
+	template<typename... Types>
+	FORCEINLINE_DEBUGGABLE void PushBreadcrumbPrintf(const TCHAR* Format, Types... Arguments)
+	{
+#if RHI_WANT_BREADCRUMB_EVENTS
+		FRHIBreadcrumb* Breadcrumb = PushBreadcrumbPrintf_Internal(Format, Arguments...);
 		if (Bypass())
 		{
 			GetComputeContext().RHISetBreadcrumbStackTop(Breadcrumb);
@@ -2930,8 +2963,6 @@ public:
 #endif
 
 #if RHI_WANT_BREADCRUMB_EVENTS
-	void ExportBreadcrumbState(FRHIBreadcrumbState& State);
-	void ImportBreadcrumbState(const FRHIBreadcrumbState& State);
 	void InheritBreadcrumbs(const FRHIComputeCommandList& Parent);
 #endif
 
