@@ -35,21 +35,21 @@ FCluster::FCluster(
 {
 	GUID = Murmur32( { TriBegin, TriEnd } );
 	
-	const uint32 NumTriangles = TriEnd - TriBegin;
+	NumTris = TriEnd - TriBegin;
 	//ensure(NumTriangles <= FCluster::ClusterSize);
 	
 	bHasColors = bInHasColors;
 	NumTexCoords = InNumTexCoords;
 
-	Verts.Reserve( NumTriangles * GetVertSize() );
-	Indexes.Reserve( 3 * NumTriangles );
-	BoundaryEdges.Reserve( 3 * NumTriangles );
-	MaterialIndexes.Reserve( NumTriangles );
+	Verts.Reserve( NumTris * GetVertSize() );
+	Indexes.Reserve( 3 * NumTris );
+	BoundaryEdges.Reserve( 3 * NumTris );
+	MaterialIndexes.Reserve( NumTris );
 
 	check(InMaterialIndexes.Num() * 3 == InIndexes.Num());
 
 	TMap< uint32, uint32 > OldToNewIndex;
-	OldToNewIndex.Reserve( NumTriangles );
+	OldToNewIndex.Reserve( NumTris );
 
 	for( uint32 i = TriBegin; i < TriEnd; i++ )
 	{
@@ -96,19 +96,6 @@ FCluster::FCluster(
 			BoundaryEdges.Add( InBoundaryEdges[ TriIndex * 3 + k ] );
 		}
 
-		{
-			const FVector3f& Position0 = InVerts[ InIndexes[ TriIndex * 3 + 0 ] ].Position;
-			const FVector3f& Position1 = InVerts[ InIndexes[ TriIndex * 3 + 1 ] ].Position;
-			const FVector3f& Position2 = InVerts[ InIndexes[ TriIndex * 3 + 2 ] ].Position;
-
-			FVector3f Edge01 = Position1 - Position0;
-			FVector3f Edge12 = Position2 - Position1;
-			FVector3f Edge20 = Position0 - Position2;
-
-			float TriArea = 0.5f * ( Edge01 ^ Edge20 ).Size();
-			SurfaceArea += TriArea;
-		}
-
 		MaterialIndexes.Add( InMaterialIndexes[ TriIndex ] );
 	}
 
@@ -125,15 +112,15 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 	NumTexCoords = SrcCluster.NumTexCoords;
 	bHasColors   = SrcCluster.bHasColors;
 	
-	const uint32 NumTriangles = TriEnd - TriBegin;
+	NumTris = TriEnd - TriBegin;
 
-	Verts.Reserve( NumTriangles * GetVertSize() );
-	Indexes.Reserve( 3 * NumTriangles );
-	BoundaryEdges.Reserve( 3 * NumTriangles );
-	MaterialIndexes.Reserve( NumTriangles );
+	Verts.Reserve( NumTris * GetVertSize() );
+	Indexes.Reserve( 3 * NumTris );
+	BoundaryEdges.Reserve( 3 * NumTris );
+	MaterialIndexes.Reserve( NumTris );
 
 	TMap< uint32, uint32 > OldToNewIndex;
-	OldToNewIndex.Reserve( NumTriangles );
+	OldToNewIndex.Reserve( NumTris );
 
 	for( uint32 i = TriBegin; i < TriEnd; i++ )
 	{
@@ -156,19 +143,6 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 
 			Indexes.Add( NewIndex );
 			BoundaryEdges.Add( SrcCluster.BoundaryEdges[ TriIndex * 3 + k ] );
-		}
-
-		{
-			const FVector3f& Position0 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 0 ] );
-			const FVector3f& Position1 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 1 ] );
-			const FVector3f& Position2 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 2 ] );
-
-			FVector3f Edge01 = Position1 - Position0;
-			FVector3f Edge12 = Position2 - Position1;
-			FVector3f Edge20 = Position0 - Position2;
-
-			float TriArea = 0.5f * ( Edge01 ^ Edge20 ).Size();
-			SurfaceArea += TriArea;
 		}
 
 		const int32 MaterialIndex = SrcCluster.MaterialIndexes[ TriIndex ];
@@ -198,7 +172,6 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<16> >& Merge
 	for( const FCluster* Child : MergeList )
 	{
 		Bounds += Child->Bounds;
-		SurfaceArea	+= Child->SurfaceArea;
 
 		// Can jump multiple levels but guarantee it steps at least 1.
 		MipLevel = FMath::Max( MipLevel, Child->MipLevel + 1 );
@@ -235,16 +208,53 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<16> >& Merge
 			MaterialIndexes.Add(MaterialIndex);
 		}
 	}
+
+	NumTris = Indexes.Num() / 3;
 }
 
 float FCluster::Simplify( uint32 TargetNumTris )
 {
-	if( TargetNumTris * 3 >= (uint32)Indexes.Num() )
+	if( TargetNumTris >= NumTris )
 	{
 		return 0.0f;
 	}
-	
-	float TriangleSize = FMath::Sqrt( SurfaceArea * 3.0f / Indexes.Num() );
+
+	float SurfaceArea = 0.0f;
+	float UVArea[ MAX_STATIC_TEXCOORDS ] = { 0.0f };
+
+	for( uint32 TriIndex = 0; TriIndex < NumTris; TriIndex++ )
+	{
+		uint32 Index0 = Indexes[ TriIndex * 3 + 0 ];
+		uint32 Index1 = Indexes[ TriIndex * 3 + 1 ];
+		uint32 Index2 = Indexes[ TriIndex * 3 + 2 ];
+
+		const FVector3f& Position0 = GetPosition( Index0 );
+		const FVector3f& Position1 = GetPosition( Index1 );
+		const FVector3f& Position2 = GetPosition( Index2 );
+
+		FVector3f Edge1 = Position1 - Position0;
+		FVector3f Edge2 = Position2 - Position0;
+
+		SurfaceArea += 0.5f * ( Edge1 ^ Edge2 ).Size();
+
+		FVector2D* UV0 = GetUVs( Index0 );
+		FVector2D* UV1 = GetUVs( Index1 );
+		FVector2D* UV2 = GetUVs( Index2 );
+
+		for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+		{
+			FVector2D EdgeUV1 = UV1[ UVIndex ] - UV0[ UVIndex ];
+			FVector2D EdgeUV2 = UV2[ UVIndex ] - UV0[ UVIndex ];
+			float SignedArea = 0.5f * ( EdgeUV1 ^ EdgeUV2 );
+			UVArea[ UVIndex ] += FMath::Abs( SignedArea );
+
+			// Force an attribute discontinuity for UV mirroring edges.
+			// Quadric could account for this but requires much larger UV weights which raises error on meshes which have no visible issues otherwise.
+			MaterialIndexes[ TriIndex ] |= ( SignedArea >= 0.0f ? 1 : 0 ) << ( UVIndex + 24 );
+		}
+	}
+
+	float TriangleSize = FMath::Sqrt( SurfaceArea / NumTris );
 	
 	FFloat32 CurrentSize( FMath::Max( TriangleSize, THRESH_POINTS_ARE_SAME ) );
 	FFloat32 DesiredSize( 0.25f );
@@ -255,24 +265,10 @@ float FCluster::Simplify( uint32 TargetNumTris )
 	FloatScale.Components.Exponent = Exponent + 127;	//ExpBias
 	// Scale ~= DesiredSize / CurrentSize
 	float PositionScale = FloatScale.FloatValue;
-	
-	// Normalize UVWeights using min/max UV range.
-	float MinUV[ MAX_STATIC_TEXCOORDS ] = { +FLT_MAX, +FLT_MAX };
-	float MaxUV[ MAX_STATIC_TEXCOORDS ] = { -FLT_MAX, -FLT_MAX };
 
 	for( uint32 i = 0; i < NumVerts; i++ )
 	{
 		GetPosition(i) *= PositionScale;
-
-		for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
-		{
-			float U = GetUVs(i)[ UVIndex ].X;
-			float V = GetUVs(i)[ UVIndex ].Y;
-			if (!FMath::IsFinite(U)) U = 0.0f;
-			if (!FMath::IsFinite(V)) V = 0.0f;
-			MinUV[ UVIndex ] = FMath::Min3( MinUV[ UVIndex ], U, V );
-			MaxUV[ UVIndex ] = FMath::Max3( MaxUV[ UVIndex ], U, V );
-		}
 	}
 
 	uint32 NumAttributes = GetVertSize() - 3;
@@ -295,11 +291,14 @@ float FCluster::Simplify( uint32 TargetNumTris )
 	uint32 TexCoordOffset = 3 + ( bHasColors ? 4 : 0 );
 	float* UVWeights = AttributeWeights + TexCoordOffset;
 
+	// Normalize UVWeights
 	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 	{
-		float Range = FMath::Max( 1.0f, MaxUV[ UVIndex ] - MinUV[ UVIndex ] );
-		UVWeights[ 2 * UVIndex + 0 ] = 1.0f / ( 1024.0f * NumTexCoords * Range );
-		UVWeights[ 2 * UVIndex + 1 ] = 1.0f / ( 1024.0f * NumTexCoords * Range );
+		float TriangleUVSize = FMath::Sqrt( UVArea[ UVIndex ] / NumTris );
+		TriangleUVSize = FMath::Max( TriangleUVSize, THRESH_UVS_ARE_SAME );
+
+		UVWeights[ 2 * UVIndex + 0 ] = 1.0f / ( 128.0f * TriangleUVSize );
+		UVWeights[ 2 * UVIndex + 1 ] = 1.0f / ( 128.0f * TriangleUVSize );
 	}
 
 	FMeshSimplifier Simplifier( Verts.GetData(), NumVerts, Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
@@ -323,6 +322,7 @@ float FCluster::Simplify( uint32 TargetNumTris )
 	MaterialIndexes.SetNum( Simplifier.GetRemainingNumTris() );
 
 	NumVerts = Simplifier.GetRemainingNumVerts();
+	NumTris = Simplifier.GetRemainingNumTris();
 
 	float InvScale = 1.0f / PositionScale;
 	for( uint32 i = 0; i < NumVerts; i++ )
@@ -331,14 +331,18 @@ float FCluster::Simplify( uint32 TargetNumTris )
 		Bounds += GetPosition(i);
 	}
 
+	for( uint32 TriIndex = 0; TriIndex < NumTris; TriIndex++ )
+	{
+		// Remove UV mirroring bits
+		MaterialIndexes[ TriIndex ] &= 0xffffff;
+	}
+
 	return FMath::Sqrt( MaxErrorSqr ) * InvScale;
 }
 
 void FCluster::Split( FGraphPartitioner& Partitioner ) const
 {
-	uint32 NumTriangles = Indexes.Num() / 3;
-	
-	FDisjointSet DisjointSet( NumTriangles );
+	FDisjointSet DisjointSet( NumTris );
 	
 	TArray< int32 > SharedEdge;
 	SharedEdge.AddUninitialized( Indexes.Num() );
@@ -396,9 +400,9 @@ void FCluster::Split( FGraphPartitioner& Partitioner ) const
 
 	Partitioner.BuildLocalityLinks( DisjointSet, Bounds, GetCenter );
 
-	auto* RESTRICT Graph = Partitioner.NewGraph( NumTriangles * 3 );
+	auto* RESTRICT Graph = Partitioner.NewGraph( NumTris * 3 );
 
-	for( uint32 i = 0; i < NumTriangles; i++ )
+	for( uint32 i = 0; i < NumTris; i++ )
 	{
 		Graph->AdjacencyOffset[i] = Graph->Adjacency.Num();
 
@@ -416,7 +420,7 @@ void FCluster::Split( FGraphPartitioner& Partitioner ) const
 
 		Partitioner.AddLocalityLinks( Graph, TriIndex, 1 );
 	}
-	Graph->AdjacencyOffset[ NumTriangles ] = Graph->Adjacency.Num();
+	Graph->AdjacencyOffset[ NumTris ] = Graph->Adjacency.Num();
 
 	Partitioner.PartitionStrict( Graph, ClusterSize - 4, ClusterSize, false );
 }
@@ -594,7 +598,6 @@ FMatrix44f CovarianceToBasis( const FMatrix44f& Covariance )
 
 void FCluster::Bound()
 {
-	NumTris = Indexes.Num() / 3;
 	Bounds = FBounds();
 	
 	TArray< FVector, TInlineAllocator<128> > Positions;	//TODO: convert me to FVector3f when FSphere also has a float version
@@ -611,6 +614,7 @@ void FCluster::Bound()
 	//auto& Normals = Positions;
 	//Normals.Reset( Cluster.NumTris );
 
+	float SurfaceArea = 0.0f;
 	FVector3f SurfaceMean( 0.0f );
 	
 	float MaxEdgeLength2 = 0.0f;
@@ -641,7 +645,7 @@ void FCluster::Bound()
 #endif
 
 		float TriArea = 0.5f * ( Edge01 ^ Edge20 ).Size();
-
+		SurfaceArea += TriArea;
 		for( int k = 0; k < 3; k++ )
 			SurfaceMean += TriArea * v[k];
 	}
@@ -803,7 +807,6 @@ FArchive& operator<<(FArchive& Ar, FCluster& Cluster)
 	Ar << Cluster.AdjacentClusters;
 
 	Ar << Cluster.Bounds;
-	Ar << Cluster.SurfaceArea;
 	Ar << Cluster.GUID;
 	Ar << Cluster.MipLevel;
 
