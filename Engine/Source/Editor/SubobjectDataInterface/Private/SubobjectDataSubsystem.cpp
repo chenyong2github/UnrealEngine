@@ -721,19 +721,24 @@ FSubobjectDataHandle USubobjectDataSubsystem::FindParentForNewSubobject(const UO
 	else
 	{
 		// Non-scene components should be parented to the base actor in the hierarchy
-		FSubobjectDataHandle CurrentHandle = SelectedParent;
-		FSubobjectData* CurrentData = CurrentHandle.GetData();
-
-		while (CurrentData && !CurrentData->IsActor())
-		{
-			CurrentHandle = CurrentData->GetParentHandle();
-			CurrentData = CurrentHandle.GetData();
-		}
-
-		TargetParentHandle = CurrentHandle;
+		TargetParentHandle = GetActorRootHandle(SelectedParent);
 	}
 	
 	return TargetParentHandle;
+}
+
+FSubobjectDataHandle USubobjectDataSubsystem::GetActorRootHandle(const FSubobjectDataHandle& StartingHandle)
+{
+	FSubobjectDataHandle CurrentHandle = StartingHandle;
+	FSubobjectData* CurrentData = CurrentHandle.GetData();
+
+	while (CurrentData && !CurrentData->IsActor())
+	{
+		CurrentHandle = CurrentData->GetParentHandle();
+		CurrentData = CurrentHandle.GetData();
+	}
+
+	return CurrentHandle;
 }
 
 FSubobjectDataHandle USubobjectDataSubsystem::AddNewSubobject(const FAddNewSubobjectParams& Params, FText& FailReason)
@@ -869,93 +874,109 @@ FSubobjectDataHandle USubobjectDataSubsystem::AddNewSubobject(const FAddNewSubob
 			// Create a new subobject data set with this component
 			NewDataHandle = FactoryCreateSubobjectDataWithParent(NewComponent, ParentObjData->GetHandle());
 		}
-		else if(AActor* ActorInstance = ParentObjData->GetMutableActorContext())
+		else
 		{
-			ActorInstance->Modify();
+			AActor* ActorInstance = ParentObjData->GetMutableActorContext();
 
-			// Create an appropriate name for the new component
-			FName NewComponentName = NAME_None;
-			if (Asset)
+			// If we can't find an actor instance then search up the hierarchy for one that we can use instead
+			if (!ActorInstance)
 			{
-				NewComponentName = *FComponentEditorUtils::GenerateValidVariableNameFromAsset(Asset, ActorInstance);
-			}
-			else
-			{
-				NewComponentName = *FComponentEditorUtils::GenerateValidVariableName(NewClass, ActorInstance);
-			}
-			
-			// Get the set of owned components that exists prior to instancing the new component.
-			TInlineComponentArray<UActorComponent*> PreInstanceComponents;
-			ActorInstance->GetComponents(PreInstanceComponents);
-
-			// Construct the new component and attach as needed
-			UActorComponent* NewInstanceComponent = NewObject<UActorComponent>(ActorInstance, NewClass, NewComponentName, RF_Transactional);
-			
-			// Do Scene Attachment if this new Component is a USceneComponent
-			if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(NewInstanceComponent))
-			{
-				if(ParentObjData->IsDefaultSceneRoot() && ParentObjData->CanReparent())
+				const FSubobjectDataHandle& ActorRootHandle = GetActorRootHandle(ParentObjData->GetHandle());
+				if (ActorRootHandle.IsValid())
 				{
-					ActorInstance->SetRootComponent(NewSceneComponent);
+					ParentObjData = ActorRootHandle.GetData();
+					ActorInstance = ParentObjData ? ParentObjData->GetMutableActorContext() : nullptr;
+				}
+			}
+
+			if (ActorInstance && ParentObjData)
+			{
+				ActorInstance->Modify();
+
+				// Create an appropriate name for the new component
+				FName NewComponentName = NAME_None;
+				if (Asset)
+				{
+					NewComponentName = *FComponentEditorUtils::GenerateValidVariableNameFromAsset(Asset, ActorInstance);
 				}
 				else
 				{
-					USceneComponent* AttachTo = Cast<USceneComponent>(ParentObjData->GetMutableComponentTemplate());
-					if (AttachTo == nullptr)
-					{
-						AttachTo = ActorInstance->GetRootComponent();
-					}
-					check(AttachTo != nullptr);
-
-					// Make sure that the mobility of the new scene component is such that we can attach it
-					if (AttachTo->Mobility == EComponentMobility::Movable)
-					{
-						NewSceneComponent->Mobility = EComponentMobility::Movable;
-					}
-					else if (AttachTo->Mobility == EComponentMobility::Stationary && NewSceneComponent->Mobility == EComponentMobility::Static)
-					{
-						NewSceneComponent->Mobility = EComponentMobility::Stationary;
-					}
-
-					NewSceneComponent->AttachToComponent(AttachTo, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					NewComponentName = *FComponentEditorUtils::GenerateValidVariableName(NewClass, ActorInstance);
 				}
-			}
 
-			// If the component was created from/for a particular asset, assign it now
-			if (Asset)
-			{
-				FComponentAssetBrokerage::AssignAssetToComponent(NewInstanceComponent, Asset);
-			}
+				// Get the set of owned components that exists prior to instancing the new component.
+				TInlineComponentArray<UActorComponent*> PreInstanceComponents;
+				ActorInstance->GetComponents(PreInstanceComponents);
 
-			// Add to SerializedComponents array so it gets saved
-			ActorInstance->AddInstanceComponent(NewInstanceComponent);
-			NewInstanceComponent->OnComponentCreated();
-			NewInstanceComponent->RegisterComponent();
+				// Construct the new component and attach as needed
+				UActorComponent* NewInstanceComponent = NewObject<UActorComponent>(ActorInstance, NewClass, NewComponentName, RF_Transactional);
 
-			// Register any new components that may have been created during construction of the instanced component, but were not explicitly registered.
-			TInlineComponentArray<UActorComponent*> PostInstanceComponents;
-			ActorInstance->GetComponents(PostInstanceComponents);
-			for (UActorComponent* ActorComponent : PostInstanceComponents)
-			{
-				if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && !ActorComponent->IsPendingKill() && !PreInstanceComponents.Contains(ActorComponent))
+				// Do Scene Attachment if this new Component is a USceneComponent
+				if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(NewInstanceComponent))
 				{
-					ActorComponent->RegisterComponent();
+					if (ParentObjData->IsDefaultSceneRoot() && ParentObjData->CanReparent())
+					{
+						ActorInstance->SetRootComponent(NewSceneComponent);
+					}
+					else
+					{
+						USceneComponent* AttachTo = Cast<USceneComponent>(ParentObjData->GetMutableComponentTemplate());
+						if (AttachTo == nullptr)
+						{
+							AttachTo = ActorInstance->GetRootComponent();
+						}
+						check(AttachTo != nullptr);
+
+						// Make sure that the mobility of the new scene component is such that we can attach it
+						if (AttachTo->Mobility == EComponentMobility::Movable)
+						{
+							NewSceneComponent->Mobility = EComponentMobility::Movable;
+						}
+						else if (AttachTo->Mobility == EComponentMobility::Stationary && NewSceneComponent->Mobility == EComponentMobility::Static)
+						{
+							NewSceneComponent->Mobility = EComponentMobility::Stationary;
+						}
+
+						NewSceneComponent->AttachToComponent(AttachTo, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					}
+				}
+
+				// If the component was created from/for a particular asset, assign it now
+				if (Asset)
+				{
+					FComponentAssetBrokerage::AssignAssetToComponent(NewInstanceComponent, Asset);
+				}
+
+				// Add to SerializedComponents array so it gets saved
+				ActorInstance->AddInstanceComponent(NewInstanceComponent);
+				NewInstanceComponent->OnComponentCreated();
+				NewInstanceComponent->RegisterComponent();
+
+				// Register any new components that may have been created during construction of the instanced component, but were not explicitly registered.
+				TInlineComponentArray<UActorComponent*> PostInstanceComponents;
+				ActorInstance->GetComponents(PostInstanceComponents);
+				for (UActorComponent* ActorComponent : PostInstanceComponents)
+				{
+					if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && !ActorComponent->IsPendingKill() && !PreInstanceComponents.Contains(ActorComponent))
+					{
+						ActorComponent->RegisterComponent();
+					}
+				}
+
+				// Rerun construction scripts
+				ActorInstance->RerunConstructionScripts();
+
+				// If the running the construction script destroyed the new node, don't create an entry for it
+				if (!NewInstanceComponent->IsPendingKill())
+				{
+					// Create a new subobject data set with this component
+					NewDataHandle = FactoryCreateSubobjectDataWithParent(NewInstanceComponent, ParentObjData->GetHandle());
 				}
 			}
-
-			// Rerun construction scripts
-			ActorInstance->RerunConstructionScripts();
-
-			// If the running the construction script destroyed the new node, don't create an entry for it
-			if (!NewInstanceComponent->IsPendingKill())
+			else
 			{
-				// Create a new subobject data set with this component
-				NewDataHandle = FactoryCreateSubobjectDataWithParent(NewInstanceComponent, ParentObjData->GetHandle());
+				FailReason = LOCTEXT("AddComponentFailed_Inherited", "Cannot add components within an Inherited hierarchy");
 			}
-		}
-		else
-		{
-			FailReason =  LOCTEXT("AddComponentFailed_Inherited", "Cannot add components within an Inherited heirarchy");
 		}
 	}
 	

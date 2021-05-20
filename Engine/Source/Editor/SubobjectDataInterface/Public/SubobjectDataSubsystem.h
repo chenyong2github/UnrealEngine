@@ -315,6 +315,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SubobjectDataSubsystem")
 	static void RenameSubobjectMemberVariable(UBlueprint* BPContext, const FSubobjectDataHandle& InHandle, const FName NewName);
 	
+	/**
+	* Walk the hierarchy up to find the AActor root for the given handle
+	* 
+	* @param StartingHandle		The handle to start walking the hierarchy at
+	*
+	* @return The handle of the root actor if one exists, FSubobjectDataHandle::InvalidHandle otherwise.
+	*/
+	static FSubobjectDataHandle GetActorRootHandle(const FSubobjectDataHandle& StartingHandle);
+
 private:
 
 	/**
