@@ -30,7 +30,7 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bUserSetNonTransient(0)
 	, bFinalizedAccess(0)
 	, bLastOwner(1)
-	, bCulled(0)
+	, bCulled(1)
 	, bUsedByAsyncComputePass(0)
 {}
 
