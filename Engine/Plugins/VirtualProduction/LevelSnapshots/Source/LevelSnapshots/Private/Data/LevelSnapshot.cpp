@@ -11,6 +11,7 @@
 
 #include "Algo/Accumulate.h"
 #include "EngineUtils.h"
+#include "Engine/Engine.h"
 #include "GameFramework/Actor.h"
 #include "SnapshotRestorability.h"
 #include "UObject/Package.h"

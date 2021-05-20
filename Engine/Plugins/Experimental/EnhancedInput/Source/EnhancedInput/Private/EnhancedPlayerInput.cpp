@@ -2,6 +2,7 @@
 
 #include "EnhancedPlayerInput.h"
 #include "EnhancedInputComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "InputModifiers.h"
 #include "InputTriggers.h"
 
