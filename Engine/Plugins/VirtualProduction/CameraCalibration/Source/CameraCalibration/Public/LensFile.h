@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 
+#include "Curves/RichCurve.h"
 #include "Engine/Texture.h"
 #include "ICalibratedMapProcessor.h"
 #include "LensData.h"
@@ -56,14 +57,20 @@ struct CAMERACALIBRATION_API FEncoderMapping
 
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Encoder")
-	TArray<FEncoderPoint> Focus;
+	/** Focus curve from encoder values to nominal values */
+	UPROPERTY()
+	FRichCurve Focus;
 
-	UPROPERTY(EditAnywhere, Category = "Encoder")
-	TArray<FEncoderPoint> Iris;
+	/** Iris curve from encoder values to nominal values */
+	UPROPERTY()
+	FRichCurve Iris;
 
-	UPROPERTY(EditAnywhere, Category = "Encoder")
-	TArray<FEncoderPoint> Zoom;
+	/** 
+	 * Zoom curve from encoder values to nominal values 
+	 * @note To be removed and use only Fx/Fy calibrated values
+	 */
+	UPROPERTY()
+	FRichCurve Zoom;
 };
 
 /**
@@ -273,19 +280,19 @@ public:
 	bool HasFocusEncoderMapping() const;
 
 	/** Returns interpolated focus based on input normalized value and mapping */
-	bool EvaluateNormalizedFocus(float InNormalizedValue, float& OutEvaluatedValue);
+	float EvaluateNormalizedFocus(float InNormalizedValue);
 
 	/** Whether iris encoder mapping is configured */
 	bool HasIrisEncoderMapping() const;
 
 	/** Returns interpolated iris based on input normalized value and mapping */
-	float EvaluateNormalizedIris(float InNormalizedValue, float& OutEvaluatedValue);
+	float EvaluateNormalizedIris(float InNormalizedValue);
 
 	/** Whether zoom encoder mapping is configured */
 	bool HasZoomEncoderMapping() const;
 
 	/** Returns interpolated zoom based on input normalized value and mapping */
-	float EvaluateNormalizedZoom(float InNormalizedValue, float& OutEvaluatedValue);
+	float EvaluateNormalizedZoom(float InNormalizedValue);
 
 	/** Callbacked when stmap derived data has completed */
 	void OnDistortionDerivedDataJobCompleted(const FDerivedDistortionDataJobOutput& JobOutput);

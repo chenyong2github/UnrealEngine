@@ -9,9 +9,6 @@
 #include "UObject/ObjectMacros.h"
 
 
-struct FEncoderPoint;
-
-
 namespace LensInterpolationUtils
 {
 	//Flags for the possible direction on both axis
@@ -106,7 +103,6 @@ namespace LensInterpolationUtils
 	}
 	
 	float GetBlendFactor(float InValue, float ValueA, float ValueB);
-	bool InterpolateEncoderValue(float InNormalizedValue, TArrayView<FEncoderPoint> InSourceData, float& OutEvaluatedValue);
 
 	/** Helper function to find the possibly four indices for the points around the desired coordinates */
 	template<typename Type>

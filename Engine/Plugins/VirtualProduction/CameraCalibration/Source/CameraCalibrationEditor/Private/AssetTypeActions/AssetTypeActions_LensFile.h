@@ -16,6 +16,6 @@ public:
 	virtual bool IsImportedAsset() const override { return false; }
 	virtual FText GetName() const override;
 	virtual UClass* GetSupportedClass() const override;
-	//virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
 	//~ End IAssetTypeActions interface
 };

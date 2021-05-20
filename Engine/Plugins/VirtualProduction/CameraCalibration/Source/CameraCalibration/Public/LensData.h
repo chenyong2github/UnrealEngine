@@ -11,27 +11,6 @@
 
 #include "LensData.generated.h"
 
-USTRUCT(BlueprintType)
-struct CAMERACALIBRATION_API FEncoderPoint
-{
-	GENERATED_BODY()
-
-public:
-
-	/** Homed value in the range of [0..1] */
-	UPROPERTY(EditAnywhere, Category = "Point")
-	float NormalizedValue = 0.0f;
-
-	/*
-	 * Converted value in physical units
-	 * FIZ units
-	 * F: cm
-	 * I: F-Stops
-	 * Z: mm
-	 */
-	UPROPERTY(EditAnywhere, Category = "Point")
-	float ValueInPhysicalUnits = 0.0f;
-};
 
 /**
  * Information about the lens rig
