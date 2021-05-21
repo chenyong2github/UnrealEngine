@@ -189,7 +189,7 @@ namespace HordeServer.Controllers
 			}
 			else if (Create.ChangeQuery != null)
 			{
-				Change = await ExecuteChangeQueryAsync(Stream, Create.ChangeQuery);
+				Change = await ExecuteChangeQueryAsync(Stream, new TemplateRefId(Create.ChangeQuery.TemplateId ?? Create.TemplateId), Create.ChangeQuery.Target, Create.ChangeQuery.Outcomes ?? new List<JobStepOutcome> { JobStepOutcome.Success });
 			}
 			else if (Create.PreflightChange == null && Template.SubmitNewChange != null)
 			{
@@ -216,19 +216,21 @@ namespace HordeServer.Controllers
 		/// Evaluate a change query to determine which CL to run a job at
 		/// </summary>
 		/// <param name="Stream"></param>
-		/// <param name="Request"></param>
+		/// <param name="TemplateId"></param>
+		/// <param name="Target"></param>
+		/// <param name="Outcomes"></param>
 		/// <returns></returns>
-		async Task<int> ExecuteChangeQueryAsync(IStream Stream, ChangeQueryRequest Request)
+		async Task<int> ExecuteChangeQueryAsync(IStream Stream, TemplateRefId TemplateId, string? Target, List<JobStepOutcome> Outcomes)
 		{
-			IList<IJob> Jobs = await JobService.FindJobsAsync(StreamId: Stream.Id, Templates: new[] { new TemplateRefId(Request.TemplateId) }, Target: Request.Target, State: new[] { JobStepState.Completed }, Outcome: new[] { JobStepOutcome.Success }, Count: 1);
+			IList<IJob> Jobs = await JobService.FindJobsAsync(StreamId: Stream.Id, Templates: new[] { TemplateId }, Target: Target, State: new[] { JobStepState.Completed }, Outcome: Outcomes.ToArray(), Count: 1);
 			if (Jobs.Count == 0)
 			{
-				Logger.LogInformation("Unable to find successful build of {TemplateRefId} target {Target}. Using latest change instead", Request.TemplateId, Request.Target);
+				Logger.LogInformation("Unable to find successful build of {TemplateRefId} target {Target}. Using latest change instead", TemplateId, Target);
 				return await Perforce.GetLatestChangeAsync(Stream.Name, null);
 			}
 			else
 			{
-				Logger.LogInformation("Last successful build of {TemplateRefId} target {Target} was job {JobId} at change {Change}", Request.TemplateId, Request.Target, Jobs[0].Id, Jobs[0].Change);
+				Logger.LogInformation("Last successful build of {TemplateRefId} target {Target} was job {JobId} at change {Change}", TemplateId, Target, Jobs[0].Id, Jobs[0].Change);
 				return Jobs[0].Change;
 			}
 		}

@@ -378,6 +378,36 @@ namespace HordeServer.Models
 	}
 
 	/// <summary>
+	/// Query used to identify a base changelist for a preflight
+	/// </summary>
+	public class ChangeQuery
+	{
+		/// <summary>
+		/// Template to search for
+		/// </summary>
+		public TemplateRefId? TemplateRefId { get; set; }
+
+		/// <summary>
+		/// The target to look at the status for
+		/// </summary>
+		public string? Target { get; set; }
+
+		/// <summary>
+		/// Whether to match a job that contains warnings
+		/// </summary>
+		public List<JobStepOutcome>? Outcomes { get; set; }
+
+		/// <summary>
+		/// Convert to a request object
+		/// </summary>
+		/// <returns></returns>
+		public ChangeQueryRequest ToRequest()
+		{
+			return new ChangeQueryRequest { TemplateId = TemplateRefId?.ToString(), Target = Target, Outcomes = Outcomes };
+		}
+	}
+
+	/// <summary>
 	/// Definition of a query to execute to find the changelist to run a build at
 	/// </summary>
 	public class DefaultPreflight
@@ -388,19 +418,25 @@ namespace HordeServer.Models
 		public TemplateRefId? TemplateRefId { get; set; }
 
 		/// <summary>
+		/// Query specifying a changelist to use
+		/// </summary>
+		public ChangeQuery? Change { get; set; }
+
+		/// <summary>
 		/// The job type to query for the change to use
 		/// </summary>
+		[Obsolete("Use Change.TemplateRefId instead")]
 		public TemplateRefId? ChangeTemplateRefId { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="TemplateRefId"></param>
-		/// <param name="ChangeTemplateRefId">The job type to query for the change to use</param>
-		public DefaultPreflight(TemplateRefId? TemplateRefId, TemplateRefId? ChangeTemplateRefId)
+		/// <param name="Change">The job type to query for the change to use</param>
+		public DefaultPreflight(TemplateRefId? TemplateRefId, ChangeQuery? Change)
 		{
 			this.TemplateRefId = TemplateRefId;
-			this.ChangeTemplateRefId = ChangeTemplateRefId;
+			this.Change = Change;
 		}
 
 		/// <summary>
@@ -409,7 +445,9 @@ namespace HordeServer.Models
 		/// <returns></returns>
 		public DefaultPreflightRequest ToRequest()
 		{
-			return new DefaultPreflightRequest { TemplateId = TemplateRefId?.ToString(), ChangeTemplateId = ChangeTemplateRefId?.ToString() };
+#pragma warning disable CS0618 // Type or member is obsolete
+			return new DefaultPreflightRequest { TemplateId = TemplateRefId?.ToString(), Change = Change?.ToRequest(), ChangeTemplateId = Change?.TemplateRefId?.ToString() };
+#pragma warning restore CS0618 // Type or member is obsolete
 		}
 	}
 
@@ -609,10 +647,6 @@ namespace HordeServer.Models
 				if (Stream.DefaultPreflight.TemplateRefId != null && !Stream.Templates.ContainsKey(Stream.DefaultPreflight.TemplateRefId.Value))
 				{
 					throw new InvalidStreamException($"Default preflight template was listed as '{Stream.DefaultPreflight.TemplateRefId.Value}', but no template was found by that name");
-				}
-				if (Stream.DefaultPreflight.ChangeTemplateRefId != null && !Stream.Templates.ContainsKey(Stream.DefaultPreflight.ChangeTemplateRefId.Value))
-				{
-					throw new InvalidStreamException($"Default preflight template for CL was listed as '{Stream.DefaultPreflight.ChangeTemplateRefId.Value}', but no template was found by that name");
 				}
 			}
 
