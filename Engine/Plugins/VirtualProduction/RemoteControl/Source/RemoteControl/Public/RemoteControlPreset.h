@@ -709,16 +709,24 @@ public:
 	FOnPresetEntityEvent& OnEntityExposed() { return OnEntityExposedDelegate; }
 	FOnPresetEntityEvent& OnEntityUnexposed() { return OnEntityUnexposedDelegate; }
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetExposedPropertyChanged, URemoteControlPreset* /*Preset*/, const FRemoteControlProperty& /*Property*/);
-	FOnPresetExposedPropertyChanged& OnExposedPropertyChanged() { return OnPropertyChangedDelegate; }
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetExposedPropertiesModified, URemoteControlPreset* /*Preset*/, const TSet<FGuid>& /* ModifiedProperties */);
+	/**
+	 *  Delegate called with the list of exposed property that were modified in the last frame.
+	 */
+	FOnPresetExposedPropertiesModified& OnExposedPropertiesModified() { return OnPropertyChangedDelegate; }
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetEntitiesUpdatedEvent, URemoteControlPreset* /*Preset*/, const TSet<FGuid>& /* Modified Entities */);
+	/**
+	 * Delegate called when the exposed entity wrapper itself is updated (ie. binding change, rename)  
+	 */
 	FOnPresetEntitiesUpdatedEvent& OnEntitiesUpdated() { return OnEntitiesUpdatedDelegate; }
 	
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetPropertyExposed, URemoteControlPreset* /*Preset*/, FName /*ExposedLabel*/);
+	UE_DEPRECATED(4.27, "This delegate is deprecated, use OnEntityExposed instead.")
 	FOnPresetPropertyExposed& OnPropertyExposed() { return OnPropertyExposedDelegate; }
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetPropertyUnexposed, URemoteControlPreset* /*Preset*/, FName /*ExposedLabel*/);
+	UE_DEPRECATED(4.27, "This delegate is deprecated, use OnEntityUnexposed instead.")
 	FOnPresetPropertyUnexposed& OnPropertyUnexposed() { return OnPropertyUnexposedDelegate; }
 
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPresetFieldRenamed, URemoteControlPreset* /*Preset*/, FName /*OldExposedLabel*/, FName /**NewExposedLabel*/);
@@ -784,10 +792,13 @@ private:
 	void OnActorDeleted(AActor* Actor);
 	void OnPieEvent(bool);
 	void OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap);
-	void OnEndFrame();
 	void OnMapChange(uint32 /*MapChangeFlags*/);
 	void OnBlueprintRecompiled(UBlueprint* Blueprint);
 #endif
+
+	//~ Frame events handlers.
+	void OnBeginFrame();
+	void OnEndFrame();
 	
 	/** Get a field ptr using it's id. */
 	FRemoteControlField* GetFieldPtr(FGuid FieldId);
@@ -823,6 +834,15 @@ private:
 
 	/** Register an event triggered when the exposed function's owner blueprint is compiled. */
 	void RegisterOnCompileEvent(const TSharedPtr<FRemoteControlFunction>& RCFunction);
+
+	/** Create a property watcher that will trigger the property change delegate upon having a different value from the last frame. */
+	void CreatePropertyWatcher(const TSharedPtr<FRemoteControlProperty>& RCProperty);
+
+	/** Returns whether a given property should have a watcher that checks for property changes across frames. */
+	bool PropertyShouldBeWatched(const TSharedPtr<FRemoteControlProperty>& RCProperty) const;
+
+	/** Create property watchers for exposed properties that need them. */
+	void CreatePropertyWatchers();
 	
 private:
 	/** Preset unique ID */
@@ -852,7 +872,7 @@ private:
 	/** Delegate triggered when entities are modified and may need to be re-resolved. */
 	FOnPresetEntitiesUpdatedEvent OnEntitiesUpdatedDelegate;
 	/** Delegate triggered when an exposed property value has changed. */
-	FOnPresetExposedPropertyChanged OnPropertyChangedDelegate;
+	FOnPresetExposedPropertiesModified OnPropertyChangedDelegate;
 	/** Delegate triggered when a new property has been exposed. */
 	FOnPresetPropertyExposed OnPropertyExposedDelegate;
 	/** Delegate triggered when a property has been unexposed. */
@@ -874,6 +894,10 @@ private:
 	/** Caches object modifications during a frame. */
 	TMap<FGuid, FPreObjectsModifiedCache> PreObjectsModifiedCache;
 	TMap<FGuid, FPreObjectsModifiedCache> PreObjectsModifiedActorCache;
+
+	/** Cache properties that were modified during a frame. */
+	TSet<FGuid> PerFrameModifiedProperties;
+	
 	/** Cache entities updated during a frame. */
 	TSet<FGuid> PerFrameUpdatedEntities; 
 
@@ -882,6 +906,35 @@ private:
 
 	/** Holds manager that handles rebinding unbound entities upon load or map change. */
 	TPimplPtr<FRemoteControlPresetRebindingManager> RebindingManager;
+
+	/**
+	 * Property watcher that triggers a delegate when the watched property is modified.
+	 */
+	struct FRCPropertyWatcher
+	{
+		FRCPropertyWatcher(const TSharedPtr<FRemoteControlProperty>& InWatchedProperty, FSimpleDelegate&& InOnWatchedValueChanged);
+
+		/** Checks if the property value has changed since the last frame and updates the last frame value. */
+		void CheckForChange();
+
+	private:
+		/** Optionally resolve the property path if possible. */
+		TOptional<FRCFieldResolvedData> GetWatchedPropertyResolvedData() const;
+		/** Store the latest property value in LastFrameValue. */
+		void SetLastFrameValue(const FRCFieldResolvedData& ResolvedData);
+	private:
+		/** Delegate called when the watched property changes values. */
+		FSimpleDelegate OnWatchedValueChanged;
+		/** Weak pointer to the remote control property. */
+		TWeakPtr<FRemoteControlProperty> WatchedProperty;
+		/** Latest property value as bytes. */
+		TArray<uint8> LastFrameValue;
+	};
+	/** Map of property watchers that should trigger the RC property change delegate upon change. */
+	TMap<FGuid, FRCPropertyWatcher> PropertyWatchers;
+
+	/** Frame counter for delaying property change checks. */
+	int8 PropertyChangeWatchFrameCounter = 0;
 
 #if WITH_EDITOR
 	/** List of blueprints for which we have registered events. */
@@ -892,4 +945,3 @@ private:
 	friend FRemoteControlPresetLayout;
 	friend FRemoteControlEntity;
 };
-
