@@ -54,6 +54,17 @@ void UAnimGraphNode_Base::PreEditChange(FProperty* PropertyThatWillChange)
 	}
 }
 
+void UAnimGraphNode_Base::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	if(HasValidBlueprint())
+	{
+		// Node may have been removed or added by undo/redo so make sure extensions are refreshed
+		GetAnimBlueprint()->RequestRefreshExtensions();
+	}
+}
+
 void UAnimGraphNode_Base::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
