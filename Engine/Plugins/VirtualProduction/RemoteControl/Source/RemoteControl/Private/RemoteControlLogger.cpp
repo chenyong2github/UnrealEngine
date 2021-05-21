@@ -3,6 +3,7 @@
 #include "RemoteControlLogger.h"
 
 #include "Modules/ModuleManager.h"
+#include "Widgets/SNullWidget.h"
 
 #if WITH_EDITOR
 #include "IMessageLogListing.h"
