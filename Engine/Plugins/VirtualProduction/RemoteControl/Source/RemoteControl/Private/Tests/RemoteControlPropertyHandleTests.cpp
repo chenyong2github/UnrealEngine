@@ -885,20 +885,20 @@ namespace RemoteControlAPIIntegrationTest
 		}
 
 		{
-			float GetFloatValue = 0;
+			FVector::FReal GetFloatValue = 0;
 			ArrayOfVectorsPropertyHandle_O_X->GetValue(GetFloatValue);
 			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), TestVector_0.X, GetFloatValue);
 
-			float SetFloatValue = 0;
+			FVector::FReal SetFloatValue = 0;
 			ArrayOfVectorsPropertyHandle_O_X->SetValue(SetFloatValue);
 			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), TestObject->ArrayOfVectors[0].X, SetFloatValue);
 		}
 		{
-			float GetFloatValue = 0;
+			FVector::FReal GetFloatValue = 0;
 			ArrayOfVectorsPropertyHandle_1_X->GetValue(GetFloatValue);
 			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), TestVector_1.X, GetFloatValue);
 
-			float SetFloatValue = 0;
+			FVector::FReal SetFloatValue = 0;
 			ArrayOfVectorsPropertyHandle_1_X->SetValue(SetFloatValue);
 			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), TestObject->ArrayOfVectors[1].X, SetFloatValue);
 		}

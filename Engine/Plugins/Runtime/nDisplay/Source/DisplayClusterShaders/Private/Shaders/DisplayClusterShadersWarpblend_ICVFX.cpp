@@ -156,7 +156,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxVertexShaderParameters, )
 	SHADER_PARAMETER(FVector4, DrawRectangleInvTargetSizeAndTextureSize)
 	SHADER_PARAMETER(FVector4, DrawRectangleUVScaleBias)
 
-	SHADER_PARAMETER(FMatrix, MeshToStageProjectionMatrix)
+	SHADER_PARAMETER(FMatrix44f, MeshToStageProjectionMatrix)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
@@ -180,9 +180,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, ChromakeyCameraSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ChromakeyMarkerSampler)
 
-	SHADER_PARAMETER(FMatrix, ViewportTextureProjectionMatrix)
-	SHADER_PARAMETER(FMatrix, OverlayProjectionMatrix)
-	SHADER_PARAMETER(FMatrix, InnerCameraProjectionMatrix)
+	SHADER_PARAMETER(FMatrix44f, ViewportTextureProjectionMatrix)
+	SHADER_PARAMETER(FMatrix44f, OverlayProjectionMatrix)
+	SHADER_PARAMETER(FMatrix44f, InnerCameraProjectionMatrix)
 
 	SHADER_PARAMETER(float, AlphaEmbeddedGamma)
 
