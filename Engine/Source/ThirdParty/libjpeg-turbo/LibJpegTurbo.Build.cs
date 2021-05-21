@@ -18,18 +18,26 @@ public class LibJpegTurbo : ModuleRules
 			string LibPath = Path.Combine(ModuleDirectory, "lib/Win64");
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "turbojpeg-static.lib"));
 		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			string LibPath = Path.Combine(ModuleDirectory, "lib/Linux", Target.Architecture);
 
-		// **** NOTE - Only Win64 has been tested - other platforms are usable at your own risk, but have not been tested
+			if (Target.Configuration == UnrealTargetConfiguration.Debug)
+			{
+				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libturbojpegd.a"));
+			}
+			else
+			{
+				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libturbojpeg.a"));
+			}
+		}
+
+		// **** NOTE - Only Win64/Linux has been tested - other platforms are usable at your own risk, but have not been tested
 
 /*		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			string LibPath = Path.Combine(ModuleDirectory, "lib/Mac");
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libturbojpeg.dylib"));
-		}
-		else if ((Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")))
-		{
-			string LibPath = Path.Combine(ModuleDirectory, "lib/Linux");
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libturbojpeg.so"));
 		}
 */
 	}
