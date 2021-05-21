@@ -7,12 +7,11 @@
 
 class UPackage;
 class FString;
-class FClass;
 
 class FClasses
 {
 public:
-	static FClass* FindClass(const TCHAR* ClassName);
+	static UClass* FindClass(const TCHAR* ClassName);
 
 	/** 
 	 * Attempts to find a script class based on the given name. Will attempt to strip
@@ -22,7 +21,7 @@ public:
 	 * @param   InClassName  Name w/ Unreal prefix to use when searching for a class
 	 * @return               The found class.
 	 */
-	static FClass* FindScriptClassOrThrow(const FString& InClassName);
+	static UClass* FindScriptClassOrThrow(const FString& InClassName);
 
 	/** 
 	 * Attempts to find a script class based on the given name. Will attempt to strip
@@ -32,7 +31,7 @@ public:
 	 * @param   OutErrorMsg  Error message (if any) giving the caller flexibility in how they present an error
 	 * @return               The found class, or NULL if the class was not found.
 	 */
-	static FClass* FindScriptClass(const FString& InClassName, FString* OutErrorMsg = nullptr);
+	static UClass* FindScriptClass(const FString& InClassName, FString* OutErrorMsg = nullptr);
 
 	/**
 	 * Find an optional object.

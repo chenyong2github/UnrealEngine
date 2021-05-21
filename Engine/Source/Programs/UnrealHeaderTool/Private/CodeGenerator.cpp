@@ -37,7 +37,6 @@
 #include "UnrealHeaderToolGlobals.h"
 
 #include "Exceptions.h"
-#include "ParserClass.h"
 #include "Scope.h"
 #include "HeaderProvider.h"
 #include "GeneratedCodeVersion.h"
@@ -917,7 +916,7 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 	FProperty*	   Prop                 = PropertyDef.GetProperty();
 	FString        PropName             = CreateUTF8LiteralString(FNativeClassHeaderGenerator::GetOverriddenName(Prop));
 	FString        PropNameDep          = Prop->HasAllPropertyFlags(CPF_Deprecated) ? Prop->GetName() + TEXT("_DEPRECATED") : Prop->GetName();
-	const TCHAR*   FPropertyObjectFlags = FClass::IsOwnedByDynamicType(Prop) ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
+	const TCHAR*   FPropertyObjectFlags = PropertyDef.IsOwnedByDynamicType() ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
 	EPropertyFlags PropFlags            = Prop->PropertyFlags & ~CPF_ComputedFlags;
 
 	FUHTStringBuilder PropTag;
@@ -1911,7 +1910,6 @@ static void FindNoExportStructsRecursive(TArray<FUnrealScriptStructDefinitionInf
 			}
 		}
 
-		//ETSTODO - Fixme
 		for (FUnrealPropertyDefinitionInfo* PropertyDef : StartDef->GetProperties())
 		{
 			FProperty* Prop = PropertyDef->GetProperty();
@@ -2042,7 +2040,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 	UE_CLOG(Class->ClassGeneratedBy, LogCompile, Fatal, TEXT("For intrinsic and compiled-in classes, ClassGeneratedBy should always be null"));
 
 	const bool   bIsNoExport  = Class->HasAnyClassFlags(CLASS_NoExport);
-	const bool   bIsDynamic   = FClass::IsDynamic(Class);
+	const bool   bIsDynamic   = ClassDef.IsDynamic();
 	const FString ClassNameCPP = FNameLookupCPP::GetNameCPP(Class);
 
 	const FString& ApiString = GetAPIString();
@@ -2301,7 +2299,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		}
 		else
 		{
-			const FString& DynamicClassPackageName = FClass::GetTypePackageName(Class);
+			const FString& DynamicClassPackageName = ClassDef.GetTypePackageName();
 			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tUPackage* OuterPackage = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));\r\n"), *DynamicClassPackageName);
 			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tUClass* OuterClass = Cast<UClass>(StaticFindObjectFast(UClass::StaticClass(), OuterPackage, TEXT(\"%s\")));\r\n"), *FNativeClassHeaderGenerator::GetOverriddenName(Class));
 			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tif (!OuterClass || !(OuterClass->ClassFlags & CLASS_Constructed))\r\n"));
@@ -2311,7 +2309,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		GeneratedClassRegisterFunctionText.Logf(TEXT("\t\t\tUECodeGen_Private::ConstructUClass(OuterClass, %s::ClassParams);\r\n"), *StaticsStructName);
 
 		TArray<FString> SparseClassDataTypes;
-		((FClass*)Class)->GetSparseClassDataTypes(SparseClassDataTypes);
+		ClassDef.GetSparseClassDataTypes(SparseClassDataTypes);
 		
 		for (const FString& SparseClassDataString : SparseClassDataTypes)
 		{
@@ -2364,7 +2362,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 	// Append info for the sparse class data struct onto the text to be hashed
 	TArray<FString> SparseClassDataTypes;
-	((FClass*)Class)->GetSparseClassDataTypes(SparseClassDataTypes);
+	ClassDef.GetSparseClassDataTypes(SparseClassDataTypes);
 
 	for (const FString& SparseClassDataString : SparseClassDataTypes)
 	{
@@ -2403,7 +2401,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 	if (bIsDynamic)
 	{
-		const FString& ClassPackageName = FClass::GetTypePackageName(Class);
+		const FString& ClassPackageName = ClassDef.GetTypePackageName();
 		Out.Logf(TEXT("\tstatic FRegisterCompiledInInfo Z_CompiledInDefer_UClass_%s(%s, &%s::StaticClass, TEXT(\"%s\"), TEXT(\"%s\"), %s, %s, %s);\r\n"),
 			*ClassNameCPP,
 			*SingletonName,
@@ -2411,7 +2409,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			*ClassNameCPP,
 			*OverriddenClassName,
 			*AsTEXT(ClassPackageName),
-			*AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(Class)),
+			*AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(ClassDef)),
 			*InitSearchableValuesFunctionParam);
 	}
 
@@ -2494,8 +2492,8 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 		ExportEventParm(CurrentFunctionText, OutReferenceGatherers.ForwardDeclarations, FunctionDef, /*Indent=*/ 2, /*bOutputConstructor=*/ false, EExportingState::TypeEraseDelegates);
 	}
 
-	UField* FieldOuter = Cast<UField>(Function->GetOuter());
-	const bool bIsDynamic = (FieldOuter && FClass::IsDynamic(FieldOuter));
+	FUnrealFieldDefinitionInfo* FieldOuterDef = UHTCast<FUnrealFieldDefinitionInfo>(FunctionDef.GetOuter());
+	const bool bIsDynamic = (FieldOuterDef && FieldOuterDef->IsDynamic());
 
 	FString OuterFunc;
 	if (UObject* Outer = Function->GetOuter())
@@ -2542,7 +2540,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	}
 
 	USparseDelegateFunction* SparseDelegateFunction = Cast<USparseDelegateFunction>(Function);
-	const TCHAR* UFunctionObjectFlags = FClass::IsOwnedByDynamicType(Function) ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
+	const TCHAR* UFunctionObjectFlags = FunctionDef.IsOwnedByDynamicType() ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
 
 	TTuple<FString, FString> PropertyRange = OutputProperties(CurrentFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), Props, TEXT("\t\t"), TEXT("\t"));
 
@@ -2976,7 +2974,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 			Class->HasAnyClassFlags(CLASS_Abstract) ? TEXT("CLASS_Abstract") : TEXT("0"),
 			*GetClassFlagExportText(Class),
 			bCastedClass ? *FString::Printf(TEXT("CASTCLASS_%s"), *ClassCPPName) : TEXT("CASTCLASS_None"),
-			*FClass::GetTypePackageName(Class),
+			*ClassDef.GetTypePackageName(),
 			*APIArg);
 
 		Boilerplate.Logf(TEXT("\tDECLARE_SERIALIZER(%s)\r\n"), *ClassCPPName);
@@ -3246,7 +3244,6 @@ void ExportConstructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo&
 				// Since the SourceFile array provided to the ParallelFor is in dependency order and does not allow cyclic dependencies, 
 				// we can be certain that another thread has started processing the file containing our SuperClass before this
 				// file would have been assigned out,  so we just have to wait
-				//ETSTODO
 				FStructMetaData& SuperClassData = SuperClassDef->GetStructMetaData();
 				while (!SuperClassData.bConstructorDeclared)
 				{
@@ -3498,7 +3495,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	FUnrealScriptStructDefinitionInfo& ScriptStructDef = GTypeDefinitionInfoMap.FindChecked<FUnrealScriptStructDefinitionInfo>(Struct);
 	ScriptStructDef.AddCrossModuleReference(OutReferenceGatherers.UniqueCrossModuleReferences, true);
 
-	const bool bIsDynamic = FClass::IsDynamic(Struct);
+	const bool bIsDynamic = ScriptStructDef.IsDynamic();
 	const FString ActualStructName = FNativeClassHeaderGenerator::GetOverriddenName(Struct);
 	const FString& FriendApiString  = GetAPIString();
 
@@ -3744,7 +3741,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		}
 		else
 		{
-			Out.Logf(TEXT("\tclass UPackage* %s = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));\r\n"), *OuterName, *FClass::GetTypePackageName(Struct));
+			Out.Logf(TEXT("\tclass UPackage* %s = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));\r\n"), *OuterName, *ScriptStructDef.GetTypePackageName());
 			Out.Logf(TEXT("\tclass UScriptStruct* Singleton = Cast<UScriptStruct>(StaticFindObjectFast(UScriptStruct::StaticClass(), %s, TEXT(\"%s\")));\r\n"), *OuterName, *ActualStructName);
 		}
 
@@ -3780,14 +3777,14 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		if (bIsDynamic)
 		{
-			const FString& StructPackageName = FClass::GetTypePackageName(Struct);
+			const FString& StructPackageName = ScriptStructDef.GetTypePackageName();
 			Out.Logf(TEXT("static FRegisterCompiledInInfo Z_CompiledInDeferStruct_UScriptStruct_%s(%s::StaticStruct, TEXT(\"%s\"), TEXT(\"%s\"),  %s, %s);\r\n"),
 				*StructNameCPP,
 				*StructNameCPP,
 				*StructPackageName,
 				*ActualStructName,
 				*AsTEXT(StructPackageName),
-				*AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(Struct)));
+				*AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(ScriptStructDef)));
 		}
 		else
 		{
@@ -3852,7 +3849,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		StaticDefinitions.Logf(TEXT("\tUObject* %s::OuterFuncGetter()\r\n"), *StaticsStructName);
 		StaticDefinitions.Log (TEXT("\t{\r\n"));
-		StaticDefinitions.Logf(TEXT("\t\treturn FindOrConstructDynamicTypePackage(TEXT(\"%s\"));"), *FClass::GetTypePackageName(Struct));
+		StaticDefinitions.Logf(TEXT("\t\treturn FindOrConstructDynamicTypePackage(TEXT(\"%s\"));"), *ScriptStructDef.GetTypePackageName());
 		StaticDefinitions.Log (TEXT("\t}\r\n"));
 
 		OuterFunc = TEXT("&OuterFuncGetter");
@@ -3933,7 +3930,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	}
 	else
 	{
-		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tUPackage* Outer = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));\r\n"), *FClass::GetTypePackageName(Struct));
+		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tUPackage* Outer = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));\r\n"), *ScriptStructDef.GetTypePackageName());
 		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tUScriptStruct* ReturnStruct = FindExistingStructIfHotReloadOrDynamic(Outer, TEXT(\"%s\"), sizeof(%s), %s(), true);\r\n"), *ActualStructName, *NoExportStructNameCPP, *HashFuncName);
 	}
 	GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tif (!ReturnStruct)\r\n"));
@@ -4028,8 +4025,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UEnum* Enum) const
 {
-	FUnrealEnumDefinitionInfo& EnumDef  = GTypeDefinitionInfoMap.FindChecked<FUnrealEnumDefinitionInfo>(Enum);
-	const bool bIsDynamic               = FClass::IsDynamic(static_cast<UField*>(Enum));
+	FUnrealEnumDefinitionInfo& EnumDef = GTypeDefinitionInfoMap.FindChecked<FUnrealEnumDefinitionInfo>(Enum);
+	const bool bIsDynamic               = EnumDef.IsDynamic();
 	const FString& SingletonName        = EnumDef.GetSingletonNameChopped(true);
 	const FString EnumNameCpp           = Enum->GetName(); //UserDefinedEnum should already have a valid cpp name.
 	const FString OverriddenEnumNameCpp = FNativeClassHeaderGenerator::GetOverriddenName(Enum);
@@ -4041,7 +4038,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	FMacroBlockEmitter EditorOnlyData(Out, TEXT("WITH_EDITORONLY_DATA"));
 	EditorOnlyData(bIsEditorOnlyDataType);
 
-	const FString& PackageSingletonName = (bIsDynamic ? FClass::GetTypePackageName(static_cast<UField*>(Enum)) : GetPackageSingletonName(CastChecked<UPackage>(Enum->GetOuter()), OutReferenceGatherers.UniqueCrossModuleReferences));
+	const FString& PackageSingletonName = (bIsDynamic ? EnumDef.GetTypePackageName() : GetPackageSingletonName(CastChecked<UPackage>(Enum->GetOuter()), OutReferenceGatherers.UniqueCrossModuleReferences));
 
 	if (!bIsDynamic)
 	{
@@ -4184,7 +4181,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 
 	if (bIsDynamic)
 	{
-		const FString& EnumPackageName = FClass::GetTypePackageName(static_cast<UField*>(Enum));
+		const FString& EnumPackageName = EnumDef.GetTypePackageName();
 		Out.Logf(
 			TEXT("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferEnum_UEnum_%s(%s_StaticEnum, TEXT(\"%s\"), TEXT(\"%s\"), %s, %s);\r\n"),
 			*EnumNameCpp,
@@ -4192,7 +4189,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 			*EnumPackageName,
 			*OverriddenEnumNameCpp,
 			*AsTEXT(EnumPackageName),
-			*AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(static_cast<UField*>(Enum)))
+			*AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(EnumDef))
 		);
 	}
 	else
@@ -5199,8 +5196,8 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 	// gather static class data
 	TArray<FString> SparseClassDataTypes;
-	((FClass*)Class)->GetSparseClassDataTypes(SparseClassDataTypes);
-	FString FullClassName = ((FClass*)Class)->GetNameWithPrefix();
+	ClassDef.GetSparseClassDataTypes(SparseClassDataTypes);
+	FString FullClassName = FUnrealTypeDefinitionInfo::GetNameWithPrefix(Class);
 	for (const FString& SparseClassDataString : SparseClassDataTypes)
 	{
 		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("F%s* Get%s()\r\n"), *SparseClassDataString, *SparseClassDataString);
@@ -5568,8 +5565,8 @@ void FNativeClassHeaderGenerator::ApplyAlternatePropertyExportText(FProperty* Pr
 	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop);
 	FProperty* InnerProperty = ArrayProperty ? ArrayProperty->Inner : nullptr;
 	if (InnerProperty && (
-			(InnerProperty->IsA<FByteProperty>() && ((FByteProperty*)InnerProperty)->Enum && FClass::IsDynamic(static_cast<UField*>(((FByteProperty*)InnerProperty)->Enum))) ||
-			(InnerProperty->IsA<FEnumProperty>()                                          && FClass::IsDynamic(static_cast<UField*>(((FEnumProperty*)InnerProperty)->Enum)))
+			(InnerProperty->IsA<FByteProperty>() && ((FByteProperty*)InnerProperty)->Enum && FUnrealTypeDefinitionInfo::IsDynamic(static_cast<UField*>(((FByteProperty*)InnerProperty)->Enum))) ||
+			(InnerProperty->IsA<FEnumProperty>()                                          && FUnrealTypeDefinitionInfo::IsDynamic(static_cast<UField*>(((FEnumProperty*)InnerProperty)->Enum)))
 		)
 	)
 	{
@@ -5606,7 +5603,7 @@ void FNativeClassHeaderGenerator::ApplyAlternatePropertyExportText(FProperty* Pr
 static bool HasDynamicOuter(UField* Field)
 {
 	UField* FieldOuter = Cast<UField>(Field->GetOuter());
-	return FieldOuter && FClass::IsDynamic(FieldOuter);
+	return FieldOuter && FUnrealTypeDefinitionInfo::IsDynamic(FieldOuter);
 }
 
 static void RecordPackageSingletons(
@@ -6914,7 +6911,7 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 				// Validate the sparse class data for all classes in the current package
 				for (const FUnrealClassDefinitionInfo* ClassDef : PackageClasses)
 				{
-					FHeaderParser::CheckSparseClassData(ClassDef->GetClass());
+					FHeaderParser::CheckSparseClassData(*ClassDef);
 				}
 
 				// Check to see if we need write the classes 

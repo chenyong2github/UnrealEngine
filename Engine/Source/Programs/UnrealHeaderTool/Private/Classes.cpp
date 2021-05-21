@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Classes.h"
-#include "ParserClass.h"
 #include "UnrealHeaderTool.h"
 #include "UObject/ErrorException.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "UObject/ObjectRedirector.h"
 #include "StringUtils.h"
+#include "UnrealTypeDefinitionInfo.h"
 
 namespace
 {
@@ -17,7 +17,7 @@ namespace
 	 * @param InNameToCheck - Name w/ potential prefix to check
 	 * @param OriginalClass - Class to check against
 	 */
-	bool ClassNameHasValidPrefix(const FString& InNameToCheck, const FClass* OriginalClass)
+	bool ClassNameHasValidPrefix(const FString& InNameToCheck, const UClass* OriginalClass)
 	{
 		bool bIsLabledDeprecated;
 		GetClassPrefix( InNameToCheck, bIsLabledDeprecated );
@@ -28,7 +28,7 @@ namespace
 			return true;
 		}
 
-		const FString OriginalClassName = OriginalClass->GetNameWithPrefix();
+		const FString OriginalClassName = FUnrealTypeDefinitionInfo::GetNameWithPrefix(OriginalClass);
 
 		bool bNamesMatch = (InNameToCheck == OriginalClassName);
 
@@ -45,7 +45,7 @@ namespace
 	}
 }
 
-FClass* FClasses::FindClass(const TCHAR* ClassName)
+UClass* FClasses::FindClass(const TCHAR* ClassName)
 {
 	check(ClassName);
 
@@ -53,21 +53,21 @@ FClass* FClasses::FindClass(const TCHAR* ClassName)
 
 	if (UClass* Result = FindObject<UClass>(ClassPackage, ClassName))
 	{
-		return (FClass*)Result;
+		return Result;
 	}
 
 	if (UObjectRedirector* RenamedClassRedirector = FindObject<UObjectRedirector>(ClassPackage, ClassName))
 	{
-		return (FClass*)CastChecked<UClass>(RenamedClassRedirector->DestinationObject);
+		return CastChecked<UClass>(RenamedClassRedirector->DestinationObject);
 	}
 
 	return nullptr;
 }
 
-FClass* FClasses::FindScriptClassOrThrow(const FString& InClassName)
+UClass* FClasses::FindScriptClassOrThrow(const FString& InClassName)
 {
 	FString ErrorMsg;
-	if (FClass* Result = FindScriptClass(InClassName, &ErrorMsg))
+	if (UClass* Result = FindScriptClass(InClassName, &ErrorMsg))
 	{
 		return Result;
 	}
@@ -78,33 +78,33 @@ FClass* FClasses::FindScriptClassOrThrow(const FString& InClassName)
 	return 0;
 }
 
-FClass* FClasses::FindScriptClass(const FString& InClassName, FString* OutErrorMsg)
+UClass* FClasses::FindScriptClass(const FString& InClassName, FString* OutErrorMsg)
 {
 	// Strip the class name of its prefix and then do a search for the class
 	FString ClassNameStripped = GetClassNameWithPrefixRemoved(InClassName);
-	if (FClass* FoundClass = FindClass(*ClassNameStripped))
+	if (UClass* FoundClass = FindClass(*ClassNameStripped))
 	{
 		// If the class was found with the stripped class name, verify that the correct prefix was used and throw an error otherwise
 		if (!ClassNameHasValidPrefix(InClassName, FoundClass))
 		{
 			if (OutErrorMsg)
 			{
-				*OutErrorMsg = FString::Printf(TEXT("Class '%s' has an incorrect prefix, expecting '%s'"), *InClassName, *FoundClass->GetNameWithPrefix());
+				*OutErrorMsg = FString::Printf(TEXT("Class '%s' has an incorrect prefix, expecting '%s'"), *InClassName, *FUnrealTypeDefinitionInfo::GetNameWithPrefix(FoundClass));
 			}
 			return nullptr;
 		}
 
-		return (FClass*)FoundClass;
+		return FoundClass;
 	}
 
 	// Couldn't find the class with a class name stripped of prefix (or a prefix was not found)
 	// See if the prefix was forgotten by trying to find the class with the given identifier
-	if (FClass* FoundClass = FindClass(*InClassName))
+	if (UClass* FoundClass = FindClass(*InClassName))
 	{
 		// If the class was found with the given identifier, the user forgot to use the correct Unreal prefix	
 		if (OutErrorMsg)
 		{
-			*OutErrorMsg = FString::Printf(TEXT("Class '%s' is missing a prefix, expecting '%s'"), *InClassName, *FoundClass->GetNameWithPrefix());
+			*OutErrorMsg = FString::Printf(TEXT("Class '%s' is missing a prefix, expecting '%s'"), *InClassName, *FUnrealTypeDefinitionInfo::GetNameWithPrefix(FoundClass));
 		}
 	}
 	else
