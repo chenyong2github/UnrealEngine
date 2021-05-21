@@ -2791,8 +2791,6 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigid
 						TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
 						ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
 
-						TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
-
 						Chaos::FieldVectorForceUpdate(RigidSolver, FieldCommand, ParticleHandles,
 							FieldContext, FinalResults);
 					}
