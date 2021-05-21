@@ -59,6 +59,7 @@ namespace UnrealBuildTool.Rules
                     "ClassViewer",
                     "AssetTools",
                     "ContentBrowser",
+					"ContentBrowserData",
                     "LevelEditor",
                     "SceneOutliner",
                     "LevelSequence",
