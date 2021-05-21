@@ -3,6 +3,13 @@
 #include "PathTracing.h"
 #include "RHI.h"
 
+TAutoConsoleVariable<int32> CVarPathTracing(
+	TEXT("r.PathTracing"),
+	0,
+	TEXT("Enables the path tracing renderer (to guard the compilation of path tracer specific material permutations)"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
 #if RHI_RAYTRACING
 
 #include "RendererPrivate.h"
@@ -15,13 +22,6 @@
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RenderCore/Public/GenerateMips.h"
 #include <limits>
-
-TAutoConsoleVariable<int32> CVarPathTracing(
-	TEXT("r.PathTracing"),
-	0,
-	TEXT("Enables the path tracing renderer (to guard the compilation of path tracer specific material permutations)"),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly
-);
 
 TAutoConsoleVariable<int32> CVarPathTracingMaxBounces(
 	TEXT("r.PathTracing.MaxBounces"),
