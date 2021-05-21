@@ -2778,6 +2778,19 @@ void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMate
 	#endif
 }
 
+#if MATERIAL_DITHER_OPACITY_MASK
+float DitheredOpacityMaskToOpacity(float Mask)
+{
+	// This represents the expected value of the function GetMaterialCoverageAndClipping
+	// which randomly dithers the fragment on or off to produce the effect of opacity
+
+	// The expected value of this dithering can be computed as:
+	//    Simplify[Integrate[If[Mask + Dither - 1/2 < 0, 0, 1], {Dither, 0, 1}]]
+	// which is just:
+
+	return saturate(Mask + 0.5);
+}
+#endif
 
 void GetMaterialCoverageAndClipping(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs)
 {
