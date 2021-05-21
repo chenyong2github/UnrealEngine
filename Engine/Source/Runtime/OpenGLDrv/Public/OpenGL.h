@@ -128,7 +128,6 @@ public:
 	static FORCEINLINE bool SupportsSeamlessCubeMap()					{ return false; }
 	static FORCEINLINE bool SupportsDrawIndirect()						{ return false; }
 	static FORCEINLINE bool SupportsGenerateMipmap()					{ return false; }
-	static FORCEINLINE bool SupportsVertexAttribBinding()				{ return false; }
 	static FORCEINLINE bool SupportsBufferStorage()						{ return false; }
 	static FORCEINLINE bool SupportsDepthBoundsTest()					{ return false; }
 	static FORCEINLINE bool SupportsTextureRange()						{ return false; }
