@@ -17,6 +17,7 @@ UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionConvertCommandlet, Log
 class ULevelStreaming;
 class UWorldPartition;
 class UWorldComposition;
+class ULevelStreaming;
 
 USTRUCT()
 struct FHLODLayerActorMapping
