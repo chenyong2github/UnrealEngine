@@ -130,6 +130,10 @@ FBuildOutputInternal::FBuildOutputInternal(FBuildOutputBuilderInternal&& InOutpu
 	, Payloads(MoveTemp(InOutput.Payloads))
 	, Diagnostics(MoveTemp(InOutput.Diagnostics))
 {
+	if (InOutput.bHasError)
+	{
+		Payloads.Empty();
+	}
 }
 
 FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCbObject& InOutput, bool& bOutIsValid)
