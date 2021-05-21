@@ -37,6 +37,7 @@ enum class EMapChangeType : uint8;
 class FCurveModel;
 struct FMovieSceneSequencePlaybackParams;
 struct FMovieSceneChannelMetaData;
+class IToolkitHost;
 
 /**
  * Defines auto change modes.

@@ -75,6 +75,7 @@
 #include "BakeToControlRigSettings.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Toolkits/IToolkitHost.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
