@@ -246,7 +246,8 @@ export class Gate {
 			if (!this.tryNextGate(cl)) {
 				this.reportCaughtUp()
 				if (this.currentGateInfo) {
-					adjustedCl = this.lastCl = this.currentGateInfo.cl
+					adjustedCl = this.currentGateInfo.cl
+					this.setLastCl(adjustedCl)
 				}
 			}
 		}
@@ -290,7 +291,9 @@ export class Gate {
 		return true
 	}
 
-	setLastCl(cl: number) {
+	updateLastCl(changesFetched: Change[], changeIndex: number, targetCl?: number) {
+		const cl = changesFetched[changeIndex].change
+
 		let notifyCaughtUp = false
 		if (this.currentGateInfo) {
 			// ignore going backwards; did we reach the gate?
@@ -302,13 +305,17 @@ export class Gate {
 			}
 		}
 
-		this.lastCl = cl
+		this.setLastCl(cl)
 		if (notifyCaughtUp) {
-			this.reportCaughtUp()
+			this.reportCaughtUp(targetCl)
 		}
+
+		this.numChangesRemaining = this.calcNumChangesRemaining(changesFetched, changeIndex)
 	}
 
-	getNumChangesRemaining(changesFetched: Change[], changeIndex: number) {
+	numChangesRemaining = 0
+
+	private calcNumChangesRemaining(changesFetched: Change[], changeIndex: number) {
 		const mostRecentGate = this.getMostRecentGate()
 		if (!mostRecentGate) {
 			return changesFetched.length - changeIndex - 1
@@ -428,12 +435,16 @@ export class Gate {
 		}
 		this.eventContext.eventTriggers.reportBeginIntegratingToGate({
 			context: this.eventContext,
-			info: mostRecent
+			info: mostRecent,
+			changesRemaining: this.numChangesRemaining
 		})
 	}
 
-	private reportCaughtUp() {
-		this.eventContext.eventTriggers.reportEndIntegratingToGate(this.eventContext)
+	private reportCaughtUp(targetCl?: number) {
+		this.eventContext.eventTriggers.reportEndIntegratingToGate({
+			context: this.eventContext,
+			targetCl: targetCl || -1
+		})
 	}
 
 	private persist() {
@@ -470,11 +481,15 @@ export class Gate {
 		}
 	}
 
-	private get lastCl() {
+	getEventContextForTests() {
+		return this.eventContext
+	}
+
+	get lastCl() {
 		return this.eventContext.edgeLastCl
 	}
 
-	private set lastCl(cl: number) {
+	private setLastCl(cl: number) {
 		this.eventContext.edgeLastCl = cl
 	}
 
@@ -487,6 +502,9 @@ const colors = require('colors')
 colors.enable()
 colors.setTheme(require('colors/themes/generic-logging.js'))
 
+function setLastCl(gate: Gate, cl: number) {
+	gate.updateLastCl([{change: cl, client: '', user: '', desc: ''}], 0)
+}
 
 export async function runTests(parentLogger: ContextualLogger) {
 	const logger = parentLogger.createChild('Gate')
@@ -535,13 +553,13 @@ export async function runTests(parentLogger: ContextualLogger) {
 		assert(et.beginCalls === 1, 'catching up')
 		assert(gate.isGateOpen(), 'gate open')
 
-		gate.setLastCl(2)
+		setLastCl(gate, 2)
 		await gate.tick()
 
 		if (!exact) {
 			const newCl = gate.preIntegrate(4) // only know we've caught up when higher cl comes in
 			assert(newCl === 3, 'last cl adjustment requested')
-			gate.setLastCl(3)
+			setLastCl(gate, 3)
 		}
 		assert(et.beginCalls === 1 && et.endCalls === 1, 'caught up')
 	}
@@ -603,7 +621,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 		for (const cl of incoming) {
 
 			gate.preIntegrate(cl)
-			gate.setLastCl(cl)
+			setLastCl(gate, cl)
 			await gate.tick()
 		}
 
@@ -629,11 +647,11 @@ export async function runTests(parentLogger: ContextualLogger) {
 		assert(gate.isGateOpen(), 'still open after gate queued')
 
 		// start integrating
-		gate.preIntegrate(1); gate.setLastCl(1); await gate.tick()
+		gate.preIntegrate(1); setLastCl(gate, 1); await gate.tick()
 		if (middleIntegration) {
-			gate.preIntegrate(2); gate.setLastCl(2); await gate.tick()
+			gate.preIntegrate(2); setLastCl(gate, 2); await gate.tick()
 		}
-		gate.preIntegrate(3); gate.setLastCl(3); await gate.tick()
+		gate.preIntegrate(3); setLastCl(gate, 3); await gate.tick()
 
 		assert(et.beginCalls === 1 && et.endCalls === 1, 'catch-up notified')
 
@@ -645,7 +663,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 
 	await gate1.tick()
 	gate1.preIntegrate(2)
-	gate1.setLastCl(2)
+	setLastCl(gate1, 2)
 	assert(et1.beginCalls + et1.endCalls === 0, 'no events')
 	assert(gate1.isGateOpen(), 'gate open')
 
@@ -705,13 +723,13 @@ export async function runTests(parentLogger: ContextualLogger) {
 		assert(gate.isGateOpen(), 'gate open')
 
 		gate.preIntegrate(5)
-		gate.setLastCl(5)
+		setLastCl(gate, 5)
 		await gate.tick()
 		assert(et.beginCalls === 1, 'no more events')
 		assert(gate.isGateOpen(), 'gate open')
 
 		gate.preIntegrate(7)
-		gate.setLastCl(7)
+		setLastCl(gate, 7)
 		assert(et.beginCalls === 1 && et.endCalls === 1, 'caught up')
 		assert(!gate.isGateOpen() && gate.getGateClosedMessage()!.includes('CIS'), 'gate closed')
 
