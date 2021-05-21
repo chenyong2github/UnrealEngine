@@ -255,6 +255,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
+	/* Enable the on-screen camera preview widget when selecting this actor. Changing this value requires reselecting the actor. */
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
+	bool bEnableICVFXCameraPreview = false;
+	
 	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	float XformGizmoScale = 1.0f;
 
