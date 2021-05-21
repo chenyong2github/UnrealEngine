@@ -228,45 +228,20 @@ void USequenceCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartP
 
 void USequenceCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
-	using namespace UE::MovieScene;
-
-	check(CameraStandIn);
-
-	// Reset the camera stand-in's properties based on the new "current" (unshaken) values.
-	CameraStandIn->Reset(Params.POV);
-
-	// Sequencer animates things based on the initial values cached when the sequence started. But here we want
-	// to animate things based on the moving current values of the camera... i.e., we want to shake a constantly
-	// moving camera. So every frame, we need to update the initial values that sequencer uses.
-	UpdateInitialCameraStandInPropertyValues();
-
-	// Get the "unshaken" properties that need to be treated additively.
-	const float OriginalFieldOfView = CameraStandIn->FieldOfView;
-
-	// Update the sequence.
 	const FFrameRate TickResolution = Player->GetInputRate();
 	const FFrameTime NewPosition = Player->GetCurrentPosition() + Params.DeltaTime * PlayRate * TickResolution;
-	Player->Update(NewPosition);
+	UpdateCamera(NewPosition, Params.POV, OutResult);
+}
 
-	// Recalculate properties that might be invalidated by other properties having been animated.
-	CameraStandIn->RecalcDerivedData();
-
-	// Grab the final animated (shaken) values, figure out the delta, apply scale, and feed that into the 
-	// camera shake result.
-	// Transform is always treated as a local, additive value. The data better be good.
-	const FTransform ShakenTransform = CameraStandIn->GetTransform();
-	OutResult.Location = ShakenTransform.GetLocation() * Scale;
-	OutResult.Rotation = ShakenTransform.GetRotation().Rotator() * Scale;
-
-	// FieldOfView follows the current camera's value every frame, so we can compute how much the shake is
-	// changing it.
-	const float ShakenFieldOfView = CameraStandIn->FieldOfView;
-	const float DeltaFieldOfView = ShakenFieldOfView - OriginalFieldOfView;
-	OutResult.FOV = DeltaFieldOfView * Scale;
-
-	// The other properties aren't treated as additive.
-	OutResult.PostProcessSettings = CameraStandIn->PostProcessSettings;
-	OutResult.PostProcessBlendWeight = CameraStandIn->PostProcessBlendWeight;
+void USequenceCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+{
+	Player->StartScrubbing();
+	{
+		const FFrameRate TickResolution = Player->GetInputRate();
+		const FFrameTime NewPosition = Params.AbsoluteTime * PlayRate * TickResolution;
+		UpdateCamera(NewPosition, Params.POV, OutResult);
+	}
+	Player->EndScrubbing();
 }
 
 void USequenceCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)
@@ -320,6 +295,47 @@ void USequenceCameraShakePattern::RegisterCameraStandIn()
 
 		bHasRegistered = true;
 	}
+}
+
+void USequenceCameraShakePattern::UpdateCamera(FFrameTime NewPosition, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& OutResult)
+{
+	using namespace UE::MovieScene;
+
+	check(CameraStandIn);
+
+	// Reset the camera stand-in's properties based on the new "current" (unshaken) values.
+	CameraStandIn->Reset(InPOV);
+
+	// Sequencer animates things based on the initial values cached when the sequence started. But here we want
+	// to animate things based on the moving current values of the camera... i.e., we want to shake a constantly
+	// moving camera. So every frame, we need to update the initial values that sequencer uses.
+	UpdateInitialCameraStandInPropertyValues();
+
+	// Get the "unshaken" properties that need to be treated additively.
+	const float OriginalFieldOfView = CameraStandIn->FieldOfView;
+
+	// Update the sequence.
+	Player->Update(NewPosition);
+
+	// Recalculate properties that might be invalidated by other properties having been animated.
+	CameraStandIn->RecalcDerivedData();
+
+	// Grab the final animated (shaken) values, figure out the delta, apply scale, and feed that into the 
+	// camera shake result.
+	// Transform is always treated as a local, additive value. The data better be good.
+	const FTransform ShakenTransform = CameraStandIn->GetTransform();
+	OutResult.Location = ShakenTransform.GetLocation() * Scale;
+	OutResult.Rotation = ShakenTransform.GetRotation().Rotator() * Scale;
+
+	// FieldOfView follows the current camera's value every frame, so we can compute how much the shake is
+	// changing it.
+	const float ShakenFieldOfView = CameraStandIn->FieldOfView;
+	const float DeltaFieldOfView = ShakenFieldOfView - OriginalFieldOfView;
+	OutResult.FOV = DeltaFieldOfView * Scale;
+
+	// The other properties aren't treated as additive.
+	OutResult.PostProcessSettings = CameraStandIn->PostProcessSettings;
+	OutResult.PostProcessBlendWeight = CameraStandIn->PostProcessBlendWeight;
 }
 
 void USequenceCameraShakePattern::UpdateInitialCameraStandInPropertyValues()
@@ -447,7 +463,7 @@ void USequenceCameraShakeSequencePlayer::Play(bool bLoop, bool bRandomStartTime)
 
 void USequenceCameraShakeSequencePlayer::Update(FFrameTime NewPosition)
 {
-	check(Status == EMovieScenePlayerStatus::Playing);
+	check(Status == EMovieScenePlayerStatus::Playing || Status == EMovieScenePlayerStatus::Scrubbing);
 	check(RootTemplateInstance.IsValid());
 
 	if (bIsLooping)
@@ -487,3 +503,16 @@ void USequenceCameraShakeSequencePlayer::Stop()
 		RootTemplateInstance.Finish(*this);
 	}
 }
+
+void USequenceCameraShakeSequencePlayer::StartScrubbing()
+{
+	ensure(Status == EMovieScenePlayerStatus::Playing);
+	Status = EMovieScenePlayerStatus::Scrubbing;
+}
+
+void USequenceCameraShakeSequencePlayer::EndScrubbing()
+{
+	ensure(Status == EMovieScenePlayerStatus::Scrubbing);
+	Status = EMovieScenePlayerStatus::Playing;
+}
+
