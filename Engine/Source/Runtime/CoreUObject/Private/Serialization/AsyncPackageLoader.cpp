@@ -10,6 +10,7 @@
 #include "UObject/PackageId.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/PackageName.h"
+#include "Misc/PathViews.h"
 #include "IO/IoDispatcher.h"
 #include "HAL/IConsoleManager.h"
 

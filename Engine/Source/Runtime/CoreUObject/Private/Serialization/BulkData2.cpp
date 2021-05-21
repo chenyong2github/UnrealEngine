@@ -9,7 +9,6 @@
 #include "Misc/PackageName.h"
 #include "Misc/PackageSegment.h"
 #include "Misc/Paths.h"
-#include "Misc/PathViews.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/BulkData.h"
 #include "UObject/LinkerLoad.h"

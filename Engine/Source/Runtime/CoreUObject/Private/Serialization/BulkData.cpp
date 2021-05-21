@@ -5,8 +5,6 @@
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/PackageSegment.h"
-#include "Misc/Paths.h"
-#include "Misc/PathViews.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "HAL/IConsoleManager.h"
