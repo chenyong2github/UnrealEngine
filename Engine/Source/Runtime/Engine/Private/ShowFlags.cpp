@@ -238,6 +238,10 @@ int32 FEngineShowFlags::FindIndexByName(const TCHAR* Name, const TCHAR* CommaSep
 	}
 }
 
+// Codegen optimization degenerates for very long functions like FindNameByIndex.
+// We don't need this code to be particularly fast anyway.
+BEGIN_FUNCTION_BUILD_OPTIMIZATION
+
 FString FEngineShowFlags::FindNameByIndex(uint32 InIndex)
 {
 	FString Name;
@@ -254,6 +258,8 @@ FString FEngineShowFlags::FindNameByIndex(uint32 InIndex)
 
 	return Name;
 }
+
+END_FUNCTION_BUILD_OPTIMIZATION
 
 void FEngineShowFlags::AddNameByIndex(uint32 InIndex, FString& Out)
 {
