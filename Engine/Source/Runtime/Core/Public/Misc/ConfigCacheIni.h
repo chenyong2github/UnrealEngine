@@ -506,11 +506,12 @@ public:
 		return GetArray(Section, Key, Value);
 	}
 
-	CORE_API void SetString( const TCHAR* Section, const TCHAR* Key, const TCHAR* Value );
-	CORE_API void SetText( const TCHAR* Section, const TCHAR* Key, const FText& Value );
-	CORE_API void SetFloat( const TCHAR* Section, const TCHAR* Key, float Value );
-	CORE_API void SetDouble( const TCHAR* Section, const TCHAR* Key, double Value );
-	CORE_API void SetInt64( const TCHAR* Section, const TCHAR* Key, const int64 Value );
+	CORE_API void SetString(const TCHAR* Section, const TCHAR* Key, const TCHAR* Value);
+	CORE_API void SetText(const TCHAR* Section, const TCHAR* Key, const FText& Value);
+	CORE_API void SetFloat(const TCHAR* Section, const TCHAR* Key, float Value);
+	CORE_API void SetDouble(const TCHAR* Section, const TCHAR* Key, double Value);
+	CORE_API void SetBool(const TCHAR* Section, const TCHAR* Key, bool Value);
+	CORE_API void SetInt64(const TCHAR* Section, const TCHAR* Key, const int64 Value);
 	CORE_API void SetArray(const TCHAR* Section, const TCHAR* Key, const TArray<FString>& Value);
 	
 	/**
