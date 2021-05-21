@@ -456,7 +456,7 @@ namespace HordeServer.Models
 				ChangeRequest = new ChangeQueryRequest { TemplateId = ChangeTemplateRefId?.ToString() };
 			}
 
-			return new DefaultPreflightRequest { TemplateId = TemplateRefId?.ToString(), Change = ChangeRequest, ChangeTemplateId = Change?.TemplateRefId?.ToString() };
+			return new DefaultPreflightRequest { TemplateId = TemplateRefId?.ToString(), Change = ChangeRequest, ChangeTemplateId = ChangeRequest?.TemplateId };
 #pragma warning restore CS0618 // Type or member is obsolete
 		}
 	}
