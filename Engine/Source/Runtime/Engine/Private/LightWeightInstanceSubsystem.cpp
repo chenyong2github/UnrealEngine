@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/LightWeightInstanceSubsystem.h"
-#include "GameFramework/LightWeightInstanceManager.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
 
@@ -24,7 +23,7 @@ int32 FLightWeightInstanceSubsystem::GetManagerIndex(const ALightWeightInstanceM
 
 const ALightWeightInstanceManager* FLightWeightInstanceSubsystem::GetManagerAt(int32 Index) const
 {
-	return (Index >= 0 && Index < LWInstanceManagers.Num()) ? LWInstanceManagers[Index] : nullptr;
+	return LWInstanceManagers.IsValidIndex(Index) ? LWInstanceManagers[Index] : nullptr;
 }
 
 ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const
@@ -163,7 +162,7 @@ UClass* FLightWeightInstanceSubsystem::FindBestInstanceManagerClass(const UClass
 	return BestManagerClass;
 }
 
-AActor* FLightWeightInstanceSubsystem::GetActor(const FActorInstanceHandle& Handle)
+AActor* FLightWeightInstanceSubsystem::FetchActor(const FActorInstanceHandle& Handle)
 {
 	// if the actor is valid return it
 	if (Handle.Actor.IsValid())
@@ -173,7 +172,7 @@ AActor* FLightWeightInstanceSubsystem::GetActor(const FActorInstanceHandle& Hand
 
 	if (ALightWeightInstanceManager* LWIManager = FindLightWeightInstanceManager(Handle))
 	{
-		return LWIManager->GetActorFromHandle(Handle);
+		return LWIManager->FetchActorFromHandle(Handle);
 	}
 
 	return nullptr;
@@ -265,4 +264,18 @@ bool FLightWeightInstanceSubsystem::IsInLevel(const FActorInstanceHandle& Handle
 	}
 
 	return false;
+}
+
+FActorInstanceHandle FLightWeightInstanceSubsystem::CreateNewLightWeightInstance(UClass* InActorClass, FLWIData* InitData, ULevel* InLevel)
+{
+	// Get or create a light weight instance for this class and level
+	if (ALightWeightInstanceManager* LWIManager = FindOrAddLightWeightInstanceManager(InActorClass, InLevel))
+	{
+		// create an instance with the given data
+		int32 InstanceIdx = LWIManager->AddNewInstance(InitData);
+
+		return FActorInstanceHandle(LWIManager, InstanceIdx);
+	}
+
+	return FActorInstanceHandle();
 }

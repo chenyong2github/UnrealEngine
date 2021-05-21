@@ -2065,6 +2065,7 @@ struct ENGINE_API FActorInstanceHandle
 
 	FVector GetLocation() const;
 	FRotator GetRotation() const;
+	FTransform GetTransform() const;
 
 	ULevel* GetLevel() const;
 	bool IsInLevel(ULevel* InLevel) const;
@@ -2087,6 +2088,7 @@ struct ENGINE_API FActorInstanceHandle
 
 	FActorInstanceHandle& operator=(const FActorInstanceHandle& Other) = default;
 	FActorInstanceHandle& operator=(FActorInstanceHandle&& Other) = default;
+	FActorInstanceHandle& operator=(AActor* OtherActor);
 
 	bool operator==(const FActorInstanceHandle& Other) const;
 	bool operator!=(const FActorInstanceHandle& Other) const;
@@ -2097,14 +2099,24 @@ struct ENGINE_API FActorInstanceHandle
 	friend ENGINE_API FArchive& operator<<(FArchive& Ar, FActorInstanceHandle& Handle);
 
 private:
-	// this is cached here for convenience
+	/**
+	 * helper functions that let us treat the actor pointer as a UObject in templated functions
+	 * these do NOT fetch the actor so they will return nullptr if we don't have a full actor representation
+	 */
+	UObject* GetActorAsUObject();
+	const UObject* GetActorAsUObject() const;
+
+	/** Returns true if Actor is not null and not pending kill */
+	bool IsActorValid() const;
+
+	/** this is cached here for convenience */
 	UPROPERTY()
 	mutable TWeakObjectPtr<AActor> Actor;
 
-	// Identifies the light weight instance manager to use
+	/** Identifies the light weight instance manager to use */
 	int32 ManagerIndex;
 
-	// Identifies the instance within the manager
+	/** Identifies the instance within the manager */
 	int32 InstanceIndex;
 };
 
