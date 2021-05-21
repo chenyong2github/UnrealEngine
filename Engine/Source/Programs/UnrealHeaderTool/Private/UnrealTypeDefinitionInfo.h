@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ClassDeclarationMetaData.h"
 #include "Exceptions.h"
 #include "Templates/SharedPointer.h"
 #include <atomic>
 
-#include "ParserHelper.h" // TEMPORARY
+#include "BaseParser.h"
+#include "ParserHelper.h"
 
 // Forward declarations.
 class FClass;
@@ -35,6 +35,13 @@ class FUnrealTypeDefinitionInfo;							// Base for all types, provides virtual m
 				class FUnrealScriptStructDefinitionInfo;	// Represents UScriptStruct
 				class FUnrealClassDefinitionInfo;			// Represents UClass
 				class FUnrealFunctionDefinitionInfo;		// Represents UFunction
+
+enum class EEnforceInterfacePrefix
+{
+	None,
+	I,
+	U
+};
 
 enum class EUnderlyingEnumType
 {
@@ -307,6 +314,30 @@ public:
 		FUHTException::Throwf(*this, TEXT("Meta data can not be set for a definition of this type."));
 	}
 
+	/**
+	 * Helper function that checks if the field is a dynamic type (can be constructed post-startup)
+	 */
+	static bool IsDynamic(const UField* Field);
+	static bool IsDynamic(const FField* Field);
+
+	/**
+	 * Helper function that checks if the field is a dynamic type
+	 */
+	virtual bool IsDynamic() const
+	{
+		return false;
+	}
+
+	/**
+	 * Helper function that checks if the field is belongs to a dynamic type
+	 */
+	virtual bool IsOwnedByDynamicType() const
+	{
+		return false;
+	}
+
+	static FString GetNameWithPrefix(const UClass* Class, EEnforceInterfacePrefix EnforceInterfacePrefix = EEnforceInterfacePrefix::None);
+
 protected:
 	explicit FUnrealTypeDefinitionInfo(FString&& InNameCPP)
 		: NameCPP(MoveTemp(InNameCPP))
@@ -350,6 +381,11 @@ public:
 	{
 		return TEXT("UProperty");
 	}
+
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalize() override;
 
 	/**
 	 * Return the Engine instance associated with the compiler instance
@@ -501,9 +537,28 @@ public:
 		return GetPropertyBase().MatchesType(Other.GetPropertyBase(), bDisallowGeneralization, bIgnoreImplementedInterfaces);
 	}
 
+	/**
+	 * Return the type package name
+	 */
+	const FString& GetTypePackageName() const
+	{
+		return TypePackageName;
+	}
+
+	/**
+	 * Helper function that checks if the field is a dynamic type
+	 */
+	virtual bool IsDynamic() const override;
+
+	/**
+	 * Helper function that checks if the field is belongs to a dynamic type
+	 */
+	virtual bool IsOwnedByDynamicType() const override;
+
 private:
 	FPropertyBase PropertyBase;
 	FString ArrayDimensions;
+	FString TypePackageName;
 	FUnrealPropertyDefinitionInfo* KeyPropDef = nullptr;
 	FUnrealPropertyDefinitionInfo* ValuePropDef = nullptr;
 	FProperty* Property = nullptr;
@@ -759,15 +814,34 @@ public:
 		return ExternDecl[bRequiresValidObject];
 	}
 
+	/** 
+	 * Return the type package name
+	 */
+	const FString& GetTypePackageName() const
+	{
+		return TypePackageName;
+	}
+
 	/**
 	 * Add meta data for the given definition
 	 */
 	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override;
 
+	/**
+	 * Helper function that checks if the field is a dynamic type
+	 */
+	virtual bool IsDynamic() const override;
+
+	/**
+	 * Helper function that checks if the field is belongs to a dynamic type
+	 */
+	virtual bool IsOwnedByDynamicType() const override;
+
 private:
 	FString SingletonName[2];
 	FString SingletonNameChopped[2];
 	FString ExternDecl[2];
+	FString TypePackageName;
 };
 
 /**
@@ -1089,7 +1163,6 @@ private:
  */
 class FUnrealClassDefinitionInfo
 	: public FUnrealStructDefinitionInfo
-	, public FClassDeclarationMetaData
 {
 public:
 	FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, bool bInIsInterface);
@@ -1263,10 +1336,68 @@ public:
 	 */
 	static bool HierarchyHasAllClassFlags(UClass* Class, EClassFlags FlagsToCheck);
 
+	/**
+	* Parse Class's properties to generate its declaration data.
+	*
+	* @param	InClassSpecifiers Class properties collected from its UCLASS macro
+	* @param	InRequiredAPIMacroIfPresent *_API macro if present (empty otherwise)
+	* @param	OutClassData Parsed class meta data
+	*/
+	void ParseClassProperties(TArray<FPropertySpecifier>&& InClassSpecifiers, const FString& InRequiredAPIMacroIfPresent);
+
+	/**
+	* Merges all category properties with the class which at this point only has its parent propagated categories
+	*/
+	void MergeClassCategories();
+
+	/**
+	* Merges all class flags and validates them
+	*
+	* @param	DeclaredClassName Name this class was declared with (for validation)
+	* @param	PreviousClassFlags Class flags before resetting the class (for validation)
+	*/
+	void MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags);
+
+	/**
+	 * Add the category meta data
+	 */
+	void MergeCategoryMetaData(TMap<FName, FString>& InMetaData) const;
+
+
+	void GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const;
+
+public:
+	EClassFlags ClassFlags = CLASS_None;
+	FString ClassWithin;
+	FString ConfigName;
+	TMap<FName, FString> MetaData;
+
 private:
+	/** Merges all 'show' categories */
+	void MergeShowCategories();
+	/** Sets and validates 'within' property */
+	void SetAndValidateWithinClass();
+	/** Sets and validates 'ConfigName' property */
+	void SetAndValidateConfigName();
+
+	void GetHideCategories(TArray<FString>& OutHideCategories) const;
+	void GetShowCategories(TArray<FString>& OutShowCategories) const;
+
 	FString EnclosingDefine;
 	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
+	TArray<FString> ShowCategories;
+	TArray<FString> ShowFunctions;
+	TArray<FString> DontAutoCollapseCategories;
+	TArray<FString> HideCategories;
+	TArray<FString> ShowSubCatgories;
+	TArray<FString> HideFunctions;
+	TArray<FString> AutoExpandCategories;
+	TArray<FString> AutoCollapseCategories;
+	TArray<FString> DependsOn;
+	TArray<FString> ClassGroupNames;
+	TArray<FString> SparseClassDataTypes;
 	bool bIsInterface = false;
+	bool bWantsToBePlaceable = false;
 };
 
 template <typename To>
@@ -1482,12 +1613,12 @@ public:
 		return StructDef;
 	}
 protected:
-	inline T* const * UpdateRange(const FUnrealStructDefinitionInfo* InStructDef)
+	inline T* const* UpdateRange(const FUnrealStructDefinitionInfo* InStructDef)
 	{
 		if (InStructDef)
 		{
 			auto& Array = GetFieldsFromDef<T>(*InStructDef);
-			T* const * Out = Array.GetData();
+			T* const* Out = Array.GetData();
 			End = Out + Array.Num();
 			return Out;
 		}
@@ -1500,7 +1631,7 @@ protected:
 
 	inline void IterateToNext()
 	{
-		T* const * CurrentField = Field;
+		T* const* CurrentField = Field;
 		const FUnrealStructDefinitionInfo* CurrentStructDef = StructDef;
 
 		while (CurrentStructDef)

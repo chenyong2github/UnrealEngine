@@ -68,7 +68,6 @@ struct FPropertyTypeTraitsFloat;
 struct FPropertyTypeTraitsDouble;
 struct FPropertyTypeTraitsLargeWorldCoordinatesReal;
 struct FPropertyTypeTraitsObjectReference;
-struct FPropertyTypeTraitsObjectReference;
 struct FPropertyTypeTraitsWeakObjectReference;
 struct FPropertyTypeTraitsLazyObjectReference;
 struct FPropertyTypeTraitsObjectPtrReference;
@@ -723,7 +722,6 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 		}
 		else
 		{
-			//ETSTODO - This prevents us from having PropDef const
 			if (FUnrealClassDefinitionInfo::HierarchyHasAnyClassFlags(VarProperty.PropertyClass, CLASS_DefaultToInstanced))
 			{
 				VarProperty.PropertyFlags |= CPF_InstancedReference;
@@ -801,7 +799,6 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 		}
 		else
 		{
-			//ETSTODO - This prevents us from having PropDef const
 			if (FUnrealClassDefinitionInfo::HierarchyHasAnyClassFlags(VarProperty.PropertyClass, CLASS_DefaultToInstanced))
 			{
 				VarProperty.PropertyFlags |= CPF_InstancedReference;
@@ -1195,7 +1192,6 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.Struct);
 #endif
 
-		//ETSTODO - This is preventing PropDef from being const
 		if (VarProperty.Struct->StructFlags & STRUCT_HasInstancedReference)
 		{
 			VarProperty.PropertyFlags |= CPF_ContainsInstancedReference;

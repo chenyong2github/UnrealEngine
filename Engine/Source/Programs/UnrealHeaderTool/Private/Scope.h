@@ -371,7 +371,7 @@ public:
 	/**
 	 * Get the structure definition associated with this scope
 	 */
-	FUnrealStructDefinitionInfo& GetStructDef()
+	FUnrealStructDefinitionInfo& GetStructDef() const
 	{
 		return StructDef;
 	}

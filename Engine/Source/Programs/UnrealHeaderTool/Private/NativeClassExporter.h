@@ -739,10 +739,14 @@ public:
 		return Item->GetFName();
 	}
 
-	template <typename T>
-	static FString GetOverriddenPathName(const T* Item)
+	static FString GetOverriddenPathName(const FUnrealPropertyDefinitionInfo& ItemDef)
 	{
-		return FString::Printf(TEXT("%s.%s"), *FClass::GetTypePackageName(Item), *GetOverriddenName(Item));
+		return FString::Printf(TEXT("%s.%s"), *ItemDef.GetTypePackageName(), *GetOverriddenName(ItemDef.GetProperty()));
+	}
+
+	static FString GetOverriddenPathName(const FUnrealFieldDefinitionInfo& ItemDef)
+	{
+		return FString::Printf(TEXT("%s.%s"), *ItemDef.GetTypePackageName(), *GetOverriddenName(ItemDef.GetField()));
 	}
 
 	/**
