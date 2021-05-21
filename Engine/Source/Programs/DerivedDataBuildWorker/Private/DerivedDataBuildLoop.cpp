@@ -3,6 +3,8 @@
 #include "DerivedDataBuildLoop.h"
 
 #include "Compression/CompressedBuffer.h"
+#include "DerivedDataBuild.h"
+#include "DerivedDataBuildOutput.h"
 #include "DerivedDataPayload.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/CommandLine.h"
@@ -50,112 +52,113 @@ static FSharedBuffer LoadFile(const FString& Path)
 	return Buffer;
 }
 
-static FIoHash HashAndWriteToCompressedBufferFile(const FString& Directory, const void* InData, uint64 InDataSize)
-{
-	FIoHash DataHash = FIoHash::HashBuffer(InData, InDataSize);
-	TStringBuilder<128> DataHashStringBuilder;
-	DataHashStringBuilder << DataHash;
-
-	FCompressedBuffer CompressedBufferContents = FCompressedBuffer::Compress(NAME_None, FSharedBuffer::MakeView(InData, InDataSize));
-	if (TUniquePtr<FArchive> FileAr{IFileManager::Get().CreateFileWriter(*(Directory / *DataHashStringBuilder), FILEWRITE_NoReplaceExisting)})
-	{
-		*FileAr << CompressedBufferContents;
-	}
-	return DataHash;
-}
-
 class FWorkerBuildContext : public FBuildContext
 {
 public:
 	FWorkerBuildContext(const FBuildLoop::FBuildActionRecord& InBuildActionRecord)
-	: BuildActionRecord(InBuildActionRecord)
+	: OutputBuilder(GetDerivedDataBuildRef().CreateOutput(InBuildActionRecord.OutputFilePath, InBuildActionRecord.BuildAction.GetFunction()))
+	, BuildActionRecord(InBuildActionRecord)
 	{
-		BuildWriter.BeginObject("BuildOutput");
-		BuildWriter.BeginArray("Payloads");
 	}
 
 	virtual ~FWorkerBuildContext()
 	{
-		BuildWriter.EndArray();
+		FBuildOutput Output = OutputBuilder.Build();
 
-		BuildWriter.EndObject();
+		if (Output.HasError())
+		{
+			UE_LOG(LogDerivedDataBuildLoop, Error, TEXT("Error detected in build output '%s', no payloads will be written."), *WriteToString<64>(Output.GetName()));
+		}
+		else
+		{
+			for (const FPayload& Payload : Output.GetPayloads())
+			{
+				check(Payload.IsValid());
+
+				if (Payload.HasData())
+				{
+					TStringBuilder<128> DataHashStringBuilder;
+					DataHashStringBuilder << Payload.GetRawHash();
+
+					if (TUniquePtr<FArchive> FileAr{IFileManager::Get().CreateFileWriter(*(BuildActionRecord.OutputPath / *DataHashStringBuilder), FILEWRITE_NoReplaceExisting)})
+					{
+						*FileAr << const_cast<FCompressedBuffer&>(Payload.GetData());
+					}
+				}
+			}
+		}
 
 		if (TUniquePtr<FArchive> FileAr{IFileManager::Get().CreateFileWriter(*BuildActionRecord.OutputFilePath)})
 		{
-			BuildWriter.Save(*FileAr);
+			FCbWriter OutputWriter;
+			Output.Save(OutputWriter);
+			OutputWriter.Save(*FileAr);
 		}
 	}
 
 	virtual FCbObject GetConstant(FStringView Key) const override
 	{
-		TStringConversion<FTCHARToUTF8_Convert> ConvertedKey(Key.GetData(), Key.Len());
-		return BuildActionRecord.BuildAction["Constants"].AsObject()[ConvertedKey].AsObject();
+		FCbObject FoundVal;
+		BuildActionRecord.BuildAction.IterateConstants([&Key, &FoundVal] (FStringView ConstantKey, FCbObject&& Value)
+			{
+				if (Key == ConstantKey)
+					FoundVal = MoveTemp(Value);
+			});
+		return FoundVal;
 	}
 
 	virtual FSharedBuffer GetInput(FStringView Key) const override
 	{
-		TStringConversion<FTCHARToUTF8_Convert> ConvertedKey(Key.GetData(), Key.Len());
-		FIoHash InputHash(BuildActionRecord.BuildAction["Inputs"].AsObject()[ConvertedKey].AsBinaryAttachment());
-		if (!InputHash.IsZero())
-		{
-			TStringBuilder<256> Path;
-			Path << BuildActionRecord.InputPath << TEXT('/') << InputHash;
-			return FCompressedBuffer::FromCompressed(LoadFile(*Path)).Decompress();
-		}
-		return FSharedBuffer();
+		FSharedBuffer FoundVal;
+		BuildActionRecord.BuildAction.IterateInputs([this, &Key, &FoundVal] (FStringView InputKey, const FIoHash& RawHash, uint64 RawSize)
+			{
+				if (!RawHash.IsZero() && (InputKey == Key))
+				{
+					TStringBuilder<256> Path;
+					Path << BuildActionRecord.InputPath << TEXT('/') << RawHash;
+					FoundVal = FCompressedBuffer::FromCompressed(LoadFile(*Path)).Decompress();
+				}
+			});
+		return FoundVal;
 	}
 
 	virtual void AddPayload(const FPayload& Payload) override
 	{
-		AddPayload(Payload.GetId(), Payload.GetData());
+		OutputBuilder.AddPayload(Payload);
 	}
 	virtual void AddPayload(const FPayloadId& Id, const FCompressedBuffer& Buffer)
 	{
-		BuildWriter.BeginObject();
-		BuildWriter.AddObjectId("Id", FCbObjectId(Id.GetView()));
-		BuildWriter.AddInteger("RawSize", Buffer.GetRawSize());
-
-		FIoHash IoHash(Buffer.GetRawHash());
-		TStringBuilder<128> DataHashStringBuilder;
-		DataHashStringBuilder << IoHash;
-		if (TUniquePtr<FArchive> FileAr{IFileManager::Get().CreateFileWriter(*(BuildActionRecord.OutputPath / *DataHashStringBuilder), FILEWRITE_NoReplaceExisting)})
-		{
-			*FileAr << const_cast<FCompressedBuffer&>(Buffer);
-		}
-		BuildWriter.AddBinaryAttachment("RawHash", IoHash);
-		BuildWriter.EndObject();
+		FPayload Payload(Id, Buffer);
+		OutputBuilder.AddPayload(Payload);
 	}
 	virtual void AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer) override
 	{
-		BuildWriter.BeginObject();
-		BuildWriter.AddObjectId("Id", FCbObjectId(Id.GetView()));
-		BuildWriter.AddInteger("RawSize", Buffer.GetSize());
-		FIoHash Hash = HashAndWriteToCompressedBufferFile(BuildActionRecord.OutputPath, Buffer.GetData(), Buffer.GetSize());
-		BuildWriter.AddBinaryAttachment("RawHash", Hash);
-		BuildWriter.EndObject();
+		FPayload Payload(Id, FCompressedBuffer::Compress(NAME_Default, Buffer));
+		OutputBuilder.AddPayload(Payload);
 	}
 	virtual void AddPayload(const FPayloadId& Id, const FCbObject& Object) override
 	{
+		// TODO: Should be changed to a 'GetSerializedBuffer' call to handle cases where the Object is a UniformObject.
 		AddPayload(Id, Object.GetBuffer());
 	}
 
 	virtual void SetCachePolicy(ECachePolicy Policy) override
 	{
-		checkNoEntry();
+		unimplemented();
 	}
 
 	virtual void BeginAsyncBuild() override
 	{
-		check(false);
+		unimplemented();
 	}
 
 	virtual void EndAsyncBuild() override
 	{
-		check(false);
+		unimplemented();
 	}
 
 private:
-	FCbWriter BuildWriter;
+	FBuildOutputBuilder OutputBuilder;
 	const FBuildLoop::FBuildActionRecord& BuildActionRecord;
 };
 
@@ -164,7 +167,7 @@ FBuildLoop::FBuildActionRecord::FBuildActionRecord(const FString& InSourceFilePa
 , OutputFilePath(FPaths::ChangeExtension(InSourceFilePath, TEXT("uddbo")))
 , InputPath(InCommonInputPath.IsEmpty() ? FPaths::GetPath(InSourceFilePath) / TEXT("Inputs") : InCommonInputPath)
 , OutputPath(InCommonOutputPath.IsEmpty() ? FPaths::GetPath(InSourceFilePath) / TEXT("Outputs") : InCommonOutputPath)
-, BuildAction(MoveTemp(InSharedBuffer))
+, BuildAction(GetDerivedDataBuildRef().LoadAction(InSourceFilePath, FCbObject(MoveTemp(InSharedBuffer))).Get())
 {
 }
 
@@ -303,7 +306,7 @@ void FBuildLoop::PerformBuilds(const FBuildFunctionCallback& BuildFunctionCallba
 	for (const FBuildActionRecord& BuildActionRecord : BuildActionRecords)
 	{
 		FWorkerBuildContext Context(BuildActionRecord);
-		BuildFunctionCallback(FName(BuildActionRecord.BuildAction["Function"].AsObject()["Name"].AsString()), Context);
+		BuildFunctionCallback(FName(BuildActionRecord.BuildAction.GetFunction()), Context);
 	}
 }
 
