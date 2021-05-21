@@ -24,6 +24,7 @@ void UNiagaraEmitterEditorData::PostLoad()
 		StackEditorData = NewObject<UNiagaraStackEditorData>(this, TEXT("StackEditorData"), RF_Transactional);
 		StackEditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitterEditorData::StackEditorDataChanged);
 	}
+	StackEditorData->ConditionalPostLoad();
 }
 
 UNiagaraStackEditorData& UNiagaraEmitterEditorData::GetStackEditorData() const
