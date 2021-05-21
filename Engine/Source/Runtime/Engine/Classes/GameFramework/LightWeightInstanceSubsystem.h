@@ -8,6 +8,7 @@
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
+#include "GameFramework/LightWeightInstanceManager.h"
 #include "Templates/SharedPointer.h"
 
 #include "Actor.h"
@@ -33,18 +34,18 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 		return *LWISubsystem;
 	}
 
-	// returns the instance manager that handles the given handle
+	// Returns the instance manager that handles the given handle
 	ALightWeightInstanceManager* FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const;
 
-	// returns the instance manager that handles actors of type ActorClass in level Level
+	// Returns the instance manager that handles actors of type ActorClass in level Level
 	ALightWeightInstanceManager* FindLightWeightInstanceManager(UClass* ActorClass, ULevel* Level) const;
 
-	// returns the instance manager that handles instances of type Class that live in Level
+	// Returns the instance manager that handles instances of type Class that live in Level
 	UFUNCTION(Server, Unreliable)
 	ALightWeightInstanceManager* FindOrAddLightWeightInstanceManager(UClass* ActorClass, ULevel* Level);
 
 	// Returns the actor specified by Handle. This may require loading and creating the actor object.
-	AActor* GetActor(const FActorInstanceHandle& Handle);
+	AActor* FetchActor(const FActorInstanceHandle& Handle);
 
 	// Returns the actor specified by Handle if it exists. Returns nullptr if it doesn't
 	AActor* GetActor_NoCreate(const FActorInstanceHandle& Handle) const;
@@ -58,16 +59,44 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 
 	ULevel* GetLevel(const FActorInstanceHandle& Handle);
 
-	// returns true if the object represented by Handle is in InLevel
+	// Returns true if the object represented by Handle is in InLevel
 	bool IsInLevel(const FActorInstanceHandle& Handle, const ULevel* InLevel);
 
+	// Returns a handle to a new light weight instance that represents an object of type ActorClass
+	FActorInstanceHandle CreateNewLightWeightInstance(UClass* ActorClass, FLWIData* InitData, ULevel* Level);
+
+	// Returns true if the handle can return an object that implements the interface U
+	template<typename U>
+	bool IsInterfaceSupported(const FActorInstanceHandle& Handle) const
+	{
+		if (ALightWeightInstanceManager* InstanceManager = FindLightWeightInstanceManager(Handle))
+		{
+			return InstanceManager->IsInterfaceSupported<U>();
+		}
+
+		return false;
+	}
+
+	// Returns an object that implements the interface I for Handle
+	template<typename I>
+	I* FetchInterfaceObject(const FActorInstanceHandle& Handle)
+	{
+		if (ALightWeightInstanceManager* InstanceManager = FindLightWeightInstanceManager(Handle))
+		{
+			return InstanceManager->FetchInterfaceObject<I>(Handle);
+		}
+
+		return nullptr;
+	}
+
 protected:
+	// Returns the class of the insance manager best suited to support instances of type ActorClass
 	UClass* FindBestInstanceManagerClass(const UClass* ActorClass);
 
-	// returns the index associated with Manager
+	// Returns the index associated with Manager
 	int32 GetManagerIndex(const ALightWeightInstanceManager* Manager) const;
 
-	// returns the light weight instance manager at index Index
+	// Returns the light weight instance manager at index Index
 	const ALightWeightInstanceManager* GetManagerAt(int32 Index) const;
 
 private:

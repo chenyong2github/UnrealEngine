@@ -273,7 +273,7 @@ FActorInstanceHandle::FActorInstanceHandle(int32 InManagerIndex, int32 InInstanc
 	{
 		InstanceIndex = Manager->ConvertCollisionIndexToLightWeightIndex(InInstanceIndex);
 
-		if (AActor*const* FoundActor = Manager->Actors.Find(InInstanceIndex))
+		if (AActor* const* FoundActor = Manager->Actors.Find(InInstanceIndex))
 		{
 			Actor = *FoundActor;
 		}
@@ -293,7 +293,7 @@ FActorInstanceHandle::FActorInstanceHandle(ALightWeightInstanceManager* Manager,
 	if (ensure(Manager))
 	{
 		InstanceIndex = Manager->ConvertCollisionIndexToLightWeightIndex(InInstanceIndex);
-		if (AActor*const* FoundActor = Manager->Actors.Find(InstanceIndex))
+		if (AActor* const* FoundActor = Manager->Actors.Find(InstanceIndex))
 		{
 			Actor = *FoundActor;
 		}
@@ -312,7 +312,7 @@ FActorInstanceHandle::FActorInstanceHandle(const FActorInstanceHandle& Other)
 
 bool FActorInstanceHandle::IsValid() const
 {
-	return (ManagerIndex != INDEX_NONE && InstanceIndex != INDEX_NONE) || Actor.IsValid();
+	return (ManagerIndex != INDEX_NONE && InstanceIndex != INDEX_NONE) || IsActorValid();
 }
 
 bool FActorInstanceHandle::DoesRepresentClass(const UClass* OtherClass) const
@@ -322,12 +322,12 @@ bool FActorInstanceHandle::DoesRepresentClass(const UClass* OtherClass) const
 		return false;
 	}
 
-	if (Actor.IsValid())
+	if (IsActorValid())
 	{
 		return Actor->IsA(OtherClass);
 	}
 
-	if (ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(*this))
+	if (const ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex))
 	{
 		return Manager->DoesRepresentClass(OtherClass);
 	}
@@ -342,12 +342,12 @@ UClass* FActorInstanceHandle::GetRepresentedClass() const
 		return nullptr;
 	}
 
-	if (Actor.IsValid())
+	if (IsActorValid())
 	{
 		return Actor->GetClass();
 	}
 
-	if (ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(*this))
+	if (const ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex))
 	{
 		return Manager->GetRepresentedClass();
 	}
@@ -357,37 +357,92 @@ UClass* FActorInstanceHandle::GetRepresentedClass() const
 
 FVector FActorInstanceHandle::GetLocation() const
 {
+	if (IsActorValid())
+	{
+		return Actor->GetActorLocation();
+	}
+
+	if (const ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex))
+	{
+		Manager->GetLocation(*this);
+	}
+
 	return FVector();
 }
 
 FRotator FActorInstanceHandle::GetRotation() const
 {
+	if (IsActorValid())
+	{
+		return Actor->GetActorRotation();
+	}
+
+	if (const ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex))
+	{
+		Manager->GetRotation(*this);
+	}
+
 	return FRotator();
+}
+
+FTransform FActorInstanceHandle::GetTransform() const
+{
+	if (IsActorValid())
+	{
+		return Actor->GetActorTransform();
+	}
+
+	if (const ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex))
+	{
+		Manager->GetTransform(*this);
+	}
+
+	return FTransform();
 }
 
 ULevel* FActorInstanceHandle::GetLevel() const
 {
+	if (IsActorValid())
+	{
+		return Actor->GetLevel();
+	}
+
 	return nullptr;
 }
 
 bool FActorInstanceHandle::IsInLevel(ULevel* Level) const
 {
-	return false;
+	return Level && Level == GetLevel();
 }
 
 FName FActorInstanceHandle::GetFName() const
 {
+	if (IsActorValid())
+	{
+		return Actor->GetFName();
+	}
+
 	return NAME_None;
 }
 
 FString FActorInstanceHandle::GetName() const
 {
+	if (IsActorValid())
+	{
+		return Actor->GetName();
+	}
+
+	if (const ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex))
+	{
+		Manager->GetName(*this);
+	}
+
 	return FString();
 }
 
 AActor* FActorInstanceHandle::GetManagingActor() const
 {
-	if (Actor.IsValid())
+	if (IsActorValid())
 	{
 		return Actor.Get();
 	}
@@ -397,7 +452,7 @@ AActor* FActorInstanceHandle::GetManagingActor() const
 
 USceneComponent* FActorInstanceHandle::GetRootComponent() const
 {
-	if (Actor.IsValid())
+	if (IsActorValid())
 	{
 		return Actor->GetRootComponent();
 	}
@@ -408,12 +463,46 @@ USceneComponent* FActorInstanceHandle::GetRootComponent() const
 
 AActor* FActorInstanceHandle::FetchActor() const
 {
-	if (Actor.IsValid())
+	if (IsActorValid())
 	{
 		return Actor.Get();
 	}
 
-	return FLightWeightInstanceSubsystem::Get().GetActor(*this);
+	return FLightWeightInstanceSubsystem::Get().FetchActor(*this);
+}
+
+UObject* FActorInstanceHandle::GetActorAsUObject()
+{
+	if (IsActorValid())
+	{
+		return Cast<UObject>(Actor.Get());
+	}
+
+	return nullptr;
+}
+
+const UObject* FActorInstanceHandle::GetActorAsUObject() const
+{
+	if (IsActorValid())
+	{
+		return Cast<UObject>(Actor.Get());
+	}
+
+	return nullptr;
+}
+
+bool FActorInstanceHandle::IsActorValid() const
+{
+	return Actor.IsValid() && !Actor->IsPendingKill();
+}
+
+FActorInstanceHandle& FActorInstanceHandle::operator=(AActor* OtherActor)
+{
+	Actor = OtherActor;
+	ManagerIndex = INDEX_NONE;
+	InstanceIndex = INDEX_NONE;
+
+	return *this;
 }
 
 bool FActorInstanceHandle::operator==(const FActorInstanceHandle& Other) const
@@ -450,7 +539,7 @@ bool FActorInstanceHandle::operator==(const AActor* OtherActor) const
 
 		return Manager->FindIndexForActor(OtherActor) == InstanceIndex;
 	}
-	
+
 	return false;
 }
 

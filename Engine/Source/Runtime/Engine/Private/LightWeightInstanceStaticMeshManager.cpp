@@ -26,7 +26,7 @@ void ALightWeightInstanceStaticMeshManager::SetRepresentedClass(UClass* ActorCla
 {
 	Super::SetRepresentedClass(ActorClass);
 
-	AActor* ActorCDO = Cast<AActor>(RepresentedClass->GetDefaultObject());
+	AActor* ActorCDO = RepresentedClass ? Cast<AActor>(RepresentedClass->GetDefaultObject()) : nullptr;
 	if (ActorCDO)
 	{
 		BaseInstanceName = ActorCDO->GetName();
@@ -76,6 +76,7 @@ void ALightWeightInstanceStaticMeshManager::AddNewInstanceAt(FLWIData* InitData,
 void ALightWeightInstanceStaticMeshManager::RemoveInstance(const int32 Index)
 {
 	RemoveInstanceFromRendering(Index);
+
 	Super::RemoveInstance(Index);
 }
 
@@ -179,10 +180,12 @@ void ALightWeightInstanceStaticMeshManager::OnStaticMeshSet()
 			InstancedStaticMeshComponent->SetStaticMesh(StaticMesh.Get());
 		}
 
-		UStaticMesh* Mesh = StaticMesh.Get();
-		for (int32 Idx = 0; Idx < Mesh->GetStaticMaterials().Num(); ++Idx)
+		if (UStaticMesh* Mesh = StaticMesh.Get())
 		{
-			InstancedStaticMeshComponent->SetMaterial(Idx, Mesh->GetMaterial(Idx));
+			for (int32 Idx = 0; Idx < Mesh->GetStaticMaterials().Num(); ++Idx)
+			{
+				InstancedStaticMeshComponent->SetMaterial(Idx, Mesh->GetMaterial(Idx));
+			}
 		}
 	}
 }
