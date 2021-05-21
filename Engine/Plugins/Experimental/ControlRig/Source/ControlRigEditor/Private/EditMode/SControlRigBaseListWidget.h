@@ -124,7 +124,7 @@ private:
 
 	TSharedPtr<FAssetFileContextMenu> AssetFileContextMenu;
 
-	static FString CurrentlySelectedPath;
+	static FString CurrentlySelectedInternalPath;
 	FString CurrentlyEnteredAssetName;
 	bool bLastInputValidityCheckSuccessful;
 
