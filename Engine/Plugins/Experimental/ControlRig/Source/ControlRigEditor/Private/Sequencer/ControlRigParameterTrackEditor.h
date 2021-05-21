@@ -23,6 +23,7 @@ class FMenuBuilder;
 class USkeleton;
 class UMovieSceneControlRigParameterSection;
 class UFKControlRig;
+class FEditorModeTools;
 
 /**
  * Tools for animation tracks
