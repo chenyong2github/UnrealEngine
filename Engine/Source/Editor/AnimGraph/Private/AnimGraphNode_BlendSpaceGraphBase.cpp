@@ -142,7 +142,8 @@ void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(UBlendSpace* InBlendSpac
 
 		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, InBlendSpace->GetFName(), UBlendSpaceGraph::StaticClass(), UEdGraphSchema::StaticClass()));
 		BlendSpaceGraph->BlendSpace = BlendSpace = DuplicateObject(InBlendSpace, BlendSpaceGraph);
-		BlendSpace->ClearFlags(RF_Public | RF_Standalone);
+		BlendSpaceGraph->BlendSpace->ClearFlags(RF_Public | RF_Standalone | RF_Transient);
+		BlendSpaceGraph->BlendSpace->SetFlags(RF_Transactional);
 		BlendSpaceGraph->BlendSpace->ResetSkeleton(nullptr);
 		BlendSpaceGraph->BlendSpace->EmptyMetaData();
 		BlendSpaceGraph->BlendSpace->RemoveUserDataOfClass(UAssetUserData::StaticClass());
@@ -182,6 +183,7 @@ void UAnimGraphNode_BlendSpaceGraphBase::SetupFromClass(TSubclassOf<UBlendSpace>
 	{
 		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, InBlendSpaceClass.Get()->GetFName(), UBlendSpaceGraph::StaticClass(), UEdGraphSchema::StaticClass()));
 		BlendSpaceGraph->BlendSpace = BlendSpace = NewObject<UBlendSpace>(BlendSpaceGraph, InBlendSpaceClass.Get());
+		BlendSpaceGraph->BlendSpace->ClearFlags(RF_Public | RF_Standalone | RF_Transient);
 		BlendSpaceGraph->BlendSpace->SetFlags(RF_Transactional);
 		BlendSpaceGraph->bAllowDeletion = false;
 		BlendSpaceGraph->bAllowRenaming = true;
