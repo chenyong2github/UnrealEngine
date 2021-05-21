@@ -270,6 +270,11 @@ public:
 	{
 		/* empty default implementation */
 	}
+
+	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHIVertexBuffer*> InBuffers)
+	{
+		/* empty default implementation */
+	}
 #endif // WITH_MGPU
 
 	/**
