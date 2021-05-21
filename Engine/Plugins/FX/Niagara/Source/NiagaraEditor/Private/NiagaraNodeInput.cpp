@@ -69,6 +69,7 @@ void UNiagaraNodeInput::PostLoad()
 	Super::PostLoad();
 	if (DataInterface != nullptr)
 	{
+		DataInterface->ConditionalPostLoad();
 		DataInterface->OnChanged().AddUObject(this, &UNiagaraNodeInput::DataInterfaceChanged);
 	}
 
