@@ -3564,7 +3564,10 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 				SequencerHelpers::GetAllKeyAreas( Node, KeyAreas );
 				for ( TSharedPtr<IKeyArea> KeyArea : KeyAreas )
 				{
-					KeyArea->GetKeyTimes(AllTimes, KeyArea->GetOwningSection()->GetRange());
+					if (KeyArea->GetOwningSection())
+					{
+						KeyArea->GetKeyTimes(AllTimes, KeyArea->GetOwningSection()->GetRange());
+					}
 				}
 
 				TSet<TWeakObjectPtr<UMovieSceneSection> > Sections;
