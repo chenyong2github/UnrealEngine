@@ -193,6 +193,7 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void PostEditUndo() override;
 	virtual void Serialize(FArchive& Ar) override;
 	// End of UObject interface
 
