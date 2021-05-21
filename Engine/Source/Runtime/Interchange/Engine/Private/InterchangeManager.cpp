@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "InterchangeAssetImportData.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeProjectSettings.h"
@@ -547,7 +548,7 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 		//Import process can be started only in the game thread
 		return MakeShared< UE::Interchange::FAssetImportResult, ESPMode::ThreadSafe >();
 	}
-
+	UInterchangeAssetImportData* OriginalAssetImportData = nullptr;
 	FString PackageBasePath = ContentPath;
 	if(!ImportAssetParameters.ReimportAsset)
 	{
@@ -556,8 +557,18 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 	else
 	{
 		PackageBasePath = FPaths::GetPath(ImportAssetParameters.ReimportAsset->GetPathName());
+		TArray<UObject*> SubObjects;
+		ImportAssetParameters.ReimportAsset->CollectDefaultSubobjects(SubObjects, false);
+		for (UObject* SubObject : SubObjects)
+		{
+			OriginalAssetImportData = Cast<UInterchangeAssetImportData>(SubObject);
+			if(OriginalAssetImportData)
+			{
+				break;
+			}
+		}
 	}
-
+	bool bImportCancel = false;
 	bool bCanShowDialog = !ImportAssetParameters.bIsAutomated && !IsAttended();
 
 	//Create a task for every source data
@@ -586,19 +597,119 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 		check(AsyncHelper->BaseNodeContainers[SourceDataIndex].IsValid());
 	}
 
+	UInterchangePipelineConfigurationBase* RegisteredPipelineConfiguration = nullptr;
+	TSoftClassPtr <UInterchangePipelineConfigurationBase> PipelineConfigurationDialogClass = GetDefault<UInterchangeProjectSettings>()->PipelineConfigurationDialogClass;
+	if (PipelineConfigurationDialogClass.IsValid())
+	{
+		UClass* PipelineConfigurationClass = PipelineConfigurationDialogClass.LoadSynchronous();
+		if (PipelineConfigurationClass)
+		{
+			RegisteredPipelineConfiguration = NewObject<UInterchangePipelineConfigurationBase>(GetTransientPackage(), PipelineConfigurationClass, NAME_None, RF_NoFlags);
+		}
+	}
+
+
 	if ( ImportAssetParameters.OverridePipelines.Num() == 0 )
 	{
-		const TArray<TSoftClassPtr<UInterchangePipelineBase>>& PipelineStack = GetDefault<UInterchangeProjectSettings>()->PipelineStack;
+		const bool bIsUnattended = FApp::IsUnattended() || GIsAutomationTesting;
 
-		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < PipelineStack.Num(); ++GraphPipelineIndex)
+		const bool bShowPipelineStacksConfigurationDialog = !bIsUnattended
+															&& GetDefault<UInterchangeProjectSettings>()->bShowPipelineStacksConfigurationDialog
+															&& !bImportAllWithDefault;
+
+		const FName DefaultPipelineStackName = GetDefault<UInterchangeProjectSettings>()->DefaultPipelineStack;
+		const TMap<FName, FInterchangePipelineStack>& DefaultPipelineStacks = GetDefault<UInterchangeProjectSettings>()->PipelineStacks;
+		
+		//If we reimport we want to load the original pipeline and the original pipeline settings
+		if (OriginalAssetImportData && OriginalAssetImportData->Pipelines.Num() > 0)
 		{
-			if (PipelineStack[GraphPipelineIndex].IsValid())
+			TArray<UInterchangePipelineBase*> PipelineStack;
+			for (int32 PipelineIndex = 0; PipelineIndex < OriginalAssetImportData->Pipelines.Num(); ++PipelineIndex)
 			{
-				UClass* PipelineClass = PipelineStack[GraphPipelineIndex].LoadSynchronous();
-				if (PipelineClass)
+				UInterchangePipelineBase* SourcePipeline = OriginalAssetImportData->Pipelines[PipelineIndex];
+				if (SourcePipeline) //Its possible a pipeline doesnt exist anymore so it wont load into memory when we loading the outer asset
 				{
-					UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineClass, NAME_None, RF_NoFlags);
-					AsyncHelper->Pipelines.Add(GeneratedPipeline);
+					//Duplicate the pipeline saved in the asset import data
+					UInterchangePipelineBase* GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(SourcePipeline, GetTransientPackage()));
+					PipelineStack.Add(GeneratedPipeline);
+				}
+				else
+				{
+					//A pipeline was not loaded
+					//Log something
+				}
+			}
+
+			if (RegisteredPipelineConfiguration && (bShowPipelineStacksConfigurationDialog || (!DefaultPipelineStacks.Contains(DefaultPipelineStackName) && !bIsUnattended)))
+			{
+				//Show the re-import dialog to let the user make change in the pipelines
+				//PipelineStackName = RegisteredPipelineConfiguration->ScriptedShowReimportPipelineConfigurationDialog(PipelineStack);
+			}
+
+			//If the Stack name is empty it mean we want to use the re-import stack (PipelineStack). If there is a name we will
+			//extract the pipeline stack the user want to use.
+		}
+		else
+		{
+			FName PipelineStackName = DefaultPipelineStackName;
+			if (RegisteredPipelineConfiguration && (bShowPipelineStacksConfigurationDialog || (!DefaultPipelineStacks.Contains(PipelineStackName) && !bIsUnattended)))
+			{
+				//Show the dialog, a plugin should have register this dialog. We use a plugin to be able to use editor code when doing UI
+				EInterchangePipelineConfigurationDialogResult DialogResult = RegisteredPipelineConfiguration->ScriptedShowPipelineConfigurationDialog();
+				if (DialogResult == EInterchangePipelineConfigurationDialogResult::Cancel)
+				{
+					bImportCancel = true;
+				}
+				if (DialogResult == EInterchangePipelineConfigurationDialogResult::ImportAll)
+				{
+					bImportAllWithDefault = true;
+				}
+				PipelineStackName = GetDefault<UInterchangeProjectSettings>()->DefaultPipelineStack;
+			}
+			if (!bImportCancel)
+			{
+				//Get the latest PipelineStacks (the Dialog can change the CDO)
+				const TMap<FName, FInterchangePipelineStack>& PipelineStacks = GetDefault<UInterchangeProjectSettings>()->PipelineStacks;
+				if (!PipelineStacks.Contains(PipelineStackName))
+				{
+					if (PipelineStacks.Contains(DefaultPipelineStackName))
+					{
+						PipelineStackName = DefaultPipelineStackName;
+					}
+					else
+					{
+						//Log an error, we cannot import asset without a valid pipeline, we will use the first pipeline
+						for (const TPair<FName, FInterchangePipelineStack>& PipelineStack : PipelineStacks)
+						{
+							PipelineStackName = PipelineStack.Key;
+						}
+					}
+				}
+
+				if (PipelineStacks.Contains(PipelineStackName))
+				{
+					//use the default pipeline
+					const FInterchangePipelineStack& PipelineStack = PipelineStacks.FindChecked(PipelineStackName);
+					TArray<TSoftClassPtr<UInterchangePipelineBase>> Pipelines = PipelineStack.Pipelines;
+					for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < Pipelines.Num(); ++GraphPipelineIndex)
+					{
+						if (Pipelines[GraphPipelineIndex].IsValid())
+						{
+							UClass* PipelineClass = Pipelines[GraphPipelineIndex].LoadSynchronous();
+							if (PipelineClass)
+							{
+								UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineClass, NAME_None, RF_NoFlags);
+								//Load the settings for this pipeline
+								GeneratedPipeline->LoadSettings(PipelineStackName);
+								AsyncHelper->Pipelines.Add(GeneratedPipeline);
+							}
+						}
+					}
+				}
+				else
+				{
+					//Log an error, we cannot import asset without a valid pipeline, there is no pipeline stack defined
+					bImportCancel = true;
 				}
 			}
 		}
@@ -612,6 +723,14 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 		}
 	}
 
+	//Cancel the import do not queue task
+	if (bImportCancel)
+	{
+		AsyncHelper->InitCancel();
+		AsyncHelper->CleanUp();
+	}
+
+	//Queue the task cancel or not, we need to return a valid asset import result
 	FQueuedTaskData QueuedTaskData;
 	QueuedTaskData.AsyncHelper = AsyncHelper;
 	QueuedTaskData.PackageBasePath = PackageBasePath;
@@ -673,6 +792,7 @@ void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAs
 	FString ImportTaskNumberStr = TEXT(" (") + FString::FromInt(ImportTaskNumber) + TEXT(")");
 	if (ImportTaskNumber == 0)
 	{
+		bImportAllWithDefault = false;
 		SetActiveMode(false);
 
 		if (Notification.IsValid())

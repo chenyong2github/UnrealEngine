@@ -56,6 +56,7 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 				Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 				Arguments.NodeUniqueID = AssetInfo.NodeUniqueId;
 				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+				Arguments.Pipelines = AsyncHelper->Pipelines;
 				AssetInfo.Factory->PostImportGameThreadCallback(Arguments);
 			}
 

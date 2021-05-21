@@ -570,6 +570,11 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToSkeletalMesh(const UIntercha
 	for (const TPair<int32, TArray<FString>>& LodIndexAndNodeUids : NodeUidsPerLodIndex)
 	{
 		const int32 LodIndex = LodIndexAndNodeUids.Key;
+		if (!bImportLods && LodIndex > 0)
+		{
+			//If the pipeline should not import lods, skip any lod over base lod
+			continue;
+		}
 		const TArray<FString>& NodeUids = LodIndexAndNodeUids.Value;
 
 		//Create a lod data node with all the meshes for this LOD

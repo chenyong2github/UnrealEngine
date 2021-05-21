@@ -235,11 +235,11 @@ namespace UE
 							//We did not found any material in the dependencies so try to find material everywhere
 							Material = FindObject<UMaterialInterface>(ANY_PACKAGE, *ImportedMaterial.MaterialImportName);
 						}
+
+						const bool bEnableShadowCasting = true;
+						const bool bInRecomputeTangent = false;
+						Materials.Add(FSkeletalMaterial(Material, bEnableShadowCasting, bInRecomputeTangent, Material != nullptr ? Material->GetFName() : FName(*ImportedMaterial.MaterialImportName), FName(*(ImportedMaterial.MaterialImportName))));
 					}
-					
-					const bool bEnableShadowCasting = true;
-					const bool bInRecomputeTangent = false;
-					Materials.Add(FSkeletalMaterial(Material, bEnableShadowCasting, bInRecomputeTangent, Material != nullptr ? Material->GetFName() : FName(*ImportedMaterial.MaterialImportName), FName(*(ImportedMaterial.MaterialImportName))));
 				}
 
 				int32 NumMaterialsToAdd = FMath::Max<int32>(ImportedMaterials.Num(), ImportData.MaxMaterialIndex + 1);
@@ -853,7 +853,8 @@ void UInterchangeSkeletalMeshFactory::PostImportGameThreadCallback(const FPostIm
 																										  , ImportDataPtr
 																										  , Arguments.SourceData
 																										  , Arguments.NodeUniqueID
-																										  , Arguments.NodeContainer);
+																										  , Arguments.NodeContainer
+																										  , Arguments.Pipelines);
 
 		ImportDataPtr = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 		SkeletalMesh->SetAssetImportData(ImportDataPtr);
