@@ -114,7 +114,7 @@ ERCIResponse FDisplayClusterRemoteControlInterceptor::InvokeCall(FRCIFunctionMet
 void FDisplayClusterRemoteControlInterceptor::OnClusterEventBinaryHandler(const FDisplayClusterClusterEventBinary& Event)
 {
 	// Dispatch data to a proper handler
-	if (Event.bIsSystemEvent)
+	if (Event.bIsSystemEvent && Event.EventId == EventId_InterceptorQueue)
 	{
 		// Deserialize command data
 		TMap<FName, TMap<FString, TArray<uint8>>> ReceivedInterceptQueueMap;
