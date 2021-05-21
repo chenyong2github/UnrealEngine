@@ -8985,14 +8985,14 @@ uint8 FHLSLMaterialTranslator::StrataCompilationInfoGetSharedLocalBasesCount()
 	return FinalUsedSharedLocalBasesCount;
 }
 
-int32 FHLSLMaterialTranslator::StrataAddParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk)
+int32 FHLSLMaterialTranslator::StrataAddParameterBlendingBSDFCoverageToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk)
 {
-	return AddCodeChunk(MCT_Float, TEXT("AddParameterBlendingBSDFWeightToNormalMix(%s, %s)"), *GetParameterCode(ACodeChunk), *GetParameterCode(BCodeChunk));
+	return AddCodeChunk(MCT_Float, TEXT("AddParameterBlendingBSDFCoverageToNormalMix(%s, %s)"), *GetParameterCode(ACodeChunk), *GetParameterCode(BCodeChunk));
 }
 
-int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlendingBSDFWeightToNormalMixCodeChunk(int32 TopCodeChunk)
+int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlendingBSDFCoverageToNormalMixCodeChunk(int32 TopCodeChunk)
 {
-	return AddCodeChunk(MCT_Float, TEXT("VerticalLayeringParameterBlendingBSDFWeightToNormalMix(%s)"), *GetParameterCode(TopCodeChunk));
+	return AddCodeChunk(MCT_Float, TEXT("VerticalLayeringParameterBlendingBSDFCoverageToNormalMix(%s)"), *GetParameterCode(TopCodeChunk));
 }
 
 int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()

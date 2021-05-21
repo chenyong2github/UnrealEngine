@@ -52,7 +52,7 @@ float3 StrataForwardLighting(
 				}
 			}
 
-			const float3 BSDFCoverage = BSDF.Weight;
+			const float3 BSDFCoverage = BSDF.Coverage;
 
 			// Create the BSDF context
 			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(Header, BSDF, NullStrataAddressing, V, L);

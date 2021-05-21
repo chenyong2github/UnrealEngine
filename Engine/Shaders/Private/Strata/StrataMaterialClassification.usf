@@ -32,8 +32,8 @@ void ComputePostProcessBSDFData(
 	const float FullThroughput = 1.0f;
 	const float FullyRough = 1.0f;
 
-	const float3 BSDFWeight = BSDF.Weight;
-	const float  BSDFWeightAvg = dot(BSDF.Weight,1.0f/3.0f);
+	// FinalWeight does not always contains coverage (see Strata.ush)
+	const float  BSDFWeightAvg = dot(BSDF.FinalWeight, 1.0f/3.0f);
 
 	// STRATA_TODO apply the same normal transform as for the material
 	float3x3 TangentBasis = StrataGetBSDFSharedBasis(Header, BSDF, StrataAddressing);

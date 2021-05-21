@@ -219,8 +219,8 @@ float4 StrataDeferredLighting(
 			float3 SpecularTotalLight	= ShadowTerms.SurfaceShadow			* (SpecularPathValue		* IntegrationContext.IncidentIrradianceNoShadow					+	SpecularHazePathValue		* IntegrationContext.IncidentIrradianceNoShadowHaze);
 
 			// Apply the BSDF weight containing coverage, transmittance to view and visibility.
-			DiffuseTotalLight  *= BSDF.Weight;
-			SpecularTotalLight *= BSDF.Weight;
+			DiffuseTotalLight  *= BSDF.FinalWeight;
+			SpecularTotalLight *= BSDF.FinalWeight;
 
 			const float IdentityCommonMultiplier = 1.0f;
 			LightAccumulator_AddSplit(Out, DiffuseTotalLight, SpecularTotalLight, DiffuseTotalLight, IdentityCommonMultiplier, bNeedsSeparateSubsurfaceLightAccumulation);
