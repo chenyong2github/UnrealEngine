@@ -1855,7 +1855,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval);
 	}
 
-	return FirstCreatedIndex;
+	return FirstCreatedIndex - GeometryForRemoval.Num();
 }
 
 
@@ -2024,7 +2024,7 @@ int32 FDynamicMeshCollection::CutWithCellMeshes(const FInternalSurfaceMaterials&
 		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval);
 	}
 
-	return FirstIdx;
+	return FirstIdx - GeometryForRemoval.Num();
 }
 
 
