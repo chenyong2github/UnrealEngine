@@ -366,7 +366,7 @@ namespace Electra
 
 		if (!ActiveOutputBufferInfo.IsValid())
 		{
-			check(UpcomingBufferChain.IsEmpty());
+			check(UpcomingBufferChain.Num() == 0);
 			if (SwitchOverBufferChain.Num())
 			{
 				ChangeOver();

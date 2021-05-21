@@ -188,6 +188,7 @@ void FElectraPlayer::ClearToDefaultState()
 	SelectedVideoTrackIndex = -1;
 	SelectedAudioTrackIndex = -1;
 	bAudioTrackIndexDirty = true;
+	bInitialSeekPerformed = false;
 	LastPresentedFrameDimension = FIntPoint::ZeroValue;
 	DeferredPlayerEvents.Empty();
 	MediaUrl.Empty();
@@ -198,7 +199,7 @@ void FElectraPlayer::ClearToDefaultState()
 /**
  *	Open player
  */
-bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict & PlayerOptions, const FPlaystartOptions & InPlaystartOptions)
+bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict& PlayerOptions, const FPlaystartOptions& InPlaystartOptions)
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 	CSV_EVENT(ElectraPlayer, TEXT("Open"));
@@ -796,6 +797,7 @@ bool FElectraPlayer::SetRate(float Rate)
 		{
 			if (CurrentPlayer->AdaptivePlayer->IsPaused() || !CurrentPlayer->AdaptivePlayer->IsPlaying())
 			{
+				TriggerFirstSeekIfNecessary();
 				CurrentPlayer->AdaptivePlayer->Resume();
 			}
 		}
@@ -803,6 +805,52 @@ bool FElectraPlayer::SetRate(float Rate)
 	}
 	return false;
 }
+
+void FElectraPlayer::TriggerFirstSeekIfNecessary()
+{
+	if (!bInitialSeekPerformed)
+	{
+		bInitialSeekPerformed = true;
+
+		// Set up the initial playback position
+		IAdaptiveStreamingPlayer::FSeekParam playParam;
+		// First we look at any potential time offset specified in the playstart options.
+		if (PlaystartOptions.TimeOffset.IsSet())
+		{
+			FTimespan Target;
+			CalculateTargetSeekTime(Target, PlaystartOptions.TimeOffset.GetValue());
+			playParam.Time.SetFromHNS(Target.GetTicks());
+		}
+		else
+		{
+			// Do not set a start time, let the player pick one.
+			//playParam.Time.SetToZero();
+		}
+
+		// Next, give a list of the seekable positions to the delegate and ask it if it wants to seek to one of them,
+		// overriding any potential time offset from above.
+		if (TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin())
+		{
+			TSharedPtr<TArray<FTimespan>, ESPMode::ThreadSafe> SeekablePositions = MakeShared<TArray<FTimespan>, ESPMode::ThreadSafe>();
+			if (SeekablePositions.IsValid())
+			{
+				CurrentPlayer->AdaptivePlayer->GetSeekablePositions(*SeekablePositions);
+
+				// Check with the delegate if it wants to start somewhere else.
+				FVariantValue Result = PinnedAdapterDelegate->QueryOptions(IElectraPlayerAdapterDelegate::EOptionType::PlaystartPosFromSeekPositions, FVariantValue(SeekablePositions));
+				if (Result.IsValid())
+				{
+					check(Result.IsType(FVariantValue::EDataType::TypeInt64));
+					playParam.Time.SetFromHNS(Result.GetInt64());
+				}
+			}
+		}
+
+		// Trigger buffering at the intended start time.
+		CurrentPlayer->AdaptivePlayer->SeekTo(playParam);
+	}
+}
+
 
 void FElectraPlayer::CalculateTargetSeekTime(FTimespan& OutTargetTime, const FTimespan& InTime)
 {
@@ -865,6 +913,7 @@ bool FElectraPlayer::Seek(const FTimespan& Time)
 		CalculateTargetSeekTime(Target, Time);
 		Electra::IAdaptiveStreamingPlayer::FSeekParam seek;
 		seek.Time.SetFromHNS(Target.GetTicks());
+		bInitialSeekPerformed = true;
 		CurrentPlayer->AdaptivePlayer->SeekTo(seek);
 		return true;
 	}
@@ -980,8 +1029,6 @@ int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 		*/
 		if (bAudioTrackIndexDirty)
 		{
-			bAudioTrackIndexDirty = false;
-
 			if (NumTracksAudio == 0)
 			{
 				SelectedAudioTrackIndex = -1;
@@ -994,6 +1041,7 @@ int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 					if (CurrentPlayer->AdaptivePlayer->IsTrackDeselected(Electra::EStreamType::Audio))
 					{
 						SelectedAudioTrackIndex = -1;
+						bAudioTrackIndexDirty = false;
 					}
 					else
 					{
@@ -1002,6 +1050,7 @@ int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 						if (Attributes.OverrideIndex.IsSet())
 						{
 							SelectedAudioTrackIndex = Attributes.OverrideIndex.GetValue();
+							bAudioTrackIndexDirty = false;
 						}
 					}
 				}
@@ -1475,43 +1524,11 @@ void FElectraPlayer::HandlePlayerEventReceivedPlaylists()
 	InitialAudioAttributes.OverrideIndex = PlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride;
 	CurrentPlayer->AdaptivePlayer->SetInitialStreamAttributes(Electra::EStreamType::Audio, InitialAudioAttributes);
 
-
-	// Set up the initial playback position
-	IAdaptiveStreamingPlayer::FSeekParam playParam;
-	// First we look at any potential time offset specified in the playstart options.
-	if (PlaystartOptions.TimeOffset.IsSet())
+	// Trigger preloading unless forbidden.
+	if (PlaystartOptions.bDoNotPreload == false)
 	{
-		FTimespan Target;
-		CalculateTargetSeekTime(Target, PlaystartOptions.TimeOffset.GetValue());
-		playParam.Time.SetFromHNS(Target.GetTicks());
+		TriggerFirstSeekIfNecessary();
 	}
-	else
-	{
-		// Do not set a start time, let the player pick one.
-		//playParam.Time.SetToZero();
-	}
-
-	// Next, give a list of the seekable positions to the delegate and ask it if it wants to seek to one of them,
-	// overriding any potential time offset from above.
-	if (TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin())
-	{
-		TSharedPtr<TArray<FTimespan>, ESPMode::ThreadSafe> SeekablePositions = MakeShared<TArray<FTimespan>, ESPMode::ThreadSafe>();
-		if (SeekablePositions.IsValid())
-		{
-			CurrentPlayer->AdaptivePlayer->GetSeekablePositions(*SeekablePositions);
-
-			// Check with the delegate if it wants to start somewhere else.
-			FVariantValue Result = PinnedAdapterDelegate->QueryOptions(IElectraPlayerAdapterDelegate::EOptionType::PlaystartPosFromSeekPositions, FVariantValue(SeekablePositions));
-			if (Result.IsValid())
-			{
-				check(Result.IsType(FVariantValue::EDataType::TypeInt64));
-				playParam.Time.SetFromHNS(Result.GetInt64());
-			}
-		}
-	}
-
-	// Trigger buffering at the intended start time.
-	CurrentPlayer->AdaptivePlayer->SeekTo(playParam);
 }
 
 void FElectraPlayer::HandlePlayerEventTracksChanged()
