@@ -309,7 +309,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	const FGenerateMipsParams& GenerateMipsParams,
 	bool bDisableFlipCopyGLES)
 {
-	FMemMark MemStackMark(FMemStack::Get());
+	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
@@ -426,5 +426,6 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 		GraphBuilder.Execute();
 	}
-	FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(RHICmdList, SceneRenderer);
+
+	SceneRenderer->RenderThreadEnd(RHICmdList);
 }

@@ -12,6 +12,7 @@
 #include "Templates/Atomic.h"
 #include "Trace/Trace.h"
 #include "Serialization/MemoryLayout.h"
+#include "Delegates/Delegate.h"
 
 class FRHICommandListImmediate;
 
@@ -350,3 +351,10 @@ public:
 private:
 	RenderCommandFunctionArray* RenderCommands;
 };
+
+DECLARE_MULTICAST_DELEGATE(FStopRenderingThread);
+using FStopRenderingThreadDelegate = FStopRenderingThread::FDelegate;
+
+extern RENDERCORE_API FDelegateHandle RegisterStopRenderingThreadDelegate(const FStopRenderingThreadDelegate& InDelegate);
+
+extern RENDERCORE_API void UnregisterStopRenderingThreadDelegate(FDelegateHandle InDelegateHandle);

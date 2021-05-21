@@ -246,7 +246,7 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 	const FGenerateMipsParams& GenerateMipsParams
 	)
 {
-	FMemMark MemStackMark(FMemStack::Get());
+	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
@@ -268,10 +268,10 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 			SceneRenderer->Render(GraphBuilder);
 		}
 
-			if (bGenerateMips)
-			{
+		if (bGenerateMips)
+		{
 			FGenerateMips::Execute(GraphBuilder, TargetTexture, GenerateMipsParams);
-			}
+		}
 
 		FRDGTextureRef ResolveTexture = RegisterExternalTexture(GraphBuilder, RenderTargetTexture->TextureRHI, TEXT("SceneCaptureResolve"));
 		AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, ResolveTexture, ResolveParams);
@@ -279,7 +279,7 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 		GraphBuilder.Execute();
 	}
 
-	FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(RHICmdList, SceneRenderer);
+	SceneRenderer->RenderThreadEnd(RHICmdList);
 }
 
 static void ODSCapture_RenderThread(
