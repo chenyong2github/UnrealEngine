@@ -502,6 +502,25 @@ struct FHairStrandsRootData
 	bool HasProjectionData() const;
 	bool IsValid() const { return RootCount > 0; }
 
+	uint32 GetDataSize() const
+	{
+		uint32 Total = 0;
+		Total += VertexToCurveIndexBuffer.GetAllocatedSize();
+		for (const FMeshProjectionLOD& LOD : MeshProjectionLODs)
+		{
+			Total += LOD.RootTriangleIndexBuffer.GetAllocatedSize();
+			Total += LOD.RootTriangleBarycentricBuffer.GetAllocatedSize();
+			Total += LOD.RestRootTrianglePosition0Buffer.GetAllocatedSize();
+			Total += LOD.RestRootTrianglePosition1Buffer.GetAllocatedSize();
+			Total += LOD.RestRootTrianglePosition2Buffer.GetAllocatedSize();
+			Total += LOD.MeshInterpolationWeightsBuffer.GetAllocatedSize();
+			Total += LOD.MeshSampleIndicesBuffer.GetAllocatedSize();
+			Total += LOD.RestSamplePositionsBuffer.GetAllocatedSize();
+			Total += LOD.ValidSectionIndices.GetAllocatedSize();
+		}
+		return Total;
+	}
+
 	struct FMeshProjectionLOD
 	{
 		int32 LODIndex = -1;
