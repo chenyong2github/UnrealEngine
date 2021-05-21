@@ -122,11 +122,6 @@ const FUnrealFieldDefinitionInfo* FScope::FindTypeByName(FName Name) const
 	return nullptr;
 }
 
-bool FScope::ContainsType(FUnrealFieldDefinitionInfo* Type)
-{
-	return FindTypeByName(Type->GetField()->GetFName()) != nullptr;
-}
-
 bool FScope::IsFileScope() const
 {
 	return Parent == nullptr;

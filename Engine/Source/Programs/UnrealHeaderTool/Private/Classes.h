@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject\ObjectMacros.h"
 
 class UPackage;
 class FString;
@@ -32,4 +33,34 @@ public:
 	 * @return               The found class, or NULL if the class was not found.
 	 */
 	static FClass* FindScriptClass(const FString& InClassName, FString* OutErrorMsg = nullptr);
+
+	/**
+	 * Find an optional object.
+	 * @see StaticFindObject()
+	 */
+	template< class T >
+	static inline T* FindObject(UObject* Outer, const TCHAR* Name, bool ExactClass = false)
+	{
+		return (T*)StaticFindObject(T::StaticClass(), Outer, Name, ExactClass);
+	}
+
+	/**
+	 * Find an optional object, relies on the name being unqualified
+	 * @see StaticFindObjectFast()
+	 */
+	template< class T >
+	static inline T* FindObjectFast(UObject* Outer, FName Name, bool ExactClass = false, bool AnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags)
+	{
+		return (T*)StaticFindObjectFast(T::StaticClass(), Outer, Name, ExactClass, AnyPackage, ExclusiveFlags);
+	}
+
+	/**
+	 * Find an optional object, no failure allowed
+	 * @see StaticFindObjectChecked()
+	 */
+	template< class T >
+	static inline T* FindObjectChecked(UObject* Outer, const TCHAR* Name, bool ExactClass = false)
+	{
+		return (T*)StaticFindObjectChecked(T::StaticClass(), Outer, Name, ExactClass);
+	}
 };

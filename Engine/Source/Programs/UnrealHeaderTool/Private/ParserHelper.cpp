@@ -9,33 +9,6 @@
 #include "ClassMaps.h"
 
 /////////////////////////////////////////////////////
-// FStructMetaData
-
-void FStructMetaData::AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
-{
-	// update the optimization flags
-	if (!bContainsDelegates)
-	{
-		FProperty* Prop = PropertyDef.GetProperty();
-		if (Prop->IsA(FDelegateProperty::StaticClass()) || Prop->IsA(FMulticastDelegateProperty::StaticClass()))
-		{
-			bContainsDelegates = true;
-		}
-		else
-		{
-			FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
-			if (ArrayProp != NULL)
-			{
-				if (ArrayProp->Inner->IsA(FDelegateProperty::StaticClass()) || ArrayProp->Inner->IsA(FMulticastDelegateProperty::StaticClass()))
-				{
-					bContainsDelegates = true;
-				}
-			}
-		}
-	}
-}
-
-/////////////////////////////////////////////////////
 // FPropertyBase
 
 const TCHAR* FPropertyBase::GetPropertyTypeText( EPropertyType Type )
@@ -89,14 +62,10 @@ const TCHAR* FPropertyBase::GetPropertyTypeText( EPropertyType Type )
  */
 FToken& FToken::operator=(const FToken& Other)
 {
-	FPropertyBase::operator=((FPropertyBase&)Other);
-
+	ConstantType = Other.ConstantType;
 	TokenType = Other.TokenType;
-	TokenName = Other.TokenName;
-	bTokenNameInitialized = Other.bTokenNameInitialized;
 	StartPos = Other.StartPos;
 	StartLine = Other.StartLine;
-	TokenProperty = Other.TokenProperty;
 
 	FCString::Strncpy(Identifier, Other.Identifier, NAME_SIZE);
 	FMemory::Memcpy(String, Other.String, sizeof(String));
@@ -106,14 +75,10 @@ FToken& FToken::operator=(const FToken& Other)
 
 FToken& FToken::operator=(FToken&& Other)
 {
-	FPropertyBase::operator=(MoveTemp(Other));
-
+	ConstantType = Other.ConstantType;
 	TokenType = Other.TokenType;
-	TokenName = Other.TokenName;
-	bTokenNameInitialized = Other.bTokenNameInitialized;
 	StartPos = Other.StartPos;
 	StartLine = Other.StartLine;
-	TokenProperty = Other.TokenProperty;
 
 	FCString::Strncpy(Identifier, Other.Identifier, NAME_SIZE);
 	FMemory::Memcpy(String, Other.String, sizeof(String));

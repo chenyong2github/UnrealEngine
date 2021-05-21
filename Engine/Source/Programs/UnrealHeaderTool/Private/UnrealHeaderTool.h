@@ -17,4 +17,5 @@ struct FHeaderParserNames
 	static const FName NAME_ShowCategories;
 	static const FName NAME_SparseClassDataTypes;
 	static const FName NAME_AdvancedClassDisplay;
+	static const FName NAME_BlueprintType;
 };

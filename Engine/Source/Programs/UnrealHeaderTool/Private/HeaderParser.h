@@ -430,7 +430,7 @@ class FHeaderParser : public FBaseParser, public FContextSupplier
 {
 public:
 	// Compute the function parameter size and save the return offset
-	static void ComputeFunctionParametersSize(UClass* InClass);
+	static void ComputeFunctionParametersSize(FUnrealClassDefinitionInfo& ClassDef);
 
 	// Performs a preliminary parse of the text in the specified buffer, pulling out:
 	//   Class name and parent class name
@@ -448,17 +448,6 @@ public:
 	 * @param OriginalClassName - Name of class w/ no prefix to check against
 	 */
 	static bool ClassNameHasValidPrefix(const FString& InNameToCheck, const FString& OriginalClassName);
-
-	/**
-	 * Transforms CPP-formated string containing default value, to inner formated string
-	 * If it cannot be transformed empty string is returned.
-	 *
-	 * @param Property The property that owns the default value.
-	 * @param CppForm A CPP-formated string.
-	 * @param out InnerForm Inner formated string
-	 * @return true on success, false otherwise.
-	 */
-	static bool DefaultValueStringCppFormatToInnerFormat(const FProperty* Property, const FString& CppForm, FString &InnerForm);
 
 	/**
 	 * Parse the given header.
@@ -670,8 +659,8 @@ public:
 	*
 	* @return	a pointer to a UField with a name matching InIdentifier, or NULL if it wasn't found
 	*/
-	static UField* FindField( UStruct* InScope, const TCHAR* InIdentifier, bool bIncludeParents=true, UClass* FieldClass=UField::StaticClass(), const TCHAR* Thing=nullptr );
-	static FField* FindProperty(UStruct* InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, FFieldClass* FieldClass = FField::StaticClass(), const TCHAR* Thing = nullptr);
+	static UField* FindField(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents=true, UClass* FieldClass=UField::StaticClass(), const TCHAR* Thing=nullptr );
+	static FField* FindProperty(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, FFieldClass* FieldClass = FField::StaticClass(), const TCHAR* Thing = nullptr);
 
 	// Checks ToValidate to make sure that its associated sparse class data struct, if one exists, is a valid structure to use for storing sparse class data.
 	static void CheckSparseClassData(const UStruct* ToValidate);
@@ -711,10 +700,10 @@ protected:
 	 */
 	ECompilationResult::Type ParseHeader();
 	void CompileDirective();
-	void FinalizeScriptExposedFunctions(UClass* Class);
+	void FinalizeScriptExposedFunctions(FUnrealClassDefinitionInfo& ClassDef);
 	UEnum* CompileEnum();
 	UScriptStruct* CompileStructDeclaration();
-	bool CompileDeclaration(TArray<UDelegateFunction*>& DelegatesToFixup, FToken& Token);
+	bool CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& DelegatesToFixup, FToken& Token);
 
 	/** Skip C++ (noexport) declaration. */
 	bool SkipDeclaration(FToken& Token);
@@ -740,26 +729,26 @@ protected:
 	/**
 	 * Create new function object based on given info structure.
 	 */
-	UFunction* CreateFunction(const FFuncInfo &FuncInfo) const;
+	FUnrealFunctionDefinitionInfo& CreateFunction(FFuncInfo&& FuncInfo) const;
 
 	/**
 	 * Create new delegate function object based on given info structure.
 	 */
 	template<typename T>
-	UDelegateFunction* CreateDelegateFunction(const FFuncInfo &FuncInfo) const;	
+	FUnrealFunctionDefinitionInfo& CreateDelegateFunction(FFuncInfo&& FuncInfo) const;
 
 	UClass* CompileClassDeclaration();
-	UDelegateFunction* CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
+	FUnrealFunctionDefinitionInfo& CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
 	void CompileFunctionDeclaration();
 	void CompileVariableDeclaration (FUnrealStructDefinitionInfo& StructDef);
 	void CompileInterfaceDeclaration();
 	void CompileRigVMMethodDeclaration(UStruct* Struct);
-	void ParseRigVMMethodParameters(UStruct* Struct);
+	void ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& StructDef);
 
 	FClass* ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
 	bool TryParseIInterfaceClass();
 
-	bool CompileStatement(TArray<UDelegateFunction*>& DelegatesToFixup);
+	bool CompileStatement(TArray<FUnrealFunctionDefinitionInfo*>& DelegatesToFixup);
 
 	// Checks to see if a particular kind of command is allowed on this nesting level.
 	bool IsAllowedInThisNesting(ENestAllowFlags AllowFlags);
@@ -768,8 +757,6 @@ protected:
 	// If it's not, issues a compiler error referring to the token and the current
 	// nesting level.
 	void CheckAllow(const TCHAR* Thing, ENestAllowFlags AllowFlags);
-
-	UStruct* GetSuperScope( UStruct* CurrentScope, const FName& SearchName );	
 
 	void SkipStatements( int32 SubCount, const TCHAR* ErrorTag );
 
@@ -789,6 +776,7 @@ protected:
 		FPropertyBase&                  VarProperty,
 		EPropertyFlags                  Disallow,
 		const FToken*                   OuterPropertyType,
+		const EPropertyFlags*			OuterPropertyFlags,
 		EPropertyDeclarationStyle::Type PropertyDeclarationStyle,
 		EVariableCategory::Type         VariableCategory,
 		FIndexRange*                    ParsedVarIndexRange = nullptr,
@@ -801,11 +789,11 @@ protected:
 	 * @param	VarProperty			type and propertyflag info for the new property (inout)
 	 * @param   VariableCategory	what kind of variable is being created
 	 *
-	 * @return	a pointer to the new FProperty if successful, or NULL if there was no property to parse
+	 * @return	a reference to the new property if successful, or NULL if there was no property to parse
 	 */
-	FProperty* GetVarNameAndDim(
+	FUnrealPropertyDefinitionInfo& GetVarNameAndDim(
 		FUnrealStructDefinitionInfo& ParentStruct,
-		FToken& VarProperty,
+		FPropertyBase& VarProperty,
 		EVariableCategory::Type VariableCategory,
 		ELayoutMacroType LayoutMacroType = ELayoutMacroType::None);
 	
@@ -818,11 +806,6 @@ protected:
 	 * @return	true if the specified class is an intrinsic type or if the class has successfully been parsed
 	 */
 	bool AllowReferenceToClass(UStruct* Scope, UClass* CheckClass) const;
-
-	/**
-	 * @return	true if Scope has FProperty objects in its list of fields
-	 */
-	static bool HasMemberProperties( const UStruct* Scope );
 
 	/**
 	 * Parses optional metadata text.
@@ -869,7 +852,7 @@ protected:
 	 *
 	 * @param PoppedFunction Function that have just been popped.
 	 */
-	void PostPopFunctionDeclaration(UFunction* PoppedFunction);
+	void PostPopFunctionDeclaration(FUnrealFunctionDefinitionInfo& PoppedFunctionDef);
 
 	/**
 	 * Tasks that need to be done after popping interface definition
@@ -897,13 +880,13 @@ protected:
 	 * @param	Scope				the current scope
 	 * @param	DelegateCache		cached map of delegates that have already been found; used for faster lookup.
 	 */
-	void FixupDelegateProperties(UStruct* ValidationScope, FScope& Scope, TMap<FName, UFunction*>& DelegateCache);
+	void FixupDelegateProperties(FUnrealStructDefinitionInfo& StructDef, FScope& Scope, TMap<FName, UFunction*>& DelegateCache);
 
 	// Retry functions.
 	void InitScriptLocation( FScriptLocation& Retry );
 	void ReturnToLocation( const FScriptLocation& Retry, bool Binary=1, bool Text=1 );
 
-	static void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const FToken* OuterPropertyType);
+	static void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const EPropertyFlags* OuterPropertyFlags);
 
 	// Cache of ScriptStructs that have been validated for Net Replication and RPC
 	TSet<UScriptStruct*> ScriptStructsValidForNet;
@@ -942,16 +925,16 @@ private:
 	void CompileVersionDeclaration(UStruct* Struct);
 
 	// Verifies that all specified class's UProperties with function associations have valid targets
-	void VerifyPropertyMarkups( UClass* TargetClass );
+	void VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClassDef);
 
 	// Verifies the target function meets the criteria for a blueprint property getter
-	void VerifyBlueprintPropertyGetter(FProperty* Property, UFunction* TargetFunction);
+	void VerifyBlueprintPropertyGetter(FProperty* Property, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
 	// Verifies the target function meets the criteria for a blueprint property setter
-	void VerifyBlueprintPropertySetter(FProperty* Property, UFunction* TargetFunction);
+	void VerifyBlueprintPropertySetter(FProperty* Property, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
 	// Verifies the target function meets the criteria for a replication notify callback
-	void VerifyRepNotifyCallback(FProperty* Property, UFunction* TargetFunction);
+	void VerifyRepNotifyCallback(FProperty* Property, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
 	// Constructs the policy from a string
 	static FDocumentationPolicy GetDocumentationPolicyFromName(const FString& PolicyName);
@@ -969,10 +952,10 @@ private:
 	void CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FName, FString>& MetaData, const TArray<TMap<FName, FString>>& Entries);
 
 	// Validates the documentation for a given struct
-	void CheckDocumentationPolicyForStruct(UStruct* Struct);
+	void CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInfo& StructDef);
 
 	// Validates the documentation for a given method
-	void CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Func);
+	void CheckDocumentationPolicyForFunc(UClass* Class, FUnrealFunctionDefinitionInfo& FunctionDef);
 
 	// Checks if a valid range has been found on the provided metadata
 	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);
