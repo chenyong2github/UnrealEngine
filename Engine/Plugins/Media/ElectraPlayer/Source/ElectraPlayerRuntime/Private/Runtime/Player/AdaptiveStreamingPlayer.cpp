@@ -2828,24 +2828,27 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 
 		if (PendingTrackSelectionAud.IsValid() && CurrentPlayPeriodAudio.IsValid())
 		{
-			IManifest::IPlayPeriod::ETrackChangeResult TrackChangeResult = CurrentPlayPeriodAudio->ChangeTrackStreamPreference(EStreamType::Audio, *PendingTrackSelectionAud);
-			if (TrackChangeResult == IManifest::IPlayPeriod::ETrackChangeResult::NewPeriodNeeded)
+			if (!SelectedStreamAttributesAud.IsCompatibleWith(*PendingTrackSelectionAud))
 			{
-				// Make sure any finishing current requests will be ignored by increasing the sequence ID.
-				++CurrentPlaybackSequenceID[StreamTypeToArrayIndex(EStreamType::Audio)];
-				// Cancel any ongoing segment download now.
-				if (StreamReaderHandler)
+				IManifest::IPlayPeriod::ETrackChangeResult TrackChangeResult = CurrentPlayPeriodAudio->ChangeTrackStreamPreference(EStreamType::Audio, *PendingTrackSelectionAud);
+				if (TrackChangeResult == IManifest::IPlayPeriod::ETrackChangeResult::NewPeriodNeeded)
 				{
-					StreamReaderHandler->CancelRequest(EStreamType::Audio, true);
+					// Make sure any finishing current requests will be ignored by increasing the sequence ID.
+					++CurrentPlaybackSequenceID[StreamTypeToArrayIndex(EStreamType::Audio)];
+					// Cancel any ongoing segment download now.
+					if (StreamReaderHandler)
+					{
+						StreamReaderHandler->CancelRequest(EStreamType::Audio, true);
+					}
+
+					StreamSelectionAttributesAud = *PendingTrackSelectionAud;
+
+					FPendingSegmentRequest NextReq;
+					NextReq.bStartOver = true;
+					NextReq.StartoverPosition.Time = PlaybackState.GetPlayPosition();
+					NextReq.StreamType = EStreamType::Audio;
+					NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
 				}
-
-				StreamSelectionAttributesAud = *PendingTrackSelectionAud;
-
-				FPendingSegmentRequest NextReq;
-				NextReq.bStartOver = true;
-				NextReq.StartoverPosition.Time = PlaybackState.GetPlayPosition();
-				NextReq.StreamType = EStreamType::Audio;
-				NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
 			}
 			PendingTrackSelectionAud.Reset();
 		}
