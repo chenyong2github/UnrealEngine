@@ -12,6 +12,7 @@ void UAnimBlueprintExtension_BlendSpaceGraph::HandleStartCompilingClass(const UC
 UBlendSpace* UAnimBlueprintExtension_BlendSpaceGraph::AddBlendSpace(UBlendSpace* InSourceBlendSpace)
 {
 	UBlendSpace* CopiedBlendSpace = DuplicateObject(InSourceBlendSpace, Class);
+	CopiedBlendSpace->ClearFlags(RF_Transient);
 	Subsystem.BlendSpaces.Add(CopiedBlendSpace);
 	return CopiedBlendSpace;
 }
