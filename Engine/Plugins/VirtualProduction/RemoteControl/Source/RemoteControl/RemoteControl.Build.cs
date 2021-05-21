@@ -10,7 +10,6 @@ public class RemoteControl : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"RemoteControlCommon",
 			}
 		);
 
@@ -26,6 +25,12 @@ public class RemoteControl : ModuleRules
 
 		if (Target.bBuildEditor)
 		{
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"RemoteControlCommon",
+				}
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"DeveloperSettings",
