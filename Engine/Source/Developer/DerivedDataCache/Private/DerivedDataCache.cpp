@@ -5,40 +5,20 @@
 
 #include "CoreMinimal.h"
 #include "Algo/AllOf.h"
-#include "Misc/CommandLine.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "Misc/ScopeLock.h"
-#include "Stats/StatsMisc.h"
-#include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
 #include "Async/TaskGraphInterfaces.h"
-#include "Serialization/MemoryReader.h"
-#include "Serialization/MemoryWriter.h"
-#include "Modules/ModuleManager.h"
-
+#include "DDCCleanup.h"
 #include "DerivedDataBackendInterface.h"
-#include "DerivedDataBuild.h"
-#include "DerivedDataBuildAction.h"
-#include "DerivedDataBuildDefinition.h"
-#include "DerivedDataBuildInput.h"
-#include "DerivedDataBuildOutput.h"
-#include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataPluginInterface.h"
-#include "DDCCleanup.h"
-#include "ProfilingDebugging/CookStats.h"
-
-#include "Algo/AllOf.h"
-#include "Algo/Transform.h"
+#include "HAL/ThreadSafeCounter.h"
 #include "Misc/CoreMisc.h"
-#include "Misc/ScopeExit.h"
-#include "Misc/StringBuilder.h"
 #include "Misc/CommandLine.h"
-#include "Serialization/CompactBinary.h"
-#include "Serialization/CompactBinaryValidation.h"
-#include "Serialization/CompactBinaryWriter.h"
-
+#include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CookStats.h"
+#include "Stats/Stats.h"
+#include "Stats/StatsMisc.h"
 #include <atomic>
 
 DEFINE_STAT(STAT_DDC_NumGets);
@@ -53,7 +33,6 @@ DEFINE_STAT(STAT_DDC_ExistTime);
 
 //#define DDC_SCOPE_CYCLE_COUNTER(x) QUICK_SCOPE_CYCLE_COUNTER(STAT_ ## x)
 #define DDC_SCOPE_CYCLE_COUNTER(x) TRACE_CPUPROFILER_EVENT_SCOPE(x);
-
 
 #if ENABLE_COOK_STATS
 #include "DerivedDataCacheUsageStats.h"
@@ -169,14 +148,14 @@ namespace DerivedDataCacheCookStats
 /** Whether we want to verify the DDC (pass in -VerifyDDC on the command line)*/
 bool GVerifyDDC = false;
 
-namespace UE::DerivedData
+namespace UE::DerivedData::Private
 {
 
 /**
  * Implementation of the derived data cache
  * This API is fully threadsafe
 **/
-class FDerivedDataCache final : public FDerivedDataCacheInterface, public IBuild
+class FDerivedDataCache final : public FDerivedDataCacheInterface
 {
 
 	/** 
@@ -367,6 +346,8 @@ public:
 	/** Destructor, flushes all sync tasks **/
 	~FDerivedDataCache()
 	{
+		FDDCCleanup::Shutdown();
+
 		WaitForQuiescence(true);
 		FScopeLock ScopeLock(&SynchronizationObject);
 		for (TMap<uint32,FAsyncTask<FBuildAsyncWorker>*>::TIterator It(PendingTasks); It; ++It)
@@ -677,9 +658,9 @@ private:
 public:
 	// ICache Interface
 
-	FCacheBucket CreateBucket(FStringView Name) final { return Private::CreateCacheBucket(Name); }
+	FCacheBucket CreateBucket(FStringView Name) final { return CreateCacheBucket(Name); }
 
-	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return Private::CreateCacheRecordBuilder(Key); }
+	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return CreateCacheRecordBuilder(Key); }
 
 	FRequest Put(
 		TConstArrayView<FCacheRecord> Records,
@@ -715,115 +696,11 @@ public:
 	{
 		return FDerivedDataBackend::Get().GetRoot().CancelAll();
 	}
-
-public:
-	// IBuild Interface
-
-	FBuildDefinitionBuilder CreateDefinition(FStringView Name, FStringView Function) final
-	{
-		return Private::CreateBuildDefinition(Name, Function);
-	}
-
-	FOptionalBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) final
-	{
-		return Private::LoadBuildDefinition(Name, MoveTemp(Definition));
-	}
-
-	FBuildActionBuilder CreateAction(FStringView Name, FStringView Function) final
-	{
-		// DDC-TODO: Find the function version from the function registry on the scheduler.
-		return Private::CreateBuildAction(Name, Function, FGuid::NewGuid(), BuildSystemVersion);
-	}
-
-	FOptionalBuildAction LoadAction(FStringView Name, FCbObject&& Action) final
-	{
-		return Private::LoadBuildAction(Name, MoveTemp(Action));
-	}
-
-	FBuildInputBuilder CreateInput(FStringView Name) final
-	{
-		return Private::CreateBuildInput(Name);
-	}
-
-	FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) final
-	{
-		return Private::CreateBuildOutput(Name, Function);
-	}
-
-	FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) final
-	{
-		return Private::LoadBuildOutput(Name, Function, Output);
-	}
-
-	FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) final
-	{
-		return Private::LoadBuildOutput(Name, Function, Output);
-	}
-
-	const FGuid& GetVersion() const final
-	{
-		return BuildSystemVersion;
-	}
-
-	const FGuid BuildSystemVersion{TEXT("ac0574e5-62bd-4c2e-84ec-f2efe48c0fef")};
 };
 
-} // UE::DerivedData
-
-static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
-static UE::DerivedData::IBuild* GDerivedDataBuildInstance;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-/**
- * Module for the DDC
- */
-class FDerivedDataCacheModule final : public IDerivedDataCacheModule
+FDerivedDataCacheInterface* CreateCache()
 {
-public:
-	FDerivedDataCacheInterface& GetDDC() final
-	{
-		return **CreateOrGetCache();
-	}
+	return new FDerivedDataCache();
+}
 
-	FDerivedDataCacheInterface* const* CreateOrGetCache() final
-	{
-		FScopeLock Lock(&CreateLock);
-		if (!GDerivedDataCacheInstance)
-		{
-			UE::DerivedData::FDerivedDataCache* Instance = new UE::DerivedData::FDerivedDataCache();
-			GDerivedDataCacheInstance = Instance;
-			GDerivedDataBuildInstance = Instance;
-			check(Instance);
-		}
-		return &GDerivedDataCacheInstance;
-	}
-
-	UE::DerivedData::IBuild* const* CreateOrGetBuild() final
-	{
-		FScopeLock Lock(&CreateLock);
-		if (!GDerivedDataBuildInstance)
-		{
-			UE::DerivedData::FDerivedDataCache* Instance = new UE::DerivedData::FDerivedDataCache();
-			GDerivedDataCacheInstance = Instance;
-			GDerivedDataBuildInstance = Instance;
-			check(Instance);
-		}
-		return &GDerivedDataBuildInstance;
-	}
-
-	void ShutdownModule() final
-	{
-		FDDCCleanup::Shutdown();
-
-		delete GDerivedDataCacheInstance;
-		GDerivedDataCacheInstance = nullptr;
-	}
-
-private:
-	FCriticalSection CreateLock;
-};
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-IMPLEMENT_MODULE(FDerivedDataCacheModule, DerivedDataCache);
+} // UE::DerivedData::Private
