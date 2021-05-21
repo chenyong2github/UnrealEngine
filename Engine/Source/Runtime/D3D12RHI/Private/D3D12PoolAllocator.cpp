@@ -70,10 +70,9 @@ void FD3D12MemoryPool::Init()
 			LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
 			VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&Desc, IID_PPV_ARGS(&Heap)));
 		}
-		SetName(Heap, L"LinkListAllocator Backing Heap");
 
 		BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
-		BackingHeap->SetHeap(Heap);
+		BackingHeap->SetHeap(Heap, TEXT("PoolAllocator Heap"));
 
 		// Only track resources that cannot be accessed on the CPU.
 		if (IsGPUOnly(InitConfig.HeapType))
@@ -109,11 +108,6 @@ void FD3D12MemoryPool::Destroy()
 	{
 		ensure(BackingResource->GetRefCount() == 1 || GNumExplicitGPUsForRendering > 1);
 		BackingResource = nullptr;
-	}
-
-	if (BackingHeap)
-	{
-		BackingHeap->Destroy();
 	}
 }
 
@@ -355,7 +349,8 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 			ID3D12Heap* Heap = nullptr;
 			VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&HeapDesc, IID_PPV_ARGS(&Heap)));
 			TRefCountPtr<FD3D12Heap> BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
-			BackingHeap->SetHeap(Heap);		
+			bool bTrack = false;
+			BackingHeap->SetHeap(Heap, InName, bTrack);		
 			
 			VERIFYD3D12RESULT(Adapter->CreatePlacedResource(Desc, BackingHeap, 0, InCreateState, InResourceStateMode, InCreateState, InClearValue, &NewResource, InName));
 		}

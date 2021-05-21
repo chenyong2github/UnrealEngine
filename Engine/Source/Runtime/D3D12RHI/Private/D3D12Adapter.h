@@ -357,6 +357,8 @@ public:
 	bool IsTrackingAllAllocations() const { return bTrackAllAllocation; }
 	void TrackAllocationData(FD3D12ResourceLocation* InAllocation, uint64 InAllocationSize, bool bCollectCallstack);
 	void ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation, bool bDefragFree);
+	void TrackHeapAllocation(FD3D12Heap* InHeap);
+	void ReleaseTrackedHeap(FD3D12Heap* InHeap);
 	void DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool bResidentOnly, bool bWithCallstack);
 
 	struct FAllocatedResourceResult
@@ -365,6 +367,7 @@ public:
 		uint64 Distance = 0;
 	};
 	void FindResourcesNearGPUAddress(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, uint64 InRange, TArray<FAllocatedResourceResult>& OutResources);
+	void FindHeapsContainingGPUAddress(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, TArray<FD3D12Heap*>& OutHeaps);
 	
 	struct FReleasedAllocationData
 	{
@@ -375,6 +378,7 @@ public:
 		bool bDefragFree = false;
 		bool bBackBuffer = false;
 		bool bTransient = false;
+		bool bHeap = false;
 	};
 	void FindReleasedAllocationData(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, TArray<FReleasedAllocationData>& OutAllocationData);
 
@@ -507,6 +511,7 @@ protected:
 
 	/** Tracked resource information. */
 	TMap<FD3D12ResourceLocation*, FTrackedAllocationData> TrackedAllocationData;
+	TArray<FD3D12Heap*> TrackedHeaps;
 	TArray<FReleasedAllocationData> ReleasedAllocationData;
 	FCriticalSection TrackedAllocationDataCS;
 
