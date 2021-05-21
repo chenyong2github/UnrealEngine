@@ -3367,6 +3367,8 @@ bool UControlRigBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNo
 						}
 
 						FunctionGraphs.Remove(RigFunctionGraph);
+						RigFunctionGraph->Rename(nullptr, GetTransientPackage());
+						RigFunctionGraph->MarkPendingKill();
 						return bNotify;
 					}
 				}
@@ -3394,6 +3396,8 @@ bool UControlRigBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNo
 						}
 
 						RigGraph->SubGraphs.Remove(SubRigGraph);
+						SubRigGraph->Rename(nullptr, GetTransientPackage());
+						SubRigGraph->MarkPendingKill();
 						return bNotify;
 					}
 				}
