@@ -169,25 +169,28 @@ struct FShaderParams
 	/** Pixel shader parameters */
 	FVector4 PixelParams;
 	FVector4 PixelParams2;
+	FVector4 PixelParams3;
 
 	FShaderParams()
 		: PixelParams(0, 0, 0, 0)
 		, PixelParams2(0, 0, 0, 0)
+		, PixelParams3(0, 0, 0, 0)
 	{}
 
-	FShaderParams(const FVector4& InPixelParams, const FVector4& InPixelParams2 = FVector4(0))
+	FShaderParams(const FVector4& InPixelParams, const FVector4& InPixelParams2 = FVector4(0), const FVector4& InPixelParams3 = FVector4(0))
 		: PixelParams(InPixelParams)
 		, PixelParams2(InPixelParams2)
+		, PixelParams3(InPixelParams3)
 	{}
 
 	bool operator==(const FShaderParams& Other) const
 	{
-		return PixelParams == Other.PixelParams && PixelParams2 == Other.PixelParams2;
+		return PixelParams == Other.PixelParams && PixelParams2 == Other.PixelParams2 && PixelParams3 == Other.PixelParams3;
 	}
 
-	static FShaderParams MakePixelShaderParams(const FVector4& PixelShaderParams, const FVector4& InPixelShaderParams2 = FVector4(0))
+	static FShaderParams MakePixelShaderParams(const FVector4& PixelShaderParams, const FVector4& InPixelShaderParams2 = FVector4(0), const FVector4& InPixelShaderParams3 = FVector4(0))
 	{
-		return FShaderParams(PixelShaderParams, InPixelShaderParams2);
+		return FShaderParams(PixelShaderParams, InPixelShaderParams2, InPixelShaderParams3);
 	}
 };
 

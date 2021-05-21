@@ -21,6 +21,7 @@ UBackgroundBlur::UBackgroundBlur(const FObjectInitializer& ObjectInitializer)
 	, BlurStrength(0.f)
 	, bOverrideAutoRadiusCalculation(false)
 	, BlurRadius(0)
+	, CornerRadius(0,0,0,0)
 	, LowQualityFallbackBrush(FSlateNoResource())
 {
 	bIsVariable = false;
@@ -65,6 +66,7 @@ void UBackgroundBlur::SynchronizeProperties()
 		MyBackgroundBlur->SetBlurRadius(bOverrideAutoRadiusCalculation ? BlurRadius : TOptional<int32>());
 		MyBackgroundBlur->SetBlurStrength(BlurStrength);
 		MyBackgroundBlur->SetLowQualityBackgroundBrush(&LowQualityFallbackBrush);
+		MyBackgroundBlur->SetCornerRadius(CornerRadius);
 	}
 }
 
@@ -143,6 +145,15 @@ void UBackgroundBlur::SetBlurStrength(float InStrength)
 	if (MyBackgroundBlur.IsValid())
 	{
 		MyBackgroundBlur->SetBlurStrength(InStrength);
+	}
+}
+
+void UBackgroundBlur::SetCornerRadius(FVector4 InCornerRadius)
+{
+	CornerRadius = InCornerRadius;
+	if (MyBackgroundBlur.IsValid())
+	{
+		MyBackgroundBlur->SetCornerRadius(InCornerRadius);
 	}
 }
 
