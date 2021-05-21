@@ -125,6 +125,7 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 	// Remember the original request URL since we may lose the fragment part in requests.
 	ManifestURL = URL;
 	ManifestMimeTypeRequest.Reset();
+	ManifestType = EMediaFormatType::Unknown;
 	if (CurrentState == EPlayerState::eState_Idle)
 	{
 		FString mimeType = MimeType;
@@ -154,14 +155,17 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 			if (mimeType == Playlist::MIMETypeHLS)
 			{
 				ManifestReader = IPlaylistReaderHLS::Create(this);
+				ManifestType = EMediaFormatType::HLS;
 			}
 			else if (mimeType == Playlist::MIMETypeMP4)
 			{
 				ManifestReader = IPlaylistReaderMP4::Create(this);
+				ManifestType = EMediaFormatType::ISOBMFF;
 			}
 			else if (mimeType == Playlist::MIMETypeDASH)
 			{
 				ManifestReader = IPlaylistReaderDASH::Create(this);
+				ManifestType = EMediaFormatType::DASH;
 			}
 			else
 			{
@@ -205,9 +209,7 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 	if (ManifestReader)
 	{
 		check(Manifest == nullptr);
-		if (ManifestReader->GetPlaylistType() == TEXT("hls") ||
-			ManifestReader->GetPlaylistType() == TEXT("mp4") ||
-			ManifestReader->GetPlaylistType() == TEXT("dash"))
+		if (ManifestType != EMediaFormatType::Unknown)
 		{
 			TArray<FTimespan> SeekablePositions;
 			TSharedPtrTS<IManifest> NewPresentation = ManifestReader->GetManifest();

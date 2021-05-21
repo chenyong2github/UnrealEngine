@@ -67,6 +67,8 @@ public:
 
 	bool																		bHasEncryptedSegments;
 
+	TSharedPtrTS<FBufferSourceInfo>												SourceBufferInfo;
+
 	TSharedPtrTS<IInitSegmentCacheHLS> 											InitSegmentCache;
 	TSharedPtrTS<const FManifestHLSInternal::FMediaStream::FInitSegmentInfo>	InitSegmentInfo;
 
@@ -102,6 +104,9 @@ public:
 
 	//! Adds a request to read from a stream
 	virtual EAddResult AddRequest(uint32 CurrentPlaybackSequenceID, TSharedPtrTS<IStreamSegment> Request) override;
+
+	//! Cancels any ongoing requests of the given stream type. Silent cancellation will not notify OnFragmentClose() or OnFragmentReachedEOS(). 
+	virtual void CancelRequest(EStreamType StreamType, bool bSilent) override;
 
 	//! Cancels all pending requests.
 	virtual void CancelRequests() override;
@@ -193,6 +198,7 @@ private:
 		FMediaSemaphore											WorkSignal;
 		volatile bool											bTerminate;
 		volatile bool											bRequestCanceled;
+		volatile bool											bSilentCancellation;
 		volatile bool											bHasErrored;
 		bool													bAbortedByABR;
 		bool													bAllowEarlyEmitting;
@@ -216,7 +222,7 @@ private:
 
 		FStreamHandler();
 		virtual ~FStreamHandler();
-		void Cancel();
+		void Cancel(bool bSilent);
 		void SignalWork();
 		void WorkerThread();
 		void HandleRequest();

@@ -173,7 +173,7 @@ FElectraPlayer::~FElectraPlayer()
 	{
 		AsyncResourceReleaseNotification->Signal(ResourceFlags_OutputBuffers);
 	}
-	
+
 	FPlatformProcess::ReturnSynchEventToPool(WaitForPlayerDestroyedEvent);
 }
 
@@ -187,6 +187,7 @@ void FElectraPlayer::ClearToDefaultState()
 	SelectedQuality = 0;
 	SelectedVideoTrackIndex = -1;
 	SelectedAudioTrackIndex = -1;
+	bAudioTrackIndexDirty = true;
 	LastPresentedFrameDimension = FIntPoint::ZeroValue;
 	DeferredPlayerEvents.Empty();
 	MediaUrl.Empty();
@@ -248,10 +249,7 @@ bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict & PlayerO
 	MediaPlayerEventReceiver->GetEventReceivedDelegate().BindRaw(this, &FElectraPlayer::OnMediaPlayerEventReceived);
 	NewPlayer->AdaptivePlayer->AddAEMSReceiver(MediaPlayerEventReceiver, TEXT("*"), TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnReceive);
 
-	if (!NewPlayer->AdaptivePlayer->Initialize(PlayerOptions))
-	{
-		// FIXME: Can Initialize() fail? If so, we'd need to handle the error here.
-	}
+	NewPlayer->AdaptivePlayer->Initialize(PlayerOptions);
 
 	// Check for options that can be changed during playback and apply them at startup already.
 	// If a media source supports the MaxResolutionForMediaStreaming option then we can override the max resolution.
@@ -307,7 +305,7 @@ void FElectraPlayer::CloseInternal(bool bKillAfterClose)
 	State = EPlayerState::Closed;
 	MediaUrl = FString();
 	PlaystartOptions.TimeOffset.Reset();
-	PlaystartOptions.AudioTrackIndex.Reset();
+	PlaystartOptions.InitialAudioTrackAttributes.Reset();
 
 	// Next we detach ourselves from the renderers. This ensures we do not get any further data from them
 	// via OnVideoDecoded() and OnAudioDecoded(). It also means we do not get any calls to OnVideoFlush() and OnAudioFlush()
@@ -480,7 +478,7 @@ void FElectraPlayer::Tick(FTimespan DeltaTime, FTimespan Timecode)
 				}
 			}
 		}
-		
+
 		// Process accumulated player events.
 		HandleDeferredPlayerEvents();
 		if (bHasPendingError)
@@ -971,6 +969,44 @@ int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 	}
 	else if (TrackType == EPlayerTrackType::Audio)
 	{
+		/*
+			To reduce the overhead of this function we check for the track the underlying player has
+			actually selected only when we were told the tracks changed.
+
+			It is possible that the underlying player changes the track automatically as playback progresses.
+			For instance, when playing a DASH stream consisting of several periods the player needs to re-select
+			the audio stream when transitioning from one period into the next, which may change the index of
+			the selected track.
+		*/
+		if (bAudioTrackIndexDirty)
+		{
+			bAudioTrackIndexDirty = false;
+
+			if (NumTracksAudio == 0)
+			{
+				SelectedAudioTrackIndex = -1;
+			}
+			else
+			{
+				TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+				if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+				{
+					if (CurrentPlayer->AdaptivePlayer->IsTrackDeselected(Electra::EStreamType::Audio))
+					{
+						SelectedAudioTrackIndex = -1;
+					}
+					else
+					{
+						Electra::FStreamSelectionAttributes Attributes;
+						CurrentPlayer->AdaptivePlayer->GetSelectedTrackAttributes(Attributes, Electra::EStreamType::Audio);
+						if (Attributes.OverrideIndex.IsSet())
+						{
+							SelectedAudioTrackIndex = Attributes.OverrideIndex.GetValue();
+						}
+					}
+				}
+			}
+		}
 		return SelectedAudioTrackIndex;
 	}
 	return -1;
@@ -983,11 +1019,11 @@ FText FElectraPlayer::GetTrackDisplayName(EPlayerTrackType TrackType, int32 Trac
 	{
 		if (TrackType == EPlayerTrackType::Video)
 		{
-			return FText::FromString(FString::Printf(TEXT("Video Track ID %s"), *Meta->TrackID));
+			return FText::FromString(FString::Printf(TEXT("Video Track ID %s"), *Meta->ID));
 		}
 		else if (TrackType == EPlayerTrackType::Audio)
 		{
-			return FText::FromString(FString::Printf(TEXT("Audio Track ID %s"), *Meta->TrackID));
+			return FText::FromString(FString::Printf(TEXT("Audio Track ID %s"), *Meta->ID));
 		}
 	}
 	return FText();
@@ -1014,6 +1050,32 @@ FString FElectraPlayer::GetTrackName(EPlayerTrackType TrackType, int32 TrackInde
 	return TEXT("");
 }
 
+
+/**
+ * Selects a specified track for playback.
+ * 
+ * Note:
+ *   There is currently no concept of selecting a track based on metadata, only by index.
+ *   The idea being that before selecting a track by index the application needs to check
+ *   the metadata beforehand (eg. call GetTrackLanguage()) to figure out the index of the
+ *   track it wants to play.
+ * 
+ *   The underlying player however needs to select tracks based on metadata alone instead
+ *   of an index in case the track layout changes dynamically during playback.
+ *   For example, a part of the presentation could have both English and French audio,
+ *   followed by a part (say, an advertisement) that only has English audio, followed
+ *   by the continued regular part that has both. Without any user intervention the
+ *   player needs to automatically switch from French to English and back to French, or
+ *   index 1 -> 0 -> 1 (assuming French was the starting language of choice).
+ *   Indices are therefore meaningless to the underlying player.
+ * 
+ *   SelectTrack() is currently called implicitly by FMediaPlayerFacade::SelectDefaultTracks()
+ *   when EMediaEvent::TracksChanged is received. This is why this event is NOT sent out
+ *   in HandlePlayerEventTracksChanged() when the underlying player notifies us about a
+ *   change in track layout.
+ *   Other than the very first track selection made by the facade this method should only
+ *   be called from a direct user interaction.
+ */
 bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 {
 	if (TrackType == EPlayerTrackType::Audio)
@@ -1021,20 +1083,35 @@ bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 		// Select a track or deselect?
 		if (TrackIndex >= 0)
 		{
-			// Do a quick check if the track index is valid by checking the presence of the track metadata.
+			// Check if the track index exists by checking the presence of the track metadata.
+			// If for some reason the index is not valid the selection will not be changed.
 			TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Audio, TrackIndex);
 			if (Meta.IsValid())
 			{
-				PlaystartOptions.AudioTrackIndex = TrackIndex;
-				SelectedAudioTrackIndex = TrackIndex;
-
-				// Note: Selecting the audio track does not have an immediate effect at the moment.
-				//       The player does not switch tracks dynamically. We are still setting it here
-				//       because it will stick on the next seek, so we have at least that.
-				TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
-				if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+				// Switch only when the track index has changed.
+				if (GetSelectedTrack(TrackType) != TrackIndex)
 				{
-					CurrentPlayer->AdaptivePlayer->SelectTrackByMetadata(Electra::EStreamType::Audio, *Meta);
+					Electra::FStreamSelectionAttributes AudioAttributes;
+					AudioAttributes.OverrideIndex = TrackIndex;
+
+					PlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride = TrackIndex;
+					if (!Meta->Kind.IsEmpty())
+					{
+						AudioAttributes.Kind = Meta->Kind;
+						PlaystartOptions.InitialAudioTrackAttributes.Kind = Meta->Kind;
+					}
+					if (!Meta->Language.IsEmpty())
+					{
+						AudioAttributes.Language_ISO639 = Meta->Language;
+						PlaystartOptions.InitialAudioTrackAttributes.Language_ISO639 = Meta->Language;
+					}
+					TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+					if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+					{
+						CurrentPlayer->AdaptivePlayer->SelectTrackByAttributes(Electra::EStreamType::Audio, AudioAttributes);
+					}
+
+					SelectedAudioTrackIndex = TrackIndex;
 				}
 				return true;
 			}
@@ -1042,8 +1119,8 @@ bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 		else
 		{
 			// Deselect audio track.
-			PlaystartOptions.AudioTrackIndex = TrackIndex;
-			SelectedAudioTrackIndex = TrackIndex;
+			PlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride = -1;
+			SelectedAudioTrackIndex = -1;
 			TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
 			if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 			{
@@ -1282,7 +1359,7 @@ void FElectraPlayer::HandleDeferredPlayerEvents()
 				break;
 			case FPlayerMetricEventBase::EType::DroppedAudioFrame:
 				HandlePlayerEventDroppedAudioFrame();
-				break; 
+				break;
 			default:
 				break;
 		}
@@ -1347,6 +1424,58 @@ void FElectraPlayer::HandlePlayerEventReceivedPlaylists()
 
 	UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Received initial stream playlists"), this, CurrentPlayer.Get());
 
+	Electra::FTimeRange MediaTimeline;
+	Electra::FTimeValue MediaDuration;
+	CurrentPlayer->AdaptivePlayer->GetTimelineRange(MediaTimeline);
+	MediaDuration = CurrentPlayer->AdaptivePlayer->GetDuration();
+
+	// Update statistics
+	StatisticsLock.Lock();
+	// Note the time it took to get the stream playlist
+	Statistics.TimeToLoadStreamPlaylists = FPlatformTime::Seconds() - Statistics.TimeAtOpen;
+	Statistics.LastState = "Idle";
+	// Establish the timeline and duration.
+	Statistics.MediaTimelineAtStart = MediaTimeline;
+	Statistics.MediaTimelineAtEnd = MediaTimeline;
+	Statistics.MediaDuration = MediaDuration.IsInfinity() ? -1.0 : MediaDuration.GetAsSeconds();
+	// Get the video bitrates and populate our number of segments per bitrate map.
+	TArray<Electra::FTrackMetadata> VideoStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(VideoStreamMetaData, Electra::EStreamType::Video);
+	NumTracksVideo = VideoStreamMetaData.Num();
+	if (NumTracksVideo)
+	{
+		for(int32 i=0; i<VideoStreamMetaData[0].StreamDetails.Num(); ++i)
+		{
+			UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Found %d * %d video stream at bitrate %d"), this, CurrentPlayer.Get(),
+												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Width,
+												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Height,
+												VideoStreamMetaData[0].StreamDetails[i].Bandwidth);
+		}
+	}
+	StatisticsLock.Unlock();
+
+	SelectedVideoTrackIndex = NumTracksVideo ? 0 : -1;
+
+	// Enqueue a "PlaylistsLoaded" event.
+	static const FString kEventNameElectraPlaylistLoaded(TEXT("Electra.PlaylistsLoaded"));
+	if (Electra::IsAnalyticsEventEnabled(kEventNameElectraPlaylistLoaded))
+	{
+		TSharedPtr<FAnalyticsEvent> AnalyticEvent = CreateAnalyticsEvent(kEventNameElectraPlaylistLoaded);
+		EnqueueAnalyticsEvent(AnalyticEvent);
+	}
+
+	TArray<Electra::FTrackMetadata> AudioStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(AudioStreamMetaData, Electra::EStreamType::Audio);
+	NumTracksAudio = AudioStreamMetaData.Num();
+
+	// Set the initial audio track selection attributes.
+	Electra::FStreamSelectionAttributes InitialAudioAttributes;
+	InitialAudioAttributes.Kind = PlaystartOptions.InitialAudioTrackAttributes.Kind;
+	InitialAudioAttributes.Language_ISO639 = PlaystartOptions.InitialAudioTrackAttributes.Language_ISO639;
+	InitialAudioAttributes.OverrideIndex = PlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride;
+	CurrentPlayer->AdaptivePlayer->SetInitialStreamAttributes(Electra::EStreamType::Audio, InitialAudioAttributes);
+
+
 	// Set up the initial playback position
 	IAdaptiveStreamingPlayer::FSeekParam playParam;
 	// First we look at any potential time offset specified in the playstart options.
@@ -1381,81 +1510,6 @@ void FElectraPlayer::HandlePlayerEventReceivedPlaylists()
 		}
 	}
 
-
-
-	Electra::FTimeRange MediaTimeline;
-	Electra::FTimeValue MediaDuration;
-	CurrentPlayer->AdaptivePlayer->GetTimelineRange(MediaTimeline);
-	MediaDuration = CurrentPlayer->AdaptivePlayer->GetDuration();
-
-	// Update statistics
-	StatisticsLock.Lock();
-	// Note the time it took to get the stream playlist
-	Statistics.TimeToLoadStreamPlaylists = FPlatformTime::Seconds() - Statistics.TimeAtOpen;
-	Statistics.LastState = "Idle";
-	// Establish the timeline and duration.
-	Statistics.MediaTimelineAtStart = MediaTimeline;
-	Statistics.MediaTimelineAtEnd = MediaTimeline;
-	Statistics.MediaDuration = MediaDuration.IsInfinity() ? -1.0 : MediaDuration.GetAsSeconds();
-	// Get the video bitrates and populate our number of segments per bitrate map.
-	TArray<Electra::FTrackMetadata> VideoStreamMetaData;
-	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(VideoStreamMetaData, Electra::EStreamType::Video);
-	NumTracksVideo = VideoStreamMetaData.Num();
-	if (NumTracksVideo)
-	{
-		for(int32 i=0; i<VideoStreamMetaData[0].StreamDetails.Num(); ++i)
-		{
-			UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Found %d * %d video stream at bitrate %d"), this, CurrentPlayer.Get(), 
-												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Width,
-												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Height,
-												VideoStreamMetaData[0].StreamDetails[i].Bandwidth);
-		}
-	}
-	StatisticsLock.Unlock();
-
-	SelectedVideoTrackIndex = NumTracksVideo ? 0 : -1;
-
-	// Enqueue a "PlaylistsLoaded" event.
-	static const FString kEventNameElectraPlaylistLoaded(TEXT("Electra.PlaylistsLoaded"));
-	if (Electra::IsAnalyticsEventEnabled(kEventNameElectraPlaylistLoaded))
-	{
-		TSharedPtr<FAnalyticsEvent> AnalyticEvent = CreateAnalyticsEvent(kEventNameElectraPlaylistLoaded);
-		EnqueueAnalyticsEvent(AnalyticEvent);
-	}
-
-	TArray<Electra::FTrackMetadata> AudioStreamMetaData;
-	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(AudioStreamMetaData, Electra::EStreamType::Audio);
-	NumTracksAudio = AudioStreamMetaData.Num();
-
-	// Select the desired audio track by hard metadata index.
-	if (NumTracksAudio)
-	{
-		SelectedAudioTrackIndex = 0;
-
-		if (PlaystartOptions.AudioTrackIndex.IsSet())
-		{
-			int32 HardAudioTrackIndex = PlaystartOptions.AudioTrackIndex.GetValue();
-			if (HardAudioTrackIndex >= 0)
-			{
-				if (HardAudioTrackIndex >= NumTracksAudio)
-				{
-					HardAudioTrackIndex = 0;
-				}
-				SelectedAudioTrackIndex = HardAudioTrackIndex;
-				CurrentPlayer->AdaptivePlayer->SelectTrackByMetadata(Electra::EStreamType::Audio, AudioStreamMetaData[HardAudioTrackIndex]);
-			}
-			else
-			{
-				SelectedAudioTrackIndex = -1;
-				CurrentPlayer->AdaptivePlayer->DeselectTrack(Electra::EStreamType::Audio);
-			}
-		}
-	}
-	else
-	{
-		SelectedAudioTrackIndex = -1;
-	}
-
 	// Trigger buffering at the intended start time.
 	CurrentPlayer->AdaptivePlayer->SeekTo(playParam);
 }
@@ -1469,7 +1523,7 @@ void FElectraPlayer::HandlePlayerEventTracksChanged()
 	{
 		for(int32 i=0; i<VideoStreamMetaData[0].StreamDetails.Num(); ++i)
 		{
-			UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Found %d * %d video stream at bitrate %d"), this, CurrentPlayer.Get(), 
+			UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Found %d * %d video stream at bitrate %d"), this, CurrentPlayer.Get(),
 												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Width,
 												VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Height,
 												VideoStreamMetaData[0].StreamDetails[i].Bandwidth);
@@ -1479,8 +1533,12 @@ void FElectraPlayer::HandlePlayerEventTracksChanged()
 	TArray<Electra::FTrackMetadata> AudioStreamMetaData;
 	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(AudioStreamMetaData, Electra::EStreamType::Audio);
 	NumTracksAudio = AudioStreamMetaData.Num();
+	bAudioTrackIndexDirty = true;
 
-	DeferredEvents.Enqueue(IElectraPlayerAdapterDelegate::EPlayerEvent::TracksChanged);
+	/*
+	Note: Do not send TracksChanged here since this would trigger a re-selecting of the default tracks.
+		DeferredEvents.Enqueue(IElectraPlayerAdapterDelegate::EPlayerEvent::TracksChanged);
+	*/
 }
 
 
@@ -1742,7 +1800,7 @@ void FElectraPlayer::HandlePlayerEventVideoQualityChange(int32 NewBitrate, int32
 			if (VideoStreamMetaData[0].StreamDetails[i].Bandwidth == NewBitrate)
 			{
 				SelectedQuality = i;
-				Statistics.CurrentlyActivePlaylistURL = VideoStreamMetaData[0].TrackID;
+				Statistics.CurrentlyActivePlaylistURL = VideoStreamMetaData[0].ID;
 				Statistics.CurrentlyActiveResolutionWidth = VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Width;
 				Statistics.CurrentlyActiveResolutionHeight = VideoStreamMetaData[0].StreamDetails[i].CodecInformation.GetResolution().Height;
 				break;
@@ -2353,10 +2411,7 @@ void FElectraPlayer::MediaStateOnEndReached()
 		// NOP
 		break;
 	}
-	DeferredEvents.Enqueue(IElectraPlayerAdapterDelegate::EPlayerEvent::TracksChanged);
 	State = EPlayerState::Stopped;
-
-	//Call player close()
 }
 
 void FElectraPlayer::MediaStateOnSeekFinished()

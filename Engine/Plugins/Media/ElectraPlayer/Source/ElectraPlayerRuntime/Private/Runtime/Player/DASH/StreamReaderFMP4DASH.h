@@ -62,6 +62,7 @@ public:
 
 
 	// Internal work variables
+	TSharedPtrTS<FBufferSourceInfo>							SourceBufferInfo;
 	FPlayerLoopState										PlayerLoopState;
 	int32													NumOverallRetries = 0;								//!< Number of retries for this _segment_ across all possible quality levels and CDNs.
 	uint32													CurrentPlaybackSequenceID = ~0U;					//!< Set by the player before adding the request to the stream reader.
@@ -89,6 +90,9 @@ public:
 
 	//! Adds a request to read from a stream
 	virtual EAddResult AddRequest(uint32 CurrentPlaybackSequenceID, TSharedPtrTS<IStreamSegment> Request) override;
+
+	//! Cancels any ongoing requests of the given stream type. Silent cancellation will not notify OnFragmentClose() or OnFragmentReachedEOS(). 
+	virtual void CancelRequest(EStreamType StreamType, bool bSilent) override;
 
 	//! Cancels all pending requests.
 	virtual void CancelRequests() override;
@@ -120,8 +124,10 @@ private:
 		IStreamReader::CreateParam								Parameters;
 		TSharedPtrTS<FStreamSegmentRequestFMP4DASH>				CurrentRequest;
 		FMediaSemaphore											WorkSignal;
+		FMediaEvent												IsIdleSignal;
 		volatile bool											bTerminate = false;
 		volatile bool											bRequestCanceled = false;
+		volatile bool											bSilentCancellation = false;
 		volatile bool											bHasErrored = false;
 		bool													bAbortedByABR = false;
 		bool													bAllowEarlyEmitting = false;
@@ -146,7 +152,7 @@ private:
 
 		FStreamHandler();
 		virtual ~FStreamHandler();
-		void Cancel();
+		void Cancel(bool bSilent);
 		void SignalWork();
 		void WorkerThread();
 		void HandleRequest();

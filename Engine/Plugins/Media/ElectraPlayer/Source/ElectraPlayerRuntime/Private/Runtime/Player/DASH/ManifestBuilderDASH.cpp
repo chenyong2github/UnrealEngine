@@ -23,6 +23,7 @@
 #include "Utilities/URLParser.h"
 #include "Utilities/Utilities.h"
 #include "Utilities/TimeUtilities.h"
+#include "Utilities/ISO639-Map.h"
 
 #include "Player/DRM/DRMManager.h"
 
@@ -1232,10 +1233,10 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 			// Keeping the index helps locate the adaptation set in the enclosing period's adaptation set array.
 			// Even with MPD updates the adaptation sets are not permitted to change so in theory the index will
 			// be valid at all times.
-			AdaptationSet->IndexOfSelf = nAdapt;
+			AdaptationSet->UniqueSequentialSetIndex = nAdapt;
 			AdaptationSet->AdaptationSet = MPDAdaptationSet;
 			AdaptationSet->PAR = MPDAdaptationSet->GetPAR();
-			AdaptationSet->Language = MPDAdaptationSet->GetLanguage();
+			AdaptationSet->Language = ISO639::RFC5646To639_1(MPDAdaptationSet->GetLanguage());
 
 			// Content components are not supported.
 			if (MPDAdaptationSet->GetContentComponents().Num())
@@ -1317,11 +1318,15 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 						LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("Unsupported Accessibility type \"%s\" found."), *Accessibility));
 					}
 				}
-				// Note: 608 captions are recognized but not 708 ones.
 				else if (MPDAdaptationSet->GetAccessibilities()[nAcc]->GetSchemeIdUri().Equals(TEXT("urn:scte:dash:cc:cea-608:2015")))
 				{
 					// We do not parse this out here. We prepend a "608:" prefix and take the value verbatim for now.
 					AdaptationSet->Accessibilities.Emplace(FString(TEXT("608:"))+MPDAdaptationSet->GetAccessibilities()[nAcc]->GetValue());
+				}
+				else if (MPDAdaptationSet->GetAccessibilities()[nAcc]->GetSchemeIdUri().Equals(TEXT("urn:scte:dash:cc:cea-708:2015")))
+				{
+					// We do not parse this out here. We prepend a "708:" prefix and take the value verbatim for now.
+					AdaptationSet->Accessibilities.Emplace(FString(TEXT("708:"))+MPDAdaptationSet->GetAccessibilities()[nAcc]->GetValue());
 				}
 			}
 
@@ -1573,7 +1578,6 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 				AdaptationSet->bIsUsable = true;
 				Period->AdaptationSets.Emplace(AdaptationSet);
 			}
-
 		}
 		Period->SetHasBeenPrepared(true);
 	}

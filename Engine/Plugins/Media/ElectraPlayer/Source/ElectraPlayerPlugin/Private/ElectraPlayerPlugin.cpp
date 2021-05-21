@@ -326,7 +326,13 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 	if (InPlayerOptions)
 	{
 		LocalPlaystartOptions.TimeOffset = InPlayerOptions->SeekTime;
-		LocalPlaystartOptions.AudioTrackIndex = InPlayerOptions->Tracks.Audio;
+		LocalPlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride = InPlayerOptions->Tracks.Audio;
+	}
+	FString InitialAudioLanguage = Options->GetMediaOption(TEXT("InitialAudioLanguage"), FString());
+	if (InitialAudioLanguage.Len())
+	{
+		LocalPlaystartOptions.InitialAudioTrackAttributes.Language_ISO639 = InitialAudioLanguage;
+		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Asking for initial audio language \"%s\""), this, *InitialAudioLanguage);
 	}
 
 	// Set up options to initialize the internal player with.

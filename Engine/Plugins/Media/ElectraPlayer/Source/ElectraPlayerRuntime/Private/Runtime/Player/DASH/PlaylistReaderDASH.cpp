@@ -140,6 +140,7 @@ private:
 
 	// Time synchronization.
 	TArray<TSharedPtrTS<FDashMPD_DescriptorType>>			AttemptedTimesyncDescriptors;
+	FTimeValue												NextTimeSyncTime;
 	bool													bTimeSyncInProgress = false;
 	bool													bInitialTimeSyncedToMPDDateTimeHeader = false;
 
@@ -575,6 +576,9 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 		return;
 	}
 
+	// We're doing a sync now. Clear the next time.
+	NextTimeSyncTime.SetToInvalid();
+
 	// Time sync is only necessary when there is either an MPD@availabilityStartTime or MPD@type is dynamic.
 	if (Manifest.IsValid() && (Manifest->UsesAST() || !Manifest->IsStaticType()))
 	{
@@ -690,6 +694,24 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 					LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No supported <UTCTiming> element found in MPD, but time was synchronized to the MPD's HTTP response Date header. This may not be accurate enough.")));
 				}
 			}
+
+			// Do not re-sync the time too often.
+			const FTimeValue MinResyncTimeInterval(120.0);		// not sooner than every 120 seconds.
+			const FTimeValue MaxResyncTimeInterval(1800.0);	// at least once every 30 minutes.
+
+			FTimeValue ResyncTimeInterval(MinResyncTimeInterval);
+			// How frequently does the MPD update?
+			FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
+			if (mup.IsValid() && mup > MinResyncTimeInterval)
+			{
+				ResyncTimeInterval = mup;
+			}
+			if (ResyncTimeInterval > MaxResyncTimeInterval)
+			{
+				ResyncTimeInterval = MaxResyncTimeInterval;
+			}
+
+			NextTimeSyncTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime() + ResyncTimeInterval;
 		}
 	}
 }
@@ -704,6 +726,8 @@ void FPlaylistReaderDASH::WorkerThread()
 	bInbandEventByStreamType[0] = false;
 	bInbandEventByStreamType[1] = false;
 	bInbandEventByStreamType[2] = false;
+
+	NextTimeSyncTime.SetToInvalid();
 
 	// Register event callbacks
 	PlayerSessionServices->GetAEMSEventHandler()->AddAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012, TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart, false);
@@ -738,6 +762,12 @@ void FPlaylistReaderDASH::WorkerThread()
 
 		// Check if the MPD must be updated.
 		CheckForMPDUpdate();
+
+		// Time sync
+		if (NextTimeSyncTime.IsValid() && Now >= NextTimeSyncTime)
+		{
+			TriggerTimeSynchronization();
+		}
 	}
 
 	// Unregister event callbacks
@@ -1089,7 +1119,10 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 					NewManifest->SetURLFragmentComponents(MoveTemp(URLFragmentComponents));
 				}
 				Manifest = NewManifest;
-				TriggerTimeSynchronization();
+
+				// Set the next time sync time to zero to cause a time sync as soon as possible.
+				NextTimeSyncTime.SetToZero();
+
 				if (Manifest.IsValid())
 				{
 					// Note: This is not like the standard defines FetchTime. It should be the time the server is processing the request
@@ -1227,7 +1260,6 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 					// Also update in the external manifest we handed out to the player.
 					PlayerManifest->UpdateInternalManifest(Manifest);
 
-					TriggerTimeSynchronization();
 					if (Manifest.IsValid())
 					{
 						Manifest->GetMPDRoot()->SetFetchTime(FetchTime);
