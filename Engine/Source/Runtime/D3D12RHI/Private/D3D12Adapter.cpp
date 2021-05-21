@@ -1293,13 +1293,15 @@ void FD3D12Adapter::EndFrame()
 #endif
 
 #if TRACK_RESOURCE_ALLOCATIONS
+	FScopeLock Lock(&TrackedAllocationDataCS);
+
 	// remove tracked released resources older than n amount of frames
-	static const uint64 FrameRetention = 100;
+	static const uint64 ReleaseFrameRetention = 100;
 	int32 ReleaseCount = 0;
 	uint64 CurrentFrameID = GetFrameFence().GetCurrentFence();
 	for (; ReleaseCount < ReleasedAllocationData.Num(); ++ReleaseCount)
 	{
-		if (ReleasedAllocationData[ReleaseCount].ReleasedFrameID + FrameRetention > CurrentFrameID)
+		if (ReleasedAllocationData[ReleaseCount].ReleasedFrameID + ReleaseFrameRetention > CurrentFrameID)
 		{
 			break;
 		}
@@ -1452,6 +1454,37 @@ void FD3D12Adapter::ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAlloc
 #endif
 }
 
+
+void FD3D12Adapter::TrackHeapAllocation(FD3D12Heap* InHeap)
+{
+#if TRACK_RESOURCE_ALLOCATIONS
+	FScopeLock Lock(&TrackedAllocationDataCS);
+	check(!TrackedHeaps.Contains(InHeap));
+	TrackedHeaps.Add(InHeap);
+#endif
+}
+
+void FD3D12Adapter::ReleaseTrackedHeap(FD3D12Heap* InHeap)
+{
+#if TRACK_RESOURCE_ALLOCATIONS
+	FScopeLock Lock(&TrackedAllocationDataCS);
+
+	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress = InHeap->GetGPUVirtualAddress();
+	if (GPUVirtualAddress != 0 || IsTrackingAllAllocations())
+	{
+		FReleasedAllocationData ReleasedData;
+		ReleasedData.GPUVirtualAddress	= GPUVirtualAddress;
+		ReleasedData.AllocationSize		= InHeap->GetHeapDesc().SizeInBytes;
+		ReleasedData.ResourceName		= InHeap->GetName();
+		ReleasedData.ReleasedFrameID	= GetFrameFence().GetCurrentFence();
+		ReleasedData.bHeap				= true;
+		ReleasedAllocationData.Add(ReleasedData);
+	}
+
+	verify(TrackedHeaps.Remove(InHeap) == 1);
+#endif
+}
+
 void FD3D12Adapter::FindResourcesNearGPUAddress(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, uint64 InRange, TArray<FAllocatedResourceResult>& OutResources)
 {
 #if TRACK_RESOURCE_ALLOCATIONS
@@ -1468,7 +1501,7 @@ void FD3D12Adapter::FindResourcesNearGPUAddress(D3D12_GPU_VIRTUAL_ADDRESS InGPUV
 		{
 			bool bContainsAllocation = AllocationRange.Contains(InGPUVirtualAddress);
 			int64 Distance = bContainsAllocation ? 0 : ((InGPUVirtualAddress < GPUAddress) ? GPUAddress - InGPUVirtualAddress : InGPUVirtualAddress - AllocationRange.GetUpperBoundValue());
-			check(Distance > 0);
+			check(Distance >= 0);
 
 			FAllocatedResourceResult Result;
 			Result.Allocation = AllocationData.ResourceAllocation;
@@ -1482,6 +1515,23 @@ void FD3D12Adapter::FindResourcesNearGPUAddress(D3D12_GPU_VIRTUAL_ADDRESS InGPUV
 		{
 			return InLHS.Distance < InRHS.Distance;
 		});
+#endif
+}
+
+void FD3D12Adapter::FindHeapsContainingGPUAddress(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, TArray<FD3D12Heap*>& OutHeaps)
+{
+#if TRACK_RESOURCE_ALLOCATIONS
+	FScopeLock Lock(&TrackedAllocationDataCS);
+
+	for (FD3D12Heap* AllocatedHeap : TrackedHeaps)
+	{
+		D3D12_GPU_VIRTUAL_ADDRESS GPUAddress = AllocatedHeap->GetGPUVirtualAddress();
+		FInt64Range HeapRange((int64)GPUAddress, (int64)(GPUAddress + AllocatedHeap->GetHeapDesc().SizeInBytes));
+		if (HeapRange.Contains(InGPUVirtualAddress))
+		{			
+			OutHeaps.Add(AllocatedHeap);
+		}
+	}
 #endif
 }
 

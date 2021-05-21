@@ -567,7 +567,10 @@ void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPage
 		return;
 	}
 
+	FD3D12ManualFence& FrameFence = InAdapter->GetFrameFence();
+
 	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: PageFault at VA GPUAddress \"0x%llX\""), (long long)InPageFaultAddress);
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Last completed frame ID: %d (cached: %d) - Current frame ID: %d"), FrameFence.PeekLastCompletedFence(), FrameFence.GetLastCompletedFenceFast(), FrameFence.GetCurrentFence());
 	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Logging all resource enabled: %s"), InAdapter->IsTrackingAllAllocations() ? TEXT("Yes") : TEXT("No"));
 
 	// Try and find all current allocations near that range
@@ -594,17 +597,28 @@ void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPage
 		}
 	}
 
+	// Try and find all current heaps containing the page fault address
+	TArray<FD3D12Heap*> OverlappingHeaps;
+	InAdapter->FindHeapsContainingGPUAddress(InPageFaultAddress, OverlappingHeaps);
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Found %d active heaps containing page fault address"), OverlappingHeaps.Num());
+	for (int32 Index = 0; Index < OverlappingHeaps.Num(); ++Index)
+	{
+		FD3D12Heap* Heap = OverlappingHeaps[Index];
+		UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: \"0x%llX\" - Size: %3.2f MB - Name: %s"),
+			(long long)Heap->GetGPUVirtualAddress(), Heap->GetHeapDesc().SizeInBytes / (1024.0f * 1024), *(Heap->GetName().ToString()));
+	}
+
 	// Try and find all released allocations within the faulting address
 	TArray<FD3D12Adapter::FReleasedAllocationData> ReleasedResources;
 	InAdapter->FindReleasedAllocationData(InPageFaultAddress, ReleasedResources);
-	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Found %d released resources containing the page fault address during last 100 frames (current frame ID: %d)"), ReleasedResources.Num(), InAdapter->GetFrameFence().GetCurrentFence());
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Found %d released resources containing the page fault address during last 100 frames"), ReleasedResources.Num());
 	if (ReleasedResources.Num() > 0)
 	{
 		uint32 PrintCount = FMath::Min(ReleasedResources.Num(), 100);
 		for (uint32 Index = 0; Index < PrintCount; ++Index)
 		{
 			FD3D12Adapter::FReleasedAllocationData& AllocationData = ReleasedResources[Index];
-			UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: [0x%llX .. 0x%llX] - Size: %lld bytes, %3.2f MB - FrameID: %4d - DefragFree: %d - Transient: %d - Name: %s"),
+			UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: [0x%llX .. 0x%llX] - Size: %lld bytes, %3.2f MB - FrameID: %4d - DefragFree: %d - Transient: %d - Heap: %d - Name: %s"),
 				(uint64)AllocationData.GPUVirtualAddress,
 				(uint64)AllocationData.GPUVirtualAddress + AllocationData.AllocationSize,
 				AllocationData.AllocationSize,
@@ -612,6 +626,7 @@ void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPage
 				AllocationData.ReleasedFrameID,
 				AllocationData.bDefragFree,
 				AllocationData.bTransient,
+				AllocationData.bHeap,
 				*AllocationData.ResourceName.ToString());
 		}
 	}
