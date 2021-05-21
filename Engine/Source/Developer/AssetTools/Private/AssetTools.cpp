@@ -3034,6 +3034,10 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 		}
 		LogMessage = FText::FromString(ErrorMessage);
 	}
+	else if (bUserCanceled)
+	{
+		LogMessage = LOCTEXT("MigratePackages_CanceledPage", "Content migration was canceled.");
+	}
 	else if ( !bUserCanceled )
 	{
 		MigrateLog.NewPage( LOCTEXT("MigratePackages_CompletePage", "Content migration completed successfully!") );
