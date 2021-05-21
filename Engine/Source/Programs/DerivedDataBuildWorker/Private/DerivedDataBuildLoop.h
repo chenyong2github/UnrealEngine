@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildFunction.h"
 #include "DerivedDataBuildWorkerInterface.h"
 #include "Serialization/CompactBinary.h"
@@ -34,7 +35,7 @@ private:
 		const FString OutputFilePath;
 		const FString InputPath;
 		const FString OutputPath;
-		const FCbObject BuildAction;
+		const FBuildAction BuildAction;
 
 		FBuildActionRecord(const FString& InSourceFilePath, const FString& InCommonInputPath, const FString& InCommonOutputPath, FSharedBuffer&& InSharedBuffer);
 	};

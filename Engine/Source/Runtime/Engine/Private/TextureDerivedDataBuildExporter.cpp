@@ -4,12 +4,16 @@
 
 #if WITH_EDITOR
 
+#include "DerivedDataBuild.h"
+#include "DerivedDataBuildAction.h"
+#include "DerivedDataBuildOutput.h"
 #include "DerivedDataPayload.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatManagerModule.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/FileHelper.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryPackage.h"
@@ -87,9 +91,10 @@ static void WriteCbField(FCbWriter& Writer, const FAnsiStringView& Name, const F
 	Writer.EndArray();
 }
 
-static void WriteBuildSettingsToCompactBinary(FCbWriter& Writer, const FAnsiStringView& Name, const FTextureBuildSettings& BuildSettings, const ITextureFormat* TextureFormat)
+static FCbObject WriteBuildSettingsToCompactBinary(const FTextureBuildSettings& BuildSettings, const ITextureFormat* TextureFormat)
 {
-	Writer.BeginObject(Name);
+	FCbWriter Writer;
+	Writer.BeginObject();
 
 	if (BuildSettings.FormatConfigOverride)
 	{
@@ -168,11 +173,14 @@ static void WriteBuildSettingsToCompactBinary(FCbWriter& Writer, const FAnsiStri
 	Writer.AddBool("bHasEditorOnlyData", BuildSettings.bHasEditorOnlyData);
 
 	Writer.EndObject();
+	return Writer.Save().AsObject();
 }
 
-static void WriteOutputSettingsToCompactBinary(FCbWriter& Writer, const FAnsiStringView& Name, int32 NumInlineMips, const FString& KeySuffix)
+static FCbObject WriteOutputSettingsToCompactBinary(int32 NumInlineMips, const FString& KeySuffix)
 {
-	Writer.BeginObject(Name);
+	FCbWriter Writer;
+	Writer.BeginObject();
+
 	Writer.AddInteger("NumInlineMips", NumInlineMips);
 	
 	FString MipDerivedDataKey;
@@ -187,11 +195,13 @@ static void WriteOutputSettingsToCompactBinary(FCbWriter& Writer, const FAnsiStr
 	Writer.AddString("MipKeyPrefix",*MipDerivedDataKey);
 
 	Writer.EndObject();
+	return Writer.Save().AsObject();
 }
 
-static void WriteTextureSourceToCompactBinary(FCbWriter& Writer, const FAnsiStringView& Name, const FTextureSource& TextureSource, EGammaSpace GammaSpace)
+static FCbObject WriteTextureSourceToCompactBinary(const FTextureSource& TextureSource, EGammaSpace GammaSpace)
 {
-	Writer.BeginObject(Name);
+	FCbWriter Writer;
+	Writer.BeginObject();
 
 	Writer.AddString("Input", TextureSource.GetIdString());
 	Writer.AddInteger("CompressionFormat", TextureSource.GetSourceCompression());
@@ -215,6 +225,7 @@ static void WriteTextureSourceToCompactBinary(FCbWriter& Writer, const FAnsiStri
 	Writer.EndArray();
 
 	Writer.EndObject();
+	return Writer.Save().AsObject();
 }
 
 static FIoHash HashAndWriteToCompressedBufferFile(const FString& Directory, const void* InData, uint64 InDataSize)
@@ -223,7 +234,7 @@ static FIoHash HashAndWriteToCompressedBufferFile(const FString& Directory, cons
 	TStringBuilder<128> DataHashStringBuilder;
 	DataHashStringBuilder << DataHash;
 
-	FCompressedBuffer CompressedBufferContents = FCompressedBuffer::Compress(NAME_None, FSharedBuffer::MakeView(InData, InDataSize));
+	FCompressedBuffer CompressedBufferContents = FCompressedBuffer::Compress(NAME_Default, FSharedBuffer::MakeView(InData, InDataSize));
 	if (TUniquePtr<FArchive> FileAr{IFileManager::Get().CreateFileWriter(*(Directory / *DataHashStringBuilder), FILEWRITE_NoReplaceExisting)})
 	{
 		*FileAr << CompressedBufferContents;
@@ -231,7 +242,7 @@ static FIoHash HashAndWriteToCompressedBufferFile(const FString& Directory, cons
 	return DataHash;
 }
 
-static FIoHash ExportTextureBulkDataAttachment(const FString& ExportRoot, FTextureSource& TextureSource)
+static FIoHash ExportTextureBulkDataAttachment(const FString& ExportRoot, FTextureSource& TextureSource, uint64& OutSize)
 {
 	const FString BuildInputPath = ExportRoot / TEXT("Inputs");
 
@@ -240,12 +251,14 @@ static FIoHash ExportTextureBulkDataAttachment(const FString& ExportRoot, FTextu
 
 	if (!bExporting)
 	{
+		OutSize = 0;
 		return FIoHash();
 	}
 
 	FIoHash BulkDataHash;
-	TextureSource.OperateOnLoadedBulkData([&BuildInputPath, &BulkDataHash] (const FSharedBuffer& BulkDataBuffer) 
+	TextureSource.OperateOnLoadedBulkData([&BuildInputPath, &BulkDataHash, &OutSize] (const FSharedBuffer& BulkDataBuffer) 
 	{
+		OutSize = BulkDataBuffer.GetSize();
 		BulkDataHash = HashAndWriteToCompressedBufferFile(BuildInputPath, BulkDataBuffer.GetData(), BulkDataBuffer.GetSize());
 	});
 
@@ -258,6 +271,13 @@ void FTextureDerivedDataBuildExporter::Init(const FString& InKeySuffix)
 	bEnabled = bExportsEnabled;
 	if (!bEnabled)
 	{
+		return;
+	}
+
+	DerivedDataBuild = GetDerivedDataBuild();
+	if (!DerivedDataBuild)
+	{
+		bEnabled = false;
 		return;
 	}
 
@@ -274,7 +294,7 @@ void FTextureDerivedDataBuildExporter::ExportTextureSourceBulkData(FTextureSourc
 {
 	if (bEnabled)
 	{
-		ExportedTextureBulkDataHash = ExportTextureBulkDataAttachment(ExportRoot, TextureSource);
+		ExportedTextureBulkDataHash = ExportTextureBulkDataAttachment(ExportRoot, TextureSource, ExportedTextureBulkDataSize);
 	}
 }
 
@@ -282,7 +302,7 @@ void FTextureDerivedDataBuildExporter::ExportCompositeTextureSourceBulkData(FTex
 {
 	if (bEnabled)
 	{
-		ExportedCompositeTextureBulkDataHash = ExportTextureBulkDataAttachment(ExportRoot, TextureSource);
+		ExportedCompositeTextureBulkDataHash = ExportTextureBulkDataAttachment(ExportRoot, TextureSource, ExportedCompositeTextureBulkDataSize);
 	}
 }
 
@@ -315,51 +335,43 @@ void FTextureDerivedDataBuildExporter::ExportTextureBuild(const UTexture& Textur
 	{
 		return;
 	}
-
-	FCbWriter BuildWriter;
-	BuildWriter.BeginObject("BuildAction");
-
-	BuildWriter.BeginObject("Function");
-
 	// Texture format modules are inconsistent in their naming.  eg: TextureFormatUncompressed, PS5TextureFormat
 	// We attempt to  unify the naming here when specifying build function names.
-	TStringBuilder<64> FormatModuleNameBuilder;
-	FormatModuleNameBuilder << TextureFormatModuleName.ToString().Replace(TEXT("TextureFormat"), TEXT(""));
-	FormatModuleNameBuilder << TEXT("Texture");
+	TStringBuilder<64> BuildFunctionNameBuilder;
+	BuildFunctionNameBuilder << TextureFormatModuleName.ToString().Replace(TEXT("TextureFormat"), TEXT(""));
+	BuildFunctionNameBuilder << TEXT("Texture");
 
-	BuildWriter.AddString("Name", FormatModuleNameBuilder);
-	BuildWriter.AddString("Version", "0"); // TODO: compute module version
-	BuildWriter.EndObject();
+	BuildFunctionName = BuildFunctionNameBuilder;
+	TexturePath = Texture.GetPathName();
 
-	BuildWriter.BeginObject("Constants");
-	WriteBuildSettingsToCompactBinary(BuildWriter, "TextureBuildSettings", BuildSettings, TextureFormat);
-	WriteOutputSettingsToCompactBinary(BuildWriter, "TextureOutputSettings", NumInlineMips, KeySuffix);
+	UE::DerivedData::FBuildActionBuilder ActionBuilder = DerivedDataBuild->CreateAction(TexturePath, BuildFunctionName);
+
+	ActionBuilder.AddConstant(TEXT("TextureBuildSettings"), WriteBuildSettingsToCompactBinary(BuildSettings, TextureFormat));
+	ActionBuilder.AddConstant(TEXT("TextureOutputSettings"), WriteOutputSettingsToCompactBinary(NumInlineMips, KeySuffix));
 
 	FTextureFormatSettings TextureFormatSettings;
 	Texture.GetLayerFormatSettings(LayerIndex, TextureFormatSettings);
 	EGammaSpace TextureGammaSpace = TextureFormatSettings.SRGB ? (Texture.bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB) : EGammaSpace::Linear;
-	WriteTextureSourceToCompactBinary(BuildWriter, "TextureSource", Texture.Source, TextureGammaSpace);
+	ActionBuilder.AddConstant(TEXT("TextureSource"), WriteTextureSourceToCompactBinary(Texture.Source, TextureGammaSpace));
 	if ((bool)Texture.CompositeTexture && !ExportedCompositeTextureBulkDataHash.IsZero())
 	{
 		FTextureFormatSettings CompositeTextureFormatSettings;
 		Texture.CompositeTexture->GetLayerFormatSettings(LayerIndex, CompositeTextureFormatSettings);
 		EGammaSpace CompositeTextureGammaSpace = CompositeTextureFormatSettings.SRGB ? (Texture.CompositeTexture->bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB) : EGammaSpace::Linear;
 
-		WriteTextureSourceToCompactBinary(BuildWriter, "CompositeTextureSource", Texture.CompositeTexture->Source, CompositeTextureGammaSpace);
+		ActionBuilder.AddConstant(TEXT("CompositeTextureSource"), WriteTextureSourceToCompactBinary(Texture.CompositeTexture->Source, CompositeTextureGammaSpace));
 	}
-	BuildWriter.EndObject();
 
-	BuildWriter.BeginObject("Inputs");
-	BuildWriter.AddBinaryAttachment(TCHAR_TO_UTF8(*Texture.Source.GetIdString()), ExportedTextureBulkDataHash);
+	ActionBuilder.AddInput(Texture.Source.GetIdString(), ExportedTextureBulkDataHash, ExportedTextureBulkDataSize);
 	if ((bool)Texture.CompositeTexture && !ExportedCompositeTextureBulkDataHash.IsZero())
 	{
-		BuildWriter.AddBinaryAttachment(TCHAR_TO_UTF8(*Texture.CompositeTexture->Source.GetIdString()), ExportedCompositeTextureBulkDataHash);
+		ActionBuilder.AddInput(Texture.CompositeTexture->Source.GetIdString(), ExportedCompositeTextureBulkDataHash, ExportedCompositeTextureBulkDataSize);
 	}
-	BuildWriter.EndObject();
 
-	BuildWriter.EndObject();
 	if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*(ExportRoot / TEXT("build.uddba")))})
 	{
+		FCbWriter BuildWriter;
+		ActionBuilder.Build().Save(BuildWriter);
 		BuildWriter.Save(*Ar);
 	}
 }
@@ -377,9 +389,7 @@ void FTextureDerivedDataBuildExporter::ExportTextureOutput(FTexturePlatformData&
 	const FString OutputPath = ExportRoot / TEXT("ReferenceOutputs");
 	TArray<TPair<FString,FString>> DDCReferences;
 
-	FCbWriter BuildWriter;
-	BuildWriter.BeginObject("BuildOutput");
-	BuildWriter.BeginArray("Payloads");
+	UE::DerivedData::FBuildOutputBuilder OutputBuilder = DerivedDataBuild->CreateOutput(TexturePath, BuildFunctionName);
 
 	const int32 MipCount = PlatformData.Mips.Num();
 	const int32 FirstInlineMip = bForceAllMipsToBeInlined ? 0 : FMath::Max(0, MipCount - FMath::Max((int32)NUM_INLINE_DERIVED_MIPS, (int32)PlatformData.GetNumMipsInTail()));
@@ -402,12 +412,10 @@ void FTextureDerivedDataBuildExporter::ExportTextureOutput(FTexturePlatformData&
 		TStringBuilder<32> PayloadName;
 		PayloadName << "Mip" << MipIndex;
 
-		BuildWriter.BeginObject();
-		BuildWriter.AddObjectId("Id", FCbObjectId(UE::DerivedData::FPayloadId::FromName(*PayloadName).GetView()));
-		BuildWriter.AddInteger("RawSize", DerivedData.Num());
 		FIoHash DerivedDataHash = HashAndWriteToCompressedBufferFile(OutputPath, DerivedData.GetData(), DerivedData.Num());
-		BuildWriter.AddBinaryAttachment("RawHash", DerivedDataHash);
-		BuildWriter.EndObject();
+		UE::DerivedData::FPayload MipPayload(UE::DerivedData::FPayloadId::FromName(PayloadName), DerivedDataHash, DerivedData.Num());
+
+		OutputBuilder.AddPayload(MipPayload);
 
 		check(Mip.DerivedDataKey.IsEmpty());
 
@@ -430,25 +438,21 @@ void FTextureDerivedDataBuildExporter::ExportTextureOutput(FTexturePlatformData&
 		PlatformData.Mips[MipIndex].DerivedDataKey.Empty();
 	}
 
-	BuildWriter.BeginObject();
-	BuildWriter.AddObjectId("Id", FCbObjectId(UE::DerivedData::FPayloadId::FromName("Texture").GetView()));
-	BuildWriter.AddInteger("RawSize", RawDerivedData.Num());
 	FIoHash DerivedDataHash = HashAndWriteToCompressedBufferFile(OutputPath, RawDerivedData.GetData(), RawDerivedData.Num());
-	BuildWriter.AddBinaryAttachment("RawHash", DerivedDataHash);
-	BuildWriter.EndObject();
+	UE::DerivedData::FPayload TexturePayload(UE::DerivedData::FPayloadId::FromName("Texture"), DerivedDataHash, RawDerivedData.Num());
+
+	OutputBuilder.AddPayload(TexturePayload);
+
+	if (TUniquePtr<FArchive> FileAr{IFileManager::Get().CreateFileWriter(*(ExportRoot / TEXT("ReferenceOutput.uddbo")))})
+	{
+		FCbWriter OutputWriter;
+		OutputBuilder.Build().Save(OutputWriter);
+		OutputWriter.Save(*FileAr);
+	}
 
 	FString DerivedDataKey;
 	ShortenKey(*DerivedDataKeyLong, DerivedDataKey);
 	DDCReferences.Emplace(TEXT("Texture"), DerivedDataKey);
-
-	BuildWriter.EndArray();
-
-	BuildWriter.EndObject();
-
-	if (TUniquePtr<FArchive> FileAr{IFileManager::Get().CreateFileWriter(*(ExportRoot / TEXT("ReferenceOutput.uddbo")))})
-	{
-		BuildWriter.Save(*FileAr);
-	}
 
 	TArray<FString> DDCRefStringArray;
 	FString Separator(TEXT(","));
