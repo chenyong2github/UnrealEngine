@@ -7,6 +7,8 @@
 #if WITH_EDITOR
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
+#else
+#include "Widgets/SNullWidget.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "RemoteControlLogger"

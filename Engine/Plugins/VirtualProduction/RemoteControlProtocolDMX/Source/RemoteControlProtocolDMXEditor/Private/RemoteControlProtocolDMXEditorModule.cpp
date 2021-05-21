@@ -4,6 +4,7 @@
 
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 
 #include "RemoteControlProtocolDMX.h"
 #include "RemoteControlProtocolDMXEditorCustomization.h"
