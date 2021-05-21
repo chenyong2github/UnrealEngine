@@ -241,11 +241,7 @@ struct FUAVStage
 
 struct FOpenGLCachedAttr
 {
-	void* Pointer;
-	GLsizei Stride;
-	GLuint Buffer;
 	GLuint Size;
-	GLuint Divisor;
 	GLenum Type;
 	GLuint StreamOffset;
 	GLuint StreamIndex;
@@ -253,11 +249,7 @@ struct FOpenGLCachedAttr
 	GLboolean bShouldConvertToFloat;
 
 	FOpenGLCachedAttr() : 
-		Pointer(FOpenGLCachedAttr_Invalid), 
-		Stride(-1), 
-		Buffer(),
 		Size(),
-		Divisor(0xFFFFFFFF), 
 		Type(0), 
 		StreamOffset(),
 		StreamIndex(0xFFFFFFFF),

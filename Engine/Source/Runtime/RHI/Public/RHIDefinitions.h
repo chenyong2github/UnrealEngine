@@ -1312,11 +1312,8 @@ enum EBufferUsageFlags
 	 */
 	BUF_KeepCPUAccessible		= 0x0400,
 
-	/**
-	 * Provide information that this buffer will contain only one vertex, which should be delivered to every primitive drawn.
-	 * This is necessary for OpenGL implementations, which need to handle this case very differently (and can't handle GL_HALF_FLOAT in such vertices at all).
-	 */
-	BUF_ZeroStride				= 0x0800,
+	// Unused
+	//BUF_ZeroStride			= 0x0800,
 
 	/** Buffer should go in fast vram (hint only). Requires BUF_Transient */
 	BUF_FastVRAM				= 0x1000,

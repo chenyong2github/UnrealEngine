@@ -544,7 +544,7 @@ public:
 		FRHIResourceCreateInfo CreateInfo;
 		
 		void* LockedData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(uint32) * 4, BUF_Static | BUF_ZeroStride | BUF_ShaderResource, CreateInfo, LockedData);
+		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(uint32) * 4, BUF_Static | BUF_ShaderResource, CreateInfo, LockedData);
 		uint32* Vertices = (uint32*)LockedData;
 		Vertices[0] = FColor(255, 255, 255, 255).DWColor();
 		Vertices[1] = FColor(255, 255, 255, 255).DWColor();
@@ -581,7 +581,7 @@ public:
 		FRHIResourceCreateInfo CreateInfo;
 
 		void* LockedData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(float) * 3, BUF_Static | BUF_ZeroStride | BUF_ShaderResource, CreateInfo, LockedData);
+		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(float) * 3, BUF_Static | BUF_ShaderResource, CreateInfo, LockedData);
 
 		*reinterpret_cast<FVector*>(LockedData) = FVector(0.0f);
 
