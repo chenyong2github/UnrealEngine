@@ -45,12 +45,15 @@ static void LexFromString(EBuildDiagnosticLevel& OutLevel, FAnsiStringView Strin
 class FBuildOutputBuilderInternal final : public IBuildOutputBuilderInternal
 {
 public:
-	explicit FBuildOutputBuilderInternal(FStringView Name, FStringView Function)
-		: Name(Name)
-		, Function(Function)
+	explicit FBuildOutputBuilderInternal(FStringView InName, FStringView InFunction)
+		: Name(InName)
+		, Function(InFunction)
 		, bHasError(false)
 		, bHasDiagnostics(false)
 	{
+		checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
+		checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
+			TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
 		DiagnosticsWriter.BeginArray();
 	}
 
@@ -65,9 +68,9 @@ public:
 	FString Name;
 	FString Function;
 	FCbObject Meta;
+	TArray<FPayload> Payloads;
 	FCbField Diagnostics;
 	FCbWriter DiagnosticsWriter;
-	TArray<FPayload> Payloads;
 	bool bHasError;
 	bool bHasDiagnostics;
 };
@@ -75,9 +78,9 @@ public:
 class FBuildOutputInternal final : public IBuildOutputInternal
 {
 public:
-	explicit FBuildOutputInternal(FBuildOutputBuilderInternal&& InOutput);
-	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& InOutput, bool& bOutIsValid);
-	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& InOutput, bool& bOutIsValid);
+	explicit FBuildOutputInternal(FBuildOutputBuilderInternal&& Output);
+	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& Output, bool& bOutIsValid);
+	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& Output, bool& bOutIsValid);
 
 	~FBuildOutputInternal() final = default;
 
@@ -110,12 +113,12 @@ public:
 	}
 
 private:
-	mutable std::atomic<uint32> ReferenceCount{0};
 	FString Name;
 	FString Function;
+	FCbObject Meta;
 	TArray<FPayload> Payloads;
 	FCbField Diagnostics;
-	FCbObject Meta;
+	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,9 +126,9 @@ private:
 FBuildOutputInternal::FBuildOutputInternal(FBuildOutputBuilderInternal&& InOutput)
 	: Name(MoveTemp(InOutput.Name))
 	, Function(MoveTemp(InOutput.Function))
+	, Meta(MoveTemp(InOutput.Meta))
 	, Payloads(MoveTemp(InOutput.Payloads))
 	, Diagnostics(MoveTemp(InOutput.Diagnostics))
-	, Meta(MoveTemp(InOutput.Meta))
 {
 }
 
@@ -134,7 +137,11 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	, Function(InFunction)
 {
 	bOutIsValid = false;
-	checkf(!InName.IsEmpty(), TEXT("A build output requires a non-empty name."));
+	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
+	checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
+		TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
+	Meta = InOutput["Meta"_ASV].AsObject();
+	Meta.MakeOwned();
 	for (FCbFieldView PayloadField : InOutput["Payloads"_ASV])
 	{
 		const FCbObjectView Payload = PayloadField.AsObjectView();
@@ -148,18 +155,18 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	}
 	Diagnostics = InOutput["Diagnostics"_ASV];
 	Diagnostics.MakeOwned();
-	Meta = InOutput["Meta"_ASV].AsObject();
-	Meta.MakeOwned();
 	bOutIsValid = IsValid() && (!InOutput.FindView("Meta"_ASV) || InOutput.FindView("Meta"_ASV).IsObject());
 }
 
 FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCacheRecord& InOutput, bool& bOutIsValid)
 	: Name(InName)
 	, Function(InFunction)
-	, Payloads(InOutput.GetAttachmentPayloads())
 	, Meta(InOutput.GetMeta())
+	, Payloads(InOutput.GetAttachmentPayloads())
 {
-	checkf(!InName.IsEmpty(), TEXT("A build output requires a non-empty name."));
+	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
+	checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
+		TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
 	if (FSharedBuffer Buffer = InOutput.GetValue())
 	{
 		Diagnostics = FCbObject(MoveTemp(Buffer))["Diagnostics"_ASV];
