@@ -41,7 +41,7 @@
 		},
 		{
 			"Name": "RemoteControlCommon",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{

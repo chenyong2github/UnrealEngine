@@ -10,6 +10,7 @@ public class RemoteControl : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"RemoteControlCommon",
 			}
 		);
 
@@ -19,6 +20,7 @@ public class RemoteControl : ModuleRules
 				"Engine",
 				"RemoteControlInterception",
 				"Serialization",
+				"SlateCore"
 			}
 		);
 
