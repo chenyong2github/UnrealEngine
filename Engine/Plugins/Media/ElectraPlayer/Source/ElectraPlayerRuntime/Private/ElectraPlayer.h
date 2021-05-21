@@ -328,7 +328,8 @@ private:
 	int32											NumTracksVideo;
 	int32											SelectedQuality;
 	int32											SelectedVideoTrackIndex;
-	int32											SelectedAudioTrackIndex;
+	mutable int32									SelectedAudioTrackIndex;
+	mutable bool									bAudioTrackIndexDirty;
 
 	FIntPoint										LastPresentedFrameDimension;
 

@@ -9,6 +9,7 @@
 #include "Utilities/UtilsMPEG.h"
 #include "Utilities/UtilsMPEGAudio.h"
 #include "Utilities/UtilsMPEGVideo.h"
+#include "Utilities/ISO639-Map.h"
 #include "InfoLog.h"
 #include "Player/PlayerSessionServices.h"
 
@@ -1385,6 +1386,11 @@ private:
 		uint32 GetHandlerType() const
 		{
 			return HandlerType;
+		}
+
+		FString GetHandlerName() const
+		{
+			return NameUTF8;
 		}
 
 	private:
@@ -4629,7 +4635,7 @@ private:
 		virtual const ISegmentIndex* GetSegmentIndexByIndex(int32 Index) const override;
 		virtual const IEventMessage* GetEventMessageByIndex(int32 Index) const override;
 
-		virtual TSharedPtr<IAllTrackIterator, ESPMode::ThreadSafe> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const override;
+		virtual TSharedPtrTS<IAllTrackIterator> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const override;
 
 	private:
 		class FTrack;
@@ -4758,6 +4764,7 @@ private:
 			{
 			}
 			virtual uint32 GetID() const override;
+			virtual FString GetNameFromHandler() const override;
 			virtual FTimeFraction GetDuration() const override;
 			virtual ITrackIterator* CreateIterator() const override;
 			virtual const TArray<uint8>& GetCodecSpecificData() const override;
@@ -4824,9 +4831,9 @@ private:
 			//! Returns list of all iterators.
 			virtual void GetAllIterators(TArray<const ITrackIterator*>& OutIterators) const override;
 
-			TArray<TSharedPtr<ITrackIterator, ESPMode::ThreadSafe>>		TrackIterators;
-			TSharedPtr<ITrackIterator, ESPMode::ThreadSafe>				CurrentIterator;
-			TArray<const ITrackIterator*>								NewlyReachedEOS;
+			TArray<TSharedPtrTS<ITrackIterator>>		TrackIterators;
+			TSharedPtrTS<ITrackIterator>				CurrentIterator;
+			TArray<const ITrackIterator*>				NewlyReachedEOS;
 		};
 
 
@@ -4923,6 +4930,11 @@ private:
 	{
 		return TKHDBox ? TKHDBox->GetTrackID() : 0;
 	}
+	
+	FString FParserISO14496_12::FTrack::GetNameFromHandler() const
+	{
+		return HDLRBox ? HDLRBox->GetHandlerName() : FString();
+	}
 
 	FTimeFraction FParserISO14496_12::FTrack::GetDuration() const
 	{
@@ -5007,7 +5019,9 @@ private:
 
 	const FString FParserISO14496_12::FTrack::GetLanguage() const
 	{
-		return MDHDBox ? MDHDBox->GetLanguage() : FString(TEXT("und"));
+		FString Language = MDHDBox ? MDHDBox->GetLanguage() : FString(TEXT("und"));
+		// Try to map the ISO-639-2T language code to the shorter ISO-639-1 code if possible.
+		return ISO639::MapTo639_1(Language);
 	}
 
 	void FParserISO14496_12::FTrack::GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const
@@ -6448,9 +6462,9 @@ private:
 	}
 
 
-	TSharedPtr<IParserISO14496_12::IAllTrackIterator, ESPMode::ThreadSafe> FParserISO14496_12::CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const
+	TSharedPtrTS<IParserISO14496_12::IAllTrackIterator> FParserISO14496_12::CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const
 	{
-		TSharedPtr<FParserISO14496_12::FAllTrackIterator, ESPMode::ThreadSafe> ti = MakeShared<FParserISO14496_12::FAllTrackIterator, ESPMode::ThreadSafe>();
+		TSharedPtrTS<FParserISO14496_12::FAllTrackIterator> ti = MakeShared<FParserISO14496_12::FAllTrackIterator, ESPMode::ThreadSafe>();
 
 		int64 LowestFilePos = TNumericLimits<int64>::Max();
 		for(int32 nTrk = 0, nTrkMax = GetNumberOfTracks(); nTrk < nTrkMax; ++nTrk)
@@ -6458,7 +6472,7 @@ private:
 			const FTrack* Track = ParsedTrackInfo->GetTrackByIndex(nTrk);
 			check(Track);
 			FTrackIterator* TrkIt = static_cast<FTrackIterator*>(Track->CreateIterator());
-			TSharedPtr<ITrackIterator, ESPMode::ThreadSafe> SafeTrkIt(TrkIt);
+			TSharedPtrTS<ITrackIterator> SafeTrkIt(TrkIt);
 			ti->TrackIterators.Add(SafeTrkIt);
 			UEMediaError err = TrkIt->StartAtFirstInteral();
 			if (err == UEMEDIA_ERROR_OK)

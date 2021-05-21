@@ -140,6 +140,7 @@ UEMediaError FStreamReaderHLSfmp4::Create(IPlayerSessionServices* InPlayerSessio
 		StreamHandlers[i].Parameters		   = InCreateParam;
 		StreamHandlers[i].bTerminate		   = false;
 		StreamHandlers[i].bRequestCanceled     = false;
+		StreamHandlers[i].bSilentCancellation  = false;
 		StreamHandlers[i].bHasErrored   	   = false;
 
 		StreamHandlers[i].ThreadSetName(i==0?"ElectraPlayer::fmp4 Video":"ElectraPlayer::fmp4 Audio");
@@ -157,7 +158,7 @@ void FStreamReaderHLSfmp4::Close()
 		for(int32 i=0; i<FMEDIA_STATIC_ARRAY_COUNT(StreamHandlers); ++i)
 		{
 			StreamHandlers[i].bTerminate = true;
-			StreamHandlers[i].Cancel();
+			StreamHandlers[i].Cancel(true);
 			StreamHandlers[i].SignalWork();
 		}
 		// Wait until they finished.
@@ -257,6 +258,8 @@ IStreamReader::EAddResult FStreamReaderHLSfmp4::AddRequest(uint32 CurrentPlaybac
 		// Only add the request if this is not an EOD segment.
 		if (!Request2->bIsEOSSegment)
 		{
+			Handler2->bRequestCanceled = false;
+			Handler2->bSilentCancellation = false;
 			Handler2->CurrentRequest = Request2;
 			Handler2->SignalWork();
 		}
@@ -265,17 +268,32 @@ IStreamReader::EAddResult FStreamReaderHLSfmp4::AddRequest(uint32 CurrentPlaybac
 	// Only add the request if this is not an EOD segment.
 	if (!Request->bIsEOSSegment)
 	{
+		Handler->bRequestCanceled = false;
+		Handler->bSilentCancellation = false;
 		Handler->CurrentRequest = Request;
 		Handler->SignalWork();
 	}
 	return IStreamReader::EAddResult::Added;
 }
 
+void FStreamReaderHLSfmp4::CancelRequest(EStreamType StreamType, bool bSilent)
+{
+	if (StreamType == EStreamType::Video)
+	{
+		StreamHandlers[0].Cancel(bSilent);
+	}
+	else if (StreamType == EStreamType::Audio)
+	{
+		StreamHandlers[1].Cancel(bSilent);
+	}
+}
+
+
 void FStreamReaderHLSfmp4::CancelRequests()
 {
 	for(int32 i=0; i<FMEDIA_STATIC_ARRAY_COUNT(StreamHandlers); ++i)
 	{
-		StreamHandlers[i].Cancel();
+		StreamHandlers[i].Cancel(false);
 	}
 }
 
@@ -290,6 +308,7 @@ FStreamReaderHLSfmp4::FStreamHandler::FStreamHandler()
 	PlayerSessionService = nullptr;
 	bTerminate  		 = false;
 	bRequestCanceled	 = false;
+	bSilentCancellation  = false;
 	bAbortedByABR   	 = false;
 	bHasErrored 		 = false;
 	NumMOOFBoxesFound    = 0;
@@ -301,8 +320,9 @@ FStreamReaderHLSfmp4::FStreamHandler::~FStreamHandler()
 	// NOTE: The thread will have been terminated by the enclosing FStreamReaderHLSfmp4's Close() method!
 }
 
-void FStreamReaderHLSfmp4::FStreamHandler::Cancel()
+void FStreamReaderHLSfmp4::FStreamHandler::Cancel(bool bSilent)
 {
+	bSilentCancellation = bSilent;
 	bRequestCanceled = true;
 }
 
@@ -335,6 +355,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::WorkerThread()
 				}
 			}
 			bRequestCanceled = false;
+			bSilentCancellation = false;
 		}
 	}
 	StreamSelector.Reset();
@@ -911,7 +932,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 										AccessUnit->DTS = DTS + TimeMappingOffset + LoopTimestampOffset;
 										AccessUnit->PTS = PTS + TimeMappingOffset + LoopTimestampOffset;
 
-										//AccessUnit->StreamSourceInfo = ....;
+										AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
 										AccessUnit->PlayerLoopState = PlayerLoopState;
 
 										// There should not be any gaps!
@@ -1119,6 +1140,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				AccessUnit->AUSize = 0;
 				AccessUnit->AUData = nullptr;
 				AccessUnit->bIsDummyData = true;
+				AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
 				AccessUnit->PlayerLoopState = PlayerLoopState;
 				if (CSD.IsValid() && CSD->CodecSpecificData.Num())
 				{
@@ -1197,7 +1219,10 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 		ds.ThroughputBps = ds.TimeToDownload > 0.0 ? 8 * ds.NumBytesDownloaded / ds.TimeToDownload : 0;
 	}
 
-	StreamSelector->ReportDownloadEnd(ds);
+	if (!bSilentCancellation)
+	{
+		StreamSelector->ReportDownloadEnd(ds);
+	}
 
 	// Remember the next expected timestamp.
 	CurrentRequest->NextLargestExpectedTimestamp = NextExpectedDTS;
@@ -1211,7 +1236,10 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	MP4Parser.Reset();
 	Decrypter.Reset();
 
-	Parameters.EventListener->OnFragmentClose(FinishedRequest);
+	if (!bSilentCancellation)
+	{
+		Parameters.EventListener->OnFragmentClose(FinishedRequest);
+	}
 }
 
 

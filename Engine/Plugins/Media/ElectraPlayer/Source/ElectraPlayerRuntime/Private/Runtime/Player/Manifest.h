@@ -4,6 +4,7 @@
 #include "PlayerCore.h"
 #include "PlayerTime.h"
 #include "StreamTypes.h"
+#include "StreamAccessUnitBuffer.h"
 #include "HTTP/HTTPManager.h"
 #include "Player/PlaybackTimeline.h"
 #include "Player/AdaptiveStreamingPlayerMetrics.h"
@@ -21,6 +22,14 @@ namespace Electra
 {
 
 	class IStreamReader;
+
+	enum class EMediaFormatType
+	{
+		Unknown,
+		ISOBMFF,					// mp4
+		HLS,						// Apple HLS (HTTP Live Streaming)
+		DASH						// MPEG DASH
+	};
 
 
 	struct FPlayStartPosition
@@ -225,16 +234,11 @@ namespace Electra
 		 * If the presentation has no preferred start time an invalid value is returned.
 		 */
 		virtual FTimeValue GetDefaultStartTime() const = 0;
-		
+
 		/**
 		 * Clears the internal default start time so it will not be used again.
 		 */
 		virtual void ClearDefaultStartTime() = 0;
-
-
-
-		//! Returns the bitrate of the default stream (usually the first one specified).
-		virtual int64 GetDefaultStartingBitrate() const = 0;
 
 		//! Returns track metadata. For period based presentations the streams can be different per period in which case the metadata of the first period is returned.
 		virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const = 0;
@@ -265,16 +269,49 @@ namespace Electra
 		public:
 			virtual ~IPlayPeriod() = default;
 
-			virtual void SetStreamPreferences(const FStreamPreferences& Preferences) = 0;
+			virtual void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) = 0;
 
 			enum class EReadyState
 			{
-				NotReady,
+				NotLoaded,
+				Loading,
+				Loaded,
 				Preparing,
 				IsReady,
 			};
 			virtual EReadyState GetReadyState() = 0;
+			virtual void Load() = 0;
 			virtual void PrepareForPlay() = 0;
+
+			//! Returns the bitrate of the default stream (usually the first one specified).
+			virtual int64 GetDefaultStartingBitrate() const = 0;
+
+			/**
+			 * Returns the selected stream's buffer source information for the specified stream type
+			 * after setting the stream preferences via SetStreamPreferences() and a following PrepareToPlay().
+			 * Valid only when GetReadyState() returns IsReady.
+			 * If a nullptr is returned there is no stream for this type.
+			 */
+			virtual TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) = 0;
+
+			virtual FString GetSelectedAdaptationSetID(EStreamType StreamType) = 0;
+
+			enum class ETrackChangeResult
+			{
+				Changed,
+				NotChanged,
+				NewPeriodNeeded
+			};
+
+			/**
+			 * Changes the specified track over to one of the passed attributes.
+			 * If Changed is returned the new selection has been made active and the new FBufferSourceInfo can be fetched
+			 * with GetSelectedStreamBufferSourceInfo(). If NotChanged is returned no change has been made, either because
+			 * the track is already selected or no (better) match could be made.
+			 * If NewPeriodNeeded is returned this play period cannot perform track changing on the fly and a new period
+			 * with new stream preferences must be created instead.
+			 */
+			virtual ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) = 0;
 
 			/**
 			 * Returns the media asset for this play period.
@@ -303,6 +340,12 @@ namespace Electra
 			 */
 			virtual FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, ESearchType SearchType) = 0;
 
+
+			/**
+			 * Same as GetStartingSegment() except this is for a specific stream (video, audio, ...) only.
+			 * To be used when a track (language) change is made and a new segment is needed at the current playback position.
+			 */
+			virtual FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerLoopState& LoopState, const FPlayStartPosition& StartPosition, ESearchType SearchType) = 0;
 
 			/**
 			 * Sets up a starting segment request to loop playback to.
@@ -343,7 +386,7 @@ namespace Electra
 			/**
 			 * Called by the ABR to increase the delay in fetching the next segment in case the segment returned a 404 when fetched at
 			 * the announced availability time. This may reduce 404's on the next segment fetches.
-			 * 
+			 *
 			 * @param IncreaseAmount
 			 */
 			virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) = 0;

@@ -155,6 +155,10 @@ public:
 	void Set(const FString& Key, const FVariantValue& Value);
 	bool HaveKey(const FString& Key) const;
 	const FVariantValue& GetValue(const FString& Key) const;
+	void Remove(const FString& Key)
+	{ Dictionary.Remove(Key); }
+	void SetOrUpdate(const FString& Key, const FVariantValue& Value)
+	{ Dictionary.Add(Key, Value); }
 
 	void GetKeysStartingWith(const FString& StartsWith, TArray<FString>& Keys);
 private:

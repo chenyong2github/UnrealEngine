@@ -97,10 +97,23 @@ public:
 
 	// -------- PlayerAdapter (Plugin/Native) API
 
+	struct FStreamSelectionAttributes
+	{
+		TOptional<FString> Kind;
+		TOptional<FString> Language_ISO639;
+		TOptional<int32> TrackIndexOverride;
+		void Reset()
+		{
+			Kind.Reset();
+			Language_ISO639.Reset();
+			TrackIndexOverride.Reset();
+		}
+	};
+
 	struct FPlaystartOptions
 	{
 		TOptional<FTimespan>		TimeOffset;
-		TOptional<int32>			AudioTrackIndex;
+		FStreamSelectionAttributes	InitialAudioTrackAttributes;
 		TOptional<int32>			MaxVerticalStreamResolution;
 		TOptional<int32>			MaxBandwidthForStreaming;
 	};

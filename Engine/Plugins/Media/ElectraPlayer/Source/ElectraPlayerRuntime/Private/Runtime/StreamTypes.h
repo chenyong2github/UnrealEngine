@@ -519,18 +519,25 @@ namespace Electra
 
 	/**
 	 * Metadata per track type.
+	 *
+	 * See: https://dev.w3.org/html5/html-sourcing-inband-tracks/
+	 *
+	 * While this may not represent every possible "role" the presentation format may offer this is a
+	 * representation that covers most of the use cases and can be applied to a variety of formats.
 	 */
 	struct FTrackMetadata
 	{
-		FString TrackID;
-		FString Role;
-		FString Language;
+		FString ID;
+		FString Kind;
+		FString Language;		// ISO-639-1 language code
+		FString Label;
+
 		TArray<FStreamMetadata> StreamDetails;
 		FStreamCodecInformation HighestBandwidthCodec;
 		int32 HighestBandwidth = 0;
 		bool Equals(const FTrackMetadata& Other) const
 		{
-			bool bEquals = TrackID.Equals(Other.TrackID) && Role.Equals(Other.Role) && Language.Equals(Other.Language);
+			bool bEquals = ID.Equals(Other.ID) && Kind.Equals(Other.Kind) && Language.Equals(Other.Language);
 			if (bEquals)
 			{
 				if (StreamDetails.Num() == Other.StreamDetails.Num())
@@ -551,13 +558,60 @@ namespace Electra
 
 
 	/**
-	 * Temporary!
-	 * Used to convey the user's stream preferences (ie. language and other things) to the player.
+	 * Stream selection attributes.
+	 * See FTrackMetadata comments.
 	 */
-	struct FStreamPreferences
+	struct FStreamSelectionAttributes
 	{
-		FParamDict	Unused;							//!< This is only here as a placeholder for now. Nothing writes to or reads from this.
+		// Primarily used for audio selection. Should typically be set to "main" or left unset.
+		TOptional<FString> Kind;
+
+		// Used for audio and subtitles or captions. The language must be a valid two letter ISO-639 (-1, -2 or -3) code
+		// for which a two-letter ISO-639-1 equivalent exists. This is the equivalent of the primary language subtag of
+		// RFC-4646 and of RFC-5646
+		TOptional<FString> Language_ISO639;
+
+		// Rarely used. Unconditionally selects a track by its index where the index is a sequential numbering from [0..n)
+		// of the tracks as they are found. If the index is invalid the selection rules for kind and language are applied.
+		TOptional<int32> OverrideIndex;
+
+		void Reset()
+		{
+			Kind.Reset();
+			Language_ISO639.Reset();
+			OverrideIndex.Reset();
+		}
+		void UpdateWith(const FString& InKind, const FString& InLanguage, int32 InOverrideIndex)
+		{
+			Reset();
+			if (!InKind.IsEmpty())
+			{
+				Kind = InKind;
+			}
+			if (!InLanguage.IsEmpty())
+			{
+				Language_ISO639 = InLanguage;
+			}
+			if (InOverrideIndex >= 0)
+			{
+				OverrideIndex = InOverrideIndex;
+			}
+		}
+		void UpdateIfOverrideSet(const FString& InKind, const FString& InLanguage)
+		{
+			if (OverrideIndex.IsSet())
+			{
+				ClearOverrideIndex();
+				Kind = InKind;
+				Language_ISO639 = InLanguage;
+			}
+		}
+		void ClearOverrideIndex()
+		{
+			OverrideIndex.Reset();
+		}
 	};
+
 
 
 

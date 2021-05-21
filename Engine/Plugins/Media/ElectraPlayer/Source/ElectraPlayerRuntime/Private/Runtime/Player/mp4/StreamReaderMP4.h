@@ -87,6 +87,7 @@ public:
 	virtual UEMediaError Create(IPlayerSessionServices* PlayerSessionService, const CreateParam &createParam) override;
 	virtual void Close() override;
 	virtual EAddResult AddRequest(uint32 CurrentPlaybackSequenceID, TSharedPtrTS<IStreamSegment> Request) override;
+	virtual void CancelRequest(EStreamType StreamType, bool bSilent) override;
 	virtual void CancelRequests() override;
 
 private:
@@ -148,14 +149,14 @@ private:
 			DurationSuccessfullyRead.SetToZero();
 			DurationSuccessfullyDelivered.SetToZero();
 		}
-		TSharedPtrTS<FAccessUnit::CodecData>					CSD;
-		TSharedPtr<FStreamSourceInfo, ESPMode::ThreadSafe>		StreamSourceInfo;
-		EStreamType												StreamType;
-		bool													bGotKeyframe;
-		bool													bIsSelectedTrack;
-		bool													bIsFirstInSequence;
-		FTimeValue												DurationSuccessfullyRead;
-		FTimeValue												DurationSuccessfullyDelivered;
+		TSharedPtrTS<FAccessUnit::CodecData>	CSD;
+		TSharedPtrTS<FBufferSourceInfo>			BufferSourceInfo;
+		EStreamType								StreamType;
+		bool									bGotKeyframe;
+		bool									bIsSelectedTrack;
+		bool									bIsFirstInSequence;
+		FTimeValue								DurationSuccessfullyRead;
+		FTimeValue								DurationSuccessfullyDelivered;
 	};
 
 	CreateParam									Parameters;
