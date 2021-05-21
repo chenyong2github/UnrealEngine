@@ -1254,7 +1254,10 @@ void FlushShaderFileCache()
 		FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
 		GShaderHashCache.Empty();
 	}
-	GShaderFileCache.Empty();
+	{
+		FScopeLock ScopeLock(&FileCacheCriticalSection);
+		GShaderFileCache.Empty();
+	}
 
 	if (!FPlatformProperties::RequiresCookedData())
 	{
