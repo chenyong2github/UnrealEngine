@@ -1,13 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/TreeView.h"
+#include "Styling/UMGCoreStyle.h"
 
 /////////////////////////////////////////////////////
 // UTreeView
 
+static FTableViewStyle* DefaultTreeViewStyle = nullptr;
+
+#if WITH_EDITOR
+static FTableViewStyle* EditorTreeViewStyle = nullptr;
+#endif 
+
 UTreeView::UTreeView(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	if (DefaultTreeViewStyle == nullptr)
+	{
+		DefaultTreeViewStyle = new FTableViewStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView"));
+
+		// Unlink UMG default colors.
+		DefaultTreeViewStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultTreeViewStyle;
+
+#if WITH_EDITOR 
+	if (EditorTreeViewStyle == nullptr)
+	{
+		EditorTreeViewStyle = new FTableViewStyle(FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView"));
+
+		// Unlink UMG default colors.
+		EditorTreeViewStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorTreeViewStyle;
+	}
+#endif // WITH_EDITOR
 }
 
 TSharedRef<STableViewBase> UTreeView::RebuildListWidget()

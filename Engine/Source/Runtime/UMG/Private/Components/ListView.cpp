@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Blueprint/ListViewDesignerPreviewItem.h"
+#include "Styling/UMGCoreStyle.h"
 #include "UMGPrivate.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -12,10 +13,40 @@
 /////////////////////////////////////////////////////
 // UListView
 
+static FTableViewStyle* DefaultListViewStyle = nullptr;
+
+#if WITH_EDITOR
+static FTableViewStyle* EditorListViewStyle = nullptr;
+#endif 
+
 UListView::UListView(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Orientation(EOrientation::Orient_Vertical)
 {
+	if (DefaultListViewStyle == nullptr)
+	{
+		DefaultListViewStyle = new FTableViewStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView"));
+
+		// Unlink UMG default colors.
+		DefaultListViewStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultListViewStyle;
+
+#if WITH_EDITOR 
+	if (EditorListViewStyle == nullptr)
+	{
+		EditorListViewStyle = new FTableViewStyle(FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView"));
+
+		// Unlink UMG default colors.
+		EditorListViewStyle->UnlinkColors();
+	}
+
+	if (IsEditorWidget())
+	{
+		WidgetStyle = *EditorListViewStyle;
+	}
+#endif // WITH_EDITOR
 }
 
 void UListView::ReleaseSlateResources(bool bReleaseChildren)

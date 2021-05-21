@@ -218,6 +218,7 @@ protected:
 		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
 		bool bReturnFocusToSelection = false;
 		EOrientation Orientation = Orient_Vertical;
+		const FTableViewStyle* ListViewStyle = &FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView");
 	};
 
 	template <template<typename> class ListViewT = SListView, typename UListViewBaseT>
@@ -235,6 +236,7 @@ protected:
 			.SelectionMode(Args.SelectionMode)
 			.ReturnFocusToSelection(Args.bReturnFocusToSelection)
 			.Orientation(Args.Orientation)
+			.ListViewStyle(Args.ListViewStyle)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
@@ -287,6 +289,7 @@ protected:
 		bool bClearSelectionOnClick = false;
 		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
 		bool bReturnFocusToSelection = false;
+		const FTableViewStyle* TreeViewStyle = &FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView");
 	};
 
 	template <template<typename> class TreeViewT = STreeView, typename UListViewBaseT>
@@ -302,6 +305,7 @@ protected:
 			.ConsumeMouseWheel(Args.ConsumeMouseWheel)
 			.SelectionMode(Args.SelectionMode)
 			.ReturnFocusToSelection(Args.bReturnFocusToSelection)
+			.TreeViewStyle(Args.TreeViewStyle)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
