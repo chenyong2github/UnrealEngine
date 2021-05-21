@@ -310,6 +310,8 @@ void FShadowMapPendingTexture::CreateUObjects()
 
 void FShadowMapPendingTexture::StartEncoding(ULevel* LightingScenario, ITextureCompressorModule* Compressor)
 {
+	FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
+
 	// Create the shadow-map texture.
 	CreateUObjects();
 
