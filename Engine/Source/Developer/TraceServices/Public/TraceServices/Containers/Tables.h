@@ -17,6 +17,13 @@ enum ETableColumnType
 	TableColumnType_CString,
 };
 
+enum ETableColumnDisplayHint
+{
+	TableColumnDisplayHint_Time = 1 << 0,
+	TableColumnDisplayHint_Memory = 1 << 1,
+	TableColumnDisplayHint_Summable = 1 << 31
+};
+
 class ITableLayout
 {
 public:
@@ -24,6 +31,7 @@ public:
 	virtual uint64 GetColumnCount() const = 0;
 	virtual const TCHAR* GetColumnName(uint64 ColumnIndex) const = 0;
 	virtual ETableColumnType GetColumnType(uint64 ColumnIndex) const = 0;
+	virtual uint32 GetColumnDisplayHintFlags(uint64 ColumnIndex) const = 0;
 };
 
 class IUntypedTableReader

@@ -1284,10 +1284,20 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 		switch (Column.GetAggregation())
 		{
 			case ETableColumnAggregation::Sum:
-				STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, 0, true, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					return InValue + InTableCellValue->AsInt64();
-				});
+					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, 0, true, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+					{
+						return InValue + InTableCellValue->AsDouble();
+					});
+				}
+				else
+				{
+					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, 0, true, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+					{
+						return InValue + InTableCellValue->AsInt64();
+					});
+				}
 				break;
 
 			case ETableColumnAggregation::Min:
