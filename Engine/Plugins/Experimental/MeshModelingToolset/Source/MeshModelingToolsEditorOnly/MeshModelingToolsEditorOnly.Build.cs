@@ -30,7 +30,7 @@ public class MeshModelingToolsEditorOnly : ModuleRules
                 "MeshDescription",
 				"StaticMeshDescription",
 				"SkeletalMeshDescription",
-				"GeometricObjects",
+				"GeometryCore",
 				"DynamicMesh",
 				"MeshConversion",
 				"MeshModelingTools",

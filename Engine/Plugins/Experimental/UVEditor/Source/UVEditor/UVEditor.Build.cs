@@ -46,6 +46,7 @@ public class UVEditor : ModuleRules
 				
 				"AdvancedPreviewScene",
 				"ContentBrowser",
+				"GeometryCore",
 				"DynamicMesh",
 				"EditorFramework", // FEditorModeInfo
 				"EditorInteractiveToolsFramework",

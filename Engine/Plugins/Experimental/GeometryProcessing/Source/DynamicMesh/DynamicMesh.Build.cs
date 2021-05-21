@@ -8,19 +8,10 @@ public class DynamicMesh : ModuleRules
 	{
         PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        // For GPUSkinPublicDefs.h
-        PublicIncludePaths.Add("Runtime/Engine/Public");
-        
-        PublicIncludePathModuleNames.AddRange(
-			new string[] {
-				"AnimationCore",			// For the BoneWeights.h include
-			}
-		);
-
         PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"GeometricObjects",
+				"GeometryCore",
 				"GeometryAlgorithms"
 			}
 		);

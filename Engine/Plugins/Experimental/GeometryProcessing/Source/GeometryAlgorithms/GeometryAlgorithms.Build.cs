@@ -15,7 +15,7 @@ public class GeometryAlgorithms : ModuleRules
         PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"GeometricObjects"
+				"GeometryCore"
 			}
 			);
 	}

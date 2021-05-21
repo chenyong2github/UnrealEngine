@@ -2,15 +2,4 @@
 
 #pragma once
 
-#include "Spatial/MeshAABBTree3.h"
-#include "DynamicMesh3.h"
-
-namespace UE
-{
-namespace Geometry
-{
-
-typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3;
-
-} // end namespace UE::Geometry
-} // end namespace UE
+#include "DynamicMesh/DynamicMeshAABBTree3.h"

@@ -25,7 +25,7 @@ public class GeoReferencing : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"GeometricObjects",
+				"GeometryCore",
 				"PROJ",
 				"Projects",
 				"Slate",
