@@ -6,7 +6,7 @@
 cd "`dirname "$0"`"
 cd ./mcpp-2.7.2
 
-export CFLAGS='-mmacosx-version-min=10.9 -arch x86_64'
+export CFLAGS='-mmacosx-version-min=10.9 -arch x86_64 -arch arm64 -gdwarf-2'
 
 ./configure --enable-mcpplib --enable-static
 
