@@ -22,5 +22,5 @@ public:
 	virtual bool SupportsDynamicReloading() override;
 
 private:
-	FBazelExecutor HordeExecution;
+	FBazelExecutor BazelExecution;
 };
