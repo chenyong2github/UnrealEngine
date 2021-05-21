@@ -68,7 +68,7 @@ namespace UE::DerivedData
 {
 
 /**
- * A build action references a build function and the inputs to that build function.
+ * A build action is an immutable reference to a build function and its inputs.
  *
  * The purpose of an action is to capture everything required to execute a derived data build for
  * a fixed version of the build function and its constants and inputs.
@@ -77,8 +77,6 @@ namespace UE::DerivedData
  * compact binary representation of the action.
  *
  * The keys for constants and inputs are names that are unique within the build action.
- *
- * The build action is immutable, and is created by a build session from a build definition.
  *
  * @see FBuildDefinition
  * @see FBuildSession

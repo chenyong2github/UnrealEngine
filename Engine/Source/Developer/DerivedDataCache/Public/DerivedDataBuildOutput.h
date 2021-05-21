@@ -81,11 +81,11 @@ struct FBuildDiagnostic
 };
 
 /**
- * A build output contains the payloads and diagnostics produced by a build.
+ * A build output is an immutable container of payloads and diagnostics produced by a build.
  *
  * The output will not contain any payloads if it has any errors.
  *
- * The output can be requested without data, which means the payloads will have null data.
+ * The output can be requested without data, which means that the payloads will have null data.
  */
 class FBuildOutput
 {

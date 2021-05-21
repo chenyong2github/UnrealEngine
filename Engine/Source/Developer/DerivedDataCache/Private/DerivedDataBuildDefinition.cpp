@@ -26,9 +26,8 @@ public:
 		, Function(InFunction)
 	{
 		checkf(!Name.IsEmpty(), TEXT("A build definition requires a non-empty name."));
-		checkf(!Function.IsEmpty(), TEXT("A build definition requires a non-empty function name for build of '%s'."), *Name);
-		checkf(Algo::AllOf(Function, FChar::IsAlnum), TEXT("Definition requires an alphanumeric function name for ")
-			TEXT("build of '%s' by %s."), *Name, *Function);
+		checkf(!Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum),
+			TEXT("A build function name must be alphanumeric and non-empty for build of '%s' by %s."), *Name, *Function);
 	}
 
 	~FBuildDefinitionBuilderInternal() final = default;
@@ -118,11 +117,11 @@ public:
 	}
 
 private:
-	mutable std::atomic<uint32> ReferenceCount{0};
 	FString Name;
 	FString Function;
 	FCbObject Definition;
 	FBuildKey Key;
+	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -259,7 +258,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FStringView InName, FCbObject
 	, Definition(MoveTemp(InDefinition))
 	, Key{Definition.GetHash()}
 {
-	checkf(!InName.IsEmpty(), TEXT("A build definition requires a non-empty name."));
+	checkf(!Name.IsEmpty(), TEXT("A build definition requires a non-empty name."));
 	Definition.MakeOwned();
 	bOutIsValid = Definition
 		&& !Function.IsEmpty() && Algo::AllOf(Function, FChar::IsAlnum)
