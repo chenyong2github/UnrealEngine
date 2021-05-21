@@ -110,7 +110,7 @@ TArray<UPrimitiveComponent*> FHLODBuilder_Instancing::CreateComponents(AWorldPar
 				InstanceTransforms.Add(SMC->GetComponentTransform());
 			}
 		}
-		Component->AddInstances(InstanceTransforms, /*bWorldSpace*/true);
+		Component->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
 
 		Components.Add(Component);
 	};

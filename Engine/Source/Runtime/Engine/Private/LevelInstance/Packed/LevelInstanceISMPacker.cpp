@@ -73,7 +73,7 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 			InstanceTransforms.Add(StaticMeshComponent->GetComponentTransform());
 		}
 	}
-	PackComponent->AddInstances(InstanceTransforms, /*bWorldSpace*/true);
+	PackComponent->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
 
 	FTransform NewWorldTransform = ActorTransform * CurrentPivotOffsetInverse * FTransform(InContext.GetPivotOffset());
 

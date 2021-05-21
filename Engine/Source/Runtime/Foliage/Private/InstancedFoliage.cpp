@@ -1654,7 +1654,7 @@ void FFoliageStaticMesh::Reapply(const UFoliageType* FoliageType)
 
 		TArray<FTransform> InstanceTransforms;
 		Algo::Transform(Info->Instances, InstanceTransforms, &FFoliageInstance::GetInstanceWorldTransform);
-		Component->AddInstances(InstanceTransforms, /*bWorldSpace*/true);
+		Component->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
 
 		Component->bAutoRebuildTreeOnInstanceChanges = true;
 		Component->BuildTreeIfOutdated(true, true);
