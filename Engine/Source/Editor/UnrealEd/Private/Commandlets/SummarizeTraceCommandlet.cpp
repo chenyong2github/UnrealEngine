@@ -307,7 +307,7 @@ public:
 	{
 		FString Name;
 		uint64 Count = 0;
-		double TotalSeconds = 0.0;
+		double TotalDurationSeconds = 0.0;
 
 		double FirstStartSeconds = 0.0;
 		double FirstEndSeconds = 0.0;
@@ -342,7 +342,7 @@ public:
 			LastDurationSeconds = DurationSeconds;
 
 			// set duration statistics
-			TotalSeconds += DurationSeconds;
+			TotalDurationSeconds += DurationSeconds;
 			MinDurationSeconds = FMath::Min(MinDurationSeconds, DurationSeconds);
 			MaxDurationSeconds = FMath::Max(MaxDurationSeconds, DurationSeconds);
 			UpdateVariance(DurationSeconds);
@@ -377,7 +377,7 @@ public:
 		void Merge(const FScope& Scope)
 		{
 			check(Name == Scope.Name);
-			TotalSeconds += Scope.TotalSeconds;
+			TotalDurationSeconds += Scope.TotalDurationSeconds;
 			MinDurationSeconds = FMath::Min(MinDurationSeconds, Scope.MinDurationSeconds);
 			MaxDurationSeconds = FMath::Max(MaxDurationSeconds, Scope.MaxDurationSeconds);
 			Count += Scope.Count;
@@ -393,9 +393,9 @@ public:
 			{
 				return FString::Printf(TEXT("%llu"), Count);
 			}
-			else if (Statistic == TEXT("TotalSeconds"))
+			else if (Statistic == TEXT("TotalDurationSeconds"))
 			{
-				return FString::Printf(TEXT("%f"), TotalSeconds);
+				return FString::Printf(TEXT("%f"), TotalDurationSeconds);
 			}
 			else if (Statistic == TEXT("FirstStartSeconds"))
 			{
@@ -449,7 +449,7 @@ public:
 		// for sorting descending
 		bool operator<(const FScope& Scope) const
 		{
-			return TotalSeconds > Scope.TotalSeconds;
+			return TotalDurationSeconds > Scope.TotalDurationSeconds;
 		}
 	};
 
@@ -1080,11 +1080,11 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	if (CsvHandle)
 	{
 		// no newline, see row printfs
-		WriteUTF8(CsvHandle, FString::Printf(TEXT("Name,Count,TotalSeconds,FirstStartSeconds,FirstEndSeconds,FirstDurationSeconds,LastStartSeconds,LastEndSeconds,LastDurationSeconds,MinDurationSeconds,MaxDurationSeconds,MeanDurationSeconds,DeviationDurationSeconds,")));
+		WriteUTF8(CsvHandle, FString::Printf(TEXT("Name,Count,TotalDurationSeconds,FirstStartSeconds,FirstEndSeconds,FirstDurationSeconds,LastStartSeconds,LastEndSeconds,LastDurationSeconds,MinDurationSeconds,MaxDurationSeconds,MeanDurationSeconds,DeviationDurationSeconds,")));
 		for (const FSummarizeCpuAnalyzer::FScope& Scope : SortedScopes)
 		{
 			// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
-			WriteUTF8(CsvHandle, FString::Printf(TEXT("\n%s,%llu,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,"), *Scope.Name, Scope.Count, Scope.TotalSeconds, Scope.FirstStartSeconds, Scope.FirstEndSeconds, Scope.FirstDurationSeconds, Scope.FirstStartSeconds, Scope.FirstEndSeconds, Scope.FirstDurationSeconds, Scope.MinDurationSeconds, Scope.MaxDurationSeconds, Scope.MeanDurationSeconds, Scope.GetDeviationDurationSeconds()));
+			WriteUTF8(CsvHandle, FString::Printf(TEXT("\n%s,%llu,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,"), *Scope.Name, Scope.Count, Scope.TotalDurationSeconds, Scope.FirstStartSeconds, Scope.FirstEndSeconds, Scope.FirstDurationSeconds, Scope.FirstStartSeconds, Scope.FirstEndSeconds, Scope.FirstDurationSeconds, Scope.MinDurationSeconds, Scope.MaxDurationSeconds, Scope.MeanDurationSeconds, Scope.GetDeviationDurationSeconds()));
 		}
 		for (const TMap<uint16, FSummarizeCountersAnalyzer::FCounter>::ElementType& Counter : CountersAnalyzer.Counters)
 		{
