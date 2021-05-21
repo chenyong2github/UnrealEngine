@@ -145,6 +145,10 @@ struct FMockState_PT
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	int32 InAirFrame = 0;
 
+	// Frame we last applied a kick impulse
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 KickFrame = 0;
+
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << JumpCooldownMS;
@@ -153,12 +157,13 @@ struct FMockState_PT
 		Ar << RecoveryFrame;
 		Ar << JumpStartFrame;
 		Ar << InAirFrame;
+		Ar << KickFrame;
 		return true;
 	}
 
 	bool ShouldReconcile(const FMockState_PT& AuthState) const
 	{
-		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount || RecoveryFrame != AuthState.RecoveryFrame || JumpStartFrame != AuthState.JumpStartFrame || InAirFrame != AuthState.InAirFrame;
+		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount || RecoveryFrame != AuthState.RecoveryFrame || JumpStartFrame != AuthState.JumpStartFrame || InAirFrame != AuthState.InAirFrame || KickFrame!= AuthState.KickFrame;
 	}
 };
 
@@ -367,6 +372,9 @@ public:
 	// Stores all recorded streams on CDO
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Recorded Inputs")
 	TArray<FMockRecordedInputs>	RecordedInputs;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mock State")
+	bool bCanBeKicked=false;
 
 protected:
 
