@@ -754,7 +754,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 #if 1
 					// Non-linear shadow sample distribution, hardcoded to x^2
 					float PreviousNormT = 0.0f;
-					for (float ShadowT = InvShadowStepCount; ShadowT <= 1.0; ShadowT += InvShadowStepCount)
+					for (float ShadowT = InvShadowStepCount; ShadowT <= 1.00001f; ShadowT += InvShadowStepCount)
 					{
 						DebugGroundShadowMaterialSampleCount++;
 						float CurrentNormT = ShadowT * ShadowT; // CurrentNormT is the end of the considered segment to integrate, PreviousNormT is its beginning.
@@ -858,7 +858,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				// Non-linear shadow sample distribution, hardcoded to x^2
 				const float ShadowDtMeter = ShadowLengthTest * CENTIMETER_TO_METER;
 				float PreviousNormT = 0.0f;
-				for (float ShadowT = InvShadowStepCount; ShadowT <= 1.0; ShadowT += InvShadowStepCount)
+				for (float ShadowT = InvShadowStepCount; ShadowT <= 1.00001f; ShadowT += InvShadowStepCount)
 				{
 					float CurrentNormT = ShadowT * ShadowT; // CurrentNormT is the end of the considered segment to integrate, PreviousNormT is its beginning.
 					const float DetlaNormT = CurrentNormT - PreviousNormT;
@@ -925,7 +925,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 					// Non-linear shadow sample distribution, hardcoded to x^2
 					const float ShadowDtMeter = ShadowLengthTest * CENTIMETER_TO_METER;
 					float PreviousNormT = 0.0f;
-					for (float ShadowT = InvShadowStepCount; ShadowT <= 1.0; ShadowT += InvShadowStepCount)
+					for (float ShadowT = InvShadowStepCount; ShadowT <= 1.00001f; ShadowT += InvShadowStepCount)
 					{
 						float CurrentNormT = ShadowT * ShadowT; // CurrentNormT is the end of the considered segment to integrate, PreviousNormT is its beginning.
 						const float DetlaNormT = CurrentNormT - PreviousNormT;
