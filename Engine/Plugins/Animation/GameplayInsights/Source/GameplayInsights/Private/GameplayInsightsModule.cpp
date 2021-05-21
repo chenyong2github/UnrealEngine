@@ -39,11 +39,6 @@
 
 const FName GameplayInsightsTabs::DocumentTab("DocumentTab");
 
-TSharedRef<IAnimGraphSchematicView> FGameplayInsightsModule::CreateAnimGraphSchematicView(uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
-{
-	return SNew(SAnimGraphSchematicView, InAnimInstanceId, InTimeMarker, InAnalysisSession);
-}
-
 void FGameplayInsightsModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &GameplayTraceModule);
@@ -66,7 +61,16 @@ void FGameplayInsightsModule::StartupModule()
 		}
 	});
 
+
+	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", IGameplayInsightsDebugViewCreator::FCreateDebugView::CreateLambda(
+			[](uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
+			{
+				return SNew(SAnimGraphSchematicView, InAnimInstanceId, InTimeMarker, InAnalysisSession);
+			}
+	));
+
 #if WITH_EDITOR
+
 	if (!IsRunningCommandlet())
 	{
 		IAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
