@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Timespan.h"
 #include <limits>
 
 namespace Electra
@@ -130,6 +131,19 @@ public:
 
 	//! Returns this time value in a custom timebase. Requires internal bigint conversion and is therefor SLOW!
 	int64 GetAsTimebase(uint32 CustomTimebase) const;
+
+	FTimespan GetAsTimespan() const
+	{
+		if (!bIsValid)
+		{
+			return FTimespan::MinValue();
+		}
+		if (IsInfinity())
+		{
+			return HNS >= 0 ? FTimespan::MaxValue() : FTimespan::MinValue();
+		}
+		return FTimespan(HNS);
+	}
 
 	FTimeValue& SetToInvalid()
 	{

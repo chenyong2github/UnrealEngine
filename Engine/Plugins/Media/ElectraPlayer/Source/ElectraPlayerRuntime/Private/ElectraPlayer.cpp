@@ -12,6 +12,8 @@
 #include "VideoDecoderResourceDelegate.h"
 #include "Utilities/Utilities.h"
 
+#include "IElectraMetadataSample.h"
+
 #include "Async/Async.h"
 
 #include "CoreGlobals.h"
@@ -71,6 +73,38 @@ static FString SanitizeMessage(FString InMessage)
 	return InMessage;
 #endif
 }
+
+
+//-----------------------------------------------------------------------------
+
+class FElectraBinarySample : public IElectraBinarySample
+{
+public:
+	virtual ~FElectraBinarySample() = default;
+	virtual const void* GetData() override						{ return Data.GetData(); }
+	virtual FTimespan GetDuration() const override				{ return Duration; }
+	virtual uint32 GetSize() const override						{ return (uint32) Data.Num(); }
+	virtual FMediaTimeStamp GetTime() const override			{ return PresentationTime; }
+	virtual FGuid GetGUID() const override						{ return IElectraBinarySample::GetSampleTypeGUID(); }
+	virtual EOrigin GetOrigin() const override					{ return Origin; }
+	virtual EDispatchedMode GetDispatchedMode() const override	{ return DispatchedMode; }
+	virtual const FString& GetSchemeIdUri() const override		{ return SchemeIdUri; }
+	virtual const FString& GetValue() const override			{ return Value; }
+	virtual const FString& GetID() const override				{ return ID; }
+
+	TArray<uint8> Data;
+	FMediaTimeStamp PresentationTime;
+	FTimespan Duration;
+	EOrigin Origin;
+	EDispatchedMode DispatchedMode;
+	FString SchemeIdUri;
+	FString Value;
+	FString ID;
+};
+
+//-----------------------------------------------------------------------------
+
+
 
 //-----------------------------------------------------------------------------
 /**
@@ -209,10 +243,10 @@ bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict & PlayerO
 	NewPlayer->AdaptivePlayer->SetStaticResourceProviderCallback(StaticResourceProvider);
 	NewPlayer->AdaptivePlayer->SetVideoDecoderResourceDelegate(VideoDecoderResourceDelegate);
 
-	// Create a new media player event receiver and register it.
+	// Create a new media player event receiver and register it to receive all non player internal events as soon as they are received.
 	MediaPlayerEventReceiver = MakeSharedTS<FAEMSEventReceiver>();
 	MediaPlayerEventReceiver->GetEventReceivedDelegate().BindRaw(this, &FElectraPlayer::OnMediaPlayerEventReceived);
-	NewPlayer->AdaptivePlayer->AddAEMSReceiver(MediaPlayerEventReceiver, TEXT("*"), TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
+	NewPlayer->AdaptivePlayer->AddAEMSReceiver(MediaPlayerEventReceiver, TEXT("*"), TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnReceive);
 
 	if (!NewPlayer->AdaptivePlayer->Initialize(PlayerOptions))
 	{
@@ -1026,12 +1060,66 @@ bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 
 void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode)
 {
+#if !UE_BUILD_SHIPPING
 	const TCHAR* const Origins[] = { TEXT("Playlist"), TEXT("Inband"), TEXT("TimedMetadata"), TEXT("???") };
-	UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] %s event %s with \"%s\", \"%s\", \"%s\" PTS @ %.3f for %.3fs"), this, CurrentPlayer.Get(),
+	UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] %s event %s with \"%s\", \"%s\", \"%s\" PTS @ %.3f for %.3fs"), this, CurrentPlayer.Get(),
 		Origins[Electra::Utils::Min((int32)InEvent->GetOrigin(), (int32)UE_ARRAY_COUNT(Origins)-1)],
 		InDispatchMode==IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnReceive?TEXT("received"):TEXT("started"),
 		*InEvent->GetSchemeIdUri(), *InEvent->GetValue(), *InEvent->GetID(),
 		InEvent->GetPresentationTime().GetAsSeconds(), InEvent->GetDuration().GetAsSeconds());
+#endif
+
+	if (TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin())
+	{
+		// Create a binary media sample of our extended format and pass it up.
+		TSharedRef<FElectraBinarySample, ESPMode::ThreadSafe> Meta = MakeShared<FElectraBinarySample, ESPMode::ThreadSafe>();
+		switch(InDispatchMode)
+		{
+			default:
+			case IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnReceive:
+			{
+				Meta->DispatchedMode = FElectraBinarySample::EDispatchedMode::OnReceive;
+				break;
+			}
+			case IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart:
+			{
+				Meta->DispatchedMode = FElectraBinarySample::EDispatchedMode::OnStart;
+				break;
+			}
+		}
+		switch(InEvent->GetOrigin())
+		{
+			default:
+			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::TimedMetadata:		
+			{
+				Meta->Origin = FElectraBinarySample::EOrigin::TimedMetadata;
+				break;
+			}
+			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::EventStream:		
+			{
+				Meta->Origin = FElectraBinarySample::EOrigin::EventStream;
+				break;
+			}
+			case IAdaptiveStreamingPlayerAEMSEvent::EOrigin::InbandEventStream:	
+			{
+				Meta->Origin = FElectraBinarySample::EOrigin::InbandEventStream;
+				break;
+			}
+		}
+		Meta->Data = InEvent->GetMessageData();
+		Meta->SchemeIdUri = InEvent->GetSchemeIdUri();
+		Meta->Value = InEvent->GetValue();
+		Meta->ID = InEvent->GetID(),
+		Meta->Duration = InEvent->GetDuration().GetAsTimespan();
+		// A zero duration might cause the metadata sample fall through the cracks later
+		// so set it to a short 1ms instead.
+		if (Meta->Duration.IsZero())
+		{
+			Meta->Duration = FTimespan::FromMilliseconds(1);
+		}
+		Meta->PresentationTime = FMediaTimeStamp(InEvent->GetPresentationTime().GetAsTimespan());
+		PinnedAdapterDelegate->PresentMetadataSample(Meta);
+	}
 }
 
 
