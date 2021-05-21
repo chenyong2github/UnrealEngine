@@ -2806,6 +2806,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		// Ensure that DDC is initialized from the game thread.
 		GetDerivedDataCacheRef();
+		GetDerivedDataBuildRef();
 
 		check(!GDistanceFieldAsyncQueue);
 		GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
