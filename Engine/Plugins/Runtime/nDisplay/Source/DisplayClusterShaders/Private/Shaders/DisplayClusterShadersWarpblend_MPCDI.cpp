@@ -85,7 +85,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMpcdiVertexShaderParameters, )
 	SHADER_PARAMETER(FVector4, DrawRectangleInvTargetSizeAndTextureSize)
 	SHADER_PARAMETER(FVector4, DrawRectangleUVScaleBias)
 
-	SHADER_PARAMETER(FMatrix, MeshToStageProjectionMatrix)
+	SHADER_PARAMETER(FMatrix44f, MeshToStageProjectionMatrix)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMpcdiPixelShaderParameters, )
@@ -99,7 +99,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMpcdiPixelShaderParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, AlphaMapSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BetaMapSampler)
 
-	SHADER_PARAMETER(FMatrix, ViewportTextureProjectionMatrix)
+	SHADER_PARAMETER(FMatrix44f, ViewportTextureProjectionMatrix)
 
 	SHADER_PARAMETER(float, AlphaEmbeddedGamma)
 END_SHADER_PARAMETER_STRUCT()
