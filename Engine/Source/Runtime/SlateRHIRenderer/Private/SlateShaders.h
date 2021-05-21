@@ -357,6 +357,30 @@ private:
 };
 
 
+class FSlatePostProcessUpsamplePS : public FSlateElementPS
+{
+	DECLARE_SHADER_TYPE(FSlatePostProcessUpsamplePS, Global);
+public:
+	/** Indicates that this shader should be cached */
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+
+	FSlatePostProcessUpsamplePS()
+	{
+	}
+
+	/** Constructor.  Binds all parameters used by the shader */
+	FSlatePostProcessUpsamplePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FSlateElementPS(Initializer)
+	{
+	}
+
+private:
+};
+
+
 class FSlatePostProcessColorDeficiencyPS : public FSlateElementPS
 {
 	DECLARE_SHADER_TYPE(FSlatePostProcessColorDeficiencyPS, Global);

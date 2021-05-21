@@ -51,6 +51,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Appearance, meta=(ClampMin=0, ClampMax=255, EditCondition="bOverrideAutoRadiusCalculation"))
 	int32 BlurRadius;
 
+		/**
+	 * This is the number of pixels which will be weighted in each direction from any given pixel when computing the blur
+	 * A larger value is more costly but allows for stronger blurs.  
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Appearance)
+	FVector4 CornerRadius;
+
 	/**
 	 * An image to draw instead of applying a blur when low quality override mode is enabled. 
 	 * You can enable low quality mode for background blurs by setting the cvar Slate.ForceBackgroundBlurLowQualityOverride to 1. 
@@ -84,6 +91,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	virtual void SetBlurStrength(float InStrength);
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	virtual void SetCornerRadius(FVector4 InCornerRadius);
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetLowQualityFallbackBrush(const FSlateBrush& InBrush);

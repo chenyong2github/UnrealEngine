@@ -372,8 +372,10 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 {
 	SCOPED_DRAW_EVENT(RHICmdList, SlatePostProcessUpsample);
 
+	const FVector4 Zero(0, 0, 0, 0);
+
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	GraphicsPSOInit.BlendState = Params.CornerRadius == Zero ? TStaticBlendState<>::GetRHI() : TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
@@ -415,7 +417,7 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 			Params.RestoreStateFunc(RHICmdList, GraphicsPSOInit);
 		}
 
-		TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
+		TShaderMapRef<FSlatePostProcessUpsamplePS> PixelShader(ShaderMap);
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
@@ -427,17 +429,26 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 		{
 			Params.RestoreStateFuncPostPipelineState();
 		}
+		
 
-		PixelShader->SetParameters(RHICmdList, Sampler, SrcTexture);
+		const FVector2D SizeUV(
+			DownsampledWidth == SrcTextureWidth ? 1.0f : (DownsampledWidth / (float)SrcTextureWidth) - (1.0f / (float)SrcTextureWidth),
+			DownsampledHeight == SrcTextureHeight ? 1.0f : (DownsampledHeight / (float)SrcTextureHeight) - (1.0f / (float)SrcTextureHeight)
+			);
 
-		const float SizeU = (DownsampledWidth == SrcTextureWidth) ? 1.0f : (DownsampledWidth / (float)SrcTextureWidth) - (1.0f / (float)SrcTextureWidth);
-		const float SizeV = (DownsampledHeight == SrcTextureHeight) ? 1.0f : (DownsampledHeight / (float)SrcTextureHeight) - (1.0f / (float)SrcTextureHeight);
+		const FVector2D Size(DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top);
+		FShaderParams ShaderParams = FShaderParams::MakePixelShaderParams(FVector4(Size, SizeUV), Params.CornerRadius);
+
+
+		PixelShader->SetShaderParams(RHICmdList, ShaderParams);
+		PixelShader->SetTexture(RHICmdList, SrcTexture, Sampler);
+
 
 		RendererModule.DrawRectangle(RHICmdList,
 			DestRect.Left, DestRect.Top,
-			DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top,
+			Size.X, Size.Y,
 			0, 0,
-			SizeU, SizeV,
+			SizeUV.X, SizeUV.Y,
 			Params.SourceTextureSize,
 			FIntPoint(1, 1),
 			VertexShader,

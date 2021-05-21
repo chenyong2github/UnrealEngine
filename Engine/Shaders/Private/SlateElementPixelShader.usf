@@ -231,61 +231,11 @@ half4 GetBorderElementColor( VertexToPixelInterpolants InVertex )
 }
 #endif
 
+
 #if SHADER_TYPE == ST_RoundedBox
-float GetRoundedBoxDistance(float2 pos, float2 center, float radius, float inset)
-{
-	// distance from center
-    pos = abs(pos - center); 
-
-    // distance from the inner corner
-    pos = pos - (center - float2(radius + inset, radius + inset));
-
-    // use distance to nearest edge when not in quadrant with radius
-    // this handles an edge case when radius is very close to thickness
-    // otherwise we're in the quadrant with the radius, 
-    // just use the analytic signed distance function
-    return lerp( length(pos) - radius, max(pos.x - radius, pos.y - radius), float(pos.x <= 0 || pos.y <=0) );
-}
-
 half4 GetRoundedBoxElementColor( VertexToPixelInterpolants InVertex )
 {
-	const float2 size = ShaderParams.zw;
-	float2 UV = InVertex.TextureCoordinates[0].xy;
-	float2 pos = size * UV;
-	float2 center = size / 2.0;
-
-	//X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left */
-	float4 cornerRadii = ShaderParams2;
-
-	// figure out which radius to use based on which quadrant we're in
-	float2 quadrant = step(UV, float2(.5,.5));
-
-	float left = lerp(cornerRadii.y, cornerRadii.x, quadrant.x);
-	float right = lerp(cornerRadii.z, cornerRadii.w, quadrant.x);
-	float radius = lerp(right, left, quadrant.y);
-
-	float thickness = ShaderParams.y; 
-
-	// Compute the distances internal and external to the border outline
-	float dext = GetRoundedBoxDistance(pos, center, radius, 0.0);
-	float din  = GetRoundedBoxDistance(pos, center, max(radius - thickness, 0), thickness);
-
-	// Compute the border intensity and fill intensity with a smooth transition
-	float spread = 0.5;
-	float bi = smoothstep(spread, -spread, dext);
-	float fi = smoothstep(spread, -spread, din);
-
-	half4 fill = GetColor(InVertex, GetUV(InVertex, 0) * GetUV(InVertex, 1)); //InVertex.Color;
-	half4 border = InVertex.SecondaryColor;
-
-	// alpha blend the external color 
-	half4 OutColor = lerp(border, fill, half(thickness > radius));
-	OutColor.a = 0.0;
-
-	// blend in the border and fill colors
-	OutColor = lerp(OutColor, border, bi);
-	OutColor = lerp(OutColor, fill, fi);
-	return OutColor;
+	return GetRoundedBoxElementColorInternal(ShaderParams.zw, InVertex.TextureCoordinates[0].xy, ShaderParams.y, ShaderParams2, GetColor(InVertex, GetUV(InVertex, 0) * GetUV(InVertex, 1)),  InVertex.SecondaryColor);
 }
 #endif
 
@@ -396,3 +346,4 @@ float4 DebugBatchingMain(VertexToPixelInterpolants VIn) : SV_Target0
 {
     return BatchColor;
 }
+

@@ -27,6 +27,7 @@ public:
 		, _bApplyAlphaToBlur(true)
 		, _BlurStrength(0.f)
 		, _BlurRadius()
+		, _CornerRadius(FVector4(0,0,0,0))
 		, _LowQualityFallbackBrush(nullptr)
 	{
 		_Visibility = EVisibility::SelfHitTestInvisible;
@@ -40,6 +41,7 @@ public:
 		SLATE_ARGUMENT(bool, bApplyAlphaToBlur)
 		SLATE_ATTRIBUTE(float, BlurStrength)
 		SLATE_ATTRIBUTE(TOptional<int32>, BlurRadius)
+		SLATE_ATTRIBUTE(FVector4, CornerRadius)
 		SLATE_ARGUMENT(const FSlateBrush*, LowQualityFallbackBrush)
 	SLATE_END_ARGS()
 
@@ -52,6 +54,7 @@ public:
 	void SetApplyAlphaToBlur(bool bInApplyAlphaToBlur);
 	void SetBlurRadius(TAttribute<TOptional<int32>> InBlurRadius);
 	void SetBlurStrength(TAttribute<float> InStrength);
+	void SetCornerRadius(TAttribute<FVector4> InCornerRadius);
 	void SetLowQualityBackgroundBrush(const FSlateBrush* InBrush);
 	
 	void SetHAlign(EHorizontalAlignment HAlign);
@@ -81,4 +84,5 @@ protected:
 private:
 	TSlateAttribute<float> BlurStrengthAttribute;
 	TSlateAttribute<TOptional<int32>> BlurRadiusAttribute;
+	TSlateAttribute<FVector4> CornerRadiusAttribute;
 };
