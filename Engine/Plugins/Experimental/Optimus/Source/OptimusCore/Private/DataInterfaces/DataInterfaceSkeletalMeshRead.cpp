@@ -14,8 +14,11 @@
 void USkeletalMeshReadDataInterface::GetPermutations(FComputeKernelPermutationSet& OutPermutationSet) const
 {
 	// Need to be able to support these permutations according to the skeletal mesh settings.
+	// todo[CF]: Filter these based on which functions in the data interface are attached. That will reduce unnecessary permutations.
 	OutPermutationSet.BooleanOptions.Add(FComputeKernelPermutationBool(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE")));
 	OutPermutationSet.BooleanOptions.Add(FComputeKernelPermutationBool(TEXT("GPUSKIN_BONE_INDEX_UINT16")));
+	OutPermutationSet.BooleanOptions.Add(FComputeKernelPermutationBool(TEXT("GPUSKIN_MORPH_BLEND")));
+	OutPermutationSet.BooleanOptions.Add(FComputeKernelPermutationBool(TEXT("MERGE_DUPLICATED_VERTICES")));
 }
 
 void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
@@ -40,6 +43,20 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
 		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
 		Fn.ParamTypes.Add(ReturnParam);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadIndexBuffer");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
+		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(ReturnParam);
+		FShaderParamTypeDefinition Param0 = {};
+		Param0.FundamentalType = EShaderFundamentalType::Uint;
+		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
 	{
@@ -100,6 +117,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Param0.FundamentalType = EShaderFundamentalType::Uint;
 		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
 		Fn.ParamTypes.Add(Param0);
+		FShaderParamTypeDefinition Param1 = {};
+		Param1.FundamentalType = EShaderFundamentalType::Uint;
+		Param1.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
 	{
@@ -136,12 +157,69 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadTriangleVertexIndices");
+		Fn.Name = TEXT("ReadMorphDeltaPosition");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
+		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
+		ReturnParam.VectorDimension = 3;
+		Fn.ParamTypes.Add(ReturnParam);
+		FShaderParamTypeDefinition Param0 = {};
+		Param0.FundamentalType = EShaderFundamentalType::Uint;
+		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(Param0);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadMorphDeltaTangentZ");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
+		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
+		ReturnParam.VectorDimension = 3;
+		Fn.ParamTypes.Add(ReturnParam);
+		FShaderParamTypeDefinition Param0 = {};
+		Param0.FundamentalType = EShaderFundamentalType::Uint;
+		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(Param0);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadDuplicatedIndicesStart");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
-		ReturnParam.VectorDimension = 3;
+		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(ReturnParam);
+		FShaderParamTypeDefinition Param0 = {};
+		Param0.FundamentalType = EShaderFundamentalType::Uint;
+		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(Param0);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadDuplicatedIndicesLength");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
+		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(ReturnParam);
+		FShaderParamTypeDefinition Param0 = {};
+		Param0.FundamentalType = EShaderFundamentalType::Uint;
+		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Fn.ParamTypes.Add(Param0);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadDuplicatedIndex");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
+		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
 		Param0.FundamentalType = EShaderFundamentalType::Uint;
@@ -154,18 +232,22 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 BEGIN_SHADER_PARAMETER_STRUCT(FSkeletalMeshReadDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, NumVertices)
 	SHADER_PARAMETER(uint32, NumTriangles)
+	SHADER_PARAMETER(uint32, NumTexCoords)
+	SHADER_PARAMETER(uint32, IndexBufferStart)
 	SHADER_PARAMETER(uint32, InputStreamStart)
 	SHADER_PARAMETER(uint32, InputWeightStart)
 	SHADER_PARAMETER(uint32, InputWeightStride)
 	SHADER_PARAMETER(uint32, InputWeightIndexSize)
-	SHADER_PARAMETER(uint32, IndexBufferStart)
+	SHADER_PARAMETER_SRV(Buffer<uint>, IndexBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float>, PositionInputBuffer)
 	SHADER_PARAMETER_SRV(Buffer<SNORM float4>, TangentInputBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float2>, UVInputBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, BoneMatrices)
 	SHADER_PARAMETER_SRV(Buffer<uint>, InputWeightStream)
 	SHADER_PARAMETER_SRV(Buffer<uint>, InputWeightLookupStream)
-	SHADER_PARAMETER_SRV(Buffer<uint>, IndexBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float>, MorphBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndicesIndices)
+	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndices)
 END_SHADER_PARAMETER_STRUCT()
 
 void USkeletalMeshReadDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
@@ -211,7 +293,7 @@ FIntVector FSkeletalMeshReadDataProviderProxy::GetDispatchDim(int32 InvocationIn
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
 	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
-	const int32 NumVertices = RenderSection.GetNumVertices();
+	const int32 NumVertices = RenderSection.NumTriangles;
 	const int32 NumGroupThreads = GroupDim.X * GroupDim.Y * GroupDim.Z;
 	const int32 NumGroups = FMath::DivideAndRoundUp(NumVertices, NumGroupThreads);
 	return FIntVector(NumGroups, 1, 1);
@@ -230,8 +312,10 @@ void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHA
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
 	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
 
+	FRHIShaderResourceView* IndexBufferSRV = LodRenderData->MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
 	FRHIShaderResourceView* MeshVertexBufferSRV = LodRenderData->StaticVertexBuffers.PositionVertexBuffer.GetSRV();
 	FRHIShaderResourceView* MeshTangentBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTangentsSRV();
+	FRHIShaderResourceView* MeshUVBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
 
 	FSkinWeightVertexBuffer const* WeightBuffer = LodRenderData->GetSkinWeightVertexBuffer();
 	FRHIShaderResourceView* SkinWeightBufferSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
@@ -241,26 +325,33 @@ void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHA
 	const TArray<FMatrix44f>& RefToLocals = SkeletalMeshObject->GetReferenceToLocalMatrices();
 	FRHIShaderResourceView* BoneBufferSRV = GPUSkinCache->GetBoneBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
 
-	FSkeletalMeshReadDataInterfaceParameters Parameters;
-	FMemory::Memset(&Parameters, 0, sizeof(FSkeletalMeshReadDataInterfaceParameters));
+	FRHIShaderResourceView* DuplicatedIndicesIndicesSRV = RenderSection.DuplicatedVerticesBuffer.LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV;
+	FRHIShaderResourceView* DuplicatedIndicesSRV = RenderSection.DuplicatedVerticesBuffer.DuplicatedVerticesIndexBuffer.VertexBufferSRV;
 
-	Parameters.NumVertices = RenderSection.GetNumVertices();
-	//Parameters.NumTriangles;
-	Parameters.InputStreamStart = RenderSection.GetVertexBufferIndex();
+	FSkeletalMeshReadDataInterfaceParameters Parameters;
+	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
+
+	Parameters.NumVertices = RenderSection.NumVertices;
+	Parameters.NumTriangles = RenderSection.NumTriangles;
+	Parameters.NumTexCoords = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	Parameters.IndexBufferStart = RenderSection.BaseIndex;
+	Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
 	Parameters.InputWeightStart = (WeightBuffer->GetConstantInfluencesVertexStride() * RenderSection.GetVertexBufferIndex()) / sizeof(float);
 	Parameters.InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
 	Parameters.InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
-	//Parameters.IndexBufferStart;
+	Parameters.IndexBuffer = IndexBufferSRV;
 	Parameters.PositionInputBuffer = MeshVertexBufferSRV;
 	Parameters.TangentInputBuffer = MeshTangentBufferSRV;
-	//Parameters.UVInputBuffer;
+	Parameters.UVInputBuffer = MeshUVBufferSRV;
 	Parameters.BoneMatrices = BoneBufferSRV;
 	Parameters.InputWeightStream = SkinWeightBufferSRV;
 	Parameters.InputWeightLookupStream = InputWeightLookupStreamSRV;
-	//Parameters.IndexBuffer;
+	//Parameters.MorphBuffer = ;
+	Parameters.DuplicatedIndicesIndices = DuplicatedIndicesIndicesSRV;
+	Parameters.DuplicatedIndices = DuplicatedIndicesSRV;
 
 	TArray<uint8> ParamData;
-	ParamData.SetNum(sizeof(FSkeletalMeshReadDataInterfaceParameters));
-	FMemory::Memcpy(ParamData.GetData(), &Parameters, sizeof(FSkeletalMeshReadDataInterfaceParameters));
+	ParamData.SetNum(sizeof(Parameters));
+	FMemory::Memcpy(ParamData.GetData(), &Parameters, sizeof(Parameters));
 	OutBindings.Structs.Add(TTuple<FString, TArray<uint8> >(UID, MoveTemp(ParamData)));
 }
