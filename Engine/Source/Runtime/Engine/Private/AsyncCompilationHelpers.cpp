@@ -19,6 +19,7 @@
 #include "ShaderCompiler.h"
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/StallDetector.h"
+#include "UObject/UObjectThreadContext.h"
 
 #endif // #if WITH_EDITOR
 

@@ -7,7 +7,6 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "UObject/PackageId.h"
-#include "UObject/LinkerSave.h"
 #include "Misc/Guid.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
@@ -15,6 +14,7 @@
 #include "Misc/SecureHash.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Serialization/CustomVersion.h"
+#include "Templates/PimplPtr.h"
 #include "Templates/UniquePtr.h"
 #include "Async/Future.h"
 
@@ -23,6 +23,7 @@ class Error;
 // This is a dummy type which is not implemented anywhere. It's only 
 // used to flag a deprecated Conform argument to package save functions.
 class FLinkerNull;
+class FLinkerSave;
 struct FPackageSaveInfo;
 class FSavePackageContext;
 struct FSavePackageArgs;
@@ -70,13 +71,13 @@ struct FSavePackageResultStruct
 	uint32 SerializedPackageFlags;
 
 	/** Linker for linker comparison after save. */
-	TUniquePtr<FLinkerSave> LinkerSave;
+	TPimplPtr<FLinkerSave> LinkerSave;
 
 	/** Constructors, it will implicitly construct from the result enum */
 	FSavePackageResultStruct() : Result(ESavePackageResult::Error), TotalFileSize(0), SerializedPackageFlags(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult) : Result(InResult), TotalFileSize(0), SerializedPackageFlags(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize) : Result(InResult), TotalFileSize(InTotalFileSize), SerializedPackageFlags(0) {}
-	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash, uint32 InSerializedPackageFlags, TUniquePtr<FLinkerSave> Linker = nullptr) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)), SerializedPackageFlags(InSerializedPackageFlags), LinkerSave(MoveTemp(Linker)) {}
+	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash, uint32 InSerializedPackageFlags, TPimplPtr<FLinkerSave> Linker = nullptr) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)), SerializedPackageFlags(InSerializedPackageFlags), LinkerSave(MoveTemp(Linker)) {}
 
 	bool operator==(const FSavePackageResultStruct& Other) const
 	{
