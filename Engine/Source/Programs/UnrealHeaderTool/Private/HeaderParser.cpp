@@ -9,9 +9,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
 #include "UObject/Interface.h"
-#include "ParserClass.h"
 #include "GeneratedCodeVersion.h"
-#include "ClassDeclarationMetaData.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "NativeClassExporter.h"
 #include "Classes.h"
@@ -86,10 +84,6 @@ namespace
 	static const FName NAME_CppFromBpEvent(TEXT("CppFromBpEvent"));
 	static const FName NAME_CustomThunk(TEXT("CustomThunk"));
 	static const FName NAME_ArraySizeEnum(TEXT("ArraySizeEnum"));
-	static const FName NAME_ClassGroupNames(TEXT("ClassGroupNames"));
-	static const FName NAME_AutoCollapseCategories(TEXT("AutoCollapseCategories"));
-	static const FName NAME_HideFunctions(TEXT("HideFunctions"));
-	static const FName NAME_AutoExpandCategories(TEXT("AutoExpandCategories"));
 	static const FName NAME_EditInline(TEXT("EditInline"));
 	static const FName NAME_IncludePath(TEXT("IncludePath"));
 	static const FName NAME_ModuleRelativePath(TEXT("ModuleRelativePath"));
@@ -104,6 +98,9 @@ const FName FHeaderParserNames::NAME_SparseClassDataTypes(TEXT("SparseClassDataT
 const FName FHeaderParserNames::NAME_IsConversionRoot(TEXT("IsConversionRoot"));
 const FName FHeaderParserNames::NAME_AdvancedClassDisplay(TEXT("AdvancedClassDisplay"));
 const FName FHeaderParserNames::NAME_BlueprintType(TEXT("BlueprintType"));
+const FName FHeaderParserNames::NAME_AutoCollapseCategories(TEXT("AutoCollapseCategories"));
+const FName FHeaderParserNames::NAME_HideFunctions(TEXT("HideFunctions"));
+const FName FHeaderParserNames::NAME_AutoExpandCategories(TEXT("AutoExpandCategories"));
 
 FRigVMStructMap FHeaderParser::StructRigVMMap;
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
@@ -1039,7 +1036,7 @@ FString FHeaderParser::GetContext()
 //
 // Get a qualified class.
 //
-FClass* FHeaderParser::GetQualifiedClass(const TCHAR* Thing)
+UClass* FHeaderParser::GetQualifiedClass(const TCHAR* Thing)
 {
 	TCHAR ClassName[256]=TEXT("");
 
@@ -2093,7 +2090,6 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration()
 	ParseInheritance(TEXT("struct"), [](const TCHAR* StructName, bool bIsSuperClass) {}); // Eat the results, already been parsed
 
 	// if we have a base struct, propagate inherited struct flags now
-	//ETSTODO - Move base class resolution to the post declaration phase
 	FUnrealFieldDefinitionInfo* BaseStructDef = nullptr;
 	if (!StructDef.GetSuperClassInfo().Name.IsEmpty())
 	{
@@ -2379,7 +2375,7 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration()
 	}
 
 	// Validate sparse class data
-	CheckSparseClassData(Struct);
+	CheckSparseClassData(StructDef);
 
 	// Link the properties within the struct
 	Struct->StaticLink(true);
@@ -2718,7 +2714,7 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 
 							if(FuncParam->HasAllPropertyFlags(CPF_OutParm) && !FuncParam->HasAllPropertyFlags(CPF_ConstParm)  )
 							{
-								const bool bClassGeneratedFromBP = FClass::IsDynamic(Struct);
+								const bool bClassGeneratedFromBP = StructDef.IsDynamic();
 								const bool bAllowedArrayRefFromBP = bClassGeneratedFromBP && FuncParam->IsA<FArrayProperty>();
 								if (!bAllowedArrayRefFromBP)
 								{
@@ -2748,27 +2744,28 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 	ParseRigVMMethodParameters(StructDef);
 }
 
-void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
+void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& StructDef)
 {
 	// we're looking for classes that have sparse class data structures
-	const UClass* ClassToCheck = Cast<const UClass>(StructToCheck);
-	if (!ClassToCheck)
+	const UStruct* StructToCheck = StructDef.GetStruct();
+	const FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(StructDef);
+
+	// make sure we don't try to have sparse class data inside of a struct instead of a class
+	if (StructToCheck->HasMetaData(FHeaderParserNames::NAME_SparseClassDataTypes))
 	{
-		// make sure we don't try to have sparse class data inside of a struct instead of a class
-		if (StructToCheck->HasMetaData(FHeaderParserNames::NAME_SparseClassDataTypes))
+		if (ClassDef == nullptr)
 		{
 			FError::Throwf(TEXT("%s contains sparse class data but is not a class."), *StructToCheck->GetName());
 		}
-		return;
 	}
-
-	if (!ClassToCheck->HasMetaData(FHeaderParserNames::NAME_SparseClassDataTypes))
+	else
 	{
 		return;
 	}
+	const UClass* ClassToCheck = ClassDef->GetClass();
 
 	TArray<FString> SparseClassDataTypes;
-	((FClass*)ClassToCheck)->GetSparseClassDataTypes(SparseClassDataTypes);
+	ClassDef->GetSparseClassDataTypes(SparseClassDataTypes);
 
 	// for now we only support one sparse class data structure per class
 	if (SparseClassDataTypes.Num() > 1)
@@ -2819,7 +2816,7 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 		// if the class's parent has a sparse class data struct then the current class must also use the same struct or one that inherits from it
 		const UClass* ParentClass = ClassToCheck->GetSuperClass();
 		TArray<FString> ParentSparseClassDataTypeNames;
-		((FClass*)ParentClass)->GetSparseClassDataTypes(ParentSparseClassDataTypeNames);
+		ClassDef->GetSuperClass()->GetSparseClassDataTypes(ParentSparseClassDataTypeNames);
 		for (FString& ParentSparseClassDataTypeName : ParentSparseClassDataTypeNames)
 		{
 			UScriptStruct* ParentSparseClassDataStruct = FClasses::FindObject<UScriptStruct>(ANY_PACKAGE, *ParentSparseClassDataTypeName);
@@ -2831,12 +2828,12 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 	}
 }
 
-void FHeaderParser::ValidateClassFlags(const UClass* ToValidate)
+void FHeaderParser::ValidateClassFlags(const FUnrealClassDefinitionInfo& ToValidate)
 {
-	if (ToValidate->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading) && !ToValidate->IsChildOf(UClass::StaticClass()))
+	if (ToValidate.HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading) && !ToValidate.GetClass()->IsChildOf(UClass::StaticClass()))
 	{
 		// CLASS_NeedsDeferredDependencyLoading can only be set on classes derived from UClass
-		FError::Throwf(TEXT("NeedsDeferredDependencyLoading is set on %s but the flag can only be used with classes derived from UClass."), *ToValidate->GetName());
+		FError::Throwf(TEXT("NeedsDeferredDependencyLoading is set on %s but the flag can only be used with classes derived from UClass."), *ToValidate.GetClass()->GetName());
 	}
 }
 
@@ -5637,7 +5634,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& De
 {
 	ParseNameWithPotentialAPIMacroPrefix(/*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent, TEXT("class"));
 
-	FClass* FoundClass = FClasses::FindClass(*GetClassNameWithPrefixRemoved(*DeclaredClassName));
+	UClass* FoundClass = FClasses::FindClass(*GetClassNameWithPrefixRemoved(*DeclaredClassName));
 	check(FoundClass);
 	FoundClass->ClassCastFlags |= ClassCastFlagMap::Get().GetCastFlag(DeclaredClassName);
 
@@ -5750,12 +5747,12 @@ UClass* FHeaderParser::CompileClassDeclaration()
 	FString DeclaredClassName;
 	FString RequiredAPIMacroIfPresent;
 	
-	FUnrealClassDefinitionInfo& ClassDeclarationData = ParseClassNameDeclaration(/*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent);
-	FClass* Class = static_cast<FClass*>(ClassDeclarationData.GetClass());
+	FUnrealClassDefinitionInfo& ClassDef = ParseClassNameDeclaration(/*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent);
+	UClass* Class = ClassDef.GetClass();
 
 	ClassDefinitionRanges.Add(Class, ClassDefinitionRange(&Input[InputPos], nullptr));
 
-	check(Class->ClassFlags == 0 || (Class->ClassFlags & ClassDeclarationData.ClassFlags) != 0);
+	check(Class->ClassFlags == 0 || (Class->ClassFlags & ClassDef.ClassFlags) != 0);
 
 	Class->ClassFlags |= CLASS_Parsed;
 
@@ -5782,30 +5779,23 @@ UClass* FHeaderParser::CompileClassDeclaration()
 	}
 
 	// Merge with categories inherited from the parent.
-	ClassDeclarationData.MergeClassCategories(Class);
+	ClassDef.MergeClassCategories();
 
 	// Class attributes.
-	FStructMetaData& StructData = GTypeDefinitionInfoMap.FindChecked<FUnrealStructDefinitionInfo>(Class).GetStructMetaData();
+	FStructMetaData& StructData = ClassDef.GetStructMetaData();
 	StructData.SetPrologLine(PrologFinishLine);
 
-	ClassDeclarationData.MergeAndValidateClassFlags(DeclaredClassName, PrevClassFlags, Class);
+	ClassDef.MergeAndValidateClassFlags(DeclaredClassName, PrevClassFlags);
 	Class->SetInternalFlags(EInternalObjectFlags::Native);
 
 	// Class metadata
-	MetaData.Append(ClassDeclarationData.MetaData);
-	if (ClassDeclarationData.ClassGroupNames.Num()) { MetaData.Add(NAME_ClassGroupNames, FString::Join(ClassDeclarationData.ClassGroupNames, TEXT(" "))); }
-	if (ClassDeclarationData.AutoCollapseCategories.Num()) { MetaData.Add(NAME_AutoCollapseCategories, FString::Join(ClassDeclarationData.AutoCollapseCategories, TEXT(" "))); }
-	if (ClassDeclarationData.HideCategories.Num()) { MetaData.Add(FHeaderParserNames::NAME_HideCategories, FString::Join(ClassDeclarationData.HideCategories, TEXT(" "))); }
-	if (ClassDeclarationData.ShowSubCatgories.Num()) { MetaData.Add(FHeaderParserNames::NAME_ShowCategories, FString::Join(ClassDeclarationData.ShowSubCatgories, TEXT(" "))); }
-	if (ClassDeclarationData.SparseClassDataTypes.Num()) { MetaData.Add(FHeaderParserNames::NAME_SparseClassDataTypes, FString::Join(ClassDeclarationData.SparseClassDataTypes, TEXT(" "))); }
-	if (ClassDeclarationData.HideFunctions.Num()) { MetaData.Add(NAME_HideFunctions, FString::Join(ClassDeclarationData.HideFunctions, TEXT(" "))); }
-	if (ClassDeclarationData.AutoExpandCategories.Num()) { MetaData.Add(NAME_AutoExpandCategories, FString::Join(ClassDeclarationData.AutoExpandCategories, TEXT(" "))); }
-
+	MetaData.Append(ClassDef.MetaData);
+	ClassDef.MergeCategoryMetaData(MetaData);
 	AddIncludePathToMetadata(Class, MetaData);
-	AddModuleRelativePathToMetadata(ClassDeclarationData, MetaData);
+	AddModuleRelativePathToMetadata(ClassDef, MetaData);
 
 	// Register the metadata
-	AddMetaDataToClassData(ClassDeclarationData, MoveTemp(MetaData));
+	AddMetaDataToClassData(ClassDef, MoveTemp(MetaData));
 
 	// Handle the start of the rest of the class
 	RequireSymbol( TEXT('{'), TEXT("'Class'") );
@@ -5823,7 +5813,7 @@ UClass* FHeaderParser::CompileClassDeclaration()
 
 	// auto-create properties for all of the VFTables needed for the multiple inheritances
 	// get the inheritance parents
-	const TArray<FUnrealStructDefinitionInfo::FBaseClassInfo>& BaseClassInfos = ClassDeclarationData.GetBaseClassInfo();
+	const TArray<FUnrealStructDefinitionInfo::FBaseClassInfo>& BaseClassInfos = ClassDef.GetBaseClassInfo();
 
 	// for all base class types, make a VfTable property
 	for (int32 ParentIndex = BaseClassInfos.Num() - 1; ParentIndex >= 0; ParentIndex--)
@@ -5848,19 +5838,19 @@ UClass* FHeaderParser::CompileClassDeclaration()
 	}
 
 	// Validate sparse class data
-	CheckSparseClassData(Class);
+	CheckSparseClassData(ClassDef);
 
 	// Check that the class has appropriate class flags set
-	ValidateClassFlags(Class);
+	ValidateClassFlags(ClassDef);
 
 	return Class;
 }
 
-FClass* FHeaderParser::ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent)
+UClass* FHeaderParser::ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent)
 {
 	ParseNameWithPotentialAPIMacroPrefix(/*out*/ DeclaredInterfaceName, /*out*/ RequiredAPIMacroIfPresent, TEXT("interface"));
 
-	FClass* FoundClass = FClasses::FindClass(*GetClassNameWithPrefixRemoved(*DeclaredInterfaceName));
+	UClass* FoundClass = FClasses::FindClass(*GetClassNameWithPrefixRemoved(*DeclaredInterfaceName));
 	if (FoundClass == nullptr)
 	{
 		return nullptr;
@@ -5960,7 +5950,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 
 	// New style files have the interface name / extends afterwards
 	RequireIdentifier(TEXT("class"), ESearchCase::CaseSensitive, TEXT("Interface declaration"));
-	FClass* InterfaceClass = ParseInterfaceNameDeclaration(/*out*/ DeclaredInterfaceName, /*out*/ RequiredAPIMacroIfPresent);
+	UClass* InterfaceClass = ParseInterfaceNameDeclaration(/*out*/ DeclaredInterfaceName, /*out*/ RequiredAPIMacroIfPresent);
 	FUnrealClassDefinitionInfo& ClassDef = GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(InterfaceClass);
 	ClassDefinitionRanges.Add(InterfaceClass, ClassDefinitionRange(&Input[InputPos], nullptr));
 
@@ -6018,7 +6008,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 	}
 
 	// All classes must start with a valid Unreal prefix
-	const FString ExpectedInterfaceName = InterfaceClass->GetNameWithPrefix(EEnforceInterfacePrefix::U);
+	const FString ExpectedInterfaceName = FUnrealTypeDefinitionInfo::GetNameWithPrefix(InterfaceClass, EEnforceInterfacePrefix::U);
 	if (DeclaredInterfaceName != ExpectedInterfaceName)
 	{
 		FError::Throwf(TEXT("Interface name '%s' is invalid, the first class should be identified as '%s'"), *DeclaredInterfaceName, *ExpectedInterfaceName );
@@ -6498,7 +6488,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 
 		//Workaround for UE-28897
 		const FStructScope* CurrentStructScope = TopNest->GetScope() ? TopNest->GetScope()->AsStructScope() : nullptr;
-		const bool bDynamicClassScope = CurrentStructScope && CurrentStructScope->GetStruct() && FClass::IsDynamic(CurrentStructScope->GetStruct());
+		const bool bDynamicClassScope = CurrentStructScope && CurrentStructScope->GetStruct() && CurrentStructScope->GetStructDef().IsDynamic();
 		CheckAllow(CurrentScopeName, bDynamicClassScope ? ENestAllowFlags::ImplicitDelegateDecl : ENestAllowFlags::TypeDecl);
 	}
 	else
@@ -6760,7 +6750,7 @@ void FHeaderParser::CompileFunctionDeclaration()
 
 	ProcessFunctionSpecifiers(FuncInfo, SpecifiersFound, MetaData);
 
-	const bool bClassGeneratedFromBP = FClass::IsDynamic(GetCurrentClass());
+	const bool bClassGeneratedFromBP = GetCurrentClassDef().IsDynamic();
 
 	if ((0 != (FuncInfo.FunctionExportFlags & FUNCEXPORT_CustomThunk)) && !MetaData.Contains(NAME_CustomThunk))
 	{
@@ -7498,7 +7488,6 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	TArray<FProperty*> NewProperties;
 	for (;;)
 	{
-		//ETSTODO
 		FPropertyBase Property = OriginalProperty;
 		FUnrealPropertyDefinitionInfo& NewPropDef = GetVarNameAndDim(StructDef, Property, EVariableCategory::Member, LayoutMacroType);
 		FProperty* NewProperty = NewPropDef.GetProperty();
@@ -9068,17 +9057,17 @@ void FHeaderParser::ResetClassData()
 		{
 			CurrentClass->SetMetaData(FHeaderParserNames::NAME_SparseClassDataTypes, *SuperClass->GetMetaData(FHeaderParserNames::NAME_SparseClassDataTypes));
 		}
-		if (SuperClass->HasMetaData(NAME_HideFunctions))
+		if (SuperClass->HasMetaData(FHeaderParserNames::NAME_HideFunctions))
 		{
-			CurrentClass->SetMetaData(NAME_HideFunctions, *SuperClass->GetMetaData(NAME_HideFunctions));
+			CurrentClass->SetMetaData(FHeaderParserNames::NAME_HideFunctions, *SuperClass->GetMetaData(FHeaderParserNames::NAME_HideFunctions));
 		}
-		if (SuperClass->HasMetaData(NAME_AutoExpandCategories))
+		if (SuperClass->HasMetaData(FHeaderParserNames::NAME_AutoExpandCategories))
 		{
-			CurrentClass->SetMetaData(NAME_AutoExpandCategories, *SuperClass->GetMetaData(NAME_AutoExpandCategories));
+			CurrentClass->SetMetaData(FHeaderParserNames::NAME_AutoExpandCategories, *SuperClass->GetMetaData(FHeaderParserNames::NAME_AutoExpandCategories));
 		}
-		if (SuperClass->HasMetaData(NAME_AutoCollapseCategories))
+		if (SuperClass->HasMetaData(FHeaderParserNames::NAME_AutoCollapseCategories))
 		{
-			CurrentClass->SetMetaData(NAME_AutoCollapseCategories, *SuperClass->GetMetaData(NAME_AutoCollapseCategories));
+			CurrentClass->SetMetaData(FHeaderParserNames::NAME_AutoCollapseCategories, *SuperClass->GetMetaData(FHeaderParserNames::NAME_AutoCollapseCategories));
 		}
 	}
 
