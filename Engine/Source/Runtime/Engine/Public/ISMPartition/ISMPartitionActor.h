@@ -8,6 +8,7 @@
 #include "ISMPartition/ISMComponentData.h"
 #include "Templates/Tuple.h"
 #include "Containers/SortedMap.h"
+#include "Elements/SMInstance/SMInstanceManager.h"
 #include "ISMPartitionActor.generated.h"
 
 struct FISMClientHandle;
@@ -17,7 +18,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogISMPartition, Log, All);
 /** Actor base class for instance containers placed on a grid.
 	See UActorPartitionSubsystem. */
 UCLASS(Abstract)
-class ENGINE_API AISMPartitionActor : public APartitionActor
+class ENGINE_API AISMPartitionActor : public APartitionActor, public ISMInstanceManagerProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -49,6 +50,7 @@ public:
 	void UpdateHISMTrees(bool bAsync, bool bForce);
 	void GetClientComponents(const FISMClientHandle& Handle, TArray<UInstancedStaticMeshComponent*>& OutComponents);
 	void OutputStats() const;
+
 protected:
 
 private:
@@ -64,6 +66,11 @@ private:
 	void ModifyActor();
 #endif
 
+protected:
+	//~ ISMInstanceManagerProvider interface
+	virtual TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId) const override;
+
+private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FGuid> Clients;

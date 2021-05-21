@@ -8,11 +8,11 @@
 
 FAssetData USMInstanceElementAssetDataInterface::GetAssetData(const FTypedElementHandle& InElementHandle)
 {
-	if (FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	if (FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
 	{
-		if (SMInstance.ISMComponent->GetStaticMesh())
+		if (UStaticMesh* StaticMesh = SMInstance.GetISMComponent()->GetStaticMesh())
 		{
-			return FAssetData(SMInstance.ISMComponent->GetStaticMesh());
+			return FAssetData(StaticMesh);
 		}
 	}
 

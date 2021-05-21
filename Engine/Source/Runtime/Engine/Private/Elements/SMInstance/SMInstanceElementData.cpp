@@ -22,43 +22,44 @@ bool SMInstanceElementsEnabled()
 	return GEnableSMInstanceElements != 0;
 }
 
-bool IsValidComponentForSMInstanceElements(const UInstancedStaticMeshComponent* InComponent)
+TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId)
 {
-	if (!InComponent)
+	if (!InstanceId)
 	{
-		return false;
+		return nullptr;
 	}
 
-	if (const AActor* OwnerActor = InComponent->GetOwner())
+	if (AActor* OwnerActor = InstanceId.ISMComponent->GetOwner())
 	{
-		// Foliage actors have extra bookkeeping data which isn't correctly updated by static mesh instance elements
-		// Disable being able to create static mesh instance elements for foliage actors until this is resolved...
-		// Note: This test is by name as we cannot link directly to AInstancedFoliageActor
-		static const FName NAME_InstancedFoliageActor = "InstancedFoliageActor";
-		for (const UClass* ActorClass = OwnerActor->GetClass(); ActorClass; ActorClass = ActorClass->GetSuperClass())
+		// If the owner actor is an instance manager provider, then just ask that for the instance manager
+		if (ISMInstanceManagerProvider* InstanceManagerProvider = Cast<ISMInstanceManagerProvider>(OwnerActor))
 		{
-			if (ActorClass->GetFName() == NAME_InstancedFoliageActor)
-			{
-				return false;
-			}
+			return InstanceManagerProvider->GetSMInstanceManager(InstanceId);
+		}
+
+		// If the owner actor is an instance manager, then just use that
+		if (ISMInstanceManager* InstanceManager = Cast<ISMInstanceManager>(OwnerActor))
+		{
+			return OwnerActor;
 		}
 	}
 
-	return true;
+	// Otherwise, allow the ISM component to manage itself
+	return InstanceId.ISMComponent;
 }
 
-FSMInstanceId GetSMInstanceFromHandle(const FTypedElementHandle& InHandle, const bool bSilent)
+FSMInstanceManager GetSMInstanceFromHandle(const FTypedElementHandle& InHandle, const bool bSilent)
 {
 	const FSMInstanceElementData* SMInstanceElement = InHandle.GetData<FSMInstanceElementData>(bSilent);
-	return SMInstanceElement ? FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(SMInstanceElement->InstanceElementId) : FSMInstanceId();
+	const FSMInstanceId SMInstanceId = SMInstanceElement ? FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(SMInstanceElement->InstanceElementId) : FSMInstanceId();
+	return FSMInstanceManager(SMInstanceId, GetSMInstanceManager(SMInstanceId));
 }
 
-FSMInstanceId GetSMInstanceFromHandleChecked(const FTypedElementHandle& InHandle)
+FSMInstanceManager GetSMInstanceFromHandleChecked(const FTypedElementHandle& InHandle)
 {
 	const FSMInstanceElementData& SMInstanceElement = InHandle.GetDataChecked<FSMInstanceElementData>();
-	FSMInstanceId SMInstanceId = FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(SMInstanceElement.InstanceElementId);
-	checkf(SMInstanceId, TEXT("Static Mesh Instance Element ID failed to map to a valid Static Mesh Instance Index!"));
-	return SMInstanceId;
+	const FSMInstanceId SMInstanceId = FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(SMInstanceElement.InstanceElementId);
+	return FSMInstanceManager(SMInstanceId, GetSMInstanceManager(SMInstanceId));
 }
 
 } // namespace SMInstanceElementDataUtil

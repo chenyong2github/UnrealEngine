@@ -1,0 +1,162 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/Interface.h"
+#include "Containers/ArrayView.h"
+#include "Elements/SMInstance/SMInstanceElementId.h"
+#include "SMInstanceManager.generated.h"
+
+/**
+ * An interface for actors that manage static mesh instances.
+ * This exists so that actors that directly manage instances can inject custom logic around the manipulation of the underlying ISM component.
+ * @note The static mesh instances given to this API must be valid and belong to this instance manager. The instance manager implementation is free to assert or crash if that contract is broken.
+ */
+UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint))
+class ENGINE_API USMInstanceManager : public UInterface
+{
+	GENERATED_BODY()
+};
+class ENGINE_API ISMInstanceManager
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Can the given static mesh instance be edited?
+	 * @return True if it can be edited, false otherwise.
+	 */
+	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const = 0;
+
+	/**
+	 * Attempt to get the transform of the given static mesh instance.
+	 * @note The transform should be in the local space of the owner ISM component, unless bWorldSpace is set.
+	 * @return True if the transform was retrieved, false otherwise.
+	 */
+	virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const = 0;
+
+	/**
+	 * Attempt to set the transform of the given static mesh instance.
+	 * @note The transform should be in the local space of the owner ISM component, unless bWorldSpace is set.
+	 * @return True if the transform was updated, false otherwise.
+	 */
+	virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) = 0;
+
+	/**
+	 * Can the given static mesh instance be deleted?
+	 * @return True if it can be deleted, false otherwise.
+	 */
+	virtual bool CanDeleteSMInstance(const FSMInstanceId& InstanceId) const
+	{
+		return CanEditSMInstance(InstanceId);
+	}
+
+	/**
+	 * Attempt to delete the given static mesh instances.
+	 * @return True if any instances were deleted, false otherwise.
+	 */
+	virtual bool DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds) = 0;
+
+	/**
+	 * Can the given static mesh instance be duplicated?
+	 * @return True if it can be duplicated, false otherwise.
+	 */
+	virtual bool CanDuplicateSMInstance(const FSMInstanceId& InstanceId) const
+	{
+		return CanEditSMInstance(InstanceId);
+	}
+
+	/**
+	 * Attempt to duplicate the given static mesh instances, retrieving the IDs of any new instances.
+	 * @return True if any instances were duplicated, false otherwise.
+	 */
+	virtual bool DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds) = 0;
+};
+
+/**
+ * An interface for actors that can provide a manager for static mesh instances.
+ * This exists so that actors that indirectly manage instances can provide the correct underlying manager for the specific ISM component and instance.
+ * @note The static mesh instances given to this API must be valid. The instance manager provider implementation is free to assert or crash if that contract is broken.
+ */
+UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint))
+class ENGINE_API USMInstanceManagerProvider : public UInterface
+{
+	GENERATED_BODY()
+};
+class ENGINE_API ISMInstanceManagerProvider
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Attempt to get the instance manager associated with the given static mesh instance, if any.
+	 * @return The instance manager, or null if there is no instance manager associated with the given instance.
+	 */
+	virtual TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId) const = 0;
+};
+
+/**
+ * A static mesh instance manager, tied to a given static mesh instance ID.
+ */
+struct ENGINE_API FSMInstanceManager
+{
+public:
+	FSMInstanceManager() = default;
+
+	FSMInstanceManager(const FSMInstanceId& InInstanceId, const TScriptInterface<ISMInstanceManager>& InInstanceManager)
+		: InstanceId(InInstanceId)
+		, InstanceManager(InInstanceManager)
+	{
+	}
+
+	explicit operator bool() const
+	{
+		return InstanceId
+			&& InstanceManager;
+	}
+
+	bool operator==(const FSMInstanceManager& InRHS) const
+	{
+		return InstanceId == InRHS.InstanceId
+			&& InstanceManager == InRHS.InstanceManager;
+	}
+
+	bool operator!=(const FSMInstanceManager& InRHS) const
+	{
+		return !(*this == InRHS);
+	}
+
+	friend inline uint32 GetTypeHash(const FSMInstanceManager& InId)
+	{
+		return GetTypeHash(InId.InstanceId);
+	}
+
+	const FSMInstanceId& GetInstanceId() const { return InstanceId; }
+	const TScriptInterface<ISMInstanceManager>& GetInstanceManager() const { return InstanceManager; }
+
+	UInstancedStaticMeshComponent* GetISMComponent() const { return InstanceId.ISMComponent; }
+	int32 GetISMInstanceIndex() const { return InstanceId.InstanceIndex; }
+
+	//~ ISMInstanceManager interface
+	bool CanEditSMInstance() const { return InstanceManager->CanEditSMInstance(InstanceId); }
+	bool GetSMInstanceTransform(FTransform& OutInstanceTransform, bool bWorldSpace = false) const { return InstanceManager->GetSMInstanceTransform(InstanceId, OutInstanceTransform, bWorldSpace); }
+	bool SetSMInstanceTransform(const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) const { return InstanceManager->SetSMInstanceTransform(InstanceId, InstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport); }
+	bool CanDeleteSMInstance() const { return InstanceManager->CanDeleteSMInstance(InstanceId); }
+	bool DeleteSMInstance() const { return InstanceManager->DeleteSMInstances(MakeArrayView(&InstanceId, 1)); }
+	bool CanDuplicateSMInstance() const { return InstanceManager->CanDuplicateSMInstance(InstanceId); }
+	bool DuplicateSMInstance(FSMInstanceId& OutNewInstanceId) const
+	{
+		TArray<FSMInstanceId> NewInstanceIds;
+		if (InstanceManager->DuplicateSMInstances(MakeArrayView(&InstanceId, 1), NewInstanceIds))
+		{
+			OutNewInstanceId = NewInstanceIds[0];
+			return true;
+		}
+		return false;
+	}
+
+private:
+	FSMInstanceId InstanceId;
+	TScriptInterface<ISMInstanceManager> InstanceManager;
+};

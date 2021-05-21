@@ -18,9 +18,9 @@ private:
 
 	virtual FTypedElementHandle GetElementImpl() const override
 	{
-		FSMInstanceElementId SMInstanceElementId{ ISMComponentPtr.Get(/*bEvenIfPendingKill*/true), InstanceId };
-		return FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(SMInstanceElementId)
-			? UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(SMInstanceElementId)
+		FSMInstanceId SMInstanceId = FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(FSMInstanceElementId{ ISMComponentPtr.Get(/*bEvenIfPendingKill*/true), InstanceId });
+		return SMInstanceId
+			? UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(SMInstanceId)
 			: FTypedElementHandle();
 	}
 
@@ -43,7 +43,7 @@ private:
 
 bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	if (const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	if (const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
 	{
 		if (InSelectionSet->Num() == 0)
 		{
@@ -57,7 +57,7 @@ bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedE
 
 		if (InSelectionOptions.AllowIndirect())
 		{
-			if (FTypedElementHandle ISMComponentElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(SMInstance.ISMComponent, /*bAllowCreate*/false))
+			if (FTypedElementHandle ISMComponentElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(SMInstance.GetISMComponent(), /*bAllowCreate*/false))
 			{
 				return InSelectionSet->Contains(ISMComponentElement);
 			}
@@ -69,8 +69,8 @@ bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedE
 
 bool USMInstanceElementEditorSelectionInterface::ShouldPreventTransactions(const FTypedElementHandle& InElementHandle)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && UObjectElementEditorSelectionInterface::ShouldObjectPreventTransactions(SMInstance.ISMComponent);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && UObjectElementEditorSelectionInterface::ShouldObjectPreventTransactions(SMInstance.GetISMComponent());
 }
 
 TUniquePtr<ITypedElementTransactedElement> USMInstanceElementEditorSelectionInterface::CreateTransactedElementImpl()
