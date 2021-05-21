@@ -7,6 +7,33 @@
 #include "GenericPlatform/GenericPlatformStricmp.h"
 #include <type_traits>
 
+namespace UE::Core::Private
+{
+	// The Dest parameter is just used for overload resolution
+	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const ANSICHAR* Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const WIDECHAR* Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const UCS2CHAR* Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const ANSICHAR* Dest, const UTF8CHAR* Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const WIDECHAR* Dest, const UTF8CHAR* Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const UCS2CHAR* Dest, const UTF8CHAR* Src, int32 SrcLen);
+
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const ANSICHAR* Src, int32 SrcLen, UTF8CHAR BogusChar);
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const WIDECHAR* Src, int32 SrcLen, UTF8CHAR BogusChar);
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UCS2CHAR* Src, int32 SrcLen, UTF8CHAR BogusChar);
+	CORE_API ANSICHAR* Convert(ANSICHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, ANSICHAR BogusChar);
+	CORE_API WIDECHAR* Convert(WIDECHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, WIDECHAR BogusChar);
+	CORE_API UCS2CHAR* Convert(UCS2CHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, UCS2CHAR BogusChar);
+}
+
+// These will be moved inside GenericPlatformString.cpp when the platform layer handles UTF-16
+// instead of StringConv.h.
+#define HIGH_SURROGATE_START_CODEPOINT    ((uint16)0xD800)
+#define HIGH_SURROGATE_END_CODEPOINT      ((uint16)0xDBFF)
+#define LOW_SURROGATE_START_CODEPOINT     ((uint16)0xDC00)
+#define LOW_SURROGATE_END_CODEPOINT       ((uint16)0xDFFF)
+#define ENCODED_SURROGATE_START_CODEPOINT ((uint32)0x10000)
+#define ENCODED_SURROGATE_END_CODEPOINT   ((uint32)0x10FFFF)
+
 /**
  * Generic string implementation for most platforms
  */
@@ -148,7 +175,7 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 	};
 
 	/**
-	 * Converts the [Src, Src+SrcSize) string range from SourceChar to DestChar and writes it to the [Dest, Dest+DestSize) range.
+	 * Converts the [Src, Src+SrcSize) string range from SourceEncoding to DestEncoding and writes it to the [Dest, Dest+DestSize) range.
 	 * The Src range should contain a null terminator if a null terminator is required in the output.
 	 * If the Dest range is not big enough to hold the converted output, NULL is returned.  In this case, nothing should be assumed about the contents of Dest.
 	 *
@@ -171,7 +198,7 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 
 			return (DestEncoding*)Memcpy(Dest, Src, SrcSize * sizeof(SourceEncoding)) + SrcSize;
 		}
-		else
+		else if constexpr (TIsFixedWidthEncoding<SourceEncoding>::Value && TIsFixedWidthEncoding<DestEncoding>::Value)
 		{
 			const int32 Size = DestSize <= SrcSize ? DestSize : SrcSize;
 			bool bInvalidChars = false;
@@ -197,6 +224,10 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 
 			return DestSize < SrcSize ? nullptr : Dest + Size;
 		}
+		else
+		{
+			return UE::Core::Private::Convert(Dest, DestSize, Src, SrcSize, BogusChar);
+		}
 	}
 
 
@@ -209,9 +240,16 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 	 * @return         The number of DestChar elements that Src will be converted into.
 	 */
 	template <typename DestEncoding, typename SourceEncoding>
-	static typename TEnableIf<TIsFixedWidthEncoding<SourceEncoding>::Value && TIsFixedWidthEncoding<DestEncoding>::Value, int32>::Type ConvertedLength(const SourceEncoding* Src, int32 SrcSize)
+	static int32 ConvertedLength(const SourceEncoding* Src, int32 SrcSize)
 	{
-		return SrcSize;
+		if constexpr (std::is_same_v<SourceEncoding, DestEncoding> || (TIsFixedWidthEncoding<SourceEncoding>::Value && TIsFixedWidthEncoding<DestEncoding>::Value))
+		{
+			return SrcSize;
+		}
+		else
+		{
+			return UE::Core::Private::GetConvertedLength((DestEncoding*)nullptr, Src, SrcSize);
+		}
 	}
 
 	CORE_API static int32 Strncmp(const ANSICHAR* String1, const ANSICHAR* String2, SIZE_T Count);
