@@ -17,6 +17,18 @@ FString UDisplayClusterICVFXCameraComponent::GetCameraUniqueId() const
 	return GetFName().ToString();
 }
 
+#if WITH_EDITOR
+bool UDisplayClusterICVFXCameraComponent::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut)
+{
+	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
+	{
+		return RootActor->bEnableICVFXCameraPreview;
+	}
+
+	return Super::GetEditorPreviewInfo(DeltaTime, ViewOut);
+}
+#endif
+
 FDisplayClusterViewport_CameraMotionBlur UDisplayClusterICVFXCameraComponent::GetMotionBlurParameters()
 {
 	FDisplayClusterViewport_CameraMotionBlur OutParameters;

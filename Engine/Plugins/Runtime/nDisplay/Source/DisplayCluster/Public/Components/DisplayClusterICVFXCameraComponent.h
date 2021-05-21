@@ -37,6 +37,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ShowInnerProperties))
 	FDisplayClusterConfigurationICVFX_CameraSettings CameraSettings;
 
+#if WITH_EDITOR
+	virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut) override;
+#endif
+	
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
 
