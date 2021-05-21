@@ -392,6 +392,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, FictitiousAngularScale(InFictitiousAngularScale)
 	, DragCoefficient(InDragCoefficient)
 	, LiftCoefficient(InLiftCoefficient)
+	, WindVelocity(0.f, 0.f, 0.f)  // Set by clothing interactor
 	, bUseLegacyWind(bInUseLegacyWind)
 	, DampingCoefficient(InDampingCoefficient)
 	, CollisionThickness(InCollisionThickness)

@@ -80,7 +80,8 @@ void UControlRigEditModeDelegateHelper::AddDelegates(USkeletalMeshComponent* InS
 	if (BoundComponent.IsValid())
 	{
 		BoundComponent->OnAnimInitialized.AddDynamic(this, &UControlRigEditModeDelegateHelper::OnPoseInitialized);
-		BoundComponent->OnBoneTransformsFinalized.AddDynamic(this, &UControlRigEditModeDelegateHelper::PostPoseUpdate);
+		OnBoneTransformsFinalizedHandle = BoundComponent->RegisterOnBoneTransformsFinalizedDelegate(
+			FOnBoneTransformsFinalizedMultiCast::FDelegate::CreateUObject(this, &UControlRigEditModeDelegateHelper::PostPoseUpdate));
 	}
 }
 
@@ -89,7 +90,8 @@ void UControlRigEditModeDelegateHelper::RemoveDelegates()
 	if(BoundComponent.IsValid())
 	{
 		BoundComponent->OnAnimInitialized.RemoveAll(this);
-		BoundComponent->OnBoneTransformsFinalized.RemoveAll(this);
+		BoundComponent->UnregisterOnBoneTransformsFinalizedDelegate(OnBoneTransformsFinalizedHandle);
+		OnBoneTransformsFinalizedHandle.Reset();
 		BoundComponent = nullptr;
 	}
 }

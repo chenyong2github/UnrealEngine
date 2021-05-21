@@ -60,6 +60,9 @@ public:
 
 	TWeakObjectPtr<USkeletalMeshComponent> BoundComponent;
 	FControlRigEditMode* EditMode = nullptr;
+
+private:
+	FDelegateHandle OnBoneTransformsFinalizedHandle;
 };
 
 class FControlRigEditMode : public IPersonaEditMode
