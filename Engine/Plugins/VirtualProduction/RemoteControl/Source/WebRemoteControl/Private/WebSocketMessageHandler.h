@@ -40,7 +40,7 @@ private:
 	void HandleWebSocketPresetUnregister(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	//Preset callbacks
-	void OnPresetExposedPropertyChanged(URemoteControlPreset* Owner, const FRemoteControlProperty& PropertyChanged);
+	void OnPresetExposedPropertiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedPropertyIds);
 	void OnPropertyExposed(URemoteControlPreset* Owner,  const FGuid& EntityId);
 	void OnPropertyUnexposed(URemoteControlPreset* Owner, const FGuid& EntityId);
 	void OnFieldRenamed(URemoteControlPreset* Owner, FName OldFieldLabel, FName NewFieldLabel);
@@ -86,7 +86,7 @@ private:
 	/**
 	 * Write the provided list of events to a buffer.
 	 */
-	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TArray<FRemoteControlProperty>& InEvents, TArray<uint8>& OutBuffer);
+	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, TArray<uint8>& OutBuffer);
 
 	/**
 	 * Write the provided list of actor modifications to a buffer.
@@ -114,7 +114,7 @@ private:
 	TMap<FGuid, FRCClientConfig> ClientConfigMap;
 
 	/** Properties that changed for a frame, per preset.  */
-	TMap<FName, TMap<FGuid, TArray<FRemoteControlProperty>>> PerFramePropertyChanged;
+	TMap<FName, TMap<FGuid, TSet<FGuid>>> PerFrameModifiedProperties;
 
 	/** Properties that changed on an exposed actor for a given client, for a frame, per preset.  */
 	TMap<FName, TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>> PerFrameActorPropertyChanged;
