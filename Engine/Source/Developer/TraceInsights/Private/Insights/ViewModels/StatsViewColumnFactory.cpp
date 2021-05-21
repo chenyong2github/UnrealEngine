@@ -27,6 +27,7 @@ const FName FStatsViewColumns::AverageColumnID(TEXT("Average"));
 const FName FStatsViewColumns::MedianColumnID(TEXT("Median"));
 const FName FStatsViewColumns::LowerQuartileColumnID(TEXT("LowerQuartile"));
 const FName FStatsViewColumns::MinColumnID(TEXT("Min"));
+const FName FStatsViewColumns::DiffColumnID(TEXT("Diff"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -46,6 +47,7 @@ void FStatsViewColumnFactory::CreateStatsViewColumns(TArray<TSharedRef<Insights:
 	Columns.Add(CreateMedianColumn());
 	//Columns.Add(CreateLowerQuartileColumn());
 	Columns.Add(CreateMinColumn());
+	Columns.Add(CreateDiffColumn());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -655,6 +657,59 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMinColumn()
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByMin>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateDiffColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::DiffColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Diff_ColumnName", "Max - Min"));
+	Column.SetTitleName(LOCTEXT("Diff_ColumnTitle", "Maximum - Minimum"));
+	Column.SetDescription(LOCTEXT("Diff_ColumnDesc", "Maximum - Minimum of selected values"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+		ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(AggregatedStatsColumnInitialWidth);
+
+	Column.SetDataType(ETableCellDataType::Double);
+
+	class FDiffValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::DiffColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().DoubleStats.Max - StatsNode.GetAggregatedStats().DoubleStats.Min));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FDiffValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	class FDiffValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+		{
+			ensure(Column.GetId() == FStatsViewColumns::DiffColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return StatsNode.GetTextForAggregatedStatsDiff();
+		}
+	};
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FDiffValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
 
 	return ColumnRef;

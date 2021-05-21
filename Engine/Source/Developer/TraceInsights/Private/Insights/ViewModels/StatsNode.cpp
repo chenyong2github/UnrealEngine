@@ -231,4 +231,11 @@ const FText FStatsNode::GetTextForAggregatedStatsUpperQuartile(bool bForTooltip)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const FText FStatsNode::GetTextForAggregatedStatsDiff(bool bForTooltip) const
+{
+	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Max - AggregatedStats.DoubleStats.Min, AggregatedStats.Int64Stats.Max - AggregatedStats.Int64Stats.Min, bForTooltip);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #undef LOCTEXT_NAMESPACE

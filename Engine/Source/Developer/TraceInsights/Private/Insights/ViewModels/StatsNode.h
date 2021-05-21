@@ -245,6 +245,7 @@ public:
 	const FText GetTextForAggregatedStatsMedian(bool bForTooltip = false) const;
 	const FText GetTextForAggregatedStatsLowerQuartile(bool bForTooltip = false) const;
 	const FText GetTextForAggregatedStatsUpperQuartile(bool bForTooltip = false) const;
+	const FText GetTextForAggregatedStatsDiff(bool bForTooltip = false) const;
 
 	/** Sorts children using the specified class instance. */
 	template<typename TSortingClass>
