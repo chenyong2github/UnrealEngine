@@ -347,7 +347,7 @@ namespace UnrealBuildTool
 			// Create DWARF format debug info if wanted,
 			if (CompileEnvironment.bCreateDebugInfo)
 			{
-				Result += " -gdwarf-2";
+				Result += " -g";
 			}
 
 			// Add additional frameworks so that their headers can be found
@@ -373,8 +373,6 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x objective-c++";
-			Result += " -fobjc-abi-version=2";
-			Result += " -fobjc-legacy-dispatch";
 			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 			Result += " -stdlib=libc++";
 			return Result;
@@ -384,8 +382,6 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x objective-c++";
-			Result += " -fobjc-abi-version=2";
-			Result += " -fobjc-legacy-dispatch";
 			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 			Result += " -stdlib=libc++";
 			return Result;
@@ -395,8 +391,6 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x objective-c";
-			Result += " -fobjc-abi-version=2";
-			Result += " -fobjc-legacy-dispatch";
 			Result += GetCppStandardCompileArgument(CompileEnvironment.CppStandard);
 			Result += " -stdlib=libc++";
 			return Result;
