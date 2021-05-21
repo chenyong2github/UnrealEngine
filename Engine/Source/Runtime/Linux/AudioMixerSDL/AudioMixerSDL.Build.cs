@@ -6,8 +6,6 @@ public class AudioMixerSDL : ModuleRules
 {
 	public AudioMixerSDL(ReadOnlyTargetRules Target) : base(Target)
 	{
-        OptimizeCode = CodeOptimization.Never;
-
         PrivateIncludePathModuleNames.Add("TargetPlatform");
 		PublicIncludePaths.Add("Runtime/AudioMixer/Public");
 		PrivateIncludePaths.Add("Runtime/AudioMixer/Private");
