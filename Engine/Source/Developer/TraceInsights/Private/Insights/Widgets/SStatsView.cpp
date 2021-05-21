@@ -1727,6 +1727,7 @@ void SStatsView::ContextMenu_ShowMinMaxMedColumns_Execute()
 		FStatsViewColumns::MedianColumnID,
 		FStatsViewColumns::LowerQuartileColumnID,
 		FStatsViewColumns::MinColumnID,
+		FStatsViewColumns::DiffColumnID,
 	};
 
 	ColumnBeingSorted = FStatsViewColumns::CountColumnID;
