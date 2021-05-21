@@ -8,6 +8,7 @@
 #include "GameplayTimingViewExtender.h"
 #include "Framework/Docking/TabManager.h"
 #include "IGameplayInsightsModule.h"
+#include "GameplayInsightsDebugViewCreator.h"
 
 struct FInsightsMajorTabExtender;
 
@@ -27,10 +28,11 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	// IGameplayInsightsModule interface
+	virtual IGameplayInsightsDebugViewCreator* GetDebugViewCreator() override { return &DebugViewCreator; }
+
 	// Spawn a document tab
 	TSharedRef<SDockTab> SpawnTimingProfilerDocumentTab(const FTabManager::FSearchPreference& InSearchPreference);
-
-	virtual TSharedRef<IAnimGraphSchematicView> CreateAnimGraphSchematicView(uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 
 protected:
 	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
@@ -39,6 +41,8 @@ protected:
 #endif
 
 private:
+	FGameplayInsightsDebugViewCreator DebugViewCreator;
+
 	FGameplayTraceModule GameplayTraceModule;
 
 	FGameplayTimingViewExtender GameplayTimingViewExtender;

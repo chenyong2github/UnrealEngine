@@ -235,13 +235,10 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 				.DebugComponents(InArgs._DebugComponents)
 				.OnSelectionChanged(this, &SRewindDebugger::OnComponentSelectionChanged);
 
-	// everything related to creating SAnimGraphSchematicView should be moved to a separate file
-	IUnrealInsightsModule &UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-	IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
-	TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule.GetAnalysisSession();
 
-	AnimGraphView = GameplayInsightsModule.CreateAnimGraphSchematicView(0, TraceTime.Get(), *Session);
-	TraceTime.OnPropertyChanged = TraceTime.OnPropertyChanged.CreateSP(AnimGraphView.Get(), &IAnimGraphSchematicView::SetTimeMarker);
+	DebugViewContainer = SNew(SVerticalBox);
+
+	TraceTime.OnPropertyChanged = TraceTime.OnPropertyChanged.CreateRaw(this, &SRewindDebugger::TraceTimeChanged);
 
 	ChildSlot
 	[
@@ -330,8 +327,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 			]
 			+SVerticalBox::Slot() .VAlign(VAlign_Top) .FillHeight(1.0f)
 			[
-				// todo: this should be a proxy slot that we swap out based on which component is selected in the treeview
-				AnimGraphView.ToSharedRef()
+				DebugViewContainer.ToSharedRef()
 			]
 		]
 	];
@@ -342,15 +338,38 @@ void SRewindDebugger::RefreshDebugComponents()
 	ComponentTreeView->Refresh();
 }
 
+void SRewindDebugger::TraceTimeChanged(double Time)
+{
+	for(TSharedPtr<IGameplayInsightsDebugView>& DebugView : DebugViews)
+	{
+		DebugView->SetTimeMarker(Time);
+	}
+}
+
+
 void SRewindDebugger::OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo)
 {
+	DebugViewContainer->ClearChildren();
+	DebugViews.Empty();
+
 	if (SelectedItem.IsValid())
 	{
-		AnimGraphView->SetAnimInstanceId(SelectedItem->ObjectId);
-	}
-	else
-	{
-		AnimGraphView->SetAnimInstanceId(0);
+		// everything related to creating SAnimGraphSchematicView should be moved to a separate file
+		IUnrealInsightsModule &UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+		IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule.GetAnalysisSession();
+
+		GameplayInsightsModule.GetDebugViewCreator()->CreateDebugViews(SelectedItem->ObjectId, TraceTime.Get(), *Session, DebugViews);
+
+		for(TSharedPtr<IGameplayInsightsDebugView>& DebugView : DebugViews)
+		{
+			// for now, just add all the widgets to a vertical box.
+			// this will be replaced by something better once there are more DebugViews implemented
+			DebugViewContainer->AddSlot()
+			[
+				DebugView.ToSharedRef()
+			];
+		}
 	}
 }
 

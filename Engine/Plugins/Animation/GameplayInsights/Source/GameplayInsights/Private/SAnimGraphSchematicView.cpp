@@ -822,15 +822,6 @@ void SAnimGraphSchematicView::SetTimeMarker(double InTimeMarker)
 	}
 }
 
-void SAnimGraphSchematicView::SetAnimInstanceId(uint64 InAnimInstanceId)
-{
-	if (AnimInstanceId != InAnimInstanceId)
-	{
-		AnimInstanceId = InAnimInstanceId;
-		RefreshNodes();
-	}
-}
-
 TSharedRef<SWidget> SAnimGraphSchematicView::HandleGetViewMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
