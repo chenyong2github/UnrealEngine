@@ -21,6 +21,7 @@ struct FStatsViewColumns
 	static const FName MedianColumnID;
 	static const FName LowerQuartileColumnID;
 	static const FName MinColumnID;
+	static const FName DiffColumnID;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,6 +50,7 @@ public:
 	static TSharedRef<Insights::FTableColumn> CreateMedianColumn();
 	static TSharedRef<Insights::FTableColumn> CreateLowerQuartileColumn();
 	static TSharedRef<Insights::FTableColumn> CreateMinColumn();
+	static TSharedRef<Insights::FTableColumn> CreateDiffColumn();
 
 private:
 	static constexpr float AggregatedStatsColumnInitialWidth = 80.0f;
