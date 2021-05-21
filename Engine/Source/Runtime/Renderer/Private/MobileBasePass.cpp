@@ -337,7 +337,7 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 			}
 			else if ((bHasValidVLM || bHasValidILC) && bPrimitiveUsesILC)
 			{
-				if (bUseStaticAndCSM && !bUsesDeferredShading)
+				if ((bUseStaticAndCSM || bMovableWithCSM) && !bUsesDeferredShading)
 				{
 					SelectedLightmapPolicy = LMP_MOBILE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT;
 				}
