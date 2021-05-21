@@ -167,6 +167,8 @@ struct FGetInfo
 			{
 			case SceneOutliner::ECustomColumnMode::Class:
 				return ActorDesc->GetActorClass()->GetName();
+			case SceneOutliner::ECustomColumnMode::InternalName:
+				return ActorDesc->GetActorName().ToString();
 			default:
 				return FString();
 			}
