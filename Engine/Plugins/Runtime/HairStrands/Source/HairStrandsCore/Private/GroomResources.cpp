@@ -759,6 +759,13 @@ void FHairStrandsRestRootResource::PopulateFromRootData()
 
 void FHairStrandsRestRootResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
+	// Once empty, the MeshProjectionLODsneeds to be repopulate as it might be re-initialized. 
+	// E.g., when a resource is updated, it is first released, then re-init. 
+	if (LODs.IsEmpty())
+	{
+		PopulateFromRootData();
+	}
+
 	if (RootData.VertexToCurveIndexBuffer.Num() > 0)
 	{
 		FRDGBufferUploader BufferUploader;
@@ -843,10 +850,6 @@ void FHairStrandsRestRootResource::InternalRelease()
 		GPUData.RestSamplePositionsBuffer.Release();
 	}
 	LODs.Empty();
-
-	// Once empty, the MeshProjectionLODsneeds to be repopulate as it might be re-initialized. 
-	// E.g., when a resource is updated, it is first released, then re-init. 
-	PopulateFromRootData();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
