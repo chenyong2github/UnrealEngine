@@ -13,7 +13,7 @@ class FWorldPartitionCookPackageSplitter : public ICookPackageSplitter, public F
 public:
 	//~ Begin of ICookPackageSplitter
 	static bool ShouldSplit(UObject* SplitData);
-	virtual bool UseDeferredPopulate() { return false; }
+	virtual bool UseDeferredPopulate() override;
 	virtual ~FWorldPartitionCookPackageSplitter() {}
 	virtual TArray<ICookPackageSplitter::FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) override;
 	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject,
