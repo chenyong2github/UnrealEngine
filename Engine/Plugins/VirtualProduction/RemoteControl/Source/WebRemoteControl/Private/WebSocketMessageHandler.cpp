@@ -82,7 +82,7 @@ void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteContro
 		ClientIds = &WebSocketNotificationMap.Add(Preset->GetFName());
 
 		//Register to any useful callback for the given preset
-		Preset->OnExposedPropertyChanged().AddRaw(this, &FWebSocketMessageHandler::OnPresetExposedPropertyChanged);
+		Preset->OnExposedPropertiesModified().AddRaw(this, &FWebSocketMessageHandler::OnPresetExposedPropertiesModified);
 		Preset->OnEntityExposed().AddRaw(this, &FWebSocketMessageHandler::OnPropertyExposed);
 		Preset->OnEntityUnexposed().AddRaw(this, &FWebSocketMessageHandler::OnPropertyUnexposed);
 		Preset->OnFieldRenamed().AddRaw(this, &FWebSocketMessageHandler::OnFieldRenamed);
@@ -112,7 +112,7 @@ void FWebSocketMessageHandler::HandleWebSocketPresetUnregister(const FRemoteCont
 void FWebSocketMessageHandler::ProcessChangedProperties()
 {
 	//Go over each property that were changed for each preset
-	for (const TPair<FName, TMap<FGuid, TArray<FRemoteControlProperty>>>& Entry : PerFramePropertyChanged)
+	for (const TPair<FName, TMap<FGuid, TSet<FGuid>>>& Entry : PerFrameModifiedProperties)
 	{
 		if (!ShouldProcessEventForPreset(Entry.Key) || !Entry.Value.Num())
 		{
@@ -128,7 +128,7 @@ void FWebSocketMessageHandler::ProcessChangedProperties()
 		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("(%s) Broadcasting properties changed event."), *Preset->GetName());
 
 		// Each client will have a custom payload that doesnt contain the events it triggered.
-		for (const TPair<FGuid, TArray<FRemoteControlProperty>>& ClientToEventsPair : Entry.Value)
+		for (const TPair<FGuid, TSet<FGuid>>& ClientToEventsPair : Entry.Value)
 		{
 			TArray<uint8> WorkingBuffer;
 			if (ClientToEventsPair.Value.Num() && WritePropertyChangeEventPayload(Preset, ClientToEventsPair.Value, WorkingBuffer))
@@ -140,7 +140,7 @@ void FWebSocketMessageHandler::ProcessChangedProperties()
 		}
 	}
 
-	PerFramePropertyChanged.Empty();
+	PerFrameModifiedProperties.Empty();
 }
 
 void FWebSocketMessageHandler::ProcessChangedActorProperties()
@@ -191,7 +191,7 @@ void FWebSocketMessageHandler::OnPropertyExposed(URemoteControlPreset* Owner, co
 	PerFrameAddedProperties.FindOrAdd(Owner->GetFName()).AddUnique(EntityId);
 }
 
-void FWebSocketMessageHandler::OnPresetExposedPropertyChanged(URemoteControlPreset* Owner, const FRemoteControlProperty& PropertyChanged)
+void FWebSocketMessageHandler::OnPresetExposedPropertiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedPropertyIds)
 {
 	if (Owner == nullptr)
 	{
@@ -204,15 +204,16 @@ void FWebSocketMessageHandler::OnPresetExposedPropertyChanged(URemoteControlPres
 	}
 
 	//Cache the property field that changed for end of frame notification
-	TMap<FGuid, TArray<FRemoteControlProperty>>& EventsForClient = PerFramePropertyChanged.FindOrAdd(Owner->GetFName());
-	// Dont send events to the client that triggered it.
+	TMap<FGuid, TSet<FGuid>>& EventsForClient = PerFrameModifiedProperties.FindOrAdd(Owner->GetFName());
+	
+	// Don't send events to the client that triggered it.
 	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(Owner->GetFName()))
 	{
 		for (const FGuid& Client : *SubscribedClients)
 		{
 			if (Client != ActingClientId)
 			{
-				EventsForClient.FindOrAdd(Client).AddUnique(PropertyChanged);
+				EventsForClient.FindOrAdd(Client).Append(ModifiedPropertyIds);
 			}
 		}
 	}
@@ -478,7 +479,7 @@ bool FWebSocketMessageHandler::ShouldProcessEventForPreset(FName PresetName) con
 	return WebSocketNotificationMap.Contains(PresetName) && WebSocketNotificationMap[PresetName].Num() > 0;
 }
 
-bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TArray<FRemoteControlProperty>& InEvents, TArray<uint8>& OutBuffer)
+bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, TArray<uint8>& OutBuffer)
 {
 	bool bHasProperty = false;
 
@@ -498,37 +499,40 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 		//All exposed properties of this preset that changed
 		JsonWriter->WriteArrayStart();
 		{
-			for (const FRemoteControlProperty& Property : InEvents)
+			for (const FGuid& RCPropertyId : InModifiedPropertyIds)
 			{
 				bHasProperty = true;
 
 				FRCObjectReference ObjectRef;
-
-				//Property object
-				JsonWriter->WriteObjectStart();
+				if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(RCPropertyId).Pin())
 				{
-					JsonWriter->WriteValue(TEXT("PropertyLabel"), *Property.GetLabel().ToString());
-					JsonWriter->WriteValue(TEXT("Id"), *Property.GetId().ToString());
-
-					for (UObject* Object : Property.GetBoundObjects())
+					//Property object
+					JsonWriter->WriteObjectStart();
 					{
-						bHasProperty = true;
+						JsonWriter->WriteValue(TEXT("PropertyLabel"), *RCProperty->GetLabel().ToString());
+						JsonWriter->WriteValue(TEXT("Id"), *RCProperty->GetId().ToString());
 
-						IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, Property.FieldPathInfo.ToString(), ObjectRef);
+						for (UObject* Object : RCProperty->GetBoundObjects())
+						{
+							bHasProperty = true;
 
-						JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
-						JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
+							IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, RCProperty->FieldPathInfo.ToString(), ObjectRef);
 
-						RemotePayloadSerializer::SerializePartial(
-							[&ObjectRef](FJsonStructSerializerBackend& SerializerBackend)
-							{
-								return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend);
-							}
-						, Writer);
+							JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
+							JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
 
+							RemotePayloadSerializer::SerializePartial(
+								[&ObjectRef](FJsonStructSerializerBackend& SerializerBackend)
+								{
+									return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend);
+								}
+							, Writer);
+
+						}
 					}
+					JsonWriter->WriteObjectEnd();
 				}
-				JsonWriter->WriteObjectEnd();
+
 			}
 		}
 		JsonWriter->WriteArrayEnd();

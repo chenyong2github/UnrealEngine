@@ -2,9 +2,12 @@
 
 #include "IRemoteControlModule.h"
 #include "IRemoteControlInterceptionFeature.h"
+#include "IStructDeserializerBackend.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Backends/CborStructSerializerBackend.h"
+#include "Components/StaticMeshComponent.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/CoreMisc.h"
 #include "IStructSerializerBackend.h"
@@ -14,9 +17,10 @@
 #include "RemoteControlPreset.h"
 #include "StructSerializer.h"
 #include "StructDeserializer.h"
-#include "UObject/UnrealType.h"
+#include "Misc/ScopeExit.h"
 #include "UObject/Class.h"
 #include "UObject/FieldPath.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -25,6 +29,12 @@
 
 DEFINE_LOG_CATEGORY(LogRemoteControl);
 #define LOCTEXT_NAMESPACE "RemoteControl"
+
+struct FRCInterceptionPayload
+{
+	TArray<uint8> Payload;
+	ERCPayloadType Type;
+};
 
 namespace RemoteControlUtil
 {
@@ -35,6 +45,8 @@ namespace RemoteControlUtil
 	const FName NAME_BlueprintGetter(TEXT("BlueprintGetter"));
 	const FName NAME_BlueprintSetter(TEXT("BlueprintSetter"));
 	const FName NAME_AllowPrivateAccess(TEXT("AllowPrivateAccess"));
+
+	TMap<TWeakFieldPtr<FProperty>, TWeakObjectPtr<UFunction>> CachedSetterFunctions;
 
 	bool CompareFunctionName(const FString& FunctionName, const FString& ScriptName)
 	{
@@ -157,6 +169,228 @@ namespace RemoteControlUtil
 
 		return Id;
 	}
+
+	/** Returns whether the access is a write access regardless of if it generates a transaction. */
+	bool IsWriteAccess(ERCAccess Access)
+	{
+		return Access == ERCAccess::WRITE_ACCESS || Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+	}
+}
+
+namespace RemoteControlSetterUtils
+{
+	static TMap<TWeakFieldPtr<FProperty>, TWeakObjectPtr<UFunction>> CachedSetterFunctions;
+
+	struct FConvertToFunctionCallArgs
+	{
+		FConvertToFunctionCallArgs(const FRCObjectReference& InObjectReference, IStructDeserializerBackend& InReaderBackend, FRCCall& OutCall)
+			: ObjectReference(InObjectReference)
+			, ReaderBackend(InReaderBackend)
+			, Call(OutCall) 
+		{
+		}
+		
+		const FRCObjectReference& ObjectReference;
+		IStructDeserializerBackend& ReaderBackend;
+		FRCCall& Call;
+	};
+	
+	UFunction* FindSetterFunction(FProperty* Property)
+	{
+		// UStruct properties cannot have setters.
+		if (!ensure(Property) || !Property->GetOwnerClass())
+		{
+			return nullptr;
+		}
+
+		// Check if the property setter is already cached.
+		TWeakObjectPtr<UFunction> SetterPtr = CachedSetterFunctions.FindRef(Property);
+		if (SetterPtr.IsValid())
+		{
+			return SetterPtr.Get();
+		}
+		
+		UFunction* SetterFunction = nullptr;
+#if WITH_EDITOR
+		const FString& SetterName =  Property->GetMetaData(*RemoteControlUtil::NAME_BlueprintSetter.ToString());
+		if (!SetterName.IsEmpty())
+		{
+			SetterFunction = Property->GetOwnerClass()->FindFunctionByName(*SetterName);
+		}
+#endif
+
+		FString PropertyName = Property->GetName();
+		if (Property->IsA<FBoolProperty>()) 
+		{
+			PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
+		}
+
+		static const TArray<FString> SetterPrefixes = {
+			FString("Set"),
+			FString("K2_Set")
+		};
+
+		for (const FString& Prefix : SetterPrefixes)
+		{
+			FName SetterFunctionName = FName(Prefix + PropertyName);
+			SetterFunction = Property->GetOwnerClass()->FindFunctionByName(SetterFunctionName);
+			if (SetterFunction)
+			{
+				break;
+			}
+		}
+
+		if (SetterFunction)
+		{
+			CachedSetterFunctions.Add(Property,  SetterFunction);
+		}
+
+		return SetterFunction;
+	}
+	
+	FProperty* FindSetterArgument(UFunction* SetterFunction, FProperty* PropertyToModify)
+	{
+		FProperty* SetterArgument = nullptr;
+
+		if (!ensure(SetterFunction))
+		{
+			return nullptr;
+		}
+
+		// Check if the first parameter for the setter function matches the parameter value.
+		for (TFieldIterator<FProperty> PropertyIt(SetterFunction); PropertyIt; ++PropertyIt)
+		{
+			if (PropertyIt->HasAnyPropertyFlags(CPF_Parm) && !PropertyIt->HasAnyPropertyFlags(CPF_ReturnParm))
+			{
+				if (PropertyIt->SameType(PropertyToModify))
+				{
+					SetterArgument = *PropertyIt;
+				}
+				
+				break;
+			}
+		}
+
+		return SetterArgument;
+	}
+
+	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InFunction, FStructOnScope&& InFunctionArguments, FRCInterceptionPayload& OutPayload)
+	{
+		ensure(InFunctionArguments.GetStruct() && InFunctionArguments.GetStruct()->IsA<UFunction>());
+		
+		// Create the output payload for interception purposes.
+		FMemoryWriter Writer{OutPayload.Payload};
+		FCborStructSerializerBackend WriterBackend{Writer, EStructSerializerBackendFlags::Default};
+		FStructSerializer::Serialize(InFunctionArguments.GetStructMemory(), *const_cast<UStruct*>(InFunctionArguments.GetStruct()), WriterBackend, FStructSerializerPolicies());
+		OutPayload.Type = ERCPayloadType::Cbor;
+
+		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
+		InOutArgs.Call.CallRef.Function = InFunction;
+		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
+		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
+	}
+
+	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InFunction, FStructOnScope&& InFunctionArguments)
+	{
+		ensure(InFunctionArguments.GetStruct() && InFunctionArguments.GetStruct()->IsA<UFunction>());
+		
+		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
+		InOutArgs.Call.CallRef.Function = InFunction;
+		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
+		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
+	}
+
+	/** Create the payload to pass to be passed to a property's setter function. */
+	TOptional<FStructOnScope> CreateSetterFunctionPayload(UFunction* InSetterFunction, FConvertToFunctionCallArgs& InOutArgs)
+	{
+		TOptional<FStructOnScope> OptionalArgsOnScope;
+
+		bool bSuccess = false;
+		if (FProperty* SetterArgument = FindSetterArgument(InSetterFunction, InOutArgs.ObjectReference.Property.Get()))
+		{
+			FStructOnScope ArgsOnScope{InSetterFunction};
+			
+			// First put the complete property value from the object in the struct on scope
+			// in case the user only a part of the incoming structure (ie. Providing only { "x": 2 } in the case of a vector.
+			const uint8* ContainerAddress = InOutArgs.ObjectReference.Property->ContainerPtrToValuePtr<uint8>(InOutArgs.ObjectReference.ContainerAdress);
+			InOutArgs.ObjectReference.Property->CopyCompleteValue(ArgsOnScope.GetStructMemory(), ContainerAddress);
+
+			// Temporarily rename the setter argument in order to deserialize the incoming property modification on top of it
+			// regardless of the argument name.
+			FName OldSetterArgumentName = SetterArgument->GetFName();
+			SetterArgument->Rename(InOutArgs.ObjectReference.Property->GetFName());
+			{
+				ON_SCOPE_EXIT
+				{
+					SetterArgument->Rename(OldSetterArgumentName);
+				};
+
+				// Then deserialize the input value on top of it and reset the setter property name.
+				bSuccess = FStructDeserializer::Deserialize((void*)ArgsOnScope.GetStructMemory(), *const_cast<UStruct*>(ArgsOnScope.GetStruct()), InOutArgs.ReaderBackend, FStructDeserializerPolicies());
+			}
+			
+			if (bSuccess)
+			{
+				OptionalArgsOnScope = MoveTemp(ArgsOnScope);
+			}
+		}
+		
+		return OptionalArgsOnScope;
+	}
+	
+	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InSetterFunction, FRCInterceptionPayload& OutPayload)
+	{
+		if (TOptional<FStructOnScope> ArgsOnScope = CreateSetterFunctionPayload(InSetterFunction, InOutArgs))
+		{
+			CreateRCCall(InOutArgs, InSetterFunction, MoveTemp(*ArgsOnScope), OutPayload);
+			return true;
+		}
+		
+		return false;
+	}
+
+	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InSetterFunction)
+	{
+		if (TOptional<FStructOnScope> ArgsOnScope = CreateSetterFunctionPayload(InSetterFunction, InOutArgs))
+		{
+			CreateRCCall(InOutArgs, InSetterFunction, MoveTemp(*ArgsOnScope));
+			return true;
+		}
+		
+		return false;
+	}
+
+	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InOutArgs)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RemoteControlSetterUtils::ConvertModificationToFunctionCall);
+		if (!InOutArgs.ObjectReference.Object.IsValid() || !InOutArgs.ObjectReference.Property.IsValid())
+		{
+			return false;
+		}
+		
+		if (UFunction* SetterFunction = FindSetterFunction(InOutArgs.ObjectReference.Property.Get()))
+		{
+			return ConvertModificationToFunctionCall(InOutArgs, SetterFunction);
+		}
+
+		return false;
+	}
+
+	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InArgs, FRCInterceptionPayload& OutPayload)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RemoteControlSetterUtils::ConvertModificationToFunctionCall);
+		if (!InArgs.ObjectReference.Object.IsValid() || !InArgs.ObjectReference.Property.IsValid())
+		{
+			return false;
+		}
+		
+		if (UFunction* SetterFunction = FindSetterFunction(InArgs.ObjectReference.Property.Get()))
+		{
+			return ConvertModificationToFunctionCall(InArgs, SetterFunction, OutPayload);
+		}
+
+		return false;
+	}
 }
 
 /**
@@ -278,7 +512,7 @@ public:
 		return bSuccess;
 	}
 
-	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType, const TArray<uint8>& InInterceptPayload) override
+	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) override
 	{
 		if (InCall.IsValid())
 		{
@@ -374,7 +608,10 @@ public:
 					if (PropertyPath.Resolve(Object))
 					{
 						FProperty* ResolvedProperty = PropertyPath.GetResolvedData().Field;
-						if (RemoteControlUtil::IsPropertyAllowed(ResolvedProperty, AccessType, bObjectInGame))
+
+						// When resolving a property for writing, resolve successfully if it should use a setter since it will end up using it. 
+						if ((RemoteControlUtil::IsWriteAccess(AccessType) && PropertyModificationShouldUseSetter(Object, ResolvedProperty))
+							|| RemoteControlUtil::IsPropertyAllowed(ResolvedProperty, AccessType, bObjectInGame))
 						{
 							OutObjectRef = FRCObjectReference{ AccessType , Object, MoveTemp(PropertyPath) };
 						}
@@ -470,9 +707,29 @@ public:
 
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload) override
 	{
-		// Check the replication path before apply property values
+		// Check the replication path before applying property values
 		if (InPayload.Num() != 0 && ObjectAccess.Object.IsValid())
 		{
+			// Convert raw property modifications to setter function calls if necessary.
+			if (PropertyModificationShouldUseSetter(ObjectAccess.Object.Get(), ObjectAccess.Property.Get()))
+			{
+				FRCCall	Call;
+				FRCInterceptionPayload InterceptionPayload;
+				constexpr bool bCreateInterceptionPayload = true;
+				RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
+				if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args, InterceptionPayload))
+				{
+					return InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
+				}
+			}
+			
+			// If a setter wasn't used, verify if the property should be allowed.
+			bool bObjectInGame = !GIsEditor || (ObjectAccess.Object.IsValid() && ObjectAccess.Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor));
+			if (!RemoteControlUtil::IsPropertyAllowed(ObjectAccess.Property.Get(), ObjectAccess.Access, bObjectInGame))
+			{
+				return false;
+			}
+
 			// Build interception command
 			FString PropertyPathString = TFieldPath<FProperty>(ObjectAccess.Property.Get()).ToString();
 			FRCIPropertiesMetadata PropsMetadata(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ToExternal(ObjectAccess.Access), ToExternal(InPayloadType), InPayload);
@@ -501,9 +758,20 @@ public:
 			}
 		}
 
+		// Convert raw property modifications to setter function calls if necessary.
+		if (PropertyModificationShouldUseSetter(ObjectAccess.Object.Get(), ObjectAccess.Property.Get()))
+		{
+			FRCCall	Call;
+			RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
+			if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args))
+			{
+				return InvokeCall(Call);
+			}
+		}
+
 		//Setting object properties require a property and can't be done at the object level. Property must be valid to move forward
 		if (ObjectAccess.IsValid()
-			&& (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS)
+			&& (RemoteControlUtil::IsWriteAccess(ObjectAccess.Access))
 			&& ObjectAccess.Property.IsValid()
 			&& ObjectAccess.PropertyPathInfo.IsResolved())
 		{
@@ -601,9 +869,7 @@ public:
 			}
 		}
 
-
-		if (ObjectAccess.IsValid()
-			&& (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
+		if (ObjectAccess.IsValid() && RemoteControlUtil::IsWriteAccess(ObjectAccess.Access))
 		{
 			UObject* Object = ObjectAccess.Object.Get();
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
@@ -842,9 +1108,24 @@ private:
 		
 		CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
 	}
+	
+	bool PropertyModificationShouldUseSetter(UObject* Object, FProperty* Property)
+	{
+		if (!Property || !Object)
+		{
+			return false;
+		}
+		
+		const bool bObjectInGamePackage = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
+		if (!RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bObjectInGamePackage))
+		{
+			return !!RemoteControlSetterUtils::FindSetterFunction(Property);
+		}
+
+		return false;
+	}
 
 private:
-	
 	/** Cache of preset names to preset assets */
 	mutable TMap<FName, TArray<FAssetData>> CachedPresetsByName;
 
