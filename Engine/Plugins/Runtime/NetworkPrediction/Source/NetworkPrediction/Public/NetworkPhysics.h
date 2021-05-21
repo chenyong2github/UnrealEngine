@@ -7,6 +7,7 @@
 #include "Chaos/Particles.h"
 #include "Components/ActorComponent.h"
 #include "UObject/ObjectKey.h"
+#include "Misc/NetworkGUID.h"
 
 #include "NetworkPhysics.generated.h"
 
@@ -150,6 +151,8 @@ public:
 
 	void RegisterPhysicsProxyDebugDraw(FNetworkPhysicsState* State, TUniqueFunction<void(const FDrawDebugParams&)>&& Func);
 
+	void DumpDebugHistory();
+
 private:
 
 	void TickDrawDebug();
@@ -176,4 +179,23 @@ private:
 
 	friend struct FNetworkPhysicsRewindCallback;
 	void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs);
+
+	// Historic GT recording for GT only (compiled out. probably temp until Insights integration is back)
+	struct FDebugSnapshot
+	{
+		int32 LocalFrameOffset = 0;
+		struct FDebugObject
+		{
+			FNetworkGUID NetGUID;
+			TWeakObjectPtr<AActor> WeakOwningActor;
+			FNetworkPhysicsState State;
+		};
+
+		TArray<FDebugObject> Objects;
+	};
+
+	TStaticArray<FDebugSnapshot, 1024> DebugSnapshots;
+	int32 DebugSnapshotHead = 0;
+
+	bool bRecordDebugSnapshots = false;
 };

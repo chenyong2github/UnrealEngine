@@ -21,6 +21,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "NetworkPredictionDebug.h"
 #include "GameFramework/PlayerState.h"
+#include "Misc/FileHelper.h"
 
 DEFINE_LOG_CATEGORY(LogNetworkPhysics);
 
@@ -273,11 +274,13 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 			}
 		}
 
-		// Marhsall data back to GT based on what was requested for networking (this should be server only)
+		// Marhsall data back to GT based on what was requested for networking
 		FRequest Request;
 		while (DataRequested.Dequeue(Request));
 
 		FSnapshot Snapshot;
+		Snapshot.SimulationFrame = PhysicsStep - this->LastLocalOffset;
+		Snapshot.LocalFrameOffset = this->LastLocalOffset;
 		for (FSingleParticlePhysicsProxy* Proxy : Request.Proxies)
 		{
 			if (auto* PT = Proxy->GetPhysicsThreadAPI())
@@ -366,6 +369,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 	struct FSnapshot
 	{
+		int32 SimulationFrame = 0; // Only set in DataFromPhysics
 		int32 LocalFrameOffset = 0; // only needed for debugging (translating client to server frames). Could be removed or maybe done via Insights tracing
 		TArray<FNetworkPhysicsState> Objects;
 	};
@@ -390,7 +394,6 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 	Chaos::FPhysicsSolver* Solver = nullptr; //todo: shouldn't have to cache this, should be part of base class
 	UWorld* World = nullptr;
 
-	int32 LastResim = INDEX_NONE; // only used for force resim cvar
 	int32 LastLocalOffset = 0;
 
 	// ----------------------
@@ -431,7 +434,9 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 UNetworkPhysicsManager::UNetworkPhysicsManager()
 {
-	
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	bRecordDebugSnapshots = true;
+#endif
 }
 
 void UNetworkPhysicsManager::Initialize(FSubsystemCollectionBase& Collection)
@@ -507,7 +512,7 @@ void UNetworkPhysicsManager::PostNetRecv()
 	RewindCallback->bIsServer = bIsServer;
 
 	// Iterate through all objects we are managing and coalease them into a snapshot that is marshalled to PT for rollback consideration
-	if (bIsServer)
+	//if (bIsServer)
 	{
 		// Server has to tell PT what objects he wants to hear about.
 		// This feels kind of not right but I'm not sure how else to do it from the PT alone? Can I get a list of active proxies on the PT?
@@ -528,7 +533,8 @@ void UNetworkPhysicsManager::PostNetRecv()
 			RewindCallback->DataRequested.Enqueue(MoveTemp(Request));
 		}
 	}
-	else
+
+	if (!bIsServer)
 	{
 		// Client: Marshal received data from Network to PT so it can be reconciled
 		FNetworkPhysicsRewindCallback::FSnapshot Snapshot;
@@ -702,10 +708,6 @@ void UNetworkPhysicsManager::PreNetSend(float DeltaSeconds)
 
 
 	const bool bIsServer = World->GetNetMode() != NM_Client;
-	if (!bIsServer)
-	{
-		return;
-	}
 
 	FNetworkPhysicsRewindCallback::FSnapshot Snapshot;
 	bool bFoundData = false;
@@ -716,44 +718,68 @@ void UNetworkPhysicsManager::PreNetSend(float DeltaSeconds)
 
 	if (bFoundData)
 	{
-		for (FNetworkPhysicsState& Obj : Snapshot.Objects)
+		if (bRecordDebugSnapshots)
 		{
-			check(Obj.Proxy);
-
-			// Copy data that was marshalled from PT to the managed FNetworkPhysicsState* that will be replicated.
-			// The tricky thing is that the objects we are hearing back from the PT about maybe deleted on the GT already.
-			
-			// If we could use the physics proxy to safely get to the FNetworkPhysicsState, that would be ideal.
-			// The interface approach sort of allows this... if the interface is implemented on the actor. So not actually workable.
-			// If we just merged FNetworkPhysicsState into FRepMovement, we could just cast to actor and be done...
-
-			// INetworkPhysicsObject* NetworkObject = Cast<INetworkPhysicsObject>(PhysicsState.Proxy->GetOwner());
-			// FNetworkPhysicsState* DestState = NetworkObject->GetNetworkPhysicsState();
-
-			// So we have to do the map lookup for now...
-
-			// Actually this wont work either because we aren't round tripping the LocalManagedHandle to the PT
-
-			/*			
-			if (int32* IdxPtr = ManagedHandleToIndexMap.Find(PhysicsState.LocalManagedHandle))			
+			DebugSnapshotHead = Snapshot.SimulationFrame;
+			FDebugSnapshot& DebugSnapshot = DebugSnapshots[Snapshot.SimulationFrame % DebugSnapshots.Num()];
+			DebugSnapshot.LocalFrameOffset = Snapshot.LocalFrameOffset;
+			DebugSnapshot.Objects.Reset(Snapshot.Objects.Num());
+			for (FNetworkPhysicsState& Obj : Snapshot.Objects)
 			{
-				const int32 Idx = *IdxPtr;
-				if (ensure(ManagedPhysicsStates.IsValidIndex(Idx)))
+				FDebugSnapshot::FDebugObject& DebugObj = DebugSnapshot.Objects.AddDefaulted_GetRef();
+				DebugObj.State = Obj;
+
+				if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(Obj.Proxy->GetGameThreadAPI().UserData()))
 				{
-					*ManagedPhysicsStates[Idx] = PhysicsState;
+					if (UPrimitiveComponent* PrimComponent = BodyInstance->OwnerComponent.Get())
+					{
+						DebugObj.WeakOwningActor = PrimComponent->GetOwner();
+					}
 				}
 			}
-			*/
+		}
 
-			// This is how it has to work for now, linear search to match the proxy pointer.
-			// We might be able to leverage consistent ordering (each linear search through both Snapshot.Objects and ManagedPhysicsStates incrementally in step)
-			//	(but be careful in the case where GT is ahead of PT and later requests have newer objects in lower positions in the MangedPhysicsState list...)
-			for (FNetworkPhysicsState* ManagedState : ManagedPhysicsStates)
+		if (bIsServer)
+		{
+			for (FNetworkPhysicsState& Obj : Snapshot.Objects)
 			{
-				if (ManagedState->Proxy == Obj.Proxy)
+				check(Obj.Proxy);
+
+				// Copy data that was marshalled from PT to the managed FNetworkPhysicsState* that will be replicated.
+				// The tricky thing is that the objects we are hearing back from the PT about maybe deleted on the GT already.
+			
+				// If we could use the physics proxy to safely get to the FNetworkPhysicsState, that would be ideal.
+				// The interface approach sort of allows this... if the interface is implemented on the actor. So not actually workable.
+				// If we just merged FNetworkPhysicsState into FRepMovement, we could just cast to actor and be done...
+
+				// INetworkPhysicsObject* NetworkObject = Cast<INetworkPhysicsObject>(PhysicsState.Proxy->GetOwner());
+				// FNetworkPhysicsState* DestState = NetworkObject->GetNetworkPhysicsState();
+
+				// So we have to do the map lookup for now...
+
+				// Actually this wont work either because we aren't round tripping the LocalManagedHandle to the PT
+
+				/*			
+				if (int32* IdxPtr = ManagedHandleToIndexMap.Find(PhysicsState.LocalManagedHandle))			
 				{
-					ManagedState->Physics = Obj.Physics;					
-					ManagedState->Frame = Obj.Frame;
+					const int32 Idx = *IdxPtr;
+					if (ensure(ManagedPhysicsStates.IsValidIndex(Idx)))
+					{
+						*ManagedPhysicsStates[Idx] = PhysicsState;
+					}
+				}
+				*/
+
+				// This is how it has to work for now, linear search to match the proxy pointer.
+				// We might be able to leverage consistent ordering (each linear search through both Snapshot.Objects and ManagedPhysicsStates incrementally in step)
+				//	(but be careful in the case where GT is ahead of PT and later requests have newer objects in lower positions in the MangedPhysicsState list...)
+				for (FNetworkPhysicsState* ManagedState : ManagedPhysicsStates)
+				{
+					if (ManagedState->Proxy == Obj.Proxy)
+					{
+						ManagedState->Physics = Obj.Physics;					
+						ManagedState->Frame = Obj.Frame;
+					}
 				}
 			}
 		}
@@ -1157,3 +1183,63 @@ void UNetworkPhysicsManager::TickDrawDebug()
 		});
 	}
 }
+
+void UNetworkPhysicsManager::DumpDebugHistory()
+{
+	FStringOutputDevice Out;
+
+	TMap<TWeakObjectPtr<AActor>, FNetworkGUID> GUIDMap;
+
+	for (int32 i= FMath::Max(0, DebugSnapshotHead - DebugSnapshots.Num() + 1); i <= DebugSnapshotHead; ++i)
+	{
+		FDebugSnapshot& Snapshot = DebugSnapshots[i % DebugSnapshots.Num()];
+
+		for (FDebugSnapshot::FDebugObject& Obj : Snapshot.Objects)
+		{
+			if (Obj.WeakOwningActor.IsValid() == false)
+			{
+				continue;
+			}
+
+			FNetworkGUID GUID;
+			if (FNetworkGUID* FoundGUID = GUIDMap.Find(Obj.WeakOwningActor))
+			{
+				GUID = *FoundGUID;
+			}
+			else
+			{
+				GUID = NetworkPredictionDebug::FindObjectNetGUID(Obj.WeakOwningActor.Get());
+				GUIDMap.Add(Obj.WeakOwningActor, GUID);
+			}
+
+			Out.Logf(TEXT("[%d][n:%-4d][%d] X: %-45sR: %-64sV: %-40sW: %-40s\n"), i, GUID.Value, Snapshot.LocalFrameOffset, *Obj.State.Physics.Location.ToString(), *Obj.State.Physics.Rotation.ToString(), *Obj.State.Physics.LinearVelocity.ToString(), *Obj.State.Physics.AngularVelocity.ToString());
+		}
+	}
+
+	Out.Logf(TEXT("\n"));
+	for (auto& MapIt : GUIDMap)
+	{
+		Out.Logf(TEXT("[n:%-4d] -> %s\n"), MapIt.Value.Value, *GetNameSafe(MapIt.Key.Get()));
+	}
+
+	FString Path = FPaths::ProfilingDir() + FString::Printf(TEXT("/NetworkPrediction/NpDump_%s_%d.txt"), GetWorld()->GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"), DebugSnapshotHead);
+	FFileHelper::SaveStringToFile(Out, *Path);
+
+}
+
+FAutoConsoleCommandWithWorldAndArgs NpDumpCmd(TEXT("np2.Dump"), TEXT(""),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* InWorld) 
+{
+	if (UNetworkPhysicsManager* Manager = InWorld->GetSubsystem<UNetworkPhysicsManager>())
+	{
+		Manager->DumpDebugHistory();
+	}
+
+	if (InWorld->GetNetMode() == NM_Client)
+	{
+		if (APlayerController* PC = GEngine->GetFirstLocalPlayerController(InWorld))
+		{
+			PC->ServerExec(TEXT("np2.dump"));
+		}
+	}
+}));

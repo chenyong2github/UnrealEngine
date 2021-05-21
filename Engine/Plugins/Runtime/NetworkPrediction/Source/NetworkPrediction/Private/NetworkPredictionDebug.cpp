@@ -6,7 +6,6 @@
 #include "GameFramework/Actor.h"
 #include "DrawDebugHelpers.h"
 #include "NetworkPredictionWorldManager.h"
-#include "Misc/NetworkGuid.h"
 #include "Engine/NetConnection.h"
 #include "Engine/NetDriver.h"
 #include "EngineUtils.h"
@@ -37,6 +36,26 @@ namespace NetworkPredictionDebug
 		DrawDebugString(World, Transform.GetLocation(), Str, nullptr, DrawColor, Lifetime, false);
 	}
 
+	FNetworkGUID FindObjectNetGUID(UObject* Obj)
+	{
+		FNetworkGUID NetGUID;
+		if (UWorld* World = Obj->GetWorld())
+		{
+			if (UNetDriver* NetDriver = World->GetNetDriver())
+			{
+				if (UNetConnection* NetConnection = NetDriver->ServerConnection)
+				{
+					NetGUID = NetConnection->PackageMap->GetNetGUIDFromObject(Obj);
+				}
+				else if (NetDriver->ClientConnections.Num() > 0)
+				{
+					NetGUID = NetDriver->ClientConnections[0]->PackageMap->GetNetGUIDFromObject(Obj);
+				}
+			}
+		}
+		return NetGUID;
+	}
+
 	UObject* FindReplicatedObjectOnPIEServer(UObject* ClientObject)
 	{
 		if (ClientObject == nullptr)
@@ -47,28 +66,21 @@ namespace NetworkPredictionDebug
 		UObject* ServerObject = nullptr;
 
 #if WITH_EDITOR
-		if (UWorld* World = ClientObject->GetWorld())
+		FNetworkGUID NetGUID = FindObjectNetGUID(ClientObject);
+		if (NetGUID.IsValid())
 		{
-			if (UNetDriver* NetDriver = World->GetNetDriver())
+			// Find the PIE server world
+			for (TObjectIterator<UWorld> It; It; ++It)
 			{
-				if (UNetConnection* NetConnection = NetDriver->ServerConnection)
+				if (It->WorldType == EWorldType::PIE && It->GetNetMode() != NM_Client)
 				{
-					FNetworkGUID NetGUID = NetConnection->PackageMap->GetNetGUIDFromObject(ClientObject);
-
-					// Find the PIE server world
-					for (TObjectIterator<UWorld> It; It; ++It)
+					if (UNetDriver* ServerNetDriver = It->GetNetDriver())
 					{
-						if (It->WorldType == EWorldType::PIE && It->GetNetMode() != NM_Client)
+						if (ServerNetDriver->ClientConnections.Num() > 0)
 						{
-							if (UNetDriver* ServerNetDriver = It->GetNetDriver())
-							{
-								if (ServerNetDriver->ClientConnections.Num() > 0)
-								{
-									UPackageMap* ServerPackageMap = ServerNetDriver->ClientConnections[0]->PackageMap;
-									ServerObject = ServerPackageMap->GetObjectFromNetGUID(NetGUID, true);
-									break;
-								}
-							}
+							UPackageMap* ServerPackageMap = ServerNetDriver->ClientConnections[0]->PackageMap;
+							ServerObject = ServerPackageMap->GetObjectFromNetGUID(NetGUID, true);
+							break;
 						}
 					}
 				}
@@ -79,6 +91,7 @@ namespace NetworkPredictionDebug
 		return ServerObject;
 	}
 
+	
 };
 
 
