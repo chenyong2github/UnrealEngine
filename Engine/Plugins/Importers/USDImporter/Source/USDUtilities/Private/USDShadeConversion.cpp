@@ -1104,7 +1104,13 @@ namespace UE
 
 				TArray<FBakeOutput> BakeOutputs;
 				IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>( "MaterialBaking" );
+				bool bLinearBake = true;
+				Module.SetLinearBake( bLinearBake );
 				Module.BakeMaterials( { &MatSet }, { &MeshSettings }, BakeOutputs );
+
+				// It's recommended to set this back to false as it's a global option
+				bLinearBake = false;
+				Module.SetLinearBake( bLinearBake );
 
 				if ( BakeOutputs.Num() < 1 )
 				{
