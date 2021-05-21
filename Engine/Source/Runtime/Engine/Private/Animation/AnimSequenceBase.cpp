@@ -1268,7 +1268,7 @@ void UAnimSequenceBase::CreateModel()
 {	
 	if (DataModel == nullptr)
 	{
-		DataModel = CreateDefaultSubobject<UAnimDataModel>(FName(TEXT("AnimationDataModel")));
+		DataModel = CreateEditorOnlyDefaultSubobject<UAnimDataModel>(FName(TEXT("AnimationDataModel")));
 	}
 	
 	DataModel->GetModifiedEvent().RemoveAll(this);

@@ -80,6 +80,7 @@ public:
 	/** Begin UAnimDataModel overrides */
 	virtual void PostLoad() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual bool IsEditorOnly() const override { return true; }
 	/** End UAnimDataModel overrides */
 
 	/**
