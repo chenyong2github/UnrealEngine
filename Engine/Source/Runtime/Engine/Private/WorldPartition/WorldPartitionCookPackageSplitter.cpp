@@ -4,6 +4,7 @@
 
 #if WITH_EDITOR
 
+#include "Misc/ConfigCacheIni.h"
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
@@ -18,6 +19,19 @@ bool FWorldPartitionCookPackageSplitter::ShouldSplit(UObject* SplitData)
 {
 	UWorld* World = Cast<UWorld>(SplitData);
 	return World && !!World->GetWorldPartition();
+}
+
+bool FWorldPartitionCookPackageSplitter::UseDeferredPopulate()
+{
+	static struct FOneTimeRead
+	{
+		FOneTimeRead()
+		{
+			GConfig->GetBool(TEXT("CookSettings"), TEXT("SplitterDeferredPopulate"), Value, GEditorIni);
+		}
+		bool Value = true;
+	} UseDeferredPopulate;
+	return UseDeferredPopulate.Value;
 }
 
 UWorld* FWorldPartitionCookPackageSplitter::ValidateDataObject(UObject* SplitData)
