@@ -8,6 +8,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 
+#include "EngineDefines.h"
+
 #if WITH_EDITOR
 #include "Engine/MeshMerging.h"
 #include "Engine/MeshMerging.h"

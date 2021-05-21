@@ -4,6 +4,7 @@
 
 #include "IMeshMergeUtilities.h"
 #include "SceneTypes.h"
+#include "MaterialShared.h"
 
 class FMeshMergeDataTracker;
 class FMaterialUpdateContext;
