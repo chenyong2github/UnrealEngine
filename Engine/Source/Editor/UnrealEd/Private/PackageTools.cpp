@@ -398,6 +398,13 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					return true;
 				}, false);
 
+				PackageBeingUnloaded->bHasBeenFullyLoaded = false;
+				PackageBeingUnloaded->ClearFlags(RF_WasLoaded);
+				if ( PackageBeingUnloaded->HasAnyPackageFlags(PKG_ContainsScript) )
+				{
+					bScriptPackageWasUnloaded = true;
+				}
+
 				// Notify any Blueprints that are about to be unloaded, and destroy any leftover worlds.
 				ForEachObjectWithPackage(PackageBeingUnloaded, [](UObject* Obj)
 				{
@@ -414,13 +421,6 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					}
 					return true;
 				}, true, RF_Transient, EInternalObjectFlags::PendingKill);
-
-				PackageBeingUnloaded->bHasBeenFullyLoaded = false;
-				PackageBeingUnloaded->ClearFlags(RF_WasLoaded);
-				if ( PackageBeingUnloaded->HasAnyPackageFlags(PKG_ContainsScript) )
-				{
-					bScriptPackageWasUnloaded = true;
-				}
 
 				// Clear RF_Standalone flag from objects in the package to be unloaded so they get GC'd.
 				{
