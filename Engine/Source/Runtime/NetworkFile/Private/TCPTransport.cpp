@@ -7,6 +7,7 @@
 #include "Sockets.h"
 #include "MultichannelTcpSocket.h"
 #include "NetworkPlatformFile.h"
+#include "Interfaces/IPv4/IPv4Endpoint.h"
 
 FTCPTransport::FTCPTransport()
 	:FileSocket(NULL)
@@ -29,8 +30,18 @@ bool FTCPTransport::Initialize(const TCHAR* InHostIp)
 	TSharedRef<FInternetAddr> Addr = SSS->CreateInternetAddr();
 	bool bIsValid;
 
-	Addr->SetIp(*HostIp, bIsValid);
-	Addr->SetPort(DEFAULT_TCP_FILE_SERVING_PORT);
+	FIPv4Endpoint FileServerEndpoint;
+	if (FIPv4Endpoint::Parse(InHostIp, FileServerEndpoint) || FIPv4Endpoint::FromHostAndPort(InHostIp, FileServerEndpoint))
+	{
+		Addr->SetIp(FileServerEndpoint.Address.Value);
+		Addr->SetPort(FileServerEndpoint.Port == 0 ? DEFAULT_TCP_FILE_SERVING_PORT : FileServerEndpoint.Port);
+		bIsValid = true;
+	}
+	else
+	{
+		Addr->SetIp(*HostIp, bIsValid);
+		Addr->SetPort(DEFAULT_TCP_FILE_SERVING_PORT);
+	}
 
 	if (bIsValid)
 	{
@@ -113,4 +124,3 @@ FTCPTransport::~FTCPTransport()
 	ISocketSubsystem::Get()->DestroySocket(FileSocket);
 	FileSocket = NULL;
 }
-

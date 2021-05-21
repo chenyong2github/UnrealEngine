@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "AddressInfoTypes.h"
 
 
 /* FIPv4Endpoint static initialization
@@ -43,4 +44,36 @@ bool FIPv4Endpoint::Parse(const FString& EndpointString, FIPv4Endpoint& OutEndpo
 	}
 
 	return false;
+}
+
+bool FIPv4Endpoint::FromHostAndPort(const FString& HostAndPortString, FIPv4Endpoint& OutEndpoint)
+{
+	FString Host;
+	FString Port;
+	if (!HostAndPortString.Split(TEXT(":"), &Host, &Port, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+	{
+		return false;
+	}
+
+	Host.TrimStartAndEndInline();
+	Port.TrimStartAndEndInline();
+	if(Host.IsEmpty() || Port.IsEmpty())
+	{
+		return false;
+	}
+
+	const FAddressInfoResult AddressInfo = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetAddressInfo(
+		*Host,
+		*Port,
+		EAddressInfoFlags::NoResolveService,
+		FNetworkProtocolTypes::IPv4,
+		SOCKTYPE_Unknown);
+	if (AddressInfo.ReturnCode != SE_NO_ERROR || AddressInfo.Results.Num() == 0)
+	{
+		return false;
+	}
+
+	const FAddressInfoResultData& Result = AddressInfo.Results[0];
+	OutEndpoint = FIPv4Endpoint(Result.Address);
+	return true;
 }

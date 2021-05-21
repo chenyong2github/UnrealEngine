@@ -185,6 +185,15 @@ public:
 	 */
 	static NETWORKING_API bool Parse(const FString& EndpointString, FIPv4Endpoint& OutEndpoint);
 
+	/**
+	 * Resolves a hostname and port to an IPv4 endpoint.
+	 *
+	 * @param HostAndPortString The host and port to resolve.
+	 * @param OutEndpoint Will contain the resolved endpoint.
+	 * @return true if the host and port were parsed and resolved successfully, false otherwise.
+	 */
+	static NETWORKING_API bool FromHostAndPort(const FString& HostAndPortString, FIPv4Endpoint& OutEndpoint);
+
 public:
 
 	/** Defines the wild card endpoint, which is 0.0.0.0:0 */
