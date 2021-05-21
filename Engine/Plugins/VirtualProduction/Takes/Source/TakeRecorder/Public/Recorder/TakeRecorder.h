@@ -37,6 +37,15 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingStarted, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingFinished, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingCancelled, UTakeRecorder*);
 
+DECLARE_DELEGATE_RetVal_OneParam(FTakeRecorderParameters, FTakeRecorderParameterDelegate,const FTakeRecorderParameters&);
+
+struct TAKERECORDER_API FTakeRecorderParameterOverride
+{
+	void RegisterHandler(FName OverrideName, FTakeRecorderParameterDelegate Delegate);
+	void UnregisterHandler(FName OverrideName);
+
+	TMap<FName, FTakeRecorderParameterDelegate> Delegates;
+};
 
 DECLARE_LOG_CATEGORY_EXTERN(ManifestSerialization, Verbose, All);
 
@@ -60,6 +69,12 @@ public:
 	 * Retrieve a multi-cast delegate that is triggered when a new recording begins
 	 */
 	static FOnTakeRecordingInitialized& OnRecordingInitialized();
+
+	/**
+	 * On take initialization overrides provide a mechanism to adjust parameter values when
+	 * a new take is initialized.
+	 */
+	static FTakeRecorderParameterOverride& TakeInitializeParameterOverride();
 
 public:
 
