@@ -219,7 +219,7 @@ protected:
 		for (FString& ConnectToEndpointString : ConnectToEndpointStrings)
 		{
 			FIPv4Endpoint ConnectToEndpoint;
-			if (FIPv4Endpoint::Parse(ConnectToEndpointString, ConnectToEndpoint) )
+			if (FIPv4Endpoint::Parse(ConnectToEndpointString, ConnectToEndpoint) || FIPv4Endpoint::FromHostAndPort(ConnectToEndpointString, ConnectToEndpoint))
 			{
 				ConnectToEndpoints.Add(ConnectToEndpoint);
 			}

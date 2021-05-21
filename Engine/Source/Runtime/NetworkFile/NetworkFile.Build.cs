@@ -12,6 +12,7 @@ public class NetworkFile : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"Networking",
 				"Sockets"
 			});
 
