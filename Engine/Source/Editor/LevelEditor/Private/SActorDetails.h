@@ -79,7 +79,7 @@ private:
 	void SetElementDetailsObjects(TArrayView<const TUniquePtr<ITypedElementDetailsObject>> InElementDetailsObjects, const bool bForceRefresh, const bool bOverrideLock);
 
 	AActor* GetActorContext() const;
-	UObject* GetObjectContext() const;
+	UObject* GetActorContextAsObject() const;
 	bool GetAllowComponentTreeEditing() const;
 
 	void OnComponentsEditedInWorld();
