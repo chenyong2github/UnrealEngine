@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HeaderParser.h" // for EVariableCategory
-#include "UObject\Stack.h"
+#include "UObject/Stack.h"
 
 class FProperty;
 class FString;
