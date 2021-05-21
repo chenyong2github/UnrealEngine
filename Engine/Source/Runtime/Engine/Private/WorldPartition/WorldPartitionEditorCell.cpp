@@ -8,19 +8,24 @@
 #if WITH_EDITOR
 void UWorldPartitionEditorCell::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	UWorldPartitionEditorCell* This = CastChecked<UWorldPartitionEditorCell>(InThis);
-	
-#if 0
-	Collector.AllowEliminatingReferences(false);
-	for (const FActorReference& ActorReference: This->LoadedActors)
+	// We need to keep all loaded actors alive, mainly for deleted actors. Normally, these actors are only referenced
+	// by the transaction buffer, but we clear it when unloading cells, etc. and we don't want these actors to die.
+	// Also, we must avoid reporting these references when not collecting garbage, as code such as package deletion
+	// will skip packages with actors still referenced (via GatherObjectReferencersForDeletion).
+	if (IsGarbageCollecting())
 	{
-		AActor* LoadedActor = ActorReference->GetActor(/*bEvenIfPendingKill*/true, /*bEvenIfUnreachable*/true);
-		check(LoadedActor);
+		UWorldPartitionEditorCell* This = CastChecked<UWorldPartitionEditorCell>(InThis);
 	
-		Collector.AddReferencedObject(LoadedActor);
+		Collector.AllowEliminatingReferences(false);
+		for (const FActorReference& ActorReference: This->LoadedActors)
+		{
+			AActor* LoadedActor = ActorReference->GetActor(/*bEvenIfPendingKill*/true, /*bEvenIfUnreachable*/true);
+			check(LoadedActor);
+	
+			Collector.AddReferencedObject(LoadedActor);
+		}
+		Collector.AllowEliminatingReferences(true);
 	}
-	Collector.AllowEliminatingReferences(true);
-#endif
 
 	Super::AddReferencedObjects(InThis, Collector);
 }
