@@ -850,7 +850,7 @@ public:
 				continue;
 			}
 
-			for (int32 j = 0; j < PipelineState.Common.SRVCache.MaxBoundIndex[i]; ++j)
+			for (int32 j = 0; j <= PipelineState.Common.SRVCache.MaxBoundIndex[i]; ++j)
 			{
 				if (PipelineState.Common.SRVCache.Views[i][j] && PipelineState.Common.SRVCache.Views[i][j]->GetResourceLocation())
 				{

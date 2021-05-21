@@ -94,19 +94,22 @@ public:
 	~FD3D12Heap();
 
 	inline ID3D12Heap* GetHeap() { return Heap.GetReference(); }
-	void SetHeap(ID3D12Heap* HeapIn);
+	void SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bTrack = true);
 
 	void UpdateResidency(FD3D12CommandListHandle& CommandList);
 	void BeginTrackingResidency(uint64 Size);
-	void Destroy();
-
-	inline D3D12_HEAP_TYPE GetHeapType() const { return HeapType; }
+	
+	inline FName GetName() const { return HeapName; }
+	inline D3D12_HEAP_DESC GetHeapDesc() const { return HeapDesc; }
 	inline FD3D12ResidencyHandle* GetResidencyHandle() { return &ResidencyHandle; }
 	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
 
 private:
+
 	TRefCountPtr<ID3D12Heap> Heap;
-	D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT;
+	FName HeapName;
+	bool bTrack = true;
+	D3D12_HEAP_DESC HeapDesc;
 	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress = 0;
 	FD3D12ResidencyHandle ResidencyHandle;
 };

@@ -548,7 +548,7 @@ private:
 		ArrayIdx(Idx),
 		FirstFreeOffset(0)
 	{
-		this->SetHeap(NewHeap);
+		this->SetHeap(NewHeap, TEXT("SegListHeap"));
 		BeginTrackingResidency(HeapSize);
 	}
 

@@ -82,17 +82,15 @@ FD3D12TransientHeap::FD3D12TransientHeap(const FRHITransientHeapInitializer& Ini
 		}
 #endif // PLATFORM_WINDOWS
 	}
-	SetName(D3DHeap, L"TransientResourceAllocator Backing Heap");
 
 	Heap = new FD3D12Heap(Device, VisibleNodeMask);
-	Heap->SetHeap(D3DHeap);
+	Heap->SetHeap(D3DHeap, TEXT("TransientResourceAllocator Backing Heap"));
 	Heap->BeginTrackingResidency(Desc.SizeInBytes);
 }
 
 FD3D12TransientHeap::~FD3D12TransientHeap()
 {
 	LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
-	Heap->Destroy();
 }
 
 TUniquePtr<FD3D12TransientResourceSystem> FD3D12TransientResourceSystem::Create(FD3D12Adapter* ParentAdapter, FRHIGPUMask VisibleNodeMask)

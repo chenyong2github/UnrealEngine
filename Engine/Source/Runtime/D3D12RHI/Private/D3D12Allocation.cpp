@@ -259,10 +259,9 @@ void FD3D12BuddyAllocator::Initialize()
 			LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
 			VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&Desc, IID_PPV_ARGS(&Heap)));
 		}
-		SetName(Heap, L"Placed Resource Allocator Backing Heap");
 
 		BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
-		BackingHeap->SetHeap(Heap);
+		BackingHeap->SetHeap(Heap, TEXT("BuddyAllocator Heap"));
 
 		// Only track resources that cannot be accessed on the CPU.
 		if (IsGPUOnly(InitConfig.HeapType))
@@ -558,11 +557,6 @@ void FD3D12BuddyAllocator::ReleaseAllResources()
 	{
 		ensure(BackingResource->GetRefCount() == 1 || GNumExplicitGPUsForRendering > 1);
 		BackingResource = nullptr;
-	}
-
-	if (BackingHeap)
-	{
-		BackingHeap->Destroy();
 	}
 }
 

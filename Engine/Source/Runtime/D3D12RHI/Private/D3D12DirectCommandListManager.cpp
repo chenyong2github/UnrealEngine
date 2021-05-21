@@ -444,7 +444,7 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 				if (SUCCEEDED(hr))
 				{
 					BreadCrumbHeap = new FD3D12Heap(Device, GetVisibilityMask());
-					BreadCrumbHeap->SetHeap(D3D12Heap);
+					BreadCrumbHeap->SetHeap(D3D12Heap, TEXT("BreadCrumbHeap"));
 
 					TCHAR TempStr[MAX_SPRINTF] = TEXT("");
 					FCString::Sprintf(TempStr, TEXT("BreadCrumbResource_%s"), Name);

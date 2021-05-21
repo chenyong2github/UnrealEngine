@@ -407,26 +407,52 @@ FD3D12Heap::FD3D12Heap(FD3D12Device* Parent, FRHIGPUMask VisibleNodes) :
 
 FD3D12Heap::~FD3D12Heap()
 {
-	Destroy();
+#if TRACK_RESOURCE_ALLOCATIONS
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+	if (GPUVirtualAddress != 0 && bTrack)
+	{
+		Adapter->ReleaseTrackedHeap(this);
+	}
+#endif // TRACK_RESOURCE_ALLOCATIONS
+
+#if ENABLE_RESIDENCY_MANAGEMENT
+	if (D3DX12Residency::IsInitialized(ResidencyHandle))
+	{
+		D3DX12Residency::EndTrackingObject(GetParentDevice()->GetResidencyManager(), ResidencyHandle);
+		ResidencyHandle = {};
+	}
+#endif // ENABLE_RESIDENCY_MANAGEMENT
+
+	// Release actual d3d object
+	Heap.SafeRelease();
 }
 
-void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn)
+void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bInTrack)
 {
 	*Heap.GetInitReference() = HeapIn; 
-	
-	D3D12_HEAP_DESC HeapDesc = Heap->GetDesc();
-	HeapType = HeapDesc.Properties.Type;
+	bTrack = bInTrack;
+	HeapName = InName;
+	HeapDesc = Heap->GetDesc();
 
+	SetName(HeapIn, InName);
+	
 	// Create a buffer placed resource on the heap to extract the gpu virtual address
 	// if we are tracking all allocations
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();	
-	if (Adapter->IsTrackingAllAllocations() && HeapType == D3D12_HEAP_TYPE_DEFAULT)
+	if (Adapter->IsTrackingAllAllocations() && HeapDesc.Properties.Type == D3D12_HEAP_TYPE_DEFAULT)
 	{
 		uint64 HeapSize = HeapDesc.SizeInBytes;
 		TRefCountPtr<ID3D12Resource> TempResource;
 		const D3D12_RESOURCE_DESC BufDesc = CD3DX12_RESOURCE_DESC::Buffer(HeapSize, D3D12_RESOURCE_FLAG_NONE);
 		const HRESULT hr = Adapter->GetD3DDevice()->CreatePlacedResource(Heap, 0, &BufDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(TempResource.GetInitReference()));
 		GPUVirtualAddress = TempResource->GetGPUVirtualAddress();
+				
+#if TRACK_RESOURCE_ALLOCATIONS
+		if (bTrack)
+		{
+			Adapter->TrackHeapAllocation(this);
+		}
+#endif
 	}
 }
 
@@ -438,16 +464,6 @@ void FD3D12Heap::UpdateResidency(FD3D12CommandListHandle& CommandList)
 		D3DX12Residency::Insert(CommandList.GetResidencySet(), ResidencyHandle);
 	}
 #endif
-}
-
-void FD3D12Heap::Destroy()
-{
-	//TODO: Check ref counts?
-	if (D3DX12Residency::IsInitialized(ResidencyHandle))
-	{
-		D3DX12Residency::EndTrackingObject(GetParentDevice()->GetResidencyManager(), ResidencyHandle);
-		ResidencyHandle = {};
-	}
 }
 
 void FD3D12Heap::BeginTrackingResidency(uint64 Size)
@@ -552,7 +568,7 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 			HeapDesc.Properties.Type);
 
 #if PLATFORM_WINDOWS
-		if (IsTrackingAllAllocations() && BackingHeap->GetHeapType() == D3D12_HEAP_TYPE_DEFAULT)
+		if (IsTrackingAllAllocations() && BackingHeap->GetHeapDesc().Properties.Type == D3D12_HEAP_TYPE_DEFAULT)
 		{
 			// Manually set the GPU virtual address from the heap gpu virtual address & offset
 			if (InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
