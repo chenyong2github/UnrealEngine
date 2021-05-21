@@ -32,22 +32,6 @@ public:
 	 */
 	FString GetNameWithPrefix(EEnforceInterfacePrefix::Type EnforceInterfacePrefix = EEnforceInterfacePrefix::None) const;
 
-	/**
-	 * Returns the super class of this class, or NULL if there is no superclass.
-	 *
-	 * @return The super class of this class.
-	 */
-	FClass* GetSuperClass() const;
-
-	/**
-	 * Returns the 'within' class of this class.
-	 *
-	 * @return The 'within' class of this class.
-	 */
-	FClass* GetClassWithin() const;
-
-	TArray<FClass*> GetInterfaceTypes() const;
-
 	void GetHideCategories(TArray<FString>& OutHideCategories) const;
 	void GetShowCategories(TArray<FString>& OutShowCategories) const;
 	void GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const;

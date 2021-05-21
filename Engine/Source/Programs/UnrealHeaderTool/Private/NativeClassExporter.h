@@ -19,6 +19,7 @@ class UDelegateFunction;
 class FStructMetaData;
 class FOutputDevice;
 class FUnrealPackageDefinitionInfo;
+class FUnrealPropertyDefinitionInfo;
 struct FFuncInfo;
 struct FGeneratedFileInfo;
 
@@ -74,14 +75,14 @@ ENUM_CLASS_FLAGS(EExportClassOutFlags);
 
 struct FPropertyNamePointerPair
 {
-	FPropertyNamePointerPair(FString InName, FProperty* InProp)
+	FPropertyNamePointerPair(FString InName, FUnrealPropertyDefinitionInfo& InPropDef)
 		: Name(MoveTemp(InName))
-		, Prop(InProp)
+		, PropDef(&InPropDef)
 	{
 	}
 
 	FString Name;
-	FProperty* Prop;
+	FUnrealPropertyDefinitionInfo* PropDef;
 };
 
 FString CreateUTF8LiteralString(const FString& Str);
@@ -327,7 +328,7 @@ private:
 	 * @param	Struct			UStruct to export properties
 	 * @param	TextIndent		Current text indentation
 	 */
-	static void ExportProperties(FOutputDevice& Out, UStruct* Struct, int32 TextIndent);
+	static void ExportProperties(FOutputDevice& Out, FUnrealStructDefinitionInfo& StructDef, int32 TextIndent);
 
 	/** Return the name of the singleton function */
 	static const FString& GetPackageSingletonName(UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
@@ -358,7 +359,7 @@ private:
 	/**
 	 * Export functions used to find and call C++ or script implementation of a script function in the interface 
 	 */
-	void ExportInterfaceCallFunctions(FOutputDevice& OutCpp, FUHTStringBuilder& Out, FReferenceGatherers& OutReferenceGatherers, const TArray<UFunction*>& CallbackFunctions, const TCHAR* ClassName) const;
+	void ExportInterfaceCallFunctions(FOutputDevice& OutCpp, FUHTStringBuilder& Out, FReferenceGatherers& OutReferenceGatherers, const TArray<FUnrealFunctionDefinitionInfo*>& CallbackFunctions, const TCHAR* ClassName) const;
 
 private:
 
@@ -379,7 +380,7 @@ private:
 		FOutputDevice&           OutputGetter,
 		FOutputDevice&           OutDeclarations,
 		FReferenceGatherers&     OutReferenceGatherers, 
-		FClass*                  Class,
+		FUnrealClassDefinitionInfo&			 ClassDef,
 		const FUnrealSourceFile& SourceFile,
 		EExportClassOutFlags&    OutFlags
 	) const;
@@ -431,7 +432,7 @@ private:
 	 * @param	Structs		the struct to export
 	 * @param	TextIndent	the current indentation of the header exporter
 	 */
-	static void ExportMirrorsForNoexportStruct(FOutputDevice& Out, UScriptStruct* Struct, int32 TextIndent);
+	static void ExportMirrorsForNoexportStruct(FOutputDevice& Out, FUnrealScriptStructDefinitionInfo& ScriptStructDef, int32 TextIndent);
 
 	/**heade
 	 * Exports the parameter struct declarations for the list of functions specified
@@ -439,7 +440,7 @@ private:
 	 * @param	Function	the function that (may) have parameters which need to be exported
 	 * @return	true		if the structure generated is not completely empty
 	 */
-	static bool WillExportEventParms( UFunction* Function );
+	static bool WillExportEventParms(FUnrealFunctionDefinitionInfo& FunctionDef);
 
 	/**
 	 * Exports C++ type declarations for delegates
@@ -448,7 +449,7 @@ private:
 	 * @param	SourceFile			Source file of the delegate.
 	 * @param	DelegateFunctions	the functions that have parameters which need to be exported
 	 */
-	void ExportDelegateDeclaration(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UFunction* Function) const;
+	void ExportDelegateDeclaration(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealFunctionDefinitionInfo& FunctionDef) const;
 
 	/**
 	 * Exports C++ type definitions for delegates
@@ -457,7 +458,7 @@ private:
 	 * @param	SourceFile			Source file of the delegate.
 	 * @param	DelegateFunctions	the functions that have parameters which need to be exported
 	 */
-	void ExportDelegateDefinition(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UFunction* Function) const;
+	void ExportDelegateDefinition(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealFunctionDefinitionInfo& FunctionDef) const;
 
 	/**
 	 * Exports the parameter struct declarations for the given function.
@@ -467,7 +468,7 @@ private:
 	 * @param	Indent				number of spaces to put before each line
 	 * @param	bOutputConstructor	If true, output a constructor for the param struct
 	 */
-	static void ExportEventParm(FUHTStringBuilder& Out, TSet<FString>& PropertyFwd, UFunction* Function, int32 Indent, bool bOutputConstructor, EExportingState ExportingState);
+	static void ExportEventParm(FUHTStringBuilder& Out, TSet<FString>& PropertyFwd, FUnrealFunctionDefinitionInfo& FunctionDef, int32 Indent, bool bOutputConstructor, EExportingState ExportingState);
 
 	/**
 	* Move the temp header files into the .h files
@@ -486,7 +487,7 @@ private:
 	 *
 	 * @return	the intrinsic null value for the property (0 for ints, TEXT("") for strings, etc.)
 	 */
-	static FString GetNullParameterValue( FProperty* Prop, bool bInitializer = false );
+	static FString GetNullParameterValue(FUnrealPropertyDefinitionInfo& PropertyDef, bool bInitializer = false );
 
 	/**
 	 * Exports a native function prototype
@@ -500,7 +501,8 @@ private:
 	static void ExportNativeFunctionHeader(
 		FOutputDevice&                   Out,
 		TSet<FString>&                   OutFwdDecls,
-		const FFuncInfo&                 FunctionData,
+		FUnrealFunctionDefinitionInfo&                 FunctionDef,
+		const FFuncInfo&				 FunctionData,
 		EExportFunctionType::Type        FunctionType,
 		EExportFunctionHeaderStyle::Type FunctionHeaderStyle,
 		const TCHAR*                     ExtraParam,
@@ -516,7 +518,7 @@ private:
 	* @param	ValidatePosition		Position in source file of _Validate function for function described by FunctionData.
 	* @param	SourceFile				Currently analyzed source file.
 	*/
-	void CheckRPCFunctions(FReferenceGatherers& OutReferenceGatherers, const FFuncInfo& FunctionData, const FString& ClassName, int32 ImplementationPosition, int32 ValidatePosition, const FUnrealSourceFile& SourceFile) const;
+	void CheckRPCFunctions(FReferenceGatherers& OutReferenceGatherers, FUnrealFunctionDefinitionInfo& FunctionDef, const FString& ClassName, int32 ImplementationPosition, int32 ValidatePosition, const FUnrealSourceFile& SourceFile) const;
 
 	/**
 	 * Exports the native stubs for the list of functions specified
@@ -525,7 +527,7 @@ private:
 	 * @param Class			class
 	 * @param ClassData		class data
 	 */
-	void ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UClass* Class, FStructMetaData& StructData) const;
+	void ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealClassDefinitionInfo& ClassDef) const;
 
 	/**
 	 * Export the actual internals to a standard thunk function
@@ -536,10 +538,10 @@ private:
 	 * @param Parameters list of parameters in the function
 	 * @param Return return parameter for the function
 	 */
-	void ExportFunctionThunk(FUHTStringBuilder& RPCWrappers, FReferenceGatherers& OutReferenceGatherers, UFunction* Function, const FFuncInfo& FunctionData, const TArray<FProperty*>& Parameters, FProperty* Return) const;
+	void ExportFunctionThunk(FUHTStringBuilder& RPCWrappers, FReferenceGatherers& OutReferenceGatherers, FUnrealFunctionDefinitionInfo& FunctionDef, const TArray<FUnrealPropertyDefinitionInfo*>& ParameterDefs, FUnrealPropertyDefinitionInfo* ReturnDef) const;
 
 	/** Exports the native function registration code for the given class. */
-	static void ExportNatives(FOutputDevice& Out, FClass* Class);
+	static void ExportNatives(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef);
 
 	/**
 	 * Exports generated singleton functions for UObjects that used to be stored in .u files.
@@ -549,7 +551,7 @@ private:
 	 * @param	Class			Class to export
 	 * @param	OutFriendText	(Output parameter) Friend text
 	 */
-	void ExportNativeGeneratedInitCode(FOutputDevice& Out, FOutputDevice& OutDeclarations, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FClass* Class, FUHTStringBuilder& OutFriendText) const;
+	void ExportNativeGeneratedInitCode(FOutputDevice& Out, FOutputDevice& OutDeclarations, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealClassDefinitionInfo& ClassDef, FUHTStringBuilder& OutFriendText) const;
 
 	/**
 	 * Export given function.
@@ -558,7 +560,7 @@ private:
 	 * @param	Function		Given function.
 	 * @param	bIsNoExport		Is in NoExport class.
 	 */
-	void ExportFunction(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UFunction* Function, bool bIsNoExport) const;
+	void ExportFunction(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealFunctionDefinitionInfo& FunctionDef, bool bIsNoExport) const;
 
 	/**
 	 * Exports a generated singleton function to setup the package for compiled-in classes.
@@ -592,7 +594,7 @@ private:
 	 * @param	DeclSpaces		String of spaces to use as an indent for the declaration
 	 * @param	Spaces			String of spaces to use as an indent
 	**/
-	void OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FProperty* Prop, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
+	void OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FUnrealPropertyDefinitionInfo& PropertyDef, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
 
 	/**
 	 * Function to output the C++ code necessary to set up a property, including an array property and its inner, array dimensions, etc.
@@ -606,7 +608,7 @@ private:
 	 * @param	Spaces			String of spaces to use as an indent
 	 * @param	SourceStruct	Structure that the property offset is relative to
 	**/
-	void PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, FProperty* Prop, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct = nullptr) const;
+	void PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, FUnrealPropertyDefinitionInfo& PropertyDef, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct = nullptr) const;
 
 	/**
 	 * Function to generate the property tag
@@ -633,7 +635,7 @@ private:
 		FOutputDevice&            OutGeneratedHeaderText,
 		FOutputDevice&            Out,
 		TSet<FString>&            OutFwdDecls,
-		const TArray<UFunction*>& CallbackFunctions,
+		const TArray<FUnrealFunctionDefinitionInfo*>& CallbackFunctions,
 		const TCHAR*              CallbackWrappersMacroName,
 		EExportCallbackType       ExportCallbackType,
 		const TCHAR*              APIString
@@ -682,7 +684,7 @@ private:
 	 * @param	ConstructorsMacroPrefix					Prefix for constructors macro.
 	 * @param	Class									Class for which to export macros.
 	 */
-	static void ExportConstructorsMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& VTableOut, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FClass* Class, const TCHAR* APIArg);
+	static void ExportConstructorsMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& VTableOut, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* APIArg);
 
 	/**
 	 * Gets string with function return type.
@@ -690,7 +692,7 @@ private:
 	 * @param Function Function to get return type of.
 	 * @return FString with function return type.
 	 */
-	static FString GetFunctionReturnString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
+	static FString GetFunctionReturnString(FUnrealFunctionDefinitionInfo& FunctionDef, FReferenceGatherers& OutReferenceGatherers);
 
 	/**
 	* Gets string with function parameters (with names).
@@ -698,7 +700,7 @@ private:
 	* @param Function Function to get parameters of.
 	* @return FString with function parameters.
 	*/
-	static FString GetFunctionParameterString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
+	static FString GetFunctionParameterString(FUnrealFunctionDefinitionInfo& FunctionDef, FReferenceGatherers& OutReferenceGatherers);
 
 	/**
 	 * Checks if function is missing "virtual" specifier.

@@ -103,12 +103,6 @@ public:
 	{
 		return FindTypeByName(FName(Name, FNAME_Find));
 	}
-	/**
-	 * Checks if scope contains this type.
-	 *
-	 * @param Type Type to look for.
-	 */
-	bool ContainsType(FUnrealFieldDefinitionInfo* Type);
 
 	/**
 	 * Checks if scope contains type that satisfies a predicate.

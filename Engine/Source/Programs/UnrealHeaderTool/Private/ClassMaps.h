@@ -52,9 +52,31 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 		DefinitionsByName.Add(Object->GetFName(), Definition);
 	}
 
-	bool Contains(const UObject* Object) { check(bFrozen); return DefinitionsByUObject.Contains(Object); }
-	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const UObject* Object) { check(bFrozen); return DefinitionsByUObject.Find(Object); }
-	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const UObject* Object) { check(bFrozen); return DefinitionsByUObject[Object]; }
+	bool Contains(const UObject* Object)
+	{
+		check(bFrozen); 
+		return DefinitionsByUObject.Contains(Object); 
+	}
+
+	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const UObject* Object)
+	{
+		check(bFrozen);
+		return DefinitionsByUObject.Find(Object);
+	}
+
+	template<typename To>
+	To* Find(const UObject* Object)
+	{
+		check(bFrozen);
+		return UHTCast<To>(DefinitionsByUObject.Find(Object));
+	}
+
+	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const UObject* Object)
+	{
+		check(bFrozen);
+		return DefinitionsByUObject[Object]; 
+	}
+
 	FUnrealTypeDefinitionInfo& FindChecked(const UObject* Object)
 	{
 		check(bFrozen);
@@ -62,13 +84,44 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 		check(TypeDef);
 		return **TypeDef;
 	}
-	TSharedRef<FUnrealTypeDefinitionInfo>* FindByName(const FName Name) { check(bFrozen); return DefinitionsByName.Find(Name); }
+
+	template<typename To>
+	To& FindChecked(const UObject* Object)
+	{
+		check(bFrozen);
+		To* TypeDef = Find<To>(Object);
+		check(TypeDef);
+		return *TypeDef;
+	}
+
+	TSharedRef<FUnrealTypeDefinitionInfo>* FindByName(const FName Name)
+	{
+		check(bFrozen);
+		return DefinitionsByName.Find(Name);
+	}
+
+	template<typename To>
+	To* FindByName(const FName Name)
+	{
+		check(bFrozen);
+		return UHTCast<To>(DefinitionsByName.Find(Name));
+	}
+
 	FUnrealTypeDefinitionInfo& FindByNameChecked(const FName Name)
-	{ 
-		check(bFrozen); 
+	{
+		check(bFrozen);
 		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = DefinitionsByName.Find(Name);
 		check(TypeDef);
 		return **TypeDef;
+	}
+
+	template <typename To>
+	To& FindByNameChecked(const FName Name)
+	{
+		check(bFrozen);
+		To* TypeDef = FindByName<To>(Name);
+		check(TypeDef);
+		return *TypeDef;
 	}
 
 	template <typename Lambda>
@@ -93,18 +146,42 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 	{
 		DefinitionsByFField.Add(Field, MoveTemp(Definition));
 	}
-	bool Contains(const FField* Field) { return DefinitionsByFField.Contains(Field); }
+
+	bool Contains(const FField* Field) 
+	{
+		return DefinitionsByFField.Contains(Field);
+	}
+
 	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const FField* Field)
 	{
 		return DefinitionsByFField.Find(Field);
 	}
+
+	template <typename To>
+	To* Find(const FField* Field)
+	{
+		return UHTCast<To>(DefinitionsByFField.Find(Field));
+	}
+
 	FUnrealTypeDefinitionInfo& FindChecked(const FField* Field)
 	{
 		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = DefinitionsByFField.Find(Field);
 		check(TypeDef);
 		return **TypeDef;
 	}
-	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const FField* Field) { return DefinitionsByFField[Field]; }
+
+	template <typename To>
+	To& FindChecked(const FField* Field)
+	{
+		To* TypeDef = Find<To>(Field);
+		check(TypeDef);
+		return *TypeDef;
+	}
+
+	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const FField* Field)
+	{ 
+		return DefinitionsByFField[Field];
+	}
 
 private:
 

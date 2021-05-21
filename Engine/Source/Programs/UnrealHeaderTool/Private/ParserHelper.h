@@ -105,6 +105,17 @@ enum EAccessSpecifier
 #define CASE_TEXT(txt) case txt: return TEXT(#txt)
 #endif
 
+inline bool IsBool(EPropertyType Type)
+{
+	return Type == CPT_Bool || Type == CPT_Bool8 || Type == CPT_Bool16 || Type == CPT_Bool32 || Type == CPT_Bool64;
+}
+
+inline bool IsObject(EPropertyType Type)
+{
+	return Type == CPT_ObjectReference || Type == CPT_Interface || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_ObjectPtrReference || Type == CPT_SoftObjectReference;
+}
+
+
 /**
  * Basic information describing a type.
  */
@@ -250,226 +261,6 @@ public:
 	{
 	}
 
-	explicit FPropertyBase(FProperty* Property)
-	: PropertyExportFlags(PROPEXPORT_Public)
-	, DelegateName       (NAME_None)
-	, DelegateSignatureOwnerClass(nullptr)
-	, RepNotifyName      (NAME_None)
-	, IntType            (EIntType::None)
-	{
-		checkSlow(Property);
-
-		EArrayType::Type ArrType         = EArrayType::None;
-		EPropertyFlags   PropagateFlags  = CPF_None;
-		FFieldClass*     ClassOfProperty = Property->GetClass();
-
-		if( ClassOfProperty==FArrayProperty::StaticClass() )
-		{
-			ArrType = EArrayType::Dynamic;
-
-			// if we're an array, save up Parm flags so we can propagate them.
-			// below the array will be assigned the inner property flags. This allows propagation of Parm flags (out, optional..)
-			PropagateFlags = Property->PropertyFlags & CPF_ParmFlags;
-			Property = CastFieldChecked<FArrayProperty>(Property)->Inner;
-			ClassOfProperty = Property->GetClass();
-		}
-		else if (ClassOfProperty == FSetProperty::StaticClass())
-		{
-			ArrType = EArrayType::Set;
-
-			PropagateFlags = Property->PropertyFlags & CPF_ParmFlags;
-			Property = CastFieldChecked<FSetProperty>(Property)->ElementProp;
-			ClassOfProperty = Property->GetClass();
-		}
-		else if (ClassOfProperty == FMapProperty::StaticClass())
-		{
-			PropagateFlags = Property->PropertyFlags & CPF_ParmFlags;
-			MapKeyProp = MakeShared<FPropertyBase>(CastFieldChecked<FMapProperty>(Property)->KeyProp);
-			Property = CastFieldChecked<FMapProperty>(Property)->ValueProp;
-			ClassOfProperty = Property->GetClass();
-		}
-
-		if( ClassOfProperty==FByteProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Byte);
-			Enum = CastField<FByteProperty>(Property)->Enum;
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FEnumProperty::StaticClass() )
-		{
-			FEnumProperty* EnumProp = CastField<FEnumProperty>(Property);
-			FNumericProperty* UnderlyingProp = EnumProp->GetUnderlyingProperty();
-
-			*this = FPropertyBase(
-				  UnderlyingProp->IsA<FInt8Property>()   ? CPT_Int8
-				: UnderlyingProp->IsA<FInt16Property>()  ? CPT_Int16
-				: UnderlyingProp->IsA<FIntProperty>()    ? CPT_Int
-				: UnderlyingProp->IsA<FInt64Property>()  ? CPT_Int64
-				: UnderlyingProp->IsA<FByteProperty>()   ? CPT_Byte
-				: UnderlyingProp->IsA<FUInt16Property>() ? CPT_UInt16
-				: UnderlyingProp->IsA<FUInt32Property>() ? CPT_UInt32
-				: UnderlyingProp->IsA<FUInt64Property>() ? CPT_UInt64
-				:                                          CPT_None
-			);
-			check(this->Type != CPT_None);
-			Enum = EnumProp->Enum;
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FInt8Property::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Int8);
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FInt16Property::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Int16);
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FIntProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Int);
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FInt64Property::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Int64);
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FUInt16Property::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_UInt16);
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FUInt32Property::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_UInt32);
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FUInt64Property::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_UInt64);
-			IntType = EIntType::Sized;
-		}
-		else if( ClassOfProperty==FBoolProperty::StaticClass() )
-		{
-			FBoolProperty* BoolProperty =  CastField<FBoolProperty>(Property);
-			if (BoolProperty->IsNativeBool())
-			{
-				*this = FPropertyBase(CPT_Bool);
-			}
-			else
-			{
-				switch( BoolProperty->ElementSize )
-				{
-				case sizeof(uint8):
-					*this = FPropertyBase(CPT_Bool8);
-					break;
-				case sizeof(uint16):
-					*this = FPropertyBase(CPT_Bool16);
-					break;
-				case sizeof(uint32):
-					*this = FPropertyBase(CPT_Bool32);
-					break;
-				case sizeof(uint64):
-					*this = FPropertyBase(CPT_Bool64);
-					break;
-				}
-			}
-		}
-		else if( ClassOfProperty==FFloatProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Float);
-		}
-		else if( ClassOfProperty==FDoubleProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Double);
-		}
-		else if( ClassOfProperty==FClassProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_ObjectReference);
-			PropertyClass = CastField<FClassProperty>(Property)->PropertyClass;
-			MetaClass = CastField<FClassProperty>(Property)->MetaClass;
-		}
-		else if( ClassOfProperty==FObjectProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_ObjectReference);
-			PropertyClass = CastField<FObjectProperty>(Property)->PropertyClass;
-		}
-		else if( ClassOfProperty==FWeakObjectProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_WeakObjectReference);
-			PropertyClass = CastField<FWeakObjectProperty>(Property)->PropertyClass;
-		}
-		else if( ClassOfProperty==FLazyObjectProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_LazyObjectReference);
-			PropertyClass = CastField<FLazyObjectProperty>(Property)->PropertyClass;
-		}
-		else if( ClassOfProperty==FObjectPtrProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_ObjectPtrReference);
-			PropertyClass = CastField<FObjectPtrProperty>(Property)->PropertyClass;
-		}
-		else if( ClassOfProperty==FSoftClassProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_SoftObjectReference);
-			PropertyClass = CastField<FSoftClassProperty>(Property)->PropertyClass;
-			MetaClass = CastField<FSoftClassProperty>(Property)->MetaClass;
-		}
-		else if( ClassOfProperty==FSoftObjectProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_SoftObjectReference);
-			PropertyClass = CastField<FSoftObjectProperty>(Property)->PropertyClass;
-		}
-		else if( ClassOfProperty==FNameProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Name);
-		}
-		else if( ClassOfProperty==FStrProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_String);
-		}
-		else if( ClassOfProperty==FTextProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Text);
-		}
-		else if( ClassOfProperty==FStructProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Struct);
-			Struct = CastField<FStructProperty>(Property)->Struct;
-		}
-		else if( ClassOfProperty==FDelegateProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Delegate);
-			Function = CastField<FDelegateProperty>(Property)->SignatureFunction;
-		}
-		else if( ClassOfProperty==FMulticastDelegateProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_MulticastDelegate);
-			// @todo delegate: Any other setup for calling multi-cast delegates from script needed?
-			Function = CastField<FMulticastDelegateProperty>(Property)->SignatureFunction;
-		}
-		else if ( ClassOfProperty==FInterfaceProperty::StaticClass() )
-		{
-			*this = FPropertyBase(CPT_Interface);
-			PropertyClass = CastField<FInterfaceProperty>(Property)->InterfaceClass;
-		}
-		else if (ClassOfProperty == FFieldPathProperty::StaticClass())
-		{
-			*this = FPropertyBase(CPT_FieldPath);
-			PropertyPathClass = CastField<FFieldPathProperty>(Property)->PropertyClass;
-		}
-		else
-		{
-			UE_LOG(LogCompile, Fatal, TEXT("Unknown property type '%s'"), *Property->GetFullName() );
-		}
-		ArrayType            = ArrType;
-		PropertyFlags        = Property->PropertyFlags | PropagateFlags;
-		ImpliedPropertyFlags = CPF_None;
-		RefQualifier         = ERefQualifier::None;
-		PointerType          = EPointerType::None;
-	}
-
 	explicit FPropertyBase(FFieldClass* InPropertyClass, EPropertyType InType)
 		: Type(InType)
 		, ArrayType(EArrayType::None)
@@ -496,7 +287,12 @@ public:
 	 */
 	bool IsObject() const
 	{
-		return Type == CPT_ObjectReference || Type == CPT_Interface || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_ObjectPtrReference || Type == CPT_SoftObjectReference;
+		return ::IsObject(Type);
+	}
+
+	bool IsBool() const
+	{
+		return ::IsBool(Type);
 	}
 
 	bool IsContainer() const
@@ -691,19 +487,6 @@ public:
 			return true;
 		}
 	}
-
-	FString Describe()
-	{
-		return FString::Printf(
-			TEXT("Type:%s  Flags:%lli  ImpliedFlags:%lli  Enum:%s  PropertyClass:%s  Struct:%s  Function:%s  MetaClass:%s"),
-			GetPropertyTypeText(Type), PropertyFlags, ImpliedPropertyFlags,
-			Enum!=NULL?*Enum->GetName():TEXT(""),
-			PropertyClass!=NULL?*PropertyClass->GetName():TEXT("NULL"),
-			Struct!=NULL?*Struct->GetName():TEXT("NULL"),
-			Function!=NULL?*Function->GetName():TEXT("NULL"),
-			MetaClass!=NULL?*MetaClass->GetName():TEXT("NULL")
-			);
-	}
 	//@}
 
 	EIntType GetSizedIntTypeFromPropertyType(EPropertyType PropType)
@@ -748,32 +531,21 @@ enum ETokenType
 //
 // Information about a token that was just parsed.
 //
-class FToken : public FPropertyBase
+class FToken
 {
 public:
 	/** @name Variables */
 	//@{
 	/** Type of token. */
 	ETokenType TokenType;
-
-private:
-	/** Whether TokenName has been looked up */
-	mutable bool bTokenNameInitialized;
-	/** Name of token, lazily initialized */
-	mutable FName TokenName;
-
-public:
 	/** Starting position in script where this token came from. */
 	int32 StartPos;
 	/** Starting line in script. */
 	int32 StartLine;
 	/** Always valid. */
 	TCHAR Identifier[NAME_SIZE];
-	/** property that corresponds to this FToken - null if this Token doesn't correspond to a FProperty */
-	FProperty* TokenProperty;
-
-
-public:
+	/** Type of the constant value */
+	EPropertyType ConstantType = CPT_None;
 
 	union
 	{
@@ -796,7 +568,7 @@ public:
 	{
 		if (TokenType == TOKEN_Const)
 		{
-			switch (Type)
+			switch (ConstantType)
 			{
 				case CPT_Byte:
 					return FString::Printf(TEXT("%u"), Byte);
@@ -829,37 +601,22 @@ public:
 
 	// Constructors.
 	FToken()
-		: FPropertyBase(CPT_None)
-		, TokenProperty(NULL)
 	{
 		InitToken(CPT_None);
 	}
 
 	// copy constructors
 	explicit FToken(EPropertyType InType)
-		: FPropertyBase(InType)
-		, TokenProperty(NULL)
 	{
 		InitToken(InType);
 	}
 
-	// copy constructors
-	FToken(const FPropertyBase& InType)
-		: FPropertyBase(CPT_None)
-		, TokenProperty(NULL)
-	{
-		InitToken( CPT_None );
-		(FPropertyBase&)*this = InType;
-	}
-
 	FToken(const FToken& InToken)
-		: FPropertyBase(CPT_None)
 	{
 		*this = InToken;
 	}
 
 	FToken(FToken&& InToken)
-		: FPropertyBase(CPT_None)
 	{
 		*this = MoveTemp(InToken);
 	}
@@ -867,9 +624,8 @@ public:
 	// Inlines.
 	void InitToken( EPropertyType InType )
 	{
-		(FPropertyBase&)*this = FPropertyBase(InType);
+		ConstantType    = InType;
 		TokenType		= TOKEN_None;
-		TokenName		= NAME_None;
 		StartPos		= 0;
 		StartLine		= 0;
 		*Identifier		= 0;
@@ -883,24 +639,6 @@ public:
 	{
 		return (TokenType==TOKEN_Identifier || TokenType==TOKEN_Symbol) && ((SearchCase == ESearchCase::CaseSensitive) ? !FCString::Strcmp(Identifier, Str) : !FCString::Stricmp(Identifier, Str));
 	}
-	bool IsBool() const
-	{
-		return Type == CPT_Bool || Type == CPT_Bool8 || Type == CPT_Bool16 || Type == CPT_Bool32 || Type == CPT_Bool64;
-	}
-	FName GetTokenName() const
-	{
-		if (!bTokenNameInitialized)
-		{
-			TokenName = FName(Identifier, FNAME_Find);
-			bTokenNameInitialized = true;
-		}
-		return TokenName;
-	}
-	void ClearTokenName()
-	{
-		bTokenNameInitialized = false;
-		TokenName = NAME_None;
-	}
 
 	// Setters.
 	
@@ -909,49 +647,48 @@ public:
 		InitToken(CPT_None);
 		TokenType = TOKEN_Identifier;
 		FCString::Strncpy(Identifier, InString, NAME_SIZE);
-		bTokenNameInitialized = false;
 	}
 
 	void SetConstInt64( int64 InInt64 )
 	{
-		(FPropertyBase&)*this = FPropertyBase(CPT_Int64);
+		ConstantType    = CPT_Int64;
 		Int64			= InInt64;
 		TokenType		= TOKEN_Const;
 	}
 	void SetConstInt( int32 InInt )
 	{
-		(FPropertyBase&)*this = FPropertyBase(CPT_Int);
+		ConstantType    = CPT_Int;
 		Int				= InInt;
 		TokenType		= TOKEN_Const;
 	}
 	void SetConstBool( bool InBool )
 	{
-		(FPropertyBase&)*this = FPropertyBase(CPT_Bool);
+		ConstantType    = CPT_Bool;
 		NativeBool 		= InBool;
 		TokenType		= TOKEN_Const;
 	}
 	void SetConstFloat( float InFloat )
 	{
-		(FPropertyBase&)*this = FPropertyBase(CPT_Float);
+		ConstantType    = CPT_Float;
 		Float			= InFloat;
 		TokenType		= TOKEN_Const;
 	}
 	void SetConstDouble( double InDouble )
 	{
-		(FPropertyBase&)*this = FPropertyBase(CPT_Double);
+		ConstantType    = CPT_Double;
 		Double			= InDouble;
 		TokenType		= TOKEN_Const;
 	}
 	void SetConstName( FName InName )
 	{
-		(FPropertyBase&)*this = FPropertyBase(CPT_Name);
+		ConstantType    = CPT_Name;
 		*(FName *)NameBytes = InName;
 		TokenType		= TOKEN_Const;
 	}
 	void SetConstString( const TCHAR* InString, int32 MaxLength=MAX_STRING_CONST_SIZE )
 	{
 		check(MaxLength>0);
-		(FPropertyBase&)*this = FPropertyBase(CPT_String);
+		ConstantType = CPT_String;
 		if( InString != String )
 		{
 			FCString::Strncpy( String, InString, MaxLength );
@@ -961,7 +698,7 @@ public:
 	void SetConstChar(TCHAR InChar)
 	{
 		//@TODO: Treating this like a string for now, nothing consumes it
-		(FPropertyBase&)*this = FPropertyBase(CPT_String);
+		ConstantType = CPT_String;
 		String[0] = InChar;
 		String[1] = 0;
 		TokenType = TOKEN_Const;
@@ -971,27 +708,27 @@ public:
 	// Getters.
 	bool GetConstInt( int32& I ) const
 	{
-		if( TokenType==TOKEN_Const && Type==CPT_Int64 )
+		if( TokenType==TOKEN_Const && ConstantType ==CPT_Int64 )
 		{
 			I = (int32)Int64;
 			return 1;
 		}
-		else if( TokenType==TOKEN_Const && Type==CPT_Int )
+		else if( TokenType==TOKEN_Const && ConstantType ==CPT_Int )
 		{
 			I = Int;
 			return 1;
 		}
-		else if( TokenType==TOKEN_Const && Type==CPT_Byte )
+		else if( TokenType==TOKEN_Const && ConstantType ==CPT_Byte )
 		{
 			I = Byte;
 			return 1;
 		}
-		else if( TokenType==TOKEN_Const && Type==CPT_Float && Float==FMath::TruncToInt(Float))
+		else if( TokenType==TOKEN_Const && ConstantType ==CPT_Float && Float==FMath::TruncToInt(Float))
 		{
 			I = (int32) Float;
 			return 1;
 		}
-		else if (TokenType == TOKEN_Const && Type == CPT_Double && Double == FMath::TruncToInt((float)Double))
+		else if (TokenType == TOKEN_Const && ConstantType == CPT_Double && Double == FMath::TruncToInt((float)Double))
 		{
 			I = (int32) Double;
 			return 1;
@@ -1001,44 +738,32 @@ public:
 
 	bool GetConstInt64( int64& I ) const
 	{
-		if( TokenType==TOKEN_Const && Type==CPT_Int64 )
+		if( TokenType==TOKEN_Const && ConstantType ==CPT_Int64 )
 		{
 			I = Int64;
 			return 1;
 		}
-		else if( TokenType==TOKEN_Const && Type==CPT_Int )
+		else if( TokenType==TOKEN_Const && ConstantType ==CPT_Int )
 		{
 			I = Int;
 			return 1;
 		}
-		else if( TokenType==TOKEN_Const && Type==CPT_Byte )
+		else if( TokenType==TOKEN_Const && ConstantType ==CPT_Byte )
 		{
 			I = Byte;
 			return 1;
 		}
-		else if( TokenType==TOKEN_Const && Type==CPT_Float && Float==FMath::TruncToInt(Float))
+		else if( TokenType==TOKEN_Const && ConstantType ==CPT_Float && Float==FMath::TruncToInt(Float))
 		{
 			I = (int32) Float;
 			return 1;
 		}
-		else if (TokenType == TOKEN_Const && Type == CPT_Double && Double == FMath::TruncToInt((float)Double))
+		else if (TokenType == TOKEN_Const && ConstantType == CPT_Double && Double == FMath::TruncToInt((float)Double))
 		{
 			I = (int32) Double;
 			return 1;
 		}
 		else return 0;
-	}
-
-	FString Describe()
-	{
-		return FString::Printf(
-			TEXT("Property:%s  Type:%s  TokenName:%s  ConstValue:%s  Struct:%s  Flags:%lli  Implied:%lli"),
-			TokenProperty!=NULL?*TokenProperty->GetName():TEXT("NULL"),
-			GetPropertyTypeText(Type), *GetTokenName().ToString(), *GetConstantValue(),
-			Struct!=NULL?*Struct->GetName():TEXT("NULL"),
-			PropertyFlags,
-			ImpliedPropertyFlags
-			);
 	}
 
 	friend struct FTokenArchiveProxy;
@@ -1184,9 +909,6 @@ enum class EParsedInterface
  */
 class FStructMetaData
 {
-	/** whether this class declares delegate functions or properties */
-	bool													bContainsDelegates;
-
 	/** The line of UCLASS/UINTERFACE macro in this class. */
 	int32 PrologLine;
 
@@ -1199,8 +921,7 @@ class FStructMetaData
 public:
 	/** Default constructor */
 	FStructMetaData()
-		: bContainsDelegates(false)
-		, PrologLine(-1)
+		: PrologLine(-1)
 		, GeneratedBodyLine(-1)
 		, InterfaceGeneratedBodyLine(-1)
 		, bConstructorDeclared(false)
@@ -1263,81 +984,6 @@ public:
 	{
 		check(Line > 0);
 		InterfaceGeneratedBodyLine = Line;
-	}
-
-	/**
-	 * Sets contains delegates flag for this class.
-	 */
-	void MarkContainsDelegate()
-	{
-		bContainsDelegates = true;
-	}
-
-	/**
-	 * Adds a new property to be tracked.  Determines the correct list for the property based on
-	 * its owner (function, struct, etc).
-	 * 
-	 * @param	PropertyDef	the property to add
-	 */
-	void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef);
-
-	/**
-	 * Adds new editor-only metadata (key/value pairs) to the class or struct that
-	 * owns this property or function.
-	 * 
-	 * @param	Field		the property or function to add to
-	 * @param	InMetaData	the metadata to add
-	 */
-	static void AddMetaData(UField* Field, TMap<FName, FString>&& InMetaData)
-	{
-		// only add if we have some!
-		if (InMetaData.Num())
-		{
-			check(Field);
-
-			// get (or create) a metadata object for this package
-			UMetaData* MetaData = Field->GetOutermost()->GetMetaData();
-			TMap<FName, FString>* ExistingMetaData = MetaData->GetMapForObject(Field);
-			if (ExistingMetaData && ExistingMetaData->Num())
-			{
-				// Merge the existing metadata
-				TMap<FName, FString> MergedMetaData;
-				MergedMetaData.Reserve(InMetaData.Num() + ExistingMetaData->Num());
-				MergedMetaData.Append(*ExistingMetaData);
-				MergedMetaData.Append(InMetaData);
-				MetaData->SetObjectValues(Field, MoveTemp(MergedMetaData));
-			}
-			else
-			{
-				// set the metadata for this field
-				MetaData->SetObjectValues(Field, MoveTemp(InMetaData));
-			}
-		}
-	}
-	static void AddMetaData(FField* Field, TMap<FName, FString>&& InMetaData)
-	{
-		// only add if we have some!
-		if (InMetaData.Num())
-		{
-			check(Field);
-
-			UPackage* Package = Field->GetOutermost();
-			// get (or create) a metadata object for this package
-			UMetaData* MetaData = Package->GetMetaData();
-			
-			for (TPair<FName, FString>& MetaKeyValue : InMetaData)
-			{
-				Field->SetMetaData(MetaKeyValue.Key, MoveTemp(MetaKeyValue.Value));
-			}
-		}
-	}
-
-	/**
-	 * Returns whether this class contains any delegate properties which need to be fixed up.
-	 */
-	bool ContainsDelegates() const
-	{
-		return bContainsDelegates;
 	}
 
 	// Is constructor declared?

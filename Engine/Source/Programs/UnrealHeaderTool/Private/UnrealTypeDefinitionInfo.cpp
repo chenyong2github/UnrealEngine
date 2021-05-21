@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnrealTypeDefinitionInfo.h"
+#include "ClassMaps.h"
 #include "NativeClassExporter.h"
 #include "Scope.h"
 #include "UnrealSourceFile.h"
@@ -118,16 +119,6 @@ TSharedRef<FScope> FUnrealTypeDefinitionInfo::GetScope()
 	return GetUnrealSourceFile().GetScope();
 }
 
-// Constructor
-FUnrealPackageDefinitionInfo::FUnrealPackageDefinitionInfo(const FManifestModule& InModule, UPackage* InPackage)
-	: FUnrealObjectDefinitionInfo(FString())
-	, Module(InModule)
-	, ShortUpperName(FPackageName::GetShortName(InPackage).ToUpper())
-	, API(FString::Printf(TEXT("%s_API "), *ShortUpperName))
-{
-	SetObject(InPackage);
-}
-
 void FUnrealTypeDefinitionInfo::SetHash(uint32 InHash)
 {
 	Hash = InHash;
@@ -156,6 +147,33 @@ void FUnrealTypeDefinitionInfo::GetHashTag(FUHTStringBuilder& Out) const
 			Out.Appendf(TEXT(" %u"), TempHash);
 		}
 	}
+}
+
+void FUnrealPropertyDefinitionInfo::AddMetaData(TMap<FName, FString>&& InMetaData)
+{
+	// only add if we have some!
+	if (InMetaData.Num())
+	{
+		check(Property);
+
+		UPackage* Package = Property->GetOutermost();
+		// get (or create) a metadata object for this package
+		UMetaData* MetaData = Package->GetMetaData();
+
+		for (TPair<FName, FString>& MetaKeyValue : InMetaData)
+		{
+			Property->SetMetaData(MetaKeyValue.Key, MoveTemp(MetaKeyValue.Value));
+		}
+	}
+}
+
+FUnrealPackageDefinitionInfo::FUnrealPackageDefinitionInfo(const FManifestModule& InModule, UPackage* InPackage)
+	: FUnrealObjectDefinitionInfo(FString())
+	, Module(InModule)
+	, ShortUpperName(FPackageName::GetShortName(InPackage).ToUpper())
+	, API(FString::Printf(TEXT("%s_API "), *ShortUpperName))
+{
+	SetObject(InPackage);
 }
 
 void FUnrealPackageDefinitionInfo::PostParseFinalize()
@@ -210,6 +228,82 @@ void FUnrealFieldDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCr
 	}
 }
 
+void FUnrealFieldDefinitionInfo::AddMetaData(TMap<FName, FString>&& InMetaData)
+{
+	// only add if we have some!
+	if (InMetaData.Num())
+	{
+		UField* Field = GetField();
+		check(Field);
+
+		// get (or create) a metadata object for this package
+		UMetaData* MetaData = Field->GetOutermost()->GetMetaData();
+		TMap<FName, FString>* ExistingMetaData = MetaData->GetMapForObject(Field);
+		if (ExistingMetaData && ExistingMetaData->Num())
+		{
+			// Merge the existing metadata
+			TMap<FName, FString> MergedMetaData;
+			MergedMetaData.Reserve(InMetaData.Num() + ExistingMetaData->Num());
+			MergedMetaData.Append(*ExistingMetaData);
+			MergedMetaData.Append(InMetaData);
+			MetaData->SetObjectValues(Field, MoveTemp(MergedMetaData));
+		}
+		else
+		{
+			// set the metadata for this field
+			MetaData->SetObjectValues(Field, MoveTemp(InMetaData));
+		}
+	}
+}
+
+FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
+	: FUnrealFieldDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InSourceFile.GetPackageDef())
+{ }
+
+void FUnrealStructDefinitionInfo::AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
+{
+	Properties.Add(&PropertyDef);
+
+	// update the optimization flags
+	if (!bContainsDelegates)
+	{
+		FProperty* Prop = PropertyDef.GetProperty();
+		if (Prop->IsA(FDelegateProperty::StaticClass()) || Prop->IsA(FMulticastDelegateProperty::StaticClass()))
+		{
+			bContainsDelegates = true;
+		}
+		else
+		{
+			FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
+			if (ArrayProp != NULL)
+			{
+				if (ArrayProp->Inner->IsA(FDelegateProperty::StaticClass()) || ArrayProp->Inner->IsA(FMulticastDelegateProperty::StaticClass()))
+				{
+					bContainsDelegates = true;
+				}
+			}
+		}
+	}
+}
+
+void FUnrealStructDefinitionInfo::AddFunction(FUnrealFunctionDefinitionInfo& FunctionDef)
+{
+	Functions.Add(&FunctionDef);
+
+	// update the optimization flags
+	if (!bContainsDelegates)
+	{
+		if (FunctionDef.GetFunction()->HasAnyFunctionFlags(FUNC_Delegate))
+		{
+			bContainsDelegates = true;
+		}
+	}
+}
+
+FUnrealScriptStructDefinitionInfo::FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
+	: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InSourceFile.GetPackageDef())
+{ }
+
 uint32 FUnrealScriptStructDefinitionInfo::GetHash(bool bIncludeNoExport) const
 {
 	if (!bIncludeNoExport)
@@ -249,6 +343,16 @@ void FUnrealStructDefinitionInfo::SetObject(UObject* InObject)
 	}
 }
 
+FUnrealClassDefinitionInfo::FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, bool bInIsInterface)
+	: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InSourceFile.GetPackageDef())
+	, bIsInterface(bInIsInterface)
+{
+	if (bInIsInterface)
+	{
+		GetStructMetaData().ParsedInterface = EParsedInterface::ParsedUInterface;
+	}
+}
+
 uint32 FUnrealClassDefinitionInfo::GetHash(bool bIncludeNoExport) const
 {
 	if (!bIncludeNoExport)
@@ -273,4 +377,35 @@ void FUnrealClassDefinitionInfo::PostParseFinalize()
 	}
 
 	FUnrealStructDefinitionInfo::PostParseFinalize();
+}
+
+bool FUnrealClassDefinitionInfo::HierarchyHasAnyClassFlags(UClass* Class, EClassFlags FlagsToCheck)
+{
+	if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(GTypeDefinitionInfoMap.FindChecked(Class)))
+	{
+		return ClassDef->HierarchyHasAnyClassFlags(CLASS_DefaultToInstanced);
+	}
+	return false;
+}
+
+bool FUnrealClassDefinitionInfo::HierarchyHasAllClassFlags(UClass* Class, EClassFlags FlagsToCheck)
+{
+	if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(GTypeDefinitionInfoMap.FindChecked(Class)))
+	{
+		return ClassDef->HierarchyHasAllClassFlags(CLASS_DefaultToInstanced);
+	}
+	return false;
+}
+
+void FUnrealFunctionDefinitionInfo::AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
+{
+	const FProperty* Prop = PropertyDef.GetProperty();
+	check((Prop->PropertyFlags & CPF_Parm) != 0);
+
+	if ((Prop->PropertyFlags & CPF_ReturnParm) != 0)
+	{
+		check(ReturnProperty == nullptr);
+		ReturnProperty = &PropertyDef;
+	}
+	FUnrealStructDefinitionInfo::AddProperty(PropertyDef);
 }

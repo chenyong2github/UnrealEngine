@@ -49,26 +49,6 @@ FString FClass::GetNameWithPrefix(EEnforceInterfacePrefix::Type EnforceInterface
 	return FString::Printf(TEXT("%s%s"), Prefix, *GetName());
 }
 
-FClass* FClass::GetSuperClass() const
-{
-	return static_cast<FClass*>(static_cast<const UClass*>(this)->GetSuperClass());
-}
-
-FClass* FClass::GetClassWithin() const
-{
-	return (FClass*)ClassWithin;
-}
-
-TArray<FClass*> FClass::GetInterfaceTypes() const
-{
-	TArray<FClass*> Result;
-	for (const FImplementedInterface& i : Interfaces)
-	{
-		Result.Add((FClass*)i.Class);
-	}
-	return Result;
-}
-
 void FClass::GetHideCategories(TArray<FString>& OutHideCategories) const
 {
 	if (HasMetaData(FHeaderParserNames::NAME_HideCategories))

@@ -38,10 +38,10 @@ class FUnrealSourceFile : public TSharedFromThis<FUnrealSourceFile>
 {
 public:
 	// Constructor.
-	FUnrealSourceFile(UPackage* InPackage, const FString& InFilename)
+	FUnrealSourceFile(FUnrealPackageDefinitionInfo& InPackageDef, const FString& InFilename)
 		: Scope                (MakeShareable(new FFileScope(*(FString(TEXT("__")) + FPaths::GetBaseFilename(InFilename) + FString(TEXT("__File"))), this)))
 		, Filename             (InFilename)
-		, Package              (InPackage)
+		, PackageDef           (InPackageDef)
 	{
 		if (GetStrippedFilename() != "NoExportTypes")
 		{
@@ -208,11 +208,19 @@ public:
 	}
 
 	/**
+	 * Gets package definition this file is in.
+	 */
+	FUnrealPackageDefinitionInfo& GetPackageDef() const
+	{
+		return PackageDef;
+	}
+
+	/**
 	 * Gets package this file is in.
 	 */
 	UPackage* GetPackage() const
 	{
-		return Package;
+		return PackageDef.GetPackage();
 	}
 
 	/**
@@ -458,7 +466,7 @@ private:
 	mutable FString FileId;
 
 	// Package of this file.
-	UPackage* Package;
+	FUnrealPackageDefinitionInfo& PackageDef;
 
 	// File name of the generated header file associated with this file.
 	FString GeneratedFilename;
