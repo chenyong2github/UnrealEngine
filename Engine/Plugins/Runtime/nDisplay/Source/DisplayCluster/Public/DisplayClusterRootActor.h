@@ -223,6 +223,13 @@ private:
 	template <typename TComp>
 	void GetTypedComponents(TMap<FString, TComp*>& OutTypedMap, const TMap<FString, FDisplayClusterSceneComponentRef*>& InTypedMap) const;
 
+public:
+	UPROPERTY(EditInstanceOnly, Category = NDisplay)
+	bool EnableInnerFrustum = true;
+
+	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera ICVFX", meta = (TitleProperty = "Name"))
+	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
+		
 //////////////////////////////////////////////////////////////////////////////////////////////
 // EDITOR STUFF
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -328,13 +335,6 @@ public:
 	virtual bool IsSelectedInEditor() const override;
 	void SetIsSelectedInEditor(bool bValue);
 
-public:
-	UPROPERTY(EditInstanceOnly, Category = NDisplay)
-	bool EnableInnerFrustum = true;
-
-	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera ICVFX", meta = (TitleProperty = "Name"))
-	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
-		
 private:
 	/** The number of times to update the render target via deferred update. */
 	int32 PreviewRenderTargetUpdatesRequired = 0;
