@@ -334,6 +334,13 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 		LocalPlaystartOptions.InitialAudioTrackAttributes.Language_ISO639 = InitialAudioLanguage;
 		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Asking for initial audio language \"%s\""), this, *InitialAudioLanguage);
 	}
+	bool bNoPreloading = Options->GetMediaOption(TEXT("ElectraNoPreloading"), (bool)false);
+	if (bNoPreloading)
+	{
+		LocalPlaystartOptions.bDoNotPreload = true;
+		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: No preloading after opening media"), this);
+	}
+
 
 	// Set up options to initialize the internal player with.
 	Electra::FParamDict PlayerOptions;

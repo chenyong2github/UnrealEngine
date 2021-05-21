@@ -116,6 +116,7 @@ public:
 		FStreamSelectionAttributes	InitialAudioTrackAttributes;
 		TOptional<int32>			MaxVerticalStreamResolution;
 		TOptional<int32>			MaxBandwidthForStreaming;
+		bool						bDoNotPreload = false;
 	};
 
 	virtual bool OpenInternal(const FString& Url, const Electra::FParamDict& PlayerOptions, const FPlaystartOptions& InPlaystartOptions) = 0;

@@ -575,6 +575,21 @@ namespace Electra
 		// of the tracks as they are found. If the index is invalid the selection rules for kind and language are applied.
 		TOptional<int32> OverrideIndex;
 
+		bool IsCompatibleWith(const FStreamSelectionAttributes& Other)
+		{
+			FString Kind1 = Kind.IsSet() ? Kind.GetValue() : FString();
+			FString Kind2 = Other.Kind.IsSet() ? Other.Kind.GetValue() : FString();
+
+			FString Lang1 = Language_ISO639.IsSet() ? Language_ISO639.GetValue() : FString();
+			FString Lang2 = Other.Language_ISO639.IsSet() ? Other.Language_ISO639.GetValue() : FString();
+
+			if (Kind1.IsEmpty() || Kind2.IsEmpty() || Kind1.Equals(Kind2))
+			{
+				return Lang1.Equals(Lang2);
+			}
+			return false;
+		}
+
 		void Reset()
 		{
 			Kind.Reset();
