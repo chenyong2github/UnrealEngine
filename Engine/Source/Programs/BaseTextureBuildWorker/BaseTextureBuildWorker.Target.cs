@@ -4,10 +4,10 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 [SupportedPlatforms(UnrealPlatformClass.Desktop)]
-public class UncompressedTextureBuildWorkerTarget : DerivedDataBuildWorkerTarget
+public class BaseTextureBuildWorkerTarget : DerivedDataBuildWorkerTarget
 {
-	public UncompressedTextureBuildWorkerTarget(TargetInfo Target) : base(Target)
+	public BaseTextureBuildWorkerTarget(TargetInfo Target) : base(Target)
 	{
-		LaunchModuleName = "UncompressedTextureBuildWorker";
+		LaunchModuleName = "BaseTextureBuildWorker";
 	}
 }
