@@ -102,15 +102,16 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 	RequestsTable.EditLayout().
 		AddColumn(&FLoadRequest::Name, TEXT("Name")).
 		AddColumn(&FLoadRequest::ThreadId, TEXT("ThreadId")).
-		AddColumn(&FLoadRequest::StartTime, TEXT("StartTime")).
-		AddColumn(&FLoadRequest::EndTime, TEXT("EndTime")).
+		AddColumn(&FLoadRequest::StartTime, TEXT("StartTime"), TableColumnDisplayHint_Time).
+		AddColumn(&FLoadRequest::EndTime, TEXT("EndTime"), TableColumnDisplayHint_Time).
 		AddColumn<int32>(
 			[](const FLoadRequest& Row)
 			{
 				return Row.Packages.Num();
 			},
-			TEXT("PackageCount")).
-		AddColumn(&FLoadTimeProfilerProvider::PackageSizeSum, TEXT("Size")).
+			TEXT("PackageCount"),
+			TableColumnDisplayHint_Summable).
+		AddColumn(&FLoadTimeProfilerProvider::PackageSizeSum, TEXT("Size"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
 		AddColumn<const TCHAR*>(
 			[](const FLoadRequest& Row)
 			{
@@ -120,12 +121,12 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 
 	AggregatedStatsTableLayout.
 		AddColumn(&FLoadTimeProfilerAggregatedStats::Name, TEXT("Name")).
-		AddColumn(&FLoadTimeProfilerAggregatedStats::Count, TEXT("Count")).
-		AddColumn(&FLoadTimeProfilerAggregatedStats::Total, TEXT("Total")).
-		AddColumn(&FLoadTimeProfilerAggregatedStats::Min, TEXT("Min")).
-		AddColumn(&FLoadTimeProfilerAggregatedStats::Max, TEXT("Max")).
-		AddColumn(&FLoadTimeProfilerAggregatedStats::Average, TEXT("Avg")).
-		AddColumn(&FLoadTimeProfilerAggregatedStats::Median, TEXT("Med"));
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Count, TEXT("Count"), TableColumnDisplayHint_Summable).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Total, TEXT("Total"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Min, TEXT("Min"), TableColumnDisplayHint_Time).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Max, TEXT("Max"), TableColumnDisplayHint_Time).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Average, TEXT("Avg"), TableColumnDisplayHint_Time).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Median, TEXT("Med"), TableColumnDisplayHint_Time);
 
 	PackagesTableLayout.
 		AddColumn<const TCHAR*>([](const FPackagesTableRow& Row)
@@ -133,11 +134,11 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 				return Row.PackageInfo->Name;
 			},
 			TEXT("Package")).
-		AddColumn(&FPackagesTableRow::SerializedHeaderSize, TEXT("SerializedHeaderSize")).
-		AddColumn(&FPackagesTableRow::SerializedExportsCount, TEXT("SerializedExportsCount")).
-		AddColumn(&FPackagesTableRow::SerializedExportsSize, TEXT("SerializedExportsSize")).
-		AddColumn(&FPackagesTableRow::MainThreadTime, TEXT("MainThreadTime")).
-		AddColumn(&FPackagesTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"));
+		AddColumn(&FPackagesTableRow::SerializedHeaderSize, TEXT("SerializedHeaderSize"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
+		AddColumn(&FPackagesTableRow::SerializedExportsCount, TEXT("SerializedExportsCount"), TableColumnDisplayHint_Summable).
+		AddColumn(&FPackagesTableRow::SerializedExportsSize, TEXT("SerializedExportsSize"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
+		AddColumn(&FPackagesTableRow::MainThreadTime, TEXT("MainThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable).
+		AddColumn(&FPackagesTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable);
 
 	ExportsTableLayout.
 		AddColumn<const TCHAR*>([](const FExportsTableRow& Row)
@@ -155,9 +156,9 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 				return GetLoadTimeProfilerObjectEventTypeString(Row.EventType);
 			},
 			TEXT("EventType")).
-		AddColumn(&FExportsTableRow::SerializedSize, TEXT("SerializedSize")).
-		AddColumn(&FExportsTableRow::MainThreadTime, TEXT("MainThreadTime")).
-		AddColumn(&FExportsTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"));
+		AddColumn(&FExportsTableRow::SerializedSize, TEXT("SerializedSize"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
+		AddColumn(&FExportsTableRow::MainThreadTime, TEXT("MainThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable).
+		AddColumn(&FExportsTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable);
 }
 
 bool FLoadTimeProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const

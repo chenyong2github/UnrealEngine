@@ -186,6 +186,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 	for (int32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
 	{
 		TraceServices::ETableColumnType ColumnType = TableLayout.GetColumnType(ColumnIndex);
+		uint32 ColumnDisplayHintFlags = TableLayout.GetColumnDisplayHintFlags(ColumnIndex);
 		const TCHAR* ColumnName = TableLayout.GetColumnName(ColumnIndex);
 
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FName(ColumnName));
@@ -222,37 +223,58 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 
 		case TraceServices::TableColumnType_Int:
 			Column.SetDataType(ETableCellDataType::Int64);
-			//Aggregation = ETableColumnAggregation::Sum;
+			if (ColumnDisplayHintFlags & TraceServices::TableColumnDisplayHint_Summable)
+			{
+				Aggregation = ETableColumnAggregation::Sum;
+			}
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 60.0f;
-			//TODO: if (Hint == AsMemory)
-			//{
-			//	FormatterPtr = MakeShared<FInt64ValueFormatterAsMemory>();
-			//}
-			//else // AsNumber
-			FormatterPtr = MakeShared<FInt64ValueFormatterAsNumber>();
+			if (ColumnDisplayHintFlags & TraceServices::TableColumnDisplayHint_Memory)
+			{
+				FormatterPtr = MakeShared<FInt64ValueFormatterAsMemory>();
+			}
+			else
+			{
+				FormatterPtr = MakeShared<FInt64ValueFormatterAsNumber>();
+			}
 			SorterPtr = MakeShared<FSorterByInt64Value>(ColumnRef);
 			break;
 
 		case TraceServices::TableColumnType_Float:
 			Column.SetDataType(ETableCellDataType::Float);
-			//Aggregation = ETableColumnAggregation::Sum;
+			if (ColumnDisplayHintFlags & TraceServices::TableColumnDisplayHint_Summable)
+			{
+				Aggregation = ETableColumnAggregation::Sum;
+			}
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 60.0f;
-			//TODO: if (Hint == AsTimeMs)
-			//else // if (Hint == AsTimeAuto)
-			FormatterPtr = MakeShared<FFloatValueFormatterAsTimeAuto>();
+			if (ColumnDisplayHintFlags & TraceServices::TableColumnDisplayHint_Time)
+			{
+				FormatterPtr = MakeShared<FFloatValueFormatterAsTimeAuto>();
+			}
+			else
+			{
+				FormatterPtr = MakeShared<FFloatValueFormatterAsNumber>();
+			}
 			SorterPtr = MakeShared<FSorterByFloatValue>(ColumnRef);
 			break;
 
 		case TraceServices::TableColumnType_Double:
 			Column.SetDataType(ETableCellDataType::Double);
-			//Aggregation = ETableColumnAggregation::Sum;
+			if (ColumnDisplayHintFlags & TraceServices::TableColumnDisplayHint_Summable)
+			{
+				Aggregation = ETableColumnAggregation::Sum;
+			}
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 80.0f;
-			//TODO: if (Hint == AsTimeMs)
-			//else // if (Hint == AsTimeAuto)
-			FormatterPtr = MakeShared<FDoubleValueFormatterAsTimeAuto>();
+			if (ColumnDisplayHintFlags & TraceServices::TableColumnDisplayHint_Time)
+			{
+				FormatterPtr = MakeShared<FDoubleValueFormatterAsTimeAuto>();
+			}
+			else
+			{
+				FormatterPtr = MakeShared<FDoubleValueFormatterAsNumber>();
+			}
 			SorterPtr = MakeShared<FSorterByDoubleValue>(ColumnRef);
 			break;
 
