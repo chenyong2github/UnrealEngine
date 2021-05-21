@@ -281,7 +281,41 @@ void FLumenSurfaceCacheAllocator::GetStats(FStats& Stats) const
 		Stats.BinNumPages += Bin.BinAllocations.Num();
 		Stats.BinNumWastedPages += Bin.BinAllocations.Num() - FMath::DivideAndRoundUp(NumElements, NumElementsPerPage);
 		Stats.BinPageFreeTexels += NumFreeElements * Bin.ElementSize.X * Bin.ElementSize.Y;
+
+		if (NumElements > 0)
+		{
+			FBinStats BinStats;
+			BinStats.ElementSize = Bin.ElementSize;
+			BinStats.NumAllocations = NumElements;
+			BinStats.NumPages = Bin.BinAllocations.Num();
+			Stats.Bins.Add(BinStats);
+		}
 	}
+
+	struct FSortBySize
+	{
+		FORCEINLINE bool operator()(const FBinStats& A, const FBinStats& B) const
+		{
+			const int32 AreaA = A.ElementSize.X * A.ElementSize.Y;
+			const int32 AreaB = B.ElementSize.X * B.ElementSize.Y;
+
+			if (AreaA == AreaB)
+			{
+				if (A.ElementSize.X == B.ElementSize.X)
+				{
+					return A.ElementSize.Y < B.ElementSize.Y;
+				}
+				else
+				{
+					return A.ElementSize.X < B.ElementSize.X;
+				}
+			}
+
+			return AreaA < AreaB;
+		}
+	};
+
+	Stats.Bins.Sort(FSortBySize());
 }
 
 void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
@@ -1299,6 +1333,12 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("  Mesh cards to add: %d"), NumMeshCardsToAdd);
 	UE_LOG(LogRenderer, Log, TEXT("  Locked cards to update: %d"), NumLockedCardsToUpdate);
 	UE_LOG(LogRenderer, Log, TEXT("  Hi-res pages to add: %d"), NumHiResPagesToAdd);
+
+	UE_LOG(LogRenderer, Log, TEXT("*** Surface cache Bin Allocator ***"));
+	for (const FLumenSurfaceCacheAllocator::FBinStats& Bin : AllocatorStats.Bins)
+	{
+		UE_LOG(LogRenderer, Log, TEXT("  %3d,%3d bin has %5d allocations using %3d pages"), Bin.ElementSize.X, Bin.ElementSize.Y, Bin.NumAllocations, Bin.NumPages);
+	}
 
 	UE_LOG(LogRenderer, Log, TEXT("*** CPU Memory ***"));
 	UE_LOG(LogRenderer, Log, TEXT("  Primitive groups allocated memory: %.3fMb"), PrimitiveGroups.GetAllocatedSize() / (1024.0f * 1024.0f));
