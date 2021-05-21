@@ -54,17 +54,27 @@ FArchive& operator<<(FArchive& Ar, FSkyAtmosphereMapBuildData& Data)
 
 ULevel* UWorld::GetActiveLightingScenario() const
 {
-	for (int32 LevelIndex = 0; LevelIndex < Levels.Num(); LevelIndex++)
+	if (PersistentLevel && PersistentLevel->bIsPartitioned)
 	{
-		ULevel* LocalLevel = Levels[LevelIndex];
-
-		if (LocalLevel->bIsVisible && LocalLevel->bIsLightingScenario)
+		if (PersistentLevel->bIsLightingScenario)
 		{
-			return LocalLevel;
+			return PersistentLevel;
+		}
+	}
+	else
+	{
+		for (int32 LevelIndex = 0; LevelIndex < Levels.Num(); LevelIndex++)
+		{
+			ULevel* LocalLevel = Levels[LevelIndex];
+
+			if (LocalLevel->bIsVisible && LocalLevel->bIsLightingScenario)
+			{
+				return LocalLevel;
+			}
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 void UWorld::PropagateLightingScenarioChange()

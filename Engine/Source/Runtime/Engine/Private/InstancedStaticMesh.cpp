@@ -3621,6 +3621,8 @@ void UInstancedStaticMeshComponent::PostLoad()
 
 void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UInstancedStaticMeshComponent::OnPostLoadPerInstanceData);
+
 	if (!HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{
 		InitPerInstanceRenderData(true, InstanceDataBuffers.Get());
@@ -3635,8 +3637,9 @@ void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 		{
 			ULevel* OwnerLevel = Owner->GetLevel();
 			UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+			ULevel* ActiveLightingScenario = OwnerWorld ? OwnerWorld->GetActiveLightingScenario() : nullptr;
 
-			if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+			if (ActiveLightingScenario && ActiveLightingScenario != OwnerLevel)
 			{
 				//update the instance data if the lighting scenario isn't the owner level
 				InstanceUpdateCmdBuffer.Edit();
