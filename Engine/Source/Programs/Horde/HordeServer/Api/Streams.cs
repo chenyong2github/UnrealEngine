@@ -15,6 +15,43 @@ using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.Template
 namespace HordeServer.Api
 {
 	/// <summary>
+	/// Query selecting the base changelist to use
+	/// </summary>
+	public class ChangeQueryRequest
+	{
+		/// <summary>
+		/// The template id to query
+		/// </summary>
+		public string? TemplateId { get; set; }
+
+		/// <summary>
+		/// The target to query
+		/// </summary>
+		public string? Target { get; set; }
+
+		/// <summary>
+		/// Whether to match a job that produced warnings
+		/// </summary>
+		public List<JobStepOutcome>? Outcomes { get; set; }
+
+		/// <summary>
+		/// Convert to a model object
+		/// </summary>
+		/// <returns></returns>
+		public ChangeQuery ToModel()
+		{
+			ChangeQuery Query = new ChangeQuery();
+			if (TemplateId != null)
+			{
+				Query.TemplateRefId = new StringId<TemplateRef>(TemplateId);
+			}
+			Query.Target = Target;
+			Query.Outcomes = Outcomes;
+			return Query;
+		}
+	}
+
+	/// <summary>
 	/// Specifies defaults for running a preflight
 	/// </summary>
 	public class DefaultPreflightRequest
@@ -27,7 +64,13 @@ namespace HordeServer.Api
 		/// <summary>
 		/// The last successful job type to use for the base changelist
 		/// </summary>
+		[Obsolete("Use Change.TemplateId instead")]
 		public string? ChangeTemplateId { get; set; }
+
+		/// <summary>
+		/// Query for the change to use
+		/// </summary>
+		public ChangeQueryRequest? Change { get; set; }
 
 		/// <summary>
 		/// Convert to a model object
@@ -35,7 +78,14 @@ namespace HordeServer.Api
 		/// <returns></returns>
 		public DefaultPreflight ToModel()
 		{
-			return new DefaultPreflight((TemplateId != null) ? (TemplateRefId?)new TemplateRefId(TemplateId) : null, (ChangeTemplateId != null) ? (TemplateRefId?)new TemplateRefId(ChangeTemplateId) : null);
+#pragma warning disable CS0618 // Type or member is obsolete
+			if (ChangeTemplateId != null)
+			{
+				Change ??= new ChangeQueryRequest();
+				Change.TemplateId = ChangeTemplateId;
+			}
+			return new DefaultPreflight((TemplateId != null) ? (TemplateRefId?)new TemplateRefId(TemplateId) : null, Change?.ToModel());
+#pragma warning restore CS0618 // Type or member is obsolete
 		}
 	}
 
