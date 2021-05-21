@@ -5,6 +5,11 @@
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 
+UActorInstanceHandleInterface::UActorInstanceHandleInterface(const FObjectInitializer& ObjectInitializer)
+{
+	// do nothing
+}
+
 ALightWeightInstanceManager::ALightWeightInstanceManager(const FObjectInitializer& ObjectInitializer)
 {
 	bReplicates = true;
@@ -22,10 +27,12 @@ ALightWeightInstanceManager::~ALightWeightInstanceManager()
 
 void ALightWeightInstanceManager::SetRepresentedClass(UClass* ActorClass)
 {
-	// we should not be changing this once it has been set
-	ensure(RepresentedClass == nullptr);
-
 	RepresentedClass = ActorClass;
+}
+
+UClass* ALightWeightInstanceManager::GetInterfaceClass() const
+{
+	return UActorInstanceHandleInterface::StaticClass();
 }
 
 void ALightWeightInstanceManager::Tick(float DeltaSeconds)
@@ -33,7 +40,7 @@ void ALightWeightInstanceManager::Tick(float DeltaSeconds)
 	// do nothing
 }
 
-AActor* ALightWeightInstanceManager::GetActorFromHandle(const FActorInstanceHandle& Handle)
+AActor* ALightWeightInstanceManager::FetchActorFromHandle(const FActorInstanceHandle& Handle)
 {
 	// make sure the handle doesn't have an actor already
 	if (ensure(!Handle.Actor.IsValid()))
@@ -77,6 +84,73 @@ int32 ALightWeightInstanceManager::FindIndexForActor(const AActor* InActor) cons
 	return INDEX_NONE;
 }
 
+FActorInstanceHandle ALightWeightInstanceManager::ConvertActorToLightWeightInstance(AActor* InActor)
+{
+	FActorInstanceHandle ReturnHandle;
+	if (!InActor)
+	{
+		return ReturnHandle;
+	}
+
+	if (FLWIData* Data = AllocateInitData())
+	{
+		SetDataFromActor(Data, InActor);
+		// If we used to manage this actor as a light weight instance then we will already have entries associated with it. Check for these so we can use them again instead of allocating new entries
+		int32 Idx = INDEX_NONE;
+		for (auto& IndexActorPair : Actors)
+		{
+			if (IndexActorPair.Value == InActor)
+			{
+				Idx = IndexActorPair.Key;
+				break;
+			}
+		}
+
+		if (Idx == INDEX_NONE)
+		{
+			Idx = AddNewInstance(Data);
+		}
+		else
+		{
+			UpdateDataAtIndex(Data, Idx);
+		}
+
+		// Update our handle
+		ReturnHandle.ManagerIndex = FLightWeightInstanceSubsystem::Get().GetManagerIndex(this);
+		ReturnHandle.InstanceIndex = Idx;
+
+		// cleanup
+		InActor->Destroy();
+		delete Data;
+	}
+	else
+	{
+		// something went wrong and we can't manage this actor
+		// just return a handle to the actor
+		ReturnHandle.Actor = InActor;
+	}
+
+	return ReturnHandle;
+}
+
+FLWIData* ALightWeightInstanceManager::AllocateInitData() const
+{
+	return new FLWIData;
+}
+
+
+bool ALightWeightInstanceManager::SetDataFromActor(FLWIData* InData, AActor* InActor) const
+{
+	if (!InData || !InActor)
+	{
+		return false;
+	}
+
+	InData->Transform = InActor->GetActorTransform();
+
+	return true;
+}
+
 int32 ALightWeightInstanceManager::ConvertCollisionIndexToLightWeightIndex(int32 InIndex) const
 {
 	return InIndex;
@@ -96,7 +170,7 @@ void ALightWeightInstanceManager::PostActorSpawn(const FActorInstanceHandle& Han
 
 bool ALightWeightInstanceManager::IsIndexValid(int32 Index) const
 {
-	if (Index < ValidIndices.Num())
+	if (ValidIndices.IsValidIndex(Index))
 	{
 		return ValidIndices[Index];
 	}
@@ -126,6 +200,36 @@ FVector ALightWeightInstanceManager::GetLocation(const FActorInstanceHandle& Han
 	}
 
 	return FVector();
+}
+
+FRotator ALightWeightInstanceManager::GetRotation(const FActorInstanceHandle& Handle) const
+{
+	if (FindActorForHandle(Handle))
+	{
+		return Handle.Actor->GetActorRotation();
+	}
+
+	if (ensure(IsIndexValid(Handle.GetInstanceIndex())))
+	{
+		return InstanceTransforms[Handle.GetInstanceIndex()].Rotator();
+	}
+
+	return FRotator();
+}
+
+FTransform ALightWeightInstanceManager::GetTransform(const FActorInstanceHandle& Handle) const
+{
+	if (FindActorForHandle(Handle))
+	{
+		return Handle.Actor->GetActorTransform();
+	}
+
+	if (ensure(IsIndexValid(Handle.GetInstanceIndex())))
+	{
+		return InstanceTransforms[Handle.GetInstanceIndex()];
+	}
+
+	return FTransform();
 }
 
 FString ALightWeightInstanceManager::GetName(const FActorInstanceHandle& Handle) const
@@ -179,15 +283,26 @@ void ALightWeightInstanceManager::AddNewInstanceAt(FLWIData* InitData, int32 Ind
 	// allocate space on the end of the array if we need to
 	if (Index >= ValidIndices.Num())
 	{
-		InstanceTransforms.AddUninitialized();
-		ValidIndices.AddUninitialized();
+		GrowDataArrays();
 	}
 	ensure(Index < ValidIndices.Num());
-	ensure(InstanceTransforms.Num() == ValidIndices.Num());
 
 	// update our data
-	InstanceTransforms[Index] = InitData->Transform;
+	UpdateDataAtIndex(InitData, Index);
 	ValidIndices[Index] = true;
+}
+
+void ALightWeightInstanceManager::GrowDataArrays()
+{
+	InstanceTransforms.AddUninitialized();
+	ValidIndices.AddUninitialized();
+
+	check(InstanceTransforms.Num() == ValidIndices.Num());
+}
+
+void ALightWeightInstanceManager::UpdateDataAtIndex(FLWIData* InData, int32 Index)
+{
+	InstanceTransforms[Index] = InData->Transform;
 }
 
 void ALightWeightInstanceManager::RemoveInstance(const int32 Index)
