@@ -85,7 +85,7 @@ namespace UE
 		struct TabulatedResult
 		{
 			const UE::FStallDetectorStats* Stats;
-			uint32 TriggerCount;
+			uint64 TriggerCount;
 			double OverageSeconds;
 			
 			TabulatedResult()
