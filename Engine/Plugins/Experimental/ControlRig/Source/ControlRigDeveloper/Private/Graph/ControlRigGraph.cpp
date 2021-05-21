@@ -195,6 +195,12 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		return;
 	}
 
+	// We don't need a visual representation for the low level function library graph
+	if(InGraph->IsA<URigVMFunctionLibrary>())
+	{
+		return;
+	}
+
 	// increment the node topology version for any interaction
 	// with a node.
 	{
