@@ -124,6 +124,45 @@ bool USoundSubmixGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, 
 	return OutputNode->SoundSubmix->RecurseCheckChild(InputNode->SoundSubmix);
 }
 
+void USoundSubmixGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const
+{
+	OutOkIcon = true;
+	OutTooltipText = TEXT("Add Submix to Graph.");
+
+	if (HoverGraph)
+	{
+		TArray<USoundSubmixGraphNode*> SubmixNodes;
+		HoverGraph->GetNodesOfClass<USoundSubmixGraphNode>(SubmixNodes);
+		for (USoundSubmixGraphNode* SubmixNode : SubmixNodes)
+		{
+			if (SubmixNode && SubmixNode->SoundSubmix)
+			{
+				auto MatchesSubmix = [&](const FAssetData& Asset)
+				{
+					return Asset.GetFullName() == SubmixNode->SoundSubmix->GetFullName();
+				};
+
+				if (Assets.ContainsByPredicate(MatchesSubmix))
+				{
+					OutOkIcon = false;
+					OutTooltipText = TEXT("Selected asset or assets already in graph.");
+					break;
+				}
+			}
+		}
+	}
+
+	for (const FAssetData& Data : Assets)
+	{
+		if (!Data.GetClass()->IsChildOf(USoundSubmixBase::StaticClass()))
+		{
+			OutOkIcon = false;
+			OutTooltipText = TEXT("Asset(s) must all be Submixes.");
+			break;
+		}
+	}
+}
+
 void USoundSubmixGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
 	const FText Name = LOCTEXT("NewSoundSubmix", "New Sound Submix");
