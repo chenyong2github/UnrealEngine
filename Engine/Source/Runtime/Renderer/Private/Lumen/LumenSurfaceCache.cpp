@@ -103,6 +103,62 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
 	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
+const TRefCountPtr<IPooledRenderTarget>& CreateAtlas(FRDGBuilder& GraphBuilder, const FIntPoint PageAtlasSize, ESurfaceCacheCompression PhysicalAtlasCompression, ELumenSurfaceCacheLayer LayerId, const TCHAR* Name)
+{
+	const FLumenSurfaceLayerConfig& Config = GetSurfaceLayerConfig(LayerId);
+	const bool bCompress = PhysicalAtlasCompression != ESurfaceCacheCompression::Disabled;
+	ETextureCreateFlags TexFlags = TexCreate_ShaderResource | TexCreate_NoFastClear;
+
+	// Without compression we can write directly into this surface
+	if (!bCompress)
+	{
+		TexFlags |= TexCreate_RenderTargetable;
+	}
+
+	// With UAV aliasing we can directly write into a BC target
+	if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
+	{
+		TexFlags |= TexCreate_UAV;
+	}
+
+	FRDGTextureRef AtlasRDG = GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(
+			PageAtlasSize,
+			bCompress ? Config.CompressedFormat : Config.UncompressedFormat,
+			FClearValueBinding::None,
+			TexFlags),
+		Name);
+
+	return GraphBuilder.ConvertToExternalTexture(AtlasRDG);
+}
+
+void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+{
+	const FIntPoint PageAtlasSize = GetPhysicalAtlasSize();
+
+	AlbedoAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Albedo, TEXT("Lumen.SceneAlbedo"));
+	OpacityAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Opacity, TEXT("Lumen.SceneOpacity"));
+	DepthAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Depth, TEXT("Lumen.SceneDepth"));
+	NormalAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Normal, TEXT("Lumen.SceneNormal"));
+	EmissiveAtlas = CreateAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Emissive, TEXT("Lumen.SceneEmissive"));
+
+	// FinalLighting
+	{
+		const FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
+		FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_FloatR11G11B10, CrazyGreen, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
+		LightingDesc.AutoWritable = false;
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"), ERenderTargetTransience::NonTransient);
+		bFinalLightingAtlasContentsValid = false;
+	}
+
+	// Radiosity
+	{
+		FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		RadiosityDesc.AutoWritable = false;
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, RadiosityDesc, RadiosityAtlas, TEXT("Lumen.SceneRadiosity"), ERenderTargetTransience::NonTransient);
+	}
+}
+
 // Copy captured cards into surface cache. Possibly with compression. Has three paths:
 // - Compress from capture atlas to surface cache (for platforms supporting GRHISupportsUAVFormatAliasing or when compression is disabled)
 // - Compress from capture atlas into a temporary atlas and copy results into surface cache
