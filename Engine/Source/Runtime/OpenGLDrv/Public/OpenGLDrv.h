@@ -1124,13 +1124,7 @@ private:
 
 	void InitializeStateResources();
 
-	/** needs to be called before each dispatch call */
-	
-
-	void EnableVertexElementCached(FOpenGLContextState& ContextCache, GLuint AttributeIndex, const FOpenGLVertexElement &VertexElement, GLsizei Stride, void *Pointer, GLuint Buffer);
-	void EnableVertexElementCachedZeroStride(FOpenGLContextState& ContextCache, GLuint AttributeIndex, const FOpenGLVertexElement &VertexElement, uint32 NumVertices, FOpenGLVertexBuffer* VertexBuffer);
 	void SetupVertexArrays(FOpenGLContextState& ContextCache, uint32 BaseVertexIndex, FOpenGLStream* Streams, uint32 NumStreams, uint32 MaxVertices);
-	void SetupVertexArraysVAB(FOpenGLContextState& ContextCache, uint32 BaseVertexIndex, FOpenGLStream* Streams, uint32 NumStreams, uint32 MaxVertices);
 	void SetupVertexArraysUP(FOpenGLContextState& ContextState, void* Buffer, uint32 Stride);
 
 	void SetupBindlessTextures( FOpenGLContextState& ContextState, const TArray<FOpenGLBindlessSamplerInfo> &Samplers );
@@ -1190,8 +1184,6 @@ private:
 	void BindUniformBufferBase(FOpenGLContextState& ContextState, int32 NumUniformBuffers, FUniformBufferRHIRef* BoundUniformBuffers, uint32 FirstUniformBuffer, bool ForceUpdate);
 
 	void ClearCurrentFramebufferWithCurrentScissor(FOpenGLContextState& ContextState, int8 ClearType, int32 NumClearColors, const FLinearColor* ClearColorArray, float Depth, uint32 Stencil);
-
-	void FreeZeroStrideBuffers();
 
 	FTextureLockTracker GLLockTracker;
 

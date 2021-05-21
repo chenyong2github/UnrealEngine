@@ -16,7 +16,6 @@ struct FOpenGL4 : public FOpenGL3
 {
 	static FORCEINLINE bool SupportsComputeShaders()					{ return bSupportsComputeShaders; }
 	static FORCEINLINE bool SupportsDrawIndirect()						{ return true; }
-	static FORCEINLINE bool SupportsVertexAttribBinding()				{ return bSupportsVertexAttribBinding; }
 	static FORCEINLINE bool SupportsTextureView()						{ return bSupportsTextureView; }
 
 
@@ -126,7 +125,6 @@ protected:
 
 	static bool bSupportsComputeShaders;
 	static bool bSupportsGPUMemoryInfo;
-	static bool bSupportsVertexAttribBinding;
 	static bool bSupportsTextureView;
 
 };

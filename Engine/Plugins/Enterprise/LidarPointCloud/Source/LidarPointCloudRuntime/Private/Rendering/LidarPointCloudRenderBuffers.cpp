@@ -277,7 +277,7 @@ void FLidarPointCloudSharedVertexFactory::FPointCloudVertexBuffer::InitRHI()
 {
 	FRHIResourceCreateInfo CreateInfo;
 	void* Buffer = nullptr;
-	VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(FVector), BUF_Static | BUF_ZeroStride, CreateInfo, Buffer);
+	VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(FVector), BUF_Static, CreateInfo, Buffer);
 	FMemory::Memzero(Buffer, sizeof(FVector));
 	RHIUnlockVertexBuffer(VertexBufferRHI);
 	Buffer = nullptr;

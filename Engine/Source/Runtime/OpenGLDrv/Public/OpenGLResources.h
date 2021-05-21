@@ -45,7 +45,6 @@ extern bool IsUniformBufferBound( GLuint Buffer );
 namespace OpenGLConsoleVariables
 {
 	extern int32 bUseMapBuffer;
-	extern int32 bUseVAB;
 	extern int32 MaxSubDataSize;
 	extern int32 bUseStagingBuffer;
 	extern int32 bBindlessTexture;
@@ -453,31 +452,28 @@ public:
 
 		RealSize = ResourceSize ? ResourceSize : InSize;
 
-		if( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || !( InUsage & BUF_ZeroStride ) )
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+		if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
 		{
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-			if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
+			CreateGLBuffer(InData, ResourceToUse, ResourceSize);
+		}
+		else
+		{
+			void* BuffData = nullptr;
+			if (InData)
 			{
-				CreateGLBuffer(InData, ResourceToUse, ResourceSize);
+				BuffData = RHICmdList.Alloc(RealSize, 16);
+				FMemory::Memcpy(BuffData, InData, RealSize);
 			}
-			else
+			TransitionFence.Reset();
+			ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() 
 			{
-				void* BuffData = nullptr;
-				if (InData)
-				{
-					BuffData = RHICmdList.Alloc(RealSize, 16);
-					FMemory::Memcpy(BuffData, InData, RealSize);
-				}
-				TransitionFence.Reset();
-				ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() 
-				{
-					CreateGLBuffer(BuffData, ResourceToUse, ResourceSize); 
-					TransitionFence.WriteAssertFence();
-				});
-				TransitionFence.SetRHIThreadFence();
+				CreateGLBuffer(BuffData, ResourceToUse, ResourceSize); 
+				TransitionFence.WriteAssertFence();
+			});
+			TransitionFence.SetRHIThreadFence();
 
-			}
 		}
 	}
 
@@ -565,14 +561,12 @@ public:
 	void Bind()
 	{
 		VERIFY_GL_SCOPE();
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		BufBind(Resource);
 	}
 
 	uint8 *Lock(uint32 InOffset, uint32 InSize, bool bReadOnly, bool bDiscard)
 	{
 		//SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLMapBufferTime);
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		check(InOffset + InSize <= this->GetSize());
 		//check( LockBuffer == NULL );	// Only one outstanding lock is allowed at a time!
 		check( !bIsLocked );	// Only one outstanding lock is allowed at a time!
@@ -665,7 +659,6 @@ public:
 	uint8 *LockWriteOnlyUnsynchronized(uint32 InOffset, uint32 InSize, bool bDiscard)
 	{
 		//SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLMapBufferTime);
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		check(InOffset + InSize <= this->GetSize());
 		//check( LockBuffer == NULL );	// Only one outstanding lock is allowed at a time!
 		check( !bIsLocked );	// Only one outstanding lock is allowed at a time!
@@ -733,7 +726,6 @@ public:
 	void Unlock()
 	{
 		//SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLUnmapBufferTime);
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		VERIFY_GL_SCOPE();
 		if (bIsLocked)
 		{
@@ -806,7 +798,6 @@ public:
 
 	void Update(void *InData, uint32 InOffset, uint32 InSize, bool bDiscard)
 	{
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		check(InOffset + InSize <= this->GetSize());
 		VERIFY_GL_SCOPE();
 		Bind();
@@ -897,16 +888,11 @@ private:
 class FOpenGLBaseVertexBuffer : public FRHIVertexBuffer
 {
 public:
-	FOpenGLBaseVertexBuffer() : ZeroStrideVertexBuffer(0)
+	FOpenGLBaseVertexBuffer()
 	{}
 
-	FOpenGLBaseVertexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIVertexBuffer(InSize,InUsage), ZeroStrideVertexBuffer(0)
+	FOpenGLBaseVertexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIVertexBuffer(InSize,InUsage)
 	{
-		if(!(FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) && (InUsage & BUF_ZeroStride))
-		{
-			ZeroStrideVertexBuffer = FMemory::Malloc( InSize );
-		}
-
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, InSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);
@@ -915,27 +901,10 @@ public:
 
 	~FOpenGLBaseVertexBuffer( void )
 	{
-		if( ZeroStrideVertexBuffer )
-		{
-			FMemory::Free( ZeroStrideVertexBuffer );
-		}
-
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -(int64)GetSize(), ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
 #endif
-	}
-
-	void* GetZeroStrideBuffer( void )
-	{
-		check( ZeroStrideVertexBuffer );
-		return ZeroStrideVertexBuffer;
-	}
-
-	void Swap(FOpenGLBaseVertexBuffer& Other)
-	{
-		FRHIVertexBuffer::Swap(Other);
-		::Swap(ZeroStrideVertexBuffer, Other.ZeroStrideVertexBuffer);
 	}
 
 	static bool OnDelete(GLuint Resource,uint32 Size,bool bStreamDraw,uint32 Offset)
@@ -955,9 +924,6 @@ public:
 	}
 
 	static bool IsStructuredBuffer() { return false; }
-
-private:
-	void*	ZeroStrideVertexBuffer;
 };
 
 struct FOpenGLEUniformBufferData : public FRefCountedObject
@@ -1028,6 +994,7 @@ public:
 	FOpenGLBaseIndexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIIndexBuffer(InStride,InSize,InUsage)
 	{
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, InSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
@@ -1035,6 +1002,7 @@ public:
 	~FOpenGLBaseIndexBuffer(void)
 	{
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -(int64)GetSize(), ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
