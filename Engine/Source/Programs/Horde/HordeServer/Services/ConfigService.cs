@@ -240,6 +240,7 @@ namespace HordeServer.Services
 
 			foreach (ProjectId RemoveProjectId in RemoveProjectIds)
 			{
+				Logger.LogInformation("Removing project {ProjectId}", RemoveProjectId);
 				await ProjectService.DeleteProjectAsync(RemoveProjectId);
 			}
 
@@ -249,6 +250,7 @@ namespace HordeServer.Services
 
 			foreach (StreamId RemoveStreamId in RemoveStreamIds)
 			{
+				Logger.LogInformation("Removing stream {StreamId}", RemoveStreamId);
 				await StreamService.DeleteStreamAsync(RemoveStreamId);
 			}
 		}
