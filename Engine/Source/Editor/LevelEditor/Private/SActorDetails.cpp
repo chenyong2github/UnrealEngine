@@ -142,7 +142,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	FModuleManager::LoadModuleChecked<FSubobjectEditorModule>("SubobjectEditor");
 	
 	SubobjectEditor = SNew(SSubobjectInstanceEditor)
-		.ObjectContext(this, &SActorDetails::GetObjectContext)
+		.ObjectContext(this, &SActorDetails::GetActorContextAsObject)
 		.AllowEditing(this, &SActorDetails::GetAllowComponentTreeEditing)
 		.OnSelectionUpdated(this, &SActorDetails::OnSubobjectEditorTreeViewSelectionChanged)
 		.OnItemDoubleClicked(this, &SActorDetails::OnSubobjectEditorTreeViewItemDoubleClicked)
@@ -479,14 +479,14 @@ bool SActorDetails::GetAllowComponentTreeEditing() const
 
 AActor* SActorDetails::GetActorContext() const
 {
-	return Cast<AActor>(GetObjectContext());
+	return TopLevelElements.Num() == 1
+		? Cast<AActor>(TopLevelElements[0]->GetObject())
+		: nullptr;
 }
 
-UObject* SActorDetails::GetObjectContext() const
+UObject* SActorDetails::GetActorContextAsObject() const
 {
-	return TopLevelElements.Num() == 1
-		? TopLevelElements[0]->GetObject()
-		: nullptr;
+	return GetActorContext();
 }
 
 void SActorDetails::OnSubobjectEditorTreeViewSelectionChanged(const TArray<FSubobjectEditorTreeNodePtrType>& SelectedNodes)
