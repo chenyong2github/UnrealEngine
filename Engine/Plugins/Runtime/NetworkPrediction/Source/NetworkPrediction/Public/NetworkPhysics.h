@@ -7,7 +7,7 @@
 #include "Chaos/Particles.h"
 #include "Components/ActorComponent.h"
 #include "UObject/ObjectKey.h"
-#include "Misc/NetworkGUID.h"
+#include "Misc/NetworkGuid.h"
 
 #include "NetworkPhysics.generated.h"
 
