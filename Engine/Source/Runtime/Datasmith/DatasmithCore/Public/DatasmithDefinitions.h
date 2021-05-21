@@ -340,12 +340,14 @@ enum class EDatasmithShaderUsage
 	LightFunction
 };
 
-static const TCHAR* DatasmithShadingModelStrings[] = { TEXT("DefaultLit"), TEXT("ThinTranslucent") };
+static const TCHAR* DatasmithShadingModelStrings[] = { TEXT("DefaultLit"), TEXT("ThinTranslucent"), TEXT("Subsurface"), TEXT("ClearCoat") };
 
 enum class EDatasmithShadingModel : uint8
 {
 	DefaultLit,
 	ThinTranslucent,
+	Subsurface,
+	ClearCoat
 };
 
 UENUM()
