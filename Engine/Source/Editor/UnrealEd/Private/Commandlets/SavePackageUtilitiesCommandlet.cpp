@@ -12,6 +12,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "UObject/LinkerDiff.h"
+#include "UObject/LinkerSave.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"

@@ -7,6 +7,7 @@
 #include "Misc/ITransaction.h"
 #include "Misc/PackageName.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/LinkerSave.h"
 #include "UObject/LinkerManager.h"
 #include "UObject/MetaData.h"
 #include "UObject/PackageResourceManager.h"

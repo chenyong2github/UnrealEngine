@@ -79,7 +79,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "UObject/ObjectResource.h"
 #include "UObject/Linker.h"
 #include "UObject/LinkerLoad.h"
-#include "UObject/LinkerSave.h"
 #include "UObject/GCObject.h"
 #include "Misc/NotifyHook.h"
 #include "Misc/RedirectCollector.h"
