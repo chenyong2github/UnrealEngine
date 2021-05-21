@@ -17,9 +17,14 @@ namespace UE::DerivedData { class FCacheRecordBuilder; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
+namespace UE::DerivedData { class IBuild; }
+namespace UE::DerivedData { class ICache; }
 
 namespace UE::DerivedData::Private
 {
+
+// Implemented in DerivedDataBuild.cpp
+IBuild* CreateBuild(ICache& Cache);
 
 // Implemented in DerivedDataBuildDefinition.cpp
 FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Function);
