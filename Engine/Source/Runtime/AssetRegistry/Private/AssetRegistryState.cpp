@@ -5,6 +5,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Misc/ConfigCacheIni.h"

@@ -15,6 +15,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/PackagePath.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Serialization/Archive.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"

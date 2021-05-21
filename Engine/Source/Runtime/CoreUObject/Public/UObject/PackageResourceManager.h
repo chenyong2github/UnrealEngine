@@ -13,7 +13,6 @@
 #include "HAL/PlatformFile.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"
-#include "Misc/PathViews.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"

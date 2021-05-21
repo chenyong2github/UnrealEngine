@@ -19,6 +19,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Optional.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Misc/RedirectCollector.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"

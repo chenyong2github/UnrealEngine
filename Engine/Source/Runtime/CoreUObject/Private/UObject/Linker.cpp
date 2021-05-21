@@ -8,8 +8,6 @@
 #include "Containers/StringView.h"
 #include "Misc/PackageName.h"
 #include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
-#include "Misc/PathViews.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "UObject/UnrealType.h"
