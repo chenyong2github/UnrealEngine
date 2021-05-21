@@ -146,6 +146,7 @@ protected:
 		Args.ConsumeMouseWheel = ConsumeMouseWheel;
 		Args.bReturnFocusToSelection = bReturnFocusToSelection;
 		Args.Orientation = Orientation;
+		Args.ListViewStyle = &WidgetStyle;
 		MyListView = ITypedUMGListView<UObject*>::ConstructListView<ListViewT>(this, ListItems, Args);
 		
 		MyListView->SetOnEntryInitialized(SListView<UObject*>::FOnEntryInitialized::CreateUObject(this, &UListView::HandleOnEntryInitializedInternal));
@@ -154,6 +155,9 @@ protected:
 	}
 
 protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView, meta = (DisplayName = "Style"))
+	FTableViewStyle WidgetStyle;
+
 	/** 
 	 * The scroll & layout orientation of the list. ListView and TileView only. 
 	 * Vertical will scroll vertically and arrange tiles into rows.
