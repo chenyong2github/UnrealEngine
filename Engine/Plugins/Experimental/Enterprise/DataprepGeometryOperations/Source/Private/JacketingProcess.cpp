@@ -266,7 +266,7 @@ void FJacketingProcess::FindOverlappingActors(const TArray<AActor*>& InActorsToT
 
 			const FMeshDescription* MeshDescription = StaticMeshComponent->GetStaticMesh()->GetMeshDescription(0);
 			const FTransform& ComponentTransform = StaticMeshComponent->GetComponentTransform();
-			TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+			TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 
 			for (FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 			{
@@ -520,7 +520,7 @@ void FJacketingProcess::ApplyJacketingOnMeshActors(const TArray<AActor*>& Actors
 		{
 			bComponentInside = true;
 			FMeshDescription* MeshDescription = MeshDescriptions[StaticMeshComponent];
-			TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+			TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 			for (FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 			{
 				if (Volume->QueryDistance(VertexPositions[VertexID]) > MaxDistance)
@@ -586,7 +586,7 @@ void FJacketingProcess::ApplyJacketingOnMeshActors(const TArray<AActor*>& Actors
 		Progress->EnterProgressFrame(VertexTesting, FText::FromString(TEXT("Checking occlusion of vertices ...")));
 	}
 
-	typedef TTuple<UStaticMeshComponent*, const FVector*, bool> FVertexData;
+	typedef TTuple<UStaticMeshComponent*, const FVector3f*, bool> FVertexData;
 	TArray<FVertexData> VertexDataArray;
 	VertexDataArray.Reserve(VertexCount);
 
@@ -600,7 +600,7 @@ void FJacketingProcess::ApplyJacketingOnMeshActors(const TArray<AActor*>& Actors
 			continue;
 		}
 
-		TVertexAttributesConstRef<FVector> VertexPositions = MeshDescriptions[StaticMeshComponent]->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+		TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescriptions[StaticMeshComponent]->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 		for (FVertexID VertexID : MeshDescriptions[StaticMeshComponent]->Vertices().GetElementIDs())
 		{
 			VertexDataArray.Emplace(FVertexData(StaticMeshComponent, &VertexPositions[VertexID], false));
@@ -708,14 +708,14 @@ void FJacketingProcess::ApplyJacketingOnMeshActors(const TArray<AActor*>& Actors
 			//Apply the inverse component transform
 			FStaticMeshOperations::ApplyTransform(NewMeshDescription, Transform);
 
-			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = NewMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = NewMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+			TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = NewMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
+			TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = NewMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent);
 
 			MeshDescription->Empty();
 
 			//Create the missing normals and tangents on polygons because FStaticMeshOperations::ComputeTangentsAndNormals requires it
-			if(!NewMeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Normal).IsValid()
-				|| !NewMeshDescription.TriangleAttributes().GetAttributesRef<FVector>(MeshAttribute::Triangle::Tangent).IsValid())
+			if(!NewMeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Normal).IsValid()
+				|| !NewMeshDescription.TriangleAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Triangle::Tangent).IsValid())
 			{
 				FStaticMeshOperations::ComputeTriangleTangentsAndNormals(NewMeshDescription);
 			}
