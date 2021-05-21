@@ -303,6 +303,23 @@ void FHairGroupPublicData::SetClusters(uint32 InClusterCount, uint32 InVertexCou
 
 void FHairGroupPublicData::InitRHI()
 {
+	if (bIsInitialized || GUsingNullRHI) { return; }
+
+	// Resource are allocated on-demand
+	#if 0
+	FMemMark Mark(FMemStack::Get());
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	FRDGBuilder GraphBuilder(RHICmdList);
+	Allocate(GraphBuilder);
+	GraphBuilder.Execute();
+	#endif
+}
+
+void FHairGroupPublicData::Allocate(FRDGBuilder& GraphBuilder)
+{
+	if (bIsInitialized)
+		return;
+
 	if (ClusterCount == 0)
 		return;
 
@@ -318,9 +335,6 @@ void FHairGroupPublicData::InitRHI()
 	
 	if (GUsingNullRHI || !bHasStrands) { return; }
 
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
 	InternalCreateIndirectBufferRDG(GraphBuilder, DrawIndirectBuffer, TEXT("Hair.Cluster_DrawIndirectBuffer"), FUintVector4(GroupControlTriangleStripVertexCount, 1, 0, 0));
 	InternalCreateIndirectBufferRDG(GraphBuilder, DrawIndirectRasterComputeBuffer, TEXT("Hair.Cluster_DrawIndirectRasterComputeBuffer"), FUintVector4(0, 1, 0, 0));
 
@@ -330,10 +344,15 @@ void FHairGroupPublicData::InitRHI()
 	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), VertexCount, EPixelFormat::PF_R32_UINT, CulledVertexIdBuffer, TEXT("Hair.Cluster_CulledVertexIdBuffer"));
 	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(float), VertexCount, EPixelFormat::PF_R32_FLOAT, CulledVertexRadiusScaleBuffer, TEXT("Hair.Cluster_CulledVertexRadiusScaleBuffer"), true);
 
-	GraphBuilder.Execute();
+	bIsInitialized = true;
 }
 
 void FHairGroupPublicData::ReleaseRHI()
+{
+	//Release();
+}
+
+void FHairGroupPublicData::Release()
 {
 	DrawIndirectBuffer.Release();
 	DrawIndirectRasterComputeBuffer.Release();
@@ -341,6 +360,7 @@ void FHairGroupPublicData::ReleaseRHI()
 	GroupAABBBuffer.Release();
 	CulledVertexIdBuffer.Release();
 	CulledVertexRadiusScaleBuffer.Release();
+	bIsInitialized = false;
 }
 
 uint32 FHairGroupPublicData::GetResourcesSize() const
