@@ -834,87 +834,6 @@ void FCardPageRenderData::PatchView(FRHICommandList& RHICmdList, const FScene* S
 	View->CachedViewUniformShaderParameters->NearPlane = 0;
 }
 
-void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View)
-{
-	const FIntPoint PageAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
-	const ESurfaceCacheCompression PageAtlasCompression = LumenSceneData.GetPhysicalAtlasCompression();
-	const bool bCompress = PageAtlasCompression != ESurfaceCacheCompression::Disabled;
-
-	ETextureCreateFlags TexFlags = TexCreate_ShaderResource | TexCreate_NoFastClear;
-
-	// Without compression we can write directly into this surface
-	if (!bCompress)
-	{
-		TexFlags |= TexCreate_RenderTargetable;
-	}
-
-	// With UAV aliasing we can directly write into a BC target
-	if (PageAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
-	{
-		TexFlags |= TexCreate_UAV;
-	}
-
-	// Albedo
-	FRDGTextureRef Albedo = GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2D(
-			PageAtlasSize,
-			bCompress ? PF_BC7 : PF_R8G8B8A8,
-			FClearValueBinding::Green,
-			TexFlags),
-		TEXT("Lumen.SceneAlbedo"));
-	LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(Albedo);
-
-	// Opacity
-	FRDGTextureRef Opacity = GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2D(
-			PageAtlasSize,
-			bCompress ? PF_BC4 : PF_G8,
-			FClearValueBinding::Black,	
-			TexFlags),
-		TEXT("Lumen.SceneOpacity"));
-	LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(Opacity);
-
-	// Depth
-	FRDGTextureRef Depth = GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2D(
-			PageAtlasSize,
-			bCompress ? PF_BC5 : PF_G16R16,
-			FClearValueBinding::Black,
-			TexFlags),
-		TEXT("Lumen.SceneDepth"));
-	LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(Depth);
-
-	// Normal
-	FRDGTextureRef Normal = GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2D(
-			PageAtlasSize,
-			bCompress ? PF_BC5 : PF_G16R16,
-			FClearValueBinding::Black,
-			TexFlags),
-		TEXT("Lumen.SceneNormal"));
-	LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(Normal);
-
-	// Emissive
-	FRDGTextureRef Emissive = GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2D(
-			PageAtlasSize,
-			bCompress ? PF_BC6H : PF_FloatR11G11B10,
-			FClearValueBinding::Green,
-			TexFlags),
-		TEXT("Lumen.SceneEmissive"));
-	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(Emissive);
-
-	FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
-	FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_FloatR11G11B10, CrazyGreen, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
-	LightingDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"), ERenderTargetTransience::NonTransient);
-	LumenSceneData.bFinalLightingAtlasContentsValid = false;
-
-	FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.GetRadiosityAtlasSize(), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
-	RadiosityDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, RadiosityDesc, LumenSceneData.RadiosityAtlas, TEXT("Lumen.SceneRadiosity"), ERenderTargetTransience::NonTransient);
-}
-
 // @todo Fold into AllocateCardAtlases after changing reallocation boolean to respect optional card atlas state settings
 void AllocateOptionalCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View, bool bReallocateAtlas)
 {
@@ -1720,7 +1639,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 			if (bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
 			{
-				AllocateCardAtlases(GraphBuilder, LumenSceneData, View);
+				LumenSceneData.AllocateCardAtlases(GraphBuilder, View);
 			}
 
 			if (LumenSceneData.bDebugClearAllCachedState)

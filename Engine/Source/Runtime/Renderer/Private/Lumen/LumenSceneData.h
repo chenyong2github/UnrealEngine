@@ -456,6 +456,7 @@ public:
 	void RemoveAllMeshCards();
 	void UploadPageTable(FRDGBuilder& GraphBuilder);
 
+	void AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 	void ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, int32 ResLevel, bool bLockPages);
 	void FreeVirtualSurface(FLumenCard& Card, uint8 FromResLevel, uint8 ToResLevel);
 
