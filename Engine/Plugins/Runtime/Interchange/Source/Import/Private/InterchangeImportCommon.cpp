@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "EditorFramework/AssetImportData.h"
 #include "InterchangeAssetImportData.h"
+#include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "UObject/Object.h"
@@ -16,12 +17,14 @@ namespace UE
 																							, UAssetImportData* InAssetImportData
 																							, const UInterchangeSourceData* InSourceData
 																							, FString InNodeUniqueID
-																							, UInterchangeBaseNodeContainer* InNodeContainer)
+																							, UInterchangeBaseNodeContainer* InNodeContainer
+																						   , const TArray<UInterchangePipelineBase*>& InPipelines)
 			: AssetImportDataOuter(InAssetImportDataOuter)
 			, AssetImportData(InAssetImportData)
 			, SourceData(InSourceData)
 			, NodeUniqueID(InNodeUniqueID)
 			, NodeContainer(InNodeContainer)
+			, Pipelines(InPipelines)
 		{
 			ensure(AssetImportDataOuter);
 			ensure(SourceData);
@@ -83,7 +86,14 @@ namespace UE
 			AssetImportData->NodeUniqueID = Parameters.NodeUniqueID;
 			FObjectDuplicationParameters DupParam(Parameters.NodeContainer, AssetImportData);
 			AssetImportData->NodeContainer = CastChecked<UInterchangeBaseNodeContainer>(StaticDuplicateObjectEx(DupParam));
-
+			for (const UInterchangePipelineBase* Pipeline : Parameters.Pipelines)
+			{
+				UInterchangePipelineBase* DupPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(Pipeline, AssetImportData));
+				if (DupPipeline)
+				{
+					AssetImportData->Pipelines.Add(DupPipeline);
+				}
+			}
 			// Return the asset import data so it can be set on the imported asset.
 			return AssetImportData;
 #endif //#if WITH_EDITORONLY_DATA

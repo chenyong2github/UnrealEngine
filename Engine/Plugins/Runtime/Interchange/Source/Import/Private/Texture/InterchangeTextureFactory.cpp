@@ -562,7 +562,8 @@ void UInterchangeTextureFactory::PostImportGameThreadCallback(const FPostImportG
 																						 , ImportedTexture->AssetImportData
 																						 , Arguments.SourceData
 																						 , Arguments.NodeUniqueID
-																						 , Arguments.NodeContainer);
+																						 , Arguments.NodeContainer
+																						 , Arguments.Pipelines);
 		ImportedTexture->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 	}
 #endif

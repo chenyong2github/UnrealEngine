@@ -11,6 +11,7 @@
 
 class UInterchangeBaseNode;
 class UInterchangeBaseNodeContainer;
+class UInterchangePipelineBase;
 class UInterchangeSourceData;
 class UInterchangeTranslatorBase;
 
@@ -116,6 +117,7 @@ public:
 		UObject* ImportedObject = nullptr;
 		FString NodeUniqueID;
 		UInterchangeBaseNodeContainer* NodeContainer = nullptr;
+		TArray<UInterchangePipelineBase*> Pipelines;
 ;
 	};
 	/* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/

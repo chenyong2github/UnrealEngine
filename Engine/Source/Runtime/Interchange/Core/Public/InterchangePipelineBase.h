@@ -89,6 +89,10 @@ public:
 		return true;
 	}
 
+	void LoadSettings(const FName PipelineStackName);
+
+	void SaveSettings(const FName PipelineStackName);
+
 protected:
 
 	/**
