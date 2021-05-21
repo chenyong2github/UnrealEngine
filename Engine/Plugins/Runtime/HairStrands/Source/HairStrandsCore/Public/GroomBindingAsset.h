@@ -66,16 +66,16 @@ public:
 	EGroomBindingMeshType GroomBindingType = EGroomBindingMeshType::SkeletalMesh;
 
 	/** Groom to bind. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	UGroomAsset* Groom;
 
 	/** Skeletal mesh on which the groom has been authored. This is optional, and used only if the hair
 		binding is done a different mesh than the one which it has been authored */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	USkeletalMesh* SourceSkeletalMesh;
 
 	/** Skeletal mesh on which the groom is attached to. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	USkeletalMesh* TargetSkeletalMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")

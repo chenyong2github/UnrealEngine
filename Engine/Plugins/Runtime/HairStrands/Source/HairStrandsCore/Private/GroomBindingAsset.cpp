@@ -630,10 +630,8 @@ void UGroomBindingAsset::Build()
 void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	UpdateResource();
-	OnGroomBindingAssetChanged.Broadcast();
-
 	CacheDerivedDatas();
+	OnGroomBindingAssetChanged.Broadcast();
 }
 #endif // WITH_EDITOR
 
