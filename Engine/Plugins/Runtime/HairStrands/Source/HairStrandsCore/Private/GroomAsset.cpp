@@ -29,6 +29,7 @@
 #include "Logging/LogMacros.h"
 #include "HairStrandsCore.h"
 #include "UObject/ObjectSaveContext.h"
+#include "GroomBindingAsset.h"
 
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
