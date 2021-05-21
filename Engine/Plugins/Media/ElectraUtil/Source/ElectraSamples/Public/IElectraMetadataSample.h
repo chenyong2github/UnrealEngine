@@ -47,11 +47,11 @@ public:
 	virtual EDispatchedMode GetDispatchedMode() const = 0;
 
 	// Returns the event's scheme id URI
-	virtual FString GetSchemeIdUri() const = 0;
+	virtual const FString& GetSchemeIdUri() const = 0;
 
 	// Returns the event's value.
-	virtual FString GetValue() const = 0;
+	virtual const FString& GetValue() const = 0;
 
 	// Returns the event's ID.
-	virtual FString GetID() const = 0;
+	virtual const FString& GetID() const = 0;
 };
