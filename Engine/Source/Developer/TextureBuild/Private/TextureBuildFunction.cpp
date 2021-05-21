@@ -269,7 +269,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 			FSharedBuffer MipHeader = FSharedBuffer::MakeView(&MipSize, sizeof(int32));
 			FCompositeBuffer CompositeMipBuffer(MipHeader, FSharedBuffer::MakeView(CompressedMips[MipIndex].RawData.GetData(), CompressedMips[MipIndex].RawData.Num()));
 
-			Context.AddPayload(UE::DerivedData::FPayloadId::FromName(*PayloadName), FCompressedBuffer::Compress(NAME_None, CompositeMipBuffer));
+			Context.AddPayload(UE::DerivedData::FPayloadId::FromName(*PayloadName), FCompressedBuffer::Compress(NAME_Default, CompositeMipBuffer));
 		}
 	}
 
@@ -373,6 +373,6 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 
 
 		FCompositeBuffer CompositeResult(OrderedBuffers);
-		Context.AddPayload(UE::DerivedData::FPayloadId::FromName("Texture"), FCompressedBuffer::Compress(NAME_None, CompositeResult));
+		Context.AddPayload(UE::DerivedData::FPayloadId::FromName("Texture"), FCompressedBuffer::Compress(NAME_Default, CompositeResult));
 	}
 }

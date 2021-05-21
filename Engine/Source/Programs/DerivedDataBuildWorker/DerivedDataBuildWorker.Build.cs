@@ -13,6 +13,10 @@ public abstract class DerivedDataBuildWorkerTarget : TargetRules
 
 		SolutionDirectory = "Programs/BuildWorker";
 
+		// TODO: This is temporary to allow DDCUtils to not cause build errors when referenced
+		//		 by the build workers.  In the future the use of DDC should strip out backends
+		//		 and DDCUTils, so it will no longer be required to set bLegalToDistributeBinary.
+		bLegalToDistributeBinary		= true;
 		bUseXGEController				= false;
 		bCompileFreeType				= false;
 		bLoggingToMemoryEnabled			= true;
@@ -28,7 +32,7 @@ public abstract class DerivedDataBuildWorkerTarget : TargetRules
 		bWithLiveCoding					= false;
 		bBuildDeveloperTools			= false;
 		bUseMallocProfiler				= false;
-		bBuildWithEditorOnlyData		= false;
+		bBuildWithEditorOnlyData		= true;
 		bCompileAgainstEngine			= false;
 		bCompileAgainstCoreUObject		= false;
 		bCompileAgainstApplicationCore	= false;
@@ -60,15 +64,11 @@ public class DerivedDataBuildWorker : ModuleRules
 
 		PrivateIncludePaths.Add("Runtime/Launch/Private");		// For LaunchEngineLoop.cpp include
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"DerivedDataCache",
-			});
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"Projects",
+				"DerivedDataCache",
 			});
 
 		if (Target.bCompileAgainstApplicationCore)
