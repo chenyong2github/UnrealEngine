@@ -138,7 +138,7 @@ FSequencerSelectedKey FVirtualTrackArea::HitTestKey(FVector2D InPhysicalPosition
 		for (auto& KeyArea : KeyAreaNode->GetAllKeyAreas())
 		{
 			UMovieSceneSection* Section = KeyArea->GetOwningSection();
-			if (Section->GetRange().Overlaps(KeyRange))
+			if (Section && Section->GetRange().Overlaps(KeyRange))
 			{
 				KeyAreas.Add(KeyArea);
 			}
