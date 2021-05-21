@@ -292,6 +292,50 @@ bool FPathViewsSplitTest::RunTest(const FString& InParameters)
 	return true;
 }
 
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsAppendTest, FPathViewsTest, "System.Core.Misc.PathViews.Append", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FPathViewsAppendTest::RunTest(const FString& InParameters)
+{
+	TStringBuilder<256> Path;
+
+	FPathViews::Append(Path, TEXT("A"), TEXT(""));
+	TestEqual(TEXT("FPathViews::Append('A', '')"), FStringView(Path), TEXT("A/"_SV));
+	Path.Reset();
+
+	FPathViews::Append(Path, TEXT(""), TEXT("B"));
+	TestEqual(TEXT("FPathViews::Append('', 'B')"), FStringView(Path), TEXT("B"_SV));
+	Path.Reset();
+
+	FPathViews::Append(Path, TEXT("/"), TEXT("B"));
+	TestEqual(TEXT("FPathViews::Append('/', 'B')"), FStringView(Path), TEXT("/B"_SV));
+	Path.Reset();
+
+	FPathViews::Append(Path, TEXT("A"), TEXT("B"));
+	TestEqual(TEXT("FPathViews::Append('A', 'B')"), FStringView(Path), TEXT("A/B"_SV));
+	Path.Reset();
+
+	FPathViews::Append(Path, TEXT("A/"), TEXT("B"));
+	TestEqual(TEXT("FPathViews::Append('A/', 'B')"), FStringView(Path), TEXT("A/B"_SV));
+	Path.Reset();
+
+	FPathViews::Append(Path, TEXT("A\\"), TEXT("B"));
+	TestEqual(TEXT("FPathViews::Append('A\\', 'B')"), FStringView(Path), TEXT("A\\B"_SV));
+	Path.Reset();
+
+	FPathViews::Append(Path, TEXT("A/B"), TEXT("C/D"));
+	TestEqual(TEXT("FPathViews::Append('A/B', 'C/D')"), FStringView(Path), TEXT("A/B/C/D"_SV));
+	Path.Reset();
+
+	FPathViews::Append(Path, TEXT("A/"), TEXT("B"), TEXT("C/"), TEXT("D"));
+	TestEqual(TEXT("FPathViews::Append('A/', 'B', 'C/', 'D')"), FStringView(Path), TEXT("A/B/C/D"_SV));
+	Path.Reset();
+
+	FPathViews::Append(Path, TEXT("A/"), 16, TEXT("B"));
+	TestEqual(TEXT("FPathViews::Append('A/', 16, 'B')"), FStringView(Path), TEXT("A/16/B"_SV));
+	Path.Reset();
+
+	return true;
+}
+
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsChangeExtensionTest, FPathViewsTest, "System.Core.Misc.PathViews.ChangeExtension", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FPathViewsChangeExtensionTest::RunTest(const FString& InParameters)
 {

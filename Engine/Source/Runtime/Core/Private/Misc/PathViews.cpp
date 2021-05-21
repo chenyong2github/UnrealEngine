@@ -225,31 +225,6 @@ void FPathViews::Split(const FStringView& InPath, FStringView& OutPath, FStringV
 	OutExt = CleanName.RightChop(NameLen + 1);
 }
 
-void FPathViews::Append(FStringBuilderBase& Builder, FStringView Suffix)
-{
-	if (Builder.Len() > 0 && !UE4PathViews_Private::IsSlashOrBackslash(Builder.LastChar()))
-	{
-		Builder.Append('/');
-	}
-
-	Builder.Append(Suffix);
-}
-
-void FPathViews::Append(FStringBuilderBase& Builder, FName Suffix)
-{
-	if (Builder.Len() > 0 && !UE4PathViews_Private::IsSlashOrBackslash(Builder.LastChar()))
-	{
-		Builder.Append('/');
-	}
-
-	Suffix.AppendString(Builder);
-}
-
-void FPathViews::Append(FStringBuilderBase& Builder, const TCHAR* Suffix)
-{
-	Append(Builder, FStringView(Suffix));
-}
-
 FString FPathViews::ChangeExtension(const FStringView& InPath, const FStringView& InNewExtension)
 {
 	// Make sure the period we found was actually for a file extension and not part of the file path.

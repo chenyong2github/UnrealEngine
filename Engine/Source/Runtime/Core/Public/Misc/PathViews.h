@@ -146,7 +146,7 @@ public:
 	static void Split(const FStringView& InPath, FStringView& OutPath, FStringView& OutName, FStringView& OutExt);
 
 	/**
-	 * Appends the suffix to the path in the builder and ensures that there is a separator between them.
+	 * Appends each suffix argument to the path in the builder and ensures that there is a separator between them.
 	 *
 	 * Examples:
 	 * ("",    "")    -> ""
@@ -157,13 +157,24 @@ public:
 	 * ("A/",  "B")   -> "A/B"
 	 * ("A\\", "B")   -> "A\\B"
 	 * ("A/B", "C/D") -> "A/B/C/D"
+	 * ("A/", "B", "C/", "D") -> "A/B/C/D"
 	 *
 	 * @param Builder A possibly-empty path that may end in a separator.
-	 * @param Suffix A possibly-empty suffix that does not start with a separator.
+	 * @param Args Arguments that can write to a string builder and do not start with a separator.
 	 */
-	static void Append(FStringBuilderBase& Builder, FStringView Suffix);
-	static void Append(FStringBuilderBase& Builder, const TCHAR* Suffix);
-	static void Append(FStringBuilderBase& Builder, FName Suffix);
+	template <typename CharType, typename... ArgTypes>
+	static void Append(TStringBuilderBase<CharType>& Builder, ArgTypes&&... Args)
+	{
+		const auto AddSeparator = [&Builder]() -> TStringBuilderBase<CharType>&
+		{
+			if (!(Builder.Len() == 0 || Builder.LastChar() == '/' || Builder.LastChar() == '\\'))
+			{
+				Builder.Append('/');
+			}
+			return Builder;
+		};
+		((AddSeparator() << Args), ...);
+	}
 
 	/**
 	 * Replaces the pre-existing file extension of a filename. 
