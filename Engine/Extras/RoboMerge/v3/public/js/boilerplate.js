@@ -954,7 +954,7 @@ function renderNameCell_Common(data, botname) {
 			msg += `Will unpause and retry on: ${unpauseTime}.<br />`;
 		}
 		else if (data.lastGoodCL && data.headCL && data.lastGoodCL === data.last_cl && data.last_cl < data.headCL) {
-			msg = 'Waiting on CIS gate'
+			msg = data.gateClosedMessage || 'Waiting on CIS gate'
 		}
 
 		if (msg) {

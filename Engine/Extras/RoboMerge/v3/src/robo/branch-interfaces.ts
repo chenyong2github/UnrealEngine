@@ -253,4 +253,12 @@ export type GateEventContext = {
 export type BeginIntegratingToGateEvent = {
 	context: GateEventContext
 	info: GateInfo
+
+	// would like to provide this for logging, but I'm not storing it in a convenient place yet
+	changesRemaining: number
+}
+
+export type EndIntegratingToGateEvent = {
+	context: GateEventContext
+	targetCl: number
 }

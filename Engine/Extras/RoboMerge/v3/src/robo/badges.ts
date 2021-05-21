@@ -5,7 +5,7 @@ import { Badge } from '../common/badge';
 import { ContextualLogger } from '../common/logger';
 import { PerforceContext } from '../common/perforce';
 import { Blockage, Branch, BranchGraphInterface, ChangeInfo } from './branch-interfaces';
-import { BeginIntegratingToGateEvent, GateEventContext } from './branch-interfaces';
+import { BeginIntegratingToGateEvent, EndIntegratingToGateEvent, GateEventContext } from './branch-interfaces';
 import { PersistentConflict, Resolution } from './conflict-interfaces';
 import { BotEventHandler, BotEvents } from './events';
 
@@ -145,7 +145,8 @@ class GateHandler implements BotEventHandler {
 	}
 
 	onBeginIntegratingToGate(arg: BeginIntegratingToGateEvent) {
-		this.logger.info(GateHandler.logStringFor(arg.context) + ' catching up to CL# ' + arg.info.cl)
+		const suffix = arg.changesRemaining > 0 ? ` (${arg.changesRemaining} behind)` : ''
+		this.logger.info(GateHandler.logStringFor(arg.context) + ` catching up to CL#${arg.info.cl}` + suffix)
 		if (arg.context.pauseCIS && !this.pausedFlows.has(arg.context.to.upperName)) {
 			this.pausedFlows.set(arg.context.to.upperName, setTimeout(() => {
 				// @todo fill this in to pause!
@@ -161,9 +162,10 @@ class GateHandler implements BotEventHandler {
 		}
 	}
 
-	onEndIntegratingToGate(arg: GateEventContext) {
-		this.logger.info(GateHandler.logStringFor(arg) + ' caught up')
-		const pauseRefresher = this.pausedFlows.get(arg.to.upperName)
+	onEndIntegratingToGate(arg: EndIntegratingToGateEvent) {
+		const suffix = arg.targetCl > 0 ? ` (-> #${arg.targetCl})` : ''
+		this.logger.info(GateHandler.logStringFor(arg.context) + ' caught up' + suffix)
+		const pauseRefresher = this.pausedFlows.get(arg.context.to.upperName)
 		if (pauseRefresher) {
 			// @todo fill this in to unpause!
 			const url = ''
@@ -172,10 +174,10 @@ class GateHandler implements BotEventHandler {
 				url,
 				body,
 				contentType: 'application/json'
-			}, `Unpause of CIS for ${arg.to}`)
+			}, `Unpause of CIS for ${arg.context.to}`)
 
 			clearTimeout(pauseRefresher)
-			this.pausedFlows.delete(arg.to.upperName)
+			this.pausedFlows.delete(arg.context.to.upperName)
 		}
 	}
 }
