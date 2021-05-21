@@ -3,6 +3,8 @@
 #include "Elements/SMInstance/SMInstanceElementDetailsProxyObject.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
+#include "Elements/SMInstance/SMInstanceElementData.h"
+
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 
@@ -33,26 +35,16 @@ void USMInstanceElementDetailsProxyObject::Shutdown()
 	SyncProxyStateFromInstance();
 }
 
-bool USMInstanceElementDetailsProxyObject::Modify(bool bAlwaysMarkDirty)
-{
-	if (FSMInstanceId InstanceId = GetInstanceId())
-	{
-		return InstanceId.ISMComponent->Modify(bAlwaysMarkDirty);
-	}
-
-	return false;
-}
-
 void USMInstanceElementDetailsProxyObject::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.Property)
 	{
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USMInstanceElementDetailsProxyObject, Transform))
 		{
-			if (FSMInstanceId InstanceId = GetInstanceId())
+			if (FSMInstanceManager SMInstance = GetSMInstance())
 			{
 				// TODO: Need flag for local/world space, like FComponentTransformDetails
-				InstanceId.ISMComponent->UpdateInstanceTransform(InstanceId.InstanceIndex, Transform, /*bWorldSpace*/false, /*bMarkRenderStateDirty*/true);
+				SMInstance.SetSMInstanceTransform(Transform, /*bWorldSpace*/false, /*bMarkRenderStateDirty*/true);
 				
 				GUnrealEd->UpdatePivotLocationForSelection();
 				GUnrealEd->RedrawLevelEditingViewports();
@@ -65,10 +57,10 @@ void USMInstanceElementDetailsProxyObject::PostEditChangeChainProperty(FProperty
 
 void USMInstanceElementDetailsProxyObject::SyncProxyStateFromInstance()
 {
-	if (FSMInstanceId InstanceId = GetInstanceId())
+	if (FSMInstanceManager SMInstance = GetSMInstance())
 	{
 		// TODO: Need flag for local/world space, like FComponentTransformDetails
-		InstanceId.ISMComponent->GetInstanceTransform(InstanceId.InstanceIndex, Transform, /*bWorldSpace*/false);
+		SMInstance.GetSMInstanceTransform(Transform, /*bWorldSpace*/false);
 	}
 	else
 	{
@@ -76,7 +68,8 @@ void USMInstanceElementDetailsProxyObject::SyncProxyStateFromInstance()
 	}
 }
 
-FSMInstanceId USMInstanceElementDetailsProxyObject::GetInstanceId() const
+FSMInstanceManager USMInstanceElementDetailsProxyObject::GetSMInstance() const
 {
-	return FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(FSMInstanceElementId{ ISMComponent.Get(), ISMInstanceId });
+	const FSMInstanceId SMInstanceId = FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(FSMInstanceElementId{ ISMComponent.Get(), ISMInstanceId });
+	return FSMInstanceManager(SMInstanceId, SMInstanceElementDataUtil::GetSMInstanceManager(SMInstanceId));
 }

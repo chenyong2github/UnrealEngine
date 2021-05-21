@@ -11,7 +11,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogSMInstanceLevelEditorSelection, Log, All);
 
 bool FSMInstanceElementLevelEditorSelectionCustomization::CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
+	if (!SMInstance)
+	{
+		return false;
+	}
 	
 	// Bail if global selection is locked
 	return !GEdSelectionLock;
@@ -19,7 +23,11 @@ bool FSMInstanceElementLevelEditorSelectionCustomization::CanSelectElement(const
 
 bool FSMInstanceElementLevelEditorSelectionCustomization::CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
+	if (!SMInstance)
+	{
+		return false;
+	}
 
 	// Bail if global selection is locked
 	return !GEdSelectionLock;
@@ -27,34 +35,42 @@ bool FSMInstanceElementLevelEditorSelectionCustomization::CanDeselectElement(con
 
 bool FSMInstanceElementLevelEditorSelectionCustomization::SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
+	if (!SMInstance)
+	{
+		return false;
+	}
 
 	if (!InElementSelectionHandle.SelectElement(InSelectionSet, InSelectionOptions))
 	{
 		return false;
 	}
 
-	UE_LOG(LogSMInstanceLevelEditorSelection, Verbose, TEXT("Selected SMInstance: %s (%s), Index %d"), *SMInstance.ISMComponent->GetPathName(), *SMInstance.ISMComponent->GetClass()->GetName(), SMInstance.InstanceIndex);
+	UE_LOG(LogSMInstanceLevelEditorSelection, Verbose, TEXT("Selected SMInstance: %s (%s), Index %d"), *SMInstance.GetISMComponent()->GetPathName(), *SMInstance.GetISMComponent()->GetClass()->GetName(), SMInstance.GetISMInstanceIndex());
 
 	// Update the internal selection state for viewport selection rendering
-	SMInstance.ISMComponent->SelectInstance(/*bIsSelected*/true, SMInstance.InstanceIndex);
+	SMInstance.GetISMComponent()->SelectInstance(/*bIsSelected*/true, SMInstance.GetISMInstanceIndex());
 	
 	return true;
 }
 
 bool FSMInstanceElementLevelEditorSelectionCustomization::DeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
+	if (!SMInstance)
+	{
+		return false;
+	}
 
 	if (!InElementSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions))
 	{
 		return false;
 	}
 
-	UE_LOG(LogSMInstanceLevelEditorSelection, Verbose, TEXT("Deselected SMInstance: %s (%s), Index %d"), *SMInstance.ISMComponent->GetPathName(), *SMInstance.ISMComponent->GetClass()->GetName(), SMInstance.InstanceIndex);
+	UE_LOG(LogSMInstanceLevelEditorSelection, Verbose, TEXT("Deselected SMInstance: %s (%s), Index %d"), *SMInstance.GetISMComponent()->GetPathName(), *SMInstance.GetISMComponent()->GetClass()->GetName(), SMInstance.GetISMInstanceIndex());
 
 	// Update the internal selection state for viewport selection rendering
-	SMInstance.ISMComponent->SelectInstance(/*bIsSelected*/false, SMInstance.InstanceIndex);
+	SMInstance.GetISMComponent()->SelectInstance(/*bIsSelected*/false, SMInstance.GetISMInstanceIndex());
 
 	return true;
 }

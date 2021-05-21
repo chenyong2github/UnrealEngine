@@ -378,15 +378,17 @@ TTypedElementOwner<FSMInstanceElementData> UEngineElementsLibrary::CreateSMInsta
 {
 	const FSMInstanceElementId SMInstanceElementId = FSMInstanceElementIdMap::Get().GetSMInstanceElementIdFromSMInstanceId(InSMInstanceId);
 	checkf(SMInstanceElementId, TEXT("Static Mesh Instance Index failed to map to a valid Static Mesh Instance Element ID!"));
-	return CreateSMInstanceElement(SMInstanceElementId);
+	return CreateSMInstanceElementImpl(InSMInstanceId, SMInstanceElementId);
 }
 
-TTypedElementOwner<FSMInstanceElementData> UEngineElementsLibrary::CreateSMInstanceElement(const FSMInstanceElementId& InSMInstanceElementId)
+TTypedElementOwner<FSMInstanceElementData> UEngineElementsLibrary::CreateSMInstanceElementImpl(const FSMInstanceId& InSMInstanceId, const FSMInstanceElementId& InSMInstanceElementId)
 {
+	checkf(InSMInstanceId.ISMComponent == InSMInstanceElementId.ISMComponent, TEXT("Component mismatch in IDs!"));
+
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	TTypedElementOwner<FSMInstanceElementData> SMInstanceElement;
-	if (ensureAlways(Registry) && SMInstanceElementDataUtil::SMInstanceElementsEnabled() && SMInstanceElementDataUtil::IsValidComponentForSMInstanceElements(InSMInstanceElementId.ISMComponent))
+	if (ensureAlways(Registry) && SMInstanceElementDataUtil::SMInstanceElementsEnabled() && SMInstanceElementDataUtil::GetSMInstanceManager(InSMInstanceId))
 	{
 		SMInstanceElement = Registry->CreateElement<FSMInstanceElementData>(NAME_SMInstance);
 		if (SMInstanceElement)
@@ -414,7 +416,7 @@ void UEngineElementsLibrary::CreateEditorSMInstanceElement(const FSMInstanceId& 
 	{
 		const FSMInstanceElementId SMInstanceElementId = FSMInstanceElementIdMap::Get().GetSMInstanceElementIdFromSMInstanceId(SMInstanceId);
 		checkf(SMInstanceElementId, TEXT("Static Mesh Instance Index failed to map to a valid Static Mesh Instance Element ID!"));
-		GSMInstanceElementOwnerStore.RegisterElementOwner(SMInstanceElementId, CreateSMInstanceElement(SMInstanceElementId));
+		GSMInstanceElementOwnerStore.RegisterElementOwner(SMInstanceElementId, CreateSMInstanceElementImpl(SMInstanceId, SMInstanceElementId));
 	}
 }
 
@@ -437,18 +439,9 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle
 	{
 		const FSMInstanceElementId SMInstanceElementId = FSMInstanceElementIdMap::Get().GetSMInstanceElementIdFromSMInstanceId(SMInstanceId, bAllowCreate);
 		checkf(!bAllowCreate || SMInstanceElementId, TEXT("Static Mesh Instance Index failed to map to a valid Static Mesh Instance Element ID!"));
-		return AcquireEditorSMInstanceElementHandle(SMInstanceElementId, bAllowCreate);
-	}
-
-	return FTypedElementHandle();
-}
-
-FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(const FSMInstanceElementId& SMInstanceElementId, const bool bAllowCreate)
-{
-	if (GIsEditor)
-	{
+		
 		TTypedElementOwnerScopedAccess<FSMInstanceElementData> SMInstanceElement = bAllowCreate
-			? GSMInstanceElementOwnerStore.FindOrRegisterElementOwner(SMInstanceElementId, [&SMInstanceElementId]() { return CreateSMInstanceElement(SMInstanceElementId); })
+			? GSMInstanceElementOwnerStore.FindOrRegisterElementOwner(SMInstanceElementId, [&SMInstanceId, &SMInstanceElementId]() { return CreateSMInstanceElementImpl(SMInstanceId, SMInstanceElementId); })
 			: GSMInstanceElementOwnerStore.FindElementOwner(SMInstanceElementId);
 
 		if (SMInstanceElement)
@@ -460,4 +453,3 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle
 	return FTypedElementHandle();
 }
 #endif
-

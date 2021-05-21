@@ -11,21 +11,21 @@
 
 bool USMInstanceElementWorldInterface::CanEditElement(const FTypedElementHandle& InElementHandle)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && CanEditSMInstance(SMInstance);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.CanEditSMInstance();
 }
 
 bool USMInstanceElementWorldInterface::IsTemplateElement(const FTypedElementHandle& InElementHandle)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && SMInstance.ISMComponent->IsTemplate();
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.GetISMComponent()->IsTemplate();
 }
 
 ULevel* USMInstanceElementWorldInterface::GetOwnerLevel(const FTypedElementHandle& InElementHandle)
 {
-	if (const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	if (const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
 	{
-		if (const AActor* ComponentOwner = SMInstance.ISMComponent->GetOwner())
+		if (const AActor* ComponentOwner = SMInstance.GetISMComponent()->GetOwner())
 		{
 			return ComponentOwner->GetLevel();
 		}
@@ -36,15 +36,15 @@ ULevel* USMInstanceElementWorldInterface::GetOwnerLevel(const FTypedElementHandl
 
 UWorld* USMInstanceElementWorldInterface::GetOwnerWorld(const FTypedElementHandle& InElementHandle)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance ? SMInstance.ISMComponent->GetWorld() : nullptr;
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance ? SMInstance.GetISMComponent()->GetWorld() : nullptr;
 }
 
 bool USMInstanceElementWorldInterface::GetBounds(const FTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds)
 {
-	if (const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	if (const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
 	{
-		if (const UStaticMesh* StaticMesh = SMInstance.ISMComponent->GetStaticMesh())
+		if (const UStaticMesh* StaticMesh = SMInstance.GetISMComponent()->GetStaticMesh())
 		{
 			OutBounds = StaticMesh->GetBounds();
 		}
@@ -54,7 +54,7 @@ bool USMInstanceElementWorldInterface::GetBounds(const FTypedElementHandle& InEl
 		}
 
 		FTransform InstanceTransform;
-		SMInstance.ISMComponent->GetInstanceTransform(SMInstance.InstanceIndex, InstanceTransform, /*bWorldSpace*/true);
+		SMInstance.GetSMInstanceTransform(InstanceTransform, /*bWorldSpace*/true);
 
 		OutBounds = OutBounds.TransformBy(InstanceTransform);
 		return true;
@@ -65,29 +65,24 @@ bool USMInstanceElementWorldInterface::GetBounds(const FTypedElementHandle& InEl
 
 bool USMInstanceElementWorldInterface::GetWorldTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && SMInstance.ISMComponent->GetInstanceTransform(SMInstance.InstanceIndex, OutTransform, /*bWorldSpace*/true);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.GetSMInstanceTransform(OutTransform, /*bWorldSpace*/true);
 }
 
 bool USMInstanceElementWorldInterface::SetWorldTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && SMInstance.ISMComponent->UpdateInstanceTransform(SMInstance.InstanceIndex, InTransform, /*bWorldSpace*/true, /*bMarkRenderStateDirty*/true);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.SetSMInstanceTransform(InTransform, /*bWorldSpace*/true, /*bMarkRenderStateDirty*/true);
 }
 
 bool USMInstanceElementWorldInterface::GetRelativeTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && SMInstance.ISMComponent->GetInstanceTransform(SMInstance.InstanceIndex, OutTransform, /*bWorldSpace*/false);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.GetSMInstanceTransform(OutTransform, /*bWorldSpace*/false);
 }
 
 bool USMInstanceElementWorldInterface::SetRelativeTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && SMInstance.ISMComponent->UpdateInstanceTransform(SMInstance.InstanceIndex, InTransform, /*bWorldSpace*/false, /*bMarkRenderStateDirty*/true);
-}
-
-bool USMInstanceElementWorldInterface::CanEditSMInstance(const FSMInstanceId& InSMInstanceId)
-{
-	return InSMInstanceId.ISMComponent->IsEditableWhenInherited();
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.SetSMInstanceTransform(InTransform, /*bWorldSpace*/false, /*bMarkRenderStateDirty*/true);
 }
