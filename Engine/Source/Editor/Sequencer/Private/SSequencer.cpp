@@ -1447,15 +1447,19 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().CreateCamera );
-			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
 
-			ToolBarBuilder.AddComboButton(
-				FUIAction(),
-				FOnGetContent::CreateSP( this, &SSequencer::MakeRenderMovieMenu ),
-				LOCTEXT( "RenderMovieOptions", "Render Movie Options" ),
-				LOCTEXT( "RenderMovieOptionsToolTip", "Render Movie Options" ),
-				TAttribute<FSlateIcon>(),
-				true );
+			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsRenderMovie)
+			{
+				ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
+				
+				ToolBarBuilder.AddComboButton(
+					FUIAction(),
+					FOnGetContent::CreateSP( this, &SSequencer::MakeRenderMovieMenu ),
+					LOCTEXT( "RenderMovieOptions", "Render Movie Options" ),
+					LOCTEXT( "RenderMovieOptionsToolTip", "Render Movie Options" ),
+					TAttribute<FSlateIcon>(),
+					true );
+			}
 
 			UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
 			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)

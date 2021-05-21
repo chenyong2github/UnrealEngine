@@ -13101,10 +13101,7 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.RenderMovie,
-		FExecuteAction::CreateLambda([this]{ RenderMovieInternal(GetPlaybackRange()); }),
-		FCanExecuteAction(),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateLambda([this]{ return ExactCast<ULevelSequence>(GetFocusedMovieSceneSequence()) != nullptr; })
+		FExecuteAction::CreateLambda([this]{ RenderMovieInternal(GetPlaybackRange()); })
 	);
 
 	SequencerCommandBindings->MapAction(
