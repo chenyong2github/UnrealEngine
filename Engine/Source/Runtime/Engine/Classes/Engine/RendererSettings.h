@@ -403,6 +403,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bEnableRayTracingTextureLOD : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
+		ConsoleVariable = "r.PathTracing", DisplayName = "Path Tracing",
+		ToolTip = "Support Path Tracing renderer. This enables additional material permutations.",
+		ConfigRestartRequired = true))
+		uint32 bEnablePathTracing : 1;
+
 	UPROPERTY(config, EditAnywhere, Category=SoftwareRayTracing, meta=(
 		ConsoleVariable="r.GenerateMeshDistanceFields",
 		ToolTip="Whether to build distance fields of static meshes, needed for Software Ray Tracing in Lumen, and distance field AO, which is used to implement Movable SkyLight shadows, and ray traced distance field shadows on directional lights.  Enabling will increase the build times, memory usage and disk size of static meshes.  Changing this setting requires restarting the editor.",

@@ -12,8 +12,16 @@
 #include "RayTracingTypes.h"
 #include "RayTracingDefinitions.h"
 #include "PathTracingDefinitions.h"
+#include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RenderCore/Public/GenerateMips.h"
 #include <limits>
+
+TAutoConsoleVariable<int32> CVarPathTracing(
+	TEXT("r.PathTracing"),
+	0,
+	TEXT("Enables the path tracing renderer (to guard the compilation of path tracer specific material permutations)"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
 
 TAutoConsoleVariable<int32> CVarPathTracingMaxBounces(
 	TEXT("r.PathTracing.MaxBounces"),
@@ -289,6 +297,13 @@ static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.FilterWidth = FilterWidth;
 }
 
+static bool ShouldCompilePathTracingShadersForProject(EShaderPlatform ShaderPlatform)
+{
+	return ShouldCompileRayTracingShadersForProject(ShaderPlatform) &&
+			FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(ShaderPlatform) &&
+			CVarPathTracing.GetValueOnAnyThread() != 0;
+}
+
 class FPathTracingSkylightPrepareCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FPathTracingSkylightPrepareCS)
@@ -296,6 +311,7 @@ class FPathTracingSkylightPrepareCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		// NOTE: skylight code is shared with RT passes
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
@@ -327,6 +343,7 @@ class FPathTracingSkylightMISCompensationCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		// NOTE: skylight code is shared with RT passes
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
@@ -395,8 +412,7 @@ class FPathTracingRG : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform)
-			&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(Parameters.Platform);
+		return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -461,6 +477,116 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
+
+template<bool UseAnyHitShader>
+class TPathTracingMaterial : public FMeshMaterialShader
+{
+	DECLARE_SHADER_TYPE(TPathTracingMaterial, MeshMaterial);
+public:
+	TPathTracingMaterial() = default;
+
+	TPathTracingMaterial(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer)
+		: FMeshMaterialShader(Initializer)
+	{}
+
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+	{
+		return Parameters.VertexFactoryType->SupportsRayTracing()
+			&& ((Parameters.MaterialParameters.bIsMasked || Parameters.MaterialParameters.BlendMode != BLEND_Opaque) == UseAnyHitShader)
+			&& ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("USE_MATERIAL_CLOSEST_HIT_SHADER"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_MATERIAL_ANY_HIT_SHADER"), UseAnyHitShader ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("USE_RAYTRACED_TEXTURE_RAYCONE_LOD"), 0);
+		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
+		OutEnvironment.SetDefine(TEXT("SIMPLIFIED_MATERIAL_SHADER"), 0); // TODO: expose a permutation so we can unify with GPULightmass?
+		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
+	{
+		if (ParameterMap.ContainsParameterAllocation(FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName()))
+		{
+			OutError.Add(TEXT("Ray tracing closest hit shaders cannot read from the SceneTexturesStruct."));
+			return false;
+		}
+
+		for (const auto& It : ParameterMap.GetParameterMap())
+		{
+			const FParameterAllocation& ParamAllocation = It.Value;
+			if (ParamAllocation.Type != EShaderParameterType::UniformBuffer
+				&& ParamAllocation.Type != EShaderParameterType::LooseData)
+			{
+				OutError.Add(FString::Printf(TEXT("Invalid ray tracing shader parameter '%s'. Only uniform buffers and loose data parameters are supported."), *(It.Key)));
+				return false;
+			}
+		}
+
+		return true;
+	}
+};
+
+using FPathTracingMaterialCHS     = TPathTracingMaterial<false>;
+using FPathTracingMaterialCHS_AHS = TPathTracingMaterial<true>;
+
+
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
+
+
+bool FRayTracingMeshProcessor::ProcessPathTracing(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
+	const FMaterial& RESTRICT MaterialResource)
+{
+	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
+
+	TMeshProcessorShaders<
+		FMeshMaterialShader,
+		FMeshMaterialShader,
+		FMeshMaterialShader,
+		FMeshMaterialShader,
+		FMeshMaterialShader> RayTracingShaders;
+
+	FMaterialShaderTypes ShaderTypes;
+
+	if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque)
+	{
+		ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
+	}
+	else
+	{
+		ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
+	}
+
+	FMaterialShaders Shaders;
+	if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
+	{
+		return false;
+	}
+
+	check(Shaders.TryGetShader(SF_RayHitGroup, RayTracingShaders.RayHitGroupShader));
+
+	TBasePassShaderElementData<FUniformLightMapPolicy> ShaderElementData(MeshBatch.LCI);
+	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, -1, true);
+
+	BuildRayTracingMeshCommands(
+		MeshBatch,
+		BatchElementMask,
+		PrimitiveSceneProxy,
+		MaterialRenderProxy,
+		MaterialResource,
+		PassDrawRenderState,
+		RayTracingShaders,
+		ShaderElementData);
+
+	return true;
+}
 
 RENDERER_API void PrepareSkyTexture_Internal(
 	FRDGBuilder& GraphBuilder,
@@ -1054,7 +1180,7 @@ IMPLEMENT_SHADER_TYPE(, FPathTracingCompositorPS, TEXT("/Engine/Private/PathTrac
 void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	if (ViewFamily.EngineShowFlags.PathTracing
-		&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(ViewFamily.GetShaderPlatform()))
+		&& ShouldCompilePathTracingShadersForProject(ViewFamily.GetShaderPlatform()))
 	{
 		// Declare all RayGen shaders that require material closest hit shaders to be bound
 		auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FPathTracingRG>();
@@ -1081,6 +1207,13 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	if (!ensureMsgf(FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(View.GetShaderPlatform()),
 		TEXT("Attempting to use path tracing on unsupported platform.")))
 	{
+		return;
+	}
+
+	if (CVarPathTracing.GetValueOnRenderThread() == 0)
+	{
+		// Path tracing is not enabled on this project (should not be seen by end-users since the menu entry to pick path tracing should be hidden)
+		// If they reach this code through ShowFlag manipulation, they may observe an incomplete image. Is there a way to inform the user here?
 		return;
 	}
 
