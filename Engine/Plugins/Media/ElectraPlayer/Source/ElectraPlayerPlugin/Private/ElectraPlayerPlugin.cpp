@@ -9,6 +9,7 @@
 #include "ElectraPlayerPlugin.h"
 #include "IElectraPlayerRuntimeModule.h"
 #include "IElectraPlayerPluginModule.h"
+#include "IElectraMetadataSample.h"
 
 using namespace Electra;
 
@@ -222,6 +223,14 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentAudioFrame(const IAudi
 		TSharedRef<FElectraPlayerAudioSample, ESPMode::ThreadSafe> AudioSample = PinnedHost->OutputAudioPool.AcquireShared();
 		AudioSample->Initialize(InAudioFrame);
 		PinnedHost->MediaSamples->AddAudio(AudioSample);
+	}
+}
+
+void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentMetadataSample(const IElectraBinarySampleRef& InMetadataSample)
+{
+	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	{
+		PinnedHost->MediaSamples->AddMetadata(InMetadataSample);
 	}
 }
 
