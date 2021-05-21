@@ -27,9 +27,7 @@ public:
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
-		FMaterialShadingModelField ShadingModels,
-		const FUniformLightMapPolicy& RESTRICT LightMapPolicy,
-		const typename FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData) override;
+		const FUniformLightMapPolicy& RESTRICT LightMapPolicy) override;
 };
 
 class FLightmapPathTracingRGS : public FGlobalShader

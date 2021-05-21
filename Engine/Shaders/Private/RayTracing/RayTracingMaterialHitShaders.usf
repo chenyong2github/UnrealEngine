@@ -14,12 +14,6 @@
 	#define SIMPLIFIED_MATERIAL_SHADER 0
 #endif
 
-// #dxr_todo: UE-72537 move to common.ush
-#define clip(x)
-#define ddx(x) 0
-#define ddy(x) 0
-#define fwidth(x) 0
-
 #include "/Engine/Private/Common.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
@@ -27,14 +21,13 @@
 #include "/Engine/Generated/Material.ush"   
 #include "/Engine/Generated/VertexFactory.ush"
 
+#include "RayTracingCalcInterpolants.ush" // must be included after VertexFactory.ush
 #include "/Engine/Private/ShadingCommon.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
 #include "/Engine/Private/SHCommon.ush"
 #include "/Engine/Private/ReflectionEnvironmentShared.ush"
 #include "/Engine/Private/VirtualTextureCommon.ush" 
 #include "/Engine/Private/LightmapCommon.ush"
-#include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
-#include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
 #include "/Engine/Private/Lumen/LumenHardwareRayTracingPayloadCommon.ush"
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
@@ -212,68 +205,6 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	#if HQ_TEXTURE_LIGHTMAP || LQ_TEXTURE_LIGHTMAP || CACHED_VOLUME_INDIRECT_LIGHTING || CACHED_POINT_INDIRECT_LIGHTING || PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
 		OutIndirectIrradiance = Luminance(OutDiffuseLighting);
 	#endif
-}
-
-void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants)
-{
-	FVertexFactoryRayTracingInterpolants Interpolated = (FVertexFactoryRayTracingInterpolants)0;
-
-	float3 WorldPositions[3];
-	float2 TexCoords[3];
-
-	float3 Weights = float3(
-		1 - Attributes.Barycentrics.x - Attributes.Barycentrics.y,
-		Attributes.Barycentrics.x,
-		Attributes.Barycentrics.y);
-
-	for (int i = 0; i < 3; i++)
-	{
-		FVertexFactoryInput Input = LoadVertexFactoryInputForHGS(PrimitiveIndex(), i);
-	
-		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
-		float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);
-		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPositionExcludingWPO.xyz, TangentToLocal);
-
-		FVertexFactoryRayTracingInterpolants PerVertexInterpolants = VertexFactoryGetRayTracingInterpolants(Input, VFIntermediates, VertexParameters);
-		Interpolated = VertexFactoryInterpolate(PerVertexInterpolants, Weights[i], Interpolated, 1.0);
-
-		WorldPositions[i] = WorldPositionExcludingWPO.xyz;
-		TexCoords[i] = VertexFactoryGetRayTracingTextureCoordinate(PerVertexInterpolants);
-	}
-
-	Interpolants = VertexFactoryAssignInterpolants(Interpolated);
-
-#if (NUM_TEX_COORD_INTERPOLATORS || USE_PARTICLE_SUBUVS) && !VERTEX_FACTORY_MODIFIES_INTERPOLATION
-	float2 TA = TexCoords[1] - TexCoords[0]; 
-	float2 TB = TexCoords[2] - TexCoords[0];
-    float UvArea = abs((TA.x * TB.y) - (TA.y * TB.x));
-
-	float3 PA = WorldPositions[1] - WorldPositions[0];
-	float3 PB = WorldPositions[2] - WorldPositions[0];
-    float3 Unnormalized = cross(PB, PA);
-	float InvWorldArea = rsqrt(dot(Unnormalized, Unnormalized));
-    float3 FaceNormal = Unnormalized * InvWorldArea;
-    
-    float RayConeCapArea = RayCone.Width * RayCone.Width * (1.0f / (2.0f * PI));
-    float3 RayDir = WorldRayDirection();
-    float RaySlope = dot(RayDir, FaceNormal);
-    const float SmallValue = 1.0 / 16777216.0;
-    GlobalRayCone_TexArea = (UvArea * InvWorldArea * RayConeCapArea) / max(RaySlope * RaySlope, SmallValue);
-    GlobalRayCone_TexArea = max(GlobalRayCone_TexArea, SmallValue);
-#endif
-}
-
-float DitheredOpacityMaskToOpacity(float Mask)
-{
-	// This represents the expected value of the function GetMaterialCoverageAndClipping
-	// which randomly dithers the fragment on or off to produce the effect of opacity
-
-	// The expected value of this dithering can be computed as:
-	//    Simplify[Integrate[If[Mask + Dither - 1/2 < 0, 0, 1], {Dither, 0, 1}]]
-	// which is just:
-
-	return saturate(Mask + 0.5);
 }
 
 float3 GetLumenGeometryNormal()
@@ -600,14 +531,6 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	// Continue traversal by simply returning from this shader
 	// Usually this path is inactive because opaque materials don't have AHS bound
 	return;
-#elif MATERIALBLENDING_ALPHAHOLDOUT || MATERIALBLENDING_ADDITIVE
-	if (PackedPayload.IsPathTracingVisibilityRay())
-	{
-		// path tracer wants to treat these cases as fully transparent
-		// no material evaluation is required
-		IgnoreHit();
-	}
-	// otherwise accept hit
 #else
 	// All other blending modes _might_ need material evaluation - so we need
 	// to generate some code
@@ -625,15 +548,9 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 #endif
 		return;
 	}
-	else if (PackedPayload.IsPathTracingVisibilityRay())
-	{
-		// this case is used by the path tracer only currently
-		// We want to evaluate the material opacity and accumulate it
-		// Keep going and evaluate the material
-	}
 	else
 	{
-		// non-opaque blending mode but no special behavior was requested
+		// non-opaque blending mode, treat as opaque for now
 		return;
 	}
 #endif  // !MATERIALBLENDING_MASKED
@@ -678,107 +595,6 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	{
 		IgnoreHit();
 	}
-#else
-	// If we got this far -- we have a blending mode that can produce partial opacity _and_ we want to
-	// know how much it contributes to the throughput along this ray. These cases are currently only
-	// exercised by the path tracer.
-#if MATERIALBLENDING_MODULATE
-	// this material is the only one to lead to colored opacity
-	float3 Transparency = GetMaterialEmissive(PixelMaterialInputs);
-#elif MATERIALBLENDING_ALPHACOMPOSITE
-	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	float Transparency = 1 - Opacity;
-#elif MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	// Assume Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT
-	float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
-	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-#if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
-	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
-	Ior = Ior == 0 ? 1.0 : Ior;
-#else
-	float Ior = 1.0;
-#endif
-	float3 Transparency = 1 - Opacity;
-	float3 V = WorldRayDirection();
-	float3 N = normalize(MaterialParameters.WorldNormal);
-	float VoN = abs(dot(V, N));
-#if !SIMPLIFIED_MATERIAL_SHADER
-	if (Opacity < 1.0 && Ior != 1.0)
-	{
-		float PathRoughness = PackedPayload.GetPathRoughness();
-		float Roughness = GetMaterialRoughness(PixelMaterialInputs);
-		if (PathRoughness <= Roughness)
-		{
-			// not using fast caustic approximation - treat as opaque
-			return;
-		}
-		// compute transmission through the slab (fresnel + absorption)
-		Transparency *= ComputeThinSlabWeights(Transmission, VoN, Ior).Transmitted;
-
-		// fake caustic approximation (see comments below)
-		Transparency *= (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
-	}
-	else
-#endif
-	{
-		// no bending at the interface so no fresnel - equation above simplifies to just A
-		float3 A = pow(Transmission, 1.0 / VoN);
-		Transparency *= A;
-	}
-#elif MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK
-	float Opacity = DitheredOpacityMaskToOpacity(GetMaterialMask(PixelMaterialInputs));
-	float Transparency = 1 - Opacity;
-#elif MATERIALBLENDING_TRANSLUCENT
-	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	float Transparency = 1 - Opacity;
-#if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
-	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
-#else
-	float Ior = 1.0;
-#endif
-
-#if !SIMPLIFIED_MATERIAL_SHADER
-	// Is refraction enabled?
-	if (Transparency > 0 && Ior != 1.0)
-	{
-		float PathRoughness = PackedPayload.GetPathRoughness();
-		float Roughness = GetMaterialRoughness(PixelMaterialInputs);
-		if (PathRoughness <= Roughness)
-		{
-			// not using fast caustic approximation - treat as opaque
-			return;
-		}
-		// The heuristic used here is inspired by the following presentations:
-		//   - Kulla & Conty: Revisiting Physically Based Shading at Imageworks
-		//       https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf
-		//   - Colin Barré-Brisebois - Pica Pica & Nvidia Turing
-		//       https://www.ea.com/seed/news/siggraph-2018-picapica-nv-turing
-
-		// fake caustics
-		float3 N = normalize(MaterialParameters.WorldNormal);
-		float Eta = Ior;
-		float VoN = abs(dot(WorldRayDirection(), N));
-		float Fr = FresnelReflectance(VoN, Eta);
-		Transparency *= pow(1 - Fr, 2) * (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
-	}
-#endif
-#else
-#error "Control flow does not account for all blending modes!"
-#endif
-
-	// Update the ray throughput (it is packed simply into the payload since we don't need to carry any other information across hits)
-	float3 RayThroughput = PackedPayload.GetRayThroughput();
-
-	RayThroughput *= Transparency;
-
-	PackedPayload.SetRayThroughput(RayThroughput);
-
-	if (any(RayThroughput > 0))
-	{
-		// not at full opacity yet -- ignore the hit so we can keep going
-		IgnoreHit();
-	}
-	// If RayThroughput reached 0 -- just return which will accept the hit
 #endif // !MATERIALBLENDING_MASKED
 
 #endif // !MATERIALBLENDING_SOLID && !MATERIALBLENDING_ALPHAHOLDOUT && !MATERIALBLENDING_ADDITIVE

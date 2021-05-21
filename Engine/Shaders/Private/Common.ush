@@ -117,6 +117,17 @@ const static float3 Max111110BitsFloat3 = float3(Max11BitsFloat, Max11BitsFloat,
 	#define FORCED_TEXTURE_MIP 0.0f
 #endif
 
+#if !PIXELSHADER
+
+// These built-ins are only valid in pixel shaders.
+// Define dummy versions so that ray-tracing materials will at least compile
+#define clip(x)
+#define ddx(x) 0
+#define ddy(x) 0
+#define fwidth(x) 0
+
+#endif
+
 #ifndef USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 #define USE_RAYTRACED_TEXTURE_RAYCONE_LOD (RAYHITGROUPSHADER)
 #endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
@@ -1586,7 +1597,7 @@ bool GetGIReplaceState()
 
 bool GetRayTracingQualitySwitch()
 {
-#if RAYHITGROUPSHADER || LUMEN_CARD_CAPTURE 
+#if (RAYHITGROUPSHADER || LUMEN_CARD_CAPTURE) && !PATH_TRACING
 	return true;
 #else
 	return false;

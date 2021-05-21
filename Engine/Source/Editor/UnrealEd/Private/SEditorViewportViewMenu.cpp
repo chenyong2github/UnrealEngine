@@ -123,7 +123,11 @@ void SEditorViewportViewMenu::FillViewMenu(UToolMenu* Menu) const
 #if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
-				Section.AddMenuEntry(BaseViewportActions.PathTracingMode, UViewModeUtils::GetViewModeDisplayName(VMI_PathTracing));
+				static auto PathTracingCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PathTracing"));
+				if (PathTracingCvar && PathTracingCvar->GetValueOnAnyThread() != 0)
+				{
+					Section.AddMenuEntry(BaseViewportActions.PathTracingMode, UViewModeUtils::GetViewModeDisplayName(VMI_PathTracing));
+				}
 			}
 #endif
 

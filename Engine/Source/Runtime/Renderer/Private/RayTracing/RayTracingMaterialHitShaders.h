@@ -22,7 +22,10 @@ public:
 		FeatureLevel(InScene ? InScene->GetFeatureLevel() : ERHIFeatureLevel::SM5),
 		PassDrawRenderState(InPassDrawRenderState),
 		RayTracingMeshCommandsMode(InRayTracingMeshCommandsMode)
-	{}
+	{
+		PassDrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_One>::GetRHI());
+		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
+	}
 
 	virtual ~FRayTracingMeshProcessor() = default;
 
@@ -42,9 +45,7 @@ protected:
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
-		FMaterialShadingModelField ShadingModels,
-		const FUniformLightMapPolicy& RESTRICT LightMapPolicy,
-		const typename FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData);
+		const FUniformLightMapPolicy& RESTRICT LightMapPolicy);
 
 	template<typename PassShadersType, typename ShaderElementDataType>
 	void BuildRayTracingMeshCommands(
@@ -104,6 +105,12 @@ protected:
 	}
 
 private:
+	bool ProcessPathTracing(
+		const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
+		const FMaterial& RESTRICT MaterialResource);
 
 	bool TryAddMeshBatch(
 		const FMeshBatch& RESTRICT MeshBatch,
