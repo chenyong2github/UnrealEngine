@@ -38,17 +38,17 @@ void FBazelExecutor::Initialize(const FString& Target, const FSslCredentialsOpti
 
 FName FBazelExecutor::GetFName() const
 {
-	return FName("Horde");
+	return FName("Bazel");
 }
 
 FText FBazelExecutor::GetNameText() const
 {
-	return LOCTEXT("DefaultDisplayName", "Horde");
+	return LOCTEXT("DefaultDisplayName", "Bazel");
 }
 
 FText FBazelExecutor::GetDescriptionText() const
 {
-	return LOCTEXT("DefaultDisplayDesc", "Horde remote execution.");
+	return LOCTEXT("DefaultDisplayDesc", "Bazel remote execution.");
 }
 
 bool FBazelExecutor::CanRemoteExecute() const

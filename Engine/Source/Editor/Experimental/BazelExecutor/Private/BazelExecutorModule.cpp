@@ -37,14 +37,14 @@ void FBazelExecutorModule::StartupModule()
 		FFileHelper::LoadFileToString(SslCredentialsOptions.PemRootCerts, *PemRootCertificates);
 	}
 
-	HordeExecution.Initialize(Target, SslCredentialsOptions);
+	BazelExecution.Initialize(Target, SslCredentialsOptions);
 
-	IModularFeatures::Get().RegisterModularFeature(TEXT("RemoteExecution"), &HordeExecution);
+	IModularFeatures::Get().RegisterModularFeature(TEXT("RemoteExecution"), &BazelExecution);
 }
 
 void FBazelExecutorModule::ShutdownModule()
 {
-	IModularFeatures::Get().UnregisterModularFeature(TEXT("RemoteExecution"), &HordeExecution);
+	IModularFeatures::Get().UnregisterModularFeature(TEXT("RemoteExecution"), &BazelExecution);
 }
 
 bool FBazelExecutorModule::SupportsDynamicReloading()
