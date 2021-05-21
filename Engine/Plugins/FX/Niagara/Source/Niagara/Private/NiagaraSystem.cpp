@@ -27,6 +27,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectThreadContext.h"
 #include "ShaderCompiler.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"

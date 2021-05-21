@@ -36,6 +36,7 @@
 
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/UObjectThreadContext.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 #include "VectorVM.h"

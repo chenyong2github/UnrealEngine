@@ -40,6 +40,7 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/LinkerDiff.h"
+#include "UObject/LinkerSave.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "UObject/MetaData.h"

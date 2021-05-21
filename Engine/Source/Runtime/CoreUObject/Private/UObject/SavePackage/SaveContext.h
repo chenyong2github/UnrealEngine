@@ -12,6 +12,7 @@
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/UnversionedPropertySerialization.h"
+#include "Templates/PimplPtr.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/AsyncWorkSequence.h"
 #include "UObject/LinkerSave.h"
@@ -550,7 +551,7 @@ public:
 public:
 	ESavePackageResult Result;
 
-	TUniquePtr<FLinkerSave> Linker;
+	TPimplPtr<FLinkerSave> Linker;
 	TUniquePtr<FArchive> TextFormatArchive;
 	TUniquePtr<FArchiveFormatterType> Formatter;
 	TUniquePtr<FStructuredArchive> StructuredArchive;
