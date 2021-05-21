@@ -2745,7 +2745,8 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 					.Text(LOCTEXT("ControlRigBPViewportCompileButtonLabel", "Compile"))
 				]
 			]
-		]
+		],
+		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetCompilationStateVisibility))
 	);
 
 	InViewport->AddToolbarExtender(TEXT("AnimViewportDefaultCamera"), FMenuExtensionDelegate::CreateLambda(
