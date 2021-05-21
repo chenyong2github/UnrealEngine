@@ -1276,20 +1276,20 @@ bool FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled()
 		(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform) || (bIsMobileRenderer && (!GSupportsParallelRenderingTasksWithSeparateRHIThread && IsRunningRHIInSeparateThread())));
 }
 
-void FParallelMeshDrawCommandPass::WaitForMeshPassSetupTask() const
+void FParallelMeshDrawCommandPass::WaitForMeshPassSetupTask(EWaitThread WaitThread) const
 {
 	if (TaskEventRef.IsValid())
 	{
 		// Need to wait on GetRenderThread_Local, as mesh pass setup task can wait on rendering thread inside InitResourceFromPossiblyParallelRendering().
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_WaitForMeshPassSetupTask);
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEventRef, ENamedThreads::GetRenderThread_Local());
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEventRef, WaitThread == EWaitThread::Render ? ENamedThreads::GetRenderThread_Local() : ENamedThreads::AnyThread);
 	}
 }
 
-void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty()
+void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty(EWaitThread WaitThread)
 {
 	// Need to wait in case if someone dispatched sort and draw merge task, but didn't draw it.
-	WaitForMeshPassSetupTask();
+	WaitForMeshPassSetupTask(WaitThread);
 	TaskEventRef = nullptr;
 
 	DumpInstancingStats();

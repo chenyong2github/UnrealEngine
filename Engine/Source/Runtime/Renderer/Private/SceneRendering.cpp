@@ -980,6 +980,14 @@ void FViewInfo::Init()
 	GPUSceneViewId = INDEX_NONE;
 }
 
+void FViewInfo::WaitForTasks(FParallelMeshDrawCommandPass::EWaitThread WaitThread)
+{
+	for (int32 MeshDrawIndex = 0; MeshDrawIndex < EMeshPass::Num; MeshDrawIndex++)
+	{
+		ParallelMeshDrawCommandPasses[MeshDrawIndex].WaitForTasksAndEmpty(WaitThread);
+	}
+}
+
 FViewInfo::~FViewInfo()
 {
 	for(int32 ResourceIndex = 0;ResourceIndex < DynamicResources.Num();ResourceIndex++)
@@ -989,11 +997,6 @@ FViewInfo::~FViewInfo()
 	if (CustomVisibilityQuery)
 	{
 		CustomVisibilityQuery->Release();
-	}
-
-	for (int32 MeshDrawIndex = 0; MeshDrawIndex < EMeshPass::Num; MeshDrawIndex++)
-	{
-		ParallelMeshDrawCommandPasses[MeshDrawIndex].WaitForTasksAndEmpty();
 	}
 
 	//this uses memstack allocation for strongrefs, so we need to manually empty to get the destructor called to not leak the uniformbuffers stored here.
@@ -2064,11 +2067,10 @@ FViewInfo* FViewInfo::CreateSnapshot() const
 	return Result;
 }
 
-void FViewInfo::DestroyAllSnapshots()
+void FViewInfo::DestroyAllSnapshots(FParallelMeshDrawCommandPass::EWaitThread WaitThread)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FViewInfo_DestroyAllSnapshots);
 
-	check(IsInRenderingThread());
 	// we will only keep double the number actually used, plus a few
 	int32 NumToRemove = FreeViewInfoSnapshots.Num() - (ViewInfoSnapshots.Num() + 2);
 	if (NumToRemove > 0)
@@ -2086,7 +2088,7 @@ void FViewInfo::DestroyAllSnapshots()
 
 		for (int32 Index = 0; Index < Snapshot->ParallelMeshDrawCommandPasses.Num(); ++Index)
 		{
-			Snapshot->ParallelMeshDrawCommandPasses[Index].WaitForTasksAndEmpty();
+			Snapshot->ParallelMeshDrawCommandPasses[Index].WaitForTasksAndEmpty(WaitThread);
 		}
 
 		for (int i = 0; i < EMeshPass::Num; i++)
@@ -2329,7 +2331,6 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 ,	bHasRequestedToggleFreeze(false)
 ,	bUsedPrecomputedVisibility(false)
 ,	InstancedStereoWidth(0)
-,	RootMark(nullptr)
 ,	FamilySize(0, 0)
 ,	GPUSceneDynamicContext(CheckPointer(Scene)->GPUScene)
 ,	bShadowDepthRenderCompleted(false)
@@ -3484,88 +3485,6 @@ bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 	return false;
 }
 
-void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, bool bWaitForTasks)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer);
-
-	// we are about to destroy things that are being used for async tasks, so we wait here for them.
-	if (bWaitForTasks)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_DeleteSceneRenderer_WaitForTasks);
-		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
-	}
-
-	// Wait for all dispatched shadow mesh draw tasks.
-	for (int32 PassIndex = 0; PassIndex < SceneRenderer->DispatchedShadowDepthPasses.Num(); ++PassIndex)
-	{
-		SceneRenderer->DispatchedShadowDepthPasses[PassIndex]->WaitForTasksAndEmpty();
-	}
-
-	FViewInfo::DestroyAllSnapshots(); // this destroys viewinfo snapshots
-	static const IConsoleVariable* AsyncDispatch	= IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdAsyncRHIThreadDispatch"));
-
-	if (AsyncDispatch->GetInt() == 0)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_DeleteSceneRenderer_Dispatch);
-		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForDispatchToRHIThread); // we want to make sure this all gets to the rhi thread this frame and doesn't hang around
-	}
-
-
-	FMemMark* LocalRootMark = SceneRenderer->RootMark;
-	SceneRenderer->RootMark = nullptr;
-	// Delete the scene renderer.
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_DeleteSceneRenderer);
-		delete SceneRenderer;
-	}
-
-	// Can relase only after all mesh pass tasks are finished.
-	GPrimitiveIdVertexBufferPool.DiscardAll();
-	FGraphicsMinimalPipelineStateId::ResetLocalPipelineIdTableSize();
-
-	delete LocalRootMark;
-}
-
-class FClearSnapshotsAndDeleteSceneRendererTask
-{
-	FSceneRenderer* SceneRenderer;
-
-public:
-
-	FClearSnapshotsAndDeleteSceneRendererTask(FSceneRenderer* InSceneRenderer)
-		: SceneRenderer(InSceneRenderer)
-	{
-	}
-
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FClearSnapshotsAndDeleteSceneRendererTask, STATGROUP_TaskGraphTasks);
-	}
-
-	ENamedThreads::Type GetDesiredThread()
-	{
-		return ENamedThreads::GetRenderThread_Local();
-	}
-
-	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHICommandListExecutor::GetImmediateCommandList(), SceneRenderer, false);
-	}
-};
-
-void FSceneRenderer::DelayWaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer)
-{
-	FGraphEventArray& WaitOutstandingTasks = RHICmdList.GetRenderThreadTaskArray();
-	FGraphEventRef ClearSnapshotsAndDeleteSceneRendererTask = TGraphTask<FClearSnapshotsAndDeleteSceneRendererTask>::CreateTask(&WaitOutstandingTasks, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(SceneRenderer);
-
-	WaitOutstandingTasks.Empty();
-	WaitOutstandingTasks.Add(ClearSnapshotsAndDeleteSceneRendererTask);
-
-	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GetRenderThread_Local()); 
-}
-
 void FSceneRenderer::UpdatePrimitiveIndirectLightingCacheBuffers()
 {
 	// Use a bit array to prevent primitives from being updated more than once.
@@ -3650,13 +3569,160 @@ void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRHICommandListImmediat
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
 }
 
-
-static TAutoConsoleVariable<int32> CVarDelaySceneRenderCompletion(
-	TEXT("r.DelaySceneRenderCompletion"),
-	0,
-	TEXT("Experimental option to postpone the cleanup of the scene renderer until later. This does NOT currently work because it is possible for the scene to be modified before ~FSceneRenderer, and that assumes the scene is unchanged."),
+static int32 GSceneRenderCleanUpMode = 2;
+static FAutoConsoleVariableRef CVarSceneRenderCleanUpMode(
+	TEXT("r.SceneRenderCleanUpMode"),
+	GSceneRenderCleanUpMode,
+	TEXT("Controls when to perform clean up of the scene renderer.\n")
+	TEXT(" 0: clean up is performed immediately after render on the render thread.\n")
+	TEXT(" 1: clean up deferred until the start of the next scene render on the render thread.\n")
+	TEXT(" 2: clean up deferred until the start of the next scene render on the render thread, with some work distributed to an async task. (default)\n"),
 	ECVF_RenderThreadSafe
 );
+
+enum class ESceneRenderCleanUpMode
+{
+	Immediate,
+	Deferred,
+	DeferredAndAsync
+};
+
+inline ESceneRenderCleanUpMode GetSceneRenderCleanUpMode()
+{
+	if (GSceneRenderCleanUpMode != 1 && GSceneRenderCleanUpMode != 2)
+	{
+		return ESceneRenderCleanUpMode::Immediate;
+	}
+
+	static const IConsoleVariable* AsyncDispatch = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdAsyncRHIThreadDispatch"));
+
+	if (!AsyncDispatch->GetInt() || !IsRunningRHIInSeparateThread())
+	{
+		return ESceneRenderCleanUpMode::Immediate;
+	}
+
+	return (ESceneRenderCleanUpMode)GSceneRenderCleanUpMode;
+}
+
+static void DeleteSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, FMemMark* MemStackMark)
+{
+	static const IConsoleVariable* AsyncDispatch = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdAsyncRHIThreadDispatch"));
+
+	if (AsyncDispatch->GetInt() == 0)
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_DeleteSceneRenderer_Dispatch);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForDispatchToRHIThread); // we want to make sure this all gets to the rhi thread this frame and doesn't hang around
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(DeleteSceneRenderer);
+	delete SceneRenderer;
+	delete MemStackMark;
+
+	// Can release only after all mesh pass tasks are finished.
+	GPrimitiveIdVertexBufferPool.DiscardAll();
+	FGraphicsMinimalPipelineStateId::ResetLocalPipelineIdTableSize();
+}
+
+static void ReleaseSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, FMemMark* MemStackMark)
+{
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_DeleteSceneRenderer_WaitForTasks);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
+	}
+
+	SceneRenderer->WaitForTasksAndClearSnapshots(FParallelMeshDrawCommandPass::EWaitThread::Render);
+	DeleteSceneRenderer(RHICmdList, SceneRenderer, MemStackMark);
+}
+
+void FSceneRenderer::RenderThreadBegin(FRHICommandListImmediate& RHICmdList)
+{
+	CleanUp(RHICmdList);
+
+	FMemStackBase& MemStack = FMemStack::Get();
+	checkf(MemStack.GetNumMarks() == 0, TEXT("FSceneRenderer::RenderThreadBegin called with an active MemMark."));
+	MemStackMark = new FMemMark(MemStack);
+}
+
+struct FSceneRenderCleanUpState
+{
+	FSceneRenderer* Renderer{};
+	FMemMark* MemStackMark{};
+	FGraphEventRef Task;
+	ESceneRenderCleanUpMode CompletionMode = ESceneRenderCleanUpMode::Immediate;
+};
+
+static FSceneRenderCleanUpState GSceneRenderCleanUpState;
+
+void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList)
+{
+	check(!GSceneRenderCleanUpState.Renderer);
+
+	const ESceneRenderCleanUpMode SceneRenderCleanUpMode = GetSceneRenderCleanUpMode();
+
+	GSceneRenderCleanUpState.CompletionMode = SceneRenderCleanUpMode;
+
+	if (GSceneRenderCleanUpState.CompletionMode == ESceneRenderCleanUpMode::Immediate)
+	{
+		ReleaseSceneRenderer(RHICmdList, this, MemStackMark);
+	}
+	else
+	{
+		GSceneRenderCleanUpState.Renderer = this;
+		GSceneRenderCleanUpState.MemStackMark = MemStackMark;
+
+		if (SceneRenderCleanUpMode == ESceneRenderCleanUpMode::DeferredAndAsync)
+		{
+			FGraphEventArray& WaitOutstandingTasks = RHICmdList.GetRenderThreadTaskArray();
+
+			GSceneRenderCleanUpState.Task = FFunctionGraphTask::CreateAndDispatchWhenReady([this]
+			{
+				WaitForTasksAndClearSnapshots(FParallelMeshDrawCommandPass::EWaitThread::Task);
+
+			}, TStatId(), &WaitOutstandingTasks);
+
+			WaitOutstandingTasks.Empty();
+		}
+	}
+}
+
+void FSceneRenderer::CleanUp(FRHICommandListImmediate& RHICmdList)
+{
+	if (GSceneRenderCleanUpState.CompletionMode == ESceneRenderCleanUpMode::Immediate)
+	{
+		return;
+	}
+
+	switch (GSceneRenderCleanUpState.CompletionMode)
+	{
+	case ESceneRenderCleanUpMode::Deferred:
+		ReleaseSceneRenderer(RHICmdList, GSceneRenderCleanUpState.Renderer, GSceneRenderCleanUpState.MemStackMark);
+		break;
+	case ESceneRenderCleanUpMode::DeferredAndAsync:
+		GSceneRenderCleanUpState.Task->Wait(ENamedThreads::GetRenderThread());
+		DeleteSceneRenderer(RHICmdList, GSceneRenderCleanUpState.Renderer, GSceneRenderCleanUpState.MemStackMark);
+		break;
+	}
+
+	GSceneRenderCleanUpState = {};
+}
+
+void FSceneRenderer::WaitForTasksAndClearSnapshots(FParallelMeshDrawCommandPass::EWaitThread WaitThread)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::WaitForTasksAndClearSnapshots);
+
+	// Wait for all dispatched shadow mesh draw tasks.
+	for (int32 PassIndex = 0; PassIndex < DispatchedShadowDepthPasses.Num(); ++PassIndex)
+	{
+		DispatchedShadowDepthPasses[PassIndex]->WaitForTasksAndEmpty(WaitThread);
+	}
+
+	for (FViewInfo& View : Views)
+	{
+		View.WaitForTasks(WaitThread);
+	}
+
+	FViewInfo::DestroyAllSnapshots(WaitThread);
+}
 
 /**
  * Helper function performing actual work in render thread.
@@ -3667,26 +3733,7 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 {
 	LLM_SCOPE(ELLMTag::SceneRender);
 
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_DelaySceneRenderCompletion_TaskWait);
-		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
-	}
-
-	static const IConsoleVariable* AsyncDispatch = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdAsyncRHIThreadDispatch"));
-
-#if WITH_EDITOR
-	bool bDelayCleanup = false;
-#else
-	bool bDelayCleanup = !!AsyncDispatch->GetInt() && IsRunningRHIInSeparateThread() && !!CVarDelaySceneRenderCompletion.GetValueOnRenderThread();
-#endif
-
-	FMemMark* MemStackMark = new FMemMark(FMemStack::Get());
-
-	if (bDelayCleanup)
-	{
-		SceneRenderer->RootMark = MemStackMark;
-		MemStackMark = nullptr;
-	}
+	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
@@ -3723,7 +3770,7 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			GraphBuilder.Execute();
 
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostRenderCleanUp);
-			
+
 			if (IsHairStrandsEnabled(EHairStrandsShaderType::All, SceneRenderer->Scene->GetShaderPlatform()) && SceneRenderer->Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 			{
 				FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderer->Scene, SceneRenderer->Views);
@@ -3774,16 +3821,6 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 #endif
 
 		GRenderTargetPool.SetEventRecordingActive(false);
-
-		if (bDelayCleanup)
-		{
-			check(!MemStackMark && SceneRenderer->RootMark);
-			FSceneRenderer::DelayWaitForTasksClearSnapshotsAndDeleteSceneRenderer(RHICmdList, SceneRenderer);
-		}
-		else
-		{
-			FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(RHICmdList, SceneRenderer);
-		}
 	}
 
 #if STATS
@@ -3795,10 +3832,7 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	}
 #endif
 
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeleteMemStackMark);
-		delete MemStackMark;
-	}
+	SceneRenderer->RenderThreadEnd(RHICmdList);
 }
 
 void OnChangeSimpleForwardShading(IConsoleVariable* Var)
@@ -3984,7 +4018,6 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 			{
 				const float StartDelayMillisec = FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - DrawSceneEnqueue);
 				CSV_CUSTOM_STAT_GLOBAL(DrawSceneCommand_StartDelay, StartDelayMillisec, ECsvCustomStatOp::Set);
-
 				RenderViewFamily_RenderThread(RHICmdList, SceneRenderer);
 				FlushPendingDeleteRHIResources_RenderThread();
 			});
@@ -4009,8 +4042,9 @@ void FRendererModule::PerFrameCleanupIfSkipRenderer()
 {
 	// Some systems (e.g. Slate) can still draw (via FRendererModule::DrawTileMesh for example) when scene renderer is not used
 	ENQUEUE_RENDER_COMMAND(CmdPerFrameCleanupIfSkipRenderer)(
-		[](FRHICommandListImmediate&)
+		[](FRHICommandListImmediate& RHICmdList)
 	{
+		FSceneRenderer::CleanUp(RHICmdList);
 		GPrimitiveIdVertexBufferPool.DiscardAll();
 	});
 }
@@ -4796,6 +4830,8 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 	{
 		Scene->SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4), 7, 0);
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSkyIrradianceGpuBuffer);
 
 	FVector4 OutSkyIrradianceEnvironmentMap[7];
 	// Make sure there's no padding since we're going to cast to FVector4*

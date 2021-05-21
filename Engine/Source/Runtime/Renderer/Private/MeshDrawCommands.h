@@ -138,6 +138,12 @@ public:
 class FParallelMeshDrawCommandPass
 {
 public:
+	enum class EWaitThread
+	{
+		Render,
+		Task
+	};
+
 	FParallelMeshDrawCommandPass()
 		: bPrimitiveIdBufferDataOwnedByRHIThread(false)
 		, bHasQueuedInstanceCullingBuild(false)
@@ -192,7 +198,7 @@ public:
 	 */
 	void DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList, const FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr) const;
 
-	void WaitForTasksAndEmpty();
+	void WaitForTasksAndEmpty(EWaitThread WaitThread = EWaitThread::Render);
 	void SetDumpInstancingStats(const FString& InPassName);
 	bool HasAnyDraw() const { return MaxNumDraws > 0; }
 
@@ -225,7 +231,7 @@ private:
 	int32 MaxNumDraws;
 
 	void DumpInstancingStats() const;
-	void WaitForMeshPassSetupTask() const;
+	void WaitForMeshPassSetupTask(EWaitThread WaitThread = EWaitThread::Render) const;
 };
 
 RENDERER_API extern void SortAndMergeDynamicPassMeshDrawCommands(

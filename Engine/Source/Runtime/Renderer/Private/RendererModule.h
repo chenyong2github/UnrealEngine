@@ -127,6 +127,7 @@ private:
 	FOnPostOpaqueRender PostOpaqueRenderDelegate;
 	FOnPostOpaqueRender OverlayRenderDelegate;
 	FOnResolvedSceneColor PostResolvedSceneColorCallbacks;
+	FDelegateHandle StopRenderingThreadDelegate;
 };
 
 extern ICustomCulling* GCustomCullingImpl;

@@ -1616,7 +1616,9 @@ public:
 	FViewInfo* CreateSnapshot() const;
 
 	/** Destroy all snapshots before we wipe the scene allocator. */
-	static void DestroyAllSnapshots();
+	static void DestroyAllSnapshots(FParallelMeshDrawCommandPass::EWaitThread WaitThread);
+
+	void WaitForTasks(FParallelMeshDrawCommandPass::EWaitThread WaitThread);
 
 	// Get the range in DynamicMeshElements[] for a given PrimitiveIndex
 	// @return range (start is inclusive, end is exclusive)
@@ -1820,13 +1822,14 @@ public:
 	 */
 	uint32 InstancedStereoWidth;
 
-	/** Only used if we are going to delay the deletion of the scene renderer until later. */
-	FMemMark* RootMark;
-
 public:
 
 	FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer);
 	virtual ~FSceneRenderer();
+
+	// Initializes the scene renderer on the render thread.
+	void RenderThreadBegin(FRHICommandListImmediate& RHICmdList);
+	void RenderThreadEnd(FRHICommandListImmediate& RHICmdList);
 
 	// FSceneRenderer interface
 
@@ -1880,9 +1883,11 @@ public:
 	static void ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);
 
 	/** the last thing we do with a scene renderer, lots of cleanup related to the threading **/
-	static void WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, bool bWaitForTasks = true);
-	static void DelayWaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);
-	
+	void WaitForTasksAndClearSnapshots(FParallelMeshDrawCommandPass::EWaitThread WaitThread);
+
+	/** Called to release any deallocations that were deferred until the next render. */
+	static void CleanUp(FRHICommandListImmediate& RHICmdList);
+
 	/** Apply the ResolutionFraction on ViewSize, taking into account renderer's requirements. */
 	static FIntPoint ApplyResolutionFraction(
 		const FSceneViewFamily& ViewFamily, const FIntPoint& UnscaledViewSize, float ResolutionFraction);
@@ -2177,6 +2182,8 @@ private:
 	 * Note #2: Much more elegant if the pool itself managed this!
 	 */
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> MemStackProjectedShadows;
+
+	FMemMark* MemStackMark = nullptr;
 };
 
 struct FForwardScreenSpaceShadowMaskTextureMobileOutputs
