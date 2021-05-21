@@ -52,6 +52,10 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
 	bool bUsePayload;
 
+	/** USD format to use for exported payload files */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bUsePayload", GetOptions = GetUsdExtensions ) )
+	FString PayloadFormat;
+
 	/** Whether to use UE actor folders as empty prims */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
     bool bExportActorFolders;
@@ -84,4 +88,13 @@ public:
 	// the Python exporter, that does the actual level exporting
 	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, Category = Hidden )
 	UAssetExportTask* CurrentTask;
+
+private:
+	UFUNCTION()
+	static TArray<FString> GetUsdExtensions()
+	{
+		TArray<FString> Extensions = UnrealUSDWrapper::GetAllSupportedFileFormats();
+		Extensions.Remove( TEXT( "usdz" ) );
+		return Extensions;
+	}
 };
