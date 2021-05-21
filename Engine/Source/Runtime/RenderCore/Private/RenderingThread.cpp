@@ -794,6 +794,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ResumeTextureStreamingRenderTasks();
 }
 
+static FStopRenderingThread GStopRenderingThreadDelegate;
+
+FDelegateHandle RegisterStopRenderingThreadDelegate(const FStopRenderingThread::FDelegate& InDelegate)
+{
+	return GStopRenderingThreadDelegate.Add(InDelegate);
+}
+
+void UnregisterStopRenderingThreadDelegate(FDelegateHandle InDelegateHandle)
+{
+	GStopRenderingThreadDelegate.Remove(InDelegateHandle);
+}
 
 void StopRenderingThread()
 {
@@ -817,6 +828,8 @@ void StopRenderingThread()
 
 	if( GIsThreadedRendering )
 	{
+		GStopRenderingThreadDelegate.Broadcast();
+
 		// Get the list of objects which need to be cleaned up when the rendering thread is done with them.
 		FPendingCleanupObjects* PendingCleanupObjects = GetPendingCleanupObjects();
 

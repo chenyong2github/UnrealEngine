@@ -270,7 +270,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderPlanarReflection);
 
-	FMemMark MemStackMark(FMemStack::Get());
+	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// Make sure we render to the same set of GPUs as the main scene renderer.
 	if (MainSceneRenderer->ViewFamily.RenderTarget != nullptr)
@@ -402,7 +402,8 @@ static void UpdatePlanarReflectionContents_RenderThread(
 			}
 		}
 	}
-	FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(RHICmdList, SceneRenderer);
+
+	SceneRenderer->RenderThreadEnd(RHICmdList);
 }
 
 // Used for generate valid data to update planar reflection uniform buffer but don't actually render the reflection scene when we are using mobile pixel projected reflection.
@@ -416,8 +417,7 @@ static void UpdatePlanarReflectionContentsWithoutRendering_RenderThread(
 	const FName OwnerName)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderPlanarReflection);
-
-	FMemMark MemStackMark(FMemStack::Get());
+	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	FBox PlanarReflectionBounds = SceneProxy->WorldBounds;
 
@@ -470,7 +470,8 @@ static void UpdatePlanarReflectionContentsWithoutRendering_RenderThread(
 			SceneProxy->ViewRect[ViewIndex] = SceneRenderer->Views[ViewIndex].ViewRect;
 		}
 	}
-	FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(RHICmdList, SceneRenderer);
+
+	SceneRenderer->RenderThreadEnd(RHICmdList);
 }
 
 extern void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float OrthoWidth, float InNearClippingPlane, FMatrix& ProjectionMatrix);

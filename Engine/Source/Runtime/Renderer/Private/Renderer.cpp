@@ -57,10 +57,21 @@ void FRendererModule::StartupModule()
 	GTemporalUpscaler = ITemporalUpscaler::GetDefaultTemporalUpscaler();
 
 	FVirtualTextureSystem::Initialize();
+
+	StopRenderingThreadDelegate = RegisterStopRenderingThreadDelegate(FStopRenderingThreadDelegate::CreateLambda([this]
+	{
+		ENQUEUE_RENDER_COMMAND(FSceneRendererCleanUp)(
+			[](FRHICommandListImmediate& RHICmdList)
+		{
+			FSceneRenderer::CleanUp(RHICmdList);
+		});
+	}));
 }
 
 void FRendererModule::ShutdownModule()
 {
+	UnregisterStopRenderingThreadDelegate(StopRenderingThreadDelegate);
+
 	FVirtualTextureSystem::Shutdown();
 
 	// Free up the memory of the default denoiser. Responsibility of the plugin to free up theirs.
