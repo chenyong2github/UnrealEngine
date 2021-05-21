@@ -13,20 +13,20 @@ class UBazelExecutorSettings : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** The horde server address. */
-	UPROPERTY(Config, EditAnywhere, Category = "Horde", meta = (DisplayName = "Target", ConfigRestartRequired = true))
+	/** The Bazel server address. */
+	UPROPERTY(Config, EditAnywhere, Category = "Bazel", meta = (DisplayName = "Target", ConfigRestartRequired = true))
 	FString Target;
 	
-	/** The horde PEM certificate chain". */
-	UPROPERTY(Config, EditAnywhere, Category = "Horde", meta = (DisplayName = "PEM Certificate Chain", ConfigRestartRequired = true))
+	/** The Bazel PEM certificate chain". */
+	UPROPERTY(Config, EditAnywhere, Category = "Bazel", meta = (DisplayName = "PEM Certificate Chain", ConfigRestartRequired = true))
 	FString PemCertificateChain;
 
-	/** The horde PEM private key". */
-	UPROPERTY(Config, EditAnywhere, Category = "Horde", meta = (DisplayName = "PEM Private Key", ConfigRestartRequired = true))
+	/** The Bazel PEM private key". */
+	UPROPERTY(Config, EditAnywhere, Category = "Bazel", meta = (DisplayName = "PEM Private Key", ConfigRestartRequired = true))
 	FString PemPrivateKey;
 
-	/** The horde pem root certificates. */
-	UPROPERTY(Config, EditAnywhere, Category = "Horde", meta = (DisplayName = "PEM Root Certificates", ConfigRestartRequired = true))
+	/** The Bazel pem root certificates. */
+	UPROPERTY(Config, EditAnywhere, Category = "Bazel", meta = (DisplayName = "PEM Root Certificates", ConfigRestartRequired = true))
 	FString PemRootCertificates;
 
 };
