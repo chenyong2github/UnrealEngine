@@ -6,7 +6,6 @@
 #include "Components/ChildActorComponent.h"
 
 class UToolMenu;
-class SSCSEditor;
 class FSCSEditorTreeNode;
 
 class UNREALED_API FChildActorComponentEditorUtils

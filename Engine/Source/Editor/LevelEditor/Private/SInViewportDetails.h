@@ -19,7 +19,6 @@ class FTabManager;
 class FUICommandList;
 class IDetailsView;
 class SBox;
-class SSCSEditor;
 class SSplitter;
 class UBlueprint;
 class FDetailsViewObjectFilter;
