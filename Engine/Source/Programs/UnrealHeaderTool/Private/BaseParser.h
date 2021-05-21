@@ -17,6 +17,8 @@ enum class EPointerMemberBehavior
 	AllowAndLog,
 };
 
+using FMetaData = TMap<FName, FString>;
+
 /////////////////////////////////////////////////////
 // UHTConfig
 
@@ -171,6 +173,7 @@ public:
 	bool GetRawTokenRespectingQuotes( FToken& Token, TCHAR StopChar = TCHAR('\n') );
 
 	void UngetToken( const FToken& Token );
+	void UngetToken(int32 StartLine, int32 StartPos);
 	bool GetIdentifier( FToken& Token, bool bNoConsts = false );
 	bool GetSymbol( FToken& Token );
 
@@ -185,11 +188,9 @@ public:
 	bool GetConstInt64(int64& Result, const TCHAR* Tag = NULL);
 
 	// Matching predefined text.
-	bool MatchIdentifierByName( FName Match );
 	bool MatchIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase);
 	bool MatchConstInt( const TCHAR* Match );
 	bool MatchAnyConstInt();
-	bool PeekIdentifierByName( FName Match );
 	bool PeekIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase);
 	bool MatchSymbol( const TCHAR Match, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal );
 	bool MatchSymbol(const TCHAR* Match, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal);

@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Templates/SharedPointer.h"
 #include "ClassDeclarationMetaData.h"
+#include "Exceptions.h"
+#include "Templates/SharedPointer.h"
 #include <atomic>
 
 #include "ParserHelper.h" // TEMPORARY
@@ -260,6 +261,14 @@ public:
 	}
 
 	/**
+	 * Sets the input line in the rare case where the definition is created before fully parsed (sparse delegates)
+	 */
+	void SetLineNumber(int32 InLineNumber)
+	{
+		LineNumber = InLineNumber;
+	}
+
+	/**
 	 * Gets the reference to FUnrealSourceFile object that stores information about
 	 * source file this type was defined in.
 	 */
@@ -290,6 +299,14 @@ public:
 	 */
 	void GetHashTag(FUHTStringBuilder& Out) const;
 
+	/**
+	 * Add meta data for the given definition
+	 */
+	virtual void AddMetaData(TMap<FName, FString>&& InMetaData)
+	{
+		FUHTException::Throwf(*this, TEXT("Meta data can not be set for a definition of this type."));
+	}
+
 protected:
 	explicit FUnrealTypeDefinitionInfo(FString&& InNameCPP)
 		: NameCPP(MoveTemp(InNameCPP))
@@ -311,25 +328,14 @@ private:
 /**
  * Class that stores information about type definitions derived from UProperty
  */
-class FUnrealPropertyDefinitionInfo 
+class FUnrealPropertyDefinitionInfo
 	: public FUnrealTypeDefinitionInfo
 {
 public:
-	FUnrealPropertyDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FProperty* InProperty)
-		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, FString())
-		, Property(InProperty)
-	{ }
-
-	FUnrealPropertyDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FProperty* InProperty, bool bInUnsized)
-		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, FString())
-		, Property(InProperty)
-		, bUnsized(bInUnsized)
-	{ }
-
-	FUnrealPropertyDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FProperty* InProperty, EAllocatorType InAllocatorType)
-		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, FString())
-		, Property(InProperty)
-		, AllocatorType(InAllocatorType)
+	FUnrealPropertyDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, int32 InParsePosition, const FPropertyBase& InVarProperty, FString&& InNameCPP)
+		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
+		, PropertyBase(InVarProperty)
+		, ParsePosition(InParsePosition)
 	{ }
 
 	virtual FUnrealPropertyDefinitionInfo* AsProperty() override
@@ -352,6 +358,14 @@ public:
 	{
 		check(Property);
 		return Property;
+	}
+
+	/**
+	 * Sets the engine type
+	 */
+	void SetProperty(FProperty* InProperty)
+	{
+		Property = InProperty;
 	}
 
 	/**
@@ -380,6 +394,14 @@ public:
 	}
 
 	/**
+	 * Set the unsized flag
+	 */
+	void SetUnsized(bool bInUnsized)
+	{
+		bUnsized = bInUnsized;
+	}
+
+	/**
 	 * Return the allocator type
 	 */
 	EAllocatorType GetAllocatorType() const
@@ -388,21 +410,104 @@ public:
 	}
 
 	/**
+	 * Set the allocator type
+	 */
+	void SetAllocatorType(EAllocatorType InAllocatorType)
+	{
+		AllocatorType = InAllocatorType;
+	}
+
+	/**
 	 * Return the token associated with the property parsing
 	 */
-	FToken& GetToken()
+	FPropertyBase& GetPropertyBase()
 	{
-		return Token;
+		return PropertyBase;
 	}
-	const FToken& GetToken() const
+	const FPropertyBase& GetPropertyBase() const
 	{
-		return Token;
+		return PropertyBase;
+	}
+
+	/**
+	 * Add meta data for the given definition
+	 */
+	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override;
+
+	/**
+	 * Get the associated key property definition (valid for maps)
+	 */
+	FUnrealPropertyDefinitionInfo& GetKeyPropDef() const
+	{
+		check(KeyPropDef);
+		return *KeyPropDef;
+	}
+
+	/**
+	 * Sets the associated key property definition (valid for maps)
+	 */
+	void SetKeyPropDef(FUnrealPropertyDefinitionInfo& InKeyPropDef)
+	{
+		check(KeyPropDef == nullptr);
+		KeyPropDef = &InKeyPropDef;
+	}
+
+	/**
+	 * Get the associated value property definition (valid for maps, sets, and dynamic arrays)
+	 */
+	FUnrealPropertyDefinitionInfo& GetValuePropDef() const
+	{
+		check(ValuePropDef);
+		return *ValuePropDef;
+	}
+
+	/**
+	 * Sets the associated value property definition (valid for maps, sets, and dynamic arrays)
+	 */
+	void SetValuePropDef(FUnrealPropertyDefinitionInfo& InValuePropDef)
+	{
+		check(ValuePropDef == nullptr);
+		ValuePropDef = &InValuePropDef;
+	}
+
+	/**
+	 * Get the parsing position of the property
+	 */
+	int32 GetParsePosition() const
+	{
+		return ParsePosition;
+	}
+
+	/**
+	 * Determines whether this property's type is compatible with another property's type.
+	 *
+	 * @param	Other							the property to check against this one.
+	 *											Given the following example expressions, VarA is Other and VarB is 'this':
+	 *												VarA = VarB;
+	 *
+	 *												function func(type VarB) {}
+	 *												func(VarA);
+	 *
+	 *												static operator==(type VarB_1, type VarB_2) {}
+	 *												if ( VarA_1 == VarA_2 ) {}
+	 *
+	 * @param	bDisallowGeneralization			controls whether it should be considered a match if this property's type is a generalization
+	 *											of the other property's type (or vice versa, when dealing with structs
+	 * @param	bIgnoreImplementedInterfaces	controls whether two types can be considered a match if one type is an interface implemented
+	 *											by the other type.
+	 */
+	bool MatchesType(const FUnrealPropertyDefinitionInfo& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces = false) const
+	{
+		return GetPropertyBase().MatchesType(Other.GetPropertyBase(), bDisallowGeneralization, bIgnoreImplementedInterfaces);
 	}
 
 private:
-	FToken Token;
+	FPropertyBase PropertyBase;
 	FString ArrayDimensions;
+	FUnrealPropertyDefinitionInfo* KeyPropDef = nullptr;
+	FUnrealPropertyDefinitionInfo* ValuePropDef = nullptr;
 	FProperty* Property = nullptr;
+	int32 ParsePosition;
 	EAllocatorType AllocatorType = EAllocatorType::Default;
 	bool bUnsized = false;
 };
@@ -439,10 +544,27 @@ public:
 		Object = InObject;
 	}
 
+	/**
+	 * Return the "outer" object that contains the definition for this object
+	 */
+	FUnrealObjectDefinitionInfo* GetOuter() const
+	{
+		return Outer;
+	}
+
 protected:
-	using FUnrealTypeDefinitionInfo::FUnrealTypeDefinitionInfo;
+	// Used only by packages
+	explicit FUnrealObjectDefinitionInfo(FString&& InNameCPP)
+		: FUnrealTypeDefinitionInfo(MoveTemp(InNameCPP))
+	{ }
+
+	FUnrealObjectDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FUnrealObjectDefinitionInfo& InOuter)
+		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
+		, Outer(&InOuter)
+	{ }
 
 private:
+	FUnrealObjectDefinitionInfo* Outer = nullptr;
 	UObject* Object = nullptr;
 };
 
@@ -637,6 +759,11 @@ public:
 		return ExternDecl[bRequiresValidObject];
 	}
 
+	/**
+	 * Add meta data for the given definition
+	 */
+	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override;
+
 private:
 	FString SingletonName[2];
 	FString SingletonNameChopped[2];
@@ -649,9 +776,7 @@ private:
 class FUnrealEnumDefinitionInfo : public FUnrealFieldDefinitionInfo
 {
 public:
-	FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
-		: FUnrealFieldDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
-	{ }
+	FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP);
 
 	virtual FUnrealEnumDefinitionInfo* AsEnum() override
 	{
@@ -746,21 +871,35 @@ public:
 	/**
 	 * Add a new property to the structure
 	 */
-	virtual void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
-	{
-		Properties.Add(&PropertyDef);
-	}
+	virtual void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef);
 
 	/**
 	 * Get the collection of properties
 	 */
-	const TArray<FUnrealPropertyDefinitionInfo*> GetProperties() const
+	const TArray<FUnrealPropertyDefinitionInfo*>& GetProperties() const
 	{
 		return Properties;
 	}
-	TArray<FUnrealPropertyDefinitionInfo*> GetParameters()
+	TArray<FUnrealPropertyDefinitionInfo*>& GetProperties()
 	{
 		return Properties;
+	}
+
+	/**
+	 * Add a new function to the structure
+	 */
+	virtual void AddFunction(FUnrealFunctionDefinitionInfo& FunctionDef);
+
+	/**
+	 * Get the collection of functions
+	 */
+	const TArray<FUnrealFunctionDefinitionInfo*>& GetFunctions() const
+	{
+		return Functions;
+	}
+	TArray<FUnrealFunctionDefinitionInfo*>& GetFunctions()
+	{
+		return Functions;
 	}
 
 	/**
@@ -774,14 +913,55 @@ public:
 	/**
 	 * Return the super class information
 	 */
+	const FBaseClassInfo& GetSuperClassInfo() const
+	{
+		return SuperClassInfo;
+	}
+
 	FBaseClassInfo& GetSuperClassInfo()
 	{
 		return SuperClassInfo;
 	}
 
+	const TArray<FBaseClassInfo>& GetBaseClassInfo() const
+	{
+		return BaseClassInfo;
+	}
+
 	TArray<FBaseClassInfo>& GetBaseClassInfo()
 	{
 		return BaseClassInfo;
+	}
+
+	/**
+	 * Get the contains delegates flag
+	 */
+	bool ContainsDelegates() const
+	{
+		return bContainsDelegates;
+	}
+
+	/**
+	 * Sets contains delegates flag for this class.
+	 */
+	void MarkContainsDelegate()
+	{
+		bContainsDelegates = true;
+	}
+
+	/**
+	 * Test to see if this struct is a child of another struct
+	 */
+	bool IsChildOf(FUnrealStructDefinitionInfo& ParentStruct) const
+	{
+		for (const FUnrealStructDefinitionInfo* Current = this; Current; Current = Current->GetSuperClassInfo().Struct)
+		{
+			if (Current == &ParentStruct)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 private:
@@ -790,9 +970,15 @@ private:
 	/** Properties of the structure */
 	TArray<FUnrealPropertyDefinitionInfo*> Properties;
 
+	/** Functions of the structure */
+	TArray<FUnrealFunctionDefinitionInfo*> Functions;
+
 	FStructMetaData StructMetaData;
 	FBaseClassInfo SuperClassInfo;
 	TArray<FBaseClassInfo> BaseClassInfo;
+
+	/** whether this struct declares delegate functions or properties */
+	bool bContainsDelegates = false;
 };
 
 /**
@@ -801,9 +987,7 @@ private:
 class FUnrealScriptStructDefinitionInfo : public FUnrealStructDefinitionInfo
 {
 public:
-	FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
-		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
-	{ }
+	FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP);
 
 	virtual FUnrealScriptStructDefinitionInfo* AsScriptStruct() override
 	{
@@ -835,8 +1019,8 @@ public:
 class FUnrealFunctionDefinitionInfo : public FUnrealStructDefinitionInfo
 {
 public:
-	FUnrealFunctionDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FFuncInfo&& InFuncInfo)
-		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
+	FUnrealFunctionDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FUnrealObjectDefinitionInfo& InOuter, FFuncInfo&& InFuncInfo)
+		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InOuter)
 		, FunctionData(MoveTemp(InFuncInfo))
 	{ }
 
@@ -868,35 +1052,12 @@ public:
 	FUnrealPropertyDefinitionInfo* GetReturn() const { return ReturnProperty; }
 	//@}
 
-	void UpdateFunctionData(FFuncInfo& UpdatedFuncData)
-	{
-		//@TODO: UCREMOVAL: Some more thorough evaluation should be done here
-		FunctionData.FunctionFlags |= UpdatedFuncData.FunctionFlags;
-		FunctionData.FunctionExportFlags |= UpdatedFuncData.FunctionExportFlags;
-	}
-
 	/**
 	 * Adds a new function property to be tracked.  Determines whether the property is a
 	 * function parameter, local property, or return value, and adds it to the appropriate
 	 * list
-	 *
-	 * @param	PropertyToken	the property to add
 	 */
-	virtual void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef) override
-	{
-		const FProperty* Prop = PropertyDef.GetProperty();
-		check((Prop->PropertyFlags & CPF_Parm) != 0);
-
-		if ((Prop->PropertyFlags & CPF_ReturnParm) != 0)
-		{
-			check(ReturnProperty == nullptr);
-			ReturnProperty = &PropertyDef;
-		}
-		else
-		{
-			FUnrealStructDefinitionInfo::AddProperty(PropertyDef);
-		}
-	}
+	virtual void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef) override;
 
 	/**
 	 * Sets the specified function export flags
@@ -931,15 +1092,7 @@ class FUnrealClassDefinitionInfo
 	, public FClassDeclarationMetaData
 {
 public:
-	FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, bool bInIsInterface)
-		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
-		, bIsInterface(bInIsInterface)
-	{
-		if (bInIsInterface)
-		{
-			GetStructMetaData().ParsedInterface = EParsedInterface::ParsedUInterface;
-		}
-	}
+	FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, bool bInIsInterface);
 
 	FUnrealClassDefinitionInfo(FString&& InNameCPP)
 		: FUnrealStructDefinitionInfo(MoveTemp(InNameCPP))
@@ -971,6 +1124,15 @@ public:
 	UClass* GetClass() const
 	{
 		return static_cast<UClass*>(GetObject());
+	}
+
+	FUnrealClassDefinitionInfo* GetSuperClass() const
+	{
+		if (FUnrealStructDefinitionInfo* SuperClass = GetSuperClassInfo().Struct)
+		{
+			return &SuperClass->AsClassChecked();
+		}
+		return nullptr;
 	}
 
 	/**
@@ -1013,8 +1175,372 @@ public:
 		return bIsInterface;
 	}
 
+	/**
+	 * Used to safely check whether the passed in flag is set.
+	 *
+	 * @param	FlagsToCheck		Class flag(s) to check for
+	 * @return	true if the passed in flag is set, false otherwise
+	 *			(including no flag passed in, unless the FlagsToCheck is CLASS_AllFlags)
+	 */
+	FORCEINLINE bool HasAnyClassFlags(EClassFlags FlagsToCheck) const
+	{
+		return EnumHasAnyFlags(ClassFlags, FlagsToCheck) != 0 || GetClass()->HasAnyClassFlags(FlagsToCheck);
+	}
+
+	/**
+	 * Used to safely check whether all of the passed in flags are set.
+	 *
+	 * @param FlagsToCheck	Class flags to check for
+	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
+	 */
+	FORCEINLINE bool HasAllClassFlags(EClassFlags FlagsToCheck) const
+	{
+		return EnumHasAllFlags(ClassFlags, FlagsToCheck) || GetClass()->HasAllClassFlags(FlagsToCheck);
+	}
+
+	/**
+	 * Gets the class flags.
+	 *
+	 * @return	The class flags.
+	 */
+	FORCEINLINE EClassFlags GetClassFlags() const
+	{
+		return ClassFlags;
+	}
+
+	/**
+	 * Used to safely check whether the passed in flag is set in the whole hierarchy
+	 *
+	 * @param	FlagsToCheck		Class flag(s) to check for
+	 * @return	true if the passed in flag is set, false otherwise
+	 *			(including no flag passed in, unless the FlagsToCheck is CLASS_AllFlags)
+	 */
+	bool HierarchyHasAnyClassFlags(EClassFlags FlagsToCheck) const
+	{
+		for (const FUnrealClassDefinitionInfo* ClassDef = this; ClassDef; ClassDef = ClassDef->GetSuperClass())
+		{
+			if (ClassDef->HasAnyClassFlags(FlagsToCheck))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Used to safely check whether the passed in flag is set in the whole hierarchy
+	 *
+	 * @param	Class				Class to check
+	 * @param	FlagsToCheck		Class flag(s) to check for
+	 * @return	true if the passed in flag is set, false otherwise
+	 *			(including no flag passed in, unless the FlagsToCheck is CLASS_AllFlags)
+	 */
+	static bool HierarchyHasAnyClassFlags(UClass* Class, EClassFlags FlagsToCheck);
+
+	/**
+	 * Used to safely check whether all of the passed in flags are set.
+	 *
+	 * @param FlagsToCheck	Class flags to check for
+	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
+	 */
+	bool HierarchyHasAllClassFlags(EClassFlags FlagsToCheck) const
+	{
+		for (const FUnrealClassDefinitionInfo* ClassDef = this; ClassDef; ClassDef = ClassDef->GetSuperClass())
+		{
+			if (ClassDef->HasAllClassFlags(FlagsToCheck))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+	/**
+	 * Used to safely check whether all of the passed in flags are set.
+	 *
+	 * @param	Class				Class to check
+	 * @param FlagsToCheck	Class flags to check for
+	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
+	 */
+	static bool HierarchyHasAllClassFlags(UClass* Class, EClassFlags FlagsToCheck);
+
 private:
 	FString EnclosingDefine;
 	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
 	bool bIsInterface = false;
 };
+
+template <typename To>
+struct FUHTCastImplTo
+{};
+
+template <>
+struct FUHTCastImplTo<FUnrealTypeDefinitionInfo>
+{
+	template <typename From>
+	static FUnrealTypeDefinitionInfo* CastImpl(From& Src)
+	{
+		return &Src;
+	}
+
+	template <>
+	static FUnrealTypeDefinitionInfo* CastImpl(FUnrealTypeDefinitionInfo& Src)
+	{
+		return &Src;
+	}
+};
+
+#define UHT_CAST_IMPL(TypeName, RoutineName) \
+	template <> \
+	struct FUHTCastImplTo<TypeName> \
+	{ \
+		template <typename From> \
+		static TypeName* CastImpl(From& Src) \
+		{ \
+			return Src.RoutineName(); \
+		} \
+		template <> \
+		static TypeName* CastImpl(TypeName& Src) \
+		{ \
+			return &Src; \
+		} \
+	};
+
+UHT_CAST_IMPL(FUnrealPropertyDefinitionInfo, AsProperty);
+UHT_CAST_IMPL(FUnrealObjectDefinitionInfo, AsObject);
+UHT_CAST_IMPL(FUnrealPackageDefinitionInfo, AsPackage);
+UHT_CAST_IMPL(FUnrealFieldDefinitionInfo, AsField);
+UHT_CAST_IMPL(FUnrealEnumDefinitionInfo, AsEnum);
+UHT_CAST_IMPL(FUnrealStructDefinitionInfo, AsStruct);
+UHT_CAST_IMPL(FUnrealScriptStructDefinitionInfo, AsScriptStruct);
+UHT_CAST_IMPL(FUnrealClassDefinitionInfo, AsClass);
+UHT_CAST_IMPL(FUnrealFunctionDefinitionInfo, AsFunction);
+
+#undef UHT_CAST_IMPL
+
+template <typename To, typename From>
+To* UHTCast(TSharedRef<From>* Src)
+{
+	return Src ? FUHTCastImplTo<To>::template CastImpl<From>(**Src) : nullptr;
+}
+
+template <typename To, typename From>
+To* UHTCast(TSharedRef<From>& Src)
+{
+	return FUHTCastImplTo<To>::template CastImpl<From>(*Src);
+}
+
+template <typename To, typename From>
+To* UHTCast(From* Src)
+{
+	return Src ? FUHTCastImplTo<To>::template CastImpl<From>(*Src) : nullptr;
+}
+
+template <typename To, typename From>
+const To* UHTCast(const From* Src)
+{
+	return Src ? FUHTCastImplTo<To>::template CastImpl<From>(const_cast<From&>(*Src)) : nullptr;
+}
+
+template <typename To, typename From>
+To* UHTCast(From& Src)
+{
+	return FUHTCastImplTo<To>::template CastImpl<From>(Src);
+}
+
+template <typename To, typename From>
+const To* UHTCast(const From& Src)
+{
+	return FUHTCastImplTo<To>::template CastImpl<From>(const_cast<From&>(Src));
+}
+
+template <typename To, typename From>
+To& UHTCastChecked(TSharedRef<From>* Src)
+{
+	To* Dst = UHTCast<To, From>(Src);
+	check(Dst);
+	return *Dst;
+}
+
+template <typename To, typename From>
+To& UHTCastChecked(TSharedRef<From>& Src)
+{
+	To* Dst = UHTCast<To, From>(Src);
+	check(Dst);
+	return *Dst;
+}
+
+template <typename To, typename From>
+To& UHTCastChecked(From* Src)
+{
+	To* Dst = UHTCast<To, From>(Src);
+	check(Dst);
+	return *Dst;
+}
+
+template <typename To, typename From>
+const To& UHTCastChecked(const From* Src)
+{
+	const To* Dst = UHTCast<To, From>(Src);
+	check(Dst);
+	return *Dst;
+}
+
+template <typename To, typename From>
+To& UHTCastChecked(From& Src)
+{
+	To* Dst = UHTCast<To, From>(Src);
+	check(Dst);
+	return *Dst;
+}
+
+template <typename To, typename From>
+const To& UHTCastChecked(const From& Src)
+{
+	const To* Dst = UHTCast<To, From>(Src);
+	check(Dst);
+	return *Dst;
+}
+
+template <class T>
+const TArray<T*>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef);
+
+template <>
+inline const TArray<FUnrealPropertyDefinitionInfo*>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef)
+{
+	return InStructDef.GetProperties();
+}
+
+template <>
+inline const TArray<FUnrealFunctionDefinitionInfo*>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef)
+{
+	return InStructDef.GetFunctions();
+}
+
+//
+// For iterating through a linked list of fields.
+//
+template <class T>
+class TUHTFieldIterator
+{
+private:
+	/** The object being searched for the specified field */
+	const FUnrealStructDefinitionInfo* StructDef;
+	/** The current location in the list of fields being iterated */
+	T* const* Field;
+	T* const* End;
+	/** Whether to include the super class or not */
+	const bool bIncludeSuper;
+
+public:
+	TUHTFieldIterator(const FUnrealStructDefinitionInfo* InStructDef, EFieldIteratorFlags::SuperClassFlags InSuperClassFlags = EFieldIteratorFlags::IncludeSuper)
+		: StructDef(InStructDef)
+		, Field(UpdateRange(InStructDef))
+		, bIncludeSuper(InSuperClassFlags == EFieldIteratorFlags::IncludeSuper)
+	{
+		IterateToNext();
+	}
+
+	TUHTFieldIterator(const TUHTFieldIterator& rhs) = default;
+
+	/** conversion to "bool" returning true if the iterator is valid. */
+	FORCEINLINE explicit operator bool() const
+	{
+		return Field != NULL;
+	}
+	/** inverse of the "bool" operator */
+	FORCEINLINE bool operator !() const
+	{
+		return !(bool)*this;
+	}
+
+	inline friend bool operator==(const TUHTFieldIterator<T>& Lhs, const TUHTFieldIterator<T>& Rhs) { return Lhs.Field == Rhs.Field; }
+	inline friend bool operator!=(const TUHTFieldIterator<T>& Lhs, const TUHTFieldIterator<T>& Rhs) { return Lhs.Field != Rhs.Field; }
+
+	inline void operator++()
+	{
+		checkSlow(Field != End);
+		++Field;
+		IterateToNext();
+	}
+	inline T* operator*()
+	{
+		checkSlow(Field != End);
+		return *Field;
+	}
+	inline const T* operator*() const
+	{
+		checkSlow(Field != End);
+		return *Field;
+	}
+	inline T* operator->()
+	{
+		checkSlow(Field != End);
+		return *Field;
+	}
+	inline const FUnrealStructDefinitionInfo* GetStructDef()
+	{
+		return StructDef;
+	}
+protected:
+	inline T* const * UpdateRange(const FUnrealStructDefinitionInfo* InStructDef)
+	{
+		if (InStructDef)
+		{
+			auto& Array = GetFieldsFromDef<T>(*InStructDef);
+			T* const * Out = Array.GetData();
+			End = Out + Array.Num();
+			return Out;
+		}
+		else
+		{
+			End = nullptr;
+			return nullptr;
+		}
+	}
+
+	inline void IterateToNext()
+	{
+		T* const * CurrentField = Field;
+		const FUnrealStructDefinitionInfo* CurrentStructDef = StructDef;
+
+		while (CurrentStructDef)
+		{
+			if (CurrentField != End)
+			{
+				StructDef = CurrentStructDef;
+				Field = CurrentField;
+				return;
+			}
+
+			if (bIncludeSuper)
+			{
+				CurrentStructDef = CurrentStructDef->GetSuperClassInfo().Struct;
+				if (CurrentStructDef)
+				{
+					CurrentField = UpdateRange(CurrentStructDef);
+					continue;
+				}
+			}
+
+			break;
+		}
+
+		StructDef = CurrentStructDef;
+		Field = nullptr;
+	}
+};
+
+template <typename T>
+struct TUHTFieldRange
+{
+	TUHTFieldRange(const FUnrealStructDefinitionInfo& InStruct, EFieldIteratorFlags::SuperClassFlags InSuperClassFlags = EFieldIteratorFlags::IncludeSuper)
+		: Begin(&InStruct, InSuperClassFlags)
+	{
+	}
+
+	friend TUHTFieldIterator<T> begin(const TUHTFieldRange& Range) { return Range.Begin; }
+	friend TUHTFieldIterator<T> end(const TUHTFieldRange& Range) { return TUHTFieldIterator<T>(nullptr); }
+
+	TUHTFieldIterator<T> Begin;
+};
+

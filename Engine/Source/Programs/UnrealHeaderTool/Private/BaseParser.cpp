@@ -377,7 +377,6 @@ bool FBaseParser::IsWhitespace( TCHAR c )
 // Gets the next token from the input stream, advancing the variables which keep track of the current input position and line.
 bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
 {
-	Token.ClearTokenName();
 	TCHAR c = GetLeadingChar();
 	if( c == 0 )
 	{
@@ -831,27 +830,6 @@ bool FBaseParser::MatchSymbol(const TCHAR* Match, ESymbolParseOption bParseTempl
 	return false;
 }
 
-//
-// Get a specific identifier and return 1 if gotten, 0 if not.
-// This is used primarily for checking for required symbols during compilation.
-//
-bool FBaseParser::MatchIdentifierByName( FName Match )
-{
-	FToken Token;
-	if (!GetToken(Token))
-	{
-		return false;
-	}
-
-	if ((Token.TokenType == TOKEN_Identifier) && (Token.GetTokenName() == Match))
-	{
-		return true;
-	}
-
-	UngetToken(Token);
-	return false;
-}
-
 bool FBaseParser::MatchIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase)
 {
 	FToken Token;
@@ -875,7 +853,7 @@ bool FBaseParser::MatchConstInt( const TCHAR* Match )
 	FToken Token;
 	if (GetToken(Token))
 	{
-		if( Token.TokenType==TOKEN_Const && (Token.Type == CPT_Int || Token.Type == CPT_Int64) && FCString::Strcmp(Token.Identifier,Match)==0 )
+		if( Token.TokenType==TOKEN_Const && (Token.ConstantType == CPT_Int || Token.ConstantType == CPT_Int64) && FCString::Strcmp(Token.Identifier,Match)==0 )
 		{
 			return true;
 		}
@@ -893,7 +871,7 @@ bool FBaseParser::MatchAnyConstInt()
 	FToken Token;
 	if (GetToken(Token))
 	{
-		if( Token.TokenType==TOKEN_Const && (Token.Type == CPT_Int || Token.Type == CPT_Int64) )
+		if( Token.TokenType==TOKEN_Const && (Token.ConstantType == CPT_Int || Token.ConstantType == CPT_Int64) )
 		{
 			return true;
 		}
@@ -941,17 +919,6 @@ bool FBaseParser::PeekSymbol( const TCHAR Match )
 //
 // Peek ahead and see if an identifier follows in the stream.
 //
-bool FBaseParser::PeekIdentifierByName( FName Match )
-{
-	FToken Token;
-	if (!GetToken(Token, true))
-	{
-		return false;
-	}
-	UngetToken(Token);
-	return Token.TokenType==TOKEN_Identifier && Token.GetTokenName()==Match;
-}
-
 bool FBaseParser::PeekIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase)
 {
 	FToken Token;
@@ -970,6 +937,12 @@ void FBaseParser::UngetToken( const FToken& Token )
 {
 	InputPos = Token.StartPos;
 	InputLine = Token.StartLine;
+}
+
+void FBaseParser::UngetToken(int32 StartLine, int32 StartPos)
+{
+	InputLine = StartLine;
+	InputPos = StartPos;
 }
 
 //
