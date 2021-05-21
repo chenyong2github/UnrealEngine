@@ -367,33 +367,37 @@ namespace Electra
 				TSharedPtrTS<ITimelineMediaAsset> Asset = CurrentPlayPeriodVideo->GetMediaAsset();
 				if (Asset.IsValid())
 				{
-					CurrentVideoAdaptationSetID.Empty();
+					CurrentVideoAdaptationSetID = InCurrentPlayPeriod->GetSelectedAdaptationSetID(InStreamType);
 					StreamInformationVideo.Empty();
 					// Get video stream information
-					if (Asset->GetNumberOfAdaptationSets(InStreamType) > 0)
+					if (!CurrentVideoAdaptationSetID.IsEmpty())
 					{
-						TSharedPtrTS<IPlaybackAssetAdaptationSet> Adapt = Asset->GetAdaptationSetByTypeAndIndex(InStreamType, 0);
-						if (Adapt.IsValid())
+						for(int32 nA=0, maxA=Asset->GetNumberOfAdaptationSets(InStreamType); nA<maxA; ++nA)
 						{
-							CurrentVideoAdaptationSetID = Adapt->GetUniqueIdentifier();
-							for(int32 i=0, iMax=Adapt->GetNumberOfRepresentations(); i<iMax; ++i)
+							TSharedPtrTS<IPlaybackAssetAdaptationSet> Adapt = Asset->GetAdaptationSetByTypeAndIndex(InStreamType, nA);
+							if (CurrentVideoAdaptationSetID.Equals(Adapt->GetUniqueIdentifier()))
 							{
-								TSharedPtrTS<IPlaybackAssetRepresentation> Repr = Adapt->GetRepresentationByIndex(i);
-								TSharedPtrTS<FStreamInformation> si = MakeSharedTS<FStreamInformation>();
-								si->AdaptationSetUniqueID = Adapt->GetUniqueIdentifier();
-								si->RepresentationUniqueID = Repr->GetUniqueIdentifier();
-								si->Bitrate = Repr->GetBitrate();
-								if (Repr->GetCodecInformation().IsVideoCodec())
+								for(int32 i=0, iMax=Adapt->GetNumberOfRepresentations(); i<iMax; ++i)
 								{
-									si->Resolution = Repr->GetCodecInformation().GetResolution();
+									TSharedPtrTS<IPlaybackAssetRepresentation> Repr = Adapt->GetRepresentationByIndex(i);
+									TSharedPtrTS<FStreamInformation> si = MakeSharedTS<FStreamInformation>();
+									si->AdaptationSetUniqueID = Adapt->GetUniqueIdentifier();
+									si->RepresentationUniqueID = Repr->GetUniqueIdentifier();
+									si->Bitrate = Repr->GetBitrate();
+									if (Repr->GetCodecInformation().IsVideoCodec())
+									{
+										si->Resolution = Repr->GetCodecInformation().GetResolution();
+									}
+									StreamInformationVideo.Push(si);
 								}
-								StreamInformationVideo.Push(si);
+								// Sort the representations by ascending bitrate
+								StreamInformationVideo.Sort([](const TSharedPtrTS<FStreamInformation>& a, const TSharedPtrTS<FStreamInformation>& b)
+								{
+									return a->Bitrate < b->Bitrate;
+								});
+									
+								break;
 							}
-							// Sort the representations by ascending bitrate
-							StreamInformationVideo.Sort([](const TSharedPtrTS<FStreamInformation>& a, const TSharedPtrTS<FStreamInformation>& b)
-							{
-								return a->Bitrate < b->Bitrate;
-							});
 						}
 					}
 				}
@@ -412,29 +416,33 @@ namespace Electra
 				TSharedPtrTS<ITimelineMediaAsset> Asset = CurrentPlayPeriodAudio->GetMediaAsset();
 				if (Asset.IsValid())
 				{
-					CurrentAudioAdaptationSetID.Empty();
+					CurrentAudioAdaptationSetID = InCurrentPlayPeriod->GetSelectedAdaptationSetID(InStreamType);
 					StreamInformationAudio.Empty();
 					// Get audio stream information
-					if (Asset->GetNumberOfAdaptationSets(InStreamType) > 0)
+					if (!CurrentAudioAdaptationSetID.IsEmpty())
 					{
-						TSharedPtrTS<IPlaybackAssetAdaptationSet> Adapt = Asset->GetAdaptationSetByTypeAndIndex(InStreamType, 0);
-						if (Adapt.IsValid())
+						for(int32 nA=0, maxA=Asset->GetNumberOfAdaptationSets(InStreamType); nA<maxA; ++nA)
 						{
-							CurrentAudioAdaptationSetID = Adapt->GetUniqueIdentifier();
-							for(int32 i=0, iMax=Adapt->GetNumberOfRepresentations(); i<iMax; ++i)
+							TSharedPtrTS<IPlaybackAssetAdaptationSet> Adapt = Asset->GetAdaptationSetByTypeAndIndex(InStreamType, nA);
+							if (CurrentAudioAdaptationSetID.Equals(Adapt->GetUniqueIdentifier()))
 							{
-								TSharedPtrTS<IPlaybackAssetRepresentation> Repr = Adapt->GetRepresentationByIndex(i);
-								TSharedPtrTS<FStreamInformation> si = MakeSharedTS<FStreamInformation>();
-								si->AdaptationSetUniqueID = Adapt->GetUniqueIdentifier();
-								si->RepresentationUniqueID = Repr->GetUniqueIdentifier();
-								si->Bitrate = Repr->GetBitrate();
-								StreamInformationAudio.Push(si);
+								for(int32 i=0, iMax=Adapt->GetNumberOfRepresentations(); i<iMax; ++i)
+								{
+									TSharedPtrTS<IPlaybackAssetRepresentation> Repr = Adapt->GetRepresentationByIndex(i);
+									TSharedPtrTS<FStreamInformation> si = MakeSharedTS<FStreamInformation>();
+									si->AdaptationSetUniqueID = Adapt->GetUniqueIdentifier();
+									si->RepresentationUniqueID = Repr->GetUniqueIdentifier();
+									si->Bitrate = Repr->GetBitrate();
+									StreamInformationAudio.Push(si);
+								}
+								// Sort the representations by ascending bitrate
+								StreamInformationAudio.Sort([](const TSharedPtrTS<FStreamInformation>& a, const TSharedPtrTS<FStreamInformation>& b)
+								{
+									return a->Bitrate > b->Bitrate;
+								});
+
+								break;
 							}
-							// Sort the representations by ascending bitrate
-							StreamInformationAudio.Sort([](const TSharedPtrTS<FStreamInformation>& a, const TSharedPtrTS<FStreamInformation>& b)
-							{
-								return a->Bitrate > b->Bitrate;
-							});
 						}
 					}
 				}

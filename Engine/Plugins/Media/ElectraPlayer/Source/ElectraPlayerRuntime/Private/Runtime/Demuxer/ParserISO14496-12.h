@@ -215,6 +215,7 @@ namespace Electra
 			virtual ~ITrack() = default;
 
 			virtual uint32 GetID() const = 0;
+			virtual FString GetNameFromHandler() const = 0;
 			virtual FTimeFraction GetDuration() const = 0;
 
 			virtual ITrackIterator* CreateIterator() const = 0;
@@ -283,7 +284,7 @@ namespace Electra
 		};
 
 
-		virtual TSharedPtr<IAllTrackIterator, ESPMode::ThreadSafe> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const = 0;
+		virtual TSharedPtrTS<IAllTrackIterator> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const = 0;
 
 		virtual const ITrack* GetTrackByIndex(int32 Index) const = 0;
 		virtual const ITrack* GetTrackByTrackID(int32 TrackID) const = 0;

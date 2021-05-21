@@ -24,14 +24,21 @@ public:
 	FPlayPeriodHLS(IPlayerSessionServices* SessionServices, IPlaylistReaderHLS* PlaylistReader, TSharedPtrTS<FManifestHLSInternal> Manifest);
 	virtual ~FPlayPeriodHLS();
 
-	virtual void SetStreamPreferences(const FStreamPreferences& Preferences) override;
+	virtual void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
 
 	virtual EReadyState GetReadyState() override;
+	virtual void Load() override;
 	virtual void PrepareForPlay() override;
+	virtual int64 GetDefaultStartingBitrate() const override;
+
+	virtual TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) override;
+	virtual FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
+	virtual ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
 
 	// TODO: need to provide metadata (duration, streams, languages, etc.)
 
 	virtual IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	virtual IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerLoopState& LoopState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) override;
 	virtual IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
@@ -80,6 +87,9 @@ private:
 
 	uint32										ActiveVideoUniqueID;
 	uint32										ActiveAudioUniqueID;
+
+	TSharedPtrTS<FBufferSourceInfo>				CurrentSourceBufferInfoVideo;
+	TSharedPtrTS<FBufferSourceInfo>				CurrentSourceBufferInfoAudio;
 };
 
 
@@ -155,21 +165,6 @@ void FManifestHLS::ClearDefaultStartTime()
 }
 
 
-
-/**
- * Returns the bitrate of the default stream (usually the first one specified).
- *
- * @return
- */
-int64 FManifestHLS::GetDefaultStartingBitrate() const
-{
-	FManifestHLSInternal::ScopedLockPlaylists lock(InternalManifest);
-	if (InternalManifest->VariantStreams.Num())
-	{
-		return InternalManifest->VariantStreams[0]->Bandwidth;
-	}
-	return 0;
-}
 
 /**
  * Returns track metadata. For period based presentations the streams can be different per period in which case the metadata of the first period is returned.
@@ -269,7 +264,7 @@ FPlayPeriodHLS::FPlayPeriodHLS(IPlayerSessionServices* InSessionServices, IPlayl
 {
 	check(PlaylistReader);
 
-	CurrentReadyState   			  = IManifest::IPlayPeriod::EReadyState::NotReady;
+	CurrentReadyState = IManifest::IPlayPeriod::EReadyState::NotLoaded;
 
 	// Set the active video and audio stream IDs to 0, which means none are selected.
 	ActiveVideoUniqueID = 0;
@@ -292,12 +287,58 @@ void FPlayPeriodHLS::LogMessage(IInfoLog::ELevel Level, const FString& Message)
 /**
  * Sets stream preferences.
  *
- * @param Preferences
+ * @param ForStreamType
+ * @param StreamAttributes
  */
-void FPlayPeriodHLS::SetStreamPreferences(const FStreamPreferences& Preferences)
+void FPlayPeriodHLS::SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes)
 {
 }
 
+
+/**
+ * Returns the bitrate of the default stream (usually the first one specified).
+ *
+ * @return
+ */
+int64 FPlayPeriodHLS::GetDefaultStartingBitrate() const
+{
+	FManifestHLSInternal::ScopedLockPlaylists lock(InternalManifest);
+	if (InternalManifest->VariantStreams.Num())
+	{
+		return InternalManifest->VariantStreams[0]->Bandwidth;
+	}
+	return 0;
+}
+
+TSharedPtrTS<FBufferSourceInfo> FPlayPeriodHLS::GetSelectedStreamBufferSourceInfo(EStreamType StreamType)
+{
+	if (StreamType == EStreamType::Video)
+	{
+		return CurrentSourceBufferInfoVideo;
+	}
+	else if (StreamType == EStreamType::Audio)
+	{
+		return CurrentSourceBufferInfoAudio;
+	}
+	return nullptr;
+}
+
+FString FPlayPeriodHLS::GetSelectedAdaptationSetID(EStreamType StreamType)
+{
+	int32 nA = GetMediaAsset()->GetNumberOfAdaptationSets(StreamType);
+	if (nA)
+	{
+		return GetMediaAsset()->GetAdaptationSetByTypeAndIndex(StreamType, 0)->GetUniqueIdentifier();
+	}
+	return FString();
+}
+
+
+IManifest::IPlayPeriod::ETrackChangeResult FPlayPeriodHLS::ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes)
+{
+	// Currently track switching is not implemented.
+	return IManifest::IPlayPeriod::ETrackChangeResult::NotChanged;
+}
 
 
 /**
@@ -311,6 +352,11 @@ IManifest::IPlayPeriod::EReadyState FPlayPeriodHLS::GetReadyState()
 }
 
 
+
+void FPlayPeriodHLS::Load()
+{
+	CurrentReadyState = IManifest::IPlayPeriod::EReadyState::Loaded;
+}
 
 /**
  * Prepares the period for playback.
@@ -358,6 +404,13 @@ void FPlayPeriodHLS::PrepareForPlay()
 	// Tell the manifest which stream IDs are now actively used.
 	InternalManifest->SelectActiveStreamID(ActiveVideoUniqueID, OldVideoUniqueID);
 	InternalManifest->SelectActiveStreamID(ActiveAudioUniqueID, OldAudioUniqueID);
+
+	// Set up source buffer information for video and audio.
+	// These are currently dummies since we do not support track switching yet.
+	CurrentSourceBufferInfoVideo = MakeSharedTS<FBufferSourceInfo>();
+	CurrentSourceBufferInfoAudio = MakeSharedTS<FBufferSourceInfo>();
+	CurrentSourceBufferInfoVideo->PeriodAdaptationSetID = TEXT("video.0");
+	CurrentSourceBufferInfoAudio->PeriodAdaptationSetID = TEXT("audio.0");
 
 	CurrentReadyState = IManifest::IPlayPeriod::EReadyState::IsReady;
 }
@@ -499,9 +552,14 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 	Req->bHasEncryptedSegments     = InStream->bHasEncryptedSegments;
 	if (StreamType == EStreamType::Video)
 	{
+		Req->SourceBufferInfo = CurrentSourceBufferInfoVideo;
 		Req->Bitrate				   = InPlaylist->GetBitrate();
 		check(InternalManifest->BandwidthToQualityIndex.Find(Req->Bitrate) != nullptr);
 		Req->QualityLevel   		   = InternalManifest->BandwidthToQualityIndex[Req->Bitrate];
+	}
+	else if (StreamType == EStreamType::Audio)
+	{
+		Req->SourceBufferInfo = CurrentSourceBufferInfoAudio;
 	}
 
 	const TArray<FManifestHLSInternal::FMediaStream::FMediaSegment>& SegmentList = InStream->SegmentList;
@@ -881,6 +939,20 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 		return !vidResult.IsSuccess() ? vidResult : audResult;
 	}
 }
+
+//-----------------------------------------------------------------------------
+/**
+ * Same as GetStartingSegment() except this is for a specific stream (video, audio, ...) only.
+ * To be used when a track (language) change is made and a new segment is needed at the current playback position.
+ */
+IManifest::FResult FPlayPeriodHLS::GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerLoopState& LoopState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
+{
+	// Not currently supported.
+	// We could call GetStartingSegment() and return the segment request of the stream type that was found there
+	// but that has a start time matched to the video which may not be desirable.
+	return IManifest::FResult(IManifest::FResult::EType::NotFound);
+}
+
 
 
 void FPlayPeriodHLS::IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount)
