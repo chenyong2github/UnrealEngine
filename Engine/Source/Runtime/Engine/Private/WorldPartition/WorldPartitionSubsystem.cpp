@@ -228,6 +228,13 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		return;
 	}
 
+	// Filter out views that don't match our world
+	if (Canvas->SceneView->ViewActor != nullptr && 
+		Canvas->SceneView->ViewActor->GetWorld() != GetWorld())
+	{
+		return;
+	}
+
 	const FVector2D CanvasTopLeftPadding(10.f, 10.f);
 
 	FVector2D CurrentOffset(CanvasTopLeftPadding);
