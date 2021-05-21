@@ -309,7 +309,7 @@ public:
 		/* empty default implementation */
 	}
 
-	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHIVertexBuffer*> InBuffers)
+	virtual void RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHIBuffer*> InBuffers)
 	{
 		/* empty default implementation */
 	}

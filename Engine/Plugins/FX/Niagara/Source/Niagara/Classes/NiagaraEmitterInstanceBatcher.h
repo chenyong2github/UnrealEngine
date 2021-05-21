@@ -291,7 +291,7 @@ private:
 
 #if WITH_MGPU
 	static const FName TemporalEffectName;
-	TArray<FRHIVertexBuffer*> TemporalEffectBuffers;
+	TArray<FRHIBuffer*> TemporalEffectBuffers;
 	ENiagaraGpuComputeTickStage::Type StageToWaitForTemporalEffect = ENiagaraGpuComputeTickStage::First;
 	ENiagaraGpuComputeTickStage::Type StageToBroadcastTemporalEffect = ENiagaraGpuComputeTickStage::First;
 

@@ -103,7 +103,7 @@ template <> void FRHICommandBroadcastTemporalEffect<FRHITexture>::Execute(FRHICo
 	RHISTAT(BroadcastTemporalEffect);
 	INTERNAL_DECORATOR(RHIBroadcastTemporalEffect)(EffectName, Resources);
 }
-template <> void FRHICommandBroadcastTemporalEffect<FRHIVertexBuffer>::Execute(FRHICommandListBase& CmdList)
+template <> void FRHICommandBroadcastTemporalEffect<FRHIBuffer>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BroadcastTemporalEffect);
 	INTERNAL_DECORATOR(RHIBroadcastTemporalEffect)(EffectName, Resources);
