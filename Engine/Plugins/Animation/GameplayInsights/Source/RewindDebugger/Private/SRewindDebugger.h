@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
-#include "IAnimGraphSchematicView.h"
+#include "IGameplayInsightsDebugView.h"
 #include "RewindDebuggerModule.h"
 #include "RewindDebuggerTimeSliderController.h"
 #include "SRewindDebuggerComponentTree.h"
@@ -68,11 +68,14 @@ private:
 	TBindableProperty<float> RecordingDuration;
 	TBindableProperty<float> DebugTargetAnimInstanceId;
 
+	void TraceTimeChanged(double Time);
+
 	// component tree view
 	TArray<TSharedPtr<FDebugObjectInfo>>* DebugComponents;
     void OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo);
 	TSharedPtr<SRewindDebuggerComponentTree> ComponentTreeView;
 
 	// anim graph view 
-	TSharedPtr<IAnimGraphSchematicView> AnimGraphView;
+	TArray<TSharedPtr<IGameplayInsightsDebugView>> DebugViews;
+	TSharedPtr<SVerticalBox> DebugViewContainer;
 };
