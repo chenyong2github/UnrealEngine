@@ -7,6 +7,7 @@
 class UAssetImportData;
 class UInterchangeBaseNode;
 class UInterchangeBaseNodeContainer;
+class UInterchangePipelineBase;
 class UInterchangeSourceData;
 class UObject;
 
@@ -29,12 +30,14 @@ namespace UE
 				const UInterchangeSourceData* SourceData = nullptr;
 				FString NodeUniqueID;
 				UInterchangeBaseNodeContainer* NodeContainer;
+				const TArray<UInterchangePipelineBase*> Pipelines;
 
 				FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
 																	, UAssetImportData* InAssetImportData
 																	, const UInterchangeSourceData* InSourceData
 																	, FString InNodeUniqueID
-																	, UInterchangeBaseNodeContainer* InNodeContainer);
+																	, UInterchangeBaseNodeContainer* InNodeContainer
+																	, const TArray<UInterchangePipelineBase*>& InPipelines);
 			};
 
 			/**

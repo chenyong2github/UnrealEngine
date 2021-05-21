@@ -318,7 +318,8 @@ void UInterchangeMaterialFactory::PostImportGameThreadCallback(const FPostImport
 																										  , ImportedMaterial->AssetImportData
 																										  , Arguments.SourceData
 																										  , Arguments.NodeUniqueID
-																										  , Arguments.NodeContainer);
+																										  , Arguments.NodeContainer
+																										  , Arguments.Pipelines);
 
 		ImportedMaterial->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 	}

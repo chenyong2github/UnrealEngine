@@ -10,8 +10,9 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-
 #include "InterchangeAssetImportData.generated.h"
+
+class UInterchangePipelineBase;
 
 UCLASS(BlueprintType)
 class INTERCHANGEENGINE_API UInterchangeAssetImportData : public UAssetImportData
@@ -68,4 +69,8 @@ public:
 	/** The Node UID pass to the factory that exist in the graph that was use to create this asset */
 	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")
 	FString NodeUniqueID;
+
+	/** List of pipelines use to import an asset */
+	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")
+	TArray<TObjectPtr<UInterchangePipelineBase>> Pipelines;
 };

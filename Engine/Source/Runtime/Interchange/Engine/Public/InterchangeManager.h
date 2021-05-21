@@ -11,6 +11,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangePipelineBase.h"
+#include "InterchangePipelineConfigurationBase.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeWriterBase.h"
@@ -464,5 +465,10 @@ private:
 	//If interchange is currently importing we have a timer to watch the cancel and we block GC 
 	FThreadSafeBool bIsActive = false;
 	FThread GcGuardThread;
+
+	//If the user want to use the same import pipeline stack for all the queue task
+	//This boolean is reset to false when the ImportTasks array is empty.
+	bool bImportAllWithDefault = false;
+
 	friend class UE::Interchange::FScopedTranslator;
 };

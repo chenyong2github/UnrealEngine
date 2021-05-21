@@ -24,6 +24,7 @@ public:
 		const FString BaseDir = IPluginManager::Get().FindPlugin("InterchangeEditor")->GetBaseDir();
 		SetContentRoot(BaseDir / TEXT("Content"));
 
+		//GraphInspectorIcon icons
 		FSlateImageBrush* LodBrush16 = new FSlateImageBrush(RootToContentDir(TEXT("Resources/Interchange_Lod_Icon_16"), TEXT(".png")), Icon16x16);
 		Set("SceneGraphIcon.LodGroup", LodBrush16);
 		FSlateImageBrush* JointBrush16 = new FSlateImageBrush(RootToContentDir(TEXT("Resources/Interchange_Joint_Icon_16"), TEXT(".png")), Icon16x16);
@@ -32,6 +33,15 @@ public:
 		Set("MeshIcon.Static", StaticMeshBrush16);
 		FSlateImageBrush* SkeletalMeshBrush16 = new FSlateImageBrush(RootToContentDir(TEXT("Resources/Interchange_SkeletalMesh_Icon_16"), TEXT(".png")), Icon16x16);
 		Set("MeshIcon.Skinned", SkeletalMeshBrush16);
+
+		//PipelineConfigurationIcon icons
+		FSlateImageBrush* PipelineBrush16 = new FSlateImageBrush(RootToContentDir(TEXT("Resources/Interchange_Pipeline_Icon_16"), TEXT(".png")), Icon16x16);
+		Set("PipelineConfigurationIcon.Pipeline", PipelineBrush16);
+		FSlateImageBrush* PipelineStackBrush16 = new FSlateImageBrush(RootToContentDir(TEXT("Resources/Interchange_PipelineStack_Icon_16"), TEXT(".png")), Icon16x16);
+		Set("PipelineConfigurationIcon.PipelineStack", PipelineStackBrush16);
+		FSlateImageBrush* PipelineStackDefaultBrush16 = new FSlateImageBrush(RootToContentDir(TEXT("Resources/Interchange_PipelineStackDefault_Icon_16"), TEXT(".png")), Icon16x16);
+		Set("PipelineConfigurationIcon.PipelineStackDefault", PipelineStackDefaultBrush16);
+
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
 
