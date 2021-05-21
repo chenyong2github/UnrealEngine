@@ -5,8 +5,6 @@
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "SMInstanceElementWorldInterface.generated.h"
 
-struct FSMInstanceId;
-
 UCLASS()
 class ENGINE_API USMInstanceElementWorldInterface : public UTypedElementWorldInterface
 {
@@ -22,6 +20,4 @@ public:
 	virtual bool SetWorldTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) override;
 	virtual bool GetRelativeTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform) override;
 	virtual bool SetRelativeTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) override;
-
-	static bool CanEditSMInstance(const FSMInstanceId& InSMInstanceId);
 };

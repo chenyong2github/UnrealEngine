@@ -195,3 +195,107 @@ void ALightWeightInstanceStaticMeshManager::ClearStaticMesh()
 	StaticMesh = nullptr;
 	OnStaticMeshSet();
 }
+
+bool ALightWeightInstanceStaticMeshManager::CanEditSMInstance(const FSMInstanceId& InstanceId) const
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	ISMInstanceManager* InstanceManager = InstancedStaticMeshComponent;
+	return InstanceManager->CanEditSMInstance(InstanceId);
+}
+
+bool ALightWeightInstanceStaticMeshManager::GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	if (RenderingIndicesToDataIndices.IsValidIndex(InstanceId.InstanceIndex))
+	{
+		const int32 DataIndex = RenderingIndicesToDataIndices[InstanceId.InstanceIndex];
+		OutInstanceTransform = bWorldSpace ? InstanceTransforms[DataIndex] : InstanceTransforms[DataIndex].GetRelativeTransform(InstancedStaticMeshComponent->GetComponentTransform());
+		return true;
+	}
+	
+	return false;
+}
+
+bool ALightWeightInstanceStaticMeshManager::SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	if (RenderingIndicesToDataIndices.IsValidIndex(InstanceId.InstanceIndex) && InstancedStaticMeshComponent->UpdateInstanceTransform(InstanceId.InstanceIndex, InstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport))
+	{
+		const int32 DataIndex = RenderingIndicesToDataIndices[InstanceId.InstanceIndex];
+		InstancedStaticMeshComponent->GetInstanceTransform(InstanceId.InstanceIndex, InstanceTransforms[DataIndex], /*bWorldSpace*/true);
+		return true;
+	}
+
+	return false;
+}
+
+bool ALightWeightInstanceStaticMeshManager::DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds)
+{
+	TArray<int32> DataIndices;
+	GetLWIDataIndices(InstanceIds, DataIndices);
+
+	// Sort so Remove doesn't alter the indices of items still to remove
+	DataIndices.Sort(TGreater<int32>());
+
+	Modify();
+	InstancedStaticMeshComponent->Modify();
+
+	for (int32 DataIndex : DataIndices)
+	{
+		RemoveInstance(DataIndex);
+	}
+
+	return true;
+}
+
+bool ALightWeightInstanceStaticMeshManager::DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds)
+{
+	TArray<int32> DataIndices;
+	GetLWIDataIndices(InstanceIds, DataIndices);
+
+	Modify();
+	InstancedStaticMeshComponent->Modify();
+
+	TArray<int32> NewDataIndices;
+	DuplicateLWIInstances(DataIndices, NewDataIndices);
+
+	OutNewInstanceIds.Reset(NewDataIndices.Num());
+	for (int32 NewDataIndex : NewDataIndices)
+	{
+		OutNewInstanceIds.Add(FSMInstanceId{ InstancedStaticMeshComponent, DataIndicesToRenderingIndices[NewDataIndex] });
+	}
+
+	return true;
+}
+
+void ALightWeightInstanceStaticMeshManager::DuplicateLWIInstances(TArrayView<const int32> DataIndices, TArray<int32>& OutNewDataIndices)
+{
+	OutNewDataIndices.Reset(DataIndices.Num());
+	for (int32 DataIndex : DataIndices)
+	{
+		FLWIData InitData;
+		InitData.Transform = InstanceTransforms[DataIndex];
+
+		const int32 NewDataIndex = AddNewInstance(&InitData);
+		if (DataIndex != INDEX_NONE)
+		{
+			OutNewDataIndices.Add(NewDataIndex);
+		}
+	}
+}
+
+void ALightWeightInstanceStaticMeshManager::GetLWIDataIndices(TArrayView<const FSMInstanceId> InstanceIds, TArray<int32>& OutDataIndices) const
+{
+	OutDataIndices.Reset(InstanceIds.Num());
+	for (const FSMInstanceId& InstanceId : InstanceIds)
+	{
+		check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+		if (RenderingIndicesToDataIndices.IsValidIndex(InstanceId.InstanceIndex))
+		{
+			OutDataIndices.Add(RenderingIndicesToDataIndices[InstanceId.InstanceIndex]);
+		}
+	}
+}

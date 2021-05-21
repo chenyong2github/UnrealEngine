@@ -9,19 +9,18 @@
 
 bool USMInstanceElementEditorWorldInterface::CanDeleteElement(const FTypedElementHandle& InElementHandle)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && CanEditSMInstance(SMInstance);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.CanDeleteSMInstance();
 }
 
 bool USMInstanceElementEditorWorldInterface::DeleteElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
 {
-	if (const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	if (const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
 	{
-		if (CanEditSMInstance(SMInstance))
+		if (SMInstance.CanDeleteSMInstance())
 		{
-			SMInstance.ISMComponent->Modify();
 			InSelectionSet->DeselectElement(InElementHandle, FTypedElementSelectionOptions());
-			return SMInstance.ISMComponent->RemoveInstance(SMInstance.InstanceIndex);
+			return SMInstance.DeleteSMInstance();
 		}
 	}
 
@@ -30,33 +29,31 @@ bool USMInstanceElementEditorWorldInterface::DeleteElement(const FTypedElementHa
 
 bool USMInstanceElementEditorWorldInterface::DeleteElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
 {
-	const TArray<FSMInstanceId> SMInstancesToDelete = SMInstanceElementDataUtil::GetSMInstancesFromHandles(InElementHandles);
+	const TArray<FSMInstanceManager> SMInstancesToDelete = SMInstanceElementDataUtil::GetSMInstancesFromHandles(InElementHandles);
 
 	if (SMInstancesToDelete.Num() > 0)
 	{
-		// Batch by the ISM component
-		TMap<UInstancedStaticMeshComponent*, TArray<int32>> BatchedInstancesToDelete;
-		for (const FSMInstanceId& SMInstance : SMInstancesToDelete)
+		// Batch by the ISM manager
+		TMap<TScriptInterface<ISMInstanceManager>, TArray<FSMInstanceId>> BatchedInstancesToDelete;
+		for (const FSMInstanceManager& SMInstance : SMInstancesToDelete)
 		{
-			if (CanEditSMInstance(SMInstance))
+			if (SMInstance.CanDeleteSMInstance())
 			{
-				TArray<int32>& InstanceIndices = BatchedInstancesToDelete.FindOrAdd(SMInstance.ISMComponent);
-				InstanceIndices.Add(SMInstance.InstanceIndex);
+				TArray<FSMInstanceId>& InstanceIds = BatchedInstancesToDelete.FindOrAdd(SMInstance.GetInstanceManager());
+				InstanceIds.Add(SMInstance.GetInstanceId());
 			}
 		}
 
 		bool bDidDelete = false;
 
 		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(InSelectionSet->GetElementList());
-		for (TTuple<UInstancedStaticMeshComponent*, TArray<int32>>& BatchedInstancesToDeletePair : BatchedInstancesToDelete)
+		for (TTuple<TScriptInterface<ISMInstanceManager>, TArray<FSMInstanceId>>& BatchedInstancesToDeletePair : BatchedInstancesToDelete)
 		{
-			BatchedInstancesToDeletePair.Key->Modify();
-
-			for (const int32 InstanceIndex : BatchedInstancesToDeletePair.Value)
+			for (const FSMInstanceId& InstanceId : BatchedInstancesToDeletePair.Value)
 			{
-				InSelectionSet->DeselectElement(UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FSMInstanceId{ BatchedInstancesToDeletePair.Key, InstanceIndex }), FTypedElementSelectionOptions());
+				InSelectionSet->DeselectElement(UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(InstanceId), FTypedElementSelectionOptions());
 			}
-			bDidDelete |= BatchedInstancesToDeletePair.Key->RemoveInstances(BatchedInstancesToDeletePair.Value);
+			bDidDelete |= BatchedInstancesToDeletePair.Key->DeleteSMInstances(BatchedInstancesToDeletePair.Value);
 		}
 
 		return bDidDelete;
@@ -67,22 +64,33 @@ bool USMInstanceElementEditorWorldInterface::DeleteElements(TArrayView<const FTy
 
 bool USMInstanceElementEditorWorldInterface::CanDuplicateElement(const FTypedElementHandle& InElementHandle)
 {
-	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	return SMInstance && CanEditSMInstance(SMInstance);
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.CanDuplicateSMInstance();
 }
 
 FTypedElementHandle USMInstanceElementEditorWorldInterface::DuplicateElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset)
 {
-	if (const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	if (const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
 	{
-		if (CanEditSMInstance(SMInstance))
+		if (SMInstance.CanDuplicateSMInstance())
 		{
-			FTransform NewInstanceTransform = FTransform::Identity;
-			SMInstance.ISMComponent->GetInstanceTransform(SMInstance.InstanceIndex, NewInstanceTransform);
-			NewInstanceTransform.SetTranslation(NewInstanceTransform.GetTranslation() + InLocationOffset);
+			FSMInstanceId NewInstanceId;
+			if (SMInstance.DuplicateSMInstance(NewInstanceId))
+			{
+				const bool bOffsetIsZero = InLocationOffset.IsZero();
 
-			const int32 NewInstanceIndex = SMInstance.ISMComponent->AddInstance(NewInstanceTransform);
-			return UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FSMInstanceId{ SMInstance.ISMComponent, NewInstanceIndex });
+				if (!bOffsetIsZero)
+				{
+					const TScriptInterface<ISMInstanceManager>& InstanceManager = SMInstance.GetInstanceManager();
+
+					FTransform NewInstanceTransform = FTransform::Identity;
+					InstanceManager->GetSMInstanceTransform(NewInstanceId, NewInstanceTransform, /*bWorldSpace*/false);
+					NewInstanceTransform.SetTranslation(NewInstanceTransform.GetTranslation() + InLocationOffset);
+					InstanceManager->SetSMInstanceTransform(NewInstanceId, NewInstanceTransform, /*bWorldSpace*/false, /*bMarkRenderStateDirty*/true);
+				}
+
+				return UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(NewInstanceId);
+			}
 		}
 	}
 
@@ -91,37 +99,41 @@ FTypedElementHandle USMInstanceElementEditorWorldInterface::DuplicateElement(con
 
 void USMInstanceElementEditorWorldInterface::DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 {
-	const TArray<FSMInstanceId> SMInstancesToDuplicate = SMInstanceElementDataUtil::GetSMInstancesFromHandles(InElementHandles);
+	const TArray<FSMInstanceManager> SMInstancesToDuplicate = SMInstanceElementDataUtil::GetSMInstancesFromHandles(InElementHandles);
 
 	if (SMInstancesToDuplicate.Num() > 0)
 	{
-		// Batch by the ISM component
-		TMap<UInstancedStaticMeshComponent*, TArray<int32>> BatchedInstancesToDuplicate;
-		for (const FSMInstanceId& SMInstance : SMInstancesToDuplicate)
+		// Batch by the ISM manager
+		TMap<TScriptInterface<ISMInstanceManager>, TArray<FSMInstanceId>> BatchedInstancesToDuplicate;
+		for (const FSMInstanceManager& SMInstance : SMInstancesToDuplicate)
 		{
-			if (CanEditSMInstance(SMInstance))
+			if (SMInstance.CanDuplicateSMInstance())
 			{
-				TArray<int32>& InstanceIndices = BatchedInstancesToDuplicate.FindOrAdd(SMInstance.ISMComponent);
-				InstanceIndices.Add(SMInstance.InstanceIndex);
+				TArray<FSMInstanceId>& InstanceIds = BatchedInstancesToDuplicate.FindOrAdd(SMInstance.GetInstanceManager());
+				InstanceIds.Add(SMInstance.GetInstanceId());
 			}
 		}
 
-		for (const TTuple<UInstancedStaticMeshComponent*, TArray<int32>>& BatchedInstancesToDuplicatePair : BatchedInstancesToDuplicate)
+		for (const TTuple<TScriptInterface<ISMInstanceManager>, TArray<FSMInstanceId>>& BatchedInstancesToDuplicatePair : BatchedInstancesToDuplicate)
 		{
-			TArray<FTransform> NewInstanceTransforms;
-			NewInstanceTransforms.Reserve(BatchedInstancesToDuplicatePair.Value.Num());
-			for (const int32 InstanceIndex : BatchedInstancesToDuplicatePair.Value)
+			TArray<FSMInstanceId> NewInstanceIds;
+			if (BatchedInstancesToDuplicatePair.Key->DuplicateSMInstances(BatchedInstancesToDuplicatePair.Value, NewInstanceIds))
 			{
-				FTransform& NewInstanceTransform = NewInstanceTransforms.Add_GetRef(FTransform::Identity);
-				BatchedInstancesToDuplicatePair.Key->GetInstanceTransform(InstanceIndex, NewInstanceTransform);
-				NewInstanceTransform.SetTranslation(NewInstanceTransform.GetTranslation() + InLocationOffset);
-			}
+				const bool bOffsetIsZero = InLocationOffset.IsZero();
 
-			const TArray<int32> NewInstanceIndices = BatchedInstancesToDuplicatePair.Key->AddInstances(NewInstanceTransforms, /*bShouldReturnIndices*/true);
-			OutNewElements.Reserve(OutNewElements.Num() + NewInstanceIndices.Num());
-			for (const int32 NewInstanceIndex : NewInstanceIndices)
-			{
-				OutNewElements.Add(UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FSMInstanceId{ BatchedInstancesToDuplicatePair.Key, NewInstanceIndex }));
+				OutNewElements.Reserve(OutNewElements.Num() + NewInstanceIds.Num());
+				for (const FSMInstanceId& NewInstanceId : BatchedInstancesToDuplicatePair.Value)
+				{
+					if (!bOffsetIsZero)
+					{
+						FTransform NewInstanceTransform = FTransform::Identity;
+						BatchedInstancesToDuplicatePair.Key->GetSMInstanceTransform(NewInstanceId, NewInstanceTransform, /*bWorldSpace*/false);
+						NewInstanceTransform.SetTranslation(NewInstanceTransform.GetTranslation() + InLocationOffset);
+						BatchedInstancesToDuplicatePair.Key->SetSMInstanceTransform(NewInstanceId, NewInstanceTransform, /*bWorldSpace*/false, /*bMarkRenderStateDirty*/true);
+					}
+
+					OutNewElements.Add(UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(NewInstanceId));
+				}
 			}
 		}
 	}

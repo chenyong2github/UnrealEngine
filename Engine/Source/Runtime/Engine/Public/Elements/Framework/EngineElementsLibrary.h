@@ -60,7 +60,6 @@ public:
 #endif
 
 	static TTypedElementOwner<FSMInstanceElementData> CreateSMInstanceElement(const FSMInstanceId& InSMInstanceId);
-	static TTypedElementOwner<FSMInstanceElementData> CreateSMInstanceElement(const FSMInstanceElementId& InSMInstanceElementId);
 	static void DestroySMInstanceElement(const FSMInstanceElementId& InSMInstanceElementId, TTypedElementOwner<FSMInstanceElementData>& InOutSMInstanceElement);
 #if WITH_EDITOR
 	static void CreateEditorSMInstanceElement(const FSMInstanceId& SMInstanceId);
@@ -68,10 +67,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|StaticMeshInstance", meta=(ScriptMethod="AcquireEditorElementHandle"))
 	static FTypedElementHandle AcquireEditorSMInstanceElementHandle(const UInstancedStaticMeshComponent* ISMComponent, const int32 InstanceIndex, const bool bAllowCreate = true);
 	static FTypedElementHandle AcquireEditorSMInstanceElementHandle(const FSMInstanceId& SMInstanceId, const bool bAllowCreate = true);
-	static FTypedElementHandle AcquireEditorSMInstanceElementHandle(const FSMInstanceElementId& SMInstanceElementId, const bool bAllowCreate = true);
 #endif
 
 private:
+	static TTypedElementOwner<FSMInstanceElementData> CreateSMInstanceElementImpl(const FSMInstanceId& InSMInstanceId, const FSMInstanceElementId& InSMInstanceElementId);
 #if WITH_EDITOR
 	static void DestroyUnreachableEditorObjectElements();
 	static void OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacementObjects);

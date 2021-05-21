@@ -158,7 +158,15 @@ FTypedElementHandle HInstancedStaticMeshInstance::GetElementHandle() const
 #if WITH_EDITOR
 	if (Component)
 	{
-		return UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FSMInstanceId{ Component, InstanceIndex });
+		// Prefer per-instance selection if available
+		// This may fail to return a handle if the feature is disabled, or if per-instance editing is disabled for this component
+		if (FTypedElementHandle ElementHandle = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(Component, InstanceIndex))
+		{
+			return ElementHandle;
+		}
+
+		// If per-instance selection isn't possible, fallback to general per-component selection (which may choose to select the owner actor instead)
+		return UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component);
 	}
 #endif	// WITH_EDITOR
 	return FTypedElementHandle();
@@ -3918,6 +3926,61 @@ void UInstancedStaticMeshComponent::ClearInstanceSelection()
 	SelectedInstances.Empty();
 	MarkRenderStateDirty();
 #endif
+}
+
+bool UInstancedStaticMeshComponent::CanEditSMInstance(const FSMInstanceId& InstanceId) const
+{
+	check(InstanceId.ISMComponent == this);
+	return IsEditableWhenInherited();
+}
+
+bool UInstancedStaticMeshComponent::GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const
+{
+	check(InstanceId.ISMComponent == this);
+	return GetInstanceTransform(InstanceId.InstanceIndex, OutInstanceTransform, bWorldSpace);
+}
+
+bool UInstancedStaticMeshComponent::SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	check(InstanceId.ISMComponent == this);
+	return UpdateInstanceTransform(InstanceId.InstanceIndex, InstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+}
+
+bool UInstancedStaticMeshComponent::DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds)
+{
+	TArray<int32> InstanceIndices;
+	InstanceIndices.Reserve(InstanceIds.Num());
+	for (const FSMInstanceId& InstanceId : InstanceIds)
+	{
+		check(InstanceId.ISMComponent == this);
+		InstanceIndices.Add(InstanceId.InstanceIndex);
+	}
+
+	Modify();
+	return RemoveInstances(InstanceIndices);
+}
+
+bool UInstancedStaticMeshComponent::DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds)
+{
+	TArray<FTransform> NewInstanceTransforms;
+	NewInstanceTransforms.Reserve(InstanceIds.Num());
+	for (const FSMInstanceId& InstanceId : InstanceIds)
+	{
+		check(InstanceId.ISMComponent == this);
+		FTransform& NewInstanceTransform = NewInstanceTransforms.Add_GetRef(FTransform::Identity);
+		GetInstanceTransform(InstanceId.InstanceIndex, NewInstanceTransform);
+	}
+
+	Modify();
+	const TArray<int32> NewInstanceIndices = AddInstances(NewInstanceTransforms, /*bShouldReturnIndices*/true);
+
+	OutNewInstanceIds.Reset(NewInstanceIndices.Num());
+	for (int32 NewInstanceIndex : NewInstanceIndices)
+	{
+		OutNewInstanceIds.Add(FSMInstanceId{ this, NewInstanceIndex });
+	}
+
+	return true;
 }
 
 static TAutoConsoleVariable<int32> CVarCullAllInVertexShader(

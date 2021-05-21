@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/Object.h"
-#include "Elements/SMInstance/SMInstanceElementId.h"
+#include "Elements/SMInstance/SMInstanceManager.h"
 #include "SMInstanceElementDetailsProxyObject.generated.h"
 
 UCLASS(Transient)
@@ -16,7 +16,6 @@ public:
 	void Shutdown();
 
 	//~ UObject interface
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
 	UPROPERTY(EditAnywhere, Category="Transform", meta=(ShowOnlyInnerProperties))
@@ -25,7 +24,7 @@ public:
 private:
 	void SyncProxyStateFromInstance();
 
-	FSMInstanceId GetInstanceId() const;
+	FSMInstanceManager GetSMInstance() const;
 
 	TWeakObjectPtr<UInstancedStaticMeshComponent> ISMComponent;
 	uint64 ISMInstanceId = 0;
