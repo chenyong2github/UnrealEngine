@@ -3004,7 +3004,29 @@ void FCsvProfiler::BeginStat(const char * StatName, uint32 CategoryIndex)
 #endif
 }
 
+void FCsvProfiler::BeginStat(const FName& StatName, uint32 CategoryIndex)
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
+	{
+		LLM_SCOPE(ELLMTag::CsvProfiler);
+		FCsvProfilerThreadData::Get().AddTimestampBegin(StatName, CategoryIndex);
+	}
+#endif
+}
+
 void FCsvProfiler::EndStat(const char * StatName, uint32 CategoryIndex)
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
+	{
+		LLM_SCOPE(ELLMTag::CsvProfiler);
+		FCsvProfilerThreadData::Get().AddTimestampEnd(StatName, CategoryIndex);
+	}
+#endif
+}
+
+void FCsvProfiler::EndStat(const FName& StatName, uint32 CategoryIndex)
 {
 #if RECORD_TIMESTAMPS
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])

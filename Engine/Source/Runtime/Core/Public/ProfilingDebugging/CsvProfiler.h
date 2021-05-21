@@ -232,8 +232,10 @@ public:
 
 	/** Begin static interface (used by macros)*/
 	/** Push/pop events */
-	CORE_API static void BeginStat(const char * StatName, uint32 CategoryIndex);
-	CORE_API static void EndStat(const char * StatName, uint32 CategoryIndex);
+	CORE_API static void BeginStat(const char* StatName, uint32 CategoryIndex);
+	CORE_API static void BeginStat(const FName& StatName, uint32 CategoryIndex);
+	CORE_API static void EndStat(const char* StatName, uint32 CategoryIndex);
+	CORE_API static void EndStat(const FName& StatName, uint32 CategoryIndex);
 
 	CORE_API static void BeginExclusiveStat(const char * StatName);
 	CORE_API static void EndExclusiveStat(const char * StatName);
