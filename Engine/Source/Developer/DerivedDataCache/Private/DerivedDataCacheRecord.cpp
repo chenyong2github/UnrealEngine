@@ -76,7 +76,6 @@ public:
 	}
 
 private:
-	mutable std::atomic<uint32> ReferenceCount{0};
 	FCacheKey Key;
 	FCbObject Meta;
 	FPayload Value;
@@ -84,6 +83,7 @@ private:
 	mutable FRWLock CacheLock;
 	mutable FSharedBuffer ValueCache;
 	mutable TArray<FSharedBuffer> AttachmentsCache;
+	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -202,10 +202,10 @@ FPayloadId FCacheRecordBuilderInternal::SetValue(const FPayload& Payload)
 	checkf(Payload, TEXT("Failed to set value on %s because the payload is null."), *WriteToString<96>(Key));
 	const FPayloadId& Id = Payload.GetId();
 	checkf(Value.IsNull(),
-		TEXT("Cache: Failed to set value on %s with ID %s because it has an existing value with ID %s."),
+		TEXT("Failed to set value on %s with ID %s because it has an existing value with ID %s."),
 		*WriteToString<96>(Key), *WriteToString<32>(Id), *WriteToString<32>(Value.GetId()));
 	checkf(Algo::BinarySearchBy(Attachments, Id, &FPayload::GetId) == INDEX_NONE,
-		TEXT("Failed to set on %s with ID %s because it has an existing attachment with that ID."),
+		TEXT("Failed to set value on %s with ID %s because it has an existing attachment with that ID."),
 		*WriteToString<96>(Key), *WriteToString<32>(Id));
 	Value = Payload;
 	return Id;

@@ -63,7 +63,7 @@ namespace UE::DerivedData
 {
 
 /**
- * A build definition references a build function and the inputs to that build function.
+ * A build definition is an immutable reference to a build function and its inputs.
  *
  * The purpose of a definition is to capture everything required to execute a derived data build.
  * The definition is partly fixed (function name, constants, input hashes) and is partly variable
@@ -77,8 +77,6 @@ namespace UE::DerivedData
  *
  * To build a definition against a specific version of the function and inputs, queue it to build
  * on a build session, which uses its build input provider to convert it to a build action.
- *
- * Build definitions are immutable, and are created by a builder from IBuild::CreateDefinition().
  *
  * @see FBuildDefinitionBuilder
  * @see FBuildSession
