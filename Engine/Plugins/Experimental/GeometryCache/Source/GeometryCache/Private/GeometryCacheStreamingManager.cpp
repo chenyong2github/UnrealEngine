@@ -49,20 +49,19 @@ struct FGeometryCacheStreamingManager : public IGeometryCacheStreamingManager
 	virtual void AddLevel(class ULevel* Level) override;
 	virtual void RemoveLevel(class ULevel* Level) override;
 	virtual void NotifyLevelOffset(class ULevel* Level, const FVector& Offset) override;
-
 	// End IStreamingManager interface
 
 	// IGeometryCacheStreamingManager interface
-	virtual void AddGeometryCache(UGeometryCacheTrackStreamable* Cache);
-	virtual void RemoveGeometryCache(UGeometryCacheTrackStreamable* Cache);
-	virtual bool IsManagedGeometryCache(const UGeometryCacheTrackStreamable* Cache) const;
-	virtual bool IsStreamingInProgress(const UGeometryCacheTrackStreamable* Cache);
-	virtual void AddStreamingComponent(UGeometryCacheComponent* CacheComponent);
-	virtual void RemoveStreamingComponent(UGeometryCacheComponent* CacheComponent);
-	virtual bool IsManagedComponent(const UGeometryCacheComponent* CacheComponent) const;
-	virtual void PrefetchData(UGeometryCacheComponent* CacheComponent);
-	virtual const uint8* MapChunk(const UGeometryCacheTrackStreamable* Track, uint32 ChunkIndex, uint32* OutChunkSize = nullptr);
-	virtual void UnmapChunk(const UGeometryCacheTrackStreamable* Track, uint32 ChunkIndex);
+	virtual void AddGeometryCache(UGeometryCacheTrackStreamable* Cache) override;
+	virtual void RemoveGeometryCache(UGeometryCacheTrackStreamable* Cache) override;
+	virtual bool IsManagedGeometryCache(const UGeometryCacheTrackStreamable* Cache) const override;
+	virtual bool IsStreamingInProgress(const UGeometryCacheTrackStreamable* Cache) override;
+	virtual void AddStreamingComponent(UGeometryCacheComponent* CacheComponent) override;
+	virtual void RemoveStreamingComponent(UGeometryCacheComponent* CacheComponent) override;
+	virtual bool IsManagedComponent(const UGeometryCacheComponent* CacheComponent) const override;
+	virtual void PrefetchData(UGeometryCacheComponent* CacheComponent) override;
+	virtual const uint8* MapChunk(const UGeometryCacheTrackStreamable* Track, uint32 ChunkIndex, uint32* OutChunkSize = nullptr) override;
+	virtual void UnmapChunk(const UGeometryCacheTrackStreamable* Track, uint32 ChunkIndex) override;
 	// End IGeometryCacheStreamingManager interface
 
 private:
@@ -77,29 +76,15 @@ private:
 
 	mutable FCriticalSection CriticalSection;
 
-	double LastTickTime;	
+	double LastTickTime;
 };
-
-
-static FGeometryCacheStreamingManager* GeometryStreamingManager = nullptr;
-
-IGeometryCacheStreamingManager &IGeometryCacheStreamingManager::Get()
-{
-	if (GeometryStreamingManager == nullptr)
-	{
-		GeometryStreamingManager = new FGeometryCacheStreamingManager();
-	}
-	return *GeometryStreamingManager;
-}
 
 FGeometryCacheStreamingManager::FGeometryCacheStreamingManager()
 {
-	IStreamingManager::Get().AddStreamingManager(this);
 }
 
 FGeometryCacheStreamingManager::~FGeometryCacheStreamingManager()
 {
-	IStreamingManager::Get().RemoveStreamingManager(this);
 }
 
 void FGeometryCacheStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything)
@@ -345,4 +330,20 @@ void FGeometryCacheStreamingManager::UnmapChunk(const UGeometryCacheTrackStreama
 	{
 		(*data)->UnmapChunk(ChunkIndex);
 	}
+}
+
+IGeometryCacheStreamingManager &IGeometryCacheStreamingManager::Get()
+{
+	static FGeometryCacheStreamingManager Instance;
+	return Instance;
+}
+
+void IGeometryCacheStreamingManager::Register()
+{
+	IStreamingManager::Get().AddStreamingManager(&IGeometryCacheStreamingManager::Get());
+}
+
+void IGeometryCacheStreamingManager::Unregister()
+{
+	IStreamingManager::Get().RemoveStreamingManager(&IGeometryCacheStreamingManager::Get());
 }
