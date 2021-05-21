@@ -35,7 +35,7 @@ public class ModelingOperators : ModuleRules
 
 				"Core",
                 "InteractiveToolsFramework",
-				"GeometricObjects",
+				"GeometryCore",
 				"DynamicMesh",
 				"MeshConversion",
                 "GeometryAlgorithms", // required for constrained Delaunay triangulation

@@ -28,7 +28,7 @@ public class MeshLODToolset : ModuleRules
 				"Core",
 				"Eigen",
                 "InteractiveToolsFramework",
-				"GeometricObjects",
+				"GeometryCore",
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",

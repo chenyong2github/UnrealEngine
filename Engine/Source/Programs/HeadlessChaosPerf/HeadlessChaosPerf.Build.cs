@@ -21,7 +21,7 @@ public class HeadlessChaosPerf : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Projects",
-				"GeometricObjects",
+				"GeometryCore",
 				"ChaosVehiclesCore",
 				"GoogleTest",
 			}

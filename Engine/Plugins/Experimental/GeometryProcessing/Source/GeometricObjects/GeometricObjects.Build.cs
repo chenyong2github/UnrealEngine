@@ -14,7 +14,8 @@ public class GeometricObjects : ModuleRules
 		// (which won't have UObject garbage collection).
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"Core"
+				"Core",
+				"GeometryCore"
 			}
 			);
 	}

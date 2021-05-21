@@ -47,6 +47,7 @@ public class UVEditorTools : ModuleRules
 					
 				"MeshConversion",
 				"DynamicMesh",
+				"GeometryCore",
 				"ModelingComponents",
 				// ... add private dependencies that you statically link with here ...	
 			}

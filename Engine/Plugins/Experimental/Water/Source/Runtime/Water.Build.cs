@@ -30,7 +30,7 @@ public class Water : ModuleRules
 				"NiagaraShader",
 				"Projects",
 				"Landscape",
-				"GeometricObjects",
+				"GeometryCore",
 				"DynamicMesh",
 				"ChaosCore",
 				"Chaos",

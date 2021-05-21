@@ -29,7 +29,7 @@ public class ModelingComponents : ModuleRules
                 "InteractiveToolsFramework",
                 "MeshDescription",
 				"StaticMeshDescription",
-				"GeometricObjects",
+				"GeometryCore",
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",

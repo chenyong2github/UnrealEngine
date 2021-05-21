@@ -20,7 +20,7 @@ public class HeadlessChaos : ModuleRules
 				"CoreUObject",
 				"Projects",
                 "GoogleTest",
-				"GeometricObjects",
+				"GeometryCore",
 				"ChaosVehiclesCore"
             }
         );
