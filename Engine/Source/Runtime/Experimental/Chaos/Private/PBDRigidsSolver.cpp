@@ -741,6 +741,10 @@ namespace Chaos
 		JointsSettings.MinSolverStiffness = ChaosSolverJointMinSolverStiffness;
 		JointsSettings.MaxSolverStiffness = ChaosSolverJointMaxSolverStiffness;
 		JointsSettings.NumIterationsAtMaxSolverStiffness = ChaosSolverJointNumIterationsAtMaxSolverStiffness;
+		JointsSettings.PositionTolerance = ChaosSolverJointPositionTolerance;
+		JointsSettings.AngleTolerance = ChaosSolverJointAngleTolerance;
+		JointsSettings.MinParentMassRatio = ChaosSolverJointMinParentMassRatio;
+		JointsSettings.MaxInertiaRatio = ChaosSolverJointMaxInertiaRatio;
 		JointConstraints.SetSettings(JointsSettings);
 
 		// Apply CVAR overrides if set
@@ -773,12 +777,6 @@ namespace Chaos
 			{
 				SetCollisionCullDistance(ChaosSolverCullDistance);
 			}
-			// Joint settings overrides
-			JointsSettings.PositionTolerance = ChaosSolverJointPositionTolerance;
-			JointsSettings.AngleTolerance = ChaosSolverJointAngleTolerance;
-			JointsSettings.MinParentMassRatio = ChaosSolverJointMinParentMassRatio;
-			JointsSettings.MaxInertiaRatio = ChaosSolverJointMaxInertiaRatio;
-			JointConstraints.SetSettings(JointsSettings);
 		}
 
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::Tick(%3.5f)"), DeltaTime);
