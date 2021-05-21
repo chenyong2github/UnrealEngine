@@ -26,8 +26,8 @@ DROP_TO_THIRDPARTY=..
 ZLIB_VERSION="v1.2.8"
 ZLIB_BRANCH="${ZLIB_VERSION}"
 
-OSSL_VERSION="1.1.1"
-OSSL_BRANCH="OpenSSL_1_1_1-stable"
+OSSL_VERSION="1.1.1k"
+OSSL_TAG="OpenSSL_1_1_1k"
 
 LWS_VERSION="3.0.0"
 LWS_BRANCH="${LWS_VERSION}"
@@ -138,8 +138,8 @@ build_openssl()
 
 	pushd "${SCRIPT_DIR}/${DROP_TO_LIBROOT}/${DROP_TO_THIRDPARTY}/${LIB_NAME}" > /dev/null 2>&1
 
-	DEPLOYED_LIBS="1.1.1/Lib/Mac"
-	DEPLOYED_INCS="1.1.1/Include/Mac"
+	DEPLOYED_LIBS="${OSSL_VERSION}/lib/Mac"
+	DEPLOYED_INCS="${OSSL_VERSION}/include/Mac"
 
 	LIBFILES=( "`find "${DEPLOYED_LIBS}" -type f -print0 | xargs -0 echo`" )
 	INCFILES=( "`find "${DEPLOYED_INCS}" -type f -print0 | xargs -0 echo`" )
@@ -187,7 +187,7 @@ build_openssl()
 	git clone https://github.com/openssl/openssl.git Source
 
 	cd Source
-	git checkout "${OSSL_BRANCH}"
+	git checkout -b ${OSSL_TAG} tags/${OSSL_TAG}
 	patch -p1 --no-backup-if-mismatch < "${DSTROOT}/Patches/darwin64-arm64-cc.patch"
 
 	for OSSL_ARCH in "${OSSL_ARCHS[@]}"; do
@@ -219,7 +219,7 @@ build_openssl()
 		cp -pPR "${PREFIX_ROOT}/${OSSL_ARCHS[0]}/$i" "$i"
 	done
 
-	ditto "${PREFIX_ROOT}/Universal/lib" "${DSTROOT}/${DEPLOYED_LIBS}"
+	cp -pPR "${PREFIX_ROOT}/Universal/lib/*.a" "${DSTROOT}/${DEPLOYED_LIBS}/"
 	ditto "${PREFIX_ROOT}/${OSSL_ARCHS[0]}/include" "${DSTROOT}/${DEPLOYED_INCS}"
 
 	popd > /dev/null
@@ -377,7 +377,7 @@ build_libpython()
 
 build_zlib
 build_openssl
-build_libwebsockets
+#build_libwebsockets
 #build_libpython
 
 ## TODO: Enable when/if needed for macOS
