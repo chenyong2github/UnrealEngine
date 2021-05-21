@@ -151,7 +151,7 @@ static FAutoConsoleVariableRef CVarMinLodQualityLevel(
 	FConsoleVariableDelegate::CreateStatic(&UStaticMesh::OnLodStrippingQualityLevelChanged),
 	ECVF_Scalability);
 
-int32 GDisableMinLODQualityLevel = 0;
+int32 GDisableMinLODQualityLevel = 1;
 static FAutoConsoleVariableRef CVarCDisableMinLODQualityLevel(
 	TEXT("r.StaticMesh.DisableMinLODQualityLevel"),
 	GDisableMinLODQualityLevel,
