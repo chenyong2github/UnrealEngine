@@ -3200,6 +3200,7 @@ void UHierarchicalInstancedStaticMeshComponent::UpdateDensityScaling()
 void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliagePostLoad);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData);
 
 	// Tree will be fully rebuilt when staticmesh has finished compiling
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) && !IsCompiling())
