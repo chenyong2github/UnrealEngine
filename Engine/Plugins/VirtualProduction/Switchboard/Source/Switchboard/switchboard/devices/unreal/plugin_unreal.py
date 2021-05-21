@@ -779,8 +779,12 @@ class DeviceUnreal(Device):
         _, msg = message_protocol.create_fixExeFlags_message(puuid)
         self.unreal_client.send_message(msg)
 
+    @property
+    def executable_filename(self):
+        return DeviceUnreal.csettings["ue4_exe"].get_value()
+
     def generate_unreal_exe_path(self):
-        return CONFIG.engine_exe_path(CONFIG.ENGINE_DIR.get_value(self.name), DeviceUnreal.csettings["ue4_exe"].get_value())
+        return CONFIG.engine_exe_path(CONFIG.ENGINE_DIR.get_value(self.name), self.executable_filename)
 
     def get_vproles(self):
         ''' Gets selected vp roles that are also present in the ini file

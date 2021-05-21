@@ -260,6 +260,11 @@ class DevicenDisplay(DeviceUnreal):
             value="Mono", 
             possible_values=["Mono", "Frame sequential", "Side-by-Side", "Top-bottom"]
         ),
+        'executable_filename': Setting(
+            attr_name="executable_filename",
+            nice_name="nDisplay Executable Filename",
+            value="UE4Editor.exe",
+        ),
         'ndisplay_cmd_args': Setting(
             attr_name="ndisplay_cmd_args", 
             nice_name="Extra Cmd Line Args", 
@@ -416,6 +421,12 @@ class DevicenDisplay(DeviceUnreal):
     @property
     def is_recording_device(self):
         return False
+
+    # Override this property from the DeviceUnreal base class to use the
+    # nDisplay-specific setting.
+    @property
+    def executable_filename(self):
+        return DevicenDisplay.csettings["executable_filename"].get_value()
 
     def generate_unreal_command_line(self, map_name=""):
         uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
