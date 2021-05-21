@@ -36,22 +36,6 @@ namespace HordeServer.Api
 	}
 
 	/// <summary>
-	/// Query selecting the base changelist to use
-	/// </summary>
-	public class ChangeQueryRequest
-	{
-		/// <summary>
-		/// The template id to query
-		/// </summary>
-		public string TemplateId { get; set; } = String.Empty;
-
-		/// <summary>
-		/// The target to query
-		/// </summary>
-		public string? Target { get; set; }
-	}
-
-	/// <summary>
 	/// Parameters required to create a job
 	/// </summary>
 	public class CreateJobRequest
