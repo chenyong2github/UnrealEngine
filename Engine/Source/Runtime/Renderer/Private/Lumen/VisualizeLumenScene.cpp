@@ -383,7 +383,8 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-	if (bAnyLumenActive)
+	if (Lumen::IsLumenFeatureAllowedForView(Scene, View, /*bRequireSoftwareTracing*/ false)
+		&& bAnyLumenActive)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenScene");
 
