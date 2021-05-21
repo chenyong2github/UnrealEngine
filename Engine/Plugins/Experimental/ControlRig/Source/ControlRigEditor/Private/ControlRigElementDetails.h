@@ -13,6 +13,7 @@
 #include "Graph/SControlRigGraphPinNameListValueWidget.h"
 #include "Styling/SlateTypes.h"
 #include "IPropertyUtilities.h"
+#include "SSearchableComboBox.h"
 
 class IPropertyHandle;
 
@@ -43,6 +44,7 @@ protected:
 	TSharedPtr<IPropertyHandle> NameHandle;
 	TArray<TSharedPtr<FString>> ElementNameList;
 	UControlRigBlueprint* BlueprintBeingCustomized;
+	TSharedPtr<SSearchableComboBox> SearchableComboBox;
 };
 
 class FRigUnitDetails : public IDetailCustomization
