@@ -4,6 +4,7 @@
 #if WITH_EDITOR
 #include "GeometryCacheEdModule.h"
 #endif // WITH_EDITOR
+#include "GeometryCacheStreamingManager.h"
 #include "CodecV1.h"
 
 IMPLEMENT_MODULE(FGeometryCacheModule, GeometryCache)
@@ -14,9 +15,12 @@ void FGeometryCacheModule::StartupModule()
 	FGeometryCacheEdModule& Module = FModuleManager::LoadModuleChecked<FGeometryCacheEdModule>(TEXT("GeometryCacheEd"));
 #endif
 
+	IGeometryCacheStreamingManager::Register();
+
 	FCodecV1Decoder::InitLUT();
 }
 
 void FGeometryCacheModule::ShutdownModule()
 {
+	IGeometryCacheStreamingManager::Unregister();
 }

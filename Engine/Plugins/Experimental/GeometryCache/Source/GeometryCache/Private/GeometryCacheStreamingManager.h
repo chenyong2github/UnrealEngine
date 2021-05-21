@@ -32,6 +32,12 @@ struct IGeometryCacheStreamingManager : public IStreamingManager
 	/** Getter of the singleton */
 	GEOMETRYCACHE_API static struct IGeometryCacheStreamingManager& Get();
 
+	/** Streaming manager interface registration enrollment */
+	GEOMETRYCACHE_API static void Register();
+
+	/** Streaming manager interface registration removal */
+	GEOMETRYCACHE_API static void Unregister();
+
 	/** Adds a new cache to the streaming manager. */
 	virtual void AddGeometryCache(UGeometryCacheTrackStreamable* Cache) = 0;
 
