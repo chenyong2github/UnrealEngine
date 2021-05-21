@@ -154,6 +154,7 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 	virtual FString GetFriendlyName() const override { return TEXT("FHairGroupPublicData"); }
+	uint32 GetResourcesSize() const;
 
 	// The primitive count when no culling and neither lod happens
 	uint32 GetGroupInstanceVertexCount() const { return GroupControlTriangleStripVertexCount; }

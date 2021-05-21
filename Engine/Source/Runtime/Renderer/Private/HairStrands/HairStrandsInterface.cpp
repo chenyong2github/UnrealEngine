@@ -343,6 +343,23 @@ void FHairGroupPublicData::ReleaseRHI()
 	CulledVertexRadiusScaleBuffer.Release();
 }
 
+uint32 FHairGroupPublicData::GetResourcesSize() const
+{
+	auto ExtractSize = [](const TRefCountPtr<FRDGPooledBuffer>& InBuffer)
+	{
+		return InBuffer ? InBuffer->Desc.BytesPerElement * InBuffer->Desc.NumElements : 0; 
+	};
+
+	uint32 Total = 0;
+	Total += ExtractSize(DrawIndirectBuffer.Buffer);
+	Total += ExtractSize(DrawIndirectRasterComputeBuffer.Buffer);
+	Total += ExtractSize(ClusterAABBBuffer.Buffer);
+	Total += ExtractSize(GroupAABBBuffer.Buffer);
+	Total += ExtractSize(CulledVertexIdBuffer.Buffer);
+	Total += ExtractSize(CulledVertexRadiusScaleBuffer.Buffer);
+	return Total;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void TransitBufferToReadable(FRDGBuilder& GraphBuilder, FBufferTransitionQueue& BuffersToTransit)
 {

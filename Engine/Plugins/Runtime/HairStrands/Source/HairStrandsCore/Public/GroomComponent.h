@@ -98,6 +98,7 @@ public:
 
 	//~ Begin UObject Interface.
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	uint32 GetResourcesSize() const; 
 	//~ End UObject Interface.
 
 	//~ Begin UActorComponent Interface.
