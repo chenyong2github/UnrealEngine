@@ -14,6 +14,7 @@ struct FPostProcessRectParams
 	FTexture2DRHIRef SourceTexture;
 	FSlateRect SourceRect;
 	FSlateRect DestRect;
+	FVector4 CornerRadius;
 	FIntPoint SourceTextureSize;
 	TFunction<void(FRHICommandListImmediate&, FGraphicsPipelineStateInitializer&)> RestoreStateFunc;
 	TFunction<void()> RestoreStateFuncPostPipelineState;

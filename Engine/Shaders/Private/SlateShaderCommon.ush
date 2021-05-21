@@ -50,30 +50,53 @@ float cross(float2 a, float2 b)
 	return a.x*b.y - a.y*b.x;
 }
 
-/**
- * Given a point p and a parallelogram defined by point a and vectors b and c, determines in p is inside the parallelogram. 
- * returns a 4-vector that can be used with the clip instruction.
- */
-float4 PointInParallelogram(float2 p, float2 a, float4 bc)
+float GetRoundedBoxDistance(float2 pos, float2 center, float radius, float inset)
 {
-	// unoptomized form:
-	//float2 o = p - a;
-	//float2 b = bc.xy;
-	//float2 c = bc.zw;
-	//float d = cross(b, c);
-	//float s = -cross(o, b) / d;
-	//float t = cross(o, c) / d;
-	// test for s and t between 0 and 1
-	//return float4(s, 1 - s, t, 1 - t);
+	// distance from center
+    pos = abs(pos - center); 
 
-	float2 o = p - a;
-	// precompute 1/d
-	float invD = 1/cross(bc.xy, bc.zw);
-	// Compute an optimized o x b and o x c, leveraging that b and c are in the same vector register already (and free swizzles):
-	//   (o.x * b .y  - o.y * b .x, o.x *  c.y - o.y *  c.x) ==
-	//   (o.x * bc.y  - o.y * bc.x, o.x * bc.w - o.y * bc.z) ==
-	//    o.x * bc.yw - o.y * bc.xz
-	float2 st = (o.x * bc.yw - o.y * bc.xz) * float2(-invD, invD);
-	// test for s and t between 0 and 1
-	return float4(st, float2(1,1) - st);
+    // distance from the inner corner
+    pos = pos - (center - float2(radius + inset, radius + inset));
+
+    // use distance to nearest edge when not in quadrant with radius
+    // this handles an edge case when radius is very close to thickness
+    // otherwise we're in the quadrant with the radius, 
+    // just use the analytic signed distance function
+    return lerp( length(pos) - radius, max(pos.x - radius, pos.y - radius), float(pos.x <= 0 || pos.y <=0) );
+}
+
+float4 GetRoundedBoxElementColorInternal(float2 size, float2 UV, float thickness, float4 cornerRadii, float4 fillColor, float4 borderColor)
+{
+	float2 pos = size * UV;
+	float2 center = size / 2.0;
+
+	//cornerRadii: X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left */
+
+	// figure out which radius to use based on which quadrant we're in
+	float2 quadrant = step(UV, float2(.5,.5));
+
+	float left = lerp(cornerRadii.y, cornerRadii.x, quadrant.x);
+	float right = lerp(cornerRadii.z, cornerRadii.w, quadrant.x);
+	float radius = lerp(right, left, quadrant.y);
+
+	// Compute the distances internal and external to the border outline
+	float dext = GetRoundedBoxDistance(pos, center, radius, 0.0);
+	float din  = GetRoundedBoxDistance(pos, center, max(radius - thickness, 0), thickness);
+
+	// Compute the border intensity and fill intensity with a smooth transition
+	float spread = 0.5;
+	float bi = smoothstep(spread, -spread, dext);
+	float fi = smoothstep(spread, -spread, din);
+
+	float4 fill = fillColor;
+	float4 border = borderColor;
+
+	// alpha blend the external color 
+	float4 OutColor = lerp(border, fill, float(thickness > radius));
+	OutColor.a = 0.0;
+
+	// blend in the border and fill colors
+	OutColor = lerp(OutColor, border, bi);
+	OutColor = lerp(OutColor, fill, fi);
+	return OutColor;
 }

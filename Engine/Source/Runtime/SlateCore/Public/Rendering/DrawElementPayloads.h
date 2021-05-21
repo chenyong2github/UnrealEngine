@@ -339,5 +339,6 @@ struct FSlatePostProcessPayload : public FSlateDataPayload
 {
 	// Post Process Data
 	FVector4 PostProcessData;
+	FVector4 CornerRadius;
 	int32 DownsampleAmount;
 };

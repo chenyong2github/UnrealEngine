@@ -20,11 +20,13 @@ void SBackgroundBlur::PrivateRegisterAttributes(FSlateAttributeInitializer& Attr
 {
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "BlurStrength", BlurStrengthAttribute, EInvalidateWidgetReason::Paint);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "BlurRadius", BlurRadiusAttribute, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "CornerRadius", CornerRadiusAttribute, EInvalidateWidgetReason::Paint);
 }
 
 SBackgroundBlur::SBackgroundBlur()
 	: BlurStrengthAttribute(*this)
 	, BlurRadiusAttribute(*this)
+	, CornerRadiusAttribute(*this)
 {
 }
 
@@ -35,6 +37,7 @@ void SBackgroundBlur::Construct(const FArguments& InArgs)
 	LowQualityFallbackBrush = InArgs._LowQualityFallbackBrush;
 	SetBlurStrength(InArgs._BlurStrength);
 	SetBlurRadius(InArgs._BlurRadius);
+	SetCornerRadius(InArgs._CornerRadius);
 
 	ChildSlot
 		.HAlign(InArgs._HAlign)
@@ -78,6 +81,11 @@ void SBackgroundBlur::SetLowQualityBackgroundBrush(const FSlateBrush* InBrush)
 		LowQualityFallbackBrush = InBrush;
 		Invalidate(EInvalidateWidget::Paint);
 	}
+}
+
+void SBackgroundBlur::SetCornerRadius(TAttribute<FVector4> InCornerRadius)
+{
+	CornerRadiusAttribute.Assign(*this, InCornerRadius);
 }
 
 void SBackgroundBlur::SetHAlign(EHorizontalAlignment HAlign)
@@ -136,7 +144,7 @@ int32 SBackgroundBlur::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 				{
 					OutDrawElements.PushClip(FSlateClippingZone(AllottedGeometry));
 
-					FSlateDrawElement::MakePostProcessPass(OutDrawElements, LayerId, PaintGeometry, FVector4((float)KernelSize, ComputedStrength, (float)RenderTargetWidth, (float)RenderTargetHeight), DownsampleAmount);
+					FSlateDrawElement::MakePostProcessPass(OutDrawElements, LayerId, PaintGeometry, FVector4((float)KernelSize, ComputedStrength, (float)RenderTargetWidth, (float)RenderTargetHeight), DownsampleAmount, CornerRadiusAttribute.Get());
 
 					OutDrawElements.PopClip();
 				}
