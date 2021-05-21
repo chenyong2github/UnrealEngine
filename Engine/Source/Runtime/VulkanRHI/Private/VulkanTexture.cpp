@@ -875,7 +875,6 @@ void FVulkanSurface::OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListCon
 
 		{
 			check(Image != VK_NULL_HANDLE);
-			uint64 Size = GetMemorySize();
 			Device->NotifyDeletedImage(Image, bRenderTarget);
 			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
 			FGenericPlatformMisc::LowLevelOutputDebugStringf(TEXT("** MOVE IMAGE %p -> %p\n"), Image, MovedImage);
