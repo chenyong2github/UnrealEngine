@@ -145,7 +145,7 @@ void MainPS(
 			BSDF_SETHASSSSPROFILE(BSDF, 0);
 			BSDF_SETHASHAZINESS(BSDF, Haziness != 0 ? 1 : 0);
 			BSDF_SETHASTHINFILM(BSDF, 0);
-			BSDF.Weight = 1.0f;
+			BSDF.FinalWeight = 1.0f;
 
 			const float2 RoughnessXY = GetAnisotropicRoughness(Roughness, Anisoptropy);
 
@@ -184,8 +184,8 @@ void MainPS(
 				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L, true);
 				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
 
-				const float3 DiffusePathWeight  = BSDF.Weight * BSDFEvaluate.DiffusePathValue;
-				const float3 SpecularPathWeight = BSDF.Weight * BSDFEvaluate.SpecularPathValue;
+				const float3 DiffusePathWeight  = BSDF.FinalWeight * BSDFEvaluate.DiffusePathValue;
+				const float3 SpecularPathWeight = BSDF.FinalWeight * BSDFEvaluate.SpecularPathValue;
 
 				Acc += SatNoL * InRadiance * (DiffusePathWeight + SpecularPathWeight) / (S.w != 0 ?  S.w : 1);
 			}
@@ -213,8 +213,8 @@ void MainPS(
 				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L, true);
 				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
 
-				const float3 DiffusePathWeight  = BSDF.Weight * BSDFEvaluate.DiffusePathValue;
-				const float3 SpecularPathWeight = BSDF.Weight * BSDFEvaluate.SpecularPathValue;
+				const float3 DiffusePathWeight  = BSDF.FinalWeight * BSDFEvaluate.DiffusePathValue;
+				const float3 SpecularPathWeight = BSDF.FinalWeight * BSDFEvaluate.SpecularPathValue;
 
 				Acc += SatNoL * InRadiance * (DiffusePathWeight + SpecularPathWeight) / (PDF != 0 ? PDF : 1);
 
@@ -223,7 +223,7 @@ void MainPS(
 		}
 		else if (IntegratorType == STRATA_INTEGRATION_ENV)
 		{
-			const float3 BSDFThroughput = BSDF.Weight;
+			const float3 BSDFThroughput = BSDF.FinalWeight;
 
 			const float3 UnusedL = float3(0, 0, 1);
 			const float3x3 TangentBasis = GetTangentBasis(N);
@@ -233,8 +233,8 @@ void MainPS(
 			FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(BSDFContext, bEnableSpecular);
 
 			const float3 InIrradiance = InRadiance; //It should have a Pi factor though
-			const float3 SpecularSkyLighting = BSDF.Weight * StrataEnvLight.SpecularWeight * InRadiance;
-			const float3 DiffuseSkyLighting  = BSDF.Weight * StrataEnvLight.DiffuseWeight * InIrradiance;
+			const float3 SpecularSkyLighting = BSDF.FinalWeight * StrataEnvLight.SpecularWeight * InRadiance;
+			const float3 DiffuseSkyLighting  = BSDF.FinalWeight * StrataEnvLight.DiffuseWeight * InIrradiance;
 
 			OutColor = 
 				SpecularSkyLighting + 
