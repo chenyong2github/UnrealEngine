@@ -688,6 +688,7 @@ void FMediaTextureResource::ReleaseDynamicRHI()
 	 const EPixelFormat Format = SampleTexture->GetFormat();
 
 	 return ((Format != PF_B8G8R8A8) &&
+		 (Format != PF_R8G8B8A8) &&
 		 (Format != PF_FloatRGB) &&
 		 (Format != PF_FloatRGBA));
  }
