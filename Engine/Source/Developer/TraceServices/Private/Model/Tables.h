@@ -154,11 +154,12 @@ class TTableLayout
 {
 public:
 	template<typename ColumnNativeType>
-	TTableLayout<RowType>& AddColumn(ColumnNativeType RowType::* MemberVariableColumn, const TCHAR* ColumnName)
+	TTableLayout<RowType>& AddColumn(ColumnNativeType RowType::* MemberVariableColumn, const TCHAR* ColumnName, uint32 DisplayHintFlags = 0)
 	{
 		Columns.Add({
 			ColumnName,
 			GetColumnTypeFromNativeType<ColumnNativeType>(),
+			DisplayHintFlags,
 			[MemberVariableColumn](const RowType& Row) -> FColumnValueContainer
 			{
 				return FColumnValueContainer(Row.*MemberVariableColumn);
@@ -168,11 +169,12 @@ public:
 	}
 
 	template<typename ColumnNativeType>
-	TTableLayout<RowType>& AddColumn(ColumnNativeType(RowType::* MemberFunctionColumn)() const, const TCHAR* ColumnName)
+	TTableLayout<RowType>& AddColumn(ColumnNativeType(RowType::* MemberFunctionColumn)() const, const TCHAR* ColumnName, uint32 DisplayHintFlags = 0)
 	{
 		Columns.Add({
 			ColumnName,
 			GetColumnTypeFromNativeType<ColumnNativeType>(),
+			DisplayHintFlags,
 			[MemberFunctionColumn](const RowType& Row) -> FColumnValueContainer
 			{
 				return FColumnValueContainer((Row.*MemberFunctionColumn)());
@@ -182,11 +184,12 @@ public:
 	}
 
 	template<typename ColumnNativeType>
-	TTableLayout<RowType>& AddColumn(ColumnNativeType(*FunctionColumn)(const RowType&), const TCHAR* ColumnName)
+	TTableLayout<RowType>& AddColumn(ColumnNativeType(*FunctionColumn)(const RowType&), const TCHAR* ColumnName, uint32 DisplayHintFlags = 0)
 	{
 		Columns.Add({
 			ColumnName,
 			GetColumnTypeFromNativeType<ColumnNativeType>(),
+			DisplayHintFlags,
 			[FunctionColumn](const RowType& Row) -> FColumnValueContainer
 			{
 				return FColumnValueContainer(FunctionColumn(Row));
@@ -210,6 +213,11 @@ public:
 		return Columns[ColumnIndex].Type;
 	}
 
+	uint32 GetColumnDisplayHintFlags(uint64 ColumnIndex) const override
+	{
+		return Columns[ColumnIndex].DisplayHintFlags;
+	}
+
 	FColumnValueContainer GetColumnValue(const RowType& Row, uint64 ColumnIndex) const
 	{
 		return Columns[ColumnIndex].Projector(Row);
@@ -220,6 +228,7 @@ private:
 	{
 		FString Name;
 		ETableColumnType Type;
+		uint32 DisplayHintFlags;
 		TFunction<FColumnValueContainer(const RowType&)> Projector;
 	};
 

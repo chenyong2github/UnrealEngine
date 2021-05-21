@@ -72,6 +72,10 @@ private:
 		virtual uint64 GetColumnCount() const override;
 		virtual const TCHAR* GetColumnName(uint64 ColumnIndex) const override;
 		virtual ETableColumnType GetColumnType(uint64 ColumnIndex) const override;
+		virtual uint32 GetColumnDisplayHintFlags(uint64 ColumnIndex) const override
+		{
+			return 0;
+		}
 
 	private:
 		const TArray<FStatSeries*>& StatSeries;
