@@ -51,6 +51,7 @@ public class GeometryProcessingAdapters : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"RenderCore",
 
 				"MeshBuilder",
 				"MeshUtilitiesCommon",  

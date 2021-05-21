@@ -34,11 +34,20 @@
 
 #include "Async/Async.h"
 #include "Misc/ScopedSlowTask.h"
+#include "RenderCaptureInterface.h"
 
 using namespace UE::Geometry;
 using namespace UE::AssetUtils;
 
 #define LOCTEXT_NAMESPACE "ApproximateActorsImpl"
+
+static TAutoConsoleVariable<int32> CVarApproximateActorsRDOCCapture(
+	TEXT("ApproximateActors.RenderCapture"),
+	0,
+	TEXT("Determines whether or not to trigger a render capture.\n")
+	TEXT("0: Turned Off\n")
+	TEXT("1: Turned On"),
+	ECVF_Default);
 
 struct FGeneratedResultTextures
 {
@@ -572,6 +581,8 @@ void FApproximateActorsImpl::ApproximateActors(const TArray<AActor*>& Actors, co
 void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActor*>& Actors, const FOptions& Options, FResults& ResultsOut)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate);
+
+	RenderCaptureInterface::FScopedCapture RenderCapture(CVarApproximateActorsRDOCCapture.GetValueOnAnyThread() == 1, TEXT("ApproximateActors"));
 
 	//
 	// Future Optimizations
