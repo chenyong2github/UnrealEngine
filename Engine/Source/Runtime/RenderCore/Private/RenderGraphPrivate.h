@@ -107,6 +107,7 @@ extern int32 GRDGAsyncCompute;
 extern int32 GRDGCullPasses;
 extern int32 GRDGMergeRenderPasses;
 extern int32 GRDGTransientAllocator;
+extern int32 GRDGTransientIndirectArgBuffers;
 extern int32 GRDGDrain;
 
 #if CSV_PROFILER

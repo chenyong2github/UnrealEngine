@@ -305,6 +305,13 @@ FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
 	TEXT(" 1: enables the transient allocator (default)"),
 	ECVF_RenderThreadSafe);
 
+// Fix for random GPU crashes on draw indirects on multiple IHVs. Force all indirect arg buffers as non transient (see UE-115982)
+int32 GRDGTransientIndirectArgBuffers = 0;
+FAutoConsoleVariableRef CVarRDGIndirectArgBufferTransientAllocated(
+	TEXT("r.RDG.TransientAllocator.IndirectArgumentBuffers"), GRDGTransientIndirectArgBuffers,
+	TEXT("Whether indirect argument buffers should use transient resource allocator. Default: 0"),
+	ECVF_RenderThreadSafe);
+
 int32 GRDGDrain = 0;
 FAutoConsoleVariableRef CVarRDGDrain(
 	TEXT("r.RDG.Drain"), GRDGDrain,
