@@ -3632,6 +3632,7 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 		if(bSetupModeEnabled || bIsInitial)
 		{
 			Hierarchy = ControlRigBP->Hierarchy;
+			DebuggedHierarchy = Hierarchy;
 		}
 
 		FRigBaseElement* SourceElement = DebuggedHierarchy->Find(RigElementInDetailPanel);
@@ -3708,7 +3709,7 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 			}
 		}
 
-		if(bIsInitial)
+		if(bSetupModeEnabled || bIsInitial)
 		{
 			ControlRigBP->PropagatePoseFromBPToInstances();
 			ControlRigBP->Modify();
