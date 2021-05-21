@@ -59,6 +59,7 @@ namespace HordeServer.Collections.Impl
 			public string? PauseComment { get; set; }
 			public Acl? Acl { get; set; }
 			public int UpdateIndex { get; set; }
+			public bool Deleted { get; set; }
 
 			IReadOnlyList<StreamTab> IStream.Tabs => Tabs;
 			IReadOnlyDictionary<string, AgentType> IStream.AgentTypes => AgentTypes;
@@ -356,14 +357,14 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<List<IStream>> FindAllAsync()
 		{
-			List<StreamDocument> Results = await Streams.Find(FilterDefinition<StreamDocument>.Empty).ToListAsync();
+			List<StreamDocument> Results = await Streams.Find(Builders<StreamDocument>.Filter.Ne(x => x.Deleted, true)).ToListAsync();
 			return Results.ConvertAll<IStream>(x => x);
 		}
 
 		/// <inheritdoc/>
 		public async Task<List<IStream>> FindForProjectsAsync(ProjectId[] ProjectIds)
 		{
-			FilterDefinition<StreamDocument> Filter = Builders<StreamDocument>.Filter.In(x => x.ProjectId, ProjectIds);
+			FilterDefinition<StreamDocument> Filter = Builders<StreamDocument>.Filter.In(x => x.ProjectId, ProjectIds) & Builders<StreamDocument>.Filter.Ne(x => x.Deleted, true);
 			List<StreamDocument> Results = await Streams.Find(Filter).ToListAsync();
 			return Results.ConvertAll<IStream>(x => x);
 		}
@@ -555,7 +556,7 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task DeleteAsync(StreamId StreamId)
 		{
-			await Streams.DeleteOneAsync<StreamDocument>(x => x.Id == StreamId);
+			await Streams.UpdateOneAsync<StreamDocument>(x => x.Id == StreamId, Builders<StreamDocument>.Update.Set(x => x.Deleted, true).Inc(x => x.UpdateIndex, 1));
 		}
 	}
 }
