@@ -2065,7 +2065,8 @@ void FAnimationBlueprintEditor::HandleViewportCreated(const TSharedRef<IPersonaV
 					.Text(LOCTEXT("AnimBPViewportCompileButtonLabel", "Compile"))
 				]
 			]
-		]
+		],
+		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetCompilationStateVisibility))
 	);
 }
 

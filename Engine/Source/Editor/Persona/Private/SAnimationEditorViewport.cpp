@@ -318,7 +318,7 @@ TSharedRef<IPinnedCommandList> SAnimationEditorViewportTabBody::GetPinnedCommand
 	return ViewportWidget->GetViewportToolbar()->GetPinnedCommandList().ToSharedRef();
 }
 
-TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EMessageSeverity::Type> InSeverity, TAttribute<bool> InCanBeDismissed, const TSharedRef<SWidget>& InNotificationWidget)
+TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EMessageSeverity::Type> InSeverity, TAttribute<bool> InCanBeDismissed, const TSharedRef<SWidget>& InNotificationWidget, FPersonaViewportNotificationOptions InOptions)
 {
 	TSharedPtr<SBorder> ContainingWidget = nullptr;
 	TWeakPtr<SWidget> WeakNotificationWidget = InNotificationWidget;
@@ -333,17 +333,14 @@ TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EM
 		return FMargin(0.0f);
 	};
 
-	auto GetVisibility = [WeakNotificationWidget]()
+	TAttribute<EVisibility> GetVisibility(EVisibility::Visible);
+	
+	if (InOptions.OnGetVisibility.IsSet())
 	{
-		if(WeakNotificationWidget.IsValid())
-		{
-			return WeakNotificationWidget.Pin()->GetVisibility();
-		}
-
-		return EVisibility::Collapsed;
-	};
-
-	auto GetBrushForSeverity = [InSeverity]()
+		GetVisibility = InOptions.OnGetVisibility;
+	}
+	
+	TAttribute<const FSlateBrush*> GetBrushForSeverity = TAttribute<const FSlateBrush*>::Create([InSeverity]()
 	{
 		switch(InSeverity.Get())
 		{
@@ -357,7 +354,12 @@ TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EM
 		case EMessageSeverity::Info:
 			return FEditorStyle::GetBrush("AnimViewport.Notification.Message");
 		}
-	};
+	});
+
+	if (InOptions.OnGetBrushOverride.IsSet())
+	{
+		GetBrushForSeverity = InOptions.OnGetBrushOverride;
+	}
 
 	TSharedPtr<SHorizontalBox> BodyBox = nullptr;
 
@@ -367,8 +369,8 @@ TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EM
 	.Padding(MakeAttributeLambda(GetPadding))
 	[
 		SAssignNew(ContainingWidget, SBorder)
-		.Visibility_Lambda(GetVisibility)
-		.BorderImage_Lambda(GetBrushForSeverity)
+		.Visibility(GetVisibility)
+		.BorderImage(GetBrushForSeverity)
 		[
 			SAssignNew(BodyBox, SHorizontalBox)
 			+SHorizontalBox::Slot()
@@ -2139,7 +2141,8 @@ void SAnimationEditorViewportTabBody::AddRecordingNotification()
 					.Text(LOCTEXT("AnimViewportStopRecordingButtonLabel", "Stop"))
 				]
 			]
-		]
+		],
+		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetRecordingStateStateVisibility))
 	);
 }
 
@@ -2309,7 +2312,8 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 					.Text(LOCTEXT("EditPostProcessAnimBPButtonText", "Edit"))
 				]
 			]
-		]
+		],
+		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetVisibility))
 	);
 }
 
@@ -2358,7 +2362,8 @@ void SAnimationEditorViewportTabBody::AddMinLODNotification()
 				.Text(LOCTEXT("MinLODNotification", "Min LOD applied"))
 				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
 			]
-		]
+		],
+		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetMinLODNotificationVisibility))
 	);
 }
 
@@ -2418,7 +2423,8 @@ void SAnimationEditorViewportTabBody::AddSkinWeightProfileNotification()
 				.Text_Lambda(GetSkinWeightProfileNotificationText)
 				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
 			]
-		]
+		],
+		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetSkinWeightProfileNotificationVisibility))
 	);
 }
 

@@ -17,6 +17,18 @@ struct IPersonaViewportState
 {
 };
 
+struct FPersonaViewportNotificationOptions
+{
+	FPersonaViewportNotificationOptions() = default;
+	
+	// in general on GetVisibility should always be provided
+	explicit FPersonaViewportNotificationOptions(const TAttribute<EVisibility> InOnGetVisibility)
+		:OnGetVisibility(InOnGetVisibility) {};
+
+	TAttribute<EVisibility> OnGetVisibility;
+	TAttribute<const FSlateBrush*> OnGetBrushOverride;
+};
+
 /** Abstract viewport that can save and restore state */
 class IPersonaViewport : public SCompoundWidget
 {
@@ -38,9 +50,10 @@ public:
 	 * @param	InSeverity				The severity of the message
 	 * @param	InCanBeDismissed		Whether the message can be manually dismissed
 	 * @param	InNotificationWidget	The widget showing the notification
+	 * @param	InOptions				Specify GetVisibility callback and other optional callback overrides
 	 * @return the widget containing the notification
 	 */
-	virtual TWeakPtr<SWidget> AddNotification(TAttribute<EMessageSeverity::Type> InSeverity, TAttribute<bool> InCanBeDismissed, const TSharedRef<SWidget>& InNotificationWidget) = 0;
+	virtual TWeakPtr<SWidget> AddNotification(TAttribute<EMessageSeverity::Type> InSeverity, TAttribute<bool> InCanBeDismissed, const TSharedRef<SWidget>& InNotificationWidget, FPersonaViewportNotificationOptions InOptions) = 0;
 	
 	/** 
 	* Remove a notification widget 
