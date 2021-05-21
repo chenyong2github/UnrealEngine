@@ -5,19 +5,23 @@
 
 uint DI_LOCAL(NumVertices);
 uint DI_LOCAL(NumTriangles);
+uint DI_LOCAL(NumTexCoords);
+uint DI_LOCAL(IndexBufferStart);
 uint DI_LOCAL(InputStreamStart);
 uint DI_LOCAL(InputWeightStart);
 uint DI_LOCAL(InputWeightStride);
 uint DI_LOCAL(InputWeightIndexSize);
-uint DI_LOCAL(IndexBufferStart);
 
+Buffer<uint> DI_LOCAL(IndexBuffer);
 Buffer<float> DI_LOCAL(PositionInputBuffer);
 Buffer<SNORM float4> DI_LOCAL(TangentInputBuffer);
 Buffer<float2> DI_LOCAL(UVInputBuffer);
 Buffer<float4> DI_LOCAL(BoneMatrices);
 Buffer<uint> DI_LOCAL(InputWeightStream);
 Buffer<uint> DI_LOCAL(InputWeightLookupStream);
-Buffer<uint> DI_LOCAL(IndexBuffer);
+Buffer<float> DI_LOCAL(MorphBuffer);
+Buffer<uint> DI_LOCAL(DuplicatedIndicesIndices);
+Buffer<uint> DI_LOCAL(DuplicatedIndices);
 
 DI_IMPL_READ(ReadNumVertices, uint, void)
 {
@@ -27,6 +31,12 @@ DI_IMPL_READ(ReadNumVertices, uint, void)
 DI_IMPL_READ(ReadNumTriangles, uint, void)
 {
 	return DI_LOCAL(NumTriangles);
+}
+
+DI_IMPL_READ(ReadIndexBuffer, uint, uint Index)
+{
+	uint BufferIndex = DI_LOCAL(IndexBufferStart) + Index;
+	return DI_LOCAL(IndexBuffer)[BufferIndex] - DI_LOCAL(InputStreamStart);
 }
 
 DI_IMPL_READ(ReadPosition, float3, uint VertexIndex)
@@ -47,11 +57,12 @@ DI_IMPL_READ(ReadTangentZ, float4, uint VertexIndex)
 	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex + 1]);
 }
 
-DI_IMPL_READ(ReadUV, float2, uint VertexIndex)
+DI_IMPL_READ(ReadUV, float2, uint VertexIndex, uint TexCoordIndex)
 {
-	uint BufferIndex = DI_LOCAL(InputStreamStart) + VertexIndex;
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * DI_LOCAL(NumTexCoords) + TexCoordIndex;
 	return DI_LOCAL(UVInputBuffer)[BufferIndex];
 }
+
 #if !GPUSKIN_UNLIMITED_BONE_INFLUENCE
 
 int4 DI_LOCAL(GetBlendIndices)(uint StreamOffset, uint ExtraInfluenceIndex)
@@ -156,13 +167,49 @@ DI_IMPL_READ(ReadBoneMatrix, float3x4, uint BoneIndex)
 	return DI_LOCAL(GetBoneMatrix)(BoneIndex);
 }
 
-DI_IMPL_READ(ReadTriangleVertexIndices, uint3, uint TriangleIndex)
+DI_IMPL_READ(ReadMorphDeltaPosition, float3, uint VertexIndex)
 {
-	uint BufferIndex = DI_LOCAL(IndexBufferStart) + TriangleIndex * 3;
+#if GPUSKIN_MORPH_BLEND
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 6;
+	return float3(DI_LOCAL(MorphBuffer)[BufferIndex], DI_LOCAL(MorphBuffer)[BufferIndex + 1], DI_LOCAL(MorphBuffer)[BufferIndex + 2]);
+#else
+	return 0;
+#endif
+}
 
-	uint3 Indices;
-	Indices.x = DI_LOCAL(IndexBuffer)[BufferIndex + 0];
-	Indices.y = DI_LOCAL(IndexBuffer)[BufferIndex + 1];
-	Indices.z = DI_LOCAL(IndexBuffer)[BufferIndex + 2];
-	return Indices;
+DI_IMPL_READ(ReadMorphDeltaTangentZ, float3, uint VertexIndex)
+{
+#if GPUSKIN_MORPH_BLEND
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 6;
+	return float3(DI_LOCAL(MorphBuffer)[BufferIndex + 3], DI_LOCAL(MorphBuffer)[BufferIndex + 4], DI_LOCAL(MorphBuffer)[BufferIndex + 5]);
+#else
+	return 0;
+#endif
+}
+
+DI_IMPL_READ(ReadDuplicatedIndicesStart, uint, uint VertexIndex)
+{
+#if MERGE_DUPLICATED_VERTICES 
+	return DI_LOCAL(DuplicatedIndicesIndices)[VertexIndex * 2 + 1];
+#else
+	return 0;
+#endif
+}
+
+DI_IMPL_READ(ReadDuplicatedIndicesLength, uint, uint VertexIndex)
+{
+#if MERGE_DUPLICATED_VERTICES 
+	return DI_LOCAL(DuplicatedIndicesIndices)[VertexIndex * 2];
+#else
+	return 0;
+#endif
+}
+
+DI_IMPL_READ(ReadDuplicatedIndex, uint, uint Index)
+{
+#if MERGE_DUPLICATED_VERTICES 
+	return DI_LOCAL(DuplicatedIndices)[Index];
+#else
+	return 0;
+#endif
 }
