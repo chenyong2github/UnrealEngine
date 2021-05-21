@@ -154,6 +154,8 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 	virtual FString GetFriendlyName() const override { return TEXT("FHairGroupPublicData"); }
+	void Allocate(FRDGBuilder& GraphBuilder);
+	void Release();
 	uint32 GetResourcesSize() const;
 
 	// The primitive count when no culling and neither lod happens
@@ -302,6 +304,7 @@ public:
 	FRDGExternalBuffer CulledVertexRadiusScaleBuffer;
 	bool bCullingResultAvailable = false;
 	bool bSupportVoxelization = true;
+	bool bIsInitialized = false;
 
 	/* CPU LOD selection. Hair LOD selection can be done by CPU or GPU. If bUseCPULODSelection is true, 
 	   CPU LOD selection is enabled otherwise the GPU selection is used. CPU LOD selection use the CPU 

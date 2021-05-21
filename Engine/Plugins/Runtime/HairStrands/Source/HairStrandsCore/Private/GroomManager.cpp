@@ -669,6 +669,9 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 		}
 		else if (GeometryType == EHairGeometryType::Strands)
 		{
+			check(Instance->HairGroupPublicData);
+			Instance->HairGroupPublicData->Allocate(GraphBuilder);
+
 			if (Instance->Strands.RestRootResource)			Instance->Strands.RestRootResource->Allocate(GraphBuilder);
 			if (Instance->Strands.RestResource)				Instance->Strands.RestResource->Allocate(GraphBuilder);
 			if (Instance->Strands.ClusterCullingResource)	Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder);
