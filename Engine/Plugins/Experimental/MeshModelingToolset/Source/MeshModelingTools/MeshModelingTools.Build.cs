@@ -34,7 +34,7 @@ public class MeshModelingTools : ModuleRules
 				"Core",
 				"Eigen",
                 "InteractiveToolsFramework",
-				"GeometricObjects",
+				"GeometryCore",
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",

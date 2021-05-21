@@ -16,7 +16,7 @@ namespace UnrealBuildTool.Rules
 					"DynamicMesh",
 					"EditorScriptingUtilities",
 					"Engine",
-					"GeometricObjects",
+					"GeometryCore",
 					"MeshConversion",
 					"MeshDescription",
 					"MeshModelingTools",

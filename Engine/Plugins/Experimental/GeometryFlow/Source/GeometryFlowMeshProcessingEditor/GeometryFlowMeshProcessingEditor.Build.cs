@@ -26,7 +26,7 @@ public class GeometryFlowMeshProcessingEditor : ModuleRules
 			new string[]
 			{
 				"Core",
-				"GeometricObjects",
+				"GeometryCore",
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"GeometryFlowCore",

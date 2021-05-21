@@ -32,7 +32,7 @@ public class GeometryProcessingAdapters : ModuleRules
                 "MeshDescription",
 				"StaticMeshDescription",
 				"ModelingOperators",
-				"GeometricObjects",
+				"GeometryCore",
 				"DynamicMesh",
 				"MeshConversion",
 				"GeometryAlgorithms", // required for constrained Delaunay triangulation

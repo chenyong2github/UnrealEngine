@@ -26,7 +26,7 @@ public class GeometryFlowCore : ModuleRules
 			new string[]
 			{
 				"Core",
-				"GeometricObjects"
+				"GeometryCore"
 			}
             );
 			

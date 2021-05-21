@@ -19,7 +19,7 @@ public class MeshConversion : ModuleRules
                 "MeshDescription",
 				"StaticMeshDescription",
 				"SkeletalMeshDescription",
-				"GeometricObjects",
+				"GeometryCore",
 				"DynamicMesh"
             }
 		);
