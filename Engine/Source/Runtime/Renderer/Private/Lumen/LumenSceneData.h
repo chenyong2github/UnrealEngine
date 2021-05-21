@@ -307,6 +307,13 @@ public:
 		FIntRect PhysicalAtlasRect;
 	};
 
+	struct FBinStats
+	{
+		FIntPoint ElementSize;
+		int32 NumAllocations;
+		int32 NumPages;
+	};
+
 	struct FStats
 	{
 		uint32 NumFreePages = 0;
@@ -314,6 +321,8 @@ public:
 		uint32 BinNumPages = 0;
 		uint32 BinNumWastedPages = 0;
 		uint32 BinPageFreeTexels = 0;
+
+		TArray<FBinStats> Bins;
 	};
 
 	void Init(FIntPoint PageAtlasSizeInPages);
