@@ -94,6 +94,8 @@ public:
 
 	static const ERHIAccess kCountBufferDefaultState;
 
+	bool HasEntriesPendingFree() const { return InstanceCountClearTasks.Num() > 0; }
+
 protected:
 	struct FIndirectArgsPoolEntry
 	{
