@@ -247,32 +247,32 @@ struct TUnrealPlatformMathSSEBase : public Base
 	// LWC_TODO: Default to double variant for non-float types, or just for int64?
 	static FORCEINLINE int32 TruncToInt(double F)
 	{
-		return Base::TruncToInt(F);
+		return Base::TruncToInt((float)F);
 	}
 
 	static FORCEINLINE int32 RoundToInt(double F)
 	{
-		return Base::RoundToInt(F);
+		return Base::RoundToInt((float)F);
 	}
 
 	static FORCEINLINE int32 FloorToInt(double F)
 	{
-		return Base::FloorToInt(F);
+		return Base::FloorToInt((float)F);
 	}
 
 	static FORCEINLINE int32 CeilToInt(double F)
 	{
-		return Base::CeilToInt(F);
+		return Base::CeilToInt((float)F);
 	}
 
 	static FORCEINLINE double InvSqrt(double F)
 	{
-		return Base::InvSqrt(F);
+		return Base::InvSqrt((float)F);
 	}
 
 	static FORCEINLINE double InvSqrtEst(double F)
 	{
-		return Base::InvSqrtEst(F);
+		return Base::InvSqrtEst((float)F);
 	}
 
 };

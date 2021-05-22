@@ -2376,8 +2376,8 @@ template<typename T> const TVector<T> TVector<T>::ZAxisVector(0, 0, 1);
  * @param V Vector to scale.
  * @return Result of multiplication.
  */
-template<typename T>
-FORCEINLINE TVector<T> operator*(float Scale, const TVector<T>& V)	// LWC_TODO: T Scale
+template<typename T, typename T2, TEMPLATE_REQUIRES(std::is_fundamental<T2>::value)>
+FORCEINLINE TVector<T> operator*(T2 Scale, const TVector<T>& V)
 {
 	return V.operator*(Scale);
 }

@@ -312,12 +312,12 @@ bool FStridedViewTest::RunTest(const FString& Parameters)
 
 	{
 		TStridedView<FVector::FReal> ViewOfZs = MakeStridedView((int32)sizeof(Structs[0]), &Structs[0].Position.Z, Num);
-		float ExpectedSum = 0.0;
+		FVector::FReal ExpectedSum = 0.0;
 		for (int32 i = 0; i < Num; ++i)
 		{
 			ExpectedSum += Structs[i].Position.Z;
 		}
-		float Sum = Algo::Accumulate(ViewOfZs, 0.0f);
+		FVector::FReal Sum = Algo::Accumulate(ViewOfZs, FVector::FReal(0));
 		TestEqual(TEXT("Algo::Accumulate(MakeStridedView((int32)sizeof(Structs[0]), &Structs[0].Position.Z, Num), 0.0f)"), Sum, ExpectedSum);
 	}
 

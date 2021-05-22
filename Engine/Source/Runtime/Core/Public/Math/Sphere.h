@@ -12,12 +12,13 @@
 class FSphere
 {
 public:
+	using FReal = FVector::FReal;
 
 	/** The sphere's center point. */
 	FVector Center;
 
 	/** The sphere's radius. */
-	FVector::FReal W;
+	FReal W;
 
 public:
 
@@ -40,7 +41,7 @@ public:
 	 * @param InV Center of sphere.
 	 * @param InW Radius of sphere.
 	 */
-	FSphere(FVector InV, typename FVector::FReal InW)
+	FSphere(FVector InV, FReal InW)
 		: Center(InV)
 		, W(InW)
 	{ }
@@ -146,7 +147,7 @@ public:
 	 *
 	 * @return Volume (in Unreal units).
 	 */
-	CORE_API float GetVolume() const;
+	CORE_API FReal GetVolume() const;
 
 	/**
 	 * Adds to this bounding box to include a new bounding volume.
@@ -204,7 +205,7 @@ public:
  */
 FORCEINLINE bool FMath::SphereAABBIntersection(const FSphere& Sphere,const FBox& AABB)
 {
-	FVector::FReal RadiusSquared = FMath::Square(Sphere.W);
+	FSphere::FReal RadiusSquared = FMath::Square(Sphere.W);
 	// If the distance is less than or equal to the radius, they intersect
 	return SphereAABBIntersection(Sphere.Center,RadiusSquared,AABB);
 }
@@ -222,7 +223,7 @@ FORCEINLINE FSphere FMath::ComputeBoundingSphereForCone(FVector const& ConeOrigi
 	}
 	else
 	{
-		const float BoundingRadius = ConeRadius / (2.0f * CosConeAngle);
+		const FSphere::FReal BoundingRadius = ConeRadius / (2.0f * CosConeAngle);
 		return FSphere(ConeOrigin + ConeDirection * BoundingRadius, BoundingRadius);
 	}
 }

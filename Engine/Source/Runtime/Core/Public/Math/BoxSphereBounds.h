@@ -15,6 +15,8 @@
  */
 struct FBoxSphereBounds
 {
+	using FReal = FVector::FReal;
+
 	/** Holds the origin of the bounding box and sphere. */
 	FVector	Origin;
 
@@ -22,7 +24,7 @@ struct FBoxSphereBounds
 	FVector BoxExtent;
 
 	/** Holds the radius of the bounding sphere. */
-	FVector::FReal SphereRadius;
+	FReal SphereRadius;
 
 public:
 
@@ -49,7 +51,7 @@ public:
 	 * @param InBoxExtent half size of box.
 	 * @param InSphereRadius radius of the sphere.
 	 */
-	FBoxSphereBounds( const FVector& InOrigin, const FVector& InBoxExtent, float InSphereRadius )
+	FBoxSphereBounds( const FVector& InOrigin, const FVector& InBoxExtent, FReal InSphereRadius )
 		: Origin(InOrigin)
 		, BoxExtent(InBoxExtent)
 		, SphereRadius(InSphereRadius)
@@ -143,7 +145,7 @@ public:
 	 * @param Point The point.
 	 * @return The distance.
 	 */
-	FORCEINLINE float ComputeSquaredDistanceFromBoxToPoint( const FVector& Point ) const
+	FORCEINLINE FReal ComputeSquaredDistanceFromBoxToPoint( const FVector& Point ) const
 	{
 		FVector Mins = Origin - BoxExtent;
 		FVector Maxs = Origin + BoxExtent;
@@ -161,7 +163,7 @@ public:
 	 */
 	FORCEINLINE static bool SpheresIntersect(const FBoxSphereBounds& A, const FBoxSphereBounds& B, float Tolerance = KINDA_SMALL_NUMBER)
 	{
-		return (A.Origin - B.Origin).SizeSquared() <= FMath::Square(FMath::Max<FVector::FReal>(0.f, A.SphereRadius + B.SphereRadius + Tolerance));
+		return (A.Origin - B.Origin).SizeSquared() <= FMath::Square(FMath::Max<FReal>(0.f, A.SphereRadius + B.SphereRadius + Tolerance));
 	}
 
 	/**
@@ -218,7 +220,7 @@ public:
 	 * @param ExpandAmount The size to increase by.
 	 * @return A new box with the expanded size.
 	 */
-	FORCEINLINE FBoxSphereBounds ExpandBy( float ExpandAmount ) const
+	FORCEINLINE FBoxSphereBounds ExpandBy( FReal ExpandAmount ) const
 	{
 		return FBoxSphereBounds(Origin, BoxExtent + ExpandAmount, SphereRadius + ExpandAmount);
 	}
@@ -333,7 +335,7 @@ FORCEINLINE FBoxSphereBounds::FBoxSphereBounds( const FVector* Points, uint32 Nu
 
 	for (uint32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
 	{
-		SquaredSphereRadius = FMath::Max<FVector::FReal>(SquaredSphereRadius, (Points[PointIndex] - Origin).SizeSquared());
+		SquaredSphereRadius = (float)FMath::Max<FReal>(SquaredSphereRadius, (Points[PointIndex] - Origin).SizeSquared());	// LWC_TODO: Precision loss
 	}
 
 	SphereRadius = FMath::Sqrt(SquaredSphereRadius);
@@ -354,7 +356,7 @@ FORCEINLINE FBoxSphereBounds FBoxSphereBounds::operator+( const FBoxSphereBounds
 	// build a bounding sphere from the bounding box's origin and the radii of A and B.
 	FBoxSphereBounds Result(BoundingBox);
 
-	Result.SphereRadius = FMath::Min<FVector::FReal>(Result.SphereRadius, FMath::Max((Origin - Result.Origin).Size() + SphereRadius, (Other.Origin - Result.Origin).Size() + Other.SphereRadius));
+	Result.SphereRadius = FMath::Min<FReal>(Result.SphereRadius, FMath::Max((Origin - Result.Origin).Size() + SphereRadius, (Other.Origin - Result.Origin).Size() + Other.SphereRadius));
 	Result.DiagnosticCheckNaN();
 
 	return Result;

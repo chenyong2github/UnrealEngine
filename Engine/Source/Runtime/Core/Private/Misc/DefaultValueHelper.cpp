@@ -535,7 +535,8 @@ bool FDefaultValueHelper::ParseRotator(const FString& Source, FRotator& OutVal)
 	FVector Vector;
 	if( ParseVector( Source, Vector ) )
 	{
-		OutVal = FRotator(Vector.X, Vector.Y, Vector.Z);
+		using FReal = decltype(FRotator::Pitch);
+		OutVal = FRotator((FReal)Vector.X, (FReal)Vector.Y, (FReal)Vector.Z);
 		return true;
 	}
 

@@ -308,9 +308,9 @@ FLinearColor FLinearColor::FGetHSV( uint8 H, uint8 S, uint8 V )
 	float Brightness = V * 1.4f / 255.f;
 	Brightness *= 0.7f/(0.01f + FMath::Sqrt(Brightness));
 	Brightness  = FMath::Clamp(Brightness,0.f,1.f);
-	const FVector Hue = (H<86) ? FVector((85-H)/85.f,(H-0)/85.f,0) : (H<171) ? FVector(0,(170-H)/85.f,(H-85)/85.f) : FVector((H-170)/85.f,0,(255-H)/84.f);
-	const FVector ColorVector = (Hue + S/255.f * (FVector(1,1,1) - Hue)) * Brightness;
-	return FLinearColor(ColorVector.X,ColorVector.Y,ColorVector.Z,1);
+	const FVector3f Hue = (H<86) ? FVector3f((85-H)/85.f,(H-0)/85.f,0) : (H<171) ? FVector3f(0,(170-H)/85.f,(H-85)/85.f) : FVector3f((H-170)/85.f,0,(255-H)/84.f);
+	const FVector3f ColorVector = (Hue + S/255.f * (FVector3f(1,1,1) - Hue)) * Brightness;
+	return FLinearColor(ColorVector.X, ColorVector.Y, ColorVector.Z,1);
 }
 
 /**

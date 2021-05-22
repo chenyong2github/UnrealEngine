@@ -194,7 +194,8 @@ FORCEINLINE FVector4 TMatrix<T>::TransformFVector4(const FVector4& P) const
 template<typename T>
 FORCEINLINE FVector4 TMatrix<T>::TransformPosition(const TVector<T>& V) const
 {
-	return TransformFVector4(FVector4(V.X, V.Y, V.Z, 1.0f));
+	using FVec4Real = decltype(FVector4::X);
+	return TransformFVector4(FVector4((FVec4Real)V.X, (FVec4Real)V.Y, (FVec4Real)V.Z, 1.0f));
 }
 
 /** Inverts the matrix and then transforms V - correctly handles scaling in this matrix. */
@@ -214,7 +215,8 @@ FORCEINLINE TVector<T> TMatrix<T>::InverseTransformPosition(const TVector<T>& V)
 template<typename T>
 FORCEINLINE FVector4 TMatrix<T>::TransformVector(const TVector<T>& V) const
 {
-	return TransformFVector4(FVector4(V.X, V.Y, V.Z, 0.0f));
+	using FVec4Real = decltype(FVector4::X);
+	return TransformFVector4(FVector4((FVec4Real)V.X, (FVec4Real)V.Y, (FVec4Real)V.Z, 0.0f));
 }
 
 /** Faster version of InverseTransformVector that assumes no scaling. WARNING: Will NOT work correctly if there is scaling in the matrix. */

@@ -8,8 +8,6 @@
 #include "Templates/Decay.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
-//#include "Math/Vector.h"
-
 
 //#define IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
 
@@ -922,10 +920,10 @@ public:
 	template< class T, class U > 
 	static FORCEINLINE_DEBUGGABLE T CubicInterp( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{
-		const float A2 = A  * A;
-		const float A3 = A2 * A;
+		const U A2 = A * A;
+		const U A3 = A2 * A;
 
-		return (T)(((2*A3)-(3*A2)+1) * P0) + ((A3-(2*A2)+A) * T0) + ((A3-A2) * T1) + (((-2*A3)+(3*A2)) * P1);
+		return T((((2*A3)-(3*A2)+1) * P0) + ((A3-(2*A2)+A) * T0) + ((A3-A2) * T1) + (((-2*A3)+(3*A2)) * P1));
 	}
 
 	/**
@@ -944,9 +942,9 @@ public:
 		T b = -6.f*P0 - 4.f*T0 - 2.f*T1 + 6.f*P1;
 		T c = T0;
 
-		const float A2 = A  * A;
+		const U A2 = A * A;
 
-		return (a * A2) + (b * A) + c;
+		return T((a * A2) + (b * A) + c);
 	}
 
 	/**
@@ -1591,7 +1589,7 @@ public:
 	 *
 	 * @return Whether the sphere/box intersect or not.
 	 */
-	static bool SphereAABBIntersection(const FVector& SphereCenter,const float RadiusSquared,const FBox& AABB);
+	static bool SphereAABBIntersection(const FVector& SphereCenter,const double RadiusSquared,const FBox& AABB);
 
 	/**
 	 * Converts a sphere into a point plus radius squared for the test above

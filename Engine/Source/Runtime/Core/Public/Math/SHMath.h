@@ -457,9 +457,9 @@ inline TSHVector<2> TSHVector<2>::SHBasisFunction(const FVector& Vector)
 {
 	TSHVector<2> Result;
 	Result.V[0] = 0.282095f; 
-	Result.V[1] = -0.488603f * Vector.Y;
-	Result.V[2] = 0.488603f * Vector.Z;
-	Result.V[3] = -0.488603f * Vector.X;
+	Result.V[1] = -0.488603f * (float)Vector.Y;	// LWC_TODO: Precision loss
+	Result.V[2] = 0.488603f * (float)Vector.Z;
+	Result.V[3] = -0.488603f * (float)Vector.X;
 	return Result;
 }
 
@@ -469,16 +469,16 @@ inline TSHVector<3> TSHVector<3>::SHBasisFunction(const FVector& Vector)
 {
 	TSHVector<3> Result;
 	Result.V[0] = 0.282095f; 
-	Result.V[1] = -0.488603f * Vector.Y;
-	Result.V[2] = 0.488603f * Vector.Z;
-	Result.V[3] = -0.488603f * Vector.X;
+	Result.V[1] = -0.488603f * (float)Vector.Y;	// LWC_TODO: Precision loss
+	Result.V[2] = 0.488603f * (float)Vector.Z;
+	Result.V[3] = -0.488603f * (float)Vector.X;
 
 	FVector VectorSquared = Vector * Vector;
-	Result.V[4] = 1.092548f * Vector.X * Vector.Y;
-	Result.V[5] = -1.092548f * Vector.Y * Vector.Z;
-	Result.V[6] = 0.315392f * (3.0f * VectorSquared.Z - 1.0f);
-	Result.V[7] = -1.092548f * Vector.X * Vector.Z;
-	Result.V[8] = 0.546274f * (VectorSquared.X - VectorSquared.Y);
+	Result.V[4] = 1.092548f * float(Vector.X * Vector.Y);
+	Result.V[5] = -1.092548f * float(Vector.Y * Vector.Z);
+	Result.V[6] = 0.315392f * float(3.0f * VectorSquared.Z - 1.0f);
+	Result.V[7] = -1.092548f * float(Vector.X * Vector.Z);
+	Result.V[8] = 0.546274f * float(VectorSquared.X - VectorSquared.Y);
 	return Result;
 }
 
