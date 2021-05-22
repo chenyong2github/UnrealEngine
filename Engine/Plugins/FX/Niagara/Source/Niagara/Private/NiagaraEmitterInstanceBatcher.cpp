@@ -2187,7 +2187,7 @@ void NiagaraEmitterInstanceBatcher::AddTemporalEffectBuffers(FNiagaraDataBuffer*
 {
 	if (GNumAlternateFrameRenderingGroups > 1)
 	{
-		for (FRHIVertexBuffer* Buffer : { FinalData->GetGPUBufferFloat().Buffer, FinalData->GetGPUBufferInt().Buffer, FinalData->GetGPUBufferHalf().Buffer })
+		for (FRHIBuffer* Buffer : { FinalData->GetGPUBufferFloat().Buffer, FinalData->GetGPUBufferInt().Buffer, FinalData->GetGPUBufferHalf().Buffer })
 		{
 			if (Buffer)
 			{
