@@ -139,7 +139,7 @@ public:
 	 * @param Structs (Output parameter) List of structs from this scope.
 	 * @param DelegateFunctions (Output parameter) List of delegate properties from this scope.
 	 */
-	void SplitTypesIntoArrays(TArray<UEnum*>& Enums, TArray<UScriptStruct*>& Structs, TArray<UDelegateFunction*>& DelegateFunctions);
+	void SplitTypesIntoArrays(TArray<FUnrealEnumDefinitionInfo*>& Enums, TArray<FUnrealScriptStructDefinitionInfo*>& Structs, TArray<FUnrealFunctionDefinitionInfo*>& DelegateFunctions);
 
 	/**
 	 * Gets scope name.

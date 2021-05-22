@@ -331,13 +331,13 @@ private:
 	static void ExportProperties(FOutputDevice& Out, FUnrealStructDefinitionInfo& StructDef, int32 TextIndent);
 
 	/** Return the name of the singleton function */
-	static const FString& GetPackageSingletonName(UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
+	static const FString& GetPackageSingletonName(FUnrealPackageDefinitionInfo& PackageDef, TSet<FString>* UniqueCrossModuleReferences);
 
 	/** Return the address of the singleton function */
-	static const FString& GetPackageSingletonNameFuncAddr(UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
+	static const FString& GetPackageSingletonNameFuncAddr(FUnrealPackageDefinitionInfo& PackageDef, TSet<FString>* UniqueCrossModuleReferences);
 
 	/** Return the address of the singleton function - handles nullptr */
-	static const FString& GetSingletonNameFuncAddr(FUnrealFieldDefinitionInfo& Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
+	static const FString& GetSingletonNameFuncAddr(FUnrealFieldDefinitionInfo* FieldDef, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
 
 	/** Return the address of the singleton function - handles nullptr */
 	static const FString& GetSingletonNameFuncAddr(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
@@ -407,7 +407,7 @@ private:
 	 * @param	Out		the output device for the mirror struct
 	 * @param	Enums	the enum to export
 	 */
-	void ExportEnum(FOutputDevice& Out, UEnum* Enum) const;
+	void ExportEnum(FOutputDevice& Out, FUnrealEnumDefinitionInfo& EnumDef) const;
 
 	/**
 	 * Exports the inl text for enums declared in non-UClass headers.
@@ -415,7 +415,7 @@ private:
 	 * @param	OutputGetter	The function to call to get the output.
 	 * @param	Enum			the enum to export
 	 */
-	void ExportGeneratedEnumInitCode(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UEnum* Enum) const;
+	void ExportGeneratedEnumInitCode(FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealEnumDefinitionInfo& EnumDef) const;
 
 	/**
 	 * Exports the macro declarations for GENERATED_BODY() for each Foo in the struct specified
@@ -423,7 +423,7 @@ private:
 	 * @param	Out				output device
 	 * @param	Struct			The struct to export
 	 */
-	void ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, UScriptStruct* Struct) const;
+	void ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealScriptStructDefinitionInfo& ScriptStructDef) const;
 
 	/**
 	 * Exports a local mirror of the specified struct; used to get offsets
@@ -582,7 +582,7 @@ private:
 	 *
 	 * @return      A pair of strings which represents the pointer and a count of the emitted properties.
 	 */
-	TTuple<FString, FString> OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, const TArray<FProperty*>& Properties, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
+	TTuple<FString, FString> OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, const TArray<FUnrealPropertyDefinitionInfo*>& PropertyDefs, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
 
 	/**
 	 * Function to output the C++ code necessary to set up a property
@@ -612,19 +612,11 @@ private:
 
 	/**
 	 * Function to generate the property tag
-	 *
-	 * @param	Out				Destination string builder.
-	 * @param	Object			UObject in question
-	 */
-	static void GetPropertyTag(FUHTStringBuilder& Out, UObject* Object);
-
-	/**
-	 * Function to generate the property tag
 	 * 
 	 * @param	Out				Destination string builder.
-	 * @param	Prop			Property in question.
+	 * @param	PropDef			Property in question.
 	 */
-	static void GetPropertyTag(FUHTStringBuilder& Out, FProperty* Prop);
+	static void GetPropertyTag(FUHTStringBuilder& Out, FUnrealPropertyDefinitionInfo& PropDef);
 
 	/**
 	 * Exports the proxy definitions for the list of enums specified

@@ -279,9 +279,9 @@ public:
 	void AddScriptStructIncludeIfNeeded(int32 InputLine, const FString& StructNameWithoutPrefix, const FString& DependencyStructName);
 
 	/**
-	 * Add an include for a type definition if required
+	 * Add an include for a type definition if required.  TypeDef can be null.
 	 */
-	void AddTypeDefIncludeIfNeeded(FUnrealTypeDefinitionInfo& TypeDef);
+	void AddTypeDefIncludeIfNeeded(FUnrealTypeDefinitionInfo* TypeDef);
 
 	/**
 	 * Add an include for a type definition if required
@@ -430,7 +430,7 @@ public:
 	/**
 	 * Get the collection of singletons 
 	 */
-	TArray<UField*>& GetSingletons()
+	TArray<FUnrealFieldDefinitionInfo*>& GetSingletons()
 	{
 		return Singletons;
 	}
@@ -523,5 +523,5 @@ private:
 	TMap<UStruct*, EGeneratedCodeVersion> GeneratedCodeVersions;
 
 	// Collection of all singletons found during code generation
-	TArray<UField*> Singletons;
+	TArray<FUnrealFieldDefinitionInfo*> Singletons;
 };

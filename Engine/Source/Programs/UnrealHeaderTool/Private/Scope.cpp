@@ -30,8 +30,9 @@ void FScope::AddType(FUnrealFieldDefinitionInfo& Type)
  * @param Structs (Output parameter) Array to fill with structs.
  * @param DelegateFunctions (Output parameter) Array to fill with delegate functions.
  */
-void DispatchType(UField* Type, TArray<UEnum*> &Enums, TArray<UScriptStruct*> &Structs, TArray<UDelegateFunction*> &DelegateFunctions)
+void DispatchType(FUnrealFieldDefinitionInfo& FieldDef, TArray<FUnrealEnumDefinitionInfo*>& Enums, TArray<FUnrealScriptStructDefinitionInfo*>& Structs, TArray<FUnrealFunctionDefinitionInfo*>& DelegateFunctions)
 {
+	UField* Type = FieldDef.GetField();
 	UClass* TypeClass = Type->GetClass();
 
 	if (TypeClass == UClass::StaticClass() || TypeClass == UStruct::StaticClass())
@@ -41,13 +42,11 @@ void DispatchType(UField* Type, TArray<UEnum*> &Enums, TArray<UScriptStruct*> &S
 	}
 	else if (TypeClass == UEnum::StaticClass())
 	{
-		UEnum* Enum = (UEnum*)Type;
-		Enums.Add(Enum);
+		Enums.Add(&UHTCastChecked<FUnrealEnumDefinitionInfo>(FieldDef));
 	}
 	else if (TypeClass == UScriptStruct::StaticClass())
 	{
-		UScriptStruct* Struct = (UScriptStruct*)Type;
-		Structs.Add(Struct);
+		Structs.Add(&UHTCastChecked<FUnrealScriptStructDefinitionInfo>(FieldDef));
 	}
 	else if (TypeClass == UDelegateFunction::StaticClass() || TypeClass == USparseDelegateFunction::StaticClass())
 	{
@@ -56,7 +55,7 @@ void DispatchType(UField* Type, TArray<UEnum*> &Enums, TArray<UScriptStruct*> &S
 
 		if (Function->GetSuperFunction() == NULL)
 		{
-			DelegateFunctions.Add(Function);
+			DelegateFunctions.Add(&UHTCastChecked<FUnrealFunctionDefinitionInfo>(FieldDef));
 			bAdded = true;
 		}
 
@@ -64,12 +63,11 @@ void DispatchType(UField* Type, TArray<UEnum*> &Enums, TArray<UScriptStruct*> &S
 	}
 }
 
-void FScope::SplitTypesIntoArrays(TArray<UEnum*>& Enums, TArray<UScriptStruct*>& Structs, TArray<UDelegateFunction*>& DelegateFunctions)
+void FScope::SplitTypesIntoArrays(TArray<FUnrealEnumDefinitionInfo*>& Enums, TArray<FUnrealScriptStructDefinitionInfo*>& Structs, TArray<FUnrealFunctionDefinitionInfo*>& DelegateFunctions)
 {
 	for (TPair<FName, FUnrealFieldDefinitionInfo*>& TypePair : TypeMap)
 	{
-		UField* Type = TypePair.Value->GetField();
-		DispatchType(Type, Enums, Structs, DelegateFunctions);
+		DispatchType(*TypePair.Value, Enums, Structs, DelegateFunctions);
 	}
 }
 
