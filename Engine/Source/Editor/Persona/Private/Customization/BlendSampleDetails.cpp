@@ -44,21 +44,13 @@ FReply FBlendSampleDetails::HandleAnalyzeAndDuplicateSample()
 		// Dismiss menus so that operations which might affect samples (and cause reallocation etc) won't invalidate
 		// data being used in the UI.
 		FSlateApplication::Get().DismissAllMenus();
-		bool bAnalyzed[3] = { false, false, false };
 		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
-		FVector NewValue = BlendSpaceAnalysis::CalculateSampleValue(
-			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
-			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
-		NewValue.Z = OrigValue.Z;
-		if (NewValue != OrigValue)
-		{
-			GridWidget->OnSampleDuplicated.ExecuteIfBound(SampleIndex, NewValue);
-		}
+		GridWidget->OnSampleDuplicated.ExecuteIfBound(SampleIndex, OrigValue, true);
 	}
 	return FReply::Handled();
 }
 
-FReply FBlendSampleDetails::HandleAnalyzeSample()
+FReply FBlendSampleDetails::HandleAnalyzeAndMoveSample()
 {
 	if (BlendSpace->IsAsset())
 	{
@@ -76,7 +68,7 @@ FReply FBlendSampleDetails::HandleAnalyzeSample()
 	return FReply::Handled();
 }
 
-FReply FBlendSampleDetails::HandleAnalyzeSampleX()
+FReply FBlendSampleDetails::HandleAnalyzeAndMoveSampleX()
 {
 	if (BlendSpace->IsAsset())
 	{
@@ -95,7 +87,7 @@ FReply FBlendSampleDetails::HandleAnalyzeSampleX()
 	return FReply::Handled();
 }
 
-FReply FBlendSampleDetails::HandleAnalyzeSampleY()
+FReply FBlendSampleDetails::HandleAnalyzeAndMoveSampleY()
 {
 	if (BlendSpace->IsAsset())
 	{
@@ -218,10 +210,11 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 
 		bool bShowAnalysis = false;
 		bool bAnalyzed[3] = { false, false, false };
+		// Note that the analyzed position won't change whilst this menu is open, but the original value might.
+		FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
 		FVector NewValue = BlendSpaceAnalysis::CalculateSampleValue(
-			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation,
-			BlendSpace->GetBlendSample(SampleIndex).RateScale, 
-			BlendSpace->GetBlendSample(SampleIndex).SampleValue, bAnalyzed);
+			*BlendSpace, *BlendSpace->GetBlendSample(SampleIndex).Animation, 
+			BlendSpace->GetBlendSample(SampleIndex).RateScale, OrigValue, bAnalyzed);
 		FText AnalysisTexts[2];
 		FText ValueTexts[2];
 		FText ToolTipTexts[2];
@@ -250,26 +243,46 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 			}
 		}
 
-		if (bShowAnalysis && NewValue != BlendSpace->GetBlendSample(SampleIndex).SampleValue)
+		TAttribute<bool> WouldMoveConditionX = TAttribute<bool>::Create(
+			[this, bAnalyzed, NewValue]()
+			{
+				FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
+				return bAnalyzed[0] && OrigValue.X != NewValue.X;
+			});
+		TAttribute<bool> WouldMoveConditionY = TAttribute<bool>::Create(
+			[this, bAnalyzed, NewValue]()
+			{
+				FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
+				return bAnalyzed[1] && OrigValue.Y != NewValue.Y;
+			});
+		TAttribute<bool> WouldMoveCondition = TAttribute<bool>::Create(
+			[this, NewValue]()
+			{
+				FVector OrigValue = BlendSpace->GetBlendSample(SampleIndex).SampleValue;
+				return OrigValue != NewValue;
+			});
+
+
+		if (bShowAnalysis)
 		{
-			// Button to run analysis
+			// Move buttons
 			CategoryBuilder
-				.AddGroup(FName("AnalysisGroup"), FText::GetEmpty())
+				.AddGroup(FName("MoveGroup"), FText::GetEmpty())
 				.HeaderRow()
 				.NameContent()
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
-					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-						.ToolTipText(LOCTEXT("AnalyzeText", "Move this sample to the analyzed position"))
-						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeSample)
-						.ContentPadding(1)
+						.IsEnabled(WouldMoveCondition)
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+						.ToolTipText(LOCTEXT("MoveText", "Move this sample to the analyzed position"))
+						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeAndMoveSample)
 						[
 							SNew(SHorizontalBox)
 							+SHorizontalBox::Slot()
+							.Padding(3.0f, 0.0f)
 							.AutoWidth()
 							[
 								SNew(SImage)
@@ -277,12 +290,12 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 							+SHorizontalBox::Slot()
-							.Padding(6.0f, 0.0f)
+							.Padding(3.0f, 0.0f)
 							.VAlign(VAlign_Center)
 							[
 								SNew(STextBlock)
 								.Font(DetailBuilder.GetDetailFont())
-								.Text(LOCTEXT("AnalyzeLabel", "Move"))
+								.Text(LOCTEXT("MoveLabel", "Move"))
 							]
 						]
 					]
@@ -293,13 +306,13 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 				[
 					SNew(SUniformGridPanel)
 					+SUniformGridPanel::Slot(0,0)
-					.HAlign(HAlign_Center)
+					.HAlign(HAlign_Fill)
 					[   // Analyze X button
 						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "RoundButton")
+						.IsEnabled(WouldMoveConditionX)
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.ToolTipText(ToolTipTexts[0])
-						.IsEnabled(bAnalyzed[0])
-						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeSampleX)
+						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeAndMoveSampleX)
 						[
 							SNew(STextBlock)
 							.Justification(ETextJustify::Center)
@@ -307,14 +320,14 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 						]
 					]
 					+SUniformGridPanel::Slot(1,0)
-					.HAlign(HAlign_Center)
+					.HAlign(HAlign_Fill)
 					[   // Analyze Y button
 						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "RoundButton")
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.ToolTipText(ToolTipTexts[1])
 						.Visibility(b1DBlendSpace ? EVisibility::Hidden : EVisibility::Visible)
-						.IsEnabled(bAnalyzed[1])
-						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeSampleY)
+						.IsEnabled(WouldMoveConditionY) // Needs to be after visibility
+						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeAndMoveSampleY)
 						[
 							SNew(STextBlock)
 							.Justification(ETextJustify::Center)
@@ -331,16 +344,16 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
-					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+						.IsEnabled(WouldMoveCondition)
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 						.ToolTipText(LOCTEXT("DuplicateText", "Duplicate this sample and place it at the analyzed position"))
 						.OnClicked(this, &FBlendSampleDetails::HandleAnalyzeAndDuplicateSample)
-						.ContentPadding(1)
 						[
 							SNew(SHorizontalBox)
 							+SHorizontalBox::Slot()
+							.Padding(3.0f, 0.0f)
 							.AutoWidth()
 							[
 								SNew(SImage)
@@ -348,12 +361,12 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 							+SHorizontalBox::Slot()
-							.Padding(6.0f, 0.0f)
+							.Padding(3.0f, 0.0f)
 							.VAlign(VAlign_Center)
 							[
 								SNew(STextBlock)
 								.Font(DetailBuilder.GetDetailFont())
-								.Text(LOCTEXT("DuplicateLabel", "Duplicate to"))
+								.Text(LOCTEXT("DuplicateLabel", "Duplicate"))
 							]
 						]
 					]

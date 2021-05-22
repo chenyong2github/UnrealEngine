@@ -37,29 +37,6 @@ struct FBlendSpaceScratchData : public TThreadSingleton<FBlendSpaceScratchData>
 };
 
 //======================================================================================================================
-void UAnalysisProperties::InitializeFromCache(TSharedPtr<FCachedAnalysisProperties> Cache)
-{
-#if WITH_EDITOR
-	if (Cache)
-	{
-		bLockAfterAnalysis = Cache->bLockAfterAnalysis;
-	}
-#endif
-}
-
-//======================================================================================================================
-void UAnalysisProperties::MakeCache(TSharedPtr<FCachedAnalysisProperties>& Cache) const
-{
-#if WITH_EDITOR
-	if (!Cache)
-	{
-		Cache = MakeShared<FCachedAnalysisProperties>();
-	}
-	Cache->bLockAfterAnalysis = bLockAfterAnalysis;
-#endif
-}
-
-//======================================================================================================================
 UBlendSpace::UBlendSpace(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

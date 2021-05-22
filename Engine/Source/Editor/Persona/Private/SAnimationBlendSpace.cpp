@@ -150,14 +150,14 @@ void SBlendSpaceEditor::OnSampleRemoved(const int32 SampleIndex)
 }
 
 //======================================================================================================================
-int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& Value)
+int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& Value, bool bRunAnalysis)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("AddSample", "Adding Blend Grid Sample"));
 
 	FVector AdjustedValue = Value;
 	bool bAnalyzed[3] = { false, false, false };
 
-	if(BlendSpace->IsAsset())
+	if(BlendSpace->IsAsset() && bRunAnalysis)
 	{
 		AdjustedValue = BlendSpaceAnalysis::CalculateSampleValue(*BlendSpace, *Animation, 1.0f, Value, bAnalyzed);
 	}
@@ -190,7 +190,7 @@ int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& 
 
 		if (OnBlendSpaceSampleAdded.IsBound())
 		{
-			OnBlendSpaceSampleAdded.Execute(Animation, AdjustedValue);
+			OnBlendSpaceSampleAdded.Execute(Animation, AdjustedValue, bRunAnalysis);
 		}
 		BlendSpace->PostEditChange();
 	}
@@ -198,10 +198,10 @@ int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& 
 	return NewSampleIndex;
 }
 
-void SBlendSpaceEditor::OnSampleDuplicated(const int32 SampleIndex, const FVector& NewValue)
+void SBlendSpaceEditor::OnSampleDuplicated(const int32 SampleIndex, const FVector& NewValue, bool bRunAnalysis)
 {
 	const FBlendSample& OrigSample = BlendSpace->GetBlendSample(SampleIndex);
-	int32 NewSampleIndex = OnSampleAdded(OrigSample.Animation, NewValue);
+	int32 NewSampleIndex = OnSampleAdded(OrigSample.Animation, NewValue, bRunAnalysis);
 	if (NewSampleIndex >= 0)
 	{
 		BlendSpace->LockSample(NewSampleIndex, OrigSample.bLockX, OrigSample.bLockY, OrigSample.bLockZ);
