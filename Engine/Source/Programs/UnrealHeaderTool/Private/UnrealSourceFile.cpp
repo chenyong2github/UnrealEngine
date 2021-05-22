@@ -193,23 +193,14 @@ void FUnrealSourceFile::AddScriptStructIncludeIfNeeded(int32 InputLine, const FS
 	}
 }
 
-void FUnrealSourceFile::AddTypeDefIncludeIfNeeded(FUnrealTypeDefinitionInfo& TypeDef)
+void FUnrealSourceFile::AddTypeDefIncludeIfNeeded(FUnrealTypeDefinitionInfo* TypeDef)
 {
-	check(TypeDef.HasSource());
-	if (&TypeDef.GetUnrealSourceFile() != this)
+	if (TypeDef != nullptr)
 	{
-		GetIncludes().AddUnique(FHeaderProvider(TypeDef));
-	}
-}
-
-void FUnrealSourceFile::AddTypeDefIncludeIfNeeded(UField* Field)
-{
-	if (Field != nullptr)
-	{
-		if (TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = GTypeDefinitionInfoMap.Find(Field))
+		check(TypeDef->HasSource());
+		if (&TypeDef->GetUnrealSourceFile() != this)
 		{
-			AddTypeDefIncludeIfNeeded(**TypeDef);
+			GetIncludes().AddUnique(FHeaderProvider(*TypeDef));
 		}
 	}
 }
-

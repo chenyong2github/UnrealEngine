@@ -23,6 +23,11 @@ class UField;
 class UMetaData;
 class FHeaderParser;
 class FUnrealPropertyDefinitionInfo;
+class FUnrealTypeDefinitionInfo;
+class FUnrealEnumDefinitionInfo;
+class FUnrealClassDefinitionInfo;
+class FUnrealScriptStructDefinitionInfo;
+class FUnrealFunctionDefinitionInfo;
 
 /*-----------------------------------------------------------------------------
 	FPropertyBase.
@@ -136,21 +141,18 @@ public:
 	 * A mask of EPropertyHeaderExportFlags which are used for modifying how this property is exported to the native class header
 	 */
 	uint32 PropertyExportFlags;
+
 	union
 	{
-		class UEnum* Enum;
-		class UClass* PropertyClass;
-		class UScriptStruct* Struct;
-		class UFunction* Function;
-		class FFieldClass* PropertyPathClass;
-#if PLATFORM_64BITS
-		int64 StringSize;
-#else
-		int32 StringSize;
-#endif
+		FUnrealTypeDefinitionInfo* TypeDef = nullptr;
+		FUnrealEnumDefinitionInfo* EnumDef;
+		FUnrealScriptStructDefinitionInfo* ScriptStructDef;
+		FUnrealClassDefinitionInfo* ClassDef;
+		FUnrealFunctionDefinitionInfo* FunctionDef;
 	};
+	FFieldClass* PropertyPathClass = nullptr;
+	FUnrealClassDefinitionInfo* MetaClassDef = nullptr;
 
-	UClass* MetaClass;
 	FName   DelegateName;
 	UClass*	DelegateSignatureOwnerClass;
 	FName   RepNotifyName;
@@ -179,8 +181,6 @@ public:
 	, ImpliedPropertyFlags(CPF_None)
 	, RefQualifier        (ERefQualifier::None)
 	, PropertyExportFlags (PROPEXPORT_Public)
-	, StringSize          (0)
-	, MetaClass           (nullptr)
 	, DelegateName        (NAME_None)
 	, DelegateSignatureOwnerClass(nullptr)
 	, RepNotifyName       (NAME_None)
@@ -196,8 +196,6 @@ public:
 	, ImpliedPropertyFlags(CPF_None)
 	, RefQualifier        (ERefQualifier::None)
 	, PropertyExportFlags (PROPEXPORT_Public)
-	, StringSize          (0)
-	, MetaClass           (nullptr)
 	, DelegateName        (NAME_None)
 	, DelegateSignatureOwnerClass(nullptr)
 	, RepNotifyName       (NAME_None)
@@ -206,60 +204,11 @@ public:
 	{
 	}
 
-	explicit FPropertyBase(UEnum* InEnum, EPropertyType InType)
-	: Type                (InType)
-	, ArrayType           (EArrayType::None)
-	, PropertyFlags       (CPF_None)
-	, ImpliedPropertyFlags(CPF_None)
-	, RefQualifier        (ERefQualifier::None)
-	, PropertyExportFlags (PROPEXPORT_Public)
-	, Enum                (InEnum)
-	, MetaClass           (nullptr)
-	, DelegateName        (NAME_None)
-	, DelegateSignatureOwnerClass(nullptr)
-	, RepNotifyName       (NAME_None)
-	, PointerType         (EPointerType::None)
-	, IntType             (GetSizedIntTypeFromPropertyType(InType))
-	{
-	}
+	explicit FPropertyBase(FUnrealEnumDefinitionInfo& InEnumDef, EPropertyType InType);
 
-	explicit FPropertyBase(UClass* InClass, EPropertyType InType, bool bWeakIsAuto = false)
-	: Type                (InType)
-	, ArrayType           (EArrayType::None)
-	, PropertyFlags       (CPF_None)
-	, ImpliedPropertyFlags(CPF_None)
-	, RefQualifier        (ERefQualifier::None)
-	, PropertyExportFlags (PROPEXPORT_Public)
-	, PropertyClass       (InClass)
-	, MetaClass           (nullptr)
-	, DelegateName        (NAME_None)
-	, DelegateSignatureOwnerClass(nullptr)
-	, RepNotifyName       (NAME_None)
-	, PointerType         (EPointerType::None)
-	, IntType             (EIntType::None)
-	{
-		if ((Type == CPT_WeakObjectReference) && bWeakIsAuto)
-		{
-			PropertyFlags |= CPF_AutoWeak;
-		}
-	}
+	explicit FPropertyBase(FUnrealClassDefinitionInfo& InClassDef, EPropertyType InType, bool bWeakIsAuto = false);
 
-	explicit FPropertyBase(UScriptStruct* InStruct)
-	: Type                (CPT_Struct)
-	, ArrayType           (EArrayType::None)
-	, PropertyFlags       (CPF_None)
-	, ImpliedPropertyFlags(CPF_None)
-	, RefQualifier        (ERefQualifier::None)
-	, PropertyExportFlags (PROPEXPORT_Public)
-	, Struct              (InStruct)
-	, MetaClass           (NULL)
-	, DelegateName        (NAME_None)
-	, DelegateSignatureOwnerClass(nullptr)
-	, RepNotifyName       (NAME_None)
-	, PointerType         (EPointerType::None)
-	, IntType             (EIntType::None)
-	{
-	}
+	explicit FPropertyBase(FUnrealScriptStructDefinitionInfo& InStructDef);
 
 	explicit FPropertyBase(FFieldClass* InPropertyClass, EPropertyType InType)
 		: Type(InType)
@@ -269,7 +218,6 @@ public:
 		, RefQualifier(ERefQualifier::None)
 		, PropertyExportFlags(PROPEXPORT_Public)
 		, PropertyPathClass(InPropertyClass)
-		, MetaClass(nullptr)
 		, DelegateName(NAME_None)
 		, DelegateSignatureOwnerClass(nullptr)
 		, RepNotifyName(NAME_None)
@@ -318,175 +266,7 @@ public:
 	 * @param	bIgnoreImplementedInterfaces	controls whether two types can be considered a match if one type is an interface implemented
 	 *											by the other type.
 	 */
-	bool MatchesType( const FPropertyBase& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces=false ) const
-	{
-		check(Type!=CPT_None || !bDisallowGeneralization);
-
-		bool bIsObjectType = IsObject();
-		bool bOtherIsObjectType = Other.IsObject();
-		bool bIsObjectComparison = bIsObjectType && bOtherIsObjectType;
-		bool bReverseClassChainCheck = true;
-
-		// If converting to an l-value, we require an exact match with an l-value.
-		if( (PropertyFlags&CPF_OutParm) != 0 )
-		{
-			// if the other type is not an l-value, disallow
-			if ( (Other.PropertyFlags&CPF_OutParm) == 0 )
-			{
-				return false;
-			}
-
-			// if the other type is const and we are not const, disallow
-			if ( (Other.PropertyFlags&CPF_ConstParm) != 0 && (PropertyFlags&CPF_ConstParm) == 0 )
-			{
-				return false;
-			}
-
-			if ( Type == CPT_Struct )
-			{
-				// Allow derived structs to be passed by reference, unless this is a dynamic array of structs
-				bDisallowGeneralization = bDisallowGeneralization || ArrayType == EArrayType::Dynamic || Other.ArrayType == EArrayType::Dynamic;
-			}
-
-			// if Type == CPT_ObjectReference, out object function parm; allow derived classes to be passed in
-			// if Type == CPT_Interface, out interface function parm; allow derived classes to be passed in
-			else if ( (PropertyFlags & CPF_ConstParm) == 0 || !IsObject() )
-			{
-				// all other variable types must match exactly when passed as the value to an 'out' parameter
-				bDisallowGeneralization = true;
-			}
-			
-			// both types are objects, but one is an interface and one is an object reference
-			else if ( bIsObjectComparison && Type != Other.Type )
-			{
-				return false;
-			}
-		}
-		else if ((Type == CPT_ObjectReference || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_ObjectPtrReference || Type == CPT_SoftObjectReference) && Other.Type != CPT_Interface && (PropertyFlags & CPF_ReturnParm))
-		{
-			bReverseClassChainCheck = false;
-		}
-
-		// Check everything.
-		if( Type==CPT_None && (Other.Type==CPT_None || !bDisallowGeneralization) )
-		{
-			// If Other has no type, accept anything.
-			return true;
-		}
-		else if( Type != Other.Type && !bIsObjectComparison )
-		{
-			// Mismatched base types.
-			return false;
-		}
-		else if( ArrayType != Other.ArrayType )
-		{
-			// Mismatched array types.
-			return false;
-		}
-		else if( Type==CPT_Byte )
-		{
-			// Make sure enums match, or we're generalizing.
-			return Enum==Other.Enum || (Enum==NULL && !bDisallowGeneralization);
-		}
-		else if( bIsObjectType )
-		{
-			check(PropertyClass!=NULL);
-
-			// Make sure object types match, or we're generalizing.
-			if( bDisallowGeneralization )
-			{
-				// Exact match required.
-				return PropertyClass==Other.PropertyClass && MetaClass==Other.MetaClass;
-			}
-			else if( Other.PropertyClass==NULL )
-			{
-				// Cannonical 'None' matches all object classes.
-				return true;
-			}
-			else
-			{
-				// Generalization is ok (typical example of this check would look like: VarA = VarB;, where this is VarB and Other is VarA)
-				if ( Other.PropertyClass->IsChildOf(PropertyClass) )
-				{
-					if ( !bIgnoreImplementedInterfaces || ((Type == CPT_Interface) == (Other.Type == CPT_Interface)) )
-					{
-						if ( !PropertyClass->IsChildOf(UClass::StaticClass()) || MetaClass == NULL || Other.MetaClass->IsChildOf(MetaClass) ||
-							(bReverseClassChainCheck && (Other.MetaClass == NULL || MetaClass->IsChildOf(Other.MetaClass))) )
-						{
-							return true;
-						}
-					}
-				}
-				// check the opposite class chain for object types
-				else if (bReverseClassChainCheck && Type != CPT_Interface && bIsObjectComparison && PropertyClass != NULL && PropertyClass->IsChildOf(Other.PropertyClass))
-				{
-					if (!Other.PropertyClass->IsChildOf(UClass::StaticClass()) || MetaClass == NULL || Other.MetaClass == NULL || MetaClass->IsChildOf(Other.MetaClass) || Other.MetaClass->IsChildOf(MetaClass))
-					{
-						return true;
-					}
-				}
-
-				if ( PropertyClass->HasAnyClassFlags(CLASS_Interface) && !bIgnoreImplementedInterfaces )
-				{
-					if ( Other.PropertyClass->ImplementsInterface(PropertyClass) )
-					{
-						return true;
-					}
-				}
-
-				return false;
-			}
-		}
-		else if( Type==CPT_Struct )
-		{
-			check(Struct!=NULL);
-			check(Other.Struct!=NULL);
-
-			if ( Struct == Other.Struct )
-			{
-				// struct types match exactly 
-				return true;
-			}
-
-			// returning false here prevents structs related through inheritance from being used interchangeably, such as passing a derived struct as the value for a parameter
-			// that expects the base struct, or vice versa.  An easier example is assignment (e.g. Vector = Plane or Plane = Vector).
-			// there are two cases to consider (let's use vector and plane for the example):
-			// - Vector = Plane;
-			//		in this expression, 'this' is the vector, and Other is the plane.  This is an unsafe conversion, as the destination property type is used to copy the r-value to the l-value
-			//		so in this case, the VM would call CopyCompleteValue on the FPlane struct, which would copy 16 bytes into the l-value's buffer;  However, the l-value buffer will only be
-			//		12 bytes because that is the size of FVector
-			// - Plane = Vector;
-			//		in this expression, 'this' is the plane, and Other is the vector.  This is a safe conversion, since only 12 bytes would be copied from the r-value into the l-value's buffer
-			//		(which would be 16 bytes).  The problem with allowing this conversion is that what to do with the extra member (e.g. Plane.W); should it be left alone? should it be zeroed?
-			//		difficult to say what the correct behavior should be, so let's just ignore inheritance for the sake of determining whether two structs are identical
-
-			// Previously, the logic for determining whether this is a generalization of Other was reversed; this is very likely the culprit behind all current issues with 
-			// using derived structs interchangeably with their base versions.  The inheritance check has been fixed; for now, allow struct generalization and see if we can find any further
-			// issues with allowing conversion.  If so, then we disable all struct generalization by returning false here.
- 			// return false;
-
-			if ( bDisallowGeneralization )
-			{
-				return false;
-			}
-
-			// Generalization is ok if this is not a dynamic array
-			if ( ArrayType != EArrayType::Dynamic && Other.ArrayType != EArrayType::Dynamic )
-			{
-				if ( !Other.Struct->IsChildOf(Struct) && Struct->IsChildOf(Other.Struct) )
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
-		else
-		{
-			// General match.
-			return true;
-		}
-	}
+	bool MatchesType(const FPropertyBase& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces = false) const;
 	//@}
 
 	EIntType GetSizedIntTypeFromPropertyType(EPropertyType PropType)

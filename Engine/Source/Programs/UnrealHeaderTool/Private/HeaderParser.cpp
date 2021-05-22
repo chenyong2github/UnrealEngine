@@ -836,15 +836,6 @@ namespace
 		}
 	}
 
-	bool IsPropertySupportedByBlueprint(const FProperty* Property, bool bMemberVariable)
-	{
-		if (FUnrealPropertyDefinitionInfo* PropDef = GTypeDefinitionInfoMap.Find<FUnrealPropertyDefinitionInfo>(Property))
-		{
-			return FPropertyTraits::IsSupportedByBlueprint(*PropDef, bMemberVariable);
-		}
-		return false;
-	}
-
 	void SkipAlignasIfNecessary(FBaseParser& Parser)
 	{
 		if (Parser.MatchIdentifier(TEXT("alignas"), ESearchCase::CaseSensitive))
@@ -1182,14 +1173,10 @@ FField* FHeaderParser::FindProperty(FUnrealStructDefinitionInfo& InScope, const 
  * @param Type Type for which to add include path.
  * @param MetaData Meta data to fill the information.
  */
-void AddIncludePathToMetadata(UField* Type, TMap<FName, FString> &MetaData)
+void AddIncludePathToMetadata(FUnrealFieldDefinitionInfo& FieldDef, TMap<FName, FString> &MetaData)
 {
 	// Add metadata for the include path.
-	TSharedRef<FUnrealTypeDefinitionInfo>* TypeDefinitionPtr = GTypeDefinitionInfoMap.Find(Type);
-	if (TypeDefinitionPtr != nullptr)
-	{
-		MetaData.Add(NAME_IncludePath, (*TypeDefinitionPtr)->GetUnrealSourceFile().GetIncludePath());
-	}
+	MetaData.Add(NAME_IncludePath, FieldDef.GetUnrealSourceFile().GetIncludePath());
 }
 
 /**
@@ -2605,8 +2592,7 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 		{
 			// this FDelegateProperty corresponds to an actual delegate variable (i.e. delegate<SomeDelegate> Foo); we need to lookup the token data for
 			// this property and verify that the delegate property's "type" is an actual delegate function
-			FUnrealPropertyDefinitionInfo& PropDef = GTypeDefinitionInfoMap.FindChecked<FUnrealPropertyDefinitionInfo>(Property);
-			FPropertyBase& DelegatePropertyToken = PropDef.GetPropertyBase();
+			FPropertyBase& DelegatePropertyToken = PropertyDef->GetPropertyBase();
 
 			// attempt to find the delegate function in the map of functions we've already found
 			UFunction* SourceDelegateFunction = DelegateCache.FindRef(DelegatePropertyToken.DelegateName);
@@ -2646,14 +2632,14 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 					// verify that we got a valid string for the class name
 					if ( DelegateClassName.Len() == 0 )
 					{
-						UngetToken(PropDef.GetLineNumber(), PropDef.GetParsePosition());
+						UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
 						FError::Throwf(TEXT("Invalid scope specified in delegate property function reference: '%s'"), *NameOfDelegateFunction);
 					}
 
 					// verify that we got a valid string for the name of the function
 					if ( DelegateName.Len() == 0 )
 					{
-						UngetToken(PropDef.GetLineNumber(), PropDef.GetParsePosition());
+						UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
 						FError::Throwf(TEXT("Invalid delegate name specified in delegate property function reference '%s'"), *NameOfDelegateFunction);
 					}
 
@@ -2668,12 +2654,12 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 
 				if ( SourceDelegateFunction == NULL )
 				{
-					UngetToken(PropDef.GetLineNumber(), PropDef.GetParsePosition());
+					UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
 					FError::Throwf(TEXT("Failed to find delegate function '%s'"), *NameOfDelegateFunction);
 				}
 				else if ( (SourceDelegateFunction->FunctionFlags&FUNC_Delegate) == 0 )
 				{
-					UngetToken(PropDef.GetLineNumber(), PropDef.GetParsePosition());
+					UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
 					FError::Throwf(TEXT("Only delegate functions can be used as the type for a delegate property; '%s' is not a delegate."), *NameOfDelegateFunction);
 				}
 			}
@@ -2683,12 +2669,15 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 			// save this into the delegate cache for faster lookup later
 			DelegateCache.Add(DelegatePropertyToken.DelegateName, SourceDelegateFunction);
 
+			FUnrealFunctionDefinitionInfo& SourceDelegateFunctionDef = GTypeDefinitionInfoMap.FindChecked<FUnrealFunctionDefinitionInfo>(SourceDelegateFunction);
+
 			// bind it to the delegate property
 			if( DelegateProperty != NULL )
 			{
 				if( !SourceDelegateFunction->HasAnyFunctionFlags( FUNC_MulticastDelegate ) )
 				{
-					DelegateProperty->SignatureFunction = DelegatePropertyToken.Function = SourceDelegateFunction;
+					DelegateProperty->SignatureFunction = SourceDelegateFunction;
+					DelegatePropertyToken.FunctionDef = &SourceDelegateFunctionDef;
 				}
 				else
 				{
@@ -2699,16 +2688,16 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 			{
 				if( SourceDelegateFunction->HasAnyFunctionFlags( FUNC_MulticastDelegate ) )
 				{
-					MulticastDelegateProperty->SignatureFunction = DelegatePropertyToken.Function = SourceDelegateFunction;
+					MulticastDelegateProperty->SignatureFunction = SourceDelegateFunction;
+					DelegatePropertyToken.FunctionDef = &SourceDelegateFunctionDef;
 
 					if(MulticastDelegateProperty->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable))
 					{
-						FUnrealFunctionDefinitionInfo& SourceDelegateFunctionDef = GTypeDefinitionInfoMap.FindChecked<FUnrealFunctionDefinitionInfo>(SourceDelegateFunction);
 						for (FUnrealPropertyDefinitionInfo* FuncParamDef : SourceDelegateFunctionDef.GetProperties())
 						{
 							FProperty* FuncParam = FuncParamDef->GetProperty();
 
-							if (!IsPropertySupportedByBlueprint(FuncParam, false))
+							if (!FPropertyTraits::IsSupportedByBlueprint(*FuncParamDef, false))
 							{
 								FString ExtendedCPPType;
 								FString CPPType = FuncParam->GetCPPType(&ExtendedCPPType);
@@ -4178,7 +4167,7 @@ void FHeaderParser::GetVarType(
 			if (UEnum* Enum = FClasses::FindObject<UEnum>(ANY_PACKAGE, InnerEnumType.Identifier))
 			{
 				// In-scope enumeration.
-				VarProperty = FPropertyBase(Enum, CPT_Byte);
+				VarProperty = FPropertyBase(GTypeDefinitionInfoMap.FindChecked<FUnrealEnumDefinitionInfo>(Enum), CPT_Byte);
 				bFoundEnum  = true;
 			}
 		}
@@ -4252,7 +4241,7 @@ void FHeaderParser::GetVarType(
 		}
 
 		// In-scope enumeration.
-		VarProperty            = FPropertyBase(Enum, UnderlyingType);
+		VarProperty            = FPropertyBase(GTypeDefinitionInfoMap.FindChecked<FUnrealEnumDefinitionInfo>(Enum), UnderlyingType);
 		bUnconsumedEnumKeyword = false;
 	}
 	else
@@ -4268,13 +4257,13 @@ void FHeaderParser::GetVarType(
 			bStripped = true;
 		}
 
-		auto SetDelegateType = [&](UFunction* InFunction, const FString& InIdentifierStripped)
+		auto SetDelegateType = [&](FUnrealFunctionDefinitionInfo& InFunction, const FString& InIdentifierStripped)
 		{
 			bHandledType = true;
 
-			VarProperty = FPropertyBase(InFunction->HasAnyFunctionFlags(FUNC_MulticastDelegate) ? CPT_MulticastDelegate : CPT_Delegate);
+			VarProperty = FPropertyBase(InFunction.GetFunction()->HasAnyFunctionFlags(FUNC_MulticastDelegate) ? CPT_MulticastDelegate : CPT_Delegate);
 			VarProperty.DelegateName = *InIdentifierStripped;
-			VarProperty.Function = InFunction;
+			VarProperty.FunctionDef = &InFunction;
 
 			if (!(Disallow & CPF_InstancedReference))
 			{
@@ -4296,7 +4285,7 @@ void FHeaderParser::GetVarType(
 					{
 						if (FUnrealFunctionDefinitionInfo* DelegateFuncDef = FoundDef->AsFunction())
 						{
-							SetDelegateType(DelegateFuncDef->GetFunction(), DelegateIdentifierStripped);
+							SetDelegateType(*DelegateFuncDef, DelegateIdentifierStripped);
 							VarProperty.DelegateSignatureOwnerClass = LocalOwnerClass;
 						}
 					}
@@ -4330,7 +4319,7 @@ void FHeaderParser::GetVarType(
 
 			bHandledType = true;
 
-			VarProperty = FPropertyBase(Struct);
+			VarProperty = FPropertyBase(GTypeDefinitionInfoMap.FindChecked<FUnrealScriptStructDefinitionInfo>(Struct));
 			if ((Struct->StructFlags & STRUCT_HasInstancedReference) && !(Disallow & CPF_ContainsInstancedReference))
 			{
 				Flags |= CPF_ContainsInstancedReference;
@@ -4347,18 +4336,11 @@ void FHeaderParser::GetVarType(
 		}
 		else
 		{
-			UFunction* DelegateFunc = nullptr;
-			if (FUnrealFieldDefinitionInfo* FieldDef = Scope->FindTypeByName(*(IdentifierStripped + HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX)))
-			{
-				if (FUnrealFunctionDefinitionInfo* FunctionDef = FieldDef->AsFunction())
-				{
-					DelegateFunc = FunctionDef->GetFunction();
-				}
-			}
+			FUnrealFunctionDefinitionInfo* DelegateFuncDef = UHTCast<FUnrealFunctionDefinitionInfo>(Scope->FindTypeByName(*(IdentifierStripped + HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX)));
 
-			if (DelegateFunc)
+			if (DelegateFuncDef)
 			{
-				SetDelegateType(DelegateFunc, IdentifierStripped);
+				SetDelegateType(*DelegateFuncDef, IdentifierStripped);
 			}
 			else
 			{
@@ -4469,7 +4451,8 @@ void FHeaderParser::GetVarType(
 						PropertyType = CPT_Interface;
 					}
 
-					VarProperty = FPropertyBase(TempClass, PropertyType, bWeakIsAuto);
+					FUnrealClassDefinitionInfo& TempClassDef = GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(TempClass);
+					VarProperty = FPropertyBase(TempClassDef, PropertyType, bWeakIsAuto);
 					if (TempClass->IsChildOf(UClass::StaticClass()))
 					{
 						if (MatchSymbol(TEXT('<')))
@@ -4488,13 +4471,13 @@ void FHeaderParser::GetVarType(
 
 							RedirectTypeIdentifier(Limitor);
 
-							VarProperty.MetaClass = FClasses::FindScriptClassOrThrow(Limitor.Identifier);
+							VarProperty.MetaClassDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(FClasses::FindScriptClassOrThrow(Limitor.Identifier));
 
 							RequireSymbol(TEXT('>'), TEXT("'class limitor'"), ESymbolParseOption::CloseTemplateBracket);
 						}
 						else
 						{
-							VarProperty.MetaClass = UObject::StaticClass();
+							VarProperty.MetaClassDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UObject::StaticClass());
 						}
 
 						if (PropertyType == CPT_WeakObjectReference)
@@ -4513,7 +4496,7 @@ void FHeaderParser::GetVarType(
 					}
 
 					// Inherit instancing flags
-					if (FUnrealClassDefinitionInfo::HierarchyHasAnyClassFlags(TempClass, CLASS_DefaultToInstanced))
+					if (TempClassDef.HierarchyHasAnyClassFlags(CLASS_DefaultToInstanced))
 					{
 						Flags |= ((CPF_InstancedReference | CPF_ExportObject) & (~Disallow));
 					}
@@ -4558,7 +4541,7 @@ void FHeaderParser::GetVarType(
 			{
 				if (UFunction* ExternDelegateFunc = FClasses::FindObject<UFunction>(ANY_PACKAGE, *(IdentifierStripped + HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX)))
 				{
-					SetDelegateType(ExternDelegateFunc, IdentifierStripped);
+					SetDelegateType(GTypeDefinitionInfoMap.FindChecked<FUnrealFunctionDefinitionInfo>(ExternDelegateFunc), IdentifierStripped);
 				}
 
 				if (!bHandledType)
@@ -4687,7 +4670,7 @@ void FHeaderParser::GetVarType(
 	{
 		if ((VarProperty.Type == CPT_ObjectReference) || (VarProperty.Type == CPT_ObjectPtrReference))
 		{
-			if (VarProperty.PropertyClass->IsChildOf<UClass>())
+			if (VarProperty.ClassDef->GetClass()->IsChildOf<UClass>())
 			{
 				FError::Throwf(TEXT("'Instanced' cannot be applied to class properties (UClass* or TSubclassOf<>)"));
 			}
@@ -4698,7 +4681,7 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
-	if ( VarProperty.IsObject() && VarProperty.Type != CPT_SoftObjectReference && VarProperty.MetaClass == nullptr && (VarProperty.PropertyFlags&CPF_Config) != 0 )
+	if ( VarProperty.IsObject() && VarProperty.Type != CPT_SoftObjectReference && VarProperty.MetaClassDef == nullptr && (VarProperty.PropertyFlags&CPF_Config) != 0 )
 	{
 		FError::Throwf(TEXT("Not allowed to use 'config' with object variables"));
 	}
@@ -5794,7 +5777,7 @@ UClass* FHeaderParser::CompileClassDeclaration()
 	// Class metadata
 	MetaData.Append(ClassDef.MetaData);
 	ClassDef.MergeCategoryMetaData(MetaData);
-	AddIncludePathToMetadata(Class, MetaData);
+	AddIncludePathToMetadata(ClassDef, MetaData);
 	AddModuleRelativePathToMetadata(ClassDef, MetaData);
 
 	// Register the metadata
@@ -6018,7 +6001,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 	}
 
 	// Try parsing metadata for the interface
-	FStructMetaData& StructData = GTypeDefinitionInfoMap.FindChecked<FUnrealStructDefinitionInfo>(InterfaceClass).GetStructMetaData();
+	FStructMetaData& StructData = ClassDef.GetStructMetaData();
 	StructData.SetPrologLine(PrologFinishLine);
 
 	// Register the metadata
@@ -6327,9 +6310,12 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 				}
 			}
 
-			if (Property.Type == CPT_Struct && Property.Struct && !(Function->FunctionFlags & FUNC_NetRequest || Function->FunctionFlags & FUNC_NetResponse))
+			if (Property.Type == CPT_Struct)
 			{
-				ValidateScriptStructOkForNet(Property.Struct->GetName(), Property.Struct);
+				if (!(Function->FunctionFlags & FUNC_NetRequest || Function->FunctionFlags & FUNC_NetResponse))
+				{
+					ValidateScriptStructOkForNet(Property.ScriptStructDef->GetStruct()->GetName(), *Property.ScriptStructDef);
+				}
 			}
 
 			if (!(Function->FunctionFlags & FUNC_NetRequest))
@@ -7136,15 +7122,15 @@ void FHeaderParser::CompileFunctionDeclaration()
 
 	if (TopFunction->FunctionFlags & (FUNC_BlueprintCallable | FUNC_BlueprintEvent))
 	{
-		for (FUnrealPropertyDefinitionInfo* ProperyDef : FuncDef.GetProperties())
+		for (FUnrealPropertyDefinitionInfo* PropertyDef : FuncDef.GetProperties())
 		{
-			FProperty const* const Param = ProperyDef->GetProperty();
+			FProperty const* const Param = PropertyDef->GetProperty();
 			if (Param->ArrayDim > 1)
 			{
 				FError::Throwf(TEXT("Static array cannot be exposed to blueprint. Function: %s Parameter %s\n"), *TopFunction->GetName(), *Param->GetName());
 			}
 
-			if (!IsPropertySupportedByBlueprint(Param, false))
+			if (!FPropertyTraits::IsSupportedByBlueprint(*PropertyDef, false))
 			{
 				FString ExtendedCPPType;
 				FString CPPType = Param->GetCPPType(&ExtendedCPPType);
@@ -7296,48 +7282,55 @@ bool FHeaderParser::IsBitfieldProperty(ELayoutMacroType LayoutMacroType)
 
 void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const EPropertyFlags* OuterPropertyFlags)
 {
-	// check to see if we have a FClassProperty using a deprecated class
-	if ( VarProperty.MetaClass != NULL && VarProperty.MetaClass->HasAnyClassFlags(CLASS_Deprecated) && !(VarProperty.PropertyFlags & CPF_Deprecated) &&
-		(OuterPropertyFlags == NULL || !(*OuterPropertyFlags & CPF_Deprecated)) )
+	// If the property is in an array that has been deprecated, then we don't need to do any further tests 
+	if (OuterPropertyFlags != nullptr && (*OuterPropertyFlags & CPF_Deprecated) != 0)
 	{
-		UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *VarProperty.MetaClass->GetPathName());
+		return;
+	}
+
+	// If the property is already marked deprecated, then we don't need to do any further tests 
+	if ((VarProperty.PropertyFlags & CPF_Deprecated) != 0)
+	{
+		return;
+	}
+
+	// check to see if we have a FClassProperty using a deprecated class
+	if (VarProperty.MetaClassDef != nullptr && VarProperty.MetaClassDef->GetClass()->HasAnyClassFlags(CLASS_Deprecated))
+	{
+		UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *VarProperty.MetaClassDef->GetClass()->GetPathName());
 	}
 
 	// check to see if we have a FObjectProperty using a deprecated class.
 	// PropertyClass is part of a union, so only check PropertyClass if this token represents an object property
-	if ( (VarProperty.Type == CPT_ObjectReference || VarProperty.Type == CPT_WeakObjectReference || VarProperty.Type == CPT_LazyObjectReference || VarProperty.Type == CPT_ObjectPtrReference || VarProperty.Type == CPT_SoftObjectReference) && VarProperty.PropertyClass != NULL
-		&&	VarProperty.PropertyClass->HasAnyClassFlags(CLASS_Deprecated)	// and the object class being used has been deprecated
-		&& (VarProperty.PropertyFlags&CPF_Deprecated) == 0					// and this property isn't marked deprecated as well
-		&& (OuterPropertyFlags == NULL || !(*OuterPropertyFlags & CPF_Deprecated)) ) // and this property isn't in an array that was marked deprecated either
+	if ((VarProperty.Type == CPT_ObjectReference || VarProperty.Type == CPT_WeakObjectReference || VarProperty.Type == CPT_LazyObjectReference || VarProperty.Type == CPT_ObjectPtrReference || VarProperty.Type == CPT_SoftObjectReference)
+		&& VarProperty.ClassDef != nullptr)
 	{
-		UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *VarProperty.PropertyClass->GetPathName());
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
+		if (PropertyClass->HasAnyClassFlags(CLASS_Deprecated))	// and the object class being used has been deprecated
+		{
+			UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *PropertyClass->GetPathName());
+		}
 	}
 }
 
-bool FHeaderParser::ValidateScriptStructOkForNet(const FString& OriginStructName, UScriptStruct* InStruct)
+bool FHeaderParser::ValidateScriptStructOkForNet(const FString& OriginStructName, FUnrealScriptStructDefinitionInfo& InStructDef)
 {
-	if (!InStruct)
-	{
-		return false;
-	}
-
-	if (ScriptStructsValidForNet.Contains(InStruct))
+	if (ScriptStructsValidForNet.Contains(&InStructDef))
 	{
 		return true;
 	}
 
 	bool bIsStructValid = true;
 
-	if (UScriptStruct* SuperScriptStruct = Cast<UScriptStruct>(InStruct->GetSuperStruct()))
+	if (FUnrealScriptStructDefinitionInfo* SuperScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(InStructDef.GetSuperClassInfo().Struct))
 	{
-		if (!ValidateScriptStructOkForNet(OriginStructName, SuperScriptStruct))
+		if (!ValidateScriptStructOkForNet(OriginStructName, *SuperScriptStructDef))
 		{
 			bIsStructValid = false;
 		}
 	}
 
-	FUnrealScriptStructDefinitionInfo& StructDef = GTypeDefinitionInfoMap.FindChecked<FUnrealScriptStructDefinitionInfo>(InStruct);
-	for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
+	for (FUnrealPropertyDefinitionInfo* PropertyDef : InStructDef.GetProperties())
 	{
 		FProperty* ChildProp = PropertyDef->GetProperty();
 		if (const FSetProperty* const SetProp = CastField<FSetProperty>(ChildProp))
@@ -7358,7 +7351,7 @@ bool FHeaderParser::ValidateScriptStructOkForNet(const FString& OriginStructName
 		}
 		else if (const FStructProperty* const StructProperty = CastField<FStructProperty>(ChildProp))
 		{
-			if (!ValidateScriptStructOkForNet(OriginStructName, StructProperty->Struct))
+			if (!ValidateScriptStructOkForNet(OriginStructName, *PropertyDef->GetPropertyBase().ScriptStructDef))
 			{
 				bIsStructValid = false;
 			}
@@ -7367,7 +7360,7 @@ bool FHeaderParser::ValidateScriptStructOkForNet(const FString& OriginStructName
 
 	if (bIsStructValid)
 	{
-		ScriptStructsValidForNet.Add(InStruct);
+		ScriptStructsValidForNet.Add(&InStructDef);
 	}
 
 	return bIsStructValid;
@@ -7397,9 +7390,10 @@ struct FExposeOnSpawnValidator
 			ProperNativeType = true;
 		}
 
-		if (!ProperNativeType && (CPT_Struct == Property.Type) && Property.Struct)
+		if (!ProperNativeType && (CPT_Struct == Property.Type) && Property.ScriptStructDef)
 		{
-			ProperNativeType |= Property.Struct->GetBoolMetaData(FHeaderParserNames::NAME_BlueprintType);
+			UScriptStruct* Struct = Property.ScriptStructDef->GetScriptStruct();
+			ProperNativeType |= Struct->GetBoolMetaData(FHeaderParserNames::NAME_BlueprintType);
 		}
 
 		return ProperNativeType;
@@ -7435,7 +7429,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	}
 
 	// Validate that pointer properties are not interfaces (which are not GC'd and so will cause runtime errors)
-	if (OriginalProperty.PointerType == EPointerType::Native && OriginalProperty.Struct->IsChildOf(UInterface::StaticClass()))
+	if (OriginalProperty.PointerType == EPointerType::Native && OriginalProperty.ClassDef->AsClass() != nullptr && OriginalProperty.ClassDef->IsInterface())
 	{
 		// Get the name of the type, removing the asterisk representing the pointer
 		FString TypeName = FString(TypeRange.Count, Input + TypeRange.StartIndex).TrimStartAndEnd().LeftChop(1).TrimEnd();
@@ -7482,9 +7476,9 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	}
 
 	// If Property is a Replicated Struct check to make sure there are no Properties that are not allowed to be Replicated in the Struct 
-	if (OriginalProperty.Type == CPT_Struct && OriginalProperty.PropertyFlags & CPF_Net && OriginalProperty.Struct)
+	if (OriginalProperty.Type == CPT_Struct && OriginalProperty.PropertyFlags & CPF_Net && OriginalProperty.ScriptStructDef)
 	{
-		ValidateScriptStructOkForNet(OriginalProperty.Struct->GetName(), OriginalProperty.Struct);
+		ValidateScriptStructOkForNet(OriginalProperty.ScriptStructDef->GetScriptStruct()->GetName(), *OriginalProperty.ScriptStructDef);
 	}
 
 	// Process all variables of this type.
@@ -7548,7 +7542,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 				UE_LOG_ERROR_UHT(TEXT("Static array cannot be exposed to blueprint %s.%s"), *Struct->GetName(), *NewProperty->GetName());
 			}
 
-			if (!IsPropertySupportedByBlueprint(NewProperty, true))
+			if (!FPropertyTraits::IsSupportedByBlueprint(NewPropDef, true))
 			{
 				FString ExtendedCPPType;
 				FString CPPType = NewProperty->GetCPPType(&ExtendedCPPType);
@@ -8054,10 +8048,14 @@ ECompilationResult::Type FHeaderParser::Parse(
 
 		for (const TSharedRef<FUnrealTypeDefinitionInfo>& ClassDataPair : SourceFile.GetDefinedClasses())
 		{
-			UClass* Class = ClassDataPair->AsClassChecked().GetClass();
-			for (UClass* ParentClass = Class->GetSuperClass(); ParentClass && !ParentClass->HasAnyClassFlags(CLASS_Parsed | CLASS_Intrinsic); ParentClass = ParentClass->GetSuperClass())
+			FUnrealClassDefinitionInfo& ClassDef = ClassDataPair->AsClassChecked();
+			for (FUnrealClassDefinitionInfo* ParentClassDef = ClassDef.GetSuperClass(); ParentClassDef; ParentClassDef = ParentClassDef->GetSuperClass())
 			{
-				SourceFilesRequired.Add(&GTypeDefinitionInfoMap[ParentClass]->GetUnrealSourceFile());
+				if (ParentClassDef->GetClass()->HasAnyClassFlags(CLASS_Parsed | CLASS_Intrinsic))
+				{
+					break;
+				}
+				SourceFilesRequired.Add(&ParentClassDef->GetUnrealSourceFile());
 			}
 		}
 

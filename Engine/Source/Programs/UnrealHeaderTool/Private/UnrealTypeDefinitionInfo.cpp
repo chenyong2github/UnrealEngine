@@ -522,24 +522,6 @@ void FUnrealClassDefinitionInfo::PostParseFinalize()
 	FUnrealStructDefinitionInfo::PostParseFinalize();
 }
 
-bool FUnrealClassDefinitionInfo::HierarchyHasAnyClassFlags(UClass* Class, EClassFlags FlagsToCheck)
-{
-	if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(GTypeDefinitionInfoMap.FindChecked(Class)))
-	{
-		return ClassDef->HierarchyHasAnyClassFlags(CLASS_DefaultToInstanced);
-	}
-	return false;
-}
-
-bool FUnrealClassDefinitionInfo::HierarchyHasAllClassFlags(UClass* Class, EClassFlags FlagsToCheck)
-{
-	if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(GTypeDefinitionInfoMap.FindChecked(Class)))
-	{
-		return ClassDef->HierarchyHasAllClassFlags(CLASS_DefaultToInstanced);
-	}
-	return false;
-}
-
 void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>&& InClassSpecifiers, const FString& InRequiredAPIMacroIfPresent)
 {
 	ClassFlags = CLASS_None;

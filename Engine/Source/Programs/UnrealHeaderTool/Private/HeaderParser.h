@@ -888,7 +888,7 @@ protected:
 	static void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const EPropertyFlags* OuterPropertyFlags);
 
 	// Cache of ScriptStructs that have been validated for Net Replication and RPC
-	TSet<UScriptStruct*> ScriptStructsValidForNet;
+	TSet<FUnrealScriptStructDefinitionInfo*> ScriptStructsValidForNet;
 
 	/**
 	 * Validate that a ScriptStruct is ok to be Replicated or Sent in an RPC.
@@ -896,7 +896,7 @@ protected:
 	 * @param OriginStructName  The Name of the ScriptStruct to check
 	 * @param InStruct          The ScriptStruct to check 
 	 */
-	bool ValidateScriptStructOkForNet(const FString& OriginStructName, UScriptStruct* InStruct);
+	bool ValidateScriptStructOkForNet(const FString& OriginStructName, FUnrealScriptStructDefinitionInfo& InStructDef);
 
 private:
 	// Definition of package being parsed
