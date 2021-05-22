@@ -24,7 +24,12 @@ namespace UE::DerivedData
 struct FBuildActionKey
 {
 	FIoHash Hash;
+
+	/** A key with a zero hash. */
+	static const FBuildActionKey Empty;
 };
+
+inline const FBuildActionKey FBuildActionKey::Empty;
 
 } // UE::DerivedData
 
