@@ -156,8 +156,8 @@ namespace GeometryCollectionTest
 			SimulationParams.PhysicalMaterialHandle = NewHandle;
 			SimulationParams.Shared.Mass = Params.Mass;
 			SimulationParams.Shared.bMassAsDensity = Params.bMassAsDensity;
-			SimulationParams.Shared.SizeSpecificData[0].CollisionType = Params.CollisionType;
-			SimulationParams.Shared.SizeSpecificData[0].ImplicitType = Params.ImplicitType;
+			SimulationParams.Shared.SizeSpecificData[0].CollisionShapesData[0].CollisionType = Params.CollisionType;
+			SimulationParams.Shared.SizeSpecificData[0].CollisionShapesData[0].ImplicitType = Params.ImplicitType;
 			SimulationParams.Simulating = Params.Simulating;
 			SimulationParams.EnableClustering = Params.EnableClustering;
 			SimulationParams.InitialLinearVelocity = Params.InitialLinearVelocity;
@@ -170,8 +170,8 @@ namespace GeometryCollectionTest
 			SimulationParams.ClusterGroupIndex = Params.ClusterGroupIndex;
 
 			FSharedSimulationSizeSpecificData Tmp;
-			Tmp.MinLevelSetResolution = Params.MinLevelSetResolution;
-			Tmp.MaxLevelSetResolution = Params.MaxLevelSetResolution;
+			Tmp.CollisionShapesData[0].LevelSetData.MinLevelSetResolution = Params.MinLevelSetResolution;
+			Tmp.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution = Params.MaxLevelSetResolution;
 			SimulationParams.Shared.SizeSpecificData.Add(Tmp);
 
 			Chaos::FErrorReporter ErrorReporter;

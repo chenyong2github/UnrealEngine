@@ -64,18 +64,18 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_PointImplicit)
 	, bStripOnCook(false)
 	, EnableNanite(false)
-	, CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
-	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
-	, MinLevelSetResolution(10)
-	, MaxLevelSetResolution(10)
-	, MinClusterLevelSetResolution(50)
-	, MaxClusterLevelSetResolution(50)
-	, CollisionObjectReductionPercentage(0.0f)
+#if WITH_EDITORONLY_DATA
+	, CollisionType_DEPRECATED(ECollisionTypeEnum::Chaos_Volumetric)
+	, ImplicitType_DEPRECATED(EImplicitTypeEnum::Chaos_Implicit_Box)
+	, MinLevelSetResolution_DEPRECATED(10)
+	, MaxLevelSetResolution_DEPRECATED(10)
+	, MinClusterLevelSetResolution_DEPRECATED(50)
+	, MaxClusterLevelSetResolution_DEPRECATED(50)
+	, CollisionObjectReductionPercentage_DEPRECATED(0.0f)
+#endif
 	, bMassAsDensity(false)
 	, Mass(1.0f)
 	, MinimumMassClamp(0.1f)
-	, CollisionParticlesFraction(1.0f)
-	, MaximumCollisionParticles(60)
 	, EnableRemovePiecesOnFracture(false)
 	, GeometryCollection(new FGeometryCollection())
 {
@@ -87,34 +87,119 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 #endif
 }
 
-FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
-	: MaxSize(0.0f)
-	, CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
-	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
-	, MinLevelSetResolution(5)
+FGeometryCollectionLevelSetData::FGeometryCollectionLevelSetData()
+	: MinLevelSetResolution(5)
 	, MaxLevelSetResolution(10)
 	, MinClusterLevelSetResolution(25)
 	, MaxClusterLevelSetResolution(50)
-	, CollisionObjectReductionPercentage(0.0f)
-	, CollisionParticlesFraction(1.0f)
+{
+}
+
+FGeometryCollectionCollisionParticleData::FGeometryCollectionCollisionParticleData()
+	: CollisionParticlesFraction(1.0f)
 	, MaximumCollisionParticles(60)
+{
+}
+
+
+
+FGeometryCollectionCollisionTypeData::FGeometryCollectionCollisionTypeData()
+	: CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
+	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
+	, LevelSet()
+	, CollisionParticles()
+	, CollisionObjectReductionPercentage(0.0f)
+{
+}
+
+FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
+	: MaxSize(FLT_MAX)
+	, CollisionShapes({ FGeometryCollectionCollisionTypeData()})
+#if WITH_EDITORONLY_DATA
+	, CollisionType_DEPRECATED(ECollisionTypeEnum::Chaos_Volumetric)
+	, ImplicitType_DEPRECATED(EImplicitTypeEnum::Chaos_Implicit_Box)
+	, MinLevelSetResolution_DEPRECATED(5)
+	, MaxLevelSetResolution_DEPRECATED(10)
+	, MinClusterLevelSetResolution_DEPRECATED(25)
+	, MaxClusterLevelSetResolution_DEPRECATED(50)
+	, CollisionObjectReductionPercentage_DEPRECATED(0)
+	, CollisionParticlesFraction_DEPRECATED(1.f)
+	, MaximumCollisionParticles_DEPRECATED(60)
+#endif
 	, DamageThreshold(250.0)
 {
 }
 
+
+bool FGeometryCollectionSizeSpecificData::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	return false;	//We only have this function to mark custom GUID. Still want serialize tagged properties
+}
+
+#if WITH_EDITORONLY_DATA
+void FGeometryCollectionSizeSpecificData::PostSerialize(const FArchive& Ar)
+{
+	const int32 CustomVer = Ar.CustomVer(FUE5MainStreamObjectVersion::GUID);
+	// make sure to load back the deprecated values in the new structure if necessary
+	if (Ar.IsLoading() && CustomVer < FUE5MainStreamObjectVersion::GeometryCollectionUserDefinedCollisionShapes)
+	{
+		if (ensure(CollisionShapes.Num()))
+		{
+			CollisionShapes[0].CollisionType = CollisionType_DEPRECATED;
+			CollisionShapes[0].ImplicitType = ImplicitType_DEPRECATED;
+			CollisionShapes[0].CollisionObjectReductionPercentage = CollisionObjectReductionPercentage_DEPRECATED;
+			CollisionShapes[0].CollisionParticles.CollisionParticlesFraction = CollisionParticlesFraction_DEPRECATED;
+			CollisionShapes[0].CollisionParticles.MaximumCollisionParticles = MaximumCollisionParticles_DEPRECATED;
+			CollisionShapes[0].LevelSet.MinLevelSetResolution = MinLevelSetResolution_DEPRECATED;
+			CollisionShapes[0].LevelSet.MaxLevelSetResolution = MaxLevelSetResolution_DEPRECATED;
+			CollisionShapes[0].LevelSet.MinClusterLevelSetResolution = MinClusterLevelSetResolution_DEPRECATED;
+			CollisionShapes[0].LevelSet.MaxClusterLevelSetResolution = MaxClusterLevelSetResolution_DEPRECATED;
+		}
+	}
+}
+#endif
+
+
+
 void FillSharedSimulationSizeSpecificData(FSharedSimulationSizeSpecificData& ToData, const FGeometryCollectionSizeSpecificData& FromData)
 {
-	ToData.CollisionType = FromData.CollisionType;
-	ToData.ImplicitType = FromData.ImplicitType;
 	ToData.MaxSize = FromData.MaxSize;
-	ToData.MinLevelSetResolution = FromData.MinLevelSetResolution;
-	ToData.MaxLevelSetResolution = FromData.MaxLevelSetResolution;
-	ToData.MinClusterLevelSetResolution = FromData.MinClusterLevelSetResolution;
-	ToData.MaxClusterLevelSetResolution = FromData.MaxClusterLevelSetResolution;
-	ToData.CollisionObjectReductionPercentage = FromData.CollisionObjectReductionPercentage;
-	ToData.CollisionParticlesFraction = FromData.CollisionParticlesFraction;
-	ToData.MaximumCollisionParticles = FromData.MaximumCollisionParticles;
+	check(FromData.CollisionShapes.Num());
+
+	ToData.CollisionShapesData.SetNumUninitialized(FromData.CollisionShapes.Num());
+	for (int i=0;i<FromData.CollisionShapes.Num();i++)
+	{
+		ToData.CollisionShapesData[i].CollisionType = FromData.CollisionShapes[i].CollisionType;
+		ToData.CollisionShapesData[i].ImplicitType = FromData.CollisionShapes[i].ImplicitType;
+		ToData.CollisionShapesData[i].LevelSetData.MinLevelSetResolution = FromData.CollisionShapes[i].LevelSet.MinLevelSetResolution;
+		ToData.CollisionShapesData[i].LevelSetData.MaxLevelSetResolution = FromData.CollisionShapes[i].LevelSet.MaxLevelSetResolution;
+		ToData.CollisionShapesData[i].LevelSetData.MinClusterLevelSetResolution = FromData.CollisionShapes[i].LevelSet.MinClusterLevelSetResolution;
+		ToData.CollisionShapesData[i].LevelSetData.MaxClusterLevelSetResolution = FromData.CollisionShapes[i].LevelSet.MaxClusterLevelSetResolution;
+		ToData.CollisionShapesData[i].CollisionObjectReductionPercentage = FromData.CollisionShapes[i].CollisionObjectReductionPercentage;
+		ToData.CollisionShapesData[i].CollisionParticleData.CollisionParticlesFraction = FromData.CollisionShapes[i].CollisionParticles.CollisionParticlesFraction;
+		ToData.CollisionShapesData[i].CollisionParticleData.MaximumCollisionParticles = FromData.CollisionShapes[i].CollisionParticles.MaximumCollisionParticles;
+	}
 	ToData.DamageThreshold = FromData.DamageThreshold;
+}
+
+FGeometryCollectionSizeSpecificData UGeometryCollection::GeometryCollectionSizeSpecificDataDefaults() const
+{
+	FGeometryCollectionSizeSpecificData Data;
+	check(Data.CollisionShapes.Num());
+
+	Data.MaxSize = FLT_MAX;
+	Data.CollisionShapes[0].CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
+	Data.CollisionShapes[0].ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
+	Data.CollisionShapes[0].LevelSet.MinLevelSetResolution = 5;
+	Data.CollisionShapes[0].LevelSet.MaxLevelSetResolution = 10;
+	Data.CollisionShapes[0].LevelSet.MinClusterLevelSetResolution = 25;
+	Data.CollisionShapes[0].LevelSet.MaxClusterLevelSetResolution = 50;
+	Data.CollisionShapes[0].CollisionObjectReductionPercentage = 1.0;
+	Data.CollisionShapes[0].CollisionParticles.CollisionParticlesFraction = 1.0;
+	Data.CollisionShapes[0].CollisionParticles.MaximumCollisionParticles = 60;
+	Data.DamageThreshold = 250.0f;
+	return Data;
 }
 
 float KgCm3ToKgM3(float Density)
@@ -129,30 +214,33 @@ float KgM3ToKgCm3(float Density)
 
 void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters& OutParams) const
 {
+	const FGeometryCollectionSizeSpecificData& SizeSpecificDefault = GetDefaultSizeSpecificData();
+	check(SizeSpecificDefault.CollisionShapes.Num());
+
 	OutParams.bMassAsDensity = bMassAsDensity;
 	OutParams.Mass = bMassAsDensity ? KgM3ToKgCm3(Mass) : Mass;	//todo(ocohen): we still have the solver working in old units. This is mainly to fix ui issues. Long term need to normalize units for best precision
 	OutParams.MinimumMassClamp = MinimumMassClamp;
-	OutParams.MaximumCollisionParticleCount = MaximumCollisionParticles;
+	OutParams.MaximumCollisionParticleCount = SizeSpecificDefault.CollisionShapes[0].CollisionParticles.MaximumCollisionParticles;
 
-	ECollisionTypeEnum SelectedCollisionType = CollisionType;
+	ECollisionTypeEnum SelectedCollisionType = SizeSpecificDefault.CollisionShapes[0].CollisionType;
 
-	if(SelectedCollisionType == ECollisionTypeEnum::Chaos_Volumetric && ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
+	if (SelectedCollisionType == ECollisionTypeEnum::Chaos_Volumetric && SizeSpecificDefault.CollisionShapes[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
 	{
 		UE_LOG(LogGeometryCollectionInternal, Verbose, TEXT("LevelSet geometry selected but non-particle collisions selected. Forcing particle-implicit collisions for %s"), *GetPathName());
 		SelectedCollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 	}
 
 	FGeometryCollectionSizeSpecificData InfSize;
-	InfSize.MaxSize = FLT_MAX;
-	InfSize.CollisionType = SelectedCollisionType;
-	InfSize.ImplicitType = ImplicitType;
-	InfSize.MinLevelSetResolution = MinLevelSetResolution;
-	InfSize.MaxLevelSetResolution = MaxLevelSetResolution;
-	InfSize.MinClusterLevelSetResolution = MinClusterLevelSetResolution;
-	InfSize.MaxClusterLevelSetResolution = MaxClusterLevelSetResolution;
-	InfSize.CollisionObjectReductionPercentage = CollisionObjectReductionPercentage;
-	InfSize.CollisionParticlesFraction = CollisionParticlesFraction;
-	InfSize.MaximumCollisionParticles = MaximumCollisionParticles;
+	InfSize.MaxSize = TNumericLimits<float>::Max();
+	InfSize.CollisionShapes[0].CollisionType = SelectedCollisionType;
+	InfSize.CollisionShapes[0].ImplicitType = SizeSpecificDefault.CollisionShapes[0].ImplicitType;
+	InfSize.CollisionShapes[0].LevelSet.MinLevelSetResolution = SizeSpecificDefault.CollisionShapes[0].LevelSet.MinLevelSetResolution;
+	InfSize.CollisionShapes[0].LevelSet.MaxLevelSetResolution = SizeSpecificDefault.CollisionShapes[0].LevelSet.MaxLevelSetResolution;
+	InfSize.CollisionShapes[0].LevelSet.MinClusterLevelSetResolution = SizeSpecificDefault.CollisionShapes[0].LevelSet.MinClusterLevelSetResolution;
+	InfSize.CollisionShapes[0].LevelSet.MaxClusterLevelSetResolution = SizeSpecificDefault.CollisionShapes[0].LevelSet.MaxClusterLevelSetResolution;
+	InfSize.CollisionShapes[0].CollisionObjectReductionPercentage = SizeSpecificDefault.CollisionShapes[0].CollisionObjectReductionPercentage;
+	InfSize.CollisionShapes[0].CollisionParticles.CollisionParticlesFraction = SizeSpecificDefault.CollisionShapes[0].CollisionParticles.CollisionParticlesFraction;
+	InfSize.CollisionShapes[0].CollisionParticles.MaximumCollisionParticles = SizeSpecificDefault.CollisionShapes[0].CollisionParticles.MaximumCollisionParticles;
 
 	OutParams.SizeSpecificData.SetNum(SizeSpecificData.Num() + 1);
 	FillSharedSimulationSizeSpecificData(OutParams.SizeSpecificData[0], InfSize);
@@ -234,6 +322,41 @@ void UGeometryCollection::RemoveElements(const FName & Group, const TArray<int32
 	Modify();
 	GeometryCollection->RemoveElements(Group, SortedDeletionList);
 	InvalidateCollection();
+}
+
+int UGeometryCollection::GetDefaultSizeSpecificDataIndex() const
+{
+	int LargestIndex = INDEX_NONE;
+	float MaxSize = TNumericLimits<float>::Lowest();
+	for (int i = 0; i < SizeSpecificData.Num(); i++)
+	{
+		const float SizeSpecificDataMaxSize = SizeSpecificData[i].MaxSize;
+		if (MaxSize < SizeSpecificDataMaxSize)
+		{
+			MaxSize = SizeSpecificDataMaxSize;
+			LargestIndex = i;
+		}
+	}
+	check(LargestIndex != INDEX_NONE && LargestIndex < SizeSpecificData.Num());
+	return LargestIndex;
+}
+
+/** Size Specific Data Access */
+FGeometryCollectionSizeSpecificData& UGeometryCollection::GetDefaultSizeSpecificData()
+{
+	if (!SizeSpecificData.Num())
+	{
+		SizeSpecificData.Add(GeometryCollectionSizeSpecificDataDefaults());
+	}
+	const int DefaultSizeIndex = GetDefaultSizeSpecificDataIndex();
+	return SizeSpecificData[DefaultSizeIndex];
+}
+
+const FGeometryCollectionSizeSpecificData& UGeometryCollection::GetDefaultSizeSpecificData() const
+{
+	ensure(SizeSpecificData.Num());
+	const int DefaultSizeIndex = GetDefaultSizeSpecificDataIndex();
+	return SizeSpecificData[DefaultSizeIndex];
 }
 
 /** ReindexMaterialSections */
@@ -430,6 +553,7 @@ static void SerializeOldNaniteData(FArchive& Ar, UGeometryCollection* Owner)
 /** Serialize */
 void UGeometryCollection::Serialize(FArchive& Ar)
 {
+	bool bCreateSimulationData = false;
 	Ar.UsingCustomVersion(FDestructionObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Chaos::FChaosArchive ChaosAr(Ar);
@@ -543,9 +667,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	{
 		ArchiveGeometryCollection->UpdateOldAttributeNames();
 		InvalidateCollection();
-#if WITH_EDITOR
-		CreateSimulationData();
-#endif
+		bCreateSimulationData = true;
 	}
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) == FUE5MainStreamObjectVersion::GeometryCollectionNaniteData || 
@@ -572,10 +694,47 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		}
 	}
 
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GeometryCollectionUserDefinedCollisionShapes)
+	{
+		auto HasDefault = [](const TArray<FGeometryCollectionSizeSpecificData>& DatasIn)
+		{
+			for (const FGeometryCollectionSizeSpecificData& Data : DatasIn)
+				if (FMath::IsNearlyEqual(Data.MaxSize, FLT_MAX))
+					return true;
+			return false;
+		};
 
-#if WITH_EDITOR
+		if (!SizeSpecificData.Num() || !HasDefault(SizeSpecificData))
+		{
+			FGeometryCollectionSizeSpecificData Data;
+			Data.CollisionShapes[0].CollisionType =	CollisionType_DEPRECATED;
+			Data.CollisionShapes[0].ImplicitType = ImplicitType_DEPRECATED;
+			Data.CollisionShapes[0].LevelSet.MinLevelSetResolution = MinLevelSetResolution_DEPRECATED;
+			Data.CollisionShapes[0].LevelSet.MaxLevelSetResolution = MaxLevelSetResolution_DEPRECATED;
+			Data.CollisionShapes[0].LevelSet.MinClusterLevelSetResolution = MinClusterLevelSetResolution_DEPRECATED;
+			Data.CollisionShapes[0].LevelSet.MaxClusterLevelSetResolution = MaxClusterLevelSetResolution_DEPRECATED;
+			Data.CollisionShapes[0].CollisionObjectReductionPercentage = CollisionObjectReductionPercentage_DEPRECATED;
+			if (Data.CollisionShapes[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
+				Data.CollisionShapes[0].CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
+			SizeSpecificData.Add(Data);
+		}
+		check(SizeSpecificData.Num() && SizeSpecificData[0].CollisionShapes.Num());
+
+		if (Ar.IsLoading())
+		{
+			InvalidateCollection();
+			bCreateSimulationData = true;
+		}
+	}
+
+	if (bCreateSimulationData)
+	{
+		CreateSimulationData();
+	}
+
 	//for all versions loaded, make sure sim data is up to date
-	if (Ar.IsLoading())
+ 	if (Ar.IsLoading())
 	{
 		EnsureDataIsCooked();	//make sure loaded content is built
 	}
