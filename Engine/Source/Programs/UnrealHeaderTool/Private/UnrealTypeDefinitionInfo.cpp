@@ -2,18 +2,20 @@
 
 #include "UnrealTypeDefinitionInfo.h"
 #include "BaseParser.h"
-#include "Classes.h"
 #include "ClassMaps.h"
 #include "HeaderParser.h"
 #include "NativeClassExporter.h"
 #include "Scope.h"
+#include "StringUtils.h"
 #include "UnrealHeaderTool.h"
 #include "UnrealSourceFile.h"
+#include "Specifiers/ClassMetadataSpecifiers.h"
+
+#include "Algo/FindSortedStringCaseInsensitive.h"
 #include "Misc/PackageName.h"
 #include "UObject/ErrorException.h"
 #include "UObject/Interface.h"
-#include "Specifiers/ClassMetadataSpecifiers.h"
-#include "Algo/FindSortedStringCaseInsensitive.h"
+#include "UObject/ObjectRedirector.h"
 
 namespace
 {
@@ -106,6 +108,39 @@ namespace
 			PackageName = Field->GetOutermost()->GetName();
 		}
 		return PackageName;
+	}
+
+	/**
+	 * Returns True if the given class name includes a valid Unreal prefix and matches based on the given class.
+	 *
+	 * @param InNameToCheck - Name w/ potential prefix to check
+	 * @param OriginalClass - Class to check against
+	 */
+	bool ClassNameHasValidPrefix(const FString& InNameToCheck, const UClass* OriginalClass)
+	{
+		bool bIsLabledDeprecated;
+		GetClassPrefix(InNameToCheck, bIsLabledDeprecated);
+
+		// If the class is labeled deprecated, don't try to resolve it during header generation, valid results can't be guaranteed.
+		if (bIsLabledDeprecated)
+		{
+			return true;
+		}
+
+		const FString OriginalClassName = FUnrealTypeDefinitionInfo::GetNameWithPrefix(OriginalClass);
+
+		bool bNamesMatch = (InNameToCheck == OriginalClassName);
+
+		if (!bNamesMatch)
+		{
+			//@TODO: UCREMOVAL: I/U interface hack - Ignoring prefixing for this call
+			if (OriginalClass->HasAnyClassFlags(CLASS_Interface))
+			{
+				bNamesMatch = InNameToCheck.Mid(1) == OriginalClassName.Mid(1);
+			}
+		}
+
+		return bNamesMatch;
 	}
 }
 
@@ -496,6 +531,83 @@ FUnrealClassDefinitionInfo::FUnrealClassDefinitionInfo(FUnrealSourceFile& InSour
 	}
 }
 
+FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindClass(const TCHAR* ClassName)
+{
+	FUnrealClassDefinitionInfo* ClassDef = nullptr;
+	{
+		ClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(ClassName);
+	}
+
+	if (ClassDef != nullptr)
+	{
+		if (UObjectRedirector* RenamedClassRedirector = FindObject<UObjectRedirector>(ANY_PACKAGE, ClassName))
+		{
+			UClass* RedierClass = CastChecked<UClass>(RenamedClassRedirector->DestinationObject);
+			if (RedierClass != nullptr)
+			{
+				ClassDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(RedierClass);
+			}
+		}
+	}
+
+	return ClassDef;
+}
+
+FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindScriptClassOrThrow(const FString& InClassName)
+{
+	FString ErrorMsg;
+	if (FUnrealClassDefinitionInfo* ResultDef = FindScriptClass(InClassName, &ErrorMsg))
+	{
+		return ResultDef;
+	}
+
+	FError::Throwf(*ErrorMsg);
+
+	// Unreachable, but compiler will warn otherwise because FError::Throwf isn't declared noreturn
+	return nullptr;
+}
+
+FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindScriptClass(const FString& InClassName, FString* OutErrorMsg)
+{
+	// Strip the class name of its prefix and then do a search for the class
+	FString ClassNameStripped = GetClassNameWithPrefixRemoved(InClassName);
+	if (FUnrealClassDefinitionInfo* FoundClassDef = FindClass(*ClassNameStripped))
+	{
+		// If the class was found with the stripped class name, verify that the correct prefix was used and throw an error otherwise
+		if (!ClassNameHasValidPrefix(InClassName, FoundClassDef->GetClass()))
+		{
+			if (OutErrorMsg)
+			{
+				*OutErrorMsg = FString::Printf(TEXT("Class '%s' has an incorrect prefix, expecting '%s'"), *InClassName, *FUnrealTypeDefinitionInfo::GetNameWithPrefix(FoundClassDef->GetClass()));
+			}
+			return nullptr;
+		}
+
+		return FoundClassDef;
+	}
+
+	// Couldn't find the class with a class name stripped of prefix (or a prefix was not found)
+	// See if the prefix was forgotten by trying to find the class with the given identifier
+	if (FUnrealClassDefinitionInfo* FoundClassDef = FindClass(*InClassName))
+	{
+		// If the class was found with the given identifier, the user forgot to use the correct Unreal prefix	
+		if (OutErrorMsg)
+		{
+			*OutErrorMsg = FString::Printf(TEXT("Class '%s' is missing a prefix, expecting '%s'"), *InClassName, *FUnrealTypeDefinitionInfo::GetNameWithPrefix(FoundClassDef->GetClass()));
+		}
+	}
+	else
+	{
+		// If the class was still not found, it wasn't a valid identifier
+		if (OutErrorMsg)
+		{
+			*OutErrorMsg = FString::Printf(TEXT("Class '%s' not found."), *InClassName);
+		}
+	}
+
+	return nullptr;
+}
+
 uint32 FUnrealClassDefinitionInfo::GetHash(bool bIncludeNoExport) const
 {
 	if (!bIncludeNoExport)
@@ -556,7 +668,7 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 		case EClassMetadataSpecifier::Within:
 
-			ClassWithin = FHeaderParser::RequireExactlyOneSpecifierValue(PropSpecifier);
+			ClassWithinStr = FHeaderParser::RequireExactlyOneSpecifierValue(PropSpecifier);
 			break;
 
 		case EClassMetadataSpecifier::EditInlineNew:
@@ -995,13 +1107,14 @@ void FUnrealClassDefinitionInfo::SetAndValidateWithinClass()
 	UClass* Class = GetClass();
 
 	// Process all of the class specifiers
-	if (ClassWithin.IsEmpty() == false)
+	if (ClassWithinStr.IsEmpty() == false)
 	{
-		UClass* RequiredWithinClass = FClasses::FindClass(*ClassWithin);
-		if (!RequiredWithinClass)
+		FUnrealClassDefinitionInfo* RequiredWithinClassDef = FUnrealClassDefinitionInfo::FindClass(*ClassWithinStr);
+		if (!RequiredWithinClassDef)
 		{
-			FError::Throwf(TEXT("Within class '%s' not found."), *ClassWithin);
+			FError::Throwf(TEXT("Within class '%s' not found."), *ClassWithinStr);
 		}
+		UClass* RequiredWithinClass = RequiredWithinClassDef->GetClass();
 		if (RequiredWithinClass->IsChildOf(UInterface::StaticClass()))
 		{
 			FError::Throwf(TEXT("Classes cannot be 'within' interfaces"));
@@ -1031,6 +1144,8 @@ void FUnrealClassDefinitionInfo::SetAndValidateWithinClass()
 	{
 		FError::Throwf(TEXT("Parent class declared within '%s'.  Cannot override within class with '%s' since it isn't a child"), *ExpectedWithin->GetName(), *Class->ClassWithin->GetName());
 	}
+
+	ClassWithin = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(Class->ClassWithin);
 }
 
 void FUnrealClassDefinitionInfo::GetHideCategories(TArray<FString>& OutHideCategories) const

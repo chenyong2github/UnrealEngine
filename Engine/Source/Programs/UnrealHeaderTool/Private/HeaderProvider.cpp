@@ -31,8 +31,7 @@ FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFile& ParentSourc
 		{
 		case EHeaderProviderSourceType::ClassName:
 		{
-			FName IdName(*Id, FNAME_Find);
-			if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
+			if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(*Id))
 			{
 				Cache = (*Source)->HasSource() ? &(*Source)->GetUnrealSourceFile() : nullptr;
 				// There is an edge case with interfaces.  If you define the UMyInterface and IMyInterface in the same
@@ -51,8 +50,7 @@ FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFile& ParentSourc
 		{
 			if (!FUHTConfig::Get().StructsWithNoPrefix.Contains(Id))
 			{
-				FName IdName(*GetClassNameWithPrefixRemoved(Id), FNAME_Find);
-				if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
+				if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(*GetClassNameWithPrefixRemoved(Id)))
 				{
 					Cache = (*Source)->HasSource() ? &(*Source)->GetUnrealSourceFile() : nullptr;
 				}
@@ -60,7 +58,7 @@ FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFile& ParentSourc
 			if (Cache == nullptr)
 			{
 				FName IdName(*Id, FNAME_Find);
-				if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
+				if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(*Id))
 				{
 					Cache = (*Source)->HasSource() ? &(*Source)->GetUnrealSourceFile() : nullptr;
 				}

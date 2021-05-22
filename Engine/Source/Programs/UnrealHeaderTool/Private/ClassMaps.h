@@ -3,12 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "StringUtils.h"
+#include "UnrealSourceFile.h"
+#include "UnrealTypeDefinitionInfo.h"
 #include "UObject/Stack.h"
 #include "UObject/ErrorException.h"
-
-#include "UnrealSourceFile.h"
-#include "UObject/ErrorException.h"
-#include "UnrealTypeDefinitionInfo.h"
 
 class UField;
 class UClass;
@@ -94,29 +93,34 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 		return *TypeDef;
 	}
 
-	TSharedRef<FUnrealTypeDefinitionInfo>* FindByName(const FName Name)
+	// Finding by name must be done on the stripped name for classes and script structs
+	TSharedRef<FUnrealTypeDefinitionInfo>* FindByName(const TCHAR* Name)
 	{
-		check(bFrozen);
-		return DefinitionsByName.Find(Name);
+		FName SearchName(Name, EFindName::FNAME_Find);
+		if (SearchName != NAME_None)
+		{
+			return DefinitionsByName.Find(SearchName);
+		}
+		return nullptr;
 	}
 
 	template<typename To>
-	To* FindByName(const FName Name)
+	To* FindByName(const TCHAR* Name)
 	{
 		check(bFrozen);
-		return UHTCast<To>(DefinitionsByName.Find(Name));
+		return UHTCast<To>(FindByName(Name));
 	}
 
-	FUnrealTypeDefinitionInfo& FindByNameChecked(const FName Name)
+	FUnrealTypeDefinitionInfo& FindByNameChecked(const TCHAR* Name)
 	{
 		check(bFrozen);
-		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = DefinitionsByName.Find(Name);
+		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = FindByName(Name);
 		check(TypeDef);
 		return **TypeDef;
 	}
 
 	template <typename To>
-	To& FindByNameChecked(const FName Name)
+	To& FindByNameChecked(const TCHAR* Name)
 	{
 		check(bFrozen);
 		To* TypeDef = FindByName<To>(Name);

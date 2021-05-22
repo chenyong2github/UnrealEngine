@@ -2,7 +2,6 @@
 
 #include "PropertyTypes.h"
 #include "BaseParser.h"
-#include "Classes.h"
 #include "ClassMaps.h"
 #include "HeaderParser.h"
 #include "UnrealHeaderTool.h"
@@ -989,15 +988,14 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 	static bool DefaultValueStringCppFormatToInnerFormat(const FUnrealPropertyDefinitionInfo& PropDef, const FString& CppForm, FString& OutForm)
 	{
 		// Cache off the struct types, in case we need them later
-		UPackage* CoreUObjectPackage = UObject::StaticClass()->GetOutermost();
-		static const UScriptStruct* VectorStruct = FClasses::FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("Vector"));
-		static const UScriptStruct* Vector2DStruct = FClasses::FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("Vector2D"));
-		static const UScriptStruct* RotatorStruct = FClasses::FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("Rotator"));
-		static const UScriptStruct* LinearColorStruct = FClasses::FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("LinearColor"));
-		static const UScriptStruct* ColorStruct = FClasses::FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("Color"));
+		static const FUnrealScriptStructDefinitionInfo& VectorStructDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealScriptStructDefinitionInfo>(TEXT("Vector"));
+		static const FUnrealScriptStructDefinitionInfo& Vector2DStructDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealScriptStructDefinitionInfo>(TEXT("Vector2D"));
+		static const FUnrealScriptStructDefinitionInfo& RotatorStructDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealScriptStructDefinitionInfo>(TEXT("Rotator"));
+		static const FUnrealScriptStructDefinitionInfo& LinearColorStructDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealScriptStructDefinitionInfo>(TEXT("LinearColor"));
+		static const FUnrealScriptStructDefinitionInfo& ColorStructDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealScriptStructDefinitionInfo>(TEXT("Color"));
 
-		UScriptStruct* Struct = PropDef.GetPropertyBase().ScriptStructDef->GetScriptStruct();
-		if (Struct == VectorStruct)
+		FUnrealScriptStructDefinitionInfo* ScriptStructDef = PropDef.GetPropertyBase().ScriptStructDef;
+		if (ScriptStructDef == &VectorStructDef)
 		{
 			FString Parameters;
 			if (FDefaultValueHelper::Is(CppForm, TEXT("FVector::ZeroVector")))
@@ -1039,7 +1037,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 				}
 			}
 		}
-		else if (Struct == RotatorStruct)
+		else if (ScriptStructDef == &RotatorStructDef)
 		{
 			if (FDefaultValueHelper::Is(CppForm, TEXT("FRotator::ZeroRotator")))
 			{
@@ -1060,7 +1058,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 				}
 			}
 		}
-		else if (Struct == Vector2DStruct)
+		else if (ScriptStructDef == &Vector2DStructDef)
 		{
 			if (FDefaultValueHelper::Is(CppForm, TEXT("FVector2D::ZeroVector")))
 			{
@@ -1086,7 +1084,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 				}
 			}
 		}
-		else if (Struct == LinearColorStruct)
+		else if (ScriptStructDef == &LinearColorStructDef)
 		{
 			if (FDefaultValueHelper::Is(CppForm, TEXT("FLinearColor::White")))
 			{
@@ -1137,7 +1135,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 				}
 			}
 		}
-		else if (Struct == ColorStruct)
+		else if (ScriptStructDef == &ColorStructDef)
 		{
 			if (FDefaultValueHelper::Is(CppForm, TEXT("FColor::White")))
 			{

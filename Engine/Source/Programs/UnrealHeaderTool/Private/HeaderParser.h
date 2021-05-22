@@ -25,7 +25,6 @@ class UEnum;
 class UScriptStruct;
 class UDelegateFunction;
 class UStruct;
-class FClasses;
 class FScope;
 class FHeaderProvider;
 
@@ -744,7 +743,7 @@ protected:
 	void CompileRigVMMethodDeclaration(UStruct* Struct);
 	void ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& StructDef);
 
-	UClass* ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
+	FUnrealClassDefinitionInfo* ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
 	bool TryParseIInterfaceClass();
 
 	bool CompileStatement(TArray<FUnrealFunctionDefinitionInfo*>& DelegatesToFixup);
@@ -832,7 +831,7 @@ protected:
 
 	const TCHAR* NestTypeName( ENestType NestType );
 
-	UClass* GetQualifiedClass(const TCHAR* Thing);
+	FUnrealClassDefinitionInfo* GetQualifiedClass(const TCHAR* Thing);
 
 	/**
 	 * Increase the nesting level, setting the new top nesting level to
@@ -842,7 +841,7 @@ protected:
 	 * @param	NestType	the new nesting type
 	 * @param	InNode		@todo
 	 */
-	void PushNest(ENestType NestType, UStruct* InNode, FUnrealSourceFile* SourceFile = nullptr);
+	void PushNest(ENestType NestType, FUnrealStructDefinitionInfo* InNodeDef, FUnrealSourceFile* SourceFile = nullptr);
 	void PopNest(ENestType NestType, const TCHAR* Descr);
 
 	/**
