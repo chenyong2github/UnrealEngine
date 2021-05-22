@@ -100,33 +100,6 @@ public:
 	}
 
 	/**
-	 * Generate an exception
-	 * @param InObject The type object generating the exception.  The filename and line number will be retrieved from the object's type definition if possible.
-	 * @param InFmt The format string
-	 * @param InArgs Arguments supplied to the format string
-	 */
-	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(const UObject* InObject, const FmtType& InFmt, Types... InArgs)
-	{
-		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(ECompilationResult::OtherCompilationError, InObject, MoveTemp(ResultString));
-	}
-
-	/**
-	 * Generate an exception
-	 * @param Result Result code to be returned as the overall result of the compilation process
-	 * @param Object The type object generating the exception.  The filename and line number will be retrieved from the object's type definition if possible.
-	 * @param Fmt The format string
-	 * @param Args Arguments supplied to the format string
-	 */
-	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(ECompilationResult::Type InResult, const UObject* InObject, const FmtType& InFmt, Types... InArgs)
-	{
-		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(InResult, InObject, MoveTemp(ResultString));
-	}
-
-	/**
 	 * Return the result code of the exception
 	 */
 	ECompilationResult::Type GetResult() const 
@@ -242,6 +215,14 @@ struct FResults
 	 */
 	static void LogError(const UObject& Object, const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
 
+	/**
+	 * Log an error for the given source file where the type is defined
+	 * @param InTypeDef The source file and line number will be determined from the type
+	 * @param ErrorMsg The text of the error
+	 * @param Result Compilation result of the error
+	 */
+	static void LogError(FUnrealTypeDefinitionInfo& InTypeDef, const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
+	
 	/**
 	 * Log an error without any source file information
 	 * @param ErrorMsg The text of the error

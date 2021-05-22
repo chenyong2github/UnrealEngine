@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Classes.h"
 #include "Async/TaskGraphInterfaces.h"
 
 class FUnrealSourceFile;
@@ -46,8 +45,6 @@ namespace EExportFunctionType
 	};
 }
 
-class FClass;
-class FClasses;
 class FModuleClasses;
 class FScope;
 

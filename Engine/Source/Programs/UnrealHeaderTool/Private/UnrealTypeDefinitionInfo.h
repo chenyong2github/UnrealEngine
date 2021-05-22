@@ -11,7 +11,6 @@
 #include "ParserHelper.h"
 
 // Forward declarations.
-class FClass;
 class FScope;
 class FUnrealSourceFile;
 struct FManifestModule;
@@ -1171,6 +1170,31 @@ public:
 		: FUnrealStructDefinitionInfo(MoveTemp(InNameCPP))
 	{ }
 
+	/**
+	 * Attempts to find a class definition based on the given name
+	 */
+	static FUnrealClassDefinitionInfo* FindClass(const TCHAR* ClassName);
+
+	/**
+	 * Attempts to find a script class based on the given name. Will attempt to strip
+	 * the prefix of the given name while searching. Throws an exception with the script error
+	 * if the class could not be found.
+	 *
+	 * @param   InClassName  Name w/ Unreal prefix to use when searching for a class
+	 * @return               The found class.
+	 */
+	static FUnrealClassDefinitionInfo* FindScriptClassOrThrow(const FString& InClassName);
+
+	/**
+	 * Attempts to find a script class based on the given name. Will attempt to strip
+	 * the prefix of the given name while searching. Optionally returns script errors when appropriate.
+	 *
+	 * @param   InClassName  Name w/ Unreal prefix to use when searching for a class
+	 * @param   OutErrorMsg  Error message (if any) giving the caller flexibility in how they present an error
+	 * @return               The found class, or NULL if the class was not found.
+	 */
+	static FUnrealClassDefinitionInfo* FindScriptClass(const FString& InClassName, FString* OutErrorMsg = nullptr);
+
 	virtual FUnrealClassDefinitionInfo* AsClass() override
 	{
 		return this;
@@ -1345,13 +1369,26 @@ public:
 	 */
 	void MergeCategoryMetaData(TMap<FName, FString>& InMetaData) const;
 
-
 	void GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const;
+
+	/**
+	 * Get the class's class within setting
+	 */
+	FUnrealClassDefinitionInfo* GetClassWithin() const
+	{
+		return ClassWithin;
+	}
+
+	/**
+	 * Set the class's class within setting
+	 */
+	void SetClassWithin(FUnrealClassDefinitionInfo* InClassWithin)
+	{
+		ClassWithin = InClassWithin;
+	}
 
 public:
 	EClassFlags ClassFlags = CLASS_None;
-	FString ClassWithin;
-	FString ConfigName;
 	TMap<FName, FString> MetaData;
 
 private:
@@ -1365,8 +1402,6 @@ private:
 	void GetHideCategories(TArray<FString>& OutHideCategories) const;
 	void GetShowCategories(TArray<FString>& OutShowCategories) const;
 
-	FString EnclosingDefine;
-	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
 	TArray<FString> ShowCategories;
 	TArray<FString> ShowFunctions;
 	TArray<FString> DontAutoCollapseCategories;
@@ -1378,6 +1413,11 @@ private:
 	TArray<FString> DependsOn;
 	TArray<FString> ClassGroupNames;
 	TArray<FString> SparseClassDataTypes;
+	FString EnclosingDefine;
+	FString ClassWithinStr;
+	FString ConfigName;
+	FUnrealClassDefinitionInfo* ClassWithin = nullptr;
+	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
 	bool bIsInterface = false;
 	bool bWantsToBePlaceable = false;
 };
