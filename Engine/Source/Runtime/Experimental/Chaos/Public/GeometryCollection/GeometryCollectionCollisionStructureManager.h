@@ -98,6 +98,12 @@ public:
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
+	static FImplicit* NewImplicitCapsule(
+		const float Radius,
+		const float Length,
+		const float CollisionObjectReduction,
+		const ECollisionTypeEnum CollisionType);
+
 	static FImplicit* NewImplicitLevelset(
 		Chaos::FErrorReporter ErrorReporter,
 		const Chaos::FParticles& MeshParticles,

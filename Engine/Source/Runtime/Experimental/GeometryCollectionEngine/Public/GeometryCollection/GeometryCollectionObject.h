@@ -66,17 +66,67 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEmbeddedExemplar
 	int32 InstanceCount;
 };
 
-
 USTRUCT()
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionLevelSetData
 {
 	GENERATED_BODY()
 
-	FGeometryCollectionSizeSpecificData();
+		FGeometryCollectionLevelSetData();
 
-	/** The max size these settings apply to*/
-	UPROPERTY(EditAnywhere, Category = "Collisions")
-	float MaxSize;
+	/*
+	*  Resolution on the smallest axes for the level set. (def: 5)
+	*/
+	UPROPERTY(EditAnywhere, Category = "LevelSet")
+		int32 MinLevelSetResolution;
+
+	/*
+	*  Resolution on the smallest axes for the level set. (def: 10)
+	*/
+	UPROPERTY(EditAnywhere, Category = "LevelSet")
+		int32 MaxLevelSetResolution;
+
+	/*
+	*  Resolution on the smallest axes for the level set. (def: 5)
+	*/
+	UPROPERTY(EditAnywhere, Category = "LevelSet")
+		int32 MinClusterLevelSetResolution;
+
+	/*
+	*  Resolution on the smallest axes for the level set. (def: 10)
+	*/
+	UPROPERTY(EditAnywhere, Category = "LevelSet")
+		int32 MaxClusterLevelSetResolution;
+};
+
+
+USTRUCT()
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionParticleData
+{
+	GENERATED_BODY()
+
+		FGeometryCollectionCollisionParticleData();
+
+	/**
+	 * Number of particles on the triangulated surface to use for collisions.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Particle")
+	float CollisionParticlesFraction;
+
+	/**
+	 * Max number of particles.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Particle")
+	int32 MaximumCollisionParticles;
+};
+
+
+
+USTRUCT()
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionTypeData
+{
+	GENERATED_BODY()
+
+		FGeometryCollectionCollisionTypeData();
 
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
@@ -91,53 +141,121 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 	EImplicitTypeEnum ImplicitType;
 
 	/*
-	*  Resolution on the smallest axes for the level set. (def: 5)
+	*  LevelSet Resolution data for rasterization.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Collisions")
-	int32 MinLevelSetResolution;
+	UPROPERTY(EditAnywhere, Category = "Collisions", meta = (EditCondition = "ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet", EditConditionHides))
+	FGeometryCollectionLevelSetData LevelSet;
 
 	/*
-	*  Resolution on the smallest axes for the level set. (def: 10)
+	*  Collision Particle data for surface samples during Particle-LevelSet collisions.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Collisions")
-	int32 MaxLevelSetResolution;
+	UPROPERTY(EditAnywhere, Category = "Collisions", meta = (EditCondition = "CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric", EditConditionHides))
+	FGeometryCollectionCollisionParticleData CollisionParticles;
 
 	/*
-	*  Resolution on the smallest axes for the level set. (def: 5)
+	*  Uniform scale on the collision body. (def: 0)
 	*/
 	UPROPERTY(EditAnywhere, Category = "Collisions")
-	int32 MinClusterLevelSetResolution;
+	float CollisionObjectReductionPercentage;
+
+};
+
+
+USTRUCT()
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
+{
+	GENERATED_BODY()
+
+	FGeometryCollectionSizeSpecificData();
+
+	/** The max size these settings apply to*/
+	UPROPERTY(EditAnywhere, Category = "Collisions")
+	float MaxSize;
 
 	/*
-	*  Resolution on the smallest axes for the level set. (def: 10)
+	* Collision Shapes allow kfor multiple collision types per rigid body. 
 	*/
 	UPROPERTY(EditAnywhere, Category = "Collisions")
-	int32 MaxClusterLevelSetResolution;
+	TArray<FGeometryCollectionCollisionTypeData> CollisionShapes;
+
+#if WITH_EDITORONLY_DATA
+	/*
+	 *  CollisionType defines how to initialize the rigid collision structures.
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.CollisionType instead."))
+	ECollisionTypeEnum CollisionType_DEPRECATED;
 
 	/*
-	*  Resolution on the smallest axes for the level set. (def: 10)
-	*/
-	UPROPERTY(EditAnywhere, Category = "Collisions")
-	int32 CollisionObjectReductionPercentage;
+	 *  CollisionType defines how to initialize the rigid collision structures.
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.ImplicitType instead."))
+	EImplicitTypeEnum ImplicitType_DEPRECATED;
+
+	/*
+	 *  Resolution on the smallest axes for the level set. (def: 5)
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.LevelSet.MinLevelSetResolution instead."))
+	int32 MinLevelSetResolution_DEPRECATED;
+
+	/*
+	 *  Resolution on the smallest axes for the level set. (def: 10)
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.LevelSet.MaxLevelSetResolution instead."))
+		int32 MaxLevelSetResolution_DEPRECATED;
+
+	/*
+	 *  Resolution on the smallest axes for the level set. (def: 5)
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.LevelSet.MinClusterLevelSetResolution instead."))
+	int32 MinClusterLevelSetResolution_DEPRECATED;
+
+	/*
+	 *  Resolution on the smallest axes for the level set. (def: 10)
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.LevelSet.MaxClusterLevelSetResolution instead."))
+	int32 MaxClusterLevelSetResolution_DEPRECATED;
+
+	/*
+	 *  Resolution on the smallest axes for the level set. (def: 10)
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.CollisionObjectReductionPercentage instead."))
+	int32 CollisionObjectReductionPercentage_DEPRECATED;
 
 	/**
 	 * Number of particles on the triangulated surface to use for collisions.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Collisions")
-	float CollisionParticlesFraction;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.CollisionParticlesFraction instead."))
+	float CollisionParticlesFraction_DEPRECATED;
+
+	/**
+	 * Max number of particles.
+	 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.MaximumCollisionParticles instead."))
+	int32 MaximumCollisionParticles_DEPRECATED;
+#endif
 
 	/**
 	 * Max number of particles.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Collisions")
-	int32 MaximumCollisionParticles;
-
-	/**
-	 * Max number of particles.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 DamageThreshold;
 
+	bool Serialize(FArchive& Ar);
+#if WITH_EDITORONLY_DATA
+	void PostSerialize(const FArchive& Ar);
+#endif
+};
+
+template<>
+struct TStructOpsTypeTraits<FGeometryCollectionSizeSpecificData> : public TStructOpsTypeTraitsBase2<FGeometryCollectionSizeSpecificData>
+{
+	enum
+	{
+		WithSerializer = true,
+#if WITH_EDITORONLY_DATA
+		WithPostSerialize = true
+#endif
+	};
 };
 
 class FGeometryCollectionNaniteData
@@ -306,48 +424,50 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Nanite")
 	bool EnableNanite;
 
+#if WITH_EDITORONLY_DATA
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	ECollisionTypeEnum CollisionType;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	ECollisionTypeEnum CollisionType_DEPRECATED;
 
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	EImplicitTypeEnum ImplicitType;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	EImplicitTypeEnum ImplicitType_DEPRECATED;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	int32 MinLevelSetResolution;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	int32 MinLevelSetResolution_DEPRECATED;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	int32 MaxLevelSetResolution;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	int32 MaxLevelSetResolution_DEPRECATED;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	int32 MinClusterLevelSetResolution;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	int32 MinClusterLevelSetResolution_DEPRECATED;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	int32 MaxClusterLevelSetResolution;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	int32 MaxClusterLevelSetResolution_DEPRECATED;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	float CollisionObjectReductionPercentage;
-
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	float CollisionObjectReductionPercentage_DEPRECATED;
+#endif
+	
 	/**
 	* Mass As Density, units are in kg/m^3
 	*/
@@ -366,20 +486,32 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	float MinimumMassClamp;
 
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Number of particles on the triangulated surface to use for collisions.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	float CollisionParticlesFraction;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	float CollisionParticlesFraction_DEPRECATED;
 
 	/**
 	 * Max number of particles.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
-	int32 MaximumCollisionParticles;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	int32 MaximumCollisionParticles_DEPRECATED;
+#endif
 
+	/*
+	* Size Specfic Data reflects the default geometry to bind to rigid bodies smaller
+	* than the max size volume. This can also be empty to reflect no collision geometry
+	* for the collection. 
+	*/
 	UPROPERTY(EditAnywhere, Category = "Collisions")
 	TArray<FGeometryCollectionSizeSpecificData> SizeSpecificData;
+
+	int GetDefaultSizeSpecificDataIndex() const;
+	FGeometryCollectionSizeSpecificData GeometryCollectionSizeSpecificDataDefaults() const;
+	FGeometryCollectionSizeSpecificData& GetDefaultSizeSpecificData();
+	const FGeometryCollectionSizeSpecificData& GetDefaultSizeSpecificData() const;
 
 	/**
 	* Enable remove pieces on fracture
@@ -407,7 +539,6 @@ public:
 private:
 #if WITH_EDITOR
 	void CreateSimulationDataImp(bool bCopyFromDDC);
-
 #endif
 
 private:

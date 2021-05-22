@@ -145,6 +145,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Expanded separate translucency into multiple passes
 		MaterialTranslucencyPass,
 
+		// Chaos FGeometryCollectionObject user defined collision shapes support
+		GeometryCollectionUserDefinedCollisionShapes,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

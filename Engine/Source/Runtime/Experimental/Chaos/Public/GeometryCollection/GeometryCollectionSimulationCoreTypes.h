@@ -13,33 +13,64 @@
 class FGeometryCollection;
 class FGeometryDynamicCollection;
 
+
+struct FCollectionLevelSetData
+{
+	FCollectionLevelSetData()
+		: MinLevelSetResolution(5)
+		, MaxLevelSetResolution(10)
+		, MinClusterLevelSetResolution(25)
+		, MaxClusterLevelSetResolution(50)
+	{}
+
+	int32 MinLevelSetResolution;
+	int32 MaxLevelSetResolution;
+	int32 MinClusterLevelSetResolution;
+	int32 MaxClusterLevelSetResolution;
+};
+
+struct FCollectionCollisionParticleData
+{
+	FCollectionCollisionParticleData()
+		: CollisionParticlesFraction(1.f)
+		, MaximumCollisionParticles(60)
+	{}
+
+	float CollisionParticlesFraction;
+	int32 MaximumCollisionParticles;
+};
+
+
+
+struct FCollectionCollisionTypeData
+{
+	FCollectionCollisionTypeData()
+		: CollisionType(ECollisionTypeEnum::Chaos_Surface_Volumetric)
+		, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Sphere)
+		, LevelSetData()
+		, CollisionParticleData()
+		, CollisionObjectReductionPercentage(0.f)
+	{
+	}
+
+	ECollisionTypeEnum CollisionType;
+	EImplicitTypeEnum ImplicitType;
+	FCollectionLevelSetData LevelSetData;
+	FCollectionCollisionParticleData CollisionParticleData;
+	float CollisionObjectReductionPercentage;
+};
+
 struct FSharedSimulationSizeSpecificData
 {
 	FSharedSimulationSizeSpecificData()
 		: MaxSize(0.f)
-		, CollisionType(ECollisionTypeEnum::Chaos_Surface_Volumetric)
-		, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Sphere)
-		, MinLevelSetResolution(5)
-		, MaxLevelSetResolution(10)
-		, MinClusterLevelSetResolution(25)
-		, MaxClusterLevelSetResolution(50)
-		, CollisionObjectReductionPercentage(0.f)
-		, CollisionParticlesFraction(1.f)
-		, MaximumCollisionParticles(60)
+		, CollisionShapesData({ FCollectionCollisionTypeData() })
 		, DamageThreshold(250.f)
 	{
 	}
 
 	float MaxSize;
-	ECollisionTypeEnum CollisionType;
-	EImplicitTypeEnum ImplicitType;
-	int32 MinLevelSetResolution;
-	int32 MaxLevelSetResolution;
-	int32 MinClusterLevelSetResolution;
-	int32 MaxClusterLevelSetResolution;
-	float CollisionObjectReductionPercentage;
-	float CollisionParticlesFraction;
-	int32 MaximumCollisionParticles;
+	TArray<FCollectionCollisionTypeData> CollisionShapesData;
 	float DamageThreshold;
 
 	bool operator<(const FSharedSimulationSizeSpecificData& Rhs) const { return MaxSize < Rhs.MaxSize; }
@@ -97,14 +128,17 @@ struct FSharedSimulationParameters
 	, MaximumCollisionParticleCount(InMaximumCollisionParticleCount)
 	{
 		SizeSpecificData.AddDefaulted();
-		SizeSpecificData[0].CollisionType = InCollisionType;
-		SizeSpecificData[0].ImplicitType = InImplicitType;
-		SizeSpecificData[0].MinLevelSetResolution = InMinLevelSetResolution;
-		SizeSpecificData[0].MaxLevelSetResolution = InMaxLevelSetResolution;
-		SizeSpecificData[0].MinClusterLevelSetResolution = InMinClusterLevelSetResolution;
-		SizeSpecificData[0].MaxClusterLevelSetResolution = InMaxClusterLevelSetResolution;
-		SizeSpecificData[0].CollisionParticlesFraction = InCollisionParticlesFraction;
-		SizeSpecificData[0].MaximumCollisionParticles = InMaximumCollisionParticleCount;
+		if (ensure(SizeSpecificData.Num() && SizeSpecificData[0].CollisionShapesData.Num()))
+		{
+			SizeSpecificData[0].CollisionShapesData[0].CollisionType = InCollisionType;
+			SizeSpecificData[0].CollisionShapesData[0].ImplicitType = InImplicitType;
+			SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MinLevelSetResolution = InMinLevelSetResolution;
+			SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MaxLevelSetResolution = InMaxLevelSetResolution;
+			SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MinClusterLevelSetResolution = InMinClusterLevelSetResolution;
+			SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MaxClusterLevelSetResolution = InMaxClusterLevelSetResolution;
+			SizeSpecificData[0].CollisionShapesData[0].CollisionParticleData.CollisionParticlesFraction = InCollisionParticlesFraction;
+			SizeSpecificData[0].CollisionShapesData[0].CollisionParticleData.MaximumCollisionParticles = InMaximumCollisionParticleCount;
+		}
 	}
 
 	bool bMassAsDensity;
@@ -129,6 +163,7 @@ struct FCollisionDataSimulationParameters
 	FCollisionDataSimulationParameters()
 		: DoGenerateCollisionData(false)
 		, SaveCollisionData(false)
+
 		, CollisionDataSizeMax(512)
 		, DoCollisionDataSpatialHash(false)
 		, CollisionDataSpatialHashRadius(50.f)

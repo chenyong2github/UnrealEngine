@@ -30,7 +30,9 @@ UGeometryCollectionFactory::UGeometryCollectionFactory(const FObjectInitializer&
 
 UGeometryCollection* UGeometryCollectionFactory::StaticFactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	return static_cast<UGeometryCollection*>(NewObject<UGeometryCollection>(InParent, Class, Name, Flags | RF_Transactional | RF_Public | RF_Standalone));
+	UGeometryCollection* NewGeometryCollection = static_cast<UGeometryCollection*>(NewObject<UGeometryCollection>(InParent, Class, Name, Flags | RF_Transactional | RF_Public | RF_Standalone));
+	if (!NewGeometryCollection->SizeSpecificData.Num()) NewGeometryCollection->SizeSpecificData.Add(FGeometryCollectionSizeSpecificData());
+	return NewGeometryCollection;
 }
 
 void AppendActorComponentsRecursive(
@@ -149,14 +151,6 @@ UObject* UGeometryCollectionFactory::FactoryCreateNew(UClass* Class, UObject* In
 	}
 
 	UGeometryCollection* NewGeometryCollection = StaticFactoryCreateNew(Class, InParent, Name, Flags, Context, Warn);
-
-	// Set default collision type here in the factory instead of the geometry collection constructor to only
-	// affect new geometry collections and not update the default for previously created objects.
-	if(NewGeometryCollection)
-	{
-		NewGeometryCollection->CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
-		NewGeometryCollection->ImplicitType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;
-	}
 
 	for (GeometryCollectionStaticMeshConversionTuple & StaticMeshData : StaticMeshList)
 	{
