@@ -3,23 +3,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorSubsystem.h"
+
+#include "Subsystems/EngineSubsystem.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
+#include "UObject/WeakFieldPtr.h"
 
 #include "RCPropertyContainer.generated.h"
 
 UCLASS(Transient, Abstract)
-class URCPropertyContainerBase : public UObject
+class REMOTECONTROLCOMMON_API URCPropertyContainerBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	/** Sets the value from the incoming raw data */
-	void SetValue(const uint8* InData);
+	/** Sets the value from the incoming raw data. Provide size for array, string, etc. */
+	void SetValue(const uint8* InData, const SIZE_T& InSize = 0);
 
-	/** Writes to the provided raw data pointer */
-	void GetValue(uint8* OutData);
+	/** Writes to the provided raw data pointer. Returns size for array, string, etc. */
+	SIZE_T GetValue(uint8* OutData);
+
+	/** Returns the Property for Value */
+	virtual FProperty* GetValueProperty();
+
+private:
+	TWeakFieldPtr<FProperty> ValueProperty;
 };
 
 /** Minimal information needed to lookup a unique property container class */
@@ -40,7 +48,7 @@ inline bool operator!=(const FRCPropertyContainerKey& Lhs, const FRCPropertyCont
 
 /** A subsystem to provide and cache dynamically created PropertyContainer classes. */
 UCLASS()
-class REMOTECONTROLCOMMON_API URCPropertyContainerRegistry final : public UEditorSubsystem
+class REMOTECONTROLCOMMON_API URCPropertyContainerRegistry : public UEngineSubsystem
 {
 	GENERATED_BODY()
 	

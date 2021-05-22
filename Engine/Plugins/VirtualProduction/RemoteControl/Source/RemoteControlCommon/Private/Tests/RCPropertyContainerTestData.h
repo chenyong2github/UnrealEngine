@@ -14,6 +14,9 @@ class UPropertyContainerTestObject : public UObject
 
 public:
 	UPROPERTY()
+	bool bSomeBool;
+	
+	UPROPERTY()
 	uint32 SomeUInt32;
 
 	UPROPERTY()
@@ -22,11 +25,18 @@ public:
 	UPROPERTY()
 	FVector SomeVector;
 
-	UPROPERTY(meta = (ClampMin = -5.0f, ClampMax = 99.0f))
-	float ClampedFloat = 56.0f;
+	UPROPERTY()
+	FRotator SomeRotator;
+
+	UPROPERTY(meta = (ClampMin = 20, ClampMax = 145))
+	int32 SomeClampedInt = 5;
+
+	UPROPERTY(meta = (ClampMin = 0.2f, ClampMax = 0.92f))
+	float SomeClampedFloat = 0.25f;
 	
 	UPropertyContainerTestObject()
 		: SomeUInt32(44),
 		SomeFloat(45.0f),
-		SomeVector(FVector(0.2f, 0.3f, 0.6f)) { }
+		SomeVector(FVector(0.2f, 0.3f, 0.6f)),
+		SomeRotator(FRotator::ZeroRotator) { }
 };
