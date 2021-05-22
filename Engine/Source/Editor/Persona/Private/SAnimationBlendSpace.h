@@ -57,8 +57,8 @@ public:
 protected:
 	void OnSampleMoved(const int32 SampleIndex, const FVector& NewValue, bool bIsInteractive);
 	void OnSampleRemoved(const int32 SampleIndex);
-	int32 OnSampleAdded(UAnimSequence* Animation, const FVector& Value);
-	void OnSampleDuplicated(const int32 SampleIndex, const FVector& NewValue);
+	int32 OnSampleAdded(UAnimSequence* Animation, const FVector& Value, bool bRunAnalysis);
+	void OnSampleDuplicated(const int32 SampleIndex, const FVector& NewValue, bool bRunAnalysis);
 	void OnSampleReplaced(const int32 SampleIndex, UAnimSequence* Animation);
 
 	// Begin SAnimEditorBase overrides

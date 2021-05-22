@@ -129,7 +129,7 @@ void FBlendSpaceDetails::HandleAnalysisFunctionChanged(int32 AxisIndex, TSharedP
 	// Preserve values where possible
 	if (BlendSpace->AnalysisProperties[AxisIndex])
 	{
-		BlendSpace->AnalysisProperties[AxisIndex]->MakeCache(BlendSpace->CachedAnalysisProperties[AxisIndex]);
+		BlendSpace->AnalysisProperties[AxisIndex]->MakeCache(BlendSpace->CachedAnalysisProperties[AxisIndex], BlendSpace);
 	}
 	if (NewAnalysisProperties)
 	{
@@ -192,8 +192,8 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 			IDetailCategoryBuilder& DetailCategoryBuilder = DetailBuilder.EditCategory(FName("Axis Settings"));
 			IDetailGroup* Groups[2] =
 			{
-				&DetailCategoryBuilder.AddGroup(FName("Horizontal Axis"), LOCTEXT("HorizontalAxisName", "Horizontal Axis")),
-                b1DBlendSpace ? nullptr : &DetailCategoryBuilder.AddGroup(FName("Vertical Axis"), LOCTEXT("VerticalAxisName", "Vertical Axis"))
+				&DetailCategoryBuilder.AddGroup(FName("Horizontal Axis"), LOCTEXT("HorizontalAxis", "Horizontal Axis")),
+                b1DBlendSpace ? nullptr : &DetailCategoryBuilder.AddGroup(FName("Vertical Axis"), LOCTEXT("VerticalAxis", "Vertical Axis"))
             };
 
 			// Hide the default blend and interpolation parameters
@@ -278,14 +278,14 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 					[
 						SNew(STextBlock)
 						.Font(DetailBuilder.GetDetailFont())
-						.Text(FText::Format(LOCTEXT("SamplesLabel", "Analyze {0} Samples"), NumBlendSampleEntries))
+						.Text(FText::Format(LOCTEXT("AnalyzeSamples", "Analyze {0} Samples"), NumBlendSampleEntries))
 					]
 					.ValueContent()
 					[
 						SNew(SButton)
 						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 						.HAlign(EHorizontalAlignment::HAlign_Left)
-						.ToolTipText(LOCTEXT("Analyze", "Analyze all samples"))
+						.ToolTipText(LOCTEXT("AnalyzeAllSamples", "Analyze all samples"))
 						.OnClicked(this, &FBlendSpaceDetails::HandleAnalyzeSamples)
 						.ContentPadding(1)
 						[
@@ -298,8 +298,8 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 
 			FText AxisTexts[2] = 
 			{ 
-				LOCTEXT("HorizontalAxisName", "Horizontal Axis Function"), 
-				LOCTEXT("VerticalAxisName", "Vertical Axis Function") 
+				LOCTEXT("HorizontalAxisFunction", "Horizontal Axis Function"), 
+				LOCTEXT("VerticalAxisFunction", "Vertical Axis Function") 
 			};
 
 			// Hide the default parameters
@@ -406,8 +406,8 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 
 			BlendSamplesArrayProperty->SetOnNumElementsChanged(RefreshDelegate);
 
-			// Add a "Remove all" button if there are some samples
-			if (NumBlendSampleEntries)
+			// Add a "Remove all" button if there are some samples. Only in the asset blendspace for now.
+			if (NumBlendSampleEntries && BlendSpace->IsAsset())
 			{
 				DetailCategoryBuilder
 					.AddGroup(FName("GroupName"), FText::GetEmpty())
@@ -423,7 +423,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 						SNew(SButton)
 						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 						.HAlign(EHorizontalAlignment::HAlign_Left)
-						.ToolTipText(LOCTEXT("Empty", "Remove all samples"))
+						.ToolTipText(LOCTEXT("RemoveAllSamples", "Remove all samples"))
 						.OnClicked(this, &FBlendSpaceDetails::HandleClearSamples)
 						.ContentPadding(1)
 						[
