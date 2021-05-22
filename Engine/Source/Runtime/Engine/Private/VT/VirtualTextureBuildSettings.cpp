@@ -12,8 +12,8 @@ static TAutoConsoleVariable<int32> CVarVTCompressCrunch(
 
 static TAutoConsoleVariable<int32> CVarVTCompressZlib(
 	TEXT("r.VT.EnableCompressZlib"),
-	1,
-	TEXT("Enables Zlib compression for virtual textures, if no compression is enabled/supported")
+	0,
+	TEXT("Enables Zlib compression for virtual textures, instead of iostore compression")
 );
 
 static TAutoConsoleVariable<int32> CVarVTTileSize(
