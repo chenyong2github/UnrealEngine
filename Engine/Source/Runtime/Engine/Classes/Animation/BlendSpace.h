@@ -17,21 +17,22 @@
 #include "Animation/BoneSocketReference.h"
 #include "BlendSpace.generated.h"
 
-class FCachedAnalysisProperties;
+class UCachedAnalysisProperties;
+class UBlendSpace;
 
 /**
 * The base class for properties to be used in analysis. Engine will inherit from this to define structures used for
 * the functions it supports. User-defined functions will likely need their own analysis structures inheriting from
 * this too.
 */
-UCLASS(config=Engine, MinimalAPI)
+UCLASS(MinimalAPI, config=Engine)
 class UAnalysisProperties : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	ENGINE_API virtual void InitializeFromCache(TSharedPtr<FCachedAnalysisProperties> Cache);
-	ENGINE_API virtual void MakeCache(TSharedPtr<FCachedAnalysisProperties>& Cache) const;
+	virtual void InitializeFromCache(TObjectPtr<UCachedAnalysisProperties> Cache) {};
+	virtual void MakeCache(TObjectPtr<UCachedAnalysisProperties>& Cache, UBlendSpace* BlendSpace) {};
 
 	/** Analysis function for this axis */
 	UPROPERTY()
@@ -704,7 +705,7 @@ public:
 	TObjectPtr<UAnalysisProperties> AnalysisProperties[3];
 
 	/** Cached properties used to initialize properties when newly created. */
-	TSharedPtr<FCachedAnalysisProperties> CachedAnalysisProperties[3];
+	TObjectPtr<UCachedAnalysisProperties> CachedAnalysisProperties[3];
 #endif
 
 	/**

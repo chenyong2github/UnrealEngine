@@ -41,9 +41,9 @@ protected:
 	bool ShouldFilterAsset(const FAssetData& AssetData) const;
 
 	FReply HandleAnalyzeAndDuplicateSample();
-	FReply HandleAnalyzeSample();
-	FReply HandleAnalyzeSampleX();
-	FReply HandleAnalyzeSampleY();
+	FReply HandleAnalyzeAndMoveSample();
+	FReply HandleAnalyzeAndMoveSampleX();
+	FReply HandleAnalyzeAndMoveSampleY();
 private:
 	/** Pointer to the current parent blend space for the customized blend sample*/
 	const class UBlendSpace* BlendSpace;

@@ -996,7 +996,7 @@ FReply SBlendSpaceGridWidget::OnDrop(const FGeometry& MyGeometry, const FDragDro
 						UAnimSequence* Animation = (UAnimSequence*) Asset;
 						if (OnSampleAdded.IsBound())
 						{
-							OnSampleAdded.Execute(Animation, SampleValue);
+							OnSampleAdded.Execute(Animation, SampleValue, true);
 						}
 					}
 				}	
@@ -1402,7 +1402,7 @@ void SBlendSpaceGridWidget::MakeViewContextMenuEntries(FMenuBuilder& InMenuBuild
 			LOCTEXT("StretchFittingTextToolTip", "Whether to stretch the grid to fit or to fit the grid to the largest axis"),
 			FSlateIcon("EditorStyle", "BlendSpaceEditor.ZoomToFit"),
 			FUIAction(
-				FExecuteAction::CreateLambda([this](){ bStretchToFit = !bStretchToFit; }),
+				FExecuteAction::CreateLambda([this](){ ToggleFittingType(); }),
 				FCanExecuteAction(),
 				FGetActionCheckState::CreateLambda([this](){ return bStretchToFit ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 			),
@@ -1488,19 +1488,44 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateNewBlendSampleContextMenu(const
 	{
 		MenuBuilder.BeginSection("Sample", LOCTEXT("SampleMenuHeader", "Sample"));
 		{
-			if(!BlendSpace->IsAsset())
+			if(BlendSpace->IsAsset())
 			{
+				// Duplicate an existing sample if one was selected. Note that this could be enabled for the graph too,
+				// but we'd need a way of either duplicating the original graph, or referencing it (and choosing between
+				// the two).
+				if (SelectedSampleIndex != INDEX_NONE)
+				{
+					MenuBuilder.AddMenuEntry(
+						LOCTEXT("DuplicateSample", "Duplicate Sample Here"),
+						LOCTEXT("DuplicateSampleTooltip", "Duplicate the selected sample and place it in the blendspace at this location"),
+						FSlateIcon("EditorStyle", "Icons.Duplicate"),
+						FUIAction(
+							FExecuteAction::CreateLambda(
+								[this, NewSampleValue]()
+								{
+									if (OnSampleDuplicated.IsBound())
+									{
+										OnSampleDuplicated.Execute(SelectedSampleIndex, NewSampleValue, false);
+									}
+								})
+						)
+					);
+				}
+			}
+			else
+			{
+				// Blend space graph - add a new graph sample
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("AddNewSample", "Add New Sample"),
-					LOCTEXT("AddNewSampleTooltip", "Add a new sample to this blendspace at this location"),
-						FSlateIcon("EditorStyle", "Plus"),
+					LOCTEXT("AddNewSampleTooltip", "Add a new sample to the blendspace at this location"),
+						FSlateIcon("EditorStyle", "Icons.Plus"),
 						FUIAction(
 							FExecuteAction::CreateLambda(
 								[this, NewSampleValue]()
 								{
 									if (OnSampleAdded.IsBound())
 									{
-										OnSampleAdded.Execute(nullptr, NewSampleValue);
+										OnSampleAdded.Execute(nullptr, NewSampleValue, false);
 									}
 								})
 						)
