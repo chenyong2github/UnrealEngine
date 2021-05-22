@@ -72,6 +72,9 @@ export interface IExposedFunction {
   DisplayName: string;
   UnderlyingFunction: IFunction;
   Metadata: { [key: string]: string };
+
+  //Added
+  Type: PropertyType;
 }
 
 export interface IProperty {
@@ -87,6 +90,9 @@ export interface IExposedProperty {
   Metadata: Record<string, string>;
   Widget: WidgetType;
   UnderlyingProperty: IProperty;
+
+  //Added
+  Type: PropertyType;
 }
 
 export interface IActor {
@@ -142,7 +148,8 @@ export enum WidgetTypes {
   ImageSelector =   'Image Selector',
   Vector =          'Vector',
   Spacer =          'Spacer',
-
+  Tabs =            'Tabs',
+  
   Level =           'Level',
   Sequence =        'Sequence',
 }
@@ -150,10 +157,11 @@ export enum WidgetTypes {
 export type WidgetType = keyof typeof WidgetTypes | string;
 
 
-export type IWidgetMeta = { [key: string]: any } & {
+export type IWidgetMeta = {
+  Description?: string;
   Min?: number;
   Max?: number;
-};
+} & { [key: string]: any };
 
 
 export enum IPanelType {
@@ -174,9 +182,13 @@ export enum TabLayout {
   Screen =   'Screen',
 }
 
+export enum ScreenType {
+  Snapshot =      'Snapshot',
+}
+
 export interface IScreen {
-  type: 'Snapshot';
-  data: any;
+  type: ScreenType;
+  data?: any;
 }
 
 export interface IDropdownOption {
@@ -189,24 +201,18 @@ export interface ICustomStackProperty {
   property: string;
   propertyType: PropertyType;
   widget: WidgetType;
-  label?: string;
 
-  // Sliders & Vector only
-  lock?: boolean;
+  // Label only
+  label?: string;
 
   // Vector only
   widgets?: WidgetType[];
-  speedMin?: number;
-  speedMax?: number;
 
   // Dropdown only
   options?: IDropdownOption[];
 
   // Space only
   spaces?: number;
-
-  // Dial only
-  mode?: 'ENDLESS' | 'RANGE';
 }
 
 export interface ICustomStackItem {
