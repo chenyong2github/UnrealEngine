@@ -5,10 +5,10 @@
 #include "VectorTypes.h"
 #include "BoxTypes.h"
 
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

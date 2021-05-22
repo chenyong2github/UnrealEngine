@@ -23,7 +23,7 @@ class FDynamicMesh3;
  * they cannot be merged. 
  *
  */
-class DYNAMICMESH_API FMergeCoincidentMeshEdges
+class GEOMETRYCORE_API FMergeCoincidentMeshEdges
 {
 public:
 	/** default tolerance is float ZeroTolerance */

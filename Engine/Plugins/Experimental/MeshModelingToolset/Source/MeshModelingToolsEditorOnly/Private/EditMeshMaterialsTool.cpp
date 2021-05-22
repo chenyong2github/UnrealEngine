@@ -11,7 +11,7 @@
 #include "Util/ColorConstants.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "MeshRegionBoundaryLoops.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "AssetGenerationUtil.h"
 #include "ToolSetupUtil.h"
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "Async/ParallelFor.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -560,8 +560,8 @@ namespace UE
 namespace Geometry
 {
 
-template class DYNAMICMESH_API TMeshTangents<float>;
-template class DYNAMICMESH_API TMeshTangents<double>;
+template class GEOMETRYCORE_API TMeshTangents<float>;
+template class GEOMETRYCORE_API TMeshTangents<double>;
 
 } // end namespace UE::Geometry
 } // end namespace UE

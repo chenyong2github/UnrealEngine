@@ -10,7 +10,7 @@
 #include "MeshQueries.h"
 #include "MeshRegionBoundaryLoops.h"
 #include "Model.h"
-#include "Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "Operations/MinimalHoleFiller.h"
 #include "Operations/PlanarFlipsOptimization.h"
 

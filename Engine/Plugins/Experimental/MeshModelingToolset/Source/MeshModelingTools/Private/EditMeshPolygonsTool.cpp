@@ -8,7 +8,7 @@
 #include "SegmentTypes.h"
 #include "DynamicMeshAttributeSet.h"
 #include "Mechanics/DragAlignmentMechanic.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Intersection/IntersectionUtil.h"
 #include "Transforms/MultiTransformer.h"
@@ -26,7 +26,7 @@
 #include "DynamicMeshEditor.h"
 #include "DynamicMeshChangeTracker.h"
 #include "Changes/MeshChange.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "MeshRegionBoundaryLoops.h"
 
 #include "Operations/OffsetMeshRegion.h"
@@ -1498,7 +1498,7 @@ void UEditMeshPolygonsTool::ApplyCutFaces()
 	FDynamicMeshChangeTracker ChangeTracker(Mesh);
 	ChangeTracker.BeginChange();
 	TArray<int32> VertexSelection;
-	MeshIndexUtil::TriangleToVertexIDs(Mesh, ActiveTriangleSelection, VertexSelection);
+	UE::Geometry::TriangleToVertexIDs(Mesh, ActiveTriangleSelection, VertexSelection);
 	ChangeTracker.SaveVertexOneRingTriangles(VertexSelection, true);
 
 	// apply the cut to edges of selected triangles
@@ -1801,7 +1801,7 @@ void UEditMeshPolygonsTool::ApplyRetriangulate()
 			// want to throw away boundary verts. However, this means that we'll have to go back
 			// through these vertices later to throw away isolated internal verts.
 			TArray<int32> OldVertices;
-			MeshIndexUtil::TriangleToVertexIDs(Mesh, Triangles, OldVertices);
+			UE::Geometry::TriangleToVertexIDs(Mesh, Triangles, OldVertices);
 			Editor.RemoveTriangles(Topology->GetGroupTriangles(GroupID), false);
 
 			RegionLoops.Loops[0].Reverse();

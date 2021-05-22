@@ -4,9 +4,9 @@
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "DynamicSubmesh3.h"
 
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "MeshBoundaryLoops.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 
 #include "Parameterization/MeshDijkstra.h"
 #include "Parameterization/MeshLocalParam.h"
@@ -375,7 +375,7 @@ static bool FindSeamTriSplitSets_BoundaryVtx(const FDynamicMesh3* Mesh, const FD
 		bool bDone = false;
 		while (!bDone)
 		{
-			FIndex3i NextTri = UE::MeshIndexUtil::FindNextAdjacentTriangleAroundVtx(Mesh, SplitVtx, CurTri, PrevTri,
+			FIndex3i NextTri = UE::Geometry::FindNextAdjacentTriangleAroundVtx(Mesh, SplitVtx, CurTri, PrevTri,
 				[&](int32 Tri0, int32 Tri1, int32 Edge) { return UVOverlay->AreTrianglesConnected(Tri0, Tri1); }
 			);
 			if (NextTri.A != IndexConstants::InvalidID)
@@ -425,7 +425,7 @@ static bool FindSeamTriSplitSets_InteriorVtx(const FDynamicMesh3* Mesh, const FD
 		bool bDone = false;
 		while (!bDone)
 		{
-			FIndex3i NextTri = UE::MeshIndexUtil::FindNextAdjacentTriangleAroundVtx(Mesh, SplitVtx, CurTri, PrevTri,
+			FIndex3i NextTri = UE::Geometry::FindNextAdjacentTriangleAroundVtx(Mesh, SplitVtx, CurTri, PrevTri,
 				[&](int32 Tri0, int32 Tri1, int32 Edge) { return UVOverlay->AreTrianglesConnected(Tri0, Tri1) && Edge != PrevBaseEdgeID && Edge != NextBaseEdgeID; }
 			);
 			if (NextTri.A != IndexConstants::InvalidID)

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Operations/JoinMeshLoops.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
