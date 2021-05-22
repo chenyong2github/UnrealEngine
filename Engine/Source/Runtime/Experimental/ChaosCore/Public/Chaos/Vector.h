@@ -377,9 +377,9 @@ namespace Chaos
 		TVector()
 		    : FVector4() {}
 		explicit TVector(const FReal x)
-		    : FVector4(x, x, x, x) {}
+		    : FVector4((decltype(FVector4::X))x, (decltype(FVector4::X))x, (decltype(FVector4::X))x, (decltype(FVector4::X))x) {}	// LWC_TODO: Remove casts once FVector4 supports variants
 		TVector(const FReal x, const FReal y, const FReal z, const FReal w)
-		    : FVector4(x, y, z, w) {}
+		    : FVector4((decltype(FVector4::X))x, (decltype(FVector4::X))y, (decltype(FVector4::X))z, (decltype(FVector4::X))w) {}
 		TVector(const FVector4& vec)
 		    : FVector4(vec) {}
 	};
@@ -594,9 +594,9 @@ namespace Chaos
 		TVector()
 		    : FVector2D() {}
 		TVector(const FReal x)
-		    : FVector2D(x, x) {}
+		    : FVector2D((decltype(FVector2D::X))x, (decltype(FVector2D::X))x) {}	// LWC_TODO: Remove casts once FVector2D supports variants
 		TVector(const FReal x, const FReal y)
-		    : FVector2D(x, y) {}
+		    : FVector2D((decltype(FVector2D::X))x, (decltype(FVector2D::X))y) {}
 		TVector(const FVector2D& vec)
 		    : FVector2D(vec) {}
 		TVector(std::istream& Stream)

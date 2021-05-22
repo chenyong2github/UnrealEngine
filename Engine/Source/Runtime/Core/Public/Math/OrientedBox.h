@@ -89,13 +89,13 @@ FORCEINLINE void FOrientedBox::CalcVertices( FVector* Verts ) const
 
 FORCEINLINE FFloatInterval FOrientedBox::Project( const FVector& Axis ) const
 {
-	static const float Signs[] = {-1.0f, 1.0f};
+	static const FVector::FReal Signs[] = {-1.0f, 1.0f};
 
 	// calculate the projections of the box center and the extent-scaled axes.
-	float ProjectedCenter = Axis | Center;
-	float ProjectedAxisX = Axis | (ExtentX * AxisX);
-	float ProjectedAxisY = Axis | (ExtentY * AxisY);
-	float ProjectedAxisZ = Axis | (ExtentZ * AxisZ);
+	FVector::FReal ProjectedCenter = Axis | Center;
+	FVector::FReal ProjectedAxisX = Axis | (ExtentX * AxisX);
+	FVector::FReal ProjectedAxisY = Axis | (ExtentY * AxisY);
+	FVector::FReal ProjectedAxisZ = Axis | (ExtentZ * AxisZ);
 
 	FFloatInterval ProjectionInterval;
 
@@ -106,7 +106,7 @@ FORCEINLINE FFloatInterval FOrientedBox::Project( const FVector& Axis ) const
 			for (int32 k = 0; k < 2; k++)
 			{
 				// project the box vertex onto the axis.
-				float ProjectedVertex = ProjectedCenter + Signs[i] * ProjectedAxisX + Signs[j] * ProjectedAxisY + Signs[k] * ProjectedAxisZ;
+				float ProjectedVertex = float(ProjectedCenter + Signs[i] * ProjectedAxisX + Signs[j] * ProjectedAxisY + Signs[k] * ProjectedAxisZ);	// LWC_TODO: Precision loss
 
 				// if necessary, expand the projection interval to include the box vertex projection.
 				ProjectionInterval.Include(ProjectedVertex);

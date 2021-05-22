@@ -142,7 +142,7 @@ public:
 	FVector GetUnitVector() const
 	{
 		FVector Result;
-		float L;
+		FVector::FReal L;
 
 		do
 		{
