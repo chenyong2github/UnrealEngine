@@ -6452,6 +6452,10 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 			PlatformData->bIsSandboxInitialized = true;
 		}
 
+		// Don't populate platforms that were already initialized; we already populated them when we first initialized them
+		RefreshPlatforms.RemoveAllSwap([&AlreadyInitializedPlatforms](const ITargetPlatform* TargetPlatform) {
+			return AlreadyInitializedPlatforms.Contains(TargetPlatform);
+			});
 		if (RefreshPlatforms.Num() != 0)
 		{
 			for (UE::Cook::FPackageData* PackageData : *PackageDatas.Get())
@@ -6462,10 +6466,6 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 			// Don't populate however if we are looking for deterministic cooking differences; start from an empty list of cooked packages
 			if (!bIsDiffOnly) 
 			{
-				// Don't populate platforms that were already initialized; we already populated them when we first initialized them
-				RefreshPlatforms.RemoveAllSwap([&AlreadyInitializedPlatforms](const ITargetPlatform* TargetPlatform) {
-					return AlreadyInitializedPlatforms.Contains(TargetPlatform);
-				});
 				PopulateCookedPackagesFromDisk(RefreshPlatforms);
 			}
 		}
