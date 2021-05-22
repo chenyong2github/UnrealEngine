@@ -104,9 +104,11 @@ export class WidgetUtilities {
       case PropertyType.Vector:
       case PropertyType.Vector2D:
       case PropertyType.Vector4:
-      case PropertyType.Rotator:
       case PropertyType.LinearColor:
         return 3;
+
+      case PropertyType.Rotator:
+        return 2;
     }
 
     return 0;
