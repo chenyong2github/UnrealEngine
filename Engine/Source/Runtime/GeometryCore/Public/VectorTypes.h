@@ -772,7 +772,7 @@ constexpr T MaxAbsElement(const UE::Math::TVector<T>& Vector)
 
 /** @return 0/1/2 index of maximum absolute-value element */
 template<typename T>
-constexpr T MaxAbsElementIndex(const UE::Math::TVector<T>& Vector)
+constexpr int32 MaxAbsElementIndex(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Max3Index(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
 }
@@ -785,7 +785,7 @@ constexpr T MinAbsElement(const UE::Math::TVector<T>& Vector)
 
 /** @return 0/1/2 index of minimum absolute-value element */
 template<typename T>
-constexpr T MinAbsElementIndex(const UE::Math::TVector<T>& Vector)
+constexpr int32 MinAbsElementIndex(const UE::Math::TVector<T>& Vector)
 {
 	return TMathUtil<T>::Min3Index(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
 }
