@@ -5,7 +5,6 @@ using System.IO;
 using System.Collections.Generic;
 
 // TODO: Split apart dependency libs into separate External modules (double check dependencies)
-// protobuf -> zlib
 // grpc -> abseil, c-ares, protobuf, openssl, re2, ubp, zlib
 // make base ModuleRules class for vcpkg
 // Build with GOOGLE_PROTOBUF_NO_RTTI? https://github.com/protocolbuffers/protobuf/issues/5541
@@ -32,7 +31,7 @@ public class Grpc : ModuleRules
 			{
 				Linkage = "-static-md";
 			}
-			Toolset = "-v140";
+			Toolset = "-v141";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
@@ -43,7 +42,6 @@ public class Grpc : ModuleRules
 		if (string.IsNullOrEmpty(TargetPlatform) || string.IsNullOrEmpty(Platform) || string.IsNullOrEmpty(Architecture))
 		{
 			throw new System.NotSupportedException($"Platform {Target.Platform.ToString()} not currently supported by vcpkg");
-			return string.Empty;
 		}
 
 		string Triplet = $"{Architecture}-{Platform}{Linkage}{Toolset}";
