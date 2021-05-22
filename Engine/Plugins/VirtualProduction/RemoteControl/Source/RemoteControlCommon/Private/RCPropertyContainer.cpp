@@ -2,16 +2,18 @@
 
 #include "RCPropertyContainer.h"
 
-#include "BlueprintActionDatabase.h"
-#include "Editor.h"
 #include "RemoteControlCommonModule.h"
+#include "Engine/Engine.h"
 #include "Engine/MemberReference.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "Kismet2/CompilerResultsLog.h"
-#include "Kismet2/StructureEditorUtils.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/FieldPathProperty.h"
 #include "UObject/TextProperty.h"
+
+#if WITH_EDITOR
+#include "BlueprintActionDatabase.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/StructureEditorUtils.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "RCPropertyContainer"
 
@@ -23,8 +25,9 @@ namespace PropertyContainers
 
 		check(InOwner);
 		check(InSrcProperty);
+		check(InSrcProperty->IsValidLowLevel());
 
-		URCPropertyContainerRegistry* ContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+		URCPropertyContainerRegistry* ContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
 		FName PropertyTypeName = InSrcProperty->GetClass()->GetFName();
 		if(const FStructProperty* StructProperty = CastField<FStructProperty>(InSrcProperty))
 		{
@@ -431,20 +434,35 @@ namespace PropertyContainers
 #endif
 }
 
-void URCPropertyContainerBase::SetValue(const uint8* InData)
+void URCPropertyContainerBase::SetValue(const uint8* InData, const SIZE_T& InSize)
 {
 	this->Modify();
 
-	FProperty* ValueProperty = GetClass()->FindPropertyByName("Value");
-	uint8* DstData = ValueProperty->ContainerPtrToValuePtr<uint8>(this);
-	FMemory::Memcpy(DstData, InData, ValueProperty->ElementSize);
+	FProperty* Prp = GetValueProperty();
+	uint8* DstData = Prp->ContainerPtrToValuePtr<uint8>(this);
+	FMemory::Memcpy(DstData, InData, InSize > 0 ? InSize : Prp->GetSize());
 }
 
-void URCPropertyContainerBase::GetValue(uint8* OutData)
+SIZE_T URCPropertyContainerBase::GetValue(uint8* OutData)
 {
-	FProperty* ValueProperty = GetClass()->FindPropertyByName("Value");
-	uint8* SrcData = ValueProperty->ContainerPtrToValuePtr<uint8>(this);
-	FMemory::Memcpy(OutData, SrcData, ValueProperty->ElementSize);
+	FProperty* Prp = GetValueProperty();
+	uint8* SrcData = Prp->ContainerPtrToValuePtr<uint8>(this);
+	FMemory::Memcpy(OutData, SrcData, Prp->GetSize());
+	return Prp->GetSize();
+}
+
+FProperty* URCPropertyContainerBase::GetValueProperty()
+{
+	if(ValueProperty.IsValid())
+	{
+		return ValueProperty.Get();
+	}
+
+	static FName ValuePropertyName = TEXT("Value");
+	ValueProperty = FindFProperty<FProperty>(GetClass(), ValuePropertyName);
+	ensure(ValueProperty.IsValid());
+
+	return ValueProperty.Get();
 }
 
 FName FRCPropertyContainerKey::ToClassName() const
@@ -454,11 +472,13 @@ FName FRCPropertyContainerKey::ToClassName() const
 	return FName(FString::Printf(TEXT("PropertyContainer_%s"), *ValueTrimmed));	
 }
 
+
 URCPropertyContainerBase* URCPropertyContainerRegistry::CreateContainer(UObject* InOwner, const FName& InValueTypeName, const FProperty* InValueSrcProperty)
 {
-	check(InValueSrcProperty);
+	check(InValueSrcProperty && InValueSrcProperty->IsValidLowLevel());
 
-	const TSubclassOf<URCPropertyContainerBase> ClassForPropertyType = FindOrAddContainerClass(InValueTypeName, InValueSrcProperty);
+	const FName SanitizedName = FName(InValueTypeName.ToString().Replace(TEXT(":"), TEXT("_")));
+	const TSubclassOf<URCPropertyContainerBase> ClassForPropertyType = FindOrAddContainerClass(SanitizedName, InValueSrcProperty);
 	if (ClassForPropertyType)
 	{
 		return NewObject<URCPropertyContainerBase>(InOwner
@@ -467,7 +487,7 @@ URCPropertyContainerBase* URCPropertyContainerRegistry::CreateContainer(UObject*
 	}
 	else
 	{
-		UE_LOG(LogRemoteControlCommon, Warning, TEXT("Could not create PropertyContainer found for %s"), *InValueTypeName.ToString());
+		UE_LOG(LogRemoteControlCommon, Warning, TEXT("Could not create PropertyContainer found for %s"), *SanitizedName.ToString());
 		return nullptr;
 	}
 }
@@ -476,7 +496,13 @@ TSubclassOf<URCPropertyContainerBase>& URCPropertyContainerRegistry::FindOrAddCo
 {
 	check(InValueSrcProperty);
 
-	const FRCPropertyContainerKey Key = FRCPropertyContainerKey{FName(InValueTypeName.ToString() + "_" + InValueSrcProperty->GetPathName())};
+	static const FString EmptyStr = TEXT("");
+	FString PropertyPathStr = InValueSrcProperty->GetPathName();
+	// format like ObjectName:PropertyName, this ensures theres a unique property container for each defined property rather than for each type
+	PropertyPathStr.ReplaceInline(TEXT(":"), TEXT("_"));
+	PropertyPathStr.ReplaceInline(*(InValueSrcProperty->GetOutermost()->GetPathName() + TEXT(".")), *EmptyStr);
+
+	const FRCPropertyContainerKey Key = FRCPropertyContainerKey{FName(PropertyPathStr)};
 	if(TSubclassOf<URCPropertyContainerBase>* ExistingContainerClass = CachedContainerClasses.Find(Key))
 	{
 		return *ExistingContainerClass;
@@ -488,9 +514,12 @@ TSubclassOf<URCPropertyContainerBase>& URCPropertyContainerRegistry::FindOrAddCo
 	ContainerClass->SetSuperStruct(ParentClass);
 
 	FProperty* ValueProperty = CastField<FProperty>(FField::Duplicate(InValueSrcProperty, ContainerClass, "Value"));
+#if WITH_EDITORONLY_DATA
 	FField::CopyMetaData(InValueSrcProperty, ValueProperty);
+#endif
 	ValueProperty->SetFlags(RF_Transient);
-	ValueProperty->PropertyFlags |= CPF_Edit | CPF_BlueprintVisible;
+	ValueProperty->PropertyFlags |= CPF_Edit; // add this flag(s)
+	//ValueProperty->PropertyFlags &= ~CPF_BlueprintVisible; // clear this flag(s)
 
 	ContainerClass->AddCppProperty(ValueProperty);
 
@@ -498,11 +527,13 @@ TSubclassOf<URCPropertyContainerBase>& URCPropertyContainerRegistry::FindOrAddCo
 	ContainerClass->StaticLink(true);
 	ContainerClass->AssembleReferenceTokenStream(true);
 
+#if WITH_EDITOR
 	if (FBlueprintActionDatabase* ActionDB = FBlueprintActionDatabase::TryGet())
 	{
 		// Notify Blueprints that there is a new class to add to the action list
 		ActionDB->RefreshClassActions(ContainerClass);
 	}
+#endif
 
 	return CachedContainerClasses.Add(Key, MoveTemp(ContainerClass));	
 }
