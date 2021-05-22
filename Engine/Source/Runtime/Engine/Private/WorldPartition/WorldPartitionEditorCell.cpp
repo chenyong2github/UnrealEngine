@@ -12,6 +12,7 @@ void UWorldPartitionEditorCell::AddReferencedObjects(UObject* InThis, FReference
 	// by the transaction buffer, but we clear it when unloading cells, etc. and we don't want these actors to die.
 	// Also, we must avoid reporting these references when not collecting garbage, as code such as package deletion
 	// will skip packages with actors still referenced (via GatherObjectReferencersForDeletion).
+#if 0
 	if (IsGarbageCollecting())
 	{
 		UWorldPartitionEditorCell* This = CastChecked<UWorldPartitionEditorCell>(InThis);
@@ -26,6 +27,7 @@ void UWorldPartitionEditorCell::AddReferencedObjects(UObject* InThis, FReference
 		}
 		Collector.AllowEliminatingReferences(true);
 	}
+#endif
 
 	Super::AddReferencedObjects(InThis, Collector);
 }
