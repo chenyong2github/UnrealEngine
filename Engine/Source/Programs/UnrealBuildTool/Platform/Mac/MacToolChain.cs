@@ -285,7 +285,7 @@ namespace UnrealBuildTool
 			// Create DWARF format debug info if wanted,
 			if (CompileEnvironment.bCreateDebugInfo)
 			{
-				Result += " -g";
+				Result += " -gdwarf-2";
 			}
 
 			return Result;
