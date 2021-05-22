@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "IndexedMeshToDynamicMesh.h"
-#include "DynamicMeshAttributeSet.h"
-#include "DynamicMeshOverlay.h"
-#include "MeshNormals.h"
-#include "Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 
 using namespace UE::Geometry;
 

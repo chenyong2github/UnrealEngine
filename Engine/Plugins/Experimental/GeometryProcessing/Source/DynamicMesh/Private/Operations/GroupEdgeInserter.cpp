@@ -8,7 +8,7 @@
 #include "DynamicMeshChangeTracker.h"
 #include "DynamicMeshEditor.h"
 #include "FrameTypes.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "MeshRegionBoundaryLoops.h"
 #include "Operations/GroupEdgeInserter.h"
 #include "Operations/MeshPlaneCut.h"
@@ -784,7 +784,7 @@ bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& T
 
 	// Get all verts in the component, and the verts on the boundary
 	TArray<int32> ComponentVids;
-	MeshIndexUtil::TriangleToVertexIDs(&Mesh, Component.Indices, ComponentVids);
+	UE::Geometry::TriangleToVertexIDs(&Mesh, Component.Indices, ComponentVids);
 	TSet<int32> BoundaryVidSet(RegionLoops.Loops[0].Vertices);
 
 	// Delete the triangles

@@ -11,7 +11,7 @@
 #include "Intersection/IntersectionUtil.h"
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "Generators/RectangleMeshGenerator.h"
 #include "Distance/DistLine3Line3.h"
 #include "AssetGenerationUtil.h"

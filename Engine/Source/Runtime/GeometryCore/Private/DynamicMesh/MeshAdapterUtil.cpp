@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MeshAdapterUtil.h"
+#include "DynamicMesh/MeshAdapterUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-FPointSetAdapterd MeshAdapterUtil::MakePointsAdapter(const FDynamicPointSet3d* PointSet)
+FPointSetAdapterd UE::Geometry::MakePointsAdapter(const FDynamicPointSet3d* PointSet)
 {
 	FPointSetAdapterd Adapter;
 	Adapter.MaxPointID = [PointSet]() { return PointSet->MaxVertexID(); };
@@ -22,7 +22,7 @@ FPointSetAdapterd MeshAdapterUtil::MakePointsAdapter(const FDynamicPointSet3d* P
 
 
 
-FPointSetAdapterd MeshAdapterUtil::MakeVerticesAdapter(const FDynamicMesh3* Mesh)
+FPointSetAdapterd UE::Geometry::MakeVerticesAdapter(const FDynamicMesh3* Mesh)
 {
 	FPointSetAdapterd Adapter;
 	Adapter.MaxPointID = [Mesh]() { return Mesh->MaxVertexID(); };
@@ -38,7 +38,7 @@ FPointSetAdapterd MeshAdapterUtil::MakeVerticesAdapter(const FDynamicMesh3* Mesh
 }
 
 
-FPointSetAdapterd MeshAdapterUtil::MakeTriCentroidsAdapter(const FDynamicMesh3* Mesh)
+FPointSetAdapterd UE::Geometry::MakeTriCentroidsAdapter(const FDynamicMesh3* Mesh)
 {
 	FPointSetAdapterd Adapter;
 	Adapter.MaxPointID = [Mesh]() { return Mesh->MaxTriangleID(); };
@@ -56,7 +56,7 @@ FPointSetAdapterd MeshAdapterUtil::MakeTriCentroidsAdapter(const FDynamicMesh3* 
 
 
 
-FPointSetAdapterd MeshAdapterUtil::MakeEdgeMidpointsAdapter(const FDynamicMesh3* Mesh)
+FPointSetAdapterd UE::Geometry::MakeEdgeMidpointsAdapter(const FDynamicMesh3* Mesh)
 {
 	FPointSetAdapterd Adapter;
 	Adapter.MaxPointID = [Mesh]() { return Mesh->MaxEdgeID(); };
@@ -72,7 +72,7 @@ FPointSetAdapterd MeshAdapterUtil::MakeEdgeMidpointsAdapter(const FDynamicMesh3*
 }
 
 
-FPointSetAdapterd MeshAdapterUtil::MakeBoundaryEdgeMidpointsAdapter(const FDynamicMesh3* Mesh)
+FPointSetAdapterd UE::Geometry::MakeBoundaryEdgeMidpointsAdapter(const FDynamicMesh3* Mesh)
 {
 	// may be possible to do this more quickly by directly iterating over Mesh.EdgesBuffer[eid*4+3]  (still need to check valid)
 	int NumBoundaryEdges = 0;
@@ -95,7 +95,7 @@ FPointSetAdapterd MeshAdapterUtil::MakeBoundaryEdgeMidpointsAdapter(const FDynam
 }
 
 
-FTriangleMeshAdapterd MeshAdapterUtil::MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform)
+FTriangleMeshAdapterd UE::Geometry::MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform)
 {
 	FTriangleMeshAdapterd Adapter = MakeDynamicMeshAdapter(Mesh);
 	UE::Geometry::FTransform3d Transformd(Transform);
@@ -107,7 +107,7 @@ FTriangleMeshAdapterd MeshAdapterUtil::MakeTransformedDynamicMeshAdapter(const F
 }
 
 
-FTriangleMeshAdapterd MeshAdapterUtil::MakeDynamicMeshAdapter(const FDynamicMesh3* Mesh)
+FTriangleMeshAdapterd UE::Geometry::MakeDynamicMeshAdapter(const FDynamicMesh3* Mesh)
 {
 	return
 	FTriangleMeshAdapterd {

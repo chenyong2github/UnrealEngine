@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
-#include "DynamicMeshOverlay.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
 #include "VectorTypes.h"
 #include "Async/Async.h"
 

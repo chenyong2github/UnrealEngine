@@ -13,7 +13,7 @@
 #include "Selection/ToolSelectionUtil.h"
 #include "AssetGenerationUtil.h"
 
-#include "Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "CompGeom/PolygonTriangulation.h"
 #include "MeshBoundaryLoops.h"
 #include "Operations/MinimalHoleFiller.h"

@@ -17,8 +17,8 @@
 #include "Parameterization/MeshUVTransforms.h"
 #include "Parameterization/MeshDijkstra.h"
 #include "Selections/MeshConnectedComponents.h"
-#include "MeshNormals.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "DynamicMeshChangeTracker.h"
 #include "DynamicMeshToMeshDescription.h"
 

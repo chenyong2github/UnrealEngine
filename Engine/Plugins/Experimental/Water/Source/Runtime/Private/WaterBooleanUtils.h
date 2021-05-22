@@ -3,12 +3,12 @@
 #pragma once
 
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "TransformTypes.h"
 #include "VectorUtil.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
 #include "Operations/MeshBoolean.h"
-#include "Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "DynamicMeshEditor.h"
 #include "MeshTransforms.h"
