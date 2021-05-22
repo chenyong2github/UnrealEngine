@@ -26,7 +26,7 @@ public class Protobuf : ModuleRules
 			{
 				Linkage = "-static-md";
 			}
-			Toolset = "-v140";
+			Toolset = "-v141";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
