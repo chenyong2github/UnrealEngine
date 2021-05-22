@@ -8,8 +8,8 @@
 #include "Async/Async.h"
 
 #include "MeshWeights.h"
-#include "MeshNormals.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "Util/BufferUtil.h"
 #include "Util/ColorConstants.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -1402,12 +1402,12 @@ void UMeshGroupPaintTool::OnDynamicMeshComponentChanged(USimpleDynamicMeshCompon
 		WaitForPendingUndoRedo();
 
 		// this is not right because now we are going to do extra recomputation, but it's very messy otherwise...
-		MeshIndexUtil::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
+		UE::Geometry::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
 	}
 	else
 	{
 		AccumulatedTriangleROI.Reset();
-		MeshIndexUtil::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
+		UE::Geometry::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
 	}
 
 	// note that we have a pending update

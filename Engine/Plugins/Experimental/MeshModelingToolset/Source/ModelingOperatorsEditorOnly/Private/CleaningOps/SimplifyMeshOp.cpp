@@ -2,21 +2,19 @@
 
 #include "CleaningOps/SimplifyMeshOp.h"
 
-#include "DynamicMeshAttributeSet.h"
 #include "MeshConstraints.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
-
-#include "DynamicMesh3.h"
-#include "DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 #include "ProjectionTargets.h"
 
 #include "IMeshReductionInterfaces.h"
 #include "MeshDescription.h"
-#include "MeshNormals.h"
-#include "Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "OverlappingCorners.h"
 #include "StaticMeshOperations.h"
 

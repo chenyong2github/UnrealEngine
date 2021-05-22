@@ -2,7 +2,7 @@
 
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
 #include "Operations/MeshConvexHull.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "Async/ParallelFor.h"
 #include "DynamicSubmesh3.h"
 #include "Util/ProgressCancel.h"
@@ -68,12 +68,12 @@ namespace GenerateSimpleCollisionNodeHelpers
 					TArray<int> SampledVertices;
 					FMeshConvexHull::GridSample(Mesh, Settings.ConvexHullSettings.PrefilterGridResolution, SampledVertices);
 					TArray<int> IndexSetVertices;
-					MeshIndexUtil::TriangleToVertexIDs(&Mesh, IndexData.IndexSets[k], IndexSetVertices);
+					UE::Geometry::TriangleToVertexIDs(&Mesh, IndexData.IndexSets[k], IndexSetVertices);
 					Hull.VertexSet = SetIntersection(SampledVertices, IndexSetVertices);
 				}
 				else
 				{
-					MeshIndexUtil::TriangleToVertexIDs(&Mesh, IndexData.IndexSets[k], Hull.VertexSet);
+					UE::Geometry::TriangleToVertexIDs(&Mesh, IndexData.IndexSets[k], Hull.VertexSet);
 				}
 
 				Hull.bPostSimplify = Settings.ConvexHullSettings.SimplifyToTriangleCount > 0;

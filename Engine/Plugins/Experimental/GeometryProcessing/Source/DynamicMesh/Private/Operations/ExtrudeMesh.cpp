@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Operations/ExtrudeMesh.h"
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "Selections/MeshConnectedComponents.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -64,7 +64,7 @@ bool FExtrudeMesh::ApplyExtrude(FExtrusionInfo& Region, FMeshNormals* UseNormals
 		return true;
 	}
 
-	MeshIndexUtil::TriangleToVertexIDs(Mesh, Region.InitialTriangles, Region.InitialVertices);
+	UE::Geometry::TriangleToVertexIDs(Mesh, Region.InitialTriangles, Region.InitialVertices);
 
 	// duplicate triangles of mesh
 

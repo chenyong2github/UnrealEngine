@@ -2,12 +2,11 @@
 
 #include "DynamicMeshToMeshDescription.h"
 #include "SkeletalMeshAttributes.h"
-#include "DynamicMeshAttributeSet.h"
-
-#include "DynamicMeshOverlay.h"
-#include "DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
+#include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
 #include "MeshDescriptionBuilder.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/MeshTangents.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

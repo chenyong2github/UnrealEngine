@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "MeshTransforms.h"
-#include "DynamicMeshAttributeSet.h"
-#include "DynamicMeshOverlay.h"
+#include "DynamicMesh/MeshTransforms.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
 #include "Async/ParallelFor.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)

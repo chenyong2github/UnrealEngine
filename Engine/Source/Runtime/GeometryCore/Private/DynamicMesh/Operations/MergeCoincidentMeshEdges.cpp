@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Operations/MergeCoincidentMeshEdges.h"
-#include "DynamicMesh3.h"
-#include "MeshAdapterUtil.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshAdapterUtil.h"
 #include "Spatial/PointSetHashTable.h"
 #include "Util/IndexPriorityQueue.h"
 #include "Util/IndexUtil.h"
@@ -23,7 +23,7 @@ bool FMergeCoincidentMeshEdges::Apply()
 	// construct hash table for edge midpoints
 	//
 
-	FPointSetAdapterd EdgeMidpoints = MeshAdapterUtil::MakeBoundaryEdgeMidpointsAdapter(Mesh);
+	FPointSetAdapterd EdgeMidpoints = UE::Geometry::MakeBoundaryEdgeMidpointsAdapter(Mesh);
 	FPointSetHashtable MidpointsHash(&EdgeMidpoints);
 
 	// use denser grid as vertex count increases

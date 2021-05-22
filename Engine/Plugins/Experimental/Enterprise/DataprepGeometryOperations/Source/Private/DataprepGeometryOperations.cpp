@@ -18,7 +18,7 @@
 #include "MeshAdapterTransforms.h"
 #include "MeshDescriptionAdapter.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "PhysicsEngine/BodySetup.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithEditingOperationsExperimental"

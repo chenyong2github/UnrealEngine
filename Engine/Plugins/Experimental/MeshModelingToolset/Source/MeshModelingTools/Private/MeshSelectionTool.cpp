@@ -11,7 +11,7 @@
 #include "Util/ColorConstants.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "MeshRegionBoundaryLoops.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "AssetGenerationUtil.h"
 #include "ToolSetupUtil.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -1048,7 +1048,7 @@ void UMeshSelectionTool::GrowShrinkSelection(bool bGrow)
 
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 	TArray<int32> Vertices;
-	MeshIndexUtil::TriangleToVertexIDs(Mesh, SelectedFaces, Vertices);
+	UE::Geometry::TriangleToVertexIDs(Mesh, SelectedFaces, Vertices);
 
 	TSet<int32> ChangeFaces;
 	for (int vid : Vertices)

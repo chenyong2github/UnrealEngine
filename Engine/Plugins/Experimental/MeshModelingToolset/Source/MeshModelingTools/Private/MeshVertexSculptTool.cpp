@@ -8,8 +8,8 @@
 #include "Selections/MeshConnectedComponents.h"
 
 #include "MeshWeights.h"
-#include "MeshNormals.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "Util/BufferUtil.h"
 #include "AssetUtils/Texture2DUtil.h"
 
@@ -1039,7 +1039,7 @@ void UMeshVertexSculptTool::OnDynamicMeshComponentChanged(USimpleDynamicMeshComp
 
 	// figure out the set of modified triangles
 	AccumulatedTriangleROI.Reset();
-	MeshIndexUtil::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
+	UE::Geometry::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
 
 	// start the normal recomputation
 	UndoNormalsFuture = Async(VertexSculptToolAsyncExecTarget, [this, Mesh]()

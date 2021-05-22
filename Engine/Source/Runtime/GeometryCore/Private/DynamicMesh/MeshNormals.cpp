@@ -2,9 +2,9 @@
 
 // Port of geometry3Sharp MeshNormals
 
-#include "MeshNormals.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Async/ParallelFor.h"
-#include "MeshIndexUtil.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -333,7 +333,7 @@ void FMeshNormals::QuickComputeVertexNormalsForTriangles(FDynamicMesh3& Mesh, co
 	}
 
 	TArray<int32> VertexIDs;
-	MeshIndexUtil::TriangleToVertexIDs(&Mesh, Triangles, VertexIDs);
+	UE::Geometry::TriangleToVertexIDs(&Mesh, Triangles, VertexIDs);
 	ParallelFor(VertexIDs.Num(), [&](int32 i)
 	{
 		int32 vid = VertexIDs[i];
@@ -508,7 +508,7 @@ void FMeshNormals::InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalO
 
 	TSet<int32> TriangleSet(Triangles);
 	TArray<int32> Vertices;
-	MeshIndexUtil::TriangleToVertexIDs(Mesh, Triangles, Vertices);
+	UE::Geometry::TriangleToVertexIDs(Mesh, Triangles, Vertices);
 	auto TriangleSetFunc = [&](int32 tid) { return TriangleSet.Contains(tid); };
 	int32 NumVertices = Vertices.Num();
 	TMap<int32, int32> TriangleMap;

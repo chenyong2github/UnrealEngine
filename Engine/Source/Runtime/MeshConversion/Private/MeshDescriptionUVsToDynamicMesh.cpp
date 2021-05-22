@@ -2,7 +2,7 @@
 
 #include "MeshDescriptionUVsToDynamicMesh.h"
 
-#include "DynamicMesh3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 

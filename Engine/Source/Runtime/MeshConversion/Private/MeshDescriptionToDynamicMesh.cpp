@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshAttributeSet.h"
-#include "DynamicMeshOverlay.h"
-#include "DynamicVertexAttribute.h"
-#include "MeshTangents.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
+#include "DynamicMesh/DynamicVertexAttribute.h"
+#include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "MeshDescriptionBuilder.h"
 #include "StaticMeshAttributes.h"
 #include "SkeletalMeshAttributes.h"
-#include "DynamicVertexSkinWeightsAttribute.h"
 #include "Async/Async.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
