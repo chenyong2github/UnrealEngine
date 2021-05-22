@@ -122,13 +122,10 @@ private:
 						check(Generation >= GenerationSyncPoint.Key);
 						ActiveGenerations.Dequeue(GenerationSyncPoint);
 
-						// Unblock other threads while we wait for the command list to complete
-						ActiveGenerationsCS.Unlock();
-
 						GenerationSyncPoint.Value.WaitForCompletion();
 
-						ActiveGenerationsCS.Lock();
-						LastCompleteGeneration = FMath::Max(LastCompleteGeneration, GenerationSyncPoint.Key);
+						check(GenerationSyncPoint.Key > LastCompleteGeneration);
+						LastCompleteGeneration = GenerationSyncPoint.Key;
 					}
 				}
 			}
