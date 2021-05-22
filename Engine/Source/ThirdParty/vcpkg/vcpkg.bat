@@ -9,7 +9,7 @@ set VCPKG_VERSION=2020.11-1
 set VCPKG_FEATURE_FLAGS=manifests
 
 :: the triplet to build
-set VCPKG_TRIPLETS=x64-windows-static-md-v140;x64-windows-static-v140
+set VCPKG_TRIPLETS=x64-windows-static-md-v141;x64-windows-static-v141
 
 :: the Unreal platform
 set UE_PLATFORM=Win64
