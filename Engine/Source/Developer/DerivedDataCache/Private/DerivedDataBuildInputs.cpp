@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DerivedDataBuildInput.h"
+#include "DerivedDataBuildInputs.h"
 
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Map.h"
@@ -12,16 +12,16 @@
 namespace UE::DerivedData::Private
 {
 
-class FBuildInputBuilderInternal final : public IBuildInputBuilderInternal
+class FBuildInputsBuilderInternal final : public IBuildInputsBuilderInternal
 {
 public:
-	inline explicit FBuildInputBuilderInternal(FStringView InName)
+	inline explicit FBuildInputsBuilderInternal(FStringView InName)
 		: Name(InName)
 	{
-		checkf(!Name.IsEmpty(), TEXT("A build input requires a non-empty name."));
+		checkf(!Name.IsEmpty(), TEXT("Build inputs require a non-empty name."));
 	}
 
-	~FBuildInputBuilderInternal() final = default;
+	~FBuildInputsBuilderInternal() final = default;
 
 	void AddInput(FStringView Key, const FCompressedBuffer& Buffer) final
 	{
@@ -32,7 +32,7 @@ public:
 		Inputs.EmplaceByHash(KeyHash, Key, Buffer);
 	}
 
-	FBuildInput Build() final;
+	FBuildInputs Build() final;
 
 	FString Name;
 	TMap<FString, FCompressedBuffer> Inputs;
@@ -40,12 +40,12 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FBuildInputInternal final : public IBuildInputInternal
+class FBuildInputsInternal final : public IBuildInputsInternal
 {
 public:
-	explicit FBuildInputInternal(FBuildInputBuilderInternal&& InputBuilder);
+	explicit FBuildInputsInternal(FBuildInputsBuilderInternal&& InputsBuilder);
 
-	~FBuildInputInternal() final = default;
+	~FBuildInputsInternal() final = default;
 
 	FStringView GetName() const final { return Name; }
 
@@ -72,14 +72,14 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FBuildInputInternal::FBuildInputInternal(FBuildInputBuilderInternal&& InputBuilder)
-	: Name(MoveTemp(InputBuilder.Name))
-	, Inputs(MoveTemp(InputBuilder.Inputs))
+FBuildInputsInternal::FBuildInputsInternal(FBuildInputsBuilderInternal&& InputsBuilder)
+	: Name(MoveTemp(InputsBuilder.Name))
+	, Inputs(MoveTemp(InputsBuilder.Inputs))
 {
 	Inputs.KeySort(TLess<>());
 }
 
-const FCompressedBuffer& FBuildInputInternal::GetInput(FStringView Key) const
+const FCompressedBuffer& FBuildInputsInternal::GetInput(FStringView Key) const
 {
 	if (const FCompressedBuffer* Buffer = Inputs.FindByHash(GetTypeHash(Key), Key))
 	{
@@ -90,26 +90,26 @@ const FCompressedBuffer& FBuildInputInternal::GetInput(FStringView Key) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FBuildInput FBuildInputBuilderInternal::Build()
+FBuildInputs FBuildInputsBuilderInternal::Build()
 {
-	return CreateBuildInput(new FBuildInputInternal(MoveTemp(*this)));
+	return CreateBuildInputs(new FBuildInputsInternal(MoveTemp(*this)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FBuildInput CreateBuildInput(IBuildInputInternal* Input)
+FBuildInputs CreateBuildInputs(IBuildInputsInternal* Inputs)
 {
-	return FBuildInput(Input);
+	return FBuildInputs(Inputs);
 }
 
-FBuildInputBuilder CreateBuildInputBuilder(IBuildInputBuilderInternal* InputBuilder)
+FBuildInputsBuilder CreateBuildInputsBuilder(IBuildInputsBuilderInternal* InputsBuilder)
 {
-	return FBuildInputBuilder(InputBuilder);
+	return FBuildInputsBuilder(InputsBuilder);
 }
 
-FBuildInputBuilder CreateBuildInput(FStringView Name)
+FBuildInputsBuilder CreateBuildInputs(FStringView Name)
 {
-	return CreateBuildInputBuilder(new FBuildInputBuilderInternal(Name));
+	return CreateBuildInputsBuilder(new FBuildInputsBuilderInternal(Name));
 }
 
 } // UE::DerivedData::Private
