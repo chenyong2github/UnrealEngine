@@ -456,8 +456,6 @@ private:
 	TQueue<FD3D12GlobalHeapBlock*> FreeBlocks;
 	TArray<FD3D12GlobalHeapBlock*> ReleasedBlocks;
 
-	FD3D12DescriptorHandleSRV* NullSRVDescriptor;
-
 	FCriticalSection CriticalSection;
 };
 
