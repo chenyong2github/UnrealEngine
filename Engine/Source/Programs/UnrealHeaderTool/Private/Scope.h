@@ -124,15 +124,6 @@ public:
 	}
 
 	/**
-	 * Gets struct's or class's scope.
-	 *
-	 * @param Type A struct or class for which to return the scope.
-	 *
-	 * @returns Struct's or class's scope.
-	 */
-	static TSharedRef<FScope> GetTypeScope(UStruct* Type);
-
-	/**
 	 * Gets structs, enums and delegate functions from this scope.
 	 *
 	 * @param Enums (Output parameter) List of enums from this scope.
@@ -411,16 +402,14 @@ public:
 		{
 			ScopesToTraverse.Add(Scope);
 
-			UStruct* Struct = ((FStructScope*)CurrentScope)->GetStruct();
+			FUnrealStructDefinitionInfo& StructDef = ((FStructScope*)CurrentScope)->GetStructDef();
 
-			if (Struct->IsA<UClass>())
+			if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(StructDef))
 			{
-				UClass* Class = ((UClass*)Struct)->GetSuperClass();
-
-				while (Class && !(Class->ClassFlags & EClassFlags::CLASS_Intrinsic))
+				// Skip myself when starting this loop, we only care about the parents
+				for (ClassDef = ClassDef->GetSuperClass(); ClassDef && (ClassDef->GetClass()->ClassFlags & EClassFlags::CLASS_Intrinsic) == 0; ClassDef = ClassDef->GetSuperClass())
 				{
-					ScopesToTraverse.Add(&FScope::GetTypeScope(Class).Get());
-					Class = Class->GetSuperClass();
+					ScopesToTraverse.Add(&ClassDef->GetScope().Get());
 				}
 			}
 

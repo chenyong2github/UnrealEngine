@@ -40,21 +40,6 @@ FUHTException::FUHTException(ECompilationResult::Type InResult, FUnrealTypeDefin
 {
 }
 
-FUHTException::FUHTException(ECompilationResult::Type InResult, const UObject* InObject, FString&& InMessage)
-	: Result(InResult)
-	, Message(MoveTemp(InMessage))
-	, Line(1)
-{
-	if (const UField* Field = Cast<UField>(InObject))
-	{
-		if (TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = GTypeDefinitionInfoMap.Find(Field))
-		{
-			Filename = (*TypeDef)->GetUnrealSourceFile().GetFilename();
-			Line = (*TypeDef)->GetLineNumber();
-		}
-	}
-}
-
 namespace UE::UnrealHeaderTool::Exceptions::Private
 {
 	std::atomic<ECompilationResult::Type> OverallResults = ECompilationResult::Succeeded;
@@ -145,6 +130,15 @@ void FResults::LogError(const UObject& Object, const TCHAR* ErrorMsg, ECompilati
 		{
 			LogError((*TypeDef)->GetUnrealSourceFile(), (*TypeDef)->GetLineNumber(), ErrorMsg, InResult);
 		}
+	}
+	LogError(ErrorMsg, InResult);
+}
+
+void FResults::LogError(FUnrealTypeDefinitionInfo& InTypeDef, const TCHAR* ErrorMsg, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
+{
+	if (InTypeDef.HasSource())
+	{
+		LogError(InTypeDef.GetUnrealSourceFile(), InTypeDef.GetLineNumber(), ErrorMsg, InResult);
 	}
 	LogError(ErrorMsg, InResult);
 }

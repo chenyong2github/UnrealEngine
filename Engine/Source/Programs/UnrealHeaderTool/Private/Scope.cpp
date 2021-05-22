@@ -38,7 +38,7 @@ void DispatchType(FUnrealFieldDefinitionInfo& FieldDef, TArray<FUnrealEnumDefini
 	if (TypeClass == UClass::StaticClass() || TypeClass == UStruct::StaticClass())
 	{
 		// Inner scopes.
-		FScope::GetTypeScope((UStruct*)Type)->SplitTypesIntoArrays(Enums, Structs, DelegateFunctions);
+		FieldDef.GetScope()->SplitTypesIntoArrays(Enums, Structs, DelegateFunctions);
 	}
 	else if (TypeClass == UEnum::StaticClass())
 	{
@@ -69,17 +69,6 @@ void FScope::SplitTypesIntoArrays(TArray<FUnrealEnumDefinitionInfo*>& Enums, TAr
 	{
 		DispatchType(*TypePair.Value, Enums, Structs, DelegateFunctions);
 	}
-}
-
-TSharedRef<FScope> FScope::GetTypeScope(UStruct* Type)
-{
-	TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = GTypeDefinitionInfoMap.Find(Type);
-	if (TypeDef == nullptr)
-	{
-		FError::Throwf(TEXT("Couldn't find scope for the type %s."), *Type->GetName());
-	}
-
-	return (*TypeDef)->GetScope();
 }
 
 FUnrealFieldDefinitionInfo* FScope::FindTypeByName(FName Name)
