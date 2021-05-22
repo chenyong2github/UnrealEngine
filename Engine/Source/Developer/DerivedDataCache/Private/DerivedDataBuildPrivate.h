@@ -10,7 +10,7 @@ struct FGuid;
 
 namespace UE::DerivedData { class FBuildActionBuilder; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
-namespace UE::DerivedData { class FBuildInputBuilder; }
+namespace UE::DerivedData { class FBuildInputsBuilder; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FCacheRecordBuilder; }
@@ -35,7 +35,7 @@ FBuildActionBuilder CreateBuildAction(FStringView Name, FStringView Function, co
 FOptionalBuildAction LoadBuildAction(FStringView Name, FCbObject&& Action);
 
 // Implemented in DerivedDataBuildInput.cpp
-FBuildInputBuilder CreateBuildInput(FStringView Name);
+FBuildInputsBuilder CreateBuildInputs(FStringView Name);
 
 // Implemented in DerivedDataBuildOutput.cpp
 FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function);
