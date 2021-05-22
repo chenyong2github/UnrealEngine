@@ -281,6 +281,7 @@ export namespace UnrealEngine {
 
       for (const Group of Preset.Groups) {
         for (const Property of Group.ExposedProperties) {
+          Property.Type = Property.UnderlyingProperty.Type;
           Preset.Exposed[Property.ID] = Property;
         }
 
@@ -288,6 +289,7 @@ export namespace UnrealEngine {
           if (!Function.Metadata)
             Function.Metadata = {};
 
+          Function.Type = PropertyType.Function;
           Function.Metadata.Widget = WidgetTypes.Button;
           Preset.Exposed[Function.ID] = Function;
         }
@@ -533,7 +535,7 @@ export namespace UnrealEngine {
     }
   }
 
-  export async function setPresetPropertyMetadata(preset: string, property: string, metadata: string, value: string, cb?: () => void) {
+  export async function setPresetPropertyMetadata(preset: string, property: string, metadata: string, value: string) {
     try {
 
       const url = `/remote/preset/${preset}/property/${property}/metadata/${metadata}`;
@@ -543,7 +545,6 @@ export namespace UnrealEngine {
       if (prop) {
         prop.Metadata[metadata] = value;
         Notify.emit('presets', presets);
-        cb?.();
       }
     } catch (err) {
       console.log(`Failed to rename a property`);

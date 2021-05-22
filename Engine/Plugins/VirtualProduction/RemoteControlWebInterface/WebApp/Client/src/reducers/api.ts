@@ -66,10 +66,6 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
 
 type IRequestCallback = Function | string | undefined;
 
-interface IRequestOptions {
-  blob?: boolean;
-}
-
 async function _request(method: string, url: string, body: string | object | undefined, callback: IRequestCallback): Promise<any> {
   const request: RequestInit = { method, mode: 'cors', redirect: 'follow', headers: {} };
   if (body instanceof FormData || typeof(body) === 'string') {
@@ -150,9 +146,9 @@ export const _api = {
       const preset = _internal.getPreset();
       _socket.emit('rename', preset, type, property, label, callback);
     },
-    metadata: (property: string, meta: string, value: string, callback: () => void) => {
+    metadata: (property: string, meta: string, value: string) => {
       const preset = _internal.getPreset();
-      _socket.emit('metadata', preset, property, meta, value, callback);
+      _socket.emit('metadata', preset, property, meta, value);
     }
   },
   actor: {
