@@ -3189,10 +3189,17 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		{
 			float EffectivePrimaryResolutionFraction = float(View.ViewRect.Width()) / float(View.GetSecondaryViewRectSize().X);
 
+			bool bIsMobileTAA = IsMobilePlatform(View.GetShaderPlatform()) && !SupportsDesktopTemporalAA(View.GetShaderPlatform());
+
 			// Compute number of TAA samples.
 			int32 TemporalAASamples = CVarTemporalAASamplesValue;
 			{
-				if (bTemporalUpsampling)
+				if (bIsMobileTAA)
+				{
+					// Only support 2 samples for mobile temporal AA.
+					TemporalAASamples = 2;
+				}
+				else if(bTemporalUpsampling)
 				{
 					// When doing TAA upsample with screen percentage < 100%, we need extra temporal samples to have a
 					// constant temporal sample density for final output pixels to avoid output pixel aligned converging issues.
@@ -3222,7 +3229,15 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 			// Choose sub pixel sample coordinate in the temporal sequence.
 			float SampleX, SampleY;
-			if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+			if (bIsMobileTAA)
+			{
+				float SamplesX[] = { -8.0f / 16.0f, 0.0 / 16.0f };
+				float SamplesY[] = { /* - */ 0.0f / 16.0f, 8.0 / 16.0f };
+				check(TemporalAASamples == UE_ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[TemporalSampleIndex];
+				SampleY = SamplesY[TemporalSampleIndex];
+			}
+			else if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
 			{
 				// Uniformly distribute temporal jittering in [-.5; .5], because there is no longer any alignement of input and output pixels.
 				SampleX = Halton(TemporalSampleIndex + 1, 2) - 0.5f;
