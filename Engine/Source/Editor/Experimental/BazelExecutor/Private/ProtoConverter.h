@@ -3,25 +3,104 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Messages.h"
 
-THIRD_PARTY_INCLUDES_START
-UE_PUSH_MACRO("TEXT")
-#undef TEXT
-#include <grpcpp/grpcpp.h>
-#include "build\bazel\remote\execution\v2\remote_execution.pb.h"
-#include "build\bazel\remote\execution\v2\remote_execution.grpc.pb.h"
-UE_POP_MACRO("TEXT");
-THIRD_PARTY_INCLUDES_END
+#include <string>
+
+namespace google
+{
+	namespace protobuf
+	{
+		class Duration;
+		class Message;
+		class Timestamp;
+	}
+	namespace rpc
+	{
+		class Status;
+	}
+}
+
+namespace grpc
+{
+	class Status;
+}
+
+namespace build
+{
+	namespace bazel
+	{
+		namespace remote
+		{
+			namespace execution
+			{
+				namespace v2
+				{
+					class Action;
+					class ActionResult;
+					class BatchReadBlobsRequest;
+					class BatchReadBlobsResponse;
+					class BatchUpdateBlobsRequest;
+					class BatchUpdateBlobsResponse;
+					class Command;
+					class Digest;
+					class Directory;
+					class DirectoryNode;
+					class ExecutedActionMetadata;
+					class ExecuteRequest;
+					class ExecuteResponse;
+					class FileNode;
+					class FindMissingBlobsRequest;
+					class FindMissingBlobsResponse;
+					class LogFile;
+					class NodeProperties;
+					class NodeProperty;
+					class OutputDirectory;
+					class OutputFile;
+					class OutputSymlink;
+					class Platform;
+					class SymlinkNode;
+				}
+			}
+		}
+	}
+}
+
+struct FAction;
+struct FActionResult;
+struct FBatchReadBlobsRequest;
+struct FBatchReadBlobsResponse;
+struct FBatchUpdateBlobsRequest;
+struct FBatchUpdateBlobsResponse;
+struct FCommand;
+struct FDigest;
+struct FDirectory;
+struct FDirectoryNode;
+struct FExecutedActionMetadata;
+struct FExecuteRequest;
+struct FExecuteResponse;
+struct FFileNode;
+struct FFindMissingBlobsRequest;
+struct FFindMissingBlobsResponse;
+struct FLogFile;
+struct FNodeProperties;
+struct FNodeProperty;
+struct FOutputDirectory;
+struct FOutputFile;
+struct FOutputSymlink;
+struct FPlatform;
+struct FSymlinkNode;
+struct FStatus;
+struct FIoHash;
 
 
 class ProtoConverter
 {
 private:
 	static void ToProto(const FString& In, std::string& Out);
+	static void ToProto(const FIoHash& In, std::string& Out);
 
-	static void ToProto(const FDuration& In, google::protobuf::Duration& Out);
-	static void ToProto(const FTimestamp& In, google::protobuf::Timestamp& Out);
+	static void ToProto(const FTimespan& In, google::protobuf::Duration& Out);
+	static void ToProto(const FDateTime& In, google::protobuf::Timestamp& Out);
 
 	static void ToProto(const FDigest& In, build::bazel::remote::execution::v2::Digest& Out);
 
@@ -38,9 +117,10 @@ private:
 	static void ToProto(const FCommand& In, build::bazel::remote::execution::v2::Command& Out);
 
 	static void FromProto(const std::string& In, FString& Out);
+	static void FromProto(const std::string& In, FIoHash& Out);
 	static void FromProto(const std::string& In, TArray<char>& Out);
 
-	static void FromProto(const google::protobuf::Timestamp& In, FTimestamp& Out);
+	static void FromProto(const google::protobuf::Timestamp& In, FDateTime& Out);
 
 	static void FromProto(const build::bazel::remote::execution::v2::Digest& In, FDigest& Out);
 
@@ -53,6 +133,8 @@ private:
 	static void FromProto(const build::bazel::remote::execution::v2::OutputDirectory& In, FOutputDirectory& Out);
 	static void FromProto(const build::bazel::remote::execution::v2::ExecutedActionMetadata& In, FExecutedActionMetadata& Out);
 	static void FromProto(const build::bazel::remote::execution::v2::ActionResult& In, FActionResult& Out);
+
+	static bool ToBlob(const google::protobuf::Message& InMessage, TArray<char>& OutData, FDigest& OutDigest);
 
 public:
 	static void ToProto(const FExecuteRequest& In, build::bazel::remote::execution::v2::ExecuteRequest& Out);
@@ -69,10 +151,7 @@ public:
 
 	static bool ToDigest(const TArray<char>& Data, FDigest& OutDigest);
 
-	static bool ToBlob(const google::protobuf::Message& InMessage, TArray<char>& OutData, FDigest& OutDigest);
-
 	static bool ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest);
 	static bool ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest);
 	static bool ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest);
 };
-
