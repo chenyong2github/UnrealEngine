@@ -1301,16 +1301,6 @@ public:
 	}
 
 	/**
-	 * Used to safely check whether the passed in flag is set in the whole hierarchy
-	 *
-	 * @param	Class				Class to check
-	 * @param	FlagsToCheck		Class flag(s) to check for
-	 * @return	true if the passed in flag is set, false otherwise
-	 *			(including no flag passed in, unless the FlagsToCheck is CLASS_AllFlags)
-	 */
-	static bool HierarchyHasAnyClassFlags(UClass* Class, EClassFlags FlagsToCheck);
-
-	/**
 	 * Used to safely check whether all of the passed in flags are set.
 	 *
 	 * @param FlagsToCheck	Class flags to check for
@@ -1327,14 +1317,6 @@ public:
 		}
 		return false;
 	}
-	/**
-	 * Used to safely check whether all of the passed in flags are set.
-	 *
-	 * @param	Class				Class to check
-	 * @param FlagsToCheck	Class flags to check for
-	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
-	 */
-	static bool HierarchyHasAllClassFlags(UClass* Class, EClassFlags FlagsToCheck);
 
 	/**
 	* Parse Class's properties to generate its declaration data.

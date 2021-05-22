@@ -179,8 +179,8 @@ namespace
 		}
 
 		// Check if it's an enum class property
-		// NOTE: VarProperty.Enum is a union and might not be an enum
-		if (FUnrealEnumDefinitionInfo* EnumDef = GTypeDefinitionInfoMap.Find<FUnrealEnumDefinitionInfo>(VarProperty.Enum))
+		// NOTE: VarProperty.EnumDef is a union and might not be an enum
+		if (UHTCast<FUnrealEnumDefinitionInfo>(VarProperty.TypeDef) != nullptr)
 		{
 			return FuncDispatch<FPropertyTypeTraitsEnum>()(std::forward<Args>(args)...);
 		}
@@ -324,11 +324,12 @@ struct FPropertyTypeTraitsByte : public FPropertyTypeTraitsNumericBase
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		UEnum* Enum = VarProperty.EnumDef ? VarProperty.EnumDef->GetEnum() : nullptr;
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.Enum);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.EnumDef);
 #endif
 		FByteProperty* Result = new FByteProperty(Scope, Name, ObjectFlags);
-		Result->Enum = VarProperty.Enum;
+		Result->Enum = Enum;
 		check(VarProperty.IntType == EIntType::Sized);
 		return Result;
 	}
@@ -610,7 +611,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 {
 	static bool DefaultValueStringCppFormatToInnerFormat(const FUnrealPropertyDefinitionInfo& PropDef, const FString& CppForm, FString& OutForm)
 	{
-		UEnum* Enum = PropDef.GetPropertyBase().Enum;
+		UEnum* Enum = PropDef.GetPropertyBase().EnumDef->GetEnum();
 		OutForm = FDefaultValueHelper::GetUnqualifiedEnumValue(FDefaultValueHelper::RemoveWhitespaces(CppForm));
 
 		const int32 EnumEntryIndex = Enum->GetIndexByName(*OutForm);
@@ -629,23 +630,23 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 
-		if (VarProperty.Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
+		UEnum* Enum = VarProperty.EnumDef->GetEnum();
+
+		if (Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
 		{
 			check(VarProperty.Type == EPropertyType::CPT_Byte);
 			return FPropertyTypeTraitsByte::CreateEngineType(PropDef, Scope, Name, ObjectFlags, VariableCategory, Dimensions);
 		}
 
-		FUnrealEnumDefinitionInfo& EnumDef = GTypeDefinitionInfoMap.FindChecked<FUnrealEnumDefinitionInfo>(VarProperty.Enum);
-
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(EnumDef);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.EnumDef);
 #endif
 
 		FPropertyBase UnderlyingProperty = VarProperty;
-		UnderlyingProperty.Enum = nullptr;
+		UnderlyingProperty.EnumDef = nullptr;
 		UnderlyingProperty.PropertyFlags = EPropertyFlags::CPF_None;
 		UnderlyingProperty.ArrayType = EArrayType::None;
-		switch (EnumDef.GetUnderlyingType())
+		switch (VarProperty.EnumDef->GetUnderlyingType())
 		{
 		case EUnderlyingEnumType::int8:        UnderlyingProperty.Type = CPT_Int8;   break;
 		case EUnderlyingEnumType::int16:       UnderlyingProperty.Type = CPT_Int16;  break;
@@ -668,7 +669,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 		FUnrealPropertyDefinitionInfo& SubProp = FPropertyTraits::CreateProperty(UnderlyingProperty, Result, TEXT("UnderlyingType"), ObjectFlags, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
 		PropDef.SetValuePropDef(SubProp);
 		Result->UnderlyingProp = CastFieldChecked<FNumericProperty>(SubProp.GetProperty());
-		Result->Enum = VarProperty.Enum;
+		Result->Enum = Enum;
 		return Result;
 	}
 
@@ -707,29 +708,30 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.PropertyClass);
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.PropertyClass);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
 
-		if (VarProperty.PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (PropertyClass->IsChildOf(UClass::StaticClass()))
 		{
 			FClassProperty* Result = new FClassProperty(Scope, Name, ObjectFlags);
-			Result->MetaClass = VarProperty.MetaClass;
-			Result->PropertyClass = VarProperty.PropertyClass;
+			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
+			Result->PropertyClass = PropertyClass;
 			return Result;
 		}
 		else
 		{
-			if (FUnrealClassDefinitionInfo::HierarchyHasAnyClassFlags(VarProperty.PropertyClass, CLASS_DefaultToInstanced))
+			if (VarProperty.ClassDef->HierarchyHasAnyClassFlags(CLASS_DefaultToInstanced))
 			{
 				VarProperty.PropertyFlags |= CPF_InstancedReference;
 				AddEditInlineMetaData(VarProperty.MetaData);
 			}
 
 			FObjectProperty* Result = new FObjectProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = VarProperty.PropertyClass;
+			Result->PropertyClass = PropertyClass;
 			return Result;
 		}
 	}
@@ -745,14 +747,15 @@ struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObject
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.PropertyClass);
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.PropertyClass);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
 
 		FWeakObjectProperty* Result = new FWeakObjectProperty(Scope, Name, ObjectFlags);
-		Result->PropertyClass = VarProperty.PropertyClass;
+		Result->PropertyClass = PropertyClass;
 		return Result;
 	}
 
@@ -767,14 +770,15 @@ struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObject
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.PropertyClass);
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.PropertyClass);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
 
 		FLazyObjectProperty* Result = new FLazyObjectProperty(Scope, Name, ObjectFlags);
-		Result->PropertyClass = VarProperty.PropertyClass;
+		Result->PropertyClass = PropertyClass;
 		return Result;
 	}
 };
@@ -784,29 +788,30 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.PropertyClass);
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.PropertyClass);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
 
-		if (VarProperty.PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (PropertyClass->IsChildOf(UClass::StaticClass()))
 		{
 			FClassPtrProperty* Result = new FClassPtrProperty(Scope, Name, ObjectFlags);
-			Result->MetaClass = VarProperty.MetaClass;
-			Result->PropertyClass = VarProperty.PropertyClass;
+			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
+			Result->PropertyClass = PropertyClass;
 			return Result;
 		}
 		else
 		{
-			if (FUnrealClassDefinitionInfo::HierarchyHasAnyClassFlags(VarProperty.PropertyClass, CLASS_DefaultToInstanced))
+			if (VarProperty.ClassDef->HierarchyHasAnyClassFlags(CLASS_DefaultToInstanced))
 			{
 				VarProperty.PropertyFlags |= CPF_InstancedReference;
 				AddEditInlineMetaData(VarProperty.MetaData);
 			}
 
 			FObjectPtrProperty* Result = new FObjectPtrProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = VarProperty.PropertyClass;
+			Result->PropertyClass = PropertyClass;
 			return Result;
 		}
 	}
@@ -822,23 +827,24 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.PropertyClass);
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.PropertyClass);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
 
-		if (VarProperty.PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (PropertyClass->IsChildOf(UClass::StaticClass()))
 		{
 			FSoftClassProperty* Result = new FSoftClassProperty(Scope, Name, ObjectFlags);
-			Result->MetaClass = VarProperty.MetaClass;
-			Result->PropertyClass = VarProperty.PropertyClass;
+			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
+			Result->PropertyClass = PropertyClass;
 			return Result;
 		}
 		else
 		{
 			FSoftObjectProperty* Result = new FSoftObjectProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = VarProperty.PropertyClass;
+			Result->PropertyClass = PropertyClass;
 			return Result;
 		}
 	}
@@ -854,15 +860,16 @@ struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		check(VarProperty.PropertyClass);
-		check(VarProperty.PropertyClass->HasAnyClassFlags(CLASS_Interface));
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
+		check(PropertyClass->HasAnyClassFlags(CLASS_Interface));
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.PropertyClass);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
 
 		FInterfaceProperty* Result = new  FInterfaceProperty(Scope, Name, ObjectFlags);
-		Result->InterfaceClass = VarProperty.PropertyClass;
+		Result->InterfaceClass = PropertyClass;
 		return Result;
 	}
 
@@ -989,7 +996,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 		static const UScriptStruct* LinearColorStruct = FClasses::FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("LinearColor"));
 		static const UScriptStruct* ColorStruct = FClasses::FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("Color"));
 
-		UScriptStruct* Struct = PropDef.GetPropertyBase().Struct;
+		UScriptStruct* Struct = PropDef.GetPropertyBase().ScriptStructDef->GetScriptStruct();
 		if (Struct == VectorStruct)
 		{
 			FString Parameters;
@@ -1187,18 +1194,19 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		UScriptStruct* Struct = PropDef.GetPropertyBase().ScriptStructDef->GetScriptStruct();
 
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.Struct);
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ScriptStructDef);
 #endif
 
-		if (VarProperty.Struct->StructFlags & STRUCT_HasInstancedReference)
+		if (Struct->StructFlags & STRUCT_HasInstancedReference)
 		{
 			VarProperty.PropertyFlags |= CPF_ContainsInstancedReference;
 		}
 
 		FStructProperty* Result = new FStructProperty(Scope, Name, ObjectFlags);
-		Result->Struct = VarProperty.Struct;
+		Result->Struct = Struct;
 		return Result;
 	}
 
@@ -1227,9 +1235,10 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		UFunction* Function = PropDef.GetPropertyBase().FunctionDef->GetFunction();
 
 		FMulticastDelegateProperty* Result;
-		if (VarProperty.Function->IsA<USparseDelegateFunction>())
+		if (Function->IsA<USparseDelegateFunction>())
 		{
 			Result = new FMulticastSparseDelegateProperty(Scope, Name, ObjectFlags);
 		}
