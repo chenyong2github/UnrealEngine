@@ -169,7 +169,7 @@ public:
 	 * @param Point The point.
 	 * @return The distance.
 	 */
-	FORCEINLINE float ComputeSquaredDistanceToPoint( const FVector& Point ) const
+	FORCEINLINE FVector::FReal ComputeSquaredDistanceToPoint( const FVector& Point ) const
 	{
 		return ComputeSquaredDistanceFromBoxToPoint(Min, Max, Point);
 	}
@@ -177,7 +177,7 @@ public:
 	/**
 	 * Calculates squared distance between two boxes.
 	 */
-	FORCEINLINE float ComputeSquaredDistanceToBox(const FBox& Box) const
+	FORCEINLINE FVector::FReal ComputeSquaredDistanceToBox(const FBox& Box) const
 	{
 		FVector AxisDistances = (GetCenter() - Box.GetCenter()).GetAbs() - (GetExtent() + Box.GetExtent());
 		AxisDistances = FVector::Max(AxisDistances, FVector(0.0f, 0.0f, 0.0f));
@@ -313,9 +313,9 @@ public:
 	 * @return The box volume.
 	 * @see GetCenter, GetCenterAndExtents, GetExtent, GetSize
 	 */
-	FORCEINLINE float GetVolume() const
+	FORCEINLINE FVector::FReal GetVolume() const
 	{
-		return ((Max.X - Min.X) * (Max.Y - Min.Y) * (Max.Z - Min.Z));
+		return (Max.X - Min.X) * (Max.Y - Min.Y) * (Max.Z - Min.Z);
 	}
 
 	/**
@@ -768,7 +768,7 @@ inline bool FMath::LineBoxIntersection
 
 	if(bStartIsOutside)
 	{
-		const float	MaxTime = Max3(Time.X,Time.Y,Time.Z);
+		const FVector::FReal MaxTime = Max3(Time.X,Time.Y,Time.Z);
 
 		if(MaxTime >= 0.0f && MaxTime <= 1.0f)
 		{
@@ -803,10 +803,10 @@ inline bool FMath::LineBoxIntersection
  *
  * @return Whether the sphere/box intersect or not.
  */
-FORCEINLINE bool FMath::SphereAABBIntersection(const FVector& SphereCenter, const float RadiusSquared, const FBox& AABB)
+FORCEINLINE bool FMath::SphereAABBIntersection(const FVector& SphereCenter, const double RadiusSquared, const FBox& AABB)
 {
 	// Accumulates the distance as we iterate axis
-	float DistSquared = 0.f;
+	FVector::FReal DistSquared = 0.f;
 	// Check each axis for min/max and add the distance accordingly
 	// NOTE: Loop manually unrolled for > 2x speed up
 	if (SphereCenter.X < AABB.Min.X)

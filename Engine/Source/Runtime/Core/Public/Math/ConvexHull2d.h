@@ -90,12 +90,12 @@ namespace ConvexHull2D
 	}
 
 	/** Returns <0 if C is left of A-B */
-	inline float ComputeDeterminant(const FVector& A, const FVector& B, const FVector& C)
+	inline FVector::FReal ComputeDeterminant(const FVector& A, const FVector& B, const FVector& C)
 	{
-		const float u1 = B.X - A.X;
-		const float v1 = B.Y - A.Y;
-		const float u2 = C.X - A.X;
-		const float v2 = C.Y - A.Y;
+		const FVector::FReal u1 = B.X - A.X;
+		const FVector::FReal v1 = B.Y - A.Y;
+		const FVector::FReal u2 = C.X - A.X;
+		const FVector::FReal v2 = C.Y - A.Y;
 
 		return u1 * v2 - v1 * u2;
 	}
@@ -186,7 +186,7 @@ namespace ConvexHull2D
 				const FVector & A = Points.GetData()[Hull];
 				const FVector & B = Points.GetData()[NextPoint];
 				const FVector & C = Points.GetData()[j];
-				float Deter = ComputeDeterminant(A, B, C);
+				FVector::FReal Deter = ComputeDeterminant(A, B, C);
 
 				// 0.001 Bias is to stop floating point errors, when comparing points on a straight line; KINDA_SMALL_NUMBER was slightly too small to use.
 				if(Deter < -0.001)

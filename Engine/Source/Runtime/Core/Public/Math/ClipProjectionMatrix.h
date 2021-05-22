@@ -25,7 +25,7 @@ public:
 
 private:
 	/** return sign of a number */
-	FORCEINLINE float sgn( float a );
+	FORCEINLINE FMatrix::FReal sgn(FMatrix::FReal a );
 };
 
 
@@ -55,7 +55,7 @@ FMatrix(SrcProjMat)
 }
 
 
-FORCEINLINE float FClipProjectionMatrix::sgn( float a )
+FORCEINLINE FMatrix::FReal FClipProjectionMatrix::sgn(FMatrix::FReal a )
 {
 	if (a > 0.0f) return (1.0f);
 	if (a < 0.0f) return (-1.0f);

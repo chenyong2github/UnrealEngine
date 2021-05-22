@@ -26,14 +26,14 @@ FSphere::FSphere( const FVector* Points, int32 Num )
 		}
 	}
 
-	float LargestDistSqr = 0.0f;
+	FReal LargestDistSqr = 0.0f;
 	int32 LargestAxis = 0;
 	for( int k = 0; k < 3; k++ )
 	{
 		FVector PointMin = Points[ MinIndex[k] ];
 		FVector PointMax = Points[ MaxIndex[k] ];
 
-		float DistSqr = ( PointMax - PointMin ).SizeSquared();
+		FReal DistSqr = ( PointMax - PointMin ).SizeSquared();
 		if( DistSqr > LargestDistSqr )
 		{
 			LargestDistSqr = DistSqr;
@@ -50,12 +50,12 @@ FSphere::FSphere( const FVector* Points, int32 Num )
 	// Adjust to fit all points
 	for( int i = 0; i < Num; i++ )
 	{
-		float DistSqr = ( Points[i] - Center ).SizeSquared();
+		FReal DistSqr = ( Points[i] - Center ).SizeSquared();
 
 		if( DistSqr > W*W )
 		{
-			float Dist = FMath::Sqrt( DistSqr );
-			float t = 0.5f + 0.5f * ( W / Dist );
+			FReal Dist = FMath::Sqrt( DistSqr );
+			FReal t = 0.5f + 0.5f * ( W / Dist );
 
 			Center = FMath::LerpStable( Points[i], Center, t );
 			W = 0.5f * ( W + Dist );
@@ -80,14 +80,14 @@ FSphere::FSphere( const FSphere* Spheres, int32 Num )
 		}
 	}
 
-	float LargestDist = 0.0f;
+	FReal LargestDist = 0.0f;
 	int32 LargestAxis = 0;
 	for( int k = 0; k < 3; k++ )
 	{
 		FSphere SphereMin = Spheres[ MinIndex[k] ];
 		FSphere SphereMax = Spheres[ MaxIndex[k] ];
 
-		float Dist = ( SphereMax.Center - SphereMin.Center ).Size() + SphereMin.W + SphereMax.W;
+		FReal Dist = ( SphereMax.Center - SphereMin.Center ).Size() + SphereMin.W + SphereMax.W;
 		if( Dist > LargestDist )
 		{
 			LargestDist = Dist;
@@ -132,7 +132,7 @@ FSphere FSphere::TransformBy(const FTransform& M) const
 	return Result;
 }
 
-float FSphere::GetVolume() const
+FSphere::FReal FSphere::GetVolume() const
 {
 	return (4.f / 3.f) * PI * (W * W * W);
 }
@@ -146,7 +146,7 @@ FSphere& FSphere::operator+=(const FSphere &Other)
 	}
 	
 	FVector ToOther = Other.Center - Center;
-	float DistSqr = ToOther.SizeSquared();
+	FReal DistSqr = ToOther.SizeSquared();
 
 	if( FMath::Square( W - Other.W ) + KINDA_SMALL_NUMBER >= DistSqr )
 	{
@@ -158,7 +158,7 @@ FSphere& FSphere::operator+=(const FSphere &Other)
 	}
 	else
 	{
-		float Dist = FMath::Sqrt( DistSqr );
+		FReal Dist = FMath::Sqrt( DistSqr );
 
 		FSphere NewSphere;
 		NewSphere.W = ( Dist + Other.W + W ) * 0.5f;

@@ -335,7 +335,7 @@ FVector FMath::ClosestPointOnLine(const FVector& LineStart, const FVector& LineE
 	const FVector::FReal A = (LineStart - Point) | (LineEnd - LineStart);
 	const FVector::FReal B = (LineEnd - LineStart).SizeSquared();
 	// This should be robust to B == 0 (resulting in NaN) because clamp should return 1.
-	const FVector::FReal T = FMath::Clamp(-A/B, FVector::FReal(0.f), FVector::FReal(1.f));
+	const FVector::FReal T = FMath::Clamp<FVector::FReal>(-A/B, 0.f, 1.f);
 
 	// Generate closest point
 	FVector ClosestPoint = LineStart + (T * (LineEnd - LineStart));
@@ -480,7 +480,8 @@ FVector FRotator::Euler() const
 
 FRotator FRotator::MakeFromEuler(const FVector& Euler)
 {
-	return FRotator(Euler.Y, Euler.Z, Euler.X);
+	using FReal = decltype(FRotator::Pitch);
+	return FRotator((FReal)Euler.Y, (FReal)Euler.Z, (FReal)Euler.X);
 }
 
 FVector FRotator::UnrotateVector(const FVector& V) const
@@ -631,8 +632,10 @@ void FQuat::ToSwingTwist(const FVector& InTwistAxis, FQuat& OutSwing, FQuat& Out
 	// Vector part projected onto twist axis
 	FVector Projection = FVector::DotProduct(InTwistAxis, FVector(X, Y, Z)) * InTwistAxis;
 
+	using FQuatReal = decltype(FQuat::X);
+
 	// Twist quaternion
-	OutTwist = FQuat(Projection.X, Projection.Y, Projection.Z, W);
+	OutTwist = FQuat((FQuatReal)Projection.X, (FQuatReal)Projection.Y, (FQuatReal)Projection.Z, W);
 
 	// Singularity close to 180deg
 	if(OutTwist.SizeSquared() == 0.0f)
@@ -650,8 +653,8 @@ void FQuat::ToSwingTwist(const FVector& InTwistAxis, FQuat& OutSwing, FQuat& Out
 
 float FQuat::GetTwistAngle(const FVector& TwistAxis) const
 {
-	float XYZ = FVector::DotProduct(TwistAxis, FVector(X, Y, Z));
-	return FMath::UnwindRadians(2.0f * FMath::Atan2(XYZ, W));
+	float XYZ = (float)FVector::DotProduct(TwistAxis, FVector(X, Y, Z));
+	return FMath::UnwindRadians(2.0f * (float)FMath::Atan2(XYZ, W));
 }
 
 FMatrix FRotationAboutPointMatrix::Make(const FQuat& Rot, const FVector& Origin)
@@ -882,17 +885,18 @@ bool FQuat::NetSerialize(FArchive& Ar, class UPackageMap*, bool& bOutSuccess)
 // http://lolengine.net/blog/2014/02/24/quaternion-from-two-vectors-final
 // http://www.euclideanspace.com/maths/algebra/vectors/angleBetween/index.htm
 //
-FORCEINLINE_DEBUGGABLE FQuat FindBetween_Helper(const FVector& A, const FVector& B, float NormAB)
+FORCEINLINE_DEBUGGABLE FQuat FindBetween_Helper(const FVector& A, const FVector& B, FVector::FReal NormAB)
 {
-	float W = NormAB + FVector::DotProduct(A, B);
+	using FReal = decltype(FQuat::X);
+	FReal W = FReal(NormAB + FVector::DotProduct(A, B));	// LWC_TODO: Precision loss
 	FQuat Result;
 
 	if (W >= 1e-6f * NormAB)
 	{
 		//Axis = FVector::CrossProduct(A, B);
-		Result = FQuat(A.Y * B.Z - A.Z * B.Y,
-					   A.Z * B.X - A.X * B.Z,
-					   A.X * B.Y - A.Y * B.X,
+		Result = FQuat(FReal(A.Y * B.Z - A.Z * B.Y),
+					   FReal(A.Z * B.X - A.X * B.Z),
+					   FReal(A.X * B.Y - A.Y * B.X),
 					   W);
 	}
 	else
@@ -900,8 +904,8 @@ FORCEINLINE_DEBUGGABLE FQuat FindBetween_Helper(const FVector& A, const FVector&
 		// A and B point in opposite directions
 		W = 0.f;
 		Result = FMath::Abs(A.X) > FMath::Abs(A.Y)
-				? FQuat(-A.Z, 0.f, A.X, W)
-				: FQuat(0.f, -A.Z, A.Y, W);
+				? FQuat(FReal(-A.Z), 0.f, FReal(A.X), W)
+				: FQuat(0.f, FReal(-A.Z), FReal(A.Y), W);
 	}
 
 	Result.Normalize();
@@ -910,13 +914,13 @@ FORCEINLINE_DEBUGGABLE FQuat FindBetween_Helper(const FVector& A, const FVector&
 
 FQuat FQuat::FindBetweenNormals(const FVector& A, const FVector& B)
 {
-	const float NormAB = 1.f;
+	const FVector::FReal NormAB = 1.f;
 	return FindBetween_Helper(A, B, NormAB);
 }
 
 FQuat FQuat::FindBetweenVectors(const FVector& A, const FVector& B)
 {
-	const float NormAB = FMath::Sqrt(A.SizeSquared() * B.SizeSquared());
+	const FVector::FReal NormAB = FMath::Sqrt(A.SizeSquared() * B.SizeSquared());
 	return FindBetween_Helper(A, B, NormAB);
 }
 
@@ -1089,18 +1093,18 @@ bool FMath::LineExtentBoxIntersection(const FBox& inBox,
 	{	
 		if(Time.Y > Time.Z)
 		{
-			HitTime = Time.Y;
+			HitTime = (decltype(HitTime))Time.Y;	// LWC_TODO: Remove decltype
 			HitNormal = FVector(0, faceDir[1], 0);
 		}
 		else
 		{
-			HitTime = Time.Z;
+			HitTime = (decltype(HitTime))Time.Z;
 			HitNormal = FVector(0, 0, faceDir[2]);
 		}
 		
 		if(Time.X > HitTime)
 		{
-			HitTime = Time.X;
+			HitTime = (decltype(HitTime))Time.X;
 			HitNormal = FVector(faceDir[0], 0, 0);
 		}
 		
@@ -1417,14 +1421,14 @@ CORE_API float FMath::PointDistToLine(const FVector &Point, const FVector &Direc
 {
 	const FVector SafeDir = Direction.GetSafeNormal();
 	OutClosestPoint = Origin + (SafeDir * ((Point-Origin) | SafeDir));
-	return (OutClosestPoint-Point).Size();
+	return (float)(OutClosestPoint-Point).Size();		// LWC_TODO: Precision loss
 }
 
 CORE_API float FMath::PointDistToLine(const FVector &Point, const FVector &Direction, const FVector &Origin)
 {
 	const FVector SafeDir = Direction.GetSafeNormal();
 	const FVector OutClosestPoint = Origin + (SafeDir * ((Point-Origin) | SafeDir));
-	return (OutClosestPoint-Point).Size();
+	return (float)(OutClosestPoint-Point).Size();		// LWC_TODO: Precision loss
 }
 
 FVector FMath::ClosestPointOnSegment(const FVector &Point, const FVector &StartPoint, const FVector &EndPoint)
@@ -1433,14 +1437,14 @@ FVector FMath::ClosestPointOnSegment(const FVector &Point, const FVector &StartP
 	const FVector VectToPoint = Point - StartPoint;
 
 	// See if closest point is before StartPoint
-	const float Dot1 = VectToPoint | Segment;
+	const FVector::FReal Dot1 = VectToPoint | Segment;
 	if( Dot1 <= 0 )
 	{
 		return StartPoint;
 	}
 
 	// See if closest point is beyond EndPoint
-	const float Dot2 = Segment | Segment;
+	const FVector::FReal Dot2 = Segment | Segment;
 	if( Dot2 <= Dot1 )
 	{
 		return EndPoint;
@@ -1473,16 +1477,16 @@ FVector2D FMath::ClosestPointOnSegment2D(const FVector2D &Point, const FVector2D
 	return StartPoint + Segment * (Dot1 / Dot2);
 }
 
-float FMath::PointDistToSegment(const FVector &Point, const FVector &StartPoint, const FVector &EndPoint) 
+float FMath::PointDistToSegment(const FVector &Point, const FVector &StartPoint, const FVector &EndPoint)
 {
 	const FVector ClosestPoint = ClosestPointOnSegment(Point, StartPoint, EndPoint);
-	return (Point - ClosestPoint).Size();
+	return float((Point - ClosestPoint).Size());	// LWC_TODO: Precision loss
 }
 
-float FMath::PointDistToSegmentSquared(const FVector &Point, const FVector &StartPoint, const FVector &EndPoint) 
+float FMath::PointDistToSegmentSquared(const FVector &Point, const FVector &StartPoint, const FVector &EndPoint)
 {
 	const FVector ClosestPoint = ClosestPointOnSegment(Point, StartPoint, EndPoint);
-	return (Point - ClosestPoint).SizeSquared();
+	return float((Point - ClosestPoint).SizeSquared());	// LWC_TODO: Precision loss
 }
 
 struct SegmentDistToSegment_Solver
@@ -1508,19 +1512,19 @@ struct SegmentDistToSegment_Solver
 
 	void Solve(FVector& OutP1, FVector& OutP2)
 	{
-		const float Dot11 = S1 | S1;
-		const float Dot12 = S1 | S2;
-		const float Dot13 = S1 | S3;
-		const float Dot22 = S2 | S2;
-		const float Dot23 = S2 | S3;
+		const FVector::FReal Dot11 = S1 | S1;
+		const FVector::FReal Dot12 = S1 | S2;
+		const FVector::FReal Dot13 = S1 | S3;
+		const FVector::FReal Dot22 = S2 | S2;
+		const FVector::FReal Dot23 = S2 | S3;
 
-		const float D = Dot11*Dot22 - Dot12*Dot12;
+		const FVector::FReal D = Dot11*Dot22 - Dot12*Dot12;
 
-		float D1 = D;
-		float D2 = D;
+		FVector::FReal D1 = D;
+		FVector::FReal D2 = D;
 
-		float N1;
-		float N2;
+		FVector::FReal N1;
+		FVector::FReal N2;
 
 		if (bLinesAreNearlyParallel || D < KINDA_SMALL_NUMBER)
 		{
@@ -1594,8 +1598,8 @@ struct SegmentDistToSegment_Solver
 		}
 
 		// finally do the division to get the points' location
-		const float T1 = (FMath::Abs(N1) < KINDA_SMALL_NUMBER ? 0.f : N1 / D1);
-		const float T2 = (FMath::Abs(N2) < KINDA_SMALL_NUMBER ? 0.f : N2 / D2);
+		const FVector::FReal T1 = (FMath::Abs(N1) < KINDA_SMALL_NUMBER ? 0.f : N1 / D1);
+		const FVector::FReal T2 = (FMath::Abs(N2) < KINDA_SMALL_NUMBER ? 0.f : N2 / D2);
 
 		// return the closest points
 		OutP1 = A1 + T1 * S1;
@@ -1630,10 +1634,10 @@ void FMath::SegmentDistToSegmentSafe(FVector A1, FVector B1, FVector A2, FVector
 	}
 	else
 	{
-		const	float	Dot11_norm = S1_norm | S1_norm;	// always >= 0
-		const	float	Dot22_norm = S2_norm | S2_norm;	// always >= 0
-		const	float	Dot12_norm = S1_norm | S2_norm;
-		const	float	D_norm	= Dot11_norm*Dot22_norm - Dot12_norm*Dot12_norm;	// always >= 0
+		const	FVector::FReal	Dot11_norm = S1_norm | S1_norm;	// always >= 0
+		const	FVector::FReal	Dot22_norm = S2_norm | S2_norm;	// always >= 0
+		const	FVector::FReal	Dot12_norm = S1_norm | S2_norm;
+		const	FVector::FReal	D_norm	= Dot11_norm*Dot22_norm - Dot12_norm*Dot12_norm;	// always >= 0
 
 		Solver.bLinesAreNearlyParallel = D_norm < KINDA_SMALL_NUMBER;
 		Solver.Solve(OutP1, OutP2);
@@ -1647,12 +1651,12 @@ void FMath::SegmentDistToSegment(FVector A1, FVector B1, FVector A2, FVector B2,
 
 float FMath::GetTForSegmentPlaneIntersect(const FVector& StartPoint, const FVector& EndPoint, const FPlane& Plane)
 {
-	return ( Plane.W - (StartPoint|Plane) ) / ( (EndPoint - StartPoint)|Plane);	
+	return float(( Plane.W - (StartPoint|Plane) ) / ( (EndPoint - StartPoint)|Plane));		// LWC_TODO: Precision loss
 }
 
 bool FMath::SegmentPlaneIntersection(const FVector& StartPoint, const FVector& EndPoint, const FPlane& Plane, FVector& out_IntersectionPoint)
 {
-	float T = FMath::GetTForSegmentPlaneIntersect(StartPoint, EndPoint, Plane);
+	FVector::FReal T = FMath::GetTForSegmentPlaneIntersect(StartPoint, EndPoint, Plane);
 	// If the parameter value is not between 0 and 1, there is no intersection
 	if (T > -KINDA_SMALL_NUMBER && T < 1.f + KINDA_SMALL_NUMBER)
 	{
@@ -1698,8 +1702,8 @@ bool FMath::SegmentIntersection2D(const FVector& SegmentStartA, const FVector& S
 	const FVector VectorA = SegmentEndA - SegmentStartA;
 	const FVector VectorB = SegmentEndB - SegmentStartB;
 
-	const float S = (-VectorA.Y * (SegmentStartA.X - SegmentStartB.X) + VectorA.X * (SegmentStartA.Y - SegmentStartB.Y)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
-	const float T = (VectorB.X * (SegmentStartA.Y - SegmentStartB.Y) - VectorB.Y * (SegmentStartA.X - SegmentStartB.X)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
+	const FVector::FReal S = (-VectorA.Y * (SegmentStartA.X - SegmentStartB.X) + VectorA.X * (SegmentStartA.Y - SegmentStartB.Y)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
+	const FVector::FReal T = (VectorB.X * (SegmentStartA.Y - SegmentStartB.Y) - VectorB.Y * (SegmentStartA.X - SegmentStartB.X)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
 
 	const bool bIntersects = (S >= 0 && S <= 1 && T >= 0 && T <= 1);
 
@@ -1719,39 +1723,41 @@ bool FMath::SegmentIntersection2D(const FVector& SegmentStartA, const FVector& S
  * and http://sourceforge.net/mailarchive/message.php?msg_id=10501105
  */
 static bool ComputeProjectedSphereShaft(
-	float LightX,
-	float LightZ,
-	float Radius,
+	FVector::FReal LightX,
+	FVector::FReal LightZ,
+	FVector::FReal Radius,
 	const FMatrix& ProjMatrix,
 	const FVector& Axis,
-	float AxisSign,
+	FVector::FReal AxisSign,
 	int32& InOutMinX,
 	int32& InOutMaxX
 	)
 {
-	float ViewX = (float)InOutMinX;
-	float ViewSizeX = (float)(InOutMaxX - InOutMinX);
+	FVector::FReal ViewX = (FVector::FReal)InOutMinX;
+	FVector::FReal ViewSizeX = (FVector::FReal)(InOutMaxX - InOutMinX);
 
 	// Vertical planes: T = <Nx, 0, Nz, 0>
-	float Discriminant = (FMath::Square(LightX) - FMath::Square(Radius) + FMath::Square(LightZ)) * FMath::Square(LightZ);
+	FVector::FReal Discriminant = (FMath::Square(LightX) - FMath::Square(Radius) + FMath::Square(LightZ)) * FMath::Square(LightZ);
 	if(Discriminant >= 0)
 	{
-		float SqrtDiscriminant = FMath::Sqrt(Discriminant);
-		float InvLightSquare = 1.0f / (FMath::Square(LightX) + FMath::Square(LightZ));
+		FVector::FReal SqrtDiscriminant = FMath::Sqrt(Discriminant);
+		FVector::FReal InvLightSquare = 1.0f / (FMath::Square(LightX) + FMath::Square(LightZ));
 
-		float Nxa = (Radius * LightX - SqrtDiscriminant) * InvLightSquare;
-		float Nxb = (Radius * LightX + SqrtDiscriminant) * InvLightSquare;
-		float Nza = (Radius - Nxa * LightX) / LightZ;
-		float Nzb = (Radius - Nxb * LightX) / LightZ;
-		float Pza = LightZ - Radius * Nza;
-		float Pzb = LightZ - Radius * Nzb;
+		FVector::FReal Nxa = (Radius * LightX - SqrtDiscriminant) * InvLightSquare;
+		FVector::FReal Nxb = (Radius * LightX + SqrtDiscriminant) * InvLightSquare;
+		FVector::FReal Nza = (Radius - Nxa * LightX) / LightZ;
+		FVector::FReal Nzb = (Radius - Nxb * LightX) / LightZ;
+		FVector::FReal Pza = LightZ - Radius * Nza;
+		FVector::FReal Pzb = LightZ - Radius * Nzb;
+
+		using FVec4Real = decltype(FVector4::X);
 
 		// Tangent a
 		if(Pza > 0)
 		{
-			float Pxa = -Pza * Nza / Nxa;
-			FVector4 P = ProjMatrix.TransformFVector4(FVector4(Axis.X * Pxa,Axis.Y * Pxa,Pza,1));
-			float X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
+			FVector::FReal Pxa = -Pza * Nza / Nxa;
+			FVector4 P = ProjMatrix.TransformFVector4(FVector4(FVec4Real(Axis.X * Pxa),FVec4Real(Axis.Y * Pxa),FVec4Real(Pza),1));
+			FVector::FReal X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
 			if(FMath::IsNegative(Nxa) ^ FMath::IsNegative(AxisSign))
 			{
 				InOutMaxX = FMath::Min<int32>(FMath::CeilToInt(ViewSizeX * X + ViewX),InOutMaxX);
@@ -1765,10 +1771,10 @@ static bool ComputeProjectedSphereShaft(
 		// Tangent b
 		if(Pzb > 0)
 		{
-			float Pxb = -Pzb * Nzb / Nxb;
-			FVector4 P = ProjMatrix.TransformFVector4(FVector4(Axis.X * Pxb,Axis.Y * Pxb,Pzb,1));
-			float X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
-			if(FMath::IsNegativeFloat(Nxb) ^ FMath::IsNegativeFloat(AxisSign))
+			FVector::FReal Pxb = -Pzb * Nzb / Nxb;
+			FVector4 P = ProjMatrix.TransformFVector4(FVector4(FVec4Real(Axis.X * Pxb), FVec4Real(Axis.Y * Pxb),FVec4Real(Pzb),1));
+			FVector::FReal X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
+			if(FMath::IsNegative(Nxb) ^ FMath::IsNegative(AxisSign))
 			{
 				InOutMaxX = FMath::Min<int32>(FMath::CeilToInt(ViewSizeX * X + ViewX),InOutMaxX);
 			}
@@ -1829,13 +1835,13 @@ int32 FMath::PlaneAABBRelativePosition(const FPlane& P, const FBox& AABB)
 	FVector Vmin, Vmax;
 
 	// Bypass the slow FVector[] operator. Not RESTRICT because it won't update Vmin, Vmax
-	float* VminPtr = (float*)&Vmin;
-	float* VmaxPtr = (float*)&Vmax;
+	FVector::FReal* VminPtr = (FVector::FReal*)&Vmin;
+	FVector::FReal* VmaxPtr = (FVector::FReal*)&Vmax;
 
 	// Use restrict to get better instruction scheduling and to bypass the slow FVector[] operator
-	const float* RESTRICT AABBMinPtr = (const float*)&AABB.Min;
-	const float* RESTRICT AABBMaxPtr = (const float*)&AABB.Max;
-	const float* RESTRICT PlanePtr = (const float*)&P;
+	const FVector::FReal* RESTRICT AABBMinPtr = (const FVector::FReal*)&AABB.Min;
+	const FVector::FReal* RESTRICT AABBMaxPtr = (const FVector::FReal*)&AABB.Max;
+	const FPlane::FReal* RESTRICT PlanePtr = (const FPlane::FReal*)&P;
 
 	for(int32 Idx=0;Idx<3;++Idx)
 	{
@@ -1852,8 +1858,8 @@ int32 FMath::PlaneAABBRelativePosition(const FPlane& P, const FBox& AABB)
 	}
 
 	// if either diagonal is right on the plane, or one is on either side we have an interesection
-	float dMax = P.PlaneDot(Vmax);
-	float dMin = P.PlaneDot(Vmin);
+	FPlane::FReal dMax = P.PlaneDot(Vmax);
+	FPlane::FReal dMin = P.PlaneDot(Vmin);
 
 	// if Max is below plane, or Min is above we know there is no intersection.. otherwise there must be one
 	if (dMax < 0.f)
@@ -1883,8 +1889,8 @@ bool FMath::SphereConeIntersection(const FVector& SphereCenter, float SphereRadi
 
 	FVector U = ConeAxis * (-SphereRadius / ConeAngleSin);
 	FVector D = SphereCenter - U;
-	float dsqr = D | D;
-	float e = ConeAxis | D;
+	FVector::FReal dsqr = D | D;
+	FVector::FReal e = ConeAxis | D;
 
 	if(e > 0 && e * e >= dsqr * FMath::Square(ConeAngleCos))
 	{
@@ -1954,8 +1960,8 @@ FVector FMath::ClosestPointOnTriangleToPoint(const FVector& Point, const FVector
 
 FVector FMath::GetBaryCentric2D(const FVector& Point, const FVector& A, const FVector& B, const FVector& C)
 {
-	float a = ((B.Y-C.Y)*(Point.X-C.X) + (C.X-B.X)*(Point.Y-C.Y)) / ((B.Y-C.Y)*(A.X-C.X) + (C.X-B.X)*(A.Y-C.Y));
-	float b = ((C.Y-A.Y)*(Point.X-C.X) + (A.X-C.X)*(Point.Y-C.Y)) / ((B.Y-C.Y)*(A.X-C.X) + (C.X-B.X)*(A.Y-C.Y));
+	FVector::FReal a = ((B.Y-C.Y)*(Point.X-C.X) + (C.X-B.X)*(Point.Y-C.Y)) / ((B.Y-C.Y)*(A.X-C.X) + (C.X-B.X)*(A.Y-C.Y));
+	FVector::FReal b = ((C.Y-A.Y)*(Point.X-C.X) + (A.X-C.X)*(Point.Y-C.Y)) / ((B.Y-C.Y)*(A.X-C.X) + (C.X-B.X)*(A.Y-C.Y));
 
 	return FVector(a, b, 1.0f - a - b);	
 }
@@ -1983,15 +1989,15 @@ FVector FMath::ComputeBaryCentric2D(const FVector& Point, const FVector& A, cons
 	const FVector N = TriNorm.GetSafeNormal();
 
 	// Compute twice area of triangle ABC
-	const float AreaABCInv = 1.0f / (N | TriNorm);
+	const FVector::FReal AreaABCInv = 1.0f / (N | TriNorm);
 
 	// Compute a contribution
-	const float AreaPBC = N | ((B-Point) ^ (C-Point));
-	const float a = AreaPBC * AreaABCInv;
+	const FVector::FReal AreaPBC = N | ((B-Point) ^ (C-Point));
+	const FVector::FReal a = AreaPBC * AreaABCInv;
 
 	// Compute b contribution
-	const float AreaPCA = N | ((C-Point) ^ (A-Point));
-	const float b = AreaPCA * AreaABCInv;
+	const FVector::FReal AreaPCA = N | ((C-Point) ^ (A-Point));
+	const FVector::FReal b = AreaPCA * AreaABCInv;
 
 	// Compute c contribution
 	return FVector(a, b, 1.0f - a - b);
@@ -2018,7 +2024,7 @@ FVector4 FMath::ComputeBaryCentric3D(const FVector& Point, const FVector& A, con
 	//The point V can be expressed as Ax=v where x is the vector containing the weights {w1...wn}
 	//Solve for x by multiplying both sides by AInv   (AInv * A)x = AInv * v ==> x = AInv * v
 	const FMatrix InvSolvMat = SolvMat.Inverse();
-	const FPlane BaryCoords = InvSolvMat.TransformVector(V);	 
+	const FPlane4f BaryCoords = (FPlane4f)InvSolvMat.TransformVector(V);		// LWC_TODO: Precision loss
 
 	//Reorder the weights to be a, b, c, d
 	return FVector4(1.0f - BaryCoords.X - BaryCoords.Y - BaryCoords.Z, BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
@@ -2116,9 +2122,9 @@ void FMath::SphereDistToLine(FVector SphereOrigin, float SphereRadius, FVector L
 	//const float A = NormalizedLineDir | NormalizedLineDir  (this is 1 because normalized)
 	//solving quadratic formula in terms of t where closest point = LineOrigin + t * NormalizedLineDir
 	const FVector LineOriginToSphereOrigin = SphereOrigin - LineOrigin;
-	const float B = -2.f * (NormalizedLineDir | LineOriginToSphereOrigin);
-	const float C = LineOriginToSphereOrigin.SizeSquared() - FMath::Square(SphereRadius);
-	const float D	= FMath::Square(B) - 4.f * C;
+	const FVector::FReal B = -2.f * (NormalizedLineDir | LineOriginToSphereOrigin);
+	const FVector::FReal C = LineOriginToSphereOrigin.SizeSquared() - FMath::Square(SphereRadius);
+	const FVector::FReal D	= FMath::Square(B) - 4.f * C;
 
 	if( D <= KINDA_SMALL_NUMBER )
 	{
@@ -2129,10 +2135,10 @@ void FMath::SphereDistToLine(FVector SphereOrigin, float SphereRadius, FVector L
 	else
 	{
 		// Line intersecting sphere in 2 points. Pick closest to line origin.
-		const float	E	= FMath::Sqrt(D);
-		const float T1	= (-B + E) * 0.5f;
-		const float T2	= (-B - E) * 0.5f;
-		const float T	= FMath::Abs( T1 ) == FMath::Abs( T2 ) ? FMath::Abs( T1 ) : FMath::Abs( T1 ) < FMath::Abs( T2 ) ? T1 : T2;	// In the case where both points are exactly the same distance we take the one in the direction of LineDir
+		const FVector::FReal	E	= FMath::Sqrt(D);
+		const FVector::FReal T1	= (-B + E) * 0.5f;
+		const FVector::FReal T2	= (-B - E) * 0.5f;
+		const FVector::FReal T	= FMath::Abs( T1 ) == FMath::Abs( T2 ) ? FMath::Abs( T1 ) : FMath::Abs( T1 ) < FMath::Abs( T2 ) ? T1 : T2;	// In the case where both points are exactly the same distance we take the one in the direction of LineDir
 
 		OutClosestPoint	= LineOrigin + T * NormalizedLineDir;
 	}
@@ -2146,16 +2152,16 @@ bool FMath::GetDistanceWithinConeSegment(FVector Point, FVector ConeStartPoint, 
 
 	FVector PointOnCone; // Stores the point on the cone's center line closest to our target point.
 
-	const float Distance = FMath::PointDistToLine(Point, ConeLine, ConeStartPoint, PointOnCone); // distance is how far from the viewline we are
+	const FVector::FReal Distance = FMath::PointDistToLine(Point, ConeLine, ConeStartPoint, PointOnCone); // distance is how far from the viewline we are
 
 	PercentageOut = 0.0; // start assuming we're outside cone until proven otherwise.
 
 	const FVector VectToStart = ConeStartPoint - PointOnCone;
 	const FVector VectToEnd = (ConeStartPoint + ConeLine) - PointOnCone;
 	
-	const float ConeLengthSqr = ConeLine.SizeSquared();
-	const float DistToStartSqr = VectToStart.SizeSquared();
-	const float DistToEndSqr = VectToEnd.SizeSquared();
+	const FVector::FReal ConeLengthSqr = ConeLine.SizeSquared();
+	const FVector::FReal DistToStartSqr = VectToStart.SizeSquared();
+	const FVector::FReal DistToEndSqr = VectToEnd.SizeSquared();
 
 	if (DistToStartSqr > ConeLengthSqr || DistToEndSqr > ConeLengthSqr)
 	{
@@ -2163,13 +2169,13 @@ bool FMath::GetDistanceWithinConeSegment(FVector Point, FVector ConeStartPoint, 
 		return false;
 	}
 
-	const float PercentAlongCone = FMath::Sqrt(DistToStartSqr) / FMath::Sqrt(ConeLengthSqr); // don't have to catch outside 0->1 due to above code (saves 2 sqrts if outside)
-	const float RadiusAtPoint = RadiusAtStart + ((RadiusAtEnd - RadiusAtStart) * PercentAlongCone);
+	const FVector::FReal PercentAlongCone = FMath::Sqrt(DistToStartSqr) / FMath::Sqrt(ConeLengthSqr); // don't have to catch outside 0->1 due to above code (saves 2 sqrts if outside)
+	const FVector::FReal RadiusAtPoint = RadiusAtStart + ((RadiusAtEnd - RadiusAtStart) * PercentAlongCone);
 
 	if(Distance > RadiusAtPoint) // target is farther from the line than the radius at that distance)
 		return false;
 
-	PercentageOut = RadiusAtPoint > 0.0f ? (RadiusAtPoint - Distance) / RadiusAtPoint : 1.0f;
+	PercentageOut = RadiusAtPoint > 0.0f ? float((RadiusAtPoint - Distance) / RadiusAtPoint) : 1.0f;
 
 	return true;
 }
@@ -2213,11 +2219,12 @@ bool FMath::GetDotDistance
 	const FVector NoZProjDir = (NormalDir - (NormalDir | AxisZ) * AxisZ).GetSafeNormal();
 	
 	// Figure out if projection is on right or left.
-	const float AzimuthSign = ( (NoZProjDir | AxisY) < 0.f ) ? -1.f : 1.f;
+	const FVector::FReal AzimuthSign = ( (NoZProjDir | AxisY) < 0.f ) ? -1.f : 1.f;
 
-	OutDotDist.Y = NormalDir | AxisZ;
-	const float DirDotX	= NoZProjDir | AxisX;
-	OutDotDist.X = AzimuthSign * FMath::Abs(DirDotX);
+	using FVec2Real = decltype(FVector2D::X);
+	OutDotDist.Y = FVec2Real(NormalDir | AxisZ);
+	const FVector::FReal DirDotX	= NoZProjDir | AxisX;
+	OutDotDist.X = FVec2Real(AzimuthSign * FMath::Abs(DirDotX));
 
 	return (DirDotX >= 0.f );
 }
@@ -2234,12 +2241,13 @@ FVector2D FMath::GetAzimuthAndElevation
 	// Find projected point (on AxisX and AxisY, remove AxisZ component)
 	const FVector NoZProjDir = (NormalDir - (NormalDir | AxisZ) * AxisZ).GetSafeNormal();
 	// Figure out if projection is on right or left.
-	const float AzimuthSign = ((NoZProjDir | AxisY) < 0.f) ? -1.f : 1.f;
-	const float ElevationSin = NormalDir | AxisZ;
-	const float AzimuthCos = NoZProjDir | AxisX;
+	const FVector::FReal AzimuthSign = ((NoZProjDir | AxisY) < 0.f) ? -1.f : 1.f;
+	const FVector::FReal ElevationSin = NormalDir | AxisZ;
+	const FVector::FReal AzimuthCos = NoZProjDir | AxisX;
 
 	// Convert to Angles in Radian.
-	return FVector2D(FMath::Acos(AzimuthCos) * AzimuthSign, FMath::Asin(ElevationSin));
+	using FVec2Real = decltype(FVector2D::X);
+	return FVector2D(FVec2Real(FMath::Acos(AzimuthCos) * AzimuthSign), (FVec2Real)FMath::Asin(ElevationSin));
 }
 
 CORE_API FVector FMath::VInterpNormalRotationTo(const FVector& Current, const FVector& Target, float DeltaTime, float RotationSpeedDegrees)
@@ -2267,8 +2275,8 @@ CORE_API FVector FMath::VInterpNormalRotationTo(const FVector& Current, const FV
 CORE_API FVector FMath::VInterpConstantTo(const FVector& Current, const FVector& Target, float DeltaTime, float InterpSpeed)
 {
 	const FVector Delta = Target - Current;
-	const float DeltaM = Delta.Size();
-	const float MaxStep = InterpSpeed * DeltaTime;
+	const FVector::FReal DeltaM = Delta.Size();
+	const FVector::FReal MaxStep = InterpSpeed * DeltaTime;
 
 	if( DeltaM > MaxStep )
 	{
@@ -3293,7 +3301,7 @@ float FMath::ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngl
 void FMath::ApplyScaleToFloat(float& Dst, const FVector& DeltaScale, float Magnitude)
 {
 	const float Multiplier = ( DeltaScale.X > 0.0f || DeltaScale.Y > 0.0f || DeltaScale.Z > 0.0f ) ? Magnitude : -Magnitude;
-	Dst += Multiplier * DeltaScale.Size();
+	Dst += Multiplier * (float)DeltaScale.Size();
 	Dst = FMath::Max( 0.0f, Dst );
 }
 
@@ -3453,15 +3461,15 @@ float FMath::PerlinNoise3D(const FVector& Location)
 {
 	using namespace FMathPerlinHelpers;
 
-	float Xfl = FMath::FloorToFloat(Location.X);
-	float Yfl = FMath::FloorToFloat(Location.Y);
-	float Zfl = FMath::FloorToFloat(Location.Z);
+	float Xfl = FMath::FloorToFloat((float)Location.X);		// LWC_TODO: Precision loss
+	float Yfl = FMath::FloorToFloat((float)Location.Y);
+	float Zfl = FMath::FloorToFloat((float)Location.Z);
 	int32 Xi = (int32)(Xfl) & 255;
 	int32 Yi = (int32)(Yfl) & 255;
 	int32 Zi = (int32)(Zfl) & 255;
-	float X = Location.X - Xfl;
-	float Y = Location.Y - Yfl;
-	float Z = Location.Z - Zfl;
+	float X = (float)Location.X - Xfl;
+	float Y = (float)Location.Y - Yfl;
+	float Z = (float)Location.Z - Zfl;
 	float Xm1 = X - 1.0f;
 	float Ym1 = Y - 1.0f;
 	float Zm1 = Z - 1.0f;

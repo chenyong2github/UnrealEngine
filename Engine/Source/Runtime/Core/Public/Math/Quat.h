@@ -14,6 +14,8 @@
 
 class Error;
 
+// LWC_TODO: Float casting in here to inhibit precision loss warnings from LWC enabled types. Revisit(float) casts / usage when LWC is enabled for this struct.
+
 /**
  * Floating point quaternion that can represent a rotation about an axis in 3-D space.
  * The X, Y, Z, W components also double as the Axis/Angle format.
@@ -619,20 +621,20 @@ inline FQuat::FQuat(const FMatrix& M)
 #endif
 
 	//const MeReal *const t = (MeReal *) tm;
-	float	s;
+	FMatrix::FReal	s;
 
 	// Check diagonal (trace)
-	const float tr = M.M[0][0] + M.M[1][1] + M.M[2][2];
+	const FMatrix::FReal tr = M.M[0][0] + M.M[1][1] + M.M[2][2];
 
 	if (tr > 0.0f) 
 	{
-		float InvS = FMath::InvSqrt(tr + 1.f);
-		this->W = 0.5f * (1.f / InvS);
+		FMatrix::FReal InvS = FMath::InvSqrt(tr + 1.f);
+		this->W = float(0.5f * (1.f / InvS));
 		s = 0.5f * InvS;
 
-		this->X = (M.M[1][2] - M.M[2][1]) * s;
-		this->Y = (M.M[2][0] - M.M[0][2]) * s;
-		this->Z = (M.M[0][1] - M.M[1][0]) * s;
+		this->X = float((M.M[1][2] - M.M[2][1]) * s);
+		this->Y = float((M.M[2][0] - M.M[0][2]) * s);
+		this->Z = float((M.M[0][1] - M.M[1][0]) * s);
 	} 
 	else 
 	{
@@ -651,9 +653,9 @@ inline FQuat::FQuat(const FMatrix& M)
  
 		s = M.M[i][i] - M.M[j][j] - M.M[k][k] + 1.0f;
 
-		float InvS = FMath::InvSqrt(s);
+		FMatrix::FReal InvS = FMath::InvSqrt(s);
 
-		float qt[4];
+		FMatrix::FReal qt[4];
 		qt[i] = 0.5f * (1.f / InvS);
 
 		s = 0.5f * InvS;
@@ -662,10 +664,10 @@ inline FQuat::FQuat(const FMatrix& M)
 		qt[j] = (M.M[i][j] + M.M[j][i]) * s;
 		qt[k] = (M.M[i][k] + M.M[k][i]) * s;
 
-		this->X = qt[0];
-		this->Y = qt[1];
-		this->Z = qt[2];
-		this->W = qt[3];
+		this->X = (float)qt[0];
+		this->Y = (float)qt[1];
+		this->Z = (float)qt[2];
+		this->W = (float)qt[3];
 
 		DiagnosticCheckNaN();
 	}
@@ -692,7 +694,7 @@ inline FMatrix FQuat::operator*(const FMatrix& M) const
 	FQuat Inv = Inverse();
 	for (int32 I=0; I<4; ++I)
 	{
-		FQuat VQ(M.M[I][0], M.M[I][1], M.M[I][2], M.M[I][3]);
+		FQuat VQ((float)M.M[I][0], (float)M.M[I][1], (float)M.M[I][2], (float)M.M[I][3]);
 		VectorQuaternionMultiply(&VT, this, &VQ);
 		VectorQuaternionMultiply(&VR, &VT, &Inv);
 		Result.M[I][0] = VR.X;
@@ -774,9 +776,9 @@ FORCEINLINE FQuat::FQuat(FVector Axis, float AngleRad)
 	float s, c;
 	FMath::SinCos(&s, &c, half_a);
 
-	X = s * Axis.X;
-	Y = s * Axis.Y;
-	Z = s * Axis.Z;
+	X = s * (float)Axis.X;
+	Y = s * (float)Axis.Y;
+	Z = s * (float)Axis.Z;
 	W = c;
 
 	DiagnosticCheckNaN();
