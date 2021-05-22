@@ -247,6 +247,7 @@ export class Gate {
 				this.reportCaughtUp()
 				if (this.currentGateInfo) {
 					adjustedCl = this.currentGateInfo.cl
+					this.context.logger.info(`Adjusting cl to ${adjustedCl}`)
 					this.setLastCl(adjustedCl)
 				}
 			}
@@ -354,7 +355,7 @@ export class Gate {
 		}
 
 		// null means no gate
-		return this.queuedGates.length > 0 ? 'waiting for window' : null
+		return this.queuedGates.length > 0 ? 'waiting for integration window' : null
 	}
 
 	applyStatus(outStatus: { [key: string]: any }) {
