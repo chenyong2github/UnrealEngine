@@ -9,7 +9,7 @@ struct FGuid;
 
 namespace UE::DerivedData { class FBuildActionBuilder; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
-namespace UE::DerivedData { class FBuildInputBuilder; }
+namespace UE::DerivedData { class FBuildInputsBuilder; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
@@ -64,11 +64,11 @@ public:
 	virtual FOptionalBuildAction LoadAction(FStringView Name, FCbObject&& Action) = 0;
 
 	/**
-	 * Create a build input builder.
+	 * Create a build inputs builder.
 	 *
-	 * @param Name   The name by which to identify this input for logging and profiling.
+	 * @param Name   The name by which to identify the inputs for logging and profiling.
 	 */
-	virtual FBuildInputBuilder CreateInput(FStringView Name) = 0;
+	virtual FBuildInputsBuilder CreateInputs(FStringView Name) = 0;
 
 	/**
 	 * Create a build output builder.

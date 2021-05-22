@@ -4,7 +4,7 @@
 
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildDefinition.h"
-#include "DerivedDataBuildInput.h"
+#include "DerivedDataBuildInputs.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCache.h"
@@ -42,9 +42,9 @@ public:
 		return LoadBuildAction(Name, MoveTemp(Action));
 	}
 
-	FBuildInputBuilder CreateInput(FStringView Name) final
+	FBuildInputsBuilder CreateInputs(FStringView Name) final
 	{
-		return CreateBuildInput(Name);
+		return CreateBuildInputs(Name);
 	}
 
 	FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) final
