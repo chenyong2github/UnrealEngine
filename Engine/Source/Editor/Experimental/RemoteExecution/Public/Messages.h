@@ -3,25 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IO/IoHash.h"
+#include "Misc/DateTime.h"
 
-
-// namespace google.protobuf
-// https://developers.google.com/protocol-buffers/docs/reference/google.protobuf
-//
-
-struct FDuration
-{
-	int64 Seconds = 0;
-
-	int32 Nanos = 0;
-};
-
-struct FTimestamp
-{
-	int64 Seconds = 0;
-
-	int32 Nanos = 0;
-};
 
 // namespace grpc
 // https://grpc.github.io/grpc/cpp/namespacegrpc.html
@@ -66,7 +50,7 @@ struct FStatus
 
 struct FDigest
 {
-	FString Hash;
+	FIoHash Hash;
 
 	int64 SizeBytes = 0;
 };
@@ -82,7 +66,7 @@ struct FNodeProperties
 {
 	TArray<FNodeProperty> Properties;
 
-	FTimestamp ModifiedTime;
+	FDateTime ModifiedTime;
 
 	uint32 UnixMode = 0;
 };
@@ -140,7 +124,7 @@ struct FAction
 
 	FDigest InputRootDigest;
 
-	FDuration Timeout;
+	FTimespan Timeout;
 
 	bool DoNotCache = false;
 
@@ -277,15 +261,15 @@ struct FTree
 struct FExecutedActionMetadata
 {
 	FString Worker;
-	FTimestamp QueuedTimestamp;
-	FTimestamp WorkerStartTimestamp;
-	FTimestamp WorkerCompletedTimestamp;
-	FTimestamp InputFetchStartTimestamp;
-	FTimestamp InputFetchCompletedTimestamp;
-	FTimestamp ExecutionStartTimestamp;
-	FTimestamp ExecutionCompletedTimestamp;
-	FTimestamp OutputUploadStartTimestamp;
-	FTimestamp OutputUploadCompletedTimestamp;
+	FDateTime QueuedTimestamp;
+	FDateTime WorkerStartTimestamp;
+	FDateTime WorkerCompletedTimestamp;
+	FDateTime InputFetchStartTimestamp;
+	FDateTime InputFetchCompletedTimestamp;
+	FDateTime ExecutionStartTimestamp;
+	FDateTime ExecutionCompletedTimestamp;
+	FDateTime OutputUploadStartTimestamp;
+	FDateTime OutputUploadCompletedTimestamp;
 	//repeated google.protobuf.Any AuxiliaryMetadata = 11;
 };
 

@@ -2,9 +2,17 @@
 
 #include "ProtoConverter.h"
 #include "Misc/Paths.h"
+#include "Messages.h"
+
+#include <string>
+
 
 THIRD_PARTY_INCLUDES_START
-#include <openssl/sha.h>
+UE_PUSH_MACRO("TEXT")
+#undef TEXT
+#include "build\bazel\remote\execution\v2\remote_execution.pb.h"
+#include "build\bazel\remote\execution\v2\remote_execution.grpc.pb.h"
+UE_POP_MACRO("TEXT");
 THIRD_PARTY_INCLUDES_END
 
 
@@ -13,16 +21,21 @@ void ProtoConverter::ToProto(const FString& In, std::string& Out)
 	Out.assign(TCHAR_TO_UTF8(*In));
 }
 
-void ProtoConverter::ToProto(const FDuration& In, google::protobuf::Duration& Out)
+void ProtoConverter::ToProto(const FIoHash& In, std::string& Out)
 {
-	Out.set_seconds(In.Seconds);
-	Out.set_nanos(In.Nanos);
+	Out.assign(TCHAR_TO_UTF8(*FString::FromHexBlob(In.GetBytes(), sizeof(FIoHash::ByteArray)).ToLower()));
 }
 
-void ProtoConverter::ToProto(const FTimestamp& In, google::protobuf::Timestamp& Out)
+void ProtoConverter::ToProto(const FTimespan& In, google::protobuf::Duration& Out)
 {
-	Out.set_seconds(In.Seconds);
-	Out.set_nanos(In.Nanos);
+	Out.set_seconds(In.GetTotalSeconds());
+	Out.set_nanos(In.GetFractionNano());
+}
+
+void ProtoConverter::ToProto(const FDateTime& In, google::protobuf::Timestamp& Out)
+{
+	Out.set_seconds(In.ToUnixTimestamp());
+	Out.set_nanos((In.GetTicks() % ETimespan::TicksPerSecond) * 100);
 }
 
 void ProtoConverter::ToProto(const FDigest& In, build::bazel::remote::execution::v2::Digest& Out)
@@ -43,7 +56,7 @@ void ProtoConverter::ToProto(const FNodeProperties& In, build::bazel::remote::ex
 	{
 		ToProto(InProperty, *Out.add_properties());
 	}
-	if (In.ModifiedTime.Nanos || In.ModifiedTime.Seconds)
+	if (In.ModifiedTime.GetTicks() != 0)
 	{
 		ToProto(In.ModifiedTime, *Out.mutable_mtime());
 	}
@@ -58,7 +71,7 @@ void ProtoConverter::ToProto(const FFileNode& In, build::bazel::remote::executio
 	ToProto(In.Name, *Out.mutable_name());
 	ToProto(In.Digest, *Out.mutable_digest());
 	Out.set_is_executable(In.IsExecutable);
-	if (In.NodeProperties.ModifiedTime.Seconds || In.NodeProperties.ModifiedTime.Nanos || !In.NodeProperties.Properties.IsEmpty() || In.NodeProperties.UnixMode)
+	if (In.NodeProperties.ModifiedTime != 0 || !In.NodeProperties.Properties.IsEmpty() || In.NodeProperties.UnixMode)
 	{
 		ToProto(In.NodeProperties, *Out.mutable_node_properties());
 	}
@@ -74,7 +87,7 @@ void ProtoConverter::ToProto(const FSymlinkNode& In, build::bazel::remote::execu
 {
 	ToProto(In.Name, *Out.mutable_name());
 	ToProto(In.Target, *Out.mutable_target());
-	if (In.NodeProperties.ModifiedTime.Seconds || In.NodeProperties.ModifiedTime.Nanos || !In.NodeProperties.Properties.IsEmpty() || In.NodeProperties.UnixMode)
+	if (In.NodeProperties.ModifiedTime.GetTicks() != 0 || !In.NodeProperties.Properties.IsEmpty() || In.NodeProperties.UnixMode)
 	{
 		ToProto(In.NodeProperties, *Out.mutable_node_properties());
 	}
@@ -96,7 +109,7 @@ void ProtoConverter::ToProto(const FDirectory& In, build::bazel::remote::executi
 	{
 		ToProto(InSymlink, *Out.add_symlinks());
 	}
-	if (In.NodeProperties.ModifiedTime.Seconds || In.NodeProperties.ModifiedTime.Nanos || !In.NodeProperties.Properties.IsEmpty() || In.NodeProperties.UnixMode)
+	if (In.NodeProperties.ModifiedTime.GetTicks() != 0 || !In.NodeProperties.Properties.IsEmpty() || In.NodeProperties.UnixMode)
 	{
 		ToProto(In.NodeProperties, *Out.mutable_node_properties());
 	}
@@ -116,7 +129,7 @@ void ProtoConverter::ToProto(const FAction& In, build::bazel::remote::execution:
 {
 	ToProto(In.CommandDigest, *Out.mutable_command_digest());
 	ToProto(In.InputRootDigest, *Out.mutable_input_root_digest());
-	if (In.Timeout.Seconds || In.Timeout.Nanos)
+	if (!In.Timeout.IsZero())
 	{
 		ToProto(In.Timeout, *Out.mutable_timeout());
 	}
@@ -163,6 +176,13 @@ void ProtoConverter::FromProto(const std::string& In, FString& Out)
 	Out = UTF8_TO_TCHAR(In.c_str());
 }
 
+void ProtoConverter::FromProto(const std::string& In, FIoHash& Out)
+{
+	FIoHash::ByteArray ByteArray;
+	FString::ToHexBlob(UTF8_TO_TCHAR(In.c_str()), ByteArray, sizeof(FIoHash::ByteArray));
+	Out = FIoHash(ByteArray);
+}
+
 void ProtoConverter::FromProto(const std::string& In, TArray<char>& Out)
 {
 	Out.Empty();
@@ -173,10 +193,10 @@ void ProtoConverter::FromProto(const std::string& In, TArray<char>& Out)
 	}
 }
 
-void ProtoConverter::FromProto(const google::protobuf::Timestamp& In, FTimestamp& Out)
+void ProtoConverter::FromProto(const google::protobuf::Timestamp& In, FDateTime& Out)
 {
-	Out.Seconds = In.seconds();
-	Out.Nanos = In.nanos();
+	Out.FromUnixTimestamp(In.seconds());
+	Out += FTimespan(In.nanos() / 100);
 }
 
 void ProtoConverter::FromProto(const build::bazel::remote::execution::v2::Digest& In, FDigest& Out)
@@ -399,15 +419,7 @@ void ProtoConverter::FromProto(const build::bazel::remote::execution::v2::Execut
 
 bool ProtoConverter::ToDigest(const TArray<char>& Data, FDigest& OutDigest)
 {
-	unsigned char Sha256Buffer[SHA256_DIGEST_LENGTH];
-
-	SHA256_CTX sha256;
-	SHA256_Init(&sha256);
-	SHA256_Update(&sha256, Data.GetData(), Data.Num());
-	SHA256_Final(Sha256Buffer, &sha256);
-
-	// GRPC requires lowercase hex
-	OutDigest.Hash = FString::FromHexBlob(Sha256Buffer, SHA256_DIGEST_LENGTH).ToLower();
+	OutDigest.Hash = FIoHash::HashBuffer(Data.GetData(), Data.Num());
 	OutDigest.SizeBytes = Data.Num();
 	return true;
 }

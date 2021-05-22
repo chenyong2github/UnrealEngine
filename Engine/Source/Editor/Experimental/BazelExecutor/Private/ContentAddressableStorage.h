@@ -4,10 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "IContentAddressableStorage.h"
-#include "Messages.h"
 
 #include <memory>
-
 
 THIRD_PARTY_INCLUDES_START
 UE_PUSH_MACRO("TEXT")
@@ -30,6 +28,10 @@ private:
 public:
 	FContentAddressableStorage(const std::shared_ptr<grpc::Channel>& Channel);
 	~FContentAddressableStorage();
+
+	bool ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest) override;
+	bool ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest) override;
+	bool ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest) override;
 
 	FStatus FindMissingBlobs(const FFindMissingBlobsRequest& Request, FFindMissingBlobsResponse& Response) override;
 	FStatus BatchUpdateBlobs(const FBatchUpdateBlobsRequest& Request, FBatchUpdateBlobsResponse& Response) override;

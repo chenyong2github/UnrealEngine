@@ -3,6 +3,7 @@
 #include "ContentAddressableStorage.h"
 #include "BazelExecutorModule.h"
 #include "ProtoConverter.h"
+#include "Messages.h"
 
 THIRD_PARTY_INCLUDES_START
 UE_PUSH_MACRO("TEXT")
@@ -19,6 +20,21 @@ FContentAddressableStorage::FContentAddressableStorage(const std::shared_ptr<grp
 
 FContentAddressableStorage::~FContentAddressableStorage()
 {
+}
+
+bool FContentAddressableStorage::ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest)
+{
+	return ProtoConverter::ToBlob(InDirectory, OutData, OutDigest);
+}
+
+bool FContentAddressableStorage::ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest)
+{
+	return ProtoConverter::ToBlob(InCommand, OutData, OutDigest);
+}
+
+bool FContentAddressableStorage::ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest)
+{
+	return ProtoConverter::ToBlob(InAction, OutData, OutDigest);
 }
 
 FStatus FContentAddressableStorage::FindMissingBlobs(const FFindMissingBlobsRequest& Request, FFindMissingBlobsResponse& Response)
