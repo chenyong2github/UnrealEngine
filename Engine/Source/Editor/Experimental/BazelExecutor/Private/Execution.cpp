@@ -3,6 +3,7 @@
 #include "Execution.h"
 #include "BazelExecutorModule.h"
 #include "ProtoConverter.h"
+#include "Messages.h"
 
 THIRD_PARTY_INCLUDES_START
 UE_PUSH_MACRO("TEXT")

@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Messages.h"
+
+struct FExecuteRequest;
+struct FExecuteResponse;
 
 
 class IExecution
