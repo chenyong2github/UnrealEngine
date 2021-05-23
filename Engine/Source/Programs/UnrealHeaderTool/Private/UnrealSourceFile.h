@@ -10,8 +10,6 @@
 #include "GeneratedCodeVersion.h"
 
 class UPackage;
-class UClass;
-class UStruct;
 class FArchive;
 class FStructMetaData;
 
@@ -289,27 +287,6 @@ public:
 	void AddTypeDefIncludeIfNeeded(UField* Field);
 
 	/**
-	 * Gets generated code version for given UStruct.
-	 */
-	EGeneratedCodeVersion GetGeneratedCodeVersionForStruct(FUnrealStructDefinitionInfo& StructDef) const;
-
-	/**
-	 * Gets generated code versions.
-	 */
-	TMap<FUnrealStructDefinitionInfo*, EGeneratedCodeVersion>& GetGeneratedCodeVersions()
-	{
-		return GeneratedCodeVersions;
-	}
-
-	/**
-	 * Gets generated code versions. Const version.
-	 */
-	const TMap<FUnrealStructDefinitionInfo*, EGeneratedCodeVersion>& GetGeneratedCodeVersions() const
-	{
-		return GeneratedCodeVersions;
-	}
-
-	/**
 	 * Sets generated filename.
 	 */
 	void SetGeneratedFilename(FString&& GeneratedFilename);
@@ -518,9 +495,6 @@ private:
 
 	// List of structs defined in this source file along with parsing info.
 	TArray<TSharedRef<FUnrealTypeDefinitionInfo>> DefinedStructs;
-
-	// Mapping of FUnrealStructDefinitionInfo to versions, according to which their code should be generated.
-	TMap<FUnrealStructDefinitionInfo*, EGeneratedCodeVersion> GeneratedCodeVersions;
 
 	// Collection of all singletons found during code generation
 	TArray<FUnrealFieldDefinitionInfo*> Singletons;

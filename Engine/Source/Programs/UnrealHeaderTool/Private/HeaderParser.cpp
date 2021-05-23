@@ -107,10 +107,8 @@ const FName FHeaderParserNames::NAME_AutoCollapseCategories(TEXT("AutoCollapseCa
 const FName FHeaderParserNames::NAME_HideFunctions(TEXT("HideFunctions"));
 const FName FHeaderParserNames::NAME_AutoExpandCategories(TEXT("AutoExpandCategories"));
 
-FRigVMStructMap FHeaderParser::StructRigVMMap;
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
 TArray<FString> FHeaderParser::ReservedTypeNames = { TEXT("none") };
-TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
 
 /*-----------------------------------------------------------------------------
 	Utility functions.
@@ -5126,7 +5124,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 		if (Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
 		{
-			ClassDefinitionRanges[GetCurrentClass()].bHasGeneratedBody = true;
+			GetCurrentClassDef().MarkGeneratedBody();
 		}
 		return true;
 	}
@@ -5166,12 +5164,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 		if (Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
 		{
-			if (!ClassDefinitionRanges.Contains(GetCurrentClass()))
-			{
-				ClassDefinitionRanges.Add(GetCurrentClass(), ClassDefinitionRange());
-			}
-
-			ClassDefinitionRanges[GetCurrentClass()].bHasGeneratedBody = true;
+			GetCurrentClassDef().MarkGeneratedBody();
 
 			StructData.GeneratedBodyMacroAccessSpecifier = CurrentAccessSpecifier;
 		}
@@ -5258,10 +5251,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 	if (bEncounteredNewStyleClass_UnmatchedBrackets && Token.Matches(TEXT('}')))
 	{
-		if (ClassDefinitionRanges.Contains(GetCurrentClass()))
-		{
-			ClassDefinitionRanges[GetCurrentClass()].End = &Input[InputPos];
-		}
+		GetCurrentClassDef().GetDefinitionRange().End = &Input[InputPos];
 		MatchSemi();
 
 		// Closing brace for class declaration
@@ -5733,7 +5723,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 	FUnrealClassDefinitionInfo& ClassDef = ParseClassNameDeclaration(/*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent);
 	UClass* Class = ClassDef.GetClass();
 
-	ClassDefinitionRanges.Add(Class, ClassDefinitionRange(&Input[InputPos], nullptr));
+	ClassDef.GetDefinitionRange().Start = &Input[InputPos];
 
 	check(Class->ClassFlags == 0 || (Class->ClassFlags & ClassDef.ClassFlags) != 0);
 
@@ -5938,7 +5928,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 	FUnrealClassDefinitionInfo* ClassDef = ParseInterfaceNameDeclaration(/*out*/ DeclaredInterfaceName, /*out*/ RequiredAPIMacroIfPresent);
 	check(ClassDef);
 	UClass* InterfaceClass = ClassDef->GetClass();
-	ClassDefinitionRanges.Add(InterfaceClass, ClassDefinitionRange(&Input[InputPos], nullptr));
+	ClassDef->GetDefinitionRange().Start = &Input[InputPos];
 
 	// Record that this interface is RequiredAPI if the CORE_API style macro was present
 	if (!RequiredAPIMacroIfPresent.IsEmpty())
@@ -6137,7 +6127,8 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 		}
 	}
 
-	FRigVMStructInfo& StructRigVMInfo = StructRigVMMap.FindOrAdd(&StructDef);
+	FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
+	StructRigVMInfo.bHasRigVM = true;
 	StructRigVMInfo.Name = StructDef.GetStruct()->GetName();
 	StructRigVMInfo.Methods.Add(MethodInfo);
 }
@@ -6160,8 +6151,8 @@ const TCHAR* FHeaderParser::GetDynamicArrayText = TEXT("GetDynamicArray");
 void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& StructDef)
 {
 	UStruct* Struct = StructDef.GetStruct();
-	FRigVMStructInfo* StructRigVMInfo = StructRigVMMap.Find(&StructDef);
-	if (StructRigVMInfo == nullptr)
+	FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
+	if (!StructRigVMInfo.bHasRigVM)
 	{
 		return;
 	}
@@ -6224,7 +6215,7 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 		if (MemberCPPType.StartsWith(TArrayText, ESearchCase::CaseSensitive))
 		{
 			ExtendedCPPType = FString::Printf(TEXT("<%s>"), *ExtendedCPPType.LeftChop(1).RightChop(1));
-			Parameter.CastName = FString::Printf(TEXT("%s_%d_Array"), *Parameter.Name, StructRigVMInfo->Members.Num());
+			Parameter.CastName = FString::Printf(TEXT("%s_%d_Array"), *Parameter.Name, StructRigVMInfo.Members.Num());
 			if (Parameter.IsConst() || !Parameter.ArraySize.IsEmpty())
 			{
 				Parameter.CastType = FString::Printf(TEXT("%s%s"), FFixedArrayText, *ExtendedCPPType);
@@ -6237,17 +6228,17 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 			}
 		}
 
-		StructRigVMInfo->Members.Add(MoveTemp(Parameter));
+		StructRigVMInfo.Members.Add(MoveTemp(Parameter));
 	}
 
-	if (StructRigVMInfo->Members.Num() == 0)
+	if (StructRigVMInfo.Members.Num() == 0)
 	{
 		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has zero members - invalid RIGVM_METHOD."), *Struct->GetName());
 	}
 
-	if (StructRigVMInfo->Members.Num() > 64)
+	if (StructRigVMInfo.Members.Num() > 64)
 	{
-		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has %d members (64 is the limit)."), *Struct->GetName(), StructRigVMInfo->Members.Num());
+		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has %d members (64 is the limit)."), *Struct->GetName(), StructRigVMInfo.Members.Num());
 	}
 }
 
@@ -9016,15 +9007,14 @@ void FHeaderParser::CompileVersionDeclaration(FUnrealStructDefinitionInfo& Struc
 	if (Token.TokenType == ETokenType::TOKEN_Symbol
 		&& Token.Matches(TEXT(')')))
 	{
-		SourceFile.GetGeneratedCodeVersions().FindOrAdd(&StructDef) = Version;
+		StructDef.SetGeneratedCodeVersion(Version);
 		UngetToken(Token);
 		return;
 	}
 
 	// Overwrite with version specified by macro.
 	Version = ToGeneratedCodeVersion(Token.Identifier);
-
-	SourceFile.GetGeneratedCodeVersions().FindOrAdd(&StructDef) = Version;
+	StructDef.SetGeneratedCodeVersion(Version);
 }
 
 void FHeaderParser::ResetClassData()
