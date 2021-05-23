@@ -16,8 +16,9 @@ public class libOpus : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(OpusIncPath);
 		string LibraryPath = OpusLibPath + "/";
+		bool IsWinPlatform = Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32;
+		string OpusLibraryPath = Path.Combine(LibRootDirectory, "libOpus", "opus-1.3.1-12"); 
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Win32))
@@ -34,11 +35,25 @@ public class libOpus : ModuleRules
 
 			LibraryPath += "Release/";
 
- 			PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
- 			PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
- 			PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
-			PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
+ 			//PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
+ 			//PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
+ 			//PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
+			//PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
 			PublicAdditionalLibraries.Add(LibraryPath + "speex_resampler.lib");
+
+			string ConfigPath = "";
+			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+			{
+				ConfigPath = "Debug";
+			}
+			else
+			{
+				ConfigPath = "Release";
+			}
+
+			string OpusBinaryPath = Path.Combine(OpusLibraryPath, "bin", Target.Platform.ToString(), ConfigPath);
+			PublicAdditionalLibraries.Add(Path.Combine(OpusBinaryPath, "opus.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(OpusBinaryPath, "opus_sse41.lib"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
@@ -128,5 +143,7 @@ public class libOpus : ModuleRules
 				PublicAdditionalLibraries.Add(LibraryPath + "Android/" + Architecture + "/libspeex_resampler.a");
 			}
 		}
+
+		PublicIncludePaths.Add(IsWinPlatform ? Path.Combine(OpusLibraryPath, "include") : OpusIncPath);
     }
 }
