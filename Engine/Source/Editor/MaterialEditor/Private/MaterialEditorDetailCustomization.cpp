@@ -828,7 +828,7 @@ void FMaterialDetailCustomization::CustomizeDetails( IDetailLayoutBuilder& Detai
 				FProperty* Property = PropertyHandle->GetProperty();
 				FName PropertyName = Property->GetFName();
 
-				if (PropertyName != GET_MEMBER_NAME_CHECKED(UMaterial, bUseFullPrecision)) 
+				if (PropertyName != GET_MEMBER_NAME_CHECKED(UMaterial, FloatPrecisionMode))
 				{
 					DetailLayout.HideProperty(PropertyHandle);
 				}
