@@ -64,6 +64,7 @@ public class WebRTC : ModuleRules
 				// The version of webrtc we depend on, depends on an openssl that depends on zlib
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "libOpus");
 
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
