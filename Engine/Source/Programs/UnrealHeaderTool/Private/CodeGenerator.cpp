@@ -266,18 +266,19 @@ namespace
 		const ClassDefinitionRange& ClassRange,
 		const TCHAR* ClassCPPName,
 		const TCHAR* API,
-		UClass* Class,
+		FUnrealClassDefinitionInfo& ClassDef,
 		UClass* SuperClass,
 		FOutputDevice& Writer,
 		const FUnrealSourceFile& SourceFile,
 		EExportClassOutFlags& OutFlags)
 	{
+		UClass* Class = ClassDef.GetClass();
 		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassRange.Start, ClassRange.End, STRING_GetLifetimeReplicatedPropsStr);
 
 		if (!bHasGetLifetimeReplicatedProps)
 		{
 			// Default version autogenerates declarations.
-			if (SourceFile.GetGeneratedCodeVersionForStruct(Class) == EGeneratedCodeVersion::V1)
+			if (SourceFile.GetGeneratedCodeVersionForStruct(ClassDef) == EGeneratedCodeVersion::V1)
 			{
 				Writer.Logf(TEXT("\tvoid GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;\r\n"));
 			}
@@ -762,7 +763,7 @@ void FNativeClassHeaderGenerator::ExportProperties(FOutputDevice& Out, FUnrealSt
 		// Indent code and export CPP text.
 		FUHTStringBuilder JustPropertyDecl;
 		Property->ExportCppDeclaration( JustPropertyDecl, EExportedDeclaration::Member, PropertyDef->GetArrayDimensions());
-		ApplyAlternatePropertyExportText(Property, JustPropertyDecl, EExportingState::TypeEraseDelegates);
+		ApplyAlternatePropertyExportText(*PropertyDef, JustPropertyDecl, EExportingState::TypeEraseDelegates);
 
 		// Finish up line.
 		Out.Logf(TEXT("%s%s;\r\n"), FCString::Tab(TextIndent + 1), *JustPropertyDecl);
@@ -2941,7 +2942,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 			*ClassCPPName,
 			*SuperClassCPPName,
 			Class->HasAnyClassFlags(CLASS_Abstract) ? TEXT("CLASS_Abstract") : TEXT("0"),
-			*GetClassFlagExportText(Class),
+			*GetClassFlagExportText(ClassDef),
 			bCastedClass ? *FString::Printf(TEXT("CASTCLASS_%s"), *ClassCPPName) : TEXT("CASTCLASS_None"),
 			*ClassDef.GetTypePackageName(),
 			*APIArg);
@@ -3029,7 +3030,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			if (ClassHasReplicatedProperties(ClassDef))
 			{
-				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, Class, SuperClass, InterfaceBoilerplate, SourceFile, OutFlags);
+				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, ClassDef, SuperClass, InterfaceBoilerplate, SourceFile, OutFlags);
 			}
 
 			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
@@ -3056,7 +3057,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			if (ClassHasReplicatedProperties(ClassDef))
 			{
-				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, Class, SuperClass, Boilerplate, SourceFile, OutFlags);
+				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, ClassDef, SuperClass, Boilerplate, SourceFile, OutFlags);
 			}
 
 			{
@@ -3363,11 +3364,11 @@ bool FNativeClassHeaderGenerator::WriteHeader(FGeneratedFileInfo& FileInfo, cons
  * Returns a string in the format CLASS_Something|CLASS_Something which represents all class flags that are set for the specified
  * class which need to be exported as part of the DECLARE_CLASS macro
  */
-FString FNativeClassHeaderGenerator::GetClassFlagExportText( UClass* Class )
+FString FNativeClassHeaderGenerator::GetClassFlagExportText(FUnrealClassDefinitionInfo& ClassDef)
 {
 	FString StaticClassFlagText;
 
-	check(Class);
+	UClass* Class = ClassDef.GetClass();
 	if ( Class->HasAnyClassFlags(CLASS_Transient) )
 	{
 		StaticClassFlagText += TEXT(" | CLASS_Transient");
@@ -3482,7 +3483,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	// for RigVM methods we need to generated a macro used for implementing the static method
 	// and prepare two prologs: one for the virtual function implementation, and one for the stub
 	// invoking the static method.
-	const FRigVMStructInfo* StructRigVMInfo = FHeaderParser::StructRigVMMap.Find(Struct);
+	const FRigVMStructInfo* StructRigVMInfo = FHeaderParser::StructRigVMMap.Find(&ScriptStructDef);
 	if(StructRigVMInfo)
 	{
 		//RigVMStubProlog.Add(FString::Printf(TEXT("ensure(RigVMOperandMemory.Num() == %d);"), StructRigVMInfo->Members.Num()));
@@ -4405,7 +4406,7 @@ void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<F
 		}
 
 		Prop->ExportCppDeclaration(PropertyText, EExportedDeclaration::Local, PropDef->GetArrayDimensions());
-		ApplyAlternatePropertyExportText(Prop, PropertyText, ExportingState);
+		ApplyAlternatePropertyExportText(*PropDef, PropertyText, ExportingState);
 
 		PropertyText.Log(TEXT(";\r\n"));
 		Out += *PropertyText;
@@ -4555,7 +4556,7 @@ FString FNativeClassHeaderGenerator::GetFunctionReturnString(FUnrealFunctionDefi
 		FString ReturnType = Return->GetCPPType(&ExtendedReturnType, CPPF_ArgumentOrReturnValue);
 		FUHTStringBuilder ReplacementText;
 		ReplacementText += MoveTemp(ReturnType);
-		ApplyAlternatePropertyExportText(Return, ReplacementText, EExportingState::Normal);
+		ApplyAlternatePropertyExportText(*ReturnDef, ReplacementText, EExportingState::Normal);
 		Result = MoveTemp(ReplacementText) + MoveTemp(ExtendedReturnType);
 	}
 	else
@@ -4772,7 +4773,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 		OutFwdDecls.Add(ReturnProperty->GetCPPTypeForwardDeclaration());
 		FUHTStringBuilder ReplacementText;
 		ReplacementText += ReturnType;
-		ApplyAlternatePropertyExportText(ReturnProperty, ReplacementText, EExportingState::Normal);
+		ApplyAlternatePropertyExportText(*ReturnPropertyDef, ReplacementText, EExportingState::Normal);
 		Out.Logf(TEXT("%s%s"), *ReplacementText, *ExtendedReturnType);
 	}
 	else
@@ -4828,7 +4829,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 		FUHTStringBuilder PropertyText;
 
 		Property->ExportCppDeclaration( PropertyText, EExportedDeclaration::Parameter, PropertyDef->GetArrayDimensions() );
-		ApplyAlternatePropertyExportText(Property, PropertyText, EExportingState::Normal);
+		ApplyAlternatePropertyExportText(*PropertyDef, PropertyText, EExportingState::Normal);
 
 		Out.Logf(TEXT("%s"), *PropertyText);
 	}
@@ -4930,7 +4931,7 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 		FUHTStringBuilder ReplacementText;
 		ReplacementText += TypeText;
 
-		ApplyAlternatePropertyExportText(Param, ReplacementText, EExportingState::Normal);
+		ApplyAlternatePropertyExportText(*ParamDef, ReplacementText, EExportingState::Normal);
 		TypeText = ReplacementText;
 
 		FString DefaultValueText;
@@ -5080,7 +5081,7 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 		FUHTStringBuilder ReplacementText;
 		FString ReturnExtendedType;
 		ReplacementText += Return->GetCPPType(&ReturnExtendedType);
-		ApplyAlternatePropertyExportText(Return, ReplacementText, EExportingState::Normal);
+		ApplyAlternatePropertyExportText(*ReturnDef, ReplacementText, EExportingState::Normal);
 
 		FString ReturnType = ReplacementText;
 		if (Return->HasAnyPropertyFlags(CPF_ConstParm) && CastField<FObjectProperty>(Return))
@@ -5123,7 +5124,7 @@ FString FNativeClassHeaderGenerator::GetFunctionParameterString(FUnrealFunctionD
 		}
 
 		Property->ExportCppDeclaration(PropertyText, EExportedDeclaration::Parameter, PropertyDef->GetArrayDimensions(), 0, true);
-		ApplyAlternatePropertyExportText(Property, PropertyText, EExportingState::Normal);
+		ApplyAlternatePropertyExportText(*PropertyDef, PropertyText, EExportingState::Normal);
 
 		ParameterList += PropertyText;
 		PropertyText.Reset();
@@ -5301,7 +5302,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 			}
 
 			// Versions that skip function autodeclaration throw an error when a function is missing.
-			if (ClassRange.bHasGeneratedBody && (SourceFile.GetGeneratedCodeVersionForStruct(Class) > EGeneratedCodeVersion::V1))
+			if (ClassRange.bHasGeneratedBody && (SourceFile.GetGeneratedCodeVersionForStruct(ClassDef) > EGeneratedCodeVersion::V1))
 			{
 				CheckRPCFunctions(OutReferenceGatherers, *FunctionDef, ClassCPPName, ImplementationPosition, ValidatePosition, SourceFile);
 			}
@@ -5352,7 +5353,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 		// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
 		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_RPC_WRAPPERS_NO_PURE_DECLS"));
-		if (SourceFile.GetGeneratedCodeVersionForStruct(Class) > EGeneratedCodeVersion::V1)
+		if (SourceFile.GetGeneratedCodeVersionForStruct(ClassDef) > EGeneratedCodeVersion::V1)
 		{
 			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, RuntimeStringBuilders.RPCWrappers);
 		}
@@ -5385,7 +5386,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 		// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
 		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_EDITOR_ONLY_RPC_WRAPPERS_NO_PURE_DECLS"));
-		if (SourceFile.GetGeneratedCodeVersionForStruct(Class) > EGeneratedCodeVersion::V1)
+		if (SourceFile.GetGeneratedCodeVersionForStruct(ClassDef) > EGeneratedCodeVersion::V1)
 		{
 			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, EditorStringBuilders.RPCWrappers);
 		}
@@ -5521,8 +5522,9 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
  * @param	Prop			the property that is being exported
  * @param	PropertyText	the string containing the text exported from ExportCppDeclaration
  */
-void FNativeClassHeaderGenerator::ApplyAlternatePropertyExportText(FProperty* Prop, FUHTStringBuilder& PropertyText, EExportingState ExportingState)
+void FNativeClassHeaderGenerator::ApplyAlternatePropertyExportText(FUnrealPropertyDefinitionInfo& PropertyDef, FUHTStringBuilder& PropertyText, EExportingState ExportingState)
 {
+	FProperty* Prop = PropertyDef.GetProperty();
 	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop);
 	FProperty* InnerProperty = ArrayProperty ? ArrayProperty->Inner : nullptr;
 	if (InnerProperty && (
