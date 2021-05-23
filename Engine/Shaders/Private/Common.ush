@@ -8,7 +8,7 @@
 
 #include "/Engine/Public/Platform.ush"
 // These types are used for material translator generated code, or any functions the translated code can call
-#if PIXELSHADER
+#if PIXELSHADER && !FORCE_MATERIAL_FLOAT_FULL_PRECISION
 	#define MaterialFloat half
 	#define MaterialFloat2 half2
 	#define MaterialFloat3 half3

@@ -762,13 +762,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Material, AdvancedDisplay)
 	uint8 bFullyRough : 1;
 
-	/** 
-	 *	Forces this material to use full (highp) precision in the pixel shader.
+	/**
+	 *	Deprecated. Use FloatPrecisionMode instead.
+	 *  Forces this material to use full (highp) precision in the pixel shader.
 	 *	This is slower than the default (mediump) but can be used to work around precision-related rendering errors.
-	 *	This setting has no effect on older mobile devices that do not support high precision. 
+	 *	This setting has no effect on older mobile devices that do not support high precision.
+	 */
+	UPROPERTY()
+	uint8 bUseFullPrecision_DEPRECATED : 1;
+
+	/**
+	 *	How to use full (highp) precision in the pixel shader.
+	 *	highp is slower than the default (mediump) but can be used to work around precision-related rendering errors.
+	 *  Use 'Full-precision for MaterialExpressions only' if you still want to keep the precision of the halfs in .ush/.usf
+	 *	This setting has no effect on older mobile devices that do not support high precision.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Mobile)
-	uint8 bUseFullPrecision : 1;
+	TEnumAsByte<enum EMaterialFloatPrecisionMode> FloatPrecisionMode;
 
 	/* Use lightmap directionality and per pixel normals. If disabled, lighting from lightmaps will be flat but cheaper. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Mobile)

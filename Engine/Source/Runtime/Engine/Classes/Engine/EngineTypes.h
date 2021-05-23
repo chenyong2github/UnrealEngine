@@ -250,6 +250,19 @@ enum EBlendMode
 	BLEND_MAX,
 };
 
+/** The default float precision for material's pixel shaders on mobile devices*/
+UENUM()
+enum EMaterialFloatPrecisionMode
+{
+	/** Half precision, except explict 'float' in .ush/.usf*/
+	MFPM_Half UMETA(DisplayName = "Half-precision"),
+	/** Force full-precision for MaterialFloat only, no effect on shader codes in .ush/.usf*/
+	MFPM_Full_MaterialExpressionOnly UMETA(DisplayName = "Full-precision for MaterialExpressions only"),
+	/** All the floats are full-precision */
+	MFPM_Full UMETA(DisplayName = "Full-precision for every float"),
+	MFPM_MAX,
+};
+
 /** Controls where the sampler for different texture lookups comes from */
 UENUM()
 enum ESamplerSourceMode

@@ -999,6 +999,8 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	PhysMaterialMask = nullptr;
 
 	bLoadedCachedExpressionData = false;
+
+	FloatPrecisionMode = EMaterialFloatPrecisionMode::MFPM_Half;
 }
 
 void UMaterial::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -4121,6 +4123,12 @@ void UMaterial::PostLoad()
 	if(DecalBlendMode == DBM_MAX)
 	{
 		DecalBlendMode = DBM_Translucent;
+	}
+
+	if(bUseFullPrecision_DEPRECATED && FloatPrecisionMode == EMaterialFloatPrecisionMode::MFPM_Half)
+	{
+		FloatPrecisionMode = EMaterialFloatPrecisionMode::MFPM_Full;
+		bUseFullPrecision_DEPRECATED = false;
 	}
 
 #if WITH_EDITOR
