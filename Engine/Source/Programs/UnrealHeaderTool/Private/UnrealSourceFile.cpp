@@ -128,9 +128,9 @@ const FString& FUnrealSourceFile::GetContent() const
 	return Content;
 }
 
-EGeneratedCodeVersion FUnrealSourceFile::GetGeneratedCodeVersionForStruct(UStruct* Struct) const
+EGeneratedCodeVersion FUnrealSourceFile::GetGeneratedCodeVersionForStruct(FUnrealStructDefinitionInfo& StructDef) const
 {
-	if (const EGeneratedCodeVersion* Version = GeneratedCodeVersions.Find(Struct))
+	if (const EGeneratedCodeVersion* Version = GeneratedCodeVersions.Find(&StructDef))
 	{
 		return *Version;
 	}

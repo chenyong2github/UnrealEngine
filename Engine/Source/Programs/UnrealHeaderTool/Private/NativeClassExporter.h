@@ -6,16 +6,7 @@
 #include "Async/TaskGraphInterfaces.h"
 
 class FUnrealSourceFile;
-class UPackage;
-class FProperty;
-class UFunction;
-class UStruct;
 class UField;
-class UClass;
-class UEnum;
-class UScriptStruct;
-class UDelegateFunction;
-class FStructMetaData;
 class FOutputDevice;
 class FUnrealPackageDefinitionInfo;
 class FUnrealPropertyDefinitionInfo;
@@ -396,7 +387,7 @@ private:
 	 * Returns a string in the format CLASS_Something|CLASS_Something which represents all class flags that are set for the specified
 	 * class which need to be exported as part of the DECLARE_CLASS macro
 	 */
-	static FString GetClassFlagExportText( UClass* Class );
+	static FString GetClassFlagExportText(FUnrealClassDefinitionInfo& ClassDef);
 
 	/**
 	 * Exports the header text for the enum specified
@@ -638,7 +629,7 @@ private:
 	 * @param	Prop			the property that is being exported
 	 * @param	PropertyText	the string containing the text exported from ExportCppDeclaration
 	 */
-	static void ApplyAlternatePropertyExportText(FProperty* Prop, FUHTStringBuilder& PropertyText, EExportingState ExportingState);
+	static void ApplyAlternatePropertyExportText(FUnrealPropertyDefinitionInfo& PropertyDef, FUHTStringBuilder& PropertyText, EExportingState ExportingState);
 
 	/**
 	* Create a temp header file name from the header name
