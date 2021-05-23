@@ -1447,9 +1447,9 @@ bool FMaterialResource::UseNormalCurvatureToRoughness() const
 	return Material->bNormalCurvatureToRoughness;
 }
 
-bool FMaterialResource::IsUsingFullPrecision() const
+EMaterialFloatPrecisionMode FMaterialResource::GetMaterialFloatPrecisionMode() const
 {
-	return Material->bUseFullPrecision;
+	return Material->FloatPrecisionMode;
 }
 
 bool FMaterialResource::IsUsingAlphaToCoverage() const
@@ -2023,9 +2023,14 @@ void FMaterial::SetupMaterialEnvironment(
 	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_SHADOW_WITH_MASKED_OPACITY"), GetCastDynamicShadowAsMasked());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USE_ALPHA_TO_COVERAGE"), IsUsingAlphaToCoverage());
 
-	if (IsUsingFullPrecision())
+	EMaterialFloatPrecisionMode FloatPrecisionMode = GetMaterialFloatPrecisionMode();
+	if (FloatPrecisionMode == EMaterialFloatPrecisionMode::MFPM_Full)
 	{
 		OutEnvironment.CompilerFlags.Add(CFLAG_UseFullPrecisionInPS);
+	}
+	else if (FloatPrecisionMode == EMaterialFloatPrecisionMode::MFPM_Full_MaterialExpressionOnly)
+	{
+		OutEnvironment.SetDefine(TEXT("FORCE_MATERIAL_FLOAT_FULL_PRECISION"), TEXT("1"));
 	}
 
 	switch(GetMaterialDomain())
