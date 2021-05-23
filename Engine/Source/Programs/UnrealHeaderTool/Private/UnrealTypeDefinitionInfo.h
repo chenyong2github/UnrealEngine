@@ -921,6 +921,21 @@ public:
 		FUnrealStructDefinitionInfo* Struct = nullptr;
 	};
 
+	struct FDefinitionRange
+	{
+		void Validate()
+		{
+			if (End <= Start)
+			{
+				FError::Throwf(TEXT("The class definition range is invalid. Most probably caused by previous parsing error."));
+			}
+		}
+
+		const TCHAR* Start = nullptr;
+		const TCHAR* End = nullptr;
+	};
+
+
 public:
 	using FUnrealFieldDefinitionInfo::FUnrealFieldDefinitionInfo;
 
@@ -1037,6 +1052,54 @@ public:
 		return false;
 	}
 
+	/**
+	 * Get the generated code version
+	 */
+	EGeneratedCodeVersion GetGeneratedCodeVersion() const
+	{
+		return GeneratedCodeVersion;
+	}
+
+	/**
+	 * Set the generated code version
+	 */
+	void SetGeneratedCodeVersion(EGeneratedCodeVersion InGeneratedCodeVersion)
+	{
+		GeneratedCodeVersion = InGeneratedCodeVersion;
+	}
+
+	/**
+	 * Get if we have a generated body
+	 */
+	bool HasGeneratedBody() const
+	{
+		return bHasGeneratedBody;
+	}
+
+	/**
+	 * Mark that we have a generated body
+	 */
+	void MarkGeneratedBody()
+	{
+		bHasGeneratedBody = true;
+	}
+
+	/**
+	 * Return the definition range of the structure
+	 */
+	FDefinitionRange& GetDefinitionRange()
+	{
+		return DefinitionRange;
+	}
+
+	/**
+	 * Get the RigVM information
+	 */
+	FRigVMStructInfo& GetRigVMInfo()
+	{
+		return RigVMInfo;
+	}
+
 private:
 	TSharedPtr<FScope> StructScope;
 
@@ -1050,8 +1113,17 @@ private:
 	FBaseClassInfo SuperClassInfo;
 	TArray<FBaseClassInfo> BaseClassInfo;
 
+	FDefinitionRange DefinitionRange;
+
+	FRigVMStructInfo RigVMInfo;
+
+	EGeneratedCodeVersion GeneratedCodeVersion = FUHTConfig::Get().DefaultGeneratedCodeVersion;
+
 	/** whether this struct declares delegate functions or properties */
 	bool bContainsDelegates = false;
+
+	/** If true, this struct contains the generated body macro */
+	bool bHasGeneratedBody = false;
 };
 
 /**
