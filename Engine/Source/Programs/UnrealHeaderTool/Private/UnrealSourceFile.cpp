@@ -41,7 +41,7 @@ const FString& FUnrealSourceFile::GetFileId() const
 			bRelativePath = FPaths::MakePathRelativeTo(StdFilename, *FPaths::GetPath(FPaths::GetProjectFilePath()));
 		}
 
-		// If the path has passed either MakeStandardFilename or MakePathRelativeTo it should be using internal path seperators
+		// If the path has passed either MakeStandardFilename or MakePathRelativeTo it should be using internal path separators
 		if (bRelativePath)
 		{
 			// Remove any preceding parent directory paths
@@ -126,16 +126,6 @@ void FUnrealSourceFile::SetContent(FString&& InContent)
 const FString& FUnrealSourceFile::GetContent() const
 {
 	return Content;
-}
-
-EGeneratedCodeVersion FUnrealSourceFile::GetGeneratedCodeVersionForStruct(FUnrealStructDefinitionInfo& StructDef) const
-{
-	if (const EGeneratedCodeVersion* Version = GeneratedCodeVersions.Find(&StructDef))
-	{
-		return *Version;
-	}
-
-	return FUHTConfig::Get().DefaultGeneratedCodeVersion;
 }
 
 bool FUnrealSourceFile::HasChanged() const

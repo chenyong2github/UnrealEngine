@@ -263,7 +263,6 @@ namespace
 	static const FString STRING_GetLifetimeReplicatedPropsStr(TEXT("GetLifetimeReplicatedProps"));
 
 	static void WriteReplicatedMacroData(
-		const ClassDefinitionRange& ClassRange,
 		const TCHAR* ClassCPPName,
 		const TCHAR* API,
 		FUnrealClassDefinitionInfo& ClassDef,
@@ -273,12 +272,12 @@ namespace
 		EExportClassOutFlags& OutFlags)
 	{
 		UClass* Class = ClassDef.GetClass();
-		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassRange.Start, ClassRange.End, STRING_GetLifetimeReplicatedPropsStr);
+		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassDef.GetDefinitionRange().Start, ClassDef.GetDefinitionRange().End, STRING_GetLifetimeReplicatedPropsStr);
 
 		if (!bHasGetLifetimeReplicatedProps)
 		{
 			// Default version autogenerates declarations.
-			if (SourceFile.GetGeneratedCodeVersionForStruct(ClassDef) == EGeneratedCodeVersion::V1)
+			if (ClassDef.GetGeneratedCodeVersion() == EGeneratedCodeVersion::V1)
 			{
 				Writer.Logf(TEXT("\tvoid GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;\r\n"));
 			}
@@ -2876,12 +2875,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 	FString PPOMacroName;
 
-	ClassDefinitionRange ClassRange;
-	if (ClassDefinitionRange* FoundRange = ClassDefinitionRanges.Find(Class))
-	{
-		ClassRange = *FoundRange;
-		ClassRange.Validate();
-	}
+	ClassDef.GetDefinitionRange().Validate();
 
 	FString GeneratedSerializeFunctionCPP;
 	FString GeneratedSerializeFunctionHeaderMacroName;
@@ -3030,7 +3024,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			if (ClassHasReplicatedProperties(ClassDef))
 			{
-				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, ClassDef, SuperClass, InterfaceBoilerplate, SourceFile, OutFlags);
+				WriteReplicatedMacroData(*ClassCPPName, *APIArg, ClassDef, SuperClass, InterfaceBoilerplate, SourceFile, OutFlags);
 			}
 
 			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
@@ -3057,7 +3051,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			if (ClassHasReplicatedProperties(ClassDef))
 			{
-				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, ClassDef, SuperClass, Boilerplate, SourceFile, OutFlags);
+				WriteReplicatedMacroData(*ClassCPPName, *APIArg, ClassDef, SuperClass, Boilerplate, SourceFile, OutFlags);
 			}
 
 			{
@@ -3483,15 +3477,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	// for RigVM methods we need to generated a macro used for implementing the static method
 	// and prepare two prologs: one for the virtual function implementation, and one for the stub
 	// invoking the static method.
-	const FRigVMStructInfo* StructRigVMInfo = FHeaderParser::StructRigVMMap.Find(&ScriptStructDef);
-	if(StructRigVMInfo)
+	const FRigVMStructInfo& StructRigVMInfo = ScriptStructDef.GetRigVMInfo();
+	if(StructRigVMInfo.bHasRigVM)
 	{
 		//RigVMStubProlog.Add(FString::Printf(TEXT("ensure(RigVMOperandMemory.Num() == %d);"), StructRigVMInfo->Members.Num()));
 
 		int32 OperandIndex = 0;
-		for (int32 ParameterIndex = 0; ParameterIndex < StructRigVMInfo->Members.Num(); ParameterIndex++)
+		for (int32 ParameterIndex = 0; ParameterIndex < StructRigVMInfo.Members.Num(); ParameterIndex++)
 		{
-			const FRigVMParameter& Parameter = StructRigVMInfo->Members[ParameterIndex];
+			const FRigVMParameter& Parameter = StructRigVMInfo.Members[ParameterIndex];
 			if(Parameter.RequiresCast())
 			{
 				if (Parameter.IsArray() && !Parameter.IsConst() && !Parameter.ArraySize.IsEmpty())
@@ -3595,10 +3589,10 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			}
 		}
 
-		FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
+		FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
 
 		OutGeneratedHeaderText.Log(TEXT("\n"));
-		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 		{
 			FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(", \\\r\n\t\t"));
 			FString RigVMParameterPrefix2 = RigVMParameterPrefix + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(", \\\r\n\t\t"));
@@ -3621,12 +3615,12 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		// if we have RigVM methods on this struct we need to 
 		// declare the static method as well as the stub method
 		FString RigVMMethodsDeclarations;
-		if (StructRigVMInfo)
+		if (StructRigVMInfo.bHasRigVM)
 		{
-			FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(",\r\n\t\t"), true, false);
-			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+			FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(",\r\n\t\t"), true, false);
+			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 			{
-				FString StructMembersForStub = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t\t"), false);
+				FString StructMembersForStub = StructRigVMInfo.Members.Names(false, TEXT(",\r\n\t\t\t"), false);
 				FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(",\r\n\t\t"));
 				FString ParameterNamesSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t\t"));
 				FString RigVMParameterPrefix2 = RigVMParameterPrefix + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
@@ -3661,7 +3655,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\t}\r\n"));
 			}
 
-			for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
+			for (const FRigVMParameter& StructMember : StructRigVMInfo.Members)
 			{
 				if (!StructMember.ArraySize.IsEmpty())
 				{
@@ -3724,9 +3718,9 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		// if this struct has RigVM methods - we need to register the method to our central
 		// registry on construction of the static struct
-		if (StructRigVMInfo)
+		if (StructRigVMInfo.bHasRigVM)
 		{
-			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 			{
 				Out.Logf(TEXT("\t\tFRigVMRegistry::Get().Register(TEXT(\"%s::%s\"), &%s::RigVM%s, Singleton);\r\n"),
 					*StructNameCPP, *MethodInfo.Name, *StructNameCPP, *MethodInfo.Name);
@@ -3915,11 +3909,11 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	// if this struct has RigVM methods we need to implement both the 
 	// virtual function as well as the stub method here.
 	// The static method is implemented by the user using a macro.
-	if (StructRigVMInfo)
+	if (StructRigVMInfo.bHasRigVM)
 	{
-		FString StructMembersForVirtualFunc = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t"), true);
+		FString StructMembersForVirtualFunc = StructRigVMInfo.Members.Names(false, TEXT(",\r\n\t\t"), true);
 
-		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 		{
 			Out.Log(TEXT("\r\n"));
 
@@ -3959,7 +3953,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			Out.Log(TEXT("\r\n"));
 
 		bool bHasGetArraySize = false;
-		for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
+		for (const FRigVMParameter& StructMember : StructRigVMInfo.Members)
 			{
 			if (!StructMember.ArraySize.IsEmpty())
 				{
@@ -3972,7 +3966,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 			Out.Logf(TEXT("int32 %s::GetArraySize(const FName& InMemberName, const FRigVMUserDataArray& Context)\r\n"), *StructNameCPP);
 			Out.Log(TEXT("{\r\n"));
-			for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
+			for (const FRigVMParameter& StructMember : StructRigVMInfo.Members)
 			{
 				if (!StructMember.ArraySize.IsEmpty())
 				{
@@ -5029,16 +5023,13 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 	RPCWrappers += TEXT("\t\tP_FINISH;") LINE_TERMINATOR;
 	RPCWrappers += TEXT("\t\tP_NATIVE_BEGIN;") LINE_TERMINATOR;
 
-	ClassDefinitionRange ClassRange;
-	if (ClassDefinitionRanges.Contains(Function->GetOwnerClass()))
-	{
-		ClassRange = ClassDefinitionRanges[Function->GetOwnerClass()];
-		ClassRange.Validate();
-	}
+	UClass* OwnerClass = Function->GetOwnerClass();
+	FUnrealClassDefinitionInfo& OwnerClassDef = GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(OwnerClass);
 
-	const TCHAR* ClassStart = ClassRange.Start;
-	const TCHAR* ClassEnd   = ClassRange.End;
-	FString      ClassName  = Function->GetOwnerClass()->GetName();
+	OwnerClassDef.GetDefinitionRange().Validate();
+	const TCHAR* ClassStart = OwnerClassDef.GetDefinitionRange().Start;
+	const TCHAR* ClassEnd = OwnerClassDef.GetDefinitionRange().End;
+	FString      ClassName  = OwnerClass->GetName();
 
 	FString ClassDefinition(UE_PTRDIFF_TO_INT32(ClassEnd - ClassStart), ClassStart);
 
@@ -5047,13 +5038,13 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 
 	bool bShouldEnableImplementationDeprecation =
 		// Enable deprecation warnings only if GENERATED_BODY is used inside class or interface (not GENERATED_UCLASS_BODY etc.)
-		ClassRange.bHasGeneratedBody
+		OwnerClassDef.HasGeneratedBody()
 		// and implementation function is called, but not the one declared by user
 		&& (FunctionData.CppImplName != Function->GetName() && !bHasImplementation);
 
 	bool bShouldEnableValidateDeprecation =
 		// Enable deprecation warnings only if GENERATED_BODY is used inside class or interface (not GENERATED_UCLASS_BODY etc.)
-		ClassRange.bHasGeneratedBody
+		OwnerClassDef.HasGeneratedBody()
 		// and validation function is called
 		&& (FunctionData.FunctionFlags & FUNC_NetValidate) && !bHasValidate;
 
@@ -5152,12 +5143,9 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 	FStructMetaData& StructData = ClassDef.GetStructMetaData();
 	const FString ClassCPPName = FNameLookupCPP::GetNameCPP(Class, Class->HasAnyClassFlags(CLASS_Interface));
 
-	ClassDefinitionRange ClassRange;
-	if (ClassDefinitionRanges.Contains(Class))
-	{
-		ClassRange = ClassDefinitionRanges[Class];
-		ClassRange.Validate();
-	}
+	ClassDef.GetDefinitionRange().Validate();
+	const TCHAR* ClassStart = ClassDef.GetDefinitionRange().Start;
+	const TCHAR* ClassEnd = ClassDef.GetDefinitionRange().End;
 
 	// gather static class data
 	TArray<FString> SparseClassDataTypes;
@@ -5254,8 +5242,6 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 		if (!bWillBeProgrammerTyped)
 		{
-			const TCHAR* ClassStart = ClassRange.Start;
-			const TCHAR* ClassEnd   = ClassRange.End;
 			FString ClassDefinition(UE_PTRDIFF_TO_INT32(ClassEnd - ClassStart), ClassStart);
 
 			FString FunctionName = Function->GetName();
@@ -5302,7 +5288,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 			}
 
 			// Versions that skip function autodeclaration throw an error when a function is missing.
-			if (ClassRange.bHasGeneratedBody && (SourceFile.GetGeneratedCodeVersionForStruct(ClassDef) > EGeneratedCodeVersion::V1))
+			if (ClassDef.HasGeneratedBody() && (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1))
 			{
 				CheckRPCFunctions(OutReferenceGatherers, *FunctionDef, ClassCPPName, ImplementationPosition, ValidatePosition, SourceFile);
 			}
@@ -5353,7 +5339,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 		// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
 		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_RPC_WRAPPERS_NO_PURE_DECLS"));
-		if (SourceFile.GetGeneratedCodeVersionForStruct(ClassDef) > EGeneratedCodeVersion::V1)
+		if (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1)
 		{
 			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, RuntimeStringBuilders.RPCWrappers);
 		}
@@ -5386,7 +5372,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 		// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
 		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_EDITOR_ONLY_RPC_WRAPPERS_NO_PURE_DECLS"));
-		if (SourceFile.GetGeneratedCodeVersionForStruct(ClassDef) > EGeneratedCodeVersion::V1)
+		if (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1)
 		{
 			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, EditorStringBuilders.RPCWrappers);
 		}
