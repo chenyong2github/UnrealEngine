@@ -925,6 +925,19 @@ FStrataData StrataVerticalLayering(FStrataData Top, FStrataData Base)
 	return StrataData;
 }
 
+float HorizontalMixingParameterBlendingBSDFCoverageToNormalMix(FStrataData Background, FStrataData Foreground, float HorizontalMixValue)
+{
+	// This is a normalised mix so even though both BSDF have weights, the sum of weights used to combined them should always be 1.
+#if STRATA_INLINE_SHADING
+	const float SafeBackCoverage = saturate(Background.Layers[0].BSDFs[0].Coverage);
+	const float SafeForeCoverage = saturate(Foreground.Layers[0].BSDFs[0].Coverage);
+
+	return HorizontalMixValue;
+#else
+	return 0.5f;
+#endif
+}
+
 // Note about parameter blending
 //  - We can only parameter blend Slab nodes. This error is handled in the compiler.
 //  - We can only parameter blend one BSDF into another single BSDF. More complex topology are not handled and result in a compiler error. This could be extended to a single BSDF per layer.
@@ -932,9 +945,10 @@ FStrataData StrataVerticalLayering(FStrataData Top, FStrataData Base)
 //  - Slab node with SSSprofile cannot be blendend. Those will have to be specifically handled by the user and not mixed with any other slab if it can be demoted to parameter blending
 
 // ==> NOTE: Always pair with the compiler behavior in StrataCompilationInfoHorizontalMixingParamBlend
-FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStrataData Background, float Mix, uint NewNormalIndex)
+FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStrataData Background, float HorizontalMixValue, float NormalMixCodeChunk, uint NewNormalIndex)
 {
-	const float ForegroundMixFactor = saturate(Mix);
+	const float ForegroundLightingMixFactor = saturate(HorizontalMixValue);	// Only the horizontal mixing value
+	const float ForegroundOtherMixFactor = saturate(NormalMixCodeChunk);	// Horizontal mixing value combined with coverage
 
 	FStrataData Result = GetInitialisedStrataDataWithReservedFirstSlot();
 #define ResultBSDF		Result.Layers[0].BSDFs[0]
@@ -965,19 +979,19 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 	BSDF_SETHASTHINFILM(ResultBSDF,		BSDF_GETHASTHINFILM(ForegroundBSDF)				| BSDF_GETHASTHINFILM(BackgroundBSDF));
 	BSDF_SETHASFUZZ(ResultBSDF,			BSDF_GETHASFUZZ(ForegroundBSDF)					| BSDF_GETHASFUZZ(BackgroundBSDF));
 
-	BSDF_SETEMISSIVE(ResultBSDF,		lerp(BackLightingFactor * BSDF_GETEMISSIVE(BackgroundBSDF),			ForeLightingFactor * BSDF_GETEMISSIVE(ForegroundBSDF),			ForegroundMixFactor));
-	SLAB_DIFFUSEALBEDO(ResultBSDF) =	lerp(BackLightingFactor * SLAB_DIFFUSEALBEDO(BackgroundBSDF),		ForeLightingFactor * SLAB_DIFFUSEALBEDO(ForegroundBSDF),		ForegroundMixFactor);
-	SLAB_F0(ResultBSDF) =				lerp(BackLightingFactor * SLAB_F0(BackgroundBSDF),					ForeLightingFactor * SLAB_F0(ForegroundBSDF),					ForegroundMixFactor);
-	SLAB_F90(ResultBSDF) =				lerp(BackLightingFactor * SLAB_F90(BackgroundBSDF),					ForeLightingFactor * SLAB_F90(ForegroundBSDF),					ForegroundMixFactor);
-	SLAB_FUZZ_COLOR(ResultBSDF)	=		lerp(BackLightingFactor * SLAB_FUZZ_COLOR(BackgroundBSDF),			ForeLightingFactor * SLAB_FUZZ_COLOR(ForegroundBSDF),			ForegroundMixFactor);
+	BSDF_SETEMISSIVE(ResultBSDF,		lerp(BackLightingFactor * BSDF_GETEMISSIVE(BackgroundBSDF),			ForeLightingFactor * BSDF_GETEMISSIVE(ForegroundBSDF),			ForegroundLightingMixFactor));
+	SLAB_DIFFUSEALBEDO(ResultBSDF) =	lerp(BackLightingFactor * SLAB_DIFFUSEALBEDO(BackgroundBSDF),		ForeLightingFactor * SLAB_DIFFUSEALBEDO(ForegroundBSDF),		ForegroundLightingMixFactor);
+	SLAB_F0(ResultBSDF) =				lerp(BackLightingFactor * SLAB_F0(BackgroundBSDF),					ForeLightingFactor * SLAB_F0(ForegroundBSDF),					ForegroundLightingMixFactor);
+	SLAB_F90(ResultBSDF) =				lerp(BackLightingFactor * SLAB_F90(BackgroundBSDF),					ForeLightingFactor * SLAB_F90(ForegroundBSDF),					ForegroundLightingMixFactor);
+	SLAB_FUZZ_COLOR(ResultBSDF)	=		lerp(BackLightingFactor * SLAB_FUZZ_COLOR(BackgroundBSDF),			ForeLightingFactor * SLAB_FUZZ_COLOR(ForegroundBSDF),			ForegroundLightingMixFactor);
 
-	BSDF_SETTHICKNESSCM(ResultBSDF,		lerp(BSDF_GETTHICKNESSCM(BackgroundBSDF),							BSDF_GETTHICKNESSCM(ForegroundBSDF),							ForegroundMixFactor));
-	SLAB_METALLIC(ResultBSDF) =			lerp(SLAB_METALLIC(BackgroundBSDF),									SLAB_METALLIC(ForegroundBSDF),									ForegroundMixFactor);
-	SLAB_ROUGHNESSX(ResultBSDF) =		lerp(SLAB_ROUGHNESSX(BackgroundBSDF),								SLAB_ROUGHNESSX(ForegroundBSDF),								ForegroundMixFactor);
-	SLAB_ROUGHNESSY(ResultBSDF) =		lerp(SLAB_ROUGHNESSY(BackgroundBSDF),								SLAB_ROUGHNESSY(ForegroundBSDF),								ForegroundMixFactor);
-	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(BackgroundBSDF),									SLAB_HAZINESS(ForegroundBSDF),									ForegroundMixFactor);
-	SLAB_THINFILM_THICKNESS(ResultBSDF) = 0;// Thinfilm does not support coverage applied on pararmeters so we simply disable ThinFilm.=lerp(SLAB_THINFILM_THICKNESS(BackgroundBSDF),	SLAB_THINFILM_THICKNESS(ForegroundBSDF),	ForegroundMixFactor);
-	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BackgroundBSDF),								SLAB_FUZZ_AMOUNT(ForegroundBSDF),								ForegroundMixFactor);
+	BSDF_SETTHICKNESSCM(ResultBSDF,		lerp(BSDF_GETTHICKNESSCM(BackgroundBSDF),							BSDF_GETTHICKNESSCM(ForegroundBSDF),							ForegroundOtherMixFactor));
+	SLAB_METALLIC(ResultBSDF) =			lerp(SLAB_METALLIC(BackgroundBSDF),									SLAB_METALLIC(ForegroundBSDF),									ForegroundOtherMixFactor);
+	SLAB_ROUGHNESSX(ResultBSDF) =		lerp(SLAB_ROUGHNESSX(BackgroundBSDF),								SLAB_ROUGHNESSX(ForegroundBSDF),								ForegroundOtherMixFactor);
+	SLAB_ROUGHNESSY(ResultBSDF) =		lerp(SLAB_ROUGHNESSY(BackgroundBSDF),								SLAB_ROUGHNESSY(ForegroundBSDF),								ForegroundOtherMixFactor);
+	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(BackgroundBSDF),									SLAB_HAZINESS(ForegroundBSDF),									ForegroundOtherMixFactor);
+	SLAB_THINFILM_THICKNESS(ResultBSDF)=lerp(SLAB_THINFILM_THICKNESS(BackgroundBSDF),						SLAB_THINFILM_THICKNESS(ForegroundBSDF),						ForegroundOtherMixFactor);
+	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BackgroundBSDF),								SLAB_FUZZ_AMOUNT(ForegroundBSDF),								ForegroundOtherMixFactor);
 
 	if (BSDF_GETHASSSSPROFILE(ResultBSDF))
 	{
@@ -991,7 +1005,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 		SLAB_SSSPROFILERADIUSSCALE(ResultBSDF) = lerp(
 			bBackgroundHasSSSProfile ? SLAB_SSSPROFILERADIUSSCALE(BackgroundBSDF) : 0.0f,
 			bForegroundHasSSSProfile ? SLAB_SSSPROFILERADIUSSCALE(ForegroundBSDF) : 0.0f,
-			ForegroundMixFactor);
+			ForegroundOtherMixFactor);
 
 		if (SLAB_SSSPROFILERADIUSSCALE(ResultBSDF) == 0.0f)
 		{
@@ -1002,7 +1016,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 	}
 	else
 	{
-		SLAB_SSSDMFP(ResultBSDF) =		lerp(SLAB_SSSDMFP(BackgroundBSDF),								SLAB_SSSDMFP(ForegroundBSDF),										ForegroundMixFactor);
+		SLAB_SSSDMFP(ResultBSDF) =		lerp(SLAB_SSSDMFP(BackgroundBSDF),								SLAB_SSSDMFP(ForegroundBSDF),										ForegroundOtherMixFactor);
 
 		// We still try to disable SSS if possible: for performance and also to preserve the surface color (especially specular reflection color).
 		if (all(SLAB_SSSDMFP(ResultBSDF) == 0.0f))
@@ -1014,10 +1028,10 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 
 #if STRATA_INLINE_SHADING
 	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the DMFP on the side to not override SSSPROFILE data.
-	ResultBSDF.TmpDMFP =				lerp(BackgroundBSDF.TmpDMFP,									ForegroundBSDF.TmpDMFP,												ForegroundMixFactor);
+	ResultBSDF.TmpDMFP =				lerp(BackgroundBSDF.TmpDMFP,									ForegroundBSDF.TmpDMFP,												ForegroundOtherMixFactor);
 
 	// We blend the parameter above, and we also need to lerp the Coverage to match the total energy.
-	ResultBSDF.Coverage =				lerp(BackgroundBSDF.Coverage,									ForegroundBSDF.Coverage,											ForegroundMixFactor);
+	ResultBSDF.Coverage =				lerp(BackgroundBSDF.Coverage,									ForegroundBSDF.Coverage,											ForegroundLightingMixFactor);
 #endif
 
 #undef ResultBSDF
@@ -1026,8 +1040,9 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStr
 	return Result;
 }
 
-float AddParameterBlendingBSDFCoverageToNormalMix(FStrataData AStrata, FStrataData BStrata) 
+float AddParameterBlendingBSDFCoverageToNormalMix(FStrataData AStrata, FStrataData BStrata)
 {
+	// This is a normalised mix so even though both BSDF have weights, the sum of weights used to combined them should always be 1.
 #if STRATA_INLINE_SHADING
 	const float SafeABSDFCoverage = saturate(AStrata.Layers[0].BSDFs[0].Coverage);
 	const float SafeBBSDFCoverage = saturate(BStrata.Layers[0].BSDFs[0].Coverage);
@@ -1124,6 +1139,7 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 
 float VerticalLayeringParameterBlendingBSDFCoverageToNormalMix(FStrataData TopStrata)
 {
+	// This is a normalised mix so even though both BSDF have weights, the sum of weights used to combined them should always be 1.
 #if STRATA_INLINE_SHADING
 	const float SafeTopBSDFCoverage = saturate(TopStrata.Layers[0].BSDFs[0].Coverage);
 	const float TopNormalContributionForWeightOfOne = 0.5f;
