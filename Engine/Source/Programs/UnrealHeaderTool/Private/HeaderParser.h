@@ -18,13 +18,7 @@ class UPackage;
 struct FManifestModule;
 class IScriptGeneratorPluginInterface;
 class FStringOutputDevice;
-class FProperty;
 class FUnrealSourceFile;
-class UFunction;
-class UEnum;
-class UScriptStruct;
-class UDelegateFunction;
-class UStruct;
 class FScope;
 class FHeaderProvider;
 
@@ -373,7 +367,7 @@ struct FRigVMStructInfo
 	TArray<FRigVMMethodInfo> Methods;
 };
 
-typedef TMap<UStruct*, FRigVMStructInfo> FRigVMStructMap;
+typedef TMap<FUnrealStructDefinitionInfo*, FRigVMStructInfo> FRigVMStructMap;
 
 struct ClassDefinitionRange
 {
@@ -699,8 +693,8 @@ protected:
 	ECompilationResult::Type ParseHeader();
 	void CompileDirective();
 	void FinalizeScriptExposedFunctions(FUnrealClassDefinitionInfo& ClassDef);
-	UEnum* CompileEnum();
-	UScriptStruct* CompileStructDeclaration();
+	FUnrealEnumDefinitionInfo& CompileEnum();
+	FUnrealScriptStructDefinitionInfo& CompileStructDeclaration();
 	bool CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& DelegatesToFixup, FToken& Token);
 
 	/** Skip C++ (noexport) declaration. */
@@ -735,12 +729,12 @@ protected:
 	template<typename T>
 	FUnrealFunctionDefinitionInfo& CreateDelegateFunction(FFuncInfo&& FuncInfo) const;
 
-	UClass* CompileClassDeclaration();
+	FUnrealClassDefinitionInfo& CompileClassDeclaration();
 	FUnrealFunctionDefinitionInfo& CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
 	void CompileFunctionDeclaration();
 	void CompileVariableDeclaration (FUnrealStructDefinitionInfo& StructDef);
 	void CompileInterfaceDeclaration();
-	void CompileRigVMMethodDeclaration(UStruct* Struct);
+	void CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& StructDef);
 	void ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& StructDef);
 
 	FUnrealClassDefinitionInfo* ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
@@ -795,16 +789,6 @@ protected:
 		EVariableCategory::Type VariableCategory,
 		ELayoutMacroType LayoutMacroType = ELayoutMacroType::None);
 	
-	/**
-	 * Returns whether the specified class can be referenced from the class currently being compiled.
-	 *
-	 * @param	Scope		The scope we are currently parsing.
-	 * @param	CheckClass	The class we want to reference.
-	 *
-	 * @return	true if the specified class is an intrinsic type or if the class has successfully been parsed
-	 */
-	bool AllowReferenceToClass(UStruct* Scope, UClass* CheckClass) const;
-
 	/**
 	 * Parses optional metadata text.
 	 *
@@ -878,7 +862,7 @@ protected:
 	 * @param	Scope				the current scope
 	 * @param	DelegateCache		cached map of delegates that have already been found; used for faster lookup.
 	 */
-	void FixupDelegateProperties(FUnrealStructDefinitionInfo& StructDef, FScope& Scope, TMap<FName, UFunction*>& DelegateCache);
+	void FixupDelegateProperties(FUnrealStructDefinitionInfo& StructDef, FScope& Scope, TMap<FName, FUnrealFunctionDefinitionInfo*>& DelegateCache);
 
 	// Retry functions.
 	void InitScriptLocation( FScriptLocation& Retry );
@@ -920,25 +904,25 @@ private:
 	bool TryToMatchConstructorParameterList(FToken Token);
 
 	// Parses possible version declaration in generated code, e.g. GENERATED_BODY(<some_version>).
-	void CompileVersionDeclaration(UStruct* Struct);
+	void CompileVersionDeclaration(FUnrealStructDefinitionInfo& StructDef);
 
 	// Verifies that all specified class's UProperties with function associations have valid targets
 	void VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClassDef);
 
 	// Verifies the target function meets the criteria for a blueprint property getter
-	void VerifyBlueprintPropertyGetter(FProperty* Property, FUnrealFunctionDefinitionInfo* TargetFuncDef);
+	void VerifyBlueprintPropertyGetter(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
 	// Verifies the target function meets the criteria for a blueprint property setter
-	void VerifyBlueprintPropertySetter(FProperty* Property, FUnrealFunctionDefinitionInfo* TargetFuncDef);
+	void VerifyBlueprintPropertySetter(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
 	// Verifies the target function meets the criteria for a replication notify callback
-	void VerifyRepNotifyCallback(FProperty* Property, FUnrealFunctionDefinitionInfo* TargetFuncDef);
+	void VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
 	// Constructs the policy from a string
 	static FDocumentationPolicy GetDocumentationPolicyFromName(const FString& PolicyName);
 
 	// Constructs the policy for documentation checks for a given struct
-	static FDocumentationPolicy GetDocumentationPolicyForStruct(UStruct* Struct);
+	static FDocumentationPolicy GetDocumentationPolicyForStruct(FUnrealStructDefinitionInfo& StructDef);
 
 	// Property types to provide UI Min and Max ranges
 	static TArray<FString> PropertyCPPTypesRequiringUIRanges;
@@ -947,13 +931,13 @@ private:
 	static bool DoesCPPTypeRequireDocumentation(const FString& CPPType);
 
 	// Validates the documentation for a given enum
-	void CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FName, FString>& MetaData, const TArray<TMap<FName, FString>>& Entries);
+	void CheckDocumentationPolicyForEnum(FUnrealEnumDefinitionInfo& EnumDef, const TMap<FName, FString>& MetaData, const TArray<TMap<FName, FString>>& Entries);
 
 	// Validates the documentation for a given struct
 	void CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInfo& StructDef);
 
 	// Validates the documentation for a given method
-	void CheckDocumentationPolicyForFunc(UClass* Class, FUnrealFunctionDefinitionInfo& FunctionDef);
+	void CheckDocumentationPolicyForFunc(FUnrealClassDefinitionInfo& ClassDef, FUnrealFunctionDefinitionInfo& FunctionDef);
 
 	// Checks if a valid range has been found on the provided metadata
 	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);
