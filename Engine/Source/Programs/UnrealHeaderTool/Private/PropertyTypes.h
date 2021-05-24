@@ -33,7 +33,7 @@ struct FPropertyTraits
 	 * Given a property definition token, create the property definition and then underlying engine FProperty
 	 *
 	 * @param Token The definition of the property
-	 * @param Scope The parent object owning the property
+	 * @param Outer The parent object owning the property
 	 * @param Name The name of the property
 	 * @param ObjectFlags The flags associated with the property
 	 * @param VariableCategory The parsing context of the property
@@ -43,7 +43,7 @@ struct FPropertyTraits
 	 * @param ParsePosition Character position of the property in the header
 	 * @return The pointer to the newly created property.  It will be attached to the definition by the caller
 	 */
-	static FUnrealPropertyDefinitionInfo& CreateProperty(const FPropertyBase& VarProperty, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition);
+	static FUnrealPropertyDefinitionInfo& CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition);
 
 	/**
 	 * Test to see if the property can be used in a blueprint

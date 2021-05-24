@@ -335,6 +335,14 @@ public:
 		return false;
 	}
 
+	/**
+	 * Return the "outer" object that contains the definition for this object
+	 */
+	FUnrealTypeDefinitionInfo* GetOuter() const
+	{
+		return Outer;
+	}
+
 	static FString GetNameWithPrefix(const UClass* Class, EEnforceInterfacePrefix EnforceInterfacePrefix = EEnforceInterfacePrefix::None);
 
 protected:
@@ -342,14 +350,16 @@ protected:
 		: NameCPP(MoveTemp(InNameCPP))
 	{ }
 
-	FUnrealTypeDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
+	FUnrealTypeDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FUnrealTypeDefinitionInfo& InOuter)
 		: NameCPP(MoveTemp(InNameCPP))
+		, Outer(&InOuter)
 		, SourceFile(&InSourceFile)
 		, LineNumber(InLineNumber)
 	{ }
 
 private:
 	FString NameCPP;
+	FUnrealTypeDefinitionInfo* Outer = nullptr;
 	FUnrealSourceFile* SourceFile = nullptr;
 	int32 LineNumber = 0;
 	std::atomic<uint32> Hash = 0;
@@ -362,8 +372,8 @@ class FUnrealPropertyDefinitionInfo
 	: public FUnrealTypeDefinitionInfo
 {
 public:
-	FUnrealPropertyDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, int32 InParsePosition, const FPropertyBase& InVarProperty, FString&& InNameCPP)
-		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
+	FUnrealPropertyDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, int32 InParsePosition, const FPropertyBase& InVarProperty, FString&& InNameCPP, FUnrealTypeDefinitionInfo& InOuter)
+		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InOuter)
 		, PropertyBase(InVarProperty)
 		, ParsePosition(InParsePosition)
 	{ }
@@ -400,6 +410,7 @@ public:
 	 */
 	void SetProperty(FProperty* InProperty)
 	{
+		check(Property == nullptr || Property == InProperty);
 		Property = InProperty;
 	}
 
@@ -603,7 +614,7 @@ public:
 	 */
 	FUnrealObjectDefinitionInfo* GetOuter() const
 	{
-		return Outer;
+		return static_cast<FUnrealObjectDefinitionInfo*>(FUnrealTypeDefinitionInfo::GetOuter());
 	}
 
 protected:
@@ -613,12 +624,10 @@ protected:
 	{ }
 
 	FUnrealObjectDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FUnrealObjectDefinitionInfo& InOuter)
-		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
-		, Outer(&InOuter)
+		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InOuter)
 	{ }
 
 private:
-	FUnrealObjectDefinitionInfo* Outer = nullptr;
 	UObject* Object = nullptr;
 };
 
@@ -836,6 +845,11 @@ public:
 	 */
 	virtual bool IsOwnedByDynamicType() const override;
 
+	/**
+	 * Return the owning class
+	 */
+	FUnrealClassDefinitionInfo* GetOwnerClass() const;
+
 private:
 	FString SingletonName[2];
 	FString SingletonNameChopped[2];
@@ -915,7 +929,7 @@ private:
 class FUnrealStructDefinitionInfo : public FUnrealFieldDefinitionInfo
 {
 public:
-	struct FBaseClassInfo
+	struct FBaseStructInfo
 	{
 		FString Name;
 		FUnrealStructDefinitionInfo* Struct = nullptr;
@@ -999,26 +1013,37 @@ public:
 	}
 
 	/**
-	 * Return the super class information
+	 * Return the super struct
 	 */
-	const FBaseClassInfo& GetSuperClassInfo() const
+	FUnrealStructDefinitionInfo* GetSuperStruct() const
 	{
-		return SuperClassInfo;
+		return SuperStructInfo.Struct;
 	}
 
-	FBaseClassInfo& GetSuperClassInfo()
+	/**
+	 * Return the super struct information
+	 */
+	const FBaseStructInfo& GetSuperStructInfo() const
 	{
-		return SuperClassInfo;
+		return SuperStructInfo;
 	}
 
-	const TArray<FBaseClassInfo>& GetBaseClassInfo() const
+	FBaseStructInfo& GetSuperStructInfo()
 	{
-		return BaseClassInfo;
+		return SuperStructInfo;
 	}
 
-	TArray<FBaseClassInfo>& GetBaseClassInfo()
+	/**
+	 * Return the base struct information
+	 */
+	const TArray<FBaseStructInfo>& GetBaseStructInfo() const
 	{
-		return BaseClassInfo;
+		return BaseStructInfo;
+	}
+
+	TArray<FBaseStructInfo>& GetBaseStructInfo()
+	{
+		return BaseStructInfo;
 	}
 
 	/**
@@ -1042,7 +1067,7 @@ public:
 	 */
 	bool IsChildOf(FUnrealStructDefinitionInfo& ParentStruct) const
 	{
-		for (const FUnrealStructDefinitionInfo* Current = this; Current; Current = Current->GetSuperClassInfo().Struct)
+		for (const FUnrealStructDefinitionInfo* Current = this; Current; Current = Current->GetSuperStructInfo().Struct)
 		{
 			if (Current == &ParentStruct)
 			{
@@ -1110,8 +1135,8 @@ private:
 	TArray<FUnrealFunctionDefinitionInfo*> Functions;
 
 	FStructMetaData StructMetaData;
-	FBaseClassInfo SuperClassInfo;
-	TArray<FBaseClassInfo> BaseClassInfo;
+	FBaseStructInfo SuperStructInfo;
+	TArray<FBaseStructInfo> BaseStructInfo;
 
 	FDefinitionRange DefinitionRange;
 
@@ -1220,6 +1245,11 @@ public:
 		FunctionData.FunctionExportFlags &= ~ClearFlags;
 	}
 
+	/**
+	 * Return the super function
+	 */
+	FUnrealFunctionDefinitionInfo* GetSuperFunction() const;
+
 private:
 
 	/** info about the function associated with this FFunctionData */
@@ -1297,7 +1327,7 @@ public:
 
 	FUnrealClassDefinitionInfo* GetSuperClass() const
 	{
-		if (FUnrealStructDefinitionInfo* SuperClass = GetSuperClassInfo().Struct)
+		if (FUnrealStructDefinitionInfo* SuperClass = GetSuperStructInfo().Struct)
 		{
 			return &SuperClass->AsClassChecked();
 		}
@@ -1739,7 +1769,7 @@ protected:
 
 			if (bIncludeSuper)
 			{
-				CurrentStructDef = CurrentStructDef->GetSuperClassInfo().Struct;
+				CurrentStructDef = CurrentStructDef->GetSuperStructInfo().Struct;
 				if (CurrentStructDef)
 				{
 					CurrentField = UpdateRange(CurrentStructDef);

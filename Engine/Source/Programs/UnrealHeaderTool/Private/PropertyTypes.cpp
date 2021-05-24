@@ -665,7 +665,8 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 		}
 
 		FEnumProperty* Result = new FEnumProperty(Scope, Name, ObjectFlags);
-		FUnrealPropertyDefinitionInfo& SubProp = FPropertyTraits::CreateProperty(UnderlyingProperty, Result, TEXT("UnderlyingType"), ObjectFlags, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
+		PropDef.SetProperty(Result);
+		FUnrealPropertyDefinitionInfo& SubProp = FPropertyTraits::CreateProperty(UnderlyingProperty, PropDef, TEXT("UnderlyingType"), ObjectFlags, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
 		PropDef.SetValuePropDef(SubProp);
 		Result->UnderlyingProp = CastFieldChecked<FNumericProperty>(SubProp.GetProperty());
 		Result->Enum = Enum;
@@ -1298,10 +1299,11 @@ struct FPropertyTypeTraitsDynamicArray : public FPropertyTypeTraitsBase
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 
 		FArrayProperty* Array = new FArrayProperty(Scope, Name, ObjectFlags);
+		PropDef.SetProperty(Array);
 
 		FPropertyBase InnerVarProperty = PropDef.GetPropertyBase();
 		InnerVarProperty.ArrayType = EArrayType::None;
-		FUnrealPropertyDefinitionInfo& InnerPropDef = FPropertyTraits::CreateProperty(InnerVarProperty, Array, Name, RF_Public, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
+		FUnrealPropertyDefinitionInfo& InnerPropDef = FPropertyTraits::CreateProperty(InnerVarProperty, PropDef, Name, RF_Public, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
 		FProperty* InnerProp = InnerPropDef.GetProperty();
 
 		Array->Inner = InnerProp;
@@ -1330,10 +1332,11 @@ struct FPropertyTypeTraitsSet : public FPropertyTypeTraitsBase
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 
 		FSetProperty* Set = new FSetProperty(Scope, Name, ObjectFlags);
+		PropDef.SetProperty(Set);
 
 		FPropertyBase InnerVarProperty = PropDef.GetPropertyBase();
 		InnerVarProperty.ArrayType = EArrayType::None;
-		FUnrealPropertyDefinitionInfo& InnerPropDef = FPropertyTraits::CreateProperty(InnerVarProperty, Set, Name, RF_Public, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
+		FUnrealPropertyDefinitionInfo& InnerPropDef = FPropertyTraits::CreateProperty(InnerVarProperty, PropDef, Name, RF_Public, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
 		FProperty* InnerProp = InnerPropDef.GetProperty();
 
 		Set->ElementProp = InnerProp;
@@ -1361,13 +1364,14 @@ struct FPropertyTypeTraitsMap : public FPropertyTypeTraitsBase
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 
 		FMapProperty* Map = new FMapProperty(Scope, Name, ObjectFlags);
+		PropDef.SetProperty(Map);
 
-		FUnrealPropertyDefinitionInfo& KeyPropDef = FPropertyTraits::CreateProperty(*PropDef.GetPropertyBase().MapKeyProp, Map, *(Name.ToString() + TEXT("_Key")), RF_Public, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
+		FUnrealPropertyDefinitionInfo& KeyPropDef = FPropertyTraits::CreateProperty(*PropDef.GetPropertyBase().MapKeyProp, PropDef, *(Name.ToString() + TEXT("_Key")), RF_Public, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
 		FProperty* KeyProp = KeyPropDef.GetProperty();
 		FPropertyBase ValueVarProperty = PropDef.GetPropertyBase();
 		ValueVarProperty.ArrayType = EArrayType::None;
 		ValueVarProperty.MapKeyProp = nullptr;
-		FUnrealPropertyDefinitionInfo& ValuePropDef = FPropertyTraits::CreateProperty(ValueVarProperty, Map, Name, RF_Public, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
+		FUnrealPropertyDefinitionInfo& ValuePropDef = FPropertyTraits::CreateProperty(ValueVarProperty, PropDef, Name, RF_Public, VariableCategory, Dimensions, PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
 		FProperty* ValueProp = ValuePropDef.GetProperty();
 
 		Map->KeyProp = KeyProp;
@@ -1417,12 +1421,13 @@ bool FPropertyTraits::IsObject(EPropertyType PropertyType)
 	return PropertyTypeDispatch<IsObjectDispatch, bool>(PropertyType);
 }
 
-FUnrealPropertyDefinitionInfo& FPropertyTraits::CreateProperty(const FPropertyBase& VarProperty, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory,
+FUnrealPropertyDefinitionInfo& FPropertyTraits::CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory,
 	const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition)
 {
-	TSharedRef<FUnrealPropertyDefinitionInfo> PropDefRef = MakeShared<FUnrealPropertyDefinitionInfo>(SourceFile, LineNumber, ParsePosition, VarProperty, Name.ToString());
+	TSharedRef<FUnrealPropertyDefinitionInfo> PropDefRef = MakeShared<FUnrealPropertyDefinitionInfo>(SourceFile, LineNumber, ParsePosition, VarProperty, Name.ToString(), Outer);
 	FUnrealPropertyDefinitionInfo& PropDef = *PropDefRef;
 
+	FFieldVariant Scope = Outer.AsProperty() ? FFieldVariant(Outer.AsProperty()->GetProperty()) : FFieldVariant(Outer.AsObject()->GetObject());
 	FProperty* Property = CreatePropertyHelper<true>(PropDef, Scope, Name, ObjectFlags, VariableCategory, Dimensions);
 
 	PropDef.SetProperty(Property);

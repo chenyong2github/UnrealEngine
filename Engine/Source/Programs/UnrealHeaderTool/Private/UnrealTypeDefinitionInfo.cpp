@@ -312,15 +312,15 @@ bool FUnrealPropertyDefinitionInfo::IsDynamic() const
 
 bool FUnrealPropertyDefinitionInfo::IsOwnedByDynamicType() const
 {
-	for (FFieldVariant Owner = GetProperty()->GetOwnerVariant(); Owner.IsValid(); Owner = Owner.GetOwnerVariant())
+	for (FUnrealTypeDefinitionInfo* Owner = GetOuter(); Owner; Owner = Owner->GetOuter())
 	{
-		if (Owner.IsUObject())
+		if (FUnrealPropertyDefinitionInfo* PropDef = UHTCast<FUnrealPropertyDefinitionInfo>(Owner))
 		{
-			return GTypeDefinitionInfoMap.FindChecked<FUnrealObjectDefinitionInfo>(Owner.ToUObject()).IsOwnedByDynamicType();
+			return PropDef->IsOwnedByDynamicType();
 		}
-		else
+		else if (FUnrealObjectDefinitionInfo* ObjectDef = UHTCast<FUnrealObjectDefinitionInfo>(Owner))
 		{
-			return GTypeDefinitionInfoMap.FindChecked(Owner.ToField()).IsOwnedByDynamicType();
+			return ObjectDef->IsOwnedByDynamicType();
 		}
 	}
 	return false;
@@ -432,6 +432,18 @@ bool FUnrealFieldDefinitionInfo::IsOwnedByDynamicType() const
 		}
 	}
 	return false;
+}
+
+FUnrealClassDefinitionInfo* FUnrealFieldDefinitionInfo::GetOwnerClass() const
+{
+	for (FUnrealTypeDefinitionInfo* TypeDef = GetOuter(); TypeDef; TypeDef = TypeDef->GetOuter())
+	{
+		if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(TypeDef))
+		{
+			return ClassDef;
+		}
+	}
+	return nullptr;
 }
 
 FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
@@ -1200,4 +1212,9 @@ void FUnrealFunctionDefinitionInfo::AddProperty(FUnrealPropertyDefinitionInfo& P
 		ReturnProperty = &PropertyDef;
 	}
 	FUnrealStructDefinitionInfo::AddProperty(PropertyDef);
+}
+
+FUnrealFunctionDefinitionInfo* FUnrealFunctionDefinitionInfo::GetSuperFunction() const
+{
+	return UHTCast<FUnrealFunctionDefinitionInfo>(GetSuperStruct());
 }
