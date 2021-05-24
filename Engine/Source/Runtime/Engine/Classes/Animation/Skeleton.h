@@ -802,7 +802,7 @@ public:
 	/**
 	 * Check if this skeleton is compatible with a given other asset, if that is a skeleton.
 	 */
-	ENGINE_API bool IsCompatibleSkeletonByAssetData(const FAssetData& AssetData) const;
+	ENGINE_API bool IsCompatibleSkeletonByAssetData(const FAssetData& AssetData, const TCHAR* InTag = TEXT("Skeleton")) const;
 
 	/**
 	 * Check if this skeleton is compatible with another skeleton asset that is identified by the string returned by AssetData(SkeletonPtr).GetExportTextName().

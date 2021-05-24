@@ -17,7 +17,10 @@
 #include "UObject/CoreRedirects.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "AnimationStateGraph.h"
+#include "BlueprintNodeSpawner.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "LinkedAnimLayerNode"
 
@@ -49,6 +52,11 @@ void UAnimGraphNode_LinkedAnimLayer::ReconstructNode()
 	SetObjectBeingDebuggedHandle = GetBlueprint()->OnSetObjectBeingDebugged().AddUObject(this, &UAnimGraphNode_LinkedAnimLayer::HandleSetObjectBeingDebugged);
 
 	Super::ReconstructNode();
+}
+
+FSlateIcon UAnimGraphNode_LinkedAnimLayer::GetIconAndTint(FLinearColor& OutColor) const
+{
+	return FSlateIcon("EditorStyle", "ClassIcon.AnimLayerInterface");
 }
 
 FText UAnimGraphNode_LinkedAnimLayer::GetTooltipText() const
@@ -92,30 +100,47 @@ FText UAnimGraphNode_LinkedAnimLayer::GetNodeTitle(ENodeTitleType::Type TitleTyp
 	}
 	else
 	{
-	FFormatNamedArguments Args;
-		Args.Add(TEXT("NodeTitle"), LOCTEXT("NodeTitle", "Linked Anim Layer"));
-		Args.Add(TEXT("TargetClass"), TargetAnimBlueprintInterface ? FText::FromString(TargetAnimBlueprintInterface->GetName()) : LOCTEXT("InterfaceNone", "None"));
+		bool bIsSelf = TargetAnimBlueprintInterface == nullptr; 
+		
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("NodeType"), LOCTEXT("NodeTitle", "Linked Anim Layer"));
+		Args.Add(TEXT("TargetClass"), bIsSelf ? LOCTEXT("ClassSelf", "Self") : FText::FromString(TargetAnimBlueprintInterface->GetName()));
 		Args.Add(TEXT("Layer"), (Node.Layer == NAME_None) ? LOCTEXT("LayerNone", "None") : FText::FromName(Node.Layer));
 
-		if (FAnimNode_LinkedAnimLayer* PreviewNode = GetPreviewNode())
-		{
-			if (UAnimInstance* PreviewAnimInstance = PreviewNode->GetTargetInstance<UAnimInstance>())
-			{
-				if (UClass* PreviewTargetClass = PreviewAnimInstance->GetClass())
-	{
-					Args.Add(TEXT("TargetClass"), PreviewTargetClass == GetAnimBlueprint()->GeneratedClass ? LOCTEXT("ClassSelf", "Self") : FText::FromName(PreviewTargetClass->GetFName()));
-				}
-	}
-		}
-
 		if (TitleType == ENodeTitleType::ListView)
-	{
-		return FText::Format(LOCTEXT("TitleListFormatOutputPose", "{NodeTitle}: {Layer} - {TargetClass}"), Args);
-	}
-	else
-	{
-		return FText::Format(LOCTEXT("TitleFormatOutputPose", "{NodeTitle}: {Layer}\n{TargetClass}"), Args);
-	}
+		{
+			if(bIsSelf)
+			{
+				return FText::Format(LOCTEXT("TitleListViewFormatSelf", "{Layer}"), Args);
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("TitleListViewFormat", "{TargetClass} - {Layer}"), Args);
+			}
+		}
+		else
+		{
+			if (FAnimNode_LinkedAnimLayer* PreviewNode = GetPreviewNode())
+			{
+				if (UAnimInstance* PreviewAnimInstance = PreviewNode->GetTargetInstance<UAnimInstance>())
+				{
+					if (UClass* PreviewTargetClass = PreviewAnimInstance->GetClass())
+					{
+						bIsSelf = PreviewTargetClass == GetAnimBlueprint()->GeneratedClass;
+						Args.Add(TEXT("TargetClass"), PreviewTargetClass == GetAnimBlueprint()->GeneratedClass ? LOCTEXT("ClassSelf", "Self") : FText::FromName(PreviewTargetClass->GetFName()));
+					}
+				}
+			}
+
+			if(bIsSelf)
+			{
+				return FText::Format(LOCTEXT("TitleOtherFormatSelf", "{Layer}\n{NodeType}"), Args);
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("TitleOtherFormat", "{TargetClass} - {Layer}\n{NodeType}"), Args);
+			}
+		}
 	}
 }
 
@@ -699,6 +724,71 @@ void UAnimGraphNode_LinkedAnimLayer::HandleSetObjectBeingDebugged(UObject* InDeb
 void UAnimGraphNode_LinkedAnimLayer::HandleInstanceChanged()
 {
 	NodeTitleChangedEvent.Broadcast();
+}
+
+void UAnimGraphNode_LinkedAnimLayer::SetupFromLayerId(FName InLayer)
+{
+	Node.Layer = InLayer;
+	
+	// Get the interface for this layer. If null, then we are using a 'self' layer.
+	Node.Interface = GetInterfaceForLayer();
+
+	// Update the Guid for conforming
+	InterfaceGuid = GetGuidForLayer();
+
+	if(Node.Interface.Get() == nullptr)
+	{
+		// Self layers cannot have override implementations
+		Node.InstanceClass = nullptr;
+	}
+}
+
+void UAnimGraphNode_LinkedAnimLayer::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+{
+	// Anim graph node base class will allow us to spawn an 'empty' node
+	UAnimGraphNode_Base::GetMenuActions(ActionRegistrar);
+	
+	auto MakeAnimBlueprintAction = [](TSubclassOf<UEdGraphNode> const NodeClass, const FName& InLayerId)
+	{
+		auto SetNodeLayerId = [](UEdGraphNode* NewNode, bool bIsTemplateNode, FName InLayerId)
+		{
+			UAnimGraphNode_LinkedAnimLayer* LinkedAnimGraphNode = CastChecked<UAnimGraphNode_LinkedAnimLayer>(NewNode);
+			LinkedAnimGraphNode->SetupFromLayerId(InLayerId);
+		};
+		
+		UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(NodeClass);
+		check(NodeSpawner != nullptr);
+		NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(SetNodeLayerId, InLayerId);
+		NodeSpawner->DefaultMenuSignature.Category = LOCTEXT("LinkedAnimLayerCategory", "Linked Anim Layers");
+		NodeSpawner->DefaultMenuSignature.MenuName = NodeSpawner->DefaultMenuSignature.Tooltip = FText::Format(LOCTEXT("LinkedAnimGraphMenuFormat", "{0} - Linked Anim Layer"), FText::FromName(InLayerId));
+		return NodeSpawner;
+	};
+
+	if (const UObject* RegistrarTarget = ActionRegistrar.GetActionKeyFilter())
+	{
+		if (const UAnimBlueprint* TargetAnimBlueprint = Cast<UAnimBlueprint>(RegistrarTarget))
+		{
+			UClass* TargetClass = *TargetAnimBlueprint->SkeletonGeneratedClass;
+			if(TargetClass)
+			{
+				UClass* NodeClass = GetClass();
+				IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
+				for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
+				{
+					if(AnimBlueprintFunction.Name != UEdGraphSchema_K2::GN_AnimGraph)
+					{
+						if(UFunction* Function = TargetClass->FindFunctionByName(AnimBlueprintFunction.Name))
+						{
+							if (UBlueprintNodeSpawner* NodeSpawner = MakeAnimBlueprintAction(NodeClass, AnimBlueprintFunction.Name))
+							{
+								ActionRegistrar.AddBlueprintAction(Function, NodeSpawner);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
