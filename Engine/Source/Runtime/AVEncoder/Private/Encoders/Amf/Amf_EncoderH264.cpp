@@ -5,6 +5,8 @@
 #include "CodecPacket.h"
 #include "AVEncoderDebug.h"
 
+#include "RHI.h"
+
 #include <stdio.h>
 
 #define MAX_GPU_INDEXES 50
@@ -539,10 +541,12 @@ namespace AVEncoder
 						UE_LOG(LogVideoEncoder, Fatal, TEXT("Amf failed to get average QP."));
 					}
 
-					if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_START_TS, &Packet.Timings.StartTs) != AMF_OK)
+					amf_int64 StartTs;
+					if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_START_TS, &StartTs) != AMF_OK)
 					{
 						UE_LOG(LogVideoEncoder, Fatal, TEXT("Amf failed to get average QP."));
 					}
+					Packet.Timings.StartTs = StartTs;
 
 					Packet.Timings.FinishTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
 					Packet.Framerate = CurrentConfig.MaxFramerate;
@@ -762,8 +766,6 @@ namespace AVEncoder
 		}
 
 		EncoderInfo.CodecType = ECodecType::H264;
-		EncoderInfo.MaxWidth;
-		EncoderInfo.MaxHeight;
 
 		AMFCapsPtr EncoderCaps;
 		AmfEncoder->GetCaps(&EncoderCaps);
@@ -797,3 +799,5 @@ namespace AVEncoder
 	}
 
 } /* namespace AVEncoder */
+
+#undef MIN_UPDATE_FRAMERATE_SECS
