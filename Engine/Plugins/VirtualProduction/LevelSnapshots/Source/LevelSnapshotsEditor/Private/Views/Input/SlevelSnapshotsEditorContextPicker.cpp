@@ -241,6 +241,11 @@ void SLevelSnapshotsEditorContextPicker::OnSetWorldContextSelection(const FAsset
 
 void SLevelSnapshotsEditorContextPicker::SetSelectedWorld(const FSoftObjectPath& SelectedWorld)
 {
+	if (SelectedWorldPath == SelectedWorld)
+	{
+		return;
+	}
+	
 	SelectedWorldPath = SelectedWorld;
 	OnSelectWorldContextEvent.ExecuteIfBound(SelectedWorld);
 
@@ -250,6 +255,7 @@ void SLevelSnapshotsEditorContextPicker::SetSelectedWorld(const FSoftObjectPath&
 		{
 			const TWeakObjectPtr<ULevelSnapshotsEditorData> EditorData = Builder->EditorDataPtr;
 			EditorData->SetSelectedWorldReference(GetSelectedWorld());
+			EditorData->SetActiveSnapshot(nullptr);
 		}
 	}
 	else
