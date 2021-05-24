@@ -564,8 +564,6 @@ struct FFuncInfo
 	uint32		FunctionExportFlags;
 	/** Number of parameters expected for operator. */
 	int32		ExpectParms;
-	/** Pointer to the UFunction corresponding to this FFuncInfo */
-	UFunction*	FunctionReference;
 	/** Name of the wrapper function that marshalls the arguments and does the indirect call **/
 	FString		MarshallAndCallName;
 	/** Name of the actual implementation **/
@@ -597,7 +595,6 @@ struct FFuncInfo
 		, FunctionFlags(FUNC_None)
 		, FunctionExportFlags(0)
 		, ExpectParms(0)
-		, FunctionReference(nullptr)
 		, RPCId(0)
 		, RPCResponseId(0)
 		, MacroLine(-1)
@@ -611,70 +608,7 @@ struct FFuncInfo
 	FFuncInfo& operator=(FFuncInfo&& Other) = default;
 
 	/** Set the internal function names based on flags **/
-	void SetFunctionNames()
-	{
-		FString FunctionName = FunctionReference->GetName();
-		if( FunctionReference->HasAnyFunctionFlags( FUNC_Delegate ) )
-		{
-			FunctionName.LeftChopInline( FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len(), false );
-		}
-		UnMarshallAndCallName = FString(TEXT("exec")) + FunctionName;
-		
-		if (FunctionReference->HasAnyFunctionFlags(FUNC_BlueprintEvent))
-		{
-			MarshallAndCallName = FunctionName;
-		}
-		else
-		{
-			MarshallAndCallName = FString(TEXT("event")) + FunctionName;
-		}
-
-		if (FunctionReference->HasAllFunctionFlags(FUNC_Native | FUNC_Net))
-		{
-			MarshallAndCallName = FunctionName;
-			if (FunctionReference->HasAllFunctionFlags(FUNC_NetResponse))
-			{
-				// Response function implemented by programmer and called directly from thunk
-				CppImplName = FunctionReference->GetName();
-			}
-			else
-			{
-				if (CppImplName.IsEmpty())
-				{
-					CppImplName = FunctionReference->GetName() + TEXT("_Implementation");
-				}
-				else if (CppImplName == FunctionName)
-				{
-					FError::Throwf(TEXT("Native implementation function must be different than original function name."));
-				}
-
-				if (CppValidationImplName.IsEmpty() && FunctionReference->HasAllFunctionFlags(FUNC_NetValidate))
-				{
-					CppValidationImplName = FunctionReference->GetName() + TEXT("_Validate");
-				}
-				else if(CppValidationImplName == FunctionName)
-				{
-					FError::Throwf(TEXT("Validation function must be different than original function name."));
-				}
-			}
-		}
-
-		if (FunctionReference->HasAllFunctionFlags(FUNC_Delegate))
-		{
-			MarshallAndCallName = FString(TEXT("delegate")) + FunctionName;
-		}
-
-		if (FunctionReference->HasAllFunctionFlags(FUNC_BlueprintEvent | FUNC_Native))
-		{
-			MarshallAndCallName = FunctionName;
-			CppImplName = FunctionReference->GetName() + TEXT("_Implementation");
-		}
-
-		if (CppImplName.IsEmpty())
-		{
-			CppImplName = FunctionName;
-		}
-	}
+	void SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef);
 };
 
 enum class EParsedInterface
