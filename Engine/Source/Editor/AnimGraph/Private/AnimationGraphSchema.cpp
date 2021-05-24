@@ -848,7 +848,7 @@ FVector2D UAnimationGraphSchema::GetPositionForNewLinkedInputPoseNode(UEdGraph& 
 		InGraph.GetNodesOfClass<UAnimGraphNode_Base>(AllNodes);
 
 		// No nodes, so insert to the top-left of all existing nodes.
-		FBox2D AllNodesBounds;
+		FBox2D AllNodesBounds(ForceInit);
 		for(UAnimGraphNode_Base* Node : AllNodes)
 		{
 			FBox2D NodeBounds(

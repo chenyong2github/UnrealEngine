@@ -19,6 +19,7 @@
 #include "AnimGraphAttributes.h"
 #include "IAnimBlueprintCopyTermDefaultsContext.h"
 #include "AnimBlueprintExtension_LinkedAnimGraph.h"
+#include "EdGraphSchema_K2_Actions.h"
 
 #define LOCTEXT_NAMESPACE "LinkedAnimGraph"
 
@@ -55,49 +56,67 @@ FLinearColor UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitleColor() const
 	return LinkedAnimGraphGraphNodeConstants::TitleColor;
 }
 
+FSlateIcon UAnimGraphNode_LinkedAnimGraphBase::GetIconAndTint(FLinearColor& OutColor) const
+{
+	return FSlateIcon("EditorStyle", "ClassIcon.AnimBlueprint");
+}
+
 FText UAnimGraphNode_LinkedAnimGraphBase::GetTooltipText() const
 {
 	return LOCTEXT("ToolTip", "Runs a linked anim graph in another instance to process animation");
+}
+
+FText UAnimGraphNode_LinkedAnimGraphBase::GetMenuCategory() const
+{
+	return LOCTEXT("LinkedAnimGraphCategory", "Linked Anim Blueprints");
 }
 
 FText UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	UClass* TargetClass = GetTargetClass();
 	UAnimBlueprint* TargetAnimBlueprint = TargetClass ? CastChecked<UAnimBlueprint>(TargetClass->ClassGeneratedBy) : nullptr;
-
+	const FName TargetAnimBlueprintName = TargetAnimBlueprint ? TargetAnimBlueprint->GetFName() : NAME_None;
+	
 	const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
 
 	FFormatNamedArguments Args;
-	Args.Add(TEXT("NodeTitle"), LOCTEXT("Title", "Linked Anim Graph"));
-	Args.Add(TEXT("TargetClass"), TargetAnimBlueprint ? FText::FromString(TargetAnimBlueprint->GetName()) : LOCTEXT("ClassNone", "None"));
+	Args.Add(TEXT("NodeType"), LOCTEXT("Title", "Linked Anim Graph"));
+	Args.Add(TEXT("TargetClass"), FText::FromName(TargetAnimBlueprintName));
 
 	if(TitleType == ENodeTitleType::MenuTitle)
 	{
-		return LOCTEXT("NodeTitle", "Linked Anim Graph");
+		return LOCTEXT("Title", "Linked Anim Graph");
 	}
-	if(TitleType == ENodeTitleType::ListView)
+	else if(TitleType == ENodeTitleType::ListView)
 	{
 		if(Node.Tag != NAME_None)
 		{
 			Args.Add(TEXT("Tag"), FText::FromName(Node.Tag));
-			return FText::Format(LOCTEXT("TitleListFormatTagged", "{NodeTitle} ({Tag}) - {TargetClass}"), Args);
+			return FText::Format(LOCTEXT("TitleListFormatTagged", "{TargetClass} ({Tag})"), Args);
+		}
+		else if(TargetClass)
+		{
+			return FText::Format(LOCTEXT("TitleListFormat", "{TargetClass}"), Args);
 		}
 		else
 		{
-			return FText::Format(LOCTEXT("TitleListFormat", "{NodeTitle} - {TargetClass}"), Args);
+			return LOCTEXT("Title", "Linked Anim Graph");
 		}
 	}
 	else
 	{
-
 		if(Node.Tag != NAME_None)
 		{
 			Args.Add(TEXT("Tag"), FText::FromName(Node.Tag));
-			return FText::Format(LOCTEXT("TitleFormatTagged", "{NodeTitle} ({Tag})\n{TargetClass}"), Args);
+			return FText::Format(LOCTEXT("TitleFormatTagged", "{TargetClass} ({Tag})\n{NodeType} "), Args);
+		}
+		else if(TargetClass)
+		{
+			return FText::Format(LOCTEXT("TitleFormat", "{TargetClass}\n{NodeType}"), Args);
 		}
 		else
 		{
-			return FText::Format(LOCTEXT("TitleFormat", "{NodeTitle}\n{TargetClass}"), Args);
+			return LOCTEXT("Title", "Linked Anim Graph");
 		}
 	}
 }
@@ -493,6 +512,13 @@ void UAnimGraphNode_LinkedAnimGraphBase::OnCopyTermDefaultsToDefaultObject(IAnim
 void UAnimGraphNode_LinkedAnimGraphBase::GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const
 {
 	OutExtensions.Add(UAnimBlueprintExtension_LinkedAnimGraph::StaticClass());
+}
+
+TSharedPtr<FEdGraphSchemaAction> UAnimGraphNode_LinkedAnimGraphBase::GetEventNodeAction(const FText& ActionCategory)
+{
+	TSharedPtr<FEdGraphSchemaAction_K2Event> NodeAction = MakeShareable(new FEdGraphSchemaAction_K2Event(ActionCategory, GetNodeTitle(ENodeTitleType::ListView), GetTooltipText(), 0));
+	NodeAction->NodeTemplate = this;
+	return NodeAction;
 }
 
 #undef LOCTEXT_NAMESPACE

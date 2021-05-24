@@ -34,6 +34,7 @@ public:
 
 	//~ Begin UEdGraphNode Interface.
 	virtual FText GetTooltipText() const override;
+	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
@@ -42,6 +43,9 @@ public:
 	virtual void ReconstructNode() override;
 	//~ End UEdGraphNode Interface.
 
+	// UK2Node interface
+	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
+	
 	// UAnimGraphNode_Base interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
@@ -83,6 +87,9 @@ protected:
 	// Get the preview node, if any, when instanced in an animation blueprint and debugged
 	FAnimNode_LinkedAnimLayer* GetPreviewNode() const;
 
+	// Helper function to setup a newly spawned node
+	void SetupFromLayerId(FName InLayerId);
+	
 	// Handle used to hook into object being debugged changing
 	FDelegateHandle SetObjectBeingDebuggedHandle;
 };
