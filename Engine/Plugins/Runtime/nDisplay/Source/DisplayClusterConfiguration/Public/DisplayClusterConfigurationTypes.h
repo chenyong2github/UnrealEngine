@@ -441,7 +441,7 @@ public:
 
 	// Apply the global cluster post process settings to all viewports
 	UPROPERTY(EditAnywhere, Category = NDisplay)
-	bool bUseOverallClusterPostProcess = false;
+	bool bUseOverallClusterPostProcess = true;
 
 	// Global cluster post process settings
 	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (EditCondition = "bUseOverallClusterPostProcess"))
