@@ -955,6 +955,12 @@ function renderNameCell_Common(data, botname) {
 		}
 		else if (data.gateClosedMessage) {
 			msg = data.gateClosedMessage
+			if (data.nextWindowOpenTime) {
+				const timestamp = Date.parse(data.nextWindowOpenTime)
+				if (!isNaN(timestamp)) {
+					msg += ` (opens: ${(new Date(timestamp)).toLocaleString()})`
+				}
+			}
 		}
 
 		if (msg) {
