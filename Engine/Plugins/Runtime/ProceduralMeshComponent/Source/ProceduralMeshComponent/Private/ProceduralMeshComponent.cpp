@@ -457,7 +457,7 @@ public:
 					FMeshBatch MeshBatch;
 
 					MeshBatch.VertexFactory = &Section->VertexFactory;
-					MeshBatch.SegmentIndex = SegmentIndex;
+					MeshBatch.SegmentIndex = 0;
 					MeshBatch.MaterialRenderProxy = Section->Material->GetRenderProxy();
 					MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
 					MeshBatch.Type = PT_TriangleList;
