@@ -15,7 +15,7 @@ class IAnimBlueprintGeneratedClassCompiledData;
 class UBlendSpaceGraph;
 class UAnimationBlendSpaceSampleGraph;
 
-UCLASS()
+UCLASS(Abstract)
 class ANIMGRAPH_API UAnimGraphNode_BlendSpaceGraphBase : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()
@@ -42,7 +42,7 @@ public:
 	void ReplaceGraph(int32 InSampleIndex, UAnimSequence* InSequence);
 
 	// Setup this node from the specified asset
-	void SetupFromAsset(UBlendSpace* InBlendSpace, bool bInIsTemplateNode);
+	void SetupFromAsset(const FAssetData& InAssetData, bool bInIsTemplateNode);
 
 	// UEdGraphNode interface
 	virtual void PostPlacedNewNode() override;
@@ -79,10 +79,14 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UEdGraph>> Graphs;
 
+	// Skeleton name used for filtering unloaded assets 
+	FString SkeletonName;
+
 protected:
 	// UEdGraphNode interface
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual FText GetTooltipText() const override;
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
 	virtual void JumpToDefinition() const override;
@@ -103,6 +107,7 @@ protected:
 
 	// UK2Node interface
 	virtual void PreloadRequiredAssets() override;
+	virtual bool IsActionFilteredOut(class FBlueprintActionFilter const& Filter) override;
 
 	// Helper function for compilation
 	UAnimGraphNode_Base* ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);

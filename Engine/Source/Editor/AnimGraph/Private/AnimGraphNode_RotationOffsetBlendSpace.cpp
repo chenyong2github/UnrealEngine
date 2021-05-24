@@ -15,6 +15,8 @@
 #include "ScopedTransaction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "AnimGraphCommands.h"
+#include "BlueprintNodeTemplateCache.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_RotationOffsetBlendSpace
@@ -24,12 +26,6 @@
 UAnimGraphNode_RotationOffsetBlendSpace::UAnimGraphNode_RotationOffsetBlendSpace(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-}
-
-FText UAnimGraphNode_RotationOffsetBlendSpace::GetTooltipText() const
-{
-	// FText::Format() is slow, so we utilize the cached list title
-	return GetNodeTitle(ENodeTitleType::ListView);
 }
 
 FText UAnimGraphNode_RotationOffsetBlendSpace::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -45,11 +41,11 @@ FText UAnimGraphNode_RotationOffsetBlendSpace::GetNodeTitle(ENodeTitleType::Type
 	{
 		if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
 		{
-			return LOCTEXT("RotationOffsetBlend_NONE_ListTitle", "AimOffset '(None)'");
+			return LOCTEXT("RotationOffsetBlend_NONE_ListTitle", "AimOffset Player '(None)'");
 		}
 		else
 		{
-			return LOCTEXT("RotationOffsetBlend_NONE_Title", "(None)\nAimOffset");
+			return LOCTEXT("RotationOffsetBlend_NONE_Title", "(None)\nAimOffset Player");
 		}
 	}
 	// @TODO: the bone can be altered in the property editor, so we have to 
@@ -64,73 +60,35 @@ FText UAnimGraphNode_RotationOffsetBlendSpace::GetNodeTitle(ENodeTitleType::Type
 		// FText::Format() is slow, so we cache this to save on performance
 		if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
 		{
-			CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(LOCTEXT("AimOffsetListTitle", "AimOffset '{BlendSpaceName}'"), Args), this);
+			CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(LOCTEXT("AimOffsetListTitle", "AimOffset Player '{BlendSpaceName}'"), Args), this);
 		}
 		else
 		{
-			CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(LOCTEXT("AimOffsetFullTitle", "{BlendSpaceName}\nAimOffset"), Args), this);
+			CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(LOCTEXT("AimOffsetFullTitle", "{BlendSpaceName}\nAimOffset Player"), Args), this);
 		}
 	}
 	return CachedNodeTitles[TitleType];
 }
 
-void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const
 {
-	struct GetMenuActions_Utils
-	{
-		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UBlendSpace> BlendSpace)
+	GetMenuActionsHelper(
+		InActionRegistrar,
+		GetClass(),
+		{ UAimOffsetBlendSpace::StaticClass(), UAimOffsetBlendSpace1D::StaticClass() },
+		{ },
+		[](const FAssetData& InAssetData)
 		{
-			UAnimGraphNode_RotationOffsetBlendSpace* BlendSpaceNode = CastChecked<UAnimGraphNode_RotationOffsetBlendSpace>(NewNode);
-			BlendSpaceNode->Node.SetBlendSpace(BlendSpace.Get());
-		}
-
-		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpace* BlendSpace)
+			return FText::Format(LOCTEXT("MenuDescFormat", "AimOffset Player '{0}'"), FText::FromName(InAssetData.AssetName));
+		},
+		[](const FAssetData& InAssetData)
 		{
-			UBlueprintNodeSpawner* NodeSpawner = nullptr;
-
-			bool const bIsAimOffset = BlendSpace->IsA(UAimOffsetBlendSpace::StaticClass()) ||
-				BlendSpace->IsA(UAimOffsetBlendSpace1D::StaticClass());
-			if (bIsAimOffset)
-			{
-				NodeSpawner = UBlueprintNodeSpawner::Create(NodeClass);
-				check(NodeSpawner != nullptr);
-
-				TWeakObjectPtr<UBlendSpace> BlendSpacePtr = MakeWeakObjectPtr(const_cast<UBlendSpace*>(BlendSpace));
-				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(GetMenuActions_Utils::SetNodeBlendSpace, BlendSpacePtr);
-			}
-			return NodeSpawner;
-		}
-	};
-
-	if (const UObject* RegistrarTarget = ActionRegistrar.GetActionKeyFilter())
-	{
-		if (const UBlendSpace* TargetBlendSpace = Cast<UBlendSpace>(RegistrarTarget))
+			return FText::Format(LOCTEXT("MenuDescTooltipFormat", "AimOffset Player\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+		},
+		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
 		{
-			if(TargetBlendSpace->IsAsset())
-			{
-				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(GetClass(), TargetBlendSpace))
-				{
-					ActionRegistrar.AddBlueprintAction(TargetBlendSpace, NodeSpawner);
-				}
-			}
-		}
-		// else, the Blueprint database is specifically looking for actions pertaining to something different (not a BlendSpace asset)
-	}
-	else
-	{
-		UClass* NodeClass = GetClass();
-		for (TObjectIterator<UBlendSpace> BlendSpaceIt; BlendSpaceIt; ++BlendSpaceIt)
-		{
-			UBlendSpace* BlendSpace = *BlendSpaceIt;
-			if(BlendSpace->IsAsset())
-			{
-				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(NodeClass, BlendSpace))
-				{
-					ActionRegistrar.AddBlueprintAction(BlendSpace, NodeSpawner);
-				}
-			}
-		}
-	}
+			UAnimGraphNode_AssetPlayerBase::SetupNewNode(InNewNode, bInIsTemplateNode, InAssetData);
+		});
 }
 
 FBlueprintNodeSignature UAnimGraphNode_RotationOffsetBlendSpace::GetSignature() const

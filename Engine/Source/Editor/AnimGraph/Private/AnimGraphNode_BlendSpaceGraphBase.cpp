@@ -28,6 +28,7 @@
 #include "BlueprintEditor.h"
 #include "Animation/AnimSequence.h"
 #include "AnimBlueprintExtension_BlendSpaceGraph.h"
+#include "BlueprintNodeTemplateCache.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_BlendSpaceGraphBase"
 
@@ -46,9 +47,22 @@ FLinearColor UAnimGraphNode_BlendSpaceGraphBase::GetNodeTitleColor() const
 	return FLinearColor(0.8f, 0.8f, 0.8f);
 }
 
+FSlateIcon UAnimGraphNode_BlendSpaceGraphBase::GetIconAndTint(FLinearColor& OutColor) const
+{
+	return FSlateIcon("EditorStyle", "ClassIcon.BlendSpace");
+}
+
 FText UAnimGraphNode_BlendSpaceGraphBase::GetTooltipText() const
 {
-	return GetNodeTitle(ENodeTitleType::ListView);
+	bool const bIsTemplateNode = GetGraph() == nullptr || FBlueprintNodeTemplateCache::IsTemplateOuter(GetGraph());
+	if(bIsTemplateNode)
+	{
+		return FText::GetEmpty();
+	}
+	else
+	{
+		return GetNodeTitle(ENodeTitleType::ListView);
+	}
 }
 
 UAnimGraphNode_Base* UAnimGraphNode_BlendSpaceGraphBase::ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
@@ -129,19 +143,19 @@ void UAnimGraphNode_BlendSpaceGraphBase::OnCopyTermDefaultsToDefaultObject(IAnim
 	DestinationNode->BlendSpace = Extension->AddBlendSpace(BlendSpace);
 }
 
-void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(UBlendSpace* InBlendSpace, bool bInIsTemplateNode)
+void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(const FAssetData& InAssetData, bool bInIsTemplateNode)
 {
-	if(bInIsTemplateNode)
+	InAssetData.GetTagValue("Skeleton", SkeletonName);
+	
+	if(!bInIsTemplateNode)
 	{
-		BlendSpace = InBlendSpace;
-	}
-	else
-	{
+		UBlendSpace* Asset = CastChecked<UBlendSpace>(InAssetData.GetAsset());
+		
 		UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
 		const UAnimationGraphSchema* AnimationGraphSchema = GetDefault<UAnimationGraphSchema>();
 
-		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, InBlendSpace->GetFName(), UBlendSpaceGraph::StaticClass(), UEdGraphSchema::StaticClass()));
-		BlendSpaceGraph->BlendSpace = BlendSpace = DuplicateObject(InBlendSpace, BlendSpaceGraph);
+		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, Asset->GetFName(), UBlendSpaceGraph::StaticClass(), UEdGraphSchema::StaticClass()));
+		BlendSpaceGraph->BlendSpace = BlendSpace = DuplicateObject(Asset, BlendSpaceGraph);
 		BlendSpaceGraph->BlendSpace->ClearFlags(RF_Public | RF_Standalone | RF_Transient);
 		BlendSpaceGraph->BlendSpace->SetFlags(RF_Transactional);
 		BlendSpaceGraph->BlendSpace->ResetSkeleton(nullptr);
@@ -513,6 +527,35 @@ void UAnimGraphNode_BlendSpaceGraphBase::GetInputLinkAttributes(FNodeAttributeAr
 void UAnimGraphNode_BlendSpaceGraphBase::GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const
 {
 	OutExtensions.Add(UAnimBlueprintExtension_BlendSpaceGraph::StaticClass());
+}
+
+bool UAnimGraphNode_BlendSpaceGraphBase::IsActionFilteredOut(class FBlueprintActionFilter const& Filter)
+{
+	bool bIsFilteredOut = false;
+
+	if(!SkeletonName.IsEmpty())
+	{
+		FBlueprintActionContext const& FilterContext = Filter.Context;
+
+		for (UBlueprint* Blueprint : FilterContext.Blueprints)
+		{
+			if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
+			{
+				if(!AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(SkeletonName))
+				{
+					bIsFilteredOut = true;
+					break;
+				}
+			}
+			else
+			{
+				// Not an animation Blueprint, cannot use
+				bIsFilteredOut = true;
+				break;
+			}
+		}
+	}
+	return bIsFilteredOut;
 }
 
 #undef LOCTEXT_NAMESPACE
