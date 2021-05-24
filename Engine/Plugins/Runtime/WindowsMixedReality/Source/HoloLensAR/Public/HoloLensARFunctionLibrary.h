@@ -124,4 +124,8 @@ public:
 	static bool HideKeyboard();
 
 	static UWMRARPin* CreateNamedARPinAroundAnchor(FName Name, const FString& AnchorId);
+
+	// Use the legacy MRMesh support for rendering the hand tracker.  Otherwise, default to XRVisualization.
+	UFUNCTION(BlueprintCallable, Category = "HoloLensAR", meta = (Keywords = "hololensar hand mesh ar all"))
+	static void SetUseLegacyHandMeshVisualization(bool UseLegacyHandMeshVisualization);
 };
