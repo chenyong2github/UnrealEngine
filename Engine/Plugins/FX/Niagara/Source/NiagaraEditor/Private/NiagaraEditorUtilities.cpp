@@ -2763,7 +2763,7 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 
 	for (TObjectIterator<UNiagaraScript> It; It; ++It)
 	{
-		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable())
+		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable() || It->GetOutermost() == GetTransientPackage())
 		{
 			continue;
 		}
