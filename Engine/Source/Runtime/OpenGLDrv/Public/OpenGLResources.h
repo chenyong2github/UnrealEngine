@@ -1561,7 +1561,7 @@ public:
 	// Accessors.
 	bool IsDynamic() const { return (this->GetFlags() & TexCreate_Dynamic) != 0; }
 	bool IsCubemap() const { return bCubemap != 0; }
-	bool IsStaging() const { return (this->GetFlags() & TexCreate_CPUReadback) != 0; }
+	bool IsStaging() const { return EnumHasAnyFlags(this->GetFlags(), TexCreate_CPUReadback); }
 
 
 	/** FRHITexture override.  See FRHITexture::GetNativeResource() */

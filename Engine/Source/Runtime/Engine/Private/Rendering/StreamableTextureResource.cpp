@@ -23,20 +23,20 @@ static TAutoConsoleVariable<int32> CVarVirtualTextureEnabled(
 	TEXT("If set to 1, textures will use virtual memory so they can be partially resident."),
 	ECVF_RenderThreadSafe);
 
-bool CanCreateWithPartiallyResidentMips(uint32 TexCreateFlags)
+bool CanCreateWithPartiallyResidentMips(ETextureCreateFlags TexCreateFlags)
 {
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-	const uint32 iDisableFlags = 
+	const ETextureCreateFlags iDisableFlags =
 		TexCreate_RenderTargetable |
 		TexCreate_ResolveTargetable |
 		TexCreate_DepthStencilTargetable |
 		TexCreate_Dynamic |
 		TexCreate_UAV |
 		TexCreate_Presentable;
-	const uint32 iRequiredFlags =
+	const ETextureCreateFlags iRequiredFlags =
 		TexCreate_OfflineProcessed;
 
-	return ((TexCreateFlags & (iDisableFlags | iRequiredFlags)) == iRequiredFlags) && CVarVirtualTextureEnabled.GetValueOnAnyThread();
+	return EnumHasAllFlags(TexCreateFlags & iDisableFlags, iRequiredFlags) && CVarVirtualTextureEnabled.GetValueOnAnyThread();
 	
 #else
 	return false;

@@ -152,7 +152,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FRHIText
 	}
 
 	// Allow input CreateInfo to override SRGB and/or format
-	const bool bBaseSRGB = (Texture->GetFlags() & TexCreate_SRGB) != 0;
+	const bool bBaseSRGB = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB);
 	const bool bSRGB = CreateInfo.SRGBOverride != SRGBO_ForceDisable && bBaseSRGB;
 	const DXGI_FORMAT ViewTextureFormat = (CreateInfo.Format == PF_Unknown) ? BaseTextureFormat : (DXGI_FORMAT)GPixelFormats[CreateInfo.Format].PlatformFormat;
 	SRVDesc.Format = FindShaderResourceDXGIFormat(ViewTextureFormat, bSRGB);

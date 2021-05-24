@@ -282,7 +282,7 @@ public:
 		}
 
 		return Extent.X != 0 && NumMips != 0 && NumSamples >=1 && NumSamples <=16 && Format != PF_Unknown
-			&& ((TargetableFlags & TexCreate_UAV) == 0 || GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
+			&& (EnumHasAnyFlags(TargetableFlags, TexCreate_UAV) || GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
 	}
 
 	FIntVector GetSize() const
@@ -302,11 +302,11 @@ public:
 
 		ETextureCreateFlags LocalFlags = Flags | TargetableFlags;
 
-		if(LocalFlags & TexCreate_RenderTargetable)
+		if(EnumHasAnyFlags(LocalFlags, TexCreate_RenderTargetable))
 		{
 			FlagsString += TEXT(" RT");
 		}
-		if(LocalFlags & TexCreate_SRGB)
+		if(EnumHasAnyFlags(LocalFlags, TexCreate_SRGB))
 		{
 			FlagsString += TEXT(" sRGB");
 		}
@@ -314,17 +314,17 @@ public:
 		{
 			FlagsString += FString::Printf(TEXT(" %dxMSAA"), NumSamples);
 		}
-		if(LocalFlags & TexCreate_UAV)
+		if(EnumHasAnyFlags(LocalFlags, TexCreate_UAV))
 		{
 			FlagsString += TEXT(" UAV");
 		}
 
-		if(LocalFlags & TexCreate_FastVRAM)
+		if(EnumHasAnyFlags(LocalFlags, TexCreate_FastVRAM))
 		{
 			FlagsString += TEXT(" VRam");
 		}
 
-		if (LocalFlags & TexCreate_Transient)
+		if (EnumHasAnyFlags(LocalFlags, TexCreate_Transient))
 		{
 			FlagsString += TEXT(" Transient");
 		}

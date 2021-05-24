@@ -1853,7 +1853,7 @@ void FRHIRenderPassInfo::Validate() const
 			// for depth read sub-pass
 			// 1. render pass must have depth target
 			// 2. depth target must support InputAttachement
-			ensure((DepthStencilRenderTarget.DepthStencilTarget->GetFlags() & TexCreate_InputAttachmentRead) != 0);
+			ensure(EnumHasAnyFlags(DepthStencilRenderTarget.DepthStencilTarget->GetFlags(), TexCreate_InputAttachmentRead));
 		}
 	}
 	else

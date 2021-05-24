@@ -411,7 +411,7 @@ void FVisualizeTexture::DisplayPoolResourceListToLog(FVisualizeTexture::ESortBy 
 			checkNoEntry();
 		}
 
-		if (Desc.Flags & TexCreate_FastVRAM)
+		if (EnumHasAnyFlags(Desc.Flags, TexCreate_FastVRAM))
 		{
 			FRHIResourceInfo Info;
 
@@ -861,7 +861,7 @@ void FVisualizeTexture::SetCheckPoint(FRDGBuilder& GraphBuilder, IPooledRenderTa
 
 	const FPooledRenderTargetDesc& Desc = PooledRenderTarget->GetDesc();
 
-	if ((Desc.TargetableFlags & TexCreate_ShaderResource) == 0)
+	if (!EnumHasAnyFlags(Desc.TargetableFlags, TexCreate_ShaderResource))
 	{
 		return;
 	}

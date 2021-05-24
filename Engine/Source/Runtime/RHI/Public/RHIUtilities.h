@@ -692,7 +692,7 @@ inline void RHICreateTargetableShaderResource2D(
 	check(!(bForceSeparateTargetAndShaderResource && bForceSharedTargetAndShaderResource));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
+	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
 
 	if (NumSamples > 1 && !bForceSharedTargetAndShaderResource)
 	{
@@ -707,7 +707,7 @@ inline void RHICreateTargetableShaderResource2D(
 	else
 	{
 		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
-		if (TargetableTextureFlags & TexCreate_DepthStencilTargetable)
+		if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_DepthStencilTargetable))
 		{
 			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
 		}
@@ -757,7 +757,7 @@ inline void RHICreateTargetableShaderResource2DArray(
 	check(!(bForceSeparateTargetAndShaderResource && bForceSharedTargetAndShaderResource));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
+	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
 
 	if (NumSamples > 1 && !bForceSharedTargetAndShaderResource)
 	{
@@ -772,7 +772,7 @@ inline void RHICreateTargetableShaderResource2DArray(
 	else
 	{
 		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
-		if (TargetableTextureFlags & TexCreate_DepthStencilTargetable)
+		if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_DepthStencilTargetable))
 		{
 			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
 		}
@@ -823,7 +823,7 @@ inline void RHICreateTargetableShaderResourceCube(
 	check(!(Flags & TexCreate_ResolveTargetable));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
+	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
 
 	if(!bForceSeparateTargetAndShaderResource/* && GSupportsRenderDepthTargetableShaderResources*/)
 	{
@@ -864,7 +864,7 @@ inline void RHICreateTargetableShaderResourceCubeArray(
 	check(!(Flags & TexCreate_ResolveTargetable));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
+	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
 
 	if(!bForceSeparateTargetAndShaderResource/* && GSupportsRenderDepthTargetableShaderResources*/)
 	{
@@ -906,7 +906,7 @@ inline void RHICreateTargetableShaderResource3D(
 	check(!(Flags & TexCreate_ResolveTargetable));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
+	check(EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
 
 	if (!bForceSeparateTargetAndShaderResource/* && GSupportsRenderDepthTargetableShaderResources*/)
 	{
@@ -916,7 +916,7 @@ inline void RHICreateTargetableShaderResource3D(
 	else
 	{
 		ETextureCreateFlags ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
-		if (TargetableTextureFlags & TexCreate_DepthStencilTargetable)
+		if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_DepthStencilTargetable))
 		{
 			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
 		}

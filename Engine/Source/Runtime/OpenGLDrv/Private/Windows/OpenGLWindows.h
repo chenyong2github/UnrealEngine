@@ -446,7 +446,7 @@ struct FWindowsOpenGL : public FOpenGL4
 		}
 	}
 
-	static FORCEINLINE bool TexStorage2D(GLenum Target, GLint Levels, GLint InternalFormat, GLsizei Width, GLsizei Height, GLenum Format, GLenum Type, uint32 Flags)
+	static FORCEINLINE bool TexStorage2D(GLenum Target, GLint Levels, GLint InternalFormat, GLsizei Width, GLsizei Height, GLenum Format, GLenum Type, ETextureCreateFlags Flags)
 	{
 		if( glTexStorage2D != NULL )
 		{
@@ -634,7 +634,7 @@ struct FWindowsOpenGL : public FOpenGLESDeferred
 		}
 	}
 
-	static FORCEINLINE bool TexStorage2D(GLenum Target, GLint Levels, GLint InternalFormat, GLsizei Width, GLsizei Height, GLenum Format, GLenum Type, uint32 Flags)
+	static FORCEINLINE bool TexStorage2D(GLenum Target, GLint Levels, GLint InternalFormat, GLsizei Width, GLsizei Height, GLenum Format, GLenum Type, ETextureCreateFlags Flags)
 	{
 		if( glTexStorage2D != NULL )
 		{

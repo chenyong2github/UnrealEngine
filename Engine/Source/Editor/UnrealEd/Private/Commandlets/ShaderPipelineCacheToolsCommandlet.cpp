@@ -1061,7 +1061,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				// Re-purpose graphics state fields to store RT PSO properties
 				// See corresponding parsing code in ParseStableCSV().
 				Desc.MSAASamples = Item.PSO->RayTracingDesc.MaxPayloadSizeInBytes;
-				Desc.DepthStencilFlags = uint32(Item.PSO->RayTracingDesc.bAllowHitGroupIndexing);
+				Desc.DepthStencilFlags = static_cast<ETextureCreateFlags>(Item.PSO->RayTracingDesc.bAllowHitGroupIndexing);
 
 				PSOLine += FString::Printf(TEXT("\"%s\""), *Desc.StateToString());
 
@@ -1339,7 +1339,7 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 				// See corresponding serialization code in ExpandPSOSC()
 				PSO.RayTracingDesc.Frequency = EShaderFrequency(AdjustedSlotIndex);
 				PSO.RayTracingDesc.MaxPayloadSizeInBytes = PSO.GraphicsDesc.MSAASamples;
-				PSO.RayTracingDesc.bAllowHitGroupIndexing = PSO.GraphicsDesc.DepthStencilFlags != 0;
+				PSO.RayTracingDesc.bAllowHitGroupIndexing = static_cast<uint64>(PSO.GraphicsDesc.DepthStencilFlags) != 0;
 				break;
 			default:
 				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected shader frequency"));
