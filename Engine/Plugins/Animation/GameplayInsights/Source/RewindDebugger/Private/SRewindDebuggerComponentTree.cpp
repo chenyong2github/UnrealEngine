@@ -5,12 +5,14 @@
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IGameplayInsightsModule.h"
+#include "Modules/ModuleManager.h"
 #include "ObjectTrace.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Views/SListView.h"
-
 
 #define LOCTEXT_NAMESPACE "SAnimationInsights"
 
@@ -72,6 +74,57 @@ void ComponentTreeViewExpansionChanged(TSharedPtr<FDebugObjectInfo> InItem, bool
 	InItem->bExpanded = bShouldBeExpanded;
 }
 
+TSharedPtr<SWidget> SRewindDebuggerComponentTree::ComponentTreeOnContextMenuOpening()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr, nullptr, /*bCloseSelfOnly=*/true);
+	IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("Property Tracing", "Property Tracing"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("Trace Object Properties", "Trace Object Properties"),
+			LOCTEXT("Trace Object Properties Tooltip", "Record this object's properties so they will show in the Rewind Debugger when scrubbing."),
+			FSlateIcon(), 
+			FUIAction(FExecuteAction::CreateLambda([this, &GameplayInsightsModule]()
+				{
+					TArray<TSharedPtr<FDebugObjectInfo>> SelectedObjects = ComponentTreeView->GetSelectedItems();
+
+					if (SelectedObjects.Num() > 0)
+					{
+						if (UObject* Object = FObjectTrace::GetObjectFromId(SelectedObjects[0]->ObjectId))
+						{
+							GameplayInsightsModule.EnableObjectPropertyTrace(Object, !GameplayInsightsModule.IsObjectPropertyTraceEnabled(Object));
+						}
+					}
+				}),
+				FCanExecuteAction(),
+				FGetActionCheckState::CreateLambda([this, &GameplayInsightsModule]()
+				{
+					bool bEnabled = false;
+					TArray<TSharedPtr<FDebugObjectInfo>> SelectedObjects = ComponentTreeView->GetSelectedItems();
+
+					if (SelectedObjects.Num() > 0)
+					{
+						if (UObject* Object = FObjectTrace::GetObjectFromId(SelectedObjects[0]->ObjectId))
+						{
+							bEnabled = GameplayInsightsModule.IsObjectPropertyTraceEnabled(Object);
+						}
+					}
+                    return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				}
+				),
+				FIsActionButtonVisible()
+			),
+			NAME_None,
+			EUserInterfaceActionType::Check
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+
 void SRewindDebuggerComponentTree::Construct(const FArguments& InArgs)
 {
 	DebugComponents = InArgs._DebugComponents;
@@ -83,7 +136,8 @@ void SRewindDebuggerComponentTree::Construct(const FArguments& InArgs)
 									.OnGetChildren_Static(&ComponentTreeViewGetChildren)
 									.OnExpansionChanged_Static(&ComponentTreeViewExpansionChanged)
 									.SelectionMode(ESelectionMode::Single)
-									.OnSelectionChanged(InArgs._OnSelectionChanged);
+									.OnSelectionChanged(InArgs._OnSelectionChanged)
+									.OnContextMenuOpening(this, &SRewindDebuggerComponentTree::ComponentTreeOnContextMenuOpening);
 
 	ChildSlot
 	[

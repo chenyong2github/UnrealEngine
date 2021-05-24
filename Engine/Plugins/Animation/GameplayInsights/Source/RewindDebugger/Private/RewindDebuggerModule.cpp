@@ -27,6 +27,11 @@ static const FName RewindDebuggerTabName("RewindDebugger");
 
 TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnTabArgs& SpawnTabArgs)
 {
+	if (FRewindDebugger::Instance() == nullptr)
+	{
+		FRewindDebugger::Initialize();
+	}
+
 	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab);
 
@@ -111,7 +116,6 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 
 void FRewindDebuggerModule::StartupModule()
 {
-	FRewindDebugger::Initialize();
 	FRewindDebuggerStyle::Initialize();
 	FRewindDebuggerCommands::Register();
 
@@ -123,21 +127,10 @@ void FRewindDebuggerModule::StartupModule()
 		.SetTooltipText(LOCTEXT("TooltipText", "Opens Rewind Debugger."));
 
 
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("RewindDebugger"), 0.0f, [this](float DeltaTime)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRewindDebuggerModule_Tick);
-
-		FRewindDebugger::Instance()->Tick(DeltaTime);
-
-		return true;
-	});
-
 }
 
 void FRewindDebuggerModule::ShutdownModule()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
-
 	FRewindDebuggerCommands::Unregister();
 	FRewindDebuggerStyle::Shutdown();
 	FRewindDebugger::Shutdown();

@@ -24,6 +24,8 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 
 #define LOCTEXT_NAMESPACE "SAnimationInsights"
@@ -236,7 +238,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 				.OnSelectionChanged(this, &SRewindDebugger::OnComponentSelectionChanged);
 
 
-	DebugViewContainer = SNew(SVerticalBox);
+	DebugViewContainer = SNew(SScrollBox);
 
 	TraceTime.OnPropertyChanged = TraceTime.OnPropertyChanged.CreateRaw(this, &SRewindDebugger::TraceTimeChanged);
 
@@ -367,7 +369,14 @@ void SRewindDebugger::OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> S
 			// this will be replaced by something better once there are more DebugViews implemented
 			DebugViewContainer->AddSlot()
 			[
-				DebugView.ToSharedRef()
+				SNew(SExpandableArea)
+				.InitiallyCollapsed(false)
+				.Padding(10.0f)
+				.AreaTitle(DebugView->GetTitle())
+				.BodyContent()
+				[
+					DebugView.ToSharedRef()
+				]
 			];
 		}
 	}

@@ -25,4 +25,11 @@ class IGameplayInsightsModule
 public:
 	
 	virtual IGameplayInsightsDebugViewCreator* GetDebugViewCreator() = 0;
+
+#if WITH_EDITOR
+	// start or stop tracing all properties of this Object to Insights
+	virtual void EnableObjectPropertyTrace(UObject* Object, bool bEnable = true) = 0;
+	// check if an Object has it's properties tracing to Insights
+	virtual bool IsObjectPropertyTraceEnabled(UObject* Object) = 0;
+#endif
 };
