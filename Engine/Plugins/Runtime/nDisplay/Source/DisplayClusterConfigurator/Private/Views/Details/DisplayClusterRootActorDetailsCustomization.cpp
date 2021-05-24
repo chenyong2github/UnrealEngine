@@ -86,7 +86,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 	
 	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
 	
-	if (EditedObject.IsValid() && !EditedObject->IsTemplate(RF_ClassDefaultObject))
+	if (EditedObject.IsValid() && !EditedObject->IsTemplate(RF_ClassDefaultObject) && EditedObject->CurrentConfigData)
 	{
 		// Build ICVFX category.
 		
