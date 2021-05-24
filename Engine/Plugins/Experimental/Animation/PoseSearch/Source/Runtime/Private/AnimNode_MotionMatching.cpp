@@ -81,15 +81,21 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 		// Update features in the query with the latest inputs
 		ComposeQuery(Context);
 
+		// Initialize the pose search query bias weights context
+		FPoseSearchBiasWeights QueryBiasWeights;
+		QueryBiasWeights.Init(BiasWeights, Database->Schema->Layout);
+
+		const FPoseSearchBiasWeightsContext BiasWeightsContext = { &QueryBiasWeights, Database };
+
 		// Determine how much the updated query vector deviates from the current pose vector
 		float CurrentDissimilarity = MAX_flt;
 		if (DbPoseIdx != INDEX_NONE)
 		{
-			CurrentDissimilarity = UE::PoseSearch::ComparePoses(Database->SearchIndex, DbPoseIdx, ComposedQuery.GetNormalizedValues());
+			CurrentDissimilarity = UE::PoseSearch::ComparePoses(Database->SearchIndex, DbPoseIdx, ComposedQuery.GetNormalizedValues(), &BiasWeightsContext);
 		}
 
 		// Search the database for the nearest match to the updated query vector
-		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, ComposedQuery.GetNormalizedValues());
+		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, ComposedQuery.GetNormalizedValues(), &BiasWeightsContext);
 		if (Result.IsValid() && (ElapsedPoseJumpTime >= SearchThrottleTime))
 		{
 			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
