@@ -40,7 +40,11 @@ TSharedPtr<FLevelSnapshotsEditorToolkit> FLevelSnapshotsEditorToolkit::CreateSna
 
 void FLevelSnapshotsEditorToolkit::Initialize(ULevelSnapshotsEditorData* InEditorData)
 {
+	check(InEditorData);
+	
 	EditorData = InEditorData;
+
+	EditorData.Get()->ClearActiveSnapshot();
 
 	EditorContext = MakeShared<FLevelSnapshotsEditorContext>();
 	ViewBuilder = MakeShared<FLevelSnapshotsEditorViewBuilder>();
@@ -108,8 +112,8 @@ void FLevelSnapshotsEditorToolkit::Initialize(ULevelSnapshotsEditorData* InEdito
 			nullptr,
 			AppIdentifier,
 			Layout,
-			bCreateDefaultToolbar,
 			bCreateDefaultStandaloneMenu,
+			bCreateDefaultToolbar,
 			InEditorData
 			);
 }

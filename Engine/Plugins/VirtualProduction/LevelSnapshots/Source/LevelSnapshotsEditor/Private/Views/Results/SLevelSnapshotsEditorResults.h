@@ -4,6 +4,7 @@
 
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/STreeView.h"
 
 #include "FilterListData.h"
@@ -46,6 +47,25 @@ struct FLevelSnapshotsEditorResultsSplitterManager
 	float NameColumnWidth = 1.0f;
 	float SnapshotPropertyColumnWidth = 1.0f;
 	float WorldObjectPropertyColumnWidth = 1.0f;
+};
+
+struct FLevelSnapshotsEditorResultsRowStateMemory
+{
+	FLevelSnapshotsEditorResultsRowStateMemory()
+	{
+		bIsExpanded = false;
+		WidgetCheckedState = ECheckBoxState::Checked;
+	};
+	
+	FLevelSnapshotsEditorResultsRowStateMemory(const FString& InPathToRow, const bool bNewIsExpanded, const ECheckBoxState NewWidgetCheckedState)
+		: PathToRow(InPathToRow)
+		, bIsExpanded(bNewIsExpanded)
+		, WidgetCheckedState(NewWidgetCheckedState)
+	{};
+	
+	FString PathToRow;
+	bool bIsExpanded;
+	ECheckBoxState WidgetCheckedState;
 };
 
 struct FRowGeneratorInfo
@@ -120,25 +140,27 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	void FlushReferences();
 	
 	FLevelSnapshotsEditorResultsRow(const FText InDisplayName, const ELevelSnapshotsEditorResultsRowType InRowType, const ECheckBoxState StartingWidgetCheckboxState, 
-		const TWeakPtr<FLevelSnapshotsEditorResultsRow>& = nullptr);
+		const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView, const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow = nullptr);
 
 	void InitHeaderRow(
-		const ELevelSnapshotsEditorResultsTreeViewHeaderType InHeaderType, const TArray<FText>& InColumns, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView);
+		const ELevelSnapshotsEditorResultsTreeViewHeaderType InHeaderType, const TArray<FText>& InColumns);
 	
 	void InitAddedActorRow(AActor* InAddedActor);
-	void InitRemovedActorRow(const FSoftObjectPath& InRemovedActorPath, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView);
+	void InitRemovedActorRow(const FSoftObjectPath& InRemovedActorPath);
 	
-	void InitActorRow(AActor* InSnapshotActor, AActor* InWorldActor, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView);
+	void InitActorRow(AActor* InSnapshotActor, AActor* InWorldActor);
 	void InitObjectRow(
 		UObject* InSnapshotObject, UObject* InWorldObject,
 		const TWeakPtr<FRowGeneratorInfo>& InSnapshotRowGenerator,
-		const TWeakPtr<FRowGeneratorInfo>& InWorldRowGenerator,
-		const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView);
+		const TWeakPtr<FRowGeneratorInfo>& InWorldRowGenerator);
 
 	void InitPropertyRow(
 		const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InContainingObjectGroup,
 		const TSharedPtr<FPropertyHandleHierarchy>& InSnapshotHierarchy, const TSharedPtr<FPropertyHandleHierarchy>& InWorldHandleHierarchy,
-		const bool bNewIsCounterpartValueSame = false);
+		const bool bNewIsCounterpartValueSame);
+
+	void ApplyRowStateMemoryIfAvailable();
+	const FString& GetOrGenerateRowPath();
 
 	void GenerateActorGroupChildren(FPropertySelectionMap& PropertySelectionMap);
 
@@ -208,10 +230,10 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	void SetIsCounterpartValueSame(const bool bIsValueSame);
 
 	ECheckBoxState GetWidgetCheckedState() const;
-	void SetWidgetCheckedState(const ECheckBoxState NewState, const bool bUserClicked = false);
+	void SetWidgetCheckedState(const ECheckBoxState NewState, const bool bShouldUpdateHierarchyCheckedStates = false);
 
 	bool GetIsNodeChecked() const;
-	void SetIsNodeChecked(const bool bNewChecked);
+	void SetIsNodeChecked(const bool bNewChecked, const bool bShouldUpdateHierarchyCheckedStates = false);
 
 	/* Hierarchy utilities */
 
@@ -253,6 +275,9 @@ private:
 	/* When we generate Search Terms for a node, it's saved here so it does not need to be generated again until filters are changed */
 	FString CachedSearchTerms;
 	bool bDoesRowMatchSearchTerms = true;
+
+	/* This is a breadcrumb trail of display names used to find or store the state of the row. */
+	FString RowPath;
 
 	/* Returns a string of searchable keywords such as object names, property names, paths or anything else associated with the row that might be useful to search for. */
 	const FString& GetOrCacheSearchTerms();
@@ -306,13 +331,13 @@ public:
 
 	FMenuBuilder BuildShowOptionsMenu();
 
-	void SetShowFilteredActors(const bool bNewSetting);
-	void SetShowUnselectedActors(const bool bNewSetting);
+	void SetShowFilteredRows(const bool bNewSetting);
+	void SetShowUnselectedRows(const bool bNewSetting);
 
-	bool GetShowFilteredActors() const;
-	bool GetShowUnselectedActors() const;
+	bool GetShowFilteredRows() const;
+	bool GetShowUnselectedRows() const;
 	
-	void FlushMemory();
+	void FlushMemory(const bool bShouldKeepMemoryAllocated);
 
 	TOptional<ULevelSnapshot*> GetSelectedLevelSnapshot() const;
 
@@ -320,6 +345,7 @@ public:
 	void RefreshResults();
 	FReply OnClickApplyToWorld();
 
+	void UpdateSnapshotNameText(const TOptional<ULevelSnapshot*>& InLevelSnapshot) const;
 	void UpdateSnapshotInformationText();
 
 	/* This method builds a selection set of all visible and checked properties to pass back to apply to the world. */
@@ -330,6 +356,8 @@ public:
 	void ExecuteResultsViewSearchOnSpecifiedActors(const FString& SearchString, const TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& ActorRowsToConsider) const;
 
 	bool DoesTreeViewHaveVisibleChildren() const;
+
+	void SetTreeViewItemExpanded(const TSharedPtr<FLevelSnapshotsEditorResultsRow>& RowToExpand, const bool bNewExpansion) const;
 
 	ULevelSnapshotsEditorData* GetEditorDataPtr() const;
 
@@ -343,7 +371,11 @@ public:
 		const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InBoundObject, const ELevelSnapshotsObjectType InGeneratorType,
 		FPropertyEditorModule& PropertyEditorModule);
 
-	void CleanUpGenerators();
+	void CleanUpGenerators(const bool bShouldKeepMemoryAllocated);
+
+	bool FindRowStateMemoryByPath(const FString& InPath, FLevelSnapshotsEditorResultsRowStateMemory& OutRowStateMemory);
+	void AddRowStateToRowStateMemory(const TSharedPtr<FLevelSnapshotsEditorResultsRowStateMemory> InRowStateMemory);
+	void GenerateRowStateMemoryRecursively();
 
 private:
 
@@ -353,9 +385,12 @@ private:
 	TSharedPtr<STextBlock> SelectedSnapshotNamePtr;
 
 	// Snapshot Information Text
+	TSharedPtr<SHorizontalBox> InfoTextBox;
 	TSharedPtr<STextBlock> SelectedActorCountText;
 	TSharedPtr<STextBlock> TotalActorCountText;
 	TSharedPtr<STextBlock> MiscActorCountText;
+
+	FText DefaultNameText;
 		
 	FReply SetAllActorGroupsCollapsed();
 
@@ -365,6 +400,7 @@ private:
 
 	FDelegateHandle OnActiveSnapshotChangedHandle;
 	FDelegateHandle OnRefreshResultsHandle;
+	FDelegateHandle OnMapOpenedDelegateHandle;
 
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorDataPtr;
 
@@ -381,7 +417,7 @@ private:
 
 	//  Tree View Implementation
 
-	void GenerateTreeView();
+	void GenerateTreeView(const bool bSnapshotHasChanged);
 	bool GenerateTreeViewChildren_ModifiedActors(FLevelSnapshotsEditorResultsRowPtr ModifiedActorsHeader, ULevelSnapshotFilter* UserFilters);
 	bool GenerateTreeViewChildren_AddedActors(FLevelSnapshotsEditorResultsRowPtr AddedActorsHeader);
 	bool GenerateTreeViewChildren_RemovedActors(FLevelSnapshotsEditorResultsRowPtr RemovedActorsHeader);
@@ -403,6 +439,9 @@ private:
 
 	/* The results view should be the sole manager of the RowGenerators' lifetimes */
 	TSet<TSharedPtr<FRowGeneratorInfo>> RegisteredRowGenerators;
+
+	/* This list remembers the checked and expansion states of previously created rows so these states can be recreated on refresh. */
+	TSet<TSharedPtr<FLevelSnapshotsEditorResultsRowStateMemory>> RowStateMemory;
 };
 
 class SLevelSnapshotsEditorResultsRow : public SCompoundWidget
