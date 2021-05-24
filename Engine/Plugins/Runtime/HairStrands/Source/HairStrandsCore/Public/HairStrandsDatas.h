@@ -7,6 +7,7 @@
 #include "RHIDefinitions.h"
 #include "PackedNormal.h"
 #include "RenderGraphResources.h"
+#include "Serialization/BulkData.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHairStrands, Log, All);
 
