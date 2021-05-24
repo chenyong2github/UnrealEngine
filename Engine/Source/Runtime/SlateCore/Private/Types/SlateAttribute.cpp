@@ -7,12 +7,15 @@
 #include "Widgets/SWidget.h"
 #include "Debugging/WidgetList.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 namespace SlateAttributePrivate
 {
 	void TestAttributeAddress(const SWidget& OwningWidget, const FSlateAttributeImpl& Attribute, ESlateAttributeType AttributeType)
 	{
 #if STATS && DO_CHECK
-		if (AttributeType == ESlateAttributeType::Member)
+		//@TODO: DarenC - Using allocsize as proxy for 'IsConstructionCompleted' due to encapsulation.
+		if (AttributeType == ESlateAttributeType::Member && OwningWidget.GetAllocSize() > 0)
 		{
 			UPTRINT SlateAttributePtr = (UPTRINT)&Attribute;
 			UPTRINT WidgetPtr = (UPTRINT)&OwningWidget;
@@ -117,3 +120,5 @@ namespace SlateAttributePrivate
 		FSlateAttributeMetaData::MoveAttribute(OwningWidget, *this, AttributeType, Other);
 	}
 }
+
+PRAGMA_ENABLE_OPTIMIZATION

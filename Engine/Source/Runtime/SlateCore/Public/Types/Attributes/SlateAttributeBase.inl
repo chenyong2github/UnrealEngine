@@ -544,14 +544,17 @@ namespace SlateAttributePrivate
 
 			virtual FUpdateAttributeResult UpdateAttribute(const SWidget& Widget) override
 			{
-				ObjectType NewValue = Getter.Execute();
-
-				const bool bIsIdentical = Attribute->IdenticalTo(Widget, Attribute->Value, NewValue);
-				if (!bIsIdentical)
+				if (Getter.IsBound())
 				{
-					// Set the value on the widget
-					Attribute->Value = MoveTemp(NewValue);
-					return Attribute->GetInvalidationReason(Widget);
+					ObjectType NewValue = Getter.Execute();
+
+					const bool bIsIdentical = Attribute->IdenticalTo(Widget, Attribute->Value, NewValue);
+					if (!bIsIdentical)
+					{
+						// Set the value on the widget
+						Attribute->Value = MoveTemp(NewValue);
+						return Attribute->GetInvalidationReason(Widget);
+					}
 				}
 				return FUpdateAttributeResult();
 			}
