@@ -388,6 +388,7 @@ public:
 		: Indices(InNeedsCPUAccess)
 		, CachedNumIndices(0)
 	{
+		static_assert(sizeof(INDEX_TYPE) == 2 || sizeof(INDEX_TYPE) == 4, "FRawStaticIndexBuffer16or32 must have a stride of 2 or 4 bytes.");
 	}
 
 	/**
@@ -544,7 +545,7 @@ private:
 		if (CachedNumIndices)
 		{
 			// Create the index buffer.
-			FRHIResourceCreateInfo CreateInfo(TEXT("FRawStaticIndexBuffer"), &Indices);
+			FRHIResourceCreateInfo CreateInfo(sizeof(INDEX_TYPE) == 4 ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"), &Indices);
 			EBufferUsageFlags Flags = BUF_Static;
 
 			if (IsSRVNeeded())
