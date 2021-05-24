@@ -143,6 +143,11 @@ float3 LAB_2_LinearRGB( float3 LAB, float3 ReferenceWhite)
 // Multiplier that get applied for ALU optimisation purposes on the luma, when converting LinearRGB to YCoCg.
 #define LINEARRGB_2_YCOCG_LUMA_MULTIPLIER 4.0
 
+// YCoCg ranges: 
+//  - Y  in [0, LINEARRGB_2_YCOCG_LUMA_MULTIPLIER]
+//  - Co in [-2, 2]
+//  - Cg in [-2, 2]
+
 float3 LinearRGB_2_YCoCg(float3 RGB)
 {
 	float Y = dot(RGB, float3(1, 2, 1));
@@ -187,6 +192,17 @@ float3 LinearRGB_2_LCoCg(float3 RGB)
 float3 LCoCg_2_LinearRGB(float3 LCoCg)
 {
 	return YCoCg_2_LinearRGB(LCoCg_2_YCoCg(LCoCg));
+}
+
+// NormalisedYCoCg has Y, Co and Cg values mapped to [0, 1]
+float3 LinearRGB_2_NormalisedYCoCg(float3 RGB)
+{
+	return LinearRGB_2_YCoCg(RGB) * float3(1.0f / LINEARRGB_2_YCOCG_LUMA_MULTIPLIER, 0.25f, 0.25f) + float3(0.0f, 0.5f, 0.5f);
+}
+
+float3 NormalisedYCoCg_2_LinearRGB(float3 YCoCg)
+{
+	return YCoCg_2_LinearRGB(YCoCg * float3(LINEARRGB_2_YCOCG_LUMA_MULTIPLIER, 4.0f, 4.0f) + float3(0.0f, -2.0f, -2.0f));
 }
 
 //------------------------------------------------------------------
