@@ -31,10 +31,10 @@ public:
 
 public:
 	// Use external cine camera actor
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay)
 	TSoftObjectPtr<ACineCameraActor> ExternalCameraActor;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ShowInnerProperties))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (ShowInnerProperties))
 	FDisplayClusterConfigurationICVFX_CameraSettings CameraSettings;
 
 #if WITH_EDITOR
