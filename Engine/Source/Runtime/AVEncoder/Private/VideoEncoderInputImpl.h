@@ -85,7 +85,9 @@ public:
 	CUcontext GetCUDAEncoderContext() const;
 #endif
 
+#if !PLATFORM_MAC
 	VkDevice_T* GetVulkanDevice() const;
+#endif
 
 private:
 
