@@ -83,6 +83,11 @@ namespace HordeServer.Api
 		public bool? AutoSubmit { get; set; }
 
 		/// <summary>
+		/// Whether to update issues based on the outcome of this job
+		/// </summary>
+		public bool? UpdateIssues { get; set; }
+
+		/// <summary>
 		/// Nodes for the new job
 		/// </summary>
 		public List<CreateGroupRequest>? Groups { get; set; }

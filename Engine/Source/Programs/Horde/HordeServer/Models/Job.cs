@@ -587,6 +587,11 @@ namespace HordeServer.Models
 		public string? AutoSubmitMessage { get; }
 
 		/// <summary>
+		/// Whether to update issues based on the outcome of this job
+		/// </summary>
+		public bool UpdateIssues { get; }
+
+		/// <summary>
 		/// Time that the job was created (in UTC)
 		/// </summary>
 		public DateTime CreateTimeUtc { get; }
