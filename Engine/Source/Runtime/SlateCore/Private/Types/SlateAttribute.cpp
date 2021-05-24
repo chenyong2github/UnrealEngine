@@ -7,8 +7,6 @@
 #include "Widgets/SWidget.h"
 #include "Debugging/WidgetList.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace SlateAttributePrivate
 {
 	void TestAttributeAddress(const SWidget& OwningWidget, const FSlateAttributeImpl& Attribute, ESlateAttributeType AttributeType)
@@ -120,5 +118,3 @@ namespace SlateAttributePrivate
 		FSlateAttributeMetaData::MoveAttribute(OwningWidget, *this, AttributeType, Other);
 	}
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
