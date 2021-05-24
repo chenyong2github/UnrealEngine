@@ -1864,14 +1864,14 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 	}
 }
 
-static bool IsAlwaysAccessible(UScriptStruct* Script)
+static bool IsAlwaysAccessible(FUnrealScriptStructDefinitionInfo& ScriptDef)
 {
-	FName ToTest = Script->GetFName();
+	FName ToTest = ScriptDef.GetFName();
 	if (ToTest == NAME_Matrix || ToTest == NAME_Matrix44f || ToTest == NAME_Matrix44d)
 	{
 		return false; // special case, the C++ FMatrix does not have the same members.
 	}
-	bool Result = Script->HasDefaults(); // if we have cpp struct ops in it for UHT, then we can assume it is always accessible
+	bool Result = ScriptDef.HasDefaults(); // if we have cpp struct ops in it for UHT, then we can assume it is always accessible
 	if( ToTest == NAME_Plane || ToTest == NAME_Plane4f || ToTest == NAME_Plane4d
 		||	ToTest == NAME_Vector || ToTest == NAME_Vector3f || ToTest == NAME_Vector3d
 		||	ToTest == NAME_Vector4
@@ -1888,15 +1888,14 @@ static void FindNoExportStructsRecursive(TArray<FUnrealScriptStructDefinitionInf
 {
 	for (; StartDef; StartDef = StartDef->GetSuperStructInfo().Struct)
 	{
-		UStruct* Start = StartDef->GetStruct();
-		if (UScriptStruct* StartScript = Cast<UScriptStruct>(Start))
+		if (FUnrealScriptStructDefinitionInfo* StartScriptDef = UHTCast<FUnrealScriptStructDefinitionInfo>(StartDef))
 		{
-			if (StartScript->StructFlags & STRUCT_Native)
+			if (StartScriptDef->HasAnyStructFlags(STRUCT_Native))
 			{
 				break;
 			}
 
-			if (!IsAlwaysAccessible(StartScript)) // these are a special cases that already exists and if wrong if exported naively
+			if (!IsAlwaysAccessible(*StartScriptDef)) // these are a special cases that already exists and if wrong if exported naively
 			{
 				// this will topologically sort them in reverse order
 				StructDefs.Remove(&StartDef->AsScriptStructChecked());
@@ -2332,8 +2331,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 	{
 		if (FUnrealScriptStructDefinitionInfo* SparseScriptStructDef = GTypeDefinitionInfoMap.FindByName<FUnrealScriptStructDefinitionInfo>(*SparseClassDataString))
 		{
-			UScriptStruct* SparseClassDataStruct = SparseScriptStructDef->GetScriptStruct();
-			GeneratedClassRegisterFunctionText.Logf(TEXT("%s\r\n"), *SparseClassDataStruct->GetName());
+			GeneratedClassRegisterFunctionText.Logf(TEXT("%s\r\n"), *SparseScriptStructDef->GetName());
 			for (FUnrealPropertyDefinitionInfo* ChildDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(*SparseScriptStructDef))
 			{
 				FProperty* Child = ChildDef->GetProperty();
@@ -3437,17 +3435,15 @@ void FNativeClassHeaderGenerator::ExportEnum(FOutputDevice& Out, FUnrealEnumDefi
 // Exports the header text for the list of structs specified (GENERATED_BODY impls)
 void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealScriptStructDefinitionInfo& ScriptStructDef) const
 {
-	UScriptStruct* Struct = ScriptStructDef.GetScriptStruct();
 	ScriptStructDef.AddCrossModuleReference(OutReferenceGatherers.UniqueCrossModuleReferences, true);
 
 	const bool bIsDynamic = ScriptStructDef.IsDynamic();
-	const FString ActualStructName = FNativeClassHeaderGenerator::GetOverriddenName(Struct);
+	const FString ActualStructName = FNativeClassHeaderGenerator::GetOverriddenName(&ScriptStructDef);
 	const FString& FriendApiString  = GetAPIString();
 
-	FUnrealStructDefinitionInfo* BaseStructDef = ScriptStructDef.GetSuperStructInfo().Struct;
-	UStruct* BaseStruct = Struct->GetSuperStruct();
+	FUnrealStructDefinitionInfo* BaseStructDef = ScriptStructDef.GetSuperStruct();
 
-	const FString StructNameCPP = FNameLookupCPP::GetNameCPP(Struct);
+	const FString StructNameCPP = ScriptStructDef.GetAlternateNameCPP();
 
 	const FString& SingletonName = ScriptStructDef.GetSingletonName(true);
 	const FString& ChoppedSingletonName = ScriptStructDef.GetSingletonNameChopped(true);
@@ -3584,11 +3580,11 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	}
 
 	// Export struct.
-	if (Struct->StructFlags & STRUCT_Native)
+	if (ScriptStructDef.HasAnyStructFlags(STRUCT_Native))
 	{
-		check(Struct->StructMacroDeclaredLineNumber != INDEX_NONE);
+		check(ScriptStructDef.GetMacroDeclaredLineNumber() != INDEX_NONE);
 
-		const bool bRequiredAPI = !(Struct->StructFlags & STRUCT_RequiredAPI);
+		const bool bRequiredAPI = !ScriptStructDef.HasAnyStructFlags(STRUCT_RequiredAPI);
 
 		const FString FriendLine = FString::Printf(TEXT("\tfriend struct %s_Statics;\r\n"), *ChoppedSingletonName);
 		const FString StaticClassLine = FString::Printf(TEXT("\t%sstatic class UScriptStruct* StaticStruct();\r\n"), (bRequiredAPI ? *FriendApiString : TEXT("")));
@@ -3646,18 +3642,18 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			}
 		}
 
-		const FString SuperTypedef = BaseStruct ? FString::Printf(TEXT("\ttypedef %s Super;\r\n"), *FNameLookupCPP::GetNameCPP(BaseStruct)) : FString();
+		const FString SuperTypedef = BaseStructDef ? FString::Printf(TEXT("\ttypedef %s Super;\r\n"), *BaseStructDef->GetAlternateNameCPP()) : FString();
 
 		FString CombinedLine = FString::Printf(TEXT("%s%s%s%s"), *FriendLine, *StaticClassLine, *RigVMMethodsDeclarations, *SuperTypedef);
-		const FString MacroName = SourceFile.GetGeneratedBodyMacroName(Struct->StructMacroDeclaredLineNumber);
+		const FString MacroName = SourceFile.GetGeneratedBodyMacroName(ScriptStructDef.GetMacroDeclaredLineNumber());
 
 		const FString Macroized = Macroize(*MacroName, MoveTemp(CombinedLine));
 		OutGeneratedHeaderText.Log(Macroized);
 
 		// Inject static assert to verify that we do not add vtable
-		if (BaseStruct)
+		if (BaseStructDef)
 		{
-			FString BaseStructNameCPP = *FNameLookupCPP::GetNameCPP(BaseStruct);
+			FString BaseStructNameCPP = BaseStructDef->GetAlternateNameCPP();
 
 			FString VerifyPolymorphicStructString = FString::Printf(TEXT("\r\nstatic_assert(std::is_polymorphic<%s>() == std::is_polymorphic<%s>(), \"USTRUCT %s cannot be polymorphic unless super %s is polymorphic\");\r\n\r\n"), *StructNameCPP, *BaseStructNameCPP, *StructNameCPP, *BaseStructNameCPP);			
 			Out.Log(VerifyPolymorphicStructString);
@@ -3667,7 +3663,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		if (!bIsDynamic)
 		{
-			Out.Logf(TEXT("\tstatic FStructRegistrationInfo& Z_Registration_Info_UScriptStruct_%s()\r\n"), *Struct->GetName());
+			Out.Logf(TEXT("\tstatic FStructRegistrationInfo& Z_Registration_Info_UScriptStruct_%s()\r\n"), *ScriptStructDef.GetName());
 			Out.Logf(TEXT("\t{\r\n"));
 			Out.Logf(TEXT("\t\tstatic FStructRegistrationInfo info;\r\n"));
 			Out.Logf(TEXT("\t\treturn info;\r\n"));
@@ -3683,7 +3679,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		const FString& OuterName (bIsDynamic ? STRING_StructPackage : GetPackageSingletonName(UHTCastChecked<FUnrealPackageDefinitionInfo>(ScriptStructDef.GetOuter()), OutReferenceGatherers.UniqueCrossModuleReferences));
 		if (!bIsDynamic)
 		{
-			Out.Logf(TEXT("\tstatic class UScriptStruct*& Singleton = Z_Registration_Info_UScriptStruct_%s().OuterSingleton;\r\n"), *Struct->GetName());
+			Out.Logf(TEXT("\tstatic class UScriptStruct*& Singleton = Z_Registration_Info_UScriptStruct_%s().OuterSingleton;\r\n"), *ScriptStructDef.GetName());
 		}
 		else
 		{
@@ -3738,19 +3734,19 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			Out.Logf(TEXT("static FRegisterCompiledInInfo Z_CompiledInDeferStruct_UScriptStruct_%s(%s::StaticStruct, TEXT(\"%s\"), TEXT(\"%s\"), Z_Registration_Info_UScriptStruct_%s(), CONSTUCT_RELOAD_VERSION_INFO(FStructReloadVersionInfo, sizeof(%s), %s()));\r\n"),
 				*StructNameCPP,
 				*StructNameCPP,
-				*Struct->GetOutermost()->GetName(),
+				*ScriptStructDef.GetPackageDef().GetName(),
 				*ActualStructName,
-				*Struct->GetName(),
+				*ScriptStructDef.GetName(),
 				*StructNameCPP, 
 				*GetHashName
 			);
 		}
 
 		// Generate StaticRegisterNatives equivalent for structs without classes.
-		if (!Struct->GetOuter()->IsA(UStruct::StaticClass()))
+		if (!ScriptStructDef.GetOuter()->GetObject()->IsA(UStruct::StaticClass()))
 		{
 			// Do not change the Z_CompiledInDeferCppStructOps_UScriptStruct_ without changing LC_SymbolPatterns
-			const FString ShortPackageName = FPackageName::GetShortName(Struct->GetOuter()->GetName());
+			const FString ShortPackageName = FPackageName::GetShortName(ScriptStructDef.GetOuter()->GetName());
 			Out.Logf(TEXT("static struct FScriptStruct_%s_StaticRegisterNatives%s\r\n"), *ShortPackageName, *StructNameCPP);
 			Out.Logf(TEXT("{\r\n"));
 			Out.Logf(TEXT("\tFScriptStruct_%s_StaticRegisterNatives%s()\r\n"), *ShortPackageName, *StructNameCPP);
@@ -3776,13 +3772,13 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		ExportMirrorsForNoexportStruct(GeneratedStructRegisterFunctionText, *NoExportStructDef, /*Indent=*/ 2);
 	}
 
-	if (BaseStruct)
+	if (BaseStructDef)
 	{
-		CastChecked<UScriptStruct>(BaseStruct); // this better actually be a script struct
+		UHTCastChecked<FUnrealScriptStructDefinitionInfo>(BaseStructDef); // this better actually be a script struct
 		BaseStructDef->AddCrossModuleReference(OutReferenceGatherers.UniqueCrossModuleReferences, true);
 	}
 
-	EStructFlags UncomputedFlags = (EStructFlags)(Struct->StructFlags & ~STRUCT_ComputedFlags);
+	EStructFlags UncomputedFlags = (EStructFlags)(ScriptStructDef.GetStructFlags() & ~STRUCT_ComputedFlags);
 
 	FString OuterFunc;
 	if (!bIsDynamic)
@@ -3804,7 +3800,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	FString MetaDataParams = OutputMetaDataCodeForObject(GeneratedStructRegisterFunctionText, StaticDefinitions, ScriptStructDef, *FString::Printf(TEXT("%s::Struct_MetaDataParams"), *StaticsStructName), TEXT("\t\t"), TEXT("\t"));
 
 	FString NewStructOps;
-	if (Struct->StructFlags & STRUCT_Native)
+	if (ScriptStructDef.HasAnyStructFlags(STRUCT_Native))
 	{
 		GeneratedStructRegisterFunctionText.Log(TEXT("\t\tstatic void* NewStructOps();\r\n"));
 
@@ -3859,9 +3855,9 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	// Structs can either have a UClass or UPackage as outer (if declared in non-UClass header).
 	if (!bIsDynamic)
 	{
-		if (Struct->StructFlags & STRUCT_Native)
+		if (ScriptStructDef.HasAnyStructFlags(STRUCT_Native))
 		{
-			GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tstatic UScriptStruct*& ReturnStruct = Z_Registration_Info_UScriptStruct_%s().InnerSingleton;\r\n"), *Struct->GetName());
+			GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tstatic UScriptStruct*& ReturnStruct = Z_Registration_Info_UScriptStruct_%s().InnerSingleton;\r\n"), *ScriptStructDef.GetName());
 		}
 		else
 		{
@@ -4150,14 +4146,12 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 
 void FNativeClassHeaderGenerator::ExportMirrorsForNoexportStruct(FOutputDevice& Out, FUnrealScriptStructDefinitionInfo& ScriptStructDef, int32 TextIndent)
 {
-	UScriptStruct* ScriptStruct = ScriptStructDef.GetScriptStruct();
-
 	// Export struct.
-	const FString StructName = FNameLookupCPP::GetNameCPP(ScriptStruct);
+	const FString StructName = ScriptStructDef.GetAlternateNameCPP();
 	Out.Logf(TEXT("%sstruct %s"), FCString::Tab(TextIndent), *StructName);
-	if (ScriptStruct->GetSuperStruct() != NULL)
+	if (FUnrealStructDefinitionInfo* SuperStructDef = ScriptStructDef.GetSuperStruct())
 	{
-		Out.Logf(TEXT(" : public %s"), *FNameLookupCPP::GetNameCPP(ScriptStruct->GetSuperStruct()));
+		Out.Logf(TEXT(" : public %s"), *SuperStructDef->GetAlternateNameCPP());
 	}
 	Out.Logf(TEXT("\r\n%s{\r\n"), FCString::Tab(TextIndent));
 
@@ -5536,8 +5530,7 @@ static void RecordPackageSingletons(
 	Singletons.Reserve(StructDefs.Num() + DelegateDefs.Num());
 	for (FUnrealScriptStructDefinitionInfo* StructDef : StructDefs)
 	{
-		UScriptStruct* Struct = StructDef->GetScriptStruct();
-		if (Struct->StructFlags & STRUCT_NoExport && !HasDynamicOuter(*StructDef))
+		if (StructDef->HasAnyStructFlags(STRUCT_NoExport) && !HasDynamicOuter(*StructDef))
 		{
 			Singletons.Add(StructDef);
 		}
