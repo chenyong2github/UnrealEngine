@@ -5161,6 +5161,10 @@ bool FHlslNiagaraTranslator::HandleBoundConstantVariableToDataSetRead(FNiagaraVa
 			const FString SysParamEnginePositionSymbolNameString = GetSanitizedSymbolName(SYS_PARAM_ENGINE_POSITION.GetName().ToString(), true);
 			const FString ConstantStr = FString::Printf(TEXT("%s%s"), *SysParamEnginePositionSymbolNameString, *FString(TEXT(".xyz")));
 			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType());
+			if (CodeChunks.IsValidIndex(Output))
+			{
+				CodeChunks[Output].Original = InVariable;
+			}
 			return true;
 		}
 		else
@@ -5168,7 +5172,11 @@ bool FHlslNiagaraTranslator::HandleBoundConstantVariableToDataSetRead(FNiagaraVa
 			InVariable.SetValue(FVector(EForceInit::ForceInitToZero));
 			float* ValuePtr = (float*)InVariable.GetData();
 			const FString ConstantStr = FString::Printf(TEXT("float3(%g,%g,%g)"), *ValuePtr, *(ValuePtr + 1), *(ValuePtr + 2));
-			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType());
+			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType()); 
+			if (CodeChunks.IsValidIndex(Output))
+			{
+				CodeChunks[Output].Original = InVariable;
+			}
 			return true;
 		}
 	}
@@ -8087,13 +8095,18 @@ void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UE
 						{
 							InputCompileResult = CodeChunks[InputCompileResult].SourceChunks[0]; // Follow the linkage
 						}
-						else if (CodeChunks[InputCompileResult].Original.IsDataAllocated())
+						else if (CodeChunks[InputCompileResult].Original.IsDataAllocated()) // Handle constants
 						{
 							Variable.AllocateData();
 							CodeChunks[InputCompileResult].Original.CopyTo(Variable.GetData());
 							bSearch = false;
 						}
-						else
+						else if (CodeChunks[InputCompileResult].Original.IsValid()) // Handle default assignments
+						{
+							Value = CodeChunks[InputCompileResult].Original.GetName().ToString();
+							bSearch = false;
+						}
+						else // Handle setting to defaults as we didn't find a match.
 						{
 							TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(TypeDef);
 							if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanHandlePinDefaults() && CodeChunks[InputCompileResult].Definition.IsEmpty() == false)
