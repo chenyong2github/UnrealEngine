@@ -3,25 +3,19 @@
 #include "AnimGraphNode_AssetPlayerBase.h"
 #include "EdGraphSchema_K2.h"
 #include "Animation/AnimComposite.h"
-#include "Animation/BlendSpace.h"
-#include "Animation/AimOffsetBlendSpace.h"
-#include "Animation/AimOffsetBlendSpace1D.h"
-#include "AnimGraphNode_SequencePlayer.h"
-#include "AnimGraphNode_SequenceEvaluator.h"
-#include "AnimGraphNode_RotationOffsetBlendSpace.h"
-#include "AnimGraphNode_BlendSpacePlayer.h"
-#include "AnimGraphNode_BlendSpaceEvaluator.h"
-#include "Animation/PoseAsset.h"
-#include "AnimGraphNode_PoseBlendNode.h"
-#include "AnimGraphNode_PoseByName.h"
-#include "AnimGraphNode_PoseDriver.h"
+#include "BlueprintActionFilter.h"
+#include "BlueprintNodeSpawner.h"
 #include "UObject/UObjectIterator.h"
 #include "Animation/AnimLayerInterface.h"
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "Animation/AnimSync.h"
 #include "Animation/AnimAttributes.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeTemplateCache.h"
+#include "Animation/AnimNode_AssetPlayerBase.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_AssetPlayerBase"
 
@@ -96,6 +90,20 @@ void UAnimGraphNode_AssetPlayerBase::PinDefaultValueChanged(UEdGraphPin* Pin)
 		{
 			Schema->ForceVisualizationCacheClear();
 		}
+	}
+}
+
+FText UAnimGraphNode_AssetPlayerBase::GetTooltipText() const
+{
+	bool const bIsTemplateNode = GetGraph() == nullptr || FBlueprintNodeTemplateCache::IsTemplateOuter(GetGraph());
+	if(bIsTemplateNode)
+	{
+		return FText::GetEmpty();
+	}
+	else
+	{
+		// FText::Format() is slow, so we utilize the cached list title
+		return GetNodeTitle(ENodeTitleType::ListView);
 	}
 }
 
@@ -208,6 +216,105 @@ bool SupportNodeClassForAsset(const UClass* AssetClass, UClass* NodeClass)
 	const UAnimGraphNode_Base* NodeCDO = NodeClass->GetDefaultObject<UAnimGraphNode_Base>();
 	// See if this node supports this asset type (primary or not)
 	return (NodeCDO->SupportsAssetClass(AssetClass) != EAnimAssetHandlerType::NotSupported);
+}
+
+void UAnimGraphNode_AssetPlayerBase::SetupNewNode(UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
+{
+	UAnimGraphNode_AssetPlayerBase* GraphNode = CastChecked<UAnimGraphNode_AssetPlayerBase>(InNewNode);
+	InAssetData.GetTagValue("Skeleton", GraphNode->UnloadedSkeletonName);
+	
+	if(!bInIsTemplateNode)
+	{
+		GraphNode->SetAnimationAsset(CastChecked<UAnimationAsset>(InAssetData.GetAsset()));
+	}
+}
+
+void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(FBlueprintActionDatabaseRegistrar& InActionRegistrar, TSubclassOf<UAnimGraphNode_Base> InNodeClass, const TArray<TSubclassOf<UObject>>& InAssetTypes, const TArray<TSubclassOf<UObject>>& InExcludedAssetTypes, const TFunctionRef<FText(const FAssetData&)>& InMenuNameFunction, const TFunctionRef<FText(const FAssetData&)>& InMenuTooltipFunction, const TFunction<void(UEdGraphNode*, bool, const FAssetData)>& InSetupNewNodeFunction)
+{
+	auto MakeAction = [&InActionRegistrar, &InMenuNameFunction, &InMenuTooltipFunction, InSetupNewNodeFunction, InNodeClass](const FAssetData& InAssetData)
+	{
+		auto AssetSetup = [InSetupNewNodeFunction, InAssetData](UEdGraphNode* InNewNode, bool bInIsTemplateNode)
+		{
+			InSetupNewNodeFunction(InNewNode, bInIsTemplateNode, InAssetData);
+		};
+
+		UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(InNodeClass.Get());
+		NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateLambda(AssetSetup);
+		NodeSpawner->DefaultMenuSignature.MenuName = InMenuNameFunction(InAssetData);
+		NodeSpawner->DefaultMenuSignature.Tooltip = InMenuTooltipFunction(InAssetData);
+		InActionRegistrar.AddBlueprintAction(InAssetData, NodeSpawner);
+	};	
+
+	const UObject* QueryObject = InActionRegistrar.GetActionKeyFilter();
+	bool bIsObjectOfAssetType = false;
+	for(const TSubclassOf<UObject>& AssetType : InAssetTypes)
+	{
+		if(QueryObject && QueryObject->IsA(AssetType.Get()))
+		{
+			bIsObjectOfAssetType = true;
+			break;
+		}
+	}
+	
+	if (QueryObject == nullptr || QueryObject == InNodeClass.Get())
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+		FARFilter Filter;
+		for(const TSubclassOf<UObject>& AssetType : InAssetTypes)
+		{
+			Filter.ClassNames.Add(AssetType.Get()->GetFName());
+		}
+		for(const TSubclassOf<UObject>& ExcludedAssetType : InExcludedAssetTypes)
+		{
+			Filter.RecursiveClassesExclusionSet.Add(ExcludedAssetType.Get()->GetFName());
+		}	
+		Filter.bRecursiveClasses = true;
+		
+		TArray<FAssetData> AnimBlueprints;
+		AssetRegistryModule.Get().GetAssets(Filter, AnimBlueprints);
+
+		for (const FAssetData& AssetData : AnimBlueprints)
+		{
+			if(AssetData.IsUAsset())
+			{
+				MakeAction(AssetData);
+			}
+		}
+	}
+	else if (bIsObjectOfAssetType)
+	{
+		MakeAction(FAssetData(QueryObject));
+	}
+}
+
+bool UAnimGraphNode_AssetPlayerBase::IsActionFilteredOut(class FBlueprintActionFilter const& Filter)
+{
+	bool bIsFilteredOut = false;
+
+	if(!UnloadedSkeletonName.IsEmpty())
+	{
+		FBlueprintActionContext const& FilterContext = Filter.Context;
+
+		for (UBlueprint* Blueprint : FilterContext.Blueprints)
+		{
+			if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
+			{
+				if(!AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(UnloadedSkeletonName))
+				{
+					bIsFilteredOut = true;
+					break;
+				}
+			}
+			else
+			{
+				// Not an animation Blueprint, cannot use
+				bIsFilteredOut = true;
+				break;
+			}
+		}
+	}
+	return bIsFilteredOut;
 }
 
 #undef LOCTEXT_NAMESPACE

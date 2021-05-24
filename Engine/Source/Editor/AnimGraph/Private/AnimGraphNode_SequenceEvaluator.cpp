@@ -8,7 +8,13 @@
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimSequence.h"
 #include "AnimGraphNode_SequenceEvaluator.h"
+
+#include "BlueprintNodeSpawner.h"
+#include "EditorCategoryUtils.h"
 #include "IAnimBlueprintNodeOverrideAssetsContext.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeTemplateCache.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_SequenceEvaluator
@@ -46,10 +52,9 @@ void UAnimGraphNode_SequenceEvaluator::ReplaceReferredAnimations(const TMap<UAni
 	HandleAnimReferenceReplacement(Node.Sequence, AnimAssetReplacementMap);
 }
 
-FText UAnimGraphNode_SequenceEvaluator::GetTooltipText() const
+FText UAnimGraphNode_SequenceEvaluator::GetMenuCategory() const
 {
-	// FText::Format() is slow, so we utilize the cached list title
-	return GetNodeTitle(ENodeTitleType::ListView);
+	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Animation);
 }
 
 FText UAnimGraphNode_SequenceEvaluator::GetNodeTitleForSequence(ENodeTitleType::Type TitleType, UAnimSequenceBase* InSequence) const
@@ -103,9 +108,46 @@ FText UAnimGraphNode_SequenceEvaluator::GetNodeTitle(ENodeTitleType::Type TitleT
 	return CachedNodeTitle;
 }
 
-void UAnimGraphNode_SequenceEvaluator::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+FSlateIcon UAnimGraphNode_SequenceEvaluator::GetIconAndTint(FLinearColor& OutColor) const
 {
-	// Intentionally empty; you can drop down a regular sequence player and convert into a sequence evaluator in the right-click menu.
+	return FSlateIcon("EditorStyle", "ClassIcon.AnimSequence");
+}
+
+void UAnimGraphNode_SequenceEvaluator::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const
+{
+	GetMenuActionsHelper(
+		InActionRegistrar,
+		GetClass(),
+		{ UAnimSequence::StaticClass() },
+		{ },
+		[](const FAssetData& InAssetData)
+		{
+			const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+			if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+			{
+				return FText::Format(LOCTEXT("MenuDescFormat", "Evaluate '{0}' (additive)"), FText::FromName(InAssetData.AssetName));
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("MenuDescFormat", "Evaluate '{0}'"), FText::FromName(InAssetData.AssetName));
+			}
+		},
+		[](const FAssetData& InAssetData)
+		{
+			const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+			if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
+			{
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Evaluate (additive)\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Evaluate\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			}
+		},
+		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
+		{
+			UAnimGraphNode_AssetPlayerBase::SetupNewNode(InNewNode, bInIsTemplateNode, InAssetData);
+		});
 }
 
 void UAnimGraphNode_SequenceEvaluator::SetAnimationAsset(UAnimationAsset* Asset)

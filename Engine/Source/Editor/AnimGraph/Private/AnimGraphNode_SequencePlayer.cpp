@@ -24,33 +24,6 @@
 #define LOCTEXT_NAMESPACE "A3Nodes"
 
 /////////////////////////////////////////////////////
-// FNewSequencePlayerAction
-
-// Action to add a sequence player node to the graph
-struct FNewSequencePlayerAction : public FEdGraphSchemaAction_K2NewNode
-{
-protected:
-	FAssetData AssetInfo;
-public:
-	FNewSequencePlayerAction(const FAssetData& InAssetInfo, FText Title)
-		: FEdGraphSchemaAction_K2NewNode(LOCTEXT("Animation", "Animations"), Title, LOCTEXT("EvalAnimSequenceToMakePose", "Evaluates an animation sequence to produce a pose"), 0, FText::FromName(InAssetInfo.ObjectPath))
-	{
-		AssetInfo = InAssetInfo;
-
-		UAnimGraphNode_SequencePlayer* Template = NewObject<UAnimGraphNode_SequencePlayer>();
-		NodeTemplate = Template;
-	}
-
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override
-	{
-		UAnimGraphNode_SequencePlayer* SpawnedNode = CastChecked<UAnimGraphNode_SequencePlayer>(FEdGraphSchemaAction_K2NewNode::PerformAction(ParentGraph, FromPin, Location, bSelectNewNode));
-		SpawnedNode->Node.SetSequence(Cast<UAnimSequence>(AssetInfo.GetAsset()));
-
-		return SpawnedNode;
-	}
-};
-
-/////////////////////////////////////////////////////
 // UAnimGraphNode_SequencePlayer
 
 UAnimGraphNode_SequencePlayer::UAnimGraphNode_SequencePlayer(const FObjectInitializer& ObjectInitializer)
@@ -90,16 +63,9 @@ FLinearColor UAnimGraphNode_SequencePlayer::GetNodeTitleColor() const
 	}
 }
 
-FText UAnimGraphNode_SequencePlayer::GetTooltipText() const
+FSlateIcon UAnimGraphNode_SequencePlayer::GetIconAndTint(FLinearColor& OutColor) const
 {
-	UAnimSequenceBase* Sequence = Node.GetSequence();
-	if (!Sequence)
-	{
-		return FText();
-	}
-
-	const bool bAdditive = Sequence->IsValidAdditive();
-	return GetTitleGivenAssetInfo(FText::FromString(Sequence->GetPathName()), bAdditive);
+	return FSlateIcon("EditorStyle", "ClassIcon.AnimSequence");
 }
 
 FText UAnimGraphNode_SequencePlayer::GetNodeTitleForSequence(ENodeTitleType::Type TitleType, UAnimSequenceBase* InSequence) const
@@ -214,109 +180,41 @@ FText UAnimGraphNode_SequencePlayer::GetMenuCategory() const
 	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Animation);
 }
 
-void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const
 {
-	auto LoadedAssetSetup = [](UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UAnimSequence> SequencePtr)
-	{
-		UAnimGraphNode_SequencePlayer* SequencePlayerNode = CastChecked<UAnimGraphNode_SequencePlayer>(NewNode);
-		SequencePlayerNode->Node.SetSequence(SequencePtr.Get());
-	};
-
-	auto UnloadedAssetSetup = [](UEdGraphNode* NewNode, bool bIsTemplateNode, const FAssetData AssetData)
-	{
-		UAnimGraphNode_SequencePlayer* SequencePlayerNode = CastChecked<UAnimGraphNode_SequencePlayer>(NewNode);
-		if (bIsTemplateNode)
+	GetMenuActionsHelper(
+		InActionRegistrar,
+		GetClass(),
+		{ UAnimSequence::StaticClass() },
+		{ },
+		[](const FAssetData& InAssetData)
 		{
-			AssetData.GetTagValue("Skeleton", SequencePlayerNode->UnloadedSkeletonName);
-		}
-		else
-		{
-			UAnimSequence* Sequence = Cast<UAnimSequence>(AssetData.GetAsset());
-			check(Sequence != nullptr);
-			SequencePlayerNode->Node.SetSequence(Sequence);
-		}
-	};	
-
-	const UObject* QueryObject = ActionRegistrar.GetActionKeyFilter();
-	if (QueryObject == nullptr)
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		// define a filter to help in pulling UAnimSequence asset data from the registry
-		FARFilter Filter;
-		Filter.ClassNames.Add(UAnimSequence::StaticClass()->GetFName());
-		Filter.bRecursiveClasses = true;
-		// Find matching assets and add an entry for each one
-		TArray<FAssetData> SequenceList;
-		AssetRegistryModule.Get().GetAssets(Filter, /*out*/SequenceList);
-
-		for (auto AssetIt = SequenceList.CreateConstIterator(); AssetIt; ++AssetIt)
-		{
-			const FAssetData& Asset = *AssetIt;			
-
-			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
-			if (Asset.IsAssetLoaded())
+			const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+			if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
 			{
-				UAnimSequence* AnimSequence = Cast<UAnimSequence>(Asset.GetAsset());
-				if(AnimSequence)
-				{
-					NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(LoadedAssetSetup, TWeakObjectPtr<UAnimSequence>(AnimSequence));
-					NodeSpawner->DefaultMenuSignature.MenuName = GetTitleGivenAssetInfo(FText::FromName(AnimSequence->GetFName()), AnimSequence->IsValidAdditive());
-					NodeSpawner->DefaultMenuSignature.Tooltip = GetTitleGivenAssetInfo(FText::FromString(AnimSequence->GetPathName()), AnimSequence->IsValidAdditive());
-				}
+				return FText::Format(LOCTEXT("MenuDescFormat", "Play '{0}' (additive)"), FText::FromName(InAssetData.AssetName));
 			}
 			else
 			{
-				const FString TagValue = Asset.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
-				const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None")));
-
-				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(UnloadedAssetSetup, Asset);
-				NodeSpawner->DefaultMenuSignature.MenuName = GetTitleGivenAssetInfo(FText::FromName(Asset.AssetName), bKnownToBeAdditive);
-				NodeSpawner->DefaultMenuSignature.Tooltip = GetTitleGivenAssetInfo(FText::FromName(Asset.ObjectPath), bKnownToBeAdditive);
+				return FText::Format(LOCTEXT("MenuDescFormat", "Play '{0}'"), FText::FromName(InAssetData.AssetName));
 			}
-			ActionRegistrar.AddBlueprintAction(Asset, NodeSpawner);
-		}
-	}
-	else if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(QueryObject))
-	{
-		UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
-
-		TWeakObjectPtr<UAnimSequence> SequencePtr = MakeWeakObjectPtr(const_cast<UAnimSequence*>(AnimSequence));
-		NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(LoadedAssetSetup, SequencePtr);
-		NodeSpawner->DefaultMenuSignature.MenuName = GetTitleGivenAssetInfo(FText::FromName(AnimSequence->GetFName()), AnimSequence->IsValidAdditive());
-		NodeSpawner->DefaultMenuSignature.Tooltip = GetTitleGivenAssetInfo(FText::FromString(AnimSequence->GetPathName()), AnimSequence->IsValidAdditive());
-
-		ActionRegistrar.AddBlueprintAction(QueryObject, NodeSpawner);
-	}
-	else if (QueryObject == GetClass())
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		// define a filter to help in pulling UAnimSequence asset data from the registry
-		FARFilter Filter;
-		Filter.ClassNames.Add(UAnimSequence::StaticClass()->GetFName());
-		Filter.bRecursiveClasses = true;
-		// Find matching assets and add an entry for each one
-		TArray<FAssetData> SequenceList;
-		AssetRegistryModule.Get().GetAssets(Filter, /*out*/SequenceList);
-
-		for (auto AssetIt = SequenceList.CreateConstIterator(); AssetIt; ++AssetIt)
+		},
+		[](const FAssetData& InAssetData)
 		{
-			const FAssetData& Asset = *AssetIt;
-			if (Asset.IsAssetLoaded())
+			const FString TagValue = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+			if(const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None"))))
 			{
-				continue;
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Play (additive)\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
 			}
-
-			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
-			NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(UnloadedAssetSetup, Asset);
-
-			const FString TagValue = Asset.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
-			const bool bKnownToBeAdditive = (!TagValue.IsEmpty() && !TagValue.Equals(TEXT("AAT_None")));
-
-			NodeSpawner->DefaultMenuSignature.MenuName = GetTitleGivenAssetInfo(FText::FromName(Asset.AssetName), bKnownToBeAdditive);
-			NodeSpawner->DefaultMenuSignature.Tooltip = GetTitleGivenAssetInfo(FText::FromName(Asset.ObjectPath), bKnownToBeAdditive);
-			ActionRegistrar.AddBlueprintAction(Asset, NodeSpawner);
-		}
-	}	
+			else
+			{
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Play\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			}
+		},
+		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
+		{
+			UAnimGraphNode_AssetPlayerBase::SetupNewNode(InNewNode, bInIsTemplateNode, InAssetData);
+		});	
 }
 
 bool UAnimGraphNode_SequencePlayer::IsActionFilteredOut(class FBlueprintActionFilter const& Filter)

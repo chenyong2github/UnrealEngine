@@ -13,6 +13,7 @@
 #include "AnimGraphCommands.h"
 #include "IAnimBlueprintCopyTermDefaultsContext.h"
 #include "IAnimBlueprintNodeOverrideAssetsContext.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_BlendSpacePlayer
@@ -22,12 +23,6 @@
 UAnimGraphNode_BlendSpacePlayer::UAnimGraphNode_BlendSpacePlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-}
-
-FText UAnimGraphNode_BlendSpacePlayer::GetTooltipText() const
-{
-	// FText::Format() is slow, so we utilize the cached list title
-	return GetNodeTitle(ENodeTitleType::ListView);
 }
 
 FText UAnimGraphNode_BlendSpacePlayer::GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpace* InBlendSpace) const
@@ -178,63 +173,25 @@ void UAnimGraphNode_BlendSpacePlayer::GetNodeContextMenuActions(UToolMenu* Menu,
 	}
 }
 
-void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const
 {
-	struct GetMenuActions_Utils
-	{
-		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UBlendSpace> BlendSpace)
+	GetMenuActionsHelper(
+		InActionRegistrar,
+		GetClass(),
+		{ UBlendSpace::StaticClass() },
+		{ },
+		[](const FAssetData& InAssetData)
 		{
-			UAnimGraphNode_BlendSpacePlayer* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpacePlayer>(NewNode);
-			BlendSpaceNode->Node.SetBlendSpace(BlendSpace.Get());
-		}
-
-		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpace* BlendSpace)
+			return FText::Format(LOCTEXT("MenuDescFormat", "Blendspace Player '{0}'"), FText::FromName(InAssetData.AssetName));
+		},
+		[](const FAssetData& InAssetData)
 		{
-			UBlueprintNodeSpawner* NodeSpawner = nullptr;
-
-			bool const bIsAimOffset = BlendSpace->IsA(UAimOffsetBlendSpace::StaticClass()) ||
-				BlendSpace->IsA(UAimOffsetBlendSpace1D::StaticClass());
-			if (!bIsAimOffset)
-			{
-				NodeSpawner = UBlueprintNodeSpawner::Create(NodeClass);
-				check(NodeSpawner != nullptr);
-
-				TWeakObjectPtr<UBlendSpace> BlendSpacePtr = MakeWeakObjectPtr(const_cast<UBlendSpace*>(BlendSpace));
-				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(GetMenuActions_Utils::SetNodeBlendSpace, BlendSpacePtr);
-			}	
-			return NodeSpawner;
-		}
-	};
-
-	if (const UObject* RegistrarTarget = ActionRegistrar.GetActionKeyFilter())
-	{
-		if (const UBlendSpace* TargetBlendSpace = Cast<UBlendSpace>(RegistrarTarget))
+			return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace Player\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+		},
+		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
 		{
-			if(TargetBlendSpace->IsAsset())
-			{
-				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(GetClass(), TargetBlendSpace))
-				{
-					ActionRegistrar.AddBlueprintAction(TargetBlendSpace, NodeSpawner);
-				}
-			}
-		}
-		// else, the Blueprint database is specifically looking for actions pertaining to something different (not a BlendSpace asset)
-	}
-	else
-	{
-		UClass* NodeClass = GetClass();
-		for (TObjectIterator<UBlendSpace> BlendSpaceIt; BlendSpaceIt; ++BlendSpaceIt)
-		{
-			UBlendSpace* BlendSpace = *BlendSpaceIt;
-			if(BlendSpace->IsAsset())
-			{
-				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(NodeClass, BlendSpace))
-				{
-					ActionRegistrar.AddBlueprintAction(BlendSpace, NodeSpawner);
-				}
-			}
-		}
-	}
+			UAnimGraphNode_AssetPlayerBase::SetupNewNode(InNewNode, bInIsTemplateNode, InAssetData);
+		});
 }
 
 FBlueprintNodeSignature UAnimGraphNode_BlendSpacePlayer::GetSignature() const
