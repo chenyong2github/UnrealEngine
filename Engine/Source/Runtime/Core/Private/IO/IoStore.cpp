@@ -813,6 +813,7 @@ public:
 					Partition.ContainerFileHandle->Serialize(Padding.GetData(), ExtraPaddingBytes);
 					CompressedContainerSize += ExtraPaddingBytes;
 					UncompressedContainerSize += ExtraPaddingBytes;
+					Partition.Offset += ExtraPaddingBytes;
 				}
 			}
 			
