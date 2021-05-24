@@ -159,7 +159,6 @@ void UDetailsView::ToggleWhitelistedProperties()
 	}
 }
 
-
 bool UDetailsView::GetIsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const
 {
     if (!bShowOnlyWhitelisted)
@@ -170,7 +169,22 @@ bool UDetailsView::GetIsPropertyVisible(const FPropertyAndParent& PropertyAndPar
 	{
 		return true;
 	}
-	if (CategoriesToShow.Contains(FObjectEditorUtils::GetCategoryFName(&PropertyAndParent.Property)))
+	// get the topmost parent's category name if the property has one
+	const FProperty* Property = PropertyAndParent.ParentProperties.Num() > 0 ? PropertyAndParent.ParentProperties.Last() : &PropertyAndParent.Property;
+	const FString CategoryString = FObjectEditorUtils::GetCategoryFName(Property).ToString();
+	FString SubcategoryString = CategoryString;
+	
+	int32 SubcategoryStart;
+	if (CategoryString.FindChar(TEXT('|'), SubcategoryStart))
+	{
+		SubcategoryString = CategoryString.Left(SubcategoryStart);
+	}
+
+	if (CategoriesToShow.ContainsByPredicate([&CategoryString, &SubcategoryString](const FName& Element)
+		{
+			FString ElementString = Element.ToString();
+			return CategoryString == ElementString || SubcategoryString == ElementString;
+		}))
 	{
 		return true;
 	}
