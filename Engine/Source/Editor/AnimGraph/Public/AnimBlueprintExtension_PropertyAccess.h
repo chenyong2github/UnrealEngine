@@ -13,6 +13,9 @@ class IAnimBlueprintCompilationBracketContext;
 class IAnimBlueprintGeneratedClassCompiledData;
 class UAnimBlueprintExtension_PropertyAccess;
 enum class EPropertyAccessBatchType : uint8;
+class FKismetCompilerContext;
+class UEdGraph;
+class UEdGraphPin;
 
 // Delegate called when the library is compiled (whether successfully or not)
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPostLibraryCompiled, IAnimBlueprintCompilationBracketContext& /*InCompilationContext*/, IAnimBlueprintGeneratedClassCompiledData& /*OutCompiledData*/)
@@ -24,10 +27,36 @@ class ANIMGRAPH_API UAnimBlueprintExtension_PropertyAccess : public UAnimBluepri
 
 	friend class UAnimBlueprintExtension_Base;
 
+public:	
+	// Try to determine the context in which this property access can safely be performed.
+	static const FName ContextId_Automatic;
+
+	// Can safely be executed on worker threads
+	static const FName ContextId_UnBatched_ThreadSafe;
+
+	// Executed batched on the game thread before the event graph is run
+	static const FName ContextId_Batched_WorkerThreadPreEventGraph;
+
+	// Executed batched on the game thread after the event graph is run
+	static const FName ContextId_Batched_WorkerThreadPostEventGraph;
+
+	// Executed batched on the game thread before the event graph is run
+	static const FName ContextId_Batched_GameThreadPreEventGraph;
+
+	// Executed batched on the game thread after the event graph is run
+	static const FName ContextId_Batched_GameThreadPostEventGraph;
+	
 public:
 	// Add a copy to the property access library we are compiling
 	// @return an integer handle to the pending copy. This can be resolved to a true copy index by calling MapCopyIndex
-	int32 AddCopy(TArrayView<FString> InSourcePath, TArrayView<FString> InDestPath, EPropertyAccessBatchType InBatchType, UObject* InObject = nullptr);
+	FPropertyAccessHandle AddCopy(TArrayView<FString> InSourcePath, TArrayView<FString> InDestPath, const FName& InContextId, UObject* InObject = nullptr);
+	
+	UE_DEPRECATED(5.0, "Please use AddCopy with a context ID")
+	int32 AddCopy(TArrayView<FString> InSourcePath, TArrayView<FString> InDestPath, EPropertyAccessBatchType InBatchType, UObject* InObject = nullptr)
+	{
+		FPropertyAccessHandle Handle = AddCopy(InSourcePath, InDestPath, FName(NAME_None), InObject);
+		return Handle.GetId();
+	}
 
 	// Delegate called when the library is compiled (whether successfully or not)
 	FSimpleMulticastDelegate& OnPreLibraryCompiled() { return OnPreLibraryCompiledDelegate; }
@@ -35,9 +64,28 @@ public:
 	// Delegate called when the library is compiled (whether successfully or not)
 	FOnPostLibraryCompiled& OnPostLibraryCompiled() { return OnPostLibraryCompiledDelegate; }
 
-	// Maps the initial integer copy handle to a true handle, post compilation
-	int32 MapCopyIndex(int32 InIndex) const;
+	// Maps the initial copy handle to a true handle, post compilation
+	FCompiledPropertyAccessHandle GetCompiledHandle(FPropertyAccessHandle InHandle) const;
 
+	UE_DEPRECATED(5.0, "Please use GetCompiledHandle")
+	int32 MapCopyIndex(int32 InIndex) const
+	{
+		FCompiledPropertyAccessHandle CompiledHandle = GetCompiledHandle(FPropertyAccessHandle(InIndex));
+		return CompiledHandle.GetId();
+	}
+
+	// Expands a property access path to a pure chain of BP nodes
+	void ExpandPropertyAccess(FKismetCompilerContext& InCompilerContext, TArrayView<FString> InSourcePath, UEdGraph* InParentGraph, UEdGraphPin* InTargetPin) const;
+
+	// Maps a compiled handle back to a human-readable context 
+	static FText GetCompiledHandleContext(FCompiledPropertyAccessHandle InHandle);
+	
+	// Maps a compiled handle back to a human-readable context description
+	static FText GetCompiledHandleContextDesc(FCompiledPropertyAccessHandle InHandle);
+
+	// Whether a context name requires an auto-generated variable to be cached for an access
+	static bool ContextRequiresCachedVariable(FName InName);
+	
 private:
 	// UAnimBlueprintExtension interface
 	virtual void HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;

@@ -14,7 +14,7 @@ class USkeletalMeshComponent;
 /**
  *	A library of the most common animation blueprint functions.
  */
-UCLASS(meta=(ScriptName="AnimGraphLibrary", DocumentationPolicy="Strict"))
+UCLASS(meta=(ScriptName="AnimGraphLibrary", BlueprintThreadSafe, DocumentationPolicy="Strict"))
 class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
@@ -81,7 +81,7 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 	 *	@param OutRangeMin The minimum for the output range (commonly == 0.0)
 	 *	@param OutRangeMax The maximum for the output range (commonly == 1.0)
 	 */
-	UFUNCTION(BlueprintPure, Category = "Utilities|Animation", meta = (DisplayName = "Get Distance Between Two Sockets", ScriptName = "DistanceBetweenSockets", bRemapRange= "false"))
+	UFUNCTION(BlueprintPure, Category = "Utilities|Animation", meta = (NotBlueprintThreadSafe, DisplayName = "Get Distance Between Two Sockets", ScriptName = "DistanceBetweenSockets", bRemapRange= "false"))
 	static float K2_DistanceBetweenTwoSocketsAndMapRange(
 		const USkeletalMeshComponent* Component, 
 		const FName SocketOrBoneNameA, 
@@ -101,7 +101,7 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 	 *	@param SocketOrBoneNameFrom The name of the first socket / bone
 	 *	@param SocketOrBoneNameTo The name of the second socket / bone
 	 */
-	UFUNCTION(BlueprintPure, Category = "Utilities|Animation", meta = (DisplayName = "Get Direction Between Sockets", ScriptName = "DirectionBetweenSockets"))
+	UFUNCTION(BlueprintPure, Category = "Utilities|Animation", meta = (NotBlueprintThreadSafe, DisplayName = "Get Direction Between Sockets", ScriptName = "DirectionBetweenSockets"))
 	static FVector K2_DirectionBetweenSockets(const USkeletalMeshComponent* Component, const FName SocketOrBoneNameFrom, const FName SocketOrBoneNameTo);
 
 	/** 
@@ -183,7 +183,7 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 	 *	@param EasingType The easing function to use
 	 *	@param CustomCurve The curve to use if the easing type is "Custom"
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Utilities|Animation", meta = (DisplayName = "Calculate Velocity From Sockets", ScriptName = "CalculateVelocityFromSockets", NumberOfSamples = "16", VelocityMin = "0.f", VelocityMax = "128.f"))
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Animation", meta = (NotBlueprintThreadSafe, DisplayName = "Calculate Velocity From Sockets", ScriptName = "CalculateVelocityFromSockets", NumberOfSamples = "16", VelocityMin = "0.f", VelocityMax = "128.f"))
 	static float K2_CalculateVelocityFromSockets(
 		float DeltaSeconds,
 		USkeletalMeshComponent * Component,
@@ -221,16 +221,7 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 	 * @param	Velocity		The velocity to use as direction relative to BaseRotation
 	 * @param	BaseRotation	The base rotation, e.g. of a pawn
 	 */
-	UFUNCTION(BlueprintPure, Category="Utilities|Animation", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category="Utilities|Animation")
 	static float CalculateDirection(const FVector& Velocity, const FRotator& BaseRotation);
-
-private:
-
-	struct FK2ProfilingTimer
-	{
-		double LastTime;
-		double AccummulatedTime;
-	};
-	static TArray<FK2ProfilingTimer> sProfilingTimers;
 };
 

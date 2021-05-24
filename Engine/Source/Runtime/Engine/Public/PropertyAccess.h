@@ -34,6 +34,16 @@ enum class EPropertyAccessCopyBatch : uint8
 
 namespace PropertyAccess
 {
+	/** Batch ID - organisation/batching strategy determined by client systems via compilation */
+	struct FCopyBatchId
+	{
+		explicit FCopyBatchId(int32 InId)
+			: Id(InId)
+		{}
+		
+		int32 Id;
+	};
+
 	/** 
 	 * Called to patch up library after it is loaded.
 	 * This converts all FName-based paths into node-based paths that provide an optimized way of accessing properties.
@@ -44,12 +54,18 @@ namespace PropertyAccess
 	 * Process a 'tick' of a property access instance. 
 	 * Note internally allocates via FMemStack and pushes its own FMemMark
 	 */
+	ENGINE_API extern void ProcessCopies(UObject* InObject, const FPropertyAccessLibrary& InLibrary, const FCopyBatchId& InBatchId);
+
+	UE_DEPRECATED(5.0, "Please use the signature that takes a FCopyBatchId BatchId")
 	ENGINE_API extern void ProcessCopies(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType);
 
 	/** 
 	 * Process a single copy 
 	 * Note that this can potentially allocate via FMemStack, so inserting FMemMark before a number of these calls is recommended
 	 */
+	ENGINE_API extern void ProcessCopy(UObject* InObject, const FPropertyAccessLibrary& InLibrary, const FCopyBatchId& InBatchId, int32 InCopyIndex, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation);
+
+	UE_DEPRECATED(5.0, "Please use the signature that takes a FCopyBatchId BatchId")
 	ENGINE_API extern void ProcessCopy(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType, int32 InCopyIndex, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation);
 
 	UE_DEPRECATED(5.0, "Property Access Events are no longer supported")
@@ -391,10 +407,15 @@ private:
 	UPROPERTY()
 	TArray<FPropertyAccessPath> DestPaths;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FPropertyAccessCopyBatch CopyBatches_DEPRECATED[(uint8)EPropertyAccessCopyBatch::Count];
+#endif
+
 	// All copy operations
 	UPROPERTY()
-	FPropertyAccessCopyBatch CopyBatches[(uint8)EPropertyAccessCopyBatch::Count];
-
+	TArray<FPropertyAccessCopyBatch> CopyBatchArray;
+	
 	// All source property accesses
 	UPROPERTY(Transient)
 	TArray<FPropertyAccessIndirectionChain> SrcAccesses;

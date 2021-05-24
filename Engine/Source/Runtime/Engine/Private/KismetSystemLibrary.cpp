@@ -251,6 +251,20 @@ UObject* UKismetSystemLibrary::Conv_InterfaceToObject(const FScriptInterface& In
 	return Interface.GetObject();
 }
 
+void UKismetSystemLibrary::LogString(const FString& InString, bool bPrintToLog)
+{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) // Do not Print in Shipping or Test
+	if(bPrintToLog)
+	{
+		UE_LOG(LogBlueprintUserMessages, Log, TEXT("%s"), *InString);
+	}
+	else
+	{
+		UE_LOG(LogBlueprintUserMessages, Verbose, TEXT("%s"), *InString);
+	}	
+#endif
+}
+
 void UKismetSystemLibrary::PrintString(const UObject* WorldContextObject, const FString& InString, bool bPrintToScreen, bool bPrintToLog, FLinearColor TextColor, float Duration)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) // Do not Print in Shipping or Test

@@ -471,6 +471,7 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	ConstantProperties.Empty();
 	MutableSubsystemProperties.Empty();
 	ConstantSubsystemProperties.Empty();
+	MutableNodeDataProperty = nullptr;
 
 #if WITH_EDITOR
 	// This relies on the entire class being fully loaded, this is not the case with EDL async-loading, in which case the functions are generated in PostLoad

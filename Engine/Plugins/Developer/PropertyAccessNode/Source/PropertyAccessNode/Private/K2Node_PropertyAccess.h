@@ -37,8 +37,23 @@ public:
 	/** Get the resolved pin type, if any. */
 	const FEdGraphPinType& GetResolvedPinType() const { return ResolvedPinType; }
 
+	/** Check whether we have a resolved pin type */
+	bool HasResolvedPinType() const;
+	
 	/** Get the output pin */
 	UEdGraphPin* GetOutputPin() const { return FindPinChecked(TEXT("Value"), EGPD_Output); }
+
+	/** Get the context Id */
+	FName GetContextId() const { return ContextId; }
+
+	/** Set the context Id */
+	void SetContextId(const FName& InContextId) { ContextId = InContextId; }
+
+	/** Get the the context that this access was assigned during compilation. This can be empty. */
+	const FText& GetCompiledContext() const { return CompiledContext; }
+	
+	/** Get the description of the context that this access was assigned during compilation. This can be empty. */
+	const FText& GetCompiledContextDesc() const { return CompiledContextDesc; }
 
 private:
 	/** Path that this access exposes */
@@ -57,12 +72,28 @@ private:
 	UPROPERTY()
 	FName GeneratedPropertyName = NAME_None;
 
+	/** Property access context (set by the user) that is intended to be used */
+	UPROPERTY()
+	FName ContextId;
+	
 	/** Resolved leaf property for the path, NULL if path cant be resolved or is empty. */
 	TFieldPath<FProperty> ResolvedProperty;
 
 	/** Resolved array index, if the leaf property is an array. If this is INDEX_NONE then the property refers to the entire array */
 	int32 ResolvedArrayIndex = INDEX_NONE;
 
+	/** Whether the path was resolved as thread safe the last time the ResolvedProperty was updated */
+	bool bWasResolvedThreadSafe = false;
+
+	/** Handle used to hook into property access compilation machinery */
+	FDelegateHandle PostLibraryCompiledHandle;
+
+	/** The context that this access was assigned during compilation */
+	FText CompiledContext;
+
+	/** Description of the context that this access was assigned during compilation (used for tooltips) */
+	FText CompiledContextDesc;
+	
 	// IClassVariableCreator interface
 	virtual void CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext) override;
 
@@ -79,10 +110,12 @@ private:
 	virtual bool IsNodePure() const override { return true; }
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	virtual FText GetMenuCategory() const override;
-
+	virtual bool DrawNodeAsVariable() const override { return true; }
+	virtual FText GetTooltipText() const override;
+	
 	/** Helper function for pin allocation */
 	void AllocatePins(UEdGraphPin* InOldOutputPin = nullptr);
 
 	/** Attempt to resolve the path to a leaf property */
-	void ResolveLeafProperty();
+	void ResolvePropertyAccess();
 };

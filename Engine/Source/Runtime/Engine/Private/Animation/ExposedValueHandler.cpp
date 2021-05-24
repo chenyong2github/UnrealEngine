@@ -58,9 +58,10 @@ void FExposedValueHandler::Execute(const FAnimationBaseContext& Context) const
 		if(PropertyAccessLibrary != nullptr)
 		{
 			UObject* AnimInstanceObject = Context.AnimInstanceProxy->GetAnimInstanceObject();
+			PropertyAccess::FCopyBatchId CopyBatch((int32)EAnimPropertyAccessCallSite::WorkerThread_Unbatched);
 			for(const FExposedValueCopyRecord& CopyRecord : CopyRecords)
 			{
-				PropertyAccess::ProcessCopy(AnimInstanceObject, *PropertyAccessLibrary, EPropertyAccessCopyBatch::InternalUnbatched, CopyRecord.CopyIndex, [&CopyRecord](const FProperty* InProperty, void* InAddress)
+				PropertyAccess::ProcessCopy(AnimInstanceObject, *PropertyAccessLibrary, CopyBatch, CopyRecord.CopyIndex, [&CopyRecord](const FProperty* InProperty, void* InAddress)
 				{
 					if(CopyRecord.PostCopyOperation == EPostCopyOperation::LogicalNegateBool)
 					{

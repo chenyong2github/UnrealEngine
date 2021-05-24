@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimGraphModule.h"
+#include "CoreMinimal.h"
 #include "Textures/SlateIcon.h"
 #include "AnimGraphCommands.h"
 #include "Modules/ModuleManager.h"
@@ -29,6 +29,18 @@
 #include "Animation/AnimSync.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimRootMotionProvider.h"
+#include "Features/IModularFeatures.h"
+#include "PropertyAccessAnimBlueprintBinding.h"
+
+class FAnimGraphModule : public IModuleInterface
+{
+public:
+	/** IModuleInterface interface */
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+
+	FPropertyAccessAnimBlueprintBinding PropertyAccessAnimBlueprintBinding;
+};
 
 IMPLEMENT_MODULE(FAnimGraphModule, AnimGraph);
 
@@ -42,6 +54,8 @@ void FAnimGraphModule::StartupModule()
 	{
 		return MakeShared<FAnimBlueprintCompilerContext>(CastChecked<UAnimBlueprint>(InBlueprint), InMessageLog, InCompileOptions);
 	});
+
+	IModularFeatures::Get().RegisterModularFeature("PropertyAccessBlueprintBinding", &PropertyAccessAnimBlueprintBinding);
 
 	// Register the editor modes
 	FEditorModeRegistry::Get().RegisterMode<FAnimNodeEditMode>(AnimNodeEditModes::AnimNode, LOCTEXT("AnimNodeEditMode", "Anim Node"), FSlateIcon(), false);
@@ -60,76 +74,79 @@ void FAnimGraphModule::StartupModule()
 
 	PropertyModule.RegisterCustomPropertyTypeLayout("AnimBlueprintFunctionPinInfo", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FAnimBlueprintFunctionPinInfoDetails::MakeInstance));
 
-	// Register built-in graph attributes
-	UAnimGraphAttributes* AnimGraphAttributes = GetMutableDefault<UAnimGraphAttributes>();
-	AnimGraphAttributes->LoadConfig();
+	if(GIsEditor)
+	{
+		// Register built-in graph attributes
+		UAnimGraphAttributes* AnimGraphAttributes = GetMutableDefault<UAnimGraphAttributes>();
+		AnimGraphAttributes->LoadConfig();
 
-	AnimGraphAttributes->Register(
-		FAnimGraphAttributeDesc(
-			UE::Anim::FAttributes::Pose,
-			EAnimGraphAttributeBlend::Blendable,
-			FSlateBrush(),
-			LOCTEXT("Pose", "Pose"),
-			LOCTEXT("PoseToolTip", "Pose: Transforms for all bones in the current LOD, blendable"),
-			FEditorStyle::GetSlateColor("AnimGraph.Attribute.Pose.Color"),
-			EAnimGraphAttributesDisplayMode::HideOnPins)
-	);
+		AnimGraphAttributes->Register(
+			FAnimGraphAttributeDesc(
+				UE::Anim::FAttributes::Pose,
+				EAnimGraphAttributeBlend::Blendable,
+				FSlateBrush(),
+				LOCTEXT("Pose", "Pose"),
+				LOCTEXT("PoseToolTip", "Pose: Transforms for all bones in the current LOD, blendable"),
+				FEditorStyle::GetSlateColor("AnimGraph.Attribute.Pose.Color"),
+				EAnimGraphAttributesDisplayMode::HideOnPins)
+		);
 
-	AnimGraphAttributes->Register(
-		FAnimGraphAttributeDesc(
-			UE::Anim::FAttributes::Curves,
-			EAnimGraphAttributeBlend::Blendable,
-			*FEditorStyle::GetBrush("AnimGraph.Attribute.Curves.Icon"),
-			LOCTEXT("Curves", "Curves"),
-			LOCTEXT("CurvesToolTip", "Curves: Floating point curve attributes, blendable"),
-			FEditorStyle::GetSlateColor("AnimGraph.Attribute.Curves.Color"),
-			EAnimGraphAttributesDisplayMode::Automatic)
-	);
+		AnimGraphAttributes->Register(
+			FAnimGraphAttributeDesc(
+				UE::Anim::FAttributes::Curves,
+				EAnimGraphAttributeBlend::Blendable,
+				*FEditorStyle::GetBrush("AnimGraph.Attribute.Curves.Icon"),
+				LOCTEXT("Curves", "Curves"),
+				LOCTEXT("CurvesToolTip", "Curves: Floating point curve attributes, blendable"),
+				FEditorStyle::GetSlateColor("AnimGraph.Attribute.Curves.Color"),
+				EAnimGraphAttributesDisplayMode::Automatic)
+		);
 
-	AnimGraphAttributes->Register(
-		FAnimGraphAttributeDesc(
-			UE::Anim::FAttributes::Attributes,
-			EAnimGraphAttributeBlend::Blendable,
-			*FEditorStyle::GetBrush("AnimGraph.Attribute.Attributes.Icon"),
-			LOCTEXT("Attributes", "Attributes"),
-			LOCTEXT("AttributesToolTip", "Attributes: Misc. custom attributes, blendable"),
-			FEditorStyle::GetSlateColor("AnimGraph.Attribute.Attributes.Color"),
-			EAnimGraphAttributesDisplayMode::Automatic)
-	);
+		AnimGraphAttributes->Register(
+			FAnimGraphAttributeDesc(
+				UE::Anim::FAttributes::Attributes,
+				EAnimGraphAttributeBlend::Blendable,
+				*FEditorStyle::GetBrush("AnimGraph.Attribute.Attributes.Icon"),
+				LOCTEXT("Attributes", "Attributes"),
+				LOCTEXT("AttributesToolTip", "Attributes: Misc. custom attributes, blendable"),
+				FEditorStyle::GetSlateColor("AnimGraph.Attribute.Attributes.Color"),
+				EAnimGraphAttributesDisplayMode::Automatic)
+		);
 
-	AnimGraphAttributes->Register(
-		FAnimGraphAttributeDesc(
-			UE::Anim::FAnimSync::Attribute,
-			EAnimGraphAttributeBlend::NonBlendable,
-			*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.Sync.Icon"),
-			LOCTEXT("Sync", "Sync"),
-			LOCTEXT("SyncToolTip", "Sync: Synchronization between the playback of different assets present in the graph, not blendable"),
-			FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.Sync.Color"),
-			EAnimGraphAttributesDisplayMode::Automatic)
-	);
+		AnimGraphAttributes->Register(
+			FAnimGraphAttributeDesc(
+				UE::Anim::FAnimSync::Attribute,
+				EAnimGraphAttributeBlend::NonBlendable,
+				*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.Sync.Icon"),
+				LOCTEXT("Sync", "Sync"),
+				LOCTEXT("SyncToolTip", "Sync: Synchronization between the playback of different assets present in the graph, not blendable"),
+				FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.Sync.Color"),
+				EAnimGraphAttributesDisplayMode::Automatic)
+		);
 
-	AnimGraphAttributes->Register(
-		FAnimGraphAttributeDesc(
-			UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName,
-			EAnimGraphAttributeBlend::Blendable,
-			*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.RootMotionDelta.Icon"),
-			LOCTEXT("RootMotionDelta", "Root Motion Delta"),
-			LOCTEXT("RootMotionDeltaToolTip", "Root Motion Delta: Per-frame root motion delta transform, blendable"),
-			FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.RootMotionDelta.Color"),
-			EAnimGraphAttributesDisplayMode::Automatic)
-	);
+		AnimGraphAttributes->Register(
+			FAnimGraphAttributeDesc(
+				UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName,
+				EAnimGraphAttributeBlend::Blendable,
+				*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.RootMotionDelta.Icon"),
+				LOCTEXT("RootMotionDelta", "Root Motion Delta"),
+				LOCTEXT("RootMotionDeltaToolTip", "Root Motion Delta: Per-frame root motion delta transform, blendable"),
+				FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.RootMotionDelta.Color"),
+				EAnimGraphAttributesDisplayMode::Automatic)
+		);
 
-	AnimGraphAttributes->Register(
-		FAnimGraphAttributeDesc(
-			UE::Anim::IInertializationRequester::Attribute,
-			EAnimGraphAttributeBlend::NonBlendable,
-			*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.InertialBlending.Icon"),
-			LOCTEXT("InertialBlending", "Inertialize"),
-			LOCTEXT("InertialBlendingToolTip", "Inertial Blending: Used to blend between poses preserving bone velocities, not blendable"),
-			FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.InertialBlending.Color"),
-			EAnimGraphAttributesDisplayMode::Automatic)
-	);
-
+		AnimGraphAttributes->Register(
+			FAnimGraphAttributeDesc(
+				UE::Anim::IInertializationRequester::Attribute,
+				EAnimGraphAttributeBlend::NonBlendable,
+				*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.InertialBlending.Icon"),
+				LOCTEXT("InertialBlending", "Inertialize"),
+				LOCTEXT("InertialBlendingToolTip", "Inertial Blending: Used to blend between poses preserving bone velocities, not blendable"),
+				FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.InertialBlending.Color"),
+				EAnimGraphAttributesDisplayMode::Automatic)
+		);
+	}
+	
 	// Register BP-editor function customization once the Kismet module is loaded.
 	if (FModuleManager::Get().IsModuleLoaded("Kismet"))
 	{
@@ -161,6 +178,8 @@ void FAnimGraphModule::ShutdownModule()
 	FEditorModeRegistry::Get().UnregisterMode(AnimNodeEditModes::TwoBoneIK);
 	FEditorModeRegistry::Get().UnregisterMode(AnimNodeEditModes::AnimNode);
 
+	IModularFeatures::Get().UnregisterModularFeature("PropertyAccessBlueprintBinding", &PropertyAccessAnimBlueprintBinding);
+	
 	// Unregister details customization
 	if (UObjectInitialized() && FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))
 	{

@@ -593,6 +593,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void BlueprintLinkedAnimationLayersInitialized();
 
+	/** Executed when the Animation Blueprint is updated on a worker thread, just prior to graph update */
+	UFUNCTION(BlueprintImplementableEvent, meta=(BlueprintThreadSafe))
+	void BlueprintThreadSafeUpdateAnimation(float DeltaTime);
+	
 	bool CanTransitionSignature() const;
 	
 	/*********************************************************************************************
@@ -1336,6 +1340,10 @@ public:
 	/** Check whether we have any active curves */
 	bool HasActiveCurves() const;
 
+	/** Get the current delta time */
+	UFUNCTION(BlueprintPure, Category="Animation", meta=(BlueprintThreadSafe))
+	float GetDeltaSeconds() const;
+	
 	/** 
 	 * Append the type of curve to the OutCurveList specified by Curve Flags
 	 */
