@@ -35,6 +35,8 @@ public:
 
 	void Refresh();
 
+	TSharedPtr<SWidget> ComponentTreeOnContextMenuOpening();
+
 private:
 	TArray<TSharedPtr<FDebugObjectInfo>>* DebugComponents;
     void OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo);

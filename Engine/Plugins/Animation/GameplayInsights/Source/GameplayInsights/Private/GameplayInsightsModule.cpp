@@ -18,6 +18,7 @@
 #include "Stats/Stats.h"
 #include "ObjectPropertyTrace.h"
 #include "SAnimGraphSchematicView.h"
+#include "SObjectPropertiesView.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
@@ -61,6 +62,13 @@ void FGameplayInsightsModule::StartupModule()
 		}
 	});
 
+
+	DebugViewCreator.RegisterDebugViewCreator("Object", IGameplayInsightsDebugViewCreator::FCreateDebugView::CreateLambda(
+			[](uint64 InObjectId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
+			{
+				return SNew(SObjectPropertiesView, InObjectId, InTimeMarker, InAnalysisSession);
+			}
+	));
 
 	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", IGameplayInsightsDebugViewCreator::FCreateDebugView::CreateLambda(
 			[](uint64 InAnimInstanceId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
@@ -447,6 +455,30 @@ void FGameplayInsightsModule::RegisterMenus()
 	}
 #endif
 }
+
+void FGameplayInsightsModule::EnableObjectPropertyTrace(UObject* Object, bool bEnable)
+{
+#if OBJECT_PROPERTY_TRACE_ENABLED
+	if (bEnable)
+	{
+		FObjectPropertyTrace::RegisterObject(Object);
+	}
+	else
+	{
+		FObjectPropertyTrace::UnregisterObject(Object);
+	}
+#endif
+}
+
+bool FGameplayInsightsModule::IsObjectPropertyTraceEnabled(UObject* Object)
+{
+#if OBJECT_PROPERTY_TRACE_ENABLED
+	return FObjectPropertyTrace::IsObjectRegistered(Object);
+#else
+	return false;
+#endif
+}
+
 #endif
 
 IMPLEMENT_MODULE(FGameplayInsightsModule, GameplayInsights);

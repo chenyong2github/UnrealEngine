@@ -31,6 +31,11 @@ public:
 	// IGameplayInsightsModule interface
 	virtual IGameplayInsightsDebugViewCreator* GetDebugViewCreator() override { return &DebugViewCreator; }
 
+#if WITH_EDITOR
+	virtual void EnableObjectPropertyTrace(UObject* Object, bool bEnable = true) override;
+	virtual bool IsObjectPropertyTraceEnabled(UObject* Object) override;
+#endif
+
 	// Spawn a document tab
 	TSharedRef<SDockTab> SpawnTimingProfilerDocumentTab(const FTabManager::FSearchPreference& InSearchPreference);
 

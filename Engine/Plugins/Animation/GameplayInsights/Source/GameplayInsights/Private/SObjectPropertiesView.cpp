@@ -1,0 +1,98 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SObjectPropertiesView.h"
+#include "AnimationProvider.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include "GameplayProvider.h"
+#include "TraceServices/Model/Frames.h"
+#include "VariantTreeNode.h"
+
+#define LOCTEXT_NAMESPACE "SObjectPropertiesView"
+
+void SObjectPropertiesView::Construct(const FArguments& InArgs, uint64 InObjectId, double InTimeMarker, const TraceServices::IAnalysisSession& InAnalysisSession)
+{
+	ObjectId = InObjectId;
+	AnalysisSession = &InAnalysisSession;
+
+	View = SNew(SVariantValueView, InAnalysisSession).OnGetVariantValues(this, &SObjectPropertiesView::GetVariantsAtFrame);
+
+	SetTimeMarker(InTimeMarker);
+
+	ChildSlot
+	[
+		View.ToSharedRef()
+	];
+
+}
+
+void SObjectPropertiesView::SetTimeMarker(double Time)
+{
+	TimeMarker = Time;
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(*AnalysisSession);
+	TraceServices::FFrame MarkerFrame;
+	if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, TimeMarker, MarkerFrame))
+	{
+		View->RequestRefresh(MarkerFrame);
+	}
+}
+
+void SObjectPropertiesView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+{
+	if (const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName))
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+		const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(ObjectId);
+
+		if(ClassInfo.Properties.Num() > 0)
+		{
+			TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("Properties", "Properties"), INDEX_NONE));
+
+			// Build the class tree
+			TArray<TSharedPtr<FVariantTreeNode>> PropertyVariants;
+			PropertyVariants.SetNum(ClassInfo.Properties.Num());
+			for(int32 PropertyIndex = 0; PropertyIndex < ClassInfo.Properties.Num(); ++PropertyIndex)
+			{
+				const FClassPropertyInfo& PropertyInfo = ClassInfo.Properties[PropertyIndex];
+
+				// Add a string node with a default value
+				const TCHAR* Key = GameplayProvider->GetPropertyName(PropertyInfo.KeyStringId);
+				PropertyVariants[PropertyIndex] = FVariantTreeNode::MakeString(FText::FromString(Key), TEXT("Unknown"), PropertyIndex);
+
+				// note assumes that order is parent->child in the properties array
+				if(PropertyInfo.ParentId != INDEX_NONE)
+				{
+					PropertyVariants[PropertyInfo.ParentId]->AddChild(PropertyVariants[PropertyIndex].ToSharedRef());
+				}
+				else
+				{
+					Header->AddChild(PropertyVariants[PropertyIndex].ToSharedRef());
+				}
+			}
+
+			// object events
+			GameplayProvider->ReadObjectPropertiesTimeline(ObjectId, [this, &InFrame, &GameplayProvider, &PropertyVariants](const FGameplayProvider::ObjectPropertiesTimeline& InTimeline)
+			{
+				InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [this, &GameplayProvider, &PropertyVariants](double InStartTime, double InEndTime, uint32 InDepth, const FObjectPropertiesMessage& InMessage)
+				{
+					GameplayProvider->EnumerateObjectPropertyValues(ObjectId, InMessage, [&PropertyVariants](const FObjectPropertyValue& InValue)
+					{
+						PropertyVariants[InValue.PropertyId]->GetValue().String.Value = InValue.Value;
+					});
+					return TraceServices::EEventEnumerate::Stop;
+				});
+			});
+		}
+	}
+}
+
+FText SObjectPropertiesView::GetTitle()
+{
+	return LOCTEXT("Object Properties", "Object Properties");
+}
+
+
+
+
+#undef LOCTEXT_NAMESPACE

@@ -25,14 +25,24 @@ FRewindDebugger::FRewindDebugger()  :
 {
 	RecordingDuration.Set(0);
 
-	FEditorDelegates::PostPIEStarted.AddRaw(this, &FRewindDebugger::OnPIEStarted);
+	FEditorDelegates::PreBeginPIE.AddRaw(this, &FRewindDebugger::OnPIEStarted);
 	FEditorDelegates::PausePIE.AddRaw(this, &FRewindDebugger::OnPIEPaused);
 	FEditorDelegates::ResumePIE.AddRaw(this, &FRewindDebugger::OnPIEResumed);
 	FEditorDelegates::EndPIE.AddRaw(this, &FRewindDebugger::OnPIEStopped);
+	FEditorDelegates::SingleStepPIE.AddRaw(this, &FRewindDebugger::OnPIESingleStepped);
 
 	DebugTargetActor.OnPropertyChanged = DebugTargetActor.OnPropertyChanged.CreateLambda([this](FString Target) { RefreshDebugComponents(); });
 
 	UnrealInsightsModule = &FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("RewindDebugger"), 0.0f, [this](float DeltaTime)
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRewindDebuggerModule_Tick);
+
+		Tick(DeltaTime);
+
+		return true;
+	});
 }
 
 FRewindDebugger::~FRewindDebugger() 
@@ -41,6 +51,10 @@ FRewindDebugger::~FRewindDebugger()
 	FEditorDelegates::PausePIE.RemoveAll(this);
 	FEditorDelegates::ResumePIE.RemoveAll(this);
 	FEditorDelegates::EndPIE.RemoveAll(this);
+	FEditorDelegates::SingleStepPIE.RemoveAll(this);
+
+	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+
 }
 
 void FRewindDebugger::Initialize() 
@@ -68,6 +82,8 @@ void FRewindDebugger::OnPIEStarted(bool bSimulating)
 	bPIEStarted = true;
 	bPIESimulating = true;
 
+	UE::Trace::ToggleChannel(TEXT("Object"), true);
+
 	if (bAutoRecord)
 	{
 		StartRecording();
@@ -78,6 +94,13 @@ void FRewindDebugger::OnPIEPaused(bool bSimulating)
 {
 	bPIESimulating = false;
 	ControlState = EControlState::Pause;
+
+	if (bRecording)
+	{
+		UWorld* World = GetWorldToVisualize();
+		RecordingDuration.Set(FObjectTrace::GetWorldElapsedTime(World));
+		SetCurrentScrubTime(RecordingDuration.Get());
+	}
 }
 
 void FRewindDebugger::OnPIEResumed(bool bSimulating)
@@ -95,11 +118,36 @@ void FRewindDebugger::OnPIEResumed(bool bSimulating)
 
 	MeshComponentsToReset.Empty();
 }
+
+void FRewindDebugger::OnPIESingleStepped(bool bSimulating)
+{
+	// restore all relative transforms of any meshes that may have been moved while scrubbing
+	for (TTuple<uint64, FMeshComponentResetData>& MeshData : MeshComponentsToReset)
+	{
+		if (USkeletalMeshComponent* MeshComponent = MeshData.Value.Component.Get())
+		{
+			MeshComponent->SetRelativeTransform(MeshData.Value.RelativeTransform);
+		}
+	}
+
+	MeshComponentsToReset.Empty();
+
+	if (bRecording)
+	{
+		UWorld* World = GetWorldToVisualize();
+		RecordingDuration.Set(FObjectTrace::GetWorldElapsedTime(World));
+		SetCurrentScrubTime(RecordingDuration.Get());
+	}
+}
+
+
 void FRewindDebugger::OnPIEStopped(bool bSimulating)
 {
 	bPIEStarted = false;
 	bPIESimulating = false;
 	MeshComponentsToReset.Empty();
+
+	UE::Trace::ToggleChannel(TEXT("Object"), false);
 
 	StopRecording();
 	// clear the current recording (until we support playback in the Editor world on spawned actors)
@@ -206,7 +254,7 @@ void FRewindDebugger::StartRecording()
 	}
 
 	// Enable Object and Animation Trace filters
-	UE::Trace::ToggleChannel(TEXT("Object"), true);
+	UE::Trace::ToggleChannel(TEXT("ObjectProperties"), true);
 	UE::Trace::ToggleChannel(TEXT("Animation"), true);
 	UE::Trace::ToggleChannel(TEXT("Frame"), true);
 
@@ -226,7 +274,7 @@ void FRewindDebugger::StopRecording()
 	if (bRecording)
 	{
 		// Enable Object and Animation Trace filters
-		UE::Trace::ToggleChannel(TEXT("Object"), false);
+		UE::Trace::ToggleChannel(TEXT("ObjectProperties"), false);
 		UE::Trace::ToggleChannel(TEXT("Animation"), false);
 		UE::Trace::ToggleChannel(TEXT("Frame"), false);
 
@@ -456,6 +504,8 @@ void FRewindDebugger::Tick(float DeltaTime)
 			{
 				if (RecordingDuration.Get() > 0)
 				{
+					UpdateTraceTime(); 
+
 					if (ControlState == EControlState::Play || ControlState == EControlState::PlayReverse)
 					{
 						float Rate = PlaybackRate * (ControlState == EControlState::Play ? 1 : -1);

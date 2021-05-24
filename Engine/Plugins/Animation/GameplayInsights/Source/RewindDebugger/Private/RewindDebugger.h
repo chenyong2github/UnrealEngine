@@ -90,6 +90,7 @@ private:
 	void OnPIEPaused(bool bSimulating);
 	void OnPIEResumed(bool bSimulating);
 	void OnPIEStopped(bool bSimulating);
+	void OnPIESingleStepped(bool bSimulating);
 
 	const TraceServices::IAnalysisSession* GetAnalysisSession();
 	UWorld* GetWorldToVisualize() const;
@@ -137,4 +138,5 @@ private:
 	TMap<uint64, FMeshComponentResetData> MeshComponentsToReset;
 
 	class IUnrealInsightsModule *UnrealInsightsModule;
+	FDelegateHandle TickerHandle;
 };

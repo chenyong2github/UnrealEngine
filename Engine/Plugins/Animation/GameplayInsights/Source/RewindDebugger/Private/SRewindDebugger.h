@@ -14,6 +14,8 @@
 #include "Widgets/SCompoundWidget.h"
 
 
+class SScrollBox;
+
 class SRewindDebugger : public SCompoundWidget
 {
 	typedef TBindablePropertyInitializer<FString, BindingType_Out> DebugTargetInitializer;
@@ -77,5 +79,5 @@ private:
 
 	// anim graph view 
 	TArray<TSharedPtr<IGameplayInsightsDebugView>> DebugViews;
-	TSharedPtr<SVerticalBox> DebugViewContainer;
+	TSharedPtr<SScrollBox> DebugViewContainer;
 };

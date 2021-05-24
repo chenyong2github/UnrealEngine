@@ -822,6 +822,11 @@ void SAnimGraphSchematicView::SetTimeMarker(double InTimeMarker)
 	}
 }
 
+FText SAnimGraphSchematicView::GetTitle()
+{
+	return LOCTEXT("Anim Graph Update", "Anim Graph Update");
+}
+
 TSharedRef<SWidget> SAnimGraphSchematicView::HandleGetViewMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
