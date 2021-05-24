@@ -339,11 +339,12 @@ void FNDIHairStrandsBuffer::InitRHI()
 			const uint32 OffsetCount = SourceDatas->GetNumCurves() + 1;
 			const uint32 OffsetBytes = sizeof(uint32)*OffsetCount;
 
+			const FHairStrandsRootIndexFormat::Type* SourceData = (const FHairStrandsRootIndexFormat::Type*)SourceDatas->CurveOffsets.LockReadOnly();
 			CurvesOffsetsBuffer.Initialize(TEXT("CurvesOffsetsBuffer"), sizeof(uint32), OffsetCount, EPixelFormat::PF_R32_UINT, BUF_Static);
 			void* OffsetBufferData = RHILockBuffer(CurvesOffsetsBuffer.Buffer, 0, OffsetBytes, RLM_WriteOnly);
-
-			FMemory::Memcpy(OffsetBufferData, SourceDatas->CurveOffsets.GetData(), OffsetBytes);
+			FMemory::Memcpy(OffsetBufferData, SourceData, OffsetBytes);
 			RHIUnlockBuffer(CurvesOffsetsBuffer.Buffer);
+			SourceDatas->CurveOffsets.Unlock();
 		}
 		{
 			static const TArray<uint32> ZeroData = { UINT_MAX,UINT_MAX,UINT_MAX,0,0,0,
