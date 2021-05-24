@@ -19,7 +19,7 @@
 			"Name": "PixelStreaming",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Win32", "Win64" ],
+			"WhitelistPlatforms": [ "Win64" ],
 			"BlacklistTargets": [ "Server" ]
 		}
 	],
