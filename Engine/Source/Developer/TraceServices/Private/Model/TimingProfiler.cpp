@@ -100,7 +100,7 @@ void FTimingProfilerProvider::SetTimerName(uint32 TimerId, const TCHAR* Name)
 	Timer.NameHash = NameHash;
 }
 
-uint32 FTimingProfilerProvider::AddGpuTimer(const TCHAR* Name)
+uint32 FTimingProfilerProvider::AddGpuTimer(FStringView Name)
 {
 	Session.WriteAccessCheck();
 
@@ -108,15 +108,15 @@ uint32 FTimingProfilerProvider::AddGpuTimer(const TCHAR* Name)
 	return Timer.Id;
 }
 
-FTimingProfilerTimer& FTimingProfilerProvider::AddTimerInternal(const TCHAR* Name, bool IsGpuTimer)
+FTimingProfilerTimer& FTimingProfilerProvider::AddTimerInternal(FStringView Name, bool IsGpuTimer)
 {
 	FTimingProfilerTimer& Timer = Timers.AddDefaulted_GetRef();
 	Timer.Id = Timers.Num() - 1;
 	Timer.Name = Session.StoreString(Name);
 	uint32 NameHash = 0;
-	for (const TCHAR* c = Name; *c; ++c)
+	for (TCHAR c : Name)
 	{
-		NameHash = (NameHash + *c) * 0x2c2c57ed;
+		NameHash = (NameHash + c) * 0x2c2c57ed;
 	}
 	Timer.NameHash = NameHash;
 	Timer.IsGpuTimer = IsGpuTimer;
