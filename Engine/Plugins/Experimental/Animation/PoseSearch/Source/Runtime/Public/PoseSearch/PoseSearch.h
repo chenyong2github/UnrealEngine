@@ -120,6 +120,8 @@ struct POSESEARCH_API FPoseSearchFeatureVectorLayout
 	int32 FirstPoseValueOffset = -1;
 
 	bool IsValid(int32 MaxNumBones) const;
+
+	bool EnumerateFeature(EPoseSearchFeatureType FeatureType, bool bTrajectory, int32& OutFeatureIdx) const;
 };
 
 
@@ -320,6 +322,65 @@ public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 };
 
+/** Bias weights for influencing the results of a pose search query */
+USTRUCT(BlueprintType, Category = "Animation|PoseSearch")
+struct POSESEARCH_API FPoseSearchBiasWeightParams
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"));
+	float TrajectoryLinearVelocityWeight = 1.f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"));
+	float TrajectoryPositionWeight = 1.f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"));
+	float PoseLinearVelocityWeight = 1.f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"));
+	float PosePositionWeight = 1.f;
+};
+
+/** Expanded bias weights from FPoseSearchBiasWeightParams which match the binary layout described by FPoseSearchFeatureVectorLayout */
+USTRUCT()
+struct POSESEARCH_API FPoseSearchBiasWeights
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<float> Weights;
+
+	bool IsInitialized() const { return !Weights.IsEmpty(); }
+	void Init(const FPoseSearchBiasWeightParams& WeightParams, const FPoseSearchFeatureVectorLayout& Layout);
+
+private:
+	void BindSemanticWeight(float Weight, const FPoseSearchFeatureVectorLayout& Layout, EPoseSearchFeatureType FeatureType, bool bTrajectory);
+};
+
+/** 
+* Bias weight context contains a reference to global/external weights and a relevant pose search database
+* The database parameter is primarily used for locating per-sequence bias weights
+*/
+struct FPoseSearchBiasWeightsContext
+{
+	const FPoseSearchBiasWeights* BiasWeights = nullptr;
+	const UPoseSearchDatabase* Database = nullptr;
+
+	bool IsInitialized() const { return !!Database; }
+	bool HasBiasWeights() const { return !!BiasWeights && BiasWeights->IsInitialized(); }
+};
+
+/** Per-sequence bias weights for influencing the results of a pose search query */
+UCLASS(BlueprintType, Category = "Animation|PoseSearch")
+class POSESEARCH_API UPoseSearchSequenceBiasWeightMetaData : public UAnimMetaData
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FPoseSearchBiasWeightParams BiasWeights;
+};
+
 /** An entry in a UPoseSearchDatabase. */
 USTRUCT(BlueprintType, Category = "Animation|PoseSearch")
 struct POSESEARCH_API FPoseSearchDatabaseSequence
@@ -361,7 +422,8 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	UPROPERTY()
 	int32 NumPoses = 0;
 
-	int32 GetPoseIndexFromAssetTime(float AssetTime) const;
+	UPROPERTY()
+	FPoseSearchBiasWeights BiasWeights;
 };
 
 /** A data asset for indexing a collection of animation sequences. */
@@ -596,11 +658,12 @@ POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database);
 /**
 * Performs a pose search on a sequence's UPoseSearchSequenceMetaData.
 *
-* @param Sequence		The sequence to search within. Must contain a UPoseSearchSequenceMetaData object.
-* @param Query			The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the UPoseSearchSequenceMetaData.
-* @param DrawParams		Visualization options
+* @param Sequence			The sequence to search within. Must contain a UPoseSearchSequenceMetaData object.
+* @param Query				The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the UPoseSearchSequenceMetaData.
+* @param BiasWeightsContext	Optional bias weight context used to influence pose search query results
+* @param DrawParams			Visualization options
 * 
-* @return				The pose in the sequence that most closely matches the Query.
+* @return					The pose in the sequence that most closely matches the Query.
 */
 POSESEARCH_API FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> Query, FDebugDrawParams DrawParams = FDebugDrawParams());
 
@@ -608,24 +671,26 @@ POSESEARCH_API FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayVie
 /**
 * Performs a pose search on a UPoseSearchDatabase.
 *
-* @param Database		The database to search within
-* @param Query			The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the Database.
-* @param DrawParams		Visualization options
+* @param Database			The database to search within
+* @param Query				The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the Database.
+* @param BiasWeightsContext	Optional bias weight context used to influence pose search query results
+* @param DrawParams			Visualization options
 * 
-* @return				The pose in the database that most closely matches the Query.
+* @return					The pose in the database that most closely matches the Query.
 */
-POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, FDebugDrawParams DrawParams = FDebugDrawParams());
+POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext = nullptr, FDebugDrawParams DrawParams = FDebugDrawParams());
 
 
 /**
 * Evaluate pose comparison metric between a pose in the search index and an input query
 * 
-* @param SearchIndex	The search index containing the pose to compare to the query
-* @param PoseIdx		The index of the pose in the search index to compare to the query
-* @param Query			The query to compare against. Must have been built using the same schema as the SearchIndex.
+* @param SearchIndex		The search index containing the pose to compare to the query
+* @param PoseIdx			The index of the pose in the search index to compare to the query
+* @param Query				The query to compare against. Must have been built using the same schema as the SearchIndex.
+* @param BiasWeightsContext Optional bias weight context used to influence pose comparison
 * 
-* @return Dissimilarity between the two poses
+* @return					Dissimilarity between the two poses
 */
-POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query);
+POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext = nullptr);
 
 }} // namespace UE::PoseSearch

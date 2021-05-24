@@ -54,13 +54,13 @@ static FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* Sequenc
 	return Range;
 }
 
-static float CompareFeatureVectors(int32 NumValues, const float* A, const float* B)
+static inline float CompareFeatureVectors(int32 NumValues, const float* A, const float* B, const float* Weights)
 {
-	float Dissimilarity = 0.0f;
+	float Dissimilarity = 0.f;
 
 	for (int32 ValueIdx = 0; ValueIdx != NumValues; ++ValueIdx)
 	{
-		float Diff = A[ValueIdx] - B[ValueIdx];
+		const float Diff = Weights[ValueIdx] * (A[ValueIdx] - B[ValueIdx]);
 		Dissimilarity += Diff * Diff;
 	}
 
@@ -251,6 +251,24 @@ bool FPoseSearchFeatureVectorLayout::IsValid(int32 MaxNumBones) const
 	return true;
 }
 
+bool FPoseSearchFeatureVectorLayout::EnumerateFeature(EPoseSearchFeatureType FeatureType, bool bTrajectory, int32& OutFeatureIdx) const
+{
+	// This function behaves similar to a generator
+	// OutFeatureIdx represents the 'next' Pose Feature Description that matches the inner criteria
+	// OutFeatureIdx can then be used again as a starting index to begin a subsequent search
+	for (int32 Idx = OutFeatureIdx + 1, Size = Features.Num(); Idx < Size; ++Idx)
+	{
+		// A trajectory feature match will result when bTrajectory = True and SchemaBoneIdx = -1
+		// A pose feature match will result when bTrajectory = False and SchemaBoneIdx != -1
+		if (Features[Idx].Type == FeatureType && (bTrajectory == (Features[Idx].SchemaBoneIdx == FPoseSearchFeatureDesc::TrajectoryBoneIndex)))
+		{
+			OutFeatureIdx = Idx;
+			return true;
+		}
+	}
+
+	return false;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchSchema
@@ -422,6 +440,37 @@ void UPoseSearchSchema::ConvertTimesToOffsets(TArrayView<const float> SampleTime
 	for (int32 Idx = 0; Idx != SampleTimes.Num(); ++Idx)
 	{
 		OutSampleOffsets[Idx] = FMath::RoundToInt(SampleTimes[Idx] * SampleRate);
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchBiasWeights
+
+void FPoseSearchBiasWeights::Init(const FPoseSearchBiasWeightParams& WeightParams, const FPoseSearchFeatureVectorLayout& Layout)
+{
+	// Initialize all weights to a default value of 1, and subsequently override all bound weights to their assigned value
+	Weights.Init(1.f, Layout.NumFloats);
+	BindSemanticWeight(WeightParams.TrajectoryPositionWeight, Layout, EPoseSearchFeatureType::Position, true);
+	BindSemanticWeight(WeightParams.TrajectoryLinearVelocityWeight, Layout, EPoseSearchFeatureType::LinearVelocity, true);
+	BindSemanticWeight(WeightParams.PosePositionWeight, Layout, EPoseSearchFeatureType::Position, false);
+	BindSemanticWeight(WeightParams.PoseLinearVelocityWeight, Layout, EPoseSearchFeatureType::LinearVelocity, false);
+}
+
+void FPoseSearchBiasWeights::BindSemanticWeight(float Weight, const FPoseSearchFeatureVectorLayout& Layout, EPoseSearchFeatureType FeatureType, bool bTrajectory)
+{
+	// The Weight parameter will be bound to a specific feature described by the FPoseSearchFeatureVectorLayout
+	int32 FeatureIdx = -1;
+	while (Layout.EnumerateFeature(FeatureType, bTrajectory, FeatureIdx))
+	{
+		const FPoseSearchFeatureDesc& Feature = Layout.Features[FeatureIdx];
+		const int32 FirstValueIdx = Feature.ValueOffset;
+		const int32 NumValues = UE::PoseSearch::GetFeatureTypeTraits(FeatureType).NumFloats;
+
+		for (int32 Idx = 0; Idx < NumValues; ++Idx)
+		{
+			Weights[FirstValueIdx + Idx] = Weight;
+		}
 	}
 }
 
@@ -2427,7 +2476,6 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 	// Sample animations independently
 	ParallelFor(SequenceSamplers.Num(), [&SequenceSamplers](int32 SamplerIdx){ SequenceSamplers[SamplerIdx].Process(); });
 
-
 	auto GetSampler = [&](const UAnimSequence* Sequence) -> const FSequenceSampler*
 	{
 		return Sequence ? &SequenceSamplers[SequenceSamplerMap[Sequence]] : nullptr;
@@ -2467,6 +2515,20 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 		TotalFloats += Output.FeatureVectorTable.Num();
 	}
 
+	// Establish per-sequence pose search bias weights if metadata is present
+	for (int32 SequenceIdx = 0; SequenceIdx != Database->Sequences.Num(); ++SequenceIdx)
+	{
+		FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[SequenceIdx];
+		if (DbSequence.Sequence)
+		{
+			const UPoseSearchSequenceBiasWeightMetaData* BiasWeightMetadata = DbSequence.Sequence->FindMetaDataByClass<UPoseSearchSequenceBiasWeightMetaData>();
+			if (BiasWeightMetadata)
+			{
+				DbSequence.BiasWeights.Init(BiasWeightMetadata->BiasWeights, Database->Schema->Layout);
+			}
+		}
+	}
+
 	// Join animation data into a single search index
 	Database->SearchIndex.Values.Reset(TotalFloats);
 	for (const FSequenceIndexer& Indexer : Indexers)
@@ -2483,10 +2545,23 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 	return true;
 }
 
-static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<const float> Query)
+static inline void DefaultInitializeWeights(const FPoseSearchBiasWeightsContext* BiasWeightsContext, int32 Size, TArray<float>& Weights, bool& bBiasWeightContextAvailable)
+{
+	bBiasWeightContextAvailable = BiasWeightsContext && BiasWeightsContext->HasBiasWeights();
+
+	if (bBiasWeightContextAvailable)
+	{
+		Weights = BiasWeightsContext->BiasWeights->Weights;
+	}
+	else
+	{
+		Weights.Init(1.f, Size);
+	}
+}
+
+static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext = nullptr)
 {
 	FSearchResult Result;
-
 	if (!ensure(SearchIndex.IsValid()))
 	{
 		return Result;
@@ -2497,19 +2572,61 @@ static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<cons
 		return Result;
 	}
 
+	bool bBiasWeightContextAvailable = false;
+
+	// Initial weights by default are set to 1, but may be independently set by an external system such as motion matching
+	TArray<float> InitialWeights;
+	DefaultInitializeWeights(BiasWeightsContext, Query.Num(), InitialWeights, bBiasWeightContextAvailable);
+	const auto InitialWeightsMap = Eigen::Map<const Eigen::ArrayXf>(InitialWeights.GetData(), InitialWeights.Num());
+
+	// Accumulated weights will contain the per-pose final weights, optionally including per-sequence and/or other external values
+	TArray<float> AccumulatedWeights;
+	AccumulatedWeights = InitialWeights;
+	auto AccumulatedWeightsMap = Eigen::Map<Eigen::ArrayXf>(AccumulatedWeights.GetData(), AccumulatedWeights.Num());
+
 	float BestPoseDissimilarity = MAX_flt;
 	int32 BestPoseIdx = INDEX_NONE;
 
-	for (int32 PoseIdx = 0; PoseIdx != SearchIndex.NumPoses; ++PoseIdx)
+	for (int32 PoseIdx = 0, PrevSequenceIdx = -1; PoseIdx != SearchIndex.NumPoses; ++PoseIdx)
 	{
+		// Sequence index and metadata tracking are done within this loop in order to optimize
+		// and elide unnecessary recomputing of the weight buffer.
+		bool bSequenceWeightsAvailable = false;
+		int32_t SequenceIdx = -1;
+
+		if (bBiasWeightContextAvailable)
+		{
+			// Apply the per-sequence bias weights if they are present within the sequence metadata
+			SequenceIdx = BiasWeightsContext->Database->FindSequenceForPose(PoseIdx);
+			if (SequenceIdx != PrevSequenceIdx)
+			{
+				const FPoseSearchDatabaseSequence& SequenceEntry = BiasWeightsContext->Database->Sequences[SequenceIdx];
+				bSequenceWeightsAvailable = SequenceEntry.BiasWeights.IsInitialized();
+
+				if (bSequenceWeightsAvailable)
+				{
+					const auto& SequenceBiasWeights = SequenceEntry.BiasWeights.Weights;
+					AccumulatedWeightsMap *= Eigen::Map<const Eigen::ArrayXf>(SequenceBiasWeights.GetData(), SequenceBiasWeights.Num());
+				}
+			}
+		}
+
 		const int32 FeatureValueOffset = PoseIdx * SearchIndex.Schema->Layout.NumFloats;
 
 		float PoseDissimilarity = CompareFeatureVectors(
 			SearchIndex.Schema->Layout.NumFloats,
 			Query.GetData(),
-			&SearchIndex.Values[FeatureValueOffset]
+			&SearchIndex.Values[FeatureValueOffset],
+			AccumulatedWeights.GetData()
 		);
 
+		if (bSequenceWeightsAvailable && SequenceIdx != PrevSequenceIdx)
+		{
+			// Reset pose weights to remove any extraneous sequence contributions for the next iteration
+			AccumulatedWeightsMap = InitialWeightsMap;
+			PrevSequenceIdx = SequenceIdx;
+		}
+		
 		if (PoseDissimilarity < BestPoseDissimilarity)
 		{
 			BestPoseDissimilarity = PoseDissimilarity;
@@ -2554,7 +2671,7 @@ FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> 
 	return Result;
 }
 
-FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, FDebugDrawParams DebugDrawParams)
+FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext, FDebugDrawParams DebugDrawParams)
 {
 	if (!ensure(Database && Database->IsValidForSearch()))
 	{
@@ -2563,7 +2680,7 @@ FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const flo
 
 	const FPoseSearchIndex& SearchIndex = Database->SearchIndex;
 
-	FDbSearchResult Result = Search(SearchIndex, Query);
+	FDbSearchResult Result = Search(SearchIndex, Query, BiasWeightsContext);
 	if (!Result.IsValid())
 	{
 		return FDbSearchResult();
@@ -2590,11 +2707,30 @@ FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const flo
 	return Result;
 }
 
-float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query)
+float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext)
 {
 	TArrayView<const float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
 	check(PoseValues.Num() == Query.Num());
-	return CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), Query.GetData());
+
+	bool bBiasWeightContextAvailable = false;
+
+	TArray<float> Weights;
+	DefaultInitializeWeights(BiasWeightsContext, Query.Num(), Weights, bBiasWeightContextAvailable);
+
+	if (bBiasWeightContextAvailable)
+	{
+		// Apply the per-sequence bias weights if present on the sequence metadata
+		const int32 SequenceIdx = BiasWeightsContext->Database->FindSequenceForPose(PoseIdx);
+		const FPoseSearchDatabaseSequence& SequenceEntry = BiasWeightsContext->Database->Sequences[SequenceIdx];
+
+		if (SequenceEntry.BiasWeights.IsInitialized())
+		{
+			const auto& SequenceWeights = SequenceEntry.BiasWeights.Weights;
+			Eigen::Map<Eigen::ArrayXf>(Weights.GetData(), Weights.Num()) *= Eigen::Map<const Eigen::ArrayXf>(SequenceWeights.GetData(), SequenceWeights.Num());
+		}
+	}
+
+	return CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), Query.GetData(), Weights.GetData());
 }
 
 
