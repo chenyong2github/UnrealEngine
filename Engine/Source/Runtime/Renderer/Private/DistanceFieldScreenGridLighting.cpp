@@ -70,11 +70,13 @@ void FAOScreenGridResources::InitDynamicRHI()
 	ScreenGridConeVisibility.Initialize(TEXT("ScreenGridConeVisibility"), sizeof(uint32), NumConeSampleDirections * ScreenGridDimensions.X * ScreenGridDimensions.Y, PF_R32_UINT, BUF_Static | FastVRamFlag);
 }
 
-template<bool bUseGlobalDistanceField>
-class TConeTraceScreenGridObjectOcclusionCS : public FGlobalShader
+class FConeTraceScreenGridObjectOcclusionCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(TConeTraceScreenGridObjectOcclusionCS,Global)
+	DECLARE_GLOBAL_SHADER(FConeTraceScreenGridObjectOcclusionCS);
 public:
+
+	class FUseGlobalDistanceField : SHADER_PERMUTATION_BOOL("USE_GLOBAL_DISTANCE_FIELD");
+	using FPermutationDomain = TShaderPermutationDomain<FUseGlobalDistanceField>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -85,13 +87,12 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FTileIntersectionParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_DISTANCE_FIELD"), bUseGlobalDistanceField);
 
 		// To reduce shader compile time of compute shaders with shared memory, doesn't have an impact on generated code with current compiler (June 2010 DX SDK)
 		OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
 	}
 
-	TConeTraceScreenGridObjectOcclusionCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FConeTraceScreenGridObjectOcclusionCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		ObjectParameters.Bind(Initializer.ParameterMap);
@@ -106,7 +107,7 @@ public:
 		ConeDepthVisibilityFunction.Bind(Initializer.ParameterMap, TEXT("ConeDepthVisibilityFunction"));
 	}
 
-	TConeTraceScreenGridObjectOcclusionCS()
+	FConeTraceScreenGridObjectOcclusionCS()
 	{
 	}
 
@@ -116,6 +117,7 @@ public:
 		const FDistanceFieldSceneData& DistanceFieldSceneData,
 		FRHITexture* DistanceFieldNormal,  
 		const FDistanceFieldAOParameters& Parameters,
+		bool bUseGlobalDistanceField,
 		const FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
@@ -191,12 +193,7 @@ private:
 	LAYOUT_FIELD(FRWShaderParameter, ConeDepthVisibilityFunction);
 };
 
-#define IMPLEMENT_CONETRACE_CS_TYPE(bUseGlobalDistanceField) \
-	typedef TConeTraceScreenGridObjectOcclusionCS<bUseGlobalDistanceField> TConeTraceScreenGridObjectOcclusionCS##bUseGlobalDistanceField; \
-	IMPLEMENT_SHADER_TYPE(template<>,TConeTraceScreenGridObjectOcclusionCS##bUseGlobalDistanceField,TEXT("/Engine/Private/DistanceFieldScreenGridLighting.usf"),TEXT("ConeTraceObjectOcclusionCS"),SF_Compute);
-
-IMPLEMENT_CONETRACE_CS_TYPE(true)
-IMPLEMENT_CONETRACE_CS_TYPE(false)
+IMPLEMENT_GLOBAL_SHADER(FConeTraceScreenGridObjectOcclusionCS, "/Engine/Private/DistanceFieldScreenGridLighting.usf", "ConeTraceObjectOcclusionCS", SF_Compute);
 
 const int32 GConeTraceGlobalDFTileSize = 8;
 
@@ -562,30 +559,17 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 
 				RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
-				if (bUseGlobalDistanceField)
-				{
-					check(View.GlobalDistanceFieldInfo.Clipmaps.Num() > 0);
+				FConeTraceScreenGridObjectOcclusionCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FConeTraceScreenGridObjectOcclusionCS::FUseGlobalDistanceField>(bUseGlobalDistanceField);
 
-					{
-						TShaderMapRef<TConeTraceScreenGridObjectOcclusionCS<true> > ComputeShader(View.ShaderMap);
+				auto ComputeShader = View.ShaderMap->GetShader<FConeTraceScreenGridObjectOcclusionCS>(PermutationVector);
 
-						RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-						ComputeShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
-						DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
-						ComputeShader->UnsetParameters(RHICmdList, View);
-					}
-				}
-				else
-				{
-					{
-						TShaderMapRef<TConeTraceScreenGridObjectOcclusionCS<false> > ComputeShader(View.ShaderMap);
+				check(!bUseGlobalDistanceField || View.GlobalDistanceFieldInfo.Clipmaps.Num() > 0);
 
-						RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-						ComputeShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, DistanceFieldNormal->GetRHI(), Parameters, View.GlobalDistanceFieldInfo);
-						DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
-						ComputeShader->UnsetParameters(RHICmdList, View);
-					}
-				}
+				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+				ComputeShader->SetParameters(RHICmdList, View, DistanceFieldSceneData, DistanceFieldNormal->GetRHI(), Parameters, bUseGlobalDistanceField, View.GlobalDistanceFieldInfo);
+				DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), TileIntersectionResources->ObjectTilesIndirectArguments.Buffer, 0);
+				ComputeShader->UnsetParameters(RHICmdList, View);
 			}
 
 			// Compute heightfield occlusion after heightfield GI, otherwise it self-shadows incorrectly
