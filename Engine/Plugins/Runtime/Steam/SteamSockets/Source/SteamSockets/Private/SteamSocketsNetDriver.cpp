@@ -9,6 +9,9 @@
 #include "SteamSocketsNetConnection.h"
 #include "SteamSocketsSubsystem.h"
 #include "IPAddressSteamSockets.h"
+#include "Engine/NetworkDelegates.h"
+#include "Engine/World.h"
+#include "Misc/CommandLine.h"
 
 void USteamSocketsNetDriver::PostInitProperties()
 {
