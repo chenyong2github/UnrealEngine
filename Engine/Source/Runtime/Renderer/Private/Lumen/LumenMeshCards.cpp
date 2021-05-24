@@ -22,7 +22,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMinSize(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenMeshCardsMergeComponents = 0;
+int32 GLumenMeshCardsMergeComponents = 1;
 FAutoConsoleVariableRef CVarLumenMeshCardsMergeComponents(
 	TEXT("r.LumenScene.SurfaceCache.MeshCardsMergeComponents"),
 	GLumenMeshCardsMergeComponents,
