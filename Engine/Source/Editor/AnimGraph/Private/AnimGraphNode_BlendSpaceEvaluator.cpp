@@ -3,8 +3,12 @@
 #include "AnimGraphNode_BlendSpaceEvaluator.h"
 #include "ToolMenus.h"
 #include "AnimGraphCommands.h"
+#include "BlueprintNodeSpawner.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "IAnimBlueprintNodeOverrideAssetsContext.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeTemplateCache.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_BlendSpaceEvaluator
@@ -14,12 +18,6 @@
 UAnimGraphNode_BlendSpaceEvaluator::UAnimGraphNode_BlendSpaceEvaluator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-}
-
-FText UAnimGraphNode_BlendSpaceEvaluator::GetTooltipText() const
-{
-	// FText::Format() is slow, so we utilize the cached list title
-	return GetNodeTitle(ENodeTitleType::ListView);
 }
 
 FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpace* InBlendSpace) const
@@ -88,10 +86,25 @@ FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitle(ENodeTitleType::Type Titl
 	}
 }
 
-void UAnimGraphNode_BlendSpaceEvaluator::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+void UAnimGraphNode_BlendSpaceEvaluator::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const
 {
-	// Intentionally empty so that we don't get duplicate blend space entries.
-	// You can convert a regular blend space player to an evaluator via the right click context menu
+	GetMenuActionsHelper(
+		InActionRegistrar,
+		GetClass(),
+		{ UBlendSpace::StaticClass() },
+		{ },
+		[](const FAssetData& InAssetData)
+		{
+			return FText::Format(LOCTEXT("MenuDescFormat", "Blendspace Evaluator '{0}'"), FText::FromName(InAssetData.AssetName));
+		},
+		[](const FAssetData& InAssetData)
+		{
+			return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace Evaluator\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+		},
+		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
+		{
+			UAnimGraphNode_AssetPlayerBase::SetupNewNode(InNewNode, bInIsTemplateNode, InAssetData);
+		});	
 }
 
 void UAnimGraphNode_BlendSpaceEvaluator::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)

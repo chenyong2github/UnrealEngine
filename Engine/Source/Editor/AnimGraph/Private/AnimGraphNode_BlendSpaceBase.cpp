@@ -24,6 +24,11 @@ FLinearColor UAnimGraphNode_BlendSpaceBase::GetNodeTitleColor() const
 	return FLinearColor(0.2f, 0.8f, 0.2f);
 }
 
+FSlateIcon UAnimGraphNode_BlendSpaceBase::GetIconAndTint(FLinearColor& OutColor) const
+{
+	return FSlateIcon("EditorStyle", "ClassIcon.BlendSpace");
+}
+
 void UAnimGraphNode_BlendSpaceBase::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
 {
 	UBlendSpace * BlendSpace = GetBlendSpace();
