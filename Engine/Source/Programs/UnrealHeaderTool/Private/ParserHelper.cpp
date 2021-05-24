@@ -317,6 +317,75 @@ FToken& FToken::operator=(FToken&& Other)
 }
 
 /////////////////////////////////////////////////////
+// FFuncData
+
+void FFuncInfo::SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef)
+{
+	UFunction* FunctionReference = FunctionDef.GetFunction();
+	FString FunctionName = FunctionReference->GetName();
+	if (FunctionDef.HasAnyFunctionFlags(FUNC_Delegate))
+	{
+		FunctionName.LeftChopInline(FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len(), false);
+	}
+	UnMarshallAndCallName = FString(TEXT("exec")) + FunctionName;
+
+	if (FunctionDef.HasAnyFunctionFlags(FUNC_BlueprintEvent))
+	{
+		MarshallAndCallName = FunctionName;
+	}
+	else
+	{
+		MarshallAndCallName = FString(TEXT("event")) + FunctionName;
+	}
+
+	if (FunctionDef.HasAllFunctionFlags(FUNC_Native | FUNC_Net))
+	{
+		MarshallAndCallName = FunctionName;
+		if (FunctionDef.HasAllFunctionFlags(FUNC_NetResponse))
+		{
+			// Response function implemented by programmer and called directly from thunk
+			CppImplName = FunctionReference->GetName();
+		}
+		else
+		{
+			if (CppImplName.IsEmpty())
+			{
+				CppImplName = FunctionReference->GetName() + TEXT("_Implementation");
+			}
+			else if (CppImplName == FunctionName)
+			{
+				FError::Throwf(TEXT("Native implementation function must be different than original function name."));
+			}
+
+			if (CppValidationImplName.IsEmpty() && FunctionDef.HasAllFunctionFlags(FUNC_NetValidate))
+			{
+				CppValidationImplName = FunctionReference->GetName() + TEXT("_Validate");
+			}
+			else if (CppValidationImplName == FunctionName)
+			{
+				FError::Throwf(TEXT("Validation function must be different than original function name."));
+			}
+		}
+	}
+
+	if (FunctionDef.HasAllFunctionFlags(FUNC_Delegate))
+	{
+		MarshallAndCallName = FString(TEXT("delegate")) + FunctionName;
+	}
+
+	if (FunctionDef.HasAllFunctionFlags(FUNC_BlueprintEvent | FUNC_Native))
+	{
+		MarshallAndCallName = FunctionName;
+		CppImplName = FunctionReference->GetName() + TEXT("_Implementation");
+	}
+
+	if (CppImplName.IsEmpty())
+	{
+		CppImplName = FunctionName;
+	}
+}
+
+/////////////////////////////////////////////////////
 // FAdvancedDisplayParameterHandler
 static const FName NAME_AdvancedDisplay(TEXT("AdvancedDisplay"));
 

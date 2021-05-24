@@ -281,7 +281,6 @@ FString FUnrealTypeDefinitionInfo::GetNameWithPrefix(const UClass* InClass, EEnf
 	return FString::Printf(TEXT("%s%s"), Prefix, *InClass->GetName());
 }
 
-
 void FUnrealPropertyDefinitionInfo::PostParseFinalize()
 {
 	TypePackageName = GetTypePackageName_Inner(GetProperty());
@@ -325,6 +324,16 @@ bool FUnrealPropertyDefinitionInfo::IsOwnedByDynamicType() const
 	}
 	return false;
 }
+
+FUnrealPackageDefinitionInfo& FUnrealObjectDefinitionInfo::GetPackageDef() const
+{
+	if (HasSource())
+	{
+		return GetUnrealSourceFile().GetPackageDef();
+	}
+	return GTypeDefinitionInfoMap.FindChecked<FUnrealPackageDefinitionInfo>(GetObject());
+}
+
 
 FUnrealPackageDefinitionInfo::FUnrealPackageDefinitionInfo(const FManifestModule& InModule, UPackage* InPackage)
 	: FUnrealObjectDefinitionInfo(FString())
@@ -382,7 +391,7 @@ void FUnrealFieldDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCr
 	if (UniqueCrossModuleReferences)
 	{
 		UField* Field = GetField();
-		if (!Field->IsA<UFunction>() || Field->IsA<UDelegateFunction>())
+		if (!Field->IsA<UFunction>() || IsADelegateFunction())
 		{
 			UniqueCrossModuleReferences->Add(GetExternDecl(bRequiresValidObject));
 		}
@@ -483,7 +492,7 @@ void FUnrealStructDefinitionInfo::AddFunction(FUnrealFunctionDefinitionInfo& Fun
 	// update the optimization flags
 	if (!bContainsDelegates)
 	{
-		if (FunctionDef.GetFunction()->HasAnyFunctionFlags(FUNC_Delegate))
+		if (FunctionDef.HasAnyFunctionFlags(FUNC_Delegate))
 		{
 			bContainsDelegates = true;
 		}
@@ -524,7 +533,6 @@ void FUnrealStructDefinitionInfo::SetObject(UObject* InObject)
 	check(InObject != nullptr);
 
 	FUnrealFieldDefinitionInfo::SetObject(InObject);
-
 
 	// Don't create a scope for things without a source.  Those are builtin types
 	if (HasSource())
