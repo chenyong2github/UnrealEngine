@@ -6,7 +6,7 @@
 #include "RootMotionModifier.h"
 #include "RootMotionModifier_SkewWarp.generated.h"
 
-UCLASS()
+UCLASS(meta = (DisplayName = "Skew Warp"))
 class MOTIONWARPING_API URootMotionModifier_SkewWarp : public URootMotionModifier_Warp
 {
 	GENERATED_BODY()
