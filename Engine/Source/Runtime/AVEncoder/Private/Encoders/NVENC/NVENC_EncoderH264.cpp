@@ -1296,3 +1296,5 @@ namespace AVEncoder
     }
 
 } /* namespace AVEncoder */
+
+#undef MIN_UPDATE_FRAMERATE_SECS
