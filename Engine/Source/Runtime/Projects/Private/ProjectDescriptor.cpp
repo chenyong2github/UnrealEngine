@@ -250,6 +250,11 @@ void FProjectDescriptor::Write(TJsonWriter<>& Writer, const FString& PathToProje
 	Writer.WriteValue(TEXT("Category"), Category);
 	Writer.WriteValue(TEXT("Description"), Description);
 
+	if (bDisableEnginePluginsByDefault)
+	{
+		Writer.WriteValue(TEXT("DisableEnginePluginsByDefault"), bDisableEnginePluginsByDefault);
+	}
+
 	// Write the enterprise flag
 	if (bIsEnterpriseProject)
 	{
