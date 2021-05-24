@@ -36,6 +36,7 @@ public:
 	
 	/******************** Active snapshot ********************/
 	void SetActiveSnapshot(const TOptional<ULevelSnapshot*>& NewActiveSnapshot);
+	void ClearActiveSnapshot();
 	TOptional<ULevelSnapshot*> GetActiveSnapshot() const;
 
 	DECLARE_EVENT_OneParam(ULevelSnapshotsEditorData, FOnActiveSnapshotChanged, const TOptional<ULevelSnapshot*>& /* NewSnapshot */);
@@ -45,6 +46,7 @@ public:
 	
 	/******************** Selected world ********************/
 	void SetSelectedWorldReference(UWorld* InWorld);
+	void ClearSelectedWorld();
 	UWorld* GetSelectedWorld() const;
 
 
