@@ -6,6 +6,7 @@
 #include "SPropertyBinding.h"
 #include "EdGraphUtilities.h"
 #include "PropertyAccessEditor.h"
+#include "Algo/Accumulate.h"
 #include "Modules/ModuleInterface.h"
 #include "Features/IModularFeatures.h"
 
@@ -37,11 +38,16 @@ public:
 			.Args(InArgs);
 	}
 
-	virtual EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const override
+	virtual FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const override
 	{
-		return PropertyAccess::ResolveLeafProperty(InStruct, InPath, OutProperty, OutArrayIndex);
+		return PropertyAccess::ResolvePropertyAccess(InStruct, InPath, OutProperty, OutArrayIndex);
 	}
 
+	virtual FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, const FResolvePropertyAccessArgs& InArgs) const override
+	{
+		return PropertyAccess::ResolvePropertyAccess(InStruct, InPath, InArgs);
+	}
+	
 	virtual EPropertyAccessCompatibility GetPropertyCompatibility(const FProperty* InPropertyA, const FProperty* InPropertyB) const override
 	{
 		return PropertyAccess::GetPropertyCompatibility(InPropertyA, InPropertyB);
@@ -59,8 +65,13 @@ public:
 
 	virtual TUniquePtr<IPropertyAccessLibraryCompiler> MakePropertyAccessCompiler(const FPropertyAccessLibraryCompilerArgs& InArgs) const override
 	{
-		return MakeUnique<FPropertyAccessLibraryCompiler>(&InArgs.Library, InArgs.ClassContext);
+		return MakeUnique<FPropertyAccessLibraryCompiler>(&InArgs.Library, InArgs.ClassContext, InArgs.OnDetermineBatchId);
 	}
+
+	virtual FText MakeTextPath(const TArray<FString>& InPath) const override
+	{
+		return PropertyAccess::MakeTextPath(InPath);
+	};
 };
 
 IMPLEMENT_MODULE(FPropertyAccessEditorModule, PropertyAccessEditor)

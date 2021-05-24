@@ -160,6 +160,9 @@ struct FPropertyBindingWidgetArgs
 	/** The current binding's text label */
 	TAttribute<FText> CurrentBindingText;
 
+	/** The current binding's tooltip text label */
+	TAttribute<FText> CurrentBindingToolTipText;
+	
 	/** The current binding's image */
 	TAttribute<const FSlateBrush*> CurrentBindingImage;
 
@@ -183,19 +186,38 @@ struct FPropertyBindingWidgetArgs
 
 	/** Whether to allow UObject functions as non-leaf nodes */
 	bool bAllowUObjectFunctions = false;
+
+	/** Whether to allow UScriptStruct functions as non-leaf nodes */
+	bool bAllowStructFunctions = false;	
 };
 
-/** Enum describing the result of ResolveLeafProperty */
+/** Enum describing the result of ResolvePropertyAccess */
 enum class EPropertyAccessResolveResult
 {
 	/** Resolution of the path failed */
 	Failed,
 
-	/** Resolution of the path failed and the property is internal to the initial context */
+	/** DEPRECATED - Resolution of the path succeeded and the property is internal to the initial context */
 	SucceededInternal,
 
-	/** Resolution of the path failed and the property is external to the initial context (i.e. uses an object/redirector indirection) */
+	/** DEPRECATED - Resolution of the path failed and the property is external to the initial context (i.e. uses an object/redirector indirection) */
 	SucceededExternal,
+
+	/** Resolution of the path succeeded */
+	Succeeded,
+};
+
+/**
+ * Result of a property access resolve. Provides information about what the compiler was able to determine about the
+ * property access.
+ */
+struct FPropertyAccessResolveResult
+{
+	// The success fail of the resolve
+	EPropertyAccessResolveResult Result = EPropertyAccessResolveResult::Failed;
+
+	// Whether the resolve was determined to be thread safe
+	bool bIsThreadSafe = false;
 };
 
 /** Enum describing property compatibility */
@@ -211,6 +233,32 @@ enum class EPropertyAccessCompatibility
 	Promotable,
 };
 
+// Context struct describing relevant characteristics of a property copy.
+// Used by client code to determine batch ID when called back via FOnPropertyAccessDetermineBatchId
+struct FPropertyAccessCopyContext
+{
+	// The object (usually a K2 node) in which the context takes place. Used for error reporting.
+	UObject* Object;
+	
+	// User-define context name, passed via IPropertyAccessLibraryCompiler::AddCopy
+	FName ContextId;
+
+	// Source path as text, for error reporting
+	FText SourcePathAsText;
+
+	// Dest path as text, for error reporting
+	FText DestPathAsText;
+	
+	// Whether the source path is thread safe
+	bool bSourceThreadSafe;
+
+	// Whether the dest path is thread safe
+	bool bDestThreadSafe;
+};
+
+// Delegate used to determine batch ID (index) for a particular copy context
+DECLARE_DELEGATE_RetVal_OneParam(int32, FOnPropertyAccessDetermineBatchId, const FPropertyAccessCopyContext& /*InContext*/);
+
 // Context used to create a property access library compiler
 struct FPropertyAccessLibraryCompilerArgs
 {
@@ -224,6 +272,10 @@ struct FPropertyAccessLibraryCompilerArgs
 
 	// The class that provides a root context for the library to be built in
 	const UClass* ClassContext;
+
+	// Delegate used to determine batch ID (index) for a particular copy context. If this is not set, then all copies
+	// will be batched together in batch 0
+	FOnPropertyAccessDetermineBatchId OnDetermineBatchId;
 };
 
 /** Editor support for property access system */
@@ -247,9 +299,35 @@ public:
 	 * @return a new binding widget
 	 */
 	virtual TSharedRef<SWidget> MakePropertyBindingWidget(const TArray<FBindingContextStruct>& InBindingContextStructs, const FPropertyBindingWidgetArgs& InArgs = FPropertyBindingWidgetArgs()) const = 0;
+	
+	/** Resolve a property access, returning the leaf property and array index if any. @return result structure for more information about the result */
+	virtual FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const = 0;
 
-	/** Resolve a property path to a structure, returning the leaf property and array index if any. @return true if resolution succeeded */
-	virtual EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const = 0;
+	/** Args used to resolve property access segments. The various functions will be called per-segment when resolved. */
+	struct FResolvePropertyAccessArgs
+	{
+		/** Function called when a property is resolved. Array index is valid for static array properties. For dynamic array properties, use ArrayFunction. */
+		TFunction<void(int32 /*SegmentIndex*/, FProperty* /*Property*/, int32 /*StaticArrayIndex*/)> PropertyFunction;
+
+		/** Function called when a dynamic array is resolved. */
+		TFunction<void(int32 /*SegmentIndex*/, FArrayProperty* /*Property*/, int32 /*ArrayIndex*/)> ArrayFunction;
+
+		/** Function called when a function is resolved. */
+		TFunction<void(int32 /*SegmentIndex*/, UFunction* /*Function*/, FProperty* /*ReturnProperty*/)> FunctionFunction;
+	};
+	
+	/**
+	 * Resolve a property path to a structure, calling back for each segment in path segment order if resolution succeed
+	 * @return true if resolution succeeded
+	 */
+	virtual FPropertyAccessResolveResult ResolvePropertyAccess(const UStruct* InStruct, TArrayView<FString> InPath, const FResolvePropertyAccessArgs& InArgs) const = 0;
+
+	UE_DEPRECATED(5.0, "Please use ResolvePropertyAccess")
+	virtual EPropertyAccessResolveResult ResolveLeafProperty(const UStruct* InStruct, TArrayView<FString> InPath, FProperty*& OutProperty, int32& OutArrayIndex) const
+	{
+		const FPropertyAccessResolveResult Result = ResolvePropertyAccess(InStruct, InPath, OutProperty, OutArrayIndex);
+		return Result.Result;
+	}
 
 	// Get the compatibility of the two supplied properties. Ordering matters for promotion (A->B).
 	virtual EPropertyAccessCompatibility GetPropertyCompatibility(const FProperty* InPropertyA, const FProperty* InPropertyB) const = 0;
@@ -262,4 +340,7 @@ public:
 
 	// Make a property access library compiler, used for building a FPropertyAccessLibrary
 	virtual TUniquePtr<IPropertyAccessLibraryCompiler> MakePropertyAccessCompiler(const FPropertyAccessLibraryCompilerArgs& InArgs) const = 0;
+
+	// Make a text representation of a property path 
+	virtual FText MakeTextPath(const TArray<FString>& InPath) const = 0;
 };

@@ -26,8 +26,11 @@ class UAnimBlueprintExtension_Base : public UAnimBlueprintExtension
 	GENERATED_BODY()
 
 public:
-	// Adds a map of struct eval handlers for the specified node
-	void AddStructEvalHandlers(UAnimGraphNode_Base* InNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	// Processes a node's pins:
+	// - Processes pose pins, building a map of pose links for later processing
+	// - Adds a map of struct eval handlers for the specified node
+	// - Builds property binding data
+	void ProcessNodePins(UAnimGraphNode_Base* InNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
 	// Create an 'expanded' evaluation handler for the specified node, called in the compiler's node expansion step
 	void CreateEvaluationHandlerForNode(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode);
@@ -51,8 +54,7 @@ private:
 			, DestProperty(InDestProperty)
 			, DestArrayIndex(InDestArrayIndex)
 			, DestPropertyPath(MoveTemp(InDestPropertyPath))
-			, LibraryCopyIndex(INDEX_NONE)
-			, LibraryBatchType(EPropertyAccessBatchType::Unbatched)
+			, BindingContextId(NAME_None)
 			, Operation(EPostCopyOperation::None)
 			, bIsFastPath(true)
 		{}
@@ -63,8 +65,7 @@ private:
 			, DestArrayIndex(INDEX_NONE)
 			, SourcePropertyPath(InSourcePropertyPath)
 			, DestPropertyPath(InDestPropertyPath)
-			, LibraryCopyIndex(INDEX_NONE)
-			, LibraryBatchType(EPropertyAccessBatchType::Unbatched)
+			, BindingContextId(NAME_None)
 			, Operation(EPostCopyOperation::None)
 			, bIsFastPath(true)
 		{}
@@ -94,12 +95,15 @@ private:
 		/** The property path relative to the class */
 		TArray<FString> DestPropertyPath;
 
-		/** The index of the copy in the property access library */
-		int32 LibraryCopyIndex;
+		/** The handle of the copy in the property access compiler */
+		FPropertyAccessHandle LibraryHandle;
 
-		/** the batch type within the property access library */
-		EPropertyAccessBatchType LibraryBatchType;
+		/** The handle of the copy in the property access library */
+		FCompiledPropertyAccessHandle LibraryCompiledHandle;
 
+		// Context in which a property binding occurs
+		FName BindingContextId;
+		
 		/** Any operation we want to perform post-copy on the destination data */
 		EPostCopyOperation Operation;
 

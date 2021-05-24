@@ -282,6 +282,11 @@ void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNod
 
 			if(PinWidget.IsValid())
 			{
+				// Tweak padding a little to improve extended appearance
+				PinWidget->GetLabelAndValue()->SetInnerSlotPadding(FVector2D(2.0f, 0.0f));
+				
+				const FName PinName = Pin->GetFName();
+
 				// Compare FName without number to make sure we catch array properties that are split into multiple pins
 				FName ComparisonName = Pin->GetFName();
 				ComparisonName.SetNumber(0);
@@ -291,7 +296,7 @@ void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNod
 				{
 					TWeakPtr<SGraphPin> WeakPinWidget = PinWidget;
 
-					PinWidget->GetValueWidget()->SetVisibility(MakeAttributeLambda([ComparisonName, InAnimGraphNode, WeakPinWidget]()
+					PinWidget->GetValueWidget()->SetVisibility(MakeAttributeLambda([PinName, InAnimGraphNode, WeakPinWidget]()
 					{
 						EVisibility Visibility = EVisibility::Collapsed;
 
@@ -299,7 +304,7 @@ void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNod
 						{
 							Visibility = WeakPinWidget.Pin()->GetDefaultValueVisibility();
 
-							if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(ComparisonName))
+							if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(PinName))
 							{
 								Visibility = EVisibility::Collapsed;
 							}
@@ -309,69 +314,22 @@ void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNod
 					}));
 				}
 
-				// Add an image & label for a binding
-				PinWidget->GetLabelAndValue()->AddSlot()
-				[
-					SNew(SHorizontalBox)
-					.ToolTipText_Lambda([ComparisonName, InAnimGraphNode]()
+				FProperty* PinProperty = InAnimGraphNode->GetFNodeType()->FindPropertyByName(ComparisonName);
+				if(PinProperty)
+				{
+					const int32 OptionalPinIndex = InAnimGraphNode->ShowPinForProperties.IndexOfByPredicate([PinProperty](const FOptionalPinFromProperty& InOptionalPin)
 					{
-						if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(ComparisonName))
-						{
-							return FText::Format(LOCTEXT("BindingTooltipFormat", "Pin is bound to property '{0}'"), BindingPtr->PathAsText);
-						}
+						return PinProperty->GetFName() == InOptionalPin.PropertyName;
+					});
 
-						return FText::GetEmpty();
-					})
-					.Visibility_Lambda([ComparisonName, InAnimGraphNode]()
-					{
-						return InAnimGraphNode->PropertyBindings.Contains(ComparisonName) ? EVisibility::Visible : EVisibility::Collapsed;
-					})
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(3.0f, 2.0f)
+					UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs Args( { InAnimGraphNode }, PinProperty, Pin->GetFName(), OptionalPinIndex);
+
+					// Add binding widget
+					PinWidget->GetLabelAndValue()->AddSlot()
 					[
-						SNew(SImage)
-						.Image_Lambda([ComparisonName, InAnimGraphNode, PinType]() -> const FSlateBrush*
-						{
-							if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(ComparisonName))
-							{
-								static FName FunctionIcon(TEXT("GraphEditor.Function_16x"));
-
-								return BindingPtr->Type == EAnimGraphNodePropertyBindingType::Property ? FBlueprintEditorUtils::GetIconFromPin(PinType, true) : FEditorStyle::GetBrush(FunctionIcon);
-							}
-
-							return nullptr;
-						})
-						.ColorAndOpacity_Lambda([InAnimGraphNode, ComparisonName]()
-						{
-							if(const UEdGraphSchema* Schema = InAnimGraphNode->GetSchema())
-							{
-								if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(ComparisonName))
-								{
-									return Schema->GetPinTypeColor(BindingPtr->bIsPromotion ? BindingPtr->PromotedPinType : BindingPtr->PinType);
-								}
-							}
-							return FLinearColor::White;
-						})
-					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(3.0f, 2.0f)
-					[
-						SNew(STextBlock)
-						.Text_Lambda([ComparisonName, InAnimGraphNode]()
-						{
-							if (const FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(ComparisonName))
-							{
-								return BindingPtr->PathAsText;
-							}
-
-							return FText::GetEmpty();
-						})
-					]
-				];
+						UAnimGraphNode_Base::MakePropertyBindingWidget(Args)
+					];
+				}
 			}
 		}
 	}

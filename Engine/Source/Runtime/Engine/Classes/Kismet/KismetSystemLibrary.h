@@ -381,6 +381,16 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	static FText MakeLiteralText(FText Value);
 
 	/**
+	 * Prints a string to the log
+	 * If Print To Log is true, it will be visible in the Output Log window.  Otherwise it will be logged only as 'Verbose', so it generally won't show up.
+	 *
+	 * @param	InString		The string to log out
+	 * @param	bPrintToLog		Whether or not to print the output to the log
+	 */
+	UFUNCTION(BlueprintCallable, Category="Utilities|String", meta=(BlueprintThreadSafe, Keywords = "log print", DevelopmentOnly))
+	static void LogString(const FString& InString = FString(TEXT("Hello")), bool bPrintToLog = true);
+	
+	/**
 	 * Prints a string to the log, and optionally, to the screen
 	 * If Print To Log is true, it will be visible in the Output Log window.  Otherwise it will be logged only as 'Verbose', so it generally won't show up.
 	 *

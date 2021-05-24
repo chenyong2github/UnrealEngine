@@ -1035,16 +1035,6 @@ void FAnimInstanceProxy::UpdateAnimation()
 
 	FMemMark Mark(FMemStack::Get());
 
-	if(AnimClassInterface)
-	{
-		AnimClassInterface->ForEachSubsystem(GetAnimInstanceObject(), [this](const FAnimSubsystemInstanceContext& InContext)
-		{
-		    FAnimSubsystemParallelUpdateContext Context(InContext, *this, CurrentDeltaSeconds);
-		    InContext.Subsystem.OnParallelUpdate(Context);
-		    return EAnimSubsystemEnumeration::Continue;
-		});
-	}
-
 #if WITH_EDITORONLY_DATA
 	UpdatedNodesThisFrame.Reset();
 	NodeInputAttributesThisFrame.Reset();
@@ -1115,9 +1105,36 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 		// from other linked instances with grouped layers
 		if(FrameCounterForUpdate != GFrameCounter)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
-			Update(CurrentDeltaSeconds);
+			if(AnimClassInterface)
+			{
+				AnimClassInterface->ForEachSubsystem(GetAnimInstanceObject(), [this](const FAnimSubsystemInstanceContext& InContext)
+				{
+					FAnimSubsystemParallelUpdateContext Context(InContext, *this, CurrentDeltaSeconds);
+					InContext.Subsystem.OnPreUpdate_WorkerThread(Context);
+					return EAnimSubsystemEnumeration::Continue;
+				});
+			}
+			
+			{
+				SCOPE_CYCLE_COUNTER(STAT_BlueprintUpdateAnimation);
+				CastChecked<UAnimInstance>(GetAnimInstanceObject())->BlueprintThreadSafeUpdateAnimation(CurrentDeltaSeconds);
+			}
 
+			{
+				SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
+				Update(CurrentDeltaSeconds);
+			}
+
+			if(AnimClassInterface)
+			{
+				AnimClassInterface->ForEachSubsystem(GetAnimInstanceObject(), [this](const FAnimSubsystemInstanceContext& InContext)
+				{
+					FAnimSubsystemParallelUpdateContext Context(InContext, *this, CurrentDeltaSeconds);
+					InContext.Subsystem.OnPostUpdate_WorkerThread(Context);
+					return EAnimSubsystemEnumeration::Continue;
+				});
+			}
+			
 			FrameCounterForUpdate = GFrameCounter;
 		}
 	}

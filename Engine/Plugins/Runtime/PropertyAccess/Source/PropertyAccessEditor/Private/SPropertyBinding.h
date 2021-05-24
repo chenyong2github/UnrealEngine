@@ -55,6 +55,7 @@ protected:
 
 	const FSlateBrush* GetCurrentBindingImage() const;
 	FText GetCurrentBindingText() const;
+	FText GetCurrentBindingToolTipText() const;
 	FSlateColor GetCurrentBindingColor() const;
 
 	bool CanRemoveBinding();

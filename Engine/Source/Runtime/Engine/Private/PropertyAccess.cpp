@@ -563,90 +563,53 @@ struct FPropertyAccessSystem
 	}
 
 	// Process a single copy
-	static void ProcessCopy(UStruct* InStruct, void* InContainer, const FPropertyAccessLibrary& InLibrary, int32 InCopyIndex, EPropertyAccessCopyBatch InBatchType, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation)
+	static void ProcessCopy(UStruct* InStruct, void* InContainer, const FPropertyAccessLibrary& InLibrary, int32 InCopyIndex, int32 InBatchId, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation)
 	{
 		if(InLibrary.bHasBeenPostLoaded)
 		{
-			const FPropertyAccessCopy& Copy = InLibrary.CopyBatches[(__underlying_type(EPropertyAccessCopyBatch))InBatchType].Copies[InCopyIndex];
-			const FPropertyAccessIndirectionChain& SrcAccess = InLibrary.SrcAccesses[Copy.AccessIndex];
-			if(SrcAccess.Property.Get())
+			if(InLibrary.CopyBatchArray.IsValidIndex(InBatchId))
 			{
-				GetAccessAddress(InContainer, InLibrary, SrcAccess, [InContainer, &InLibrary, &Copy, &SrcAccess, &InPostCopyOperation](void* InSrcAddress)
+				const FPropertyAccessCopy& Copy = InLibrary.CopyBatchArray[InBatchId].Copies[InCopyIndex];
+				const FPropertyAccessIndirectionChain& SrcAccess = InLibrary.SrcAccesses[Copy.AccessIndex];
+				if(SrcAccess.Property.Get())
 				{
-					for(int32 DestAccessIndex = Copy.DestAccessStartIndex; DestAccessIndex < Copy.DestAccessEndIndex; ++DestAccessIndex)
+					GetAccessAddress(InContainer, InLibrary, SrcAccess, [InContainer, &InLibrary, &Copy, &SrcAccess, &InPostCopyOperation](void* InSrcAddress)
 					{
-						const FPropertyAccessIndirectionChain& DestAccess = InLibrary.DestAccesses[DestAccessIndex];
-						if(DestAccess.Property.Get())
+						for(int32 DestAccessIndex = Copy.DestAccessStartIndex; DestAccessIndex < Copy.DestAccessEndIndex; ++DestAccessIndex)
 						{
-							GetAccessAddress(InContainer, InLibrary, DestAccess, [&InSrcAddress, &Copy, &SrcAccess, &DestAccess, &InPostCopyOperation](void* InDestAddress)
+							const FPropertyAccessIndirectionChain& DestAccess = InLibrary.DestAccesses[DestAccessIndex];
+							if(DestAccess.Property.Get())
 							{
-								PerformCopy(Copy, SrcAccess.Property.Get(), InSrcAddress, DestAccess.Property.Get(), InDestAddress, InPostCopyOperation);
-							});
+								GetAccessAddress(InContainer, InLibrary, DestAccess, [&InSrcAddress, &Copy, &SrcAccess, &DestAccess, &InPostCopyOperation](void* InDestAddress)
+								{
+									PerformCopy(Copy, SrcAccess.Property.Get(), InSrcAddress, DestAccess.Property.Get(), InDestAddress, InPostCopyOperation);
+								});
+							}
 						}
-					}
-				});
+					});
+				}
 			}
 		}
 	}
 
-	static void ProcessCopies(UStruct* InStruct, void* InContainer, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType)
+	static void ProcessCopies(UStruct* InStruct, void* InContainer, const FPropertyAccessLibrary& InLibrary, int32 InBatchId)
 	{
 		if(InLibrary.bHasBeenPostLoaded)
 		{
 			FMemMark Mark(FMemStack::Get());
 
-			// Copy all valid properties
-			// Parallelization opportunity: ParallelFor all the property copies we need to make
-			const int32 NumCopies = InLibrary.CopyBatches[(__underlying_type(EPropertyAccessCopyBatch))InBatchType].Copies.Num();
-			for(int32 CopyIndex = 0; CopyIndex < NumCopies; ++CopyIndex)
+			if(InLibrary.CopyBatchArray.IsValidIndex(InBatchId))
 			{
-				ProcessCopy(InStruct, InContainer, InLibrary, CopyIndex, InBatchType, [](const FProperty*, void*){});
+				// Copy all valid properties
+				// Parallelization opportunity: ParallelFor all the property copies we need to make
+				const int32 NumCopies = InLibrary.CopyBatchArray[InBatchId].Copies.Num();
+				for(int32 CopyIndex = 0; CopyIndex < NumCopies; ++CopyIndex)
+				{
+					ProcessCopy(InStruct, InContainer, InLibrary, CopyIndex, InBatchId, [](const FProperty*, void*){});
+				}
 			}
 		}
 	}
-
-	/** A node in a class property tree */
-	struct FPropertyNode
-	{
-		FPropertyNode(TArray<FPropertyNode>& InPropertyTree, const FProperty* InProperty, FName InName, int32 InId, int32 InParentId)
-			: Property(InProperty)
-			, Name(InName)
-			, Id(InId)
-			, ParentId(InParentId)
-		{
-			if(InParentId != INDEX_NONE)
-			{
-				if(InPropertyTree[InParentId].FirstChildId == INDEX_NONE)
-				{
-					InPropertyTree[InParentId].FirstChildId = InId;
-					InPropertyTree[InParentId].LastChildId = InId;
-				}
-				InPropertyTree[InParentId].LastChildId++;
-			}
-		}
-
-		FPropertyNode(TArray<FPropertyNode>& InPropertyTree, const FProperty* InProperty, int32 InId, int32 InParentId)
-			: FPropertyNode(InPropertyTree, InProperty, InProperty->GetFName(), InId, InParentId)
-		{
-		}
-
-		FPropertyNode(TArray<FPropertyNode>& InPropertyTree, int32 InId)
-			: FPropertyNode(InPropertyTree, nullptr, NAME_None, InId, INDEX_NONE)
-		{
-		}
-
-		const FProperty* Property = nullptr;
-
-		FName Name = NAME_None;
-
-		int32 Id = INDEX_NONE;
-
-		int32 ParentId = INDEX_NONE;
-
-		int32 FirstChildId = INDEX_NONE;
-
-		int32 LastChildId = INDEX_NONE;
-	};
 };
 
 namespace PropertyAccess
@@ -658,14 +621,24 @@ namespace PropertyAccess
 
 	void ProcessCopies(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType)
 	{
+		ProcessCopies(InObject, InLibrary, FCopyBatchId((__underlying_type(EPropertyAccessCopyBatch))InBatchType));
+	}
+
+	void ProcessCopies(UObject* InObject, const FPropertyAccessLibrary& InLibrary, const FCopyBatchId& InBatchId)
+	{
 		QUICK_SCOPE_CYCLE_COUNTER(PropertyAccess_ProcessCopies);
 
-		::FPropertyAccessSystem::ProcessCopies(InObject->GetClass(), InObject, InLibrary, InBatchType);
+		::FPropertyAccessSystem::ProcessCopies(InObject->GetClass(), InObject, InLibrary, InBatchId.Id);
 	}
 
 	void ProcessCopy(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType, int32 InCopyIndex, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation)
 	{
-		::FPropertyAccessSystem::ProcessCopy(InObject->GetClass(), InObject, InLibrary, InCopyIndex, InBatchType, InPostCopyOperation);
+		ProcessCopy(InObject, InLibrary, FCopyBatchId((__underlying_type(EPropertyAccessCopyBatch))InBatchType), InCopyIndex, InPostCopyOperation);
+	}
+
+	void ProcessCopy(UObject* InObject, const FPropertyAccessLibrary& InLibrary, const FCopyBatchId& InBatchId, int32 InCopyIndex, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation)
+	{
+		::FPropertyAccessSystem::ProcessCopy(InObject->GetClass(), InObject, InLibrary, InCopyIndex, InBatchId.Id, InPostCopyOperation);
 	}
 
 	void BindEvents(UObject* InObject, const FPropertyAccessLibrary& InLibrary)

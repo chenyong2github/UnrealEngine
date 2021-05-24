@@ -4,16 +4,28 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 
-void FAnimSubsystem_PropertyAccess::OnUpdate(FAnimSubsystemUpdateContext& InContext) const
+void FAnimSubsystem_PropertyAccess::OnPreUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const
 {
 	// Process internal batched property copies
-	PropertyAccess::ProcessCopies(InContext.AnimInstance, Library, EPropertyAccessCopyBatch::ExternalBatched);
+	PropertyAccess::ProcessCopies(InContext.AnimInstance, Library, PropertyAccess::FCopyBatchId((int32)EAnimPropertyAccessCallSite::GameThread_Batched_PreEventGraph));
 }
 
-void FAnimSubsystem_PropertyAccess::OnParallelUpdate(FAnimSubsystemParallelUpdateContext& InContext) const
+void FAnimSubsystem_PropertyAccess::OnPostUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const
 {
 	// Process internal batched property copies
-	PropertyAccess::ProcessCopies(InContext.Proxy.GetAnimInstanceObject(), Library, EPropertyAccessCopyBatch::InternalBatched);
+	PropertyAccess::ProcessCopies(InContext.AnimInstance, Library, PropertyAccess::FCopyBatchId((int32)EAnimPropertyAccessCallSite::GameThread_Batched_PostEventGraph));
+}
+
+void FAnimSubsystem_PropertyAccess::OnPreUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const
+{
+	// Process internal batched property copies
+	PropertyAccess::ProcessCopies(InContext.Proxy.GetAnimInstanceObject(), Library, PropertyAccess::FCopyBatchId((int32)EAnimPropertyAccessCallSite::WorkerThread_Batched_PreEventGraph));
+}
+
+void FAnimSubsystem_PropertyAccess::OnPostUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const
+{
+	// Process internal batched property copies
+	PropertyAccess::ProcessCopies(InContext.Proxy.GetAnimInstanceObject(), Library, PropertyAccess::FCopyBatchId((int32)EAnimPropertyAccessCallSite::WorkerThread_Batched_PostEventGraph));
 }
 
 void FAnimSubsystem_PropertyAccess::OnPostLoad(FAnimSubsystemPostLoadContext& InContext)

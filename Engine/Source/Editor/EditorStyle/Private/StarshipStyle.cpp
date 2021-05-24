@@ -5708,7 +5708,17 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set("AnimGraph.Attribute.RootMotionDelta.Color", FStyleColors::AccentGreen);
 		Set("AnimGraph.Attribute.InertialBlending.Icon", new IMAGE_BRUSH("Icons/icon_tab_TimecodeProvider_16x", Icon10x10));
 		Set("AnimGraph.Attribute.InertialBlending.Color", FStyleColors::AccentOrange);
-	}	
+	}
+	
+	// Property Access 
+	{
+		Set("PropertyAccess.CompiledContext.Text", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Italic", 8))
+			.SetColorAndOpacity(FLinearColor(218.0f/255.0f,218.0f/255.0f,96.0f/255.0f, 0.5f))
+		);
+
+		Set("PropertyAccess.CompiledContext.Border", new FSlateRoundedBoxBrush(FStyleColors::DropdownOutline, 2.0f));
+	}
 #endif // WITH_EDITOR
 }
 
