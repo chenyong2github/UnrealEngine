@@ -191,7 +191,7 @@ void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 	SimRootPointIndex.BulkSerialize(Ar);
 }
 
-void FHairStrandsBulkData::Serialize(FArchive& Ar)
+void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
 	static_assert(sizeof(FHairStrandsPositionFormat::BulkType) == sizeof(FHairStrandsPositionFormat::Type));
 	static_assert(sizeof(FHairStrandsAttribute0Format::BulkType) == sizeof(FHairStrandsAttribute0Format::Type));
@@ -209,17 +209,29 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar)
 	Ar << BoundingBox;
 	Ar << Flags;
 
-	Positions.BulkSerialize(Ar);
-	Attributes0.BulkSerialize(Ar);
+	// Forced not inline means the bulk data won't automatically be loaded when we deserialize
+	// but only when we explicitly take action to load it
+	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+	Positions.SetBulkDataFlags(BulkFlags);
+	Attributes0.SetBulkDataFlags(BulkFlags);
+	Attributes1.SetBulkDataFlags(BulkFlags);
+	Materials.SetBulkDataFlags(BulkFlags);
+	CurveOffsets.SetBulkDataFlags(BulkFlags);
+
+	const int32 ChunkIndex = 0;
+	bool bAttemptFileMapping = false;
+
+	Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	Attributes0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	if (!!(Flags & DataFlags_HasUDIMData))
 	{
-		Attributes1.BulkSerialize(Ar);
+		Attributes1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 	if (!!(Flags & DataFlags_HasMaterialData))
 	{
-		Materials.BulkSerialize(Ar);
+		Materials.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
-	CurveOffsets.BulkSerialize(Ar);
+	CurveOffsets.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 }
 
 void FHairStrandsDatas::Reset()
