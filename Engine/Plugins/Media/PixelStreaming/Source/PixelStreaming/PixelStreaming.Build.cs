@@ -89,9 +89,13 @@ namespace UnrealBuildTool.Rules
 
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
-			// NOTE: General rule is not to access the private folder of another module,
-			// but to use the ISubmixBufferListener interface, we  need to include some private headers
-			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Private"));
+			// NOTE: General rule is not to access the private folder of another module
+			PrivateIncludePaths.AddRange(new string[]
+				{
+					Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Private"),
+					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"),
+					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"),
+				});
 
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
@@ -114,6 +118,8 @@ namespace UnrealBuildTool.Rules
 				"AVEncoder",
 				"DeveloperSettings"
 			});
+			
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 
 			if (Target.Type == TargetType.Editor)
 			{
@@ -136,48 +142,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("HeadMountedDisplay");
 			}
 
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				// required for casting UE4 BackBuffer to D3D11 Texture2D for NvEnc
-				PrivateDependencyModuleNames.AddRange(new string[] { "D3D11RHI" });
-				PrivateIncludePaths.AddRange(new string[]
-				{
-						Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private"),
-						Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private/Windows"),
-				});
-				// required by D3D11RHI
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-
-				{   // WebRTC stuff
-					PublicSystemLibraries.Add("Msdmo.lib");
-					PublicSystemLibraries.Add("Dmoguids.lib");
-					PublicSystemLibraries.Add("wmcodecdspuuid.lib");
-					PublicSystemLibraries.Add("winmm.lib");
-				}
-
-				// for `FWmfMediaHardwareVideoDecodingTextureSample`
-				// this really needs to be refactored to break dependency on WmfMedia plugin
-				PrivateDependencyModuleNames.Add("WmfMedia");
-				PrivateIncludePaths.Add("../../../Media/WmfMedia/Source/WmfMedia/Private/");
-
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
-
-				PublicAdditionalLibraries.Add(Target.UEThirdPartySourceDirectory + "Windows/DirectX/Lib/x64/dxerr.lib");
-
-				PublicSystemLibraries.Add("Dxva2.lib");
-				PublicSystemLibraries.Add("strmiids.lib");
-				PublicSystemLibraries.Add("legacy_stdio_definitions.lib");
-
-				//delay - load all MF DLLs to be able to check Windows version for compatibility in `StartupModule` before
-				//  loading them manually
-				PublicSystemLibraries.Add("mfplat.lib");
-				PublicDelayLoadDLLs.Add("mfplat.dll");
-				PublicSystemLibraries.Add("mfuuid.lib");
-			}
-			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 			{
 				// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
 				PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode"});
@@ -187,7 +152,6 @@ namespace UnrealBuildTool.Rules
 					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"),
 				});
 
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 
 			}
 			

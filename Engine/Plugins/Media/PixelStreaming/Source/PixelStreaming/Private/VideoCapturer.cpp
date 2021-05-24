@@ -5,21 +5,22 @@
 
 #include "HAL/PlatformTime.h"
 #include "Misc/Timespan.h"
-
 #include "PixelStreamingFrameBuffer.h"
+#include "PixelStreamingSettings.h"
+#include "ClearQuad.h"
+#include "LatencyTester.h"
 
 #if PLATFORM_LINUX
 #include "CudaModule.h"
 #endif
 
-extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderUseBackBufferSize;
 extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderTargetSize;
 
 FVideoCapturer::FVideoCapturer()
 {
 	CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
 
-	LastTimestampUs = rtc::TimeMicros();
+	LastTimestampUs =  FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMicroseconds();
 
 	if (GDynamicRHI)
 	{
@@ -43,7 +44,7 @@ FVideoCapturer::FVideoCapturer()
 void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 {
 	FIntPoint Resolution = FrameBuffer->GetSizeXY();
-	int64 TimestampUs = rtc::TimeMicros();
+	int64 TimestampUs = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMicroseconds();
 
 	int outWidth, outHeight, cropWidth, cropHeight, cropX, cropY;
 	if (!AdaptFrame(Resolution.X, Resolution.Y, TimestampUs, &outWidth, &outHeight, &cropWidth, &cropHeight, &cropX, &cropY))
@@ -54,12 +55,13 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 	if (CurrentState != webrtc::MediaSourceInterface::SourceState::kLive)
 		CurrentState = webrtc::MediaSourceInterface::SourceState::kLive;
 	
-	if (CVarPixelStreamingEncoderUseBackBufferSize.GetValueOnRenderThread() == 0)
+	// Set resolution of encoder using user-defined params (i.e. not the back buffer).
+	if (PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize.GetValueOnRenderThread() == 0)
 	{
 		// set resolution based on cvars
-		FString EncoderTargetSize = CVarPixelStreamingEncoderTargetSize.GetValueOnRenderThread();
+		FString CaptureSize = PixelStreamingSettings::CVarPixelStreamingCaptureSize.GetValueOnRenderThread();
 		FString TargetWidth, TargetHeight;
-		bool bValidSize = EncoderTargetSize.Split(TEXT("x"), &TargetWidth, &TargetHeight);
+		bool bValidSize = CaptureSize.Split(TEXT("x"), &TargetWidth, &TargetHeight);
 		if (bValidSize)
 		{
 			Resolution.X = FCString::Atoi(*TargetWidth);
@@ -67,18 +69,22 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 		}
 		else
 		{
-			UE_LOG(PixelStreamer, Error, TEXT("CVarPixelStreamingEncoderTargetSize is not in a valid format: %s. It should be e.g: \"1920x1080\""), *EncoderTargetSize);
-			CVarPixelStreamingEncoderTargetSize->Set(*FString::Printf(TEXT("%dx%d"), Resolution.X, Resolution.Y));
+			UE_LOG(PixelStreamer, Error, TEXT("CVarPixelStreamingCaptureSize is not in a valid format: %s. It should be e.g: \"1920x1080\""), *CaptureSize);
+			PixelStreamingSettings::CVarPixelStreamingCaptureSize->Set(*FString::Printf(TEXT("%dx%d"), Resolution.X, Resolution.Y));
 		}
 
 		SetCaptureResolution(Resolution.X, Resolution.Y);
 	}
+	// Set the resolution based on the back buffer.
 	else
-		SetCaptureResolution(outWidth, outHeight); // set resolution based on back buffer
+	{
+		SetCaptureResolution(outWidth, outHeight); 
+	}
+		
 
 	AVEncoder::FVideoEncoderInputFrame* InputFrame = VideoEncoderInput->ObtainInputFrame();
-	InputFrame->PTS = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks();
-	auto FrameId = InputFrame->GetFrameID();
+	InputFrame->PTS = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMicroseconds();
+	uint32 FrameId = InputFrame->GetFrameID();
 
 	if (!BackBuffers.Contains(InputFrame))
 	{
@@ -87,14 +93,14 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 		if (RHIName == TEXT("D3D11"))
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
-			auto Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
+			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
 			InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [&, InputFrame](ID3D11Texture2D* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
 		else if (RHIName == TEXT("D3D12"))
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
-			auto Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
+			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
 			InputFrame->SetTexture((ID3D12Resource*)Texture->GetNativeResource(), [&, InputFrame](ID3D12Resource* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
@@ -108,11 +114,11 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 
 			// TODO (M84FIX) Replace with CUDA texture
 			// Create a texture that can be exposed to external memory
-			auto Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
+			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
 
-			auto VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
+			FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
 
-			auto device = static_cast<FVulkanDynamicRHI*>(GDynamicRHI)->GetDevice()->GetInstanceHandle();
+			FVulkanDynamicRHI* device = static_cast<FVulkanDynamicRHI*>(GDynamicRHI)->GetDevice()->GetInstanceHandle();
 
 			// Get the CUarray to that textures memory making sure the clear it when done
 			int fd;
@@ -209,9 +215,29 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 		UE_LOG(PixelStreamer, Log, TEXT("%d backbuffers currently allocated"), BackBuffers.Num());
 	}
 
+	// Latency test pre capture
+	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::PRE_CAPTURE)
+	{
+		FLatencyTester::RecordPreCaptureTime(FrameId);
+	}
+
+	// Actual texture copy (i.e the actual "capture")
 	CopyTexture(FrameBuffer, BackBuffers[InputFrame]);
 
-	rtc::scoped_refptr<FPixelStreamingFrameBuffer> Buffer = new rtc::RefCountedObject<FPixelStreamingFrameBuffer>(InputFrame, VideoEncoderInput);
+	// Latency test post capture
+	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::POST_CAPTURE)
+	{
+		// Render a fully red frame for latency testing purposes
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		FTexture2DRHIRef& DestinationTexture = BackBuffers[InputFrame];
+		FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
+        DrawClearQuad(RHICmdList, FLinearColor::Red);
+        RHICmdList.EndRenderPass();
+		FLatencyTester::RecordPostCaptureTime(FrameId);
+	}
+
+	rtc::scoped_refptr<FPixelStreamingFrameBuffer> Buffer = new rtc::RefCountedObject<FPixelStreamingFrameBuffer>(BackBuffers[InputFrame], InputFrame, VideoEncoderInput);
 
 	webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder().
 		set_video_frame_buffer(Buffer).
@@ -296,7 +322,7 @@ void FVideoCapturer::CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture
 bool FVideoCapturer::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight)
 {
 	// Check is requested resolution is same as current resolution, if so, do nothing.
-	if(Width == NewCaptureWidth && Height == NewCaptureHeight)
+	if (Width == NewCaptureWidth && Height == NewCaptureHeight)
 		return false;
 
 	verifyf(NewCaptureWidth > 0, TEXT("Capture width must be greater than zero."));

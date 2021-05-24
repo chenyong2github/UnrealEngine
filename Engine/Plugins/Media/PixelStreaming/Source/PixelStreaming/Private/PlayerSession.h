@@ -38,7 +38,7 @@ public:
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
 	void SendUnfreezeFrame();
 
-	void OnNewSecondarySession();
+	void SendKeyFrame();
 
 private:
 	//

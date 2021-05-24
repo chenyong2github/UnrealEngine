@@ -2,7 +2,6 @@
 
 #include "PixelStreamingModule.h"
 #include "FreezeFrame.h"
-#include "Player.h"
 #include "Streamer.h"
 #include "InputDevice.h"
 #include "PixelStreamerInputComponent.h"
@@ -10,6 +9,8 @@
 #include "SignallingServerConnection.h"
 #include "HUDStats.h"
 #include "PixelStreamingPrivate.h"
+#include "PixelStreamingSettings.h"
+#include "LatencyTester.h"
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
@@ -47,12 +48,7 @@ DEFINE_LOG_CATEGORY(PixelStreaming);
 
 namespace
 {
-	TAutoConsoleVariable<int32> CVarFreezeFrameQuality(
-		TEXT("PixelStreaming.FreezeFrameQuality"),
-		100,
-		TEXT("Compression quality of the freeze frame"),
-		ECVF_Default
-	);
+	
 
 	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// required for WMF video decoding
@@ -85,8 +81,8 @@ void FPixelStreamingModule::InitStreamer()
 	FString SignallingServerIP;
 	uint16 SignallingServerPort = 8888;
 	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), StreamerId);
-	if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingIP="), SignallingServerIP) ||
-		!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingPort="), SignallingServerPort))
+	if (!PixelStreamingSettings::GetSignallingServerIP(SignallingServerIP) ||
+		!PixelStreamingSettings::GetSignallingServerPort(SignallingServerPort))
 	{
 		UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming is disabled, provide `PixelStreamingIP` and `PixelStreamingPort` cmd-args to enable it"));
 		return;
@@ -144,44 +140,6 @@ void FPixelStreamingModule::InitStreamer()
 	Streamer = MakeUnique<FStreamer>(FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort), StreamerId);
 }
 
-void FPixelStreamingModule::InitPlayer()
-{
-	check(!bPlayerInitialized);
-
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
-	// Win7+ only
-	if (!IsWindows7Plus())
-	{
-		UE_LOG(PixelPlayer, Log, TEXT("PixelStreamingPlayer plugin is incompatible with Windows prior to 7.0 version: %s"), *FPlatformMisc::GetOSVersion());
-		return;
-	}
-
-	if (!LoadMediaFoundationDLLs())
-	{
-		UE_LOG(PixelPlayer, Log, TEXT("Can't load Media Foundation, %s"), *FPlatformMisc::GetOSVersion());
-		return;
-	}
-
-	//Doesn't compile anymore?
-	//HRESULT Res = MFStartup(MF_VERSION);
-	//checkf(SUCCEEDED(Res), TEXT("MFStartup failed: %d"), Res);
-#elif PLATFORM_LINUX
-	// Linux pre-setup code here, none currently needed
-#endif
-
-	if (GIsClient)
-	{
-		bool bRes = FPlayer::CreateManagerAndDevice();
-		if (!bRes)
-		{
-			UE_LOG(PixelPlayer, Warning, TEXT("Failed to create DXGI Manager and Device"));
-		}
-	}
-
-	bPlayerInitialized = true;
-
-}
-
 /** IModuleInterface implementation */
 void FPixelStreamingModule::StartupModule()
 {
@@ -197,15 +155,13 @@ void FPixelStreamingModule::StartupModule()
 	else if( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 
 		   	 GDynamicRHI->GetName() == FString(TEXT("D3D12")))
 	{
-		// By calling InitStreamer and InitPlayer post engine init we can use pixel streaming in standalone editor mode
+		// By calling InitStreamer post engine init we can use pixel streaming in standalone editor mode
 		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPixelStreamingModule::InitStreamer);
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPixelStreamingModule::InitPlayer);
 	}
 	else if (GDynamicRHI->GetName() == FString(TEXT("Vulkan")))
 	{
 #if PLATFORM_LINUX
 		FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddRaw(this, &FPixelStreamingModule::InitStreamer);
-		FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddRaw(this, &FPixelStreamingModule::InitPlayer);
 #endif
 	}
 
@@ -220,8 +176,6 @@ void FPixelStreamingModule::ShutdownModule()
 	}
 
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
-
-	FPlayer::DestroyManagerAndDevice();
 }
 
 bool FPixelStreamingModule::CheckPlatformCompatibility() const
@@ -352,13 +306,13 @@ void FPixelStreamingModule::AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject)
 	JsonObject->SetBoolField(TEXT("FakingTouchEvents"), InputDevice->IsFakingTouchEvents());
 
 	FString PixelStreamingControlScheme;
-	if (FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingControlScheme="), PixelStreamingControlScheme))
+	if (PixelStreamingSettings::GetControlScheme(PixelStreamingControlScheme))
 	{
 		JsonObject->SetStringField(TEXT("ControlScheme"), PixelStreamingControlScheme);
 	}
 
 	float PixelStreamingFastPan;
-	if (FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingFastPan="), PixelStreamingFastPan))
+	if (PixelStreamingSettings::GetFastPan(PixelStreamingFastPan))
 	{
 		JsonObject->SetNumberField(TEXT("FastPan"), PixelStreamingFastPan);
 	}
@@ -418,7 +372,7 @@ void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rec
 	if (bSuccess)
 	{
 		// Compress to a JPEG of the maximum possible quality.
-		int32 Quality = CVarFreezeFrameQuality.GetValueOnAnyThread();
+		int32 Quality = PixelStreamingSettings::CVarFreezeFrameQuality.GetValueOnAnyThread();
 		const TArray64<uint8>& JpegBytes = ImageWrapper->GetCompressed(Quality);
 		Streamer->SendFreezeFrame(JpegBytes);
 	}
@@ -441,16 +395,23 @@ bool FPixelStreamingModule::IsTickableInEditor() const
 void FPixelStreamingModule::Tick(float DeltaTime)
 {
 	FHUDStats::Get().Tick();
+
+	// If we are running a latency test then check if we have timing results and if we do transmit them
+	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::RESULTS_READY)
+	{
+		FString LatencyResults;
+		bool bEnded = FLatencyTester::End(LatencyResults);
+		if(bEnded)
+		{
+			Streamer->SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg::LatencyTest, LatencyResults);
+		}
+	}
+	
 }
 
 TStatId FPixelStreamingModule::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FPixelStreamingModule, STATGROUP_Tickables);
-}
-
-TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FPixelStreamingModule::CreatePlayer(IMediaEventSink& EventSink)
-{
-	return bPlayerInitialized ? MakeShareable(new FPlayer(EventSink)) : nullptr;
 }
 
 IMPLEMENT_MODULE(FPixelStreamingModule, PixelStreaming)
