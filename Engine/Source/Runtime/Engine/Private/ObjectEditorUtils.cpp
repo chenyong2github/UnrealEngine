@@ -67,22 +67,20 @@ namespace FObjectEditorUtils
 	FName GetCategoryFName( const FField* InField )
 	{
 		static const FName CategoryKey(TEXT("Category"));
-		if (InField)
+
+		const FField* CurrentField = InField;
+		FString CategoryString;
+		while (CurrentField != nullptr && CategoryString.IsEmpty())
 		{
-			const FField* FieldToConsider = InField;
+			CategoryString = CurrentField->GetMetaData(CategoryKey);
+			CurrentField = CurrentField->GetOwner<FField>();
+		} 
 
-			const bool bIsInsideContainerProperty = InField->GetOwner<FArrayProperty>() || InField->GetOwner<FSetProperty>() || InField->GetOwner<FMapProperty>();
-			if (bIsInsideContainerProperty)
-			{
-				FieldToConsider = InField->GetOwner<FField>();
-			}
-
-			FString CategoryString = FieldToConsider->GetMetaData(CategoryKey);
-			if (!CategoryString.IsEmpty())
-			{
-				return FName(*CategoryString);
-			}
+		if (!CategoryString.IsEmpty())
+		{
+			return FName(*CategoryString);
 		}
+
 		return NAME_None;
 	}
 
