@@ -8,6 +8,8 @@
 #include "Encoders/NVENC/NVENC_EncoderH264.h"
 #endif
 
+#include "Encoders/Amf/Amf_EncoderH264.h"
+
 #include "Encoders/VideoEncoderH264_Dummy.h"
 
 namespace AVEncoder
@@ -71,6 +73,8 @@ void FVideoEncoderFactory::RegisterDefaultCodecs()
 #if PLATFORM_WINDOWS || (PLATFORM_LINUX && WITH_CUDA)
 	FVideoEncoderNVENC_H264::Register(*this);
 #endif
+	
+	FVideoEncoderAmf_H264::Register(*this);
 
 #if defined(AVENCODER_VIDEO_ENCODER_AVAILABLE_H264_DUMMY)
 	FVideoEncoderH264_Dummy::Register(*this);
@@ -102,7 +106,7 @@ bool FVideoEncoderFactory::HasEncoderForCodec(ECodecType CodecType) const
 	return false;
 }
 
-TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideoEncoder::FInit& InInit)
+TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideoEncoder::FLayerConfig& config)
 {
 	// HACK (M84FIX) create encoder without a ready FVideoEncoderInput
 	TUniquePtr<FVideoEncoder>	Result;
@@ -115,9 +119,9 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 			// HACK (M84FIX) work with other RHI
 			if (GDynamicRHI->GetName() == FString("D3D11"))
 			{
-				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), InInit.Width, InInit.Height).ToSharedRef();
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), config.Width, config.Height).ToSharedRef();
 
-				if (Result && !Result->Setup(Input, InInit))
+				if (Result && !Result->Setup(Input, config))
 				{
 					Result.Reset();
 				}
@@ -125,9 +129,9 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 			}
 			else if (GDynamicRHI->GetName() == FString("D3D12"))
 			{
-				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), InInit.Width, InInit.Height).ToSharedRef();
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), config.Width, config.Height).ToSharedRef();
 
-				if (Result && !Result->Setup(Input, InInit))
+				if (Result && !Result->Setup(Input, config))
 				{
 					Result.Reset();
 				}
@@ -138,7 +142,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 	return Result;
 }
 
-TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, TSharedPtr<FVideoEncoderInput> InInput, const FVideoEncoder::FInit& InInit)
+TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, TSharedPtr<FVideoEncoderInput> InInput, const FVideoEncoder::FLayerConfig& config)
 {
 	TUniquePtr<FVideoEncoder>		Result;
 	if (InInput)
@@ -149,7 +153,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, TSharedPtr<F
 			if (AvailableEncoders[Index].ID == InID)
 			{
 				Result = CreateEncoders[Index]();
-				if (Result && !Result->Setup(MoveTemp(Input), InInit))
+				if (Result && !Result->Setup(MoveTemp(Input), config))
 				{
 					Result.Reset();
 				}

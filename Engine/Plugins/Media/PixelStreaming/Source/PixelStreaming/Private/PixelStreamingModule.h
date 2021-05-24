@@ -27,8 +27,6 @@ private:
 
 	TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
 
-	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreatePlayer(IMediaEventSink& EventSink) override;
-
 	/** IPixelStreamingModule implementation */
 	FInputDevice& GetInputDevice() override;
 	void AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject) override;
@@ -59,12 +57,6 @@ private:
 	void SendJpeg(TArray<FColor> RawData, const FIntRect& Rect);
 
 	void InitStreamer();
-	void InitPlayer();
-
-	bool IsPlayerInitialized() const override
-	{
-		return bPlayerInitialized;
-	}
 
 private:
 	TUniquePtr<FStreamer> Streamer;
@@ -72,6 +64,4 @@ private:
 	TArray<UPixelStreamerInputComponent*> InputComponents;
 	bool bFrozen = false;
 	bool bCaptureNextBackBufferAndStream = false;
-	
-	bool bPlayerInitialized = false;
 };

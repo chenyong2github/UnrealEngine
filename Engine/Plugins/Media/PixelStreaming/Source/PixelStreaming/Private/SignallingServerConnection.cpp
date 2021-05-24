@@ -186,6 +186,7 @@ void FSignallingServerConnection::OnClosed(int32 StatusCode, const FString& Reas
 {
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connection to SS closed: \n\tstatus %d\n\treason: %s\n\twas clean: %s"), StatusCode, *Reason, bWasClean ? TEXT("true") : TEXT("false"));
 	Observer.OnSignallingServerDisconnected();
+	GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
 }
 
 void FSignallingServerConnection::OnMessage(const FString& Msg)

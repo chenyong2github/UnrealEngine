@@ -10,62 +10,55 @@ namespace AVEncoder
 
 FVideoEncoder::~FVideoEncoder()
 {
-	for (int32 LayerIndex = LayerInfos.Num(); LayerIndex-- > 0; )
+	// calling virtual methods from the destructor is bad so 'DestroyLayer' was removed from here
+	// its now up to the derived classes to clean up
+	for (auto&& layer : Layers)
 	{
-		DestroyLayer(LayerInfos[LayerIndex]);
+		if (layer)
+		{
+			UE_LOG(LogVideoEncoder, Warning, TEXT("Encoder layer may not have been cleaned up!"));
+			break;
+		}
 	}
 }
 
-bool FVideoEncoder::Setup(TSharedRef<FVideoEncoderInput> InInput, const FInit& InInit)
+bool FVideoEncoder::AddLayer(FLayerConfig const& config)
 {
-	bool		bSuccess = false;
-	if (GetNumLayers() == 0)
+    if (GetNumLayers() >= GetMaxLayers())
+    {
+        UE_LOG(LogVideoEncoder, Error, TEXT("Encoder does not support more than %d layers."), GetMaxLayers());
+        return false;
+    }
+
+    auto const newLayer = CreateLayer(Layers.Num(), config);
+    if (nullptr != newLayer)
+    {
+        Layers.Push(newLayer);
+        return true;
+    }
+    return false;
+}
+
+FVideoEncoder::FLayerConfig FVideoEncoder::GetLayerConfig(uint32 layerIdx) const
+{
+	if (layerIdx >= GetNumLayers())
 	{
-		bSuccess = AddLayer(InInit);
+		UE_LOG(LogVideoEncoder, Error, TEXT("FVideoEncoder::GetLayerConfig: Layer index %d out of range."), layerIdx);
+		return {};
 	}
-	return bSuccess;
+
+	return Layers[layerIdx]->GetConfig();
 }
 
-void FVideoEncoder::Shutdown()
+void FVideoEncoder::UpdateLayerConfig(uint32 layerIdx, FLayerConfig const& config)
 {
-}
+    if (layerIdx >= GetNumLayers())
+    {
+        UE_LOG(LogVideoEncoder, Error, TEXT("FVideoEncoder::UpdateLayerConfig: Layer index %d out of range."), layerIdx);
+        return;
+    }
 
-bool FVideoEncoder::AddLayer(const FLayerConfig& InLayerConfig)
-{
-	if (static_cast<uint32>(LayerInfos.Num()) >= GetMaxLayers())
-	{
-		UE_LOG(LogVideoEncoder, Error, TEXT("Encoder does not support more than %d layers."), GetMaxLayers());
-		return false;
-	}
-	FLayerInfo		LayerInfo(InLayerConfig);
-	FLayerInfo* NewLayerInfo = CreateLayer(LayerInfos.Num(), LayerInfo);
-	if (NewLayerInfo)
-	{
-		LayerInfos.Push(NewLayerInfo);
-	}
-	return NewLayerInfo != nullptr;
-}
-
-FVideoEncoder::FLayerInfo* FVideoEncoder::CreateLayer(uint32 InLayerIndex, const FLayerInfo& InLayerInfo)
-{
-	return new FLayerInfo(InLayerInfo);
-}
-
-void FVideoEncoder::DestroyLayer(FLayerInfo* InLayerInfo)
-{
-	delete InLayerInfo;
-}
-
-FVideoEncoder::FLayerInfo::FLayerInfo(const FLayerConfig& InLayerConfig)
-	: Width(InLayerConfig.Width)
-	, Height(InLayerConfig.Height)
-	, MaxBitrate(InLayerConfig.MaxBitrate)
-	, TargetBitrate(InLayerConfig.TargetBitrate)
-	, QPMax(InLayerConfig.QPMax)
-	, QPMin(InLayerConfig.QPMin)
-	, RateControlMode(InLayerConfig.RateControlMode)
-	, FillData(InLayerConfig.FillData)
-{
+    Layers[layerIdx]->UpdateConfig(config);
 }
 
 } /* namespace AVEncoder */

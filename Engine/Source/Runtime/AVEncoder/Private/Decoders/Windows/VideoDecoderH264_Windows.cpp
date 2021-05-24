@@ -4,40 +4,12 @@
 
 #include <CoreMinimal.h>
 #include <HAL/Thread.h>
-#include "VideoCommon.h"
-/*********************************************************************************************************************/
-// Disable macro redefinition warning for compatibility with Windows SDK 8+
-// #pragma warning(push)
-// #pragma warning(disable : 4005)	// macro redefinition
 
-// #include "Windows/AllowWindowsPlatformTypes.h"
-// #include "Windows/PreWindowsApi.h"
-// 	#include <d3d11.h>
-// 	#include <mftransform.h>
-// 	#include <mfapi.h>
-// 	#include <mferror.h>
-// 	#include <mfidl.h>
-// 	#include <codecapi.h>
-// 	#include <shlwapi.h>
-// 	#include <mfreadwrite.h>
-// 	#include <d3d11_1.h>
-// 	#include <d3d12.h>
-// 	#include <dxgi1_4.h>
-// #include "Windows/PostWindowsApi.h"
-// #include "Windows/HideWindowsPlatformTypes.h"
-/*********************************************************************************************************************/
-//#include <Microsoft/COMPointer.h>
 #include "MicrosoftCommon.h"
-
-#include "Containers/Queue.h"
-#include "Misc/ScopeLock.h"
-#include "Templates/RefCounting.h"
 
 #include "VideoDecoderCommon.h"
 #include "VideoDecoderAllocationTypes.h"
 #include "VideoDecoderUtilities.h"
-
-//#include "MicrosoftCommon.h"
 
 #define VERIFY_HR(FNcall,...)						\
 Result = FNcall;									\

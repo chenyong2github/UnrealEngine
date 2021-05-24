@@ -19,24 +19,7 @@
 			"Name": "PixelStreaming",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Win64" ],
-			"BlacklistPlatforms": [ "Linux" ],
-			"BlacklistTargets": [ "Server" ]
-		},
-		{
-			"Name": "PixelStreamingPlayerFactory",
-			"Type": "Editor",
-			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Win64" ],
-			"BlacklistPlatforms": [ "Linux" ],
-			"BlacklistTargets": [ "Server" ]
-		},
-		{
-			"Name": "PixelStreamingPlayerFactory",
-			"Type": "RuntimeNoCommandlet",
-			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Win64" ],
-			"BlacklistPlatforms": [ "Linux" ],
+			"WhitelistPlatforms": [ "Win32", "Win64" ],
 			"BlacklistTargets": [ "Server" ]
 		}
 	],
@@ -44,7 +27,6 @@
 		{
 			"Name": "WmfMedia",
 			"Enabled": true,
-			"WhitelistPlatforms": [ "Win64" ],
 			"BlacklistPlatforms": [ "Linux" ]
 		}
 	]
