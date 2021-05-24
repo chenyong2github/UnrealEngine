@@ -210,6 +210,8 @@ private:
 	TMap<FString, FDisplayClusterSceneComponentRef*> MeshComponents;
 	FDisplayClusterSceneComponentRef DefaultCameraComponent;
 
+	bool bHasRerunConstructionScripts = false;
+
 private:
 	template <typename TComp>
 	void GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames = nullptr, bool bCollectChildrenVisualizationComponent = true) const;
