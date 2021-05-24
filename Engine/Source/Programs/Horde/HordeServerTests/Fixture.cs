@@ -95,12 +95,13 @@ namespace HordeServerTests
 				Priority: Priority.Normal,
 				null,
 				null,
+				null,
 				false,
 				false,
 				null,
 				null,
 				null,
-				Template.Counters,
+				Counters: Template.Counters,
 				Arguments: new List<string>()
 			);
 			Job1 = (await JobService.GetJobAsync(Job1.Id))!;
@@ -119,6 +120,7 @@ namespace HordeServerTests
 				StartedByUserId: null,
 				StartedByUserName: "SomeUser",
 				Priority: Priority.Normal,
+				null,
 				null,
 				null,
 				false,
