@@ -17,7 +17,7 @@ public class libOpus : ModuleRules
 		Type = ModuleType.External;
 
 		string LibraryPath = OpusLibPath + "/";
-		bool IsWinPlatform = Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32;
+		bool IsWinPlatform = Target.Platform == UnrealTargetPlatform.Win64;
 		string OpusLibraryPath = Path.Combine(LibRootDirectory, "libOpus", "opus-1.3.1-12"); 
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
