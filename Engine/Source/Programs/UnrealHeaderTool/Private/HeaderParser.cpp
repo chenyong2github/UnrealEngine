@@ -2081,9 +2081,9 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 
 	// if we have a base struct, propagate inherited struct flags now
 	FUnrealFieldDefinitionInfo* BaseStructDef = nullptr;
-	if (!StructDef.GetSuperClassInfo().Name.IsEmpty())
+	if (!StructDef.GetSuperStructInfo().Name.IsEmpty())
 	{
-		const FString& ParentStructNameInScript = StructDef.GetSuperClassInfo().Name;
+		const FString& ParentStructNameInScript = StructDef.GetSuperStructInfo().Name;
 		FString ParentStructNameStripped;
 		bool bOverrideParentStructName = false;
 
@@ -2145,7 +2145,7 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 		UScriptStruct* BaseStruct = BaseStructDef->AsScriptStructChecked().GetScriptStruct();
 		Struct->SetSuperStruct(BaseStruct);
 		StructFlags |= (BaseStruct->StructFlags & STRUCT_Inherit);
-		StructDef.GetSuperClassInfo().Struct = BaseStructDef->AsStruct();
+		StructDef.GetSuperStructInfo().Struct = BaseStructDef->AsStruct();
 	}
 
 	Scope->AddType(StructDef);
@@ -2965,11 +2965,10 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 			return static_cast<FUnrealFunctionDefinitionInfo*>(nullptr);
 		};
 
-		FUnrealPropertyDefinitionInfo& PropDef = GTypeDefinitionInfoMap.FindChecked<FUnrealPropertyDefinitionInfo>(Prop);
-		FPropertyBase& PropertyToken = PropDef.GetPropertyBase();
+		FPropertyBase& PropertyToken = PropertyDef->GetPropertyBase();
 
-		TGuardValue<int32> GuardedInputPos(InputPos, PropDef.GetParsePosition());
-		TGuardValue<int32> GuardedInputLine(InputLine, PropDef.GetLineNumber());
+		TGuardValue<int32> GuardedInputPos(InputPos, PropertyDef->GetParsePosition());
+		TGuardValue<int32> GuardedInputLine(InputLine, PropertyDef->GetLineNumber());
 
 		if (Prop->HasAnyPropertyFlags(CPF_RepNotify))
 		{
@@ -4742,7 +4741,7 @@ void FHeaderParser::GetVarType(
 
 FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 (
-	FUnrealStructDefinitionInfo& ParentStruct, 
+	FUnrealStructDefinitionInfo& ParentStruct,
 	FPropertyBase& VarProperty,
 	EVariableCategory::Type VariableCategory,
 	ELayoutMacroType        LayoutMacroType
@@ -5023,7 +5022,7 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 	FName PropertyName(Identifier);
 	//VarProperty.StartLine = InputLine;
 	//VarProperty.StartPos = InputPos;
-	FUnrealPropertyDefinitionInfo& PropDef = FPropertyTraits::CreateProperty(VarProperty, Scope, PropertyName, ObjectFlags, VariableCategory, Dimensions.String, SourceFile, InputLine, InputPos);
+	FUnrealPropertyDefinitionInfo& PropDef = FPropertyTraits::CreateProperty(VarProperty, ParentStruct, PropertyName, ObjectFlags, VariableCategory, Dimensions.String, SourceFile, InputLine, InputPos);
 	FProperty* Property = PropDef.GetProperty();
 
 	// Add the property to the parent
@@ -5620,11 +5619,11 @@ FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& De
 	ParseInheritance(TEXT("class"), [](const TCHAR* ClassName, bool bIsSuperClass) {}); // Eat the results, already been parsed
 
 	// Collect data about the super and base classes
-	if (FUnrealClassDefinitionInfo* SuperClassDef = UHTCast<FUnrealClassDefinitionInfo>(ClassDef->GetSuperClassInfo().Struct))
+	if (FUnrealClassDefinitionInfo* SuperClassDef = UHTCast<FUnrealClassDefinitionInfo>(ClassDef->GetSuperStructInfo().Struct))
 	{
 		FoundClass->ClassCastFlags |= SuperClassDef->GetClass()->ClassCastFlags;
 	}
-	for (FUnrealStructDefinitionInfo::FBaseClassInfo& BaseClassInfo : ClassDef->GetBaseClassInfo())
+	for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseClassInfo : ClassDef->GetBaseStructInfo())
 	{
 		if (FUnrealClassDefinitionInfo* BaseClassDef = UHTCast<FUnrealClassDefinitionInfo>(BaseClassInfo.Struct))
 		{
@@ -5786,7 +5785,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 
 	// auto-create properties for all of the VFTables needed for the multiple inheritances
 	// get the inheritance parents
-	const TArray<FUnrealStructDefinitionInfo::FBaseClassInfo>& BaseClassInfos = ClassDef.GetBaseClassInfo();
+	const TArray<FUnrealStructDefinitionInfo::FBaseStructInfo>& BaseClassInfos = ClassDef.GetBaseStructInfo();
 
 	// for all base class types, make a VfTable property
 	for (int32 ParentIndex = BaseClassInfos.Num() - 1; ParentIndex >= 0; ParentIndex--)
@@ -5855,6 +5854,8 @@ FUnrealClassDefinitionInfo* FHeaderParser::ParseInterfaceNameDeclaration(FString
 	if (SuperClass == NULL)
 	{
 		FoundClass->SetSuperStruct(TempClass);
+		ClassDef->GetSuperStructInfo().Struct = TempClassDef;
+		ClassDef->GetSuperStructInfo().Name = TempClass->GetName();
 	}
 	else if (SuperClass != TempClass)
 	{
@@ -7313,7 +7314,7 @@ bool FHeaderParser::ValidateScriptStructOkForNet(const FString& OriginStructName
 
 	bool bIsStructValid = true;
 
-	if (FUnrealScriptStructDefinitionInfo* SuperScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(InStructDef.GetSuperClassInfo().Struct))
+	if (FUnrealScriptStructDefinitionInfo* SuperScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(InStructDef.GetSuperStructInfo().Struct))
 	{
 		if (!ValidateScriptStructOkForNet(OriginStructName, *SuperScriptStructDef))
 		{
@@ -8735,11 +8736,11 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseClassDeclaration(FU
 		SourceFile.AddClassIncludeIfNeeded(InputLine, ClassNameWithoutPrefixStr, ClassNameStr);
 		if (bIsSuperClass)
 		{
-			ClassDef.GetSuperClassInfo().Name = MoveTemp(ClassNameStr);
+			ClassDef.GetSuperStructInfo().Name = MoveTemp(ClassNameStr);
 		}
 		else
 		{
-			ClassDef.GetBaseClassInfo().Emplace(FUnrealStructDefinitionInfo::FBaseClassInfo{ MoveTemp(ClassNameStr) });
+			ClassDef.GetBaseStructInfo().Emplace(FUnrealStructDefinitionInfo::FBaseStructInfo{ MoveTemp(ClassNameStr) });
 		}
 	}
 	);
@@ -8861,11 +8862,11 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(F
 		SourceFile.AddScriptStructIncludeIfNeeded(InputLine, StructNameStripped, StructNameStr);
 		if (bIsSuperClass)
 		{
-			StructDef.GetSuperClassInfo().Name = MoveTemp(StructNameStr);
+			StructDef.GetSuperStructInfo().Name = MoveTemp(StructNameStr);
 		}
 		else
 		{
-			StructDef.GetBaseClassInfo().Emplace(FUnrealStructDefinitionInfo::FBaseClassInfo{ MoveTemp(StructNameStr) });
+			StructDef.GetBaseStructInfo().Emplace(FUnrealStructDefinitionInfo::FBaseStructInfo{ MoveTemp(StructNameStr) });
 		}
 	}
 	);
@@ -9076,7 +9077,7 @@ void FHeaderParser::PostPopNestClass(FUnrealClassDefinitionInfo& CurrentClassDef
 	VerifyPropertyMarkups(CurrentClassDef);
 
 	// Iterate over all the interfaces we claim to implement
-	for (const FUnrealStructDefinitionInfo::FBaseClassInfo& BaseClassInfo : CurrentClassDef.GetBaseClassInfo())
+	for (const FUnrealStructDefinitionInfo::FBaseStructInfo& BaseClassInfo : CurrentClassDef.GetBaseStructInfo())
 	{
 
 		// Skip unknown base classes or things that aren't interfaces

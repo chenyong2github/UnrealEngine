@@ -796,19 +796,6 @@ const FString& FNativeClassHeaderGenerator::GetSingletonNameFuncAddr(FUnrealFiel
 	}
 }
 
-const FString& FNativeClassHeaderGenerator::GetSingletonNameFuncAddr(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject)
-{
-	if (!Item)
-	{
-		return GNullPtr;
-	}
-	else
-	{
-		FUnrealFieldDefinitionInfo& Field = GTypeDefinitionInfoMap.FindChecked<FUnrealFieldDefinitionInfo>(Item);
-		return GetSingletonNameFuncAddr(&Field, UniqueCrossModuleReferences, bRequiresValidObject);
-	}
-}
-
 void FNativeClassHeaderGenerator::GetPropertyTag(FUHTStringBuilder& Out, FUnrealPropertyDefinitionInfo& PropDef)
 {
 	const FPropertyBase& PropertyBase = PropDef.GetPropertyBase();
@@ -1895,7 +1882,7 @@ static bool IsAlwaysAccessible(UScriptStruct* Script)
 
 static void FindNoExportStructsRecursive(TArray<FUnrealScriptStructDefinitionInfo*>& StructDefs, FUnrealStructDefinitionInfo* StartDef)
 {
-	for (; StartDef; StartDef = StartDef->GetSuperClassInfo().Struct)
+	for (; StartDef; StartDef = StartDef->GetSuperStructInfo().Struct)
 	{
 		UStruct* Start = StartDef->GetStruct();
 		if (UScriptStruct* StartScript = Cast<UScriptStruct>(Start))
@@ -2432,7 +2419,8 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	UFunction* Function = FunctionDef.GetFunction();
 	FunctionDef.AddCrossModuleReference(OutReferenceGatherers.UniqueCrossModuleReferences, true);
 
-	UFunction* SuperFunction = Function->GetSuperFunction();
+	FUnrealFunctionDefinitionInfo* SuperFunctionDef = FunctionDef.GetSuperFunction();
+	UFunction* SuperFunction = SuperFunctionDef ? SuperFunctionDef->GetFunction() : nullptr;
 
 	const bool bIsEditorOnlyFunction = Function->HasAnyFunctionFlags(FUNC_EditorOnly);
 
@@ -2472,7 +2460,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	if (FUnrealObjectDefinitionInfo* OuterDef = FunctionDef.GetOuter())
 	{
 		FUnrealPackageDefinitionInfo* OuterPackageDef = UHTCast<FUnrealPackageDefinitionInfo>(OuterDef);
-		OuterFunc = OuterPackageDef ? GetPackageSingletonNameFuncAddr(*OuterPackageDef, OutReferenceGatherers.UniqueCrossModuleReferences) : GetSingletonNameFuncAddr(Function->GetOwnerClass(), OutReferenceGatherers.UniqueCrossModuleReferences);
+		OuterFunc = OuterPackageDef ? GetPackageSingletonNameFuncAddr(*OuterPackageDef, OutReferenceGatherers.UniqueCrossModuleReferences) : GetSingletonNameFuncAddr(FunctionDef.GetOwnerClass(), OutReferenceGatherers.UniqueCrossModuleReferences);
 	}
 	else
 	{
@@ -2523,7 +2511,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 		TEXT("\tconst UECodeGen_Private::FFunctionParams %s::FuncParams = { (UObject*(*)())%s, %s, %s, %s, %s, %s, %s, %s, %s, (EFunctionFlags)0x%08X, %d, %d, %s };\r\n"),
 		*StaticsStructName,
 		*OuterFunc,
-		*GetSingletonNameFuncAddr(SuperFunction, OutReferenceGatherers.UniqueCrossModuleReferences),
+		*GetSingletonNameFuncAddr(SuperFunctionDef, OutReferenceGatherers.UniqueCrossModuleReferences),
 		*CreateUTF8LiteralString(FNativeClassHeaderGenerator::GetOverriddenName(Function)),
 		(SparseDelegateFunction ? *CreateUTF8LiteralString(SparseDelegateFunction->OwningClassName.ToString()) : TEXT("nullptr")),
 		(SparseDelegateFunction ? *CreateUTF8LiteralString(SparseDelegateFunction->DelegateName.ToString()) : TEXT("nullptr")),
@@ -3463,7 +3451,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	const FString ActualStructName = FNativeClassHeaderGenerator::GetOverriddenName(Struct);
 	const FString& FriendApiString  = GetAPIString();
 
-	FUnrealStructDefinitionInfo* BaseStructDef = ScriptStructDef.GetSuperClassInfo().Struct;
+	FUnrealStructDefinitionInfo* BaseStructDef = ScriptStructDef.GetSuperStructInfo().Struct;
 	UStruct* BaseStruct = Struct->GetSuperStruct();
 
 	const FString StructNameCPP = FNameLookupCPP::GetNameCPP(Struct);
@@ -5023,12 +5011,13 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 	RPCWrappers += TEXT("\t\tP_FINISH;") LINE_TERMINATOR;
 	RPCWrappers += TEXT("\t\tP_NATIVE_BEGIN;") LINE_TERMINATOR;
 
-	UClass* OwnerClass = Function->GetOwnerClass();
-	FUnrealClassDefinitionInfo& OwnerClassDef = GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(OwnerClass);
+	FUnrealClassDefinitionInfo* OwnerClassDef = FunctionDef.GetOwnerClass();
+	check(OwnerClassDef);
+	UClass* OwnerClass = OwnerClassDef->GetClass();
 
-	OwnerClassDef.GetDefinitionRange().Validate();
-	const TCHAR* ClassStart = OwnerClassDef.GetDefinitionRange().Start;
-	const TCHAR* ClassEnd = OwnerClassDef.GetDefinitionRange().End;
+	OwnerClassDef->GetDefinitionRange().Validate();
+	const TCHAR* ClassStart = OwnerClassDef->GetDefinitionRange().Start;
+	const TCHAR* ClassEnd = OwnerClassDef->GetDefinitionRange().End;
 	FString      ClassName  = OwnerClass->GetName();
 
 	FString ClassDefinition(UE_PTRDIFF_TO_INT32(ClassEnd - ClassStart), ClassStart);
@@ -5038,13 +5027,13 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 
 	bool bShouldEnableImplementationDeprecation =
 		// Enable deprecation warnings only if GENERATED_BODY is used inside class or interface (not GENERATED_UCLASS_BODY etc.)
-		OwnerClassDef.HasGeneratedBody()
+		OwnerClassDef->HasGeneratedBody()
 		// and implementation function is called, but not the one declared by user
 		&& (FunctionData.CppImplName != Function->GetName() && !bHasImplementation);
 
 	bool bShouldEnableValidateDeprecation =
 		// Enable deprecation warnings only if GENERATED_BODY is used inside class or interface (not GENERATED_UCLASS_BODY etc.)
-		OwnerClassDef.HasGeneratedBody()
+		OwnerClassDef->HasGeneratedBody()
 		// and validation function is called
 		&& (FunctionData.FunctionFlags & FUNC_NetValidate) && !bHasValidate;
 
@@ -5210,7 +5199,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 				}
 			}
 
-			SparseClassDataStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(SparseClassDataStructDef->GetSuperClassInfo().Struct);
+			SparseClassDataStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(SparseClassDataStructDef->GetSuperStructInfo().Struct);
 		}
 	}
 
@@ -6385,7 +6374,7 @@ void ResolveSuperClasses(UPackage* Package)
 
 		// Resolve the base class
 		{
-			FUnrealStructDefinitionInfo::FBaseClassInfo& SuperClassInfo = ClassDef.GetSuperClassInfo();
+			FUnrealStructDefinitionInfo::FBaseStructInfo& SuperClassInfo = ClassDef.GetSuperStructInfo();
 			const FString& BaseClassName = SuperClassInfo.Name;
 			const FString& BaseClassNameStripped = GetClassNameWithPrefixRemoved(BaseClassName);
 
@@ -6411,7 +6400,7 @@ void ResolveSuperClasses(UPackage* Package)
 
 		// Resolve the inherited classes
 		{
-			for (FUnrealStructDefinitionInfo::FBaseClassInfo& BaseClassInfo : ClassDef.GetBaseClassInfo())
+			for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseClassInfo : ClassDef.GetBaseStructInfo())
 			{
 				BaseClassInfo.Struct = FUnrealClassDefinitionInfo::FindScriptClass(BaseClassInfo.Name);
 			}
@@ -6667,7 +6656,7 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedClasses())
 				{
 					FUnrealClassDefinitionInfo& ClassDef = TypeDef->AsClassChecked();
-					UClass* ResultClass = ProcessParsedClass(ClassDef.IsInterface(), ClassDef.GetNameCPP(), ClassDef.GetSuperClassInfo().Name, Package, RF_Public | RF_Standalone);
+					UClass* ResultClass = ProcessParsedClass(ClassDef.IsInterface(), ClassDef.GetNameCPP(), ClassDef.GetSuperStructInfo().Name, Package, RF_Public | RF_Standalone);
 					GTypeDefinitionInfoMap.Add(ResultClass, TypeDef);
 					ClassDef.SetObject(ResultClass);
 					AllClasses.Add(ResultClass);
