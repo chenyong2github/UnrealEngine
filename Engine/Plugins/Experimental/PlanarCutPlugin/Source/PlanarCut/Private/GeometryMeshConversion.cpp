@@ -235,7 +235,7 @@ namespace AugmentedDynamicMesh
 		Vs->GetValue(VID, V);
 	}
 
-	void InitializeOverlayToPerVertexUVs(FDynamicMesh3& Mesh, int32 NumUVLayers)
+	void InitializeOverlayToPerVertexUVs(FDynamicMesh3& Mesh, int32 NumUVLayers, int32 FirstUVLayer)
 	{
 		Mesh.Attributes()->SetNumUVLayers(NumUVLayers);
 		for (int UVLayer = 0; UVLayer < NumUVLayers; ++UVLayer)
@@ -247,7 +247,7 @@ namespace AugmentedDynamicMesh
 			for (int VID : Mesh.VertexIndicesItr())
 			{
 				FVector2f UV;
-				GetUV(Mesh, VID, UV, UVLayer);
+				GetUV(Mesh, VID, UV, UVLayer + FirstUVLayer);
 				int UVID = UVs->AppendElement(UV);
 				VertToUVMap[VID] = UVID;
 			}

@@ -11,6 +11,7 @@ namespace UE { namespace PlanarCut {
 /**
  * Make a UV atlas of non-overlapping UV charts for a geometry collection
  *
+ * @param TargetUVLayer		Which UV layer to update with new UV coordinates
  * @param Collection		The collection to be atlas'd
  * @param UVRes				Target resolution for the atlas
  * @param GutterSize		Space to leave between UV islands, in pixels at the target resolution
@@ -19,6 +20,7 @@ namespace UE { namespace PlanarCut {
  * @param bRecreateUVsForDegenerateIslands If true, detect and fix islands that don't have proper UVs (i.e. UVs all zero or otherwise collapsed to a point)
  */
 bool PLANARCUT_API UVLayout(
+	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	int32 UVRes = 1024,
 	float GutterSize = 1,
@@ -66,6 +68,7 @@ struct FTextureAttributeSettings
  * Generate a texture for internal faces based on depth inside surface
  * TODO: add options to texture based on other quantities
  *
+ * @param TargetUVLayer		Which UV layer to take UV coordinates from when creating the new texture
  * @param Collection		The collection to be create a new texture for
  * @param GutterSize		Number of texels to fill outside of UV island borders (values are copied from nearest inside pt)
  * @param BakeAttributes	Which attributes to bake into which color channel
@@ -75,6 +78,7 @@ struct FTextureAttributeSettings
  * @param WhichMaterials	If non-empty, apply texture to the listed material IDs
  */
 void PLANARCUT_API TextureInternalSurfaces(
+	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	int32 GutterSize,
 	UE::Geometry::FIndex4i BakeAttributes,
