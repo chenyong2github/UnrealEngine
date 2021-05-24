@@ -265,5 +265,5 @@ bool UseLightPropagationVolumeRT(ERHIFeatureLevel::Type InFeatureLevel);
 
 static inline bool IsLPVSupported(EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform) || IsConsolePlatform(Platform) || IsMetalPlatform(Platform));
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsByteBufferComputeShaders(Platform) || IsMetalPlatform(Platform));
 }
