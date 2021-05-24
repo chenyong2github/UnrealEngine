@@ -46,38 +46,34 @@ void SPropertyBinding::Construct(const FArguments& InArgs, UBlueprint* InBluepri
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		[
-			SNew(SBox)
-			.MaxDesiredWidth(200.0f)
+			SNew(SComboButton)
+			.ToolTipText(this, &SPropertyBinding::GetCurrentBindingToolTipText)
+			.OnGetMenuContent(this, &SPropertyBinding::OnGenerateDelegateMenu)
+			.ContentPadding(1)
+			.ButtonContent()
 			[
-				SNew(SComboButton)
-				.ToolTipText(this, &SPropertyBinding::GetCurrentBindingText)
-				.OnGetMenuContent(this, &SPropertyBinding::OnGenerateDelegateMenu)
-				.ContentPadding(1)
-				.ButtonContent()
+				SNew(SHorizontalBox)
+				.Clipping(EWidgetClipping::ClipToBounds)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
 				[
-					SNew(SHorizontalBox)
-					.Clipping(EWidgetClipping::ClipToBounds)
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
+					SNew(SBox)
+					.HeightOverride(16.0f)
 					[
-						SNew(SBox)
-						.HeightOverride(16.0f)
-						[
-							SNew(SImage)
-							.Image(this, &SPropertyBinding::GetCurrentBindingImage)
-							.ColorAndOpacity(this, &SPropertyBinding::GetCurrentBindingColor)
-						]
+						SNew(SImage)
+						.Image(this, &SPropertyBinding::GetCurrentBindingImage)
+						.ColorAndOpacity(this, &SPropertyBinding::GetCurrentBindingColor)
 					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(4, 0, 0, 0)
-					[
-						SNew(STextBlock)
-						.Text(this, &SPropertyBinding::GetCurrentBindingText)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4, 0, 0, 0)
+				[
+					SNew(STextBlock)
+					.Text(this, &SPropertyBinding::GetCurrentBindingText)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
 		]
@@ -152,7 +148,17 @@ void SPropertyBinding::ForEachBindableFunction(UClass* FromClass, Predicate Pred
 				}
 			}
 
-			if(bValidObjectFunction || Args.OnCanBindFunction.Execute(Function))
+			bool bValidStructFunction = false;
+			if(Args.bAllowStructFunctions)
+			{
+				FStructProperty* StructProperty = CastField<FStructProperty>(Function->GetReturnProperty());
+				if(StructProperty != nullptr && Function->NumParms == 1)
+				{
+					bValidStructFunction = true;
+				}
+			}
+
+			if(bValidObjectFunction || bValidStructFunction || Args.OnCanBindFunction.Execute(Function))
 			{
 				Pred(FFunctionInfo(Function));
 			}
@@ -472,7 +478,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 						MakeFunctionWidget(Info));
 				}
 
-				// Only show bindable subobjects and variables if we're generating pure bindings.
+				// Only show bindable subobjects, structs and variables if we're generating pure bindings.
 				if(Args.bGeneratePureBindings)
 				{
 					if(FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(ReturnProperty))
@@ -480,6 +486,12 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 						MenuBuilder.AddSubMenu(
 							MakeFunctionWidget(Info),
 							FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(ObjectPropertyBase->PropertyClass), NewBindingChain));
+					}
+					else if(FStructProperty* StructProperty = CastField<FStructProperty>(ReturnProperty))
+					{
+						MenuBuilder.AddSubMenu(
+							MakeFunctionWidget(Info),
+							FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, static_cast<UStruct*>(StructProperty->Struct), NewBindingChain));
 					}
 				}
 			});
@@ -627,6 +639,16 @@ FText SPropertyBinding::GetCurrentBindingText() const
 	}
 
 	return LOCTEXT("Bind", "Bind");
+}
+
+FText SPropertyBinding::GetCurrentBindingToolTipText() const
+{
+	if(Args.CurrentBindingToolTipText.IsSet())
+	{
+		return Args.CurrentBindingToolTipText.Get();
+	}
+
+	return GetCurrentBindingText();
 }
 
 FSlateColor SPropertyBinding::GetCurrentBindingColor() const

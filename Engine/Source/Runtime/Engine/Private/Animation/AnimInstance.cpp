@@ -494,6 +494,16 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 		UpdateMontageEvaluationData();
 	}
 
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		AnimBlueprintClass->ForEachSubsystem(this, [this, DeltaSeconds](const FAnimSubsystemInstanceContext& InContext)
+		{
+			FAnimSubsystemUpdateContext Context(InContext, this, DeltaSeconds);
+			InContext.Subsystem.OnPreUpdate_GameThread(Context);
+			return EAnimSubsystemEnumeration::Continue;
+		});
+	}
+	
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
 		CSV_SCOPED_TIMING_STAT(Animation, NativeUpdate);
@@ -515,7 +525,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		AnimBlueprintClass->ForEachSubsystem(this, [this, DeltaSeconds](const FAnimSubsystemInstanceContext& InContext)
 		{
 			FAnimSubsystemUpdateContext Context(InContext, this, DeltaSeconds);
-			InContext.Subsystem.OnUpdate(Context);
+			InContext.Subsystem.OnPostUpdate_GameThread(Context);
 			return EAnimSubsystemEnumeration::Continue;
 		});
 	}
@@ -1352,6 +1362,11 @@ bool UAnimInstance::HasMorphTargetCurves() const
 bool UAnimInstance::HasActiveCurves() const
 {
 	return GetProxyOnAnyThread<FAnimInstanceProxy>().HasActiveCurves();
+}
+
+float UAnimInstance::GetDeltaSeconds() const
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().GetDeltaSeconds();
 }
 
 void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)

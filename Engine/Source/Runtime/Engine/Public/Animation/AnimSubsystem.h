@@ -92,12 +92,18 @@ struct FAnimSubsystem
 
 	/** Virtual destructor */
 	virtual ~FAnimSubsystem() = default;
-	
-	/** Override point to process game-thread data per-frame */
-	virtual void OnUpdate(FAnimSubsystemUpdateContext& InContext) const {}
 
-	/** Override point to process worker-thread data per-frame */
-	virtual void OnParallelUpdate(FAnimSubsystemParallelUpdateContext& InContext) const {}
+	/** Override point to process game-thread data per-frame. Called before event-graph-related work (e.g. NativeUpdateAnimation and BlueprintUpdateAnimation) */
+	virtual void OnPreUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const {}
+
+	/** Override point to process game-thread data per-frame. Called after event-graph-related work (e.g. NativeUpdateAnimation and BlueprintUpdateAnimation) */
+	virtual void OnPostUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const {}
+
+	/** Override point to process worker-thread data per-frame. Called before proxy Update and BlueprintThreadSafeUpdateAnimation. */
+	virtual void OnPreUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const {}
+
+	/** Override point to process worker-thread data per-frame. Called after proxy Update and BlueprintThreadSafeUpdateAnimation. */
+	virtual void OnPostUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const {}	
 
 	/** Override point to perform subsystem instance data initialization post-load */
 	virtual void OnPostLoadDefaults(FAnimSubsystemPostLoadDefaultsContext& InContext) {}

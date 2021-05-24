@@ -215,26 +215,37 @@ float UKismetAnimationLibrary::K2_CalculateVelocityFromSockets(
 	return VelocityMin;
 }
 
+struct FK2ProfilingTimer
+{
+	double LastTime;
+	double AccummulatedTime;
+};
 
-TArray<UKismetAnimationLibrary::FK2ProfilingTimer> UKismetAnimationLibrary::sProfilingTimers;
+class FProfilingTimerPerThread : public TThreadSingleton<FProfilingTimerPerThread>
+{
+public:
+	TArray<FK2ProfilingTimer> ProfilingTimers;
+};
 
 void UKismetAnimationLibrary::K2_StartProfilingTimer()
 {
 	FK2ProfilingTimer Timer;
 	Timer.LastTime = FPlatformTime::Seconds() * 1000.0;
 	Timer.AccummulatedTime = 0.0;
-	sProfilingTimers.Add(Timer);
+	FProfilingTimerPerThread::Get().ProfilingTimers.Add(Timer);
 }
 
 float UKismetAnimationLibrary::K2_EndProfilingTimer(bool bLog, const FString& LogPrefix)
 {
-	if (sProfilingTimers.Num() == 0)
+	TArray<FK2ProfilingTimer>& ProfilingTimers = FProfilingTimerPerThread::Get().ProfilingTimers;
+	
+	if (ProfilingTimers.Num() == 0)
 	{
 		UE_LOG(LogAnimation, Warning, TEXT("Unbalanced use of Start & End Profiling Timer nodes."));
 		return 0.f;
 	}
 
-	FK2ProfilingTimer Timer = sProfilingTimers.Pop();
+	FK2ProfilingTimer Timer = ProfilingTimers.Pop();
 	double CurrentTimer = FPlatformTime::Seconds() * 1000.0;
 	Timer.AccummulatedTime = CurrentTimer - Timer.LastTime;
 

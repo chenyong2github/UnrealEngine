@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "KismetNodes/SGraphNodeK2Base.h"
+#include "KismetNodes/SGraphNodeK2Var.h"
 
 class UK2Node_PropertyAccess;
 
-class SPropertyAccessNode : public SGraphNodeK2Base
+class SPropertyAccessNode : public SGraphNodeK2Var
 {
 public:
 	SLATE_BEGIN_ARGS(SPropertyAccessNode) {}
@@ -17,7 +17,7 @@ public:
 	void Construct(const FArguments& InArgs, UK2Node_PropertyAccess* InNode);
 
 	// SGraphNode interface
-	virtual void CreateBelowPinControls(TSharedPtr<SVerticalBox> InMainBox) override;
+	virtual TSharedPtr<SGraphPin> CreatePinWidget(UEdGraphPin* Pin) const override;
 
 private:
 	// Helper for property/function binding

@@ -25,7 +25,18 @@
 #include "AnimBlueprintCompilationContext.h"
 #include "AnimBlueprintExtension.h"
 #include "FindInBlueprintManager.h"
+#include "IPropertyAccessBlueprintBinding.h"
+#include "IPropertyAccessEditor.h"
+#include "ScopedTransaction.h"
+#include "Algo/Accumulate.h"
+#include "Fonts/FontMeasure.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Fonts/FontMeasure.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_Base"
 
@@ -78,6 +89,19 @@ void UAnimGraphNode_Base::PostEditChangeProperty(FPropertyChangedEvent& Property
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	PropertyChangeEvent.Broadcast(PropertyChangedEvent);
+}
+
+void UAnimGraphNode_Base::SetPinVisibility(bool bInVisible, int32 InOptionalPinIndex)
+{
+	if(ShowPinForProperties[InOptionalPinIndex].bShowPin != bInVisible)
+	{
+		FOptionalPinManager::CacheShownPins(ShowPinForProperties, OldShownPins);
+
+		ShowPinForProperties[InOptionalPinIndex].bShowPin = bInVisible;
+		
+		FOptionalPinManager::EvaluateOldShownPins(ShowPinForProperties, OldShownPins, this);
+		GetSchema()->ReconstructNode(*this);
+	}
 }
 
 void UAnimGraphNode_Base::Serialize(FArchive& Ar)
@@ -431,7 +455,7 @@ void UAnimGraphNode_Base::ProcessDuringCompilation(IAnimBlueprintCompilationCont
 	UAnimBlueprintExtension_Base* Extension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_Base>(GetAnimBlueprint());
 
 	// Record pose pins for later patchup and gather pins that have an associated evaluation handler
-	Extension->AddStructEvalHandlers(this, InCompilationContext, OutCompiledData);
+	Extension->ProcessNodePins(this, InCompilationContext, OutCompiledData);
 
 	// Call the override point
 	OnProcessDuringCompilation(InCompilationContext, OutCompiledData);
@@ -609,6 +633,608 @@ void UAnimGraphNode_Base::AutowireNewNode(UEdGraphPin* FromPin)
 		{
 			ensure(GetSchema()->TryCreateConnection(FromPin, PinToConnectTo));
 		}
+	}
+}
+
+TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPropertyBindingWidgetArgs& InArgs)
+{
+	UAnimGraphNode_Base* FirstAnimGraphNode = InArgs.Nodes[0];
+	UBlueprint* Blueprint = FirstAnimGraphNode->GetAnimBlueprint();
+	const bool bMultiSelect = InArgs.Nodes.Num() > 1;
+	
+	if(IModularFeatures::Get().IsModularFeatureAvailable("PropertyAccessEditor"))
+	{
+		int32 PinArrayIndex = InArgs.PinName.GetNumber() - 1;
+		const bool bIsArrayOrArrayElement = InArgs.PinProperty->IsA<FArrayProperty>();
+		const bool bIsArrayElement = bIsArrayOrArrayElement && PinArrayIndex != INDEX_NONE;
+		const bool bIsArray = bIsArrayOrArrayElement && PinArrayIndex == INDEX_NONE;
+		
+		FProperty* BindingProperty = bIsArrayElement ? CastField<FArrayProperty>(InArgs.PinProperty)->Inner : InArgs.PinProperty;
+
+		auto OnCanBindProperty = [BindingProperty](FProperty* InProperty)
+		{
+			// Note: We support type promotion here
+			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+			return PropertyAccessEditor.GetPropertyCompatibility(InProperty, BindingProperty) != EPropertyAccessCompatibility::Incompatible;
+		};
+
+		auto OnCanBindFunction = [BindingProperty](UFunction* InFunction)
+		{
+			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+			// Note: We support type promotion here
+			return InFunction->NumParms == 1 
+				&& PropertyAccessEditor.GetPropertyCompatibility(InFunction->GetReturnProperty(), BindingProperty) != EPropertyAccessCompatibility::Incompatible
+				&& InFunction->HasAnyFunctionFlags(FUNC_BlueprintPure);
+		};
+
+		auto OnAddBinding = [InArgs, Blueprint, BindingProperty](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+		{
+			const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+			for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+			{
+				AnimGraphNode->Modify();
+
+				// Pins are exposed if we have a binding or not - and after running this we do.
+				AnimGraphNode->SetPinVisibility(true, InArgs.OptionalPinIndex);
+
+				// Need to break all pin links now we have a binding
+				if(UEdGraphPin* Pin = AnimGraphNode->FindPin(InArgs.PinName))
+				{
+					Pin->BreakAllPinLinks();
+				}
+
+				const FFieldVariant& LeafField = InBindingChain.Last().Field;
+
+				FAnimGraphNodePropertyBinding Binding;
+				Binding.PropertyName = InArgs.PinName;
+				if(InArgs.PinProperty->IsA<FArrayProperty>())
+				{
+					// Pull array index from the pin's FName if this is an array property
+					Binding.ArrayIndex = InArgs.PinName.GetNumber() - 1;
+				}
+				PropertyAccessEditor.MakeStringPath(InBindingChain, Binding.PropertyPath);
+				Binding.PathAsText = PropertyAccessEditor.MakeTextPath(Binding.PropertyPath);
+				Binding.Type = LeafField.IsA<UFunction>() ? EAnimGraphNodePropertyBindingType::Function : EAnimGraphNodePropertyBindingType::Property;
+				Binding.bIsBound = true;
+				if(LeafField.IsA<FProperty>())
+				{
+					const FProperty* LeafProperty = LeafField.Get<FProperty>();
+					if(LeafProperty)
+					{
+						if(PropertyAccessEditor.GetPropertyCompatibility(LeafProperty, BindingProperty) == EPropertyAccessCompatibility::Promotable)
+						{
+							Binding.bIsPromotion = true;
+							Schema->ConvertPropertyToPinType(LeafProperty, Binding.PromotedPinType);
+						}
+
+						Schema->ConvertPropertyToPinType(LeafProperty, Binding.PinType);
+					}
+				}
+				else if(LeafField.IsA<UFunction>())
+				{
+					const UFunction* LeafFunction = LeafField.Get<UFunction>();
+					if(LeafFunction)
+					{
+						if(FProperty* ReturnProperty = LeafFunction->GetReturnProperty())
+						{
+							if(PropertyAccessEditor.GetPropertyCompatibility(ReturnProperty, BindingProperty) == EPropertyAccessCompatibility::Promotable)
+							{
+								Binding.bIsPromotion = true;
+								Schema->ConvertPropertyToPinType(ReturnProperty, Binding.PromotedPinType);
+							}
+
+							Schema->ConvertPropertyToPinType(ReturnProperty, Binding.PinType);
+						}
+					}
+				}
+				AnimGraphNode->PropertyBindings.Add(InArgs.PinName, Binding);
+			}
+
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		};
+
+		auto OnRemoveBinding = [InArgs, Blueprint](FName InPropertyName)
+		{
+			for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+			{
+				AnimGraphNode->Modify();
+				AnimGraphNode->PropertyBindings.Remove(InArgs.PinName);
+			}
+
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		};
+
+		auto CanRemoveBinding = [InArgs](FName InPropertyName)
+		{
+			for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+			{
+				if(AnimGraphNode->PropertyBindings.Contains(InArgs.PinName))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}; 
+
+		enum class ECurrentValueType : int32
+		{
+			None,
+			Pin,
+			Binding,
+			MultipleValues,
+		};
+
+		auto CurrentBindingText = [InArgs]()
+		{
+			ECurrentValueType CurrentValueType = ECurrentValueType::None;
+
+			const FText MultipleValues = LOCTEXT("MultipleValuesLabel", "Multiple Values");
+			const FText Bind = LOCTEXT("BindLabel", "Bind");
+			const FText ExposedAsPin = LOCTEXT("ExposedAsPinLabel", "Pin");
+			FText CurrentValue = Bind;
+
+			auto SetAssignValue = [&CurrentValueType, &CurrentValue, &MultipleValues](const FText& InValue, ECurrentValueType InType)
+			{
+				if(CurrentValueType != ECurrentValueType::MultipleValues)
+				{
+					if(CurrentValueType == ECurrentValueType::None)
+					{
+						CurrentValueType = InType;
+						CurrentValue = InValue;
+					}
+					else if(CurrentValueType == InType)
+					{
+						if(!CurrentValue.EqualTo(InValue))
+						{
+							CurrentValueType = ECurrentValueType::MultipleValues;
+							CurrentValue = MultipleValues;
+						}
+					}
+					else
+					{
+						CurrentValueType = ECurrentValueType::MultipleValues;
+						CurrentValue = MultipleValues;
+					}
+				}
+			};
+
+			for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+			{
+				if(FAnimGraphNodePropertyBinding* BindingPtr = AnimGraphNode->PropertyBindings.Find(InArgs.PinName))
+				{
+					SetAssignValue(BindingPtr->PathAsText, ECurrentValueType::Binding);
+				}
+				else
+				{
+					if(AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin)
+					{
+						SetAssignValue(InArgs.bOnGraphNode ? Bind : ExposedAsPin, ECurrentValueType::Pin);
+					}
+					else
+					{
+						SetAssignValue(Bind, ECurrentValueType::None);
+					}
+				}
+			}
+
+			return CurrentValue;
+		};
+
+		auto CurrentBindingToolTipText = [InArgs]()
+		{
+			ECurrentValueType CurrentValueType = ECurrentValueType::None;
+
+			const FText MultipleValues = LOCTEXT("MultipleValuesToolTip", "Bindings Have Multiple Values");
+			const FText ExposedAsPin = LOCTEXT("ExposedAsPinToolTip", "Exposed As a Pin on the Node");
+			const FText BindValue = LOCTEXT("BindValueToolTip", "Bind This Value");
+			FText CurrentValue;
+			
+			auto SetAssignValue = [&CurrentValueType, &CurrentValue, &MultipleValues](const FText& InValue, ECurrentValueType InType)
+			{
+				if(CurrentValueType != ECurrentValueType::MultipleValues)
+				{
+					if(CurrentValueType == ECurrentValueType::None)
+					{
+						CurrentValueType = InType;
+						CurrentValue = InValue;
+					}
+					else if(CurrentValueType == InType)
+					{
+						if(!CurrentValue.EqualTo(InValue))
+						{
+							CurrentValueType = ECurrentValueType::MultipleValues;
+							CurrentValue = MultipleValues;
+						}
+					}
+					else
+					{
+						CurrentValueType = ECurrentValueType::MultipleValues;
+						CurrentValue = MultipleValues;
+					}
+				}
+			};
+
+			for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+			{
+				if(FAnimGraphNodePropertyBinding* BindingPtr = AnimGraphNode->PropertyBindings.Find(InArgs.PinName))
+				{
+					if(BindingPtr->PathAsText.IsEmpty())
+					{
+						SetAssignValue(BindValue, ECurrentValueType::Binding);
+					}
+					else
+					{
+						const FText& CompilationContext = BindingPtr->CompiledContext;
+						const FText& CompilationContextDesc = BindingPtr->CompiledContextDesc;
+						if(CompilationContext.IsEmpty() && CompilationContextDesc.IsEmpty())
+						{
+							SetAssignValue(FText::Format(LOCTEXT("BindingToolTipFormat", "Pin is bound to property '{0}'"), BindingPtr->PathAsText), ECurrentValueType::Binding);
+						}
+						else
+						{
+							SetAssignValue(FText::Format(LOCTEXT("BindingToolTipFormatWithDesc", "Pin is bound to property '{0}'\n{1}\n{2}"), BindingPtr->PathAsText, CompilationContext, CompilationContextDesc), ECurrentValueType::Binding);
+						}
+					}
+				}
+				else
+				{
+					if(AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin)
+					{
+						SetAssignValue(InArgs.bOnGraphNode ? BindValue : ExposedAsPin, ECurrentValueType::Pin);
+					}
+					else
+					{
+						SetAssignValue(BindValue, ECurrentValueType::None);
+					}
+				}
+			}
+
+			return CurrentValue;
+		};
+
+		auto CurrentBindingImage = [InArgs, bIsArrayElement]() -> const FSlateBrush*
+		{
+			static FName PropertyIcon(TEXT("Kismet.VariableList.TypeIcon"));
+			static FName FunctionIcon(TEXT("GraphEditor.Function_16x"));
+
+			EAnimGraphNodePropertyBindingType BindingType = EAnimGraphNodePropertyBindingType::None;
+			for(UObject* OuterObject : InArgs.Nodes)
+			{
+				if(UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(OuterObject))
+				{
+					if(AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin)
+					{
+						BindingType = EAnimGraphNodePropertyBindingType::None;
+						break;
+					}
+					else if(FAnimGraphNodePropertyBinding* BindingPtr = AnimGraphNode->PropertyBindings.Find(InArgs.PinName))
+					{
+						if(BindingType == EAnimGraphNodePropertyBindingType::None)
+						{
+							BindingType = BindingPtr->Type;
+						}
+						else if(BindingType != BindingPtr->Type)
+						{
+							BindingType = EAnimGraphNodePropertyBindingType::None;
+							break;
+						}
+					}
+					else if(BindingType != EAnimGraphNodePropertyBindingType::None)
+					{
+						BindingType = EAnimGraphNodePropertyBindingType::None;
+						break;
+					}
+				}
+			}
+
+			if (BindingType == EAnimGraphNodePropertyBindingType::Function)
+			{
+				return FEditorStyle::GetBrush(FunctionIcon);
+			}
+			else
+			{
+				const UAnimationGraphSchema* AnimationGraphSchema = GetDefault<UAnimationGraphSchema>();
+				FEdGraphPinType PinType;
+				FProperty* PropertyToUse = bIsArrayElement ? CastFieldChecked<FArrayProperty>(InArgs.PinProperty)->Inner : InArgs.PinProperty;
+				if(AnimationGraphSchema->ConvertPropertyToPinType(PropertyToUse, PinType))
+				{
+					return FBlueprintEditorUtils::GetIconFromPin(PinType, false);
+				}
+				else
+				{
+					return FEditorStyle::GetBrush(PropertyIcon);
+				}
+			}
+		};
+
+		auto CurrentBindingColor = [InArgs, BindingProperty]() -> FLinearColor
+		{
+			const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+
+			FEdGraphPinType PinType;
+			Schema->ConvertPropertyToPinType(BindingProperty, PinType);
+			FLinearColor BindingColor = Schema->GetPinTypeColor(PinType);
+
+			enum class EPromotionState
+			{
+				NotChecked,
+				NotPromoted,
+				Promoted,
+			} Promotion = EPromotionState::NotChecked;
+
+			for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+			{
+				if(AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin)
+				{
+					if(Promotion == EPromotionState::NotChecked)
+					{
+						Promotion = EPromotionState::NotPromoted;
+					}
+					else if(Promotion == EPromotionState::Promoted)
+					{
+						BindingColor = FLinearColor::Gray;
+						break;
+					}
+				}
+				else if(FAnimGraphNodePropertyBinding* BindingPtr = AnimGraphNode->PropertyBindings.Find(InArgs.PinName))
+				{
+					if(Promotion == EPromotionState::NotChecked)
+					{
+						if(BindingPtr->bIsPromotion)
+						{
+							Promotion = EPromotionState::Promoted;
+							BindingColor = Schema->GetPinTypeColor(BindingPtr->PromotedPinType);
+						}
+						else
+						{
+							Promotion = EPromotionState::NotPromoted;
+						}
+					}
+					else
+					{
+						EPromotionState NewPromotion = BindingPtr->bIsPromotion ? EPromotionState::Promoted : EPromotionState::NotPromoted;
+						if(Promotion != NewPromotion)
+						{
+							BindingColor = FLinearColor::Gray;
+							break;
+						}
+					}
+				}
+			}
+
+			return BindingColor;
+		};
+
+		auto AddMenuExtension = [InArgs, Blueprint](FMenuBuilder& InMenuBuilder)
+		{
+			InMenuBuilder.BeginSection("Pins", LOCTEXT("Pin", "Pin"));
+			{
+				InMenuBuilder.AddMenuEntry(
+					LOCTEXT("ExposeAsPin", "Expose As Pin"),
+					LOCTEXT("ExposeAsPinTooltip", "Show/hide this property as a pin on the node"),
+					FSlateIcon("EditorStyle", "GraphEditor.PinIcon"),
+					FUIAction(
+						FExecuteAction::CreateLambda([InArgs, Blueprint]()
+						{
+							bool bHasBinding = false;
+
+							// Comparison without name index to deal with arrays
+							const FName ComparisonName = FName(InArgs.PinName, 0);
+							
+							for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+							{
+								for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : AnimGraphNode->PropertyBindings)
+								{
+									if(ComparisonName == FName(BindingPair.Key, 0))
+									{
+										bHasBinding = true;
+										break;
+									}
+								}
+							}
+
+							{
+								FScopedTransaction Transaction(LOCTEXT("PinExposure", "Pin Exposure"));
+
+								// Switching from non-pin to pin, remove any bindings
+								for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+								{
+									AnimGraphNode->Modify();
+
+									bool bVisible = AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin;
+									AnimGraphNode->SetPinVisibility(!bVisible || bHasBinding, InArgs.OptionalPinIndex);
+
+									// Remove all bindings that match the property, array or array elements
+									for(auto It = AnimGraphNode->PropertyBindings.CreateIterator(); It; ++It)
+									{
+										if(ComparisonName == FName(It.Key(), 0))
+										{
+											It.RemoveCurrent();
+										}
+									}
+								}
+
+								FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+							}
+						}),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateLambda([InArgs]()
+						{
+							bool bPinShown = false;
+							bool bHasBinding = false;
+
+							// Comparison without name index to deal with arrays
+							const FName ComparisonName = FName(InArgs.PinName, 0);
+							
+							for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+							{
+								for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : AnimGraphNode->PropertyBindings)
+								{
+									if(ComparisonName == FName(BindingPair.Key, 0))
+									{
+										bHasBinding = true;
+										break;
+									}
+								}
+								
+								bPinShown |= AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin;
+							}
+
+							// Pins are exposed if we have a binding or not, so treat as unchecked only if we have
+							// no binding
+							return bPinShown && !bHasBinding ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						})
+					),
+					NAME_None,
+					EUserInterfaceActionType::Check
+				);
+			}
+			InMenuBuilder.EndSection();
+		};
+
+		FPropertyBindingWidgetArgs Args;
+		Args.Property = BindingProperty;
+		Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda(OnCanBindProperty);
+		Args.OnCanBindFunction = FOnCanBindFunction::CreateLambda(OnCanBindFunction);
+		Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([](UClass* InClass){ return true; });
+		Args.OnAddBinding = FOnAddBinding::CreateLambda(OnAddBinding);
+		Args.OnRemoveBinding = FOnRemoveBinding::CreateLambda(OnRemoveBinding);
+		Args.OnCanRemoveBinding = FOnCanRemoveBinding::CreateLambda(CanRemoveBinding);
+		Args.CurrentBindingText = MakeAttributeLambda(CurrentBindingText);
+		Args.CurrentBindingToolTipText = MakeAttributeLambda(CurrentBindingToolTipText);
+		Args.CurrentBindingImage = MakeAttributeLambda(CurrentBindingImage);
+		Args.CurrentBindingColor = MakeAttributeLambda(CurrentBindingColor);
+		Args.MenuExtender = MakeShared<FExtender>();
+		Args.MenuExtender->AddMenuExtension("BindingActions", EExtensionHook::Before, nullptr, FMenuExtensionDelegate::CreateLambda(AddMenuExtension));
+
+		IPropertyAccessBlueprintBinding::FContext BindingContext;
+		BindingContext.Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(FirstAnimGraphNode);
+		BindingContext.Graph = FirstAnimGraphNode->GetGraph();
+		BindingContext.Node = FirstAnimGraphNode;
+		BindingContext.Pin = FirstAnimGraphNode->FindPin(InArgs.PinName);
+
+		auto OnSetPropertyAccessContextId = [InArgs, Blueprint](const FName& InContextId)
+		{
+			for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+			{
+				if(FAnimGraphNodePropertyBinding* Binding = AnimGraphNode->PropertyBindings.Find(InArgs.PinName))
+				{
+					AnimGraphNode->Modify();
+					Binding->ContextId = InContextId;
+				}
+			}
+
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		};
+
+		auto OnCanSetPropertyAccessContextId = [InArgs, FirstAnimGraphNode](const FName& InContextId)
+		{
+			return FirstAnimGraphNode->PropertyBindings.Find(InArgs.PinName) != nullptr;
+		};
+		
+		auto OnGetPropertyAccessContextId = [InArgs]() -> FName
+		{
+			FName CurrentContext = NAME_None;
+			for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+			{
+				if(FAnimGraphNodePropertyBinding* Binding = AnimGraphNode->PropertyBindings.Find(InArgs.PinName))
+				{
+					if(CurrentContext != NAME_None && CurrentContext != Binding->ContextId)
+					{
+						return NAME_None;
+					}
+					else
+					{
+						CurrentContext = Binding->ContextId;
+					}
+				}
+			}
+		
+			return CurrentContext;
+		};
+		
+		IPropertyAccessBlueprintBinding::FBindingMenuArgs MenuArgs;
+		MenuArgs.OnSetPropertyAccessContextId = FOnSetPropertyAccessContextId::CreateLambda(OnSetPropertyAccessContextId);
+		MenuArgs.OnCanSetPropertyAccessContextId = FOnCanSetPropertyAccessContextId::CreateLambda(OnCanSetPropertyAccessContextId);
+		MenuArgs.OnGetPropertyAccessContextId = FOnGetPropertyAccessContextId::CreateLambda(OnGetPropertyAccessContextId);
+		
+		// Add the binding menu extenders
+		TArray<TSharedPtr<FExtender>> Extenders;
+		for(IPropertyAccessBlueprintBinding* Binding : IModularFeatures::Get().GetModularFeatureImplementations<IPropertyAccessBlueprintBinding>("PropertyAccessBlueprintBinding"))
+		{
+			TSharedPtr<FExtender> BindingExtender = Binding->MakeBindingMenuExtender(BindingContext, MenuArgs);
+			if(BindingExtender)
+			{
+				Extenders.Add(BindingExtender);
+			}
+		}
+		
+		if(Extenders.Num() > 0)
+		{
+			Args.MenuExtender = FExtender::Combine(Extenders);
+		}
+
+		Args.bAllowNewBindings = false;
+		Args.bAllowArrayElementBindings = !bIsArray;
+		Args.bAllowUObjectFunctions = !bIsArray;
+		Args.bAllowStructFunctions = !bIsArray;
+
+		IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+
+		const FTextBlockStyle& TextBlockStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("PropertyAccess.CompiledContext.Text");
+		
+		return
+			SNew(SBox)
+			.MaxDesiredWidth(200.0f)
+			[
+				SNew(SOverlay)
+				+SOverlay::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
+				[
+					SNew(SBorder)
+					.Padding(FMargin(1.0f, 3.0f, 1.0f, 1.0f))
+					.Visibility(InArgs.bOnGraphNode ? EVisibility::Visible : EVisibility::Collapsed)
+					.BorderImage(FEditorStyle::GetBrush("PropertyAccess.CompiledContext.Border"))
+					.RenderTransform_Lambda([InArgs, FirstAnimGraphNode, &TextBlockStyle]()
+					{
+						const FAnimGraphNodePropertyBinding* BindingPtr = FirstAnimGraphNode->PropertyBindings.Find(InArgs.PinName);
+						FVector2D TextSize(0.0f, 0.0f);
+						if(BindingPtr)
+						{
+							const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+							TextSize = FontMeasureService->Measure(BindingPtr->CompiledContext, TextBlockStyle.Font);
+						}
+						return FSlateRenderTransform(FVector2D(0.0f, TextSize.Y - 1.0f));
+					})	
+					[
+						SNew(STextBlock)
+						.TextStyle(&TextBlockStyle)
+						.Visibility_Lambda([InArgs, FirstAnimGraphNode, bMultiSelect]()
+						{
+							const FAnimGraphNodePropertyBinding* BindingPtr = FirstAnimGraphNode->PropertyBindings.Find(InArgs.PinName);
+							return bMultiSelect || BindingPtr == nullptr || BindingPtr->CompiledContext.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+						})
+						.Text_Lambda([InArgs, FirstAnimGraphNode]()
+						{
+							const FAnimGraphNodePropertyBinding* BindingPtr = FirstAnimGraphNode->PropertyBindings.Find(InArgs.PinName);
+							return BindingPtr != nullptr ? BindingPtr->CompiledContext : FText::GetEmpty();
+						})
+					]
+				]
+				+SOverlay::Slot()
+				[
+					PropertyAccessEditor.MakePropertyBindingWidget(Blueprint, Args)
+				]	
+			];
+	}
+	else
+	{
+		return SNew(SSpacer);
 	}
 }
 

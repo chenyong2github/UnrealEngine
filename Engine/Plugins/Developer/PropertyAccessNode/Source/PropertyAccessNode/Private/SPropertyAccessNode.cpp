@@ -8,9 +8,16 @@
 #include "IPropertyAccessEditor.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "K2Node_PropertyAccess.h"
+#include "SGraphPin.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Features/IModularFeatures.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Layout/SWrapBox.h"
+#include "Features/IModularFeatures.h"
+#include "IPropertyAccessBlueprintBinding.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "SPropertyAccessNode"
 
@@ -71,8 +78,11 @@ bool SPropertyAccessNode::CanBindProperty(FProperty* InProperty) const
 	return false;
 }
 
-void SPropertyAccessNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> InMainBox)
+TSharedPtr<SGraphPin> SPropertyAccessNode::CreatePinWidget(UEdGraphPin* Pin) const
 {
+	TSharedPtr<SGraphPin> DefaultWidget = SGraphNodeK2Var::CreatePinWidget(Pin);
+	DefaultWidget->SetShowLabel(false);
+	
 	UK2Node_PropertyAccess* K2Node_PropertyAccess = CastChecked<UK2Node_PropertyAccess>(GraphNode);
 
 	FPropertyBindingWidgetArgs Args;
@@ -104,12 +114,15 @@ void SPropertyAccessNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> InMain
 			TArray<FString> StringPath;
 			PropertyAccessEditor.MakeStringPath(InBindingChain, StringPath);
 			K2Node_PropertyAccess->SetPath(MoveTemp(StringPath));
+
+			FBlueprintEditorUtils::MarkBlueprintAsModified(K2Node_PropertyAccess->GetBlueprint());
 		}
 	});
 
 	Args.OnRemoveBinding = FOnRemoveBinding::CreateLambda([K2Node_PropertyAccess](FName InPropertyName)
 	{
-		return K2Node_PropertyAccess->ClearPath();
+		K2Node_PropertyAccess->ClearPath();
+		FBlueprintEditorUtils::MarkBlueprintAsModified(K2Node_PropertyAccess->GetBlueprint());
 	});
 
 	Args.OnCanRemoveBinding = FOnCanRemoveBinding::CreateLambda([K2Node_PropertyAccess](FName InPropertyName)
@@ -123,6 +136,28 @@ void SPropertyAccessNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> InMain
 		return TextPath.IsEmpty() ? LOCTEXT("Bind", "Bind") : TextPath;
 	});
 
+	Args.CurrentBindingToolTipText = MakeAttributeLambda([K2Node_PropertyAccess]()
+	{
+		const FText& TextPath = K2Node_PropertyAccess->GetTextPath();
+		if(TextPath.IsEmpty())
+		{
+			return LOCTEXT("EmptyBinding", "Access is not bound to anything");
+		}
+		else
+		{
+			const FText& CompilationContext = K2Node_PropertyAccess->GetCompiledContext();
+			const FText& CompilationContextDesc = K2Node_PropertyAccess->GetCompiledContextDesc();
+			if(CompilationContext.IsEmpty() && CompilationContextDesc.IsEmpty())
+			{
+				return TextPath;
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("CompiledAccessToolTipFormat", "Access property '{0}'\n{1}\n{2}"), TextPath, CompilationContext, CompilationContextDesc);
+			}
+		}
+	});
+	
 	Args.CurrentBindingImage = MakeAttributeLambda([K2Node_PropertyAccess]()
 	{
 		if(const FProperty* Property = K2Node_PropertyAccess->GetResolvedProperty())
@@ -163,9 +198,47 @@ void SPropertyAccessNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> InMain
 		}
 	});
 
+	IPropertyAccessBlueprintBinding::FContext BindingContext;
+	BindingContext.Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(K2Node_PropertyAccess);
+	BindingContext.Graph = K2Node_PropertyAccess->GetGraph();
+	BindingContext.Node = K2Node_PropertyAccess;
+	BindingContext.Pin = K2Node_PropertyAccess->FindPin(TEXT("Value"));
+
+	IPropertyAccessBlueprintBinding::FBindingMenuArgs MenuArgs;
+	MenuArgs.OnSetPropertyAccessContextId = FOnSetPropertyAccessContextId::CreateLambda([K2Node_PropertyAccess](const FName& InContextId)
+	{
+		K2Node_PropertyAccess->SetContextId(InContextId);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(K2Node_PropertyAccess->GetBlueprint());
+	});
+	MenuArgs.OnCanSetPropertyAccessContextId = FOnCanSetPropertyAccessContextId::CreateLambda([K2Node_PropertyAccess](const FName& InContextId)
+	{
+		return K2Node_PropertyAccess->HasResolvedPinType();
+	});	
+	MenuArgs.OnGetPropertyAccessContextId = FOnGetPropertyAccessContextId::CreateLambda([K2Node_PropertyAccess]()
+	{
+		return K2Node_PropertyAccess->GetContextId();
+	});
+	
+	// Check any property access blueprint bindings we might have registered for menu extenders
+	TArray<TSharedPtr<FExtender>> Extenders;
+	for(IPropertyAccessBlueprintBinding* Binding : IModularFeatures::Get().GetModularFeatureImplementations<IPropertyAccessBlueprintBinding>("PropertyAccessBlueprintBinding"))
+	{
+		TSharedPtr<FExtender> BindingExtender = Binding->MakeBindingMenuExtender(BindingContext, MenuArgs);
+		if(BindingExtender)
+		{
+			Extenders.Add(BindingExtender);
+		}
+	}
+	
+	if(Extenders.Num() > 0)
+	{
+		Args.MenuExtender = FExtender::Combine(Extenders);
+	}
+
 	Args.bAllowArrayElementBindings = true;
 	Args.bAllowNewBindings = false;
 	Args.bAllowUObjectFunctions = true;
+	Args.bAllowStructFunctions = true;
 
 	TSharedPtr<SWidget> PropertyBindingWidget;
 
@@ -179,8 +252,11 @@ void SPropertyAccessNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> InMain
 		PropertyBindingWidget = SNullWidget::NullWidget;
 	}
 
-	InMainBox->AddSlot()
-	.AutoHeight()
+	TSharedRef<SWrapBox> LabelAndValue = DefaultWidget->GetLabelAndValue();
+
+	const FTextBlockStyle& TextBlockStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("PropertyAccess.CompiledContext.Text");
+	
+	LabelAndValue->AddSlot()
 	.Padding(5.0f)
 	[
 		SNew(SLevelOfDetailBranchNode)
@@ -191,9 +267,41 @@ void SPropertyAccessNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> InMain
 		]
 		.HighDetail()
 		[
-			PropertyBindingWidget.ToSharedRef()
+			SNew(SOverlay)
+			+SOverlay::Slot()
+			[
+				PropertyBindingWidget.ToSharedRef()
+			]
+			+SOverlay::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Bottom)
+			[
+				SNew(SBorder)
+				.Padding(1.0f)
+				.BorderImage(FEditorStyle::GetBrush("PropertyAccess.CompiledContext.Border"))
+				.RenderTransform_Lambda([K2Node_PropertyAccess, &TextBlockStyle]()
+				{
+					const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+					FVector2D TextSize = FontMeasureService->Measure(K2Node_PropertyAccess->GetCompiledContext(), TextBlockStyle.Font);
+					return FSlateRenderTransform(FVector2D(0.0f, TextSize.Y));
+				})	
+				[
+					SNew(STextBlock)
+					.TextStyle(&TextBlockStyle)
+					.Visibility_Lambda([K2Node_PropertyAccess]()
+					{
+						return K2Node_PropertyAccess->GetCompiledContext().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+					})
+					.Text_Lambda([K2Node_PropertyAccess]()
+					{
+						return K2Node_PropertyAccess->GetCompiledContext();
+					})
+				]
+			]
 		]
 	];
+	
+	return DefaultWidget;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -10,6 +10,7 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimNodeBase.h"
 #include "Editor.h"
+#include "IPropertyAccessEditor.h"
 #include "K2Node.h"
 #include "AnimGraphNode_Base.generated.h"
 
@@ -22,7 +23,6 @@ class IDetailLayoutBuilder;
 class UAnimGraphNode_Base;
 class UEdGraphSchema;
 class USkeletalMeshComponent;
-class IAnimBlueprintCompilerHandlerCollection;
 class IAnimBlueprintGeneratedClassCompiledData;
 class IAnimBlueprintCompilationContext;
 class IAnimBlueprintCopyTermDefaultsContext;
@@ -148,6 +148,9 @@ struct FAnimGraphNodePropertyBinding
 	UPROPERTY()
 	FName PropertyName;
 
+	UPROPERTY()
+	int32 ArrayIndex = INDEX_NONE;
+	
 	/** The property path as text */
 	UPROPERTY()
 	FText PathAsText;
@@ -156,6 +159,16 @@ struct FAnimGraphNodePropertyBinding
 	UPROPERTY()
 	TArray<FString> PropertyPath;
 
+	/** The context of the binding */
+	UPROPERTY()
+	FName ContextId;
+
+	UPROPERTY()
+	FText CompiledContext;
+
+	UPROPERTY()
+	FText CompiledContextDesc;
+	
 	/** Whether the binding is a function or not */
 	UPROPERTY()
 	EAnimGraphNodePropertyBindingType Type = EAnimGraphNodePropertyBindingType::Property;
@@ -386,11 +399,42 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	// @return the proxy for attribute display
 	virtual const UAnimGraphNode_Base* GetProxyNodeForAttributes() const { return this; }
 
+	// Sets the visibility of the specified pin, reconstructs the node if it changes
+	void SetPinVisibility(bool bInVisible, int32 InOptionalPinIndex);
+
+	// Arguments used to construct a property binding widget
+	struct FAnimPropertyBindingWidgetArgs
+	{
+		FAnimPropertyBindingWidgetArgs(const TArray<UAnimGraphNode_Base*>& InNodes, FProperty* InPinProperty, FName InPinName, int32 InOptionalPinIndex)
+			: Nodes(InNodes)
+			, PinProperty(InPinProperty)
+			, PinName(InPinName)
+			, OptionalPinIndex(InOptionalPinIndex)
+			, bOnGraphNode(true)
+		{
+		}
+
+		// The nodes to display the binding for
+		TArray<UAnimGraphNode_Base*> Nodes;
+		// The pin property for this binding
+		FProperty* PinProperty;
+		// The name of the pin
+		FName PinName;
+		// The optional pin index that refers to this pin
+		int32 OptionalPinIndex;
+		// Whether this is for display on a graph node
+		bool bOnGraphNode;
+	};
+	
+	// Make a property binding widget to edit the bindings of the passed-in nodes
+	static TSharedRef<SWidget> MakePropertyBindingWidget(const FAnimPropertyBindingWidgetArgs& InArgs);
+	
 protected:
 	friend class FAnimBlueprintCompilerContext;
 	friend class FAnimGraphNodeDetails;
 	friend class UAnimBlueprintExtension;
 	friend class UAnimBlueprintExtension_Base;
+	friend class SAnimationGraphNode;
 
 	// Gets the animation FNode type represented by this ed graph node
 	UScriptStruct* GetFNodeType() const;
@@ -430,6 +474,9 @@ protected:
 
 	// Override point for OverrideAssets
 	virtual void OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const {}
+
+	// Whether this node should create BP evaluation handlers as part of compilation
+	virtual bool ShouldCreateStructEvalHandlers() const { return true; }
 	
 	// Allocates or reallocates pins
 	void InternalPinCreation(TArray<UEdGraphPin*>* OldPins);
