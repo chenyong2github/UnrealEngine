@@ -163,7 +163,7 @@ class GateHandler implements BotEventHandler {
 	}
 
 	onEndIntegratingToGate(arg: EndIntegratingToGateEvent) {
-		const suffix = arg.targetCl > 0 ? ` (-> #${arg.targetCl})` : ''
+		const suffix = arg.targetCl > 0 ? ` (-> @${arg.targetCl})` : ''
 		this.logger.info(GateHandler.logStringFor(arg.context) + ' caught up' + suffix)
 		const pauseRefresher = this.pausedFlows.get(arg.context.to.upperName)
 		if (pauseRefresher) {
