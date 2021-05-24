@@ -12,6 +12,7 @@
 #include "WindowsMixedRealityInteropUtility.h"
 
 #include "HoloLensARFunctionLibrary.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
 
 #include "Misc/ConfigCacheIni.h"
 #include "Async/Async.h"
@@ -54,6 +55,9 @@ struct FMeshUpdate
 	// The interop fills these in directly
 	TArray<FVector> Vertices;
 	TArray<MRMESH_INDEX_TYPE> Indices;
+	TArray<FVector> Normals;
+
+	bool bIsRightHandMesh;
 };
 
 /** A set of updates to be processed at once */
@@ -98,11 +102,15 @@ FHoloLensARSystem::FHoloLensARSystem()
 	, SessionConfig(nullptr)
 {
 	SpawnARActorDelegateHandle = UARLifeCycleComponent::OnSpawnARActorDelegate.AddRaw(this, &FHoloLensARSystem::OnSpawnARActor);
+	HandMeshes.Init(FMeshUpdate(), 2);
+
+	IModularFeatures::Get().RegisterModularFeature(IHandTracker::GetModularFeatureName(), static_cast<IHandTracker*>(this));
 }
 
 FHoloLensARSystem::~FHoloLensARSystem()
 {
 	UARLifeCycleComponent::OnSpawnARActorDelegate.Remove(SpawnARActorDelegateHandle);
+	IModularFeatures::Get().UnregisterModularFeature(IHandTracker::GetModularFeatureName(), static_cast<IHandTracker*>(this));
 }
 
 void FHoloLensARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMode::ThreadSafe> InTrackingSystem)
@@ -497,6 +505,41 @@ bool FHoloLensARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureTyp
 			else
 			{
 				return WMRInterop->StopSpatialMapping();
+			}
+			break;
+		case EARCaptureType::HandMesh:
+			if (bOnOff)
+			{
+				if (!WMRInterop)
+				{
+					return false;
+				}
+
+				if (WMRInterop->IsRemoting())
+				{
+					// Hand mesh is not supported over remoting
+					return true;
+				}
+
+				bShowHandMeshes = true;
+				return WMRInterop->StartHandMesh(&StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &EndMeshUpdates_Raw);
+			}
+			else
+			{
+				if (!WMRInterop)
+				{
+					return false;
+				}
+
+				if (WMRInterop->IsRemoting())
+				{
+					// Hand mesh is not supported over remoting
+					return true;
+				}
+
+				bShowHandMeshes = false;
+				WMRInterop->StopHandMesh();
+				return true;
 			}
 			break;
 	}
@@ -964,6 +1007,7 @@ void FHoloLensARSystem::AllocateMeshBuffers(MeshUpdate* InMeshUpdate)
 {
 	// Allocate our memory for the mesh update
 	FMeshUpdate* MeshUpdate = new FMeshUpdate();
+
 	MeshUpdate->Id = GUIDToFGuid(InMeshUpdate->Id);
 	switch (InMeshUpdate->Type)
 	{
@@ -983,6 +1027,14 @@ void FHoloLensARSystem::AllocateMeshBuffers(MeshUpdate* InMeshUpdate)
 		InMeshUpdate->Vertices = MeshUpdate->Vertices.GetData();
 		MeshUpdate->Indices.AddUninitialized(InMeshUpdate->NumIndices);
 		InMeshUpdate->Indices = MeshUpdate->Indices.GetData();
+
+		if (InMeshUpdate->NumNormals > 0)
+		{
+			MeshUpdate->Normals.AddUninitialized(InMeshUpdate->NumNormals);
+			InMeshUpdate->Normals = MeshUpdate->Normals.GetData();
+		}
+
+		MeshUpdate->bIsRightHandMesh = InMeshUpdate->IsRightHandMesh;
 
 		const FTransform TrackingToWorldTransform = TrackingSystem->GetTrackingToWorldTransform();
 		
@@ -1068,6 +1120,8 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 {
 	bool bIsAdd = false;
 
+	bool bUseXRVisualizationForThisMesh = CurrentMesh->Type == EARObjectClassification::HandMesh && !bUseLegacyHandMeshVisualization;
+
 	FTrackedGeometryGroup* FoundTrackedGeometryGroup = TrackedGeometryGroups.Find(CurrentMesh->Id);
 	//UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(CurrentMesh->Id);
 	if (FoundTrackedGeometryGroup == nullptr)
@@ -1081,11 +1135,6 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 		check(FoundTrackedGeometryGroup);
 		
 		bIsAdd = true;
-		
-		if (SessionConfig != nullptr)
-		{
-			AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
-		}
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
@@ -1104,6 +1153,19 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 		// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
 		NewUpdatedGeometry->SetObjectClassification(CurrentMesh->Type);
 		
+		if (bUseXRVisualizationForThisMesh)
+		{
+			// The current mesh will be deleted when this function completes, so move relevant data to our cached hand mesh array.
+			int HandIndex = CurrentMesh->bIsRightHandMesh ? 1 : 0;
+			HandMeshes[HandIndex].Vertices = MoveTemp(CurrentMesh->Vertices);
+			HandMeshes[HandIndex].Indices = MoveTemp(CurrentMesh->Indices);
+			HandMeshes[HandIndex].Normals = MoveTemp(CurrentMesh->Normals);
+			HandMeshes[HandIndex].Location = MoveTemp(CurrentMesh->Location);
+			HandMeshes[HandIndex].Rotation = MoveTemp(CurrentMesh->Rotation);
+			HandMeshes[HandIndex].Scale = MoveTemp(CurrentMesh->Scale);
+			return;
+		}
+
 		// Update MRMesh if it's available
 		if (auto MRMesh = NewUpdatedGeometry->GetUnderlyingMesh())
 		{
@@ -1121,7 +1183,14 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 	}
 
 	// Trigger the proper notification delegate
-	if (!bIsAdd)
+	if (bIsAdd)
+	{
+		if (SessionConfig != nullptr)
+		{
+			AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
+		}
+	}
+	else
 	{
 		if (NewUpdatedARComponent)
 		{
@@ -1381,6 +1450,70 @@ void FHoloLensARSystem::ClearTrackedGeometries()
 		}
 	}
 	TrackedGeometryGroups.Empty();
+}
+
+FName FHoloLensARSystem::GetHandTrackerDeviceTypeName() const
+{
+	return FName("WMRHandMeshTracking");
+}
+
+bool FHoloLensARSystem::IsHandTrackingStateValid() const
+{
+	if (!bShowHandMeshes)
+	{
+		return false;
+	}
+
+	for (int i = 0; i < 2; i++)
+	{
+		FXRMotionControllerData data;
+		UHeadMountedDisplayFunctionLibrary::GetMotionControllerData(nullptr, (EControllerHand)i, data);
+		if (data.bValid)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FHoloLensARSystem::HasHandMeshData() const
+{
+	if (!bShowHandMeshes)
+	{
+		return false;
+	}
+
+	return HandMeshes[0].Vertices.Num() > 0
+		|| HandMeshes[1].Vertices.Num() > 0;
+
+	return false;
+}
+
+bool FHoloLensARSystem::GetHandMeshData(EControllerHand Hand, TArray<struct FVector>& OutVertices, TArray<struct FVector>& OutNormals, TArray<int32>& OutIndices, FTransform& OutHandMeshTransform) const
+{
+	FMeshUpdate HandState = HandMeshes[(int)Hand];
+
+	OutIndices.Reset(HandState.Indices.Num());
+	OutVertices.Reset(HandState.Vertices.Num());
+	OutNormals.Reset(HandState.Normals.Num());
+
+	OutHandMeshTransform = FTransform(HandState.Rotation, HandState.Location, HandState.Scale);
+
+	OutIndices.AddUninitialized(HandState.Indices.Num());
+	OutVertices.AddUninitialized(HandState.Vertices.Num());
+	OutNormals.AddUninitialized(HandState.Normals.Num());
+
+	OutVertices = CopyTemp(HandState.Vertices);
+	OutNormals = CopyTemp(HandState.Normals);
+
+	auto DestIndices = OutIndices.GetData();
+	for (size_t i = 0; i < HandState.Indices.Num(); i++)
+	{
+		DestIndices[i] = HandState.Indices[i];
+	}
+
+	return true;
 }
 
 /** Used to run Exec commands */

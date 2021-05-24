@@ -285,6 +285,7 @@ private:
 	class IOpenXRCustomCaptureSupport* CamCapture = nullptr;
 	class IOpenXRCustomCaptureSupport* SpatialMappingCapture = nullptr;
 	class IOpenXRCustomCaptureSupport* SceneUnderstandingCapture = nullptr;
+	class IOpenXRCustomCaptureSupport* HandMeshCapture = nullptr;
 
 	TArray<IOpenXRCustomCaptureSupport*> CustomCaptureSupports;
 };
