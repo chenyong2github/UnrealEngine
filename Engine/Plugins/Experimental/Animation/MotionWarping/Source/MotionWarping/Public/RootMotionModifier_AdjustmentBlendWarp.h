@@ -41,7 +41,7 @@ struct FMotionDeltaTrackContainer
 	}
 };
 
-UCLASS()
+UCLASS(meta = (DisplayName = "Adjustment Blend Warp"))
 class MOTIONWARPING_API URootMotionModifier_AdjustmentBlendWarp : public URootMotionModifier_Warp
 {
 	GENERATED_BODY()
