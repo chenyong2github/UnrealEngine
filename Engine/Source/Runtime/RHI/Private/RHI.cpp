@@ -2030,7 +2030,6 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 	bSupportsMSAA = true;
 
 	bNeedsToSwitchVerticalAxisOnMobileOpenGL = true;
-	bSupportsHairStrandGeometry = true;
 	bSupportsDOFHybridScattering = true;
 	bSupportsHZBOcclusion = true;
 	bSupportsWaterIndirectDraw = true;
