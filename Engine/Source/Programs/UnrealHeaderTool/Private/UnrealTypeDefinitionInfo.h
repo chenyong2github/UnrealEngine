@@ -343,8 +343,6 @@ public:
 		return Outer;
 	}
 
-	static FString GetNameWithPrefix(const UClass* Class, EEnforceInterfacePrefix EnforceInterfacePrefix = EEnforceInterfacePrefix::None);
-
 protected:
 	explicit FUnrealTypeDefinitionInfo(FString&& InNameCPP)
 		: NameCPP(MoveTemp(InNameCPP))
@@ -621,6 +619,20 @@ public:
 	FName GetFName() const
 	{
 		return GetObject()->GetFName();
+	}
+
+	/**
+	 * Returns the fully qualified pathname for this object, in the format:
+	 * 'Outermost.[Outer:]Name'
+	 *
+	 * @param	StopOuter	if specified, indicates that the output string should be relative to this object.  if StopOuter
+	 *						does not exist in this object's Outer chain, the result would be the same as passing NULL.
+	 *
+	 * @note	safe to call on NULL object pointers!
+	 */
+	FString GetPathName(const FUnrealObjectDefinitionInfo* StopOuter = nullptr) const
+	{
+		return GetObject()->GetPathName(StopOuter ? StopOuter->GetObject() : nullptr);
 	}
 
 	/**
@@ -1195,6 +1207,14 @@ public:
 	}
 
 	/**
+	 * Return the CPP prefix 
+	 */
+	const TCHAR* GetPrefixCPP() const
+	{
+		return GetStruct()->GetPrefixCPP();
+	}
+
+	/**
 	 * Returns the name used for declaring the passed in struct in C++
 	 * 
 	 * NOTE: This does not match the CPP name parsed from the header file.
@@ -1204,8 +1224,7 @@ public:
 	 */
 	FString GetAlternateNameCPP(bool bForceInterface = false)
 	{
-		UStruct* Struct = GetStruct();
-		return FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()), *Struct->GetName());
+		return FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : GetPrefixCPP()), *GetName());
 	}
 
 	/**
@@ -1705,6 +1724,17 @@ public:
 		return static_cast<UClass*>(GetObject());
 	}
 
+	/**
+	 * Set the Engine instance associated with the compiler instance
+	 */
+	virtual void SetObject(UObject* InObject) override
+	{
+		UClass* Class = static_cast<UClass*>(InObject);
+		InitialEngineClassFlags = Class->ClassFlags;
+		Class->ClassFlags |= ParsedClassFlags;
+		FUnrealStructDefinitionInfo::SetObject(InObject);
+	}
+
 	FUnrealClassDefinitionInfo* GetSuperClass() const
 	{
 		if (FUnrealStructDefinitionInfo* SuperClass = GetSuperStructInfo().Struct)
@@ -1755,15 +1785,40 @@ public:
 	}
 
 	/**
+	 * Return the flags that were parsed as part of the pre-parse phase
+	 */
+	EClassFlags GetClassFlags() const
+	{
+		return GetClass()->ClassFlags;
+	}
+
+	/**
+	 * Sets the given flags
+	 */
+	void SetClassFlags(EClassFlags FlagsToSet)
+	{
+		GetClass()->ClassFlags |= FlagsToSet;
+	}
+
+	/**
+	 * Clears the given flags
+	 */
+	void ClearClassFlags(EClassFlags FlagsToClear)
+	{
+		GetClass()->ClassFlags &= ~FlagsToClear;
+	}
+
+	/**
 	 * Used to safely check whether the passed in flag is set.
 	 *
 	 * @param	FlagsToCheck		Class flag(s) to check for
 	 * @return	true if the passed in flag is set, false otherwise
 	 *			(including no flag passed in, unless the FlagsToCheck is CLASS_AllFlags)
 	 */
-	FORCEINLINE bool HasAnyClassFlags(EClassFlags FlagsToCheck) const
+	bool HasAnyClassFlags(EClassFlags FlagsToCheck) const
 	{
-		return EnumHasAnyFlags(ClassFlags, FlagsToCheck) != 0 || GetClass()->HasAnyClassFlags(FlagsToCheck);
+
+		return EnumHasAnyFlags(ParsedClassFlags, FlagsToCheck) || GetClass()->HasAnyClassFlags(FlagsToCheck);
 	}
 
 	/**
@@ -1772,19 +1827,9 @@ public:
 	 * @param FlagsToCheck	Class flags to check for
 	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
 	 */
-	FORCEINLINE bool HasAllClassFlags(EClassFlags FlagsToCheck) const
+	bool HasAllClassFlags(EClassFlags FlagsToCheck) const
 	{
-		return EnumHasAllFlags(ClassFlags, FlagsToCheck) || GetClass()->HasAllClassFlags(FlagsToCheck);
-	}
-
-	/**
-	 * Gets the class flags.
-	 *
-	 * @return	The class flags.
-	 */
-	FORCEINLINE EClassFlags GetClassFlags() const
-	{
-		return ClassFlags;
+		return EnumHasAllFlags(ParsedClassFlags, FlagsToCheck) || GetClass()->HasAllClassFlags(FlagsToCheck);
 	}
 
 	/**
@@ -1825,6 +1870,23 @@ public:
 	}
 
 	/**
+	 * Return the flags that were parsed as part of the pre-parse phase
+	 */
+	EClassFlags GetParsedClassFlags() const
+	{
+		return ParsedClassFlags;
+	}
+
+	/**
+	 * Return the initial flags from the class. These will be set for class definitions created directly from
+	 * existing engine types.
+	 */
+	EClassFlags GetInitialEngineClassFlags() const
+	{
+		return InitialEngineClassFlags;
+	}
+
+	/**
 	* Parse Class's properties to generate its declaration data.
 	*
 	* @param	InClassSpecifiers Class properties collected from its UCLASS macro
@@ -1844,7 +1906,7 @@ public:
 	* @param	DeclaredClassName Name this class was declared with (for validation)
 	* @param	PreviousClassFlags Class flags before resetting the class (for validation)
 	*/
-	void MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags);
+	void MergeAndValidateClassFlags(const FString& DeclaredClassName, EClassFlags PreviousClassFlags);
 
 	/**
 	 * Add the category meta data
@@ -1869,8 +1931,25 @@ public:
 		ClassWithin = InClassWithin;
 	}
 
+	/**
+	 * Get the class config name
+	 */
+	FName GetClassConfigName() const
+	{
+		return GetClass()->ClassConfigName;
+	}
+
+	/**
+	 * Set the class config name
+	 */
+	void SetClassConfigName(FName InClassConfigName)
+	{
+		GetClass()->ClassConfigName = InClassConfigName;
+	}
+
+	FString GetNameWithPrefix(EEnforceInterfacePrefix EnforceInterfacePrefix = EEnforceInterfacePrefix::None) const;
+
 public:
-	EClassFlags ClassFlags = CLASS_None;
 	TMap<FName, FString> MetaData;
 
 private:
@@ -1898,6 +1977,8 @@ private:
 	FString EnclosingDefine;
 	FString ClassWithinStr;
 	FString ConfigName;
+	EClassFlags ParsedClassFlags = CLASS_None;
+	EClassFlags InitialEngineClassFlags = CLASS_None;
 	FUnrealClassDefinitionInfo* ClassWithin = nullptr;
 	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
 	bool bIsInterface = false;
