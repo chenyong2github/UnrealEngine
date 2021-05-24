@@ -85,7 +85,7 @@ public:
 	CUcontext GetCUDAEncoderContext() const;
 #endif
 
-#if !PLATFORM_MAC
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 	VkDevice_T* GetVulkanDevice() const;
 #endif
 
@@ -130,10 +130,12 @@ private:
 	}								FrameInfoCUDA;
 #endif
 
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 	struct FFrameInfoVulkan
 	{
 		VkDevice_T*					VulkanDevice;
 	}								FrameInfoVulkan;
+#endif
 
 	mutable FCriticalSection				ProtectFrames;
 	TQueue<FVideoEncoderInputFrameImpl*>	AvailableFrames;

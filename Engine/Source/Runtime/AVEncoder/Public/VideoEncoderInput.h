@@ -212,7 +212,9 @@ namespace AVEncoder
 		// the callback type used to create a registered encoder
 		using FReleaseVulkanTextureCallback = TFunction<void(VkImage_T*)>;
 
-		void SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
+	void SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+#endif
 
 	protected:
 		FVideoEncoderInputFrame();

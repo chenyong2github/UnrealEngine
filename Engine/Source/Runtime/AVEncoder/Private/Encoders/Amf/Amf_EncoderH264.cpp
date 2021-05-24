@@ -97,7 +97,7 @@ namespace AVEncoder
 			}
 			break;
 #endif
-#if !PLATFORM_MAC
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 		case AVEncoder::EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
 			EncoderDevice = Input->GetVulkanDevice();
 			if (!Amf.bIsCtxInitialized)
