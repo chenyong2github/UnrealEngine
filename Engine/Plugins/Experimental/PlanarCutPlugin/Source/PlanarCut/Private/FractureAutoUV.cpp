@@ -167,19 +167,31 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 	int32 NumTriangles;
 	TArray<FVector3d> GlobalVertices; // vertices transformed to global space
 	TArray<FVector3f> GlobalNormals; // normals transformed to global space
+	int32 UVLayer = 0;
 
 	// Construct a mesh from a geometry collection and a mask of active triangles
-	FGeomMesh(FGeometryCollection* Collection, TArrayView<bool> ActiveTriangles, int32 NumTriangles) 
-		: Collection(Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles)
+	FGeomMesh(int32 UVLayer, FGeometryCollection* Collection, TArrayView<bool> ActiveTriangles, int32 NumTriangles) 
+		: Collection(Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles), UVLayer(UVLayer)
 	{
+		ValidateUVLayer();
 		InitVertices();
 	}
 
 	// Construct a mesh from an existing FGeomMesh and a mask of active triangles
 	FGeomMesh(const FGeomMesh& OtherMesh, TArrayView<bool> ActiveTriangles, int32 NumTriangles)
-		: Collection(OtherMesh.Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles)
+		: Collection(OtherMesh.Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles),
+		  UVLayer(OtherMesh.UVLayer)
 	{
+		ValidateUVLayer();
 		GlobalVertices = OtherMesh.GlobalVertices;
+	}
+
+	void ValidateUVLayer()
+	{
+		if (!ensure(UVLayer >= 0 && UVLayer < Collection->NumUVLayers()))
+		{
+			UVLayer = FMath::Clamp(UVLayer, 0, Collection->NumUVLayers());
+		}
 	}
 
 	void InitVertices()
@@ -217,12 +229,12 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 
 	virtual FVector2f GetUV(int32 EID) const
 	{
-		return FVector2f(Collection->UVs[EID][0]);
+		return FVector2f(Collection->UVs[EID][UVLayer]);
 	}
 
 	virtual void SetUV(int32 EID, FVector2f UVIn)
 	{
-		FVector2D& UV = Collection->UVs[EID][0];
+		FVector2D& UV = Collection->UVs[EID][UVLayer];
 		UV.X = UVIn.X;
 		UV.Y = UVIn.Y;
 	}
@@ -287,10 +299,21 @@ struct FGeomFlatUVMesh
 	FGeometryCollection* Collection;
 	const TArrayView<bool> ActiveTriangles;
 	int32 NumTriangles;
+	int32 UVLayer;
 
-	FGeomFlatUVMesh(FGeometryCollection* Collection, TArrayView<bool> ActiveTriangles, int32 NumTriangles)
-		: Collection(Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles)
-	{}
+	FGeomFlatUVMesh(int32 UVLayer, FGeometryCollection* Collection, TArrayView<bool> ActiveTriangles, int32 NumTriangles)
+		: Collection(Collection), ActiveTriangles(ActiveTriangles), NumTriangles(NumTriangles), UVLayer(UVLayer)
+	{
+		ValidateUVLayer();
+	}
+
+	void ValidateUVLayer()
+	{
+		if (!ensure(UVLayer >= 0 && UVLayer < Collection->NumUVLayers()))
+		{
+			UVLayer = FMath::Clamp(UVLayer, 0, Collection->NumUVLayers());
+		}
+	}
 
 	inline FIndex3i GetTriangle(int32 TID) const
 	{
@@ -299,7 +322,7 @@ struct FGeomFlatUVMesh
 
 	inline FVector3d GetVertex(int32 VID) const
 	{
-		const FVector2D& UV = Collection->UVs[VID][0];
+		const FVector2D& UV = Collection->UVs[VID][UVLayer];
 		return FVector3d(UV.X, UV.Y, 0);
 	}
 
@@ -347,6 +370,7 @@ struct FGeomFlatUVMesh
 
 
 bool UVLayout(
+	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	int32 UVRes,
 	float GutterSize,
@@ -357,7 +381,7 @@ bool UVLayout(
 {
 	TArray<bool> ActiveTriangles;
 	int32 NumActive = SetActiveTriangles(&Collection, ActiveTriangles, true, bOnlyOddMaterials, WhichMaterials);
-	FGeomMesh UVMesh(&Collection, ActiveTriangles, NumActive);
+	FGeomMesh UVMesh(TargetUVLayer, &Collection, ActiveTriangles, NumActive);
 
 	TArray<TArray<int32>> UVIslands;
 	UE::UVPacking::CreateUVIslandsFromMeshTopology<FGeomMesh>(UVMesh, UVIslands);
@@ -475,6 +499,7 @@ bool UVLayout(
 
 
 void TextureInternalSurfaces(
+	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	int32 GutterSize,
 	FIndex4i BakeAttributes,
@@ -486,14 +511,14 @@ void TextureInternalSurfaces(
 {
 	TArray<bool> ToTextureTriangles;
 	int32 NumTextureTris = SetActiveTriangles(&Collection, ToTextureTriangles, true, bOnlyOddMaterials, WhichMaterials);
-	FGeomFlatUVMesh UVMesh(&Collection, ToTextureTriangles, NumTextureTris);
+	FGeomFlatUVMesh UVMesh(TargetUVLayer, &Collection, ToTextureTriangles, NumTextureTris);
 
 	FImageOccupancyMap OccupancyMap;
 	OccupancyMap.GutterSize = GutterSize;
 	OccupancyMap.Initialize(TextureOut.GetDimensions());
 	OccupancyMap.ComputeFromUVSpaceMesh(UVMesh, [](int32 TriangleID) { return TriangleID; });
 
-	FGeomMesh ToTextureMesh(&Collection, ToTextureTriangles, NumTextureTris);
+	FGeomMesh ToTextureMesh(TargetUVLayer, &Collection, ToTextureTriangles, NumTextureTris);
 
 	// Outside triangles are identified by odd material ID
 	TArray<bool> OutsideTriangles;
@@ -536,7 +561,7 @@ void TextureInternalSurfaces(
 			int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
 			FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
 			FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
-			AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, Collection.NumUVLayers());
+			AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, 1, TargetUVLayer); // build an overlay w/ *only* the uv layer we care about
 			FDynamicMeshUVOverlay* UV = Mesh.Attributes()->PrimaryUV();
 			for (int TID : Mesh.TriangleIndicesItr())
 			{
@@ -564,7 +589,6 @@ void TextureInternalSurfaces(
 
 			int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
 			FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
-			FDynamicMeshUVOverlay* UV = Mesh.Attributes()->PrimaryUV();
 
 			FDynamicMeshAABBTree3 Spatial(&Mesh);
 			TFastWindingTree<FDynamicMesh3> FastWinding(&Spatial);
@@ -637,7 +661,6 @@ void TextureInternalSurfaces(
 		{
 			int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
 			FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
-			FDynamicMeshUVOverlay* UV = Mesh.Attributes()->PrimaryUV();
 
 			FDynamicMeshAABBTree3 Spatial(&Mesh);
 
