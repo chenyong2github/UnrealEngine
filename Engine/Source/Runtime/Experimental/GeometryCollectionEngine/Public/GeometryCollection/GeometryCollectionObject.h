@@ -71,31 +71,31 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionLevelSetData
 {
 	GENERATED_BODY()
 
-		FGeometryCollectionLevelSetData();
+	FGeometryCollectionLevelSetData();
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
 	*/
 	UPROPERTY(EditAnywhere, Category = "LevelSet")
-		int32 MinLevelSetResolution;
+	int32 MinLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
 	UPROPERTY(EditAnywhere, Category = "LevelSet")
-		int32 MaxLevelSetResolution;
+	int32 MaxLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
 	*/
 	UPROPERTY(EditAnywhere, Category = "LevelSet")
-		int32 MinClusterLevelSetResolution;
+	int32 MinClusterLevelSetResolution;
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 10)
 	*/
 	UPROPERTY(EditAnywhere, Category = "LevelSet")
-		int32 MaxClusterLevelSetResolution;
+	int32 MaxClusterLevelSetResolution;
 };
 
 
@@ -104,7 +104,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionParticleData
 {
 	GENERATED_BODY()
 
-		FGeometryCollectionCollisionParticleData();
+	FGeometryCollectionCollisionParticleData();
 
 	/**
 	 * Number of particles on the triangulated surface to use for collisions.
@@ -126,7 +126,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionTypeData
 {
 	GENERATED_BODY()
 
-		FGeometryCollectionCollisionTypeData();
+	FGeometryCollectionCollisionTypeData();
 
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
@@ -201,7 +201,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 	 *  Resolution on the smallest axes for the level set. (def: 10)
 	 */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Collision.LevelSet.MaxLevelSetResolution instead."))
-		int32 MaxLevelSetResolution_DEPRECATED;
+	int32 MaxLevelSetResolution_DEPRECATED;
 
 	/*
 	 *  Resolution on the smallest axes for the level set. (def: 5)

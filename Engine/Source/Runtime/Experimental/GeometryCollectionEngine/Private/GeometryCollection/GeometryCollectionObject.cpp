@@ -700,8 +700,12 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		auto HasDefault = [](const TArray<FGeometryCollectionSizeSpecificData>& DatasIn)
 		{
 			for (const FGeometryCollectionSizeSpecificData& Data : DatasIn)
+			{
 				if (FMath::IsNearlyEqual(Data.MaxSize, FLT_MAX))
+				{
 					return true;
+				}
+			}
 			return false;
 		};
 
@@ -721,11 +725,8 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		}
 		check(SizeSpecificData.Num() && SizeSpecificData[0].CollisionShapes.Num());
 
-		if (Ar.IsLoading())
-		{
-			InvalidateCollection();
-			bCreateSimulationData = true;
-		}
+		InvalidateCollection();
+		bCreateSimulationData = true;
 	}
 
 	if (bCreateSimulationData)

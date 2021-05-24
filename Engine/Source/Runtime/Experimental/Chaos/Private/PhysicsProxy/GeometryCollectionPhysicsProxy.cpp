@@ -204,16 +204,16 @@ void PopulateSimulatedParticle(
 	Handle->SetCollisionGroup(CollisionGroup);
 
 	// @todo(GCCollisionShapes) : add support for multiple shapes, currently just one. 
-	FCollectionCollisionTypeData SingleSuportedCollisionTypeData = FCollectionCollisionTypeData();
+	FCollectionCollisionTypeData SingleSupportedCollisionTypeData = FCollectionCollisionTypeData();
 	if (SharedParams.SizeSpecificData.Num() && SharedParams.SizeSpecificData[0].CollisionShapesData.Num())
 	{
-		SingleSuportedCollisionTypeData = SharedParams.SizeSpecificData[0].CollisionShapesData[0];
+		SingleSupportedCollisionTypeData = SharedParams.SizeSpecificData[0].CollisionShapesData[0];
 	}
 
 	if (Implicit)	//todo(ocohen): this is only needed for cases where clusters have no proxy. Kind of gross though, should refactor
 	{
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> SharedImplicitTS(Implicit->DeepCopy().Release());
-		FCollisionStructureManager::UpdateImplicitFlags(SharedImplicitTS.Get(), SingleSuportedCollisionTypeData.CollisionType);
+		FCollisionStructureManager::UpdateImplicitFlags(SharedImplicitTS.Get(), SingleSupportedCollisionTypeData.CollisionType);
 		Handle->SetSharedGeometry(SharedImplicitTS);
 		Handle->SetHasBounds(true);
 		Handle->SetLocalBounds(SharedImplicitTS->BoundingBox());
@@ -223,7 +223,7 @@ void PopulateSimulatedParticle(
 		Handle->SetWorldSpaceInflatedBounds(TransformedBBox);
 	}
 
-	if (Simplicial && SingleSuportedCollisionTypeData.CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric)
+	if (Simplicial && SingleSupportedCollisionTypeData.CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric)
 	{
 		Handle->CollisionParticlesInitIfNeeded();
 
@@ -355,7 +355,7 @@ FAutoConsoleVariableRef CVarReportHighParticleFraction(TEXT("p.gc.ReportHighPart
 void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase *Evolution)
 {
 	check(IsInGameThread());
-										 //
+	//
 	// Game thread initilization. 
 	//
 	//  1) Create a input buffer to store all game thread side data. 
