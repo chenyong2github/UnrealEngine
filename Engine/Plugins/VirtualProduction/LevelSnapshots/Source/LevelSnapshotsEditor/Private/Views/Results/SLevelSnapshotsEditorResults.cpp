@@ -2144,9 +2144,9 @@ bool SLevelSnapshotsEditorResults::FindRowStateMemoryByPath(const FString& InPat
 	if (RowStateMemory.Num())
 	{
 		const AlgoImpl::TRangePointerType<TSet<TSharedPtr<FLevelSnapshotsEditorResultsRowStateMemory>>>::Type& FindResult =
-			Algo::FindByPredicate(RowStateMemory, [&InPath](const TSharedPtr<FLevelSnapshotsEditorResultsRowStateMemory>& RowStateMemory)
+			Algo::FindByPredicate(RowStateMemory, [&InPath](const TSharedPtr<FLevelSnapshotsEditorResultsRowStateMemory>& InRowStateMemory)
 			{
-				return RowStateMemory->PathToRow.Equals(InPath);
+				return InRowStateMemory->PathToRow.Equals(InPath);
 			});
 
 		if (FindResult)
