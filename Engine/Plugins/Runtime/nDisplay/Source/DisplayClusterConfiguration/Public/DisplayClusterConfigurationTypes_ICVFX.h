@@ -244,7 +244,7 @@ public:
 	int RenderFamilyGroup = -1;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraRenderSettings
 {
 	GENERATED_BODY()
@@ -293,23 +293,23 @@ public:
 
 
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraMotionBlur
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay)
 	EDisplayClusterConfigurationCameraMotionBlurMode MotionBlurMode = EDisplayClusterConfigurationCameraMotionBlurMode::Off;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay)
 	float TranslationScale = 1.f;
 
 	// GUI: Add ext camera refs
 };
 
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraSettings
 {
 	GENERATED_BODY()
@@ -338,7 +338,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FVector FrustumOffset = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_CameraMotionBlur CameraMotionBlur;
 
 	// Configure global render settings for this viewports
