@@ -2228,12 +2228,12 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 				FError::Throwf(TEXT("%s must be in the public scope of '%s', not private or protected."), Token.Identifier, *StructNameInScript);
 			}
 
-			if (Struct->StructMacroDeclaredLineNumber != INDEX_NONE)
+			if (StructDef.GetMacroDeclaredLineNumber() != INDEX_NONE)
 			{
 				FError::Throwf(TEXT("Multiple %s declarations found in '%s'"), Token.Identifier, *StructNameInScript);
 			}
 
-			Struct->StructMacroDeclaredLineNumber = InputLine;
+			StructDef.SetMacroDeclaredLineNumber(InputLine);
 			RequireSymbol(TEXT('('), TEXT("'struct'"));
 
 			CompileVersionDeclaration(StructDef);
@@ -2355,7 +2355,7 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 	}
 
 	// Validation
-	bool bStructBodyFound = Struct->StructMacroDeclaredLineNumber != INDEX_NONE;
+	bool bStructBodyFound = StructDef.GetMacroDeclaredLineNumber() != INDEX_NONE;
 	bool bExported        = !!(StructFlags & STRUCT_Native);
 	if (!bStructBodyFound && bExported)
 	{
@@ -2562,8 +2562,6 @@ void FHeaderParser::PopNest(ENestType NestType, const TCHAR* Descr)
 
 void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructDef, FScope& Scope, TMap<FName, FUnrealFunctionDefinitionInfo*>& DelegateCache )
 {
-	UStruct* Struct = StructDef.GetStruct();
-
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
 	{
 		FProperty* Property = PropertyDef->GetProperty();
@@ -2733,15 +2731,14 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& StructDef)
 {
 	// we're looking for classes that have sparse class data structures
-	const UStruct* StructToCheck = StructDef.GetStruct();
 	const FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(StructDef);
 
 	// make sure we don't try to have sparse class data inside of a struct instead of a class
-	if (StructToCheck->HasMetaData(FHeaderParserNames::NAME_SparseClassDataTypes))
+	if (StructDef.HasMetaData(FHeaderParserNames::NAME_SparseClassDataTypes))
 	{
 		if (ClassDef == nullptr)
 		{
-			FError::Throwf(TEXT("%s contains sparse class data but is not a class."), *StructToCheck->GetName());
+			FError::Throwf(TEXT("%s contains sparse class data but is not a class."), *StructDef.GetName());
 		}
 	}
 	else
@@ -2776,27 +2773,25 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 			return;
 		}
 
-		UScriptStruct* SparseClassDataStruct = SparseClassDataStructDef->GetScriptStruct();
-
 		// check the data struct for invalid properties
 		for (FUnrealPropertyDefinitionInfo* PropertyDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(*SparseClassDataStructDef))
 		{
 			FProperty* Property = PropertyDef->GetProperty();
 			if (Property->HasAnyPropertyFlags(CPF_BlueprintAssignable))
 			{
-				FError::Throwf(TEXT("Sparse class data types can not contain blueprint assignable delegates. Type '%s' Delegate '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types can not contain blueprint assignable delegates. Type '%s' Delegate '%s'"), *SparseClassDataStructDef->GetName(), *Property->GetName());
 			}
 
 			// all sparse properties should have EditDefaultsOnly
 			if (!Property->HasAllPropertyFlags(CPF_Edit | CPF_DisableEditOnInstance))
 			{
-				FError::Throwf(TEXT("Sparse class data types must be EditDefaultsOnly. Type '%s' Property '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types must be EditDefaultsOnly. Type '%s' Property '%s'"), *SparseClassDataStructDef->GetName(), *Property->GetName());
 			}
 
 			// no sparse properties should have BlueprintReadWrite
 			if (Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !Property->HasAllPropertyFlags(CPF_BlueprintReadOnly))
 			{
-				FError::Throwf(TEXT("Sparse class data types must not be BlueprintReadWrite. Type '%s' Property '%s'"), *SparseClassDataStruct->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types must not be BlueprintReadWrite. Type '%s' Property '%s'"), *SparseClassDataStructDef->GetName(), *Property->GetName());
 			}
 		}
 
@@ -2809,9 +2804,9 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 			if (FUnrealScriptStructDefinitionInfo* ParentSparseClassDataStructDef = GTypeDefinitionInfoMap.FindByName<FUnrealScriptStructDefinitionInfo>(*ParentSparseClassDataTypeName))
 			{
 				UScriptStruct* ParentSparseClassDataStruct = ParentSparseClassDataStructDef->GetScriptStruct();
-				if (!SparseClassDataStruct->IsChildOf(ParentSparseClassDataStruct))
+				if (!SparseClassDataStructDef->GetScriptStruct()->IsChildOf(ParentSparseClassDataStruct))
 				{
-					FError::Throwf(TEXT("Class %s is a child of %s but its sparse class data struct, %s, does not inherit from %s."), *ClassToCheck->GetName(), *ParentClass->GetName(), *SparseClassDataStruct->GetName(), *ParentSparseClassDataStruct->GetName());
+					FError::Throwf(TEXT("Class %s is a child of %s but its sparse class data struct, %s, does not inherit from %s."), *ClassToCheck->GetName(), *ParentClass->GetName(), *SparseClassDataStructDef->GetName(), *ParentSparseClassDataStruct->GetName());
 				}
 			}
 		}
@@ -4300,7 +4295,7 @@ void FHeaderParser::GetVarType(
 			if (bStripped)
 			{
 				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(IdentifierStripped) ? TEXT("T") : Struct->GetPrefixCPP();
-				FString ExpectedStructName = FString::Printf(TEXT("%s%s"), PrefixCPP, *Struct->GetName());
+				FString ExpectedStructName = FString::Printf(TEXT("%s%s"), PrefixCPP, *StructDef->GetName());
 				if (FString(VarType.Identifier) != ExpectedStructName)
 				{
 					FError::Throwf(TEXT("Struct '%s' is missing or has an incorrect prefix, expecting '%s'"), VarType.Identifier, *ExpectedStructName);
@@ -4309,13 +4304,13 @@ void FHeaderParser::GetVarType(
 			else if (!UHTConfig.StructsWithNoPrefix.Contains(VarType.Identifier))
 			{
 				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(VarType.Identifier) ? TEXT("T") : Struct->GetPrefixCPP();
-				FError::Throwf(TEXT("Struct '%s' is missing a prefix, expecting '%s'"), VarType.Identifier, *FString::Printf(TEXT("%s%s"), PrefixCPP, *Struct->GetName()));
+				FError::Throwf(TEXT("Struct '%s' is missing a prefix, expecting '%s'"), VarType.Identifier, *FString::Printf(TEXT("%s%s"), PrefixCPP, *StructDef->GetName()));
 			}
 
 			bHandledType = true;
 
 			VarProperty = FPropertyBase(*StructDef);
-			if ((Struct->StructFlags & STRUCT_HasInstancedReference) && !(Disallow & CPF_ContainsInstancedReference))
+			if (StructDef->HasAnyStructFlags(STRUCT_HasInstancedReference) && !(Disallow & CPF_ContainsInstancedReference))
 			{
 				Flags |= CPF_ContainsInstancedReference;
 			}
@@ -4748,10 +4743,6 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 	ELayoutMacroType        LayoutMacroType
 )
 {
-	UStruct* Scope = ParentStruct.GetStruct();
-
-	check(Scope);
-
 	EObjectFlags ObjectFlags = RF_Public;
 	if (VariableCategory == EVariableCategory::Member && CurrentAccessSpecifier == ACCESS_Private)
 	{
@@ -4872,7 +4863,7 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 			FError::Throwf(TEXT("%s: '%s' cannot be defined in '%s' as it is already defined in scope '%s' (shadowing is not allowed)"),
 				HintText,
 				Identifier,
-				*Scope->GetName(),
+				*ParentStruct.GetName(),
 				ExistingField ? *ExistingField->GetOuter()->GetName() : *ExistingProperty->GetOwnerVariant().GetFullName());
 		}
 	}
@@ -5030,7 +5021,7 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 	ParentStruct.AddProperty(PropDef);
 
 	// Add to the end of the properties slist
-	FField** Prev = &Scope->ChildProperties;
+	FField** Prev = &ParentStruct.GetStruct()->ChildProperties;
 	for (; *Prev != nullptr; Prev = &(*Prev)->Next)
 	{
 		// No body
@@ -6131,7 +6122,7 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 
 	FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
 	StructRigVMInfo.bHasRigVM = true;
-	StructRigVMInfo.Name = StructDef.GetStruct()->GetName();
+	StructRigVMInfo.Name = StructDef.GetName();
 	StructRigVMInfo.Methods.Add(MethodInfo);
 }
 
@@ -6152,7 +6143,6 @@ const TCHAR* FHeaderParser::GetDynamicArrayText = TEXT("GetDynamicArray");
 
 void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& StructDef)
 {
-	UStruct* Struct = StructDef.GetStruct();
 	FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
 	if (!StructRigVMInfo.bHasRigVM)
 	{
@@ -6201,7 +6191,7 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 
 		if (Parameter.bEditorOnly)
 		{
-			UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' is editor only - WITH_EDITORONLY_DATA not allowed on structs with RIGVM_METHOD."), *Struct->GetName(), *Parameter.Name, *MemberCPPType);
+			UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' is editor only - WITH_EDITORONLY_DATA not allowed on structs with RIGVM_METHOD."), *StructDef.GetName(), *Parameter.Name, *MemberCPPType);
 		}
 
 		if (!ExtendedCPPType.IsEmpty())
@@ -6209,7 +6199,7 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 			// we only support arrays - no maps or similar data structures
 			if (MemberCPPType != TArrayText && MemberCPPType != TEnumAsByteText)
 			{
-				UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' type '%s' not supported by RigVM."), *Struct->GetName(), *Parameter.Name, *MemberCPPType);
+				UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' type '%s' not supported by RigVM."), *StructDef.GetName(), *Parameter.Name, *MemberCPPType);
 				continue;
 			}
 		}
@@ -6235,12 +6225,12 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 
 	if (StructRigVMInfo.Members.Num() == 0)
 	{
-		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has zero members - invalid RIGVM_METHOD."), *Struct->GetName());
+		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has zero members - invalid RIGVM_METHOD."), *StructDef.GetName());
 	}
 
 	if (StructRigVMInfo.Members.Num() > 64)
 	{
-		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has %d members (64 is the limit)."), *Struct->GetName(), StructRigVMInfo.Members.Num());
+		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has %d members (64 is the limit)."), *StructDef.GetName(), StructRigVMInfo.Members.Num());
 	}
 }
 
@@ -6305,7 +6295,7 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 			{
 				if (!FunctionDef.HasAnyFunctionFlags(FUNC_NetRequest | FUNC_NetResponse))
 				{
-					ValidateScriptStructOkForNet(Property.ScriptStructDef->GetStruct()->GetName(), *Property.ScriptStructDef);
+					ValidateScriptStructOkForNet(Property.ScriptStructDef->GetName(), *Property.ScriptStructDef);
 				}
 			}
 
@@ -6468,7 +6458,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 
 		//Workaround for UE-28897
 		const FStructScope* CurrentStructScope = TopNest->GetScope() ? TopNest->GetScope()->AsStructScope() : nullptr;
-		const bool bDynamicClassScope = CurrentStructScope && CurrentStructScope->GetStruct() && CurrentStructScope->GetStructDef().IsDynamic();
+		const bool bDynamicClassScope = CurrentStructScope && CurrentStructScope->GetStructDef().IsDynamic();
 		CheckAllow(CurrentScopeName, bDynamicClassScope ? ENestAllowFlags::ImplicitDelegateDecl : ENestAllowFlags::TypeDecl);
 	}
 	else
@@ -7408,9 +7398,9 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	// First check if the category was specified at all and if the property was exposed to the editor.
 	if (!Category && (OriginalProperty.PropertyFlags & (CPF_Edit|CPF_BlueprintVisible)))
 	{
-		if ((Struct->GetOutermost() != nullptr) && !bIsCurrentModulePartOfEngine)
+		if ((&StructDef.GetPackageDef() != nullptr) && !bIsCurrentModulePartOfEngine)
 		{
-			Category = &OriginalProperty.MetaData.Add(NAME_Category, Struct->GetName());
+			Category = &OriginalProperty.MetaData.Add(NAME_Category, StructDef.GetName());
 		}
 		else
 		{
@@ -7468,7 +7458,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	// If Property is a Replicated Struct check to make sure there are no Properties that are not allowed to be Replicated in the Struct 
 	if (OriginalProperty.Type == CPT_Struct && OriginalProperty.PropertyFlags & CPF_Net && OriginalProperty.ScriptStructDef)
 	{
-		ValidateScriptStructOkForNet(OriginalProperty.ScriptStructDef->GetScriptStruct()->GetName(), *OriginalProperty.ScriptStructDef);
+		ValidateScriptStructOkForNet(OriginalProperty.ScriptStructDef->GetName(), *OriginalProperty.ScriptStructDef);
 	}
 
 	// Process all variables of this type.
@@ -7499,7 +7489,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 		{
 			if (NewProperties.Num())
 			{
-				FError::Throwf(TEXT("Comma delimited properties cannot be converted %s.%s\n"), *Struct->GetName(), *NewProperty->GetName());
+				FError::Throwf(TEXT("Comma delimited properties cannot be converted %s.%s\n"), *StructDef.GetName(), *NewProperty->GetName());
 			}
 		}
 
@@ -7522,21 +7512,21 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 
 		if (NewProperty->HasAnyPropertyFlags(CPF_BlueprintVisible))
 		{
-			if (Struct->IsA<UScriptStruct>() && !Struct->GetBoolMetaDataHierarchical(FHeaderParserNames::NAME_BlueprintType))
+			if (Struct->IsA<UScriptStruct>() && !StructDef.GetBoolMetaDataHierarchical(FHeaderParserNames::NAME_BlueprintType))
 			{
-				UE_LOG_ERROR_UHT(TEXT("Cannot expose property to blueprints in a struct that is not a BlueprintType. %s.%s"), *Struct->GetName(), *NewProperty->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Cannot expose property to blueprints in a struct that is not a BlueprintType. %s.%s"), *StructDef.GetName(), *NewProperty->GetName());
 			}
 
 			if (NewProperty->ArrayDim > 1)
 			{
-				UE_LOG_ERROR_UHT(TEXT("Static array cannot be exposed to blueprint %s.%s"), *Struct->GetName(), *NewProperty->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Static array cannot be exposed to blueprint %s.%s"), *StructDef.GetName(), *NewProperty->GetName());
 			}
 
 			if (!FPropertyTraits::IsSupportedByBlueprint(NewPropDef, true))
 			{
 				FString ExtendedCPPType;
 				FString CPPType = NewProperty->GetCPPType(&ExtendedCPPType);
-				UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *Struct->GetName(), *NewProperty->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *StructDef.GetName(), *NewProperty->GetName());
 			}
 		}
 
@@ -9215,7 +9205,7 @@ FDocumentationPolicy FHeaderParser::GetDocumentationPolicyForStruct(FUnrealStruc
 
 	FDocumentationPolicy DocumentationPolicy;
 	FString DocumentationPolicyName;
-	if (StructDef.GetStruct()->GetStringMetaDataHierarchical(NAME_DocumentationPolicy, &DocumentationPolicyName))
+	if (StructDef.GetStringMetaDataHierarchical(NAME_DocumentationPolicy, &DocumentationPolicyName))
 	{
 		DocumentationPolicy = GetDocumentationPolicyFromName(DocumentationPolicyName);
 	}
@@ -9273,21 +9263,18 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInf
 {
 	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
 
-	UStruct* Struct = StructDef.GetStruct();
-	check(Struct != nullptr);
-
 	FDocumentationPolicy DocumentationPolicy = GetDocumentationPolicyForStruct(StructDef);
 	if (DocumentationPolicy.bClassOrStructCommentRequired)
 	{
 		FString ClassTooltip;
-		if (const FString* ClassTooltipPtr = Struct->FindMetaData(NAME_ToolTip))
+		if (const FString* ClassTooltipPtr = StructDef.FindMetaData(NAME_ToolTip))
 		{
 			ClassTooltip = *ClassTooltipPtr;
 		}
 
-		if (ClassTooltip.IsEmpty() || ClassTooltip.Equals(Struct->GetName()))
+		if (ClassTooltip.IsEmpty() || ClassTooltip.Equals(StructDef.GetName()))
 		{
-			UE_LOG_ERROR_UHT(TEXT("Struct '%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName());
+			UE_LOG_ERROR_UHT(TEXT("Struct '%s' does not provide a tooltip / comment (DocumentationPolicy)."), *StructDef.GetName());
 		}
 	}
 
@@ -9300,13 +9287,13 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInf
 			FString ToolTip = Property->GetToolTipText().ToString();
 			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetDisplayNameText().ToString()))
 			{
-				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *StructDef.GetName(), *Property->GetName());
 				continue;
 			}
 			const FName* ExistingPropertyName = ToolTipToPropertyName.Find(ToolTip);
 			if (ExistingPropertyName != nullptr)
 			{
-				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' and '%s::%s' are using identical tooltips (DocumentationPolicy)."), *Struct->GetName(), *ExistingPropertyName->ToString(), *Struct->GetName(), *Property->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' and '%s::%s' are using identical tooltips (DocumentationPolicy)."), *StructDef.GetName(), *ExistingPropertyName->ToString(), *StructDef.GetName(), *Property->GetName());
 			}
 			ToolTipToPropertyName.Add(MoveTemp(ToolTip), Property->GetFName());
 		}
@@ -9324,7 +9311,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInf
 
 				if(!CheckUIMinMaxRangeFromMetaData(UIMin, UIMax))
 				{
-					UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a valid UIMin / UIMax (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
+					UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a valid UIMin / UIMax (DocumentationPolicy)."), *StructDef.GetName(), *Property->GetName());
 				}
 			}
 		}

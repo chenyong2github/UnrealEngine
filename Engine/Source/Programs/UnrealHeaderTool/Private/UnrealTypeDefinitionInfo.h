@@ -1284,6 +1284,29 @@ public:
 		return BaseStructInfo;
 	}
 
+	/** Try and find boolean metadata with the given key. If not found on this class, work up hierarchy looking for it. */
+	bool GetBoolMetaDataHierarchical(const FName& Key) const
+	{
+		return GetStruct()->GetBoolMetaDataHierarchical(Key);
+	}
+
+	/** Try and find string metadata with the given key. If not found on this class, work up hierarchy looking for it. */
+	bool GetStringMetaDataHierarchical(const FName& Key, FString* OutValue = nullptr) const
+	{
+		return GetStruct()->GetStringMetaDataHierarchical(Key, OutValue);
+	}
+
+	/**
+	 * Determines if the struct or any of its super structs has any metadata associated with the provided key
+	 *
+	 * @param Key The key to lookup in the metadata
+	 * @return pointer to the UStruct that has associated metadata, nullptr if Key is not associated with any UStruct in the hierarchy
+	 */
+	const UStruct* HasMetaDataHierarchical(const FName& Key) const
+	{
+		return GetStruct()->HasMetaDataHierarchical(Key);
+	}
+
 	/**
 	 * Get the contains delegates flag
 	 */
@@ -1419,6 +1442,74 @@ public:
 	{
 		return static_cast<UScriptStruct*>(GetObject());
 	}
+
+	/**
+	 * Return the struct flags
+	 */
+	FORCEINLINE EStructFlags GetStructFlags() const
+	{
+		return GetScriptStruct()->StructFlags;
+	}
+
+	/**
+	 * Used to safely check whether the passed in flag is set.
+	 *
+	 * @param	FlagToCheck		Class flag to check for
+	 *
+	 * @return	true if the passed in flag is set, false otherwise
+	 *			(including no flag passed in, unless the FlagsToCheck is CLASS_AllFlags)
+	 */
+	FORCEINLINE bool HasAnyStructFlags(EStructFlags FlagsToCheck) const
+	{
+		return EnumHasAnyFlags(GetScriptStruct()->StructFlags, FlagsToCheck);
+	}
+
+	/**
+	 * Used to safely check whether all of the passed in flags are set.
+	 *
+	 * @param FlagsToCheck	Function flags to check for
+	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
+	 */
+	FORCEINLINE bool HasAllFunctionFlags(EStructFlags FlagsToCheck) const
+	{
+		return EnumHasAllFlags(GetScriptStruct()->StructFlags, FlagsToCheck);
+	}
+
+	/**
+	 * Used to safely check whether specific of the passed in flags are set.
+	 *
+	 * @param FlagsToCheck	Function flags to check for
+	 * @param ExpectedFlags The flags from the flags to check that should be set
+	 * @return true if specific of the passed in flags are set (including no flags passed in), false otherwise
+	 */
+	FORCEINLINE bool HasSpecificFunctionFlags(EStructFlags FlagsToCheck, EStructFlags ExpectedFlags) const
+	{
+		EStructFlags Flags = GetScriptStruct()->StructFlags;
+		return (Flags & FlagsToCheck) == ExpectedFlags;
+	}
+
+	/**
+	 * If it is native, it is assumed to have defaults because it has a constructor
+	 * @return true if this struct has defaults
+	 */
+	FORCEINLINE bool HasDefaults() const
+	{
+		return !!GetScriptStruct()->GetCppStructOps();
+	}
+
+
+	int32 GetMacroDeclaredLineNumber() const
+	{
+		return MacroDeclaredLineNumber;
+	}
+
+	void SetMacroDeclaredLineNumber(int32 InMacroDeclaredLineNumber)
+	{
+		MacroDeclaredLineNumber = InMacroDeclaredLineNumber;
+	}
+
+private:
+	int32 MacroDeclaredLineNumber = INDEX_NONE;
 };
 
 /**
