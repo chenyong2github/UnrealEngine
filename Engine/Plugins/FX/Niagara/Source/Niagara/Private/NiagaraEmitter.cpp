@@ -66,33 +66,6 @@ static FAutoConsoleVariableRef CVarNiagaraDebugForcedMaxGPUBufferElements(
 	ECVF_Default
 );
 
-/**
-Game thread task to do any outstanding work on the loaded emitter
-*/
-struct FNiagaraEmitterUpdateTask
-{
-	FNiagaraEmitterUpdateTask(TWeakObjectPtr<UNiagaraEmitter> InEmitter) : WeakEmitter(InEmitter)
-	{
-	}
-
-	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraEmitterUpdateTask, STATGROUP_TaskGraphTasks); }
-	static FORCEINLINE ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
-	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		UNiagaraEmitter* Emitter = WeakEmitter.Get();
-		if (Emitter == nullptr)
-		{
-			// probably got garbage collected in the meantime
-			return;
-		}
-		Emitter->UpdateEmitterAfterLoad();
-	}
-
-	TWeakObjectPtr<UNiagaraEmitter> WeakEmitter;
-};
-
 FNiagaraDetailsLevelScaleOverrides::FNiagaraDetailsLevelScaleOverrides()
 {
 	Low = 0.125f;
@@ -572,33 +545,14 @@ void UNiagaraEmitter::PostLoad()
 			UE_LOG(LogNiagara, Warning, TEXT("Disabling interpolated spawn because emitter flag and script type don't match. Did you adjust this value in the UI? Emitter may need recompile.. %s"), *GetFullName());
 		}
 	}
+
 	EnsureScriptsPostLoaded();
 
-	FGraphEventArray ParentPrerequisiteTasks;
-#if WITH_EDITORONLY_DATA
-	if (Parent != nullptr)
-	{
-		if (Parent->UpdateTaskRef.IsValid())
-		{
-			ParentPrerequisiteTasks.Add(Parent->UpdateTaskRef);
-		}
-	}
-	if (ParentAtLastMerge != nullptr)
-	{
-		if (ParentAtLastMerge->UpdateTaskRef.IsValid())
-		{
-			ParentPrerequisiteTasks.Add(ParentAtLastMerge->UpdateTaskRef);
-		}
-	}
-	// this can only ever be true for old assets that haven't been loaded yet, so this won't overwrite subsequent changes to the template specification
-	if(bIsTemplateAsset_DEPRECATED)
-	{
-		TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
-	}
+#if !WITH_EDITOR
+	// When running without the editor in a cooked build we run the update immediately in post load since
+	// there will be no merging or compiling which makes it safe to do so.
+	UpdateEmitterAfterLoad();
 #endif
-	
-	// we are not yet finished, but we do the rest of the work after postload in a separate task
-	UpdateTaskRef = TGraphTask<FNiagaraEmitterUpdateTask>::CreateTask(&ParentPrerequisiteTasks).ConstructAndDispatchWhenReady(this);
 }
 
 bool UNiagaraEmitter::IsEditorOnly() const
@@ -955,10 +909,7 @@ void UNiagaraEmitter::PreSave(const ITargetPlatform* TargetPlatform)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-	if (UpdateTaskRef.IsValid() && UpdateTaskRef->IsComplete() == false)
-	{
-		UpdateEmitterAfterLoad();
-	}
+	UpdateEmitterAfterLoad();
 }
 
 
@@ -1274,7 +1225,6 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 		return;
 	}
 	bFullyLoaded = true;
-	UpdateTaskRef = nullptr;
 	
 #if WITH_EDITORONLY_DATA
 	check(IsInGameThread());
@@ -1312,8 +1262,6 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 		ParentAtLastMerge = nullptr;
 	}
 
-	// The task prerequisites should have updated the parent emitter before updating this emitter, but if this emitter
-	// has been forced to update we need to make sure the parent has been updated too.
 	if (Parent != nullptr)
 	{
 		Parent->UpdateEmitterAfterLoad();
