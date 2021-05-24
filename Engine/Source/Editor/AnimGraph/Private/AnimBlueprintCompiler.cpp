@@ -1002,10 +1002,11 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 						if (UK2Node_StructMemberSet* StructMemberSetNode = Cast<UK2Node_StructMemberSet>(StatementPair.Key))
 						{
 							UK2Node* SourceNode = CastChecked<UK2Node>(MessageLog.FindSourceObject(StructMemberSetNode));
-							UEdGraph* SourceGraph = SourceNode->GetGraph();
 
 							if (SourceNode && (StructMemberSetNode->StructType->IsChildOf(FAnimNode_Base::StaticStruct()) || StructMemberSetNode->StructType->IsChildOf(FAnimBlueprintMutableData::StaticStruct())))
 							{
+								UEdGraph* SourceGraph = SourceNode->GetGraph();
+								
 								const bool bEmitErrors = false;
 								bool bIsThreadSafe = true;
 
