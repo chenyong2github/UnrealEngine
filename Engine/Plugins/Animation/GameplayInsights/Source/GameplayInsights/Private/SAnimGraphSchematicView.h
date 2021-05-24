@@ -30,6 +30,7 @@ public:
 	uint64 GetAnimInstanceId() const { return AnimInstanceId; }
 
 	virtual void SetTimeMarker(double InTimeMarker) override;
+	virtual FText GetTitle() override;
 private:
 	// Generate a row widget for an item
 	TSharedRef<ITableRow> HandleGenerateRow(TSharedRef<FAnimGraphSchematicNode> Item, const TSharedRef<STableViewBase>& OwnerTable);

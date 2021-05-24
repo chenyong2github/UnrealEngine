@@ -32,6 +32,4 @@ public:
 
 private:
 	TSharedPtr<SRewindDebugger> RewindDebuggerWidget;
-
-	FDelegateHandle TickerHandle;
 };
