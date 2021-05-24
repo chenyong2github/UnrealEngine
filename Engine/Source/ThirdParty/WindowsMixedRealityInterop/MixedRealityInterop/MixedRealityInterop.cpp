@@ -123,7 +123,14 @@ namespace WindowsMixedReality
 	void StopSceneUnderstandingObserver();
 	void _SetSUCoordinateSystem();
 
-	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
+	bool StartHandMeshObserver(
+		void(*StartFunctionPointer)(),
+		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)()
+	);
+	void StopHandMeshObserver();
+
+	bool StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
 	void UpdateQRCodeObserverCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem);
 	void StopQRCodeObserver();
 
@@ -2967,7 +2974,7 @@ namespace WindowsMixedReality
 										Observer->InitAsync(source);
 									}
 
-									Observer->Update(handPose, coordinateSystem);
+									Observer->Update(handPose, coordinateSystem, hand == HMDHand::Right);
 								}
 								JointPoseValid[(int)hand] = handPose.TryGetJoints(coordinateSystem, Joints, JointPoses[(int)hand]);
 							}
@@ -3983,6 +3990,18 @@ namespace WindowsMixedReality
 		StopMeshObserver();
 	}
 
+	bool MixedRealityInterop::StartHandMesh(void(*StartFunctionPointer)(),
+		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)())
+	{
+		return StartHandMeshObserver(StartFunctionPointer, AllocFunctionPointer, FinishFunctionPointer);
+	}
+
+	void MixedRealityInterop::StopHandMesh()
+	{
+		StopHandMeshObserver();
+	}
+
 	void MixedRealityInterop::StartSceneUnderstanding(
 		bool bGeneratePlanes,
 		bool bGenerateSceneMeshes,
@@ -4124,7 +4143,7 @@ namespace WindowsMixedReality
 		// Pass any logging callback on
 		Instance.SetOnLog(m_logCallback);
 
-		Instance.StartMeshObserver(
+		return Instance.StartMeshObserver(
 			InTriangleDensity,
 			InVolumeSize,
 			StartFunctionPointer,
@@ -4134,6 +4153,28 @@ namespace WindowsMixedReality
 		);
 
 		HandMeshUpdateObserver::InitStatic(StartFunctionPointer, AllocFunctionPointer, FinishFunctionPointer);
+#endif
+	}
+
+	bool StartHandMeshObserver(
+		void(*StartFunctionPointer)(),
+		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)()
+	)
+	{
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
+		HandMeshUpdateObserver::InitStatic(StartFunctionPointer, AllocFunctionPointer, FinishFunctionPointer);
+#endif
+
+		return true;
+	}
+
+	void StopHandMeshObserver()
+	{
+#if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
+		std::lock_guard<std::mutex> lock(MeshUpdateObserverLock);
+		HandMeshUpdateObserver::InitStatic(nullptr, nullptr, nullptr);
+		MeshUpdateObserverMap.clear();
 #endif
 	}
 
@@ -4149,11 +4190,6 @@ namespace WindowsMixedReality
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		MeshUpdateObserver::Release();
-
-		std::lock_guard<std::mutex> lock(MeshUpdateObserverLock);
-		HandMeshUpdateObserver::InitStatic(nullptr, nullptr, nullptr);
-		MeshUpdateObserverMap.clear();
-
 #endif
 	}
 }

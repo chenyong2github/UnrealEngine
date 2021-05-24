@@ -177,3 +177,15 @@ UWMRARPin* UHoloLensARFunctionLibrary::CreateNamedARPinAroundAnchor(FName Name, 
 	}
 	return ARSystem->WMRCreateNamedARPinAroundAnchor(Name, AnchorId);
 }
+
+void UHoloLensARFunctionLibrary::SetUseLegacyHandMeshVisualization(bool bUseLegacyHandMeshVisualization)
+{
+	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = FHoloLensModuleAR::GetHoloLensARSystem();
+	if (!ARSystem.IsValid())
+	{
+		return;
+	}
+
+	return ARSystem->SetUseLegacyHandMeshVisualization(bUseLegacyHandMeshVisualization);
+}
+

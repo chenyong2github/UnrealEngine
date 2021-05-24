@@ -55,6 +55,9 @@ enum class EARCaptureType : uint8
 
 	/** Capture detailed information about the scene with all surfaces like walls, floors and so on*/
 	SceneUnderstanding,
+
+	/** Capture a mesh around the player's hands */
+	HandMesh,
 };
 
 

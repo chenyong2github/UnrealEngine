@@ -82,6 +82,10 @@ struct MIXEDREALITYINTEROP_API MeshUpdate :
 	int NumIndices = 0;
 	/** The indices for the mesh */
 	void* Indices = nullptr;
+	int NumNormals = 0;
+	void* Normals = nullptr;
+
+	bool IsRightHandMesh = false;
 };
 
 /**
@@ -507,6 +511,13 @@ namespace WindowsMixedReality
 			void(*FinishFunctionPointer)());
 		void StopSpatialMapping();
 		//~ Spatial Mapping
+
+		// Hand Mesh
+		bool StartHandMesh(void(*StartFunctionPointer)(),
+			void(*AllocFunctionPointer)(MeshUpdate*),
+			void(*FinishFunctionPointer)());
+		void StopHandMesh();
+		//~ Hand Mesh
 
 		// Scene understanding
 		void StartSceneUnderstanding(
