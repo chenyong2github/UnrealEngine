@@ -297,6 +297,14 @@ public:
 	static TSharedRef<SWindow> MakeCursorDecorator();
 
 	/**
+	 * Make cursor decorator window with a non-default style
+	 *
+	 * @param InStyle The style to use for the cursor decorator
+	 * @return The new SWindow
+	 */
+	static TSharedRef<SWindow> MakeStyledCursorDecorator(const FWindowStyle& InStyle);
+
+	/**
 	 * Make a notification window
 	 *
 	 * @return The new SWindow

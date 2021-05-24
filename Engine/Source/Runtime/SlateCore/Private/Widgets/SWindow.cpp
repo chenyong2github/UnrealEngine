@@ -491,6 +491,22 @@ TSharedRef<SWindow> SWindow::MakeCursorDecorator()
 	return NewWindow;
 }
 
+TSharedRef<SWindow> SWindow::MakeStyledCursorDecorator(const FWindowStyle& InStyle)
+{
+	TSharedRef<SWindow> NewWindow = SNew(SWindow)
+		.Style(&InStyle)
+		.Type(EWindowType::CursorDecorator)
+		.IsPopupWindow(true)
+		.IsTopmostWindow(true)
+		.SizingRule(ESizingRule::Autosized)
+		.SupportsTransparency(EWindowTransparency::PerWindow)
+		.FocusWhenFirstShown(false)
+		.ActivationPolicy(EWindowActivationPolicy::Never);
+	NewWindow->Opacity = 1.0f;
+
+	return NewWindow;
+}
+
 FVector2D SWindow::ComputeWindowSizeForContent( FVector2D ContentSize )
 {
 	// @todo mainframe: This code should be updated to handle the case where we're spawning a window that doesn't have
