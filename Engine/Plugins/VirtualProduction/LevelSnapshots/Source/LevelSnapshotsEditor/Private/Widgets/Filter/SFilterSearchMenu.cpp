@@ -53,7 +53,7 @@ namespace
 		
 				MenuBuilder.AddMenuEntry(
                     FilterClass->GetDisplayNameText(),
-                    FilterClass->GetDisplayNameText(),
+                    FilterClass->GetToolTipText(),
                     FSlateIcon(),
                     AddFilterAction,
                     NAME_None,
