@@ -738,14 +738,14 @@ public:
 	void ClearAllShaderResources();
 
 
-	static DXGI_FORMAT GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, uint32 InFlags);
+	static DXGI_FORMAT GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, ETextureCreateFlags InFlags);
 
 #if	PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-	virtual void* CreateVirtualTexture(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, bool bCubeTexture, uint32 Flags, void* D3DTextureDesc, void* D3DTextureResource) = 0;
-	virtual void DestroyVirtualTexture(uint32 Flags, void* RawTextureMemory) = 0;
-	virtual bool HandleSpecialLock(FD3D11LockedData& LockedData, uint32 MipIndex, uint32 ArrayIndex, uint32 Flags, EResourceLockMode LockMode,
+	virtual void* CreateVirtualTexture(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, bool bCubeTexture, ETextureCreateFlags Flags, void* D3DTextureDesc, void* D3DTextureResource) = 0;
+	virtual void DestroyVirtualTexture(ETextureCreateFlags Flags, void* RawTextureMemory) = 0;
+	virtual bool HandleSpecialLock(FD3D11LockedData& LockedData, uint32 MipIndex, uint32 ArrayIndex, ETextureCreateFlags Flags, EResourceLockMode LockMode,
 		void* D3DTextureResource, void* RawTextureMemory, uint32 NumMips, uint32& DestStride) = 0;
-	virtual bool HandleSpecialUnlock(uint32 MipIndex, uint32 Flags, void* D3DTextureResource, void* RawTextureMemory) = 0;
+	virtual bool HandleSpecialUnlock(uint32 MipIndex, ETextureCreateFlags Flags, void* D3DTextureResource, void* RawTextureMemory) = 0;
 #endif
 
 	uint32 GetHDRDetectedDisplayIndex() const

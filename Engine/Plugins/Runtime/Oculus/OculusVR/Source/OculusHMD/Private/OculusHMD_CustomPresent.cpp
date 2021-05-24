@@ -406,7 +406,7 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 
 	if (DstTexture2D)
 	{
-		sRGBSource &= ( ( SrcTexture->GetFlags() & TexCreate_SRGB ) != 0);
+		sRGBSource &= EnumHasAnyFlags(SrcTexture->GetFlags(), TexCreate_SRGB);
 
 		// Need to copy over mip maps on Android since they are not generated like they are on PC
 #if PLATFORM_ANDROID

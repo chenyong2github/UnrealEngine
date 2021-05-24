@@ -387,7 +387,7 @@ namespace RHIValidation
 
 		virtual FResource* GetTrackerResource() { return &PRIVATE_TrackerResource; }
 
-		inline void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, EPixelFormat PixelFormat, uint32 Flags, ERHIAccess InResourceState, const TCHAR* InDebugName)
+		inline void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, EPixelFormat PixelFormat, ETextureCreateFlags Flags, ERHIAccess InResourceState, const TCHAR* InDebugName)
 		{
 			FResource* Resource = GetTrackerResource();
 			if (!Resource)

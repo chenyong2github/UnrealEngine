@@ -158,7 +158,7 @@ void FVulkanShaderResourceView::UpdateView()
 	{
 		if (TextureView.View == VK_NULL_HANDLE)
 		{
-			const bool bBaseSRGB = (SourceTexture->GetFlags() & TexCreate_SRGB) != 0;
+			const bool bBaseSRGB = EnumHasAnyFlags(SourceTexture->GetFlags(), TexCreate_SRGB);
 			const bool bSRGB = (SRGBOverride != SRGBO_ForceDisable) && bBaseSRGB;
 
 			EPixelFormat Format = (BufferViewFormat == PF_Unknown) ? SourceTexture->GetFormat() : BufferViewFormat;

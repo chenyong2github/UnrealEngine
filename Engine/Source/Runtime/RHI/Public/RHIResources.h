@@ -2191,7 +2191,7 @@ class FGraphicsPipelineStateInitializer
 public:
 	// Can't use TEnumByte<EPixelFormat> as it changes the struct to be non trivially constructible, breaking memset
 	using TRenderTargetFormats		= TStaticArray<uint8/*EPixelFormat*/, MaxSimultaneousRenderTargets>;
-	using TRenderTargetFlags		= TStaticArray<uint32/*ETextureCreateFlags*/, MaxSimultaneousRenderTargets>;
+	using TRenderTargetFlags		= TStaticArray<ETextureCreateFlags, MaxSimultaneousRenderTargets>;
 
 	FGraphicsPipelineStateInitializer()
 		: BlendState(nullptr)
@@ -2199,9 +2199,9 @@ public:
 		, DepthStencilState(nullptr)
 		, RenderTargetsEnabled(0)
 		, RenderTargetFormats(InPlace, PF_Unknown)
-		, RenderTargetFlags(InPlace, 0)
+		, RenderTargetFlags(InPlace, TexCreate_None)
 		, DepthStencilTargetFormat(PF_Unknown)
-		, DepthStencilTargetFlag(0)
+		, DepthStencilTargetFlag(TexCreate_None)
 		, DepthTargetLoadAction(ERenderTargetLoadAction::ENoAction)
 		, DepthTargetStoreAction(ERenderTargetStoreAction::ENoAction)
 		, StencilTargetLoadAction(ERenderTargetLoadAction::ENoAction)
@@ -2218,7 +2218,6 @@ public:
 	{
 #if PLATFORM_WINDOWS
 		static_assert(sizeof(TRenderTargetFormats::ElementType) == sizeof(uint8/*EPixelFormat*/), "Change TRenderTargetFormats's uint8 to EPixelFormat's size!");
-		static_assert(sizeof(TRenderTargetFlags::ElementType) == sizeof(uint32/*ETextureCreateFlags*/), "Change TRenderTargetFlags's uint32 to ETextureCreateFlags's size!");
 #endif
 		static_assert(PF_MAX < MAX_uint8, "TRenderTargetFormats assumes EPixelFormat can fit in a uint8!");
 	}
@@ -2349,7 +2348,7 @@ public:
 	TRenderTargetFormats			RenderTargetFormats;
 	TRenderTargetFlags				RenderTargetFlags;
 	EPixelFormat					DepthStencilTargetFormat;
-	uint32							DepthStencilTargetFlag;
+	ETextureCreateFlags				DepthStencilTargetFlag;
 	ERenderTargetLoadAction			DepthTargetLoadAction;
 	ERenderTargetStoreAction		DepthTargetStoreAction;
 	ERenderTargetLoadAction			StencilTargetLoadAction;

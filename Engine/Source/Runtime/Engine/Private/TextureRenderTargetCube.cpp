@@ -253,7 +253,7 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 				TextureCubeRHI );
 		}
 
-		if ((TexCreateFlags & TexCreate_UAV) != 0)
+		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))
 		{
 			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetCubeRHI);
 		}

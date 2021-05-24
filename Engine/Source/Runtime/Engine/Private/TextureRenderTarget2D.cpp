@@ -523,7 +523,7 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 			Texture2DRHI
 			);
 
-		if ((TexCreateFlags & TexCreate_UAV) != 0)
+		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))
 		{
 			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetTextureRHI);
 		}

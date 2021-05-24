@@ -240,7 +240,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 	mtlpp::Region Region(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
     
 	FAGXTexture Texture = Surface->Texture;
-    if(!Texture && (Surface->Flags & TexCreate_Presentable))
+    if(!Texture && EnumHasAnyFlags(Surface->Flags, TexCreate_Presentable))
     {
         Texture = Surface->GetCurrentTexture();
     }
@@ -388,7 +388,7 @@ void FAGXDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect R
 	FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(TextureRHI);
 	
     FAGXTexture Texture = Surface->Texture;
-    if(!Texture && (Surface->Flags & TexCreate_Presentable))
+    if(!Texture && EnumHasAnyFlags(Surface->Flags, TexCreate_Presentable))
     {
 		Texture = Surface->GetCurrentTexture();
     }

@@ -11,7 +11,7 @@
 #include "Streaming/StreamableRenderResourceState.h"
 #include "Engine/Texture.h"
 
-bool CanCreateWithPartiallyResidentMips(uint32 TexCreateFlags);
+bool CanCreateWithPartiallyResidentMips(ETextureCreateFlags TexCreateFlags);
 
 /** 
  * The rendering resource streamable texture.

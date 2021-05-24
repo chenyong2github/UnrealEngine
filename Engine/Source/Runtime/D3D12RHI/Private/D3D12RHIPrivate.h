@@ -998,8 +998,8 @@ public:
 	virtual void* CreateVirtualTexture(ETextureCreateFlags InFlags, D3D12_RESOURCE_DESC& ResourceDesc, const struct FD3D12TextureLayout& TextureLayout, FD3D12Resource** ppResource, FPlatformMemory::FPlatformVirtualMemoryBlock& RawTextureBlock, D3D12_RESOURCE_STATES InitialUsage = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) = 0;
 	virtual void DestroyVirtualTexture(ETextureCreateFlags InFlags, void* RawTextureMemory, FPlatformMemory::FPlatformVirtualMemoryBlock& RawTextureBlock, uint64 CommittedTextureSize) = 0;
 #endif
-	virtual bool HandleSpecialLock(void*& MemoryOut, uint32 MipIndex, uint32 ArrayIndex, uint32 InFlags, EResourceLockMode LockMode, const FD3D12TextureLayout& TextureLayout, void* RawTextureMemory, uint32& DestStride) { return false; }
-	virtual bool HandleSpecialUnlock(FRHICommandListBase* RHICmdList, uint32 MipIndex, uint32 InFlags, const struct FD3D12TextureLayout& TextureLayout, void* RawTextureMemory) { return false; }
+	virtual bool HandleSpecialLock(void*& MemoryOut, uint32 MipIndex, uint32 ArrayIndex, ETextureCreateFlags InFlags, EResourceLockMode LockMode, const FD3D12TextureLayout& TextureLayout, void* RawTextureMemory, uint32& DestStride) { return false; }
+	virtual bool HandleSpecialUnlock(FRHICommandListBase* RHICmdList, uint32 MipIndex, ETextureCreateFlags InFlags, const struct FD3D12TextureLayout& TextureLayout, void* RawTextureMemory) { return false; }
 
 	FD3D12Adapter& GetAdapter(uint32_t Index = 0) { return *ChosenAdapters[Index]; }
 	int32 GetNumAdapters() const { return ChosenAdapters.Num(); }
@@ -1400,14 +1400,14 @@ inline DXGI_FORMAT FindDepthStencilResourceDXGIFormat(DXGI_FORMAT InFormat)
 	return InFormat;
 }
 
-inline DXGI_FORMAT GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, uint32 InFlags)
+inline DXGI_FORMAT GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, ETextureCreateFlags InFlags)
 {
 	// Find valid shared texture format
-	if (InFlags & TexCreate_Shared)
+	if (EnumHasAnyFlags(InFlags, TexCreate_Shared))
 	{
-		return FindSharedResourceDXGIFormat(InFormat, InFlags & TexCreate_SRGB);
+		return FindSharedResourceDXGIFormat(InFormat, EnumHasAnyFlags(InFlags, TexCreate_SRGB));
 	}
-	if (InFlags & TexCreate_DepthStencilTargetable)
+	if (EnumHasAnyFlags(InFlags, TexCreate_DepthStencilTargetable))
 	{
 		return FindDepthStencilResourceDXGIFormat(InFormat);
 	}
@@ -1511,15 +1511,14 @@ static void TranslateRenderTargetFormats(
 		checkSlow(PsoInit.RenderTargetFormats[RTIdx] == PF_Unknown || GPixelFormats[PsoInit.RenderTargetFormats[RTIdx]].Supported);
 
 		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[PsoInit.RenderTargetFormats[RTIdx]].PlatformFormat;
-		uint32 Flags = PsoInit.RenderTargetFlags[RTIdx];
+		ETextureCreateFlags Flags = PsoInit.RenderTargetFlags[RTIdx];
 
-		RTFormatArray.RTFormats[RTIdx] = D3D12RHI::FindShaderResourceDXGIFormat( GetPlatformTextureResourceFormat(PlatformFormat, Flags), (Flags & TexCreate_SRGB) != 0 );
+		RTFormatArray.RTFormats[RTIdx] = D3D12RHI::FindShaderResourceDXGIFormat( GetPlatformTextureResourceFormat(PlatformFormat, Flags), EnumHasAnyFlags(Flags, TexCreate_SRGB) );
 	}
 
 	checkSlow(PsoInit.DepthStencilTargetFormat == PF_Unknown || GPixelFormats[PsoInit.DepthStencilTargetFormat].Supported);
 
 	DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[PsoInit.DepthStencilTargetFormat].PlatformFormat;
-	uint32 Flags = PsoInit.DepthStencilTargetFlag;
 
 	DSVFormat = D3D12RHI::FindDepthStencilDXGIFormat( GetPlatformTextureResourceFormat(PlatformFormat, PsoInit.DepthStencilTargetFlag) );
 }

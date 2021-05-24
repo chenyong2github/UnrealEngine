@@ -240,7 +240,7 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect
 	mtlpp::Region Region(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
     
 	FMetalTexture Texture = Surface->Texture;
-    if(!Texture && (Surface->Flags & TexCreate_Presentable))
+    if(!Texture && EnumHasAnyFlags(Surface->Flags, TexCreate_Presentable))
     {
         Texture = Surface->GetCurrentTexture();
     }
@@ -388,7 +388,7 @@ void FMetalDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 	FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
 	
     FMetalTexture Texture = Surface->Texture;
-    if(!Texture && (Surface->Flags & TexCreate_Presentable))
+    if(!Texture && EnumHasAnyFlags(Surface->Flags, TexCreate_Presentable))
     {
 		Texture = Surface->GetCurrentTexture();
     }

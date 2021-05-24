@@ -273,7 +273,7 @@ void FRDGUserValidation::ValidateCreateTexture(const FRDGTextureDesc& Desc, cons
 		TEXT("Failed to create texture %s with pixel format %s because it is not supported."), Name, GPixelFormats[Desc.Format].Name);
 	checkf(Desc.IsValid(), TEXT("Texture %s was created with an invalid descriptor."), Name);
 
-	const bool bCanHaveUAV = (Desc.Flags & TexCreate_UAV) > 0;
+	const bool bCanHaveUAV = EnumHasAnyFlags(Desc.Flags, TexCreate_UAV);
 	const bool bIsMSAA = Desc.NumSamples > 1;
 
 	// D3D11 doesn't allow creating a UAV on MSAA texture.

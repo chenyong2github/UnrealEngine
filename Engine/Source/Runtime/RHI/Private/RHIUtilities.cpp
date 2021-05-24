@@ -535,23 +535,23 @@ RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool 
 
 	if (!bInHasInitialData)
 	{
-		if (InUsage & TexCreate_RenderTargetable)
+		if (EnumHasAnyFlags(InUsage, TexCreate_RenderTargetable))
 		{
 			ResourceState = ERHIAccess::RTV;
 		}
-		else if (InUsage & TexCreate_DepthStencilTargetable)
+		else if (EnumHasAnyFlags(InUsage, TexCreate_DepthStencilTargetable))
 		{
 			ResourceState = ERHIAccess::DSVWrite | ERHIAccess::DSVRead;
 		}
-		else if (InUsage & TexCreate_UAV)
+		else if (EnumHasAnyFlags(InUsage, TexCreate_UAV))
 		{
 			ResourceState = ERHIAccess::UAVMask;
 		}
-		else if (InUsage & TexCreate_Presentable)
+		else if (EnumHasAnyFlags(InUsage, TexCreate_Presentable))
 		{
 			ResourceState = ERHIAccess::Present;
 		}
-		else if (InUsage & TexCreate_ShaderResource)
+		else if (EnumHasAnyFlags(InUsage, TexCreate_ShaderResource))
 		{
 			ResourceState = ERHIAccess::SRVMask;
 		}

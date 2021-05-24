@@ -265,7 +265,7 @@ public:
 			, PrimitiveType
 			, 0
 			, FGraphicsPipelineStateInitializer::TRenderTargetFormats(InPlace, PF_Unknown)
-			, FGraphicsPipelineStateInitializer::TRenderTargetFlags(InPlace, 0)
+			, FGraphicsPipelineStateInitializer::TRenderTargetFlags(InPlace, TexCreate_None)
 			, PF_Unknown
 			, TexCreate_None
 			, ERenderTargetLoadAction::ENoAction

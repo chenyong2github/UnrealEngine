@@ -346,7 +346,7 @@ public:
 		auto SetAccess = [&](FRHITexture* Texture, ERHIAccess Access)
 		{
 			// If this is a depth texture, only transition the depth plane.
-			RHIValidation::FResourceIdentity Identity = (Texture->GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_DepthStencilResolveTarget))
+			RHIValidation::FResourceIdentity Identity = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_DepthStencilTargetable | TexCreate_DepthStencilResolveTarget)
 				? Texture->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Common), 1)
 				: Texture->GetWholeResourceIdentity();
 

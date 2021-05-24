@@ -18,7 +18,7 @@ FDisplayClusterViewportResourceSettings::FDisplayClusterViewportResourceSettings
 		if (ViewportTexture)
 		{
 			Format = ViewportTexture->GetFormat();
-			bShouldUseSRGB = (ViewportTexture->GetFlags() & TexCreate_SRGB) != 0;
+			bShouldUseSRGB = EnumHasAnyFlags(ViewportTexture->GetFlags(), TexCreate_SRGB);
 			DisplayGamma = InViewport->GetDisplayGamma();
 		}
 	}
@@ -41,9 +41,9 @@ FDisplayClusterViewportResourceSettings::FDisplayClusterViewportResourceSettings
 	{
 		Size = InTexture->GetSizeXY();
 		Format = InTexture->GetFormat();
-		bShouldUseSRGB = (InTexture->GetFlags() & TexCreate_SRGB) != 0;
+		bShouldUseSRGB = EnumHasAnyFlags(InTexture->GetFlags(), TexCreate_SRGB);
 
-		bIsRenderTargetable = (InTexture->GetFlags() & TexCreate_RenderTargetable) != 0;
+		bIsRenderTargetable = EnumHasAnyFlags(InTexture->GetFlags(), TexCreate_RenderTargetable);
 		NumMips = InTexture->GetNumMips();
 	}
 }

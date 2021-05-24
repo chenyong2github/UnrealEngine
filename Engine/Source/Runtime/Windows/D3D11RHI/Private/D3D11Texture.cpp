@@ -112,7 +112,7 @@ void D3D11TextureAllocated( TD3D11Texture2D<BaseResourceType>& Texture )
 
 	if(D3D11Texture2D)
 	{
-		if ( (Texture.Flags & TexCreate_Virtual) == TexCreate_Virtual )
+		if (EnumHasAllFlags(Texture.Flags, TexCreate_Virtual) )
 		{
 			Texture.SetMemorySize(0);
 		}
@@ -152,7 +152,7 @@ void D3D11TextureDeleted( TD3D11Texture2D<BaseResourceType>& Texture )
 
 		// When using virtual textures use the current memory size, which is the number of physical pages allocated, not virtual
 		int64 TextureSize = 0;
-		if ( (Texture.GetFlags() & TexCreate_Virtual) == TexCreate_Virtual )
+		if (EnumHasAllFlags(Texture.GetFlags(), TexCreate_Virtual))
 		{
 			TextureSize = Texture.GetMemorySize();
 		}
@@ -508,14 +508,14 @@ inline DXGI_FORMAT FindDepthStencilResourceDXGIFormat(DXGI_FORMAT InFormat)
 }
 
 
-DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, uint32 InFlags)
+DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, ETextureCreateFlags InFlags)
 {
 	// Find valid shared texture format
-	if (InFlags & TexCreate_Shared)
+	if (EnumHasAnyFlags(InFlags, TexCreate_Shared))
 	{
-		return FindSharedResourceDXGIFormat(InFormat, InFlags & TexCreate_SRGB);
+		return FindSharedResourceDXGIFormat(InFormat, EnumHasAnyFlags(InFlags, TexCreate_SRGB));
 	}
-	if (InFlags & TexCreate_DepthStencilTargetable)
+	if (EnumHasAnyFlags(InFlags, TexCreate_DepthStencilTargetable))
 	{
 		return FindDepthStencilResourceDXGIFormat(InFormat);
 	}
@@ -622,7 +622,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 
 	bool bPooledTexture = true;
 
-	const bool bSRGB = (Flags & TexCreate_SRGB) != 0;
+	const bool bSRGB = EnumHasAnyFlags(Flags, TexCreate_SRGB);
 
 	const DXGI_FORMAT PlatformResourceFormat = FD3D11DynamicRHI::GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, Flags);
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
@@ -637,7 +637,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	uint32 ActualMSAAQuality = GetMaxMSAAQuality(ActualMSAACount);
 
 	// 0xffffffff means not supported
-	if (ActualMSAAQuality == 0xffffffff || (Flags & TexCreate_Shared) != 0)
+	if (ActualMSAAQuality == 0xffffffff || EnumHasAnyFlags(Flags, TexCreate_Shared))
 	{
 		// no MSAA
 		ActualMSAACount = 1;
@@ -651,23 +651,21 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		bPooledTexture = false;
 	}
 
-	if (NumMips < 1 || SizeX != SizeY || (1 << (NumMips - 1)) != SizeX || (Flags & TexCreate_Shared) != 0)
+	if (NumMips < 1 || SizeX != SizeY || (1 << (NumMips - 1)) != SizeX || EnumHasAnyFlags(Flags, TexCreate_Shared))
 	{
 		bPooledTexture = false;
 	}
 
-	if (Flags & TexCreate_CPUReadback)
+	if (EnumHasAnyFlags(Flags, TexCreate_CPUReadback))
 	{
-		check(!(Flags & TexCreate_RenderTargetable));
-		check(!(Flags & TexCreate_DepthStencilTargetable));
-		check(!(Flags & TexCreate_ShaderResource));
+		check(!EnumHasAnyFlags(Flags, TexCreate_RenderTargetable| TexCreate_DepthStencilTargetable| TexCreate_ShaderResource));
 
 		CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 		TextureUsage = D3D11_USAGE_STAGING;
 		bCreateShaderResource = false;
 	}
 
-	if (Flags & TexCreate_CPUWritable)
+	if (EnumHasAnyFlags(Flags, TexCreate_CPUWritable))
 	{
 		CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		TextureUsage = D3D11_USAGE_STAGING;
@@ -700,12 +698,12 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		bCreateShaderResource = false;
 	}
 
-	if (Flags & TexCreate_DisableSRVCreation)
+	if (EnumHasAnyFlags(Flags, TexCreate_DisableSRVCreation))
 	{
 		bCreateShaderResource = false;
 	}
 
-	if (Flags & TexCreate_Shared)
+	if (EnumHasAnyFlags(Flags, TexCreate_Shared))
 	{
 		if (GCVarUseSharedKeyedMutex->GetInt() != 0)
 		{
@@ -717,7 +715,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		}
 	}
 
-	if (Flags & TexCreate_GenerateMipCapable)
+	if (EnumHasAnyFlags(Flags, TexCreate_GenerateMipCapable))
 	{
 		// Set the flag that allows us to call GenerateMips on this texture later
 		TextureDesc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
@@ -729,24 +727,21 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	bool bCreateDSV = false;
 	bool bCreatedRTVPerSlice = false;
 
-	if(Flags & TexCreate_RenderTargetable)
+	if(EnumHasAnyFlags(Flags, TexCreate_RenderTargetable))
 	{
-		check(!(Flags & TexCreate_DepthStencilTargetable));
-		check(!(Flags & TexCreate_ResolveTargetable));		
+		check(!EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable| TexCreate_ResolveTargetable));
 		TextureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 		bCreateRTV = true;		
 	}
-	else if(Flags & TexCreate_DepthStencilTargetable)
+	else if(EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable))
 	{
-		check(!(Flags & TexCreate_RenderTargetable));
-		check(!(Flags & TexCreate_ResolveTargetable));
+		check(!EnumHasAnyFlags(Flags, TexCreate_RenderTargetable| TexCreate_ResolveTargetable));
 		TextureDesc.BindFlags |= D3D11_BIND_DEPTH_STENCIL; 
 		bCreateDSV = true;
 	}
-	else if(Flags & TexCreate_ResolveTargetable)
+	else if(EnumHasAnyFlags(Flags, TexCreate_ResolveTargetable))
 	{
-		check(!(Flags & TexCreate_RenderTargetable));
-		check(!(Flags & TexCreate_DepthStencilTargetable));
+		check(!EnumHasAnyFlags(Flags, TexCreate_RenderTargetable| TexCreate_DepthStencilTargetable));
 		if(Format == PF_DepthStencil || Format == PF_ShadowDepth || Format == PF_D24)
 		{
 			TextureDesc.BindFlags |= D3D11_BIND_DEPTH_STENCIL; 
@@ -765,13 +760,13 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		bCreateRTV = false;
 	}
 
-	if (Flags & TexCreate_UAV)
+	if (EnumHasAnyFlags(Flags, TexCreate_UAV))
 	{
 		TextureDesc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 		bPooledTexture = false;
 	}
 
-	if (bCreateDSV && !(Flags & TexCreate_ShaderResource))
+	if (bCreateDSV && !EnumHasAnyFlags(Flags, TexCreate_ShaderResource))
 	{
 		TextureDesc.BindFlags &= ~D3D11_BIND_SHADER_RESOURCE;
 		bCreateShaderResource = false;
@@ -789,7 +784,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	// Turn off pooling when we are using virtual textures or the texture is offline processed as we control when the memory is released
-	if ( (Flags & (TexCreate_Virtual | TexCreate_OfflineProcessed)) != 0 )
+	if (EnumHasAnyFlags(Flags, TexCreate_Virtual | TexCreate_OfflineProcessed))
 	{
 		bPooledTexture = false;
 	}
@@ -841,7 +836,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		}
 
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-		if ( (Flags & (TexCreate_Virtual | TexCreate_OfflineProcessed)) != 0 )
+		if (EnumHasAnyFlags(Flags, TexCreate_Virtual | TexCreate_OfflineProcessed))
 		{
 			RawTextureMemory = CreateVirtualTexture(SizeX, SizeY, SizeZ, NumMips, bCubeTexture, Flags, &TextureDesc, &TextureResource);
 		}
@@ -856,7 +851,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 			// Create a render target view for each mip
 			for (uint32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
 			{
-				if ((Flags & TexCreate_TargetArraySlicesIndependently) && (bTextureArray || bCubeTexture))
+				if (EnumHasAnyFlags(Flags, TexCreate_TargetArraySlicesIndependently) && (bTextureArray || bCubeTexture))
 				{
 					bCreatedRTVPerSlice = true;
 
@@ -1075,7 +1070,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	D3D11TextureAllocated(*Texture2D);
 	
 #if !PLATFORM_HOLOLENS
-	if (IsRHIDeviceNVIDIA() && (Flags & TexCreate_AFRManual))
+	if (IsRHIDeviceNVIDIA() && EnumHasAnyFlags(Flags, TexCreate_AFRManual))
 	{
 		// get a resource handle for this texture
 		void* IHVHandle = nullptr;
@@ -1099,7 +1094,7 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D11CreateTextureTime);
 	
-	const bool bSRGB = (Flags & TexCreate_SRGB) != 0;
+	const bool bSRGB = EnumHasAnyFlags(Flags, TexCreate_SRGB);
 
 	const DXGI_FORMAT PlatformResourceFormat = (DXGI_FORMAT)GPixelFormats[Format].PlatformFormat;
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
@@ -1118,30 +1113,28 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 	TextureDesc.CPUAccessFlags = 0;
 	TextureDesc.MiscFlags = 0;
 
-	if (Flags & TexCreate_GenerateMipCapable)
+	if (EnumHasAnyFlags(Flags, TexCreate_GenerateMipCapable))
 	{
 		// Set the flag that allows us to call GenerateMips on this texture later
 		TextureDesc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 	}
 
-	if (Flags & TexCreate_UAV)
+	if (EnumHasAnyFlags(Flags, TexCreate_UAV))
 	{
 		TextureDesc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 	}
 
 	bool bCreateRTV = false;
 
-	if(Flags & TexCreate_RenderTargetable)
+	if(EnumHasAnyFlags(Flags, TexCreate_RenderTargetable))
 	{
 		TextureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;		
 		bCreateRTV = true;
 	}
 
 	// Set up the texture bind flags.
-	check(!(Flags & TexCreate_DepthStencilTargetable));
-	check(!(Flags & TexCreate_ResolveTargetable));
-	check(Flags & TexCreate_ShaderResource);
-
+	check(!EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable));
+	check(EnumHasAllFlags(Flags, TexCreate_ShaderResource));
 
 	TArray<D3D11_SUBRESOURCE_DATA> SubResourceData;
 
@@ -1218,7 +1211,7 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 
 	D3D11TextureAllocated(*Texture3D);
 #if !PLATFORM_HOLOLENS
-	if (IsRHIDeviceNVIDIA() && (Flags & TexCreate_AFRManual))
+	if (IsRHIDeviceNVIDIA() && EnumHasAnyFlags(Flags, TexCreate_AFRManual))
 	{
 		// get a resource handle for this texture
 		void* IHVHandle = nullptr;
@@ -1272,14 +1265,15 @@ FTexture2DRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX,uint32 S
 	D3D11_SUBRESOURCE_DATA SubResourceData[ MAX_TEXTURE_MIP_COUNT ];
 	FPlatformMemory::Memzero( SubResourceData, sizeof( D3D11_SUBRESOURCE_DATA ) * MAX_TEXTURE_MIP_COUNT );
 
-	uint32 InvalidFlags = TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_GenerateMipCapable | TexCreate_UAV | TexCreate_Presentable | TexCreate_CPUReadback;
+	ETextureCreateFlags InvalidFlags = TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_GenerateMipCapable | TexCreate_UAV | TexCreate_Presentable | TexCreate_CPUReadback;
+	check(!EnumHasAnyFlags(Flags, InvalidFlags));
+
 	TArray<TRefCountPtr<ID3D11RenderTargetView> > RenderTargetViews;
 	
 	check(GRHISupportsAsyncTextureCreation);
-	check((Flags & InvalidFlags) == 0);
 
 	const DXGI_FORMAT PlatformResourceFormat = (DXGI_FORMAT)GPixelFormats[Format].PlatformFormat;
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat,((Flags & TexCreate_SRGB) != 0));
+	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, EnumHasAnyFlags(Flags, TexCreate_SRGB));
 
 	TextureDesc.Width = SizeX;
 	TextureDesc.Height = SizeY;
@@ -1503,7 +1497,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHIText
 	}
 
 	// Allow input CreateInfo to override SRGB and/or format
-	const bool bBaseSRGB = (TextureRHI->GetFlags() & TexCreate_SRGB) != 0;
+	const bool bBaseSRGB = EnumHasAnyFlags(TextureRHI->GetFlags(), TexCreate_SRGB);
 	const bool bSRGB = CreateInfo.SRGBOverride != SRGBO_ForceDisable && bBaseSRGB;
 	if (CreateInfo.Format != PF_Unknown)
 	{
@@ -1721,7 +1715,7 @@ void* TD3D11Texture2D<RHIResourceType>::Lock(uint32 MipIndex,uint32 ArrayIndex,E
 #endif
 	if( LockMode == RLM_WriteOnly )
 	{
-		if (!bForceLockDeferred && (Flags & TexCreate_CPUWritable))
+		if (!bForceLockDeferred && EnumHasAnyFlags(Flags, TexCreate_CPUWritable))
 		{
 			D3D11_MAPPED_SUBRESOURCE MappedTexture;
 			VERIFYD3D11RESULT_EX(D3DRHI->GetDeviceContext()->Map(GetResource(), Subresource, D3D11_MAP_WRITE, 0, &MappedTexture), D3DRHI->GetDevice());
@@ -1819,7 +1813,7 @@ void TD3D11Texture2D<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 	}
 	else
 #endif
-	if (!LockedData.bLockDeferred && (Flags & TexCreate_CPUWritable))
+	if (!LockedData.bLockDeferred && EnumHasAnyFlags(Flags, TexCreate_CPUWritable))
 	{
 		D3DRHI->GetDeviceContext()->Unmap(GetResource(), 0);
 	}
@@ -2270,7 +2264,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 	D3D11_TEXTURE2D_DESC TextureDesc;
 	TextureResource->GetDesc(&TextureDesc);
 
-	const bool bSRGB = (TexCreateFlags & TexCreate_SRGB) != 0;
+	const bool bSRGB = EnumHasAnyFlags(TexCreateFlags, TexCreate_SRGB);
 
 	const DXGI_FORMAT PlatformResourceFormat = FD3D11DynamicRHI::GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, TexCreateFlags);
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
@@ -2289,7 +2283,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 		// Create a render target view for each mip
 		for (uint32 MipIndex = 0; MipIndex < TextureDesc.MipLevels; MipIndex++)
 		{
-			if ((TexCreateFlags & TexCreate_TargetArraySlicesIndependently) && (bTextureArray || bCubeTexture))
+			if (EnumHasAnyFlags(TexCreateFlags, TexCreate_TargetArraySlicesIndependently) && (bTextureArray || bCubeTexture))
 			{
 				bCreatedRTVPerSlice = true;
 
@@ -2506,7 +2500,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateAliasedD3D11Texture2D
 	D3D11_TEXTURE2D_DESC TextureDesc;
 	SourceTexture->GetResource()->GetDesc(&TextureDesc);
 
-	const bool bSRGB = (SourceTexture->Flags & TexCreate_SRGB) != 0;
+	const bool bSRGB = EnumHasAnyFlags(SourceTexture->Flags, TexCreate_SRGB);
 
 	const DXGI_FORMAT PlatformResourceFormat = TextureDesc.Format;
 	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
@@ -2538,7 +2532,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateAliasedD3D11Texture2D
 		for (uint32 MipIndex = 0; MipIndex < TextureDesc.MipLevels; MipIndex++)
 		{
 			// Just add null RTV entries (we'll be aliasing from source shortly).
-			if ((SourceTexture->Flags & TexCreate_TargetArraySlicesIndependently) && (bTextureArray || bCubeTexture))
+			if (EnumHasAnyFlags(SourceTexture->Flags, TexCreate_TargetArraySlicesIndependently) && (bTextureArray || bCubeTexture))
 			{
 				bCreatedRTVPerSlice = true;
 

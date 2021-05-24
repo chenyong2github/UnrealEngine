@@ -168,7 +168,7 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		uint32 MSAASamples;
 		
 		EPixelFormat DepthStencilFormat;
-		uint32 DepthStencilFlags;
+		ETextureCreateFlags DepthStencilFlags;
 		ERenderTargetLoadAction DepthLoad;
 		ERenderTargetLoadAction StencilLoad;
 		ERenderTargetStoreAction DepthStore;

@@ -169,7 +169,7 @@ bool IsMemorylessTexture(const FTexture2DRHIRef& Tex)
 {
 	if (Tex)
 	{
-		return (Tex->GetFlags() & TexCreate_Memoryless) != 0;
+		return EnumHasAnyFlags(Tex->GetFlags(), TexCreate_Memoryless);
 	}
 	return false;
 }

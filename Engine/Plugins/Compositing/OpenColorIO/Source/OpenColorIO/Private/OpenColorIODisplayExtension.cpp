@@ -174,7 +174,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 		return SceneColor;
 	}
 
-	if (!(SceneColor.Texture->Desc.Flags & ETextureCreateFlags::TexCreate_ShaderResource))
+	if (!EnumHasAnyFlags(SceneColor.Texture->Desc.Flags, TexCreate_ShaderResource))
 	{
 		return SceneColor;
 	}
