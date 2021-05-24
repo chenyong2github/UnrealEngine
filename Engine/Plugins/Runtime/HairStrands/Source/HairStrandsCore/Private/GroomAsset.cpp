@@ -668,6 +668,16 @@ bool UGroomAsset::HasImportedStrandsData() const
 }
 #endif
 
+// Serialization for *array* of hair elements
+static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupData::FCards::FLOD>& CardLODData);
+static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupData::FMeshes::FLOD>& MeshLODData);
+static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupData>& GroupData);
+
+// Serialization for hair elements
+static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData::FCards::FLOD& CardLODData);
+static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData::FMeshes::FLOD& MeshLODData);
+static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData& GroupData);
+
 void UGroomAsset::Serialize(FArchive& Ar)
 {
 	uint8 ClassDataStripFlags = GenerateClassStripFlags(Ar);
@@ -696,7 +706,7 @@ void UGroomAsset::Serialize(FArchive& Ar)
 		{
 			// When cooking data or serializing old format to new format,
 			// serialize the computed groom data
-			Ar << HairGroupsData;
+			InternalSerialize(Ar, this, HairGroupsData);
 		}
 #if WITH_EDITORONLY_DATA
 		else
@@ -1377,14 +1387,60 @@ int32 UGroomAsset::GetNumHairGroups() const
 	return HairGroupsData.Num();
 }
 
-FArchive& operator<<(FArchive& Ar, FHairGroupData::FCards::FLOD& CardLODData)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Array serialize
+void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupData::FMeshes::FLOD>& LODs)
+{
+	uint32 Count = LODs.Num();
+	Ar << Count;
+	if (Ar.IsLoading())
+	{
+		LODs.SetNum(Count);
+	}
+	for (uint32 MeshIt = 0; MeshIt < Count; ++MeshIt)
+	{
+		InternalSerialize(Ar, Owner, LODs[MeshIt]);
+	}
+}
+
+void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupData::FCards::FLOD>& LODs)
+{
+	uint32 Count = LODs.Num();
+	Ar << Count;
+	if (Ar.IsLoading())
+	{
+		LODs.SetNum(Count);
+	}
+	for (uint32 MeshIt = 0; MeshIt < Count; ++MeshIt)
+	{
+		InternalSerialize(Ar, Owner, LODs[MeshIt]);
+	}
+}
+
+void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupData>& GroupDatas)
+{
+	uint32 GroupCount = GroupDatas.Num();
+	Ar << GroupCount;
+	if (Ar.IsLoading())
+	{
+		GroupDatas.SetNum(GroupCount);
+	}
+	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+	{
+		InternalSerialize(Ar, Owner, GroupDatas[GroupIt]);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Element serialize
+static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData::FCards::FLOD& CardLODData)
 {
 	if (!Ar.IsCooking() || !CardLODData.bIsCookedOut)
 	{
 		CardLODData.BulkData.Serialize(Ar);
 		CardLODData.InterpolationBulkData.Serialize(Ar);
 
-		CardLODData.Guides.BulkData.Serialize(Ar);
+		CardLODData.Guides.BulkData.Serialize(Ar, Owner);
 		CardLODData.Guides.InterpolationBulkData.Serialize(Ar);
 	}
 	else
@@ -1397,14 +1453,12 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FCards::FLOD& CardLODData)
 		NoInterpolationBulkData.Serialize(Ar);
 
 		FHairGroupData::FBaseWithInterpolation NoGuideData;
-		NoGuideData.BulkData.Serialize(Ar);
+		NoGuideData.BulkData.Serialize(Ar, Owner);
 		NoGuideData.InterpolationBulkData.Serialize(Ar);
 	}
-
-	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairGroupData::FMeshes::FLOD& MeshLODData)
+static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData::FMeshes::FLOD& MeshLODData)
 {
 	if (!Ar.IsCooking() || !MeshLODData.bIsCookedOut)
 	{
@@ -1416,19 +1470,17 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FMeshes::FLOD& MeshLODData)
 		FHairMeshesBulkData NoMeshesBulkData;
 		NoMeshesBulkData.Serialize(Ar);
 	}
-
-	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
+static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData& GroupData)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
 	FHairGroupData NoStrandsData;
 	if (!Ar.IsCooking() || !GroupData.bIsCookedOut)
 	{
-		GroupData.Strands.BulkData.Serialize(Ar);
-		GroupData.Guides.BulkData.Serialize(Ar);
+		GroupData.Strands.BulkData.Serialize(Ar, Owner);
+		GroupData.Guides.BulkData.Serialize(Ar, Owner);
 		GroupData.Strands.InterpolationBulkData.Serialize(Ar);
 
 	}
@@ -1437,8 +1489,8 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
 		// Fall back to no data, but still serialize guide data as they an be used for cards simulation
 		// Theoritically, we should have something to detect if we are going to use or not guide (for 
 		// simulation or RBF deformation) on the target platform
-		NoStrandsData.Strands.BulkData.Serialize(Ar);
-		GroupData.Guides.BulkData.Serialize(Ar);
+		NoStrandsData.Strands.BulkData.Serialize(Ar, Owner);
+		GroupData.Guides.BulkData.Serialize(Ar, Owner);
 		NoStrandsData.Strands.InterpolationBulkData.Serialize(Ar);
 	}
 
@@ -1460,13 +1512,11 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
 
 			if (bIsCooked)
 			{
-				Ar << GroupData.Cards.LODs;
-				Ar << GroupData.Meshes.LODs;
+				InternalSerialize(Ar, Owner, GroupData.Cards.LODs);
+				InternalSerialize(Ar, Owner, GroupData.Meshes.LODs);
 			}
 		}
 	}
-
-	return Ar;
 }
 
 void UGroomAsset::AddAssetUserData(UAssetUserData* InUserData)
@@ -1617,7 +1667,7 @@ void UGroomAsset::SetHairWidth(float Width)
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_DERIVED_DATA_VERSION TEXT("58A94E5B3E784BBBB5C1FF7D42540EB5")
+#define GROOM_DERIVED_DATA_VERSION TEXT("7188891507314F3D9F79461BA21DF850")
 
 #if WITH_EDITORONLY_DATA
 
@@ -2009,7 +2059,7 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 
 		FHairGroupData& HairGroupData = HairGroupsData[GroupIndex];
 		FLargeMemoryReader LargeMemReader(DecompressionBuffer, UncompressedSize, ELargeMemoryReaderFlags::Persistent | ELargeMemoryReaderFlags::TakeOwnership);
-		LargeMemReader << HairGroupData;
+		InternalSerialize(LargeMemReader, this, HairGroupData);
 	}
 	else
 	{
@@ -2049,8 +2099,7 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 		{
 			// Using a LargeMemoryWriter for serialization since the data can be bigger than 2 GB
 			FLargeMemoryWriter LargeMemWriter(0, /*bIsPersistent=*/ true);
-			LargeMemWriter << HairGroupsData[GroupIndex];
-
+			InternalSerialize(LargeMemWriter, this, HairGroupsData[GroupIndex]);
 			int64 UncompressedSize = LargeMemWriter.TotalSize();
 
 			// Then the content of the LargeMemWriter is compressed into a MemoryWriter
@@ -2104,7 +2153,7 @@ bool UGroomAsset::CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKe
 			UE_LOG(LogHairStrands, Log, TEXT("[Groom/DDC] Cards - Found (Groom:%s Group:%d)."), *GetName(), GroupIndex);
 		}
 		FMemoryReader Ar(DerivedData, true);
-		Ar << HairGroupData.Cards.LODs;
+		InternalSerialize(Ar, this, HairGroupData.Cards.LODs);
 	}
 	else
 	{
@@ -2120,7 +2169,7 @@ bool UGroomAsset::CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKe
 		}
 
 		FMemoryWriter Ar(DerivedData, true);
-		Ar << HairGroupData.Cards.LODs;
+		InternalSerialize(Ar, this, HairGroupData.Cards.LODs);
 
 		GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, GetPathName());
 	}
@@ -2180,7 +2229,7 @@ bool UGroomAsset::CacheMeshesGeometry(uint32 GroupIndex)
 		}
 
 		FMemoryReader Ar(DerivedData, true);
-		Ar << HairGroupData.Meshes.LODs;
+		InternalSerialize(Ar, this, HairGroupData.Meshes.LODs);
 	}
 	else
 	{
@@ -2196,7 +2245,7 @@ bool UGroomAsset::CacheMeshesGeometry(uint32 GroupIndex)
 		}
 
 		FMemoryWriter Ar(DerivedData, true);
-		Ar << HairGroupData.Meshes.LODs;
+		InternalSerialize(Ar, this, HairGroupData.Meshes.LODs);
 
 		GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, GetPathName());
 	}

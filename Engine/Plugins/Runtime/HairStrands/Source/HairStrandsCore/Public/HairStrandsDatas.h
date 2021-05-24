@@ -427,7 +427,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 		DataFlags_HasMaterialData = 2
 	};
 
-	void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar, UObject* Owner);
 
 	bool IsValid() const { return CurveCount > 0 && PointCount > 0;	}
 	
@@ -445,11 +445,11 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	FBox BoundingBox;
 	uint32 Flags = 0;
 
-	TArray<FHairStrandsPositionFormat::Type>	Positions;		// Size = PointCount
-	TArray<FHairStrandsAttribute0Format::Type>	Attributes0;	// Size = PointCount
-	TArray<FHairStrandsAttribute1Format::Type>	Attributes1;	// Size = PointCount
-	TArray<FHairStrandsMaterialFormat::Type>	Materials;		// Size = PointCount
-	TArray<FHairStrandsRootIndexFormat::Type>	CurveOffsets;	// Size = CurveCount+1 - Store the root point index for the curve
+	FByteBulkData Positions;	// Size = PointCount
+	FByteBulkData Attributes0;	// Size = PointCount
+	FByteBulkData Attributes1;	// Size = PointCount
+	FByteBulkData Materials;	// Size = PointCount
+	FByteBulkData CurveOffsets;	// Size = CurveCount+1 - Store the root point index for the curve
 };
 
 /** Hair strands debug data */

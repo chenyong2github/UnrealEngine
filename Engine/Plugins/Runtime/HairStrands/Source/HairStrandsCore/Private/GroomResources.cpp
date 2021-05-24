@@ -117,6 +117,35 @@ static FRDGBufferRef InternalCreateVertexBuffer(
 }
 
 template<typename FormatType>
+void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, FRDGBufferUploader& BufferUploader, typename const FormatType::Type* InData, uint32 InDataCount, FRDGExternalBuffer& Out, const TCHAR* DebugName, EHairResourceUsageType UsageType, ERDGInitialDataFlags InitialDataFlags)
+{
+	FRDGBufferRef Buffer = nullptr;
+
+	const uint32 DataSizeInBytes = FormatType::SizeInByte * InDataCount;
+	if (DataSizeInBytes == 0)
+	{
+		Out.Buffer = nullptr;
+		return;
+	}
+
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(FormatType::SizeInByte, InDataCount);
+	if (UsageType != EHairResourceUsageType::Dynamic)
+	{
+		Desc.Usage = Desc.Usage & (~BUF_UnorderedAccess);
+	}
+	Buffer = InternalCreateVertexBuffer(
+		GraphBuilder,
+		BufferUploader,
+		DebugName,
+		Desc,
+		InData,
+		DataSizeInBytes,
+		InitialDataFlags);
+
+	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, FormatType::Format);
+}
+
+template<typename FormatType>
 void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, FRDGBufferUploader& BufferUploader, const TArray<typename FormatType::Type>& InData, FRDGExternalBuffer& Out, const TCHAR* DebugName, EHairResourceUsageType UsageType, ERDGInitialDataFlags InitialDataFlags= ERDGInitialDataFlags::NoCopy)
 {
 	FRDGBufferRef Buffer = nullptr;
@@ -572,24 +601,46 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
 	FRDGBufferUploader BufferUploader;
 
-	InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, BufferUploader, BulkData.Positions, PositionBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionBuffer), EHairResourceUsageType::Static);
-	InternalCreateVertexBufferRDG<FHairStrandsAttribute0Format>(GraphBuilder, BufferUploader, BulkData.Attributes0, Attribute0Buffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_Attribute0Buffer), EHairResourceUsageType::Static);
+	const uint32 PointCount = BulkData.PointCount;
 
+	// 1. Lock data, which force the loading data from files (on non-editor build/cooked data). These data are then uploaded to the GPU
+	// 2. A local copy is done by the buffer uploader. This copy is discarded once the uploading is done.
+	const FHairStrandsPositionFormat::Type* BulkDataPositions = (const FHairStrandsPositionFormat::Type*)BulkData.Positions.LockReadOnly();
+	InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, BufferUploader, BulkDataPositions, PointCount, PositionBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionBuffer), EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
+
+	const FHairStrandsAttribute0Format::Type* BulkDataAttributes0 = (const FHairStrandsAttribute0Format::Type*)BulkData.Attributes0.LockReadOnly();
+	InternalCreateVertexBufferRDG<FHairStrandsAttribute0Format>(GraphBuilder, BufferUploader, BulkDataAttributes0, PointCount, Attribute0Buffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_Attribute0Buffer), EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
+
+	const FHairStrandsAttribute1Format::Type* BulkDataAttributes1 = nullptr;
 	if (!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasUDIMData))
 	{
-		InternalCreateVertexBufferRDG<FHairStrandsAttribute1Format>(GraphBuilder, BufferUploader, BulkData.Attributes1, Attribute1Buffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_Attribute1Buffer), EHairResourceUsageType::Static);
+		BulkDataAttributes1 = (const FHairStrandsAttribute1Format::Type*)BulkData.Attributes1.LockReadOnly();
+		InternalCreateVertexBufferRDG<FHairStrandsAttribute1Format>(GraphBuilder, BufferUploader, BulkDataAttributes1, PointCount, Attribute1Buffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_Attribute1Buffer), EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
 	}
 
+	const FHairStrandsMaterialFormat::Type* BulkDataMaterials = nullptr;
 	if (!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasMaterialData))
 	{
-		InternalCreateVertexBufferRDG<FHairStrandsMaterialFormat>(GraphBuilder, BufferUploader, BulkData.Materials, MaterialBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_MaterialBuffer), EHairResourceUsageType::Static);
+		BulkDataMaterials = (const FHairStrandsMaterialFormat::Type*)BulkData.Materials.LockReadOnly();
+		InternalCreateVertexBufferRDG<FHairStrandsMaterialFormat>(GraphBuilder, BufferUploader, BulkDataMaterials, PointCount, MaterialBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_MaterialBuffer), EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
 	}
 
 	TArray<FVector4> RestOffset;
 	RestOffset.Add(BulkData.GetPositionOffset());
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, BufferUploader, RestOffset, PositionOffsetBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionOffsetBuffer), EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
-
 	BufferUploader.Submit(GraphBuilder);
+
+	// Unlock data once the data has been copied/cached by the uploader
+	BulkData.Positions.Unlock();
+	BulkData.Attributes0.Unlock();
+	if (BulkDataAttributes1)
+	{
+		BulkData.Attributes1.Unlock();
+	}
+	if (BulkDataMaterials)
+	{
+		BulkData.Materials.Unlock();
+	}
 }
 
 void AddHairTangentPass(
@@ -643,10 +694,16 @@ void FHairStrandsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
 	FRDGBufferUploader BufferUploader;
 
+	const uint32 PointCount = BulkData.PointCount;
+
+	const FHairStrandsPositionFormat::Type* BulkDataPositions = nullptr;
 	if (bInitializedData)
 	{
-		InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, BufferUploader, BulkData.Positions, DeformedPositionBuffer[0], HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedPositionBuffer0), EHairResourceUsageType::Dynamic);
-		InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, BufferUploader, BulkData.Positions, DeformedPositionBuffer[1], HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedPositionBuffer1), EHairResourceUsageType::Dynamic);
+		// 1. Lock data, which force the loading data from files (on non-editor build/cooked data). These data are then uploaded to the GPU
+		// 2. A local copy is done by the buffer uploader. This copy is discarded once the uploading is done.
+		BulkDataPositions = (const FHairStrandsPositionFormat::Type*)BulkData.Positions.LockReadOnly();
+		InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, BufferUploader, BulkDataPositions, PointCount, DeformedPositionBuffer[0], HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedPositionBuffer0), EHairResourceUsageType::Dynamic, ERDGInitialDataFlags::None);
+		InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, BufferUploader, BulkDataPositions, PointCount, DeformedPositionBuffer[1], HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedPositionBuffer1), EHairResourceUsageType::Dynamic, ERDGInitialDataFlags::None);
 	}
 	else
 	{
@@ -661,6 +718,11 @@ void FHairStrandsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, BufferUploader, DefaultOffsets, DeformedOffsetBuffer[1], HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedOffsetBuffer1), EHairResourceUsageType::Dynamic, ERDGInitialDataFlags::None);
 
 	BufferUploader.Submit(GraphBuilder);
+
+	if (BulkDataPositions)
+	{
+		BulkData.Positions.Unlock();
+	}
 }
 
 void FHairStrandsDeformedResource::InternalRelease()
