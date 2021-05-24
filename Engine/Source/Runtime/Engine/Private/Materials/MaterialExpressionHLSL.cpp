@@ -28,11 +28,13 @@
 #include "Materials/MaterialExpressionStaticSwitch.h"
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionAdd.h"
+#include "Materials/MaterialExpressionBinaryOp.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Materials/MaterialExpressionReflectionVectorWS.h"
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
+#include "Materials/MaterialExpressionWhileLoop.h"
 #include "Materials/MaterialFunctionInterface.h"
 
 EMaterialGenerateHLSLStatus UMaterialExpression::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
@@ -192,6 +194,19 @@ EMaterialGenerateHLSLStatus UMaterialExpressionTextureSampleParameter::GenerateH
 	return GenerateHLSLExpressionBase(Generator, Scope, TextureDeclaration, OutExpression);
 }
 
+EMaterialGenerateHLSLStatus UMaterialExpressionBinaryOp::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	UE::HLSLTree::FExpression* Lhs = A.GetTracedInput().Expression ? A.AcquireHLSLExpression(Generator, Scope) : Generator.NewConstant(Scope, ConstA);
+	UE::HLSLTree::FExpression* Rhs = B.GetTracedInput().Expression ? B.AcquireHLSLExpression(Generator, Scope) : Generator.NewConstant(Scope, ConstB);
+	if (!Lhs || !Rhs)
+	{
+		return EMaterialGenerateHLSLStatus::Error;
+	}
+
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionBinaryOp>(Scope, GetBinaryOp(), Lhs, Rhs);
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
 EMaterialGenerateHLSLStatus UMaterialExpressionAdd::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	UE::HLSLTree::FExpression* Lhs = A.GetTracedInput().Expression ? A.AcquireHLSLExpression(Generator, Scope) : Generator.NewConstant(Scope, ConstA);
@@ -324,16 +339,42 @@ EMaterialGenerateHLSLStatus UMaterialExpressionIfThenElse::GenerateHLSLStatement
 		return Generator.Error(TEXT("Missing condition connection"));
 	}
 
-	UE::HLSLTree::FScope* ThenScope = Then.NewScopeWithStatements(Generator, Scope);
-	if (!ThenScope)
-	{
-		return Generator.Error(TEXT("Missing Then connection"));
-	}
-
 	UE::HLSLTree::FStatementIf* IfStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementIf>(Scope);
 	IfStatement->ConditionExpression = ConditionExpression;
-	IfStatement->ThenScope = ThenScope;
+	IfStatement->NextScope = Generator.NewJoinedScope(Scope);
+	IfStatement->ThenScope = Then.NewScopeWithStatements(Generator, Scope);
 	IfStatement->ElseScope = Else.NewScopeWithStatements(Generator, Scope);
+
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
+EMaterialGenerateHLSLStatus UMaterialExpressionWhileLoop::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
+{
+	if (!Condition.IsConnected())
+	{
+		return Generator.Error(TEXT("Missing condition connection"));
+	}
+
+	if (!LoopBody.GetExpression())
+	{
+		return Generator.Error(TEXT("Missing LoopBody connection"));
+	}
+
+	UE::HLSLTree::FStatementLoop* LoopStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementLoop>(Scope);
+	LoopStatement->LoopScope = Generator.NewScope(Scope);
+
+	UE::HLSLTree::FStatementIf* IfStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementIf>(*LoopStatement->LoopScope);
+	IfStatement->ThenScope = Generator.NewScope(*LoopStatement->LoopScope);
+	IfStatement->ElseScope = Generator.NewScope(*LoopStatement->LoopScope);
+	LoopStatement->NextScope = Generator.NewScope(Scope, EMaterialNewScopeFlag::NoPreviousScope);
+	LoopStatement->LoopScope->AddPreviousScope(*IfStatement->ThenScope);
+	LoopStatement->NextScope->AddPreviousScope(*IfStatement->ElseScope);
+
+	Generator.GetTree().NewStatement<UE::HLSLTree::FStatementBreak>(*IfStatement->ElseScope);
+
+	IfStatement->ConditionExpression = Condition.AcquireHLSLExpression(Generator, *LoopStatement->LoopScope);
+	LoopBody.GenerateHLSLStatements(Generator, *IfStatement->ThenScope);
+	Completed.GenerateHLSLStatements(Generator, *LoopStatement->NextScope);
 
 	return EMaterialGenerateHLSLStatus::Success;
 }
@@ -345,6 +386,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLExpression(F
 
 EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
 {
+#if 0
 	if (!LoopBody.GetExpression())
 	{
 		return Generator.Error(TEXT("Missing LoopBody connection"));
@@ -371,7 +413,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLStatements(F
 	ForStatement->LoopScope = LoopScope;
 
 	Completed.GenerateHLSLStatements(Generator, Scope);
-
+#endif
 	return EMaterialGenerateHLSLStatus::Success;
 }
 

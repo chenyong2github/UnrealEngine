@@ -4,6 +4,20 @@
 #include "MaterialShared.h"
 #include "Engine/Texture.h"
 
+UE::HLSLTree::FBinaryOpDescription UE::HLSLTree::GetBinaryOpDesription(EBinaryOp Op)
+{
+	switch (Op)
+	{
+	case EBinaryOp::None: return FBinaryOpDescription(TEXT("None"), TEXT("")); break;
+	case EBinaryOp::Add: return FBinaryOpDescription(TEXT("Add"), TEXT("+")); break;
+	case EBinaryOp::Sub: return FBinaryOpDescription(TEXT("Subtract"), TEXT("-")); break;
+	case EBinaryOp::Mul: return FBinaryOpDescription(TEXT("Multiply"), TEXT("*")); break;
+	case EBinaryOp::Div: return FBinaryOpDescription(TEXT("Divide"), TEXT("/")); break;
+	case EBinaryOp::Less: return FBinaryOpDescription(TEXT("Less"), TEXT("<")); break;
+	default: checkNoEntry(); return FBinaryOpDescription();
+	}
+}
+
 UE::HLSLTree::FSwizzleParameters::FSwizzleParameters(int8 InR, int8 InG, int8 InB, int8 InA) : NumComponents(0)
 {
 	ComponentIndex[0] = InR;
@@ -101,55 +115,6 @@ bool UE::HLSLTree::FExpressionParameter::EmitCode(FEmitContext& Context, FExpres
 		OutResult.EvaluationType = EExpressionEvaluationType::Preshader;
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::VectorParameter).Write((uint16)ParameterIndex);
 	}
-	return true;
-}
-
-bool UE::HLSLTree::FExpressionLocalPHI::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
-{
-	FEmitContext::FScopeEntry* ScopeEntries[MaxNumPreviousScopes] = { nullptr };
-	const FEmitValue* EmitValues[MaxNumPreviousScopes] = { nullptr };
-	Shader::EValueType CombinedValueType = Shader::EValueType::Void;
-	for (int32 i = 0; i < NumValues; ++i)
-	{
-		const FEmitValue* Value = Context.AcquireValue(Values[i]);
-		if (Value)
-		{
-			const Shader::EValueType ValueType = Value->GetExpressionType();
-			if (CombinedValueType == Shader::EValueType::Void)
-			{
-				CombinedValueType = ValueType;
-			}
-			else if (ValueType != CombinedValueType)
-			{
-				return false;
-			}
-
-			EmitValues[i] = Value;
-		}
-		ScopeEntries[i] = Context.FindScopeEntry(Scopes[i]);
-		check(ScopeEntries[i]);
-	}
-
-	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(CombinedValueType);
-	const TCHAR* Declaration = Context.AcquireLocalDeclarationCode();
-
-	// Declare the local before the scopes
-	FEmitCode& ScopeCode = *ScopeEntries[0]->ScopeCode;
-	Context.InsertHLSLf(*ScopeCode.ParentScope, ScopeCode.PrevCode, TEXT("%s %s;"), TypeDesc.Name, Declaration);
-
-	// Emit code to assign the value within each scope
-	for (int32 i = 0; i < NumValues; ++i)
-	{
-		if (EmitValues[i])
-		{
-			Context.AppendHLSLf(*ScopeEntries[i]->ScopeCode, TEXT("%s = %s;"), Declaration, Context.GetCode(EmitValues[i]));
-		}
-	}
-
-	OutResult.EvaluationType = EExpressionEvaluationType::Shader;
-	OutResult.Type = CombinedValueType;
-	OutResult.bInline = true;
-	OutResult.Writer.Writef(TEXT("%s"), Declaration);
 	return true;
 }
 
@@ -382,24 +347,45 @@ bool UE::HLSLTree::FExpressionBinaryOp::EmitCode(FEmitContext& Context, FExpress
 	}
 
 	FString ErrorMessage;
-
-	OutResult.EvaluationType = CombineEvaluationTypes(LhsValue->GetEvaluationType(), RhsValue->GetEvaluationType());
-	OutResult.Type = MakeArithmeticResultType(LhsValue->GetExpressionType(), RhsValue->GetExpressionType(), ErrorMessage);
-	if (OutResult.EvaluationType == EExpressionEvaluationType::Shader)
+	switch (Op)
 	{
-		OutResult.Writer.Writef(TEXT("(%s + %s)"), Context.GetCode(LhsValue), Context.GetCode(RhsValue));
+	case EBinaryOp::Less:
+		OutResult.Type = Shader::MakeComparisonResultType(LhsValue->GetExpressionType(), RhsValue->GetExpressionType(), ErrorMessage);
+		break;
+	default:
+		OutResult.Type = Shader::MakeArithmeticResultType(LhsValue->GetExpressionType(), RhsValue->GetExpressionType(), ErrorMessage);
+		break;
 	}
-	else
+
+	const EExpressionEvaluationType EvaluationType = CombineEvaluationTypes(LhsValue->GetEvaluationType(), RhsValue->GetEvaluationType());
+	Shader::EPreshaderOpcode Opcode = Shader::EPreshaderOpcode::Nop;
+	if (EvaluationType != EExpressionEvaluationType::Shader)
 	{
-		Shader::EPreshaderOpcode Opcode = Shader::EPreshaderOpcode::Nop;
 		switch (Op)
 		{
 		case UE::HLSLTree::EBinaryOp::Add: Opcode = Shader::EPreshaderOpcode::Add; break;
+		default: break;
+		}
+	}
+
+	if (Opcode == Shader::EPreshaderOpcode::Nop)
+	{
+		// Either preshader not supported for our inputs, or not for this operation type
+		OutResult.EvaluationType = EExpressionEvaluationType::Shader;
+		const TCHAR* LhsCode = Context.GetCode(LhsValue);
+		const TCHAR* RhsCode = Context.GetCode(RhsValue);
+		switch (Op)
+		{
+		case EBinaryOp::Add: OutResult.Writer.Writef(TEXT("(%s + %s)"), LhsCode, RhsCode); break;
+		case EBinaryOp::Less: OutResult.Writer.Writef(TEXT("(%s < %s)"), LhsCode, RhsCode); break;
 		default: checkNoEntry(); break;
 		}
-
+	}
+	else
+	{
 		Context.AppendPreshader(LhsValue, OutResult.Preshader);
 		Context.AppendPreshader(RhsValue, OutResult.Preshader);
+		OutResult.EvaluationType = EvaluationType;
 		OutResult.Preshader.WriteOpcode(Opcode);
 	}
 	return true;
@@ -542,12 +528,18 @@ bool UE::HLSLTree::FExpressionFunctionOutput::EmitCode(FEmitContext& Context, FE
 	return true;
 }
 
-bool UE::HLSLTree::FStatementJump::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
+bool UE::HLSLTree::FStatementNestedScope::EmitHLSL(FEmitContext& Context) const
 {
-	return TargetScope->EmitHLSL(Context, Scope);
+	return Context.WriteScope(*NextScope);
 }
 
-bool UE::HLSLTree::FStatementReturn::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
+bool UE::HLSLTree::FStatementBreak::EmitHLSL(FEmitContext& Context) const
+{
+	Context.WriteScopeTerminatorf(TEXT("break;"));
+	return true;
+}
+
+bool UE::HLSLTree::FStatementReturn::EmitHLSL(FEmitContext& Context) const
 {
 	const FEmitValue* Value = Context.AcquireValue(Expression);
 	if (!Value)
@@ -555,11 +547,11 @@ bool UE::HLSLTree::FStatementReturn::EmitHLSL(FEmitContext& Context, FEmitCode& 
 		return false;
 	}
 
-	Context.AppendHLSLf(Scope, TEXT("return %s;"), Context.GetCode(Value));
+	Context.WriteScopeTerminatorf(TEXT("return %s;"), Context.GetCode(Value));
 	return true;
 }
 
-bool UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
+bool UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context) const
 {
 	const FEmitValue* ConditionValue = Context.AcquireValue(ConditionExpression);
 	if (!ConditionValue)
@@ -567,19 +559,27 @@ bool UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context, FEmitCode& Scop
 		return false;
 	}
 
-	FEmitCode* ThenScopeCode = Context.AppendHLSLf(Scope, TEXT("if (%s)"), Context.GetCode(ConditionValue));
-	ThenScope->EmitHLSL(Context, *ThenScopeCode);
+	Context.WriteScopef(*ThenScope, TEXT("if (%s)"), Context.GetCode(ConditionValue));
 	if (ElseScope)
 	{
-		FEmitCode* ElseScopeCode = Context.AppendHLSLf(Scope, TEXT("else"));
-		ElseScope->EmitHLSL(Context, *ElseScopeCode);
+		Context.WriteScopef(*ElseScope, TEXT("else"));
+	}
+	if (NextScope)
+	{
+		Context.WriteScope(*NextScope);
 	}
 	return true;
 }
 
-bool UE::HLSLTree::FStatementFor::EmitHLSL(FEmitContext& Context, FEmitCode& Scope) const
+bool UE::HLSLTree::FStatementLoop::EmitHLSL(FEmitContext& Context) const
 {
-	const FEmitValue* StartExpressionValue = Context.AcquireValue(StartExpression);
+	Context.WriteScopef(*LoopScope, TEXT("while (true)"));
+	return Context.WriteScope(*NextScope);
+}
+
+bool UE::HLSLTree::FStatementFor::EmitHLSL(FEmitContext& Context) const
+{
+	/*const FEmitValue* StartExpressionValue = Context.AcquireValue(StartExpression);
 	const FEmitValue* EndExpressionValue = Context.AcquireValue(StartExpression);
 	if (!!StartExpressionValue || !EndExpressionValue)
 	{
@@ -595,5 +595,6 @@ bool UE::HLSLTree::FStatementFor::EmitHLSL(FEmitContext& Context, FEmitCode& Sco
 		Context.GetCode(EndExpressionValue),
 		DeclarationCode);
 	LoopScope->EmitHLSL(Context, *LoopScopeCode);
-	return true;
+	return NextScope->EmitHLSL(Context, Scope);*/
+	return false;
 }
