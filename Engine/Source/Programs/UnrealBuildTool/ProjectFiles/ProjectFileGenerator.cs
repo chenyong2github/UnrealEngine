@@ -2516,7 +2516,10 @@ namespace UnrealBuildTool
 							TargetFilePath = TargetFilePath,
 							ProjectFilePath = ProjectFilePath,
 							UnrealProjectFilePath = CheckProjectFile,
-							SupportedPlatforms = TargetRulesObject.GetSupportedPlatforms().Where(x => UEBuildPlatform.GetBuildPlatform(x, true) != null).ToArray(),
+							SupportedPlatforms = TargetRulesObject.GetSupportedPlatforms().Where(
+													x => UEBuildPlatform.GetBuildPlatform(x, true) != null && 
+													(TargetRulesObject.LinkType != TargetLinkType.Modular || !UEBuildPlatform.PlatformRequiresMonolithicBuilds(x, TargetRulesObject.Configuration))
+													).ToArray(),
 							CreateRulesDelegate = (Platform, Configuration) => RulesAssembly.CreateTargetRules(TargetName, Platform, Configuration, "", CheckProjectFile, new CommandLineArguments(GetTargetArguments(Arguments)))
                         };
 
