@@ -116,7 +116,7 @@ namespace
 	 * @param InNameToCheck - Name w/ potential prefix to check
 	 * @param OriginalClass - Class to check against
 	 */
-	bool ClassNameHasValidPrefix(const FString& InNameToCheck, const UClass* OriginalClass)
+	bool ClassNameHasValidPrefix(const FString& InNameToCheck, const FUnrealClassDefinitionInfo& OriginalClass)
 	{
 		bool bIsLabledDeprecated;
 		GetClassPrefix(InNameToCheck, bIsLabledDeprecated);
@@ -127,14 +127,14 @@ namespace
 			return true;
 		}
 
-		const FString OriginalClassName = FUnrealTypeDefinitionInfo::GetNameWithPrefix(OriginalClass);
+		const FString OriginalClassName = OriginalClass.GetNameWithPrefix();
 
 		bool bNamesMatch = (InNameToCheck == OriginalClassName);
 
 		if (!bNamesMatch)
 		{
 			//@TODO: UCREMOVAL: I/U interface hack - Ignoring prefixing for this call
-			if (OriginalClass->HasAnyClassFlags(CLASS_Interface))
+			if (OriginalClass.HasAnyClassFlags(CLASS_Interface))
 			{
 				bNamesMatch = InNameToCheck.Mid(1) == OriginalClassName.Mid(1);
 			}
@@ -236,49 +236,6 @@ bool FUnrealTypeDefinitionInfo::IsDynamic(const UField* Field)
 bool FUnrealTypeDefinitionInfo::IsDynamic(const FField* Field)
 {
 	return Field->HasMetaData(NAME_ReplaceConverted);
-}
-
-
-FString FUnrealTypeDefinitionInfo::GetNameWithPrefix(const UClass* InClass, EEnforceInterfacePrefix EnforceInterfacePrefix)
-{
-	const TCHAR* Prefix = 0;
-
-	if (InClass->HasAnyClassFlags(CLASS_Interface))
-	{
-		// Grab the expected prefix for interfaces (U on the first one, I on the second one)
-		switch (EnforceInterfacePrefix)
-		{
-		case EEnforceInterfacePrefix::None:
-			// For old-style files: "I" for interfaces, unless it's the actual "Interface" class, which gets "U"
-			if (InClass->GetFName() == NAME_Interface)
-			{
-				Prefix = TEXT("U");
-			}
-			else
-			{
-				Prefix = TEXT("I");
-			}
-			break;
-
-		case EEnforceInterfacePrefix::I:
-			Prefix = TEXT("I");
-			break;
-
-		case EEnforceInterfacePrefix::U:
-			Prefix = TEXT("U");
-			break;
-
-		default:
-			check(false);
-		}
-	}
-	else
-	{
-		// Get the expected class name with prefix
-		Prefix = InClass->GetPrefixCPP();
-	}
-
-	return FString::Printf(TEXT("%s%s"), Prefix, *InClass->GetName());
 }
 
 void FUnrealPropertyDefinitionInfo::PostParseFinalize()
@@ -594,11 +551,11 @@ FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindScriptClass(const FS
 	if (FUnrealClassDefinitionInfo* FoundClassDef = FindClass(*ClassNameStripped))
 	{
 		// If the class was found with the stripped class name, verify that the correct prefix was used and throw an error otherwise
-		if (!ClassNameHasValidPrefix(InClassName, FoundClassDef->GetClass()))
+		if (!ClassNameHasValidPrefix(InClassName, *FoundClassDef))
 		{
 			if (OutErrorMsg)
 			{
-				*OutErrorMsg = FString::Printf(TEXT("Class '%s' has an incorrect prefix, expecting '%s'"), *InClassName, *FUnrealTypeDefinitionInfo::GetNameWithPrefix(FoundClassDef->GetClass()));
+				*OutErrorMsg = FString::Printf(TEXT("Class '%s' has an incorrect prefix, expecting '%s'"), *InClassName, *FoundClassDef->GetNameWithPrefix());
 			}
 			return nullptr;
 		}
@@ -613,7 +570,7 @@ FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindScriptClass(const FS
 		// If the class was found with the given identifier, the user forgot to use the correct Unreal prefix	
 		if (OutErrorMsg)
 		{
-			*OutErrorMsg = FString::Printf(TEXT("Class '%s' is missing a prefix, expecting '%s'"), *InClassName, *FUnrealTypeDefinitionInfo::GetNameWithPrefix(FoundClassDef->GetClass()));
+			*OutErrorMsg = FString::Printf(TEXT("Class '%s' is missing a prefix, expecting '%s'"), *InClassName, *FoundClassDef->GetNameWithPrefix());
 		}
 	}
 	else
@@ -656,13 +613,13 @@ void FUnrealClassDefinitionInfo::PostParseFinalize()
 
 void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>&& InClassSpecifiers, const FString& InRequiredAPIMacroIfPresent)
 {
-	ClassFlags = CLASS_None;
+	ParsedClassFlags = CLASS_None;
 	// Record that this class is RequiredAPI if the CORE_API style macro was present
 	if (!InRequiredAPIMacroIfPresent.IsEmpty())
 	{
-		ClassFlags |= CLASS_RequiredAPI;
+		ParsedClassFlags |= CLASS_RequiredAPI;
 	}
-	ClassFlags |= CLASS_Native;
+	ParsedClassFlags |= CLASS_Native;
 
 	// Process all of the class specifiers
 
@@ -673,12 +630,11 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 		case EClassMetadataSpecifier::NoExport:
 
 			// Don't export to C++ header.
-			ClassFlags |= CLASS_NoExport;
+			ParsedClassFlags |= CLASS_NoExport;
 			break;
 
 		case EClassMetadataSpecifier::Intrinsic:
-
-			ClassFlags |= CLASS_Intrinsic;
+			ParsedClassFlags |= CLASS_Intrinsic;
 			break;
 
 		case EClassMetadataSpecifier::ComponentWrapperClass:
@@ -694,37 +650,37 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 		case EClassMetadataSpecifier::EditInlineNew:
 
 			// Class can be constructed from the New button in editinline
-			ClassFlags |= CLASS_EditInlineNew;
+			ParsedClassFlags |= CLASS_EditInlineNew;
 			break;
 
 		case EClassMetadataSpecifier::NotEditInlineNew:
 
 			// Class cannot be constructed from the New button in editinline
-			ClassFlags &= ~CLASS_EditInlineNew;
+			ParsedClassFlags &= ~CLASS_EditInlineNew;
 			break;
 
 		case EClassMetadataSpecifier::Placeable:
 
 			bWantsToBePlaceable = true;
-			ClassFlags &= ~CLASS_NotPlaceable;
+			ParsedClassFlags &= ~CLASS_NotPlaceable;
 			break;
 
 		case EClassMetadataSpecifier::DefaultToInstanced:
 
 			// these classed default to instanced.
-			ClassFlags |= CLASS_DefaultToInstanced;
+			ParsedClassFlags |= CLASS_DefaultToInstanced;
 			break;
 
 		case EClassMetadataSpecifier::NotPlaceable:
 
 			// Don't allow the class to be placed in the editor.
-			ClassFlags |= CLASS_NotPlaceable;
+			ParsedClassFlags |= CLASS_NotPlaceable;
 			break;
 
 		case EClassMetadataSpecifier::HideDropdown:
 
 			// Prevents class from appearing in class comboboxes in the property window
-			ClassFlags |= CLASS_HideDropDown;
+			ParsedClassFlags |= CLASS_HideDropDown;
 			break;
 
 		case EClassMetadataSpecifier::DependsOn:
@@ -734,55 +690,55 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 		case EClassMetadataSpecifier::MinimalAPI:
 
-			ClassFlags |= CLASS_MinimalAPI;
+			ParsedClassFlags |= CLASS_MinimalAPI;
 			break;
 
 		case EClassMetadataSpecifier::Const:
 
-			ClassFlags |= CLASS_Const;
+			ParsedClassFlags |= CLASS_Const;
 			break;
 
 		case EClassMetadataSpecifier::PerObjectConfig:
 
-			ClassFlags |= CLASS_PerObjectConfig;
+			ParsedClassFlags |= CLASS_PerObjectConfig;
 			break;
 
 		case EClassMetadataSpecifier::ConfigDoNotCheckDefaults:
 
-			ClassFlags |= CLASS_ConfigDoNotCheckDefaults;
+			ParsedClassFlags |= CLASS_ConfigDoNotCheckDefaults;
 			break;
 
 		case EClassMetadataSpecifier::Abstract:
 
 			// Hide all editable properties.
-			ClassFlags |= CLASS_Abstract;
+			ParsedClassFlags |= CLASS_Abstract;
 			break;
 
 		case EClassMetadataSpecifier::Deprecated:
 
-			ClassFlags |= CLASS_Deprecated;
+			ParsedClassFlags |= CLASS_Deprecated;
 
 			// Don't allow the class to be placed in the editor.
-			ClassFlags |= CLASS_NotPlaceable;
+			ParsedClassFlags |= CLASS_NotPlaceable;
 
 			break;
 
 		case EClassMetadataSpecifier::Transient:
 
 			// Transient class.
-			ClassFlags |= CLASS_Transient;
+			ParsedClassFlags |= CLASS_Transient;
 			break;
 
 		case EClassMetadataSpecifier::NonTransient:
 
 			// this child of a transient class is not transient - remove the transient flag
-			ClassFlags &= ~CLASS_Transient;
+			ParsedClassFlags &= ~CLASS_Transient;
 			break;
 
 		case EClassMetadataSpecifier::CustomConstructor:
 
 			// we will not export a constructor for this class, assuming it is in the CPP block
-			ClassFlags |= CLASS_CustomConstructor;
+			ParsedClassFlags |= CLASS_CustomConstructor;
 			break;
 
 		case EClassMetadataSpecifier::Config:
@@ -794,19 +750,19 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 		case EClassMetadataSpecifier::DefaultConfig:
 
 			// Save object config only to Default INIs, never to local INIs.
-			ClassFlags |= CLASS_DefaultConfig;
+			ParsedClassFlags |= CLASS_DefaultConfig;
 			break;
 
 		case EClassMetadataSpecifier::GlobalUserConfig:
 
 			// Save object config only to global user overrides, never to local INIs
-			ClassFlags |= CLASS_GlobalUserConfig;
+			ParsedClassFlags |= CLASS_GlobalUserConfig;
 			break;
 
 		case EClassMetadataSpecifier::ProjectUserConfig:
 
 			// Save object config only to project user overrides, never to INIs that are checked in
-			ClassFlags |= CLASS_ProjectUserConfig;
+			ParsedClassFlags |= CLASS_ProjectUserConfig;
 			break;
 
 		case EClassMetadataSpecifier::ShowCategories:
@@ -900,13 +856,13 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 		case EClassMetadataSpecifier::CollapseCategories:
 
 			// Class' properties should not be shown categorized in the editor.
-			ClassFlags |= CLASS_CollapseCategories;
+			ParsedClassFlags |= CLASS_CollapseCategories;
 			break;
 
 		case EClassMetadataSpecifier::DontCollapseCategories:
 
 			// Class' properties should be shown categorized in the editor.
-			ClassFlags &= ~CLASS_CollapseCategories;
+			ParsedClassFlags &= ~CLASS_CollapseCategories;
 			break;
 
 		case EClassMetadataSpecifier::AdvancedClassDisplay:
@@ -922,7 +878,7 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 		case EClassMetadataSpecifier::NeedsDeferredDependencyLoading:
 
-			ClassFlags |= CLASS_NeedsDeferredDependencyLoading;
+			ParsedClassFlags |= CLASS_NeedsDeferredDependencyLoading;
 			break;
 
 		default:
@@ -1021,7 +977,7 @@ void FUnrealClassDefinitionInfo::MergeClassCategories()
 	AutoExpandCategories.Append(MoveTemp(ParentAutoExpandCategories));
 }
 
-void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags)
+void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& DeclaredClassName, EClassFlags PreviousClassFlags)
 {
 	UClass* Class = GetClass();
 	if (bWantsToBePlaceable)
@@ -1035,7 +991,7 @@ void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& Decla
 	}
 
 	// Now merge all remaining flags/properties
-	Class->ClassFlags |= ClassFlags;
+	Class->ClassFlags |= ParsedClassFlags;
 	Class->ClassConfigName = FName(*ConfigName);
 
 	SetAndValidateWithinClass();
@@ -1057,7 +1013,7 @@ void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& Decla
 	}
 
 	// All classes must start with a valid Unreal prefix
-	const FString ExpectedClassName = GetNameWithPrefix(GetClass());
+	const FString ExpectedClassName = GetNameWithPrefix();
 	if (DeclaredClassName != ExpectedClassName)
 	{
 		FError::Throwf(TEXT("Class name '%s' is invalid, should be identified as '%s'"), *DeclaredClassName, *ExpectedClassName);
@@ -1207,6 +1163,48 @@ void FUnrealClassDefinitionInfo::GetSparseClassDataTypes(TArray<FString>& OutSpa
 		const FString& LocalSparseClassDataTypes = Class->GetMetaData(FHeaderParserNames::NAME_SparseClassDataTypes);
 		LocalSparseClassDataTypes.ParseIntoArray(OutSparseClassDataTypes, TEXT(" "), true);
 	}
+}
+
+FString FUnrealClassDefinitionInfo::GetNameWithPrefix(EEnforceInterfacePrefix EnforceInterfacePrefix) const
+{
+	const TCHAR* Prefix = 0;
+
+	if (HasAnyClassFlags(CLASS_Interface))
+	{
+		// Grab the expected prefix for interfaces (U on the first one, I on the second one)
+		switch (EnforceInterfacePrefix)
+		{
+		case EEnforceInterfacePrefix::None:
+			// For old-style files: "I" for interfaces, unless it's the actual "Interface" class, which gets "U"
+			if (GetFName() == NAME_Interface)
+			{
+				Prefix = TEXT("U");
+			}
+			else
+			{
+				Prefix = TEXT("I");
+			}
+			break;
+
+		case EEnforceInterfacePrefix::I:
+			Prefix = TEXT("I");
+			break;
+
+		case EEnforceInterfacePrefix::U:
+			Prefix = TEXT("U");
+			break;
+
+		default:
+			check(false);
+		}
+	}
+	else
+	{
+		// Get the expected class name with prefix
+		Prefix = GetPrefixCPP();
+	}
+
+	return FString::Printf(TEXT("%s%s"), Prefix, *GetName());
 }
 
 void FUnrealFunctionDefinitionInfo::AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)

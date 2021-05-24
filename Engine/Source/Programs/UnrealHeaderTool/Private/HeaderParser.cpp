@@ -2132,12 +2132,11 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 			// If the struct was found, confirm it adheres to the correct syntax. This should always fail if we were expecting an override that was not found.
 			if (bOverrideParentStructName)
 			{
-				UScriptStruct* BaseStruct = BaseStructDef->AsScriptStructChecked().GetScriptStruct();
-				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(ParentStructNameStripped) ? TEXT("T") : BaseStruct->GetPrefixCPP();
+				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(ParentStructNameStripped) ? TEXT("T") : BaseStructDef->AsScriptStructChecked().GetPrefixCPP();
 				if (ParentStructNameInScript != FString::Printf(TEXT("%s%s"), PrefixCPP, *ParentStructNameStripped))
 				{
+					FError::Throwf(TEXT("Parent Struct '%s' is missing a valid Unreal prefix, expecting '%s'"), *ParentStructNameInScript, *FString::Printf(TEXT("%s%s"), PrefixCPP, *BaseStructDef->GetName()));
 					BaseStructDef = nullptr;
-					FError::Throwf(TEXT("Parent Struct '%s' is missing a valid Unreal prefix, expecting '%s'"), *ParentStructNameInScript, *FString::Printf(TEXT("%s%s"), PrefixCPP, *BaseStruct->GetName()));
 				}
 			}
 		}
@@ -2158,10 +2157,10 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 	// Check to make sure the syntactic native prefix was set-up correctly.
 	// If this check results in a false positive, it will be flagged as an identifier failure.
 	FString DeclaredPrefix = GetClassPrefix( StructNameInScript );
-	if( DeclaredPrefix == Struct->GetPrefixCPP() || DeclaredPrefix == TEXT("T") )
+	if( DeclaredPrefix == StructDef.GetPrefixCPP() || DeclaredPrefix == TEXT("T") )
 	{
 		// Found a prefix, do a basic check to see if it's valid
-		const TCHAR* ExpectedPrefixCPP = UHTConfig.StructsWithTPrefix.Contains(StructNameStripped) ? TEXT("T") : Struct->GetPrefixCPP();
+		const TCHAR* ExpectedPrefixCPP = UHTConfig.StructsWithTPrefix.Contains(StructNameStripped) ? TEXT("T") : StructDef.GetPrefixCPP();
 		FString ExpectedStructName = FString::Printf(TEXT("%s%s"), ExpectedPrefixCPP, *StructNameStripped);
 		if (StructNameInScript != ExpectedStructName)
 		{
@@ -2170,7 +2169,7 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 	}
 	else
 	{
-		const TCHAR* ExpectedPrefixCPP = UHTConfig.StructsWithTPrefix.Contains(StructNameInScript) ? TEXT("T") : Struct->GetPrefixCPP();
+		const TCHAR* ExpectedPrefixCPP = UHTConfig.StructsWithTPrefix.Contains(StructNameInScript) ? TEXT("T") : StructDef.GetPrefixCPP();
 		FString ExpectedStructName = FString::Printf(TEXT("%s%s"), ExpectedPrefixCPP, *StructNameInScript);
 		FError::Throwf(TEXT("Struct '%s' is missing a valid Unreal prefix, expecting '%s'"), *StructNameInScript, *ExpectedStructName);
 	}
@@ -2634,7 +2633,7 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 					FUnrealClassDefinitionInfo* DelegateOwnerClassDef = FUnrealClassDefinitionInfo::FindScriptClassOrThrow(DelegateClassName);
 					if (DelegateOwnerClassDef->GetScope()->FindTypeByName(*DelegateName) != nullptr)
 					{
-						FError::Throwf(TEXT("Inaccessible type: '%s'"), *DelegateOwnerClassDef->GetClass()->GetPathName());
+						FError::Throwf(TEXT("Inaccessible type: '%s'"), *DelegateOwnerClassDef->GetPathName());
 					}
 					UFunction* SourceDelegateFunction = Cast<UFunction>(FindField(*DelegateOwnerClassDef, *DelegateName, false, UFunction::StaticClass(), NULL));
 					if (SourceDelegateFunction != nullptr)
@@ -2742,7 +2741,6 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 	{
 		return;
 	}
-	const UClass* ClassToCheck = ClassDef->GetClass();
 
 	TArray<FString> SparseClassDataTypes;
 	ClassDef->GetSparseClassDataTypes(SparseClassDataTypes);
@@ -2750,12 +2748,12 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 	// for now we only support one sparse class data structure per class
 	if (SparseClassDataTypes.Num() > 1)
 	{
-		FError::Throwf(TEXT("Class %s contains multiple sparse class data types."), *ClassToCheck->GetName());
+		FError::Throwf(TEXT("Class %s contains multiple sparse class data types."), *ClassDef->GetName());
 		return;
 	}
 	if (SparseClassDataTypes.Num() == 0)
 	{
-		FError::Throwf(TEXT("Class %s has sparse class metadata but does not specify a type."), *ClassToCheck->GetName());
+		FError::Throwf(TEXT("Class %s has sparse class metadata but does not specify a type."), *ClassDef->GetName());
 		return;
 	}
 
@@ -2766,7 +2764,7 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 		// make sure the sparse class data struct actually exists
 		if (!SparseClassDataStructDef)
 		{
-			FError::Throwf(TEXT("Unable to find sparse data type %s for class %s."), *SparseClassDataTypeName, *ClassToCheck->GetName());
+			FError::Throwf(TEXT("Unable to find sparse data type %s for class %s."), *SparseClassDataTypeName, *ClassDef->GetName());
 			return;
 		}
 
@@ -2793,7 +2791,8 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 		}
 
 		// if the class's parent has a sparse class data struct then the current class must also use the same struct or one that inherits from it
-		const UClass* ParentClass = ClassToCheck->GetSuperClass();
+
+		const FUnrealClassDefinitionInfo* ParentClassDef = ClassDef->GetSuperClass();
 		TArray<FString> ParentSparseClassDataTypeNames;
 		ClassDef->GetSuperClass()->GetSparseClassDataTypes(ParentSparseClassDataTypeNames);
 		for (FString& ParentSparseClassDataTypeName : ParentSparseClassDataTypeNames)
@@ -2803,7 +2802,7 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 				UScriptStruct* ParentSparseClassDataStruct = ParentSparseClassDataStructDef->GetScriptStruct();
 				if (!SparseClassDataStructDef->GetScriptStruct()->IsChildOf(ParentSparseClassDataStruct))
 				{
-					FError::Throwf(TEXT("Class %s is a child of %s but its sparse class data struct, %s, does not inherit from %s."), *ClassToCheck->GetName(), *ParentClass->GetName(), *SparseClassDataStructDef->GetName(), *ParentSparseClassDataStruct->GetName());
+					FError::Throwf(TEXT("Class %s is a child of %s but its sparse class data struct, %s, does not inherit from %s."), *ClassDef->GetName(), *ParentClassDef->GetName(), *SparseClassDataStructDef->GetName(), *ParentSparseClassDataStruct->GetName());
 				}
 			}
 		}
@@ -2934,8 +2933,6 @@ void FHeaderParser::VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& Prope
 }
 void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClassDef)
 {
-	UClass* TargetClass = TargetClassDef.GetClass();
-
 	// Iterate over all properties, looking for those flagged as CPF_RepNotify
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : TargetClassDef.GetProperties())
 	{
@@ -4291,7 +4288,7 @@ void FHeaderParser::GetVarType(
 			UScriptStruct* Struct = StructDef->GetScriptStruct();
 			if (bStripped)
 			{
-				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(IdentifierStripped) ? TEXT("T") : Struct->GetPrefixCPP();
+				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(IdentifierStripped) ? TEXT("T") : StructDef->GetPrefixCPP();
 				FString ExpectedStructName = FString::Printf(TEXT("%s%s"), PrefixCPP, *StructDef->GetName());
 				if (FString(VarType.Identifier) != ExpectedStructName)
 				{
@@ -4300,7 +4297,7 @@ void FHeaderParser::GetVarType(
 			}
 			else if (!UHTConfig.StructsWithNoPrefix.Contains(VarType.Identifier))
 			{
-				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(VarType.Identifier) ? TEXT("T") : Struct->GetPrefixCPP();
+				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(VarType.Identifier) ? TEXT("T") : StructDef->GetPrefixCPP();
 				FError::Throwf(TEXT("Struct '%s' is missing a prefix, expecting '%s'"), VarType.Identifier, *FString::Printf(TEXT("%s%s"), PrefixCPP, *StructDef->GetName()));
 			}
 
@@ -4425,8 +4422,6 @@ void FHeaderParser::GetVarType(
 
 				if (TempClassDef != NULL)
 				{
-					UClass* TempClass = TempClassDef->GetClass();
-
 					bHandledType = true;
 
 					if ((PropertyType == CPT_WeakObjectReference) && (Disallow & CPF_AutoWeak)) // if it is not allowing anything, force it strong. this is probably a function arg
@@ -4435,13 +4430,13 @@ void FHeaderParser::GetVarType(
 					}
 
 					// if this is an interface class, we use the FInterfaceProperty class instead of FObjectProperty
-					if ((PropertyType == CPT_ObjectReference) && TempClass->HasAnyClassFlags(CLASS_Interface))
+					if ((PropertyType == CPT_ObjectReference) && TempClassDef->HasAnyClassFlags(CLASS_Interface))
 					{
 						PropertyType = CPT_Interface;
 					}
 
 					VarProperty = FPropertyBase(*TempClassDef, PropertyType, bWeakIsAuto);
-					if (TempClass->IsChildOf(UClass::StaticClass()))
+					if (TempClassDef->GetClass()->IsChildOf(UClass::StaticClass()))
 					{
 						if (MatchSymbol(TEXT('<')))
 						{
@@ -4513,7 +4508,7 @@ void FHeaderParser::GetVarType(
 					}
 
 					// Imply const if it's a parameter that is a pointer to a const class
-					if (VariableCategory != EVariableCategory::Member && (TempClass != NULL) && (TempClass->HasAnyClassFlags(CLASS_Const)))
+					if (VariableCategory != EVariableCategory::Member && (TempClassDef != NULL) && (TempClassDef->HasAnyClassFlags(CLASS_Const)))
 					{
 						Flags |= CPF_ConstParm;
 					}
@@ -5304,42 +5299,40 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 	if (bEncounteredNewStyleClass_UnmatchedBrackets && IsInAClass())
 	{
-		if (UClass* Class = GetCurrentClass())
+		FUnrealStructDefinitionInfo& StructDef = GetCurrentClassDef();
+		FToken ConstructorToken = Token;
+
+		// Allow explicit constructors
+		bool bFoundExplicit = ConstructorToken.Matches(TEXT("explicit"), ESearchCase::CaseSensitive);
+		if (bFoundExplicit)
 		{
-			FToken ConstructorToken = Token;
+			GetToken(ConstructorToken);
+		}
 
-			// Allow explicit constructors
-			bool bFoundExplicit = ConstructorToken.Matches(TEXT("explicit"), ESearchCase::CaseSensitive);
-			if (bFoundExplicit)
+		bool bSkippedAPIToken = false;
+		if (FString(ConstructorToken.Identifier).EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+		{
+			if (!bFoundExplicit)
 			{
-				GetToken(ConstructorToken);
+				// Explicit can come before or after an _API
+				MatchIdentifier(TEXT("explicit"), ESearchCase::CaseSensitive);
 			}
 
-			bool bSkippedAPIToken = false;
-			if (FString(ConstructorToken.Identifier).EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
-			{
-				if (!bFoundExplicit)
-				{
-					// Explicit can come before or after an _API
-					MatchIdentifier(TEXT("explicit"), ESearchCase::CaseSensitive);
-				}
+			GetToken(ConstructorToken);
+			bSkippedAPIToken = true;
+		}
 
-				GetToken(ConstructorToken);
-				bSkippedAPIToken = true;
-			}
-
-			if (ConstructorToken.Matches(*FNameLookupCPP::GetNameCPP(Class), ESearchCase::IgnoreCase))
+		if (ConstructorToken.Matches(*StructDef.GetAlternateNameCPP(), ESearchCase::IgnoreCase))
+		{
+			if (TryToMatchConstructorParameterList(ConstructorToken))
 			{
-				if (TryToMatchConstructorParameterList(ConstructorToken))
-				{
-					return true;
-				}
+				return true;
 			}
-			else if (bSkippedAPIToken)
-			{
-				// We skipped over an _API token, but this wasn't a constructor so we need to unget so that subsequent code and still process it
-				UngetToken(ConstructorToken);
-			}
+		}
+		else if (bSkippedAPIToken)
+		{
+			// We skipped over an _API token, but this wasn't a constructor so we need to unget so that subsequent code and still process it
+			UngetToken(ConstructorToken);
 		}
 	}
 
@@ -5616,15 +5609,14 @@ FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& De
 	{
 		if (FUnrealClassDefinitionInfo* BaseClassDef = UHTCast<FUnrealClassDefinitionInfo>(BaseClassInfo.Struct))
 		{
-			UClass* BaseClass = BaseClassDef->GetClass();
-			if (!BaseClass->HasAnyClassFlags(CLASS_Interface))
+			if (!BaseClassDef->HasAnyClassFlags(CLASS_Interface))
 			{
-				FError::Throwf(TEXT("Implements: Class %s is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces"), *BaseClass->GetName());
+				FError::Throwf(TEXT("Implements: Class %s is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces"), *BaseClassDef->GetName());
 			}
 
 			// Propagate the inheritable ClassFlags
-			FoundClass->ClassFlags |= (BaseClass->ClassFlags & CLASS_ScriptInherit);
-			FoundClass->Interfaces.Emplace(BaseClass, 0, false);
+			ClassDef->SetClassFlags(BaseClassDef->GetClassFlags() & CLASS_ScriptInherit);
+			FoundClass->Interfaces.Emplace(BaseClassDef->GetClass(), 0, false);
 		}
 	}
 	return *ClassDef;
@@ -5635,15 +5627,13 @@ FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& De
  */
 void PostParsingClassSetup(FUnrealClassDefinitionInfo& ClassDef)
 {
-	UClass* Class = ClassDef.GetClass();
-
 	// Cleanup after first pass.
 	FHeaderParser::ComputeFunctionParametersSize(ClassDef);
 
 	// Set all optimization ClassFlags based on property types
-	auto HasAllOptimizationClassFlags = [Class]()
+	auto HasAllOptimizationClassFlags = [&ClassDef]()
 	{
-		return (Class->HasAllClassFlags(CLASS_Config | CLASS_HasInstancedReference));
+		return (ClassDef.HasAllClassFlags(CLASS_Config | CLASS_HasInstancedReference));
 	};
 
 	if (!HasAllOptimizationClassFlags())
@@ -5653,27 +5643,27 @@ void PostParsingClassSetup(FUnrealClassDefinitionInfo& ClassDef)
 			FProperty* Property = PropertyDef->GetProperty();
 			if ((Property->PropertyFlags & CPF_Config) != 0)
 			{
-				Class->ClassFlags |= CLASS_Config;
+				ClassDef.SetClassFlags(CLASS_Config);
 				if (HasAllOptimizationClassFlags()) break;
 			}
 
 			if (Property->ContainsInstancedObjectProperty())
 			{
-				Class->ClassFlags |= CLASS_HasInstancedReference;
+				ClassDef.SetClassFlags(CLASS_HasInstancedReference);
 				if (HasAllOptimizationClassFlags()) break;
 			}
 		}
 	}
 
 	// Class needs to specify which ini file is going to be used if it contains config variables.
-	if ((Class->ClassFlags & CLASS_Config) && (Class->ClassConfigName == NAME_None))
+	if (ClassDef.HasAnyClassFlags(CLASS_Config) && ClassDef.GetClassConfigName() == NAME_None)
 	{
 		// Inherit config setting from base class.
-		Class->ClassConfigName = Class->GetSuperClass() ? Class->GetSuperClass()->ClassConfigName : NAME_None;
-		if (Class->ClassConfigName == NAME_None)
+		ClassDef.SetClassConfigName(ClassDef.GetSuperClass() ? ClassDef.GetSuperClass()->GetClassConfigName() : NAME_None);
+		if (ClassDef.GetClassConfigName() == NAME_None)
 		{
 			FError::Throwf(TEXT("Classes with config / globalconfig member variables need to specify config file."));
-			Class->ClassConfigName = NAME_Engine;
+			ClassDef.SetClassConfigName(NAME_Engine);
 		}
 	}
 }
@@ -5709,33 +5699,35 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 	FString RequiredAPIMacroIfPresent;
 	
 	FUnrealClassDefinitionInfo& ClassDef = ParseClassNameDeclaration(/*out*/ DeclaredClassName, /*out*/ RequiredAPIMacroIfPresent);
-	UClass* Class = ClassDef.GetClass();
 
 	ClassDef.GetDefinitionRange().Start = &Input[InputPos];
 
-	check(Class->ClassFlags == 0 || (Class->ClassFlags & ClassDef.ClassFlags) != 0);
+	// If we have existing class flags (preexisting engine objects), make sure we have some shared flags.
+	check(ClassDef.GetClassFlags() == 0 || (ClassDef.GetClassFlags() & ClassDef.GetParsedClassFlags()) != 0);
 
-	Class->ClassFlags |= CLASS_Parsed;
+	const EClassFlags PrevClassFlags = ClassDef.GetInitialEngineClassFlags();
+
+	ClassDef.SetClassFlags(CLASS_Parsed);
 
 	PushNest(ENestType::Class, &ClassDef);
 	
-	const uint32 PrevClassFlags = Class->ClassFlags;
 	ResetClassData();
 
 	// Verify class variables haven't been filled in
+	UClass* Class = ClassDef.GetClass();
 	check(Class->Children == NULL);
 	check(Class->Next == NULL);
 	check(Class->NetFields.Num() == 0);
 	check(Class->FirstOwnedClassRep == 0);
 
 	// Make sure our parent classes is parsed.
-	for (UClass* Temp = Class->GetSuperClass(); Temp; Temp = Temp->GetSuperClass())
+	for (FUnrealClassDefinitionInfo* TempDef = ClassDef.GetSuperClass(); TempDef; TempDef = TempDef->GetSuperClass())
 	{
-		bool bIsParsed = !!(Temp->ClassFlags & CLASS_Parsed);
-		bool bIsIntrinsic = !!(Temp->ClassFlags & CLASS_Intrinsic);
+		bool bIsParsed = TempDef->HasAnyClassFlags(CLASS_Parsed);
+		bool bIsIntrinsic = TempDef->HasAnyClassFlags(CLASS_Intrinsic);
 		if (!(bIsParsed || bIsIntrinsic))
 		{
-			FError::Throwf(TEXT("'%s' can't be compiled: Parent class '%s' has errors"), *Class->GetName(), *Temp->GetName());
+			FError::Throwf(TEXT("'%s' can't be compiled: Parent class '%s' has errors"), *ClassDef.GetName(), *TempDef->GetName());
 		}
 	}
 
@@ -5816,7 +5808,6 @@ FUnrealClassDefinitionInfo* FHeaderParser::ParseInterfaceNameDeclaration(FString
 	{
 		return nullptr;
 	}
-	UClass* FoundClass = ClassDef->GetClass();
 
 	// Get super interface
 	bool bSpecifiesParentClass = MatchSymbol(TEXT(':'));
@@ -5831,24 +5822,21 @@ FUnrealClassDefinitionInfo* FHeaderParser::ParseInterfaceNameDeclaration(FString
 	// the super class should have been marked as CLASS_Interface at the importing stage, if it were an interface
 	FUnrealClassDefinitionInfo* TempClassDef = GetQualifiedClass(TEXT("'extends'"));
 	check(TempClassDef);
-	UClass* TempClass = TempClassDef->GetClass();
-	if( !(TempClass->ClassFlags & CLASS_Interface) )
+	if (!TempClassDef->HasAnyClassFlags(CLASS_Interface))
 	{
 		// UInterface is special and actually extends from UObject, which isn't an interface
 		if (DeclaredInterfaceName != TEXT("UInterface"))
-			FError::Throwf(TEXT("Interface class '%s' cannot inherit from non-interface class '%s'"), *DeclaredInterfaceName, *TempClass->GetName() );
+		{
+			FError::Throwf(TEXT("Interface class '%s' cannot inherit from non-interface class '%s'"), *DeclaredInterfaceName, *TempClassDef->GetName());
+		}
 	}
 
-	UClass* SuperClass = FoundClass->GetSuperClass();
-	if (SuperClass == NULL)
+	// The class super should have already been set by now
+	FUnrealClassDefinitionInfo* SuperClassDef = ClassDef->GetSuperClass();
+	check(SuperClassDef);
+	if (SuperClassDef != TempClassDef)
 	{
-		FoundClass->SetSuperStruct(TempClass);
-		ClassDef->GetSuperStructInfo().Struct = TempClassDef;
-		ClassDef->GetSuperStructInfo().Name = TempClass->GetName();
-	}
-	else if (SuperClass != TempClass)
-	{
-		FError::Throwf(TEXT("%s's superclass must be %s, not %s"), *FoundClass->GetPathName(), *SuperClass->GetPathName(), *TempClass->GetPathName());
+		FError::Throwf(TEXT("%s's superclass must be %s, not %s"), *ClassDef->GetPathName(), *SuperClassDef->GetPathName(), *TempClassDef->GetPathName());
 	}
 
 	return ClassDef;
@@ -5915,32 +5903,32 @@ void FHeaderParser::CompileInterfaceDeclaration()
 
 	// New style files have the interface name / extends afterwards
 	RequireIdentifier(TEXT("class"), ESearchCase::CaseSensitive, TEXT("Interface declaration"));
-	FUnrealClassDefinitionInfo* ClassDef = ParseInterfaceNameDeclaration(/*out*/ DeclaredInterfaceName, /*out*/ RequiredAPIMacroIfPresent);
-	check(ClassDef);
-	UClass* InterfaceClass = ClassDef->GetClass();
-	ClassDef->GetDefinitionRange().Start = &Input[InputPos];
+	FUnrealClassDefinitionInfo* InterfaceClassDef = ParseInterfaceNameDeclaration(/*out*/ DeclaredInterfaceName, /*out*/ RequiredAPIMacroIfPresent);
+	check(InterfaceClassDef);
+	UClass* InterfaceClass = InterfaceClassDef->GetClass();
+	InterfaceClassDef->GetDefinitionRange().Start = &Input[InputPos];
 
 	// Record that this interface is RequiredAPI if the CORE_API style macro was present
 	if (!RequiredAPIMacroIfPresent.IsEmpty())
 	{
-		InterfaceClass->ClassFlags |= CLASS_RequiredAPI;
+		InterfaceClassDef->SetClassFlags(CLASS_RequiredAPI);
 	}
 
 	// Set the appropriate interface class flags
-	InterfaceClass->ClassFlags |= CLASS_Interface | CLASS_Abstract;
+	InterfaceClassDef->SetClassFlags(CLASS_Interface | CLASS_Abstract);
 	if (InterfaceClass->GetSuperClass() != NULL)
 	{
 		InterfaceClass->ClassCastFlags |= InterfaceClass->GetSuperClass()->ClassCastFlags;
 	}
 
 	// All classes that are parsed are expected to be native
-	if (InterfaceClass->GetSuperClass() && !InterfaceClass->GetSuperClass()->HasAnyClassFlags(CLASS_Native))
+	if (InterfaceClassDef->GetSuperClass() && !InterfaceClassDef->GetSuperClass()->HasAnyClassFlags(CLASS_Native))
 	{
 		FError::Throwf(TEXT("Native classes cannot extend non-native classes") );
 	}
 
 	InterfaceClass->SetInternalFlags(EInternalObjectFlags::Native);
-	InterfaceClass->ClassFlags |= CLASS_Native;
+	InterfaceClassDef->SetClassFlags(CLASS_Native);
 
 	// Process all of the interface specifiers
 	for (const FPropertySpecifier& Specifier : SpecifiersFound)
@@ -5961,7 +5949,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 
 			case EInterfaceSpecifier::MinimalAPI:
 			{
-				InterfaceClass->ClassFlags |= CLASS_MinimalAPI;
+				InterfaceClassDef->SetClassFlags(CLASS_MinimalAPI);
 			}
 			break;
 
@@ -5974,19 +5962,19 @@ void FHeaderParser::CompileInterfaceDeclaration()
 	}
 
 	// All classes must start with a valid Unreal prefix
-	const FString ExpectedInterfaceName = FUnrealTypeDefinitionInfo::GetNameWithPrefix(InterfaceClass, EEnforceInterfacePrefix::U);
+	const FString ExpectedInterfaceName = InterfaceClassDef->GetNameWithPrefix(EEnforceInterfacePrefix::U);
 	if (DeclaredInterfaceName != ExpectedInterfaceName)
 	{
 		FError::Throwf(TEXT("Interface name '%s' is invalid, the first class should be identified as '%s'"), *DeclaredInterfaceName, *ExpectedInterfaceName );
 	}
 
 	// Try parsing metadata for the interface
-	FStructMetaData& StructData = ClassDef->GetStructMetaData();
+	FStructMetaData& StructData = InterfaceClassDef->GetStructMetaData();
 	StructData.SetPrologLine(PrologFinishLine);
 
 	// Register the metadata
-	AddModuleRelativePathToMetadata(*ClassDef, MetaData);
-	AddMetaDataToClassData(*ClassDef, MoveTemp(MetaData));
+	AddModuleRelativePathToMetadata(*InterfaceClassDef, MetaData);
+	AddMetaDataToClassData(*InterfaceClassDef, MoveTemp(MetaData));
 
 	// Handle the start of the rest of the interface
 	RequireSymbol( TEXT('{'), TEXT("'Class'") );
@@ -5998,7 +5986,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 
 	// Push the interface class nesting.
 	// we need a more specific set of allow flags for ENestType::Interface, only function declaration is allowed, no other stuff are allowed
-	PushNest(ENestType::Interface, ClassDef);
+	PushNest(ENestType::Interface, InterfaceClassDef);
 }
 
 void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& StructDef)
@@ -7272,9 +7260,9 @@ void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase&
 	}
 
 	// check to see if we have a FClassProperty using a deprecated class
-	if (VarProperty.MetaClassDef != nullptr && VarProperty.MetaClassDef->GetClass()->HasAnyClassFlags(CLASS_Deprecated))
+	if (VarProperty.MetaClassDef != nullptr && VarProperty.MetaClassDef->HasAnyClassFlags(CLASS_Deprecated))
 	{
-		UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *VarProperty.MetaClassDef->GetClass()->GetPathName());
+		UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *VarProperty.MetaClassDef->GetPathName());
 	}
 
 	// check to see if we have a FObjectProperty using a deprecated class.
@@ -7282,10 +7270,9 @@ void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase&
 	if ((VarProperty.Type == CPT_ObjectReference || VarProperty.Type == CPT_WeakObjectReference || VarProperty.Type == CPT_LazyObjectReference || VarProperty.Type == CPT_ObjectPtrReference || VarProperty.Type == CPT_SoftObjectReference)
 		&& VarProperty.ClassDef != nullptr)
 	{
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->HasAnyClassFlags(CLASS_Deprecated))	// and the object class being used has been deprecated
+		if (VarProperty.ClassDef->HasAnyClassFlags(CLASS_Deprecated))	// and the object class being used has been deprecated
 		{
-			UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *PropertyClass->GetPathName());
+			UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *VarProperty.ClassDef->GetPathName());
 		}
 	}
 }
@@ -8030,7 +8017,7 @@ ECompilationResult::Type FHeaderParser::Parse(
 			FUnrealClassDefinitionInfo& ClassDef = ClassDataPair->AsClassChecked();
 			for (FUnrealClassDefinitionInfo* ParentClassDef = ClassDef.GetSuperClass(); ParentClassDef; ParentClassDef = ParentClassDef->GetSuperClass())
 			{
-				if (ParentClassDef->GetClass()->HasAnyClassFlags(CLASS_Parsed | CLASS_Intrinsic))
+				if (ParentClassDef->HasAnyClassFlags(CLASS_Parsed | CLASS_Intrinsic))
 				{
 					break;
 				}
@@ -8049,8 +8036,7 @@ ECompilationResult::Type FHeaderParser::Parse(
 
 			for (const TSharedRef<FUnrealTypeDefinitionInfo>& ClassDef : SourceFile.GetDefinedClasses())
 			{
-				UClass* Class = ClassDef->AsClassChecked().GetClass();
-				Class->ClassFlags |= CLASS_Parsed;
+				ClassDef->AsClassChecked().SetClassFlags(CLASS_Parsed);
 			}
 		}
 	}
@@ -8624,7 +8610,7 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 					}
 
 					TSharedRef<FUnrealTypeDefinitionInfo> ClassDecl = Parser.ParseClassDeclaration(SourceFile, StartOfLine + (UInterfaceMacroDecl - Str), CurrentLine, true, TEXT("UINTERFACE"));
-					bFoundExportedClasses |= !(ClassDecl->AsClassChecked().ClassFlags & CLASS_NoExport);
+					bFoundExportedClasses |= !EnumHasAnyFlags(ClassDecl->AsClassChecked().GetParsedClassFlags(), CLASS_NoExport);
 					SourceFile.AddDefinedClass(MoveTemp(ClassDecl));
 				}
 			}
@@ -8639,7 +8625,7 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 					}
 
 					TSharedRef<FUnrealTypeDefinitionInfo> ClassDecl = Parser.ParseClassDeclaration(SourceFile, StartOfLine + (UClassMacroDecl - Str), CurrentLine, false, TEXT("UCLASS"));
-					bFoundExportedClasses |= !(ClassDecl->AsClassChecked().ClassFlags & CLASS_NoExport);
+					bFoundExportedClasses |= !EnumHasAnyFlags(ClassDecl->AsClassChecked().GetParsedClassFlags(), CLASS_NoExport);
 					SourceFile.AddDefinedClass(MoveTemp(ClassDecl));
 				}
 			}
@@ -9012,12 +8998,12 @@ void FHeaderParser::ResetClassData()
 	CurrentClass->PropertiesSize = 0;
 
 	// Set class flags and within.
-	CurrentClass->ClassFlags &= ~CLASS_RecompilerClear;
+	CurrentClassDef.ClearClassFlags(CLASS_RecompilerClear);
 
 	if (FUnrealClassDefinitionInfo* SuperClassDef = CurrentClassDef.GetSuperClass())
 	{
 		UClass* SuperClass = SuperClassDef->GetClass();
-		CurrentClass->ClassFlags |= (SuperClass->ClassFlags) & CLASS_ScriptInherit;
+		CurrentClassDef.SetClassFlags(SuperClass->ClassFlags & CLASS_ScriptInherit);
 		CurrentClass->ClassConfigName = SuperClass->ClassConfigName;
 		check(SuperClass->ClassWithin);
 		check(SuperClassDef->GetClassWithin());
@@ -9171,7 +9157,6 @@ void FHeaderParser::PostPopNestInterface(FUnrealClassDefinitionInfo& CurrentInte
 {
 	if (CurrentInterfaceDef.ContainsDelegates())
 	{
-		UClass* CurrentInterface = CurrentInterfaceDef.GetClass();
 		TMap<FName, FUnrealFunctionDefinitionInfo*> DelegateCache;
 		FixupDelegateProperties(CurrentInterfaceDef, *CurrentInterfaceDef.GetScope(), DelegateCache);
 	}
@@ -9319,7 +9304,6 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInf
 	{
 		if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(StructDef))
 		{
-			UClass* Class = ClassDef->GetClass();
 			TMap<FString, FName> ToolTipToFunc;
 			for (FUnrealFunctionDefinitionInfo* FunctionDef : ClassDef->GetFunctions())
 			{
@@ -9327,13 +9311,13 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInf
 				FString ToolTip = Func->GetToolTipText().ToString();
 				if (ToolTip.IsEmpty())
 				{
-					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *FunctionDef->GetName());
+					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *ClassDef->GetName(), *FunctionDef->GetName());
 					continue;
 				}
 				const FName* ExistingFuncName = ToolTipToFunc.Find(ToolTip);
 				if (ExistingFuncName != nullptr)
 				{
-					UE_LOG_ERROR_UHT(TEXT("Functions '%s::%s' and '%s::%s' uses identical tooltips / comments (DocumentationPolicy)."), *Class->GetName(), *(*ExistingFuncName).ToString(), *Class->GetName(), *FunctionDef->GetName());
+					UE_LOG_ERROR_UHT(TEXT("Functions '%s::%s' and '%s::%s' uses identical tooltips / comments (DocumentationPolicy)."), *ClassDef->GetName(), *(*ExistingFuncName).ToString(), *ClassDef->GetName(), *FunctionDef->GetName());
 				}
 				ToolTipToFunc.Add(MoveTemp(ToolTip), FunctionDef->GetFName());
 			}
@@ -9351,15 +9335,13 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(FUnrealClassDefinitionInfo& 
 {
 	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
 
-	UClass* Class = ClassDef.GetClass();
-
 	FDocumentationPolicy DocumentationPolicy = GetDocumentationPolicyForStruct(ClassDef);
 	if (DocumentationPolicy.bFunctionToolTipsRequired)
 	{
 		const FString* FunctionTooltip = FunctionDef.FindMetaData(NAME_ToolTip);
 		if (FunctionTooltip == nullptr)
 		{
-			UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *FunctionDef.GetName());
+			UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *ClassDef.GetName(), *FunctionDef.GetName());
 		}
 	}
 
@@ -9368,7 +9350,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(FUnrealClassDefinitionInfo& 
 		const FString* FunctionComment = FunctionDef.FindMetaData(NAME_Comment);
 		if (FunctionComment == nullptr)
 		{
-			UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a comment (DocumentationPolicy)."), *Class->GetName(), *FunctionDef.GetName());
+			UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a comment (DocumentationPolicy)."), *ClassDef.GetName(), *FunctionDef.GetName());
 			return;
 		}
 		
@@ -9399,7 +9381,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(FUnrealClassDefinitionInfo& 
 				const FString* ParamToolTip = ParamToolTips.Find(ParamName);
 				if (ParamToolTip == nullptr)
 				{
-					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' doesn't provide a tooltip for parameter '%s' (DocumentationPolicy)."), *Class->GetName(), *FunctionDef.GetName(), *ParamName.ToString());
+					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' doesn't provide a tooltip for parameter '%s' (DocumentationPolicy)."), *ClassDef.GetName(), *FunctionDef.GetName(), *ParamName.ToString());
 				}
 				ExistingFields.Add(ParamName);
 			}
@@ -9414,7 +9396,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(FUnrealClassDefinitionInfo& 
 				}
 				if (!ExistingFields.Contains(ParamName))
 				{
-					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' provides a tooltip for an unknown parameter '%s' (DocumentationPolicy)."), *Class->GetName(), *FunctionDef.GetName(), *Pair.Key.ToString());
+					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' provides a tooltip for an unknown parameter '%s' (DocumentationPolicy)."), *ClassDef.GetName(), *FunctionDef.GetName(), *Pair.Key.ToString());
 				}
 			}
 
@@ -9430,7 +9412,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(FUnrealClassDefinitionInfo& 
 				const FName* ExistingParam = ToolTipToParam.Find(Pair.Value);
 				if (ExistingParam != nullptr)
 				{
-					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' uses identical tooltips for parameters '%s' and '%s' (DocumentationPolicy)."), *Class->GetName(), *FunctionDef.GetName(), *ExistingParam->ToString(), *Pair.Key.ToString());
+					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' uses identical tooltips for parameters '%s' and '%s' (DocumentationPolicy)."), *ClassDef.GetName(), *FunctionDef.GetName(), *ExistingParam->ToString(), *Pair.Key.ToString());
 				}
 				ToolTipToParam.Add(MoveTemp(Pair.Value), Pair.Key);
 			}
