@@ -40,6 +40,9 @@
 #include "ToolMenus.h"
 #include "Editor/EditorEngine.h"
 #include "LevelEditorMenuContext.h"
+#include "Styling/SlateIconFinder.h"
+#include "UObject/Class.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "InViewportDetails"
 void FInViewportUIDragOperation::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
@@ -86,18 +89,11 @@ FInViewportUIDragOperation::FInViewportUIDragOperation(const TSharedRef<class SI
 
 	// Start the window off hidden.
 	const bool bShowImmediately = true;
-	CursorDecoratorWindow = FSlateApplication::Get().AddWindow(SWindow::MakeCursorDecorator(), bShowImmediately);
-	// Usually cursor decorators figure out their size automatically from content, but we will drive it
-	// here because the window will reshape itself to better reflect what will happen when the user drops the Tab.
-	CursorDecoratorWindow->SetSizingRule(ESizingRule::Autosized);
+	CursorDecoratorWindow = FSlateApplication::Get().AddWindow(SWindow::MakeStyledCursorDecorator(FAppStyle::Get().GetWidgetStyle<FWindowStyle>("InViewportDecoratorWindow")), bShowImmediately);
 	CursorDecoratorWindow->SetOpacity(0.45f);
 	CursorDecoratorWindow->SetContent
 	(
-		SNew(SBorder)
-		.BorderImage(FCoreStyle::Get().GetBrush("Docking.Background"))
-		[
-			InUIToBeDragged
-		]
+		InUIToBeDragged
 	);
 
 }
@@ -141,7 +137,7 @@ public:
 		{
  
 			RowWidget = SNew(SSplitter)
- 				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+				.Style(FEditorStyle::Get(), "PropertyTable.InViewport.Splitter")
 				.PhysicalSplitterHandleSize(1.0f)
  				.HitDetectionSplitterHandleSize(5.0f)
  				+ SSplitter::Slot()
@@ -151,7 +147,7 @@ public:
  				[
 					SNew(SBox)
 					.HAlign(HAlign_Right)
- 					.Padding(2.0f)
+ 					.Padding(5.0f)
  					[
 						NameWidget.ToSharedRef()
 					]
@@ -162,7 +158,7 @@ public:
  				.OnSlotResized(ColumnSizeData.OnValueColumnResized)
  				[
  					SNew(SBox)
- 					.Padding(2.0f)
+ 					.Padding(5.0f)
  					[
  						ValueWidget.ToSharedRef()
  					]
@@ -174,7 +170,7 @@ public:
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Center)
-						.Padding(0.0f)
+						.Padding(2.0f)
 						[
 							ResetWidget.ToSharedRef()
 						]
@@ -184,7 +180,7 @@ public:
 		ChildSlot
 			[
 				SNew(SBox)
-				.MinDesiredWidth(300.0f)
+				.MinDesiredWidth(350.0f)
 				[
 					RowWidget.ToSharedRef()
 				]
@@ -192,7 +188,7 @@ public:
 
 		STableRow< TSharedPtr<IDetailTreeNode> >::ConstructInternal(
 			STableRow::FArguments()
-			.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow")
+			.Style(FAppStyle::Get(), "PropertyTable.InViewport.Row")
 			.ShowSelection(false),
 			InOwnerTableView
 		);
@@ -234,42 +230,81 @@ void SInViewportDetails::GenerateWidget()
 		{
 			NameString = SelectedActor->GetHumanReadableName();
 		}
-		
+
+		// Get the common base class of the selected objects
+		UClass* BaseClass = NULL;
+		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+		{
+			AActor* Actor = Cast<AActor>(*It);
+			if (Actor)
+			{
+				UClass* ActorClass = Actor->GetClass();
+
+				if (!BaseClass)
+				{
+					BaseClass = ActorClass;
+				}
+
+				while (!ActorClass->IsChildOf(BaseClass))
+				{
+					BaseClass = BaseClass->GetSuperClass();
+				}
+			}
+		}
+		const FSlateBrush* ActorIcon = FSlateIconFinder::FindIconBrushForClass(BaseClass);
 		ChildSlot
 			[
 				SNew(SBackgroundBlur)
-				.Visibility(this, &SInViewportDetails::GetHeaderVisibility)
-				.BlurStrength(1)
-				.BlurRadius(10)
+				.BlurStrength(20)
+				.Padding(0.0f)
+				.CornerRadius(FVector4(15.0f, 15.0f, 15.0f, 15.0f))
 				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
+					SNew(SBorder)
+					.BorderImage(FAppStyle::Get().GetBrush("PropertyTable.InViewport.Background"))
+					.Visibility(this, &SInViewportDetails::GetHeaderVisibility)
+					.Padding(0.0f)
 					[
-						SNew(SInViewportDetailsHeader)
-						.Parent(SharedThis(this))
-						.Content()
-						[					
-							SNew(SBorder)
-							.BorderImage(FAppStyle::Get().GetBrush("PropertyTable.InViewport.Header"))
-							.Padding(5.0f)
-							[
-								SNew(STextBlock)
-								.Text(FText::FromString(NameString))
-								.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.0f)
+						[
+							SNew(SInViewportDetailsHeader)
+							.Parent(SharedThis(this))
+							.Content()
+							[		
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.HAlign(HAlign_Left)
+								.VAlign(VAlign_Center)
+								.Padding(0)
+								[
+									SNew(SImage)
+									.Image(ActorIcon)
+								]
+								+ SHorizontalBox::Slot()
+								.Padding(10.0f, 2.0f)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(NameString))
+									.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+								]
 							]
 						]
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SInViewportDetailsToolbar)
-						.Parent(SharedThis(this))
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						MakeDetailsWidget()
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.0f)
+						[
+							SNew(SInViewportDetailsToolbar)
+							.Parent(SharedThis(this))
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.0f)
+						[
+							MakeDetailsWidget()
+						]
 					]
 				]
 			];
@@ -320,16 +355,13 @@ TSharedRef<SWidget> SInViewportDetails::MakeDetailsWidget()
 	if (Nodes.Num())
 	{
 		NodeList = SNew(SListView< TSharedPtr<IDetailTreeNode> >)
+			.ListViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("PropertyTable.InViewport.ListView"))
 			.ItemHeight(24)
 			.ListItemsSource(&Nodes)
 			.OnGenerateRow(this, &SInViewportDetails::GenerateListRow);
 
 		
-		DetailWidget = SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("PropertyTable.InViewport.Background"))
-			[
-				NodeList.ToSharedRef()
-			];
+		DetailWidget = NodeList.ToSharedRef();
 	}
 	return DetailWidget;
 }
@@ -436,7 +468,12 @@ void SInViewportDetailsHeader::Construct(const FArguments& InArgs)
 	ParentPtr = InArgs._Parent;
 	ChildSlot
 		[
-			InArgs._Content.Widget
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("PropertyTable.InViewport.Header"))
+			.Padding(5.0f)
+			[
+				InArgs._Content.Widget
+			]
 		];
 }
 
