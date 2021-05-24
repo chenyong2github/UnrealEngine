@@ -158,9 +158,9 @@ bool USkeleton::IsCompatibleSkeletonByAssetString(const FString& SkeletonAssetSt
 	return false;
 }
 
-bool USkeleton::IsCompatibleSkeletonByAssetData(const FAssetData& AssetData) const
+bool USkeleton::IsCompatibleSkeletonByAssetData(const FAssetData& AssetData, const TCHAR* InTag) const
 {
-	return IsCompatibleSkeletonByAssetString(AssetData.GetTagValueRef<FString>(TEXT("Skeleton")));
+	return IsCompatibleSkeletonByAssetString(AssetData.GetTagValueRef<FString>(InTag));
 }
 
 FSkeletonRemapping::FSkeletonRemapping(const USkeleton* InSourceSkeleton, const USkeleton* InTargetSkeleton)

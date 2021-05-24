@@ -6,7 +6,9 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "AnimGraphNode_CustomProperty.h"
+#include "EdGraphSchema_K2_Actions.h"
 #include "IClassVariableCreator.h"
+#include "K2Node_EventNodeInterface.h"
 
 #include "AnimGraphNode_LinkedAnimGraphBase.generated.h"
 
@@ -17,14 +19,16 @@ class SToolTip;
 struct FAnimNode_LinkedAnimGraph;
 
 UCLASS(MinimalAPI, Abstract)
-class UAnimGraphNode_LinkedAnimGraphBase : public UAnimGraphNode_CustomProperty
+class UAnimGraphNode_LinkedAnimGraphBase : public UAnimGraphNode_CustomProperty, public IK2Node_EventNodeInterface
 {
 	GENERATED_BODY()
 
 public:
 	//~ Begin UEdGraphNode Interface.
 	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual FText GetTooltipText() const override;
+	virtual FText GetMenuCategory() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
@@ -45,6 +49,9 @@ public:
 	// Node accessor
 	virtual FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() PURE_VIRTUAL(UAnimGraphNode_LinkedAnimGraphBase::GetLinkedAnimGraphNode, return nullptr;);
 	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const PURE_VIRTUAL(UAnimGraphNode_LinkedAnimGraphBase::GetLinkedAnimGraphNode, return nullptr;);
+
+	// IK2Node_EventNodeInterface interface
+	virtual TSharedPtr<FEdGraphSchemaAction> GetEventNodeAction(const FText& ActionCategory) override;
 
 protected:
 	friend class UAnimBlueprintExtension_LinkedAnimGraph;
@@ -73,6 +80,9 @@ protected:
 	// Instance blueprint was changed by user
 	void OnSetInstanceBlueprint(const FAssetData& AssetData, IDetailLayoutBuilder* InDetailBuilder);
 	// ----- END UI CALLBACKS ----- //
+
+	// Skeleton name used for filtering unloaded classes 
+	FString SkeletonName;
 };
 
 UE_DEPRECATED(4.24, "UAnimGraphNode_SubInstanceBase has been renamed to UAnimGraphNode_LinkedAnimGraphBase")

@@ -23,6 +23,10 @@ public:
 	// Begin UEdGraphNode
 	virtual void PostPasteNode();
 
+	// Begin UK2Node
+	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
+	virtual bool IsActionFilteredOut(class FBlueprintActionFilter const& Filter) override;
+	
 	// Begin UAnimGraphNode_CustomProperty
 	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override { return &Node;  }
 	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
@@ -30,6 +34,10 @@ public:
 	// Begin UAnimGraphNode_LinkedAnimGraphBase
 	virtual FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() override { return &Node; }
 	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const override { return &Node; }
+
+private:
+	// Setup the node from a specified anim BP
+	void SetupFromAsset(const FAssetData& InAssetData, bool bInIsTemplateNode);
 };
 
 UE_DEPRECATED(4.24, "UAnimGraphNode_SubInstance has been renamed to UAnimGraphNode_LinkedAnimGraph")
