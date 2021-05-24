@@ -692,9 +692,6 @@ protected:
 	UNiagaraBakerSettings* BakerGeneratedSettings;
 #endif
 
-	// Reference to the async system update task that is responsible to do any outstanding work like emitter merging or script compilation 
-	FGraphEventRef UpdateTaskRef;
-	
 	UPROPERTY()
 	bool bHasSystemScriptDIsWithPerInstanceData;
 
