@@ -6,7 +6,6 @@
 #include "Async/TaskGraphInterfaces.h"
 
 class FUnrealSourceFile;
-class UField;
 class FOutputDevice;
 class FUnrealPackageDefinitionInfo;
 class FUnrealPropertyDefinitionInfo;
@@ -326,9 +325,6 @@ private:
 
 	/** Return the address of the singleton function - handles nullptr */
 	static const FString& GetSingletonNameFuncAddr(FUnrealFieldDefinitionInfo* FieldDef, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
-
-	/** Return the address of the singleton function - handles nullptr */
-	static const FString& GetSingletonNameFuncAddr(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
 
 	/**
 	 * Returns the name (overridden if marked up) or "" wrappers for use in a string literal.
