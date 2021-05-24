@@ -481,23 +481,28 @@ bool ADisplayClusterRootActor::BuildHierarchy()
 		}
 	}
 
-	// If no default camera set, try to set the first one
-	if (DefaultCameraComponent.IsDefinedSceneComponent() == false)
+	// Only check for the default camera if the construction scripts have been run, since camera components created in the blueprint editor
+	// won't have been created before then
+	if (bHasRerunConstructionScripts)
 	{
-		TMap<FString, UDisplayClusterCameraComponent*> Cameras;
-		GetTypedComponents<UDisplayClusterCameraComponent>(Cameras, CameraComponents);
-		if (Cameras.Num() > 0)
+		// If no default camera set, try to set the first one
+		if (DefaultCameraComponent.IsDefinedSceneComponent() == false)
 		{
-			// There is no guarantee that default camera is the first one listed in a config file
-			SetDefaultCamera(Cameras.CreateConstIterator()->Key);
-		}
-		else
-		{
-			UE_LOG(LogDisplayClusterGame, Error, TEXT("No cameras found"));
-			return false;
+			TMap<FString, UDisplayClusterCameraComponent*> Cameras;
+			GetTypedComponents<UDisplayClusterCameraComponent>(Cameras, CameraComponents);
+			if (Cameras.Num() > 0)
+			{
+				// There is no guarantee that default camera is the first one listed in a config file
+				SetDefaultCamera(Cameras.CreateConstIterator()->Key);
+			}
+			else
+			{
+				UE_LOG(LogDisplayClusterGame, Error, TEXT("No cameras found"));
+				return false;
+			}
 		}
 	}
-	
+
 	return true;
 }
 
@@ -694,6 +699,8 @@ void ADisplayClusterRootActor::Destroyed()
 void ADisplayClusterRootActor::RerunConstructionScripts()
 {
 	Super::RerunConstructionScripts();
+
+	bHasRerunConstructionScripts = true;
 
 #if WITH_EDITOR
 	RerunConstructionScripts_Editor();
