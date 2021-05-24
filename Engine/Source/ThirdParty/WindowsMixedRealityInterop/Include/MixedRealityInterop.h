@@ -505,11 +505,11 @@ namespace WindowsMixedReality
 		wchar_t* GetFailureString();
 
 		// Spatial Mapping
-		void StartSpatialMapping(float InTriangleDensity, float InVolumeSize, void(*StartFunctionPointer)(),
+		bool StartSpatialMapping(float InTriangleDensity, float InVolumeSize, void(*StartFunctionPointer)(),
 			void(*AllocFunctionPointer)(MeshUpdate*),
 			void(*RemovedMeshPointer)(MeshUpdate*),
 			void(*FinishFunctionPointer)());
-		void StopSpatialMapping();
+		bool StopSpatialMapping();
 		//~ Spatial Mapping
 
 		// Hand Mesh
@@ -540,8 +540,8 @@ namespace WindowsMixedReality
 		WindowsMixedReality::HMDSpatialLocatability GetTrackingState();
 
 		// QR code tracking
-		void StartQRCodeTracking(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
-		void StopQRCodeTracking();
+		bool StartQRCodeTracking(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
+		bool StopQRCodeTracking();
 
 #if PLATFORM_HOLOLENS
 		void SetHolographicSpace(Windows::Graphics::Holographic::HolographicSpace^ inHolographicSpace);
@@ -620,8 +620,8 @@ public:
 	/** To route logging messages back to the UE_LOG() macros */
 	void SetOnLog(void(*FunctionPointer)(const wchar_t* LogMsg));
 
-	void StartCameraCapture(void(*FunctionPointer)(void*, DirectX::XMFLOAT4X4), int DesiredWidth, int DesiredHeight, int DesiredFPS);
-	void StopCameraCapture();
+	bool StartCameraCapture(void(*FunctionPointer)(void*, DirectX::XMFLOAT4X4), int DesiredWidth, int DesiredHeight, int DesiredFPS);
+	bool StopCameraCapture();
 
 	void NotifyReceivedFrame(void* handle, DirectX::XMFLOAT4X4 CamToTracking);
 

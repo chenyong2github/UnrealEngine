@@ -234,7 +234,7 @@ void MeshUpdateObserver::OnSurfacesChanged(SpatialSurfaceObserver Observer, winr
 	}
 }
 
-void MeshUpdateObserver::StartMeshObserver(
+bool MeshUpdateObserver::StartMeshObserver(
 	float InTriangleDensity,
 	float InVolumeSize,
 	void(*StartFunctionPointer)(),
@@ -251,28 +251,28 @@ void MeshUpdateObserver::StartMeshObserver(
 	if (OnStartMeshUpdates == nullptr)
 	{
 		Log(L"Null start updates function pointer passed to StartMeshObserver(). Aborting.");
-		return;
+		return false;
 	}
 
 	OnAllocateBuffers = AllocFunctionPointer;
 	if (OnAllocateBuffers == nullptr)
 	{
 		Log(L"Null allocate buffers function pointer passed to StartMeshObserver(). Aborting.");
-		return;
+		return false;
 	}
 
 	OnRemovedMesh = RemovedMeshPointer;
 	if (OnRemovedMesh == nullptr)
 	{
 		Log(L"Null removed mesh function pointer passed to StartMeshObserver(). Aborting.");
-		return;
+		return false;
 	}
 
 	OnFinishMeshUpdates = FinishFunctionPointer;
 	if (OnFinishMeshUpdates == nullptr)
 	{
 		Log(L"Null finish updates function pointer passed to StartMeshObserver(). Aborting.");
-		return;
+		return false;
 	}
 
 	// If it's supported, request access
@@ -280,7 +280,7 @@ void MeshUpdateObserver::StartMeshObserver(
 	{
 		//auto RequestTask = concurrency::create_task(SpatialSurfaceObserver::RequestAccessAsync());
 		//RequestTask.then([this](SpatialPerceptionAccessStatus AccessStatus)
-		SpatialSurfaceObserver::RequestAccessAsync().Completed([=](auto&& asyncInfo, auto&&  asyncStatus)
+		SpatialSurfaceObserver::RequestAccessAsync().Completed([=](auto&& asyncInfo, auto&& asyncStatus)
 		{
 			if (asyncInfo.GetResults() == SpatialPerceptionAccessStatus::Allowed)
 			{
@@ -307,10 +307,13 @@ void MeshUpdateObserver::StartMeshObserver(
 				Log(L"User denied permission for spatial mapping. No updates will occur.");
 			}
 		});
+
+		return true;
 	}
 	else
 	{
 		Log(L"SpatialSurfaceObserver::IsSupported() returned false. No updates will occur.");
+		return false;
 	}
 }
 

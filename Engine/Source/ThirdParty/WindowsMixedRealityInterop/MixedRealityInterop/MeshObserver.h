@@ -21,7 +21,7 @@ public:
 	/** To route logging messages back to the UE_LOG() macros */
 	void SetOnLog(void(*FunctionPointer)(const wchar_t* LogMsg));
 
-	void StartMeshObserver(
+	bool StartMeshObserver(
 		float InTriangleDensity,
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),

@@ -195,27 +195,27 @@ void QRCodeUpdateObserver::OnRemoved(QRCodeWatcher sender, QRCodeRemovedEventArg
 	}
 }
 
-void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
+bool QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
 {
 	OnAddedQRCode = AddedFunctionPointer;
 	if (OnAddedQRCode == nullptr)
 	{
 		Log(L"Null added function pointer passed to StartQRCodeObserver(). Aborting.");
-		return;
+		return false;
 	}
 
 	OnUpdatedQRCode = UpdatedFunctionPointer;
 	if (OnUpdatedQRCode == nullptr)
 	{
 		Log(L"Null updated function pointer passed to StartQRCodeObserver(). Aborting.");
-		return;
+		return false;
 	}
 
 	OnRemovedQRCode = UpdatedFunctionPointer;
 	if (OnRemovedQRCode == nullptr)
 	{
 		Log(L"Null removed function pointer passed to StartQRCodeObserver(). Aborting.");
-		return;
+		return false;
 	}
 
 	std::lock_guard<std::mutex> lock(QRCodeRefsLock);
@@ -224,7 +224,7 @@ void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(QRCod
 	{
 		if (QRCodeWatcher::IsSupported())
 		{
-			QRCodeWatcher::RequestAccessAsync().Completed([=](auto&& asyncInfo, auto&&  asyncStatus) 
+			QRCodeWatcher::RequestAccessAsync().Completed([=](auto&& asyncInfo, auto&& asyncStatus)
 			{
 				if (asyncInfo.GetResults() == QRCodeWatcherAccessStatus::Allowed)
 				{
@@ -242,11 +242,18 @@ void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(QRCod
 					Log(L"Interop: StartQRCodeObserver() Access Denied!");
 				}
 			});
+
+			return true;
+		}
+		else
+		{
+			return false;
 		}
 	}
 	else
 	{
 		Log(L"Interop: StartQRCodeObserver() already called!");
+		return true;
 	}
 }
 
@@ -262,7 +269,7 @@ void QRCodeUpdateObserver::UpdateCoordinateSystem(SpatialCoordinateSystem InCoor
 	LastCoordinateSystem = InCoordinateSystem;
 }
 
-void QRCodeUpdateObserver::StopQRCodeObserver()
+bool QRCodeUpdateObserver::StopQRCodeObserver()
 {
 	std::lock_guard<std::mutex> lock(QRCodeRefsLock);
 	if (QRTrackerInstance != nullptr)
@@ -277,4 +284,6 @@ void QRCodeUpdateObserver::StopQRCodeObserver()
 
 		Log(L"Interop: StopQRCodeObserver() success!");
 	}
+
+	return true;
 }

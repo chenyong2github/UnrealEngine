@@ -23,9 +23,9 @@ public:
 	/** To route logging messages back to the UE_LOG() macros */
 	void SetOnLog(void(*FunctionPointer)(const wchar_t* LogMsg));
 
-	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
+	bool StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
 	void UpdateCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem);
-	void StopQRCodeObserver();
+	bool StopQRCodeObserver();
 
 	void Log(const wchar_t* LogMsg);
 	void Log(std::wstringstream& stream);
