@@ -172,7 +172,7 @@ private:
 	ERootMotionModifierState State = ERootMotionModifierState::Waiting;
 };
 
-UCLASS()
+UCLASS(meta = (DisplayName = "Simple Warp"))
 class MOTIONWARPING_API URootMotionModifier_Warp : public URootMotionModifier
 {
 	GENERATED_BODY()
@@ -254,7 +254,7 @@ private:
 	TOptional<FTransform> CachedOffsetFromWarpPoint;
 };
 
-UCLASS()
+UCLASS(meta = (DisplayName = "Scale"))
 class MOTIONWARPING_API URootMotionModifier_Scale : public URootMotionModifier
 {
 	GENERATED_BODY()
