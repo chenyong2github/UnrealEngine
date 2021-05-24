@@ -98,17 +98,16 @@ namespace BlueprintNameConstants
 	 int32 NameMaxLength = 100;
 }
 
-FKismetNameValidator::FKismetNameValidator(const class UBlueprint* Blueprint, FName InExistingName/* = NAME_None*/, UStruct* InScope/* = NULL*/)
+FKismetNameValidator::FKismetNameValidator(const class UBlueprint* Blueprint, FName InExistingName/* = NAME_None*/, const UStruct* InScope/* = nullptr */)
+	: BlueprintObject(Blueprint)
+	, ExistingName(InExistingName)
+	, Scope(InScope)
 {
-	ExistingName = InExistingName;
-	BlueprintObject = Blueprint;
 	FBlueprintEditorUtils::GetClassVariableList(BlueprintObject, Names, true);
 	FBlueprintEditorUtils::GetFunctionNameList(BlueprintObject, Names);
 	FBlueprintEditorUtils::GetAllGraphNames(BlueprintObject, Names);
 	FBlueprintEditorUtils::GetSCSVariableNameList(Blueprint, Names);
 	FBlueprintEditorUtils::GetImplementingBlueprintsFunctionNameList(Blueprint, Names);
-
-	Scope = InScope;
 }
 
 int32 FKismetNameValidator::GetMaximumNameLength()

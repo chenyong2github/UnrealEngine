@@ -83,7 +83,7 @@ public:
 class UNREALED_API FKismetNameValidator : public INameValidatorInterface
 {
 public:
-	FKismetNameValidator(const class UBlueprint* Blueprint, FName InExistingName = NAME_None, UStruct* InScope = NULL);
+	FKismetNameValidator(const class UBlueprint* Blueprint, FName InExistingName = NAME_None, const UStruct* InScope = nullptr);
 	~FKismetNameValidator() {}
 
 	/** Return the name validator maximum string length */
@@ -101,7 +101,7 @@ private:
 	/** The current name of the object being validated */
 	FName ExistingName;
 	/** Scope to check against local variables (or other members) */
-	UStruct* Scope;
+	const UStruct* Scope;
 };
 
 /////////////////////////////////////////////////////
