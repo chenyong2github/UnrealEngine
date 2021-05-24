@@ -142,6 +142,16 @@ public:
 	{
 		return false;
 	}
+	
+	/**
+	* Optionally provide a custom render bridge for the OpenXR plugin.
+	* Note: this returns a pointer to a new instance allocated with "new".  Calling code is responsible for eventually deleting it.
+	*/
+	virtual class FOpenXRRenderBridge* GetCustomRenderBridge(XrInstance InInstance, XrSystemId InSystem)
+	{
+		return nullptr;
+	}
+
 
 	/**
 	* Fill the array with extensions required by the plugin
@@ -263,7 +273,12 @@ public:
 		return InNext;
 	}
 
-	// OpenXRHMD::OnBeginRendering_RenderThread
+	// OpenXRHMD::OnBeginRendering_RenderThread, before acquiring swapchain
+	virtual void OnAcquireSwapchainImage(XrSession InSession)
+	{
+	}
+
+	// OpenXRHMD::OnBeginRendering_RHIThread
 	virtual const void* OnBeginFrame(XrSession InSession, XrTime DisplayTime, const void* InNext)
 	{
 		return InNext;

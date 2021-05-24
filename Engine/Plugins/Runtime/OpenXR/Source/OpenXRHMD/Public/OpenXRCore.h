@@ -12,8 +12,18 @@ constexpr const TCHAR* OpenXRResultToString(XrResult e)
 {
 	switch (e)
 	{
-		XR_LIST_ENUM_XrResult(XR_ENUM_CASE_STR)
+		XR_LIST_ENUM_XrResult(XR_ENUM_CASE_STR);
 		default: return TEXT("Unknown");
+	}
+}
+
+#define XR_SESSION_STATE_STR(name, val) case name: return TEXT(#name);
+constexpr const TCHAR* OpenXRSessionStateToString(XrSessionState e)
+{
+	switch (e)
+	{
+		XR_LIST_ENUM_XrSessionState(XR_SESSION_STATE_STR);
+	default: return TEXT("Unknown");
 	}
 }
 

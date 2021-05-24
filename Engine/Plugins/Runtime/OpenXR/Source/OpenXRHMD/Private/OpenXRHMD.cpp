@@ -293,8 +293,55 @@ bool FOpenXRHMDPlugin::EnumerateLayers()
 	return false;
 }
 
+struct AnsiKeyFunc : BaseKeyFuncs<const ANSICHAR*, const ANSICHAR*, false>
+{
+	typedef typename TTypeTraits<const ANSICHAR*>::ConstPointerType KeyInitType;
+	typedef typename TCallTraits<const ANSICHAR*>::ParamType ElementInitType;
+
+	/**
+	 * @return The key used to index the given element.
+	 */
+	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+	{
+		return Element;
+	}
+
+	/**
+	 * @return True if the keys match.
+	 */
+	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return FCStringAnsi::Strcmp(A, B) == 0;
+	}
+
+	/** Calculates a hash index for a key. */
+	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return GetTypeHash(Key);
+	}
+};
+
 bool FOpenXRHMDPlugin::InitRenderBridge()
 {
+	// Get all extension plugins
+	TSet<const ANSICHAR*, AnsiKeyFunc> ExtensionSet;
+	TArray<IOpenXRExtensionPlugin*> ExtModules = IModularFeatures::Get().GetModularFeatureImplementations<IOpenXRExtensionPlugin>(IOpenXRExtensionPlugin::GetModularFeatureName());
+
+	// Query all extension plugins to see if we need to use a custom render bridge
+	PFN_xrGetInstanceProcAddr GetProcAddr = nullptr;
+	for (IOpenXRExtensionPlugin* Plugin : ExtModules)
+	{
+		// We are taking ownership of the CustomRenderBridge instance here.
+		TRefCountPtr<FOpenXRRenderBridge> CustomRenderBridge = Plugin->GetCustomRenderBridge(Instance, System);
+		if (CustomRenderBridge)
+		{
+			// We pick the first
+			RenderBridge = CustomRenderBridge;
+			return true;
+		}
+	}
+
+
 	FString RHIString = FApp::GetGraphicsRHI();
 	if (RHIString.IsEmpty())
 	{
@@ -340,34 +387,6 @@ bool FOpenXRHMDPlugin::InitRenderBridge()
 	}
 	return true;
 }
-
-struct AnsiKeyFunc : BaseKeyFuncs<const ANSICHAR*, const ANSICHAR*, false>
-{
-	typedef typename TTypeTraits<const ANSICHAR*>::ConstPointerType KeyInitType;
-	typedef typename TCallTraits<const ANSICHAR*>::ParamType ElementInitType;
-
-	/**
-	 * @return The key used to index the given element.
-	 */
-	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
-	{
-		return Element;
-	}
-
-	/**
-	 * @return True if the keys match.
-	 */
-	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
-	{
-		return FCStringAnsi::Strcmp(A, B) == 0;
-	}
-
-	/** Calculates a hash index for a key. */
-	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
-	{
-		return GetTypeHash(Key);
-	}
-};
 
 PFN_xrGetInstanceProcAddr FOpenXRHMDPlugin::GetDefaultLoader()
 {
@@ -2303,6 +2322,13 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			Layer.bUpdateTexture = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
 		});
 
+		{
+			FReadScopeLock Lock(SessionHandleMutex);
+			for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+			{
+				Module->OnAcquireSwapchainImage(Session);
+			}
+		}
 		if (bNeedsAcquireOnRHI)
 		{
 			// TODO: Current spec incorrectly requires this function to have access to the Vulkan queue.
@@ -2442,20 +2468,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 			CurrentSessionState = SessionState.state;
 
 #if 0
-			static const TCHAR* StateTextMap[] =
-			{
-				TEXT("XR_SESSION_STATE_UNKNOWN"),
-				TEXT("XR_SESSION_STATE_IDLE"),
-				TEXT("XR_SESSION_STATE_READY"),
-				TEXT("XR_SESSION_STATE_SYNCHRONIZED"),
-				TEXT("XR_SESSION_STATE_VISIBLE"),
-				TEXT("XR_SESSION_STATE_FOCUSED"),
-				TEXT("XR_SESSION_STATE_STOPPING"),
-				TEXT("XR_SESSION_STATE_LOSS_PENDING"),
-				TEXT("XR_SESSION_STATE_EXITING"),
-			};
-			TCHAR * StateText = ((int)CurrentSessionState <= (int)XR_SESSION_STATE_EXITING) ? StateTextMap[(int)CurrentSessionState] : TEXT("");
-			UE_LOG(LogHMD, Log, TEXT("Session state switching to %s"), StateText);
+			UE_LOG(LogHMD, Log, TEXT("Session state switching to %s"), OpenXRSessionStateToString(CurrentSessionState));
 #endif
 
 			if (SessionState.state == XR_SESSION_STATE_READY)
