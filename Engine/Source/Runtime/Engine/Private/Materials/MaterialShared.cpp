@@ -358,11 +358,16 @@ bool FExpressionExecOutput::GenerateHLSLStatements(FMaterialHLSLGenerator& Gener
 
 UE::HLSLTree::FScope* FExpressionExecOutput::NewScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
 {
+	return NewScopeWithStatements(Generator, Scope, EMaterialNewScopeFlag::None);
+}
+
+UE::HLSLTree::FScope* FExpressionExecOutput::NewScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, EMaterialNewScopeFlag Flags) const
+{
 	UE::HLSLTree::FScope* Result = nullptr;
 	if (Expression)
 	{
 		Expression->ValidateState();
-		Result = Generator.GetTree().NewScope(Scope); // Create a new scope for the statements
+		Result = Generator.NewScope(Scope, Flags); // Create a new scope for the statements
 		Generator.GenerateStatements(*Result, Expression);
 	}
 

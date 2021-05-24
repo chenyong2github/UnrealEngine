@@ -7,6 +7,7 @@
 
 #include "Containers/Map.h"
 #include "Misc/MemStack.h"
+#include "Misc/EnumClassFlags.h"
 #include "Templates/RefCounting.h"
 #include "RHIDefinitions.h"
 #include "HLSLTree/HLSLTree.h"
@@ -33,8 +34,16 @@ class FExpressionConstant;
 class FExpressionExternalInput;
 class FExpressionSwizzle;
 class FExpressionCast;
+class FExpressionLocalPHI;
 }
 }
+
+enum class EMaterialNewScopeFlag : uint8
+{
+	None = 0u,
+	NoPreviousScope = (1u << 0),
+};
+ENUM_CLASS_FLAGS(EMaterialNewScopeFlag);
 
 /**
  * MaterialHLSLGenerator is a bridge between a material, and HLSLTree.  It facilitates generating HLSL source code for a given material, using HLSLTree
@@ -65,6 +74,10 @@ public:
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
 
 	bool GenerateResult(UE::HLSLTree::FScope& Scope);
+
+	UE::HLSLTree::FScope* NewScope(UE::HLSLTree::FScope& Scope, EMaterialNewScopeFlag Flags = EMaterialNewScopeFlag::None);
+
+	UE::HLSLTree::FScope* NewJoinedScope(UE::HLSLTree::FScope& Scope);
 
 	UE::HLSLTree::FExpressionConstant* NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value);
 	UE::HLSLTree::FExpressionExternalInput* NewTexCoord(UE::HLSLTree::FScope& Scope, int32 Index);
@@ -155,12 +168,16 @@ private:
 		int32 NumInputs = 0;
 	};
 
+	UE::HLSLTree::FExpression* InternalAcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName);
+
 	const FMaterialCompileTargetParameters& CompileTarget;
 	UMaterial* TargetMaterial;
 	UMaterialFunctionInterface* TargetMaterialFunction;
 
 	UE::HLSLTree::FTree* HLSLTree;
 	TArray<FExpressionKey> ExpressionStack;
+	TArray<UE::HLSLTree::FScope*> JoinedScopeStack;
+	TArray<UE::HLSLTree::FExpressionLocalPHI*> PHIExpressions;
 	TArray<FString> CompileErrors;
 	TArray<UMaterialExpression*> ErrorExpressions;
 	TMap<FName, UE::HLSLTree::FParameterDeclaration*> ParameterDeclarationMap;

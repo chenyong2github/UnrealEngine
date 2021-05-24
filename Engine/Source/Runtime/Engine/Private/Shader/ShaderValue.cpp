@@ -225,6 +225,30 @@ UE::Shader::EValueType UE::Shader::MakeArithmeticResultType(EValueType Lhs, EVal
 	return EValueType::Void;
 }
 
+UE::Shader::EValueType UE::Shader::MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)
+{
+	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs);
+	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs);
+
+	if (Lhs == Rhs)
+	{
+		if (LhsDesc.NumComponents > 0)
+		{
+			return MakeValueType(EValueComponentType::Bool, LhsDesc.NumComponents);
+		}
+		else
+		{
+			OutErrorMessage = FString::Printf(TEXT("Attempting to perform comparison on non-numeric types: %s %s"), LhsDesc.Name, RhsDesc.Name);
+		}
+	}
+	else
+	{
+		OutErrorMessage = FString::Printf(TEXT("Comparison between types %s and %s are undefined"), LhsDesc.Name, RhsDesc.Name);
+	}
+
+	return EValueType::Void;
+}
+
 namespace UE
 {
 namespace Shader

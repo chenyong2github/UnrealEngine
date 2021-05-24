@@ -85,7 +85,10 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 	if(!bInitialized)
 	{
 		static const auto CVarMaterialEnableControlFlow = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableControlFlow"));
+		static const auto CVarMaterialEnableNewHLSLGenerator = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableNewHLSLGenerator"));
+		
 		const bool bEnableControlFlow = CVarMaterialEnableControlFlow->GetValueOnAnyThread() != 0;
+		const bool bEnableNewHLSLGenerator = CVarMaterialEnableNewHLSLGenerator->GetValueOnAnyThread() != 0;
 
 		UMaterialEditorOptions* TempEditorOptions = NewObject<UMaterialEditorOptions>();
 		UClass* BaseType = UMaterialExpression::StaticClass();
@@ -110,6 +113,11 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 
 						// Hide node types related to control flow, unless it's enabled
 						if (!bEnableControlFlow && Class->HasMetaData("MaterialControlFlow"))
+						{
+							continue;
+						}
+
+						if (!bEnableNewHLSLGenerator && Class->HasMetaData("MaterialNewHLSLGenerator"))
 						{
 							continue;
 						}

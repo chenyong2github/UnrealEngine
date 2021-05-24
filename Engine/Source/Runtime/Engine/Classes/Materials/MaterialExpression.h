@@ -19,6 +19,7 @@ struct FPropertyChangedEvent;
 struct FMaterialShadingModelField;
 
 class FMaterialHLSLGenerator;
+enum class EMaterialNewScopeFlag : uint8;
 
 namespace UE
 {
@@ -129,6 +130,7 @@ public:
 
 	/** Creates a new scope, and populates it with the expression connected to this input */
 	ENGINE_API UE::HLSLTree::FScope* NewScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
+	ENGINE_API UE::HLSLTree::FScope* NewScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, EMaterialNewScopeFlag Flags) const;
 #endif // WITH_EDITOR
 private:
 	UPROPERTY()
