@@ -23,7 +23,7 @@ public:
 	FTimingProfilerProvider(IAnalysisSession& InSession);
 	virtual ~FTimingProfilerProvider();
 	uint32 AddCpuTimer(const TCHAR* Name);
-	uint32 AddGpuTimer(const TCHAR* Name);
+	uint32 AddGpuTimer(FStringView Name);
 	void SetTimerName(uint32 TimerId, const TCHAR* Name);
 	uint32 AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata);
 	TimelineInternal& EditCpuThreadTimeline(uint32 ThreadId);
@@ -43,7 +43,7 @@ public:
 	virtual TArrayView<const uint8> GetMetadata(uint32 TimerId) const override;
 
 private:
-	FTimingProfilerTimer& AddTimerInternal(const TCHAR* Name, bool IsGpuEvent);
+	FTimingProfilerTimer& AddTimerInternal(FStringView Name, bool IsGpuEvent);
 
 	struct FMetadata 
 	{
