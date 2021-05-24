@@ -1915,9 +1915,9 @@ void PackStrataOut(
 
 				if (BSDF_GETHASF90(BSDF) || BSDF_GETHASTHINFILM(BSDF) || BSDF_GETHASHAZINESS(BSDF))
 				{
-					float3 F90HSV = LinearRGB_2_HSV(SLAB_F90(BSDF));
+					float3 F90YCoCg = LinearRGB_2_NormalisedYCoCg(SLAB_F90(BSDF));
 					const float ThinFilmGamma2 = sqrt(SLAB_THINFILM_THICKNESS(BSDF)); // Using a gamma 2.0 encoding help with precision to be visually more uniform. This is then further improved via dithering.
-					STRATA_STORE_UINT1(PackRGBA8(float4(F90HSV.x, F90HSV.y, ThinFilmGamma2, SLAB_HAZINESS(BSDF))));
+					STRATA_STORE_UINT1(PackRGBA8(float4(F90YCoCg.y, F90YCoCg.z, ThinFilmGamma2, SLAB_HAZINESS(BSDF))));
 				}
 
 				const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
@@ -2109,10 +2109,10 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddr
 		{
 			float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
 
-			const float F90Hue = Data.x;
-			const float F90Sat = Data.y;
-			const float F90Val = 1.0f;	// Forced to 1 as F90 is not super to have a low value
-			SLAB_F90(OutBSDF) = bHasF90 ? HSV_2_LinearRGB(float3(F90Hue, F90Sat, F90Val)) : 1.0f;
+			const float F90Co = Data.x;
+			const float F90Cg = Data.y;
+			const float F90Y  = 1.0f;	// Forced to 1 as F90 is not supposed to have a low value
+			SLAB_F90(OutBSDF) = bHasF90 ? NormalisedYCoCg_2_LinearRGB(float3(F90Y, F90Co, F90Cg)) : 1.0f;
 
 			SLAB_THINFILM_THICKNESS(OutBSDF) = Data.z * Data.z;
 			SLAB_HAZINESS(OutBSDF) = Data.w;
