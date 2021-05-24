@@ -1032,11 +1032,15 @@ ALandscape* UNiagaraDataInterfaceLandscape::GetLandscape(const FNiagaraSystemIns
 	{
 		if (InLandscape->GetWorld() == SystemInstance.GetWorld())
 		{
-			const FBox& LandscapeBounds = InLandscape->GetComponentsBoundingBox();
-
-			if (LandscapeBounds.IntersectXY(WorldBounds))
+			if (const ULandscapeInfo* LandscapeInfo = InLandscape->GetLandscapeInfo())
 			{
-				return true;
+				for (const auto& ComponentIt : LandscapeInfo->XYtoCollisionComponentMap)
+				{
+					if (WorldBounds.IntersectXY(ComponentIt.Value->Bounds.GetBox()))
+					{
+						return true;
+					}
+				}
 			}
 		}
 
