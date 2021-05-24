@@ -1816,3 +1816,9 @@ bool FGenericPlatformMisc::IsPGOEnabled()
 {
 	return PLATFORM_COMPILER_OPTIMIZATION_PG;
 }
+
+bool FGenericPlatformMisc::CheckPersistentDownloadStorageSpaceAvailable( uint64 BytesRequired, bool bAttemptToUseUI )
+{
+	return true;
+}
+

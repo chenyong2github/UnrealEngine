@@ -982,6 +982,12 @@ public:
 		return true;
 	}
 
+	/** Ensure that there enough space in the persistent download dir. Returns true if there is sufficient space.
+	 *  If there is insufficient space and bAttemptToUseUI is true, the function will return false and the user may be prompted to clear space
+	 */
+	static bool CheckPersistentDownloadStorageSpaceAvailable( uint64 BytesRequired, bool bAttemptToUseUI );
+
+
 	/**
 	 *	Return the GamePersistentDownloadDir.
 	 *	On some platforms, returns the writable directory for downloaded data that persists across play sessions.
