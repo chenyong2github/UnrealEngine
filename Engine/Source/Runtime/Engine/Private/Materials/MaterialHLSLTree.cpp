@@ -16,6 +16,12 @@ FMaterialHLSLTree::FMaterialHLSLTree()
 {
 }
 
+FMaterialHLSLTree::~FMaterialHLSLTree()
+{
+	UE::HLSLTree::FTree::Destroy(HLSLTree);
+}
+
+
 bool FMaterialHLSLTree::InitializeForMaterial(const FMaterialCompileTargetParameters& InCompilerTarget, FMaterial& InOutMaterial)
 {
 	UMaterialInterface* MaterialInterface = InOutMaterial.GetMaterialInterface();

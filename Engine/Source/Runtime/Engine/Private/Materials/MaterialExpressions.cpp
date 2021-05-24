@@ -257,8 +257,10 @@
 #include "Materials/MaterialExpressionExecEnd.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
+#include "Materials/MaterialExpressionWhileLoop.h"
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionGetLocal.h"
+#include "Materials/MaterialExpressionBinaryOp.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
 #if WITH_EDITOR
@@ -21553,7 +21555,88 @@ uint32 UMaterialExpressionForLoop::GetOutputType(int32 OutputIndex)
 	default: checkNoEntry(); return 0u;
 	}
 }
+#endif // WITH_EDITOR
+
+UMaterialExpressionWhileLoop::UMaterialExpressionWhileLoop(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Execution;
+		FConstructorStatics() : NAME_Execution(LOCTEXT("Execution", "Execution")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Execution);
+	Outputs.Reset();
+	bShowOutputNameOnPin = true;
+	bHidePreviewWindow = true;
 #endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionWhileLoop::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->Error(TEXT("Not supported with legacy compiler"));
+}
+
+void UMaterialExpressionWhileLoop::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("While"));
+}
+
+#endif // WITH_EDITOR
+
+UMaterialExpressionBinaryOp::UMaterialExpressionBinaryOp(const FObjectInitializer& ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FConstructorStatics() : NAME_Math(LOCTEXT("Math", "Math"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	ConstA = 0.0f;
+	ConstB = 1.0f;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+#endif
+}
+
+UMaterialExpressionLess::UMaterialExpressionLess(const FObjectInitializer& ObjectInitializer) {}
+
+#if WITH_EDITOR
+FText UMaterialExpressionBinaryOp::GetKeywords() const
+{
+	const UE::HLSLTree::FBinaryOpDescription Description = UE::HLSLTree::GetBinaryOpDesription(GetBinaryOp());
+	return FText::FromString(Description.Operator);
+}
+
+void UMaterialExpressionBinaryOp::GetCaption(TArray<FString>& OutCaptions) const
+{
+	const UE::HLSLTree::FBinaryOpDescription Description = UE::HLSLTree::GetBinaryOpDesription(GetBinaryOp());
+	FString ret = Description.Name;
+	FExpressionInput ATraced = A.GetTracedInput();
+	FExpressionInput BTraced = B.GetTracedInput();
+	if (!ATraced.Expression || !BTraced.Expression)
+	{
+		ret += TEXT("(");
+		ret += ATraced.Expression ? TEXT(",") : FString::Printf(TEXT("%.4g,"), ConstA);
+		ret += BTraced.Expression ? TEXT(")") : FString::Printf(TEXT("%.4g)"), ConstB);
+	}
+
+	OutCaptions.Add(ret);
+}
+
+int32 UMaterialExpressionBinaryOp::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->Error(TEXT("Not supported with legacy compiler"));
+}
+#endif // WITH_EDITOR
 
 UMaterialExpressionGetLocal::UMaterialExpressionGetLocal(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

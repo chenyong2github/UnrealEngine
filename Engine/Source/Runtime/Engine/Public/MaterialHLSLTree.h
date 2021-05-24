@@ -25,6 +25,7 @@ class FMaterialHLSLTree
 {
 public:
 	FMaterialHLSLTree();
+	~FMaterialHLSLTree();
 
 	bool InitializeForMaterial(const FMaterialCompileTargetParameters& InCompilerTarget, FMaterial& InOutMaterial);
 

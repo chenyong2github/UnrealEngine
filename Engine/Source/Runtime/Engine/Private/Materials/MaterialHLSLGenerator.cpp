@@ -59,6 +59,21 @@ bool FMaterialHLSLGenerator::Finalize()
 		}
 	}
 
+	if (JoinedScopeStack.Num() != 0)
+	{
+		Error(TEXT("Invalid control flow"));
+		return false;
+	}
+
+	// Resolve values for any PHI nodes that were generated
+	for (UE::HLSLTree::FExpressionLocalPHI* Expression : PHIExpressions)
+	{
+		for (int32 i = 0; i < Expression->NumValues; ++i)
+		{
+			Expression->Values[i] = InternalAcquireLocalValue(*Expression->Scopes[i], Expression->LocalName);
+		}
+	}
+
 	return true;
 }
 
@@ -204,6 +219,24 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 	return bResult;
 }
 
+UE::HLSLTree::FScope* FMaterialHLSLGenerator::NewScope(UE::HLSLTree::FScope& Scope, EMaterialNewScopeFlag Flags)
+{
+	UE::HLSLTree::FScope* NewScope = HLSLTree->NewScope(Scope);
+	if (!EnumHasAllFlags(Flags, EMaterialNewScopeFlag::NoPreviousScope))
+	{
+		NewScope->AddPreviousScope(Scope);
+	}
+
+	return NewScope;
+}
+
+UE::HLSLTree::FScope* FMaterialHLSLGenerator::NewJoinedScope(UE::HLSLTree::FScope& Scope)
+{
+	UE::HLSLTree::FScope* NewScope = HLSLTree->NewScope(Scope);
+	JoinedScopeStack.Add(NewScope);
+	return NewScope;
+}
+
 UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value)
 {
 	UE::HLSLTree::FExpressionConstant* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionConstant>(Scope, Value);
@@ -336,7 +369,7 @@ bool FMaterialHLSLGenerator::GenerateAssignLocal(UE::HLSLTree::FScope& Scope, co
 	return true;
 }
 
-UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName)
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::InternalAcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName)
 {
 	const FLocalKey Key(&Scope, LocalName);
 	UE::HLSLTree::FExpression** FoundExpression = LocalMap.Find(Key);
@@ -349,21 +382,28 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireLocalValue(UE::HLSLTre
 	if (PreviousScopes.Num() > 1)
 	{
 		UE::HLSLTree::FExpressionLocalPHI* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionLocalPHI>(Scope);
+		Expression->LocalName = LocalName;
 		Expression->NumValues = PreviousScopes.Num();
 		for (int32 i = 0; i < PreviousScopes.Num(); ++i)
 		{
 			Expression->Scopes[i] = PreviousScopes[i];
-			Expression->Values[i] = AcquireLocalValue(*PreviousScopes[i], LocalName);
 		}
+		PHIExpressions.Add(Expression);
 		LocalMap.Add(Key, Expression);
 		return Expression;
 	}
 
-	if (Scope.ParentScope)
+	if (PreviousScopes.Num() == 1)
 	{
-		return AcquireLocalValue(*Scope.ParentScope, LocalName);
+		return InternalAcquireLocalValue(*PreviousScopes[0], LocalName);
 	}
+
 	return nullptr;
+}
+
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName)
+{
+	return InternalAcquireLocalValue(Scope, LocalName);
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex)
@@ -397,6 +437,7 @@ UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextu
 bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression)
 {
 	FStatementEntry& Entry = StatementMap.FindOrAdd(MaterialExpression);
+
 	Entry.PreviousScope[Entry.NumInputs++] = &Scope;
 	check(Entry.NumInputs <= MaxNumPreviousScopes);
 	check(Entry.NumInputs <= MaterialExpression->NumExecutionInputs);
@@ -407,10 +448,17 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 		UE::HLSLTree::FScope* ScopeToUse = &Scope;
 		if (MaterialExpression->NumExecutionInputs > 1u)
 		{
-			ScopeToUse = HLSLTree->NewScope(*ScopeToUse->ParentScope, Entry.PreviousScope, Entry.NumInputs);
-			// Add a jump to link the previous scope to this new scope
-			UE::HLSLTree::FStatementJump* JumpStatement = HLSLTree->NewStatement<UE::HLSLTree::FStatementJump>(*Scope.ParentScope);
-			JumpStatement->TargetScope = ScopeToUse;
+			if (JoinedScopeStack.Num() == 0)
+			{
+				Error(TEXT("Bad control flow"));
+				return false;
+			}
+
+			ScopeToUse = JoinedScopeStack.Pop(false);
+			for (int32 i = 0; i < Entry.NumInputs; ++i)
+			{
+				ScopeToUse->AddPreviousScope(*Entry.PreviousScope[i]);
+			}
 		}
 
 		const FExpressionKey Key(MaterialExpression);
