@@ -2167,13 +2167,7 @@ private:
 
 IPlatformFile& IPlatformFile::GetPlatformPhysical()
 {
-#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
-	FAndroidPlatformFile& AndroidPlatformFile = FAndroidPlatformFile::GetPlatformPhysical();
-	static FManagedStoragePlatformFile ManagedStoragePlatformFileSingleton(&AndroidPlatformFile);
-	return ManagedStoragePlatformFileSingleton;
-#else
 	return FAndroidPlatformFile::GetPlatformPhysical();
-#endif //PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
 }
 
 IAndroidPlatformFile & IAndroidPlatformFile::GetPlatformPhysical()
