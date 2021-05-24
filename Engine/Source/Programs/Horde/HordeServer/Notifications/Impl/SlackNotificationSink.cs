@@ -665,11 +665,11 @@ namespace HordeServer.Notifications.Impl
 				{
 					if (Suspect.DeclinedAt == null)
 					{
-						DeclinedLines.Add($":heavy_minus_sign: Ignored by {await FormatMentionAsync(Suspect.AuthorId)}");
+						DeclinedLines.Add($":heavy_minus_sign: Ignored by {await FormatNameAsync(Suspect.AuthorId)} (CL {Suspect.Change})");
 					}
 					else
 					{
-						DeclinedLines.Add($":downvote: Declined by {await FormatMentionAsync(Suspect.AuthorId)} at {FormatSlackTime(Suspect.DeclinedAt.Value)}");
+						DeclinedLines.Add($":downvote: Declined by {await FormatNameAsync(Suspect.AuthorId)} at {FormatSlackTime(Suspect.DeclinedAt.Value)} (CL {Suspect.Change})");
 					}
 				}
 				Attachment.Blocks.Add(new SectionBlock(String.Join("\n", DeclinedLines)));
@@ -681,6 +681,16 @@ namespace HordeServer.Notifications.Impl
 		static string GetIssueEventId(IIssue Issue)
 		{
 			return $"issue_{Issue.Id}";
+		}
+
+		async Task<string> FormatNameAsync(ObjectId UserId)
+		{
+			IUser? User = await UserCollection.GetUserAsync(UserId);
+			if (User == null)
+			{
+				return $"User {UserId}";
+			}
+			return User.Name;
 		}
 
 		async Task<string> FormatMentionAsync(ObjectId UserId)
