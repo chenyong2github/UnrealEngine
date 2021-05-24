@@ -41,7 +41,7 @@ TSharedRef<SWidget> SOverridePropertiesWidget::MakeOverrideWidget(FName InName, 
 
 	TSharedRef<SWidget> Widget =
 		SNew(SBox)
-		.ToolTipText(InName == NAME_None ?
+		.ToolTipText((InName == NAME_None) ?
 			NSLOCTEXT("SPerQualityLevelPropertiesWidget", "DefaultQualityLevelDesc", "This property can have per quality level overrides.\nThis is the default value used when no override has been set for a specific quality level.") :
 			FText::Format(NSLOCTEXT("SPerQualityLevelPropertiesWidget", "QualityLevelDesc", "Override for {0}"), InDisplayText))
 		.Padding(FMargin(0.0f, 2.0f, 4.0f, 2.0f))

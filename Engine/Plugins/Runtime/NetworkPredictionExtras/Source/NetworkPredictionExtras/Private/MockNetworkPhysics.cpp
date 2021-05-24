@@ -1159,7 +1159,7 @@ AActor* ANetworkPredictionSpawner::Spawn(FName StreamName)
 		return nullptr;
 	}
 
-	StreamName = (StreamName == NAME_None ? SourceSpawner->RecordedInputs[FMath::Rand() % SourceSpawner->RecordedInputs.Num()].Name : StreamName);
+	StreamName = ((StreamName == NAME_None) ? SourceSpawner->RecordedInputs[FMath::Rand() % SourceSpawner->RecordedInputs.Num()].Name : StreamName);
 
 	if (FMockRecordedInputs* PlaybackRecordedInputs = SourceSpawner->RecordedInputs.FindByKey(StreamName))
 	{
