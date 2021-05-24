@@ -1528,83 +1528,119 @@ enum class ETextureDimension
 };
 
 /** Flags used for texture creation */
-enum ETextureCreateFlags
+enum class ETextureCreateFlags : uint64
 {
-	TexCreate_None					= 0,
+    None                              = 0,
 
-	// Texture can be used as a render target
-	TexCreate_RenderTargetable		= 1<<0,
-	// Texture can be used as a resolve target
-	TexCreate_ResolveTargetable		= 1<<1,
-	// Texture can be used as a depth-stencil target.
-	TexCreate_DepthStencilTargetable= 1<<2,
-	// Texture can be used as a shader resource.
-	TexCreate_ShaderResource		= 1<<3,
-	// Texture is encoded in sRGB gamma space
-	TexCreate_SRGB					= 1<<4,
-	// Texture data is writable by the CPU
-	TexCreate_CPUWritable			= 1<<5,
-	// Texture will be created with an un-tiled format
-	TexCreate_NoTiling				= 1<<6,
-	// Texture will be used for video decode
-	TexCreate_VideoDecode			= 1<<7,
-	// Texture that may be updated every frame
-	TexCreate_Dynamic				= 1<<8,
-	// Texture will be used as a render pass attachment that will be read from
-	TexCreate_InputAttachmentRead	= 1 << 9,
-	/** Texture represents a foveation attachment */
-	TexCreate_Foveation				= 1 << 10,
-	// Prefer 3D internal surface tiling mode for volume textures when possible
-	TexCreate_3DTiling				= 1 << 10,
-	// This texture has no GPU or CPU backing. It only exists in tile memory on TBDR GPUs (i.e., mobile).
-	TexCreate_Memoryless			= 1<<11,
-	// Create the texture with the flag that allows mip generation later, only applicable to D3D11
-	TexCreate_GenerateMipCapable	= 1<<12,
-	// The texture can be partially allocated in fastvram
-	TexCreate_FastVRAMPartialAlloc  = 1<<13,
-	// Do not create associated shader resource view, only applicable to D3D11 and D3D12
-	TexCreate_DisableSRVCreation = 1 << 14,
-	// Do not allow Delta Color Compression (DCC) to be used with this texture
-	TexCreate_DisableDCC		    = 1 << 15,
-	// UnorderedAccessView (DX11 only)
-	// Warning: Causes additional synchronization between draw calls when using a render target allocated with this flag, use sparingly
-	// See: GCNPerformanceTweets.pdf Tip 37
-	TexCreate_UAV					= 1<<16,
-	// Render target texture that will be displayed on screen (back buffer)
-	TexCreate_Presentable			= 1<<17,
-	// Texture data is accessible by the CPU
-	TexCreate_CPUReadback			= 1<<18,
-	// Texture was processed offline (via a texture conversion process for the current platform)
-	TexCreate_OfflineProcessed		= 1<<19,
-	// Texture needs to go in fast VRAM if available (HINT only)
-	TexCreate_FastVRAM				= 1<<20,
-	// by default the texture is not showing up in the list - this is to reduce clutter, using the FULL option this can be ignored
-	TexCreate_HideInVisualizeTexture= 1<<21,
-	// Texture should be created in virtual memory, with no physical memory allocation made
-	// You must make further calls to RHIVirtualTextureSetFirstMipInMemory to allocate physical memory
-	// and RHIVirtualTextureSetFirstMipVisible to map the first mip visible to the GPU
-	TexCreate_Virtual				= 1<<22,
-	// Creates a RenderTargetView for each array slice of the texture
-	// Warning: if this was specified when the resource was created, you can't use SV_RenderTargetArrayIndex to route to other slices!
-	TexCreate_TargetArraySlicesIndependently	= 1<<23,
-	// Texture that may be shared with DX9 or other devices
-	TexCreate_Shared = 1 << 24,
-	// RenderTarget will not use full-texture fast clear functionality.
-	TexCreate_NoFastClear = 1 << 25,
-	// Texture is a depth stencil resolve target
-	TexCreate_DepthStencilResolveTarget = 1 << 26,
-	// Flag used to indicted this texture is a streamable 2D texture, and should be counted towards the texture streaming pool budget.
-	TexCreate_Streamable = 1 << 27,
-	// Render target will not FinalizeFastClear; Caches and meta data will be flushed, but clearing will be skipped (avoids potentially trashing metadata)
-	TexCreate_NoFastClearFinalize = 1 << 28,
-	// Hint to the driver that this resource is managed properly by the engine for Alternate-Frame-Rendering in mGPU usage.
-	TexCreate_AFRManual = 1 << 29,
-	// Workaround for 128^3 volume textures getting bloated 4x due to tiling mode on PS4
-	TexCreate_ReduceMemoryWithTilingMode = 1 << 30,
-	/** Texture should be allocated from transient memory. */
-	TexCreate_Transient = 1 << 31
+    // Texture can be used as a render target
+    RenderTargetable                  = 1ull << 0,
+    // Texture can be used as a resolve target
+    ResolveTargetable                 = 1ull << 1,
+    // Texture can be used as a depth-stencil target.
+    DepthStencilTargetable            = 1ull << 2,
+    // Texture can be used as a shader resource.
+    ShaderResource                    = 1ull << 3,
+    // Texture is encoded in sRGB gamma space
+    SRGB                              = 1ull << 4,
+    // Texture data is writable by the CPU
+    CPUWritable                       = 1ull << 5,
+    // Texture will be created with an un-tiled format
+    NoTiling                          = 1ull << 6,
+    // Texture will be used for video decode
+    VideoDecode                       = 1ull << 7,
+    // Texture that may be updated every frame
+    Dynamic                           = 1ull << 8,
+    // Texture will be used as a render pass attachment that will be read from
+    InputAttachmentRead               = 1ull << 9,
+    /** Texture represents a foveation attachment */
+    Foveation                         = 1ull << 10,
+    // Prefer 3D internal surface tiling mode for volume textures when possible
+    Tiling3D                          = 1ull << 11,
+    // This texture has no GPU or CPU backing. It only exists in tile memory on TBDR GPUs (i.e., mobile).
+    Memoryless                        = 1ull << 12,
+    // Create the texture with the flag that allows mip generation later, only applicable to D3D11
+    GenerateMipCapable                = 1ull << 13,
+    // The texture can be partially allocated in fastvram
+    FastVRAMPartialAlloc              = 1ull << 14,
+    // Do not create associated shader resource view, only applicable to D3D11 and D3D12
+    DisableSRVCreation                = 1ull << 15,
+    // Do not allow Delta Color Compression (DCC) to be used with this texture
+    DisableDCC                        = 1ull << 16,
+    // UnorderedAccessView (DX11 only)
+    // Warning: Causes additional synchronization between draw calls when using a render target allocated with this flag, use sparingly
+    // See: GCNPerformanceTweets.pdf Tip 37
+    UAV                               = 1ull << 17,
+    // Render target texture that will be displayed on screen (back buffer)
+    Presentable                       = 1ull << 18,
+    // Texture data is accessible by the CPU
+    CPUReadback                       = 1ull << 19,
+    // Texture was processed offline (via a texture conversion process for the current platform)
+    OfflineProcessed                  = 1ull << 20,
+    // Texture needs to go in fast VRAM if available (HINT only)
+    FastVRAM                          = 1ull << 21,
+    // by default the texture is not showing up in the list - this is to reduce clutter, using the FULL option this can be ignored
+    HideInVisualizeTexture            = 1ull << 22,
+    // Texture should be created in virtual memory, with no physical memory allocation made
+    // You must make further calls to RHIVirtualTextureSetFirstMipInMemory to allocate physical memory
+    // and RHIVirtualTextureSetFirstMipVisible to map the first mip visible to the GPU
+    Virtual                           = 1ull << 23,
+    // Creates a RenderTargetView for each array slice of the texture
+    // Warning: if this was specified when the resource was created, you can't use SV_RenderTargetArrayIndex to route to other slices!
+    TargetArraySlicesIndependently    = 1ull << 24,
+    // Texture that may be shared with DX9 or other devices
+    Shared                            = 1ull << 25,
+    // RenderTarget will not use full-texture fast clear functionality.
+    NoFastClear                       = 1ull << 26,
+    // Texture is a depth stencil resolve target
+    DepthStencilResolveTarget         = 1ull << 27,
+    // Flag used to indicted this texture is a streamable 2D texture, and should be counted towards the texture streaming pool budget.
+    Streamable                        = 1ull << 28,
+    // Render target will not FinalizeFastClear; Caches and meta data will be flushed, but clearing will be skipped (avoids potentially trashing metadata)
+    NoFastClearFinalize               = 1ull << 29,
+    // Hint to the driver that this resource is managed properly by the engine for Alternate-Frame-Rendering in mGPU usage.
+    AFRManual                         = 1ull << 30,
+    // Workaround for 128^3 volume textures getting bloated 4x due to tiling mode on PS4
+    ReduceMemoryWithTilingMode        = 1ull << 31,
+    /** Texture should be allocated from transient memory. */
+    Transient                         = 1ull << 32,
 };
 ENUM_CLASS_FLAGS(ETextureCreateFlags);
+
+// Compatibility defines
+#define TexCreate_None                           ETextureCreateFlags::None
+#define TexCreate_RenderTargetable               ETextureCreateFlags::RenderTargetable
+#define TexCreate_ResolveTargetable              ETextureCreateFlags::ResolveTargetable
+#define TexCreate_DepthStencilTargetable         ETextureCreateFlags::DepthStencilTargetable
+#define TexCreate_ShaderResource                 ETextureCreateFlags::ShaderResource
+#define TexCreate_SRGB                           ETextureCreateFlags::SRGB
+#define TexCreate_CPUWritable                    ETextureCreateFlags::CPUWritable
+#define TexCreate_NoTiling                       ETextureCreateFlags::NoTiling
+#define TexCreate_VideoDecode                    ETextureCreateFlags::VideoDecode
+#define TexCreate_Dynamic                        ETextureCreateFlags::Dynamic
+#define TexCreate_InputAttachmentRead            ETextureCreateFlags::InputAttachmentRead
+#define TexCreate_Foveation                      ETextureCreateFlags::Foveation
+#define TexCreate_3DTiling                       ETextureCreateFlags::Tiling3D
+#define TexCreate_Memoryless                     ETextureCreateFlags::Memoryless
+#define TexCreate_GenerateMipCapable             ETextureCreateFlags::GenerateMipCapable
+#define TexCreate_FastVRAMPartialAlloc           ETextureCreateFlags::FastVRAMPartialAlloc
+#define TexCreate_DisableSRVCreation             ETextureCreateFlags::DisableSRVCreation
+#define TexCreate_DisableDCC                     ETextureCreateFlags::DisableDCC
+#define TexCreate_UAV                            ETextureCreateFlags::UAV
+#define TexCreate_Presentable                    ETextureCreateFlags::Presentable
+#define TexCreate_CPUReadback                    ETextureCreateFlags::CPUReadback
+#define TexCreate_OfflineProcessed               ETextureCreateFlags::OfflineProcessed
+#define TexCreate_FastVRAM                       ETextureCreateFlags::FastVRAM
+#define TexCreate_HideInVisualizeTexture         ETextureCreateFlags::HideInVisualizeTexture
+#define TexCreate_Virtual                        ETextureCreateFlags::Virtual
+#define TexCreate_TargetArraySlicesIndependently ETextureCreateFlags::TargetArraySlicesIndependently
+#define TexCreate_Shared                         ETextureCreateFlags::Shared
+#define TexCreate_NoFastClear                    ETextureCreateFlags::NoFastClear
+#define TexCreate_DepthStencilResolveTarget      ETextureCreateFlags::DepthStencilResolveTarget
+#define TexCreate_Streamable                     ETextureCreateFlags::Streamable
+#define TexCreate_NoFastClearFinalize            ETextureCreateFlags::NoFastClearFinalize
+#define TexCreate_AFRManual                      ETextureCreateFlags::AFRManual
+#define TexCreate_ReduceMemoryWithTilingMode     ETextureCreateFlags::ReduceMemoryWithTilingMode
+#define TexCreate_Transient                      ETextureCreateFlags::Transient
 
 enum EAsyncComputePriority
 {

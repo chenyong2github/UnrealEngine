@@ -259,7 +259,7 @@ void FVisualizeTexturePresent::PresentContent(FRDGBuilder& GraphBuilder, const F
 						FLinearColor Color = ElementColor;
 
 						// Highlight EDRAM/FastVRAM usage
-						if (Event->GetDesc().Flags & TexCreate_FastVRAM)
+						if (EnumHasAnyFlags(Event->GetDesc().Flags, TexCreate_FastVRAM))
 						{
 							Color = ElementColorVRam;
 						}
@@ -444,7 +444,7 @@ void FVisualizeTexturePresent::PresentContent(FRDGBuilder& GraphBuilder, const F
 
 		X += 40;
 
-		if (Desc.Flags & TexCreate_CPUReadback)
+		if (EnumHasAnyFlags(Desc.Flags, TexCreate_CPUReadback))
 		{
 			Canvas.DrawShadowedString(X, Y += YStep, TEXT("Content cannot be visualized on the GPU (TexCreate_CPUReadback)"), GetStatsFont(), FLinearColor(1, 1, 0));
 		}

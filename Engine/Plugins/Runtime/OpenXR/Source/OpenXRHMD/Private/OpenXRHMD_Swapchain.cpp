@@ -139,19 +139,19 @@ XrSwapchain CreateSwapchain(XrSession InSession, uint32 PlatformFormat, uint32 S
 {
 	// Need a mutable format so we can reinterpret an sRGB format into a linear format
 	XrSwapchainUsageFlags Usage = XR_SWAPCHAIN_USAGE_MUTABLE_FORMAT_BIT;
-	if (TargetableTextureFlags & TexCreate_RenderTargetable)
+	if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_RenderTargetable))
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
 	}
-	if (TargetableTextureFlags & TexCreate_DepthStencilTargetable)
+	if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_DepthStencilTargetable))
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	}
-	if (TargetableTextureFlags & TexCreate_ShaderResource)
+	if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_ShaderResource))
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
 	}
-	if (TargetableTextureFlags & TexCreate_UAV)
+	if (EnumHasAnyFlags(TargetableTextureFlags, TexCreate_UAV))
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_UNORDERED_ACCESS_BIT;
 	}
@@ -160,7 +160,7 @@ XrSwapchain CreateSwapchain(XrSession InSession, uint32 PlatformFormat, uint32 S
 	XrSwapchainCreateInfo info;
 	info.type = XR_TYPE_SWAPCHAIN_CREATE_INFO;
 	info.next = nullptr;
-	info.createFlags = Flags & TexCreate_Dynamic ? 0 : XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT;
+	info.createFlags = EnumHasAnyFlags(Flags, TexCreate_Dynamic) ? 0 : XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT;
 	info.usageFlags = Usage;
 	info.format = PlatformFormat;
 	info.sampleCount = NumSamples;

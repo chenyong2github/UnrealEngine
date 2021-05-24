@@ -290,7 +290,7 @@ TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
 		uint32 PassCount = 1;
 		if (AliasingMode == 0)
 		{
-			if ((Desc.Flags & TexCreate_FastVRAM) && bSupportsFastVRAM)
+			if (EnumHasAnyFlags(Desc.Flags, TexCreate_FastVRAM) && bSupportsFastVRAM)
 			{
 				PassCount = 2;
 			}
@@ -316,7 +316,7 @@ TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
 						continue;
 					}
 
-					if ((Desc.Flags & TexCreate_Transient) && bAllowMultipleDiscards == false && Element->HasBeenDiscardedThisFrame())
+					if (EnumHasAnyFlags(Desc.Flags, TexCreate_Transient) && bAllowMultipleDiscards == false && Element->HasBeenDiscardedThisFrame())
 					{
 						// We can't re-use transient resources if they've already been discarded this frame
 						continue;
@@ -351,11 +351,11 @@ Done:
 		PooledRenderTargetHashes.Add(DescHash);
 
 		// TexCreate_UAV should be used on Desc.TargetableFlags
-		check(!(Desc.Flags & TexCreate_UAV));
+		check(!EnumHasAnyFlags(Desc.Flags, TexCreate_UAV));
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName, Desc.ClearValue);
 
-		if (Desc.TargetableFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV))
+		if (EnumHasAnyFlags(Desc.TargetableFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV))
 		{
 			// Only create resources if we're not asked to defer creation.
 			if (Desc.Is2DTexture())
@@ -502,7 +502,7 @@ Done:
 #endif
 		}
 
-		if ((Desc.TargetableFlags & TexCreate_UAV))
+		if (EnumHasAnyFlags(Desc.TargetableFlags, TexCreate_UAV))
 		{
 			// The render target desc is invalid if a UAV is requested with an RHI that doesn't support the high-end feature level.
 			check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
@@ -549,7 +549,7 @@ Done:
 	}
 
 	// Transient RTs have to be targettable
-	check((Desc.Flags & TexCreate_Transient) == 0 || Found->GetRenderTargetItem().TargetableTexture != nullptr);
+	check(!EnumHasAnyFlags(Desc.Flags, TexCreate_Transient) || Found->GetRenderTargetItem().TargetableTexture != nullptr);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (Found->GetRenderTargetItem().TargetableTexture)
@@ -583,7 +583,7 @@ bool FRenderTargetPool::FindFreeElement(
 	ensure(!(InputDesc.Flags & TexCreate_DepthStencilTargetable) || (InputDesc.ClearValue.ColorBinding == EClearBinding::ENoneBound || InputDesc.ClearValue.ColorBinding == EClearBinding::EDepthStencilBound));
 
 	// TexCreate_FastVRAM should be used on Desc.Flags
-	ensure(!(InputDesc.TargetableFlags & TexCreate_FastVRAM));
+	ensure(!EnumHasAnyFlags(InputDesc.TargetableFlags, TexCreate_FastVRAM));
 
 	// If we're doing aliasing, we may need to override Transient flags, depending on the input format and mode
 	FPooledRenderTargetDesc ModifiedDesc;
@@ -769,7 +769,7 @@ FRenderTargetPool::SMemoryStats FRenderTargetPool::ComputeView()
 			FRTPColumn(const FRenderTargetPoolEvent& Event)
 				: Name(Event.GetDesc().DebugName)
 				, PoolEntryId(Event.GetPoolEntryId())
-				, bVRam((Event.GetDesc().Flags& TexCreate_FastVRAM) != 0)
+				, bVRam(EnumHasAnyFlags(Event.GetDesc().Flags, TexCreate_FastVRAM))
 			{
 				SizeInBytes = Event.GetSizeInBytes();
 			}

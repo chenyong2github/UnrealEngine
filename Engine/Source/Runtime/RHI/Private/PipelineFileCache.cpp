@@ -49,6 +49,12 @@ DECLARE_MEMORY_STAT(TEXT("New Cached PSO"), STAT_NewCachedPSOMemory, STATGROUP_P
 DECLARE_MEMORY_STAT(TEXT("PSO Stat"), STAT_PSOStatMemory, STATGROUP_PipelineStateCache);
 DECLARE_MEMORY_STAT(TEXT("File Cache"), STAT_FileCacheMemory, STATGROUP_PipelineStateCache);
 
+void LexFromString(ETextureCreateFlags& OutValue, const FStringView& InString)
+{
+	__underlying_type(ETextureCreateFlags) TmpFlags = static_cast<__underlying_type(ETextureCreateFlags)>(OutValue);
+	LexFromString(TmpFlags, InString);
+	OutValue = static_cast<ETextureCreateFlags>(TmpFlags);
+}
 
 enum class EPipelineCacheFileFormatVersions : uint32
 {
@@ -66,12 +72,13 @@ enum class EPipelineCacheFileFormatVersions : uint32
 	AlphaToCoverage = 19,
 	AddingMeshShaders = 20,
 	RemovingTessellationShaders = 21,
+	MoreRenderTargetFlags = 22,
 };
 
 const uint64 FPipelineCacheFileFormatMagic = 0x5049504543414348; // PIPECACH
 const uint64 FPipelineCacheTOCFileFormatMagic = 0x544F435354415232; // TOCSTAR2
 const uint64 FPipelineCacheEOFFileFormatMagic = 0x454F462D4D41524B; // EOF-MARK
-const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::RemovingTessellationShaders;
+const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::MoreRenderTargetFlags;
 const int32  FPipelineCacheGraphicsDescPartsNum = 63; // parser will expect this number of parts in a description string
 
 /**
@@ -373,7 +380,7 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateToString() const
 		, *RasterizerState.ToString()
 		, *DepthStencilState.ToString()
 	);
-	Result += FString::Printf(TEXT("%d,%d,%d,")
+	Result += FString::Printf(TEXT("%d,%d,%lld,")
 		, MSAASamples
 		, uint32(DepthStencilFormat)
 		, DepthStencilFlags
@@ -391,7 +398,7 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateToString() const
 	);
 	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; Index++)
 	{
-		Result += FString::Printf(TEXT("%d,%d,%d,%d,")
+		Result += FString::Printf(TEXT("%d,%lld,%d,%d,")
 			, uint32(RenderTargetFormats[Index])
 			, RenderTargetFlags[Index]
 			, 0/*Load*/
@@ -468,9 +475,7 @@ bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FStr
 	{
 		check(PartEnd - PartIt >= 4 && sizeof(ERenderTargetLoadAction) == 1 && sizeof(ERenderTargetStoreAction) == 1 && sizeof(EPixelFormat) == sizeof(uint32)); //not a very robust parser
 		LexFromString((uint32&)(RenderTargetFormats[Index]), *PartIt++);
-		uint32 RTFlags;
-		LexFromString(RTFlags, *PartIt++);
-		RenderTargetFlags[Index] = (ETextureCreateFlags)RTFlags;
+		LexFromString(RenderTargetFlags[Index], *PartIt++);
 		uint8 Load, Store;
 		LexFromString(Load, *PartIt++);
 		LexFromString(Store, *PartIt++);
@@ -964,9 +969,20 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 				uint32 Format = (uint32)Info.GraphicsDesc.RenderTargetFormats[i];
 				Ar << Format;
 				Info.GraphicsDesc.RenderTargetFormats[i] = (EPixelFormat)Format;
-				uint32 RTFlags = Info.GraphicsDesc.RenderTargetFlags[i];
-				Ar << RTFlags;
-				Info.GraphicsDesc.RenderTargetFlags[i] = (ETextureCreateFlags)RTFlags;
+
+				if (Ar.GameNetVer() < (uint32)EPipelineCacheFileFormatVersions::MoreRenderTargetFlags)
+				{
+					uint32 RTFlags = 0;
+					Ar << RTFlags;
+					Info.GraphicsDesc.RenderTargetFlags[i] = static_cast<ETextureCreateFlags>(RTFlags);
+				}
+				else
+				{
+					static_assert(sizeof(uint64) == sizeof(Info.GraphicsDesc.RenderTargetFlags[i]), "ETextureCreateFlags size changed, please change serialization");
+					uint64 RTFlags = static_cast<uint64>(Info.GraphicsDesc.RenderTargetFlags[i]);
+					Ar << RTFlags;
+					Info.GraphicsDesc.RenderTargetFlags[i] = static_cast<ETextureCreateFlags>(RTFlags);
+				}
 				uint8 LoadStore = 0;
 				Ar << LoadStore;
 				Ar << LoadStore;
@@ -979,7 +995,17 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 			uint32 Format = (uint32)Info.GraphicsDesc.DepthStencilFormat;
 			Ar << Format;
 			Info.GraphicsDesc.DepthStencilFormat = (EPixelFormat)Format;
-			Ar << Info.GraphicsDesc.DepthStencilFlags;
+			if (Ar.GameNetVer() < (uint32)EPipelineCacheFileFormatVersions::MoreRenderTargetFlags)
+			{
+				uint32 DepthStencilFlags = 0;
+				Ar << DepthStencilFlags;
+				Info.GraphicsDesc.DepthStencilFlags = static_cast<ETextureCreateFlags>(DepthStencilFlags);
+			}
+			else
+			{
+				static_assert(sizeof(uint64) == sizeof(Info.GraphicsDesc.DepthStencilFlags), "ETextureCreateFlags size changed, please change serialization");
+				Ar << Info.GraphicsDesc.DepthStencilFlags;
+			}
 			Ar << Info.GraphicsDesc.DepthLoad;
 			Ar << Info.GraphicsDesc.StencilLoad;
 			Ar << Info.GraphicsDesc.DepthStore;
@@ -1147,7 +1173,7 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 	{
 		PSO.GraphicsDesc.RenderTargetFormats[i] = (EPixelFormat)Init.RenderTargetFormats[i];
-		PSO.GraphicsDesc.RenderTargetFlags[i] = (ETextureCreateFlags)Init.RenderTargetFlags[i];
+		PSO.GraphicsDesc.RenderTargetFlags[i] = Init.RenderTargetFlags[i];
 	}
 	
 	PSO.GraphicsDesc.RenderTargetsActive = Init.RenderTargetsEnabled;

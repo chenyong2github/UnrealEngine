@@ -1169,7 +1169,7 @@ void FAGXStateCache::SetVisibilityResultMode(mtlpp::VisibilityResultMode const M
 void FAGXStateCache::ConditionalUpdateBackBuffer(FAGXSurface& Surface)
 {
 	// are we setting the back buffer? if so, make sure we have the drawable
-	if ((Surface.Flags & TexCreate_Presentable))
+	if (EnumHasAnyFlags(Surface.Flags, TexCreate_Presentable))
 	{
 		// update the back buffer texture the first time used this frame
 		if (Surface.Texture.GetPtr() == nil)

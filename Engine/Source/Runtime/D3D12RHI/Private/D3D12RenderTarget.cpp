@@ -204,12 +204,12 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 
 	// Could be back buffer reference texture, so get the correct D3D12 texture here
 	// We know already that it's a FD3D12Texture2D so cast is safe
-	if (SourceTextureRHI->GetFlags() & TexCreate_Presentable)
+	if (EnumHasAnyFlags(SourceTextureRHI->GetFlags(), TexCreate_Presentable))
 	{
 		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)SourceTextureRHI;
 		SourceTextureRHI = BufferBufferReferenceTexture->GetBackBufferTexture();
 	}
-	if (DestTextureRHI->GetFlags() & TexCreate_Presentable)
+	if (EnumHasAnyFlags(DestTextureRHI->GetFlags(), TexCreate_Presentable))
 	{
 		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)DestTextureRHI;
 		DestTextureRHI = BufferBufferReferenceTexture->GetBackBufferTexture();
@@ -1154,7 +1154,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 
 	// Could be back buffer reference texture, so get the correct D3D12 texture here
 	// We know already that it's a FD3D12Texture2D so cast is safe
-	if (InRHITexture->GetFlags() & TexCreate_Presentable)
+	if (EnumHasAnyFlags(InRHITexture->GetFlags(), TexCreate_Presentable))
 	{
 		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)InRHITexture;
 		InRHITexture = BufferBufferReferenceTexture->GetBackBufferTexture();

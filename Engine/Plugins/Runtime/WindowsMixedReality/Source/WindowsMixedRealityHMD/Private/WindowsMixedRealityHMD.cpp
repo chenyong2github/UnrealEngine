@@ -797,7 +797,7 @@ namespace WindowsMixedReality
 			const bool bSameSize = DstRect.Size() == SrcRect.Size();
 			FRHISamplerState* PixelSampler = bSameSize ? TStaticSamplerState<SF_Point>::GetRHI() : TStaticSamplerState<SF_Bilinear>::GetRHI();
 
-			if ((SrcTexture->GetFlags() & TexCreate_SRGB) != 0)
+			if (EnumHasAnyFlags(SrcTexture->GetFlags(), TexCreate_SRGB))
 			{
 				TShaderMapRef<FScreenPSsRGBSource> PixelShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
@@ -1840,7 +1840,7 @@ namespace WindowsMixedReality
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("RemappedDepthTexture"));
 			remappedDepthTexture = RHICreateTexture2D(depthFRHITexture->GetSizeX(), depthFRHITexture->GetSizeY(),
-				PF_R32_FLOAT, 1, 1, ETextureCreateFlags::TexCreate_RenderTargetable, CreateInfo);
+				PF_R32_FLOAT, 1, 1, TexCreate_RenderTargetable, CreateInfo);
 		}
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;

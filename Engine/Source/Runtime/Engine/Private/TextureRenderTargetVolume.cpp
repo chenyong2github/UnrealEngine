@@ -262,7 +262,7 @@ void FTextureRenderTargetVolumeResource::InitDynamicRHI()
 			);
 		}
 
-		if ((TexCreateFlags & TexCreate_UAV) != 0)
+		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))
 		{
 			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetVolumeRHI);
 		}

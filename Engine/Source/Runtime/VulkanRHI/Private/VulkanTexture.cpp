@@ -53,7 +53,7 @@ struct FTextureLock
 #if VULKAN_USE_LLM
 inline ELLMTagVulkan GetMemoryTagForTextureFlags(ETextureCreateFlags UEFlags)
 {
-	bool bRenderTarget = ((TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable) & UEFlags) != 0u;
+	bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable);
 	return bRenderTarget ? ELLMTagVulkan::VulkanRenderTargets : ELLMTagVulkan::VulkanTextures;
 }
 #endif // VULKAN_USE_LLM
@@ -216,7 +216,7 @@ void FVulkanSurface::GenerateImageCreateInfo(
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[InFormat];
 	VkFormat TextureFormat = (VkFormat)FormatInfo.PlatformFormat;
 
-	if(UEFlags & TexCreate_CPUReadback)
+	if(EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback))
 	{
 		bForceLinearTexture = true;
 	}
@@ -253,10 +253,10 @@ void FVulkanSurface::GenerateImageCreateInfo(
 		break;
 	}
 
-	VkFormat srgbFormat = UEToVkTextureFormat(InFormat, (UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
+	VkFormat srgbFormat = UEToVkTextureFormat(InFormat, EnumHasAllFlags(UEFlags, TexCreate_SRGB));
 	VkFormat nonSrgbFormat = UEToVkTextureFormat(InFormat, false);
 
-	ImageCreateInfo.format = ((UEFlags & TexCreate_UAV) == 0) ? srgbFormat : nonSrgbFormat; 
+	ImageCreateInfo.format = EnumHasAnyFlags(UEFlags, TexCreate_UAV) ? srgbFormat : nonSrgbFormat;
 
 	checkf(ImageCreateInfo.format != VK_FORMAT_UNDEFINED, TEXT("Pixel Format %d not defined!"), (int32)InFormat);
 	if (OutViewFormat)
@@ -279,7 +279,7 @@ void FVulkanSurface::GenerateImageCreateInfo(
 	ImageCreateInfo.flags = (ResourceType == VK_IMAGE_VIEW_TYPE_CUBE || ResourceType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 
 
-	if((UEFlags & TexCreate_SRGB) == TexCreate_SRGB)
+	if(EnumHasAllFlags(UEFlags, TexCreate_SRGB))
 	{
 		if(InDevice.GetOptionalExtensions().HasKHRImageFormatList)
 		{
@@ -316,40 +316,40 @@ void FVulkanSurface::GenerateImageCreateInfo(
 	ImageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	ImageCreateInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
-	if (UEFlags & TexCreate_Presentable)
+	if (EnumHasAnyFlags(UEFlags, TexCreate_Presentable))
 	{
 		ImageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;		
 	}
-	else if (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable))
+	else if (EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable))
 	{
-		if ((UEFlags & TexCreate_InputAttachmentRead) == TexCreate_InputAttachmentRead)
+		if (EnumHasAllFlags(UEFlags, TexCreate_InputAttachmentRead))
 		{
 			ImageCreateInfo.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 		}
-		ImageCreateInfo.usage |= ((UEFlags & TexCreate_RenderTargetable) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+		ImageCreateInfo.usage |= (EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 		ImageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		if ((UEFlags & TexCreate_Memoryless) == TexCreate_Memoryless)
+		if (EnumHasAllFlags(UEFlags, TexCreate_Memoryless))
 		{
 			ImageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
 			// Remove the transfer and sampled bits, as they are incompatible with the transient bit.
 			ImageCreateInfo.usage &= ~(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 		}
 	}
-	else if (UEFlags & (TexCreate_DepthStencilResolveTarget))
+	else if (EnumHasAnyFlags(UEFlags, TexCreate_DepthStencilResolveTarget))
 	{
 		ImageCreateInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		ImageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	}
-	else if (UEFlags & TexCreate_ResolveTargetable)
+	else if (EnumHasAnyFlags(UEFlags, TexCreate_ResolveTargetable))
 	{
 		ImageCreateInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 		ImageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	}
 
-	if (UEFlags & TexCreate_UAV)
+	if (EnumHasAnyFlags(UEFlags, TexCreate_UAV))
 	{
 		//cannot have the storage bit on a memoryless texture
-		ensure((UEFlags & TexCreate_Memoryless) == 0);
+		ensure(!EnumHasAnyFlags(UEFlags, TexCreate_Memoryless));
 		ImageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 	}
 
@@ -432,7 +432,7 @@ void FVulkanSurface::GenerateImageCreateInfo(
 		ImageCreateInfo.usage &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	}
 
-	if ((UEFlags & TexCreate_DepthStencilTargetable) && GVulkanDepthStencilForceStorageBit)
+	if (EnumHasAnyFlags(UEFlags, TexCreate_DepthStencilTargetable) && GVulkanDepthStencilForceStorageBit)
 	{
 		ImageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 	}
@@ -489,7 +489,7 @@ struct FRHICommandOnDestroyImage final : public FRHICommand<FRHICommandOnDestroy
 	}
 };
 
-static VkImageLayout GetInitialLayoutFromRHIAcess(ERHIAccess RHIAccess, uint32 UEFlags)
+static VkImageLayout GetInitialLayoutFromRHIAcess(ERHIAccess RHIAccess, ETextureCreateFlags UEFlags)
 {
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::RTV) || RHIAccess == ERHIAccess::Present)
 	{
@@ -508,7 +508,7 @@ static VkImageLayout GetInitialLayoutFromRHIAcess(ERHIAccess RHIAccess, uint32 U
 
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::SRVMask))
 	{
-		return (UEFlags & TexCreate_DepthStencilTargetable) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		return EnumHasAnyFlags(UEFlags, TexCreate_DepthStencilTargetable) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	}
 
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::UAVMask))
@@ -557,7 +557,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 		InFormat, Width, Height, Depth,
 		ArraySize, NumMips, NumSamples, UEFlags,
 		&StorageFormat, &ViewFormat);
-	if(UEFlags & TexCreate_CPUReadback)
+	if(EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback))
 	{
 		check(NumSamples == 1);	//not implemented
 		check(Depth == 1);		//not implemented
@@ -615,14 +615,14 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 		MemProps |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 	}
 
-	const bool bRenderTarget = (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable)) != 0;
-	const bool bUAV = (UEFlags & TexCreate_UAV) != 0;
-	const bool bCPUReadback = (UEFlags & TexCreate_CPUReadback) != 0;
-	const bool bDynamic = (UEFlags & TexCreate_Dynamic) != 0;
+	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
+	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
+	const bool bCPUReadback = EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback);
+	const bool bDynamic = EnumHasAnyFlags(UEFlags, TexCreate_Dynamic);
 
 	VkMemoryPropertyFlags MemoryFlags = bCPUReadback ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	bool bMemoryless = (UEFlags & TexCreate_Memoryless) != 0;
+	bool bMemoryless = EnumHasAnyFlags(UEFlags, TexCreate_Memoryless);
 	if (bMemoryless)
 	{
 		if (ensureMsgf(bRenderTarget, TEXT("Memoryless surfaces can only be used for render targets")) && ensureMsgf(!bCPUReadback, TEXT("Memoryless surfaces cannot be read back on CPU")))
@@ -668,7 +668,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 	check(Tiling == VK_IMAGE_TILING_LINEAR || Tiling == VK_IMAGE_TILING_OPTIMAL);
 
 	VkImageLayout InitialLayout = GetInitialLayoutFromRHIAcess(InResourceState, UEFlags);
-	const bool bDoInitialClear = (ImageCreateInfo.ImageCreateInfo.usage & VK_IMAGE_USAGE_SAMPLED_BIT) && (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
+	const bool bDoInitialClear = (ImageCreateInfo.ImageCreateInfo.usage & VK_IMAGE_USAGE_SAMPLED_BIT) && EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable);
 
 	if (InitialLayout != VK_IMAGE_LAYOUT_UNDEFINED || bDoInitialClear)
 	{
@@ -699,11 +699,11 @@ void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanCommandListCont
 	check(ImageCreateInfo.ImageCreateInfo.tiling == VK_IMAGE_TILING_OPTIMAL);
 
 
-	const bool bRenderTarget = (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable)) != 0;
-	const bool bUAV = (UEFlags & TexCreate_UAV) != 0;
-	const bool bCPUReadback = (UEFlags & TexCreate_CPUReadback) != 0;
-	const bool bDynamic = (UEFlags & TexCreate_Dynamic) != 0;
-	const bool bMemoryless = (UEFlags & TexCreate_Memoryless) != 0;
+	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
+	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
+	const bool bCPUReadback = EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback);
+	const bool bDynamic = EnumHasAnyFlags(UEFlags, TexCreate_Dynamic);
+	const bool bMemoryless = EnumHasAnyFlags(UEFlags, TexCreate_Memoryless);
 	check(!bCPUReadback); //not currently supported
 	check(!bMemoryless);  //not currently supported
 
@@ -799,11 +799,11 @@ void FVulkanSurface::OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListCon
 	check(ImageCreateInfo.ImageCreateInfo.tiling == VK_IMAGE_TILING_OPTIMAL);
 
 
-	const bool bRenderTarget = (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable)) != 0;
-	const bool bUAV = (UEFlags & TexCreate_UAV) != 0;
-	const bool bCPUReadback = (UEFlags & TexCreate_CPUReadback) != 0;
-	const bool bDynamic = (UEFlags & TexCreate_Dynamic) != 0;
-	const bool bMemoryless = (UEFlags & TexCreate_Memoryless) != 0;
+	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
+	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
+	const bool bCPUReadback = EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback);
+	const bool bDynamic = EnumHasAnyFlags(UEFlags, TexCreate_Dynamic);
+	const bool bMemoryless = EnumHasAnyFlags(UEFlags, TexCreate_Memoryless);
 	check(!bCPUReadback); //not currently supported
 	check(!bMemoryless);  //not currently supported
 
@@ -917,11 +917,11 @@ void FVulkanSurface::EvictSurface(FVulkanDevice& InDevice)
 
 	check(MemProps == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT); //cant evict stuff thats not device local.
 
-	const bool bRenderTarget = (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable)) != 0;
-	const bool bUAV = (UEFlags & TexCreate_UAV) != 0;
-	const bool bCPUReadback = (UEFlags & TexCreate_CPUReadback) != 0;
-	const bool bDynamic = (UEFlags & TexCreate_Dynamic) != 0;
-	bool bMemoryless = (UEFlags & TexCreate_Memoryless) != 0;
+	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
+	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
+	const bool bCPUReadback = EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback);
+	const bool bDynamic = EnumHasAnyFlags(UEFlags, TexCreate_Dynamic);
+	bool bMemoryless = EnumHasAnyFlags(UEFlags, TexCreate_Memoryless);
 	//none of this is supported for eviction
 	check(!bMemoryless);
 	check(!bRenderTarget);
@@ -1042,12 +1042,12 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 
 	checkf(PixelFormat == PF_Unknown || StorageFormat != VK_FORMAT_UNDEFINED, TEXT("PixelFormat %d, is not supported for images"), (int32)PixelFormat);
 
-	ViewFormat = UEToVkTextureFormat(PixelFormat, (UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
+	ViewFormat = UEToVkTextureFormat(PixelFormat, EnumHasAllFlags(UEFlags, TexCreate_SRGB));
 	FullAspectMask = VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, true, true);
 	PartialAspectMask = VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, false, true);
 
 	// Purely informative patching, we know that "TexCreate_Presentable" uses optimal tiling
-	if ((UEFlags & TexCreate_Presentable) == TexCreate_Presentable && GetTiling() == VK_IMAGE_TILING_MAX_ENUM)
+	if (EnumHasAllFlags(UEFlags, TexCreate_Presentable) && GetTiling() == VK_IMAGE_TILING_MAX_ENUM)
 	{
 		Tiling = VK_IMAGE_TILING_OPTIMAL;
 	}
@@ -1068,13 +1068,13 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 
 		VkImageLayout InitialLayout;
 		bool bOnlyAddToLayoutManager, bDoInitialClear;
-		if (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable))
+		if (EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable))
 		{
-			InitialLayout = (UEFlags & TexCreate_DepthStencilTargetable) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			InitialLayout = EnumHasAnyFlags(UEFlags, TexCreate_DepthStencilTargetable) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			bOnlyAddToLayoutManager = false;
 			bDoInitialClear = true;
 		}
-		else if (UEFlags & TexCreate_Foveation)
+		else if (EnumHasAnyFlags(UEFlags, TexCreate_Foveation))
 		{
 			// If it's a foveation texture, do not clear but add to layoutmgr, and set correct foveation layout. 
 			InitialLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
@@ -1129,7 +1129,7 @@ void FVulkanSurface::Destroy()
 	}
 	else if (bIsImageOwner)
 	{
-		const bool bRenderTarget = (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable)) != 0;
+		const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
 		FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		if (!IsInRenderingThread() || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
 		{
@@ -2058,7 +2058,7 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 	Surface.OwningTexture = this;
 	VULKAN_TRACK_OBJECT_CREATE(FVulkanTextureBase, this);
 
-	if(UEFlags & TexCreate_CPUReadback)
+	if(EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback))
 	{
 		return;
 	}
@@ -2068,7 +2068,7 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 	if (Surface.ViewFormat == VK_FORMAT_UNDEFINED)
 	{
 		Surface.StorageFormat = UEToVkTextureFormat(InFormat, false);
-		Surface.ViewFormat = UEToVkTextureFormat(InFormat, (UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
+		Surface.ViewFormat = UEToVkTextureFormat(InFormat, EnumHasAllFlags(UEFlags, TexCreate_SRGB));
 		checkf(Surface.StorageFormat != VK_FORMAT_UNDEFINED, TEXT("Pixel Format %d not defined!"), (int32)InFormat);
 	}
 
@@ -2186,7 +2186,7 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 
 	// No MSAA support
 	check(NumSamples == 1);
-	check(!(UEFlags & TexCreate_RenderTargetable));
+	check(!EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable));
 
 	if (Surface.FullAspectMask == Surface.PartialAspectMask)
 	{
@@ -2730,8 +2730,8 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 
 	const FPixelFormatInfo& PixelFormatInfo = GPixelFormats[DestTexture->GetFormat()];
 
-	check((SrcSurface.UEFlags & TexCreate_CPUReadback) == 0);
-	if((DstSurface.UEFlags & TexCreate_CPUReadback) == TexCreate_CPUReadback)
+	check(!EnumHasAnyFlags(SrcSurface.UEFlags, TexCreate_CPUReadback));
+	if(EnumHasAllFlags(DstSurface.UEFlags, TexCreate_CPUReadback))
 	{
 		check(CopyInfo.DestSliceIndex == 0); //slices not supported in TexCreate_CPUReadback textures.
 		FIntVector Size = CopyInfo.Size;
