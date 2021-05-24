@@ -330,7 +330,7 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 		uint32 BufferFlags = BUF_Static | (bSRV ? BUF_ShaderResource : BUF_None);
 
 		// Create the index buffer.
-		FRHIResourceCreateInfo CreateInfo(TEXT("FRawStaticIndexBuffer"), &IndexStorage);
+		FRHIResourceCreateInfo CreateInfo(Is32Bit() ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"), &IndexStorage);
 		CreateInfo.bWithoutNativeResource = !SizeInBytes;
 		if (bRenderThread)
 		{
