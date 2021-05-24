@@ -8,7 +8,7 @@
 #include "Misc/Paths.h"
 #include "VideoCommon.h"
 
-#if PLATFORM_SUPPORTS_VULKAN
+#if !PLATFORM_MAC
 #include "VulkanRHIPrivate.h"
 #endif
 
