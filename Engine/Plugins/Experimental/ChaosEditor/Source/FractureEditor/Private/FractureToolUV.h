@@ -3,6 +3,7 @@
 #pragma once
 
 #include "FractureTool.h"
+#include "GeometryCollection/GeometryCollection.h"
 
 #include "FractureToolUV.generated.h"
 
@@ -48,10 +49,27 @@ public:
 
 	UFractureAutoUVSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
-	{}
+	{
+		SetNumUVChannels(1);
+	}
+
+	UPROPERTY(EditAnywhere, Category = UVChannel, meta = (DisplayName = "UV Channel", GetOptions = GetUVChannelNamesFunc))
+	FString UVChannel;
+
+	UFUNCTION()
+	const TArray<FString>& GetUVChannelNamesFunc()
+	{
+		return UVChannelNamesList;
+	}
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> UVChannelNamesList;
+
+	void SetNumUVChannels(int32 NumUVChannels);
+	int32 GetSelectedChannelIndex(bool bForceToZeroOnFailure = true);
 
 	/** Whether to layout UVs (to ensure unique texels for each face), or just use the existing UVs */
-	UPROPERTY(EditAnywhere, Category = Atlas)
+	UPROPERTY(EditAnywhere, Category = Atlas, meta = (DisplayName = "Do UV Layout"))
 	bool bDoUVLayout = true;
 
 	/** The pixel resolution of the generated map */

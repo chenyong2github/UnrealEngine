@@ -24,6 +24,32 @@
 
 using namespace UE::Geometry;
 
+
+void UFractureAutoUVSettings::SetNumUVChannels(int32 NumUVChannels)
+{
+	NumUVChannels = FMath::Clamp(NumUVChannels, 1, GeometryCollectionUV::MAX_NUM_UV_CHANNELS);
+	UVChannelNamesList.Reset();
+	for (int32 k = 0; k < NumUVChannels; ++k)
+	{
+		UVChannelNamesList.Add(FString::Printf(TEXT("UV %d"), k));
+	}
+	if (GetSelectedChannelIndex(false) == INDEX_NONE)
+	{
+		UVChannel = UVChannelNamesList[0];
+	}
+}
+
+int32 UFractureAutoUVSettings::GetSelectedChannelIndex(bool bForceToZeroOnFailure)
+{
+	int32 FoundIndex = UVChannelNamesList.IndexOfByKey(UVChannel);
+	if (FoundIndex == INDEX_NONE && bForceToZeroOnFailure)
+	{
+		FoundIndex = 0;
+	}
+	return FoundIndex;
+}
+
+
 UFractureToolAutoUV::UFractureToolAutoUV(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -71,6 +97,18 @@ TArray<UObject*> UFractureToolAutoUV::GetSettingsObjects() const
 
 void UFractureToolAutoUV::FractureContextChanged()
 {
+	int32 MinUVChannels = GeometryCollectionUV::MAX_NUM_UV_CHANNELS;
+
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection);
+	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+	{
+		int32 NumChannels = GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection()->NumUVLayers();
+		MinUVChannels = FMath::Min(MinUVChannels, NumChannels);
+	}
+
+	AutoUVSettings->SetNumUVChannels(MinUVChannels);
+
 }
 
 void UFractureToolAutoUV::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
@@ -218,10 +256,12 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		int32 OutputRes = (int32)AutoUVSettings->Resolution;
 		TArray<int32> EmptyMaterialIDs;
 
+		int32 UVLayer = AutoUVSettings->GetSelectedChannelIndex();
+
 		if (AutoUVSettings->bDoUVLayout)
 		{
 			UVTask.EnterProgressFrame(1, LOCTEXT("LayOutUVIslands", "Laying out UV islands"));
-			if (!UE::PlanarCut::UVLayout(Collection, OutputRes, AutoUVSettings->GutterSize,
+			if (!UE::PlanarCut::UVLayout(UVLayer, Collection, OutputRes, AutoUVSettings->GutterSize,
 				AutoUVSettings->TargetMaterialIDs != ETargetMaterialIDs::SelectedIDs,
 				AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs))
 			{
@@ -272,7 +312,7 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		AttribSettings.Curvature_ThicknessFactor = AutoUVSettings->ThicknessFactor;
 		AttribSettings.Curvature_MaxValue = AutoUVSettings->MaxCurvature;
 		AttribSettings.bNormalZ_TakeAbs = AutoUVSettings->bUseAbsoluteValue;
-		UE::PlanarCut::TextureInternalSurfaces(Collection, FMath::CeilToInt(AutoUVSettings->GutterSize), Attributes, AttribSettings, ImageBuilder,
+		UE::PlanarCut::TextureInternalSurfaces(UVLayer, Collection, FMath::CeilToInt(AutoUVSettings->GutterSize), Attributes, AttribSettings, ImageBuilder,
 			AutoUVSettings->TargetMaterialIDs != ETargetMaterialIDs::SelectedIDs, 
 			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs: AutoUVSettings->MaterialIDs);
 
