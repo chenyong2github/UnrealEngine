@@ -3,6 +3,8 @@
 #include "Amf_Common.h"
 #include "AVEncoder.h"
 
+#include "RHI.h"
+
 namespace AVEncoder
 {
     FCriticalSection    FAmfCommon::ProtectSingleton;
@@ -65,10 +67,14 @@ namespace AVEncoder
 		{
 			return;
 		}
-        
+
+#ifdef AMF_DLL_NAMEA
         DllHandle = FPlatformProcess::GetDllHandle(TEXT(AMF_DLL_NAMEA));
 
         AMFInit_Fn AmfInitFn = (AMFInit_Fn)FPlatformProcess::GetDllExport(DllHandle, TEXT(AMF_INIT_FUNCTION_NAME));
+#else
+        AMFInit_Fn AmfInitFn = nullptr;
+#endif
         if (AmfInitFn == nullptr)
         {
             return;

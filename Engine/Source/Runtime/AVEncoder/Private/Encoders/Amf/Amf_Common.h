@@ -16,9 +16,11 @@ THIRD_PARTY_INCLUDES_START
 #include "Windows/PreWindowsApi.h"
 #endif
 
+PRAGMA_DISABLE_OVERLOADED_VIRTUAL_WARNINGS
 #include "core/Factory.h"
 #include "core/Interface.h"
 #include "components/VideoEncoderVCE.h"
+PRAGMA_ENABLE_OVERLOADED_VIRTUAL_WARNINGS
 
 #if PLATFORM_WINDOWS
 #include "Windows/PostWindowsApi.h"
