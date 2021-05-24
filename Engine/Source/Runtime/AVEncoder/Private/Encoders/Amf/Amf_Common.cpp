@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Amf_Common.h"
 #include "AVEncoder.h"
 
