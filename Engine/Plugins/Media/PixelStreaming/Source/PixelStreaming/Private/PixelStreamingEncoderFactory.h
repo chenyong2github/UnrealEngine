@@ -22,7 +22,7 @@ public:
 	virtual ~FPixelStreamingVideoEncoderFactory() override;
 
 	/**
-	* This is used from the FPlayerSession::OnSucess to let the factory know
+	* This is used from the FPlayerSession::OnSuccess to let the factory know
 	* what session the next created encoder should belong to.
 	* It allows us to get the right FPlayerSession <-> FVideoEncoder relationship
 	*/
@@ -47,49 +47,3 @@ private:
 	TArray<FPixelStreamingVideoEncoder*> ActiveEncoders;
 	
 };
-
-/*
-class FPixelStreamingVideoDecoderFactory : public webrtc::VideoDecoderFactory
-{
-public:
-	virtual std::vector<SdpVideoFormat> GetSupportedFormats() const override { return std::vector<SdpVideoFormat>(); };
-	virtual std::unique_ptr<VideoDecoder> CreateVideoDecoder(const SdpVideoFormat& format) override { return std::unique_ptr<VideoDecoder>();};
-	virtual std::unique_ptr<VideoDecoder> LegacyCreateVideoDecoder(const SdpVideoFormat& format, const std::string& receive_stream_id) override {return std::unique_ptr<VideoDecoder>();};
-};
-*/
-
-/*
- class FPixelStreamingAudioEncoderFactory : public webrtc::AudioEncoderFactory
- {
- public:
- 	struct Config
- 	{
-
- 	};
-
- 	virtual std::vector<AudioCodecSpec> GetSupportedEncoders() override { return std::vector<AudioCodecSpec>(); };
- 	virtual absl::optional<AudioCodecInfo> QueryAudioEncoder(const SdpAudioFormat& format) override { return absl::optional<AudioCodecInfo>(); };
- 	virtual std::unique_ptr<AudioEncoder> MakeAudioEncoder(int payload_type, const SdpAudioFormat& format, absl::optional<AudioCodecPairId> codec_pair_id) override { return std::unique_ptr<AudioEncoder>(); };
-
- 	static void AppendSupportedEncoders(std::vector<AudioCodecSpec>* specs) {};
- 	static Config* SdpToConfig(const SdpAudioFormat& format) { return nullptr; };
- };
- */
-
- /*
- class FPixelStreamingAudioDecoderFactory : public webrtc::AudioDecoderFactory
- {
- public:
- 	struct Config
- 	{
-
- 	};
-
- 	virtual std::vector<AudioCodecSpec> GetSupportedDecoders() override { return std::vector<AudioCodecSpec>(); };
- 	virtual bool IsSupportedDecoder(const SdpAudioFormat& format) override { return false; };
- 	virtual std::unique_ptr<AudioDecoder> MakeAudioDecoder(const SdpAudioFormat& format, absl::optional<AudioCodecPairId> codec_pair_id) override { return std::unique_ptr<AudioDecoder>(); };
-
- 	static void AppendSupportedDecoders(std::vector<AudioCodecSpec>* specs) {};
- 	static Config* SdpToConfig(const SdpAudioFormat& format) { return nullptr; };
- };
- */

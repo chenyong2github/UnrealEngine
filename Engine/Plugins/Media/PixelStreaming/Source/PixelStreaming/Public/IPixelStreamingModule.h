@@ -79,11 +79,5 @@ public:
 	 * Unfreeze Pixel Streaming.
 	 */
 	virtual void UnfreezeFrame() = 0;
-
-	// Player
-
-	virtual bool IsPlayerInitialized() const = 0;
-
-	virtual TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreatePlayer(IMediaEventSink& EventSink) = 0;
 };
 

@@ -49,7 +49,6 @@ private:
 	void DeleteAllPlayerSessions();
 	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
 	void AddStreams(FPlayerId PlayerId);
-	void SendVideoEncoderQP();
 
 private:
 	FString SignallingServerUrl;

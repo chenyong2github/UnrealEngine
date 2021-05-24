@@ -7,34 +7,10 @@
 #include "VideoEncoderFactory.h"
 #include "PixelStreamerDelegates.h"
 #include "PixelStreamingEncoderFactory.h"
+#include "PixelStreamingSettings.h"
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
 
-extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxBitrate;
-
-TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference(
-	TEXT("PixelStreaming.DegradationPreference"),
-	TEXT("BALANCED"),
-	TEXT("PixelStreaming degradation preference. Supported modes are `BALANCED`, `MAINTAIN_FRAMERATE`, `MAINTAIN_RESOLUTION`"),
-	ECVF_Default);
-
-namespace
-{
-	std::map<FString, webrtc::DegradationPreference> const StringToDegradationPrefMap {
-		{"BALANCED", webrtc::DegradationPreference::BALANCED},
-		{"MAINTAIN_FRAMERATE", webrtc::DegradationPreference::MAINTAIN_FRAMERATE},
-		{"MAINTAIN_RESOLUTION", webrtc::DegradationPreference::MAINTAIN_RESOLUTION},
-	};
-
-	webrtc::DegradationPreference GetDegradationPreferenceCVar()
-	{
-		auto const prefStr = CVarPixelStreamingDegradationPreference.GetValueOnAnyThread();
-		auto const it = StringToDegradationPrefMap.find(prefStr);
-		if (it == std::end(StringToDegradationPrefMap))
-			return webrtc::DegradationPreference::BALANCED;
-		return it->second;
-	}
-}
 
 bool FStreamer::CheckPlatformCompatibility()
 {
@@ -178,7 +154,6 @@ void FStreamer::OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer)
 {
 	if (bStreamingStarted && VideoSource)
 		VideoSource->OnFrameReady(FrameBuffer);
-	SendVideoEncoderQP();
 }
 
 void FStreamer::OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config)
@@ -199,7 +174,7 @@ void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptio
 	{
 		FScopeLock PlayersLock(&PlayersCS);
 		for (auto&& PlayerEntry : Players)
-			PlayerEntry.Value->OnNewSecondarySession();
+			PlayerEntry.Value->SendKeyFrame();
 	}
 }
 
@@ -353,8 +328,8 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 	}
 	else
 	{
-		//If desired, limiting entire bitrate for a peer is desired there is PeerConnection SetBitrate(const BitrateSettings& bitrate)
-		switch (GetDegradationPreferenceCVar())
+		webrtc::DegradationPreference DegradationPref = PixelStreamingSettings::GetDegradationPreference();
+		switch (DegradationPref)
 		{
 		case webrtc::DegradationPreference::MAINTAIN_FRAMERATE:
 			VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kFluid);
@@ -366,6 +341,7 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 			break;
 		}
 	}
+
 }
 
 void FStreamer::OnQualityOwnership(FPlayerId PlayerId)
@@ -430,20 +406,4 @@ void FStreamer::SendUnfreezeFrame()
 	}
 	
 	CachedJpegBytes.Empty();
-}
-
-void FStreamer::SendVideoEncoderQP()
-{
-	// TODO: We no longer use hardware encoder details so this needs to get hooked up to the new way of doing things.
-
-	// if (HWEncoderDetails.LastAvgQP != FHWEncoderDetails::InvalidQP)
-	// {
-	// 	VideoEncoderAvgQP.Update(HWEncoderDetails.LastAvgQP);
-	// }
-	// double Now = FPlatformTime::Seconds();
-	// if (Now - LastVideoEncoderQPReportTime > 1)
-	// {
-	// 	SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg::VideoEncoderAvgQP, FString::Printf(TEXT("%.0f"), VideoEncoderAvgQP.Get()));
-	// 	LastVideoEncoderQPReportTime = Now;
-	// }
 }

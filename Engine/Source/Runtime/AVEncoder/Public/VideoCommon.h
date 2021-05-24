@@ -46,7 +46,18 @@ namespace AVEncoder
 		YUV420P,				// Planar YUV420 format in CPU memory
 		D3D11_R8G8B8A8_UNORM,	//
 		D3D12_R8G8B8A8_UNORM,	//
-		CUDA_R8G8B8A8_UNORM
+		CUDA_R8G8B8A8_UNORM,
+		VULKAN_R8G8B8A8_UNORM,
+	};
+
+	enum class EH264Profile
+	{
+		UNKNOWN,
+		CONSTRAINED_BASELINE,
+		BASELINE,
+		MAIN,
+		CONSTRAINED_HIGH,
+		HIGH,
 	};
 
 	inline FString ToString(EVideoFrameFormat Format)
@@ -61,6 +72,8 @@ namespace AVEncoder
 			return FString("EVideoFrameFormat::D3D12_R8G8B8A8_UNORM");
 		case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
 			return FString("EVideoFrameFormat::CUDA_R8G8B8A8_UNORM");
+		case EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
+			return FString("EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM");
 		case EVideoFrameFormat::Undefined:
 		default:
 			return FString("EVideoFrameFormat::Undefined");
@@ -75,7 +88,7 @@ namespace AVEncoder
 		VP8,
 	};
 
-
+	// TODO: make enums
 	const uint32 H264Profile_ConstrainedBaseline = 1 << 0;
 	const uint32 H264Profile_Baseline = 1 << 1;
 	const uint32 H264Profile_Main = 1 << 2;

@@ -32,8 +32,8 @@ namespace AVEncoder
 
 		// --- encoder creation
 
-		TUniquePtr<FVideoEncoder> Create(uint32 InID, const FVideoEncoder::FInit& InInit);
-		TUniquePtr<FVideoEncoder> Create(uint32 InID, TSharedPtr<FVideoEncoderInput> InInput, const FVideoEncoder::FInit& InInit);
+		TUniquePtr<FVideoEncoder> Create(uint32 InID, const FVideoEncoder::FLayerConfig& config);
+		TUniquePtr<FVideoEncoder> Create(uint32 InID, TSharedPtr<FVideoEncoderInput> InInput, const FVideoEncoder::FLayerConfig& config);
 
 	private:
 		FVideoEncoderFactory() = default;

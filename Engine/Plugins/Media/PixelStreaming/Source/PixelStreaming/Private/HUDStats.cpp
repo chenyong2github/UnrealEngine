@@ -1,28 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HUDStats.h"
-
 #include "Engine/Engine.h"
 
-namespace
-{
-	bool bHudStatsEnabledCVar = false;
-
-	FAutoConsoleVariableRef CVarHudStats(
-		TEXT("PixelStreaming.HUDStats"),
-		bHudStatsEnabledCVar,
-		TEXT("Whether to show PixelStreaming stats on HUD"),
-		FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-		{
-			FHUDStats& Stats = FHUDStats::Get();
-			Stats.bEnabled = bHudStatsEnabledCVar;
-			Stats.Reset();
-			if (Stats.bEnabled)
-				GAreScreenMessagesEnabled = true;
-		}),
-		ECVF_Cheat
-	);
-}
 
 FHUDStats& FHUDStats::Get()
 {
@@ -32,25 +12,37 @@ FHUDStats& FHUDStats::Get()
 
 void FHUDStats::Tick()
 {
-	if (!GEngine || !bEnabled)
+	bool bHUDEnabled = PixelStreamingSettings::CVarPixelStreamingHudStats.GetValueOnGameThread();
+
+	if (!GEngine || !bHUDEnabled)
 	{
 		return;
 	}
 
+	if(bHUDEnabled)
+	{
+		GAreScreenMessagesEnabled = true;
+	}
+
 	// display stats on HUD
 
-	double NowSecs = rtc::TimeMillis() % 1000000 / 1000.0;
-	GEngine->AddOnScreenDebugMessage(1, 0, FColor::Green, *FString::Printf(TEXT("time %.3f ms"), NowSecs), false /* newer on top */, FVector2D{ 5, 5 } /* text scale */);
+	double NowMillis = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMilliseconds();
+	GEngine->AddOnScreenDebugMessage(1, 0, FColor::Green, *FString::Printf(TEXT("Timestamps: %f ms"), NowMillis), false /* newer on top */, FVector2D{ 5, 5 } /* text scale */);
 
-	GEngine->AddOnScreenDebugMessage(2, 0, FColor::Green, *FString::Printf(TEXT("latency ms: end-to-end %.0f, encoder %.0f"), EndToEndLatencyMs.Get(), EncoderLatencyMs.Get()), false /* newer on top */);
+	GEngine->AddOnScreenDebugMessage(2, 0, FColor::Green, *FString::Printf(TEXT("End to end latency: %.0f ms"), EndToEndLatencyMs.Get()), false /* newer on top */);
 
-	GEngine->AddOnScreenDebugMessage(3, 0, FColor::Green, *FString::Printf(TEXT("bitrate %.3f Mbps"), EncoderBitrateMbps.Get()), false /* newer on top */);
+	GEngine->AddOnScreenDebugMessage(3, 0, FColor::Green, *FString::Printf(TEXT("Encoder latency: %.0f ms"), EncoderLatencyMs.Get()), false /* newer on top */);
 
-	GEngine->AddOnScreenDebugMessage(4, 0, FColor::Green, *FString::Printf(TEXT("QP: %.0f"), EncoderQP.Get()), false /* newer on top */);
+	GEngine->AddOnScreenDebugMessage(4, 0, FColor::Green, *FString::Printf(TEXT("Capture latency: %.0f ms"), CaptureLatencyMs.Get()), false /* newer on top */);
 
-	GEngine->AddOnScreenDebugMessage(5, 0, FColor::Green, *FString::Printf(TEXT("FPS: encoder %.0f, max %.0f"), EncoderFPS.Get(), GEngine->GetMaxFPS()), false /* newer on top */);
+	GEngine->AddOnScreenDebugMessage(5, 0, FColor::Green, *FString::Printf(TEXT("Encoder FPS: %.0f"), EncoderFPS.Get()), false /* newer on top */);
+
+	GEngine->AddOnScreenDebugMessage(6, 0, FColor::Green, *FString::Printf(TEXT("Render FPS: %.0f"), 1.0f / FApp::GetDeltaTime() ), false /* newer on top */);
+
+	GEngine->AddOnScreenDebugMessage(7, 0, FColor::Green, *FString::Printf(TEXT("Encoder bitrate: %.3f Mbps"), EncoderBitrateMbps.Get()), false /* newer on top */);
+
+	GEngine->AddOnScreenDebugMessage(8, 0, FColor::Green, *FString::Printf(TEXT("QP: %.0f"), EncoderQP.Get()), false /* newer on top */);
 	
-	GEngine->AddOnScreenDebugMessage(6, 0, FColor::Green, *FString::Printf(TEXT("B/W: %0.3f Mbps"), BandwidthMbps), false);
 }
 
 void FHUDStats::Reset()
@@ -59,4 +51,5 @@ void FHUDStats::Reset()
 	EncoderLatencyMs.Reset();
 	EncoderBitrateMbps.Reset();
 	EncoderQP.Reset();
+	CaptureLatencyMs.Reset();
 }
