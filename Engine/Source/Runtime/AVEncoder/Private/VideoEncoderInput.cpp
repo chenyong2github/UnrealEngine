@@ -545,10 +545,12 @@ CUcontext FVideoEncoderInputImpl::GetCUDAEncoderContext() const
 
 #endif
 
+#if !PLATFORM_MAC
 VkDevice FVideoEncoderInputImpl::GetVulkanDevice() const
 {
 	return FrameInfoVulkan.VulkanDevice;
 }
+#endif
 
 // *** FVideoEncoderInputFrame ********************************************************************
 
