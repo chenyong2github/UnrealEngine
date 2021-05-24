@@ -1855,8 +1855,8 @@ namespace EpicGames.Perforce.Managed
 					}
 				}
 
-				bool bHasStatsFile = FilesToSync.Any(x => x.StreamFile.Name == StatsFileName);
-				if (bHasStatsFile)
+				WorkspaceFileToSync? StatsFile = FilesToSync.FirstOrDefault(x => x.StreamFile.Name == StatsFileName);
+				if(StatsFile != null)
 				{
 					for (int Idx = BeginIdx; Idx < EndIdx; Idx++)
 					{
@@ -1869,13 +1869,91 @@ namespace EpicGames.Perforce.Managed
 				ClientWithFileList.GlobalOptions.Add($"-x\"{SyncFileName}\"");
 
 				List<SyncRecord> Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken);
-				if (bHasStatsFile)
+				if (StatsFile != null)
 				{
-					foreach (SyncRecord Record in Records)
+					try
 					{
-						Logger.LogInformation("File: {DepotFile} {Revision} {Action}", Record.DepotFile, Record.Revision, Record.Action);
+						foreach (SyncRecord Record in Records)
+						{
+							Logger.LogInformation("File: {DepotFile} {Revision} {Action}", Record.DepotFile, Record.Revision, Record.Action);
+						}
+						await LogFortniteStatsInfoAsync(Client);
+
+						Action<List<SyncRecord>> PrintSyncRecords = Records =>
+						{
+							foreach (SyncRecord Record in Records)
+							{
+								Logger.LogInformation("File: {DepotFile} {Revision} {Action}", Record.DepotFile, Record.Revision, Record.Action);
+							}
+						};
+
+						FileReference LocalFile = FileReference.Combine(WorkspaceDir, "FortniteGame", "Content", "Backend", "StatsV2.json");
+						if (!FileReference.Exists(LocalFile))
+						{
+							string[] Lines = await FileReference.ReadAllLinesAsync(SyncFileName);
+							foreach (string Line in Lines)
+							{
+								Logger.LogInformation("SyncList: {Line}", Line);
+							}
+							for (int Idx = 0; ; Idx++)
+							{
+								Logger.LogInformation("Loop {Idx}: Check {File} - {State}", Idx, LocalFile, FileReference.Exists(LocalFile) ? "exists" : "does not exist");
+
+								if (Idx == 0)
+								{
+									//
+								}
+								else if (Idx == 1)
+								{
+									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken);
+									PrintSyncRecords(Records);
+								}
+								else if (Idx == 2)
+								{
+									await Task.Delay(5000);
+									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken);
+									PrintSyncRecords(Records);
+								}
+								else if (Idx == 3)
+								{
+									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force, -1, new string[0], CancellationToken);
+									PrintSyncRecords(Records);
+								}
+								else if (Idx == 4)
+								{
+									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { StatsFile.StreamFile.DepotFileAndRevision.ToString() }, CancellationToken);
+									PrintSyncRecords(Records);
+								}
+								else if (Idx == 5)
+								{
+									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { LocalFile.FullName }, CancellationToken);
+									PrintSyncRecords(Records);
+								}
+								else
+								{
+									break;
+								}
+
+								PerforceResponseList<FStatRecord> StatRecords = await Client.TryFStatAsync(FStatOptions.None, new[] { LocalFile.FullName }, CancellationToken.None);
+								foreach (PerforceResponse<FStatRecord> StatResponse in StatRecords)
+								{
+									if (StatResponse.Succeeded)
+									{
+										FStatRecord StatRecord = StatResponse.Data;
+										Logger.LogInformation("  File {File}, Action {Action}, Chg {Chg}, HeadChg {HeadChg}, HeadRev {HeadRev}, HaveRev {HaveRev}", StatRecord.DepotFile, StatRecord.Action, StatRecord.ChangeNumber, StatRecord.HeadChange, StatRecord.HeadRevision, StatRecord.HaveRevision);
+									}
+									else
+									{
+										Logger.LogInformation("  Response: {Response}", StatResponse.ToString());
+									}
+								}
+							}
+						}
 					}
-					await LogFortniteStatsInfoAsync(Client);
+					catch (Exception Ex)
+					{
+						Logger.LogDebug(Ex, "Exception while checking for stats file");
+					}
 				}
 			}
 		}
