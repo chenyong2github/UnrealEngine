@@ -8,7 +8,7 @@
 #include "Misc/Paths.h"
 #include "VideoCommon.h"
 
-#if !PLATFORM_MAC
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 #include "VulkanRHIPrivate.h"
 #endif
 
@@ -545,7 +545,7 @@ CUcontext FVideoEncoderInputImpl::GetCUDAEncoderContext() const
 
 #endif
 
-#if !PLATFORM_MAC
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 VkDevice FVideoEncoderInputImpl::GetVulkanDevice() const
 {
 	return FrameInfoVulkan.VulkanDevice;
@@ -802,6 +802,7 @@ void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, FReleaseCUDATextureC
 #endif
 
 
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
 void FVideoEncoderInputFrame::SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture)
 {
 	if (Format == EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM)
@@ -814,6 +815,7 @@ void FVideoEncoderInputFrame::SetTexture(VkImage InTexture, FReleaseVulkanTextur
 		}
 	}
 }
+#endif
 
 // *** FVideoEncoderInputFrameImpl ****************************************************************
 
