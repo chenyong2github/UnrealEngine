@@ -97,6 +97,7 @@ namespace AVEncoder
 			}
 			break;
 #endif
+#if !PLATFORM_MAC
 		case AVEncoder::EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
 			EncoderDevice = Input->GetVulkanDevice();
 			if (!Amf.bIsCtxInitialized)
@@ -105,6 +106,7 @@ namespace AVEncoder
 				Amf.bIsCtxInitialized = true;
 			}
 			break;
+#endif
 		case AVEncoder::EVideoFrameFormat::Undefined:
 		default:
 			UE_LOG(LogVideoEncoder, Error, TEXT("Frame format %s is not currently supported by Amf Encoder on this platform."), *ToString(FrameFormat));
