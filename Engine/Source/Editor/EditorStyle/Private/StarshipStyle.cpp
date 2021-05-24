@@ -3046,22 +3046,45 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 			.SetForegroundColor( DefaultForeground )
 			);
 
-	
-		
-		FLinearColor TransparentHeader = FStyleColors::Recessed.GetSpecifiedColor();
-		TransparentHeader.A = 0.95f;
+		FWindowStyle InViewportDecoratorWindow = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FWindowStyle>("Window");
+		InViewportDecoratorWindow.SetCornerRadius(20);
+
+		Set("InViewportDecoratorWindow", InViewportDecoratorWindow);
+		FLinearColor TransparentHeader = FStyleColors::Panel.GetSpecifiedColor();
+		TransparentHeader.A = 0.5f;
 		FLinearColor TransparentToolbar = FStyleColors::Header.GetSpecifiedColor();
-		TransparentToolbar.A = 0.95f;
+		TransparentToolbar.A = 0.5f;
 		FLinearColor TransparentBackground = FStyleColors::Background.GetSpecifiedColor();
-		TransparentBackground.A = 0.75f;
-		Set("PropertyTable.InViewport.Background", new FSlateColorBrush(FSlateColor(TransparentBackground)));
-		Set("PropertyTable.InViewport.Header", new FSlateColorBrush(FSlateColor(TransparentHeader)));
+		TransparentBackground.A = 0.35f;
+		Set("PropertyTable.InViewport.Header", new FSlateRoundedBoxBrush(FSlateColor(TransparentHeader), FVector4(10.0f, 10.0f, 0.0f, 0.0f)));
+		Set("PropertyTable.InViewport.Background", new FSlateRoundedBoxBrush(FSlateColor(TransparentBackground), 10.0f));
 		// InViewportToolbar
 		{
 			FToolBarStyle InViewportToolbar = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
 			InViewportToolbar.SetBackground(FSlateColorBrush(FSlateColor(TransparentToolbar)));
+			InViewportToolbar.SetBackgroundPadding(0.0f);
 			Set("InViewportToolbar", InViewportToolbar);
 		}
+		const FTableViewStyle InViewportViewStyle = FTableViewStyle()
+			.SetBackgroundBrush(FSlateNoResource());
+		Set("PropertyTable.InViewport.ListView", InViewportViewStyle);
+
+		Set("PropertyTable.InViewport.Row", FTableRowStyle(NormalTableRowStyle)
+			.SetEvenRowBackgroundBrush(FSlateNoResource())
+			.SetEvenRowBackgroundHoveredBrush(FSlateNoResource())
+			.SetOddRowBackgroundBrush(FSlateNoResource())
+			.SetOddRowBackgroundHoveredBrush(FSlateNoResource())
+			.SetSelectorFocusedBrush(FSlateNoResource())
+			.SetActiveBrush(FSlateNoResource())
+			.SetActiveHoveredBrush(FSlateNoResource())
+			.SetInactiveBrush(FSlateNoResource())
+			.SetInactiveHoveredBrush(FSlateNoResource())
+		);
+
+		const FSplitterStyle TransparentSplitterStyle = FSplitterStyle()
+			.SetHandleNormalBrush(FSlateNoResource())
+			.SetHandleHighlightBrush(FSlateNoResource());
+		Set("PropertyTable.InViewport.Splitter", TransparentSplitterStyle);
 
 		Set( "PropertyTable.Selection.Active",						new IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor ) );
 
@@ -4715,8 +4738,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 
 		Set( "LevelViewport.EjectActorPilot", new IMAGE_BRUSH( "Icons/icon_EjectActorPilot_16x", Icon16x16 ) );
 		Set( "LevelViewport.EjectActorPilot.Small", new IMAGE_BRUSH( "Icons/icon_EjectActorPilot_16x", Icon16x16 ) );
-		Set( "LevelViewport.PilotSelectedActor", new IMAGE_BRUSH( "Icons/icon_PilotSelectedActor_16x", Icon16x16 ) );
-		Set( "LevelViewport.PilotSelectedActor.Small", new IMAGE_BRUSH( "Icons/icon_PilotSelectedActor_16x", Icon16x16 ) );
+		Set( "LevelViewport.PilotSelectedActor", new IMAGE_BRUSH_SVG( "Starship/EditorViewport/pilot", Icon16x16 ) );
 		
 		Set( "LevelViewport.ToggleActorPilotCameraView",       new IMAGE_BRUSH_SVG( "Starship/Common/CameraShake", Icon16x16 ) );
 		Set( "LevelViewport.ToggleActorPilotCameraView.Small", new IMAGE_BRUSH_SVG( "Starship/Common/CameraShake", Icon16x16 ) );
