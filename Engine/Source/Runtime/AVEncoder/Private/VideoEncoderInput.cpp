@@ -7,7 +7,10 @@
 #include "AVEncoderDebug.h"
 #include "Misc/Paths.h"
 #include "VideoCommon.h"
+
+#if PLATFORM_SUPPORTS_VULKAN
 #include "VulkanRHIPrivate.h"
+#endif
 
 #if PLATFORM_WINDOWS
 #include "MicrosoftCommon.h"
