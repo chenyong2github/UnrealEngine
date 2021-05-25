@@ -2,31 +2,79 @@
 
 #pragma once
 
+#include "Editor.h"
 #include "EditorConfig.h"
 #include "EditorSubsystem.h"
+#include "TickableEditorObject.h"
 
 #include "EditorConfigSubsystem.generated.h"
 
-DECLARE_DELEGATE_OneParam(FOnCompletedDelegate, bool);
-
 UCLASS()
 class EDITORCONFIG_API UEditorConfigSubsystem : 
-	public UEditorSubsystem
+	public UEditorSubsystem,
+	public FTickableEditorObject
 {
 	GENERATED_BODY()
 
 public:
 	UEditorConfigSubsystem();
 
-	void Initialize(FSubsystemCollectionBase& Collection);
+	/** 
+	 * Load a config from the root of the JSON file into a given UObject.
+	 * This loads the config from the UCLASS's EditorConfig="ConfigName" metadata.
+	 * @param Filter Whether to load all properties, or only ones marked with the EditorConfig metadata.
+	 */
+	template <typename TObject>
+	bool LoadConfigObject(TObject* Object, FEditorConfig::EPropertyFilter Filter = FEditorConfig::EPropertyFilter::MetadataOnly);
 
-	TSharedPtr<FEditorConfig> FindOrLoadConfig(FStringView ConfigName);
-	void SaveConfig(TSharedPtr<FEditorConfig> Config, FOnCompletedDelegate OnCompleted);
+	/** 
+	 * Save the given UObject to the root of the JSON config.
+	 * This saves the config to the UCLASS's EditorConfig="ConfigName" metadata.
+	 * @param Filter Whether to save all properties, or only ones marked with the EditorConfig metadata.
+	 */
+	template <typename TObject>
+	bool SaveConfigObject(const TObject* Object, FEditorConfig::EPropertyFilter Filter = FEditorConfig::EPropertyFilter::MetadataOnly);
 
-	void AddSearchDirectory(FStringView SearchDir);
+	/** 
+	 * Load a config from the root of the JSON file into a given UObject.
+	 * This loads the config from the UCLASS's EditorConfig="ConfigName" metadata.
+	 * @param Filter Whether to load all properties, or only ones marked with the EditorConfig metadata.
+	 * @param Object The UObject instance to load into.
+	 * @param Class The UClass of the object. 
+	 */
+	bool LoadConfigObject(UObject* Object, const UClass* Class, FEditorConfig::EPropertyFilter = FEditorConfig::EPropertyFilter::MetadataOnly);
+	
+	/** 
+	 * Save the given UObject of the given class to the root of the JSON config.
+	 * This saves the config to the UCLASS's EditorConfig="ConfigName" metadata.
+	 * @param Object The UObject instance to save.
+	 * @param Class The UClass of the object. 
+	 * @param Filter Whether to save all properties, or only ones marked with the EditorConfig metadata.
+	 */
+	bool SaveConfigObject(const UObject* Object, const UClass* Class, FEditorConfig::EPropertyFilter = FEditorConfig::EPropertyFilter::MetadataOnly);
+	
+	/** 
+	 * Find a config with the given name that has already been loaded, load it if it hasn't been, or create one with the given name.
+	 */
+	TSharedRef<FEditorConfig> FindOrLoadConfig(FStringView ConfigName);
+
+	/*
+	 * Save the given config to the location it was loaded.
+	 */
+	void SaveConfig(TSharedRef<FEditorConfig> Config);
+
+	/** Force reload the given config and all its (current and potential) parents from disk. */
+	bool ReloadConfig(TSharedRef<FEditorConfig> Config);
 
 private:
+	void Initialize(FSubsystemCollectionBase& Collection) override;
+	void AddSearchDirectory(FStringView SearchDir);
 	void OnSaveCompleted(TSharedPtr<FEditorConfig> Config);
+	void OnEditorConfigDirtied(const FEditorConfig& Config);
+
+	/** FTickableEditorObject interface */
+	void Tick(float DeltaTime) override;
+	TStatId GetStatId() const override;
 
 private:
 	struct FPendingSave
@@ -34,7 +82,7 @@ private:
 		FString FileName;
 		TSharedPtr<FEditorConfig> Config;
 		TFuture<bool> WasSuccess;
-		FOnCompletedDelegate OnCompleted;
+		float TimeSinceQueued { 0 };
 	};
 
 	FRWLock SaveLock;
@@ -42,3 +90,23 @@ private:
 	TArray<FString> SearchDirectories;
 	TMap<FString, TSharedPtr<FEditorConfig>> LoadedConfigs;
 };
+
+template <typename TObject>
+bool UEditorConfigSubsystem::LoadConfigObject(TObject* Object, FEditorConfig::EPropertyFilter Filter)
+{
+	static_assert(TIsDerivedFrom<TObject, UObject>::Value, "Type is not derived from UObject.");
+	check(Object != nullptr);
+	
+	const UClass* Class = TObject::StaticClass();
+	return LoadConfigObject(static_cast<UObject*>(Object), Class, Filter);
+}
+
+template <typename TObject>
+bool UEditorConfigSubsystem::SaveConfigObject(const TObject* Object, FEditorConfig::EPropertyFilter Filter)
+{
+	static_assert(TIsDerivedFrom<TObject, UObject>::Value, "Type is not derived from UObject.");
+	check(Object != nullptr);
+
+	const UClass* Class = TObject::StaticClass();
+	return SaveConfigObject(static_cast<const UObject*>(Object), Class);
+}

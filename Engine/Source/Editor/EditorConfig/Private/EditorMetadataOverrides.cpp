@@ -32,25 +32,6 @@ bool UEditorMetadataOverrides::LoadFromConfig(TSharedPtr<FEditorConfig> Config)
 	return SourceConfig->TryGetStruct(TEXT("Metadata"), LoadedMetadata);
 }
 
-void UEditorMetadataOverrides::Tick(float DeltaTime)
-{
-	if (bDirty)
-	{
-		TimeSinceLastSave = TimeSinceLastSave + DeltaTime;
-
-		const float SaveDelaySeconds = 3.0f;
-		if (TimeSinceLastSave > SaveDelaySeconds)
-		{
-			Save();
-		}
-	}
-}
-
-TStatId UEditorMetadataOverrides::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UEditorMetadataOverrides, STATGROUP_Tickables);
-}
-
 void UEditorMetadataOverrides::Save()
 {
 	if (!SourceConfig.IsValid())
@@ -66,16 +47,7 @@ void UEditorMetadataOverrides::Save()
 		return;
 	}
 
-	EditorConfigSubsystem->SaveConfig(SourceConfig, FOnCompletedDelegate::CreateUObject(this, &UEditorMetadataOverrides::OnCompleted));
-}
-
-void UEditorMetadataOverrides::OnCompleted(bool bSuccess)
-{
-	if (bSuccess)
-	{
-		TimeSinceLastSave = 0;
-		bDirty = false;
-	}
+	EditorConfigSubsystem->SaveConfig(SourceConfig.ToSharedRef());
 }
 
 const FMetadataSet* UEditorMetadataOverrides::FindFieldMetadata(const FField* Field) const
@@ -242,7 +214,6 @@ void UEditorMetadataOverrides::SetStringMetadata(const FField* Field, FName Key,
 	}
 
 	FieldMetadata->Strings.Add(Key, FString(Value));
-	bDirty = true;
 }
 
 bool UEditorMetadataOverrides::GetFloatMetadata(const FField* Field, FName Key, float& OutValue) const
@@ -278,7 +249,7 @@ void UEditorMetadataOverrides::SetFloatMetadata(const FField* Field, FName Key, 
 	}
 
 	FieldMetadata->Floats.Add(Key, Value);
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetIntMetadata(const FField* Field, FName Key, int32& OutValue) const
@@ -314,7 +285,7 @@ void UEditorMetadataOverrides::SetIntMetadata(const FField* Field, FName Key, in
 	}
 
 	FieldMetadata->Ints.Add(Key, Value);
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetBoolMetadata(const FField* Field, FName Key, bool& OutValue) const
@@ -350,7 +321,7 @@ void UEditorMetadataOverrides::SetBoolMetadata(const FField* Field, FName Key, b
 	}
 
 	FieldMetadata->Bools.Add(Key, Value);
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetClassMetadata(const FField* Field, FName Key, UClass*& OutValue) const
@@ -374,7 +345,7 @@ void UEditorMetadataOverrides::SetClassMetadata(const FField* Field, FName Key, 
 	}
 
 	SetStringMetadata(Field, Key, ClassName);
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetArrayMetadata(const FField* Field, FName Key, TArray<FString>& OutValue) const
@@ -413,7 +384,7 @@ void UEditorMetadataOverrides::SetArrayMetadata(const FField* Field, FName Key, 
 
 	const FString ValueString = FString::Join(Value, TEXT(","));
 	FieldMetadata->Strings.Add(Key, ValueString);
-	bDirty = true;
+	Save();
 }
 
 void UEditorMetadataOverrides::AddToArrayMetadata(const FField* Field, FName Key, const FString& Value)
@@ -434,7 +405,7 @@ void UEditorMetadataOverrides::AddToArrayMetadata(const FField* Field, FName Key
 		CurrentValue.Append(TEXT(","));
 		CurrentValue.Append(Value);
 	}
-	bDirty = true;
+	Save();
 }
 
 void UEditorMetadataOverrides::RemoveFromArrayMetadata(const FField* Field, FName Key, const FString& Value)
@@ -466,7 +437,7 @@ void UEditorMetadataOverrides::RemoveFromArrayMetadata(const FField* Field, FNam
 		FieldMetadata->Strings.Add(Key, ValueString);
 	}
 
-	bDirty = true;
+	Save();
 }
 
 void UEditorMetadataOverrides::RemoveMetadata(const FField* Field, FName Key)
@@ -499,7 +470,7 @@ void UEditorMetadataOverrides::RemoveMetadata(const FField* Field, FName Key)
 	FieldMetadata->Floats.Remove(Key);
 	FieldMetadata->Strings.Remove(Key);
 
-	bDirty = true;
+	Save();
 }
 
 const FMetadataSet* UEditorMetadataOverrides::FindStructMetadata(const UStruct* Struct) const
@@ -574,7 +545,7 @@ void UEditorMetadataOverrides::SetStringMetadata(const UStruct* Struct, FName Ke
 	}
 
 	StructMetadata->Strings.Add(Key, FString(Value));
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetFloatMetadata(const UStruct* Struct, FName Key, float& OutValue) const
@@ -610,7 +581,7 @@ void UEditorMetadataOverrides::SetFloatMetadata(const UStruct* Struct, FName Key
 	}
 
 	StructMetadata->Floats.Add(Key, Value);
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetIntMetadata(const UStruct* Struct, FName Key, int32& OutValue) const
@@ -646,7 +617,7 @@ void UEditorMetadataOverrides::SetIntMetadata(const UStruct* Struct, FName Key, 
 	}
 
 	StructMetadata->Ints.Add(Key, Value);
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetBoolMetadata(const UStruct* Struct, FName Key, bool& OutValue) const
@@ -682,7 +653,7 @@ void UEditorMetadataOverrides::SetBoolMetadata(const UStruct* Struct, FName Key,
 	}
 
 	StructMetadata->Bools.Add(Key, Value);
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetClassMetadata(const UStruct* Struct, FName Key, UClass*& OutValue) const
@@ -706,7 +677,7 @@ void UEditorMetadataOverrides::SetClassMetadata(const UStruct* Struct, FName Key
 	}
 
 	SetStringMetadata(Struct, Key, ClassName);
-	bDirty = true;
+	Save();
 }
 
 bool UEditorMetadataOverrides::GetArrayMetadata(const UStruct* Struct, FName Key, TArray<FString>& OutValue) const
@@ -745,7 +716,7 @@ void UEditorMetadataOverrides::SetArrayMetadata(const UStruct* Struct, FName Key
 	const FString ValueString = FString::Join(Value, TEXT(","));
 
 	StructMetadata->Strings.Add(Key, ValueString);
-	bDirty = true;
+	Save();
 }
 
 void UEditorMetadataOverrides::AddToArrayMetadata(const UStruct* Struct, FName Key, const FString& Value)
@@ -767,7 +738,7 @@ void UEditorMetadataOverrides::AddToArrayMetadata(const UStruct* Struct, FName K
 		CurrentValue.Append(Value);
 	}
 
-	bDirty = true;
+	Save();
 }
 
 void UEditorMetadataOverrides::RemoveFromArrayMetadata(const UStruct* Struct, FName Key, const FString& Value)
@@ -799,7 +770,7 @@ void UEditorMetadataOverrides::RemoveFromArrayMetadata(const UStruct* Struct, FN
 		StructMetadata->Strings.Add(Key, ValueString);
 	}
 
-	bDirty = true;
+	Save();
 }
 
 void UEditorMetadataOverrides::RemoveMetadata(const UStruct* Struct, FName Key)
@@ -820,5 +791,5 @@ void UEditorMetadataOverrides::RemoveMetadata(const UStruct* Struct, FName Key)
 	StructMetadata->StructMetadata.Floats.Remove(Key);
 	StructMetadata->StructMetadata.Strings.Remove(Key);
 
-	bDirty = true;
+	Save();
 }
