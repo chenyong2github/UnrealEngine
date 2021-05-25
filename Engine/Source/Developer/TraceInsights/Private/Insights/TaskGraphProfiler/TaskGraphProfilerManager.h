@@ -103,6 +103,15 @@ public:
 	bool GetShowRelations() const { return bShowRelations; }
 	void SetShowRelations(bool bInValue);
 
+	bool GetShowPrerequisites() const { return bShowPrerequisites; }
+	void SetShowPrerequisites(bool bInValue) { bShowPrerequisites = bInValue; }
+
+	bool GetShowSubsequents() const { return bShowSubsequents; }
+	void SetShowSubsequents(bool bInValue) { bShowSubsequents = bInValue; }
+
+	bool GetShowNestedTasks() const { return bShowNestedTasks; }
+	void SetShowNestedTasks(bool bInValue) { bShowNestedTasks = bInValue; }
+
 private:
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
@@ -136,6 +145,9 @@ private:
 	TSharedPtr<Insights::STaskTableTreeView> TaskTableTreeView;
 	FLinearColor ColorCode[static_cast<uint32>(ETaskEventType::NumTaskEventTypes)];
 	bool bShowRelations = true;
+	bool bShowPrerequisites = false;
+	bool bShowSubsequents = false;
+	bool bShowNestedTasks = false;
 };
 
 } // namespace Insights

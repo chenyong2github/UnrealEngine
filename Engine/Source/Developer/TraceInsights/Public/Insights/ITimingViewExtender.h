@@ -30,6 +30,10 @@ public:
 
 	/** Extension hook for the 'quick filter' menu */
 	virtual void ExtendFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) = 0;
+
+	/** Extension hook for the context menu for all tracks
+	@return True if any menu option was added and False if no option was added */ 
+	virtual bool ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) { return false; }
 };
 
 } // namespace Insights

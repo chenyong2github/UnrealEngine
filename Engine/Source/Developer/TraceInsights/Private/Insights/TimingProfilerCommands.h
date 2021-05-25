@@ -75,9 +75,6 @@ public:
 	/** Toggles visibility for Main Graph track. */
 	TSharedPtr<FUICommandInfo> ShowMainGraphTrack;
 
-	/** Toggles visibility for task graph dependency relations */
-	TSharedPtr<FUICommandInfo> ShowTaskDependencies;
-
 	/** Toggles visibility for GPU thread track. */
 	//TSharedPtr<FUICommandInfo> ShowAllGpuTracks;
 
