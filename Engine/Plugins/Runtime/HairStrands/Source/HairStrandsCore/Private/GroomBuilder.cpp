@@ -1603,11 +1603,11 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 
 	// Compute bound radius
 	{
-		FVector GroomBoundMin(FLT_MAX);
-		FVector GroomBoundMax(-FLT_MAX);
+		FVector3f GroomBoundMin(FLT_MAX);
+		FVector3f GroomBoundMax(-FLT_MAX);
 		for (const FHairDescriptionGroup& Group : Out.HairGroups)
 		{
-			for (const FVector& P : Group.Strands.StrandsPoints.PointsPosition)
+			for (const FVector3f& P : Group.Strands.StrandsPoints.PointsPosition)
 			{
 				GroomBoundMin.X = FMath::Min(GroomBoundMin.X, P.X);
 				GroomBoundMin.Y = FMath::Min(GroomBoundMin.Y, P.Y);
@@ -1619,7 +1619,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 			}
 		}
 
-		Out.BoundRadius = FVector::Distance(GroomBoundMax, GroomBoundMin) * 0.5f;
+		Out.BoundRadius = FVector3f::Distance(GroomBoundMax, GroomBoundMin) * 0.5f;
 	}
 
 	// Update GroupInfo
