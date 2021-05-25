@@ -1123,6 +1123,7 @@ void UWorld::SendAllEndOfFrameUpdates()
 #endif
 		](int32 Index)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(DeferredRenderUpdates);
 			FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
 			UActorComponent* NextComponent = LocalComponentsThatNeedEndOfFrameUpdate[Index];
 			if (NextComponent)
@@ -1671,12 +1672,14 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	// Tick LevelInstanceSubsystem outside of FTickTaskManagerInterface::StartFrame/EndFrame because it can cause levels to be deleted and invalidate its LevelList
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetSubsystem<ULevelInstanceSubsystem>())
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LevelInstanceSubsystem);
 		LevelInstanceSubsystem->Tick();
 	}
 #endif
 
 	if (bDoingActorTicks)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(bDoingActorTicks);
 		SCOPE_CYCLE_COUNTER(STAT_TickTime);
 
 		FWorldDelegates::OnWorldPostActorTick.Broadcast(this, TickType, DeltaSeconds);
@@ -1684,12 +1687,14 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 #if PHYSICS_INTERFACE_PHYSX
 		if ( PhysicsScene != nullptr )
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(GPhysCommandHandler);
 			GPhysCommandHandler->Flush();
 		}
 #endif // WITH_PHYSX
 		
 		// All tick is done, execute async trace
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FinishAsyncTrace);
 			SCOPE_CYCLE_COUNTER(STAT_FinishAsyncTraceTickTime);
 			SCOPE_TIME_GUARD_MS(TEXT("UWorld::Tick - FinishAsyncTrace"), 5);
 			FinishAsyncTrace();
@@ -1703,6 +1708,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	// Update net and flush networking.
     // Tick all net drivers
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(NetBroadcastTickTime);
 		SCOPE_CYCLE_COUNTER(STAT_NetBroadcastTickTime);
 		LLM_SCOPE(ELLMTag::Networking);
 		BroadcastTickFlush(RealDeltaSeconds); // note: undilated time is being used here
@@ -1710,12 +1716,14 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	
      // PostTick all net drivers
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(BroadcastPostTickFlush);
 		LLM_SCOPE(ELLMTag::Networking);
 		BroadcastPostTickFlush(RealDeltaSeconds); // note: undilated time is being used here
 	}
 
 	if( Scene )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSpeedTreeWind);
 		// Update SpeedTree wind objects.
 		Scene->UpdateSpeedTreeWind(TimeSeconds);
 	}
@@ -1723,6 +1731,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	// Tick the FX system.
 	if (!bIsPaused && FXSystem != nullptr)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FXSystem);
 		SCOPE_TIME_GUARD_MS(TEXT("UWorld::Tick - FX"), 5);
 		FXSystem->Tick(DeltaSeconds);
 	}
@@ -1740,7 +1749,11 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	bInTick = false;
 	Mark.Pop();
 
-	GEngine->ConditionalCollectGarbage();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ConditionalCollectGarbage);
+		GEngine->ConditionalCollectGarbage();
+	}
+	
 
 	// players only request from last frame
 	if (bPlayersOnlyPending)
