@@ -176,7 +176,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Lightca
 
 public:
 	// Allow lightcard rendering (also require not empty LightCardLayers)
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Enable Light Cards"))
 	bool bEnable = true;
 
 	// Global lighcard rendering mode

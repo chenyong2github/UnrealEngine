@@ -369,7 +369,7 @@ public:
 	bool bShouldUseParentViewportRenderFamily = false;
 
 	// Multiply all downscale ratio inside all viewports settings for whole cluster
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Outer Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float ClusterRenderTargetRatioMult = 1.f;
 
 	// Multiply all buffer ratios for whole cluster by this value

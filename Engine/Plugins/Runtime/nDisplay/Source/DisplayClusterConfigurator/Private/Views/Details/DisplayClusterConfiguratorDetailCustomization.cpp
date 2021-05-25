@@ -174,7 +174,7 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
 		BEGIN_GROUP(TEXT("GlobalPostProcess"), LOCTEXT("GlobalPostprocessLabel", "All Viewports"))
 			ADD_GROUP_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
-			ADD_GROUP_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
+			ADD_GROUP_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
 		END_GROUP();
 
 		TArray<FString> ViewportNames;
