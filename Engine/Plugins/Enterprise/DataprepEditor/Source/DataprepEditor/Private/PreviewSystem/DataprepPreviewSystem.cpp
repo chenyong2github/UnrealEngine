@@ -225,7 +225,6 @@ void FDataprepPreviewSystem::SetObservedObjects(const TArrayView<UDataprepParame
 			FDelegateHandle Handle = Object->GetOnPostEdit().AddSP( this, &FDataprepPreviewSystem::OnObservedObjectPostEdit );
 			ObservedOnPostEdit.Add( Object, Handle );
 
-
 			if ( UDataprepFilter* Filter  = Cast<UDataprepFilter>( Object ) )
 			{
 				if ( UDataprepFetcher* Fetcher = Filter->GetFetcher() )
@@ -233,6 +232,11 @@ void FDataprepPreviewSystem::SetObservedObjects(const TArrayView<UDataprepParame
 					Handle = Fetcher->GetOnPostEdit().AddSP( this, &FDataprepPreviewSystem::OnObservedObjectPostEdit);
 					ObservedOnPostEdit.Add( Fetcher, Handle );
 				}
+			}
+			else if( UDataprepFilterNoFetcher* FilterNF = Cast<UDataprepFilterNoFetcher>( Object ) )
+			{
+				Handle = FilterNF->GetOnPostEdit().AddSP( this, &FDataprepPreviewSystem::OnObservedObjectPostEdit);
+				ObservedOnPostEdit.Add( FilterNF, Handle );
 			}
 		}
 	}
@@ -285,6 +289,17 @@ void FDataprepPreviewSystem::IncrementalProcess()
 				TArrayView<UObject*> Objects( ObjectsBuffer.GetData(), ItemsProcessedCount );
 				TArrayView<FDataprepSelectionInfo> FilterResults( FilterResultsBuffer.GetData(), ItemsProcessedCount );
 				Filter->FilterAndGatherInfo( Objects, FilterResults );
+				PopulateResultFromFilter( ItemsProcessedCount );
+			}
+			if ( UDataprepFilterNoFetcher* FilterNF = Cast<UDataprepFilterNoFetcher>( ObservedSteps[CurrentProgress.CurrentFilterIndex] ) )
+			{
+				bDidSomeProcessing = true;
+				PrepareFilterBuffers( IncrementalCount );
+				ItemsProcessedCount = FillObjectsBuffer( ItemsProcessedCount );
+
+				TArrayView<UObject*> Objects( ObjectsBuffer.GetData(), ItemsProcessedCount );
+				TArrayView<FDataprepSelectionInfo> FilterResults( FilterResultsBuffer.GetData(), ItemsProcessedCount );
+				FilterNF->FilterAndGatherInfo( Objects, FilterResults );
 				PopulateResultFromFilter( ItemsProcessedCount );
 			}
 

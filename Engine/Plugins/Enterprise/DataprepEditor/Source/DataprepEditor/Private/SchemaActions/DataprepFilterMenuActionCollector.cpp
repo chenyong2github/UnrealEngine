@@ -48,7 +48,7 @@ TArray<TSharedPtr<FDataprepSchemaAction>> FDataprepFilterMenuActionCollector::Co
 
 	for ( UClass* FilterClass : FilterNoFetcherClasses )
 	{
-		if ( FilterClass )
+		if ( FilterClass && !FilterClass->HasMetaData( TEXT( "Hidden" ) ) )
 		{
 			UDataprepFilterNoFetcher* Filter = FilterClass->GetDefaultObject< UDataprepFilterNoFetcher >();
 			if ( Filter )
@@ -61,8 +61,6 @@ TArray<TSharedPtr<FDataprepSchemaAction>> FDataprepFilterMenuActionCollector::Co
 			}
 		}
 	}
-
-
 
 	UE_LOG( LogDataprepEditor, Log, TEXT("The discovery of the filters/fetchers and the creation of the menu actions took %f seconds."), ( FPlatformTime::Seconds() - Start ) );
 
