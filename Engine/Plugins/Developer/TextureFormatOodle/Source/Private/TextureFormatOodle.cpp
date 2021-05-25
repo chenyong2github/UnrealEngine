@@ -18,6 +18,8 @@
 #include "Misc/FileHelper.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "TextureBuildFunction.h"
+#include "DerivedDataBuildFunctionFactory.h"
 
 #include "oodle2tex.h"
 
@@ -1128,6 +1130,12 @@ static void TFO_InstallPlugins()
 	OodleTex_Plugins_SetAllocators(TFO_OodleMallocAligned, TFO_OodleFree);
 }
 
+class FOodleTextureBuildFunction final : public FTextureBuildFunction
+{
+	FStringView GetName() const final { return TEXT("OodleTexture"); }
+	FGuid GetVersion() const final { return FGuid(TEXT("e6b8884f-923a-44a1-8da1-298fb48865b2")); }
+};
+
 class FTextureFormatOodleModule : public ITextureFormatModule
 {
 public:
@@ -1158,7 +1166,11 @@ public:
 		}
 		return Singleton;
 	}
+
+	static UE::DerivedData::TBuildFunctionFactory<FOodleTextureBuildFunction> BuildFunctionFactory;
 };
+
+UE::DerivedData::TBuildFunctionFactory<FOodleTextureBuildFunction> FTextureFormatOodleModule::BuildFunctionFactory;
 
 IMPLEMENT_MODULE(FTextureFormatOodleModule, TextureFormatOodle);
 

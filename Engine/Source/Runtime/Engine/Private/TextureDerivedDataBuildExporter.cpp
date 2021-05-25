@@ -374,6 +374,15 @@ void FTextureDerivedDataBuildExporter::ExportTextureBuild(const UTexture& Textur
 		ActionBuilder.Build().Save(BuildWriter);
 		BuildWriter.Save(*Ar);
 	}
+
+	TArray<FString> MetaStringArray;
+	MetaStringArray.Add(*WriteToString<128>(TEXT("TexturePath="), TexturePath));
+	MetaStringArray.Add(*WriteToString<128>(TEXT("SourceCompression="), Texture.Source.GetSourceCompressionAsString()));
+	MetaStringArray.Add(*WriteToString<128>(TEXT("SourceNumMips="), Texture.Source.GetNumMips()));
+	MetaStringArray.Add(*WriteToString<128>(TEXT("SourceNumSlices="), Texture.Source.GetNumSlices()));
+	MetaStringArray.Add(*WriteToString<128>(TEXT("SourceSizeX="), Texture.Source.GetSizeX()));
+	MetaStringArray.Add(*WriteToString<128>(TEXT("SourceSizeY="), Texture.Source.GetSizeY()));
+	FFileHelper::SaveStringArrayToFile(MetaStringArray, *(ExportRoot / TEXT("Meta.txt")));
 }
 
 void FTextureDerivedDataBuildExporter::ExportTextureOutput(FTexturePlatformData& PlatformData, const FTextureBuildSettings& BuildSettings)
@@ -387,7 +396,21 @@ void FTextureDerivedDataBuildExporter::ExportTextureOutput(FTexturePlatformData&
 
 	const bool bForceAllMipsToBeInlined = BuildSettings.bCubemap || (BuildSettings.bVolume && !BuildSettings.bStreamable) || (BuildSettings.bTextureArray && !BuildSettings.bStreamable);
 	const FString OutputPath = ExportRoot / TEXT("ReferenceOutputs");
-	TArray<TPair<FString,FString>> DDCReferences;
+	struct DDCReferenceRecord
+	{
+		FString PayloadName;
+		FIoHash PayloadHash;
+		FString DDCKey;
+
+		DDCReferenceRecord(const FString& InPayloadName, const FIoHash& InPayloadHash, const FString& InDDCKey)
+			: PayloadName(InPayloadName)
+			, PayloadHash(InPayloadHash)
+			, DDCKey(InDDCKey)
+		{
+		}
+	};
+
+	TArray<DDCReferenceRecord> DDCReferences;
 
 	UE::DerivedData::FBuildOutputBuilder OutputBuilder = DerivedDataBuild->CreateOutput(TexturePath, BuildFunctionName);
 
@@ -423,7 +446,7 @@ void FTextureDerivedDataBuildExporter::ExportTextureOutput(FTexturePlatformData&
 		FString MipDerivedDataKey;
 		GetTextureDerivedMipKey(MipIndex, Mip, KeySuffix, MipDerivedDataKeyLong);
 		ShortenKey(*MipDerivedDataKeyLong, MipDerivedDataKey);
-		DDCReferences.Emplace(PayloadName.ToString(), MipDerivedDataKey);
+		DDCReferences.Emplace(PayloadName.ToString(), DerivedDataHash, MipDerivedDataKey);
 		Mip.DerivedDataKey = MipDerivedDataKeyLong;
 	}
 
@@ -452,14 +475,14 @@ void FTextureDerivedDataBuildExporter::ExportTextureOutput(FTexturePlatformData&
 
 	FString DerivedDataKey;
 	ShortenKey(*DerivedDataKeyLong, DerivedDataKey);
-	DDCReferences.Emplace(TEXT("Texture"), DerivedDataKey);
+	DDCReferences.Emplace(TEXT("Texture"), DerivedDataHash, DerivedDataKey);
 
 	TArray<FString> DDCRefStringArray;
 	FString Separator(TEXT(","));
-	for (TPair<FString, FString>& DDCReference : DDCReferences)
+	for (DDCReferenceRecord& DDCReference : DDCReferences)
 	{
 		TStringBuilder<256> LineBuilder;
-		LineBuilder << DDCReference.Key << Separator << DDCReference.Value;
+		LineBuilder << DDCReference.PayloadName << Separator << DDCReference.PayloadHash << Separator << DDCReference.DDCKey;
 		DDCRefStringArray.Add(LineBuilder.ToString());
 	}
 	FFileHelper::SaveStringArrayToFile(DDCRefStringArray, *(ExportRoot / TEXT("DDCReferences.txt")));

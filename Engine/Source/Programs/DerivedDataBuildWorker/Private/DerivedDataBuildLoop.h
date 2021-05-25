@@ -6,7 +6,6 @@
 
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildFunction.h"
-#include "DerivedDataBuildWorkerInterface.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
