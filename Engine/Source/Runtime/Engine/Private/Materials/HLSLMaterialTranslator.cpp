@@ -5533,8 +5533,9 @@ int32 FHLSLMaterialTranslator::TextureSample(
 		if (SamplerSource != SSM_FromTextureAsset)
 		{
 			// VT doesn't care if the shared sampler is wrap or clamp this is handled in the shader explicitly by our code so we still inherit this from the texture
-			TextureName += FString::Printf(TEXT("Material.VirtualTexturePhysical_%d, GetMaterialSharedSampler(Material.VirtualTexturePhysical_%dSampler, View.SharedBilinearClampedSampler)")
-				, VirtualTextureIndex, VirtualTextureIndex);
+			const TCHAR* SharedSamplerName = (MipValueMode == TMVM_MipLevel) ? TEXT("View.SharedBilinearClampedSampler") : TEXT("View.SharedBilinearAnisoClampedSampler");
+			TextureName += FString::Printf(TEXT("Material.VirtualTexturePhysical_%d, GetMaterialSharedSampler(Material.VirtualTexturePhysical_%dSampler, %s)")
+				, VirtualTextureIndex, VirtualTextureIndex, SharedSamplerName);
 		}
 		else
 		{
