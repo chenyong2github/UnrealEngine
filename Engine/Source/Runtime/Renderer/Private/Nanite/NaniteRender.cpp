@@ -4579,7 +4579,7 @@ void DrawBasePass(
 		ERDGPassFlags RDGPassFlags = ERDGPassFlags::Raster;
 
 		// Skip render pass when parallel because that's taken care of by the FRDGParallelCommandListSet
-		bool bParallelBasePassBuild = CVarParallelBasePassBuild.GetValueOnRenderThread() != 0;
+		bool bParallelBasePassBuild = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePassBuild.GetValueOnRenderThread() != 0;
 		if (bParallelBasePassBuild)
 		{
 			RDGPassFlags |= ERDGPassFlags::SkipRenderPass;
@@ -4589,7 +4589,7 @@ void DrawBasePass(
 			RDG_EVENT_NAME("Emit GBuffer"),
 			PassParameters,
 			RDGPassFlags,
-			[PassParameters, &SceneRenderer, &Scene, NaniteVertexShader, &View, &NaniteMaterialPassCommands, NaniteMaterialCulling](FRHICommandListImmediate& RHICmdListImmediate)
+			[PassParameters, &SceneRenderer, &Scene, NaniteVertexShader, &View, &NaniteMaterialPassCommands, bParallelBasePassBuild, NaniteMaterialCulling](FRHICommandListImmediate& RHICmdListImmediate)
 		{
 			RHICmdListImmediate.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
@@ -4636,8 +4636,7 @@ void DrawBasePass(
 			{
 				const uint32 TileCount = UniformParams.MaterialConfig.Y * UniformParams.MaterialConfig.Z; // (W * H)
 
-				bool bUseParallelCommandLists = CVarParallelBasePassBuild.GetValueOnRenderThread() != 0;
-				if (bUseParallelCommandLists)
+				if (bParallelBasePassBuild)
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(BuildParallelCommandListSet);
 
