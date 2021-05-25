@@ -64,7 +64,10 @@ enum class ERGBFormat : int8
 	RGBAF = 3,
 
 	// Blue, Green, Red and Exponent (Similar to the RGBE format from radiance but with the blue and red channel inversed)
-	BGRE = 4,
+	BGRE =  4,
+
+	// Gray scale using IEEE Floating-Point Arithmetic (see IEEE754). The format is always binary.
+	GrayF = 5,
 };
 
 

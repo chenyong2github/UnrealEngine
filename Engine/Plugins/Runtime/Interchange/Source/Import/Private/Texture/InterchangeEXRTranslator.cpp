@@ -83,26 +83,16 @@ TOptional<UE::Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePa
 
 	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(Width, Height, bAllowNonPowerOfTwo))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), Width, Height, bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import EXR, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), Width, Height, bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
-	// Select the texture's source format
-	ETextureSourceFormat TextureFormat = TSF_Invalid;
-	int32 BitDepth = ExrImageWrapper->GetBitDepth();
-	ERGBFormat Format = ExrImageWrapper->GetFormat();
-
-	if (Format == ERGBFormat::RGBA && BitDepth == 16)
-	{
-		TextureFormat = TSF_RGBA16F;
-		Format = ERGBFormat::BGRA;
-	}
-
-	if (TextureFormat == TSF_Invalid)
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("EXR file [%s] contains data in an unsupported format"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
+	// Currently the only texture source format compatible with EXR image formats is TSF_RGBA16F.
+	// EXR decoder automatically converts imported image channels into the requested float format.
+	// In case if the imported image is a gray scale image, its content will be stored in the green channel of the created texture.
+	ETextureSourceFormat TextureFormat = TSF_RGBA16F;
+	ERGBFormat Format = ERGBFormat::RGBAF;
+	int32 BitDepth = 16;
 
 	UE::Interchange::FImportImage PayloadData;
 	PayloadData.Init2DWithParams(

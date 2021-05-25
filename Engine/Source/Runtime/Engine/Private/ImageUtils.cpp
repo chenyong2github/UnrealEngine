@@ -822,7 +822,7 @@ ENGINE_API bool FImageUtils::ExportRenderTarget2DAsEXR(UTextureRenderTarget2D* T
 		bSuccess = GetRawData(TexRT, RawData);
 
 		int32 BitsPerPixel = TexRT->GetFormat() == PF_B8G8R8A8 ? 8 : (sizeof(FFloat16Color) / 4) * 8;
-		ERGBFormat RGBFormat = TexRT->GetFormat() == PF_B8G8R8A8 ? ERGBFormat::BGRA : ERGBFormat::RGBA;
+		ERGBFormat RGBFormat = TexRT->GetFormat() == PF_B8G8R8A8 ? ERGBFormat::BGRA : ERGBFormat::RGBAF;
 
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 
@@ -830,7 +830,7 @@ ENGINE_API bool FImageUtils::ExportRenderTarget2DAsEXR(UTextureRenderTarget2D* T
 
 		EXRImageWrapper->SetRaw(RawData.GetData(), RawData.GetAllocatedSize(), Size.X, Size.Y, RGBFormat, BitsPerPixel);
 
-		const TArray64<uint8> Data = EXRImageWrapper->GetCompressed(100);
+		const TArray64<uint8> Data = EXRImageWrapper->GetCompressed();
 
 		Ar.Serialize((void*)Data.GetData(), Data.GetAllocatedSize());
 
@@ -950,7 +950,7 @@ UTexture2D* FImageUtils::ImportBufferAsTexture2D(TArrayView64<const uint8> Buffe
 			if (BitDepth == 16)
 			{
 				PixelFormat = PF_FloatRGBA;
-				RGBFormat = ERGBFormat::RGBA;
+				RGBFormat = ERGBFormat::RGBAF;
 			}
 			else if (BitDepth == 8)
 			{
