@@ -5970,7 +5970,7 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 
 	if (Pin->IsStruct())
 	{
-		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), false);
+		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
 
 		FString DefaultValue = InDefaultValue;
 		CreateDefaultValueForStructIfRequired(Pin->GetScriptStruct(), DefaultValue);
@@ -5984,19 +5984,19 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 	}
 
 	{
-		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), false);
+		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), bSetupUndoRedo);
 		Notify(ERigVMGraphNotifType::PinAdded, Pin);
 	}
 
 	if (!InDefaultValue.IsEmpty())
 	{
-		FRigVMControllerGraphGuard GraphGuard(this, Pin->GetGraph(), false);
+		FRigVMControllerGraphGuard GraphGuard(this, Pin->GetGraph(), bSetupUndoRedo);
 		SetPinDefaultValue(Pin, InDefaultValue, true, bSetupUndoRedo, false);
 	}
 
 	RefreshFunctionPins(Graph->GetEntryNode(), true);
 	RefreshFunctionPins(Graph->GetReturnNode(), true);
-	RefreshFunctionReferences(LibraryNode, false);
+	RefreshFunctionReferences(LibraryNode, bSetupUndoRedo);
 
 	if (bSetupUndoRedo)
 	{
@@ -6220,7 +6220,7 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 	return true;
 }
 
-bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins)
+bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool& bSetupUndoRedo, bool bSetupOrphanPins)
 {
 	if (!IsValidGraph())
 	{
