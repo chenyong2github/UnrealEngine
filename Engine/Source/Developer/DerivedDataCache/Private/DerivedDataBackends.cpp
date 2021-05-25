@@ -81,6 +81,12 @@ public:
 		{
 			if( GraphName.Len() > 0 )
 			{
+				if ( GraphName == TEXT("None"))
+				{
+					UE_LOG(LogDerivedDataCache, Display, TEXT("DDC backend graph of 'None' specified, graph will be invalid for use."));
+					return;
+				}
+
 				RootCache = ParseNode( TEXT("Root"), GEngineIni, *GraphName, ParsedNodes );				
 			}
 
