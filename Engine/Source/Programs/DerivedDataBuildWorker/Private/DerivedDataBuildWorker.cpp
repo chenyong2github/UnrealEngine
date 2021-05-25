@@ -4,29 +4,15 @@
 
 #include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "DerivedDataBuildFunction.h"
+#include "DerivedDataBuildFunctionFactory.h"
 #include "DerivedDataBuildLoop.h"
-#include "DerivedDataBuildWorkerInterface.h"
+#include "Features/IModularFeatures.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ScopeExit.h"
 #include "RequiredProgramMainCPPInclude.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataBuildWorker, Log, All);
-
-//////////////////////////////////////////////////////////////////////////
-
-extern void DerivedDataBuildWorkerInit();
-
-namespace UE::DerivedData
-{
-
-TMap<FName, IBuildFunction*> GBuildFunctions;
-
-void RegisterWorkerBuildFunction(IBuildFunction* BuildFunction)
-{
-	GBuildFunctions.FindOrAdd(FName(BuildFunction->GetName())) = BuildFunction;
-}
-
-}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -49,13 +35,18 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		return 1;
 	}
 
-	DerivedDataBuildWorkerInit();
+	TMap<FName, const UE::DerivedData::IBuildFunction*> BuildFunctions;
+	for (UE::DerivedData::IBuildFunctionFactory* FunctionFactory : IModularFeatures::Get().GetModularFeatureImplementations<UE::DerivedData::IBuildFunctionFactory>(UE::DerivedData::IBuildFunctionFactory::GetFeatureName()))
+	{
+		const UE::DerivedData::IBuildFunction& BuildFunction = FunctionFactory->GetFunction();
+		BuildFunctions.FindOrAdd(FName(BuildFunction.GetName())) = &BuildFunction;
+	}
 
 	BuildLoop.PerformBuilds([&] (FName FunctionName, UE::DerivedData::FBuildContext& BuildContext)
 		{
-			if (UE::DerivedData::IBuildFunction** FoundFunc = UE::DerivedData::GBuildFunctions.Find(FunctionName))
+			if (const UE::DerivedData::IBuildFunction** FoundFunc = BuildFunctions.Find(FunctionName))
 			{
-				UE::DerivedData::IBuildFunction* BuildFunction = *FoundFunc;
+				const UE::DerivedData::IBuildFunction* BuildFunction = *FoundFunc;
 				UE_LOG(LogDerivedDataBuildWorker, Display, TEXT("Starting build function '%s'"), *FunctionName.ToString());
 				uint64 BuildStartTime = FPlatformTime::Cycles64();
 				BuildFunction->Build(BuildContext);
