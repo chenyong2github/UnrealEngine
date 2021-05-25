@@ -213,7 +213,7 @@ namespace AVEncoder
 		using FReleaseVulkanTextureCallback = TFunction<void(VkImage_T*)>;
 
 #if PLATFORM_WINDOWS || PLATFORM_LINUX
-	void SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+	void SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
 #endif
 
 	protected:
