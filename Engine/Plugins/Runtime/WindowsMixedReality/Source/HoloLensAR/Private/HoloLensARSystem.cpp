@@ -1472,7 +1472,7 @@ bool FHoloLensARSystem::HasHandMeshData() const
 	return false;
 }
 
-bool FHoloLensARSystem::GetHandMeshData(EControllerHand Hand, TArray<struct FVector>& OutVertices, TArray<struct FVector>& OutNormals, TArray<int32>& OutIndices, FTransform& OutHandMeshTransform) const
+bool FHoloLensARSystem::GetHandMeshData(EControllerHand Hand, TArray<FVector>& OutVertices, TArray<FVector>& OutNormals, TArray<int32>& OutIndices, FTransform& OutHandMeshTransform) const
 {
 	FMeshUpdate HandState = HandMeshes[(int)Hand];
 
