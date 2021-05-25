@@ -7,12 +7,15 @@
 #include "OnlineSessionInterfaceNull.h"
 #include "OnlineLeaderboardInterfaceNull.h"
 #include "OnlineIdentityNull.h"
-#include "VoiceInterfaceNull.h"
 #include "OnlineAchievementsInterfaceNull.h"
 #include "OnlineStoreV2InterfaceNull.h"
 #include "OnlinePurchaseInterfaceNull.h"
 #include "OnlineMessageSanitizerNull.h"
 #include "Stats/Stats.h"
+
+#if WITH_ENGINE
+#include "VoiceInterfaceNull.h"
+#endif //WITH_ENGINE
 
 FThreadSafeCounter FOnlineSubsystemNull::TaskCounter;
 
@@ -58,6 +61,7 @@ IOnlineLeaderboardsPtr FOnlineSubsystemNull::GetLeaderboardsInterface() const
 
 IOnlineVoicePtr FOnlineSubsystemNull::GetVoiceInterface() const
 {
+#if WITH_ENGINE
 	if (VoiceInterface.IsValid() && !bVoiceInterfaceInitialized)
 	{	
 		if (!VoiceInterface->Init())
@@ -69,6 +73,9 @@ IOnlineVoicePtr FOnlineSubsystemNull::GetVoiceInterface() const
 	}
 
 	return VoiceInterface;
+#else //WITH_ENGINE
+	return nullptr;
+#endif //WITH_ENGINE
 }
 
 IOnlineExternalUIPtr FOnlineSubsystemNull::GetExternalUIInterface() const
@@ -175,10 +182,12 @@ bool FOnlineSubsystemNull::Tick(float DeltaTime)
 		SessionInterface->Tick(DeltaTime);
 	}
 
+#if WITH_ENGINE
 	if (VoiceInterface.IsValid() && bVoiceInterfaceInitialized)
 	{
 		VoiceInterface->Tick(DeltaTime);
 	}
+#endif //WITH_ENGINE
 
 	return true;
 }
@@ -200,7 +209,9 @@ bool FOnlineSubsystemNull::Init()
 		LeaderboardsInterface = MakeShareable(new FOnlineLeaderboardsNull(this));
 		IdentityInterface = MakeShareable(new FOnlineIdentityNull(this));
 		AchievementsInterface = MakeShareable(new FOnlineAchievementsNull(this));
+#if WITH_ENGINE
 		VoiceInterface = MakeShareable(new FOnlineVoiceImpl(this));
+#endif //WITH_ENGINE
 		StoreV2Interface = MakeShareable(new FOnlineStoreV2Null(*this));
 		PurchaseInterface = MakeShareable(new FOnlinePurchaseNull(*this));
 		MessageSanitizerInterface = MakeShareable(new FMessageSanitizerNull());
@@ -232,10 +243,12 @@ bool FOnlineSubsystemNull::Shutdown()
 		OnlineAsyncTaskThreadRunnable = nullptr;
 	}
 
+#if WITH_ENGINE
 	if (VoiceInterface.IsValid() && bVoiceInterfaceInitialized)
 	{
 		VoiceInterface->Shutdown();
 	}
+#endif //WITH_ENGINE
 	
 #define DESTRUCT_INTERFACE(Interface) \
 	if (Interface.IsValid()) \
