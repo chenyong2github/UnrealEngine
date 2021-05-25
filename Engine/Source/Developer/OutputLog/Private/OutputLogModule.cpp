@@ -235,6 +235,12 @@ void FOutputLogModule::CloseDebugConsole()
 		{
 			WindowForExistingConsole->RemoveOverlaySlot(PinnedDebugConsole.ToSharedRef());
 			DebugConsole.Reset();
+
+			if (TSharedPtr<SWidget> PreviousKeyboardFocusedWidgetPinned = PreviousKeyboardFocusedWidget.Pin())
+			{
+				FSlateApplication::Get().SetKeyboardFocus(PreviousKeyboardFocusedWidgetPinned);
+				PreviousKeyboardFocusedWidget.Reset();
+			}
 		}
 	}
 }
