@@ -385,9 +385,8 @@ private:
 	TSharedPtr<STextBlock> SelectedSnapshotNamePtr;
 
 	// Snapshot Information Text
-	TSharedPtr<SHorizontalBox> InfoTextBox;
+	TSharedPtr<SVerticalBox> InfoTextBox;
 	TSharedPtr<STextBlock> SelectedActorCountText;
-	TSharedPtr<STextBlock> TotalActorCountText;
 	TSharedPtr<STextBlock> MiscActorCountText;
 
 	FText DefaultNameText;

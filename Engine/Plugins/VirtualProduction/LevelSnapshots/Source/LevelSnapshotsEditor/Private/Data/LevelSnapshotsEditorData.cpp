@@ -3,11 +3,13 @@
 #include "LevelSnapshotsEditorData.h"
 #include "SLevelSnapshotsEditorInput.h"
 
+#include "Editor.h"
+#include "Engine/World.h"
+
 #include "FavoriteFilterContainer.h"
 #include "DisjunctiveNormalFormFilter.h"
 #include "FilterLoader.h"
 #include "FilteredResults.h"
-#include "Engine/World.h"
 
 ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer)
 {
@@ -43,7 +45,13 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 
 	OnWorldCleanup = FWorldDelegates::OnWorldCleanup.AddLambda([this](UWorld* World, bool bSessionEnded, bool bCleanupResources)
     {
-        SetActiveSnapshot(nullptr);
+        ClearActiveSnapshot();
+    });
+
+	OnMapOpenedDelegateHandle = FEditorDelegates::OnMapOpened.AddLambda([this](const FString& FileName, bool bAsTemplate)
+    {
+		ClearActiveSnapshot();
+		ClearSelectedWorld();
     });
 }
 
@@ -52,6 +60,7 @@ void ULevelSnapshotsEditorData::BeginDestroy()
 	Super::BeginDestroy();
 	
 	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanup);
+	FEditorDelegates::OnMapOpened.Remove(OnMapOpenedDelegateHandle);
 }
 
 void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
@@ -59,6 +68,7 @@ void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
 	OnActiveSnapshotChanged.Clear();
 	OnEditedFiterChanged.Clear();
 	OnUserDefinedFiltersChanged.Clear();
+	OnMapOpenedDelegateHandle.Reset();
 
 	SelectedWorld.Reset();
 	ActiveSnapshot.Reset();

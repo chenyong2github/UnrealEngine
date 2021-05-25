@@ -1625,33 +1625,19 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 					.HAlign(HAlign_Right)
 					.Padding(FMargin(5.f, 5.f))
 					[
-						SNew(SVerticalBox)
+						SAssignNew(InfoTextBox, SVerticalBox)
+						.Visibility_Lambda([this]()
+						{
+							return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot() ? 
+								EVisibility::HitTestInvisible : EVisibility::Hidden;
+						})
 
 						+SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							SAssignNew(InfoTextBox, SHorizontalBox)
-							.Visibility_Lambda([this]()
-							{
-								return EditorDataPtr.IsValid() && EditorDataPtr->GetSelectedWorld() && EditorDataPtr->GetActiveSnapshot() ? 
-									EVisibility::HitTestInvisible : EVisibility::Hidden;
-							})
-
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								SAssignNew(SelectedActorCountText, STextBlock)
-								.Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
-								.Justification(ETextJustify::Right)
-							]
-
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								SAssignNew(TotalActorCountText, STextBlock)
-								.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
-								.Justification(ETextJustify::Right)
-							]
+							SAssignNew(SelectedActorCountText, STextBlock)
+							.Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
+							.Justification(ETextJustify::Right)
 						]
 
 						+ SVerticalBox::Slot()
@@ -1704,6 +1690,8 @@ SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 	
 	OnActiveSnapshotChangedHandle.Reset();
 	OnRefreshResultsHandle.Reset();
+	
+	FEditorDelegates::OnMapOpened.Remove(OnMapOpenedDelegateHandle);
 	OnMapOpenedDelegateHandle.Reset();
 	
 	ResultsSearchBoxPtr.Reset();
@@ -1714,7 +1702,6 @@ SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 	SelectedSnapshotNamePtr.Reset();
 
 	SelectedActorCountText.Reset();
-	TotalActorCountText.Reset();
 	MiscActorCountText.Reset();
 
 	DummyRow.Reset();
@@ -1909,14 +1896,8 @@ void SLevelSnapshotsEditorResults::UpdateSnapshotInformationText()
 
 	if (SelectedActorCountText.IsValid())
 	{
-		SelectedActorCountText->SetText(FText::Format(LOCTEXT("ResultsRestoreInfoFormatSelectedActorCount", "{0} actor(s)"),
-			FText::AsNumber(SelectedActorCount)));
-	}
-
-	if (TotalActorCountText.IsValid())
-	{
-		TotalActorCountText->SetText(FText::Format(LOCTEXT("ResultsRestoreInfoFormatTotalActorCount", " (of {0} in snapshot) will be restored"),
-			FText::AsNumber(TotalPassingActorCount)));
+		SelectedActorCountText->SetText(FText::Format(LOCTEXT("ResultsRestoreInfoFormatSelectedActorCount", "{0} actor(s) (of {1} in snapshot) will be restored"),
+			FText::AsNumber(SelectedActorCount), FText::AsNumber(TotalPassingActorCount)));
 	}
 
 	if (MiscActorCountText.IsValid())

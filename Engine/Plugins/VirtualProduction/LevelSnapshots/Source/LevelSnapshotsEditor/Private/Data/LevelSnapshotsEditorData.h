@@ -41,9 +41,9 @@ public:
 
 	DECLARE_EVENT_OneParam(ULevelSnapshotsEditorData, FOnActiveSnapshotChanged, const TOptional<ULevelSnapshot*>& /* NewSnapshot */);
 	FOnActiveSnapshotChanged OnActiveSnapshotChanged;
+	FDelegateHandle OnMapOpenedDelegateHandle;
 
 
-	
 	/******************** Selected world ********************/
 	void SetSelectedWorldReference(UWorld* InWorld);
 	void ClearSelectedWorld();
