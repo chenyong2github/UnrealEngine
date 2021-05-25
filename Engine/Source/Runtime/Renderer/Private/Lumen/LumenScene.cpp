@@ -516,6 +516,14 @@ void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 Pr
 	}
 }
 
+void FLumenSceneData::UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex)
+{
+	if (bTrackAllPrimitives)
+	{
+		PrimitivesToUpdateMeshCards.Add(PrimitiveIndex);
+	}
+}
+
 double BoxSurfaceArea(FVector Extent)
 {
 	return 2.0 * (Extent.X * Extent.Y + Extent.Y * Extent.Z + Extent.Z * Extent.X);
