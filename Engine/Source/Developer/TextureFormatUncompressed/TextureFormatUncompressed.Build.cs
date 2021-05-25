@@ -8,16 +8,18 @@ public class TextureFormatUncompressed : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
+				"DerivedDataCache",
+				"Engine",
 				"TargetPlatform",
-				"TextureCompressor",
-				"Engine"
+				"TextureCompressor"
 			}
 			);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"ImageCore"
+				"ImageCore",
+				"TextureBuild"
 			}
 			);
 	}
