@@ -146,7 +146,26 @@ namespace Chaos
 		, bStealAdvanceTasksForTesting(false)
 #endif
 	{
+		UE_LOG(LogChaos, Log, TEXT("FPhysicsSolverBase::AsyncDt:%f"), AsyncDt);
 	}
+
+	void FPhysicsSolverBase::EnableAsyncMode(FReal FixedDt)
+	{
+		if (AsyncDt != FixedDt)
+		{
+			AccumulatedTime = 0;
+		}
+		AsyncDt = FixedDt;
+		
+		UE_LOG(LogChaos, Log, TEXT("FPhysicsSolverBase::AsyncDt:%f"), AsyncDt);
+	}
+
+	void FPhysicsSolverBase::DisableAsyncMode()
+	{
+		AsyncDt = -1;
+		UE_LOG(LogChaos, Log, TEXT("FPhysicsSolverBase::AsyncDt:%f"), AsyncDt);
+	}
+
 
 	FPhysicsSolverBase::~FPhysicsSolverBase()
 	{

@@ -263,21 +263,10 @@ namespace Chaos
 
 		bool IsShuttingDown() const { return bIsShuttingDown; }
 
-		void EnableAsyncMode(FReal FixedDt)
-		{
-			if (AsyncDt != FixedDt)
-			{
-				AccumulatedTime = 0;
-			}
-
-			AsyncDt = FixedDt;
-		}
-
-		void DisableAsyncMode()
-		{
-			AsyncDt = -1;
-		}
-
+		void EnableAsyncMode(FReal FixedDt);
+		
+		void DisableAsyncMode();
+		
 		virtual void ConditionalApplyRewind_Internal(){}
 
 		FChaosMarshallingManager& GetMarshallingManager() { return MarshallingManager; }
