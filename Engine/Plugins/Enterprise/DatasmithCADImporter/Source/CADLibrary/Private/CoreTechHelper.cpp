@@ -652,12 +652,12 @@ namespace CADLibrary
 		}
 
 		uint64 MainObjectID;
+		CTKIO_ChangeUnit(ImportParameters.MetricUnit);
 		if(!CTKIO_LoadModel(*FileName, MainObjectID, 0x00020000 /* CT_LOAD_FLAGS_READ_META_DATA */))
 		{
 			// Something wrong happened during the load, abort
 			return false;
 		}
-		CTKIO_ChangeUnit(ImportParameters.MetricUnit);
 
 		if (ImportParameters.StitchingTechnique != StitchingNone)
 		{
