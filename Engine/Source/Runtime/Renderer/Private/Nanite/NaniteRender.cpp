@@ -278,6 +278,14 @@ static TAutoConsoleVariable<int32> CVarCompactVSMViews(
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
+
+static TAutoConsoleVariable<int32> CVarParallelBasePassBuild(
+	TEXT("r.Nanite.ParallelBasePassBuild"),
+	1,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
 extern int32 GLumenFastCameraMode;
 
 namespace ShaderPrint
@@ -4206,30 +4214,13 @@ void EmitDepthTargets(
 	OutMaterialDepth = MaterialDepth;
 }
 
-struct FNaniteMaterialPassCommand
-{
-	FNaniteMaterialPassCommand(const FMeshDrawCommand& InMeshDrawCommand)
-		: MeshDrawCommand(InMeshDrawCommand)
-		, MaterialDepth(0.0f)
-		, SortKey(MeshDrawCommand.CachedPipelineId.GetId())
-	{
-	}
-
-	bool operator < (const FNaniteMaterialPassCommand& Other) const
-	{
-		return SortKey < Other.SortKey;
-	}
-
-	FMeshDrawCommand MeshDrawCommand;
-	float MaterialDepth = 0.0f;
-	uint64 SortKey = 0;
-};
-
 static void BuildNaniteMaterialPassCommands(
 	FRHICommandListImmediate& RHICmdList,
 	const FStateBucketMap& NaniteDrawCommands,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(BuildNaniteMaterialPassCommands);
+
 	OutNaniteMaterialPassCommands.Reset(NaniteDrawCommands.Num());
 
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
@@ -4270,6 +4261,7 @@ static void BuildNaniteMaterialPassCommands(
 
 	if (MaterialSortMode != 0)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Sort);
 		OutNaniteMaterialPassCommands.Sort();
 	}
 }
@@ -4318,8 +4310,84 @@ static void SubmitNaniteMaterialPassCommand(
 		StateCache);
 }
 
+DECLARE_CYCLE_STAT(TEXT("NaniteBasePass"), STAT_CLP_NaniteBasePass, STATGROUP_ParallelCommandListMarkers);
+
+
+class FSubmitNaniteMaterialPassCommandsAnyThreadTask : public FRenderTask
+{
+	FRHICommandList& RHICmdList;
+	const TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& NaniteMaterialPassCommands;
+	TShaderMapRef<FNaniteMaterialVS> NaniteVertexShader;
+	FIntRect ViewRect;
+	uint32 TileCount;
+	int32 TaskIndex;
+	int32 TaskNum;
+
+public:
+
+	FSubmitNaniteMaterialPassCommandsAnyThreadTask(
+		FRHICommandList& InRHICmdList,
+		TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& InNaniteMaterialPassCommands,
+		TShaderMapRef<FNaniteMaterialVS> InNaniteVertexShader,
+		const FIntRect& InViewRect,
+		uint32 InTileCount,
+		int32 InTaskIndex,
+		int32 InTaskNum
+	)
+		: RHICmdList(InRHICmdList)
+		, NaniteMaterialPassCommands(InNaniteMaterialPassCommands)
+		, NaniteVertexShader(InNaniteVertexShader)
+		, ViewRect(InViewRect)
+		, TileCount(InTileCount)
+		, TaskIndex(InTaskIndex)
+		, TaskNum(InTaskNum)
+	{}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FSubmitNaniteMaterialPassCommandsAnyThreadTask, STATGROUP_TaskGraphTasks);
+	}
+
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+		TRACE_CPUPROFILER_EVENT_SCOPE(SubmitNaniteMaterialPassCommandsAnyThreadTask);
+		checkSlow(RHICmdList.IsInsideRenderPass());
+
+		// FDrawVisibleMeshCommandsAnyThreadTasks must only run on RT if RHISupportsMultithreadedShaderCreation is not supported!
+		check(IsInRenderingThread() || RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform));
+
+		// Recompute draw range.
+		const int32 DrawNum = NaniteMaterialPassCommands.Num();
+		const int32 NumDrawsPerTask = TaskIndex < DrawNum ? FMath::DivideAndRoundUp(DrawNum, TaskNum) : 0;
+		const int32 StartIndex = TaskIndex * NumDrawsPerTask;
+		const int32 NumDraws = FMath::Min(NumDrawsPerTask, DrawNum - StartIndex);
+
+		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+
+		FMeshDrawCommandStateCache StateCache;
+		FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+		for (int32 IterIndex = 0; IterIndex < NumDraws; ++IterIndex)
+		{
+			const FNaniteMaterialPassCommand& MaterialPassCommand = NaniteMaterialPassCommands[StartIndex + IterIndex];
+			SubmitNaniteMaterialPassCommand(MaterialPassCommand, NaniteVertexShader, GraphicsMinimalPipelineStateSet, TileCount, RHICmdList, StateCache);
+		}
+
+		RHICmdList.EndRenderPass();
+
+		// Make sure completion of this thread is extended for RT dependent tasks such as PSO creation is done
+		// before kicking the next task
+		RHICmdList.HandleRTThreadTaskCompletion(MyCompletionGraphEvent);
+	}
+};
+
+
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
+	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& NaniteMaterialPassCommands,
+	const FSceneRenderer& SceneRenderer,
 	const FSceneTextures& SceneTextures,
 	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
@@ -4507,14 +4575,23 @@ void DrawBasePass(
 		);
 
 		TShaderMapRef<FNaniteMaterialVS> NaniteVertexShader(View.ShaderMap);
+				
+		ERDGPassFlags RDGPassFlags = ERDGPassFlags::Raster;
+
+		// Skip render pass when parallel because that's taken care of by the FRDGParallelCommandListSet
+		bool bParallelBasePassBuild = CVarParallelBasePassBuild.GetValueOnRenderThread() != 0;
+		if (bParallelBasePassBuild)
+		{
+			RDGPassFlags |= ERDGPassFlags::SkipRenderPass;
+		}
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Emit GBuffer"),
 			PassParameters,
-			ERDGPassFlags::Raster,
-			[PassParameters, &Scene, NaniteVertexShader, ViewRect = View.ViewRect, NaniteMaterialCulling](FRHICommandListImmediate& RHICmdList)
+			RDGPassFlags,
+			[PassParameters, &SceneRenderer, &Scene, NaniteVertexShader, &View, &NaniteMaterialPassCommands, NaniteMaterialCulling](FRHICommandListImmediate& RHICmdListImmediate)
 		{
-			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+			RHICmdListImmediate.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 			FNaniteUniformParameters UniformParams;
 			UniformParams.SOAStrides = PassParameters->SOAStrides;
@@ -4532,8 +4609,8 @@ void DrawBasePass(
 			if (NaniteMaterialCulling == 3 || NaniteMaterialCulling == 4)
 			{
 				FIntPoint ScaledSize = PassParameters->GridSize * 64;
-				UniformParams.RectScaleOffset.X = float(ScaledSize.X) / float(ViewRect.Max.X - ViewRect.Min.X);
-				UniformParams.RectScaleOffset.Y = float(ScaledSize.Y) / float(ViewRect.Max.Y - ViewRect.Min.Y);
+				UniformParams.RectScaleOffset.X = float(ScaledSize.X) / float(View.ViewRect.Max.X - View.ViewRect.Min.X);
+				UniformParams.RectScaleOffset.Y = float(ScaledSize.Y) / float(View.ViewRect.Max.Y - View.ViewRect.Min.Y);
 			}
 
 			UniformParams.ClusterPageData = PassParameters->ClusterPageData;
@@ -4553,17 +4630,62 @@ void DrawBasePass(
 			UniformParams.DbgBuffer32 = PassParameters->DbgBuffer32->GetRHI();
 			const_cast<FScene&>(Scene).UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
 
-			FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-
-			TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator> NaniteMaterialPassCommands;
-			BuildNaniteMaterialPassCommands(RHICmdList, Scene.NaniteDrawCommands[ENaniteMeshPass::BasePass], NaniteMaterialPassCommands);
-
-			FMeshDrawCommandStateCache StateCache;
-
-			const uint32 TileCount = UniformParams.MaterialConfig.Y * UniformParams.MaterialConfig.Z; // (W * H)
-			for (auto CommandsIt = NaniteMaterialPassCommands.CreateConstIterator(); CommandsIt; ++CommandsIt)
+			BuildNaniteMaterialPassCommands(RHICmdListImmediate, Scene.NaniteDrawCommands[ENaniteMeshPass::BasePass], NaniteMaterialPassCommands);
+			
+			if (NaniteMaterialPassCommands.Num())
 			{
-				SubmitNaniteMaterialPassCommand(*CommandsIt, NaniteVertexShader, GraphicsMinimalPipelineStateSet, TileCount, RHICmdList, StateCache);
+				const uint32 TileCount = UniformParams.MaterialConfig.Y * UniformParams.MaterialConfig.Z; // (W * H)
+
+				bool bUseParallelCommandLists = CVarParallelBasePassBuild.GetValueOnRenderThread() != 0;
+				if (bUseParallelCommandLists)
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(BuildParallelCommandListSet);
+
+					// Parallel set will be executed when object goes out of scope
+					FRDGParallelCommandListSet ParallelCommandListSet(RHICmdListImmediate, GET_STATID(STAT_CLP_NaniteBasePass), SceneRenderer, View, FParallelCommandListBindings(PassParameters));
+
+					// Force high prio so it's not preempted by another high prio task
+					ParallelCommandListSet.SetHighPriority();
+
+					// Distribute work evenly to the available task graph workers based on NumPassCommands.
+					const int32 NumPassCommands = NaniteMaterialPassCommands.Num();
+					const int32 NumThreads = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads(), ParallelCommandListSet.Width);
+					const int32 NumTasks = FMath::Min<int32>(NumThreads, FMath::DivideAndRoundUp(NumPassCommands, ParallelCommandListSet.MinDrawsPerCommandList));
+					const int32 NumDrawsPerTask = FMath::DivideAndRoundUp(NumPassCommands, NumTasks);
+
+					const ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread();
+
+					// Assume on demand shader creation is enabled for platforms supporting Nanite
+					// otherwise there might be issues with PSO creation on a task which is not running on the RenderThread
+					// So task prerequisites can be empty (MeshDrawCommands task has prereq on FMeshDrawCommandInitResourcesTask which calls LazilyInitShaders on all shader)
+					ensure(FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled());
+					FGraphEventArray EmptyPrereqs;
+
+					for (int32 TaskIndex = 0; TaskIndex < NumTasks; TaskIndex++)
+					{
+						const int32 StartIndex = TaskIndex * NumDrawsPerTask;
+						const int32 NumDraws = FMath::Min(NumDrawsPerTask, NumPassCommands - StartIndex);
+						checkSlow(NumDraws > 0);
+
+						FRHICommandList* CmdList = ParallelCommandListSet.NewParallelCommandList();
+
+						FGraphEventRef AnyThreadCompletionEvent = TGraphTask<FSubmitNaniteMaterialPassCommandsAnyThreadTask>::CreateTask(&EmptyPrereqs, RenderThread).
+							ConstructAndDispatchWhenReady(*CmdList, NaniteMaterialPassCommands, NaniteVertexShader, View.ViewRect, TileCount, TaskIndex, NumTasks);
+
+						ParallelCommandListSet.AddParallelCommandList(CmdList, AnyThreadCompletionEvent, NumDraws);
+					}
+				}
+				else
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(SubmitNaniteMaterialPassCommands);
+
+					FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+					FMeshDrawCommandStateCache StateCache;
+					for (auto CommandsIt = NaniteMaterialPassCommands.CreateConstIterator(); CommandsIt; ++CommandsIt)
+					{
+						SubmitNaniteMaterialPassCommand(*CommandsIt, NaniteVertexShader, GraphicsMinimalPipelineStateSet, TileCount, RHICmdListImmediate, StateCache);
+					}
+				}
 			}
 		});
 	}

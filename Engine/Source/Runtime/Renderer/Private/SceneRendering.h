@@ -1229,6 +1229,8 @@ public:
 
 	TArray<FMeshBatchAndRelevance,SceneRenderingAllocator> DynamicEditorMeshElements;
 
+	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator> NaniteMaterialPassCommands;
+
 	FSimpleElementCollector SimpleElementCollector;
 
 	FSimpleElementCollector EditorSimpleElementCollector;
