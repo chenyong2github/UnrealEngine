@@ -65,6 +65,7 @@ inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc)
 	OutDesc.Flags = (InDesc.Flags & ShaderResourceOnlyFlags) | (InDesc.Flags & ShaderResourceFlags);
 	OutDesc.TargetableFlags = (InDesc.Flags & ~ShaderResourceOnlyFlags);
 	OutDesc.Format = InDesc.Format;
+	OutDesc.UAVFormat = InDesc.UAVFormat;
 	OutDesc.Extent.X = InDesc.Extent.X;
 	OutDesc.Extent.Y = InDesc.Extent.Y;
 	OutDesc.Depth = InDesc.Dimension == ETextureDimension::Texture3D ? InDesc.Depth : 0;
@@ -110,6 +111,7 @@ FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTe
 	FRDGTextureDesc OutDesc;
 	OutDesc.ClearValue = InDesc.ClearValue;
 	OutDesc.Format = InDesc.Format;
+	OutDesc.UAVFormat = InDesc.UAVFormat;
 	OutDesc.Extent = InDesc.Extent;
 	OutDesc.ArraySize = InDesc.ArraySize;
 	OutDesc.NumMips = InDesc.NumMips;
