@@ -10,6 +10,8 @@
 #include "BaseParser.h"
 #include "ParserHelper.h"
 
+#define UHT_ENABLE_ENGINE_TYPE_CHECKS 1
+
 // Forward declarations.
 class FScope;
 class FUnrealSourceFile;
@@ -250,6 +252,16 @@ public:
 	}
 
 	/**
+	 * Returns the name of the property
+	 */
+	virtual FString GetName() const = 0;
+
+	/** Returns the logical name of this object */
+	virtual FName GetFName() const = 0;
+
+	virtual FString GetFullName() const = 0;
+
+	/**
 	 * Return true if this type has source information
 	 */
 	bool HasSource() const
@@ -343,6 +355,11 @@ public:
 		return Outer;
 	}
 
+	/**
+	 * Return the meta data in map form
+	 */
+	virtual TMap<FName, FString> GenerateMetadataMap() const = 0;
+
 protected:
 	explicit FUnrealTypeDefinitionInfo(FString&& InNameCPP)
 		: NameCPP(MoveTemp(InNameCPP))
@@ -412,6 +429,401 @@ public:
 		Property = InProperty;
 	}
 
+	void ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::Type DeclarationType, const TCHAR* ArrayDimOverride = NULL, uint32 AdditionalExportCPPFlags = 0
+		, bool bSkipParameterName = false, const FString* ActualCppType = nullptr, const FString* ActualExtendedType = nullptr, const FString* ActualParameterName = nullptr) const
+	{
+		GetProperty()->ExportCppDeclaration(Out, DeclarationType, ArrayDimOverride, AdditionalExportCPPFlags, bSkipParameterName, ActualCppType, ActualExtendedType, ActualParameterName);
+	}
+
+	FString GetCPPMacroType(FString& ExtendedTypeText) const
+	{
+		return GetProperty()->GetCPPMacroType(ExtendedTypeText);
+	}
+
+	/**
+	 * Returns the name of the property
+	 */
+	virtual FString GetName() const override
+	{
+		return GetProperty()->GetName();
+	}
+
+	/** Returns the logical name of this object */
+	virtual FName GetFName() const override
+	{
+		return GetProperty()->GetFName();
+	}
+
+	virtual FString GetFullName() const override
+	{
+		return GetProperty()->GetFullName();
+	}
+
+	/**
+	 * Returns the fully qualified pathname for this object, in the format:
+	 * 'Outermost.[Outer:]Name'
+	 *
+	 * @param	StopOuter	if specified, indicates that the output string should be relative to this object.  if StopOuter
+	 *						does not exist in this object's Outer chain, the result would be the same as passing NULL.
+	 *
+	 * @note	safe to call on NULL object pointers!
+	 */
+	FString GetPathName(const UObject* StopOuter = nullptr)
+	{
+		return GetProperty()->GetPathName(StopOuter);
+	}
+
+	/**
+	 * Return the engine class name
+	 */
+	FString GetEngineClassName()
+	{
+		return GetProperty()->GetClass()->GetName();
+	}
+
+	/**
+	* Finds the localized display name or native display name as a fallback.
+	*
+	* @return The display name for this object.
+	*/
+	FText GetDisplayNameText() const
+	{
+		return GetProperty()->GetDisplayNameText();
+	}
+
+	/**
+	* Finds the localized tooltip or native tooltip as a fallback.
+	*
+	* @param bShortTooltip Look for a shorter version of the tooltip (falls back to the long tooltip if none was specified)
+	*
+	* @return The tooltip for this object.
+	*/
+	FText GetToolTipText(bool bShortTooltip = false) const
+	{
+		return GetProperty()->GetToolTipText(bShortTooltip);
+	}
+
+	/**
+	 * Returns the C++ name of the property, including the _DEPRECATED suffix if the
+	 * property is deprecated.
+	 *
+	 * @return C++ name of property
+	 */
+	FString GetPropertyNameCPP() const
+	{
+		return GetProperty()->GetNameCPP();
+	}
+
+	/**
+	 * Returns the text to use for exporting this property to header file.
+	 *
+	 * @param	ExtendedTypeText	for property types which use templates, will be filled in with the type
+	 * @param	CPPExportFlags		flags for modifying the behavior of the export
+	 */
+	FString GetCPPType(FString* ExtendedTypeText = NULL, uint32 CPPExportFlags = 0) const
+	{
+		return GetProperty()->GetCPPType(ExtendedTypeText, CPPExportFlags);
+	}
+
+	FString GetCPPTypeForwardDeclaration() const
+	{
+		return GetProperty()->GetCPPTypeForwardDeclaration();
+	}
+
+	/**
+	 * Returns this property's propertyflags
+	 */
+	EPropertyFlags GetPropertyFlags() const
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+#endif
+		return PropertyBase.PropertyFlags;
+	}
+
+	void SetPropertyFlags(EPropertyFlags NewFlags)
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+#endif
+		GetProperty()->PropertyFlags |= NewFlags;
+		PropertyBase.PropertyFlags |= NewFlags;
+	}
+
+	void ClearPropertyFlags(EPropertyFlags NewFlags)
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+#endif
+		GetProperty()->PropertyFlags &= ~NewFlags;
+		PropertyBase.PropertyFlags &= ~NewFlags;
+	}
+
+	/**
+	* 
+	 * Used to safely check whether any of the passed in flags are set. This is required
+	 * as PropertyFlags currently is a 64 bit data type and bool is a 32 bit data type so
+	 * simply using PropertyFlags&CPF_MyFlagBiggerThanMaxInt won't work correctly when
+	 * assigned directly to an bool.
+	 *
+	 * @param FlagsToCheck	Object flags to check for.
+	 *
+	 * @return				true if any of the passed in flags are set, false otherwise  (including no flags passed in).
+	 */
+	bool HasAnyPropertyFlags(uint64 FlagsToCheck) const
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check((FlagsToCheck & CPF_ComputedFlags) == 0);
+		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+#endif
+		return (PropertyBase.PropertyFlags & FlagsToCheck) != 0;
+	}
+
+	/**
+	 * Used to safely check whether all of the passed in flags are set. This is required
+	 * as PropertyFlags currently is a 64 bit data type and bool is a 32 bit data type so
+	 * simply using PropertyFlags&CPF_MyFlagBiggerThanMaxInt won't work correctly when
+	 * assigned directly to an bool.
+	 *
+	 * @param FlagsToCheck	Object flags to check for
+	 *
+	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
+	 */
+	bool HasAllPropertyFlags(uint64 FlagsToCheck) const
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check((FlagsToCheck & CPF_ComputedFlags) == 0);
+		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+#endif
+		return (PropertyBase.PropertyFlags & FlagsToCheck) == FlagsToCheck;
+	}
+
+	bool HasSpecificPropertyFlags(uint64 FlagsToCheck, uint64 ExpectedFlags)
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check((FlagsToCheck & CPF_ComputedFlags) == 0);
+		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+#endif
+		return (PropertyBase.PropertyFlags & FlagsToCheck) == ExpectedFlags;
+	}
+
+	/**
+	 * Get the cast flags
+	 */
+	uint64 GetCastFlags() const
+	{
+		return GetProperty()->GetCastFlags();
+	}
+
+	/**
+	* Determines if the property has any metadata associated with the key
+	*
+	* @param Key The key to lookup in the metadata
+	* @return true if there is a (possibly blank) value associated with this key
+	*/
+	bool HasMetaData(const TCHAR* Key) const { return FindMetaData(Key) != nullptr; }
+	bool HasMetaData(const FName& Key) const { return FindMetaData(Key) != nullptr; }
+
+	/**
+	* Find the metadata value associated with the key
+	*
+	* @param Key The key to lookup in the metadata
+	* @return The value associated with the key if it exists, null otherwise
+	*/
+	const FString* FindMetaData(const TCHAR* Key) const
+	{
+		return GetProperty()->FindMetaData(Key);
+	}
+	const FString* FindMetaData(const FName& Key) const
+	{
+		return GetProperty()->FindMetaData(Key);
+	}
+
+	/**
+	* Find the metadata value associated with the key
+	*
+	* @param Key The key to lookup in the metadata
+	* @return The value associated with the key
+	*/
+	const FString& GetMetaData(const TCHAR* Key) const
+	{
+		return GetProperty()->GetMetaData(Key);
+	}
+	const FString& GetMetaData(const FName& Key) const
+	{
+		return GetProperty()->GetMetaData(Key);
+	}
+
+	/**
+	 * Return the meta data in map form
+	 */
+	virtual TMap<FName, FString> GenerateMetadataMap() const override
+	{
+		TMap<FName, FString> MetaDataMap;
+		const TMap<FName, FString>* FieldMetaDataMap = GetProperty()->GetMetaDataMap();
+		if (FieldMetaDataMap)
+		{
+			MetaDataMap = *FieldMetaDataMap;
+		}
+		return MetaDataMap;
+	}
+
+	/**
+	 * Editor-only properties are those that only are used with the editor is present or cannot be removed from serialisation.
+	 * Editor-only properties include: EditorOnly properties
+	 * Properties that cannot be removed from serialisation are:
+	 *		Boolean properties (may affect GCC_BITFIELD_MAGIC computation)
+	 *		Native properties (native serialisation)
+	 */
+	bool IsEditorOnlyProperty() const
+	{
+		return GetProperty()->IsEditorOnlyProperty();
+	}
+
+	/**
+	 * Returns true if this property, or in the case of e.g. array or struct properties any sub- property, contains a
+	 * UObject reference that is marked CPF_NeedCtorLink (i.e. instanced keyword).
+	 *
+	 * @return true if property (or sub- properties) contain a FObjectProperty that is marked CPF_NeedCtorLink, false otherwise
+	 */
+	bool ContainsInstancedObjectProperty() const
+	{
+		//return (PropertyFlags & (CPF_ContainsInstancedReference | CPF_InstancedReference)) != 0;
+		return GetProperty()->ContainsInstancedObjectProperty();
+	}
+
+	/**
+	 * Test to see if two properties share the same types.  This method utilizes the underlying UProperty SameType implementation.
+	 */
+	bool SameType(const FUnrealPropertyDefinitionInfo& Other) const
+	{
+		return GetProperty()->SameType(Other.GetProperty());
+	}
+
+	/**
+	 * Determines whether this property's type is compatible with another property's type.
+	 *
+	 * @param	Other							the property to check against this one.
+	 *											Given the following example expressions, VarA is Other and VarB is 'this':
+	 *												VarA = VarB;
+	 *
+	 *												function func(type VarB) {}
+	 *												func(VarA);
+	 *
+	 *												static operator==(type VarB_1, type VarB_2) {}
+	 *												if ( VarA_1 == VarA_2 ) {}
+	 *
+	 * @param	bDisallowGeneralization			controls whether it should be considered a match if this property's type is a generalization
+	 *											of the other property's type (or vice versa, when dealing with structs
+	 * @param	bIgnoreImplementedInterfaces	controls whether two types can be considered a match if one type is an interface implemented
+	 *											by the other type.
+	 */
+	bool MatchesType(const FUnrealPropertyDefinitionInfo& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces = false) const
+	{
+		return GetPropertyBase().MatchesType(Other.GetPropertyBase(), bDisallowGeneralization, bIgnoreImplementedInterfaces);
+	}
+
+	/**
+	 * Return true if the property is a primitive type or an primitive type array
+	 */
+	bool IsPrimitiveOrPrimitiveStaticArray() const
+	{
+		return PropertyBase.IsPrimitiveOrPrimitiveStaticArray();
+	}
+
+	/**
+	 * Return true if the property is a static array
+	 */
+	bool IsStaticArray() const
+	{
+		return PropertyBase.ArrayType == EArrayType::Static;
+	}
+
+	/**
+	 * Return true if the property is a dynamic array
+	 */
+	bool IsDynamicArray() const
+	{
+		return PropertyBase.ArrayType == EArrayType::Dynamic;
+	}
+
+	/**
+	 * Return true if the property is a map
+	 */
+	bool IsMap() const
+	{
+		return PropertyBase.ArrayType == EArrayType::None && PropertyBase.MapKeyProp.IsValid();
+	}
+
+	/**
+	 * Return true if the property is a set
+	 */
+	bool IsSet() const
+	{
+		return PropertyBase.ArrayType == EArrayType::Set;
+	}
+
+	/**
+	 * Return true if the property is a boolean or boolean static array
+	 */
+	bool IsBooleanOrBooleanStaticArray() const
+	{
+		return PropertyBase.IsBooleanOrBooleanStaticArray();
+	}
+
+	/**
+	 * Return true if the property is an object or object static array
+	 */
+	bool IsObjectRefOrObjectRefStaticArray() const
+	{
+		return PropertyBase.IsObjectRefOrObjectRefStaticArray();
+	}
+
+	/**
+	 * Return true if the property is a class or class static array 
+	 * NOTE: This is specific to Object and ObjectPtr where the class derrives from UClass
+	 */
+	bool IsClassRefOrClassRefStaticArray() const
+	{
+		return PropertyBase.IsClassRefOrClassRefStaticArray();
+	}
+
+	/**
+	 * Return true if this is a byte enumeration
+	 */
+	bool IsByteEnumOrByteEnumStaticArray() const
+	{
+		return PropertyBase.IsByteEnumOrByteEnumStaticArray();
+	}
+
+	/** 
+	 * Return true if this is a numeric or a numeric static array
+	 */
+	bool IsNumericOrNumericStaticArray() const
+	{
+		return PropertyBase.IsNumericOrNumericStaticArray();
+	}
+
+	/**
+	 * Return true if this is a struct or a struct static array
+	 */
+	bool IsStructOrStructStaticArray() const
+	{
+		return PropertyBase.IsStructOrStructStaticArray();
+	}
+
+	/**
+	 * Return true if this is a structure and it has no op constructor
+	 */
+	bool HasNoOpConstructor() const
+	{
+		if (FStructProperty* StructProperty = CastField<FStructProperty>(GetProperty()))
+		{
+			return StructProperty->HasNoOpConstructor();
+		}
+		return false;
+	}
+
 	/**
 	 * Set the string that represents the array dimensions
 	 */
@@ -479,12 +891,28 @@ public:
 	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override;
 
 	/**
+	 * Return true if we have a key property def
+	 */
+	bool HasKeyPropDef() const
+	{
+		return KeyPropDef != nullptr;
+	}
+
+	/**
 	 * Get the associated key property definition (valid for maps)
 	 */
 	FUnrealPropertyDefinitionInfo& GetKeyPropDef() const
 	{
 		check(KeyPropDef);
 		return *KeyPropDef;
+	}
+
+	/**
+	 * Return true if we have a value property def
+	 */
+	bool HasValuePropDef() const
+	{
+		return ValuePropDef != nullptr;
 	}
 
 	/**
@@ -523,29 +951,6 @@ public:
 	}
 
 	/**
-	 * Determines whether this property's type is compatible with another property's type.
-	 *
-	 * @param	Other							the property to check against this one.
-	 *											Given the following example expressions, VarA is Other and VarB is 'this':
-	 *												VarA = VarB;
-	 *
-	 *												function func(type VarB) {}
-	 *												func(VarA);
-	 *
-	 *												static operator==(type VarB_1, type VarB_2) {}
-	 *												if ( VarA_1 == VarA_2 ) {}
-	 *
-	 * @param	bDisallowGeneralization			controls whether it should be considered a match if this property's type is a generalization
-	 *											of the other property's type (or vice versa, when dealing with structs
-	 * @param	bIgnoreImplementedInterfaces	controls whether two types can be considered a match if one type is an interface implemented
-	 *											by the other type.
-	 */
-	bool MatchesType(const FUnrealPropertyDefinitionInfo& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces = false) const
-	{
-		return GetPropertyBase().MatchesType(Other.GetPropertyBase(), bDisallowGeneralization, bIgnoreImplementedInterfaces);
-	}
-
-	/**
 	 * Return the type package name
 	 */
 	const FString& GetTypePackageName() const
@@ -562,6 +967,28 @@ public:
 	 * Helper function that checks if the field is belongs to a dynamic type
 	 */
 	virtual bool IsOwnedByDynamicType() const override;
+
+	/**
+	 * Return the replication notification function name
+	 */
+	FName GetRepNotifyFunc() const
+	{
+		return GetProperty()->RepNotifyFunc;
+	}
+
+	/**
+	 * Set the replication notification function name
+	 */
+	void SetRepNotifyFunc(FName InRepNotifyFunc)
+	{
+		GetProperty()->RepNotifyFunc = InRepNotifyFunc;
+		PropertyBase.RepNotifyName = InRepNotifyFunc;
+	}
+
+	/**
+	 * Set the delegate function signature
+	 */
+	void SetDelegateFunctionSignature(FUnrealFunctionDefinitionInfo& DelegateFunctionDef);
 
 private:
 	FPropertyBase PropertyBase;
@@ -610,15 +1037,20 @@ public:
 	/**
 	 * Returns the name of this object (with no path information)
 	 */
-	FString GetName() const
+	virtual FString GetName() const override
 	{
 		return GetObject()->GetName();
 	}
 
 	/** Returns the logical name of this object */
-	FName GetFName() const
+	virtual FName GetFName() const override
 	{
 		return GetObject()->GetFName();
+	}
+
+	virtual FString GetFullName() const override
+	{
+		return GetObject()->GetFullName();
 	}
 
 	/**
@@ -646,6 +1078,34 @@ public:
 	FUnrealObjectDefinitionInfo* GetOuter() const
 	{
 		return static_cast<FUnrealObjectDefinitionInfo*>(FUnrealTypeDefinitionInfo::GetOuter());
+	}
+
+	/**
+	 * Return the meta data in map form
+	 */
+	virtual TMap<FName, FString> GenerateMetadataMap() const override
+	{
+		UObject* Obj = GetObject();
+		check(Obj);
+		UPackage* Package = Obj->GetPackage();
+		check(Package);
+		UMetaData* Metadata = Package->GetMetaData();
+		check(Metadata);
+
+		TMap<FName, FString>* PackageMap = Metadata->ObjectMetaDataMap.Find(Obj);
+		TMap<FName, FString> Map;
+		if (PackageMap)
+		{
+			for (const TPair<FName, FString>& MetaKeyValue : *PackageMap)
+			{
+				FString Key = MetaKeyValue.Key.ToString();
+				if (!Key.StartsWith(TEXT("/Script")))
+				{
+					Map.Add(MetaKeyValue.Key, MetaKeyValue.Value);
+				}
+			}
+		}
+		return Map;
 	}
 
 	/**
@@ -1489,7 +1949,7 @@ public:
 	 * @param FlagsToCheck	Function flags to check for
 	 * @return true if all of the passed in flags are set (including no flags passed in), false otherwise
 	 */
-	FORCEINLINE bool HasAllFunctionFlags(EStructFlags FlagsToCheck) const
+	FORCEINLINE bool HasAllStructFlags(EStructFlags FlagsToCheck) const
 	{
 		return EnumHasAllFlags(GetScriptStruct()->StructFlags, FlagsToCheck);
 	}
@@ -1501,7 +1961,7 @@ public:
 	 * @param ExpectedFlags The flags from the flags to check that should be set
 	 * @return true if specific of the passed in flags are set (including no flags passed in), false otherwise
 	 */
-	FORCEINLINE bool HasSpecificFunctionFlags(EStructFlags FlagsToCheck, EStructFlags ExpectedFlags) const
+	FORCEINLINE bool HasSpecificStructFlags(EStructFlags FlagsToCheck, EStructFlags ExpectedFlags) const
 	{
 		EStructFlags Flags = GetScriptStruct()->StructFlags;
 		return (Flags & FlagsToCheck) == ExpectedFlags;
@@ -1608,11 +2068,6 @@ public:
 		EFunctionFlags Flags = GetFunction()->FunctionFlags;
 		return (Flags & FlagsToCheck) == ExpectedFlags;
 	}
-
-	/**
-	 * Return the outer in Class form.  
-	 */
-	FUnrealClassDefinitionInfo* GetOuterClass() const;
 
 	/** @name getters */
 	//@{
@@ -1817,7 +2272,6 @@ public:
 	 */
 	bool HasAnyClassFlags(EClassFlags FlagsToCheck) const
 	{
-
 		return EnumHasAnyFlags(ParsedClassFlags, FlagsToCheck) || GetClass()->HasAnyClassFlags(FlagsToCheck);
 	}
 
@@ -2259,8 +2713,3 @@ struct TUHTFieldRange
 
 	TUHTFieldIterator<T> Begin;
 };
-
-inline FUnrealClassDefinitionInfo* FUnrealFunctionDefinitionInfo::GetOuterClass() const
-{
-	return UHTCast<FUnrealClassDefinitionInfo>(GetOuter());
-}

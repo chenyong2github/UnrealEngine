@@ -282,6 +282,14 @@ bool FUnrealPropertyDefinitionInfo::IsOwnedByDynamicType() const
 	return false;
 }
 
+void FUnrealPropertyDefinitionInfo::SetDelegateFunctionSignature(FUnrealFunctionDefinitionInfo& DelegateFunctionDef)
+{
+	FDelegateProperty* DelegateProperty = CastFieldChecked<FDelegateProperty>(PropertyBase.ArrayType == EArrayType::None ? GetProperty() : GetValuePropDef().GetProperty());
+	DelegateProperty->SignatureFunction = DelegateFunctionDef.GetFunction();
+	PropertyBase.FunctionDef = &DelegateFunctionDef;
+}
+
+
 FUnrealPackageDefinitionInfo& FUnrealObjectDefinitionInfo::GetPackageDef() const
 {
 	if (HasSource())
@@ -419,6 +427,19 @@ FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSource
 void FUnrealStructDefinitionInfo::AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
 {
 	Properties.Add(&PropertyDef);
+
+	// Add the property to the engine object
+	FProperty* Property = PropertyDef.GetProperty();
+
+	// Add to the end of the properties slist
+	FField** Prev = &GetStruct()->ChildProperties;
+	for (; *Prev != nullptr; Prev = &(*Prev)->Next)
+	{
+		// No body
+	}
+	check(*Prev == nullptr);
+	Property->Next = nullptr;
+	*Prev = Property;
 
 	// update the optimization flags
 	if (!bContainsDelegates)

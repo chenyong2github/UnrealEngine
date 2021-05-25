@@ -674,7 +674,7 @@ namespace
 					if (FuncDef->HasAnyFunctionFlags(FUNC_Static))
 					{
 						// Determine if it's a function library
-						FUnrealClassDefinitionInfo* ClassDef = FuncDef->GetOuterClass();
+						FUnrealClassDefinitionInfo* ClassDef = FuncDef->GetOwnerClass();
 						for (; ClassDef != nullptr && ClassDef->GetSuperClass() != GUObjectDef; ClassDef = ClassDef->GetSuperClass())
 						{
 						}
@@ -695,30 +695,29 @@ namespace
 					bool bGoodParams = (FuncDef->GetProperties().Num() == 3);
 					if (bGoodParams)
 					{
-						FProperty* FirstParam = nullptr;
-						FProperty* SecondParam = nullptr;
-						FProperty* ReturnValue = nullptr;
+						FUnrealPropertyDefinitionInfo* FirstParam = nullptr;
+						FUnrealPropertyDefinitionInfo* SecondParam = nullptr;
+						FUnrealPropertyDefinitionInfo* ReturnValue = nullptr;
 						for (FUnrealPropertyDefinitionInfo* PropertyDef : FuncDef->GetProperties())
 						{
-							FProperty* Property = PropertyDef->GetProperty();
-							if (Property->HasAnyPropertyFlags(CPF_ReturnParm))
+							if (PropertyDef->HasAnyPropertyFlags(CPF_ReturnParm))
 							{
-								ReturnValue = Property;
+								ReturnValue = PropertyDef;
 							}
 							else
 							{
 								if (FirstParam == nullptr)
 								{
-									FirstParam = Property;
+									FirstParam = PropertyDef;
 								}
 								else if (SecondParam == nullptr)
 								{
-									SecondParam = Property;
+									SecondParam = PropertyDef;
 								}
 							}
 						}
 
-						if (ReturnValue == nullptr || SecondParam == nullptr || !SecondParam->SameType(FirstParam))
+						if (ReturnValue == nullptr || SecondParam == nullptr || !SecondParam->SameType(*FirstParam))
 						{
 							bGoodParams = false;
 						}
@@ -741,7 +740,7 @@ namespace
 					TArray<FString> RawGroupings;
 					InValue.ParseIntoArray(RawGroupings, TEXT(","), false);
 
-					FProperty* FirstInput = nullptr;
+					FUnrealPropertyDefinitionInfo* FirstInputDef = nullptr;
 					for (FString& RawGroup : RawGroupings)
 					{
 						RawGroup.TrimStartAndEndInline();
@@ -757,25 +756,25 @@ namespace
 								continue;
 							}
 							
-							FField* FoundField = FHeaderParser::FindProperty(*FuncDef, *Entry, false);
-							if (!FoundField)
+							FUnrealPropertyDefinitionInfo* FoundFieldDef = FHeaderParser::FindProperty(*FuncDef, *Entry, false);
+							if (!FoundFieldDef)
 							{
 								UE_LOG_ERROR_UHT(TEXT("Function does not have a parameter named '%s'"), *Entry);
 							}
-							else if (FProperty* Prop = CastField<FProperty>(FoundField))
+							else
 							{
-								if (!Prop->HasAnyPropertyFlags(CPF_ReturnParm) &&
+								if (!FoundFieldDef->HasAnyPropertyFlags(CPF_ReturnParm) &&
 
-								    (!Prop->HasAnyPropertyFlags(CPF_OutParm) ||
-									Prop->HasAnyPropertyFlags(CPF_ReferenceParm)))
+								    (!FoundFieldDef->HasAnyPropertyFlags(CPF_OutParm) ||
+										FoundFieldDef->HasAnyPropertyFlags(CPF_ReferenceParm)))
 								{
-									if (!FirstInput)
+									if (!FirstInputDef)
 									{
-										FirstInput = Prop;
+										FirstInputDef = FoundFieldDef;
 									}
 									else
 									{
-										UE_LOG_ERROR_UHT(TEXT("Function already specified an ExpandEnumAsExec input (%s), but '%s' is also an input parameter. Only one is permitted."), *FirstInput->GetName(), *Entry);
+										UE_LOG_ERROR_UHT(TEXT("Function already specified an ExpandEnumAsExec input (%s), but '%s' is also an input parameter. Only one is permitted."), *FirstInputDef->GetName(), *Entry);
 									}
 								}
 							}
@@ -801,8 +800,7 @@ namespace
 				// Check for numeric property
 				if (FUnrealPropertyDefinitionInfo* PropDef = TypeDef.AsProperty())
 				{
-					FProperty* Property = PropDef->GetProperty();
-					if (!Property->IsA<FNumericProperty>() && !Property->IsA<FStructProperty>())
+					if (!PropDef->IsNumericOrNumericStaticArray() && !PropDef->IsStructOrStructStaticArray())
 					{
 						FError::Throwf(TEXT("'Units' meta data can only be applied to numeric and struct properties"));
 					}
@@ -810,14 +808,7 @@ namespace
 
 				if (!FUnitConversion::UnitFromString(*InValue))
 				{
-					if (TypeDef.AsField() != nullptr)
-					{
-						FError::Throwf(TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *TypeDef.AsFieldChecked().GetField()->GetFullName());
-					}
-					else
-					{
-						FError::Throwf(TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *TypeDef.AsPropertyChecked().GetProperty()->GetFullName());
-					}
+					FError::Throwf(TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *TypeDef.GetFullName());
 				}
 			}
 			break;
@@ -1062,23 +1053,21 @@ FUnrealClassDefinitionInfo* FHeaderParser::GetQualifiedClass(const TCHAR* Thing)
 -----------------------------------------------------------------------------*/
 
 /**
- * Find a field in the specified context.  Starts with the specified scope, then iterates
+ * Find a function in the specified context.  Starts with the specified scope, then iterates
  * through the Outer chain until the field is found.
  * 
  * @param	InScope				scope to start searching for the field in 
  * @param	InIdentifier		name of the field we're searching for
  * @param	bIncludeParents		whether to allow searching in the scope of a parent struct
- * @param	FieldClass			class of the field to search for.  used to e.g. search for functions only
  * @param	Thing				hint text that will be used in the error message if an error is encountered
  *
  * @return	a pointer to a UField with a name matching InIdentifier, or NULL if it wasn't found
  */
-UField* FHeaderParser::FindField
+FUnrealFunctionDefinitionInfo* FHeaderParser::FindFunction
 (
 	FUnrealStructDefinitionInfo&  InScope,
 	const TCHAR*	InIdentifier,
 	bool			bIncludeParents,
-	UClass*			FieldClass,
 	const TCHAR*	Thing
 )
 {
@@ -1090,31 +1079,20 @@ UField* FHeaderParser::FindField
 		{
 			for (FUnrealPropertyDefinitionInfo* PropertyDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(*Scope))
 			{
-				FProperty* Property = PropertyDef->GetProperty();
-				if (Property->GetFName() == InName)
+				if (PropertyDef->GetFName() == InName)
 				{
 					if (Thing)
 					{
-						FError::Throwf(TEXT("%s: expecting @todo: FProp, got %s"), Thing, /**FieldClass->GetName(),*/ *Property->GetClass()->GetName());
+						FError::Throwf(TEXT("%s: expecting @todo: FProp, got %s"), Thing, /**FieldClass->GetName(),*/ *PropertyDef->GetEngineClassName());
 					}
 					return nullptr;
 				}
-
 			}
 			for (FUnrealFunctionDefinitionInfo* FunctionDef : TUHTFieldRange<FUnrealFunctionDefinitionInfo>(*Scope))
 			{
-				UFunction* Function = FunctionDef->GetFunction();
-				if (Function->GetFName() == InName)
+				if (FunctionDef->GetFName() == InName)
 				{
-					if (!Function->IsA(FieldClass))
-					{
-						if (Thing)
-						{
-							FError::Throwf(TEXT("%s: expecting %s, got %s"), Thing, *FieldClass->GetName(), *Function->GetClass()->GetName());
-						}
-						return nullptr;
-					}
-					return Function;
+					return FunctionDef;
 				}
 			}
 
@@ -1128,7 +1106,7 @@ UField* FHeaderParser::FindField
 	return nullptr;
 }
 
-FField* FHeaderParser::FindProperty(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents, FFieldClass* FieldClass, const TCHAR* Thing)
+FUnrealPropertyDefinitionInfo* FHeaderParser::FindProperty(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents, const TCHAR* Thing)
 {
 	check(InIdentifier);
 	FName InName(InIdentifier, FNAME_Find);
@@ -1138,30 +1116,20 @@ FField* FHeaderParser::FindProperty(FUnrealStructDefinitionInfo& InScope, const 
 		{
 			for (FUnrealFunctionDefinitionInfo* FunctionDef : TUHTFieldRange<FUnrealFunctionDefinitionInfo>(*Scope))
 			{
-				UFunction* Function = FunctionDef->GetFunction();
-				if (Function->GetFName() == InName)
+				if (FunctionDef->GetFName() == InName)
 				{
 					if (Thing)
 					{
-						FError::Throwf(TEXT("%s: expecting a property, got %s"), Thing, *Function->GetClass()->GetName());
+						FError::Throwf(TEXT("%s: expecting a property, got %s"), Thing, *FunctionDef->GetFunction()->GetClass()->GetName());
 					}
 					return nullptr;
 				}
 			}
 			for (FUnrealPropertyDefinitionInfo* PropertyDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(*Scope))
 			{
-				FProperty* Property = PropertyDef->GetProperty();
-				if (Property->GetFName() == InName)
+				if (PropertyDef->GetFName() == InName)
 				{
-					if (!Property->IsA(FieldClass))
-					{
-						if (Thing)
-						{
-							FError::Throwf(TEXT("%s: expecting %s: FProp, got %s"), Thing, *FieldClass->GetName(), *Property->GetClass()->GetName());
-						}
-						return nullptr;
-					}
-					return Property;
+					return PropertyDef;
 				}
 			}
 
@@ -2563,155 +2531,147 @@ void FHeaderParser::FixupDelegateProperties(FUnrealStructDefinitionInfo& StructD
 {
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
 	{
-		FProperty* Property = PropertyDef->GetProperty();
-		FDelegateProperty* DelegateProperty = CastField<FDelegateProperty>(Property);
-		FMulticastDelegateProperty* MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(Property);
-		if ( DelegateProperty == NULL && MulticastDelegateProperty == NULL )
+		FPropertyBase& PropertyBase = PropertyDef->GetPropertyBase();
+
+		// Ignore any containers types but static arrays
+		if (PropertyBase.ArrayType != EArrayType::None && PropertyBase.ArrayType != EArrayType::Static)
 		{
-			// if this is an array property, see if the array's type is a delegate
-			FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property);
-			if ( ArrayProp != NULL )
-			{
-				DelegateProperty = CastField<FDelegateProperty>(ArrayProp->Inner);
-				MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(ArrayProp->Inner);
-			}
+			continue;
 		}
-		if (DelegateProperty != nullptr || MulticastDelegateProperty != nullptr)
+
+		// At this point, we can check to see if we are a delegate or multicast delegate directly off the property definition
+		bool bIsDelegate = PropertyBase.Type == CPT_Delegate;
+		bool bIsMulticastDelegate = PropertyBase.Type == CPT_MulticastDelegate;
+		if (!bIsDelegate && !bIsMulticastDelegate)
 		{
-			// this FDelegateProperty corresponds to an actual delegate variable (i.e. delegate<SomeDelegate> Foo); we need to lookup the token data for
-			// this property and verify that the delegate property's "type" is an actual delegate function
-			FPropertyBase& DelegatePropertyToken = PropertyDef->GetPropertyBase();
+			continue;
+		}
 
-			// attempt to find the delegate function in the map of functions we've already found
-			FUnrealFunctionDefinitionInfo* SourceDelegateFunctionDef = DelegateCache.FindRef(DelegatePropertyToken.DelegateName);
-			if (SourceDelegateFunctionDef == nullptr)
+		// this FDelegateProperty corresponds to an actual delegate variable (i.e. delegate<SomeDelegate> Foo); we need to lookup the token data for
+		// this property and verify that the delegate property's "type" is an actual delegate function
+		FPropertyBase& DelegatePropertyBase = PropertyDef->GetPropertyBase();
+
+		// attempt to find the delegate function in the map of functions we've already found
+		FUnrealFunctionDefinitionInfo* SourceDelegateFunctionDef = DelegateCache.FindRef(DelegatePropertyBase.DelegateName);
+		if (SourceDelegateFunctionDef == nullptr)
+		{
+			FString NameOfDelegateFunction = DelegatePropertyBase.DelegateName.ToString() + FString( HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX );
+			if ( !NameOfDelegateFunction.Contains(TEXT(".")) )
 			{
-				FString NameOfDelegateFunction = DelegatePropertyToken.DelegateName.ToString() + FString( HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX );
-				if ( !NameOfDelegateFunction.Contains(TEXT(".")) )
+				// an unqualified delegate function name - search for a delegate function by this name within the current scope
+				if (FUnrealFieldDefinitionInfo* FoundDef = Scope.FindTypeByName(*NameOfDelegateFunction))
 				{
-					// an unqualified delegate function name - search for a delegate function by this name within the current scope
-					if (FUnrealFieldDefinitionInfo* FoundDef = Scope.FindTypeByName(*NameOfDelegateFunction))
-					{
-						SourceDelegateFunctionDef = FoundDef->AsFunction();
-					}
-					if (SourceDelegateFunctionDef == nullptr)
-					{
-						// Try to find in other packages.
-						UObject* DelegateSignatureOuter = DelegatePropertyToken.DelegateSignatureOwnerClass 
-							? ((UObject*)DelegatePropertyToken.DelegateSignatureOwnerClass) 
-							: ((UObject*)ANY_PACKAGE);
-						UFunction* SourceDelegateFunction = FEngineAPI::FindObject<UFunction>(DelegateSignatureOuter, *NameOfDelegateFunction);
-
-						if (SourceDelegateFunction == nullptr)
-						{
-							// convert this into a fully qualified path name for the error message.
-							NameOfDelegateFunction = Scope.GetName().ToString() + TEXT(".") + NameOfDelegateFunction;
-						}
-						else
-						{
-							SourceDelegateFunctionDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealFunctionDefinitionInfo>(SourceDelegateFunction);
-						}
-					}
+					SourceDelegateFunctionDef = FoundDef->AsFunction();
 				}
-				else
+				if (SourceDelegateFunctionDef == nullptr)
 				{
-					FString DelegateClassName, DelegateName;
-					NameOfDelegateFunction.Split(TEXT("."), &DelegateClassName, &DelegateName);
+					// Try to find in other packages.
+					UObject* DelegateSignatureOuter = DelegatePropertyBase.DelegateSignatureOwnerClass
+						? ((UObject*)DelegatePropertyBase.DelegateSignatureOwnerClass)
+						: ((UObject*)ANY_PACKAGE);
+					UFunction* SourceDelegateFunction = FEngineAPI::FindObject<UFunction>(DelegateSignatureOuter, *NameOfDelegateFunction);
 
-					// verify that we got a valid string for the class name
-					if ( DelegateClassName.Len() == 0 )
+					if (SourceDelegateFunction == nullptr)
 					{
-						UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
-						FError::Throwf(TEXT("Invalid scope specified in delegate property function reference: '%s'"), *NameOfDelegateFunction);
+						// convert this into a fully qualified path name for the error message.
+						NameOfDelegateFunction = Scope.GetName().ToString() + TEXT(".") + NameOfDelegateFunction;
 					}
-
-					// verify that we got a valid string for the name of the function
-					if ( DelegateName.Len() == 0 )
-					{
-						UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
-						FError::Throwf(TEXT("Invalid delegate name specified in delegate property function reference '%s'"), *NameOfDelegateFunction);
-					}
-
-					// make sure that the class that contains the delegate can be referenced here
-					FUnrealClassDefinitionInfo* DelegateOwnerClassDef = FUnrealClassDefinitionInfo::FindScriptClassOrThrow(DelegateClassName);
-					if (DelegateOwnerClassDef->GetScope()->FindTypeByName(*DelegateName) != nullptr)
-					{
-						FError::Throwf(TEXT("Inaccessible type: '%s'"), *DelegateOwnerClassDef->GetPathName());
-					}
-					UFunction* SourceDelegateFunction = Cast<UFunction>(FindField(*DelegateOwnerClassDef, *DelegateName, false, UFunction::StaticClass(), NULL));
-					if (SourceDelegateFunction != nullptr)
+					else
 					{
 						SourceDelegateFunctionDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealFunctionDefinitionInfo>(SourceDelegateFunction);
 					}
 				}
+			}
+			else
+			{
+				FString DelegateClassName, DelegateName;
+				NameOfDelegateFunction.Split(TEXT("."), &DelegateClassName, &DelegateName);
 
-				if (SourceDelegateFunctionDef == NULL )
+				// verify that we got a valid string for the class name
+				if ( DelegateClassName.Len() == 0 )
 				{
 					UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
-					FError::Throwf(TEXT("Failed to find delegate function '%s'"), *NameOfDelegateFunction);
+					FError::Throwf(TEXT("Invalid scope specified in delegate property function reference: '%s'"), *NameOfDelegateFunction);
 				}
-				else if (!SourceDelegateFunctionDef->HasAnyFunctionFlags(FUNC_Delegate))
+
+				// verify that we got a valid string for the name of the function
+				if ( DelegateName.Len() == 0 )
 				{
 					UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
-					FError::Throwf(TEXT("Only delegate functions can be used as the type for a delegate property; '%s' is not a delegate."), *NameOfDelegateFunction);
+					FError::Throwf(TEXT("Invalid delegate name specified in delegate property function reference '%s'"), *NameOfDelegateFunction);
 				}
+
+				// make sure that the class that contains the delegate can be referenced here
+				FUnrealClassDefinitionInfo* DelegateOwnerClassDef = FUnrealClassDefinitionInfo::FindScriptClassOrThrow(DelegateClassName);
+				if (DelegateOwnerClassDef->GetScope()->FindTypeByName(*DelegateName) != nullptr)
+				{
+					FError::Throwf(TEXT("Inaccessible type: '%s'"), *DelegateOwnerClassDef->GetPathName());
+				}
+				SourceDelegateFunctionDef = FindFunction(*DelegateOwnerClassDef, *DelegateName, false, nullptr);
 			}
 
-			// successfully found the delegate function that this delegate property corresponds to
-
-				// save this into the delegate cache for faster lookup later
-			DelegateCache.Add(DelegatePropertyToken.DelegateName, SourceDelegateFunctionDef);
-
-			// bind it to the delegate property
-			if( DelegateProperty != NULL )
+			if (SourceDelegateFunctionDef == NULL )
 			{
-				if( !SourceDelegateFunctionDef->HasAnyFunctionFlags( FUNC_MulticastDelegate ) )
-				{
-					DelegateProperty->SignatureFunction = SourceDelegateFunctionDef->GetFunction();
-					DelegatePropertyToken.FunctionDef = SourceDelegateFunctionDef;
-				}
-				else
-				{
-					FError::Throwf(TEXT("Unable to declare a single-cast delegate property for a multi-cast delegate type '%s'.  Either add a 'multicast' qualifier to the property or change the delegate type to be single-cast as well."), *SourceDelegateFunctionDef->GetName());
-				}
+				UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
+				FError::Throwf(TEXT("Failed to find delegate function '%s'"), *NameOfDelegateFunction);
 			}
-			else if( MulticastDelegateProperty != NULL )
+			else if (!SourceDelegateFunctionDef->HasAnyFunctionFlags(FUNC_Delegate))
 			{
-				if(SourceDelegateFunctionDef->HasAnyFunctionFlags( FUNC_MulticastDelegate ) )
-				{
-					MulticastDelegateProperty->SignatureFunction = SourceDelegateFunctionDef->GetFunction();
-					DelegatePropertyToken.FunctionDef = SourceDelegateFunctionDef;
+				UngetToken(PropertyDef->GetLineNumber(), PropertyDef->GetParsePosition());
+				FError::Throwf(TEXT("Only delegate functions can be used as the type for a delegate property; '%s' is not a delegate."), *NameOfDelegateFunction);
+			}
+		}
 
-					if(MulticastDelegateProperty->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable))
+		// successfully found the delegate function that this delegate property corresponds to
+
+			// save this into the delegate cache for faster lookup later
+		DelegateCache.Add(DelegatePropertyBase.DelegateName, SourceDelegateFunctionDef);
+
+		// bind it to the delegate property
+		if (PropertyBase.Type == CPT_Delegate)
+		{
+			if( !SourceDelegateFunctionDef->HasAnyFunctionFlags( FUNC_MulticastDelegate ) )
+			{
+				PropertyDef->SetDelegateFunctionSignature(*SourceDelegateFunctionDef);
+			}
+			else
+			{
+				FError::Throwf(TEXT("Unable to declare a single-cast delegate property for a multi-cast delegate type '%s'.  Either add a 'multicast' qualifier to the property or change the delegate type to be single-cast as well."), *SourceDelegateFunctionDef->GetName());
+			}
+		}
+		else if (PropertyBase.Type == CPT_MulticastDelegate)
+		{
+			if (SourceDelegateFunctionDef->HasAnyFunctionFlags( FUNC_MulticastDelegate ))
+			{
+				DelegatePropertyBase.FunctionDef = SourceDelegateFunctionDef;
+
+				if (PropertyDef->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable))
+				{
+					for (FUnrealPropertyDefinitionInfo* FuncParamDef : SourceDelegateFunctionDef->GetProperties())
 					{
-						for (FUnrealPropertyDefinitionInfo* FuncParamDef : SourceDelegateFunctionDef->GetProperties())
+						if (!FPropertyTraits::IsSupportedByBlueprint(*FuncParamDef, false))
 						{
-							FProperty* FuncParam = FuncParamDef->GetProperty();
+							FString ExtendedCPPType;
+							FString CPPType = FuncParamDef->GetCPPType(&ExtendedCPPType);
+							UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *SourceDelegateFunctionDef->GetName(), *FuncParamDef->GetName());
+						}
 
-							if (!FPropertyTraits::IsSupportedByBlueprint(*FuncParamDef, false))
+						if(FuncParamDef->HasAllPropertyFlags(CPF_OutParm) && !FuncParamDef->HasAllPropertyFlags(CPF_ConstParm)  )
+						{
+							const bool bClassGeneratedFromBP = StructDef.IsDynamic();
+							const bool bAllowedArrayRefFromBP = bClassGeneratedFromBP && FuncParamDef->IsDynamicArray();
+							if (!bAllowedArrayRefFromBP)
 							{
-								FString ExtendedCPPType;
-								FString CPPType = FuncParam->GetCPPType(&ExtendedCPPType);
-								UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *SourceDelegateFunctionDef->GetName(), *FuncParam->GetName());
-							}
-
-							if(FuncParam->HasAllPropertyFlags(CPF_OutParm) && !FuncParam->HasAllPropertyFlags(CPF_ConstParm)  )
-							{
-								const bool bClassGeneratedFromBP = StructDef.IsDynamic();
-								const bool bAllowedArrayRefFromBP = bClassGeneratedFromBP && FuncParam->IsA<FArrayProperty>();
-								if (!bAllowedArrayRefFromBP)
-								{
-									UE_LOG_ERROR_UHT(TEXT("BlueprintAssignable delegates do not support non-const references at the moment. Function: %s Parameter: '%s'"), *SourceDelegateFunctionDef->GetName(), *FuncParam->GetName());
-								}
+								UE_LOG_ERROR_UHT(TEXT("BlueprintAssignable delegates do not support non-const references at the moment. Function: %s Parameter: '%s'"), *SourceDelegateFunctionDef->GetName(), *FuncParamDef->GetName());
 							}
 						}
 					}
+				}
 
-				}
-				else
-				{
-					FError::Throwf(TEXT("Unable to declare a multi-cast delegate property for a single-cast delegate type '%s'.  Either remove the 'multicast' qualifier from the property or change the delegate type to be 'multicast' as well."), *SourceDelegateFunctionDef->GetName());
-				}
+			}
+			else
+			{
+				FError::Throwf(TEXT("Unable to declare a multi-cast delegate property for a single-cast delegate type '%s'.  Either remove the 'multicast' qualifier from the property or change the delegate type to be 'multicast' as well."), *SourceDelegateFunctionDef->GetName());
 			}
 		}
 	}
@@ -2774,22 +2734,21 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 		// check the data struct for invalid properties
 		for (FUnrealPropertyDefinitionInfo* PropertyDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(*SparseClassDataStructDef))
 		{
-			FProperty* Property = PropertyDef->GetProperty();
-			if (Property->HasAnyPropertyFlags(CPF_BlueprintAssignable))
+			if (PropertyDef->HasAnyPropertyFlags(CPF_BlueprintAssignable))
 			{
-				FError::Throwf(TEXT("Sparse class data types can not contain blueprint assignable delegates. Type '%s' Delegate '%s'"), *SparseClassDataStructDef->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types can not contain blueprint assignable delegates. Type '%s' Delegate '%s'"), *SparseClassDataStructDef->GetName(), *PropertyDef->GetName());
 			}
 
 			// all sparse properties should have EditDefaultsOnly
-			if (!Property->HasAllPropertyFlags(CPF_Edit | CPF_DisableEditOnInstance))
+			if (!PropertyDef->HasAllPropertyFlags(CPF_Edit | CPF_DisableEditOnInstance))
 			{
-				FError::Throwf(TEXT("Sparse class data types must be EditDefaultsOnly. Type '%s' Property '%s'"), *SparseClassDataStructDef->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types must be EditDefaultsOnly. Type '%s' Property '%s'"), *SparseClassDataStructDef->GetName(), *PropertyDef->GetName());
 			}
 
 			// no sparse properties should have BlueprintReadWrite
-			if (Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !Property->HasAllPropertyFlags(CPF_BlueprintReadOnly))
+			if (PropertyDef->HasAllPropertyFlags(CPF_BlueprintVisible) && !PropertyDef->HasAllPropertyFlags(CPF_BlueprintReadOnly))
 			{
-				FError::Throwf(TEXT("Sparse class data types must not be BlueprintReadWrite. Type '%s' Property '%s'"), *SparseClassDataStructDef->GetName(), *Property->GetName());
+				FError::Throwf(TEXT("Sparse class data types must not be BlueprintReadWrite. Type '%s' Property '%s'"), *SparseClassDataStructDef->GetName(), *PropertyDef->GetName());
 			}
 		}
 
@@ -2824,7 +2783,6 @@ void FHeaderParser::ValidateClassFlags(const FUnrealClassDefinitionInfo& ToValid
 void FHeaderParser::VerifyBlueprintPropertyGetter(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef)
 {
 	check(TargetFuncDef);
-	FProperty* Prop = PropertyDef.GetProperty();
 
 	const TArray<FUnrealPropertyDefinitionInfo*>& Properties = TargetFuncDef->GetProperties();
 	FUnrealPropertyDefinitionInfo* ReturnPropDef = TargetFuncDef->GetReturn();
@@ -2833,10 +2791,10 @@ void FHeaderParser::VerifyBlueprintPropertyGetter(FUnrealPropertyDefinitionInfo&
 		UE_LOG_ERROR_UHT(TEXT("Blueprint Property getter function %s must not have parameters."), *TargetFuncDef->GetName());
 	}
 
-	if (ReturnPropDef == nullptr || !Prop->SameType(ReturnPropDef->GetProperty()))
+	if (ReturnPropDef == nullptr || !PropertyDef.SameType(*ReturnPropDef))
 	{
 		FString ExtendedCPPType;
-		FString CPPType = Prop->GetCPPType(&ExtendedCPPType);
+		FString CPPType = PropertyDef.GetCPPType(&ExtendedCPPType);
 		UE_LOG_ERROR_UHT(TEXT("Blueprint Property getter function %s must have return value of type %s%s."), *TargetFuncDef->GetName(), *CPPType, *ExtendedCPPType);
 	}
 
@@ -2853,7 +2811,6 @@ void FHeaderParser::VerifyBlueprintPropertyGetter(FUnrealPropertyDefinitionInfo&
 void FHeaderParser::VerifyBlueprintPropertySetter(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef)
 {
 	check(TargetFuncDef);
-	FProperty* Prop = PropertyDef.GetProperty();
 	FUnrealPropertyDefinitionInfo* ReturnPropDef = TargetFuncDef->GetReturn();
 
 	if (ReturnPropDef)
@@ -2863,10 +2820,10 @@ void FHeaderParser::VerifyBlueprintPropertySetter(FUnrealPropertyDefinitionInfo&
 	else
 	{
 		const TArray<FUnrealPropertyDefinitionInfo*>& Properties = TargetFuncDef->GetProperties();
-		if (TargetFuncDef->GetProperties().Num() != 1 || !Prop->SameType(Properties[0]->GetProperty()))
+		if (TargetFuncDef->GetProperties().Num() != 1 || !PropertyDef.SameType(*Properties[0]))
 		{
 			FString ExtendedCPPType;
-			FString CPPType = Prop->GetCPPType(&ExtendedCPPType);
+			FString CPPType = PropertyDef.GetCPPType(&ExtendedCPPType);
 			UE_LOG_ERROR_UHT(TEXT("Blueprint Property setter function %s must have exactly one parameter of type %s%s."), *TargetFuncDef->GetName(), *CPPType, *ExtendedCPPType);
 		}
 	}
@@ -2887,7 +2844,6 @@ void FHeaderParser::VerifyBlueprintPropertySetter(FUnrealPropertyDefinitionInfo&
 
 void FHeaderParser::VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef)
 {
-	FProperty* Prop = PropertyDef.GetProperty();
 	if (TargetFuncDef)
 	{
 		if (TargetFuncDef->GetReturn())
@@ -2895,7 +2851,7 @@ void FHeaderParser::VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& Prope
 			UE_LOG_ERROR_UHT(TEXT("Replication notification function %s must not have return value."), *TargetFuncDef->GetName());
 		}
 
-		const bool bIsArrayProperty = ( Prop->ArrayDim > 1 || CastField<FArrayProperty>(Prop) );
+		const bool bIsArrayProperty = PropertyDef.IsStaticArray() || PropertyDef.IsDynamicArray();
 		const int32 MaxParms = bIsArrayProperty ? 2 : 1;
 
 		const TArray<FUnrealPropertyDefinitionInfo*>& Properties = TargetFuncDef->GetProperties();
@@ -2904,25 +2860,24 @@ void FHeaderParser::VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& Prope
 			UE_LOG_ERROR_UHT(TEXT("Replication notification function %s has too many parameters."), *TargetFuncDef->GetName());
 		}
 
-
 		if (Properties.Num() >= 1)
 		{
-			const FProperty* Parm = Properties[0]->GetProperty();
+			const FUnrealPropertyDefinitionInfo* ParmDef = Properties[0];
 			// First parameter is always the old value:
-			if ( !Prop->SameType(Parm) )
+			if (!PropertyDef.SameType(*ParmDef))
 			{
 				FString ExtendedCPPType;
-				FString CPPType = Prop->GetCPPType(&ExtendedCPPType);
-				UE_LOG_ERROR_UHT(TEXT("Replication notification function %s has invalid parameter for property %s. First (optional) parameter must be of type %s%s."), *TargetFuncDef->GetName(), *Prop->GetName(), *CPPType, *ExtendedCPPType);
+				FString CPPType = ParmDef->GetCPPType(&ExtendedCPPType);
+				UE_LOG_ERROR_UHT(TEXT("Replication notification function %s has invalid parameter for property %s. First (optional) parameter must be of type %s%s."), *TargetFuncDef->GetName(), *ParmDef->GetName(), *CPPType, *ExtendedCPPType);
 			}
 		}
 
 		if (TargetFuncDef->GetProperties().Num() >= 2)
 		{
-			FProperty* Parm = Properties[1]->GetProperty();
+			FUnrealPropertyDefinitionInfo* ParmDef = Properties[1];
+			FPropertyBase& ParmBase = ParmDef->GetPropertyBase();
 			// A 2nd parameter for arrays can be specified as a const TArray<uint8>&. This is a list of element indices that have changed
-			FArrayProperty *ArrayProp = CastField<FArrayProperty>(Parm);
-			if (!(ArrayProp && CastField<FByteProperty>(ArrayProp->Inner)) || !(Parm->GetPropertyFlags() & CPF_ConstParm) || !(Parm->GetPropertyFlags() & CPF_ReferenceParm))
+			if (!(ParmBase.Type == CPT_Byte && ParmBase.ArrayType == EArrayType::Dynamic && ParmDef->HasAllPropertyFlags(CPF_ConstParm | CPF_ReferenceParm)))
 			{
 				UE_LOG_ERROR_UHT(TEXT("Replication notification function %s (optional) second parameter must be of type 'const TArray<uint8>&'"), *TargetFuncDef->GetName());
 			}
@@ -2931,7 +2886,7 @@ void FHeaderParser::VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& Prope
 	else
 	{
 		// Couldn't find a valid function...
-		UE_LOG_ERROR_UHT(TEXT("Replication notification function %s not found"), *Prop->RepNotifyFunc.ToString() );
+		UE_LOG_ERROR_UHT(TEXT("Replication notification function %s not found"), *PropertyDef.GetRepNotifyFunc().ToString() );
 	}
 }
 void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClassDef)
@@ -2939,8 +2894,6 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 	// Iterate over all properties, looking for those flagged as CPF_RepNotify
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : TargetClassDef.GetProperties())
 	{
-		FProperty* Prop = PropertyDef->GetProperty();
-
 		auto FindTargetFunction = [&](const FName FuncName)
 		{
 			// Search through this class and its super classes looking for the specified callback
@@ -2963,14 +2916,14 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 		TGuardValue<int32> GuardedInputPos(InputPos, PropertyDef->GetParsePosition());
 		TGuardValue<int32> GuardedInputLine(InputLine, PropertyDef->GetLineNumber());
 
-		if (Prop->HasAnyPropertyFlags(CPF_RepNotify))
+		if (PropertyDef->HasAnyPropertyFlags(CPF_RepNotify))
 		{
-			VerifyRepNotifyCallback(*PropertyDef, FindTargetFunction(Prop->RepNotifyFunc));
+			VerifyRepNotifyCallback(*PropertyDef, FindTargetFunction(PropertyDef->GetRepNotifyFunc()));
 		}
 
-		if (Prop->HasAnyPropertyFlags(CPF_BlueprintVisible))
+		if (PropertyDef->HasAnyPropertyFlags(CPF_BlueprintVisible))
 		{
-			const FString& GetterFuncName = Prop->GetMetaData(NAME_BlueprintGetter);
+			const FString& GetterFuncName = PropertyDef->GetMetaData(NAME_BlueprintGetter);
 			if (!GetterFuncName.IsEmpty())
 			{
 				if (FUnrealFunctionDefinitionInfo* TargetFuncDef = FindTargetFunction(*GetterFuncName))
@@ -2984,9 +2937,9 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 				}
 			}
 
-			if (!Prop->HasAnyPropertyFlags(CPF_BlueprintReadOnly))
+			if (!PropertyDef->HasAnyPropertyFlags(CPF_BlueprintReadOnly))
 			{
-				const FString& SetterFuncName = Prop->GetMetaData(NAME_BlueprintSetter);
+				const FString& SetterFuncName = PropertyDef->GetMetaData(NAME_BlueprintSetter);
 				if (!SetterFuncName.IsEmpty())
 				{
 					if (FUnrealFunctionDefinitionInfo* TargetFuncDef = FindTargetFunction(*SetterFuncName))
@@ -4667,7 +4620,7 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
-	if ( VarProperty.IsObject() && VarProperty.Type != CPT_SoftObjectReference && VarProperty.MetaClassDef == nullptr && (VarProperty.PropertyFlags&CPF_Config) != 0 )
+	if ( VarProperty.IsObjectOrInterface() && VarProperty.Type != CPT_SoftObjectReference && VarProperty.MetaClassDef == nullptr && (VarProperty.PropertyFlags&CPF_Config) != 0 )
 	{
 		FError::Throwf(TEXT("Not allowed to use 'config' with object variables"));
 	}
@@ -4826,14 +4779,14 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 
 	// Make sure it doesn't conflict.
 	int32 OuterContextCount = 0;
-	UField* ExistingField = FindField(ParentStruct, Identifier, true, UField::StaticClass(), NULL);
-	FField* ExistingProperty = FindProperty(ParentStruct, Identifier, true, FField::StaticClass(), NULL);
+	FUnrealFunctionDefinitionInfo* ExistingFunctionDef = FindFunction(ParentStruct, Identifier, true, nullptr);
+	FUnrealPropertyDefinitionInfo* ExistingPropertyDef = FindProperty(ParentStruct, Identifier, true);
 
-	if (ExistingField != nullptr || ExistingProperty != nullptr)
+	if (ExistingFunctionDef != nullptr || ExistingPropertyDef != nullptr)
 	{
 		bool bErrorDueToShadowing = true;
 
-		if (ExistingField && ExistingField->IsA(UFunction::StaticClass()) && (VariableCategory != EVariableCategory::Member))
+		if (ExistingFunctionDef && (VariableCategory != EVariableCategory::Member))
 		{
 			// A function parameter with the same name as a method is allowed
 			bErrorDueToShadowing = false;
@@ -4841,10 +4794,9 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 
 		//@TODO: This exception does not seem sound either, but there is enough existing code that it will need to be
 		// fixed up first before the exception it is removed.
-		if (ExistingProperty)
+		if (ExistingPropertyDef)
  		{
- 			FProperty* ExistingProp = CastField<FProperty>(ExistingProperty);
- 			const bool bExistingPropDeprecated = (ExistingProp != nullptr) && ExistingProp->HasAnyPropertyFlags(CPF_Deprecated);
+ 			const bool bExistingPropDeprecated = ExistingPropertyDef->HasAnyPropertyFlags(CPF_Deprecated);
  			const bool bNewPropDeprecated = (VariableCategory == EVariableCategory::Member) && ((VarProperty.PropertyFlags & CPF_Deprecated) != 0);
  			if (bNewPropDeprecated || bExistingPropDeprecated)
  			{
@@ -4859,7 +4811,7 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 				HintText,
 				Identifier,
 				*ParentStruct.GetName(),
-				ExistingField ? *ExistingField->GetOuter()->GetName() : *ExistingProperty->GetOwnerVariant().GetFullName());
+				ExistingFunctionDef ? *ExistingFunctionDef->GetOuter()->GetName() : *ExistingPropertyDef->GetFullName());
 		}
 	}
 
@@ -5007,23 +4959,10 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 	// Create the property
 	// NOTE: Only FProperyBase part of VarProperty is used.  
 	FName PropertyName(Identifier);
-	//VarProperty.StartLine = InputLine;
-	//VarProperty.StartPos = InputPos;
 	FUnrealPropertyDefinitionInfo& PropDef = FPropertyTraits::CreateProperty(VarProperty, ParentStruct, PropertyName, ObjectFlags, VariableCategory, Dimensions.String, SourceFile, InputLine, InputPos);
-	FProperty* Property = PropDef.GetProperty();
 
 	// Add the property to the parent
 	ParentStruct.AddProperty(PropDef);
-
-	// Add to the end of the properties slist
-	FField** Prev = &ParentStruct.GetStruct()->ChildProperties;
-	for (; *Prev != nullptr; Prev = &(*Prev)->Next)
-	{
-		// No body
-	}
-	check(*Prev == nullptr);
-	Property->Next = nullptr;
-	*Prev = Property;
 
 	// if we had any metadata, add it to the class
 	AddMetaDataToClassData(PropDef, TMap<FName,FString>(PropDef.GetPropertyBase().MetaData));
@@ -5643,14 +5582,13 @@ void PostParsingClassSetup(FUnrealClassDefinitionInfo& ClassDef)
 	{
 		for (FUnrealPropertyDefinitionInfo* PropertyDef : ClassDef.GetProperties())
 		{
-			FProperty* Property = PropertyDef->GetProperty();
-			if ((Property->PropertyFlags & CPF_Config) != 0)
+			if (PropertyDef->HasAnyPropertyFlags(CPF_Config))
 			{
 				ClassDef.SetClassFlags(CLASS_Config);
 				if (HasAllOptimizationClassFlags()) break;
 			}
 
-			if (Property->ContainsInstancedObjectProperty())
+			if (PropertyDef->ContainsInstancedObjectProperty())
 			{
 				ClassDef.SetClassFlags(CLASS_HasInstancedReference);
 				if (HasAllOptimizationClassFlags()) break;
@@ -6140,10 +6078,9 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 	// validate the property types for this struct
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(StructDef))
 	{
-		FProperty const* const Prop = PropertyDef->GetProperty();
 		FString MemberCPPType;
 		FString ExtendedCPPType;
-		MemberCPPType = Prop->GetCPPType(&ExtendedCPPType);
+		MemberCPPType = PropertyDef->GetCPPType(&ExtendedCPPType);
 
 		if (ExtendedCPPType.IsEmpty() && MemberCPPType.StartsWith(TEnumAsByteText))
 		{
@@ -6151,26 +6088,18 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 		}
 
 		FRigVMParameter Parameter;
-		Parameter.Name = Prop->GetName();
+		Parameter.Name = PropertyDef->GetName();
 		Parameter.Type = MemberCPPType + ExtendedCPPType;
-		Parameter.bConstant = Prop->HasMetaData(NAME_ConstantText);
-		Parameter.bInput = Prop->HasMetaData(NAME_InputText);
-		Parameter.bOutput = Prop->HasMetaData(NAME_OutputText);
-		Parameter.ArraySize = Prop->GetMetaData(NAME_ArraySizeText);
+		Parameter.bConstant = PropertyDef->HasMetaData(NAME_ConstantText);
+		Parameter.bInput = PropertyDef->HasMetaData(NAME_InputText);
+		Parameter.bOutput = PropertyDef->HasMetaData(NAME_OutputText);
+		Parameter.ArraySize = PropertyDef->GetMetaData(NAME_ArraySizeText);
 		Parameter.Getter = GetRefText;
-		Parameter.bEditorOnly = Prop->IsEditorOnlyProperty();
-		Parameter.bSingleton = Prop->HasMetaData(NAME_SingletonText);
+		Parameter.bEditorOnly = PropertyDef->IsEditorOnlyProperty();
+		Parameter.bSingleton = PropertyDef->HasMetaData(NAME_SingletonText);
+		Parameter.bIsEnum = PropertyDef->GetPropertyBase().IsEnum();
 
-		if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Prop))
-		{
-			Parameter.bIsEnum = true;
-		}
-		else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(Prop))
-		{
-			Parameter.bIsEnum = ByteProperty->Enum != nullptr;
-		}
-
-		if (Prop->HasMetaData(NAME_VisibleText))
+		if (PropertyDef->HasMetaData(NAME_VisibleText))
 		{
 			Parameter.bConstant = true;
 			Parameter.bInput = true;
@@ -6252,13 +6181,12 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 		}
 
 		FUnrealPropertyDefinitionInfo& PropDef = GetVarNameAndDim(FunctionDef, Property, VariableCategory);
-		FProperty* Prop = PropDef.GetProperty();
 
 		FunctionDef.GetFunction()->NumParms++;
 
-		if( AdvancedDisplay.CanMarkMore() && AdvancedDisplay.ShouldMarkParameter(Prop->GetName()) )
+		if( AdvancedDisplay.CanMarkMore() && AdvancedDisplay.ShouldMarkParameter(PropDef.GetName()) )
 		{
-			Prop->PropertyFlags |= CPF_AdvancedDisplay;
+			PropDef.SetPropertyFlags(CPF_AdvancedDisplay);
 		}
 
 		// Check parameters.
@@ -6299,17 +6227,17 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 					UE_LOG_ERROR_UHT(TEXT("Only service request functions cannot contain NoReplication parameters"));
 				}
 
-				if ((Prop->GetCastFlags() & CASTCLASS_FDelegateProperty) != 0)
+				if ((PropDef.GetCastFlags() & CASTCLASS_FDelegateProperty) != 0)
 				{
 					UE_LOG_ERROR_UHT(TEXT("Replicated functions cannot contain delegate parameters (this would be insecure)"));
 				}
 
-				if (Property.Type == CPT_String && Property.RefQualifier != ERefQualifier::ConstRef && Prop->ArrayDim == 1)
+				if (Property.Type == CPT_String && Property.RefQualifier != ERefQualifier::ConstRef && !PropDef.IsStaticArray())
 				{
 					UE_LOG_ERROR_UHT(TEXT("Replicated FString parameters must be passed by const reference"));
 				}
 
-				if (Property.ArrayType == EArrayType::Dynamic && Property.RefQualifier != ERefQualifier::ConstRef && Prop->ArrayDim == 1)
+				if (Property.ArrayType == EArrayType::Dynamic && Property.RefQualifier != ERefQualifier::ConstRef && !PropDef.IsStaticArray())
 				{
 					UE_LOG_ERROR_UHT(TEXT("Replicated TArray parameters must be passed by const reference"));
 				}
@@ -6321,7 +6249,7 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 					UE_LOG_ERROR_UHT(TEXT("Service request functions cannot contain out parameters, unless marked NotReplicated"));
 				}
 
-				if (!(Property.PropertyFlags & CPF_RepSkip) && (Prop->GetCastFlags() & CASTCLASS_FDelegateProperty) != 0)
+				if (!(Property.PropertyFlags & CPF_RepSkip) && (PropDef.GetCastFlags() & CASTCLASS_FDelegateProperty) != 0)
 				{
 					UE_LOG_ERROR_UHT(TEXT("Service request functions cannot contain delegate parameters, unless marked NotReplicated"));
 				}
@@ -6329,12 +6257,12 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 		}
 		if (FunctionDef.HasAnyFunctionFlags(FUNC_BlueprintEvent|FUNC_BlueprintCallable))
 		{
-			if (Property.Type == CPT_Byte)
+			if (Property.Type == CPT_Byte && Property.IsPrimitiveOrPrimitiveStaticArray())
 			{
-				if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Prop))
+				if (FUnrealEnumDefinitionInfo* EnumDef = Property.AsEnum())
 				{
-					FProperty* InnerType = EnumProperty->GetUnderlyingProperty();
-					if (InnerType && !InnerType->IsA<FByteProperty>())
+					if (EnumDef->GetUnderlyingType() != EUnderlyingEnumType::uint8 &&
+						EnumDef->GetUnderlyingType() != EUnderlyingEnumType::Unspecified)
 					{
 						FError::Throwf(TEXT("Invalid enum param for Blueprints - currently only uint8 supported"));
 					}
@@ -6397,7 +6325,7 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 			{
 				FString DefaultArgText(EndPos - StartPos, Input + StartPos);
 				FString Key(TEXT("CPP_Default_"));
-				Key += Prop->GetName();
+				Key += PropDef.GetName();
 				FName KeyName = FName(*Key);
 				if (!MetaData->Contains(KeyName))
 				{
@@ -6405,11 +6333,11 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 					const bool bDefaultValueParsed = FPropertyTraits::DefaultValueStringCppFormatToInnerFormat(PropDef, DefaultArgText, InnerDefaultValue);
 					if (!bDefaultValueParsed)
 					{
-						FError::Throwf(TEXT("C++ Default parameter not parsed: %s \"%s\" "), *Prop->GetName(), *DefaultArgText);
+						FError::Throwf(TEXT("C++ Default parameter not parsed: %s \"%s\" "), *PropDef.GetName(), *DefaultArgText);
 					}
 
 					MetaData->Add(KeyName, InnerDefaultValue);
-						UE_LOG(LogCompile, Verbose, TEXT("C++ Default parameter parsed: %s \"%s\" -> \"%s\" "), *Prop->GetName(), *DefaultArgText, *InnerDefaultValue );
+						UE_LOG(LogCompile, Verbose, TEXT("C++ Default parameter parsed: %s \"%s\" -> \"%s\" "), *PropDef.GetName(), *DefaultArgText, *InnerDefaultValue );
 				}
 			}
 		}
@@ -6961,10 +6889,9 @@ void FHeaderParser::CompileFunctionDeclaration()
 	bool bHasAnyOutputs = bHasReturnValue;
 	if (!bHasAnyOutputs)
 	{
-		for (FUnrealPropertyDefinitionInfo* ProperyDef : FuncDef.GetProperties())
+		for (FUnrealPropertyDefinitionInfo* PropertyDef : FuncDef.GetProperties())
 		{
-			FProperty const* const Param = ProperyDef->GetProperty();
-			if (!(Param->PropertyFlags & CPF_ReturnParm) && (Param->PropertyFlags & CPF_OutParm))
+			if (PropertyDef->HasSpecificPropertyFlags(CPF_ReturnParm | CPF_OutParm, CPF_OutParm))
 			{
 				bHasAnyOutputs = true;
 				break;
@@ -7092,17 +7019,16 @@ void FHeaderParser::CompileFunctionDeclaration()
 	{
 		for (FUnrealPropertyDefinitionInfo* PropertyDef : FuncDef.GetProperties())
 		{
-			FProperty const* const Param = PropertyDef->GetProperty();
-			if (Param->ArrayDim > 1)
+			if (PropertyDef->IsStaticArray())
 			{
-				FError::Throwf(TEXT("Static array cannot be exposed to blueprint. Function: %s Parameter %s\n"), *TopFunction->GetName(), *Param->GetName());
+				FError::Throwf(TEXT("Static array cannot be exposed to blueprint. Function: %s Parameter %s\n"), *TopFunction->GetName(), *PropertyDef->GetName());
 			}
 
 			if (!FPropertyTraits::IsSupportedByBlueprint(*PropertyDef, false))
 			{
 				FString ExtendedCPPType;
-				FString CPPType = Param->GetCPPType(&ExtendedCPPType);
-				UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *TopFunction->GetName(), *Param->GetName());
+				FString CPPType = PropertyDef->GetCPPType(&ExtendedCPPType);
+				UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *TopFunction->GetName(), *PropertyDef->GetName());
 			}
 		}
 	}
@@ -7299,24 +7225,23 @@ bool FHeaderParser::ValidateScriptStructOkForNet(const FString& OriginStructName
 
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : InStructDef.GetProperties())
 	{
-		FProperty* ChildProp = PropertyDef->GetProperty();
-		if (const FSetProperty* const SetProp = CastField<FSetProperty>(ChildProp))
+		if (PropertyDef->IsSet())
 		{
-			if (!(SetProp->PropertyFlags & CPF_RepSkip))
+			if (!PropertyDef->HasAnyPropertyFlags(CPF_RepSkip))
 			{
 				bIsStructValid = false;
-				UE_LOG_ERROR_UHT(TEXT("Sets are not supported for Replication or RPCs.  Set %s in %s.  Origin %s"), *ChildProp->GetName(), *ChildProp->Owner.GetName(), *OriginStructName);
+				UE_LOG_ERROR_UHT(TEXT("Sets are not supported for Replication or RPCs.  Set %s in %s.  Origin %s"), *PropertyDef->GetName(), *PropertyDef->GetOuter()->GetName(), *OriginStructName);
 			}
 		}
-		else if (const FMapProperty* const MapProp = CastField<FMapProperty>(ChildProp))
+		else if (PropertyDef->IsMap())
 		{
-			if (!(MapProp->PropertyFlags & CPF_RepSkip))
+			if (!PropertyDef->HasAnyPropertyFlags(CPF_RepSkip))
 			{
 				bIsStructValid = false;
-				UE_LOG_ERROR_UHT(TEXT("Maps are not supported for Replication or RPCs.  Map %s in %s.  Origin %s"), *ChildProp->GetName(), *ChildProp->Owner.GetName(), *OriginStructName);
+				UE_LOG_ERROR_UHT(TEXT("Maps are not supported for Replication or RPCs.  Map %s in %s.  Origin %s"), *PropertyDef->GetName(), *PropertyDef->GetOuter()->GetName(), *OriginStructName);
 			}
 		}
-		else if (const FStructProperty* const StructProperty = CastField<FStructProperty>(ChildProp))
+		else if (PropertyDef->IsStructOrStructStaticArray())
 		{
 			if (!ValidateScriptStructOkForNet(OriginStructName, *PropertyDef->GetPropertyBase().ScriptStructDef))
 			{
@@ -7449,12 +7374,11 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	}
 
 	// Process all variables of this type.
-	TArray<FProperty*> NewProperties;
+	TArray<FUnrealPropertyDefinitionInfo*> NewProperties;
 	for (;;)
 	{
 		FPropertyBase Property = OriginalProperty;
 		FUnrealPropertyDefinitionInfo& NewPropDef = GetVarNameAndDim(StructDef, Property, EVariableCategory::Member, LayoutMacroType);
-		FProperty* NewProperty = NewPropDef.GetProperty();
 
 		// Optionally consume the :1 at the end of a bitfield boolean declaration
 		if (Property.IsBool())
@@ -7464,7 +7388,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 				int32 BitfieldSize = 0;
 				if (!GetConstInt(/*out*/ BitfieldSize) || (BitfieldSize != 1))
 				{
-					FError::Throwf(TEXT("Bad or missing bitfield size for '%s', must be 1."), *NewProperty->GetName());
+					FError::Throwf(TEXT("Bad or missing bitfield size for '%s', must be 1."), *NewPropDef.GetName());
 				}
 			}
 		}
@@ -7476,44 +7400,44 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 		{
 			if (NewProperties.Num())
 			{
-				FError::Throwf(TEXT("Comma delimited properties cannot be converted %s.%s\n"), *StructDef.GetName(), *NewProperty->GetName());
+				FError::Throwf(TEXT("Comma delimited properties cannot be converted %s.%s\n"), *StructDef.GetName(), *NewPropDef.GetName());
 			}
 		}
 
-		NewProperties.Add( NewProperty );
+		NewProperties.Add(&NewPropDef);
 		// we'll need any metadata tags we parsed later on when we call ConvertEOLCommentToTooltip() so the tags aren't clobbered
 		OriginalProperty.MetaData = Property.MetaData;
 
-		if (NewProperty->HasAnyPropertyFlags(CPF_RepNotify))
+		if (NewPropDef.HasAnyPropertyFlags(CPF_RepNotify))
 		{
-			NewProperty->RepNotifyFunc = OriginalProperty.RepNotifyName;
+			NewPropDef.SetRepNotifyFunc(OriginalProperty.RepNotifyName);
 		}
 
 		if (UScriptStruct* StructBeingBuilt = Cast<UScriptStruct>(Struct))
 		{
-			if (NewProperty->ContainsInstancedObjectProperty())
+			if (NewPropDef.ContainsInstancedObjectProperty())
 			{
 				StructBeingBuilt->StructFlags = EStructFlags(StructBeingBuilt->StructFlags | STRUCT_HasInstancedReference);
 			}
 		}
 
-		if (NewProperty->HasAnyPropertyFlags(CPF_BlueprintVisible))
+		if (NewPropDef.HasAnyPropertyFlags(CPF_BlueprintVisible))
 		{
 			if (Struct->IsA<UScriptStruct>() && !StructDef.GetBoolMetaDataHierarchical(FHeaderParserNames::NAME_BlueprintType))
 			{
-				UE_LOG_ERROR_UHT(TEXT("Cannot expose property to blueprints in a struct that is not a BlueprintType. %s.%s"), *StructDef.GetName(), *NewProperty->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Cannot expose property to blueprints in a struct that is not a BlueprintType. %s.%s"), *StructDef.GetName(), *NewPropDef.GetName());
 			}
 
-			if (NewProperty->ArrayDim > 1)
+			if (NewPropDef.IsStaticArray())
 			{
-				UE_LOG_ERROR_UHT(TEXT("Static array cannot be exposed to blueprint %s.%s"), *StructDef.GetName(), *NewProperty->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Static array cannot be exposed to blueprint %s.%s"), *StructDef.GetName(), *NewPropDef.GetName());
 			}
 
 			if (!FPropertyTraits::IsSupportedByBlueprint(NewPropDef, true))
 			{
 				FString ExtendedCPPType;
-				FString CPPType = NewProperty->GetCPPType(&ExtendedCPPType);
-				UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *StructDef.GetName(), *NewProperty->GetName());
+				FString CPPType = NewPropDef.GetCPPType(&ExtendedCPPType);
+				UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *StructDef.GetName(), *NewPropDef.GetName());
 			}
 		}
 
@@ -7650,12 +7574,12 @@ void FHeaderParser::ComputeFunctionParametersSize(FUnrealClassDefinitionInfo& Cl
 		{
 			for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef->GetProperties())
 			{
-				FProperty* Param = PropertyDef->GetProperty();
-				if (FStructProperty* StructProp = CastField<FStructProperty>(Param))
+				if (PropertyDef->IsStructOrStructStaticArray())
 				{
-					if (StructProp->Struct->StructFlags & STRUCT_HasInstancedReference)
+					FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
+					if (StructDef.HasAnyStructFlags(STRUCT_HasInstancedReference))
 					{
-						StructProp->PropertyFlags |= CPF_ContainsInstancedReference;
+						PropertyDef->SetPropertyFlags(CPF_ContainsInstancedReference);
 					}
 				}
 			}
@@ -7667,17 +7591,16 @@ void FHeaderParser::ComputeFunctionParametersSize(FUnrealClassDefinitionInfo& Cl
 		ThisFunction->ParmsSize = 0;
 		for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef->GetProperties())
 		{
-			FProperty* Param = PropertyDef->GetProperty();
-
-			if (!(Param->PropertyFlags & CPF_ReturnParm) && (Param->PropertyFlags & CPF_OutParm))
+			if (PropertyDef->HasSpecificPropertyFlags(CPF_ReturnParm | CPF_OutParm, CPF_OutParm))
 			{
 				ThisFunction->FunctionFlags |= FUNC_HasOutParms;
 				FunctionDef->GetFunctionData().FunctionFlags |= FUNC_HasOutParms;
 			}
 				
-			if (FStructProperty* StructProp = CastField<FStructProperty>(Param))
+			if (PropertyDef->IsStructOrStructStaticArray())
 			{
-				if (StructProp->Struct->HasDefaults())
+				FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
+				if (StructDef.HasDefaults())
 				{
 					ThisFunction->FunctionFlags |= FUNC_HasDefaults;
 					FunctionDef->GetFunctionData().FunctionFlags |= FUNC_HasDefaults;
@@ -9113,14 +9036,13 @@ void FHeaderParser::PostPopNestClass(FUnrealClassDefinitionInfo& CurrentClassDef
 						FUnrealPropertyDefinitionInfo* ClassParamDef = ClassFunctionDef->GetProperties()[Index];
 						if (!InterfaceParamDef->MatchesType(*ClassParamDef, true))
 						{
-							FProperty* Property = InterfaceParamDef->GetProperty();
-							if (Property->HasAnyPropertyFlags(CPF_ReturnParm))
+							if (InterfaceParamDef->HasAnyPropertyFlags(CPF_ReturnParm))
 							{
 								FError::Throwf(TEXT("Implementation of function '%s' conflicts only by return type with interface '%s'"), *InterfaceFunctionDef->GetName(), *InterfaceDef->GetName());
 							}
 							else
 							{
-								FError::Throwf(TEXT("Implementation of function '%s' conflicts with interface '%s' - parameter %i '%s'"), *InterfaceFunctionDef->GetName(), *InterfaceDef->GetName(), End, *Property->GetName());
+								FError::Throwf(TEXT("Implementation of function '%s' conflicts with interface '%s' - parameter %i '%s'"), *InterfaceFunctionDef->GetName(), *InterfaceDef->GetName(), End, *InterfaceParamDef->GetName());
 							}
 						}
 					}
@@ -9268,19 +9190,18 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInf
 		TMap<FString, FName> ToolTipToPropertyName;
 		for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
 		{
-			FProperty* Property = PropertyDef->GetProperty();
-			FString ToolTip = Property->GetToolTipText().ToString();
-			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetDisplayNameText().ToString()))
+			FString ToolTip = PropertyDef->GetToolTipText().ToString();
+			if (ToolTip.IsEmpty() || ToolTip.Equals(PropertyDef->GetDisplayNameText().ToString()))
 			{
-				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *StructDef.GetName(), *Property->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *StructDef.GetName(), *PropertyDef->GetName());
 				continue;
 			}
 			const FName* ExistingPropertyName = ToolTipToPropertyName.Find(ToolTip);
 			if (ExistingPropertyName != nullptr)
 			{
-				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' and '%s::%s' are using identical tooltips (DocumentationPolicy)."), *StructDef.GetName(), *ExistingPropertyName->ToString(), *StructDef.GetName(), *Property->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' and '%s::%s' are using identical tooltips (DocumentationPolicy)."), *StructDef.GetName(), *ExistingPropertyName->ToString(), *StructDef.GetName(), *PropertyDef->GetName());
 			}
-			ToolTipToPropertyName.Add(MoveTemp(ToolTip), Property->GetFName());
+			ToolTipToPropertyName.Add(MoveTemp(ToolTip), PropertyDef->GetFName());
 		}
 	}
 
@@ -9288,15 +9209,14 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInf
 	{
 		for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
 		{
-			FProperty* Property = PropertyDef->GetProperty();
-			if(DoesCPPTypeRequireDocumentation(Property->GetCPPType()))
+			if(DoesCPPTypeRequireDocumentation(PropertyDef->GetCPPType()))
 			{
-				const FString& UIMin = Property->GetMetaData(NAME_UIMin);
-				const FString& UIMax = Property->GetMetaData(NAME_UIMax);
+				const FString& UIMin = PropertyDef->GetMetaData(NAME_UIMin);
+				const FString& UIMax = PropertyDef->GetMetaData(NAME_UIMax);
 
 				if(!CheckUIMinMaxRangeFromMetaData(UIMin, UIMax))
 				{
-					UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a valid UIMin / UIMax (DocumentationPolicy)."), *StructDef.GetName(), *Property->GetName());
+					UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a valid UIMin / UIMax (DocumentationPolicy)."), *StructDef.GetName(), *PropertyDef->GetName());
 				}
 			}
 		}
@@ -9375,8 +9295,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(FUnrealClassDefinitionInfo& 
 			TSet<FName> ExistingFields;
 			for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef.GetProperties())
 			{
-				FProperty* Property = PropertyDef->GetProperty();
-				FName ParamName = Property->GetFName();
+				FName ParamName = PropertyDef->GetFName();
 				if (ParamName == NAME_ReturnValue)
 				{
 					continue;

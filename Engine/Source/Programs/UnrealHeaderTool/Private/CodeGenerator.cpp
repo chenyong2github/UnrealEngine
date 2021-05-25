@@ -177,7 +177,7 @@ namespace
 		{
 			for (FUnrealPropertyDefinitionInfo* PropertyDef : ClassDef.GetProperties())
 			{
-				if ((PropertyDef->GetProperty()->PropertyFlags & CPF_Net) != 0)
+				if (PropertyDef->HasAnyPropertyFlags(CPF_Net))
 				{
 					return true;
 				}
@@ -516,12 +516,11 @@ FParmsAndReturnProperties GetFunctionParmsAndReturn(FUnrealFunctionDefinitionInf
 	FParmsAndReturnProperties Result;
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef.GetProperties())
 	{
-		FProperty* Field = PropertyDef->GetProperty();
-		if ((Field->PropertyFlags & (CPF_Parm | CPF_ReturnParm)) == CPF_Parm)
+		if (PropertyDef->HasSpecificPropertyFlags(CPF_Parm | CPF_ReturnParm, CPF_Parm))
 		{
 			Result.Parms.Add(PropertyDef);
 		}
-		else if (Field->PropertyFlags & CPF_ReturnParm)
+		else if (PropertyDef->HasAnyPropertyFlags(CPF_ReturnParm))
 		{
 			Result.Return = PropertyDef;
 		}
@@ -652,58 +651,10 @@ FString CreateUTF8LiteralString(const FString& Str)
 	return Result;
 }
 
-TMap<FName, FString> GenerateMetadataMapForObject(const UObject* Obj)
-{
-	check(Obj);
-	UPackage* Package = Obj->GetOutermost();
-	check(Package);
-	UMetaData* Metadata = Package->GetMetaData();
-	check(Metadata);
-
-	TMap<FName, FString>* PackageMap = Metadata->ObjectMetaDataMap.Find(Obj);
-	TMap<FName, FString> Map;
-	if (PackageMap)
-	{
-		for (const TPair<FName, FString>& MetaKeyValue : *PackageMap)
-		{
-			FString Key = MetaKeyValue.Key.ToString();
-			if (!Key.StartsWith(TEXT("/Script")))
-			{
-				Map.Add(MetaKeyValue.Key, MetaKeyValue.Value);
-			}
-		}
-	}
-	return Map;
-}
-
-TMap<FName, FString> GenerateMetadataMapForField(const FField* Field)
-{
-	TMap<FName, FString> MetaDataMap;
-	const TMap<FName, FString>* FieldMetaDataMap = Field->GetMetaDataMap();
-	if (FieldMetaDataMap)
-	{
-		MetaDataMap = *FieldMetaDataMap;
-	}
-	return MetaDataMap;
-}
-
 // Returns the METADATA_PARAMS for this output
 static FString OutputMetaDataCodeForObject(FOutputDevice& OutDeclaration, FOutputDevice& Out, FUnrealTypeDefinitionInfo& TypeDef, const TCHAR* MetaDataBlockName, const TCHAR* DeclSpaces, const TCHAR* Spaces)
 {
-	TMap<FName, FString> MetaData;
-	
-	if (FUnrealObjectDefinitionInfo* ObjectDef = UHTCast<FUnrealObjectDefinitionInfo>(TypeDef))
-	{
-		MetaData = GenerateMetadataMapForObject(ObjectDef->GetObject());
-	}
-	else if (FUnrealPropertyDefinitionInfo* PropertyDef = UHTCast<FUnrealPropertyDefinitionInfo>(TypeDef))
-	{
-		MetaData = GenerateMetadataMapForField(PropertyDef->GetProperty());
-	}
-	else
-	{
-		FError::Throwf(TEXT("Unknown type definition"));
-	}
+	TMap<FName, FString> MetaData = TypeDef.GenerateMetadataMap();
 
 	FString Result;
 	if (MetaData.Num())
@@ -759,14 +710,12 @@ void FNativeClassHeaderGenerator::ExportProperties(FOutputDevice& Out, FUnrealSt
 	// Iterate over all properties in this struct.
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
 	{
-		FProperty* Property = PropertyDef->GetProperty();
-
-		WithEditorOnlyData(Property->IsEditorOnlyProperty());
+		WithEditorOnlyData(PropertyDef->IsEditorOnlyProperty());
 
 		// Export property specifiers
 		// Indent code and export CPP text.
 		FUHTStringBuilder JustPropertyDecl;
-		Property->ExportCppDeclaration( JustPropertyDecl, EExportedDeclaration::Member, PropertyDef->GetArrayDimensions());
+		PropertyDef->ExportCppDeclaration( JustPropertyDecl, EExportedDeclaration::Member, PropertyDef->GetArrayDimensions());
 		ApplyAlternatePropertyExportText(*PropertyDef, JustPropertyDecl, EExportingState::TypeEraseDelegates);
 
 		// Finish up line.
@@ -804,142 +753,83 @@ const FString& FNativeClassHeaderGenerator::GetSingletonNameFuncAddr(FUnrealFiel
 void FNativeClassHeaderGenerator::GetPropertyTag(FUHTStringBuilder& Out, FUnrealPropertyDefinitionInfo& PropDef)
 {
 	const FPropertyBase& PropertyBase = PropDef.GetPropertyBase();
-	FProperty* Prop = PropDef.GetProperty();
 
+	// Do the value types
+	switch (PropertyBase.GetUHTPropertyType())
+	{
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
-	if (FNumericProperty* TypedProp = CastField<FNumericProperty>(Prop))
-	{
-		if (PropertyBase.EnumDef != nullptr)
-		{
-			PropertyBase.EnumDef->GetHashTag(Out);
-		}
-		return;
-	}
-
-	if (FEnumProperty* TypedProp = CastField<FEnumProperty>(Prop))
-	{
+	case EUHTPropertyType::Enum:
 		PropertyBase.EnumDef->GetHashTag(Out);
-		return;
-	}
+		break;
 
-	if (FStructProperty* TypedProp = CastField<FStructProperty>(Prop))
-	{
+	case EUHTPropertyType::Struct:
 		PropertyBase.ScriptStructDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FArrayProperty* TypedProp = CastField<FArrayProperty>(Prop))
-	{
-		GetPropertyTag(Out, PropDef.GetValuePropDef());
-		return;
-	}
-
-	if (FMapProperty* TypedProp = CastField<FMapProperty>(Prop))
-	{
-		GetPropertyTag(Out, PropDef.GetKeyPropDef());
-		GetPropertyTag(Out, PropDef.GetValuePropDef());
-		return;
-	}
-
-	if (FSetProperty* TypedProp = CastField<FSetProperty>(Prop))
-	{
-		GetPropertyTag(Out, PropDef.GetValuePropDef());
-		return;
-	}
+		break;
 #endif
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
-	if (FClassProperty* TypedProp = CastField<FClassProperty>(Prop))
-	{
+	case EUHTPropertyType::ObjectReference:
+	case EUHTPropertyType::WeakObjectReference:
+	case EUHTPropertyType::LazyObjectReference:
+	case EUHTPropertyType::SoftObjectReference:
+	case EUHTPropertyType::ObjectPtrReference:
+	case EUHTPropertyType::InterfaceReference:
+	case EUHTPropertyType::InterfaceReference:
 		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FObjectProperty* TypedProp = CastField<FObjectProperty>(Prop))
-	{
-		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FSoftClassProperty* TypedProp = CastField<FSoftClassProperty>(Prop))
-	{
-		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FSoftObjectProperty* TypedProp = CastField<FSoftObjectProperty>(Prop))
-	{
-		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FClassPtrProperty* TypedProp = CastField<FClassPtrProperty>(Prop))
-	{
-		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FObjectPtrProperty* TypedProp = CastField<FObjectPtrProperty>(Prop))
-	{
-		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FInterfaceProperty* TypedProp = CastField<FInterfaceProperty>(Prop))
-	{
-		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FWeakObjectProperty* TypedProp = CastField<FWeakObjectProperty>(Prop))
-	{
-		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
-
-	if (FLazyObjectProperty* TypedProp = CastField<FLazyObjectProperty>(Prop))
-	{
-		PropertyBase.ClassDef->GetHashTag(Out);
-		return;
-	}
+		break;
 #endif
+
+	default:
+		break;
+	}
+
+	// Add the key value
+	if (PropDef.HasKeyPropDef())
+	{
+		GetPropertyTag(Out, PropDef.GetKeyPropDef());
+	}
+	if (PropDef.HasValuePropDef())
+	{
+		GetPropertyTag(Out, PropDef.GetValuePropDef());
+	}
 }
 
-void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, FUnrealPropertyDefinitionInfo& PropertyDef, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct) const
+void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FUnrealPropertyDefinitionInfo& PropertyDef, const TCHAR* OffsetStr, FString&& Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct) const
 {
 	const FPropertyBase& PropertyBase   = PropertyDef.GetPropertyBase();
-	FProperty*	   Prop                 = PropertyDef.GetProperty();
-	FString        PropName             = CreateUTF8LiteralString(FNativeClassHeaderGenerator::GetOverriddenName(Prop));
-	FString        PropNameDep          = Prop->HasAllPropertyFlags(CPF_Deprecated) ? Prop->GetName() + TEXT("_DEPRECATED") : Prop->GetName();
+	FString        PropName             = CreateUTF8LiteralString(FNativeClassHeaderGenerator::GetOverriddenName(&PropertyDef));
+	FString        PropNameDep          = PropertyDef.HasAllPropertyFlags(CPF_Deprecated) ? PropertyDef.GetName() + TEXT("_DEPRECATED") : PropertyDef.GetName();
 	const TCHAR*   FPropertyObjectFlags = PropertyDef.IsOwnedByDynamicType() ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
-	EPropertyFlags PropFlags            = Prop->PropertyFlags & ~CPF_ComputedFlags;
+	EPropertyFlags PropFlags            = PropertyDef.GetPropertyFlags() & ~CPF_ComputedFlags;
 
 	FUHTStringBuilder PropTag;
 	GetPropertyTag(PropTag, PropertyDef);
 
-	FString PropNotifyFunc = (Prop->RepNotifyFunc != NAME_None) ? CreateUTF8LiteralString(*Prop->RepNotifyFunc.ToString()) : TEXT("nullptr");
+	FString PropNotifyFunc = PropertyDef.GetRepNotifyFunc() != NAME_None ? CreateUTF8LiteralString(*PropertyDef.GetRepNotifyFunc().ToString()) : TEXT("nullptr");
 
-	FString ArrayDim = (Prop->ArrayDim != 1) ? FString::Printf(TEXT("CPP_ARRAY_DIM(%s, %s)"), *PropNameDep, SourceStruct) : TEXT("1");
+	FString ArrayDim = PropertyDef.IsStaticArray() ? FString::Printf(TEXT("CPP_ARRAY_DIM(%s, %s)"), *PropNameDep, SourceStruct) : TEXT("1");
 
-	FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), Name), DeclSpaces, Spaces);
-
-	FString NameWithoutScope = Name;
-	FString Scope;
-	int32 ScopeIndex = NameWithoutScope.Find(TEXT("::"), ESearchCase::CaseSensitive);
-	if (ScopeIndex != INDEX_NONE)
+	FString NameWithoutScope = *Name;
 	{
-		Scope = NameWithoutScope.Left(ScopeIndex) + TEXT("_");
-		NameWithoutScope.RightChopInline(ScopeIndex + 2, false);
+		//FString Scope;
+		int32 ScopeIndex = NameWithoutScope.Find(TEXT("::"), ESearchCase::CaseSensitive);
+		if (ScopeIndex != INDEX_NONE)
+		{
+			//Scope = NameWithoutScope.Left(ScopeIndex) + TEXT("_");
+			NameWithoutScope.RightChopInline(ScopeIndex + 2, false);
+		}
 	}
 
-	if (FByteProperty* TypedProp = CastField<FByteProperty>(Prop))
+	auto OutputByteProperty = [&]()
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FBytePropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FBytePropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Byte, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -950,18 +840,26 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
+	};
 
-		return;
+	switch (PropertyBase.GetUHTPropertyType())
+	{
+	case EUHTPropertyType::Byte:
+	{
+		OutputByteProperty();
+		break;
 	}
 
-	if (FInt8Property* TypedProp = CastField<FInt8Property>(Prop))
+	case EUHTPropertyType::Int8:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FInt8PropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FInt8PropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Int8, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -971,18 +869,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FInt16Property* TypedProp = CastField<FInt16Property>(Prop))
+	case EUHTPropertyType::Int16:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FInt16PropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FInt16PropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Int16, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -992,12 +891,13 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FIntProperty* TypedProp = CastField<FIntProperty>(Prop))
+	case EUHTPropertyType::Int:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		const TCHAR* PropTypeName = PropertyDef.IsUnsized() ? TEXT("FUnsizedIntPropertyParams") : TEXT("FIntPropertyParams");
 
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::%s %s;\r\n"), DeclSpaces, PropTypeName, *NameWithoutScope);
@@ -1006,7 +906,7 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			TEXT("%sconst UECodeGen_Private::%s %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Int, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
 			PropTypeName,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1016,18 +916,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FInt64Property* TypedProp = CastField<FInt64Property>(Prop))
+	case EUHTPropertyType::Int64:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FInt64PropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FInt64PropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Int64, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1037,18 +938,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FUInt16Property* TypedProp = CastField<FUInt16Property>(Prop))
+	case EUHTPropertyType::UInt16:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FFInt16PropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FFInt16PropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::UInt16, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1058,12 +960,13 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FUInt32Property* TypedProp = CastField<FUInt32Property>(Prop))
+	case EUHTPropertyType::UInt32:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		const TCHAR* PropTypeName = PropertyDef.IsUnsized() ? TEXT("FUnsizedFIntPropertyParams") : TEXT("FUInt32PropertyParams");
 
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::%s %s;\r\n"), DeclSpaces, PropTypeName, *NameWithoutScope);
@@ -1072,7 +975,7 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			TEXT("%sconst UECodeGen_Private::%s %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::UInt32, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
 			PropTypeName,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1082,18 +985,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FUInt64Property* TypedProp = CastField<FUInt64Property>(Prop))
+	case EUHTPropertyType::UInt64:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FFInt64PropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FFInt64PropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::UInt64, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1103,18 +1007,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FFloatProperty* TypedProp = CastField<FFloatProperty>(Prop))
+	case EUHTPropertyType::Float:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FFloatPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FFloatPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Float, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1124,18 +1029,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FDoubleProperty* TypedProp = CastField<FDoubleProperty>(Prop))
+	case EUHTPropertyType::Double:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FDoublePropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FDoublePropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Double, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1145,18 +1051,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FLargeWorldCoordinatesRealProperty* TypedProp = CastField<FLargeWorldCoordinatesRealProperty>(Prop))
+	case EUHTPropertyType::LargeWorldCoordinatesReal:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FLargeWorldCoordinatesRealPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FLargeWorldCoordinatesRealPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::LargeWorldCoordinatesReal, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1166,18 +1073,24 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FBoolProperty* TypedProp = CastField<FBoolProperty>(Prop))
+	case EUHTPropertyType::Bool:
+	case EUHTPropertyType::Bool8:
+	case EUHTPropertyType::Bool16:
+	case EUHTPropertyType::Bool32:
+	case EUHTPropertyType::Bool64:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
+		bool bIsNativeBool = PropertyBase.Type == CPT_Bool || EnumHasAnyFlags(PropertyBase.PropertyFlags, CPF_ReturnParm);
 		FString OuterSize;
 		FString Setter;
-		if (!Prop->GetOwner<UObject>())
+		if (UHTCast<FUnrealObjectDefinitionInfo>(PropertyDef.GetOuter()) == nullptr)
 		{
 			OuterSize = TEXT("0");
-			Setter    = TEXT("nullptr");
+			Setter = TEXT("nullptr");
 		}
 		else
 		{
@@ -1185,66 +1098,185 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 
 			DeclOut.Logf(TEXT("%sstatic void %s_SetBit(void* Obj);\r\n"), DeclSpaces, *NameWithoutScope);
 
-			Out.Logf(TEXT("%svoid %s_SetBit(void* Obj)\r\n"), Spaces, Name);
+			Out.Logf(TEXT("%svoid %s_SetBit(void* Obj)\r\n"), Spaces, *Name);
 			Out.Logf(TEXT("%s{\r\n"), Spaces);
-			Out.Logf(TEXT("%s\t((%s*)Obj)->%s%s = 1;\r\n"), Spaces, SourceStruct, *Prop->GetName(), Prop->HasAllPropertyFlags(CPF_Deprecated) ? TEXT("_DEPRECATED") : TEXT(""));
+			Out.Logf(TEXT("%s\t((%s*)Obj)->%s%s = 1;\r\n"), Spaces, SourceStruct, *PropertyDef.GetName(), PropertyDef.HasAllPropertyFlags(CPF_Deprecated) ? TEXT("_DEPRECATED") : TEXT(""));
 			Out.Logf(TEXT("%s}\r\n"), Spaces);
 
-			Setter = FString::Printf(TEXT("&%s_SetBit"), Name);
+			Setter = FString::Printf(TEXT("&%s_SetBit"), *Name);
 		}
-
+		
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FBoolPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FBoolPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Bool %s, %s, %s, sizeof(%s), %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
-			TypedProp->IsNativeBool() ? TEXT("| UECodeGen_Private::EPropertyGenFlags::NativeBool") : TEXT(""),
+			bIsNativeBool ? TEXT("| UECodeGen_Private::EPropertyGenFlags::NativeBool") : TEXT(""),
 			FPropertyObjectFlags,
 			*ArrayDim,
-			*TypedProp->GetCPPType(nullptr, 0),
+			*PropertyDef.GetCPPType(nullptr, 0),
 			*OuterSize,
 			*Setter,
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FSoftClassProperty* TypedProp = CastField<FSoftClassProperty>(Prop))
+	case EUHTPropertyType::ObjectReference:
 	{
-		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FSoftClassPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
 
-		Out.Logf(
-			TEXT("%sconst UECodeGen_Private::FSoftClassPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::SoftClass, %s, %s, %s, %s, %s };%s\r\n"),
-			Spaces,
-			Name,
-			*PropName,
-			*PropNotifyFunc,
-			PropFlags,
-			FPropertyObjectFlags,
-			*ArrayDim,
-			OffsetStr,
-			*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
-			*MetaDataParams,
-			*PropTag
-		);
+		UClass* PropertyClass = PropertyBase.ClassDef->GetClass();
+		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		{
+			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FClassPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
-		return;
+			Out.Logf(
+				TEXT("%sconst UECodeGen_Private::FClassPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Class, %s, %s, %s, %s, %s, %s };%s\r\n"),
+				Spaces,
+				*Name,
+				*PropName,
+				*PropNotifyFunc,
+				PropFlags,
+				FPropertyObjectFlags,
+				*ArrayDim,
+				OffsetStr,
+				*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
+				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
+				*MetaDataParams,
+				*PropTag
+			);
+		}
+		else
+		{
+			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FObjectPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+
+			Out.Logf(
+				TEXT("%sconst UECodeGen_Private::FObjectPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Object, %s, %s, %s, %s, %s };%s\r\n"),
+				Spaces,
+				*Name,
+				*PropName,
+				*PropNotifyFunc,
+				PropFlags,
+				FPropertyObjectFlags,
+				*ArrayDim,
+				OffsetStr,
+				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
+				*MetaDataParams,
+				*PropTag
+			);
+		}
+		break;
 	}
 
-	if (FWeakObjectProperty* TypedProp = CastField<FWeakObjectProperty>(Prop))
+	case EUHTPropertyType::ObjectPtrReference:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
+		UClass* PropertyClass = PropertyBase.ClassDef->GetClass();
+		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		{
+			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FClassPtrPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+
+			Out.Logf(
+				TEXT("%sconst UECodeGen_Private::FClassPtrPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Class | UECodeGen_Private::EPropertyGenFlags::ObjectPtr, %s, %s, %s, %s, %s, %s };%s\r\n"),
+				Spaces,
+				*Name,
+				*PropName,
+				*PropNotifyFunc,
+				PropFlags,
+				FPropertyObjectFlags,
+				*ArrayDim,
+				OffsetStr,
+				*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
+				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
+				*MetaDataParams,
+				*PropTag
+			);
+		}
+		else
+		{
+			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FObjectPtrPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+
+			Out.Logf(
+				TEXT("%sconst UECodeGen_Private::FObjectPtrPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Object | UECodeGen_Private::EPropertyGenFlags::ObjectPtr, %s, %s, %s, %s, %s };%s\r\n"),
+				Spaces,
+				*Name,
+				*PropName,
+				*PropNotifyFunc,
+				PropFlags,
+				FPropertyObjectFlags,
+				*ArrayDim,
+				OffsetStr,
+				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
+				*MetaDataParams,
+				*PropTag
+			);
+		}
+		break;
+	}
+
+	case EUHTPropertyType::SoftObjectReference:
+	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
+		UClass* PropertyClass = PropertyBase.ClassDef->GetClass();
+		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		{
+			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FSoftClassPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+
+			Out.Logf(
+				TEXT("%sconst UECodeGen_Private::FSoftClassPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::SoftClass, %s, %s, %s, %s, %s };%s\r\n"),
+				Spaces,
+				*Name,
+				*PropName,
+				*PropNotifyFunc,
+				PropFlags,
+				FPropertyObjectFlags,
+				*ArrayDim,
+				OffsetStr,
+				*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
+				*MetaDataParams,
+				*PropTag
+			);
+		}
+		else
+		{
+			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FSoftObjectPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+
+			Out.Logf(
+				TEXT("%sconst UECodeGen_Private::FSoftObjectPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::SoftObject, %s, %s, %s, %s, %s };%s\r\n"),
+				Spaces,
+				*Name,
+				*PropName,
+				*PropNotifyFunc,
+				PropFlags,
+				FPropertyObjectFlags,
+				*ArrayDim,
+				OffsetStr,
+				*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
+				*MetaDataParams,
+				*PropTag
+			);
+		}
+		break;
+	}
+
+	case EUHTPropertyType::WeakObjectReference:
+	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FWeakObjectPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FWeakObjectPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::WeakObject, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1255,18 +1287,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FLazyObjectProperty* TypedProp = CastField<FLazyObjectProperty>(Prop))
+	case EUHTPropertyType::LazyObjectReference:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FLazyObjectPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FLazyObjectPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::LazyObject, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1277,130 +1310,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FObjectPtrProperty* TypedProp = CastField<FObjectPtrProperty>(Prop))
+	case EUHTPropertyType::Interface:
 	{
-		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FObjectPtrPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
 
-		Out.Logf(
-			TEXT("%sconst UECodeGen_Private::FObjectPtrPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Object | UECodeGen_Private::EPropertyGenFlags::ObjectPtr, %s, %s, %s, %s, %s };%s\r\n"),
-			Spaces,
-			Name,
-			*PropName,
-			*PropNotifyFunc,
-			PropFlags,
-			FPropertyObjectFlags,
-			*ArrayDim,
-			OffsetStr,
-			*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
-			*MetaDataParams,
-			*PropTag
-		);
-
-		return;
-	}
-
-	if (FClassPtrProperty* TypedProp = CastField<FClassPtrProperty>(Prop))
-	{
-		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FClassPtrPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
-
-		Out.Logf(
-			TEXT("%sconst UECodeGen_Private::FClassPtrPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Class | UECodeGen_Private::EPropertyGenFlags::ObjectPtr, %s, %s, %s, %s, %s, %s };%s\r\n"),
-			Spaces,
-			Name,
-			*PropName,
-			*PropNotifyFunc,
-			PropFlags,
-			FPropertyObjectFlags,
-			*ArrayDim,
-			OffsetStr,
-			*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
-			*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
-			*MetaDataParams,
-			*PropTag
-		);
-
-		return;
-	}
-
-	if (FSoftObjectProperty* TypedProp = CastField<FSoftObjectProperty>(Prop))
-	{
-		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FSoftObjectPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
-
-		Out.Logf(
-			TEXT("%sconst UECodeGen_Private::FSoftObjectPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::SoftObject, %s, %s, %s, %s, %s };%s\r\n"),
-			Spaces,
-			Name,
-			*PropName,
-			*PropNotifyFunc,
-			PropFlags,
-			FPropertyObjectFlags,
-			*ArrayDim,
-			OffsetStr,
-			*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
-			*MetaDataParams,
-			*PropTag
-		);
-
-		return;
-	}
-
-	if (FClassProperty* TypedProp = CastField<FClassProperty>(Prop))
-	{
-		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FClassPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
-
-		Out.Logf(
-			TEXT("%sconst UECodeGen_Private::FClassPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Class, %s, %s, %s, %s, %s, %s };%s\r\n"),
-			Spaces,
-			Name,
-			*PropName,
-			*PropNotifyFunc,
-			PropFlags,
-			FPropertyObjectFlags,
-			*ArrayDim,
-			OffsetStr,
-			*GetSingletonNameFuncAddr(PropertyBase.MetaClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
-			*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
-			*MetaDataParams,
-			*PropTag
-		);
-
-		return;
-	}
-
-	if (FObjectProperty* TypedProp = CastField<FObjectProperty>(Prop))
-	{
-		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FObjectPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
-
-		Out.Logf(
-			TEXT("%sconst UECodeGen_Private::FObjectPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Object, %s, %s, %s, %s, %s };%s\r\n"),
-			Spaces,
-			Name,
-			*PropName,
-			*PropNotifyFunc,
-			PropFlags,
-			FPropertyObjectFlags,
-			*ArrayDim,
-			OffsetStr,
-			*GetSingletonNameFuncAddr(PropertyBase.ClassDef, OutReferenceGatherers.UniqueCrossModuleReferences, false),
-			*MetaDataParams,
-			*PropTag
-		);
-
-		return;
-	}
-
-	if (FInterfaceProperty* TypedProp = CastField<FInterfaceProperty>(Prop))
-	{
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FInterfacePropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FInterfacePropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Interface, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1411,18 +1333,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FNameProperty* TypedProp = CastField<FNameProperty>(Prop))
+	case EUHTPropertyType::Name:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FNamePropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FNamePropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Name, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1432,18 +1355,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FStrProperty* TypedProp = CastField<FStrProperty>(Prop))
+	case EUHTPropertyType::String:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FStrPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FStrPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Str, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1453,18 +1377,25 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FArrayProperty* TypedProp = CastField<FArrayProperty>(Prop))
+	case EUHTPropertyType::DynamicArray:
 	{
+		FUnrealPropertyDefinitionInfo& ValueDef = PropertyDef.GetValuePropDef();
+
+		FString ValueVariableName = FString::Printf(TEXT("%sNewProp_%s_Inner"), Scope, *ValueDef.GetName());
+
+		OutputProperty(DeclOut, Out, OutReferenceGatherers, Scope, PropertyNamesAndPointers, ValueDef, TEXT("0"), MoveTemp(ValueVariableName), DeclSpaces, Spaces, nullptr);
+
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FArrayPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FArrayPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Array, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1475,18 +1406,28 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FMapProperty* TypedProp = CastField<FMapProperty>(Prop))
+	case EUHTPropertyType::Map:
 	{
+		FUnrealPropertyDefinitionInfo& KeyDef = PropertyDef.GetKeyPropDef();
+		FUnrealPropertyDefinitionInfo& ValueDef = PropertyDef.GetValuePropDef();
+
+		FString KeyVariableName = FString::Printf(TEXT("%sNewProp_%s_KeyProp"), Scope, *KeyDef.GetName());
+		FString ValueVariableName = FString::Printf(TEXT("%sNewProp_%s_ValueProp"), Scope, *ValueDef.GetName());
+
+		OutputProperty(DeclOut, Out, OutReferenceGatherers, Scope, PropertyNamesAndPointers, ValueDef, TEXT("1"), MoveTemp(ValueVariableName), DeclSpaces, Spaces, nullptr);
+		OutputProperty(DeclOut, Out, OutReferenceGatherers, Scope, PropertyNamesAndPointers, KeyDef, TEXT("0"), MoveTemp(KeyVariableName), DeclSpaces, Spaces, nullptr);
+
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FMapPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FMapPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Map, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1497,18 +1438,25 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FSetProperty* TypedProp = CastField<FSetProperty>(Prop))
+	case EUHTPropertyType::Set:
 	{
+		FUnrealPropertyDefinitionInfo& ValueDef = PropertyDef.GetValuePropDef();
+
+		FString ValueVariableName = FString::Printf(TEXT("%sNewProp_%s_ElementProp"), Scope, *ValueDef.GetName());
+
+		OutputProperty(DeclOut, Out, OutReferenceGatherers, Scope, PropertyNamesAndPointers, ValueDef, TEXT("0"), MoveTemp(ValueVariableName), DeclSpaces, Spaces, nullptr);
+
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FSetPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FSetPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Set, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1518,18 +1466,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FStructProperty* TypedProp = CastField<FStructProperty>(Prop))
+	case EUHTPropertyType::Struct:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FStructPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FStructPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Struct, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1540,18 +1489,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FDelegateProperty* TypedProp = CastField<FDelegateProperty>(Prop))
+	case EUHTPropertyType::Delegate:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FDelegatePropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FDelegatePropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Delegate, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1562,22 +1512,25 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FMulticastDelegateProperty* TypedProp = CastField<FMulticastDelegateProperty>(Prop))
+	case EUHTPropertyType::MulticastDelegate:
 	{
+		bool bIsSparse = PropertyBase.FunctionDef->GetFunction()->IsA<USparseDelegateFunction>();
+
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FMulticastDelegatePropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FMulticastDelegatePropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::%sMulticastDelegate, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
-			(TypedProp->IsA<FMulticastInlineDelegateProperty>() ? TEXT("Inline") : TEXT("Sparse")),
+			!bIsSparse ? TEXT("Inline") : TEXT("Sparse"),
 			FPropertyObjectFlags,
 			*ArrayDim,
 			OffsetStr,
@@ -1585,18 +1538,19 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FTextProperty* TypedProp = CastField<FTextProperty>(Prop))
+	case EUHTPropertyType::Text:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FTextPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FTextPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Text, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
@@ -1606,136 +1560,86 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	if (FEnumProperty* TypedProp = CastField<FEnumProperty>(Prop))
+	case EUHTPropertyType::Enum:
 	{
-		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FEnumPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+		if (PropertyBase.EnumDef->GetEnum()->GetCppForm() != UEnum::ECppForm::EnumClass)
+		{
+			OutputByteProperty();
+		}
+		else
+		{
+			// Output the underlying property
+			FString PropVarName = FString::Printf(TEXT("%s_Underlying"), *Name);
+			OutputProperty(DeclOut, Out, OutReferenceGatherers, Scope, PropertyNamesAndPointers, PropertyDef.GetValuePropDef(), TEXT("0"), *PropVarName, DeclSpaces, Spaces, nullptr);
 
-		Out.Logf(
-			TEXT("%sconst UECodeGen_Private::FEnumPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Enum, %s, %s, %s, %s, %s };%s\r\n"),
-			Spaces,
-			Name,
-			*PropName,
-			*PropNotifyFunc,
-			PropFlags,
-			FPropertyObjectFlags,
-			*ArrayDim,
-			OffsetStr,
-			*GetSingletonNameFuncAddr(PropertyBase.EnumDef, OutReferenceGatherers.UniqueCrossModuleReferences),
-			*MetaDataParams,
-			*PropTag
-		);
+			FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
 
-		return;
+			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FEnumPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
+
+			Out.Logf(
+				TEXT("%sconst UECodeGen_Private::FEnumPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::Enum, %s, %s, %s, %s, %s };%s\r\n"),
+				Spaces,
+				*Name,
+				*PropName,
+				*PropNotifyFunc,
+				PropFlags,
+				FPropertyObjectFlags,
+				*ArrayDim,
+				OffsetStr,
+				*GetSingletonNameFuncAddr(PropertyBase.EnumDef, OutReferenceGatherers.UniqueCrossModuleReferences),
+				*MetaDataParams,
+				*PropTag
+			);
+		}
+		break;
 	}
 
-	if (FFieldPathProperty* TypedProp = CastField<FFieldPathProperty>(Prop))
+	case EUHTPropertyType::FieldPath:
 	{
+		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
+
 		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FFieldPathPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
 			TEXT("%sconst UECodeGen_Private::FFieldPathPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UECodeGen_Private::EPropertyGenFlags::FieldPath, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
-			Name,
+			*Name,
 			*PropName,
 			*PropNotifyFunc,
 			PropFlags,
 			FPropertyObjectFlags,
 			*ArrayDim,
 			OffsetStr,
-			*FString::Printf(TEXT("&F%s::StaticClass"), *TypedProp->PropertyClass->GetName()),
+			*FString::Printf(TEXT("&F%s::StaticClass"), *PropertyBase.PropertyPathClass->GetName()),
 			*MetaDataParams,
 			*PropTag
 		);
-
-		return;
+		break;
 	}
 
-	// Unhandled type
-	check(false);
+	default:
+		check(false);
+	}
+
+	PropertyNamesAndPointers.Emplace(MoveTemp(Name), PropertyDef);
 }
 
-bool IsEditorOnlyDataProperty(FProperty* Prop)
+bool IsEditorOnlyDataProperty(FUnrealPropertyDefinitionInfo& PropDef)
 {
-	while (Prop)
+	for (FUnrealPropertyDefinitionInfo* TestPropDef = &PropDef; TestPropDef; TestPropDef = UHTCast<FUnrealPropertyDefinitionInfo>(TestPropDef->GetOuter()))
 	{
-		if (Prop->IsEditorOnlyProperty())
+		if (TestPropDef->IsEditorOnlyProperty())
 		{
 			return true;
 		}
-
-		Prop = Prop->GetOwner<FProperty>();
 	}
-
 	return false;
 }
 
-TTuple<FString, FString> FNativeClassHeaderGenerator::OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, const TArray<FUnrealPropertyDefinitionInfo*>& PropertyDefs, const TCHAR* DeclSpaces, const TCHAR* Spaces) const
-{
-	if (PropertyDefs.Num() == 0)
-	{
-		return TTuple<FString, FString>(TEXT("nullptr"), TEXT("0"));
-	}
-
-	TArray<FPropertyNamePointerPair> PropertyNamesAndPointers;
-	bool bHasAllEditorOnlyDataProperties = true;
-
-	{
-		FMacroBlockEmitter WithEditorOnlyMacroEmitter(Out, TEXT("WITH_EDITORONLY_DATA"));
-		FMacroBlockEmitter WithEditorOnlyMacroEmitterDecl(DeclOut, TEXT("WITH_EDITORONLY_DATA"));
-
-		for (FUnrealPropertyDefinitionInfo* PropDef : PropertyDefs)
-		{
-			bool bRequiresHasEditorOnlyMacro = IsEditorOnlyDataProperty(PropDef->GetProperty());
-			if (!bRequiresHasEditorOnlyMacro)
-			{
-				bHasAllEditorOnlyDataProperties = false;
-			}
-
-			WithEditorOnlyMacroEmitter(bRequiresHasEditorOnlyMacro);
-			WithEditorOnlyMacroEmitterDecl(bRequiresHasEditorOnlyMacro);
-			OutputProperty(DeclOut, Out, OutReferenceGatherers, Scope, PropertyNamesAndPointers, *PropDef, DeclSpaces, Spaces);
-		}
-
-		WithEditorOnlyMacroEmitter(bHasAllEditorOnlyDataProperties);
-		WithEditorOnlyMacroEmitterDecl(bHasAllEditorOnlyDataProperties);
-		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FPropertyParamsBase* const PropPointers[];\r\n"), DeclSpaces);
-		Out.Logf(TEXT("%sconst UECodeGen_Private::FPropertyParamsBase* const %sPropPointers[] = {\r\n"), Spaces, Scope);
-
-		for (const FPropertyNamePointerPair& PropNameAndPtr : PropertyNamesAndPointers)
-		{
-			bool bRequiresHasEditorOnlyMacro = IsEditorOnlyDataProperty(PropNameAndPtr.PropDef->GetProperty());
-
-			WithEditorOnlyMacroEmitter(bRequiresHasEditorOnlyMacro);
-			WithEditorOnlyMacroEmitterDecl(bRequiresHasEditorOnlyMacro);
-			Out.Logf(TEXT("%s\t(const UECodeGen_Private::FPropertyParamsBase*)&%s,\r\n"), Spaces, *PropNameAndPtr.Name);
-		}
-
-		WithEditorOnlyMacroEmitter(bHasAllEditorOnlyDataProperties);
-		WithEditorOnlyMacroEmitterDecl(bHasAllEditorOnlyDataProperties);
-		Out.Logf(TEXT("%s};\r\n"), Spaces);
-	}
-
-	if (bHasAllEditorOnlyDataProperties)
-	{
-		return TTuple<FString, FString>(
-			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(%sPropPointers, nullptr)"), Scope),
-			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(UE_ARRAY_COUNT(%sPropPointers), 0)"), Scope)
-		);
-	}
-	else
-	{
-		return TTuple<FString, FString>(
-			FString::Printf(TEXT("%sPropPointers"), Scope),
-			FString::Printf(TEXT("UE_ARRAY_COUNT(%sPropPointers)"), Scope)
-		);
-	}
-}
-
-inline FString GetEventStructParamsName(FUnrealObjectDefinitionInfo& OuterDef, const TCHAR* FunctionName)
+FString GetEventStructParamsName(FUnrealObjectDefinitionInfo& OuterDef, const TCHAR* FunctionName)
 {
 	FString OuterName;
 	if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(OuterDef))
@@ -1760,78 +1664,19 @@ inline FString GetEventStructParamsName(FUnrealObjectDefinitionInfo& OuterDef, c
 	return Result;
 }
 
-void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FUnrealPropertyDefinitionInfo& PropertyDef, const TCHAR* DeclSpaces, const TCHAR* Spaces) const
+TTuple<FString, FString> FNativeClassHeaderGenerator::OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, FUnrealStructDefinitionInfo& StructDef, const TCHAR* DeclSpaces, const TCHAR* Spaces) const
 {
-	FProperty* Prop = PropertyDef.GetProperty();
-
-	// Helper to handle the creation of the underlying properties if they're enum properties
-	auto HandleUnderlyingEnumProperty = [this, &PropertyNamesAndPointers, &DeclOut, &Out, &OutReferenceGatherers, DeclSpaces, Spaces](FUnrealPropertyDefinitionInfo& LocalPropDef, FString&& InOuterName)
+	if (StructDef.GetProperties().Num() == 0)
 	{
-		FProperty* LocalProp = LocalPropDef.GetProperty();
-		if (FEnumProperty* EnumProp = CastField<FEnumProperty>(LocalProp))
-		{
-			FString PropVarName = InOuterName + TEXT("_Underlying");
-
-			FUnrealPropertyDefinitionInfo& UnderlyingDef = LocalPropDef.GetValuePropDef();
-			FProperty* Underlying = UnderlyingDef.GetProperty();
-
-			checkSlow(Underlying == EnumProp->UnderlyingProp);
-			PropertyNew(DeclOut, Out, OutReferenceGatherers, UnderlyingDef, TEXT("0"), *PropVarName, DeclSpaces, Spaces);
-			PropertyNamesAndPointers.Emplace(MoveTemp(PropVarName), UnderlyingDef);
-		}
-
-		PropertyNamesAndPointers.Emplace(MoveTemp(InOuterName), LocalPropDef);
-	};
-
-	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop))
-	{
-		FUnrealPropertyDefinitionInfo& InnerDef = PropertyDef.GetValuePropDef();
-		FProperty* Inner = InnerDef.GetProperty();
-
-		FString InnerVariableName = FString::Printf(TEXT("%sNewProp_%s_Inner"), Scope, *Inner->GetName());
-
-		checkSlow(PropertyDef.GetValuePropDef().GetProperty() == ArrayProperty->Inner);
-
-		HandleUnderlyingEnumProperty(InnerDef, CopyTemp(InnerVariableName));
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, PropertyDef.GetValuePropDef(), TEXT("0"), *InnerVariableName, DeclSpaces, Spaces);
+		return TTuple<FString, FString>(TEXT("nullptr"), TEXT("0"));
 	}
 
-	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Prop))
-	{
-		FUnrealPropertyDefinitionInfo& KeyDef = PropertyDef.GetKeyPropDef();
-		FProperty* Key = KeyDef.GetProperty();
-		FUnrealPropertyDefinitionInfo& ValueDef = PropertyDef.GetValuePropDef();
-		FProperty* Value = ValueDef.GetProperty();
-
-		checkSlow(PropertyDef.GetValuePropDef().GetProperty() == MapProperty->ValueProp);
-		checkSlow(PropertyDef.GetKeyPropDef().GetProperty() == MapProperty->KeyProp);
-
-		FString KeyVariableName   = FString::Printf(TEXT("%sNewProp_%s_KeyProp"), Scope, *Key->GetName());
-		FString ValueVariableName = FString::Printf(TEXT("%sNewProp_%s_ValueProp"), Scope, *Value->GetName());
-
-		HandleUnderlyingEnumProperty(ValueDef, CopyTemp(ValueVariableName));
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, ValueDef, TEXT("1"), *ValueVariableName, DeclSpaces, Spaces);
-
-		HandleUnderlyingEnumProperty(KeyDef, CopyTemp(KeyVariableName));
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, KeyDef, TEXT("0"), *KeyVariableName, DeclSpaces, Spaces);
-	}
-
-	else if (FSetProperty* SetProperty = CastField<FSetProperty>(Prop))
-	{
-		FUnrealPropertyDefinitionInfo& InnerDef = PropertyDef.GetValuePropDef();
-		FProperty* Inner = InnerDef.GetProperty();
-
-		FString ElementVariableName = FString::Printf(TEXT("%sNewProp_%s_ElementProp"), Scope, *Inner->GetName());
-
-		checkSlow(PropertyDef.GetValuePropDef().GetProperty() == SetProperty->ElementProp);
-
-		HandleUnderlyingEnumProperty(InnerDef, CopyTemp(ElementVariableName));
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, InnerDef, TEXT("0"), *ElementVariableName, DeclSpaces, Spaces);
-	}
+	TArray<FPropertyNamePointerPair> PropertyNamesAndPointers;
+	bool bHasAllEditorOnlyDataProperties = true;
 
 	{
 		FString SourceStruct;
-		if (FUnrealFunctionDefinitionInfo* FunctionDef = UHTCast<FUnrealFunctionDefinitionInfo>(PropertyDef.GetOuter()))
+		if (FUnrealFunctionDefinitionInfo* FunctionDef = UHTCast<FUnrealFunctionDefinitionInfo>(StructDef))
 		{
 			while (FunctionDef->GetSuperFunction())
 			{
@@ -1845,23 +1690,70 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 
 			SourceStruct = GetEventStructParamsName(*FunctionDef->GetOuter(), *FunctionName);
 		}
-		else
+		else 
 		{
-			SourceStruct = FNameLookupCPP::GetNameCPP(CastChecked<UStruct>(Prop->GetOwner<UObject>()));
+			SourceStruct = StructDef.GetAlternateNameCPP();
 		}
 
-		FString PropName = Prop->GetName();
-		FString PropVariableName = FString::Printf(TEXT("%sNewProp_%s"), Scope, *PropName);
+		FMacroBlockEmitter WithEditorOnlyMacroEmitter(Out, TEXT("WITH_EDITORONLY_DATA"));
+		FMacroBlockEmitter WithEditorOnlyMacroEmitterDecl(DeclOut, TEXT("WITH_EDITORONLY_DATA"));
 
-		if (Prop->HasAllPropertyFlags(CPF_Deprecated))
+		for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
 		{
-			PropName += TEXT("_DEPRECATED");
+			bool bRequiresHasEditorOnlyMacro = IsEditorOnlyDataProperty(*PropertyDef);
+			if (!bRequiresHasEditorOnlyMacro)
+			{
+				bHasAllEditorOnlyDataProperties = false;
+			}
+
+			WithEditorOnlyMacroEmitter(bRequiresHasEditorOnlyMacro);
+			WithEditorOnlyMacroEmitterDecl(bRequiresHasEditorOnlyMacro);
+
+			FString PropName = PropertyDef->GetName();
+			FString PropVariableName = FString::Printf(TEXT("%sNewProp_%s"), Scope, *PropName);
+
+			if (PropertyDef->HasAllPropertyFlags(CPF_Deprecated))
+			{
+				PropName += TEXT("_DEPRECATED");
+			}
+
+			FString PropMacroOuterClass = FString::Printf(TEXT("STRUCT_OFFSET(%s, %s)"), *SourceStruct, *PropName);
+
+			OutputProperty(DeclOut, Out, OutReferenceGatherers, Scope, PropertyNamesAndPointers, *PropertyDef, *PropMacroOuterClass, MoveTemp(PropVariableName), DeclSpaces, Spaces, *SourceStruct);
 		}
 
-		FString PropMacroOuterClass = FString::Printf(TEXT("STRUCT_OFFSET(%s, %s)"), *SourceStruct, *PropName);
+		WithEditorOnlyMacroEmitter(bHasAllEditorOnlyDataProperties);
+		WithEditorOnlyMacroEmitterDecl(bHasAllEditorOnlyDataProperties);
+		DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FPropertyParamsBase* const PropPointers[];\r\n"), DeclSpaces);
+		Out.Logf(TEXT("%sconst UECodeGen_Private::FPropertyParamsBase* const %sPropPointers[] = {\r\n"), Spaces, Scope);
 
-		HandleUnderlyingEnumProperty(PropertyDef, CopyTemp(PropVariableName));
-		PropertyNew(DeclOut, Out, OutReferenceGatherers, PropertyDef, *PropMacroOuterClass, *PropVariableName, DeclSpaces, Spaces, *SourceStruct);
+		for (const FPropertyNamePointerPair& PropNameAndPtr : PropertyNamesAndPointers)
+		{
+			bool bRequiresHasEditorOnlyMacro = IsEditorOnlyDataProperty(*PropNameAndPtr.PropDef);
+
+			WithEditorOnlyMacroEmitter(bRequiresHasEditorOnlyMacro);
+			WithEditorOnlyMacroEmitterDecl(bRequiresHasEditorOnlyMacro);
+			Out.Logf(TEXT("%s\t(const UECodeGen_Private::FPropertyParamsBase*)&%s,\r\n"), Spaces, *PropNameAndPtr.Name);
+		}
+
+		WithEditorOnlyMacroEmitter(bHasAllEditorOnlyDataProperties);
+		WithEditorOnlyMacroEmitterDecl(bHasAllEditorOnlyDataProperties);
+		Out.Logf(TEXT("%s};\r\n"), Spaces);
+	}
+
+	if (bHasAllEditorOnlyDataProperties)
+	{
+		return TTuple<FString, FString>(
+			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(%sPropPointers, nullptr)"), Scope),
+			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(UE_ARRAY_COUNT(%sPropPointers), 0)"), Scope)
+		);
+	}
+	else
+	{
+		return TTuple<FString, FString>(
+			FString::Printf(TEXT("%sPropPointers"), Scope),
+			FString::Printf(TEXT("UE_ARRAY_COUNT(%sPropPointers)"), Scope)
+		);
 	}
 }
 
@@ -2175,7 +2067,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 		FString MetaDataParams = OutputMetaDataCodeForObject(GeneratedClassRegisterFunctionText, StaticDefinitions, ClassDef, *FString::Printf(TEXT("%s::Class_MetaDataParams"), *StaticsStructName), TEXT("\t\t"), TEXT("\t"));
 
-		TTuple<FString, FString> PropertyRange = OutputProperties(GeneratedClassRegisterFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), ClassDef.GetProperties(), TEXT("\t\t"), TEXT("\t"));
+		TTuple<FString, FString> PropertyRange = OutputProperties(GeneratedClassRegisterFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), ClassDef, TEXT("\t\t"), TEXT("\t"));
 
 		const TCHAR* InterfaceArray;
 		const TCHAR* InterfaceCount;
@@ -2335,8 +2227,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			GeneratedClassRegisterFunctionText.Logf(TEXT("%s\r\n"), *SparseScriptStructDef->GetName());
 			for (FUnrealPropertyDefinitionInfo* ChildDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(*SparseScriptStructDef))
 			{
-				FProperty* Child = ChildDef->GetProperty();
-				GeneratedClassRegisterFunctionText.Logf(TEXT("%s %s\r\n"), *Child->GetCPPType(), *Child->GetNameCPP());
+				GeneratedClassRegisterFunctionText.Logf(TEXT("%s %s\r\n"), *ChildDef->GetCPPType(), *ChildDef->GetPropertyNameCPP());
 			}
 		}
 	}
@@ -2497,7 +2388,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	USparseDelegateFunction* SparseDelegateFunction = Cast<USparseDelegateFunction>(FunctionDef.GetFunction());
 	const TCHAR* UFunctionObjectFlags = FunctionDef.IsOwnedByDynamicType() ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
 
-	TTuple<FString, FString> PropertyRange = OutputProperties(CurrentFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), FunctionDef.GetProperties(), TEXT("\t\t"), TEXT("\t"));
+	TTuple<FString, FString> PropertyRange = OutputProperties(CurrentFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), FunctionDef, TEXT("\t\t"), TEXT("\t"));
 
 	const FFuncInfo&     FunctionData = FunctionDef.GetFunctionData();
 	const bool           bIsNet       = FunctionDef.HasAnyFunctionFlags(FUNC_NetRequest | FUNC_NetResponse);
@@ -2660,7 +2551,7 @@ void FNativeClassHeaderGenerator::ExportInterfaceCallFunctions(FOutputDevice& Ou
 		// code to populate Parms struct
 		for (FUnrealPropertyDefinitionInfo* ParamDef : Parameters.Parms)
 		{
-			const FString ParamName = ParamDef->GetProperty()->GetName();
+			const FString ParamName = ParamDef->GetName();
 			OutCpp.Logf(TEXT("\t\t\tParms.%s=%s;") LINE_TERMINATOR, *ParamName, *ParamName);
 		}
 
@@ -2669,10 +2560,9 @@ void FNativeClassHeaderGenerator::ExportInterfaceCallFunctions(FOutputDevice& Ou
 
 		for (FUnrealPropertyDefinitionInfo* ParamDef : Parameters.Parms)
 		{
-			FProperty* Param = ParamDef->GetProperty();
-			if( Param->HasAllPropertyFlags(CPF_OutParm) && !Param->HasAnyPropertyFlags(CPF_ConstParm|CPF_ReturnParm))
+			if(ParamDef->HasAllPropertyFlags(CPF_OutParm) && !ParamDef->HasAnyPropertyFlags(CPF_ConstParm|CPF_ReturnParm))
 			{
-				const FString ParamName = Param->GetName();
+				const FString ParamName = ParamDef->GetName();
 				OutCpp.Logf(TEXT("\t\t\t%s=Parms.%s;") LINE_TERMINATOR, *ParamName, *ParamName);
 			}
 		}
@@ -2703,7 +2593,7 @@ void FNativeClassHeaderGenerator::ExportInterfaceCallFunctions(FOutputDevice& Ou
 				}
 				bFirst = false;
 
-				OutCpp.Logf(TEXT("%s"), *ParamDef->GetProperty()->GetName());
+				OutCpp.Logf(TEXT("%s"), *ParamDef->GetName());
 			}
 
 			OutCpp.Logf(TEXT(");") LINE_TERMINATOR);
@@ -3808,7 +3698,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		NewStructOps = TEXT("nullptr");
 	}
 
-	TTuple<FString, FString> PropertyRange = OutputProperties(GeneratedStructRegisterFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), ScriptStructDef.GetProperties(), TEXT("\t\t"), TEXT("\t"));
+	TTuple<FString, FString> PropertyRange = OutputProperties(GeneratedStructRegisterFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), ScriptStructDef, TEXT("\t\t"), TEXT("\t"));
 
 	GeneratedStructRegisterFunctionText.Log (TEXT("\t\tstatic const UECodeGen_Private::FStructParams ReturnStructParams;\r\n"));
 
@@ -4156,7 +4046,7 @@ void FNativeClassHeaderGenerator::ExportMirrorsForNoexportStruct(FOutputDevice& 
 bool FNativeClassHeaderGenerator::WillExportEventParms(FUnrealFunctionDefinitionInfo& FunctionDef)
 {
 	const TArray<FUnrealPropertyDefinitionInfo*>& Properties = FunctionDef.GetProperties();
-	return Properties.Num() > 0 && (Properties[0]->GetProperty()->PropertyFlags & CPF_Parm) != 0;
+	return Properties.Num() > 0 && Properties[0]->HasAnyPropertyFlags(CPF_Parm);
 }
 
 void WriteEventFunctionPrologue(FOutputDevice& Output, int32 Indent, const FParmsAndReturnProperties& Parameters, FUnrealObjectDefinitionInfo& FunctionOuterDef, const TCHAR* FunctionName)
@@ -4175,16 +4065,15 @@ void WriteEventFunctionPrologue(FOutputDevice& Output, int32 Indent, const FParm
 	// Declare a parameter struct for this event/delegate and assign the struct members using the values passed into the event/delegate call.
 	for (FUnrealPropertyDefinitionInfo* PropDef : Parameters.Parms)
 	{
-		FProperty* Prop = PropDef->GetProperty();
-		const FString PropertyName = Prop->GetName();
-		if (Prop->ArrayDim > 1)
+		const FString PropertyName = PropDef->GetName();
+		if (PropDef->IsStaticArray())
 		{
 			Output.Logf(TEXT("%sFMemory::Memcpy(Parms.%s,%s,sizeof(Parms.%s));\r\n"), FCString::Tab(Indent + 1), *PropertyName, *PropertyName, *PropertyName);
 		}
 		else
 		{
 			FString ValueAssignmentText = PropertyName;
-			if (Prop->IsA<FBoolProperty>())
+			if (PropDef->IsBooleanOrBooleanStaticArray())
 			{
 				ValueAssignmentText += TEXT(" ? true : false");
 			}
@@ -4199,11 +4088,10 @@ void WriteEventFunctionEpilogue(FOutputDevice& Output, int32 Indent, const FParm
 	// Out parm copying.
 	for (FUnrealPropertyDefinitionInfo* PropDef : Parameters.Parms)
 	{
-		FProperty* Prop = PropDef->GetProperty();
-		if ((Prop->PropertyFlags & (CPF_OutParm | CPF_ConstParm)) == CPF_OutParm)
+		if (PropDef->HasSpecificPropertyFlags(CPF_OutParm | CPF_ConstParm, CPF_OutParm))
 		{
-			const FString PropertyName = Prop->GetName();
-			if ( Prop->ArrayDim > 1 )
+			const FString PropertyName = PropDef->GetName();
+			if (PropDef->IsStaticArray())
 			{
 				Output.Logf(TEXT("%sFMemory::Memcpy(&%s,&Parms.%s,sizeof(%s));\r\n"), FCString::Tab(Indent + 1), *PropertyName, *PropertyName, *PropertyName);
 			}
@@ -4218,9 +4106,8 @@ void WriteEventFunctionEpilogue(FOutputDevice& Output, int32 Indent, const FParm
 	if (Parameters.Return)
 	{
 		// Make sure uint32 -> bool is supported
-		FProperty* Return = Parameters.Return->GetProperty();
-		bool bBoolProperty = Return->IsA(FBoolProperty::StaticClass());
-		Output.Logf(TEXT("%sreturn %sParms.%s;\r\n"), FCString::Tab(Indent + 1), bBoolProperty ? TEXT("!!") : TEXT(""), *Return->GetName());
+		bool bBoolProperty = Parameters.Return->IsBooleanOrBooleanStaticArray();
+		Output.Logf(TEXT("%sreturn %sParms.%s;\r\n"), FCString::Tab(Indent + 1), bBoolProperty ? TEXT("!!") : TEXT(""), *Parameters.Return->GetName());
 	}
 	Output.Logf(TEXT("%s}\r\n"), FCString::Tab(Indent));
 }
@@ -4332,24 +4219,25 @@ void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<F
 
 	for (FUnrealPropertyDefinitionInfo* PropDef : FunctionDef.GetProperties())
 	{
-		FProperty* Prop = PropDef->GetProperty();
-		if (!(Prop->PropertyFlags & CPF_Parm))
+		FPropertyBase& PropertyBase = PropDef->GetPropertyBase();
+		if (!PropDef->HasAnyPropertyFlags(CPF_Parm))
 		{
 			continue;
 		}
 
-		PropertyFwd.Add(Prop->GetCPPTypeForwardDeclaration());
+		PropertyFwd.Add(PropDef->GetCPPTypeForwardDeclaration());
 
 		FUHTStringBuilder PropertyText;
 		PropertyText.Log(FCString::Tab(Indent + 1));
 
-		bool bEmitConst = Prop->HasAnyPropertyFlags(CPF_ConstParm) && Prop->IsA<FObjectProperty>();
+		bool bEmitConst = PropDef->HasAnyPropertyFlags(CPF_ConstParm) && PropertyBase.IsObjectRefOrObjectRefStaticArray();
 
 		//@TODO: UCREMOVAL: This is awful code duplication to avoid a double-const
 		{
+			//@TODO: bEmitConst will only be true if we have an object, so checking interface here doesn't do anything.
 			// export 'const' for parameters
-			const bool bIsConstParam = (Prop->IsA(FInterfaceProperty::StaticClass()) && !Prop->HasAllPropertyFlags(CPF_OutParm)); //@TODO: This should be const once that flag exists
-			const bool bIsOnConstClass = (Prop->IsA(FObjectProperty::StaticClass()) && ((FObjectProperty*)Prop)->PropertyClass != NULL && ((FObjectProperty*)Prop)->PropertyClass->HasAnyClassFlags(CLASS_Const));
+			const bool bIsConstParam = PropertyBase.IsInterfaceOrInterfaceStaticArray() && !PropDef->HasAllPropertyFlags(CPF_OutParm); //@TODO: This should be const once that flag exists
+			const bool bIsOnConstClass = PropertyBase.IsObjectRefOrObjectRefStaticArray() && PropertyBase.ClassDef->HasAnyClassFlags(CLASS_Const);
 
 			if (bIsConstParam || bIsOnConstClass)
 			{
@@ -4362,7 +4250,7 @@ void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<F
 			PropertyText.Logf(TEXT("const "));
 		}
 
-		Prop->ExportCppDeclaration(PropertyText, EExportedDeclaration::Local, PropDef->GetArrayDimensions());
+		PropDef->ExportCppDeclaration(PropertyText, EExportedDeclaration::Local, PropDef->GetArrayDimensions());
 		ApplyAlternatePropertyExportText(*PropDef, PropertyText, ExportingState);
 
 		PropertyText.Log(TEXT(";\r\n"));
@@ -4373,36 +4261,34 @@ void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<F
 	FUnrealPropertyDefinitionInfo* PropDef = FunctionDef.GetReturn();
 	if (PropDef && bOutputConstructor)
 	{
-		FProperty* Prop = PropDef->GetProperty();
+		const FPropertyBase& PropertyBase = PropDef->GetPropertyBase();
 		FUHTStringBuilder InitializationAr;
 
-		FStructProperty* InnerStruct = CastField<FStructProperty>(Prop);
 		bool bNeedsOutput = true;
-		if (InnerStruct)
+		switch (PropertyBase.GetUHTPropertyType())
 		{
-			bNeedsOutput = InnerStruct->HasNoOpConstructor();
-		}
-		else if (
-			CastField<FNameProperty>(Prop) ||
-			CastField<FDelegateProperty>(Prop) ||
-			CastField<FMulticastDelegateProperty>(Prop) ||
-			CastField<FStrProperty>(Prop) ||
-			CastField<FTextProperty>(Prop) ||
-			CastField<FArrayProperty>(Prop) ||
-			CastField<FMapProperty>(Prop) ||
-			CastField<FSetProperty>(Prop) ||
-			CastField<FInterfaceProperty>(Prop) ||
-			CastField<FFieldPathProperty>(Prop)
-			)
-		{
+		case EUHTPropertyType::Struct:
+			bNeedsOutput = PropDef->HasNoOpConstructor();
+			break;
+		case EUHTPropertyType::Name:
+		case EUHTPropertyType::Delegate:
+		case EUHTPropertyType::MulticastDelegate:
+		case EUHTPropertyType::String:
+		case EUHTPropertyType::Text:
+		case EUHTPropertyType::DynamicArray:
+		case EUHTPropertyType::Map:
+		case EUHTPropertyType::Set:
+		case EUHTPropertyType::Interface:
+		case EUHTPropertyType::FieldPath:
 			bNeedsOutput = false;
 		}
+
 		if (bNeedsOutput)
 		{
-			check(Prop->ArrayDim == 1); // can't return arrays
+			check(!PropDef->IsStaticArray()); // can't return arrays
 			Out.Logf(TEXT("\r\n%s/** Constructor, initializes return property only **/\r\n"), FCString::Tab(Indent + 1));
 			Out.Logf(TEXT("%s%s()\r\n"), FCString::Tab(Indent + 1), *EventParmStructName);
-			Out.Logf(TEXT("%s%s %s(%s)\r\n"), FCString::Tab(Indent + 2), TEXT(":"), *Prop->GetName(), *GetNullParameterValue(*PropDef, true));
+			Out.Logf(TEXT("%s%s %s(%s)\r\n"), FCString::Tab(Indent + 2), TEXT(":"), *PropDef->GetName(), *GetNullParameterValue(*PropDef, true));
 			Out.Logf(TEXT("%s{\r\n"), FCString::Tab(Indent + 1));
 			Out.Logf(TEXT("%s}\r\n"), FCString::Tab(Indent + 1));
 		}
@@ -4418,86 +4304,89 @@ void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<F
  *
  * @return	the intrinsic null value for the property (0 for ints, TEXT("") for strings, etc.)
  */
-FString FNativeClassHeaderGenerator::GetNullParameterValue(FUnrealPropertyDefinitionInfo& PropertyDef, bool bInitializer/*=false*/ )
+FString FNativeClassHeaderGenerator::GetNullParameterValue(FUnrealPropertyDefinitionInfo& PropertyDef, bool bInitializer/*=false*/)
 {
-	FProperty* Prop = PropertyDef.GetProperty();
-	FFieldClass* PropClass = Prop->GetClass();
-	FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Prop);
-	if (PropClass == FByteProperty::StaticClass())
+	const FPropertyBase& PropertyBase = PropertyDef.GetPropertyBase();
+	switch (PropertyBase.GetUHTPropertyType())
 	{
-		FByteProperty* ByteProp = (FByteProperty*)Prop;
-
-		// if it's an enum class then we need an explicit cast
-		if( ByteProp->Enum && ByteProp->Enum->GetCppForm() == UEnum::ECppForm::EnumClass )
-		{
-			return FString::Printf(TEXT("(%s)0"), *ByteProp->GetCPPType());
-		}
-
+	case EUHTPropertyType::Byte:
+	case EUHTPropertyType::Int16:
+	case EUHTPropertyType::Int:
+	case EUHTPropertyType::Int64:
+	case EUHTPropertyType::UInt16:
+	case EUHTPropertyType::UInt32:
+	case EUHTPropertyType::UInt64:
+	case EUHTPropertyType::Float:
+	case EUHTPropertyType::Double:
+	case EUHTPropertyType::LargeWorldCoordinatesReal:
 		return TEXT("0");
-	}
-	else if (PropClass == FEnumProperty::StaticClass())
-	{
-		FEnumProperty* EnumProp = (FEnumProperty*)Prop;
 
-		return FString::Printf(TEXT("(%s)0"), *EnumProp->Enum->GetName());
-	}
-	else if ( PropClass == FBoolProperty::StaticClass() )
-	{
+	case EUHTPropertyType::Bool:
+	case EUHTPropertyType::Bool8:
+	case EUHTPropertyType::Bool16:
+	case EUHTPropertyType::Bool32:
+	case EUHTPropertyType::Bool64:
 		return TEXT("false");
-	}
-	else if ( PropClass->IsChildOf(FNumericProperty::StaticClass()) )
-	{
-		return TEXT("0");
-	}
-	else if ( PropClass == FNameProperty::StaticClass() )
-	{
+
+	case EUHTPropertyType::ObjectReference:
+	case EUHTPropertyType::ObjectPtrReference:
+	case EUHTPropertyType::SoftObjectReference:
+	case EUHTPropertyType::WeakObjectReference:
+	case EUHTPropertyType::LazyObjectReference:
+		return TEXT("NULL");
+
+	case EUHTPropertyType::Interface:
+		return TEXT("NULL");
+
+	case EUHTPropertyType::Name:
 		return TEXT("NAME_None");
-	}
-	else if ( PropClass == FStrProperty::StaticClass() )
-	{
+
+	case EUHTPropertyType::String:
 		return TEXT("TEXT(\"\")");
-	}
-	else if ( PropClass == FTextProperty::StaticClass() )
-	{
-		return TEXT("FText::GetEmpty()");
-	}
-	else if ( PropClass == FArrayProperty::StaticClass()
-		||    PropClass == FMapProperty::StaticClass()
-		||    PropClass == FSetProperty::StaticClass()
-		||    PropClass == FDelegateProperty::StaticClass()
-		||    PropClass == FMulticastDelegateProperty::StaticClass() )
+
+	case EUHTPropertyType::DynamicArray:
+	case EUHTPropertyType::Map:
+	case EUHTPropertyType::Set:
+	case EUHTPropertyType::Delegate:
+	case EUHTPropertyType::MulticastDelegate:
 	{
 		FString Type, ExtendedType;
-		Type = Prop->GetCPPType(&ExtendedType,CPPF_OptionalValue);
+		Type = PropertyDef.GetCPPType(&ExtendedType, CPPF_OptionalValue);
 		return Type + ExtendedType + TEXT("()");
 	}
-	else if ( PropClass == FStructProperty::StaticClass() )
+
+	case EUHTPropertyType::Struct:
 	{
-		bool bHasNoOpConstuctor = CastFieldChecked<FStructProperty>(Prop)->HasNoOpConstructor();
+		bool bHasNoOpConstuctor = PropertyDef.HasNoOpConstructor();
 		if (bInitializer && bHasNoOpConstuctor)
 		{
 			return TEXT("ForceInit");
 		}
 
 		FString Type, ExtendedType;
-		Type = Prop->GetCPPType(&ExtendedType,CPPF_OptionalValue);
+		Type = PropertyDef.GetCPPType(&ExtendedType, CPPF_OptionalValue);
 		return Type + ExtendedType + (bHasNoOpConstuctor ? TEXT("(ForceInit)") : TEXT("()"));
 	}
-	else if (ObjectProperty)
+
+	case EUHTPropertyType::Text:
+		return TEXT("FText::GetEmpty()");
+
+	case EUHTPropertyType::Enum:
 	{
-		return TEXT("NULL");
-	}
-	else if ( PropClass == FInterfaceProperty::StaticClass() )
-	{
-		return TEXT("NULL");
-	}
-	else if (PropClass == FFieldPathProperty::StaticClass())
-	{
-		return TEXT("nullptr");
+		if (PropertyBase.EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
+		{
+			return TEXT("0");
+		}
+		return FString::Printf(TEXT("(%s)0"), *PropertyDef.GetCPPType());
 	}
 
-	UE_LOG(LogCompile, Fatal,TEXT("GetNullParameterValue - Unhandled property type '%s': %s"), *Prop->GetClass()->GetName(), *Prop->GetPathName());
-	return TEXT("");
+	case EUHTPropertyType::FieldPath:
+		return TEXT("nullptr");
+
+	default:
+		UE_LOG(LogCompile, Fatal, TEXT("GetNullParameterValue - Unhandled property type '%s': %s"), *PropertyDef.GetEngineClassName(), *PropertyDef.GetPathName());
+		return TEXT("");
+	}
 }
 
 
@@ -4507,10 +4396,9 @@ FString FNativeClassHeaderGenerator::GetFunctionReturnString(FUnrealFunctionDefi
 
 	if (FUnrealPropertyDefinitionInfo* ReturnDef = FunctionDef.GetReturn())
 	{
-		FProperty* Return = ReturnDef->GetProperty();
 		FString ExtendedReturnType;
-		OutReferenceGatherers.ForwardDeclarations.Add(Return->GetCPPTypeForwardDeclaration());
-		FString ReturnType = Return->GetCPPType(&ExtendedReturnType, CPPF_ArgumentOrReturnValue);
+		OutReferenceGatherers.ForwardDeclarations.Add(ReturnDef->GetCPPTypeForwardDeclaration());
+		FString ReturnType = ReturnDef->GetCPPType(&ExtendedReturnType, CPPF_ArgumentOrReturnValue);
 		FUHTStringBuilder ReplacementText;
 		ReplacementText += MoveTemp(ReturnType);
 		ApplyAlternatePropertyExportText(*ReturnDef, ReplacementText, EExportingState::Normal);
@@ -4714,17 +4602,16 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 	}
 
 	FUnrealPropertyDefinitionInfo* ReturnPropertyDef = FunctionDef.GetReturn();
-	FProperty* ReturnProperty = ReturnPropertyDef ? ReturnPropertyDef->GetProperty() : nullptr;
-	if (ReturnProperty != nullptr)
+	if (ReturnPropertyDef != nullptr)
 	{
-		if (ReturnProperty->HasAnyPropertyFlags(EPropertyFlags::CPF_ConstParm))
+		if (ReturnPropertyDef->HasAnyPropertyFlags(EPropertyFlags::CPF_ConstParm))
 		{
 			Out.Log(TEXT("const "));
 		}
 
 		FString ExtendedReturnType;
-		FString ReturnType = ReturnProperty->GetCPPType(&ExtendedReturnType, (FunctionHeaderStyle == EExportFunctionHeaderStyle::Definition && (FunctionType != EExportFunctionType::Interface) ? CPPF_Implementation : 0) | CPPF_ArgumentOrReturnValue);
-		OutFwdDecls.Add(ReturnProperty->GetCPPTypeForwardDeclaration());
+		FString ReturnType = ReturnPropertyDef->GetCPPType(&ExtendedReturnType, (FunctionHeaderStyle == EExportFunctionHeaderStyle::Definition && (FunctionType != EExportFunctionType::Interface) ? CPPF_Implementation : 0) | CPPF_ArgumentOrReturnValue);
+		OutFwdDecls.Add(ReturnPropertyDef->GetCPPTypeForwardDeclaration());
 		FUHTStringBuilder ReplacementText;
 		ReplacementText += ReturnType;
 		ApplyAlternatePropertyExportText(*ReturnPropertyDef, ReplacementText, EExportingState::Normal);
@@ -4767,13 +4654,12 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef.GetProperties())
 	{
-		FProperty* Property = PropertyDef->GetProperty();
-		if ((Property->PropertyFlags & (CPF_Parm | CPF_ReturnParm)) != CPF_Parm)
+		if (!PropertyDef->HasSpecificPropertyFlags(CPF_Parm | CPF_ReturnParm, CPF_Parm))
 		{
 			continue;
 		}
 
-		OutFwdDecls.Add(Property->GetCPPTypeForwardDeclaration());
+		OutFwdDecls.Add(PropertyDef->GetCPPTypeForwardDeclaration());
 
 		if( ParmCount++ )
 		{
@@ -4782,7 +4668,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 
 		FUHTStringBuilder PropertyText;
 
-		Property->ExportCppDeclaration( PropertyText, EExportedDeclaration::Parameter, PropertyDef->GetArrayDimensions() );
+		PropertyDef->ExportCppDeclaration( PropertyText, EExportedDeclaration::Parameter, PropertyDef->GetArrayDimensions() );
 		ApplyAlternatePropertyExportText(*PropertyDef, PropertyText, EExportingState::Normal);
 
 		Out.Logf(TEXT("%s"), *PropertyText);
@@ -4803,12 +4689,11 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 			{
 				// For BlueprintNativeEvent methods we emit a stub implementation. This allows Blueprints that implement the interface class to be nativized.
 				FString ReturnValue;
-				if (ReturnProperty != nullptr)
+				if (ReturnPropertyDef != nullptr)
 				{
-					FByteProperty* ByteProperty = CastField<FByteProperty>(ReturnProperty);
-					if (ByteProperty != nullptr && ByteProperty->Enum != nullptr && ByteProperty->Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
-					{
-						ReturnValue = FString::Printf(TEXT(" return TEnumAsByte<%s>(%s); "), *ByteProperty->Enum->CppType, *GetNullParameterValue(*ReturnPropertyDef, false));
+					if (ReturnPropertyDef->IsByteEnumOrByteEnumStaticArray())
+					{ 
+						ReturnValue = FString::Printf(TEXT(" return TEnumAsByte<%s>(%s); "), *ReturnPropertyDef->GetPropertyBase().AsEnum()->GetCppType(), *GetNullParameterValue(*ReturnPropertyDef, false));
 					}
 					else
 					{
@@ -4844,8 +4729,8 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 	for (int32 ParameterIndex = 0; ParameterIndex < ParameterDefs.Num(); ParameterIndex++)
 	{
 		FUnrealPropertyDefinitionInfo* ParamDef = ParameterDefs[ParameterIndex];
-		FProperty* Param = ParamDef->GetProperty();
-		OutReferenceGatherers.ForwardDeclarations.Add(Param->GetCPPTypeForwardDeclaration());
+		const FPropertyBase& PropertyBase = ParamDef->GetPropertyBase();
+		OutReferenceGatherers.ForwardDeclarations.Add(ParamDef->GetCPPTypeForwardDeclaration());
 
 		FString EvalBaseText = TEXT("P_GET_");	// e.g. P_GET_STR
 		FString EvalModifierText;				// e.g. _REF
@@ -4853,32 +4738,27 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 
 		FString TypeText;
 
-		if (Param->ArrayDim > 1)
+		if (ParamDef->IsStaticArray())
 		{
 			EvalBaseText += TEXT("ARRAY");
-			TypeText = Param->GetCPPType();
+			TypeText = ParamDef->GetCPPType();
 		}
 		else
 		{
-			EvalBaseText += Param->GetCPPMacroType(TypeText);
+			EvalBaseText += ParamDef->GetCPPMacroType(TypeText);
 
-			FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Param);
-			if (ArrayProperty)
+			if (PropertyBase.ArrayType == EArrayType::Dynamic && PropertyBase.Type == CPT_Interface)
 			{
-				FInterfaceProperty* InterfaceProperty = CastField<FInterfaceProperty>(ArrayProperty->Inner);
-				if (InterfaceProperty)
-				{
-					FString InterfaceTypeText;
-					InterfaceProperty->GetCPPMacroType(InterfaceTypeText);
-					TypeText += FString::Printf(TEXT("<%s>"), *InterfaceTypeText);
-				}
+				FString InterfaceTypeText;
+				ParamDef->GetValuePropDef().GetCPPMacroType(InterfaceTypeText);
+				TypeText += FString::Printf(TEXT("<%s>"), *InterfaceTypeText);
 			}
 		}
 
-		bool bPassAsNoPtr = Param->HasAllPropertyFlags(CPF_UObjectWrapper | CPF_OutParm) && Param->IsA(FClassProperty::StaticClass());
+		bool bPassAsNoPtr = ParamDef->HasAllPropertyFlags(CPF_UObjectWrapper | CPF_OutParm) && ParamDef->IsClassRefOrClassRefStaticArray();
 		if (bPassAsNoPtr)
 		{
-			TypeText = Param->GetCPPType();
+			TypeText = ParamDef->GetCPPType();
 		}
 
 		FUHTStringBuilder ReplacementText;
@@ -4891,7 +4771,7 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 		FString ParamPrefix = TEXT("Z_Param_");
 
 		// if this property is an out parm, add the REF tag
-		if (Param->PropertyFlags & CPF_OutParm)
+		if (ParamDef->HasAnyPropertyFlags(CPF_OutParm))
 		{
 			if (!bPassAsNoPtr)
 			{
@@ -4912,7 +4792,7 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 			TypeText += TCHAR(',');
 		}
 
-		FString ParamName = ParamPrefix + Param->GetName();
+		FString ParamName = ParamPrefix + ParamDef->GetName();
 
 		EvalParameterText = FString::Printf(TEXT("(%s%s%s)"), *TypeText, *ParamName, *DefaultValueText);
 
@@ -4924,54 +4804,37 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 			ParameterList += TCHAR(',');
 		}
 
+		if (PropertyBase.Type == CPT_Delegate && PropertyBase.IsPrimitiveOrPrimitiveStaticArray())
 		{
-			FDelegateProperty* DelegateProp = CastField< FDelegateProperty >(Param);
-			if (DelegateProp != NULL)
-			{
-				// For delegates, add an explicit conversion to the specific type of delegate before passing it along
-				const FString FunctionName = DelegateProp->SignatureFunction->GetName().LeftChop(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH);
-				ParamName = FString::Printf(TEXT("F%s(%s)"), *FunctionName, *ParamName);
-			}
+			// For delegates, add an explicit conversion to the specific type of delegate before passing it along
+			const FString FunctionName = PropertyBase.FunctionDef->GetName().LeftChop(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH);
+			ParamName = FString::Printf(TEXT("F%s(%s)"), *FunctionName, *ParamName);
 		}
 
+		if (PropertyBase.Type == CPT_MulticastDelegate && PropertyBase.IsPrimitiveOrPrimitiveStaticArray())
 		{
-			FMulticastDelegateProperty* MulticastDelegateProp = CastField< FMulticastDelegateProperty >(Param);
-			if (MulticastDelegateProp != NULL)
-			{
-				// For delegates, add an explicit conversion to the specific type of delegate before passing it along
-				const FString FunctionName = MulticastDelegateProp->SignatureFunction->GetName().LeftChop(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH);
-				ParamName = FString::Printf(TEXT("F%s(%s)"), *FunctionName, *ParamName);
-			}
+			// For delegates, add an explicit conversion to the specific type of delegate before passing it along
+			const FString FunctionName = PropertyBase.FunctionDef->GetName().LeftChop(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH);
+			ParamName = FString::Printf(TEXT("F%s(%s)"), *FunctionName, *ParamName);
 		}
 
-		UEnum* Enum = nullptr;
-		FByteProperty* ByteProp = CastField<FByteProperty>(Param);
-		if (ByteProp && ByteProp->Enum)
-		{
-			Enum = ByteProp->Enum;
-		}
-		else if (Param->IsA<FEnumProperty>())
-		{
-			Enum = ((FEnumProperty*)Param)->Enum;
-		}
-
-		if (Enum)
+		if (FUnrealEnumDefinitionInfo* EnumDef = PropertyBase.IsPrimitiveOrPrimitiveStaticArray() ? PropertyBase.AsEnum() : nullptr)
 		{
 			// For enums, add an explicit conversion
-			if (!(Param->PropertyFlags & CPF_OutParm))
+			if (!ParamDef->HasAnyPropertyFlags(CPF_OutParm))
 			{
-				ParamName = FString::Printf(TEXT("%s(%s)"), *Enum->CppType, *ParamName);
+				ParamName = FString::Printf(TEXT("%s(%s)"), *EnumDef->GetCppType(), *ParamName);
 			}
 			else
 			{
-				if (Enum->GetCppForm() == UEnum::ECppForm::EnumClass)
+				if (EnumDef->GetCppForm() == UEnum::ECppForm::EnumClass)
 				{
 					// If we're an enum class don't require the wrapper
-					ParamName = FString::Printf(TEXT("(%s&)(%s)"), *Enum->CppType, *ParamName);
+					ParamName = FString::Printf(TEXT("(%s&)(%s)"), *EnumDef->GetCppType(), *ParamName);
 				}
 				else
 				{
-					ParamName = FString::Printf(TEXT("(TEnumAsByte<%s>&)(%s)"), *Enum->CppType, *ParamName);
+					ParamName = FString::Printf(TEXT("(TEnumAsByte<%s>&)(%s)"), *EnumDef->GetCppType(), *ParamName);
 				}
 			}
 		}
@@ -5025,16 +4888,15 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 	RPCWrappers.Log(TEXT("\t\t"));
 	if (ReturnDef)
 	{
-		FProperty* Return = ReturnDef->GetProperty();
-		OutReferenceGatherers.ForwardDeclarations.Add(Return->GetCPPTypeForwardDeclaration());
+		OutReferenceGatherers.ForwardDeclarations.Add(ReturnDef->GetCPPTypeForwardDeclaration());
 
 		FUHTStringBuilder ReplacementText;
 		FString ReturnExtendedType;
-		ReplacementText += Return->GetCPPType(&ReturnExtendedType);
+		ReplacementText += ReturnDef->GetCPPType(&ReturnExtendedType);
 		ApplyAlternatePropertyExportText(*ReturnDef, ReplacementText, EExportingState::Normal);
 
 		FString ReturnType = ReplacementText;
-		if (Return->HasAnyPropertyFlags(CPF_ConstParm) && CastField<FObjectProperty>(Return))
+		if (ReturnDef->HasAnyPropertyFlags(CPF_ConstParm) && ReturnDef->IsObjectRefOrObjectRefStaticArray())
 		{
 			ReturnType = TEXT("const ") + ReturnType;
 		}
@@ -5058,12 +4920,16 @@ FString FNativeClassHeaderGenerator::GetFunctionParameterString(FUnrealFunctionD
 	FString ParameterList;
 	FUHTStringBuilder PropertyText;
 
+	if (FunctionDef.GetReturn() != nullptr)
+	{
+		ParameterList = ParameterList;
+	}
+
 	for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef.GetProperties())
 	{
-		FProperty* Property = PropertyDef->GetProperty();
-		OutReferenceGatherers.ForwardDeclarations.Add(Property->GetCPPTypeForwardDeclaration());
+		OutReferenceGatherers.ForwardDeclarations.Add(PropertyDef->GetCPPTypeForwardDeclaration());
 
-		if ((Property->PropertyFlags & (CPF_Parm | CPF_ReturnParm)) != CPF_Parm)
+		if (!PropertyDef->HasSpecificPropertyFlags(CPF_Parm | CPF_ReturnParm, CPF_Parm))
 		{
 			break;
 		}
@@ -5073,7 +4939,7 @@ FString FNativeClassHeaderGenerator::GetFunctionParameterString(FUnrealFunctionD
 			ParameterList += TEXT(", ");
 		}
 
-		Property->ExportCppDeclaration(PropertyText, EExportedDeclaration::Parameter, PropertyDef->GetArrayDimensions(), 0, true);
+		PropertyDef->ExportCppDeclaration(PropertyText, EExportedDeclaration::Parameter, PropertyDef->GetArrayDimensions(), 0, true);
 		ApplyAlternatePropertyExportText(*PropertyDef, PropertyText, EExportingState::Normal);
 
 		ParameterList += PropertyText;
@@ -5126,23 +4992,22 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		{
 			for (FUnrealPropertyDefinitionInfo* PropertyDef : SparseClassDataStructDef->GetProperties())
 			{
-				const FProperty* Child = PropertyDef->GetProperty();
 				FString ReturnExtendedType;
-				FString VarType = Child->GetCPPType(&ReturnExtendedType, EPropertyExportCPPFlags::CPPF_ArgumentOrReturnValue | EPropertyExportCPPFlags::CPPF_Implementation);
+				FString VarType = PropertyDef->GetCPPType(&ReturnExtendedType, EPropertyExportCPPFlags::CPPF_ArgumentOrReturnValue | EPropertyExportCPPFlags::CPPF_Implementation);
 				if (!ReturnExtendedType.IsEmpty())
 				{
 					VarType.Append(ReturnExtendedType);
 				}
-				FString VarName = Child->GetName();
+				FString VarName = PropertyDef->GetName();
 				FString CleanVarName = VarName;
-				if (CastField<FBoolProperty>(Child) && VarName.StartsWith(TEXT("b"), ESearchCase::CaseSensitive))
+				if (PropertyDef->IsBooleanOrBooleanStaticArray() && VarName.StartsWith(TEXT("b"), ESearchCase::CaseSensitive))
 				{
 					CleanVarName = VarName.RightChop(1);
 				}
 
-				if (!Child->HasMetaData(NAME_NoGetter))
+				if (!PropertyDef->HasMetaData(NAME_NoGetter))
 				{
-					if (Child->HasMetaData(NAME_GetByRef))
+					if (PropertyDef->HasMetaData(NAME_GetByRef))
 					{
 						RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("const %s& Get%s()\r\n"), *VarType, *CleanVarName);
 					}
@@ -5154,7 +5019,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 					RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("\treturn Get%s()->%s;\r\n"), *SparseClassDataString, *VarName);
 					RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("}\r\n"));
 
-					if (Child->HasMetaData(NAME_GetByRef))
+					if (PropertyDef->HasMetaData(NAME_GetByRef))
 					{
 						RuntimeStringBuilders.AutogeneratedStaticDataFuncs.Logf(TEXT("const %s& Get%s() const\r\n"), *VarType, *CleanVarName);
 					}
@@ -5465,33 +5330,29 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
  */
 void FNativeClassHeaderGenerator::ApplyAlternatePropertyExportText(FUnrealPropertyDefinitionInfo& PropertyDef, FUHTStringBuilder& PropertyText, EExportingState ExportingState)
 {
-	FProperty* Prop = PropertyDef.GetProperty();
-	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop);
-	FProperty* InnerProperty = ArrayProperty ? ArrayProperty->Inner : nullptr;
-	if (InnerProperty && (
-			(InnerProperty->IsA<FByteProperty>() && ((FByteProperty*)InnerProperty)->Enum && FUnrealTypeDefinitionInfo::IsDynamic(static_cast<UField*>(((FByteProperty*)InnerProperty)->Enum))) ||
-			(InnerProperty->IsA<FEnumProperty>()                                          && FUnrealTypeDefinitionInfo::IsDynamic(static_cast<UField*>(((FEnumProperty*)InnerProperty)->Enum)))
-		)
-	)
+	const FPropertyBase& PropertyBase = PropertyDef.GetPropertyBase();
+	if (FUnrealEnumDefinitionInfo* EnumDef = PropertyBase.AsEnum())
 	{
-		const FString Original = InnerProperty->GetCPPType();
-		const FString RawByte = InnerProperty->GetCPPType(nullptr, EPropertyExportCPPFlags::CPPF_BlueprintCppBackend);
-		if (Original != RawByte)
+		if (PropertyBase.ArrayType == EArrayType::Static && EnumDef->IsDynamic())
 		{
-			PropertyText.ReplaceInline(*Original, *RawByte, ESearchCase::CaseSensitive);
+			FUnrealPropertyDefinitionInfo& InnerPropertyDef = PropertyDef.GetValuePropDef();
+			const FString Original = InnerPropertyDef.GetCPPType();
+			const FString RawByte = InnerPropertyDef.GetCPPType(nullptr, EPropertyExportCPPFlags::CPPF_BlueprintCppBackend);
+			if (Original != RawByte)
+			{
+				PropertyText.ReplaceInline(*Original, *RawByte, ESearchCase::CaseSensitive);
+			}
 		}
 		return;
 	}
 
 	if (ExportingState == EExportingState::TypeEraseDelegates)
 	{
-		FDelegateProperty* DelegateProperty = CastField<FDelegateProperty>(Prop);
-		FMulticastDelegateProperty* MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(Prop);
-		if (DelegateProperty || MulticastDelegateProperty)
+		if (PropertyBase.Type == CPT_Delegate || PropertyBase.Type == CPT_MulticastDelegate)
 		{
-			FString Original = Prop->GetCPPType();
+			FString Original = PropertyDef.GetCPPType();
 			const TCHAR* PlaceholderOfSameSizeAndAlignemnt;
-			if (DelegateProperty)
+			if (PropertyBase.Type == CPT_Delegate)
 			{
 				PlaceholderOfSameSizeAndAlignemnt = TEXT("FScriptDelegate");
 			}
