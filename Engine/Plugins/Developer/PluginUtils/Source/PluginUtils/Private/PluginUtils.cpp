@@ -694,7 +694,7 @@ bool FPluginUtils::ValidateNewPluginNameAndLocation(const FString& PluginName, c
 	{
 		if (FailReason)
 		{
-			*FailReason = FText::Format(LOCTEXT("PluginNameAlreadyInUse", "Plugin name is already in use\n{0}"), FText::FromString(FPaths::ConvertRelativePathToFull(ExistingPlugin->GetDescriptorFileName())));
+			*FailReason = FText::Format(LOCTEXT("PluginNameAlreadyInUse", "Plugin name is already in use by\n{0}"), FText::FromString(FPaths::ConvertRelativePathToFull(ExistingPlugin->GetDescriptorFileName())));
 		}
 		return false;
 	}
