@@ -1,10 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SFilterCheckBox.h"
-
+#include "Widgets/Filter/SFilterCheckBox.h"
 
 #include "EditorStyleSet.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 

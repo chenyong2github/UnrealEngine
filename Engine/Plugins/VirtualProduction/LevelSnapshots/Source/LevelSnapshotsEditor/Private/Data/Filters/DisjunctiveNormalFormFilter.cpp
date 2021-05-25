@@ -58,15 +58,6 @@ namespace
 UConjunctionFilter* UDisjunctiveNormalFormFilter::CreateChild()
 {
 	UConjunctionFilter* Child = NewObject<UConjunctionFilter>(this);
-
-	// Set Child parent
-	Child->SetParentFilter(this);
-
-	if (EditorFilterBehavior != EEditorFilterBehavior::Mixed)
-	{
-		Child->SetEditorFilterBehavior(EditorFilterBehavior, false); // Set Filter Result of parent
-	}
-
 	Children.Add(Child);
 	return Child;
 }
@@ -112,16 +103,4 @@ EFilterResult::Type UDisjunctiveNormalFormFilter::IsAddedActorValid(const FIsAdd
 	{
 		return Child->IsAddedActorValid(Params);
 	});
-}
-
-TArray<UEditorFilter*> UDisjunctiveNormalFormFilter::GetEditorChildren()
-{
-	TArray<UEditorFilter*> EditorFilterChildren;
-
-	for (UConjunctionFilter* ChildFilter : Children)
-	{
-		EditorFilterChildren.Add(ChildFilter);
-	}
-
-	return EditorFilterChildren;
 }

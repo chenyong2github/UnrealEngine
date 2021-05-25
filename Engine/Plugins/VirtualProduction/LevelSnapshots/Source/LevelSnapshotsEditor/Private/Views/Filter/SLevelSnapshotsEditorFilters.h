@@ -16,7 +16,7 @@ class ULevelSnapshotsEditorData;
 class ULevelSnapshotFilter;
 class UConjunctionFilter;
 
-enum class EEditorFilterBehavior : uint8;
+enum class EFilterBehavior : uint8;
 
 /* Contents of filters tab */
 class SLevelSnapshotsEditorFilters : public SCompoundWidget
@@ -37,8 +37,6 @@ public:
 	bool IsResizingDetailsView() const;
 	
 	void RemoveFilter(UConjunctionFilter* FilterToRemove);
-
-	void SetMasterFilterBehaviorFromChildRow(const EEditorFilterBehavior InFilterBehavior);
 
 private:
 
@@ -64,6 +62,4 @@ private:
 
 	TWeakPtr<FLevelSnapshotsEditorFilters> FiltersModelPtr;
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorDataPtr;
-
-	TSharedPtr<SMasterFilterIndicatorButton> MasterFilterIndicatorButton;
 };

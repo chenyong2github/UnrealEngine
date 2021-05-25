@@ -5,7 +5,6 @@
 #include "ConjunctionFilter.h"
 #include "FavoriteFilterDragDrop.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "SRowFilterIndicatorButton.h"
 #include "SLevelSnapshotsEditorFilterList.h"
 #include "SLevelSnapshotsEditorFilters.h"
 
@@ -65,47 +64,44 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 			.HAlign(HAlign_Fill)
 			.FillWidth(1.f)
 			[
-				SNew(SRowFilterIndicatorButton, InManagedFilter)
+				SNew(SBorder)
+				.Padding(FMargin(5.0f, 5.f))
+				.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
 				[
-					SNew(SBorder)
-					.Padding(FMargin(5.0f, 5.f))
-					.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
+					SNew(SHorizontalBox)
+
+					// Filters
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
+					.Padding(5.f, 5.f)
+					.FillWidth(1.f)
+					[
+						SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorFilters->GetFiltersModel().ToSharedRef())
+					]
+
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Top)
+					.AutoWidth()
 					[
 						SNew(SHorizontalBox)
 
-						// Filters
+						// Remove Button
 						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Fill)
-						.Padding(5.f, 5.f)
-						.FillWidth(1.f)
-						[
-							SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorFilters->GetFiltersModel().ToSharedRef())
-						]
-
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Top)
+						.Padding(0.f, 0.f)
 						.AutoWidth()
 						[
-							SNew(SHorizontalBox)
-
-							// Remove Button
-							+ SHorizontalBox::Slot()
-							.Padding(0.f, 0.f)
-							.AutoWidth()
+							SNew(SButton)
+							.OnClicked_Lambda([this]()
+							{
+								OnClickRemoveRow.ExecuteIfBound(SharedThis(this));
+								return FReply::Handled();
+							})
+							.ButtonStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.RemoveFilterButton")
 							[
-								SNew(SButton)
-								.OnClicked_Lambda([this]()
-								{
-									OnClickRemoveRow.ExecuteIfBound(SharedThis(this));
-									return FReply::Handled();
-								})
-								.ButtonStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.RemoveFilterButton")
-								[
-									SNew(STextBlock)
-									.TextStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.Button.TextStyle")
-									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-									.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
-								]
+								SNew(STextBlock)
+								.TextStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.Button.TextStyle")
+								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+								.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
 							]
 						]
 					]

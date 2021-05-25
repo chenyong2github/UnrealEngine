@@ -1,24 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SLevelSnapshotsEditorFilters.h"
+#include "Views/Filter/SLevelSnapshotsEditorFilters.h"
 
-#include "DisjunctiveNormalFormFilter.h"
-#include "EditorFilter.h"
-#include "EditorFontGlyphs.h"
-#include "FilteredResults.h"
-#include "ILevelSnapshotsEditorView.h"
-#include "LevelSnapshotsEditorData.h"
+#include "Customizations/NegatableFilterDetailsCustomization.h"
+#include "Data/FilteredResults.h"
+#include "Data/Filters/DisjunctiveNormalFormFilter.h"
+#include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorFilters.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "SFavoriteFilterList.h"
-#include "SMasterFilterIndicatorButton.h"
-#include "SLevelSnapshotsEditorFilterRow.h"
-#include "SSaveAndLoadFilters.h"
+#include "TempInterfaces/ILevelSnapshotsEditorView.h"
+#include "Widgets/Filter/SFavoriteFilterList.h"
+#include "Widgets/SLevelSnapshotsEditorFilterRow.h"
+#include "Widgets/Filter/SSaveAndLoadFilters.h"
 
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IDetailsView.h"
-#include "NegatableFilterDetailsCustomization.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
@@ -125,10 +123,15 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 
 	// Create a property view
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.bHideSelectionTip = true;
+	FDetailsViewArgs DetailsViewArgs(
+		/*bUpdateFromSelection=*/ false,
+		/*bLockable=*/ false, 
+		/*bAllowSearch=*/ true,
+		FDetailsViewArgs::HideNameArea,
+		/*bHideSelectionTip=*/ true,
+		/*InNotifyHook=*/ nullptr,
+		/*InSearchInitialKeyFocus=*/ false,
+		/*InViewIdentifier=*/ NAME_None);
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
 	
 	FilterDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
@@ -159,61 +162,35 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 			[
 				SNew(SHorizontalBox)
 
+				// Refresh button
 				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.Padding(FMargin(0.f, 2.f))
+				.AutoWidth()
+				.Padding(0.f, 0.f, 2.f, 0.f)
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ForegroundColor(FSlateColor::UseForeground())
+					.OnClicked(this, &SLevelSnapshotsEditorFilters::OnClickUpdateResultsView)
 					[
-						// Checkbox 
 						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.Padding(2.f, 0.f)
-						.AutoWidth()
+						+SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
 						[
-							SAssignNew(MasterFilterIndicatorButton, SMasterFilterIndicatorButton, GetEditorData()->GetUserDefinedFilters())
+							SNew(STextBlock)
+							.Justification(ETextJustify::Center)
+							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+							.Text(FEditorFontGlyphs::Plus)
+							.Text(LOCTEXT("UpdateResults", "Refresh Results"))
 						]
 					]
 				]
 
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
+				// Save and load
+				+SHorizontalBox::Slot()
+					.HAlign(HAlign_Right)
 				[
-					SNew(SHorizontalBox)
-
-					// Refresh button
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(0.f, 0.f, 2.f, 0.f)
-					[
-						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FSlateColor::UseForeground())
-						.OnClicked(this, &SLevelSnapshotsEditorFilters::OnClickUpdateResultsView)
-						[
-							SNew(SHorizontalBox)
-							+SHorizontalBox::Slot()
-								.AutoWidth()
-								.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-								.Justification(ETextJustify::Center)
-								.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-								.Text(FEditorFontGlyphs::Plus)
-								.Text(LOCTEXT("UpdateResults", "Refresh Results"))
-							]
-						]
-					]
-
-					// Save and load
-					+SHorizontalBox::Slot()
-						.HAlign(HAlign_Right)
-					[
-						SNew(SSaveAndLoadFilters, GetEditorData())
-					]
+					SNew(SSaveAndLoadFilters, GetEditorData())
 				]
 			]
 			
@@ -287,10 +264,6 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 
 		const TArray<UConjunctionFilter*>* AndFilters = &UserDefinedFilters->GetChildren();
 		FilterRowsList->SetTreeItemsSource(AndFilters);
-
-		// Update master filter
-		MasterFilterIndicatorButton->SetUserDefinedFilters(UserDefinedFilters);
-		UserDefinedFilters->SetEditorFilterBehaviorFromChild();
 		
 		GetEditorData()->SetEditedFilter(TOptional<UNegatableFilter*>());
 	});
@@ -327,23 +300,8 @@ void SLevelSnapshotsEditorFilters::RemoveFilter(UConjunctionFilter* FilterToRemo
 {
 	UDisjunctiveNormalFormFilter* UserDefinedFilters = GetEditorData()->GetUserDefinedFilters();
 	UserDefinedFilters->RemoveConjunction(FilterToRemove);
-	UserDefinedFilters->SetEditorFilterBehaviorFromChild();
 
 	RefreshGroups();
-}
-
-void SLevelSnapshotsEditorFilters::SetMasterFilterBehaviorFromChildRow(const EEditorFilterBehavior InFilterBehavior)
-{
-	ULevelSnapshotsEditorData* EditorData = GetEditorData();
-	if (!ensure(EditorData))
-	{
-		return;
-	}
-
-	if (UDisjunctiveNormalFormFilter* UserDefinedFilters = EditorData->GetUserDefinedFilters())
-	{
-		UserDefinedFilters->SetEditorFilterBehaviorFromChild(InFilterBehavior);
-	}
 }
 
 FReply SLevelSnapshotsEditorFilters::OnClickUpdateResultsView()
