@@ -931,7 +931,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 							FRayTracingGeometrySegment Segment;
 							Segment.VertexBuffer = nullptr;
-							Segment.VertexBufferStride = sizeof(FVector);
+							Segment.VertexBufferStride = sizeof(FVector3f);
 							Segment.VertexBufferElementType = VET_Float3;
 							Segment.MaxVertices = NumPrimitives * 3;
 							Segment.NumPrimitives = NumPrimitives;
@@ -967,7 +967,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 								MeshBatches,
 								false,
 								(uint32)FMath::Square(Landscape.SubsectionSizeVerts),
-								FMath::Square(Landscape.SubsectionSizeVerts) * (uint32)sizeof(FVector),
+								FMath::Square(Landscape.SubsectionSizeVerts) * (uint32)sizeof(FVector3f),
 								(uint32)FMath::Square(Landscape.SubsectionSizeVerts - 1) * 2,
 								&Landscape.SectionRayTracingStates[SubSectionIdx]->Geometry,
 								&Landscape.SectionRayTracingStates[SubSectionIdx]->RayTracingDynamicVertexBuffer,
