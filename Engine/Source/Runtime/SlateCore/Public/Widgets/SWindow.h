@@ -530,7 +530,7 @@ public:
 	 * @param	InZOrder	Z-order to use for this widget
 	 * @return The added overlay slot so that it can be configured and populated
 	 */
-	SOverlay::FOverlaySlot& AddOverlaySlot( const int32 ZOrder = INDEX_NONE );
+	SOverlay::FScopedWidgetSlotArguments AddOverlaySlot( const int32 ZOrder = INDEX_NONE );
 
 	/**
 	 * Removes a widget that is being drawn over the entire window

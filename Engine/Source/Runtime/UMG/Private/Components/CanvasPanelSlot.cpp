@@ -26,7 +26,8 @@ void UCanvasPanelSlot::ReleaseSlateResources(bool bReleaseChildren)
 
 void UCanvasPanelSlot::BuildSlot(TSharedRef<SConstraintCanvas> Canvas)
 {
-	Slot = &Canvas->AddSlot()
+	Canvas->AddSlot()
+		.Expose(Slot)
 		[
 			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
 		];

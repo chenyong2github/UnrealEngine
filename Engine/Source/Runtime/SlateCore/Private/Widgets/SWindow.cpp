@@ -1293,7 +1293,7 @@ bool SWindow::HasOverlay() const
 	return WindowOverlay.IsValid();
 }
 
-SOverlay::FOverlaySlot& SWindow::AddOverlaySlot( const int32 ZOrder )
+SOverlay::FScopedWidgetSlotArguments SWindow::AddOverlaySlot( const int32 ZOrder )
 {
 	if(!WindowOverlay.IsValid())
 	{

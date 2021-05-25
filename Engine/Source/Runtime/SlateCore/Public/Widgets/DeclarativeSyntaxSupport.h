@@ -37,6 +37,9 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 #define SAssignNew( ExposeAs, WidgetType, ... ) \
 	MakeTDecl<WidgetType>( #WidgetType, __FILE__, __LINE__, RequiredArgs::MakeRequiredArgs(__VA_ARGS__) ) . Expose( ExposeAs ) <<= TYPENAME_OUTSIDE_TEMPLATE WidgetType::FArguments()
 
+#define SArgumentNew( InArgs, WidgetType, ... ) \
+	MakeTDecl<WidgetType>( #WidgetType, __FILE__, __LINE__, RequiredArgs::MakeRequiredArgs(__VA_ARGS__) ) <<= TYPENAME_OUTSIDE_TEMPLATE InArgs
+
 
 /**
  * Widget authors can use SLATE_BEGIN_ARGS and SLATE_END_ARS to add support
@@ -113,12 +116,12 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 		TAttribute< AttrType > _##AttrName
 
 #define SLATE_PRIVATE_ATTRIBUTE_FUNCTION( AttrType, AttrName ) \
-		WidgetArgsType& AttrName( const TAttribute< AttrType >& InAttribute ) \
+		WidgetArgsType& AttrName( TAttribute< AttrType > InAttribute ) \
 		{ \
-			_##AttrName = InAttribute; \
+			_##AttrName = MoveTemp(InAttribute); \
 			return this->Me(); \
 		} \
-	\
+		\
 		/* Bind attribute with delegate to a global function
 		 * NOTE: We use a template here to avoid 'typename' issues when hosting attributes inside templated classes */ \
 		template< typename StaticFuncPtr > \
@@ -398,6 +401,57 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 			Slots.Add( new SlotType( ArgumentsForNewSlot ) ); \
 			return *this; \
 		}
+
+
+#define SLATE_PRIVATE_SLOT_BEGIN_ARGS( SlotType, SlotParentType ) \
+	{ \
+		using WidgetArgsType = SlotType::FSlotArguments; \
+		using SlotParentType::FSlotArguments::FSlotArguments;
+
+/**
+ * Use this macro between SLATE_BEGIN_ARGS and SLATE_END_ARGS
+ * in order to add support for slots with the construct pattern.
+ */
+#define SLATE_SLOT_ARGUMENT( SlotType, SlotName ) \
+		TArray<SlotType::FSlotArguments> _##SlotName; \
+		WidgetArgsType& operator + (typename SlotType::FSlotArguments& SlotToAdd) \
+		{ \
+			_##SlotName.Add( MoveTemp(SlotToAdd) ); \
+			return *this; \
+		} \
+		WidgetArgsType& operator + (typename SlotType::FSlotArguments&& SlotToAdd) \
+		{ \
+			_##SlotName.Add( MoveTemp(SlotToAdd) ); \
+			return *this; \
+		}
+
+#define SLATE_SLOT_BEGIN_ARGS( SlotType, SlotParentType ) \
+	public: \
+	struct FSlotArguments : public SlotParentType::FSlotArguments \
+	SLATE_PRIVATE_SLOT_BEGIN_ARGS( SlotType, SlotParentType )
+		
+#define SLATE_SLOT_BEGIN_ARGS_OneMixin( SlotType, SlotParentType, Mixin1 ) \
+	public: \
+	struct FSlotArguments : public SlotParentType::FSlotArguments, public Mixin1::FSlotArgumentsMixin \
+	SLATE_PRIVATE_SLOT_BEGIN_ARGS( SlotType, SlotParentType )
+
+#define SLATE_SLOT_BEGIN_ARGS_TwoMixins( SlotType, SlotParentType, Mixin1, Mixin2 ) \
+	public: \
+	struct FSlotArguments : public SlotParentType::FSlotArguments, public Mixin1::FSlotArgumentsMixin, public Mixin2::FSlotArgumentsMixin \
+	SLATE_PRIVATE_SLOT_BEGIN_ARGS( SlotType, SlotParentType )
+
+#define SLATE_SLOT_BEGIN_ARGS_ThreeMixins( SlotType, SlotParentType, Mixin1, Mixin2, Mixin3 ) \
+	public: \
+	struct FSlotArguments : public SlotParentType::FSlotArguments, public Mixin1::FSlotArgumentsMixin, public Mixin2::FSlotArgumentsMixin, public Mixin3::FSlotArgumentsMixin \
+	SLATE_PRIVATE_SLOT_BEGIN_ARGS( SlotType, SlotParentType )
+	
+#define SLATE_SLOT_BEGIN_ARGS_FourMixins( SlotType, SlotParentType, Mixin1, Mixin2, Mixin3, Mixin4 ) \
+	public: \
+	struct FSlotArguments : public SlotParentType::FSlotArguments, public Mixin1::FSlotArgumentsMixin, public Mixin2::FSlotArgumentsMixin, public Mixin3::FSlotArgumentsMixin, public Mixin4::FSlotArgumentsMixin \
+	SLATE_PRIVATE_SLOT_BEGIN_ARGS( SlotType, SlotParentType )
+
+#define SLATE_SLOT_END_ARGS() \
+	};
 
 
 /** A widget reference that is always a valid pointer; defaults to SNullWidget */

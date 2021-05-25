@@ -86,7 +86,7 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** Wraps SOverlay::AddSlot() */
-	SOverlay::FOverlaySlot& AddSlot();
+	SOverlay::FScopedWidgetSlotArguments AddSlot();
 
 	/** Wraps SOverlay::RemoveSlot() */
 	void RemoveSlot();
