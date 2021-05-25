@@ -96,6 +96,7 @@ struct FOpenXRQRCodeData : public FOpenXRARTrackedGeometryData
 struct FOpenXRMeshUpdate : public FOpenXRARTrackedGeometryData
 {
 	EARObjectClassification Type = EARObjectClassification::NotApplicable;
+	EARSpatialMeshUsageFlags SpatialMeshUsageFlags = EARSpatialMeshUsageFlags::NotApplicable;
 	TArray<FVector> Vertices;
 	TArray<MRMESH_INDEX_TYPE> Indices;
 
@@ -106,11 +107,17 @@ struct FOpenXRMeshUpdate : public FOpenXRARTrackedGeometryData
 
 	OPENXRAR_API virtual UARTrackedGeometry* ConstructNewTrackedGeometry(TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface) override;
 	OPENXRAR_API virtual void UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeometry, TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface) override;
+
+	OPENXRAR_API bool HasSpatialMeshUsageFlag(const EARSpatialMeshUsageFlags& InFlag)
+	{
+		return ((int32)SpatialMeshUsageFlags & (int32)InFlag) != 0;
+	}
 };
 
 struct FOpenXRPlaneUpdate : public FOpenXRARTrackedGeometryData
 {
 	EARObjectClassification Type = EARObjectClassification::NotApplicable;
+	EARSpatialMeshUsageFlags SpatialMeshUsageFlags = EARSpatialMeshUsageFlags::NotApplicable;
 	FVector Extent;
 
 	FOpenXRPlaneUpdate() :
@@ -120,4 +127,9 @@ struct FOpenXRPlaneUpdate : public FOpenXRARTrackedGeometryData
 
 	OPENXRAR_API virtual UARTrackedGeometry* ConstructNewTrackedGeometry(TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface) override;
 	OPENXRAR_API virtual void UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeometry, TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface) override;
+
+	OPENXRAR_API bool HasSpatialMeshUsageFlag(const EARSpatialMeshUsageFlags& InFlag)
+	{
+		return ((int32)SpatialMeshUsageFlags & (int32)InFlag) != 0;
+	}
 };

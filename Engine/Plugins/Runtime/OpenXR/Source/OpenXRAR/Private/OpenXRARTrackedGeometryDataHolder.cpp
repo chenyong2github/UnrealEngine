@@ -66,6 +66,7 @@ void FOpenXRMeshUpdate::UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeometr
 		ARSupportInterface->GetAlignmentTransform());
 	// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
 	UpdatedGeometry->SetObjectClassification(Type);
+	UpdatedGeometry->SetSpatialMeshUsageFlags(SpatialMeshUsageFlags);
 	UpdatedGeometry->SetTrackingState(TrackingState);
 }
 
@@ -134,6 +135,7 @@ void FOpenXRPlaneUpdate::UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeomet
 
 	// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
 	TrackedGeometry->SetObjectClassification(Type);
+	TrackedGeometry->SetSpatialMeshUsageFlags(SpatialMeshUsageFlags);
 	// This must be called AFTER UpdateTrackedGeometry because UpdateTrackedGeometry silently assign Tracked state even if tracking lost
 	TrackedGeometry->SetTrackingState(TrackingState); 
 }

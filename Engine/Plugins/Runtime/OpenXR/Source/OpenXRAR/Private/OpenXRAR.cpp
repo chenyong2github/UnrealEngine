@@ -597,10 +597,23 @@ void FOpenXRARSystem::AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh)
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
+	// If the input mesh type does not support collisions, do not use with the physics system.
+	if (!CurrentMesh->HasSpatialMeshUsageFlag(EARSpatialMeshUsageFlags::Collision)
+		&& NewUpdatedGeometry != nullptr
+		&& NewUpdatedGeometry->GetUnderlyingMesh() != nullptr)
+	{
+		NewUpdatedGeometry->GetUnderlyingMesh()->SetNeverCreateCollisionMesh(true);
+	}
+
+	// Update the tracked geometry before calling the add or update delegate so the event has valid data.
 	CurrentMesh->UpdateTrackedGeometry(NewUpdatedGeometry, TrackingSystem->GetARCompositionComponent());
 
 	// Trigger the proper notification delegate
-	if (!bIsAdd)
+	if (bIsAdd)
+	{
+		AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
+	} 
+	else
 	{
 		UARComponent* NewUpdatedARComponent = FoundTrackedGeometryGroup->ARComponent;
 		if (NewUpdatedARComponent)
@@ -672,10 +685,22 @@ void FOpenXRARSystem::AddOrUpdatePlane_GameThread(FOpenXRPlaneUpdate* CurrentPla
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;
+	// If the input mesh type does not support collisions, do not use with the physics system.
+	if (!CurrentPlaneUpdate->HasSpatialMeshUsageFlag(EARSpatialMeshUsageFlags::Collision)
+		&& NewUpdatedGeometry != nullptr
+		&& NewUpdatedGeometry->GetUnderlyingMesh() != nullptr)
+	{
+		NewUpdatedGeometry->GetUnderlyingMesh()->SetNeverCreateCollisionMesh(true);
+	}
+
 	CurrentPlaneUpdate->UpdateTrackedGeometry(NewUpdatedGeometry, TrackingSystem->GetARCompositionComponent());
 
 	// Trigger the proper notification delegate
-	if (!bIsAdd)
+	if (bIsAdd)
+	{
+		AARActor::RequestSpawnARActor(CurrentPlaneUpdate->Id, SessionConfig->GetPlaneComponentClass());
+	}
+	else
 	{
 		UARComponent* NewUpdatedARComponent = FoundTrackedGeometryGroup->ARComponent;
 		if (NewUpdatedARComponent)

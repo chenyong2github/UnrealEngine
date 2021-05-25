@@ -75,6 +75,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Scene Understanding")
 	EARObjectClassification GetObjectClassification() const { return ObjectClassification; }
 	void SetObjectClassification(EARObjectClassification InClassification) { ObjectClassification = InClassification; }
+	
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Scene Understanding")
+	bool HasSpatialMeshUsageFlag(const EARSpatialMeshUsageFlags InFlag) const { return ((int32)SpatialMeshUsageFlags & (int32)InFlag) != 0; }
+	void SetSpatialMeshUsageFlags(const EARSpatialMeshUsageFlags InFlags) { SpatialMeshUsageFlags = InFlags; }
 
 protected:
 	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> GetARSystem() const;
@@ -99,6 +103,10 @@ protected:
 	/** What the scene understanding system thinks this object is */
 	UPROPERTY()
 	EARObjectClassification ObjectClassification;
+	
+	/** How the scene understanding system thinks this mesh should be displayed */
+	UPROPERTY()
+	EARSpatialMeshUsageFlags SpatialMeshUsageFlags;
 
 private:
 	TWeakPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
