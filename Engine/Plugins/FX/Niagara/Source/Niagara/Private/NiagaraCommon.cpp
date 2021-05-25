@@ -150,6 +150,7 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 		{
 			Comp->ReinitializeSystem();
 			Comp->EndUpdateContextReset();
+			PostWork.ExecuteIfBound(Comp);
 		}
 	}
 	ComponentsToReInit.Empty();
@@ -160,6 +161,7 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 		{
 			Comp->ResetSystem();
 			Comp->EndUpdateContextReset();
+			PostWork.ExecuteIfBound(Comp);
 		}
 	}
 	ComponentsToReset.Empty();
@@ -173,6 +175,7 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 				SystemInstanceController->OnSimulationDestroyed();
 			}
 			Comp->EndUpdateContextReset();
+			PostWork.ExecuteIfBound(Comp);
 		}
 	}
 	ComponentsToReInit.Empty();
@@ -187,6 +190,12 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 
 		AddInternal(Comp, bReInit);
 	}
+}
+
+void FNiagaraSystemUpdateContext::Add(UNiagaraComponent* Component, bool bReInit)
+{
+	check(Component);
+	AddInternal(Component, bReInit);
 }
 
 void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit)
@@ -248,6 +257,8 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 
 void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReInit)
 {
+	PreWork.ExecuteIfBound(Comp);
+
 	Comp->BeginUpdateContextReset();
 
 	if (bReInit)
