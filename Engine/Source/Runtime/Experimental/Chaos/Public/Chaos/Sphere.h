@@ -258,7 +258,7 @@ namespace Chaos
 			Ar << Center;
 
 			// Radius is now stored in the base class Margin
-			FReal ArRadius = GetRadius();
+			FRealSingle ArRadius = (FRealSingle)GetRadius(); // LWC_TODO : potential precision loss, to be changed when we can serialize FReal as double
 			Ar << ArRadius;
 			SetRadius(ArRadius);
 		}
