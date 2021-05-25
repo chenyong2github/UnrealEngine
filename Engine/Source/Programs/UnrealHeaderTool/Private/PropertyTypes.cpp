@@ -179,7 +179,7 @@ namespace
 
 		// Check if it's an enum class property
 		// NOTE: VarProperty.EnumDef is a union and might not be an enum
-		if (UHTCast<FUnrealEnumDefinitionInfo>(VarProperty.TypeDef) != nullptr)
+		if (VarProperty.IsEnum())
 		{
 			return FuncDispatch<FPropertyTypeTraitsEnum>()(std::forward<Args>(args)...);
 		}
@@ -199,15 +199,6 @@ namespace
 		bool operator()(const FUnrealPropertyDefinitionInfo& PropDef, const FString& CppForm, FString& OutForm)
 		{
 			return TraitsType::DefaultValueStringCppFormatToInnerFormat(PropDef, CppForm, OutForm);
-		}
-	};
-
-	template<typename TraitsType>
-	struct IsObjectDispatch
-	{
-		bool operator()()
-		{
-			return TraitsType::bIsObject;
 		}
 	};
 
@@ -254,11 +245,6 @@ namespace
  */
 struct FPropertyTypeTraitsBase
 {
-	/**
-	 * If true, this property type is an object property
-	*/
-	static constexpr bool bIsObject = false;
-
 	/**
 	 * Transforms CPP-formated string containing default value, to inner formated string
 	 * If it cannot be transformed empty string is returned.
@@ -690,8 +676,6 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
  */
 struct FPropertyTypeTraitsObjectBase : public FPropertyTypeTraitsBase
 {
-	static constexpr bool bIsObject = true;
-
 	static bool DefaultValueStringCppFormatToInnerFormat(const FUnrealPropertyDefinitionInfo& PropDef, const FString& CppForm, FString& OutForm)
 	{
 		const bool bIsNull = FDefaultValueHelper::Is(CppForm, TEXT("NULL")) || FDefaultValueHelper::Is(CppForm, TEXT("nullptr")) || FDefaultValueHelper::Is(CppForm, TEXT("0"));
@@ -1414,11 +1398,6 @@ bool FPropertyTraits::DefaultValueStringCppFormatToInnerFormat(const FUnrealProp
 	}
 
 	return PropertyTypeDispatch<DefaultValueStringCppFormatToInnerFormatDispatch, false, bool>(PropDef.GetPropertyBase(), std::ref(PropDef), std::ref(CppForm), std::ref(OutForm));
-}
-
-bool FPropertyTraits::IsObject(EPropertyType PropertyType)
-{
-	return PropertyTypeDispatch<IsObjectDispatch, bool>(PropertyType);
 }
 
 FUnrealPropertyDefinitionInfo& FPropertyTraits::CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory,

@@ -63,53 +63,65 @@ FPropertyBase::FPropertyBase(FUnrealScriptStructDefinitionInfo& InStructDef)
 {
 }
 
-const TCHAR* FPropertyBase::GetPropertyTypeText( EPropertyType Type )
+FUnrealEnumDefinitionInfo* FPropertyBase::AsEnum() const
 {
-	switch ( Type )
-	{
-		CASE_TEXT(CPT_None);
-		CASE_TEXT(CPT_Byte);
-		CASE_TEXT(CPT_Int8);
-		CASE_TEXT(CPT_Int16);
-		CASE_TEXT(CPT_Int);
-		CASE_TEXT(CPT_Int64);
-		CASE_TEXT(CPT_UInt16);
-		CASE_TEXT(CPT_UInt32);
-		CASE_TEXT(CPT_UInt64);
-		CASE_TEXT(CPT_Bool);
-		CASE_TEXT(CPT_Bool8);
-		CASE_TEXT(CPT_Bool16);
-		CASE_TEXT(CPT_Bool32);
-		CASE_TEXT(CPT_Bool64);
-		CASE_TEXT(CPT_Float);
-		CASE_TEXT(CPT_Double);
-		CASE_TEXT(CPT_ObjectReference);
-		CASE_TEXT(CPT_Interface);
-		CASE_TEXT(CPT_Name);
-		CASE_TEXT(CPT_Delegate);
-		CASE_TEXT(CPT_Struct);
-		CASE_TEXT(CPT_String);
-		CASE_TEXT(CPT_Text);
-		CASE_TEXT(CPT_MulticastDelegate);
-		CASE_TEXT(CPT_SoftObjectReference);
-		CASE_TEXT(CPT_WeakObjectReference);
-		CASE_TEXT(CPT_LazyObjectReference);
-		CASE_TEXT(CPT_ObjectPtrReference);
-		CASE_TEXT(CPT_Map);
-		CASE_TEXT(CPT_Set);
-		CASE_TEXT(CPT_FieldPath);
-		CASE_TEXT(CPT_MAX);
-	}
-
-	return TEXT("");
+	return UHTCast<FUnrealEnumDefinitionInfo>(TypeDef);
 }
 
-bool FPropertyBase::MatchesType(const FPropertyBase& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces/* = false*/) const
+bool FPropertyBase::IsEnum() const
+{
+	return AsEnum() != nullptr;
+}
+
+EUHTPropertyType FPropertyBase::GetUHTPropertyType() const
+{
+	if (ArrayType == EArrayType::Dynamic)
+	{
+		return EUHTPropertyType::DynamicArray;
+	}
+	else if (ArrayType == EArrayType::Set)
+	{
+		return EUHTPropertyType::Set;
+	}
+	else if (MapKeyProp.IsValid())
+	{
+		return EUHTPropertyType::Map;
+	}
+	else if (IsEnum())
+	{
+		return EUHTPropertyType::Enum;
+	}
+	else
+	{
+		return EUHTPropertyType(Type);
+	}
+}
+
+bool FPropertyBase::IsClassRefOrClassRefStaticArray() const
+{
+	return IsObjectRefOrObjectRefStaticArray() && ClassDef->GetClass()->IsChildOf(UClass::StaticClass());
+}
+
+bool FPropertyBase::IsByteEnumOrByteEnumStaticArray() const
+{
+	if (Type != CPT_Byte || !IsPrimitiveOrPrimitiveStaticArray())
+	{
+		return false;
+	}
+	FUnrealEnumDefinitionInfo* Enum = AsEnum();
+	if (Enum == nullptr)
+	{
+		return false;
+	}
+	return Enum->GetCppForm() != UEnum::ECppForm::EnumClass;
+}
+
+bool FPropertyBase::MatchesType(const FPropertyBase& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces/* = false*/, bool bEmulateSameType/* = false*/) const
 {
 	check(Type != CPT_None || !bDisallowGeneralization);
 
-	bool bIsObjectType = IsObject();
-	bool bOtherIsObjectType = Other.IsObject();
+	bool bIsObjectType = IsObjectOrInterface();
+	bool bOtherIsObjectType = Other.IsObjectOrInterface();
 	bool bIsObjectComparison = bIsObjectType && bOtherIsObjectType;
 	bool bReverseClassChainCheck = true;
 
@@ -136,7 +148,7 @@ bool FPropertyBase::MatchesType(const FPropertyBase& Other, bool bDisallowGenera
 
 		// if Type == CPT_ObjectReference, out object function parm; allow derived classes to be passed in
 		// if Type == CPT_Interface, out interface function parm; allow derived classes to be passed in
-		else if ((PropertyFlags & CPF_ConstParm) == 0 || !IsObject())
+		else if ((PropertyFlags & CPF_ConstParm) == 0 || !IsObjectOrInterface())
 		{
 			// all other variable types must match exactly when passed as the value to an 'out' parameter
 			bDisallowGeneralization = true;
@@ -159,7 +171,7 @@ bool FPropertyBase::MatchesType(const FPropertyBase& Other, bool bDisallowGenera
 		// If Other has no type, accept anything.
 		return true;
 	}
-	else if (Type != Other.Type && !bIsObjectComparison)
+	else if (Type != Other.Type && !(bEmulateSameType && ::IsBool(Type) && ::IsBool(Other.Type)) && !bIsObjectComparison)
 	{
 		// Mismatched base types.
 		return false;

@@ -14,11 +14,6 @@ class FUnrealSourceFile;
 struct FPropertyTraits
 {
 	/**
-	 * Return true if this property type is an object property
-	 */
-	static bool IsObject(EPropertyType PropertyType);
-
-	/**
 	 * Transforms CPP-formated string containing default value, to inner formated string
 	 * If it cannot be transformed empty string is returned.
 	 *
