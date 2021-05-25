@@ -23,6 +23,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
 #include "IPropertyUtilities.h"
+#include "PropertyCustomizationHelpers.h"
 #include "PropertyHandle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
@@ -183,15 +184,17 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 		TArray<TSharedPtr<IPropertyHandle>> ViewportPostProcessSettings;
 		NestedPropertyHelper.GetNestedProperties(TEXT("Nodes.Viewports.PostProcessSettings"), ViewportPostProcessSettings);
 
-		check(ViewportNames.Num() == ViewportPostProcessSettings.Num());
-
-		for (int32 Index = 0; Index < ViewportNames.Num(); ++Index)
+		// This number could mismatch temporarily on an undo after a viewport is deleted.
+		if(ViewportNames.Num() == ViewportPostProcessSettings.Num())
 		{
-			BEGIN_GROUP(FName(*ViewportNames[Index]), FText::FromString(ViewportNames[Index]))
-				CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
-				CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bIsEnabled)).ToSharedRef());
-				CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, ViewportSettings)).ToSharedRef()).ShouldAutoExpand(true);
-			END_GROUP();
+			for (int32 Index = 0; Index < ViewportNames.Num(); ++Index)
+			{
+				BEGIN_GROUP(FName(*ViewportNames[Index]), FText::FromString(ViewportNames[Index]))
+					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
+					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bIsEnabled)).ToSharedRef());
+					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, ViewportSettings)).ToSharedRef()).ShouldAutoExpand(true);
+				END_GROUP();
+			}
 		}
 	END_CATEGORY();
 
@@ -599,6 +602,21 @@ void FDisplayClusterConfiguratorTypeCustomization::ModifyBlueprint()
 	{
 		FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(Blueprint, false);
 	}
+}
+
+ADisplayClusterRootActor* FDisplayClusterConfiguratorTypeCustomization::FindRootActor() const
+{
+	if (EditingObject == nullptr)
+	{
+		return nullptr;
+	}
+
+	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(EditingObject))
+	{
+		return RootActor;
+	}
+	
+	return EditingObject->GetTypedOuter<ADisplayClusterRootActor>();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -1171,6 +1189,10 @@ void FDisplayClusterConfiguratorExternalImageTypeCustomization::CustomizeChildre
 	FDisplayClusterConfiguratorTypeCustomization::CustomizeChildren(InPropertyHandle, InChildBuilder, CustomizationUtils);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Component Ref Type Customization
+//////////////////////////////////////////////////////////////////////////////////////////////
+
 void FDisplayClusterConfiguratorComponentRefCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
 	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
@@ -1185,6 +1207,172 @@ void FDisplayClusterConfiguratorComponentRefCustomization::CustomizeHeader(TShar
 		// Automatically retrieves the TitleProperty
 		PropertyHandle->CreatePropertyValueWidget(false)
 	];
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Node Selection Customization
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+void FDisplayClusterConfiguratorNodeSelection::CreateArrayBuilder(const TSharedRef<IPropertyHandle>& InPropertyHandle,
+	IDetailChildrenBuilder& InChildBuilder)
+{
+	TSharedRef<FDetailArrayBuilder> ArrayBuilder = MakeShareable(new FDetailArrayBuilder(InPropertyHandle));
+	ArrayBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateRaw(this,
+		&FDisplayClusterConfiguratorNodeSelection::GenerateSelectionWidget));
+
+	InChildBuilder.AddCustomBuilder(ArrayBuilder);
+}
+
+FDisplayClusterConfiguratorNodeSelection::EOperationMode FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(FProperty* Property)
+{
+	EOperationMode ReturnMode = ClusterNodes;
+	if(Property)
+	{
+		if (const FString* DefinedMode = Property->FindMetaData(TEXT("ConfigurationMode")))
+		{
+			FString ModeLower = (*DefinedMode).ToLower();
+			ModeLower.RemoveSpacesInline();
+			if (ModeLower == TEXT("viewports"))
+			{
+				ReturnMode = FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports;
+			}
+			else if (ModeLower == TEXT("clusternodes"))
+			{
+				ReturnMode = FDisplayClusterConfiguratorNodeSelection::EOperationMode::ClusterNodes;
+			}
+			// Define any other modes here.
+		}
+	}
+
+	return ReturnMode;
+}
+
+void FDisplayClusterConfiguratorNodeSelection::GenerateSelectionWidget(
+	TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder)
+{
+	IDetailPropertyRow& PropertyRow = ChildrenBuilder.AddProperty(PropertyHandle);
+	PropertyRow.CustomWidget(false)
+		.NameContent()
+		[
+			PropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		[
+			SAssignNew(OptionsComboBox, SDisplayClusterConfigurationSearchableComboBox)
+				.OptionsSource(&Options)
+				.OnGenerateWidget(this, &FDisplayClusterConfiguratorNodeSelection::MakeOptionComboWidget)
+				.OnSelectionChanged(this, &FDisplayClusterConfiguratorNodeSelection::OnOptionSelected, PropertyHandle)
+				.ContentPadding(2)
+				.MaxListHeight(200.0f)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(this, &FDisplayClusterConfiguratorNodeSelection::GetSelectedOptionText, PropertyHandle)
+				]
+		];
+}
+
+void FDisplayClusterConfiguratorNodeSelection::ResetOptions()
+{
+	Options.Reset();
+	if(ADisplayClusterRootActor* RootActor = RootActorPtr.Get())
+	{
+		if (UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData())
+		{
+			for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& Node : ConfigData->Cluster->Nodes)
+			{
+				if (OperationMode == ClusterNodes)
+				{
+					Options.Add(MakeShared<FString>(Node.Value->GetName()));
+					continue;
+				}
+				for (const TTuple<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
+				{
+					Options.Add(MakeShared<FString>(Viewport.Value->GetName()));
+				}
+			}
+		}
+	}	
+}
+
+TSharedRef<SWidget> FDisplayClusterConfiguratorNodeSelection::MakeOptionComboWidget(
+	TSharedPtr<FString> InItem)
+{
+	return SNew(STextBlock).Text(FText::FromString(*InItem));
+}
+
+void FDisplayClusterConfiguratorNodeSelection::OnOptionSelected(TSharedPtr<FString> InValue,
+	ESelectInfo::Type SelectInfo, TSharedRef<IPropertyHandle> InPropertyHandle)
+{
+	if (InValue.IsValid())
+	{
+		InPropertyHandle->SetValue(*InValue);
+		
+		ResetOptions();
+		OptionsComboBox->ResetOptionsSource(&Options);
+		OptionsComboBox->SetIsOpen(false);
+	}
+}
+
+FText FDisplayClusterConfiguratorNodeSelection::GetSelectedOptionText(TSharedRef<IPropertyHandle> InPropertyHandle) const
+{
+	FString Value;
+	InPropertyHandle->GetValue(Value);
+	return FText::FromString(Value);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// OCIO Profile Customization
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
+	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
+
+	Mode = FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(PropertyHandle->GetProperty()->GetOwnerProperty());
+	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor());
+
+	const TAttribute<bool> EditCondition = TAttribute<bool>::Create([this]()
+	{
+		ADisplayClusterRootActor* RootActor = FindRootActor();
+		return RootActor && RootActor->bEnableOuterViewportOCIO;
+	});
+	HeaderRow.IsEnabled(EditCondition);
+	
+	HeaderRow.NameContent()
+	[
+		PropertyHandle->CreatePropertyNameWidget()
+	];
+}
+
+void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
+	IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	const TSharedPtr<IPropertyHandle> OCIOHandle = PropertyHandle->GetChildHandle(
+		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, OCIOConfiguration));
+	check(OCIOHandle->IsValidHandle());
+
+	const TSharedPtr<IPropertyHandle> EnableOCIOHandle = OCIOHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOpenColorIODisplayConfiguration, bIsEnabled));
+	check(EnableOCIOHandle->IsValidHandle());
+	
+	EnableOCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("EnableOCIOViewportsDisplayName", "Enable Outer Viewport OCIO Configuration") : LOCTEXT("EnableOCIOClusterDisplayName", "Enable Inner Frustum OCIO Configuration"));
+	
+	const TSharedPtr<IPropertyHandle> ArrayHandle = PropertyHandle->GetChildHandle(
+		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects));
+	check(ArrayHandle->IsValidHandle());
+	
+	OCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("OCIOViewportsModeDisplayName", "Outer Viewport OCIO Configuration") : LOCTEXT("OCIOClusterModeDisplayName", "Inner Frustum OCIO Configuration"));
+	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("DataViewportsModeDisplayName", "Apply OCIO to Viewports") : LOCTEXT("DataClusterModeDisplayName", "Apply OCIO to Nodes"));
+	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("DataViewportsModeToolTip", "Select viewports to receive this OCIO profile.") :
+		LOCTEXT("DataClusterModeToolTip", "Select cluster nodes to receive this OCIO profile."));
+	
+	ChildBuilder.AddProperty(OCIOHandle.ToSharedRef());
+	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);
 }
 
 #undef LOCTEXT_NAMESPACE

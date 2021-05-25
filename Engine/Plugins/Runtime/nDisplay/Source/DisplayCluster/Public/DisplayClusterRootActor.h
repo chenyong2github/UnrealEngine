@@ -37,6 +37,8 @@ class UDisplayClusterXformComponent;
 class UDisplayClusterSyncTickComponent;
 class UDisplayClusterPreviewComponent;
 
+struct FDisplayClusterConfigurationOCIOProfile;
+
 
 /**
  * VR root. This contains nDisplay VR hierarchy in the game.
@@ -231,7 +233,13 @@ public:
 
 	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera ICVFX", meta = (TitleProperty = "Name"))
 	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
-		
+
+	UPROPERTY(EditInstanceOnly, Category = "OCIO")
+	bool bEnableOuterViewportOCIO = true;
+	
+	UPROPERTY(EditInstanceOnly, Category = "OCIO", meta = (DisplayName = "Outer Viewport OCIO Configurations", ConfigurationMode = "Viewports"))
+	TArray<FDisplayClusterConfigurationOCIOProfile> OuterViewportOCIOConfigurations;
+	
 //////////////////////////////////////////////////////////////////////////////////////////////
 // EDITOR STUFF
 //////////////////////////////////////////////////////////////////////////////////////////////

@@ -281,6 +281,14 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorComponentRefCustomization::MakeInstance<FDisplayClusterConfiguratorComponentRefCustomization>));
 	}
+	
+	{
+		const FName LayoutName = FDisplayClusterConfigurationOCIOProfile::StaticStruct()->GetFName();
+		RegisteredPropertyLayoutNames.Add(LayoutName);
+
+		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorOCIOProfileCustomization::MakeInstance<FDisplayClusterConfiguratorOCIOProfileCustomization>));
+	}
 }
 
 void FDisplayClusterConfiguratorModule::UnregisterCustomLayouts()
