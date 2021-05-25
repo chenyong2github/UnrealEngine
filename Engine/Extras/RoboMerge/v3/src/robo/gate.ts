@@ -510,7 +510,7 @@ export class Gate {
 	}
 
 	private loadFromPersistence() {
-		if (!this.persistence) {
+		if (true) {
 			return
 		}
 		const saved = this.persistence.get(GATE_INFO_KEY)
