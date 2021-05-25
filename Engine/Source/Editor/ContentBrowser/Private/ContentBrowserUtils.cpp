@@ -517,6 +517,24 @@ void ContentBrowserUtils::ExploreFolders(const TArray<FContentBrowserItem>& InIt
 	}
 }
 
+bool ContentBrowserUtils::CanExploreFolders(const TArray<FContentBrowserItem>& InItems)
+{
+	for (const FContentBrowserItem& SelectedItem : InItems)
+	{
+		FString ItemFilename;
+		if (SelectedItem.GetItemPhysicalPath(ItemFilename))
+		{
+			const bool bExists = SelectedItem.IsFile() ? FPaths::FileExists(ItemFilename) : FPaths::DirectoryExists(ItemFilename);
+			if (bExists)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 template <typename OutputContainerType>
 void ConvertLegacySelectionToVirtualPathsImpl(TArrayView<const FAssetData> InAssets, TArrayView<const FString> InFolders, const bool InUseFolderPaths, OutputContainerType& OutVirtualPaths)
 {
