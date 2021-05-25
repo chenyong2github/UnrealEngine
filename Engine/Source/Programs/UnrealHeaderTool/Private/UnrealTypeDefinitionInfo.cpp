@@ -30,6 +30,7 @@ namespace
 	const FName NAME_IgnoreCategoryKeywordsInSubclasses(TEXT("IgnoreCategoryKeywordsInSubclasses"));
 	const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
 	const FName NAME_ClassGroupNames(TEXT("ClassGroupNames"));
+	const FName NAME_EditorConfig(TEXT("EditorConfig"));
 
 	/**
 	 * As part of the singleton name, collect the parent chain names
@@ -1089,6 +1090,11 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 			// Save object config only to project user overrides, never to INIs that are checked in
 			ParsedClassFlags |= CLASS_ProjectUserConfig;
+			break;
+
+		case EClassMetadataSpecifier::EditorConfig:
+			// Save EditorConfig properties to the given JSON file.
+			MetaData.Add(NAME_EditorConfig, FHeaderParser::RequireExactlyOneSpecifierValue(PropSpecifier));
 			break;
 
 		case EClassMetadataSpecifier::ShowCategories:

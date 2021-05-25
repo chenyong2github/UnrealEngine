@@ -81,54 +81,86 @@ bool FEditorConfig::HasOverride(FStringView Key) const
 	return JsonConfig->HasOverride(UE::FJsonPath(Key));
 }
 
-void FEditorConfig::ReadStruct(TSharedPtr<FJsonObject> JsonObject, const UStruct* Struct, void* Instance, UObject* Owner)
+void FEditorConfig::SetRootUObject(const UClass* Class, const UObject* Instance, EPropertyFilter Filter)
+{
+	if (!IsValid())
+	{
+		return;
+	}
+	
+	TSharedPtr<FJsonObject> JsonObject = WriteUObject(Class, Instance, Filter);
+	JsonConfig->SetRootObject(JsonObject);
+		
+	SetDirty();
+}
+
+void FEditorConfig::SetRootStruct(const UStruct* Struct, const void* Instance, EPropertyFilter Filter)
+{
+	if (!IsValid())
+	{
+		return;
+	}
+	
+	TSharedPtr<FJsonObject> JsonObject = WriteStruct(Struct, Instance, Filter);
+	JsonConfig->SetRootObject(JsonObject);
+		
+	SetDirty();
+}
+
+void FEditorConfig::ReadStruct(TSharedPtr<FJsonObject> JsonObject, const UStruct* Struct, void* Instance, UObject* Owner, EPropertyFilter Filter)
 {
 	FString TypeName;
 	JsonObject->TryGetStringField(TEXT("$type"), TypeName);
 
-	if (!ensureAlways(Struct->GetName() != TypeName))
+	if (!TypeName.IsEmpty() && !ensureAlwaysMsgf(Struct->GetName().Equals(TypeName), TEXT("Type name mismatch in FEditorConfig::ReadUObject. Expected: %s, Actual: %s"), *Struct->GetName(), *TypeName))
 	{
 		return;
 	}
 
 	for (TFieldIterator<FProperty> It(Struct); It; ++It)
 	{
-		FProperty* Property = *It;
-		if (Property != nullptr)
+		const FProperty* Property = *It;
+
+		if (Filter == EPropertyFilter::MetadataOnly && !Property->HasMetaData("EditorConfig"))
 		{
-			void* DataPtr = Property->ContainerPtrToValuePtr<void>(Instance);
+			continue;
+		}
+
+		void* DataPtr = Property->ContainerPtrToValuePtr<void>(Instance);
 			
-			TSharedPtr<FJsonValue> Value = JsonObject->TryGetField(Property->GetName());
-			if (Value.IsValid())
-			{
-				ReadValue(Value, Property, DataPtr, Owner);
-			}
+		TSharedPtr<FJsonValue> Value = JsonObject->TryGetField(Property->GetName());
+		if (Value.IsValid())
+		{
+			ReadValue(Value, Property, DataPtr, Owner);
 		}
 	}
 }
 
-void FEditorConfig::ReadUObject(TSharedPtr<FJsonObject> JsonObject, const UClass* Class, UObject* Instance)
+void FEditorConfig::ReadUObject(TSharedPtr<FJsonObject> JsonObject, const UClass* Class, UObject* Instance, EPropertyFilter Filter)
 {
 	FString TypeName;
 	JsonObject->TryGetStringField(TEXT("$type"), TypeName);
 
-	if (!ensureAlways(Class->GetName() != TypeName))
+	if (!TypeName.IsEmpty() && !ensureAlwaysMsgf(Class->GetName().Equals(TypeName), TEXT("Type name mismatch in FEditorConfig::ReadUObject. Expected: %s, Actual: %s"), *Class->GetName(), *TypeName))
 	{
 		return;
 	}
 
 	for (TFieldIterator<FProperty> It(Class); It; ++It)
 	{
-		FProperty* Property = *It;
-		if (Property != nullptr)
+		const FProperty* Property = *It;
+		
+		if (Filter == EPropertyFilter::MetadataOnly && !Property->HasMetaData("EditorConfig"))
 		{
-			void* DataPtr = Property->ContainerPtrToValuePtr<void>(Instance);
+			continue;
+		}
 
-			TSharedPtr<FJsonValue> Value = JsonObject->TryGetField(Property->GetName());
-			if (Value.IsValid())
-			{
-				ReadValue(Value, Property, DataPtr, Instance);
-			}
+		void* DataPtr = Property->ContainerPtrToValuePtr<void>(Instance);
+
+		TSharedPtr<FJsonValue> Value = JsonObject->TryGetField(Property->GetName());
+		if (Value.IsValid())
+		{
+			ReadValue(Value, Property, DataPtr, Instance);
 		}
 	}
 }
@@ -243,7 +275,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 		const TSharedPtr<FJsonObject>* ObjectJsonValue;
 		if (JsonValue->TryGetObject(ObjectJsonValue))
 		{
-			ReadStruct(*ObjectJsonValue, StructProperty->Struct, DataPtr, Owner);
+			ReadStruct(*ObjectJsonValue, StructProperty->Struct, DataPtr, Owner, EPropertyFilter::All);
 		}
 	}
 	else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
@@ -454,13 +486,12 @@ TSharedPtr<FJsonValue> FEditorConfig::WriteValue(const FProperty* Property, cons
 	else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
 		FString ObjectPath;
-		// TODO: No idea how we're meant to get object paths, might be this:
-		//ObjectProperty->ExportTextItem(ObjectPath, DataPtr, ??? /*DefaultValue*/, ??? /*Parent*/, 0, ??? /*ExportRootScope*/);
+		ObjectProperty->ExportTextItem(ObjectPath, DataPtr, nullptr, nullptr, PPF_None, nullptr);
 		ResultValue = MakeShared<FJsonValueString>(ObjectPath);
 	}
 	else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 	{
-		ResultValue = MakeShared<FJsonValueObject>(WriteStruct(StructProperty->Struct, DataPtr));
+		ResultValue = MakeShared<FJsonValueObject>(WriteStruct(StructProperty->Struct, DataPtr, EPropertyFilter::All));
 	}
 	else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 	{
@@ -526,7 +557,7 @@ TSharedPtr<FJsonValue> FEditorConfig::WriteValue(const FProperty* Property, cons
 			}
 
 			// maps can either be stored as $key, $value pairs or, if the keys can be stringified, as a JSON object
-			// check which we should use based on the first element
+			// check Filter we should use based on the first element
 			EJson KeyType = JsonKeysArray[0]->Type;
 			if (KeyType == EJson::Object)
 			{
@@ -591,13 +622,20 @@ bool FEditorConfig::IsDefault(const FProperty* Property, TSharedPtr<FJsonValue> 
 	return false;
 }
 
-TSharedPtr<FJsonObject> FEditorConfig::WriteStruct(const UStruct* Struct, const void* Instance) 
+TSharedPtr<FJsonObject> FEditorConfig::WriteStruct(const UStruct* Struct, const void* Instance, EPropertyFilter Filter) 
 {
 	TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+	JsonObject->SetStringField(TEXT("$type"), Struct->GetName());
 
 	for (TFieldIterator<FProperty> It(Struct); It; ++It)
 	{
 		const FProperty* Property = *It;
+
+		if (Filter == EPropertyFilter::MetadataOnly && !Property->HasMetaData("EditorConfig"))
+		{
+			continue;
+		}
+
 		const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Instance); 
 
 		TSharedPtr<FJsonValue> PropertyValue = WriteValue(Property, ValuePtr);
@@ -611,15 +649,22 @@ TSharedPtr<FJsonObject> FEditorConfig::WriteStruct(const UStruct* Struct, const 
 }
 
 /** 
-	* This exists because of sparse class data that can exist for UObjects only, and which is handled in ContainerPtrToValuePtr.
-	*/
-TSharedPtr<FJsonObject> FEditorConfig::WriteUObject(const UStruct* Struct, const UObject* Instance) 
+ * This exists because of sparse class data that can exist for UObjects only, which is handled in ContainerPtrToValuePtr.
+ */
+TSharedPtr<FJsonObject> FEditorConfig::WriteUObject(const UClass* Class, const UObject* Instance, EPropertyFilter Filter) 
 {
 	TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+	JsonObject->SetStringField(TEXT("$type"), Class->GetName());
 
-	for (TFieldIterator<FProperty> It(Struct); It; ++It)
+	for (TFieldIterator<FProperty> It(Class); It; ++It)
 	{
 		const FProperty* Property = *It;
+
+		if (Filter == EPropertyFilter::MetadataOnly && !Property->HasMetaData("EditorConfig"))
+		{
+			continue;
+		}
+
 		const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Instance); 
 
 		TSharedPtr<FJsonValue> PropertyValue = WriteValue(Property, ValuePtr);
@@ -630,4 +675,18 @@ TSharedPtr<FJsonObject> FEditorConfig::WriteUObject(const UStruct* Struct, const
 	}
 
 	return JsonObject;
+}
+
+void FEditorConfig::SetDirty()
+{
+	if (!Dirty)
+	{
+		Dirty = true;
+		EditorConfigDirtiedEvent.Broadcast(*this);
+	}
+}
+
+void FEditorConfig::OnSaved()
+{
+	Dirty = false;
 }
