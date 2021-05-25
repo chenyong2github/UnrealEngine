@@ -326,7 +326,7 @@ class UNREALED_API UMaterialEditorInstanceConstant : public UObject
 	 * @param ParameterValue		Current data to be grouped
 	 * @param OptionalGroupName		Optional Group Name that be used directly instead of resolving it from the material
 	 */
-	void AssignParameterToGroup(UMaterial* ParentMaterial, UDEditorParameterValue* ParameterValue, FName* OptionalGroupName = nullptr);
+	void AssignParameterToGroup(UMaterial* ParentMaterial, UDEditorParameterValue* ParameterValue, const FName* OptionalGroupName = nullptr);
 
 	static FName GlobalGroupPrefix;
 
