@@ -42,6 +42,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vld.h> 
 #endif
 
+#ifndef _WIN32
+#include <csignal>
+#endif
+
 // EPIC: This global variable is not thread safe and should really be associated with the server connection
 // Don't have time to fix this properly, so getting commented out and will see "unknown error connecting" in the meantime
 
@@ -3740,6 +3744,17 @@ P4BRIDGE_API void SetConnectionHost(P4BridgeServer* pServer, const char* hostnam
 
 	}
 #endif		
+}
+
+P4BRIDGE_API void DebugCrash()
+{
+#ifdef _WIN32
+	* ((int*)NULL) = 123;
+	exit(3);
+#else
+	* ((int*)NULL) = 123;  
+	raise(SIGABRT); 
+#endif
 }
 
 }

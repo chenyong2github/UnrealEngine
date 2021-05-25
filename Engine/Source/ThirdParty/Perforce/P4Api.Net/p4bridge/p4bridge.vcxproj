@@ -229,7 +229,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>OS_NT;WIN32;NDEBUG;_WINDOWS;_USRDLL;P4BRIDGE_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\p4api\release\include\p4;..\..\thirdparty\windows\openssl</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\p4api\release\include\p4;..\thirdparty\windows\openssl</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
