@@ -323,7 +323,7 @@ struct FRDGGPUScopeStacks
 
 struct FRDGGPUScopeStacksByPipeline
 {
-	FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute, FRDGAllocator& Allocator);
+	FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute, FRDGAllocator& Allocator);
 
 	void BeginEventScope(FRDGEventName&& ScopeName);
 
@@ -349,6 +349,7 @@ struct FRDGGPUScopeStacksByPipeline
 
 	FRDGGPUScopeStacks Graphics;
 	FRDGGPUScopeStacks AsyncCompute;
+	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute;
 };
 
 #endif

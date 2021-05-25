@@ -319,6 +319,14 @@ void FRDGGPUScopeStacksByPipeline::EndExecutePass(const FRDGPass* Pass)
 	GetScopeStacks(Pipeline).EndExecutePass();
 }
 
+ void FRDGGPUScopeStacksByPipeline::EndExecute()
+{
+	Graphics.EndExecute();
+	AsyncCompute.EndExecute();
+
+	FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(static_cast<FRHIAsyncComputeCommandListImmediate&>(RHICmdListAsyncCompute));
+}
+
 #endif
 
 //////////////////////////////////////////////////////////////////////////

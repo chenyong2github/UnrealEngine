@@ -311,9 +311,6 @@ protected:
 			uint32 bAsyncComputeBegin : 1;
 			uint32 bAsyncComputeEnd : 1;
 
-			/** (AsyncCompute only) Whether this is the last async compute pass in the graph. */
-			uint32 bAsyncComputeEndExecute : 1;
-
 			/** (Graphics only) Whether this is a graphics fork / join pass. */
 			uint32 bGraphicsFork : 1;
 			uint32 bGraphicsJoin : 1;
@@ -366,17 +363,17 @@ protected:
 
 		FTextureState(FRDGTextureRef InTexture)
 			: Texture(InTexture)
-			, TextureHandle(InTexture->GetHandle())
 		{
 			const uint32 SubresourceCount = Texture->GetSubresourceCount();
+			State.Reserve(SubresourceCount);
 			State.SetNum(SubresourceCount);
+			MergeState.Reserve(SubresourceCount);
 			MergeState.SetNum(SubresourceCount);
 		}
 
 		FRDGTextureRef Texture = nullptr;
 		FRDGTextureTransientSubresourceState State;
 		FRDGTextureTransientSubresourceStateIndirect MergeState;
-		FRDGTextureHandle TextureHandle;
 		uint16 ReferenceCount = 0;
 	};
 
@@ -386,13 +383,11 @@ protected:
 
 		FBufferState(FRDGBufferRef InBuffer)
 			: Buffer(InBuffer)
-			, BufferHandle(InBuffer->GetHandle())
 		{}
 
 		FRDGBufferRef Buffer = nullptr;
 		FRDGSubresourceState State;
 		FRDGSubresourceState* MergeState = nullptr;
-		FRDGBufferHandle BufferHandle;
 		uint16 ReferenceCount = 0;
 	};
 

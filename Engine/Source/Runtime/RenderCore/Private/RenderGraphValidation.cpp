@@ -1709,11 +1709,11 @@ void FRDGLogFile::AddAliasEdge(const FRDGBufferRef BufferBefore, FRDGPassHandle 
 	}
 }
 
-void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture)
+void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, const FRDGSubresourceState& StateBefore, const FRDGSubresourceState& StateAfter, const FRDGTextureRef Texture)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle) && IsDebugAllowedForResource(Texture->Name))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IsDebugAllowedForResource(Texture->Name))
 	{
-		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
+		if (IncludeTransitionEdgeInGraph(StateBefore.GetLastPass(), StateAfter.GetFirstPass()) && FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s: <b>%s -&gt; %s</b>>]"),
 				*GetProducerName(StateBefore.GetLastPass()),
@@ -1723,23 +1723,25 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 				*GetSubresourceStateLabel(StateBefore),
 				*GetSubresourceStateLabel(StateAfter)));
 		}
-		else
+		else if (IncludeTransitionEdgeInGraph(StateBefore.LogFilePass, PassHandle))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s: <b>%s</b>>]"),
-				*GetProducerName(StateBefore.GetFirstPass()),
+				*GetProducerName(StateBefore.LogFilePass),
 				*GetConsumerName(PassHandle),
 				TextureColorAttributes,
 				Texture->Name,
 				*GetSubresourceStateLabel(StateBefore)));
 		}
+
+		StateAfter.LogFilePass = PassHandle;
 	}
 }
 
-void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture, FRDGTextureSubresource Subresource)
+void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, const FRDGSubresourceState& StateBefore, const FRDGSubresourceState& StateAfter, const FRDGTextureRef Texture, FRDGTextureSubresource Subresource)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle) && IsDebugAllowedForResource(Texture->Name))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IsDebugAllowedForResource(Texture->Name))
 	{
-		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
+		if (IncludeTransitionEdgeInGraph(StateBefore.GetLastPass(), StateAfter.GetFirstPass()) && FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s[%d][%d][%d]: <b>%s -&gt; %s</b>>]"),
 				*GetProducerName(StateBefore.GetLastPass()),
@@ -1750,24 +1752,26 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 				*GetSubresourceStateLabel(StateBefore),
 				*GetSubresourceStateLabel(StateAfter)));
 		}
-		else
+		else if (IncludeTransitionEdgeInGraph(StateBefore.LogFilePass, PassHandle))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s[%d][%d][%d]: <b>%s</b>>]"),
-				*GetProducerName(StateBefore.GetFirstPass()),
+				*GetProducerName(StateBefore.LogFilePass),
 				*GetConsumerName(PassHandle),
 				TextureColorAttributes,
 				Texture->Name,
 				Subresource.MipIndex, Subresource.ArraySlice, Subresource.PlaneSlice,
 				*GetSubresourceStateLabel(StateBefore)));
 		}
+
+		StateAfter.LogFilePass = PassHandle;
 	}
 }
 
-void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGBufferRef Buffer)
+void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, const FRDGSubresourceState& StateBefore, const FRDGSubresourceState& StateAfter, const FRDGBufferRef Buffer)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle) && IsDebugAllowedForResource(Buffer->Name))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IsDebugAllowedForResource(Buffer->Name))
 	{
-		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
+		if (IncludeTransitionEdgeInGraph(StateBefore.GetLastPass(), StateAfter.GetFirstPass()) && FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s: <b>%s -&gt; %s</b>>]"),
 				*GetProducerName(StateBefore.GetLastPass()),
@@ -1777,15 +1781,17 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 				*GetSubresourceStateLabel(StateBefore),
 				*GetSubresourceStateLabel(StateAfter)));
 		}
-		else
+		else if (IncludeTransitionEdgeInGraph(StateBefore.LogFilePass, PassHandle))
 		{
 			AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<%s: <b>%s</b>>]"),
-				*GetProducerName(StateBefore.GetFirstPass()),
+				*GetProducerName(StateBefore.LogFilePass),
 				*GetConsumerName(PassHandle),
 				BufferColorAttributes,
 				Buffer->Name,
 				*GetSubresourceStateLabel(StateBefore)));
 		}
+
+		StateAfter.LogFilePass = PassHandle;
 	}
 }
 

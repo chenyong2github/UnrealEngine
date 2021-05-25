@@ -263,7 +263,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 private:
-	static const ERHIAccess kDefaultAccessInitial = ERHIAccess::Unknown;
 	static const ERHIAccess kDefaultAccessFinal = ERHIAccess::SRVMask;
 	static const char* const kDefaultUnaccountedCSVStat;
 
@@ -285,7 +284,8 @@ private:
 
 	FORCEINLINE FRDGPassHandle ClampToPrologue(FRDGPassHandle PassHandle, ERHIPipeline Pipeline = ERHIPipeline::Graphics) const
 	{
-		return FRDGPassHandle::Max(ProloguePassHandles[Pipeline], PassHandle);
+		// Preserve null inputs as outputs. Null is the highest value.
+		return ProloguePassHandles[Pipeline].GetIndexUnchecked() > PassHandle.GetIndexUnchecked() ? ProloguePassHandles[Pipeline] : PassHandle;
 	}
 
 	FORCEINLINE FRDGPassHandlesByPipeline ClampToPrologue(FRDGPassHandlesByPipeline PassHandles) const
@@ -475,7 +475,7 @@ private:
 
 	uint32 AsyncComputePassCount = 0;
 	uint32 RasterPassCount = 0;
-	uint32 ExecuteCount = 0;
+	uint32 ExecuteGeneration = 0;
 
 	IF_RDG_CMDLIST_STATS(TStatId CommandListStatScope);
 	IF_RDG_CMDLIST_STATS(TStatId CommandListStatState);
