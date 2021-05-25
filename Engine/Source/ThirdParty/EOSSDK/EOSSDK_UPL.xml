@@ -5,15 +5,6 @@
   <init>
     <log text="EOSSDK init"/>
   
-    <!-- If the Restricted/NotForLicensees folder exists, prefer that. -->
-	<setString result="aarDir" value="$S(AbsEngineDir)/Source/ThirdParty/EOSSDK/Restricted/NotForLicensees/SDK/Bin/Android/aar"/>
-    <setBoolFileExists file="$S(aarDir)/eos-sdk.aar" result="bNflSdkExists"/>
-    <if condition="bNflSdkExists">
-      <false>
-        <setString result="aarDir" value="$S(AbsEngineDir)/Source/ThirdParty/EOSSDK/SDK/Bin/Android/aar"/>
-      </false>
-    </if>
-  
     <setBool result="bSupported" value="false"/>
     <isArch arch="armeabi-v7a">
       <setBool result="bSupported" value="true"/>
@@ -21,7 +12,6 @@
     <isArch arch="arm64-v8a">
       <setBool result="bSupported" value="true"/>
     </isArch>
-  
     <if condition="bSupported">
       <false>
         <log text="EOSSDK unsupported architecture: $S(Architecture)"/>
@@ -38,7 +28,7 @@
           repositories {
           flatDir {
         </insert>
-        <insertValue value="dirs '$S(aarDir)'"/>
+        <insertValue value="dirs '$S(AbsEngineDir)/Source/ThirdParty/EOSSDK/SDK/Bin/Android/aar'"/>
         <insertNewline/>
         <insert>
           }
