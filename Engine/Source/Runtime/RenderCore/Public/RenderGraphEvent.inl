@@ -253,9 +253,10 @@ inline FRDGGPUScopes FRDGGPUScopeStacks::GetCurrentScopes() const
 	return Scopes;
 }
 
-inline FRDGGPUScopeStacksByPipeline::FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIComputeCommandList& RHICmdListAsyncCompute, FRDGAllocator& Allocator)
+inline FRDGGPUScopeStacksByPipeline::FRDGGPUScopeStacksByPipeline(FRHICommandListImmediate& RHICmdListGraphics, FRHIAsyncComputeCommandListImmediate& InRHICmdListAsyncCompute, FRDGAllocator& Allocator)
 	: Graphics(RHICmdListGraphics, Allocator)
-	, AsyncCompute(RHICmdListAsyncCompute, Allocator)
+	, AsyncCompute(InRHICmdListAsyncCompute, Allocator)
+	, RHICmdListAsyncCompute(InRHICmdListAsyncCompute)
 {}
 
 inline void FRDGGPUScopeStacksByPipeline::BeginEventScope(FRDGEventName&& ScopeName)
@@ -287,12 +288,6 @@ inline void FRDGGPUScopeStacksByPipeline::BeginExecute()
 {
 	Graphics.BeginExecute();
 	AsyncCompute.BeginExecute();
-}
-
-inline void FRDGGPUScopeStacksByPipeline::EndExecute()
-{
-	Graphics.EndExecute();
-	AsyncCompute.EndExecute();
 }
 
 inline const FRDGGPUScopeStacks& FRDGGPUScopeStacksByPipeline::GetScopeStacks(ERHIPipeline Pipeline) const

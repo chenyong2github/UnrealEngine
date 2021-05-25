@@ -92,6 +92,15 @@ struct FRDGTextureSubresourceLayout
 		return Subresource.MipIndex + (Subresource.ArraySlice * NumMips) + (Subresource.PlaneSlice * NumMips * NumArraySlices);
 	}
 
+	inline FRDGTextureSubresource GetSubresource(uint32 Index) const
+	{
+		FRDGTextureSubresource Subresource;
+		Subresource.MipIndex = Index % NumMips;
+		Subresource.ArraySlice = (Index / NumMips) % NumArraySlices;
+		Subresource.PlaneSlice = Index / (NumMips * NumArraySlices);
+		return Subresource;
+	}
+
 	inline FRDGTextureSubresource GetMaxSubresource() const
 	{
 		return FRDGTextureSubresource(NumMips, NumArraySlices, NumPlaneSlices);
@@ -215,7 +224,8 @@ inline void InitAsSubresources(TRDGTextureSubresourceArray<ElementType, Allocato
 	const uint32 SubresourceCount = Layout.GetSubresourceCount();
 	checkf(SubresourceCount > 0, TEXT("Subresource layout has no subresources."));
 	checkf(SubresourceCount > 1, TEXT("Subresource layout has only 1 resource. Use InitAsWholeResource instead."));
-	SubresourceArray.SetNum(SubresourceCount, false);
+	SubresourceArray.Reserve(SubresourceCount);
+	SubresourceArray.SetNum(SubresourceCount);
 	for (uint32 SubresourceIndex = 0; SubresourceIndex < SubresourceCount; ++SubresourceIndex)
 	{
 		SubresourceArray[SubresourceIndex] = Element;

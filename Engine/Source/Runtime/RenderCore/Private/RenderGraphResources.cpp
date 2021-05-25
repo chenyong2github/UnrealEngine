@@ -309,7 +309,7 @@ void FRDGBuffer::SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& A
 	ViewCache = &InTransientBuffer->ViewCache;
 	ResourceRHI = InTransientBuffer->GetRHI();
 
-	bTransient = true;;
+	bTransient = true;
 }
 
 void FRDGBuffer::Finalize(FRDGPooledBufferArray& PooledBufferArray)

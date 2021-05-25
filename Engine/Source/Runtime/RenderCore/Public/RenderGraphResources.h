@@ -71,6 +71,12 @@ struct FRDGSubresourceState
 
 	/** The last no-UAV barrier to be used by this subresource. */
 	FRDGViewUniqueFilter NoUAVBarrierFilter;
+
+	/** The graph execution generation to submit this subresource state. */
+	uint8 ExecuteGeneration = 0;
+
+	/** The last used pass for log file debugging. */
+	IF_RDG_ENABLE_DEBUG(mutable FRDGPassHandle LogFilePass);
 };
 
 using FRDGTextureSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceState, FDefaultAllocator>;
@@ -287,6 +293,9 @@ protected:
 	/** If true, the resource has been used on an async compute pass and may have async compute states. */
 	uint8 bUsedByAsyncComputePass : 1;
 
+	FRDGPassHandle FirstPass;
+	FRDGPassHandle LastPass;
+
 private:
 	/** Number of references in passes and deferred queries. */
 	uint16 ReferenceCount = 0;
@@ -294,12 +303,8 @@ private:
 	/** Scratch index allocated for the resource in the pass being setup. */
 	uint16 PassStateIndex = 0;
 
-	/** The initial and final states of the resource assigned by the user, if known. */
-	ERHIAccess AccessInitial = ERHIAccess::Unknown;
+	/** The final state of the resource at the end of graph execution, if known. */
 	ERHIAccess AccessFinal = ERHIAccess::Unknown;
-
-	FRDGPassHandle FirstPass;
-	FRDGPassHandle LastPass;
 
 #if RDG_ENABLE_TRACE
 	uint16 TraceOrder = 0;
@@ -360,7 +365,6 @@ class RENDERCORE_API FRDGPooledTexture final
 public:
 	FRDGPooledTexture(FRHITexture* InTexture, const FRDGTextureSubresourceLayout& InLayout)
 		: Texture(InTexture)
-		, Layout(InLayout)
 	{
 		Reset();
 	}
@@ -384,7 +388,6 @@ private:
 
 	TRefCountPtr<FRHITexture> Texture;
 	FRDGTexture* Owner = nullptr;
-	FRDGTextureSubresourceLayout Layout;
 	FRDGTextureSubresourceState State;
 	FRHITextureViewCache ViewCache;
 
@@ -410,31 +413,36 @@ public:
 	IPooledRenderTarget* GetPooledRenderTarget() const;
 
 	/** Returns the allocated RHI texture. */
-	FRHITexture* GetRHI() const
+	FORCEINLINE FRHITexture* GetRHI() const
 	{
 		return static_cast<FRHITexture*>(FRDGResource::GetRHI());
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 
-	FRDGTextureHandle GetHandle() const
+	FORCEINLINE FRDGTextureHandle GetHandle() const
 	{
 		return Handle;
 	}
 
-	FRDGTextureSubresourceLayout GetSubresourceLayout() const
+	FORCEINLINE FRDGTextureSubresourceLayout GetSubresourceLayout() const
 	{
 		return Layout;
 	}
 
-	FRDGTextureSubresourceRange GetSubresourceRange() const
+	FORCEINLINE FRDGTextureSubresourceRange GetSubresourceRange() const
 	{
 		return WholeRange;
 	}
 
 	FORCEINLINE uint32 GetSubresourceCount() const
 	{
-		return Layout.GetSubresourceCount();
+		return SubresourceCount;
+	}
+
+	FORCEINLINE FRDGTextureSubresource GetSubresource(uint32 SubresourceIndex) const
+	{
+		return Layout.GetSubresource(SubresourceIndex);
 	}
 
 	FRDGTextureSubresourceRange GetSubresourceRangeSRV() const;
@@ -447,9 +455,11 @@ private:
 		, RenderTargetTexture(InRenderTargetTexture)
 		, Layout(InDesc)
 		, WholeRange(Layout)
+		, SubresourceCount(Layout.GetSubresourceCount())
 	{
-		const uint32 SubresourceCount = GetSubresourceCount();
+		MergeState.Reserve(SubresourceCount);
 		MergeState.SetNum(SubresourceCount);
+		LastProducers.Reserve(SubresourceCount);
 		LastProducers.SetNum(SubresourceCount);
 	}
 
@@ -471,12 +481,6 @@ private:
 		return static_cast<FRHITexture*>(FRDGResource::GetRHIUnchecked());
 	}
 
-	/** Whether this texture is the last owner of the allocation in the graph. */
-	bool IsLastOwner() const
-	{
-		return NextOwner.IsNull();
-	}
-
 	/** Returns the current texture state. Only valid to call after SetRHI. */
 	FRDGTextureSubresourceState& GetState()
 	{
@@ -496,9 +500,7 @@ private:
 	/** The layout used to facilitate subresource transitions. */
 	FRDGTextureSubresourceLayout Layout;
 	FRDGTextureSubresourceRange  WholeRange;
-
-	/** Cached state pointer from the pooled texture. */
-	FRDGTextureSubresourceState* State = nullptr;
+	const uint32 SubresourceCount;
 
 	/** The assigned pooled render target to use during execution. Never reset. */
 	FPooledRenderTarget* PooledRenderTarget = nullptr;
@@ -517,6 +519,9 @@ private:
 
 	/** Valid strictly when holding a strong reference; use PooledRenderTarget instead. */
 	TRefCountPtr<IPooledRenderTarget> Allocation;
+
+	/** Cached state pointer from the pooled texture. */
+	FRDGTextureSubresourceState* State = nullptr;
 
 	/** Tracks merged subresource states as the graph is built. */
 	FRDGTextureTransientSubresourceStateIndirect MergeState;
@@ -994,9 +999,6 @@ private:
 	/** Registered handle set by the builder. */
 	FRDGBufferHandle Handle;
 
-	/** Tracks the last pass that produced this resource as the graph is built. */
-	FRDGProducerStatesByPipeline LastProducer;
-
 	/** The next buffer to own the PooledBuffer allocation during execution. */
 	FRDGBufferHandle NextOwner;
 
@@ -1012,14 +1014,17 @@ private:
 	/** The assigned buffer view cache (sourced from the pooled / transient buffer. Never reset. */
 	FRHIBufferViewCache* ViewCache = nullptr;
 
-	/** Cached state pointer from the pooled / transient buffer. */
-	FRDGSubresourceState* State = nullptr;
-
 	/** Valid strictly when holding a strong reference; use PooledBuffer instead. */
 	TRefCountPtr<FRDGPooledBuffer> Allocation;
 
+	/** Cached state pointer from the pooled / transient buffer. */
+	FRDGSubresourceState* State = nullptr;
+
 	/** Tracks the merged subresource state as the graph is built. */
 	FRDGSubresourceState* MergeState = nullptr;
+
+	/** Tracks the last pass that produced this resource as the graph is built. */
+	FRDGProducerStatesByPipeline LastProducer;
 
 #if RDG_ENABLE_DEBUG
 	struct FRDGBufferDebugData* BufferDebugData = nullptr;
