@@ -73,7 +73,11 @@ namespace Utils
 		char* ret = new char[len + 1];
 		LOG_DEBUG3(4, "Alloc [%d]: (0x%llu) %s", allocs, ret, p);
 		ALLOC_COUNT(ret);
+#ifdef _WIN32		
 		strcpy_s(ret, len + 1, p);
+#else
+		strcpy(ret, p);
+#endif		
 		return ret;
 	}
 
@@ -87,7 +91,7 @@ namespace Utils
 		if (!p) return;	// skip the debug logging code
 		LOG_DEBUG3(4, "Free [%d]: (0x%llu) %s", frees, p, p);
 		FREE_COUNT((const char*)p);
-		delete p;
+		delete[] (const char*)p;
 	}
 
 	string stringFromPtr(const char* s)

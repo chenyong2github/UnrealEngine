@@ -42,8 +42,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vld.h> 
 #endif
 
+// EPIC: This global variable is not thread safe and should really be associated with the server connection
+// Don't have time to fix this properly, so getting commented out and will see "unknown error connecting" in the meantime
+
 // If there is a connection error, keep it so the client can fetch it later
-P4ClientError * connectionError = NULL;
+// P4ClientError * connectionError = NULL;
 
 // #define STACKTRACE  // I don't know if this will work on a 32 bit build
 
@@ -95,6 +98,7 @@ void printStackTrace()
 *
 ******************************************************************************/
 
+#ifdef _WIN32
 int HandleException(const char* fname, unsigned int line, const char* func, unsigned int c, struct _EXCEPTION_POINTERS *e)
 {
 	unsigned int code = c;
@@ -186,24 +190,35 @@ int HandleException(const char* fname, unsigned int line, const char* func, unsi
 #endif
 
 	return EXCEPTION_EXECUTE_HANDLER;
-}
+} 
+#else
+#endif
 
 extern "C"
 {
-	__declspec(dllexport) void ClearConnectionError()
+	P4BRIDGE_API void ClearConnectionError()
 	{
 		__try
 		{
+			// EPIC:  commented out, see note at declaration
+			// 
 			// free old error string, if any.
-			if (connectionError)
-			{
-				delete connectionError;
-				connectionError = NULL;
-			}
+			//if (connectionError)
+			//{
+			//	delete connectionError;
+			//	connectionError = NULL;
+			//}
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 		return;
 	}
 }
@@ -219,18 +234,32 @@ int ServerConnect(P4BridgeServer* pServer)
 		// free old error string, if any.
 		ClearConnectionError();
 
+		// EPIC: see note at global connectionError declaration
+		P4ClientError* connectionError = NULL;
+
 		if( !pServer->connected( &connectionError ) )
 		{
+			if (connectionError)
+			{
+				delete connectionError;
+			}
 			// Abort if the connect did not succeed
 			return 0;
 		}
 
 		return 1;
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION())
 	{
 		return 0;
 	}
+#else
+	// EPIC: to do handle exception
+	catch (int e) {
+		return 0;
+	}	
+#endif	
 }
 
 /******************************************************************************
@@ -245,9 +274,17 @@ int ServerConnectTrust(P4BridgeServer* pServer, char* trust_flag, char* fingerpr
 		//  free it.
 		ClearConnectionError();
 
+		// EPIC: see note at global connectionError declaration
+		P4ClientError* connectionError = NULL;
+
 		// Connect to the server and see if the api returns an error. 
 		if( !pServer->connect_and_trust( &connectionError, trust_flag, fingerprint ) )
 		{
+			if (connectionError)
+			{
+				delete connectionError;
+			}
+
 			// Abort if the connect did not succeed
 			return 0;
 		}
@@ -260,10 +297,17 @@ int ServerConnectTrust(P4BridgeServer* pServer, char* trust_flag, char* fingerpr
 		}
 		return 1;
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION())
 	{
 		return 0;
 	}
+#else
+	// EPIC: to do handle exception
+	catch (int e) {
+		return 0;
+	}	
+#endif	
 }
 
 /******************************************************************************
@@ -272,7 +316,7 @@ int ServerConnectTrust(P4BridgeServer* pServer, char* trust_flag, char* fingerpr
 ******************************************************************************/
 extern "C" 
 {
-	__declspec(dllexport) void SetLogFunction(
+	P4BRIDGE_API void SetLogFunction(
 		LogCallbackFn *log_fn)
 	{
 		P4BridgeServer::SetLogCallFn(log_fn);
@@ -321,7 +365,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) P4BridgeServer* Connect(	const char *server, 
+	P4BRIDGE_API P4BridgeServer* Connect(	const char *server, 
 													const char *user, 
 													const char *pass,
 													const char *ws_client,
@@ -330,13 +374,22 @@ extern "C"
 		LOG_ENTRY();
 		__try
 		{
-			connectionError = NULL;
+			// EPIC: see note at global connectionError declaration
+			//connectionError = NULL;
 			return Connect_Int(	server, user, pass, ws_client, log_fn);
 		}
+	#ifdef _WIN32	
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+	#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+	#endif		
 	}
 
 	P4BridgeServer* TrustedConnect_Int(	const char *server, 
@@ -377,7 +430,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) P4BridgeServer* TrustedConnect(	const char *server, 
+	P4BRIDGE_API P4BridgeServer* TrustedConnect(	const char *server, 
 															const char *user, 
 															const char *pass,
 															const char *ws_client,
@@ -387,13 +440,22 @@ extern "C"
 	{
 		__try
 		{
-			connectionError = NULL;
+			// EPIC: see note at global connectionError declaration
+			//connectionError = NULL;
 			return TrustedConnect_Int( server, user, pass, ws_client, trust_flag, fingerprint, log_fn);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	P4BridgeServer* _connection_from_path(const char* cwd)
@@ -410,16 +472,24 @@ extern "C"
 			tempApi.GetPassword().Text(),
 			tempApi.GetClient().Text());
 	}
-	__declspec(dllexport) P4BridgeServer* ConnectionFromPath(const char* cwd)
+	P4BRIDGE_API P4BridgeServer* ConnectionFromPath(const char* cwd)
 	{
 		__try
 		{
 			return _connection_from_path(cwd);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 	/**************************************************************************
 	*
@@ -428,16 +498,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) P4ClientError * GetConnectionError( void )
+	P4BRIDGE_API P4ClientError * GetConnectionError( void )
 	{
 		__try
 		{
-			return connectionError;
+			// EPIC: see note at global connectionError declaration
+			return NULL;//connectionError;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -448,7 +527,7 @@ extern "C"
 	*    pServer: Pointer to the P4BridgeServer 
 	*
 	**************************************************************************/
-	__declspec(dllexport) int ReleaseConnection( P4BridgeServer* pServer )
+	P4BRIDGE_API int ReleaseConnection( P4BridgeServer* pServer )
 	{
 		LOG_ENTRY();
 		if (!pServer) 
@@ -468,10 +547,18 @@ extern "C"
 				return 1;
 			}
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 1;
+		}
+#endif		
 
 		__try
 		{
@@ -490,10 +577,18 @@ extern "C"
 			delete pServer;
 			return ret;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -504,17 +599,25 @@ extern "C"
 	*    pServer: Pointer to the P4BridgeServer 
 	*
 	**************************************************************************/
-	__declspec(dllexport) int Disconnect( P4BridgeServer* pServer )
+	P4BRIDGE_API int Disconnect( P4BridgeServer* pServer )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_B(pServer, tP4BridgeServer)
 			return pServer->disconnect();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -526,17 +629,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) int IsUnicode( P4BridgeServer* pServer )
+	P4BRIDGE_API int IsUnicode( P4BridgeServer* pServer )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_B(pServer, tP4BridgeServer)
 			return pServer->unicodeServer();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -548,17 +659,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) int APILevel( P4BridgeServer* pServer )
+	P4BRIDGE_API int APILevel( P4BridgeServer* pServer )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_B(pServer, tP4BridgeServer)
 			return pServer->APILevel();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -570,17 +689,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) int UseLogin( P4BridgeServer* pServer )
+	P4BRIDGE_API int UseLogin( P4BridgeServer* pServer )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_B(pServer, tP4BridgeServer)
 			return pServer->UseLogin();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -593,17 +720,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) int SupportsExtSubmit( P4BridgeServer* pServer )
+	P4BRIDGE_API int SupportsExtSubmit( P4BridgeServer* pServer )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_B(pServer, tP4BridgeServer)
 			return pServer->SupportsExtSubmit();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -616,7 +751,7 @@ extern "C"
 	*
 	**************************************************************************/
 	
-	__declspec(dllexport) int UrlLaunched()
+	P4BRIDGE_API int UrlLaunched()
 	{
 		return handleUrl;
 	}
@@ -646,7 +781,7 @@ extern "C"
 		return Utils::AllocString(pServer->set_charset(pCharSet, pFileCharSet));
 	}
 
-	__declspec(dllexport) const char * SetCharacterSet(   P4BridgeServer* pServer, 
+	P4BRIDGE_API const char * SetCharacterSet(   P4BridgeServer* pServer, 
 													const char * pCharSet, 
 													const char * pFileCharSet )
 	{
@@ -655,10 +790,18 @@ extern "C"
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
  			return _SetCharacterSet(pServer, pCharSet, pFileCharSet);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -675,7 +818,7 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void set_connection(P4BridgeServer* pServer,
+	P4BRIDGE_API void set_connection(P4BridgeServer* pServer,
 		const char* newPort,
 		const char* newUser,
 		const char* newPassword,
@@ -686,9 +829,16 @@ extern "C"
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			return pServer->set_connection(newPort, newUser, newPassword, newClient);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -702,16 +852,23 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void set_client(P4BridgeServer* pServer, const char* workspace)
+	P4BRIDGE_API void set_client(P4BridgeServer* pServer, const char* workspace)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			return pServer->set_client(workspace);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -729,17 +886,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_client());
 	}
 
-	__declspec(dllexport) const char * get_client(P4BridgeServer* pServer)
+	P4BRIDGE_API const char * get_client(P4BridgeServer* pServer)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_client(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -757,17 +922,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_user());
 	}
 
-	__declspec(dllexport) const char * get_user(P4BridgeServer* pServer)
+	P4BRIDGE_API const char * get_user(P4BridgeServer* pServer)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_user(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -781,16 +954,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void set_user(P4BridgeServer* pServer, char * newValue)
+	P4BRIDGE_API void set_user(P4BridgeServer* pServer, char * newValue)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 				pServer->set_user(newValue);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
+			
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -808,17 +990,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_port());
 	}
 
-	__declspec(dllexport) const char * get_port(P4BridgeServer* pServer)
+	P4BRIDGE_API const char * get_port(P4BridgeServer* pServer)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_port(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -832,7 +1022,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void set_port(P4BridgeServer* pServer, char * newValue)
+	P4BRIDGE_API void set_port(P4BridgeServer* pServer, char * newValue)
 
 	{
 		__try
@@ -840,9 +1030,18 @@ extern "C"
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 				pServer->set_port(newValue);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
+			
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -860,17 +1059,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_password());
 	}
 
-	__declspec(dllexport) const char * get_password(P4BridgeServer* pServer)
+	P4BRIDGE_API const char * get_password(P4BridgeServer* pServer)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_password(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -884,16 +1091,23 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void set_password(P4BridgeServer* pServer, char * newValue)
+	P4BRIDGE_API void set_password(P4BridgeServer* pServer, char * newValue)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 				pServer->set_password(newValue);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -907,16 +1121,23 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void set_ticketFile(P4BridgeServer* pServer, const char* ticketFile)
+	P4BRIDGE_API void set_ticketFile(P4BridgeServer* pServer, const char* ticketFile)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 				return pServer->set_ticketFile(ticketFile);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -934,17 +1155,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_ticketFile());
 	}
 
-	__declspec(dllexport) const char * get_ticketFile(P4BridgeServer* pServer)
+	P4BRIDGE_API const char * get_ticketFile(P4BridgeServer* pServer)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_TicketFile(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -968,17 +1197,25 @@ extern "C"
 		return Utils::AllocString(ticket.GetTicket(portStr, userStr));
 	}
 
-	__declspec(dllexport) const char * get_ticket(char* path, char* port, char* user)
+	P4BRIDGE_API const char * get_ticket(char* path, char* port, char* user)
 	{
 		LOG_ENTRY();
 		__try
 		{
 			return _get_ticket(path, port, user);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	const char* get_cwd_int(P4BridgeServer* pServer)
@@ -993,17 +1230,25 @@ extern "C"
 	*    pServer: Pointer to the P4BridgeServer
 	*
 	**************************************************************************/
-	__declspec(dllexport) const char * get_cwd(P4BridgeServer* pServer)
+	P4BRIDGE_API const char * get_cwd(P4BridgeServer* pServer)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return get_cwd_int(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1016,7 +1261,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void set_cwd(P4BridgeServer* pServer,
+	P4BRIDGE_API void set_cwd(P4BridgeServer* pServer,
 		const char * new_val)
 	{
 		__try
@@ -1024,9 +1269,16 @@ extern "C"
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->set_cwd((const char *)new_val);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1044,17 +1296,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_programName());
 	}
 
-	__declspec(dllexport) const char * get_programName(P4BridgeServer* pServer)
+	P4BRIDGE_API const char * get_programName(P4BridgeServer* pServer)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_programName(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1068,16 +1328,23 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void set_programName(P4BridgeServer* pServer, char * newValue)
+	P4BRIDGE_API void set_programName(P4BridgeServer* pServer, char * newValue)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 				pServer->set_programName(newValue);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1095,17 +1362,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_programVer());
 	}
 
-	__declspec(dllexport) const char * get_programVer( P4BridgeServer* pServer )
+	P4BRIDGE_API const char * get_programVer( P4BridgeServer* pServer )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_programVer(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1119,16 +1394,23 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void set_programVer( P4BridgeServer* pServer, char * newValue )
+	P4BRIDGE_API void set_programVer( P4BridgeServer* pServer, char * newValue )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->set_programVer(newValue);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1146,17 +1428,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_charset());
 	}
 
-	__declspec(dllexport) const char * get_charset( P4BridgeServer* pServer )
+	P4BRIDGE_API const char * get_charset( P4BridgeServer* pServer )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_charset(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1174,17 +1464,25 @@ extern "C"
 		return Utils::AllocString(pServer->get_config());
 	}
 
-	__declspec(dllexport) const char * get_config( P4BridgeServer* pServer )
+	P4BRIDGE_API const char * get_config( P4BridgeServer* pServer )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
 			return _get_config(pServer);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	const char* _get_config_cwd(char* cwd)
@@ -1193,17 +1491,25 @@ extern "C"
 		return Utils::AllocString(P4BridgeServer::get_config(cwd));
 	}
 
-	__declspec(dllexport) const char * get_config_cwd( char* cwd )
+	P4BRIDGE_API const char * get_config_cwd( char* cwd )
 	{
 		LOG_ENTRY();
 		__try
 		{
 			return _get_config_cwd(cwd);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	const char* _Get(const char *var)
@@ -1211,49 +1517,78 @@ extern "C"
 		return Utils::AllocString(P4BridgeServer::Get(var));
 	}
 
-	__declspec(dllexport) const char* Get( const char *var )
+	P4BRIDGE_API const char* Get( const char *var )
 	{
 		__try
 		{
 			return _Get( var );
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) void Set( const char *var, const char *val )
+	P4BRIDGE_API void Set( const char *var, const char *val )
 	{
 		__try
 		{
 			return P4BridgeServer::Set( var, val );
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
-	__declspec(dllexport) void Update( const char *var, const char *val )
+	P4BRIDGE_API void Update( const char *var, const char *val )
 	{
 		__try
 		{
 			return P4BridgeServer::Update( var, val );
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
-	__declspec(dllexport) void ReloadEnviro()
+	P4BRIDGE_API void ReloadEnviro()
 	{
 		__try
 		{
 			return P4BridgeServer::Reload();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1267,16 +1602,24 @@ extern "C"
 		return Utils::AllocString(P4BridgeServer::GetTicketFile());
 	}
 
-	__declspec(dllexport) const char* GetTicketFile(  )
+	P4BRIDGE_API const char* GetTicketFile(  )
 	{
 		__try
 		{
 			return _GetTicketFile();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1290,31 +1633,46 @@ extern "C"
 		return Utils::AllocString(P4BridgeServer::GetTicket(port, user));
 	}
 
-	__declspec(dllexport) const char* GetTicket( char* port, char* user )
+	P4BRIDGE_API const char* GetTicket( char* port, char* user )
 	{
 		__try
 		{
 			return _GetTicket(port, user);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/*
 		Raw SetProtocol - must be called on a disconnected pServer to be effective, or on a pServer that you reconnect on
 	*/
-	__declspec(dllexport) void SetProtocol(P4BridgeServer* pServer, const char* key, const char* val)
+	P4BRIDGE_API void SetProtocol(P4BridgeServer* pServer, const char* key, const char* val)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer);
 			pServer->SetProtocol(key, val);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1338,7 +1696,7 @@ extern "C"
 	*  Return: Zero if there was an error running the command
 	**************************************************************************/
 
-	__declspec(dllexport) int RunCommand( P4BridgeServer* pServer, 
+	P4BRIDGE_API int RunCommand( P4BridgeServer* pServer, 
 										  const char *cmd, 
 										  int cmdId,
 										  int tagged, 
@@ -1356,10 +1714,18 @@ extern "C"
 			LOG_DEBUG2(4, "Running command [%d] %s", cmdId, cmd);
 			return pServer->run_command(cmd, cmdId, tagged, args, argc);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1369,29 +1735,44 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void CancelCommand( P4BridgeServer* pServer, int cmdId ) 
+	P4BRIDGE_API void CancelCommand( P4BridgeServer* pServer, int cmdId ) 
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->cancel_command(cmdId);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
-	__declspec(dllexport) int IsConnected(P4BridgeServer* pServer)
+	P4BRIDGE_API int IsConnected(P4BridgeServer* pServer)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pServer, tP4BridgeServer)
 			return pServer->IsConnected();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1405,16 +1786,25 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetTaggedOutputCallbackFn( P4BridgeServer* pServer, IntTextTextCallbackFn* pNew )
+	P4BRIDGE_API void SetTaggedOutputCallbackFn( P4BridgeServer* pServer, IntTextTextCallbackFn* pNew )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetTaggedOutputCallbackFn(pNew);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
+			
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1430,20 +1820,28 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) int GetTaggedOutputCount( P4BridgeServer* pServer, int cmdId )
+	P4BRIDGE_API int GetTaggedOutputCount( P4BridgeServer* pServer, int cmdId )
 	{
 		__try
 		{
-			VALIDATE_HANDLE_P(pServer, tP4BridgeServer);
+			VALIDATE_HANDLE_I(pServer, tP4BridgeServer);
 			P4BridgeClient* pUi = pServer->find_ui(cmdId);
 			if (!pUi)
 				return  -1;
 			return pUi->GetTaggedOutputCount();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1459,7 +1857,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) StrDictListIterator * GetTaggedOutput( P4BridgeServer* pServer, int cmdId )
+	P4BRIDGE_API StrDictListIterator * GetTaggedOutput( P4BridgeServer* pServer, int cmdId )
 	{
 		__try
 		{
@@ -1469,10 +1867,18 @@ extern "C"
 				return  NULL;
 			return pUi->GetTaggedOutput();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1486,16 +1892,23 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetErrorCallbackFn( P4BridgeServer* pServer, IntIntIntTextCallbackFn* pNew )
+	P4BRIDGE_API void SetErrorCallbackFn( P4BridgeServer* pServer, IntIntIntTextCallbackFn* pNew )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetErrorCallbackFn(pNew);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1508,7 +1921,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) P4ClientError * GetErrorResults( P4BridgeServer * pServer, int cmdId)
+	P4BRIDGE_API P4ClientError * GetErrorResults( P4BridgeServer * pServer, int cmdId)
 	{
 		__try
 		{
@@ -1518,10 +1931,18 @@ extern "C"
 				return  NULL;
 			return pUi->GetErrorResults();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1535,16 +1956,23 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetInfoResultsCallbackFn( P4BridgeServer* pServer, IntIntIntTextCallbackFn* pNew )
+	P4BRIDGE_API void SetInfoResultsCallbackFn( P4BridgeServer* pServer, IntIntIntTextCallbackFn* pNew )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetInfoResultsCallbackFn(pNew);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1557,7 +1985,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) int GetInfoResultsCount( P4BridgeServer* pServer, int cmdId)
+	P4BRIDGE_API int GetInfoResultsCount( P4BridgeServer* pServer, int cmdId)
 	{
 		__try
 		{
@@ -1567,10 +1995,18 @@ extern "C"
 				return  -1;
 			return pUi->GetInfoResultsCount();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1583,11 +2019,11 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) P4ClientInfoMsg * GetInfoResults( P4BridgeServer* pServer, int cmdId)
+	P4BRIDGE_API P4ClientInfoMsg * GetInfoResults( P4BridgeServer* pServer, int cmdId)
 	{
 		__try
 		{
-			VALIDATE_HANDLE_B(pServer, tP4BridgeServer)
+			VALIDATE_HANDLE_P(pServer, (int) tP4BridgeServer)
 			P4BridgeClient* pUi = pServer->find_ui(cmdId);
 			if (!pUi)
 				return  NULL;
@@ -1595,10 +2031,18 @@ extern "C"
 				return  NULL;
 			return pUi->GetInfoResults();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1612,16 +2056,23 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetTextResultsCallbackFn( P4BridgeServer* pServer, TextCallbackFn* pNew )
+	P4BRIDGE_API void SetTextResultsCallbackFn( P4BridgeServer* pServer, TextCallbackFn* pNew )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetTextResultsCallbackFn(pNew);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
-		{
+		{			
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception			
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1634,11 +2085,11 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const char * GetTextResults( P4BridgeServer* pServer, int cmdId )
+	P4BRIDGE_API const char * GetTextResults( P4BridgeServer* pServer, int cmdId )
 	{
 		__try
 		{
-			VALIDATE_HANDLE_B(pServer, tP4BridgeServer)
+			VALIDATE_HANDLE_P(pServer, tP4BridgeServer)
 			P4BridgeClient* pUi = pServer->find_ui(cmdId);
 			if (!pUi)
 				return  NULL;
@@ -1646,10 +2097,18 @@ extern "C"
 				return  NULL;
 			return pUi->GetTextResults();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1663,16 +2122,24 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetBinaryResultsCallbackFn( P4BridgeServer* pServer, BinaryCallbackFn* pNew )
+	P4BRIDGE_API void SetBinaryResultsCallbackFn( P4BridgeServer* pServer, BinaryCallbackFn* pNew )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetBinaryResultsCallbackFn(pNew);
 		}
+		#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
+
 	}
 
 	/**************************************************************************
@@ -1685,7 +2152,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) size_t GetBinaryResultsCount(  P4BridgeServer* pServer, int cmdId) 
+	P4BRIDGE_API size_t GetBinaryResultsCount(  P4BridgeServer* pServer, int cmdId) 
 	{ 
 		__try
 		{
@@ -1695,10 +2162,18 @@ extern "C"
 				return  0;
 			return pUi->GetBinaryResultsCount( );
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1711,7 +2186,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const unsigned char* GetBinaryResults( P4BridgeServer* pServer, int cmdId )
+	P4BRIDGE_API const unsigned char* GetBinaryResults( P4BridgeServer* pServer, int cmdId )
 	{
 		__try
 		{
@@ -1721,10 +2196,18 @@ extern "C"
 				return  NULL;
 			return pUi->GetBinaryResults( );
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1739,7 +2222,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void SetDataSet( P4BridgeServer* pServer, int cmdId,
+	P4BRIDGE_API void SetDataSet( P4BridgeServer* pServer, int cmdId,
 										   const char * data )
 	{
 		__try
@@ -1750,9 +2233,18 @@ extern "C"
 				return;
 			return pUi->SetDataSet(data);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
+			
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1765,7 +2257,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport)  char * GetDataSet( P4BridgeServer* pServer, int cmdId )
+	P4BRIDGE_API  char * GetDataSet( P4BridgeServer* pServer, int cmdId )
 	{
 		__try
 		{
@@ -1775,10 +2267,18 @@ extern "C"
 				return  NULL;
 			return pUi->GetDataSet()->Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1792,7 +2292,7 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetPromptCallbackFn( P4BridgeServer* pServer, 
+	P4BRIDGE_API void SetPromptCallbackFn( P4BridgeServer* pServer, 
 													PromptCallbackFn* pNew )
 	{
 		__try
@@ -1800,9 +2300,16 @@ extern "C"
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetPromptCallbackFn(pNew);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1816,7 +2323,7 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetParallelTransferCallbackFn(P4BridgeServer* pServer,
+	P4BRIDGE_API void SetParallelTransferCallbackFn(P4BridgeServer* pServer,
 		ParallelTransferCallbackFn* pNew)
 	{
 		__try
@@ -1824,9 +2331,16 @@ extern "C"
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetParallelTransferCallbackFn(pNew);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1840,16 +2354,23 @@ extern "C"
 	*  Return: non zero if file is ignored
 	**************************************************************************/
 
-	__declspec(dllexport) int IsIgnored( const char *pPath )
+	P4BRIDGE_API int IsIgnored( const char *pPath )
 	{
 		__try
 		{
 			StrPtr Str = StrRef(pPath);
 			return P4BridgeServer::IsIgnored(Str);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 		return 0;
 	}
 
@@ -1892,17 +2413,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) StrDictList* GetNextItem( StrDictListIterator* pObj )
+	P4BRIDGE_API StrDictList* GetNextItem( StrDictListIterator* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tStrDictListIterator)
 			return pObj->GetNextItem();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1916,17 +2445,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) KeyValuePair * GetNextEntry( StrDictListIterator* pObj )
+	P4BRIDGE_API KeyValuePair * GetNextEntry( StrDictListIterator* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tStrDictListIterator)
 			return pObj->GetNextEntry();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1939,7 +2476,7 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void Release( void* pObj )
+	P4BRIDGE_API void Release( void* pObj )
 	{
 		__try
 		{
@@ -1948,9 +2485,15 @@ extern "C"
 			p4base* pBase = static_cast<p4base*>(pObj);
 			delete pBase;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1963,15 +2506,22 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) void ReleaseString( void* pObj )
+	P4BRIDGE_API void ReleaseString( void* pObj )
 	{
 		__try
 		{
 			Utils::ReleaseString(pObj);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -1988,17 +2538,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const char * GetKey( KeyValuePair* pObj )
+	P4BRIDGE_API const char * GetKey( KeyValuePair* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tKeyValuePair)
 			return pObj->key.c_str();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 	
 	/**************************************************************************
@@ -2011,17 +2569,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const char *  GetValue( KeyValuePair* pObj )
+	P4BRIDGE_API const char *  GetValue( KeyValuePair* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tKeyValuePair)
 			return pObj->value.c_str();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -2038,17 +2604,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const int Severity( P4ClientError* pObj )
+	P4BRIDGE_API const int Severity( P4ClientError* pObj )
 	{
 		__try
 		{
-			VALIDATE_HANDLE_P(pObj, tP4ClientError)
+			VALIDATE_HANDLE_I(pObj, tP4ClientError)
 			return pObj->Severity;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
-			return NULL;
+			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -2061,17 +2635,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const int ErrorCode( P4ClientError* pObj )
+	P4BRIDGE_API const int ErrorCode( P4ClientError* pObj )
 	{
 		__try
 		{
-			VALIDATE_HANDLE_P(pObj, tP4ClientError)
+			VALIDATE_HANDLE_I(pObj, tP4ClientError)
 			return pObj->ErrorCode;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
-			return NULL;
+			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -2084,17 +2666,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const char * Message( P4ClientError* pObj )
+	P4BRIDGE_API const char * Message( P4ClientError* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientError)
 			return pObj->Message.c_str();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 	
 	/**************************************************************************
@@ -2107,17 +2697,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) P4ClientError * Next( P4ClientError * pObj )
+	P4BRIDGE_API P4ClientError * Next( P4ClientError * pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientError)
 			return pObj->Next;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 
@@ -2135,17 +2733,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const char MessageLevel( P4ClientInfoMsg* pObj )
+	P4BRIDGE_API const char MessageLevel( P4ClientInfoMsg* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_C(pObj, tP4ClientInfoMsg)
 			return pObj->Level;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
-			return NULL;
+			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -2158,17 +2764,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const int InfoMsgCode( P4ClientInfoMsg* pObj )
+	P4BRIDGE_API const int InfoMsgCode( P4ClientInfoMsg* pObj )
 	{
 		__try
 		{
-			VALIDATE_HANDLE_P(pObj, tP4ClientInfoMsg)
+			VALIDATE_HANDLE_I(pObj, tP4ClientInfoMsg)
 			return pObj->MsgCode;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
-			return NULL;
+			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -2181,17 +2795,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) const char * InfoMessage( P4ClientInfoMsg* pObj )
+	P4BRIDGE_API const char * InfoMessage( P4ClientInfoMsg* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientInfoMsg)
 			return pObj->Message.c_str();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 	
 	/**************************************************************************
@@ -2204,17 +2826,25 @@ extern "C"
 	*
 	**************************************************************************/
 
-	__declspec(dllexport) P4ClientInfoMsg * NextInfoMsg( P4ClientInfoMsg * pObj )
+	P4BRIDGE_API P4ClientInfoMsg * NextInfoMsg( P4ClientInfoMsg * pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientInfoMsg)
 			return pObj->Next;
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -2225,59 +2855,91 @@ extern "C"
 	 *
 	 *************************************************************************/
 
-	__declspec(dllexport) int CM_AutoResolve( P4ClientMerge* pObj, MergeForce forceMerge )
+	P4BRIDGE_API int CM_AutoResolve( P4ClientMerge* pObj, MergeForce forceMerge )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientMerge);
 			return (int) pObj->AutoResolve(forceMerge);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) int CM_Resolve( P4ClientMerge* pObj )
+	P4BRIDGE_API int CM_Resolve( P4ClientMerge* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientMerge);
 			return (int) pObj->Resolve();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) int CM_DetectResolve( P4ClientMerge* pObj )
+	P4BRIDGE_API int CM_DetectResolve( P4ClientMerge* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientMerge);
 			return (int) pObj->DetectResolve();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) int CM_IsAcceptable( P4ClientMerge* pObj )
+	P4BRIDGE_API int CM_IsAcceptable( P4ClientMerge* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientMerge);
 			return pObj->IsAcceptable();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CM_GetBaseFile( P4ClientMerge* pObj )
+	P4BRIDGE_API char *CM_GetBaseFile( P4ClientMerge* pObj )
 	{
 		__try
 		{
@@ -2286,13 +2948,21 @@ extern "C"
 				return NULL;
 			return pObj->GetBaseFile()->Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CM_GetYourFile( P4ClientMerge* pObj )
+	P4BRIDGE_API char *CM_GetYourFile( P4ClientMerge* pObj )
 	{
 		__try
 		{
@@ -2301,13 +2971,21 @@ extern "C"
 				return NULL;
 			return pObj->GetYourFile()->Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CM_GetTheirFile( P4ClientMerge* pObj )
+	P4BRIDGE_API char *CM_GetTheirFile( P4ClientMerge* pObj )
 	{
 		__try
 		{
@@ -2316,13 +2994,21 @@ extern "C"
 				return NULL;
 			return pObj->GetTheirFile()->Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CM_GetResultFile( P4ClientMerge* pObj )
+	P4BRIDGE_API char *CM_GetResultFile( P4ClientMerge* pObj )
 	{
 		__try
 		{
@@ -2331,66 +3017,106 @@ extern "C"
 				return NULL;
 			return pObj->GetResultFile()->Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 
-	__declspec(dllexport) int	CM_GetYourChunks( P4ClientMerge* pObj )
+	P4BRIDGE_API int	CM_GetYourChunks( P4ClientMerge* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientMerge);
 			return pObj->GetYourChunks();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) int	CM_GetTheirChunks( P4ClientMerge* pObj )
+	P4BRIDGE_API int	CM_GetTheirChunks( P4ClientMerge* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientMerge);
 			return pObj->GetTheirChunks();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) int	CM_GetBothChunks( P4ClientMerge* pObj )
+	P4BRIDGE_API int	CM_GetBothChunks( P4ClientMerge* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientMerge);
 			return pObj->GetBothChunks();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) int	CM_GetConflictChunks( P4ClientMerge* pObj )
+	P4BRIDGE_API int	CM_GetConflictChunks( P4ClientMerge* pObj )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientMerge);
 			return pObj->GetConflictChunks();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return -1;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return -1;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CM_GetMergeDigest( P4ClientMerge* pObj )
+	P4BRIDGE_API char *CM_GetMergeDigest( P4ClientMerge* pObj )
 	{
 		__try
 		{
@@ -2399,13 +3125,21 @@ extern "C"
 				return NULL;
 			return pObj->GetMergeDigest()->Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CM_GetYourDigest( P4ClientMerge* pObj )
+	P4BRIDGE_API char *CM_GetYourDigest( P4ClientMerge* pObj )
 	{
 		__try
 		{
@@ -2413,13 +3147,21 @@ extern "C"
 				return NULL;
 			return pObj->GetYourDigest()->Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
-		}	
+		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CM_GetTheirDigest( P4ClientMerge* pObj )
+	P4BRIDGE_API char *CM_GetTheirDigest( P4ClientMerge* pObj )
 	{
 		__try
 		{
@@ -2428,23 +3170,39 @@ extern "C"
 				return NULL;
 			return pObj->GetTheirDigest()->Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) P4ClientError *CM_GetLastClientMergeError(P4ClientMerge* pObj)
+	P4BRIDGE_API P4ClientError *CM_GetLastClientMergeError(P4ClientMerge* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientMerge)
 			return pObj->GetLastError();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 /*******************************************************************************
@@ -2455,266 +3213,426 @@ extern "C"
  *
  ******************************************************************************/
 
-	__declspec(dllexport) int CR_AutoResolve( P4ClientResolve* pObj, MergeForce force )
+	P4BRIDGE_API int CR_AutoResolve( P4ClientResolve* pObj, MergeForce force )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientResolve);
 			return (int) pObj->AutoResolve(force);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
-			return NULL;
+			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) int CR_Resolve( P4ClientResolve* pObj, int preview, Error *e )
+	P4BRIDGE_API int CR_Resolve( P4ClientResolve* pObj, int preview, Error *e )
 	{
 		__try
 		{
 			VALIDATE_HANDLE_I(pObj, tP4ClientResolve);
 			return (int) pObj->Resolve(preview);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
-			return NULL;
+			return 0;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return 0;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetType(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetType(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve);
 			return pObj->GetType().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetMergeAction(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetMergeAction(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetMergeAction().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetYoursAction(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetYoursAction(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetYoursAction().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetTheirAction(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetTheirAction(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetTheirAction().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	// For the CLI interface, probably not of interest to others
 
-	__declspec(dllexport) char *CR_GetMergePrompt(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetMergePrompt(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetMergePrompt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetYoursPrompt(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetYoursPrompt(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetYoursPrompt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetTheirPrompt(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetTheirPrompt(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetTheirPrompt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetMergeOpt(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetMergeOpt(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetMergeOpt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetYoursOpt(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetYoursOpt(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetYoursOpt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetTheirOpt(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetTheirOpt(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetTheirOpt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetSkipOpt(P4ClientResolve* pObj) 
+	P4BRIDGE_API char *CR_GetSkipOpt(P4ClientResolve* pObj) 
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetSkipOpt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetHelpOpt(P4ClientResolve* pObj) 
+	P4BRIDGE_API char *CR_GetHelpOpt(P4ClientResolve* pObj) 
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetHelpOpt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetAutoOpt(P4ClientResolve* pObj) 
+	P4BRIDGE_API char *CR_GetAutoOpt(P4ClientResolve* pObj) 
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetAutoOpt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetPrompt(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetPrompt(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetPrompt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetTypePrompt(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetTypePrompt(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetTypePrompt().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetUsageError(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetUsageError(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetUsageError().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
-	__declspec(dllexport) char *CR_GetHelp(P4ClientResolve* pObj)
+	P4BRIDGE_API char *CR_GetHelp(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetHelp().Text();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 	
-	__declspec(dllexport) P4ClientError *CR_GetLastError(P4ClientResolve* pObj)
+	P4BRIDGE_API P4ClientError *CR_GetLastError(P4ClientResolve* pObj)
 	{
 		__try
 		{
 			VALIDATE_HANDLE_P(pObj, tP4ClientResolve)
 			return pObj->GetLastError();
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 			return NULL;
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			return NULL;
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -2729,7 +3647,7 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetResolveCallbackFn(	P4BridgeServer* pServer, 
+	P4BRIDGE_API void SetResolveCallbackFn(	P4BridgeServer* pServer, 
 														ResolveCallbackFn* pNew )
 	{
 		__try
@@ -2737,9 +3655,18 @@ extern "C"
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetResolveCallbackFn(pNew);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
+			
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+			
+		}
+#endif		
 	}
 
 	/**************************************************************************
@@ -2754,7 +3681,7 @@ extern "C"
 	*  Return: None
 	**************************************************************************/
 
-	__declspec(dllexport) void SetResolveACallbackFn(	P4BridgeServer* pServer, 
+	P4BRIDGE_API void SetResolveACallbackFn(	P4BridgeServer* pServer, 
 														ResolveACallbackFn* pNew )
 	{
 		__try
@@ -2762,22 +3689,58 @@ extern "C"
 			VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
 			pServer->SetResolveACallbackFn(pNew);
 		}
+#ifdef _WIN32		
 		__except (HANDLE_EXCEPTION())
 		{
 		}
+#else
+		catch (int e)
+		{
+			// EPIC: handle exception
+		}
+#endif		
 	}
 
+
+
+
 #if defined(_DEBUG)
-	__declspec(dllexport) int GetAllocObjCount()		{ return p4typesCount;  }
-	__declspec(dllexport) int GetAllocObj(int type)		{ return p4base::GetItemCount(type); }
-	__declspec(dllexport) const char* GetAllocObjName(int type) {	return p4base::GetTypeStr(type);	}
-	__declspec(dllexport) long GetStringAllocs()		{ return Utils::AllocCount(); }
-	__declspec(dllexport) long GetStringReleases()		{ return Utils::FreeCount(); }
+	P4BRIDGE_API int GetAllocObjCount()		{ return p4typesCount;  }
+	P4BRIDGE_API int GetAllocObj(int type)		{ return p4base::GetItemCount(type); }
+	P4BRIDGE_API const char* GetAllocObjName(int type) {	return p4base::GetTypeStr(type);	}
+	P4BRIDGE_API long GetStringAllocs()		{ return Utils::AllocCount(); }
+	P4BRIDGE_API long GetStringReleases()		{ return Utils::FreeCount(); }
 #else
-	__declspec(dllexport) int GetAllocObjCount()		{ return 0; }
-	__declspec(dllexport) int GetAllocObj(int type)		{ return 0; }
-	__declspec(dllexport) const char* GetAllocObjName(int type) { return "only available in _DEBUG builds"; }
-	__declspec(dllexport) long GetStringAllocs()		{ return 0; }
-	__declspec(dllexport) long GetStringReleases()		{ return 0; }
+	P4BRIDGE_API int GetAllocObjCount()		{ return 0; }
+	P4BRIDGE_API int GetAllocObj(int type)		{ return 0; }
+	P4BRIDGE_API const char* GetAllocObjName(int type) { return "only available in _DEBUG builds"; }
+	P4BRIDGE_API long GetStringAllocs()		{ return 0; }
+	P4BRIDGE_API long GetStringReleases()		{ return 0; }
 #endif
+
+
+// EPIC
+P4BRIDGE_API void SetConnectionHost(P4BridgeServer* pServer, const char* hostname)
+{
+	__try
+	{
+		VALIDATE_HANDLE_V(pServer, tP4BridgeServer)
+			pServer->SetConnectionHost(hostname);
+
+	}
+#ifdef _WIN32		
+	__except (HANDLE_EXCEPTION())
+	{
+
+	}
+#else
+	catch (int e)
+	{
+		// EPIC: handle exception
+
+	}
+#endif		
 }
+
+}
+
