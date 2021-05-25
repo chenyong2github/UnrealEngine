@@ -2665,7 +2665,7 @@ void TranslateRayTracingGeometryDescs(const FRayTracingGeometryInitializer& Init
 		}
 		else if (Initializer.GeometryType == RTGT_Procedural)
 		{
-			checkf(Segment.VertexBufferStride >= (2 * sizeof(FVector)), TEXT("Procedural geometry vertex buffer must contain at least 2xFloat3 that defines 3D bounding boxes of primitives."));
+			checkf(Segment.VertexBufferStride >= (2 * sizeof(FVector3f)), TEXT("Procedural geometry vertex buffer must contain at least 2xFloat3 that defines 3D bounding boxes of primitives."));
 		}
 
 		check(Segment.FirstPrimitive + Segment.NumPrimitives <= Initializer.TotalPrimitiveCount);

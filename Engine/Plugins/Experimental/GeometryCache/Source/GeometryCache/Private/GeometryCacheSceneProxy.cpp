@@ -1246,8 +1246,8 @@ void FGeomCacheTrackProxy::InitRenderResources(int32 NumVertices, int32 NumIndic
 	TextureCoordinatesBuffer.Init(NumVertices * sizeof(FVector2D));
 	ColorBuffer.Init(NumVertices * sizeof(FColor));
 
-	PositionBuffers[0].Init(NumVertices * sizeof(FVector));
-	PositionBuffers[1].Init(NumVertices * sizeof(FVector));
+	PositionBuffers[0].Init(NumVertices * sizeof(FVector3f));
+	PositionBuffers[1].Init(NumVertices * sizeof(FVector3f));
 	CurrentPositionBufferIndex = -1;
 	PositionBufferFrameIndices[0] = PositionBufferFrameIndices[1] = -1;
 	PositionBufferFrameTimes[0] = PositionBufferFrameTimes[1] = -1.0f;

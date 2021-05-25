@@ -2652,7 +2652,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 						RayTracingInstance.Materials,
 						false,
 						(uint32)FMath::Square(LodSubsectionSizeVerts),
-						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector),
+						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector3f),
 						(uint32)FMath::Square(LodSubsectionSizeVerts - 1) * 2,
 						&SectionRayTracingStates[SubSectionIdx].Geometry,
 						&SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer,

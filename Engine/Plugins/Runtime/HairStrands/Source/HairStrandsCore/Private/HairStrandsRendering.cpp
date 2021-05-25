@@ -198,7 +198,7 @@ static void AddGroomCacheUpdatePass(
 	FRDGBufferRef VertexBuffer = nullptr;
 
 	const uint32 DataCount = GroomCacheData.VertexData.PointsPosition.Num();
-	const uint32 DataSizeInBytes = sizeof(FVector) * DataCount;
+	const uint32 DataSizeInBytes = sizeof(FVector3f) * DataCount;
 	if (DataSizeInBytes != 0)
 	{
 		// Deformation are upload into a Buffer<float> as the original position are float3 which is is both
