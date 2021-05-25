@@ -755,7 +755,10 @@ namespace Chaos
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddConvexCenterOfMassAndVolume)
 			{
-				Ar << Volume;
+				FRealSingle VolumeFloat = (FRealSingle)Volume; // LWC_TODO : potential precision loss, to be changed when we can serialize FReal as double
+				Ar << VolumeFloat;
+				Volume = (FReal)VolumeFloat;
+
 				Ar << CenterOfMass;
 			}
 			else if (Ar.IsLoading())
@@ -776,7 +779,9 @@ namespace Chaos
 			Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 			if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MarginAddedToConvexAndBox)
 			{
-				Ar << FImplicitObject::Margin;
+				FRealSingle MarginFloat = (FRealSingle)FImplicitObject::Margin; // LWC_TODO : potential precision loss, to be changed when we can serialize FReal as double
+				Ar << MarginFloat;
+				FImplicitObject::Margin = (FReal)MarginFloat;
 			}
 
 			if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::StructureDataAddedToConvex)
