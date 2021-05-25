@@ -705,6 +705,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 				if (bAllowStall)
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(WaitForTasks);
 					{
 						FScopeCycleCounter Scope(StallStatId, EStatFlags::Verbose);
 						Queue(QueueIndex).StallRestartEvent->Wait(bIsRenderThreadAndPolling ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);

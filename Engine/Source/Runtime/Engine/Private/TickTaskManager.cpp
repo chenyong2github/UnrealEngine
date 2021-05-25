@@ -560,6 +560,7 @@ public:
 				CA_SUPPRESS(6385);
 				if (TickCompletionEvents[Block].Num())
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(TickCompletionEvents);
 					FTaskGraphInterface::Get().WaitUntilTasksComplete(TickCompletionEvents[Block], ENamedThreads::GameThread);
 					if (SingleThreadedMode() || Block == TG_NewlySpawned || CVarAllowAsyncTickCleanup.GetValueOnGameThread() == 0 || TickCompletionEvents[Block].Num() < 50)
 					{
