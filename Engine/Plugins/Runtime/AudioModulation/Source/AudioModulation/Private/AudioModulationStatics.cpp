@@ -334,6 +334,39 @@ void UAudioModulationStatics::UpdateMix(const UObject* WorldContextObject, USoun
 	}
 }
 
+void UAudioModulationStatics::SetGlobalBusMixValue(const UObject* WorldContextObject, USoundControlBus* Bus, float Value, float FadeTime)
+{
+	if (Bus)
+	{
+		UWorld* World = GetAudioWorld(WorldContextObject);
+		if (AudioModulation::FAudioModulation* ModSystem = GetModulation(World))
+		{
+			ModSystem->SetGlobalBusMixValue(*Bus, Value, FadeTime);
+		}
+	}
+}
+
+void UAudioModulationStatics::ClearGlobalBusMixValue(const UObject* WorldContextObject, USoundControlBus* Bus, float FadeTime)
+{
+	if (Bus)
+	{
+		UWorld* World = GetAudioWorld(WorldContextObject);
+		if (AudioModulation::FAudioModulation* ModSystem = GetModulation(World))
+		{
+			ModSystem->ClearGlobalBusMixValue(*Bus, FadeTime);
+		}
+	}
+}
+
+void UAudioModulationStatics::ClearAllGlobalBusMixValues(const UObject* WorldContextObject, float FadeTime)
+{
+	UWorld* World = GetAudioWorld(WorldContextObject);
+	if (AudioModulation::FAudioModulation* ModSystem = GetModulation(World))
+	{
+		ModSystem->ClearAllGlobalBusMixValues(FadeTime);
+	}
+}
+
 void UAudioModulationStatics::UpdateMixByFilter(
 	const UObject* WorldContextObject,
 	USoundControlBusMix* Mix,
