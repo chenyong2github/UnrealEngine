@@ -47,13 +47,13 @@ namespace CoreTechSurface
 			return false;
 		}
 
+		CADLibrary::CTKIO_ChangeUnit(ImportParameters.MetricUnit);
 		uint64 MainObjectID;
 		if(!CADLibrary::CTKIO_LoadModel(*FileName, MainObjectID, 0x00020000 /* CT_LOAD_FLAGS_READ_META_DATA */))
 		{
 			// Something wrong happened during the load, abort
 			return false;
 		}
-		CADLibrary::CTKIO_ChangeUnit(ImportParameters.MetricUnit);
 
 		if (ImportParameters.StitchingTechnique != CADLibrary::EStitchingTechnique::StitchingNone)
 		{
