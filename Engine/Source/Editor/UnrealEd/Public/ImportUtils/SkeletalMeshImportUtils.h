@@ -7,9 +7,11 @@
 
 struct FExistingSkelMeshData;
 struct FReferenceSkeleton;
+struct FSkeletalMaterial;
 class FSkeletalMeshImportData;
 class FSkeletalMeshLODModel;
 class USkeletalMesh;
+class USkeleton;
 
 namespace SkeletalMeshImportUtils
 {
