@@ -996,38 +996,6 @@ FHairStrandsRootData::FHairStrandsRootData()
 
 }
 
-FHairStrandsRootData::FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples):
-	RootCount(HairStrandsDatas ? HairStrandsDatas->GetNumCurves() : 0)
-{
-	if (!HairStrandsDatas)
-		return;
-
-	const uint32 CurveCount = HairStrandsDatas->GetNumCurves();
-	VertexToCurveIndexBuffer.SetNum(HairStrandsDatas->GetNumPoints());
-	
-	for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
-	{
-		const uint32 RootIndex = HairStrandsDatas->StrandsCurves.CurvesOffset[CurveIndex];
-		const uint32 PointCount = HairStrandsDatas->StrandsCurves.CurvesCount[CurveIndex];
-		for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
-		{
-			VertexToCurveIndexBuffer[RootIndex + PointIndex] = CurveIndex; // RootIndex;
-		}
-	}
-	check(NumSamples.Num() == LODCount);
-
-	MeshProjectionLODs.SetNum(LODCount);
-	uint32 LODIndex = 0;
-	for (FMeshProjectionLOD& MeshProjectionLOD : MeshProjectionLODs)
-	{
-		MeshProjectionLOD.SampleCount = NumSamples[LODIndex];
-		MeshProjectionLOD.LODIndex = LODIndex++;
-		MeshProjectionLOD.MeshInterpolationWeightsBuffer.Empty();
-		MeshProjectionLOD.MeshSampleIndicesBuffer.Empty();
-		MeshProjectionLOD.RestSamplePositionsBuffer.Empty();
-	}
-}
-
 bool FHairStrandsRootData::HasProjectionData() const
 {
 	bool bIsValid = MeshProjectionLODs.Num() > 0;
