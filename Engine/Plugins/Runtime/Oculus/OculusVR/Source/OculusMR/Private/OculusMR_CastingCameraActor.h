@@ -135,7 +135,7 @@ private:
 	TObjectPtr<UOculusMR_State> MRState;
 
 #if PLATFORM_ANDROID
-	TArray<Audio::AlignedFloatBuffer> AudioBuffers;
+	TArray<Audio::FAlignedFloatBuffer> AudioBuffers;
 	TArray<double> AudioTimes;
 
 	int SyncId;
