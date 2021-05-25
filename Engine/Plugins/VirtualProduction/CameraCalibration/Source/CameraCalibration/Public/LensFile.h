@@ -8,6 +8,7 @@
 #include "Engine/Texture.h"
 #include "ICalibratedMapProcessor.h"
 #include "LensData.h"
+#include "Misc/Optional.h"
 #include "Templates/UniquePtr.h"
 #include "Tickable.h"
 #include "UObject/Object.h"
@@ -132,7 +133,6 @@ private:
 	/** Unique identifier for this map point to associate it with derived data */
 	FGuid Identifier;
 };
-
 
 
 /**
@@ -265,16 +265,16 @@ public:
 	//~ End FTickableGameObject
 	
 	/** Returns interpolated distortion parameters based on input focus and zoom */
-	bool EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue);
+	bool EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue) const;
 
 	/** Returns interpolated intrinsic parameters based on input focus and zoom */
-	bool EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue);
+	bool EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue) const;
 
 	/** Draws the distortion map based on evaluation point*/
-	bool EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData);
+	bool EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const;
 
 	/** Returns interpolated nodal point offset based on input focus and zoom */
-	bool EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue);
+	bool EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue) const;
 
 	/** Whether focus encoder mapping is configured */
 	bool HasFocusEncoderMapping() const;
@@ -312,10 +312,10 @@ protected:
 	void SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const;
 
 	/** Evaluates distortion based on InFocus and InZoom using parameters */
-	bool EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
+	bool EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const;
 	
 	/** Evaluates distortion based on InFocus and InZoom using STMaps */
-	bool EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
+	bool EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const;
 	
 public:
 
@@ -395,3 +395,63 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens File", Meta = (EditCondition = "bOverrideDefaultLensFile"))
 	ULensFile* LensFile = nullptr;
 };
+
+/** Structure that caches the inputs (and other useful bits) used when evaluating the Lens File */
+struct FLensFileEvalData
+{
+	FLensFileEvalData()
+	{
+		Invalidate();
+	};
+
+	ULensFile* LensFile;
+
+	/** The values that should be used as inputs to the Lut in the LensFile */
+	struct
+	{
+		/** Focus input */
+		TOptional<float> Focus;
+
+		/** Iris input */
+		TOptional<float> Iris;
+
+		/** Zoom input */
+		TOptional<float> Zoom;
+	} Input;
+
+	/** Information about the camera associated with the lens evaluation */
+	struct
+	{
+		uint32 UniqueId;
+	} Camera;
+
+	/** Information about the Distortion evaluation */
+	struct
+	{
+		/** True if distotion was applied (and the lens distortion handler updated its state) */
+		bool bWasEvaluated;
+	} Distortion;
+
+	/** Information about the nodal offset evaluation */
+	struct
+	{
+		/** True if the evaluated nodal offset was applied to the camera */
+		bool bWasApplied;
+	} NodalOffset;
+
+	/** Invalidates the data in this structure and avoid using stale or invalid values */
+	void Invalidate()
+	{
+		LensFile = nullptr;
+
+		Input.Focus.Reset();
+		Input.Iris.Reset();
+		Input.Zoom.Reset();
+
+		Camera.UniqueId = INDEX_NONE;
+		Distortion.bWasEvaluated = false;
+		NodalOffset.bWasApplied = false;
+	}
+};
+
+

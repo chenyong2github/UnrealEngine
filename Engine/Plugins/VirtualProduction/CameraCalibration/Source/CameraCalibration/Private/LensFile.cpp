@@ -130,7 +130,7 @@ void ULensFile::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& P
 
 #endif //WITH_EDITOR
 
-bool ULensFile::EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue)
+bool ULensFile::EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue) const
 {
 	if (DistortionMapping.Num() <= 0)
 	{
@@ -153,7 +153,7 @@ bool ULensFile::EvaluateDistortionParameters(float InFocus, float InZoom, FDisto
 	return bSuccess;
 }
 
-bool ULensFile::EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue)
+bool ULensFile::EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue) const
 {
 	if (IntrinsicMapping.Num() <= 0)
 	{
@@ -176,7 +176,7 @@ bool ULensFile::EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrin
 	return bSuccess;
 }
 
-bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData)
+bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
 {	
 	if (InLensHandler == nullptr)
 	{
@@ -257,7 +257,7 @@ void ULensFile::SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHan
 	LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 }
 
-bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData)
+bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
 {
 	//Parameter blending mode or no parameters to blend
 	if (LensFileUtils::GDistortionParametersBlendMode == 0
@@ -304,10 +304,10 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 				return false;	
 			}
 
-			FDistortionMapPoint& MinMinPoint = DistortionMapping[MinMinIndex];
-			FDistortionMapPoint& MinMaxPoint = DistortionMapping[MinMaxIndex];
-			FDistortionMapPoint& MaxMinPoint = DistortionMapping[MaxMinIndex];
-			FDistortionMapPoint& MaxMaxPoint = DistortionMapping[MaxMaxIndex];
+			const FDistortionMapPoint& MinMinPoint = DistortionMapping[MinMinIndex];
+			const FDistortionMapPoint& MinMaxPoint = DistortionMapping[MinMaxIndex];
+			const FDistortionMapPoint& MaxMinPoint = DistortionMapping[MaxMinIndex];
+			const FDistortionMapPoint& MaxMaxPoint = DistortionMapping[MaxMaxIndex];
 
 			FDistortionData BlendedData;
 			BlendedData.DistortedUVs.SetNumZeroed(UndistortedUVs.Num());
@@ -442,7 +442,7 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 	return true;
 }
 
-bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData)
+bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
 {
 	if(DerivedDataInFlightCount > 0)
 	{
@@ -603,7 +603,7 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2
 	return true;
 }
 
-bool ULensFile::EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue)
+bool ULensFile::EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue) const
 {
 	if (NodalOffsetMapping.Num() <= 0)
 	{
