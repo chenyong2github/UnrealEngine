@@ -17,6 +17,7 @@ public:
 	virtual void Initialize() = 0;
 	virtual void SetEnabled(bool bInEnabled) = 0;
 	virtual bool GetEnabled() = 0;
+	virtual bool GetAvailable() = 0;
 
 	virtual void SetFlags(uint32 Flags) = 0;
 	virtual uint32 GetFlags() = 0;

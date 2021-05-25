@@ -590,6 +590,11 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 		return true;
 	}
 
+	if (EventArgs.Key == EKeys::LeftMouseButton && EventArgs.Event == EInputEvent::IE_Pressed)
+	{
+		GEngine->SetFlashIndicatorLatencyMarker(GFrameCounter);
+	}
+
 	if (IgnoreInput())
 	{
 		return ViewportConsole ? ViewportConsole->InputKey(ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false;
