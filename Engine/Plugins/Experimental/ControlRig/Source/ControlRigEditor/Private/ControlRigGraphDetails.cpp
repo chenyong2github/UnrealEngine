@@ -358,7 +358,15 @@ void FControlRigArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinType)
 					CPPType = FString::Printf(TEXT("TArray<%s>"), *CPPType);
 				}
 
-				Controller->ChangeExposedPinType(Pin->GetFName(), CPPType, CPPTypeObjectName, true);
+				bool bSetupUndoRedo = true;
+				Controller->ChangeExposedPinType(Pin->GetFName(), CPPType, CPPTypeObjectName, bSetupUndoRedo);
+
+				// If the controller has identified this as a bulk change, it has not added the actions to the action stack
+				// We need to disable the transaction from the UI as well to keep them synced
+				if (!bSetupUndoRedo)
+				{
+					GEditor->CancelTransaction(0);
+				}
 			}
 		}
 	}
