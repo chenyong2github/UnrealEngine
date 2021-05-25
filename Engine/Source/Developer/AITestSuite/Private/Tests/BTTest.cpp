@@ -661,6 +661,33 @@ struct FAITest_BTSwitchingHigherPrioDuringServiceTick : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTSwitchingHigherPrioDuringServiceTick, "System.AI.Behavior Trees.Switch: higher priority during service tick")
 
+struct FAITest_BTRequestExecutionOnLatentAbortFinished : public FAITest_SimpleBT
+{
+	FAITest_BTRequestExecutionOnLatentAbortFinished()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSequence(*BTAsset); // 0
+		{
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 3
+				1 /* ExecHalfNumTicks */, FName() /* ExecKeyName */, 100 /* ExecLogStart */, 199 /* ExecLogFinish */,
+				1 /* AbortHalfNumTicks */, FName() /* AbortKeyName */, 200 /* AbortLogStart */, 299 /* AbortLogFinish */);
+			{
+				FBTBuilder::WithDecorator<UBTDecorator_ForceSuccess>(CompNode); // 1
+				FBTBuilder::WithDecoratorDelayedAbort(CompNode, 1, false /* bOnlyOnce */); // 2
+			}
+
+			FBTBuilder::AddTask(CompNode, 4, EBTNodeResult::Succeeded); // 4
+			FBTBuilder::AddTask(CompNode, 5, EBTNodeResult::Succeeded); // 5
+		}
+
+		ExpectedResult.Add(100);
+		ExpectedResult.Add(200);
+		ExpectedResult.Add(299);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(5);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTRequestExecutionOnLatentAbortFinished, "System.AI.Behavior Trees.Abort: request on latent task finished")
+
 struct FAITest_BTSwitchingHigherPrioDuringServiceBecomeRelevant : public FAITest_SimpleBT
 {
 	FAITest_BTSwitchingHigherPrioDuringServiceBecomeRelevant()

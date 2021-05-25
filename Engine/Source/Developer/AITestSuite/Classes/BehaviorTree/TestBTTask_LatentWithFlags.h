@@ -17,40 +17,52 @@ struct FBTLatentTaskMemory
 UCLASS(meta = (HiddenNode))
 class UTestBTTask_LatentWithFlags : public UBTTaskNode
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+public:
+
+	UTestBTTask_LatentWithFlags();
 
 	UPROPERTY()
-	int32 LogIndexExecuteStart;
+	int32 LogIndexExecuteStart = 0;
 
 	UPROPERTY()
-	int32 LogIndexExecuteFinish;
+	int32 LogIndexExecuting = -1;
 
 	UPROPERTY()
-	int32 LogIndexAbortStart;
+	int32 LogIndexExecuteFinish = 0;
 
 	UPROPERTY()
-	int32 LogIndexAbortFinish;
+	int32 LogIndexAbortStart = 0;
 
 	UPROPERTY()
-	int32 ExecuteTicks;
+	int32 LogIndexAborting = -1;
 
 	UPROPERTY()
-	int32 AbortTicks;
+	int32 LogIndexAbortFinish = 0;
+
+	/** Num of ticks before 'execute start' and `set execute flag` and then the same num of ticks before `execute finish` */
+	UPROPERTY()
+	int32 ExecuteHalfTicks = 2;
+
+	/** Num of ticks before 'abort start' and `set abort flag` and then the same num of ticks before `abort finish` */
+	UPROPERTY()
+	int32 AbortHalfTicks = 2;
 
 	UPROPERTY()
-	FName KeyNameExecute;
+	FName KeyNameExecute = TEXT("Bool1");
 
 	UPROPERTY()
-	FName KeyNameAbort;
+	FName KeyNameAbort = TEXT("Bool2");
 
 	UPROPERTY()
-	TEnumAsByte<EBTNodeResult::Type> LogResult;
+	TEnumAsByte<EBTNodeResult::Type> LogResult = EBTNodeResult::Succeeded;
 
+protected:
 	virtual EBTNodeResult::Type ExecuteTask(class UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual uint16 GetInstanceMemorySize() const override;
 	void LogExecution(class UBehaviorTreeComponent& OwnerComp, int32 LogNumber);
 
-protected:
 	virtual void TickTask(class UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 };

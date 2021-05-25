@@ -313,8 +313,8 @@ protected:
 	/** loops tree execution */
 	uint8 bLoopExecution : 1;
 
-	/** set when execution is waiting for tasks to abort (current or parallel's main) */
-	uint8 bWaitingForAbortingTasks : 1;
+	/** set when execution is waiting for tasks to finish their latent abort (current or parallel's main) */
+	uint8 bWaitingForLatentAborts : 1;
 
 	/** set when execution update is scheduled for next tick */
 	uint8 bRequestedFlowUpdate : 1;
@@ -371,8 +371,14 @@ protected:
 	/** deactivate all nodes up to requested one */
 	bool DeactivateUpTo(UBTCompositeNode* Node, uint16 NodeInstanceIdx, EBTNodeResult::Type& NodeResult, int32& OutLastDeactivatedChildIndex);
 
-	/** update state of aborting tasks */
-	void UpdateAbortingTasks();
+	/** returns true if execution was waiting on latent aborts and they are all finished;  */
+	bool TrackPendingLatentAborts();
+
+	/** tracks if there are new tasks using latent abort in progress */
+	void TrackNewLatentAborts();
+
+	/** return true if the current or any parallel task has a latent abort in progress */
+	bool HasActiveLatentAborts() const;
 
 	/** apply pending execution from last task search */
 	void ProcessPendingExecution();
@@ -494,5 +500,5 @@ FORCEINLINE bool UBehaviorTreeComponent::IsRestartPending() const
 
 FORCEINLINE bool UBehaviorTreeComponent::IsAbortPending() const
 {
-	return bWaitingForAbortingTasks || PendingExecution.IsSet();
+	return bWaitingForLatentAborts || PendingExecution.IsSet();
 }

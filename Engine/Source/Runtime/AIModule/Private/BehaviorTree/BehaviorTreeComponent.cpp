@@ -65,7 +65,7 @@ UBehaviorTreeComponent::UBehaviorTreeComponent(const FObjectInitializer& ObjectI
 	StopTreeLock = 0;
 	bDeferredStopTree = false;
 	bLoopExecution = false;
-	bWaitingForAbortingTasks = false;
+	bWaitingForLatentAborts = false;
 	bRequestedFlowUpdate = false;
 	bAutoActivate = true;
 	bWantsInitializeComponent = true; 
@@ -255,7 +255,7 @@ void UBehaviorTreeComponent::StartTree(UBehaviorTree& Asset, EBTExecutionMode::T
 void UBehaviorTreeComponent::ProcessPendingInitialize()
 {
 	StopTree(EBTStopMode::Safe);
-	if (bWaitingForAbortingTasks)
+	if (bWaitingForLatentAborts)
 	{
 		return;
 	}
@@ -349,7 +349,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 						if (bIsValidForStatus)
 						{
 							InstanceInfo.MarkParallelTaskAsAbortingAt(ParallelIndex);
-							bWaitingForAbortingTasks = true;
+							bWaitingForLatentAborts = true;
 						}
 						else
 						{
@@ -386,7 +386,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 		}
 	}
 
-	if (bWaitingForAbortingTasks)
+	if (bWaitingForLatentAborts)
 	{
 		if (StopMode == EBTStopMode::Safe)
 		{
@@ -423,7 +423,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 	bRequestedFlowUpdate = false;
 	bRequestedStop = false;
 	bIsRunning = false;
-	bWaitingForAbortingTasks = false;
+	bWaitingForLatentAborts = false;
 	bDeferredStopTree = false;
 }
 
@@ -492,9 +492,8 @@ void UBehaviorTreeComponent::OnTaskFinished(const UBTTaskNode* TaskNode, EBTNode
 
 	uint8* ParentMemory = ParentNode->GetNodeMemory<uint8>(InstanceStack[TaskInstanceIdx]);
 
-	const bool bWasWaitingForAbort = bWaitingForAbortingTasks;
 	ParentNode->ConditionalNotifyChildExecution(*this, ParentMemory, *TaskNode, TaskResult);
-	
+
 	if (TaskResult != EBTNodeResult::InProgress)
 	{
 		StoreDebuggerSearchStep(TaskNode, TaskInstanceIdx, TaskResult);
@@ -526,41 +525,9 @@ void UBehaviorTreeComponent::OnTaskFinished(const UBTTaskNode* TaskNode, EBTNode
 
 			InstanceStack[TaskInstanceIdx].ActiveNodeType = EBTActiveNode::InactiveTask;
 		}
-
-		// update state of aborting tasks after currently finished one was set to Inactive
-		UpdateAbortingTasks();
-
-		// make sure that we continue execution after all pending latent aborts finished
-		if (!bWaitingForAbortingTasks && bWasWaitingForAbort)
-		{
-			if (bRequestedStop)
-			{
-				StopTree(EBTStopMode::Safe);
-			}
-			else
-			{
-				// force new search if there were any execution requests while waiting for aborting task
-				if (ExecutionRequest.ExecuteNode)
-				{
-					UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> found valid ExecutionRequest, locking PendingExecution data to force new search!"));
-					PendingExecution.Lock();
-
-					if (ExecutionRequest.SearchEnd.IsSet())
-					{
-						UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> removing limit from end of search range! [abort done]"));
-						ExecutionRequest.SearchEnd = FBTNodeIndex();
-					}
-				}
-
-				ScheduleExecutionUpdate();
-			}
-		}
 	}
-	else
-	{
-		// always update state of aborting tasks
-		UpdateAbortingTasks();
-	}
+
+	TrackNewLatentAborts();
 
 	if (TreeStartInfo.HasPendingInitialize())
 	{
@@ -1066,7 +1033,7 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 
     // Not only checking against deactivated branch upon applying search data or while aborting task, 
     // but also while waiting after a latent task to abort
-	if (SearchData.bFilterOutRequestFromDeactivatedBranch || bWaitingForAbortingTasks)
+	if (SearchData.bFilterOutRequestFromDeactivatedBranch || bWaitingForLatentAborts)
 	{
 		// request on same node or with higher priority doesn't require additional checks
 		if (SearchData.SearchRootNode != ExecutionIdx && SearchData.SearchRootNode.TakesPriorityOver(ExecutionIdx) && SearchData.DeactivatedBranchStart.IsSet())
@@ -1217,8 +1184,8 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 	// - don't search, just accumulate requests and run them when abort is done
 	// - rollback changes from search that caused abort to ensure proper state of tree
 	const bool bIsActiveNodeAborting = InstanceStack.Num() && InstanceStack.Last().ActiveNodeType == EBTActiveNode::AbortingTask;
-	const bool bInvalidateCurrentSearch = bWaitingForAbortingTasks || bIsActiveNodeAborting;
-	const bool bScheduleNewSearch = !bWaitingForAbortingTasks;
+	const bool bInvalidateCurrentSearch = bWaitingForLatentAborts || bIsActiveNodeAborting;
+	const bool bScheduleNewSearch = !bWaitingForLatentAborts;
 
 	if (bInvalidateCurrentSearch)
 	{
@@ -1329,7 +1296,7 @@ void UBehaviorTreeComponent::ApplySearchUpdates(const TArray<FBehaviorTreeSearch
 					if (NodeResult == EBTNodeResult::InProgress)
 					{
 						UpdateInstance.MarkParallelTaskAsAbortingAt(ParallelTaskIdx);
-						bWaitingForAbortingTasks = true;
+						bWaitingForLatentAborts = true;
 					}
 
 					OnTaskFinished(UpdateInfo.TaskNode, NodeResult);
@@ -1473,6 +1440,33 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 					SCOPE_CYCLE_UOBJECT(AuxNode, &AuxNode);
 					bDoneSomething |= AuxNode.WrappedTickNode(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
 				});
+		}
+	}
+
+	// make sure that we continue execution after all pending latent aborts finished
+	const bool bJustFinishedLatentAborts = TrackPendingLatentAborts();
+	if (bJustFinishedLatentAborts)
+	{
+		if (bRequestedStop)
+		{
+			StopTree(EBTStopMode::Safe);
+		}
+		else
+		{
+			// force new search if there were any execution requests while waiting for aborting task
+			if (ExecutionRequest.ExecuteNode)
+			{
+				UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> found valid ExecutionRequest, locking PendingExecution data to force new search!"));
+				PendingExecution.Lock();
+
+				if (ExecutionRequest.SearchEnd.IsSet())
+				{
+					UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> removing limit from end of search range! [abort done]"));
+					ExecutionRequest.SearchEnd = FBTNodeIndex();
+				}
+			}
+
+			ScheduleExecutionUpdate();
 		}
 	}
 
@@ -1649,7 +1643,7 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 		return;
 	}
 
-	if (bWaitingForAbortingTasks)
+	if (bWaitingForLatentAborts)
 	{
 		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("Ignoring ProcessExecutionRequest call, aborting task must finish first"));
 		return;
@@ -1903,7 +1897,7 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 void UBehaviorTreeComponent::ProcessPendingExecution()
 {
 	// can't continue if current task is still aborting
-	if (bWaitingForAbortingTasks || !PendingExecution.IsSet())
+	if (bWaitingForLatentAborts || !PendingExecution.IsSet())
 	{
 		return;
 	}
@@ -2309,29 +2303,52 @@ void UBehaviorTreeComponent::UnregisterParallelTask(const UBTTaskNode* TaskNode,
 			}
 		}
 	}
-
-	if (bShouldUpdate)
-	{
-		UpdateAbortingTasks();
-	}
 }
 
-void UBehaviorTreeComponent::UpdateAbortingTasks()
+bool UBehaviorTreeComponent::TrackPendingLatentAborts()
 {
-	bWaitingForAbortingTasks = InstanceStack.Num() ? (InstanceStack.Last().ActiveNodeType == EBTActiveNode::AbortingTask) : false;
-
-	for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num() && !bWaitingForAbortingTasks; InstanceIndex++)
+	// nothing to track if we are not currently waiting for latent aborts
+	if (!bWaitingForLatentAborts)
 	{
-		FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
+		return false;
+	}
+
+	// update our internal flag	
+	bWaitingForLatentAborts = HasActiveLatentAborts();
+
+	// return true if we are no longer waiting (at this point we know that we were previously waiting on latent abortes)
+	return !bWaitingForLatentAborts;
+}
+
+void UBehaviorTreeComponent::TrackNewLatentAborts()
+{
+	// already waiting for latent aborts, no need to look for new ones 
+	if (bWaitingForLatentAborts)
+	{
+		return;
+	}
+
+	bWaitingForLatentAborts = HasActiveLatentAborts();
+}
+
+bool UBehaviorTreeComponent::HasActiveLatentAborts() const
+{
+	bool bHasActiveLatentAborts = InstanceStack.Num() ? (InstanceStack.Last().ActiveNodeType == EBTActiveNode::AbortingTask) : false;
+
+	for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num() && !bHasActiveLatentAborts; InstanceIndex++)
+	{
+		const FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
 		for (const FBehaviorTreeParallelTask& ParallelInfo : InstanceInfo.GetParallelTasks())
 		{
 			if (ParallelInfo.Status == EBTTaskStatus::Aborting)
 			{
-				bWaitingForAbortingTasks = true;
+				bHasActiveLatentAborts = true;
 				break;
 			}
 		}
 	}
+
+	return bHasActiveLatentAborts;
 }
 
 bool UBehaviorTreeComponent::PushInstance(UBehaviorTree& TreeAsset)
