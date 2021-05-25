@@ -3191,21 +3191,12 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 				return false;
 			}
 
-			// Select the texture's source format
-			ETextureSourceFormat TextureFormat = TSF_Invalid;
-			int32 BitDepth = ExrImageWrapper->GetBitDepth();
-			ERGBFormat Format = ExrImageWrapper->GetFormat();
-
-			if (Format == ERGBFormat::RGBAF && BitDepth == 16)
-			{
-				TextureFormat = TSF_RGBA16F;
-			}
-
-			if (TextureFormat == TSF_Invalid)
-			{
-				Warn->Logf(ELogVerbosity::Error, TEXT("EXR file contains data in an unsupported format."));
-				return false;
-			}
+			// Currently the only texture source format compatible with EXR image formats is TSF_RGBA16F.
+			// EXR decoder automatically converts imported image channels into the requested float format.
+			// In case if the imported image is a gray scale image, its content will be stored in the green channel of the created texture.
+			ETextureSourceFormat TextureFormat = TSF_RGBA16F;
+			ERGBFormat Format = ERGBFormat::RGBAF;
+			int32 BitDepth = 16;
 
 			OutImage.Init2DWithParams(
 				Width,

@@ -266,6 +266,7 @@ static FString GetChannelName(const FString& InLayerName, const int32 InChannelI
 		}
 		break;
 		case ERGBFormat::Gray:
+		case ERGBFormat::GrayF:
 		{
 			check(InChannelIndex < UE_ARRAY_COUNT(GrayChannelNames));
 			ChannelNames = GrayChannelNames;

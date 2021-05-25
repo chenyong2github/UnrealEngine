@@ -1283,7 +1283,7 @@ void USceneCapturer::Tick( float DeltaTime )
 				// write
 				TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::EXR);
 				ImageWrapper->SetRaw(CombinedAtlas.GetData(), CombinedAtlas.GetAllocatedSize(), SphericalAtlasWidth, SphericalAtlasHeight * EyeCount, ERGBFormat::RGBAF, 32);
-				const TArray64<uint8> ImageData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Default);
+				const TArray64<uint8> ImageData = ImageWrapper->GetCompressed();
 				FFileHelper::SaveArrayToFile(ImageData, *AtlasName);
 				ImageWrapper.Reset();
 				FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("Done", "Done!"));
