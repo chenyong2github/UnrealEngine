@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * Description	:  P4BridgeServer
  *
  ******************************************************************************/
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "P4BridgeServer.h"
 #include "ConnectionManager.h"
 #include "P4Connection.h"
@@ -90,7 +90,11 @@ LogCallbackFn * P4BridgeServer::pLogFn = NULL;
 
 int HandleException_Static(unsigned int c, struct _EXCEPTION_POINTERS *e)
 {
+#ifdef _WIN32	
 	return EXCEPTION_EXECUTE_HANDLER;
+#else
+	return 0;
+#endif
 }
 
 /******************************************************************************
@@ -106,11 +110,18 @@ int P4BridgeServer::LogMessageNoArgs(int log_level, const char * file, int line,
 	{
 		return (*pLogFn)(log_level, file, line, message);
 	}
+#ifdef _WIN32	
 	__except (HandleException_Static(GetExceptionCode(), GetExceptionInformation()))
 	{
 		// bad ptr?
 		pLogFn = NULL;
 	}
+#else
+	catch (int e) {
+		// bad ptr?
+		pLogFn = NULL;
+	}
+#endif
 
 	return 0;
 }
@@ -134,7 +145,11 @@ int P4BridgeServer::LogMessage(int log_level, const char * file, int line, const
 		{
 			DELETE_ARRAY(buff1)
 			buff1 = new char[buffSize];
+#ifdef _WIN32			
 			len = vsnprintf_s( buff1, buffSize, buffSize - 1, message, args);
+#else
+			len = vsnprintf( buff1, buffSize, message, args);
+#endif			
 			buffSize *= 2;
 		}
 
@@ -144,11 +159,19 @@ int P4BridgeServer::LogMessage(int log_level, const char * file, int line, const
 		{
 			ret = (*pLogFn)(log_level, file, line, buff1);
 		}
+#ifdef _WIN32		
 		__except (HandleException_Static(GetExceptionCode(), GetExceptionInformation()))
 		{
 			// bad ptr?
 			pLogFn = NULL;
 		}
+#else
+		catch (int e)
+		{
+			// bad ptr?
+			pLogFn = NULL;
+		}
+#endif
 		DELETE_ARRAY(buff1)
 
 		return ret;
@@ -291,9 +314,17 @@ int P4BridgeServer::connected( P4ClientError **err )
 	{
 		return connected_int( err );
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION_NOSTR())
 	{
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
+
 	connecting = 0;
 
 	return 0;
@@ -364,9 +395,17 @@ int P4BridgeServer::connect_and_trust( P4ClientError **err, char* trust_flag, ch
 	{
 		return connect_and_trust_int( err, trust_flag, fingerprint );
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION_NOSTR())
 	{
 	}
+#else
+	catch (int e)
+	{
+		
+	}
+#endif
+
 	connecting = 0;
 
 	return 0;
@@ -385,7 +424,7 @@ int P4BridgeServer::connect_and_trust_int( P4ClientError **err, char* trust_flag
 	P4Connection* pCon = getConnection();
 
 	char** args = new char*[2];
-	args[0] = "-d";
+	args[0] = (char *) "-d";
 
 	run_command( "trust", 0, 1, args, 1 );
 
@@ -524,6 +563,7 @@ string P4BridgeServer::get_charset( )
 
 CharSetApi::CharSet GetDefaultCharSet()
 {
+#ifdef _WIN32	
     switch (GetACP())
     {
         case 437:   return CharSetApi::WIN_US_OEM;
@@ -550,6 +590,11 @@ CharSetApi::CharSet GetDefaultCharSet()
         default:
         case 1252:  return CharSetApi::WIN_US_ANSI;
    }
+#else 
+	// EPIC: add locale info and map to char set here
+	return CharSetApi::UTF_8;
+#endif
+
 }
 
 /*******************************************************************************
@@ -706,6 +751,7 @@ void P4BridgeServer::Run_int(P4Connection* client, const char *cmd, P4BridgeClie
 		LOG_DEBUG1(4, "Run_int returned from '%s'", cmd);
 		checkForParallelError(existingErrors, client, cmd, ui);
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		if (ui)
@@ -714,12 +760,20 @@ void P4BridgeServer::Run_int(P4Connection* client, const char *cmd, P4BridgeClie
 			DELETE_OBJECT(pErrorString);
 		}
 	}
+#else
+	catch (int e) 
+	{
+
+	}
+#endif
 }
 
 
 
 char *GetInfo(char* lpstrVffInfo, char *InfoItem)
 {
+
+#ifdef _WIN32
     char*   szResult = new char[256];
     char    szGetName[256];
     LPSTR   lpVersion;        // String pointer to Item text
@@ -774,6 +828,12 @@ char *GetInfo(char* lpstrVffInfo, char *InfoItem)
 
 	// if szResult is NULL return an empty string
 	return szResult == nullptr ? "" : szResult;
+#else
+
+	// EPIC: todo
+	return (char *) "";
+
+#endif
 }
 
 /*******************************************************************************
@@ -851,6 +911,7 @@ int P4BridgeServer::run_command( const char *cmd, int cmdId, int tagged, char **
 	bool setProdName = pProgramName.empty();
 	bool setProdVer = pProgramVer.empty();
 
+#ifdef _WIN32
 	char* pModPath = NULL;
 	if (setProdName || setProdVer)
 	{
@@ -952,6 +1013,8 @@ int P4BridgeServer::run_command( const char *cmd, int cmdId, int tagged, char **
 		}
 	}
 	DELETE_ARRAY(pModPath);
+
+#endif
 
 	if (!pProgramName.empty())
 		connection->SetProg( pProgramName.c_str() );
@@ -1566,6 +1629,7 @@ string P4BridgeServer::get_config()
  *
  ******************************************************************************/
 
+#ifdef _WIN32
 int P4BridgeServer::HandleException(const char* fname, unsigned int line, const char* func, unsigned int c, struct _EXCEPTION_POINTERS *e, string** ppErrorString)
 {
 	if (!this->disposed) // hopefully didn't get called on an already deleted object
@@ -1668,6 +1732,7 @@ int P4BridgeServer::sHandleException(unsigned int c, struct _EXCEPTION_POINTERS 
 {
 	return EXCEPTION_EXECUTE_HANDLER;
 }
+#endif
 
 const char* P4BridgeServer::Get_Int( const char *var )
 {
@@ -1704,9 +1769,16 @@ void P4BridgeServer::Set( const char *var, const char *value )
 	{
 		return P4BridgeServer::Set_Int( var, value );
 	}
+#ifdef _WIN32	
 	__except (P4BridgeServer::sHandleException(GetExceptionCode(), GetExceptionInformation()))
 	{
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
 }
 
 void P4BridgeServer::Update_Int( const char *var, const char *value )
@@ -1721,9 +1793,16 @@ void P4BridgeServer::Update( const char *var, const char *value )
 	{
 		return P4BridgeServer::Update_Int( var, value );
 	}
+#ifdef _WIN32	
 	__except (P4BridgeServer::sHandleException(GetExceptionCode(), GetExceptionInformation()))
 	{
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
 }
 
 void P4BridgeServer::Reload_Int()
@@ -1738,9 +1817,16 @@ void P4BridgeServer::Reload()
 	{
 		return P4BridgeServer::Reload_Int();
 	}
+#ifdef _WIN32	
 	__except (P4BridgeServer::sHandleException(GetExceptionCode(), GetExceptionInformation()))
 	{
 	}
+#else
+	catch (int e)
+	{
+		
+	}
+#endif
 }
 
 void P4BridgeServer::SetProtocol_Int(const char *var, const char *value)
@@ -1767,9 +1853,16 @@ void P4BridgeServer::SetProtocol(const char *var, const char *value)
 	{
 		return P4BridgeServer::SetProtocol_Int(var, value);
 	}
+#ifdef _WIN32	
 	__except (P4BridgeServer::sHandleException(GetExceptionCode(), GetExceptionInformation()))
 	{
 	}
+#else
+	catch (int e)
+	{
+		
+	}
+#endif
 }
 
 /*******************************************************************************
@@ -1792,12 +1885,22 @@ void P4BridgeServer::CallTextResultsCallbackFn(int cmdId, const char *data)
 		{
 			(*pTextResultsCallbackFn)( cmdId, data );
 		}
-	}  __except (HANDLE_EXCEPTION(&pErrorString))
+	}  
+#ifdef _WIN32	
+	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		LOG_LOC();
 		getConnection()->getUi()->HandleError( E_FATAL, 0, pErrorString->c_str() );
 		DELETE_OBJECT(pErrorString);
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
+
+
 }
 
 /*******************************************************************************
@@ -1822,12 +1925,19 @@ void P4BridgeServer::CallInfoResultsCallbackFn( int cmdId, int msgId, char level
 			(*pInfoResultsCallbackFn)( cmdId, msgId, nlevel, data );
 		}
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		LOG_LOC();
 		getConnection()->getUi()->HandleError( E_FATAL, 0, pErrorString->c_str() );
 		DELETE_OBJECT(pErrorString);
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
 }
 
 /*******************************************************************************
@@ -1851,12 +1961,19 @@ void P4BridgeServer::CallTaggedOutputCallbackFn( int cmdId, int objId, const cha
 			(*pTaggedOutputCallbackFn)( cmdId, objId, pKey, pVal );
 		}
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		LOG_LOC();
 		getConnection(cmdId)->getUi()->HandleError( E_FATAL, 0, pErrorString->c_str() );
 		DELETE_OBJECT(pErrorString);
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
 }
 
 /*******************************************************************************
@@ -1880,6 +1997,7 @@ void P4BridgeServer::CallErrorCallbackFn( int cmdId, int severity, int errorId, 
 			(*pErrorCallbackFn)( cmdId, severity, errorId, errMsg );
 		}
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		// could cause infinite recursion if we keep producing errors
@@ -1889,6 +2007,12 @@ void P4BridgeServer::CallErrorCallbackFn( int cmdId, int severity, int errorId, 
 		getConnection()->getUi()->HandleError( E_FATAL, 0, pErrorString->c_str() );
 		DELETE_OBJECT(pErrorString);
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
 }
 /*******************************************************************************
  *
@@ -1911,12 +2035,19 @@ void P4BridgeServer::CallBinaryResultsCallbackFn( int cmdId, void * data, int le
 			(*pBinaryResultsCallbackFn)( cmdId, (void *) data, length );
 		}
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		LOG_LOC();
 		getConnection()->getUi()->HandleError( E_FATAL, 0, pErrorString->c_str() );
 		DELETE_OBJECT(pErrorString);
 	}
+#else
+	catch (int e) 
+	{
+
+	}
+#endif
 }
 
 // Set the call back function to receive the tagged output
@@ -1946,12 +2077,20 @@ void P4BridgeServer::Prompt( int cmdId, const StrPtr &msg, StrBuf &rsp,
 
 			rsp.Set(response);
 		}
-	}  __except (HANDLE_EXCEPTION(&pErrorString))
+	}  
+#ifdef _WIN32
+	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		LOG_LOC();
 		getConnection()->getUi()->HandleError( E_FATAL, 0, pErrorString->c_str() );
 
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
 }
 
 void P4BridgeServer::SetPromptCallbackFn( PromptCallbackFn * pNew)
@@ -2046,12 +2185,20 @@ int P4BridgeServer::Resolve_int( int cmdId, P4ClientMerge *merger)
 			result = (*pResolveCallbackFn)(cmdId, merger);
 		}
 	}
+#ifdef _WIN32	
 	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		LOG_LOC();
 		getConnection()->getUi()->HandleError( E_FATAL, 0, pErrorString->c_str() );
 		DELETE_OBJECT(pErrorString);
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
+
 	return result;
 }
 
@@ -2067,12 +2214,21 @@ int P4BridgeServer::Resolve_int( int cmdId, P4ClientResolve *resolver, int previ
 			result = (*pResolveACallbackFn)(cmdId, resolver, preview);
 		}
 	}
+#ifdef _WIN32
 	__except (HANDLE_EXCEPTION(&pErrorString))
 	{
 		LOG_LOC();
 		getConnection()->getUi()->HandleError( E_FATAL, 0, pErrorString->c_str() );
 		DELETE_OBJECT(pErrorString);
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
+
+
 	return result;
 }
 
@@ -2097,9 +2253,16 @@ int P4BridgeServer::IsIgnored( const StrPtr &path )
 	{
 		return IsIgnored_Int(path);
 	}
+#ifdef _WIN32	
 	__except (P4BridgeServer::sHandleException(GetExceptionCode(), GetExceptionInformation()))
 	{
 	}
+#else
+	catch (int e)
+	{
+
+	}
+#endif
 	return 0;
 }
 
@@ -2166,11 +2329,19 @@ int P4BridgeServer::DoTransferInternal(
 		// TODO: Error* management, not clear if it's needed
 		return pParallelTransferCallbackFn((int*)this, cmd, argList.data(), (int) argList.size(), (int*) varDictIterator, threads);
 	}
+#ifdef _WIN32
 	__except (HANDLE_EXCEPTION_NOSTR())
 	{
 		LOG_ERROR("An exception occured handling a parallel operation");
 		return 1;
 	}
+#else
+	catch (int e)
+	{
+		LOG_ERROR("An exception occured handling a parallel operation");
+		return 1;
+	}
+#endif
 }
 
 int P4BridgeServer::DoTransfer(
@@ -2200,6 +2371,15 @@ int P4BridgeServer::DoTransfer(
 	StrDictListIterator varDictIterator(&dList);
 
 	return DoTransferInternal(cmd, argList, &varDictIterator, threads, e);
+}
+
+// Epic
+void P4BridgeServer::SetConnectionHost(const char* hostname)
+{
+	if (pConnection)
+	{
+		pConnection->SetHost(hostname);
+	}
 }
 
 // the transfer shim

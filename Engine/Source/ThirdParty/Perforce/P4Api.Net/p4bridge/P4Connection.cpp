@@ -83,6 +83,18 @@ void P4Connection::SetClient( const StrPtr *c )
 	SetClient(val);
 }
 
+// Epic
+void P4Connection::SetHost(const char* c)
+{
+	ClientApi::SetHost(c);
+}
+
+void P4Connection::SetHost(const StrPtr* c)
+{
+	const char* val = c->Value();
+	SetHost(val);
+}
+
 void P4Connection::SetTicketFile(const char *c)
 {
 	ClientApi::SetTicketFile(c);

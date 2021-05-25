@@ -18,8 +18,14 @@ public:
 	void FreeCriticalSection();
 
 private:
-	CRITICAL_SECTION CriticalSection; 
-	int CriticalSectionInitialized;
+
+int CriticalSectionInitialized;
+
+#ifdef _WIN32
+	CRITICAL_SECTION CriticalSection; 	
+#else
+	pthread_mutex_t Mutex;		
+#endif	
 
 #ifdef _DEBUG
 	// doubly linked list of active locks for debugging deadlocks

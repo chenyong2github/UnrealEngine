@@ -1,4 +1,4 @@
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "Lock.h"
 
 ILockable::ILockable()
@@ -9,7 +9,6 @@ ILockable::ILockable()
 #endif
 
 	CriticalSectionInitialized = 0;
-
 	activeLockCount = 0;
 }
 
@@ -17,8 +16,16 @@ int ILockable::InitCritSection()
 {
 	if (!CriticalSectionInitialized)
 	{
+#ifdef _WIN32		
 		InitializeCriticalSectionAndSpinCount(&CriticalSection, 0x00000400); 
 		CriticalSectionInitialized = 1;
+#else		
+		pthread_mutexattr_t MutexAttr;
+		pthread_mutexattr_settype(&MutexAttr, PTHREAD_MUTEX_RECURSIVE_NP);
+		pthread_mutex_init(&Mutex, &MutexAttr);
+		pthread_mutexattr_destroy(&MutexAttr);
+		CriticalSectionInitialized = 1;
+#endif	
 	}
 	return 1;
 }
@@ -27,9 +34,16 @@ void ILockable::FreeCriticalSection()
 {
 	if (CriticalSectionInitialized)
 	{
-		DeleteCriticalSection(&CriticalSection);
+
+#ifdef _WIN32	
+		DeleteCriticalSection(&CriticalSection);		
+#else
+		pthread_mutex_destroy (&Mutex);		
+#endif	
+
 		CriticalSectionInitialized = 0;
 	}
+
 }
 #ifdef _DEBUG
 Lock::Lock(ILockable* it, const char *_file , int _line)
@@ -74,12 +88,17 @@ Lock::Lock(ILockable* it)
  	{
 		return;
 	}
-	
+
+#ifdef _WIN32	
 	EnterCriticalSection(&(it->CriticalSection)); 
+#else
+	pthread_mutex_lock (&it->Mutex);	
+#endif	
 
 	(it->activeLockCount)++;
 }
 #endif
+
 Lock::~Lock(void)
 {
 	if (!It->CriticalSectionInitialized)
@@ -117,5 +136,9 @@ Lock::~Lock(void)
 
 	(It->activeLockCount)--;
 
+#ifdef _WIN32
 	LeaveCriticalSection(&(It->CriticalSection));
+#else
+	pthread_mutex_unlock (&It->Mutex);
+#endif	
 }

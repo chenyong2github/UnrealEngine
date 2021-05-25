@@ -6,11 +6,11 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1.  Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
+	notice, this list of conditions and the following disclaimer.
 
 2.  Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
+	notice, this list of conditions and the following disclaimer in the
+	documentation and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -30,26 +30,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Author	: dbb
  *
- * Description	:  header file that includes just the standard includes to 
+ * Description	:  header file that includes just the standard includes to
  *  be pre-compiled.
  *
  ******************************************************************************/
 
 #pragma once
 
-#include "targetver.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <share.h>
 
-#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
-// Windows Header Files:
-#include <windows.h>
+#ifdef _WIN32
+	#ifndef P4INT64
+		#define P4INT64 __int64
+	#endif
 
-#ifndef P4INT64
-#define P4INT64 __int64
+	#include "targetver.h"
+
+	#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
+	 // Windows Header Files:
+	#include <windows.h>
+	#include <share.h>
+
+	#define P4BRIDGE_API __declspec(dllexport)
+
+#else
+
+	#include <stdarg.h> 
+
+	#define P4BRIDGE_API
+	#define _stdcall
+	#define __stdcall
+	#define _int64 long long
+
 #endif
 
 #include "utils.h"
@@ -57,7 +71,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "DoublyLinkedList.h"
 #include "Lock.h"
 
-#include <I18NAPI.h>
+#include <i18napi.h>
 
 #include <clientapi.h>
 #include <string>
