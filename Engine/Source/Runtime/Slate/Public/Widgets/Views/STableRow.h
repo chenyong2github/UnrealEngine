@@ -1368,7 +1368,7 @@ protected:
 					TAttribute<float> WidthBinding;
 					WidthBinding.BindRaw(&Column, &SHeaderRow::FColumn::GetWidth);
 
-					SHorizontalBox::FSlot& NewSlot = Box->AddSlot()
+					Box->AddSlot()
 					.HAlign(Column.CellHAlignment)
 					.VAlign(Column.CellVAlignment)
 					.FillWidth(WidthBinding)

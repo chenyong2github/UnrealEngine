@@ -11,7 +11,7 @@ UHorizontalBoxSlot::UHorizontalBoxSlot(const FObjectInitializer& ObjectInitializ
 {
 	HorizontalAlignment = HAlign_Fill;
 	VerticalAlignment = VAlign_Fill;
-	Slot = NULL;
+	Slot = nullptr;
 	Size = FSlateChildSize(ESlateSizeRule::Automatic);
 }
 
@@ -19,12 +19,13 @@ void UHorizontalBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
 {
 	Super::ReleaseSlateResources(bReleaseChildren);
 
-	Slot = NULL;
+	Slot = nullptr;
 }
 
 void UHorizontalBoxSlot::BuildSlot(TSharedRef<SHorizontalBox> HorizontalBox)
-{
-	Slot = &HorizontalBox->AddSlot()
+{ 
+	HorizontalBox->AddSlot()
+		.Expose(Slot)
 		.HAlign(HorizontalAlignment)
 		.VAlign(VerticalAlignment)
 		.Padding(Padding)
@@ -58,7 +59,7 @@ void UHorizontalBoxSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizonta
 	HorizontalAlignment = InHorizontalAlignment;
 	if ( Slot )
 	{
-		Slot->HAlign(InHorizontalAlignment);
+		Slot->SetHorizontalAlignment(InHorizontalAlignment);
 	}
 }
 
@@ -67,7 +68,7 @@ void UHorizontalBoxSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlign
 	VerticalAlignment = InVerticalAlignment;
 	if ( Slot )
 	{
-		Slot->VAlign(InVerticalAlignment);
+		Slot->SetVerticalAlignment(InVerticalAlignment);
 	}
 }
 

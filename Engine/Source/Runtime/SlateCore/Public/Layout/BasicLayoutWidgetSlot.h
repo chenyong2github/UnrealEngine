@@ -7,6 +7,7 @@
 #include "Layout/FlowDirection.h"
 #include "Layout/Margin.h"
 #include "Misc/Optional.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /** Mixin to add the alignment functionality to a base slot. */
@@ -23,14 +24,47 @@ public:
 		: HAlignment(InHAlign)
 		, VAlignment(InVAlign)
 	{}
+	
+public:
+	struct FSlotArgumentsMixin
+	{
+	private:
+		friend TAlignmentWidgetSlotMixin;
+
+	public:
+		typename MixedIntoType::FSlotArguments& HAlign(EHorizontalAlignment InHAlignment)
+		{
+			_HAlignment = InHAlignment;
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+		typename MixedIntoType::FSlotArguments& VAlign(EVerticalAlignment InVAlignment)
+		{
+			_VAlignment = InVAlignment;
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+	private:
+		TOptional<EHorizontalAlignment> _HAlignment;
+		TOptional<EVerticalAlignment> _VAlignment;
+	};
+
+protected:
+	void ConstructMixin(const FChildren& SlotOwner, FSlotArgumentsMixin&& InArgs)
+	{
+		HAlignment = InArgs._HAlignment.Get(HAlignment);
+		VAlignment = InArgs._VAlignment.Get(VAlignment);
+	}
 
 public:
+	// HAlign will be deprecated soon. Use SetVerticalAlignment, or if you are using ChildSlot, construct a new slot with FSlotArguments
 	MixedIntoType& HAlign(EHorizontalAlignment InHAlignment)
 	{
 		HAlignment = InHAlignment;
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
+	// VAlign will be deprecated soon. Use SetVerticalAlignment, or if you are using ChildSlot, construct a new slot with FSlotArguments
 	MixedIntoType& VAlign(EVerticalAlignment InVAlignment)
 	{
 		VAlignment = InVAlignment;
@@ -47,6 +81,11 @@ public:
 		}
 	}
 
+	EHorizontalAlignment GetHorizontalAlignment() const
+	{
+		return HAlignment;
+	}
+
 	void SetVerticalAlignment(EVerticalAlignment Alignment)
 	{
 		if (VAlignment != Alignment)
@@ -56,8 +95,10 @@ public:
 		}
 	}
 
-	EHorizontalAlignment GetHorizontalAlignment() const { return HAlignment; }
-	EVerticalAlignment GetVerticalAlignment() const { return VAlignment; }
+	EVerticalAlignment GetVerticalAlignment() const
+	{
+		return VAlignment;
+	}
 
 public:
 	/** Horizontal positioning of child within the allocated slot */
@@ -82,24 +123,70 @@ public:
 	{}
 
 public:
+	struct FSlotArgumentsMixin
+	{
+	private:
+		friend TPaddingWidgetSlotMixin;
+		TAttribute<FMargin> _Padding;
+
+	public:
+		typename MixedIntoType::FSlotArguments& Padding(TAttribute<FMargin> InPadding)
+		{
+			_Padding = MoveTemp(InPadding);
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+		typename MixedIntoType::FSlotArguments& Padding(float Uniform)
+		{
+			_Padding = FMargin(Uniform);
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+		typename MixedIntoType::FSlotArguments& Padding(float Horizontal, float Vertical)
+		{
+			_Padding = FMargin(Horizontal, Vertical);
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+
+		typename MixedIntoType::FSlotArguments& Padding(float Left, float Top, float Right, float Bottom)
+		{
+			_Padding = FMargin(Left, Top, Right, Bottom);
+			return static_cast<typename MixedIntoType::FSlotArguments&>(*this);
+		}
+	};
+
+protected:
+	void ConstructMixin(const FChildren& SlotOwner, FSlotArgumentsMixin&& InArgs)
+	{
+		if (InArgs._Padding.IsSet())
+		{
+			SlotPadding = MoveTemp(InArgs._Padding);
+		}
+	}
+
+public:
+	// Padding will be deprecated soon. Use SetPadding, or if you are using ChildSlot, construct a new slot with FSlotArguments
 	MixedIntoType& Padding(TAttribute<FMargin> InPadding)
 	{
 		SlotPadding = MoveTemp(InPadding);
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
+	// Padding will be deprecated soon. Use SetPadding, or if you are using ChildSlot, construct a new slot with FSlotArguments
 	MixedIntoType& Padding(float Uniform)
 	{
 		SlotPadding = FMargin(Uniform);
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
+	// Padding will be deprecated soon. Use SetPadding, or if you are using ChildSlot, construct a new slot with FSlotArguments
 	MixedIntoType& Padding(float Horizontal, float Vertical)
 	{
 		SlotPadding = FMargin(Horizontal, Vertical);
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
+	// Padding will be deprecated soon. Use SetPadding, or if you are using ChildSlot, construct a new slot with FSlotArguments
 	MixedIntoType& Padding(float Left, float Top, float Right, float Bottom)
 	{
 		SlotPadding = FMargin(Left, Top, Right, Bottom);
@@ -153,6 +240,17 @@ public:
 		, TPaddingWidgetSlotMixin<SlotType>()
 		, TAlignmentWidgetSlotMixin<SlotType>(InHAlign, InVAlign)
 	{
+	}
+
+public:
+	SLATE_SLOT_BEGIN_ARGS_TwoMixins(TBasicLayoutWidgetSlot, TSlotBase<SlotType>, TPaddingWidgetSlotMixin<SlotType>, TAlignmentWidgetSlotMixin<SlotType>)
+	SLATE_SLOT_END_ARGS()
+
+	void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+	{
+		TPaddingWidgetSlotMixin<SlotType>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
+		TAlignmentWidgetSlotMixin<SlotType>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
+		TSlotBase<SlotType>::Construct(SlotOwner, MoveTemp(InArgs));
 	}
 };
 

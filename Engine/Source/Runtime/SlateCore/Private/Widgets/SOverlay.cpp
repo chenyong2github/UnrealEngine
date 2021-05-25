@@ -14,13 +14,18 @@ SOverlay::SOverlay()
 	bCanSupportFocus = false;
 }
 
+SOverlay::FOverlaySlot::FSlotArguments SOverlay::Slot()
+{
+	return FOverlaySlot::FSlotArguments(MakeUnique<FOverlaySlot>());
+}
+
 void SOverlay::Construct( const SOverlay::FArguments& InArgs )
 {
-	const int32 NumSlots = InArgs.Slots.Num();
-	for ( int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex )
-	{
-		Children.Add( InArgs.Slots[SlotIndex] );
-	}
+	// Because InArgs is const&, we need to do some bad cast here. That would need to change in the future.
+	//The Slot has a unique_ptr. It can't be copied.
+	//Previously, the Children.Add(), was wrong if we added the same slot twice (it would create a lot of issues).
+	//Because of that, it doesn't matter if we steal the slot from the FArguments and it enforces that a slot cannot be added twice.
+	Children.AddSlots(MoveTemp(const_cast<TArray<FOverlaySlot::FSlotArguments>&>(InArgs._Slots)));
 }
 
 void SOverlay::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
@@ -118,18 +123,16 @@ int32 SOverlay::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeomet
 	return MaxLayerId;
 }
 
-SOverlay::FOverlaySlot& SOverlay::AddSlot( int32 ZOrder )
+SOverlay::FScopedWidgetSlotArguments SOverlay::AddSlot( int32 ZOrder )
 {
-	FOverlaySlot& NewSlot = *new FOverlaySlot();
+	int32 Index = INDEX_NONE;
 	if ( ZOrder == INDEX_NONE )
 	{
 		// No ZOrder was specified; just add to the end of the list.
 		// Use a ZOrder index one after the last elements.
 		ZOrder = (Children.Num() == 0)
 			? 0
-			: ( Children[ Children.Num()-1 ].ZOrder + 1 );
-
-		this->Children.Add( &NewSlot );
+			: ( Children[ Children.Num()-1 ].GetZOrder() + 1 );
 	}
 	else
 	{
@@ -139,7 +142,7 @@ SOverlay::FOverlaySlot& SOverlay::AddSlot( int32 ZOrder )
 		for( ; CurSlotIndex < Children.Num(); ++CurSlotIndex )
 		{
 			const FOverlaySlot& CurSlot = Children[ CurSlotIndex ];
-			if( ZOrder < CurSlot.ZOrder )
+			if( ZOrder < CurSlot.GetZOrder() )
 			{
 				// Insert before
 				bFoundSlot = true;
@@ -148,13 +151,12 @@ SOverlay::FOverlaySlot& SOverlay::AddSlot( int32 ZOrder )
 		}
 
 		// Add a slot at the desired location
-		this->Children.Insert( &NewSlot, CurSlotIndex );
+		Index = CurSlotIndex;
 	}
 
-	Invalidate(EInvalidateWidgetReason::Layout);
-
-	NewSlot.ZOrder = ZOrder;
-	return NewSlot;
+	FScopedWidgetSlotArguments Result {MakeUnique<FOverlaySlot>(), this->Children, Index};
+	Result.ZOrder(ZOrder);
+	return MoveTemp(Result);
 }
 
 void SOverlay::RemoveSlot( int32 ZOrder )
@@ -163,7 +165,7 @@ void SOverlay::RemoveSlot( int32 ZOrder )
 	{
 		for( int32 ChildIndex=0; ChildIndex < Children.Num(); ++ChildIndex )
 		{
-			if ( Children[ChildIndex].ZOrder == ZOrder )
+			if ( Children[ChildIndex].GetZOrder() == ZOrder )
 			{
 				Children.RemoveAt( ChildIndex );
 				return;

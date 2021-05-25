@@ -74,7 +74,7 @@ void SAssetEditorViewportsOverlay::Tick( const FGeometry& AllottedGeometry, cons
 	CachedSize = AllottedGeometry.Size;
 }
 
-SOverlay::FOverlaySlot& SAssetEditorViewportsOverlay::AddSlot()
+SOverlay::FScopedWidgetSlotArguments SAssetEditorViewportsOverlay::AddSlot()
 {
 	return OverlayWidget->AddSlot();
 }
