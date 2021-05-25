@@ -838,6 +838,7 @@ void FPrimitiveSceneInfo::RemoveCachedRayTracingPrimitives()
 
 void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceTransforms(FMatrix NewPrimitiveLocalToWorld)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCachedRayTracingInstanceTransforms);
 	for (int32 Index = 0; Index < CachedRayTracingInstanceLocalTransforms.Num(); Index++)
 	{
 		CachedRayTracingInstanceWorldTransforms[Index] = CachedRayTracingInstanceLocalTransforms[Index] * NewPrimitiveLocalToWorld;
@@ -1380,6 +1381,7 @@ bool FPrimitiveSceneInfo::NeedsUpdateStaticMeshes()
 void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bReAddToDrawLists)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneInfo_UpdateStaticMeshes);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPrimitiveSceneInfo_UpdateStaticMeshes);
 
 	const bool bNeedsStaticMeshUpdate = !bReAddToDrawLists;
 

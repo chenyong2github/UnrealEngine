@@ -3923,6 +3923,7 @@ extern CORE_API bool GRenderThreadPollingOn;
 
 void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily* ViewFamily)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(BeginRenderingViewFamily);
 	check(Canvas);
 	check(ViewFamily);
 	check(ViewFamily->Scene);

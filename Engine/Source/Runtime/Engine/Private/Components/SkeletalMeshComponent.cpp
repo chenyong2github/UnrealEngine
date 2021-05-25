@@ -3922,6 +3922,7 @@ void USkeletalMeshComponent::CompleteParallelAnimationEvaluation(bool bDoPostAni
 
 bool USkeletalMeshComponent::HandleExistingParallelEvaluationTask(bool bBlockOnTask, bool bPerformPostAnimEvaluation)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMeshComponent);
 	if (IsRunningParallelEvaluation()) // We are already processing eval on another thread
 	{
 		if (bBlockOnTask)
