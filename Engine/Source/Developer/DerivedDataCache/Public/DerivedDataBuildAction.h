@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
-#include "IO/IoHash.h"
 #include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
@@ -13,25 +12,11 @@
 class FCbObject;
 class FCbWriter;
 struct FGuid;
+struct FIoHash;
 
 namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildActionBuilder; }
-
-namespace UE::DerivedData
-{
-
-/** A key that uniquely identifies a build action. */
-struct FBuildActionKey
-{
-	FIoHash Hash;
-
-	/** A key with a zero hash. */
-	static const FBuildActionKey Empty;
-};
-
-inline const FBuildActionKey FBuildActionKey::Empty;
-
-} // UE::DerivedData
+namespace UE::DerivedData { struct FBuildActionKey; }
 
 namespace UE::DerivedData::Private
 {

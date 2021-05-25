@@ -22,6 +22,17 @@ struct FBuildKey
 
 inline const FBuildKey FBuildKey::Empty;
 
+/** A key that uniquely identifies a build action. */
+struct FBuildActionKey
+{
+	FIoHash Hash;
+
+	/** A key with a zero hash. */
+	static const FBuildActionKey Empty;
+};
+
+inline const FBuildActionKey FBuildActionKey::Empty;
+
 /** A key that uniquely identifies a payload within a build output. */
 struct FBuildPayloadKey
 {
@@ -60,6 +71,34 @@ template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FBuildKey& Key)
 {
 	return Builder << "Build/"_ASV << Key.Hash;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline bool operator==(const FBuildActionKey& A, const FBuildActionKey& B)
+{
+	return A.Hash == B.Hash;
+}
+
+inline bool operator!=(const FBuildActionKey& A, const FBuildActionKey& B)
+{
+	return A.Hash != B.Hash;
+}
+
+inline bool operator<(const FBuildActionKey& A, const FBuildActionKey& B)
+{
+	return A.Hash < B.Hash;
+}
+
+inline uint32 GetTypeHash(const FBuildActionKey& Key)
+{
+	return GetTypeHash(Key.Hash);
+}
+
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FBuildActionKey& Key)
+{
+	return Builder << "BuildAction/"_ASV << Key.Hash;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
