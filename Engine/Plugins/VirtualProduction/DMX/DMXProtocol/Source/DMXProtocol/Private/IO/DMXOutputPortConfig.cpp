@@ -11,9 +11,15 @@
 #include "Misc/Guid.h"
 
 
+namespace
+{
+	/** Identifier for unitialized ip adresses (see FDMXInputPortConfig::IsIPAddressInitialized()) */
+	static const FString OutputDeviceAddressInitializationPending = TEXT("Initialization Pending");
+}
+
 FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
 	: CommunicationType(EDMXCommunicationType::InternalOnly)
-	, DeviceAddress()
+	, DeviceAddress(OutputDeviceAddressInitializationPending)
 	, DestinationAddress()
 	, bLoopbackToEngine(true)
 	, LocalUniverseStart(1)
@@ -36,6 +42,11 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
 const FGuid& FDMXOutputPortConfig::GetPortGuid() const
 {	
 	return PortGuid;
+}
+
+bool FDMXOutputPortConfig::IsDeviceAddressInitialized() const
+{
+	return DeviceAddress != OutputDeviceAddressInitializationPending;
 }
 
 void FDMXOutputPortConfig::SanetizePortName()

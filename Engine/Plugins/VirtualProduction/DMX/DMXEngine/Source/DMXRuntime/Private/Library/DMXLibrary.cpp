@@ -389,8 +389,8 @@ void UDMXLibrary::UpdatePorts()
 
 		if (!bInputPortExists)
 		{
-			// Default to disabled
-			bool bEnabled = false;
+			// Default to enabled
+			bool bEnabled = true;
 			PortReferences.InputPortReferences.Insert(FDMXInputPortReference(InputPortGuid, bEnabled), IndexInputPortConfig);
 		}
 	}
@@ -405,8 +405,8 @@ void UDMXLibrary::UpdatePorts()
 
 		if (!bOutputPortExists)
 		{
-			// Default to disabled
-			bool bEnabled = false;
+			// Default to enabled
+			bool bEnabled = true;
 			PortReferences.OutputPortReferences.Insert(FDMXOutputPortReference(OutputPortGuid, bEnabled), IndexOutputPortConfig);
 		}
 	}
@@ -485,8 +485,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					});
 
 				*ExistingPortRef = FDMXInputPortReference(PortGuid, true);
-
-				FDMXPortManager::Get().UpdateFromProtocolSettings();
 			}
 
 			static void EnableOutputPortRef(UDMXLibrary* ThisLibrary, const FGuid& PortGuid)
@@ -498,8 +496,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					});
 
 				*ExistingPortRef = FDMXOutputPortReference(PortGuid, true);
-
-				FDMXPortManager::Get().UpdateFromProtocolSettings();
 			}
 		};
 
@@ -584,8 +580,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					InputPortConfig.NumUniverses = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
 					InputPortConfig.ExternUniverseStart = FixedExternUniverseStart;
 
-					FDMXInputPortSharedRef InputPort = FDMXPortManager::Get().GetOrCreateInputPortFromConfig(InputPortConfig);
-
 					ProtocolSettings->InputPortConfigs.Add(InputPortConfig);
 
 					Local::EnableInputPortRef(this, InputPortConfig.GetPortGuid());
@@ -641,8 +635,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					OutputPortConfig.ExternUniverseStart = FixedExternUniverseStart;
 					OutputPortConfig.bLoopbackToEngine = VoidController->CommunicationMode != EDMXCommunicationType::Broadcast;
 
-					FDMXOutputPortSharedRef OutputPort = FDMXPortManager::Get().GetOrCreateOutputPortFromConfig(OutputPortConfig);
-
 					ProtocolSettings->OutputPortConfigs.Add(OutputPortConfig);
 
 					Local::EnableOutputPortRef(this, OutputPortConfig.GetPortGuid());
@@ -688,8 +680,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 						OutputPortConfig.ExternUniverseStart = FixedExternUniverseStart;
 						OutputPortConfig.bLoopbackToEngine = false;
 
-						FDMXOutputPortSharedRef OutputPort = FDMXPortManager::Get().GetOrCreateOutputPortFromConfig(OutputPortConfig);
-
 						ProtocolSettings->OutputPortConfigs.Add(OutputPortConfig);
 
 						Local::EnableOutputPortRef(this, OutputPortConfig.GetPortGuid());
@@ -698,6 +688,10 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 			}
 		}
 
+		// Apply the changes to the port manager
+		FDMXPortManager::Get().UpdateFromProtocolSettings();
+
+		// Apply the changes to this library
 		UpdatePorts();
 	}
 

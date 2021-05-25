@@ -45,6 +45,9 @@ struct FDMXOutputPortCommunicationDeterminator
 	/** Determinates if loopback to engine is needed. If true, loopback is needed */
 	FORCEINLINE bool NeedsSendDMX() const { return bSendEnabled && bHasValidSender; }
 
+	/** Determinates if loopback to engine is needed. If true, loopback is needed */
+	FORCEINLINE bool IsSendDMXEnabled() const { return bSendEnabled; }
+
 private:
 	bool bLoopbackToEngine;
 	bool bReceiveEnabled;
@@ -65,16 +68,13 @@ private:
 class DMXPROTOCOL_API FDMXOutputPort
 	: public FDMXPort
 {
-	// Friend Raw Listener so it can add and remove themselves to the port
+	// Friend DMXPortManager so it can create instances and  unregister void instances
 	friend FDMXPortManager;
 
-	// Friend Raw Listener so it can add and remove themselves to the port
+	// Friend Raw Listener so it can add and remove itself to the port
 	friend FDMXRawListener;
 
 protected:
-	/** Creates an output port that is not tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
-	static FDMXOutputPortSharedRef Create();
-
 	/** Creates an output port tied to a specific config. Hidden on purpose, use FDMXPortManager to create instances */
 	static FDMXOutputPortSharedRef CreateFromConfig(const FDMXOutputPortConfig& OutputPortConfig);
 

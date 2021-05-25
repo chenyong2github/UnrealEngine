@@ -155,8 +155,7 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 	else if	(
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs) ||
-		(InputPortConfigStruct == PropertyOwnerStruct || OutputPortConfigStruct || PropertyOwnerStruct)
-		)
+		(InputPortConfigStruct == PropertyOwnerStruct) || (OutputPortConfigStruct == PropertyOwnerStruct))
 	{
 		// if a new config was added, create a guid for that. We cannot do that in the ctor because 
 		// the engine expects clearly defined default values, FGuid::NewGuid doesn't work with that.
@@ -199,4 +198,3 @@ void UDMXProtocolSettings::OverrideReceiveDMXEnabled(bool bEnabled)
 
 	OnSetReceiveDMXEnabled.Broadcast(bEnabled);
 }
-
