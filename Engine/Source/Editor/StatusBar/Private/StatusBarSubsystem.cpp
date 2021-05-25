@@ -242,47 +242,47 @@ bool UStatusBarSubsystem::ToggleDebugConsole(TSharedRef<SWindow> ParentWindow, b
 			TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
 			if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
 			{
-				if (!bAlwaysToggleDrawer && MainOutputLogTab && MainOutputLogTab->GetTabManager()->GetOwnerTab() == ParentTab)
+				FWidgetPath ConsoleEditBoxPath;
+				if(FSlateApplication::Get().GeneratePathToWidgetUnchecked(SBData.ConsoleEditBox.ToSharedRef(), ConsoleEditBoxPath))
 				{
-					OutputLogModule.FocusOutputLogConsoleBox(OutputLogModule.GetOutputLog().ToSharedRef());
-				}
-				else
-				{
-					// This toggles between 3 states: 
-					// If the drawer is opened, close it
-					// if the console edit box is focused, open the drawer
-					// if something else is focused, focus the console edit box
-					if (StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::OutputLog))
+					if (!!bAlwaysToggleDrawer && MainOutputLogTab && MainOutputLogTab->GetTabManager()->GetOwnerTab() == ParentTab)
 					{
-						StatusBarPinned->DismissDrawer(nullptr);
-					}
-					else if (SBData.ConsoleEditBox->HasKeyboardFocus() || bAlwaysToggleDrawer)
-					{
-						if (bCycleToOutputLogDrawer)
-						{
-							StatusBarPinned->OpenDrawer(StatusBarDrawerIds::OutputLog);
-						}
-						else
-						{
-							// Restore previous focus
-							FSlateApplication::Get().SetKeyboardFocus(PreviousKeyboardFocusedWidget.Pin(), EFocusCause::SetDirectly);
-
-							PreviousKeyboardFocusedWidget.Reset();
-						}
+						OutputLogModule.FocusOutputLogConsoleBox(OutputLogModule.GetOutputLog().ToSharedRef());
 					}
 					else
 					{
-
-						// Cache off the previously focused widget so we can restore focus if the user hits the focus key again
-						PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
-
-						TSharedPtr<SWidget> WidgetToFocus = SBData.ConsoleEditBox;
-						FSlateApplication::Get().SetKeyboardFocus(WidgetToFocus, EFocusCause::SetDirectly);
+						// This toggles between 3 states: 
+						// If the drawer is opened, close it
+						// if the console edit box is focused, open the drawer
+						// if something else is focused, focus the console edit box
+						if (StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::OutputLog))
+						{
+							StatusBarPinned->DismissDrawer(nullptr);
+						}
+						else if (SBData.ConsoleEditBox->HasKeyboardFocus() || bAlwaysToggleDrawer)
+						{
+							if (bCycleToOutputLogDrawer)
+							{
+								StatusBarPinned->OpenDrawer(StatusBarDrawerIds::OutputLog);
+							}
+							else
+							{
+								// Restore previous focus
+								FSlateApplication::Get().SetKeyboardFocus(PreviousKeyboardFocusedWidget.Pin(), EFocusCause::SetDirectly);
+								PreviousKeyboardFocusedWidget.Reset();
+							}
+						}
+						else
+						{
+							// Cache off the previously focused widget so we can restore focus if the user hits the focus key again
+							PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
+							FSlateApplication::Get().SetKeyboardFocus(ConsoleEditBoxPath, EFocusCause::SetDirectly);
+						}
 					}
-				}
 
-				bToggledSuccessfully = true;
-				break;
+					bToggledSuccessfully = true;
+					break;
+				}
 			}
 		}
 	}
