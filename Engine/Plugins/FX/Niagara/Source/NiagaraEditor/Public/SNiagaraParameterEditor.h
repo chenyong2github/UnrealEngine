@@ -81,6 +81,9 @@ protected:
 	static const float DefaultInputSize;
 
 private:
+	//** Flag set when a continuous change is in progress to prevent invoking ExecuteOnBeginValueChange() or ExecuteOnEndValueChange() more than once for a change. */
+	bool bContinousChangeActive;
+
 	/** Whether this is currently the exclusive editor of this parameter, meaning that the corresponding details view
 		should not be updated.  This hack is necessary because the details view closes all color pickers when
 		it's changed! */

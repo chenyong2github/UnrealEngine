@@ -105,6 +105,16 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	virtual bool ShouldAlwaysPurgeOnModification() const override { return false; }
 	virtual void DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const override;
 	virtual void GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const override;
+
+	/**
+	* Sets the string to the specified pin; even if it is invalid it is still set.
+	*
+	* @param	Pin			   	The pin on which to set the default value.
+	* @param	NewDefaultValue	The new default value.
+	* @param   bMarkAsModified Marks the container of the value as modified. For Niagara Schema, whether or not to notify the Node owning the Pin that the Pin has changed.
+	*/
+	virtual void TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified = true) const override;
+
 	//~ End EdGraphSchema Interface
 
 	static FLinearColor GetTypeColor(const FNiagaraTypeDefinition& Type);
