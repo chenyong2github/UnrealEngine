@@ -612,6 +612,12 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		Super::Serialize(Ar);
 	}
 
+
+	if (!SizeSpecificData.Num())
+	{
+		SizeSpecificData.Add(GeometryCollectionSizeSpecificDataDefaults());
+	}
+
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::DensityUnitsChanged)
 	{
 		if (bMassAsDensity)
