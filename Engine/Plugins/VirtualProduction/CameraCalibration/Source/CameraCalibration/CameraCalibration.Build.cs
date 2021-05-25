@@ -6,6 +6,14 @@ namespace UnrealBuildTool.Rules
 	{
 		public CameraCalibration(ReadOnlyTargetRules Target) : base(Target)
 		{
+			if (Target.Configuration == UnrealTargetConfiguration.Debug)
+			{
+				PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+				OptimizeCode = CodeOptimization.Never;
+				bUseUnity = false;
+				PCHUsage = PCHUsageMode.NoPCHs;
+			}
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -16,6 +24,8 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"RenderCore",
 					"RHI",
+					"Slate",
+					"SlateCore",
 				}
 			);
 

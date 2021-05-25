@@ -5,6 +5,7 @@
 #include "CameraCalibrationLog.h"
 #include "CineCameraComponent.h"
 #include "Engine/TimecodeProvider.h"
+#include "Misc/CoreDelegates.h"
 #include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
@@ -133,7 +134,6 @@ void UCameraCalibrationSubsystem::UnregisterDistortionModelHandler(UCineCameraCo
 	LensDistortionHandlerMap.Remove(Component, Handler);
 }
 
-
 void UCameraCalibrationSubsystem::RegisterDistortionModel(TSubclassOf<ULensModel> LensModel)
 {
 	LensModelMap.Add(LensModel->GetDefaultObject<ULensModel>()->GetModelName(), LensModel);
@@ -153,9 +153,82 @@ TSubclassOf<ULensModel> UCameraCalibrationSubsystem::GetRegisteredLensModel(FNam
 	return nullptr;
 }
 
+TSubclassOf<UCameraNodalOffsetAlgo> UCameraCalibrationSubsystem::GetCameraNodalOffsetAlgo(FName Name) const
+{
+	if (CameraNodalOffsetAlgosMap.Contains(Name))
+	{
+		return CameraNodalOffsetAlgosMap[Name];
+	}
+	return nullptr;
+}
+
+TArray<FName> UCameraCalibrationSubsystem::GetCameraNodalOffsetAlgos() const
+{
+	TArray<FName> OutKeys;
+	CameraNodalOffsetAlgosMap.GetKeys(OutKeys);
+	return OutKeys;
+}
+
+TSubclassOf<UCameraCalibrationStep> UCameraCalibrationSubsystem::GetCameraCalibrationStep(FName Name) const
+{
+	if (CameraCalibrationStepsMap.Contains(Name))
+	{
+		return CameraCalibrationStepsMap[Name];
+	}
+	return nullptr;
+}
+
+TArray<FName> UCameraCalibrationSubsystem::GetCameraCalibrationSteps() const
+{
+	TArray<FName> OutKeys;
+	CameraCalibrationStepsMap.GetKeys(OutKeys);
+	return OutKeys;
+}
+
+void UCameraCalibrationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda([&]()
+	{
+		// Find Nodal Offset Algos
+		{
+			TArray<TSubclassOf<UCameraNodalOffsetAlgo>> Algos;
+
+			for (TObjectIterator<UClass> AlgoIt; AlgoIt; ++AlgoIt)
+			{
+				if (AlgoIt->IsChildOf(UCameraNodalOffsetAlgo::StaticClass()) && !AlgoIt->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
+				{
+					CameraNodalOffsetAlgosMap.Add(AlgoIt->GetFName(), TSubclassOf<UCameraNodalOffsetAlgo>(*AlgoIt));
+				}
+			}
+		}
+
+		// Find Calibration Steps
+		{
+			TArray<TSubclassOf<UCameraCalibrationStep>> Steps;
+
+			for (TObjectIterator<UClass> StepIt; StepIt; ++StepIt)
+			{
+				if (StepIt->IsChildOf(UCameraCalibrationStep::StaticClass()) && !StepIt->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
+				{
+					CameraCalibrationStepsMap.Add(StepIt->GetFName(), TSubclassOf<UCameraCalibrationStep>(*StepIt));
+				}
+			}
+		}
+	});
+}
+
 void UCameraCalibrationSubsystem::Deinitialize()
 {
 	LensModelMap.Empty(0);
+	CameraNodalOffsetAlgosMap.Empty(0);
+	CameraCalibrationStepsMap.Empty(0);
+
+	if (PostEngineInitHandle.IsValid())
+	{
+		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+	}
 
 	Super::Deinitialize();
 }
