@@ -23,6 +23,7 @@ public:
 	/** Virtual destructor */
 	virtual ~IContentAddressableStorage() {}
 
+	virtual bool ToDigest(const TArray<char>& InData, FDigest& OutDigest) = 0;
 	virtual bool ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest) = 0;
 	virtual bool ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest) = 0;
 	virtual bool ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest) = 0;

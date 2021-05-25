@@ -12,11 +12,20 @@
 class FBazelExecutor : public IRemoteExecutor
 {
 public:
-	struct FSslCredentialsOptions
+	struct FSettings
 	{
-		FString PemCertChain;
-		FString PemPrivateKey;
-		FString PemRootCerts;
+		FString ContentAddressableStorageTarget;
+		FString ExecutionTarget;
+		TMap<FString, FString> ContentAddressableStorageHeaders;
+		TMap<FString, FString> ExecutionHeaders;
+		int32 MaxSendMessageSize;
+		int32 MaxReceiveMessageSize;
+		FString ContentAddressableStoragePemCertificateChain;
+		FString ContentAddressableStoragePemPrivateKey;
+		FString ContentAddressableStoragePemRootCertificates;
+		FString ExecutionPemCertificateChain;
+		FString ExecutionPemPrivateKey;
+		FString ExecutionPemRootCertificates;
 	};
 
 private:
@@ -24,7 +33,7 @@ private:
 	TUniquePtr<IExecution> Execution;
 
 public:
-	void Initialize(const FString& Target, const FSslCredentialsOptions& SslCredentialsOptions);
+	void Initialize(const FSettings& Settings);
 
 	virtual FName GetFName() const override;
 	virtual FText GetNameText() const override;

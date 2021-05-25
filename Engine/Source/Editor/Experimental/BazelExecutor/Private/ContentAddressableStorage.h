@@ -24,11 +24,13 @@ class FContentAddressableStorage : public IContentAddressableStorage
 {
 private:
 	std::unique_ptr<build::bazel::remote::execution::v2::ContentAddressableStorage::Stub> Stub;
+	TMap<FString, FString> Headers;
 
 public:
-	FContentAddressableStorage(const std::shared_ptr<grpc::Channel>& Channel);
+	FContentAddressableStorage(const std::shared_ptr<grpc::Channel>& Channel, const TMap<FString, FString>& Headers);
 	~FContentAddressableStorage();
 
+	bool ToDigest(const TArray<char>& InData, FDigest& OutDigest) override;
 	bool ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest) override;
 	bool ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest) override;
 	bool ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest) override;
