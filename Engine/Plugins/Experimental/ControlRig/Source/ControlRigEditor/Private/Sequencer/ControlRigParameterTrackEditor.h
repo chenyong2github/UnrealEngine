@@ -24,6 +24,7 @@ class USkeleton;
 class UMovieSceneControlRigParameterSection;
 class UFKControlRig;
 class FEditorModeTools;
+class FControlRigEditMode;
 
 /**
  * Tools for animation tracks
