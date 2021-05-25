@@ -15,6 +15,7 @@
 #include "SceneInterface.h"
 
 #include "DisplayClusterConfigurationStrings.h"
+#include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationTypes_Viewport.h"
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 
@@ -36,8 +37,6 @@ class UDisplayClusterScreenComponent;
 class UDisplayClusterXformComponent;
 class UDisplayClusterSyncTickComponent;
 class UDisplayClusterPreviewComponent;
-
-struct FDisplayClusterConfigurationOCIOProfile;
 
 
 /**
