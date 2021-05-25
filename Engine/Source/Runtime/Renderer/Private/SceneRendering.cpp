@@ -3663,9 +3663,7 @@ void FSceneRenderer::RenderThreadBegin(FRHICommandListImmediate& RHICmdList)
 {
 	CleanUp(RHICmdList);
 
-	FMemStackBase& MemStack = FMemStack::Get();
-	checkf(MemStack.GetNumMarks() == 0, TEXT("FSceneRenderer::RenderThreadBegin called with an active MemMark."));
-	MemStackMark = new FMemMark(MemStack);
+	MemStackMark = new FMemMark(FMemStack::Get());
 }
 
 struct FSceneRenderCleanUpState
