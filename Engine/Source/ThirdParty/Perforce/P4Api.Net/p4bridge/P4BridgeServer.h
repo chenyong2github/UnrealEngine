@@ -367,6 +367,9 @@ public:
 	friend class TestP4BridgeServer;
 	friend class TestP4BridgeClient;
 
+	// Epic
+	void SetConnectionHost(const char* hostname);
+
 protected:
 	// the one and only connection
 	P4Connection* pConnection;

@@ -76,7 +76,7 @@ enum p4types {
  *  unregisters it. The static method ValidateHandle() allows a handle passed
  *  into the DLL against the registry of handles that have been exported.
  ******************************************************************************/
-class p4base abstract
+class p4base /* abstract */
 {
 private:
     p4base() {};

@@ -36,9 +36,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  are created so they can be validated when passed in as parameters.
  *
  ******************************************************************************/
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "p4base.h"
-#include "lock.h"
+#include "Lock.h"
 #include "P4BridgeServer.h"
 
 #include <sstream>
@@ -223,11 +223,20 @@ int p4base::ValidateHandle_Int( p4base* pObject, int type )
 #ifndef _DEBUG
 		return 1;
 	}
+#ifdef _WIN32 	
 	__except (1) //EXCEPTION_EXECUTE_HANDLER
 	{
 		// access violation, so definitely not valid.
 		return 0;
 	}
+#else
+	catch (int error) //EXCEPTION_EXECUTE_HANDLER
+	{
+		// access violation, so definitely not valid.
+		return 0;
+	}
+
+#endif	
 #else
 		pCur = pFirstObject[type];
 	}

@@ -49,6 +49,10 @@ public:
 	void		SetClient( const char *c );
 	void		SetClient( const StrPtr *c );
 
+	// Epic
+	void		SetHost(const char* c);
+	void		SetHost(const StrPtr* c);
+
 	void		SetTicketFile(const char *c);
 
 	unsigned _int64 ReleaseTime;
