@@ -11,17 +11,26 @@
 
 void FUnrealSourceFile::AddDefinedClass(TSharedRef<FUnrealTypeDefinitionInfo> ClassDecl)
 {
+	DefinedTypes.Add(ClassDecl);
 	DefinedClasses.Add(MoveTemp(ClassDecl));
 }
 
 void FUnrealSourceFile::AddDefinedEnum(TSharedRef<FUnrealTypeDefinitionInfo> EnumDecl)
 {
+	DefinedTypes.Add(EnumDecl);
 	DefinedEnums.Add(MoveTemp(EnumDecl));
 }
 
 void FUnrealSourceFile::AddDefinedStruct(TSharedRef<FUnrealTypeDefinitionInfo> StructDecl)
 {
+	DefinedTypes.Add(StructDecl);
 	DefinedStructs.Add(MoveTemp(StructDecl));
+}
+
+void FUnrealSourceFile::AddDefinedFunction(TSharedRef<FUnrealTypeDefinitionInfo> FunctionDef)
+{
+	DefinedTypes.Add(FunctionDef);
+	DefinedFunctions.Add(MoveTemp(FunctionDef));
 }
 
 const FString& FUnrealSourceFile::GetFileId() const

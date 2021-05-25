@@ -144,8 +144,9 @@ public:
 	}
 	virtual const FString& GetMetaData(const FName& Key) const;
 
-protected:
 	virtual TMap<FName, FString>* GetMetaDataMap() const = 0;
+
+protected:
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const = 0;
 #endif
@@ -156,6 +157,14 @@ protected:
  */
 class FUnrealTypeDefinitionInfo : public TSharedFromThis<FUnrealTypeDefinitionInfo>
 {
+private:
+	enum class EFinalizeState : uint8
+	{
+		None,
+		InProgress,
+		Finished,
+	};
+
 public:
 	virtual ~FUnrealTypeDefinitionInfo() = default;
 
@@ -315,8 +324,22 @@ public:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalize()
-	{}
+	void PostParseFinalize(bool bCreateEngineTypes)
+	{
+		switch (FinalizeState)
+		{
+		case EFinalizeState::None:
+			FinalizeState = EFinalizeState::InProgress;
+			PostParseFinalizeInternal(bCreateEngineTypes);
+			FinalizeState = EFinalizeState::Finished;
+			break;
+		case EFinalizeState::InProgress:
+			check(false);
+			break;
+		case EFinalizeState::Finished:
+			break;
+		}
+	}
 
 	/**
 	 * Return the C++ type name that represents this type (i.e. UClass)
@@ -350,8 +373,8 @@ public:
 	 * Returns the fully qualified pathname for this object, in the format:
 	 * 'Outermost.[Outer:]Name'
 	 */
-	virtual FString GetPathName() const = 0;
-	virtual void GetPathName(FStringBuilderBase& ResultString) const = 0;
+	virtual FString GetPathName(FUnrealObjectDefinitionInfo* StopOuter = nullptr) const = 0;
+	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const = 0;
 
 	/**
 	 * Return true if this type has source information
@@ -482,12 +505,16 @@ protected:
 
 	virtual void ValidateMetaDataFormat(const FName InKey, ECheckedMetadataSpecifier InCheckedMetadataSpecifier, const FString& InValue) const;
 
+	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes)
+	{}
+
 private:
 	FString NameCPP;
 	FUnrealTypeDefinitionInfo* Outer = nullptr;
 	FUnrealSourceFile* SourceFile = nullptr;
 	int32 LineNumber = 0;
 	std::atomic<uint32> Hash = 0;
+	EFinalizeState FinalizeState = EFinalizeState::None;
 };
 
 /**
@@ -498,13 +525,14 @@ class FUnrealPropertyDefinitionInfo
 	, public FUHTMetaData
 {
 public:
-	FUnrealPropertyDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, int32 InParsePosition, const FPropertyBase& InVarProperty, EVariableCategory InVariableCategory, const TCHAR* Dimensions, FName InName, FUnrealTypeDefinitionInfo& InOuter)
+	FUnrealPropertyDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, int32 InParsePosition, const FPropertyBase& InVarProperty, EVariableCategory InVariableCategory, EAccessSpecifier InAccessSpecifier, const TCHAR* Dimensions, FName InName, FUnrealTypeDefinitionInfo& InOuter)
 		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, InName.ToString(), InOuter)
 		, Name(InName)
 		, PropertyBase(InVarProperty)
 		, ArrayDimensions(InVarProperty.ArrayType == EArrayType::Static ? FString(Dimensions) : FString())
 		, ParsePosition(InParsePosition)
 		, VariableCategory(InVariableCategory)
+		, AccessSpecifier(InAccessSpecifier)
 	{ }
 
 	virtual FUnrealPropertyDefinitionInfo* AsProperty() override
@@ -521,16 +549,19 @@ public:
 	}
 
 	/**
-	 * Perform any post parsing finalization and validation
-	 */
-	virtual void PostParseFinalize() override;
-
-	/**
 	 * Return the Engine instance associated with the compiler instance
 	 */
 	FProperty* GetProperty() const
 	{
 		check(Property);
+		return Property;
+	}
+
+	/**
+	 * Return the Engine instance associated with the compiler instance, does not check the pointer, can be null
+	 */
+	FProperty* GetPropertySafe() const
+	{
 		return Property;
 	}
 
@@ -560,7 +591,7 @@ public:
 	virtual FString GetName() const override
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetProperty()->GetName() == GetNameCPP());
+		check(GetPropertySafe() == nullptr || GetPropertySafe()->GetName() == GetNameCPP());
 #endif
 		return GetNameCPP();
 	}
@@ -569,7 +600,7 @@ public:
 	virtual FName GetFName() const override
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetProperty()->GetFName() == Name);
+		check(GetPropertySafe() == nullptr || GetPropertySafe()->GetFName() == Name);
 #endif
 		return Name;
 	}
@@ -580,8 +611,8 @@ public:
 	 * Returns the fully qualified pathname for this object, in the format:
 	 * 'Outermost.[Outer:]Name'
 	 */
-	virtual FString GetPathName() const override;
-	virtual void GetPathName(FStringBuilderBase& ResultString) const override;
+	virtual FString GetPathName(FUnrealObjectDefinitionInfo* StopOuter = nullptr) const override;
+	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const override;
 
 	/**
 	 * Return the engine class name
@@ -598,10 +629,7 @@ public:
 	*
 	* @return The display name for this object.
 	*/
-	FText GetDisplayNameText() const
-	{
-		return GetProperty()->GetDisplayNameText();
-	}
+	FText GetDisplayNameText() const;
 
 	/**
 	* Finds the localized tooltip or native tooltip as a fallback.
@@ -610,10 +638,7 @@ public:
 	*
 	* @return The tooltip for this object.
 	*/
-	FText GetToolTipText(bool bShortTooltip = false) const
-	{
-		return GetProperty()->GetToolTipText(bShortTooltip);
-	}
+	FText GetToolTipText(bool bShortTooltip = false) const;
 
 	/**
 	 * Returns the C++ name of the property, including the _DEPRECATED suffix if the
@@ -625,7 +650,7 @@ public:
 	{
 		FString OutName = HasAnyPropertyFlags(CPF_Deprecated) ? GetName() + TEXT("_DEPRECATED") : GetName();
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(GetProperty()->GetNameCPP() == OutName);
+		check(GetPropertySafe() == nullptr || GetPropertySafe()->GetNameCPP() == OutName);
 #endif
 		return OutName;
 	}
@@ -646,7 +671,7 @@ public:
 	EPropertyFlags GetPropertyFlags() const
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
 #endif
 		return PropertyBase.PropertyFlags;
 	}
@@ -654,18 +679,24 @@ public:
 	void SetPropertyFlags(EPropertyFlags NewFlags)
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
 #endif
-		GetProperty()->PropertyFlags |= NewFlags;
+		if (FProperty* LocalProperty = GetPropertySafe())
+		{
+			LocalProperty->PropertyFlags |= NewFlags;
+		}
 		PropertyBase.PropertyFlags |= NewFlags;
 	}
 
 	void ClearPropertyFlags(EPropertyFlags NewFlags)
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
 #endif
-		GetProperty()->PropertyFlags &= ~NewFlags;
+		if (FProperty* LocalProperty = GetPropertySafe())
+		{
+			LocalProperty->PropertyFlags &= ~NewFlags;
+		}
 		PropertyBase.PropertyFlags &= ~NewFlags;
 	}
 
@@ -684,7 +715,7 @@ public:
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 		check((FlagsToCheck & CPF_ComputedFlags) == 0);
-		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
 #endif
 		return (PropertyBase.PropertyFlags & FlagsToCheck) != 0;
 	}
@@ -703,7 +734,7 @@ public:
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 		check((FlagsToCheck & CPF_ComputedFlags) == 0);
-		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
 #endif
 		return (PropertyBase.PropertyFlags & FlagsToCheck) == FlagsToCheck;
 	}
@@ -712,7 +743,7 @@ public:
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 		check((FlagsToCheck & CPF_ComputedFlags) == 0);
-		check((GetProperty()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
+		check(GetPropertySafe() == nullptr || (GetPropertySafe()->GetPropertyFlags() & ~CPF_ComputedFlags) == PropertyBase.PropertyFlags);
 #endif
 		return (PropertyBase.PropertyFlags & FlagsToCheck) == ExpectedFlags;
 	}
@@ -742,7 +773,7 @@ public:
 	{
 		bool bResult = HasAnyPropertyFlags(CPF_DevelopmentAssets);
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(bResult == GetProperty()->IsEditorOnlyProperty());
+		check(GetPropertySafe() == nullptr || bResult == GetPropertySafe()->IsEditorOnlyProperty());
 #endif
 		return bResult;
 	}
@@ -757,7 +788,7 @@ public:
 	{
 		bool bResult = HasAnyPropertyFlags(CPF_ContainsInstancedReference | CPF_InstancedReference);
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(bResult == GetProperty()->ContainsInstancedObjectProperty());
+		check(GetPropertySafe() == nullptr || bResult == GetPropertySafe()->ContainsInstancedObjectProperty());
 #endif
 		return bResult;
 	}
@@ -765,10 +796,7 @@ public:
 	/**
 	 * Test to see if two properties share the same types.  This method utilizes the underlying UProperty SameType implementation.
 	 */
-	bool SameType(const FUnrealPropertyDefinitionInfo& Other) const
-	{
-		return GetProperty()->SameType(Other.GetProperty());
-	}
+	bool SameType(const FUnrealPropertyDefinitionInfo& Other) const;
 
 	/**
 	 * Determines whether this property's type is compatible with another property's type.
@@ -927,6 +955,14 @@ public:
 	}
 
 	/**
+	 * Get the access specifier of this property
+	 */
+	EAccessSpecifier GetAccessSpecifier() const
+	{
+		return AccessSpecifier;
+	}
+
+	/**
 	 * Return true if the property is unsized
 	 */
 	bool IsUnsized() const
@@ -971,16 +1007,11 @@ public:
 	}
 
 	/**
-	 * Add meta data for the given definition
-	 */
-	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override;
-
-	/**
 	 * Return true if we have a key property def
 	 */
 	bool HasKeyPropDef() const
 	{
-		return KeyPropDef != nullptr;
+		return KeyPropDef.IsValid();
 	}
 
 	/**
@@ -993,20 +1024,29 @@ public:
 	}
 
 	/**
-	 * Return true if we have a value property def
+	 * Get the associated key property definition (valid for maps)
 	 */
-	bool HasValuePropDef() const
+	TSharedRef<FUnrealPropertyDefinitionInfo> GetKeyPropDefRef() const
 	{
-		return ValuePropDef != nullptr;
+		check(KeyPropDef);
+		return KeyPropDef.ToSharedRef();
 	}
 
 	/**
 	 * Sets the associated key property definition (valid for maps)
 	 */
-	void SetKeyPropDef(FUnrealPropertyDefinitionInfo& InKeyPropDef)
+	void SetKeyPropDef(TSharedRef<FUnrealPropertyDefinitionInfo> InKeyPropDef)
 	{
-		check(KeyPropDef == nullptr);
-		KeyPropDef = &InKeyPropDef;
+		check(!KeyPropDef);
+		KeyPropDef = InKeyPropDef;
+	}
+
+	/**
+	 * Return true if we have a value property def
+	 */
+	bool HasValuePropDef() const
+	{
+		return ValuePropDef.IsValid();
 	}
 
 	/**
@@ -1019,12 +1059,21 @@ public:
 	}
 
 	/**
+	 * Get the associated value property definition (valid for maps, sets, and dynamic arrays)
+	 */
+	TSharedRef<FUnrealPropertyDefinitionInfo> GetValuePropDefRef() const
+	{
+		check(ValuePropDef);
+		return ValuePropDef.ToSharedRef();
+	}
+
+	/**
 	 * Sets the associated value property definition (valid for maps, sets, and dynamic arrays)
 	 */
-	void SetValuePropDef(FUnrealPropertyDefinitionInfo& InValuePropDef)
+	void SetValuePropDef(TSharedRef<FUnrealPropertyDefinitionInfo> InValuePropDef)
 	{
-		check(ValuePropDef == nullptr);
-		ValuePropDef = &InValuePropDef;
+		check(!ValuePropDef);
+		ValuePropDef = InValuePropDef;
 	}
 
 	/**
@@ -1059,7 +1108,7 @@ public:
 	FName GetRepNotifyFunc() const
 	{
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
-		check(PropertyBase.RepNotifyName == GetProperty()->RepNotifyFunc);
+		check(GetPropertySafe() == nullptr || PropertyBase.RepNotifyName == GetPropertySafe()->RepNotifyFunc);
 #endif
 		return PropertyBase.RepNotifyName;
 	}
@@ -1069,30 +1118,48 @@ public:
 	 */
 	void SetDelegateFunctionSignature(FUnrealFunctionDefinitionInfo& DelegateFunctionDef);
 
-protected:
-	virtual TMap<FName, FString>* GetMetaDataMap() const override
+	/**
+	 * Add meta data for the given definition
+	 */
+	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override
 	{
-		return const_cast<TMap<FName, FString>*>(GetProperty()->GetMetaDataMap());
+		check(Property == nullptr);
+		GetMetaDataMap()->Append(MoveTemp(InMetaData));
 	}
 
+	virtual TMap<FName, FString>* GetMetaDataMap() const override
+	{
+		return const_cast<TMap<FName, FString>*>(&PropertyBase.MetaData);
+	}
+
+protected:
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const
 	{
-		const FString* CheckPtr = GetProperty()->FindMetaData(Key);
-		check((CheckPtr == nullptr && ValuePtr == nullptr) || (CheckPtr != nullptr && ValuePtr != nullptr && *CheckPtr == *ValuePtr));
+		if (FProperty* LocalProperty = GetPropertySafe())
+		{
+			const FString* CheckPtr = LocalProperty->FindMetaData(Key);
+			check((CheckPtr == nullptr && ValuePtr == nullptr) || (CheckPtr != nullptr && ValuePtr != nullptr && *CheckPtr == *ValuePtr));
+		}
 	}
 #endif
+
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
 
 private:
 	FName Name;
 	FPropertyBase PropertyBase;
 	FString ArrayDimensions;
 	FString TypePackageName;
-	FUnrealPropertyDefinitionInfo* KeyPropDef = nullptr;
-	FUnrealPropertyDefinitionInfo* ValuePropDef = nullptr;
+	TSharedPtr<FUnrealPropertyDefinitionInfo> KeyPropDef;
+	TSharedPtr<FUnrealPropertyDefinitionInfo> ValuePropDef;
 	FProperty* Property = nullptr;
 	int32 ParsePosition;
 	EVariableCategory VariableCategory = EVariableCategory::Member;
+	EAccessSpecifier AccessSpecifier = ACCESS_Public;
 	EAllocatorType AllocatorType = EAllocatorType::Default;
 	bool bUnsized = false;
 };
@@ -1152,15 +1219,8 @@ public:
 	 * Returns the fully qualified pathname for this object, in the format:
 	 * 'Outermost.[Outer:]Name'
 	 */
-	virtual FString GetPathName() const override
-	{
-		return GetObject()->GetPathName(nullptr);
-	}
-	
-	virtual void GetPathName(FStringBuilderBase& ResultString) const override
-	{
-		return GetObject()->GetPathName(nullptr, ResultString);
-	}
+	virtual FString GetPathName(FUnrealObjectDefinitionInfo* StopOuter = nullptr) const override;
+	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const override;
 
 	/**
 	 * Return the package associated with this object
@@ -1313,11 +1373,6 @@ public:
 	}
 
 	/**
-	 * Perform any post parsing finalization and validation
-	 */
-	virtual void PostParseFinalize() override;
-
-	/**
 	 * Add a unique cross module reference for this field
 	 */
 	void AddCrossModuleReference(TSet<FString>* UniqueCrossModuleReferences) const;
@@ -1345,6 +1400,12 @@ public:
 	{
 		return ExternDecl;
 	}
+
+protected:
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
 
 private:
 	const FManifestModule& Module;
@@ -1437,11 +1498,6 @@ public:
 	}
 
 	/**
-	 * Perform any post parsing finalization and validation
-	 */
-	virtual void PostParseFinalize() override;
-
-	/**
 	 * Add a unique cross module reference for this field
 	 */
 	void AddCrossModuleReference(TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject) const;
@@ -1497,6 +1553,12 @@ public:
 	 * Return the owning class
 	 */
 	FUnrealClassDefinitionInfo* GetOwnerClass() const;
+
+protected:
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
 
 private:
 	FString SingletonName[2];
@@ -1783,18 +1845,23 @@ public:
 	}
 
 	/**
+	 * Create the underlying properties for the structure
+	 */
+	void CreatePropertyEngineTypes();
+
+	/**
 	 * Add a new property to the structure
 	 */
-	virtual void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef);
+	virtual void AddProperty(TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef);
 
 	/**
 	 * Get the collection of properties
 	 */
-	const TArray<FUnrealPropertyDefinitionInfo*>& GetProperties() const
+	const TArray<TSharedRef<FUnrealPropertyDefinitionInfo>>& GetProperties() const
 	{
 		return Properties;
 	}
-	TArray<FUnrealPropertyDefinitionInfo*>& GetProperties()
+	TArray<TSharedRef<FUnrealPropertyDefinitionInfo>>& GetProperties()
 	{
 		return Properties;
 	}
@@ -1802,16 +1869,16 @@ public:
 	/**
 	 * Add a new function to the structure
 	 */
-	virtual void AddFunction(FUnrealFunctionDefinitionInfo& FunctionDef);
+	virtual void AddFunction(TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef);
 
 	/**
 	 * Get the collection of functions
 	 */
-	const TArray<FUnrealFunctionDefinitionInfo*>& GetFunctions() const
+	const TArray< TSharedRef<FUnrealFunctionDefinitionInfo>>& GetFunctions() const
 	{
 		return Functions;
 	}
-	TArray<FUnrealFunctionDefinitionInfo*>& GetFunctions()
+	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>>& GetFunctions()
 	{
 		return Functions;
 	}
@@ -1960,14 +2027,20 @@ public:
 		return RigVMInfo;
 	}
 
+protected:
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+
 private:
 	TSharedPtr<FScope> StructScope;
 
 	/** Properties of the structure */
-	TArray<FUnrealPropertyDefinitionInfo*> Properties;
+	TArray<TSharedRef<FUnrealPropertyDefinitionInfo>> Properties;
 
 	/** Functions of the structure */
-	TArray<FUnrealFunctionDefinitionInfo*> Functions;
+	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>> Functions;
 
 	FStructMetaData StructMetaData;
 	FBaseStructInfo SuperStructInfo;
@@ -2168,7 +2241,7 @@ public:
 	//@{
 	FFuncInfo& GetFunctionData() { return FunctionData; }
 	const FFuncInfo& GetFunctionData() const { return FunctionData; }
-	FUnrealPropertyDefinitionInfo* GetReturn() const { return ReturnProperty; }
+	FUnrealPropertyDefinitionInfo* GetReturn() const { return ReturnProperty.Get(); }
 	//@}
 
 	/**
@@ -2176,7 +2249,7 @@ public:
 	 * function parameter, local property, or return value, and adds it to the appropriate
 	 * list
 	 */
-	virtual void AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef) override;
+	virtual void AddProperty(TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef) override;
 
 	/**
 	 * Sets the specified function export flags
@@ -2199,13 +2272,19 @@ public:
 	 */
 	FUnrealFunctionDefinitionInfo* GetSuperFunction() const;
 
+protected:
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+
 private:
 
 	/** info about the function associated with this FFunctionData */
 	FFuncInfo FunctionData;
 
 	/** return value for this function */
-	FUnrealPropertyDefinitionInfo* ReturnProperty = nullptr;
+	TSharedPtr<FUnrealPropertyDefinitionInfo> ReturnProperty;
 };
 
 /**
@@ -2260,11 +2339,6 @@ public:
 	}
 
 	virtual uint32 GetHash(bool bIncludeNoExport = true) const override;
-
-	/**
-	 * Perform any post parsing finalization and validation
-	 */
-	virtual void PostParseFinalize() override;
 
 	/**
 	 * Return the Engine instance associated with the compiler instance
@@ -2504,6 +2578,12 @@ public:
 
 	FString GetNameWithPrefix(EEnforceInterfacePrefix EnforceInterfacePrefix = EEnforceInterfacePrefix::None) const;
 
+protected:
+	/**
+	 * Perform any post parsing finalization and validation
+	 */
+	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+
 public:
 	TMap<FName, FString> MetaData;
 
@@ -2673,16 +2753,16 @@ const To& UHTCastChecked(const From& Src)
 }
 
 template <class T>
-const TArray<T*>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef);
+const TArray<TSharedRef<T>>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef);
 
 template <>
-inline const TArray<FUnrealPropertyDefinitionInfo*>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef)
+inline const TArray<TSharedRef<FUnrealPropertyDefinitionInfo>>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef)
 {
 	return InStructDef.GetProperties();
 }
 
 template <>
-inline const TArray<FUnrealFunctionDefinitionInfo*>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef)
+inline const TArray<TSharedRef<FUnrealFunctionDefinitionInfo>>& GetFieldsFromDef(const FUnrealStructDefinitionInfo& InStructDef)
 {
 	return InStructDef.GetFunctions();
 }
@@ -2697,8 +2777,8 @@ private:
 	/** The object being searched for the specified field */
 	const FUnrealStructDefinitionInfo* StructDef;
 	/** The current location in the list of fields being iterated */
-	T* const* Field;
-	T* const* End;
+	TSharedRef<T> const* Field;
+	TSharedRef<T> const* End;
 	/** Whether to include the super class or not */
 	const bool bIncludeSuper;
 
@@ -2736,29 +2816,29 @@ public:
 	inline T* operator*()
 	{
 		checkSlow(Field != End);
-		return *Field;
+		return &**Field;
 	}
 	inline const T* operator*() const
 	{
 		checkSlow(Field != End);
-		return *Field;
+		return &**Field;
 	}
 	inline T* operator->()
 	{
 		checkSlow(Field != End);
-		return *Field;
+		return &**Field;
 	}
 	inline const FUnrealStructDefinitionInfo* GetStructDef()
 	{
 		return StructDef;
 	}
 protected:
-	inline T* const* UpdateRange(const FUnrealStructDefinitionInfo* InStructDef)
+	inline TSharedRef<T> const* UpdateRange(const FUnrealStructDefinitionInfo* InStructDef)
 	{
 		if (InStructDef)
 		{
 			auto& Array = GetFieldsFromDef<T>(*InStructDef);
-			T* const* Out = Array.GetData();
+			TSharedRef<T> const * Out = Array.GetData();
 			End = Out + Array.Num();
 			return Out;
 		}
@@ -2771,7 +2851,7 @@ protected:
 
 	inline void IterateToNext()
 	{
-		T* const* CurrentField = Field;
+		TSharedRef<T> const* CurrentField = Field;
 		const FUnrealStructDefinitionInfo* CurrentStructDef = StructDef;
 
 		while (CurrentStructDef)
