@@ -1366,6 +1366,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	// Default the new eye adaptation to the last one in case it's not generated this frame.
 	const FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View, ERHIFeatureLevel::ES3_1);
 
+	const FPaniniProjectionConfig PaniniConfig(View);
+
 	enum class EPass : uint32
 	{
 		Distortion,
@@ -1472,7 +1474,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	PassSequence.SetEnabled(EPass::SelectionOutline, false);
 	PassSequence.SetEnabled(EPass::EditorPrimitive, false);
 #endif
-	PassSequence.SetEnabled(EPass::PrimaryUpscale, bShouldPrimaryUpscale && bDisableUpscaleInTonemapper);
+	PassSequence.SetEnabled(EPass::PrimaryUpscale, PaniniConfig.IsEnabled() || (bShouldPrimaryUpscale && bDisableUpscaleInTonemapper));
 
 	PassSequence.SetEnabled(EPass::Visualize, View.Family->EngineShowFlags.ShaderComplexity);
 
@@ -2129,6 +2131,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		PassInputs.Method = EUpscaleMethod::Bilinear;
 		PassInputs.Stage = EUpscaleStage::PrimaryToOutput;
 		PassInputs.SceneColor = SceneColor;
+		PassInputs.PaniniConfig = PaniniConfig;
 		PassInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
 		SceneColor = AddUpscalePass(GraphBuilder, View, PassInputs);
