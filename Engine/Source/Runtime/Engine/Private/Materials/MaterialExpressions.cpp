@@ -626,7 +626,7 @@ int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, const int32 A, con
 	{
 		return INDEX_NONE;
 	}
-	int32 OutputCodeChunk = Compiler->StrataHorizontalMixing(B, A, Alpha); // B is foreground (fully visible when Alpha=1), and A is background (fully visible when Alpha=0)
+	int32 OutputCodeChunk = Compiler->StrataHorizontalMixing(A, B, Alpha); // A is background (fully visible when Alpha=0) and B is foreground (fully visible when Alpha=1)
 
 #if WITH_EDITOR
 	// Also register the horizontal mixing operation with the compiler.
@@ -634,7 +634,7 @@ int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, const int32 A, con
 	{
 		return Compiler->Errorf(TEXT("Could not find A or B code chunk in CompileStrataBlendFunction"));
 	}
-	FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixing(Compiler, Compiler->GetStrataCompilationInfo(B), Compiler->GetStrataCompilationInfo(A));
+	FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixing(Compiler, Compiler->GetStrataCompilationInfo(A), Compiler->GetStrataCompilationInfo(B));
 	Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 #endif
 
@@ -20875,21 +20875,21 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 		}
 		const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, NewNormalCodeChunk, NewTangentCodeChunk);
 
-		OutputCodeChunk = Compiler->StrataHorizontalMixingParameterBlending(ForegroundCodeChunk, BackgroundCodeChunk, HorizontalMixCodeChunk, NormalMixCodeChunk, Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis));
+		OutputCodeChunk = Compiler->StrataHorizontalMixingParameterBlending(BackgroundCodeChunk, ForegroundCodeChunk, HorizontalMixCodeChunk, NormalMixCodeChunk, Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis));
 
 		StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, NewRegisteredSharedLocalBasis, STRATA_BSDF_TYPE_SLAB);
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixingParamBlend(Compiler, ForegroundStrataData, BackgroundStrataData, NewRegisteredSharedLocalBasis);
+		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixingParamBlend(Compiler, BackgroundStrataData, ForegroundStrataData, NewRegisteredSharedLocalBasis);
 
 		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}
 	else
 	{
 		OutputCodeChunk = Compiler->StrataHorizontalMixing(
-			ForegroundCodeChunk,
 			BackgroundCodeChunk,
+			ForegroundCodeChunk,
 			HorizontalMixCodeChunk);
 
-		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixing(Compiler, ForegroundStrataData, BackgroundStrataData);
+		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixing(Compiler, BackgroundStrataData, ForegroundStrataData);
 
 		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
 	}

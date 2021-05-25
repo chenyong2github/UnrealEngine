@@ -439,8 +439,8 @@ public:
 	virtual int32 StrataSingleLayerWaterBSDF(
 		int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, int32 EmissiveColor, int32 TopMaterialOpacity, 
 		int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, const FString& SharedLocalBasisIndexMacro) = 0;
-	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) = 0;
-	virtual int32 StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro) = 0;
+	virtual int32 StrataHorizontalMixing(int32 Background, int32 Foreground, int32 Mix) = 0;
+	virtual int32 StrataHorizontalMixingParameterBlending(int32 Background, int32 Foreground, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro) = 0;
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
 	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B) = 0;
@@ -979,14 +979,14 @@ public:
 			WaterAlbedo, WaterExtinction, WaterPhaseG, ColorScaleBehindWater, Normal, SharedLocalBasisIndexMacro);
 	}
 
-	virtual int32 StrataHorizontalMixing(int32 Foreground, int32 Background, int32 Mix) override
+	virtual int32 StrataHorizontalMixing(int32 Background, int32 Foreground, int32 Mix) override
 	{
-		return Compiler->StrataHorizontalMixing(Foreground, Background, Mix);
+		return Compiler->StrataHorizontalMixing(Background, Foreground, Mix);
 	}
 
-	virtual int32 StrataHorizontalMixingParameterBlending(int32 Foreground, int32 Background, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro) override
+	virtual int32 StrataHorizontalMixingParameterBlending(int32 Background, int32 Foreground, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro) override
 	{
-		return Compiler->StrataHorizontalMixingParameterBlending(Foreground, Background, HorizontalMixCodeChunk, NormalMixCodeChunk, SharedLocalBasisIndexMacro);
+		return Compiler->StrataHorizontalMixingParameterBlending(Background, Foreground, HorizontalMixCodeChunk, NormalMixCodeChunk, SharedLocalBasisIndexMacro);
 	}
 
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override
