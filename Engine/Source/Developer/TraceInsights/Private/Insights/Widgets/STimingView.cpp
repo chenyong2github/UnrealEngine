@@ -2710,6 +2710,7 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
+	bool bHasAnyActions = false;
 
 	if (HoveredTrack.IsValid())
 	{
@@ -2718,8 +2719,15 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		MenuBuilder.EndSection();
 
 		HoveredTrack->BuildContextMenu(MenuBuilder);
+		bHasAnyActions = true;
 	}
-	else
+
+	for (Insights::ITimingViewExtender* Extender : GetExtenders())
+	{
+		bHasAnyActions |= Extender->ExtendGlobalContextMenu(*this, MenuBuilder);
+	}
+	
+	if(!bHasAnyActions)
 	{
 		MenuBuilder.BeginSection(TEXT("Empty"));
 		{
@@ -2732,22 +2740,6 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 				EUserInterfaceActionType::Button
 			);
 		}
-		MenuBuilder.EndSection();
-	}
-
-	if (SelectedTrack.IsValid() && SelectedTrack->Is<FTimingEventsTrack>())
-	{
-		MenuBuilder.BeginSection(TEXT("Event"), LOCTEXT("Event", "Event"));
-
-		MenuBuilder.AddMenuEntry
-		(
-			Commands.ShowTaskDependencies,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Type.Calls")
-		);
-
 		MenuBuilder.EndSection();
 	}
 
@@ -2954,12 +2946,6 @@ void STimingView::BindCommands()
 		//FCanExecuteAction(),
 		FCanExecuteAction::CreateLambda([] { return true; }),
 		FIsActionChecked::CreateSP(this, &STimingView::ShowHideGraphTrack_IsChecked));
-
-	CommandList->MapAction(
-		Commands.ShowTaskDependencies,
-		FExecuteAction::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_Execute),
-		FCanExecuteAction::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_CanExecute),
-		FIsActionChecked::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_IsChecked));
 
 	//TODO: let extenders to bind other commands
 
@@ -3923,7 +3909,6 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 		const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
 		MenuBuilder.AddMenuEntry(Commands.ShowMainGraphTrack);
-		MenuBuilder.AddMenuEntry(Commands.ShowTaskDependencies);
 		MenuBuilder.AddMenuEntry(Commands.ToggleCompactMode);
 		MenuBuilder.AddMenuEntry(Commands.AutoHideEmptyTracks);
 	}
@@ -4161,32 +4146,6 @@ TSharedPtr<FBaseTimingTrack> STimingView::FindTrack(uint64 InTrackId)
 TArray<Insights::ITimingViewExtender*> STimingView::GetExtenders() const
 {
 	return IModularFeatures::Get().GetModularFeatureImplementations<Insights::ITimingViewExtender>(Insights::TimingViewExtenderFeatureName);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::ContextMenu_ShowTaskDependecies_Execute()
-{
-	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
-	if (TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable())
-	{
-		TaskGraphManager->SetShowRelations(!TaskGraphManager->GetShowRelations());
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STimingView::ContextMenu_ShowTaskDependecies_CanExecute()
-{
-	return Insights::FTaskGraphProfilerManager::Get().IsValid() && Insights::FTaskGraphProfilerManager::Get()->GetIsAvailable();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STimingView::ContextMenu_ShowTaskDependecies_IsChecked()
-{
-	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
-	return TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable() && TaskGraphManager->GetShowRelations();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
