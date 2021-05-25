@@ -333,6 +333,35 @@ struct TAxisAlignedBox3
 			FVector3<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()) );
 	}
 
+	/**
+	 * Compute bounding box of 3D points returned by GetPoint(Index) for indices in range [0...MaxIndex)
+	 */
+	template<typename PointFunc>
+	static TAxisAlignedBox3<RealType> MakeBoundsFromIndices(int32 MaxIndex, PointFunc GetPoint)
+	{
+		TAxisAlignedBox3<RealType> Result = TAxisAlignedBox3<RealType>::Empty();
+		for (int32 Index = 0; Index < MaxIndex; ++Index)
+		{
+			Result.Contain(GetPoint(Index));
+		}
+		return Result;
+	}
+
+	/**
+	 * Compute bounding box of 3D points returned by GetPoint(Index) for indices in range for_each(IndexEnumerable)
+	 */
+	template<typename EnumerableIntType, typename PointFunc>
+	static TAxisAlignedBox3<RealType> MakeBoundsFromIndices(EnumerableIntType IndexEnumerable, PointFunc GetPoint)
+	{
+		TAxisAlignedBox3<RealType> Result = TAxisAlignedBox3<RealType>::Empty();
+		for (int32 Index : IndexEnumerable)
+		{
+			Result.Contain(GetPoint(Index));
+		}
+		return Result;
+	}
+
+
 	FVector3<RealType> Center() const
 	{
 		return FVector3<RealType>(
@@ -444,6 +473,11 @@ struct TAxisAlignedBox3
 			delta_z = 0;
 		}
 		return (RealType)0.25 * (delta_x * delta_x + delta_y * delta_y + delta_z * delta_z);
+	}
+
+	RealType Dimension(int32 Index) const
+	{
+		return TMathUtil<RealType>::Max(Max[Index] - Min[Index], (RealType)0);
 	}
 
 	RealType Width() const
