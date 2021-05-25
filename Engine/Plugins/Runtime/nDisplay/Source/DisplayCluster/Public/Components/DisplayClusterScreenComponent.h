@@ -47,7 +47,7 @@ protected:
 	friend class FDisplayClusterConfiguratorScreenDetailCustomization;
 
 	/** Adjust the size of the screen. */
-	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Size", AllowPreserveRatio))
+	UPROPERTY(EditAnywhere, Category = "Screen Size", meta = (DisplayName = "Size", AllowPreserveRatio))
 	FVector2D SizeCm;
 #endif
 

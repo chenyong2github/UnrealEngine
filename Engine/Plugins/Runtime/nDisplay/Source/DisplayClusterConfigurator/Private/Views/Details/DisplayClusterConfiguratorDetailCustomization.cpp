@@ -438,7 +438,7 @@ void FDisplayClusterConfiguratorScreenDetailCustomization::CustomizeDetails(IDet
 	// This will detect custom ratios.
 	OnSizePropertyChanged();
 	
-	InLayoutBuilder.EditCategory("DisplayCluster")
+	InLayoutBuilder.EditCategory(TEXT("Screen Size"))
 	.AddCustomRow(RowName)
 	.NameWidget
 	[
