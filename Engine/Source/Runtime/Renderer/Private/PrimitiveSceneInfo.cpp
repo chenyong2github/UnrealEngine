@@ -1076,6 +1076,12 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 				Scene->GPUScene.PrimitivesToUpdate.Add(SceneInfo->PackedIndex);
 				Scene->GPUScene.PrimitivesMarkedToUpdate[SceneInfo->PackedIndex] = true;
 			}
+
+			// Force a primitive update in the Lumen scene
+			if (Scene->LumenSceneData)
+			{
+				Scene->LumenSceneData->UpdatePrimitiveInstanceOffset(SceneInfo->PackedIndex);
+			}
 		}
 	}
 
