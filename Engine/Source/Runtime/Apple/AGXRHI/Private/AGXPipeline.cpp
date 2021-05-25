@@ -273,7 +273,7 @@ struct FAGXGraphicsPipelineKey
 		Key.SetHashValue(Offset_AlphaToCoverage, NumBits_AlphaToCoverage, Init.NumSamples > 1 && BlendState->bUseAlphaToCoverage ? 1 : 0);
 		
 #if PLATFORM_MAC
-		Key.SetHashValue(Offset_PrimitiveTopology, NumBits_PrimitiveTopology, TranslatePrimitiveTopology(Init.PrimitiveType));
+		Key.SetHashValue(Offset_PrimitiveTopology, NumBits_PrimitiveTopology, AGXTranslatePrimitiveTopology(Init.PrimitiveType));
 #endif
 
 		FAGXVertexDeclaration* VertexDecl = (FAGXVertexDeclaration*)Init.BoundShaderState.VertexDeclarationRHI;
@@ -782,7 +782,7 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 	RenderPipelineDesc.SetSampleCount(NumSamples);
 	RenderPipelineDesc.SetAlphaToCoverageEnabled(NumSamples > 1 && BlendState->bUseAlphaToCoverage);
 #if PLATFORM_MAC
-	RenderPipelineDesc.SetInputPrimitiveTopology(TranslatePrimitiveTopology(Init.PrimitiveType));
+	RenderPipelineDesc.SetInputPrimitiveTopology(AGXTranslatePrimitiveTopology(Init.PrimitiveType));
 	DebugPipelineDesc.SetSampleCount(!bNoMSAA ? FMath::Max(Init.NumSamples, (uint16)1u) : (uint16)1u);
 	DebugPipelineDesc.SetInputPrimitiveTopology(mtlpp::PrimitiveTopologyClass::Point);
 #endif

@@ -299,7 +299,7 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 #endif // PLATFORM_MAC_ARM64
 }
 
-mtlpp::PrimitiveTopologyClass TranslatePrimitiveTopology(uint32 PrimitiveType)
+mtlpp::PrimitiveTopologyClass AGXTranslatePrimitiveTopology(uint32 PrimitiveType)
 {
 	switch (PrimitiveType)
 	{
