@@ -59,6 +59,11 @@ namespace Chaos
 			bUseContactGraph = bInUseContactGraph;
 		}
 
+#if !UE_BUILD_SHIPPING
+		// For debugging onlue: run some (slow) validation checks on the graph and log any errors. Return false if there were errors.
+		bool DebugCheckGraph(const FPBDConstraintGraph& ConstraintGraph) const;
+#endif
+
 	private:
 		void ComputeContactGraph(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId);
 		void ComputeIslandColoring(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId);
