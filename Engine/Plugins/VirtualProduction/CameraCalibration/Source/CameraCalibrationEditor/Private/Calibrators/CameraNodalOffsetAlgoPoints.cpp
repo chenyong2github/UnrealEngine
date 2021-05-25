@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "CameraNodalOffsetAlgoPoints.h"
 #include "AssetEditor/NodalOffsetTool.h"
 #include "CalibrationPointComponent.h"
