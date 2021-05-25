@@ -82,6 +82,12 @@ public:
 	/** Returns true if encoder mapping is required for FIZ data */
 	bool IsEncoderMappingNeeded() const { return bIsEncoderMappingNeeded; }
 
+	/** Returns a const reference to input data used to evaluate the lens file */
+	const FLensFileEvalData& GetLensFileEvalDataRef() const;
+
+	/** Enables/disables the application of the nodal offset to the camera component */
+	void SetApplyNodalOffset(bool bInApplyNodalOffset);
+
 protected:
 	/** Applies FIZ data coming from LiveLink stream. Lens file is used if encoder mapping is required  */
 	void ApplyFIZ(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData);
@@ -142,6 +148,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool bShouldUpdateVisualComponentOnChange = true;
 #endif
+
+protected:
+
+	/** Caches the latest inputs to the LensFile evaluation */
+	FLensFileEvalData LensFileEvalData;
 
 private:
 	/** Whether incoming data requires encoder mapping */

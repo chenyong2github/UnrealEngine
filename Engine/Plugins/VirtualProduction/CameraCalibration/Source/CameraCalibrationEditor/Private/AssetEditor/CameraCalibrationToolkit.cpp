@@ -3,6 +3,8 @@
 #include "CameraCalibrationToolkit.h"
 
 #include "LensFile.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "SLensEvaluation.h"
 #include "SLensFilePanel.h"
 #include "SNodalOffsetToolPanel.h"
@@ -113,7 +115,7 @@ void FCameraCalibrationToolkit::RegisterTabSpawners(const TSharedRef<class FTabM
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
 
 	InTabManager->RegisterTabSpawner(CameraCalibrationToolkitUtils::LensEvaluationTabId, FOnSpawnTab::CreateSP(this, &FCameraCalibrationToolkit::HandleSpawnLensEvaluationTab))
-		.SetDisplayName(LOCTEXT("NodalOffsetTab", "Nodal Offset"))
+		.SetDisplayName(LOCTEXT("LensEvaluationTab", "Lens Evaluation"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
 }
