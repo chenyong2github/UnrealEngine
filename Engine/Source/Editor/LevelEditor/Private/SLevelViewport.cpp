@@ -4269,53 +4269,55 @@ void SLevelViewport::ShowMouseCaptureLabel(ELabelAnchorMode AnchorMode)
 	EVerticalAlignment VAlign = (EVerticalAlignment)((AnchorMode/3)+1);
 	EHorizontalAlignment HAlign = (EHorizontalAlignment)((AnchorMode%3)+1);
 	
-	SOverlay::FOverlaySlot& Slot = ViewportOverlay->AddSlot();
-	PIEOverlaySlotIndex = Slot.ZOrder;
+	{
+		SOverlay::FScopedWidgetSlotArguments ScopedSlotArgumnet = ViewportOverlay->AddSlot();
+		PIEOverlaySlotIndex = ScopedSlotArgumnet.GetSlot()->GetZOrder();
 
-	Slot.HAlign(HAlign)
-	.VAlign(VAlign)
-	[
-		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-		.Visibility(this, &SLevelViewport::GetMouseCaptureLabelVisibility)
-		.ColorAndOpacity( this, &SLevelViewport::GetMouseCaptureLabelColorAndOpacity )
-		.ForegroundColor( FLinearColor::White )
-		.Padding(15.0f)
+		ScopedSlotArgumnet.HAlign(HAlign)
+		.VAlign(VAlign)
 		[
-			SNew( SButton )
-			.ButtonStyle( FEditorStyle::Get(), "EditorViewportToolBar.MenuButton" )
-			.IsFocusable(false)
-			.ButtonColorAndOpacity( FSlateColor(FLinearColor::Black) )
+			SNew( SBorder )
+			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+			.Visibility(this, &SLevelViewport::GetMouseCaptureLabelVisibility)
+			.ColorAndOpacity( this, &SLevelViewport::GetMouseCaptureLabelColorAndOpacity )
 			.ForegroundColor( FLinearColor::White )
+			.Padding(15.0f)
 			[
-				SNew( SHorizontalBox )
-				+ SHorizontalBox::Slot()
-				.MaxWidth(32.f)
-				.VAlign(VAlign_Center)
-				.Padding(0.0f, 2.0f, 2.0f, 2.0f)
+				SNew( SButton )
+				.ButtonStyle( FEditorStyle::Get(), "EditorViewportToolBar.MenuButton" )
+				.IsFocusable(false)
+				.ButtonColorAndOpacity( FSlateColor(FLinearColor::Black) )
+				.ForegroundColor( FLinearColor::White )
 				[
-					SNew( SVerticalBox )
-					+ SVerticalBox::Slot()
-					.MaxHeight(16.f)
+					SNew( SHorizontalBox )
+					+ SHorizontalBox::Slot()
+					.MaxWidth(32.f)
+					.VAlign(VAlign_Center)
+					.Padding(0.0f, 2.0f, 2.0f, 2.0f)
 					[
-						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("LevelViewport.CursorIcon"))
+						SNew( SVerticalBox )
+						+ SVerticalBox::Slot()
+						.MaxHeight(16.f)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("LevelViewport.CursorIcon"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(2.0f, 2.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &SLevelViewport::GetMouseCaptureLabelText)
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+						.ColorAndOpacity(FLinearColor::White)
 					]
 				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.Padding(2.0f, 2.0f)
-				[
-					SNew(STextBlock)
-					.Text(this, &SLevelViewport::GetMouseCaptureLabelText)
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
-					.ColorAndOpacity(FLinearColor::White)
-				]
 			]
-		]
-	];
+		];
+	}
 }
 
 void SLevelViewport::HideMouseCaptureLabel()

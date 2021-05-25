@@ -365,22 +365,26 @@ FMargin UDynamicEntryBoxBase::BuildEntryPadding(const FVector2D& DesiredSpacing)
 
 void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 {
-	FSlotBase* NewSlot = nullptr;
 	if (EntryBoxType == EDynamicBoxType::Wrap || EntryBoxType == EDynamicBoxType::VerticalWrap)
 	{
-		NewSlot = &StaticCastSharedPtr<SWrapBox>(MyPanelWidget)->AddSlot()
+		StaticCastSharedPtr<SWrapBox>(MyPanelWidget)->AddSlot()
 			.FillEmptySpace(false)
 			.HAlign(EntryHorizontalAlignment)
-			.VAlign(EntryVerticalAlignment);
+			.VAlign(EntryVerticalAlignment)
+			[
+				ChildWidget.TakeWidget()
+			];
 	}
 	else if (EntryBoxType == EDynamicBoxType::Radial)
 	{
-		NewSlot = &StaticCastSharedPtr<SRadialBox>(MyPanelWidget)->AddSlot();
+		StaticCastSharedPtr<SRadialBox>(MyPanelWidget)->AddSlot()
+			[
+				ChildWidget.TakeWidget()
+			];
 	}
 	else if (EntryBoxType == EDynamicBoxType::Overlay)
 	{
 		const int32 ChildIdx = MyPanelWidget->GetChildren()->Num();
-		SOverlay::FOverlaySlot& OverlaySlot = (SOverlay::FOverlaySlot&)StaticCastSharedPtr<SOverlay>(MyPanelWidget)->AddSlot();
 
 		EHorizontalAlignment HAlign = EntryHorizontalAlignment;
 		EVerticalAlignment VAlign = EntryVerticalAlignment;
@@ -401,33 +405,53 @@ void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 			VAlign = EntrySpacing.Y >= 0.f ? EVerticalAlignment::VAlign_Top : EVerticalAlignment::VAlign_Bottom;
 		}
 		
-		OverlaySlot.SetHorizontalAlignment(HAlign);
-		OverlaySlot.SetVerticalAlignment(VAlign);
-		OverlaySlot.SetPadding(BuildEntryPadding(TargetSpacing));
-
-		NewSlot = &OverlaySlot;
+		StaticCastSharedPtr<SOverlay>(MyPanelWidget)->AddSlot()
+			.HAlign(HAlign)
+			.VAlign(VAlign)
+			.Padding(BuildEntryPadding(TargetSpacing))
+			[
+				ChildWidget.TakeWidget()
+			];
 	}
 	else
 	{
 		const bool bIsHBox = EntryBoxType == EDynamicBoxType::Horizontal;
 		const bool bIsFirstChild = MyPanelWidget->GetChildren()->Num() == 0;
 
-		SBoxPanel::FSlot& BoxPanelSlot = bIsHBox ? (SBoxPanel::FSlot&)StaticCastSharedPtr<SHorizontalBox>(MyPanelWidget)->AddSlot().MaxWidth(MaxElementSize) : (SBoxPanel::FSlot&)StaticCastSharedPtr<SVerticalBox>(MyPanelWidget)->AddSlot().MaxHeight(MaxElementSize);
-		BoxPanelSlot.SetHorizontalAlignment(EntryHorizontalAlignment);
-		BoxPanelSlot.SetVerticalAlignment(EntryVerticalAlignment);
-		BoxPanelSlot.SizeParam = UWidget::ConvertSerializedSizeParamToRuntime(EntrySizeRule);
-
 		FMargin Padding;
 		Padding.Top = bIsHBox || bIsFirstChild ? 0.f : EntrySpacing.Y;
 		Padding.Left = bIsHBox && !bIsFirstChild ? EntrySpacing.X : 0.f;
-		BoxPanelSlot.SetPadding(Padding);
 
-		NewSlot = &BoxPanelSlot;
-	}
-
-	if (ensure(NewSlot))
-	{
-		NewSlot->AttachWidget(ChildWidget.TakeWidget());
+		if (bIsHBox)
+		{
+			SHorizontalBox::FSlot* BoxPanelSlot = nullptr;
+			StaticCastSharedPtr<SHorizontalBox>(MyPanelWidget)->AddSlot()
+				.Expose(BoxPanelSlot)
+				.MaxWidth(MaxElementSize)
+				.HAlign(EntryHorizontalAlignment)
+				.VAlign(EntryVerticalAlignment)
+				.Padding(Padding)
+				[
+					ChildWidget.TakeWidget()
+				];
+			// Todo, add to declaration when SBoxPanel because aware of FSlotArguments
+			BoxPanelSlot->SizeParam = UWidget::ConvertSerializedSizeParamToRuntime(EntrySizeRule);
+		}
+		else
+		{
+			SVerticalBox::FSlot* BoxPanelSlot = nullptr;
+			StaticCastSharedPtr<SVerticalBox>(MyPanelWidget)->AddSlot()
+				.Expose(BoxPanelSlot)
+				.MaxHeight(MaxElementSize)
+				.HAlign(EntryHorizontalAlignment)
+				.VAlign(EntryVerticalAlignment)
+				.Padding(Padding)
+				[
+					ChildWidget.TakeWidget()
+				];
+			// Todo, add to declaration when SBoxPanel because aware of FSlotArguments
+			BoxPanelSlot->SizeParam = UWidget::ConvertSerializedSizeParamToRuntime(EntrySizeRule);
+		}
 	}
 }
 

@@ -317,6 +317,28 @@ public:
 	}
 
 public:
+	struct FSlotArguments : protected TSlotBase<SlotType>::FSlotArguments
+	{
+		FSlotArguments()
+			: TSlotBase<SlotType>::FSlotArguments(TSlotBase<SlotType>::ConstructSlotIsFChildren)
+		{
+		}
+
+		friend TSingleWidgetChildrenWithSlot;
+
+		typename SlotType::FSlotArguments& operator[](const TSharedRef<SWidget>& InChildWidget)
+		{
+			TSlotBase<SlotType>::FSlotArguments::AttachWidget(InChildWidget);
+			return static_cast<typename SlotType::FSlotArguments&>(*this);
+		}
+	};
+
+	void Construct(FSlotArguments&& InArgs)
+	{
+		TSlotBase<SlotType>::Construct(*this, MoveTemp(InArgs));
+	}
+
+public:
 	TSlotBase<SlotType>& AsSlot() { return *this; }
 	const TSlotBase<SlotType>& AsSlot() const { return *this; }
 
@@ -376,6 +398,17 @@ public:
 
 	FSingleWidgetChildrenWithBasicLayoutSlot(std::nullptr_t) = delete;
 	FSingleWidgetChildrenWithBasicLayoutSlot(std::nullptr_t, const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign) = delete;
+
+public:
+	SLATE_SLOT_BEGIN_ARGS_TwoMixins(FSingleWidgetChildrenWithBasicLayoutSlot, TSingleWidgetChildrenWithSlot<FSingleWidgetChildrenWithBasicLayoutSlot>, TPaddingWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>, TAlignmentWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>)
+	SLATE_SLOT_END_ARGS()
+
+	void Construct(FSlotArguments&& InArgs)
+	{
+		TSingleWidgetChildrenWithSlot<FSingleWidgetChildrenWithBasicLayoutSlot>::Construct(MoveTemp(InArgs));
+		TPaddingWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>::ConstructMixin(*this, MoveTemp(InArgs));
+		TAlignmentWidgetSlotMixin<FSingleWidgetChildrenWithBasicLayoutSlot>::ConstructMixin(*this, MoveTemp(InArgs));
+	}
 };
 
 
@@ -431,6 +464,25 @@ public:
 		return Index;
 	}
 
+	int32 AddSlot(typename SlotType::FSlotArguments&& SlotArgument)
+	{
+		TUniquePtr<SlotType> NewSlot = SlotArgument.StealSlot();
+		check(NewSlot.Get());
+		int32 Result = Children.Add(MoveTemp(NewSlot));
+		Children[Result]->Construct(*this, MoveTemp(SlotArgument));
+		return Result;
+	}
+
+	void AddSlots(TArray<typename SlotType::FSlotArguments> SlotArguments)
+	{
+		Children.Reserve(Children.Num() + SlotArguments.Num());
+		for (typename SlotType::FSlotArguments& Arg : SlotArguments)
+		{
+			AddSlot(MoveTemp(Arg));
+		}
+		SlotArguments.Reset();
+	}
+
 	void RemoveAt( int32 Index )
 	{
 		// NOTE:
@@ -481,6 +533,14 @@ public:
 		check(Slot);
 		Children.Insert(TUniquePtr<SlotType>(Slot), Index);
 		Slot->SetOwner(*this);
+	}
+
+	void InsertSlot(typename SlotType::FSlotArguments&& SlotArgument, int32 Index)
+	{
+		TUniquePtr<SlotType> NewSlot = SlotArgument.StealSlot();
+		check(NewSlot.Get());
+		Children.Insert(MoveTemp(NewSlot), Index);
+		Children[Index]->Construct(*this, MoveTemp(SlotArgument));
 	}
 
 	void Move(int32 IndexToMove, int32 IndexToDestination)
@@ -534,8 +594,56 @@ public:
 		Children.Swap(IndexA, IndexB);
 		GetOwner().Invalidate(EInvalidateWidgetReason::ChildOrder);
 	}
-};
 
+public:
+	/** At the end of the scope a slot will be constructed and added to the FChildren. */
+	struct FScopedWidgetSlotArguments : public SlotType::FSlotArguments
+	{
+	public:
+		FScopedWidgetSlotArguments(TUniquePtr<SlotType> InSlot, TPanelChildren<SlotType>& InChildren, int32 InIndex)
+			: SlotType::FSlotArguments(MoveTemp(InSlot))
+			, Children(InChildren)
+			, Index(InIndex)
+		{
+		}
+		FScopedWidgetSlotArguments(TUniquePtr<SlotType> InSlot, TPanelChildren<SlotType>& InChildren, int32 InIndex, TFunction<void(const SlotType*, int32)> OnAdded)
+			: SlotType::FSlotArguments(MoveTemp(InSlot))
+			, Children(InChildren)
+			, Index(InIndex)
+			, Added(OnAdded)
+		{
+		}
+	
+		FScopedWidgetSlotArguments(const FScopedWidgetSlotArguments&) = delete;
+		FScopedWidgetSlotArguments& operator=(const FScopedWidgetSlotArguments&) = delete;
+		FScopedWidgetSlotArguments(FScopedWidgetSlotArguments&&) = default;
+		FScopedWidgetSlotArguments& operator=(FScopedWidgetSlotArguments&&) = default;
+	
+		virtual ~FScopedWidgetSlotArguments()
+		{
+			if (const SlotType* Slot = this->GetSlot())	// Is nullptr when the FScopedWidgetSlotArguments was moved-constructed.
+			{
+				if (Index == INDEX_NONE)
+				{
+					Index = Children.AddSlot(MoveTemp(*this));
+				}
+				else
+				{
+					Children.InsertSlot(MoveTemp(*this), Index);
+				}
+				if (Added)
+				{
+					Added(Slot, Index);
+				}
+			}
+		}
+
+	private:
+		TPanelChildren<SlotType>& Children;
+		int32 Index;
+		TFunction<void(const SlotType*, int32)> Added;
+	};
+};
 
 
 template<typename SlotType>

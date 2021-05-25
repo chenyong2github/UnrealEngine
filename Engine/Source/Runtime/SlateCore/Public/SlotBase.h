@@ -6,21 +6,25 @@
 #include "Misc/Attribute.h"
 #include "Widgets/InvalidateWidgetReason.h"
 
-class SWidget;
 class FChildren;
+class SWidget;
 
 /** Slot are a container of a SWidget used by the FChildren. */
 class SLATECORE_API FSlotBase
 {
 public:
 	FSlotBase();
-	FSlotBase(const FChildren& Children);
+	FSlotBase(const FChildren& InParent);
 	FSlotBase(const TSharedRef<SWidget>& InWidget);
 	FSlotBase& operator=(const FSlotBase&) = delete;
 	FSlotBase(const FSlotBase&) = delete;
 
 	virtual ~FSlotBase();
 
+public:
+	struct FSlotArguments {};
+
+public:
 	UE_DEPRECATED(5.0, "AttachWidgetParent is not used anymore. Use get SetOwner.")
 	void AttachWidgetParent(SWidget* InParent) { }
 
@@ -36,9 +40,13 @@ public:
 	 */
 	SWidget* GetOwnerWidget() const;
 
-	/** Set the owner of the slot. */
+	/**
+	 * Set the owner of the slot.
+	 * Slots cannot be reassigned to different parents.
+	 */
 	void SetOwner(const FChildren& Children);
 
+	/** Attach the child widget the slot now owns. */
 	FORCEINLINE_DEBUGGABLE void AttachWidget( const TSharedRef<SWidget>& InWidget )
 	{
 		// TODO: If we don't hold a reference here, ~SWidget() could called on the old widget before the assignment takes place
@@ -54,7 +62,10 @@ public:
 	 * There will always be a widget in the slot; sometimes it is
 	 * the SNullWidget instance.
 	 */
-	FORCEINLINE_DEBUGGABLE const TSharedRef<SWidget>& GetWidget() const { return Widget; }
+	FORCEINLINE_DEBUGGABLE const TSharedRef<SWidget>& GetWidget() const
+	{
+		return Widget;
+	}
 
 	/**
 	 * Remove the widget from its current slot.
@@ -63,6 +74,7 @@ public:
 	 */
 	const TSharedPtr<SWidget> DetachWidget();
 
+	/** Invalidate the widget's owner. */
 	void Invalidate(EInvalidateWidgetReason InvalidateReason);
 
 protected:
@@ -112,7 +124,7 @@ protected:
 
 
 /** A slot that can be used by the declarative syntax. */
-template<typename SlotType>
+template <typename SlotType>
 class TSlotBase : public FSlotBase
 {
 public:
@@ -124,9 +136,82 @@ public:
 		return static_cast<SlotType&>(*this);
 	}
 
-	SlotType& Expose( SlotType*& OutVarToInit )
+	SlotType& Expose(SlotType*& OutVarToInit)
 	{
 		OutVarToInit = static_cast<SlotType*>(this);
 		return static_cast<SlotType&>(*this);
+	}
+
+
+	/** Argument to indicate the Slot is also its owner. */
+	enum EConstructSlotIsFChildren { ConstructSlotIsFChildren };
+
+	/** Struct to construct a slot. */
+	struct FSlotArguments : public FSlotBase::FSlotArguments
+	{
+	public:
+		FSlotArguments(EConstructSlotIsFChildren) {}
+		FSlotArguments(TUniquePtr<SlotType> InSlot)
+			: Slot(MoveTemp(InSlot))
+		{
+			check(Slot.Get());
+		}
+		FSlotArguments(const FSlotArguments&) = delete;
+		FSlotArguments& operator=(const FSlotArguments&) = delete;
+		FSlotArguments(FSlotArguments&&) = default;
+		FSlotArguments& operator=(FSlotArguments&&) = default;
+
+
+	public:
+		/** Attach the child widget the slot will own. */
+		typename SlotType::FSlotArguments& operator[](const TSharedRef<SWidget>& InChildWidget)
+		{
+			ChildWidget = InChildWidget;
+			return Me();
+		}
+
+		/** Initialize OutVarToInit with the slot that is being constructed. */
+		typename SlotType::FSlotArguments& Expose(SlotType*& OutVarToInit)
+		{
+			OutVarToInit = Slot.Get();
+			return Me();
+		}
+
+		/** Attach the child widget the slot will own. */
+		void AttachWidget(const TSharedRef<SWidget>& InChildWidget)
+		{
+			ChildWidget = InChildWidget;
+		}
+
+		/** @return the child widget that will be owned by the slot. */
+		TSharedPtr<SWidget> GetAttachedWidget() const { return ChildWidget; }
+
+		/** @return the slot that is being constructed. */
+		SlotType* GetSlot() const { return Slot.Get(); }
+
+		/** Steal the slot that is being constructed from the FSlotArguments. */
+		TUniquePtr<SlotType> StealSlot()
+		{
+			return MoveTemp(Slot);
+		}
+
+		/** Used by the named argument pattern as a safe way to 'return *this' for call-chaining purposes. */
+		typename SlotType::FSlotArguments& Me()
+		{
+			return static_cast<typename SlotType::FSlotArguments&>(*this);
+		}
+
+	private:
+		TUniquePtr<SlotType> Slot;
+		TSharedPtr<SWidget> ChildWidget;
+	};
+
+	void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+	{
+		if (InArgs.GetAttachedWidget())
+		{
+			AttachWidget(InArgs.GetAttachedWidget().ToSharedRef());
+		}
+		SetOwner(SlotOwner);
 	}
 };

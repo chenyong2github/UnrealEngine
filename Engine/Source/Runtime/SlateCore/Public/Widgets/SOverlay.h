@@ -37,6 +37,7 @@ class SLATECORE_API SOverlay
 public:	
 
 	/** A slot that support alignment of content and padding and z-order */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	class SLATECORE_API FOverlaySlot : public TBasicLayoutWidgetSlot<FOverlaySlot>
 	{
 	public:
@@ -45,20 +46,43 @@ public:
 			, ZOrder(0)
 		{ }
 
-		/** Slots with larger ZOrder values will draw above slots with smaller ZOrder values.  Slots
-		with the same ZOrder will simply draw in the order they were added.  Currently this only
-		works for overlay slots that are added dynamically with AddWidget() and RemoveWidget() */
+		SLATE_SLOT_BEGIN_ARGS(FOverlaySlot, TBasicLayoutWidgetSlot<FOverlaySlot>)
+			SLATE_ARGUMENT(TOptional<int32>, ZOrder)
+		SLATE_SLOT_END_ARGS()
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+		{
+			TBasicLayoutWidgetSlot<FOverlaySlot>::Construct(SlotOwner, MoveTemp(InArgs));
+			ZOrder = InArgs._ZOrder.Get(ZOrder);
+		}
+
+		int32 GetZOrder() const { return ZOrder; }
+
+		void SetZOrder(int32 InOrder)
+		{
+			if (ZOrder != InOrder)
+			{
+				ZOrder = InOrder;
+				FSlotBase::Invalidate(EInvalidateWidgetReason::Layout);
+			}
+		}
+
+	public:
+		/**
+		 * Slots with larger ZOrder values will draw above slots with smaller ZOrder values.  Slots
+		 * with the same ZOrder will simply draw in the order they were added.  Currently this only
+		 * works for overlay slots that are added dynamically with AddWidget() and RemoveWidget()
+		 */
+		UE_DEPRECATED(5.0, "Direct access to ZOrder is now deprecated. Use the getter or setter.")
 		int32 ZOrder;
 	};
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SLATE_BEGIN_ARGS( SOverlay )
 	{
 		_Visibility = EVisibility::SelfHitTestInvisible;
 	}
-
-		SLATE_SUPPORTS_SLOT( SOverlay::FOverlaySlot )
-
+		SLATE_SLOT_ARGUMENT( SOverlay::FOverlaySlot, Slots )
 	SLATE_END_ARGS()
 
 	SOverlay();
@@ -80,8 +104,9 @@ public:
 	 */
 	bool RemoveSlot( TSharedRef< SWidget > Widget );
 
+	using FScopedWidgetSlotArguments = TPanelChildren<FOverlaySlot>::FScopedWidgetSlotArguments;
 	/** Adds a slot at the specified location (ignores Z-order) */
-	FOverlaySlot& AddSlot(int32 ZOrder=INDEX_NONE);
+	FScopedWidgetSlotArguments AddSlot(int32 ZOrder=INDEX_NONE);
 
 	/** Removes a slot at the specified location */
 	void RemoveSlot(int32 ZOrder=INDEX_NONE);
@@ -90,10 +115,7 @@ public:
 	void ClearChildren();
 
 	/** @return a new slot. Slots contain children for SOverlay */
-	static FOverlaySlot& Slot()
-	{
-		return *(new FOverlaySlot());
-	}
+	static FOverlaySlot::FSlotArguments Slot();
 
 	// SWidget interface
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;

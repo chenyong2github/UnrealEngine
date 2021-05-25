@@ -14,7 +14,8 @@ UCommonVisibilitySwitcherSlot::UCommonVisibilitySwitcherSlot(const FObjectInitia
 
 void UCommonVisibilitySwitcherSlot::BuildSlot(TSharedRef<SOverlay> Overlay)
 {
-	Slot = &Overlay->AddSlot()
+	Overlay->AddSlot()
+		.Expose(Slot)
 		.Padding(Padding)
 		.HAlign(HorizontalAlignment)
 		.VAlign(VerticalAlignment)

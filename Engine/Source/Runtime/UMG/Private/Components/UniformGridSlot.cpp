@@ -8,7 +8,7 @@
 
 UUniformGridSlot::UUniformGridSlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, Slot(NULL)
+	, Slot(nullptr)
 {
 	HorizontalAlignment = HAlign_Left;
 	VerticalAlignment = VAlign_Top;
@@ -18,16 +18,17 @@ void UUniformGridSlot::ReleaseSlateResources(bool bReleaseChildren)
 {
 	Super::ReleaseSlateResources(bReleaseChildren);
 
-	Slot = NULL;
+	Slot = nullptr;
 }
 
 void UUniformGridSlot::BuildSlot(TSharedRef<SUniformGridPanel> GridPanel)
 {
-	Slot = &GridPanel->AddSlot(Column, Row)
+	GridPanel->AddSlot(Column, Row)
+		.Expose(Slot)
 		.HAlign(HorizontalAlignment)
 		.VAlign(VerticalAlignment)
 		[
-			Content == NULL ? SNullWidget::NullWidget : Content->TakeWidget()
+			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
 }
 
