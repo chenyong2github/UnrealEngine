@@ -90,7 +90,7 @@ struct FGroomCacheVertexData
 	FGroomCacheVertexData() = default;
 	FGroomCacheVertexData(struct FHairStrandsPoints&& PointsData);
 
-	TArray<FVector> PointsPosition;
+	TArray<FVector3f> PointsPosition;
 	TArray<float> PointsRadius;
 	TArray<float> PointsCoordU;
 	TArray<FLinearColor> PointsBaseColor;

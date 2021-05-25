@@ -98,7 +98,7 @@ uint64 FGeometryCacheMeshData::GetHash() const
 
 	if (Positions.Num() > 0)
 	{
-		Hash = CityHash64((char*) Positions.GetData(), Positions.Num() * sizeof(FVector));
+		Hash = CityHash64((char*) Positions.GetData(), Positions.Num() * sizeof(FVector3f));
 	}
 
 	if (TextureCoordinates.Num() > 0)

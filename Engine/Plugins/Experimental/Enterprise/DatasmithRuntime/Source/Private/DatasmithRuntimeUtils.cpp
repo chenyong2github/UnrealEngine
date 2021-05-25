@@ -525,7 +525,7 @@ namespace DatasmithRuntime
 		for (int32 Index = 0; Index < DirectionCount; ++Index)
 		{
 			FPoly&	Polygon = Element.AddZeroed_GetRef();
-			FVector Base, AxisX, AxisY;
+			FVector3f Base, AxisX, AxisY;
 
 			Polygon.Init();
 			Polygon.Normal = Planes[Index];
@@ -534,16 +534,16 @@ namespace DatasmithRuntime
 			Base = Planes[Index] * Planes[Index].W;
 
 			Polygon.Vertices.Reserve(4);
-			new(Polygon.Vertices) FVector(Base + AxisX * HalfWorldMax + AxisY * HalfWorldMax);
-			new(Polygon.Vertices) FVector(Base + AxisX * HalfWorldMax - AxisY * HalfWorldMax);
-			new(Polygon.Vertices) FVector(Base - AxisX * HalfWorldMax - AxisY * HalfWorldMax);
-			new(Polygon.Vertices) FVector(Base - AxisX * HalfWorldMax + AxisY * HalfWorldMax);
+			new(Polygon.Vertices) FVector3f(Base + AxisX * HalfWorldMax + AxisY * HalfWorldMax);
+			new(Polygon.Vertices) FVector3f(Base + AxisX * HalfWorldMax - AxisY * HalfWorldMax);
+			new(Polygon.Vertices) FVector3f(Base - AxisX * HalfWorldMax - AxisY * HalfWorldMax);
+			new(Polygon.Vertices) FVector3f(Base - AxisX * HalfWorldMax + AxisY * HalfWorldMax);
 
 			for (int32 Jndex = 0; Jndex < DirectionCount; ++Jndex)
 			{
 				if(Index != Jndex)
 				{
-					if(!Polygon.Split(-FVector(Planes[Jndex]), Planes[Jndex] * Planes[Jndex].W))
+					if(!Polygon.Split(-FVector3f(Planes[Jndex]), Planes[Jndex] * Planes[Jndex].W))
 					{
 						Polygon.Vertices.Empty();
 						break;
@@ -573,7 +573,7 @@ namespace DatasmithRuntime
 
 		for (FPoly& Poly : Element)
 		{
-			for (FVector& Position : Poly.Vertices)
+			for (FVector3f& Position : Poly.Vertices)
 			{
 				ConvexElem.VertexData.Add(Position);
 			}
