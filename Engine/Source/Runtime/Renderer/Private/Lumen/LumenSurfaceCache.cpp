@@ -20,7 +20,7 @@ FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheAtlasSize(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSurfaceCacheCompress = 0;
+int32 GLumenSurfaceCacheCompress = 1;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheCompress(
 	TEXT("r.LumenScene.SurfaceCache.Compress"),
 	GLumenSurfaceCacheCompress,
@@ -115,20 +115,20 @@ const TRefCountPtr<IPooledRenderTarget>& CreateAtlas(FRDGBuilder& GraphBuilder, 
 		TexFlags |= TexCreate_RenderTargetable;
 	}
 
-	// With UAV aliasing we can directly write into a BC target
+	FRHITextureCreateInfo CreateInfo = FRDGTextureDesc::Create2D(
+		PageAtlasSize,
+		bCompress ? Config.CompressedFormat : Config.UncompressedFormat,
+		FClearValueBinding::None,
+		TexFlags);
+
+	// With UAV aliasing we can directly write into a BC target by overriding UAV format
 	if (PhysicalAtlasCompression == ESurfaceCacheCompression::UAVAliasing)
 	{
-		TexFlags |= TexCreate_UAV;
+		CreateInfo.Flags |= TexCreate_UAV;
+		CreateInfo.UAVFormat = Config.CompressedUAVFormat;
 	}
 
-	FRDGTextureRef AtlasRDG = GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2D(
-			PageAtlasSize,
-			bCompress ? Config.CompressedFormat : Config.UncompressedFormat,
-			FClearValueBinding::None,
-			TexFlags),
-		Name);
-
+	FRDGTextureRef AtlasRDG = GraphBuilder.CreateTexture(CreateInfo, Name);
 	return GraphBuilder.ConvertToExternalTexture(AtlasRDG);
 }
 
@@ -229,12 +229,11 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 			const FLumenSurfaceLayerConfig& LayerConfig = GetSurfaceLayerConfig(Pass.Layer);
 			const FIntPoint CompressedCardCaptureAtlasSize = FIntPoint::DivideAndRoundUp(CardCaptureAtlasSize, 4);
 			const FIntPoint CompressedPhysicalAtlasSize = FIntPoint::DivideAndRoundUp(PhysicalAtlasSize, 4);
-			const FRDGTextureUAVDesc CompressedSurfaceUAVDesc(Pass.SurfaceCacheAtlas, 0, LayerConfig.CompressedUAVFormat);
 
 			FLumenCardCopyParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyParameters>();
 			PassParameters->PS.View = View.ViewUniformBuffer;
-			PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(CompressedSurfaceUAVDesc) : nullptr;
-			PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(CompressedSurfaceUAVDesc) : nullptr;
+			PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
+			PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
 			PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
 			PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
 
