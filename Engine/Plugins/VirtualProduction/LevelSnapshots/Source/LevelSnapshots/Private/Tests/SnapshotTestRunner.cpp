@@ -3,6 +3,7 @@
 #include "SnapshotTestRunner.h"
 
 #include "LevelSnapshotsFunctionLibrary.h"
+#include "PreviewScene.h"
 
 FName FSnapshotTestRunner::DefaultSnapshotId = FName("DefaultSnapshotId");
 
