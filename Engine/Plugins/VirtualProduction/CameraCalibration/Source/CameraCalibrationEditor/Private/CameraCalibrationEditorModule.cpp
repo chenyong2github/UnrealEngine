@@ -4,6 +4,7 @@
 #include "CameraCalibrationEditorModule.h"
 
 #include "AssetEditor/CameraCalibrationCommands.h"
+#include "CameraCalibrationEditorLog.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions/AssetTypeActions_LensFile.h"
 #include "CameraCalibrationTypes.h"
