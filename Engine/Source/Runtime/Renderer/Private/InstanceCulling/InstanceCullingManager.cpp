@@ -53,8 +53,6 @@ int32 FInstanceCullingManager::RegisterView(const Nanite::FPackedViewParams& Par
 	return CullingViews.Num() - 1;
 }
 
-#if GPUCULL_TODO
-
 class FCullInstancesCs : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCullInstancesCs);
@@ -97,11 +95,9 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FCullInstancesCs, "/Engine/Private/InstanceCulling/CullInstances.usf", "CullInstancesCs", SF_Compute);
 
-#endif // GPUCULL_TODO
 
 void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
 {
-#if GPUCULL_TODO
 	TRACE_CPUPROFILER_EVENT_SCOPE(FInstanceCullingManager::CullInstances);
 	int32 NumViews = CullingViews.Num();
 	int32 NumInstances = GPUScene.InstanceDataAllocator.GetMaxSize();
@@ -165,5 +161,4 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 	}
 
 	BufferUploader.Submit(GraphBuilder);
-#endif // GPUCULL_TODO
 }

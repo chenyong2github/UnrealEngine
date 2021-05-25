@@ -17,16 +17,12 @@ public:
 	/**
 	 * One bit per Instance per registered view produced by CullInstances.
 	 */
-	// GPUCULL_TODO: Currently external buffers since the instance cull happens early and the one-true RDGBuilder isn't created yet
-	//TRefCountPtr<FRDGPooledBuffer> VisibleInstanceFlags;
 	FRDGBufferRef VisibleInstanceFlags = nullptr;
 	
 	/**
 	 * Write offset used by all the instance ID expand passes to allocate space in the global instance Id buffer.
 	 * Initialized to zero by CullInstances.
 	 */
-	// GPUCULL_TODO: Currently external buffers since the instance cull happens early and the one-true RDGBuilder isn't created yet
-	//TRefCountPtr<FRDGPooledBuffer> InstanceIdOutOffsetBuffer;
 	FRDGBufferRef InstanceIdOutOffsetBuffer = nullptr;
 	int32 NumInstances = 0;
 	int32 NumViews = 0;

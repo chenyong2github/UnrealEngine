@@ -711,11 +711,7 @@ protected:
 
 	int8 PrimitiveIdStreamIndex[static_cast<int>(EVertexInputStreamType::Count)];
 
-#if GPUCULL_TODO
 	static constexpr int32 PrimitiveIdStreamStride = 0;
-#else // !GPUCULL_TODO
-	static constexpr int32 PrimitiveIdStreamStride = sizeof(uint32);
-#endif // GPUCULL_TODO
 
 private:
 

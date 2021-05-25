@@ -378,13 +378,8 @@ FORCEINLINE int32 TranslatePrimitiveId(int32 DrawPrimitiveIdIn, int32 DynamicPri
 		checkSlow(DrawPrimitiveId < DynamicPrimitiveIdMax);
 	}
 
-#if GPUCULL_TODO
 	// Append flag to mark this as a non-instance data index (which is then treated as a primitive ID in the SceneData.ush loading
 	return DrawPrimitiveId | (1U << 31U);
-#else
-	return DrawPrimitiveId;
-#endif
-
 }
 
 /**
@@ -469,13 +464,9 @@ static void BuildMeshDrawCommandPrimitiveIdBuffer(
 						VisibleMeshDrawCommand.MeshFillMode,
 						VisibleMeshDrawCommand.MeshCullMode,
 						VisibleMeshDrawCommand.Flags,
-#if GPUCULL_TODO
 						VisibleMeshDrawCommand.SortKey,
 						VisibleMeshDrawCommand.RunArray,
 						VisibleMeshDrawCommand.NumRuns);
-#else //!GPUCULL_TODO
-						VisibleMeshDrawCommand.SortKey);
-#endif // GPUCULL_TODO
 
 					NewVisibleMeshDrawCommand.PrimitiveIdBufferOffset = PrimitiveIdIndex;
 					TempVisibleMeshDrawCommands.Emplace(MoveTemp(NewVisibleMeshDrawCommand));
@@ -538,7 +529,6 @@ void SetupGPUInstancedDraws(
 	int32& VisibleMeshDrawCommandsNum,
 	int32& NewPassVisibleMeshDrawCommandsNum)
 {
-#if GPUCULL_TODO
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BuildMeshDrawCommandPrimitiveIdBuffer);
 
 	FVisibleMeshDrawCommand* RESTRICT PassVisibleMeshDrawCommands = VisibleMeshDrawCommandsInOut.GetData();
@@ -619,7 +609,6 @@ void SetupGPUInstancedDraws(
 
 	// Resize array post-compaction of dynamic instances
 	VisibleMeshDrawCommandsInOut.SetNum(NumDrawCommandsOut, false);
-#endif // GPUCULL_TODO
 }
 
 /**
@@ -842,13 +831,9 @@ void ApplyViewOverridesToMeshDrawCommands(
 					VisibleMeshDrawCommand.MeshFillMode,
 					VisibleMeshDrawCommand.MeshCullMode,
 					VisibleMeshDrawCommand.Flags,
-#if GPUCULL_TODO
 					VisibleMeshDrawCommand.SortKey,
 					VisibleMeshDrawCommand.RunArray,
 					VisibleMeshDrawCommand.NumRuns);
-#else //!GPUCULL_TODO
-					VisibleMeshDrawCommand.SortKey);
-#endif // GPUCULL_TODO
 
 				TempVisibleMeshDrawCommands.Add(NewVisibleMeshDrawCommand);
 			}
@@ -995,26 +980,8 @@ public:
 
 			if (Context.bUseGPUScene)
 			{
-#if GPUCULL_TODO
 				// GPUCULL_TODO: Make a switch to control old / new behaviour, determine minimum reqs.
 				SetupGPUInstancedDraws(Context.InstanceCullingContext, Context.MeshDrawCommands, true, Context.MaxInstances, Context.VisibleMeshDrawCommandsNum, Context.NewPassVisibleMeshDrawCommandsNum);
-#else //!GPUCULL_TODO
-				BuildMeshDrawCommandPrimitiveIdBuffer(
-					Context.bDynamicInstancing,
-					Context.MeshDrawCommands,
-					Context.MeshDrawCommandStorage,
-					Context.PrimitiveIdBufferData,
-					Context.PrimitiveIdBufferDataSize,
-					Context.TempVisibleMeshDrawCommands,
-					Context.MaxInstances,
-					Context.VisibleMeshDrawCommandsNum,
-					Context.NewPassVisibleMeshDrawCommandsNum,
-					Context.ShaderPlatform,
-					Context.InstanceFactor,
-					INDEX_NONE, // Defer the translation until submit
-					0
-				);
-#endif // GPUCULL_TODO
 			}
 		}
 	}
@@ -1102,14 +1069,11 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 
 		if (bUseGPUScene)
 		{
-		#if GPUCULL_TODO
 			// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
 			//               we don't support dynamic instancing for this path since we require one primitive per draw command
 			//               This is because the stride on the instance data buffer is set to 0 so only the first will ever be fetched.
 			const bool bDynamicInstancing = false;
-		#else
-			const bool bDynamicInstancing = IsDynamicInstancingEnabled(FeatureLevel);
-		#endif
+
 			if (bDynamicInstancing)
 			{
 				NewPassVisibleMeshDrawCommands.Empty(NumDrawCommands);
@@ -1357,7 +1321,6 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 	uint32 DrawCommandDataOffset, // Used to offset both the indirect args and the instance ID offset buffers when bound (wrt each their strides)
 	FRHICommandList& RHICmdList)
 {
-#if GPUCULL_TODO
 	FMeshDrawCommandStateCache StateCache;
 	INC_DWORD_STAT_BY(STAT_MeshDrawCalls, NumMeshDrawCommands);
 
@@ -1370,7 +1333,6 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 		const int32 InstanceIdsOffsetBufferByteOffset = (DrawCommandDataOffset + DrawCommandIndex) * sizeof(int32);
 		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, GraphicsMinimalPipelineStateSet, InstanceIdsOffsetBuffer, InstanceIdsOffsetBufferByteOffset, InstanceFactor, RHICmdList, StateCache, IndirectArgsBuffer, IndirectArgsByteOffset);
 	}
-#endif // GPUCULL_TODO
 }
 
 class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask
@@ -1379,15 +1341,9 @@ class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands;
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet;
 	uint32 InstanceFactor;
-#if GPUCULL_TODO
 	FRHIBuffer* InstanceIdOffsetBuffer;
 	FRHIBuffer* DrawIndirectArgsBuffer;
 	uint32 DrawCommandDataOffset;
-#else //!GPUCULL_TODO
-	FRHIBuffer* PrimitiveIdsBuffer;
-	int32 BasePrimitiveIdsOffset;
-	bool bDynamicInstancing;
-#endif // GPUCULL_TODO
 	int32 TaskIndex;
 	int32 TaskNum;
 
@@ -1398,15 +1354,9 @@ public:
 		const FMeshCommandOneFrameArray& InVisibleMeshDrawCommands,
 		const FGraphicsMinimalPipelineStateSet& InGraphicsMinimalPipelineStateSet,
 		uint32 InInstanceFactor,
-#if GPUCULL_TODO
 		FRHIBuffer* InInstanceIdOffsetBuffer,
 		FRHIBuffer* InDrawIndirectArgsBuffer,
 		uint32 InDrawCommandDataOffset,
-#else //!GPUCULL_TODO
-		FRHIBuffer* InPrimitiveIdsBuffer,
-		int32 InBasePrimitiveIdsOffset,
-		bool bInDynamicInstancing,
-#endif // GPUCULL_TODO
 		int32 InTaskIndex,
 		int32 InTaskNum
 	)
@@ -1414,15 +1364,9 @@ public:
 		, VisibleMeshDrawCommands(InVisibleMeshDrawCommands)
 		, GraphicsMinimalPipelineStateSet(InGraphicsMinimalPipelineStateSet)
 		, InstanceFactor(InInstanceFactor)
-#if GPUCULL_TODO
 		, InstanceIdOffsetBuffer(InInstanceIdOffsetBuffer)
 		, DrawIndirectArgsBuffer(InDrawIndirectArgsBuffer)
 		, DrawCommandDataOffset(InDrawCommandDataOffset)
-#else //!GPUCULL_TODO
-		, PrimitiveIdsBuffer(InPrimitiveIdsBuffer)
-		, BasePrimitiveIdsOffset(InBasePrimitiveIdsOffset)
-		, bDynamicInstancing(bInDynamicInstancing)
-#endif // GPUCULL_TODO
 		, TaskIndex(InTaskIndex)
 		, TaskNum(InTaskNum)
 	{}
@@ -1448,7 +1392,6 @@ public:
 		const int32 NumDrawsPerTask = TaskIndex < DrawNum ? FMath::DivideAndRoundUp(DrawNum, TaskNum) : 0;
 		const int32 StartIndex = TaskIndex * NumDrawsPerTask;
 		const int32 NumDraws = FMath::Min(NumDrawsPerTask, DrawNum - StartIndex);
-#if GPUCULL_TODO
 		SubmitGPUInstancedMeshDrawCommandsRange(
 			VisibleMeshDrawCommands,
 			GraphicsMinimalPipelineStateSet,
@@ -1459,9 +1402,6 @@ public:
 			DrawIndirectArgsBuffer,
 			DrawCommandDataOffset,
 			RHICmdList);
-#else // !GPUCULL_TODO
-		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, bDynamicInstancing, StartIndex, NumDraws, InstanceFactor, RHICmdList);
-#endif // GPUCULL_TODO
 		RHICmdList.EndRenderPass();
 		RHICmdList.HandleRTThreadTaskCompletion(MyCompletionGraphEvent);
 	}
@@ -1469,7 +1409,6 @@ public:
 
 void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
 {
-#if GPUCULL_TODO
 	if (TaskContext.InstanceCullingContext.IsEnabled())
 	{
 		if (bHasQueuedInstanceCullingBuild)
@@ -1490,13 +1429,11 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuil
 	OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;
 	OutInstanceCullingDrawParams.DrawCommandDataOffset = 0U;
 
-#endif
 }
 
 
 void FParallelMeshDrawCommandPass::QueueBatchedBuildRenderingCommands(TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator> & BatchItems)
 {
-#if defined(GPUCULL_TODO)
 	if (TaskContext.InstanceCullingContext.IsEnabled())
 	{
 		WaitForMeshPassSetupTask();
@@ -1507,14 +1444,12 @@ void FParallelMeshDrawCommandPass::QueueBatchedBuildRenderingCommands(TArray<FIn
 			bHasQueuedInstanceCullingBuild = true;
 		}
 	}
-#endif // defined(GPUCULL_TODO)
 }
 
 
 
 void FParallelMeshDrawCommandPass::BuildInstanceList(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingRdgParams& OutParams)
 {
-#if GPUCULL_TODO
 	if (TaskContext.InstanceCullingContext.IsEnabled())
 	{
 		WaitForMeshPassSetupTask();
@@ -1525,7 +1460,6 @@ void FParallelMeshDrawCommandPass::BuildInstanceList(FRDGBuilder& GraphBuilder, 
 		// Run pass to build ID lists (temporary)
 		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange(), OutParams);
 	}
-#endif
 }
 /**
  * Helper to upload and translate a primitive ID buffer.
@@ -1546,7 +1480,6 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		return;
 	}
 
-#if GPUCULL_TODO
 	FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
 	FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
 	uint32 DrawCommandDataOffset = 0U;
@@ -1559,49 +1492,8 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		DrawCommandDataOffset = InstanceCullingDrawParams->DrawCommandDataOffset;
 	}
 
-#else // !GPUCULL_TODO
-
-	FRHIBuffer* PrimitiveIdsBuffer = PrimitiveIdVertexBufferPoolEntry.BufferRHI;
-	const int32 BasePrimitiveIdsOffset = 0;
-#endif // GPUCULL_TODO
-
 	if (ParallelCommandListSet)
 	{
-#if !GPUCULL_TODO
-		if (TaskContext.bUseGPUScene)
-		{
-			// Queue a command on the RHI thread which will upload PrimitiveIdVertexBuffer after finishing FMeshDrawCommandPassSetupTask.
-			FRHICommandListImmediate &RHICommandList = GetImmediateCommandList_ForRenderCommand();
-
-			if (TaskEventRef.IsValid())
-			{
-				RHICommandList.AddDispatchPrerequisite(TaskEventRef);
-			}
-
-			RHICommandList.EnqueueLambda([
-				VertexBuffer = PrimitiveIdsBuffer,
-				VertexBufferData = TaskContext.PrimitiveIdBufferData, 
-				VertexBufferDataSize = TaskContext.PrimitiveIdBufferDataSize,
-				PrimitiveIdVertexBufferPoolEntry = PrimitiveIdVertexBufferPoolEntry,
-				DynamicPrimitiveIdRange = TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange()](FRHICommandListImmediate& CmdList)
-			{
-				// Upload vertex buffer data.
-				CopyPrimitiveIdBuffer(
-					reinterpret_cast<const int32 * RESTRICT>(VertexBufferData), 
-					reinterpret_cast<int32 * RESTRICT>(CmdList.LockBuffer(VertexBuffer, 0, VertexBufferDataSize, RLM_WriteOnly)),
-					VertexBufferDataSize / sizeof(int32),
-					DynamicPrimitiveIdRange);
-				CmdList.UnlockBuffer(VertexBuffer);
-
-				FMemory::Free(VertexBufferData);
-			});
-
-			RHICommandList.RHIThreadFence(true);
-
-			bPrimitiveIdBufferDataOwnedByRHIThread = true;
-		}
-#endif // !GPUCULL_TODO
-
 		const ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread();
 
 		FGraphEventArray Prereqs;
@@ -1629,16 +1521,13 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 			FRHICommandList* CmdList = ParallelCommandListSet->NewParallelCommandList();
 
 			FGraphEventRef AnyThreadCompletionEvent = TGraphTask<FDrawVisibleMeshCommandsAnyThreadTask>::CreateTask(&Prereqs, RenderThread)
-#if GPUCULL_TODO
 				.ConstructAndDispatchWhenReady(*CmdList, TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, 
 					TaskContext.InstanceFactor,
 					InstanceIdOffsetBuffer,
 					DrawIndirectArgsBuffer,
 					DrawCommandDataOffset,
 					TaskIndex, NumTasks);
-#else //!GPUCULL_TODO
-				.ConstructAndDispatchWhenReady(*CmdList, TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, TaskContext.InstanceFactor, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, TaskContext.bDynamicInstancing, TaskIndex, NumTasks);
-#endif // GPUCULL_TODO
+
 			ParallelCommandListSet->AddParallelCommandList(CmdList, AnyThreadCompletionEvent, NumDraws);
 		}
 	}
@@ -1648,7 +1537,6 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 
 		WaitForMeshPassSetupTask();
 
-#if GPUCULL_TODO
 		if (TaskContext.bUseGPUScene)
 		{
 			if (TaskContext.MeshDrawCommands.Num() > 0)
@@ -1669,20 +1557,6 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		{
 			SubmitMeshDrawCommandsRange(TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, nullptr, 0, TaskContext.bDynamicInstancing, 0, TaskContext.MeshDrawCommands.Num(), TaskContext.InstanceFactor, RHICmdList);
 		}
-#else //!GPUCULL_TODO
-		if (TaskContext.bUseGPUScene)
-		{
-			// Can immediately upload vertex buffer data, as there is no parallel draw task.
-			CopyPrimitiveIdBuffer(
-				reinterpret_cast<const int32* RESTRICT>(TaskContext.PrimitiveIdBufferData),
-				reinterpret_cast<int32* RESTRICT>(RHILockBuffer(PrimitiveIdVertexBufferPoolEntry.BufferRHI, 0, TaskContext.PrimitiveIdBufferDataSize, RLM_WriteOnly)),
-				TaskContext.PrimitiveIdBufferDataSize / sizeof(int32),
-				TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange());
-			RHIUnlockBuffer(PrimitiveIdVertexBufferPoolEntry.BufferRHI);
-		}
-
-		SubmitMeshDrawCommandsRange(TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, TaskContext.bDynamicInstancing, 0, TaskContext.MeshDrawCommands.Num(), TaskContext.InstanceFactor, RHICmdList);
-#endif // GPUCULL_TODO
 	}
 }
 
