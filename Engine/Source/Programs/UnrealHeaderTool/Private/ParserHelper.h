@@ -106,20 +106,61 @@ enum EAccessSpecifier
 	ACCESS_Num,
 };
 
-#ifndef CASE_TEXT
-#define CASE_TEXT(txt) case txt: return TEXT(#txt)
-#endif
+enum class EUHTPropertyType : uint8
+{
+	None = CPT_None,
+	Byte = CPT_Byte,
+	UInt16 = CPT_UInt16,
+	UInt32 = CPT_UInt32,
+	UInt64 = CPT_UInt64,
+	Int8 = CPT_Int8,
+	Int16 = CPT_Int16,
+	Int = CPT_Int,
+	Int64 = CPT_Int64,
+	Bool = CPT_Bool,
+	Bool8 = CPT_Bool8,
+	Bool16 = CPT_Bool16,
+	Bool32 = CPT_Bool32,
+	Bool64 = CPT_Bool64,
+	Float = CPT_Float,
+	ObjectReference = CPT_ObjectReference,
+	Name = CPT_Name,
+	Delegate = CPT_Delegate,
+	Interface = CPT_Interface,
+	Struct = CPT_Struct,
+	String = CPT_String,
+	Text = CPT_Text,
+	MulticastDelegate = CPT_MulticastDelegate,
+	WeakObjectReference = CPT_WeakObjectReference,
+	LazyObjectReference = CPT_LazyObjectReference,
+	ObjectPtrReference = CPT_ObjectPtrReference,
+	SoftObjectReference = CPT_SoftObjectReference,
+	Double = CPT_Double,
+	Map = CPT_Map,
+	Set = CPT_Set,
+	FieldPath = CPT_FieldPath,
+	LargeWorldCoordinatesReal = CPT_FLargeWorldCoordinatesReal,
+
+	Enum,
+	DynamicArray,
+
+	MAX,
+};
 
 inline bool IsBool(EPropertyType Type)
 {
 	return Type == CPT_Bool || Type == CPT_Bool8 || Type == CPT_Bool16 || Type == CPT_Bool32 || Type == CPT_Bool64;
 }
 
-inline bool IsObject(EPropertyType Type)
+inline bool IsNumeric(EPropertyType Type)
+{
+	return Type == CPT_Byte || Type == CPT_UInt16 || Type == CPT_UInt32 || Type == CPT_UInt64 || Type == CPT_Int8 || Type == CPT_Int16 || Type == CPT_Int || Type == CPT_Int64 || Type == CPT_Float || Type == CPT_Double;
+}
+
+inline bool IsObjectOrInterface(EPropertyType Type)
 {
 	return Type == CPT_ObjectReference || Type == CPT_Interface || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_ObjectPtrReference || Type == CPT_SoftObjectReference;
 }
-
 
 /**
  * Basic information describing a type.
@@ -233,9 +274,9 @@ public:
 	/**
 	 * Returns whether this token represents an object reference
 	 */
-	bool IsObject() const
+	bool IsObjectOrInterface() const
 	{
-		return ::IsObject(Type);
+		return ::IsObjectOrInterface(Type);
 	}
 
 	bool IsBool() const
@@ -247,6 +288,44 @@ public:
 	{
 		return (ArrayType != EArrayType::None || MapKeyProp.IsValid());
 	}
+
+	bool IsPrimitiveOrPrimitiveStaticArray() const
+	{
+		return (ArrayType == EArrayType::None || ArrayType == EArrayType::Static) && !MapKeyProp.IsValid();
+	}
+
+	bool IsBooleanOrBooleanStaticArray() const
+	{
+		return IsBool() && IsPrimitiveOrPrimitiveStaticArray();
+	}
+
+	bool IsStructOrStructStaticArray() const
+	{
+		return Type == CPT_Struct && IsPrimitiveOrPrimitiveStaticArray();
+	}
+
+	bool IsObjectRefOrObjectRefStaticArray() const
+	{
+		return (Type == CPT_ObjectReference || Type == CPT_ObjectPtrReference) && IsPrimitiveOrPrimitiveStaticArray();
+	}
+
+	bool IsClassRefOrClassRefStaticArray() const;
+
+	bool IsInterfaceOrInterfaceStaticArray() const
+	{
+		return Type == CPT_Interface && IsPrimitiveOrPrimitiveStaticArray();
+	}
+
+	bool IsByteEnumOrByteEnumStaticArray() const;
+
+	bool IsNumericOrNumericStaticArray() const
+	{
+		return IsNumeric(Type) && IsPrimitiveOrPrimitiveStaticArray();
+	}
+
+	FUnrealEnumDefinitionInfo* AsEnum() const;
+
+	bool IsEnum() const;
 
 	/**
 	 * Determines whether this token's type is compatible with another token's type.
@@ -265,8 +344,10 @@ public:
 	 *											of the other token's type (or vice versa, when dealing with structs
 	 * @param	bIgnoreImplementedInterfaces	controls whether two types can be considered a match if one type is an interface implemented
 	 *											by the other type.
+	 * @param   bEmulateSameType				If true, perform slightly different validation as per FProperty::SameType.  Implementation is not
+	 *											complete.
 	 */
-	bool MatchesType(const FPropertyBase& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces = false) const;
+	bool MatchesType(const FPropertyBase& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces = false, bool bEmulateSameType = false) const;
 	//@}
 
 	EIntType GetSizedIntTypeFromPropertyType(EPropertyType PropType)
@@ -288,7 +369,7 @@ public:
 		}
 	}
 
-	static const TCHAR* GetPropertyTypeText( EPropertyType Type );
+	EUHTPropertyType GetUHTPropertyType() const;
 
 	friend struct FPropertyBaseArchiveProxy;
 };

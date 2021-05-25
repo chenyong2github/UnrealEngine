@@ -371,8 +371,8 @@ public:
 	*
 	* @return	a pointer to a UField with a name matching InIdentifier, or NULL if it wasn't found
 	*/
-	static UField* FindField(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents=true, UClass* FieldClass=UField::StaticClass(), const TCHAR* Thing=nullptr );
-	static FField* FindProperty(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, FFieldClass* FieldClass = FField::StaticClass(), const TCHAR* Thing = nullptr);
+	static FUnrealFunctionDefinitionInfo* FindFunction(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, const TCHAR* Thing = nullptr);
+	static FUnrealPropertyDefinitionInfo* FindProperty(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, const TCHAR* Thing = nullptr);
 
 	// Checks ToValidate to make sure that its associated sparse class data struct, if one exists, is a valid structure to use for storing sparse class data.
 	static void CheckSparseClassData(const FUnrealStructDefinitionInfo& StructDef);

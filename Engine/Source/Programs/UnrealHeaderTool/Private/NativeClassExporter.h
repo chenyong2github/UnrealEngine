@@ -560,13 +560,13 @@ private:
 	 * @param	DeclOut			String output device to send the generated declarations to
 	 * @param	Out				String output device to send the generated code to
 	 * @param	Scope			The scope to prefix on all variable definitions
-	 * @param	Properties		Array of properties to export
+	 * @param	StructDef		The structure containing the properties to export
 	 * @param	Spaces			String of spaces to use as an indent for the declaration
 	 * @param	Spaces			String of spaces to use as an indent
 	 *
 	 * @return      A pair of strings which represents the pointer and a count of the emitted properties.
 	 */
-	TTuple<FString, FString> OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, const TArray<FUnrealPropertyDefinitionInfo*>& PropertyDefs, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
+	TTuple<FString, FString> OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, FUnrealStructDefinitionInfo& StructDef, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
 
 	/**
 	 * Function to output the C++ code necessary to set up a property
@@ -578,21 +578,7 @@ private:
 	 * @param	DeclSpaces		String of spaces to use as an indent for the declaration
 	 * @param	Spaces			String of spaces to use as an indent
 	**/
-	void OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FUnrealPropertyDefinitionInfo& PropertyDef, const TCHAR* DeclSpaces, const TCHAR* Spaces) const;
-
-	/**
-	 * Function to output the C++ code necessary to set up a property, including an array property and its inner, array dimensions, etc.
-	 *
-	 * @param	DeclOut			The destination to write declarations to.
-	 * @param	Out				The destination to write to.
-	 * @param	Prop			Property to export
-	 * @param	OffsetStr		String specifying the property offset
-	 * @param	Name			Name for the generated variable
-	 * @param	DeclSpaces		String of spaces to use as an indent for the declaration
-	 * @param	Spaces			String of spaces to use as an indent
-	 * @param	SourceStruct	Structure that the property offset is relative to
-	**/
-	void PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, FUnrealPropertyDefinitionInfo& PropertyDef, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct = nullptr) const;
+	void OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FUnrealPropertyDefinitionInfo& PropertyDef, const TCHAR* OffsetStr, FString&& Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct) const;
 
 	/**
 	 * Function to generate the property tag
