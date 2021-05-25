@@ -239,7 +239,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	/**
 	* Whether the light should cast modulated shadows from dynamic objects (mobile only).  Also requires Cast Shadows to be set to True.
 	**/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (EditCondition = "Mobility == EComponentMobility::Stationary"))
 	uint32 bCastModulatedShadows : 1;
 
 	/**
