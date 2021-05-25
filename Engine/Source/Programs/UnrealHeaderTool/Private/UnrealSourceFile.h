@@ -138,6 +138,59 @@ public:
 	}
 
 	/**
+	 * Adds given function to function definition list for this source file.
+	 *
+	 * @param FunctionDef Declaration information about the struct
+	 */
+	void AddDefinedFunction(TSharedRef<FUnrealTypeDefinitionInfo> FunctionDef);
+
+	/**
+	 * Gets array with functions defined in this source file with parsing info.
+	 *
+	 * @returns Array with functions defined in this source file with parsing info.
+	 */
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedFunctions()
+	{
+		return DefinedFunctions;
+	}
+
+	const TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedFunctions() const
+	{
+		return DefinedFunctions;
+	}
+
+	/**
+	 * Gets number of types defined in this source file.
+	 */
+	int32 GetDefinedFunctionsCount() const
+	{
+		return DefinedFunctions.Num();
+	}
+
+	/**
+	 * Gets array with types defined in this source file with parsing info.
+	 *
+	 * @returns Array with types defined in this source file with parsing info.
+	 */
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedTypes()
+	{
+		return DefinedTypes;
+	}
+
+	const TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedTypes() const
+	{
+		return DefinedTypes;
+	}
+
+	/**
+	 * Gets number of types defined in this source file.
+	 */
+	int32 GetDefinedTypeCount() const
+	{
+		return DefinedTypes.Num();
+	}
+
+	/**
 	 * Gets generated header filename.
 	 */
 	const FString& GetGeneratedHeaderFilename() const
@@ -280,11 +333,6 @@ public:
 	 * Add an include for a type definition if required.  TypeDef can be null.
 	 */
 	void AddTypeDefIncludeIfNeeded(FUnrealTypeDefinitionInfo* TypeDef);
-
-	/**
-	 * Add an include for a type definition if required
-	 */
-	void AddTypeDefIncludeIfNeeded(UField* Field);
 
 	/**
 	 * Sets generated filename.
@@ -495,6 +543,12 @@ private:
 
 	// List of structs defined in this source file along with parsing info.
 	TArray<TSharedRef<FUnrealTypeDefinitionInfo>> DefinedStructs;
+
+	// List of functions defined in this source file along with parsing info.
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>> DefinedFunctions;
+
+	// List of all defined types
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>> DefinedTypes;
 
 	// Collection of all singletons found during code generation
 	TArray<FUnrealFieldDefinitionInfo*> Singletons;

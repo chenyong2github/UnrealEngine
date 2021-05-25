@@ -169,19 +169,19 @@ class FPropertyBase : public TSharedFromThis<FPropertyBase>
 {
 public:
 	// Variables.
-	EPropertyType       Type;
-	EArrayType::Type    ArrayType;
+	EPropertyType       Type = EPropertyType::CPT_None;
+	EArrayType::Type    ArrayType = EArrayType::None;
 	EAllocatorType      AllocatorType = EAllocatorType::Default;
-	EPropertyFlags      PropertyFlags;
-	EPropertyFlags      ImpliedPropertyFlags;
-	ERefQualifier::Type RefQualifier; // This is needed because of legacy stuff - FString mangles the flags for reasons that have become lost in time but we need this info for testing for invalid replicated function signatures.
+	EPropertyFlags      PropertyFlags = CPF_None;
+	EPropertyFlags      ImpliedPropertyFlags = CPF_None;
+	ERefQualifier::Type RefQualifier = ERefQualifier::None; // This is needed because of legacy stuff - FString mangles the flags for reasons that have become lost in time but we need this info for testing for invalid replicated function signatures.
 
 	TSharedPtr<FPropertyBase> MapKeyProp;
 
 	/**
 	 * A mask of EPropertyHeaderExportFlags which are used for modifying how this property is exported to the native class header
 	 */
-	uint32 PropertyExportFlags;
+	uint32 PropertyExportFlags = PROPEXPORT_Public;
 
 	union
 	{
@@ -191,12 +191,12 @@ public:
 		FUnrealClassDefinitionInfo* ClassDef;
 		FUnrealFunctionDefinitionInfo* FunctionDef;
 	};
-	FFieldClass* PropertyPathClass = nullptr;
+	FName FieldClassName = NAME_None;
 	FUnrealClassDefinitionInfo* MetaClassDef = nullptr;
 
-	FName   DelegateName;
-	UClass*	DelegateSignatureOwnerClass;
-	FName   RepNotifyName;
+	FName   DelegateName = NAME_None;
+	UClass*	DelegateSignatureOwnerClass = nullptr;
+	FName   RepNotifyName = NAME_None;
 
 	/** Raw string (not type-checked) used for specifying special text when exporting a property to the *Classes.h file */
 	FString	ExportInfo;
@@ -204,8 +204,8 @@ public:
 	/** Map of key value pairs that will be added to the package's UMetaData for this property */
 	TMap<FName, FString> MetaData;
 
-	EPointerType::Type PointerType;
-	EIntType IntType;
+	EPointerType::Type PointerType = EPointerType::None;
+	EIntType IntType = EIntType::None;
 
 public:
 	/** @name Constructors */
@@ -215,35 +215,9 @@ public:
 	FPropertyBase& operator=(const FPropertyBase&) = default;
 	FPropertyBase& operator=(FPropertyBase&&) = default;
 
-	explicit FPropertyBase(EPropertyType InType)
-	: Type                (InType)
-	, ArrayType           (EArrayType::None)
-	, PropertyFlags       (CPF_None)
-	, ImpliedPropertyFlags(CPF_None)
-	, RefQualifier        (ERefQualifier::None)
-	, PropertyExportFlags (PROPEXPORT_Public)
-	, DelegateName        (NAME_None)
-	, DelegateSignatureOwnerClass(nullptr)
-	, RepNotifyName       (NAME_None)
-	, PointerType         (EPointerType::None)
-	, IntType             (GetSizedIntTypeFromPropertyType(InType))
-	{
-	}
+	explicit FPropertyBase(EPropertyType InType);
 
-	explicit FPropertyBase(EPropertyType InType, EIntType InIntType)
-	: Type                (InType)
-	, ArrayType           (EArrayType::None)
-	, PropertyFlags       (CPF_None)
-	, ImpliedPropertyFlags(CPF_None)
-	, RefQualifier        (ERefQualifier::None)
-	, PropertyExportFlags (PROPEXPORT_Public)
-	, DelegateName        (NAME_None)
-	, DelegateSignatureOwnerClass(nullptr)
-	, RepNotifyName       (NAME_None)
-	, PointerType         (EPointerType::None)
-	, IntType             (InIntType)
-	{
-	}
+	explicit FPropertyBase(EPropertyType InType, EIntType InIntType);
 
 	explicit FPropertyBase(FUnrealEnumDefinitionInfo& InEnumDef, EPropertyType InType);
 
@@ -251,21 +225,7 @@ public:
 
 	explicit FPropertyBase(FUnrealScriptStructDefinitionInfo& InStructDef);
 
-	explicit FPropertyBase(FFieldClass* InPropertyClass, EPropertyType InType)
-		: Type(InType)
-		, ArrayType(EArrayType::None)
-		, PropertyFlags(CPF_None)
-		, ImpliedPropertyFlags(CPF_None)
-		, RefQualifier(ERefQualifier::None)
-		, PropertyExportFlags(PROPEXPORT_Public)
-		, PropertyPathClass(InPropertyClass)
-		, DelegateName(NAME_None)
-		, DelegateSignatureOwnerClass(nullptr)
-		, RepNotifyName(NAME_None)
-		, PointerType(EPointerType::None)
-		, IntType(GetSizedIntTypeFromPropertyType(InType))
-	{
-	}
+	explicit FPropertyBase(FName InFieldClassName, EPropertyType InType);
 	//@}
 
 	/** @name Functions */
