@@ -10,8 +10,6 @@
 
 struct FGeometry;
 struct FPointerEvent;
-struct FTransform;
-struct FVector;
 
 class FNodalOffsetTool;
 
