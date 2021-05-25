@@ -11,11 +11,14 @@ namespace UE::DerivedData { class FBuildActionBuilder; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { class FBuildInputsBuilder; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
+namespace UE::DerivedData { class FBuildSession; }
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuildFunctionRegistry; }
+namespace UE::DerivedData { class IBuildInputResolver; }
+namespace UE::DerivedData { class IBuildScheduler; }
 
 namespace UE::DerivedData
 {
@@ -23,7 +26,19 @@ namespace UE::DerivedData
 /**
  * Interface to the build system.
  *
- * This is only a preview of a portion of the interface and does not support build execution.
+ * Executing a build typically requires a definition, input resolver, session, and function.
+ *
+ * Use IBuild::CreateDefinition() to make a new build definition, or use IBuild::LoadDefinition()
+ * to load a build definition that was previously saved. This references the function to execute,
+ * and the inputs needed by the function.
+ *
+ * Use IBuild::CreateSession() to make a new build session with a build input resolver to resolve
+ * input references into the referenced data. Use FBuildSession::Build() to schedule a definition
+ * to build, along with any of its transitive build dependencies.
+ *
+ * Implement IBuildFunction, with a unique name and version, to add payloads to the build context
+ * based on constants and inputs in the context. Use TBuildFunctionFactory to add the function to
+ * the registry at IBuild::GetFunctionRegistry() to allow the build job to find it.
  */
 class IBuild
 {
@@ -89,6 +104,15 @@ public:
 	 */
 	virtual FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) = 0;
 	virtual FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) = 0;
+
+	/**
+	 * Create a build session.
+	 *
+	 * @param Name            The name by which to identify this session for logging and profiling.
+	 * @param InputResolver   The input resolver to resolve definitions and inputs for requested builds.
+	 * @param Scheduler       The scheduler for builds created through the session. Optional.
+	 */
+	virtual FBuildSession CreateSession(FStringView Name, IBuildInputResolver* InputResolver, IBuildScheduler* Scheduler = nullptr) = 0;
 
 	/**
 	 * Returns the version of the build system.

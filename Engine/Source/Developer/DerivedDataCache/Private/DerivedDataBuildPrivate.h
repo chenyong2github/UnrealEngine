@@ -14,6 +14,7 @@ namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { class FBuildInputsBuilder; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
+namespace UE::DerivedData { class FBuildSession; }
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
@@ -57,6 +58,14 @@ FBuildInputsBuilder CreateBuildInputs(FStringView Name);
 FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function);
 FOptionalBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCbObject& Output);
 FOptionalBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCacheRecord& Output);
+
+// Implemented in DerivedDataBuildSession.cpp
+FBuildSession CreateBuildSession(
+	FStringView Name,
+	ICache& Cache,
+	IBuild& BuildSystem,
+	IBuildScheduler& Scheduler,
+	IBuildInputResolver* InputResolver);
 
 // Implemented in DerivedDataBuildJob.cpp
 TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, const FBuildKey& Key, IBuildInputResolver* InputResolver);
