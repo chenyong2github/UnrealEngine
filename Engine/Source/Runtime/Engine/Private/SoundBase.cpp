@@ -10,6 +10,9 @@
 #include "Engine/AssetUserData.h"
 
 
+USoundClass* USoundBase::DefaultSoundClassObject = nullptr;
+USoundConcurrency* USoundBase::DefaultSoundConcurrencyObject = nullptr;
+
 USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, VirtualizationMode(EVirtualizationMode::Restart)
@@ -26,40 +29,35 @@ USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
 	bEnableSubmixSends = true;
 }
 
-USoundClass* USoundBase::GetDefaultSoundClass()
+void USoundBase::PostInitProperties()
 {
-	const FSoftObjectPath DefaultPath = GetDefault<UAudioSettings>()->DefaultSoundClassName;
-	if (DefaultPath.IsValid())
+	Super::PostInitProperties();
+
+	if (USoundBase::DefaultSoundClassObject == nullptr)
 	{
-		UObject* DefaultObject = DefaultPath.TryLoad();
-		if (DefaultObject)
+		const FSoftObjectPath DefaultSoundClassName = GetDefault<UAudioSettings>()->DefaultSoundClassName;
+		if (DefaultSoundClassName.IsValid())
 		{
-			if (USoundClass* DefaultSoundClass = CastChecked<USoundClass>(DefaultObject))
-			{
-				return DefaultSoundClass;
-			}
+			SCOPED_BOOT_TIMING("USoundBase::LoadSoundClass");
+			USoundBase::DefaultSoundClassObject = LoadObject<USoundClass>(nullptr, *DefaultSoundClassName.ToString());
+		}
+	}
+	SoundClassObject = USoundBase::DefaultSoundClassObject;
+
+	if (USoundBase::DefaultSoundConcurrencyObject == nullptr)
+	{
+		const FSoftObjectPath DefaultSoundConcurrencyName = GetDefault<UAudioSettings>()->DefaultSoundConcurrencyName;
+		if (DefaultSoundConcurrencyName.IsValid())
+		{
+			SCOPED_BOOT_TIMING("USoundBase::LoadSoundConcurrency");
+			USoundBase::DefaultSoundConcurrencyObject = LoadObject<USoundConcurrency>(nullptr, *DefaultSoundConcurrencyName.ToString());
 		}
 	}
 
-	return nullptr;
-}
-
-USoundConcurrency* USoundBase::GetDefaultSoundConcurrency()
-{
-	const FSoftObjectPath DefaultPath = GetDefault<UAudioSettings>()->DefaultSoundConcurrencyName;
-	if (DefaultPath.IsValid())
+	if (USoundBase::DefaultSoundConcurrencyObject != nullptr)
 	{
-		UObject* DefaultObject = DefaultPath.TryLoad();
-		if (DefaultObject)
-		{
-			if (USoundConcurrency* DefaultSoundConcurrency = CastChecked<USoundConcurrency>(DefaultObject))
-			{
-				return DefaultSoundConcurrency;
-			}
-		}
+		ConcurrencySet.Add(USoundBase::DefaultSoundConcurrencyObject);
 	}
-
-	return nullptr;
 }
 
 bool USoundBase::IsPlayable() const
@@ -137,18 +135,12 @@ bool USoundBase::IsLooping()
 
 bool USoundBase::ShouldApplyInteriorVolumes()
 {
-	USoundClass* SoundClass = GetSoundClass();
-	return SoundClass && SoundClass->Properties.bApplyAmbientVolumes;
+	return (SoundClassObject && SoundClassObject->Properties.bApplyAmbientVolumes);
 }
 
 USoundClass* USoundBase::GetSoundClass() const
 {
-	if (SoundClassObject)
-	{
-		return SoundClassObject;
-	}
-
-	return GetDefaultSoundClass();
+	return SoundClassObject;
 }
 
 USoundSubmixBase* USoundBase::GetSoundSubmix() const
@@ -182,19 +174,12 @@ void USoundBase::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrenc
 	}
 	else
 	{
-		if (ConcurrencySet.Num() > 0)
+		for (const USoundConcurrency* Concurrency : ConcurrencySet)
 		{
-			for (const USoundConcurrency* Concurrency : ConcurrencySet)
+			if (Concurrency)
 			{
-				if (Concurrency)
-				{
-					OutConcurrencyHandles.Emplace(*Concurrency);
-				}
+				OutConcurrencyHandles.Emplace(*Concurrency);
 			}
-		}
-		else if (const USoundConcurrency* DefaultConcurrency = GetDefaultSoundConcurrency())
-		{
-			OutConcurrencyHandles.Emplace(*DefaultConcurrency);
 		}
 	}
 }

@@ -135,29 +135,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Media|MediaSoundComponent")
 	UMediaPlayer* GetMediaPlayer() const;
 
-	virtual USoundClass* GetSoundClass() override
-	{
-		if (SoundClass)
-		{
-			return SoundClass;
-		}
-
-		const FSoftObjectPath DefaultPath = GetDefault<UAudioSettings>()->DefaultMediaSoundClassName;
-		if (DefaultPath.IsValid())
-		{
-			UObject* DefaultObject = DefaultPath.TryLoad();
-			if (DefaultObject)
-			{
-				if (USoundClass* DefaultSoundClass = CastChecked<USoundClass>(DefaultObject))
-				{
-					return DefaultSoundClass;
-				}
-			}
-		}
-
-		return USoundBase::GetDefaultSoundClass();
-	}
-
 	/**
 	 * Set the media player that provides the audio samples.
 	 *
@@ -233,6 +210,7 @@ public:
 public:
 
 	//~ UObject interface
+	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 
 #if WITH_EDITOR
@@ -324,4 +302,8 @@ private:
 
 	/** Whether or not envelope follower settings changed. */
 	bool bEnvelopeFollowerSettingsChanged;
+
+private:
+
+	static USoundClass* DefaultMediaSoundClassObject;
 };
