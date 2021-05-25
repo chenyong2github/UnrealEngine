@@ -26,10 +26,23 @@ class TMinVolumeBox3
 public:
 	/**
 	 * Calculate the minimal box for the given point set.
+	 * @param NumPoints number of points in the set, ie GetPointFunc can be called for any integer in range [0...NumPoints)
+	 * @param GetPointFunc function that returns a 3D point for a valid Index
 	 * @param bUseExactBox If true, high-precision number types are used for the minimal-box calculation, rather than doubles. This is *much* slower but more accurate (but not recommended).
 	 * @return true if minimal box was found
 	 */
 	bool Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox = false, FProgressCancel* Progress = nullptr);
+
+	/**
+	 * Calculate the minimal box for a Subsampling of MaxPoints points of a point set
+	 * @param NumPoints number of points in the set, ie GetPointFunc can be called for any integer in range [0...NumPoints)
+	 * @param NumSamplePoints maximum number of points to sample from NumPoints. Currently a random-ish subset is selected.
+	 * @param GetPointFunc function that returns a 3D point for a valid Index
+	 * @param bUseExactBox If true, high-precision number types are used for the minimal-box calculation, rather than doubles. This is *much* slower but more accurate (but not recommended).
+	 * @return true if minimal box was found
+	 */
+	bool SolveSubsample(int32 NumPoints, int32 NumSamplePoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox = false, FProgressCancel* Progress = nullptr);
+
 
 	/** @return true if minimal box is available */
 	bool IsSolutionAvailable() const;

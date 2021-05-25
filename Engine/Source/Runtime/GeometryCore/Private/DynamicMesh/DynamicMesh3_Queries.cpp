@@ -743,16 +743,15 @@ void FDynamicMesh3::GetVtxOneRingCentroid(int vID, FVector3d& centroid) const
 }
 
 
-FFrame3d FDynamicMesh3::GetVertexFrame(int vID, bool bFrameNormalY) const
+FFrame3d FDynamicMesh3::GetVertexFrame(int vID, bool bFrameNormalY, FVector3d* UseNormal) const
 {
-	if (ensure(HasVertexNormals()) == false)
+	if (HasVertexNormals() == false && UseNormal == nullptr)
 	{
 		return FFrame3d();
 	}
 
 	FVector3d v = Vertices[vID];
-	const TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
-	FVector3d normal = FVector3d(Normals[vID]);
+	FVector3d normal = (UseNormal != nullptr) ? Normalized(*UseNormal) : FVector3d(VertexNormals.GetValue()[vID]);
 	int eid = VertexEdgeLists.First(vID);
 	int ovi = GetOtherEdgeVertex(eid, vID);
 	FVector3d ov = Vertices[ovi];

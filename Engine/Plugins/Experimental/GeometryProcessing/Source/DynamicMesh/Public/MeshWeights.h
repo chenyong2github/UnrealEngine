@@ -82,6 +82,17 @@ public:
 	static FVector3d CotanCentroidSafe(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<FVector3d(int32)> VertexPositionFunc, double DegenerateTol = 100.0, bool* bFailedToUniform = nullptr);
 
 
+	/**
+	 * Compute cotan-weighted blend for a vertex one-ring, with some weight analysis/clamping to avoid vertices getting "stuck"
+	 * in explicit integration/iterations. If failure is detected, Uniform centroid is returned, which does cause some tangential flow.
+	 * Equivalent to CotanCentroidSafe() if the weights are used to blend vertex positions, but can be used to weight other properties.
+	 * @param BlendingFunc BlendingFunc(NbrVertexID, Weight) will be called for every one-ring neighbour vertex
+	 * @param DegenerateTol if any weights are larger than this value, return uniform weights instead. Should be > 1.
+	 * @param bFailedToUniform will be set to true if non-null and result was clamped
+	 */
+	static void CotanWeightsBlendSafe(const FDynamicMesh3& Mesh, int32 VertexIndex, TFunctionRef<void(int32,double)> BlendingFunc, double DegenerateTol = 100.0, bool* bFailedToUniform = nullptr);
+
+
 
 	/**
 	 * Compute the Mixed Voronoi Area associated with a vertex.

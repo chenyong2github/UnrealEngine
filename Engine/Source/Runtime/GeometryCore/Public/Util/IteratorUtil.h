@@ -400,5 +400,65 @@ public:
 };
 
 
+
+/**
+ * FModuloIteration is used to iterate over a range of indices [0,N) using modulo-arithmetic.
+ * The iteration proceeds as NextValue = (CurValue + ModuloValue) % N.
+ * As long as the ModuloValue is a prime number > N/2, then every integer in the sequence 0...N-1
+ * will appear exactly once before 0 re-appears (and in fact any index in the range can be used
+ * as the starting value). 
+ * 
+ * FModuloIteration computes in 64-bit with (by default) a large enough prime that will work
+ * for any 32-bit unsigned integer. If 64-bit iterations are needed, some larger primes can 
+ * be found here: https://en.wikipedia.org/wiki/P%C3%A9pin%27s_test
+ * 
+ * (The prime does not strictly need to be > N/2, any prime will work as long as it is not a divisor of N. 
+ *  And it doesn't even need to be a prime number, just a co-prime of N, ie GCD(N, ModuloValue) = 1. 
+ *  It is possible to check GCD relatively quickly to search for valid constants, for example if
+ *  many values were needed to use as seeds/etc)
+ * 
+ * Usage:
+ * 
+	FModuloIteration Iter(N);
+	uint32 Index;
+	while (Iter.GetNextIndex(Index)) { ... }
+ */
+struct FModuloIteration
+{
+	uint64 MaxIndex = 0;
+	uint64 ModuloPrime = 3208642561;		// first elite prime > max_unsigned_int/2
+	uint64 CurIndex = 0;
+	uint64 StartIndex = 0;
+	uint64 Count = 0;
+	uint64 ModuloNum = 1;
+
+	FModuloIteration(uint32 MaxIndexIn, uint32 StartIndexIn = 0, uint64 ModuloPrimeIn = 3208642561)
+	{
+		MaxIndex = (uint64)FMath::Max((uint32)0, MaxIndexIn);
+		StartIndex = (uint64)FMath::Max((uint32)0, StartIndexIn);
+		CurIndex = 0;
+		Count = 0;
+		ModuloNum = FMath::Max((uint64)1, MaxIndex);  // can't be zero or we hit integer-divide. If MaxIndex is 0 we will terminate on first iteration anyway
+		ModuloPrime = ModuloPrimeIn;
+		check(ModuloPrime > MaxIndex);
+	}
+
+	bool GetNextIndex(uint32& NextIndexOut)
+	{
+		NextIndexOut = (uint32)CurIndex;
+		CurIndex = (CurIndex + ModuloPrime) % ModuloNum;
+		return (Count++ != MaxIndex);
+	}
+
+	bool GetNextIndex(int32& NextIndexOut)
+	{
+		NextIndexOut = (int32)CurIndex;
+		CurIndex = (CurIndex + ModuloPrime) % ModuloNum;
+		return (Count++ != MaxIndex);
+	}
+};
+
+
+
 } // end namespace UE::Geometry
 } // end namespace UE
