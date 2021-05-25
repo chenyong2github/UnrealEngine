@@ -103,6 +103,56 @@ namespace
 
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
+	// Field class bootstrap system
+	//----------------------------------------------------------------------------------------------------------------------------------------------------------
+	//----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	class FFieldClassInit
+	{
+	public:
+		FFieldClassInit()
+		{
+			FProperty::StaticClass();
+			FNumericProperty::StaticClass();
+			FByteProperty::StaticClass();
+			FInt8Property::StaticClass();
+			FInt16Property::StaticClass();
+			FIntProperty::StaticClass();
+			FInt64Property::StaticClass();
+			FUInt16Property::StaticClass();
+			FUInt32Property::StaticClass();
+			FUInt64Property::StaticClass();
+			FFloatProperty::StaticClass();
+			FDoubleProperty::StaticClass();
+			FLargeWorldCoordinatesRealProperty::StaticClass();
+			FBoolProperty::StaticClass();
+			FEnumProperty::StaticClass();
+			//TObjectPropertyBase::StaticClass();
+			FObjectProperty::StaticClass();
+			FClassProperty::StaticClass();
+			FClassPtrProperty::StaticClass();
+			FObjectPtrProperty::StaticClass();
+			FWeakObjectProperty::StaticClass();
+			FLazyObjectProperty::StaticClass();
+			FSoftObjectProperty::StaticClass();
+			FSoftClassProperty::StaticClass();
+			FInterfaceProperty::StaticClass();
+			FNameProperty::StaticClass();
+			FStrProperty::StaticClass();
+			FTextProperty::StaticClass();
+			FStructProperty::StaticClass();
+			FMulticastDelegateProperty::StaticClass();
+			FMulticastSparseDelegateProperty::StaticClass();
+			FMulticastInlineDelegateProperty::StaticClass();
+			FFieldPathProperty::StaticClass();
+			FArrayProperty::StaticClass();
+			FSetProperty::StaticClass();
+			FMapProperty::StaticClass();
+		}
+	};
+
+	//----------------------------------------------------------------------------------------------------------------------------------------------------------
+	//----------------------------------------------------------------------------------------------------------------------------------------------------------
 	// Dispatch system
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -202,9 +252,9 @@ namespace
 	template<typename TraitsType>
 	struct CreatePropertyDispatch
 	{
-		FProperty* operator()(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+		void operator()(FUnrealPropertyDefinitionInfo& PropDef)
 		{
-			return TraitsType::CreateProperty(PropDef, Scope, Name, ObjectFlags);
+			TraitsType::CreateProperty(PropDef);
 		}
 	};
 
@@ -213,7 +263,7 @@ namespace
 	{
 		FProperty* operator()(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 		{
-			return TraitsType::CreateProperty(PropDef, Scope, Name, ObjectFlags);
+			return TraitsType::CreateEngineType(PropDef, Scope, Name, ObjectFlags);
 		}
 	};
 
@@ -260,9 +310,15 @@ namespace
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	template <bool bHandleContainers>
-	FProperty* CreatePropertyHelper(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	void CreatePropertyHelper(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		return PropertyTypeDispatch<CreatePropertyDispatch, bHandleContainers, FProperty*>(PropDef.GetPropertyBase(), std::ref(PropDef), Scope, std::ref(Name), ObjectFlags);
+		return PropertyTypeDispatch<CreatePropertyDispatch, bHandleContainers, void>(PropDef.GetPropertyBase(), std::ref(PropDef));
+	}
+
+	template <bool bHandleContainers>
+	FProperty* CreateEngineTypeHelper(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		return PropertyTypeDispatch<CreateEngineTypeDispatch, bHandleContainers, FProperty*>(PropDef.GetPropertyBase(), std::ref(PropDef), Scope, std::ref(Name), ObjectFlags);
 	}
 
 	bool IsSupportedByBlueprintSansContainers(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -296,12 +352,8 @@ struct FPropertyTypeTraitsBase
 	 * NOTE: This method MUST be implemented by each of the property types.
 	 *
 	 * @param PropDef The definition of the property
-	 * @param Scope The parent object owning the property
-	 * @param Name The name of the property
-	 * @param ObjectFlags The flags associated with the property
-	 * @return The pointer to the newly created property.  It will be attached to the definition by the caller
 	 */
-	 //static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	 //static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 
 	/**
 	 * Given a property definition create the underlying engine type
@@ -314,7 +366,7 @@ struct FPropertyTypeTraitsBase
 	 * @param ObjectFlags The flags associated with the property
 	 * @return The pointer to the newly created property.  It will be attached to the definition by the caller
 	 */
-	 //static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	 //static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 
 	/**
 	 * Returns true if this property is supported by blueprints
@@ -370,13 +422,17 @@ struct FPropertyTypeTraitsByte : public FPropertyTypeTraitsNumericBase
 		return false;
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+#if UHT_ENABLE_VALUE_PROPERTY_TAG
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(PropDef.GetPropertyBase().EnumDef);
+#endif
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		UEnum* Enum = VarProperty.EnumDef ? VarProperty.EnumDef->GetEnum() : nullptr;
-#if UHT_ENABLE_VALUE_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.EnumDef);
-#endif
 		FByteProperty* Result = new FByteProperty(Scope, Name, ObjectFlags);
 		Result->Enum = Enum;
 		check(VarProperty.IntType == EIntType::Sized);
@@ -440,7 +496,11 @@ struct FPropertyTypeTraitsByte : public FPropertyTypeTraitsNumericBase
 
 struct FPropertyTypeTraitsInt8 : public FPropertyTypeTraitsNumericBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FInt8Property* Result = new FInt8Property(Scope, Name, ObjectFlags);
@@ -461,7 +521,11 @@ struct FPropertyTypeTraitsInt8 : public FPropertyTypeTraitsNumericBase
 
 struct FPropertyTypeTraitsInt16 : public FPropertyTypeTraitsNumericBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FInt16Property* Result = new FInt16Property(Scope, Name, ObjectFlags);
@@ -493,7 +557,11 @@ struct FPropertyTypeTraitsInt : public FPropertyTypeTraitsNumericBase
 		return false;
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FIntProperty* Result = new FIntProperty(Scope, Name, ObjectFlags);
@@ -530,7 +598,11 @@ struct FPropertyTypeTraitsInt64 : public FPropertyTypeTraitsNumericBase
 		return false;
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FInt64Property* Result = new FInt64Property(Scope, Name, ObjectFlags);
@@ -556,7 +628,11 @@ struct FPropertyTypeTraitsInt64 : public FPropertyTypeTraitsNumericBase
 
 struct FPropertyTypeTraitsUInt16 : public FPropertyTypeTraitsNumericBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FUInt16Property* Result = new FUInt16Property(Scope, Name, ObjectFlags);
@@ -577,7 +653,11 @@ struct FPropertyTypeTraitsUInt16 : public FPropertyTypeTraitsNumericBase
 
 struct FPropertyTypeTraitsUInt32 : public FPropertyTypeTraitsNumericBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FUInt32Property* Result = new FUInt32Property(Scope, Name, ObjectFlags);
@@ -598,7 +678,11 @@ struct FPropertyTypeTraitsUInt32 : public FPropertyTypeTraitsNumericBase
 
 struct FPropertyTypeTraitsUInt64 : public FPropertyTypeTraitsNumericBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FUInt64Property* Result = new FUInt64Property(Scope, Name, ObjectFlags);
@@ -630,7 +714,11 @@ struct FPropertyTypeTraitsFloat : public FPropertyTypeTraitsNumericBase
 		return false;
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FFloatProperty* Result = new FFloatProperty(Scope, Name, ObjectFlags);
 		return Result;
@@ -665,7 +753,11 @@ struct FPropertyTypeTraitsDouble : public FPropertyTypeTraitsNumericBase
 		return false;
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FDoubleProperty* Result = new FDoubleProperty(Scope, Name, ObjectFlags);
 		return Result;
@@ -700,7 +792,11 @@ struct FPropertyTypeTraitsLargeWorldCoordinatesReal : public FPropertyTypeTraits
 		return false;
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FLargeWorldCoordinatesRealProperty* Result = new FLargeWorldCoordinatesRealProperty(Scope, Name, ObjectFlags);
 		return Result;
@@ -733,8 +829,12 @@ struct FPropertyTypeTraitsLargeWorldCoordinatesReal : public FPropertyTypeTraits
  */
 struct FPropertyTypeTraitsBooleanBase : public FPropertyTypeTraitsBase
 {
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
 	template <typename SizeType, bool bIsNativeBool>
-	static FProperty* CreatePropertyHelper(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static FProperty* CreateEngineTypeHelper(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FBoolProperty* Result = new FBoolProperty(Scope, Name, ObjectFlags);
 		bool bActsLikeNativeBool = bIsNativeBool || PropDef.GetVariableCategory() == EVariableCategory::Return;
@@ -788,9 +888,9 @@ struct FPropertyTypeTraitsBooleanBase : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsBool : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
-		return CreatePropertyHelper<bool, true>(PropDef, Scope, Name, ObjectFlags);
+		return CreateEngineTypeHelper<bool, true>(PropDef, Scope, Name, ObjectFlags);
 	}
 
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
@@ -801,9 +901,9 @@ struct FPropertyTypeTraitsBool : public FPropertyTypeTraitsBooleanBase
 
 struct FPropertyTypeTraitsBool8 : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
-		return CreatePropertyHelper<uint8, false>(PropDef, Scope, Name, ObjectFlags);
+		return CreateEngineTypeHelper<uint8, false>(PropDef, Scope, Name, ObjectFlags);
 	}
 
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
@@ -814,9 +914,9 @@ struct FPropertyTypeTraitsBool8 : public FPropertyTypeTraitsBooleanBase
 
 struct FPropertyTypeTraitsBool16 : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
-		return CreatePropertyHelper<uint16, false>(PropDef, Scope, Name, ObjectFlags);
+		return CreateEngineTypeHelper<uint16, false>(PropDef, Scope, Name, ObjectFlags);
 	}
 
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
@@ -827,9 +927,9 @@ struct FPropertyTypeTraitsBool16 : public FPropertyTypeTraitsBooleanBase
 
 struct FPropertyTypeTraitsBool32 : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
-		return CreatePropertyHelper<uint32, false>(PropDef, Scope, Name, ObjectFlags);
+		return CreateEngineTypeHelper<uint32, false>(PropDef, Scope, Name, ObjectFlags);
 	}
 
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
@@ -840,9 +940,9 @@ struct FPropertyTypeTraitsBool32 : public FPropertyTypeTraitsBooleanBase
 
 struct FPropertyTypeTraitsBool64 : public FPropertyTypeTraitsBooleanBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
-		return CreatePropertyHelper<uint64, false>(PropDef, Scope, Name, ObjectFlags);
+		return CreateEngineTypeHelper<uint64, false>(PropDef, Scope, Name, ObjectFlags);
 	}
 
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
@@ -876,7 +976,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 		return true;
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 
@@ -885,7 +985,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 		if (Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
 		{
 			check(VarProperty.Type == EPropertyType::CPT_Byte);
-			return FPropertyTypeTraitsByte::CreateProperty(PropDef, Scope, Name, ObjectFlags);
+			return FPropertyTypeTraitsByte::CreateProperty(PropDef);
 		}
 
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
@@ -917,12 +1017,25 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 			check(false);
 		}
 
+		PropDef.SetValuePropDef(FPropertyTraits::CreateProperty(UnderlyingProperty, PropDef, TEXT("UnderlyingType"), 
+			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+
+		UEnum* Enum = VarProperty.EnumDef->GetEnum();
+
+		if (Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
+		{
+			check(VarProperty.Type == EPropertyType::CPT_Byte);
+			return FPropertyTypeTraitsByte::CreateEngineType(PropDef, Scope, Name, ObjectFlags);
+		}
+
 		FEnumProperty* Result = new FEnumProperty(Scope, Name, ObjectFlags);
 		PropDef.SetProperty(Result);
-		FUnrealPropertyDefinitionInfo& SubProp = FPropertyTraits::CreateProperty(UnderlyingProperty, PropDef, TEXT("UnderlyingType"), ObjectFlags,
-			PropDef.GetVariableCategory(), PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
-		PropDef.SetValuePropDef(SubProp);
-		Result->UnderlyingProp = CastFieldChecked<FNumericProperty>(SubProp.GetProperty());
+		Result->UnderlyingProp = CastFieldChecked<FNumericProperty>(FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef()));
 		Result->Enum = Enum;
 		return Result;
 	}
@@ -1015,7 +1128,7 @@ struct FPropertyTypeTraitsObjectBase : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
@@ -1027,10 +1140,6 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 
 		if (PropertyClass->IsChildOf(UClass::StaticClass()))
 		{
-			FClassProperty* Result = new FClassProperty(Scope, Name, ObjectFlags);
-			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
-			Result->PropertyClass = PropertyClass;
-			return Result;
 		}
 		else
 		{
@@ -1039,7 +1148,24 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 				VarProperty.PropertyFlags |= CPF_InstancedReference;
 				AddEditInlineMetaData(VarProperty.MetaData);
 			}
+		}
+	}
 
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
+
+		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		{
+			FClassProperty* Result = new FClassProperty(Scope, Name, ObjectFlags);
+			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
+			Result->PropertyClass = PropertyClass;
+			return Result;
+		}
+		else
+		{
 			FObjectProperty* Result = new FObjectProperty(Scope, Name, ObjectFlags);
 			Result->PropertyClass = PropertyClass;
 			return Result;
@@ -1108,18 +1234,21 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 
 struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObjectBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-
 #if UHT_ENABLE_PTR_PROPERTY_TAG
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
+	}
 
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
 		FWeakObjectProperty* Result = new FWeakObjectProperty(Scope, Name, ObjectFlags);
-		Result->PropertyClass = PropertyClass;
+		Result->PropertyClass = VarProperty.ClassDef->GetClass();
 		return Result;
 	}
 
@@ -1157,18 +1286,21 @@ struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObject
 
 struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObjectBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-
 #if UHT_ENABLE_PTR_PROPERTY_TAG
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
+	}
 
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
 		FLazyObjectProperty* Result = new FLazyObjectProperty(Scope, Name, ObjectFlags);
-		Result->PropertyClass = PropertyClass;
+		Result->PropertyClass = VarProperty.ClassDef->GetClass();
 		return Result;
 	}
 
@@ -1196,7 +1328,7 @@ struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObject
 
 struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
@@ -1208,10 +1340,6 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 
 		if (PropertyClass->IsChildOf(UClass::StaticClass()))
 		{
-			FClassPtrProperty* Result = new FClassPtrProperty(Scope, Name, ObjectFlags);
-			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
-			Result->PropertyClass = PropertyClass;
-			return Result;
 		}
 		else
 		{
@@ -1220,7 +1348,24 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 				VarProperty.PropertyFlags |= CPF_InstancedReference;
 				AddEditInlineMetaData(VarProperty.MetaData);
 			}
+		}
+	}
 
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
+
+		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		{
+			FClassPtrProperty* Result = new FClassPtrProperty(Scope, Name, ObjectFlags);
+			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
+			Result->PropertyClass = PropertyClass;
+			return Result;
+		}
+		else
+		{
 			FObjectPtrProperty* Result = new FObjectPtrProperty(Scope, Name, ObjectFlags);
 			Result->PropertyClass = PropertyClass;
 			return Result;
@@ -1281,15 +1426,20 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 
 struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObjectBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+#if UHT_ENABLE_PTR_PROPERTY_TAG
+		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
+#endif
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
 		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-
-#if UHT_ENABLE_PTR_PROPERTY_TAG
-		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
-#endif
 
 		if (PropertyClass->IsChildOf(UClass::StaticClass()))
 		{
@@ -1361,7 +1511,7 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 
 struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
@@ -1371,7 +1521,14 @@ struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 #if UHT_ENABLE_PTR_PROPERTY_TAG
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
+	}
 
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
+		check(PropertyClass->HasAnyClassFlags(CLASS_Interface));
 		FInterfaceProperty* Result = new  FInterfaceProperty(Scope, Name, ObjectFlags);
 		Result->InterfaceClass = PropertyClass;
 		return Result;
@@ -1439,7 +1596,11 @@ struct FPropertyTypeTraitsName : public FPropertyTypeTraitsBase
 		return FDefaultValueHelper::StringFromCppString(CppForm, TEXT("FName"), OutForm);
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FNameProperty* Result = new FNameProperty(Scope, Name, ObjectFlags);
 		return Result;
@@ -1473,7 +1634,11 @@ struct FPropertyTypeTraitsString : public FPropertyTypeTraitsBase
 		return FDefaultValueHelper::StringFromCppString(CppForm, TEXT("FString"), OutForm);
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FStrProperty* Result = new FStrProperty(Scope, Name, ObjectFlags);
 		return Result;
@@ -1544,7 +1709,11 @@ struct FPropertyTypeTraitsText : public FPropertyTypeTraitsBase
 		return true;
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		FTextProperty* Result = new FTextProperty(Scope, Name, ObjectFlags);
 		return Result;
@@ -1777,7 +1946,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 		return !OutForm.IsEmpty();
 	}
 
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		UScriptStruct* Struct = PropDef.GetPropertyBase().ScriptStructDef->GetScriptStruct();
@@ -1790,9 +1959,13 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 		{
 			VarProperty.PropertyFlags |= CPF_ContainsInstancedReference;
 		}
+	}
 
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FStructProperty* Result = new FStructProperty(Scope, Name, ObjectFlags);
-		Result->Struct = Struct;
+		Result->Struct = PropDef.GetPropertyBase().ScriptStructDef->GetScriptStruct();
 		return Result;
 	}
 
@@ -1828,9 +2001,21 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+
 		FDelegateProperty* Result = new FDelegateProperty(Scope, Name, ObjectFlags);
+
+		// Once we fully transition to post parse engine type creation, this should always be set.
+		if (VarProperty.FunctionDef != nullptr)
+		{
+			Result->SignatureFunction = VarProperty.FunctionDef->GetFunction();
+		}
 		return Result;
 	}
 
@@ -1893,7 +2078,11 @@ struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		UFunction* Function = PropDef.GetPropertyBase().FunctionDef->GetFunction();
@@ -1985,11 +2174,17 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsFieldPath : public FPropertyTypeTraitsBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
+	{
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FFieldPathProperty* Result = new FFieldPathProperty(Scope, Name, ObjectFlags);
-		Result->PropertyClass = VarProperty.PropertyPathClass;
+		FFieldClass** FieldClass = FFieldClass::GetNameToFieldClassMap().Find(VarProperty.FieldClassName);
+		check(FieldClass);
+		Result->PropertyClass = *FieldClass;
 		return Result;
 	}
 
@@ -2010,7 +2205,7 @@ struct FPropertyTypeTraitsFieldPath : public FPropertyTypeTraitsBase
 			const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 			FString& InnerTypeText = *ExtendedTypeText;
 			InnerTypeText = TEXT("<F");
-			InnerTypeText += VarProperty.PropertyPathClass->GetName();
+			InnerTypeText += VarProperty.FieldClassName.ToString();
 			InnerTypeText += TEXT(">");
 		}
 		return TEXT("TFieldPath");
@@ -2018,7 +2213,7 @@ struct FPropertyTypeTraitsFieldPath : public FPropertyTypeTraitsBase
 
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		return FString::Printf(TEXT("class F%s;"), *PropDef.GetPropertyBase().PropertyPathClass->GetName());
+		return FString::Printf(TEXT("class F%s;"), *PropDef.GetPropertyBase().FieldClassName.ToString());
 	}
 };
 
@@ -2030,9 +2225,14 @@ struct FPropertyTypeTraitsFieldPath : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		FProperty* Property = CreatePropertyHelper<false>(PropDef, Scope, Name, ObjectFlags);
+		CreatePropertyHelper<false>(PropDef);
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		FProperty* Property = CreateEngineTypeHelper<false>(PropDef, Scope, Name, ObjectFlags);
 		Property->ArrayDim = 2;
 		return Property;
 	}
@@ -2060,31 +2260,35 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsDynamicArray : public FPropertyTypeTraitsBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		FArrayProperty* Array = new FArrayProperty(Scope, Name, ObjectFlags);
-		PropDef.SetProperty(Array);
 
 		FPropertyBase InnerVarProperty = PropDef.GetPropertyBase();
 		InnerVarProperty.ArrayType = EArrayType::None;
 		InnerVarProperty.RepNotifyName = NAME_None;
 		InnerVarProperty.MetaData.Empty();
-		FUnrealPropertyDefinitionInfo& InnerPropDef = FPropertyTraits::CreateProperty(InnerVarProperty, PropDef, Name, RF_Public, 
-			PropDef.GetVariableCategory(), PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
-		FProperty* InnerProp = InnerPropDef.GetProperty();
+		PropDef.SetValuePropDef(FPropertyTraits::CreateProperty(InnerVarProperty, PropDef, PropDef.GetFName(), 
+			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
+		FUnrealPropertyDefinitionInfo& InnerPropDef = PropDef.GetValuePropDef();
 
-		Array->Inner = InnerProp;
-		VarProperty.PropertyFlags = Array->Inner->PropertyFlags;
+		VarProperty.PropertyFlags = InnerPropDef.GetPropertyBase().PropertyFlags;
 		VarProperty.MetaData.Append(MoveTemp(InnerPropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
 		PropDef.SetAllocatorType(VarProperty.AllocatorType);
-		PropDef.SetValuePropDef(InnerPropDef);
 
 		// Propagate flags
-		InnerPropDef.GetPropertyBase().PropertyFlags = InnerProp->PropertyFlags = InnerProp->PropertyFlags & CPF_PropagateToArrayInner;
+		InnerPropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToArrayInner;
 
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, InnerPropDef);
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+
+		FArrayProperty* Array = new FArrayProperty(Scope, Name, ObjectFlags);
+		PropDef.SetProperty(Array);
+		Array->Inner = FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef());
 		return Array;
 	}
 
@@ -2127,30 +2331,34 @@ struct FPropertyTypeTraitsDynamicArray : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsSet : public FPropertyTypeTraitsBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-
-		FSetProperty* Set = new FSetProperty(Scope, Name, ObjectFlags);
-		PropDef.SetProperty(Set);
 
 		FPropertyBase InnerVarProperty = PropDef.GetPropertyBase();
 		InnerVarProperty.ArrayType = EArrayType::None;
 		InnerVarProperty.RepNotifyName = NAME_None;
 		InnerVarProperty.MetaData.Empty();
-		FUnrealPropertyDefinitionInfo& InnerPropDef = FPropertyTraits::CreateProperty(InnerVarProperty, PropDef, Name, RF_Public, 
-			PropDef.GetVariableCategory(), PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
-		FProperty* InnerProp = InnerPropDef.GetProperty();
+		PropDef.SetValuePropDef(FPropertyTraits::CreateProperty(InnerVarProperty, PropDef, PropDef.GetFName(),
+			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
+		FUnrealPropertyDefinitionInfo& InnerPropDef = PropDef.GetValuePropDef();
 
-		Set->ElementProp = InnerProp;
-		VarProperty.PropertyFlags = InnerProp->PropertyFlags;
+		VarProperty.PropertyFlags = InnerPropDef.GetPropertyBase().PropertyFlags;
 		VarProperty.MetaData.Append(MoveTemp(InnerPropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
-		PropDef.SetValuePropDef(InnerPropDef);
 
 		// Propagate flags
-		InnerPropDef.GetPropertyBase().PropertyFlags = InnerProp->PropertyFlags = InnerProp->PropertyFlags & CPF_PropagateToSetElement;
+		InnerPropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToSetElement;
 
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, InnerPropDef);
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+
+		FSetProperty* Set = new FSetProperty(Scope, Name, ObjectFlags);
+		PropDef.SetProperty(Set);
+		Set->ElementProp = FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef());
 		return Set;
 	}
 
@@ -2191,40 +2399,47 @@ struct FPropertyTypeTraitsSet : public FPropertyTypeTraitsBase
 
 struct FPropertyTypeTraitsMap : public FPropertyTypeTraitsBase
 {
-	static FProperty* CreateProperty(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 
-		FMapProperty* Map = new FMapProperty(Scope, Name, ObjectFlags);
-		PropDef.SetProperty(Map);
-
-		FUnrealPropertyDefinitionInfo& KeyPropDef = FPropertyTraits::CreateProperty(*PropDef.GetPropertyBase().MapKeyProp, PropDef, *(Name.ToString() + TEXT("_Key")), RF_Public,
-			PropDef.GetVariableCategory(), PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
-		FProperty* KeyProp = KeyPropDef.GetProperty();
+		// The key shouldn't ever have meta data, so eliminate was came in as part of parsing and the remove anything that was added
+		// as part of property creation.  
+		PropDef.GetPropertyBase().MapKeyProp->MetaData.Empty();
+		PropDef.SetKeyPropDef(FPropertyTraits::CreateProperty(*PropDef.GetPropertyBase().MapKeyProp, PropDef, *(PropDef.GetFName().ToString() + TEXT("_Key")), 
+			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
+		FUnrealPropertyDefinitionInfo& KeyPropDef = PropDef.GetKeyPropDef();
+		KeyPropDef.GetPropertyBase().MetaData.Empty();
 
 		FPropertyBase ValueVarProperty = PropDef.GetPropertyBase();
 		ValueVarProperty.ArrayType = EArrayType::None;
 		ValueVarProperty.MapKeyProp = nullptr;
 		ValueVarProperty.RepNotifyName = NAME_None;
 		ValueVarProperty.MetaData.Empty();
-		FUnrealPropertyDefinitionInfo& ValuePropDef = FPropertyTraits::CreateProperty(ValueVarProperty, PropDef, Name, RF_Public,
-			PropDef.GetVariableCategory(), PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition());
-		FProperty* ValueProp = ValuePropDef.GetProperty();
+		PropDef.SetValuePropDef(FPropertyTraits::CreateProperty(ValueVarProperty, PropDef, PropDef.GetFName(), 
+			PropDef.GetVariableCategory(), ACCESS_Public, PropDef.GetArrayDimensions(), PropDef.GetUnrealSourceFile(), PropDef.GetLineNumber(), PropDef.GetParsePosition()));
+		FUnrealPropertyDefinitionInfo& ValuePropDef = PropDef.GetValuePropDef();
 
-		Map->KeyProp = KeyProp;
-		Map->ValueProp = ValueProp;
-		VarProperty.PropertyFlags = ValueProp->PropertyFlags;
+		VarProperty.PropertyFlags = ValuePropDef.GetPropertyBase().PropertyFlags;
 		VarProperty.MetaData.Append(MoveTemp(ValuePropDef.GetPropertyBase().MetaData)); // Move any added meta data items to the container
-		PropDef.SetAllocatorType(VarProperty.AllocatorType);
-		PropDef.SetKeyPropDef(KeyPropDef);
-		PropDef.SetValuePropDef(ValuePropDef);
+		PropDef.SetAllocatorType(VarProperty.AllocatorType);//@TODO - This is a duplicate now
 
 		// Propagate flags
-		KeyPropDef.GetPropertyBase().PropertyFlags = KeyProp->PropertyFlags = KeyProp->PropertyFlags & CPF_PropagateToMapKey;
-		ValuePropDef.GetPropertyBase().PropertyFlags = ValueProp->PropertyFlags = ValueProp->PropertyFlags & CPF_PropagateToMapValue;
+		KeyPropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToMapKey;
+		ValuePropDef.GetPropertyBase().PropertyFlags &= CPF_PropagateToMapValue;
 
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MapKeyProp->MetaData, KeyPropDef);
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(VarProperty.PropertyFlags, PropDef.GetPropertyBase().MetaData, ValuePropDef);
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
+		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+
+		FMapProperty* Map = new FMapProperty(Scope, Name, ObjectFlags);
+		PropDef.SetProperty(Map);
+		Map->KeyProp = FPropertyTraits::CreateEngineType(PropDef.GetKeyPropDefRef());
+		Map->ValueProp = FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef());
 		return Map;
 	}
 
@@ -2292,22 +2507,47 @@ bool FPropertyTraits::DefaultValueStringCppFormatToInnerFormat(const FUnrealProp
 	return PropertyTypeDispatch<DefaultValueStringCppFormatToInnerFormatDispatch, false, bool>(PropDef.GetPropertyBase(), std::ref(PropDef), std::ref(CppForm), std::ref(OutForm));
 }
 
-FUnrealPropertyDefinitionInfo& FPropertyTraits::CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory VariableCategory,
-	const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition)
+TSharedRef<FUnrealPropertyDefinitionInfo> FPropertyTraits::CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EVariableCategory VariableCategory, EAccessSpecifier AccessSpecifier, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition)
 {
-	TSharedRef<FUnrealPropertyDefinitionInfo> PropDefRef = MakeShared<FUnrealPropertyDefinitionInfo>(SourceFile, LineNumber, ParsePosition, VarProperty, VariableCategory, Dimensions, Name, Outer);
+	TSharedRef<FUnrealPropertyDefinitionInfo> PropDefRef = MakeShared<FUnrealPropertyDefinitionInfo>(SourceFile, LineNumber, ParsePosition, VarProperty, VariableCategory, AccessSpecifier, Dimensions, Name, Outer);
 	FUnrealPropertyDefinitionInfo& PropDef = *PropDefRef;
 
 	// Create the property and attach to the definition
-	FFieldVariant Scope = Outer.AsProperty() ? FFieldVariant(Outer.AsProperty()->GetProperty()) : FFieldVariant(Outer.AsObject()->GetObject());
-	FProperty* Property = CreatePropertyHelper<true>(PropDef, Scope, Name, ObjectFlags);
+	CreatePropertyHelper<true>(PropDef);
+
+	// If we aren't a sub-property, then add any meta data to the property
+	// We do this because of the edit inline metadata which might be added.
+	// Technically, it should be added to the outermost property.
+	if (UHTCast<FUnrealPropertyDefinitionInfo>(Outer) == nullptr)
+	{
+		FUHTMetaData::RemapMetaData(PropDef.GetPropertyBase().MetaData);
+		PropDef.ValidateMetaDataFormat(PropDef.GetPropertyBase().MetaData);
+	}
+	return PropDefRef;
+}
+
+FProperty* FPropertyTraits::CreateEngineType(TSharedRef<FUnrealPropertyDefinitionInfo> PropDefRef)
+{
+	FUnrealPropertyDefinitionInfo& PropDef = *PropDefRef;
+	FUnrealTypeDefinitionInfo* Outer = PropDef.GetOuter();
+	check(Outer);
+
+	EObjectFlags ObjectFlags = RF_Public;
+	if (PropDef.GetVariableCategory() == EVariableCategory::Member && PropDef.GetAccessSpecifier() == ACCESS_Private)
+	{
+		ObjectFlags = RF_NoFlags;
+	}
+
+	// Create the property and attach to the definition
+	FFieldVariant Scope = Outer->AsProperty() ? FFieldVariant(Outer->AsProperty()->GetProperty()) : FFieldVariant(Outer->AsObject()->GetObject());
+	FProperty* Property = CreateEngineTypeHelper<true>(PropDef, Scope, PropDef.GetFName(), ObjectFlags);
 	PropDef.SetProperty(Property);
 
 	// Perform some final initialization from the property base data
 	Property->PropertyFlags = PropDef.GetPropertyBase().PropertyFlags;
 
 	// Special initialization for member variables
-	if (VariableCategory == EVariableCategory::Member)
+	if (PropDef.GetVariableCategory() == EVariableCategory::Member)
 	{
 		if (PropDef.HasAnyPropertyFlags(CPF_RepNotify))
 		{
@@ -2315,24 +2555,33 @@ FUnrealPropertyDefinitionInfo& FPropertyTraits::CreateProperty(const FPropertyBa
 		}
 	}
 
-	// If we aren't a sub-property, then add any meta data to the property
-	// We do this because of the edit inline metadata which might be added.
-	// Technically, it should be added to the outermost property.
-	if (UHTCast<FUnrealPropertyDefinitionInfo>(Outer) == nullptr)
+	// Add the meta data to the property
+	if (TMap<FName, FString>* MetaDataMap = PropDef.GetMetaDataMap())
 	{
-		FUHTMetaData::RemapAndAddMetaData(PropDef, PropDef.GetPropertyBase().MetaData);
+		for (TPair<FName, FString>& KVP : *MetaDataMap)
+		{
+			Property->SetMetaData(KVP.Key, FString(KVP.Value));
+		}
 	}
 
-	//FString a = GetCPPTypeForwardDeclaration(PropDef);
-	//FString b = PropDef.GetProperty()->GetCPPTypeForwardDeclaration();
-	//if (a != b)
-	//{
-	//	GetCPPType(PropDef, nullptr, 0);
-	//}
+	// If we are parent to a struct
+	if (FUnrealStructDefinitionInfo* StructDef = UHTCast<FUnrealStructDefinitionInfo>(Outer))
+	{
+
+		// Add to the end of the properties slist
+		FField** Prev = &StructDef->GetStruct()->ChildProperties;
+		for (; *Prev != nullptr; Prev = &(*Prev)->Next)
+		{
+			// No body
+		}
+		check(*Prev == nullptr);
+		Property->Next = nullptr;
+		*Prev = Property;
+	}
 
 	// Add the property to the lookup map
-	GTypeDefinitionInfoMap.Add(PropDef.GetProperty(), MoveTemp(PropDefRef));
-	return PropDef;
+	GTypeDefinitionInfoMap.Add(PropDef.GetProperty(), PropDefRef);
+	return Property;
 }
 
 bool FPropertyTraits::IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -2353,4 +2602,68 @@ FString FPropertyTraits::GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef
 FString FPropertyTraits::GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 {
 	return PropertyTypeDispatch<GetCPPTypeForwardDeclarationDispatch, true, FString>(PropDef.GetPropertyBase(), std::ref(PropDef));
+}
+
+bool FPropertyTraits::SameType(const FUnrealPropertyDefinitionInfo& Lhs, const FUnrealPropertyDefinitionInfo& Rhs)
+{
+	auto AdjustTypes = [](EUHTPropertyType PropertyType)
+	{
+		switch (PropertyType)
+		{
+		case EUHTPropertyType::ObjectPtrReference:
+			return EUHTPropertyType::ObjectReference;
+		case EUHTPropertyType::Bool8:
+		case EUHTPropertyType::Bool16:
+		case EUHTPropertyType::Bool32:
+		case EUHTPropertyType::Bool64:
+			return EUHTPropertyType::Bool;
+		default:
+			return PropertyType;
+		}
+	};
+
+	const FPropertyBase& LhsPropertyBase = Lhs.GetPropertyBase();
+	const FPropertyBase& RhsPropertyBase = Rhs.GetPropertyBase();
+
+	EUHTPropertyType LhsType = AdjustTypes(LhsPropertyBase.GetUHTPropertyType());
+	EUHTPropertyType RhsType = AdjustTypes(RhsPropertyBase.GetUHTPropertyType());
+	if (LhsType != RhsType)
+	{
+		return  false;
+	}
+
+	if (Lhs.HasKeyPropDef() && !SameType(Lhs.GetKeyPropDef(), Rhs.GetKeyPropDef()))
+	{
+		return false;
+	}
+
+
+	if (Lhs.HasValuePropDef() && !SameType(Lhs.GetValuePropDef(), Rhs.GetValuePropDef()))
+	{
+		return false;
+	}
+
+	if (LhsPropertyBase.TypeDef != RhsPropertyBase.TypeDef)
+	{
+		return false;
+	}
+
+	if (LhsPropertyBase.FieldClassName != RhsPropertyBase.FieldClassName)
+	{
+		return false;
+	}
+
+	if (LhsPropertyBase.MetaClassDef != RhsPropertyBase.MetaClassDef)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool FPropertyTraits::IsValidFieldClass(FName FieldClassName)
+{
+	static FFieldClassInit FieldClassInit;
+
+	return FFieldClass::GetNameToFieldClassMap().Find(FieldClassName) != nullptr;
 }

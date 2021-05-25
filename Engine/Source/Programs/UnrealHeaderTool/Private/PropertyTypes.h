@@ -32,13 +32,22 @@ struct FPropertyTraits
 	 * @param Name The name of the property
 	 * @param ObjectFlags The flags associated with the property
 	 * @param VariableCategory The parsing context of the property
+	 * @param AccessCategory The access of the property (i.e. public, private, etc...)
 	 * @param Dimensions When this is a static array, this represents the dimensions value
 	 * @param SourceFile The source file containing the property
 	 * @param LineNumber Line number of the property
 	 * @param ParsePosition Character position of the property in the header
 	 * @return The pointer to the newly created property.  It will be attached to the definition by the caller
 	 */
-	static FUnrealPropertyDefinitionInfo& CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory VariableCategory, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition);
+	static TSharedRef<FUnrealPropertyDefinitionInfo> CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EVariableCategory VariableCategory, EAccessSpecifier AccessSpecifier, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition);
+
+	/**
+	 * Given a property, create the underlying engine types
+	 * 
+	 * @param PropDef The property in question
+	 * @param ObjectFlags The flags associated with the property
+	 */
+	static FProperty* CreateEngineType(TSharedRef<FUnrealPropertyDefinitionInfo> PropDefRef);
 
 	/**
 	 * Test to see if the property can be used in a blueprint
@@ -65,4 +74,14 @@ struct FPropertyTraits
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText = nullptr, uint32 CPPExportFlags = 0);
 
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef);
+
+	/**
+	 * Tests to see if the two types are the same types
+	 */
+	static bool SameType(const FUnrealPropertyDefinitionInfo& Lhs, const FUnrealPropertyDefinitionInfo& Rhs);
+
+	/**
+	 * Tests to see if the given field class name is valid
+	 */
+	static bool IsValidFieldClass(FName FieldClassName);
 };

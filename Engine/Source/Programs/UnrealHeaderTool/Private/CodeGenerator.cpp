@@ -175,7 +175,7 @@ namespace
 	{
 		if (!ClassDef.HasAnyClassFlags(CLASS_ReplicationDataIsSetUp))
 		{
-			for (FUnrealPropertyDefinitionInfo* PropertyDef : ClassDef.GetProperties())
+			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : ClassDef.GetProperties())
 			{
 				if (PropertyDef->HasAnyPropertyFlags(CPF_Net))
 				{
@@ -514,15 +514,15 @@ struct FParmsAndReturnProperties
 FParmsAndReturnProperties GetFunctionParmsAndReturn(FUnrealFunctionDefinitionInfo& FunctionDef)
 {
 	FParmsAndReturnProperties Result;
-	for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef.GetProperties())
+	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : FunctionDef.GetProperties())
 	{
 		if (PropertyDef->HasSpecificPropertyFlags(CPF_Parm | CPF_ReturnParm, CPF_Parm))
 		{
-			Result.Parms.Add(PropertyDef);
+			Result.Parms.Add(&*PropertyDef);
 		}
 		else if (PropertyDef->HasAnyPropertyFlags(CPF_ReturnParm))
 		{
-			Result.Return = PropertyDef;
+			Result.Return = &*PropertyDef;
 		}
 	}
 	return Result;
@@ -708,7 +708,7 @@ void FNativeClassHeaderGenerator::ExportProperties(FOutputDevice& Out, FUnrealSt
 	FMacroBlockEmitter WithEditorOnlyData(Out, TEXT("WITH_EDITORONLY_DATA"));
 
 	// Iterate over all properties in this struct.
-	for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
+	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : StructDef.GetProperties())
 	{
 		WithEditorOnlyData(PropertyDef->IsEditorOnlyProperty());
 
@@ -1613,7 +1613,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 			FPropertyObjectFlags,
 			*ArrayDim,
 			OffsetStr,
-			*FString::Printf(TEXT("&F%s::StaticClass"), *PropertyBase.PropertyPathClass->GetName()),
+			*FString::Printf(TEXT("&F%s::StaticClass"), *PropertyBase.FieldClassName.ToString()),
 			*MetaDataParams,
 			*PropTag
 		);
@@ -1698,7 +1698,7 @@ TTuple<FString, FString> FNativeClassHeaderGenerator::OutputProperties(FOutputDe
 		FMacroBlockEmitter WithEditorOnlyMacroEmitter(Out, TEXT("WITH_EDITORONLY_DATA"));
 		FMacroBlockEmitter WithEditorOnlyMacroEmitterDecl(DeclOut, TEXT("WITH_EDITORONLY_DATA"));
 
-		for (FUnrealPropertyDefinitionInfo* PropertyDef : StructDef.GetProperties())
+		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : StructDef.GetProperties())
 		{
 			bool bRequiresHasEditorOnlyMacro = IsEditorOnlyDataProperty(*PropertyDef);
 			if (!bRequiresHasEditorOnlyMacro)
@@ -1796,7 +1796,7 @@ static void FindNoExportStructsRecursive(TArray<FUnrealScriptStructDefinitionInf
 			}
 		}
 
-		for (FUnrealPropertyDefinitionInfo* PropertyDef : StartDef->GetProperties())
+		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : StartDef->GetProperties())
 		{
 			const FPropertyBase& PropertyBase = PropertyDef->GetPropertyBase();
 			if (UHTCast<FUnrealScriptStructDefinitionInfo>(PropertyBase.TypeDef) != nullptr)
@@ -1912,7 +1912,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 	TSet<FName> AlreadyIncludedNames;
 	TArray<FUnrealFunctionDefinitionInfo*> FunctionsToExport;
 	bool bAllEditorOnlyFunctions = true;
-	for (FUnrealFunctionDefinitionInfo* LocalFuncDef : ClassDef.GetFunctions())
+	for (TSharedRef<FUnrealFunctionDefinitionInfo> LocalFuncDef : ClassDef.GetFunctions())
 	{
 		FName TrueName = FNativeClassHeaderGenerator::GetOverriddenFName(*LocalFuncDef);
 		bool bAlreadyIncluded = false;
@@ -1930,7 +1930,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		{
 			bAllEditorOnlyFunctions &= LocalFuncDef->HasAnyFunctionFlags(FUNC_EditorOnly);
 		}
-		FunctionsToExport.Add(LocalFuncDef);
+		FunctionsToExport.Add(&*LocalFuncDef);
 	}
 
 	// Sort the list of functions
@@ -2462,12 +2462,12 @@ void FNativeClassHeaderGenerator::ExportNatives(FOutputDevice& Out, FUnrealClass
 		bool bAllEditorOnly = true;
 
 		TArray<TTuple<FUnrealFunctionDefinitionInfo*, FString>> NamedFunctionsToExport;
-		for (FUnrealFunctionDefinitionInfo* FunctionDef : ClassDef.GetFunctions())
+		for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : ClassDef.GetFunctions())
 		{
 			if (FunctionDef->HasSpecificFunctionFlags(FUNC_Native | FUNC_NetRequest, FUNC_Native))
 			{
-				FString OverriddenName = FNativeClassHeaderGenerator::GetUTF8OverriddenNameForLiteral(FunctionDef);
-				NamedFunctionsToExport.Emplace(FunctionDef, MoveTemp(OverriddenName));
+				FString OverriddenName = FNativeClassHeaderGenerator::GetUTF8OverriddenNameForLiteral(&*FunctionDef);
+				NamedFunctionsToExport.Emplace(&*FunctionDef, MoveTemp(OverriddenName));
 
 				if (!FunctionDef->HasAnyFunctionFlags(FUNC_EditorOnly))
 				{
@@ -2684,11 +2684,11 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 	// Get Callback functions
 	TArray<FUnrealFunctionDefinitionInfo*> CallbackFunctions;
-	for (FUnrealFunctionDefinitionInfo* FunctionDef : ClassDef.GetFunctions())
+	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : ClassDef.GetFunctions())
 	{
 		if (FunctionDef->HasAnyFunctionFlags(FUNC_Event) && FunctionDef->GetSuperFunction() == nullptr)
 		{
-			CallbackFunctions.Add(FunctionDef);
+			CallbackFunctions.Add(&*FunctionDef);
 		}
 	}
 
@@ -4045,7 +4045,7 @@ void FNativeClassHeaderGenerator::ExportMirrorsForNoexportStruct(FOutputDevice& 
 
 bool FNativeClassHeaderGenerator::WillExportEventParms(FUnrealFunctionDefinitionInfo& FunctionDef)
 {
-	const TArray<FUnrealPropertyDefinitionInfo*>& Properties = FunctionDef.GetProperties();
+	const TArray<TSharedRef<FUnrealPropertyDefinitionInfo>>& Properties = FunctionDef.GetProperties();
 	return Properties.Num() > 0 && Properties[0]->HasAnyPropertyFlags(CPF_Parm);
 }
 
@@ -4217,7 +4217,7 @@ void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<F
 	Out.Logf(TEXT("%sstruct %s\r\n"), FCString::Tab(Indent), *EventParmStructName);
 	Out.Logf(TEXT("%s{\r\n"), FCString::Tab(Indent));
 
-	for (FUnrealPropertyDefinitionInfo* PropDef : FunctionDef.GetProperties())
+	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropDef : FunctionDef.GetProperties())
 	{
 		FPropertyBase& PropertyBase = PropDef->GetPropertyBase();
 		if (!PropDef->HasAnyPropertyFlags(CPF_Parm))
@@ -4652,7 +4652,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 		++ParmCount;
 	}
 
-	for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef.GetProperties())
+	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : FunctionDef.GetProperties())
 	{
 		if (!PropertyDef->HasSpecificPropertyFlags(CPF_Parm | CPF_ReturnParm, CPF_Parm))
 		{
@@ -4920,7 +4920,12 @@ FString FNativeClassHeaderGenerator::GetFunctionParameterString(FUnrealFunctionD
 	FString ParameterList;
 	FUHTStringBuilder PropertyText;
 
-	for (FUnrealPropertyDefinitionInfo* PropertyDef : FunctionDef.GetProperties())
+	if (FunctionDef.GetReturn() != nullptr)
+	{
+		ParameterList = ParameterList;
+	}
+
+	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : FunctionDef.GetProperties())
 	{
 		OutReferenceGatherers.ForwardDeclarations.Add(PropertyDef->GetCPPTypeForwardDeclaration());
 
@@ -4985,7 +4990,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		FUnrealScriptStructDefinitionInfo* SparseClassDataStructDef = GTypeDefinitionInfoMap.FindByName<FUnrealScriptStructDefinitionInfo>(*SparseClassDataString);
 		while (SparseClassDataStructDef != nullptr)
 		{
-			for (FUnrealPropertyDefinitionInfo* PropertyDef : SparseClassDataStructDef->GetProperties())
+			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : SparseClassDataStructDef->GetProperties())
 			{
 				FString ReturnExtendedType;
 				FString VarType = PropertyDef->GetCPPType(&ReturnExtendedType, EPropertyExportCPPFlags::CPPF_ArgumentOrReturnValue | EPropertyExportCPPFlags::CPPF_Implementation);
@@ -5032,12 +5037,12 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		}
 	}
 
-	TArray<FUnrealFunctionDefinitionInfo*> Functions;
+	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>> Functions;
 	Algo::Copy(ClassDef.GetFunctions(), Functions);
 	Algo::Reverse(Functions);
 
 	// export the C++ stubs
-	for (FUnrealFunctionDefinitionInfo* FunctionDef : Functions)
+	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : Functions)
 	{
 		const FFuncInfo& FunctionData = FunctionDef->GetFunctionData();
 		if (!FunctionDef->HasAnyFunctionFlags(FUNC_Native))
@@ -6644,62 +6649,20 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	{
 		FResults::Try([PackageDef]()
 			{
-				// Collect all of the classes from the sources
-				TArray<FUnrealClassDefinitionInfo*> PackageClasses;
-				PackageClasses.Reserve(128); // Arbitrary number
-				for (TSharedRef<FUnrealSourceFile>& SourceFile : PackageDef->GetAllSourceFiles())
-				{
-					for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile->GetDefinedClasses())
-					{
-						PackageClasses.Add(&TypeDef->AsClassChecked());
-					}
-				}
-
-				// Validate the sparse class data for all classes in the current package
-				for (const FUnrealClassDefinitionInfo* ClassDef : PackageClasses)
-				{
-					FHeaderParser::CheckSparseClassData(*ClassDef);
-				}
-
-				// Check to see if we need write the classes 
-				const bool bPackageHasAnyExportClasses = PackageClasses.ContainsByPredicate([](FUnrealClassDefinitionInfo* ClassDef)
-					{
-						return ClassDef->HasAnyClassFlags(CLASS_Native) && !ClassDef->HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic);
-					});
-				if (bPackageHasAnyExportClasses)
-				{
-					for (FUnrealClassDefinitionInfo* ClassDef : PackageClasses)
-					{
-						UClass* Class = ClassDef->GetClass();
-						if (!ClassDef->HasAnyClassFlags(CLASS_Native))
-						{
-							Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
-						}
-						else if (!ClassDef->HasAnyClassFlags(CLASS_NoExport))
-						{
-							PackageDef->SetWriteClassesH(true);
-							Class->UnMark(OBJECTMARK_TagImp);
-							Class->Mark(OBJECTMARK_TagExp);
-						}
-					}
-				}
-
-				// This needs to be done outside of parallel blocks because it will modify UClass memory.
-				// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
-				// they will see the memory has already been set up, and just return the parent pointer.
-				for (FUnrealClassDefinitionInfo* ClassDef : PackageClasses)
-				{
-					if (ClassHasReplicatedProperties(*ClassDef))
-					{
-						ClassDef->GetClass()->SetUpUhtReplicationData();
-					}
-				}
+				PackageDef->PostParseFinalize(true);
 			}
 		);
 	}
 	FResults::WaitForErrorTasks();
 
-	GTypeDefinitionInfoMap.ForAllTypes([](FUnrealTypeDefinitionInfo& TypeDef) { TypeDef.PostParseFinalize(); });
+	// Until we fix the issue with types not having sources, we need to do this
+	GTypeDefinitionInfoMap.ForAllTypes([](FUnrealTypeDefinitionInfo& TypeDef) 
+		{ 
+			if (!TypeDef.HasSource())
+			{
+				TypeDef.PostParseFinalize(true);
+			}
+		});
 }
 
 void Export(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, TArray<FUnrealSourceFile*>& OrderedSourceFiles)
