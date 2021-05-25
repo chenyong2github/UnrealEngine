@@ -203,6 +203,7 @@ private:
 namespace UE_NETWORK_PHYSICS
 {
 	extern NETWORKPREDICTION_API bool ConditionalFrameBreakpoint();
+	extern NETWORKPREDICTION_API void ConditionalFrameEnsure();
 	extern NETWORKPREDICTION_API bool GServer;
 	extern NETWORKPREDICTION_API int32 GFrame;
 	extern NETWORKPREDICTION_API int32 GBreakAtFrame;

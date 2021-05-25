@@ -93,13 +93,13 @@ namespace UE_NETWORK_PHYSICS
 	// returns true/false so you can log or do whatever at GBreakAtFrame
 	bool ConditionalFrameBreakpoint()
 	{
-		return (GFrame == GBreakAtFrame);
+		return (GBreakAtFrame != 0 && GFrame == GBreakAtFrame);
 	}
 
 	// forces ensure failure to invoke debugger
 	void ConditionalFrameEnsure()
 	{
-		ensureAlways(GFrame != GBreakAtFrame);
+		ensureAlways(!ConditionalFrameBreakpoint());
 	}
 }
 
