@@ -874,3 +874,5 @@ void FNodalOffsetTool::FindMediaSourceUrls(TArray<TSharedPtr<FString>>& OutMedia
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
