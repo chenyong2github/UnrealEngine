@@ -3507,7 +3507,7 @@ void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRHICommandListImmediat
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
 }
 
-static int32 GSceneRenderCleanUpMode = 0;
+static int32 GSceneRenderCleanUpMode = 2;
 static FAutoConsoleVariableRef CVarSceneRenderCleanUpMode(
 	TEXT("r.SceneRenderCleanUpMode"),
 	GSceneRenderCleanUpMode,
@@ -3603,6 +3603,8 @@ void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList)
 	}
 	else
 	{
+		GPUSceneDynamicContext.Release();
+
 		GSceneRenderCleanUpState.Renderer = this;
 		GSceneRenderCleanUpState.MemStackMark = MemStackMark;
 
