@@ -13,6 +13,7 @@
 #include "UObject/WeakFieldPtr.h"
 #include "NiagaraCommon.generated.h"
 
+class UNiagaraComponent;
 class UNiagaraSystem;
 class UNiagaraScript;
 class UNiagaraDataInterface;
@@ -701,6 +702,7 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 {
 	GENERATED_BODY()
 
+	FNiagaraSystemUpdateContext(UNiagaraComponent* Component, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive) { Add(Component, bReInit); }
 	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
 	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive)  { Add(Emitter, bReInit); }
@@ -715,6 +717,7 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 	void SetDestroyOnAdd(bool bInDestroyOnAdd) { bDestroyOnAdd = bInDestroyOnAdd; }
 	void SetOnlyActive(bool bInOnlyActive) { bOnlyActive = bInOnlyActive; }
 
+	void Add(UNiagaraComponent* Component, bool bReInit);
 	void Add(const UNiagaraSystem* System, bool bReInit);
 #if WITH_EDITORONLY_DATA
 	void Add(const UNiagaraEmitter* Emitter, bool bReInit);
@@ -724,9 +727,13 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 
 	/** Adds all currently active systems.*/
 	void AddAll(bool bReInit);
-
+	
 	/** Handles any pending reinits or resets of system instances in this update context. */
 	void CommitUpdate();
+
+	DECLARE_DELEGATE_OneParam(FCustomWorkDelegate, UNiagaraComponent*);
+	FCustomWorkDelegate& GetPreWork(){ return PreWork; }
+	FCustomWorkDelegate& GetPostWork() { return PostWork; }
 
 private:
 	void AddInternal(class UNiagaraComponent* Comp, bool bReInit);
@@ -743,6 +750,12 @@ private:
 	bool bDestroyOnAdd;
 	bool bOnlyActive;
 	//TODO: When we allow component less systems we'll also want to find and reset those.
+
+	/** Delegate called before a component is added to the context for update. */
+	FCustomWorkDelegate PreWork;
+	
+	/** Delegate called before after a component has been updated. */
+	FCustomWorkDelegate PostWork;
 };
 
 /** Defines different usages for a niagara script. */

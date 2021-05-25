@@ -1515,34 +1515,29 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 		System->CacheFromCompiledData();
 	}
 
-	TArray<UNiagaraComponent*> ReferencingComponents;
-	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
-	{
-		if (PreviewComponent != nullptr)
+	FNiagaraSystemUpdateContext UpdateContext;
+	UpdateContext.GetPostWork().BindLambda(
+		[ReinitMode, bResetAge](UNiagaraComponent* Component)
 		{
-			ReferencingComponents.Add(PreviewComponent);
-		}
-	}
-	else
-	{
-		ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(GetSystem());
-	}
-
-	for (auto Component : ReferencingComponents)
-	{
-		if (ReinitMode == EReinitMode::ResetSystem)
-		{
-			Component->ResetSystem();
-			if (bResetAge && Component->GetAgeUpdateMode() == ENiagaraAgeUpdateMode::DesiredAge)
+			if (ReinitMode == EReinitMode::ResetSystem && bResetAge  && Component->GetAgeUpdateMode() == ENiagaraAgeUpdateMode::DesiredAge)
 			{
 				Component->SetDesiredAge(0);
 			}
 		}
-		else if (ReinitMode == EReinitMode::ReinitializeSystem)
+	);
+	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
+	{
+		if (PreviewComponent != nullptr)
 		{
-			Component->ReinitializeSystem();
+			UpdateContext.Add(PreviewComponent, ReinitMode == EReinitMode::ReinitializeSystem);
 		}
 	}
+	else
+	{
+		UpdateContext.Add(&GetSystem(), ReinitMode == EReinitMode::ReinitializeSystem);
+	}
+
+	UpdateContext.CommitUpdate();
 
 	if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset && MultiResetMode == EMultiResetMode::AllowResetAllInstances && EditorSettings->GetResetDependentSystemsWhenEditingEmitters())
 	{
