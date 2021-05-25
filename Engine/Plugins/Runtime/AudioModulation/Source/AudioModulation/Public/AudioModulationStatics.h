@@ -92,19 +92,19 @@ public:
 		float AttackTime = 0.1f,
 		float ReleaseTime = 0.1f);
 
-	/** Creates a modulation bus mix, with a bus channel set to the provided target value
+	/** Creates a modulation bus mix, with a bus stage set to the provided target value
 	 * @param Name - Name of mix.
 	 * @param Stages - Stages mix is responsible for.
 	 * @param Activate - Whether or not to activate mix on creation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus Mix", meta = (
-		WorldContext = "WorldContextObject", 
+		WorldContext = "WorldContextObject",
 		Keywords = "make create control bus mix modulation modulator")
 	)
 	static USoundControlBusMix* CreateBusMix(
 		const UObject* WorldContextObject,
 		FName Name, 
-		TArray<FSoundControlBusMixStage> Stages, 
+		TArray<FSoundControlBusMixStage> Stages,
 		bool Activate);
 
 	/** Deactivates a bus. Does nothing if the provided bus is already inactive
@@ -160,12 +160,12 @@ public:
 	)
 	static UPARAM(DisplayName = "Stages") TArray<FSoundControlBusMixStage> LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* Mix, bool bActivate = true, int32 ProfileIndex = 0);
 
-	/** Sets a Control Bus Mix with the provided channel data, if the channels
+	/** Sets a Control Bus Mix with the provided stage data, if the stages
 	 *  are provided in an active instance proxy of the mix. 
 	 *  Does not update UObject definition of the mix. 
 	 * @param Mix - Mix to update
 	 * @param Stages - Stages to set.  If stage's bus is not referenced by mix, stage's update request is ignored.
-	 * @param InFadeTime - Fade time to user when interpolating between current value and new values.
+	 * @param FadeTime - Fade time to user when interpolating between current value and new values.
 	 *					 If negative, falls back to last fade time set on stage. If fade time never set on stage,
 	 *					 uses attack time set on stage in mix asset.
 	 */
@@ -174,6 +174,41 @@ public:
 		Keywords = "set bus control modulation modulator mix stage")
 	)
 	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float FadeTime = -1.0f);
+
+	/** Sets a Global Control Bus Mix with a single stage associated with the provided Bus to the given float value.  This call should
+	 * be reserved for buses that are to be always active. It is *NOT* recommended for transient buses, as not calling clear can keep
+	 * buses active indefinitely.
+	 * @param Bus - Bus associated with mix to update
+	 * @param Value - Value to set global stage to.
+	 * @param FadeTime - Fade time to user when interpolating between current value and new value. If negative, falls back to last fade
+	 * time set on stage. If fade time never set on stage, defaults to 100ms.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Global Control Bus Mix Value", meta = (
+		WorldContext = "WorldContextObject",
+		Keywords = "set bus control modulation modulator mix stage global")
+	)
+	static void SetGlobalBusMixValue(const UObject* WorldContextObject, USoundControlBus* Bus, float Value, float FadeTime = -1.0f);
+
+	/** Clears global control bus mix if set, using the applied fade time to return to the provided bus's parameter default value.
+	 * @param Bus - Bus associated with mix to update
+	 * @param FadeTime - Fade time to user when interpolating between current value and new values.
+	 *					 If non-positive, change is immediate.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Clear Global Control Bus Mix Value", meta = (
+		WorldContext = "WorldContextObject",
+		Keywords = "clear bus control modulation modulator mix stage global")
+	)
+	static void ClearGlobalBusMixValue(const UObject* WorldContextObject, USoundControlBus* Bus, float FadeTime = -1.0f);
+
+	/** Clears all global control bus mix values if set, using the applied fade time to return all to their respective bus's parameter default value.
+	 * @param FadeTime - Fade time to user when interpolating between current value and new values.
+	 *					 If non-positive, change is immediate.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Clear All Global Control Bus Mix Value", meta = (
+		WorldContext = "WorldContextObject",
+		Keywords = "clear bus control modulation modulator mix stage global")
+	)
+	static void ClearAllGlobalBusMixValues(const UObject* WorldContextObject, float FadeTime = -1.0f);
 
 	/** Sets filtered stages of a given class to a provided target value for active instance of mix.
 	 * Does not update UObject definition of mix.
