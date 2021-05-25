@@ -497,7 +497,6 @@ struct FHairStrandsRootData
 {
 	/** Build the hair strands resource */
 	FHairStrandsRootData();
-	FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples);
 	void Serialize(FArchive& Ar);
 	void Reset();
 	bool HasProjectionData() const;
