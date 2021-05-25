@@ -732,7 +732,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 			}
 
 			// Build groom binding data
-			bIsValid = FGroomBindingBuilder::BuildBinding(this, false, false);
+			bIsValid = FGroomBindingBuilder::BuildBinding(this, false);
 			if (bIsValid)
 			{
 				// Using a LargeMemoryWriter for serialization since the data can be bigger than 2 GB
