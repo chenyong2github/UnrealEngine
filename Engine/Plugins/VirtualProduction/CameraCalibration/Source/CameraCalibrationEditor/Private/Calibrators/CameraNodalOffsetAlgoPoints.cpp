@@ -950,3 +950,5 @@ void UCameraNodalOffsetAlgoPoints::ClearCalibrationRows()
 		CalibrationListView->RequestListRefresh();
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
