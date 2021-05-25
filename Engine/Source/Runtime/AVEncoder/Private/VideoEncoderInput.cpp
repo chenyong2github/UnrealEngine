@@ -803,7 +803,7 @@ void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, FReleaseCUDATextureC
 
 
 #if PLATFORM_WINDOWS || PLATFORM_LINUX
-void FVideoEncoderInputFrame::SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture)
+void FVideoEncoderInputFrame::SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture)
 {
 	if (Format == EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM)
 	{
