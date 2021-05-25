@@ -1,28 +1,33 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-import base64, json, uuid
+import base64
+import json
+import uuid
+
 
 def create_start_process_message(
     prog_path: str,
     prog_args: str,
     prog_name: str,
     caller: str,
-    update_clients_with_stdout: bool, 
     working_dir: str = "",
-    priority_modifier: int = 0
+    *,
+	update_clients_with_stdout: bool = False,
+    priority_modifier: int = 0,
 ):
     cmd_id = uuid.uuid4()
     start_cmd = {
-        'command': 'start', 
-        'id': str(cmd_id), 
-        'exe': prog_path, 
-        'args': prog_args, 
-        'name': prog_name, 
+        'command': 'start',
+        'id': str(cmd_id),
+        'exe': prog_path,
+        'args': prog_args,
+        'name': prog_name,
         'caller': caller,
         'working_dir': working_dir,
-        'bUpdateClientsWithStdout' : update_clients_with_stdout,
+        'bUpdateClientsWithStdout': update_clients_with_stdout,
         'priority_modifier': priority_modifier,
     }
+
     message = json.dumps(start_cmd).encode() + b'\x00'
     return (cmd_id, message)
 

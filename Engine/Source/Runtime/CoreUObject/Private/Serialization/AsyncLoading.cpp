@@ -4027,6 +4027,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 			{
 				// Update heartbeat after 32 events
 				FThreadHeartBeat::Get().HeartBeat();
+				FCoreDelegates::OnAsyncLoadingFlushUpdate.Broadcast();
 			}
 
 			bool bDidSomething = false;
@@ -4356,6 +4357,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 
 	for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num() && !IsAsyncLoadingSuspendedInternal(); ++PackageIndex)
 	{
+		FPlatformMisc::PumpEssentialAppMessages();
+
 		FAsyncPackage* Package = LoadedPackagesToProcess[PackageIndex];
 		if (Package->GetDependencyRefCount() == 0)
 		{
@@ -4550,7 +4553,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncLoading(bool bUseTimeLimi
 		}
 
 		const bool bIsMultithreaded = FAsyncLoadingThread::IsMultithreaded();
-		
+
 		bool bDidSomething = false;
 		{
 			Result = ProcessLoadedPackages(bUseTimeLimit, bUseFullTimeLimit, TimeLimit, bDidSomething, FlushTree);
@@ -5767,10 +5770,11 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 				bool bDoesPackageExist = false;
 				{
 					SCOPED_LOADTIMER(CreateLinker_DoesExist);
-					bDoesPackageExist = FPackageName::DoesPackageExist(PackagePath, Guid, false /* bMatchCaseOnDisk */, &PackagePath);
-#if WITH_IOSTORE_IN_EDITOR
+#if WITH_IOSTORE_IN_EDITOR 
 					// Only look for non cooked packages on disk
-					bDoesPackageExist &= !DoesPackageExistInIoStore(NameToLoadFName);
+					bDoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked, Guid, false /* bMatchCaseOnDisk */, &PackagePath) != FPackageName::EPackageLocationFilter::None;
+#else
+					bDoesPackageExist = FPackageName::DoesPackageExist(PackagePath, Guid, false /* bMatchCaseOnDisk */, &PackagePath);
 #endif
 				}
 

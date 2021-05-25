@@ -646,7 +646,7 @@ FARFilter SFilterList::GetCombinedBackendFilter() const
 				if (TypeActions->CanFilter())
 				{
 					const UClass* TypeClass = TypeActions->GetSupportedClass();
-					if (!CombinedFilter.ClassNames.Contains(TypeClass->GetFName()))
+					if (TypeClass && !CombinedFilter.ClassNames.Contains(TypeClass->GetFName()))
 					{
 						CombinedFilter.RecursiveClassesExclusionSet.Add(TypeClass->GetFName());
 					}
@@ -856,7 +856,7 @@ void SFilterList::SaveSettings(const FString& IniFilename, const FString& IniSec
 				ActiveTypeFilterString += TEXT(",");
 			}
 
-			const FString FilterName = Filter->GetAssetTypeActions().Pin()->GetSupportedClass()->GetName();
+			const FString FilterName = Filter->GetAssetTypeActions().Pin()->GetFilterName().ToString();
 			ActiveTypeFilterString += FilterName;
 
 			if ( Filter->IsEnabled() )
@@ -927,12 +927,12 @@ void SFilterList::LoadSettings(const FString& IniFilename, const FString& IniSec
 			const TWeakPtr<IAssetTypeActions>& TypeActions = *TypeActionsIt;
 			if ( TypeActions.IsValid() && TypeActions.Pin()->CanFilter() && !IsAssetTypeActionsInUse(TypeActions) )
 			{
-				const FString& ClassName = TypeActions.Pin()->GetSupportedClass()->GetName();
-				if ( TypeFilterNames.Contains(ClassName) )
+				const FString FilterName = TypeActions.Pin()->GetFilterName().ToString();
+				if ( TypeFilterNames.Contains(FilterName) )
 				{
 					TSharedRef<SFilter> NewFilter = AddFilter(TypeActions);
 
-					if ( EnabledTypeFilterNames.Contains(ClassName) )
+					if ( EnabledTypeFilterNames.Contains(FilterName) )
 					{
 						NewFilter->SetEnabled(true, false);
 					}

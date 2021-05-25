@@ -16,7 +16,6 @@ struct NIAGARAEDITOR_API FNiagaraMessageTopics
 {
 	static const FName CompilerTopicName;
 	static const FName ObjectTopicName;
-	static const FName CustomTopicName;
 };
 
 UENUM()
@@ -26,7 +25,8 @@ enum class ENiagaraMessageSeverity : uint8
 	Error = 1,
 	PerformanceWarning = 2,
 	Warning = 3,
-	Info = 4,	// Should be last
+	Info = 4,
+	CustomNote = 5 // Should be last
 };
 
 //Struct for passing around script asset info from compile event message job to message types
@@ -234,6 +234,30 @@ private:
 	TOptional<const FString> SourceScriptAssetPath;
 };
 
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraStackMessage
+{
+	GENERATED_BODY()
+
+	FNiagaraStackMessage();
+
+	FNiagaraStackMessage(const FText& MessageText, const FText& ShortDescription, ENiagaraMessageSeverity Severity, bool bAllowDismissal, FGuid Guid = FGuid::NewGuid());
+	
+	UPROPERTY()
+	FText MessageText;
+
+	UPROPERTY()
+	FText ShortDescription;
+
+	UPROPERTY()
+	ENiagaraMessageSeverity MessageSeverity = ENiagaraMessageSeverity::CustomNote;
+
+	UPROPERTY()
+	bool bAllowDismissal = true;
+
+	UPROPERTY()
+	FGuid Guid;
+};
 
 struct NIAGARAEDITOR_API FGenerateNiagaraMessageInfo
 {

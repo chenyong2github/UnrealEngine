@@ -24,6 +24,9 @@ extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
 extern int32 ChaosNumPushOutIterationsOverride;
 extern int32 ChaosNumContactIterationsOverride;
 
+extern CHAOS_API int32 ForceNoCollisionIntoSQ;
+
+
 namespace Chaos
 {
 
@@ -309,9 +312,19 @@ public:
 		NumIterations = InNumIterations;
 	}
 
+	CHAOS_API int32 GetNumIterations() const
+	{
+		return NumIterations;
+	}
+
 	CHAOS_API void SetNumPushOutIterations(int32 InNumIterations)
 	{
 		NumPushOutIterations = InNumIterations;
+	}
+
+	CHAOS_API int32 GetNumPushOutIterations() const
+	{
+		return NumPushOutIterations;
 	}
 
 	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle, const FGeometryParticleHandle* ParentParticle)
@@ -342,6 +355,7 @@ public:
 			DisableParticle(Particle);
 		}
 	}
+
 
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& Particle)
@@ -375,7 +389,7 @@ public:
 		}
 
 		//only add to acceleration structure if it has collision
-		if (Particle.HasCollision())
+		if (Particle.HasCollision() || ForceNoCollisionIntoSQ)
 		{
 			//TODO: distinguish between new particles and dirty particles
 			const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
@@ -638,9 +652,8 @@ public:
 		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
 		{
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
-			const TRigidTransform<FReal, 3>& Previous = KinematicTarget.GetPrevious();
-			const FVec3 PrevX = Previous.GetTranslation();
-			const FRotation3 PrevR = Previous.GetRotation();
+			const FVec3 CurrentX = Particle.X();
+			const FRotation3 CurrentR = Particle.R();
 
 			switch (KinematicTarget.GetMode())
 			{
@@ -662,29 +675,31 @@ public:
 			{
 				// Move to kinematic target and update velocities to match
 				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
-				FVec3 TargetPos;
-				FRotation3 TargetRot;
+				FVec3 NewX;
+				FRotation3 NewR;
 				if (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)KINDA_SMALL_NUMBER))
 				{
-					TargetPos = KinematicTarget.GetTarget().GetLocation();
-					TargetRot = KinematicTarget.GetTarget().GetRotation();
+					NewX = KinematicTarget.GetTarget().GetLocation();
+					NewR = KinematicTarget.GetTarget().GetRotation();
 					KinematicTarget.SetMode(EKinematicTargetMode::Reset);
 				}
 				else
 				{
-					TargetPos = FVec3::Lerp(PrevX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
-					TargetRot = FRotation3::Slerp(PrevR, KinematicTarget.GetTarget().GetRotation(), StepFraction);
+					// as a reminder, stepfraction is the remaing fraction of the step from the remaining steps
+					// for total of 4 steps and current step of 2, this will be 1/3 ( 1 step passed, 3 steps remains )
+					NewX = FVec3::Lerp(CurrentX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
+					NewR = FRotation3::Slerp(CurrentR, KinematicTarget.GetTarget().GetRotation(), StepFraction);
 				}
 				if (Dt > MinDt)
 				{
-					FVec3 V = FVec3::CalculateVelocity(PrevX, TargetPos, Dt);
+					FVec3 V = FVec3::CalculateVelocity(CurrentX, NewX, Dt);
 					Particle.V() = V;
 
-					FVec3 W = FRotation3::CalculateAngularVelocity(PrevR, TargetRot, Dt);
+					FVec3 W = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
 					Particle.W() = W;
 				}
-				Particle.X() = TargetPos;
-				Particle.R() = TargetRot;
+				Particle.X() = NewX;
+				Particle.R() = NewR;
 				Particles.MarkTransientDirtyParticle(Particle.Handle());
 				break;
 			}
@@ -699,7 +714,7 @@ public:
 			}
 			}
 			
-			// Set previous and positions and velocities if we can
+			// Set positions and previous velocities if we can
 			// Note: At present kininematics are in fact rigid bodies
 			auto* Rigid = Particle.CastToRigidParticle();
 			if (Rigid)

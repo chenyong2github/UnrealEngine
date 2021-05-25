@@ -180,5 +180,27 @@ UMoviePipelineExecutorJob* UMoviePipelineEditorBlueprintLibrary::CreateJobFromSe
 	return NewJob;
 }
 
+void UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(UMoviePipelineExecutorJob* NewJob)
+{
+	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
+	for (TSubclassOf<UMoviePipelineSetting> SettingClass : ProjectSettings->DefaultClasses)
+	{
+		if (!SettingClass)
+		{
+			continue;
+		}
+
+		if (SettingClass->HasAnyClassFlags(CLASS_Abstract))
+		{
+			continue;
+		}
+
+		UMoviePipelineSetting* ExistingSetting = NewJob->GetConfiguration()->FindSettingByClass(SettingClass);
+		if (!ExistingSetting)
+		{
+			NewJob->GetConfiguration()->FindOrAddSettingByClass(SettingClass);
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelineEditorBlueprintLibrary"

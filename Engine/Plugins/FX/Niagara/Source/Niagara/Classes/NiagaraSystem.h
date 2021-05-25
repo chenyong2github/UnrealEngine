@@ -262,7 +262,7 @@ public:
 
 private:
 	bool IsValidInternal() const;
-	void EnsureFullyLoaded() const;
+	
 public:
 	/** Returns true if this system is valid and can be instanced. False otherwise. */
 	bool IsValid() const { return FPlatformProperties::RequiresCookedData() ? bIsValidCached : IsValidInternal(); }
@@ -415,6 +415,7 @@ public:
 #endif
 
 	void UpdateSystemAfterLoad();
+	void EnsureFullyLoaded() const;
 
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
 	bool IsLooping() const;
@@ -695,9 +696,6 @@ protected:
 	UNiagaraBakerSettings* BakerGeneratedSettings;
 #endif
 
-	// Reference to the async system update task that is responsible to do any outstanding work like emitter merging or script compilation 
-	FGraphEventRef UpdateTaskRef;
-	
 	UPROPERTY()
 	bool bHasSystemScriptDIsWithPerInstanceData;
 

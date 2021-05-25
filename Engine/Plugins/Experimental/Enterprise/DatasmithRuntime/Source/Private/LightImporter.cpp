@@ -349,6 +349,7 @@ namespace DatasmithRuntime
 
 			if ( LightShapeActor )
 			{
+				LightShapeActor->Rename(AreaLightElement->GetName(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
 #if WITH_EDITOR
 				LightShapeActor->SetActorLabel( AreaLightElement->GetLabel() );
 #endif

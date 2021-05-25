@@ -198,7 +198,7 @@ bool FFileHelper::LoadFileToString( FString& Result, const TCHAR* Filename, EHas
 	return LoadFileToString(Result, *Reader.Get(), VerifyFlags);
 }
 
-bool FFileHelper::LoadFileToString(FString& Result, IPlatformFile* PlatformFile, const TCHAR* Filename, EHashOptions VerifyFlags /*= EHashOptions::None*/)
+bool FFileHelper::LoadFileToString(FString& Result, IPlatformFile* PlatformFile, const TCHAR* Filename, EHashOptions VerifyFlags /*= EHashOptions::None*/, uint32 ReadFlags /*= 0*/)
 {
 	if (!PlatformFile)
 	{
@@ -208,7 +208,16 @@ bool FFileHelper::LoadFileToString(FString& Result, IPlatformFile* PlatformFile,
 	IFileHandle* File = PlatformFile->OpenRead(Filename);
 	if (!File)
 	{
-		UE_LOG(LogStreaming, Warning, TEXT("Failed to read file '%s' error."), Filename);
+		if (ReadFlags & FILEREAD_NoFail)
+		{
+			UE_LOG(LogStreaming, Fatal, TEXT("Failed to read file: %s"), Filename);
+		}
+
+		if (!(ReadFlags & FILEREAD_Silent))
+		{
+			UE_LOG(LogStreaming, Warning, TEXT("Failed to read file '%s' error."), Filename);
+		}
+
 		return false;
 	}
 

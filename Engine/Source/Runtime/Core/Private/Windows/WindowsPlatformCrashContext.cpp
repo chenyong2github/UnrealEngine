@@ -43,10 +43,8 @@
 	#define UE_LOG_CRASH_CALLSTACK 1
 #endif
 
-#if WITH_EDITOR
-	#define USE_CRASH_REPORTER_MONITOR 1
-#else 
-	#define USE_CRASH_REPORTER_MONITOR 0
+#ifndef USE_CRASH_REPORTER_MONITOR
+#define USE_CRASH_REPORTER_MONITOR WITH_EDITOR
 #endif
 
 #ifndef NOINITCRASHREPORTER
@@ -546,7 +544,9 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 			PipeChildInRead, //Pass this to allow inherit handles in child proc
 			nullptr);
 
-#if WITH_EDITOR
+		DWORD pid = GetProcessId(Handle.Get());
+		UE_LOG(LogWindows, Log, TEXT("Started CrashReportClient (pid=%d)"), pid);
+
 		// The CRC instance launched above will respanwn itself to sever the link with the Editor process group. This way, if the user kills the Editor
 		// process group in TaskManager, CRC will not die at the same moment and will be able to capture the Editor exit code and send the session summary.
 		if (Handle.IsValid())
@@ -586,7 +586,6 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 				*OutCrashReportClientProcessId = Handle.IsValid() ? RepawnedCrcPid : 0;
 			}
 		}
-#endif
 	}
 
 	return Handle;

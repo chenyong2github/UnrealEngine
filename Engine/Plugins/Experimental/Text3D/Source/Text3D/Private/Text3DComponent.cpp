@@ -49,7 +49,6 @@ UText3DComponent::UText3DComponent() :
 #if WITH_EDITOR
 	TextRoot->SetIsVisualizationComponent(true);
 #endif
-	TextRoot->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 
 	if (!IsRunningDedicatedServer())
 	{
@@ -99,6 +98,7 @@ UText3DComponent::UText3DComponent() :
 void UText3DComponent::OnRegister()
 {
 	Super::OnRegister();
+	TextRoot->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 	BuildTextMesh();
 }
 

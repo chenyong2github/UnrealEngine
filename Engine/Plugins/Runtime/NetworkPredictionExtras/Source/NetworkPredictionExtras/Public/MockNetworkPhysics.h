@@ -23,9 +23,6 @@ struct FMockPhysInputCmd
 	FVector	Force;
 
 	UPROPERTY(BlueprintReadWrite, Category="Input")
-	float Turn=0.f;
-
-	UPROPERTY(BlueprintReadWrite, Category="Input")
 	bool bJumpedPressed = false;
 
 	UPROPERTY(BlueprintReadWrite, Category="Input")
@@ -34,7 +31,6 @@ struct FMockPhysInputCmd
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << Force;
-		Ar << Turn;
 		Ar << bJumpedPressed;
 		Ar << bBrakesPressed;
 		return true;
@@ -52,23 +48,18 @@ struct FMockPhysInputCmd
 	bool ShouldReconcile(const FMockPhysInputCmd& AuthState) const
 	{
 		return FVector::DistSquared(Force, AuthState.Force) > 0.1f || bJumpedPressed != AuthState.bJumpedPressed || 
-			bBrakesPressed != AuthState.bBrakesPressed || FMath::Abs<float>(Turn - AuthState.Turn) > 0.1f;
+			bBrakesPressed != AuthState.bBrakesPressed;
 	}
 
 	// Decays input for non locally controlled sims (client only)
 	// disabled behind np2.InputDecay cvar for now
 	void Decay(float Alpha)
 	{
-		Turn *= Alpha;
-		if (Turn < 0.001f)
-		{
-			Turn = 0.f;
-		}
 	}
 
 	void ToString(FStringBuilderBase& Out)
 	{
-		Out.Appendf(TEXT("%s. bJumpedPressed: %d. bBrakesPressed: %d. Turn: %.2f"), *Force.ToString(), (int32)bJumpedPressed, (int32)bBrakesPressed, Turn);
+		Out.Appendf(TEXT("%s. bJumpedPressed: %d. bBrakesPressed: %d."), *Force.ToString(), (int32)bJumpedPressed, (int32)bBrakesPressed);
 	}
 };
 
@@ -142,17 +133,37 @@ struct FMockState_PT
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	int32 CheckSum = 0;
 
+	// Frame we started "in air recovery" on
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 RecoveryFrame = 0;
+
+	// Frame we started jumping on
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 JumpStartFrame = 0;
+
+	// Frame we started being in the air
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 InAirFrame = 0;
+
+	// Frame we last applied a kick impulse
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 KickFrame = 0;
+
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << JumpCooldownMS;
 		Ar << JumpCount;
-		Ar << CheckSum;		
+		Ar << CheckSum;	
+		Ar << RecoveryFrame;
+		Ar << JumpStartFrame;
+		Ar << InAirFrame;
+		Ar << KickFrame;
 		return true;
 	}
 
 	bool ShouldReconcile(const FMockState_PT& AuthState) const
 	{
-		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount;
+		return JumpCooldownMS != AuthState.JumpCooldownMS || JumpCount != AuthState.JumpCount || RecoveryFrame != AuthState.RecoveryFrame || JumpStartFrame != AuthState.JumpStartFrame || InAirFrame != AuthState.InAirFrame || KickFrame!= AuthState.KickFrame;
 	}
 };
 
@@ -224,6 +235,9 @@ struct FMockManagedState
 		bOutSuccess = true;
 		return true;
 	}
+
+	// This is only used for input recording/playback hack
+	class UNetworkPhysicsComponent* Component = nullptr;
 };
 
 template<>
@@ -255,6 +269,7 @@ public:
 
 	void PostNetRecv(UWorld* World, int32 FrameOffset, int32 LastProcessedFrame) override;
 	void PreNetSend(UWorld* World, float DeltaSeconds) override;
+	void ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) override;
 
 private:
 
@@ -262,12 +277,28 @@ private:
 	TArray<FMockManagedState*> InMockManagedStates;
 	TArray<FMockManagedState*> OutMockManagedStates;
 	class FMockAsyncObjectManagerCallback* AsyncCallback = nullptr;
+	
+	TWeakObjectPtr<UWorld> WeakWorld;
 };
 
 // -----------------------------------------------------
 
+USTRUCT(BlueprintType)
+struct FMockRecordedInputs
+{
+	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Recorded Inputs")
+	FName Name;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Recorded Inputs")
+	TArray<FMockPhysInputCmd> Inputs;
+
+	bool operator==(const FName& N) const
+	{
+		return Name == N;
+	}
+};
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
 class NETWORKPREDICTIONEXTRAS_API UNetworkPhysicsComponent : public UActorComponent
@@ -318,6 +349,33 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Mock Input")
 	FMockState_PT GetMockState_PT() const { return OutManagedState.PT_State; }
 
+	// ----------------------------------------------------------------
+	// Misc API
+	// ----------------------------------------------------------------
+
+	UFUNCTION(BlueprintPure, Category = "Network Physics")
+	int32 GetNetworkPredictionLOD() const { return NetworkPhysicsState.LocalLOD; }
+
+	// Makes the object "controllable". This includes logic like air-recover.
+	UPROPERTY(EditDefaultsOnly, Category="Network Physics")
+	bool bEnableMockGameplay=false;
+
+
+	void ProcessInputs_External(FMockManagedState& State, int32 PhysicsStep, int32 LocalFrameOffset);
+	void StartRecording(TArray<FMockPhysInputCmd>* Stream);
+	void StopRecording();
+	bool IsRecording() const { return bRecording; }
+	void StartPlayback(TArray<FMockPhysInputCmd>* Stream);
+
+	APlayerController* GetOwnerPC() const;
+
+	// Stores all recorded streams on CDO
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Recorded Inputs")
+	TArray<FMockRecordedInputs>	RecordedInputs;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mock State")
+	bool bCanBeKicked=false;
+
 protected:
 
 	// Managed state should not be publically exposed
@@ -330,6 +388,34 @@ protected:
 	UPROPERTY(transient)
 	FMockManagedState OutManagedState;
 
-	APlayerController* GetOwnerPC() const;
+	// Which one we are playingback or recording to
+	TArray<FMockPhysInputCmd>* CurrentInputCmdStream = nullptr;	
 
+	bool bRecording = false;
+	int32 PlaybackIdx = INDEX_NONE;
+};
+
+UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
+class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionSpawner : public AActor
+{
+	GENERATED_BODY()
+public:
+
+	ANetworkPredictionSpawner() = default;
+
+	// Spawns actor and plays named recorded inputs
+	UFUNCTION(BlueprintCallable, Category="Spawner")
+	AActor* Spawn(FName NamedInputs);
+
+	// Spawns actor and plays random stream of recorded input
+	UFUNCTION(BlueprintCallable, Category="Spawner")
+	AActor* SpawnRandom();
+	
+	void StartRecording(UNetworkPhysicsComponent* Target, FName NamedInputs);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spawner")
+	TSubclassOf<AActor> SpawnClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spawner")
+	TArray<FMockRecordedInputs>	RecordedInputs;
 };

@@ -15,6 +15,7 @@ import os, random, socket, threading
 class DeviceStatus(IntEnum):
     DELETE = auto()
     DISCONNECTED = auto()
+    CONNECTING = auto()
     CLOSED = auto()
     SYNCING = auto()
     BUILDING = auto()
@@ -38,7 +39,7 @@ class DeviceQtHandler(QtCore.QObject):
     signal_device_sync_failed = QtCore.Signal(object)
     signal_device_is_recording_device_changed = QtCore.Signal(object, int)
     signal_device_build_update = QtCore.Signal(object, str, str) # device, step, percent
-    signal_device_sync_update = QtCore.Signal(object, int) # device, progress
+    signal_device_sync_update = QtCore.Signal(object, str) # device, percent
 
 
 class Device(QtCore.QObject):
@@ -189,6 +190,10 @@ class Device(QtCore.QObject):
         self.device_qt_handler.signal_device_status_changed.emit(self, previous_status)
 
     @property
+    def is_disconnected(self):
+        return self.status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}
+
+    @property
     def project_changelist(self):
         return self._project_changelist
 
@@ -213,22 +218,36 @@ class Device(QtCore.QObject):
         pass
 
     @QtCore.Slot()
+    def connecting_listener(self):
+
+        # Ensure this code is run from the main thread
+        if threading.current_thread() is not threading.main_thread():
+            QtCore.QMetaObject.invokeMethod(self, 'connecting_listener', QtCore.Qt.QueuedConnection)
+            return
+
+        # If the device was disconnected, set to connecting.
+        # We can only transition to CONNECTING from DISCONNECTED.
+        if self.status == DeviceStatus.DISCONNECTED:
+            self.status = DeviceStatus.CONNECTING
+
+    @QtCore.Slot()
     def connect_listener(self):
 
         # Ensure this code is run from the main thread
-        if threading.current_thread().name != 'MainThread':
+        if threading.current_thread() is not threading.main_thread():
             QtCore.QMetaObject.invokeMethod(self, 'connect_listener', QtCore.Qt.QueuedConnection)
             return
 
-        # If the device was disconnected, set to closed
-        if self.status == DeviceStatus.DISCONNECTED:
+        # If the device was disconnected, set to closed.
+        # We can transition to CLOSED from either DISCONNECTED or CONNECTING.
+        if self.is_disconnected:
             self.status = DeviceStatus.CLOSED
 
     @QtCore.Slot()
     def disconnect_listener(self):
 
         # Ensure this code is run from the main thread
-        if threading.current_thread().name != 'MainThread':
+        if threading.current_thread() is not threading.main_thread():
             QtCore.QMetaObject.invokeMethod(self, 'disconnect_listener', QtCore.Qt.QueuedConnection)
             return
 
@@ -250,7 +269,7 @@ class Device(QtCore.QObject):
             LOGGER.error(f'{self.name}: Incorrect ip address when sending OSC message. {e}')
 
     def record_start(self, slate, take, description):
-        if self.status == DeviceStatus.DISCONNECTED or not self.is_recording_device:
+        if self.is_disconnected or not self.is_recording_device:
             return
 
         self.send_osc_message(osc.RECORD_START, [slate, take, description])

@@ -132,3 +132,15 @@ void FLidarPointCloudDataBufferManager::Resize(const int32& NewBufferSize)
 		Iterator = Iterator->Next;
 	}
 }
+
+FLidarPointCloudClippingVolumeParams::FLidarPointCloudClippingVolumeParams(const ALidarClippingVolume* ClippingVolume)
+	: Mode(ClippingVolume->Mode)
+	, Priority(ClippingVolume->Priority)
+	, Bounds(ClippingVolume->GetBounds().GetBox())
+{
+	const FVector Extent = ClippingVolume->GetActorScale3D() * 100;
+	PackedShaderData = FMatrix( FPlane(ClippingVolume->GetActorLocation(), Mode == ELidarClippingVolumeMode::ClipInside),
+								FPlane(ClippingVolume->GetActorForwardVector(), Extent.X),
+								FPlane(ClippingVolume->GetActorRightVector(), Extent.Y),
+								FPlane(ClippingVolume->GetActorUpVector(), Extent.Z));
+}

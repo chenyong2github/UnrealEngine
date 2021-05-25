@@ -90,6 +90,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Performance, meta = (EditCondition = "bUseAsyncImport"))
 	float RenderDataSmoothingMaxFrametime;
 
+	/** Enabling this will greatly improve runtime performance at a cost of quadrupling VRAM use */
+	UPROPERTY(config, EditAnywhere, Category=Performance)
+	bool bUseFastRendering;
+
 	/** Affects the size of per-thread data for the meshing algorithm. */
 	UPROPERTY(config, EditAnywhere, Category=Collision)
 	int32 MeshingBatchSize;

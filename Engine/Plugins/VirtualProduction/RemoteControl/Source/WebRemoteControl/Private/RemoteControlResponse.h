@@ -143,7 +143,7 @@ struct FSearchActorResponse
 	}
 
 	UPROPERTY()
-	TArray<FRCActorDescription> Actors;
+	TArray<FRCObjectDescription> Actors;
 };
 
 USTRUCT()
@@ -253,11 +253,12 @@ struct FRCPresetFieldsRemovedEvent
 
 	FRCPresetFieldsRemovedEvent() = default;
 
-	FRCPresetFieldsRemovedEvent(FName InPresetName, TArray<FName> InRemovedFields)
+	FRCPresetFieldsRemovedEvent(FName InPresetName, TArray<FName> InRemovedFields, const TArray<FGuid>& InRemovedFieldIDs)
 		: Type(TEXT("PresetFieldsRemoved"))
 		, PresetName(InPresetName)
 		, RemovedFields(MoveTemp(InRemovedFields))
 	{
+		Algo::Transform(InRemovedFieldIDs, RemovedFieldIds, [](const FGuid& Id){ return Id.ToString(); });
 	}
 
 	UPROPERTY()
@@ -268,6 +269,9 @@ struct FRCPresetFieldsRemovedEvent
 
 	UPROPERTY()
 	TArray<FName> RemovedFields;
+
+	UPROPERTY()
+	TArray<FString> RemovedFieldIds;
 };
 
 USTRUCT()
@@ -292,4 +296,48 @@ struct FRCPresetFieldsAddedEvent
 
 	UPROPERTY()
 	FRCPresetDescription Description;
+};
+
+/**
+ * Event triggered when an exposed entity struct is modified.
+ */
+USTRUCT()
+struct FRCPresetEntitiesModifiedEvent
+{
+	GENERATED_BODY()
+
+	FRCPresetEntitiesModifiedEvent() = default;
+
+	FRCPresetEntitiesModifiedEvent(URemoteControlPreset* InPreset, const TArray<FGuid>& InModifiedEntities)
+		: Type(TEXT("PresetEntitiesModified"))
+	{
+		checkSlow(InPreset);
+		PresetName = InPreset->GetFName();
+		PresetId = InPreset->GetPresetId().ToString();
+		ModifiedEntities = FRCPresetModifiedEntitiesDescription{InPreset, InModifiedEntities};
+	}
+
+	/**
+	 * Type of the event.
+	 */
+	UPROPERTY()
+	FString Type;
+
+	/**
+	 * Name of the preset which contains the modified entities.
+	 */
+	UPROPERTY()
+	FName PresetName;
+	
+	/**
+	 * ID of the preset that contains the modified entities.
+	 */
+	UPROPERTY()
+	FString PresetId;
+
+	/**
+	 * The entities that were modified in the last frame.
+	 */
+	UPROPERTY()
+	FRCPresetModifiedEntitiesDescription ModifiedEntities;
 };

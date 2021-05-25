@@ -51,6 +51,18 @@ void UNiagaraScriptVariable::Init(const FNiagaraVariable& InVar, const FNiagaraV
 	}
 }
 
+void UNiagaraScriptVariable::InitFrom(UNiagaraScriptVariable* Value)
+{
+	for (TFieldIterator<FProperty> PropertyIt(GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(Value);
+		uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(this);
+
+		Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+	}
+}
+
 void UNiagaraScriptVariable::PostLoad()
 {
 	Super::PostLoad();

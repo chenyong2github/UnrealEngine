@@ -7,7 +7,7 @@
 #include "DMXFixtureComponentDouble.generated.h"
 
 // Component that uses 2 DMX channels
-UCLASS(ClassGroup = FixtureComponent, meta=(IsBlueprintBase = true), HideCategories = ("Variable", "Tags", "Activation", "Cooking", "ComponentReplication", "AssetUserData", "Collision", "Sockets"))
+UCLASS(ClassGroup = FixtureComponent, meta=(IsBlueprintBase = true))
 class DMXFIXTURES_API UDMXFixtureComponentDouble : public UDMXFixtureComponent
 {
 	GENERATED_BODY()

@@ -52,6 +52,35 @@ namespace Chaos
 		float ChaosDebugDrawConvexExplodeDistance = 0.0f;
 		FAutoConsoleVariableRef CVarChaosDebugDrawConvexExplodeDistance(TEXT("p.Chaos.DebugDraw.ConvexExplodeDistance"), ChaosDebugDrawConvexExplodeDistance, TEXT("Explode convex edges by this amount (useful for looking at convex integrity)"));
 
+
+		// NOTE: These settings should never really be used - they are the fallback defaults
+		// if the user does not specify settings in the debug draw call.
+		// See PBDRigidsColver.cpp and ImmediatePhysicsSimulation_Chaos.cpp for example.
+		FChaosDebugDrawSettings ChaosDefaultDebugDebugDrawSettings(
+			/* ArrowSize =					*/ 1.5f,
+			/* BodyAxisLen =				*/ 4.0f,
+			/* ContactLen =					*/ 4.0f,
+			/* ContactWidth =				*/ 2.0f,
+			/* ContactPhiWidth =			*/ 0.0f,
+			/* ContactOwnerWidth =			*/ 0.0f,
+			/* ConstraintAxisLen =			*/ 5.0f,
+			/* JointComSize =				*/ 2.0f,
+			/* LineThickness =				*/ 0.15f,
+			/* DrawScale =					*/ 1.0f,
+			/* FontHeight =					*/ 10.0f,
+			/* FontScale =					*/ 1.5f,
+			/* ShapeThicknesScale =			*/ 1.0f,
+			/* PointSize =					*/ 2.0f,
+			/* VelScale =					*/ 0.0f,
+			/* AngVelScale =				*/ 0.0f,
+			/* ImpulseScale =				*/ 0.0f,
+			/* InertiaScale =				*/ 0.0f,
+			/* DrawPriority =				*/ 10,
+			/* bShowSimple =				*/ true,
+			/* bShowComplex =				*/ false,
+			/* bInShowLevelSetCollision =	*/ false
+		);
+
 		const FChaosDebugDrawSettings& GetChaosDebugDrawSettings(const FChaosDebugDrawSettings* InSettings)
 		{
 			if (InSettings != nullptr)
@@ -59,35 +88,7 @@ namespace Chaos
 				return *InSettings;
 			}
 
-			{
-				static FChaosDebugDrawSettings ChaosDefaultDebugDebugDrawSettings;
-				return ChaosDefaultDebugDebugDrawSettings;
-			}
-		}
-
-		// NOTE: These settings should never really be used - they are the fallback defaults
-		// if the user does not specify settings in the debug draw call.
-		// See PBDRigidsColver.cpp and ImmediatePhysicsSimulation_Chaos.cpp for example.
-		FChaosDebugDrawSettings::FChaosDebugDrawSettings()
-			: ArrowSize(1.5f)
-			, BodyAxisLen(4.0f)
-			, ContactLen(4.0f)
-			, ContactWidth(2.0f)
-			, ContactPhiWidth(0.0f)
-			, ContactOwnerWidth(0.0f)
-			, ConstraintAxisLen(5.0f)
-			, JointComSize(2.0f)
-			, LineThickness(0.15f)
-			, DrawScale(1.0f)
-			, FontHeight(10.0f)
-			, FontScale(1.5f)
-			, ShapeThicknesScale(1.0f)
-			, PointSize(2.0f)
-			, VelScale(0.0f)
-			, AngVelScale(0.0f)
-			, ImpulseScale(0.0f)
-			, DrawPriority(10)
-		{
+			return ChaosDefaultDebugDebugDrawSettings;
 		}
 
 		//
@@ -793,7 +794,7 @@ namespace Chaos
 			}
 		}
 
-		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FVec3& InPa, const FVec3& InCa, const FVec3& InXa, const FMatrix33& Ra, const FVec3& InPb, const FVec3& InCb, const FVec3& InXb, const FMatrix33& Rb, int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 BatchIndex, int32 Index, FReal ColorScale, const FChaosDebugDrawJointFeatures& FeatureMask, const FChaosDebugDrawSettings& Settings)
+		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FVec3& InPa, const FVec3& InCa, const FVec3& InXa, const FMatrix33& Ra, const FVec3& InPb, const FVec3& InCb, const FVec3& InXb, const FMatrix33& Rb, int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 BatchIndex, int32 Index, FReal ColorScale,  const FChaosDebugDrawJointFeatures& FeatureMask, const FChaosDebugDrawSettings& Settings)
 		{
 			using namespace Chaos::DebugDraw;
 			FColor R = (ColorScale * FColor::Red).ToFColor(false);

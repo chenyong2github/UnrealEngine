@@ -23,29 +23,22 @@ class FDMXPixelMappingDragDropOp
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDMXPixelMappingDragDropOp, FDecoratedDragDropOp)
 
+	struct FDraggingComponentReference
+	{
+		FDMXPixelMappingComponentReference ComponentReference;
+
+		FVector2D DraggedOffset = FVector2D::ZeroVector;
+	};
+
 	/** Constructs the drag drop operation */
 	static TSharedRef<FDMXPixelMappingDragDropOp> New(const TSharedPtr<FDMXPixelMappingComponentTemplate>& InTemplate, UDMXPixelMappingBaseComponent* InParent = nullptr);
-	static TSharedRef<FDMXPixelMappingDragDropOp> New(const TSet<FDMXPixelMappingComponentReference>& InComponentReferences);
+	static TSharedRef<FDMXPixelMappingDragDropOp> New(const TArray<FDMXPixelMappingDragDropOp::FDraggingComponentReference>& InComponentReferences);
 
-	void UpdateDragOffset(const FVector2D& DragStartScreenspacePosition);
+	/** Returns the dragged component references */
+	const TArray<FDMXPixelMappingDragDropOp::FDraggingComponentReference>& GetDraggingComponentReferences() const { return DraggingComponentReferences; }
 
-	void SetComponentReferences(const TSet<FDMXPixelMappingComponentReference>& InComponentReferences);
-
-	/** Gets the offset of the drag drop op from the mouse pos (context menu location) */
-	FVector2D GetDragOffset() const;
-
-	/** Returns an output component or nullptr if it's not an output component drag drop op */
-	UDMXPixelMappingOutputComponent* TryGetOutputComponent() const;
-
-	/** Returns an base component or nullptr if it's not an output component drag drop op */
-	UDMXPixelMappingBaseComponent* TryGetBaseComponent() const;
-
-protected:
-	/** Gets an arranged widget from the dragged component */
-	FArrangedWidget GetArrangedWidgetFromComponent() const;
-
-	/** Gets an arranged widget from a widget */
-	bool GetArrangedWidget(TSharedRef<SWidget> Widget, FArrangedWidget& ArrangedWidget) const;
+	/** Sets the dragged component references */
+	void SetDraggingComponentReferences(const TArray<FDMXPixelMappingDragDropOp::FDraggingComponentReference>& InDraggingComponentReferences) { DraggingComponentReferences = InDraggingComponentReferences; }
 
 public:
 	/** The template to create an instance */
@@ -53,8 +46,5 @@ public:
 
 	TWeakObjectPtr<UDMXPixelMappingBaseComponent> Parent;
 
-	TSet<FDMXPixelMappingComponentReference> ComponentReferences;
-
-private:
-	FVector2D DragOffset;
+	TArray<FDMXPixelMappingDragDropOp::FDraggingComponentReference> DraggingComponentReferences;
 };

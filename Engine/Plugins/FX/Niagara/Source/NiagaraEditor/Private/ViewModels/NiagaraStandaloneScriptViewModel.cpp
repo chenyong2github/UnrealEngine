@@ -24,7 +24,6 @@ FNiagaraStandaloneScriptViewModel::FNiagaraStandaloneScriptViewModel(
 void FNiagaraStandaloneScriptViewModel::Initialize(FVersionedNiagaraScript& InScript, const FVersionedNiagaraScript& InSourceScript)
 {
 	SetScript(InScript);
-	GetStandaloneScript().InitParameterDefinitionsSubscriptions();
 	SourceScript = InSourceScript;
 
 	SendLastCompileMessages(SourceScript);
@@ -45,12 +44,6 @@ INiagaraParameterDefinitionsSubscriber* FNiagaraStandaloneScriptViewModel::GetPa
 {
 	checkf(Scripts.Num() == 1, TEXT("StandaloneScriptViewModel did not have exactly one script!"));
 	return &Scripts[0];
-}
-
-void FNiagaraStandaloneScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, TArray<FVersionedNiagaraScript>& InScripts)
-{
-	ensureMsgf(InScripts.Num() == 1, TEXT("Tried to set more than one script for a standalone script viewmodel!"));
-	SetScriptsImpl(InScriptSource, InScripts, true);
 }
 
 void FNiagaraStandaloneScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion)

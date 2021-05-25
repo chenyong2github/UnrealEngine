@@ -50,7 +50,7 @@ void ATemplateSequenceActor::PostInitializeComponents()
 
 void ATemplateSequenceActor::BeginPlay()
 {
-	UMovieSceneSequenceTickManager::Get(this)->SequenceActors.Add(this);
+	UMovieSceneSequenceTickManager::Get(this)->RegisterSequenceActor(this);
 
 	Super::BeginPlay();
 	
@@ -68,15 +68,13 @@ void ATemplateSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		SequencePlayer->Stop();
 	}
 
-	UMovieSceneSequenceTickManager::Get(this)->SequenceActors.Remove(this);
+	UMovieSceneSequenceTickManager::Get(this)->UnregisterSequenceActor(this);
 
 	Super::EndPlay(EndPlayReason);
 }
 
-void ATemplateSequenceActor::Tick(float DeltaSeconds)
+void ATemplateSequenceActor::TickFromSequenceTickManager(float DeltaSeconds)
 {
-	Super::Tick(DeltaSeconds);
-
 	if (SequencePlayer)
 	{
 		SequencePlayer->Update(DeltaSeconds);

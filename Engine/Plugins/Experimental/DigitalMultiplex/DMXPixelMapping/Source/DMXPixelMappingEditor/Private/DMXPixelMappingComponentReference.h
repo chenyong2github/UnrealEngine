@@ -45,14 +45,14 @@ public:
 		, Component(InComponent)
 	{}
 
+	friend FORCEINLINE uint32 GetTypeHash(const class FDMXPixelMappingComponentReference& ComponentRef)
+	{
+		return GetTypeHash(ComponentRef.GetComponent());
+	}
+
 private:
 	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 
 	TWeakObjectPtr<UDMXPixelMappingBaseComponent> Component;
 };
 
-
-inline uint32 GetTypeHash(const class FDMXPixelMappingComponentReference& ComponentRef)
-{
-	return ::GetTypeHash(reinterpret_cast<void*>(ComponentRef.GetComponent()));
-}

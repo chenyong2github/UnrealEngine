@@ -57,6 +57,7 @@ public:
 	virtual FString GetGameInstanceName( const int32 ClusterIndex ) override;
 	virtual TSharedPtr<IAutomationReport> EnsureReportExists(FAutomationTestInfo& TestInfo, const int32 ClusterIndex, const int32 NumPasses) override;
 	virtual TSharedPtr<IAutomationReport> GetNextReportToExecute(bool& bOutAllTestsComplete, const int32 ClusterIndex, const int32 PassIndex, const int32 NumDevicesInCluster) override;
+	virtual void GetEnabledTestReports(TArray<TSharedPtr<IAutomationReport>>& OutReports) override;
 	virtual const bool HasErrors() override;
 	virtual const bool HasWarnings() override;
 	virtual const bool GetDurationRange(float& OutMinTime, float& OutMaxTime) override;

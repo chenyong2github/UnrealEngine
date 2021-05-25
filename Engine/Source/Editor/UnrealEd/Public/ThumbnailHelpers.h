@@ -342,6 +342,13 @@ public:
 		return ExistingThumbnailScene.ToSharedRef();
 	}
 
+	/** Removes the thumbnail scene instance for the specified class */
+	void RemoveThumbnailScene(const UClass* InClass)
+	{
+		check(InClass);
+		InstancedThumbnailScenes.Remove(InClass->GetFName());
+	}
+
 	/** Clears all thumbnail scenes */
 	void Clear()
 	{

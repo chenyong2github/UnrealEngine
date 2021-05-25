@@ -20,5 +20,14 @@ public class RemoteControlProtocolMIDI : ModuleRules
 				"RemoteControlProtocol",
 			}
 		);
+		
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"RemoteControlProtocolWidgets"
+				}
+			);
+		}
 	}
 }

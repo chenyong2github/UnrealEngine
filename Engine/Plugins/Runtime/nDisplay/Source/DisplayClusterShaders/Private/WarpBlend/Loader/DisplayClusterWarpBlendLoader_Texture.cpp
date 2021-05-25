@@ -12,8 +12,6 @@
 
 #include "Misc/DisplayClusterHelpers.h"
 
-#include "Windows/WindowsHWrapper.h"
-
 THIRD_PARTY_INCLUDES_START
 #include "mpcdiAlphaMap.h"
 #include "mpcdiBetaMap.h"
@@ -74,7 +72,7 @@ IDisplayClusterRenderTexture* FDisplayClusterWarpBlendLoader_Texture::CreateBlen
 		return nullptr;
 	}
 
-	std::string FileName = TCHAR_TO_ANSI(*PNGFileName);
+	const std::string FileName = TCHAR_TO_ANSI(*PNGFileName);
 
 	mpcdi::DataMap* PngData;
 	mpcdi::MPCDI_Error res = mpcdi::PNGReadWrite::Read(FileName, PngData);
@@ -134,7 +132,7 @@ IDisplayClusterRenderTexture* FDisplayClusterWarpBlendLoader_Texture::CreateWarp
 	}
 
 	bool bResult = false;
-	std::string FileName = TCHAR_TO_ANSI(*PFMFileFullPath);
+	const std::string FileName = TCHAR_TO_ANSI(*PFMFileFullPath);
 	mpcdi::PFM* PFMData;
 	mpcdi::MPCDI_Error res = mpcdi::PfmIO::Read(FileName, PFMData);
 	if (mpcdi::MPCDI_SUCCESS == res && PFMData)

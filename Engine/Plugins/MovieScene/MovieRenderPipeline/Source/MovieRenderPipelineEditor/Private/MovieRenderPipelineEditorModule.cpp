@@ -29,6 +29,8 @@
 #include "MoviePipelineEditorBlueprintLibrary.h"
 #include "MovieSceneSection.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
+#include "AssetToolsModule.h"
+#include "AssetTypeActions_PipelineConfigs.h"
 
 #define LOCTEXT_NAMESPACE "FMovieRenderPipelineEditorModule"
 
@@ -136,6 +138,8 @@ class FMovieRenderPipelineRenderer : public IMovieRendererInterface
 			}
 		}
 
+		UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(ActiveJob);
+
 		TArray<FString> ShotNames;
 		for (UMovieSceneCinematicShotSection* ShotSection : InSections)
 		{
@@ -194,10 +198,30 @@ void FMovieRenderPipelineEditorModule::StartupModule()
 	RegisterTabImpl();
 	RegisterSettings();
 	RegisterMovieRenderer();
+
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	{
+		MasterConfigAssetActions = MakeShared<FAssetTypeActions_PipelineMasterConfig>();
+		AssetTools.RegisterAssetTypeActions(MasterConfigAssetActions.ToSharedRef());
+
+		ShotConfigAssetActions = MakeShared<FAssetTypeActions_PipelineShotConfig>();
+		AssetTools.RegisterAssetTypeActions(ShotConfigAssetActions.ToSharedRef());
+
+		QueueAssetActions = MakeShared<FAssetTypeActions_PipelineQueue>();
+		AssetTools.RegisterAssetTypeActions(QueueAssetActions.ToSharedRef());
+	}
 }
 
 void FMovieRenderPipelineEditorModule::ShutdownModule()
 {
+	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
+	if (AssetToolsModule)
+	{
+		AssetToolsModule->Get().UnregisterAssetTypeActions(MasterConfigAssetActions.ToSharedRef());
+		AssetToolsModule->Get().UnregisterAssetTypeActions(ShotConfigAssetActions.ToSharedRef());
+		AssetToolsModule->Get().UnregisterAssetTypeActions(QueueAssetActions.ToSharedRef());
+	}
+
 	UnregisterMovieRenderer();
 	UnregisterSettings();
 	FMoviePipelineCommands::Unregister();

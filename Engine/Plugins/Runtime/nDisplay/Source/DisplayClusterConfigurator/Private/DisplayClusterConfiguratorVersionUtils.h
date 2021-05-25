@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DisplayClusterConfiguratorVersionUtils.Generated.h"
+#include "DisplayClusterConfiguratorVersionUtils.generated.h"
 
 class ADisplayClusterRootActor;
 class UDisplayClusterBlueprint;

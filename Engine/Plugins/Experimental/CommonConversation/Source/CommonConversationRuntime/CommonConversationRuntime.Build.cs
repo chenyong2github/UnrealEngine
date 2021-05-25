@@ -41,6 +41,7 @@ public class CommonConversationRuntime : ModuleRules
 				"SlateCore",
 				"Projects",
 				"AIModule",
+				"GameFeatures"
 				// ... add private dependencies that you statically link with here ...	
 			}
 		);

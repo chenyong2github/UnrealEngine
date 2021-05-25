@@ -6,21 +6,27 @@
 #include "DisplayClusterConfiguratorAssetTypeActions.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
 #include "Settings/DisplayClusterConfiguratorSettings.h"
+#include "Views/Details/DisplayClusterRootActorDetailsCustomization.h"
 
 #include "Views/Details/DisplayClusterConfiguratorDetailCustomization.h"
 #include "Views/Details/Policies/DisplayClusterConfiguratorPolicyDetailCustomization.h"
 
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Components/DisplayClusterSceneComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
+#include "Misc/DisplayClusterObjectRef.h"
+#include "DisplayClusterRootActor.h"
 
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "ISettingsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetTypeCategories.h"
-#include "Components/DisplayClusterScreenComponent.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
+#include "Views/Details/DisplayClusterICVFXCameraComponentDetailsCustomization.h"
+
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfigurator"
 
@@ -178,6 +184,12 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 	{
 		const FName LayoutName = UDisplayClusterConfigurationData::StaticClass()->GetFName();
 		RegisteredClassLayoutNames.Add(LayoutName);
+		PropertyModule.RegisterCustomClassLayout(ADisplayClusterRootActor::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterRootActorDetailsCustomization::MakeInstance));
+	}
+	
+	{
+		const FName LayoutName = UDisplayClusterConfigurationData::StaticClass()->GetFName();
+		RegisteredClassLayoutNames.Add(LayoutName);
 		PropertyModule.RegisterCustomClassLayout(LayoutName,
 			FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorDetailCustomization::MakeInstance<FDisplayClusterConfiguratorDataDetailCustomization>));
 	}
@@ -209,7 +221,14 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 		PropertyModule.RegisterCustomClassLayout(LayoutName,
 			FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorScreenDetailCustomization::MakeInstance));
 	}
-
+	
+	{
+		const FName LayoutName = UDisplayClusterICVFXCameraComponent::StaticClass()->GetFName();
+		RegisteredClassLayoutNames.Add(LayoutName);
+		PropertyModule.RegisterCustomClassLayout(LayoutName,
+			FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterICVFXCameraComponentDetailsCustomization::MakeInstance));
+	}
+	
 	/**
 	 * STRUCTS
 	 */
@@ -253,6 +272,14 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 
 		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorTypeCustomization::MakeInstance<FDisplayClusterConfiguratorExternalImageTypeCustomization>));
+	}
+
+	{
+		const FName LayoutName = FDisplayClusterComponentRef::StaticStruct()->GetFName();
+		RegisteredPropertyLayoutNames.Add(LayoutName);
+
+		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorComponentRefCustomization::MakeInstance<FDisplayClusterConfiguratorComponentRefCustomization>));
 	}
 }
 

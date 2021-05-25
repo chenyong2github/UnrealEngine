@@ -29,6 +29,12 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultLinearSleepThreshold(TEXT
 Chaos::FRealSingle ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.0087f;  //~1/2 unit mass degree
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultAngularSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultAngularSleepThreshold"), ChaosSolverCollisionDefaultAngularSleepThresholdCVar, TEXT("Default angular threshold for sleeping.[def:0.0087]"));
 
+namespace Chaos
+{
+	bool ChaosPerfHackIgnoreSleepingContacts = false;
+	FAutoConsoleVariableRef CVarChaosPerfHackDisableSleepingConstraints(TEXT("p.Chaos.PerfHackIgnoreSleepingContacts"), ChaosPerfHackIgnoreSleepingContacts, TEXT("Hack to improve perf by not generating all contacts for sleeping particles"));
+}
+
 FPBDConstraintGraph::FPBDConstraintGraph() : VisitToken(0)
 {
 }
@@ -125,6 +131,7 @@ void FPBDConstraintGraph::ParticleRemove(FGeometryParticleHandle* RemovedParticl
 
 		Visited[NodeIdx]=0;
 		ParticleToNodeIndex.Remove(RemovedParticle);
+		UpdatedNodes.RemoveSwap(NodeIdx, false);
 	}
 }
 
@@ -181,7 +188,7 @@ void FPBDConstraintGraph::InitializeGraph(const TParticleView<FGeometryParticles
 	}
 	else
 	{
-		if (!CHAOS_ENSURE(NumNonDisabledParticles <= Nodes.Num()))
+		if (!(NumNonDisabledParticles <= Nodes.Num())) 
 		{
 			for (auto& Particle : Particles)
 			{
@@ -472,7 +479,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 
 				for (FGeometryParticleHandle* Particle : NewIslandParticles[Island])
 				{
-					if (!Particle->Sleeping())
+					if (Particle->ObjectState() != EObjectStateType::Static && !Particle->Sleeping())
 					{
 						bSleepState = false;
 						break;
@@ -481,15 +488,21 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 
 				for (FGeometryParticleHandle* Particle : NewIslandParticles[Island])
 				{
-					//@todo(DEMO_HACK) : Need to fix, remove the !InParticles.Disabled(Index)
-					if (Particle->Sleeping() && !bSleepState/* && !Particle->Disabled()*/)
+					if (Particle->Sleeping() && !bSleepState)
 					{
 						Particles.ActivateParticle(Particle); 	//todo: record state change for array reorder
 					}
 
 					FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle();
-					if(PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
+					if(PBDRigid)
 					{
+						const EObjectStateType CurrState = PBDRigid->ObjectState();
+						if(CurrState == EObjectStateType::Kinematic || CurrState == EObjectStateType::Static)
+						{
+							// Statics and kinematics can't have sleeping states so don't attempt to set one.
+							break;
+						}
+
 						if (!Particle->Sleeping() && bSleepState)
 						{
 							Particles.DeactivateParticle(Particle); 	//todo: record state change for array reorder
@@ -500,7 +513,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 						PBDRigid->SetSleeping(bSleepState);
 					}
 
-					if ((Particle->Sleeping() /*|| Particle->Disabled()*/))
+					if (Particle->Sleeping())
 					{
 						Particles.DeactivateParticle(Particle);	//todo: record state change for array reorder (function could return true/false)
 					}
@@ -584,6 +597,21 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 			}
 			else
 			{
+				int32 NumRigidsInNewIsland = 0;
+				if (ChaosPerfHackIgnoreSleepingContacts && NewIslandParticles.IsValidIndex(OtherIsland))
+				{
+					for (FGeometryParticleHandle* Particle : NewIslandParticles[OtherIsland])
+					{
+						if (Particle)
+						{
+							if (FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle())
+							{
+								NumRigidsInNewIsland++;
+							}
+						}
+					}
+				}
+
 				for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 				{
 					if (CHAOS_ENSURE(Particle))
@@ -591,7 +619,11 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 						TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 						if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 						{
-							Particles.ActivateParticle(Particle);
+							const bool bShouldActivateParticle = ChaosPerfHackIgnoreSleepingContacts ? !(NumRigidsInNewIsland == 1 && PBDRigid->Sleeping()) : true;
+							if (bShouldActivateParticle)
+							{
+								Particles.ActivateParticle(Particle);
+							}
 						}
 					}
 				}

@@ -21,6 +21,12 @@ class UTestBTService_Log : public UBTService
 	FName KeyNameTick;
 
 	UPROPERTY()
+	FName KeyNameBecomeRelevant;
+
+	UPROPERTY()
+	FName KeyNameCeaseRelevant;
+
+	UPROPERTY()
 	int32 LogTick;
 
 	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;

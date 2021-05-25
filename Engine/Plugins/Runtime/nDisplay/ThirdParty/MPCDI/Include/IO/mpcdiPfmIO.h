@@ -33,12 +33,12 @@ namespace mpcdi {
     public:
       // Description:
       // read functions
-      static MPCDI_Error Read(std::string fileName, mpcdi::PFM *&pfm);
+      static MPCDI_Error Read(const std::string &fileName, mpcdi::PFM *&pfm);
       static MPCDI_Error Read(std::istream &source, mpcdi::PFM *&pfm);
 
       // Description:
       // write functions
-      static MPCDI_Error Write(std::string fileName, mpcdi::PFM &pfm);
+      static MPCDI_Error Write(const std::string &fileName, mpcdi::PFM &pfm);
       static MPCDI_Error Write(std::ostream &source, mpcdi::PFM &pfm);
   };
 }; // end namespace mpcdi 

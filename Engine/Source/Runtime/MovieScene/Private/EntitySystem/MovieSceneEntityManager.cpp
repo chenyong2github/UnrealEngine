@@ -1606,8 +1606,6 @@ int32 FEntityManager::MutateAll(const FEntityComponentFilter& Filter, const IMov
 {
 	CheckCanChangeStructure();
 
-	check(Filter.IsValid());
-
 	TMap<int32, FComponentMask> AllocationMutations;
 
 	for (int32 AllocationIndex = 0; AllocationIndex < EntityAllocationMasks.GetMaxIndex(); ++AllocationIndex)

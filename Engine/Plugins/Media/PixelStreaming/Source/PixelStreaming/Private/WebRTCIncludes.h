@@ -57,6 +57,8 @@ THIRD_PARTY_INCLUDES_START
 #pragma warning(push)
 #pragma warning(disable: 4582 4583 6319 6323)
 
+#include "api/rtp_receiver_interface.h"
+#include "api/media_types.h"
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
 #include "api/create_peerconnection_factory.h"

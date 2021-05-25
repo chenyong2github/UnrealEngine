@@ -90,6 +90,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Normals", meta = (ClampMin = "0.0", DisplayName = "Noise Tolerance"))
 	float NormalsNoiseTolerance;
 
+private:
+	/**
+	 * Disables the LOD pipeline, allowing for much faster data operations (insert/remove/set)
+	 * at a potential expense of runtime performance. The whole asset will be treated as a single,
+	 * large asset with no granular density control, nor occlusion culling.
+	 * 
+	 * Recommended for assets, which have their data updated per-frame (such as live streaming).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Performance", meta = (AllowPrivateAccess = "true"))
+	bool bOptimizedForDynamicData;
+
+public:
 	/** Holds pointer to the Import Settings used for the import. */
 	TSharedPtr<struct FLidarPointCloudImportSettings> ImportSettings;
 
@@ -183,12 +195,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	int32 GetNumNodes() const { return Octree.GetNumNodes(); }
 
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	FORCEINLINE float GetEstimatedPointSpacing() const { return Octree.GetEstimatedPointSpacing(); }
+
 	/** Returns the amount of memory in MB used to store the point cloud. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	int32 GetDataSize() const;
 
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	FString GetSourcePath() const { return SourcePath.FilePath; }
+
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	bool IsOptimizedForDynamicData() const { return bOptimizedForDynamicData; }
 
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	FBox GetBounds() const { return Octree.GetBounds().ShiftBy(LocationOffset.ToVector()); }
@@ -256,11 +274,11 @@ public:
 	void GetPointsInBox(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 
 	/**
-	 * Populates the array with the list of points within the given frustum.
-	 * Frustum is assumed to include the LocationOffset of the asset
+	 * Populates the array with the list of points within the given convex volume.
+	 * The volume is assumed to include the LocationOffset of the asset
 	 */
-	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
-	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
 
 	/**
 	 * Returns an array with copies of points from the tree
@@ -399,6 +417,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void SetSourcePath(const FString& NewSourcePath);
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void SetOptimizedForDynamicData(bool bNewOptimizedForDynamicData);
 
 	/**
 	 * Re-initializes the asset with new bounds.
@@ -585,6 +606,13 @@ public:
 
 	UBodySetup* GetBodySetup();
 
+	//~ Begin Deprecated
+	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")
+	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")
+	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	//~ End Deprecated
+
 public:
 	/** Aligns provided clouds based on the relative offset between their Original Coordinates. Retains overall centering of the group. */
 	static void AlignClouds(TArray<ULidarPointCloud*> PointCloudsToAlign);
@@ -633,7 +661,7 @@ private:
 	template <typename T>
 	void GetPointsInBox_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 	template <typename T>
-	void GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
 	template <typename T>
 	void GetPointsAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const;
 	template <typename T>
@@ -801,15 +829,6 @@ public:
 	/** Converts a Vector to a Lidar Point Cloud Normal */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Vector to Normal", CompactNodeTitle = "->", BlueprintAutocast), Category = "Lidar Point Cloud")
 	static FLidarPointCloudNormal Conv_VectorToLidarPointCloudNormal(const FVector& Vector) { return FLidarPointCloudNormal(Vector); }
-};
-
-UENUM(BlueprintType)
-enum class ELidarClippingVolumeMode : uint8
-{
-	/** This will clip all points inside the volume */
-	ClipInside,
-	/** This will clip all points outside of the volume */
-	ClipOutside,
 };
 
 UCLASS(hidecategories = (Collision, Brush, Attachment, Physics, Volume, BrushBuilder), MinimalAPI)

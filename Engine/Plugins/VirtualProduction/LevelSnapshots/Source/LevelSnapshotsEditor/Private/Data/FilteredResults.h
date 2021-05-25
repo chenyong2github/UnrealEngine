@@ -34,6 +34,7 @@ public:
 	FFilterListData& GetFilteredData();
 	TWeakObjectPtr<ULevelSnapshotFilter> GetUserFilters() const;
 
+	void ClearSelectedWorld();
 	void SetSelectedWorld(UWorld* InWorld);
 
 private:

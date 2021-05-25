@@ -11,5 +11,8 @@ class IDisplayClusterConfiguratorViewViewport
 	: public IDisplayClusterConfiguratorView
 {
 public:
+	virtual ~IDisplayClusterConfiguratorViewViewport() = default;
+
+public:
 	virtual TSharedRef<IDisplayClusterConfiguratorPreviewScene> GetPreviewScene() const = 0;
 };

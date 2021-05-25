@@ -2653,6 +2653,7 @@ void FBodyInstance::SetBodyTransform(const FTransform& NewTransform, ETeleportTy
 				}
 				else
 				{
+					// todo(chaos): Calling SetKinematicTarget_AssumesLocked before SetGlobalPose_AssumesLocked is unnessary for chaos. We should fix this when PhysX is removed.
 					if(bIsSimKinematic)
 					{
 						FPhysicsInterface::SetKinematicTarget_AssumesLocked(Actor, NewTransform);

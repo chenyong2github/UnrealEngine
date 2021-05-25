@@ -115,7 +115,7 @@ ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot_Internal(const
 		return nullptr;
 	}
 	
-	ULevelSnapshot* NewSnapshot = NewObject<ULevelSnapshot>(InPackage ? InPackage : GetTransientPackage(), NewSnapshotName, RF_Public | RF_Standalone);
+	ULevelSnapshot* NewSnapshot = NewObject<ULevelSnapshot>(InPackage ? InPackage : GetTransientPackage(), NewSnapshotName, RF_NoFlags);
 	NewSnapshot->SetSnapshotName(NewSnapshotName);
 	NewSnapshot->SetSnapshotDescription(Description);
 	NewSnapshot->SnapshotWorld(TargetWorld);

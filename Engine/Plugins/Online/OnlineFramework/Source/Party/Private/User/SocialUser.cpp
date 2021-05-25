@@ -992,7 +992,7 @@ FString USocialUser::ToDebugString() const
 #endif
 }
 
-bool USocialUser::SendFriendInvite(ESocialSubsystem SubsystemType)
+bool USocialUser::SendFriendInvite(ESocialSubsystem SubsystemType, const ESocialFriendRequestMethod RequestMethod /* = ESocialFriendRequestMethod::SocialInteraction_AddFriend */)
 {
 	return GetOwningToolkit().TrySendFriendInvite(*this, SubsystemType);
 }

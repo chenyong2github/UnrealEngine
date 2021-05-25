@@ -953,8 +953,14 @@ function renderNameCell_Common(data, botname) {
 		if (data.is_paused || data.is_blocked) {
 			msg += `Will unpause and retry on: ${unpauseTime}.<br />`;
 		}
-		else if (data.lastGoodCL && data.headCL && data.lastGoodCL === data.last_cl && data.last_cl < data.headCL) {
-			msg = 'Waiting on CIS gate'
+		else if (data.gateClosedMessage) {
+			msg = data.gateClosedMessage
+			if (data.nextWindowOpenTime) {
+				const timestamp = Date.parse(data.nextWindowOpenTime)
+				if (!isNaN(timestamp)) {
+					msg += ` (opens: ${(new Date(timestamp)).toLocaleString()})`
+				}
+			}
 		}
 
 		if (msg) {

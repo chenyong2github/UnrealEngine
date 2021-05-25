@@ -232,10 +232,10 @@ JNI_METHOD void Java_com_epicgames_unreal_MediaPlayer14_nativeClearCachedAttribu
 
 	// update vertex attributes state
 	ContextState.SetVertexAttrEnabled(PositionAttrib, false);
-	ContextState.VertexAttrs[PositionAttrib].Stride = -1;
+	ContextState.VertexAttrs[PositionAttrib].Size = -1; // will force attribute update
 
 	ContextState.SetVertexAttrEnabled(TexCoordsAttrib, false);
-	ContextState.VertexAttrs[TexCoordsAttrib].Stride = -1;
+	ContextState.VertexAttrs[TexCoordsAttrib].Size = -1; // will force attribute update
 
 	// make sure the texture is set again
 	ContextState.ActiveTexture = 0;
@@ -1207,8 +1207,6 @@ void FOpenGLDynamicRHI::Cleanup()
 		// Ask all initialized FRenderResources to release their RHI resources.
 		FRenderResource::ReleaseRHIForAllResources();
 	}
-
-	FreeZeroStrideBuffers();
 
 	// Release the point sampler state.
 	PointSamplerState.SafeRelease();

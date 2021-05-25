@@ -347,7 +347,7 @@ namespace UnrealBuildTool
 			// Create DWARF format debug info if wanted,
 			if (CompileEnvironment.bCreateDebugInfo)
 			{
-				Result += " -g";
+				Result += " -gdwarf-2";
 			}
 
 			// Add additional frameworks so that their headers can be found

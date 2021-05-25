@@ -54,6 +54,11 @@ TArray<FSoftObjectPath> FPropertySelectionMap::GetKeys() const
 	return Result;
 }
 
+int32 FPropertySelectionMap::GetKeyCount() const
+{
+	return SelectedWorldObjectsToSelectedProperties.Num();
+}
+
 const TSet<FSoftObjectPath>& FPropertySelectionMap::GetDeletedActorsToRespawn() const
 {
 	return DeletedActorsToRespawn;

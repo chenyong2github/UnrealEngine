@@ -66,33 +66,6 @@ static FAutoConsoleVariableRef CVarNiagaraDebugForcedMaxGPUBufferElements(
 	ECVF_Default
 );
 
-/**
-Game thread task to do any outstanding work on the loaded emitter
-*/
-struct FNiagaraEmitterUpdateTask
-{
-	FNiagaraEmitterUpdateTask(TWeakObjectPtr<UNiagaraEmitter> InEmitter) : WeakEmitter(InEmitter)
-	{
-	}
-
-	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraEmitterUpdateTask, STATGROUP_TaskGraphTasks); }
-	static FORCEINLINE ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
-	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		UNiagaraEmitter* Emitter = WeakEmitter.Get();
-		if (Emitter == nullptr)
-		{
-			// probably got garbage collected in the meantime
-			return;
-		}
-		Emitter->UpdateEmitterAfterLoad();
-	}
-
-	TWeakObjectPtr<UNiagaraEmitter> WeakEmitter;
-};
-
 FNiagaraDetailsLevelScaleOverrides::FNiagaraDetailsLevelScaleOverrides()
 {
 	Low = 0.125f;
@@ -379,6 +352,10 @@ void UNiagaraEmitter::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
+	PostLoadDefinitionsSubscriptions();
+#endif
+
 	if (GIsEditor)
 	{
 		SetFlags(RF_Transactional);
@@ -439,6 +416,12 @@ void UNiagaraEmitter::PostLoad()
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
 		EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
 	}
+
+	// this can only ever be true for old assets that haven't been loaded yet, so this won't overwrite subsequent changes to the template specification
+	if(bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
+	}
 #endif
 
 	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
@@ -475,6 +458,11 @@ void UNiagaraEmitter::PostLoad()
 	}
 	
 #if WITH_EDITORONLY_DATA
+	if (EditorData != nullptr)
+	{
+		EditorData->ConditionalPostLoad();
+	}
+	
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
@@ -529,24 +517,6 @@ void UNiagaraEmitter::PostLoad()
 			}
 		}
 
-		// Synchronize with definitions before merging.
-		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-		check(Settings);
-		TArray<FGuid> DefaultDefinitionsUniqueIds;
-		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
-		{
-			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
-			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
-			const bool bDoNotAssertIfAlreadySubscribed = true;
-			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
-		}
-		FSynchronizeWithParameterDefinitionsArgs Args;
-		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
-		Args.bForceSynchronizeDefinitions = true;
-		Args.bSubscribeAllNameMatchParameters = true;
-		SynchronizeWithParameterDefinitions(Args);
-		InitParameterDefinitionsSubscriptions();
-
 		if (IsSynchronizedWithParent() == false)
 		{
 			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
@@ -575,18 +545,14 @@ void UNiagaraEmitter::PostLoad()
 			UE_LOG(LogNiagara, Warning, TEXT("Disabling interpolated spawn because emitter flag and script type don't match. Did you adjust this value in the UI? Emitter may need recompile.. %s"), *GetFullName());
 		}
 	}
+
 	EnsureScriptsPostLoaded();
-	
-#if WITH_EDITORONLY_DATA
-	// this can only ever be true for old assets that haven't been loaded yet, so this won't overwrite subsequent changes to the template specification
-	if(bIsTemplateAsset_DEPRECATED)
-	{
-		TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
-	}
+
+#if !WITH_EDITOR
+	// When running without the editor in a cooked build we run the update immediately in post load since
+	// there will be no merging or compiling which makes it safe to do so.
+	UpdateEmitterAfterLoad();
 #endif
-	
-	// we are not yet finished, but we do the rest of the work after postload in a separate task
-	UpdateTaskRef = TGraphTask<FNiagaraEmitterUpdateTask>::CreateTask().ConstructAndDispatchWhenReady(this);
 }
 
 bool UNiagaraEmitter::IsEditorOnly() const
@@ -938,6 +904,14 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 #endif
 }
 
+void UNiagaraEmitter::PreSave(const ITargetPlatform* TargetPlatform)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	UpdateEmitterAfterLoad();
+}
+
 
 UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnPropertiesChanged()
 {
@@ -1251,15 +1225,50 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 		return;
 	}
 	bFullyLoaded = true;
-	UpdateTaskRef = nullptr;
 	
 #if WITH_EDITORONLY_DATA
 	check(IsInGameThread());
+
+	// Synchronize with definitions before merging.
+	// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+	TArray<FGuid> DefaultDefinitionsUniqueIds;
+	for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
+	{
+		UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+		if (DefaultLinkedParameterDefinitions == nullptr)
+		{
+			continue;
+		}
+		DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
+		const bool bDoNotAssertIfAlreadySubscribed = true;
+		SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
+	}
+	FSynchronizeWithParameterDefinitionsArgs Args;
+	Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
+	Args.bForceSynchronizeDefinitions = true;
+	Args.bSubscribeAllNameMatchParameters = true;
+	//SynchronizeWithParameterDefinitions(Args);
+
+	// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the emitter was already subscribed to, and do not force the sync.
+	//SynchronizeWithParameterDefinitions();
+
+	// Merge with parent if necessary.
 	if (GetOuter()->IsA<UNiagaraEmitter>())
 	{
 		// If this emitter is owned by another emitter, remove it's inheritance information so that it doesn't try to merge changes.
 		Parent = nullptr;
 		ParentAtLastMerge = nullptr;
+	}
+
+	if (Parent != nullptr)
+	{
+		Parent->UpdateEmitterAfterLoad();
+	}
+	if (ParentAtLastMerge != nullptr)
+	{
+		ParentAtLastMerge->UpdateEmitterAfterLoad();
 	}
 	
 	if (!GetOutermost()->bIsCookedForEditor)
@@ -1392,6 +1401,10 @@ UNiagaraEditorParametersAdapterBase* UNiagaraEmitter::GetEditorParameters()
 
 void UNiagaraEmitter::SetEditorData(UNiagaraEditorDataBase* InEditorData)
 {
+	if (EditorData == InEditorData)
+	{
+		return;
+	}
 	if (EditorData != nullptr)
 	{
 		EditorData->OnPersistentDataChanged().RemoveAll(this);
@@ -1963,8 +1976,6 @@ void UNiagaraEmitter::BeginDestroy()
 	{
 		GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
 	}
-
-	CleanupParameterDefinitionsSubscriptions();
 #endif
 	Super::BeginDestroy();
 }

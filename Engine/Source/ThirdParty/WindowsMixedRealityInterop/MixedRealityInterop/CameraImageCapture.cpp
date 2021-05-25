@@ -110,7 +110,7 @@ DirectX::XMFLOAT2 CameraImageCapture::UnprojectPVCamPointAtUnitDepth(DirectX::XM
 	point.X = pixelCoordinate.x;
 	point.Y = pixelCoordinate.y;
 	float2 unprojected = CameraIntrinsics.UnprojectAtUnitDepth(point);
-	
+
 	return DirectX::XMFLOAT2(unprojected.x, unprojected.y);
 }
 
@@ -120,7 +120,7 @@ T convert_from_abi(::IUnknown* from)
 	T to{ nullptr }; // `T` is a projected type.
 
 	winrt::check_hresult(from->QueryInterface(winrt::guid_of<T>(),
-		winrt::put_abi(to)));
+											  winrt::put_abi(to)));
 
 	return to;
 }
@@ -228,22 +228,22 @@ void CameraImageCapture::NotifyReceivedFrame(void* handle, DirectX::XMFLOAT4X4 C
 	OnReceivedFrame(handle, CamToTracking);
 }
 
-void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, DirectX::XMFLOAT4X4), int DesiredWidth, int DesiredHeight, int DesiredFPS)
+bool CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, DirectX::XMFLOAT4X4), int DesiredWidth, int DesiredHeight, int DesiredFPS)
 {
 	if (CameraFrameReader)
 	{
 		Log(L"Camera is already capturing frames. Aborting.");
-		return;
+		return true;
 	}
 
 	OnReceivedFrame = FunctionPointer;
 	if (OnReceivedFrame == nullptr)
 	{
 		Log(L"Null function pointer passed to StartCameraCapture() for new image callbacks. Aborting.");
-		return;
+		return false;
 	}
 
-	MediaFrameSourceGroup::FindAllAsync().Completed([this, DesiredWidth, DesiredHeight, DesiredFPS](auto&& asyncInfo, auto&&  asyncStatus)
+	MediaFrameSourceGroup::FindAllAsync().Completed([this, DesiredWidth, DesiredHeight, DesiredFPS](auto&& asyncInfo, auto&& asyncStatus)
 	{
 		auto DiscoveredGroups = asyncInfo.GetResults();
 		MediaFrameSourceGroup ChosenSourceGroup = nullptr;
@@ -351,7 +351,7 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, Direct
 				Log(L"Failed to open camera, please check Webcam capability");
 				return;
 			}
-			
+
 			// Get the frame source from the source info we got earlier
 			MediaFrameSource FrameSource = Capture.get().FrameSources().Lookup(ChosenSourceInfo.Id());
 
@@ -386,13 +386,15 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(void*, Direct
 			});
 		});
 	});
+
+	return true;
 }
 
-void CameraImageCapture::StopCameraCapture()
+bool CameraImageCapture::StopCameraCapture()
 {
 	if (CameraFrameReader)
 	{
-		CameraFrameReader.StopAsync().Completed([=](auto&& asyncInfo, auto&&  asyncStatus)
+		CameraFrameReader.StopAsync().Completed([=](auto&& asyncInfo, auto&& asyncStatus)
 		{
 			std::lock_guard<std::mutex> lock(RefsLock);
 			CameraCapture = nullptr;
@@ -402,4 +404,6 @@ void CameraImageCapture::StopCameraCapture()
 			OnReceivedFrame = nullptr;
 		});
 	}
+
+	return true;
 }

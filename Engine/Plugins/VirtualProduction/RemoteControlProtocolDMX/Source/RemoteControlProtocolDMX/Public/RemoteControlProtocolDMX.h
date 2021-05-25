@@ -94,22 +94,20 @@ private:
 /**
  * DMX protocol implementation for Remote Control
  */
-class FRemoteControlProtocolDMX : public FRemoteControlProtocol, public FTickableGameObject
+class FRemoteControlProtocolDMX : public FRemoteControlProtocol
 {
 public:
+	FRemoteControlProtocolDMX()
+		: FRemoteControlProtocol(ProtocolName)
+	{}
+	
 	//~ Begin IRemoteControlProtocol interface
 	virtual void Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
 	virtual void Unbind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
 	virtual void UnbindAll() override;
 	virtual UScriptStruct* GetProtocolScriptStruct() const override { return FRemoteControlDMXProtocolEntity::StaticStruct(); }
+	virtual void OnEndFrame() override;
 	//~ End IRemoteControlProtocol interface
-
-	//~ Begin FTickableGameObject interface
-	virtual void Tick(float DeltaTime) override;
-	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
-	virtual bool IsTickableInEditor() const override { return true; }
-	virtual TStatId GetStatId() const override;
-	//~ End FTickableGameObject interface
 
 private:
 	/**
@@ -120,7 +118,24 @@ private:
 	 */
 	void ProcessAndApplyProtocolValue(const FDMXSignalSharedPtr& InSignal, int32 InDMXOffset, const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr);
 
+#if WITH_EDITOR
+	/**
+	 * Process the AutoBinding to the Remote Control Entity
+	 * @param InProtocolEntityPtr	Protocol entity pointer
+	 */
+	void ProcessAutoBinding(const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr);
+#endif
+
 private:
 	/** Binding for the DMX protocol */
 	TArray<FRemoteControlProtocolEntityWeakPtr> ProtocolsBindings;
+
+#if WITH_EDITORONLY_DATA
+	/** DMX universe cache buffer.*/
+	TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>> CacheUniverseDMXBuffer;
+#endif
+
+public:
+	/** DMX protocol name */
+	static const FName ProtocolName;
 };

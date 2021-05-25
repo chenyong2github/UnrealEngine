@@ -28,15 +28,17 @@ GSErrCode FMenus::Register()
 
 	RegisterMenuAndHelp(&GSErr, kStrListMenuDatasmith, MenuCode_Palettes, MenuFlag_Default);
 
+#if !UE_AC_NO_MENU
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemSnapshot, MenuCode_UserDef, MenuFlag_Default);
-#if AUTO_SYNC
+	#if AUTO_SYNC
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemAutoSync, MenuCode_UserDef, MenuFlag_Default);
-#endif
+	#endif
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemConnections, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemExport, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemMessages, MenuCode_UserDef, MenuFlag_Default);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemPalette, MenuCode_UserDef, MenuFlag_SeparatorBefore);
 	RegisterMenuAndHelp(&GSErr, kStrListMenuItemAbout, MenuCode_UserDef, MenuFlag_Default);
+#endif
 
 	return GSErr;
 }
@@ -45,6 +47,8 @@ GSErrCode FMenus::Register()
 GSErrCode FMenus::Initialize()
 {
 	GSErrCode GSErr = NoError;
+
+#if !UE_AC_NO_MENU
 	for (short IndexMenu = kStrListMenuItemSnapshot; IndexMenu <= kStrListMenuItemAbout && GSErr == NoError;
 		 IndexMenu++)
 	{
@@ -54,17 +58,21 @@ GSErrCode FMenus::Initialize()
 	{
 		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_MenuHandler error=%s\n", GetErrorName(GSErr));
 	}
+#endif
+
 	GSErr = ACAPI_Install_MenuHandler(LocalizeResId(kStrListMenuDatasmith), MenuCommandHandler);
 	if (GSErr != NoError)
 	{
 		UE_AC_DebugF("FMenus::Initialize - ACAPI_Install_MenuHandler error=%s\n", GetErrorName(GSErr));
 	}
+
 	return GSErr;
 }
 
 // Ename or disable menu item
 void FMenus::SetMenuItemStatus(short InMenu, short InItem, bool InSet, GSFlags InFlag)
 {
+#if !UE_AC_NO_MENU
 	API_MenuItemRef ItemRef;
 	Zap(&ItemRef);
 	ItemRef.menuResID = LocalizeResId(InMenu);
@@ -84,18 +92,25 @@ void FMenus::SetMenuItemStatus(short InMenu, short InItem, bool InSet, GSFlags I
 		GSErr = ACAPI_Interface(APIIo_SetMenuItemFlagsID, &ItemRef, &ItemFlags);
 		if (GSErr != NoError)
 		{
-			UE_AC_TraceF("FMenus::SetMenuItemStatus - APIIo_SetMenuItemFlagsID error=%s\n", GetErrorName(GSErr));
+			UE_AC_DebugF("FMenus::SetMenuItemStatus - APIIo_SetMenuItemFlagsID error=%s\n", GetErrorName(GSErr));
 		}
 	}
 	else
 	{
-		UE_AC_TraceF("FMenus::SetMenuItemStatus - APIIo_GetMenuItemFlagsID error=%s\n", GetErrorName(GSErr));
+		UE_AC_DebugF("FMenus::SetMenuItemStatus - APIIo_GetMenuItemFlagsID error=%s\n", GetErrorName(GSErr));
 	}
+#else
+	(void)InMenu; // No unused warnings
+	(void)InItem;
+	(void)InSet;
+	(void)InFlag;
+#endif
 }
 
 // Change the text of an item
 void FMenus::SetMenuItemText(short InMenu, short InItem, const GS::UniString& ItemStr)
 {
+#if !UE_AC_NO_MENU
 	API_MenuItemRef ItemRef;
 	Zap(&ItemRef);
 	ItemRef.menuResID = LocalizeResId(InMenu);
@@ -104,15 +119,20 @@ void FMenus::SetMenuItemText(short InMenu, short InItem, const GS::UniString& It
 		ACAPI_Interface(APIIo_SetMenuItemTextID, &ItemRef, nullptr, const_cast< GS::UniString* >(&ItemStr));
 	if (GSErr != NoError)
 	{
-		UE_AC_TraceF("FMenus::SetMenuItemText - APIIo_SetMenuItemTextID error=%s\n", GetErrorName(GSErr));
+		UE_AC_DebugF("FMenus::SetMenuItemText - APIIo_SetMenuItemTextID error=%s\n", GetErrorName(GSErr));
 	}
+#else
+	(void)InMenu; // No unused warnings
+	(void)InItem;
+	(void)ItemStr;
+#endif
 }
 
 // AutoSync status changed
 void FMenus::AutoSyncChanged()
 {
-	GS::UniString StartAutoSync("Start Auto Sync");
-	GS::UniString PauseAutoSync("Pause Auto Sync");
+	static const GS::UniString StartAutoSync(GetGSName(kName_StartAutoSync));
+	static const GS::UniString PauseAutoSync(GetGSName(kName_PauseAutoSync));
 #if AUTO_SYNC
 	SetMenuItemText(kStrListMenuItemAutoSync, 1, FCommander::IsAutoSyncEnabled() ? PauseAutoSync : StartAutoSync);
 	SetMenuItemStatus(kStrListMenuItemAutoSync, 1, FCommander::IsAutoSyncEnabled(), API_MenuItemChecked);

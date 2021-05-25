@@ -39,7 +39,7 @@ class FReportDialog : public DG::Palette,
 	FReportDialog();
 	~FReportDialog();
 
-	virtual void PanelClosed(const DG::PanelCloseEvent& ev) override {}
+	virtual void PanelClosed(const DG::PanelCloseEvent& /* ev */) override {}
 
 	virtual void PanelCloseRequested(const DG::PanelCloseRequestEvent& /* ev */, bool* /* accepted */) override
 	{

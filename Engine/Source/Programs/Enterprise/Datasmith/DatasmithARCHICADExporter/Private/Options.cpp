@@ -45,7 +45,10 @@ size_t FOptions::ReadFrom(CReader* IOReader)
 
 const GS::UniString& FOptions::TypeOptionsName(ETypeOptions InType)
 {
-	return GetGSName(InType == kSync ? kName_SyncOptions : kName_ExportOptions);
+	static const GS::UniString SyncOptions("SyncOptions");
+	static const GS::UniString ExportOptions("ExportOptions");
+
+	return InType == kSync ? SyncOptions : ExportOptions;
 }
 
 // Get saved options of the last sync

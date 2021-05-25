@@ -391,6 +391,14 @@ namespace UnrealBuildTool
 		public bool bEnableMeshEditor = false;
 
 		/// <summary>
+		/// Whether to use the verse script interface.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-NoUseVerse", Value = "false")]
+		[CommandLine("-UseVerse", Value = "true")]
+		public bool bUseVerse = false;
+
+		/// <summary>
 		/// Whether to compile the Chaos physics plugin.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -462,6 +470,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bCompileISPC = false;
+
+		/// <summary>
+		/// Whether to compile in python support
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompilePython = true;
 
 		/// <summary>
 		/// Whether to compile the editor or not. Only desktop platforms (Windows or Mac) will use this, other platforms force this to false.
@@ -2036,6 +2050,11 @@ namespace UnrealBuildTool
 			get { return Inner.bEnableMeshEditor; }
 		}
 
+		public bool bUseVerse
+		{
+			get { return Inner.bUseVerse; }
+		}
+
 		public bool bCompileChaos
 		{
 			get { return Inner.bCompileChaos; }
@@ -2089,6 +2108,11 @@ namespace UnrealBuildTool
 		public bool bCompileISPC
 		{
 			get { return Inner.bCompileISPC && !GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=0"); }	// LWC_TODO: Temporarily disable ISPC when LWC is turned on. To be removed when double support is added to ISPC.
+		}
+
+		public bool bCompilePython
+		{
+			get { return Inner.bCompilePython; }
 		}
 
 		public bool bBuildEditor

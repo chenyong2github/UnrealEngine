@@ -755,6 +755,7 @@ void FNiagaraEditorModule::OnPreExit()
 			Sys->WaitForCompilationComplete();
 		}
 	}
+	ClearObjectPool();
 }
 
 void FNiagaraEditorModule::StartupModule()
@@ -1228,6 +1229,14 @@ void FNiagaraEditorModule::OnPostEngineInit()
 		GEditor->OnExecParticleInvoked().AddRaw(this, &FNiagaraEditorModule::OnExecParticleInvoked);
 
 		PreviewPlatformChangedHandle = CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().AddRaw(this, &FNiagaraEditorModule::OnPreviewPlatformChanged);
+
+		// Preload all parameter definitions in the default linked settings so that they will be postloaded before postload calls to scripts/emitters/systems that rely on them.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionSoftPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			DefaultLinkedParameterDefinitionSoftPath.TryLoad();
+		}
 	}
 	else
 	{
@@ -1320,6 +1329,54 @@ TSharedRef<INiagaraEditorWidgetProvider> FNiagaraEditorModule::GetWidgetProvider
 TSharedRef<FNiagaraScriptMergeManager> FNiagaraEditorModule::GetScriptMergeManager() const
 {
 	return ScriptMergeManager.ToSharedRef();
+}
+
+UObject* FNiagaraEditorModule::GetPooledDuplicateObject(UObject* Source, EFieldIteratorFlags::SuperClassFlags CopySuperProperties)
+{
+	check(IsInGameThread());
+	TArray<UObject*>& Pool = ObjectPool.FindOrAdd(Source->GetClass());
+	UObject* OutPooledObj;
+	if (Pool.Num() > 0)
+	{
+		OutPooledObj = Pool.Pop();
+		for (TFieldIterator<FProperty> PropertyIt(OutPooledObj->GetClass(), CopySuperProperties); PropertyIt; ++PropertyIt)
+		{
+			FProperty* Property = *PropertyIt;
+			const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(Source);
+			uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(OutPooledObj);
+			Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+		}
+	}
+	else
+	{
+		OutPooledObj = DuplicateObject(Source, GetTransientPackage());
+		OutPooledObj->AddToRoot();
+	}
+	return OutPooledObj;
+}
+
+void FNiagaraEditorModule::ReleaseObjectToPool(UObject* Obj)
+{
+	check(IsInGameThread());
+	if (Obj->GetOuter() == GetTransientPackage())
+	{
+		Obj->AddToRoot();
+		ObjectPool.FindOrAdd(Obj->GetClass()).Push(Obj);
+	}
+}
+
+void FNiagaraEditorModule::ClearObjectPool()
+{
+	check(IsInGameThread());
+	for (auto& Pool : ObjectPool)
+	{
+		for (UObject* Var : Pool.Value)
+		{
+			Var->RemoveFromRoot();
+			Var->MarkPendingKill();
+		}
+	}
+	ObjectPool.Empty();
 }
 
 void FNiagaraEditorModule::RegisterParameterTrackCreatorForType(const UScriptStruct& StructType, FOnCreateMovieSceneTrackForParameter CreateTrack)

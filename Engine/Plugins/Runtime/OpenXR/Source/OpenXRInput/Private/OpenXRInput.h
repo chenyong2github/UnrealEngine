@@ -13,13 +13,11 @@ class FOpenXRHMD;
 struct FInputActionKeyMapping;
 struct FInputAxisKeyMapping;
 
-#if PLATFORM_LINUX
-// When compiling on Linux the XrPath type becomes ambigious for overloading
+// On some platforms the XrPath type becomes ambigious for overloading
 FORCEINLINE uint32 GetTypeHash(const TPair<XrPath, XrPath>& Pair)
 {
 	return HashCombine(GetTypeHash((uint64)Pair.Key), GetTypeHash((uint64)Pair.Value));
 }
-#endif
 
 class FOpenXRInputPlugin : public IOpenXRInputPlugin
 {

@@ -58,6 +58,8 @@ protected:
 	const TArray<FAssetData>& GetSelectedAssets() const;
 
 	void ConfirmSelection();
+	void ConfirmSelection(const FAssetData& AssetData);
+
 	int32 GetSelectedObjectIndex() const { return SelectedOptionIndex; };
 
 protected:

@@ -2,6 +2,8 @@
 
 #include "Views/Results/LevelSnapshotsEditorResults.h"
 
+#include "Widgets/SNullWidget.h"
+
 #include "Views/Results/SLevelSnapshotsEditorResults.h"
 
 FLevelSnapshotsEditorResults::FLevelSnapshotsEditorResults(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)

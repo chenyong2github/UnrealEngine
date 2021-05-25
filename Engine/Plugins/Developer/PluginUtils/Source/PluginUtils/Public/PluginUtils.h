@@ -54,6 +54,9 @@ public:
 		/** Hyperlink for the author's website  */
 		FString CreatedByURL;
 
+		/** A friendly name for this plugin. Set to the plugin name by default */
+		FString FriendlyName;
+
 		/** A description for this plugin */
 		FString Description;
 

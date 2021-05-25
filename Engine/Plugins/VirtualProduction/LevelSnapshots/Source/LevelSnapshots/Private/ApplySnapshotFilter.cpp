@@ -190,13 +190,22 @@ void FApplySnapshotFilter::AnalyseRootProperties(FPropertyContainerContext& Cont
 		// Ask external modules about the property
 		const FPropertyComparisonParams Params { ContainerContext.RootClass, *FieldIt, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, SnapshotObject, WorldObject, DeserializedSnapshotActor, WorldActor} ;
 		const IPropertyComparer::EPropertyComparison ComparisonResult = Module.ShouldConsiderPropertyEqual(PropertyComparers, Params);
-		if (ComparisonResult == IPropertyComparer::EPropertyComparison::TreatEqual)
+
+		bool bSkipEqualityTest = false;
+		switch (ComparisonResult)
 		{
+		case IPropertyComparer::EPropertyComparison::TreatEqual:
 			continue;
-		} 
+
+		case IPropertyComparer::EPropertyComparison::TreatUnequal:
+			bSkipEqualityTest = true;
+
+		default:
+			break;
+		}
 		
-		const ECheckSubproperties CheckSubpropertyBehaviour = AnalyseProperty(ContainerContext, *FieldIt);
-		if (CheckSubpropertyBehaviour == ECheckSubproperties::CheckSubproperties)
+		const ECheckSubproperties CheckSubpropertyBehaviour = AnalyseProperty(ContainerContext, *FieldIt, bSkipEqualityTest);
+		if (!bSkipEqualityTest && CheckSubpropertyBehaviour == ECheckSubproperties::CheckSubproperties)
 		{
 			HandleStructProperties(ContainerContext, *FieldIt);
 			// TODO: To analyse subobjects, you'd add another utility function here
@@ -225,12 +234,12 @@ void FApplySnapshotFilter::HandleStructProperties(FPropertyContainerContext& Con
 	}
 }
 
-FApplySnapshotFilter::ECheckSubproperties FApplySnapshotFilter::AnalyseProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon)
+FApplySnapshotFilter::ECheckSubproperties FApplySnapshotFilter::AnalyseProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon, bool bSkipEqualityTest)
 {
 	check(ContainerContext.WorldContainer);
 	check(ContainerContext.SnapshotContainer); 
 
-	if (!bAllowUnchangedProperties && Snapshot->AreSnapshotAndOriginalPropertiesEquivalent(PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor))
+	if (!bSkipEqualityTest && !bAllowUnchangedProperties && Snapshot->AreSnapshotAndOriginalPropertiesEquivalent(PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor))
 	{
 		return SkipSubproperties;
 	}

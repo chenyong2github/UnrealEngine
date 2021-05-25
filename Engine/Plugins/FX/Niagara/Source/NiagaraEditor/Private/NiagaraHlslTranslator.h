@@ -66,7 +66,6 @@ public:
 
 	}
 
-	virtual ~FNiagaraCompileRequestData() {}
 	virtual bool GatherPreCompiledVariables(const FString& InNamespaceFilter, TArray<FNiagaraVariable>& OutVars) override;
 	virtual void GetReferencedObjects(TArray<UObject*>& Objects) override;
 	virtual const TMap<FName, UNiagaraDataInterface*>& GetObjectNameMap() override;
@@ -75,11 +74,12 @@ public:
 
 	TArray<FNiagaraParameterMapHistory>& GetPrecomputedHistories() { return PrecompiledHistories; }
 	const TArray<FNiagaraParameterMapHistory>& GetPrecomputedHistories() const { return PrecompiledHistories; }
-	virtual const class UNiagaraGraph* GetPrecomputedNodeGraph() const { return NodeGraphDeepCopy; }
+	virtual const class UNiagaraGraph* GetPrecomputedNodeGraph() const { return NodeGraphDeepCopy.Get(); }
 	const FString& GetUniqueEmitterName() const { return EmitterUniqueName; }
-	void VisitReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, bool bNeedsCompilation);
+	void VisitReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, bool bNeedsCompilation, TMap<UNiagaraNodeFunctionCall*, ENiagaraScriptUsage> FunctionsWithUsage = TMap<UNiagaraNodeFunctionCall*, ENiagaraScriptUsage>());
 	void DeepCopyGraphs(UNiagaraScriptSource* ScriptSource, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, bool bNeedsCompilation);
-	void FinishPrecompile(UNiagaraScriptSource* ScriptSource, const TArray<FNiagaraVariable>& EncounterableVariables, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, const TArray<class UNiagaraSimulationStageBase*>* SimStages);
+	void DeepCopyGraphs(UNiagaraScriptSource* ScriptSource, UNiagaraEmitter* Emitter, bool bNeedsCompilation);
+	void FinishPrecompile(const TArray<FNiagaraVariable>& EncounterableVariables, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, const TArray<class UNiagaraSimulationStageBase*>* SimStages);
 	virtual int32 GetDependentRequestCount() const override {
 		return EmitterData.Num();
 	};
@@ -88,6 +88,7 @@ public:
 	}
 	void AddRapidIterationParameters(const FNiagaraParameterStore& InParamStore, FCompileConstantResolver InResolver);
 	virtual bool GetUseRapidIterationParams() const override { return bUseRapidIterationParams; }
+	virtual void ReleaseCompilationCopies() override;
 
 	// Simulation Stage Variables. Sim stage of 0 is always Spawn/Update
 	TArray<uint32> NumIterationsPerStage;
@@ -97,9 +98,7 @@ public:
 	TArray<FGuid> StageGuids;
 	TArray<FName> StageNames;
 
-	// If this is being held onto for any length of time, make sure to hold onto it in a gc-aware object. Right now in this information-passing struct,
-	// we could have a leaked garbage collected pointer if not held onto by someone capable of registering a reference.
-	UNiagaraGraph* NodeGraphDeepCopy;
+	TWeakObjectPtr<UNiagaraGraph> NodeGraphDeepCopy;
 	TArray<FNiagaraParameterMapHistory> PrecompiledHistories;
 	TArray<FNiagaraVariable> ChangedFromNumericVars;
 	TMap<FName, UNiagaraDataInterface*> CopiedDataInterfacesByName;
@@ -126,13 +125,13 @@ public:
 		bool bHasNumericInputs;
 	};
 	TMap<const UNiagaraGraph*, TArray<FunctionData>> PreprocessedFunctions;
-	TArray<UNiagaraGraph*> ClonedGraphs;
+	TArray<TWeakObjectPtr<UNiagaraGraph>> ClonedGraphs;
 
 	// Copy of the variables that are required by Renderers if this is a compile request for an Emitter. 
 	TArray<FNiagaraVariable> RequiredRendererVariables;
 
 protected:
-	void VisitReferencedGraphsRecursive(UNiagaraGraph* InGraph, const FCompileConstantResolver& ConstantResolver, bool bNeedsCompile);
+	void VisitReferencedGraphsRecursive(UNiagaraGraph* InGraph, const FCompileConstantResolver& ConstantResolver, bool bNeedsCompile, TMap<UNiagaraNodeFunctionCall*, ENiagaraScriptUsage> FunctionsWithUsage);
 };
 
 

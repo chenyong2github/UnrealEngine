@@ -6,37 +6,30 @@ namespace UnrealBuildTool.Rules
 	{
 		public CameraCalibration(ReadOnlyTargetRules Target) : base(Target)
 		{
+			if (Target.Configuration == UnrealTargetConfiguration.Debug)
+			{
+				PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+				OptimizeCode = CodeOptimization.Never;
+				bUseUnity = false;
+				PCHUsage = PCHUsageMode.NoPCHs;
+			}
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"CameraCalibrationCore",
 					"CinematicCamera",
 					"Core",
 					"CoreUObject",
-					"DeveloperSettings",
 					"Engine",
-					"RenderCore",
-					"RHI",
 				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
                 {
-                    "Projects",
+					"LiveLinkComponents",
 				}
-			);
-
-			if (Target.bBuildEditor == true)
-			{
-				PrivateDependencyModuleNames.Add("UnrealEd");
-			}
-
-			PrivateIncludePaths.AddRange(
-				new string[] 
-				{
-            		//required for ScreenPass
-            		"../../../../Source/Runtime/Renderer/Private",
-            	}
 			);
 		}
 	}

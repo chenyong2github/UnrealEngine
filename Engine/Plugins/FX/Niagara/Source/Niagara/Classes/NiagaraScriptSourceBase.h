@@ -36,6 +36,7 @@ public:
 	virtual TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> GetDependentRequest(int32 Index) = 0;
 	virtual FName ResolveEmitterAlias(FName VariableName) const = 0;
 	virtual bool GetUseRapidIterationParams() const = 0;
+	virtual void ReleaseCompilationCopies() = 0;
 };
 
 class FNiagaraCompileOptions

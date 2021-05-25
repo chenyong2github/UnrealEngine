@@ -18,6 +18,9 @@
 class DISPLAYCLUSTER_API IDisplayClusterViewportProxy
 {
 public:
+	virtual ~IDisplayClusterViewportProxy() = default;
+
+public:
 	virtual FString GetId() const = 0;
 
 	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy>& GetProjectionPolicy_RenderThread() const = 0;

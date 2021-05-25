@@ -105,8 +105,11 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 	Chaos::FPBDPositionConstraints& PositionTarget,
 	TMap<int32, int32>& TargetedParticles)
 {
-	FieldParameterUpdateInternal(InSolver, PositionTarget, TargetedParticles, TransientCommands, true);
-	FieldParameterUpdateInternal(InSolver, PositionTarget, TargetedParticles, PersistentCommands, false);
+	if (InSolver && !InSolver->IsShuttingDown())
+	{
+		FieldParameterUpdateInternal(InSolver, PositionTarget, TargetedParticles, TransientCommands, true);
+		FieldParameterUpdateInternal(InSolver, PositionTarget, TargetedParticles, PersistentCommands, false);
+	}
 }
 
 void FPerSolverFieldSystem::FieldForcesUpdateInternal(
@@ -168,8 +171,11 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 void FPerSolverFieldSystem::FieldForcesUpdateCallback(
 	Chaos::FPBDRigidsSolver* InSolver)
 {
-	FieldForcesUpdateInternal(InSolver, TransientCommands, true);
-	FieldForcesUpdateInternal(InSolver, PersistentCommands, false);
+	if (InSolver && !InSolver->IsShuttingDown())
+	{
+		FieldForcesUpdateInternal(InSolver, TransientCommands, true);
+		FieldForcesUpdateInternal(InSolver, PersistentCommands, false);
+	}
 }
 
 FORCEINLINE void EvaluateImpulseField(

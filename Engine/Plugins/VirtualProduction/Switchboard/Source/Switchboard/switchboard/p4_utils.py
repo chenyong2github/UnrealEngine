@@ -1,20 +1,13 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-import subprocess, socket, re, os, marshal, sys, pathlib
-
-from .switchboard_logging import LOGGER
+import marshal
+import pathlib
+import subprocess
 from functools import wraps
-from .config import CONFIG
 
-def get_sp_startupinfo():
-    ''' Returns subprocess.startupinfo and avoids extra cmd line window in windows.
-    '''
-    startupinfo = subprocess.STARTUPINFO()
+from . import switchboard_utils as sb_utils
+from .switchboard_logging import LOGGER
 
-    if sys.platform.startswith("win"):
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
-    return startupinfo
 
 def p4_login(f):
     @wraps(f)
@@ -30,30 +23,6 @@ def p4_login(f):
 
 
 @p4_login
-def p4_stream_root(client):
-    """ Returns stream root of client. """
-    p4_command = f'p4 -ztag -F "%Stream%" -c {client} stream -o'
-    LOGGER.info(f"Executing: {p4_command}")
-
-    p4_result = subprocess.check_output(p4_command, startupinfo=get_sp_startupinfo()).decode()
-    if p4_result:
-        return p4_result.strip()
-    return None
-
-
-@p4_login
-def p4_where(client, local_path):
-    """Returns depot path of local file."""
-    p4_command = f'p4 -ztag -c {client} -F "%depotFile%" where {local_path}'
-    LOGGER.info(f"Executing: {p4_command}")
-
-    p4_result = subprocess.check_output(p4_command, startupinfo=get_sp_startupinfo()).decode()
-    if p4_result:
-        return p4_result.strip()
-    return None
-
-
-@p4_login
 def p4_latest_changelist(p4_path, working_dir, num_changelists=10):
     """
     Return (num_changelists) latest CLs
@@ -61,33 +30,12 @@ def p4_latest_changelist(p4_path, working_dir, num_changelists=10):
     p4_command = f'p4 -ztag -F "%change%" changes -m {num_changelists} {p4_path}/...'
     LOGGER.info(f"Executing: {p4_command}")
 
-    p4_result = subprocess.check_output(p4_command, cwd=working_dir, startupinfo=get_sp_startupinfo()).decode()
+    p4_result = subprocess.check_output(p4_command, cwd=working_dir, startupinfo=sb_utils.get_hidden_sp_startupinfo()).decode()
 
     if p4_result:
         return p4_result.split()
 
     return None
-
-
-@p4_login
-def p4_current_user_name():
-    p4_command = f'p4 set P4USER'
-
-    p4_result = subprocess.check_output(p4_command, startupinfo=get_sp_startupinfo()).decode().rstrip()
-
-    p = re.compile("P4USER=(.*)\\(set\\)")
-    matches = p.search(p4_result)
-    if matches:
-        return matches.group(1).rstrip()
-    return None
-
-
-@p4_login
-def p4_edit(file_path):
-    p4_command = f'p4 edit "{file_path}"'
-
-    p4_result = subprocess.check_output(p4_command, startupinfo=get_sp_startupinfo()).decode()
-    LOGGER.debug(p4_result)
 
 def run(cmd, args=[], input=None):
     ''' Runs the provided p4 command and arguments with -G python marshaling 

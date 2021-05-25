@@ -3,23 +3,22 @@
 #pragma once
 
 #include "IRemoteControlProtocolWidgetsModule.h"
-#include "Templates/SharedPointer.h"
 
 REMOTECONTROLPROTOCOLWIDGETS_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControlProtocolWidgets, Log, All);
 
+class IRCProtocolBindingList;
 class URemoteControlPreset;
 
 class FRemoteControlProtocolWidgetsModule : public IRemoteControlProtocolWidgetsModule
 {
 public:
-	// IModuleInterface
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-
-	/** Creates a widget for the given Preset Field */
+	//~ Begin IRemoteControlProtocolWidgetsModule Interface
 	virtual TSharedRef<SWidget> GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType) override;
+	virtual void ResetProtocolBindingList() override;
+	virtual TSharedPtr<IRCProtocolBindingList> GetProtocolBindingList() const override;
+	//~ End IRemoteControlProtocolWidgetsModule Interface
 
-protected:
-	/** Called when any asset is loaded */
-	void OnAssetLoaded(UObject* InAsset);
+private:
+	/** Binding list public interface instance */
+	TSharedPtr<IRCProtocolBindingList> RCProtocolBindingList;
 };

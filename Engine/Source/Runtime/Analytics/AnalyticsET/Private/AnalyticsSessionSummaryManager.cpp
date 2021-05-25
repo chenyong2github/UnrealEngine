@@ -557,7 +557,7 @@ bool FAnalyticsSessionSummaryManager::AggregateSummaries(const FString& InProces
 		OutSummaryProperties.Emplace(AnalyticsManagerProperties::SessionId.Key, InternalSessionId->GetValue());
 	}
 
-	if (!MissingDataFromProcesses.IsEmpty())
+	if (MissingDataFromProcesses.Num())
 	{
 		// Add the subsidiary process tag name(s) for which the data file couldn't be loaded (file was locked, corrupted, ...)
 		OutSummaryProperties.Emplace(AnalyticsManagerProperties::MissingDataFrom.Key, FString::Join(MissingDataFromProcesses, TEXT(",")));

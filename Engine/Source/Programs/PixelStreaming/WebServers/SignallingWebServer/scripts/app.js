@@ -130,6 +130,25 @@ function setupHtmlEvents() {
 		};
 	}
 
+	// Rate control drop down selection
+	let rateControlSelect = document.getElementById('rate-control-dropdown')
+	if (rateControlSelect !== null) {
+		rateControlSelect.onchange = function (event) {
+			var selectedValue = event.target.value;  
+			sendRateControlConsoleCommand(selectedValue);
+		}
+	}
+
+	// Minimum quality prioritisation spinner
+	let minqpSpinner = document.getElementById('minqp-number')
+	if (minqpSpinner !== null) {
+		minqpSpinner.onchange = function (event) {
+			var selectedValue = event.target.value;  
+			sendMinQPConsoleCommand(selectedValue);
+		}
+	}
+	
+
 	let showFPSButton = document.getElementById('show-fps-button');
 	if (showFPSButton !== null) {
 		showFPSButton.onclick = function (event) {
@@ -164,9 +183,47 @@ function setupHtmlEvents() {
 	}
 }
 
+function sendStartLatencyTest() {
+	// We need WebRTC to be active to do a latency test.
+	if(!webRtcPlayerObj)
+	{
+		return;
+	}
+
+	let onTestStarted = function(StartTimeMs)
+	{
+		let descriptor = {
+			StartTime: StartTimeMs
+		};
+		emitDescriptor(MessageType.LatencyTest, descriptor);
+	};
+
+	webRtcPlayerObj.startLatencyTest(onTestStarted);
+}
+
+function sendMinQPConsoleCommand(minQP) {
+	if(minQP) {
+		let command = 'PixelStreaming.Encoder.MinQP ' + minQP;
+		let consoleDescriptor = {
+			Console: command
+		};
+		emitUIInteraction(consoleDescriptor);
+	}
+}
+
+function sendRateControlConsoleCommand(rateControlMode) {
+	if(rateControlMode) {
+		let command = 'PixelStreaming.Encoder.RateControl ' + rateControlMode;
+		let consoleDescriptor = {
+			Console: command
+		};
+		emitUIInteraction(consoleDescriptor);
+	}
+}
+
 function sendQualityConsoleCommands(descriptor) {
 	if (descriptor.PrioritiseQuality !== null) {
-		let command = 'Streamer.PrioritiseQuality ' + descriptor.PrioritiseQuality;
+		let command = 'PixelStreaming.Encoder.PrioritizeQuality ' + descriptor.PrioritiseQuality;
 		let consoleDescriptor = {
 			Console: command
 		};
@@ -174,7 +231,7 @@ function sendQualityConsoleCommands(descriptor) {
 	}
 
 	if (descriptor.LowBitrate !== null) {
-		let command = 'Streamer.LowBitrate ' + descriptor.LowBitrate;
+		let command = 'PixelStreaming.Encoder.LowBitrate ' + descriptor.LowBitrate;
 		let consoleDescriptor = {
 			Console: command
 		};
@@ -182,7 +239,7 @@ function sendQualityConsoleCommands(descriptor) {
 	}
 
 	if (descriptor.HighBitrate !== null) {
-		let command = 'Streamer.HighBitrate ' + descriptor.HighBitrate;
+		let command = 'PixelStreaming.Encoder.HighBitrate ' + descriptor.HighBitrate;
 		let consoleDescriptor = {
 			Console: command
 		};
@@ -190,7 +247,7 @@ function sendQualityConsoleCommands(descriptor) {
 	}
 
 	if (descriptor.MinFPS !== null) {
-		var command = 'Streamer.MinFPS ' + descriptor.MinFPS;
+		var command = 'PixelStreaming.Encoder.MinFPS ' + descriptor.MinFPS;
 		let consoleDescriptor = {
 			Console: command
 		};
@@ -355,14 +412,15 @@ function removeResponseEventListener(name) {
 	responseEventListeners.remove(name);
 }
 
-// Must be kept in sync with PixelStreamingProtocol::EToClientMsg C++ enum.
+// Must be kept in sync with PixelStreamingProtocol::EToPlayerMsg C++ enum.
 const ToClientMessageType = {
 	QualityControlOwnership: 0,
 	Response: 1,
 	Command: 2,
 	FreezeFrame: 3,
 	UnfreezeFrame: 4,
-	VideoEncoderAvgQP: 5
+	VideoEncoderAvgQP: 5,
+	LatencyTest: 6
 };
 
 var VideoEncoderQP = "N/A";
@@ -443,6 +501,7 @@ function setupWebRtcPlayer(htmlElement, config) {
 			}
 		} else if (view[0] === ToClientMessageType.QualityControlOwnership) {
 			let ownership = view[1] === 0 ? false : true;
+			console.log("Received quality controller message, will control quality: " + ownership);
 			// If we own the quality control, we can't relenquish it. We only loose
 			// quality control when another peer asks for it
 			if (qualityControlOwnershipCheckBox !== null) {
@@ -476,6 +535,15 @@ function setupWebRtcPlayer(htmlElement, config) {
 		} else if (view[0] === ToClientMessageType.VideoEncoderAvgQP) {
 			VideoEncoderQP = new TextDecoder("utf-16").decode(data.slice(1));
 			console.log(`received VideoEncoderAvgQP ${VideoEncoderQP}`);
+		} else if(view[0] == ToClientMessageType.LatencyTest){
+			let latencyTimingsAsString = new TextDecoder("utf-16").decode(data.slice(1));
+			console.log("Got latency timings from UE.")
+			console.log(latencyTimingsAsString);
+			let latencyTimingsFromUE = JSON.parse(latencyTimingsAsString);
+			if(webRtcPlayerObj)
+			{
+				webRtcPlayerObj.latencyTestTimings.SetUETimings(latencyTimingsFromUE);
+			}
 		} else {
 			console.error(`unrecognized data received, packet ID ${view[0]}`);
 		}
@@ -579,7 +647,8 @@ function onWebRtcAnswer(webRTCData) {
 		statsText += `<div style="color: ${color}">Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'N/A'}</div>`;
 		statsText += `<div>Framerate: ${aggregatedStats.hasOwnProperty('framerate') ? numberFormat.format(aggregatedStats.framerate) : 'N/A'}</div>`;
 		statsText += `<div>Frames dropped: ${aggregatedStats.hasOwnProperty('framesDropped') ? numberFormat.format(aggregatedStats.framesDropped) : 'N/A'}</div>`;
-		statsText += `<div>Latency (ms): ${aggregatedStats.hasOwnProperty('currentRoundTripTime') ? numberFormat.format(aggregatedStats.currentRoundTripTime * 1000) : 'N/A'}</div>`;
+		statsText += `<div>Net RTT (ms): ${aggregatedStats.hasOwnProperty('currentRoundTripTime') ? numberFormat.format(aggregatedStats.currentRoundTripTime * 1000) : 'N/A'}</div>`;
+		statsText += `<div>Browser receive to composite (ms): ${aggregatedStats.hasOwnProperty('receiveToCompositeMs') ? numberFormat.format(aggregatedStats.receiveToCompositeMs) : 'N/A'}</div>`;
 		statsText += `<div style="color: ${color}">Video Quantization Parameter: ${VideoEncoderQP}</div>`;
 
 		let statsDiv = document.getElementById("stats");
@@ -600,8 +669,28 @@ function onWebRtcAnswer(webRTCData) {
 
 	webRtcPlayerObj.aggregateStats(1 * 1000 /*Check every 1 second*/);
 
-	//let displayStats = () => { webRtcPlayerObj.getStats( (s) => { s.forEach(stat => { console.log(JSON.stringify(stat)); }); } ); }
-	//var displayStatsIntervalId = setInterval(displayStats, 30 * 1000);
+	webRtcPlayerObj.latencyTestTimings.OnAllLatencyTimingsReady = function(timings)
+	{
+		let endToEndLatency = timings.FrameDisplayTimeMs - timings.TestStartTimeMs;
+		let browserToUELatency = timings.ReceiptTimeMs - timings.TestStartTimeMs;
+		let ueToDisplayLatency = timings.FrameDisplayTimeMs - timings.PreCaptureTimeMs;
+		let uePreCapture = timings.PreCaptureTimeMs - timings.ReceiptTimeMs;
+		let uePixelStreamLatency = timings.PostEncodeTimeMs - timings.PreCaptureTimeMs;
+		let captureLatency = timings.PostCaptureTimeMs - timings.PreCaptureTimeMs;
+		let encodeLatency = timings.PostEncodeTimeMs - timings.PreEncodeTimeMs;
+		let browserSideLatency = endToEndLatency - uePreCapture - uePixelStreamLatency - (browserToUELatency * 2.0);
+		
+		let latencyStatsInnerHTML = '';
+		latencyStatsInnerHTML += `<div>Total stream latency (ms): ${endToEndLatency}</div>`;
+		latencyStatsInnerHTML += `<div>Browser to UE network (ms): ${browserToUELatency}</div>`;
+		latencyStatsInnerHTML += `<div>UE Capture to Browser Display (ms): ${ueToDisplayLatency}</div>`;
+		latencyStatsInnerHTML += `<div>UE Pre-capture (ms): ${uePreCapture}</div>`;
+		latencyStatsInnerHTML += `<div>UE Capture+Encode (ms): ${uePixelStreamLatency}</div>`;
+		latencyStatsInnerHTML += `<div>UE Capture (ms): ${captureLatency}</div>`;
+		latencyStatsInnerHTML += `<div>UE Encode (ms): ${encodeLatency}</div>`;
+		latencyStatsInnerHTML += `<div>Browser receive to display (ms): ${browserSideLatency}</div>`;
+		document.getElementById("LatencyStats").innerHTML = latencyStatsInnerHTML;		
+	}
 }
 
 function onWebRtcIce(iceCandidate) {
@@ -757,8 +846,11 @@ function resizePlayerStyle(event) {
 
 	updateVideoStreamSize();
 
-	if (playerElement.classList.contains('fixed-size'))
+	if (playerElement.classList.contains('fixed-size')){
+		setupMouseAndFreezeFrame(playerElement)
 		return;
+	}
+		
 
 	let checkBox = document.getElementById('enlarge-display-to-fill-window-tgl');
 	let windowSmallerThanPlayer = window.innerWidth < playerElement.videoWidth || window.innerHeight < playerElement.videoHeight;
@@ -772,6 +864,10 @@ function resizePlayerStyle(event) {
 		resizePlayerStyleToArbitrarySize(playerElement);
 	}
 	
+	setupMouseAndFreezeFrame(playerElement)
+}
+
+function setupMouseAndFreezeFrame(playerElement) {
 	// Calculating and normalizing positions depends on the width and height of
 	// the player.
 	playerElementClientRect = playerElement.getBoundingClientRect();
@@ -828,6 +924,7 @@ const MessageType = {
 	AverageBitrateRequest: 3,
 	StartStreaming: 4,
 	StopStreaming: 5,
+	LatencyTest: 6,
 
 	/**********************************************************************/
 
@@ -1519,7 +1616,10 @@ function onExpandOverlay_Click(/* e */) {
 function start() {
 	// update "quality status" to "disconnected" state
 	let qualityStatus = document.getElementById("qualityStatus");
-	qualityStatus.className = "grey-status";
+	if (qualityStatus) {
+		qualityStatus.className = "grey-status";
+	}
+	
 
 	let statsDiv = document.getElementById("stats");
 	if (statsDiv) {

@@ -4784,7 +4784,7 @@ void UMaterialInstance::SaveShaderStableKeys(const class ITargetPlatform* TP)
 {
 #if WITH_EDITOR
 	FStableShaderKeyAndValue SaveKeyVal;
-	SetCompactFullNameFromObject(SaveKeyVal.ClassNameAndObjectPath, this);
+	SaveKeyVal.ClassNameAndObjectPath.SetCompactFullNameFromObject(this);
 	UMaterial* Base = GetMaterial();
 	if (Base)
 	{

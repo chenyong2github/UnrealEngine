@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "Misc/Paths.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -18,8 +19,6 @@ class SWITCHBOARDEDITOR_API USwitchboardEditorSettings : public UObject
 	USwitchboardEditorSettings();
 
 public:
-
-
 	/** Switchboard installs its own python interpreter on its first launch. If you prefer
 	 * to use your own, specify the path to the python executable.
 	 */
@@ -50,4 +49,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Switchboard")
 	static USwitchboardEditorSettings* GetSwitchboardEditorSettings();
 
+public:
+	FString GetListenerPlatformPath() const
+	{
+		FString ListenerPlatformPath = ListenerPath.FilePath;
+		FPaths::MakePlatformFilename(ListenerPlatformPath);
+		return ListenerPlatformPath;
+	}
+
+	FString GetListenerInvocation() const
+	{
+		return FString::Printf(TEXT("\"%s\" %s"), *GetListenerPlatformPath(), *ListenerCommandlineArguments);
+	}
 };

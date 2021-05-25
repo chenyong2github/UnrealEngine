@@ -601,7 +601,6 @@ void UConsole::SetCursorPos(int32 Position)
 
 void UConsole::ConsoleCommand(const FString& Command)
 {
-	CSV_EVENT_GLOBAL(TEXT("Cmd: %s"), *Command);
 	// insert into history buffer
 	{
 		HistoryBuffer.Remove(Command);

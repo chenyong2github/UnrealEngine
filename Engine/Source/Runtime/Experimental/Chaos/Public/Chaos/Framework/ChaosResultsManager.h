@@ -10,7 +10,8 @@ namespace Chaos
 	struct FResimParticleInfo
 	{
 		FDirtyRigidParticleData Next;
-		FReal Time = -1;
+		FReal LeashStartTime = -1;
+		FReal EntryTime = -1;
 		bool bDiverged;
 	};
 

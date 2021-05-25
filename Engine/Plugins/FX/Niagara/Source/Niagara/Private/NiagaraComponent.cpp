@@ -2529,26 +2529,25 @@ void UNiagaraComponent::FixDataInterfaceOuters()
 
 void UNiagaraComponent::CopyParametersFromAsset(bool bResetExistingOverrideParameters)
 {
+	TArray<FNiagaraVariable> ExistingVars;
+	OverrideParameters.GetParameters(ExistingVars);
+
 	TArray<FNiagaraVariable> SourceVars;
 	Asset->GetExposedParameters().GetParameters(SourceVars);
 	for (FNiagaraVariable& Param : SourceVars)
 	{
-		OverrideParameters.AddParameter(Param, true);
-	}
+		bool bNewParam = OverrideParameters.AddParameter(Param, true);
 
-	TArray<FNiagaraVariable> ExistingVars;
-	OverrideParameters.GetParameters(ExistingVars);
+		bool bCopyAssetValue = bResetExistingOverrideParameters || bNewParam;
+		if (bCopyAssetValue)
+		{
+			Asset->GetExposedParameters().CopyParameterData(OverrideParameters, Param);
+		}
+	}
 
 	for (FNiagaraVariable ExistingVar : ExistingVars)
 	{
-		if (SourceVars.Contains(ExistingVar))
-		{
-			if (bResetExistingOverrideParameters)
-			{
-				Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
-			}
-		}
-		else
+		if (!SourceVars.Contains(ExistingVar))
 		{
 			OverrideParameters.RemoveParameter(ExistingVar);
 		}

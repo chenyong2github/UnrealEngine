@@ -88,6 +88,15 @@ void FOpenXRARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMod
 				CustomCaptureSupports.Emplace(SceneUnderstandingCapture);
 			}
 		}
+
+		if (HandMeshCapture == nullptr)
+		{
+			HandMeshCapture = Plugin->GetCustomCaptureSupport(EARCaptureType::HandMesh);
+			if (HandMeshCapture != nullptr)
+			{
+				CustomCaptureSupports.Emplace(HandMeshCapture);
+			}
+		}
 	}
 
 }
@@ -911,6 +920,12 @@ bool FOpenXRARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureType 
 		if (SceneUnderstandingCapture)
 		{
 			return SceneUnderstandingCapture->OnToggleARCapture(bOnOff);
+		}
+		break;
+	case EARCaptureType::HandMesh:
+		if (HandMeshCapture)
+		{
+			return HandMeshCapture->OnToggleARCapture(bOnOff);
 		}
 		break;
 	}

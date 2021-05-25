@@ -3,8 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SnapshotVersion.h"
 #include "Serialization/ArchiveUObject.h"
+#include "UObject/ObjectMacros.h"
 
+class UObject;
+class UPackage;
 struct FObjectSnapshotData;
 struct FWorldSnapshotData;
 
@@ -15,7 +19,7 @@ class FSnapshotArchive : public FArchiveUObject
 	
 public:
 
-	static FSnapshotArchive MakeArchiveForRestoring(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData);
+	static void ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage);
 
 	//~ Begin FArchive Interface
 	virtual FString GetArchiveName() const override;
@@ -30,21 +34,22 @@ public:
 	//~ End FArchive Interface
 
 protected:
-
+	
+	/* Allocates and serializes an object dependency, or gets the object, if it already exists. */
+	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const;
+	
 	FWorldSnapshotData& GetSharedData() const
 	{
 		return SharedData;
 	}
-	
-	/* Only used when Loading.
-	 * True: we're loading into a temp world. False: we're loading into an editor world.
-	 * 
-	 * If true, object references within the world are translated to use the temp world package.
+
+	EPropertyFlags ExcludedPropertyFlags;
+
+	/**
+	 * @param InObjectData Holds the array we're loading from or saving to
+	 * @param InSharedData Used to store shared data, e.g. references
+	 * @param bIsLoading Whether to load or save
 	 */
-	bool bShouldLoadObjectDependenciesForTempWorld = true;
-
-	int32 ExcludedPropertyFlags;
-
 	FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading);
 	
 private:

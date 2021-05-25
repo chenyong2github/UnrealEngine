@@ -46,10 +46,12 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 		.bAllowMultiSelect(true);
 
 	SAssignNew(TemplateBehaviorAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
+		.OnTemplateAssetActivated(this, &SNewSystemDialog::ConfirmSelection)
 		.ViewOptions(DisplayAllViewOptions)
 		.TabOptions(TemplateAndBehaviorsOnlyTabOptions);
 
 	SAssignNew(SystemAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
+		.OnTemplateAssetActivated(this, &SNewSystemDialog::ConfirmSelection)
 		.ViewOptions(DisplayAllViewOptions);
 	
 	SNiagaraNewAssetDialog::Construct(SNiagaraNewAssetDialog::FArguments(), UNiagaraSystem::StaticClass()->GetFName(), LOCTEXT("AssetTypeName", "system"),

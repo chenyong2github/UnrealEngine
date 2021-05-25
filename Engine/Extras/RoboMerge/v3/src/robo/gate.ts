@@ -2,8 +2,8 @@
 
 import { ContextualLogger } from "../common/logger";
 import { Change, PerforceContext } from "../common/perforce";
-import { Branch, GateInfo } from "./branch-interfaces"
-import { DAYS_OF_THE_WEEK, EdgeOptions } from "./branchdefs"
+import { gatesSame, GateEventContext, GateInfo } from "./branch-interfaces"
+import { DAYS_OF_THE_WEEK, EdgeOptions, IntegrationWindowPane } from "./branchdefs"
 import { BotEventTriggers } from "./events"
 import { Context } from "./settings"
 
@@ -16,10 +16,16 @@ export type GateContext = {
 	logger: ContextualLogger
 }
 
-
 class DummyEventTriggers {
-	to: any = ''
+
+	// pretend GateEventContext 
 	from: any = ''
+	to: any = ''
+	pauseCIS = false
+
+	constructor(public edgeLastCl: number) {
+	}
+
 	static Inner = class {
 		beginCalls = 0
 		endCalls = 0
@@ -34,10 +40,12 @@ class DummyEventTriggers {
 
 	get beginCalls() { return this.eventTriggers.beginCalls }
 	get endCalls() { return this.eventTriggers.endCalls }
+
+	// named to match EventTriggersAndStuff.context
 	eventTriggers = new DummyEventTriggers.Inner
 }
 
-async function getRequestedGateCl(context: GateContext): Promise<GateInfo | null> {
+async function getRequestedGateCl(context: GateContext, previousGateInfo?: GateInfo | null): Promise<GateInfo | null> {
 
 	const lastGoodCLPath = context.options.lastGoodCLPath
 	if (!lastGoodCLPath) {
@@ -83,45 +91,51 @@ async function getRequestedGateCl(context: GateContext): Promise<GateInfo | null
 	if (clInfo.Url) {
 		result.link = clInfo.Url
 	}
-	try {
-		const description = await context.p4!.describe(cl)
-		if (description.date) {
-			result.date = description.date
+	if (previousGateInfo && previousGateInfo.cl === cl) {
+		if (previousGateInfo.date) {
+			result.date = previousGateInfo.date
 		}
 	}
-	catch (_err) {
+	else {
+		try {
+			const description = await context.p4!.describe(cl)
+			if (description.date) {
+				result.date = description.date
+			}
+		}
+		catch (err) {
+			console.log('error getting gate CL description', err)
+		}
+	}
+
+	if (clInfo.integrationWindow) {
+		result.integrationWindow = clInfo.integrationWindow
+		if (clInfo.invertIntegrationWindow) {
+			result.invertIntegrationWindow = true
+		}
 	}
 
 	return result
 }
 
-type BranchesAndEventTriggers = {
-	from: Branch
-	to: Branch
+type EventTriggersAndStuff = GateEventContext & {
 	eventTriggers: BotEventTriggers
 }
 
 export class Gate {
-	constructor(private lastCl: number,
-					private eventTriggers: BranchesAndEventTriggers | DummyEventTriggers | null,
+	constructor(	private eventContext: EventTriggersAndStuff | DummyEventTriggers,
 					private context: GateContext, private persistence?: Context) {
 		this.loadFromPersistence()
 	}
 
-
 	private processGateChange(newGate: GateInfo) {
-/**
-Getting some complicated logic here - break down cases that are covered
+		// degrees of freedom:
+		// 	order of lastCl/gate.cl/newGate.cl (L/G/N)
+		// 	empty queue (!Q)
 
-degrees of freedom:
-	order of lastCl/gate.cl/newGate.cl (L/G/N)
-	empty queue (!Q)
+		// 	first block is N <= G || (G <= L && !Q)
 
-	first block is N <= G || (G <= L && !Q)
-
-	so remainder if N > G && G > L
- */
-
+		// 	so remainder if N > G && G > L
 
 		if (this.currentGateInfo) {
 			// check for special case of new gate being before (or equal to) current catch-up gate
@@ -130,7 +144,6 @@ degrees of freedom:
 			if (newGate.cl <= this.currentGateInfo.cl) {
 				// report if we were catching up and the replacement gate means we're now caught up
 				if (this.lastCl < this.currentGateInfo.cl && this.lastCl >= newGate.cl) {
-
 					this.reportCaughtUp()
 				}
 				this.currentGateInfo = newGate
@@ -139,17 +152,14 @@ degrees of freedom:
 			}
 
 			// case where we're already caught up and just need to replace the gate
-			if (this.currentGateInfo.cl <= this.lastCl) {
-				if (this.queuedGates.length > 0) {
-					throw new Error('invalid gate state!')
-				}
+			if (this.currentGateInfo.cl <= this.lastCl && this.queuedGates.length === 0) {
 				this.currentGateInfo = null
 				this.queuedGates.push(newGate)
 				return
 			}
 		}
 
-		// now we know either waiting for window or new gate is after catch-up gate, update the queue
+		// now we know we're either waiting for window or new gate is after catch-up gate, so update the queue
 
 		// e.g.
 		//	- queued gates at CLs [5, 8, 15]
@@ -174,7 +184,9 @@ degrees of freedom:
 			return
 		}
 
-		const gateInfo = await getRequestedGateCl(this.context)
+		const mostRecentGate = this.getMostRecentGate()
+
+		const gateInfo = await getRequestedGateCl(this.context, mostRecentGate)
 		if (!gateInfo) {
 			if (this.currentGateInfo) {
 				// we were waiting for a gate, so unpause and clear gate info
@@ -191,14 +203,12 @@ degrees of freedom:
 		}
 
 		let dirty = false
-		const mostRecentGate = this.getMostRecentGate()
-
 		if (!mostRecentGate) {
 			// ooh look, our first gate
 			this.queuedGates.push(gateInfo)
 			dirty = true
 		}
-		else if (mostRecentGate.cl !== gateInfo.cl) {
+		else if (!gatesSame(mostRecentGate, gateInfo)) {
 			this.processGateChange(gateInfo)
 			dirty = true
 		}
@@ -208,10 +218,7 @@ degrees of freedom:
 			throw new Error('seem to have ignored gate!')
 		}
 
-/**
-
- */
-// if no current and in window, kick off new
+		// if no current and in window, kick off new
 		if (!this.currentGateInfo && this.queuedGates.length > 0) {
 			if (this.tryNextGate(this.lastCl)) {
 				this.reportCatchingUp()
@@ -225,32 +232,43 @@ degrees of freedom:
 	}
 
 	preIntegrate(cl: number) {
+		if (this.currentGateInfo) {
+			this.context.logger.verbose(`${this.lastCl} -> ${cl} ${this.currentGateInfo.cl}`)
+		}
+
+		let adjustedCl: number | null = null
 		if (this.currentGateInfo && cl > this.currentGateInfo.cl && this.currentGateInfo.cl > this.lastCl) {
 			// we're waiting for currentGateInfo.cl but got a higher cl
 			// basically we drag lastCl forward to currentGateInfo.cl so isGateOpen returns false
 			// but if there are queued gates, we should have a go at moving to the next gate instead
 
 			// note tryNextGate can change currentGateInfo or set it to null
-			if (!this.tryNextGate(cl) && this.currentGateInfo) {
-				this.lastCl = this.currentGateInfo.cl
-				return this.lastCl
+			if (!this.tryNextGate(cl)) {
+				this.reportCaughtUp()
+				if (this.currentGateInfo) {
+					adjustedCl = this.currentGateInfo.cl
+					this.context.logger.info(`Adjusting cl to ${adjustedCl}`)
+					this.setLastCl(adjustedCl)
+				}
 			}
 		}
-		return null
+		return adjustedCl
 	}
 
 	/**
 	 Assumptions: currentGateInfo is valid and incoming cl > currentGateInfo.cl
 	 @return whether we started catching up to a new gate
-	 	- todo is this bool enough for the preIntegrate case, go though each case
 	 */
 	private tryNextGate(cl: number) {
 		if (this.queuedGates.length === 0) {
+			this.context.logger.verbose('nothing queued')
 			return false
 		}
 
 		const nextGateIndex = this.queuedGates.findIndex(queued => queued.cl > cl)
 		if (nextGateIndex < 0) {
+			this.context.logger.verbose('all done')
+
 			// all done (incoming CL is after all queued gates)
 			this.currentGateInfo = this.queuedGates[this.queuedGates.length - 1]
 			this.queuedGates.length = 0
@@ -258,10 +276,15 @@ degrees of freedom:
 		}
 
 		if (!this.nowIsWithinAllowedCatchupWindow()) {
+			// want to make this an info log, but would spam every tick at the moment
+			// this.context.logger.verbose('delaying gate catch-up due to configured window')
+
 			// wait for next window before catching up with queued gates
 			this.currentGateInfo = null
 			return false
 		}
+
+		this.context.logger.verbose('next!')
 
 		// on to next gate
 		this.currentGateInfo = this.queuedGates[nextGateIndex]
@@ -269,21 +292,31 @@ degrees of freedom:
 		return true
 	}
 
-	setLastCl(cl: number) {
+	updateLastCl(changesFetched: Change[], changeIndex: number, targetCl?: number) {
+		const cl = changesFetched[changeIndex].change
+
+		let notifyCaughtUp = false
 		if (this.currentGateInfo) {
 			// ignore going backwards; did we reach the gate?
 			if (cl > this.lastCl && cl >= this.currentGateInfo.cl) {
 				if (!this.tryNextGate(cl)) {
 					// either all done or waiting for next window to restart catching up
-					this.reportCaughtUp()
+					notifyCaughtUp = true
 				}
 			}
 		}
 
-		this.lastCl = cl
+		this.setLastCl(cl)
+		if (notifyCaughtUp) {
+			this.reportCaughtUp(targetCl)
+		}
+
+		this.numChangesRemaining = this.calcNumChangesRemaining(changesFetched, changeIndex)
 	}
 
-	getNumChangesRemaining(changesFetched: Change[], changeIndex: number) {
+	numChangesRemaining = 0
+
+	private calcNumChangesRemaining(changesFetched: Change[], changeIndex: number) {
 		const mostRecentGate = this.getMostRecentGate()
 		if (!mostRecentGate) {
 			return changesFetched.length - changeIndex - 1
@@ -311,7 +344,6 @@ degrees of freedom:
 		return !this.getGateClosedMessage()
 	}
 
-
 	getGateClosedMessage() {
 		// gate prevents integrations in two cases:
 		//	- we've caught up with the most recent gate
@@ -323,7 +355,7 @@ degrees of freedom:
 		}
 
 		// null means no gate
-		return this.queuedGates.length > 0 ? 'waiting for window' : null
+		return this.queuedGates.length > 0 ? 'waiting for integration window' : null
 	}
 
 	applyStatus(outStatus: { [key: string]: any }) {
@@ -336,17 +368,47 @@ degrees of freedom:
 			outStatus.lastGoodCLJobLink = mostRecentGate.link
 			outStatus.lastGoodCLDate = mostRecentGate.date
 		}
+
+		const closedMessage = this.getGateClosedMessage()
+		if (closedMessage) {
+			outStatus.gateClosedMessage = closedMessage
+			if (this.nextWindowOpenTime) {
+				outStatus.nextWindowOpenTime = this.nextWindowOpenTime
+			}
+		}
+	}
+
+	logSummary() {
+		const logger = this.context.logger
+		logger.info('current gate: ' + (this.currentGateInfo ? this.currentGateInfo.cl.toString() : 'none'))
+		logger.info(`queued: ${this.queuedGates.length}`)
+		logger.info(`last cl: ${this.lastCl}`)
 	}
 
 	private nowIsWithinAllowedCatchupWindow() {
-		if (!this.context.options.integrationWindow) {
+		this.nextWindowOpenTime = null
+
+		const mostRecentGate = this.getMostRecentGate()
+		let integrationWindow: IntegrationWindowPane[] | null = null
+		let invert = false
+
+		if (mostRecentGate && mostRecentGate.integrationWindow) {
+			integrationWindow = mostRecentGate.integrationWindow
+			invert = !!mostRecentGate.invertIntegrationWindow
+		}
+		else if (this.context.options.integrationWindow) {
+			integrationWindow = this.context.options.integrationWindow
+			invert = !!this.context.options.invertIntegrationWindow
+		}
+
+		if (!integrationWindow) {
 			return true
 		}
 
 		const now = new Date;
 		let inWindow = false
 
-		for (const pane of this.context.options.integrationWindow) {
+		for (const pane of integrationWindow) {
 			if (pane.dayOfTheWeek) {
 				const dayIndex = DAYS_OF_THE_WEEK.indexOf(pane.dayOfTheWeek)
 				if (dayIndex < 0 || dayIndex > 6) {
@@ -366,33 +428,45 @@ degrees of freedom:
 			}
 		}
 
-		if (this.context.options.invertIntegrationWindow) {
+		if (invert) {
 			inWindow = !inWindow
 		}
+
+		if (!inWindow && !invert && integrationWindow.length === 1) {
+			// for now, only provide message if we have one non-inverted window
+			// more general solution to follow
+			// also not taking into account days of the week yet
+			const now = new Date
+			const d = now
+			d.setUTCHours(integrationWindow[0].startHourUTC, 0, 0, 0);
+			if (d < now) {
+				d.setUTCDate(d.getUTCDate() + 1)
+			}
+			this.nextWindowOpenTime = d
+		}
+
 		return inWindow
 	}
+
+	nextWindowOpenTime: Date | null = null
 
 	private reportCatchingUp() {
 		const mostRecent = this.getMostRecentGate()
 		if (!mostRecent) {
 			throw new Error('what are we catching up to?')
 		}
-		if (this.eventTriggers) {
-			this.eventTriggers.eventTriggers.reportBeginIntegratingToGate({
-				to: this.eventTriggers.to,
-				from: this.eventTriggers.from,
-				info: mostRecent
-			})
-		}
+		this.eventContext.eventTriggers.reportBeginIntegratingToGate({
+			context: this.eventContext,
+			info: mostRecent,
+			changesRemaining: this.numChangesRemaining
+		})
 	}
 
-	private reportCaughtUp() {
-		if (this.eventTriggers) {
-			this.eventTriggers.eventTriggers.reportEndIntegratingToGate({
-				to: this.eventTriggers.to,
-				from: this.eventTriggers.from
-			})
-		}
+	private reportCaughtUp(targetCl?: number) {
+		this.eventContext.eventTriggers.reportEndIntegratingToGate({
+			context: this.eventContext,
+			targetCl: targetCl || -1
+		})
 	}
 
 	private persist() {
@@ -416,21 +490,29 @@ degrees of freedom:
 		}
 		const saved = this.persistence.get(GATE_INFO_KEY)
 		if (saved) {
+			this.context.logger.info(`Restoring saved gate info: current ${saved.current && saved.current.cl}`)
+
 			if (saved.current) {
 				this.currentGateInfo = saved.current
 				this.reportCatchingUp()
 			}
 			if (saved.queued) {
+				this.context.logger.info('Queue: ' + saved.queued.map((info: GateInfo) => info.cl).join(', '))
 				this.queuedGates = saved.queued
 			}
 		}
 	}
 
-	logSummary() {
-		const logger = this.context.logger
-		logger.info('current gate: ' + (this.currentGateInfo ? this.currentGateInfo.cl.toString() : 'none'))
-		logger.info(`queued: ${this.queuedGates.length}`)
-		logger.info(`last cl: ${this.lastCl}`)
+	getEventContextForTests() {
+		return this.eventContext
+	}
+
+	get lastCl() {
+		return this.eventContext.edgeLastCl
+	}
+
+	private setLastCl(cl: number) {
+		this.eventContext.edgeLastCl = cl
 	}
 
 	private currentGateInfo: GateInfo | null = null
@@ -442,22 +524,27 @@ const colors = require('colors')
 colors.enable()
 colors.setTheme(require('colors/themes/generic-logging.js'))
 
+function setLastCl(gate: Gate, cl: number) {
+	gate.updateLastCl([{change: cl, client: '', user: '', desc: ''}], 0)
+}
 
 export async function runTests(parentLogger: ContextualLogger) {
 	const logger = parentLogger.createChild('Gate')
 
 	const makeTestGate = (cl: number, options?: EdgeOptions): [DummyEventTriggers, Gate] => {
-		const et = new DummyEventTriggers()
-		return [et, new Gate(cl, et, { options: options || {}, p4: null, logger})]
+		const et = new DummyEventTriggers(cl)
+		return [et, new Gate(et, { options: options || {}, p4: null, logger})]
 	}
 
 	let fails = 0
+	let assertions = 0
 	let testName = ''
 	const assert = (b: boolean, msg: string) => {
 		if (!b) {
 			logger.error(`"${testName}" failed: ${colors.error(msg)}`)
 			++fails
 		}
+		++assertions
 	}
 
 	// rules (maybe encapsulate in helper functions)
@@ -488,12 +575,21 @@ export async function runTests(parentLogger: ContextualLogger) {
 		assert(et.beginCalls === 1, 'catching up')
 		assert(gate.isGateOpen(), 'gate open')
 
+		setLastCl(gate, 2)
+		await gate.tick()
+
+		if (!exact) {
+			const newCl = gate.preIntegrate(4) // only know we've caught up when higher cl comes in
+			assert(newCl === 3, 'last cl adjustment requested')
+			setLastCl(gate, 3)
+		}
+		assert(et.beginCalls === 1 && et.endCalls === 1, 'caught up')
 	}
 
 	const openWindow = (opts: EdgeOptions) => {
 		opts.integrationWindow!.push({
 			startHourUTC: (new Date).getUTCHours(),
-			durationHours: 1
+			durationHours: 2 // more than 1 to avoid edge cases
 			})
 	}
 
@@ -547,12 +643,40 @@ export async function runTests(parentLogger: ContextualLogger) {
 		for (const cl of incoming) {
 
 			gate.preIntegrate(cl)
-			gate.setLastCl(cl)
+			setLastCl(gate, cl)
 			await gate.tick()
 		}
 
 		assert(et.beginCalls === 1 && et.endCalls === 1, 'caught up')
 		assert(!gate.isGateOpen() && gate.getGateClosedMessage()!.includes('CIS'), 'gate closed')
+	}
+
+	const queueNoWindow = async (middleIntegration: boolean) => {
+ 		// add gates at 2 and 3 while 1 still pending, integrate 1, 2 and 3 (should make 2 optional)
+
+		const options: EdgeOptions = { lastGoodCLPath: 2 }
+
+		// initial CL is 1, gate is 2
+		const [et, gate] = makeTestGate(1, options)
+		await gate.tick()
+		assert(et.beginCalls === 1, 'no events yet') // initial catching up message
+		assert(gate.isGateOpen(), 'gate initally open')
+
+		options.lastGoodCLPath = 3
+
+		await gate.tick()
+		assert(et.beginCalls + et.endCalls === 1, 'no more events')
+		assert(gate.isGateOpen(), 'still open after gate queued')
+
+		// start integrating
+		gate.preIntegrate(1); setLastCl(gate, 1); await gate.tick()
+		if (middleIntegration) {
+			gate.preIntegrate(2); setLastCl(gate, 2); await gate.tick()
+		}
+		gate.preIntegrate(3); setLastCl(gate, 3); await gate.tick()
+
+		assert(et.beginCalls === 1 && et.endCalls === 1, 'catch-up notified')
+
 	}
 
 	////
@@ -561,7 +685,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 
 	await gate1.tick()
 	gate1.preIntegrate(2)
-	gate1.setLastCl(2)
+	setLastCl(gate1, 2)
 	assert(et1.beginCalls + et1.endCalls === 0, 'no events')
 	assert(gate1.isGateOpen(), 'gate open')
 
@@ -621,13 +745,13 @@ export async function runTests(parentLogger: ContextualLogger) {
 		assert(gate.isGateOpen(), 'gate open')
 
 		gate.preIntegrate(5)
-		gate.setLastCl(5)
+		setLastCl(gate, 5)
 		await gate.tick()
 		assert(et.beginCalls === 1, 'no more events')
 		assert(gate.isGateOpen(), 'gate open')
 
 		gate.preIntegrate(7)
-		gate.setLastCl(7)
+		setLastCl(gate, 7)
 		assert(et.beginCalls === 1 && et.endCalls === 1, 'caught up')
 		assert(!gate.isGateOpen() && gate.getGateClosedMessage()!.includes('CIS'), 'gate closed')
 
@@ -649,10 +773,18 @@ export async function runTests(parentLogger: ContextualLogger) {
 	testName = 'replace queued gates (before lastCl)'
 	await replaceQueuedGates('before lastCl')
 
-// lastGoodCLPath
-// integrationWindow
+	///
+	testName = 'queue no window'
+ 	await queueNoWindow(true)
+
+	///
+	testName = 'queue no window (skip integration)'
+ 	await queueNoWindow(false)
+
+	// try to test the case where I was missing a caught up message
+
 	if (fails === 0) {
-		logger.info(colors.info('Gate tests succeeded'))
+		logger.info(colors.info(`Gate tests succeeded (${assertions} assertions)`))
 	}
 	return fails
 }

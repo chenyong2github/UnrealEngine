@@ -488,7 +488,10 @@ struct FPreAnimatedCameraShakeTokenProducer : IMovieScenePreAnimatedTokenProduce
 			virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 				UCameraShakeBase* CameraShake = CastChecked<UCameraShakeBase>(&InObject);
-				CameraShake->StopShake(true);
+				if (!CameraShake->IsFinished())	
+				{
+					CameraShake->StopShake(true);
+				}
 				CameraShake->TeardownShake();
 			}
 		};

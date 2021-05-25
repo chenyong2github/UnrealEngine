@@ -133,6 +133,8 @@ public:
 	/** The manager to handle fixing up redirectors */
 	TSharedPtr<FAssetFixUpRedirectors> AssetFixUpRedirectors;
 private:
+	static FString GenerateAdvancedCopyDestinationPackageName(const FString& SourcePackage, const FString& SourcePath, const FString& DestinationFolder);
+
 	/** Checks to see if a package is marked for delete then ask the user if he would like to check in the deleted file before he can continue. Returns true when it is safe to proceed. */
 	bool CheckForDeletedPackage(const UPackage* Package) const;
 
@@ -141,6 +143,8 @@ private:
 
 	/** Begins the package migration, after assets have been discovered */
 	void PerformMigratePackages(TArray<FName> PackageNamesToMigrate) const;
+
+	TArray<FName> ExpandAssetsAndFoldersToJustAssets(TArray<FName> SelectedAssetAndFolderNames) const;
 
 	/** Begins the package advanced copy, after assets have been discovered */
 	void PerformAdvancedCopyPackages(TArray<FName> SelectedPackageNames, FString TargetPath) const;

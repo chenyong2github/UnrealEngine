@@ -9,15 +9,14 @@ use feature 'unicode_strings';
 #-----------------------------------------------------------------------
 # Executes one GRC conversion command
 #-----------------------------------------------------------------------
-sub DoGRC ($$$$$$)
+sub DoGRC ($$$$$$$)
 {
-	my ($tool, $headerDir, $sourceDir, $inputFile, $destinationDir, $outputFile) = @_ ;
+	my ($tool, $headerDir, $sourceDir, $intSourceDir, $inputFile, $destinationDir, $outputFile) = @_ ;
 
 	system ("mkdir -p \"" . $destinationDir . "\"") ;
-	print "\t$inputFile\n";
 	system ("vim -e -s +\"set bomb|set encoding=utf-8|wq\" \"" . catfile ($sourceDir, $inputFile) . "\"");
 
-	system ("xcrun clang -x c++ -E -P " . $ENV{GRC_DEFINES} . " -I \"" . $headerDir . "\" \"" . catfile ($sourceDir, $inputFile) . "\" > \"" . catfile ($destinationDir, $outputFile .".i") . "\"");
+	system ("xcrun clang -x c++ -E -P " . $ENV{GRC_DEFINES} . " -I \"" . $headerDir . "\" -I \"" . $intSourceDir . "\" \"" . catfile ($sourceDir, $inputFile) . "\" > \"" . catfile ($destinationDir, $outputFile .".i") . "\"");
 	system ($tool . " -m r -q utf8 utf16 -T M -n -i \"" . catfile ($destinationDir, $outputFile .".i") . "\" -p \"" . catfile ($sourceDir, "Images") . "\" -o \"" . catfile ($destinationDir, $outputFile) . "\" -w 2");
 }
 
@@ -45,17 +44,8 @@ opendir (DIR, $rfixFolder);
 closedir (DIR);
 
 foreach $path (@files) {
-	($volume,$directories,$file) = splitpath ($path);
-	DoGRC ($makeResConvTool, $srcFolder, $rfixFolder, $file, $roFolder, $file . ".ro") if ($file =~ /.*\.grc$/i);
-}
-
-opendir (DIR, $rintFolder);
-@files = readdir (DIR);
-closedir (DIR);
-
-foreach $path (@files) {
-	($volume,$directories,$file) = splitpath ($path);
-	DoGRC ($makeResConvTool, $srcFolder, $rintFolder, $file, $roFolder, $file . ".ro") if ($file =~ /.*\.grc$/i);
+	($_,$_,$file) = splitpath ($path);
+	DoGRC ($makeResConvTool, $srcFolder, $rfixFolder, $rintFolder, $file, $roFolder, $file . ".ro") if ($file =~ /.*\.grc$/i);
 }
 
 opendir (DIR, $roFolder);

@@ -6,6 +6,7 @@
 #include "RemoteControlProtocolBinding.h"
 
 #include "UObject/StrongObjectPtr.h"
+#include "MIDIDeviceController.h"
 
 #include "RemoteControlProtocolMIDI.generated.h"
 
@@ -123,9 +124,8 @@ public:
 	FRemoteControlMIDIDevice Device;
 
 	/** Midi Event type */
-	// @todo: EMIDIEventType
 	UPROPERTY(EditAnywhere, Category = Mapping)
-	int32 EventType = 11;
+	EMIDIEventType EventType = EMIDIEventType::ControlChange;
 
 	/** Midi button event message data id for binding */
 	UPROPERTY(EditAnywhere, Category = Mapping, meta = (DisplayName = "Mapped channel Id"))
@@ -146,6 +146,10 @@ public:
 class FRemoteControlProtocolMIDI : public FRemoteControlProtocol
 {
 public:
+	FRemoteControlProtocolMIDI()
+		: FRemoteControlProtocol(ProtocolName)
+	{}
+	
 	//~ Begin IRemoteControlProtocol interface
 	virtual void Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
 	virtual void Unbind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
@@ -154,12 +158,41 @@ public:
 	//~ End IRemoteControlProtocol interface
 
 private:
-	/** On receive MIDI buffer callback */
+	/**
+	 * On receive MIDI buffer callback
+	 * @param	MIDIDeviceController	The MIDI Input Device Controller
+	 * @param	Timestamp				The MIDI timestamp
+	 * @param	Channel					The MIDI channel to send 
+	 * @param	MessageData1			The first part of the MIDI data
+	 * @param	MessageData2			The second part of the MIDI data
+	 */
 	void OnReceiveEvent(UMIDIDeviceInputController* MIDIDeviceController, int32 Timestamp, int32 Type, int32 Channel, int32 MessageData1, int32 MessageData2);
 
-	/** Binding for the MIDI protocol */
-	TMap<UMIDIDeviceInputController*, TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>> MIDIDeviceBindings;
+#if WITH_EDITOR
+	/**
+	 * Process the AutoBinding to the Remote Control Entity
+	 * @param	MIDIEventType		The event type as specified in the EMIDIEventType struct
+	 * @param	Channel				The MIDI channel 
+	 * @param	MessageData1		The first part of the MIDI data
+	 */
+	void ProcessAutoBinding(EMIDIEventType MIDIEventType, int32 Channel, int32 MessageData1);
+#endif
+
+private:
+
+	/** Binding for ControlChange (11) MIDI protocol */
+	TMap<UMIDIDeviceInputController*, TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>> MIDIDeviceBindings_ControlChange;
+
+	/** Binding for NoteOn (9) MIDI protocol */
+	TMap<FGuid, FRemoteControlProtocolEntityWeakPtr> MIDIDeviceBindings_NoteOn;
+
+	/** Binding for ChannelAfterTouch (13) MIDI protocol */
+	TMap<FGuid, FRemoteControlProtocolEntityWeakPtr> MIDIDeviceBindings_ChannelAfterTouch;
 
 	/** MIDI devices */
 	TMap<int32, TStrongObjectPtr<UMIDIDeviceInputController>> MIDIDevices;
+
+public:
+	/** MIDI protocol name */
+	static const FName ProtocolName;
 };

@@ -65,9 +65,6 @@ class FSynchronizer
 	// Inform that the project has been closed
 	void ProjectClosed();
 
-	// Return the export path from the ExporterUIModule or a default one
-	static FString GetExportPath();
-
 	// Do a snapshot of the model 3D data
 	void DoSnapshot(const ModelerAPI::Model& InModel);
 

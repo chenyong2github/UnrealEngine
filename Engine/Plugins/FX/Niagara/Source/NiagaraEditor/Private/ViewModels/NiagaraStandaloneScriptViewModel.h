@@ -33,8 +33,6 @@ public:
 	const FVersionedNiagaraScript GetStandaloneScript() const;
 
 private:
-	virtual void SetScripts(UNiagaraScriptSource* InScriptSource, TArray<FVersionedNiagaraScript>& InScripts) override;
-
 	virtual void OnVMScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion) override;
 
 	/** Sends messages to FNiagaraMessageManager for all compile events from the last compile. */

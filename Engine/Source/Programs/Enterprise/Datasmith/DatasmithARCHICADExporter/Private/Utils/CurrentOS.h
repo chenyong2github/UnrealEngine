@@ -9,6 +9,7 @@
 BEGIN_NAMESPACE_UE_AC
 
 #if defined(WIN32)
+
 // Throw a runtime_error for last windows error
 void ThrowWinError(DWORD winErr, const utf8_t* InFile, int InLineNo);
 
@@ -25,6 +26,9 @@ void ThrowWinError(DWORD winErr, const utf8_t* InFile, int InLineNo);
 // String conversions utf8_t vs wchar_t
 std::wstring Utf8ToUtf16(const utf8_t* s);
 utf8_string	 Utf16ToUtf8(const wchar_t* s);
+
+void SetThreadName(const char* InName);
+
 #endif
 
 typedef std::vector< utf8_string > VecStrings;

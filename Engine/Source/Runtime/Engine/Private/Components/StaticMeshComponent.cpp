@@ -2227,7 +2227,7 @@ bool UStaticMeshComponent::HasLightmapTextureCoordinates() const
 		Mesh->GetRenderData() != nullptr &&
 		Mesh->GetRenderData()->LODResources.Num() > 0)
 	{
-		int32 MeshMinLOD = Mesh->GetMinLOD().GetValue();
+		int32 MeshMinLOD = Mesh->GetMinLODIdx();
 		MeshMinLOD = FMath::Min(MeshMinLOD,  Mesh->GetRenderData()->LODResources.Num() - 1);
 		
 		return ((uint32)Mesh->GetLightMapCoordinateIndex() < Mesh->GetRenderData()->LODResources[MeshMinLOD].VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords());

@@ -53,4 +53,16 @@ public:
 
 	/** Unbind all protocol entities from the protocol */
 	virtual void UnbindAll() = 0;
+
+	/** Build to core engine delegated and called at the end of a frame */
+	virtual void OnEndFrame() {};
+
+	/**
+	 * Queue protocol entity and value to apply for the protocol
+	 * It stores only unique tick entities which should be apply next frame.
+	 * Prevents from applying more then one entity for frame.
+	 * @param InProtocolEntity Protocol Entity
+	 * @param InProtocolValue Protocol Value
+	 */
+	virtual void QueueValue(const FRemoteControlProtocolEntityPtr InProtocolEntity, const double InProtocolValue) = 0;
 };

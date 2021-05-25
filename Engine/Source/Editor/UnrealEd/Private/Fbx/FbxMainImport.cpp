@@ -16,7 +16,7 @@
 #include "Factories/FbxTextureImportData.h"
 
 #include "Materials/MaterialInterface.h"
-#include "SkelImport.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/FbxErrors.h"
 #include "FbxImporter.h"
@@ -1270,6 +1270,32 @@ void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 		AllNodeName.Add(NodeName);
 	}
 }
+
+void FFbxImporter::RemoveFBXMetaData(const UObject* Object)
+{
+	TArray<FName> KeysToRemove;
+	if (const TMap<FName, FString>* ExistingUMetaDataTagValues = UMetaData::GetMapForObject(Object))
+	{
+		for (const TPair<FName, FString>& KeyValue : *ExistingUMetaDataTagValues)
+		{
+			if (KeyValue.Key.ToString().StartsWith(FBX_METADATA_PREFIX, ESearchCase::IgnoreCase))
+			{
+				KeysToRemove.Add(KeyValue.Key);
+			}
+		}
+	}
+
+	if (KeysToRemove.Num() > 0)
+	{
+		UMetaData* PackageMetaData = Object->GetOutermost()->GetMetaData();
+		checkSlow(PackageMetaData);
+		for (const FName& KeyToRemove : KeysToRemove)
+		{
+			PackageMetaData->RemoveValue(Object, KeyToRemove);
+		}
+	}
+}
+
 
 FString FFbxImporter::GetFileAxisDirection()
 {

@@ -10,14 +10,14 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SItemSelector.h"
 
-typedef SItemSelector<FNiagaraParameterPanelCategory, FNiagaraParameterPanelItem> SNiagaraParameterPanelSelector;
-
 class FUICommandList;
 class INiagaraParameterPanelViewModel;
 class SExpanderArrow;
 class SGraphActionMenu;
 class SSearchBox;
+struct FGuid;
 
+typedef SItemSelector<FNiagaraParameterPanelCategory /*CategoryType*/, FNiagaraParameterPanelItem /*ItemType*/, FNiagaraParameterPanelCategory /*SectionType*/, FGuid /*CategoryKeyType*/, FNiagaraVariableBase /*ItemKeyType*/> SNiagaraParameterPanelSelector;
 
 class FNiagaraParameterPanelCommands : public TCommands<FNiagaraParameterPanelCommands>
 {
@@ -55,8 +55,10 @@ public:
 	TArray<FNiagaraParameterPanelCategory> OnGetCategoriesForItem(const FNiagaraParameterPanelItem& Item);
 	bool OnCompareCategoriesForEquality(const FNiagaraParameterPanelCategory& CategoryA, const FNiagaraParameterPanelCategory& CategoryB) const;
 	bool OnCompareCategoriesForSorting(const FNiagaraParameterPanelCategory& CategoryA, const FNiagaraParameterPanelCategory& CategoryB) const;
+	const FGuid& OnGetKeyForCategory(const FNiagaraParameterPanelCategory& Category) const;
 	bool OnCompareItemsForEquality(const FNiagaraParameterPanelItem& ItemA, const FNiagaraParameterPanelItem& ItemB) const;
 	bool OnCompareItemsForSorting(const FNiagaraParameterPanelItem& ItemA, const FNiagaraParameterPanelItem& ItemB) const;
+	const FNiagaraVariableBase& OnGetKeyForItem(const FNiagaraParameterPanelItem& Item) const;
 	bool OnDoesItemMatchFilterText(const FText& FilterText, const FNiagaraParameterPanelItem& Item);
 	TSharedRef<SWidget> OnGenerateWidgetForCategory(const FNiagaraParameterPanelCategory& Category);
 	TSharedRef<SWidget> OnGenerateWidgetForItem(const FNiagaraParameterPanelItem& Item);

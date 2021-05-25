@@ -22,7 +22,7 @@ public:
 	void UnregisterProtocol(const FName& FactoryName);
 
 	/** Delegate called when all protocols are registered */
-	FSimpleMulticastDelegate OnProtocolsRegisteredDelegate;
+	FSimpleMulticastDelegate OnProtocolsRegistered;
 
 	/** Needs to be set to the number of protocol implementations */
 	static const int32 NumProtocols;
@@ -56,7 +56,7 @@ public:
 
 private:
 	/** Called when all protocols are registered */
-	void OnProtocolsRegistered();
+	void HandleProtocolsRegistered();
 
 	void ShutdownDMXProtocol(const FName& ProtocolName);
 	void ShutdownAllDMXProtocols();
@@ -64,5 +64,4 @@ private:
 private:
 	TMap<FName, IDMXProtocolFactory*> DMXProtocolFactories;
 	TMap<FName, IDMXProtocolPtr> DMXProtocols;
-	TMap<FName, bool> DMXProtocolFailureNotes;
 };

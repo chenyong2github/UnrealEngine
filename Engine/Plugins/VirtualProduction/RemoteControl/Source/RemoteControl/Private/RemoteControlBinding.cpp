@@ -199,11 +199,12 @@ UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld() const
 	{
 		if (WorldContext.WorldType == EWorldType::Game)
 		{
-			return World;
+			World = WorldContext.World();
+			break;
 		}
 	}
 		
-	return nullptr;
+	return World;
 }
 
 void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<ULevel>& Level, const TSoftObjectPtr<UObject>& BoundObject)

@@ -2,6 +2,7 @@
 
 #include "Element2String.h"
 #include "ElementTools.h"
+#include "TAssValueName.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -53,7 +54,7 @@ utf8_string FElement2String::GetElementAsShortString(const API_Element& InElemen
 	FElementTools::GetInfoString(InElement.header.guid, &ElementInfo);
 
 	ElementString += Utf8StringFormat("Element \"%s\", type=%s, Guid={%s}, Layer=\"%s\", Floor=%d\n",
-									  ElementInfo.ToUtf8(), FElementTools::TypeName(InElement.header.typeID).ToUtf8(),
+									  ElementInfo.ToUtf8(), FElementTools::TypeName(InElement.header.typeID),
 									  APIGuidToString(InElement.header.guid).ToUtf8(),
 									  GetLayerName(InElement.header.layer).ToUtf8(), InElement.header.floorInd);
 
@@ -122,7 +123,7 @@ utf8_string FElement2String::GetElementAsString(const API_Element& InElement)
 
 	ElementString += Utf8StringFormat(
 		"\tElement \"%s\", type=%s, Guid={%s}\n\t\t\tMemoMD5={%s} Layer=\"%s\", Floor=%d\n", ElementInfo.ToUtf8(),
-		FElementTools::TypeName(InElement.header.typeID).ToUtf8(), APIGuidToString(InElement.header.guid).ToUtf8(),
+		FElementTools::TypeName(InElement.header.typeID), APIGuidToString(InElement.header.guid).ToUtf8(),
 		APIGuidToString(MemoMD5).ToUtf8(), GetLayerName(InElement.header.layer).ToUtf8(), InElement.header.floorInd);
 	utf8_string HotLinkInfo = GetHotLinkInfo(InElement);
 	if (HotLinkInfo.size())
@@ -294,7 +295,7 @@ utf8_string FElement2String::GetParametersAsString(const API_Guid& InElementGuid
 	FAutoMemo AutoMemo(InElementGuid, APIMemoMask_AddPars);
 	if (AutoMemo.GSErr == NoError)
 	{
-		if (AutoMemo.Memo.params) // Can be null on AC21
+		if (AutoMemo.Memo.params) // Can be null
 		{
 			return GetParametersAsString(AutoMemo.Memo.params);
 		}
@@ -312,7 +313,8 @@ utf8_string FElement2String::GetIFCAttributesAsString(const API_Guid& InElementG
 	utf8_string IFCAttributesString;
 
 	GS::Array< API_IFCAttribute > Attributes;
-	GSErrCode					  GSErr = ACAPI_Element_GetIFCAttributes(InElementGuid, false, &Attributes);
+	bool						  bStoredOnly = false;
+	GSErrCode					  GSErr = ACAPI_Element_GetIFCAttributes(InElementGuid, bStoredOnly, &Attributes);
 	if (GSErr == NoError)
 	{
 		GS::USize NbAttr = Attributes.GetSize();
@@ -345,7 +347,8 @@ utf8_string FElement2String::GetIFCPropertiesAsString(const API_Guid& InElementG
 	utf8_string IFCPropertiesString;
 
 	GS::Array< API_IFCProperty > Properties;
-	GSErrCode					 GSErr = ACAPI_Element_GetIFCProperties(InElementGuid, false, &Properties);
+	bool						 bStoredOnly = false;
+	GSErrCode					 GSErr = ACAPI_Element_GetIFCProperties(InElementGuid, bStoredOnly, &Properties);
 	if (GSErr == NoError)
 	{
 		GS::USize NbProp = Properties.GetSize();
@@ -748,6 +751,33 @@ utf8_string FElement2String::GetPropertyObjectsAsString(const API_Elem_Head& InE
 	#define strlcat(d, s, sz) strncat(d, s, sz - strlen(d) - 1)
 #endif
 
+// clang-format off
+template <>
+FAssValueName::SAssValueName TAssEnumName< API_AddParID >::AssEnumName[] = {
+	{ API_ZombieParT, 				"Zombie" },
+	{ APIParT_Integer, 				"Integer" },
+	{ APIParT_Length, 				"Length" },
+	{ APIParT_Angle, 				"Angle" },
+	{ APIParT_RealNum, 				"RealNum" },
+	{ APIParT_LightSw, 				"LightSw" },
+	{ APIParT_ColRGB, 				"ColRGB" },
+	{ APIParT_Intens, 				"Intens" },
+	{ APIParT_LineTyp, 				"LineTyp" },
+	{ APIParT_Mater, 				"Mater" },
+	{ APIParT_FillPat, 				"FillPat" },
+	{ APIParT_PenCol, 				"PenCol" },
+	{ APIParT_CString, 				"CString" },
+	{ APIParT_Boolean, 				"Boolean" },
+	{ APIParT_Separator, 			"Separator" },
+	{ APIParT_Title, 				"Title" },
+	{ APIParT_BuildingMaterial, 	"BuildingMaterial" },
+	{ APIParT_Profile, 				"Profile" },
+	{ APIParT_Dictionary, 			"Dictionary" },
+
+	{ -1, nullptr }
+};
+// clang-format on
+
 // Tool:Return parameters as a string
 utf8_string FElement2String::GetParametersAsString(const API_AddParType* const* InParamsHandle)
 {
@@ -872,23 +902,27 @@ utf8_string FElement2String::GetParametersAsString(const API_AddParType* const* 
 				case APIParT_Mater:
 				case APIParT_FillPat:
 				case APIParT_PenCol:
-					Params += Utf8StringFormat("\t\t\t%s%d\n", ParamName.c_str(), (Int32)Param.value.real);
+					Params +=
+						Utf8StringFormat("\t\t\t%s %s:%d\n", ParamName.c_str(),
+										 TAssEnumName< API_AddParID >::GetName(Param.typeID), (Int32)Param.value.real);
 					break;
 				case APIParT_Boolean:
-					Params +=
-						Utf8StringFormat("\t\t\t%s%s\n", ParamName.c_str(), Param.value.real != 0 ? "true" : "false");
+					Params += Utf8StringFormat("\t\t\t%s Boolean:%s\n", ParamName.c_str(),
+											   Param.value.real != 0 ? "true" : "false");
 					break;
 
 				case APIParT_Length:
 				case APIParT_Angle:
 				case APIParT_RealNum:
 				case APIParT_ColRGB:
-					Params += Utf8StringFormat("\t\t\t%s%lg\n", ParamName.c_str(), Param.value.real);
+					Params += Utf8StringFormat("\t\t\t%s %s:%lg\n", ParamName.c_str(),
+											   TAssEnumName< API_AddParID >::GetName(Param.typeID), Param.value.real);
 					break;
 
 				case APIParT_CString:
 				case APIParT_Title:
-					Params += Utf8StringFormat("\t\t\t%s\"%s\"\n", ParamName.c_str(),
+					Params += Utf8StringFormat("\t\t\t%s %s:\"%s\"\n", ParamName.c_str(),
+											   TAssEnumName< API_AddParID >::GetName(Param.typeID),
 											   GS::UniString(Param.value.uStr).ToUtf8());
 					break;
 
@@ -953,7 +987,8 @@ GS::UniString FElement2String::GetPropertyGroupName(const API_Guid& InGroupGuid)
 	Group.guid = InGroupGuid;
 	if (ACAPI_Property_GetPropertyGroup(Group) != NoError)
 	{
-		return GetGSName(kName_InvalidGroupId);
+		static const GS::UniString InvalidGroupId("Invalid group id");
+		return InvalidGroupId;
 	}
 
 	static const utf8_t* typeNames[] = {"Static  ", "Dynamic ", "Custom  "};
@@ -1081,7 +1116,7 @@ utf8_string FElement2String::GetIFCPropertyAnyValue(const API_IFCPropertyAnyValu
 			return Utf8StringFormat("\"%s\"", InValue.stringValue.ToUtf8());
 	}
 	UE_AC_DebugF("GetIFCPropertyAnyValue primitiveType=%d\n", InValue.primitiveType);
-	return Utf8StringFormat(GetStdName(kName_InvalidPrimitiveType), InValue.primitiveType);
+	return Utf8StringFormat("Invalid primitive type(%d)", InValue.primitiveType);
 }
 
 inline static bool IsSpace(char C)
@@ -1110,6 +1145,29 @@ void FElement2String::RemoveLeadingAndTrailing(utf8_string* IOString)
 	{
 	}
 	IOString->erase(0, IndexChar);
+}
+
+utf8_string FDump2String::ListLibraries()
+{
+	utf8_string DumpString;
+
+	GS::Array< API_LibraryInfo > LibInfoArray;
+
+	if (ACAPI_Environment(APIEnv_GetLibrariesID, &LibInfoArray) == NoError)
+	{
+		DumpString = Utf8StringFormat("ListLibraries - The number of loaded libraries is %u\n", LibInfoArray.GetSize());
+		for (UInt32 IndexLibrary = 0; IndexLibrary < LibInfoArray.GetSize(); IndexLibrary++)
+		{
+			const API_LibraryInfo& LibInfo = LibInfoArray[IndexLibrary];
+			DumpString += Utf8StringFormat("\tLibrary #%-2d name=\"%s\" type=%d\n", IndexLibrary, LibInfo.name.ToUtf8(),
+										   LibInfo.libraryType);
+			GS::UniString LibPath;
+			LibInfo.location.ToPath(&LibPath);
+			DumpString += Utf8StringFormat("\t\tPath=\"%s\"\n", LibPath.ToUtf8());
+		}
+	}
+
+	return DumpString;
 }
 
 END_NAMESPACE_UE_AC

@@ -18,7 +18,7 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineFCPXMLExporter : public UMoviePi
 	GENERATED_BODY()
 public:
 	UMoviePipelineFCPXMLExporter()
-		: FileNameFormat(TEXT("{sequence_name}"))
+		: DataSource(FCPXMLExportDataSource::SequenceData)
 		, bHasFinishedExporting(false)
 	{}
 
@@ -33,9 +33,9 @@ protected:
 	bool EnsureWritableFile();
 	bool bOverwriteFile;
 public:
-	/** What format string should the final files use? Can include folder prefixes, and format string ({sequence_name}, etc.) */
+	/** File name format string override. If specified it will override the FileNameFormat from the Output setting. Can include folder prefixes, and format string tags ({sequence_name}, etc.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")
-	FString FileNameFormat;
+	FString FileNameFormatOverride;
 	
 	/** Whether to build the FCPXML from sequence data directly (for reimporting) or from actual frame output data (for post processing) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")

@@ -832,7 +832,7 @@ bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObjec
 		if( !Res )
 		{
 			if (Class->IsChildOf<UClass>())
-			{ 
+			{
 				const FString ObjectName = FPackageName::ObjectPathToObjectName(FString(TempStr));
 				const FName RedirectedObjectName = FLinkerLoad::FindNewNameForClass(*ObjectName, false);
 				if (!RedirectedObjectName.IsNone())
@@ -1140,7 +1140,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 #if WITH_IOSTORE_IN_EDITOR
 		// Use the old loader if an uncooked package exists on disk
-		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExist(PackagePath) && !DoesPackageExistInIoStore(PackageName);
+		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked) != FPackageName::EPackageLocationFilter::None;
 		if (!bDoesUncookedPackageExist)
 #endif
 		{
@@ -2725,7 +2725,7 @@ FObjectInitializer::FObjectInitializer(UObject* InObj, const FStaticConstructObj
 	}
 
 	Construct_Internal();
-}
+}	
 
 FObjectInitializer::FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, bool bInCopyTransientsFromClassDefaults, bool bInShouldInitializeProps, struct FObjectInstancingGraph* InInstanceGraph)
 	: Obj(InObj)
@@ -3455,7 +3455,7 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 	check(Result != nullptr);
 	// Don't call the constructor on recycled subobjects, they haven't been destroyed.
 	if (!bRecycledSubobject)
-	{
+	{		
 		STAT(FScopeCycleCounterUObject ConstructorScope(InClass->GetFName().IsNone() ? nullptr : InClass, GET_STATID(STAT_ConstructObject)));
 		(*InClass->ClassConstructor)(FObjectInitializer(Result, Params));
 	}

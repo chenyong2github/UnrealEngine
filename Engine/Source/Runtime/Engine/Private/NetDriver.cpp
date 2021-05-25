@@ -2982,6 +2982,105 @@ bool UNetDriver::HandleNetDumpDormancy(const TCHAR* Cmd, FOutputDevice& Ar)
 	Ar.Logf(TEXT(""));
 	return true;
 }
+
+bool UNetDriver::HandleDumpSubObjectsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+#if WITH_SERVER_CODE
+	for(UNetConnection* ClientConnection : ClientConnections)
+	{
+		Ar.Logf(TEXT("Logging subobjects for %d open actor channels on %s"), ClientConnection->OpenChannels.Num(), *GetNameSafe(ClientConnection));
+		Ar.Logf(TEXT(""));
+
+		for (const UChannel* Channel : ClientConnection->OpenChannels)
+		{
+			if (const UActorChannel* ActorChannel = Cast<UActorChannel>(Channel))
+			{
+				if (ActorChannel->ReplicationMap.Num() > 1)
+				{
+					Ar.Logf(TEXT("   Actor: %s"), *GetFullNameSafe(ActorChannel->Actor));
+
+					for (auto RepComp = ActorChannel->ReplicationMap.CreateConstIterator(); RepComp; ++RepComp)
+					{
+						const TSharedRef<FObjectReplicator>& LocalReplicator = RepComp.Value();
+						const UObject* Obj = LocalReplicator->GetWeakObjectPtr().Get();
+
+						if (Obj != ActorChannel->Actor)
+						{
+							Ar.Logf(TEXT("       Object: %s Class: %s"), *GetNameSafe(Obj), *GetNameSafe(LocalReplicator->ObjectClass));
+						}
+					}
+				}
+			}
+		}
+	}
+#endif
+	return true;
+}
+
+bool UNetDriver::HandleDumpRepLayoutFlagsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+#if WITH_SERVER_CODE
+
+#if WITH_PUSH_MODEL
+	const bool bPartialPushDump = FParse::Command(&Cmd, TEXT("PARTIALPUSHMODEL"));
+#endif
+
+	Ar.Logf(TEXT("Logging replayout flags for: %s"), *GetNameSafe(this));
+	Ar.Logf(TEXT(""));
+
+	for (auto LayoutIt = RepLayoutMap.CreateConstIterator(); LayoutIt; ++LayoutIt)
+	{
+		const TSharedPtr<FRepLayout>& RepLayout = LayoutIt.Value();
+		if (RepLayout.IsValid())
+		{
+			FString FlagStr;
+
+			const ERepLayoutFlags Flags = RepLayout->GetFlags();
+
+			for (uint32 i = 0; i < sizeof(ERepLayoutFlags) * 8; ++i)
+			{
+				ERepLayoutFlags Flag = (ERepLayoutFlags)(1 << i);
+
+				if (EnumHasAnyFlags(Flags, Flag))
+				{
+					FlagStr += (FlagStr.IsEmpty() ? TEXT("") : TEXT("|"));
+					FlagStr += LexToString(Flag);
+				}
+			}
+
+			if (FlagStr.IsEmpty())
+			{
+				FlagStr = TEXT("None");
+			}
+
+			Ar.Logf(TEXT("  Owner: %s"), *GetFullNameSafe(RepLayout->GetOwner()));
+			Ar.Logf(TEXT("    Flags: %s"), *FlagStr);
+
+#if WITH_PUSH_MODEL
+			if (bPartialPushDump && EnumHasAnyFlags(Flags, ERepLayoutFlags::PartialPushSupport))
+			{
+				int32 ParentCount = RepLayout->GetNumParents();
+
+				Ar.Logf(TEXT("    Parent Properties: %d Non-push:"), ParentCount);
+
+				for (int32 i = 0; i < ParentCount; ++i)
+				{
+					if ((RepLayout->GetParentCondition(i) != COND_Never) && !RepLayout->IsPushModelProperty(i) && (RepLayout->GetParentArrayIndex(i) == 0))
+					{
+						if (const FProperty* Property = RepLayout->GetParentProperty(i))
+						{
+							Ar.Logf(TEXT("      Property: %s Class: %s"), *Property->GetName(), *GetNameSafe(Property->GetOwnerClass()));
+						}
+					}
+				}
+			}
+#endif
+		}
+	}
+#endif
+	return true;
+}
+
 #endif // !UE_BUILD_SHIPPING
 
 void UNetDriver::HandlePacketLossBurstCommand( int32 DurationInMilliseconds )
@@ -3095,6 +3194,16 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	else if (FParse::Command(&Cmd, TEXT("FLUSHALLNETDORMANCY")))
 	{
 		HandleNetFlushAllDormancy(this, InWorld);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("DUMPSUBOBJECTS")))
+	{
+		HandleDumpSubObjectsCommand(Cmd, Ar);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("DUMPREPLAYOUTFLAGS")))
+	{
+		HandleDumpRepLayoutFlagsCommand(Cmd, Ar);
 		return true;
 	}
 	else

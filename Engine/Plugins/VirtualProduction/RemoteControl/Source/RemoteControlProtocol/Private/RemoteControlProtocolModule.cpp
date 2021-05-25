@@ -1,15 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlProtocolModule.h"
+
+#include "RemoteControlPreset.h"
 #include "RemoteControlProtocol.h"
+
+#include "Misc/CommandLine.h"
 
 DEFINE_LOG_CATEGORY(LogRemoteControlProtocol);
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocol"
 
+void FRemoteControlProtocolModule::StartupModule()
+{
+	bRCProtocolsDisable = FParse::Param(FCommandLine::Get(), TEXT("RCProtocolsDisable"));
+
+	if (!bRCProtocolsDisable)
+	{
+		// Called when remote control preset loaded
+		URemoteControlPreset::OnPostLoadRemoteControlPreset.AddRaw(this, &FRemoteControlProtocolModule::OnPostLoadRemoteControlPreset);
+	}
+}
+
 void FRemoteControlProtocolModule::ShutdownModule()
 {
-	EmptyProtocols();
+	if (!bRCProtocolsDisable)
+	{
+		EmptyProtocols();
+		URemoteControlPreset::OnPostLoadRemoteControlPreset.RemoveAll(this);
+	}
 }
 
 TArray<FName> FRemoteControlProtocolModule::GetProtocolNames() const
@@ -29,14 +48,21 @@ TSharedPtr<IRemoteControlProtocol> FRemoteControlProtocolModule::GetProtocolByNa
 	return nullptr;
 }
 
-void FRemoteControlProtocolModule::AddProtocol(FName InProtocolName, TSharedRef<IRemoteControlProtocol> InProtocol)
+bool FRemoteControlProtocolModule::AddProtocol(FName InProtocolName, TSharedRef<IRemoteControlProtocol> InProtocol)
 {
+	if (bRCProtocolsDisable)
+	{
+		return false;
+	}
+
 	InProtocol->Init();
 
 	// Check for presence of required RangeInputTemplate property
 	checkf(InProtocol->GetRangeInputTemplateProperty(), TEXT("ScriptStruct for Protocol %s did not have the required RangeInputTemplate Property."), *InProtocolName.ToString());
 	
 	Protocols.Add(InProtocolName, MoveTemp(InProtocol));
+
+	return true;
 }
 
 void FRemoteControlProtocolModule::RemoveProtocol(FName InProtocolName, TSharedRef<IRemoteControlProtocol> InProtocol)
@@ -57,6 +83,35 @@ void FRemoteControlProtocolModule::EmptyProtocols()
 	}
 
 	Protocols.Empty();
+}
+
+void FRemoteControlProtocolModule::OnPostLoadRemoteControlPreset(URemoteControlPreset* InPreset) const
+{
+	if (!ensure(InPreset))
+	{
+		return;
+	}
+	
+	
+	for(TWeakPtr<FRemoteControlProperty> ExposedPropertyWeakPtr : InPreset->GetExposedEntities<FRemoteControlProperty>())
+	{
+		if (TSharedPtr<FRemoteControlProperty> ExposedPropertyPtr = ExposedPropertyWeakPtr.Pin())
+		{
+			for(FRemoteControlProtocolBinding& Binding : ExposedPropertyPtr->ProtocolBindings)
+			{
+				const TSharedPtr<IRemoteControlProtocol> Protocol = GetProtocolByName(Binding.GetProtocolName());
+				// Supporting plugin needs to be loaded/protocol available.
+				if(Protocol.IsValid())
+				{
+					Protocol->Bind(Binding.GetRemoteControlProtocolEntityPtr());
+				}
+			}	
+		}
+		else
+		{
+			ensure(false);
+		}
+	}
 }
 
 

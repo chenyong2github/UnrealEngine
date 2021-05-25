@@ -41,18 +41,33 @@ TSharedPtr<SGraphNode> UDisplayClusterConfiguratorHostNode::CreateVisualWidget()
 
 FLinearColor UDisplayClusterConfiguratorHostNode::GetHostColor() const
 {
+	if (!IsObjectValid())
+	{
+		return FLinearColor();
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	return HostDisplayData->Color;
 }
 
 FText UDisplayClusterConfiguratorHostNode::GetHostName() const
 {
+	if (!IsObjectValid())
+	{
+		return FText::GetEmpty();
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	return HostDisplayData->HostName;
 }
 
 FVector2D UDisplayClusterConfiguratorHostNode::GetHostOrigin(bool bInGlobalCoordinates) const
 {
+	if (!IsObjectValid())
+	{
+		return FVector2D::ZeroVector;
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	float Scale = bInGlobalCoordinates ? GetViewScale() : 1.0f;
 
@@ -61,6 +76,11 @@ FVector2D UDisplayClusterConfiguratorHostNode::GetHostOrigin(bool bInGlobalCoord
 
 void UDisplayClusterConfiguratorHostNode::SetHostOrigin(const FVector2D& NewOrigin, bool bInGlobalCoordinates)
 {
+	if (!IsObjectValid())
+	{
+		return;
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 
 	float Scale = bInGlobalCoordinates ? GetViewScale() : 1.0f;
@@ -74,12 +94,22 @@ void UDisplayClusterConfiguratorHostNode::SetHostOrigin(const FVector2D& NewOrig
 
 bool UDisplayClusterConfiguratorHostNode::CanUserMoveNode() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	return HostDisplayData->bAllowManualPlacement;
 }
 
 bool UDisplayClusterConfiguratorHostNode::CanUserResizeNode() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	return HostDisplayData->bAllowManualSizing;
 }
@@ -132,6 +162,11 @@ FNodeAlignmentAnchors UDisplayClusterConfiguratorHostNode::GetNodeAlignmentAncho
 }
 bool UDisplayClusterConfiguratorHostNode::IsNodeVisible() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 
 	if (HostDisplayData->bIsVisible)
@@ -155,6 +190,11 @@ bool UDisplayClusterConfiguratorHostNode::IsNodeVisible() const
 
 bool UDisplayClusterConfiguratorHostNode::IsNodeEnabled() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 
 	if (HostDisplayData->bIsEnabled)
@@ -214,6 +254,12 @@ void UDisplayClusterConfiguratorHostNode::OnPostEditChangeChainProperty(const FP
 	// If the pointer to the blueprint editor is no longer valid, its likely that the editor this node was created for was closed,
 	// and this node is orphaned and will eventually be GCed.
 	if (!ToolkitPtr.IsValid())
+	{
+		return;
+	}
+
+	// If the object is no longer valid, don't attempt to sync properties
+	if (!IsObjectValid())
 	{
 		return;
 	}

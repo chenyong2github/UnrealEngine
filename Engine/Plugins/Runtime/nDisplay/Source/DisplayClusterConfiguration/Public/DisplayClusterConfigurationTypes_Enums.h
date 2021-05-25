@@ -75,10 +75,10 @@ UENUM()
 enum class EDisplayClusterConfigurationICVFX_LightcardRenderMode : uint8
 {
 	// Render incamera frame over lightcard
-	Over    UMETA(DisplayName = "Lightcard OVER"),
+	Over    UMETA(DisplayName = "Lightcard Over Frustum"),
 
 	// Over lightcard over incamera frame
-	Under   UMETA(DisplayName = "Lightcard UNDER"),
+	Under   UMETA(DisplayName = "Lightcard Under Frustum"),
 };
 
 UENUM()

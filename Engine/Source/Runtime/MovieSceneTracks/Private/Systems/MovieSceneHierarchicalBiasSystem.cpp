@@ -18,7 +18,7 @@ struct FHierarchicalBiasTask
 		: Linker(InLinker)
 	{}
 
-	void InitializeChannel(uint16 BlendChannel)
+	void InitializeChannel(FMovieSceneBlendChannelID BlendChannel)
 	{
 		MaxBiasByChannel.FindOrAdd(BlendChannel, MIN_int16);
 	}
@@ -28,7 +28,7 @@ struct FHierarchicalBiasTask
 		return MaxBiasByChannel.Num() != 0;
 	}
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityIDs, TRead<uint16> BlendChannels, TReadOptional<int16> OptHBiases)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityIDs, TRead<FMovieSceneBlendChannelID> BlendChannels, TReadOptional<int16> OptHBiases)
 	{
 		const int32 Num = Allocation->Num();
 		if (OptHBiases)
@@ -64,7 +64,7 @@ struct FHierarchicalBiasTask
 
 private:
 
-	void VisitChannel(FMovieSceneEntityID EntityID, uint16 BlendChannel, int16 HBias)
+	void VisitChannel(FMovieSceneEntityID EntityID, FMovieSceneBlendChannelID BlendChannel, int16 HBias)
 	{
 		// If this channel hasn't changed at all (ie InitializeChannel was not called for it) do nothing
 		if (int16* ExistingBias = MaxBiasByChannel.Find(BlendChannel))
@@ -91,11 +91,11 @@ private:
 		}
 	}
 
-	TMap<uint16, int16> MaxBiasByChannel;
+	TMap<FMovieSceneBlendChannelID, int16> MaxBiasByChannel;
 
-	TMultiMap<uint16, FMovieSceneEntityID> InactiveContributorsByChannel;
+	TMultiMap<FMovieSceneBlendChannelID, FMovieSceneEntityID> InactiveContributorsByChannel;
 
-	TMultiMap<uint16, FMovieSceneEntityID> ActiveContributorsByChannel;
+	TMultiMap<FMovieSceneBlendChannelID, FMovieSceneEntityID> ActiveContributorsByChannel;
 
 	UMovieSceneEntitySystemLinker* Linker;
 };
@@ -135,7 +135,7 @@ void UMovieSceneHierarchicalBiasSystem::OnRun(FSystemTaskPrerequisites& InPrereq
 	FEntityTaskBuilder()
 	.Read(Components->BlendChannelInput)
 	.FilterAny({ Components->Tags.NeedsLink, Components->Tags.NeedsUnlink })
-	.Iterate_PerEntity(&Linker->EntityManager, [&Task](uint16 BlendChannel){ Task.InitializeChannel(BlendChannel); });
+	.Iterate_PerEntity(&Linker->EntityManager, [&Task](FMovieSceneBlendChannelID BlendChannel){ Task.InitializeChannel(BlendChannel); });
 
 	if (Task.HasAnyWork())
 	{

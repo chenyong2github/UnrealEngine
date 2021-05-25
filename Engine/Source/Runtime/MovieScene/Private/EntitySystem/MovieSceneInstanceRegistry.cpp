@@ -148,5 +148,16 @@ void FInstanceRegistry::CleanupLinkerEntities(const TSet<FMovieSceneEntityID>& E
 	}
 }
 
+void FInstanceRegistry::FinalizeFrame()
+{
+	for (FSequenceInstance& SequenceInstance : Instances)
+	{
+		if (SequenceInstance.IsRootSequence())
+		{
+			SequenceInstance.RunLegacyTrackTemplates();
+		}
+	}
+}
+
 } // namespace MovieScene
 } // namespace UE

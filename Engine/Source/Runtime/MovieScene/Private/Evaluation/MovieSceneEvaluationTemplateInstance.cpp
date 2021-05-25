@@ -322,14 +322,14 @@ UObject* FMovieSceneRootEvaluationTemplateInstance::GetOrCreateDirectorInstance(
 	{
 		if (UMovieSceneSequence* Sequence = WeakRootSequence.Get())
 		{
-			NewDirectorInstance = Sequence->CreateDirectorInstance(Player);
+			NewDirectorInstance = Sequence->CreateDirectorInstance(Player, SequenceID);
 		}
 	}
 	else if (const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(CompiledDataID))
 	{
 		const FMovieSceneSubSequenceData* SubData = Hierarchy->FindSubData(SequenceID);
 		check(SubData);
-		NewDirectorInstance = SubData->GetSequence()->CreateDirectorInstance(Player);
+		NewDirectorInstance = SubData->GetSequence()->CreateDirectorInstance(Player, SequenceID);
 	}
 
 	if (NewDirectorInstance)

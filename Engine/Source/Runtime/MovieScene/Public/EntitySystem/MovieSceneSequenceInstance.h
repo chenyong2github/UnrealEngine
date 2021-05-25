@@ -89,6 +89,11 @@ public:
 	void PostEvaluation(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
+	 * Called to run legacy track templates
+	 */
+	void RunLegacyTrackTemplates();
+
+	/**
 	 * Indicate that this sequence instance should capture any and all changes of state so they can be restored later
 	 *
 	 * @param Linker     The linker that owns this sequence instance

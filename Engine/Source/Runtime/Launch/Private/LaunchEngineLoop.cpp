@@ -4434,7 +4434,10 @@ void FEngineLoop::Exit()
 	if (!IStreamingManager::HasShutdown())
 	{
 		UTexture2D::CancelPendingTextureStreaming();
-		IStreamingManager::Get().BlockTillAllRequestsFinished();
+		if (FStreamingManagerCollection* StreamingManager = IStreamingManager::Get_Concurrent())
+		{
+			StreamingManager->BlockTillAllRequestsFinished();
+		}
 	}
 	FAudioDeviceManager::Shutdown();
 
@@ -5134,7 +5137,19 @@ void FEngineLoop::Tick()
                         GameEngine->SwitchGameWindowToUseGameViewport();
                     }
                 }
-                
+
+#if !UE_SERVER
+				// Is it ok to start up the movie player?
+				if (!IsRunningDedicatedServer() && !IsRunningCommandlet() && !GetMoviePlayer()->IsMovieCurrentlyPlaying())
+				{
+					// Enable the MoviePlayer now that the preload screen manager is done.
+					if (FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer())
+					{
+						GetMoviePlayer()->Initialize(*Renderer, FPreLoadScreenManager::Get()->GetRenderWindow());
+					}
+				}
+#endif // !UE_SERVER
+
                 //Destroy / Clean Up PreLoadScreenManager as we are now done
                 FPreLoadScreenManager::Destroy();
             }

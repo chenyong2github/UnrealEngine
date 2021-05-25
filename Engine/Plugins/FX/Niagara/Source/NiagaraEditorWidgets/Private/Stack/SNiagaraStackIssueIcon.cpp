@@ -8,6 +8,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "EditorStyleSet.h"
+#include "NiagaraEditorStyle.h"
 #include "Internationalization/Text.h"
 #include "NiagaraEditorWidgetsStyle.h"
 
@@ -120,8 +121,23 @@ FText SNiagaraStackIssueIcon::GetIconToolTip() const
 					ToolTipParts.Add(FText::Format(LOCTEXT("InfoFormatMultiple", "{0} infos"), FText::AsNumber(StackEntry->GetTotalNumberOfInfoIssues())));
 				}
 			}
+			if (StackEntry->GetTotalNumberOfCustomNotes() > 0)
+			{
+				if (StackEntry->GetTotalNumberOfCustomNotes() == 1)
+				{
+					ToolTipParts.Add(LOCTEXT("CustomNotesFormatSingle", "1 custom note"));
+				}
+				else
+				{
+					ToolTipParts.Add(FText::Format(LOCTEXT("CustomNotesFormatMultiple", "{0} custom notes"), FText::AsNumber(StackEntry->GetTotalNumberOfCustomNotes())));
+				}
+			}
 
-			if (ToolTipParts.Num() == 3)
+			if (ToolTipParts.Num() == 4)
+			{
+				ToolTipBuilder.AppendLineFormat(LOCTEXT("FourPartFormat", "{0}, {1}, {2}, and {3}"), ToolTipParts[0], ToolTipParts[1], ToolTipParts[2], ToolTipParts[3]);				
+			}
+			else if (ToolTipParts.Num() == 3)
 			{
 				ToolTipBuilder.AppendLineFormat(LOCTEXT("ThreePartFormat", "{0}, {1}, and {2}"), ToolTipParts[0], ToolTipParts[1], ToolTipParts[2]);
 			}
@@ -145,6 +161,8 @@ FText SNiagaraStackIssueIcon::GetIconToolTip() const
 					return LOCTEXT("Warning", "Warning");
 				case EStackIssueSeverity::Info:
 					return LOCTEXT("Issue", "Issue");
+				case EStackIssueSeverity::CustomNote:
+					return LOCTEXT("CustomNote", "Custom Note");
 				default:
 					return FText();
 				}
@@ -178,6 +196,11 @@ FText SNiagaraStackIssueIcon::GetIconToolTip() const
 				{
 					const UNiagaraStackEntry::FStackIssue& Issue = EntryToCheck->GetIssues()[IssueIndex];
 					ToolTipBuilder.AppendLineFormat(IssueLineFormat, GetFullDisplayName(StackViewModel, EntryToCheck), SeverityToText(Issue.GetSeverity()), Issue.GetShortDescription());
+
+					if (Issue.GetSeverity() == EStackIssueSeverity::CustomNote)
+					{
+						ToolTipBuilder.AppendLine(Issue.GetLongDescription());
+					}
 				}
 				TotalIssues += EntryToCheck->GetIssues().Num();
 			}
@@ -214,6 +237,10 @@ void SNiagaraStackIssueIcon::UpdateFromEntry()
 	else if (StackEntry->GetTotalNumberOfInfoIssues() > 0)
 	{
 		IconBrush = FAppStyle::Get().GetBrush("Icons.InfoWithColor");
+	}
+	else if (StackEntry->GetTotalNumberOfCustomNotes() > 0)
+	{
+		IconBrush = FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Message.CustomNote");
 	}
 
 	IconToolTipCache.Reset();

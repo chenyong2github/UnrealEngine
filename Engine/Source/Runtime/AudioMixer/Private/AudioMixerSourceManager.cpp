@@ -1484,7 +1484,11 @@ namespace Audio
 					SourceSubmixOutputBuffers[SourceId].SetPreAttenuationSourceBuffer(nullptr);
 				}
 
-				InSubmixPtr->AddOrSetSourceVoice(MixerSources[SourceId], InSubmixSend.SendLevel, InSubmixSend.SubmixSendStage);
+				FMixerSourceVoice* SourceVoice = MixerSources[SourceId];
+				if (ensureAlways(nullptr != SourceVoice))
+				{
+					InSubmixPtr->AddOrSetSourceVoice(SourceVoice, InSubmixSend.SendLevel, InSubmixSend.SubmixSendStage);
+				}
 			}
 		});
 	}

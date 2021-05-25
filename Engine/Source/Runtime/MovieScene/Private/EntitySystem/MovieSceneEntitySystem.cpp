@@ -176,6 +176,7 @@ UMovieSceneEntitySystem::UMovieSceneEntitySystem(const FObjectInitializer& ObjIn
 {
 	using namespace UE::MovieScene;
 
+	bSystemIsEnabled = true;
 	SystemExclusionContext = EEntitySystemContext::None;
 
 	Phase = ESystemPhase::Evaluation;
@@ -297,6 +298,16 @@ void UMovieSceneEntitySystem::ConditionalLinkSystemImpl(UMovieSceneEntitySystemL
 	}
 }
 
+void UMovieSceneEntitySystem::Enable()
+{
+	bSystemIsEnabled = true;
+}
+
+void UMovieSceneEntitySystem::Disable()
+{
+	bSystemIsEnabled = false;
+}
+
 void UMovieSceneEntitySystem::TagGarbage()
 {
 	OnTagGarbage();
@@ -327,6 +338,11 @@ void UMovieSceneEntitySystem::FinishDestroy()
 
 void UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
+	if (!bSystemIsEnabled)
+	{
+		return;
+	}
+
 #if STATS || ENABLE_STATNAMEDEVENTS
 	FScopeCycleCounter Scope(StatID);
 #endif

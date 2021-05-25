@@ -1647,6 +1647,10 @@ FChaosScene* FChaosEngineInterface::GetCurrentScene(const FPhysicsActorHandle& I
 void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewPose,bool bAutoWake)
 {
 	Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
+	if (Body_External.IsKinematicTargetDirty())
+	{
+		Body_External.ClearKinematicTarget();
+	}
 	Body_External.SetX(InNewPose.GetLocation());
 	Body_External.SetR(InNewPose.GetRotation());
 	Body_External.UpdateShapeBounds();
@@ -1657,19 +1661,18 @@ void FChaosEngineInterface::SetGlobalPose_AssumesLocked(const FPhysicsActorHandl
 
 void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FTransform& InNewTarget)
 {
-	{
-		Chaos::TKinematicTarget<Chaos::FReal, 3> newKinematicTarget;
-		Chaos::TRigidTransform<Chaos::FReal, 3> PreviousTM(InActorReference->GetGameThreadAPI().X(), InActorReference->GetGameThreadAPI().R());
-		newKinematicTarget.SetTargetMode(InNewTarget, PreviousTM);
-		InActorReference->GetGameThreadAPI().SetKinematicTarget(newKinematicTarget);
+	Chaos::TKinematicTarget<Chaos::FReal, 3> NewKinematicTarget;
+	// SetKinematicTarget_AssumesLocked could be called multiple times in one time step
+	NewKinematicTarget.SetTargetMode(InNewTarget);
+	InActorReference->GetGameThreadAPI().SetKinematicTarget(NewKinematicTarget);
 
-		InActorReference->GetGameThreadAPI().SetX(InNewTarget.GetLocation());
-		InActorReference->GetGameThreadAPI().SetR(InNewTarget.GetRotation());
-		InActorReference->GetGameThreadAPI().UpdateShapeBounds();
+	// IMPORTANT : we do not invalidate X and R as they will be properly computed using the kinematic target information 
+	InActorReference->GetGameThreadAPI().SetX(InNewTarget.GetLocation(), false); 
+	InActorReference->GetGameThreadAPI().SetR(InNewTarget.GetRotation(), false); 
+	InActorReference->GetGameThreadAPI().UpdateShapeBounds();
 
-		FChaosScene* Scene = GetCurrentScene(InActorReference);
-		Scene->UpdateActorInAccelerationStructure(InActorReference);
-	}
+	FChaosScene* Scene = GetCurrentScene(InActorReference);
+	Scene->UpdateActorInAccelerationStructure(InActorReference);
 }
 
 #elif WITH_ENGINE //temp physx code to make moving out of engine easier

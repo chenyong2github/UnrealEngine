@@ -10,6 +10,7 @@
 
 class UToolMenu;
 class FContentBrowserFileDataDiscovery;
+class IAssetTypeActions;
 struct FFileChangeData;
 
 USTRUCT()
@@ -23,6 +24,7 @@ public:
 	bool bRecursivePaths = false;
 	EContentBrowserItemAttributeFilter ItemAttributeFilter = EContentBrowserItemAttributeFilter::IncludeNone;
 	TSharedPtr<FBlacklistPaths> Blacklist;
+	TArray<FString> FileExtensionsToInclude;
 };
 
 UCLASS()
@@ -176,6 +178,8 @@ protected:
 	static bool PassesFilters(const FStringView InPath, const FDiscoveredItem& InDiscoveredItem, const int32 InFolderDepthChecked, const FContentBrowserCompiledFileDataFilter& InFileDataFilter);
 
 	ContentBrowserFileData::FFileConfigData Config;
+
+	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 
 	TSortedMap<FName, FFileMount, FDefaultAllocator, FNameFastLess> RegisteredFileMounts;
 	TMap<FName, TArray<FName>> RegisteredFileMountRoots;

@@ -82,6 +82,17 @@ utf8_string Utf8StringFormat(const utf8_t* InFmt, ...)
 	return FormattedString;
 }
 
+// Compute Guid of the string
+API_Guid String2API_Guid(const GS::UniString& inString)
+{
+	utf8_string	   Utf8String(inString.ToUtf8());
+	MD5::Generator g;
+	g.Update(Utf8String.c_str(), (unsigned int)Utf8String.size());
+	MD5::FingerPrint fp;
+	g.Finish(fp);
+	return Fingerprint2API_Guid(fp);
+}
+
 // Combine 2 guid in one
 API_Guid CombineGuid(const API_Guid& InGuid1, const API_Guid& InGuid2)
 {
@@ -109,7 +120,7 @@ IO::Location GetCompanyDataDirectory()
 	// Get user application support directory
 	IO::Location location(GetApplicationSupportDirectory());
 	// Get or create company directory
-	location.AppendToLocal(IO::Name(GetGSName(kName_Company)));
+	location.AppendToLocal(IO::Name("Epic"));
 	IO::Folder CompanyFolder(location, IO::Folder::Create);
 	GSErrCode  GSErr = CompanyFolder.GetStatus();
 	if (GSErr != NoError)
@@ -181,11 +192,13 @@ GS::UniString GetLayerName(API_AttributeIndex InLayer)
 		// This case happened for the special ArchiCAD layer
 		if (error == APIERR_DELETED)
 		{
-			LayerName = GetGSName(kName_LayerDeleted);
+			static const GS::UniString LayerDeleted("Layer deleted");
+			LayerName = LayerDeleted;
 		}
 		else
 		{
-			LayerName = GS::UniString::Printf(GetGSName(kName_LayerError), GetErrorName(error));
+			utf8_string LayerError(Utf8StringFormat("Layer error=%s", GetErrorName(error)));
+			LayerName = GS::UniString(LayerError.c_str(), CC_UTF8);
 		}
 	}
 	return LayerName;

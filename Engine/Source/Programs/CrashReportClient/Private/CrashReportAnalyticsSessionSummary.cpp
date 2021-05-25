@@ -10,6 +10,7 @@
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/Thread.h"
 #include "Logging/LogMacros.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/Paths.h"

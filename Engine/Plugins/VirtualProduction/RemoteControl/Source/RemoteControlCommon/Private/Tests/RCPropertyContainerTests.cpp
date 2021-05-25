@@ -1,15 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Misc/AutomationTest.h"
-#include "Editor.h"
+#include "Engine/Engine.h"
 #include "RCPropertyContainer.h"
-#include "RCPropertyContainerTestData.h"
 #include "Camera/CameraComponent.h"
+#include "Misc/AutomationTest.h"
 
+#if WITH_EDITOR
+#include "RCPropertyContainerTestData.h"
 #if WITH_DEV_AUTOMATION_TESTS
 
 BEGIN_DEFINE_SPEC(FPropertyContainerSpec,
-	"PropertyContainer",
+	"Plugin.RemoteControl.PropertyContainer",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask)
 END_DEFINE_SPEC(FPropertyContainerSpec)
 
@@ -19,7 +20,7 @@ void FPropertyContainerSpec::Define()
 	{
 		It("Returns_Valid_Subsystem", [this]
 		{
-			URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+			URCPropertyContainerRegistry* PropertyContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
 			TestNotNull("PropertyContainerRegistry", PropertyContainerRegistry);
 		});
 	});
@@ -29,16 +30,16 @@ void FPropertyContainerSpec::Define()
 	{
 		It("Clamp_Min_Max", [this]
 		{
-			FProperty* FloatProperty = UPropertyContainerTestObject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPropertyContainerTestObject, ClampedFloat));
+			FProperty* FloatProperty = UPropertyContainerTestObject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPropertyContainerTestObject, SomeClampedFloat));
 			check(FloatProperty);
 
 			TestTrue("ClampMin", FloatProperty->HasMetaData("ClampMin"));
 			TestTrue("ClampMax", FloatProperty->HasMetaData("ClampMax"));
 
-			TestEqual("ClampMin Value", FloatProperty->GetFloatMetaData("ClampMin"), -5.0f);
-			TestEqual("ClampMax Value", FloatProperty->GetFloatMetaData("ClampMax"), 99.0f);
+			TestEqual("ClampMin Value", FloatProperty->GetFloatMetaData("ClampMin"), 0.2f);
+			TestEqual("ClampMax Value", FloatProperty->GetFloatMetaData("ClampMax"), 0.92f);
 
-			URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+			URCPropertyContainerRegistry* PropertyContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
 			URCPropertyContainerBase* Container = PropertyContainerRegistry->CreateContainer(GetTransientPackage(), NAME_FloatProperty, FloatProperty);
 
 			TestNotNull("Container", Container);
@@ -52,7 +53,7 @@ void FPropertyContainerSpec::Define()
 			FProperty* FloatProperty = UCameraComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UCameraComponent, PostProcessBlendWeight));
 			check(FloatProperty);
 		
-			URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+			URCPropertyContainerRegistry* PropertyContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
 			URCPropertyContainerBase* Container = PropertyContainerRegistry->CreateContainer(GetTransientPackage(), NAME_FloatProperty, FloatProperty);
 
 			TestNotNull("Container", Container);
@@ -64,7 +65,7 @@ void FPropertyContainerSpec::Define()
 		    FProperty* ValueProperty = UPropertyContainerTestObject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPropertyContainerTestObject, SomeFloat));
 		    check(ValueProperty);
 				
-		    URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+		    URCPropertyContainerRegistry* PropertyContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
 		    URCPropertyContainerBase* Container = PropertyContainerRegistry->CreateContainer(GetTransientPackage(), NAME_FloatProperty, ValueProperty);
 
             void* ValuePtr = ValueProperty->ContainerPtrToValuePtr<void>(ObjectInstance);
@@ -78,7 +79,7 @@ void FPropertyContainerSpec::Define()
             FProperty* ValueProperty = UPropertyContainerTestObject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPropertyContainerTestObject, SomeFloat));
             check(ValueProperty);
 				
-            URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+            URCPropertyContainerRegistry* PropertyContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
             URCPropertyContainerBase* Container = PropertyContainerRegistry->CreateContainer(GetTransientPackage(), NAME_FloatProperty, ValueProperty);
 
 			float InputValue = 84.3f;
@@ -103,7 +104,7 @@ void FPropertyContainerSpec::Define()
 			FProperty* ValueProperty = UPropertyContainerTestObject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPropertyContainerTestObject, SomeVector));
 			check(ValueProperty);
 
-			URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+			URCPropertyContainerRegistry* PropertyContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
 			URCPropertyContainerBase* Container = PropertyContainerRegistry->CreateContainer(GetTransientPackage(), NAME_VectorProperty, ValueProperty);
 
 			TestNotNull("Container", Container);
@@ -115,7 +116,7 @@ void FPropertyContainerSpec::Define()
 		    FProperty* ValueProperty = UPropertyContainerTestObject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPropertyContainerTestObject, SomeVector));
 		    check(ValueProperty);
 				
-		    URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+		    URCPropertyContainerRegistry* PropertyContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
 		    URCPropertyContainerBase* Container = PropertyContainerRegistry->CreateContainer(GetTransientPackage(), NAME_VectorProperty, ValueProperty);
 
             void* ValuePtr = ValueProperty->ContainerPtrToValuePtr<void>(ObjectInstance);
@@ -129,7 +130,7 @@ void FPropertyContainerSpec::Define()
             FProperty* ValueProperty = UPropertyContainerTestObject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPropertyContainerTestObject, SomeVector));
             check(ValueProperty);
 				
-            URCPropertyContainerRegistry* PropertyContainerRegistry = GEditor->GetEditorSubsystem<URCPropertyContainerRegistry>();
+            URCPropertyContainerRegistry* PropertyContainerRegistry = GEngine->GetEngineSubsystem<URCPropertyContainerRegistry>();
             URCPropertyContainerBase* Container = PropertyContainerRegistry->CreateContainer(GetTransientPackage(), NAME_VectorProperty, ValueProperty);
 
 			FVector InputValue(0.45f, 0.65f, -1.24f);
@@ -145,4 +146,6 @@ void FPropertyContainerSpec::Define()
         });
 	});
 }
+
+#endif
 #endif

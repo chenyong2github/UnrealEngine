@@ -24,7 +24,7 @@ enum class EFrameReadFlags : uint8;
 
 static const int32 MaxNumberOfResidentSamples = 8;
 
-class IAbcObject
+class ALEMBICLIBRARY_API IAbcObject
 {
 public:
 	IAbcObject(const Alembic::Abc::IObject& InObject, const FAbcFile* InFile, IAbcObject* InParent);

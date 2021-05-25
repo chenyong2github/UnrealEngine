@@ -155,6 +155,9 @@ private:
 	/** Whether the dropped node is allowed to be dropped onto */
 	bool bAllowDrop;
 
+	/** The frame range of the section about to be dropped */
+	TOptional<TRange<FFrameNumber>> DropFrameRange;
+
 	/** Whether this TrackArea is for pinned nodes or non-pinned nodes */
 	bool bShowPinnedNodes;
 

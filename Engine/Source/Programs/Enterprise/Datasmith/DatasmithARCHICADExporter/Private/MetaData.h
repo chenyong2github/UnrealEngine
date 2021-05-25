@@ -9,18 +9,18 @@ BEGIN_NAMESPACE_UE_AC
 class FMetaData
 {
   public:
-	//	FMetaData(const GS::Guid& InElementId);
+	//	FMetaData(const GS::Guid& InElementID);
 
 	FMetaData(const TSharedPtr< IDatasmithElement >& InElement);
 
-	void SetAssociatedElement(const GS::Guid& /* InElementId */, const TSharedPtr< IDatasmithElement >& InElement)
+	void SetAssociatedElement(const GS::Guid& /* InElementID */, const TSharedPtr< IDatasmithElement >& InElement)
 	{
 		MetaData->SetAssociatedElement(InElement);
 	}
 
 	void SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDatasmithScene* IOScene);
 
-	void ExportMetaData(const GS::Guid& InElementId);
+	void ExportMetaData(const GS::Guid& InElementID);
 
 	const TSharedRef< IDatasmithMetaDataElement >& GetMetaData() const { return MetaData; }
 
@@ -51,6 +51,8 @@ class FMetaData
 	void ExportClassifications(const API_Guid& InlementId);
 
 	void ExportCategories(const API_Guid& InlementId);
+
+	void ExportIFCType(const API_Guid& InlementId);
 
 	void ExportIFCProperties(const API_Guid& InlementId);
 

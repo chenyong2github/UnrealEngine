@@ -245,6 +245,19 @@ void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, bool bMergingThrea
 }
 
 /**
+ * Reset the serial number from the game thread to invalidate all weak object pointers to it
+ *
+ * @param Object to reset
+ */
+void FUObjectArray::ResetSerialNumber(UObjectBase* Object)
+{
+	int32 Index = Object->InternalIndex;
+	FUObjectItem* ObjectItem = IndexToObject(Index);
+	checkSlow(ObjectItem);
+	ObjectItem->SerialNumber = 0;
+}
+
+/**
  * Removes an object from delete listeners
  *
  * @param Object to remove from delete listeners

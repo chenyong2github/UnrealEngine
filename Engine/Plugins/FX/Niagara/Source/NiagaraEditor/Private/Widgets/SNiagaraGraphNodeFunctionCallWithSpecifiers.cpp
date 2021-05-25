@@ -6,6 +6,7 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "GraphEditorSettings.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "NiagaraConstants.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraGraphNodeFunctionCallWithSpecifiers"
 
@@ -26,6 +27,7 @@ TSharedRef<SWidget> SNiagaraGraphNodeFunctionCallWithSpecifiers::CreateNodeConte
 			.VAlign(VAlign_Center)
 			[
 				SNew(SNiagaraFunctionSpecifier, Entry.Key, Entry.Value, *FunctionSpecifiers)
+					.OnValueNameChanged(this, &SNiagaraGraphNodeFunctionCallWithSpecifiers::OnValueNameChanged)
 			];
 	}
 
@@ -47,11 +49,19 @@ TSharedRef<SWidget> SNiagaraGraphNodeFunctionCallWithSpecifiers::CreateNodeConte
 	return RetWidget;
 }
 
+void SNiagaraGraphNodeFunctionCallWithSpecifiers::OnValueNameChanged()
+{
+	Cast<UNiagaraNodeFunctionCall>(GraphNode)->MarkNodeRequiresSynchronization(__FUNCTION__, true);
+}
+
 void SNiagaraFunctionSpecifier::Construct(const FArguments& InArgs, FName InAttributeName, FName InValueName, TMap<FName, FName>& InSpecifiers)
 {
+	OnValueNameChanged = InArgs._OnValueNameChanged;
+
 	AttributeName = InAttributeName;
 	ValueName = InValueName;
 	Specifiers = &InSpecifiers;
+
 	ChildSlot
 		.VAlign(VAlign_Fill)
 		.HAlign(HAlign_Fill)
@@ -72,9 +82,20 @@ void SNiagaraFunctionSpecifier::Construct(const FArguments& InArgs, FName InAttr
 			[
 				SNew(SEditableTextBox)
 				.Text(FText::FromName(ValueName))
+				.OnVerifyTextChanged(this, &SNiagaraFunctionSpecifier::VerifyNameTextChanged)
 				.OnTextCommitted(this, &SNiagaraFunctionSpecifier::OnValueNameCommitted)
 			]
 		];
+}
+
+bool SNiagaraFunctionSpecifier::VerifyNameTextChanged(const FText& NewText, FText& OutErrorMessage) const
+{
+	if (NewText.ToString().Len() >= FNiagaraConstants::MaxParameterLength)
+	{
+		OutErrorMessage = FText::FormatOrdered(LOCTEXT("NameToLongError", "Name cannot exceed {0} characters."), FNiagaraConstants::MaxParameterLength);
+		return false;
+	}
+	return true;
 }
 
 void SNiagaraFunctionSpecifier::OnValueNameCommitted(const FText& InText, ETextCommit::Type InCommitType)
@@ -83,6 +104,7 @@ void SNiagaraFunctionSpecifier::OnValueNameCommitted(const FText& InText, ETextC
 	if (Specifiers)
 	{
 		Specifiers->Add(AttributeName, ValueName);
+		OnValueNameChanged.ExecuteIfBound();
 	}
 }
 

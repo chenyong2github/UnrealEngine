@@ -16,10 +16,13 @@ struct ID3D12Device;
 struct ID3D12Resource;
 #endif
 
+// vulkan forward declaration
+struct VkImage_T;
+struct VkDevice_T;
+
 namespace AVEncoder
 {
 	class FVideoEncoderInputFrame;
-
 
 	class AVENCODER_API FVideoEncoderInput
 	{
@@ -31,12 +34,16 @@ namespace AVEncoder
 		// create input for an encoder that encodes a D3D11 texture
 		static TSharedPtr<FVideoEncoderInput> CreateForD3D11(void* InApplicationD3D11Device, uint32 InWidth, uint32 InHeight, bool isResizable = false);
 
+		// TODO (M84FIX) AMF can work with this but also can handle raw D3D12 textures we should add support for that too 
 		// create input for an encoder that encodes a D3D12 texture in the context of a D3D11 device (i.e. nvenc)
 		static TSharedPtr<FVideoEncoderInput> CreateForD3D12(void* InApplicationD3D12Device, uint32 InWidth, uint32 InHeight, bool isResizable = false);
 
-		// create input for an encoder that encodes a Vulkan External Texture in the context of a CUDA context (for nvenc)
+		// create input for an encoder that encodes a CUarray in the context of a CUcontext (i.e. nvenc)
 		static TSharedPtr<FVideoEncoderInput> CreateForCUDA(void* InApplicationCudaContext, uint32 InWidth, uint32 InHeight, bool isResizable = false);
-		
+
+		// create input for an encoder that encodes a VkImage in the context of a VkDevice (i.e. Amf)
+		static TSharedPtr<FVideoEncoderInput> CreateForVulkan(void* InApplicationVulkanDevice, uint32 InWidth, uint32 InHeight, bool isResizable = false);
+
 		// --- properties
 		virtual void SetResolution(uint32 InWidth, uint32 InHeight);
 
@@ -113,7 +120,8 @@ namespace AVEncoder
 		TFunction<void()> OnTextureEncode;
 
 		int64			PTS = 0;		// presentation time stamp (within TimeBase)
-		
+		int64			NTP = 0;		// capture time stamp
+
 		// --- YUV420P
 
 		struct FYUV420P
@@ -124,8 +132,14 @@ namespace AVEncoder
 			uint32				StrideV = 0;
 		};
 
-		const FYUV420P& GetYUV420P() const { return YUV420P; }
+		void AllocateYUV420P();
+		const FYUV420P& GetYUV420P() const 
+		{	
+			return YUV420P; 
+		}
+		
 		FYUV420P& GetYUV420P() { return YUV420P; }
+
 		void SetYUV420P(const uint8* InDataY, const uint8* InDataU, const uint8* InDataV, uint32 InStrideY, uint32 InStrideU, uint32 InStrideV);
 
 #if PLATFORM_WINDOWS
@@ -185,6 +199,23 @@ namespace AVEncoder
 
 #endif // WITH_CUDA
 
+		// --- Vulkan
+		struct FVulkan
+		{
+			VkImage_T*		EncoderTexture;
+			VkDevice_T*		EncoderDevice;
+		};
+
+		const FVulkan& GetVulkan() const { return Vulkan; }
+		FVulkan& GetVulkan() { return Vulkan; }
+
+		// the callback type used to create a registered encoder
+		using FReleaseVulkanTextureCallback = TFunction<void(VkImage_T*)>;
+
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
+	void SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+#endif
+
 	protected:
 		FVideoEncoderInputFrame();
 		explicit FVideoEncoderInputFrame(const FVideoEncoderInputFrame& CloneFrom);
@@ -197,6 +228,7 @@ namespace AVEncoder
 		uint32									Height;
 		FYUV420P								YUV420P;
 		bool									bFreeYUV420PData;
+
 #if PLATFORM_WINDOWS
 		FD3D11									D3D11;
 		FReleaseD3D11TextureCallback			OnReleaseD3D11Texture;
@@ -209,6 +241,8 @@ namespace AVEncoder
 		FReleaseCUDATextureCallback				OnReleaseCUDATexture;
 #endif
 
+		FVulkan									Vulkan;
+		FReleaseVulkanTextureCallback			OnReleaseVulkanTexture;
 	};
 
 

@@ -95,44 +95,6 @@ static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingTerminationCap(
 
 //////////////////////////////////////////////////////////////////////////
 
-/**
-Game thread task to do any outstanding work on the loaded system
-*/
-struct FNiagaraSystemUpdateTask
-{
-	FNiagaraSystemUpdateTask(TWeakObjectPtr<UNiagaraSystem> InSystem) : WeakSystem(InSystem)
-	{
-	}
-
-	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemUpdateTask, STATGROUP_TaskGraphTasks); }
-	static FORCEINLINE ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
-	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		check(IsInGameThread());
-		UNiagaraSystem* System = WeakSystem.Get();
-		if (System == nullptr)
-		{
-			// probably got garbage collected in the meantime
-			return;
-		}
-#if WITH_EDITORONLY_DATA
-		for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
-		{
-			if (Handle.GetInstance() && Handle.GetInstance()->UpdateTaskRef.IsValid())
-			{
-				// the emitter tasks should all be done by now, if not then something is very wrong
-				ensureMsgf(Handle.GetInstance()->UpdateTaskRef->IsComplete(), TEXT("Unfinished emitter update task for system %s"), *GetPathNameSafe(System));
-			}
-		}
-#endif
-		System->UpdateSystemAfterLoad();
-	}
-
-	TWeakObjectPtr<UNiagaraSystem> WeakSystem;
-};
-
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -184,8 +146,6 @@ void UNiagaraSystem::BeginDestroy()
 	{
 		QueryCompileComplete(true, false, true);
 	}
-
-	CleanupParameterDefinitionsSubscriptions();
 #endif
 
 	//Should we just destroy all system sims here to simplify cleanup?
@@ -202,10 +162,10 @@ void UNiagaraSystem::PreSave(const class ITargetPlatform* TargetPlatform)
 void UNiagaraSystem::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Super::PreSave(ObjectSaveContext);
+	EnsureFullyLoaded();
 #if WITH_EDITORONLY_DATA
 	WaitForCompilationComplete();
 #endif
-	EnsureFullyLoaded();
 }
 
 #if WITH_EDITOR
@@ -214,8 +174,8 @@ void UNiagaraSystem::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 	//UE_LOG(LogNiagara, Display, TEXT("UNiagaraSystem::BeginCacheForCookedPlatformData %s %s"), *GetFullName(), GIsSavingPackage ? TEXT("Saving...") : TEXT("Not Saving..."));
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 	
+	EnsureFullyLoaded();
 #if WITH_EDITORONLY_DATA
-
 	WaitForCompilationComplete();
 #endif
 }
@@ -269,6 +229,7 @@ void UNiagaraSystem::HandleVariableRemoved(const FNiagaraVariable& InOldVariable
 
 TArray<UNiagaraScriptSourceBase*> UNiagaraSystem::GetAllSourceScripts()
 {
+	EnsureFullyLoaded();
 	return { SystemSpawnScript->GetLatestSource(), SystemUpdateScript->GetLatestSource() };
 }
 
@@ -356,8 +317,15 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 		return;
 	}
 	bFullyLoaded = true;
-	UpdateTaskRef = nullptr;
-	
+
+	for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
+	{
+		if (EmitterHandle.GetInstance() != nullptr)
+		{
+			EmitterHandle.GetInstance()->UpdateEmitterAfterLoad();
+		}
+	}
+
 #if WITH_EDITORONLY_DATA
 	// We remove emitters and scripts on dedicated servers, so skip further work.
 	const bool bIsDedicatedServer = !GIsClient && GIsServer;
@@ -398,6 +366,31 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 		{
 			bSystemScriptsAreSynchronized &= SystemScript->AreScriptAndSourceSynchronized();
 		}
+
+		// Synchronize with parameter definitions
+		// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FGuid> DefaultDefinitionsUniqueIds;
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+			if (DefaultLinkedParameterDefinitions == nullptr)
+			{
+				continue;
+			}
+			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
+			const bool bDoNotAssertIfAlreadySubscribed = true;
+			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
+		}
+		FSynchronizeWithParameterDefinitionsArgs Args;
+		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
+		Args.bForceSynchronizeDefinitions = true;
+		Args.bSubscribeAllNameMatchParameters = true;
+		//SynchronizeWithParameterDefinitions(Args);
+
+		// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the system was already subscribed to, and do not force the sync.
+		//SynchronizeWithParameterDefinitions();
 
 		bool bEmitterScriptsAreSynchronized = true;
 
@@ -722,6 +715,10 @@ void UNiagaraSystem::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
+	PostLoadDefinitionsSubscriptions();
+#endif
+
 	// Workaround for UE-104235 where a CDO loads a NiagaraSystem before the NiagaraModule has had a chance to load
 	// We force the module to load here we makes sure the type registry, etc, is all setup in time.
 	static bool bLoadChecked = false;
@@ -780,38 +777,11 @@ void UNiagaraSystem::PostLoad()
 	ExposedParameters.RecreateRedirections();
 #endif
 
-	FGraphEventArray EmitterPrerequisiteTasks;
-	for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
-	{
-#if WITH_EDITORONLY_DATA
-		EmitterHandle.ConditionalPostLoad(NiagaraVer);
-#else
-		if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
-		{
-			NiagaraEmitter->ConditionalPostLoad();
-		}
+#if !WITH_EDITOR
+	// When running without the editor in a cooked build we run the update immediately in post load since
+	// there will be no merging or compiling which makes it safe to do so.
+	UpdateSystemAfterLoad();
 #endif
-		if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
-		{
-			EmitterPrerequisiteTasks.Add(NiagaraEmitter->UpdateTaskRef);
-		}
-	}
-	
-#if WITH_EDITORONLY_DATA
-	if (EditorData == nullptr)
-	{
-		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
-		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
-	}
-	else
-	{
-		EditorData->PostLoadFromOwner(this);
-	}
-	
-#endif // WITH_EDITORONLY_DATA
-
-	// we are not yet finished, but we do the rest of the work after postload in a separate task
-	UpdateTaskRef = TGraphTask<FNiagaraSystemUpdateTask>::CreateTask(&EmitterPrerequisiteTasks).ConstructAndDispatchWhenReady(this);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -968,7 +938,11 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 
 void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
-	EnsureFullyLoaded();
+	if (HasAnyFlags(RF_ClassDefaultObject) == false)
+	{
+		EnsureFullyLoaded();
+	}
+
 #if WITH_EDITOR
 	OutTags.Add(FAssetRegistryTag("HasGPUEmitter", HasAnyGPUEmitters() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
 
@@ -1719,19 +1693,8 @@ bool UNiagaraSystem::IsValidInternal() const
 
 void UNiagaraSystem::EnsureFullyLoaded() const
 {
-	if (UpdateTaskRef.IsValid() && UpdateTaskRef->IsComplete() == false)
-	{
-		ensureMsgf(FUObjectThreadContext::Get().IsRoutingPostLoad == false, TEXT("Niagara system data was forced to load during PostLoad instead of the taskgraph! Asset %s"), *GetPathName());
-		for (const FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
-		{
-			if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
-			{
-				NiagaraEmitter->UpdateEmitterAfterLoad();
-			}
-		}
-		UNiagaraSystem* System = const_cast<UNiagaraSystem*>(this); // Sadly necessary because we are called from other const functions
-		System->UpdateSystemAfterLoad();
-	}	
+	UNiagaraSystem* System = const_cast<UNiagaraSystem*>(this);
+	System->UpdateSystemAfterLoad();
 }
 
 
@@ -2600,6 +2563,9 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 			}
 		}
 
+		// clean up copies from precompile data
+		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData = ActiveCompilation.MappedData.FindChecked(SystemSpawnScript);
+		SystemPrecompiledData->ReleaseCompilationCopies();
 	}
 
 

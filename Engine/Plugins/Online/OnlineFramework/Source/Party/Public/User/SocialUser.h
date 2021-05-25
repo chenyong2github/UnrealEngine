@@ -25,6 +25,34 @@ typedef TSharedPtr<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstPtr;
 
 namespace EOnlinePresenceState { enum Type : uint8; }
 
+/** Represents the different methods of sending a friend request */
+UENUM()
+enum class ESocialFriendRequestMethod : uint8 
+{
+	/** Friend Request was sent using SocialInteraction_AddFriend */
+	SocialInteraction_AddFriend,
+	/** Friend Request was sent using SocialInteraction_AddPlatformFriend */
+	SocialInteraction_AddPlatformFriend,
+	/** Other implementation **/
+	Other
+};
+
+/** Helper function that provides readable text value for ESocialFriendRequestMethod enum */
+inline const TCHAR* LexToString(ESocialFriendRequestMethod RequestMethod)
+{
+	switch (RequestMethod)
+	{
+	case ESocialFriendRequestMethod::SocialInteraction_AddFriend:
+		return TEXT("SocialInteraction_AddFriend");
+	case ESocialFriendRequestMethod::SocialInteraction_AddPlatformFriend:
+		return TEXT("SocialInteraction_AddPlatformFriend");
+	case ESocialFriendRequestMethod::Other:
+		return TEXT("Other");
+	default:
+		return TEXT("Invalid SocialFriendRequestMethod");
+	}
+}
+
 DECLARE_DELEGATE_OneParam(FOnNewSocialUserInitialized, USocialUser&);
 
 UCLASS(Within = SocialToolkit)
@@ -93,7 +121,7 @@ public:
 	TArray<FSocialInteractionHandle> GetAllAvailableInteractions() const;
 
 	virtual bool CanSendFriendInvite(ESocialSubsystem SubsystemType) const;
-	virtual bool SendFriendInvite(ESocialSubsystem SubsystemType);
+	virtual bool SendFriendInvite(ESocialSubsystem SubsystemType, const ESocialFriendRequestMethod RequestMethod = ESocialFriendRequestMethod::SocialInteraction_AddFriend);
 	virtual bool AcceptFriendInvite(ESocialSubsystem SocialSubsystem) const;
 	virtual bool RejectFriendInvite(ESocialSubsystem SocialSubsystem) const;
 	virtual bool EndFriendship(ESocialSubsystem SocialSubsystem) const;

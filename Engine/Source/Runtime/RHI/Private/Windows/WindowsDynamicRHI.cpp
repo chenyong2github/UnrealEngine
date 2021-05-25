@@ -315,6 +315,9 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 			auto PSOFileCacheUserCacheCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.SaveUserCache"));
 			*PSOFileCacheUserCacheCVar = UE_BUILD_SHIPPING;
+
+			auto PSOFileCacheLogCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.LogPSO"));
+			*PSOFileCacheLogCVar = UE_BUILD_SHIPPING;
 #endif
 
 			if (FPlatformProcess::IsApplicationRunning(TEXT("fraps.exe")))

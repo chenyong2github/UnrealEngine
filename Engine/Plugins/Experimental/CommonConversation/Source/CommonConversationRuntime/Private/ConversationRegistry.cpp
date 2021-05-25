@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "ConversationContext.h"
 #include "Engine/StreamableManager.h"
+#include "GameFeaturesSubsystem.h"
 
 //======================================================================================
 
@@ -298,6 +299,9 @@ void UConversationRegistry::BuildDependenciesGraph()
 
 	TArray<FAssetData> AllConversations;
 	UAssetManager::Get().GetPrimaryAssetDataList(FPrimaryAssetType(UConversationDatabase::StaticClass()->GetFName()), AllConversations);
+
+	// Don't index conversation graphs from inactive game feature plugins.
+	UGameFeaturesSubsystem::Get().FilterInactivePluginAssets(AllConversations);
 
 	RuntimeDependencyGraph.Reset();
 	EntryTagToConversations.Reset();

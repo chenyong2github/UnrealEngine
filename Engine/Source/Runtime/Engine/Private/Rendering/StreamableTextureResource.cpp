@@ -151,11 +151,11 @@ void FStreamableTextureResource::DecrementTextureStats() const
 
 	if (LODGroup == TEXTUREGROUP_UI)
 	{
-		GUITextureMemory += TextureSize;
+		GUITextureMemory -= TextureSize;
 	}
 	else if (bIsNeverStream)
 	{
-		GNeverStreamTextureMemory += TextureSize;
+		GNeverStreamTextureMemory -= TextureSize;
 	}
 }
 #endif

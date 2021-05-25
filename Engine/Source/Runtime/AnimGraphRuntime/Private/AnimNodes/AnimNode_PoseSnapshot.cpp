@@ -43,7 +43,7 @@ void FAnimNode_PoseSnapshot::PreUpdate(const UAnimInstance* InAnimInstance)
 	}
 	else
 	{
-		TargetBoneNameMesh = NAME_Name;
+		TargetBoneNameMesh = NAME_None;
 	}
 }
 

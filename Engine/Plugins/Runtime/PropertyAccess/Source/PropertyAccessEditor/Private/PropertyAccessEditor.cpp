@@ -736,10 +736,9 @@ bool FPropertyAccessLibraryCompiler::FinishCompilation()
 			CopyMap.Add(FPropertyAccessHandle(CopyIndex), FCompiledPropertyAccessHandle(Copy.BatchIndex, Copy.BatchId));
 		}
 
-		if(bResult)
-		{
-			PropertyAccess::PostLoadLibrary(*Library);
-		}
+		// Always rebuild the library even if we detected a 'failure'. Otherwise we could fail to copy data for both
+		// valid and invalid copies 
+		PropertyAccess::PostLoadLibrary(*Library);
 
 		return bResult;
 	}

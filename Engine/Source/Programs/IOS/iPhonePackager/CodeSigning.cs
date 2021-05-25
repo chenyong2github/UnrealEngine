@@ -821,6 +821,7 @@ namespace iPhonePackager
 				// Find out if there was an existing code sign blob and find the linkedit segment command
 				MachLoadCommandCodeSignature CodeSigningBlobLC = null;
 				MachLoadCommandSegment LinkEditSegmentLC = null;
+				MachLoadCommandSegment TextSegmentLC = null;
 				foreach (MachLoadCommand Command in Exe.Commands)
 				{
 					if (CodeSigningBlobLC == null)
@@ -834,6 +835,15 @@ namespace iPhonePackager
 						if (LinkEditSegmentLC.SegmentName != "__LINKEDIT")
 						{
 							LinkEditSegmentLC = null;
+						}
+					}
+
+					if (TextSegmentLC == null)
+					{
+						TextSegmentLC = Command as MachLoadCommandSegment;
+						if (TextSegmentLC.SegmentName != "__TEXT")
+						{
+							TextSegmentLC = null;
 						}
 					}
 				}
@@ -859,19 +869,22 @@ namespace iPhonePackager
 
 				int SignedFileLength = (int)CodeSigningBlobLC.BlobFileOffset;
 
+				// Set ExecSegment data
+				UInt64 ExecSegBase = 0;
+				UInt64 ExecSegLimit = 0;
+				if (TextSegmentLC != null)
+				{
+					ExecSegBase = TextSegmentLC.FileOffset;
+					ExecSegLimit = TextSegmentLC.FileSize;
+				}
+
 				// Create the entitlements blob
 				string TeamIdentifier = Provision.ApplicationIdentifierPrefix;
 				string EntitlementsText = BuildEntitlementString(CFBundleIdentifier, out TeamIdentifier);
 				EntitlementsBlob FinalEntitlementsBlob = EntitlementsBlob.Create(EntitlementsText);
 
 				// Create the code directory blob
-				uint Version = CodeDirectoryBlob.cVersion2; 
-				if (CodeSigningBlobLC != null)
-				{
-					CodeDirectoryBlob OldCodeDir = CodeSigningBlobLC.Payload.GetBlobByMagic(AbstractBlob.CSMAGIC_CODEDIRECTORY) as CodeDirectoryBlob;
-					Version = OldCodeDir.Version;
-				}
-				CodeDirectoryBlob FinalCodeDirectoryBlob = CodeDirectoryBlob.Create(CFBundleIdentifier, TeamIdentifier, SignedFileLength, Version);
+				CodeDirectoryBlob FinalCodeDirectoryBlob = CodeDirectoryBlob.Create(CFBundleIdentifier, TeamIdentifier, SignedFileLength, ExecSegBase, ExecSegLimit);
 
 				// Create or preserve the requirements blob
 				RequirementsBlob FinalRequirementsBlob = null;

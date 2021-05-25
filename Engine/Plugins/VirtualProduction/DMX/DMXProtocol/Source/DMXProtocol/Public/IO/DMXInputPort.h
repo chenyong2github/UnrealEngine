@@ -126,7 +126,7 @@ private:
 	bool bRegistered;
 
 private:
-	/** Returns the port config with specified guid. Useful to find a port config by its port, as they share their guid */
+	/** Returns the port config that corresponds to the guid of this port. */
 	const FDMXInputPortConfig* FindInputPortConfigChecked() const;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */

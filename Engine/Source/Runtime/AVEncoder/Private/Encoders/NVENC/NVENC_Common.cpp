@@ -43,7 +43,13 @@ void FNVENCCommon::Shutdown()
 
 void FNVENCCommon::SetupNVENCFunctions()
 {
-	bIsAvailable = false;
+	check(!bIsAvailable);
+
+	// Can't use NVENC without a NVIDIA GPU (also no point if its not the one RHI is using)
+	if (!IsRHIDeviceNVIDIA())
+	{
+		return;
+	}
 
 	// clear function call table
 	FMemory::Memzero(static_cast<NV_ENCODE_API_FUNCTION_LIST*>(this), sizeof(NV_ENCODE_API_FUNCTION_LIST));

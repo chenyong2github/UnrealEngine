@@ -188,16 +188,30 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 
 SRCProtocolBindingList::~SRCProtocolBindingList()
 {
+	for (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>>& RemoteControlProtocolEntity : AwaitingProtocolEntities)
+	{
+		if (FRemoteControlProtocolEntity* RemoteControlProtocolEntityPtr = RemoteControlProtocolEntity->Get())
+		{
+			if (RemoteControlProtocolEntityPtr->GetBindingStatus() == ERCBindingStatus::Awaiting)
+			{
+				RemoteControlProtocolEntityPtr->ResetDefaultBindingState();
+			}
+		}
+	}
+
+	AwaitingProtocolEntities.Empty();
 }
 
-TSharedRef<SRCProtocolBinding> SRCProtocolBindingList::ConstructBindingWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedPtr<FProtocolBindingViewModel> InViewModel) const
+TSharedRef<SRCProtocolBinding> SRCProtocolBindingList::ConstructBindingWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedPtr<FProtocolBindingViewModel> InViewModel)
 {
 	return SNew(SRCProtocolBinding, InOwnerTable, InViewModel.ToSharedRef())
 		.PrimaryColumnSizeData(PrimaryColumnSizeData)
-		.SecondaryColumnSizeData(SecondaryColumnSizeData);
+		.SecondaryColumnSizeData(SecondaryColumnSizeData)
+		.OnStartRecording(this, &SRCProtocolBindingList::OnStartRecording)
+		.OnStopRecording(this, &SRCProtocolBindingList::OnStopRecording);
 }
 
-TSharedRef<ITableRow> SRCProtocolBindingList::OnGenerateRow(TSharedPtr<FProtocolBindingViewModel> InViewModel, const TSharedRef<STableViewBase>& OwnerTable) const
+TSharedRef<ITableRow> SRCProtocolBindingList::OnGenerateRow(TSharedPtr<FProtocolBindingViewModel> InViewModel, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	check(InViewModel.IsValid());
 	TSharedRef<SRCProtocolBinding> BindingWidget = ConstructBindingWidget(OwnerTable, InViewModel);
@@ -233,6 +247,16 @@ void SRCProtocolBindingList::ToggleShowProtocol(const FName& InProtocolName)
 bool SRCProtocolBindingList::IsProtocolShown(const FName& InProtocolName)
 {
 	return !GetSettings()->HiddenProtocolTypeNames.Contains(InProtocolName);
+}
+
+void SRCProtocolBindingList::OnStartRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity)
+{
+	AwaitingProtocolEntities.Add(InEntity);
+}
+
+void SRCProtocolBindingList::OnStopRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity)
+{
+	AwaitingProtocolEntities.Remove(InEntity);
 }
 
 URemoteControlProtocolWidgetsSettings* SRCProtocolBindingList::GetSettings()

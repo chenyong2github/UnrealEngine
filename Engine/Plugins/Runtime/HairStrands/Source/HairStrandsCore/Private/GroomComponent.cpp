@@ -29,6 +29,7 @@
 #include "GroomManager.h"
 #include "GroomInstance.h"
 #include "GroomCache.h"
+#include "Async/ParallelFor.h"
 
 static int32 GHairEnableAdaptiveSubsteps = 0;  
 static FAutoConsoleVariableRef CVarHairEnableAdaptiveSubsteps(TEXT("r.HairStrands.EnableAdaptiveSubsteps"), GHairEnableAdaptiveSubsteps, TEXT("Enable adaptive solver substeps"));
@@ -297,6 +298,7 @@ public:
 	{
 		// Forcing primitive uniform as we don't support robustly GPU scene data
 		bVFRequiresPrimitiveUniformBuffer = true;
+		bCastDeepShadow = true;
 
 		HairGroupInstances = Component->HairGroupInstances;
 		check(Component);
@@ -793,6 +795,12 @@ public:
 			return nullptr;
 		}
 
+		// Invalid primitive setup. This can happens when the (procedural) resources are not ready.
+		if (NumPrimitive == 0 && !bUseCulling)
+		{
+			return nullptr;
+		}
+
 		if (bWireframe)
 		{
 			MaterialRenderProxy = new FColoredMaterialRenderProxy( GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : NULL, FLinearColor(1.f, 0.5f, 0.f));
@@ -954,13 +962,87 @@ public:
 		InterpolationFactor = Factor;
 	}
 
+	void UpdateBuffersAtTime(UGroomCache* GroomCache, float Time, bool bIsLooping)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheBuffers::UpdateBuffersAtTime);
+
+		if (!GroomCache)
+		{
+			return;
+		}
+
+		// Find the frame indices and interpolation factor to interpolate between
+		int32 FrameIndexA = 0;
+		int32 FrameIndexB = 0;
+		float OutInterpolationFactor = 0.0f;
+		GroomCache->FindSampleIndexesFromTime(Time, bIsLooping, false, FrameIndexA, FrameIndexB, OutInterpolationFactor);
+
+		// Update and cache the frame data as needed
+		bool bComputeInterpolation = false;
+		if (FrameIndexA != CurrentFrameIndex)
+		{
+			bComputeInterpolation = true;
+			if (FrameIndexA == NextFrameIndex)
+			{
+				Swap(CurrentFrame, NextFrame);
+				CurrentFrameIndex = NextFrameIndex;
+			}
+			else
+			{
+				GroomCache->GetGroomDataAtFrameIndex(FrameIndexA, CurrentFrame);
+				CurrentFrameIndex = FrameIndexA;
+			}
+		}
+
+		if (FrameIndexB != NextFrameIndex)
+		{
+			bComputeInterpolation = true;
+			GroomCache->GetGroomDataAtFrameIndex(FrameIndexB, NextFrame);
+			NextFrameIndex = FrameIndexB;
+		}
+
+		// Make sure the initial interpolated frame is populated with valid data
+		if (InterpolatedFrame.GroupsData.Num() != CurrentFrame.GroupsData.Num())
+		{
+			InterpolatedFrame = CurrentFrame;
+		}
+
+		// Do interpolation of vertex positions if needed
+		if (bComputeInterpolation || !FMath::IsNearlyEqual(OutInterpolationFactor, InterpolationFactor, KINDA_SMALL_NUMBER))
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheBuffers::UpdateBuffersAtTime_InterpolateCPU);
+
+			InterpolationFactor = OutInterpolationFactor;
+
+			FScopeLock Lock(GetCriticalSection());
+
+			const int32 NumGroups = CurrentFrame.GroupsData.Num();
+			for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
+			{
+				const FGroomCacheGroupData& CurrentGroupData = CurrentFrame.GroupsData[GroupIndex];
+				const FGroomCacheGroupData& NextGroupData = NextFrame.GroupsData[GroupIndex];
+				FGroomCacheGroupData& InterpolatedGroupData = InterpolatedFrame.GroupsData[GroupIndex];
+				const int32 NumVertices = CurrentGroupData.VertexData.PointsPosition.Num();
+
+				ParallelFor(NumVertices,
+				[&CurrentGroupData, &NextGroupData, &InterpolatedGroupData, this](int32 VertexIndex)
+				{
+					const FVector& CurrentPosition = CurrentGroupData.VertexData.PointsPosition[VertexIndex];
+					const FVector& NextPosition = NextGroupData.VertexData.PointsPosition[VertexIndex];
+					InterpolatedGroupData.VertexData.PointsPosition[VertexIndex] = FMath::Lerp(CurrentPosition, NextPosition, InterpolationFactor);
+				}
+				);
+			}
+		}
+	}
+
 private:
 	FGroomCacheAnimationData CurrentFrame;
 	FGroomCacheAnimationData NextFrame;
 	FGroomCacheAnimationData InterpolatedFrame;
 
-	int32 CurrentFrameIndex = 0;
-	int32 NextFrameIndex = 0;
+	int32 CurrentFrameIndex = -1;
+	int32 NextFrameIndex = -1;
 	float InterpolationFactor = 0.0f;
 };
 
@@ -2558,14 +2640,8 @@ void UGroomComponent::UpdateGroomCache(float Time)
 {
 	if (GroomCache && GroomCacheBuffers.IsValid() && bRunning)
 	{
-		float AnimationTime = Time;
-		const float Duration = GroomCache->GetDuration();
-		if (bLooping && Duration > 0.0f)
-		{
-			AnimationTime = AnimationTime - Duration * FMath::FloorToFloat(AnimationTime / Duration);
-		}
-		FScopeLock Lock(GroomCacheBuffers->GetCriticalSection());
-		GroomCache->GetGroomDataAtTime(AnimationTime, GroomCacheBuffers->GetInterpolatedFrameBuffer());
+		FGroomCacheBuffers* Buffers = static_cast<FGroomCacheBuffers*>(GroomCacheBuffers.Get());
+		Buffers->UpdateBuffersAtTime(GroomCache, Time, bLooping);
 	}
 }
 

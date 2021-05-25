@@ -21,8 +21,7 @@ public:
 	static constexpr auto ModuleName = TEXT("DisplayClusterConfigurator");
 
 public:
-	virtual ~IDisplayClusterConfigurator() = 0
-	{ }
+	virtual ~IDisplayClusterConfigurator() = default;
 
 public:
 	/**

@@ -8,29 +8,43 @@ public class RemoteControlCommon : ModuleRules
 	public RemoteControlCommon(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
-			new string[] {}
+			new string[] { }
 		);
 
-        PrivateDependencyModuleNames.AddRange(
+		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"ApplicationCore",
-				"AssetRegistry",
-				"AssetTools",
-				"BlueprintGraph",
 				"Core",
 				"CoreUObject",
-				"DeveloperSettings",
-				"EditorWidgets",
-				"EditorStyle",
-				"EditorSubsystem",
 				"Engine",
 				"InputCore",
-				"Projects",
-				"PropertyEditor",
-				"Slate",
-				"SlateCore",
-				"UnrealEd",
 			}
 		);
+		
+		if (Target.bBuildEditor)
+		{
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"PropertyEditor",
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"AssetRegistry",
+					"AssetTools",
+					"BlueprintGraph",
+					"DeveloperSettings",
+					"EditorWidgets",
+					"EditorStyle",
+					"EditorSubsystem",
+					"Projects",
+					"PropertyEditor",
+					"Slate",
+					"SlateCore",
+					"UnrealEd",
+				}
+			);
+		}
     }
 }

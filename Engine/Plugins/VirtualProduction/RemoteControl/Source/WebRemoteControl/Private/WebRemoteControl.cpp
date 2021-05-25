@@ -57,8 +57,6 @@
 #include "Templates/UnrealTemplate.h"
 
 #define LOCTEXT_NAMESPACE "WebRemoteControl"
-
-
 // Boot the server on startup flag
 static TAutoConsoleVariable<int32> CVarWebControlStartOnBoot(TEXT("WebControl.EnableServerOnStartup"), 0, TEXT("Enable the Web Control servers (web and websocket) on startup."));
 
@@ -98,6 +96,11 @@ namespace WebRemoteControl
 
 void FWebRemoteControlModule::StartupModule()
 {
+	if (FParse::Param(FCommandLine::Get(), TEXT("RCWebControlDisable")))
+	{
+		return;
+	}
+	
 #if WITH_EDITOR
 	RegisterSettings();
 #endif
@@ -127,6 +130,11 @@ void FWebRemoteControlModule::StartupModule()
 
 void FWebRemoteControlModule::ShutdownModule()
 {
+	if (FParse::Param(FCommandLine::Get(), TEXT("RCWebControlDisable")))
+	{
+		return;
+	}
+	
 	EditorRoutes.UnregisterRoutes(this);
 	WebSocketHandler->UnregisterRoutes(this);
 	StopHttpServer();
@@ -139,17 +147,33 @@ void FWebRemoteControlModule::ShutdownModule()
 
 FDelegateHandle FWebRemoteControlModule::RegisterRequestPreprocessor(FHttpRequestHandler RequestPreprocessor)
 {
-	FDelegateHandle Handle;
+	FDelegateHandle WebRCHandle{FDelegateHandle::GenerateNewHandle};
+	
+	PreprocessorsToRegister.Add(WebRCHandle, RequestPreprocessor);
+	
+	FDelegateHandle HttpRouterHandle;
 	if (HttpRouter)
 	{
-		Handle = HttpRouter->RegisterRequestPreprocessor(MoveTemp(RequestPreprocessor));
+		HttpRouterHandle = HttpRouter->RegisterRequestPreprocessor(MoveTemp(RequestPreprocessor));
 	}
-	return Handle;
+
+	PreprocessorsHandleMappings.Add(WebRCHandle, HttpRouterHandle);
+	
+	return WebRCHandle;
 }
 
 void FWebRemoteControlModule::UnregisterRequestPreprocessor(const FDelegateHandle& RequestPreprocessorHandle)
 {
-	HttpRouter->UnregisterRequestPreprocessor(RequestPreprocessorHandle);
+	PreprocessorsToRegister.Remove(RequestPreprocessorHandle);
+	if (FDelegateHandle* HttpRouterHandle = PreprocessorsHandleMappings.Find(RequestPreprocessorHandle))
+	{
+		if (HttpRouterHandle->IsValid())
+		{
+			HttpRouter->UnregisterRequestPreprocessor(*HttpRouterHandle);
+		}
+		
+		PreprocessorsHandleMappings.Remove(RequestPreprocessorHandle);
+	}
 }
 
 void FWebRemoteControlModule::RegisterRoute(const FRemoteControlRoute& Route)
@@ -201,6 +225,20 @@ void FWebRemoteControlModule::StartHttpServer()
 		for (FRemoteControlRoute& Route : RegisteredHttpRoutes)
 		{
 			StartRoute(Route);
+		}
+
+		// Go through externally registered request pre-processors and register them with the http router.
+		for (const TPair<FDelegateHandle, FHttpRequestHandler>& Handler : PreprocessorsToRegister)
+		{
+			// Find the pre-processors HTTP-handle from the one we generated.
+			FDelegateHandle& Handle = PreprocessorsHandleMappings.FindChecked(Handler.Key);
+			if (Handle.IsValid())
+			{
+				HttpRouter->UnregisterRequestPreprocessor(Handle);
+			}
+
+			// Update the preprocessor handle mapping.
+			Handle = HttpRouter->RegisterRequestPreprocessor(Handler.Value);
 		}
 
 		FHttpServerModule::Get().StartAllListeners();
@@ -627,7 +665,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	{
 		TArray<uint8> WorkingBuffer;
 		FMemoryWriter Writer(WorkingBuffer);
-		FRCJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+		FRCJsonStructSerializerBackend SerializerBackend(Writer);
 		if (IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend))
 		{
 			Response->Code = EHttpServerResponseCodes::Ok;
@@ -704,14 +742,12 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	}
 
 	FBlockDelimiters Delimiters = CallRequest.GetParameterDelimiters(FRCPresetCallRequest::ParametersLabel());
-
-	FMemoryReader Reader{ CallRequest.TCHARBody };
-	FRCJsonStructDeserializerBackend ReaderBackend{ Reader };
+	const int64 DelimitersSize = Delimiters.GetBlockSize();
 
 	TArray<uint8> OutputBuffer;
 	FMemoryWriter Writer{ OutputBuffer };
 	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
-	FRCJsonStructSerializerBackend WriterBackend{ Writer, EStructSerializerBackendFlags::Default };
+	FRCJsonStructSerializerBackend WriterBackend{ Writer };
 
 	JsonWriter->WriteObjectStart();
 	JsonWriter->WriteIdentifierPrefix("ReturnedValues");
@@ -719,10 +755,24 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 
 	bool bSuccess = false;
 
-	if (Delimiters.BlockStart != Delimiters.BlockEnd)
+	if (Delimiters.BlockStart != Delimiters.BlockEnd &&
+		CallRequest.TCHARBody.IsValidIndex(Delimiters.BlockStart) &&
+		CallRequest.TCHARBody.IsValidIndex(DelimitersSize)
+		)
 	{
-		Reader.Seek(Delimiters.BlockStart);
-		Reader.SetLimitSize(Delimiters.BlockEnd + 1);
+		/**
+		 * In order to have a replication payload we need to copy the inner payload from TCHARBody to new buffer
+		 * Example:
+		 * Original buffer from HTTP rquest: { "Parameters": { "NewLocation": {"X": 0, "Y": 0, "Z": 400} }
+		 * New buffer: "NewLocation": {"X": 0, "Y": 0, "Z": 400}
+		 */
+		TArray<uint8> FunctionPayload;
+		FunctionPayload.SetNumUninitialized(DelimitersSize);
+		const uint8* DataStart = &CallRequest.TCHARBody[Delimiters.BlockStart];	
+		FMemory::Memcpy(FunctionPayload.GetData(), DataStart, DelimitersSize);
+
+		FMemoryReader Reader{ FunctionPayload };
+		FRCJsonStructDeserializerBackend ReaderBackend{ Reader };
 
 		// Copy the default arguments.
 		FStructOnScope FunctionArgs{ RCFunction->GetFunction() };
@@ -749,7 +799,9 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 				Call.bGenerateTransaction = CallRequest.GenerateTransaction;
 				Call.ParamStruct = FStructOnScope(FunctionArgs.GetStruct(), FunctionArgs.GetStructMemory());
 
-				bSuccess &= IRemoteControlModule::Get().InvokeCall(Call);
+				// Invoke call with replication payload
+				bSuccess &= IRemoteControlModule::Get().InvokeCall(Call, ERCPayloadType::Json, FunctionPayload);
+
 				if (bSuccess)
 				{
 					FStructOnScope ReturnedStruct{ FunctionArgs.GetStruct() };
@@ -917,7 +969,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	{
 		{
 			JsonWriter->WriteIdentifierPrefix(TEXT("ExposedPropertyDescription"));
-			FRCJsonStructSerializerBackend SerializeBackend{Writer, EStructSerializerBackendFlags::Default};
+			FRCJsonStructSerializerBackend SerializeBackend{Writer};
 			FStructSerializer::Serialize(FRCExposedPropertyDescription{*RemoteControlProperty}, SerializeBackend, FStructSerializerPolicies());
 		}
 		
@@ -997,7 +1049,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHt
 
 			bSuccess &= IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Actor, FieldPath, ObjectRef);
 
-			FRCJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+			FRCJsonStructSerializerBackend SerializerBackend(Writer);
 
 			JsonWriter->WriteObjectStart();
 			JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
@@ -1051,7 +1103,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute(const F
 		{
 			TArray<uint8> WorkingBuffer;
 			FMemoryWriter Writer(WorkingBuffer);
-			FRCJsonStructSerializerBackend Backend{Writer, EStructSerializerBackendFlags::Default};
+			FRCJsonStructSerializerBackend Backend{Writer};
 
 			FRCObjectReference Ref{ ERCAccess::READ_ACCESS, Actor};
 			if (IRemoteControlModule::Get().GetObjectProperties(Ref, Backend))

@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "LevelExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
+#include "USDStageOptions.h"
 
 #include "Engine/EngineTypes.h"
-#include "USDStageOptions.h"
 
 #include "SkeletalMeshExporterUSDOptions.generated.h"
 
@@ -24,6 +25,10 @@ struct USDEXPORTER_API FSkeletalMeshExporterUSDInnerOptions
 	/** If true, the mesh data is exported to yet another "payload" file, and referenced via a payload composition arc */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings )
 	bool bUsePayload;
+
+	/** USD format to use for exported payload files */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings, meta = ( EditCondition = "bUsePayload", GetOptions = "USDExporter.LevelExporterUSDOptions.GetUsdExtensions" ) )
+	FString PayloadFormat;
 };
 
 /**

@@ -98,14 +98,14 @@ class RedeployListenerEndpoint(QtCore.QObject):
     @QtCore.Slot()
     def connect_client(self):
         # Ensure this code is run from the main thread
-        if threading.current_thread().name != 'MainThread':
+        if threading.current_thread() is not threading.main_thread():
             QtCore.QMetaObject.invokeMethod(self, 'connect_client', QtCore.Qt.QueuedConnection)
             return
 
         # Suppress on_disconnect for this expected disconnect
         self.client.disconnect()
         self.client.disconnect_delegate = self.on_disconnect
-        self.client.connect()
+        self.client.connect(blocking=True)
 
     def on_disconnect(self, unexpected, exception):
         self.version = None
@@ -190,7 +190,7 @@ class RedeployListenerDialog(QtWidgets.QDialog):
                 endpoint = RedeployListenerEndpoint(self, device.unreal_client.ip_address, device.unreal_client.port)
                 endpoint.signal_result.connect(self.on_endpoint_result)
                 endpoint.signal_refresh_ui.connect(self.refresh_ui)
-                endpoint.client.connect()
+                endpoint.client.connect(blocking=True)
                 layout.addWidget(endpoint.endpoint_label, row_idx, 0)
                 layout.addWidget(endpoint.devices_label,  row_idx, 1)
                 layout.addWidget(endpoint.version_label,  row_idx, 2)

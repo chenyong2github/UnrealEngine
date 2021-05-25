@@ -3271,11 +3271,30 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 
 	CreateUEPbrMaterialGraph(MaterialElement, AssetsContext, UnrealMaterial);
 
+	EDatasmithShadingModel MaterialShadingModel = MaterialElement->GetShadingModel();
+	switch (MaterialShadingModel)
+	{
+		case EDatasmithShadingModel::Subsurface: 
+			UnrealMaterial->SetShadingModel(MSM_Subsurface); 
+			break;
+
+		case EDatasmithShadingModel::ClearCoat: 
+			UnrealMaterial->SetShadingModel(MSM_ClearCoat); 
+			break;
+
+		case EDatasmithShadingModel::ThinTranslucent:
+			UnrealMaterial->SetShadingModel(MSM_ThinTranslucent);
+			break;
+
+		default:
+			break;
+	}
+	
+
 	if ( MaterialElement->GetOpacity().GetExpression() )
 	{
 		if ( MaterialElement->GetShadingModel() == EDatasmithShadingModel::ThinTranslucent )
 		{
-			UnrealMaterial->SetShadingModel( MSM_ThinTranslucent );
 			UnrealMaterial->TranslucencyLightingMode = TLM_SurfacePerPixelLighting;
 		}
 		else

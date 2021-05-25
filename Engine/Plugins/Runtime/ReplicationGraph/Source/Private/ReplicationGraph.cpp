@@ -145,6 +145,7 @@ CSV_DEFINE_CATEGORY(ReplicationGraphKBytes, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphChannelsOpened, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphNumReps, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphVisibleLevels, WITH_SERVER_CODE);
+CSV_DEFINE_CATEGORY(ReplicationGraphForcedUpdates, WITH_SERVER_CODE);
 
 static TAutoConsoleVariable<FString> CVarRepGraphConditionalBreakpointActorName(TEXT("Net.RepGraph.ConditionalBreakpointActorName"), TEXT(""), 
 	TEXT("Helper CVar for debugging. Set this string to conditionally log/breakpoint various points in the repgraph pipeline. Useful for bugs like 'why is this actor channel closing'"), ECVF_Default );
@@ -674,6 +675,8 @@ void UReplicationGraph::ForceNetUpdate(AActor* Actor)
 	{
 		RepInfo->ForceNetUpdateFrame = ReplicationGraphFrame;
 		RepInfo->Events.ForceNetUpdate.Broadcast(Actor, *RepInfo);
+
+		CSVTracker.PostActorForceUpdated(Actor->GetClass());
 	}
 }
 

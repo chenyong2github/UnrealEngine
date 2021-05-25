@@ -56,10 +56,6 @@ struct FMoviePipelineMapTreeItem;
 struct FMoviePipelineShotItem;
 class SQueueJobListRow;
 
-// Forward Declare
-static void EnsureJobHasDefaultSettings(UMoviePipelineExecutorJob* NewJob);
-
-
 struct IMoviePipelineQueueTreeItem : TSharedFromThis<IMoviePipelineQueueTreeItem>
 {
 	virtual ~IMoviePipelineQueueTreeItem() {}
@@ -202,7 +198,7 @@ public:
 		{
 			// Copy from the CDO's version of the job to pick up the right name.
 			Job->SetConfiguration(GetMutableDefault<UMoviePipelineExecutorJob>()->GetConfiguration());
-			EnsureJobHasDefaultSettings(Job);
+			UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(Job);
 		}
 
 		OnChosePresetCallback.ExecuteIfBound(WeakJob, nullptr);
@@ -1022,29 +1018,6 @@ TSharedRef<SWidget> SMoviePipelineQueueEditor::OnGenerateNewJobFromAssetMenu()
 
 PRAGMA_ENABLE_OPTIMIZATION
 
-void EnsureJobHasDefaultSettings(UMoviePipelineExecutorJob* NewJob)
-{
-	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	for (TSubclassOf<UMoviePipelineSetting> SettingClass : ProjectSettings->DefaultClasses)
-	{
-		if (!SettingClass)
-		{
-			continue;
-		}
-
-		if (SettingClass->HasAnyClassFlags(CLASS_Abstract))
-		{
-			continue;
-		}
-
-		UMoviePipelineSetting* ExistingSetting = NewJob->GetConfiguration()->FindSettingByClass(SettingClass);
-		if (!ExistingSetting)
-		{
-			NewJob->GetConfiguration()->FindOrAddSettingByClass(SettingClass);
-		}
-	}
-}
-
 void SMoviePipelineQueueEditor::OnCreateJobFromAsset(const FAssetData& InAsset)
 {
 	// Close the dropdown menu that showed them the assets to pick from.
@@ -1078,8 +1051,8 @@ void SMoviePipelineQueueEditor::OnCreateJobFromAsset(const FAssetData& InAsset)
 		}
 
 		// Ensure the job has the settings specified by the project settings added. If they're already added
-		// we don't modify the object so that we don't make it confused about whehter or not you've modified the preset.
-		EnsureJobHasDefaultSettings(NewJob);
+		// we don't modify the object so that we don't make it confused about whether or not you've modified the preset.
+		UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(NewJob);
 	}
 }
 

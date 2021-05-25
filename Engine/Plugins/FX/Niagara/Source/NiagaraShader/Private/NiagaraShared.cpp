@@ -386,6 +386,23 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
+#if WITH_EDITOR
+void FNiagaraShaderScript::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, FStableShaderKeyAndValue& SaveKeyVal)
+{
+	if (GameThreadShaderMap)
+	{
+		FString FeatureLevelName;
+		GetFeatureLevelName(FeatureLevel, FeatureLevelName);
+		SaveKeyVal.FeatureLevel = FName(*FeatureLevelName);
+
+		static FName FName_Num(TEXT("Num")); // Niagara resources aren't associated with a quality level, so we use Num which for the materials means "Default"
+		SaveKeyVal.QualityLevel = FName_Num;
+
+		GameThreadShaderMap->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+	}
+}
+#endif
+
 void FNiagaraShaderScript::SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines, const TArray<FString>& InAdditionalVariables,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, FString InFriendlyName)

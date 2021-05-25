@@ -681,24 +681,6 @@ void UMaterialInterface::AssertDefaultMaterialsPostLoaded()
 	}
 }
 
-void SetCompactFullNameFromObject(FCompactFullName &Dest, UObject* InDepObject)
-{
-	UObject* DepObject = InDepObject;
-	if (DepObject)
-	{
-		Dest.ObjectClassAndPath.Add(DepObject->GetClass()->GetFName());
-		while (DepObject)
-		{
-			Dest.ObjectClassAndPath.Insert(DepObject->GetFName(), 1);
-			DepObject = DepObject->GetOuter();
-		}
-	}
-	else
-	{
-		Dest.ObjectClassAndPath.Add(FName("null"));
-	}
-}
-
 FString MaterialDomainString(EMaterialDomain MaterialDomain)
 {
 	static const UEnum* Enum = StaticEnum<EMaterialDomain>();
@@ -4321,7 +4303,7 @@ void UMaterial::SaveShaderStableKeys(const class ITargetPlatform* TP)
 {
 #if WITH_EDITOR
 	FStableShaderKeyAndValue SaveKeyVal;
-	SetCompactFullNameFromObject(SaveKeyVal.ClassNameAndObjectPath, this);
+	SaveKeyVal.ClassNameAndObjectPath.SetCompactFullNameFromObject(this);
 	SaveShaderStableKeysInner(TP, SaveKeyVal);
 #endif
 }

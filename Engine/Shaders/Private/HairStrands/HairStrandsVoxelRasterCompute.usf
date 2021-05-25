@@ -36,7 +36,6 @@ uint3			VirtualVoxelParams_PageCountResolution;
 uint3			VirtualVoxelParams_PageTextureResolution;
 
 Buffer<uint>	VirtualVoxelParams_PageIndexBuffer;
-Buffer<uint4>	VirtualVoxelParams_PageIndexCoordBuffer;
 StructuredBuffer<FPackedVirtualVoxelNodeDesc> VirtualVoxelParams_NodeDescBuffer;
 
 RWTexture3D<uint> OutPageTexture;

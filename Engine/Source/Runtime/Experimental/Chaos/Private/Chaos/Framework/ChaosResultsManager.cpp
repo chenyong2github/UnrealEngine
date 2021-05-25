@@ -212,7 +212,7 @@ namespace Chaos
 				RigidData.LeashAlpha = 1;	//if no resim interp just use global alpha
 				if (FResimParticleInfo* LeashInfo = ParticleToResimInfo.Find(RigidData.Prev.GetProxy()))
 				{
-					const FReal LeashAlpha = ComputeLeashAlphaHelper(LeashInfo->Time);
+					const FReal LeashAlpha = ComputeLeashAlphaHelper(LeashInfo->LeashStartTime);
 					if (LeashAlpha >= 1)
 					{
 						ParticleToResimInfo.Remove(Proxy);	//no longer interpolating
@@ -238,7 +238,7 @@ namespace Chaos
 			FSingleParticlePhysicsProxy* Proxy = Itr.Key;
 			if (Proxy->GetPullDataInterpIdx_External() == INDEX_NONE)	//not in results array
 			{
-				const FReal LeashAlpha = ComputeLeashAlphaHelper(Itr.Value.Time);
+				const FReal LeashAlpha = ComputeLeashAlphaHelper(Itr.Value.LeashStartTime);
 
 				if(Itr.Value.bDiverged)
 				{
@@ -360,7 +360,8 @@ namespace Chaos
 				{
 					FResimParticleInfo& ResimInfo = ParticleToResimInfo.FindOrAdd(ResimProxy);
 					ResimInfo.bDiverged = true;	//If not in original data then diverged, otherwise will be reset below
-					ResimInfo.Time = Results.Next->ExternalEndTime;
+					ResimInfo.LeashStartTime = LatestTimeSeen;
+					ResimInfo.EntryTime = Results.Next->ExternalEndTime;
 					ResimInfo.Next = ResimDirty;
 				}
 			}
@@ -378,13 +379,14 @@ namespace Chaos
 					FResimParticleInfo* ResimInfo = ParticleToResimInfo.Find(OriginalProxy);
 					if(ensure(ResimInfo))
 					{
-						ResimInfo->bDiverged = (ResimInfo->Time == OriginalData->ExternalEndTime) ? StateDiverged(ResimInfo->Next, OriginalDirty) : true;
+						ResimInfo->bDiverged = (ResimInfo->EntryTime == OriginalData->ExternalEndTime) ? StateDiverged(ResimInfo->Next, OriginalDirty) : true;
 						if(ResimInfo->bDiverged)
 						{
 							//We still use resim's latest target (i.e. maybe it stopped moving a few frames ago)
 							//But the time is updated since we want the leash to be turned on for x seconds
 							//(We want to record latest moment of divergence, not moment when resim data was recorded)
-							ResimInfo->Time = Results.Next->ExternalEndTime;
+							ResimInfo->EntryTime = Results.Next->ExternalEndTime;
+							ResimInfo->LeashStartTime = LatestTimeSeen;
 						
 						}
 					}

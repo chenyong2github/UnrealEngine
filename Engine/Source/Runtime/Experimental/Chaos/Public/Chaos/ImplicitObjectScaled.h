@@ -226,12 +226,6 @@ public:
 		return MObject->GetMostOpposingPlane(Normal);
 	}
 
-	// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
-	int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
-	{
-		return MObject->GetMostOpposingPlane(VertexIndex, Normal);
-	}
-
 	// Get the nearest point on an edge of the specified face
 	FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
 	{
@@ -243,16 +237,11 @@ public:
 		return MObject->GetClosestEdgeVertices(PlaneIndexHint, Position, OutVertexIndex0, OutVertexIndex1);
 	}
 
-	// The number of planes that use the specified vertex
-	int32 NumVertexPlanes(int32 VertexIndex) const
+	// Get an array of all the plane indices that belong to a vertex (up to MaxVertexPlanes).
+	// Returns the number of planes found.
+	int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
 	{
-		return MObject->NumVertexPlanes(VertexIndex);
-	}
-
-	// Get the plane index of one of the planes that uses the specified vertex
-	int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
-	{
-		return MObject->GetVertexPlane(VertexIndex, VertexPlaneIndex);
+		return MObject->FindVertexPlanes(VertexIndex, OutVertexPlanes, MaxVertexPlanes);
 	}
 
 	// The number of vertices that make up the corners of the specified face
@@ -267,9 +256,24 @@ public:
 		return MObject->GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 	}
 
+	int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+	{
+		return MObject->GetEdgeVertex(EdgeIndex, EdgeVertexIndex);
+	}
+
+	int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+	{
+		return MObject->GetEdgePlane(EdgeIndex, EdgePlaneIndex);
+	}
+
 	int32 NumPlanes() const
 	{
 		return MObject->NumPlanes();
+	}
+
+	int32 NumEdges() const
+	{
+		return MObject->NumEdges();
 	}
 
 	int32 NumVertices() const
@@ -277,13 +281,13 @@ public:
 		return MObject->NumVertices();
 	}
 
-	// Get the plane at the specified index (e.g., indices from GetVertexPlane)
+	// Get the plane at the specified index (e.g., indices from FindVertexPlanes)
 	const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 	{
 		return MObject->GetPlane(FaceIndex);
 	}
 
-	// Get the vertex at the specified index (e.g., indices from GetPlaneVertex)
+	// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
 	const FVec3 GetVertex(int32 VertexIndex) const
 	{
 		return MObject->GetVertex(VertexIndex);
@@ -627,12 +631,6 @@ public:
 		return MObject->GetMostOpposingPlaneScaled(Normal, MScale);
 	}
 
-	// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
-	int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
-	{
-		return MObject->GetMostOpposingPlane(VertexIndex, GetInnerUnscaledNormal(Normal));
-	}
-
 	// Get the nearest point on an edge of the specified face
 	FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
 	{
@@ -644,16 +642,11 @@ public:
 		return MObject->GetClosestEdgeVertices(PlaneIndex, MInvScale * Position, OutVertexIndex0, OutVertexIndex1);
 	}
 
-	// The number of planes that use the specified vertex
-	int32 NumVertexPlanes(int32 VertexIndex) const
+	// Get an array of all the plane indices that belong to a vertex (up to MaxVertexPlanes).
+	// Returns the number of planes found.
+	int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
 	{
-		return MObject->NumVertexPlanes(VertexIndex);
-	}
-
-	// Get the plane index of one of the planes that uses the specified vertex
-	int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
-	{
-		return MObject->GetVertexPlane(VertexIndex, VertexPlaneIndex);
+		return MObject->FindVertexPlanes(VertexIndex, OutVertexPlanes, MaxVertexPlanes);
 	}
 
 	// The number of vertices that make up the corners of the specified face
@@ -668,9 +661,24 @@ public:
 		return MObject->GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 	}
 
+	int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+	{
+		return MObject->GetEdgeVertex(EdgeIndex, EdgeVertexIndex);
+	}
+
+	int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+	{
+		return MObject->GetEdgePlane(EdgeIndex, EdgePlaneIndex);
+	}
+
 	int32 NumPlanes() const
 	{
 		return MObject->NumPlanes();
+	}
+
+	int32 NumEdges() const
+	{
+		return MObject->NumEdges();
 	}
 
 	int32 NumVertices() const
@@ -678,7 +686,7 @@ public:
 		return MObject->NumVertices();
 	}
 
-	// Get the plane at the specified index (e.g., indices from GetVertexPlane)
+	// Get the plane at the specified index (e.g., indices from FindVertexPlanes)
 	const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 	{
 		const TPlaneConcrete<FReal, 3> InnerPlane = MObject->GetPlane(FaceIndex);

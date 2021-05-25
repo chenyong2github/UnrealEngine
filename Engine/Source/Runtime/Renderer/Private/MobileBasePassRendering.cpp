@@ -224,7 +224,7 @@ TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUnifo
 void SetupMobileDirectionalLightUniformParameters(
 	const FScene& Scene,
 	const FViewInfo& SceneView,
-	const TArray<FVisibleLightInfo,SceneRenderingAllocator> VisibleLightInfos,
+	const TArray<FVisibleLightInfo,SceneRenderingAllocator>& VisibleLightInfos,
 	int32 ChannelIdx,
 	bool bDynamicShadows,
 	FMobileDirectionalLightShaderParameters& Params)

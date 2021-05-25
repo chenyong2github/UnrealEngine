@@ -937,9 +937,6 @@ private:
 #endif
 };
 
-// Used to set up some compact FName paths for the FCompactFullName
-ENGINE_API void SetCompactFullNameFromObject(struct FCompactFullName &Dest, UObject* InDepObject);
-
 /** Helper function to serialize inline shader maps for the given material resources. */
 extern void SerializeInlineShaderMaps(
 	const TMap<const class ITargetPlatform*, TArray<FMaterialResource*>>* PlatformMaterialResourcesToSave,

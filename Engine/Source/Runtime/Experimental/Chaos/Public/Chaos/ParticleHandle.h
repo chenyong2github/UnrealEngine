@@ -2042,6 +2042,16 @@ public:
 		MKinematicTarget.Write(KinematicTarget, bInvalidate, MDirtyFlags, Proxy);
 	}
 
+	bool IsKinematicTargetDirty() const
+	{
+		return MKinematicTarget.IsDirty(MDirtyFlags);
+	}
+
+	void ClearKinematicTarget()
+	{
+		MKinematicTarget.Clear(MDirtyFlags, Proxy);
+	}
+
 	void SetVelocities(const FParticleVelocities& InVelocities,bool bInvalidate = true)
 	{
 		MVelocities.Write(InVelocities,bInvalidate,MDirtyFlags,Proxy);

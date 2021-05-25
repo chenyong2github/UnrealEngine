@@ -30,8 +30,6 @@ public:
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
 	virtual void SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio) override;
-	virtual bool CanNodeOverlapSiblings() const override { return false; }
-	virtual bool CanNodeEncroachChildBounds() const { return false; }
 	virtual bool CanNodeBeSnapAligned() const override { return true; }
 	virtual bool CanNodeBeResized() const;
 	//~ End SDisplayClusterConfiguratorBaseNode interface

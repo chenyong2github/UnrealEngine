@@ -1399,15 +1399,19 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().CreateCamera );
-			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
 
-			ToolBarBuilder.AddComboButton(
-				FUIAction(),
-				FOnGetContent::CreateSP( this, &SSequencer::MakeRenderMovieMenu ),
-				LOCTEXT( "RenderMovieOptions", "Render Movie Options" ),
-				LOCTEXT( "RenderMovieOptionsToolTip", "Render Movie Options" ),
-				TAttribute<FSlateIcon>(),
-				true );
+			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsRenderMovie)
+			{
+				ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
+				
+				ToolBarBuilder.AddComboButton(
+					FUIAction(),
+					FOnGetContent::CreateSP( this, &SSequencer::MakeRenderMovieMenu ),
+					LOCTEXT( "RenderMovieOptions", "Render Movie Options" ),
+					LOCTEXT( "RenderMovieOptionsToolTip", "Render Movie Options" ),
+					TAttribute<FSlateIcon>(),
+					true );
+			}
 
 			UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
 			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
@@ -3291,7 +3295,7 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 	// If nobody took care of it, do the default behaviour.
 	if (DropResult == ESequencerDropResult::Unhandled)
 	{
-		FMovieSceneTrackEditor::BeginKeying();
+		FMovieSceneTrackEditor::BeginKeying(SequencerPtr.Pin()->GetLocalTime().Time.FrameNumber);
 
 		for (TArray<UObject*>::TConstIterator CurObjectIter = DroppedObjects.CreateConstIterator(); CurObjectIter; ++CurObjectIter)
 		{
@@ -3571,7 +3575,10 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 				SequencerHelpers::GetAllKeyAreas( Node, KeyAreas );
 				for ( TSharedPtr<IKeyArea> KeyArea : KeyAreas )
 				{
-					KeyArea->GetKeyTimes(AllTimes, KeyArea->GetOwningSection()->GetRange());
+					if (KeyArea->GetOwningSection())
+					{
+						KeyArea->GetKeyTimes(AllTimes, KeyArea->GetOwningSection()->GetRange());
+					}
 				}
 
 				TSet<TWeakObjectPtr<UMovieSceneSection> > Sections;

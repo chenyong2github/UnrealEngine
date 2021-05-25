@@ -17,7 +17,6 @@ public:
 public:
 #if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ColorSetting", "Color Output"); }
-	virtual bool CanBeDisabled() const override { return false; }
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	virtual bool IsValidOnShots() const override { return false; }

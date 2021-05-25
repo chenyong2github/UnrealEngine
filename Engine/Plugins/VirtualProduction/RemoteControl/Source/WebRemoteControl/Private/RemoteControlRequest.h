@@ -10,6 +10,9 @@ struct FBlockDelimiters
 {
 	int64 BlockStart = -1;
 	int64 BlockEnd = -1;
+
+	/** Get the size of current block */
+	int64 GetBlockSize() const { return BlockEnd - BlockStart; }
 };
 
 /**

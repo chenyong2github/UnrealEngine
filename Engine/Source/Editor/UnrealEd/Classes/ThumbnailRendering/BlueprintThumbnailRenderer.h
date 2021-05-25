@@ -13,6 +13,7 @@
 #include "ThumbnailHelpers.h"
 #include "BlueprintThumbnailRenderer.generated.h"
 
+class UBlueprint;
 class FCanvas;
 class FRenderTarget;
 
@@ -20,6 +21,8 @@ UCLASS(config=Editor,MinimalAPI)
 class UBlueprintThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
+
+	UNREALED_API virtual ~UBlueprintThumbnailRenderer();
 
 	// Begin UThumbnailRenderer Object
 	UNREALED_API virtual bool CanVisualizeAsset(UObject* Object) override;
@@ -31,7 +34,10 @@ class UBlueprintThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 	// End UObject implementation
 
 	/** Notifies the thumbnail scene to refresh components for the specified blueprint */
-	void BlueprintChanged(class UBlueprint* Blueprint);
+	void BlueprintChanged(UBlueprint* Blueprint);
+
+private:
+	void OnBlueprintUnloaded(UBlueprint* Blueprint);
 
 private:
 	TClassInstanceThumbnailScene<FBlueprintThumbnailScene, 100> ThumbnailScenes;

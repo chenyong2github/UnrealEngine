@@ -40,12 +40,13 @@ private:
 	void HandleWebSocketPresetUnregister(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	//Preset callbacks
-	void OnPresetExposedPropertyChanged(URemoteControlPreset* Owner, const FRemoteControlProperty& PropertyChanged);
-	void OnPropertyExposed(URemoteControlPreset* Owner, FName PropertyLabel);
-	void OnPropertyUnexposed(URemoteControlPreset* Owner, FName PropertyLabel);
+	void OnPresetExposedPropertiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedPropertyIds);
+	void OnPropertyExposed(URemoteControlPreset* Owner,  const FGuid& EntityId);
+	void OnPropertyUnexposed(URemoteControlPreset* Owner, const FGuid& EntityId);
 	void OnFieldRenamed(URemoteControlPreset* Owner, FName OldFieldLabel, FName NewFieldLabel);
 	void OnMetadataModified(URemoteControlPreset* Owner);
 	void OnActorPropertyChanged(URemoteControlPreset* Owner, FRemoteControlActor& Actor, UObject* ModifiedObject, FProperty* ModifiedProperty);
+	void OnEntitiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedEntities);
 
 	/** Callback when a websocket connection was closed. Let us clean out registrations */
 	void OnConnectionClosedCallback(FGuid ClientId);
@@ -85,7 +86,7 @@ private:
 	/**
 	 * Write the provided list of events to a buffer.
 	 */
-	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TArray<FRemoteControlProperty>& InEvents, TArray<uint8>& OutBuffer);
+	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, TArray<uint8>& OutBuffer);
 
 	/**
 	 * Write the provided list of actor modifications to a buffer.
@@ -113,16 +114,16 @@ private:
 	TMap<FGuid, FRCClientConfig> ClientConfigMap;
 
 	/** Properties that changed for a frame, per preset.  */
-	TMap<FName, TMap<FGuid, TArray<FRemoteControlProperty>>> PerFramePropertyChanged;
+	TMap<FName, TMap<FGuid, TSet<FGuid>>> PerFrameModifiedProperties;
 
 	/** Properties that changed on an exposed actor for a given client, for a frame, per preset.  */
 	TMap<FName, TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>> PerFrameActorPropertyChanged;
 
 	/** Properties that were exposed for a frame, per preset */
-	TMap<FName, TArray<FName>> PerFrameAddedProperties;
+	TMap<FName, TArray<FGuid>> PerFrameAddedProperties;
 
 	/** Properties that were unexposed for a frame, per preset */
-	TMap<FName, TArray<FName>> PerFrameRemovedProperties;
+	TMap<FName, TTuple<TArray<FGuid>, TArray<FName>>> PerFrameRemovedProperties;
 
 	/** Fields that were renamed for a frame, per preset */
 	TMap<FName, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;

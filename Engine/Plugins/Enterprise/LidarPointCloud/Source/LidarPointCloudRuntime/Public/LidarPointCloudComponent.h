@@ -10,28 +10,6 @@
 class UBodySetup;
 
 UENUM(BlueprintType)
-enum class ELidarPointCloudColorationMode : uint8
-{
-	/** Uses color tint only */
-	None,
-	/** Uses imported RGB / Intensity data */
-	Data,
-	/** The cloud's color will be overridden with elevation-based color */
-	Elevation,
-	/** The cloud's color will be overridden with relative position-based color */
-	Position,
-	/** Uses Classification ID of the point along with the component's Classification Colors property to sample the color */
-	Classification
-};
-
-UENUM(BlueprintType)
-enum class ELidarPointCloudSpriteShape : uint8
-{
-	Square,
-	Circle,
-};
-
-UENUM(BlueprintType)
 enum class ELidarPointCloudSpriteOrientation : uint8
 {
 	/** The sprites will face camera, even if Normals are available. */
@@ -59,33 +37,15 @@ private:
 
 public:
 	/**
-	 * Determines the minimum screen size for the node to be rendered.
-	 * Lower values will produce farther view distance, at the cost of higher CPU usage.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Performance", meta = (ClampMin = "0"))
-	float MinScreenSize;
-
-	/**
-	 * If enabled, points outside of the visible frustum will not be rendered.
-	 * While most project should leave this enabled, disabling it may help
-	 * with the data streaming lag when shooting cinematics.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Performance", meta = (ClampMin = "0"))
-	bool bUseFrustumCulling;
-
-	/**
 	 * Use to tweak the size of the points.
 	 * Set to 0 to switch to 1 pixel points.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (ClampMin = "0.0"))
 	float PointSize;
 
-	/**
-	 * If enabled, sprites will be rendered using screen-space scaling method.
-	 * In that mode, Point Size property will work as Screen Percentage.
-	 */
+	/** Determines how the points will be scaled  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
-	bool bUseScreenSizeScaling;
+	ELidarPointCloudScalingMethod ScalingMethod;
 
 	/**
 	 * If set to > 0, it attempts to close gaps between points.
@@ -155,6 +115,14 @@ public:
 	/** Specifies the influence of Intensity data, if available, on the overall color. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color Adjustment", meta = (ClampMin = "0", ClampMax = "1"))
 	float IntensityInfluence;
+
+	/**
+	 * If enabled, points outside of the visible frustum will not be rendered.
+	 * While most project should leave this enabled, disabling it may help
+	 * with the data streaming lag when shooting cinematics.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
+	bool bUseFrustumCulling;
 
 	/**
 	 * Minimum Depth from which the nodes should be rendered.

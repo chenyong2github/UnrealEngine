@@ -5871,9 +5871,13 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 		}
 	}
 
-	for (AudioDeviceUtils::FVirtualLoopPair& Pair : VirtualLoops)
+	// We use a copy as some operations may modify VirtualLoops
 	{
-		AddSoundToStop(Pair.Key);
+		TMap<FActiveSound*, FAudioVirtualLoop> VirtualLoopsCopy = VirtualLoops;
+		for (AudioDeviceUtils::FVirtualLoopPair& Pair : VirtualLoopsCopy)
+		{
+			AddSoundToStop(Pair.Key);
+		}
 	}
 
 	// Immediately stop all pending active sounds
@@ -6042,6 +6046,8 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 
 		float CompressedDurationThreshold = GetCompressionDurationThreshold(SoundGroup);
 
+		static FName NAME_OGG(TEXT("OGG"));
+		SoundWave->bDecompressedFromOgg = GetRuntimeFormat(SoundWave) == NAME_OGG;
 
 		// handle audio decompression
 		if (FPlatformProperties::SupportsAudioStreaming() && SoundWave->IsStreaming(nullptr))
@@ -6089,9 +6095,6 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 				SoundWave->AudioDecompressor->StartBackgroundTask();
 				PrecachingSoundWaves.Add(SoundWave);
 			}
-
-			static FName NAME_OGG(TEXT("OGG"));
-			SoundWave->bDecompressedFromOgg = GetRuntimeFormat(SoundWave) == NAME_OGG;
 
 			// the audio decompressor will track memory
 			if (SoundWave->DecompressionType == DTYPE_Native)

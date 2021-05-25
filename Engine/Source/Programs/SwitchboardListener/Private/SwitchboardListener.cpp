@@ -147,6 +147,11 @@ FSwitchboardCommandLineOptions FSwitchboardCommandLineOptions::FromString(const 
 		OutOptions.OutputVersion = true;
 	}
 
+	if (Switches.Contains(TEXT("noMinimizeOnLaunch")))
+	{
+		OutOptions.MinimizeOnLaunch = false;
+	}
+
 	if (SwitchPairs.Contains(TEXT("ip")))
 	{
 		FIPv4Address ParseAddr;
@@ -173,6 +178,11 @@ FString FSwitchboardCommandLineOptions::ToString(bool bIncludeRedeploy /* = fals
 {
 	TArray<FString> Args;
 
+	if (!MinimizeOnLaunch)
+	{
+		Args.Add(TEXT("-noMinimizeOnLaunch"));
+	}
+
 	if (Address.IsSet())
 	{
 		Args.Add(FString::Printf(TEXT("-ip=%s"), *Address.GetValue().ToString()));
@@ -198,6 +208,7 @@ FSwitchboardListener::FSwitchboardListener(const FSwitchboardCommandLineOptions&
 	: Options(InOptions)
 	, SocketListener(nullptr)
 	, CpuMonitor(MakeShared<FCpuUtilizationMonitor, ESPMode::ThreadSafe>())
+	, bIsNvAPIInitialized(false)
 	, CachedMosaicToposLock(MakeShared<FRWLock, ESPMode::ThreadSafe>())
 	, CachedMosaicTopos(MakeShared<TArray<FMosaicTopo>, ESPMode::ThreadSafe>())
 {
@@ -205,13 +216,19 @@ FSwitchboardListener::FSwitchboardListener(const FSwitchboardCommandLineOptions&
 	// initialize NvAPI
 	{
 		const NvAPI_Status Result = NvAPI_Initialize();
-		if (Result != NVAPI_OK)
+		if (Result == NVAPI_OK)
 		{
-			UE_LOG(LogSwitchboard, Fatal, TEXT("NvAPI_Initialize failed. Error code: %d"), Result);
+			bIsNvAPIInitialized = true;
+
+			FillOutMosaicTopologies(*CachedMosaicTopos);
+		}
+		else
+		{
+			NvAPI_ShortString ErrorString;
+			NvAPI_GetErrorMessage(Result, ErrorString);
+			UE_LOG(LogSwitchboard, Error, TEXT("NvAPI_Initialize failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 		}
 	}
-
-	FillOutMosaicTopologies(*CachedMosaicTopos);
 #endif // PLATFORM_WINDOWS
 
 	const FIPv4Address DefaultIp = FIPv4Address(0, 0, 0, 0);
@@ -1166,7 +1183,9 @@ static void FillOutSyncTopologies(TArray<FSyncTopo>& SyncTopos)
 
 			if (Result != NVAPI_OK)
 			{
-				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetTopology failed. Error code: %d"), Result);
+				NvAPI_ShortString ErrorString;
+				NvAPI_GetErrorMessage(Result, ErrorString);
+				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetTopology failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 				continue;
 			}
 		}
@@ -1196,7 +1215,9 @@ static void FillOutSyncTopologies(TArray<FSyncTopo>& SyncTopos)
 
 			if (Result != NVAPI_OK)
 			{
-				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetTopology failed. Error code: %d"), Result);
+				NvAPI_ShortString ErrorString;
+				NvAPI_GetErrorMessage(Result, ErrorString);
+				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetTopology failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 				continue;
 			}
 		}
@@ -1265,7 +1286,9 @@ static void FillOutSyncTopologies(TArray<FSyncTopo>& SyncTopos)
 
 			if (Result != NVAPI_OK)
 			{
-				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetStatusParameters failed. Error code: %d"), Result);
+				NvAPI_ShortString ErrorString;
+				NvAPI_GetErrorMessage(Result, ErrorString);
+				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetStatusParameters failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 				continue;
 			}
 
@@ -1284,7 +1307,9 @@ static void FillOutSyncTopologies(TArray<FSyncTopo>& SyncTopos)
 
 			if (Result != NVAPI_OK)
 			{
-				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetControlParameters failed. Error code: %d"), Result);
+				NvAPI_ShortString ErrorString;
+				NvAPI_GetErrorMessage(Result, ErrorString);
+				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetControlParameters failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 				continue;
 			}
 
@@ -1321,7 +1346,9 @@ static void FillOutDriverVersion(FSyncStatus& SyncStatus)
 
 	if (Result != NVAPI_OK)
 	{
-		UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_SYS_GetDriverAndBranchVersion failed. Error code: %d"), Result);
+		NvAPI_ShortString ErrorString;
+		NvAPI_GetErrorMessage(Result, ErrorString);
+		UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_SYS_GetDriverAndBranchVersion failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 		return;
 	}
 
@@ -1366,7 +1393,9 @@ static void FillOutMosaicTopologies(TArray<FMosaicTopo>& MosaicTopos)
 
 		if (Result != NVAPI_OK)
 		{
-			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_Mosaic_EnumDisplayGrids failed. Error code: %d"), Result);
+			NvAPI_ShortString ErrorString;
+			NvAPI_GetErrorMessage(Result, ErrorString);
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_Mosaic_EnumDisplayGrids failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 			return;
 		}
 	}
@@ -1384,7 +1413,9 @@ static void FillOutMosaicTopologies(TArray<FMosaicTopo>& MosaicTopos)
 
 		if (Result != NVAPI_OK)
 		{
-			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_Mosaic_EnumDisplayGrids failed. Error code: %d"), Result);
+			NvAPI_ShortString ErrorString;
+			NvAPI_GetErrorMessage(Result, ErrorString);
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_Mosaic_EnumDisplayGrids failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 			return;
 		}
 
@@ -1610,7 +1641,9 @@ static void FillOutPhysicalGpuStats(FSyncStatus& SyncStatus)
 	NvAPI_Status NvResult = NvAPI_EnumPhysicalGPUs(PhysicalGpuHandles.GetData(), &PhysicalGpuCount);
 	if (NvResult != NVAPI_OK)
 	{
-		UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_EnumPhysicalGPUs failed. Error code: %d"), NvResult);
+		NvAPI_ShortString ErrorString;
+		NvAPI_GetErrorMessage(NvResult, ErrorString);
+		UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_EnumPhysicalGPUs failed. Error: %s"), ANSI_TO_TCHAR(ErrorString));
 		return;
 	}
 
@@ -1626,13 +1659,21 @@ static void FillOutPhysicalGpuStats(FSyncStatus& SyncStatus)
 
 		if (LhsBusResult != NVAPI_OK || RhsBusResult != NVAPI_OK)
 		{
-			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetBusId failed. Error codes: %d, %d"), LhsBusResult, RhsBusResult);
+			NvAPI_ShortString LhsErrorString;
+			NvAPI_ShortString RhsErrorString;
+			NvAPI_GetErrorMessage(LhsBusResult, LhsErrorString);
+			NvAPI_GetErrorMessage(RhsBusResult, RhsErrorString);
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetBusId failed. Errors: %s, %s"), ANSI_TO_TCHAR(LhsErrorString), ANSI_TO_TCHAR(RhsErrorString));
 			return false;
 		}
 
 		if (LhsSlotResult != NVAPI_OK || RhsSlotResult != NVAPI_OK)
 		{
-			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetBusSlotId failed. Error codes: %d, %d"), LhsSlotResult, RhsSlotResult);
+			NvAPI_ShortString LhsErrorString;
+			NvAPI_ShortString RhsErrorString;
+			NvAPI_GetErrorMessage(LhsSlotResult, LhsErrorString);
+			NvAPI_GetErrorMessage(RhsSlotResult, RhsErrorString);
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetBusSlotId failed. Errors: %s, %s"), ANSI_TO_TCHAR(LhsErrorString), ANSI_TO_TCHAR(RhsErrorString));
 			return false;
 		}
 
@@ -1767,13 +1808,18 @@ bool FSwitchboardListener::Task_GetSyncStatus(const FSwitchboardGetSyncStatusTas
 	MessageFuture.Future = Async(EAsyncExecution::ThreadPool,
 		[
 			SyncStatus,
+			IsNvAPIInitialized=bIsNvAPIInitialized,
 			CpuMonitor=CpuMonitor,
 			CachedMosaicToposLock=CachedMosaicToposLock,
 			CachedMosaicTopos=CachedMosaicTopos
 		]() {
-			FillOutDriverVersion(SyncStatus.Get());
 			FillOutTaskbarAutoHide(SyncStatus.Get());
-			FillOutSyncTopologies(SyncStatus->SyncTopos);
+
+			if (IsNvAPIInitialized)
+			{
+				FillOutDriverVersion(SyncStatus.Get());
+				FillOutSyncTopologies(SyncStatus->SyncTopos);
+			}
 
 			{
 				FReadScopeLock Lock(*CachedMosaicToposLock);
@@ -1790,7 +1836,10 @@ bool FSwitchboardListener::Task_GetSyncStatus(const FSwitchboardGetSyncStatusTas
 			const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
 			SyncStatus->AvailablePhysicalMemory = MemStats.AvailablePhysical;
 
-			FillOutPhysicalGpuStats(SyncStatus.Get());
+			if (IsNvAPIInitialized)
+			{
+				FillOutPhysicalGpuStats(SyncStatus.Get());
+			}
 
 			return CreateSyncStatusMessage(SyncStatus.Get());
 		}
@@ -1809,6 +1858,14 @@ bool FSwitchboardListener::Task_GetSyncStatus(const FSwitchboardGetSyncStatusTas
 bool FSwitchboardListener::Task_RefreshMosaics(const FSwitchboardRefreshMosaicsTask& InRefreshMosaicsTask)
 {
 #if PLATFORM_WINDOWS
+	if (!bIsNvAPIInitialized)
+	{
+		SendMessage(
+			CreateTaskDeclinedMessage(InRefreshMosaicsTask, "NvAPI not supported", {}),
+			InRefreshMosaicsTask.Recipient);
+		return false;
+	}
+
 	// Reject request if an equivalent one is already in our future
 	if (EquivalentTaskFutureExists(InRefreshMosaicsTask.GetEquivalenceHash()))
 	{
@@ -1886,6 +1943,35 @@ void FSwitchboardListener::DisconnectClient(const FIPv4Endpoint& InClientEndpoin
 	ReceiveBuffer.Remove(InClientEndpoint);
 }
 
+void FSwitchboardListener::HandleStdout(const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& Process)
+{
+	TArray<uint8> Output;
+	if (FPlatformProcess::ReadPipeToArray(Process->ReadPipe, Output))
+	{
+		Process->Output.Append(Output);
+	}
+
+	// If there was a new stdout, update the clients
+	if (Output.Num() && Process->bUpdateClientsWithStdout)
+	{
+		FSwitchboardProgramStdout Packet;
+
+		Packet.Process.Uuid = Process->UUID.ToString();
+		Packet.Process.Name = Process->Name;
+		Packet.Process.Path = Process->Path;
+		Packet.Process.Caller = Process->Caller;
+		Packet.Process.Pid = Process->PID;
+
+		Packet.PartialStdoutB64 = FBase64::Encode(Output);
+
+		for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
+		{
+			const FIPv4Endpoint& ClientEndpoint = Connection.Key;
+			SendMessage(CreateMessage(Packet), ClientEndpoint);
+		}
+	}
+}
+
 void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>>& Processes, bool bNotifyThatProgramEnded)
 {
 	// Reads pipe and cleans up dead processes from the array.
@@ -1902,50 +1988,20 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 
 		if (Process->Handle.IsValid())
 		{
-			TArray<uint8> Output;
-
-			if (FPlatformProcess::ReadPipeToArray(Process->ReadPipe, Output))
-			{
-				// make sure the output array always has exactly one trailing null terminator.
-				// this way we can always convert to a valid string.
-				if (Process->Output.Num() > 0)
-				{
-					Process->Output.RemoveAt(Process->Output.Num() - 1);
-				}
-				Process->Output.Append(Output);
-				Process->Output.Add('\x00');
-			}
-
-			// If there was a new stdout, update the clients
-			if (Output.Num() && Process->bUpdateClientsWithStdout)
-			{
-				FSwitchboardProgramStdout Packet;
-
-				Packet.Process.Uuid = Process->UUID.ToString();
-				Packet.Process.Name = Process->Name;
-				Packet.Process.Path = Process->Path;
-				Packet.Process.Caller = Process->Caller;
-				Packet.Process.Pid = Process->PID;
-
-				Packet.PartialStdout = Output;
-
-				for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
-				{
-					const FIPv4Endpoint& ClientEndpoint = Connection.Key;
-					SendMessage(CreateMessage(Packet), ClientEndpoint);
-				}
-			}
+			HandleStdout(Process);
 
 			if (!FPlatformProcess::IsProcRunning(Process->Handle))
 			{
+				// A final read can be necessary to avoid truncating the output.
+				HandleStdout(Process);
+
 				int32 ReturnCode = 0;
 				FPlatformProcess::GetProcReturnCode(Process->Handle, &ReturnCode);
 				UE_LOG(LogSwitchboard, Display, TEXT("Process exited with returncode: %d"), ReturnCode);
 
-				const FString ProcessOutput(UTF8_TO_TCHAR(Process->Output.GetData()));
 				if (ReturnCode != 0)
 				{
-					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), *ProcessOutput);
+					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), UTF8_TO_TCHAR(Process->Output.GetData()));
 				}
 
 				// Notify remote client, which implies that this is a program managed by it.
@@ -1959,7 +2015,7 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 					Packet.Process.Caller = Process->Caller;
 					Packet.Process.Pid = Process->PID;
 					Packet.Returncode = ReturnCode;
-					Packet.Output = ProcessOutput;
+					Packet.StdoutB64 = FBase64::Encode(Process->Output);
 
 					for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
 					{

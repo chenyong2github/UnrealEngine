@@ -15,6 +15,11 @@ FMovieSceneSubSequenceData::FMovieSceneSubSequenceData()
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSection& InSubSection)
 	: Sequence(InSubSection.GetSequence())
 	, DeterministicSequenceID(InSubSection.GetSequenceID())
+	, ParentPlayRange(InSubSection.GetTrueRange())
+	, ParentStartFrameOffset(InSubSection.Parameters.StartFrameOffset)
+	, ParentEndFrameOffset(InSubSection.Parameters.EndFrameOffset)
+	, ParentFirstLoopStartFrameOffset(InSubSection.Parameters.FirstLoopStartFrameOffset)
+	, bCanLoop(InSubSection.Parameters.bCanLoop)
 	, HierarchicalBias(InSubSection.Parameters.HierarchicalBias)
 	, bHasHierarchicalEasing(false)
 #if WITH_EDITORONLY_DATA
@@ -92,6 +97,17 @@ UMovieSceneSequence* FMovieSceneSubSequenceData::GetLoadedSequence() const
 bool FMovieSceneSubSequenceData::IsDirty(const UMovieSceneSubSection& InSubSection) const
 {
 	return InSubSection.GetSignature() != SubSectionSignature || InSubSection.OuterToInnerTransform() != OuterToInnerTransform;
+}
+
+FMovieSceneSectionParameters FMovieSceneSubSequenceData::ToSubSectionParameters() const
+{
+	FMovieSceneSectionParameters Parameters;
+	Parameters.StartFrameOffset = ParentStartFrameOffset;
+	Parameters.bCanLoop = bCanLoop;
+	Parameters.EndFrameOffset = ParentEndFrameOffset;
+	Parameters.FirstLoopStartFrameOffset = ParentFirstLoopStartFrameOffset;
+	Parameters.TimeScale = OuterToInnerTransform.GetTimeScale();
+	return Parameters;
 }
 
 void FMovieSceneSequenceHierarchy::Add(const FMovieSceneSubSequenceData& Data, FMovieSceneSequenceIDRef ThisSequenceID, FMovieSceneSequenceIDRef ParentID)

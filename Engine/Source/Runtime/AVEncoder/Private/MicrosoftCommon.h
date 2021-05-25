@@ -4,7 +4,7 @@
 
 #include "Containers/UnrealString.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 #include "VideoCommon.h"
 

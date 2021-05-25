@@ -378,6 +378,23 @@ void UNiagaraScript::CheckVersionDataAvailable()
 	ExposedVersion = Data.Version.VersionGuid;
 }
 
+UNiagaraScript* UNiagaraScript::CreateCompilationCopy()
+{
+	UNiagaraScript* Result = NewObject<UNiagaraScript>();
+
+	// create a shallow copy
+	for (TFieldIterator<FProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(this);
+		uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(Result);
+
+		Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+	}
+	
+	return Result;
+}
+
 #endif
 
 bool FNiagaraVMExecutableDataId::IsValid() const
@@ -1301,8 +1318,36 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		}
 	}
 
+#if WITH_EDITOR
+	if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && FShaderLibraryCooker::NeedsShaderStableKeys(EShaderPlatform::SP_NumPlatforms))
+	{
+		SaveShaderStableKeys(Ar.CookingTarget());
+	}
+#endif
+
 	SerializeNiagaraShaderMaps(Ar, NiagaraVer, IsValidShaderScript);
 }
+
+#if WITH_EDITOR
+void UNiagaraScript::SaveShaderStableKeys(const class ITargetPlatform* TP)
+{
+	FStableShaderKeyAndValue SaveKeyVal;
+	SaveKeyVal.ClassNameAndObjectPath.SetCompactFullNameFromObject(this);
+	static FName FName_Niagara(TEXT("Niagara"));
+	SaveKeyVal.MaterialDomain = FName_Niagara;
+	const TArray<FNiagaraShaderScript*>* ScriptResourcesToSavePtr = CachedScriptResourcesForCooking.Find(TP);
+	if (ScriptResourcesToSavePtr != nullptr)
+	{
+		for (FNiagaraShaderScript* Resource : *ScriptResourcesToSavePtr)
+		{
+			if (Resource)
+			{
+				Resource->SaveShaderStableKeys(EShaderPlatform::SP_NumPlatforms, SaveKeyVal);
+			}
+		}
+	}
+}
+#endif
 
 FNiagaraCompilerTag* FNiagaraCompilerTag::FindTag(TArray< FNiagaraCompilerTag>& InTags, const FNiagaraVariableBase& InSearchVar)
 {
@@ -1473,13 +1518,19 @@ void UNiagaraScript::PostLoad()
         	Source->ConditionalPostLoad();
 
 			// Synchronize with Definitions after source scripts have been postloaded.
+			// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
 			FVersionedNiagaraScript& VersionedScriptAdapter = VersionedScriptAdapters.Emplace_GetRef(this, Data.Version.VersionGuid);
+			VersionedScriptAdapter.PostLoadDefinitionsSubscriptions();
 			const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 			check(Settings);
 			TArray<FGuid> DefaultDefinitionsUniqueIds;
 			for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
 			{
-				UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+				UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+				if (!DefaultLinkedParameterDefinitions)
+				{
+					continue;
+				}
 				DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
 				const bool bDoNotAssertIfAlreadySubscribed = true;
 				VersionedScriptAdapter.SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
@@ -1489,7 +1540,9 @@ void UNiagaraScript::PostLoad()
 			Args.bForceSynchronizeDefinitions = true;
 			Args.bSubscribeAllNameMatchParameters = true;
 			VersionedScriptAdapter.SynchronizeWithParameterDefinitions(Args);
-			VersionedScriptAdapter.InitParameterDefinitionsSubscriptions();
+
+			// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the script was already subscribed to, and do not force the sync.
+			VersionedScriptAdapter.SynchronizeWithParameterDefinitions();
 
         	bool bScriptVMNeedsRebuild = false;
         	FString RebuildReason;
@@ -1956,7 +2009,6 @@ FVersionedNiagaraScript FVersionedNiagaraScriptWeakPtr::Pin()
 	if (Script.IsValid())
 	{
 		FVersionedNiagaraScript PinnedVersionedNiagaraScript = FVersionedNiagaraScript(Script.Get(), Version);
-		PinnedVersionedNiagaraScript.InitParameterDefinitionsSubscriptions(); //@todo(ng) cleanup
 		return PinnedVersionedNiagaraScript;
 	}
 	return FVersionedNiagaraScript();
@@ -1993,7 +2045,6 @@ FString FVersionedNiagaraScript::GetSourceObjectPathName() const
 FVersionedNiagaraScriptWeakPtr FVersionedNiagaraScript::ToWeakPtr()
 {
 	FVersionedNiagaraScriptWeakPtr WeakVersionedNiagaraScript = FVersionedNiagaraScriptWeakPtr(Script, Version);
-	WeakVersionedNiagaraScript.InitParameterDefinitionsSubscriptions(); //@todo(ng) cleanup
 	return WeakVersionedNiagaraScript;
 }
 
@@ -2346,13 +2397,6 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 void UNiagaraScript::BeginDestroy()
 {
 	Super::BeginDestroy();
-
-#if WITH_EDITOR
-	for (FVersionedNiagaraScript& VersionedScriptAdapter : VersionedScriptAdapters)
-	{
-		VersionedScriptAdapter.CleanupParameterDefinitionsSubscriptions();
-	}
-#endif
 
 	if (!HasAnyFlags(RF_ClassDefaultObject) && ScriptResource)
 	{

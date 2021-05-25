@@ -19,22 +19,30 @@ void ULiveLinkVirtualSubject::Initialize(FLiveLinkSubjectKey InSubjectKey, TSubc
 void ULiveLinkVirtualSubject::Update()
 {
 	// Invalid the snapshot
-	FrameSnapshot.StaticData.Reset();
-	FrameSnapshot.FrameData.Reset();
+	InvalidateStaticData();
+	InvalidateFrameData();
 
 	UpdateTranslatorsForThisFrame();
 }
 
 
+bool ULiveLinkVirtualSubject::EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
+{
+	//Protect our data when being evaluated
+	FScopeLock Lock(&SnapshotAccessCriticalSection);
+	return ILiveLinkSubject::EvaluateFrame(InDesiredRole, OutFrame);
+}
+
 void ULiveLinkVirtualSubject::ClearFrames()
 {
-	FrameSnapshot.StaticData.Reset();
+	FScopeLock Lock(&SnapshotAccessCriticalSection);
+	CurrentFrameSnapshot.StaticData.Reset();
 }
 
 
 bool ULiveLinkVirtualSubject::HasValidFrameSnapshot() const
 {
-	return FrameSnapshot.StaticData.IsValid() && FrameSnapshot.FrameData.IsValid();
+	return CurrentFrameSnapshot.StaticData.IsValid() && CurrentFrameSnapshot.FrameData.IsValid();
 }
 
 TArray<FLiveLinkTime> ULiveLinkVirtualSubject::GetFrameTimes() const
@@ -45,8 +53,18 @@ TArray<FLiveLinkTime> ULiveLinkVirtualSubject::GetFrameTimes() const
 	}
 
 	TArray<FLiveLinkTime> Result;
-	Result.Emplace(FrameSnapshot.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), FrameSnapshot.FrameData.GetBaseData()->MetaData.SceneTime);
+	Result.Emplace(CurrentFrameSnapshot.FrameData.GetBaseData()->WorldTime.GetOffsettedTime(), CurrentFrameSnapshot.FrameData.GetBaseData()->MetaData.SceneTime);
 	return Result;
+}
+
+bool ULiveLinkVirtualSubject::HasValidStaticData() const
+{
+	return CurrentFrameSnapshot.StaticData.IsValid();
+}
+
+bool ULiveLinkVirtualSubject::HasValidFrameData() const
+{
+	return CurrentFrameSnapshot.FrameData.IsValid();
 }
 
 bool ULiveLinkVirtualSubject::DependsOnSubject(FName SubjectName) const
@@ -70,3 +88,28 @@ void ULiveLinkVirtualSubject::UpdateTranslatorsForThisFrame()
 		}
 	}
 }
+
+void ULiveLinkVirtualSubject::UpdateStaticDataSnapshot(FLiveLinkStaticDataStruct&& NewStaticData)
+{
+	FScopeLock Lock(&SnapshotAccessCriticalSection);
+	CurrentFrameSnapshot.StaticData = MoveTemp(NewStaticData);
+}
+
+void ULiveLinkVirtualSubject::UpdateFrameDataSnapshot(FLiveLinkFrameDataStruct&& NewFrameData)
+{
+	FScopeLock Lock(&SnapshotAccessCriticalSection);
+	CurrentFrameSnapshot.FrameData = MoveTemp(NewFrameData);
+}
+
+void ULiveLinkVirtualSubject::InvalidateStaticData()
+{
+	FScopeLock Lock(&SnapshotAccessCriticalSection);
+	CurrentFrameSnapshot.StaticData.Reset();
+}
+
+void ULiveLinkVirtualSubject::InvalidateFrameData()
+{
+	FScopeLock Lock(&SnapshotAccessCriticalSection);
+	CurrentFrameSnapshot.FrameData.Reset();
+}
+

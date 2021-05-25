@@ -86,10 +86,6 @@ private:
 	/** Set size of Fixture Pixel inside Fixture Group Boundary Box */
 	void SetSizeWithinBoundaryBox(const FVector2D& InSize);
 
-#if WITH_EDITOR
-	FMargin GetLabelPadding() const;
-#endif
-
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Selected Patch")
 	FDMXEntityFixturePatchRef FixturePatchRef;

@@ -105,6 +105,10 @@ struct FMovieSceneNestedSequenceTransform
 		: LinearTransform(InLinearTransform)
 	{}
 
+	FMovieSceneNestedSequenceTransform(FMovieSceneTimeWarping InWarping)
+		: Warping(InWarping)
+	{}
+
 	FMovieSceneNestedSequenceTransform(FMovieSceneTimeTransform InLinearTransform, FMovieSceneTimeWarping InWarping)
 		: LinearTransform(InLinearTransform)
 		, Warping(InWarping)
@@ -242,6 +246,17 @@ struct FMovieSceneSequenceTransform
 			}
 		}
 		return TimeScale;
+	}
+
+	/**
+	 * Transforms the given time, returning the transformed time.
+	 */
+	FFrameTime TransformTime(FFrameTime InTime) const
+	{
+		FFrameTime OutTime;
+		FMovieSceneWarpCounter WarpCounter;
+		TransformTime(InTime, OutTime, WarpCounter);
+		return OutTime;
 	}
 
 	/**
@@ -418,9 +433,6 @@ struct FMovieSceneSequenceTransform
 			const FMovieSceneNestedSequenceTransform& LastNesting = NestedTransforms.Last();
 			FMovieSceneTimeTransform Result = LastNesting.InverseFromWarp(WarpCounts.Last());
 
-			// If there's a tail linear transform, the WarpCounts array has one less item than the
-			// NestedTransforms array, and we need to iterate with different indices that are offset by 1.
-			// Otherwise, we can iterate with the same index.
 			size_t Index = NestedTransformsSize - 1;
 			while (Index > 0)
 			{
@@ -430,6 +442,10 @@ struct FMovieSceneSequenceTransform
 				const FMovieSceneNestedSequenceTransform& CurNesting = NestedTransforms[Index];
 				Result = CurNesting.InverseFromWarp(CurWarpCount) * Result;
 			}
+
+			// Add the inverse of the main linear transform.
+			Result = LinearTransform.Inverse() * Result;
+
 			return Result;
 		}
 		else

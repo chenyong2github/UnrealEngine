@@ -29,6 +29,11 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 	SelectedOptionIndex = DialogConfig.SelectedOptionIndex;
 
 	Options = InOptions;
+	// It is possible that the number of options has changed since the options config was last saved; make sure the SelectedOptionsIndex from the config is valid.
+	if (SelectedOptionIndex > Options.Num() - 1)
+	{
+		SelectedOptionIndex = Options.Num() - 1;
+	}
 
 	SetOnWindowClosed(FOnWindowClosed::CreateSP(this, &SNiagaraNewAssetDialog::OnWindowClosed));
 	
@@ -169,6 +174,16 @@ void SNiagaraNewAssetDialog::ConfirmSelection()
 		SelectedOption.OnGetSelectedAssetsFromPicker.Execute(SelectedAssets);
 		ensureMsgf(SelectedAssets.Num() > 0, TEXT("No assets selected when dialog was confirmed."));
 	}
+	SelectedOption.OnSelectionConfirmed.ExecuteIfBound();
+	bUserConfirmedSelection = true;
+	RequestDestroyWindow();
+}
+
+void SNiagaraNewAssetDialog::ConfirmSelection(const FAssetData& AssetData)
+{
+	SelectedAssets.Add(AssetData);
+	
+	const FNiagaraNewAssetDialogOption& SelectedOption = Options[SelectedOptionIndex];
 	SelectedOption.OnSelectionConfirmed.ExecuteIfBound();
 	bUserConfirmedSelection = true;
 	RequestDestroyWindow();

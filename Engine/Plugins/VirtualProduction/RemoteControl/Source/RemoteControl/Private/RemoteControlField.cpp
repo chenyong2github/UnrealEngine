@@ -305,6 +305,7 @@ FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, F
 	check(InFunction);
 	FunctionArguments = MakeShared<FStructOnScope>(InFunction);
 	InFunction->InitializeStruct(FunctionArguments->GetStructMemory());
+	CachedFunction = InFunction;
 	AssignDefaultFunctionArguments();
 	OwnerClass = GetSupportedBindingClass();
 
@@ -385,14 +386,20 @@ bool FRemoteControlFunction::IsBound() const
 
 UFunction* FRemoteControlFunction::GetFunction() const
 {
-	UObject* ResolvedFunction = FunctionPath.ResolveObject();
+	UObject* ResolvedObject = FunctionPath.ResolveObject();
 	
-	if (!ResolvedFunction)
+	if (!ResolvedObject)
 	{
-		ResolvedFunction = FunctionPath.TryLoad();
+		ResolvedObject = FunctionPath.TryLoad();
+	}
+
+	UFunction* ResolvedFunction = Cast<UFunction>(ResolvedObject);
+	if (ResolvedFunction)
+	{
+		CachedFunction = ResolvedFunction;
 	}
 	
-	return Cast<UFunction>(ResolvedFunction);
+	return ResolvedFunction;
 }
 
 void FRemoteControlFunction::AssignDefaultFunctionArguments()
@@ -434,13 +441,13 @@ FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 		if (UFunction* Function = RCFunction.GetFunction())
 		{
 			RCFunction.FunctionArguments = MakeShared<FStructOnScope>(Function);
+			Function->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), Function, nullptr);
 		}
 	}
-	
-	if (UFunction* Function = RCFunction.GetFunction())
+	else if (RCFunction.CachedFunction.IsValid())
 	{
-		Function->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), Function, nullptr);
+		RCFunction.CachedFunction->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), RCFunction.CachedFunction.Get(), nullptr);	
 	}
-
+		
 	return Ar;
 }

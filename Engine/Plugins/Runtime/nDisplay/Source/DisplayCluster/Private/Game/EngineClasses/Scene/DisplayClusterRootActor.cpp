@@ -13,9 +13,8 @@
 #include "Components/DisplayClusterSyncTickComponent.h"
 
 #include "Components/DisplayClusterRootComponent.h"
-#include "Components/DisplayClusterICVFX_CineCameraComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 #include "CineCameraComponent.h"
-#include "Components/DisplayClusterICVFX_RefCineCameraComponent.h"
 #include "Components/DisplayClusterSceneComponentSyncThis.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
@@ -44,8 +43,6 @@
 
 ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bFollowLocalPlayerCamera(false)
-	, bExitOnEsc(true)
 	, OperationMode(EDisplayClusterOperationMode::Disabled)
 {
 	// Root component
@@ -64,12 +61,6 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	}
 	// A helper component to trigger nDisplay Tick() during Tick phase
 	SyncTickComponent = CreateDefaultSubobject<UDisplayClusterSyncTickComponent>(TEXT("DisplayClusterSyncTick"));
-
-	// A ICVFX Stage settings
-	StageSettings = CreateDefaultSubobject<UDisplayClusterConfigurationICVFX_StageSettings>(TEXT("StageSettings"));
-
-	// A render frame settings (allow control whole cluster rendering)
-	RenderFrameSettings = CreateDefaultSubobject<UDisplayClusterConfigurationRenderFrame>(TEXT("RenderFrameSettings"));
 
 	ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
 
@@ -105,6 +96,20 @@ bool ADisplayClusterRootActor::IsRunningGameOrPIE() const
 	}
 
 	return true;
+}
+
+const FDisplayClusterConfigurationICVFX_StageSettings& ADisplayClusterRootActor::GetStageSettings() const
+{
+	check(CurrentConfigData);
+
+	return CurrentConfigData->StageSettings;
+}
+
+const FDisplayClusterConfigurationRenderFrame& ADisplayClusterRootActor::GetRenderFrameSettings() const 
+{ 
+	check(CurrentConfigData);
+
+	return CurrentConfigData->RenderFrameSettings;
 }
 
 void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData)
@@ -476,23 +481,28 @@ bool ADisplayClusterRootActor::BuildHierarchy()
 		}
 	}
 
-	// If no default camera set, try to set the first one
-	if (DefaultCameraComponent.IsDefinedSceneComponent() == false)
+	// Only check for the default camera if the construction scripts have been run, since camera components created in the blueprint editor
+	// won't have been created before then
+	if (bHasRerunConstructionScripts)
 	{
-		TMap<FString, UDisplayClusterCameraComponent*> Cameras;
-		GetTypedComponents<UDisplayClusterCameraComponent>(Cameras, CameraComponents);
-		if (Cameras.Num() > 0)
+		// If no default camera set, try to set the first one
+		if (DefaultCameraComponent.IsDefinedSceneComponent() == false)
 		{
-			// There is no guarantee that default camera is the first one listed in a config file
-			SetDefaultCamera(Cameras.CreateConstIterator()->Key);
-		}
-		else
-		{
-			UE_LOG(LogDisplayClusterGame, Error, TEXT("No cameras found"));
-			return false;
+			TMap<FString, UDisplayClusterCameraComponent*> Cameras;
+			GetTypedComponents<UDisplayClusterCameraComponent>(Cameras, CameraComponents);
+			if (Cameras.Num() > 0)
+			{
+				// There is no guarantee that default camera is the first one listed in a config file
+				SetDefaultCamera(Cameras.CreateConstIterator()->Key);
+			}
+			else
+			{
+				UE_LOG(LogDisplayClusterGame, Error, TEXT("No cameras found"));
+				return false;
+			}
 		}
 	}
-	
+
 	return true;
 }
 
@@ -588,13 +598,13 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 		OperationMode == EDisplayClusterOperationMode::Editor)
 	{
 		UWorld* const CurWorld = GetWorld();
-		if (CurWorld)
+		if (CurWorld && CurrentConfigData)
 		{
 			APlayerController* const CurPlayerController = CurWorld->GetFirstPlayerController();
 			if (CurPlayerController)
 			{
 				// Depending on the flag state the DCRA follows or not the current player's camera
-				if (bFollowLocalPlayerCamera)
+				if (CurrentConfigData->bFollowLocalPlayerCamera)
 				{
 					APlayerCameraManager* const CurPlayerCameraManager = CurPlayerController->PlayerCameraManager;
 					if (CurPlayerCameraManager)
@@ -603,7 +613,7 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 					}
 				}
 
-				if (bExitOnEsc)
+				if (CurrentConfigData->bExitOnEsc)
 				{
 					if (CurPlayerController->WasInputKeyJustPressed(EKeys::Escape))
 					{
@@ -689,6 +699,8 @@ void ADisplayClusterRootActor::Destroyed()
 void ADisplayClusterRootActor::RerunConstructionScripts()
 {
 	Super::RerunConstructionScripts();
+
+	bHasRerunConstructionScripts = true;
 
 #if WITH_EDITOR
 	RerunConstructionScripts_Editor();

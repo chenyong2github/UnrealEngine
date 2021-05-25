@@ -245,6 +245,26 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Adds the provided build to our list (calls ShouldMakeBuildAvailable to verify).
+		/// </summary>
+		/// <param name="InPlatform"></param>
+		/// <param name="NewBuild"></param>
+		virtual protected void AddBuild(IBuild NewBuild)
+		{
+			NewBuild = ShouldMakeBuildAvailable(NewBuild);
+
+			if (NewBuild != null)
+			{
+				if (!DiscoveredBuilds.ContainsKey(NewBuild.Platform))
+				{
+					DiscoveredBuilds[NewBuild.Platform] = new List<IBuild>();
+				}
+
+				DiscoveredBuilds[NewBuild.Platform].Add(NewBuild);
+			}
+		}
+
+		/// <summary>
 		/// Allows derived classes to nix or modify builds as they are discovered
 		/// </summary>
 		/// <param name="InBuild"></param>
@@ -253,6 +273,37 @@ namespace Gauntlet
 		{
 			return InBuild;
 		}
+
+		/// <summary>
+		/// Adds an Editor build to our list of available builds if one exists
+		/// </summary>
+		/// <param name="InUnrealPath"></param>
+		virtual protected IBuild CreateEditorBuild(DirectoryReference InUnrealPath)
+		{
+			if (InUnrealPath != null)
+			{
+				// check for the editor
+				string EditorExe = Path.Combine(InUnrealPath.FullName, GetRelativeExecutablePath(UnrealTargetRole.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development));
+
+				if (Utils.SystemHelpers.ApplicationExists(EditorExe))
+				{
+					EditorBuild NewBuild = new EditorBuild(EditorExe, UnrealTargetConfiguration.Development);
+
+					return NewBuild;
+				}
+				else
+				{
+					Log.Info("No editor bianries found at {0}. Unable to create an editor build source.", EditorExe);
+				}
+			}
+			else
+			{
+				Log.Info("No path to Unreal found. Unable to create an editor build source.");
+			}
+
+			return null;
+		}
+
 
 		/// <summary>
 		/// True/false on whether we've tried to discover builds for the specified platform
@@ -269,7 +320,7 @@ namespace Gauntlet
 		/// for the provided platform
 		/// </summary>
 		/// <param name="InPlatform"></param>
-		void DiscoverBuilds(UnrealTargetPlatform InPlatform)
+		virtual protected void DiscoverBuilds(UnrealTargetPlatform InPlatform)
 		{
 			if (!HaveDiscoveredBuilds(InPlatform))
 			{
@@ -279,7 +330,16 @@ namespace Gauntlet
 				// Add an editor build if this is our current platform.
 				if (InPlatform == BuildHostPlatform.Current.Platform)
 				{
-					AddBuild(CreateEditorBuild(UnrealPath));
+					IBuild EditorBuild = CreateEditorBuild(UnrealPath);
+
+					if (EditorBuild == null)
+					{
+						Log.Info("Could not create editor build for project. Binaries are likely missing");
+					}
+					else
+					{
+						AddBuild(EditorBuild);
+					}
 				}
 
 				if (BuildPaths.Count() > 0)
@@ -317,48 +377,6 @@ namespace Gauntlet
 			}
 
 			return DiscoveredBuilds[InPlatform].Where(B => (B.Flags & InFlags) == InFlags).Count();
-		}
-
-		/// <summary>
-		/// Adds the provided build to our list (calls ShouldMakeBuildAvailable to verify).
-		/// </summary>
-		/// <param name="InPlatform"></param>
-		/// <param name="NewBuild"></param>
-		void AddBuild(IBuild NewBuild)
-		{
-			NewBuild = ShouldMakeBuildAvailable(NewBuild);
-
-			if (NewBuild != null)
-			{
-				if (!DiscoveredBuilds.ContainsKey(NewBuild.Platform))
-				{
-					DiscoveredBuilds[NewBuild.Platform] = new List<IBuild>();
-				}
-
-				DiscoveredBuilds[NewBuild.Platform].Add(NewBuild);
-			}
-		}
-
-		/// <summary>
-		/// Adds an Editor build to our list of available builds if one exists
-		/// </summary>
-		/// <param name="InUnrealPath"></param>
-		IBuild CreateEditorBuild(DirectoryReference InUnrealPath)
-		{
-			if (InUnrealPath != null)
-			{
-				// check for the editor
-				string EditorExe = Path.Combine(InUnrealPath.FullName, GetRelativeExecutablePath(UnrealTargetRole.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development));
-
-				if (Utils.SystemHelpers.ApplicationExists(EditorExe))
-				{
-					EditorBuild NewBuild = new EditorBuild(EditorExe, UnrealTargetConfiguration.Development);
-
-					return NewBuild;
-				}
-			}
-
-			return null;
 		}
 
 		/// <summary>

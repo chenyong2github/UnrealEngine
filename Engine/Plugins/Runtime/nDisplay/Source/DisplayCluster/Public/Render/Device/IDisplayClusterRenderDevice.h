@@ -21,8 +21,7 @@ class FViewport;
 class IDisplayClusterRenderDevice : public IStereoRendering
 {
 public:
-	virtual ~IDisplayClusterRenderDevice() = 0
-	{ }
+	virtual ~IDisplayClusterRenderDevice() = default;
 
 public:
 

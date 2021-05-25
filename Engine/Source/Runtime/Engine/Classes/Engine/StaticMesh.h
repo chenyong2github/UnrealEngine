@@ -24,7 +24,7 @@
 #include "PerPlatformProperties.h"
 #include "RenderAssetUpdate.h"
 #include "MeshTypes.h"
-
+#include "PerQualityLevelProperties.h"
 #include "StaticMesh.generated.h"
 
 class FSpeedTreeWind;
@@ -723,6 +723,55 @@ public:
 
 #endif // #if WITH_EDITORONLY_DATA
 
+	/** Check the QualitLevel property is enabled for MinLod. */
+	bool IsMinLodQualityLevelEnable() const;
+
+	UPROPERTY()
+	/*PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UsePerQualityLevelProperty*/
+	/* Allow more flexibility to set various values driven by the Scalability or Device Profile.*/
+	FPerQualityLevelInt MinQualityLevelLOD;
+
+	const FPerQualityLevelInt& GetQualityLevelMinLOD() const
+	{
+		return MinQualityLevelLOD;
+	}
+
+	void SetQualityLevelMinLOD(FPerQualityLevelInt InMinLOD)
+	{
+		MinQualityLevelLOD = MoveTemp(InMinLOD);
+	}
+
+	UFUNCTION(BlueprintPure, Category = StaticMesh)
+	void GetMinimumLODForQualityLevels(TMap<FName, int32>& QualityLevelMinimumLODs) const
+	{
+#if WITH_EDITORONLY_DATA
+		for (const TPair<int32, int32>& Pair : GetQualityLevelMinLOD().PerQuality)
+		{
+			QualityLevelMinimumLODs.Add(QualityLevelProperty::QualityLevelToFName(Pair.Key), Pair.Value);
+		}
+#endif
+	}
+
+	UFUNCTION(BlueprintPure, Category = StaticMesh)
+	int32 GetMinimumLODForQualityLevel(const FName& QualityLevel) const
+	{
+#if WITH_EDITORONLY_DATA
+		int32 QualityLevelKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+		if (const int32* Result = GetQualityLevelMinLOD().PerQuality.Find(QualityLevelKey))
+		{
+			return *Result;
+		}
+#endif
+		return INDEX_NONE;
+	}
+
+	/*Choose either PerPlatform or PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UsePerQualityLevelProperty*/
+	ENGINE_API int32 GetMinLODIdx() const;
+	ENGINE_API int32 GetDefaultMinLOD() const;
+	ENGINE_API void SetMinLODIdx(int32 InMinLOD);
+
+	ENGINE_API static void OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable);
+
 	/** Minimum LOD to use for rendering.  This is the default setting for the mesh and can be overridden by component settings. */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetMinLOD() or UStaticMesh::SetMinLOD().")
 	UPROPERTY()
@@ -1325,6 +1374,7 @@ public:
 			, bBuildSimpleCollision(false)
 			, bCommitMeshDescription(true)
 			, bFastBuild(false)
+			, bAllowCpuAccess(false)
 		{}
 
 		/**
@@ -1354,6 +1404,11 @@ public:
 		 * Set to false by default.
 		 */
 		bool bFastBuild;
+
+		/**
+		 * Ored with the value of bAllowCpuAccess on the static mesh. Set to false by default.
+		 */
+		bool bAllowCpuAccess;
 	};
 
 	/**

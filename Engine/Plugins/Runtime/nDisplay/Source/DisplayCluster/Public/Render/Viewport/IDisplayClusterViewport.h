@@ -20,8 +20,7 @@ class FSceneViewFamily;
 class DISPLAYCLUSTER_API IDisplayClusterViewport
 {
 public:
-	virtual ~IDisplayClusterViewport() = 0
-	{ }
+	virtual ~IDisplayClusterViewport() = default;
 
 public:
 	virtual FString GetId() const = 0;

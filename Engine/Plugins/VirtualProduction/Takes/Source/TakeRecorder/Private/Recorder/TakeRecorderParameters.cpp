@@ -24,6 +24,7 @@ FTakeRecorderProjectParameters::FTakeRecorderProjectParameters()
 	, bRecordTimecode(false)
 	, bRecordSourcesIntoSubSequences(false)
 	, bRecordToPossessable(false)
+	, bShowNotifications(true)
 {}
 
 FTakeRecorderParameters::FTakeRecorderParameters() 

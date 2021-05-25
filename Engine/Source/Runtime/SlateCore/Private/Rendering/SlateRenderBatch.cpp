@@ -2,6 +2,7 @@
 
 #include "Rendering/SlateRenderBatch.h"
 #include "Rendering/ElementBatcher.h"
+#include "Textures/SlateShaderResource.h"
 
 FSlateRenderBatch::FSlateRenderBatch(
 	int32 InLayer,
@@ -40,6 +41,7 @@ FSlateRenderBatch::FSlateRenderBatch(
 	, bIsMergable(true)
 	, bIsMerged(false)
 {
+	check(ShaderResource == nullptr || !ShaderResource->Debug_IsDestroyed());
 }
 
 

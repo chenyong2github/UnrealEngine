@@ -68,6 +68,9 @@ namespace DatasmithRuntime
 				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
 #endif
 				check(MaterialData.Object.IsValid());
+
+				// Load metadata on newly created material asset if any
+				ApplyMetadata(MaterialData.MetadataId, MaterialData.GetObject());
 			}
 		}
 
@@ -105,7 +108,7 @@ namespace DatasmithRuntime
 		}
 		else if( Element->IsA( EDatasmithElementType::MasterMaterial ) )
 		{
-			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), *Host, TextureCallback);
+			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), TextureCallback);
 		}
 
 		MaterialData.SetState(EAssetState::Processed);
@@ -152,6 +155,16 @@ namespace DatasmithRuntime
 			TSharedPtr< IDatasmithMasterMaterialElement > MaterialElement = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( Element );
 
 			bCreationSuccessful = LoadMasterMaterial(MaterialInstance, MaterialElement);
+
+			// Add tracking on material's properties
+			if (bCreationSuccessful)
+			{
+				for (int Index = 0; Index < MaterialElement->GetPropertiesCount(); ++Index)
+				{
+					const TSharedPtr< IDatasmithKeyValueProperty >& Property = MaterialElement->GetProperty(Index);
+					DependencyList.Add(Property->GetNodeId(), { EDataType::Material, ElementId, 0xffff });
+				}
+			}
 		}
 		else if ( Element->IsA( EDatasmithElementType::UEPbrMaterial ) )
 		{

@@ -19,7 +19,7 @@ namespace UE
 		/// <summary>
 		/// Used to track progress via logging
 		/// </summary>
-		int			LogLinesLastTick = 0;
+		int LogLinesLastTick = 0;
 
 		/// <summary>
 		/// Time we last saw a change in logging

@@ -2030,6 +2030,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		bComputeLightGrid |= (
 			ShouldRenderVolumetricFog() ||
+			VolumetricCloudWantsToSampleLocalLights(Scene, ViewFamily.EngineShowFlags) ||
 			ViewFamily.ViewMode != VMI_Lit ||
 			bAnyLumenEnabled ||
 			VirtualShadowMapArray.IsEnabled());

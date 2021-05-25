@@ -3,14 +3,16 @@
 #if WITH_EDITOR
 
 #include "Rendering/SkeletalMeshLODImporterData.h"
-#include "Logging/LogVerbosity.h"
-#include "Logging/LogMacros.h"
-#include "Serialization/BulkDataWriter.h"
-#include "Serialization/BulkDataReader.h"
-#include "Rendering/SkeletalMeshModel.h"
+
 #include "Engine/SkeletalMesh.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+#include "ImportUtils/SkeletalMeshImportUtils.h"
+#include "Logging/LogMacros.h"
+#include "Logging/LogVerbosity.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Rendering/SkeletalMeshModel.h"
+#include "Serialization/BulkDataReader.h"
+#include "Serialization/BulkDataWriter.h"
 #include "SkeletalMeshAttributes.h"
 #include "SkeletalMeshOperations.h"
 
@@ -653,7 +655,7 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 	//We now save it after the processing is done so for old version we do it here when loading
 	if (Ar.IsLoading() && Version < RAW_SKELETAL_MESH_BULKDATA_VER_AlternateInfluence)
 	{
-		SkeletalMeshHelper::ProcessImportMeshInfluences(RawMesh, FString(TEXT("Unknown"))); // Not sure how to get owning mesh name at this point...
+		SkeletalMeshImportUtils::ProcessImportMeshInfluences(RawMesh, FString(TEXT("Unknown"))); // Not sure how to get owning mesh name at this point...
 	}
 
 	

@@ -77,7 +77,7 @@ void FUsdStageViewModel::NewStage( const TCHAR* FilePath )
 		UE::FSdfLayer Layer = UsdStage.GetRootLayer();
 		if ( Layer )
 		{
-			StagePath = FString( USD_IDENTIFIER_TOKEN ) + Layer.GetIdentifier();
+			StagePath = FString( UnrealIdentifiers::IdentifierPrefix ) + Layer.GetIdentifier();
 		}
 	}
 
@@ -111,10 +111,7 @@ void FUsdStageViewModel::OpenStage( const TCHAR* FilePath )
 	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
 	{
 		StageActor->Modify();
-
-		StageActor->RootLayer.FilePath = FilePath;
-		FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< FProperty >( StageActor->GetClass(), FName("RootLayer") ) );
-		StageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
+		StageActor->SetRootLayer( FilePath );
 	}
 	else
 	{

@@ -32,6 +32,7 @@ class FTcpListener;
 struct FSwitchboardCommandLineOptions
 {
 	bool OutputVersion = false;
+	bool MinimizeOnLaunch = true;
 
 	TOptional<FIPv4Address> Address;
 	TOptional<uint16> Port;
@@ -127,6 +128,7 @@ private:
 
 	void CleanUpDisconnectedSockets();
 	void DisconnectClient(const FIPv4Endpoint& InClientEndpoint);
+	void HandleStdout(const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& Process);
 	void HandleRunningProcesses(TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>>& Processes, bool bNotifyThatProgramEnded);
 
 	bool SendMessage(const FString& InMessage, const FIPv4Endpoint& InEndpoint);
@@ -152,6 +154,8 @@ private:
 	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> FlipModeMonitors;
 	TArray<FSwitchboardMessageFuture> MessagesFutures;
 	TSharedPtr<FCpuUtilizationMonitor, ESPMode::ThreadSafe> CpuMonitor;
+
+	bool bIsNvAPIInitialized;
 
 	TSharedPtr<FRWLock, ESPMode::ThreadSafe> CachedMosaicToposLock;
 	TSharedPtr<TArray<FMosaicTopo>, ESPMode::ThreadSafe> CachedMosaicTopos;

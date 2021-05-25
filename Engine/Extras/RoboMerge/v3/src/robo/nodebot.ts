@@ -4,15 +4,15 @@ import * as Sentry from '@sentry/node';
 import { _nextTick } from '../common/helper';
 import { ContextualLogger } from '../common/logger';
 import { Mailer, MailParams, Recipients } from '../common/mailer';
-import { Change, ConflictedResolveNFile, PerforceContext, ResolveResult, RoboWorkspace } from '../common/perforce';
+import { Change, ConflictedResolveNFile, PerforceContext, RoboWorkspace } from '../common/perforce';
 import { IPCControls, NodeBotInterface } from './bot-interfaces';
 import { BlockagePauseInfo, BranchStatus, QueuedChange, ReconsiderArgs } from './status-types';
 import { AlreadyIntegrated, Blockage, Branch, BranchArg, BranchGraphInterface, ChangeInfo, Failure } from './branch-interfaces';
 import { MergeAction, OperationResult, PendingChange, resolveBranchArg, StompedRevision, StompVerification, StompVerificationFile }  from './branch-interfaces';
 import { Conflicts } from './conflicts';
-import { EdgeBot } from './edgebot';
+import { EdgeBot, EdgeIntegrationResult } from './edgebot';
 import { BotEventTriggers } from './events';
-import { PerforceRequestResult, PerforceStatefulBot } from './perforce-stateful-bot';
+import { PerforceStatefulBot } from './perforce-stateful-bot';
 import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Context } from './settings';
 import { PauseState } from './state-interfaces';
@@ -47,8 +47,44 @@ function isStompableNonBinary(filename: string) {
 
 type InfoResult = { info?: ChangeInfo, errors: any[] }
 
-interface EdgeMergeResults extends PerforceRequestResult {
-	skippedEdges?: Set<string>
+type EdgeMerge = 'ok' | 'skipped' | 'error'
+
+/** results from integrating along available outgoing edges */
+class EdgeMergeResults {
+	// trying out making this purely per edge
+
+	addIntegrationResult(action: MergeAction, result: EdgeIntegrationResult) {
+		if ((result as Change).change) {
+			this.edges.set(action.branch.name, {merge: 'ok', change: result as Change})
+		}
+		else {
+			this.edges.set(action.branch.name, {merge: 'error'})
+			this.errors = [...this.errors, ...(result as string[])]
+		}
+	}
+
+	allChanges() {
+		return [...this.edges].map(([_, v]) => v.change).filter(Boolean) as Change[]
+	}
+
+	markSkipped(target: Branch) {
+		this.edges.set(target.name, {merge: 'skipped'})
+	}
+
+	wasSkipped(target: Branch) {
+		return this.edges.has(target.name) && this.edges.get(target.name)!.merge === 'skipped'
+	}
+
+	/** shelved or committed cl */
+	getTargetCl(target: Branch) {
+		const val = this.edges.get(target.name)
+		return val && val.change && val.change.change
+	}
+
+	// tuples of target name, result, opt change
+	edges = new Map<string, {merge: EdgeMerge, change?: Change}>()
+	// accumulated errors for all edges
+	errors: string[] = []
 }
 
 
@@ -577,12 +613,9 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		// Process and attempt the integration
 		const edgeMap = new Map<string, EdgeBot>([[edge.targetBranch.upperName, edge]])
-		let processResult: InfoResult
-		let mergeResult: PerforceRequestResult | undefined // Set to possible undefines as we use this in the finally clause
-		let integratedCl: Change
-		let resolveResult: ResolveResult
+		let mergeResult: EdgeMergeResults | undefined // Set to possible undefines as we use this in the finally clause
 		try {
-			processResult = await this._createChangeInfo(blockageChange, edgeMap, this.p4.username, targetBranch.workspace, targetBranch)
+			const processResult = await this._createChangeInfo(blockageChange, edgeMap, this.p4.username, targetBranch.workspace, targetBranch)
 			if (!processResult.info) {
 				return {
 					success: false, 
@@ -592,8 +625,9 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			mergeResult = await this._mergeClViaEdges(edgeMap, processResult.info, true)
 
 			// If we don't have a change returned, we ran into an error processing the CL
-			if (!mergeResult.changes || mergeResult.changes.length !== 1) { // Encountered when we get errors back
-				let message = `Got incorrect number of entries back from integrating CL ${changeCl} (length = ${mergeResult.changes ? mergeResult.changes.length : 'null'}, should be 1)`
+			const changes = mergeResult.allChanges()
+			if (changes.length !== 1) { // Encountered when we get errors back
+				let message = `Got incorrect number of entries back from integrating CL ${changeCl} (length = ${changes.length}, should be 1)`
 				if (mergeResult.errors.length > 0) {
 					message = `${message}\nErrors: ${mergeResult.errors}`
 				}
@@ -603,7 +637,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				}
 			}
 
-			integratedCl = mergeResult.changes[0]
+			const integratedCl = changes[0]!
 			if (!integratedCl.change) {
 				return { 
 					success: false, 
@@ -620,7 +654,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			}
 
 			// Get what is left to resolve out of the changelist
-			resolveResult = await this.p4.resolve(integratedCl.client, integratedCl.change, 'normal')
+			const resolveResult = await this.p4.resolve(integratedCl.client, integratedCl.change, 'normal')
 
 			if (!resolveResult.hasConflict()) {
 				return { 
@@ -807,9 +841,9 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		finally {
 			// Delete the CL, including any remaining shelved files
 			this.nodeBotLogger.info(`${this.fullName} - Cleaning up after verifyStompRequest()`)
-			if (mergeResult && mergeResult.changes && mergeResult.changes.length > 0) {
-				for (let processResultChange of mergeResult.changes) {
-					edge.revertPendingCLWithShelf(processResultChange.client, processResultChange.change, "Stomp Verify")
+			if (mergeResult) {
+				for (const processResultChange of mergeResult.allChanges()) {
+					await edge.revertPendingCLWithShelf(processResultChange.client, processResultChange.change, "Stomp Verify")
 				}
 			}
 		}
@@ -1265,8 +1299,8 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			// Every edge that was available at the start of the tick that is still available had the chance to receive this change, even if they weren't a target
 			// Count this as processed to keep them up-to-date
 			for (const edgeBot of availableEdges.values()) {
-				if (edgeBot.isAvailable && edgeBot.lastCl < change.change && !(changeResult.skippedEdges && changeResult.skippedEdges.has(edgeBot.targetBranch.name))) {
-					edgeBot.updateLastCl(changes, changeIndex) 
+				if (edgeBot.isAvailable && edgeBot.lastCl < change.change && !changeResult.wasSkipped(edgeBot.targetBranch)) {
+					edgeBot.updateLastCl(changes, changeIndex, changeResult.getTargetCl(edgeBot.targetBranch))
 				}
 			}
 
@@ -1296,7 +1330,9 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		if (result.info) {
 			return await this._mergeClViaEdges(availableEdges, result.info, ignoreEdgePauseState)
 		}
-		return { errors: result.errors }
+		const emResult = new EdgeMergeResults()
+		emResult.errors = result.errors
+		return emResult
 	}
 
 	private async _createChangeInfo(
@@ -1621,7 +1657,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	}
 
 	private async _mergeClViaEdges(availableEdges: Map<string, EdgeBot>, info: ChangeInfo, ignoreEdgePauseState: boolean) : Promise<EdgeMergeResults> {
-		let mergedChanges : EdgeMergeResults = { skippedEdges: new Set(), changes: [], errors: [] }
+		const mergedChanges = new EdgeMergeResults()
 
 		for (const target of info.targets!) {
 			if (!this.hasEdge(target.branch)) {
@@ -1657,7 +1693,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 				// If this edge is paused, skip it but we'll have to report it so the node doesn't advance its lastCl
 				if (!targetEdge.isAvailable) {
-					mergedChanges.skippedEdges!.add(target.branch.name)
+					mergedChanges.markSkipped(target.branch)
 					availableEdges.delete(targetEdge.targetBranch.upperName)
 					continue
 				}
@@ -1673,7 +1709,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				++this.tickJournal.merges
 			}
 
-			const integration = await targetEdge.performMerge(info, target, this.branch.convertIntegratesToEdits)
+			const integrationResult = await targetEdge.performMerge(info, target, this.branch.convertIntegratesToEdits)
 
 			// wake up target nodebot, so look for further merges or conflict resolutions
 			const targetNodebot = target.branch.bot as NodeBot
@@ -1688,10 +1724,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				availableEdges.delete(targetEdge.targetBranch.upperName)
 			}
 
-			if (integration.changes) {
-				mergedChanges.changes = mergedChanges.changes!.concat(integration.changes)
-			}
-			mergedChanges.errors = mergedChanges.errors.concat(integration.errors)
+			mergedChanges.addIntegrationResult(target, integrationResult)
 		}
 
 		return mergedChanges

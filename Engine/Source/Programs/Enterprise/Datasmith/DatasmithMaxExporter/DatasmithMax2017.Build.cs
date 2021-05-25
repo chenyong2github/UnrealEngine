@@ -26,20 +26,20 @@ namespace UnrealBuildTool.Rules
 				string MaxVersionString = GetMaxVersion();
 				string MaxSDKLocation = "";
 
-				// Try with custom setup
-				string MaxSDKEnvVar = System.Environment.GetEnvironmentVariable("ADSK_3DSMAX_SDK_" + MaxVersionString);
-				if (MaxSDKEnvVar != null && MaxSDKEnvVar != "")
+				// Try with build machine setup
+				string SDKRootEnvVar = System.Environment.GetEnvironmentVariable("UE_SDKS_ROOT");
+				if (SDKRootEnvVar != null && SDKRootEnvVar != "")
 				{
-					MaxSDKLocation = MaxSDKEnvVar;
+					MaxSDKLocation = Path.Combine(SDKRootEnvVar, "HostWin64", "Win64", "3dsMax", MaxVersionString);
 				}
 
 				if (!Directory.Exists(MaxSDKLocation))
 				{
-					// Try with build machine setup
-					string SDKRootEnvVar = System.Environment.GetEnvironmentVariable("UE_SDKS_ROOT");
-					if (SDKRootEnvVar != null && SDKRootEnvVar != "")
+					// Try with custom setup
+					string MaxSDKEnvVar = System.Environment.GetEnvironmentVariable("ADSK_3DSMAX_SDK_" + MaxVersionString);
+					if (MaxSDKEnvVar != null && MaxSDKEnvVar != "")
 					{
-						MaxSDKLocation = Path.Combine(SDKRootEnvVar, "HostWin64", "Win64", "3dsMax", MaxVersionString);
+						MaxSDKLocation = MaxSDKEnvVar;
 					}
 				}
 

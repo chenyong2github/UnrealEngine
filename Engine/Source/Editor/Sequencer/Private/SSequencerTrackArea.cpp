@@ -16,6 +16,7 @@
 #include "ISequencerTrackEditor.h"
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "DisplayNodes/SequencerObjectBindingNode.h"
+#include "CommonMovieSceneTools.h"
 
 FTrackAreaSlot::FTrackAreaSlot(const TSharedPtr<SSequencerTrackLane>& InSlotContent)
 	: TAlignmentWidgetSlotMixin<FTrackAreaSlot>(HAlign_Fill, VAlign_Top)
@@ -208,11 +209,21 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 
 			int32 DashLayer = LayerId + 1;
 
+			float DropMinX = 0.f;
+			float DropMaxX = NodeGeometry.GetLocalSize().X;
+
+			if (DropFrameRange.IsSet())
+			{
+				FTimeToPixel TimeToPixel(NodeGeometry, Sequencer.Pin()->GetViewRange(), Sequencer.Pin()->GetFocusedTickResolution());
+				DropMinX = TimeToPixel.FrameToPixel(DropFrameRange.GetValue().GetLowerBoundValue());
+				DropMaxX = TimeToPixel.FrameToPixel(DropFrameRange.GetValue().GetUpperBoundValue());
+			}
+
 			// Top
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(0, TrackLane.Get()->GetPhysicalPosition()), FVector2D(NodeGeometry.GetLocalSize().X, HorizontalBrush->ImageSize.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackLane.Get()->GetPhysicalPosition()), FVector2D(DropMaxX-DropMinX, HorizontalBrush->ImageSize.Y)),
 				HorizontalBrush,
 				ESlateDrawEffect::None,
 				DashColor);
@@ -221,7 +232,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(0, TrackLane.Get()->GetPhysicalPosition() + (TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y - HorizontalBrush->ImageSize.Y)), FVector2D(AllottedGeometry.Size.X, HorizontalBrush->ImageSize.Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackLane.Get()->GetPhysicalPosition() + (TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y - HorizontalBrush->ImageSize.Y)), FVector2D(DropMaxX-DropMinX, HorizontalBrush->ImageSize.Y)),
 				HorizontalBrush,
 				ESlateDrawEffect::None,
 				DashColor);
@@ -230,7 +241,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(0, TrackLane.Get()->GetPhysicalPosition()), FVector2D(VerticalBrush->ImageSize.X, TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(DropMinX, TrackLane.Get()->GetPhysicalPosition()), FVector2D(VerticalBrush->ImageSize.X, TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y)),
 				VerticalBrush,
 				ESlateDrawEffect::None,
 				DashColor);
@@ -239,7 +250,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				DashLayer,
-				AllottedGeometry.ToPaintGeometry(FVector2D(AllottedGeometry.GetLocalSize().X - VerticalBrush->ImageSize.X, TrackLane.Get()->GetPhysicalPosition()), FVector2D(VerticalBrush->ImageSize.X, TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(DropMaxX - VerticalBrush->ImageSize.X, TrackLane.Get()->GetPhysicalPosition()), FVector2D(VerticalBrush->ImageSize.X, TrackLane.Get()->GetCachedGeometry().GetLocalSize().Y)),
 				VerticalBrush,
 				ESlateDrawEffect::None,
 				DashColor);
@@ -382,6 +393,7 @@ void SSequencerTrackArea::OnMouseEnter(const FGeometry& MyGeometry, const FPoint
 {
 	DroppedNode.Reset();
 	bAllowDrop = false;
+	DropFrameRange.Reset();
 
 	if ( Sequencer.IsValid() )
 	{
@@ -500,6 +512,7 @@ FReply SSequencerTrackArea::OnDragOver(const FGeometry& MyGeometry, const FDragD
 
 	DroppedNode = PinnedTreeView->HitTestNode(MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition()).Y);
 	bAllowDrop = false;
+	DropFrameRange.Reset();
 
 	if (DroppedNode.IsValid() && DroppedNode.Pin()->GetType() == ESequencerNode::Track && Sequencer.IsValid())
 	{
@@ -517,11 +530,21 @@ FReply SSequencerTrackArea::OnDragOver(const FGeometry& MyGeometry, const FDragD
 		// give track editors a chance to accept the drag event
 		auto TrackEditors = Sequencer.Pin()->GetTrackEditors();
 
+		FTimeToPixel TimeToPixel(MyGeometry, Sequencer.Pin()->GetViewRange(), Sequencer.Pin()->GetFocusedTickResolution());
+		FVector2D LocalPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
+		FFrameNumber DropFrameNumber = TimeToPixel.PixelToFrame(LocalPos.X).FrameNumber;
+		if (Sequencer.Pin()->GetSequencerSettings()->GetIsSnapEnabled() && Sequencer.Pin()->GetSequencerSettings()->GetSnapPlayTimeToInterval())
+		{
+			DropFrameNumber = FFrameRate::Snap(DropFrameNumber, Sequencer.Pin()->GetFocusedTickResolution(), Sequencer.Pin()->GetFocusedDisplayRate()).FrameNumber;
+		}
+		FSequencerDragDropParams DragDropParams(Track, RowIndex, ObjectBinding, DropFrameNumber, TRange<FFrameNumber>());
+
 		for (const auto& TrackEditor : TrackEditors)
 		{
-			if (TrackEditor->OnAllowDrop(DragDropEvent, Track, RowIndex, ObjectBinding))
+			if (TrackEditor->OnAllowDrop(DragDropEvent, DragDropParams))
 			{
 				bAllowDrop = true;
+				DropFrameRange = DragDropParams.FrameRange;
 				return FReply::Handled();
 			}
 		}
@@ -553,13 +576,22 @@ FReply SSequencerTrackArea::OnDrop(const FGeometry& MyGeometry, const FDragDropE
 		// give track editors a chance to process the drag event
 		auto TrackEditors = Sequencer.Pin()->GetTrackEditors();
 
+		FTimeToPixel TimeToPixel(MyGeometry, Sequencer.Pin()->GetViewRange(), Sequencer.Pin()->GetFocusedTickResolution());
+		FVector2D LocalPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
+		FFrameNumber DropFrameNumber = TimeToPixel.PixelToFrame(LocalPos.X).FrameNumber;
+		if (Sequencer.Pin()->GetSequencerSettings()->GetIsSnapEnabled() && Sequencer.Pin()->GetSequencerSettings()->GetSnapPlayTimeToInterval())
+		{
+			DropFrameNumber = FFrameRate::Snap(DropFrameNumber, Sequencer.Pin()->GetFocusedTickResolution(), Sequencer.Pin()->GetFocusedDisplayRate()).FrameNumber;
+		}
+		FSequencerDragDropParams DragDropParams(Track, RowIndex, ObjectBinding, DropFrameNumber, TRange<FFrameNumber>());
+
 		for (const auto& TrackEditor : TrackEditors)
 		{
-			if (TrackEditor->OnAllowDrop(DragDropEvent, Track, RowIndex, ObjectBinding))
+			if (TrackEditor->OnAllowDrop(DragDropEvent, DragDropParams))
 			{
 				DroppedNode.Reset();
 
-				return TrackEditor->OnDrop(DragDropEvent, Track, RowIndex, ObjectBinding);
+				return TrackEditor->OnDrop(DragDropEvent, DragDropParams);
 			}
 		}
 	}

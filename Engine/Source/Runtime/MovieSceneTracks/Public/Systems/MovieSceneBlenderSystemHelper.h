@@ -58,19 +58,22 @@ struct TSimpleBlendResultTraits
 template<typename PropertyType>
 struct TSimpleBlenderGatherResults
 {
+	FMovieSceneBlenderSystemID SystemID;
 	TArray<TSimpleBlendResult<PropertyType>>& BlendChannelResults;
 
-	TSimpleBlenderGatherResults(TArray<TSimpleBlendResult<PropertyType>>& InBlendChannelResults)
-		: BlendChannelResults(InBlendChannelResults)
+	TSimpleBlenderGatherResults(FMovieSceneBlenderSystemID InSystemID, TArray<TSimpleBlendResult<PropertyType>>& InBlendChannelResults)
+		: SystemID(InSystemID)
+		, BlendChannelResults(InBlendChannelResults)
 	{}
 
-	void ForEachEntity(uint16 BlendChannelInput, PropertyType Value)
+	void ForEachEntity(FMovieSceneBlendChannelID BlendChannelInput, PropertyType Value)
 	{
 		using FResultTraits = TSimpleBlendResultTraits<PropertyType>;
 
-		if (ensure(BlendChannelResults.IsValidIndex(BlendChannelInput)))
+		ensureMsgf(BlendChannelInput.SystemID == SystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
+		if (ensure(BlendChannelResults.IsValidIndex(BlendChannelInput.ChannelID)))
 		{
-			FResultTraits::AccumulateResult(BlendChannelResults[BlendChannelInput], Value);
+			FResultTraits::AccumulateResult(BlendChannelResults[BlendChannelInput.ChannelID], Value);
 		}
 	}
 };
@@ -78,19 +81,22 @@ struct TSimpleBlenderGatherResults
 template<typename PropertyType>
 struct TSimpleBlenderCombineResults
 {
+	FMovieSceneBlenderSystemID SystemID;
 	TArray<TSimpleBlendResult<PropertyType>>& BlendChannelResults;
 
-	TSimpleBlenderCombineResults(TArray<TSimpleBlendResult<PropertyType>>& InBlendChannelResults)
-		: BlendChannelResults(InBlendChannelResults)
+	TSimpleBlenderCombineResults(FMovieSceneBlenderSystemID InSystemID, TArray<TSimpleBlendResult<PropertyType>>& InBlendChannelResults)
+		: SystemID(InSystemID)
+		, BlendChannelResults(InBlendChannelResults)
 	{}
 
-	void ForEachEntity(uint16 BlendChannelOutput, PropertyType& OutValue)
+	void ForEachEntity(FMovieSceneBlendChannelID BlendChannelOutput, PropertyType& OutValue)
 	{
 		using FResultTraits = TSimpleBlendResultTraits<PropertyType>;
 
-		if (ensure(BlendChannelResults.IsValidIndex(BlendChannelOutput)))
+		ensureMsgf(BlendChannelOutput.SystemID == SystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
+		if (ensure(BlendChannelResults.IsValidIndex(BlendChannelOutput.ChannelID)))
 		{
-			OutValue = FResultTraits::BlendResult(BlendChannelResults[BlendChannelOutput]);
+			OutValue = FResultTraits::BlendResult(BlendChannelResults[BlendChannelOutput.ChannelID]);
 		}
 	}
 };
@@ -170,7 +176,7 @@ public:
 			.Read(ResultComponentID)
 			.FilterNone({ BuiltInComponents->Tags.Ignored })
 			.template Dispatch_PerEntity<TSimpleBlenderGatherResults<PropertyType>>(
-					&Linker->EntityManager, InPrerequisites, nullptr, BlendChannelResults);
+					&Linker->EntityManager, InPrerequisites, nullptr, BlenderSystem->GetBlenderSystemID(), BlendChannelResults);
 		if (Task)
 		{
 			Prereqs.AddMasterTask(Task);
@@ -182,7 +188,7 @@ public:
 			.Write(ResultComponentID)
 			.FilterNone({ BuiltInComponents->Tags.Ignored })
 			.template Dispatch_PerEntity<TSimpleBlenderCombineResults<PropertyType>>(
-					&Linker->EntityManager, Prereqs, &Subsequents, BlendChannelResults);
+					&Linker->EntityManager, Prereqs, &Subsequents, BlenderSystem->GetBlenderSystemID(), BlendChannelResults);
 	}
 
 private:

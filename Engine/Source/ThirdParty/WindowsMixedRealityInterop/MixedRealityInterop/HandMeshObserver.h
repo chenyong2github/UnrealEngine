@@ -33,7 +33,7 @@ namespace WindowsMixedReality
 			return s_OnStartMeshUpdates != nullptr && s_OnAllocateBuffers != nullptr && s_OnFinishMeshUpdates != nullptr;
 		}
 
-		void Update(HandPose pose, SpatialCoordinateSystem coordinateSystem);
+		void Update(HandPose pose, SpatialCoordinateSystem coordinateSystem, bool isRightHand);
 
 		static void InitStatic(std::function<void()> OnStartMeshUpdates, std::function<void(MeshUpdate*)> OnAllocateBuffers, std::function<void()> OnFinishMeshUpdates);
 

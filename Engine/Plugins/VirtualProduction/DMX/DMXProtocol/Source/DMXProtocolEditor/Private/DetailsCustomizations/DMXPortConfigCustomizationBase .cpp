@@ -300,9 +300,9 @@ void FDMXPortConfigCustomizationBase::OnCommunicationTypeSelected()
 
 	const FScopedTransaction Transaction(LOCTEXT("CommunicationTypeSelected", "DMX: Selected Communication Type"));
 	
-	DeviceAddressHandle->NotifyPreChange();
+	CommunicationTypeHandle->NotifyPreChange();
 	CommunicationTypeHandle->SetValue(static_cast<uint8>(SelectedCommunicationType));
-	DeviceAddressHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+	CommunicationTypeHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 void FDMXPortConfigCustomizationBase::OnIPAddressSelected()

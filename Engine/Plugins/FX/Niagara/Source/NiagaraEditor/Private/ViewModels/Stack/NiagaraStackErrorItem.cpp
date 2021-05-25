@@ -204,7 +204,7 @@ void UNiagaraStackErrorItemDismiss::Initialize(FRequiredEntryData InRequiredEntr
 	UNiagaraStackEntry::Initialize(InRequiredEntryData, ErrorStackEditorDataKey);
 	StackIssue = InStackIssue;
 	IssueFix = FStackIssueFix(
-		StackIssue.GetSeverity() == EStackIssueSeverity::Info ?
+		StackIssue.GetSeverity() == EStackIssueSeverity::Info || StackIssue.GetSeverity() == EStackIssueSeverity::CustomNote ?
 			LOCTEXT("DismissNote", "Dismiss note") :
 			LOCTEXT("DismissError", "Dismiss the issue without fixing (I know what I'm doing)"),
 		FStackIssueFixDelegate::CreateUObject(this, &UNiagaraStackErrorItemDismiss::DismissIssue));
@@ -223,7 +223,7 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackErrorItemDismiss::GetStackRowSty
 
 FText UNiagaraStackErrorItemDismiss::GetFixButtonText() const
 {
-	return StackIssue.GetSeverity() == EStackIssueSeverity::Info ? LOCTEXT("DismissNode", "Dismiss") : LOCTEXT("DismissIssue", "Dismiss issue");
+	return StackIssue.GetSeverity() == EStackIssueSeverity::Info || StackIssue.GetSeverity() == EStackIssueSeverity::CustomNote ? LOCTEXT("DismissNote", "Dismiss") : LOCTEXT("DismissIssue", "Dismiss issue");
 }
 
 #undef LOCTEXT_NAMESPACE

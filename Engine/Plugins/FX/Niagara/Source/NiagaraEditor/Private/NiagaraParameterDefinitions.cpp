@@ -32,7 +32,6 @@ void UNiagaraParameterDefinitions::PostLoad()
 		}
 
 		SynchronizeWithSubscribedParameterDefinitions();
-		InitBindings();
 	}
 }
 
@@ -40,14 +39,6 @@ void UNiagaraParameterDefinitions::PostEditChangeProperty(struct FPropertyChange
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	OnParameterDefinitionsChangedDelegate.Broadcast();
-}
-
-void UNiagaraParameterDefinitions::InitBindings()
-{
-	for (FParameterDefinitionsBindingNameSubscription& Subscription : ExternalParameterDefinitionsSubscriptions)
-	{
-		Subscription.SubscribedParameterDefinitions->GetOnParameterDefinitionsChanged().AddUObject(this, &UNiagaraParameterDefinitions::SynchronizeWithSubscribedParameterDefinitions);
-	}
 }
 
 void UNiagaraParameterDefinitions::AddParameter(const FNiagaraVariable& NewVariable)

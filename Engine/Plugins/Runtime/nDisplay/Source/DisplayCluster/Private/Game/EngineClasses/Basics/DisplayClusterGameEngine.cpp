@@ -36,11 +36,11 @@ namespace DisplayClusterGameEngineUtils
 	static const FString WaitForGameName     = TEXT("WaitForGameStart");
 }
 
-// Enable/disable warp&blend
+// Advanced cluster synchronization during LoadMap
 static TAutoConsoleVariable<int32> CVarGameStartBarrierAvoidance(
 	TEXT("nDisplay.game.GameStartBarrierAvoidance"),
 	1,
-	TEXT("Avoid entering GameStartBarrier on loaing level\n")
+	TEXT("Avoid entering GameStartBarrier on loading level\n")
 	TEXT("0 : disabled\n")
 	TEXT("1 : enabled\n")
 );

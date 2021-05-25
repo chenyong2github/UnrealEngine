@@ -65,6 +65,8 @@ namespace DatasmithSketchUp
 		void InvalidateMeshActors();
 		void SetVisibility(bool);
 
+		void RemoveDatasmithActorHierarchy(FExportContext& Context);
+
 		void ToDatasmith(FExportContext& Context); // Build actor hierarchy 
 
 		FString GetActorName();
@@ -167,7 +169,7 @@ namespace DatasmithSketchUp
 			SUComponentDefinitionRef InComponentDefinitionRef // source SketchUp component definition
 		);
 
-		// Being FDefinition
+		// Begin FDefinition
 		void Parse(FExportContext& Context);
 		void CreateActor(FExportContext& Context, FNodeOccurence& Node) override;
 		void BuildNodeNames(FNodeOccurence& Node) override;
@@ -187,10 +189,11 @@ namespace DatasmithSketchUp
 		// Register/unregister instanced of this definition
 		void LinkComponentInstance(FComponentInstance* ComponentInstance);
 		void UnlinkComponentInstance(FComponentInstance* ComponentInstance);
+		void RemoveComponentDefinition(FExportContext& Context);
 
 		// Source SketchUp component ID.
 		FComponentDefinitionIDType SketchupSourceID;
-		TSet<FComponentInstance*> Instances;
+		TSet<FComponentInstance*> Instances; // Tracked instances of this ComponentDefinition
 
 	private:
 		SUComponentDefinitionRef ComponentDefinitionRef;
@@ -268,6 +271,8 @@ namespace DatasmithSketchUp
 		bool IsMeshUsingInheritedMaterial(int32 MeshIndex);
 
 		TArray<TSharedPtr<FDatasmithInstantiatedMesh>> Meshes;
+		TSet<int32> FaceIds; // EntityId of all the VISIBLE faces composing the mesh
+		TSet<DatasmithSketchUp::FEntityIDType> Layers; // EntityId of all layers assigned to geometry faces(needed to identify if geometry needs to be rebuilt when layer visibility changes)
 		TSet<FMaterialIDType> MaterialsUsed;
 
 		// todo: update reusing datasmith elements? 
@@ -364,11 +369,11 @@ namespace DatasmithSketchUp
 		FComponentInstanceIDType GetComponentInstanceId();
 		SUComponentInstanceRef GetComponentInstanceRef(); 
 
-		bool RetrieveHidden(); // Retrieve SketchUp value of Hidden flag
-
 		void FillOccurrenceActorMetadata(FNodeOccurence& Node);
 
-		bool bHidden = false; // S
+		bool bHidden = false;
+		SULayerRef LayerRef = SU_INVALID;
+		bool bLayerVisible = true;
 
 		TArray<FNodeOccurence*> Occurrences;
 

@@ -120,6 +120,11 @@ FString FDatasmithSceneXmlWriterImpl::GetLabelAndLayer(const TSharedPtr<IDatasmi
 		LabelAndLayer += TEXT(" layer=\"") + SanitizeXMLText(ActorElement->GetLayer()) + TEXT("\"");
 	}
 
+	if (!ActorElement->GetVisibility())
+	{
+		LabelAndLayer += TEXT(" visible=\"0\"");
+	}
+
 	return LabelAndLayer;
 }
 
@@ -616,6 +621,8 @@ void FDatasmithSceneXmlWriterImpl::WriteActorChildren(const TSharedPtr< IDatasmi
 	FString XmlString;
 	if (ActorElement->GetChildrenCount() > 0)
 	{
+		// Compatibility note: in 4.26 and previous version, this 'visible' attribute was mandatory (because it's value defaulted to false).
+		// In 4.27+, the 'visible' attribute moved on the actor tag itself.
 		if (!ActorElement->GetVisibility())
 		{
 			XmlString = TEXT("<children visible=\"false\">");

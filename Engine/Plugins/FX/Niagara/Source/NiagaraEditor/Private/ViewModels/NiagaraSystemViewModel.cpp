@@ -144,8 +144,6 @@ void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
 
 void FNiagaraSystemViewModel::Cleanup()
 {
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("Cleanup System view model %p"), this);
-
 	if (SystemInstance)
 	{
 		SystemInstance->OnInitialized().RemoveAll(this);
@@ -234,8 +232,6 @@ void FNiagaraSystemViewModel::Cleanup()
 FNiagaraSystemViewModel::~FNiagaraSystemViewModel()
 {
 	Cleanup();
-
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("Deleting System view model %p"), this);
 }
 
 INiagaraParameterDefinitionsSubscriber* FNiagaraSystemViewModel::GetParameterDefinitionsSubscriber()

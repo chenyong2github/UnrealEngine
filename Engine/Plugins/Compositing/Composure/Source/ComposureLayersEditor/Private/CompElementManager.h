@@ -9,6 +9,7 @@
 
 class UEditorCompElementContainer;
 class AActor;
+class UPackage;
 class UEditorEngine;
 class FCompositingViewportClient;
 class ULevel;
@@ -33,7 +34,7 @@ public:
 
 public: 
 	//~ Begin ICompElementManager interface
-	virtual TWeakObjectPtr<ACompositingElement> CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext = nullptr) override;
+	virtual TWeakObjectPtr<ACompositingElement> CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext = nullptr, UPackage* OverridePackage = nullptr) override;
 	virtual TWeakObjectPtr<ACompositingElement> GetElement(const FName& ElementName) const override;
 	virtual bool TryGetElement(const FName& ElementName, TWeakObjectPtr<ACompositingElement>& OutElement) override;
 	virtual void AddAllCompElementsTo(TArray< TWeakObjectPtr<ACompositingElement> >& OutElements) const override;

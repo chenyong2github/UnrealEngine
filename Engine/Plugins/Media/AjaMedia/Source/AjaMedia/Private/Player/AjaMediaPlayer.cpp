@@ -69,6 +69,7 @@ FAjaMediaPlayer::FAjaMediaPlayer(IMediaEventSink& InEventSink)
 	, bVerifyFrameDropCount(true)
 	, InputChannel(nullptr)
 	, SupportedSampleTypes(EMediaIOSampleType::None)
+	, bPauseRequested(false)
 {
 }
 
@@ -496,10 +497,12 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 {
 	SCOPE_CYCLE_COUNTER(STAT_AJA_MediaPlayer_ProcessFrame);
 
-	if (AjaThreadNewState != EMediaState::Playing)
+	if ((AjaThreadNewState != EMediaState::Playing) && (AjaThreadNewState != EMediaState::Paused))
 	{
 		return false;
 	}
+
+	AjaThreadNewState = bPauseRequested ? EMediaState::Paused : EMediaState::Playing;
 
 	AjaThreadFrameDropCount = InInputFrame.FramesDropped;
 
@@ -700,7 +703,7 @@ bool FAjaMediaPlayer::OnOutputFrameCopied(const AJA::AJAOutputFrameData& InFrame
 
 bool FAjaMediaPlayer::IsHardwareReady() const
 {
-	return AjaThreadNewState == EMediaState::Playing ? true : false;
+	return (AjaThreadNewState == EMediaState::Playing) || (AjaThreadNewState == EMediaState::Paused);
 }
 
 void FAjaMediaPlayer::SetupSampleChannels()
@@ -716,6 +719,23 @@ void FAjaMediaPlayer::SetupSampleChannels()
 	FMediaIOSamplingSettings MetadataSettings = BaseSettings;
 	MetadataSettings.BufferSize = MaxNumMetadataFrameBuffer;
 	Samples->InitializeMetadataBuffer(MetadataSettings);
+}
+
+bool FAjaMediaPlayer::SetRate(float Rate)
+{
+	if (FMath::IsNearlyEqual(Rate, 1.0f))
+	{
+		bPauseRequested = false;
+		return true;
+	}
+
+	if (FMath::IsNearlyEqual(Rate, 0.0f))
+	{
+		bPauseRequested = true;
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

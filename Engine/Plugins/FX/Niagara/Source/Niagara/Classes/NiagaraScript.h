@@ -516,6 +516,7 @@ public:
 	mutable FNiagaraVMExecutableDataId LastGeneratedVMId;
 
 	/** Reference to a python script that is executed when the user updates from a previous version to this version. */
+	UPROPERTY()
 	ENiagaraPythonUpdateScriptReference UpdateScriptExecution = ENiagaraPythonUpdateScriptReference::None;
 
 	/** Python script to run when updating to this script version. */
@@ -587,6 +588,9 @@ public:
 
 	/** Makes sure that the default version data is available and fixes old script assets. */
 	NIAGARA_API void CheckVersionDataAvailable();
+
+	/** Creates a shallow transient copy of this script for compilation purposes. */
+	NIAGARA_API UNiagaraScript* CreateCompilationCopy();
 #endif
 
 	// how this script is to be used. cannot be private due to use of GET_MEMBER_NAME_CHECKED
@@ -847,6 +851,7 @@ public:
 	void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform);
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 	void CacheShadersForResources(FNiagaraShaderScript* ResourceToCache, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile = false, bool bCooking=false, const ITargetPlatform* TargetPlatform = nullptr);
+	void SaveShaderStableKeys(const class ITargetPlatform* TP);
 #endif // WITH_EDITOR
 	FNiagaraShaderScript* AllocateResource();
 	FNiagaraShaderScript* GetRenderThreadScript()

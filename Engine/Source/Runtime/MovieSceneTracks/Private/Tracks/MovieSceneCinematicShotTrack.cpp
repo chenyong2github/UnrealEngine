@@ -81,39 +81,19 @@ namespace UE
 {
 namespace MovieScene
 {
-	enum class ECinematicShotSectionSortFlags
-	{
-		None = 0,
-		PreRoll = 1 << 0,
-		PostRoll = 1 << 1
-	};
-	ENUM_CLASS_FLAGS(ECinematicShotSectionSortFlags);
-
 	struct FCinematicShotSectionSortData
 	{
 		int32 Row;
 		int32 OverlapPriority;
 		int32 SectionIndex;
-		TRangeBound<FFrameNumber> LowerBound;
-		ECinematicShotSectionSortFlags Flags = ECinematicShotSectionSortFlags::None;
 
 		friend bool operator<(const FCinematicShotSectionSortData& A, const FCinematicShotSectionSortData& B)
 		{
-			const bool PrePostRollA = EnumHasAnyFlags(A.Flags, ECinematicShotSectionSortFlags::PreRoll | ECinematicShotSectionSortFlags::PostRoll);
-			const bool PrePostRollB = EnumHasAnyFlags(B.Flags, ECinematicShotSectionSortFlags::PreRoll | ECinematicShotSectionSortFlags::PostRoll);
+			if (A.Row != B.Row)
+			{
+				return A.Row < B.Row;
+			}
 
-			if (PrePostRollA != PrePostRollB)
-			{
-				return PrePostRollA;
-			}
-			else if (PrePostRollA)
-			{
-				return false;
-			}
-			else if (A.OverlapPriority == B.OverlapPriority)
-			{
-				return TRangeBound<FFrameNumber>::MaxLower(A.LowerBound, B.LowerBound) == A.LowerBound;
-			}
 			return A.OverlapPriority > B.OverlapPriority;
 		}
 	};
@@ -135,17 +115,8 @@ bool UMovieSceneCinematicShotTrack::PopulateEvaluationTree(TMovieSceneEvaluation
 			const TRange<FFrameNumber> SectionRange = Section->GetRange();
 			if (!SectionRange.IsEmpty())
 			{
-				FCinematicShotSectionSortData SectionData{ 
-					Section->GetRowIndex(), Section->GetOverlapPriority(), SectionIndex, Section->GetRange().GetLowerBound() };
-				if (!SectionRange.GetLowerBound().IsOpen() && Section->GetPreRollFrames() > 0)
-				{
-					SectionData.Flags |= ECinematicShotSectionSortFlags::PreRoll;
-				}
-				if (!SectionRange.GetUpperBound().IsOpen() && Section->GetPostRollFrames() > 0)
-				{
-					SectionData.Flags |= ECinematicShotSectionSortFlags::PostRoll;
-				}
-				SortedSections.Add(SectionData);
+				FCinematicShotSectionSortData SectionData{ Section->GetRowIndex(), Section->GetOverlapPriority(), SectionIndex };
+				SortedSections.Emplace(SectionData);
 			}
 		}
 	}

@@ -13,8 +13,7 @@ class IDisplayClusterProjectionPolicy;
 class IDisplayClusterProjectionPolicyFactory
 {
 public:
-	virtual ~IDisplayClusterProjectionPolicyFactory() = 0
-	{ }
+	virtual ~IDisplayClusterProjectionPolicyFactory() = default;
 
 public:
 	/**

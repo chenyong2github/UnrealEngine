@@ -36,6 +36,37 @@ struct FBuildEditWidgetParams
 	int32 TrackInsertRowIndex;
 };
 
+struct FSequencerDragDropParams
+{
+	FSequencerDragDropParams()
+		: Track(nullptr)
+		, RowIndex(INDEX_NONE)
+		{}
+
+	FSequencerDragDropParams(UMovieSceneTrack* InTrack, int32 InRowIndex, FGuid InTargetObjectGuid, FFrameNumber InFrameNumber, const TRange<FFrameNumber>& InFrameRange)
+		: Track(InTrack)
+		, RowIndex(InRowIndex)
+		, TargetObjectGuid(InTargetObjectGuid)
+		, FrameNumber(InFrameNumber)
+		, FrameRange(InFrameRange)
+	{}
+
+	/** The track that is receiving this drop event */
+	UMovieSceneTrack* Track;
+	 
+	/** The row index to drop onto */
+	int32 RowIndex;
+
+	/** The object guid this asset is dropped onto, if applicable */
+	FGuid TargetObjectGuid;
+
+	/** The frame number that this drop event is being dropped at */
+	FFrameNumber FrameNumber;
+
+	/** The frame range that this drop event is being dropped at */
+	TRange<FFrameNumber> FrameRange;
+};
+
 /**
  * Interface for sequencer track editors.
  */
@@ -138,23 +169,25 @@ public:
 	 * Called when attempting to drop an asset directly onto a track.
 	 *
 	 * @param DragDropEvent The drag drop event.
-	 * @param Track The track that is receiving this drop event.
-	 * @param RowIndex The row index to drop onto.
-	 * @param TargetObjectGuid The object guid this asset is dropped onto, if applicable.
+	 * @param DragDropParams The drag drop parameters.
 	 * @return Whether the drop event can be handled.
 	 */
-	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) = 0;
+	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams) = 0;
+
+	UE_DEPRECATED(4.27, "Use OnAllowDrop with DragDropParams.")
+	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) { FSequencerDragDropParams DragDropParams; return OnAllowDrop(DragDropEvent, DragDropParams); }
 
 	/**
 	 * Called when an asset is dropped directly onto a track.
 	 *
 	 * @param DragDropEvent The drag drop event.
-	 * @param Track The track that is receiving this drop event.
-	 * @param RowIndex The row index to drop onto.
-	 * @param TargetObjectGuid The object guid this asset is dropped onto, if applicable.
+	 * @param DragDropParams The drag drop parameters.
 	 * @return Whether the drop event was handled.
 	 */	
-	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) = 0;
+	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams) = 0;
+
+	UE_DEPRECATED(4.27, "Use OnDrop with DragDropParams.")
+	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) { return OnDrop(DragDropEvent, FSequencerDragDropParams()); }
 
 	/**
 	 * Called to generate a section layout for a particular section.

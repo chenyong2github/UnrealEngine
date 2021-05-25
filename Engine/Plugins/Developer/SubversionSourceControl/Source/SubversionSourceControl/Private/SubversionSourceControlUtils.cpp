@@ -110,13 +110,14 @@ static FString DetectSubversionPath()
 	bool bPathIsValid = !SVNPath.IsEmpty() && FPaths::FileExists(SVNPath);
 
 #if PLATFORM_MAC
-	// On mac we need to check that the developer tools are installed if the svn path is /usr/bin/svn
+	// On mac we need to check is /usr/bin/svn valid (it can exists but invoking it tells that it is not distributed with XCode anymore)
 	if (SVNPath == TEXT("/usr/bin/svn"))
 	{
 		void* ReadPipe = nullptr, *WritePipe = nullptr;
 		FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
-		FProcHandle DevToolsProc = FPlatformProcess::CreateProc(TEXT("/usr/bin/xcode-select"), TEXT("-p"), bLaunchDetached, bLaunchHidden, bLaunchHidden, NULL, 0, NULL, WritePipe);
+        // Test is running '/usr/bin/svn --version' returns 0.
+		FProcHandle DevToolsProc = FPlatformProcess::CreateProc(TEXT("/usr/bin/svn"), TEXT("--version"), bLaunchDetached, bLaunchHidden, bLaunchHidden, NULL, 0, NULL, WritePipe);
 		if (DevToolsProc.IsValid())
 		{
 			FPlatformProcess::WaitForProc(DevToolsProc);

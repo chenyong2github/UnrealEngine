@@ -5,112 +5,105 @@
 #include "CoreMinimal.h"
 #include "VideoEncoderInput.h"
 #include "Misc/FrameRate.h"
+#include "Misc/ScopeLock.h"
 
 namespace AVEncoder
 {
-	class FVideoEncoder
-	{
-	public:
-		virtual ~FVideoEncoder();
+    class AVENCODER_API FVideoEncoder
+    {
+    public:
+        enum class RateControlMode { UNKNOWN, CONSTQP, VBR, CBR };
+        enum class MultipassMode { UNKNOWN, DISABLED, QUARTER, FULL };
 
-		enum class RateControlMode
-		{
-			UNKNOWN,
-			CONSTQP,
-			VBR,
-			CBR,
-		};
+        struct FLayerConfig
+        {
+            uint32			Width = 0;
+            uint32			Height = 0;
+            uint32			MaxFramerate = 0;
+            int32			MaxBitrate = 0;
+            int32			TargetBitrate = 0;
+            int32			QPMax = -1;
+            int32			QPMin = -1;
+            RateControlMode RateControlMode = RateControlMode::CBR;
+            MultipassMode	MultipassMode = MultipassMode::FULL;
+            bool			FillData = false;
 
-		struct FLayerConfig
-		{
-			uint32			Width = 0;
-			uint32			Height = 0;
-			uint32			MaxBitrate = 0;
-			uint32			TargetBitrate = 0;
-			uint32			QPMax = 0;
-			int32			QPMin = -1;
-			RateControlMode RateControlMode = RateControlMode::CBR;
-			bool			FillData = false;
-		};
+			bool operator==(FLayerConfig const& other) const
+			{
+				return Width == other.Width
+					&& Height == other.Height
+					&& MaxFramerate == other.MaxFramerate
+					&& MaxBitrate == other.MaxBitrate
+					&& TargetBitrate == other.TargetBitrate
+					&& QPMax == other.QPMax
+					&& QPMin == other.QPMin
+					&& RateControlMode == other.RateControlMode
+					&& MultipassMode == other.MultipassMode
+					&& FillData == other.FillData;
+			}
 
-		struct FInit : public FLayerConfig
-		{
-			uint32			MaxFramerate = 0;
-			FFrameRate		TimeBase;
-		};
+			bool operator!=(FLayerConfig const& other) const
+			{
+				return !(*this == other);
+			}
+        };
 
-		// --- setup
+        virtual ~FVideoEncoder();
 
-		virtual bool Setup(TSharedRef<FVideoEncoderInput> InInput, const FInit& InInit);
-		virtual void Shutdown();
+		virtual bool Setup(TSharedRef<FVideoEncoderInput> input, FLayerConfig const& config) { return false; }
+		virtual void Shutdown() {}
 
-		// --- properties
+        virtual bool AddLayer(FLayerConfig const& config);
+        uint32 GetNumLayers() const { return static_cast<uint32>(Layers.Num()); }
+        virtual uint32 GetMaxLayers() const { return 1; }
 
-		// --- layers
+		FLayerConfig GetLayerConfig(uint32 layerIdx) const;
+        void UpdateLayerConfig(uint32 layerIdx, FLayerConfig const& config);
 
+        using OnFrameEncodedCallback = TFunction<void(const FVideoEncoderInputFrame* /* InCompletedFrame */)>;
+        using OnEncodedPacketCallback = TFunction<void(uint32 /* LayerIndex */, const FVideoEncoderInputFrame* /* Frame */, const FCodecPacket& /* Packet */)>;
 
-		// get the max. number of supported layers - the original resolution counts as a layer so at least one layer is supported.
-		virtual uint32 GetMaxLayers() const { return 1; }
-		// add a layer to encode - each consecutive layer must be smaller than the previous one
-		virtual bool AddLayer(const FLayerConfig& InLayerConfig);
-		// get the current number of layers
-		uint32 GetNumLayers() const { return LayerInfos.Num(); }
+        struct FEncodeOptions
+        {
+            bool					bForceKeyFrame = false;
+            OnFrameEncodedCallback	OnFrameEncoded;
+        };
 
-		uint32 GetWidth(uint32 InLayerIndex) const { return (InLayerIndex < static_cast<uint32>(LayerInfos.Num())) ? LayerInfos[InLayerIndex]->Width : 0; }
-		uint32 GetHeight(uint32 InLayerIndex) const { return (InLayerIndex < static_cast<uint32>(LayerInfos.Num())) ? LayerInfos[InLayerIndex]->Height : 0; }
+        void SetOnEncodedPacket(OnEncodedPacketCallback callback) { OnEncodedPacket = MoveTemp(callback); }
+        void ClearOnEncodedPacket() { OnEncodedPacket = nullptr; }
 
-		virtual void UpdateFrameRate(uint32 InMaxFramerate) {}
-		virtual void UpdateLayerBitrate(uint32 InLayerIndex, uint32 InMaxBitRate, uint32 InTargetBitRate) {}
-		virtual void UpdateLayerResolution(uint32 InLayerIndex, uint32 InWidth, uint32 InHeight) {}
-		virtual void UpdateMinQP(int32 minqp) {}
-		virtual void UpdateRateControl(RateControlMode mode) {}
-		virtual void UpdateFillData(bool enable) {}
+		virtual void Encode(FVideoEncoderInputFrame const* frame, FEncodeOptions const& options) {}
 
-		// --- input
+    protected:
+        FVideoEncoder() = default;
 
-		// new packet callback prototype void(uint32 LayerIndex, const FCodecPacket& Packet)
-		using OnFrameEncodedCallback = TFunction<void(const FVideoEncoderInputFrame* /* InCompletedFrame */)>;
+        class FLayer
+        {
+        public:
+            explicit FLayer(FLayerConfig const& layerConfig)
+                : CurrentConfig(layerConfig)
+                , NeedsReconfigure(false)
+            {}
+            virtual ~FLayer() = default;
 
-		struct FEncodeOptions
-		{
-			bool					bForceKeyFrame = false;
-			OnFrameEncodedCallback	OnFrameEncoded;
-		};
+			FLayerConfig const& GetConfig() const { return CurrentConfig; }
+			void UpdateConfig(FLayerConfig const& config)
+			{
+				FScopeLock lock(&ConfigMutex);
+				CurrentConfig = config;
+				NeedsReconfigure = true;
+			}
 
-		virtual void Encode(const FVideoEncoderInputFrame* InFrame, const FEncodeOptions& InOptions) = 0;
+		protected:
+			FCriticalSection	ConfigMutex;
+            FLayerConfig		CurrentConfig;
+            bool				NeedsReconfigure;
+        };
 
-		// --- output
+		virtual FLayer* CreateLayer(uint32 layerIdx, FLayerConfig const& config) { return nullptr; }
+		virtual void DestroyLayer(FLayer* layer) {};
 
-		// new packet callback prototype void(uint32 LayerIndex, const FCodecPacket& Packet)
-		using OnEncodedPacketCallback = TFunction<void(uint32 /* LayerIndex */, const FVideoEncoderInputFrame* /* Frame */, const FCodecPacket& /* Packet */)>;
-
-		void SetOnEncodedPacket(OnEncodedPacketCallback InCallback) { OnEncodedPacket = MoveTemp(InCallback); }
-		void ClearOnEncodedPacket() { OnEncodedPacket = nullptr; }
-
-	protected:
-		FVideoEncoder() = default;
-
-		class FLayerInfo
-		{
-		public:
-			explicit FLayerInfo(const FLayerConfig& InLayerConfig);
-			virtual ~FLayerInfo() = default;
-
-			uint32			Width;
-			uint32			Height;
-			uint32			MaxBitrate;
-			uint32			TargetBitrate;
-			uint32			QPMax;
-			int32			QPMin;
-			RateControlMode RateControlMode;
-			bool			FillData;
-		};
-
-		TArray<FLayerInfo*>		LayerInfos;
-
-		virtual FLayerInfo* CreateLayer(uint32 InLayerIndex, const FLayerInfo& InLayerInfo);
-		virtual void DestroyLayer(FLayerInfo* InLayerInfo);
-
-		OnEncodedPacketCallback			OnEncodedPacket;
-	};
+        TArray<FLayer*>			Layers;
+        OnEncodedPacketCallback	OnEncodedPacket;
+    };
 }

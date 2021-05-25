@@ -6,7 +6,7 @@
 #include "IImageWrapperModule.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
-#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
 #include "Brushes/SlateDynamicImageBrush.h"

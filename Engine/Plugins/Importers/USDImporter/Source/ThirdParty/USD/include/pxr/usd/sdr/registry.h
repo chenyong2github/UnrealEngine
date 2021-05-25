@@ -28,6 +28,7 @@
 /// \file sdr/registry.h
 
 #include "pxr/pxr.h"
+#include "pxr/base/tf/singleton.h"
 #include "pxr/usd/sdr/api.h"
 #include "pxr/usd/ndr/registry.h"
 #include "pxr/usd/sdr/declare.h"
@@ -92,11 +93,6 @@ public:
         const std::string &sourceCode,
         const TfToken &sourceType,
         const NdrTokenMap &metadata=NdrTokenMap());
-
-    /// Exactly like `NdrRegistry::GetNodeByURI()`, but returns a
-    /// `SdrShaderNode` pointer instead of a `NdrNode` pointer.
-    SDR_API
-    SdrShaderNodeConstPtr GetShaderNodeByURI(const std::string& uri);
 
     /// Exactly like `NdrRegistry::GetNodesByIdentifier()`, but returns a vector
     /// of `SdrShaderNode` pointers instead of a vector of `NdrNode` pointers.

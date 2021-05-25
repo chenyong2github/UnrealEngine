@@ -112,11 +112,32 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	SceneComponent.SetRelativeTransform( Transform );
 
-	// Visibility
-	const bool bIsHidden = ( Xformable.ComputeVisibility( EvalTime ) == pxr::UsdGeomTokens->invisible );
-
 	SceneComponent.Modify();
+
+	// Computed (effective) visibility
+	const bool bIsHidden = ( Xformable.ComputeVisibility( EvalTime ) == pxr::UsdGeomTokens->invisible );
 	SceneComponent.SetVisibility( !bIsHidden );
+
+	// Per-prim visibility
+	bool bIsInvisible = false; // Default to 'inherited'
+	if ( pxr::UsdAttribute VisibilityAttr = Xformable.GetVisibilityAttr() )
+	{
+		pxr::TfToken Value;
+		if ( VisibilityAttr.Get( &Value, EvalTime ) )
+		{
+			bIsInvisible = Value == pxr::UsdGeomTokens->invisible;
+		}
+	}
+	if ( bIsInvisible )
+	{
+		SceneComponent.ComponentTags.AddUnique( UnrealIdentifiers::Invisible );
+		SceneComponent.ComponentTags.Remove( UnrealIdentifiers::Inherited );
+	}
+	else
+	{
+		SceneComponent.ComponentTags.Remove( UnrealIdentifiers::Invisible );
+		SceneComponent.ComponentTags.AddUnique( UnrealIdentifiers::Inherited );
+	}
 
 	return true;
 }
@@ -321,15 +342,22 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 	// Transform
 	ConvertXformable( RelativeTransform, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 
-	// Visibility
-	bool bVisible = SceneComponent->GetVisibleFlag();
-	if ( bVisible )
+	// Per-prim visibility
+	if ( pxr::UsdAttribute VisibilityAttr = XForm.CreateVisibilityAttr() )
 	{
-		XForm.MakeVisible();
-	}
-	else
-	{
-		XForm.MakeInvisible();
+		pxr::TfToken Value = pxr::UsdGeomTokens->inherited;
+
+		if ( SceneComponent->ComponentTags.Contains( UnrealIdentifiers::Invisible ) )
+		{
+			Value = pxr::UsdGeomTokens->invisible;
+		}
+		else if ( !SceneComponent->ComponentTags.Contains( UnrealIdentifiers::Inherited ) )
+		{
+			// We don't have visible nor inherited tags: We're probably exporting a pure UE component, so write out component visibility instead
+			Value = SceneComponent->IsVisible() ? pxr::UsdGeomTokens->inherited : pxr::UsdGeomTokens->invisible;
+		}
+
+		VisibilityAttr.Set<pxr::TfToken>( Value );
 	}
 
 	return true;
@@ -731,8 +759,9 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 		return false;
 	}
 
-	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
+	const FUsdStageInfo StageInfo( UsdPrim.GetStage() );
 
+	const UMovieScene* MovieScene = MovieSceneTrack.GetTypedOuter< UMovieScene >();
 	if ( !MovieScene )
 	{
 		return false;
@@ -741,14 +770,12 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdGeomXformable Xformable( UsdPrim );
-
 	if ( !Xformable )
 	{
 		return false;
 	}
 
 	UMovieScene3DTransformSection* TransformSection = Cast< UMovieScene3DTransformSection >( const_cast< UMovieScene3DTransformTrack& >( MovieSceneTrack ).FindSection( 0 ) );
-
 	if ( !TransformSection )
 	{
 		return false;
@@ -824,7 +851,6 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 
 	bool bIsDataOutOfSync = false;
 	{
-		const FUsdStageInfo StageInfo( UsdPrim.GetStage() );
 		int32 ValueIndex = 0;
 
 		FFrameTime UsdStartTime = FFrameRate::TransformTime( PlaybackRange.GetLowerBoundValue(), Resolution, StageFrameRate );
@@ -875,6 +901,19 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 
 		pxr::SdfChangeBlock ChangeBlock;
 
+		// Compensate different orientation for light or camera components
+		// TODO: Handle inverse compensation when the bound component is a child of a light/camera component
+		FTransform AdditionalRotation = FTransform::Identity;
+		if ( UsdPrim.IsA< pxr::UsdGeomCamera >() || UsdPrim.IsA< pxr::UsdLuxLight >() )
+		{
+			AdditionalRotation = FTransform( FRotator( 0.0f, 90.0f, 0.0f ) );
+
+			if ( StageInfo.UpAxis == EUsdUpAxis::ZAxis )
+			{
+				AdditionalRotation *= FTransform( FRotator( 90.0f, 0.0f, 0.0f ) );
+			}
+		}
+
 		int32 ValueIndex = 0;
 		for ( const TPair< FFrameNumber, float >& Value : LocationValuesX )
 		{
@@ -885,7 +924,7 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 			FVector Scale( ScaleValuesX[ ValueIndex ].Value, ScaleValuesY[ ValueIndex ].Value, ScaleValuesZ[ ValueIndex ].Value );
 
 			FTransform Transform( Rotation, Location, Scale );
-			ConvertXformable( Transform, UsdPrim, UsdFrameTime.AsDecimal() );
+			ConvertXformable( AdditionalRotation* Transform, UsdPrim, UsdFrameTime.AsDecimal() );
 
 			++ValueIndex;
 		}

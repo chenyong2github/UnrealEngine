@@ -526,9 +526,12 @@ namespace UnrealBuildTool
 				var Version = GetLinuxToolchainVersionFromFullString(PlatformSdkVersionString);
 
 				var InternalSdkPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux).GetInternalSDKPath();
-				Writer.WriteValue(Path.Combine(InternalSdkPath, "include"));
-				Writer.WriteValue(Path.Combine(InternalSdkPath, "usr/include"));
-				Writer.WriteValue(Path.Combine(InternalSdkPath, "lib/clang/" + Version + "/include/"));
+				if (InternalSdkPath != null)
+				{
+					Writer.WriteValue(Path.Combine(InternalSdkPath, "include"));
+					Writer.WriteValue(Path.Combine(InternalSdkPath, "usr/include"));
+					Writer.WriteValue(Path.Combine(InternalSdkPath, "lib/clang/" + Version + "/include/"));
+				}
 			}
 			
 			Writer.WriteArrayEnd();

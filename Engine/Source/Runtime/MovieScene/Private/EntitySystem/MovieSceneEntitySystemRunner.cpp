@@ -133,12 +133,18 @@ void FMovieSceneEntitySystemRunner::Flush()
 	EntityManager.SetDispatchThread(ENamedThreads::GameThread_Local);
 	EntityManager.SetGatherThread(ENamedThreads::GameThread_Local);
 
+	// We specifically only check whether the entity manager has changed since the last instantation once
+	// to ensure that we are not vulnerable to infinite loops where components are added/removed in post-evaluation
+	bool bStructureHadChanged = Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion);
+
 	// Start flushing the update queue... keep flushing as long as we have work to do.
 	while (UpdateQueue.Num() > 0 || 
 			DissectedUpdates.Num() > 0 ||
-			Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion))
+			bStructureHadChanged)
 	{
 		DoFlushUpdateQueueOnce();
+
+		bStructureHadChanged = false;
 	}
 
 	Linker->EndEvaluation(*this);
@@ -169,12 +175,15 @@ void FMovieSceneEntitySystemRunner::DoFlushUpdateQueueOnce()
 	{
 		GameThread_ProcessQueue();
 	}
+
 	FTaskGraphInterface::Get().WaitUntilTaskCompletes(CompletionTask->GetCompletionEvent(), ENamedThreads::GameThread_Local);
+
 	// TODO: delete?
 	CompletionTask = nullptr;
 
 	// Now run the post-evaluation logic, which contains stuff we don't want to run from inside a task
 	// graph call.
+	GameThread_EvaluationFinalizationPhase();
 	GameThread_PostEvaluationPhase();
 }
 
@@ -414,19 +423,22 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationPhase()
 	FGraphEventArray AllTasks;
 	Linker->SystemGraph.ExecutePhase(ESystemPhase::Evaluation, Linker, AllTasks);
 
+	auto Finish = [this]
+	{
+		// We are now done with the current update batch. Let's unlock the completion task to unblock
+		// the main thread, which is waiting on it inside Flush().
+		check(this->CompletionTask != nullptr);
+		this->CompletionTask->Unlock();
+	};
+
 	if (AllTasks.Num() != 0)
 	{
 		TGraphTask<TFunctionGraphTaskImpl<void(), ESubsequentsMode::TrackSubsequents>>::CreateTask(&AllTasks, ENamedThreads::GameThread)
-		.ConstructAndDispatchWhenReady(
-			[this]
-			{
-				this->GameThread_EvaluationFinalizationPhase();
-			}
-		, TStatId(), GameThread);
+		.ConstructAndDispatchWhenReady(MoveTemp(Finish), TStatId(), GameThread);
 	}
 	else
 	{
-		this->GameThread_EvaluationFinalizationPhase();
+		Finish();
 	}
 }
 
@@ -444,6 +456,8 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationFinalizationPhase()
 	// The events are actually executed a bit later, in GameThread_PostEvaluationPhase.
 	bCanQueueEventTriggers = true;
 	{
+		GetInstanceRegistry()->FinalizeFrame();
+
 		FGraphEventArray Tasks;
 		Linker->SystemGraph.ExecutePhase(ESystemPhase::Finalization, Linker, Tasks);
 		checkf(Tasks.Num() == 0, TEXT("Cannot dispatch new tasks during finalization"));
@@ -451,11 +465,6 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationFinalizationPhase()
 	bCanQueueEventTriggers = false;
 
 	CurrentPhase = ESystemPhase::None;
-
-	// We are now done with the current update batch. Let's unlock the completion task to unblock
-	// the main thread, which is waiting on it inside Flush().
-	check(CompletionTask != nullptr);
-	CompletionTask->Unlock();
 }
 
 void FMovieSceneEntitySystemRunner::GameThread_PostEvaluationPhase()

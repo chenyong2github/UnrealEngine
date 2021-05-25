@@ -753,23 +753,8 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts(bool bInvalidate
 					const FClothLODDataCommon& LodData = ConcreteAsset->LodData[Section.ClothingData.AssetLodIndex];
 					const FPointWeightMap* const MaxDistances = LodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
 
-					if (MaxDistances && MaxDistances->Num())
-					{
-						for (FMeshToMeshVertData& VertData : Section.ClothMappingData)
-						{
-							VertData.SourceMeshVertIndices[3] = MaxDistances->AreAllBelowThreshold(
-								VertData.SourceMeshVertIndices[0],
-								VertData.SourceMeshVertIndices[1],
-								VertData.SourceMeshVertIndices[2]) ? 0xFFFF : 0;
-						}
-					}
-					else
-					{
-						for (FMeshToMeshVertData& VertData : Section.ClothMappingData)
-						{
-							VertData.SourceMeshVertIndices[3] = 0;
-						}
-					}
+					ClothingMeshUtils::ComputeVertexContributions(Section.ClothMappingData, MaxDistances, LodData.bSmoothTransition);
+					
 					if (bInvalidateDerivedDataCache)
 					{
 						// We must always dirty the DDC key unless previewing

@@ -117,7 +117,7 @@ void UBehaviorTreeComponent::SetComponentTickEnabled(bool bEnabled)
 
 	// If enabling the component, this acts like a new component to tick in the TickTaskManager
 	// So act like the component was never ticked
-	if(!bWasEnabled && IsComponentTickEnabled())
+	if (!bWasEnabled && IsComponentTickEnabled())
 	{
 		bTickedOnce = false;
 		ScheduleNextTick(0.0f);
@@ -283,6 +283,8 @@ void UBehaviorTreeComponent::ProcessPendingInitialize()
 void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_BehaviorTree_StopTree);
+
+	UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("StopTree %s, mode:%s"), *GetNameSafe(GetRootTree()), StopMode == EBTStopMode::Forced ? TEXT("Forced") : TEXT("Safe"));
 
 	if (StopTreeLock)
 	{
@@ -1271,7 +1273,7 @@ void UBehaviorTreeComponent::ApplySearchData(UBTNode* NewActiveNode)
 			FBehaviorTreeInstance& InstanceInfo = InstanceStack[UpdateInfo.InstanceIndex];
 			uint8* NodeMemory = UpdateInfo.AuxNode->GetNodeMemory<uint8>(InstanceInfo);
 
-            // We do not care about the next needed DeltaTime, it will be recalculated in the tick later.
+			// We do not care about the next needed DeltaTime, it will be recalculated in the tick later.
 			float NextNeededDeltaTime = 0.0f;
 			UpdateInfo.AuxNode->WrappedTickNode(*this, NodeMemory, CurrentFrameDeltaSeconds, NextNeededDeltaTime);
 		}
@@ -1692,7 +1694,7 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 
 				if (TestNode)
 				{
-					TestNode->OnChildDeactivation(SearchData, *ChildNode, NodeResult);
+					TestNode->OnChildDeactivation(SearchData, *ChildNode, NodeResult, ActiveInstanceIdx == ExecutionRequest.ExecuteInstanceIdx  /*bIsRequestInSameInstance*/);
 				}
 			}
 			else if (TestNode->Children.IsValidIndex(ChildBranchIdx))
@@ -1886,7 +1888,7 @@ bool UBehaviorTreeComponent::DeactivateUpTo(UBTCompositeNode* Node, uint16 NodeI
 		if (NotifyParent)
 		{
 			OutLastDeactivatedChildIndex = NotifyParent->GetChildIndex(SearchData, *DeactivatedChild);
-			NotifyParent->OnChildDeactivation(SearchData, OutLastDeactivatedChildIndex, NodeResult);
+			NotifyParent->OnChildDeactivation(SearchData, OutLastDeactivatedChildIndex, NodeResult, ActiveInstanceIdx == NodeInstanceIdx /*bIsRequestInSameInstance*/);
 
 			BT_SEARCHLOG(SearchData, Verbose, TEXT("Deactivate node: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(DeactivatedChild));
 			StoreDebuggerSearchStep(DeactivatedChild, ActiveInstanceIdx, NodeResult);
@@ -2026,15 +2028,28 @@ void UBehaviorTreeComponent::ExecuteTask(UBTTaskNode* TaskNode)
 	FBehaviorTreeInstance& ActiveInstance = InstanceStack[ActiveInstanceIdx];
 
 	// task service activation is not part of search update (although deactivation is, through DeactivateUpTo), start them before execution
-	for (int32 ServiceIndex = 0; ServiceIndex < TaskNode->Services.Num(); ServiceIndex++)
+	for (UBTService* ServiceNode : TaskNode->Services)
 	{
-		UBTService* ServiceNode = TaskNode->Services[ServiceIndex];
 		uint8* NodeMemory = (uint8*)ServiceNode->GetNodeMemory<uint8>(ActiveInstance);
 
 		ActiveInstance.AddToActiveAuxNodes(ServiceNode);
 
 		UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("Activating task service: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(ServiceNode));
 		ServiceNode->WrappedOnBecomeRelevant(*this, NodeMemory);
+	}
+
+	// Services were already ticked for this frame, need to tick the new ones. 
+	UWorld* MyWorld = GetWorld();
+	const float CurrentFrameDeltaSeconds = MyWorld ? MyWorld->GetDeltaSeconds() : 0.0f;
+	for (UBTService* ServiceNode : TaskNode->Services)
+	{
+		uint8* NodeMemory = (uint8*)ServiceNode->GetNodeMemory<uint8>(ActiveInstance);
+
+		UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("Ticking task service: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(ServiceNode));
+
+		// We do not care about the next needed DeltaTime, it will be recalculated in the tick later.
+		float NextNeededDeltaTime = 0.0f;
+		ServiceNode->WrappedTickNode(*this, NodeMemory, CurrentFrameDeltaSeconds, NextNeededDeltaTime);
 	}
 
 	ActiveInstance.ActiveNode = TaskNode;

@@ -688,7 +688,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 
 	RegisteredStaticMeshComponentUObjects.Add(InComponent, Instance);
 
-	const int32 SMCurrentMinLOD = InComponent->GetStaticMesh()->GetMinLOD().Default;
+	const int32 SMCurrentMinLOD = InComponent->GetStaticMesh()->GetDefaultMinLOD();
 	int32 EffectiveMinLOD = InComponent->bOverrideMinLOD ? InComponent->MinLOD : SMCurrentMinLOD;
 
 	// Find the first LOD with any vertices (ie that haven't been stripped)

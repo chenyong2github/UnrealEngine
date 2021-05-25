@@ -14,6 +14,7 @@ namespace UnrealApi {
     FieldsRemoved     = 'PresetFieldsRemoved',
     MetadataModified  = 'PresetMetadataModified',
     ActorModified     = 'PresetActorModified',
+    EntitiesModified  = 'PresetEntitiesModified',
   }
 
   export type Presets = { 
@@ -59,6 +60,10 @@ namespace UnrealApi {
 
   export type Assets = {
     Assets: IAsset[];
+  };
+
+  export type RenameLabel = {
+    AssignedLabel: string;
   };
 }
 
@@ -113,8 +118,7 @@ export namespace UnrealEngine {
 
   async function refresh() {
     try {
-      await pullPresets();
-      await pullValues();
+      await pullPresets(true);
     } catch (error) {
     }
   }
@@ -141,8 +145,12 @@ export namespace UnrealEngine {
             break;
 
           for (const field of message.ChangedFields) {
-            setPayloadValueInternal(payloads, [message.PresetName, field.PropertyLabel], field.PropertyValue);
-            Notify.emitValueChange(message.PresetName, field.PropertyLabel, field.PropertyValue);
+            const property = _.find(preset.ExposedProperties, p => p.DisplayName === field.PropertyLabel); 
+            if (!property)
+              continue;
+
+            setPayloadValueInternal(payloads, [message.PresetName, property.ID], field.PropertyValue);
+            Notify.emitValueChange(message.PresetName, property.ID, field.PropertyValue);
           }
           break;
         }
@@ -150,6 +158,9 @@ export namespace UnrealEngine {
         case UnrealApi.PresetEvent.FieldsAdded:
         case UnrealApi.PresetEvent.FieldsRemoved:
           refresh();
+          break;
+
+        case UnrealApi.PresetEvent.EntitiesModified:
           break;
 
         case UnrealApi.PresetEvent.MetadataModified:
@@ -229,85 +240,78 @@ export namespace UnrealEngine {
     return presets;
   }
 
-  async function pullPresets(): Promise<void> {
+  async function pullPresets(pullValues?: boolean): Promise<void> {
     try {
-      const all = [];
+      const allPresets = [];
+      const allPayloads: IPayloads = {};
+  
       const { Presets } = await get<UnrealApi.Presets>('/remote/presets');
       
       for (const p of Presets ?? []) {
-        if (!_.find(presets, preset => preset.Name === p.Name)) {
-          registerToPreset(p.Name);
-
-          const res = await get<UnrealApi.View>(`/remote/preset/${p.Name}/metadata/view`);
-          refreshView(p.Name, res?.Value);
-        }
-
-        const { Preset } = await get<UnrealApi.Preset>(`/remote/preset/${p.Name}`);
+        const Preset = await pullPreset(p.Name);
         if (!Preset)
           continue;
 
-        Preset.ExposedProperties = [];
-        Preset.ExposedFunctions = [];
-        Preset.Exposed = {};
-
-        for (const Group of Preset.Groups) {
-          for (const Function of Group.ExposedFunctions)
-            Preset.Exposed[Function.Id] = Function;
-
-          for (const Property of Group.ExposedProperties) {
-            Preset.Exposed[Property.Id] = Property;
-
-            switch (Property.UnderlyingProperty.Type) {
-              case PropertyType.Boolean:
-              case PropertyType.Uint8:
-              case PropertyType.Int8:
-                Property.Widget = WidgetTypes.Toggle;
-                break;
-
-              case PropertyType.Int16:
-              case PropertyType.Int32:
-              case PropertyType.Int64:
-              case PropertyType.Uint16:
-              case PropertyType.Uint32:
-              case PropertyType.Uint64:
-              case PropertyType.Float:
-              case PropertyType.Double:
-                Property.Widget = WidgetTypes.Slider;
-                break;
-
-              case PropertyType.LinearColor:
-              case PropertyType.Color:
-              case PropertyType.Vector4:
-                Property.Widget = WidgetTypes.ColorPicker;
-                break;
-
-              case PropertyType.Vector:
-              case PropertyType.Vector2D:
-              case PropertyType.Rotator:
-                Property.Widget = WidgetTypes.Vector;
-                break;
-
-              case PropertyType.String:
-              case PropertyType.Text:
-                Property.Widget = WidgetTypes.Text;
-                break;
-            }
-          }
-
-          Preset.ExposedProperties.push(...Group.ExposedProperties);
-          Preset.ExposedFunctions.push(...Group.ExposedFunctions);
-        }
-        
-        all.push(Preset);
+        allPresets.push(Preset);
+        if (pullValues)
+          allPayloads[Preset.Name] = await pullPresetValues(Preset);
       }
 
-      const compact =  _.compact(all);
+      const compact =  _.compact(allPresets);
       if (!equal(presets, compact)) {
         presets = compact;
         Notify.emit('presets', presets);
       }
+
+      if (pullValues && !equal(payloads, allPayloads)) {
+        payloads = allPayloads;
+        Notify.emit('payloads', payloads );
+      }
+
     } catch (error) {
       console.log('Failed to pull presets data');
+    }
+  }
+
+  async function pullPreset(name: string): Promise<IPreset> {
+    try {
+      if (!_.find(presets, preset => preset.Name === name)) {
+        registerToPreset(name);
+
+        const res = await get<UnrealApi.View>(`/remote/preset/${name}/metadata/view`);
+        refreshView(name, res?.Value);
+      }
+
+      const { Preset } = await get<UnrealApi.Preset>(`/remote/preset/${name}`);
+      if (!Preset)
+        return null;
+
+      Preset.ExposedProperties = [];
+      Preset.ExposedFunctions = [];
+      Preset.Exposed = {};
+
+      for (const Group of Preset.Groups) {
+        for (const Property of Group.ExposedProperties) {
+          Property.Type = Property.UnderlyingProperty.Type;
+          Preset.Exposed[Property.ID] = Property;
+        }
+
+        for (const Function of Group.ExposedFunctions) {
+          if (!Function.Metadata)
+            Function.Metadata = {};
+
+          Function.Type = PropertyType.Function;
+          Function.Metadata.Widget = WidgetTypes.Button;
+          Preset.Exposed[Function.ID] = Function;
+        }
+
+        Preset.ExposedProperties.push(...Group.ExposedProperties);
+        Preset.ExposedFunctions.push(...Group.ExposedFunctions);
+      }
+
+      return Preset;
+    } catch (error) {
+      console.log(`Failed to pull preset '${name}' data`);
     }
   }
 
@@ -329,7 +333,7 @@ export namespace UnrealEngine {
       }
 
       views[preset] = view;
-      Notify.onViewChange(preset, view);
+      Notify.onViewChange(preset, view, true);
     } catch (error) {
       console.log('Failed to parse View of Preset', preset);
     }    
@@ -406,21 +410,14 @@ export namespace UnrealEngine {
     return false;
   }
 
-  async function pullValues(): Promise<void> {
-    const updatedPayloads = {};
-    for (const Preset of presets) {
-      for (const group of Preset.Groups) {
-        for (const property of group.ExposedProperties) {
-           const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.Id}`);
-           setPayloadValueInternal(updatedPayloads, [Preset.Name, property.Id], value?.PropertyValues?.[0]?.PropertyValue);
-        }
-      }
+  async function pullPresetValues(Preset: IPreset): Promise<IPayload> {
+    const updatedPayloads: IPayloads = {};
+    for (const property of Preset.ExposedProperties) {
+      const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.ID}`);
+      setPayloadValueInternal(updatedPayloads, [Preset.Name, property.ID], value?.PropertyValues?.[0]?.PropertyValue);
     }
 
-    if (!equal(payloads, updatedPayloads)) {
-      payloads = updatedPayloads;
-      Notify.emit('payloads', payloads );
-    }
+    return updatedPayloads[Preset.Name];
   }
 
   export async function getPayload(preset: string): Promise<IPayload> {
@@ -530,6 +527,34 @@ export namespace UnrealEngine {
     }
   }
 
+  export async function renamePresetProperty(preset: string, type: string, property: string, label: string, onChanged: (value: string) => void): Promise<void> {
+    try {
+      const url = `/remote/preset/${preset}/${type}/${property}/label`;
+      const res = await put<UnrealApi.RenameLabel>(url, { NewLabel: label });
+      await refresh();
+      onChanged?.(res?.AssignedLabel ?? label);
+
+    } catch (err) {
+      console.log(`Failed to rename a property`);
+    }
+  }
+
+  export async function setPresetPropertyMetadata(preset: string, property: string, metadata: string, value: string) {
+    try {
+
+      const url = `/remote/preset/${preset}/property/${property}/metadata/${metadata}`;
+      await put(url, { value });
+      const p = _.find(presets, p => p.Name === preset);
+      const prop = p?.Exposed[property];
+      if (prop) {
+        prop.Metadata[metadata] = value;
+        Notify.emit('presets', presets);
+      }
+    } catch (err) {
+      console.log(`Failed to rename a property`);
+    }
+  }
+
   export async function executeAssetAction(asset: string, action: AssetAction, meta: any): Promise<void> {
     if (!asset)
       return;
@@ -598,6 +623,7 @@ export namespace UnrealEngine {
       case 'PUT':
         if (body)
           return put(url, body);
+        break;
     }
 
     return Promise.resolve({});

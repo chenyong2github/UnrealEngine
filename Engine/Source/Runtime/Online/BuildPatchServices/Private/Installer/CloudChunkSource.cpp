@@ -247,7 +247,7 @@ namespace BuildPatchServices
 		, DownloadCount(InDownloadConnectionCount)
 	{
 		TFunction<void()> Task = [this]() { return ThreadRun(); };
-		Future = Async(EAsyncExecution::Thread, MoveTemp(Task));
+		Future = Async(EAsyncExecution::ThreadIfForkSafe, MoveTemp(Task));
 	}
 
 	FCloudChunkSource::~FCloudChunkSource()

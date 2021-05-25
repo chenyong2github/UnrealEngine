@@ -215,7 +215,6 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool SupportsFramebufferSRGBEnable() { return false; }
 	static FORCEINLINE bool SupportsRGB10A2() { return bSupportsRGB10A2; }
 	static FORCEINLINE bool SupportsDrawIndirect() { return true; }
-	static FORCEINLINE bool SupportsVertexAttribBinding() { return true; }
 	static FORCEINLINE bool SupportsBufferStorage() { return bSupportsBufferStorage; }
 	
 

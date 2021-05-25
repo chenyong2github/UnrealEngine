@@ -28,6 +28,17 @@
 #define VIRTUAL_SHADOW_MAP 0
 #endif
 
+#ifndef CLOUD_SAMPLE_LOCAL_LIGHTS
+#define CLOUD_SAMPLE_LOCAL_LIGHTS 0
+#endif
+
+#if CLOUD_SAMPLE_LOCAL_LIGHTS
+#define ForwardLightData RenderVolumetricCloudParameters.ForwardLightData
+#include "LightGridCommon.ush"
+#define SUPPORT_CONTACT_SHADOWS 0
+#include "DeferredLightingCommon.ush"
+#endif
+
 #if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
@@ -334,7 +345,7 @@ ParticipatingMediaContext SetupParticipatingMediaContext(float3 BaseAlbedo, floa
 	PMC.TransmittanceToLight1[0] = InitialTransmittanceToLight1;
 #endif
 
-	[unroll]
+	UNROLL
 	for (int ms = 1; ms < MSCOUNT; ++ms)
 	{
 		PMC.ScatteringCoefficients[ms] = PMC.ScatteringCoefficients[ms - 1] * MsSFactor;
@@ -368,7 +379,7 @@ ParticipatingMediaPhaseContext SetupParticipatingMediaPhaseContext(float BasePha
 	PMPC.Phase1[0] = BasePhase1;
 #endif
 
-	[unroll]
+	UNROLL
 	for (int ms = 1; ms < MSCOUNT; ++ms)
 	{
 		PMPC.Phase0[ms] = lerp(IsotropicPhase(), PMPC.Phase0[0], MsPhaseFactor);
@@ -801,7 +812,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				}
 #endif // VIRTUALSHADOW_MAP
 
-				[unroll]
+				UNROLL
 				for (ms = 0; ms < MSCOUNT; ++ms)
 				{
 					PMC.TransmittanceToLight0[ms] *= OpaqueShadow;
@@ -821,7 +832,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				float OutOpticalDepth = 0.0f;
 				float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[0], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[0].x,
 					RenderVolumetricCloudParameters.CloudShadowTexture0, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
-				[unroll]
+				UNROLL
 				for (ms = 0; ms < MSCOUNT; ++ms)
 				{
 					PMC.TransmittanceToLight0[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
@@ -829,7 +840,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 #else 
 	// Use raymarched shadows
 				DebugShadowSampleCount++;
-				[unroll]
+				UNROLL
 				for (ms = 0; ms < MSCOUNT; ++ms)
 				{
 					ExtinctionAcc[ms] = 0.0f;
@@ -876,14 +887,14 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 					ParticipatingMediaContext ShadowPMC = SetupParticipatingMediaContext(0.0f, ShadowExtinctionCoefficients, MsScattFactor, MsExtinFactor, 0.0f, 0.0f);
 
-					[unroll]
+					UNROLL
 					for (ms = 0; ms < MSCOUNT; ++ms)
 					{
 						ExtinctionAcc[ms] += ShadowPMC.ExtinctionCoefficients[ms] * ExtinctionFactor;
 					}
 				}
 
-				[unroll]
+				UNROLL
 				for (ms = 0; ms < MSCOUNT; ++ms)
 				{
 					PMC.TransmittanceToLight0[ms] *= exp(-ExtinctionAcc[ms] * ShadowDtMeter);
@@ -899,14 +910,14 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 					float OutOpticalDepth = 0.0f;
 					float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[1], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[1].x,
 						RenderVolumetricCloudParameters.CloudShadowTexture1, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
-					[unroll]
+					UNROLL
 					for (ms = 0; ms < MSCOUNT; ++ms)
 					{
 						PMC.TransmittanceToLight1[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
 					}
 #else // Use cloud shadowmap
 					DebugShadowSampleCount++;
-					[unroll]
+					UNROLL
 					for (ms = 0; ms < MSCOUNT; ++ms)
 					{
 						ExtinctionAcc[ms] = 0.0f;
@@ -942,14 +953,14 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 						ParticipatingMediaContext ShadowPMC = SetupParticipatingMediaContext(0.0f, ShadowExtinctionCoefficients, MsScattFactor, MsExtinFactor, 0.0f, 0.0f);
 
-						[unroll]
+						UNROLL
 						for (ms = 0; ms < MSCOUNT; ++ms)
 						{
 							ExtinctionAcc[ms] += ShadowPMC.ExtinctionCoefficients[ms] * ExtinctionFactor;
 						}
 					}
 
-					[unroll]
+					UNROLL
 					for (ms = 0; ms < MSCOUNT; ++ms)
 					{
 						PMC.TransmittanceToLight1[ms] *= exp(-ExtinctionAcc[ms] * ShadowDtMeter);
@@ -975,9 +986,141 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 
 			//////////////////////////////
+			// Evaluate local light in a slow way just so that it can be used for cinematics for now.
+			//////////////////////////////
+		#if CLOUD_SAMPLE_LOCAL_LIGHTS
+			float3 LocalLightScatteredLuminance[MSCOUNT];
+			UNROLL
+			for (ms = 0; ms < MSCOUNT; ++ms)
+			{
+				LocalLightScatteredLuminance[ms] = 0.0f;
+			}
+			if (ForwardLightData.NumLocalLights > 0)
+			{ 
+				const float2 PixelPos = SvPosition.xy * RenderVolumetricCloudParameters.TracingCoordToFullResPixelCoordScaleBias.xy - ResolvedView.ViewRectMin.xy;// *RenderVolumetricCloudParameters.TracingCoordToFullResPixelCoordScaleBias.xy; // We do not take into account the bias so this owuld not work for split screens / VR.
+
+				float4 ClipPos = mul(float4(SampleWorldPosition, 1.0f), ResolvedView.WorldToClip);
+				ClipPos /= ClipPos.w;
+				const float SceneDepth = ConvertFromDeviceZ(ClipPos.z);
+				 
+				uint GridIndex = ComputeLightGridCellIndex(PixelPos, SceneDepth, 0);
+				const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, 0);
+				FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);
+
+				// This loop will process all unshadowed lights only.
+				LOOP
+				for (uint LocalLightListIndex = 0; LocalLightListIndex < CulledLightsGrid.NumLocalLights; LocalLightListIndex++)
+				{
+					const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, 0);
+			
+					float VolumetricScatteringIntensity = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w) >> 16);
+
+					if (VolumetricScatteringIntensity > 0)
+					{
+						FDeferredLightData LightData = (FDeferredLightData)0;
+						LightData.Position = LocalLight.LightPositionAndInvRadius.xyz;
+						LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
+						LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
+						LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
+						LightData.Direction = LocalLight.LightDirectionAndShadowMask.xyz;
+						LightData.SpotAngles = LocalLight.SpotAnglesAndSourceRadiusPacked.xy;
+						LightData.SourceRadius = LocalLight.SpotAnglesAndSourceRadiusPacked.z;
+						LightData.SourceLength = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w));
+						LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
+						LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
+						LightData.bInverseSquared = LightData.FalloffExponent == 0;
+						LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoor.x;
+						LightData.RectLightBarnLength = LocalLight.RectBarnDoor.y;
+						LightData.bRadialLight = true;
+						LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
+						LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;
+
+						float3 L = 0;
+						float3 ToLight = 0;
+						float LightMask = GetLocalLightAttenuation(SampleWorldPosition, LightData, ToLight, L);
+
+						float Lighting;
+						if( LightData.bRectLight )
+						{
+							FRect Rect = GetRect( ToLight, LightData );
+							Lighting = IntegrateLight(Rect, RectTexture);
+						}
+						else
+						{
+							FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
+							Capsule.DistBiasSqr = 1.0f;
+							Lighting = IntegrateLight(Capsule, LightData.bInverseSquared);
+						}
+
+						float3 CombinedAttenuation = Lighting * LightMask;
+						if (CombinedAttenuation.r <= 0.0f)
+						{
+							continue;	// Skip shadow tracing if we know light is already not visible here
+						}
+						CombinedAttenuation *= LightData.Color;
+
+
+						MATVEC ExtinctionAcc[MSCOUNT];
+						const float SampleToLightLen = length(ToLight);
+						const float3 SampleToLightNorm = ToLight / max(1e-5, SampleToLightLen);
+						const float ShadowLengthTest = SampleToLightLen;
+						const float ShadowStepCount = RenderVolumetricCloudParameters.LocalLightsShadowSampleCount;
+						const float InvShadowStepCount = 1.0f / ShadowStepCount;
+						const float ShadowJitterNorm = 0.5f;
+						const float ShadowDtMeter = ShadowLengthTest * CENTIMETER_TO_METER / ShadowStepCount;
+
+						UNROLL
+						for (ms = 0; ms < MSCOUNT; ++ms)
+						{
+							ExtinctionAcc[ms] = 0.0f;
+						}
+						if (ShadowStepCount > 0.0f)
+						{
+							// Non-linear shadow sample distribution, hardcoded to x^2
+							for (float ShadowT = ShadowJitterNorm; ShadowT < ShadowStepCount; ShadowT += 1.0f)
+							{
+								UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + SampleToLightNorm * ShadowLengthTest * (ShadowT * InvShadowStepCount), 
+									ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF);
+								const float ExtinctionFactor = 1.0f;
+
+								CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
+								MATVEC ShadowExtinctionCoefficients = SampleExtinctionCoefficients(PixelMaterialInputs);
+
+								if (MaterialParameters.CloudSampleNormAltitudeInLayer < 0.0f || MaterialParameters.CloudSampleNormAltitudeInLayer > 1.0f)
+								{
+									ShadowExtinctionCoefficients = 0.0f; // Ignore remaining samples since we have just traveld out of the cloud layer.
+								}
+
+								ParticipatingMediaContext ShadowPMC = SetupParticipatingMediaContext(0.0f, ShadowExtinctionCoefficients, MsScattFactor, MsExtinFactor, 0.0f, 0.0f);
+
+								UNROLL
+								for (ms = 0; ms < MSCOUNT; ++ms)
+								{
+									ExtinctionAcc[ms] += ShadowPMC.ExtinctionCoefficients[ms] * ExtinctionFactor;
+								}
+							}
+						}
+
+						UNROLL
+						for (ms = 0; ms < MSCOUNT; ++ms)
+						{
+							MATVEC LocalLightTransmittance = exp(-ExtinctionAcc[ms] * ShadowDtMeter);
+
+							LocalLightScatteredLuminance[ms] += 
+								VolumetricScatteringIntensity * CombinedAttenuation
+								* IsotropicPhase()				// TODO add support for the cloud phase function
+								* LocalLightTransmittance;		// Transmittance accounting for multiple scattering approximation
+						}
+					}
+				}
+			}
+		#endif // CLOUD_SAMPLE_LOCAL_LIGHTS
+
+
+			//////////////////////////////
 			// Evaluate scattered luminance towards camera as well as view transmittance.
 			//////////////////////////////
-			[unroll]
+			UNROLL
 			for (ms = MSCOUNT - 1; ms >= 0; --ms) // Must terminate with 0 because this is where TransmittanceToView is updated.
 			{
 				const MATVEC ScatteringCoefficients = PMC.ScatteringCoefficients[ms];
@@ -996,9 +1139,14 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				// This could be removed when occlusion is better handled or approximated with a simple/expenssive optional  tracing.
 				SunSkyLuminance += (ms == 0 ? DistantLightLuminance : float3(0.0f, 0.0f, 0.0f));
 
+			#if CLOUD_SAMPLE_LOCAL_LIGHTS
+				SunSkyLuminance += LocalLightScatteredLuminance[ms];
+			#endif
+
 				// *** EmissiveLuminance: it should be (EmissiveLuminance * AbsorptionCoefficients) but not intuitive for artist ==> can be added later as an option for consistency during path tracing. 
 				// See "Production Volume Rendering", 2017, Section 2.2. So right now EmissiveLuminance is in fact LuminancePerMeter.
-				const float3 ScatteredLuminance = SunSkyLuminance * ScatteringCoefficients + EmissiveLuminance;// No dt, because it is part of the analytical integral below.
+				// dt is not part of ScatteredLuminance because it is part of the analytical integral below.
+				const float3 ScatteredLuminance = SunSkyLuminance * ScatteringCoefficients + EmissiveLuminance;
 
 #if 0
 	// Default iterative integration

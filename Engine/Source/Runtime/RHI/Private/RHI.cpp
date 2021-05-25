@@ -189,7 +189,6 @@ FString GetBufferUsageFlagsName(EBufferUsageFlags BufferUsage)
 		case BUF_DrawIndirect:			return TEXT("BUF_DrawIndirect");
 		case BUF_ShaderResource:		return TEXT("BUF_ShaderResource");
 		case BUF_KeepCPUAccessible:		return TEXT("BUF_KeepCPUAccessible");
-		case BUF_ZeroStride:			return TEXT("BUF_ZeroStride");
 		case BUF_FastVRAM:				return TEXT("BUF_FastVRAM");
 		case BUF_Transient:				return TEXT("BUF_Transient");
 		case BUF_Shared:				return TEXT("BUF_Shared");
@@ -2031,7 +2030,6 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 	bSupportsMSAA = true;
 
 	bNeedsToSwitchVerticalAxisOnMobileOpenGL = true;
-	bSupportsHairStrandGeometry = true;
 	bSupportsDOFHybridScattering = true;
 	bSupportsHZBOcclusion = true;
 	bSupportsWaterIndirectDraw = true;

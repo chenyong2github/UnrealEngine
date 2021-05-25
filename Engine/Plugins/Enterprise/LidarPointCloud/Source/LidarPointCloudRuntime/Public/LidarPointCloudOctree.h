@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudSettings.h"
-#include "LidarPointCloudLODManager.h"
 #include "Meshing/LidarPointCloudMeshing.h"
 #include "HAL/ThreadSafeCounter64.h"
 #include "Misc/ScopeLock.h"
@@ -94,6 +93,7 @@ private:
 
 	/** Holds render data for this node */
 	class FLidarPointCloudRenderBuffer* DataCache;
+	class FLidarPointCloudVertexFactory* VertexFactory;
 
 	bool bRenderDataDirty;
 
@@ -121,7 +121,14 @@ public:
 	/** Returns a pointer to the point data */
 	FORCEINLINE FLidarPointCloudRenderBuffer* GetDataCache() { return DataCache; }
 
-	bool BuildDataCache();
+	/** Return a pointer to the vertex factory containing pre-cached geometry */
+	FORCEINLINE FLidarPointCloudVertexFactory* GetVertexFactory() { return VertexFactory; }
+
+	/**
+	 * Builds and updates the necessary render data buffers
+	 * Returns true if successful
+	 */
+	bool BuildDataCache(bool bUseStaticBuffers);
 
 	/** Returns the sum of grid and padding points allocated to this node. */
 	FORCEINLINE uint32 GetNumPoints() const { return NumPoints; }
@@ -137,6 +144,8 @@ public:
 
 	/** Returns a pointer to the node at the given location, or null if one doesn't exist yet. */
 	FLidarPointCloudOctreeNode* GetChildNodeAtLocation(const uint8& Location) const;
+
+	uint8 GetChildrenBitmask() const;
 
 	void UpdateNumVisiblePoints();
 
@@ -156,11 +165,17 @@ public:
 	/** Returns true, if the node has its data loaded */
 	bool HasData() const { return bHasData; }
 
+	/** Returns true, if the node has its data loaded */
+	bool HasRenderData() const { return DataCache || VertexFactory; }
+
 	/**
 	 * Releases the BulkData
 	 * If forced, the node will be released even if persistent
 	 */
 	void ReleaseData(bool bForce = false);
+	
+	/** Releases and removes the render data cache */
+	void ReleaseDataCache();
 
 	/** Convenience function, to add point statistics to the Tree table. */
 	void AddPointCount(int32 PointCount);
@@ -169,6 +184,13 @@ public:
 	void SortVisiblePoints();
 
 private:
+	template <typename T>
+	void InsertPoints_Internal(T Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
+	void InsertPoints_Dynamic(const FLidarPointCloudPoint* Points, const int64& Count, const FVector& Translation);
+	void InsertPoints_Static(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
+	void InsertPoints_Dynamic(FLidarPointCloudPoint** Points, const int64& Count, const FVector& Translation);
+	void InsertPoints_Static(FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
+
 	friend FLidarPointCloudOctree;
 	friend FLidarPointCloudTraversalOctree;
 	friend FLidarPointCloudTraversalOctreeNode;
@@ -346,9 +368,9 @@ public:
 	void GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 	void GetPointsInBox(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 
-	/** Populates the array with the list of points within the given frustum. */
-	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
-	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	/** Populates the array with the list of points within the given convex volume. */
+	void GetPointsInConvexVolume(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
 
 	/** Populates the given array with copies of points from the tree */
 	void GetPointsAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FTransform* LocalToWorld, int64 StartIndex = 0, int64 Count = -1) const;
@@ -442,8 +464,11 @@ public:
 	/** Marks render data of all nodes as dirty. */
 	void MarkRenderDataDirty();
 
-	/** Marks render data of all nodes within the given frustum as dirty. */
-	void MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum);
+	/** Marks render data of all nodes within the given sphere as dirty. */
+	void MarkRenderDataInSphereDirty(const FSphere& Sphere);
+	
+	/** Marks render data of all nodes within the given convex volume as dirty. */
+	void MarkRenderDataInConvexVolumeDirty(const FConvexVolume& ConvexVolume);
 
 	/** Initializes the Octree properties. */
 	void Initialize(const FVector& InExtent);
@@ -503,13 +528,11 @@ public:
 	/** Removes the given traversal octree from the list */
 	void UnregisterTraversalOctree(FLidarPointCloudTraversalOctree* TraversalOctree);
 
-	/** If bImmediate is true, the node will be loaded immediately, otherwise, it will be queued for async loading. */
-	void QueueNode(FLidarPointCloudOctreeNode* Node, float Lifetime);
-
-	/** Streams all requested nodes */
-	void StreamQueuedNodes();
-
-	void UnloadOldNodes(const float& CurrentTime);
+	/**
+	 * Streams requested nodes or extends their lifetime, if already loaded
+	 * Unloads all unused nodes with expired lifetime
+	 */
+	void StreamNodes(TArray<FLidarPointCloudOctreeNode*>& Nodes, const float& CurrentTime);
 
 	/** Returns true, if the cloud is fully and persistently loaded. */
 	bool IsFullyLoaded() const { return bIsFullyLoaded; }
@@ -522,6 +545,21 @@ public:
 	 * Optionally, releases persistent nodes too.
 	 */
 	void ReleaseAllNodes(bool bIncludePersistent);
+
+	bool IsOptimizedForDynamicData() const;
+
+	void OptimizeForDynamicData();
+
+	void OptimizeForStaticData();
+
+	//~ Begin Deprecated
+	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")
+	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")
+	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	UE_DEPRECATED(4.27, "Use MarkRenderDataInConvexVolumeDirty instead.")
+	void MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum);
+	//~ End Deprecated
 
 private:
 	void RefreshAllocatedSize();
@@ -538,7 +576,7 @@ private:
 	template <typename T>
 	void GetPointsInBox_Internal(TArray<const FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const;
 	template <typename T>
-	void GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInConvexVolume_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& ConvexVolume, const bool& bVisibleOnly);
 	template <typename T>
 	void GetPointsAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& Points, const FTransform* LocalToWorld, int64 StartIndex = 0, int64 Count = -1) const;
 	template <typename T>
@@ -584,7 +622,12 @@ struct FLidarPointCloudTraversalOctreeNode
 	/** Depth of this node */
 	uint8 Depth;
 
+	/** Calculated for use with adaptive sprite scaling */
+	uint8 VirtualDepth;
+
 	FLidarPointCloudTraversalOctreeNode* Parent;
+
+	FLidarPointCloudTraversalOctree* Octree;
 
 	/** Stores the children array */
 	TArray<FLidarPointCloudTraversalOctreeNode> Children;
@@ -597,12 +640,34 @@ struct FLidarPointCloudTraversalOctreeNode
 	FLidarPointCloudTraversalOctreeNode();
 
 	/** Builds the traversal version of the given node. */
-	void Build(FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset);
+	void Build(FLidarPointCloudTraversalOctree* TraversalOctree, FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset);
 
 	/** Calculates virtual depth of this node, to be used to estimate the best sprite size */
-	uint8 CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& VDMultiplier, const float& PointSizeBias) const;
+	void CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& PointSizeBias);
 
-	FORCEINLINE bool IsAvailable() const { return bSelected && DataNode->HasData(); }
+	FORCEINLINE bool IsAvailable() const { return bSelected && DataNode->HasRenderData(); }
+};
+
+/** Used for node size sorting and node selection. */
+struct FLidarPointCloudTraversalOctreeNodeSizeData
+{
+	FLidarPointCloudTraversalOctreeNode* Node;
+	float Size;
+	int32 ProxyIndex;
+
+	FLidarPointCloudTraversalOctreeNodeSizeData(FLidarPointCloudTraversalOctreeNode* Node, const float& Size, const int32& ProxyIndex);
+};
+
+/** Convenience struct to group all selection params into one */
+struct FLidarPointCloudNodeSelectionParams
+{
+	float MinScreenSize;
+	float ScreenCenterImportance;
+	int32 MinDepth;
+	int32 MaxDepth;
+	float BoundsScale;
+	bool bUseFrustumCulling;
+	const TArray<struct FLidarPointCloudClippingVolumeParams>* ClippingVolumes;
 };
 
 /**
@@ -639,8 +704,15 @@ struct FLidarPointCloudTraversalOctree
 	FLidarPointCloudTraversalOctree& operator=(const FLidarPointCloudTraversalOctree&) = delete;
 	FLidarPointCloudTraversalOctree& operator=(FLidarPointCloudTraversalOctree&&) = delete;
 
-	/** Selects and appends the subset of visible nodes for rendering. */
-	void GetVisibleNodes(TArray<FLidarPointCloudLODManager::FNodeSizeData>& NodeSizeData, const FLidarPointCloudViewData& ViewData, const int32& ProxyIndex, const FLidarPointCloudNodeSelectionParams& SelectionParams, const float& CurrentTime);
+	/**
+	 * Selects and appends the subset of visible nodes for rendering.
+	 * Returns number of selected nodes
+	 */
+	int32 GetVisibleNodes(TArray<FLidarPointCloudTraversalOctreeNodeSizeData>& NodeSizeData, const struct FLidarPointCloudViewData* ViewData, const int32& ProxyIndex, const FLidarPointCloudNodeSelectionParams& SelectionParams);
+
+	void CalculateVisibilityStructure(TArray<uint32>& OutData);
+
+	void CalculateLevelWeightsForSelectedNodes(TArray<float>& OutLevelWeights);
 
 	FVector GetCenter() const { return Root.Center; }
 	FVector GetExtent() const { return Extents[0]; }

@@ -171,6 +171,10 @@ private:
 	/** True if the port is registered with it its protocol */
 	bool bRegistered;
 
+private:
+	/** Returns the port config that corresponds to the guid of this port. */
+	const FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
+
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;
 };

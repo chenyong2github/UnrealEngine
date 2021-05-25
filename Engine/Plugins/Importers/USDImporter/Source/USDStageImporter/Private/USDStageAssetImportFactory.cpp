@@ -55,6 +55,11 @@ UObject* UUsdStageAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject
 {
 	UObject* ImportedObject = nullptr;
 
+	if ( AssetImportTask && IsAutomatedImport() )
+	{
+		ImportContext.ImportOptions = Cast<UUsdStageImportOptions>( AssetImportTask->Options );
+	}
+
 	const FString InitialPackagePath = InParent ? InParent->GetName() : TEXT( "/Game/" );
 	const bool bIsReimport = false;
 	const bool bAllowActorImport = false;

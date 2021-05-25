@@ -11,11 +11,14 @@
 #include "GeometryUtil.h"
 #include "Utils/AutoChangeDatabase.h"
 #include "Utils/TimeStat.h"
+#include "TexturesCache.h"
 
 DISABLE_SDK_WARNINGS_START
 #include "Transformation.hpp"
 #include "Line3D.hpp"
 DISABLE_SDK_WARNINGS_END
+
+#include <stdexcept>
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -45,38 +48,37 @@ FSyncData::~FSyncData()
 }
 
 // Update data from a 3d element
-void FSyncData::Update(const FElementID& InElementId)
+void FSyncData::Update(const FElementID& InElementID)
 {
-	UE_AC_Assert(ElementId == APIGuid2GSGuid(InElementId.ElementHeader.guid));
-	UE_AC_Assert(Index3D == 0 && InElementId.Index3D != 0);
+	const API_Elem_Head& Header = InElementID.GetHeader();
+	UE_AC_Assert(ElementId == APIGuid2GSGuid(Header.guid));
+	UE_AC_Assert(Index3D == 0 && InElementID.GetIndex3D() != 0);
 
-	Index3D = InElementId.Index3D;
-	if (GenId != InElementId.Element3D.GetGenId())
+	Index3D = InElementID.GetIndex3D();
+	if (GenId != InElementID.GetElement3D().GetGenId())
 	{
-		GenId = InElementId.Element3D.GetGenId();
+		GenId = InElementID.GetElement3D().GetGenId();
 		bIsModified = true;
 	}
 
 	// If AC element has been modified, recheck connections
-	if (ModificationStamp != InElementId.ElementHeader.modiStamp)
+	if (ModificationStamp != Header.modiStamp)
 	{
-		if (ModificationStamp > InElementId.ElementHeader.modiStamp)
+		if (ModificationStamp > Header.modiStamp)
 		{
 			UE_AC_DebugF("FSyncData::Update {%s} New stamp younger: %lld, %lld\n",
-						 APIGuidToString(InElementId.ElementHeader.guid).ToUtf8(), ModificationStamp,
-						 InElementId.ElementHeader.modiStamp);
+						 APIGuidToString(Header.guid).ToUtf8(), ModificationStamp, Header.modiStamp);
 		}
-		ModificationStamp = InElementId.ElementHeader.modiStamp;
-		InElementId.HandleDepedencies();
+		ModificationStamp = Header.modiStamp;
+		InElementID.HandleDepedencies();
 		bIsModified = true;
 	}
 	if (ModificationStamp == 0)
 	{
-		UE_AC_DebugF("FSyncData::Update {%s} ModificationStamp == 0\n",
-					 APIGuidToString(InElementId.ElementHeader.guid).ToUtf8());
+		UE_AC_DebugF("FSyncData::Update {%s} ModificationStamp == 0\n", APIGuidToString(Header.guid).ToUtf8());
 	}
 
-	SetDefaultParent(InElementId);
+	SetDefaultParent(InElementID);
 }
 
 // Recursively clean. Delete element that hasn't 3d geometry related to it
@@ -121,19 +123,21 @@ void FSyncData::SetDefaultParent(const FElementID& InElementID)
 {
 	if (!HasParent())
 	{
-		if (InElementID.ElementHeader.hotlinkGuid == APINULLGuid)
+		const API_Elem_Head& Header = InElementID.GetHeader();
+
+		if (Header.hotlinkGuid == APINULLGuid)
 		{
 			// Parent is a layer
-			SetParent(&InElementID.SyncContext.GetSyncDatabase().GetLayerSyncData(InElementID.ElementHeader.layer));
+			SetParent(&InElementID.SyncContext.GetSyncDatabase().GetLayerSyncData(Header.layer));
 		}
 		else
 		{
 			// Parent is a hot link instance
-			FSyncData*& ParentFound = InElementID.SyncContext.GetSyncDatabase().GetSyncData(
-				APIGuid2GSGuid(InElementID.ElementHeader.hotlinkGuid));
+			FSyncData*& ParentFound =
+				InElementID.SyncContext.GetSyncDatabase().GetSyncData(APIGuid2GSGuid(Header.hotlinkGuid));
 			if (ParentFound == nullptr)
 			{
-				ParentFound = new FSyncData::FHotLinkInstance(APIGuid2GSGuid(InElementID.ElementHeader.hotlinkGuid),
+				ParentFound = new FSyncData::FHotLinkInstance(APIGuid2GSGuid(Header.hotlinkGuid),
 															  &InElementID.SyncContext.GetSyncDatabase());
 			}
 			SetParent(ParentFound);
@@ -387,11 +391,11 @@ void FSyncData::FActor::SetActorElement(const TSharedPtr< IDatasmithActorElement
 // Add tags data
 void FSyncData::FActor::UpdateTags(const FTagsArray& InTags)
 {
-	int32 Count = (int32)InTags.Num();
+	int32 Count = (int32)InTags.GetSize();
 	int32 Index = 0;
 	if (ActorElement->GetTagsCount() == Count)
 	{
-		while (Index < Count && InTags[Index] == ActorElement->GetTag(Index))
+		while (Index < Count && FCString::Strcmp(GSStringToUE(InTags[Index]), ActorElement->GetTag(Index)) == 0)
 		{
 			++Index;
 		}
@@ -404,47 +408,119 @@ void FSyncData::FActor::UpdateTags(const FTagsArray& InTags)
 	ActorElement->ResetTags();
 	for (Index = 0; Index < Count; ++Index)
 	{
-		ActorElement->AddTag(*InTags[Index]);
+		ActorElement->AddTag(GSStringToUE(InTags[Index]));
 	}
 }
 
 // Add tags data
-void FSyncData::FActor::AddTags(const FElementID& InElementID)
+void FSyncData::FActor::AddTags(FElementID& InElementID)
 {
 	UE_AC_Assert(ActorElement.IsValid());
+	const API_Elem_Head& Header = InElementID.GetHeader();
 
-	FTagsArray Tags;
+	FTagsArray Tags(10);
 
-	static GS::UniString PrefixTagUniqueID("Archicad.Element.UniqueID.");
-	GS::UniString		 TagUniqueID = PrefixTagUniqueID + ElementId.ToUniString();
-	Tags.Add(GSStringToUE(TagUniqueID));
+	static const GS::UniString PrefixTagUniqueID("Archicad.Element.UniqueID.");
+	Tags.Push(PrefixTagUniqueID + ElementId.ToUniString());
 
-	static GS::UniString PrefixTagType("Archicad.Element.Type.");
-	GS::UniString		 TagElementType = PrefixTagType + FElementTools::TypeName(InElementID.ElementHeader.typeID);
-	Tags.Add(GSStringToUE(TagElementType));
+	static const GS::UniString PrefixTagType("Archicad.Element.Type.");
+	GS::UniString			   ElementTypeName(FElementTools::TypeName(Header.typeID), CC_UTF8);
+	Tags.Push(PrefixTagType + ElementTypeName);
+
+	const FLibPartInfo* LibPartInfo = InElementID.GetLibPartInfo();
+	if (LibPartInfo != nullptr)
+	{
+		static const GS::UniString PrefixLibPartMain("Archicad.Element.LibPart.Main.");
+		Tags.Push(PrefixLibPartMain + LibPartInfo->Guid.Main.ToUniString());
+
+		static const GS::UniString PrefixLibPartRev("Archicad.Element.LibPart.Rev.");
+		Tags.Push(PrefixLibPartRev + LibPartInfo->Guid.Rev.ToUniString());
+
+		static const GS::UniString PrefixLibPartName("Archicad.Element.LibPart.Name.");
+		Tags.Push(PrefixLibPartName + LibPartInfo->Name);
+
+		if (Header.typeID == API_ObjectID || Header.typeID == API_LampID || Header.typeID == API_WindowID ||
+			Header.typeID == API_DoorID)
+		{
+			const API_Element& APIElement = InElementID.GetAPIElement();
+
+			if (APIElement.header.typeID == API_ObjectID || APIElement.header.typeID == API_LampID)
+			{
+				if (APIElement.object.useObjMaterials)
+				{
+					static const GS::UniString TagUseObjectMaterial("Archicad.Element.UseObjectMaterial");
+					Tags.Push(TagUseObjectMaterial);
+				}
+				if (APIElement.object.reflected)
+				{
+					static const GS::UniString TagObjectReflected("Archicad.Element.Reflected");
+					Tags.Push(TagObjectReflected);
+				}
+			}
+			else if (APIElement.header.typeID == API_WindowID || APIElement.header.typeID == API_DoorID)
+			{
+				if (APIElement.window.openingBase.reflected)
+				{
+					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.Y");
+					Tags.Push(TagObjectReflected);
+				}
+				if (APIElement.window.openingBase.oSide)
+				{
+					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.X");
+					Tags.Push(TagObjectReflected);
+				}
+				if (APIElement.window.openingBase.refSide)
+				{
+					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.X.Same");
+					Tags.Push(TagObjectReflected);
+				}
+			}
+		}
+	}
+
+#if 0 // IfcType and Classification only as metadata
+	GS::UniString IfcType;
+	GS::UniString TypeObjectIfcType;
+	GSErrCode GSErr = ACAPI_Element_GetIFCType(Header.guid, &IfcType, &TypeObjectIfcType);
+	if (GSErr == NoError)
+	{
+		if (!IfcType.IsEmpty())
+		{
+			static const GS::UniString PrefixIfcType("Archicad.IfcType.");
+			Tags.Push(PrefixIfcType + IfcType);
+		}
+		if (!TypeObjectIfcType.IsEmpty())
+		{
+			static const GS::UniString PrefixTypeObjectIfcType("Archicad.TypeObjectIfcType.");
+			Tags.Push(PrefixTypeObjectIfcType + TypeObjectIfcType);
+		}
+	}
+	else
+	{
+		UE_AC_DebugF("FSyncData::AddTags - ACAPI_Element_GetIFCType returned error %s", GetErrorName(GSErr));
+	}
 
 	GS::Array< GS::Pair< API_ClassificationSystem, API_ClassificationItem > > ApiClassifications;
-	GSErrCode GSErr = FElementTools::GetElementClassifications(ApiClassifications, InElementID.ElementHeader.guid);
+	GSErr = FElementTools::GetElementClassifications(ApiClassifications, Header.guid);
 
 	if (GSErr == NoError)
 	{
-		TSet< FString > ClassificationIds;
-		static FString	PrefixTagClassificationID(TEXT("Archicad.Classification.ID."));
+		static const GS::UniString PrefixTagClassificationID("Archicad.Classification.");
+		static const GS::UniString StringID(".ID.");
 		for (const GS::Pair< API_ClassificationSystem, API_ClassificationItem >& Classification : ApiClassifications)
 		{
-			FString TagClassificationID = PrefixTagClassificationID + GSStringToUE(Classification.second.id);
-			bool	bTagClassificationIsAlreadyInSet = false;
-			ClassificationIds.Add(TagClassificationID, &bTagClassificationIsAlreadyInSet);
-			if (!bTagClassificationIsAlreadyInSet)
+			GS::UniString TagClassificationID(PrefixTagClassificationID + Classification.first.name + StringID + Classification.second.id);
+			if (!Tags.Contains(TagClassificationID))
 			{
-				Tags.Add(TagClassificationID);
+				Tags.Push(TagClassificationID);
 			}
 		}
 	}
 	else
 	{
-		UE_AC_DebugF("FSyncData::AddTags - FElementTools::GetElementClassifications returned error %d", GSErr);
+		UE_AC_DebugF("FSyncData::AddTags - FElementTools::GetElementClassifications returned error %s", GetErrorName(GSErr));
 	}
+#endif
 
 	UpdateTags(Tags);
 }
@@ -523,11 +599,13 @@ void FSyncData::FLayer::Process(FProcessInfo* /* IOProcessInfo */)
 						 LayerIndex);
 			if (error == APIERR_DELETED)
 			{
-				LayerName = GetGSName(kName_LayerDeleted);
+				static const GS::UniString LayerDeleted("Layer deleted");
+				LayerName = LayerDeleted;
 			}
 			else
 			{
-				LayerName = GS::UniString::Printf(GetGSName(kName_LayerError), GetErrorName(error));
+				utf8_string LayerError(Utf8StringFormat("Layer error=%s", GetErrorName(error)));
+				LayerName = GS::UniString(LayerError.c_str(), CC_UTF8);
 			}
 		}
 		else if (LayerName == "\x14") // Special ARCHICAD layer
@@ -641,10 +719,10 @@ void FConvertGeometry2MeshElement::AddElementGeometry(FElementID*						IOElement
 	Geometry::Transformation3D World2Local = Local2World.GetInverse().Get(Geometry::Transformation3D());
 #endif
 
-	Element2StaticMesh.AddElementGeometry(IOElementID->Element3D, World2Local);
+	Element2StaticMesh.AddElementGeometry(IOElementID->GetElement3D(), World2Local);
 }
 
-FSyncData::FElement::FElement(const GS::Guid& InGuid, const FSyncContext& InSyncContext)
+FSyncData::FElement::FElement(const GS::Guid& InGuid, const FSyncContext& /* InSyncContext */)
 	: FSyncData::FActor(InGuid)
 {
 }
@@ -699,14 +777,14 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 		{
 			IOProcessInfo->ElementID.InitElement(this);
 			IOProcessInfo->ElementID.InitHeader(GSGuid2APIGuid(ElementId));
-			CheckModificationStamp(IOProcessInfo->ElementID.ElementHeader.modiStamp);
+			CheckModificationStamp(IOProcessInfo->ElementID.GetHeader().modiStamp);
 
 			UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalOwnerCreated++);
 			TSharedRef< IDatasmithActorElement > NewActor =
 				FDatasmithSceneFactory::CreateActor(GSStringToUE(ElementId.ToUniString()));
 
 			GS::UniString ElemenInfo;
-			if (FElementTools::GetInfoString(IOProcessInfo->ElementID.ElementHeader.guid, &ElemenInfo))
+			if (FElementTools::GetInfoString(IOProcessInfo->ElementID.GetHeader().guid, &ElemenInfo))
 			{
 				NewActor->SetLabel(GSStringToUE(ElemenInfo));
 			}
@@ -718,7 +796,7 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 
 			SetActorElement(NewActor);
 			AddTags(IOProcessInfo->ElementID);
-			UpdateMetaData(IOProcessInfo->SyncContext.GetScene());
+			UpdateMetaData(IOProcessInfo);
 		}
 	}
 	else
@@ -732,10 +810,10 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			IOProcessInfo->ElementID.InitHeader();
 
 			ModelerAPI::Transformation LocalToWorld =
-				IOProcessInfo->ElementID.Element3D.GetElemLocalToWorldTransformation();
+				IOProcessInfo->ElementID.GetElement3D().GetElemLocalToWorldTransformation();
 			if ((LocalToWorld.status & TR_IDENT) != 0)
 			{
-				Box3D Bounds = IOProcessInfo->ElementID.Element3D.GetBounds();
+				Box3D Bounds = IOProcessInfo->ElementID.GetElement3D().GetBounds();
 				LocalToWorld.matrix[0][3] = (Bounds.xMin + Bounds.xMax) * 0.5;
 				LocalToWorld.matrix[1][3] = (Bounds.yMin + Bounds.yMax) * 0.5;
 				LocalToWorld.matrix[2][3] = Bounds.zMin;
@@ -797,7 +875,7 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 
 			// Set actor label
 			GS::UniString ElemenInfo;
-			if (FElementTools::GetInfoString(IOProcessInfo->ElementID.ElementHeader.guid, &ElemenInfo))
+			if (FElementTools::GetInfoString(IOProcessInfo->ElementID.GetHeader().guid, &ElemenInfo))
 			{
 				ActorElement->SetLabel(GSStringToUE(ElemenInfo));
 			}
@@ -810,12 +888,12 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			ActorElement->SetRotation(FGeometryUtil::GetRotationQuat(LocalToWorld.matrix));
 
 			// Set actor layer
-			ActorElement->SetLayer(*IOProcessInfo->SyncContext.GetSyncDatabase().GetLayerName(
-				IOProcessInfo->ElementID.ElementHeader.layer));
+			ActorElement->SetLayer(
+				*IOProcessInfo->SyncContext.GetSyncDatabase().GetLayerName(IOProcessInfo->ElementID.GetHeader().layer));
 
 			AddTags(IOProcessInfo->ElementID);
 
-			UpdateMetaData(IOProcessInfo->SyncContext.GetScene());
+			UpdateMetaData(IOProcessInfo);
 
 			ConvertGeometry2MeshElement->CreateDatasmithMesh();
 		}
@@ -878,11 +956,28 @@ void FSyncData::FElement::DeleteMe(FSyncDatabase* IOSyncDatabase)
 }
 
 // Rebuild the meta data of this element
-void FSyncData::FElement::UpdateMetaData(IDatasmithScene& IOScene)
+void FSyncData::FElement::UpdateMetaData(FProcessInfo* IOProcessInfo)
 {
 	FMetaData MetaDataExporter(ActorElement);
 	MetaDataExporter.ExportMetaData(ElementId);
-	MetaDataExporter.SetOrUpdate(&MetaData, &IOScene);
+	API_ElemTypeID TypeID = IOProcessInfo->ElementID.GetHeader().typeID;
+	if (TypeID == API_ObjectID || TypeID == API_LampID)
+	{
+		FAutoMemo AutoMemo(GSGuid2APIGuid(ElementId), APIMemoMask_AddPars);
+		if (AutoMemo.GSErr == NoError)
+		{
+			if (AutoMemo.Memo.params) // Can be null
+			{
+				GS::UniString EscapeAssetId;
+				if (GetParameter(AutoMemo.Memo.params, "enscapeAssetId", &EscapeAssetId))
+				{
+					MetaDataExporter.AddProperty(TEXT("EnscapeAssetId"), EDatasmithKeyValuePropertyType::String,
+												 EscapeAssetId);
+				}
+			}
+		}
+	}
+	MetaDataExporter.SetOrUpdate(&MetaData, &IOProcessInfo->SyncContext.GetScene());
 }
 
 #pragma mark -
@@ -1010,7 +1105,7 @@ void FSyncData::FCamera::InitWithCameraElement()
 
 #pragma mark -
 
-void FSyncData::FLight::Process(FProcessInfo* /* IOProcessInfo */)
+void FSyncData::FLight::Process(FProcessInfo* IOProcessInfo)
 {
 	if (!ActorElement.IsValid())
 	{
@@ -1057,11 +1152,30 @@ void FSyncData::FLight::Process(FProcessInfo* /* IOProcessInfo */)
 
 		LightElement.SetTranslation(Position);
 		LightElement.SetRotation(Rotation);
-		LightElement.SetIntensity(5000.0);
+		LightElement.SetIntensity(Intensity * 5000.0);
 		LightElement.SetColor(Color);
 		if (Color == FLinearColor(0, 0, 0))
 		{
 			LightElement.SetEnabled(false);
+		}
+
+		LightElement.SetUseIes(bUseIES);
+		if (bUseIES)
+		{
+			const FTexturesCache::FIESTexturesCacheElem& Texture =
+				IOProcessInfo->SyncContext.GetTexturesCache().GetIESTexture(IOProcessInfo->SyncContext,
+																			GSStringToUE(IESFileName));
+			LightElement.SetIesTexturePathName(*Texture.TexturePath);
+
+			/*
+			 LightElement.SetIesBrightnessScale(double IesBrightnessScale);
+			 LightElement.SetUseIesBrightness(bool bUseIesBrightness);
+			 LightElement.SetIesRotation(const FQuat& IesRotation);
+			 */
+		}
+		else
+		{
+			LightElement.SetIesTexturePathName(TEXT(""));
 		}
 	}
 }

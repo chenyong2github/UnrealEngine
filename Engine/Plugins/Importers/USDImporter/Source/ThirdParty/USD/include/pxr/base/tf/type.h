@@ -512,8 +512,9 @@ public:
     ///
     /// Aliases are similar to typedefs in C++: they provide an
     /// alternate name for a type.  The alias is defined with respect
-    /// to the given \c base type; aliases must be unique beneath that
-    /// base type.
+    /// to the given \c base type.  Aliases must be unique with respect to both
+    /// other aliases beneath that base type and names of derived types of that 
+    /// base.
     ///
     TF_API
     void AddAlias(TfType base, const std::string &name) const;
@@ -697,7 +698,13 @@ private:
     friend struct Tf_AddBases;
     friend struct _TypeInfo;
     friend class Tf_TypeRegistry;
-    friend class TfHash;
+
+    // TfHash support.
+    template <class HashState>
+    friend void
+    TfHashAppend(HashState &h, TfType const &type) {
+        h.Append(type._info);
+    }
 
     // Construct a TfType with the given _TypeInfo.
     explicit TfType(_TypeInfo *info) : _info(info) {}

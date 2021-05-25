@@ -98,10 +98,15 @@ void FRHICommandWaitForTemporalEffect::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIWaitForTemporalEffect)(EffectName);
 }
 
-void FRHICommandBroadcastTemporalEffect::Execute(FRHICommandListBase& CmdList)
+template <> void FRHICommandBroadcastTemporalEffect<FRHITexture>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BroadcastTemporalEffect);
-	INTERNAL_DECORATOR(RHIBroadcastTemporalEffect)(EffectName, { Textures, NumTextures });
+	INTERNAL_DECORATOR(RHIBroadcastTemporalEffect)(EffectName, Resources);
+}
+template <> void FRHICommandBroadcastTemporalEffect<FRHIBuffer>::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(BroadcastTemporalEffect);
+	INTERNAL_DECORATOR(RHIBroadcastTemporalEffect)(EffectName, Resources);
 }
 
 void FRHICommandTransferTextures::Execute(FRHICommandListBase& CmdList)

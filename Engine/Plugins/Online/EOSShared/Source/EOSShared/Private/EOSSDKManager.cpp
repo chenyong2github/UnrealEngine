@@ -8,18 +8,19 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/NetworkVersion.h"
 #include "Stats/Stats.h"
 
 #include "CoreGlobals.h"
-#include "EOSSharedUtils.h"
+
+#include "EOSShared.h"
+#include "EOSSharedSettings.h"
 
 #include "eos_init.h"
 #include "eos_logging.h"
 #include "eos_sdk.h"
 #include "eos_version.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogEOSSDK, Log, All);
 
 namespace
 {
@@ -126,8 +127,6 @@ EOS_EResult FEOSSDKManager::Initialize()
 	}
 	else
 	{
-		UpdateConfiguration();
-
 		UE_LOG(LogEOSSDK, Log, TEXT("Initializing EOSSDK Version:%s"), UTF8_TO_TCHAR(EOS_GetVersion()));
 
 		const FTCHARToUTF8 ProductName(*GetProductName());
@@ -159,36 +158,10 @@ EOS_EResult FEOSSDKManager::Initialize()
 				UE_LOG(LogEOSSDK, Warning, TEXT("EOS_Logging_SetCallback failed error:%s"), *LexToString(EosResult));
 			}
 
-			EOS_ELogLevel LogLevel = EOS_ELogLevel::EOS_LOG_Info;
-			if (Config.LogLevel == TEXT("Off"))
-			{
-				LogLevel = EOS_ELogLevel::EOS_LOG_Off;
-			}
-			else if (Config.LogLevel == TEXT("Fatal"))
-			{
-				LogLevel = EOS_ELogLevel::EOS_LOG_Fatal;
-			}
-			else if (Config.LogLevel == TEXT("Error"))
-			{
-				LogLevel = EOS_ELogLevel::EOS_LOG_Error;
-			}
-			else if (Config.LogLevel == TEXT("Warning"))
-			{
-				LogLevel = EOS_ELogLevel::EOS_LOG_Warning;
-			}
-			else if (Config.LogLevel == TEXT("Info"))
-			{
-				LogLevel = EOS_ELogLevel::EOS_LOG_Info;
-			}
-			else if (Config.LogLevel == TEXT("Verbose"))
-			{
-				LogLevel = EOS_ELogLevel::EOS_LOG_Verbose;
-			}
-			else if (Config.LogLevel == TEXT("VeryVerbose"))
-			{
-				LogLevel = EOS_ELogLevel::EOS_LOG_VeryVerbose;
-			}
-			EosResult = EOS_Logging_SetLogLevel(EOS_ELogCategory::EOS_LC_ALL_CATEGORIES, LogLevel);
+			const FEOSSharedSettings& EOSSharedSettings = UEOSSharedSettings::GetSettings();
+
+			const EOS_ELogLevel EosLogLevel = ConvertLogLevel(EOSSharedSettings.LogLevel);
+			EosResult = EOS_Logging_SetLogLevel(EOS_ELogCategory::EOS_LC_ALL_CATEGORIES, EosLogLevel);
 			if (EosResult != EOS_EResult::EOS_Success)
 			{
 				UE_LOG(LogEOSSDK, Warning, TEXT("EOS_Logging_SetLogLevel failed error:%s"), *LexToString(EosResult));
@@ -203,16 +176,17 @@ EOS_EResult FEOSSDKManager::Initialize()
 	}
 }
 
-EOS_HPlatform FEOSSDKManager::CreatePlatform(const EOS_Platform_Options& PlatformOptions)
+IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const EOS_Platform_Options& PlatformOptions)
 {
-	EOS_HPlatform EosPlatformHandle = nullptr;
+	IEOSPlatformHandlePtr SharedPlatform;
 
 	if (IsInitialized())
 	{
-		EosPlatformHandle = EOS_Platform_Create(&PlatformOptions);
-		if (EosPlatformHandle)
+		const EOS_HPlatform PlatformHandle = EOS_Platform_Create(&PlatformOptions);
+		if (PlatformHandle)
 		{
-			EosPlatformHandles.Emplace(EosPlatformHandle);
+			PlatformHandles.Emplace(PlatformHandle);
+			SharedPlatform = MakeShared<FEOSPlatformHandle, ESPMode::ThreadSafe>(*this, PlatformHandle);
 
 			if (!TickerHandle.IsValid())
 			{
@@ -229,31 +203,16 @@ EOS_HPlatform FEOSSDKManager::CreatePlatform(const EOS_Platform_Options& Platfor
 		UE_LOG(LogEOSSDK, Warning, TEXT("FEOSSDKManager::CreatePlatform failed. SDK not initialized"));
 	}
 
-	return EosPlatformHandle;
-}
-
-void FEOSSDKManager::ReleasePlatform(EOS_HPlatform EosPlatformHandle)
-{
-	if (EosPlatformHandle)
-	{
-		EosPlatformHandles.Remove(EosPlatformHandle);
-		EOS_Platform_Release(EosPlatformHandle);
-
-		if (EosPlatformHandles.Num() == 0 && TickerHandle.IsValid())
-		{
-			FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
-			TickerHandle.Reset();
-		}
-	}
+	return SharedPlatform;
 }
 
 bool FEOSSDKManager::Tick(float)
 {
 	//LLM_SCOPE(ELLMTag::EOSSDK); // TODO
-	for (EOS_HPlatform EosPlatformHandle : EosPlatformHandles)
+	for (EOS_HPlatform PlatformHandle : PlatformHandles)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(FEOSSDKManager_Tick);
-		EOS_Platform_Tick(EosPlatformHandle);
+		EOS_Platform_Tick(PlatformHandle);
 	}
 
 	return true;
@@ -270,16 +229,43 @@ FString FEOSSDKManager::GetProductVersion() const
 	return ProductVersion;
 }
 
+void FEOSSDKManager::ReleasePlatform(EOS_HPlatform PlatformHandle)
+{
+	// Only release the platform if it was actually present in PlatformHandles, as Shutdown may have already released it.
+	if (PlatformHandles.Remove(PlatformHandle))
+	{
+		EOS_Platform_Release(PlatformHandle);
+
+		if (ensure(TickerHandle.IsValid()) &&
+			PlatformHandles.Num() == 0)
+		{
+			FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+			TickerHandle.Reset();
+		}
+	}
+	else
+	{
+		UE_LOG(LogEOSSDK, Warning, TEXT("FEOSSDKManager::ReleasePlatform PlatformHandle does not exist."));
+	}
+}
+
 void FEOSSDKManager::Shutdown()
 {
 	if (IsInitialized())
 	{
-		if (EosPlatformHandles.Num() > 0)
+		if (PlatformHandles.Num() > 0)
 		{
-			UE_LOG(LogEOSSDK, Warning, TEXT("FEOSSDKManager::Shutdown Releasing %d remaining platforms"), EosPlatformHandles.Num());
-			for (EOS_HPlatform EosPlatformHandle : EosPlatformHandles)
+			UE_LOG(LogEOSSDK, Warning, TEXT("FEOSSDKManager::Shutdown Releasing %d remaining platforms"), PlatformHandles.Num());
+			for (EOS_HPlatform PlatformHandle : PlatformHandles)
 			{
-				ReleasePlatform(EosPlatformHandle);
+				EOS_Platform_Release(PlatformHandle);
+			}
+			PlatformHandles.Empty();
+
+			if (ensure(TickerHandle.IsValid()))
+			{
+				FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+				TickerHandle.Reset();
 			}
 		}
 
@@ -295,12 +281,15 @@ EOS_EResult FEOSSDKManager::EOSInitialize(EOS_InitializeOptions& Options)
 	return EOS_Initialize(&Options);
 }
 
-void FEOSSDKManager::UpdateConfiguration()
+FEOSPlatformHandle::~FEOSPlatformHandle()
 {
-	const TCHAR* SectionName = TEXT("EOSSDK");
-	const FString& ConfigFile = GEngineIni;
+	Manager.ReleasePlatform(PlatformHandle);
+}
 
-	GConfig->GetString(SectionName, TEXT("LogLevel"), Config.LogLevel, ConfigFile);
+void FEOSPlatformHandle::Tick()
+{
+	QUICK_SCOPE_CYCLE_COUNTER(FEOSPlatformHandle_Tick);
+	EOS_Platform_Tick(PlatformHandle);
 }
 
 #endif // WITH_EOS_SDK

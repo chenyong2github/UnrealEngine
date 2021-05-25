@@ -146,6 +146,7 @@ class UNiagaraGraph : public UEdGraph
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void BeginDestroy() override;
 	//~ End UObjet Interface
 	
 	/** Get the source that owns this graph */
@@ -153,6 +154,10 @@ class UNiagaraGraph : public UEdGraph
 
 	/** Determine if there are any nodes in this graph.*/
 	bool IsEmpty() const { return Nodes.Num() == 0; }
+
+	/** Creates a transient copy of this graph for compilation purposes. */
+	UNiagaraGraph* CreateCompilationCopy();
+	void ReleaseCompilationCopy();
 			
 	/** Find the first output node bound to the target usage type.*/
 	class UNiagaraNodeOutput* FindOutputNode(ENiagaraScriptUsage TargetUsageType, FGuid TargetUsageId = FGuid()) const;
@@ -424,4 +429,6 @@ private:
 	bool bIsRenamingParameter;
 
 	mutable bool bParameterReferenceRefreshPending;
+
+	bool bIsForCompilationOnly = false;
 };

@@ -5625,6 +5625,10 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		int32		MobileMinLOD = -1;
 
 #if WITH_EDITORONLY_DATA 
+		if (Mesh->GetQualityLevelMinLOD().bIsEnabled && Mesh->GetQualityLevelMinLOD().PerQuality.Find(0/*Low*/) != nullptr)
+		{
+			MobileMinLOD = *Mesh->GetQualityLevelMinLOD().PerQuality.Find(0);
+		}
 		if (Mesh->GetMinLOD().PerPlatform.Find(("Mobile")) != nullptr)
 		{
 			MobileMinLOD = *Mesh->GetMinLOD().PerPlatform.Find(("Mobile"));

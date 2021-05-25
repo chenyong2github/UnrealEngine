@@ -83,6 +83,7 @@ const TCHAR* LexToString(EInstallBundleResult Result)
 		TEXT("InstallError"),
 		TEXT("InstallerOutOfDiskSpaceError"),
 		TEXT("ManifestArchiveError"),
+		TEXT("ConnectivityError"),
 		TEXT("UserCancelledError"),
 		TEXT("InitializationError"),
 		TEXT("InitializationPending"),
@@ -152,6 +153,7 @@ const TCHAR* LexToString(EInstallBundleSourceUpdateBundleInfoResult Result)
 		TEXT("AlreadyRequested"),
 		TEXT("IllegalStartupBundle"),
 		TEXT("IllegalCacheStatus"),
+		TEXT("IllegalInstallSizeChange"),
 	};
 
 	return InstallBundleUtil::TLexToString(Result, Strings);

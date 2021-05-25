@@ -3,14 +3,6 @@
 #include "VideoCommon.h"
 #include "CodecPacket.h"
 
-#if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/PreWindowsApi.h"
-	#include <d3d11.h>
-#include "Windows/PostWindowsApi.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
-
 namespace AVEncoder
 {
 
@@ -24,8 +16,5 @@ void DebugSetD3D11ObjectName(ID3D11DeviceChild* InD3DObject, const char* InName)
 	}
 }
 #endif
-
-
-
 
 }

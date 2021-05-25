@@ -25,12 +25,17 @@ namespace UnrealBuildTool.Rules
             {
                 PrivateIncludePaths.Add(EngineDir + "/Source/Runtime/VulkanRHI/Private/Windows");
             }
-            else if (Target.Platform != UnrealTargetPlatform.HoloLens)
+			else if (Target.Platform == UnrealTargetPlatform.Android  || Target.Platform == UnrealTargetPlatform.Linux)
             {
                 PrivateIncludePaths.Add(EngineDir + "/Source/Runtime/VulkanRHI/Private/" + Target.Platform);
             }
 
-            PrivateDependencyModuleNames.AddRange(
+			PublicIncludePathModuleNames.Add("OpenXR");
+			
+
+            PublicDependencyModuleNames.Add("HeadMountedDisplay");
+
+			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
@@ -43,7 +48,6 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"Renderer",
 					"RenderCore",
-                    "HeadMountedDisplay",
                     "Slate",
                     "SlateCore",
 					"AugmentedReality",
@@ -94,7 +98,8 @@ namespace UnrealBuildTool.Rules
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
 			}
 
-            if (Target.Platform != UnrealTargetPlatform.HoloLens)
+			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Android  
+			    || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
             {
                 PrivateDependencyModuleNames.AddRange(new string[] {
                     "VulkanRHI"
@@ -102,9 +107,6 @@ namespace UnrealBuildTool.Rules
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
             }
-
-            PublicDependencyModuleNames.Add("HeadMountedDisplay");
-			PublicIncludePathModuleNames.Add("OpenXR");
 		}
 	}
 }

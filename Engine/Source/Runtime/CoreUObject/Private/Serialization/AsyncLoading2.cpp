@@ -66,6 +66,14 @@
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
+int32 GAsyncLoadingMaxPendingRequestsSizeMB = 256;
+static FAutoConsoleVariableRef CVar_AsyncLoadingMaxPendingRequestsSizeMB(
+	TEXT("s.AsyncLoadingMaxPendingRequestsSizeMB"),
+	GAsyncLoadingMaxPendingRequestsSizeMB,
+	TEXT("Max amount of data in MB to request from IO"),
+	ECVF_Default
+);
+
 
 FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader)
 {
@@ -2594,7 +2602,7 @@ void FAsyncLoadingThread2::BundleIoRequestCompleted(FAsyncPackage2* Package)
 void FAsyncLoadingThread2::StartBundleIoRequests()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StartBundleIoRequests);
-	constexpr uint64 MaxPendingRequestsSize = 256 << 20;
+	const uint64 MaxPendingRequestsSize = uint64(GAsyncLoadingMaxPendingRequestsSizeMB) << 20;
 	FIoBatch IoBatch = IoDispatcher.NewBatch();
 	while (WaitingIoRequests.Num())
 	{
@@ -4037,8 +4045,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 
 	check(IsInGameThread());
 
-	// If we're not multithreaded and flushing async loading, update the thread heartbeat
-	const bool bNeedsHeartbeatTick = !FAsyncLoadingThread2::IsMultithreaded();
 	OutPackagesProcessed = 0;
 
 #if ALT2_VERIFY_RECURSIVE_LOADS 
@@ -4051,10 +4057,12 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 	{
 		do 
 		{
-			if (bNeedsHeartbeatTick && (++LoopIterations) % 32 == 31)
+			if ((++LoopIterations) % 32 == 31)
 			{
+				// We're not multithreaded and flushing async loading
 				// Update heartbeat after 32 events
 				FThreadHeartBeat::Get().HeartBeat();
+				FCoreDelegates::OnAsyncLoadingFlushUpdate.Broadcast();
 			}
 
 			if (ThreadState.IsTimeLimitExceeded(TEXT("ProcessAsyncLoadingFromGameThread")))

@@ -62,6 +62,21 @@ namespace
 		return Result;
 	}
 
+	bool IsBlueprintFilter(const FAssetData& BlueprintClassData)
+	{
+		UClass* BlueprintFilterClass = ULevelSnapshotBlueprintFilter::StaticClass();
+		
+		const FString NativeParentClassPath = BlueprintClassData.GetTagValueRef<FString>(FBlueprintTags::NativeParentClassPath);
+		const FSoftClassPath ClassPath(NativeParentClassPath);
+			
+		UClass* NativeParentClass = ClassPath.ResolveClass();
+		const bool bInheritsFromBlueprintFilter =
+			NativeParentClass // Class may have been removed, or renamed and not correctly redirected
+			&& (NativeParentClass == BlueprintFilterClass || NativeParentClass->IsChildOf(BlueprintFilterClass));
+
+		return bInheritsFromBlueprintFilter;
+	}
+	
 	TArray<TSubclassOf<ULevelSnapshotBlueprintFilter>> FindBlueprintFilterClasses()
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -71,16 +86,10 @@ namespace
 		AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), BlueprintList);
 
 		// Returns = 
-		const FString BlueprintFilterBaseClassPath = ULevelSnapshotBlueprintFilter::StaticClass()->GetPathName();
 		TArray<TSubclassOf<ULevelSnapshotBlueprintFilter>> Result;
 		for (const FAssetData& BlueprintClassData : BlueprintList)
 		{
-			// Is of form = Class''
-			const FString FirstNativeParentName = BlueprintClassData.GetTagValueRef<FString>(FBlueprintTags::NativeParentClassPath);
-			const bool bInheritsFromBlueprintFilter = FirstNativeParentName.Contains(BlueprintFilterBaseClassPath);
-
-			// Loading all blueprints is too slow... this finds only the ones we need
-			if (!bInheritsFromBlueprintFilter)
+			if (!IsBlueprintFilter(BlueprintClassData))
 			{
 				continue;
 			}
@@ -88,13 +97,38 @@ namespace
 			// If there are a lot of assets, this may be slow.
 			UBlueprint* BlueprintAsset = Cast<UBlueprint>(BlueprintClassData.GetAsset());
 			UClass* LoadedClass = BlueprintAsset->GeneratedClass;
-			if (ensure(LoadedClass) && ensure(BlueprintAsset->ParentClass) && BlueprintAsset->ParentClass->IsChildOf(ULevelSnapshotBlueprintFilter::StaticClass()))
+			if (ensure(LoadedClass && BlueprintAsset->ParentClass))
 			{
 				Result.Add(LoadedClass);
 			}
 		}
 		return Result;
 	}
+}
+
+void UFavoriteFilterContainer::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+	if (ensure(AssetRegistry))
+	{
+		OnAssetDeleted = AssetRegistry->OnAssetRemoved().AddLambda([this](const FAssetData& AssetData)
+		{
+			CleanseFavorites();
+		});
+	}
+}
+
+void UFavoriteFilterContainer::BeginDestroy()
+{
+	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+	if (AssetRegistry)
+	{
+		AssetRegistry->OnAssetRemoved().Remove(OnAssetDeleted);
+	}
+	
+	Super::BeginDestroy();
 }
 
 void UFavoriteFilterContainer::AddToFavorites(const TSubclassOf<ULevelSnapshotFilter>& NewFavoriteClass)
@@ -110,6 +144,8 @@ void UFavoriteFilterContainer::AddToFavorites(const TSubclassOf<ULevelSnapshotFi
 	{
 		OnFavoritesChanged.Broadcast();
 	}
+	
+	CleanseFavorites();
 }
 
 void UFavoriteFilterContainer::RemoveFromFavorites(const TSubclassOf<ULevelSnapshotFilter>& NoLongerFavoriteClass)
@@ -135,6 +171,8 @@ void UFavoriteFilterContainer::RemoveFromFavorites(const TSubclassOf<ULevelSnaps
 	{
 		OnFavoritesChanged.Broadcast();
 	}
+
+	CleanseFavorites();
 }
 
 void UFavoriteFilterContainer::ClearFavorites()
@@ -222,6 +260,24 @@ TArray<TSubclassOf<ULevelSnapshotFilter>> UFavoriteFilterContainer::GetFiltersIn
 		return Result;
 	}
 	return {};
+}
+
+void UFavoriteFilterContainer::CleanseFavorites()
+{
+	const int32 NumBeforeRemoval = Favorites.Num();
+	for (int32 i = 0; i < Favorites.Num(); ++i)
+	{
+		if (Favorites[i] == nullptr)
+		{
+			Favorites.RemoveAt(i);
+			--i;
+		}
+	}
+
+	if (NumBeforeRemoval != Favorites.Num())
+	{
+		OnFavoritesChanged.Broadcast();
+	}
 }
 
 void UFavoriteFilterContainer::SetIncludeAllNativeClasses(bool bShouldIncludeNative)

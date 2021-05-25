@@ -48,6 +48,7 @@ public:
 	virtual void PreloadRequiredAssets() override;
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	virtual void AllocateDefaultPins() override;
+	virtual void PostPlacedNewNode() override;
 #if WITH_EDITOR
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 #endif

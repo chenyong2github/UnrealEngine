@@ -34,7 +34,7 @@
 	],
 	"Plugins": [
 		{
-			"Name": "CameraCalibration",
+			"Name": "CameraCalibrationCore",
 			"Enabled": true
 		},
 		{

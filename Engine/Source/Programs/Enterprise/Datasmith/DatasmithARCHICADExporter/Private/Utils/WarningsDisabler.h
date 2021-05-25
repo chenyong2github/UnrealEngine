@@ -33,7 +33,8 @@
     _Pragma( "clang diagnostic ignored \"-Wdocumentation\"" ) \
 	_Pragma( "clang diagnostic ignored \"-Wshorten-64-to-32\"" ) \
 	_Pragma( "clang diagnostic ignored \"-Wdefaulted-function-deleted\"" ) \
-	_Pragma( "clang diagnostic ignored \"-Wcomma\"" )
+	_Pragma( "clang diagnostic ignored \"-Wcomma\"" ) \
+	_Pragma( "clang diagnostic ignored \"-Wnon-c-typedef-for-linkage\"" )
 
 #define DISABLE_SDK_WARNINGS_END \
     _Pragma( "clang diagnostic pop" )

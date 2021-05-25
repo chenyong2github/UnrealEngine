@@ -24,8 +24,7 @@ bool FPropertyInfoHelpers::IsPropertyInContainer(const FProperty* Property)
 {
 	if (ensure(Property))
 	{
-		const FProperty* ParentProperty = GetParentProperty(Property);
-		return ParentProperty && IsPropertyContainer(ParentProperty);
+		return IsPropertyInCollection(Property) || IsPropertyInStruct(Property);
 	}
 	return false;
 }
@@ -47,9 +46,14 @@ bool FPropertyInfoHelpers::IsPropertyInStruct(const FProperty* Property)
 		return false;
 	}
 
-	FProperty* ParentProperty = GetParentProperty(Property);
+	// Parent struct could be FProperty or UScriptStruct
 
-	return ParentProperty && ParentProperty->IsA(FStructProperty::StaticClass());
+	if (FProperty* ParentProperty = GetParentProperty(Property))
+	{
+		return ParentProperty->IsA(FStructProperty::StaticClass());
+	}
+
+	return IsValid(Property->GetOwner<UScriptStruct>());
 }
 
 bool FPropertyInfoHelpers::IsPropertyInMap(const FProperty* Property)

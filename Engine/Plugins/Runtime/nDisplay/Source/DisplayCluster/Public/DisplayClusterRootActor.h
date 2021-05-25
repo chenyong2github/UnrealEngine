@@ -37,6 +37,7 @@ class UDisplayClusterXformComponent;
 class UDisplayClusterSyncTickComponent;
 class UDisplayClusterPreviewComponent;
 
+
 /**
  * VR root. This contains nDisplay VR hierarchy in the game.
  */
@@ -79,8 +80,8 @@ public:
 
 	UDisplayClusterSyncTickComponent* GetSyncTickComponent() const { return SyncTickComponent; }
 
-	UDisplayClusterConfigurationICVFX_StageSettings* GetStageSettings() const { return StageSettings; }
-	UDisplayClusterConfigurationRenderFrame* GetRenderFrameSettings() const { return RenderFrameSettings; }
+	const FDisplayClusterConfigurationICVFX_StageSettings& GetStageSettings() const;
+	const FDisplayClusterConfigurationRenderFrame& GetRenderFrameSettings() const;
 
 	UDisplayClusterConfigurationViewport* GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID);
 
@@ -163,24 +164,12 @@ public:
 	UDisplayClusterSceneComponent* GetComponentById(const FString& ComponentId) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings", NoClear)
-	UDisplayClusterConfigurationICVFX_StageSettings* StageSettings;
-
-	UPROPERTY(EditAnywhere, Category = "NDisplay|Settings", NoClear)
-	UDisplayClusterConfigurationRenderFrame* RenderFrameSettings;
-
 	IDisplayClusterViewportManager* GetViewportManager() const
 	{
 		return ViewportManager.IsValid() ? ViewportManager.Get() : nullptr;
 	}
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Follow Local Player Camera"))
-	bool bFollowLocalPlayerCamera;
-
-	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Exit when ESC pressed"))
-	bool bExitOnEsc;
-
 	// Unique viewport manager for this configuration
 	TUniquePtr<IDisplayClusterViewportManager> ViewportManager;
 
@@ -195,7 +184,7 @@ private:
 	/**
 	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
 	 */
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Config Data")
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "NDisplay")
 	UDisplayClusterConfigurationData* CurrentConfigData;
 
 	/**
@@ -221,6 +210,8 @@ private:
 	TMap<FString, FDisplayClusterSceneComponentRef*> MeshComponents;
 	FDisplayClusterSceneComponentRef DefaultCameraComponent;
 
+	bool bHasRerunConstructionScripts = false;
+
 private:
 	template <typename TComp>
 	void GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames = nullptr, bool bCollectChildrenVisualizationComponent = true) const;
@@ -234,39 +225,46 @@ private:
 	template <typename TComp>
 	void GetTypedComponents(TMap<FString, TComp*>& OutTypedMap, const TMap<FString, FDisplayClusterSceneComponentRef*>& InTypedMap) const;
 
+public:
+	UPROPERTY(EditInstanceOnly, Category = NDisplay)
+	bool EnableInnerFrustum = true;
+
+	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera ICVFX", meta = (TitleProperty = "Name"))
+	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
+		
 //////////////////////////////////////////////////////////////////////////////////////////////
 // EDITOR STUFF
 //////////////////////////////////////////////////////////////////////////////////////////////
 #if WITH_EDITORONLY_DATA 
 public:
+	// Allow preview render
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
+	bool bPreviewEnable = true;
+	
 	// Render single node preview or whole cluster
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
 	// Render mode for PIE
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
 
-	// Allow preview render
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
-	bool bPreviewEnable = true;
-
 	// Update preview texture period in tick
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
 	int TickPerFrame = 1;
 
 	// Preview texture size get from viewport, and scaled by this value
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
-	// Extra settings for preview
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
-	UDisplayClusterConfigurationViewportPreview* PreviewSettings;
-
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	/* Enable the on-screen camera preview widget when selecting this actor. Changing this value requires reselecting the actor. */
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
+	bool bEnableICVFXCameraPreview = false;
+	
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	float XformGizmoScale = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	bool bAreXformGizmosVisible = true;
 
 private:
@@ -330,17 +328,22 @@ public:
 
 	IDisplayClusterViewport* FindPreviewViewport(const FString& InViewportId) const;
 
-	void GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures) const;
+	void GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures);
 
 	float GetXformGizmoScale() const;
 	bool GetXformGizmoVisibility() const;
 
 	void UpdateXformGizmos();
 
+	void UpdateInnerFrustumPriority();
+	void ResetInnerFrustumPriority();
+	
 	virtual bool IsSelectedInEditor() const override;
 	void SetIsSelectedInEditor(bool bValue);
 
 private:
+	/** The number of times to update the render target via deferred update. */
+	int32 PreviewRenderTargetUpdatesRequired = 0;
 	bool bIsSelectedInEditor = false;
 	
 protected:

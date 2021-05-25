@@ -992,7 +992,10 @@ void FPartyPlatformSessionMonitor::HandleJoinSessionComplete(FName SessionName, 
 		ProcessJoinFailure();
 	}
 
-	MonitoredParty->JoinSessionCompleteAnalytics(*TargetSessionId, LexToString(JoinSessionResult));
+	if (MonitoredParty.IsValid())
+	{
+		MonitoredParty->JoinSessionCompleteAnalytics(*TargetSessionId, LexToString(JoinSessionResult));
+	}
 }
 
 void FPartyPlatformSessionMonitor::HandleDestroySessionComplete(FName SessionName, bool bWasSuccessful)

@@ -102,6 +102,7 @@ private:
 
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
 bool ShouldViewVisualizeVolumetricCloudConservativeDensity(const FViewInfo& ViewInfo, const FEngineShowFlags& EngineShowFlags);
+bool VolumetricCloudWantsToSampleLocalLights(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
 uint32 GetVolumetricCloudDebugSampleCountMode(const FEngineShowFlags& ShowFlags);
 
 
@@ -134,6 +135,7 @@ struct FCloudRenderContext
 	bool bVisualizeConservativeDensityOrDebugSampleCount;
 
 	FUintVector4 TracingCoordToZbufferCoordScaleBias;
+	FUintVector4 TracingCoordToFullResPixelCoordScaleBias;
 	uint32 NoiseFrameIndexModPattern;
 
 	FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0;

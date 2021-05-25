@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "IDisplayClusterPostProcess.h"
+#include "Modules/ModuleInterface.h"
 #include "Render/PostProcess/IDisplayClusterPostProcess.h"
 
 class IDisplayClusterProjectionPolicyFactory;
 
 
 class FDisplayClusterPostprocessModule
-	: public IDisplayClusterPostprocess
+	: public IModuleInterface
 {
 public:
 	FDisplayClusterPostprocessModule();

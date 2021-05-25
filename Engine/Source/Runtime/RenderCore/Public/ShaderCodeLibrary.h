@@ -79,6 +79,11 @@ struct RENDERCORE_API FCompactFullName
 	void AppendString(FAnsiStringBuilderBase& Out) const;
 	void ParseFromString(const FStringView& Src);
 	friend RENDERCORE_API uint32 GetTypeHash(const FCompactFullName& A);
+
+#if WITH_EDITOR
+	/** Used to set up some compact FName paths for the FCompactFullName */
+	void SetCompactFullNameFromObject(UObject* InDepObject);
+#endif
 };
 
 

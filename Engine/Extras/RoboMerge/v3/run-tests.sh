@@ -1,3 +1,5 @@
+set -e
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NO_COLOUR='\033[0m'
@@ -32,29 +34,16 @@ cleanup() {
 
 cleanup
 
-docker network create --driver bridge robomerge_functtest_network &
+docker network create --driver bridge robomerge_functtest_network
 
 docker build -t helix -f helix.Dockerfile .
-docker build -t helix-and-node -f helix-and-node§.Dockerfile .
+docker build -t helix-and-node -f helix-and-node.Dockerfile .
 
-docker build -t p4docker -f Dockerfile.p4docker . &
-docker build -t robomerge -f Dockerfile . &
-robo_build_pid=$!
+docker build -t p4docker -f Dockerfile.p4docker .
+docker build -t robomerge -f Dockerfile .
 
-docker build -t robomerge_functionaltests -f functional_tests/tstests.Dockerfile . &
-tests_build_pid=$!
+docker build -t robomerge_functionaltests -f functional_tests/tstests.Dockerfile .
 
-wait $robo_build_pid
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
-wait $tests_build_pid
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
-wait
 
 echo "Running unit tests"
 docker run -a stderr -h robomerge_unittests --name robomerge_unittests robomerge npm test

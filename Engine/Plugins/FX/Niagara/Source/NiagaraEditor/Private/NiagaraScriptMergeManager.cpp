@@ -18,9 +18,13 @@
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraEditorUtilities.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "NiagaraClipboard.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEmitterEditorData.h"
 #include "NiagaraStackEditorData.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Interfaces/ISlateNullRendererModule.h"
 
 #include "UObject/PropertyPortFlags.h"
 
@@ -29,6 +33,11 @@
 #include "Modules/ModuleManager.h"
 #include "NiagaraConstants.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraSystemEditorData.h"
+#include "NiagaraSystemFactoryNew.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptMergeManager"
 
@@ -364,6 +373,11 @@ void FNiagaraStackFunctionMergeAdapter::GatherFunctionCallNodes(TArray<UNiagaraN
 			InputOverride->GetDynamicValueFunction()->GatherFunctionCallNodes(OutFunctionCallNodes);
 		}
 	}
+}
+
+const TArray<FNiagaraStackMessage>& FNiagaraStackFunctionMergeAdapter::GetMessages() const
+{
+	return FunctionCallNode->GetCustomNotes();
 }
 
 FNiagaraScriptStackMergeAdapter::FNiagaraScriptStackMergeAdapter(const UNiagaraEmitter& InOwningEmitter, UNiagaraNodeOutput& InOutputNode, UNiagaraScript& InScript)
@@ -1005,6 +1019,8 @@ bool FNiagaraScriptStackDiffResults::IsEmpty() const
 		ChangedVersionOtherModules.Num() == 0 &&
 		EnabledChangedBaseModules.Num() == 0 &&
 		EnabledChangedOtherModules.Num() == 0 &&
+		AddedOtherMessages.Num() == 0 &&
+		RemovedBaseMessagesInOther.Num() == 0 &&
 		RemovedBaseInputOverrides.Num() == 0 &&
 		AddedOtherInputOverrides.Num() == 0 &&
 		ModifiedOtherInputOverrides.Num() == 0 &&
@@ -1103,6 +1119,28 @@ FString FNiagaraEmitterDiffResults::GetErrorMessagesString() const
 		ErrorMessageStrings.Add(ErrorMessage.ToString());
 	}
 	return FString::Join(ErrorMessageStrings, TEXT("\n"));
+}
+
+bool FNiagaraEmitterDiffResults::HasVersionChanges() const
+{
+	for (auto& EventHandlerDiff : ModifiedEventHandlers)
+	{
+		if (EventHandlerDiff.ScriptDiffResults.ChangedVersionOtherModules.Num() > 0)
+		{
+			return true;
+		}
+	}
+	for (auto& SimStageDiff : ModifiedSimulationStages)
+	{
+		if (SimStageDiff.ScriptDiffResults.ChangedVersionOtherModules.Num() > 0)
+		{
+			return true;
+		}
+	}
+	return	EmitterSpawnDiffResults.ChangedVersionOtherModules.Num() > 0 ||
+			EmitterUpdateDiffResults.ChangedVersionOtherModules.Num() > 0 ||
+			ParticleSpawnDiffResults.ChangedVersionOtherModules.Num() > 0 ||
+			ParticleUpdateDiffResults.ChangedVersionOtherModules.Num() > 0;
 }
 
 TSharedRef<FNiagaraScriptMergeManager> FNiagaraScriptMergeManager::Get()
@@ -1254,6 +1292,106 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ForceI
 	return DiffResults;
 }
 
+void FNiagaraScriptMergeManager::UpdateModuleVersions(UNiagaraEmitter& Instance, const FNiagaraEmitterDiffResults& DiffResults) const
+{
+	// gather all the changes
+	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> ChangedVersionBaseModules;
+	ChangedVersionBaseModules.Append(DiffResults.EmitterSpawnDiffResults.ChangedVersionBaseModules);
+	ChangedVersionBaseModules.Append(DiffResults.EmitterUpdateDiffResults.ChangedVersionBaseModules);
+	ChangedVersionBaseModules.Append(DiffResults.ParticleSpawnDiffResults.ChangedVersionBaseModules);
+	ChangedVersionBaseModules.Append(DiffResults.ParticleUpdateDiffResults.ChangedVersionBaseModules);
+	for (auto& EventHandlerDiff : DiffResults.ModifiedEventHandlers)
+	{
+		ChangedVersionBaseModules.Append(EventHandlerDiff.ScriptDiffResults.ChangedVersionBaseModules);
+	}
+	for (auto& SimStageDiff : DiffResults.ModifiedSimulationStages)
+	{
+		ChangedVersionBaseModules.Append(SimStageDiff.ScriptDiffResults.ChangedVersionBaseModules);
+	}
+
+	TArray<TSharedRef<FNiagaraStackFunctionMergeAdapter>> ChangedVersionOtherModules;
+	ChangedVersionOtherModules.Append(DiffResults.EmitterSpawnDiffResults.ChangedVersionOtherModules);
+	ChangedVersionOtherModules.Append(DiffResults.EmitterUpdateDiffResults.ChangedVersionOtherModules);
+	ChangedVersionOtherModules.Append(DiffResults.ParticleSpawnDiffResults.ChangedVersionOtherModules);
+	ChangedVersionOtherModules.Append(DiffResults.ParticleUpdateDiffResults.ChangedVersionOtherModules);
+	for (auto& EventHandlerDiff : DiffResults.ModifiedEventHandlers)
+	{
+		ChangedVersionOtherModules.Append(EventHandlerDiff.ScriptDiffResults.ChangedVersionOtherModules);
+	}
+	for (auto& SimStageDiff : DiffResults.ModifiedSimulationStages)
+	{
+		ChangedVersionOtherModules.Append(SimStageDiff.ScriptDiffResults.ChangedVersionOtherModules);
+	}
+	
+	// the python update script needs a view model, so we need to create a temporary system here to instantiate the view models
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
+	if (ChangedVersionOtherModules.Num() > 0)
+	{
+		if (!FSlateApplication::IsInitialized())
+		{
+			// it's possible that during the cook process we don't have slate initialized, but we need it set up for the view model
+			FSlateApplication::Create();
+			TSharedRef<FSlateRenderer> SlateRenderer = FModuleManager::Get().LoadModuleChecked<ISlateNullRendererModule>("SlateNullRenderer").CreateSlateNullRenderer();
+			FSlateApplication::Get().InitializeRenderer(SlateRenderer);
+		}
+		UNiagaraSystem* System = NewObject<UNiagaraSystem>(GetTransientPackage(), NAME_None, RF_Transient | RF_Standalone);
+		UNiagaraSystemFactoryNew::InitializeSystem(System, true);
+		SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
+		FNiagaraSystemViewModelOptions SystemOptions;
+		SystemOptions.bCanModifyEmittersFromTimeline = false;
+		SystemOptions.bCanSimulate = false;
+		SystemOptions.bCanAutoCompile = false;
+		SystemOptions.EditMode = ENiagaraSystemViewModelEditMode::EmitterDuringMerge;
+		SystemOptions.MessageLogGuid = System->GetAssetGuid();
+		SystemViewModel->Initialize(*System, SystemOptions);
+		SystemViewModel->GetEditorData().SetOwningSystemIsPlaceholder(true, *System);
+		SystemViewModel->AddEmitter(Instance);
+	}
+
+	// apply version changes
+	for (int i = 0; i < ChangedVersionOtherModules.Num(); i++)
+	{
+		TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseModule = ChangedVersionBaseModules[i];
+		TSharedRef<FNiagaraStackFunctionMergeAdapter> ChangedModule = ChangedVersionOtherModules[i];
+		FGuid NewScriptVersion = BaseModule->GetFunctionCallNode()->SelectedScriptVersion;
+
+		// search for the stack item of the module node we are merging
+		UNiagaraStackModuleItem* ModuleItem = nullptr;
+		UNiagaraStackViewModel* EmitterStackViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterStackViewModel();
+		TArray<UNiagaraStackEntry*> EntriesToCheck;
+		EmitterStackViewModel->GetRootEntry()->GetUnfilteredChildren(EntriesToCheck);
+		while (EntriesToCheck.Num() > 0)
+		{
+			UNiagaraStackEntry* Entry = EntriesToCheck.Pop();
+			UNiagaraStackModuleItem* ModuleItemToCheck = Cast<UNiagaraStackModuleItem>(Entry);
+			if (ModuleItemToCheck && ModuleItemToCheck->GetModuleNode().NodeGuid == ChangedModule->GetFunctionCallNode()->NodeGuid)
+			{
+				ModuleItem = ModuleItemToCheck;
+				break;
+			}
+			Entry->GetUnfilteredChildren(EntriesToCheck);
+		}
+		
+		FNiagaraScriptVersionUpgradeContext UpgradeContext;
+		UpgradeContext.ConstantResolver = FCompileConstantResolver(&Instance, FNiagaraStackGraphUtilities::GetOutputNodeUsage(*ChangedModule->GetFunctionCallNode()));
+		if (ModuleItem)
+		{
+			UpgradeContext.CreateClipboardCallback = [ModuleItem](UNiagaraClipboardContent* ClipboardContent)
+			{
+				ModuleItem->RefreshChildren();
+				ModuleItem->Copy(ClipboardContent);
+				if (ClipboardContent->Functions.Num() > 0)
+				{
+					ClipboardContent->FunctionInputs = ClipboardContent->Functions[0]->Inputs;
+					ClipboardContent->Functions.Empty();
+				}
+			};
+			UpgradeContext.ApplyClipboardCallback = [ModuleItem](UNiagaraClipboardContent* ClipboardContent, FText& OutWarning) { ModuleItem->Paste(ClipboardContent, OutWarning); };
+		}
+		ChangedModule->GetFunctionCallNode()->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
+	}
+}
+
 INiagaraMergeManager::FMergeEmitterResults FNiagaraScriptMergeManager::MergeEmitter(UNiagaraEmitter& Parent, UNiagaraEmitter* ParentAtLastMerge, UNiagaraEmitter& Instance) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptMergeManager_MergeEmitter);
@@ -1304,16 +1442,35 @@ INiagaraMergeManager::FMergeEmitterResults FNiagaraScriptMergeManager::MergeEmit
 			// If there were differences from the parent or the parent diff failed we can just return a copy of the parent as the merged instance since there
 			// were no changes in the instance which need to be applied.
 			MergeResults.MergeResult = INiagaraMergeManager::EMergeEmitterResult::SucceededDifferencesApplied;
-			MergeResults.MergedInstance = Parent.DuplicateWithoutMerging((UObject*)GetTransientPackage());
+			MergeResults.MergedInstance = Parent.DuplicateWithoutMerging(GetTransientPackage());
 			MergeResults.MergedInstance->ParentScratchPadScripts.Append(MergeResults.MergedInstance->ScratchPadScripts);
 			MergeResults.MergedInstance->ScratchPadScripts.Empty();
 		}
 	}
 	else
 	{
-		DiffResults = DiffEmitters(Parent, Instance); // diff again for version changes
-		UNiagaraEmitter* MergedInstance = Parent.DuplicateWithoutMerging((UObject*)GetTransientPackage());
+		UNiagaraEmitter* MergedInstance = Parent.DuplicateWithoutMerging(GetTransientPackage());
 		TSharedRef<FNiagaraEmitterMergeAdapter> MergedInstanceAdapter = MakeShared<FNiagaraEmitterMergeAdapter>(*MergedInstance);
+
+		// diff for version changes and apply them first. We need to upgrade both the current emitter and the parent at last merge
+		// to the newest version and then diff them again. Otherwise we won't know which changes were made by the version upgrade
+		// and which changes were made to the parent emitter.
+		FNiagaraEmitterDiffResults VersionChangeDiffResults = DiffEmitters(Parent, Instance);
+		if (VersionChangeDiffResults.HasVersionChanges())
+		{
+			// apply version upgrade to the merged emitter instance
+			UpdateModuleVersions(Instance, VersionChangeDiffResults);
+
+			// apply version upgrade to the parent at last merge
+			UNiagaraEmitter* ParentAtLastMergeCopy = Cast<UNiagaraEmitter>(StaticDuplicateObject(FirstEmitterToDiffAgainst, GetTransientPackage()));
+			ParentAtLastMergeCopy->ClearFlags(RF_Standalone | RF_Public);
+			FNiagaraEmitterDiffResults ParentsDiffResults = DiffEmitters(Parent, *ParentAtLastMergeCopy);
+			UpdateModuleVersions(*ParentAtLastMergeCopy, ParentsDiffResults);
+
+			// now diff again
+			DiffResults = DiffEmitters(*ParentAtLastMergeCopy, Instance);
+			ensureMsgf(DiffResults.HasVersionChanges() == false, TEXT("Emitter still has pending version changes after merge! Asset %s"), *Instance.GetPathName());
+		}
 
 		TMap<FGuid, UNiagaraNodeFunctionCall*> ParentFunctionIdToNodeMap;
 		TMap<FGuid, UNiagaraNodeFunctionCall*> LastMergedParentFunctionIdToNodeMap;
@@ -2062,6 +2219,31 @@ void FNiagaraScriptMergeManager::DiffScriptStacks(TSharedRef<FNiagaraScriptStack
 			DiffResults.EnabledChangedOtherModules.Add(CommonValuePair.OtherValue);
 		}
 
+		const TArray<FNiagaraStackMessage>& BaseMessages = CommonValuePair.BaseValue->GetMessages();
+		const TArray<FNiagaraStackMessage>& OtherMessages = CommonValuePair.OtherValue->GetMessages();
+
+		for(const FNiagaraStackMessage& OtherMessage : OtherMessages)
+		{
+			if(!BaseMessages.ContainsByPredicate([&](const FNiagaraStackMessage& Message)
+			{
+				return Message.Guid == OtherMessage.Guid;
+			}))
+			{
+				DiffResults.AddedOtherMessages.Add({CommonValuePair.OtherValue, OtherMessage});
+			}
+		}
+
+		for(const FNiagaraStackMessage& BaseMessage : BaseMessages)
+		{
+			if(!OtherMessages.ContainsByPredicate([&](const FNiagaraStackMessage& Message)
+			{
+				return Message.Guid == BaseMessage.Guid;
+			}))
+			{
+				DiffResults.RemovedBaseMessagesInOther.Add({CommonValuePair.BaseValue, BaseMessage});
+			}
+		}
+
 		if (CommonValuePair.BaseValue->GetFunctionCallNode()->SelectedScriptVersion != CommonValuePair.OtherValue->GetFunctionCallNode()->SelectedScriptVersion)
 		{
 			DiffResults.ChangedVersionBaseModules.Add(CommonValuePair.BaseValue);
@@ -2730,27 +2912,31 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 		}
 	}
 
+	for(const FNiagaraStackFunctionMessageData& AddedMessage : DiffResults.AddedOtherMessages)
+	{
+		TSharedPtr<FNiagaraStackFunctionMergeAdapter> MatchingModuleAdapter = BaseScriptStackAdapter->GetModuleFunctionById(AddedMessage.Function->GetFunctionCallNode()->NodeGuid);
+
+		if(MatchingModuleAdapter.IsValid())
+		{
+			MatchingModuleAdapter->GetFunctionCallNode()->AddCustomNote(AddedMessage.StackMessage);
+		}
+	}
+
+	for(const FNiagaraStackFunctionMessageData& RemovedMessage : DiffResults.RemovedBaseMessagesInOther)
+	{
+		TSharedPtr<FNiagaraStackFunctionMergeAdapter> MatchingModuleAdapter = BaseScriptStackAdapter->GetModuleFunctionById(RemovedMessage.Function->GetFunctionCallNode()->NodeGuid);
+
+		if(MatchingModuleAdapter.IsValid())
+		{
+			MatchingModuleAdapter->GetFunctionCallNode()->RemoveCustomNote(RemovedMessage.StackMessage.Guid);
+		}
+	}
+	
 	// Update the usage if different
 	if (DiffResults.ChangedOtherUsage.IsSet())
 	{
 		BaseScriptStackAdapter->GetScript()->SetUsage(DiffResults.ChangedOtherUsage.GetValue());
 		BaseScriptStackAdapter->GetOutputNode()->SetUsage(DiffResults.ChangedOtherUsage.GetValue());
-	}
-	
-	// Update module versions
-	for (int i = 0; i < DiffResults.ChangedVersionOtherModules.Num(); i++)
-	{
-		TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseModule = DiffResults.ChangedVersionBaseModules[i];
-		TSharedRef<FNiagaraStackFunctionMergeAdapter> ChangedModule = DiffResults.ChangedVersionOtherModules[i];
-		FGuid NewScriptVersion = BaseModule->GetFunctionCallNode()->SelectedScriptVersion;
-		FNiagaraScriptVersionUpgradeContext UpgradeContext;
-		UpgradeContext.bSkipPythonScript = true;
-		UNiagaraNodeFunctionCall* FunctionCallNode = ChangedModule->GetFunctionCallNode();
-		FunctionCallNode->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
-		if (FunctionCallNode->RefreshFromExternalChanges())
-		{
-			FunctionCallNode->GetNiagaraGraph()->NotifyGraphNeedsRecompile();
-		}
 	}
 
 	// Apply the graph actions.

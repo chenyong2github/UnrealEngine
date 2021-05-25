@@ -11,6 +11,15 @@ public class Python3 : ModuleRules
 	{
 		Type = ModuleType.External;
 
+		// if the target doesn't want python support, disable it in C++ via define and do nothing else
+		// we could check this at a higher level and not even include this module, but the code is already setup to
+		// disable Python support via this module
+		if (!Target.bCompilePython)
+		{
+			PublicDefinitions.Add("WITH_PYTHON=0");
+			return;
+		}
+
 		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
 		PythonSDKPaths PythonSDK = null;
@@ -165,6 +174,14 @@ public class Python3 : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
 		{
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python3/Linux/lib/libpython3.7m.so.1.0");
+		}
+
+		// Copy python dll alongside the target in monolithic builds. We statically link a python stub that triggers the dll
+		// load at global startup, before the paths are configured to find this dll in its native location. By copying it alongside
+		// the executable we can guarantee it will be found and loaded
+		if (Target.Platform == UnrealTargetPlatform.Win64 && Target.LinkType == TargetLinkType.Monolithic && IsEnginePython)
+		{
+			RuntimeDependencies.Add("$(ProjectDir)/Binaries/Win64/python37.dll", "$(EngineDir)/Binaries/ThirdParty/Python3/Win64/python37.dll", StagedFileType.NonUFS);
 		}
 	}
 

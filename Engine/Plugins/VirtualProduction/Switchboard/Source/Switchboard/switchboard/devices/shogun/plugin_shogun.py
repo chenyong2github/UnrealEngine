@@ -101,7 +101,7 @@ class DeviceShogun(Device):
 
     @unresponsive_shogun
     def record_start(self, slate, take, description):
-        if self.status == DeviceStatus.DISCONNECTED or not self.trigger_start:
+        if self.is_disconnected or not self.trigger_start:
             return
 
         self.set_slate(slate)
@@ -114,7 +114,7 @@ class DeviceShogun(Device):
 
     @unresponsive_shogun
     def record_stop(self):
-        if self.status == DeviceStatus.DISCONNECTED or not self.trigger_stop:
+        if self.is_disconnected or not self.trigger_stop:
             return
 
         result = self.capture_service.stop_capture(0)

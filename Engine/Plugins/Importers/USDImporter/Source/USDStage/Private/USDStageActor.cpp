@@ -351,7 +351,7 @@ struct FUsdStageActorImpl
 			return false;
 		}
 
-		if ( !FilePath.IsEmpty() && !FPaths::IsRelative( FilePath ) && !FilePath.StartsWith( USD_IDENTIFIER_TOKEN ) )
+		if ( !FilePath.IsEmpty() && !FPaths::IsRelative( FilePath ) && !FilePath.StartsWith( UnrealIdentifiers::IdentifierPrefix ) )
 		{
 			FilePath = UsdUtils::MakePathRelativeToProjectDir( FilePath );
 		}
@@ -363,7 +363,7 @@ struct FUsdStageActorImpl
 			const FString LayerIdentifier = Layer.GetIdentifier();
 
 			// Something like "@identifier:anon:0000022F9E194D50:tmp.usda" if we're also pointing at an anonymous layer
-			if ( FilePath.RemoveFromStart( USD_IDENTIFIER_TOKEN ) )
+			if ( FilePath.RemoveFromStart( UnrealIdentifiers::IdentifierPrefix ) )
 			{
 				// Same anonymous layers
 				if ( FilePath == LayerIdentifier )
@@ -384,6 +384,128 @@ struct FUsdStageActorImpl
 #endif // USE_USD_SDK
 
 		return false;
+	}
+
+	/**
+	 * Uses USD's MakeVisible to handle the visible/inherited update logic as it is a bit complex.
+	 * Will update a potentially large chunk of the component hierarchy to having/not the `invisible` component tag, as well as the
+	 * correct value of bVisible.
+	 * Note that bVisible corresponds to computed visibility, and the component tags correspond to individual prim-level visibilities
+	 */
+	static void MakeVisible( UUsdPrimTwin& UsdPrimTwin, UE::FUsdStage& Stage )
+	{
+		// Find the highest invisible prim parent: Nothing above this can possibly change with what we're doing
+		UUsdPrimTwin* Iter = &UsdPrimTwin;
+		UUsdPrimTwin* HighestInvisibleParent = nullptr;
+		while ( Iter )
+		{
+			if ( USceneComponent* Component = Iter->GetSceneComponent() )
+			{
+				if ( Component->ComponentTags.Contains( UnrealIdentifiers::Invisible ) )
+				{
+					HighestInvisibleParent = Iter;
+				}
+			}
+
+			Iter = Iter->GetParent();
+		}
+
+		// No parent (not even UsdPrimTwin's prim directly) was invisible, so we should already be visible and there's nothing to do
+		if ( !HighestInvisibleParent )
+		{
+			return;
+		}
+
+		UE::FUsdPrim Prim = Stage.GetPrimAtPath( UE::FSdfPath( *UsdPrimTwin.PrimPath ) );
+		if ( !Prim )
+		{
+			return;
+		}
+		UsdUtils::MakeVisible( Prim );
+
+		TFunction<void(UUsdPrimTwin&, bool)> RecursiveResyncVisibility;
+		RecursiveResyncVisibility = [ &Stage, &RecursiveResyncVisibility ]( UUsdPrimTwin& PrimTwin, bool bPrimHasInvisibleParent )
+		{
+			USceneComponent* Component = PrimTwin.GetSceneComponent();
+			if ( !Component )
+			{
+				return;
+			}
+
+			UE::FUsdPrim CurrentPrim = Stage.GetPrimAtPath( UE::FSdfPath( *PrimTwin.PrimPath ) );
+			if ( !CurrentPrim )
+			{
+				return;
+			}
+
+			const bool bPrimHasInheritedVisibility = UsdUtils::HasInheritedVisibility( CurrentPrim );
+			const bool bPrimIsVisible = bPrimHasInheritedVisibility && !bPrimHasInvisibleParent;
+
+			const bool bComponentHasInvisibleTag = Component->ComponentTags.Contains( UnrealIdentifiers::Invisible );
+			const bool bComponentIsVisible = Component->IsVisible();
+
+			const bool bTagIsCorrect = bComponentHasInvisibleTag == !bPrimHasInheritedVisibility;
+			const bool bComputedVisibilityIsCorrect = bPrimIsVisible == bComponentIsVisible;
+
+			// Stop recursing as this prim's or its children couldn't possibly need to be updated
+			if ( bTagIsCorrect && bComputedVisibilityIsCorrect )
+			{
+				return;
+			}
+
+			if ( !bTagIsCorrect )
+			{
+				if ( bPrimHasInheritedVisibility )
+				{
+					Component->ComponentTags.Remove( UnrealIdentifiers::Invisible );
+					Component->ComponentTags.AddUnique( UnrealIdentifiers::Inherited );
+				}
+				else
+				{
+					Component->ComponentTags.AddUnique( UnrealIdentifiers::Invisible );
+					Component->ComponentTags.Remove( UnrealIdentifiers::Inherited );
+				}
+			}
+
+			if ( !bComputedVisibilityIsCorrect )
+			{
+				const bool bPropagateToChildren = false;
+				Component->Modify();
+				Component->SetVisibility( bPrimIsVisible, bPropagateToChildren );
+			}
+
+			for ( const TPair<FString, UUsdPrimTwin*>& ChildPair : PrimTwin.GetChildren() )
+			{
+				if ( UUsdPrimTwin* ChildTwin = ChildPair.Value )
+				{
+					RecursiveResyncVisibility( *ChildTwin, !bPrimIsVisible );
+				}
+			}
+		};
+
+		const bool bHasInvisibleParent = false;
+		RecursiveResyncVisibility( *HighestInvisibleParent, bHasInvisibleParent );
+	}
+
+	/**
+	 * Sets this prim to 'invisible', and force all of the child components
+	 * to bVisible = false. Leave their individual prim-level visibilities intact though.
+	 * Note that bVisible corresponds to computed visibility, and the component tags correspond to individual prim-level visibilities
+	 */
+	static void MakeInvisible( UUsdPrimTwin& UsdPrimTwin )
+	{
+		USceneComponent* PrimSceneComponent = UsdPrimTwin.GetSceneComponent();
+		if ( !PrimSceneComponent )
+		{
+			return;
+		}
+
+		PrimSceneComponent->ComponentTags.AddUnique( UnrealIdentifiers::Invisible );
+		PrimSceneComponent->ComponentTags.Remove( UnrealIdentifiers::Inherited );
+
+		const bool bPropagateToChildren = true;
+		const bool bVisible = false;
+		PrimSceneComponent->SetVisibility( bVisible, bPropagateToChildren );
 	}
 };
 
@@ -623,6 +745,10 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 		}
 	}
 
+	// We may update our levelsequence objects (tracks, moviescene, sections, etc.) due to these changes. We definitely don't want to write anything
+	// back to USD when these objects change though
+	LevelSequenceHelper.BlockMonitoringChangesForThisTransaction();
+
 	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
 	TArray< TPair< FString, bool > > SortedPrimsChangedList;
 	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& InfoChange : InfoChanges )
@@ -838,6 +964,11 @@ void AUsdStageActor::ResumeMonitoringLevelSequence()
 	LevelSequenceHelper.StartMonitoringChanges();
 }
 
+void AUsdStageActor::BlockMonitoringLevelSequenceForThisTransaction()
+{
+	LevelSequenceHelper.BlockMonitoringChangesForThisTransaction();
+}
+
 UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPath )
 {
 	const FString PrimPath = UsdPrimPath.GetString();
@@ -1021,7 +1152,7 @@ void AUsdStageActor::SetRootLayer( const FString& RootFilePath )
 {
 	FString RelativeFilePath = RootFilePath;
 #if USE_USD_SDK
-	if ( !RelativeFilePath.IsEmpty() && !FPaths::IsRelative( RelativeFilePath ) && !RelativeFilePath.StartsWith( USD_IDENTIFIER_TOKEN ) )
+	if ( !RelativeFilePath.IsEmpty() && !FPaths::IsRelative( RelativeFilePath ) && !RelativeFilePath.StartsWith( UnrealIdentifiers::IdentifierPrefix ) )
 	{
 		RelativeFilePath = UsdUtils::MakePathRelativeToProjectDir( RootFilePath );
 	}
@@ -1159,7 +1290,7 @@ void AUsdStageActor::OpenUsdStage()
 	UsdUtils::StartMonitoringErrors();
 
 	FString AbsPath;
-	if ( !RootLayer.FilePath.StartsWith( USD_IDENTIFIER_TOKEN ) && FPaths::IsRelative( RootLayer.FilePath ) )
+	if ( !RootLayer.FilePath.StartsWith( UnrealIdentifiers::IdentifierPrefix ) && FPaths::IsRelative( RootLayer.FilePath ) )
 	{
 		// The RootLayer property is marked as RelativeToGameDir, and UsdUtils::BrowseUsdFile will also emit paths relative to the project's directory
 		FString ProjectDir = FPaths::ConvertRelativePathToFull( FPaths::ProjectDir() );
@@ -1193,6 +1324,8 @@ void AUsdStageActor::CloseUsdStage()
 {
 	FUsdStageActorImpl::DiscardStage( UsdStage, this );
 	UsdStage = UE::FUsdStage();
+	LevelSequenceHelper.Init( UE::FUsdStage() ); // Drop the helper's reference to the stage
+	OnStageChanged.Broadcast();
 }
 
 #if WITH_EDITOR
@@ -1405,7 +1538,7 @@ void AUsdStageActor::UnloadUsdStage()
 
 	// Stop listening because we'll discard LevelSequence assets, which may trigger transactions
 	// and could lead to stage changes
-	StopMonitoringLevelSequence();
+	BlockMonitoringLevelSequenceForThisTransaction();
 
 	if ( AssetCache )
 	{
@@ -1428,7 +1561,6 @@ void AUsdStageActor::UnloadUsdStage()
 		LevelSequence = nullptr;
 	}
 	LevelSequenceHelper.Clear();
-	LevelSequenceHelper.Init( UE::FUsdStage() ); // Drop the helper's reference to the stage
 
 	if ( RootUsdTwin )
 	{
@@ -1509,6 +1641,20 @@ void AUsdStageActor::ReloadAnimations()
 }
 
 #if WITH_EDITOR
+
+void AUsdStageActor::PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent )
+{
+	// For handling root layer changes via direct changes to properties we want to go through OnObjectPropertyChanged -> HandlePropertyChangedEvent ->
+	// -> SetRootLayer (which checks whether this stage is already opened or not) -> PostRegisterAllComponents.
+	// We need to intercept PostEditChangeProperty too because in the editor any call to PostEditChangeProperty can also *directly* trigger
+	// PostRegister/UnregisterAllComponents which would have sidestepped our checks in SetRootLayer.
+	// Note that any property change event would also end up calling our intended path via OnObjectPropertyChanged, this just prevents us from loading
+	// the same stage again if we don't need to.
+
+	bIsModifyingAProperty = true;
+	Super::PostEditChangeProperty( PropertyChangedEvent );
+}
+
 void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
 {
 	const TArray<FName>& ChangedProperties = TransactionEvent.GetChangedProperties();
@@ -1525,26 +1671,28 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		{
 			OpenUsdStage();
 		}
-
-		OnStageChanged.Broadcast();
 	}
 
-	// If we're in a sublevel that is hidden, we'll respond to the generated PostUnregisterAllComponent call
-	// and unload our spawned actors/assets, so let's close/open the stage too
-	if ( ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEdLevel ) ) ||
-		 ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEdLayer ) ) ||
-		 ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEd ) ) )
+	// If we're in the persistent level don't do anything, because hiding/showing the persistent level doesn't
+	// cause actors to load/unload like it does if they're in sublevels
+	ULevel* CurrentLevel = GetLevel();
+	if ( CurrentLevel && !CurrentLevel->IsPersistentLevel() )
 	{
-		if ( IsHiddenEd() )
+		// If we're in a sublevel that is hidden, we'll respond to the generated PostUnregisterAllComponent call
+		// and unload our spawned actors/assets, so let's close/open the stage too
+		if ( ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEdLevel ) ) ||
+			 ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEdLayer ) ) ||
+			 ChangedProperties.Contains( GET_MEMBER_NAME_CHECKED( AActor, bHiddenEd ) ) )
 		{
-			CloseUsdStage();
+			if ( IsHiddenEd() )
+			{
+				CloseUsdStage();
+			}
+			else
+			{
+				OpenUsdStage();
+			}
 		}
-		else
-		{
-			OpenUsdStage();
-		}
-
-		OnStageChanged.Broadcast();
 	}
 
 	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
@@ -1562,8 +1710,6 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 			CloseUsdStage();
 			OpenUsdStage();
 			ReloadAnimations();
-
-			OnStageChanged.Broadcast();
 		}
 		else if (ChangedProperties.Contains(GET_MEMBER_NAME_CHECKED(AUsdStageActor, Time)))
 		{
@@ -1589,8 +1735,8 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 void AUsdStageActor::PreEditChange( FProperty* PropertyThatWillChange )
 {
 	// If we're just editing some other actor property like Time or anything else, we will get
-	// PostRegister/Unregister calls in the editor due to AActor::PostEditChangeProperty. Here we
-	// determine in which cases we should ignore those PostRegister/Unregister calls by using the
+	// PostRegister/Unregister calls in the editor due to AActor::PostEditChangeProperty *and* AActor::PreEditChange.
+	// Here we determine in which cases we should ignore those PostRegister/Unregister calls by using the
 	// bIsModifyingAProperty flag
 	if ( !IsActorBeingDestroyed() )
 	{
@@ -1598,7 +1744,7 @@ void AUsdStageActor::PreEditChange( FProperty* PropertyThatWillChange )
 		{
 			// PreEditChange gets called for actor lifecycle functions too (like if the actor transacts on undo/redo).
 			// In those cases we will have nullptr PropertyThatWillChange, and we don't want to block our PostRegister/Unregister
-			// functions. We only care about blocking the calls triggered by AActor::PostEditChangeProperty
+			// functions. We only care about blocking the calls triggered by AActor::PostEditChangeProperty and AActor::PreEditChange
 			if ( PropertyThatWillChange )
 			{
 				bIsModifyingAProperty = true;
@@ -1711,7 +1857,8 @@ void AUsdStageActor::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 
 #if WITH_EDITOR
-	if ( bIsEditorPreviewActor )
+	// Prevent loading on bHiddenEdLevel because PostRegisterAllComponents gets called in the process of hiding our level, if we're in the persistent level.
+	if ( bIsEditorPreviewActor || bHiddenEdLevel )
 	{
 		return;
 	}
@@ -1724,6 +1871,7 @@ void AUsdStageActor::PostRegisterAllComponents()
 	const bool bIsLevelHidden = !Level || ( !Level->bIsVisible && !Level->bIsAssociatingLevel );
 
 	// We get an inactive world when dragging a ULevel asset
+	// This is just hiding though, so we shouldn't actively load/unload anything
 	UWorld* World = GetWorld();
 	if ( IsTemplate() || bIsTransitioningIntoPIE || !World || World->WorldType == EWorldType::Inactive || bIsLevelHidden || bIsModifyingAProperty || bIsUndoRedoing )
 	{
@@ -1896,9 +2044,30 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 		{
 			if ( UsdStage )
 			{
+				// This block is important, as it not only prevents us from getting into infinite loops with the USD notices,
+				// but it also guarantees that if we have an object property change, the corresponding stage notice is not also
+				// independently saved to the transaction via the UUsdTransactor, which would be duplication
 				FScopedBlockNoticeListening BlockNotices( this );
 
 				UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) );
+
+				// We want to keep component visibilities in sync with USD, which uses inherited visibilities
+				// To accomplish that while blocking notices we must always propagate component visibility changes manually.
+				// This part is effectively the same as calling pxr::UsdGeomImageable::MakeVisible/Invisible.
+				if ( PropertyChangedEvent.GetPropertyName() == TEXT( "bVisible" ) )
+				{
+					PrimSceneComponent->Modify();
+
+					const bool bVisible = PrimSceneComponent->GetVisibleFlag();
+					if ( bVisible )
+					{
+						FUsdStageActorImpl::MakeVisible( *UsdPrimTwin, UsdStage );
+					}
+					else
+					{
+						FUsdStageActorImpl::MakeInvisible( *UsdPrimTwin );
+					}
+				}
 
 #if USE_USD_SDK
 				UnrealToUsd::ConvertSceneComponent( UsdStage, PrimSceneComponent, UsdPrim );
@@ -1949,14 +2118,6 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 					UnrealToUsd::ConvertSkyLightComponent( *SkyLightComponent, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 				}
 #endif // #if USE_USD_SDK
-
-				// We want to keep component visibilities in sync with USD, which uses inherited visibilities
-				// To accomplish that while blocking notices we must always propagate component visibility changes
-				if ( PropertyChangedEvent.GetPropertyName() == TEXT( "bVisible" ) )
-				{
-					PrimSceneComponent->Modify();
-					PrimSceneComponent->SetVisibility( PrimSceneComponent->GetVisibleFlag(), true );
-				}
 
 				// Update stage window in case any of our component changes trigger USD stage changes
 				this->OnPrimChanged.Broadcast( PrimPath, false );

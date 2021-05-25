@@ -7,14 +7,16 @@
 #include "Misc/ScopeLock.h"
 #include "Templates/RefCounting.h"
 
+#if WITH_CUDA
+#include "CudaModule.h"
+#endif
+
 // HACK (M84FIX) need to break these dependencies
 #if PLATFORM_WINDOWS
 struct ID3D11DeviceContext;
 #endif
 
-#if WITH_CUDA
-#include "CudaModule.h"
-#endif
+struct VkDevice_T;
 
 namespace AVEncoder
 {
@@ -44,6 +46,9 @@ public:
 
 	// set up an encoder that encodes a CUArray in the CUDA context
 	bool SetupForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight);
+
+	// set up an encoder that encodes a VkImage in the context of a VkDevice
+	bool SetupForVulkan(void* InApplicationContext, uint32 InWidth, uint32 InHeight);
 
 	// --- available encoders
 
@@ -80,6 +85,9 @@ public:
 	CUcontext GetCUDAEncoderContext() const;
 #endif
 
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
+	VkDevice_T* GetVulkanDevice() const;
+#endif
 
 private:
 
@@ -120,6 +128,13 @@ private:
 		// HACK (M84FIX)
 		CUcontext					EncoderContextCUDA;
 	}								FrameInfoCUDA;
+#endif
+
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
+	struct FFrameInfoVulkan
+	{
+		VkDevice_T*					VulkanDevice;
+	}								FrameInfoVulkan;
 #endif
 
 	mutable FCriticalSection				ProtectFrames;

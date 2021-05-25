@@ -30,13 +30,17 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
+#if PLATFORM_WINDOWS
 #include "ITextureShare.h"
 #include "ITextureShareItem.h"
+#endif
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
+
+#include "Render/Viewport/Configuration/DisplayClusterViewportConfigurationHelpers.h"
 
 #include <utility>
 
@@ -472,6 +476,7 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 		// UE viewport
 		MainViewport = (FViewport*)&Viewport;
 
+#if PLATFORM_WINDOWS
 		/*
 		// Create texture share for render viewports by config line flag
 		//@todo move to right place. add on\off
@@ -520,6 +525,7 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 				}
 			}
 		}*/
+#endif
 	}
 }
 
@@ -600,8 +606,26 @@ void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessS
 		IDisplayClusterViewport* pViewport = ViewportManagerPtr->FindViewport(StereoPassType);
 		if (pViewport)
 		{
-			pViewport->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Final, FinalPostProcessingSettings);
+			if (FinalPostProcessingSettings != nullptr)
+			{
+				// Get the final overall cluster + per-viewport PPS from nDisplay
+				FPostProcessSettings RequestedFinalPPS;
+				pViewport->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Final, &RequestedFinalPPS);
+
+				FDisplayClusterConfigurationViewport_PerViewportSettings InPPSnDisplay;
+				DisplayClusterViewportConfigurationHelpers::CopyPPSStructConditional(&InPPSnDisplay, &RequestedFinalPPS);
+
+				// Get the passed-in cumulative PPS from the game/viewport (includes all PPVs affecting this viewport)
+				FDisplayClusterConfigurationViewport_PerViewportSettings InPPSCumulative;
+				DisplayClusterViewportConfigurationHelpers::CopyPPSStruct(&InPPSCumulative, FinalPostProcessingSettings);
+
+				// Blend both together with our custom math instead of the default PPS blending
+				DisplayClusterViewportConfigurationHelpers::BlendPostProcessSettings(*FinalPostProcessingSettings, InPPSCumulative, InPPSnDisplay);
+			}
+			else
+			{
+				pViewport->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Final, FinalPostProcessingSettings);
+			}
 		}
 	}
 }
-

@@ -10,18 +10,23 @@ public class EOSShared : ModuleRules
 	{
 		Type = ModuleType.CPlusPlus;
 
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
+				"CoreUObject",
 				"EOSSDK"
 			}
 		);
+
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Settings"
+				}
+			);
+		}
 	}
 }

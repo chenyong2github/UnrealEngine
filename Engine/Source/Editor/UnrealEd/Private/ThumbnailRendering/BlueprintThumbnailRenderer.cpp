@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ThumbnailRendering/BlueprintThumbnailRenderer.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "ShowFlags.h"
 #include "SceneView.h"
 #include "Misc/App.h"
@@ -11,6 +12,12 @@
 UBlueprintThumbnailRenderer::UBlueprintThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	FKismetEditorUtilities::OnBlueprintUnloaded.AddUObject(this, &UBlueprintThumbnailRenderer::OnBlueprintUnloaded);
+}
+
+UBlueprintThumbnailRenderer::~UBlueprintThumbnailRenderer()
+{
+	FKismetEditorUtilities::OnBlueprintUnloaded.RemoveAll(this);
 }
 
 bool UBlueprintThumbnailRenderer::CanVisualizeAsset(UObject* Object)
@@ -116,7 +123,7 @@ void UBlueprintThumbnailRenderer::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UBlueprintThumbnailRenderer::BlueprintChanged(class UBlueprint* Blueprint)
+void UBlueprintThumbnailRenderer::BlueprintChanged(UBlueprint* Blueprint)
 {
 	if (Blueprint && Blueprint->GeneratedClass)
 	{
@@ -125,5 +132,13 @@ void UBlueprintThumbnailRenderer::BlueprintChanged(class UBlueprint* Blueprint)
 		{
 			ThumbnailScene->BlueprintChanged(Blueprint);
 		}
+	}
+}
+
+void UBlueprintThumbnailRenderer::OnBlueprintUnloaded(UBlueprint* Blueprint)
+{
+	if (Blueprint && Blueprint->GeneratedClass)
+	{
+		ThumbnailScenes.RemoveThumbnailScene(Blueprint->GeneratedClass);
 	}
 }

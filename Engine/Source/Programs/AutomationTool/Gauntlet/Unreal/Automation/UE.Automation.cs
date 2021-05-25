@@ -483,12 +483,6 @@ namespace UE
 		{
 			MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
 
-			// If there were abnormal exits then don't add any custom summary. It just confuses things.
-			if (GetArtifactsThatExitedAbnormally().Any())
-			{
-				return MB.ToString();
-			}
-
 			// Everything we need is in the editor artifacts
 			var EditorArtifacts = SessionArtifacts.Where(A => A.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
 
@@ -503,49 +497,16 @@ namespace UE
 				IEnumerable<AutomationTestResult> FailedTests = AllTests.Where(R => R.Completed && !R.Passed);
 				IEnumerable<AutomationTestResult> TestsWithWarnings = AllTests.Where(R => R.Completed && R.Passed && R.WarningEvents.Any());
 
-				if (AllTests.Count() == 0)
+				// If there were abnormal exits then look only at the incomplete tests to avoid confusing things.
+				if (GetArtifactsThatExitedAbnormally().Any())
 				{
-					MB.H3("No tests were executed.");
-
-					IEnumerable<UnrealLogParser.LogEntry> WarningsAndErrors = Parser.AutomationWarningsAndErrors;
-
-					if (WarningsAndErrors.Any())
+					if (AllTests.Count() == 0)
 					{
-						MB.UnorderedList(WarningsAndErrors.Select(E => E.ToString()));
+						MB.H3("No tests were executed.");
 					}
-					else
+					else if (IncompleteTests.Count() > 0)
 					{
-						MB.Paragraph("Unknown failure.");
-					}
-				}
-				else
-				{
-					// Now list the tests that failed
-					if (FailedTests.Count() > 0)
-					{
-						MB.H3("The following test(s) failed:");
-
-						foreach (AutomationTestResult Result in FailedTests)
-						{
-							MB.H4(Result.FullName);
-							MB.UnorderedList(Result.Events.Distinct());
-						}
-					}
-
-					if (TestsWithWarnings.Count() > 0)
-					{
-						MB.H3("The following test(s) completed with warnings:");
-
-						foreach (AutomationTestResult Result in TestsWithWarnings)
-						{
-							MB.Paragraph(Result.FullName);
-							MB.UnorderedList(Result.WarningEvents.Distinct());
-						}
-					}
-
-					if (IncompleteTests.Count() > 0)
-					{
-						MB.H3("The following test(s) timed out or did not run:");
+						MB.H3("The following test(s) were incomplete:");
 
 						foreach (AutomationTestResult Result in IncompleteTests)
 						{
@@ -553,52 +514,122 @@ namespace UE
 							MB.UnorderedList(Result.WarningAndErrorEvents.Distinct());
 						}
 					}
-
-					// show a brief summary at the end where it's most visible
-					List<string> TestSummary = new List<string>();
-
-					int PassedTests = AllTests.Count() - (FailedTests.Count() + IncompleteTests.Count());
-					int TestsPassedWithoutWarnings = PassedTests - TestsWithWarnings.Count();
-
-					TestSummary.Add(string.Format("{0} Test(s) Requested", AllTests.Count()));
-
-					// Print out a summary of each category of result
-					if (TestsPassedWithoutWarnings > 0)
+				}
+				else
+				{
+					if (AllTests.Count() == 0)
 					{
-						TestSummary.Add(string.Format("{0} Test(s) Passed", TestsPassedWithoutWarnings));
-					}
+						MB.H3("No tests were executed.");
 
-					if (TestsWithWarnings.Count() > 0)
+						IEnumerable<UnrealLogParser.LogEntry> WarningsAndErrors = Parser.AutomationWarningsAndErrors;
+
+						if (WarningsAndErrors.Any())
+						{
+							MB.UnorderedList(WarningsAndErrors.Select(E => E.ToString()));
+						}
+						else
+						{
+							MB.Paragraph("Unknown failure.");
+						}
+					}
+					else
 					{
-						TestSummary.Add(string.Format("{0} Test(s) Passed with warnings", TestsWithWarnings.Count()));
+						// Now list the tests that failed
+						if (FailedTests.Count() > 0)
+						{
+							MB.H3("The following test(s) failed:");
+
+							foreach (AutomationTestResult Result in FailedTests)
+							{
+								MB.H4(Result.FullName);
+								MB.UnorderedList(Result.Events.Distinct());
+							}
+						}
+
+						if (TestsWithWarnings.Count() > 0)
+						{
+							MB.H3("The following test(s) completed with warnings:");
+
+							foreach (AutomationTestResult Result in TestsWithWarnings)
+							{
+								MB.Paragraph(Result.FullName);
+								MB.UnorderedList(Result.WarningEvents.Distinct());
+							}
+						}
+
+						if (IncompleteTests.Count() > 0)
+						{
+							MB.H3("The following test(s) timed out or did not run:");
+
+							foreach (AutomationTestResult Result in IncompleteTests)
+							{
+								MB.H4(string.Format("{0}", Result.FullName));
+								MB.UnorderedList(Result.WarningAndErrorEvents.Distinct());
+							}
+						}
+
+						// show a brief summary at the end where it's most visible
+						List<string> TestSummary = new List<string>();
+
+						int PassedTests = AllTests.Count() - (FailedTests.Count() + IncompleteTests.Count());
+						int TestsPassedWithoutWarnings = PassedTests - TestsWithWarnings.Count();
+
+						TestSummary.Add(string.Format("{0} Test(s) Requested", AllTests.Count()));
+
+						// Print out a summary of each category of result
+						if (TestsPassedWithoutWarnings > 0)
+						{
+							TestSummary.Add(string.Format("{0} Test(s) Passed", TestsPassedWithoutWarnings));
+						}
+
+						if (TestsWithWarnings.Count() > 0)
+						{
+							TestSummary.Add(string.Format("{0} Test(s) Passed with warnings", TestsWithWarnings.Count()));
+						}
+
+						if (FailedTests.Count() > 0)
+						{
+							TestSummary.Add(string.Format("{0} Test(s) Failed", FailedTests.Count()));
+						}
+
+						if (IncompleteTests.Count() > 0)
+						{
+							TestSummary.Add(string.Format("{0} Test(s) didn't complete", IncompleteTests.Count()));
+						}
+
+						MB.UnorderedList(TestSummary);
 					}
+				}
 
-					if (FailedTests.Count() > 0)
-					{
-						TestSummary.Add(string.Format("{0} Test(s) Failed", FailedTests.Count()));
-					}
-
-					if (IncompleteTests.Count() > 0)
-					{
-						TestSummary.Add(string.Format("{0} Test(s) didn't complete", IncompleteTests.Count()));
-					}
-
-					MB.UnorderedList(TestSummary);
-
+				if (EditorArtifacts.LogParser.GetSummary().EngineInitialized)
+				{
 					// Use the paths from the report. If we passed these in they should be the same, and if not
 					// they'll be valid defaults
-					if (!string.IsNullOrEmpty(Parser.AutomationReportPath) || !string.IsNullOrEmpty(Parser.AutomationReportURL))
+					string AutomationReportPath = Parser.AutomationReportPath;
+					string AutomationReportURL = Parser.AutomationReportURL;
+					if (GetConfiguration() is AutomationTestConfig Config)
+					{
+						if (string.IsNullOrEmpty(AutomationReportPath))
+						{
+							AutomationReportPath = Config.ReportExportPath;
+						}
+						if (string.IsNullOrEmpty(AutomationReportURL))
+						{
+							AutomationReportURL = Config.ReportURL;
+						}
+					}
+					if (!string.IsNullOrEmpty(AutomationReportPath) || !string.IsNullOrEmpty(AutomationReportURL))
 					{
 						MB.H3("Links");
 
-						if (string.IsNullOrEmpty(Parser.AutomationReportURL) == false)
+						if (string.IsNullOrEmpty(AutomationReportURL) == false)
 						{
-							MB.Paragraph(string.Format("View results here: {0}", Parser.AutomationReportURL));
+							MB.Paragraph(string.Format("View results here: {0}", AutomationReportURL));
 						}
 
-						if (string.IsNullOrEmpty(Parser.AutomationReportPath) == false)
+						if (string.IsNullOrEmpty(AutomationReportPath) == false)
 						{
-							MB.Paragraph(string.Format("Open results in UnrealEd from {0}", Parser.AutomationReportPath));
+							MB.Paragraph(string.Format("Open results in UnrealEd from {0}", AutomationReportPath));
 						}
 					}
 				}

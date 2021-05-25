@@ -165,6 +165,9 @@ public:
 	/** Whether or not to update Find-in-Blueprint search metadata */
 	bool bSkipFiBSearchMetaUpdate;
 
+	/** Whether or not to use Delta Serialization when copying unrelated objects */
+	bool bUseDeltaSerializationDuringReinstancing;
+
 	TSharedPtr<FString> OutHeaderSourceCode;
 	TSharedPtr<FString> OutCppSourceCode;
 	FCompilerNativizationOptions NativizationOptions;

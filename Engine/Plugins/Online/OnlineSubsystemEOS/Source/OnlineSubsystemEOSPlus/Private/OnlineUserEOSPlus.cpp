@@ -75,7 +75,7 @@ inline FString BuildEOSPlusStringId(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNe
 
 FUniqueNetIdEOSPlus::FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	: FUniqueNetIdString(BuildEOSPlusStringId(InBaseUniqueNetId, InEOSUniqueNetId))
+	: FUniqueNetIdString(BuildEOSPlusStringId(InBaseUniqueNetId, InEOSUniqueNetId), FName("EOSPlus"))
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, BaseUniqueNetId(InBaseUniqueNetId)
 	, EOSUniqueNetId(InEOSUniqueNetId)
@@ -163,6 +163,7 @@ FOnlineUserEOSPlus::FOnlineUserEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
 	{
 		BaseIdentityInterface->AddOnLoginStatusChangedDelegate_Handle(LocalUserNum, FOnLoginStatusChangedDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnLoginStatusChanged));
 		EOSIdentityInterface->AddOnLoginCompleteDelegate_Handle(LocalUserNum, FOnLoginCompleteDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnLoginComplete));
+		BaseIdentityInterface->AddOnLoginCompleteDelegate_Handle(LocalUserNum, FOnLoginCompleteDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnBaseLoginComplete));
 		BaseIdentityInterface->AddOnLogoutCompleteDelegate_Handle(LocalUserNum, FOnLogoutCompleteDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnLogoutComplete));
 
 		BaseFriendsInterface->AddOnFriendsChangeDelegate_Handle(LocalUserNum, FOnFriendsChangeDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnFriendsChanged));
@@ -202,7 +203,7 @@ FOnlineUserEOSPlus::~FOnlineUserEOSPlus()
 	}
 }
 
-FUniqueNetIdEOSPlusPtr FOnlineUserEOSPlus::GetNetIdPlus(const FString& SourceId)
+FUniqueNetIdEOSPlusPtr FOnlineUserEOSPlus::GetNetIdPlus(const FString& SourceId) const
 {
 	if (NetIdPlusToNetIdPlus.Contains(SourceId))
 	{
@@ -219,7 +220,7 @@ FUniqueNetIdEOSPlusPtr FOnlineUserEOSPlus::GetNetIdPlus(const FString& SourceId)
 	return nullptr;
 }
 
-FUniqueNetIdPtr FOnlineUserEOSPlus::GetBaseNetId(const FString& SourceId)
+FUniqueNetIdPtr FOnlineUserEOSPlus::GetBaseNetId(const FString& SourceId) const
 {
 	if (NetIdPlusToBaseNetId.Contains(SourceId))
 	{
@@ -228,7 +229,7 @@ FUniqueNetIdPtr FOnlineUserEOSPlus::GetBaseNetId(const FString& SourceId)
 	return nullptr;
 }
 
-FUniqueNetIdPtr FOnlineUserEOSPlus::GetEOSNetId(const FString& SourceId)
+FUniqueNetIdPtr FOnlineUserEOSPlus::GetEOSNetId(const FString& SourceId) const
 {
 	if (NetIdPlusToEOSNetId.Contains(SourceId))
 	{
@@ -239,6 +240,8 @@ FUniqueNetIdPtr FOnlineUserEOSPlus::GetEOSNetId(const FString& SourceId)
 
 bool FOnlineUserEOSPlus::Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials)
 {
+	LocalUserNumToLastLoginCredentials.Emplace(LocalUserNum, MakeShared<FOnlineAccountCredentials>(AccountCredentials));
+
 	return BaseIdentityInterface->Login(LocalUserNum, AccountCredentials);
 }
 
@@ -323,6 +326,12 @@ void FOnlineUserEOSPlus::OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful
 	TriggerOnLoginCompleteDelegates(LocalUserNum, bWasSuccessful, *NetIdPlus, Error);
 }
 
+void FOnlineUserEOSPlus::OnBaseLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorStr)
+{
+	check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
+	EOSIdentityInterface->Login(LocalUserNum, *LocalUserNumToLastLoginCredentials[LocalUserNum]);
+}
+
 void FOnlineUserEOSPlus::OnLogoutComplete(int32 LocalUserNum, bool bWasSuccessful)
 {
 	TriggerOnLogoutCompleteDelegates(LocalUserNum, bWasSuccessful);
@@ -395,12 +404,16 @@ bool FOnlineUserEOSPlus::Logout(int32 LocalUserNum)
 	// Clean up the cached data for this user
 	RemovePlayer(LocalUserNum);
 
+	LocalUserNumToLastLoginCredentials.Remove(LocalUserNum);
+
 	EOSIdentityInterface->Logout(LocalUserNum);
 	return BaseIdentityInterface->Logout(LocalUserNum);
 }
 
 bool FOnlineUserEOSPlus::AutoLogin(int32 LocalUserNum)
 {
+	LocalUserNumToLastLoginCredentials.Emplace(LocalUserNum, MakeShared<FOnlineAccountCredentials>(FOnlineAccountCredentials()));
+
 	return BaseIdentityInterface->AutoLogin(LocalUserNum);
 }
 
@@ -490,7 +503,14 @@ ELoginStatus::Type FOnlineUserEOSPlus::GetLoginStatus(int32 LocalUserNum) const
 
 ELoginStatus::Type FOnlineUserEOSPlus::GetLoginStatus(const FUniqueNetId& UserId) const
 {
-	return BaseIdentityInterface->GetLoginStatus(UserId);
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+	if (!NetIdPlus.IsValid())
+	{
+		UE_LOG_ONLINE(Error, TEXT("[FOnlineUserEOSPlus::GetLoginStatus] NetIdPlus not found for UserId %s"), *UserId.ToString());
+		return ELoginStatus::NotLoggedIn;
+	}
+
+	return BaseIdentityInterface->GetLoginStatus(*NetIdPlus->GetBaseNetId());
 }
 
 FString FOnlineUserEOSPlus::GetPlayerNickname(int32 LocalUserNum) const
@@ -511,7 +531,15 @@ FString FOnlineUserEOSPlus::GetAuthToken(int32 LocalUserNum) const
 
 void FOnlineUserEOSPlus::GetUserPrivilege(const FUniqueNetId& UserId, EUserPrivileges::Type Privilege, const FOnGetUserPrivilegeCompleteDelegate& Delegate)
 {
-	BaseIdentityInterface->GetUserPrivilege(UserId, Privilege, Delegate);
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+	if (NetIdPlus.IsValid())
+	{
+		BaseIdentityInterface->GetUserPrivilege(*NetIdPlus->GetBaseNetId(), Privilege, Delegate);
+	}
+	else
+	{
+		UE_LOG_ONLINE(Error, TEXT("[FOnlineUserEOSPlus::GetUserPrivilege] NetIdPlus not found for UserId %s"), *UserId.ToString());
+	}
 }
 
 FString FOnlineUserEOSPlus::GetAuthType() const

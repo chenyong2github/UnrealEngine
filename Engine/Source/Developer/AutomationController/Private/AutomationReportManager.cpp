@@ -48,6 +48,12 @@ TSharedPtr<IAutomationReport> FAutomationReportManager::GetNextReportToExecute(b
 	return ReportToExecute;
 }
 
+TArray<TSharedPtr<IAutomationReport>> FAutomationReportManager::GetEnabledTestReports()
+{
+	TArray<TSharedPtr<IAutomationReport>> Reports;
+	ReportRoot->GetEnabledTestReports(Reports);
+	return Reports;
+}
 
 TSharedPtr<IAutomationReport> FAutomationReportManager::EnsureReportExists(FAutomationTestInfo& TestInfo, const int32 ClusterIndex, const int32 NumPasses)
 {

@@ -1116,7 +1116,7 @@ namespace UnrealBuildTool
 		/// <param name="bStdErr">whether the data was received on stderr</param>
 		private void RsyncOutput(DataReceivedEventArgs Args, bool bStdErr)
 		{
-			if(Args.Data != null)
+			if (Args.Data != null)
 			{
 				if (bStdErr)
 				{
@@ -1149,7 +1149,7 @@ namespace UnrealBuildTool
 		protected int Execute(string WorkingDirectory, string Command)
 		{
 			string FullCommand = String.Format("cd {0} && {1}", EscapeShellArgument(WorkingDirectory), Command);
-			using(Process SSHProcess = new Process())
+			using (Process SSHProcess = new Process())
 			{
 				DataReceivedEventHandler OutputHandler = (E, Args) => { SshOutput(Args, false); };
 				DataReceivedEventHandler ErrorHandler = (E, Args) => { SshOutput(Args, true); };
@@ -1172,7 +1172,7 @@ namespace UnrealBuildTool
 		/// <param name="bStdErr">whether the data was received on stderr</param>
 		private void SshOutput(DataReceivedEventArgs Args, bool bStdErr)
 		{
-			if(Args.Data != null)
+			if (Args.Data != null)
 			{
 				string FormattedOutput = ConvertRemotePathsToLocal(Args.Data);
 				if (bStdErr)

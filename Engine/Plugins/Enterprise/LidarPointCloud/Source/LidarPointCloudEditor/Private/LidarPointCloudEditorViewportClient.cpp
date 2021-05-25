@@ -9,22 +9,116 @@
 
 #include "ConvexVolume.h"
 #include "CanvasTypes.h"
+#include "CanvasItem.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Classes/EditorStyleSettings.h"
 #include "AssetViewerSettings.h"
 
+#include "GeomTools.h"
+
 #define LOCTEXT_NAMESPACE "FLidarPointCloudEditorViewportClient"
 
-namespace {
-	static const float LightRotSpeed = 0.22f;
-	static const float StaticMeshEditor_RotateSpeed = 0.01f;
-	static const float	StaticMeshEditor_TranslateSpeed = 0.25f;
-	static const float GridSize = 2048.0f;
-	static const int32 CellSize = 16;
-	static const float AutoViewportOrbitCameraTranslate = 256.0f;
+namespace UE {
+	namespace Lidar {
+		namespace Private {
+			namespace Editor
+			{
+				// Distance Square between the first and last points of the polygonal selection, where the shape will be considered as closed
+				constexpr int32 PolySnapDistanceSq = 40;
 
-	static float AmbientCubemapIntensity = 0.4f;
+				// Affects the frequency of new point injections when drawing lasso-based shapes
+				constexpr int32 LassoSpacingSq = 400;
+
+				// Affects the max depth delta when painting. Prevents the brush from "falling through" the gaps.
+				constexpr float PaintMaxDeviation = 0.15f;
+
+				// Defaults for the common draw helper
+				constexpr float GridSize = 2048.0f;
+				constexpr int32 CellSize = 16;
+			}
+		}
+	}
+}
+
+TArray<FVector2D> ToVectorArray(const TArray<FIntPoint>& Points)
+{
+	TArray<FVector2D> VectorPoints;
+	VectorPoints.Reserve(Points.Num());
+	for (const FIntPoint& Point : Points)
+	{
+		VectorPoints.Add(Point);
+	}
+	return VectorPoints;
+}
+
+// Slow, O(n2), but sufficient for the current problem
+bool IsPolygonSelfIntersecting(const TArray<FVector2D>& Points, bool bAllowLooping)
+{
+	const int32 MaxIndex = bAllowLooping ? Points.Num() : Points.Num() - 1;
+
+	for (int32 i = 0; i < MaxIndex; ++i)
+	{
+		const int32 i1 = i < Points.Num() - 1 ? i + 1 : 0;
+
+		const FVector2D P1 = Points[i];
+		const FVector2D P2 = Points[i1];
+
+		for (int32 j = 0; j < MaxIndex; ++j)
+		{
+			const int32 j1 = j < Points.Num() - 1 ? j + 1 : 0;
+
+			if (j1 != i && j != i && j != i1)
+			{
+				// Modified, inlined FMath::SegmentIntersection2D
+				const FVector2D SegmentStartA = P1;
+				const FVector2D SegmentEndA = P2;
+				const FVector2D SegmentStartB = Points[j];
+				const FVector2D SegmentEndB = Points[j1];
+				const FVector2D VectorA = P2 - SegmentStartA;
+				const FVector2D VectorB = SegmentEndB - SegmentStartB;
+
+				const float S = (-VectorA.Y * (SegmentStartA.X - SegmentStartB.X) + VectorA.X * (SegmentStartA.Y - SegmentStartB.Y)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
+				const float T = (VectorB.X * (SegmentStartA.Y - SegmentStartB.Y) - VectorB.Y * (SegmentStartA.X - SegmentStartB.X)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
+
+				if (S >= 0 && S <= 1 && T >= 0 && T <= 1)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+
+// Copied from GeomTools.cpp and converted to work with FIntPoint
+bool IsPolygonConvex(const TArray<FIntPoint>& Points)
+{
+	const int32 PointCount = Points.Num();
+	int32 Sign = 0;
+	for (int32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
+	{
+		const FIntPoint& A = Points[PointIndex];
+		const FIntPoint& B = Points[(PointIndex + 1) % PointCount];
+		const FIntPoint& C = Points[(PointIndex + 2) % PointCount];
+		int32 Det = (B.X - A.X) * (C.Y - B.Y) - (B.Y - A.Y) * (C.X - B.X);
+		int32 DetSign = FMath::Sign(Det);
+		if (DetSign != 0)
+		{
+			if (Sign == 0)
+			{
+				Sign = DetSign;
+			}
+			else if (Sign != DetSign)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 FLidarPointCloudEditorViewportClient::FLidarPointCloudEditorViewportClient(TWeakPtr<FLidarPointCloudEditor> InPointCloudEditor, const TSharedRef<SLidarPointCloudEditorViewport>& InPointCloudEditorViewport, FAdvancedPreviewScene* InPreviewScene, ULidarPointCloud* InPreviewPointCloud, ULidarPointCloudComponent* InPreviewPointCloudComponent)
@@ -32,7 +126,9 @@ FLidarPointCloudEditorViewportClient::FLidarPointCloudEditorViewportClient(TWeak
 	, PointCloudComponent(InPreviewPointCloudComponent)
 	, PointCloudEditorPtr(InPointCloudEditor)
 	, PointCloudEditorViewportPtr(InPointCloudEditorViewport)
+	, SelectionMethod(ELidarPointCloudSelectionMethod::Box)
 	, SelectionMode(ELidarPointCloudSelectionMode::None)
+	, PaintingRadius(500)
 {
 	// Setup defaults for the common draw helper.
 	DrawHelper.bDrawPivot = false;
@@ -42,8 +138,8 @@ FLidarPointCloudEditorViewportClient::FLidarPointCloudEditorViewportClient(TWeak
 	DrawHelper.GridColorAxis = FColor(160, 160, 160);
 	DrawHelper.GridColorMajor = FColor(144, 144, 144);
 	DrawHelper.GridColorMinor = FColor(128, 128, 128);
-	DrawHelper.PerspectiveGridSize = GridSize;
-	DrawHelper.NumCells = DrawHelper.PerspectiveGridSize / (CellSize * 2);
+	DrawHelper.PerspectiveGridSize = UE::Lidar::Private::Editor::GridSize;
+	DrawHelper.NumCells = DrawHelper.PerspectiveGridSize / (UE::Lidar::Private::Editor::CellSize * 2);
 
 	SetViewMode(VMI_Unlit);
 
@@ -69,6 +165,8 @@ FLidarPointCloudEditorViewportClient::~FLidarPointCloudEditorViewportClient()
 
 void FLidarPointCloudEditorViewportClient::Tick(float DeltaSeconds)
 {
+	using UE::Lidar::Private::Editor::PaintMaxDeviation;
+
 	FEditorViewportClient::Tick(DeltaSeconds);
 
 	// Tick the preview scene world.
@@ -76,117 +174,208 @@ void FLidarPointCloudEditorViewportClient::Tick(float DeltaSeconds)
 	{
 		PreviewScene->GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
 	}
-}
 
-void FLidarPointCloudEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32 y)
-{
-	FEditorViewportClient::MouseMove(InViewport, x, y);
+	// Process line traces if in Paint mode
+	if (SelectionMethod == ELidarPointCloudSelectionMethod::Paint)
+	{
+		if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
+		{
+			ULidarPointCloud* PC = Editor->GetPointCloudBeingEdited();
+
+			if (Editor->IsEditMode())
+			{
+				const bool bPainting = Viewport->KeyState(EKeys::LeftMouseButton) && bLineTraceHit;
+				const float TraceRadius = FMath::Max(PC->GetEstimatedPointSpacing(), 0.5f);
+
+				const FLidarPointCloudRay Ray = DeprojectCurrentMousePosition();
+				if (FLidarPointCloudPoint* Point = PC->LineTraceSingle(Ray, TraceRadius, true))
+				{
+					const float NewDistance = FVector::Dist(Point->Location, Ray.Origin);
+					const float Deviation = (NewDistance - LineTraceDistance) / LineTraceDistance;
+
+					// If painting, prevent large depth changes
+					// If not, query larger trace radius - if it passes the deviation test, it was a gap
+					if (Deviation > PaintMaxDeviation && (bPainting || (FVector::Dist(PC->LineTraceSingle(Ray, TraceRadius * 6, true)->Location, Ray.Origin) - LineTraceDistance) / LineTraceDistance <= PaintMaxDeviation))
+					{
+						LineTraceHitPoint = Ray.Origin + Ray.GetDirection() * LineTraceDistance;
+					}
+					else
+					{
+						LineTraceHitPoint = Point->Location;
+						LineTraceDistance = NewDistance;
+					}
+
+					bLineTraceHit = true;
+				}
+				else if(!bPainting)
+				{
+					bLineTraceHit = false;
+				}
+			}
+		}
+	}
 }
 
 bool FLidarPointCloudEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool Gamepad)
 {
-	bool bHandled = FEditorViewportClient::InputKey(InViewport, ControllerId, Key, Event, AmountDepressed, false);
+	using UE::Lidar::Private::Editor::PolySnapDistanceSq;
 
-	// Handle viewport screenshot.
-	bHandled |= InputTakeScreenshot(InViewport, Key, Event);
+	bool bHandled = false;
 
-	bHandled |= AdvancedPreviewScene->HandleInputKey(InViewport, ControllerId, Key, Event, AmountDepressed, Gamepad);
+	const bool bAlt = Key == EKeys::LeftAlt || Key == EKeys::RightAlt;
+	const bool bCtrl = Key == EKeys::LeftControl || Key == EKeys::RightControl;
 
-	const bool bAltPressed = Viewport->KeyState(EKeys::LeftAlt) || Viewport->KeyState(EKeys::RightAlt);
-	const bool bCtrlPressed = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
-	const bool bShiftPressed = Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift);
-
-	// Edit Mode
-	if (PointCloudEditorPtr.Pin()->IsEditMode())
+	if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
 	{
-		if (Event == IE_Pressed)
+		// Edit Mode
+		if (Editor->IsEditMode())
 		{
-			if (Key == EKeys::Delete)
+			if (Event == IE_Pressed)
 			{
-				if (bShiftPressed)
+				if (Key == EKeys::Delete)
 				{
-					PointCloudEditorPtr.Pin()->DeletePoints();
-				}
-				else
-				{
-					PointCloudEditorPtr.Pin()->HidePoints();
-				}
+					if (Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift))
+					{
+						Editor->DeletePoints();
+					}
+					else
+					{
+						Editor->HidePoints();
+					}
 
-				bHandled = true;
-			}
-			else if (Key == EKeys::Escape)
-			{
-				PointCloudEditorPtr.Pin()->DeselectPoints();
-				bHandled = true;
-			}
-		}
-
-		// Store current selection mode
-		ELidarPointCloudSelectionMode LastSelectionMode = SelectionMode;
-
-		// Update selection status
-		if (Key == EKeys::LeftMouseButton)
-		{
-			if (Viewport->KeyState(EKeys::LeftMouseButton))
-			{
-				if (bShiftPressed)
-				{
-					SelectionMode = ELidarPointCloudSelectionMode::Replace;
+					bHandled = true;
 				}
-				else if (bCtrlPressed)
+				else if (Key == EKeys::Escape)
 				{
-					SelectionMode = ELidarPointCloudSelectionMode::Add;
+					Editor->DeselectPoints();
+					SelectionPoints.Empty();
+					bHandled = true;
 				}
-				else if (bAltPressed)
+				else if (Key == EKeys::Enter)
 				{
+					if (SelectionMethod == ELidarPointCloudSelectionMethod::Polygonal)
+					{
+						OnPolygonalSelectionEnd();
+						SelectionPoints.Empty();
+						bHandled = true;
+					}
+				}
+				else if (bAlt)
+				{
+					bHandled = true;
 					SelectionMode = ELidarPointCloudSelectionMode::Subtract;
 				}
-				else
+				else if (bCtrl)
 				{
-					SelectionMode = ELidarPointCloudSelectionMode::None;
+					bHandled = true;
+					SelectionMode = ELidarPointCloudSelectionMode::Add;
+				}
+				else if (Key == EKeys::LeftMouseButton)
+				{
+					bHandled = true;
+
+					// Selection start
+					if (SelectionMethod == ELidarPointCloudSelectionMethod::Box)
+					{
+						// Mark the cursor location for selection start
+						InViewport->GetMousePos(SelectionPoints[SelectionPoints.AddUninitialized()]);
+					}
+					else if (SelectionMethod == ELidarPointCloudSelectionMethod::Polygonal)
+					{
+						// Add new lasso point
+						FIntPoint NewPoint;
+						InViewport->GetMousePos(NewPoint);
+
+						// Don't allow duplicates
+						if (SelectionPoints.Num() == 0 || SelectionPoints.Last() != NewPoint)
+						{
+							TArray<FVector2D> VectorPoints = ToVectorArray(SelectionPoints);
+							VectorPoints.Add(NewPoint);
+
+							if (!IsPolygonSelfIntersecting(VectorPoints, false))
+							{
+								// Snap to first point
+								if (SelectionPoints.Num() > 1 && (NewPoint - SelectionPoints[0]).SizeSquared() < PolySnapDistanceSq)
+								{
+									OnPolygonalSelectionEnd();
+									SelectionPoints.Empty();
+								}
+								else
+								{
+									SelectionPoints.Add(NewPoint);
+								}
+							}
+						}
+					}
+					else if (SelectionMethod == ELidarPointCloudSelectionMethod::Lasso)
+					{
+						InViewport->GetMousePos(SelectionPoints[SelectionPoints.AddUninitialized()]);
+					}
+					else if (SelectionMethod == ELidarPointCloudSelectionMethod::Paint)
+					{
+						OnPaintSelection();
+					}
+				}
+
+				if (SelectionMethod == ELidarPointCloudSelectionMethod::Paint)
+				{
+					// Do not block ability to change camera speed
+					if (!Viewport->KeyState(EKeys::RightMouseButton))
+					{
+						if (Key == EKeys::MouseScrollUp)
+						{
+							PaintingRadius *= 1.1f;
+							bHandled = true;
+						}
+						else if (Key == EKeys::MouseScrollDown)
+						{
+							PaintingRadius /= 1.1f;
+							bHandled = true;
+						}
+					}
 				}
 			}
-			else
+			else if (Event == IE_Released)
 			{
-				SelectionMode = ELidarPointCloudSelectionMode::None;
-			}
+				if (bAlt || bCtrl)
+				{
+					SelectionMode = ELidarPointCloudSelectionMode::None;
+					bHandled = true;
+				}
+				else if (Key == EKeys::LeftMouseButton)
+				{
+					bHandled = true;
 
-			bHandled = true;
+					if (SelectionMethod == ELidarPointCloudSelectionMethod::Box)
+					{
+						// Mark the cursor location for selection end
+						InViewport->GetMousePos(SelectionPoints[SelectionPoints.AddUninitialized()]);
+						OnBoxSelectionEnd();
+						SelectionPoints.Empty();
+					}
+					else if (SelectionMethod == ELidarPointCloudSelectionMethod::Lasso)
+					{
+						OnLassoSelectionEnd();
+						SelectionPoints.Empty();
+					}
+				}
+			}
 		}
-
-		// Check if selection mode has changed since the last frame
-		if (SelectionMode != LastSelectionMode)
+		// Navigation Mode
+		else
 		{
-			// Selection start
-			if (SelectionMode != ELidarPointCloudSelectionMode::None)
-			{
-				// Mark the cursor location for selection start
-				InViewport->GetMousePos(SelectionStartLocation);
 
-				OnSelectionStart();
-			}
-			// Selection end
-			else
-			{
-				FIntPoint SelectionEndLocation;
-
-				// Mark the cursor location for selection end
-				InViewport->GetMousePos(SelectionEndLocation);
-
-				FIntVector4 SelectionArea;
-
-				SelectionArea.X = FMath::Min(SelectionStartLocation.X, SelectionEndLocation.X);
-				SelectionArea.Y = FMath::Min(SelectionStartLocation.Y, SelectionEndLocation.Y);
-				SelectionArea.Z = FMath::Max(SelectionStartLocation.X, SelectionEndLocation.X);
-				SelectionArea.W = FMath::Max(SelectionStartLocation.Y, SelectionEndLocation.Y);
-
-				OnSelectionEnd(SelectionArea, LastSelectionMode);
-			}
 		}
 	}
-	// Navigation Mode
-	else
+
+	if (!bHandled)
 	{
+		bHandled = FEditorViewportClient::InputKey(InViewport, ControllerId, Key, Event, AmountDepressed, false);
+
+		// Handle viewport screenshot.
+		bHandled |= InputTakeScreenshot(InViewport, Key, Event);
+
+		bHandled |= AdvancedPreviewScene->HandleInputKey(InViewport, ControllerId, Key, Event, AmountDepressed, Gamepad);
 
 	}
 
@@ -195,96 +384,175 @@ bool FLidarPointCloudEditorViewportClient::InputKey(FViewport* InViewport, int32
 
 bool FLidarPointCloudEditorViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
-	bool bResult = true;
+	using UE::Lidar::Private::Editor::LassoSpacingSq;
+
+	bool bHandled = false;
 
 	if (!bDisableInput)
 	{
-		if (SelectionMode != ELidarPointCloudSelectionMode::None)
+		if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
 		{
-			// Do not move the camera while in selection
+			if (Editor->IsEditMode())
+			{
+				if (Viewport->KeyState(EKeys::LeftMouseButton))
+				{
+					if (SelectionMethod == ELidarPointCloudSelectionMethod::Lasso)
+					{
+						FIntPoint NewPoint;
+						InViewport->GetMousePos(NewPoint);
+
+						// Check if the spacing is sufficient
+						if ((NewPoint - SelectionPoints.Last()).SizeSquared() > LassoSpacingSq)
+						{
+							SelectionPoints.Add(NewPoint);
+						}
+
+						bHandled = true;
+					}
+					else if (SelectionMethod == ELidarPointCloudSelectionMethod::Paint)
+					{
+						OnPaintSelection();
+						bHandled = true;
+					}
+				}
+			}
 		}
-		else
+
+		if(!bHandled)
 		{
-			bResult = AdvancedPreviewScene->HandleViewportInput(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
-			if (bResult)
+			bHandled = AdvancedPreviewScene->HandleViewportInput(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+			if (bHandled)
 			{
 				Invalidate();
 			}
 			else
 			{
-				bResult = FEditorViewportClient::InputAxis(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+				bHandled = FEditorViewportClient::InputAxis(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
 			}
 		}
 	}
 
-	return bResult;
-}
-
-void FLidarPointCloudEditorViewportClient::ProcessClick(FSceneView& InView, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) { }
-
-void FLidarPointCloudEditorViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
-{
-	FEditorViewportClient::Draw(View, PDI);
+	return bHandled;
 }
 
 void FLidarPointCloudEditorViewportClient::DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas)
 {
-	TSharedPtr<FLidarPointCloudEditor> PointCloudEditor = PointCloudEditorPtr.Pin();
-	TSharedPtr<SLidarPointCloudEditorViewport> PointCloudEditorViewport = PointCloudEditorViewportPtr.Pin();
-	if (!PointCloudEditor.IsValid() || !PointCloudEditorViewport.IsValid())
-	{
-		return;
-	}
-
 	TArray<SLidarPointCloudEditorViewport::FOverlayTextItem> TextItems;
 
-	if (PointCloudEditorPtr.Pin()->IsEditMode())
+	if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
 	{
-		// Text entries
+		if (Editor->IsEditMode())
 		{
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString("[ESCAPE] to de-select")));
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString("[SHIFT] + Mouse Drag to set selection")));
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString("[CTRL] + Mouse Drag to add selection")));
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString("[ALT] + Mouse Drag to subtract selection")));
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString("")));
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString("Press [DELETE] to hide selected")));
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString("Press [SHIFT] + [DELETE] to delete points")));
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString("")));
-			TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::Format(FText::FromString("Selected Points:  {0}"), FText::AsNumber(PointCloudEditorPtr.Pin()->GetSelectedPoints().Num()))));
-		}
+			TArray<FString> Labels;
 
-		// Selection box
-		if (SelectionMode != ELidarPointCloudSelectionMode::None)
-		{
-			FIntPoint SelectionCurrentLocation;
-			Viewport->GetMousePos(SelectionCurrentLocation);
+			// Add mode-specific labels
+			switch (SelectionMethod)
+			{
+			case ELidarPointCloudSelectionMethod::Box:
+				DrawSelectionBox(Canvas);
+				Labels.Append({
+					"BOX SELECTION MODE",
+					"",
+					"Click + Drag to replace selection",
+					"[CTRL] to add selection",
+					"[ALT] to subtract selection"
+				});
+				break;
 
-			const float InvScale = 1.0f / Viewport->GetClient()->GetDPIScale();
+			case ELidarPointCloudSelectionMethod::Polygonal:
+				DrawSelectionPolygonal(Canvas);
+				Labels.Append({
+					"POLYGONAL SELECTION MODE",
+					"",
+					"[CTRL] to add selection",
+					"[ALT] to subtract selection"
+					});
+				break;
 
-			const float X = FMath::Min(SelectionStartLocation.X, SelectionCurrentLocation.X) * InvScale;
-			const float Y = FMath::Min(SelectionStartLocation.Y, SelectionCurrentLocation.Y) * InvScale;
-			const float SizeX = FMath::Max(SelectionStartLocation.X, SelectionCurrentLocation.X) * InvScale - X;
-			const float SizeY = FMath::Max(SelectionStartLocation.Y, SelectionCurrentLocation.Y) * InvScale - Y;
+			case ELidarPointCloudSelectionMethod::Lasso:
+				DrawSelectionLasso(Canvas);
+				Labels.Append({
+					"LASSO SELECTION MODE",
+					"",
+					"Click + Drag to paint selection shape",
+					"[CTRL] to add selection",
+					"[ALT] to subtract selection"
+				});
+				break;
 
-			FLinearColor SelectionColor = GetDefault<UEditorStyleSettings>()->SelectionColor;
-			SelectionColor.A = 0.35f;
+			case ELidarPointCloudSelectionMethod::Paint:
+				DrawSelectionPaint(Canvas);
+				Labels.Append({
+					"PAINT SELECTION MODE",
+					"",
+					"Click + Drag to paint selection",
+					"[SCROLL] to change brush size",
+					"[ALT] to subtract selection"
+				});
+				break;
 
-			Canvas.DrawTile(X, Y, SizeX, SizeY, 0, 0, 0, 0, SelectionColor);
+			default:
+				break;
+			}
+
+			// Add common labels
+			Labels.Append({
+				"",
+				"[ESCAPE] to de-select all points",
+				"[DELETE] to hide selected points",
+				"[SHIFT] + [DELETE] to permanently delete selected points",
+				"",
+				FString::Printf(TEXT("Selected Points: %d"), Editor->GetSelectedPoints().Num())
+			});
+
+			// Convert to text entries
+			TextItems.Reserve(Labels.Num());
+			for (const FString& Label : Labels)
+			{
+				TextItems.Add(SLidarPointCloudEditorViewport::FOverlayTextItem(FText::FromString(Label)));
+			}
 		}
 	}
 
-	PointCloudEditorViewport->PopulateOverlayText(TextItems);
+	if (TSharedPtr<SLidarPointCloudEditorViewport> PointCloudEditorViewport = PointCloudEditorViewportPtr.Pin())
+	{
+		PointCloudEditorViewport->PopulateOverlayText(TextItems);
+	}
 }
 
 bool FLidarPointCloudEditorViewportClient::ShouldOrbitCamera() const
 {
-	if (GetDefault<ULevelEditorViewportSettings>()->bUseUE3OrbitControls)
+	if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
 	{
-		// this editor orbits always if orbit controls are enabled
-		return true;
+		if (Editor->IsEditMode())
+		{
+			return false;
+		}
 	}
 
-	return FEditorViewportClient::ShouldOrbitCamera();
+	return GetDefault<ULevelEditorViewportSettings>()->bUseUE3OrbitControls || FEditorViewportClient::ShouldOrbitCamera();
+}
+
+void FLidarPointCloudEditorViewportClient::LostFocus(FViewport* InViewport)
+{
+	FEditorViewportClient::LostFocus(InViewport);
+
+	// Cancel selection
+	SelectionMode = ELidarPointCloudSelectionMode::None;
+	SelectionPoints.Empty();
+}
+
+void FLidarPointCloudEditorViewportClient::ReceivedFocus(FViewport* InViewport)
+{
+	// This is needed if the user presses Alt / Ctrl / Shift before the client acquires focus
+	if (Viewport->KeyState(EKeys::LeftAlt) || Viewport->KeyState(EKeys::RightAlt))
+	{
+		SelectionMode = ELidarPointCloudSelectionMode::Subtract;
+	}
+	else if (Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl))
+	{
+		SelectionMode = ELidarPointCloudSelectionMode::Add;
+	}
 }
 
 void FLidarPointCloudEditorViewportClient::PerspectiveCameraMoved()
@@ -327,125 +595,392 @@ void FLidarPointCloudEditorViewportClient::SetAdvancedShowFlagsForScene(const bo
 	}
 }
 
-void FLidarPointCloudEditorViewportClient::OnSelectionStart()
+FSceneView* FLidarPointCloudEditorViewportClient::GetView()
 {
+	if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
+	{
+		// Compute a view.
+		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(Viewport, GetScene(), EngineShowFlags).SetRealtimeUpdate(IsRealtime()));
+		FSceneView* View = CalcSceneView(&ViewFamily);
+
+		const FVector LocationOffset = Editor->GetPointCloudBeingEdited()->LocationOffset.ToVector();
+
+		// Adjust for the LocationOffset
+		if (View->IsPerspectiveProjection())
+		{
+			View->ViewLocation -= LocationOffset;
+			View->UpdateViewMatrix();
+		}
+
+		return View;
+	}
+
+	return nullptr;
 }
 
-void FLidarPointCloudEditorViewportClient::OnSelectionEnd(const FIntVector4& SelectionArea, ELidarPointCloudSelectionMode Mode)
+FLidarPointCloudRay FLidarPointCloudEditorViewportClient::DeprojectCurrentMousePosition()
+{
+	FSceneView* View = GetView();
+	const FMatrix InvViewProjectionMatrix = View->ViewMatrices.GetInvViewProjectionMatrix();
+
+	FIntPoint CurrentMousePosition;
+	Viewport->GetMousePos(CurrentMousePosition);
+
+	FVector Origin, Direction;
+	FSceneView::DeprojectScreenToWorld(FVector2D(CurrentMousePosition), FIntRect(FIntPoint(0, 0), Viewport->GetSizeXY()), InvViewProjectionMatrix, Origin, Direction);
+
+	return FLidarPointCloudRay(Origin, Direction);
+}
+
+void FLidarPointCloudEditorViewportClient::OnBoxSelectionEnd()
 {
 	if (ULidarPointCloudComponent* PointCloudComponentRawPtr = PointCloudComponent.Get())
 	{
 		if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
 		{
-			// Compute a view.
-			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(Viewport, GetScene(), EngineShowFlags).SetRealtimeUpdate(IsRealtime()));
-			FSceneView* View = CalcSceneView(&ViewFamily);	
-
-			const FVector LocationOffset = Editor->GetPointCloudBeingEdited()->LocationOffset.ToVector();
-
-			// Adjust for the LocationOffset
-			if (View->IsPerspectiveProjection())
+			if (SelectionPoints[0] == SelectionPoints.Last())
 			{
-				View->ViewLocation -= LocationOffset;
-				View->UpdateViewMatrix();
-			}
-			
-			const FMatrix InvViewProjectionMatrix = View->ViewMatrices.GetInvViewProjectionMatrix();
-
-			/**
-			 * Compute 4 rays from the corners of the selection area
-			 *
-			 * 0 -- 3
-			 * |    |
-			 * 1 -- 2
-			 */
-			FVector Origins[6];
-			FVector Normals[6];
-			FVector Directions[4];
-			FSceneView::DeprojectScreenToWorld(FVector2D(SelectionArea.X, SelectionArea.Y), FIntRect(FIntPoint(0, 0), Viewport->GetSizeXY()), InvViewProjectionMatrix, Origins[0], Directions[0]);
-			FSceneView::DeprojectScreenToWorld(FVector2D(SelectionArea.X, SelectionArea.W), FIntRect(FIntPoint(0, 0), Viewport->GetSizeXY()), InvViewProjectionMatrix, Origins[1], Directions[1]);
-			FSceneView::DeprojectScreenToWorld(FVector2D(SelectionArea.Z, SelectionArea.W), FIntRect(FIntPoint(0, 0), Viewport->GetSizeXY()), InvViewProjectionMatrix, Origins[2], Directions[2]);
-			FSceneView::DeprojectScreenToWorld(FVector2D(SelectionArea.Z, SelectionArea.Y), FIntRect(FIntPoint(0, 0), Viewport->GetSizeXY()), InvViewProjectionMatrix, Origins[3], Directions[3]);
-
-			const FVector& ViewDirection = View->GetViewDirection();
-
-			// Shared calculations
-			Normals[4] = ViewDirection;
-			Normals[5] = -ViewDirection;
-			Origins[4] = Origins[0] + ViewDirection * 99999999.0f;
-
-			// Perspective View
-			if (View->IsPerspectiveProjection())
-			{
-				Origins[5] = Origins[0];
-
-				// Calculate plane normals
-				Normals[0] = Directions[1] ^ Directions[0];
-				Normals[1] = Directions[2] ^ Directions[1];
-				Normals[2] = Directions[3] ^ Directions[2];
-				Normals[3] = Directions[0] ^ Directions[3];
-
-				Normals[0].Normalize();
-				Normals[1].Normalize();
-				Normals[2].Normalize();
-				Normals[3].Normalize();
-			}
-			// Ortho Views
-			else
-			{
-				// Adjust for the LocationOffset
-				for (int32 i = 0; i < 5; ++i)
-				{
-					Origins[i] -= LocationOffset;
-				}
-
-				Origins[5] = -Origins[4];
-
-				// Left / Right view
-				if (ViewDirection.X != 0)
-				{
-					Normals[0] = -ViewDirection.X * FVector::RightVector;
-					Normals[1] = -ViewDirection.X * FVector::UpVector;
-					Normals[2] = ViewDirection.X * FVector::RightVector;
-					Normals[3] = ViewDirection.X * FVector::UpVector;
-				}
-				// Front / Back view
-				else if (ViewDirection.Y != 0)
-				{
-					Normals[0] = ViewDirection.Y * FVector::ForwardVector;
-					Normals[1] = ViewDirection.Y * FVector::UpVector;
-					Normals[2] = -ViewDirection.Y * FVector::ForwardVector;
-					Normals[3] = -ViewDirection.Y * FVector::UpVector;
-				}
-				// Top / Bottom view
-				else
-				{
-					Normals[0] = ViewDirection.Z * FVector::ForwardVector;
-					Normals[1] = -ViewDirection.Z * FVector::RightVector;
-					Normals[2] = -ViewDirection.Z * FVector::ForwardVector;
-					Normals[3] = ViewDirection.Z * FVector::RightVector;
-				}
+				Editor->DeselectPoints();
+				return;
 			}
 
-			// Compute selection frustum planes from the rays
-			TArray<FPlane, TInlineAllocator<6>> Planes;
+			FIntVector4 SelectionArea;
+			SelectionArea.X = FMath::Min(SelectionPoints[0].X, SelectionPoints[1].X);
+			SelectionArea.Y = FMath::Min(SelectionPoints[0].Y, SelectionPoints[1].Y);
+			SelectionArea.Z = FMath::Max(SelectionPoints[0].X, SelectionPoints[1].X);
+			SelectionArea.W = FMath::Max(SelectionPoints[0].Y, SelectionPoints[1].Y);
 
-			// Left, Bottom, Right, Top, Forward, Backward
-			for (int32 i = 0; i < 6; ++i)
-			{
-				Planes.Emplace(Origins[i], Normals[i]);
-			}
+			const FConvexVolume ConvexVolume = BuildConvexVolumeForPoints(TArray<FVector2D>({
+				FVector2D(SelectionArea.X, SelectionArea.Y),
+				FVector2D(SelectionArea.X, SelectionArea.W),
+				FVector2D(SelectionArea.Z, SelectionArea.W),
+				FVector2D(SelectionArea.Z, SelectionArea.Y) }));
 
-			if (Mode == ELidarPointCloudSelectionMode::Subtract)
+			if (SelectionMode == ELidarPointCloudSelectionMode::Subtract)
 			{
-				Editor->DeselectPointsByFrustum(FConvexVolume(Planes));
+				Editor->DeselectPointsByConvexVolume(ConvexVolume);
 			}
 			else
 			{
-				Editor->SelectPointsByFrustum(FConvexVolume(Planes), Mode == ELidarPointCloudSelectionMode::Add);
+				Editor->SelectPointsByConvexVolume(ConvexVolume, SelectionMode == ELidarPointCloudSelectionMode::Add);
 			}
 		}
 	}
+}
+
+void FLidarPointCloudEditorViewportClient::OnPolygonalSelectionEnd()
+{
+	// Skip invalid selections
+	if (SelectionPoints.Num() < 3)
+	{
+		return;
+	}
+
+	if (ULidarPointCloudComponent* PointCloudComponentRawPtr = PointCloudComponent.Get())
+	{
+		if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
+		{
+			TArray<TArray<FVector2D>> ConvexShapes;
+			TArray<FVector2D> VectorPoints = ToVectorArray(SelectionPoints);
+
+			if (IsPolygonConvex(SelectionPoints))
+			{
+				ConvexShapes.Add(VectorPoints);
+			}
+			else
+			{
+				// Check for self-intersecting shape
+				if (!IsPolygonSelfIntersecting(VectorPoints, true))
+				{
+					// The separation needs points in CCW order
+					if (!FGeomTools2D::IsPolygonWindingCCW(VectorPoints))
+					{
+						Algo::Reverse(VectorPoints);
+					}
+
+					TArray<FVector2D> Triangles;
+					FGeomTools2D::TriangulatePoly(Triangles, VectorPoints, false);
+					FGeomTools2D::GenerateConvexPolygonsFromTriangles(ConvexShapes, Triangles);
+				}
+			}
+
+			for (int32 i = 0; i < ConvexShapes.Num(); ++i)
+			{
+				const FConvexVolume ConvexVolume = BuildConvexVolumeForPoints(ConvexShapes[i]);
+
+				if (SelectionMode == ELidarPointCloudSelectionMode::Subtract)
+				{
+					Editor->DeselectPointsByConvexVolume(ConvexVolume);
+				}
+				else
+				{
+					// Consecutive shapes need to be additive
+					Editor->SelectPointsByConvexVolume(ConvexVolume, i > 0 || SelectionMode == ELidarPointCloudSelectionMode::Add);
+				}
+			}
+		}
+	}
+}
+
+void FLidarPointCloudEditorViewportClient::OnLassoSelectionEnd()
+{
+	OnPolygonalSelectionEnd();
+}
+
+void FLidarPointCloudEditorViewportClient::OnPaintSelection()
+{
+	if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
+	{
+		if (bLineTraceHit)
+		{
+			if (SelectionMode == ELidarPointCloudSelectionMode::Subtract)
+			{
+				Editor->DeselectPointsBySphere(FSphere(LineTraceHitPoint, PaintingRadius));
+			}
+			else
+			{
+				Editor->SelectPointsBySphere(FSphere(LineTraceHitPoint, PaintingRadius));
+			}
+		}
+	}
+}
+
+void FLidarPointCloudEditorViewportClient::DrawSelectionBox(FCanvas& Canvas)
+{
+	if (SelectionPoints.Num() == 0)
+	{
+		return;
+	}
+
+	const FIntPoint SelectionStartLocation = SelectionPoints[0];
+	FIntPoint SelectionCurrentLocation;
+	Viewport->GetMousePos(SelectionCurrentLocation);
+
+	const float InvScale = 1.0f / Viewport->GetClient()->GetDPIScale();
+
+	const float X = FMath::Min(SelectionStartLocation.X, SelectionCurrentLocation.X) * InvScale;
+	const float Y = FMath::Min(SelectionStartLocation.Y, SelectionCurrentLocation.Y) * InvScale;
+	const float SizeX = FMath::Max(SelectionStartLocation.X, SelectionCurrentLocation.X) * InvScale - X;
+	const float SizeY = FMath::Max(SelectionStartLocation.Y, SelectionCurrentLocation.Y) * InvScale - Y;
+
+	FLinearColor SelectionColor = GetDefault<UEditorStyleSettings>()->SelectionColor;
+	SelectionColor.A = 0.35f;
+
+	Canvas.DrawTile(X, Y, SizeX, SizeY, 0, 0, 0, 0, SelectionColor);
+
+	// Selection Border
+	{
+		FCanvasLineItem Line;
+		Line.SetColor(GetDefault<UEditorStyleSettings>()->SelectionColor);
+		Line.LineThickness = 2;
+
+		Line.Origin = FVector(SelectionStartLocation);
+		Line.EndPos = FVector(SelectionCurrentLocation.X, SelectionStartLocation.Y, 0);
+		Canvas.DrawItem(Line);
+
+		Line.Origin = Line.EndPos;
+		Line.EndPos = FVector(SelectionCurrentLocation);
+		Canvas.DrawItem(Line);
+
+		Line.Origin = Line.EndPos;
+		Line.EndPos = FVector(SelectionStartLocation.X, SelectionCurrentLocation.Y, 0);
+		Canvas.DrawItem(Line);
+
+		Line.Origin = Line.EndPos;
+		Line.EndPos = FVector(SelectionStartLocation);
+		Canvas.DrawItem(Line);
+	}
+}
+
+void FLidarPointCloudEditorViewportClient::DrawSelectionPolygonal(FCanvas& Canvas)
+{
+	using UE::Lidar::Private::Editor::PolySnapDistanceSq;
+
+	if (SelectionPoints.Num() == 0)
+	{
+		return;
+	}
+
+	// Create a local copy of selection points, injecting the current mouse position at the end
+	TArray<FIntPoint> DrawSelectionPoints = SelectionPoints;
+	Viewport->GetMousePos(DrawSelectionPoints[DrawSelectionPoints.AddUninitialized()]);
+
+	if (DrawSelectionPoints.Last() == DrawSelectionPoints.Last(1))
+	{
+		DrawSelectionPoints.RemoveAt(DrawSelectionPoints.Num() - 1, 1, false);
+	}
+
+	TArray<FVector2D> VectorPoints = ToVectorArray(DrawSelectionPoints);
+
+	// Calculate visual indication of complete polygon for the user
+	const bool bPolyComplete = DrawSelectionPoints.Num() > 2 && (DrawSelectionPoints.Last() - DrawSelectionPoints[0]).SizeSquared() < PolySnapDistanceSq;
+	const bool bSelfIntersecting = DrawSelectionPoints.Num() > 2 && IsPolygonSelfIntersecting(VectorPoints, true);
+	FLinearColor SelectionColor = bSelfIntersecting ? FLinearColor::Red : bPolyComplete ? FLinearColor::Green : GetDefault<UEditorStyleSettings>()->SelectionColor;
+
+	// Selection Area
+	if (VectorPoints.Num() > 2 && !bSelfIntersecting)
+	{
+		FCanvasUVTri Tri;
+		Tri.V0_Pos = Tri.V1_Pos = Tri.V2_Pos = Tri.V0_UV = Tri.V1_UV = Tri.V2_UV = FVector2D::ZeroVector;
+		SelectionColor.A = 0.35f;
+		Tri.V0_Color = Tri.V1_Color = Tri.V2_Color = SelectionColor;
+
+		TArray<FCanvasUVTri> TriangleList;
+		TArray<TArray<FVector2D>> Polygons;
+
+		if (IsPolygonConvex(DrawSelectionPoints))
+		{
+			Polygons.Add(VectorPoints);
+			TriangleList.Reserve(VectorPoints.Num() - 2);
+		}
+		else
+		{
+			// The separation needs points in CCW order
+			if (!FGeomTools2D::IsPolygonWindingCCW(VectorPoints))
+			{
+				Algo::Reverse(VectorPoints);
+			}
+
+			TArray<FVector2D> Triangles;
+			if (FGeomTools2D::TriangulatePoly(Triangles, VectorPoints, false))
+			{
+				FGeomTools2D::GenerateConvexPolygonsFromTriangles(Polygons, Triangles);
+
+				// Calculate the number of triangles and reserve space
+				int32 NumTriangles = 0;
+				for (const TArray<FVector2D>& Polygon : Polygons)
+				{
+					NumTriangles += Polygon.Num() - 2;
+				}
+				TriangleList.Reserve(NumTriangles);
+			}
+		}
+
+		for (const TArray<FVector2D>& Polygon : Polygons)
+		{
+			for (int32 i = 2; i < Polygon.Num(); ++i)
+			{
+				Tri.V0_Pos = Polygon[i];
+				Tri.V1_Pos = Polygon[0];
+				Tri.V2_Pos = Polygon[i - 1];
+				TriangleList.Add(Tri);
+			}
+		}
+
+		if (TriangleList.Num() > 0)
+		{
+			FCanvasTriangleItem Selection(TriangleList, GWhiteTexture);
+			Selection.BlendMode = SE_BLEND_AlphaBlend;
+			Canvas.DrawItem(Selection);
+		}
+	}
+
+	// Selection Border
+	{
+		FCanvasLineItem Line;
+		Line.SetColor(SelectionColor);
+		Line.LineThickness = 2;
+
+		for (int32 i = 1; i < VectorPoints.Num(); ++i)
+		{
+			Line.Origin = FVector(VectorPoints[i], 0);
+			Line.EndPos = FVector(VectorPoints[i - 1], 0);
+			Canvas.DrawItem(Line);
+		}
+	}
+}
+
+void FLidarPointCloudEditorViewportClient::DrawSelectionLasso(FCanvas& Canvas)
+{
+	DrawSelectionPolygonal(Canvas);
+}
+
+void FLidarPointCloudEditorViewportClient::DrawSelectionPaint(FCanvas& Canvas)
+{
+	if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
+	{
+		if (TSharedPtr<SLidarPointCloudEditorViewport> EditorViewport = PointCloudEditorViewportPtr.Pin())
+		{
+			EditorViewport->PaintBrush->SetVisibility(bLineTraceHit);
+			EditorViewport->PaintBrush->SetWorldScale3D(FVector(PaintingRadius * 0.02f));
+			EditorViewport->PaintBrush->SetWorldLocation(LineTraceHitPoint);
+		}
+	}
+}
+
+FConvexVolume FLidarPointCloudEditorViewportClient::BuildConvexVolumeForPoints(const TArray<FVector2D>& Points)
+{
+	FConvexVolume ConvexVolume;
+
+	if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
+	{
+		FSceneView* View = GetView();
+		const FVector LocationOffset = Editor->GetPointCloudBeingEdited()->LocationOffset.ToVector();
+		const FMatrix InvViewProjectionMatrix = View->ViewMatrices.GetInvViewProjectionMatrix();
+
+		TArray<FVector> Origins; Origins.AddUninitialized(Points.Num() + 2);
+		TArray<FVector> Normals; Normals.AddUninitialized(Points.Num() + 2);
+		TArray<FVector> Directions; Directions.AddUninitialized(Points.Num());
+		FVector MeanCenter = FVector::ZeroVector;
+
+		for (int32 i = 0; i < Points.Num(); ++i)
+		{
+			FSceneView::DeprojectScreenToWorld(Points[i], FIntRect(FIntPoint(0, 0), Viewport->GetSizeXY()), InvViewProjectionMatrix, Origins[i], Directions[i]);
+			MeanCenter += Origins[i];
+		}
+
+		MeanCenter /= Points.Num();
+
+		const FVector& ViewDirection = View->GetViewDirection();
+
+		// Shared calculations
+		Normals.Last(1) = ViewDirection;
+		Normals.Last() = -ViewDirection;
+		Origins.Last(1) = Origins[0] + ViewDirection * 99999999.0f;
+
+		// Calculate plane normals
+		bool bFlipNormals = false;
+		for (int32 i = 0; i < Points.Num(); ++i)
+		{
+			Normals[i] = ((Origins[(i + 1) % Points.Num()] - Origins[i]).GetSafeNormal() ^ Directions[i]).GetSafeNormal();
+
+			if (i == 0)
+			{
+				bFlipNormals = FVector::DotProduct(Normals[i], (MeanCenter - Origins[i])) > 0;
+			}
+
+			if (bFlipNormals)
+			{
+				Normals[i] = -Normals[i];
+			}
+		}
+
+		// Perspective View
+		if (View->IsPerspectiveProjection())
+		{
+			Origins.Last() = Origins[0];
+		}
+		// Ortho Views
+		else
+		{
+			// Adjust for the LocationOffset
+			for (int32 i = 0; i < Points.Num(); ++i)
+			{
+				Origins[i] -= LocationOffset;
+			}
+
+			Origins.Last() = -Origins.Last(1);
+		}
+
+		for (int32 i = 0; i < Origins.Num(); ++i)
+		{
+			ConvexVolume.Planes.Emplace(Origins[i], Normals[i]);
+		}
+
+		ConvexVolume.Init();
+	}
+
+	return ConvexVolume;
 }
 
 void FLidarPointCloudEditorViewportClient::ResetCamera()
@@ -491,6 +1026,16 @@ bool FLidarPointCloudEditorViewportClient::IsSetShowNodesChecked() const
 	}
 	
 	return false;
+}
+
+void FLidarPointCloudEditorViewportClient::SetSelectionMethod(ELidarPointCloudSelectionMethod NewSelectionMethod)
+{
+	SelectionMethod = NewSelectionMethod;
+
+	if (TSharedPtr<SLidarPointCloudEditorViewport> EditorViewport = PointCloudEditorViewportPtr.Pin())
+	{
+		EditorViewport->PaintBrush->SetVisibility(SelectionMethod == ELidarPointCloudSelectionMethod::Paint);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE 

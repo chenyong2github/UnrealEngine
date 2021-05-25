@@ -634,6 +634,27 @@ TSharedPtr<IAutomationReport> FAutomationReport::GetNextReportToExecute(bool& bO
 	return NextReport;
 }
 
+void FAutomationReport::GetEnabledTestReports(TArray<TSharedPtr<IAutomationReport>>& OutReports)
+{
+	//if this is not a leaf node
+	if (ChildReports.Num())
+	{
+		for (int32 ReportIndex = 0; ReportIndex < ChildReports.Num(); ++ReportIndex)
+		{
+			ChildReports[ReportIndex]->GetEnabledTestReports(OutReports);
+		}
+	}
+	else
+	{
+		if (IsEnabled())
+		{
+			//Found one to run
+			OutReports.Add(AsShared());
+		}
+	}
+}
+
+
 const bool FAutomationReport::HasErrors()
 {
 	bool bHasErrors = false;

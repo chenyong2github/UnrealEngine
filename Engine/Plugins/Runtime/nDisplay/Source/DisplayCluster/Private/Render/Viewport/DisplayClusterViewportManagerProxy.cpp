@@ -20,6 +20,17 @@
 
 #include "RHIContext.h"
 
+// Enable/disable warp&blend
+static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
+	TEXT("nDisplay.render.WarpBlendEnabled"),
+	1,
+	TEXT("Warp & Blend status\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarCrossGPUTransfersEnabled(
 	TEXT("nDisplay.render.CrossGPUTransfers"),
 	1,
@@ -136,13 +147,15 @@ void FDisplayClusterViewportManagerProxy::ImplUpdateViewports(const TArray<FDisp
 
 DECLARE_GPU_STAT_NAMED(nDisplay_ViewportManager_RenderFrame, TEXT("nDisplay ViewportManager::RenderFrame"));
 
-void FDisplayClusterViewportManagerProxy::ImplRenderFrame(const bool bWarpBlendEnabled, FViewport* InViewport)
+void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 {
 	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
-		[ViewportManagerProxy = this, bWarpBlendEnabled, InViewport](FRHICommandListImmediate& RHICmdList)
+		[ViewportManagerProxy = this, InViewport](FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPED_GPU_STAT(RHICmdList, nDisplay_ViewportManager_RenderFrame);
 		SCOPED_DRAW_EVENT(RHICmdList, nDisplay_ViewportManager_RenderFrame);
+
+		bool bWarpBlendEnabled = ViewportManagerProxy->RenderFrameSettings.bAllowWarpBlend && CVarWarpBlendEnabled.GetValueOnRenderThread() != 0;
 
 		// mGPU not used for in-editor rendering
 		if(ViewportManagerProxy->RenderFrameSettings.bIsRenderingInEditor == false)

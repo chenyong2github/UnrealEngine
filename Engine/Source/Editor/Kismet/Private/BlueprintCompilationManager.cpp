@@ -422,6 +422,7 @@ struct FCompilerData
 		InternalOptions.bSaveIntermediateProducts = (UserOptions & EBlueprintCompileOptions::SaveIntermediateProducts) != EBlueprintCompileOptions::None;
 		InternalOptions.bSkipDefaultObjectValidation = (UserOptions & EBlueprintCompileOptions::SkipDefaultObjectValidation) != EBlueprintCompileOptions::None;
 		InternalOptions.bSkipFiBSearchMetaUpdate = (UserOptions & EBlueprintCompileOptions::SkipFiBSearchMetaUpdate) != EBlueprintCompileOptions::None;
+		InternalOptions.bUseDeltaSerializationDuringReinstancing = (UserOptions & EBlueprintCompileOptions::UseDeltaSerializationDuringReinstancing) != EBlueprintCompileOptions::None;
 		InternalOptions.CompileType = bBytecodeOnly ? EKismetCompileType::BytecodeOnly : EKismetCompileType::Full;
 
 		if(!bBytecodeOnly && CPPResults.CppOptions)
@@ -451,6 +452,7 @@ struct FCompilerData
 	bool ShouldSkipIfDependenciesAreUnchanged() const { return InternalOptions.CompileType == EKismetCompileType::BytecodeOnly || JobType == ECompilationManagerJobType::RelinkOnly; }
 	bool ShouldValidateClassDefaultObject() const { return JobType == ECompilationManagerJobType::Normal && !InternalOptions.bSkipDefaultObjectValidation; }
 	bool ShouldUpdateBlueprintSearchMetadata() const { return JobType == ECompilationManagerJobType::Normal && !InternalOptions.bSkipFiBSearchMetaUpdate; }
+	bool UseDeltaSerializationDuringReinstancing() const { return InternalOptions.bUseDeltaSerializationDuringReinstancing; }
 
 	UBlueprint* BP;
 	FCompilerResultsLog* ActiveResultsLog;
@@ -1208,6 +1210,11 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				if (!CompilerData.IsCppCompileType())
 				{
 					CompileReinstancerFlags |= EBlueprintCompileReinstancerFlags::AvoidCDODuplication;
+				}
+
+				if (CompilerData.UseDeltaSerializationDuringReinstancing())
+				{
+					CompileReinstancerFlags |= EBlueprintCompileReinstancerFlags::UseDeltaSerialization;
 				}
 
 				CompilerData.Reinstancer = TSharedPtr<FBlueprintCompileReinstancer>(
@@ -2078,8 +2085,9 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 			OldCDO = ReinstancingJob.OldToNew.Key->ClassDefaultObject;
 			if (OldCDO && ReinstancingJob.Reinstancer.IsValid())
 			{
+				const bool bUseDeltaSerialization = ReinstancingJob.Reinstancer.IsValid() ? ReinstancingJob.Reinstancer->bUseDeltaSerializationToCopyProperties : false;
 				UObject* NewCDO = ReinstancingJob.OldToNew.Value->GetDefaultObject(true);
-				FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(OldCDO, NewCDO, true);
+				FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(OldCDO, NewCDO, true, bUseDeltaSerialization);
 
 				if (ReinstancingJob.Compiler.IsValid())
 				{
@@ -2276,8 +2284,10 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 				{
 					// The new object hierarchy has been created, all of the old instances are in the transient package and new
 					// ones have taken their place. Referenc members will mostly be pointing at *old* instances, and will get fixed
-					// up below:
-					FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(OldInstance, *NewInstance, false);
+					// up below:			
+					const bool bUseDeltaSerialization = ReinstancingJob.Reinstancer.IsValid() ? ReinstancingJob.Reinstancer->bUseDeltaSerializationToCopyProperties : false;
+
+					FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects(OldInstance, *NewInstance, false, bUseDeltaSerialization);
 				}
 			}
 		}

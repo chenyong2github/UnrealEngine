@@ -689,7 +689,12 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MeshObjectUpdate);
 
-		const int32 UseLOD = GetPredictedLODLevel();
+		int32 UseLOD = GetPredictedLODLevel();
+		// Clamp to loaded streaming data if available
+		if (SkeletalMesh->IsStreamable() && MeshObject)
+		{
+			UseLOD = FMath::Max<int32>(UseLOD, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
+		}
 
 		// Only update the state if PredictedLODLevel is valid
 		FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
@@ -715,10 +720,15 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 
 void USkinnedMeshComponent::ClearMotionVector()
 {
-	const int32 UseLOD = GetPredictedLODLevel();
-
 	if (MeshObject)
 	{
+		int32 UseLOD = GetPredictedLODLevel();
+		// Clamp to loaded streaming data if available
+		if (SkeletalMesh->IsStreamable() && MeshObject)
+		{
+			UseLOD = FMath::Max<int32>(UseLOD, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
+		}
+
 		// rendering bone velocity is updated by revision number
 		// if you have situation where you want to clear the bone velocity (that causes temporal AA or motion blur)
 		// use this function to clear it
@@ -735,8 +745,15 @@ void USkinnedMeshComponent::ForceMotionVector()
 {
 	if (MeshObject)
 	{
+		int32 UseLOD = GetPredictedLODLevel();
+		// Clamp to loaded streaming data if available
+		if (SkeletalMesh->IsStreamable() && MeshObject)
+		{
+			UseLOD = FMath::Max<int32>(UseLOD, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
+		}
+
 		++CurrentBoneTransformRevisionNumber;
-		MeshObject->Update(GetPredictedLODLevel(), this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);
+		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);
 	}
 }
 
@@ -1286,11 +1303,11 @@ FTransform USkinnedMeshComponent::GetBoneTransform(int32 BoneIdx, const FTransfo
 		}
 		if(BoneIdx < MasterBoneMap.Num())
 		{
-			int32 MasterBoneIndex = MasterBoneMap[BoneIdx];
+			const int32 MasterBoneIndex = MasterBoneMap[BoneIdx];
+			const int32 NumMasterTransforms = MasterPoseComponentInst->GetNumComponentSpaceTransforms();
 
-			// If ParentBoneIndex is valid, grab matrix from MasterPoseComponent.
-			if(	MasterBoneIndex != INDEX_NONE && 
-				MasterBoneIndex < MasterPoseComponentInst->GetNumComponentSpaceTransforms())
+			// If MasterBoneIndex is valid, grab matrix from MasterPoseComponent.
+			if(MasterBoneIndex >= 0 && MasterBoneIndex < NumMasterTransforms)
 			{
 				return MasterPoseComponentInst->GetComponentSpaceTransforms()[MasterBoneIndex] * LocalToWorld;
 			}
@@ -1301,12 +1318,20 @@ FTransform USkinnedMeshComponent::GetBoneTransform(int32 BoneIdx, const FTransfo
 				const FMissingMasterBoneCacheEntry* MissingBoneInfoPtr = MissingMasterBoneMap.Find(BoneIdx);
 				if(MissingBoneInfoPtr != nullptr)
 				{
-					return MissingBoneInfoPtr->RelativeTransform * MasterPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfoPtr->CommonAncestorBoneIndex] * LocalToWorld;
+					const int32 MissingMasterBoneIndex = MissingBoneInfoPtr->CommonAncestorBoneIndex;
+					if(MissingMasterBoneIndex >= 0 && MissingMasterBoneIndex < NumMasterTransforms)
+					{
+						return MissingBoneInfoPtr->RelativeTransform * MasterPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfoPtr->CommonAncestorBoneIndex] * LocalToWorld;
+					}
 				}
 				// Otherwise we might be able to generate the missing transform on the fly (although this is expensive)
 				else if(GetMissingMasterBoneRelativeTransform(BoneIdx, MissingBoneInfo))
 				{
-					return MissingBoneInfo.RelativeTransform * MasterPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfo.CommonAncestorBoneIndex] * LocalToWorld;
+					const int32 MissingMasterBoneIndex = MissingBoneInfo.CommonAncestorBoneIndex;
+					if (MissingMasterBoneIndex >= 0 && MissingMasterBoneIndex < NumMasterTransforms)
+					{
+						return MissingBoneInfo.RelativeTransform * MasterPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfo.CommonAncestorBoneIndex] * LocalToWorld;
+					}
 				}
 
 				UE_LOG(LogSkinnedMeshComp, Verbose, TEXT("GetBoneTransform : ParentBoneIndex(%d) out of range of MasterPoseComponent->SpaceBases for %s"), BoneIdx, *this->GetFName().ToString() );

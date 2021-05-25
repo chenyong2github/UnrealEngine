@@ -7,6 +7,7 @@
 #include "Chaos/Particles.h"
 #include "Components/ActorComponent.h"
 #include "UObject/ObjectKey.h"
+#include "Misc/NetworkGuid.h"
 
 #include "NetworkPhysics.generated.h"
 
@@ -16,6 +17,9 @@ struct FNetworkPhysicsRewindCallback;
 class FMockObjectManager;
 class FSingleParticlePhysicsProxy;
 
+namespace Chaos { struct FSimCallbackInputAndObject; }
+
+// FIXME: use FRigidBodyState instead
 struct FBasePhysicsState
 {
 	Chaos::EObjectStateType ObjectState = Chaos::EObjectStateType::Uninitialized;
@@ -67,6 +71,10 @@ struct FNetworkPhysicsState
 		Ar << Physics.AngularVelocity;
 		return true;
 	}
+
+	// LOD: should probably be moved out of this struct
+	int32 LocalLOD = 0;
+	AActor* OwningActor = nullptr;
 };
 
 template<>
@@ -86,6 +94,18 @@ public:
 	virtual ~INetworkPhysicsSubsystem() = default;
 	virtual void PostNetRecv(UWorld* World, int32 LocalOffset, int32 LastProcessedFrame) = 0;
 	virtual void PreNetSend(UWorld* World, float DeltaSeconds) = 0;
+
+	// Finalizes InputCmds, marshalls them to PT and Network.
+	virtual void ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) { }
+	
+	// Records "Final" Inputs for a frame and marshalls them back to GT for networking
+	virtual void ProcessInputs_Internal(int32 PhysicsStep) { }
+
+	// ShouldReconcile
+	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) { return INDEX_NONE; }
+
+	// Applies Corrections
+	virtual void PreResimStep_Internal(int32 PhysicsStep, bool bFirst) { }
 };
 
 
@@ -131,6 +151,8 @@ public:
 
 	void RegisterPhysicsProxyDebugDraw(FNetworkPhysicsState* State, TUniqueFunction<void(const FDrawDebugParams&)>&& Func);
 
+	void DumpDebugHistory();
+
 private:
 
 	void TickDrawDebug();
@@ -144,6 +166,8 @@ private:
 	int32 LatestSimulatedFrame = INDEX_NONE;	// Latest frame we have sent off to PT for simulation. Doesn't mean its been completed and marshalled back.
 	int32 LocalOffset = 0; // Calculated client/server frame offset. ClientFrame = ServerFrame + LocalOffset
 
+	int32 ClientServerMaxFrameDelta = 0;
+
 	TSortedMap<int32, int32> ManagedHandleToIndexMap;
 	TSparseArray<FNetworkPhysicsState*> ManagedPhysicsStates;
 	int32 LastFreeIndex = 0;
@@ -152,4 +176,26 @@ private:
 	TMap<FSingleParticlePhysicsProxy*, TUniqueFunction<void(const FDrawDebugParams&)>> DrawDebugMap;
 	
 	TArray<TPair<FName, TUniquePtr<INetworkPhysicsSubsystem>>> SubSystems;
+
+	friend struct FNetworkPhysicsRewindCallback;
+	void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs);
+
+	// Historic GT recording for GT only (compiled out. probably temp until Insights integration is back)
+	struct FDebugSnapshot
+	{
+		int32 LocalFrameOffset = 0;
+		struct FDebugObject
+		{
+			FNetworkGUID NetGUID;
+			TWeakObjectPtr<AActor> WeakOwningActor;
+			FNetworkPhysicsState State;
+		};
+
+		TArray<FDebugObject> Objects;
+	};
+
+	TStaticArray<FDebugSnapshot, 1024> DebugSnapshots;
+	int32 DebugSnapshotHead = 0;
+
+	bool bRecordDebugSnapshots = false;
 };

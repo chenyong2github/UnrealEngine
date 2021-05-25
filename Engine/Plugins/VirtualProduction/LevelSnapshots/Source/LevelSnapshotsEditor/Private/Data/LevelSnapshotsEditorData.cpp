@@ -75,6 +75,13 @@ void ULevelSnapshotsEditorData::SetActiveSnapshot(const TOptional<ULevelSnapshot
 	OnActiveSnapshotChanged.Broadcast(GetActiveSnapshot());
 }
 
+void ULevelSnapshotsEditorData::ClearActiveSnapshot()
+{
+	ActiveSnapshot.Reset();
+	FilterResults->SetActiveLevelSnapshot(nullptr);
+	OnActiveSnapshotChanged.Broadcast(TOptional<ULevelSnapshot*>(nullptr));
+}
+
 TOptional<ULevelSnapshot*> ULevelSnapshotsEditorData::GetActiveSnapshot() const
 {
 	return ActiveSnapshot.IsSet() ? TOptional<ULevelSnapshot*>(ActiveSnapshot->Get()) : TOptional<ULevelSnapshot*>();
@@ -85,6 +92,13 @@ void ULevelSnapshotsEditorData::SetSelectedWorldReference(UWorld* InWorld)
 	SelectedWorld = InWorld;
 	
 	FilterResults->SetSelectedWorld(InWorld);
+}
+
+void ULevelSnapshotsEditorData::ClearSelectedWorld()
+{
+	SelectedWorld = nullptr;
+	
+	FilterResults->ClearSelectedWorld();
 }
 
 UWorld* ULevelSnapshotsEditorData::GetSelectedWorld() const

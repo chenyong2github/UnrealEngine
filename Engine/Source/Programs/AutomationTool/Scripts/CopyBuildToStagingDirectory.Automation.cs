@@ -38,13 +38,14 @@ public partial class Project : CommandUtils
 			Editor
 		}
 
-		public OrderFile(FileReference FileRef, OrderFileType InType, int SpecIndex)
+		public OrderFile(FileReference FileRef, OrderFileType InType, int SpecIndex, int InPriority)
 		{
 			File = FileRef;
 			OrderSpecIndex = SpecIndex;
 
 			string FileName = FileRef.GetFileNameWithoutExtension();
 			OrderType = InType;
+			Priority = InPriority;
 
 			//Check if we have an order number
 			AppendOrder = -1;
@@ -77,6 +78,8 @@ public partial class Project : CommandUtils
 		// OrderType can be used for filtering
 		public int AppendOrder;
 		public int OrderSpecIndex;
+		// Priority at which this order file can claim files even if it appears later in the list than another order file
+		public int Priority;
 
 		public OrderFileType OrderType;
 
@@ -88,6 +91,7 @@ public partial class Project : CommandUtils
 		public string FileNamePattern;
 		public OrderFile.OrderFileType OrderType;
 		public bool Required;
+		public int Priority;
 	};
 
 	/// <returns>The path for the BuildPatchTool executable depending on host platform.</returns>
@@ -2462,9 +2466,31 @@ public partial class Project : CommandUtils
 		List<OrderFileSpec> OrderFileSpecs = new List<OrderFileSpec>();
 		if (PlatformGameConfig.TryGetValues("/Script/UnrealEd.ProjectPackagingSettings", "PakOrderFileSpecs", out IReadOnlyList<string> OrderFileConfigValues))
 		{
-			foreach (string FilePattern in OrderFileConfigValues)
+			foreach (string Config in OrderFileConfigValues)
 			{
-				OrderFileSpecs.Add(new OrderFileSpec { FileNamePattern = FilePattern, OrderType = OrderFile.OrderFileType.Custom, Required = true });
+				Dictionary<string, string> Fields;
+				if (!ConfigHierarchy.TryParse(Config, out Fields))
+				{
+					throw new AutomationException(String.Format("Failed to parse pak order file config \"{0}\"", Config));
+				}
+
+				string FilePattern;
+				if (!Fields.TryGetValue("Pattern", out FilePattern))
+				{
+					throw new AutomationException(String.Format("Missing field 'Pattern' in pak order file config \"{0}\"", Config));
+				}
+
+				// Priority missing is fine, we default to 0
+				int Priority = 0;
+				if( Fields.TryGetValue("Priority", out string PriorityString)) 
+				{
+					if (!int.TryParse(PriorityString, out Priority))
+					{
+						throw new AutomationException(String.Format("Failed to parse int from field 'Priority' in pak order file config \"{0}\"", Config));
+					}
+				}
+
+				OrderFileSpecs.Add(new OrderFileSpec { FileNamePattern = FilePattern, OrderType = OrderFile.OrderFileType.Custom, Required = FilePattern.Contains("*") == false, Priority = Priority });
 			}
 		}
 
@@ -2472,9 +2498,9 @@ public partial class Project : CommandUtils
 		{
 			// Default filespecs
 			OrderFileSpecs.AddRange(new OrderFileSpec[] {
-				new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game, Required=false },
-				new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker, Required=false },
-				new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor, Required=false }
+				new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game, Required=false, Priority = 0 },
+				new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker, Required=false, Priority = 0 },
+				new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor, Required=false, Priority = 0 }
 			});
 		}
 
@@ -2510,7 +2536,7 @@ public partial class Project : CommandUtils
 					foreach (var File in FileLocations)
 					{
 						bAnyFound = true;
-						OrderFile FileOrder = new OrderFile(File, Spec.OrderType, OrderFileIndex);
+						OrderFile FileOrder = new OrderFile(File, Spec.OrderType, OrderFileIndex, Spec.Priority);
 
 						//check if the file is alreay in the list
 						if (!OrderFiles.Any(o => o.File.FullName.Equals(File.FullName)))
@@ -2549,7 +2575,7 @@ public partial class Project : CommandUtils
 		LogInformation("Using {0} pak order files:", OrderFiles.Count);
 		foreach( OrderFile File in OrderFiles )
 		{
-			LogInformation("    {0}", File.File.ToString());
+			LogInformation("    {0} Priority {1}", File.File.ToString(), File.Priority);
 		}
 
 		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
@@ -2806,12 +2832,10 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker));
-			List<OrderFile> SecondaryOrderFiles = null;
-
+			List<OrderFile> FinalOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker));
 			if (bUseSecondaryOrder && OrderFiles.Count >= 1)
 			{
-				SecondaryOrderFiles = OrderFiles.FindAll(x => x.OrderType == OrderFile.OrderFileType.Cooker);
+				FinalOrderFiles.AddRange(OrderFiles.FindAll(x => x.OrderType == OrderFile.OrderFileType.Cooker));
 			}
 
 			string AdditionalArgs =
@@ -2846,7 +2870,7 @@ public partial class Project : CommandUtils
 
 			AdditionalArgs += " " + Params.AdditionalIoStoreOptions;
 
-			RunIoStore(Params, SC, IoStoreCommandsFileName, PrimaryOrderFiles, SecondaryOrderFiles, AdditionalArgs);
+			RunIoStore(Params, SC, IoStoreCommandsFileName, FinalOrderFiles, AdditionalArgs);
 		}
 
 		// Do any additional processing on the command output
@@ -3006,7 +3030,7 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, List<OrderFile> GameOpenOrderFileLocations, List<OrderFile> CookerOpenOrderFileLocations, string AdditionalArgs)
+	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, List<OrderFile> OrderFiles, string AdditionalArgs)
 	{
 		StagedFileReference GlobalContainerOutputRelativeLocation;
 		GlobalContainerOutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content", "Paks", "global.utoc");
@@ -3057,14 +3081,11 @@ public partial class Project : CommandUtils
 		}
 
 		CommandletParams += String.Format(" -CookedDirectory={0} -Commands={1}", MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
-		if (GameOpenOrderFileLocations != null && GameOpenOrderFileLocations.Count() > 0)
+		if (OrderFiles != null && OrderFiles.Count() > 0)
 		{
-			CommandletParams += String.Format(" -GameOrder={0}", MakePathSafeToUseWithCommandLine(string.Join(",", GameOpenOrderFileLocations.Select(u => u.File.FullName).ToArray())));
-		}
-		if (CookerOpenOrderFileLocations != null && CookerOpenOrderFileLocations.Count() > 0)
-		{
-			CommandletParams += String.Format(" -CookerOrder={0}", MakePathSafeToUseWithCommandLine(string.Join(",", CookerOpenOrderFileLocations.Select(u => u.File.FullName).ToArray())));
-		}
+			CommandletParams += String.Format(" -Order={0}", MakePathSafeToUseWithCommandLine(string.Join(",", OrderFiles.Select(u => u.File.FullName).ToArray())));
+			CommandletParams += String.Format(" -OrderPriority={0}", MakePathSafeToUseWithCommandLine(string.Join(",", OrderFiles.Select(u => u.Priority).ToArray())));
+		} 
 		if (!string.IsNullOrWhiteSpace(AdditionalArgs))
 		{
 			CommandletParams += AdditionalArgs;

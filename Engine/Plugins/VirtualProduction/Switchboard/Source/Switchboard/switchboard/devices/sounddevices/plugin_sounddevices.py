@@ -65,7 +65,7 @@ class DeviceSoundDevices(Device):
             LOGGER.error(e)
 
     def record_start(self, slate, take, description):
-        if self.status == DeviceStatus.DISCONNECTED or not self.is_recording_device:
+        if self.is_disconnected or not self.is_recording_device:
             return
 
         # Set Slate/Take   

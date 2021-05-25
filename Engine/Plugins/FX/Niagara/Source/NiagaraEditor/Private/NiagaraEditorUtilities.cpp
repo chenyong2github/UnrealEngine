@@ -342,6 +342,11 @@ void FNiagaraEditorUtilities::FixUpPastedNodes(UEdGraph* Graph, TSet<UEdGraphNod
 				ExistingNames.Add(ActualPastedFunctionCallName);
 				OldFunctionToNewFunctionNameMap.Add(FunctionCallName, ActualPastedFunctionCallName);
 			}
+			UNiagaraGraph* NiagaraGraph = CastChecked<UNiagaraGraph>(Graph);
+			for (const FNiagaraPropagatedVariable& PropagatedVariable : PastedFunctionCallNode->PropagatedStaticSwitchParameters)
+			{
+				NiagaraGraph->AddParameter(PropagatedVariable.ToVariable(), true);
+			}
 		}
 	}
 
@@ -2758,7 +2763,7 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 
 	for (TObjectIterator<UNiagaraScript> It; It; ++It)
 	{
-		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable())
+		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable() || It->GetOutermost() == GetTransientPackage())
 		{
 			continue;
 		}
@@ -2767,6 +2772,11 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(It->GetLatestSource());
 		if (!Source)
 		{
+			continue;
+		}
+		if (Source->NodeGraph == nullptr)
+		{
+			ensureMsgf(false, TEXT("Encountered null nodegraph on source script: %s (outer: %s)"), *Source->GetName(), *Source->GetOuter()->GetName());
 			continue;
 		}
 		TArray<UNiagaraNode*> NiagaraNodes;

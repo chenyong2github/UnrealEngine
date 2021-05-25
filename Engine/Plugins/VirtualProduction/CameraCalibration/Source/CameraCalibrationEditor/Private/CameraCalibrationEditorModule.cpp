@@ -4,8 +4,10 @@
 #include "CameraCalibrationEditorModule.h"
 
 #include "AssetEditor/CameraCalibrationCommands.h"
+#include "CameraCalibrationEditorLog.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions/AssetTypeActions_LensFile.h"
+#include "CameraCalibrationTypes.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "LensFile.h"
@@ -36,9 +38,6 @@ void FCameraCalibrationEditorModule::StartupModule()
 	// register asset type actions
 	RegisterAssetTypeAction(MakeShared<FAssetTypeActions_LensFile>());
 
-	// register detail panel customization
-	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
 	{
 		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 		TSharedRef<FWorkspaceItem> BrowserGroup = MenuStructure.GetDeveloperToolsMiscCategory()->GetParent()->AddGroup(
@@ -57,9 +56,6 @@ void FCameraCalibrationEditorModule::ShutdownModule()
 		FCameraCalibrationMenuEntry::Unregister();
 
 		FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
-
-		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.UnregisterCustomClassLayout(ULensFile::StaticClass()->GetFName());
 
 		// Unregister AssetTypeActions
 		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");

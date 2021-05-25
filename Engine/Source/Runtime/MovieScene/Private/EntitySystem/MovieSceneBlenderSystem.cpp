@@ -4,9 +4,48 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 
+namespace UE
+{
+namespace MovieScene
+{
 
+static TMap<FMovieSceneBlenderSystemID, TSubclassOf<UMovieSceneBlenderSystem>> GBlenderSystemRegistry;
 
-uint16 UMovieSceneBlenderSystem::AllocateBlendChannel()
+} // namespace MovieScene
+} // namespace UE
+
+TSubclassOf<UMovieSceneBlenderSystem> UMovieSceneBlenderSystem::GetBlenderSystemClass(FMovieSceneBlenderSystemID InSystemID)
+{
+	using namespace UE::MovieScene;
+
+	TSubclassOf<UMovieSceneBlenderSystem>* BlenderClass = GBlenderSystemRegistry.Find(InSystemID);
+	return BlenderClass ? *BlenderClass : TSubclassOf<UMovieSceneBlenderSystem>();
+}
+
+UMovieSceneBlenderSystem::UMovieSceneBlenderSystem(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	using namespace UE::MovieScene;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// You can only ever register blender systems, never unregister them.
+		SystemID = FMovieSceneBlenderSystemID(GBlenderSystemRegistry.Num());
+		GBlenderSystemRegistry.Add(SystemID, GetClass());
+	}
+	else 
+	{
+		SystemID = GetClass()->GetDefaultObject<UMovieSceneBlenderSystem>()->SystemID;
+		checkf(SystemID.IsValid(), TEXT("Blender system wasn't registered correctly on init!"));
+	}
+}
+
+FMovieSceneBlenderSystemID UMovieSceneBlenderSystem::GetBlenderSystemID() const
+{
+	return SystemID;
+}
+
+FMovieSceneBlendChannelID UMovieSceneBlenderSystem::AllocateBlendChannel()
 {
 	int32 NewBlendChannel = AllocatedBlendChannels.FindAndSetFirstZeroBit();
 	if (NewBlendChannel == INDEX_NONE)
@@ -15,13 +54,14 @@ uint16 UMovieSceneBlenderSystem::AllocateBlendChannel()
 	}
 
 	checkf(NewBlendChannel < TNumericLimits<uint16>::Max(), TEXT("Maximum number of active blends reached - this indicates either a leak, or more than 65535 blend channels are genuinely required"));
-	return static_cast<uint16>(NewBlendChannel);
+	return FMovieSceneBlendChannelID { SystemID, static_cast<uint16>(NewBlendChannel) };
 }
 
 
-void UMovieSceneBlenderSystem::ReleaseBlendChannel(uint16 BlendID)
+void UMovieSceneBlenderSystem::ReleaseBlendChannel(FMovieSceneBlendChannelID BlendID)
 {
-	AllocatedBlendChannels[BlendID] = false;
+	ensureMsgf(BlendID.SystemID == SystemID, TEXT("This given blend channel wasn't allocated by this blender system!"));
+	AllocatedBlendChannels[BlendID.ChannelID] = false;
 }
 
 

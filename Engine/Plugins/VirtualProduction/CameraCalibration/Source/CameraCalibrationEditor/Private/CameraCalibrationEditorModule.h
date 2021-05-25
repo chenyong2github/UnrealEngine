@@ -7,9 +7,6 @@
 
 class IAssetTypeActions;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogCameraCalibrationEditor, Log, All);
-
-
 /**
  * Implements the CameraCalibrationEditor module.
  */
