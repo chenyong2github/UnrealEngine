@@ -18,9 +18,6 @@
 
 #if NEEDS_BASEPASS_VERTEX_FOGGING
 	#include "HeightFogCommon.ush"
-#if BASEPASS_ATMOSPHERIC_FOG
-	#include "AtmosphereCommon.ush"
-#endif
 #endif
 
 struct FBasePassVSToPS

@@ -6,7 +6,6 @@
 
 #include "DeferredShadingRenderer.h"
 #include "VelocityRendering.h"
-#include "AtmosphereRendering.h"
 #include "SingleLayerWaterRendering.h"
 #include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
@@ -1796,13 +1795,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			}
 		}
 	}
-	else if (Scene->AtmosphereLights[0] && Scene->HasAtmosphericFog())
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		// Only one atmospheric light at one time.
-		Scene->GetAtmosphericFogSceneInfo()->PrepareSunLightProxy(*Scene->AtmosphereLights[0]);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 	else
 	{
 		Scene->ResetAtmosphereLightsProperties();
@@ -2860,13 +2852,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLightShaftOcclusion);
 		LightShaftOcclusionTexture = RenderLightShaftOcclusion(GraphBuilder, SceneTextures);
-	}
-
-	// Draw atmosphere
-	if (!bHasRayTracedOverlay && ShouldRenderAtmosphere(ViewFamily))
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderAtmosphere);
-		RenderAtmosphere(GraphBuilder, SceneTextures, LightShaftOcclusionTexture);
 	}
 
 	// Draw the sky atmosphere

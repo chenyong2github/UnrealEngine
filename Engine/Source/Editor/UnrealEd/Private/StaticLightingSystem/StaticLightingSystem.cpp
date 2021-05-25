@@ -40,7 +40,6 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/GeneratedMeshAreaLight.h"
 #include "Components/SkyLightComponent.h"
-#include "Atmosphere/AtmosphericFogComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/ModelComponent.h"
 #include "Engine/LightMapTexture2D.h"
@@ -2074,30 +2073,11 @@ void FStaticLightingSystem::GatherScene()
 		}
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bool LegacyAtmosphericFogRegistered = false;
-	for (TObjectIterator<UAtmosphericFogComponent> It; It; ++It)
-	{
-		UAtmosphericFogComponent* AtmosphericFog = *It;
-		if (AtmosphericFog->GetOwner() && World->ContainsActor(AtmosphericFog->GetOwner()) && !AtmosphericFog->IsPendingKill() && ShouldOperateOnLevel(AtmosphericFog->GetOwner()->GetLevel()))
-		{
-			LightmassExporter->SetAtmosphericComponent(AtmosphericFog);
-			LegacyAtmosphericFogRegistered = true;
-			break;	// We only register the first we find
-		}
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	for (TObjectIterator<USkyAtmosphereComponent> It; It; ++It)
 	{
 		USkyAtmosphereComponent* SkyAtmosphere = *It;
 		if (SkyAtmosphere->GetOwner() && World->ContainsActor(SkyAtmosphere->GetOwner()) && !SkyAtmosphere->IsPendingKill() && ShouldOperateOnLevel(SkyAtmosphere->GetOwner()->GetLevel()))
 		{
-			if (LegacyAtmosphericFogRegistered)
-			{
-				FMessageLog("LightingResults").Warning(LOCTEXT("LightmassError_BothAtmosphericFogAndSkyAtmosphereSelected", "Both a legacy AtmosphericFog and a new SkyAtmosphere wants to register. Lightmass will not consider the legacy component."));
-			}
-			LightmassExporter->SetAtmosphericComponent(nullptr);
 			LightmassExporter->SetSkyAtmosphereComponent(SkyAtmosphere);
 			break;	// We only register the first we find
 		}

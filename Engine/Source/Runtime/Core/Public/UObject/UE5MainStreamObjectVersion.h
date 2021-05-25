@@ -148,6 +148,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Chaos FGeometryCollectionObject user defined collision shapes support
 		GeometryCollectionUserDefinedCollisionShapes,
 
+		// Removed the AtmosphericFog component with conversion to SkyAtmosphere component
+		RemovedAtmosphericFog,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

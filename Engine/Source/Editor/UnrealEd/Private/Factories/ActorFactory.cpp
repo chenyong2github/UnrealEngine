@@ -15,7 +15,6 @@ ActorFactory.cpp:
 #include "Materials/MaterialInterface.h"
 #include "Model.h"
 #include "ActorFactories/ActorFactoryAmbientSound.h"
-#include "ActorFactories/ActorFactoryAtmosphericFog.h"
 #include "ActorFactories/ActorFactorySkyAtmosphere.h"
 #include "ActorFactories/ActorFactoryVolumetricCloud.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
@@ -1821,18 +1820,6 @@ UActorFactoryPlaneReflectionCapture::UActorFactoryPlaneReflectionCapture(const F
 	NewActorClass = APlaneReflectionCapture::StaticClass();
 	SpawnPositionOffset = FVector(50, 0, 0);
 	bUseSurfaceOrientation = true;
-}
-
-/*-----------------------------------------------------------------------------
-UActorFactoryAtmosphericFog
------------------------------------------------------------------------------*/
-UActorFactoryAtmosphericFog::UActorFactoryAtmosphericFog(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DisplayName = LOCTEXT("AtmosphericFogDisplayName", "Atmospheric Fog");
-	NewActorClass = AAtmosphericFog::StaticClass();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /*-----------------------------------------------------------------------------

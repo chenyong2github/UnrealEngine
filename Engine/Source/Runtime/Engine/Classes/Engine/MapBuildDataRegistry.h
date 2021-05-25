@@ -345,12 +345,12 @@ public:
 	ENGINE_API FReflectionCaptureMapBuildData* GetReflectionCaptureBuildData(FGuid CaptureId);
 
 	/**
-	 * Allocates a new FAtmosphericFogMapBuildData from the registry.
+	 * Allocates a new FSkyAtmosphereMapBuildData from the registry.
 	 * Warning: Further allocations will invalidate the returned reference.
 	 */
 	ENGINE_API FSkyAtmosphereMapBuildData& FindOrAllocateSkyAtmosphereBuildData(const FGuid& Guid);
 	/**
-	 * @returns pointer to the AtmosphericFogBuildData, nullptr if built data has not been built yet.
+	 * @returns pointer to the FSkyAtmosphereMapBuildData, nullptr if built data has not been built yet.
 	 */
 	ENGINE_API const FSkyAtmosphereMapBuildData* GetSkyAtmosphereBuildData(const FGuid& Guid) const;
 	ENGINE_API void ClearSkyAtmosphereBuildData();

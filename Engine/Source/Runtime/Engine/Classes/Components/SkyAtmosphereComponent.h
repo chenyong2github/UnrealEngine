@@ -199,7 +199,8 @@ class USkyAtmosphereComponent : public USceneComponent
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetHeightFogContribution(float NewValue);
 
-
+	// This is used to position the SkyAtmosphere similarly to the deprecated AtmosphericFog component
+	void SetPositionToMatchDeprecatedAtmosphericFog();
 
 protected:
 	//~ Begin UActorComponent Interface.
@@ -251,6 +252,11 @@ private:
 	void UpdateStaticLightingGUIDs();
 
 	void SendRenderTransformCommand();
+
+protected:
+	// When true, this means that this SkyAtmosphere is use as replacement for the deprecated AtmosphericFogComponent as a parent class. 
+	// This is used to adapt the serialisation.
+	bool bIsAtmosphericFog = false;
 };
 
 

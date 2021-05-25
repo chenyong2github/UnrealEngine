@@ -108,15 +108,11 @@ void Main(
 
 // Calculate the fog needed for translucency
 #if NEEDS_BASEPASS_VERTEX_FOGGING
-	#if BASEPASS_ATMOSPHERIC_FOG
-	Output.BasePassInterpolants.VertexFog = CalculateVertexAtmosphericFog(WorldPosition.xyz, ResolvedView.TranslatedWorldCameraOrigin);
-	#else
 	Output.BasePassInterpolants.VertexFog = CalculateHeightFog(WorldPosition.xyz - ResolvedView.TranslatedWorldCameraOrigin);
-	#endif
 
 	const float OneOverPreExposure = ResolvedView.OneOverPreExposure;
 
-#if PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_IS_SKY==0 // Do not apply aerial perpsective on sky materials
+#if PROJECT_SUPPORT_SKY_ATMOSPHERE && BASEPASS_SKYATMOSPHERE_AERIALPERSPECTIVE && MATERIAL_IS_SKY==0 // Do not apply aerial perpsective on sky materials
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
 		// Sample the aerial perspective (AP). It is also blended under the VertexFog parameter.
@@ -134,7 +130,6 @@ void Main(
 #endif
 
 #if MATERIAL_ENABLE_TRANSLUCENCY_CLOUD_FOGGING
-
 	if (TranslucentBasePass.ApplyVolumetricCloudOnTransparent > 0.0f)
 	{
 		Output.BasePassInterpolants.VertexFog = GetCloudLuminanceTransmittanceOverFog(
@@ -143,10 +138,9 @@ void Main(
 			TranslucentBasePass.VolumetricCloudDepth, TranslucentBasePass.VolumetricCloudDepthSampler,
 			OneOverPreExposure, Output.BasePassInterpolants.VertexFog);
 	}
-
 #endif
 
-#endif
+#endif // NEEDS_BASEPASS_VERTEX_FOGGING
 
 #if TRANSLUCENCY_ANY_PERVERTEX_LIGHTING
 	float3 WorldPositionForVertexLightingTranslated = VertexFactoryGetPositionForVertexLighting(Input, VFIntermediates, WorldPosition.xyz);

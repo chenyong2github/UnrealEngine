@@ -5,7 +5,6 @@
 #include "Components/ActorComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/LightComponent.h"
-#include "Atmosphere/AtmosphericFogComponent.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -210,25 +209,6 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 			ComponentNames.Pop();
 		}
 	}
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (const UAtmosphericFogComponent* ComponentAsFogComponent = Cast<const UAtmosphericFogComponent>(Component))
-	{
-		FString DisplayString;
-
-		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::Color))
-		{
-			FStructProperty* FogComponentProp = FVariantManagerUtils::GetDefaultLightColorProperty();
-
-			PropertyPath.AddProperty(FPropertyInfo(FogComponentProp));
-			ComponentNames.Add(FString());
-			DisplayString = PrettyPathString + FString(TEXT("Default Light Color"));
-			CaptureProp(PropertyPath, DisplayString, ComponentNames, FName(TEXT("SetDefaultLightColor")), EPropertyValueCategory::Color);
-			PropertyPath = *PropertyPath.TrimPath(1);
-			ComponentNames.Pop();
-		}
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool IsHiddenFunction(const UStruct* PropertyStructure, const FString& FunctionName)

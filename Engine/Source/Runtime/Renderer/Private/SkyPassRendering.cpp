@@ -73,13 +73,13 @@ bool FSkyPassMeshProcessor::Process(
 			TBasePassPixelShaderPolicyParamType<LightMapPolicyType>> SkyPassShaders;
 
 		const bool bRenderSkylight = false;
-		const bool bRenderAtmosphericFog = false;
+		const bool bPermutationSkyAtmosphereEnabled = false;
 		if (!GetBasePassShaders<LightMapPolicyType>(
 			MaterialResource,
 			VertexFactory->GetType(),
 			NoLightmapPolicy,
 			FeatureLevel,
-			bRenderAtmosphericFog,
+			bPermutationSkyAtmosphereEnabled,
 			bRenderSkylight,
 			false,
 			&SkyPassShaders.VertexShader,
@@ -114,8 +114,6 @@ bool FSkyPassMeshProcessor::Process(
 			TMobileBasePassVSPolicyParamType<LightMapPolicyType>,
 			TMobileBasePassPSPolicyParamType<LightMapPolicyType>> SkyPassShaders;
 
-		const bool bRenderSkylight = false;
-		const bool bRenderAtmosphericFog = false;
 		if (!MobileBasePass::GetShaders(
 			LMP_NO_LIGHTMAP,
 			0,

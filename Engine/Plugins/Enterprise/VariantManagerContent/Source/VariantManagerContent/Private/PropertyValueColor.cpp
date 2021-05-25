@@ -5,7 +5,6 @@
 #include "VariantManagerContentLog.h"
 #include "VariantObjectBinding.h"
 
-#include "Atmosphere/AtmosphericFogComponent.h"
 #include "Components/LightComponent.h"
 #include "CoreMinimal.h"
 #include "HAL/UnrealMemory.h"
@@ -41,21 +40,6 @@ TArray<uint8> UPropertyValueColor::GetDataFromResolvedObject() const
 
 		FLinearColor Col = ContainerObject->GetLightColor();
 		FMemory::Memcpy(CurrentData.GetData(), &Col, PropertySizeBytes);
-	}
-	// Used by UAtmosphericFogComponent
-	else if (PropertySetterName == TEXT("SetDefaultLightColor"))
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UAtmosphericFogComponent* ContainerObject = (UAtmosphericFogComponent*) ParentContainerAddress;
-		if (!ContainerObject || !ContainerObject->IsValidLowLevel())
-		{
-			UE_LOG(LogVariantContent, Error, TEXT("UPropertyValueColor '%s' does not have a UAtmosphericFogComponent as parent address!"), *GetFullDisplayString());
-			return CurrentData;
-		}
-
-		FLinearColor Col = FLinearColor(ContainerObject->DefaultLightColor);
-		FMemory::Memcpy(CurrentData.GetData(), &Col, PropertySizeBytes); 
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return CurrentData;

@@ -67,11 +67,9 @@
 DECLARE_GPU_STAT_NAMED_EXTERN(ShadowProjection, TEXT("Shadow Projection"));
 
 class AWorldSettings;
-class FAtmosphericFogSceneInfo;
 class FMaterialParameterCollectionInstanceResource;
 class FPrecomputedLightVolume;
 class FScene;
-class UAtmosphericFogComponent;
 class UDecalComponent;
 class UExponentialHeightFogComponent;
 class ULightComponent;
@@ -2804,9 +2802,6 @@ public:
 	/** The exponential fog components in the scene. */
 	TArray<FExponentialHeightFogSceneInfo> ExponentialFogs;
 
-	/** The atmospheric fog components in the scene. */
-	FAtmosphericFogSceneInfo* AtmosphericFog;
-
 	/** The sky/atmosphere components of the scene. */
 	FSkyAtmosphereRenderSceneInfo* SkyAtmosphere;
 
@@ -2999,14 +2994,6 @@ public:
 	virtual FRHIUniformBuffer* GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const override;
 	virtual void DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const override;
 	virtual void UpdateParameterCollections(const TArray<FMaterialParameterCollectionInstanceResource*>& InParameterCollections) override;
-
-	/** Determines whether the scene has atmospheric fog and sun light. */
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bool HasAtmosphericFog() const
-	{
-		return (AtmosphericFog != NULL); // Use default value when Sun Light is not existing
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool HasSkyAtmosphere() const
 	{
@@ -3240,12 +3227,6 @@ public:
 	bool IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) const;
 
 protected:
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual void AddAtmosphericFog_Impl(UAtmosphericFogComponent* FogComponent) override;
-	virtual void RemoveAtmosphericFog_Impl(UAtmosphericFogComponent* FogComponent) override;
-	virtual void RemoveAtmosphericFogResource_RenderThread_Impl(FRenderResource* FogResource) override;
-	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo_Impl() override { return AtmosphericFog; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 private:
 
@@ -3302,11 +3283,6 @@ private:
 	void RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo);
 
 	void UpdateLightTransform_RenderThread(FLightSceneInfo* LightSceneInfo, const struct FUpdateLightTransformParameters& Parameters);
-
-	/**
-	 * Deletes the internal AtmosphericFog scene info and operates required operations.
-	 */
-	void DeleteAtmosphericFogSceneInfo();
 
 	/** 
 	* Updates the contents of the given reflection capture by rendering the scene. 

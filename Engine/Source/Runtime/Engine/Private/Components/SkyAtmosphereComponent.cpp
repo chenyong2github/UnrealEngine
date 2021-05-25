@@ -2,7 +2,6 @@
 
 #include "Components/SkyAtmosphereComponent.h"
 
-#include "Atmosphere/AtmosphericFogComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/MapBuildDataRegistry.h"
@@ -14,6 +13,7 @@
 #include "Rendering/SkyAtmosphereCommonData.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
@@ -205,7 +205,6 @@ void USkyAtmosphereComponent::CheckForErrors()
 	{
 		UWorld* ThisWorld = Owner->GetWorld();
 		bool bMultipleFound = false;
-		bool bLegacyAtmosphericFogFound = false;
 
 		if (ThisWorld)
 		{
@@ -224,22 +223,6 @@ void USkyAtmosphereComponent::CheckForErrors()
 					break;
 				}
 			}
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS 
-			for (TObjectIterator<UAtmosphericFogComponent> ComponentIt; ComponentIt; ++ComponentIt)
-			{
-				UAtmosphericFogComponent* Component = *ComponentIt;
-
-				if (!Component->IsPendingKill()
-					&& Component->GetVisibleFlag()
-					&& Component->GetOwner()
-					&& ThisWorld->ContainsActor(Component->GetOwner())
-					&& !Component->GetOwner()->IsPendingKill())
-				{
-					bLegacyAtmosphericFogFound = true;
-					break;
-				}
-			}
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		if (bMultipleFound)
@@ -248,13 +231,6 @@ void USkyAtmosphereComponent::CheckForErrors()
 				->AddToken(FUObjectToken::Create(Owner))
 				->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MultipleSkyAtmosphere", "Multiple sky atmosphere are active, only one can be enabled per world.")))
 				->AddToken(FMapErrorToken::Create(FMapErrors::MultipleSkyAtmospheres));
-		}
-		if (bLegacyAtmosphericFogFound)
-		{
-			FMessageLog("MapCheck").Error()
-				->AddToken(FUObjectToken::Create(Owner))
-				->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MultipleSkyAtmosphereType", "A SkyAtmosphere and a legacy AtmosphericFog components are both active, we recommend to have only one enabled per world.")))
-				->AddToken(FMapErrorToken::Create(FMapErrors::MultipleSkyAtmosphereTypes));
 		}
 	}
 }
@@ -296,7 +272,17 @@ void USkyAtmosphereComponent::PostInterpChange(FProperty* PropertyThatChanged)
 void USkyAtmosphereComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
-	Ar << bStaticLightingBuiltGUID;
+
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	// Only load the lighting GUID if
+	if( (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::RemovedAtmosphericFog && Ar.IsLoading() && bIsAtmosphericFog) //Loading an AtmosphereFog component into a SkyAtmosphere component
+		|| (Ar.IsSaving() && bIsAtmosphericFog)	// Saving an AtmosphereFog component as a SkyAtmosphere component
+		|| !bIsAtmosphericFog) // Saving / Loading a regular SkyAtmosphere
+	{
+		// Only load that for SkyAtmosphere or AtmosphericFog component that have already been converted
+		Ar << bStaticLightingBuiltGUID;
+	}
 }
 
 void USkyAtmosphereComponent::OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection)
@@ -316,6 +302,12 @@ void USkyAtmosphereComponent::GetOverrideLightStatus(bool* OutOverrideAtmospheri
 {
 	memcpy(OutOverrideAtmosphericLight, OverrideAtmosphericLight, sizeof(OverrideAtmosphericLight));
 	memcpy(OutOverrideAtmosphericLightDirection, OverrideAtmosphericLightDirection, sizeof(OverrideAtmosphericLightDirection));
+}
+
+void USkyAtmosphereComponent::SetPositionToMatchDeprecatedAtmosphericFog()
+{
+	TransformMode = ESkyAtmosphereTransformMode::PlanetTopAtComponentTransform;
+	SetWorldLocation(FVector(0.0f, 0.0f, -100000.0f));
 }
 
 #define SKY_DECLARE_BLUEPRINT_SETFUNCTION(MemberType, MemberName) void USkyAtmosphereComponent::Set##MemberName(MemberType NewValue)\

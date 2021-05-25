@@ -12,7 +12,7 @@
  *	A placeable fog actor that simulates atmospheric light scattering  
  *	@see https://docs.unrealengine.com/latest/INT/Engine/Actors/FogEffects/AtmosphericFog/index.html
  */
-UCLASS(showcategories=(Movement, Rendering, Transformation, "Input|MouseInput", "Input|TouchInput"), ClassGroup=Fog, hidecategories=(Info,Object,Input), MinimalAPI)
+UCLASS(showcategories=(Movement, Rendering, Transformation, "Input|MouseInput", "Input|TouchInput"), ClassGroup=Fog, hidecategories=(Info,Object,Input), MinimalAPI, notplaceable)
 class UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.") AAtmosphericFog : public AInfo
 {
 	GENERATED_UCLASS_BODY()
@@ -31,12 +31,12 @@ private:
 public:
 
 #if WITH_EDITOR
-	virtual void PostActorCreated() override;
 	virtual bool SupportsDataLayer() const override { return true; }
 #endif
 
 	/** Returns AtmosphericFogComponent subobject **/
 	ENGINE_API class UAtmosphericFogComponent* GetAtmosphericFogComponent() { return AtmosphericFogComponent; }
+
 #if WITH_EDITORONLY_DATA
 	/** Returns ArrowComponent subobject **/
 	ENGINE_API class UArrowComponent* GetArrowComponent() { return ArrowComponent; }

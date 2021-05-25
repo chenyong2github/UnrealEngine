@@ -28,7 +28,6 @@
 #include "CompositionLighting/CompositionLighting.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "SceneViewExtension.h"
-#include "AtmosphereRendering.h"
 #include "Matinee/MatineeActor.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "PostProcess/PostProcessSubsurface.h"
@@ -1304,10 +1303,8 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.AtmosphereLightDirection[Index] = Index == 0 && Scene && Scene->SimpleDirectionalLight && Scene->SimpleDirectionalLight->Proxy ? -Scene->SimpleDirectionalLight->Proxy->GetDirection() : DefaultSunDirection;
 	};
 
-	bool bShouldRenderAtmosphericFog = false;
 	if (Scene)
 	{
-		bShouldRenderAtmosphericFog = ShouldRenderAtmosphere(*Family) && Scene->AtmosphericFog;
 		if (Scene->SimpleDirectionalLight)
 		{
 			ViewUniformShaderParameters.DirectionalLightColor = Scene->SimpleDirectionalLight->Proxy->GetAtmosphereTransmittanceTowardSun() * Scene->SimpleDirectionalLight->Proxy->GetColor() / PI;
@@ -1322,78 +1319,22 @@ void FViewInfo::SetupUniformBufferParameters(
 		// Atmospheric fog parameters
 		FLightSceneInfo* SunLight = Scene->AtmosphereLights[0];	// Atmospheric fog only takes into account the a single sun light with index 0.
 		const float SunLightDiskHalfApexAngleRadian = SunLight ? SunLight->Proxy->GetSunLightHalfApexAngleRadian() : FLightSceneProxy::GetSunOnEarthHalfApexAngleRadian();
-		if (bShouldRenderAtmosphericFog)
-		{
-			ViewUniformShaderParameters.AtmosphericFogSunPower = Scene->AtmosphericFog->SunMultiplier;
-			ViewUniformShaderParameters.AtmosphericFogPower = Scene->AtmosphericFog->FogMultiplier;
-			ViewUniformShaderParameters.AtmosphericFogDensityScale = Scene->AtmosphericFog->InvDensityMultiplier;
-			ViewUniformShaderParameters.AtmosphericFogDensityOffset = Scene->AtmosphericFog->DensityOffset;
-			ViewUniformShaderParameters.AtmosphericFogGroundOffset = Scene->AtmosphericFog->GroundOffset;
-			ViewUniformShaderParameters.AtmosphericFogDistanceScale = Scene->AtmosphericFog->DistanceScale;
-			ViewUniformShaderParameters.AtmosphericFogAltitudeScale = Scene->AtmosphericFog->AltitudeScale;
-			ViewUniformShaderParameters.AtmosphericFogHeightScaleRayleigh = Scene->AtmosphericFog->RHeight;
-			ViewUniformShaderParameters.AtmosphericFogStartDistance = Scene->AtmosphericFog->StartDistance;
-			ViewUniformShaderParameters.AtmosphericFogDistanceOffset = Scene->AtmosphericFog->DistanceOffset;
-			ViewUniformShaderParameters.AtmosphericFogSunDiscScale = Scene->AtmosphericFog->SunDiscScale;
-			ViewUniformShaderParameters.AtmosphericFogRenderMask = uint32(Scene->AtmosphericFog->RenderFlag & (EAtmosphereRenderFlag::E_DisableGroundScattering | EAtmosphereRenderFlag::E_DisableSunDisk));
-			ViewUniformShaderParameters.AtmosphericFogInscatterAltitudeSampleNum = Scene->AtmosphericFog->InscatterAltitudeSampleNum;
-			ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[0] = FVector4(FMath::Cos(Scene->AtmosphericFog->SunDiscScale * SunLightDiskHalfApexAngleRadian));
-			ViewUniformShaderParameters.AtmosphereLightDiscLuminance[0] = SunLight ? SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::White;
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0] = SunLight ? SunLight->Proxy->GetColor() : Scene->AtmosphericFog->DefaultSunColor; // Sun light color unaffected by atmosphere transmittance
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0].A = 1.0f;
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0] = ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0];
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].A = 0.0f;
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0] = SunLight ? SunLight->Proxy->GetOuterSpaceIlluminance() : FLinearColor::Black;
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0].A = 1.0f;
-			ViewUniformShaderParameters.AtmosphereLightDirection[0] = SunLight ? -SunLight->Proxy->GetDirection() : -Scene->AtmosphericFog->DefaultSunDirection;
-		}
-		else
-		{
-			ViewUniformShaderParameters.AtmosphericFogSunPower = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogPower = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogDensityScale = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogDensityOffset = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogGroundOffset = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogDistanceScale = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogAltitudeScale = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogHeightScaleRayleigh = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogStartDistance = FLT_MAX;
-			ViewUniformShaderParameters.AtmosphericFogDistanceOffset = 0.f;
-			ViewUniformShaderParameters.AtmosphericFogSunDiscScale = 1.f;
-			ViewUniformShaderParameters.AtmosphericFogRenderMask = (uint32)EAtmosphereRenderFlag::E_EnableAll;
-			ViewUniformShaderParameters.AtmosphericFogInscatterAltitudeSampleNum = 0;
-			ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[0] = FVector4(FMath::Cos(SunLightDiskHalfApexAngleRadian));
-			//Added check so atmospheric light color and vector can use a directional light without needing an atmospheric fog actor in the scene
-			ViewUniformShaderParameters.AtmosphereLightDiscLuminance[0] = SunLight ? SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::Black;
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0] = SunLight ? SunLight->Proxy->GetColor() : FLinearColor::Black;
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0].A = 1.0f;
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0] = ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0];
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].A = 0.0f;
-			ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0] = FLinearColor::Black;
-		}
+
+		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[0] = FVector4(FMath::Cos(SunLightDiskHalfApexAngleRadian));
+		//Added check so atmospheric light color and vector can use a directional light without needing an atmospheric fog actor in the scene
+		ViewUniformShaderParameters.AtmosphereLightDiscLuminance[0] = SunLight ? SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::Black;
+		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0] = SunLight ? SunLight->Proxy->GetColor() : FLinearColor::Black;
+		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0].A = 1.0f;
+		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0] = ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGround[0];
+		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].A = 0.0f;
+		ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0].A = 0.0f;
+		ViewUniformShaderParameters.AtmosphereLightDirection[0] = SunLight ? -SunLight->Proxy->GetDirection() : DefaultSunDirection;
 
 		// Do not clear the first AtmosphereLight data, it has been setup above
 		for (uint8 Index = 1; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
 		{
 			ClearAtmosphereLightData(Index);
 		}
-	}
-	else
-	{
-		// Atmospheric fog parameters
-		ViewUniformShaderParameters.AtmosphericFogSunPower = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogPower = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogDensityScale = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogDensityOffset = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogGroundOffset = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogDistanceScale = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogAltitudeScale = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogHeightScaleRayleigh = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogStartDistance = FLT_MAX;
-		ViewUniformShaderParameters.AtmosphericFogDistanceOffset = 0.f;
-		ViewUniformShaderParameters.AtmosphericFogSunDiscScale = 1.f;
-		ViewUniformShaderParameters.AtmosphericFogRenderMask = (uint32)EAtmosphereRenderFlag::E_EnableAll;
-		ViewUniformShaderParameters.AtmosphericFogInscatterAltitudeSampleNum = 0;
 	}
 
 	FRHITexture* TransmittanceLutTextureFound = nullptr;
@@ -1503,9 +1444,9 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4(ForceInitToZero);
 		ViewUniformShaderParameters.SkyViewLutReferential = FMatrix44f::Identity;
 
-		if(!bShouldRenderAtmosphericFog && Scene)
+		if(Scene)
 		{
-			// Fill atmosphere lights shader parameters even without any SkyAtmosphere nor AtmosphericFog component.
+			// Fill atmosphere lights shader parameters even without any SkyAtmosphere component.
 			// This is to always make these parameters usable, for instance by the VolumetricCloud component.
 			for (uint8 Index = 0; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
 			{
@@ -3008,10 +2949,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bShowDFAODisabledWarning = !UseDistanceFieldAO() && (ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO);
 		const bool bShowDFDisabledWarning = !bMeshDistanceFieldEnabled && (ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields || ViewFamily.EngineShowFlags.VisualizeGlobalDistanceField || ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO);
 
-		const bool bShowAtmosphericFogWarning = Scene->AtmosphericFog != nullptr && !ReadOnlyCVARCache.bEnableAtmosphericFog;
-
 		const bool bShowNoSkyAtmosphereComponentWarning = !Scene->HasSkyAtmosphere() && ViewFamily.EngineShowFlags.VisualizeSkyAtmosphere;
-		const bool bShowSkyAtmosphereFogComponentsConflicts = Scene->HasSkyAtmosphere() && Scene->HasAtmosphericFog();
 
 		const bool bStationarySkylight = Scene->SkyLight && Scene->SkyLight->bWantsStaticShadowing;
 		const bool bShowSkylightWarning = bStationarySkylight && !ReadOnlyCVARCache.bEnableStationarySkylight;
@@ -3073,10 +3011,10 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		FFXSystemInterface* FXInterface = Scene->GetFXSystem();
 		const bool bFxDebugDraw = FXInterface && FXInterface->ShouldDebugDraw_RenderThread();
 
-		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowDemotedLocalMemoryWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning
+		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowDemotedLocalMemoryWarning || bShowGlobalClipPlaneWarning || bShowSkylightWarning || bShowPointLightWarning
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
 			|| bMobileShowVertexFogWarning || bMobileMissingSkyMaterial || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
-			|| bShowSkyAtmosphereFogComponentsConflicts || bLumenEnabledButNoSoftwareTracing || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture;
+			|| bLumenEnabledButNoSoftwareTracing || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -3096,9 +3034,9 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 					AddDrawCanvasPass(GraphBuilder, {}, View, Output,
 						[this, &ReadOnlyCVARCache, ViewState, GPUSkinCacheExtraRequiredMemory,
 						bLocked, bShowPrecomputedVisibilityWarning, bShowDemotedLocalMemoryWarning, bShowGlobalClipPlaneWarning, bShowDFAODisabledWarning, bShowDFDisabledWarning,
-						bShowAtmosphericFogWarning, bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
+						bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning, bMobileMissingSkyMaterial, 
-						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bShowSkyAtmosphereFogComponentsConflicts, 
+						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, 
 						bLumenEnabledButNoSoftwareTracing, bNaniteEnabledButNoAtomics, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture]
 						(FCanvas& Canvas)
 					{
@@ -3141,23 +3079,11 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							Y += 14;
 						}
 
-						if (bShowAtmosphericFogWarning)
-						{
-							static const FText Message = NSLOCTEXT("Renderer", "AtmosphericFog", "PROJECT DOES NOT SUPPORT ATMOSPHERIC FOG");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;						
-						}
 						if (bShowNoSkyAtmosphereComponentWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "SkyAtmosphere", "There is no SkyAtmosphere component to visualize.");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;						
-						}
-						if (bShowSkyAtmosphereFogComponentsConflicts)
-						{
-							static const FText Message = NSLOCTEXT("Renderer", "SkyAtmosphere", "You should not use a SkyAtmosphere and an AtmosphericFog component at the same time. SkyAtmosphere will overwrite the visuals of the AtmosphericFog which is now deprecated.");
-							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
-							Y += 14;
 						}
 						if (bShowSkylightWarning)
 						{

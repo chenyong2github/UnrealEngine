@@ -67,7 +67,6 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	TranslucentSortAxis = FVector(0.0f, -1.0f, 0.0f);
 	bSupportStationarySkylight = true;
 	bSupportPointLightWholeSceneShadows = true;
-	bSupportAtmosphericFog = true;
 	bSupportSkyAtmosphere = true;
 	bSupportSkinCacheShaders = false;
 	GPUSimulationTextureSizeX = 1024;
