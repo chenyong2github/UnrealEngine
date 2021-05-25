@@ -29,7 +29,7 @@ namespace CADLibrary
 		: CachePath(InCachePath)
 		, ImportParameters(ImportParams)
 	{
-		CTKIO_InitializeKernel(ImportParameters.MetricUnit, *EnginePluginsPath);
+		CTKIO_InitializeKernel(*EnginePluginsPath);
 	}
 
 	bool FCoreTechFileParser::FindFile(FFileDescription& File)

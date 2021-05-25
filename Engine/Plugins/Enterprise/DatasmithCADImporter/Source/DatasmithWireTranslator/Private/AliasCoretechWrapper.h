@@ -38,9 +38,11 @@ public:
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FAliasCoretechWrapper(const TCHAR* InOwner)
-		: CADLibrary::FCTSession(InOwner, 0.01, 1)
-		// Unit for CoreTech session is set to cm, 0.01, because Wire's unit is cm. Consequently, Scale factor is set to 1.
+		: CADLibrary::FCTSession(InOwner)
 	{
+		// Unit for CoreTech session is set to cm, 0.01, because Wire's unit is cm. Consequently, Scale factor is set to 1.
+		ImportParams.MetricUnit = 0.01;
+		ImportParams.ScaleFactor = 1;
 	}
 
 	bool AddBRep(TArray<AlDagNode*>& DagNodeSet, EAliasObjectReference ObjectReference);

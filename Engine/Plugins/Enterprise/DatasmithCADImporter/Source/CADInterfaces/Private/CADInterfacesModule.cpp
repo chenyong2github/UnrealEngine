@@ -32,8 +32,7 @@ ECADInterfaceAvailability ICADInterfacesModule::GetAvailability()
 {
 	if (FModuleManager::Get().IsModuleLoaded(CADINTERFACES_MODULE_NAME))
 	{
-		double MetricUnit = 0.001;
-		if(CADLibrary::CTKIO_InitializeKernel(MetricUnit))
+		if(CADLibrary::CTKIO_InitializeKernel())
 		{
 			return ECADInterfaceAvailability::Available;
 		}

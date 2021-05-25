@@ -451,12 +451,12 @@ bool FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep, const ON_3dVector& Offset)
 
 
 
-TSharedPtr<FRhinoCoretechWrapper> FRhinoCoretechWrapper::GetSharedSession(double SceneUnit, double ScaleFactor)
+TSharedPtr<FRhinoCoretechWrapper> FRhinoCoretechWrapper::GetSharedSession()
 {
 	TSharedPtr<FRhinoCoretechWrapper> Session = SharedSession.Pin();
 	if (!Session.IsValid())
 	{
-		Session = MakeShared<FRhinoCoretechWrapper>(TEXT("Rh2CTSharedSession"), SceneUnit, ScaleFactor);
+		Session = MakeShared<FRhinoCoretechWrapper>(TEXT("Rh2CTSharedSession"));
 		SharedSession = Session;
 	}
 	return Session;

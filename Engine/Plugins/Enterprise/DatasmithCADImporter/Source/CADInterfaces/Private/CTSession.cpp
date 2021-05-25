@@ -25,6 +25,12 @@ namespace CADLibrary
 		return CADLibrary::CTKIO_Repair(MainObjectId, ImportParams.StitchingTechnique, SewingToleranceFactor);
 	}
 
+	void FCTSession::SetSceneUnit(double InMetricUnit)
+	{
+		ImportParams.MetricUnit = InMetricUnit;
+		CTKIO_ChangeUnit(InMetricUnit);
+	}
+
 	void FCTSession::SetImportParameters(float ChordTolerance, float MaxEdgeLength, float NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap)
 	{
 		ImportParams.ChordTolerance = ChordTolerance;
