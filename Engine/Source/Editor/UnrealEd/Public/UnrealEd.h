@@ -21,7 +21,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 // @todo Classes.h
 #include "ActorFactories/ActorFactory.h"
 #include "ActorFactories/ActorFactoryAmbientSound.h"
-#include "ActorFactories/ActorFactoryAtmosphericFog.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
 #include "ActorFactories/ActorFactoryBoxReflectionCapture.h"
 #include "ActorFactories/ActorFactoryBoxVolume.h"
