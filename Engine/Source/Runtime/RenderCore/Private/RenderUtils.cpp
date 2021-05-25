@@ -16,29 +16,6 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #endif
 
-FTextureWithRDG::FTextureWithRDG() = default;
-FTextureWithRDG::FTextureWithRDG(const FTextureWithRDG& Other) = default;
-FTextureWithRDG& FTextureWithRDG::operator=(const FTextureWithRDG & Other) = default;
-FTextureWithRDG::~FTextureWithRDG() = default;
-
-FRDGTexture* FTextureWithRDG::GetRDG(FRDGBuilder& GraphBuilder) const
-{
-	checkf(RenderTarget, TEXT("InitRDG was not called before use."));
-	return GraphBuilder.RegisterExternalTexture(RenderTarget, ERenderTargetTexture::ShaderResource, ERDGTextureFlags::ReadOnly);
-}
-
-void FTextureWithRDG::ReleaseRHI()
-{
-	RenderTarget = nullptr;
-	FTexture::ReleaseRHI();
-}
-
-void FTextureWithRDG::InitRDG(const TCHAR* Name)
-{
-	check(TextureRHI);
-	RenderTarget = CreateRenderTarget(TextureRHI, Name);
-}
-
 FBufferWithRDG::FBufferWithRDG() = default;
 FBufferWithRDG::FBufferWithRDG(const FBufferWithRDG & Other) = default;
 FBufferWithRDG& FBufferWithRDG::operator=(const FBufferWithRDG & Other) = default;
@@ -151,7 +128,7 @@ private:
 /**
  * A solid-colored 1x1 texture.
  */
-template <int32 R, int32 G, int32 B, int32 A, bool bWithUAV = false>
+template <int32 R, int32 G, int32 B, int32 A>
 class FColoredTexture : public FTextureWithSRV
 {
 public:
@@ -162,10 +139,6 @@ public:
 		FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(FColor(R, G, B, A));
 		FRHIResourceCreateInfo CreateInfo(TEXT("ColoredTexture"), &BlackTextureBulkData);
 		ETextureCreateFlags CreateFlags = TexCreate_ShaderResource;
-		if(bWithUAV)
-		{
-			CreateFlags |= TexCreate_UAV;
-		}
 		// BGRA typed UAV is unsupported per D3D spec, use RGBA here.
 		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_R8G8B8A8, 1, 1, CreateFlags, CreateInfo);
 		TextureRHI = Texture2D;
@@ -176,10 +149,6 @@ public:
 
 		// Create a view of the texture
 		ShaderResourceViewRHI = RHICreateShaderResourceView(TextureRHI, 0u);
-		if(bWithUAV)
-		{
-			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(TextureRHI, 0u);
-		}
 	}
 
 	/** Returns the width of the texture in pixels. */
@@ -232,7 +201,6 @@ FTextureWithSRV* GTransparentBlackTextureWithSRV = new TGlobalResource<FColoredT
 FTexture* GWhiteTexture = GWhiteTextureWithSRV;
 FTexture* GBlackTexture = GBlackTextureWithSRV;
 FTexture* GTransparentBlackTexture = GTransparentBlackTextureWithSRV;
-FTextureWithSRV* GBlackTextureWithUAV = new TGlobalResource<FColoredTexture<0,0,0,0,true> >;
 
 FVertexBufferWithSRV* GEmptyVertexBufferWithUAV = new TGlobalResource<FEmptyVertexBuffer>;
 
@@ -286,7 +254,7 @@ FBufferWithRDG* GWhiteVertexBufferWithRDG = new TGlobalResource<FWhiteVertexBuff
  * A class representing a 1x1x1 black volume texture.
  */
 template <EPixelFormat PixelFormat, uint8 Alpha>
-class FBlackVolumeTexture : public FTextureWithRDG
+class FBlackVolumeTexture : public FTexture
 {
 public:
 	
@@ -317,8 +285,6 @@ public:
 		// Create the sampler state.
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point, AM_Wrap, AM_Wrap, AM_Wrap);
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
-
-		FTextureWithRDG::InitRDG(Name);
 	}
 
 	/**
@@ -339,11 +305,11 @@ public:
 };
 
 /** Global black volume texture resource. */
-FTextureWithRDG* GBlackVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 0>>();
-FTextureWithRDG* GBlackAlpha1VolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 255>>();
+FTexture* GBlackVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 0>>();
+FTexture* GBlackAlpha1VolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 255>>();
 
 /** Global black volume texture resource. */
-FTextureWithRDG* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R8G8B8A8_UINT, 0>>();
+FTexture* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R8G8B8A8_UINT, 0>>();
 
 class FBlackArrayTexture : public FTexture
 {
@@ -468,7 +434,7 @@ RENDERCORE_API int32 GMipColorTextureMipLevels = FMipColorTexture::NumMips;
 RENDERCORE_API const uint32 GDiffuseConvolveMipLevel = 4;
 
 /** A solid color cube texture. */
-class FSolidColorTextureCube : public FTextureWithRDG
+class FSolidColorTextureCube : public FTexture
 {
 public:
 	FSolidColorTextureCube(const FColor& InColor)
@@ -512,8 +478,6 @@ public:
 		// Create the sampler state RHI resource.
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point, AM_Wrap, AM_Wrap, AM_Wrap);
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
-
-		FTextureWithRDG::InitRDG(Name);
 	}
 
 	/** Returns the width of the texture in pixels. */
@@ -540,7 +504,7 @@ class FWhiteTextureCube : public FSolidColorTextureCube
 public:
 	FWhiteTextureCube() : FSolidColorTextureCube(FColor::White) {}
 };
-FTextureWithRDG* GWhiteTextureCube = new TGlobalResource<FWhiteTextureCube>;
+FTexture* GWhiteTextureCube = new TGlobalResource<FWhiteTextureCube>;
 
 /** A black cube texture. */
 class FBlackTextureCube : public FSolidColorTextureCube
@@ -548,7 +512,7 @@ class FBlackTextureCube : public FSolidColorTextureCube
 public:
 	FBlackTextureCube() : FSolidColorTextureCube(FColor::Black) {}
 };
-FTextureWithRDG* GBlackTextureCube = new TGlobalResource<FBlackTextureCube>;
+FTexture* GBlackTextureCube = new TGlobalResource<FBlackTextureCube>;
 
 /** A black cube texture. */
 class FBlackTextureDepthCube : public FSolidColorTextureCube
@@ -556,9 +520,9 @@ class FBlackTextureDepthCube : public FSolidColorTextureCube
 public:
 	FBlackTextureDepthCube() : FSolidColorTextureCube(PF_ShadowDepth) {}
 };
-FTextureWithRDG* GBlackTextureDepthCube = new TGlobalResource<FBlackTextureDepthCube>;
+FTexture* GBlackTextureDepthCube = new TGlobalResource<FBlackTextureDepthCube>;
 
-class FBlackCubeArrayTexture : public FTextureWithRDG
+class FBlackCubeArrayTexture : public FTexture
 {
 public:
 	// FResource interface.
@@ -585,8 +549,6 @@ public:
 			// Create the sampler state RHI resource.
 			FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point,AM_Wrap,AM_Wrap,AM_Wrap);
 			SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
-
-			FTextureWithRDG::InitRDG(Name);
 		}
 	}
 
@@ -602,7 +564,7 @@ public:
 		return 1;
 	}
 };
-FTextureWithRDG* GBlackCubeArrayTexture = new TGlobalResource<FBlackCubeArrayTexture>;
+FTexture* GBlackCubeArrayTexture = new TGlobalResource<FBlackCubeArrayTexture>;
 
 /**
  * A UINT 1x1 texture.

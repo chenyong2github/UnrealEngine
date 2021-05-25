@@ -34,7 +34,7 @@ const FProjectedShadowInfo* GetFirstWholeSceneShadowMap(const FVisibleLightInfo&
 static auto SetVolumeShadowingDefaultShaderParametersGlobal = [](FRDGBuilder& GraphBuilder, auto& ShaderParams)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-	FRDGTextureRef BlackDepthCubeTexture = GBlackTextureDepthCube->GetRDG(GraphBuilder);
+	FRDGTextureRef BlackDepthCubeTexture = SystemTextures.BlackDepthCube;
 
 	ShaderParams.WorldToShadowMatrix = FMatrix::Identity;
 	ShaderParams.ShadowmapMinMax = FVector4(1.0f);
@@ -153,8 +153,8 @@ static auto GetVolumeShadowingShaderParametersGlobal = [](
 	// See FOnePassPointShadowProjectionShaderParameters from ShadowRendering.h
 	//
 	FRDGTexture* ShadowDepthTextureValue = ShadowInfo
-		? GraphBuilder.RegisterExternalTexture(ShadowInfo->RenderTargets.DepthTarget)
-		: GBlackTextureDepthCube->GetRDG(GraphBuilder);
+		? GraphBuilder.RegisterExternalTexture(ShadowInfo->RenderTargets.DepthTarget) 
+		: SystemTextures.BlackDepthCube;
 
 	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTexture = ShadowDepthTextureValue;
 	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTexture2 = ShadowDepthTextureValue;
