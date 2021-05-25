@@ -6,5 +6,5 @@
 URemoteExecutionSettings::URemoteExecutionSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	PreferredRemoteExecutor = TEXT("Horde");
+	PreferredRemoteExecutor = TEXT("Bazel");
 }

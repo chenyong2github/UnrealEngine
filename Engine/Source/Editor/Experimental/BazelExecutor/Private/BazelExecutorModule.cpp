@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BazelExecutorModule.h"
-#include "ISettingsModule.h"
-#include "BazelExecutorSettings.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
+#include "ISettingsModule.h"
+#include "BazelExecutorSettings.h"
 #include "Messages.h"
 
 IMPLEMENT_MODULE(FBazelExecutorModule, EditorConfig);
@@ -13,38 +14,99 @@ IMPLEMENT_MODULE(FBazelExecutorModule, EditorConfig);
 
 DEFINE_LOG_CATEGORY(LogBazelExecutor);
 
+static FName RemoteExecutionFeatureName(TEXT("RemoteExecution"));
+
 
 void FBazelExecutorModule::StartupModule()
 {
 	GetMutableDefault<UBazelExecutorSettings>()->LoadConfig();
 
-	const FString Target = GetDefault<UBazelExecutorSettings>()->Target;
-	const FString PemCertificateChain = GetDefault<UBazelExecutorSettings>()->PemCertificateChain;
-	const FString PemPrivateKey = GetDefault<UBazelExecutorSettings>()->PemPrivateKey;
-	const FString PemRootCertificates = GetDefault<UBazelExecutorSettings>()->PemRootCertificates;
+	const UBazelExecutorSettings* BazelExecutorSettings = GetDefault<UBazelExecutorSettings>();
 
-	FBazelExecutor::FSslCredentialsOptions SslCredentialsOptions;
-	if (!PemCertificateChain.IsEmpty() && FPaths::FileExists(PemCertificateChain))
+	FBazelExecutor::FSettings Settings;
+	Settings.ContentAddressableStorageTarget = BazelExecutorSettings->ContentAddressableStorageTarget;
+	Settings.ExecutionTarget = BazelExecutorSettings->ExecutionTarget;
+	Settings.ContentAddressableStorageHeaders = BazelExecutorSettings->ContentAddressableStorageHeaders;
+	Settings.ExecutionHeaders = BazelExecutorSettings->ExecutionHeaders;
+	Settings.MaxSendMessageSize = BazelExecutorSettings->MaxSendMessageSize;
+	Settings.MaxReceiveMessageSize = BazelExecutorSettings->MaxReceiveMessageSize;
+
+	if (!BazelExecutorSettings->ContentAddressableStoragePemCertificateChain.IsEmpty())
 	{
-		FFileHelper::LoadFileToString(SslCredentialsOptions.PemCertChain, *PemCertificateChain);
+		if (FPaths::FileExists(BazelExecutorSettings->ContentAddressableStoragePemCertificateChain))
+		{
+			FFileHelper::LoadFileToString(Settings.ContentAddressableStoragePemCertificateChain, *BazelExecutorSettings->ContentAddressableStoragePemCertificateChain);
+		}
+		else
+		{
+			Settings.ContentAddressableStoragePemCertificateChain = BazelExecutorSettings->ContentAddressableStoragePemCertificateChain;
+		}
 	}
-	if (!PemPrivateKey.IsEmpty() && FPaths::FileExists(PemPrivateKey))
+	if (!BazelExecutorSettings->ContentAddressableStoragePemPrivateKey.IsEmpty())
 	{
-		FFileHelper::LoadFileToString(SslCredentialsOptions.PemPrivateKey, *PemPrivateKey);
+		if (FPaths::FileExists(BazelExecutorSettings->ContentAddressableStoragePemPrivateKey))
+		{
+			FFileHelper::LoadFileToString(Settings.ContentAddressableStoragePemPrivateKey, *BazelExecutorSettings->ContentAddressableStoragePemPrivateKey);
+		}
+		else
+		{
+			Settings.ContentAddressableStoragePemPrivateKey = BazelExecutorSettings->ContentAddressableStoragePemPrivateKey;
+		}
 	}
-	if (!PemRootCertificates.IsEmpty() && FPaths::FileExists(PemRootCertificates))
+	if (!BazelExecutorSettings->ContentAddressableStoragePemRootCertificates.IsEmpty())
 	{
-		FFileHelper::LoadFileToString(SslCredentialsOptions.PemRootCerts, *PemRootCertificates);
+		if (FPaths::FileExists(BazelExecutorSettings->ContentAddressableStoragePemRootCertificates))
+		{
+			FFileHelper::LoadFileToString(Settings.ContentAddressableStoragePemRootCertificates, *BazelExecutorSettings->ContentAddressableStoragePemRootCertificates);
+		}
+		else
+		{
+			Settings.ContentAddressableStoragePemRootCertificates = BazelExecutorSettings->ContentAddressableStoragePemRootCertificates;
+		}
 	}
 
-	BazelExecution.Initialize(Target, SslCredentialsOptions);
+	if (!BazelExecutorSettings->ExecutionPemCertificateChain.IsEmpty())
+	{
+		if (FPaths::FileExists(BazelExecutorSettings->ExecutionPemCertificateChain))
+		{
+			FFileHelper::LoadFileToString(Settings.ExecutionPemCertificateChain, *BazelExecutorSettings->ExecutionPemCertificateChain);
+		}
+		else
+		{
+			Settings.ExecutionPemCertificateChain = BazelExecutorSettings->ExecutionPemCertificateChain;
+		}
+	}
+	if (!BazelExecutorSettings->ExecutionPemPrivateKey.IsEmpty())
+	{
+		if (FPaths::FileExists(BazelExecutorSettings->ExecutionPemPrivateKey))
+		{
+			FFileHelper::LoadFileToString(Settings.ExecutionPemPrivateKey, *BazelExecutorSettings->ExecutionPemPrivateKey);
+		}
+		else
+		{
+			Settings.ExecutionPemPrivateKey = BazelExecutorSettings->ExecutionPemPrivateKey;
+		}
+	}
+	if (!BazelExecutorSettings->ExecutionPemRootCertificates.IsEmpty())
+	{
+		if (FPaths::FileExists(BazelExecutorSettings->ExecutionPemRootCertificates))
+		{
+			FFileHelper::LoadFileToString(Settings.ExecutionPemRootCertificates, *BazelExecutorSettings->ExecutionPemRootCertificates);
+		}
+		else
+		{
+			Settings.ExecutionPemRootCertificates = BazelExecutorSettings->ExecutionPemRootCertificates;
+		}
+	}
 
-	IModularFeatures::Get().RegisterModularFeature(TEXT("RemoteExecution"), &BazelExecution);
+	BazelExecution.Initialize(Settings);
+
+	IModularFeatures::Get().RegisterModularFeature(RemoteExecutionFeatureName, &BazelExecution);
 }
 
 void FBazelExecutorModule::ShutdownModule()
 {
-	IModularFeatures::Get().UnregisterModularFeature(TEXT("RemoteExecution"), &BazelExecution);
+	IModularFeatures::Get().UnregisterModularFeature(RemoteExecutionFeatureName, &BazelExecution);
 }
 
 bool FBazelExecutorModule::SupportsDynamicReloading()

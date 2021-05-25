@@ -149,7 +149,7 @@ public:
 	static void FromProto(const build::bazel::remote::execution::v2::BatchReadBlobsResponse& In, FBatchReadBlobsResponse& Out);
 	static void FromProto(const build::bazel::remote::execution::v2::ExecuteResponse& In, FExecuteResponse& Out);
 
-	static bool ToDigest(const TArray<char>& Data, FDigest& OutDigest);
+	static bool ToDigest(const TArray<char>& InData, FDigest& OutDigest);
 
 	static bool ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest);
 	static bool ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest);

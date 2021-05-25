@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
 
 #include "BazelExecutor.h"
