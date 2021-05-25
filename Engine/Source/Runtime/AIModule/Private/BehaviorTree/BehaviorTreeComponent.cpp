@@ -71,6 +71,7 @@ UBehaviorTreeComponent::UBehaviorTreeComponent(const FObjectInitializer& ObjectI
 	bWantsInitializeComponent = true; 
 	bIsRunning = false;
 	bIsPaused = false;
+	bBranchDeactivationSuspended = false;
 
 	// Adding hook for bespoke framepro BT timings for BR
 #if !UE_BUILD_SHIPPING
@@ -303,11 +304,14 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 			FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
 
 			// notify active aux nodes
-			InstanceInfo.ExecuteOnEachAuxNode([&InstanceInfo, this](const UBTAuxiliaryNode& AuxNode)
+			{
+				FBTSuspendBranchDeactivationScoped ScopedSuspend(*this);
+				InstanceInfo.ExecuteOnEachAuxNode([&InstanceInfo, this](const UBTAuxiliaryNode& AuxNode)
 				{
 					uint8* NodeMemory = AuxNode.GetNodeMemory<uint8>(InstanceInfo);
 					AuxNode.WrappedOnCeaseRelevant(*this, NodeMemory);
 				});
+			}
 			InstanceInfo.ResetActiveAuxNodes();
 
 			// notify active parallel tasks
@@ -696,14 +700,88 @@ EBTTaskStatus::Type UBehaviorTreeComponent::GetTaskStatus(const UBTTaskNode* Tas
 
 void UBehaviorTreeComponent::RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node)
 {
-	const int32 InstanceIdx = FindInstanceContainingNode(Node);
-	if (InstanceIdx != INDEX_NONE)
+	if (!Node)
 	{
-		PendingUnregisterAuxNodesRequests.Ranges.Emplace(
-			FBTNodeIndex(InstanceIdx, Node->GetExecutionIndex()),
-			FBTNodeIndex(InstanceIdx, Node->GetLastExecutionIndex()));
+		return;
+	}
 
-		ScheduleNextTick(0.0f);
+	if (bBranchDeactivationSuspended)
+	{
+		PendingBranchesToDeactivate.Add(Node);
+		return;
+	}
+
+	UnregisterAuxNodesInBranch(Node, true/*bApplyImmediately*/);
+}
+
+void UBehaviorTreeComponent::DeactivateBranch(const UBTDecorator& RequestedBy)
+{
+	if (IsExecutingBranch(&RequestedBy, RequestedBy.GetChildIndex()))
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, Branch deactivation resulted in new execution request"), *UBehaviorTreeTypes::DescribeNodeHelper(&RequestedBy));
+		RequestExecution(&RequestedBy);
+	}
+	else if (ensureMsgf(RequestedBy.GetParentNode() && RequestedBy.GetParentNode()->Children.IsValidIndex(RequestedBy.GetChildIndex()), 
+				TEXT("The decorator %s does not have a parent or is not a valid child."), *UBehaviorTreeTypes::DescribeNodeHelper(&RequestedBy)))
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, Branch deactivation resulted in aux nodes unregistration"), *UBehaviorTreeTypes::DescribeNodeHelper(&RequestedBy));
+		if (const UBTCompositeNode* BranchRoot = RequestedBy.GetParentNode()->Children[RequestedBy.GetChildIndex()].ChildComposite)
+		{
+			UnregisterAuxNodesInBranch(BranchRoot, true/*bApplyImmediately*/);
+		}
+	}
+	else
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Error, TEXT("The decorator %s does not have a parent or is not a valid child."), *UBehaviorTreeTypes::DescribeNodeHelper(&RequestedBy));
+	}
+}
+
+void UBehaviorTreeComponent::RequestBranchDeactivation(const UBTDecorator& RequestedBy)
+{
+	if (bBranchDeactivationSuspended)
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, Branch deactivation queued up"), *UBehaviorTreeTypes::DescribeNodeHelper(&RequestedBy));
+		PendingBranchesToDeactivate.Add(&RequestedBy);
+		return;
+	}
+
+	DeactivateBranch(RequestedBy);
+}
+
+void UBehaviorTreeComponent::SuspendBranchDeactivation()
+{
+	UE_VLOG(GetOwner(), LogBehaviorTree, VeryVerbose, TEXT("Suspending branch deactivation."));
+	checkf(!bBranchDeactivationSuspended, TEXT("This logic does not support re-entrance"));
+	bBranchDeactivationSuspended = true;
+}
+
+void UBehaviorTreeComponent::ResumeBranchDeactivation()
+{
+	UE_VLOG(GetOwner(), LogBehaviorTree, VeryVerbose, TEXT("Resuming branch deactivation."));
+	checkf(bBranchDeactivationSuspended, TEXT("Expecting SuspendBranchDeactivation() be called before calling resume"));
+	bBranchDeactivationSuspended = false;
+
+	// Flushing any pending branch deactivations
+	while (PendingBranchesToDeactivate.Num() > 0)
+	{
+		TArray<const UBTNode*> PendingBranchesToDeactivateToProcess(MoveTemp(PendingBranchesToDeactivate));
+		PendingBranchesToDeactivate.Reset();
+		for (const UBTNode* Node : PendingBranchesToDeactivateToProcess)
+		{
+			if (const UBTDecorator* RequestedDecorator = Cast<UBTDecorator>(Node))
+			{
+				DeactivateBranch(*RequestedDecorator);
+			}
+			//////////////////////////////////////////////////////////////////////
+			// An attempt at backward compatibility 
+			// If anybody is still using deprecated method RequestUnregisterAuxNodesInBranch
+			else if (const UBTCompositeNode* BranchRoot = Cast<UBTCompositeNode>(Node))
+			{
+				UnregisterAuxNodesInBranch(BranchRoot, true/*bApplyImmediately*/);
+			}
+			//
+			//////////////////////////////////////////////////////////////////////
+		}
 	}
 }
 
@@ -905,14 +983,48 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 	ExecutionIdx.ExecutionIndex = RequestedBy->GetExecutionIndex();
 	uint16 LastExecutionIndex = MAX_uint16;
 
-	// make sure that the request is not coming from a node that has pending unregistration since it won't be accessible anymore
-	for (const FBTNodeIndexRange& Range : PendingUnregisterAuxNodesRequests.Ranges)
+	// make sure that the request is not coming from a node that has pending branch deactivation since it won't be accessible anymore
+	if (bBranchDeactivationSuspended)
 	{
-		if (Range.Contains(ExecutionIdx))
+		for (const UBTNode* Node : PendingBranchesToDeactivate)
 		{
-			UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: request by %s that is in pending unregister aux nodes range %s"), *ExecutionIdx.Describe(), *Range.Describe());
-			return;
+			const UBTCompositeNode* BranchRoot = nullptr;
+			if (const UBTDecorator* Decorator = Cast<UBTDecorator>(Node))
+			{
+				// This check was already in previous version, it will ensure and output a vlog later in the DeactivateBranch, no need to do anything now.
+				if (Decorator->GetParentNode() && Decorator->GetParentNode()->Children.IsValidIndex(Decorator->GetChildIndex()))
+				{
+					BranchRoot = Decorator->GetParentNode()->Children[Decorator->GetChildIndex()].ChildComposite;
+				}
+			}
+			//////////////////////////////////////////////////////////////////////
+			// An attempt at backward compatibility 
+			// If anybody is still using deprecated method RequestUnregisterAuxNodesInBranch
+			else if (const UBTCompositeNode* CompNode = Cast<UBTCompositeNode>(Node))
+			{
+				BranchRoot = CompNode;
+			}
+			//
+			//////////////////////////////////////////////////////////////////////
+
+			if (BranchRoot)
+			{
+				const int32 BranchRootInstanceIdx = FindInstanceContainingNode(BranchRoot);
+				if (BranchRootInstanceIdx != INDEX_NONE)
+				{
+					FBTNodeIndexRange Range( FBTNodeIndex(BranchRootInstanceIdx, BranchRoot->GetExecutionIndex()), FBTNodeIndex(BranchRootInstanceIdx, BranchRoot->GetLastExecutionIndex()));
+					if (Range.Contains(ExecutionIdx))
+					{
+						UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: request by %s(%s) is in deactivated branch %s(%s) and was deactivated by %s"), *UBehaviorTreeTypes::DescribeNodeHelper(RequestedBy), *ExecutionIdx.Describe(), *UBehaviorTreeTypes::DescribeNodeHelper(BranchRoot), *Range.Describe(), *UBehaviorTreeTypes::DescribeNodeHelper(Node));
+						return;
+					}
+				}
+			}
 		}
+	}
+	else
+	{
+		checkf(PendingBranchesToDeactivate.Num() == 0, TEXT("All pending branches should have been flushed before requesting an execution"));
 	}
 
 	if (bSwitchToHigherPriority && RequestedByChildIndex >= 0)
@@ -1345,21 +1457,23 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	check(this != nullptr && this->IsPendingKill() == false);
 	float NextNeededDeltaTime = FLT_MAX;
 
-	// process all auxiliary nodes unregister requests
-	bDoneSomething |= ProcessPendingUnregister();
+	checkf(PendingBranchesToDeactivate.Num() == 0, TEXT("Pending branches should always be flushed immediately with the new system"))
 
 	// tick active auxiliary nodes (in execution order, before task)
 	// do it before processing execution request to give BP driven logic chance to accumulate execution requests
 	// newly added aux nodes are ticked as part of SearchData application
-	for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
 	{
-		FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
-		InstanceInfo.ExecuteOnEachAuxNode([&InstanceInfo, this, &bDoneSomething, DeltaTime, &NextNeededDeltaTime](const UBTAuxiliaryNode& AuxNode)
-			{
-				uint8* NodeMemory = AuxNode.GetNodeMemory<uint8>(InstanceInfo);
-				SCOPE_CYCLE_UOBJECT(AuxNode, &AuxNode);
-				bDoneSomething |= AuxNode.WrappedTickNode(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
-			});
+		FBTSuspendBranchDeactivationScoped ScopedSuspend(*this);
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
+		{
+			FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
+			InstanceInfo.ExecuteOnEachAuxNode([&InstanceInfo, this, &bDoneSomething, DeltaTime, &NextNeededDeltaTime](const UBTAuxiliaryNode& AuxNode)
+				{
+					uint8* NodeMemory = AuxNode.GetNodeMemory<uint8>(InstanceInfo);
+					SCOPE_CYCLE_UOBJECT(AuxNode, &AuxNode);
+					bDoneSomething |= AuxNode.WrappedTickNode(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
+				});
+		}
 	}
 
 	bool bActiveAuxiliaryNodeDTDirty = false;
@@ -1802,6 +1916,9 @@ void UBehaviorTreeComponent::ProcessPendingExecution()
 	const FBTNodeIndex NextTaskIdx = SavedInfo.NextTask ? FBTNodeIndex(ActiveInstanceIdx, SavedInfo.NextTask->GetExecutionIndex()) : FBTNodeIndex(0, 0);
 	UnregisterAuxNodesUpTo(NextTaskIdx);
 
+	// Suspending any branch deactivation as it is impossible for decorators to have the right answer if they are in an executing branch or not.
+	SuspendBranchDeactivation();
+
 	// change aux nodes
 	ApplySearchData(SavedInfo.NextTask);
 
@@ -1820,10 +1937,12 @@ void UBehaviorTreeComponent::ProcessPendingExecution()
 	// validate active instance as well, execution can be delayed AND can have AbortCurrentTask call before using instance index
 	if (SavedInfo.NextTask && InstanceStack.IsValidIndex(ActiveInstanceIdx))
 	{
+		// ResumeBranchDeactivation() is done inside ExecuteTask after the active task is set but before we execute the task.
 		ExecuteTask(SavedInfo.NextTask);
 	}
 	else
 	{
+		ResumeBranchDeactivation();
 		OnTreeFinished();
 	}
 }
@@ -1987,32 +2106,11 @@ void UBehaviorTreeComponent::UnregisterAuxNodesInBranch(const UBTCompositeNode* 
 
 		if (bApplyImmediately)
 		{
+			FBTSuspendBranchDeactivationScoped ScopedSuspend(*this);
 			ApplySearchUpdates(SearchData.PendingUpdates, 0);
 			SearchData.PendingUpdates = UpdateListCopy;
 		}
 	}
-}
-
-bool UBehaviorTreeComponent::ProcessPendingUnregister()
-{
-	if (PendingUnregisterAuxNodesRequests.Ranges.Num() == 0)
-	{
-		// no work done
-		return false;
-	}
-
-	TGuardValue<TArray<FBehaviorTreeSearchUpdate>> ScopedList(SearchData.PendingUpdates, {});
-
-	for (const FBTNodeIndexRange& Range : PendingUnregisterAuxNodesRequests.Ranges)
-	{
-		UnregisterAuxNodesInRange(Range.FromIndex, Range.ToIndex);
-	}
-	PendingUnregisterAuxNodesRequests = {};
-
-	ApplySearchUpdates(SearchData.PendingUpdates, 0);
-
-	// has done work
-	return true;
 }
 
 void UBehaviorTreeComponent::ExecuteTask(UBTTaskNode* TaskNode)
@@ -2054,6 +2152,10 @@ void UBehaviorTreeComponent::ExecuteTask(UBTTaskNode* TaskNode)
 
 	ActiveInstance.ActiveNode = TaskNode;
 	ActiveInstance.ActiveNodeType = EBTActiveNode::ActiveTask;
+
+	// Is is now ok to resume any branch deactivation as the new active instance is set.
+	// Before that, decorators evaluating the IsExecutingBranch would be wrong.
+	ResumeBranchDeactivation();
 
 	// make a snapshot for debugger
 	StoreDebuggerExecutionStep(EBTExecutionSnap::Regular);

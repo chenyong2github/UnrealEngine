@@ -102,29 +102,24 @@ void UBTDecorator::ConditionalFlowAbort(UBehaviorTreeComponent& OwnerComp, EBTDe
 	const bool bAbortPending = OwnerComp.IsAbortPending();
 	const bool bAlwaysRequestWhenPassing = (RequestMode == EBTDecoratorAbortRequest::ConditionPassing);
 
-	const bool bLogRestart = (bIsExecutingBranch != bPass) || (bIsExecutingBranch && bPass && (bAlwaysRequestWhenPassing || bAbortPending));
+	const bool bLogRequestExecution = (!bIsExecutingBranch && bPass) || (bIsExecutingBranch && bPass && (bAlwaysRequestWhenPassing || bAbortPending));
 	UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, ConditionalFlowAbort(%s) pass:%d executingBranch:%d abortPending:%d => %s"),
 		*UBehaviorTreeTypes::DescribeNodeHelper(this),
 		bAlwaysRequestWhenPassing ? TEXT("always when passing") : TEXT("on change"),
 		bPass ? 1 : 0,
 		bIsExecutingBranch ? 1 : 0,
 		bAbortPending ? 1 : 0,
-		bLogRestart ? TEXT("restart") : TEXT("skip"));
+		!bPass ? TEXT("request branch deactivation") : (bLogRequestExecution ? TEXT("request execution") : TEXT("skip")));
 
-	if (bIsExecutingBranch != bPass)
+	if (!bPass)
+	{
+		OwnerComp.RequestBranchDeactivation(*this);
+	}
+	else if (!bIsExecutingBranch)
 	{
 		OwnerComp.RequestExecution(this);
 	}
-	else if (!bIsExecutingBranch && !bPass && GetParentNode() && GetParentNode()->Children.IsValidIndex(GetChildIndex()))
-	{
-		// this condition here is to remove all active observers _BELOW_ this node
-		// because if this condition failed we no longer want to react to child-conditions
-		// value changes anyway since their nodes execution will be blocked by this condition 
-		// during tree search
-		const UBTCompositeNode* BranchRoot = GetParentNode()->Children[GetChildIndex()].ChildComposite;
-		OwnerComp.RequestUnregisterAuxNodesInBranch(BranchRoot);
-	}
-	else if (bIsExecutingBranch && bPass && (bAlwaysRequestWhenPassing || bAbortPending))
+	else if (bAlwaysRequestWhenPassing || bAbortPending)
 	{
 		// force result Aborted to restart from this decorator
 		OwnerComp.RequestExecution(GetParentNode(), InstanceIdx, this, GetChildIndex(), EBTNodeResult::Aborted);
