@@ -8,18 +8,25 @@
 class FCbObject;
 struct FGuid;
 
+namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildActionBuilder; }
+namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { class FBuildInputsBuilder; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
+namespace UE::DerivedData { class FOptionalBuildInputs; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuild; }
 namespace UE::DerivedData { class IBuildFunctionRegistry; }
+namespace UE::DerivedData { class IBuildInputResolver; }
+namespace UE::DerivedData { class IBuildJob; }
 namespace UE::DerivedData { class IBuildScheduler; }
 namespace UE::DerivedData { class ICache; }
+namespace UE::DerivedData { struct FBuildKey; }
+namespace UE::DerivedData { template <typename RequestType> class TRequest; }
 
 namespace UE::DerivedData::Private
 {
@@ -50,5 +57,10 @@ FBuildInputsBuilder CreateBuildInputs(FStringView Name);
 FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function);
 FOptionalBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCbObject& Output);
 FOptionalBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCacheRecord& Output);
+
+// Implemented in DerivedDataBuildJob.cpp
+TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, const FBuildKey& Key, IBuildInputResolver* InputResolver);
+TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, const FBuildDefinition& Definition, IBuildInputResolver* InputResolver);
+TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, const FBuildAction& Action, const FOptionalBuildInputs& Inputs);
 
 } // UE::DerivedData::Private
