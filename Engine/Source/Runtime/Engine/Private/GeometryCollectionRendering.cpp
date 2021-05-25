@@ -20,7 +20,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FGeometryCollectionVertexFactory, "/Engine/Private
 	| EVertexFactoryFlags::SupportsDynamicLighting
 	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
 	| EVertexFactoryFlags::SupportsPositionOnly
-	| (GPUCULL_TODO ? EVertexFactoryFlags::SupportsPrimitiveIdStream : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
 
 bool FGeometryCollectionVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)

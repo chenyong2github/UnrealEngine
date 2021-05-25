@@ -118,9 +118,7 @@ public:
 
 	void RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
-#if GPUCULL_TODO
 	virtual IScenePrimitiveRenderingContext* BeginScenePrimitiveRendering(FRDGBuilder& GraphBuilder, FSceneViewFamily* ViewFamily) override;
-#endif
 
 private:
 	TSet<FSceneInterface*> AllocatedScenes;

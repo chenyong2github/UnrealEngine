@@ -223,9 +223,7 @@ class FShadowDepthShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
 	int32 LayerId;
-#if GPUCULL_TODO
 	int32 bUseGpuSceneInstancing;
-#endif // GPUCULL_TODO
 };
 
 /**
@@ -254,9 +252,7 @@ public:
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
 
 		ShaderBindings.Add(LayerId, ShaderElementData.LayerId);
-#if GPUCULL_TODO
 		ShaderBindings.Add(bUseGpuSceneInstancing, ShaderElementData.bUseGpuSceneInstancing);
-#endif // GPUCULL_TODO
 	}
 
 	FShadowDepthVS() = default;
@@ -264,16 +260,12 @@ public:
 		FMeshMaterialShader(Initializer)
 	{
 		LayerId.Bind(Initializer.ParameterMap, TEXT("LayerId"));
-#if GPUCULL_TODO
 		bUseGpuSceneInstancing.Bind(Initializer.ParameterMap, TEXT("bUseGpuSceneInstancing"));
-#endif // GPUCULL_TODO
 	}
 
 private:
 	LAYOUT_FIELD(FShaderParameter, LayerId);
-#if GPUCULL_TODO
 	LAYOUT_FIELD(FShaderParameter, bUseGpuSceneInstancing);
-#endif // GPUCULL_TODO
 };
 
 enum EShadowDepthVertexShaderMode
@@ -345,9 +337,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("USING_VERTEX_SHADER_LAYER"), (uint32)(ShaderMode == VertexShadowDepth_VSLayer));
 		OutEnvironment.SetDefine(TEXT("POSITION_ONLY"), (uint32)bUsePositionOnlyStream);
 		OutEnvironment.SetDefine(TEXT("IS_FOR_GEOMETRY_SHADER"), (uint32)bIsForGeometryShader);
-#if GPUCULL_TODO
 		OutEnvironment.SetDefine(TEXT("ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS"), UseGPUScene(Parameters.Platform) ? 1 : 0);
-#endif // GPUCULL_TODO
 
 		bool bEnableNonNaniteVSM = (ShaderMode == VertexShadowDepth_VirtualShadowMap);
 		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), bEnableNonNaniteVSM ? 1 : 0);
@@ -378,7 +368,6 @@ class FOnePassPointShadowDepthGS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FOnePassPointShadowDepthGS, MeshMaterial);
 public:
 
-#if GPUCULL_TODO
 	void GetShaderBindings(
 		const FScene* Scene,
 		ERHIFeatureLevel::Type FeatureLevel,
@@ -392,7 +381,6 @@ public:
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
 		ShaderBindings.Add(bUseGpuSceneInstancing, ShaderElementData.bUseGpuSceneInstancing);
 	}
-#endif // GPUCULL_TODO
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -404,9 +392,7 @@ public:
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("ONEPASS_POINTLIGHT_SHADOW"), 1);
 		TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-#if GPUCULL_TODO
 		OutEnvironment.SetDefine(TEXT("ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS"), UseGPUScene(Parameters.Platform) ? 1 : 0);
-#endif // GPUCULL_TODO
 	}
 
 	FOnePassPointShadowDepthGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -423,15 +409,11 @@ public:
 		{
 			PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileShadowDepthPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		}
-#if GPUCULL_TODO
 		bUseGpuSceneInstancing.Bind(Initializer.ParameterMap, TEXT("bUseGpuSceneInstancing"));
-#endif // GPUCULL_TODO
 	}
 
 	FOnePassPointShadowDepthGS() {}
-#if GPUCULL_TODO
 	LAYOUT_FIELD(FShaderParameter, bUseGpuSceneInstancing);
-#endif // GPUCULL_TODO
 };
 
 IMPLEMENT_SHADER_TYPE(, FOnePassPointShadowDepthGS, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainOnePassPointLightGS"), SF_Geometry);
@@ -2258,22 +2240,17 @@ bool FShadowDepthPassMeshProcessor::Process(
 
 	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(ShadowDepthPassShaders.VertexShader, ShadowDepthPassShaders.PixelShader);
 
-#if GPUCULL_TODO
 	const bool bUseGeometryShader = GShadowUseGS && RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]);
 
 	const bool bUseGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) 
 		&& VertexFactory->GetPrimitiveIdStreamIndex(bUsePositionOnlyVS ? EVertexInputStreamType::PositionAndNormalOnly : EVertexInputStreamType::Default) != INDEX_NONE;
 
 	const uint32 InstanceFactor = bUseGpuSceneInstancing || !ShadowDepthType.bOnePassPointLightShadow || bUseGeometryShader ? 1 : 6;
-#else //!GPUCULL_TODO
-	const uint32 InstanceFactor = !ShadowDepthType.bOnePassPointLightShadow || (GShadowUseGS && RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel])) ? 1 : 6;
-#endif // GPUCULL_TODO
+
 	for (uint32 i = 0; i < InstanceFactor; i++)
 	{
 		ShaderElementData.LayerId = i;
-#if GPUCULL_TODO
 		ShaderElementData.bUseGpuSceneInstancing = bUseGpuSceneInstancing;
-#endif // GPUCULL_TODO
 
 		BuildMeshDrawCommands(
 			MeshBatch,
@@ -2336,7 +2313,6 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 		OverrideWithDefaultMaterialForShadowDepth(EffectiveMaterialRenderProxy, EffectiveMaterial, FeatureLevel);
 
 		bool bDraw = true;
-#if GPUCULL_TODO
 		if (UseNonNaniteVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel))
 		{
 			// TODO: This uses a lot of indirections and complex logic, optimize by precomputing as far as possible
@@ -2358,7 +2334,6 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 				(!UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) || !bSupportsGpuSceneInstancing) :
 				(UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) && bSupportsGpuSceneInstancing);
 		}
-#endif // GPUCULL_TODO
 		if (bDraw)
 		{
 			bResult = Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
@@ -2417,7 +2392,6 @@ FRegisterPassProcessorCreateFunction RegisterCSMShadowDepthPass(&CreateCSMShadow
 
 FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-#if GPUCULL_TODO
 	// Only create the mesh pass processor if VSMs are not enabled as this prevents wasting time caching the SM draw commands
 	if (UseNonNaniteVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
 	{
@@ -2428,7 +2402,7 @@ FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(const FScene* Scene, const
 			InDrawListContext,
 			EMeshPass::VSMShadowDepth);
 	}
-#endif // GPUCULL_TODO
+
 	return nullptr;
 }
 FRegisterPassProcessorCreateFunction RegisterVSMShadowDepthPass(&CreateVSMShadowDepthPassProcessor, EShadingPath::Deferred, EMeshPass::VSMShadowDepth, EMeshPassFlags::CachedMeshCommands);

@@ -696,7 +696,6 @@ void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVert
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
 	}
 
-#if GPUCULL_TODO
 	if (UseGPUScene(Parameters.Platform))
 	{
 		// USE_INSTANCE_CULLING - set up additional instancing attributes (basic instancing is the default)
@@ -704,11 +703,8 @@ void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVert
 	}
 	else
 	{
-#endif
 		OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
-#if GPUCULL_TODO
 	}
-#endif
 
 	if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 	{
@@ -784,7 +780,6 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
 
-#if GPUCULL_TODO
 	{
 		const uint8 Index = static_cast<uint8>(EVertexInputStreamType::Default);
 		PrimitiveIdStreamIndex[Index] = -1;
@@ -796,7 +791,6 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 			PrimitiveIdStreamIndex[Index] = Elements.Last().StreamIndex;
 		}
 	}
-#endif
 
 	// only tangent,normal are used by the stream. the binormal is derived in the shader
 	uint8 TangentBasisAttributes[2] = { 1, 2 };
@@ -904,7 +898,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FInstancedStaticMeshVertexFactory,"/Engine/Private
 	| EVertexFactoryFlags::SupportsCachingMeshDrawCommands
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
-	| (GPUCULL_TODO ? EVertexFactoryFlags::SupportsPrimitiveIdStream : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
 
 void FInstancedStaticMeshRenderData::InitVertexFactories()
@@ -1241,7 +1235,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	bSupportRayTracing = InComponent->GetStaticMesh()->bSupportRayTracing;
 #endif
 
-#if GPUCULL_TODO
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 	{
 		const TArray<int32>& InstanceReorderTable = InComponent->InstanceReorderTable;
@@ -1283,7 +1276,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			// GPUCULL_TODO: Set up Per-Instance Random and LightMapAndShadowMapUVBias  - fix LocalVertexFactory.ush			
 		}
 	}
-#endif
 }
 
 
@@ -1298,7 +1290,6 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 		InstanceBuffer.FlushGPUUpload();
 	}
 
-#if GPUCULL_TODO
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 	{
 		bSupportsInstanceDataBuffer = true;
@@ -1354,7 +1345,6 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 			}
 		}
 	}
-#endif
 }
 
 
@@ -3568,11 +3558,7 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	UWorld* World = GetWorld();
 	ERHIFeatureLevel::Type FeatureLevel = World != nullptr ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
 
-#if GPUCULL_TODO
 	bool KeepInstanceBufferCPUAccess = UseGPUScene(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel) || GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
-#else
-	bool KeepInstanceBufferCPUAccess = GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
-#endif
 	bool bTrackBounds = IsRayTracingEnabled() && bVisibleInRayTracing;
 
 	FBox LocalBounds;

@@ -529,9 +529,6 @@ public:
 		}
 #endif
 
-	#if !GPUCULL_TODO
-		bVFRequiresPrimitiveUniformBuffer = true;
-	#endif
 		SetupProxy(InComponent);
 	}
 
@@ -608,7 +605,6 @@ public:
 		return true;
 	}
 
-#if GPUCULL_TODO
 	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
 	{
 		return &Instances;
@@ -618,7 +614,6 @@ public:
 	{
 		return &Instances;
 	}
-#endif
 
 protected:
 	/** Cache of the StaticMesh asset, needed to release SpeedTree resources*/
@@ -627,9 +622,7 @@ protected:
 	/** Per component render data */
 	FInstancedStaticMeshRenderData InstancedRenderData;
 
-#if GPUCULL_TODO
 	TArray<FPrimitiveInstance> Instances;
-#endif
 
 #if WITH_EDITOR
 	/* If we we have any selected instances */

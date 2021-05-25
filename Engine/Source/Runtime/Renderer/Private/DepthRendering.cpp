@@ -373,8 +373,6 @@ void AddDitheredStencilFillPass(FRDGBuilder& GraphBuilder, TConstArrayView<FView
 	}
 }
 
-#if GPUCULL_TODO
-
 // GPUCULL_TODO: Move to Utils file and make templated on params and mesh pass processor
 static void AddViewMeshElementsPass(const TIndirectArray<FMeshBatch>& MeshElements, FRDGBuilder& GraphBuilder, FDepthPassParameters* PassParameters, const FScene* Scene, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, bool bRespectUseAsOccluderFlag, EDepthDrawingMode DepthDrawingMode, FInstanceCullingManager& InstanceCullingManager)
 {
@@ -401,7 +399,6 @@ static void AddViewMeshElementsPass(const TIndirectArray<FMeshBatch>& MeshElemen
 	);
 }
 
-#endif // GPUCULL_TODO
 
 static void RenderPrePassEditorPrimitives(
 	FRDGBuilder& GraphBuilder,

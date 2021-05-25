@@ -1261,13 +1261,9 @@ public:
 		ERasterizerFillMode InMeshFillMode,
 		ERasterizerCullMode InMeshCullMode,
 		EFVisibleMeshDrawCommandFlags InFlags,
-#if GPUCULL_TODO
 		FMeshDrawCommandSortKey InSortKey,
 		const uint32* InRunArray = nullptr,
 		int32 InNumRuns = 0)
-#else //!GPUCULL_TODO
-		FMeshDrawCommandSortKey InSortKey)
-#endif // GPUCULL_TODO
 	{
 		MeshDrawCommand = InMeshDrawCommand;
 		DrawPrimitiveId = InDrawPrimitiveId;
@@ -1278,10 +1274,8 @@ public:
 		MeshCullMode = InMeshCullMode;
 		SortKey = InSortKey;
 		Flags = InFlags;
-#if GPUCULL_TODO
 		RunArray = InRunArray;
 		NumRuns = InNumRuns;
-#endif // GPUCULL_TODO
 	}
 
 	// Mesh Draw Command stored separately to avoid fetching its data during sorting
@@ -1304,11 +1298,10 @@ public:
 	// Any commands with the same StateBucketId can be merged into one draw call with instancing.
 	// A value of -1 means the draw is not in any state bucket and should be sorted by other factors instead.
 	int32 StateBucketId;
-#if GPUCULL_TODO
+	
 	// Used for passing sub-selection of instances through to the culling
 	const uint32* RunArray;
 	int32 NumRuns;
-#endif // GPUCULL_TODO
 
 	// Needed for view overrides
 	ERasterizerFillMode MeshFillMode : ERasterizerFillMode_NumBits + 1;
@@ -1391,15 +1384,11 @@ public:
 		FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 		//@todo MeshCommandPipeline - assign usable state ID for dynamic path draws
 		// Currently dynamic path draws will not get dynamic instancing, but they will be roughly sorted by state
-#if GPUCULL_TODO
 		const FMeshBatchElement& MeshBatchElement = MeshBatch.Elements[BatchElementIndex];
 		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, Flags, SortKey,
 			MeshBatchElement.bIsInstanceRuns ? MeshBatchElement.InstanceRuns : nullptr,
 			MeshBatchElement.bIsInstanceRuns ? MeshBatchElement.NumInstances : 0
 			);
-#else //!GPUCULL_TODO
-		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, Flags, SortKey);
-#endif // GPUCULL_TODO
 		DrawList.Add(NewVisibleMeshDrawCommand);
 	}
 
