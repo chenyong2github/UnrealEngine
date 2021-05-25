@@ -38,7 +38,7 @@ struct FPropertyTraits
 	 * @param ParsePosition Character position of the property in the header
 	 * @return The pointer to the newly created property.  It will be attached to the definition by the caller
 	 */
-	static FUnrealPropertyDefinitionInfo& CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition);
+	static FUnrealPropertyDefinitionInfo& CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory VariableCategory, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition);
 
 	/**
 	 * Test to see if the property can be used in a blueprint
@@ -48,4 +48,21 @@ struct FPropertyTraits
 	 * @return Return true if the property is supported in blueprints
 	 */
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable);
+
+	/**
+	 * Return the engine class name for the given property information.
+	 * @param PropDef The property in question
+	 * @return The name of the engine property that will represent this definition.
+	 */
+	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef);
+
+	/**
+	 * Returns the text to use for exporting this property to header file.
+	 *
+	 * @param	ExtendedTypeText	for property types which use templates, will be filled in with the type
+	 * @param	CPPExportFlags		flags for modifying the behavior of the export
+	 */
+	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText = nullptr, uint32 CPPExportFlags = 0);
+
+	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef);
 };
