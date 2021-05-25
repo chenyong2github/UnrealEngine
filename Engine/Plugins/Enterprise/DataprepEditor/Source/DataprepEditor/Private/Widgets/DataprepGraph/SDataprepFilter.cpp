@@ -10,10 +10,12 @@
 #include "SelectionSystem/DataprepIntegerFilter.h"
 #include "SelectionSystem/DataprepStringFilter.h"
 #include "SelectionSystem/DataprepStringsArrayFilter.h"
+#include "SelectionSystem/DataprepObjectSelectionFilter.h"
 #include "Widgets/DataprepGraph/SDataprepBoolFilter.h"
 #include "Widgets/DataprepGraph/SDataprepFloatFilter.h"
 #include "Widgets/DataprepGraph/SDataprepIntegerFilter.h"
 #include "Widgets/DataprepGraph/SDataprepStringFilter.h"
+#include "Widgets/DataprepGraph/SDataprepObjectSelectionFilter.h"
 #include "Widgets/DataprepWidgets.h"
 
 #include "EditorStyleSet.h"
@@ -283,7 +285,23 @@ TSharedRef<SWidget> SDataprepFilterNoFetcher::GetTitleWidget()
 
 TSharedRef<SWidget> SDataprepFilterNoFetcher::GetContentWidget()
 {
+	TSharedPtr< SWidget > FilterWidget = SNullWidget::NullWidget;
+
+	if ( Filter )
+	{
+		UClass* Class = Filter->GetClass();
+		if ( Class == UDataprepObjectSelectionFilter::StaticClass() )
+		{
+			SAssignNew(FilterWidget, SDataprepObjectSelectionFilter, *static_cast< UDataprepObjectSelectionFilter* >( Filter ) );
+		}
+	}
+
 	return SNew( SVerticalBox )
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			FilterWidget.ToSharedRef()
+		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
