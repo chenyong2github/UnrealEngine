@@ -495,6 +495,7 @@ class DevicenDisplay(DeviceUnreal):
             "-fixedseed",                      # for determinism
             "-NoVerifyGC",                     # improves performance
             "-noxrstereo",                     # avoids a conflict with steam/oculus
+            "-xrtrackingonly",                 # allows multi-UE SteamVR for trackers (but disallows sending frames)
             "-RemoteControlIsHeadless",        # avoids notification window when using RemoteControlWebUI
             f'{additional_args}',              # specified in settings
             f'{vproles}',                      # VP roles for this instance
