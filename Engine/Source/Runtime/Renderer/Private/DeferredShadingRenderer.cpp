@@ -2514,7 +2514,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
-				const FViewInfo& View = Views[ViewIndex];
+				FViewInfo& View = Views[ViewIndex];
 				Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
 
 				if (!bNeedsPrePass)
@@ -2522,7 +2522,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					Nanite::EmitDepthTargets(
 						GraphBuilder,
 						*Scene,
-						Views[ViewIndex],
+						View,
 						RasterResults.SOAStrides,
 						RasterResults.VisibleClustersSWHW,
 						RasterResults.ViewsBuffer,
@@ -2537,6 +2537,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 				Nanite::DrawBasePass(
 					GraphBuilder,
+					View.NaniteMaterialPassCommands,
+					*this,
 					SceneTextures,
 					DBufferTextures,
 					*Scene,
