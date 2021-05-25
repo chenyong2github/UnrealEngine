@@ -26,6 +26,20 @@ class IPropertyHandle;
 
 #define ADD_CUSTOM_PROPERTY(FilterText) CurrentCategory.AddCustomRow(FilterText)
 
+#define ADD_NESTED_PROPERTY(NestedPropertyHelper, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(PropertyPath); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
+}
+
+#define ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(PropertyPath); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).ShouldAutoExpand(true); \
+}
+
 #define REPLACE_PROPERTY_WITH_CUSTOM(ClassName, PropertyName, Widget) { \
 	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
 	check(PropertyHandle->IsValidHandle()); \
@@ -42,6 +56,19 @@ class IPropertyHandle;
 	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
 	check(PropertyHandle->IsValidHandle()); \
 	CurrentGroup.AddPropertyRow(PropertyHandle); \
+}
+
+#define ADD_GROUP_EXPANDED_PROPERTY(ClassName, PropertyName) { \
+	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentGroup.AddPropertyRow(PropertyHandle).ShouldAutoExpand(true); \
+}
+
+#define ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(PropertyPath); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()); \
 }
 
 struct FDisplayClusterConfiguratorNestedPropertyHelper
