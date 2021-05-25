@@ -1133,6 +1133,17 @@ void UEdGraphSchema_Niagara::GetAssetsGraphHoverMessage(const TArray<FAssetData>
 	}
 }
 
+void UEdGraphSchema_Niagara::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified /*= true*/) const
+{
+	Pin.DefaultValue = NewDefaultValue;
+
+	if (bMarkAsModified)
+	{
+		UEdGraphNode* Node = Pin.GetOwningNode();
+		checkf(Node != nullptr, TEXT("Encountered null node owning pin!"));
+		Node->PinDefaultValueChanged(&Pin);
+	}
+}
 
 bool UEdGraphSchema_Niagara::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
 {

@@ -19,8 +19,9 @@ void SNiagaraSelectedObjectsDetails::Construct(const FArguments& InArgs, TShared
 {
 	bAllowEditingLibraryOwnedScriptVars = InArgs._AllowEditingLibraryScriptVariables;
 	bViewingLibrarySubscribedScriptVar = false;
+	LastSetSelectedObjectsArrayIdx = 0;
 	SelectedObjectsArray.Push(InSelectedObjects);
-	SelectedObjectsArray[0]->OnSelectedObjectsChanged().AddSP(this, &SNiagaraSelectedObjectsDetails::SelectedObjectsChanged);
+	SelectedObjectsArray[0]->OnSelectedObjectsChanged().AddSP(this, &SNiagaraSelectedObjectsDetails::SelectedObjectsChangedFirst);
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs(false, false, true, FDetailsViewArgs::HideNameArea, true);
@@ -42,9 +43,10 @@ void SNiagaraSelectedObjectsDetails::Construct(const FArguments& InArgs, TShared
 {
 	bAllowEditingLibraryOwnedScriptVars = InArgs._AllowEditingLibraryScriptVariables;
 	bViewingLibrarySubscribedScriptVar = false;
+	LastSetSelectedObjectsArrayIdx = 0;
 	SelectedObjectsArray.Push(InSelectedObjects);
 	SelectedObjectsArray.Push(InSelectedObjects2);
-	SelectedObjectsArray[0]->OnSelectedObjectsChanged().AddSP(this, &SNiagaraSelectedObjectsDetails::SelectedObjectsChanged);
+	SelectedObjectsArray[0]->OnSelectedObjectsChanged().AddSP(this, &SNiagaraSelectedObjectsDetails::SelectedObjectsChangedFirst);
 	SelectedObjectsArray[1]->OnSelectedObjectsChanged().AddSP(this, &SNiagaraSelectedObjectsDetails::SelectedObjectsChangedSecond);
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -68,9 +70,20 @@ void SNiagaraSelectedObjectsDetails::SelectedObjectsChanged()
 	// Do not update selected object info flags if editing library owned script vars is enabled as these flags are not used.
 	if (bAllowEditingLibraryOwnedScriptVars == false)
 	{
+		UpdateSelectedObjectInfoFlags(SelectedObjectsArray[LastSetSelectedObjectsArrayIdx]);
+	}
+	DetailsView->SetObjects(SelectedObjectsArray[LastSetSelectedObjectsArrayIdx]->GetSelectedObjects().Array());
+}
+
+void SNiagaraSelectedObjectsDetails::SelectedObjectsChangedFirst()
+{
+	// Do not update selected object info flags if editing library owned script vars is enabled as these flags are not used.
+	if (bAllowEditingLibraryOwnedScriptVars == false)
+	{
 		UpdateSelectedObjectInfoFlags(SelectedObjectsArray[0]);
 	}
 	DetailsView->SetObjects(SelectedObjectsArray[0]->GetSelectedObjects().Array());
+	LastSetSelectedObjectsArrayIdx = 0;
 }
 
 void SNiagaraSelectedObjectsDetails::RefreshDetails()
@@ -87,6 +100,7 @@ void SNiagaraSelectedObjectsDetails::SelectedObjectsChangedSecond()
 		UpdateSelectedObjectInfoFlags(SelectedObjectsArray[1]);
 	}
 	DetailsView->SetObjects(SelectedObjectsArray[1]->GetSelectedObjects().Array());
+	LastSetSelectedObjectsArrayIdx = 1;
 }
 
 void SNiagaraSelectedObjectsDetails::OnDetailsPanelFinishedChangingProperties(const FPropertyChangedEvent& InEvent)
