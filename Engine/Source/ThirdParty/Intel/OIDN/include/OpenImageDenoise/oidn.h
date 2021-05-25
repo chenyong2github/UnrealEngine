@@ -1,4 +1,4 @@
-// Copyright 2009-2020 Intel Corporation
+// Copyright 2009-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -7,19 +7,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "version.h"
+#include "config.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-#ifndef OIDN_API
-#if defined(_WIN32) && !defined(OIDN_STATIC_LIB)
-#  define OIDN_API __declspec(dllimport)
-#else
-#  define OIDN_API
-#endif
-#endif
+OIDN_API_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // Device
@@ -168,9 +158,18 @@ OIDN_API void oidnSetSharedFilterImage(OIDNFilter filter, const char* name,
                                        size_t byteOffset,
                                        size_t bytePixelStride, size_t byteRowStride);
 
+// Removes an image parameter of the filter that was previously set.
+OIDN_API void oidnRemoveFilterImage(OIDNFilter filter, const char* name);
+
 // Sets an opaque data parameter of the filter (owned by the user).
 OIDN_API void oidnSetSharedFilterData(OIDNFilter filter, const char* name,
                                       void* ptr, size_t byteSize);
+
+// Notifies the filter that the contents of an opaque data parameter has been changed.
+OIDN_API void oidnUpdateFilterData(OIDNFilter filter, const char* name);
+
+// Removes an opaque data parameter of the filter that was previously set.
+OIDN_API void oidnRemoveFilterData(OIDNFilter filter, const char* name);
 
 // Sets a boolean parameter of the filter.
 OIDN_API void oidnSetFilter1b(OIDNFilter filter, const char* name, bool value);
@@ -200,6 +199,4 @@ OIDN_API void oidnCommitFilter(OIDNFilter filter);
 // Executes the filter.
 OIDN_API void oidnExecuteFilter(OIDNFilter filter);
 
-#if defined(__cplusplus)
-}
-#endif
+OIDN_API_NAMESPACE_END

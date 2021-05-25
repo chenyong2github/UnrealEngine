@@ -1,15 +1,15 @@
 # Intel® Open Image Denoise
 
-This is release v1.2.0 of Intel Open Image Denoise. For changes and new
+This is release v1.4.0 of Intel Open Image Denoise. For changes and new
 features see the [changelog](CHANGELOG.md). Visit
-http://www.openimagedenoise.org for more information.
+https://www.openimagedenoise.org for more information.
 
-# Intel Open Image Denoise Overview
+# Overview
 
 Intel Open Image Denoise is an open source library of high-performance,
 high-quality denoising filters for images rendered with ray tracing.
 Intel Open Image Denoise is part of the [Intel® oneAPI Rendering
-Toolkit](https://software.intel.com/en-us/rendering-framework) and is
+Toolkit](https://software.intel.com/en-us/oneapi/render-kit) and is
 released under the permissive [Apache 2.0
 license](http://www.apache.org/licenses/LICENSE-2.0).
 
@@ -26,7 +26,7 @@ into most existing or new rendering solutions.
 At the heart of the Intel Open Image Denoise library is a collection of
 efficient deep learning based denoising filters, which were trained to
 handle a wide range of samples per pixel (spp), from 1 spp to almost
-fully converged. Thus it is suitable for both preview and final-frame
+fully converged. Thus it is suitable for both preview and final frame
 rendering. The filters can denoise images either using only the noisy
 color (*beauty*) buffer, or, to preserve as much detail as possible, can
 optionally utilize auxiliary feature buffers as well (e.g. albedo,
@@ -40,17 +40,18 @@ renderer, sample count, content type, scene, etc., it is possible to
 train the model using the included training toolkit and user-provided
 image datasets.
 
-Intel Open Image Denoise supports Intel® 64 architecture based CPUs and
-compatible architectures, and runs on anything from laptops, to
-workstations, to compute nodes in HPC systems. It is efficient enough to
-be suitable not only for offline rendering, but, depending on the
-hardware used, also for interactive ray tracing.
+Intel Open Image Denoise supports Intel® 64 architecture compatible CPUs
+and Apple Silicon, and runs on anything from laptops, to workstations,
+to compute nodes in HPC systems. It is efficient enough to be suitable
+not only for offline rendering, but, depending on the hardware used,
+also for interactive ray tracing.
 
-Intel Open Image Denoise internally builds on top of [Intel® Deep Neural
-Network Library (DNNL)](https://github.com/intel/mkl-dnn), and
-automatically exploits modern instruction sets like Intel SSE4, AVX2,
-and AVX-512 to achieve high denoising performance. A CPU with support
-for at least SSE4.1 is required to run Intel Open Image Denoise.
+Intel Open Image Denoise internally builds on top of [Intel oneAPI Deep
+Neural Network Library (oneDNN)](https://github.com/oneapi-src/oneDNN),
+and automatically exploits modern instruction sets like Intel SSE4,
+AVX2, and AVX-512 to achieve high denoising performance. A CPU with
+support for at least SSE4.1 or Apple Silicon is required to run Intel
+Open Image Denoise.
 
 ## Support and Contact
 
@@ -64,14 +65,11 @@ should happen to have a fix for it, you can also send us a pull
 request); for missing features please contact us via email at
 <openimagedenoise@googlegroups.com>.
 
-For recent news, updates, and announcements, please see our complete
-[news/updates](https://openimagedenoise.github.io/news.html) page.
-
 Join our [mailing
 list](https://groups.google.com/d/forum/openimagedenoise/) to receive
 release announcements and major news regarding Intel Open Image Denoise.
 
-# Compiling Intel Open Image Denoise
+# Compilation
 
 The latest Intel Open Image Denoise sources are always available at the
 [Intel Open Image Denoise GitHub
@@ -82,11 +80,14 @@ repository](http://github.com/OpenImageDenoise/oidn). The default
 
 You can clone the latest Intel Open Image Denoise sources using Git with
 the [Git Large File Storage (LFS)](https://git-lfs.github.com/)
-extension:
+extension installed:
 
-``` 
     git clone --recursive https://github.com/OpenImageDenoise/oidn.git
-```
+
+Please note that installing the Git LFS extension is *required* to
+correctly clone the repository. Cloning without Git LFS will seemingly
+succeed but actually some of the files will be invalid and thus
+compilation will fail.
 
 Intel Open Image Denoise currently supports 64-bit Linux, Windows, and
 macOS operating systems. In addition, before you can build Intel Open
@@ -100,7 +101,7 @@ Image Denoise you need the following prerequisites:
     later)
 
   - [Intel® SPMD Program Compiler (ISPC)](http://ispc.github.io),
-    version 1.12.0 or later. Please obtain a release of ISPC from the
+    version 1.14.1 or later. Please obtain a release of ISPC from the
     [ISPC downloads page](https://ispc.github.io/downloads.html). The
     build system looks for ISPC in the `PATH` and in the directory right
     “next to” the checked-out Intel Open Image Denoise sources.\[1\]
@@ -173,8 +174,9 @@ Image Denoise through CMake is easy:
     
         make
 
-  - You should now have `libOpenImageDenoise.so` as well as a set of
-    example applications.
+  - You should now have `libOpenImageDenoise.so` on Linux or
+    `libOpenImageDenoise.dylib` on macOS, and a set of example
+    applications as well.
 
 ## Entitlements on macOS
 
@@ -182,9 +184,9 @@ macOS requires notarization of applications as a security mechanism, and
 [entitlements must be
 declared](https://developer.apple.com/documentation/bundleresources/entitlements)
 during the notarization process.  
-Intel Open Image Denoise uses just-in-time compilaton through the [Intel
-Deep Neural Network Library](https://intel.github.io/mkl-dnn/) and
-requires the following entitlements:
+Intel Open Image Denoise uses just-in-time compilaton through
+[oneDNN](https://github.com/oneapi-src/oneDNN) and requires the
+following entitlements:
 
   - [`com.apple.security.cs.allow-jit`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_cs_allow-jit)
   - [`com.apple.security.cs.allow-unsigned-executable-memory`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_cs_allow-unsigned-executable-memory)
@@ -238,15 +240,30 @@ that can be configured in CMake:
     enabled assertions and debug symbols (RelWithDebInfo).
 
   - `OIDN_STATIC_LIB`: Build Intel Open Image Denoise as a static
-    library (OFF by default). CMake 3.13.0 or later is required to
-    enable this option. When using the statically compiled Intel Open
-    Image Denoise library, you either have to use the generated CMake
-    configuration files (recommended), or you have to manually define
-    `OIDN_STATIC_LIB` before including the library headers in your
-    application.
+    library (OFF by default). When using the statically compiled Intel
+    Open Image Denoise library, you either have to use the generated
+    CMake configuration files (recommended), or you have to manually
+    define `OIDN_STATIC_LIB` before including the library headers in
+    your application.
 
   - `OIDN_STATIC_RUNTIME`: Use the static version of the C/C++ runtime
-    library (available only on Windows, ON by default).
+    library (available only on Windows, OFF by default).
+
+  - `OIDN_NEURAL_RUNTIME`: Specifies which neural network runtime
+    library to use: `DNNL` (oneDNN, default) or `BNNS` (available only
+    on macOS).
+
+  - `OIDN_API_NAMESPACE`: Specifies a namespace to put all Intel Open
+    Image Denoise API symbols inside. By default no namespace is used
+    and plain C symbols are exported.
+
+  - `OIDN_FILTER_RT`: Include the trained weights of the `RT` filter in
+    the build (ON by default). Turning this OFF significantly decreases
+    the size of the library binary, while the filter remains functional
+    if the weights are set by the user at runtime.
+
+  - `OIDN_FILTER_RTLIGHTMAP`: Include the trained weights of the
+    `RTLightmap` filter in the build (ON by default).
 
   - `OIDN_APPS`: Enable building example and test applications (ON by
     default).
@@ -269,11 +286,11 @@ documentation](https://github.com/OpenImageDenoise/oidn/blob/master/readme.pdf "
 of Intel Open Image Denoise can also be found as a [pdf
 document](https://github.com/OpenImageDenoise/oidn/blob/master/readme.pdf "Intel Open Image Denoise Documentation").
 
-# Intel Open Image Denoise API
+# Open Image Denoise API
 
-Intel Open Image Denoise provides a C99 API (also compatible with C++)
-and a C++11 wrapper API as well. For simplicity, this document mostly
-refers to the C99 version of the API.
+Open Image Denoise provides a C99 API (also compatible with C++) and a
+C++11 wrapper API as well. For simplicity, this document mostly refers
+to the C99 version of the API.
 
 The API is designed in an object-oriented manner, e.g. it contains
 device objects (`OIDNDevice` type), buffer objects (`OIDNBuffer` type),
@@ -293,6 +310,8 @@ All API calls are thread-safe, but operations that use the same device
 will be serialized, so the amount of API calls from different threads
 should be minimized.
 
+## Examples
+
 To have a quick overview of the C99 and C++11 APIs, see the following
 simple example code snippets.
 
@@ -307,7 +326,7 @@ oidnCommitDevice(device);
 
 // Create a denoising filter
 OIDNFilter filter = oidnNewFilter(device, "RT"); // generic ray tracing filter
-oidnSetSharedFilterImage(filter, "color",  colorPtr, 
+oidnSetSharedFilterImage(filter, "color",  colorPtr,
                          OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
 oidnSetSharedFilterImage(filter, "albedo", albedoPtr,
                          OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0); // optional
@@ -372,10 +391,10 @@ OIDNDevice oidnNewDevice(OIDNDeviceType type);
 where the `type` enumeration maps to a specific device implementation,
 which can be one of the following:
 
-| Name                        | Description                             |
-| :-------------------------- | :-------------------------------------- |
-| OIDN\_DEVICE\_TYPE\_DEFAULT | select the approximately fastest device |
-| OIDN\_DEVICE\_TYPE\_CPU     | CPU device (requires SSE4.1 support)    |
+| Name                       | Description                                           |
+| :------------------------- | :---------------------------------------------------- |
+| `OIDN_DEVICE_TYPE_DEFAULT` | select the approximately fastest device               |
+| `OIDN_DEVICE_TYPE_CPU`     | CPU device (requires SSE4.1 support or Apple Silicon) |
 
 Supported device types, i.e., valid constants of type `OIDNDeviceType`.
 
@@ -392,20 +411,20 @@ to set and get parameter values on the device. Note that some parameters
 are constants, thus trying to set them is an error. See the tables below
 for the parameters supported by devices.
 
-| Type      | Name         | Default | Description                                                                                                                               |
-| :-------- | :----------- | ------: | :---------------------------------------------------------------------------------------------------------------------------------------- |
-| const int | version      |         | combined version number (major.minor.patch) with two decimal digits per component                                                         |
-| const int | versionMajor |         | major version number                                                                                                                      |
-| const int | versionMinor |         | minor version number                                                                                                                      |
-| const int | versionPatch |         | patch version number                                                                                                                      |
-| int       | verbose      |       0 | verbosity level of the console output between 0–4; when set to 0, no output is printed, when set to a higher level more output is printed |
+| Type        | Name           | Default | Description                                                                                                                                 |
+| :---------- | :------------- | ------: | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| `const int` | `version`      |         | combined version number (major.minor.patch) with two decimal digits per component                                                           |
+| `const int` | `versionMajor` |         | major version number                                                                                                                        |
+| `const int` | `versionMinor` |         | minor version number                                                                                                                        |
+| `const int` | `versionPatch` |         | patch version number                                                                                                                        |
+| `int`       | `verbose`      |         | 0 verbosity level of the console output between 0–4; when set to 0, no output is printed, when set to a higher level more output is printed |
 
 Parameters supported by all devices.
 
-| Type | Name        | Default | Description                                                                                                     |
-| :--- | :---------- | ------: | :-------------------------------------------------------------------------------------------------------------- |
-| int  | numThreads  |       0 | maximum number of threads which the library should use; 0 will set it automatically to get the best performance |
-| bool | setAffinity |    true | bind software threads to hardware threads if set to true (improves performance); false disables binding         |
+| Type   | Name          | Default | Description                                                                                                     |
+| :----- | :------------ | ------: | :-------------------------------------------------------------------------------------------------------------- |
+| `int`  | `numThreads`  |       0 | maximum number of threads which the library should use; 0 will set it automatically to get the best performance |
+| `bool` | `setAffinity` |    true | bind software threads to hardware threads if set to true (improves performance); false disables binding         |
 
 Additional parameters supported only by CPU devices.
 
@@ -500,15 +519,15 @@ be specified.
 
 The following errors are currently used by Intel Open Image Denoise:
 
-| Name                               | Description                                |
-| :--------------------------------- | :----------------------------------------- |
-| OIDN\_ERROR\_NONE                  | no error occurred                          |
-| OIDN\_ERROR\_UNKNOWN               | an unknown error occurred                  |
-| OIDN\_ERROR\_INVALID\_ARGUMENT     | an invalid argument was specified          |
-| OIDN\_ERROR\_INVALID\_OPERATION    | the operation is not allowed               |
-| OIDN\_ERROR\_OUT\_OF\_MEMORY       | not enough memory to execute the operation |
-| OIDN\_ERROR\_UNSUPPORTED\_HARDWARE | the hardware (e.g., CPU) is not supported  |
-| OIDN\_ERROR\_CANCELLED             | the operation was cancelled by the user    |
+| Name                              | Description                                |
+| :-------------------------------- | :----------------------------------------- |
+| `OIDN_ERROR_NONE`                 | no error occurred                          |
+| `OIDN_ERROR_UNKNOWN`              | an unknown error occurred                  |
+| `OIDN_ERROR_INVALID_ARGUMENT`     | an invalid argument was specified          |
+| `OIDN_ERROR_INVALID_OPERATION`    | the operation is not allowed               |
+| `OIDN_ERROR_OUT_OF_MEMORY`        | not enough memory to execute the operation |
+| `OIDN_ERROR_UNSUPPORTED_HARDWARE` | the hardware (e.g., CPU) is not supported  |
+| `OIDN_ERROR_CANCELLED`            | the operation was cancelled by the user    |
 
 Possible error codes, i.e., valid constants of type `OIDNError`.
 
@@ -565,12 +584,12 @@ is 0, the maximum available amount of memory will be mapped. The
 `access` argument must be one of the access modes in the following
 table:
 
-| Name                         | Description                                                   |
-| :--------------------------- | :------------------------------------------------------------ |
-| OIDN\_ACCESS\_READ           | read-only access                                              |
-| OIDN\_ACCESS\_WRITE          | write-only access                                             |
-| OIDN\_ACCESS\_READ\_WRITE    | read and write access                                         |
-| OIDN\_ACCESS\_WRITE\_DISCARD | write-only access but the previous contents will be discarded |
+| Name                        | Description                                                   |
+| :-------------------------- | :------------------------------------------------------------ |
+| `OIDN_ACCESS_READ`          | read-only access                                              |
+| `OIDN_ACCESS_WRITE`         | write-only access                                             |
+| `OIDN_ACCESS_READ_WRITE`    | read and write access                                         |
+| `OIDN_ACCESS_WRITE_DISCARD` | write-only access but the previous contents will be discarded |
 
 Access modes for memory regions mapped with `oidnMapBuffer`, i.e., valid
 constants of type `OIDNAccess`.
@@ -593,11 +612,11 @@ and format of the data. Other objects, e.g. filters, typically require
 specifying the format of the data stored in buffers or shared via
 pointers. This can be done using the `OIDNFormat` enumeration type:
 
-| Name                       | Description                                   |
-| :------------------------- | :-------------------------------------------- |
-| OIDN\_FORMAT\_UNDEFINED    | undefined format                              |
-| OIDN\_FORMAT\_FLOAT        | 32-bit single-precision floating point scalar |
-| OIDN\_FORMAT\_FLOAT\[234\] | … and \[234\]-element vector                  |
+| Name                     | Description                                  |
+| :----------------------- | :------------------------------------------- |
+| `OIDN_FORMAT_UNDEFINED`  | undefined format                             |
+| `OIDN_FORMAT_FLOAT`      | 32-bit floating point scalar                 |
+| `OIDN_FORMAT_FLOAT[234]` | 32-bit floating point \[234\]-element vector |
 
 Supported data formats, i.e., valid constants of type `OIDNFormat`.
 
@@ -653,13 +672,24 @@ set (`name` argument, e.g. `"color"`, `"output"`), the pixel format
 pixels (`width` and `height` arguments), the starting offset of the
 image data (`byteOffset` argument), the pixel stride (`bytePixelStride`
 argument) and the row stride (`byteRowStride` argument), in number of
-bytes. Note that the row stride must be an integer multiple of the pixel
-stride.
+bytes.
 
-If the pixels and/or rows are stored contiguously (tightly packed
-without any gaps), you can set `bytePixelStride` and/or `byteRowStride`
-to 0 to let the library compute the actual strides automatically, as a
-convenience.
+The row stride must be an integer multiple of the pixel stride. If the
+pixels and/or rows are stored contiguously (tightly packed without any
+gaps), you can set `bytePixelStride` and/or `byteRowStride` to 0 to let
+the library compute the actual strides automatically, as a convenience.
+
+Images support only the `OIDN_FORMAT_FLOAT3` pixel format. Custom image
+layouts with extra channels (e.g. alpha channel) or other data are
+supported as well by specifying a non-zero pixel stride. This way,
+expensive image layout conversion and copying can be avoided but the
+extra data will be ignored by the filter.
+
+To unbind a previously set image from the filter, call
+
+``` cpp
+void oidnRemoveFilterImage(OIDNFilter filter, const char* name);
+```
 
 Some special data used by filters are opaque/untyped (e.g. trained model
 weights blobs), which can be specified with the
@@ -668,6 +698,20 @@ weights blobs), which can be specified with the
 ``` cpp
 void oidnSetSharedFilterData(OIDNFilter filter, const char* name,
                              void* ptr, size_t byteSize);
+```
+
+Modifying the contents of an opaque data parameter after binding it to a
+filter is allowed but the filter needs to be notified that the data has
+been updated by calling
+
+``` cpp
+void oidnUpdateFilterData(OIDNFilter filter, const char* name);
+```
+
+Unbinding opaque data from the filter can be performed with
+
+``` cpp
+void oidnRemoveFilterData(OIDNFilter filter, const char* name);
 ```
 
 Filters may have parameters other than buffers as well, which you can
@@ -716,7 +760,10 @@ void oidnCommitFilter(OIDNFilter filter);
 ```
 
 The parameters can be updated after committing the filter, but it must
-be re-committed for the changes to take effect.
+be re-committed for any new changes to take effect. Committing major
+changes to the filter (e.g. setting new image parameters, changing the
+image resolution) can be expensive, and thus should not be done
+frequently (e.g. per frame).
 
 Finally, an image can be filtered by executing the filter with
 
@@ -742,10 +789,22 @@ performance and quality. The filter comes with a set of pre-trained CNN
 models that work well with a wide range of ray tracing based renderers
 and noise levels.
 
+![](https://openimagedenoise.github.io/images/mazda_4spp_input.jpg)
+Example noisy color image rendered using unidirectional path tracing
+(4 samples per pixel). *Scene by
+Evermotion.*
+
+![](https://openimagedenoise.github.io/images/mazda_4spp_oidn.jpg)
+Example output image denoised using clean auxiliary feature images
+(albedo and
+normal).
+
 It accepts either a low dynamic range (LDR) or high dynamic range (HDR)
 color image as input. Optionally, it also accepts auxiliary *feature*
 images, e.g. albedo and normal, which improve the denoising quality,
-preserving more details in the image.
+preserving more details in the image. It is possible to denoise
+auxiliary images as well, in which case only the respective auxiliary
+image has to be specified as input, instead of the color image.
 
 The `RT` filter has certain limitations regarding the supported input
 images. Most notably, it cannot denoise images that were not rendered
@@ -760,36 +819,27 @@ denoising to fail (the noise will not be filtered), thus it is not
 supported.
 
 The filter can be created by passing `"RT"` to the `oidnNewFilter`
-function as the filter type. The filter supports the following
-parameters:
+function as the filter type. The filter supports the parameters listed
+in the table below. All specified images must have the same dimensions.
+The output image can be one of the input images (i.e. in-place denoising
+is supported).
 
-| Type      | Format | Name        | Default | Description                                                                                                                                                                                                                                                                                |
-| :-------- | :----- | :---------- | ------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Image     | float3 | color       |         | input color image (LDR values in \[0, 1\] or HDR values in \[0, +∞), 3 channels)                                                                                                                                                                                                           |
-| Image     | float3 | albedo      |         | input feature image containing the albedo (values in \[0, 1\], 3 channels) of the first hit per pixel; *optional*                                                                                                                                                                          |
-| Image     | float3 | normal      |         | input feature image containing the shading normal (world-space or view-space, arbitrary length, values in (−∞, +∞), 3 channels) of the first hit per pixel; *optional*, requires setting the albedo image too                                                                              |
-| Image     | float3 | output      |         | output color image (3 channels); can be one of the input images                                                                                                                                                                                                                            |
-| Data      |        | weights     |         | trained model weights blob; *optional*                                                                                                                                                                                                                                                     |
-| bool      |        | hdr         |   false | whether the color is HDR                                                                                                                                                                                                                                                                   |
-| float     |        | hdrScale    |     NaN | HDR color values are interpreted such that, multiplied by this scale, a value of 1 corresponds to a luminance level of 100 cd/m² (this affects the quality of the output but the output color values will *not* be scaled); if set to NaN, the scale is computed automatically (*default*) |
-| bool      |        | srgb        |   false | whether the color is encoded with the sRGB (or 2.2 gamma) curve (LDR only) or is linear; the output will be encoded with the same curve                                                                                                                                                    |
-| int       |        | maxMemoryMB |    6000 | approximate maximum amount of scratch memory to use in megabytes (actual memory usage may be higher); limiting memory usage may cause slower denoising due to internally splitting the image into overlapping tiles, but cannot cause the denoising to fail                                |
-| const int |        | alignment   |         | when manually denoising the image in tiles, the tile size and offsets should be multiples of this amount of pixels to avoid artifacts; note that manual tiled denoising of HDR images is supported *only* when hdrScale is set by the user                                                 |
-| const int |        | overlap     |         | when manually denoising the image in tiles, the tiles should overlap by this amount of pixels                                                                                                                                                                                              |
+| Type        | Name          |    Default | Description                                                                                                                                                                                                                                                                                                                                                                    |
+| :---------- | :------------ | ---------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Image`     | `color`       | *optional* | input color image (3 channels, LDR values in \[0, 1\] or HDR values in \[0, +∞), values being interpreted such that, after scaling with the `inputScale` parameter, a value of 1 corresponds to a luminance level of 100 cd/m²).                                                                                                                                               |
+| `Image`     | `albedo`      | *optional* | input auxiliary image containing the albedo per pixel (3 channels, values in \[0, 1\])                                                                                                                                                                                                                                                                                         |
+| `Image`     | `normal`      | *optional* | input auxiliary image containing the shading normal per pixel (3 channels, world-space or view-space vectors with arbitrary length, values in \[-1, 1\])                                                                                                                                                                                                                       |
+| `Image`     | `output`      |            | output image (3 channels); can be one of the input images                                                                                                                                                                                                                                                                                                                      |
+| `bool`      | `hdr`         |      false | whether the color is HDR                                                                                                                                                                                                                                                                                                                                                       |
+| `bool`      | `srgb`        |      false | whether the color is encoded with the sRGB (or 2.2 gamma) curve (LDR only) or is linear; the output will be encoded with the same curve                                                                                                                                                                                                                                        |
+| `float`     | `inputScale`  |        NaN | scales input values before filtering, without scaling the output too, which can be used to map color or auxiliary feature values to the expected range, e.g. for mapping HDR values to physical units (which affects the quality of the output but *not* the range of the output values); if set to NaN, the scale is computed implicitly for HDR images or set to 1 otherwise |
+| `bool`      | `cleanAux`    |      false | whether the auxiliary feature (albedo, normal) images are noise-free; recommended for highest quality but should *not* be enabled for noisy auxiliary images to avoid residual noise                                                                                                                                                                                           |
+| `Data`      | `weights`     | *optional* | trained model weights blob                                                                                                                                                                                                                                                                                                                                                     |
+| `int`       | `maxMemoryMB` |       3000 | approximate maximum scratch memory to use in megabytes (actual memory usage may be higher); limiting memory usage may cause slower denoising due to internally splitting the image into overlapping tiles                                                                                                                                                                      |
+| `const int` | `alignment`   |            | when manually denoising in tiles, the tile size and offsets should be multiples of this amount of pixels to avoid artifacts; when denoising HDR images `inputScale` *must* be set by the user to avoid seam artifacts                                                                                                                                                          |
+| `const int` | `overlap`     |            | when manually denoising in tiles, the tiles should overlap by this amount of pixels                                                                                                                                                                                                                                                                                            |
 
 Parameters supported by the `RT` filter.
-
-All specified images must have the same dimensions.
-
-![](https://openimagedenoise.github.io/images/mazda_64spp_input.jpg)
-Example noisy color image rendered using unidirectional path tracing
-(64 spp). *Scene by
-Evermotion.*
-
-![](https://openimagedenoise.github.io/images/mazda_64spp_oidn.jpg)
-Example output image denoised using color and auxiliary feature images
-(albedo and
-normal).
 
 Using auxiliary feature images like albedo and normal helps preserving
 fine details and textures in the image thus can significantly improve
@@ -797,21 +847,45 @@ denoising quality. These images should typically contain feature values
 for the first hit (i.e. the surface which is directly visible) per
 pixel. This works well for most surfaces but does not provide any
 benefits for reflections and objects visible through transparent
-surfaces (compared to just using the color as input). However, in
-certain cases this issue can be fixed by storing feature values for a
-subsequent hit (i.e. the reflection and/or refraction) instead of the
-first hit. For example, it usually works well to follow perfect specular
-(*delta*) paths and store features for the first diffuse or glossy
-surface hit instead (e.g. for perfect specular dielectrics and mirrors).
-This can greatly improve the quality of reflections and transmission. We
-will describe this approach in more detail in the following subsections.
+surfaces (compared to just using the color as input). However, this
+issue can be usually fixed by storing feature values for a subsequent
+hit (i.e. the reflection and/or refraction) instead of the first hit.
+For example, it usually works well to follow perfect specular (*delta*)
+paths and store features for the first diffuse or glossy surface hit
+instead (e.g. for perfect specular dielectrics and mirrors). This can
+greatly improve the quality of reflections and transmission. We will
+describe this approach in more detail in the following subsections.
 
 The auxiliary feature images should be as noise-free as possible. It is
 not a strict requirement but too much noise in the feature images may
-cause residual noise in the output. Also, all feature images should use
-the same pixel reconstruction filter as the color image. Using a
-properly anti-aliased color image but aliased albedo or normal images
-will likely introduce artifacts around edges.
+cause residual noise in the output. Ideally, these should be completely
+noise-free. If this is the case, this should be hinted to the filter
+using the `cleanAux` parameter to ensure the highest possible image
+quality. But this parameter should be used with care: if enabled, any
+noise present in the auxiliary images will end up in the denoised image
+as well, as residual noise. Thus, `cleanAux` should be enabled only if
+the auxiliary images are guaranteed to be noise-free.
+
+Usually it is difficult to provide clean feature images, and some
+residual noise might be present in the output even with `cleanAux` being
+disabled. To eliminate this noise and to even improve the sharpness of
+texture details, the auxiliary images should be first denoised in a
+pre-filtering step, as described earlier. Then, these denoised auxiliary
+images could be used for denoising the color image. Since these are now
+noise-free, the `cleanAux` parameter should be enabled. Pre-filtering
+makes denoising much more expensive but if there are multiple color AOVs
+to denoise, the pre-filtered auxiliary images can be reused for
+denoising multiple AOVs, amortizing the cost of the pre-filtering step.
+
+Thus, for final frame denoising, where the best possible image quality
+is required, it is recommended to pre-filter the auxiliary features if
+they are noisy and enable the `cleanAux` parameter. Denoising with noisy
+auxiliary features should be reserved for previews and interactive
+rendering.
+
+All feature images should use the same pixel reconstruction filter as
+the color image. Using a properly anti-aliased color image but aliased
+albedo or normal images will likely introduce artifacts around edges.
 
 #### Albedo
 
@@ -866,9 +940,9 @@ maps to preserve as much detail as possible.
 
 Just like any other input image, the normal image should be anti-aliased
 (i.e. by accumulating the normalized normals per pixel). The final
-accumulated normals do not have to be normalized but must be in a range
-symmetric about 0 (i.e. normals mapped to \[0, 1\] are *not* acceptable
-and must be remapped to e.g. \[−1, 1\]).
+accumulated normals do not have to be normalized but must be in the
+\[-1, 1\] range (i.e. normals mapped to \[0, 1\] are *not* acceptable
+and must be remapped to \[−1, 1\]).
 
 Similar to the albedo, the normal can be stored for either the first or
 a subsequent hit (if the first hit has a perfect specular/delta BSDF).
@@ -889,36 +963,43 @@ normals.
 
 Instead of using the built-in trained models for filtering, it is also
 possible to specify user-trained models at runtime. This can be achieved
-by passing the model *weights* blob produced by the training tool.
+by passing the model *weights* blob corresponding to the specified set
+of features and other filter parameters, produced by the included
+training tool. See Section [Training](#training) for details.
 
 ### RTLightmap
 
 The `RTLightmap` filter is a variant of the `RT` filter optimized for
-denoising HDR lightmaps. It does not support LDR images.
+denoising HDR and normalized directional (e.g. spherical harmonics)
+lightmaps. It does not support LDR images.
 
 The filter can be created by passing `"RTLightmap"` to the
 `oidnNewFilter` function as the filter type. The filter supports the
 following parameters:
 
-| Type      | Format | Name        | Default | Description                                                                                                                                                                                      |
-| :-------- | :----- | :---------- | ------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Image     | float3 | color       |         | input color image (HDR values in \[0, +∞), 3 channels)                                                                                                                                           |
-| Image     | float3 | output      |         | output color image (3 channels); can be one of the input images                                                                                                                                  |
-| Data      |        | weights     |         | trained model weights blob; *optional*                                                                                                                                                           |
-| float     |        | hdrScale    |     NaN | HDR color values are interpreted such that, multiplied by this scale, a value of 1 corresponds to a luminance level of 100 cd/m²; if set to NaN, the scale is computed automatically (*default*) |
-| int       |        | maxMemoryMB |    6000 | approximate maximum amount of scratch memory to use in megabytes (actual memory usage may be higher)                                                                                             |
-| const int |        | alignment   |         | when manually denoising the image in tiles, the tile size and offsets should be multiples of this amount of pixels                                                                               |
-| const int |        | overlap     |         | when manually denoising the image in tiles, the tiles should overlap by this amount of pixels                                                                                                    |
+| Type        | Name          |    Default | Description                                                                                                                                                                                                                                                                                                                                                     |
+| :---------- | :------------ | ---------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Image`     | `color`       |            | input color image (3 channels, HDR values in \[0, +∞), interpreted such that, after scaling with the `inputScale` parameter, a value of 1 corresponds to aluminance level of 100 cd/m²; directional values in \[-1, 1\])                                                                                                                                        |
+| `Image`     | `output`      |            | output image (3 channels); can be one of the input images                                                                                                                                                                                                                                                                                                       |
+| `bool`      | `directional` |      false | whether the input contains normalized coefficients (in \[-1, 1\]) of a directional lightmap (e.g. normalized L1 or higher spherical harmonics band with the L0 band divided out); if the range of the coefficients is different from \[-1, 1\], the `inputScale` parameter can be used to adjust the range without changing the stored values                   |
+| `float`     | `inputScale`  |        NaN | scales input color values before filtering, without scaling the output too, which can be used to map color values to the expected range, e.g. for mapping HDR values to physical units (which affects the quality of the output but *not* the range of the output values); if set to NaN, the scale is computed implicitly for HDR images or set to 1 otherwise |
+| `Data`      | `weights`     | *optional* | trained model weights blob                                                                                                                                                                                                                                                                                                                                      |
+| `int`       | `maxMemoryMB` |       3000 | approximate maximum scratch memory to use in megabytes (actual memory usage may be higher); limiting memory usage may cause slower denoising due to internally splitting the image into overlapping tiles                                                                                                                                                       |
+| `const int` | `alignment`   |            | when manually denoising in tiles, the tile size and offsets should be multiples of this amount of pixels to avoid artifacts; when denoising HDR images `inputScale` *must* be set by the user to avoid seam artifacts                                                                                                                                           |
+| `const int` | `overlap`     |            | when manually denoising in tiles, the tiles should overlap by this amount of pixels                                                                                                                                                                                                                                                                             |
 
 Parameters supported by the `RTLightmap` filter.
 
 # Examples
 
-## Denoise
+Intel Open Image Denoise ships with a couple of simple example
+applications.
 
-A minimal working example demonstrating how to use Intel Open Image
-Denoise can be found at `apps/denoise/denoise.cpp`, which uses the C++11
-convenience wrappers of the C99 API.
+## oidnDenoise
+
+`oidnDenoise` is a minimal working example demonstrating how to use
+Intel Open Image Denoise, which can be found at `apps/oidnDenoise.cpp`.
+It uses the C++11 convenience wrappers of the C99 API.
 
 This example is a simple command-line application that denoises the
 provided image, which can optionally have auxiliary feature images as
@@ -928,16 +1009,29 @@ the [Portable FloatMap](http://www.pauldebevec.com/Research/HDR/PFM/)
 format. To enable other image formats (e.g. OpenEXR, PNG) as well, the
 project has to be rebuilt with OpenImageIO support enabled.
 
-Running `denoise` without any arguments will bring up a list of command
-line options.
+Running `oidnDenoise` without any arguments or the `-h` argument will
+bring up a list of command-line options.
+
+## oidnBenchmark
+
+`oidnBenchmark` is a basic command-line benchmarking application for
+measuring denoising speed, which can be found at
+`apps/oidnBenchmark.cpp`.
+
+Running `oidnBenchmark` with the `-h` argument will bring up a list of
+command-line options.
 
 # Training
 
 The Intel Open Image Denoise source distribution includes a Python-based
 neural network training toolkit (located in the `training` directory),
 which can be used to train the denoising filter models with image
-datasets provided by the user. The toolkit consists of the following
-command-line scripts:
+datasets provided by the user. This is an advanced feature of the
+library which usage requires some background knowledge of machine
+learning and basic familiarity with deep learning frameworks and
+toolkits (e.g. PyTorch or TensorFlow, TensorBoard).
+
+The training toolkit consists of the following command-line scripts:
 
   - `preprocess.py`: Preprocesses training and validation datasets.
 
@@ -969,19 +1063,28 @@ command-line scripts:
 Before you can run the training toolkit you need the following
 prerequisites:
 
+  - Linux (other operating systems are currently not supported)
+
   - Python 3.7 or later
 
-  - [PyTorch](https://pytorch.org/) 1.4 or later
+  - [PyTorch](https://pytorch.org/) 1.8 or later
 
-  - [NumPy](https://numpy.org/) 1.17 or later
+  - [NumPy](https://numpy.org/) 1.19 or later
 
   - [OpenImageIO](http://openimageio.org/) 2.1 or later
 
-  - [TensorBoard](https://www.tensorflow.org/tensorboard) 2.1 or later
+  - [TensorBoard](https://www.tensorflow.org/tensorboard) 2.4 or later
     (*optional*)
 
-The training toolkit has been tested only on Linux, thus other operating
-systems are currently not supported.
+## Devices
+
+Most scripts in the training toolkit support selecting what kind of
+device (e.g. CPU, GPU) to use for the computations (`--device` or `-d`
+option). If multiple devices of the same kind are available
+(e.g. multiple GPUs), the user can specify which one of these to use
+(`--device_id` or `-k` option). Additionally, some scripts, like
+`train.py`, support data-parallel execution on multiple devices for
+faster performance (`--num_devices` or `-n` option).
 
 ## Datasets
 
@@ -1005,14 +1108,14 @@ stored in a separate image file, i.e. multi-channel EXR image files are
 not supported. If you have multi-channel EXRs, you can split them into
 separate images per feature using the included `split_exr.py` tool.
 
-An image filename must consist of a name, the number of samples per
-pixel or whether it is the reference (e.g. `0128spp`, `ref`), the
-identifier (ID) of the feature (e.g. `hdr`, `alb`), and the file
-extension (`.exr`). The exact format as a regular expression is the
-following:
+An image filename must consist of a base name, a suffix with the number
+of samples per pixel or whether it is the reference image
+(e.g. `_0128spp`, `_ref`), the feature type extension (e.g. `.hdr`,
+`.alb`), and the image format extension (`.exr`). The exact filename
+format as a regular expression is the following:
 
 ``` regexp
-.+_([0-9]+(spp)?|ref|reference|gt|target)\.(hdr|ldr|alb|nrm)\.exr
+.+_([0-9]+(spp)?|ref|reference|gt|target)\.(hdr|ldr|sh1[xyz]|alb|nrm)\.exr
 ```
 
 The number of samples per pixel should be padded with leading zeros to
@@ -1022,14 +1125,15 @@ the most samples per pixel will be considered the reference.
 
 The following image features are supported:
 
-| Feature     | ID    | Channels |
-| :---------- | :---- | :------- |
-| color (HDR) | `hdr` | 3        |
-| color (LDR) | `ldr` | 3        |
-| albedo      | `alb` | 3        |
-| normal      | `nrm` | 3        |
+| Feature | Description                               | Channels     | File extension                        |
+| ------- | :---------------------------------------- | :----------- | :------------------------------------ |
+| `hdr`   | color (HDR)                               | 3            | `.hdr.exr`                            |
+| `ldr`   | color (LDR)                               | 3            | `.ldr.exr`                            |
+| `sh1`   | color (normalized L1 spherical harmonics) | 3 × 3 images | `.sh1x.exr`, `.sh1y.exr`, `.sh1z.exr` |
+| `alb`   | albedo                                    | 3            | `.alb.exr`                            |
+| `nrm`   | normal                                    | 3            | `.nrm.exr`                            |
 
-Supported image features, their IDs, and their number of channels.
+Image features supported by the training toolkit.
 
 The following directory tree demonstrates an example root dataset
 directory (`data`) containing one dataset (`rt_train`) with HDR color
@@ -1059,21 +1163,32 @@ and albedo feature images:
 
 Training and validation datasets can be used only after preprocessing
 them using the `preprocess.py` script. This will convert the specified
-training (`-t` or `--train_data` option) and validation datasets (`-v`
-or `--valid_data` option) located in the root dataset directory (`-D` or
-`--data_dir` option) to a format that can be loaded more efficiently
-during training. All preprocessed datasets will be stored in a root
-preprocessed dataset directory (`-P` or `--preproc_dir` option).
+training (`--train_data` or `-t` option) and validation datasets
+(`--valid_data` or `-v` option) located in the root dataset directory
+(`--data_dir` or `-D` option) to a format that can be loaded more
+efficiently during training. All preprocessed datasets will be stored in
+a root preprocessed dataset directory (`--preproc_dir` or `-P` option).
 
 The preprocessing script requires the set of image features to include
 in the preprocessed dataset as command-line arguments. Only these
-specified features will be available for training. Preprocessing also
-depends on the filter that will be trained (e.g. determines which
-HDR/LDR transfer function has to be used), which should be also
-specified (`-f` or `--filter` option). The alternative is to manually
-specify the transfer function (`-x` or `--transfer` option) and other
-filter-specific parameters, which could be useful for training custom
-filters.
+specified features will be available for training but it is not required
+to use all of them at the same time. Thus, a single preprocessed dataset
+can be reused for training multiple models with different combinations
+of the preprocessed features.
+
+By default, all input features are assumed to be noisy, including the
+auxiliary features (e.g. albedo, normal), each having versions at
+different samples per pixel. However, it is also possible to train with
+noise-free auxiliary features, in which case the reference auxiliary
+features are used instead of the various noisy ones (`--clean_aux`
+option).
+
+Preprocessing also depends on the filter that will be trained
+(e.g. determines which HDR/LDR transfer function has to be used), which
+should be also specified (`--filter` or `-f` option). The alternative is
+to manually specify the transfer function (`--transfer` or `-x` option)
+and other filter-specific parameters, which could be useful for training
+custom filters.
 
 For example, to preprocess the training and validation datasets
 (`rt_train` and `rt_valid`) with HDR color, albedo, and normal image
@@ -1082,12 +1197,22 @@ used:
 
     ./preprocess.py hdr alb nrm --filter RT --train_data rt_train --valid_data rt_valid
 
+It is possible to preprocess the same dataset multiple times, with
+possibly different combinations of features and options. The training
+script will use the most suitable and most recent preprocessed version
+depending on the training parameters.
+
 For more details about using the preprocessing script, including other
 options, please have a look at the help message:
 
     ./preprocess.py -h
 
 ## Training (train.py)
+
+The filters require separate trained models for each supported
+combination of input features. Thus, depending on which combinations of
+features the user wants to support for a particular filter, one or more
+models have to be trained.
 
 After preprocessing the datasets, it is possible to start training a
 model using the `train.py` script. Similar to the preprocessing script,
@@ -1096,31 +1221,29 @@ preprocessed features), and the dataset names, directory paths, and the
 filter can be also passed.
 
 The tool will produce a training *result*, the name of which can be
-either specified (`-r` or `--result` option) or automatically generated
+either specified (`--result` or `-r` option) or automatically generated
 (by default). Each result is stored in its own subdirectory, and these
-are located in a common parent directory (`-R` or `--results_dir`
+are located in a common parent directory (`--results_dir` or `-R`
 option). If a training result already exists, the tool will resume
-training that result from the latest checkpoint, or from an earlier
-checkpoint at the specified epoch (`-c` or `--checkpoint` option).
+training that result from the latest checkpoint.
 
 The default training hyperparameters should work reasonably well in
 general, but some adjustments might be necessary for certain datasets to
-attain optimal performance, most importantly: the number of epochs (`-e`
-or `--epochs` option), the mini-batch size (`--bs` or `--batch_size`
-option), and the learning rate. The training tool uses a cyclical
-learning rate (CLR) with the `triangular2` scaling policy and an
-optional linear ramp-down at the end. The learning rate schedule can be
-configured by setting the base learning rate (`--lr` or
-`--learning_rate` option), the maximum learning rate (`--max_lr` or
-`--max_learning_rate` option), and the total cycle size in number of
-epochs (`--lr_cycle_epochs` option). If there is an incomplete cycle at
-the end, the learning rate will be linearly ramped down to almost zero.
+attain optimal performance, most importantly: the number of epochs
+(`--num_epochs` or `-e` option), the global mini-batch size
+(`--batch_size` or `-b` option), and the learning rate. The training
+tool uses a one-cycle learning rate schedule with cosine annealing,
+which can be configured by setting the base learning rate
+(`--learning_rate` or `--lr` option), the maximum learning rate
+(`--max_learning_rate` or `--max_lr` option), and the percentage of the
+cycle spent increasing the learning rate (`--learning_rate_warmup` or
+`--lr_warmup` option).
 
 Example usage:
 
     ./train.py hdr alb --filter RT --train_data rt_train --valid_data rt_valid --result rt_hdr_alb
 
-For finding the optimal learning rate range we recommend using the
+For finding the optimal learning rate range, we recommend using the
 included `find_lr.py` script, which trains one epoch using an increasing
 learning rate and logs the resulting losses in a comma-separated values
 (CSV) file. Plotting the loss curve can show when the model starts to
@@ -1128,27 +1251,32 @@ learn (the base learning rate) and when it starts to diverge (the
 maximum learning rate).
 
 The model is evaluated with the validation dataset at regular intervals
-(`--valid_epochs` option), and checkpoints are also regularly created
-(`--save_epochs` option) to save training progress. Also, some
-statistics are logged (e.g. training and validation losses, learning
-rate) at a specified frequency (`--log_steps` option), which can be
-later visualized with TensorBoard by running the `visualize.py` script,
-e.g.:
+(`--num_valid_epochs` option), and checkpoints are also regularly
+created (`--num_save_epochs` option) to save training progress. Also,
+some statistics are logged (e.g. training and validation losses,
+learning rate) per epoch, which can be later visualized with TensorBoard
+by running the `visualize.py` script, e.g.:
 
     ./visualize.py --result rt_hdr_alb
+
+Training is performed with mixed precision (FP16 and FP32) by default,
+if it supported by the hardware, which makes training faster and use
+less memory. However, in some rare cases this might cause some
+convergence issues. The training precision can be manually set to FP32
+if necessary (`--precision` or `-p` option).
 
 ## Inference (infer.py)
 
 A training result can be tested by performing inference on an image
-dataset (`-i` or `--input_data` option) using the `infer.py` script. The
+dataset (`--input_data` or `-i` option) using the `infer.py` script. The
 dataset does *not* have to be preprocessed. In addition to the result to
-use, it is possible to specify which checkpoint to load as well. By
-default the latest checkpoint is loaded.
+use, it is possible to specify which checkpoint to load as well (`-e` or
+`--num_epochs` option). By default the latest checkpoint is loaded.
 
-The tool saves the output images in a separate directory (`-O` or
-`--output_dir`) in the requested formats (`-F` or `--format` option). It
-also evaluates a set of image quality metrics (`-M` or `--metric`
-option), e.g. SSIM, MSE, for images that have reference images
+The tool saves the output images in a separate directory (`--output_dir`
+or `-O` option) in the requested formats (`--format` or `-F` option). It
+also evaluates a set of image quality metrics (`--metric` or `-M`
+option), e.g. PSNR, SSIM, for images that have reference images
 available. All metrics are computed in tonemapped non-linear sRGB space.
 Thus, HDR images are first tonemapped (with Naughty Dog’s Filmic
 Tonemapper from John Hable’s *Uncharted 2: HDR Lighting* presentation)
@@ -1158,15 +1286,22 @@ Example usage:
 
     ./infer.py --result rt_hdr_alb --input_data rt_test --format exr png --metric ssim
 
+The inference tool supports pre-filtering of auxiliary features as well,
+which can be performed by specifying the list of training results for
+each feature to pre-filter (`--aux_results` or `-a` option). This is
+primarily useful for evaluating the quality of models trained with clean
+auxiliary features.
+
 ## Exporting Results (export.py)
 
 The training result produced by the `train.py` script cannot be
 immediately used by the main library. It has to be first exported to the
 runtime model weights format, a *Tensor Archive* (TZA) file. Running the
-`export.py` script for a training result (and optionally a checkpoint)
-will create a binary `.tza` file in the directory of the result, which
-can be either used at runtime through the API or it can be included in
-the library build by replacing one of the built-in weights files.
+`export.py` script for a training result (and optionally a checkpoint
+epoch) will create a binary `.tza` file in the directory of the result,
+which can be either used at runtime through the API or it can be
+included in the library build by replacing one of the built-in weights
+files.
 
 Example usage:
 
@@ -1180,8 +1315,8 @@ contains a few other image utilities as well.
 `convert_image.py` converts a feature image to a different image format
 (and/or a different feature, e.g. HDR color to LDR), performing
 tonemapping and other transforms as well if needed. For HDR images the
-exposure can be adjusted by passing a linear exposure scale (`-E` or
-`--exposure` option). Example usage:
+exposure can be adjusted by passing a linear exposure scale
+(`--exposure` or `-E` option). Example usage:
 
     ./convert_image.py view1_0004.hdr.exr view1_0004.png --exposure 2.5
 
@@ -1193,4 +1328,4 @@ tool. Example usage:
     ./compare_image.py view1_0004.hdr.exr view1_8192.hdr.exr --exposure 2.5 --metric mse ssim
 
 1.  For example, if Intel Open Image Denoise is in `~/Projects/oidn`,
-    ISPC will also be searched in `~/Projects/ispc-v1.12.0-linux`
+    ISPC will also be searched in `~/Projects/ispc-v1.14.1-linux`
