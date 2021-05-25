@@ -26,7 +26,11 @@
 #endif
 
 #ifndef STRATA_MICROFACET_MULTIPLESCATTERING
-#define STRATA_MICROFACET_MULTIPLESCATTERING 0
+#define STRATA_MICROFACET_MULTIPLESCATTERING (PROJECT_STRATA_BACKCOMPATIBILITY > 0 ? 0 : 1)
+#endif
+
+#ifndef STRATA_DIFFUSE_CHAN
+#define STRATA_DIFFUSE_CHAN (PROJECT_STRATA_BACKCOMPATIBILITY > 0 ? 0 : 1)
 #endif
 
 #ifndef STRATA_SSS_TRANSMISSION
@@ -245,7 +249,11 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 			float a2 = Pow4(SafeRoughness);
 
-			Sample.DiffusePathValue	= Diffuse_Chan(DiffuseColor, a2, BSDFContext.SatNoV, BSDFContext.SatNoL, BSDFContext.Context.VoH, BSDFContext.Context.NoH);
+		#if STRATA_DIFFUSE_CHAN
+			Sample.DiffusePathValue = Diffuse_Chan(DiffuseColor, a2, BSDFContext.SatNoV, BSDFContext.SatNoL, BSDFContext.Context.VoH, BSDFContext.Context.NoH);
+		#else
+			Sample.DiffusePathValue = Diffuse_Lambert(DiffuseColor);
+		#endif
 			Sample.DiffusePDF		= BSDFContext.SatNoL / PI;
 			Sample.bSubsurface		= bHasSubsurface;
 
