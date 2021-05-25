@@ -30,8 +30,13 @@ const char* CoreTechLicenseKey =
 
 namespace CADLibrary
 {
-	bool FCoreTechInterfaceImpl::InitializeKernel(double Unit, const TCHAR* EnginePluginsPath)
+	bool FCoreTechInterfaceImpl::InitializeKernel(const TCHAR* EnginePluginsPath)
 	{
+		if (bIsInitialize)
+		{
+			return true;
+		}
+
 		FString KernelIOPath;
 		if (FCString::Strlen(EnginePluginsPath))
 		{
@@ -43,23 +48,14 @@ namespace CADLibrary
 			}
 		}
 
-		if (FMath::IsNearlyEqual(Unit, KernelUnit))
-		{
-			// Kernel_IO is already initialized with requested Unit value
-			return true;
-		}
-
-		// Kernel_IO is already initialized, so it is stopped to be able to restart it with the good unit value
-		ShutdownKernel();
-
 		CT_STR AppName = CoreTechLicenseKey;
-		CT_IO_ERROR Status = CT_KERNEL_IO::InitializeKernel(AppName, Unit, 0.00001 / Unit, *KernelIOPath);
+		CT_IO_ERROR Status = CT_KERNEL_IO::InitializeKernel(AppName, 0.001, 0.01, *KernelIOPath);
 
 		if (Status == IO_OK || Status == IO_ERROR_ALREADY_INITIALIZED)
 		{
 			if (Status == IO_OK)
 			{
-				KernelUnit = Unit;
+				bIsInitialize = true;
 			}
 			return true;
 		}
@@ -81,7 +77,7 @@ namespace CADLibrary
 
 	bool FCoreTechInterfaceImpl::ShutdownKernel()
 	{
-		KernelUnit = -1;
+		bIsInitialize = false;
 		return CT_KERNEL_IO::ShutdownKernel() == IO_OK; // ignorable. Just in case CT was not previously stopped
 	}
 
@@ -90,6 +86,15 @@ namespace CADLibrary
 		return CT_KERNEL_IO::UnloadModel() == IO_OK;
 	}
 
+	bool FCoreTechInterfaceImpl::ChangeUnit(double SceneUnit)
+	{
+		if (CT_KERNEL_IO::ChangeUnit(SceneUnit) != IO_OK)
+		{
+			return false;
+		}
+		return CT_KERNEL_IO::ChangeTolerance(0.00001 / SceneUnit) == IO_OK;
+	}
+	
 	bool FCoreTechInterfaceImpl::CreateModel(uint64& OutMainObjectId)
 	{
 		OutMainObjectId = 0;

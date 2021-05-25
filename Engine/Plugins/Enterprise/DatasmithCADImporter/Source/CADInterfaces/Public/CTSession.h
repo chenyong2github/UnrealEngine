@@ -20,14 +20,10 @@ public:
 	 * Make sure CT is initialized, and a main object is ready.
 	 * Handle input file unit and an output unit
 	 * @param InOwner:        text that describe the owner of the session (helps to fix initialization issues)
-	 * @param FileMetricUnit: number of meters per file unit.
-	 * eg. For a file in inches, arg should be 0.0254
 	 */
-	FCTSession(const TCHAR* InOwner, double InFileMetricUnit, double InScaleFactor)
-		: FCoreTechSessionBase(InOwner, InFileMetricUnit)
+	FCTSession(const TCHAR* InOwner)
+		: FCoreTechSessionBase(InOwner)
 	{
-		ImportParams.ScaleFactor = InScaleFactor;
-		ImportParams.MetricUnit = InFileMetricUnit;
 	}
 
 	void ClearData();
@@ -50,6 +46,13 @@ public:
 		ImportParams.ScaleFactor = InScaleFactor;
 	}
 
+	/**
+	 * Handle input file unit
+	 * @param FileMetricUnit: number of meters per file unit.
+	 * eg. For a file in inches, arg should be 0.0254
+	 */
+	void SetSceneUnit(double InMetricUnit);
+	
 	/**
 	 * Set Import parameters,
 	 * Tack care to set scale factor before because import parameters will be scale according to scale factor

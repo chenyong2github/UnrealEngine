@@ -91,10 +91,15 @@ namespace CADLibrary
 		virtual bool IsExternal() = 0;
 		virtual void SetExternal(bool Value) = 0;
 
-		/*
-		*
-		*/
-		virtual bool InitializeKernel(double MetricUnit, const TCHAR* = TEXT("")) = 0;
+		virtual bool InitializeKernel(const TCHAR* = TEXT("")) = 0;
+
+		/**
+		 * Change Kernel_IO unit
+		 * As to be call after CTKIO_UnloadModel
+		 * This method set also the Tolerance to 0.00001 m whether 0.01 mm
+		 * @param MetricUnit: Length unit express in meter i.e. 0.001 = mm
+		 */
+		virtual bool ChangeUnit(double SceneUnit) = 0;
 
 		virtual bool ShutdownKernel() = 0;
 
@@ -177,12 +182,16 @@ namespace CADLibrary
 		TArray<uint32> TriangleMaterials;
 	};
 
+	CADINTERFACES_API bool CTKIO_InitializeKernel(const TCHAR* = TEXT(""));
+
 	/**
-	 * Mandatory: Kernel_IO has to be initialize with the final MetricUnit, set function doesn't work
-	 * This method set Tolerance to 0.00001 m whether 0.01 mm
-	 * @param MetricUnit: Length unit express in meter
+	 * Change Kernel_IO unit
+	 * As to be call after CTKIO_UnloadModel
+	 * This method set also the Tolerance to 0.00001 m whether 0.01 mm
+	 * @param MetricUnit: Length unit express in meter i.e. 0.001 = mm
 	 */
-	CADINTERFACES_API bool CTKIO_InitializeKernel(double MetricUnit, const TCHAR* = TEXT(""));
+	CADINTERFACES_API bool CTKIO_ChangeUnit(double SceneUnit);
+	
 	CADINTERFACES_API bool CTKIO_ShutdownKernel();
 	CADINTERFACES_API bool CTKIO_UnloadModel();
 	CADINTERFACES_API bool CTKIO_CreateModel(uint64& OutMainObjectId);
@@ -247,11 +256,8 @@ namespace CADLibrary
 	public:
 		/**
 		 * Make sure CT is initialized, and a main object is ready.
-		 * Handle input file unit and an output unit
-		 * @param FileMetricUnit number of meters per file unit.
-		 * eg. For a file in inches, arg should be 0.0254
 		 */
-		FCoreTechSessionBase(const TCHAR* Owner, double Unit);
+		FCoreTechSessionBase(const TCHAR* Owner);
 		bool IsSessionValid() { return Owner != nullptr && MainObjectId != 0; }
 		virtual ~FCoreTechSessionBase();
 
