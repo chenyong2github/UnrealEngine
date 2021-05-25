@@ -105,13 +105,8 @@ ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot_Internal(const
 		TargetWorld = WorldContextObject->GetWorld();
 	}
 
-	if (TargetWorld)
+	if (!ensure(TargetWorld))
 	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Snapshot taken in World Type - %d"), TargetWorld->WorldType);
-	}
-	else
-	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Snapshot taken with no valid World set"));
 		return nullptr;
 	}
 	
