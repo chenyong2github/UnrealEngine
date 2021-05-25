@@ -317,6 +317,7 @@ private:
 	bool MediaStateOnPause();
 	void MediaStateOnEndReached();
 	void MediaStateOnSeekFinished();
+	void TriggerFirstSeekIfNecessary();
 
 	TSharedPtr<FTrackMetadata, ESPMode::ThreadSafe> GetTrackStreamMetadata(EPlayerTrackType TrackType, int32 TrackIndex) const;
 
@@ -328,7 +329,10 @@ private:
 	int32											NumTracksVideo;
 	int32											SelectedQuality;
 	int32											SelectedVideoTrackIndex;
-	int32											SelectedAudioTrackIndex;
+	mutable int32									SelectedAudioTrackIndex;
+	mutable bool									bAudioTrackIndexDirty;
+
+	bool											bInitialSeekPerformed;
 
 	FIntPoint										LastPresentedFrameDimension;
 

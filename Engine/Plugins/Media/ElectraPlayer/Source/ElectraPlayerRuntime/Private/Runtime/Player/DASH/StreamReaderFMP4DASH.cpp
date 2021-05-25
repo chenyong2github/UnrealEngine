@@ -132,7 +132,9 @@ UEMediaError FStreamReaderFMP4DASH::Create(IPlayerSessionServices* InPlayerSessi
 		StreamHandlers[i].Parameters		   = InCreateParam;
 		StreamHandlers[i].bTerminate		   = false;
 		StreamHandlers[i].bRequestCanceled     = false;
+		StreamHandlers[i].bSilentCancellation  = false;
 		StreamHandlers[i].bHasErrored   	   = false;
+		StreamHandlers[i].IsIdleSignal.Signal();
 
 		StreamHandlers[i].ThreadSetName(i==0?"ElectraPlayer::fmp4 Video":"ElectraPlayer::fmp4 Audio");
 		StreamHandlers[i].ThreadStart(Electra::MakeDelegate(&StreamHandlers[i], &FStreamHandler::WorkerThread));
@@ -149,7 +151,7 @@ void FStreamReaderFMP4DASH::Close()
 		for(int32 i=0; i<FMEDIA_STATIC_ARRAY_COUNT(StreamHandlers); ++i)
 		{
 			StreamHandlers[i].bTerminate = true;
-			StreamHandlers[i].Cancel();
+			StreamHandlers[i].Cancel(true);
 			StreamHandlers[i].SignalWork();
 		}
 		// Wait until they finished.
@@ -206,24 +208,39 @@ IStreamReader::EAddResult FStreamReaderFMP4DASH::AddRequest(uint32 CurrentPlayba
 			return IStreamReader::EAddResult::Error;
 		}
 		// Is the handler busy?
-		if (Handler->CurrentRequest.IsValid())
+		bool bIsIdle = Handler->IsIdleSignal.WaitTimeout(1000 * 1000);
+		if (!bIsIdle)
 		{
 			ErrorDetail.SetMessage(FString::Printf(TEXT("The handler for this stream type is busy!?")));
 			return IStreamReader::EAddResult::Error;
 		}
 
 		Request->SetPlaybackSequenceID(CurrentPlaybackSequenceID);
+		Handler->bRequestCanceled = false;
+		Handler->bSilentCancellation = false;
 		Handler->CurrentRequest = Request;
 		Handler->SignalWork();
 	}
 	return IStreamReader::EAddResult::Added;
 }
 
+void FStreamReaderFMP4DASH::CancelRequest(EStreamType StreamType, bool bSilent)
+{
+	if (StreamType == EStreamType::Video)
+	{
+		StreamHandlers[0].Cancel(bSilent);
+	}
+	else if (StreamType == EStreamType::Audio)
+	{
+		StreamHandlers[1].Cancel(bSilent);
+	}
+}
+
 void FStreamReaderFMP4DASH::CancelRequests()
 {
 	for(int32 i=0; i<FMEDIA_STATIC_ARRAY_COUNT(StreamHandlers); ++i)
 	{
-		StreamHandlers[i].Cancel();
+		StreamHandlers[i].Cancel(false);
 	}
 }
 
@@ -241,8 +258,9 @@ FStreamReaderFMP4DASH::FStreamHandler::~FStreamHandler()
 	// NOTE: The thread will have been terminated by the enclosing FStreamReaderFMP4DASH's Close() method!
 }
 
-void FStreamReaderFMP4DASH::FStreamHandler::Cancel()
+void FStreamReaderFMP4DASH::FStreamHandler::Cancel(bool bSilent)
 {
+	bSilentCancellation = bSilent;
 	bRequestCanceled = true;
 }
 
@@ -264,6 +282,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::WorkerThread()
 		{
 			if (CurrentRequest.IsValid())
 			{
+				IsIdleSignal.Reset();
 				if (!bRequestCanceled)
 				{
 					HandleRequest();
@@ -272,8 +291,10 @@ void FStreamReaderFMP4DASH::FStreamHandler::WorkerThread()
 				{
 					CurrentRequest.Reset();
 				}
+				IsIdleSignal.Signal();
 			}
 			bRequestCanceled = false;
+			bSilentCancellation = false;
 		}
 	}
 	StreamSelector.Reset();
@@ -806,6 +827,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									AccessUnit->bIsSyncSample = TrackIterator->IsSyncSample();
 									AccessUnit->bIsDummyData = false;
 									AccessUnit->AUCodecData = CSD;
+									AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
 									AccessUnit->PlayerLoopState = PlayerLoopState;
 
 									AccessUnit->DropState = FAccessUnit::EDropState::None;
@@ -1108,6 +1130,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			}
 
 			AccessUnit->ESType = Request->GetType();
+			AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
 			AccessUnit->PlayerLoopState = PlayerLoopState;
 			AccessUnit->Duration = DefaultDuration;
 			AccessUnit->AUSize = 0;
@@ -1241,7 +1264,10 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 		}
 	}
 
-	StreamSelector->ReportDownloadEnd(ds);
+	if (!bSilentCancellation)
+	{
+		StreamSelector->ReportDownloadEnd(ds);
+	}
 
 	// Remember the next expected timestamp.
 	CurrentRequest->NextLargestExpectedTimestamp = NextExpectedDTS;
@@ -1253,7 +1279,10 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 	MP4Parser.Reset();
 	SegmentEventsFound.Empty();
 
-	Parameters.EventListener->OnFragmentClose(FinishedRequest);
+	if (!bSilentCancellation)
+	{
+		Parameters.EventListener->OnFragmentClose(FinishedRequest);
+	}
 }
 
 

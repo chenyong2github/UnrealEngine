@@ -58,7 +58,6 @@ public:
 	{ return FTimeValue::GetInvalid(); }
 	virtual void ClearDefaultStartTime() override
 	{ }
-	virtual int64 GetDefaultStartingBitrate() const override;
 	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const override;
 	virtual FTimeValue GetMinBufferTime() const override;
 	virtual void UpdateDynamicRefetchCounter() override;
@@ -86,9 +85,13 @@ public:
 		{ return 0; }
 		virtual bool CanBePlayed() const override
 		{ return true; }
+
+		const FString& GetName() const
+		{ return Name; }
 	private:
 		FStreamCodecInformation		CodecInformation;
 		FString						UniqueIdentifier;
+		FString						Name;
 		int32						Bitrate;
 
 		TArray<uint8>				CodecSpecificData;
@@ -195,8 +198,9 @@ public:
 				if (AdaptSet.IsValid())
 				{
 					FTrackMetadata tm;
-					tm.TrackID = AdaptSet->GetUniqueIdentifier();
+					tm.ID = AdaptSet->GetUniqueIdentifier();
 					tm.Language = AdaptSet->GetLanguage();
+					tm.Kind = i==0 ? TEXT("main") : TEXT("translation");
 
 					for(int32 j=0, jMax=AdaptSet->GetNumberOfRepresentations(); j<jMax; ++j)
 					{
@@ -210,6 +214,8 @@ public:
 							// There is only 1 "stream" per "track" so we can set the highest bitrate and codec info the same as the track.
 							tm.HighestBandwidth = sd.Bandwidth;
 							tm.HighestBandwidthCodec = sd.CodecInformation;
+
+							tm.Label = Repr->GetName();
 
 							tm.StreamDetails.Emplace(MoveTemp(sd));
 						}
@@ -249,22 +255,40 @@ public:
 	public:
 		FPlayPeriodMP4(TSharedPtrTS<FTimelineAssetMP4> InMediaAsset);
 		virtual ~FPlayPeriodMP4();
-		virtual void SetStreamPreferences(const FStreamPreferences& Preferences) override;
+		virtual void SetStreamPreferences(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
 		virtual EReadyState GetReadyState() override;
+		virtual void Load() override;
 		virtual void PrepareForPlay() override;
+		virtual int64 GetDefaultStartingBitrate() const override;
+		virtual TSharedPtrTS<FBufferSourceInfo> GetSelectedStreamBufferSourceInfo(EStreamType StreamType) override;
+		virtual FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
+		virtual ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
 		virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
 		virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
 		virtual FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
+		virtual FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerLoopState& LoopState, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
 		virtual FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 		virtual FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) override;
 		virtual FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
 		virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
 		virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
+
 	private:
+		void SelectInitialStream(EStreamType StreamType);
+		TSharedPtrTS<FTrackMetadata> SelectMetadataForAttributes(EStreamType StreamType, const FStreamSelectionAttributes& InAttributes);
+		void MakeBufferSourceInfoFromMetadata(EStreamType StreamType, TSharedPtrTS<FBufferSourceInfo>& OutBufferSourceInfo, TSharedPtrTS<FTrackMetadata> InMetadata);
+
 		TWeakPtrTS<FTimelineAssetMP4>			MediaAsset;
-		FStreamPreferences						Preferences;
-		FParamDict								Options;
-		bool									bIsReady;
+		FStreamSelectionAttributes				VideoPreferences;
+		FStreamSelectionAttributes				AudioPreferences;
+		FStreamSelectionAttributes				SubtitlePreferences;
+		TSharedPtrTS<FTrackMetadata>			SelectedVideoMetadata;
+		TSharedPtrTS<FTrackMetadata>			SelectedAudioMetadata;
+		TSharedPtrTS<FTrackMetadata>			SelectedSubtitleMetadata;
+		TSharedPtrTS<FBufferSourceInfo>			VideoBufferSourceInfo;
+		TSharedPtrTS<FBufferSourceInfo>			AudioBufferSourceInfo;
+		TSharedPtrTS<FBufferSourceInfo>			SubtitleBufferSourceInfo;
+		EReadyState								CurrentReadyState;
 	};
 
 	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
