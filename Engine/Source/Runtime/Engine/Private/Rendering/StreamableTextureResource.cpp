@@ -36,7 +36,7 @@ bool CanCreateWithPartiallyResidentMips(ETextureCreateFlags TexCreateFlags)
 	const ETextureCreateFlags iRequiredFlags =
 		TexCreate_OfflineProcessed;
 
-	return EnumHasAllFlags(TexCreateFlags & iDisableFlags, iRequiredFlags) && CVarVirtualTextureEnabled.GetValueOnAnyThread();
+	return ((TexCreateFlags & (iDisableFlags | iRequiredFlags)) == iRequiredFlags) && CVarVirtualTextureEnabled.GetValueOnAnyThread();
 	
 #else
 	return false;
