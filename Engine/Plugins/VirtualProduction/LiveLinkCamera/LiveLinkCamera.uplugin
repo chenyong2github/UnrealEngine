@@ -20,7 +20,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "CameraCalibration",
+			"Name": "CameraCalibrationCore",
 			"Enabled": true
 		}
 	],

@@ -6,20 +6,13 @@ namespace UnrealBuildTool.Rules
 	{
 		public CameraCalibrationEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			if (Target.Configuration == UnrealTargetConfiguration.Debug)
-			{
-				PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-				OptimizeCode = CodeOptimization.Never;
-				bUseUnity = false;
-				PCHUsage = PCHUsageMode.NoPCHs;
-			}
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"AssetRegistry",
 					"AssetTools",
 					"CameraCalibration",
+					"CameraCalibrationCore",
 					"CinematicCamera",
 					"Composure",
 					"ComposureLayersEditor",
