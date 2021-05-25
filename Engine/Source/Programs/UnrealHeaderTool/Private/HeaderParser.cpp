@@ -616,7 +616,7 @@ namespace
 		}
 	}
 
-	const TCHAR* GetHintText(EVariableCategory::Type VariableCategory)
+	const TCHAR* GetHintText(EVariableCategory VariableCategory)
 	{
 		switch (VariableCategory)
 		{
@@ -637,198 +637,6 @@ namespace
 		// Unreachable
 		check(false);
 		return nullptr;
-	}
-
-	/**
-	 * Ensures at script compile time that the metadata formatting is correct
-	 * @param	InKey			the metadata key being added
-	 * @param	InValue			the value string that will be associated with the InKey
-	 */
-	void ValidateMetaDataFormat(FUnrealTypeDefinitionInfo& TypeDef, const FName InKey, const FString& InValue)
-	{
-		switch (GetCheckedMetadataSpecifier(InKey))
-		{
-			default:
-			{
-				// Don't need to validate this specifier
-			}
-			break;
-
-			case ECheckedMetadataSpecifier::UIMin:
-			case ECheckedMetadataSpecifier::UIMax:
-			case ECheckedMetadataSpecifier::ClampMin:
-			case ECheckedMetadataSpecifier::ClampMax:
-			{
-				if (!InValue.IsNumeric())
-				{
-					FError::Throwf(TEXT("Metadata value for '%s' is non-numeric : '%s'"), *InKey.ToString(), *InValue);
-				}
-			}
-			break;
-
-			case ECheckedMetadataSpecifier::BlueprintProtected:
-			{
-				if (FUnrealFunctionDefinitionInfo* FuncDef = TypeDef.AsFunction())
-				{
-					UFunction* Function = FuncDef->GetFunction();
-					if (FuncDef->HasAnyFunctionFlags(FUNC_Static))
-					{
-						// Determine if it's a function library
-						FUnrealClassDefinitionInfo* ClassDef = FuncDef->GetOwnerClass();
-						for (; ClassDef != nullptr && ClassDef->GetSuperClass() != GUObjectDef; ClassDef = ClassDef->GetSuperClass())
-						{
-						}
-
-						if (ClassDef != nullptr && ClassDef->GetName() == TEXT("BlueprintFunctionLibrary"))
-						{
-							FError::Throwf(TEXT("%s doesn't make sense on static method '%s' in a blueprint function library"), *InKey.ToString(), *FuncDef->GetName());
-						}
-					}
-				}
-			}
-			break;
-
-			case ECheckedMetadataSpecifier::CommutativeAssociativeBinaryOperator:
-			{
-				if (FUnrealFunctionDefinitionInfo* FuncDef = TypeDef.AsFunction())
-				{
-					bool bGoodParams = (FuncDef->GetProperties().Num() == 3);
-					if (bGoodParams)
-					{
-						FUnrealPropertyDefinitionInfo* FirstParam = nullptr;
-						FUnrealPropertyDefinitionInfo* SecondParam = nullptr;
-						FUnrealPropertyDefinitionInfo* ReturnValue = nullptr;
-						for (FUnrealPropertyDefinitionInfo* PropertyDef : FuncDef->GetProperties())
-						{
-							if (PropertyDef->HasAnyPropertyFlags(CPF_ReturnParm))
-							{
-								ReturnValue = PropertyDef;
-							}
-							else
-							{
-								if (FirstParam == nullptr)
-								{
-									FirstParam = PropertyDef;
-								}
-								else if (SecondParam == nullptr)
-								{
-									SecondParam = PropertyDef;
-								}
-							}
-						}
-
-						if (ReturnValue == nullptr || SecondParam == nullptr || !SecondParam->SameType(*FirstParam))
-						{
-							bGoodParams = false;
-						}
-					}
-
-					if (!bGoodParams)
-					{
-						UE_LOG_ERROR_UHT(TEXT("Commutative associative binary operators must have exactly 2 parameters of the same type and a return value."));
-					}
-				}
-			}
-			break;
-
-			case ECheckedMetadataSpecifier::ExpandBoolAsExecs:
-			case ECheckedMetadataSpecifier::ExpandEnumAsExecs:
-			{
-				if (FUnrealFunctionDefinitionInfo* FuncDef = TypeDef.AsFunction())
-				{
-					// multiple entry parsing in the same format as eg SetParam.
-					TArray<FString> RawGroupings;
-					InValue.ParseIntoArray(RawGroupings, TEXT(","), false);
-
-					FUnrealPropertyDefinitionInfo* FirstInputDef = nullptr;
-					for (const FString& RawGroup : RawGroupings)
-					{
-						TArray<FString> IndividualEntries;
-						RawGroup.ParseIntoArray(IndividualEntries, TEXT("|"));
-
-						for (const FString& Entry : IndividualEntries)
-						{
-							if (Entry.IsEmpty())
-							{
-								continue;
-							}
-							
-							FUnrealPropertyDefinitionInfo* FoundFieldDef = FHeaderParser::FindProperty(*FuncDef, *Entry, false);
-							if (!FoundFieldDef)
-							{
-								UE_LOG_ERROR_UHT(TEXT("Function does not have a parameter named '%s'"), *Entry);
-							}
-							else
-							{
-								if (!FoundFieldDef->HasAnyPropertyFlags(CPF_ReturnParm) &&
-
-								    (!FoundFieldDef->HasAnyPropertyFlags(CPF_OutParm) ||
-										FoundFieldDef->HasAnyPropertyFlags(CPF_ReferenceParm)))
-								{
-									if (!FirstInputDef)
-									{
-										FirstInputDef = FoundFieldDef;
-									}
-									else
-									{
-										UE_LOG_ERROR_UHT(TEXT("Function already specified an ExpandEnumAsExec input (%s), but '%s' is also an input parameter. Only one is permitted."), *FirstInputDef->GetName(), *Entry);
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			break;
-
-			case ECheckedMetadataSpecifier::DevelopmentStatus:
-			{
-				const FString EarlyAccessValue(TEXT("EarlyAccess"));
-				const FString ExperimentalValue(TEXT("Experimental"));
-				if ((InValue != EarlyAccessValue) && (InValue != ExperimentalValue))
-				{
-					FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s or %s"), *InKey.ToString(), *InValue, *ExperimentalValue, *EarlyAccessValue);
-				}
-			}
-			break;
-
-			case ECheckedMetadataSpecifier::Units:
-			{
-				// Check for numeric property
-				if (FUnrealPropertyDefinitionInfo* PropDef = TypeDef.AsProperty())
-				{
-					if (!PropDef->IsNumericOrNumericStaticArray() && !PropDef->IsStructOrStructStaticArray())
-					{
-						FError::Throwf(TEXT("'Units' meta data can only be applied to numeric and struct properties"));
-					}
-				}
-
-				if (!FUnitConversion::UnitFromString(*InValue))
-				{
-					FError::Throwf(TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *TypeDef.GetFullName());
-				}
-			}
-			break;
-
-			case ECheckedMetadataSpecifier::DocumentationPolicy:
-			{
-				const TCHAR* StrictValue = TEXT("Strict");
-				if (InValue != StrictValue)
-				{
-					FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s"), *InKey.ToString(), *InValue, *StrictValue);
-				}
-			}
-			break;
-		}
-	}
-
-	// Ensures at script compile time that the metadata formatting is correct
-	void ValidateMetaDataFormat(FUnrealTypeDefinitionInfo& TypeDef, const TMap<FName, FString>& MetaData)
-	{
-		for (const TPair<FName, FString>& Pair : MetaData)
-		{
-			ValidateMetaDataFormat(TypeDef, Pair.Key, Pair.Value);
-		}
 	}
 
 	void SkipAlignasIfNecessary(FBaseParser& Parser)
@@ -918,27 +726,6 @@ namespace
 void AddEditInlineMetaData(TMap<FName, FString>& MetaData)
 {
 	MetaData.Add(NAME_EditInline, TEXT("true"));
-}
-
-// Validates the metadata, then adds it to the class data
-void AddMetaDataToClassData(FUnrealTypeDefinitionInfo& TypeDef, TMap<FName, FString>&& InMetaData)
-{
-	// Evaluate any key redirects on the passed in pairs
-	for (TPair<FName, FString>& Pair : InMetaData)
-	{
-		FName& CurrentKey = Pair.Key;
-		FName NewKey = UMetaData::GetRemappedKeyName(CurrentKey);
-
-		if (NewKey != NAME_None)
-		{
-			UE_LOG_WARNING_UHT(TEXT("Remapping old metadata key '%s' to new key '%s', please update the declaration."), *CurrentKey.ToString(), *NewKey.ToString());
-			CurrentKey = NewKey;
-		}
-	}
-
-	// Finish validating and associate the metadata with the field
-	ValidateMetaDataFormat(TypeDef, InMetaData);
-	TypeDef.AddMetaData(MoveTemp(InMetaData));
 }
 
 FUHTConfig::FUHTConfig()
@@ -1062,7 +849,7 @@ FUnrealClassDefinitionInfo* FHeaderParser::GetQualifiedClass(const TCHAR* Thing)
  */
 FUnrealFunctionDefinitionInfo* FHeaderParser::FindFunction
 (
-	FUnrealStructDefinitionInfo&  InScope,
+	const FUnrealStructDefinitionInfo&  InScope,
 	const TCHAR*	InIdentifier,
 	bool			bIncludeParents,
 	const TCHAR*	Thing
@@ -1072,7 +859,7 @@ FUnrealFunctionDefinitionInfo* FHeaderParser::FindFunction
 	FName InName(InIdentifier, FNAME_Find);
 	if (InName != NAME_None)
 	{
-		for (FUnrealStructDefinitionInfo* Scope = &InScope; Scope; Scope = UHTCast<FUnrealStructDefinitionInfo>(Scope->GetOuter()))
+		for (const FUnrealStructDefinitionInfo* Scope = &InScope; Scope; Scope = UHTCast<FUnrealStructDefinitionInfo>(Scope->GetOuter()))
 		{
 			for (FUnrealPropertyDefinitionInfo* PropertyDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(*Scope))
 			{
@@ -1103,13 +890,13 @@ FUnrealFunctionDefinitionInfo* FHeaderParser::FindFunction
 	return nullptr;
 }
 
-FUnrealPropertyDefinitionInfo* FHeaderParser::FindProperty(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents, const TCHAR* Thing)
+FUnrealPropertyDefinitionInfo* FHeaderParser::FindProperty(const FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents, const TCHAR* Thing)
 {
 	check(InIdentifier);
 	FName InName(InIdentifier, FNAME_Find);
 	if (InName != NAME_None)
 	{
-		for (FUnrealStructDefinitionInfo* Scope = &InScope; Scope; Scope = UHTCast<FUnrealStructDefinitionInfo>(Scope->GetOuter()))
+		for (const FUnrealStructDefinitionInfo* Scope = &InScope; Scope; Scope = UHTCast<FUnrealStructDefinitionInfo>(Scope->GetOuter()))
 		{
 			for (FUnrealFunctionDefinitionInfo* FunctionDef : TUHTFieldRange<FUnrealFunctionDefinitionInfo>(*Scope))
 			{
@@ -1273,7 +1060,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	}
 
 	// Validate the metadata for the enum
-	ValidateMetaDataFormat(EnumDef, EnumMetaData);
+	EnumDef.ValidateMetaDataFormat(EnumMetaData);
 
 	// Read base for enum class
 	EUnderlyingEnumType UnderlyingType = EUnderlyingEnumType::uint8;
@@ -2147,7 +1934,7 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 	AddFormattedPrevCommentAsTooltipMetaData(MetaData);
 
 	// Register the metadata
-	AddMetaDataToClassData(StructDef, MoveTemp(MetaData));
+	FUHTMetaData::RemapAndAddMetaData(StructDef, MoveTemp(MetaData));
 
 	// Get opening brace.
 	RequireSymbol( TEXT('{'), TEXT("'struct'") );
@@ -2899,7 +2686,7 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 				// Since the function map is not valid yet, we have to iterate over the fields to look for the function
 				for (FUnrealFunctionDefinitionInfo* FunctionDef : SearchClassDef->GetFunctions())
 				{
-					if (FNativeClassHeaderGenerator::GetOverriddenFName(FunctionDef) == FuncName)
+					if (FNativeClassHeaderGenerator::GetOverriddenFName(*FunctionDef) == FuncName)
 					{
 						return FunctionDef;
 					}
@@ -3108,7 +2895,7 @@ void FHeaderParser::GetVarType(
 	const FToken*                   OuterPropertyType,
 	const EPropertyFlags*			OuterPropertyFlags,
 	EPropertyDeclarationStyle::Type PropertyDeclarationStyle,
-	EVariableCategory::Type         VariableCategory,
+	EVariableCategory               VariableCategory,
 	FIndexRange*                    ParsedVarIndexRange,
 	ELayoutMacroType*               OutLayoutMacroType
 )
@@ -4684,7 +4471,7 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 (
 	FUnrealStructDefinitionInfo& ParentStruct,
 	FPropertyBase& VarProperty,
-	EVariableCategory::Type VariableCategory,
+	EVariableCategory VariableCategory,
 	ELayoutMacroType        LayoutMacroType
 )
 {
@@ -4954,15 +4741,11 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 	}
 
 	// Create the property
-	// NOTE: Only FProperyBase part of VarProperty is used.  
 	FName PropertyName(Identifier);
 	FUnrealPropertyDefinitionInfo& PropDef = FPropertyTraits::CreateProperty(VarProperty, ParentStruct, PropertyName, ObjectFlags, VariableCategory, Dimensions.String, SourceFile, InputLine, InputPos);
 
 	// Add the property to the parent
 	ParentStruct.AddProperty(PropDef);
-
-	// if we had any metadata, add it to the class
-	AddMetaDataToClassData(PropDef, TMap<FName,FString>(PropDef.GetPropertyBase().MetaData));
 	return PropDef;
 }
 
@@ -5686,7 +5469,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 	AddModuleRelativePathToMetadata(ClassDef, MetaData);
 
 	// Register the metadata
-	AddMetaDataToClassData(ClassDef, MoveTemp(MetaData));
+	FUHTMetaData::RemapAndAddMetaData(ClassDef, MoveTemp(MetaData));
 
 	// Handle the start of the rest of the class
 	RequireSymbol( TEXT('{'), TEXT("'Class'") );
@@ -5912,7 +5695,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 
 	// Register the metadata
 	AddModuleRelativePathToMetadata(*InterfaceClassDef, MetaData);
-	AddMetaDataToClassData(*InterfaceClassDef, MoveTemp(MetaData));
+	FUHTMetaData::RemapAndAddMetaData(*InterfaceClassDef, MoveTemp(MetaData));
 
 	// Handle the start of the rest of the interface
 	RequireSymbol( TEXT('{'), TEXT("'Class'") );
@@ -6168,7 +5951,7 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 	{
 		// Get parameter type.
 		FPropertyBase Property(CPT_None);
-		EVariableCategory::Type VariableCategory = FunctionDef.HasAnyFunctionFlags(FUNC_Net) ? EVariableCategory::ReplicatedParameter : EVariableCategory::RegularParameter;
+		EVariableCategory VariableCategory = FunctionDef.HasAnyFunctionFlags(FUNC_Net) ? EVariableCategory::ReplicatedParameter : EVariableCategory::RegularParameter;
 		GetVarType(GetCurrentScope(), Property, ~(CPF_ParmFlags | CPF_AutoWeak | CPF_RepSkip | CPF_UObjectWrapper | CPF_NativeAccessSpecifiers), nullptr, nullptr, EPropertyDeclarationStyle::None, VariableCategory);
 		Property.PropertyFlags |= CPF_Parm;
 
@@ -6224,7 +6007,7 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 					UE_LOG_ERROR_UHT(TEXT("Only service request functions cannot contain NoReplication parameters"));
 				}
 
-				if ((PropDef.GetCastFlags() & CASTCLASS_FDelegateProperty) != 0)
+				if (PropDef.GetPropertyBase().IsDelegateOrDelegateStaticArray())
 				{
 					UE_LOG_ERROR_UHT(TEXT("Replicated functions cannot contain delegate parameters (this would be insecure)"));
 				}
@@ -6246,7 +6029,7 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 					UE_LOG_ERROR_UHT(TEXT("Service request functions cannot contain out parameters, unless marked NotReplicated"));
 				}
 
-				if (!(Property.PropertyFlags & CPF_RepSkip) && (PropDef.GetCastFlags() & CASTCLASS_FDelegateProperty) != 0)
+				if (!(Property.PropertyFlags & CPF_RepSkip) && PropDef.GetPropertyBase().IsDelegateOrDelegateStaticArray())
 				{
 					UE_LOG_ERROR_UHT(TEXT("Service request functions cannot contain delegate parameters, unless marked NotReplicated"));
 				}
@@ -6533,7 +6316,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 
 	AddFormattedPrevCommentAsTooltipMetaData(MetaData);
 
-	AddMetaDataToClassData(DelegateSignatureFunctionDef, MoveTemp(MetaData));
+	FUHTMetaData::RemapAndAddMetaData(DelegateSignatureFunctionDef, MoveTemp(MetaData));
 
 	// Optionally consume a semicolon, it's not required for the delegate macro since it contains one internally
 	MatchSemi();
@@ -6950,7 +6733,7 @@ void FHeaderParser::CompileFunctionDeclaration()
 
 	AddFormattedPrevCommentAsTooltipMetaData(MetaData);
 
-	AddMetaDataToClassData(FuncDef, MoveTemp(MetaData));
+	FUHTMetaData::RemapAndAddMetaData(FuncDef, MoveTemp(MetaData));
 
 	// 'final' and 'override' can appear in any order before an optional '= 0' pure virtual specifier
 	bool bFoundFinal    = MatchIdentifier(TEXT("final"), ESearchCase::CaseSensitive);
@@ -7296,20 +7079,20 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	EPropertyFlags EdFlags       = CPF_None;
 
 	// Get variable type.
-	FPropertyBase OriginalProperty(CPT_None);
+	FPropertyBase OriginalPropertyBase(CPT_None);
 	FIndexRange TypeRange;
 	ELayoutMacroType LayoutMacroType = ELayoutMacroType::None;
-	GetVarType(&*StructDef.GetScope(), OriginalProperty, DisallowFlags, /*OuterPropertyType=*/ nullptr, nullptr, EPropertyDeclarationStyle::UPROPERTY, EVariableCategory::Member, &TypeRange, &LayoutMacroType);
-	OriginalProperty.PropertyFlags |= EdFlags;
+	GetVarType(&*StructDef.GetScope(), OriginalPropertyBase, DisallowFlags, /*OuterPropertyType=*/ nullptr, nullptr, EPropertyDeclarationStyle::UPROPERTY, EVariableCategory::Member, &TypeRange, &LayoutMacroType);
+	OriginalPropertyBase.PropertyFlags |= EdFlags;
 
-	FString* Category = OriginalProperty.MetaData.Find(NAME_Category);
+	FString* Category = OriginalPropertyBase.MetaData.Find(NAME_Category);
 
 	// First check if the category was specified at all and if the property was exposed to the editor.
-	if (!Category && (OriginalProperty.PropertyFlags & (CPF_Edit|CPF_BlueprintVisible)))
+	if (!Category && (OriginalPropertyBase.PropertyFlags & (CPF_Edit|CPF_BlueprintVisible)))
 	{
 		if ((&StructDef.GetPackageDef() != nullptr) && !bIsCurrentModulePartOfEngine)
 		{
-			Category = &OriginalProperty.MetaData.Add(NAME_Category, StructDef.GetName());
+			Category = &OriginalPropertyBase.MetaData.Add(NAME_Category, StructDef.GetName());
 		}
 		else
 		{
@@ -7318,7 +7101,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	}
 
 	// Validate that pointer properties are not interfaces (which are not GC'd and so will cause runtime errors)
-	if (OriginalProperty.PointerType == EPointerType::Native && OriginalProperty.ClassDef->AsClass() != nullptr && OriginalProperty.ClassDef->IsInterface())
+	if (OriginalPropertyBase.PointerType == EPointerType::Native && OriginalPropertyBase.ClassDef->AsClass() != nullptr && OriginalPropertyBase.ClassDef->IsInterface())
 	{
 		// Get the name of the type, removing the asterisk representing the pointer
 		FString TypeName = FString(TypeRange.Count, Input + TypeRange.StartIndex).TrimStartAndEnd().LeftChop(1).TrimEnd();
@@ -7326,34 +7109,34 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	}
 
 	// If the category was specified explicitly, it wins
-	if (Category && !(OriginalProperty.PropertyFlags & (CPF_Edit|CPF_BlueprintVisible|CPF_BlueprintAssignable|CPF_BlueprintCallable)))
+	if (Category && !(OriginalPropertyBase.PropertyFlags & (CPF_Edit|CPF_BlueprintVisible|CPF_BlueprintAssignable|CPF_BlueprintCallable)))
 	{
 		UE_LOG_WARNING_UHT(TEXT("Property has a Category set but is not exposed to the editor or Blueprints with EditAnywhere, BlueprintReadWrite, VisibleAnywhere, BlueprintReadOnly, BlueprintAssignable, BlueprintCallable keywords.\r\n"));
 	}
 
 	// Make sure that editblueprint variables are editable
-	if(!(OriginalProperty.PropertyFlags & CPF_Edit))
+	if(!(OriginalPropertyBase.PropertyFlags & CPF_Edit))
 	{
-		if (OriginalProperty.PropertyFlags & CPF_DisableEditOnInstance)
+		if (OriginalPropertyBase.PropertyFlags & CPF_DisableEditOnInstance)
 		{
 			UE_LOG_ERROR_UHT(TEXT("Property cannot have 'DisableEditOnInstance' without being editable"));
 		}
 
-		if (OriginalProperty.PropertyFlags & CPF_DisableEditOnTemplate)
+		if (OriginalPropertyBase.PropertyFlags & CPF_DisableEditOnTemplate)
 		{
 			UE_LOG_ERROR_UHT(TEXT("Property cannot have 'DisableEditOnTemplate' without being editable"));
 		}
 	}
 
 	// Validate.
-	if (OriginalProperty.PropertyFlags & CPF_ParmFlags)
+	if (OriginalPropertyBase.PropertyFlags & CPF_ParmFlags)
 	{
 		FError::Throwf(TEXT("Illegal type modifiers in member variable declaration") );
 	}
 
-	if (FString* ExposeOnSpawnValue = OriginalProperty.MetaData.Find(NAME_ExposeOnSpawn))
+	if (FString* ExposeOnSpawnValue = OriginalPropertyBase.MetaData.Find(NAME_ExposeOnSpawn))
 	{
-		if ((*ExposeOnSpawnValue == TEXT("true")) && !FExposeOnSpawnValidator::IsSupported(OriginalProperty))
+		if ((*ExposeOnSpawnValue == TEXT("true")) && !FExposeOnSpawnValidator::IsSupported(OriginalPropertyBase))
 		{
 			UE_LOG_ERROR_UHT(TEXT("ExposeOnSpawn - Property cannot be exposed"));
 		}
@@ -7365,20 +7148,20 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 	}
 
 	// If Property is a Replicated Struct check to make sure there are no Properties that are not allowed to be Replicated in the Struct 
-	if (OriginalProperty.Type == CPT_Struct && OriginalProperty.PropertyFlags & CPF_Net && OriginalProperty.ScriptStructDef)
+	if (OriginalPropertyBase.Type == CPT_Struct && OriginalPropertyBase.PropertyFlags & CPF_Net && OriginalPropertyBase.ScriptStructDef)
 	{
-		ValidateScriptStructOkForNet(OriginalProperty.ScriptStructDef->GetName(), *OriginalProperty.ScriptStructDef);
+		ValidateScriptStructOkForNet(OriginalPropertyBase.ScriptStructDef->GetName(), *OriginalPropertyBase.ScriptStructDef);
 	}
 
 	// Process all variables of this type.
 	TArray<FUnrealPropertyDefinitionInfo*> NewProperties;
 	for (;;)
 	{
-		FPropertyBase Property = OriginalProperty;
-		FUnrealPropertyDefinitionInfo& NewPropDef = GetVarNameAndDim(StructDef, Property, EVariableCategory::Member, LayoutMacroType);
+		FPropertyBase PropertyBase = OriginalPropertyBase;
+		FUnrealPropertyDefinitionInfo& NewPropDef = GetVarNameAndDim(StructDef, PropertyBase, EVariableCategory::Member, LayoutMacroType);
 
 		// Optionally consume the :1 at the end of a bitfield boolean declaration
-		if (Property.IsBool())
+		if (PropertyBase.IsBool())
 		{
 			if (LayoutMacroType == ELayoutMacroType::Bitfield || LayoutMacroType == ELayoutMacroType::BitfieldEditorOnly || MatchSymbol(TEXT(':')))
 			{
@@ -7391,7 +7174,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 		}
 
 		// Deprecation validation
-		ValidatePropertyIsDeprecatedIfNecessary(Property, NULL);
+		ValidatePropertyIsDeprecatedIfNecessary(PropertyBase, NULL);
 
 		if (TopNest->NestType != ENestType::FunctionDeclaration)
 		{
@@ -7402,13 +7185,9 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 		}
 
 		NewProperties.Add(&NewPropDef);
-		// we'll need any metadata tags we parsed later on when we call ConvertEOLCommentToTooltip() so the tags aren't clobbered
-		OriginalProperty.MetaData = Property.MetaData;
 
-		if (NewPropDef.HasAnyPropertyFlags(CPF_RepNotify))
-		{
-			NewPropDef.SetRepNotifyFunc(OriginalProperty.RepNotifyName);
-		}
+		// we'll need any metadata tags we parsed later on when we call ConvertEOLCommentToTooltip() so the tags aren't clobbered
+		OriginalPropertyBase.MetaData = PropertyBase.MetaData;
 
 		if (UScriptStruct* StructBeingBuilt = Cast<UScriptStruct>(Struct))
 		{

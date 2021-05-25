@@ -5,17 +5,25 @@
 #include "ClassMaps.h"
 #include "HeaderParser.h"
 #include "NativeClassExporter.h"
+#include "PropertyTypes.h"
 #include "Scope.h"
 #include "StringUtils.h"
 #include "UnrealHeaderTool.h"
 #include "UnrealSourceFile.h"
+#include "Specifiers/CheckedMetadataSpecifiers.h"
 #include "Specifiers/ClassMetadataSpecifiers.h"
 
 #include "Algo/FindSortedStringCaseInsensitive.h"
+#include "Math/UnitConversion.h"
 #include "Misc/PackageName.h"
 #include "UObject/ErrorException.h"
 #include "UObject/Interface.h"
 #include "UObject/ObjectRedirector.h"
+
+// Globals for common class definitions
+extern FUnrealClassDefinitionInfo* GUObjectDef;
+extern FUnrealClassDefinitionInfo* GUClassDef;
+extern FUnrealClassDefinitionInfo* GUInterfaceDef;
 
 namespace
 {
@@ -91,9 +99,9 @@ namespace
 	}
 
 	template <typename T>
-	FString GetTypePackageName_Inner(const T* Field)
+	FString GetTypePackageNameHelper(const T& Field)
 	{
-		FString PackageName = Field->GetMetaData(NAME_ReplaceConverted);
+		FString PackageName = Field.GetMetaData(NAME_ReplaceConverted);
 		if (PackageName.Len())
 		{
 			int32 ObjectDotIndex = INDEX_NONE;
@@ -105,7 +113,7 @@ namespace
 		}
 		else
 		{
-			PackageName = Field->GetOutermost()->GetName();
+			PackageName = Field.GetPackageDef().GetName();
 		}
 		return PackageName;
 	}
@@ -142,6 +150,38 @@ namespace
 
 		return bNamesMatch;
 	}
+}
+
+void FUHTMetaData::RemapMetaData(TMap<FName, FString>& MetaData)
+{
+	// Evaluate any key redirects on the passed in pairs
+	for (TPair<FName, FString>& Pair : MetaData)
+	{
+		FName& CurrentKey = Pair.Key;
+		FName NewKey = UMetaData::GetRemappedKeyName(CurrentKey);
+
+		if (NewKey != NAME_None)
+		{
+			UE_LOG_WARNING_UHT(TEXT("Remapping old metadata key '%s' to new key '%s', please update the declaration."), *CurrentKey.ToString(), *NewKey.ToString());
+			CurrentKey = NewKey;
+		}
+	}
+}
+
+const FString& FUHTMetaData::GetMetaData(const FName& Key) const
+{
+	// if not found, return a static empty string
+	static FString EmptyString;
+
+	// every key needs to be valid and meta data needs to exist
+	if (Key == NAME_None)
+	{
+		return EmptyString;
+	}
+
+	// find and return either the located string or an empty string
+	const FString* ValuePtr = FindMetaData(Key);
+	return ValuePtr ? *ValuePtr : EmptyString;
 }
 
 FUnrealPropertyDefinitionInfo* FUnrealTypeDefinitionInfo::AsProperty()
@@ -238,9 +278,191 @@ bool FUnrealTypeDefinitionInfo::IsDynamic(const FField* Field)
 	return Field->HasMetaData(NAME_ReplaceConverted);
 }
 
+void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, const FString& InValue) const
+{
+	ValidateMetaDataFormat(InKey, GetCheckedMetadataSpecifier(InKey), InValue);
+}
+
+void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheckedMetadataSpecifier InCheckedMetadataSpecifier, const FString& InValue) const
+{
+	switch (InCheckedMetadataSpecifier)
+	{
+	default:
+	{
+		// Don't need to validate this specifier
+	}
+	break;
+
+	case ECheckedMetadataSpecifier::UIMin:
+	case ECheckedMetadataSpecifier::UIMax:
+	case ECheckedMetadataSpecifier::ClampMin:
+	case ECheckedMetadataSpecifier::ClampMax:
+	{
+		if (!InValue.IsNumeric())
+		{
+			FError::Throwf(TEXT("Metadata value for '%s' is non-numeric : '%s'"), *InKey.ToString(), *InValue);
+		}
+	}
+	break;
+
+	case ECheckedMetadataSpecifier::BlueprintProtected:
+	{
+		if (const FUnrealFunctionDefinitionInfo* FuncDef = UHTCast<FUnrealFunctionDefinitionInfo>(this))
+		{
+			UFunction* Function = FuncDef->GetFunction();
+			if (FuncDef->HasAnyFunctionFlags(FUNC_Static))
+			{
+				// Determine if it's a function library
+				FUnrealClassDefinitionInfo* ClassDef = FuncDef->GetOwnerClass();
+				for (; ClassDef != nullptr && ClassDef->GetSuperClass() != GUObjectDef; ClassDef = ClassDef->GetSuperClass())
+				{
+				}
+
+				if (ClassDef != nullptr && ClassDef->GetName() == TEXT("BlueprintFunctionLibrary"))
+				{
+					FError::Throwf(TEXT("%s doesn't make sense on static method '%s' in a blueprint function library"), *InKey.ToString(), *FuncDef->GetName());
+				}
+			}
+		}
+	}
+	break;
+
+	case ECheckedMetadataSpecifier::CommutativeAssociativeBinaryOperator:
+	{
+		if (const FUnrealFunctionDefinitionInfo* FuncDef = UHTCast<FUnrealFunctionDefinitionInfo>(this))
+		{
+			bool bGoodParams = (FuncDef->GetProperties().Num() == 3);
+			if (bGoodParams)
+			{
+				FUnrealPropertyDefinitionInfo* FirstParam = nullptr;
+				FUnrealPropertyDefinitionInfo* SecondParam = nullptr;
+				FUnrealPropertyDefinitionInfo* ReturnValue = nullptr;
+				for (FUnrealPropertyDefinitionInfo* PropertyDef : FuncDef->GetProperties())
+				{
+					if (PropertyDef->HasAnyPropertyFlags(CPF_ReturnParm))
+					{
+						ReturnValue = PropertyDef;
+					}
+					else
+					{
+						if (FirstParam == nullptr)
+						{
+							FirstParam = PropertyDef;
+						}
+						else if (SecondParam == nullptr)
+						{
+							SecondParam = PropertyDef;
+						}
+					}
+				}
+
+				if (ReturnValue == nullptr || SecondParam == nullptr || !SecondParam->SameType(*FirstParam))
+				{
+					bGoodParams = false;
+				}
+			}
+
+			if (!bGoodParams)
+			{
+				UE_LOG_ERROR_UHT(TEXT("Commutative associative binary operators must have exactly 2 parameters of the same type and a return value."));
+			}
+		}
+	}
+	break;
+
+	case ECheckedMetadataSpecifier::ExpandBoolAsExecs:
+	case ECheckedMetadataSpecifier::ExpandEnumAsExecs:
+	{
+		if (const FUnrealFunctionDefinitionInfo* FuncDef = UHTCast<FUnrealFunctionDefinitionInfo>(this))
+		{
+			// multiple entry parsing in the same format as eg SetParam.
+			TArray<FString> RawGroupings;
+			InValue.ParseIntoArray(RawGroupings, TEXT(","), false);
+
+			FUnrealPropertyDefinitionInfo* FirstInputDef = nullptr;
+			for (const FString& RawGroup : RawGroupings)
+			{
+				TArray<FString> IndividualEntries;
+				RawGroup.ParseIntoArray(IndividualEntries, TEXT("|"));
+
+				for (const FString& Entry : IndividualEntries)
+				{
+					if (Entry.IsEmpty())
+					{
+						continue;
+					}
+
+					FUnrealPropertyDefinitionInfo* FoundFieldDef = FHeaderParser::FindProperty(*FuncDef, *Entry, false);
+					if (!FoundFieldDef)
+					{
+						UE_LOG_ERROR_UHT(TEXT("Function does not have a parameter named '%s'"), *Entry);
+					}
+					else
+					{
+						if (!FoundFieldDef->HasAnyPropertyFlags(CPF_ReturnParm) &&
+							(!FoundFieldDef->HasAnyPropertyFlags(CPF_OutParm) ||
+								FoundFieldDef->HasAnyPropertyFlags(CPF_ReferenceParm)))
+						{
+							if (!FirstInputDef)
+							{
+								FirstInputDef = FoundFieldDef;
+							}
+							else
+							{
+								UE_LOG_ERROR_UHT(TEXT("Function already specified an ExpandEnumAsExec input (%s), but '%s' is also an input parameter. Only one is permitted."), *FirstInputDef->GetName(), *Entry);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	break;
+
+	case ECheckedMetadataSpecifier::DevelopmentStatus:
+	{
+		const FString EarlyAccessValue(TEXT("EarlyAccess"));
+		const FString ExperimentalValue(TEXT("Experimental"));
+		if ((InValue != EarlyAccessValue) && (InValue != ExperimentalValue))
+		{
+			FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s or %s"), *InKey.ToString(), *InValue, *ExperimentalValue, *EarlyAccessValue);
+		}
+	}
+	break;
+
+	case ECheckedMetadataSpecifier::Units:
+	{
+		// Check for numeric property
+		if (const FUnrealPropertyDefinitionInfo* PropDef = UHTCast<FUnrealPropertyDefinitionInfo>(this))
+		{
+			if (!PropDef->IsNumericOrNumericStaticArray() && !PropDef->IsStructOrStructStaticArray())
+			{
+				FError::Throwf(TEXT("'Units' meta data can only be applied to numeric and struct properties"));
+			}
+		}
+
+		if (!FUnitConversion::UnitFromString(*InValue))
+		{
+			FError::Throwf(TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *GetFullName());
+		}
+	}
+	break;
+
+	case ECheckedMetadataSpecifier::DocumentationPolicy:
+	{
+		const TCHAR* StrictValue = TEXT("Strict");
+		if (InValue != StrictValue)
+		{
+			FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s"), *InKey.ToString(), *InValue, *StrictValue);
+		}
+	}
+	break;
+	}
+}
+
 void FUnrealPropertyDefinitionInfo::PostParseFinalize()
 {
-	TypePackageName = GetTypePackageName_Inner(GetProperty());
+	TypePackageName = GetTypePackageNameHelper(*this);
 }
 
 void FUnrealPropertyDefinitionInfo::AddMetaData(TMap<FName, FString>&& InMetaData)
@@ -263,7 +485,7 @@ void FUnrealPropertyDefinitionInfo::AddMetaData(TMap<FName, FString>&& InMetaDat
 
 bool FUnrealPropertyDefinitionInfo::IsDynamic() const
 {
-	return GetProperty()->HasMetaData(NAME_ReplaceConverted);
+	return HasMetaData(NAME_ReplaceConverted);
 }
 
 bool FUnrealPropertyDefinitionInfo::IsOwnedByDynamicType() const
@@ -289,6 +511,90 @@ void FUnrealPropertyDefinitionInfo::SetDelegateFunctionSignature(FUnrealFunction
 	PropertyBase.FunctionDef = &DelegateFunctionDef;
 }
 
+FString FUnrealPropertyDefinitionInfo::GetEngineClassName() const
+{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	check(FPropertyTraits::GetEngineClassName(*this) == GetProperty()->GetClass()->GetName()); // Validation
+#endif
+	return FPropertyTraits::GetEngineClassName(*this);
+}
+
+FString FUnrealPropertyDefinitionInfo::GetPathName() const
+{
+	TStringBuilder<256> ResultString;
+	GetPathName(ResultString);
+	return FString(FStringView(ResultString));
+}
+
+void FUnrealPropertyDefinitionInfo::GetPathName(FStringBuilderBase& ResultString) const
+{
+	TArray<FName, TInlineAllocator<16>> ParentFields;
+	for (FUnrealTypeDefinitionInfo* LocalOuter = GetOuter(); LocalOuter; LocalOuter = LocalOuter->GetOuter())
+	{
+		if (UHTCast<FUnrealPropertyDefinitionInfo>(LocalOuter))
+		{
+			ParentFields.Add(LocalOuter->GetFName());
+		}
+		else
+		{
+			LocalOuter->GetPathName(ResultString);
+			ResultString << SUBOBJECT_DELIMITER_CHAR;
+			break;
+		}
+	}
+
+	for (int FieldIndex = ParentFields.Num() - 1; FieldIndex >= 0; --FieldIndex)
+	{
+		ParentFields[FieldIndex].AppendString(ResultString);
+		ResultString << TEXT(".");
+	}
+	GetFName().AppendString(ResultString);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	TStringBuilder<256> OtherResultString;
+	GetProperty()->GetPathName(nullptr, OtherResultString); // Validation
+	check(FCString::Strcmp(OtherResultString.ToString(), ResultString.ToString()) == 0);
+#endif
+}
+
+FString FUnrealPropertyDefinitionInfo::GetFullName() const
+{
+	FString FullName = GetEngineClassName();
+	FullName += TEXT(" ");
+	FullName += GetPathName();
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	check(FullName == GetProperty()->GetFullName()); // Validation
+#endif
+	return FullName;
+}
+
+FString FUnrealPropertyDefinitionInfo::GetCPPType(FString* ExtendedTypeText/* = nullptr*/, uint32 CPPExportFlags/* = 0*/) const
+{
+	FString Out = FPropertyTraits::GetCPPType(*this, ExtendedTypeText, CPPExportFlags);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	FString ExtOutTemp;
+	FString* ExtOutTempPtr = ExtendedTypeText ? &ExtOutTemp : nullptr;
+	check(Out == GetProperty()->GetCPPType(ExtOutTempPtr, CPPExportFlags) && (ExtendedTypeText == nullptr || *ExtendedTypeText == ExtOutTemp)); // Validation
+#endif
+	return Out;
+}
+
+FString FUnrealPropertyDefinitionInfo::GetCPPTypeForwardDeclaration() const
+{
+	FString Out = FPropertyTraits::GetCPPTypeForwardDeclaration(*this);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	check(Out == GetProperty()->GetCPPTypeForwardDeclaration()); // Validation
+#endif
+	return Out;
+}
+
+FUnrealPackageDefinitionInfo& FUnrealPropertyDefinitionInfo::GetPackageDef() const
+{
+	if (HasSource())
+	{
+		return GetUnrealSourceFile().GetPackageDef();
+	}
+	return GTypeDefinitionInfoMap.FindChecked<FUnrealPackageDefinitionInfo>(GetProperty()->GetOutermost());
+}
 
 FUnrealPackageDefinitionInfo& FUnrealObjectDefinitionInfo::GetPackageDef() const
 {
@@ -296,9 +602,8 @@ FUnrealPackageDefinitionInfo& FUnrealObjectDefinitionInfo::GetPackageDef() const
 	{
 		return GetUnrealSourceFile().GetPackageDef();
 	}
-	return GTypeDefinitionInfoMap.FindChecked<FUnrealPackageDefinitionInfo>(GetObject());
+	return GTypeDefinitionInfoMap.FindChecked<FUnrealPackageDefinitionInfo>(GetObject()->GetPackage());
 }
-
 
 FUnrealPackageDefinitionInfo::FUnrealPackageDefinitionInfo(const FManifestModule& InModule, UPackage* InPackage)
 	: FUnrealObjectDefinitionInfo(FString())
@@ -347,7 +652,7 @@ void FUnrealFieldDefinitionInfo::PostParseFinalize()
 	SingletonName[1] = Out;
 	SingletonNameChopped[1] = SingletonName[1].LeftChop(2);
 
-	TypePackageName = GetTypePackageName_Inner(GetField());
+	TypePackageName = GetTypePackageNameHelper(*this);
 }
 
 void FUnrealFieldDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject) const
@@ -444,20 +749,17 @@ void FUnrealStructDefinitionInfo::AddProperty(FUnrealPropertyDefinitionInfo& Pro
 	// update the optimization flags
 	if (!bContainsDelegates)
 	{
-		FProperty* Prop = PropertyDef.GetProperty();
-		if (Prop->IsA(FDelegateProperty::StaticClass()) || Prop->IsA(FMulticastDelegateProperty::StaticClass()))
+		const FPropertyBase& PropertyBase = PropertyDef.GetPropertyBase();
+		if (PropertyDef.IsDelegateOrDelegateStaticArray() || PropertyDef.IsMulticastDelegateOrMulticastDelegateStaticArray())
 		{
 			bContainsDelegates = true;
 		}
-		else
+		else if (PropertyDef.IsDynamicArray())
 		{
-			FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
-			if (ArrayProp != NULL)
+			const FUnrealPropertyDefinitionInfo& ValuePropertyDef = PropertyDef.GetValuePropDef();
+			if (ValuePropertyDef.IsDelegateOrDelegateStaticArray() || ValuePropertyDef.IsMulticastDelegateOrMulticastDelegateStaticArray())
 			{
-				if (ArrayProp->Inner->IsA(FDelegateProperty::StaticClass()) || ArrayProp->Inner->IsA(FMulticastDelegateProperty::StaticClass()))
-				{
-					bContainsDelegates = true;
-				}
+				bContainsDelegates = true;
 			}
 		}
 	}
@@ -1230,10 +1532,9 @@ FString FUnrealClassDefinitionInfo::GetNameWithPrefix(EEnforceInterfacePrefix En
 
 void FUnrealFunctionDefinitionInfo::AddProperty(FUnrealPropertyDefinitionInfo& PropertyDef)
 {
-	const FProperty* Prop = PropertyDef.GetProperty();
-	check((Prop->PropertyFlags & CPF_Parm) != 0);
+	check(PropertyDef.HasAnyPropertyFlags(CPF_Parm));
 
-	if ((Prop->PropertyFlags & CPF_ReturnParm) != 0)
+	if (PropertyDef.HasAnyPropertyFlags(CPF_ReturnParm))
 	{
 		check(ReturnProperty == nullptr);
 		ReturnProperty = &PropertyDef;

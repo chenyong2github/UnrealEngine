@@ -323,6 +323,16 @@ public:
 		return IsNumeric(Type) && IsPrimitiveOrPrimitiveStaticArray();
 	}
 
+	bool IsDelegateOrDelegateStaticArray() const
+	{
+		return Type == CPT_Delegate && IsPrimitiveOrPrimitiveStaticArray();
+	}
+
+	bool IsMulticastDelegateOrMulticastDelegateStaticArray() const
+	{
+		return Type == CPT_Delegate && IsPrimitiveOrPrimitiveStaticArray();
+	}
+
 	FUnrealEnumDefinitionInfo* AsEnum() const;
 
 	bool IsEnum() const;
