@@ -69,7 +69,7 @@ public:
 
 	TSharedRef<SDockTab> SpawnTab( const FSpawnTabArgs& TabSpawnArgs, FName TabIdentifier );
 
-	void OnClose();
+	void OnClosed();
 
 	/** Extends the toolbar for Matinee specific options */
 	void ExtendDefaultToolbarMenu();
