@@ -29,14 +29,18 @@ namespace Electra
 
 
 
-
-	struct FStreamSourceInfo
+	/**
+	 * Information into which buffer the AU data needs to be placed.
+	 */
+	struct FBufferSourceInfo
 	{
+		// Identifies the period and track (adaptation set) this data is originating from.
+		FString		PeriodAdaptationSetID;
+		// Partial track metadata. See FTrackMetadata.
+		FString		Kind;
 		FString		Language;
-		FString		Role;
-		FString		PeriodID;
-		FString		AdaptationSetID;
-		FString		RepresentationID;
+		// Internal hard index, used for multiplexed streams.
+		int32		HardIndex = -1;
 	};
 
 	struct FAccessUnit
@@ -73,8 +77,8 @@ namespace Electra
 		bool						bIsDummyData;					//!< True if the decoder must be reset before decoding this AU.
 		bool						bTrackChangeDiscontinuity;		//!< True if this is the first AU after a track change.
 
-		TSharedPtr<const FStreamSourceInfo, ESPMode::ThreadSafe>	StreamSourceInfo;
-		TSharedPtr<const FPlayerLoopState, ESPMode::ThreadSafe>		PlayerLoopState;
+		TSharedPtrTS<const FBufferSourceInfo>	BufferSourceInfo;
+		TSharedPtrTS<const FPlayerLoopState>	PlayerLoopState;
 
 		// Reserved for decoders.
 		// FIXME: move this out of here and have the decoders track what they're doing with the AU.
@@ -227,6 +231,12 @@ namespace Electra
 			int64		MaxDataSize;
 		};
 
+		struct FExternalBufferInfo
+		{
+			FTimeValue	Duration = FTimeValue::GetZero();
+			int64		DataSize = 0;
+		};
+
 		FAccessUnitBuffer()
 			: FrontDTS(FTimeValue::GetInvalid())
 			, PushedDuration(FTimeValue::GetZero())
@@ -239,7 +249,7 @@ namespace Electra
 
 		~FAccessUnitBuffer()
 		{
-			while (AccessUnits.Num())
+			while(AccessUnits.Num())
 			{
 				FAccessUnit::Release(AccessUnits.Pop());
 			}
@@ -259,12 +269,10 @@ namespace Electra
 			return CurrentMemInUse;
 		}
 
-		//! Returns both the number of access units and the amount of allocated memory.
-		void SizeAndAllocation(int64& OutNumAUs, int64& OutAllocatedMem) const
+		//! Returns the amount of playable duration.
+		FTimeValue GetPlayableDuration() const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			OutNumAUs = AccessUnits.Num();
-			OutAllocatedMem = CurrentMemInUse;
+			return PlayableDuration;
 		}
 
 		//! Returns all vital statistics.
@@ -292,14 +300,15 @@ namespace Electra
 		}
 
 		//! Adds an access unit to the FIFO. Returns true if successful, false if the FIFO has insufficient free space.
-		bool Push(FAccessUnit*& AU, const FConfiguration* Limit = nullptr)
+		bool Push(FAccessUnit*& AU, const FConfiguration* Limit = nullptr, const FExternalBufferInfo* ExternalInfo = nullptr)
 		{
 			FMediaCriticalSection::ScopedLock Lock(AccessLock);
 			// Pushing new data unconditionally clears the EOD flag even if the buffer is currently full.
 			// The attempt to push implies there will be more data.
 			bEndOfData = false;
 			Limit = Limit ? Limit : &Config;
-			if (CanPush(AU, Limit))
+			ExternalInfo = ExternalInfo ? ExternalInfo : &ZeroExternalInfo;
+			if (CanPush(AU, Limit, ExternalInfo))
 			{
 				bLastPushWasBlocked = false;
 				AccessUnits.Push(AU);
@@ -352,7 +361,7 @@ namespace Electra
 					else
 					{
 						FrontDTS.SetToInvalid();
-						for (uint32 i = 1; i < AccessUnits.Num(); ++i)
+						for(uint32 i = 1; i < AccessUnits.Num(); ++i)
 						{
 							if (AccessUnits[i]->DropState == FAccessUnit::EDropState::None)
 							{
@@ -399,10 +408,32 @@ namespace Electra
 			}
 		}
 
-		//! Discards data that has both its DTS and PTS less than the provided ones.
-		void DiscardUntil(FTimeValue NextValidDTS, FTimeValue NextValidPTS, FTimeValue& OutPoppedDTS, FTimeValue& OutPoppedPTS)
+		//!
+		bool ContainsPTS(const FTimeValue& InPTS) const
 		{
-			while (true)
+			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			if (AccessUnits.Num())
+			{
+				return AccessUnits.FrontRef()->PTS <= InPTS && InPTS < AccessUnits.BackRef()->PTS + AccessUnits.BackRef()->Duration;
+			}
+			return false;
+		}
+
+		bool ContainsFuturePTS(const FTimeValue& InPTS) const
+		{
+			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			if (AccessUnits.Num())
+			{
+				return InPTS <= AccessUnits.BackRef()->PTS + AccessUnits.BackRef()->Duration;
+			}
+			return false;
+		}
+
+
+		//! Discards data that has both its DTS and PTS less than the provided ones.
+		void DiscardUntil(const FTimeValue& NextValidDTS, const FTimeValue& NextValidPTS, FTimeValue& OutPoppedDTS, FTimeValue& OutPoppedPTS)
+		{
+			while(true)
 			{
 				FAccessUnit* NextAU = nullptr;
 				if (Peek(NextAU))
@@ -420,6 +451,7 @@ namespace Electra
 						}
 						else
 						{
+							FAccessUnit::Release(NextAU);
 							break;
 						}
 					}
@@ -450,7 +482,7 @@ namespace Electra
 		void Flush()
 		{
 			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			while (AccessUnits.Num())
+			while(AccessUnits.Num())
 			{
 				FAccessUnit::Release(AccessUnits.Pop());
 				NumInSemaphore.TryToObtain();
@@ -503,23 +535,34 @@ namespace Electra
 
 	private:
 		//! Checks if an access unit can be pushed to the FIFO. Returns true if successful, false if the FIFO has insufficient free space.
-		bool CanPush(const FAccessUnit* AU, const FConfiguration* Limit = nullptr)
+		bool CanPush(const FAccessUnit* AU, const FConfiguration* Limit, const FExternalBufferInfo* ExternalInfo)
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			Limit = Limit ? Limit : &Config;
 			check(Limit->MaxDuration > FTimeValue::GetZero());
 			check(AU->Duration.IsValid() && !AU->Duration.IsInfinity());
-			// Memory ok?
-			if (AU->TotalMemSize() + CurrentMemInUse <= Limit->MaxDataSize)
+			if (ExternalInfo == nullptr)
 			{
-				// Max allowed duration ok?
-				return PlayableDuration.IsValid() && PlayableDuration + AU->Duration > Limit->MaxDuration ? false : true;
+				// Memory ok?
+				if (AU->TotalMemSize() + CurrentMemInUse <= Limit->MaxDataSize)
+				{
+					// Max allowed duration ok?
+					return PlayableDuration.IsValid() && PlayableDuration + AU->Duration > Limit->MaxDuration ? false : true;
+				}
+			}
+			else
+			{
+				// Memory ok?
+				if (AU->TotalMemSize() + ExternalInfo->DataSize <= Limit->MaxDataSize)
+				{
+					// Max allowed duration ok?
+					return AU->Duration + ExternalInfo->Duration > Limit->MaxDuration ? false : true;
+				}
 			}
 			return false;
 		}
 
-		mutable FMediaCriticalSection							AccessLock;
+		mutable FMediaCriticalSection				AccessLock;
 		FConfiguration								Config;
+		FExternalBufferInfo							ZeroExternalInfo;
 		TMediaQueueDynamicNoLock<FAccessUnit*>		AccessUnits;
 		FMediaSemaphore								NumInSemaphore;
 		FTimeValue									FrontDTS;					//!< DTS of first AU in buffer
@@ -542,18 +585,21 @@ namespace Electra
 	public:
 		FMultiTrackAccessUnitBuffer();
 		~FMultiTrackAccessUnitBuffer();
+		void SetParallelTrackMode();
 		void CapacitySet(const FAccessUnitBuffer::FConfiguration& Config);
-		void AutoselectFirstTrack();
-		void SelectTrackByID(const FString& TrackID);
+		void SelectTrackWhenAvailable(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
+		void AddUpcomingBuffer(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
+		void Activate();
 		void Deselect();
-		//FString GetSelectedTrackID() const;
 		bool Push(FAccessUnit*& AU);
-		void PushEndOfDataFor(TSharedPtr<const FStreamSourceInfo, ESPMode::ThreadSafe> InStreamSourceInfo);
+		void PushEndOfDataFor(TSharedPtrTS<const FBufferSourceInfo> InStreamSourceInfo);
 		void PushEndOfDataAll();
 		void Flush();
 		void GetStats(FAccessUnitBufferInfo& OutStats);
-		bool IsDeselected() const;
-		FTimeValue GetLastPoppedPTS() const;
+		bool IsDeselected();
+		FTimeValue GetLastPoppedPTS();
+		TSharedPtrTS<FBufferSourceInfo> GetActiveOutputBufferInfo() const
+		{ return ActiveOutputBufferInfo; }
 
 		// Helper class to lock the AU buffer
 		class FScopedLock : private TMediaNoncopyable<FScopedLock>
@@ -575,31 +621,42 @@ namespace Electra
 
 		bool Pop(FAccessUnit*& OutAU);
 		void PopDiscardUntil(FTimeValue UntilTime);
-		bool IsEODFlagSet() const;
-		int32 Num() const;
-		bool WasLastPushBlocked() const;
+		bool IsEODFlagSet();
+		int32 Num();
+		bool WasLastPushBlocked();
 
 	private:
-		using FAccessUnitBufferPtr = TSharedPtr<FAccessUnitBuffer, ESPMode::ThreadSafe>;
+
+		struct FQueuedBuffer
+		{
+			TSharedPtrTS<FBufferSourceInfo> Info;
+			TSharedPtrTS<FAccessUnitBuffer> Buffer;
+		};
 
 		void PurgeAll();
+		void Clear();
 
-		FAccessUnitBufferPtr CreateNewBuffer();
-		TSharedPtr<FAccessUnitBuffer, ESPMode::ThreadSafe> GetSelectedTrackBuffer();
-		TSharedPtr<const FAccessUnitBuffer, ESPMode::ThreadSafe> GetSelectedTrackBuffer() const;
+		TSharedPtrTS<FAccessUnitBuffer> CreateNewBuffer();
+		TSharedPtrTS<FAccessUnitBuffer> GetSelectedTrackBuffer();
+		void ActivateBuffer(bool bIsPushing);
+		void ChangeOver();
+		void RemoveUnusedBuffers();
+		void GetEnqueuedBufferInfo(FAccessUnitBuffer::FExternalBufferInfo& OutInfo, bool bForSwitchOverChain);
 
-		mutable FMediaCriticalSection			AccessLock;
-		FAccessUnitBuffer::FConfiguration		PrimaryBufferConfiguration;			//!< Configuration of the primary (active) buffer. All other buffers are unbounded to ensure no stalling of the demuxer.
-		FAccessUnitBufferPtr					EmptyBuffer;						//!< An empty buffer
-		FString									ActiveOutputID;						//!< Track ID of the buffer that is feeding the decoder.
-		FString									LastPoppedBufferID;					//!< Buffer ID from which an AU was popped last.
-		TMap<FString, FAccessUnitBufferPtr>		TrackBuffers;						//!< Map of track buffers. One per track ID.
-		FTimeValue								LastPoppedDTS;
-		FTimeValue								LastPoppedPTS;
-		bool									bAutoselectFirstTrack;
-		bool									bIsDeselected;
-		bool									bEndOfData;
-		bool									bLastPushWasBlocked;
+		FMediaCriticalSection							AccessLock;
+		FAccessUnitBuffer::FConfiguration				BufferConfiguration;				//!< Buffer configuration.
+		TMap<FString, TSharedPtrTS<FAccessUnitBuffer>>	TrackBuffers;						//!< Map of track buffers. One per track ID.
+		TArray<FQueuedBuffer>							UpcomingBufferChain;
+		TArray<FQueuedBuffer>							SwitchOverBufferChain;
+		TSharedPtrTS<FAccessUnitBuffer>					EmptyBuffer;						//!< An empty buffer
+		TSharedPtrTS<FBufferSourceInfo>					ActiveOutputBufferInfo;
+		TSharedPtrTS<FBufferSourceInfo>					LastPoppedBufferInfo;
+		FTimeValue										LastPoppedDTS;
+		FTimeValue										LastPoppedPTS;
+		bool											bIsDeselected;
+		bool											bEndOfData;
+		bool											bLastPushWasBlocked;
+		bool											bIsParallelTrackMode;
 	};
 
 

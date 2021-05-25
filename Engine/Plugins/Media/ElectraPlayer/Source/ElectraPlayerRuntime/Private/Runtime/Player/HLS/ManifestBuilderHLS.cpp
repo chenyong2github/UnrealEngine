@@ -395,7 +395,7 @@ FErrorDetail FManifestBuilderHLS::SetupRenditions(FManifestHLSInternal* Manifest
 		{
 			Adapt = new FPlaybackAssetAdaptationSetHLS;
 			Adapt->UniqueIdentifier = It.Key();
-			Adapt->Metadata.TrackID = Adapt->UniqueIdentifier;
+			Adapt->Metadata.ID = Adapt->UniqueIdentifier;
 			TSharedPtrTS<FPlaybackAssetAdaptationSetHLS> IAdapt(Adapt);
 			Asset->AudioAdaptationSets.Push(IAdapt);
 		}
@@ -698,7 +698,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 					Adapt = new FPlaybackAssetAdaptationSetHLS;
 					Asset->VideoAdaptationSet = MakeShareable(Adapt);
 					Adapt->UniqueIdentifier = TEXT("$video$");
-					Adapt->Metadata.TrackID = Adapt->UniqueIdentifier;
+					Adapt->Metadata.ID = Adapt->UniqueIdentifier;
 				}
 				Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->VideoAdaptationSet.Get());
 
@@ -801,7 +801,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 					{
 						Adapt = new FPlaybackAssetAdaptationSetHLS;
 						Adapt->UniqueIdentifier = TEXT("$audio$");
-						Adapt->Metadata.TrackID = Adapt->UniqueIdentifier;
+						Adapt->Metadata.ID = Adapt->UniqueIdentifier;
 						TSharedPtrTS<FPlaybackAssetAdaptationSetHLS> IAdapt(Adapt);
 						Asset->AudioAdaptationSets.Push(IAdapt);
 					}

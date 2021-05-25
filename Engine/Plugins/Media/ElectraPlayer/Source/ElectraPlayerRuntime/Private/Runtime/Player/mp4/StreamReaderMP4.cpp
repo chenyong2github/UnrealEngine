@@ -133,7 +133,7 @@ UEMediaError FStreamReaderMP4::Create(IPlayerSessionServices* InPlayerSessionSer
 	{
 		return UEMEDIA_ERROR_BAD_ARGUMENTS;
 	}
-	
+
 	PlayerSessionServices = InPlayerSessionService;
 	Parameters = InCreateParam;
 	bTerminate = false;
@@ -190,6 +190,11 @@ IStreamReader::EAddResult FStreamReaderMP4::AddRequest(uint32 CurrentPlaybackSeq
 		WorkSignal.Signal();
 	}
 	return EAddResult::Added;
+}
+
+void FStreamReaderMP4::CancelRequest(EStreamType StreamType, bool bSilent)
+{
+	// No-op.
 }
 
 void FStreamReaderMP4::CancelRequests()
@@ -271,7 +276,7 @@ void FStreamReaderMP4::WorkerThread()
 // FIXME: If looping to somewhere within the stream instead of the beginning at zero the offset here must be made relative to the DTS of the first sample we demux.
 //        Otherwise there would be a large jump ahead in time!
 		FTimeValue LoopTimestampOffset = Request->PlayerLoopState.LoopBasetime;
-		TSharedPtr<const FPlayerLoopState, ESPMode::ThreadSafe>		PlayerLoopState = MakeShared<const FPlayerLoopState, ESPMode::ThreadSafe>(Request->PlayerLoopState);
+		TSharedPtrTS<const FPlayerLoopState> PlayerLoopState = MakeSharedTS<const FPlayerLoopState>(Request->PlayerLoopState);
 
 
 		// Get the list of all the tracks that have been selected in the asset.
@@ -280,11 +285,13 @@ void FStreamReaderMP4::WorkerThread()
 		struct FPlaylistTrackMetadata
 		{
 			EStreamType		Type;
+			FString			Kind;
 			FString			Language;
 			FString			PeriodID;
 			FString			AdaptationSetID;
 			FString			RepresentationID;
 			int32			Bitrate;
+			int32			Index;
 		};
 		TMap<uint32, FPlaylistTrackMetadata>	SelectedTrackMap;
 		const EStreamType TypesOfSupportedTracks[] = { EStreamType::Video, EStreamType::Audio, EStreamType::Subtitle };
@@ -303,14 +310,16 @@ void FStreamReaderMP4::WorkerThread()
 					// Note: By definition the representations unique identifier is a string of the numeric track ID and can thus be parsed back into a number.
 					FString ReprID = Representation->GetUniqueIdentifier();
 					uint32 TrackId;
-					LexFromString(TrackId, *ReprID); 
+					LexFromString(TrackId, *ReprID);
 					FPlaylistTrackMetadata tmd;
 					tmd.Type			 = TypesOfSupportedTracks[nStrType];
 					tmd.Language		 = Language;
+					tmd.Kind			 = nRepr == 0 ? TEXT("main") : TEXT("translation");	// perhaps this should come from querying the metadata instead of doing this over here...
 					tmd.PeriodID		 = Request->MediaAsset->GetUniqueIdentifier();
 					tmd.AdaptationSetID  = AdaptID;
 					tmd.RepresentationID = ReprID;
 					tmd.Bitrate 		 = Representation->GetBitrate();
+					tmd.Index			 = nAdapt;
 					SelectedTrackMap.Emplace(TrackId, tmd);
 				}
 			}
@@ -407,7 +416,7 @@ void FStreamReaderMP4::WorkerThread()
 		FTimeValue DurationSuccessfullyRead(FTimeValue::GetZero());
 		FTimeValue NextLargestExpectedTimestamp(FTimeValue::GetZero());
 		bool bDone = false;
-		TSharedPtr<IParserISO14496_12::IAllTrackIterator, ESPMode::ThreadSafe> AllTrackIterator = TimelineAsset->GetMoovBoxParser()->CreateAllTrackIteratorByFilePos(Request->FileStartOffset);
+		TSharedPtrTS<IParserISO14496_12::IAllTrackIterator> AllTrackIterator = TimelineAsset->GetMoovBoxParser()->CreateAllTrackIteratorByFilePos(Request->FileStartOffset);
 		while(!bDone && !HasErrored() && !HasBeenAborted() && !bTerminate)
 		{
 			auto UpdateSelectedTrack = [&SelectedTrackMap](const IParserISO14496_12::ITrackIterator* trkIt, TMap<uint32, FSelectedTrackData>& ActiveTrks) -> FSelectedTrackData&
@@ -417,9 +426,9 @@ void FStreamReaderMP4::WorkerThread()
 
 				// Check if this track ID is already in our map of active tracks.
 				FSelectedTrackData& st = ActiveTrks.FindOrAdd(tkid);
-				if (!st.StreamSourceInfo.IsValid())
+				if (!st.BufferSourceInfo.IsValid())
 				{
-					auto meta = MakeShared<FStreamSourceInfo, ESPMode::ThreadSafe>();
+					auto meta = MakeShared<FBufferSourceInfo, ESPMode::ThreadSafe>();
 
 					// Check if this track is in the list of selected tracks.
 					const FPlaylistTrackMetadata* SelectedTrackMetadata = SelectedTrackMap.Find(tkid);
@@ -427,13 +436,12 @@ void FStreamReaderMP4::WorkerThread()
 					{
 						st.bIsSelectedTrack = true;
 						st.StreamType = SelectedTrackMetadata->Type;
-						//meta->Role			 = SelectedTrackMetadata->;
-						meta->Language  		 = SelectedTrackMetadata->Language;
-						meta->PeriodID  		 = SelectedTrackMetadata->PeriodID;
-						meta->AdaptationSetID    = SelectedTrackMetadata->AdaptationSetID;
-						meta->RepresentationID   = SelectedTrackMetadata->RepresentationID;
+						meta->Kind = SelectedTrackMetadata->Kind;
+						meta->Language = SelectedTrackMetadata->Language;
+						meta->PeriodAdaptationSetID = SelectedTrackMetadata->PeriodID + TEXT(".") + SelectedTrackMetadata->AdaptationSetID;
+						meta->HardIndex = SelectedTrackMetadata->Index;
 					}
-					st.StreamSourceInfo = MoveTemp(meta);
+					st.BufferSourceInfo = MoveTemp(meta);
 				}
 				if (!st.CSD.IsValid())
 				{
@@ -458,7 +466,7 @@ void FStreamReaderMP4::WorkerThread()
 				// Is this a track that is selected and we are interested in?
 				if (SelectedTrack.bIsSelectedTrack)
 				{
-					Parameters.EventListener->OnFragmentReachedEOS(SelectedTrack.StreamType, SelectedTrack.StreamSourceInfo);
+					Parameters.EventListener->OnFragmentReachedEOS(SelectedTrack.StreamType, SelectedTrack.BufferSourceInfo);
 				}
 			}
 
@@ -546,7 +554,7 @@ void FStreamReaderMP4::WorkerThread()
 						AccessUnit->AUData = AccessUnit->AllocatePayloadBuffer(AccessUnit->AUSize);
 
 						// Set the associated stream metadata
-						AccessUnit->StreamSourceInfo = SelectedTrack.StreamSourceInfo;
+						AccessUnit->BufferSourceInfo = SelectedTrack.BufferSourceInfo;
 						AccessUnit->PlayerLoopState = PlayerLoopState;
 
 						SelectedTrack.bIsFirstInSequence = false;

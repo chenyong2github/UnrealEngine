@@ -48,7 +48,7 @@ public:
 	virtual void AddMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) = 0;
 	virtual void RemoveMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) = 0;
 
-	
+
 	//-------------------------------------------------------------------------
 	// Application Event or Metadata Stream (AEMS) receiver
 	//   Please refer to ISO/IEC 23009-1:2019/DAM 1:2020(E)
@@ -59,13 +59,23 @@ public:
 	//-------------------------------------------------------------------------
 	// Initializes the player. Options may be passed in to affect behaviour.
 	//
-	virtual bool Initialize(const FParamDict& InOptions) = 0;
+	virtual void Initialize(const FParamDict& InOptions) = 0;
+
+	/**
+	 * Sets the attributes for the stream to start buffering for and playing.
+	 * This must be set before calling SeekTo() or LoadManifest() to have an immediate effect.
+	 * A best effort to match a stream with the given attributes will be made.
+	 * If there is no exact match the player will make an educated guess.
+	 * Any later call to SelectTrackByMetadata() internally overwrites these initial attributes
+	 * with those of the explicitly selected track.
+	 */
+	virtual void SetInitialStreamAttributes(EStreamType StreamType, const FStreamSelectionAttributes& InitialSelection) = 0;
 
 
 	//-------------------------------------------------------------------------
 	// Manifest loading functions
 	//
-	//! Issue a load and parse of the manifest/master playlist file.
+	//! Issue a load and parse of the manifest/master playlist file. Make initial stream selection choice by calling SetInitialStreamAttributes() beforehand.
 	virtual void LoadManifest(const FString& ManifestURL) = 0;
 
 
@@ -155,10 +165,14 @@ public:
 	//! Returns track metadata of the currently active play period.
 	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutTrackMetadata, EStreamType StreamType) const = 0;
 
+	//! Returns attributes of the currently selected track.
+	virtual void GetSelectedTrackAttributes(FStreamSelectionAttributes& OutAttributes, EStreamType StreamType) const = 0;
+
 
 	//-------------------------------------------------------------------------
 	// Manual stream selection functions
 	//
+
 	//! Sets the highest bitrate when selecting a candidate stream.
 	virtual void SetBitrateCeiling(int32 HighestSelectableBitrate) = 0;
 
@@ -166,12 +180,16 @@ public:
 	//! Setting both will limit on either width or height, whichever limits first.
 	virtual void SetMaxResolution(int32 MaxWidth, int32 MaxHeight) = 0;
 
-	//! Selects a track based from one of the array members returned by GetTrackMetadata().
-	//! NOTE: Presently this must be done before starting playback!
-	virtual void SelectTrackByMetadata(EStreamType StreamType, const FTrackMetadata& StreamMetadata) = 0;
+	//! Selects a track based on given attributes (which can be constructed from one of the array members returned by GetTrackMetadata()).
+	//! This selection will explicitly override the initial stream attributes set by SetInitialStreamAttributes() and be applied automatically for upcoming periods.
+	virtual void SelectTrackByAttributes(EStreamType StreamType, const FStreamSelectionAttributes& Attributes) = 0;
 
 	//! Deselect track. The stream will continue to stream to allow for immediate selection/activation but no data will be fed to the decoder.
 	virtual void DeselectTrack(EStreamType StreamType) = 0;
+
+	//! Returns true if the track stream of the specified type has beed deselected through DeselectTrack().
+	virtual bool IsTrackDeselected(EStreamType StreamType) = 0;
+
 
 	//-------------------------------------------------------------------------
 	// Platform specific functions
