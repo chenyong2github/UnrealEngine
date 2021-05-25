@@ -13,7 +13,6 @@
 #include "Atmosphere/AtmosphericFog.h"
 #include "Components/BillboardComponent.h"
 #include "Runtime/Renderer/Private/ScenePrivate.h"
-#include "Runtime/Renderer/Private/AtmosphereRendering.h"
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
@@ -74,21 +73,5 @@ AAtmosphericFog::AAtmosphericFog(const FObjectInitializer& ObjectInitializer)
 	PrimaryActorTick.bCanEverTick = true;
 	SetHidden(false);
 }
-
-#if WITH_EDITOR
-// Prepare render targets when new actor spawned
-void AAtmosphericFog::PostActorCreated()
-{
-	Super::PostActorCreated();
-	if (GIsEditor)
-	{
-		if ( !IsTemplate() && AtmosphericFogComponent )
-		{
-			AtmosphericFogComponent->InitResource();
-		}
-	}
-}
-
-#endif
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

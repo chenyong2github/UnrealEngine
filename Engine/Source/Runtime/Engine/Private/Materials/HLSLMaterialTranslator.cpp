@@ -136,7 +136,6 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	bNeedsWorldPositionExcludingShaderOffsets(false)
 ,	bNeedsParticleSize(false)
 ,	bNeedsSceneTexturePostProcessInputs(false)
-,	bUsesAtmosphericFog(false)
 ,	bUsesSkyAtmosphere(false)
 ,	bUsesVertexColor(false)
 ,	bUsesParticleColor(false)
@@ -1430,8 +1429,6 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 
 	OutEnvironment.SetDefine(TEXT("USES_PER_INSTANCE_CUSTOM_DATA"), bUsesPerInstanceCustomData && Material->IsUsedWithInstancedStaticMeshes());
 		
-	// @todo MetalMRT: Remove this hack and implement proper atmospheric-fog solution for Metal MRT...
-	OutEnvironment.SetDefine(TEXT("MATERIAL_ATMOSPHERIC_FOG"), !IsMetalMRTPlatform(InPlatform) ? bUsesAtmosphericFog : 0);
 	OutEnvironment.SetDefine(TEXT("MATERIAL_SKY_ATMOSPHERE"), bUsesSkyAtmosphere);
 	OutEnvironment.SetDefine(TEXT("INTERPOLATE_VERTEX_COLOR"), bUsesVertexColor);
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_COLOR"), bUsesParticleColor); 
@@ -8509,36 +8506,17 @@ int32 FHLSLMaterialTranslator::SamplePhysicsField(int32 PositionArg, const int32
 
 int32 FHLSLMaterialTranslator::AtmosphericFogColor( int32 WorldPosition )
 {
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
-	bUsesAtmosphericFog = true;
-	if( WorldPosition == INDEX_NONE )
-	{
-		return AddCodeChunk( MCT_Float4, TEXT("MaterialExpressionAtmosphericFog(Parameters, Parameters.AbsoluteWorldPosition)"));
-	}
-	else
-	{
-		return AddCodeChunk( MCT_Float4, TEXT("MaterialExpressionAtmosphericFog(Parameters, %s)"), *GetParameterCode(WorldPosition) );
-	}
+	return SkyAtmosphereAerialPerspective(WorldPosition);
 }
 
 int32 FHLSLMaterialTranslator::AtmosphericLightVector()
 {
-	bUsesAtmosphericFog = true;
-
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionAtmosphericLightVector(Parameters)"));
-
 }
 
 int32 FHLSLMaterialTranslator::AtmosphericLightColor()
 {
-	bUsesAtmosphericFog = true;
-
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionAtmosphericLightColor(Parameters)"));
-
 }
 
 int32 FHLSLMaterialTranslator::SkyAtmosphereLightIlluminance(int32 WorldPosition, int32 LightIndex)

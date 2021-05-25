@@ -79,10 +79,6 @@
 #ifdef MIN_MATERIAL_TEXCOORDS 
 	#include "/Engine/Private/MinMaterialTexCoords.ush"
 #endif
- 
-#if MATERIAL_ATMOSPHERIC_FOG
-	#include "/Engine/Private/AtmosphereCommon.ush"
-#endif
 
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	#include "/Engine/Private/SkyAtmosphereCommon.ush"
@@ -1265,34 +1261,14 @@ float3 MaterialExpressionGetHairColorFromMelanin(float Melanin, float Redness, f
 	return GetHairColorFromMelanin(Melanin, Redness, DyeColor);
 }
 
-float4 MaterialExpressionAtmosphericFog(FMaterialPixelParameters Parameters, float3 AbsoluteWorldPosition)
-{
-#if MATERIAL_ATMOSPHERIC_FOG
-	// WorldPosition default value is Parameters.AbsoluteWorldPosition if not overridden by the user
-	float3 ViewVector = AbsoluteWorldPosition - ResolvedView.WorldCameraOrigin;
-	float SceneDepth = length(ViewVector);
-	return GetAtmosphericFog(ResolvedView.WorldCameraOrigin, ViewVector, SceneDepth, float3(0.f, 0.f, 0.f));
-#else
-	return float4(0.f, 0.f, 0.f, 0.f);
-#endif
-}
-
 float3 MaterialExpressionAtmosphericLightVector(FMaterialPixelParameters Parameters)
 {
-#if MATERIAL_ATMOSPHERIC_FOG
 	return ResolvedView.AtmosphereLightDirection[0].xyz;
-#else
-	return float3(0.f, 0.f, 0.f);
-#endif
 }
 
 float3 MaterialExpressionAtmosphericLightColor(FMaterialPixelParameters Parameters)
 {
-#if MATERIAL_ATMOSPHERIC_FOG
 	return ResolvedView.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].rgb;
-#else
-	return float3(0.f, 0.f, 0.f);
-#endif
 }
 
 float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters Parameters, float3 WorldPosition, uint LightIndex)

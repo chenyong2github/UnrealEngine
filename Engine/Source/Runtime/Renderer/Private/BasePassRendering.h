@@ -261,7 +261,7 @@ public:
 	
 };
 
-template<typename LightMapPolicyType, bool bEnableAtmosphericFog>
+template<typename LightMapPolicyType, bool bEnableSkyAtmosphereAerialPerspective>
 class TBasePassVS : public TBasePassVertexShaderBaseType<LightMapPolicyType>
 {
 	DECLARE_SHADER_TYPE(TBasePassVS,MeshMaterial);
@@ -278,14 +278,14 @@ protected:
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		static const auto SupportAtmosphericFog = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAtmosphericFog"));
+		static const auto ProjectSupportsSkyAtmosphere = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportSkyAtmosphere"));
 		static const auto SupportAllShaderPermutations = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAllShaderPermutations"));
-		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;
 
-		const bool bProjectAllowsAtmosphericFog = !SupportAtmosphericFog || SupportAtmosphericFog->GetValueOnAnyThread() != 0 || bForceAllPermutations;
+		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;
+		const bool bProjectSupportsSkyAtmosphere = !ProjectSupportsSkyAtmosphere || ProjectSupportsSkyAtmosphere->GetValueOnAnyThread() != 0 || bForceAllPermutations;
 
 		bool bShouldCache = Super::ShouldCompilePermutation(Parameters);
-		bShouldCache &= (bEnableAtmosphericFog && bProjectAllowsAtmosphericFog && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)) || !bEnableAtmosphericFog;
+		bShouldCache &= (bEnableSkyAtmosphereAerialPerspective && bProjectSupportsSkyAtmosphere && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)) || !bEnableSkyAtmosphereAerialPerspective;
 
 		return bShouldCache
 			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5));
@@ -294,8 +294,9 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
 		// @todo MetalMRT: Remove this hack and implement proper atmospheric-fog solution for Metal MRT...
-		OutEnvironment.SetDefine(TEXT("BASEPASS_ATMOSPHERIC_FOG"), !IsMetalMRTPlatform(Parameters.Platform) ? bEnableAtmosphericFog : 0);
+		OutEnvironment.SetDefine(TEXT("BASEPASS_SKYATMOSPHERE_AERIALPERSPECTIVE"), !IsMetalMRTPlatform(Parameters.Platform) ? bEnableSkyAtmosphereAerialPerspective : 0);
 	}
 };
 
@@ -491,7 +492,7 @@ bool GetBasePassShaders(
 	FVertexFactoryType* VertexFactoryType, 
 	LightMapPolicyType LightMapPolicy, 
 	ERHIFeatureLevel::Type FeatureLevel,
-	bool bEnableAtmosphericFog,
+	bool bEnableSkyAtmosphereAerialPerspective,
 	bool bEnableSkyLight,
 	bool bUse128bitRT,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<LightMapPolicyType>>* VertexShader,
@@ -501,7 +502,7 @@ bool GetBasePassShaders(
 	FMaterialShaderTypes ShaderTypes;
 	if (VertexShader)
 	{
-		if (bEnableAtmosphericFog)
+		if (bEnableSkyAtmosphereAerialPerspective)
 		{
 			ShaderTypes.AddShaderType<TBasePassVS<LightMapPolicyType, true>>();
 			//VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, true> >(VertexFactoryType, 0, false);
@@ -543,7 +544,7 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 	FVertexFactoryType* VertexFactoryType, 
 	FUniformLightMapPolicy LightMapPolicy, 
 	ERHIFeatureLevel::Type FeatureLevel,
-	bool bEnableAtmosphericFog,
+	bool bEnableSkyAtmosphereAerialPerspective,
 	bool bEnableSkyLight,
 	bool bUse128bitRT,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>* VertexShader,

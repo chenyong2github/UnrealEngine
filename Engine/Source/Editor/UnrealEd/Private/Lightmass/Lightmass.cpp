@@ -27,7 +27,6 @@
 #include "Components/RectLightComponent.h"
 #include "Engine/GeneratedMeshAreaLight.h"
 #include "Components/DirectionalLightComponent.h"
-#include "Renderer/Private/AtmosphereRendering.h"
 #include "Components/SkyLightComponent.h"
 #include "Rendering/SkyAtmosphereCommonData.h"
 #include "Components/ModelComponent.h"
@@ -490,7 +489,6 @@ void FLightmassProcessor::SwarmCallback( NSwarm::FMessage* CallbackMessage, void
 -----------------------------------------------------------------------------*/
 FLightmassExporter::FLightmassExporter( UWorld* InWorld )
 	: Swarm( NSwarm::FSwarmInterface::Get() ) 
-	, AtmosphericFogComponent(nullptr)
 	, SkyAtmosphereComponent(nullptr)
 	, ExportStage(NotRunning)
 	, CurrentAmortizationIndex(0)
@@ -1041,7 +1039,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Compute a mapping between directional light and trnasmittance to apply. For each AtmosphereSunLightIndex, the brightest lights is kept.
-	if ((AtmosphericFogComponent && AtmosphericFogComponent->bAtmosphereAffectsSunIlluminance) || SkyAtmosphereComponent)
+	if (SkyAtmosphereComponent)
 	{
 		for (int32 LightIndex = 0; LightIndex < DirectionalLights.Num(); ++LightIndex)
 		{
@@ -1062,10 +1060,6 @@ void FLightmassExporter::WriteLights( int32 Channel )
 				{
 					FAtmosphereSetup AtmosphereSetup(*SkyAtmosphereComponent);
 					SunLightAtmosphereTransmittance[Index] = AtmosphereSetup.GetTransmittanceAtGroundLevel(SunDirection);
-				}
-				else if (AtmosphericFogComponent && Index==0)	// Legacy AtmosphericFogComponent only takes into account Index 0
-				{
-					SunLightAtmosphereTransmittance[Index] = AtmosphericFogComponent->GetTransmittance(SunDirection);
 				}
 				break;
 			}

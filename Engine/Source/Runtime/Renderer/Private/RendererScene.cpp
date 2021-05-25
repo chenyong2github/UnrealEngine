@@ -37,7 +37,6 @@
 #include "PrimitiveSceneInfo.h"
 #include "LightSceneInfo.h"
 #include "LightMapRendering.h"
-#include "AtmosphereRendering.h"
 #include "SkyAtmosphereRendering.h"
 #include "BasePassRendering.h"
 #include "MobileBasePassRendering.h"
@@ -1026,7 +1025,6 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	DistanceFieldSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel])
 ,	LumenSceneData(nullptr)
 ,	PreshadowCacheLayout(0, 0, 0, 0, false)
-,	AtmosphericFog(NULL)
 ,	SkyAtmosphere(NULL)
 ,	VolumetricCloud(NULL)
 ,	PrecomputedVisibilityHandler(NULL)
@@ -1145,12 +1143,6 @@ FScene::~FScene()
 	ReflectionSceneData.CubemapArray.ReleaseResource();
 	IndirectLightingCache.ReleaseResource();
 	DistanceFieldSceneData.Release();
-
-	if (AtmosphericFog)
-	{
-		delete AtmosphericFog;
-		AtmosphericFog = nullptr;
-	}
 
 	if (GPUSkinCache)
 	{
@@ -4739,12 +4731,6 @@ public:
 	virtual bool HasAnyLights() const override { return false; }
 
 protected:
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual void AddAtmosphericFog_Impl(class UAtmosphericFogComponent* FogComponent) override {}
-	virtual void RemoveAtmosphericFog_Impl(class UAtmosphericFogComponent* FogComponent) override {}
-	virtual void RemoveAtmosphericFogResource_RenderThread_Impl(FRenderResource* FogResource) override {}
-	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo_Impl() override { return NULL; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 private:
 	UWorld* World;

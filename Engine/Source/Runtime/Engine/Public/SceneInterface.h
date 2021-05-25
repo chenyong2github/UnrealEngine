@@ -10,7 +10,6 @@
 #include "RenderGraphDefinitions.h"
 
 class AWorldSettings;
-class FAtmosphericFogSceneInfo;
 class FSkyAtmosphereRenderSceneInfo;
 class FSkyAtmosphereSceneProxy;
 class FVolumetricCloudRenderSceneInfo;
@@ -249,36 +248,6 @@ public:
 	 * @return True if there are any exponential height fog potentially enabled in the scene
 	 */
 	virtual bool HasAnyExponentialHeightFog() const = 0;
-
-	/** 
-	 * Adds a new atmospheric fog component to the scene
-	 * 
-	 * @param FogComponent - fog component to add
-	 */
-	UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.")
-	void AddAtmosphericFog(class UAtmosphericFogComponent* FogComponent) { AddAtmosphericFog_Impl(FogComponent); }
-
-	/** 
-	 * Removes a atmospheric fog component from the scene
-	 * 
-	 * @param FogComponent - fog component to remove
-	 */
-	UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.")
-	void RemoveAtmosphericFog(class UAtmosphericFogComponent* FogComponent) { RemoveAtmosphericFog_Impl(FogComponent); }
-
-	/** 
-	 * Removes a atmospheric fog resource from the scene...this is just a double check to make sure we don't have stale stuff hanging around; should already be gone.
-	 * 
-	 * @param FogResource - fog resource to remove
-	 */
-	UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.")
-	void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) { RemoveAtmosphericFogResource_RenderThread_Impl(FogResource); }
-
-	/**
-	 * Returns the scene's FAtmosphericFogSceneInfo if it exists
-	 */
-	UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.")
-	FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo() { return GetAtmosphericFogSceneInfo_Impl(); }
 
 	/**
 	 * Adds the unique volumetric cloud component to the scene
@@ -562,11 +531,4 @@ protected:
 
 	/** This scene's feature level */
 	ERHIFeatureLevel::Type FeatureLevel;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual void AddAtmosphericFog_Impl(class UAtmosphericFogComponent* FogComponent) = 0;
-	virtual void RemoveAtmosphericFog_Impl(class UAtmosphericFogComponent* FogComponent) = 0;
-	virtual void RemoveAtmosphericFogResource_RenderThread_Impl(FRenderResource* FogResource) = 0;
-	virtual FAtmosphericFogSceneInfo* GetAtmosphericFogSceneInfo_Impl() = 0;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };

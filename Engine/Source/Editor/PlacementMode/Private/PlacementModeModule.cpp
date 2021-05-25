@@ -13,7 +13,6 @@
 #include "EditorStyleSet.h"
 #include "GameFramework/Actor.h"
 #include "ActorFactories/ActorFactory.h"
-#include "ActorFactories/ActorFactoryAtmosphericFog.h"
 #include "ActorFactories/ActorFactoryBoxReflectionCapture.h"
 #include "ActorFactories/ActorFactoryBoxVolume.h"
 #include "ActorFactories/ActorFactoryCharacter.h"
@@ -211,7 +210,6 @@ void FPlacementModeModule::StartupModule()
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBoxReflectionCapture::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryPlanarReflection::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryDeferredDecal::StaticClass(), SortOrder += 10)));
-		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryAtmosphericFog::StaticClass(), SortOrder += 10)));
 	}
 
 	RegisterPlacementCategory(

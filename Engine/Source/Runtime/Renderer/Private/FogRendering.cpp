@@ -2,7 +2,6 @@
 
 #include "FogRendering.h"
 #include "DeferredShadingRenderer.h"
-#include "AtmosphereRendering.h"
 #include "ScenePrivate.h"
 #include "Engine/TextureCube.h"
 #include "PipelineStateCache.h"
@@ -293,7 +292,7 @@ void FSceneRenderer::InitFogConstants()
 	for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
-		InitAtmosphereConstantsInView(View);
+
 		// set fog consts based on height fog components
 		if(ShouldRenderFog(*View.Family))
 		{

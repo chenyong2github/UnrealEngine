@@ -3183,7 +3183,6 @@ struct FReadOnlyCVARCache
 
 	bool bEnablePointLightShadows;
 	bool bEnableStationarySkylight;
-	bool bEnableAtmosphericFog;
 	bool bEnableLowQualityLightmaps;
 	bool bAllowStaticLighting;
 	bool bSupportSkyAtmosphere;

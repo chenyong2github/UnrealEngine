@@ -8,7 +8,7 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionAtmosphericFogColor.generated.h"
 
-UCLASS(collapsecategories, hidecategories=Object)
+UCLASS(collapsecategories, hidecategories=Object, DisplayName = "Atmospheric Fog Color (deprecated)")
 class UMaterialExpressionAtmosphericFogColor : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

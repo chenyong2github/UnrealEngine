@@ -1871,7 +1871,7 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 	check(Material.GetMaterialDomain() == MD_Surface);
 
 	const bool bRenderSkylight = Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode) && ShadingModels != MSM_Unlit;
-	const bool bRenderAtmosphericFog = IsTranslucentBlendMode(BlendMode) && (Scene && Scene->HasAtmosphericFog() && Scene->ReadOnlyCVARCache.bEnableAtmosphericFog);
+	const bool bRenderSkyAtmosphere = IsTranslucentBlendMode(BlendMode) && (Scene && Scene->HasSkyAtmosphere() && Scene->ReadOnlyCVARCache.bSupportSkyAtmosphere);
 
 	// Check for a cached light-map.
 	const bool bIsLitMaterial = ShadingModels.IsLit();
@@ -1971,7 +1971,7 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 		MeshBatch.VertexFactory->GetType(),
 		LightMapPolicy,
 		FeatureLevel,
-		bRenderAtmosphericFog,
+		bRenderSkyAtmosphere,
 		bRenderSkylight,
 		false,
 		nullptr,

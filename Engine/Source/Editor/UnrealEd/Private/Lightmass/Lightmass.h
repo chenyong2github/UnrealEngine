@@ -14,7 +14,6 @@
 #include "StaticLightingSystem/StaticLightingPrivate.h"
 #include "Lightmass/LightmassImportanceVolume.h"
 #include "Components/LightmassPortalComponent.h"
-#include "Atmosphere/AtmosphericFogComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -116,13 +115,6 @@ public:
 		Portals.Add(InPortalComponent->GetComponentTransform().ToMatrixWithScale());
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	void SetAtmosphericComponent(const UAtmosphericFogComponent* AtmosphericFog)
-	{
-		AtmosphericFogComponent = AtmosphericFog;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	void SetSkyAtmosphereComponent(const USkyAtmosphereComponent* SkyAtmosphere)
 	{
 		SkyAtmosphereComponent = SkyAtmosphere;
@@ -213,9 +205,6 @@ private:
 	TArray<FBox>				CharacterIndirectDetailVolumes;
 	TArray<FMatrix>				Portals;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const UAtmosphericFogComponent*	AtmosphericFogComponent;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	const USkyAtmosphereComponent*	SkyAtmosphereComponent;
 
 	FLightmassWorldInfoSettings LevelSettings;

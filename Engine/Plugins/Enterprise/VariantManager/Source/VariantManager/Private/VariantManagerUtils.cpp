@@ -7,7 +7,6 @@
 #include "Components/SceneComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/LightComponent.h"
-#include "Atmosphere/AtmosphericFogComponent.h"
 #include "Engine/Scene.h"  // So we can check FPostProcessSettings exists
 #include "CineCameraComponent.h"  // So we can check the CineCamera structs exist
 #include "CineCameraActor.h"	  // So we can check the CineCamera structs exist
@@ -141,18 +140,6 @@ FStructProperty* FVariantManagerUtils::GetLightColorProperty()
 	}
 
 	return LightColorProperty;
-}
-
-FStructProperty* FVariantManagerUtils::GetDefaultLightColorProperty()
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (!DefaultLightColorProperty)
-	{
-		DefaultLightColorProperty = FindFProperty<FStructProperty>( UAtmosphericFogComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( UAtmosphericFogComponent, DefaultLightColor) );
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	return DefaultLightColorProperty;
 }
 
 void FVariantManagerUtils::InvalidateCache()
