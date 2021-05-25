@@ -737,9 +737,6 @@ bool HasHairStrandsTexturesQueries();
 void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData);
 #endif
 
-bool HasHairStrandsBindigQueries();
-void RunHairStrandsBindingQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
-
 #if WITH_EDITOR
 bool HasHairCardsAtlasQueries();
 void RunHairCardsAtlasQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData);
@@ -757,11 +754,6 @@ static void RunHairStrandsProcess(FRDGBuilder& GraphBuilder, FGlobalShaderMap* S
 	if (HasHairStrandsFolliculeMaskQueries())
 	{
 		RunHairStrandsFolliculeMaskQueries(GraphBuilder, ShaderMap);
-	}
-
-	if (HasHairStrandsBindigQueries())
-	{
-		RunHairStrandsBindingQueries(GraphBuilder, ShaderMap);
 	}
 
 #if WITH_EDITOR
@@ -809,8 +801,7 @@ void ProcessHairStrandsBookmark(
 			HasHairCardsAtlasQueries() ||
 			HasHairStrandsTexturesQueries() ||
 		#endif
-			HasHairStrandsFolliculeMaskQueries() ||
-			HasHairStrandsBindigQueries();
+			HasHairStrandsFolliculeMaskQueries();
 
 		if (bHasHairStardsnProcess)
 		{

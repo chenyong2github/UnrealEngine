@@ -104,7 +104,7 @@ void FGroomBindingActions::ExecuteRebuildBindingAsset(TArray<TWeakObjectPtr<UGro
 					BindingAsset->SourceGeometryCache->ConditionalPostLoad();
 				}
 			}
-			FGroomBindingBuilder::BuildBinding(BindingAsset.Get(), false, true);
+			FGroomBindingBuilder::BuildBinding(BindingAsset.Get(), true);
 			BindingAsset->GetOutermost()->MarkPackageDirty();
 		}
 	}
