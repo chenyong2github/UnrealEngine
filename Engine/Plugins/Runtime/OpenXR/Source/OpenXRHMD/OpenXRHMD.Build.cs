@@ -98,7 +98,8 @@ namespace UnrealBuildTool.Rules
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
 			}
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Android)
+			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Android  
+			    || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
             {
                 PrivateDependencyModuleNames.AddRange(new string[] {
                     "VulkanRHI"
