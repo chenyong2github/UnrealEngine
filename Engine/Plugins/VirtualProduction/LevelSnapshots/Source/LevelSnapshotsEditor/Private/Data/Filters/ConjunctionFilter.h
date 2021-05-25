@@ -3,8 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "EditorFilter.h"
+#include "LevelSnapshotFilters.h"
 #include "ConjunctionFilter.generated.h"
 
 class UNegatableFilter;
@@ -14,7 +13,7 @@ class UNegatableFilter;
  * It is valid to have no children: in this case, this filter return false.
  */
 UCLASS(meta = (InternalSnapshotFilter))
-class UConjunctionFilter : public UEditorFilter
+class UConjunctionFilter : public ULevelSnapshotFilter
 {
 	GENERATED_BODY()
 public:
@@ -33,12 +32,6 @@ public:
 	virtual EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const override;
 	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
 	//~ End ULevelSnapshotFilter Interface
-	
-	//~ Begin UEditorFilter Interface
-	virtual TArray<UEditorFilter*> GetEditorChildren();
-	virtual void IncrementEditorFilterBehavior(const bool bIncludeChildren = false) override;
-	virtual void SetEditorFilterBehavior(const EEditorFilterBehavior InFilterBehavior, const bool bIncludeChildren = false);
-	//~ Begin UEditorFilter Interface
 
 	DECLARE_EVENT_OneParam(UConjunctionFilter, FOnChildModified, UNegatableFilter*);
 	FOnChildModified OnChildAdded;

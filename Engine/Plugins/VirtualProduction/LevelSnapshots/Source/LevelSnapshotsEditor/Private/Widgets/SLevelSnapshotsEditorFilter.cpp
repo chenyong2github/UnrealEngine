@@ -73,13 +73,13 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 				{
 					if (SnapshotFilter.IsValid())
 					{
-						switch (SnapshotFilter->GetEditorFilterBehavior())
+						switch (SnapshotFilter->GetFilterBehavior())
 	                    {
-	                        case EEditorFilterBehavior::DoNotNegate:
+	                        case EFilterBehavior::DoNotNegate:
 								return LOCTEXT("DoNotNegate", "Filter result is neither negated nor ignored. Click to toggle.");
-	                        case EEditorFilterBehavior::Negate:
+	                        case EFilterBehavior::Negate:
 								return LOCTEXT("Negate", "Filter result is negated. Click to toggle.");
-	                        case EEditorFilterBehavior::Ignore:
+	                        case EFilterBehavior::Ignore:
 								return LOCTEXT("Ignore", "Filter result is ignored. Click to toggle.");
 	                    }
 					}
@@ -97,13 +97,13 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 						return FLinearColor::Black;
 					}
 
-					switch (SnapshotFilter->GetEditorFilterBehavior())
+					switch (SnapshotFilter->GetFilterBehavior())
 					{
-						case EEditorFilterBehavior::DoNotNegate:
+						case EFilterBehavior::DoNotNegate:
 							return FLinearColor::Green;
-						case EEditorFilterBehavior::Negate:
+						case EFilterBehavior::Negate:
 							return FLinearColor::Red;
-						case EEditorFilterBehavior::Ignore:
+						case EFilterBehavior::Ignore:
 							return FLinearColor::Gray;
 						default: 
 							return FLinearColor::Black;
@@ -194,7 +194,7 @@ FReply SLevelSnapshotsEditorFilter::OnNegateFilter()
 {
 	if (ensure(SnapshotFilter.IsValid()))
 	{
-		SnapshotFilter->IncrementEditorFilterBehavior();
+		SnapshotFilter->IncrementFilterBehaviour();
 	}
 	return FReply::Handled();
 }

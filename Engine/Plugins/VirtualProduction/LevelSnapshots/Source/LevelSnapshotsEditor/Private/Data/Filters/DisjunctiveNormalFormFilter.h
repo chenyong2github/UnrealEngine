@@ -3,8 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "EditorFilter.h"
+#include "LevelSnapshotFilters.h"
 #include "DisjunctiveNormalFormFilter.generated.h"
 
 class UConjunctionFilter;
@@ -16,7 +15,7 @@ class UConjunctionFilter;
  * Disjunctive normal form = ORs of ANDs. Example: (a && !b) || (c && d) || e
  */
 UCLASS(meta = (InternalSnapshotFilter))
-class UDisjunctiveNormalFormFilter : public UEditorFilter
+class UDisjunctiveNormalFormFilter : public ULevelSnapshotFilter
 {
 	GENERATED_BODY()
 public:
@@ -33,14 +32,6 @@ public:
 	virtual EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const override;
 	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
 	//~ End ULevelSnapshotFilter Interface
-	
-	//~ Begin UEditorFilter Interface
-	virtual TArray<UEditorFilter*> GetEditorChildren();
-	//~ Begin UEditorFilter Interface
-
-	DECLARE_EVENT_TwoParams(UDisjunctiveNormalFormFilter, FOnChildrenChanged, UConjunctionFilter* /*AffectedFilter*/, int32 /*ChildIndex*/);
-	FOnChildrenChanged OnChildAdded;
-	FOnChildrenChanged OnChildRemoved;
 	
 private:
 
