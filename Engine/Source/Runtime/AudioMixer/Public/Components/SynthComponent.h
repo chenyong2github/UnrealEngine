@@ -253,15 +253,6 @@ public:
 	void AddAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 	void RemoveAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 
-	virtual USoundClass* GetSoundClass()
-	{
-		if (SoundClass)
-		{
-			return SoundClass;
-		}
-
-		return USoundBase::GetDefaultSoundClass();
-	}
 
 	virtual void BeginDestroy() override;
 

@@ -141,6 +141,10 @@ USynthComponent::USynthComponent(const FObjectInitializer& ObjectInitializer)
 	bAlwaysPlay = true;
 	Synth = nullptr;
 
+	// Set the default sound class
+	SoundClass = USoundBase::DefaultSoundClassObject;
+	Synth = nullptr;
+
 	PreferredBufferLength = DEFAULT_PROCEDURAL_SOUNDWAVE_BUFFER_SIZE;
 
 #if WITH_EDITORONLY_DATA
