@@ -898,7 +898,7 @@ FStrataData StrataWeight(FStrataData A, float Weight)
 	return StrataData;
 }
 
-FStrataData StrataHorizontalMixing(FStrataData Foreground, FStrataData Background, float Mix)
+FStrataData StrataHorizontalMixing(FStrataData Background, FStrataData Foreground, float Mix)
 {
 	const float ForegroundMixFactor = saturate(Mix);
 	const float BackgroundMixFactor = 1.0 - ForegroundMixFactor;
@@ -945,7 +945,7 @@ float HorizontalMixingParameterBlendingBSDFCoverageToNormalMix(FStrataData Backg
 //  - Slab node with SSSprofile cannot be blendend. Those will have to be specifically handled by the user and not mixed with any other slab if it can be demoted to parameter blending
 
 // ==> NOTE: Always pair with the compiler behavior in StrataCompilationInfoHorizontalMixingParamBlend
-FStrataData StrataHorizontalMixingParameterBlending(FStrataData Foreground, FStrataData Background, float HorizontalMixValue, float NormalMixCodeChunk, uint NewNormalIndex)
+FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStrataData Foreground, float HorizontalMixValue, float NormalMixCodeChunk, uint NewNormalIndex)
 {
 	const float ForegroundLightingMixFactor = saturate(HorizontalMixValue);	// Only the horizontal mixing value
 	const float ForegroundOtherMixFactor = saturate(NormalMixCodeChunk);	// Horizontal mixing value combined with coverage

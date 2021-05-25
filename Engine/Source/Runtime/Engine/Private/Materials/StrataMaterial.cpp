@@ -152,21 +152,21 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAddParamBlend(FMaterialCompi
 }
 
 
-FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
+FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixing(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Background, const FStrataMaterialCompilationInfo& Foreground)
 {
-	return StrataCompilationInfoAdd(Compiler, A, B); // Mixing is a similar operation to Add when it comes to bsdf count
+	return StrataCompilationInfoAdd(Compiler, Background, Foreground); // Mixing is a similar operation to Add when it comes to bsdf count
 }
 
 
 // ==> NOTE: Always pair with the shader behavior in StrataHorizontalMixingParameterBlending
-FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B, const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis)
+FStrataMaterialCompilationInfo StrataCompilationInfoHorizontalMixingParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Background, const FStrataMaterialCompilationInfo& Foreground, const FStrataRegisteredSharedLocalBasis& RegisteredSharedLocalBasis)
 {
-	check(A.TotalBSDFCount == 1);
-	check(B.TotalBSDFCount == 1);
+	check(Background.TotalBSDFCount == 1);
+	check(Foreground.TotalBSDFCount == 1);
 
-	FStrataMaterialCompilationInfo StrataInfo = A;
+	FStrataMaterialCompilationInfo StrataInfo = Background;
 	FStrataMaterialCompilationInfo::FBSDF& NewBSDF = StrataInfo.Layers[0].BSDFs[0];
-	const FStrataMaterialCompilationInfo::FBSDF& OtherBSDF = B.Layers[0].BSDFs[0];
+	const FStrataMaterialCompilationInfo::FBSDF& OtherBSDF = Foreground.Layers[0].BSDFs[0];
 
 	NewBSDF.RegisteredSharedLocalBasis = RegisteredSharedLocalBasis;
 
