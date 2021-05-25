@@ -438,6 +438,7 @@ public:
 
 	void AddPrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive);
+	void UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex);
 	void RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
 
 	void AddMeshCards(int32 PrimitiveGroupIndex);
