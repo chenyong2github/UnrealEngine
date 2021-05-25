@@ -3042,6 +3042,7 @@ struct RHI_API FRHITextureCreateInfo
 		return Dimension == Other.Dimension
 			&& Flags == Other.Flags
 			&& Format == Other.Format
+			&& UAVFormat == Other.UAVFormat
 			&& Extent == Other.Extent
 			&& Depth == Other.Depth
 			&& ArraySize == Other.ArraySize
@@ -3114,6 +3115,9 @@ struct RHI_API FRHITextureCreateInfo
 
 	/** Pixel format used to create RHI texture. */
 	EPixelFormat Format = PF_Unknown;
+
+	/** Texture format used when creating the UAV. PF_Unknown means to use the default one (same as Format). */
+	EPixelFormat UAVFormat = PF_Unknown;
 
 	/** Extent of the texture in x and y. */
 	FIntPoint Extent = FIntPoint(1, 1);

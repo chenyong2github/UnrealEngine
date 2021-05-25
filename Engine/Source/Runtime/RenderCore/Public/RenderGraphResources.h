@@ -666,7 +666,7 @@ public:
 	FRDGTextureUAVDesc() = default;
 
 	FRDGTextureUAVDesc(FRDGTextureRef InTexture, uint8 InMipLevel = 0, EPixelFormat InFormat = PF_Unknown)
-		: FRHITextureUAVCreateInfo(InMipLevel, InFormat)
+		: FRHITextureUAVCreateInfo(InMipLevel, InFormat != PF_Unknown ? InFormat : InTexture->Desc.UAVFormat)
 		, Texture(InTexture)
 	{}
 
