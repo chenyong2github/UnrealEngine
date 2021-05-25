@@ -8,11 +8,25 @@
 #include "EdGraphSchema_K2.h"
 #include "ScopedTransaction.h"
 #include "DetailLayoutBuilder.h"
+#include "Graph/ControlRigGraph.h"
+
+namespace SControlRigGraphPinNameListDefs
+{
+	// Active foreground pin alpha
+	static const float ActivePinForegroundAlpha = 1.f;
+	// InActive foreground pin alpha
+	static const float InactivePinForegroundAlpha = 0.15f;
+	// Active background pin alpha
+	static const float ActivePinBackgroundAlpha = 0.8f;
+	// InActive background pin alpha
+	static const float InactivePinBackgroundAlpha = 0.4f;
+};
 
 void SControlRigGraphPinNameList::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
 	this->ModelPin = InArgs._ModelPin;
 	this->OnGetNameListContent = InArgs._OnGetNameListContent;
+	this->OnGetNameFromSelection = InArgs._OnGetNameFromSelection;
 	this->bMarkupInvalidItems = InArgs._MarkupInvalidItems;
 
 	CurrentList = GetNameList();
@@ -34,20 +48,63 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 	return SNew(SBox)
 		.MinDesiredWidth(150)
 		[
-			SAssignNew(NameListComboBox, SControlRigGraphPinNameListValueWidget)
-				.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
-				.OptionsSource(CurrentList)
-				.OnGenerateWidget(this, &SControlRigGraphPinNameList::MakeNameListItemWidget)
-				.OnSelectionChanged(this, &SControlRigGraphPinNameList::OnNameListChanged)
-				.OnComboBoxOpening(this, &SControlRigGraphPinNameList::OnNameListComboBox)
-				.InitiallySelectedItem(InitialSelected)
-				.Content()
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			[
+				SAssignNew(NameListComboBox, SControlRigGraphPinNameListValueWidget)
+					.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
+					.OptionsSource(CurrentList)
+					.OnGenerateWidget(this, &SControlRigGraphPinNameList::MakeNameListItemWidget)
+					.OnSelectionChanged(this, &SControlRigGraphPinNameList::OnNameListChanged)
+					.OnComboBoxOpening(this, &SControlRigGraphPinNameList::OnNameListComboBox)
+					.InitiallySelectedItem(InitialSelected)
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(this, &SControlRigGraphPinNameList::GetNameListText)
+						.ColorAndOpacity(this, &SControlRigGraphPinNameList::GetNameColor)
+						.Font( FEditorStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )
+					]
+			]
+		
+			// Use button
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1,0)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetBackground )
+				.OnClicked(this, &SControlRigGraphPinNameList::OnGetSelectedClicked)
+				.ContentPadding(1.f)
+				.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Use_Tooltip", "Use item selected"))
 				[
-					SNew(STextBlock)
-					.Text(this, &SControlRigGraphPinNameList::GetNameListText)
-					.ColorAndOpacity(this, &SControlRigGraphPinNameList::GetNameColor)
-					.Font( FEditorStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont") ) )
+					SNew(SImage)
+					.ColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetForeground )
+					.Image(FEditorStyle::GetBrush("Icons.CircleArrowLeft"))
 				]
+			]
+
+			// Browse button
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1,0)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetBackground )
+				.OnClicked(this, &SControlRigGraphPinNameList::OnBrowseClicked)
+				.ContentPadding(0)
+				.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Browse_Tooltip", "Browse"))
+				[
+					SNew(SImage)
+					.ColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetForeground )
+					.Image(FEditorStyle::GetBrush("Icons.Search"))
+				]
+			]
+				
 		];
 }
 
@@ -76,7 +133,7 @@ void SControlRigGraphPinNameList::SetNameListText(const FText& NewTypeInValue, E
 {
 	if(!GraphPinObj->GetDefaultAsString().Equals(NewTypeInValue.ToString()))
 	{
-		const FScopedTransaction Transaction( NSLOCTEXT("GraphEditor", "ChangeBoneNameListPinValue", "Change Bone Name Pin Value" ) );
+		const FScopedTransaction Transaction( NSLOCTEXT("GraphEditor", "ChangeElementNameListPinValue", "Change Element Name Pin Value" ) );
 		GraphPinObj->Modify();
 		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, NewTypeInValue.ToString());
 	}
@@ -133,8 +190,71 @@ void SControlRigGraphPinNameList::OnNameListComboBox()
 		if (Item->Equals(GetNameListText().ToString()))
 		{
 			CurrentlySelected = Item;
+			break;
 		}
 	}
 	NameListComboBox->SetOptionsSource(CurrentList);
 	NameListComboBox->SetSelectedItem(CurrentlySelected);
+}
+
+FSlateColor SControlRigGraphPinNameList::OnGetWidgetForeground() const
+{
+	float Alpha = IsHovered() ? SControlRigGraphPinNameListDefs::ActivePinForegroundAlpha : SControlRigGraphPinNameListDefs::InactivePinForegroundAlpha;
+	return FSlateColor(FLinearColor(1.f, 1.f, 1.f, Alpha));
+}
+
+FSlateColor SControlRigGraphPinNameList::OnGetWidgetBackground() const
+{
+	float Alpha = IsHovered() ? SControlRigGraphPinNameListDefs::ActivePinBackgroundAlpha : SControlRigGraphPinNameListDefs::InactivePinBackgroundAlpha;
+	return FSlateColor(FLinearColor(1.f, 1.f, 1.f, Alpha));
+}
+
+FReply SControlRigGraphPinNameList::OnGetSelectedClicked()
+{
+	if (ModelPin->GetCustomWidgetName() == TEXT("ElementName"))
+	{
+		if (OnGetNameFromSelection.IsBound())
+		{
+			const TArray<TSharedPtr<FString>> Result = OnGetNameFromSelection.Execute();
+			if (Result.Num() > 0)
+			{
+				if (Result[0].IsValid() && Result[0] != nullptr)
+				{
+					if (URigVMPin* ParentPin = ModelPin->GetParentPin())
+					{
+						if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetPinObj()->GetOwningNode()->GetGraph()))
+						{
+							Graph->GetController()->SetPinDefaultValue(ParentPin->GetPinPath(), *Result[0].Get());
+							CurrentList = GetNameList();
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply SControlRigGraphPinNameList::OnBrowseClicked()
+{
+	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetPinObj()->GetOwningNode()->GetGraph()))
+	{
+		TSharedPtr<FString> Selected = NameListComboBox->GetSelectedItem();
+		if (Selected.IsValid())
+		{
+			FString DefaultValue = ModelPin->GetParentPin()->GetDefaultValue();
+			if (!DefaultValue.IsEmpty())
+			{
+				FRigElementKey Key;
+				FRigElementKey::StaticStruct()->ImportText(*DefaultValue, &Key, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
+				if (Key.IsValid())
+				{
+					Graph->GetBlueprint()->GetHierarchyController()->SetSelection({Key});
+				}
+			}
+		}
+	}
+
+	return FReply::Handled();
 }

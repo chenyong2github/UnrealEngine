@@ -14,6 +14,7 @@ class SControlRigGraphPinNameList : public SGraphPin
 public:
 
 	DECLARE_DELEGATE_RetVal_OneParam( const TArray<TSharedPtr<FString>>*, FOnGetNameListContent, URigVMPin*);
+	DECLARE_DELEGATE_RetVal( const TArray<TSharedPtr<FString>>, FOnGetNameFromSelection);
 
 	SLATE_BEGIN_ARGS(SControlRigGraphPinNameList)
 		: _MarkupInvalidItems(true)
@@ -21,6 +22,7 @@ public:
 
 		SLATE_ARGUMENT(URigVMPin*, ModelPin)
 		SLATE_EVENT(FOnGetNameListContent, OnGetNameListContent)
+		SLATE_EVENT(FOnGetNameFromSelection, OnGetNameFromSelection)
 		SLATE_ARGUMENT(bool, MarkupInvalidItems)
 
 	SLATE_END_ARGS()
@@ -47,4 +49,11 @@ protected:
 	TArray<TSharedPtr<FString>> EmptyList;
 	const TArray<TSharedPtr<FString>>* CurrentList;
 	bool bMarkupInvalidItems;
+
+	/** Helper buttons. */
+	FSlateColor OnGetWidgetForeground() const;
+	FSlateColor OnGetWidgetBackground() const;
+	FReply OnGetSelectedClicked();
+	FReply OnBrowseClicked();
+	FOnGetNameFromSelection OnGetNameFromSelection;
 };
