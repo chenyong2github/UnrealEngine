@@ -34,15 +34,16 @@ namespace CADLibrary
 
 		virtual void SetExternal(bool bSetExternal) override { bIsExternal = bSetExternal; }
 
-		virtual bool InitializeKernel(double MetricUnit, const TCHAR* = TEXT("")) override;
+		virtual bool InitializeKernel(const TCHAR* = TEXT("")) override;
 
 		virtual bool ShutdownKernel() override;
 
 		virtual bool UnloadModel() override;
 
+		virtual bool ChangeUnit(double SceneUnit) override;
+		
 		virtual bool CreateModel(uint64& OutMainObjectId) override;
-
-
+		
 		virtual bool ChangeTesselationParameters(double MaxSag, double MaxLength, double MaxAngle) override;
 
 		virtual bool LoadModel
@@ -120,7 +121,7 @@ namespace CADLibrary
 		void RepairInternal(CT_OBJECT_ID MainId, bool bConnectOpenBody, CT_DOUBLE SewingToleranceFactor);
 
 		bool bIsExternal = false;
-		double KernelUnit = -1;
+		bool bIsInitialize = false;
 	};
 }
 

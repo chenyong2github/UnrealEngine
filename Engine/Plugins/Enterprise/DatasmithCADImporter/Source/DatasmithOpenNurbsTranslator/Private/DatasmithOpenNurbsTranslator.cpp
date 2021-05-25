@@ -649,7 +649,7 @@ public:
 			TranslationCache = MakeShared<FTranslationCache>();
 		}
 
-		LocalSession = FRhinoCoretechWrapper::GetSharedSession(MetricUnit, ScalingFactor);
+		LocalSession = FRhinoCoretechWrapper::GetSharedSession();
 	}
 
 	~FOpenNurbsTranslatorImpl()
@@ -2327,6 +2327,7 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 
 	// 	ScalingFactor is defined according to input Rhino file unit. CT don't modify CAD input according to the set file unit.
 	ScalingFactor = 100 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
+	MetricUnit = 1 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
 	LocalSession->SetScaleFactor(ScalingFactor);
 
 	// Step 4: REQUIRED - Read bitmap table (it can be empty)
@@ -3184,6 +3185,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		LocalSession->GetImportParameters().ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
 
 		LocalSession->ClearData();
+		LocalSession->SetSceneUnit(GetMetricUnit());
 
 		LocalSession->AddBRep(*Brep, Offset);
 
