@@ -21,7 +21,7 @@ class FTaskTimingSharedState : public Insights::ITimingViewExtender, public TSha
 {
 
 public:
-	explicit FTaskTimingSharedState(STimingView* InTimingView) : TimingView(InTimingView) {}
+	FTaskTimingSharedState(STimingView* InTimingView);
 	virtual ~FTaskTimingSharedState() = default;
 
 	TSharedPtr<FTaskTimingTrack> GetTaskTrack() { return TaskTrack; }
@@ -35,6 +35,7 @@ public:
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
 	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
+	virtual bool ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
 
 	//////////////////////////////////////////////////
 
@@ -50,12 +51,36 @@ public:
 	STimingView* GetTimingView() { return TimingView; }
 
 private:
+	void InitCommandList();
+
+	void BuildTasksSubMenu(FMenuBuilder& MenuBuilder);
+
+	void ContextMenu_ShowTaskDependecies_Execute();
+	bool ContextMenu_ShowTaskDependecies_CanExecute();
+	bool ContextMenu_ShowTaskDependecies_IsChecked();
+
+	void ContextMenu_ShowTaskPrerequisites_Execute();
+	bool ContextMenu_ShowTaskPrerequisites_CanExecute();
+	bool ContextMenu_ShowTaskPrerequisites_IsChecked();
+
+	void ContextMenu_ShowTaskSubsequents_Execute();
+	bool ContextMenu_ShowTaskSubsequents_CanExecute();
+	bool ContextMenu_ShowTaskSubsequents_IsChecked();
+
+	void ContextMenu_ShowNestedTasks_Execute();
+	bool ContextMenu_ShowNestedTasks_CanExecute();
+	bool ContextMenu_ShowNestedTasks_IsChecked();
+
+	void OnTaskSettingsChanged();
+
+private:
 	STimingView* TimingView;
 
 	bool bShowHideTaskTrack;
 	bool bResetOnNextTick = false;
 
 	TSharedPtr<FTaskTimingTrack> TaskTrack;
+	TSharedPtr<FUICommandList> CommandList;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

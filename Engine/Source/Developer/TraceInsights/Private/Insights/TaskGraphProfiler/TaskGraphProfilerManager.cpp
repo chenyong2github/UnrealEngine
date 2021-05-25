@@ -277,10 +277,19 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 		}
 	};
 
-	GetSingleTaskRelationsForAll(Task->Prerequisites);
+	if (bShowPrerequisites)
+	{
+		GetSingleTaskRelationsForAll(Task->Prerequisites);
+	}
 	GetSingleTaskRelations(Task, TasksProvider, InSelectedEvent);
-	GetSingleTaskRelationsForAll(Task->NestedTasks);
-	GetSingleTaskRelationsForAll(Task->Subsequents);
+	if (bShowNestedTasks)
+	{
+		GetSingleTaskRelationsForAll(Task->NestedTasks);
+	}
+	if (bShowSubsequents)
+	{
+		GetSingleTaskRelationsForAll(Task->Subsequents);
+	}
 }
 
 void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent)
@@ -533,7 +542,6 @@ void FTaskGraphProfilerManager::SetShowRelations(bool bInValue)
 	bShowRelations = bInValue;
 	if (!bShowRelations)
 	{
-		ClearTaskRelations();
 		TaskTimingSharedState->SetTaskId(FTaskTimingTrack::InvalidTaskId);
 	}
 }

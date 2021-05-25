@@ -102,12 +102,6 @@ void FTimingViewCommands::RegisterCommands()
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord(EKeys::G));
 
-	UI_COMMAND(ShowTaskDependencies,
-		"Task Dependencies",
-		"Show/hide all dependencies of the current task (for a selected cpu timing event).",
-		EUserInterfaceActionType::ToggleButton,
-		FInputChord(EKeys::T));
-
 	//UI_COMMAND(ShowAllGpuTracks, "GPU Track(s)", "Show/hide the GPU track(s).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Y));
 	//UI_COMMAND(ShowAllCpuTracks, "CPU Thread Tracks", "Show/hide all CPU tracks (and all CPU thread groups).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::U));
 }
