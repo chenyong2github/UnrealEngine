@@ -304,7 +304,8 @@ namespace AVEncoder
 			}
 			else if (WaitResult == WAIT_FAILED)
 			{
-				WindowsError(TEXT("WaitForMultipleObjects"));
+				const FString WaitError(TEXT("WaitForMultipleObjects"));
+				WindowsError((LPTSTR)*WaitError);
 			}
 		}
 #else
