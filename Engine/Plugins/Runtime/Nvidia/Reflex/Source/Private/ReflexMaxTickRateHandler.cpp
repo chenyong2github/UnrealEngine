@@ -5,6 +5,9 @@
 #include "HAL/IConsoleManager.h"
 
 #include "RHI.h"
+#include "Engine/Console.h"
+#include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <D3D11.h>
@@ -23,7 +26,7 @@ int32 DisableLatencyMarkerOptimize = 0;
 static FAutoConsoleVariableRef CVarDisableLatencyMarkerOptimize(
 	TEXT("t.DisableLatencyMarkerOptimize"),
 	DisableLatencyMarkerOptimize,
-	TEXT("Disable Disable Latency Marker Optimize")
+	TEXT("Disable Latency Marker Optimize")
 );
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaxTickRateHandler, Log, All);
@@ -41,12 +44,24 @@ void FReflexMaxTickRateHandler::Initialize()
 		{
 			bProperDriverVersion = true;
 		}
+
+		// Need to verify that Reflex Low Latency mode is supported on current hardware
+		NV_GET_SLEEP_STATUS_PARAMS_V1 SleepStatusParams = { 0 };
+		SleepStatusParams.version = NV_GET_SLEEP_STATUS_PARAMS_VER1;
+
+		NvAPI_Status status = NVAPI_OK;
+		status = NvAPI_D3D_GetSleepStatus(static_cast<IUnknown*>(GDynamicRHI->RHIGetNativeDevice()), &SleepStatusParams);
+
+		if (status == NVAPI_OK)
+		{
+			bFeatureSupport = true;
+		}
 	}
 }
 
 bool FReflexMaxTickRateHandler::HandleMaxTickRate(float DesiredMaxTickRate)
 {
-	if (DisableCustomTickRateHandler == 0 && bProperDriverVersion && !GIsEditor && IsRHIDeviceNVIDIA())
+	if (DisableCustomTickRateHandler == 0 && bProperDriverVersion && !GIsEditor && IsRHIDeviceNVIDIA() && bFeatureSupport)
 	{
 		if (bEnabled)
 		{
@@ -56,25 +71,20 @@ bool FReflexMaxTickRateHandler::HandleMaxTickRate(float DesiredMaxTickRate)
 				NvAPI_Status status = NVAPI_OK;
 				NV_SET_SLEEP_MODE_PARAMS_V1 params = { 0 };
 				params.version = NV_SET_SLEEP_MODE_PARAMS_VER1;
-				params.bLowLatencyMode = bUltraLowLatency;
-				params.bLowLatencyBoost = bGPUBoost;
+				params.bLowLatencyMode = bLowLatencyMode;
+				params.bLowLatencyBoost = bBoost;
 				MinimumInterval = DesiredMinimumInterval;
 				params.minimumIntervalUs = MinimumInterval;
 				params.bUseMarkersToOptimize = DisableLatencyMarkerOptimize ? NV_FALSE : NV_TRUE;
 				status = NvAPI_D3D_SetSleepMode(static_cast<IUnknown*>(GDynamicRHI->RHIGetNativeDevice()), &params);
 
-				UE_LOG(LogMaxTickRateHandler, Log, TEXT("SetSleepMode MI:%f L:%s B:%s"), MinimumInterval, bUltraLowLatency ? TEXT("On") : TEXT("Off"), bGPUBoost ? TEXT("On") : TEXT("Off"));
-
-				// Need to verify that Low Latency flag actually applied, NVIDIA says the return code can still be good, but it might be incompatible
-				NV_GET_SLEEP_STATUS_PARAMS_V1 SleepStatusParams = { 0 };
-				SleepStatusParams.version = NV_GET_SLEEP_STATUS_PARAMS_VER1;
-				status = NvAPI_D3D_GetSleepStatus(static_cast<IUnknown*>(GDynamicRHI->RHIGetNativeDevice()), &SleepStatusParams);
-				if (bUltraLowLatency && SleepStatusParams.bLowLatencyMode == false)
+				// Need to verify that Low Latency mode change actually applied successfully
+				if (bLowLatencyMode && (status != NVAPI_OK))
 				{
 					UE_LOG(LogMaxTickRateHandler, Warning, TEXT("Unable to turn on low latency"));
 					// Clear the ULL flag
 					CustomFlags = CustomFlags & ~1;
-					bUltraLowLatency = false;
+					bLowLatencyMode = false;
 				}
 
 				LastCustomFlags = CustomFlags;
@@ -91,17 +101,22 @@ bool FReflexMaxTickRateHandler::HandleMaxTickRate(float DesiredMaxTickRate)
 			// When disabled, if we ever called SetSleepMode, we need to clean up after ourselves
 			if (bWasEnabled)
 			{
-				LastCustomFlags = 0;
-				bWasEnabled = false;
-
 				NvAPI_Status status = NVAPI_OK;
 				NV_SET_SLEEP_MODE_PARAMS_V1 params = { 0 };
 				params.version = NV_SET_SLEEP_MODE_PARAMS_VER1;
 				params.bLowLatencyMode = false;
 				params.bLowLatencyBoost = false;
 				params.minimumIntervalUs = 0;
+				params.bUseMarkersToOptimize = false;
 				status = NvAPI_D3D_SetSleepMode(static_cast<IUnknown*>(GDynamicRHI->RHIGetNativeDevice()), &params);
 				UE_LOG(LogMaxTickRateHandler, Log, TEXT("SetSleepMode clean up"));
+
+				// Reset module back to default values in case re-enabled in the same session
+				MinimumInterval = -1.0f;
+				LastCustomFlags = 0;
+				bWasEnabled = false;
+				bLowLatencyMode = true;
+				bBoost = false;
 			}
 		}
 	}
@@ -114,23 +129,129 @@ void FReflexMaxTickRateHandler::SetFlags(uint32 Flags)
 	CustomFlags = Flags;
 	if ((Flags & 1) > 0)
 	{
-		bUltraLowLatency = true;
+		bLowLatencyMode = true;
 	}
 	else
 	{
-		bUltraLowLatency = false;
+		bLowLatencyMode = false;
 	}
 	if ((Flags & 2) > 0)
 	{
-		bGPUBoost = true;
+		bBoost = true;
 	}
 	else
 	{
-		bGPUBoost = false;
+		bBoost = false;
 	}
 }
 
 uint32 FReflexMaxTickRateHandler::GetFlags()
 {
-	return CustomFlags;	
+	return CustomFlags;
+}
+
+void FReflexMaxTickRateHandler::SetEnabled(bool bInEnabled)
+{
+	bEnabled = bInEnabled;
+}
+
+bool FReflexMaxTickRateHandler::GetEnabled()
+{
+	if (DisableCustomTickRateHandler == 1 || !bProperDriverVersion || GIsEditor || !IsRHIDeviceNVIDIA() || !bFeatureSupport)
+	{
+		return false;
+	}
+
+	return bEnabled;
+}
+
+bool FReflexMaxTickRateHandler::GetAvailable()
+{
+	if (DisableCustomTickRateHandler == 1 || !bProperDriverVersion || GIsEditor || !IsRHIDeviceNVIDIA() || !bFeatureSupport)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool FReflexMaxTickRateHandler::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	bool bHandled = false;
+	FString ReflexMode;
+	APlayerController* PlayerController = (InWorld ? UGameplayStatics::GetPlayerController(InWorld, 0) : NULL);
+	ULocalPlayer* LocalPlayer = (PlayerController ? Cast<ULocalPlayer>(PlayerController->Player) : NULL);
+
+	if (FParse::Value(Cmd, TEXT("ReflexMode="), ReflexMode))
+	{
+		if (ReflexMode == "0")
+		{
+			SetEnabled(false);
+			
+			if (LocalPlayer && LocalPlayer->ViewportClient && LocalPlayer->ViewportClient->ViewportConsole)
+			{
+				LocalPlayer->ViewportClient->ViewportConsole->OutputText("Reflex Low Latency mode: Off");
+			}
+
+			UE_LOG(LogMaxTickRateHandler, Log, TEXT("Reflex Low Latency mode: Off"));
+		}
+		else if (ReflexMode == "1")
+		{
+			SetEnabled(true);
+			SetFlags(1);
+
+			if (LocalPlayer && LocalPlayer->ViewportClient && LocalPlayer->ViewportClient->ViewportConsole)
+			{
+				LocalPlayer->ViewportClient->ViewportConsole->OutputText("Reflex Low Latency mode: On");
+			}
+
+			UE_LOG(LogMaxTickRateHandler, Log, TEXT("Reflex Low Latency mode: On"));
+		}
+		else if (ReflexMode == "2")
+		{
+			SetEnabled(true);
+			SetFlags(3);
+
+			if (LocalPlayer && LocalPlayer->ViewportClient && LocalPlayer->ViewportClient->ViewportConsole)
+			{
+				LocalPlayer->ViewportClient->ViewportConsole->OutputText("Reflex Low Latency mode: On+Boost");
+			}
+
+			UE_LOG(LogMaxTickRateHandler, Log, TEXT("Reflex Low Latency mode: On+Boost"));
+		}
+		
+		bHandled = true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("ReflexModeToggle")))
+	{
+		bool bLowLatencyModeEnabled = GetEnabled();
+
+		if (bLowLatencyModeEnabled)
+		{
+			SetEnabled(false);
+
+			if (LocalPlayer && LocalPlayer->ViewportClient && LocalPlayer->ViewportClient->ViewportConsole)
+			{
+				LocalPlayer->ViewportClient->ViewportConsole->OutputText("Reflex Low Latency mode: Off");
+			}
+
+			UE_LOG(LogMaxTickRateHandler, Log, TEXT("Reflex Low Latency mode: Off"));
+		}
+		else
+		{
+			SetEnabled(true);
+			SetFlags(1);
+
+			if (LocalPlayer && LocalPlayer->ViewportClient && LocalPlayer->ViewportClient->ViewportConsole)
+			{
+				LocalPlayer->ViewportClient->ViewportConsole->OutputText("Reflex Low Latency mode: On");
+			}
+
+			UE_LOG(LogMaxTickRateHandler, Log, TEXT("Reflex Low Latency mode: On"));
+		}
+
+		bHandled = true;
+	}
+
+	return bHandled;
 }

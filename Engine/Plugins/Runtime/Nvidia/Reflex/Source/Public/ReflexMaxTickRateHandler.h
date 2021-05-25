@@ -5,14 +5,17 @@
 #include "CoreMinimal.h"
 #include "Performance/MaxTickRateHandlerModule.h"
 
-class FReflexMaxTickRateHandler : public IMaxTickRateHandlerModule
+class FReflexMaxTickRateHandler : public IMaxTickRateHandlerModule, public FSelfRegisteringExec
 {
 public:
 	virtual ~FReflexMaxTickRateHandler() {}
 
 	virtual void Initialize() override;
-	virtual void SetEnabled(bool bInEnabled) override { bEnabled = bInEnabled; }
-	virtual bool GetEnabled() override { return bEnabled; }
+	virtual void SetEnabled(bool bInEnabled) override;
+	virtual bool GetEnabled() override;
+	virtual bool GetAvailable() override;
+
+	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 	// Used to provide a generic customization interface for custom tick rate handlers
 	virtual void SetFlags(uint32 Flags);
@@ -23,9 +26,10 @@ public:
 	bool bEnabled = false;
 	bool bWasEnabled = false;
 	bool bProperDriverVersion = false;
+	bool bFeatureSupport = false;
 	float MinimumInterval = -1.0f;
-	bool bUltraLowLatency = true;
-	bool bGPUBoost = true;
+	bool bLowLatencyMode = true;
+	bool bBoost = false;
 
 	uint32 CustomFlags = 0;
 	uint32 LastCustomFlags = 0;
