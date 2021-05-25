@@ -41,8 +41,10 @@ struct FHairCommonResource : public FRenderResource
 
 	/* Init/Release buffers (FHairCommonResource) */
 	void Allocate(FRDGBuilder& GraphBuilder);
+	void AllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex);
 	virtual void InternalAllocate() {};
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) {};
+	virtual void InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex) {};
 	virtual void InternalRelease() {};
 
 	bool bUseRenderGraph = true;
@@ -58,6 +60,7 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
+	virtual void InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex) override;
 	virtual void InternalRelease() override;
 
 	/* Get the resource name */

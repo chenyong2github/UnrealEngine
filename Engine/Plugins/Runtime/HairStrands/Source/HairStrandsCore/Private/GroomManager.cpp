@@ -68,6 +68,53 @@ static bool IsInstanceFrustumCullingEnable()
 
 bool NeedsUpdateCardsMeshTriangles();
 
+// Returns the cached geometry of the underlying geometry on which a hair instance is attached to
+static FCachedGeometry GetCacheGeometryForHair(
+	FRDGBuilder& GraphBuilder, 
+	FHairGroupInstance* Instance, 
+	const FGPUSkinCache* SkinCache, 
+	FGlobalShaderMap* ShaderMap)
+{
+	FCachedGeometry Out;
+	if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
+	{
+		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
+		{
+			if (SkinCache)
+			{
+				Out = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue);
+			}
+
+			if (IsHairStrandsSkinCacheEnable() && Out.Sections.Num() == 0)
+			{
+				//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
+				// Actual populate the cache with only the needed part basd on the groom projection data. At the moment it recompute everything ...
+				BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, Out);
+			}
+		}
+	}
+	else if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
+	{
+		BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, Out);
+	}
+	return Out;
+}
+
+// Return the LOD index of the cached geometry on which the hair are bound to. 
+// Return -1 if the hair are not bound of if the underlying geometry is invalid
+static int32 GetCacheGeometryLODIndex(const FCachedGeometry& In)
+{
+	int32 MeshLODIndex = -1;
+	for (const FCachedGeometry::Section& Section : In.Sections)
+	{
+		// Ensure all mesh's sections have the same LOD index
+		if (MeshLODIndex < 0) MeshLODIndex = Section.LODIndex;
+		check(MeshLODIndex == Section.LODIndex);
+	}
+
+	return MeshLODIndex;
+}
+
 static void RunInternalHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView* View,
@@ -91,30 +138,8 @@ static void RunInternalHairStrandsInterpolation(
 	
 		check(Instance->HairGroupPublicData);
 
-		FCachedGeometry CachedGeometry;
-		if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
-		{
-			if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
-			{
-				if (SkinCache)
-				{
-					CachedGeometry = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue);
-				}
-
-				if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)
-				{
-					//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
-					// Actual populate the cache with only the needed part basd on the groom projection data. At the moment it recompute everything ...
-					BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, CachedGeometry);
-				}
-			}
-		}
-		else if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
-		{
-			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, CachedGeometry);
-		}
-
 		FHairStrandsProjectionMeshData::LOD MeshDataLOD;
+		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap);
 		for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
 		{
 			// Ensure all mesh's sections have the same LOD index
@@ -369,7 +394,6 @@ static void RunHairStrandsInterpolation_Strands(
 		ClusterData);
 }
 
-
 static void RunHairStrandsGatherCluster(
 	const FHairStrandsInstances& Instances,
 	FHairStrandClusterData* ClusterData)
@@ -394,7 +418,6 @@ static void RunHairStrandsGatherCluster(
 		}
 	}
 }
-
 
 // Return the LOD which should be used for a given screen size and LOD bias value
 // This function is mirrored in HairStrandsClusterCommon.ush
@@ -528,7 +551,12 @@ static void RunHairBufferSwap(const FHairStrandsInstances& Instances, const TArr
 	}
 }
 
-static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsInstances& Instances, const TArray<const FSceneView*> Views)
+static void RunHairLODSelection(
+	FRDGBuilder& GraphBuilder, 
+	const FHairStrandsInstances& Instances, 
+	const TArray<const FSceneView*>& Views, 
+	const FGPUSkinCache* SkinCache, 
+	FGlobalShaderMap* ShaderMap)
 {
 	EShaderPlatform ShaderPlatform = EShaderPlatform::SP_NumPlatforms;
 	if (Views.Num() > 0)
@@ -540,9 +568,10 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 	{
 		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 
-		int32 MeshLODIndex = -1;
 		check(Instance);
 		check(Instance->HairGroupPublicData);
+		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap);
+		const int32 MeshLODIndex = GetCacheGeometryLODIndex(CachedGeometry);
 
 		//if (Instance->ProxyLocalToWorld)
 		//{
@@ -635,19 +664,19 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 		// Note: Allocation will only be done if the resources it not yet initialized.
 		if (Instance->Guides.Data)
 		{
-			if (Instance->Guides.RestRootResource)		Instance->Guides.RestRootResource->Allocate(GraphBuilder);
-			if (Instance->Guides.RestResource)			Instance->Guides.RestResource->Allocate(GraphBuilder);
-			if (Instance->Guides.DeformedRootResource)	Instance->Guides.DeformedRootResource->Allocate(GraphBuilder);
-			if (Instance->Guides.DeformedResource)		Instance->Guides.DeformedResource->Allocate(GraphBuilder);
+			if (Instance->Guides.RestRootResource)			{ Instance->Guides.RestRootResource->Allocate(GraphBuilder); Instance->Guides.RestRootResource->AllocateLOD(GraphBuilder, MeshLODIndex); }
+			if (Instance->Guides.RestResource)				{ Instance->Guides.RestResource->Allocate(GraphBuilder); }
+			if (Instance->Guides.DeformedRootResource)		{ Instance->Guides.DeformedRootResource->Allocate(GraphBuilder); Instance->Guides.DeformedRootResource->AllocateLOD(GraphBuilder, MeshLODIndex); }
+			if (Instance->Guides.DeformedResource)			{ Instance->Guides.DeformedResource->Allocate(GraphBuilder); }
 		}
 
 		if (GeometryType == EHairGeometryType::Meshes)
 		{
 			FHairGroupInstance::FMeshes::FLOD& InstanceLOD = Instance->Meshes.LODs[IntLODIndex];
 
-			if (InstanceLOD.DeformedResource)	InstanceLOD.DeformedResource->Allocate(GraphBuilder);
+			if (InstanceLOD.DeformedResource)				{ InstanceLOD.DeformedResource->Allocate(GraphBuilder); }
 			#if RHI_RAYTRACING
-			if (InstanceLOD.RaytracingResource)	InstanceLOD.RaytracingResource->Allocate(GraphBuilder);
+			if (InstanceLOD.RaytracingResource)				{ InstanceLOD.RaytracingResource->Allocate(GraphBuilder);}
 			#endif
 
 			InstanceLOD.InitVertexFactory();
@@ -656,14 +685,14 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 		{
 			FHairGroupInstance::FCards::FLOD& InstanceLOD = Instance->Cards.LODs[IntLODIndex];
 
-			if (InstanceLOD.DeformedResource)				InstanceLOD.DeformedResource->Allocate(GraphBuilder);
-			if (InstanceLOD.Guides.RestRootResource)		InstanceLOD.Guides.RestRootResource->Allocate(GraphBuilder);
-			if (InstanceLOD.Guides.RestResource)			InstanceLOD.Guides.RestResource->Allocate(GraphBuilder);
-			if (InstanceLOD.Guides.DeformedRootResource)	InstanceLOD.Guides.DeformedRootResource->Allocate(GraphBuilder);
-			if (InstanceLOD.Guides.DeformedResource)		InstanceLOD.Guides.DeformedResource->Allocate(GraphBuilder);
-			if (InstanceLOD.Guides.InterpolationResource)	InstanceLOD.Guides.InterpolationResource->Allocate(GraphBuilder);
+			if (InstanceLOD.DeformedResource)				{ InstanceLOD.DeformedResource->Allocate(GraphBuilder); }
+			if (InstanceLOD.Guides.RestRootResource)		{ InstanceLOD.Guides.RestRootResource->Allocate(GraphBuilder); InstanceLOD.Guides.RestRootResource->AllocateLOD(GraphBuilder, MeshLODIndex); }
+			if (InstanceLOD.Guides.RestResource)			{ InstanceLOD.Guides.RestResource->Allocate(GraphBuilder); }
+			if (InstanceLOD.Guides.DeformedRootResource)	{ InstanceLOD.Guides.DeformedRootResource->Allocate(GraphBuilder); InstanceLOD.Guides.DeformedRootResource->AllocateLOD(GraphBuilder, MeshLODIndex); }
+			if (InstanceLOD.Guides.DeformedResource)		{ InstanceLOD.Guides.DeformedResource->Allocate(GraphBuilder); }
+			if (InstanceLOD.Guides.InterpolationResource)	{ InstanceLOD.Guides.InterpolationResource->Allocate(GraphBuilder); }
 			#if RHI_RAYTRACING
-			if (InstanceLOD.RaytracingResource)				InstanceLOD.RaytracingResource->Allocate(GraphBuilder);
+			if (InstanceLOD.RaytracingResource)				{ InstanceLOD.RaytracingResource->Allocate(GraphBuilder);}
 			#endif
 			InstanceLOD.InitVertexFactory();
 		}
@@ -672,15 +701,15 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 			check(Instance->HairGroupPublicData);
 			Instance->HairGroupPublicData->Allocate(GraphBuilder);
 
-			if (Instance->Strands.RestRootResource)			Instance->Strands.RestRootResource->Allocate(GraphBuilder);
-			if (Instance->Strands.RestResource)				Instance->Strands.RestResource->Allocate(GraphBuilder);
-			if (Instance->Strands.ClusterCullingResource)	Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder);
-			if (Instance->Strands.InterpolationResource)	Instance->Strands.InterpolationResource->Allocate(GraphBuilder);
+			if (Instance->Strands.RestRootResource)			{ Instance->Strands.RestRootResource->Allocate(GraphBuilder); Instance->Strands.RestRootResource->AllocateLOD(GraphBuilder, MeshLODIndex); }
+			if (Instance->Strands.RestResource)				{ Instance->Strands.RestResource->Allocate(GraphBuilder); }
+			if (Instance->Strands.ClusterCullingResource)	{ Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder); }
+			if (Instance->Strands.InterpolationResource)	{ Instance->Strands.InterpolationResource->Allocate(GraphBuilder); }
 
-			if (Instance->Strands.DeformedRootResource)		Instance->Strands.DeformedRootResource->Allocate(GraphBuilder);
-			if (Instance->Strands.DeformedResource)			Instance->Strands.DeformedResource->Allocate(GraphBuilder);
+			if (Instance->Strands.DeformedRootResource)		{ Instance->Strands.DeformedRootResource->Allocate(GraphBuilder); Instance->Strands.DeformedRootResource->AllocateLOD(GraphBuilder, MeshLODIndex); }
+			if (Instance->Strands.DeformedResource)			{ Instance->Strands.DeformedResource->Allocate(GraphBuilder); }
 			#if RHI_RAYTRACING
-			if (Instance->Strands.RenRaytracingResource)	Instance->Strands.RenRaytracingResource->Allocate(GraphBuilder);
+			if (Instance->Strands.RenRaytracingResource)	{ Instance->Strands.RenRaytracingResource->Allocate(GraphBuilder); }
 			#endif
 			Instance->Strands.VertexFactory->InitResources();
 		}
@@ -801,7 +830,9 @@ void ProcessHairStrandsBookmark(
 		RunHairLODSelection(
 			*GraphBuilder,
 			*Parameters.Instances,
-			Parameters.AllViews);
+			Parameters.AllViews,
+			Parameters.SkinCache, 
+			Parameters.ShaderMap);
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessEndOfFrame)
 	{
