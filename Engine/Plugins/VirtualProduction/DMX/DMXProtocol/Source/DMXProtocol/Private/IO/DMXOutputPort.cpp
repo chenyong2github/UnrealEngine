@@ -6,31 +6,12 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXSender.h"
 #include "IO/DMXOutputPortConfig.h"
+#include "IO/DMXPortManager.h"
 #include "IO/DMXRawListener.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXOutputPort"
 
-FDMXOutputPortSharedRef FDMXOutputPort::Create()
-{
-	FDMXOutputPortSharedRef NewOutputPort = MakeShared<FDMXOutputPort, ESPMode::ThreadSafe>();
-
-	NewOutputPort->PortGuid = FGuid::NewGuid();
-
-	UDMXProtocolSettings* Settings = GetMutableDefault<UDMXProtocolSettings>();
-	check(Settings);
-
-	NewOutputPort->CommunicationDeterminator.SetSendEnabled(Settings->IsSendDMXEnabled());
-	NewOutputPort->CommunicationDeterminator.SetReceiveEnabled(Settings->IsReceiveDMXEnabled());
-
-	// Bind to send dmx changes
-	Settings->OnSetSendDMXEnabled.AddThreadSafeSP(NewOutputPort, &FDMXOutputPort::OnSetSendDMXEnabled);
-
-	// Bind to receive dmx changes
-	Settings->OnSetReceiveDMXEnabled.AddThreadSafeSP(NewOutputPort, &FDMXOutputPort::OnSetReceiveDMXEnabled);
-
-	return NewOutputPort;
-}
 
 FDMXOutputPortSharedRef FDMXOutputPort::CreateFromConfig(const FDMXOutputPortConfig& OutputPortConfig)
 {
@@ -55,6 +36,8 @@ FDMXOutputPortSharedRef FDMXOutputPort::CreateFromConfig(const FDMXOutputPortCon
 
 	NewOutputPort->UpdateFromConfig(OutputPortConfig);
 
+	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Created output port %s"), *NewOutputPort->PortName);
+
 	return NewOutputPort;
 }
 
@@ -65,10 +48,25 @@ FDMXOutputPort::~FDMXOutputPort()
 	
 	// Port needs be unregistered before destruction
 	check(!DMXSender);
+
+	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed output port %s"), *PortName);
 }
 
 void FDMXOutputPort::UpdateFromConfig(const FDMXOutputPortConfig& OutputPortConfig)
 {
+	// Skip updating while the config has not yet initialized its device address 
+	if (!OutputPortConfig.IsDeviceAddressInitialized())
+	{
+		return;
+	}
+
+	// Can only use configs that are in project settings
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	const bool bConfigIsInProjectSettings = ProtocolSettings->OutputPortConfigs.ContainsByPredicate([&OutputPortConfig](const FDMXOutputPortConfig& Other) {
+		return OutputPortConfig.GetPortGuid() == Other.GetPortGuid();
+	});
+	checkf(bConfigIsInProjectSettings, TEXT("Can only use configs that are in project settings"));
+
 	// Find if the port needs update its registration with the protocol
 	const bool bNeedsUpdateRegistration = [this, &OutputPortConfig]()
 	{
@@ -102,6 +100,10 @@ void FDMXOutputPort::UpdateFromConfig(const FDMXOutputPortConfig& OutputPortConf
 	Protocol = IDMXProtocol::Get(OutputPortConfig.ProtocolName);
 
 	// Copy properties from the config
+	const FGuid& ConfigPortGuid = OutputPortConfig.GetPortGuid();
+	check(PortGuid.IsValid());
+	PortGuid = ConfigPortGuid;
+
 	CommunicationType = OutputPortConfig.CommunicationType;
 	ExternUniverseStart = OutputPortConfig.ExternUniverseStart;
 	DeviceAddress = OutputPortConfig.DeviceAddress;
@@ -116,10 +118,7 @@ void FDMXOutputPort::UpdateFromConfig(const FDMXOutputPortConfig& OutputPortConf
 	// Re-register the port if required
 	if (bNeedsUpdateRegistration)
 	{
-		if (IsValidPortSlow() && CommunicationDeterminator.NeedsSendDMX())
-		{
-			Register();
-		}
+		Register();
 	}
 
 	OnPortUpdated.Broadcast();
@@ -263,7 +262,7 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 
 bool FDMXOutputPort::Register()
 {
-	if (Protocol.IsValid())
+	if (IsValidPortSlow() && CommunicationDeterminator.IsSendDMXEnabled() && !FDMXPortManager::Get().AreProtocolsSuspended())
 	{
 		DMXSender = Protocol->RegisterOutputPort(SharedThis(this));
 

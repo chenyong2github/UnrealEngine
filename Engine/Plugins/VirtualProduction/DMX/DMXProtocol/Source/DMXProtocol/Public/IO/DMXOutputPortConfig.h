@@ -78,6 +78,13 @@ public:
 
 	/** Expose the protected PortGuid property name */
 	static FName GetPortGuidPropertyName() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, PortGuid); }
+	
+	/**
+	 * FDMXOutputPortConfig relies on its property type customization to initialize the device address (see SDMXLocalAdapterAddressComboBox).
+	 * That alike the device adresses can be sanetized when the struct is loaded and rebuilding ports while ArrayAdd property changes are ongoing can be avoided.
+	 * The function returns true when the IPAdress field is properly initialized.
+	 */
+	bool IsDeviceAddressInitialized() const;
 
 protected:
 	/** Sets a valid port name if the name is empty */
