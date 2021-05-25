@@ -44,6 +44,7 @@ namespace CADLibrary
 		bool bScaleUVMap = true;
 		bool bEnableCacheUsage = true;
 		bool bEnableKernelIOTessellation = true;
+		bool bEnableTimeControl = true;
 
 		uint32 GetHash() const
 		{

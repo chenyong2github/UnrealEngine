@@ -32,6 +32,6 @@ namespace DatasmithDispatcher
 		constexpr double ProcessingLoopDelay = 0.5;
 
 		// Number of worker instance that can be restarted when a crash occurs in en external process
-		constexpr int32 MaxRestartAllowed = 5;
+		constexpr int32 MaxRestartAllowed = 1000;
 	};
 } // ns DatasmithDispatcher
