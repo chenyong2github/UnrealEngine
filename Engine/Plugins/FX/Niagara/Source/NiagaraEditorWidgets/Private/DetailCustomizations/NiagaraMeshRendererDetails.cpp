@@ -114,32 +114,59 @@ TSharedRef<IDetailCustomization> FNiagaraMeshRendererDetails::MakeInstance()
 
 void FNiagaraMeshRendererDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	static const FName MeshesName = TEXT("Meshes");
-	static const FName EnableMeshFlipbookName = TEXT("bEnableMeshFlipbook");
-
 	LayoutBuilder = &DetailBuilder;
 
-	// Determine if mesh flipbook is enabled to disable allowing override resets
-	bEnableMeshFlipbook = false;
-	TSharedPtr<IPropertyHandle> EnableMeshFlipbookProperty = DetailBuilder.GetProperty(EnableMeshFlipbookName);
-	if (EnableMeshFlipbookProperty.IsValid())
 	{
-		EnableMeshFlipbookProperty->GetValue(bEnableMeshFlipbook);
-		EnableMeshFlipbookProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FNiagaraMeshRendererDetails::OnEnableFlipbookChanged));
+		static const FName MeshesName = TEXT("Meshes");
+		static const FName EnableMeshFlipbookName = TEXT("bEnableMeshFlipbook");
+
+		// Determine if mesh flipbook is enabled to disable allowing override resets
+		bEnableMeshFlipbook = false;
+		TSharedPtr<IPropertyHandle> EnableMeshFlipbookProperty = DetailBuilder.GetProperty(EnableMeshFlipbookName);
+		if (EnableMeshFlipbookProperty.IsValid())
+		{
+			EnableMeshFlipbookProperty->GetValue(bEnableMeshFlipbook);
+			EnableMeshFlipbookProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FNiagaraMeshRendererDetails::OnInvalidateDetails));
+		}
+
+		TSharedPtr<IPropertyHandle> MeshesProperty = DetailBuilder.GetProperty(MeshesName);
+		check(MeshesProperty.IsValid());
+
+		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(MeshesProperty->GetDefaultCategoryName(), MeshesProperty->GetDefaultCategoryText());
+
+		TSharedRef<FDetailArrayBuilder> MeshesBuilder = MakeShared<FDetailArrayBuilder>(MeshesProperty.ToSharedRef(), true, !bEnableMeshFlipbook, true);
+		MeshesBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FNiagaraMeshRendererDetails::OnGenerateMeshWidget));
+
+		CategoryBuilder.AddCustomBuilder(MeshesBuilder);
 	}
 
-	TSharedPtr<IPropertyHandle> MeshesProperty = DetailBuilder.GetProperty(MeshesName);	
-	check(MeshesProperty.IsValid());
+	{
+		static const FName OverrideMaterialsName = TEXT("OverrideMaterials");
+		static const FName EnableOverrideMaterialsName = TEXT("bOverrideMaterials");
 
-	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(MeshesProperty->GetDefaultCategoryName(), MeshesProperty->GetDefaultCategoryText());
+		bEnableMaterialOverrides = false;
+		TSharedPtr<IPropertyHandle> EnableOverrideMaterialsProperty = DetailBuilder.GetProperty(EnableOverrideMaterialsName);
+		if (EnableOverrideMaterialsProperty.IsValid())
+		{
+			EnableOverrideMaterialsProperty->GetValue(bEnableMaterialOverrides);
+			EnableOverrideMaterialsProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FNiagaraMeshRendererDetails::OnInvalidateDetails));
+		}
 
-	TSharedRef<FDetailArrayBuilder> MeshesBuilder = MakeShared<FDetailArrayBuilder>(MeshesProperty.ToSharedRef(), true, !bEnableMeshFlipbook, true);	
-	MeshesBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FNiagaraMeshRendererDetails::OnGenerateMeshWidget));
+		TSharedPtr<IPropertyHandle> OverrideMaterialsProperty = DetailBuilder.GetProperty(OverrideMaterialsName);
+		check(OverrideMaterialsProperty.IsValid());
 
-	CategoryBuilder.AddCustomBuilder(MeshesBuilder);	
+		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(OverrideMaterialsProperty->GetDefaultCategoryName(), OverrideMaterialsProperty->GetDefaultCategoryText());
+
+		TSharedRef<FDetailArrayBuilder> OverrideMaterialsBuilder = MakeShared<FDetailArrayBuilder>(OverrideMaterialsProperty.ToSharedRef(), true, bEnableMaterialOverrides, true);
+		OverrideMaterialsBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FNiagaraMeshRendererDetails::OnGenerateMaterialOverrideWidget));
+
+
+		CategoryBuilder.AddProperty(EnableOverrideMaterialsProperty);
+		CategoryBuilder.AddCustomBuilder(OverrideMaterialsBuilder);
+	}
 }
 
-void FNiagaraMeshRendererDetails::OnEnableFlipbookChanged()
+void FNiagaraMeshRendererDetails::OnInvalidateDetails()
 {
 	if (LayoutBuilder)
 	{
@@ -154,4 +181,10 @@ void FNiagaraMeshRendererDetails::OnGenerateMeshWidget(TSharedRef<IPropertyHandl
 	check(MeshChildProperty.IsValid());
 
 	ChildrenBuilder.AddCustomBuilder(MakeShared<FNiagaraMeshRendererMeshDetailBuilder>(Property, MeshChildProperty, !bEnableMeshFlipbook));
+}
+
+void FNiagaraMeshRendererDetails::OnGenerateMaterialOverrideWidget(TSharedRef<IPropertyHandle> Property, int32 Index, IDetailChildrenBuilder& ChildrenBuilder)
+{
+	IDetailPropertyRow& Row = ChildrenBuilder.AddProperty(Property);
+	Row.IsEnabled(bEnableMaterialOverrides);
 }

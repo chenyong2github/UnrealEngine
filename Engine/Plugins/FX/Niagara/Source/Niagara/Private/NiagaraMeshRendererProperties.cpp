@@ -30,9 +30,8 @@ TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> UNiagaraMeshRendererPrope
 
 FNiagaraMeshMaterialOverride::FNiagaraMeshMaterialOverride()
 	: ExplicitMat(nullptr)
+	, UserParamBinding(FNiagaraTypeDefinition(UMaterialInterface::StaticClass()))
 {
-	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
-	UserParamBinding.Parameter.SetType(MaterialDef);
 }
 
 bool FNiagaraMeshMaterialOverride::SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot)

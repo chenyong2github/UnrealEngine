@@ -60,12 +60,17 @@ public:
 	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	/** Use this UMaterialInterface if set to a valid value. This will be subordinate to UserParamBinding if it is set to a valid user variable.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
 	UMaterialInterface* ExplicitMat;
 
 	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and ExplicitMat is also set, UserParamBinding wins.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
 	FNiagaraUserParameterBinding UserParamBinding;
+
+	bool operator==(const FNiagaraMeshMaterialOverride& Other)const
+	{
+		return UserParamBinding == Other.UserParamBinding && ExplicitMat == Other.ExplicitMat;
+	}	
 };
 
 template<>
@@ -74,6 +79,7 @@ struct TStructOpsTypeTraits<FNiagaraMeshMaterialOverride> : public TStructOpsTyp
 	enum
 	{
 		WithStructuredSerializeFromMismatchedTag = true,
+		WithIdenticalViaEquality = true
 	};
 };
 
@@ -205,7 +211,7 @@ public:
 	ENiagaraSortMode SortMode;
 
 	/** Whether or not to use the OverrideMaterials array instead of the mesh's existing materials.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", DisplayName="Enable Material Overrides")
 	uint32 bOverrideMaterials : 1;
 
 	/** If true, the particles are only sorted when using a translucent material. */

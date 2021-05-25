@@ -1191,6 +1191,11 @@ FNiagaraUserParameterBinding::FNiagaraUserParameterBinding()
 
 	}
 
+FNiagaraUserParameterBinding::FNiagaraUserParameterBinding(const FNiagaraTypeDefinition& InMaterialDef)
+	: Parameter(InMaterialDef, NAME_None)
+{
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 bool FVMExternalFunctionBindingInfo::Serialize(FArchive& Ar)

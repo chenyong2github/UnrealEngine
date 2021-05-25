@@ -1170,6 +1170,8 @@ struct NIAGARA_API FNiagaraUserParameterBinding
 
 	FNiagaraUserParameterBinding();
 
+	FNiagaraUserParameterBinding(const FNiagaraTypeDefinition& InMaterialDef);
+
 	UPROPERTY(EditAnywhere, Category = "User Parameter")
 	FNiagaraVariable Parameter;
 
@@ -1177,6 +1179,15 @@ struct NIAGARA_API FNiagaraUserParameterBinding
 	{
 		return Other.Parameter == Parameter;
 	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FNiagaraUserParameterBinding> : public TStructOpsTypeTraitsBase2<FNiagaraUserParameterBinding>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true
+	};
 };
 
 USTRUCT()

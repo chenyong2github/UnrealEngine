@@ -16,9 +16,12 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 private:
-	void OnEnableFlipbookChanged();
+	void OnInvalidateDetails();
 	void OnGenerateMeshWidget(TSharedRef<IPropertyHandle> Property, int32 Index, IDetailChildrenBuilder& ChildrenBuilder);
+
+	void OnGenerateMaterialOverrideWidget(TSharedRef<IPropertyHandle> Property, int32 Index, IDetailChildrenBuilder& ChildrenBuilder);
 
 	IDetailLayoutBuilder* LayoutBuilder = nullptr;
 	bool bEnableMeshFlipbook = false;
+	bool bEnableMaterialOverrides = false;
 };

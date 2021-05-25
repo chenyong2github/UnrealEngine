@@ -40,7 +40,10 @@ FCookStatsManager::FAutoRegisterCallback NiagaraCutoutCookStats::RegisterCookSta
 #endif // ENABLE_COOK_STATS
 
 UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
-	: Alignment(ENiagaraSpriteAlignment::Unaligned)
+	: Material(nullptr)
+	, SourceMode(ENiagaraRendererSourceDataMode::Particles)
+	, MaterialUserParamBinding(FNiagaraTypeDefinition(UMaterialInterface::StaticClass()))
+	, Alignment(ENiagaraSpriteAlignment::Unaligned)
 	, FacingMode(ENiagaraSpriteFacingMode::FaceCamera)
 	, PivotInUVSpace(0.5f, 0.5f)
 	, SortMode(ENiagaraSortMode::None)
@@ -56,9 +59,6 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	, AlphaThreshold(0.1f)
 #endif // WITH_EDITORONLY_DATA
 {
-	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
-	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
-
 	AttributeBindings.Reserve(27);
 
 	// NOTE: These bindings' indices have to align to their counterpart in ENiagaraSpriteVFLayout
