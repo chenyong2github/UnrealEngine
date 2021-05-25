@@ -1366,6 +1366,12 @@ private:
 
 						if (PayloadSize > 0)
 						{
+							if (Response + PayloadSize > ResponseEnd)
+							{
+								UE_LOG(LogDerivedDataCache, Display, ResponseErrorMessage);
+								return false;
+							}
+
 							if (bSuccess[KeyIdx])
 							{
 								Response += PayloadSize;
