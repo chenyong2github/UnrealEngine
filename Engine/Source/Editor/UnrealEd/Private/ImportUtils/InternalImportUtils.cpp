@@ -13,6 +13,7 @@
 #include "UObject/MetaData.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/Package.h"
 
 
 bool InternalImportUtils::IsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)
