@@ -41,7 +41,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 		}
 #endif
 
-		ISpatialAccelerationCollection<FAccelerationStructureHandle, float, 3>* Accelerator = nullptr;
+		ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* Accelerator = nullptr;
 		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
@@ -68,7 +68,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 		}
 #endif
 
-		ISpatialAccelerationCollection<FAccelerationStructureHandle, float, 3>* Accelerator = nullptr;
+		ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* Accelerator = nullptr;
 		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
@@ -95,7 +95,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 		}
 #endif
 
-		ISpatialAccelerationCollection<FAccelerationStructureHandle, float, 3>* Accelerator = nullptr;
+		ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* Accelerator = nullptr;
 		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
