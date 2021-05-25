@@ -948,6 +948,9 @@ public:
 
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceRT;
+	TRefCountPtr<IPooledRenderTarget> PathTracingAlbedoRT;
+	TRefCountPtr<IPooledRenderTarget> PathTracingNormalRT;
+	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceDenoisedRT;
 	// Keep track of the rectangle of pixels the Radiance texture is valid for so that path tracing can restart if this changes
 	FIntRect PathTracingRect;
 	// Target sampling count for the path tracer - to allow different views to target different quality levels
