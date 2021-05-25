@@ -726,6 +726,9 @@ namespace UC
 		/// Save object config only to Default INIs, never to local INIs.
 		defaultconfig,
 
+		/// Mark the editor config file to load from if loading into this object.
+		EditorConfig,
+
 		/// These affect the behavior of the property editor.
 		/// Class can be constructed from editinline New button.
 		editinlinenew,

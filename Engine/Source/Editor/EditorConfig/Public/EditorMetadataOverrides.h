@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "EditorConfig.h"
 #include "EditorSubsystem.h"
-#include "TickableEditorObject.h"
 
 #include "EditorMetadataOverrides.generated.h"
 
@@ -63,8 +62,7 @@ enum class EMetadataType
 
 UCLASS()
 class EDITORCONFIG_API UEditorMetadataOverrides : 
-	public UEditorSubsystem, 
-	public FTickableEditorObject
+	public UEditorSubsystem
 { 
 	GENERATED_BODY()
 
@@ -126,9 +124,6 @@ public:
 
 	void RemoveMetadata(const UStruct* Struct, FName Key);
 
-	void Tick(float DeltaTime) override;
-	TStatId GetStatId() const override;
-
 private:
 	const FMetadataSet* FindFieldMetadata(const FField* Field) const;
 	FMetadataSet* FindFieldMetadata(const FField* Field);
@@ -143,7 +138,4 @@ private:
 private:
 	TSharedPtr<FEditorConfig> SourceConfig;
 	FMetadataConfig LoadedMetadata;
-
-	TAtomic<bool> bDirty { false };
-	TAtomic<float> TimeSinceLastSave { 0 };
 };
