@@ -170,6 +170,31 @@ const TArray<TSharedPtr<FString>>* UControlRigGraph::GetElementNameList(URigVMPi
 	return GetBoneNameList(nullptr);
 }
 
+const TArray<TSharedPtr<FString>> UControlRigGraph::GetSelectedElementsNameList() const
+{
+	TArray<TSharedPtr<FString>> Result;
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetSelectedElementsNameList();
+	}
+	
+	UControlRigBlueprint* Blueprint = GetBlueprint();
+	if(Blueprint == nullptr)
+	{
+		return Result;
+	}
+	
+	TArray<FRigElementKey> Keys = Blueprint->Hierarchy->GetSelectedKeys();
+	for (const FRigElementKey& Key : Keys)
+	{
+		FString ValueStr;
+		FRigElementKey::StaticStruct()->ExportText(ValueStr, &Key, nullptr, nullptr, PPF_None, nullptr);
+		Result.Add(MakeShared<FString>(ValueStr));
+	}
+	
+	return Result;
+}
+
 const TArray<TSharedPtr<FString>>* UControlRigGraph::GetDrawingNameList(URigVMPin* InPin) const
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))

@@ -43,36 +43,42 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				{
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
+						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetBoneNameList);
 				}
 				else if (CustomWidgetName == TEXT("ControlName"))
 				{
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
+						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetControlNameList);
 				}
 				else if (CustomWidgetName == TEXT("SpaceName"))
 				{
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
+						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetNullNameList);
 				}
 				else if (CustomWidgetName == TEXT("CurveName"))
 				{
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
+						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetCurveNameList);
 				}
 				else if (CustomWidgetName == TEXT("ElementName"))
 				{
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
+						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetElementNameList);
 				}
 				else if (CustomWidgetName == TEXT("DrawingName"))
 				{
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
+						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetDrawingNameList);
 				}
 				else if (CustomWidgetName == TEXT("VariableName"))

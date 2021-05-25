@@ -22,6 +22,18 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigElementDetails"
 
+namespace FRigElementKeyDetailsDefs
+{
+	// Active foreground pin alpha
+	static const float ActivePinForegroundAlpha = 1.f;
+	// InActive foreground pin alpha
+	static const float InactivePinForegroundAlpha = 0.15f;
+	// Active background pin alpha
+	static const float ActivePinBackgroundAlpha = 0.8f;
+	// InActive background pin alpha
+	static const float InactivePinBackgroundAlpha = 0.4f;
+};
+
 void RigElementDetails_GetCustomizedInfo(TSharedRef<IPropertyHandle> InStructPropertyHandle, UControlRigBlueprint*& OutBlueprint)
 {
 	TArray<UObject*> Objects;
@@ -172,6 +184,42 @@ void FRigElementKeyDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStruct
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
+			// Use button
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1,0)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(UseSelectedButton, SButton)
+				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonColorAndOpacity_Lambda([this]() { return OnGetWidgetBackground(UseSelectedButton); })
+				.OnClicked(this, &FRigElementKeyDetails::OnGetSelectedClicked)
+				.ContentPadding(1.f)
+				.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Use_Tooltip", "Use item selected"))
+				[
+					SNew(SImage)
+					.ColorAndOpacity_Lambda( [this]() { return OnGetWidgetForeground(UseSelectedButton); })
+					.Image(FEditorStyle::GetBrush("Icons.CircleArrowLeft"))
+				]
+			]
+			// Select in hierarchy button
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1,0)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(SelectElementButton, SButton)
+				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonColorAndOpacity_Lambda([this]() { return OnGetWidgetBackground(SelectElementButton); })
+				.OnClicked(this, &FRigElementKeyDetails::OnSelectInHierarchyClicked)
+				.ContentPadding(0)
+				.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Browse_Tooltip", "Select in hierarchy"))
+				[
+					SNew(SImage)
+					.ColorAndOpacity_Lambda( [this]() { return OnGetWidgetForeground(SelectElementButton); })
+					.Image(FEditorStyle::GetBrush("Icons.Search"))
+				]
+			]			
 		];
 	}
 }
@@ -274,6 +322,61 @@ TSharedRef<SWidget> FRigElementKeyDetails::OnGetElementNameWidget(TSharedPtr<FSt
 FText FRigElementKeyDetails::GetElementNameAsText() const
 {
 	return FText::FromString(GetElementName());
+}
+
+FSlateColor FRigElementKeyDetails::OnGetWidgetForeground(const TSharedPtr<SButton> Button) const
+{
+	float Alpha = (Button.IsValid() && Button->IsHovered()) ? FRigElementKeyDetailsDefs::ActivePinForegroundAlpha : FRigElementKeyDetailsDefs::InactivePinForegroundAlpha;
+	return FSlateColor(FLinearColor(1.f, 1.f, 1.f, Alpha));
+}
+
+FSlateColor FRigElementKeyDetails::OnGetWidgetBackground(const TSharedPtr<SButton> Button) const
+{
+	float Alpha = (Button.IsValid() && Button->IsHovered()) ? FRigElementKeyDetailsDefs::ActivePinBackgroundAlpha : FRigElementKeyDetailsDefs::InactivePinBackgroundAlpha;
+	return FSlateColor(FLinearColor(1.f, 1.f, 1.f, Alpha));
+}
+
+FReply FRigElementKeyDetails::OnGetSelectedClicked()
+{
+	if (BlueprintBeingCustomized)
+	{
+		const TArray<FRigElementKey>& Selected = BlueprintBeingCustomized->Hierarchy->GetSelectedKeys();
+		if (Selected.Num() > 0)
+		{
+			if (TypeHandle.IsValid())
+			{
+				uint8 Index = (uint8) Selected[0].Type;
+				TypeHandle->SetValue(Index);
+			}
+			SetElementName(Selected[0].Name.ToString());
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply FRigElementKeyDetails::OnSelectInHierarchyClicked()
+{
+	if (BlueprintBeingCustomized)
+	{
+		FRigElementKey Key;
+		if (TypeHandle.IsValid())
+		{
+			uint8 Type;
+			TypeHandle->GetValue(Type);
+			Key.Type = (ERigElementType) Type;
+		}
+
+		if (NameHandle.IsValid())
+		{
+			NameHandle->GetValue(Key.Name);
+		}
+				
+		if (Key.IsValid())
+		{
+			BlueprintBeingCustomized->GetHierarchyController()->SetSelection({Key});
+		}	
+	}
+	return FReply::Handled();
 }
 
 void FRigUnitDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
