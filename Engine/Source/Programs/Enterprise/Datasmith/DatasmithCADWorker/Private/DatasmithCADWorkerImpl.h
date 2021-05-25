@@ -27,6 +27,11 @@ private:
 	void ProcessCommand(const DatasmithDispatcher::FImportParametersCommand& BackPingCommand);
 	void ProcessCommand(const DatasmithDispatcher::FRunTaskCommand& TerminateCommand);
 
+	/**
+	 * @param MaxDuration is defined in seconds.
+	 */
+	void CheckDuration(const CADLibrary::FFileDescription& FileToProcess, const int64 MaxDuration); 
+
 private:
 	DatasmithDispatcher::FNetworkClientNode NetworkInterface;
 	DatasmithDispatcher::FCommandQueue CommandIO;
@@ -37,4 +42,5 @@ private:
 	FString CachePath;
 	CADLibrary::FImportParameters ImportParameters;
 	uint64 PingStartCycle;
+	TAtomic<bool> bProcessIsRunning;
 };
