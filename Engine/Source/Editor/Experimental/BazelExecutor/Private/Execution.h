@@ -23,9 +23,10 @@ class FExecution : public IExecution
 {
 private:
 	std::unique_ptr<build::bazel::remote::execution::v2::Execution::Stub> Stub;
+	TMap<FString, FString> Headers;
 
 public:
-	FExecution(const std::shared_ptr<grpc::Channel>& Channel);
+	FExecution(const std::shared_ptr<grpc::Channel>& Channel, const TMap<FString, FString>& Headers);
 	~FExecution();
 
 	bool Execute(const FExecuteRequest& Request, FExecuteResponse& Response) override;

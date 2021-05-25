@@ -9,15 +9,12 @@ namespace UnrealBuildTool.Rules
 	{
 		public RemoteExecution(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicDependencyModuleNames.AddRange(
-				new string[] {
-					"Core",
-					"Settings",
-				}
-				);
+
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"Core",
+					"Settings",
 					"CoreUObject",
 				}
 			);

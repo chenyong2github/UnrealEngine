@@ -417,10 +417,10 @@ void ProtoConverter::FromProto(const build::bazel::remote::execution::v2::Execut
 	FromProto(In.message(), Out.Message);
 }
 
-bool ProtoConverter::ToDigest(const TArray<char>& Data, FDigest& OutDigest)
+bool ProtoConverter::ToDigest(const TArray<char>& ToData, FDigest& OutDigest)
 {
-	OutDigest.Hash = FIoHash::HashBuffer(Data.GetData(), Data.Num());
-	OutDigest.SizeBytes = Data.Num();
+	OutDigest.Hash = FIoHash::HashBuffer(ToData.GetData(), ToData.Num());
+	OutDigest.SizeBytes = ToData.Num();
 	return true;
 }
 

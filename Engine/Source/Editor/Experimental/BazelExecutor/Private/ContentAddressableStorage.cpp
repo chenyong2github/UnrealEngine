@@ -13,13 +13,18 @@ UE_POP_MACRO("TEXT");
 THIRD_PARTY_INCLUDES_END
 
 
-FContentAddressableStorage::FContentAddressableStorage(const std::shared_ptr<grpc::Channel>& Channel) :
-	Stub(build::bazel::remote::execution::v2::ContentAddressableStorage::NewStub(Channel))
+FContentAddressableStorage::FContentAddressableStorage(const std::shared_ptr<grpc::Channel>& Channel, const TMap<FString, FString>& Headers) :
+	Stub(build::bazel::remote::execution::v2::ContentAddressableStorage::NewStub(Channel)), Headers(Headers)
 {
 }
 
 FContentAddressableStorage::~FContentAddressableStorage()
 {
+}
+
+bool FContentAddressableStorage::ToDigest(const TArray<char>& InData, FDigest& OutDigest)
+{
+	return ProtoConverter::ToDigest(InData, OutDigest);
 }
 
 bool FContentAddressableStorage::ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest)
@@ -40,6 +45,10 @@ bool FContentAddressableStorage::ToBlob(const FAction& InAction, TArray<char>& O
 FStatus FContentAddressableStorage::FindMissingBlobs(const FFindMissingBlobsRequest& Request, FFindMissingBlobsResponse& Response)
 {
 	grpc::ClientContext Context;
+	for (const TPair<FString, FString>& Header : Headers)
+	{
+		Context.AddMetadata(TCHAR_TO_UTF8(*Header.Key.ToLower()), TCHAR_TO_UTF8(*Header.Value));
+	}
 
 	build::bazel::remote::execution::v2::FindMissingBlobsRequest ProtoRequest;
 	ProtoConverter::ToProto(Request, ProtoRequest);
@@ -56,6 +65,10 @@ FStatus FContentAddressableStorage::FindMissingBlobs(const FFindMissingBlobsRequ
 FStatus FContentAddressableStorage::BatchUpdateBlobs(const FBatchUpdateBlobsRequest& Request, FBatchUpdateBlobsResponse& Response)
 {
 	grpc::ClientContext Context;
+	for (const TPair<FString, FString>& Header : Headers)
+	{
+		Context.AddMetadata(TCHAR_TO_UTF8(*Header.Key.ToLower()), TCHAR_TO_UTF8(*Header.Value));
+	}
 
 	build::bazel::remote::execution::v2::BatchUpdateBlobsRequest ProtoRequest;
 	ProtoConverter::ToProto(Request, ProtoRequest);
@@ -72,6 +85,10 @@ FStatus FContentAddressableStorage::BatchUpdateBlobs(const FBatchUpdateBlobsRequ
 FStatus FContentAddressableStorage::BatchReadBlobs(const FBatchReadBlobsRequest& Request, FBatchReadBlobsResponse& Response)
 {
 	grpc::ClientContext Context;
+	for (const TPair<FString, FString>& Header : Headers)
+	{
+		Context.AddMetadata(TCHAR_TO_UTF8(*Header.Key.ToLower()), TCHAR_TO_UTF8(*Header.Value));
+	}
 
 	build::bazel::remote::execution::v2::BatchReadBlobsRequest ProtoRequest;
 	ProtoConverter::ToProto(Request, ProtoRequest);
