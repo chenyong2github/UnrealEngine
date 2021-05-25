@@ -140,6 +140,25 @@ private:
 
 struct MeshDrawCommandKeyFuncs;
 
+struct FNaniteMaterialPassCommand
+{
+	FNaniteMaterialPassCommand(const FMeshDrawCommand& InMeshDrawCommand)
+		: MeshDrawCommand(InMeshDrawCommand)
+		, MaterialDepth(0.0f)
+		, SortKey(MeshDrawCommand.CachedPipelineId.GetId())
+	{
+	}
+
+	bool operator < (const FNaniteMaterialPassCommand& Other) const
+	{
+		return SortKey < Other.SortKey;
+	}
+
+	FMeshDrawCommand MeshDrawCommand;
+	float MaterialDepth = 0.0f;
+	uint64 SortKey = 0;
+};
+
 class FNaniteDrawListContext : public FMeshPassDrawListContext
 {
 public:
@@ -666,6 +685,8 @@ void EmitDepthTargets(
 
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
+	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& NaniteMaterialPassCommands,
+	const FSceneRenderer& SceneRenderer,
 	const FSceneTextures& SceneTextures,
 	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
