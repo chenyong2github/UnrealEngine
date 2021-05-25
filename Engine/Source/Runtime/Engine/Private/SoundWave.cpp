@@ -466,7 +466,7 @@ void USoundWave::Serialize( FArchive& Ar )
 #if WITH_ENGINE
 				TArray<FName> ActualFormatsToSave;
 				const ITargetPlatform* CookingTarget = Ar.CookingTarget();
-				if (!CookingTarget->IsServerOnly())
+				if (CookingTarget->AllowAudioVisualData())
 				{
 					// for now we only support one format per wave
 					FName Format = CookingTarget->GetWaveFormat(this);
@@ -1118,7 +1118,7 @@ void USoundWave::PostLoad()
 
 		for (const ITargetPlatform* Platform : Platforms)
 		{
-			if (!Platform->IsServerOnly())
+			if (Platform->AllowAudioVisualData())
 			{
 				BeginGetCompressedData(Platform->GetWaveFormat(this), FPlatformCompressionUtilities::GetCookOverrides(*Platform->IniPlatformName()));
 			}
