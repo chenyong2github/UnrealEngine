@@ -2066,43 +2066,84 @@ double UEngine::CorrectNegativeTimeDelta(double DeltaRealTime)
 	return 0.01;
 }
 
-void UEngine::SetGameLatencyMarkerStart(uint64 FrameNumber)
+void UEngine::SetInputSampleLatencyMarker(uint64 FrameNumber)
 {
 	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{
-		LatencyMarkerModule->SetGameLatencyMarkerStart(FrameNumber);
+		LatencyMarkerModule->SetInputSampleLatencyMarker(FrameNumber);
 	}
 }
 
-void UEngine::SetGameLatencyMarkerEnd(uint64 FrameNumber)
+void UEngine::SetSimulationLatencyMarkerStart(uint64 FrameNumber)
 {
 	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{
-		LatencyMarkerModule->SetGameLatencyMarkerEnd(FrameNumber);
+		LatencyMarkerModule->SetSimulationLatencyMarkerStart(FrameNumber);
 	}
 }
 
-void UEngine::SetRenderLatencyMarkerStart(uint64 FrameNumber)
+void UEngine::SetSimulationLatencyMarkerEnd(uint64 FrameNumber)
 {
 	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{
-		LatencyMarkerModule->SetRenderLatencyMarkerStart(FrameNumber);
+		LatencyMarkerModule->SetSimulationLatencyMarkerEnd(FrameNumber);
 	}
 }
 
-void UEngine::SetRenderLatencyMarkerEnd(uint64 FrameNumber)
+void UEngine::SetPresentLatencyMarkerStart(uint64 FrameNumber)
 {
 	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{
-		LatencyMarkerModule->SetRenderLatencyMarkerEnd(FrameNumber);
+		LatencyMarkerModule->SetPresentLatencyMarkerStart(FrameNumber);
+	}
+}
+
+void UEngine::SetPresentLatencyMarkerEnd(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetPresentLatencyMarkerEnd(FrameNumber);
+	}
+}
+
+
+void UEngine::SetRenderSubmitLatencyMarkerStart(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetRenderSubmitLatencyMarkerStart(FrameNumber);
+	}
+}
+
+void UEngine::SetRenderSubmitLatencyMarkerEnd(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetRenderSubmitLatencyMarkerEnd(FrameNumber);
+	}
+}
+
+void UEngine::SetFlashIndicatorLatencyMarker(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetFlashIndicatorLatencyMarker(FrameNumber);
 	}
 }
 
