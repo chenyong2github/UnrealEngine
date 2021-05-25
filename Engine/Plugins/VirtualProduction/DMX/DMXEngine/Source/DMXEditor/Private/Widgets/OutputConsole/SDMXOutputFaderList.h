@@ -95,9 +95,6 @@ public:
 	/** Returns the selected fader */
 	const TWeakPtr<SDMXFader>& GetWeakSelectedFader() const { return WeakSelectedFader; }
 
-	/** Returns all faders */
-	const TArray<TSharedPtr<SDMXFader>>& GetFaders() const { return Faders; }
-
 protected:
 	/** Called when ports were selected in the port selector */
 	void OnPortsSelected();

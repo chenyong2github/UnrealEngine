@@ -489,13 +489,27 @@ void SDMXOutputFaderList::ClearFaders()
 
 void SDMXOutputFaderList::DeleteSelectedFader()
 {
-	// Delete the fader
+	// Send null values to the fader's channels, then delete the fader
 	int32 SelectedIndex = INDEX_NONE;
 	if (TSharedPtr<SDMXFader> SelectedFader = WeakSelectedFader.Pin())
 	{
 		SelectedIndex = Faders.IndexOfByKey(SelectedFader);
 		check(SelectedIndex != INDEX_NONE);
 
+		// Accumulate fader values
+		TMap<int32, uint8> FragmentMap;
+		for (int32 Address = SelectedFader->GetStartingAddress(); Address <= SelectedFader->GetEndingAddress(); Address++)
+		{
+			FragmentMap.FindOrAdd(Address) = 0;
+		}
+
+		// Send DMX
+		for (const FDMXOutputPortSharedRef& OutputPort : OutputPorts)
+		{
+			OutputPort->SendDMX(SelectedFader->GetUniverseID(), FragmentMap);
+		}
+
+		// Remove widgets and release the fader
 		check(FaderScrollBox.IsValid());
 		FaderScrollBox->RemoveSlot(SelectedFader.ToSharedRef());
 		Faders.RemoveAt(SelectedIndex);
