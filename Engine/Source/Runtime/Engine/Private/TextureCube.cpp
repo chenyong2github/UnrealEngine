@@ -424,7 +424,7 @@ public:
 
 		// Create the RHI texture.
 		ETextureCreateFlags TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (Owner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed);
-		FString Name = Owner->GetName();
+		FString Name = Owner->GetPathName();
 		FRHIResourceCreateInfo CreateInfo(*Name);
 		CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->GetExtData() : 0;
 		TextureCubeRHI = RHICreateTextureCube( Owner->GetSizeX(), Owner->GetPixelFormat(), Owner->GetNumMips(), TexCreateFlags, CreateInfo );
