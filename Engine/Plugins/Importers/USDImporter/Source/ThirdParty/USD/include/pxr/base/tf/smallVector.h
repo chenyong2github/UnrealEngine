@@ -33,7 +33,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -185,6 +184,7 @@ public:
     ///     - shrink_to_fit
     ///     - shrink_to_local / shrink_to_internal (or similar, free standing
     ///         function)
+    ///     - std::initializer_list support
 
     /// \name Relevant Typedefs.
     /// @{
@@ -268,11 +268,6 @@ public:
         std::swap(_size, rhs._size);
     }
 
-    /// Construct a new vector from initializer list
-    TfSmallVector(std::initializer_list<T> values)
-        : TfSmallVector(values.begin(), values.end()) {
-    }
-
     template<typename _ForwardIterator>
     using _EnableIfForwardIterator =
         typename std::enable_if<
@@ -315,13 +310,6 @@ public:
         if (this != &rhs) {
             swap(rhs);
         }
-        return *this;
-    }
-
-    /// Replace existing contents with the contents of \p ilist.
-    ///
-    TfSmallVector &operator=(std::initializer_list<T> ilist) {
-        assign(ilist.begin(), ilist.end());
         return *this;
     }
 
@@ -489,12 +477,6 @@ public:
         _size = newSize;
     }
 
-    /// Replace existing contents with the contents of \p ilist.
-    ///
-    void assign(std::initializer_list<T> ilist) {
-        assign(ilist.begin(), ilist.end());
-    }
-
     /// Emplace an entry at the back of the vector.
     ///
     template < typename... Args >
@@ -609,12 +591,6 @@ public:
         }
 
         _size += numNewElems;
-    }
-
-    /// Insert elements from \p ilist starting at position \p pos.
-    ///
-    void insert(iterator pos, std::initializer_list<T> ilist) {
-        insert(pos, ilist.begin(), ilist.end());
     }
 
     /// Remove the entry at the back of the vector.

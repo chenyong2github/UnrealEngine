@@ -43,8 +43,6 @@ class PcpMapExpression;
 class PcpNodeRef;
 class PcpNodeRef_ChildrenIterator;
 class PcpNodeRef_ChildrenReverseIterator;
-class PcpErrorBase;
-typedef std::shared_ptr<PcpErrorBase> PcpErrorBasePtr;
 
 TF_DECLARE_WEAK_PTRS(PcpPrimIndex_Graph);
 
@@ -132,15 +130,13 @@ public:
     /// Inserts a new child node for \p site, connected to this node via
     /// \p arc.
     PCP_API
-    PcpNodeRef InsertChild(const PcpLayerStackSite& site, const PcpArc& arc,
-        PcpErrorBasePtr *error);
+    PcpNodeRef InsertChild(const PcpLayerStackSite& site, const PcpArc& arc);
 
     /// Inserts \p subgraph as a child of this node, with the root node of
     /// \p subtree connected to this node via \p arc.
     PCP_API
     PcpNodeRef InsertChildSubgraph(
-        const PcpPrimIndex_GraphPtr& subgraph, const PcpArc& arc,
-        PcpErrorBasePtr *error);
+        const PcpPrimIndex_GraphPtr& subgraph, const PcpArc& arc);
 
     /// Returns the immediate origin node for this node. The origin node
     /// is the node that caused this node to be brought into the prim index.

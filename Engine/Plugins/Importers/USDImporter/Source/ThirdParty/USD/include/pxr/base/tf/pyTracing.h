@@ -55,10 +55,10 @@ typedef std::shared_ptr<TfPyTraceFn> TfPyTraceFnId;
 TF_API TfPyTraceFnId TfPyRegisterTraceFn(TfPyTraceFn const &f);
 
 // For internal use only.  Do not use.
-void Tf_PyFabricateTraceEvent(TfPyTraceInfo const &info);
+TF_API void Tf_PyFabricateTraceEvent(TfPyTraceInfo const &info);
 
 // For internal use only.  Do not use.
-void Tf_PyTracingPythonInitialized();
+TF_API void Tf_PyTracingPythonInitialized();
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

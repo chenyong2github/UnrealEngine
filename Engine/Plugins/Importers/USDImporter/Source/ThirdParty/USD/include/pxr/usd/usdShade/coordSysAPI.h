@@ -81,13 +81,8 @@ class UsdShadeCoordSysAPI : public UsdAPISchemaBase
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::NonAppliedAPI;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::NonAppliedAPI;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::NonAppliedAPI;
 
     /// Construct a UsdShadeCoordSysAPI on UsdPrim \p prim .
     /// Equivalent to UsdShadeCoordSysAPI::Get(prim.GetStage(), prim.GetPath())
@@ -132,17 +127,11 @@ public:
 
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDSHADE_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDSHADE_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -180,7 +169,7 @@ public:
     /// Returns true if the prim has local coordinate system binding
     /// opinions.  Note that the resulting binding list may still be
     /// empty.
-    USDSHADE_API
+    USDGEOM_API
     bool HasLocalBindings() const;
 
     /// Get the list of coordinate system bindings local to this prim.
@@ -188,7 +177,7 @@ public:
     /// validate that a prim exists at the indicated path.
     /// If the binding relationship has multiple targets,
     /// only the first is used.
-    USDSHADE_API
+    USDGEOM_API
     std::vector<Binding> GetLocalBindings() const;
 
     /// Find the list of coordinate system bindings that apply
@@ -203,13 +192,13 @@ public:
     /// entirely.
     ///
     /// Binding relationships with no resolved targets are skipped.
-    USDSHADE_API
+    USDGEOM_API
     std::vector<Binding> FindBindingsWithInheritance() const;
 
     /// Bind the name to the given path.
     /// The prim at the given path is expected to be UsdGeomXformable,
     /// in order for the binding to be succesfully resolved.
-    USDSHADE_API
+    USDGEOM_API
     bool Bind(const TfToken &name, const SdfPath &path) const;
 
     /// Clear the indicated coordinate system binding on this prim
@@ -218,23 +207,18 @@ public:
     /// Only remove the spec if \p removeSpec is true (leave the spec to
     /// preserve meta-data we may have intentionally authored on the
     /// relationship)
-    USDSHADE_API
+    USDGEOM_API
     bool ClearBinding(const TfToken &name, bool removeSpec) const;
 
     /// Block the indicated coordinate system binding on this prim
     /// by blocking targets on the underlying relationship.
-    USDSHADE_API
+    USDGEOM_API
     bool BlockBinding(const TfToken &name) const;
 
     /// Returns the fully namespaced coordinate system relationship
     /// name, given the coordinate system name.
-    USDSHADE_API
+    USDGEOM_API
     static TfToken GetCoordSysRelationshipName(const std::string &coordSysName);
-
-    /// Test whether a given \p name contains the "coordSys:" prefix
-    ///
-    USDSHADE_API
-    static bool CanContainPropertyName(const TfToken &name);
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

@@ -235,10 +235,7 @@ public:
     // --------------------------------------------------------------------- //
 
     /// Flattens this property to a property spec with the same name 
-    /// beneath the given \p parent prim in the edit target of its owning stage.
-    ///
-    /// The \p parent prim may belong to a different stage than this property's 
-    /// owning stage.
+    /// beneath the given \p parent prim in the current edit target.
     ///
     /// Flattening authors all authored resolved values and metadata for 
     /// this property into the destination property spec. If this property
@@ -259,21 +256,15 @@ public:
 
     /// \overload
     /// Flattens this property to a property spec with the given
-    /// \p propName beneath the given \p parent prim in the edit target of its 
-    /// owning stage.
-    ///
-    /// The \p parent prim may belong to a different stage than this property's 
-    /// owning stage.
+    /// \p propName beneath the given \p parent prim in the current
+    /// edit target.
     USD_API
     UsdProperty FlattenTo(const UsdPrim &parent,
                           const TfToken &propName) const;
 
     /// \overload
     /// Flattens this property to a property spec for the given
-    /// \p property in the edit target of its owning prim's stage.
-    ///
-    /// The \p property owning prim may belong to a different stage than this 
-    /// property's owning stage.
+    /// \p property in the current edit target.
     USD_API
     UsdProperty FlattenTo(const UsdProperty &property) const;
 
@@ -281,11 +272,7 @@ protected:
     template <class Derived>
     UsdProperty(_Null<Derived>) : UsdObject(_Null<Derived>()) {}
 
-    // Gets the targets of the given spec type. Returns true if an authored
-    // opinion is found and no composition errors occured. If foundErrors is
-    // provided, it will be set to true only if errors are encountered.
-    bool _GetTargets(SdfSpecType specType, SdfPathVector *out,
-                     bool *foundErrors = nullptr) const;
+    bool _GetTargets(SdfSpecType specType, SdfPathVector *out) const;
     
 private:
     friend class UsdAttribute;

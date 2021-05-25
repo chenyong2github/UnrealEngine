@@ -327,8 +327,8 @@ namespace UsdSkelRootTranslatorImpl
 		const FUsdStageInfo StageInfo( Stage );
 
 		std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-		InSkeletonCache.Populate( InSkeletonRoot, pxr::UsdTraverseInstanceProxies() );
-		InSkeletonCache.ComputeSkelBindings( InSkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+		InSkeletonCache.Populate( InSkeletonRoot );
+		InSkeletonCache.ComputeSkelBindings( InSkeletonRoot, &SkeletonBindings );
 		if ( SkeletonBindings.size() < 1 )
 		{
 			FUsdLogManager::LogMessage( EMessageSeverity::Warning,
@@ -558,9 +558,9 @@ namespace UsdSkelRootTranslatorImpl
 		// Because we combine all skinning target meshes into a single skeletal mesh, we'll have to reconstruct the combined
 		// material assignment info that this SkelRoot wants in order to compare with the existing assignments.
 		pxr::UsdSkelCache SkeletonCache;
-		SkeletonCache.Populate( SkelRoot, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.Populate( SkelRoot );
 		std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-		SkeletonCache.ComputeSkelBindings( SkelRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.ComputeSkelBindings( SkelRoot, &SkeletonBindings );
 		for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
 		{
 			for ( const pxr::UsdSkelSkinningQuery& SkinningQuery : Binding.GetSkinningTargets() )
@@ -651,10 +651,10 @@ namespace UsdSkelRootTranslatorImpl
 		FScopedUsdAllocs Allocs;
 
 		pxr::UsdSkelCache SkeletonCache;
-		SkeletonCache.Populate( SkelRoot, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.Populate( SkelRoot );
 
 		std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-		SkeletonCache.ComputeSkelBindings( SkelRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.ComputeSkelBindings( SkelRoot, &SkeletonBindings );
 
 		for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
 		{
@@ -825,8 +825,8 @@ namespace UsdSkelRootTranslatorImpl
 				if ( pxr::UsdSkelRoot SkeletonRoot{ GetPrim() } )
 				{
 					std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-					SkeletonCache.Get().Populate( SkeletonRoot, pxr::UsdTraverseInstanceProxies() );
-					SkeletonCache.Get().ComputeSkelBindings( SkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+					SkeletonCache.Get().Populate( SkeletonRoot );
+					SkeletonCache.Get().ComputeSkelBindings( SkeletonRoot, &SkeletonBindings );
 
 					for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
 					{
@@ -965,10 +965,10 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 		pxr::UsdSkelCache SkeletonCache;
 		pxr::UsdSkelRoot SkeletonRoot( Prim );
-		SkeletonCache.Populate( SkeletonRoot, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.Populate( SkeletonRoot );
 
 		std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-		SkeletonCache.ComputeSkelBindings( SkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.ComputeSkelBindings( SkeletonRoot, &SkeletonBindings );
 
 		if ( SkeletonBindings.size() == 0 )
 		{

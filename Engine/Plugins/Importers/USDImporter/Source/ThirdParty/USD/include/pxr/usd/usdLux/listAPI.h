@@ -182,13 +182,8 @@ class UsdLuxListAPI : public UsdAPISchemaBase
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::SingleApplyAPI;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::SingleApplyAPI;
 
     /// Construct a UsdLuxListAPI on UsdPrim \p prim .
     /// Equivalent to UsdLuxListAPI::Get(prim.GetStage(), prim.GetPath())
@@ -238,30 +233,22 @@ public:
     /// 
     /// \return A valid UsdLuxListAPI object is returned upon success. 
     /// An invalid (or empty) UsdLuxListAPI object is returned upon 
-    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
+    /// failure. See \ref UsdAPISchemaBase::_ApplyAPISchema() for conditions 
     /// resulting in failure. 
     /// 
     /// \sa UsdPrim::GetAppliedSchemas()
     /// \sa UsdPrim::HasAPI()
-    /// \sa UsdPrim::ApplyAPI()
-    /// \sa UsdPrim::RemoveAPI()
     ///
     USDLUX_API
     static UsdLuxListAPI 
     Apply(const UsdPrim &prim);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDLUX_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDLUX_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.

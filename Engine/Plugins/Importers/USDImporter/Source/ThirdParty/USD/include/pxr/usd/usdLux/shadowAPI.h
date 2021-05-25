@@ -33,9 +33,6 @@
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usdLux/tokens.h"
 
-#include "pxr/usd/usdShade/input.h"
-#include "pxr/usd/usdShade/output.h" 
-
 #include "pxr/base/vt/value.h"
 
 #include "pxr/base/gf/vec3d.h"
@@ -63,13 +60,8 @@ class UsdLuxShadowAPI : public UsdAPISchemaBase
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::SingleApplyAPI;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::SingleApplyAPI;
 
     /// Construct a UsdLuxShadowAPI on UsdPrim \p prim .
     /// Equivalent to UsdLuxShadowAPI::Get(prim.GetStage(), prim.GetPath())
@@ -119,30 +111,22 @@ public:
     /// 
     /// \return A valid UsdLuxShadowAPI object is returned upon success. 
     /// An invalid (or empty) UsdLuxShadowAPI object is returned upon 
-    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
+    /// failure. See \ref UsdAPISchemaBase::_ApplyAPISchema() for conditions 
     /// resulting in failure. 
     /// 
     /// \sa UsdPrim::GetAppliedSchemas()
     /// \sa UsdPrim::HasAPI()
-    /// \sa UsdPrim::ApplyAPI()
-    /// \sa UsdPrim::RemoveAPI()
     ///
     USDLUX_API
     static UsdLuxShadowAPI 
     Apply(const UsdPrim &prim);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDLUX_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDLUX_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -158,13 +142,13 @@ private:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHADOW:ENABLE 
+    // SHADOWENABLE 
     // --------------------------------------------------------------------- //
     /// Enables shadows to be cast by this light.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `bool inputs:shadow:enable = 1` |
+    /// | Declaration | `bool shadow:enable = 1` |
     /// | C++ Type | bool |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Bool |
     USDLUX_API
@@ -180,14 +164,14 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHADOW:COLOR 
+    // SHADOWCOLOR 
     // --------------------------------------------------------------------- //
     /// The color of shadows cast by the light.  This is a
     /// non-physical control.  The default is to cast black shadows.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `color3f inputs:shadow:color = (0, 0, 0)` |
+    /// | Declaration | `color3f shadow:color = (0, 0, 0)` |
     /// | C++ Type | GfVec3f |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Color3f |
     USDLUX_API
@@ -203,7 +187,7 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHADOW:DISTANCE 
+    // SHADOWDISTANCE 
     // --------------------------------------------------------------------- //
     /// The maximum distance shadows are cast.
     /// The default value (-1) indicates no limit.
@@ -211,7 +195,7 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:shadow:distance = -1` |
+    /// | Declaration | `float shadow:distance = -1` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -227,7 +211,7 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHADOW:FALLOFF 
+    // SHADOWFALLOFF 
     // --------------------------------------------------------------------- //
     /// The near distance at which shadow falloff begins.
     /// The default value (-1) indicates no falloff.
@@ -235,7 +219,7 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:shadow:falloff = -1` |
+    /// | Declaration | `float shadow:falloff = -1` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -251,7 +235,7 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHADOW:FALLOFFGAMMA 
+    // SHADOWFALLOFFGAMMA 
     // --------------------------------------------------------------------- //
     /// A gamma (i.e., exponential) control over shadow strength
     /// with linear distance within the falloff zone.
@@ -259,7 +243,7 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:shadow:falloffGamma = 1` |
+    /// | Declaration | `float shadow:falloffGamma = 1` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -284,89 +268,6 @@ public:
     //  - Close the include guard with #endif
     // ===================================================================== //
     // --(BEGIN CUSTOM CODE)--
-
-    // -------------------------------------------------------------------------
-    /// \name Conversion to and from UsdShadeConnectableAPI
-    /// 
-    /// @{
-
-    /// Constructor that takes a ConnectableAPI object.
-    /// Allow implicit conversion of UsdShadeConnectableAPI to
-    /// UsdLuxShadowAPI.
-    USDLUX_API
-    UsdLuxShadowAPI(const UsdShadeConnectableAPI &connectable);
-
-    /// Contructs and returns a UsdShadeConnectableAPI object with this shadow
-    /// API prim. Note that a valid UsdLuxShadowAPI will only return a valid
-    /// UsdShadeConnectableAPI if the its prim's Typed schema type is actually
-    /// connectable.
-    USDLUX_API
-    UsdShadeConnectableAPI ConnectableAPI() const;
-
-    /// @}
-
-    // -------------------------------------------------------------------------
-    /// \name Outputs API
-    ///
-    /// Outputs represent a typed attribute on a shadow API whose value is 
-    /// computed externally. 
-    /// 
-    /// @{
-
-    /// Create an output which can either have a value or can be connected.
-    /// The attribute representing the output is created in the "outputs:" 
-    /// namespace. Outputs on a shadow API cannot be connected, as their 
-    /// value is assumed to be computed externally.
-    /// 
-    USDLUX_API
-    UsdShadeOutput CreateOutput(const TfToken& name,
-                                const SdfValueTypeName& typeName);
-
-    /// Return the requested output if it exists.
-    /// 
-    USDLUX_API
-    UsdShadeOutput GetOutput(const TfToken &name) const;
-
-    /// Outputs are represented by attributes in the "outputs:" namespace.
-    /// If \p onlyAuthored is true (the default), then only return authored
-    /// attributes; otherwise, this also returns un-authored builtins.
-    /// 
-    USDLUX_API
-    std::vector<UsdShadeOutput> GetOutputs(bool onlyAuthored=true) const;
-
-    /// @}
-
-    // ------------------------------------------------------------------------- 
-
-    /// \name Inputs API
-    ///
-    /// Inputs are connectable attribute with a typed value. 
-    /// 
-    /// Shadow API parameters are encoded as inputs. 
-    /// 
-    /// @{
-
-    /// Create an input which can either have a value or can be connected.
-    /// The attribute representing the input is created in the "inputs:" 
-    /// namespace. Inputs on shadow API are connectable.
-    /// 
-    USDLUX_API
-    UsdShadeInput CreateInput(const TfToken& name,
-                              const SdfValueTypeName& typeName);
-
-    /// Return the requested input if it exists.
-    /// 
-    USDLUX_API
-    UsdShadeInput GetInput(const TfToken &name) const;
-
-    /// Inputs are represented by attributes in the "inputs:" namespace.
-    /// If \p onlyAuthored is true (the default), then only return authored
-    /// attributes; otherwise, this also returns un-authored builtins.
-    /// 
-    USDLUX_API
-    std::vector<UsdShadeInput> GetInputs(bool onlyAuthored=true) const;
-
-    /// @}
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

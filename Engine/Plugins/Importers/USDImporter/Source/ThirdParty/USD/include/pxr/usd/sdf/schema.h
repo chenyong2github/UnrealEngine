@@ -180,9 +180,7 @@ public:
         SDF_API TfTokenVector GetFields() const;
 
         /// Returns all value fields marked as required for this spec.
-        TfTokenVector const &GetRequiredFields() const {
-            return _requiredFields;
-        }
+        SDF_API TfTokenVector GetRequiredFields() const;
 
         /// Returns all value fields marked as metadata for this spec.
         SDF_API TfTokenVector GetMetadataFields() const;
@@ -207,10 +205,6 @@ public:
         typedef TfHashMap<TfToken, _FieldInfo, TfToken::HashFunctor> 
             _FieldMap;
         _FieldMap _fields;
-        
-        // A separate vector of required field names from _fields.  Access to
-        // these is in a hot path, so we cache them separately.
-        TfTokenVector _requiredFields;
 
     private:
         friend class _SpecDefiner;
@@ -269,7 +263,7 @@ public:
                                          TfToken const &metadataField) const;
 
     /// Returns all required fields registered for the given spec type.
-    SDF_API const TfTokenVector &GetRequiredFields(SdfSpecType specType) const;
+    SDF_API TfTokenVector GetRequiredFields(SdfSpecType specType) const;
 
     /// Return true if \p fieldName is a required field name for at least one
     /// spec type, return false otherwise.  The main use of this function is to
@@ -583,7 +577,6 @@ SDF_API_TEMPLATE_CLASS(TfSingleton<SdfSchema>);
     ((Default, "default"))                                   \
     ((DefaultPrim, "defaultPrim"))                           \
     ((DisplayGroup, "displayGroup"))                         \
-    ((DisplayGroupOrder, "displayGroupOrder"))               \
     ((DisplayName, "displayName"))                           \
     ((DisplayUnit, "displayUnit"))                           \
     ((Documentation, "documentation"))                       \

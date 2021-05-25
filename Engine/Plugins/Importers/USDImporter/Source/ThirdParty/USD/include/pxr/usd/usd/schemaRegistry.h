@@ -26,7 +26,6 @@
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/api.h"
-#include "pxr/usd/usd/common.h"
 
 #include "pxr/usd/sdf/layer.h"
 #include "pxr/usd/sdf/primSpec.h"
@@ -68,43 +67,19 @@ public:
         return TfSingleton<UsdSchemaRegistry>::GetInstance();
     }
 
-    /// Return the type name in the USD schema for prims or API schemas of the 
-    /// given registered \p schemaType.
-    USD_API
-    static TfToken GetSchemaTypeName(const TfType &schemaType);
-
-    /// Return the type name in the USD schema for prims or API schemas of the 
-    /// given registered \p SchemaType.
-    template <class SchemaType>
-    static
-    TfToken GetSchemaTypeName() {
-        return GetSchemaTypeName(SchemaType::_GetStaticTfType());
+    /// Return the type name in the USD schema for prims of the given registered
+    /// \p primType.
+    TfToken GetSchemaTypeName(const TfType &schemaType) const {
+        auto iter = _typeToUsdTypeNameMap.find(schemaType);
+        return iter != _typeToUsdTypeNameMap.end() ? iter->second : TfToken();
     }
 
-    /// Return the type name in the USD schema for concrete prim types only from
-    /// the given registered \p schemaType.
-    USD_API
-    static TfToken GetConcreteSchemaTypeName(const TfType &schemaType);
-
-    /// Return the type name in the USD schema for API schema types only from
-    /// the given registered \p schemaType.
-    USD_API
-    static TfToken GetAPISchemaTypeName(const TfType &schemaType);
-
-    /// Return the TfType of the schema corresponding to the given prim or API 
-    /// schema name \p typeName. This the inverse of GetSchemaTypeName.
-    USD_API
-    static TfType GetTypeFromSchemaTypeName(const TfToken &typeName);
-
-    /// Return the TfType of the schema corresponding to the given concrete prim
-    /// type name \p typeName. This the inverse of GetConcreteSchemaTypeName.
-    USD_API
-    static TfType GetConcreteTypeFromSchemaTypeName(const TfToken &typeName);
-
-    /// Return the TfType of the schema corresponding to the given API schema
-    /// type name \p typeName. This the inverse of GetAPISchemaTypeNAme.
-    USD_API
-    static TfType GetAPITypeFromSchemaTypeName(const TfToken &typeName);
+    /// Return the type name in the USD schema for prims of the given
+    /// \p SchemaType.
+    template <class SchemaType>
+    TfToken GetSchemaTypeName() const {
+        return GetSchemaTypeName(SchemaType::_GetStaticTfType());
+    }
 
     /// Returns true if the field \p fieldName cannot have fallback values 
     /// specified in schemas. 
@@ -120,47 +95,31 @@ public:
     USD_API
     static bool IsTyped(const TfType& primType);
 
-    /// Returns the kind of the schema the given \p schemaType represents.
-    ///
-    /// This returns UsdSchemaKind::Invalid if \p schemaType is not a valid 
-    /// schema type or if the kind cannot be determined from type's plugin 
-    /// information.
-    USD_API 
-    static UsdSchemaKind GetSchemaKind(const TfType &schemaType);
-
-    /// Returns the kind of the schema the given \p typeName represents.
-    ///
-    /// This returns UsdSchemaKind::Invalid if \p typeName is not a valid 
-    /// schema type name or if the kind cannot be determined from type's plugin 
-    /// information.
-    USD_API 
-    static UsdSchemaKind GetSchemaKind(const TfToken &typeName);
+    /// Returns true if the prim type \p primType is instantiable
+    /// in scene description.
+    USD_API
+    bool IsConcrete(const TfType& primType) const;
 
     /// Returns true if the prim type \p primType is instantiable
     /// in scene description.
     USD_API
-    static bool IsConcrete(const TfType& primType);
-
-    /// Returns true if the prim type \p primType is instantiable
-    /// in scene description.
-    USD_API
-    static bool IsConcrete(const TfToken& primType);
+    bool IsConcrete(const TfToken& primType) const;
 
     /// Returns true if \p apiSchemaType is an applied API schema type.
     USD_API
-    static bool IsAppliedAPISchema(const TfType& apiSchemaType);
+    bool IsAppliedAPISchema(const TfType& apiSchemaType) const;
 
     /// Returns true if \p apiSchemaType is an applied API schema type.
     USD_API
-    static bool IsAppliedAPISchema(const TfToken& apiSchemaType);
+    bool IsAppliedAPISchema(const TfToken& apiSchemaType) const;
 
     /// Returns true if \p apiSchemaType is a multiple-apply API schema type.
     USD_API
-    static bool IsMultipleApplyAPISchema(const TfType& apiSchemaType);
+    bool IsMultipleApplyAPISchema(const TfType& apiSchemaType) const;
     
     /// Returns true if \p apiSchemaType is a multiple-apply API schema type.
     USD_API
-    static bool IsMultipleApplyAPISchema(const TfToken& apiSchemaType);
+    bool IsMultipleApplyAPISchema(const TfToken& apiSchemaType) const;
         
     /// Finds the TfType of a schema with \p typeName
     ///
@@ -187,58 +146,6 @@ public:
     USD_API
     static TfType GetTypeFromName(const TfToken& typeName);
 
-    /// Returns the schema type name and the instance name parsed from the 
-    /// given \p apiSchemaName
-    ///
-    /// \p apiSchemaName is the name of an applied schema as it appears in 
-    /// the list of applied schemas on a prim. For single-apply API schemas 
-    /// the name will just be the schema type name. For multiple-apply schemas 
-    /// the name should include the schema type name and the applied instance
-    /// name separated by a namespace delimiter, for example 
-    /// 'CollectionAPI:plasticStuff'.
-    ///
-    /// This function returns the separated schema type name and instance name 
-    /// component tokens if possible, otherwise it returns the \p apiSchemaName 
-    /// as the type name and an empty instance name.
-    ///
-    /// \sa UsdPrim::AddAppliedSchema(const TfToken&) const
-    /// \sa UsdPrim::GetAppliedSchemas() const
-    USD_API
-    static std::pair<TfToken, TfToken> GetTypeAndInstance(
-            const TfToken &apiSchemaName);
-
-    /// Returns a map of the names of all registered auto apply API schemas
-    /// to the list of type names each is registered to be auto applied to.
-    ///
-    /// The list of type names to apply to will directly match what is specified
-    /// in the plugin metadata for each schema type. While auto apply schemas do
-    /// account for the existence and validity of the type names and expand to 
-    /// include derived types of the listed types, the type lists returned by 
-    /// this function do not. 
-    USD_API
-    static const std::map<TfToken, TfTokenVector> &GetAutoApplyAPISchemas();
-
-    /// Collects all the additional auto apply schemas that can be defined in 
-    /// a plugin through "AutoApplyAPISchemas" metadata and adds the mappings
-    /// to \p autoApplyAPISchemas. 
-    /// 
-    /// These are separate from the auto-apply schemas that are built in to the 
-    /// applied API schema types themselves and can be defined in any plugin to 
-    /// map any applied API schema to any concrete prim type.
-    ///
-    /// Note that GetAutoApplyAPISchemas will already include API schemas 
-    /// collected from this method; this function is provided for clients that
-    /// may want to collect just these plugin API schema mappings.
-    USD_API
-    static void CollectAddtionalAutoApplyAPISchemasFromPlugins(
-        std::map<TfToken, TfTokenVector> *autoApplyAPISchemas);
-
-    /// Returns the namespace prefix that is prepended to all properties of
-    /// the given \p multiApplyAPISchemaName.
-    USD_API
-    TfToken GetPropertyNamespacePrefix(
-        const TfToken &multiApplyAPISchemaName) const;
-
     /// Finds the prim definition for the given \p typeName token if 
     /// \p typeName is a registered concrete typed schema type. Returns null if
     /// it is not.
@@ -263,7 +170,7 @@ public:
     }
 
     /// Composes and returns a new UsdPrimDefinition from the given \p primType
-    /// and list of \p appliedSchemas. This prim definition will contain a union
+    /// and list of \p applieSchemas. This prim definition will contain a union
     /// of properties from the registered prim definitions of each of the 
     /// provided types. 
     USD_API
@@ -271,33 +178,10 @@ public:
     BuildComposedPrimDefinition(
         const TfToken &primType, const TfTokenVector &appliedAPISchemas) const;
 
-    /// Returns a dictionary mapping concrete schema prim type names to a 
-    /// VtTokenArray of fallback prim type names if fallback types are defined
-    /// for the schema type in its registered schema.
-    /// 
-    /// The standard use case for this to provide schema defined metadata that
-    /// can be saved with a stage to inform an older version of USD - that 
-    /// may not have some schema types - as to which types it can used instead 
-    /// when encountering a prim of one these types.
-    ///
-    /// \sa UsdStage::WriteFallbackPrimTypes
-    /// \sa \ref Usd_OM_FallbackPrimTypes
-    const VtDictionary &GetFallbackPrimTypes() const {
-        return _fallbackPrimTypes;
-    }
-
 private:
     friend class TfSingleton<UsdSchemaRegistry>;
 
     UsdSchemaRegistry();
-
-    // Functions for backwards compatibility which old generated schemas. If
-    // usdGenSchema has not been run to regenerate schemas so that the schema
-    // kind is designated in the plugInfo, these functions are used to inquire
-    // about kind through the registered prim definitions.
-    bool _HasConcretePrimDefinition(const TfToken& primType) const;
-    bool _HasAppliedAPIPrimDefinition(const TfToken& apiSchemaType) const;
-    bool _HasMultipleApplyAPIPrimDefinition(const TfToken& apiSchemaType) const;
 
     void _FindAndAddPluginSchema();
 
@@ -305,6 +189,11 @@ private:
         UsdPrimDefinition *primDef, const TfTokenVector &appliedAPISchemas) const;
 
     SdfLayerRefPtr _schematics;
+
+    // Registered map of schema class type -> Usd schema type name token.
+    typedef TfHashMap<TfType, TfToken, TfHash> _TypeToTypeNameMap;
+    _TypeToTypeNameMap _typeToUsdTypeNameMap;
+
     typedef TfHashMap<TfToken, UsdPrimDefinition *, 
                       TfToken::HashFunctor> _TypeNameToPrimDefinitionMap;
 
@@ -314,8 +203,6 @@ private:
 
     TfHashMap<TfToken, TfToken, TfToken::HashFunctor> 
         _multipleApplyAPISchemaNamespaces;
-
-    VtDictionary _fallbackPrimTypes;
 
     friend class UsdPrimDefinition;
 };

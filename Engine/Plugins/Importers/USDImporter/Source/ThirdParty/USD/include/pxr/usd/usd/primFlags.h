@@ -101,9 +101,8 @@ enum Usd_PrimFlags {
     Usd_PrimHasPayloadFlag,
     Usd_PrimClipsFlag,
     Usd_PrimDeadFlag,
-    Usd_PrimPrototypeFlag,
+    Usd_PrimMasterFlag,
     Usd_PrimInstanceProxyFlag,
-    Usd_PrimPseudoRootFlag,
 
     Usd_PrimNumFlags
 };

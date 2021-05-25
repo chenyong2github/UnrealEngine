@@ -4,11 +4,6 @@
             "Info": {
                 "Types": {
                     "ArResolver": {},
-                    "ArDefaultResolver": {
-                        "bases": [
-                            "ArResolver"
-                        ]
-                    },
                     "ArPackageResolver": {}
                 }
             },

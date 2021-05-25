@@ -27,17 +27,17 @@
 /// \file pxr/pxr.h
 
 #define PXR_MAJOR_VERSION 0
-#define PXR_MINOR_VERSION 21
-#define PXR_PATCH_VERSION 05
+#define PXR_MINOR_VERSION 20
+#define PXR_PATCH_VERSION 5
 
-#define PXR_VERSION 2105
+#define PXR_VERSION 2005
 
 #define PXR_USE_NAMESPACES 1
 
 #if PXR_USE_NAMESPACES
 
 #define PXR_NS pxr
-#define PXR_INTERNAL_NS pxrInternal_v0_21__pxrReserved__
+#define PXR_INTERNAL_NS pxrInternal_v0_20__pxrReserved__
 #define PXR_NS_GLOBAL ::PXR_NS
 
 namespace PXR_INTERNAL_NS { }
@@ -63,10 +63,6 @@ namespace PXR_NS {
 
 #if 1
 #define PXR_PYTHON_SUPPORT_ENABLED
-#endif
-
-#if 1
-#define PXR_PREFER_SAFETY_OVER_SPEED
 #endif
 
 #endif //PXR_H

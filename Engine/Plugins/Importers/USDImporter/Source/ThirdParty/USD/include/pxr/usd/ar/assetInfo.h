@@ -47,7 +47,6 @@ public:
     /// asset, if any.
     std::string assetName;
 
-    /// \deprecated
     /// The repository path corresponding to the resolved asset.
     std::string repoPath;
 

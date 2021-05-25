@@ -254,13 +254,8 @@ class UsdGeomXformable : public UsdGeomImageable
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::AbstractTyped;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::AbstractTyped;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::AbstractTyped;
 
     /// Construct a UsdGeomXformable on UsdPrim \p prim .
     /// Equivalent to UsdGeomXformable::Get(prim.GetStage(), prim.GetPath())
@@ -305,17 +300,11 @@ public:
 
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDGEOM_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDGEOM_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.

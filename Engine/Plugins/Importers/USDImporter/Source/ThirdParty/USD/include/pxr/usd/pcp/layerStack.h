@@ -123,11 +123,6 @@ public:
     PCP_API
     bool HasLayer(const SdfLayerRefPtr& layer) const;
 
-    /// Return the time codes per second value of the layer stack. This is 
-    /// usually the same as the computed time codes per second of the root layer
-    /// but may be computed from the session layer when its present.
-    double GetTimeCodesPerSecond() const { return _timeCodesPerSecond; }
-
     /// Returns relocation source-to-target mapping for this layer stack.
     ///
     /// This map combines the individual relocation entries found across
@@ -220,7 +215,6 @@ private:
     SdfLayerTreeHandle _BuildLayerStack(
         const SdfLayerHandle & layer,
         const SdfLayerOffset & offset,
-        double layerTcps,
         const ArResolverContext & pathResolverContext,
         const SdfLayer::FileFormatArguments & layerArgs,
         const std::string & sessionOwner,
@@ -253,10 +247,6 @@ private:
     /// Each map function contains a time offset that should be applied
     /// to its corresponding layer.
     std::vector<PcpMapFunction> _mapFunctions;
-
-    /// Stores the computed time codes per second value of the layer stack which
-    /// has some special logic when a session layer is present. 
-    double _timeCodesPerSecond;
 
     /// The tree structure of the layer stack.
     /// Stored separately because this is needed only occasionally.
@@ -332,21 +322,6 @@ Pcp_ComputeRelocationsForLayerStack(
 // may affect the computation of those asset paths.
 bool
 Pcp_NeedToRecomputeDueToAssetPathChange(const PcpLayerStackPtr& layerStack);
-
-// Returns true if the \p layerStack should be recomputed because 
-// \p changedLayer has had changes that would cause the layer stack to have
-// a different computed overall time codes per second value.
-bool
-Pcp_NeedToRecomputeLayerStackTimeCodesPerSecond(
-    const PcpLayerStackPtr& layerStack, const SdfLayerHandle &changedLayer);
-
-/// Returns true when the environment variable has been set to disable the 
-/// behavior where differing time codes per second metadata in layers sublayered
-/// or referenced by another layer are used to apply a layer offset scale to the
-/// map function.
-PCP_API
-bool
-PcpIsTimeScalingForLayerTimeCodesPerSecondDisabled();
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

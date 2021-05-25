@@ -124,7 +124,7 @@ public:
 
     /// The help message assigned to this property, if any.
     SDR_API
-    std::string GetHelp() const;
+    const std::string& GetHelp() const;
 
     /// The page (group), eg "Advanced", this property appears on, if any.
     SDR_API
@@ -155,7 +155,7 @@ public:
     /// this method to get the correct name;  using \c getName() is not
     /// correct.
     SDR_API
-    std::string GetImplementationName() const;
+    const std::string& GetImplementationName() const;
 
     /// @}
 

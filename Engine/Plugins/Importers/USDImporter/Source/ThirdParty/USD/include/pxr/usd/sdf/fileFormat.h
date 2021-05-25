@@ -36,6 +36,7 @@
 #include "pxr/base/tf/type.h"
 #include "pxr/base/tf/weakBase.h"
 
+#include <boost/noncopyable.hpp>
 #include <map>
 #include <string>
 #include <vector>
@@ -44,7 +45,6 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 class ArAssetInfo;
 class SdfSchemaBase;
-class SdfLayerHints;
 
 SDF_DECLARE_HANDLES(SdfLayer);
 SDF_DECLARE_HANDLES(SdfSpec);
@@ -60,14 +60,9 @@ TF_DECLARE_PUBLIC_TOKENS(SdfFileFormatTokens, SDF_API, SDF_FILE_FORMAT_TOKENS);
 ///
 /// Base class for file format implementations.
 ///
-class SdfFileFormat
-    : public TfRefBase
-    , public TfWeakBase
+class SdfFileFormat : public TfRefBase, public TfWeakBase, boost::noncopyable
 {
 public:
-    SdfFileFormat(const SdfFileFormat&) = delete;
-    SdfFileFormat& operator=(const SdfFileFormat&) = delete;
-
     /// Returns the schema for this format.
     SDF_API const SdfSchemaBase& GetSchema() const;
 
@@ -128,8 +123,7 @@ public:
     ///
     /// Returns a shared pointer to an SdfAbstractData implementation.
     SDF_API
-    virtual SdfAbstractDataRefPtr
-    InitData(const FileFormatArguments& args) const;
+    virtual SdfAbstractDataRefPtr InitData(const FileFormatArguments& args) const;
 
     /// Instantiate a layer.
     SDF_API 
@@ -215,22 +209,6 @@ public:
         std::string* str,
         const std::string& comment = std::string()) const;
 
-    /// Returns the set of resolved paths to external asset file dependencies 
-    /// for the given \p layer. These are additional dependencies, specific to 
-    /// the file format, that are needed when generating the layer's contents
-    /// and would not otherwise be discoverable through composition dependencies
-    /// (i.e. sublayers, references, and payloads). 
-    ///
-    /// The default implementation returns an empty set. Derived file formats 
-    /// that depend on external assets to read and generate layer content 
-    /// should implement this function to return the external asset paths.
-    ///
-    /// \sa SdfLayer::GetExternalAssetDependencies
-    /// \sa SdfLayer::Reload
-    SDF_API
-    virtual std::set<std::string> GetExternalAssetDependencies(
-        const SdfLayer& layer) const;
-
     /// Returns the file extension for path or file name \p s, without the
     /// leading dot character.
     SDF_API static std::string GetFileExtension(const std::string& s);
@@ -259,17 +237,6 @@ public:
     static SdfFileFormatConstPtr FindByExtension(
         const std::string& path,
         const std::string& target = std::string());
-
-    /// Returns a file format instance that supports the extension for \p
-    /// path and whose target matches one of those specified by the given
-    /// \p args. If the \p args specify no target, then the file format that is
-    /// registered as the primary plugin will be returned. If a format with a
-    /// matching extension is not found, this returns a null file format
-    /// pointer.
-    SDF_API
-    static SdfFileFormatConstPtr FindByExtension(
-        const std::string& path,
-        const FileFormatArguments& args);
 
 protected:
     /// Constructor.
@@ -331,20 +298,9 @@ protected:
 
     /// Set the internal data for \p layer to \p data, possibly transferring
     /// ownership of \p data.
-    /// 
-    /// Existing layer hints are reset to the default hints.
     SDF_API
     static void _SetLayerData(
         SdfLayer* layer, SdfAbstractDataRefPtr& data);
-
-    /// Set the internal data for \p layer to \p data, possibly transferring
-    /// ownership of \p data.
-    ///
-    /// Existing layer hints are replaced with \p hints.
-    SDF_API
-    static void _SetLayerData(
-        SdfLayer* layer, SdfAbstractDataRefPtr& data,
-        SdfLayerHints hints);
 
     /// Get the internal data for \p layer.
     SDF_API
@@ -379,13 +335,13 @@ private:
     const bool _isPrimaryFormat;
 };
 
-// Base file format factory.
+/// Base file format factory.
 class Sdf_FileFormatFactoryBase : public TfType::FactoryBase {
 public:
     virtual SdfFileFormatRefPtr New() const = 0;
 };
 
-// Default file format factory.
+/// Default file format factory.
 template <typename T>
 class Sdf_FileFormatFactory : public Sdf_FileFormatFactoryBase {
 public:
@@ -395,98 +351,26 @@ public:
     }
 };
 
-/// \def SDF_DEFINE_FILE_FORMAT
-///
-/// Performs registrations needed for the specified file format class to be
-/// discovered by Sdf. This typically would be invoked in a TF_REGISTRY_FUNCTION
-/// in the source file defining the file format. 
-///
-/// The first argument is the name of the file format class being registered. 
-/// Subsequent arguments list the base classes of the file format. Since all 
-/// file formats must ultimately derive from SdfFileFormat, there should be
-/// at least one base class specified.
-///
-/// For example:
-///
-/// \code
-/// // in MyFileFormat.cpp
-/// TF_REGISTRY_FUNCTION(TfType)
-/// {
-///     SDF_DEFINE_FILE_FORMAT(MyFileFormat, SdfFileFormat);
-/// }
-/// \endcode
-///
-#ifdef doxygen
-#define SDF_DEFINE_FILE_FORMAT(FileFormatClass, BaseClass1, ...)
-#else
-#define SDF_DEFINE_FILE_FORMAT(...) SdfDefineFileFormat<__VA_ARGS__>()
+/// Defines a file format and factory. This macro is intended for use in a
+/// TfType registry function block. It defines a type for the first argument,
+/// with optional bases as additional arguments, and adds a factory.
+#define SDF_DEFINE_FILE_FORMAT(c, ...) \
+    TfType::Define<c BOOST_PP_COMMA_IF(TF_NUM_ARGS(__VA_ARGS__)) \
+        BOOST_PP_IF(TF_NUM_ARGS(__VA_ARGS__), \
+            TfType::Bases<__VA_ARGS__>, BOOST_PP_EMPTY) >() \
+        .SetFactory<Sdf_FileFormatFactory<c> >()
 
-template <class FileFormat, class ...BaseFormats>
-void SdfDefineFileFormat()
-{
-    TfType::Define<FileFormat, TfType::Bases<BaseFormats...>>()
-        .template SetFactory<Sdf_FileFormatFactory<FileFormat>>();
-}
-#endif // doxygen
+/// Defines a file format without a factory. This macro is intended for use in
+/// a TfType registry function block. It defines a type for the first
+/// argument, with optional bases as additional arguments.
+#define SDF_DEFINE_ABSTRACT_FILE_FORMAT(c, ...) \
+    TfType::Define<c BOOST_PP_COMMA_IF(TF_NUM_ARGS(__VA_ARGS__)) \
+        BOOST_PP_IF(TF_NUM_ARGS(__VA_ARGS__), \
+            TfType::Bases<__VA_ARGS__>, BOOST_PP_EMPTY) >();
 
-/// \def SDF_DEFINE_ABSTRACT_FILE_FORMAT
-///
-/// Performs registrations needed for the specified abstract file format
-/// class. This is used to register types that serve as base classes
-/// for other concrete file format classes used by Sdf.
-///
-/// The first argument is the name of the file format class being registered.
-/// Subsequent arguments list the base classes of the file format. Since all 
-/// file formats must ultimately derive from SdfFileFormat, there should be
-/// at least one base class specified.
-///
-/// For example:
-///
-/// \code
-/// // in MyFileFormat.cpp
-/// TF_REGISTRY_FUNCTION(TfType)
-/// {
-///     SDF_DEFINE_ABSTRACT_FILE_FORMAT(MyFileFormat, SdfFileFormat);
-/// }
-/// \endcode
-///
-#ifdef doxygen
-#define SDF_DEFINE_ABSTRACT_FILE_FORMAT(FileFormatClass, BaseClass1, ...)
-#else
-#define SDF_DEFINE_ABSTRACT_FILE_FORMAT(...) \
-    SdfDefineAbstractFileFormat<__VA_ARGS__>()
-
-template <class FileFormat, class ...BaseFormats>
-void SdfDefineAbstractFileFormat()
-{
-    TfType::Define<FileFormat, TfType::Bases<BaseFormats...>>();
-}
-#endif //doxygen
-
-/// \def SDF_FILE_FORMAT_FACTORY_ACCESS
-///
-/// Provides access to allow file format classes to be instantiated
-/// from Sdf. This should be specified in the class definition for
-/// concrete file format classes.
-///
-/// For example:
-/// 
-/// \code
-/// // in MyFileFormat.h
-/// class MyFileFormat : public SdfFileFormat
-/// {
-///     SDF_FILE_FORMAT_FACTORY_ACCESS;
-///     // ...
-/// };
-/// \endcode
-///
-#ifdef doxygen
-#define SDF_FILE_FORMAT_FACTORY_ACCESS
-#else
 #define SDF_FILE_FORMAT_FACTORY_ACCESS \
     template<typename T> friend class Sdf_FileFormatFactory
-#endif //doxygen
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif
+#endif // PXR_USD_SDF_FILE_FORMAT_H

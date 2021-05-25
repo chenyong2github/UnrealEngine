@@ -48,12 +48,17 @@ namespace ShaderMetadataHelpers
     bool
     IsTruthy(const TfToken& propName, const NdrTokenMap& metadata);
 
+    /// Extracts the string value from the given property.
+    SDR_API
+    const std::string&
+    StringVal(const TfToken& propName, const NdrTokenMap& metadata);
+
     /// Extracts the string value from the given property if it exists,
     /// otherwise returns \p defaultValue.
     SDR_API
-    std::string
+    const std::string&
     StringVal(const TfToken& propName, const NdrTokenMap& metadata,
-              const std::string& defaultValue = std::string());
+              const std::string& defaultValue);
 
     /// Extracts the tokenized value from the given property. An empty token is
     /// returned if the property does not exist.

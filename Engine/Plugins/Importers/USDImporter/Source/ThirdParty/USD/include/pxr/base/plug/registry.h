@@ -458,12 +458,10 @@ private:
     PlugRegistry();
 
     // Registers all plug-ins discovered in any of \a pathsToPlugInfo
-    // but does not send a notice.  The priority order of paths is honored if
-    // pathsAreOrdered.
+    // but does not send a notice.
     PLUG_LOCAL
     PlugPluginPtrVector
-    _RegisterPlugins(const std::vector<std::string>& pathsToPlugInfo,
-                     bool pathsAreOrdered);
+    _RegisterPlugins(const std::vector<std::string>& pathsToPlugInfo);
 
     template <class ConcurrentVector>
     PLUG_LOCAL

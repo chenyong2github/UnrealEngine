@@ -67,8 +67,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 #define SDR_NODE_ROLE_TOKENS         \
     ((Primvar, "primvar"))           \
     ((Texture, "texture"))           \
-    ((Field, "field"))               \
-    ((Math, "math"))                 \
+    ((Field, "field"))
 
 TF_DECLARE_PUBLIC_TOKENS(SdrNodeMetadata, SDR_API, SDR_NODE_METADATA_TOKENS);
 TF_DECLARE_PUBLIC_TOKENS(SdrNodeContext, SDR_API, SDR_NODE_CONTEXT_TOKENS);
@@ -89,8 +88,8 @@ public:
                   const TfToken& family,
                   const TfToken& context,
                   const TfToken& sourceType,
-                  const std::string& definitionURI,
-                  const std::string& implementationURI,
+                  const std::string& uri,
+                  const std::string& resolvedUri,
                   NdrPropertyUniquePtrVec&& properties,
                   const NdrTokenMap& metadata = NdrTokenMap(),
                   const std::string &sourceCode = std::string());
@@ -149,11 +148,11 @@ public:
     /// volume fields (like extinction or scattering). This is done to identify
     /// resources used by a shading network.
     SDR_API
-    std::string GetRole() const;
+    const std::string &GetRole() const;
 
     /// The help message assigned to this node, if any.
     SDR_API
-    std::string GetHelp() const;
+    const std::string& GetHelp() const;
 
     /// The departments this node is associated with, if any.
     SDR_API
@@ -195,7 +194,7 @@ public:
     /// this method to get the correct name;  using \c getName() is not
     /// correct.
     SDR_API
-    std::string GetImplementationName() const;
+    const std::string& GetImplementationName() const;
 
     /// @}
 

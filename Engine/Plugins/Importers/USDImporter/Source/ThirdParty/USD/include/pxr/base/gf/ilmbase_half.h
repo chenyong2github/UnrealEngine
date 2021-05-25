@@ -104,10 +104,9 @@ class half
 
     half () = default;			// no initialization
     half (float f);
-    // rule of 5
-    ~half () = default;
-    constexpr half (const half &) noexcept = default;
-    constexpr half (half &&) noexcept = default;
+
+    constexpr half (const half& h) = default;
+
 
     //--------------------
     // Conversion to float
@@ -127,8 +126,7 @@ class half
     // Assignment
     //-----------
 
-    half &		operator = (const half  &h) = default;
-    half &		operator = (half  &&h) noexcept = default;
+    half &		operator = (const half &) = default;
     half &		operator = (float f);
 
     half &		operator += (half  h);
@@ -253,64 +251,61 @@ GF_API void        printBits   (char  c[35], float f);
 //-------------------------------------------------------------------------
 // Limits
 //
-// Visual C++ will complain if PXR_HALF_MIN, PXR_HALF_NRM_MIN etc. are not float
+// Visual C++ will complain if HALF_MIN, HALF_NRM_MIN etc. are not float
 // constants, but at least one other compiler (gcc 2.96) produces incorrect
 // results if they are.
 //-------------------------------------------------------------------------
 
 #if (defined _WIN32 || defined _WIN64) && defined _MSC_VER
 
-  #define PXR_HALF_MIN	5.96046448e-08f	// Smallest positive half
+  #define HALF_MIN	5.96046448e-08f	// Smallest positive half
 
-  #define PXR_HALF_NRM_MIN	6.10351562e-05f	// Smallest positive normalized half
+  #define HALF_NRM_MIN	6.10351562e-05f	// Smallest positive normalized half
 
-  #define PXR_HALF_MAX	65504.0f	// Largest positive half
+  #define HALF_MAX	65504.0f	// Largest positive half
 
-  #define PXR_HALF_EPSILON	0.00097656f	// Smallest positive e for which
+  #define HALF_EPSILON	0.00097656f	// Smallest positive e for which
 					// half (1.0 + e) != half (1.0)
 #else
 
-  #define PXR_HALF_MIN	5.96046448e-08	// Smallest positive half
+  #define HALF_MIN	5.96046448e-08	// Smallest positive half
 
-  #define PXR_HALF_NRM_MIN	6.10351562e-05	// Smallest positive normalized half
+  #define HALF_NRM_MIN	6.10351562e-05	// Smallest positive normalized half
 
-  #define PXR_HALF_MAX	65504.0		// Largest positive half
+  #define HALF_MAX	65504.0		// Largest positive half
 
-  #define PXR_HALF_EPSILON	0.00097656	// Smallest positive e for which
+  #define HALF_EPSILON	0.00097656	// Smallest positive e for which
 					// half (1.0 + e) != half (1.0)
 #endif
 
 
-#define PXR_HALF_MANT_DIG	11		// Number of digits in mantissa
+#define HALF_MANT_DIG	11		// Number of digits in mantissa
 					// (significand + hidden leading 1)
 
-// 
-// floor( (PXR_HALF_MANT_DIG - 1) * log10(2) ) => 3.01... -> 3
-#define PXR_HALF_DIG	3		// Number of base 10 digits that
+#define HALF_DIG	2		// Number of base 10 digits that
 					// can be represented without change
 
-// ceil(PXR_HALF_MANT_DIG * log10(2) + 1) => 4.31... -> 5
-#define PXR_HALF_DECIMAL_DIG	5	// Number of base-10 digits that are
+#define HALF_DECIMAL_DIG	5	// Number of base-10 digits that are
 					// necessary to uniquely represent all
 					// distinct values
 
-#define PXR_HALF_RADIX	2		// Base of the exponent
+#define HALF_RADIX	2		// Base of the exponent
 
-#define PXR_HALF_MIN_EXP	-13		// Minimum negative integer such that
-					// PXR_HALF_RADIX raised to the power of
+#define HALF_MIN_EXP	-13		// Minimum negative integer such that
+					// HALF_RADIX raised to the power of
 					// one less than that integer is a
 					// normalized half
 
-#define PXR_HALF_MAX_EXP	16		// Maximum positive integer such that
-					// PXR_HALF_RADIX raised to the power of
+#define HALF_MAX_EXP	16		// Maximum positive integer such that
+					// HALF_RADIX raised to the power of
 					// one less than that integer is a
 					// normalized half
 
-#define PXR_HALF_MIN_10_EXP	-4		// Minimum positive integer such
+#define HALF_MIN_10_EXP	-4		// Minimum positive integer such
 					// that 10 raised to that power is
 					// a normalized half
 
-#define PXR_HALF_MAX_10_EXP	4		// Maximum positive integer such
+#define HALF_MAX_10_EXP	4		// Maximum positive integer such
 					// that 10 raised to that power is
 					// a normalized half
 

@@ -74,13 +74,8 @@ class UsdModelAPI : public UsdAPISchemaBase
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::NonAppliedAPI;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::NonAppliedAPI;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::NonAppliedAPI;
 
     /// Construct a UsdModelAPI on UsdPrim \p prim .
     /// Equivalent to UsdModelAPI::Get(prim.GetStage(), prim.GetPath())
@@ -125,17 +120,11 @@ public:
 
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USD_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USD_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -196,7 +185,7 @@ public:
     /// Author a \p kind for this prim, at the current UsdEditTarget.
     /// \return true if \p kind was successully authored, otherwise false.
     USD_API
-    bool SetKind(const TfToken& kind) const;
+    bool SetKind(const TfToken& kind);
 
     /// Return true if the prim's kind metadata is or inherits from
     /// \p baseKind as defined by the Kind Registry.

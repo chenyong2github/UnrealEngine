@@ -539,10 +539,10 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 	if ( pxr::UsdSkelRoot SkeletonRoot{ Prim } )
 	{
 		pxr::UsdSkelCache SkeletonCache;
-		SkeletonCache.Populate( SkeletonRoot, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.Populate( SkeletonRoot );
 
 		std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-		SkeletonCache.ComputeSkelBindings( SkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.ComputeSkelBindings( SkeletonRoot, &SkeletonBindings );
 
 		for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
 		{

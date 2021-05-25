@@ -65,13 +65,8 @@ class UsdVolField3DAsset : public UsdVolFieldAsset
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
 
     /// Construct a UsdVolField3DAsset on UsdPrim \p prim .
     /// Equivalent to UsdVolField3DAsset::Get(prim.GetStage(), prim.GetPath())
@@ -141,17 +136,11 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDVOL_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDVOL_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -167,38 +156,35 @@ private:
 
 public:
     // --------------------------------------------------------------------- //
-    // FIELDDATATYPE 
+    // FIELDNAME 
     // --------------------------------------------------------------------- //
-    /// Token which is used to indicate the data type of an
-    /// individual field. Authors use this to tell consumers more
-    /// about the field without opening the file on disk. The list of 
-    /// allowed tokens reflects the available choices for Field3d 
-    /// volumes.
+    /// Name of an individual field within the file specified by
+    /// the filePath attribute. Clients which consume Field3D files
+    /// should treat this as the Field3D field \p attribute.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `token fieldDataType` |
+    /// | Declaration | `token fieldName` |
     /// | C++ Type | TfToken |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
-    /// | \ref UsdVolTokens "Allowed Values" | half, float, double, half3, float3, double3 |
     USDVOL_API
-    UsdAttribute GetFieldDataTypeAttr() const;
+    UsdAttribute GetFieldNameAttr() const;
 
-    /// See GetFieldDataTypeAttr(), and also 
+    /// See GetFieldNameAttr(), and also 
     /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
     /// If specified, author \p defaultValue as the attribute's default,
     /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
     /// the default for \p writeSparsely is \c false.
     USDVOL_API
-    UsdAttribute CreateFieldDataTypeAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
+    UsdAttribute CreateFieldNameAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
 
 public:
     // --------------------------------------------------------------------- //
     // FIELDPURPOSE 
     // --------------------------------------------------------------------- //
-    /// Optional token which can be used to indicate the purpose or 
-    /// grouping of an individual field. Clients which consume Field3D 
-    /// files should treat this as the Field3D field \em name.
+    /// Optional token which can be used to indicate the purpose or grouping
+    /// of an individual field. Clients which consume Field3D files
+    /// should treat this as the Field3D field \p name.
     ///
     /// | ||
     /// | -- | -- |
@@ -215,6 +201,30 @@ public:
     /// the default for \p writeSparsely is \c false.
     USDVOL_API
     UsdAttribute CreateFieldPurposeAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
+
+public:
+    // --------------------------------------------------------------------- //
+    // FIELDINDEX 
+    // --------------------------------------------------------------------- //
+    /// A Field3D file can contain multiple fields with the same
+    /// name. This attribute is an index used to disambiguate
+    /// between these multiple fields with the same name.
+    ///
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `int fieldIndex` |
+    /// | C++ Type | int |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Int |
+    USDVOL_API
+    UsdAttribute GetFieldIndexAttr() const;
+
+    /// See GetFieldIndexAttr(), and also 
+    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
+    /// If specified, author \p defaultValue as the attribute's default,
+    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
+    /// the default for \p writeSparsely is \c false.
+    USDVOL_API
+    UsdAttribute CreateFieldIndexAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
 
 public:
     // ===================================================================== //

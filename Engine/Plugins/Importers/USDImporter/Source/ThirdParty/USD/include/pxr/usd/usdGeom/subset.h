@@ -87,13 +87,8 @@ class UsdGeomSubset : public UsdTyped
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
 
     /// Construct a UsdGeomSubset on UsdPrim \p prim .
     /// Equivalent to UsdGeomSubset::Get(prim.GetStage(), prim.GetPath())
@@ -163,17 +158,11 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDGEOM_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDGEOM_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.

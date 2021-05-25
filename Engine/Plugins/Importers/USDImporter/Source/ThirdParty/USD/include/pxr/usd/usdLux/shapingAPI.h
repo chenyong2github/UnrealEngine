@@ -33,9 +33,6 @@
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usdLux/tokens.h"
 
-#include "pxr/usd/usdShade/input.h"
-#include "pxr/usd/usdShade/output.h" 
-
 #include "pxr/base/vt/value.h"
 
 #include "pxr/base/gf/vec3d.h"
@@ -62,13 +59,8 @@ class UsdLuxShapingAPI : public UsdAPISchemaBase
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::SingleApplyAPI;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::SingleApplyAPI;
 
     /// Construct a UsdLuxShapingAPI on UsdPrim \p prim .
     /// Equivalent to UsdLuxShapingAPI::Get(prim.GetStage(), prim.GetPath())
@@ -118,30 +110,22 @@ public:
     /// 
     /// \return A valid UsdLuxShapingAPI object is returned upon success. 
     /// An invalid (or empty) UsdLuxShapingAPI object is returned upon 
-    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
+    /// failure. See \ref UsdAPISchemaBase::_ApplyAPISchema() for conditions 
     /// resulting in failure. 
     /// 
     /// \sa UsdPrim::GetAppliedSchemas()
     /// \sa UsdPrim::HasAPI()
-    /// \sa UsdPrim::ApplyAPI()
-    /// \sa UsdPrim::RemoveAPI()
     ///
     USDLUX_API
     static UsdLuxShapingAPI 
     Apply(const UsdPrim &prim);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDLUX_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDLUX_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -157,7 +141,7 @@ private:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHAPING:FOCUS 
+    // SHAPINGFOCUS 
     // --------------------------------------------------------------------- //
     /// A control to shape the spread of light.  Higher focus
     /// values pull light towards the center and narrow the spread.
@@ -166,7 +150,7 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:shaping:focus = 0` |
+    /// | Declaration | `float shaping:focus = 0` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -182,7 +166,7 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHAPING:FOCUSTINT 
+    // SHAPINGFOCUSTINT 
     // --------------------------------------------------------------------- //
     /// Off-axis color tint.  This tints the emission in the
     /// falloff region.  The default tint is black.
@@ -190,7 +174,7 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `color3f inputs:shaping:focusTint = (0, 0, 0)` |
+    /// | Declaration | `color3f shaping:focusTint = (0, 0, 0)` |
     /// | C++ Type | GfVec3f |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Color3f |
     USDLUX_API
@@ -206,14 +190,14 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHAPING:CONE:ANGLE 
+    // SHAPINGCONEANGLE 
     // --------------------------------------------------------------------- //
     /// Angular limit off the primary axis to restrict the
     /// light spread.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:shaping:cone:angle = 90` |
+    /// | Declaration | `float shaping:cone:angle = 90` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -229,14 +213,14 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHAPING:CONE:SOFTNESS 
+    // SHAPINGCONESOFTNESS 
     // --------------------------------------------------------------------- //
     /// Controls the cutoff softness for cone angle.
     /// TODO: clarify semantics
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:shaping:cone:softness = 0` |
+    /// | Declaration | `float shaping:cone:softness = 0` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -252,14 +236,14 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHAPING:IES:FILE 
+    // SHAPINGIESFILE 
     // --------------------------------------------------------------------- //
     /// An IES (Illumination Engineering Society) light
     /// profile describing the angular distribution of light.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `asset inputs:shaping:ies:file` |
+    /// | Declaration | `asset shaping:ies:file` |
     /// | C++ Type | SdfAssetPath |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Asset |
     USDLUX_API
@@ -275,14 +259,14 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHAPING:IES:ANGLESCALE 
+    // SHAPINGIESANGLESCALE 
     // --------------------------------------------------------------------- //
     /// Rescales the angular distribution of the IES profile.
     /// TODO: clarify semantics
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:shaping:ies:angleScale = 0` |
+    /// | Declaration | `float shaping:ies:angleScale = 0` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -298,14 +282,14 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
-    // SHAPING:IES:NORMALIZE 
+    // SHAPINGIESNORMALIZE 
     // --------------------------------------------------------------------- //
     /// Normalizes the IES profile so that it affects the shaping
     /// of the light while preserving the overall energy output.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `bool inputs:shaping:ies:normalize = 0` |
+    /// | Declaration | `bool shaping:ies:normalize = 0` |
     /// | C++ Type | bool |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Bool |
     USDLUX_API
@@ -330,89 +314,6 @@ public:
     //  - Close the include guard with #endif
     // ===================================================================== //
     // --(BEGIN CUSTOM CODE)--
-
-    // -------------------------------------------------------------------------
-    /// \name Conversion to and from UsdShadeConnectableAPI
-    /// 
-    /// @{
-
-    /// Constructor that takes a ConnectableAPI object.
-    /// Allow implicit conversion of UsdShadeConnectableAPI to
-    /// UsdLuxShapingAPI.
-    USDLUX_API
-    UsdLuxShapingAPI(const UsdShadeConnectableAPI &connectable);
-
-    /// Contructs and returns a UsdShadeConnectableAPI object with this shaping
-    /// API prim. Note that a valid UsdLuxShapingAPI will only return a valid
-    /// UsdShadeConnectableAPI if the its prim's Typed schema type is actually
-    /// connectable.
-    USDLUX_API
-    UsdShadeConnectableAPI ConnectableAPI() const;
-
-    /// @}
-
-    // -------------------------------------------------------------------------
-    /// \name Outputs API
-    ///
-    /// Outputs represent a typed attribute on a shaping API whose value is 
-    /// computed externally. 
-    /// 
-    /// @{
-
-    /// Create an output which can either have a value or can be connected.
-    /// The attribute representing the output is created in the "outputs:" 
-    /// namespace. Outputs on a shaping API cannot be connected, as their 
-    /// value is assumed to be computed externally.
-    /// 
-    USDLUX_API
-    UsdShadeOutput CreateOutput(const TfToken& name,
-                                const SdfValueTypeName& typeName);
-
-    /// Return the requested output if it exists.
-    /// 
-    USDLUX_API
-    UsdShadeOutput GetOutput(const TfToken &name) const;
-
-    /// Outputs are represented by attributes in the "outputs:" namespace.
-    /// If \p onlyAuthored is true (the default), then only return authored
-    /// attributes; otherwise, this also returns un-authored builtins.
-    /// 
-    USDLUX_API
-    std::vector<UsdShadeOutput> GetOutputs(bool onlyAuthored=true) const;
-
-    /// @}
-
-    // ------------------------------------------------------------------------- 
-
-    /// \name Inputs API
-    ///
-    /// Inputs are connectable attribute with a typed value. 
-    /// 
-    /// Shaping API parameters are encoded as inputs. 
-    /// 
-    /// @{
-
-    /// Create an input which can either have a value or can be connected.
-    /// The attribute representing the input is created in the "inputs:" 
-    /// namespace. Inputs on shaping API are connectable.
-    /// 
-    USDLUX_API
-    UsdShadeInput CreateInput(const TfToken& name,
-                              const SdfValueTypeName& typeName);
-
-    /// Return the requested input if it exists.
-    /// 
-    USDLUX_API
-    UsdShadeInput GetInput(const TfToken &name) const;
-
-    /// Inputs are represented by attributes in the "inputs:" namespace.
-    /// If \p onlyAuthored is true (the default), then only return authored
-    /// attributes; otherwise, this also returns un-authored builtins.
-    /// 
-    USDLUX_API
-    std::vector<UsdShadeInput> GetInputs(bool onlyAuthored=true) const;
-
-    /// @}
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

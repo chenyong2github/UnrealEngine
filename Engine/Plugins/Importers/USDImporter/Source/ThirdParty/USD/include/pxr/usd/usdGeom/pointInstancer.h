@@ -276,13 +276,8 @@ class UsdGeomPointInstancer : public UsdGeomBoundable
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
 
     /// Construct a UsdGeomPointInstancer on UsdPrim \p prim .
     /// Equivalent to UsdGeomPointInstancer::Get(prim.GetStage(), prim.GetPath())
@@ -352,17 +347,11 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDGEOM_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDGEOM_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -1077,14 +1066,6 @@ public:
                         const std::vector<UsdTimeCode>& times,
                         const UsdTimeCode baseTime,
                         const GfMatrix4d& transform) const;
-
-    /// Returns the number of instances as defined by the size of the
-    /// _protoIndices_ array at _timeCode_.
-    ///
-    /// \snippetdoc snippets.dox GetCount
-    /// \sa GetProtoIndicesAttr()
-    USDGEOM_API
-    size_t GetInstanceCount(UsdTimeCode timeCode = UsdTimeCode::Default()) const;
 
 private:
 

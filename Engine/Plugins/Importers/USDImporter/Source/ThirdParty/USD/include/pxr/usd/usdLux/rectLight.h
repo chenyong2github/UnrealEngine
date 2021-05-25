@@ -63,13 +63,8 @@ class UsdLuxRectLight : public UsdLuxLight
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
 
     /// Construct a UsdLuxRectLight on UsdPrim \p prim .
     /// Equivalent to UsdLuxRectLight::Get(prim.GetStage(), prim.GetPath())
@@ -139,17 +134,11 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDLUX_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDLUX_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -171,7 +160,7 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:width = 1` |
+    /// | Declaration | `float width = 1` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -193,7 +182,7 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `float inputs:height = 1` |
+    /// | Declaration | `float height = 1` |
     /// | C++ Type | float |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
     USDLUX_API
@@ -215,7 +204,7 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `asset inputs:texture:file` |
+    /// | Declaration | `asset texture:file` |
     /// | C++ Type | SdfAssetPath |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Asset |
     USDLUX_API

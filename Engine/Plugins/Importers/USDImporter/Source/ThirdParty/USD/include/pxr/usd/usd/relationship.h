@@ -95,16 +95,16 @@ typedef std::vector<UsdRelationship> UsdRelationshipVector;
 /// tree in the same layer, that relationship would dangle, and the client
 /// will error in GetTargets() or GetForwardedTargets().
 ///
-/// Authoring targets to objects within prototypes is not allowed, since
-/// prototype prims do not have a stable identity across runs.  Consumers must 
-/// author targets to the object within an instance instead.
+/// Authoring targets to objects within masters is not allowed, since master
+/// prims do not have a stable identity across runs.  Consumers must author
+/// targets to the object within an instance instead.
 ///
 /// Relationships authored in a descendent prim of a referenced prim may not
 /// target the referenced prim itself or any of its immediate child properties
 /// if the referencing prim is instanceable.  Allowing this would break the
 /// ability for this relationship to be instanced and shared by multiple
-/// instances -- it would force consumers of relationships within prototypes
-/// to resolve targets in the context of each of that prototype's instances.
+/// instances -- it would force consumers of relationships within masters
+/// to resolve targets in the context of each of that master's instances.
 ///
 /// \section usd_relationship_forwarding Relationship Forwarding
 ///
@@ -142,8 +142,8 @@ public:
     /// Adds \p target to the list of targets, in the position specified
     /// by \p position.
     ///
-    /// Passing paths to prototype prims or any other objects in prototypes
-    /// will cause an error to be issued. It is not valid to author targets to
+    /// Passing paths to master prims or any other objects in masters will 
+    /// cause an error to be issued. It is not valid to author targets to
     /// these objects.
     ///
     /// What data this actually authors depends on what data is currently
@@ -155,17 +155,23 @@ public:
 
     /// Removes \p target from the list of targets.
     ///
-    /// Passing paths to prototype prims or any other objects in prototypes
-    /// will cause an error to be issued. It is not valid to author targets to
+    /// Passing paths to master prims or any other objects in masters will 
+    /// cause an error to be issued. It is not valid to author targets to
     /// these objects.
     USD_API
     bool RemoveTarget(const SdfPath& target) const;
 
+    /// Clears all target edits from the current EditTarget, and makes
+    /// the opinion explicit, which means we are effectively resetting the
+    /// composed value of the targets list to empty.
+    USD_API
+    bool BlockTargets() const;
+
     /// Make the authoring layer's opinion of the targets list explicit,
     /// and set exactly to \p targets.
     ///
-    /// Passing paths to prototype prims or any other objects in prototypes
-    /// will cause an error to be issued. It is not valid to author targets to
+    /// Passing paths to master prims or any other objects in masters will 
+    /// cause an error to be issued. It is not valid to author targets to
     /// these objects.
     ///
     /// If any target in \p targets is invalid, no targets will be authored
@@ -184,12 +190,6 @@ public:
 
     /// Compose this relationship's targets and fill \p targets with the result.
     /// All preexisting elements in \p targets are lost.
-    /// 
-    /// Returns true if any target path opinions have been authored and no
-    /// composition errors were encountered, returns false otherwise. 
-    /// Note that authored opinions may include opinions that clear the targets 
-    /// and a return value of true does not necessarily indicate that \p targets 
-    /// will contain any target paths.
     ///
     /// See \ref Usd_ScenegraphInstancing_TargetsAndConnections for details on 
     /// behavior when targets point to objects beneath instance prims.
@@ -200,22 +200,13 @@ public:
 
     /// Compose this relationship's \em ultimate targets, taking into account
     /// "relationship forwarding", and fill \p targets with the result.  All
-    /// preexisting elements in \p targets are lost. This method never inserts
+    /// preexisting elements in \p targets are lost.  This method never inserts
     /// relationship paths in \p targets.
     ///
-    /// Returns true if any of the visited relationships that are not 
-    /// "purely forwarding" has an authored opinion for its target paths and
-    /// no composition errors were encountered while computing any targets. 
-    /// Purely forwarding, in this context, means the relationship has at least 
-    /// one target but all of its targets are paths to other relationships.
-    /// Note that authored opinions may include opinions that clear the targets 
-    /// and a return value of true does not necessarily indicate that \p targets 
-    /// will not be empty.
-    /// 
-    /// Returns false otherwise. When composition errors occur, this function 
-    /// continues to collect successfully composed targets, but returns false 
-    /// to indicate to the caller that errors occurred.
-    /// 
+    /// When composition errors occur, continue to collect successfully
+    /// composed targets, but return false to indicate to the caller that
+    /// errors occurred.
+    ///
     /// When a forwarded target cannot be determined, e.g. due to a composition
     /// error, no value is returned for that target; the alternative would be to
     /// return the relationship path at which the forwarded targets could not be
@@ -264,11 +255,10 @@ private:
     bool _GetForwardedTargets(SdfPathVector* targets,
                               bool includeForwardingRels) const;
 
-    bool _GetForwardedTargetsImpl(SdfPathSet* visited, 
-                                  SdfPathSet* uniqueTargets,
-                                  SdfPathVector* targets,
-                                  bool *foundAnyErrors,
-                                  bool includeForwardingRels) const;
+    bool _GetForwardedTargets(SdfPathSet* visited, 
+                              SdfPathSet* uniqueTargets,
+                              SdfPathVector* targets,
+                              bool includeForwardingRels) const;
 
     SdfPath _GetTargetForAuthoring(const SdfPath &targetPath,
                                    std::string* whyNot = 0) const;

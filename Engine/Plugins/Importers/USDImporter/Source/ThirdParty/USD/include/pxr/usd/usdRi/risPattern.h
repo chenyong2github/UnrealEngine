@@ -51,11 +51,8 @@ class SdfAssetPath;
 
 /// \class UsdRiRisPattern
 ///
-/// 
 /// \deprecated Specialized RIS shader schemas have been deprecated in 
 /// favor of all shader prims being simple UsdShadeShader.
-/// This schema will be removed in a future release.
-/// 
 /// Represents a ris pattern object. Multiple of these can be assigned.
 ///
 class UsdRiRisPattern : public UsdRiRisObject
@@ -63,13 +60,8 @@ class UsdRiRisPattern : public UsdRiRisObject
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
 
     /// Construct a UsdRiRisPattern on UsdPrim \p prim .
     /// Equivalent to UsdRiRisPattern::Get(prim.GetStage(), prim.GetPath())
@@ -139,17 +131,11 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDRI_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDRI_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.

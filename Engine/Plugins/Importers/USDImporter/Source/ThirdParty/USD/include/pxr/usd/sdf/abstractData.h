@@ -403,7 +403,6 @@ public:
             *static_cast<T*>(value) = v;
             return true;
         }
-        typeMismatch = true;
         return false;
     }
 
@@ -416,14 +415,12 @@ public:
     void* value;
     const std::type_info& valueType;
     bool isValueBlock;
-    bool typeMismatch;
 
 protected:
     SdfAbstractDataValue(void* value_, const std::type_info& valueType_)
         : value(value_)
         , valueType(valueType_)
         , isValueBlock(false)
-        , typeMismatch(false)
     { }
 };
 
@@ -462,8 +459,6 @@ public:
             isValueBlock = true;
             return true;
         }
-
-        typeMismatch = true;
 
         return false;
     }

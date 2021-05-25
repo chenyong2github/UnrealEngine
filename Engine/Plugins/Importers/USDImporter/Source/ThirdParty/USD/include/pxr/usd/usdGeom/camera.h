@@ -92,13 +92,8 @@ class UsdGeomCamera : public UsdGeomXformable
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
 
     /// Construct a UsdGeomCamera on UsdPrim \p prim .
     /// Equivalent to UsdGeomCamera::Get(prim.GetStage(), prim.GetPath())
@@ -168,17 +163,11 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDGEOM_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDGEOM_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -498,31 +487,6 @@ public:
     /// the default for \p writeSparsely is \c false.
     USDGEOM_API
     UsdAttribute CreateShutterCloseAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
-
-public:
-    // --------------------------------------------------------------------- //
-    // EXPOSURE 
-    // --------------------------------------------------------------------- //
-    /// Exposure adjustment, as a log base-2 value.  The default
-    /// of 0.0 has no effect.  A value of 1.0 will double the
-    /// image-plane intensities in a rendered image; a value of
-    /// -1.0 will halve them.
-    ///
-    /// | ||
-    /// | -- | -- |
-    /// | Declaration | `float exposure = 0` |
-    /// | C++ Type | float |
-    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
-    USDGEOM_API
-    UsdAttribute GetExposureAttr() const;
-
-    /// See GetExposureAttr(), and also 
-    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
-    /// If specified, author \p defaultValue as the attribute's default,
-    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
-    /// the default for \p writeSparsely is \c false.
-    USDGEOM_API
-    UsdAttribute CreateExposureAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
 
 public:
     // ===================================================================== //

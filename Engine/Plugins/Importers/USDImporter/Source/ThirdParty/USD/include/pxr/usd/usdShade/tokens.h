@@ -88,15 +88,15 @@ struct UsdShadeTokensType {
     const TfToken full;
     /// \brief "id"
     /// 
-    /// Possible value for UsdShadeNodeDefAPI::GetImplementationSourceAttr(), Default value for UsdShadeNodeDefAPI::GetImplementationSourceAttr()
+    /// Possible value for UsdShadeShader::GetInfoImplementationSourceAttr(), Default value for UsdShadeShader::GetInfoImplementationSourceAttr()
     const TfToken id;
     /// \brief "info:id"
     /// 
-    /// UsdShadeNodeDefAPI
+    /// UsdShadeShader
     const TfToken infoId;
     /// \brief "info:implementationSource"
     /// 
-    /// UsdShadeNodeDefAPI
+    /// UsdShadeShader
     const TfToken infoImplementationSource;
     /// \brief "inputs:"
     /// 
@@ -148,11 +148,11 @@ struct UsdShadeTokensType {
     const TfToken sdrMetadata;
     /// \brief "sourceAsset"
     /// 
-    /// Possible value for UsdShadeNodeDefAPI::GetImplementationSourceAttr()
+    /// Possible value for UsdShadeShader::GetInfoImplementationSourceAttr()
     const TfToken sourceAsset;
     /// \brief "sourceCode"
     /// 
-    /// Possible value for UsdShadeNodeDefAPI::GetImplementationSourceAttr()
+    /// Possible value for UsdShadeShader::GetInfoImplementationSourceAttr()
     const TfToken sourceCode;
     /// \brief "strongerThanDescendants"
     /// 
@@ -172,7 +172,7 @@ struct UsdShadeTokensType {
     const TfToken universalRenderContext;
     /// \brief ""
     /// 
-    /// Possible value for the "sourceType" parameter  in \ref UsdShadeNodeDefAPI_ImplementationSource API. Represents  the universal or fallback source type. 
+    /// Possible value for the "sourceType" parameter  in \ref UsdShadeShader_ImplementationSource API. Represents  the universal or fallback source type. 
     const TfToken universalSourceType;
     /// \brief "volume"
     /// 

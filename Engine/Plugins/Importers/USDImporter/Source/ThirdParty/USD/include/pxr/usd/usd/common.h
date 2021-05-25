@@ -120,13 +120,11 @@ enum UsdLoadPolicy {
     UsdLoadWithoutDescendants
 };
 
-/// \enum UsdSchemaKind
+/// \enum UsdSchemaType
 ///
-/// An enum representing which kind of schema a given schema class belongs to
+/// An enum representing which type of schema a given schema class belongs to
 ///
-enum class UsdSchemaKind {
-    /// Invalid or unknown schema kind.
-    Invalid,
+enum class UsdSchemaType {
     /// Represents abstract or base schema types that are interface-only
     /// and cannot be instantiated. These are reserved for core base classes
     /// known to the usdGenSchema system, so this should never be assigned to
@@ -142,10 +140,8 @@ enum class UsdSchemaKind {
     SingleApplyAPI,
     /// Multiple Apply API Schema
     MultipleApplyAPI
+    
 };
-
-/// \deprecated Backwards compatible type name mapping.
-using UsdSchemaType = UsdSchemaKind;
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

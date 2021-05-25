@@ -38,7 +38,6 @@
 #include "pxr/usd/usdShade/input.h"
 #include "pxr/usd/usdShade/output.h"
 #include "pxr/usd/usdShade/shader.h"
-#include "pxr/usd/usdShade/connectableAPIBehavior.h"
 
 #include "pxr/base/vt/value.h"
 
@@ -82,13 +81,8 @@ class UsdShadeNodeGraph : public UsdTyped
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
 
     /// Construct a UsdShadeNodeGraph on UsdPrim \p prim .
     /// Equivalent to UsdShadeNodeGraph::Get(prim.GetStage(), prim.GetPath())
@@ -158,17 +152,11 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDSHADE_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDSHADE_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -233,13 +221,10 @@ public:
     UsdShadeOutput GetOutput(const TfToken &name) const;
 
     /// Outputs are represented by attributes in the "outputs:" namespace.
-    /// If \p onlyAuthored is true (the default), then only return authored
-    /// attributes; otherwise, this also returns un-authored builtins.
-    ///
+    /// 
     USDSHADE_API
-    std::vector<UsdShadeOutput> GetOutputs(bool onlyAuthored=true) const;
+    std::vector<UsdShadeOutput> GetOutputs() const;
 
-    /// \deprecated in favor of GetValueProducingAttributes on UsdShadeOutput
     /// Resolves the connection source of the requested output, identified by
     /// \p outputName to a shader output.
     /// 
@@ -314,11 +299,9 @@ public:
 
     /// Returns all inputs present on the node-graph. These are represented by
     /// attributes in the "inputs:" namespace.
-    /// If \p onlyAuthored is true (the default), then only return authored
-    /// attributes; otherwise, this also returns un-authored builtins.
-    ///
+    /// 
     USDSHADE_API
-    std::vector<UsdShadeInput> GetInputs(bool onlyAuthored=true) const;
+    std::vector<UsdShadeInput> GetInputs() const;
     
     /// @}
 
@@ -389,19 +372,6 @@ public:
         bool computeTransitiveConsumers=false) const;
 
     /// @}
-
-    /// UsdShadeNodeGraph provides its own connectability behavior,
-    /// to support nesting of node graphs.
-    class ConnectableAPIBehavior : public UsdShadeConnectableAPIBehavior {
-        USDSHADE_API
-        bool
-        CanConnectOutputToSource(const UsdShadeOutput &output,
-                                 const UsdAttribute &source,
-                                 std::string *reason) override;
-
-        USDSHADE_API
-        bool IsContainer() const override;
-    };
 
 };
 

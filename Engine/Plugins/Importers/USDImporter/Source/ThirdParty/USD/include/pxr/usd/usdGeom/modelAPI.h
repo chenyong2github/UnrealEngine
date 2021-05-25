@@ -80,25 +80,23 @@ class SdfAssetPath;
 /// - \em bounds - Draw the model-space bounding box of the replaced prim.
 /// - \em cards - Draw textured quads as a placeholder for the replaced prim.
 /// - \em default - An explicit opinion to draw the USD subtree as normal.
-/// - \em inherited - Defer to the parent opinion.
 /// 
-/// \em model:drawMode falls back to _inherited_ so that a whole scene,
-/// a large group, or all prototypes of a model hierarchy PointInstancer can
-/// be assigned a draw mode with a single attribute edit.  If no draw mode is
-/// explicitly set in a hierarchy, the resolved value is _default_.
-/// 
-/// \em model:applyDrawMode is meant to be written when an asset is authored,
-/// and provides flexibility for different asset types. For example,
-/// a character assembly (composed of character, clothes, etc) might have
-/// \em model:applyDrawMode set at the top of the subtree so the whole group
-/// can be drawn as a single card object. An effects subtree might have
-/// \em model:applyDrawMode set at a lower level so each particle
-/// group draws individually.
+/// \em model:drawMode is inheritable so that a whole scene, a large group, or
+/// all prototypes of a model hierarchy PointInstancer can be assigned a draw
+/// mode with a single attribute edit.  \em model:applyDrawMode is meant to be
+/// written when an asset is authored, and provides flexibility for different
+/// asset types. For example, a character assembly (composed of character,
+/// clothes, etc) might have \em model:applyDrawMode set at the top of the
+/// subtree so the whole group can be drawn as a single card object. An effects
+/// subtree might have \em model:applyDrawMode set at a lower level so each
+/// particle group draws individually.
 /// 
 /// Models of kind component are treated as if \em model:applyDrawMode
 /// were true.  This means a prim is drawn with proxy geometry when: the
 /// prim has kind component, and/or \em model:applyDrawMode is set; and
-/// the prim's resolved value for \em model:drawMode is not _default_.
+/// the prim or an ancestor has a non-default value for \em model:drawMode.
+/// A value for \em model:drawMode on a child prim takes precedence over a
+/// value on a parent prim.
 /// 
 /// \section UsdGeomModelAPI_cardGeometry Cards Geometry
 /// 
@@ -150,13 +148,8 @@ class UsdGeomModelAPI : public UsdAPISchemaBase
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
-
-    /// \deprecated
-    /// Same as schemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    static const UsdSchemaKind schemaType = UsdSchemaKind::SingleApplyAPI;
+    /// \sa UsdSchemaType
+    static const UsdSchemaType schemaType = UsdSchemaType::SingleApplyAPI;
 
     /// Construct a UsdGeomModelAPI on UsdPrim \p prim .
     /// Equivalent to UsdGeomModelAPI::Get(prim.GetStage(), prim.GetPath())
@@ -206,30 +199,22 @@ public:
     /// 
     /// \return A valid UsdGeomModelAPI object is returned upon success. 
     /// An invalid (or empty) UsdGeomModelAPI object is returned upon 
-    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
+    /// failure. See \ref UsdAPISchemaBase::_ApplyAPISchema() for conditions 
     /// resulting in failure. 
     /// 
     /// \sa UsdPrim::GetAppliedSchemas()
     /// \sa UsdPrim::HasAPI()
-    /// \sa UsdPrim::ApplyAPI()
-    /// \sa UsdPrim::RemoveAPI()
     ///
     USDGEOM_API
     static UsdGeomModelAPI 
     Apply(const UsdPrim &prim);
 
 protected:
-    /// Returns the kind of schema this class belongs to.
+    /// Returns the type of schema this class belongs to.
     ///
-    /// \sa UsdSchemaKind
+    /// \sa UsdSchemaType
     USDGEOM_API
-    UsdSchemaKind _GetSchemaKind() const override;
-
-    /// \deprecated
-    /// Same as _GetSchemaKind, provided to maintain temporary backward 
-    /// compatibility with older generated schemas.
-    USDGEOM_API
-    UsdSchemaKind _GetSchemaType() const override;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -254,11 +239,11 @@ public:
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `uniform token model:drawMode = "inherited"` |
+    /// | Declaration | `uniform token model:drawMode` |
     /// | C++ Type | TfToken |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
     /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
-    /// | \ref UsdGeomTokens "Allowed Values" | origin, bounds, cards, default, inherited |
+    /// | \ref UsdGeomTokens "Allowed Values" | origin, bounds, cards, default |
     USDGEOM_API
     UsdAttribute GetModelDrawModeAttr() const;
 
@@ -274,13 +259,13 @@ public:
     // --------------------------------------------------------------------- //
     // MODELAPPLYDRAWMODE 
     // --------------------------------------------------------------------- //
-    /// If true, and the resolved value of \em model:drawMode is
-    /// non-default, apply an alternate imaging mode to this prim. See
+    /// If true, and this prim or parent prims have \em model:drawMode
+    /// set, apply an alternate imaging mode to this prim. See
     /// \ref UsdGeomModelAPI_drawMode.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `uniform bool model:applyDrawMode = 0` |
+    /// | Declaration | `uniform bool model:applyDrawMode` |
     /// | C++ Type | bool |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Bool |
     /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
@@ -302,11 +287,12 @@ public:
     /// The base color of imaging prims inserted for alternate
     /// imaging modes. For \em origin and \em bounds modes, this
     /// controls line color; for \em cards mode, this controls the
-    /// fallback quad color.
+    /// fallback quad color. If unspecified, it should be interpreted
+    /// as (0.18, 0.18, 0.18).
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `uniform float3 model:drawModeColor = (0.18, 0.18, 0.18)` |
+    /// | Declaration | `uniform float3 model:drawModeColor` |
     /// | C++ Type | GfVec3f |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float3 |
     /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
@@ -327,11 +313,12 @@ public:
     // --------------------------------------------------------------------- //
     /// The geometry to generate for imaging prims inserted for \em
     /// cards imaging mode. See \ref UsdGeomModelAPI_cardGeometry for
-    /// geometry descriptions.
+    /// geometry descriptions. If unspecified, it should be interpreted
+    /// as \em cross.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `uniform token model:cardGeometry = "cross"` |
+    /// | Declaration | `uniform token model:cardGeometry` |
     /// | C++ Type | TfToken |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
     /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
@@ -608,13 +595,13 @@ public:
 
     /// @}
 
-    /// Calculate the effective model:drawMode of this prim.
+    /// Calculate the effective model:drawMode of this prim, as defined by
+    /// its closest ancestral authored opinion, if any.
     ///
-    /// If the draw mode is authored on this prim, it's used. Otherwise,
-    /// the fallback value is "inherited", which defers to the parent opinion.
-    /// The first non-inherited opinion found walking from this prim towards
-    /// the root is used.  If the attribute isn't set on any ancestors, we
-    /// return "default" (meaning, disable "drawMode" geometry).
+    /// If no opinion for model:drawMode is authored on this prim or any of its
+    /// ancestors, its computed model:drawMode is UsdGeomTokens->default_ .
+    /// Otherwise, its computed model:drawMode is that of its closest ancestor
+    /// with an authored model:drawMode.
     ///
     /// If this function is being called in a traversal context to compute 
     /// the draw mode of an entire hierarchy of prims, it would be beneficial
