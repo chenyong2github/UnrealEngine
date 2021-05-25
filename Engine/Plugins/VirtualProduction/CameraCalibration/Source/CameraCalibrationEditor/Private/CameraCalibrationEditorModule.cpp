@@ -7,7 +7,6 @@
 #include "AssetToolsModule.h"
 #include "AssetTypeActions/AssetTypeActions_LensFile.h"
 #include "CameraCalibrationTypes.h"
-#include "DistortionHandlerPickerDetailCustomization.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "LensFile.h"
@@ -38,9 +37,6 @@ void FCameraCalibrationEditorModule::StartupModule()
 	// register asset type actions
 	RegisterAssetTypeAction(MakeShared<FAssetTypeActions_LensFile>());
 
-	// register detail panel customization
-	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
 	{
 		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 		TSharedRef<FWorkspaceItem> BrowserGroup = MenuStructure.GetDeveloperToolsMiscCategory()->GetParent()->AddGroup(
@@ -48,9 +44,6 @@ void FCameraCalibrationEditorModule::StartupModule()
 			FSlateIcon(),
 			true);
 	}
-
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyEditorModule.RegisterCustomPropertyTypeLayout(FDistortionHandlerPicker::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDistortionHandlerPickerDetailCustomization::MakeInstance));
 
 	FCameraCalibrationMenuEntry::Register();
 }
@@ -62,10 +55,6 @@ void FCameraCalibrationEditorModule::ShutdownModule()
 		FCameraCalibrationMenuEntry::Unregister();
 
 		FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
-
-		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.UnregisterCustomClassLayout(ULensFile::StaticClass()->GetFName());
-		PropertyModule.UnregisterCustomPropertyTypeLayout(FDistortionHandlerPicker::StaticStruct()->GetFName());
 
 		// Unregister AssetTypeActions
 		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");

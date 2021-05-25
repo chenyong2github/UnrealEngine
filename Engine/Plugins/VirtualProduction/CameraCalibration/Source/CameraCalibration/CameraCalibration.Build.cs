@@ -17,15 +17,11 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"CameraCalibrationCore",
 					"CinematicCamera",
 					"Core",
 					"CoreUObject",
-					"DeveloperSettings",
 					"Engine",
-					"RenderCore",
-					"RHI",
-					"Slate",
-					"SlateCore",
 				}
 			);
 
@@ -33,21 +29,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
                 {
 					"LiveLinkComponents",
-                    "Projects",
 				}
-			);
-
-			if (Target.bBuildEditor == true)
-			{
-				PrivateDependencyModuleNames.Add("UnrealEd");
-			}
-
-			PrivateIncludePaths.AddRange(
-				new string[] 
-				{
-            		//required for ScreenPass
-            		"../../../../Source/Runtime/Renderer/Private",
-            	}
 			);
 		}
 	}

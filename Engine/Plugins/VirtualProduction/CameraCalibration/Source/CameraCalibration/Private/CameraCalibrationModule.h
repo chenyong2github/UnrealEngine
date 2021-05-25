@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "Delegates/IDelegateInstance.h"
 
 
 class FCameraCalibrationModule : public IModuleInterface
@@ -14,13 +14,4 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface interface
-
-private:
-	void ApplyStartupLensFile();
-	void RegisterDistortionModels();
-	void UnregisterDistortionModels();
-
-private:
-
-	FDelegateHandle PostEngineInitHandle;
 };
