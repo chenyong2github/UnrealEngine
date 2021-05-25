@@ -23,7 +23,7 @@
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
-
+#include "HAL/IPlatformFileManagedStorageWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 
 #include "Microsoft/MicrosoftAsyncIO.h"
@@ -1419,5 +1419,10 @@ public:
 IPlatformFile& IPlatformFile::GetPlatformPhysical()
 {
 	static FWindowsPlatformFile Singleton;
+#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
+	static FManagedStoragePlatformFile ManagedStoragePlatformFileSingleton(&Singleton);
+	return ManagedStoragePlatformFileSingleton;
+#else
 	return Singleton;
+#endif
 }
