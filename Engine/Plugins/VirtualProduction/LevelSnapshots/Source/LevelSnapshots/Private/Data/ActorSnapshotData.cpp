@@ -207,8 +207,6 @@ void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor
 
 void FActorSnapshotData::DeserializeComponents(AActor* IntoActor, FWorldSnapshotData& WorldData, TFunction<void(FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& ComponentMetaData, UActorComponent* ActorComp, FWorldSnapshotData& SharedData)>&& Callback)
 {
-	TInlineComponentArray<UActorComponent*> Components;
-	IntoActor->GetComponents(Components);
 	for (auto CompIt = ComponentData.CreateIterator(); CompIt; ++CompIt)
 	{
 		// Instances and construction script are not supported 
@@ -227,11 +225,16 @@ void FActorSnapshotData::DeserializeComponents(AActor* IntoActor, FWorldSnapshot
 		const FString OriginalComponentName = SubPath.RightChop(LastDot + 1); // + 1 because we don't want the '.'
 		check(OriginalComponentName.Len() > 0);
 
+		// Serializing into component causes PostEditChange to regenerate all Blueprint generated components
+		// Hence we need to obtain a new list of components every loop
+		TInlineComponentArray<UActorComponent*> Components;
+		IntoActor->GetComponents(Components);
 		for (UActorComponent* Comp : Components)
 		{
 			if (Comp->GetName().Equals(OriginalComponentName))
 			{
 				Callback(SnapshotData, CompIt->Value, Comp, WorldData);
+				break;
 			}
 		}
 	}
