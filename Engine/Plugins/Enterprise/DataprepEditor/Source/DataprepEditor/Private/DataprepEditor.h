@@ -148,6 +148,9 @@ public:
 	virtual FString GetReferencerName() const override;
 	virtual bool GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const override;
 
+	/** Returns content folder under which all assets are stored after execution of all producers */
+	FString GetTransientContentFolder();
+
 private:
 	void BindCommands();
 	void OnSaveScene();
@@ -210,9 +213,6 @@ private:
 	bool CanCommitWorld();
 
 	virtual bool OnRequestClose() override;
-
-	/** Returns content folder under which all assets are stored after execution of all producers */
-	FString GetTransientContentFolder();
 
 	/** Create a snapshot of the world and tracked assets */
 	void TakeSnapshot();
