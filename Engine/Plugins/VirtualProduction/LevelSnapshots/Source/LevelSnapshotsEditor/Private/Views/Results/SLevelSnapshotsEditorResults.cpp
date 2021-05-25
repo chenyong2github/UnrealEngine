@@ -2015,7 +2015,7 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 		}
 	};
 
-	FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties();
+	FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
 
 	// Modified actors
 	for (const FLevelSnapshotsEditorResultsRowPtr& Group : TreeViewModifiedActorGroupObjects)
@@ -2237,7 +2237,7 @@ void SLevelSnapshotsEditorResults::GenerateTreeView(const bool bSnapshotHasChang
 	SplitterManagerPtr = MakeShared<FLevelSnapshotsEditorResultsSplitterManager>(FLevelSnapshotsEditorResultsSplitterManager());
 
 	// Create root headers
-	if (FilterListData.GetModifiedFilteredActors().Num())
+	if (FilterListData.GetModifiedActors_AllowedByFilter().Num())
 	{
 		FLevelSnapshotsEditorResultsRowPtr ModifiedActorsHeader = MakeShared<FLevelSnapshotsEditorResultsRow>(
 			FLevelSnapshotsEditorResultsRow(FText::GetEmpty(), FLevelSnapshotsEditorResultsRow::TreeViewHeader, ECheckBoxState::Checked, SharedThis(this)));
@@ -2257,7 +2257,7 @@ void SLevelSnapshotsEditorResults::GenerateTreeView(const bool bSnapshotHasChang
 		}
 	}
 
-	if (FilterListData.GetFilteredAddedWorldActors().Num())
+	if (FilterListData.GetAddedWorldActors_AllowedByFilter().Num())
 	{
 		FLevelSnapshotsEditorResultsRowPtr AddedActorsHeader = MakeShared<FLevelSnapshotsEditorResultsRow>(
 			FLevelSnapshotsEditorResultsRow(FText::GetEmpty(), FLevelSnapshotsEditorResultsRow::TreeViewHeader, ECheckBoxState::Checked, SharedThis(this)));
@@ -2274,7 +2274,7 @@ void SLevelSnapshotsEditorResults::GenerateTreeView(const bool bSnapshotHasChang
 		}
 	}
 	
-	if (FilterListData.GetFilteredRemovedOriginalActorPaths().Num())
+	if (FilterListData.GetRemovedOriginalActorPaths_AllowedByFilter().Num())
 	{
 		FLevelSnapshotsEditorResultsRowPtr RemovedActorsHeader = MakeShared<FLevelSnapshotsEditorResultsRow>(
 			FLevelSnapshotsEditorResultsRow(FText::GetEmpty(), FLevelSnapshotsEditorResultsRow::TreeViewHeader, ECheckBoxState::Checked, SharedThis(this)));
@@ -2302,7 +2302,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 {
 	check(ModifiedActorsHeader);
 	
-	const TSet<TWeakObjectPtr<AActor>>& ActorsToConsider = FilterListData.GetModifiedFilteredActors();
+	const TSet<TWeakObjectPtr<AActor>>& ActorsToConsider = FilterListData.GetModifiedActors_AllowedByFilter();
 
 	TSet<FSoftObjectPath> EvaluatedObjects;
 
@@ -2325,7 +2325,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 			continue;
 		}
 
-		const int32 KeyCountBeforeFilter = FilterListData.GetModifiedActorsSelectedProperties().GetKeyCount();
+		const int32 KeyCountBeforeFilter = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter().GetKeyCount();
 
 		// Get remaining properties after filter
 		if (UserFilters)
@@ -2333,7 +2333,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 			FilterListData.ApplyFilterToFindSelectedProperties(WorldActor, UserFilters);
 		}
 
-		const FPropertySelectionMap& ModifiedSelectedActors = FilterListData.GetModifiedActorsSelectedProperties();
+		const FPropertySelectionMap& ModifiedSelectedActors = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
 		const int32 KeyCountAfterFilter = ModifiedSelectedActors.GetKeyCount();
 		const int32 KeyCountDifference = KeyCountAfterFilter - KeyCountBeforeFilter;
 
@@ -2393,7 +2393,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_AddedActors(FLevelSn
 {
 	check(AddedActorsHeader);
 	
-	for (const TWeakObjectPtr<AActor>& Actor : FilterListData.GetFilteredAddedWorldActors())
+	for (const TWeakObjectPtr<AActor>& Actor : FilterListData.GetAddedWorldActors_AllowedByFilter())
 	{
 		if (!Actor.IsValid())
 		{
@@ -2418,7 +2418,7 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_RemovedActors(FLevel
 {
 	check(RemovedActorsHeader);
 	
-	for (const FSoftObjectPath& ActorPath : FilterListData.GetFilteredRemovedOriginalActorPaths())
+	for (const FSoftObjectPath& ActorPath : FilterListData.GetRemovedOriginalActorPaths_AllowedByFilter())
 	{
 		FString ActorName = ActorPath.GetSubPathString().IsEmpty() ? ActorPath.GetAssetName() : ActorPath.GetSubPathString();
 
@@ -2534,7 +2534,7 @@ void SLevelSnapshotsEditorResults::OnGetRowChildren(FLevelSnapshotsEditorResults
 		{
 			if (Row->GetIsTreeViewItemExpanded())
 			{
-				FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties();
+				FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
 				Row->GenerateActorGroupChildren(PropertySelectionMap);
 
 				OutChildren = Row->GetChildRows();
