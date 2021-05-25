@@ -133,6 +133,7 @@ void SNodalOffsetToolPanel::UpdateNodalOffsetUI()
 	if (!Algo)
 	{
 		UpdateAlgosOptions();
+		return;
 	}
 
 	// If we didn't change the algo, we're done here.
