@@ -140,6 +140,21 @@ namespace AudioModulation
 		ModSystem->SoloBusMix(InBusMix);
 	}
 
+	void FAudioModulation::SetGlobalBusMixValue(USoundControlBus& InBus, float InValue, float InFadeTime)
+	{
+		ModSystem->SetGlobalBusMixValue(InBus, InValue, InFadeTime);
+	}
+
+	void FAudioModulation::ClearGlobalBusMixValue(const USoundControlBus& InBus, float InFadeTime)
+	{
+		ModSystem->ClearGlobalBusMixValue(InBus, InFadeTime);
+	}
+
+	void FAudioModulation::ClearAllGlobalBusMixValues(float InFadeTime)
+	{
+		ModSystem->ClearAllGlobalBusMixValues(InFadeTime);
+	}
+
 #if !UE_BUILD_SHIPPING
 	bool FAudioModulation::OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{

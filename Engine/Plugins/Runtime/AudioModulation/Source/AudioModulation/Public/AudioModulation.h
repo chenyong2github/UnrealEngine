@@ -55,6 +55,10 @@ namespace AudioModulation
 
 		void SoloBusMix(const USoundControlBusMix& InBusMix);
 
+		void SetGlobalBusMixValue(USoundControlBus& InBus, float InValue, float InFadeTime);
+		void ClearGlobalBusMixValue(const USoundControlBus& InBus, float InFadeTime);
+		void ClearAllGlobalBusMixValues(float InFadeTime);
+
 #if !UE_BUILD_SHIPPING
 		virtual void SetDebugBusFilter(const FString* InFilter);
 		virtual void SetDebugMixFilter(const FString* InFilter);

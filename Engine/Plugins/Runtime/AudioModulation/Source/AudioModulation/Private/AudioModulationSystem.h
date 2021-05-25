@@ -100,6 +100,15 @@ namespace AudioModulation
 		 */
 		void UpdateMix(const USoundControlBusMix& InMix, float InFadeTime = -1.0f);
 
+		/* Sets the global bus mix value if over the prescribed time. If FadeTime is non-positive, applies the value immediately. */
+		void SetGlobalBusMixValue(USoundControlBus& Bus, float Value, float FadeTime = -1.0f);
+
+		/* Clears the global bus mix value over the prescribed FadeTime. If FadeTime is non-positive, returns to the bus's respective parameter default immediately. */
+		void ClearGlobalBusMixValue(const USoundControlBus& InBus, float FadeTime = -1.0f);
+
+		/* Clears all global bus mix values over the prescribed FadeTime. If FadeTime is non-positive, returns to the bus's respective parameter default immediately. */
+		void ClearAllGlobalBusMixValues(float FadeTime = -1.0f);
+
 		/*
 		 * Commits any changes from a modulator type applied to a UObject definition
 		 * to modulator instance if active (i.e. Control Bus, Control Bus Modulator)
@@ -173,6 +182,9 @@ namespace AudioModulation
 		TSet<FBusHandle> ManuallyActivatedBuses;
 		TSet<FBusMixHandle> ManuallyActivatedBusMixes;
 		TSet<FGeneratorHandle> ManuallyActivatedGenerators;
+
+		// Global mixes each containing a single stage for any globally manipulated bus stage value.
+		TMap<uint32, TObjectPtr<USoundControlBusMix>> ActiveGlobalBusValueMixes;
 
 		// Command queue to be consumed on processing thread 
 		TQueue<TUniqueFunction<void()>, EQueueMode::Mpsc> ProcessingThreadCommandQueue;
@@ -250,6 +262,10 @@ namespace AudioModulation
 
 		void SaveMixToProfile(const USoundControlBusMix& InBusMix, const int32 InProfileIndex) { }
 		void LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix) { }
+
+		void SetGlobalBusMixValue(USoundControlBus& Bus, float Value, float FadeTime) { }
+		void ClearGlobalBusMixValue(const USoundControlBus& InBus, float FadeTime) { }
+		void ClearAllGlobalBusMixValues(float FadeTime) { }
 
 		void ProcessModulators(const double InElapsed) { }
 
