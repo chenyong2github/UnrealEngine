@@ -1345,6 +1345,8 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 	if (!(Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||
 		Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL ||
 		Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) &&
+		//  4K align with NV12 causes a crash on HoloLens 2.
+		Desc.Format != DXGI_FORMAT_NV12 &&
 		Desc.SampleDesc.Count == 1)
 	{
 		// The top mip level must be less than 64 KB to use 4 KB alignment
