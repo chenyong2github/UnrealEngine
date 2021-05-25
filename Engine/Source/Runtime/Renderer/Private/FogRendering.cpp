@@ -88,7 +88,8 @@ void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		}
 		else
 		{
-			OutParameters.IntegratedLightScattering = GBlackAlpha1VolumeTexture->GetRDG(GraphBuilder);
+			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+			OutParameters.IntegratedLightScattering = SystemTextures.VolumetricBlackAlphaOne;
 			OutParameters.ApplyVolumetricFog = 0.0f;
 		}
 		OutParameters.IntegratedLightScatteringSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

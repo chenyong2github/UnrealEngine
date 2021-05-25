@@ -7,6 +7,7 @@
 #include "SystemTextures.h"
 #include "Math/RandomStream.h"
 #include "Math/Sobol.h"
+#include "Math/Float16.h"
 #include "RenderTargetPool.h"
 #include "ClearQuad.h"
 #include "LTC.h"
@@ -30,12 +31,14 @@ const FRDGSystemTextures& FRDGSystemTextures::Create(FRDGBuilder& GraphBuilder)
 	SystemTextures.BlackAlphaOne = Register(GSystemTextures.BlackAlphaOneDummy);
 	SystemTextures.MaxFP16Depth = Register(GSystemTextures.MaxFP16Depth);
 	SystemTextures.DepthDummy = Register(GSystemTextures.DepthDummy);
+	SystemTextures.BlackDepthCube = Register(GSystemTextures.BlackDepthCube);
 	SystemTextures.StencilDummy = Register(GSystemTextures.StencilDummy);
 	SystemTextures.Green = Register(GSystemTextures.GreenDummy);
 	SystemTextures.DefaultNormal8Bit = Register(GSystemTextures.DefaultNormal8Bit);
 	SystemTextures.MidGrey = Register(GSystemTextures.MidGreyDummy);
 	SystemTextures.VolumetricBlack = Register(GSystemTextures.VolumetricBlackDummy);
-	SystemTextures.StencilDummySRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SystemTextures.DepthDummy, PF_X24_G8));
+	SystemTextures.VolumetricBlackAlphaOne = Register(GSystemTextures.VolumetricBlackAlphaOneDummy);
+	SystemTextures.StencilDummySRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SystemTextures.DepthDummy));
 	return SystemTextures;
 }
 
@@ -74,142 +77,98 @@ void FSystemTextures::InitializeTextures(FRHICommandListImmediate& RHICmdList, c
 	// there's no needed setup for those feature levels lower or identical to the current one
 }
 
+template <typename DataType>
+void SetDummyTextureData(FRHITexture2D* Texture2D, const DataType& DummyData)
+{
+	uint32 DestStride;
+	DataType* DestBuffer = (DataType*)RHILockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
+	*DestBuffer = DummyData;
+	RHIUnlockTexture2D(Texture2D, 0, false);
+}
+
 void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdList)
 {
 	// First initialize textures that are common to all feature levels. This is always done the first time we come into this function, as doesn't care about the
 	// requested feature level
 
-		// Create a WhiteDummy texture
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_B8G8R8A8, FClearValueBinding::White, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, WhiteDummy, TEXT("WhiteDummy"), ERenderTargetTransience::NonTransient);
+	// Create a WhiteDummy texture
+	{
+		WhiteDummy = CreateRenderTarget(GWhiteTexture->TextureRHI, TEXT("WhiteDummy"));
+		WhiteDummySRV = RHICreateShaderResourceView((FRHITexture2D*)WhiteDummy->GetShaderResourceRHI(), 0);
+	}
 
-			RHICmdList.Transition(FRHITransitionInfo(WhiteDummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-			FRHIRenderPassInfo RPInfo(WhiteDummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("WhiteDummy"));
-			RHICmdList.EndRenderPass();
-			RHICmdList.CopyToResolveTarget(WhiteDummy->GetRenderTargetItem().TargetableTexture, WhiteDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-
-			WhiteDummySRV = RHICreateShaderResourceView((FRHITexture2D*)WhiteDummy->GetRenderTargetItem().ShaderResourceTexture.GetReference(), 0);
-		}
-
-		// Create a BlackDummy texture
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, BlackDummy, TEXT("BlackDummy"), ERenderTargetTransience::NonTransient);
-
-			RHICmdList.Transition(FRHITransitionInfo(BlackDummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-			FRHIRenderPassInfo RPInfo(BlackDummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("BlackDummy"));
-			RHICmdList.EndRenderPass();
-			RHICmdList.CopyToResolveTarget(BlackDummy->GetRenderTargetItem().TargetableTexture, BlackDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		}
+	// Create a BlackDummy texture
+	{
+		BlackDummy = CreateRenderTarget(GBlackTexture->TextureRHI, TEXT("BlackDummy"));
+	}
 	
-		// Create a texture that is a single UInt32 value set to 0
+	// Create a texture that is a single UInt32 value set to 0
+	{	
+		FRHIResourceCreateInfo CreateInfo(TEXT("ZeroUIntDummy"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_R32_UINT, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		SetDummyTextureData<uint32>(Texture2D, 0u);
+		ZeroUIntDummy = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
+	}
+
+	// Create a BlackAlphaOneDummy texture
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("BlackAlphaOneDummy"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		SetDummyTextureData<FColor>(Texture2D, FColor(0, 0, 0, 255));
+		BlackAlphaOneDummy = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
+	}
+
+	// Create a GreenDummy texture
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("GreenDummy"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		SetDummyTextureData<FColor>(Texture2D, FColor(0, 255, 0, 255));
+		GreenDummy = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
+	}
+
+	// Create a DefaultNormal8Bit texture
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("DefaultNormal8Bit"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		SetDummyTextureData<FColor>(Texture2D, FColor(128, 128, 128, 255));
+		DefaultNormal8Bit = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
+	}
+
+	// Create the PerlinNoiseGradient texture
+	{
+		const uint32 Extent = 128;
+	
+		FRHIResourceCreateInfo CreateInfo(TEXT("PerlinNoiseGradient"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(Extent, Extent, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+
+		// Write the contents of the texture.
+		uint32 DestStride;
+		uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
+		// seed the pseudo random stream with a good value
+		FRandomStream RandomStream(12345);
+		// Values represent float3 values in the -1..1 range.
+		// The vectors are the edge mid point of a cube from -1 .. 1
+		static uint32 gradtable[] =
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1,1), PF_R32_UINT, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ZeroUIntDummy, TEXT("ZeroUIntDummy"), ERenderTargetTransience::NonTransient);
-
-			RHICmdList.Transition(FRHITransitionInfo(ZeroUIntDummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-			FRHIRenderPassInfo RPInfo(ZeroUIntDummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearZeroUIntDummy"));
-			RHICmdList.EndRenderPass();
-			RHICmdList.CopyToResolveTarget(ZeroUIntDummy->GetRenderTargetItem().TargetableTexture, ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		}
-
-		// Create a texture that is a single 4xUInt16 (UShort) value set to 0
+			0x88ffff, 0xff88ff, 0xffff88,
+			0x88ff00, 0xff8800, 0xff0088,
+			0x8800ff, 0x0088ff, 0x00ff88,
+			0x880000, 0x008800, 0x000088,
+		};
+		for (int32 y = 0; y < Extent; ++y)
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_R16G16B16A16_UINT, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ZeroUShort4Dummy, TEXT("ZeroUShort4Dummy"), ERenderTargetTransience::NonTransient);
-
-			RHICmdList.Transition(FRHITransitionInfo(ZeroUShort4Dummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-			FRHIRenderPassInfo RPInfo(ZeroUShort4Dummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearZeroUShort4Dummy"));
-			RHICmdList.EndRenderPass();
-			RHICmdList.CopyToResolveTarget(ZeroUShort4Dummy->GetRenderTargetItem().TargetableTexture, ZeroUShort4Dummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		}
-
-		// Create a BlackAlphaOneDummy texture
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_B8G8R8A8, FClearValueBinding::Black, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, BlackAlphaOneDummy, TEXT("BlackAlphaOneDummy"), ERenderTargetTransience::NonTransient);
-
-			RHICmdList.Transition(FRHITransitionInfo(BlackAlphaOneDummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-			FRHIRenderPassInfo RPInfo(BlackAlphaOneDummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("BlackAlphaOneDummy"));
-			RHICmdList.EndRenderPass();
-			RHICmdList.CopyToResolveTarget(BlackAlphaOneDummy->GetRenderTargetItem().TargetableTexture, BlackAlphaOneDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		}
-
-		// Create a GreenDummy texture
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_B8G8R8A8, FClearValueBinding::Green, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GreenDummy, TEXT("GreenDummy"), ERenderTargetTransience::NonTransient);
-
-			RHICmdList.Transition(FRHITransitionInfo(GreenDummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-			FRHIRenderPassInfo RPInfo(GreenDummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("GreenDummy"));
-			RHICmdList.EndRenderPass();
-			RHICmdList.CopyToResolveTarget(GreenDummy->GetRenderTargetItem().TargetableTexture, GreenDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		}
-
-		// Create a DefaultNormal8Bit texture
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_B8G8R8A8, FClearValueBinding::DefaultNormal8Bit, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DefaultNormal8Bit, TEXT("DefaultNormal8Bit"), ERenderTargetTransience::NonTransient);
-
-			RHICmdList.Transition(FRHITransitionInfo(DefaultNormal8Bit->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-			FRHIRenderPassInfo RPInfo(DefaultNormal8Bit->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("DefaultNormal8Bit"));
-			RHICmdList.EndRenderPass();
-			RHICmdList.CopyToResolveTarget(DefaultNormal8Bit->GetRenderTargetItem().TargetableTexture, DefaultNormal8Bit->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		}
-
-		// Create the PerlinNoiseGradient texture
-		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(128, 128), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_None | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			Desc.AutoWritable = false;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PerlinNoiseGradient, TEXT("PerlinNoiseGradient"), ERenderTargetTransience::NonTransient);
-			// Write the contents of the texture.
-			uint32 DestStride;
-			uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)PerlinNoiseGradient->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
-			// seed the pseudo random stream with a good value
-			FRandomStream RandomStream(12345);
-			// Values represent float3 values in the -1..1 range.
-			// The vectors are the edge mid point of a cube from -1 .. 1
-			static uint32 gradtable[] =
+			for (int32 x = 0; x < Extent; ++x)
 			{
-				0x88ffff, 0xff88ff, 0xffff88,
-				0x88ff00, 0xff8800, 0xff0088,
-				0x8800ff, 0x0088ff, 0x00ff88,
-				0x880000, 0x008800, 0x000088,
-			};
-			for (int32 y = 0; y < Desc.Extent.Y; ++y)
-			{
-				for (int32 x = 0; x < Desc.Extent.X; ++x)
-				{
 				uint32* Dest = (uint32*)(DestBuffer + x * sizeof(uint32) + y * DestStride);
 
-					// pick a random direction (hacky way to overcome the quality issues FRandomStream has)
-					*Dest = gradtable[(uint32)(RandomStream.GetFraction() * 11.9999999f)];
-				}
+				// pick a random direction (hacky way to overcome the quality issues FRandomStream has)
+				*Dest = gradtable[(uint32)(RandomStream.GetFraction() * 11.9999999f)];
 			}
-			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)PerlinNoiseGradient->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 		}
+		RHICmdList.UnlockTexture2D(Texture2D, 0, false);
+
+		PerlinNoiseGradient = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
+	}
 
 	if (GPixelFormats[PF_FloatRGBA].Supported)
 	{
@@ -225,49 +184,27 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		RHICmdList.CopyToResolveTarget(MaxFP16Depth->GetRenderTargetItem().TargetableTexture, MaxFP16Depth->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	}
 
-	// Create dummy 1x1 depth texture		
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_None, TexCreate_DepthStencilTargetable, false));
-		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DepthDummy, TEXT("DepthDummy"), ERenderTargetTransience::NonTransient);
+		DepthDummy = static_cast<bool>(ERHIZBuffer::IsInverted) ? BlackDummy : WhiteDummy;
 
-		RHICmdList.Transition(FRHITransitionInfo(DepthDummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::DSVWrite));
-
-		FRHIRenderPassInfo RPInfo(DepthDummy->GetRenderTargetItem().TargetableTexture, EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil, nullptr, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("DepthDummy"));
-		RHICmdList.EndRenderPass();
-		RHICmdList.CopyToResolveTarget(DepthDummy->GetRenderTargetItem().TargetableTexture, DepthDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+		BlackDepthCube = CreateRenderTarget(GBlackTextureDepthCube->TextureRHI, TEXT("BlackDepthCube"));
 	}
 
 	// Create a dummy stencil SRV.
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_R8G8B8A8_UINT, FClearValueBinding::White, TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
-		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, StencilDummy, TEXT("StencilDummy"), ERenderTargetTransience::NonTransient);
-
-		RHICmdList.Transition(FRHITransitionInfo(StencilDummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-		FRHIRenderPassInfo RPInfo(StencilDummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("StencilDummy"));
-		RHICmdList.EndRenderPass();
-		RHICmdList.CopyToResolveTarget(StencilDummy->GetRenderTargetItem().TargetableTexture, StencilDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-
-		StencilDummySRV = RHICreateShaderResourceView((FRHITexture2D*)StencilDummy->GetRenderTargetItem().ShaderResourceTexture.GetReference(), 0);
+		FRHIResourceCreateInfo CreateInfo(TEXT("StencilDummy"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_R8G8B8A8_UINT, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		SetDummyTextureData<FColor>(Texture2D, FColor::White);
+		StencilDummy = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
+		StencilDummySRV = RHICreateShaderResourceView((FRHITexture2D*)StencilDummy->GetShaderResourceRHI(), 0);
 	}
 
 	if (GPixelFormats[PF_FloatRGBA].Supported)
 	{
-		// PF_FloatRGBA to encode exactly the 0.5.
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_FloatRGBA, FClearValueBinding(FLinearColor(0.5f, 0.5f, 0.5f, 0.5f)), TexCreate_HideInVisualizeTexture, TexCreate_RenderTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, MidGreyDummy, TEXT("MidGreyDummy"), ERenderTargetTransience::NonTransient);
-
-		RHICmdList.Transition(FRHITransitionInfo(MidGreyDummy->GetRenderTargetItem().TargetableTexture, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-		FRHIRenderPassInfo RPInfo(MidGreyDummy->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("MidGreyDummy"));
-		RHICmdList.EndRenderPass();
-		RHICmdList.CopyToResolveTarget(MidGreyDummy->GetRenderTargetItem().TargetableTexture, MidGreyDummy->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+		FRHIResourceCreateInfo CreateInfo(TEXT("MidGreyDummy"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_FloatRGBA, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		SetDummyTextureData<FFloat16Color>(Texture2D, FFloat16Color(FLinearColor(0.5f, 0.5f, 0.5f, 0.5f)));
+		MidGreyDummy = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
 	}
 }
 
@@ -282,12 +219,11 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		// Create the SobolSampling texture
 	if (CurrentFeatureLevel < ERHIFeatureLevel::ES3_1 && InFeatureLevel >= ERHIFeatureLevel::ES3_1 && GPixelFormats[PF_R16_UINT].Supported)
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(32, 16), PF_R16_UINT, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SobolSampling, TEXT("SobolSampling"));
+		FRHIResourceCreateInfo CreateInfo(TEXT("SobolSampling"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(32, 16, PF_R16_UINT, 1, 1, TexCreate_ShaderResource, CreateInfo);
 		// Write the contents of the texture.
 		uint32 DestStride;
-		uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)SobolSampling->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+		uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
 
 		uint16 *Dest;
 		for (int y = 0; y < 16; ++y)
@@ -306,28 +242,16 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				*Dest = FSobol::ComputeGPUSpatialSeed(x, y, /* Index = */ 1);
 			}
 		}
-		RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SobolSampling->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+		RHICmdList.UnlockTexture2D(Texture2D, 0, false);
+
+		SobolSampling = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
 	}
 
 	// Create a VolumetricBlackDummy texture
 	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateVolumeDesc(1, 1, 1, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
-		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, VolumetricBlackDummy, TEXT("VolumetricBlackDummy"), ERenderTargetTransience::NonTransient);
-
-		const uint8 BlackBytes[4] = { 0, 0, 0, 0 };
-		FUpdateTextureRegion3D Region(0, 0, 0, 0, 0, 0, Desc.Extent.X, Desc.Extent.Y, Desc.Depth);
-		RHICmdList.UpdateTexture3D(
-			(FTexture3DRHIRef&)VolumetricBlackDummy->GetRenderTargetItem().ShaderResourceTexture,
-			0,
-			Region,
-			Desc.Extent.X * sizeof(BlackBytes),
-			Desc.Extent.X * Desc.Extent.Y * sizeof(BlackBytes),
-			BlackBytes);
-
-		// UpdateTexture3D before and after state is currently undefined
-		RHICmdList.Transition(FRHITransitionInfo(VolumetricBlackDummy->GetTargetableRHI(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		VolumetricBlackDummy = CreateRenderTarget(GBlackVolumeTexture->TextureRHI, TEXT("VolumetricBlackDummy"));
+		VolumetricBlackAlphaOneDummy = CreateRenderTarget(GBlackAlpha1VolumeTexture->TextureRHI, TEXT("VolumetricBlackAlphaOneDummy"));
 	}
 
 	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
@@ -359,29 +283,31 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			Format = PF_G16R16;
 		}
 
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(128, 32), Format, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource, false));
-		Desc.AutoWritable = false;
+		FIntPoint Extent(128, 32);
+
 		if (bReference)
 		{
-			Desc.Extent.X = 128;
-			Desc.Extent.Y = 128;
+			Extent.X = 128;
+			Extent.Y = 128;
 		}
 
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PreintegratedGF, TEXT("PreintegratedGF"), ERenderTargetTransience::NonTransient);
+		FRHIResourceCreateInfo CreateInfo(TEXT("PreintegratedGF"));
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(Extent.X, Extent.Y, Format, 1, 1, TexCreate_ShaderResource, CreateInfo);
+
 		// Write the contents of the texture.
 		uint32 DestStride;
-		uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+		uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
 
 		// x is NoV, y is roughness
-		for (int32 y = 0; y < Desc.Extent.Y; y++)
+		for (int32 y = 0; y < Extent.Y; y++)
 		{
-			float Roughness = (float)(y + 0.5f) / Desc.Extent.Y;
+			float Roughness = (float)(y + 0.5f) / Extent.Y;
 			float m = Roughness * Roughness;
 			float m2 = m * m;
 
-			for (int32 x = 0; x < Desc.Extent.X; x++)
+			for (int32 x = 0; x < Extent.X; x++)
 			{
-				float NoV = (float)(x + 0.5f) / Desc.Extent.X;
+				float NoV = (float)(x + 0.5f) / Extent.X;
 
 				FVector3f V;
 				V.X = FMath::Sqrt(1.0f - NoV * NoV);	// sin
@@ -450,14 +376,14 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				B /= NumSamples;
 				C /= NumSamples;
 
-				if (Desc.Format == PF_A16B16G16R16)
+				if (Format == PF_A16B16G16R16)
 				{
 					uint16* Dest = (uint16*)(DestBuffer + x * 8 + y * DestStride);
 					Dest[0] = (int32)(FMath::Clamp(A, 0.0f, 1.0f) * 65535.0f + 0.5f);
 					Dest[1] = (int32)(FMath::Clamp(B, 0.0f, 1.0f) * 65535.0f + 0.5f);
 					Dest[2] = (int32)(FMath::Clamp(C, 0.0f, 1.0f) * 65535.0f + 0.5f);
 				}
-				else if (Desc.Format == PF_G16R16)
+				else if (Format == PF_G16R16)
 				{
 					uint16* Dest = (uint16*)(DestBuffer + x * 4 + y * DestStride);
 					Dest[0] = (int32)(FMath::Clamp(A, 0.0f, 1.0f) * 65535.0f + 0.5f);
@@ -465,7 +391,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				}
 				else
 				{
-					check(Desc.Format == PF_R8G8);
+					check(Format == PF_R8G8);
 
 					uint8* Dest = (uint8*)(DestBuffer + x * 2 + y * DestStride);
 					Dest[0] = (int32)(FMath::Clamp(A, 0.0f, 1.0f) * 255.f + 0.5f);
@@ -473,20 +399,22 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				}
 			}
 		}
-		RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+		RHICmdList.UnlockTexture2D(Texture2D, 0, false);
+
+		PreintegratedGF = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
 	}
 
 	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 	    // Create the PerlinNoise3D texture (similar to http://prettyprocs.wordpress.com/2012/10/20/fast-perlin-noise/)
 	    {
-		    uint32 Extent = 16;
+		    const uint32 Extent = 16;
     
 		    const uint32 Square = Extent * Extent;
-    
-		    FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateVolumeDesc(Extent, Extent, Extent, PF_B8G8R8A8, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_HideInVisualizeTexture | TexCreate_NoTiling, TexCreate_ShaderResource, false));
-		    Desc.AutoWritable = false;
-		    GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PerlinNoise3D, TEXT("PerlinNoise3D"), ERenderTargetTransience::NonTransient);
+
+			FRHIResourceCreateInfo CreateInfo(TEXT("PerlinNoise3D"));
+			FTexture3DRHIRef Texture3D = RHICreateTexture3D(Extent, Extent, Extent, PF_B8G8R8A8, 1, TexCreate_ShaderResource | TexCreate_NoTiling, CreateInfo);
+
 		    // Write the contents of the texture.
 		    TArray<uint32> DestBuffer;
     
@@ -550,11 +478,11 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			{
 			    uint32* Dest = DestBuffer.GetData();
     
-				for (uint32 z = 0; z < Desc.Depth; ++z)
+				for (uint32 z = 0; z < Extent; ++z)
 			    {
-					for (uint32 y = 0; y < (uint32)Desc.Extent.Y; ++y)
+					for (uint32 y = 0; y < Extent; ++y)
 				    {
-						for (uint32 x = 0; x < (uint32)Desc.Extent.X; ++x)
+						for (uint32 x = 0; x < Extent; ++x)
 					    {
 						    uint32 Value = *Dest;
     
@@ -578,65 +506,73 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			    }
 		    }
     
-		    FUpdateTextureRegion3D Region(0, 0, 0, 0, 0, 0, Desc.Extent.X, Desc.Extent.Y, Desc.Depth);
+		    FUpdateTextureRegion3D Region(0, 0, 0, 0, 0, 0, Extent, Extent, Extent);
     
 		    RHICmdList.UpdateTexture3D(
-			    (FTexture3DRHIRef&)PerlinNoise3D->GetRenderTargetItem().ShaderResourceTexture,
+			    Texture3D,
 			    0,
 			    Region,
-			    Desc.Extent.X * sizeof(uint32),
-			    Desc.Extent.X * Desc.Extent.Y * sizeof(uint32),
+			    Extent * sizeof(uint32),
+			    Extent * Extent * sizeof(uint32),
 			    (const uint8*)DestBuffer.GetData());
+
+			PerlinNoise3D = CreateRenderTarget(Texture3D, CreateInfo.DebugName);
+
 		} // end Create the PerlinNoise3D texture
 
 		// GTAO Randomization texture	
 		{
+			{
+				FRHIResourceCreateInfo CreateInfo(TEXT("LTCMat"));
+				FTexture2DRHIRef Texture2D = RHICreateTexture2D(LTC_Size, LTC_Size, PF_FloatRGBA, 1, 1, TexCreate_FastVRAM | TexCreate_ShaderResource, CreateInfo);
 
-		    {
-			    FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(LTC_Size, LTC_Size), PF_FloatRGBA, FClearValueBinding::None, TexCreate_FastVRAM, TexCreate_ShaderResource, false));
-			    Desc.AutoWritable = false;
+				// Write the contents of the texture.
+				uint32 DestStride;
+				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
     
-			    GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LTCMat, TEXT("LTCMat"));
-			    // Write the contents of the texture.
-			    uint32 DestStride;
-			    uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)LTCMat->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+				for (int32 y = 0; y < LTC_Size; ++y)
+				{
+					for (int32 x = 0; x < LTC_Size; ++x)
+					{
+						uint16* Dest = (uint16*)(DestBuffer + x * 4 * sizeof(uint16) + y * DestStride);
     
-				    for (int32 y = 0; y < Desc.Extent.Y; ++y)
-			    {
-					    for (int32 x = 0; x < Desc.Extent.X; ++x)
-				    {
-					    uint16* Dest = (uint16*)(DestBuffer + x * 4 * sizeof(uint16) + y * DestStride);
-    
-						    for (int k = 0; k < 4; k++)
-							    Dest[k] = FFloat16(LTC_Mat[4 * (x + y * LTC_Size) + k]).Encoded;
-				    }
-			    }
-			    RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)LTCMat->GetRenderTargetItem().ShaderResourceTexture, 0, false);
-		    }
-    
-		    {
-			    FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(LTC_Size, LTC_Size), PF_G16R16F, FClearValueBinding::None, TexCreate_FastVRAM, TexCreate_ShaderResource, false));
-			    Desc.AutoWritable = false;
-    
-			    GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LTCAmp, TEXT("LTCAmp"));
-			    // Write the contents of the texture.
-			    uint32 DestStride;
-			    uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)LTCAmp->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
-    
-				for (int32 y = 0; y < Desc.Extent.Y; ++y)
-			    {
-					for (int32 x = 0; x < Desc.Extent.X; ++x)
-				    {
-					    uint16* Dest = (uint16*)(DestBuffer + x * 2 * sizeof(uint16) + y * DestStride);
-    
+						for (int k = 0; k < 4; k++)
+						{
+							Dest[k] = FFloat16(LTC_Mat[4 * (x + y * LTC_Size) + k]).Encoded;
+						}
+					}
+				}
+				RHICmdList.UnlockTexture2D(Texture2D, 0, false);
+
+				LTCMat = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
+			}
+
+			{
+				FRHIResourceCreateInfo CreateInfo(TEXT("LTCAmp"));
+				FTexture2DRHIRef Texture2D = RHICreateTexture2D(LTC_Size, LTC_Size, PF_G16R16F, 1, 1, TexCreate_FastVRAM | TexCreate_ShaderResource, CreateInfo);
+
+				// Write the contents of the texture.
+				uint32 DestStride;
+				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
+
+				for (int32 y = 0; y < LTC_Size; ++y)
+				{
+					for (int32 x = 0; x < LTC_Size; ++x)
+					{
+						uint16* Dest = (uint16*)(DestBuffer + x * 2 * sizeof(uint16) + y * DestStride);
+
 						for (int k = 0; k < 2; k++)
-						    Dest[k] = FFloat16(LTC_Amp[4 * (x + y * LTC_Size) + k]).Encoded;
-				    }
-			    }
-			    RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)LTCAmp->GetRenderTargetItem().ShaderResourceTexture, 0, false);
-		    }
-		} // end Create the GTAO  randomization texture
-	} // end if (FeatureLevelInitializedTo < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
+						{
+							Dest[k] = FFloat16(LTC_Amp[4 * (x + y * LTC_Size) + k]).Encoded;
+						}
+					}
+				}
+				RHICmdList.UnlockTexture2D(Texture2D, 0, false);
+
+				LTCAmp = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
+			}
+		}
+	}
 
 	// Create the SSAO randomization texture
 	static const auto MobileAmbientOcclusionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusion"));
@@ -669,17 +605,18 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			}
 
 			{
-				// could be PF_V8U8 to save shader instructions but that doesn't work on all hardware
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(64, 64), PF_R8G8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-				Desc.AutoWritable = false;
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SSAORandomization, TEXT("SSAORandomization"), ERenderTargetTransience::NonTransient);
+				const uint32 Extent = 64;
+
+				FRHIResourceCreateInfo CreateInfo(TEXT("SSAORandomization"));
+				FTexture2DRHIRef Texture2D = RHICreateTexture2D(Extent, Extent, PF_R8G8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+
 				// Write the contents of the texture.
 				uint32 DestStride;
-				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
 
-				for (int32 y = 0; y < Desc.Extent.Y; ++y)
+				for (int32 y = 0; y < Extent; ++y)
 				{
-					for (int32 x = 0; x < Desc.Extent.X; ++x)
+					for (int32 x = 0; x < Extent; ++x)
 					{
 						uint8* Dest = (uint8*)(DestBuffer + x * sizeof(uint16) + y * DestStride);
 
@@ -689,8 +626,11 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 						Dest[1] = Bases[Index].G;
 					}
 				}
+
+				RHICmdList.UnlockTexture2D(Texture2D, 0, false);
+
+				SSAORandomization = CreateRenderTarget(Texture2D, CreateInfo.DebugName);
 			}
-			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 		}
 	}
 		
@@ -704,18 +644,17 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 
 		bool bGTAOPreIngegratedUsingVolumeLUT = MobileGTAOPreIntegratedTextureTypeCVar->GetValueOnAnyThread() == 2;
 
-		FPooledRenderTargetDesc Desc;
+		TRefCountPtr<FRHITexture> Texture;
+
+		FRHIResourceCreateInfo CreateInfo(TEXT("GTAOPreIntegrated"));
 		if (bGTAOPreIngegratedUsingVolumeLUT)
 		{
-			Desc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::CreateVolumeDesc(Extent, Extent, Extent, PF_R16F, FClearValueBinding::None, TexCreate_HideInVisualizeTexture | TexCreate_NoTiling | TexCreate_ShaderResource, TexCreate_ShaderResource, false));
+			Texture = RHICreateTexture3D(Extent, Extent, Extent, PF_R16F, 1, TexCreate_ShaderResource, CreateInfo);
 		}
 		else
 		{
-			Desc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(Square, Extent), PF_R16F, FClearValueBinding::None, TexCreate_HideInVisualizeTexture | TexCreate_NoTiling | TexCreate_ShaderResource, TexCreate_ShaderResource, false));
+			Texture = RHICreateTexture2D(Square, Extent, PF_R16F, 1, 1, TexCreate_ShaderResource, CreateInfo);
 		}
-		
-		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GTAOPreIntegrated, TEXT("GTAOPreIntegrated"), ERenderTargetTransience::NonTransient);
 
 		// Write the contents of the texture.
 		TArray<FFloat16> TempBuffer;
@@ -730,7 +669,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		else
 		{
 			uint32 DestStride;
-			DestBuffer = (FFloat16*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)GTAOPreIntegrated->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+			DestBuffer = (FFloat16*)RHICmdList.LockTexture2D((FRHITexture2D*)Texture.GetReference(), 0, RLM_WriteOnly, DestStride, false);
 		}
 
 		for (uint32 z = 0; z < Extent; ++z)
@@ -776,20 +715,22 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 
 		if (bGTAOPreIngegratedUsingVolumeLUT)
 		{
-			FUpdateTextureRegion3D Region(0, 0, 0, 0, 0, 0, Desc.Extent.X, Desc.Extent.Y, Desc.Depth);
+			FUpdateTextureRegion3D Region(0, 0, 0, 0, 0, 0, Extent, Extent, Extent);
 
 			RHICmdList.UpdateTexture3D(
-				(FTexture3DRHIRef&)GTAOPreIntegrated->GetRenderTargetItem().ShaderResourceTexture,
+				(FRHITexture3D*)Texture.GetReference(),
 				0,
 				Region,
-				Desc.Extent.X * sizeof(FFloat16),
-				Desc.Extent.X * Desc.Extent.Y * sizeof(FFloat16),
+				Extent * sizeof(FFloat16),
+				Extent * Extent * sizeof(FFloat16),
 				(const uint8*)DestBuffer);
 		}
 		else
 		{
-			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)GTAOPreIntegrated->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+			RHICmdList.UnlockTexture2D((FRHITexture2D*)Texture.GetReference(), 0, false);
 		}
+
+		GTAOPreIntegrated = CreateRenderTarget(Texture, CreateInfo.DebugName);
 	}
 
 	// Initialize textures only once.
@@ -818,11 +759,12 @@ void FSystemTextures::ReleaseDynamicRHI()
 	GreenDummy.SafeRelease();
 	DefaultNormal8Bit.SafeRelease();
 	VolumetricBlackDummy.SafeRelease();
+	VolumetricBlackAlphaOneDummy.SafeRelease();
 	ZeroUIntDummy.SafeRelease();
-	ZeroUShort4Dummy.SafeRelease();
 	MidGreyDummy.SafeRelease();
 	StencilDummy.SafeRelease();
 	StencilDummySRV.SafeRelease();
+	BlackDepthCube.SafeRelease();
 	GTAOPreIntegrated.SafeRelease();
 
 	DefaultTextures.Empty();
@@ -889,11 +831,6 @@ FRDGTextureRef FSystemTextures::GetVolumetricBlackDummy(FRDGBuilder& GraphBuilde
 FRDGTextureRef FSystemTextures::GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const
 {
 	return GraphBuilder.RegisterExternalTexture(ZeroUIntDummy, TEXT("ZeroUIntDummy"));
-}
-
-FRDGTextureRef FSystemTextures::GetZeroUShort4Dummy(FRDGBuilder& GraphBuilder) const
-{
-	return GraphBuilder.RegisterExternalTexture(ZeroUShort4Dummy, TEXT("ZeroUShort4Dummy"));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1345,42 +1282,50 @@ FRDGBufferRef GetInternalDefaultBuffer(
 		return GraphBuilder.RegisterExternalBuffer(DefaultBuffers[Index].Buffer);
 	}
 
+	const uint32 BufferSize = NumBytePerElement * NumElements;
+
+	FRDGBufferDesc BufferDesc;
+	FRHIResourceCreateInfo CreateInfo(TEXT(""));
+
 	// Adding new buffer if there is no fit (slow path)
-	FRDGBufferRef Buffer = nullptr; 
+	TRefCountPtr<FRHIBuffer> RHIBuffer;
 	if (bIsStructuredBuffer)
 	{
-		Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(NumBytePerElement, NumElements), TEXT("DefaultStructuredBuffer"));
+		CreateInfo.DebugName = TEXT("DefaultStructuredBuffer");
+
+		BufferDesc = FRDGBufferDesc::CreateStructuredDesc(NumBytePerElement, NumElements);
+		BufferDesc.Usage = BUF_Static | BUF_ShaderResource;
+
+		RHIBuffer = RHICreateStructuredBuffer(NumBytePerElement, BufferSize, BufferDesc.Usage, CreateInfo);
 	}
 	else
 	{
-		Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(NumBytePerElement, NumElements), TEXT("DefaultBuffer"));
+		CreateInfo.DebugName = TEXT("DefaultBuffer");
+
+		BufferDesc = FRDGBufferDesc::CreateUploadDesc(NumBytePerElement, NumElements);
+
+		RHIBuffer = RHICreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource, CreateInfo);
 	}
 
-	FRDGBufferUploader BufferUploader;
-
-	// Initialize the entire buffer with the provided data
+	void* DestPtr = GraphBuilder.RHICmdList.LockBuffer(RHIBuffer, 0, BufferSize, RLM_WriteOnly);
 	if (Value)
 	{
-		BufferUploader.Upload(GraphBuilder, Buffer, Value, NumElements * NumBytePerElement);
+		FMemory::Memcpy(DestPtr, Value, BufferSize);
 	}
-	// Initialize buffer to 0
 	else
 	{
-		TArray<uint8> DefaultValue;
-		DefaultValue.Init(0u, NumElements * NumBytePerElement);
-		BufferUploader.Upload(GraphBuilder, Buffer, DefaultValue.GetData(), DefaultValue.Num());
+		FMemory::Memzero(DestPtr, BufferSize);
 	}
-
-	BufferUploader.Submit(GraphBuilder);
+	GraphBuilder.RHICmdList.UnlockBuffer(RHIBuffer);
 
 	FDefaultBuffer Entry;
 	Entry.Key = Key;
 	Entry.Hash = Hash;
-	Entry.Buffer = GraphBuilder.ConvertToExternalBuffer(Buffer);
+	Entry.Buffer = new FRDGPooledBuffer(RHIBuffer, BufferDesc, NumElements, CreateInfo.DebugName);
 
 	Index = DefaultBuffers.Add(Entry);
 	HashDefaultBuffers.Add(Hash, Index);
-	return Buffer;
+	return GraphBuilder.RegisterExternalBuffer(Entry.Buffer);
 }
 
 FVector4 GetClearBindingValue(EPixelFormat Format, FClearValueBinding Value)

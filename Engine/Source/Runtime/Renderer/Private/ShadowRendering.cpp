@@ -233,7 +233,7 @@ void GetOnePassPointShadowProjectionParameters(FRDGBuilder& GraphBuilder, const 
 	//@todo DynamicGI: remove duplication with FOnePassPointShadowProjectionShaderParameters
 	FRDGTexture* ShadowDepthTextureValue = ShadowInfo
 		? GraphBuilder.RegisterExternalTexture(ShadowInfo->RenderTargets.DepthTarget)
-		: GBlackTextureDepthCube->GetRDG(GraphBuilder);
+		: SystemTextures.BlackDepthCube;
 
 	OutParameters.ShadowDepthCubeTexture = ShadowDepthTextureValue;
 	OutParameters.ShadowDepthCubeTexture2 = ShadowDepthTextureValue;

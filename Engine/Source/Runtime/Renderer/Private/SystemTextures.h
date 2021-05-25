@@ -26,10 +26,12 @@ struct FRDGSystemTextures
 	FRDGTextureRef MaxFP16Depth{};
 	FRDGTextureRef DepthDummy{};
 	FRDGTextureRef StencilDummy{};
+	FRDGTextureRef BlackDepthCube{};
 	FRDGTextureRef Green{};
 	FRDGTextureRef DefaultNormal8Bit{};
 	FRDGTextureRef MidGrey{};
 	FRDGTextureRef VolumetricBlack{};
+	FRDGTextureRef VolumetricBlackAlphaOne{};
 
 	FRDGTextureSRVRef StencilDummySRV{};
 };
@@ -122,6 +124,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> DepthDummy;
 	/** Stencil texture that holds a single stencil value. */
 	TRefCountPtr<IPooledRenderTarget> StencilDummy;
+	TRefCountPtr<IPooledRenderTarget> BlackDepthCube;
 	// float4(0,1,0,1)
 	TRefCountPtr<IPooledRenderTarget> GreenDummy;
 	// float4(0.5,0.5,0.5,1)
@@ -131,10 +134,10 @@ public:
 
 	/** float4(0,0,0,0) volumetric texture. */
 	TRefCountPtr<IPooledRenderTarget> VolumetricBlackDummy;
+	TRefCountPtr<IPooledRenderTarget> VolumetricBlackAlphaOneDummy;
 	
 	// Dummy 0 Uint texture for RHIs that need explicit overloads
 	TRefCountPtr<IPooledRenderTarget> ZeroUIntDummy;
-	TRefCountPtr<IPooledRenderTarget> ZeroUShort4Dummy;
 
 	// SRV for WhiteDummy Texture.
 	TRefCountPtr<FRHIShaderResourceView> WhiteDummySRV;

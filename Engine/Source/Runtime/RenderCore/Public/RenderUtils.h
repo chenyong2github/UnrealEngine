@@ -12,30 +12,9 @@
 class FBufferWithRDG;
 class FRDGBuffer;
 class FRDGPooledBuffer;
-class FTextureWithRDG;
 class FRDGTexture;
 class FRDGBuilder;
 struct IPooledRenderTarget;
-
-/** An FTexture variant that includes more efficient support for registering with RDG. */
-class RENDERCORE_API FTextureWithRDG : public FTexture
-{
-public:
-	FTextureWithRDG();
-	FTextureWithRDG(const FTextureWithRDG& Other);
-	FTextureWithRDG& operator=(const FTextureWithRDG& Other);
-	~FTextureWithRDG() override;
-
-	FRDGTexture* GetRDG(FRDGBuilder& GraphBuilder) const;
-
-	void ReleaseRHI() override;
-
-protected:
-	void InitRDG(const TCHAR* Name);
-
-private:
-	TRefCountPtr<IPooledRenderTarget> RenderTarget;
-};
 
 class RENDERCORE_API FBufferWithRDG : public FRenderResource
 {
@@ -144,7 +123,6 @@ extern RENDERCORE_API class FTextureWithSRV* GWhiteTextureWithSRV;
 /** A global black texture. */
 extern RENDERCORE_API class FTexture* GBlackTexture;
 extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithSRV;
-extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithUAV;
 
 extern RENDERCORE_API class FTexture* GTransparentBlackTexture;
 extern RENDERCORE_API class FTextureWithSRV* GTransparentBlackTextureWithSRV;
@@ -159,28 +137,28 @@ extern RENDERCORE_API class FBufferWithRDG* GWhiteVertexBufferWithRDG;
 extern RENDERCORE_API class FTexture* GBlackArrayTexture;
 
 /** A global black volume texture. */
-extern RENDERCORE_API class FTextureWithRDG* GBlackVolumeTexture;
+extern RENDERCORE_API class FTexture* GBlackVolumeTexture;
 
 /** A global black volume texture, with alpha=1. */
-extern RENDERCORE_API class FTextureWithRDG* GBlackAlpha1VolumeTexture;
+extern RENDERCORE_API class FTexture* GBlackAlpha1VolumeTexture;
 
 /** A global black texture<uint> */
 extern RENDERCORE_API class FTexture* GBlackUintTexture;
 
 /** A global black volume texture<uint>  */
-extern RENDERCORE_API class FTextureWithRDG* GBlackUintVolumeTexture;
+extern RENDERCORE_API class FTexture* GBlackUintVolumeTexture;
 
 /** A global white cube texture. */
-extern RENDERCORE_API class FTextureWithRDG* GWhiteTextureCube;
+extern RENDERCORE_API class FTexture* GWhiteTextureCube;
 
 /** A global black cube texture. */
-extern RENDERCORE_API class FTextureWithRDG* GBlackTextureCube;
+extern RENDERCORE_API class FTexture* GBlackTextureCube;
 
 /** A global black cube depth texture. */
-extern RENDERCORE_API class FTextureWithRDG* GBlackTextureDepthCube;
+extern RENDERCORE_API class FTexture* GBlackTextureDepthCube;
 
 /** A global black cube array texture. */
-extern RENDERCORE_API class FTextureWithRDG* GBlackCubeArrayTexture;
+extern RENDERCORE_API class FTexture* GBlackCubeArrayTexture;
 
 /** A global texture that has a different solid color in each mip-level. */
 extern RENDERCORE_API class FTexture* GMipColorTexture;
