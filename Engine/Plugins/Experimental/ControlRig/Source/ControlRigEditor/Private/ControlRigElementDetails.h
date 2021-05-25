@@ -40,6 +40,14 @@ protected:
 	TSharedRef<SWidget> OnGetElementNameWidget(TSharedPtr<FString> InItem);
 	FText GetElementNameAsText() const;
 
+	/** Helper buttons. */
+	TSharedPtr<SButton> UseSelectedButton;
+	TSharedPtr<SButton> SelectElementButton;
+	FSlateColor OnGetWidgetForeground(const TSharedPtr<SButton> Button) const;
+	FSlateColor OnGetWidgetBackground(const TSharedPtr<SButton> Button) const;
+	FReply OnGetSelectedClicked();
+	FReply OnSelectInHierarchyClicked();
+	
 	TSharedPtr<IPropertyHandle> TypeHandle;
 	TSharedPtr<IPropertyHandle> NameHandle;
 	TArray<TSharedPtr<FString>> ElementNameList;
