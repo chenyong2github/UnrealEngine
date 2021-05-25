@@ -50,7 +50,11 @@ namespace Chaos
 
 		FORCEINLINE void Serialize(FArchive &Ar) 
 		{
-			Ar << MPoint << MAxis << MLength;
+			Ar << MPoint << MAxis;
+			
+			FRealSingle LengthFloat = (FRealSingle)MLength; // LWC_TODO : potential precision loss, to be changed when we can serialize FReal as double
+			Ar << LengthFloat;
+			MLength = (T)LengthFloat;
 		}
 
 		FORCEINLINE TAABB<T, 3> BoundingBox() const

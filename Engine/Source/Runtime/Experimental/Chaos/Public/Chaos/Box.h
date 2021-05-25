@@ -406,7 +406,10 @@ namespace Chaos
 			Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 			if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MarginAddedToConvexAndBox)
 			{
-				Ar << FImplicitObject::Margin;
+				// LWC_TODO : potential precision loss, to be changed when we can serialize FReal as double
+				FRealSingle MarginFloat = (FRealSingle)FImplicitObject::Margin;
+				Ar << MarginFloat;
+				FImplicitObject::Margin = (T)MarginFloat;
 			}
 		}
 
