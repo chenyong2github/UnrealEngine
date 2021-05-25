@@ -211,9 +211,18 @@ public:
 
 	/**
 	 * Saves a list of open asset editors so they can be restored on editor restart.
+	 * @param bOnShutdown If true, this is handled as if the engine is shutting down right now.
+	 */
+
+	void SaveOpenAssetEditors(const bool bOnShutdown);
+	
+	/**
+	 * Saves a list of open asset editors so they can be restored on editor restart.
+	 * @param bOnShutdown If true, this is handled as if the engine is shutting down right now.
 	 * @param bCancelIfDebugger If true, don't save a list of assets to restore if we are running under a debugger.
 	 */
-	void SaveOpenAssetEditors(const bool bOnShutdown, const bool bCancelIfDebugger = true);
+	UE_DEPRECATED(5.0, "Please use the version of SaveOpenAssetEditors with only one argument, bOnShutdown.")
+	void SaveOpenAssetEditors(const bool bOnShutdown, const bool bCancelIfDebugger);
 
 	/** Restore the assets that were previously open when the editor was last closed. */
 	void RestorePreviouslyOpenAssets();

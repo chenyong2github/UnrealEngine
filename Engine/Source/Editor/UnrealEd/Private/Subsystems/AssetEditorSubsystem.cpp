@@ -845,14 +845,12 @@ void UAssetEditorSubsystem::OnCancelRestorePreviouslyOpenAssets()
 	}
 }
 
-void UAssetEditorSubsystem::SaveOpenAssetEditors(const bool bOnShutdown, const bool bCancelIfDebugger)
+void UAssetEditorSubsystem::SaveOpenAssetEditors(const bool bOnShutdown)
 {
 	if (!bSavingOnShutdown && !bAutoRestoreAndDisableSaving)
 	{
 		TArray<FString> OpenAssets;
-
-		// If bCancelIfDebugger = true, don't save a list of assets to restore if we are running under a debugger
-		if (!bCancelIfDebugger || !FPlatformMisc::IsDebuggerPresent())
+		if (bOnShutdown || !FPlatformMisc::IsDebuggerPresent())
 		{
 			for (const TPair<IAssetEditorInstance*, UObject*>& EditorPair : OpenedEditors)
 			{
@@ -872,11 +870,15 @@ void UAssetEditorSubsystem::SaveOpenAssetEditors(const bool bOnShutdown, const b
 				}
 			}
 		}
-
 		GConfig->SetArray(TEXT("AssetEditorSubsystem"), TEXT("OpenAssetsAtExit"), OpenAssets, GEditorPerProjectIni);
 		GConfig->SetBool(TEXT("AssetEditorSubsystem"), TEXT("CleanShutdown"), bOnShutdown, GEditorPerProjectIni);
 		GConfig->Flush(false, GEditorPerProjectIni);
 	}
+}
+
+void UAssetEditorSubsystem::SaveOpenAssetEditors(const bool bOnShutdown, const bool bCancelIfDebugger)
+{
+	SaveOpenAssetEditors(bOnShutdown);
 }
 
 void UAssetEditorSubsystem::HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
