@@ -158,7 +158,7 @@ void AGXSafeReleaseMetalTexture(FAGXSurface* Surface, FAGXTexture& Texture)
 }
 
 #if !PLATFORM_IOS
-mtlpp::PixelFormat ToSRGBFormat_NonAppleMacGPU(mtlpp::PixelFormat MTLFormat)
+static mtlpp::PixelFormat AGX_ToSRGBFormat_NonAppleMacGPU(mtlpp::PixelFormat MTLFormat)
 {
 	switch (MTLFormat)
 	{
@@ -187,7 +187,7 @@ mtlpp::PixelFormat ToSRGBFormat_NonAppleMacGPU(mtlpp::PixelFormat MTLFormat)
 }
 #endif
 
-mtlpp::PixelFormat ToSRGBFormat_AppleGPU(mtlpp::PixelFormat MTLFormat)
+static mtlpp::PixelFormat AGX_ToSRGBFormat_AppleGPU(mtlpp::PixelFormat MTLFormat)
 {
 	switch (MTLFormat)
 	{
@@ -231,12 +231,12 @@ mtlpp::PixelFormat AGXToSRGBFormat(mtlpp::PixelFormat MTLFormat)
 {
 	if([GetAGXDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyApple1])
 	{
-		MTLFormat = ToSRGBFormat_AppleGPU(MTLFormat);
+		MTLFormat = AGX_ToSRGBFormat_AppleGPU(MTLFormat);
 	}
 #if !PLATFORM_IOS
 	else if([GetAGXDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyMac1])
 	{
-		MTLFormat = ToSRGBFormat_NonAppleMacGPU(MTLFormat);
+		MTLFormat = AGX_ToSRGBFormat_NonAppleMacGPU(MTLFormat);
 	}
 #endif
 	

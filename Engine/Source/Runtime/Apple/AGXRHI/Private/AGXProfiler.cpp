@@ -62,7 +62,7 @@ int64 volatile GAGXGPUWorkTime = 0;
 int64 volatile GAGXGPUIdleTime = 0;
 int64 volatile GAGXPresentTime = 0;
 
-void WriteString(FArchive* OutputFile, const char* String)
+static void AGXWriteString(FArchive* OutputFile, const char* String)
 {
 	OutputFile->Serialize((void*)String, sizeof(ANSICHAR)*FCStringAnsi::Strlen(String));
 }
@@ -719,7 +719,7 @@ void FAGXProfiler::SaveTrace()
 		
 		FArchive* OutputFile = IFileManager::Get().CreateFileWriter(*OutputFilename);
 		
-		WriteString(OutputFile, R"({"traceEvents":[)" "\n");
+		AGXWriteString(OutputFile, R"({"traceEvents":[)" "\n");
 		
 		int32 SortIndex = 0; // Lower numbers result in higher position in the visualizer.
 		const uint32 Pid = FPlatformProcess::GetCurrentProcessId();
@@ -730,28 +730,28 @@ void FAGXProfiler::SaveTrace()
 											 Pid, GPUIndex, GPUIndex, Pid, GPUIndex, SortIndex
 											 );
 			
-			WriteString(OutputFile, TCHAR_TO_UTF8(*Output));
+			AGXWriteString(OutputFile, TCHAR_TO_UTF8(*Output));
 			SortIndex++;
 			
 			Output = FString::Printf(TEXT("{\"pid\":%d, \"tid\":%d, \"ph\": \"M\", \"name\": \"thread_name\", \"args\":{\"name\":\"GPU %d Operations\"}},{\"pid\":%d, \"tid\":%d, \"ph\": \"M\", \"name\": \"thread_sort_index\", \"args\":{\"sort_index\": %d}},\n"),
 											 Pid, GPUIndex+SortIndex, GPUIndex, Pid, GPUIndex+SortIndex, SortIndex
 											 );
 			
-			WriteString(OutputFile, TCHAR_TO_UTF8(*Output));
+			AGXWriteString(OutputFile, TCHAR_TO_UTF8(*Output));
 			SortIndex++;
 			
 			Output = FString::Printf(TEXT("{\"pid\":%d, \"tid\":%d, \"ph\": \"M\", \"name\": \"thread_name\", \"args\":{\"name\":\"Render Events %d\"}},{\"pid\":%d, \"tid\":%d, \"ph\": \"M\", \"name\": \"thread_sort_index\", \"args\":{\"sort_index\": %d}},\n"),
 									 Pid, GPUIndex+SortIndex, GPUIndex, Pid, GPUIndex+SortIndex, SortIndex
 									 );
 			
-			WriteString(OutputFile, TCHAR_TO_UTF8(*Output));
+			AGXWriteString(OutputFile, TCHAR_TO_UTF8(*Output));
 			SortIndex++;
 			
 			Output = FString::Printf(TEXT("{\"pid\":%d, \"tid\":%d, \"ph\": \"M\", \"name\": \"thread_name\", \"args\":{\"name\":\"Driver Stats %d\"}},{\"pid\":%d, \"tid\":%d, \"ph\": \"M\", \"name\": \"thread_sort_index\", \"args\":{\"sort_index\": %d}},\n"),
 									 Pid, GPUIndex+SortIndex, GPUIndex, Pid, GPUIndex+SortIndex, SortIndex
 									 );
 			
-			WriteString(OutputFile, TCHAR_TO_UTF8(*Output));
+			AGXWriteString(OutputFile, TCHAR_TO_UTF8(*Output));
 			SortIndex++;
 			
 			for (uint32 Display : Displays)
@@ -760,7 +760,7 @@ void FAGXProfiler::SaveTrace()
 										 Pid, Display + SortIndex, SortIndex - 3, Pid, Display + SortIndex, SortIndex
 										 );
 				
-				WriteString(OutputFile, TCHAR_TO_UTF8(*Output));
+				AGXWriteString(OutputFile, TCHAR_TO_UTF8(*Output));
 				SortIndex++;
 			}
 		}
@@ -788,27 +788,27 @@ void FAGXProfiler::SaveTrace()
 											 );
 			
 			
-			WriteString(OutputFile, TCHAR_TO_UTF8(*Output));
+			AGXWriteString(OutputFile, TCHAR_TO_UTF8(*Output));
 			SortIndex++;
 		}
 		
 		for (FAGXCommandBufferStats* CmdBufStats : TracedBuffers)
 		{
-			WriteString(OutputFile, TCHAR_TO_UTF8(*CmdBufStats->GetJSONRepresentation(Pid)));
+			AGXWriteString(OutputFile, TCHAR_TO_UTF8(*CmdBufStats->GetJSONRepresentation(Pid)));
 			
 			for (IAGXStatsScope* ES : CmdBufStats->Children)
 			{
-				WriteString(OutputFile, TCHAR_TO_UTF8(*ES->GetJSONRepresentation(Pid)));
+				AGXWriteString(OutputFile, TCHAR_TO_UTF8(*ES->GetJSONRepresentation(Pid)));
 				
 				uint64 PrevTime = ES->GPUStartTime;
 				for (IAGXStatsScope* DS : ES->Children)
 				{
-					WriteString(OutputFile, TCHAR_TO_UTF8(*DS->GetJSONRepresentation(Pid)));
+					AGXWriteString(OutputFile, TCHAR_TO_UTF8(*DS->GetJSONRepresentation(Pid)));
 					if (!DS->GPUStartTime)
 					{
 						DS->GPUStartTime = FMath::Max(PrevTime, DS->GPUStartTime);
 						DS->GPUEndTime = DS->GPUStartTime + 1llu;
-						WriteString(OutputFile, TCHAR_TO_UTF8(*DS->GetJSONRepresentation(Pid)));
+						AGXWriteString(OutputFile, TCHAR_TO_UTF8(*DS->GetJSONRepresentation(Pid)));
 					}
 					PrevTime = DS->GPUEndTime;
 				}
@@ -821,21 +821,21 @@ void FAGXProfiler::SaveTrace()
 		for (FAGXDisplayStats* DisplayStat : DisplayStats)
 		{
 			DisplayStat->GPUThreadIndex += 3;
-			WriteString(OutputFile, TCHAR_TO_UTF8(*DisplayStat->GetJSONRepresentation(Pid)));
+			AGXWriteString(OutputFile, TCHAR_TO_UTF8(*DisplayStat->GetJSONRepresentation(Pid)));
 			delete DisplayStat;
 		}
 		DisplayStats.Empty();
 		
 		for (FAGXCPUStats* CPUStat : CPUStats)
 		{
-			WriteString(OutputFile, TCHAR_TO_UTF8(*CPUStat->GetJSONRepresentation(Pid)));
+			AGXWriteString(OutputFile, TCHAR_TO_UTF8(*CPUStat->GetJSONRepresentation(Pid)));
 			delete CPUStat;
 		}
 		CPUStats.Empty();
 		
 		// All done
 		
-		WriteString(OutputFile, "{}]}");
+		AGXWriteString(OutputFile, "{}]}");
 		
 		OutputFile->Close();
 	}
