@@ -70,6 +70,12 @@ namespace Perforce.P4
 		}
 
 		// EPIC BEGIN
+		/// <summary>
+		/// Simulates a crash (access violation)
+		/// </summary>
+		[DllImport(bridgeDll, EntryPoint = "DebugCrash", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+		public static extern void DebugCrash();
+
 		//[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
 		//static extern bool SetDllDirectory(string lpPathName);
 		// EPIC END
@@ -811,6 +817,7 @@ namespace Perforce.P4
 		[DllImport(bridgeDll, EntryPoint = "SetConnectionHost", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
 		public static extern void SetConnectionHost(IntPtr pServer, String hostname);
 
+
 		/// <summary>
 		/// Read the data set
 		/// </summary>
@@ -820,7 +827,7 @@ namespace Perforce.P4
 		/// SetCharacterSet().
 		/// </remarks>
 		/// <param name="pServer">P4BridgeServer Handle</param>
-        /// <param name="cmdId">Unique Id for the run of the command</param>
+		/// <param name="cmdId">Unique Id for the run of the command</param>
 		/// <returns>The data in the data set</returns>
 		[DllImport(bridgeDll,
 			CallingConvention = CallingConvention.Cdecl)]

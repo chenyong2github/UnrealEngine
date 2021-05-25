@@ -40,6 +40,7 @@ using HordeServer.Storage;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using StatsdClient;
+using P4Debugging = Perforce.P4.P4Debugging; 
 
 namespace HordeServer.Controllers
 {
@@ -825,6 +826,23 @@ namespace HordeServer.Controllers
 			Content.Append("</pre></body></html>");
 			return new ContentResult { ContentType = "text/html", StatusCode = (int)HttpStatusCode.OK, Content = Content.ToString() };
 
+		}
+
+		/// <summary>
+		/// Simulates a crash of the native p4 bridge
+		/// </summary>		
+		[HttpGet]		
+		[Route("/api/v1/debug/perforce/debugcrash")]		
+		public async Task<ActionResult> GetPerforceDebugCrash()
+		{
+			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			{
+				return Forbid();
+			}
+
+			P4Debugging.DebugCrash();
+
+			return Ok();
 		}
 
 		/// <summary>
