@@ -40,6 +40,7 @@ class NIAGARA_API UNiagaraDataInterfaceRWBase : public UNiagaraDataInterface
 public:
 	// Global HLSL variable base names, used by HLSL.
 	static const FString NumAttributesName;
+	static const FString NumNamedAttributesName;
 	static const FString NumCellsName;
 	static const FString UnitToUVName;
 	static const FString CellSizeName;

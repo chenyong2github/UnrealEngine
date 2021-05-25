@@ -9,6 +9,7 @@
 
 // Global HLSL variable base names, used by HLSL.
 const FString UNiagaraDataInterfaceRWBase::NumAttributesName(TEXT("NumAttributes_"));
+const FString UNiagaraDataInterfaceRWBase::NumNamedAttributesName(TEXT("NumNamedAttributes_"));
 const FString UNiagaraDataInterfaceRWBase::NumCellsName(TEXT("NumCells_"));
 const FString UNiagaraDataInterfaceRWBase::UnitToUVName(TEXT("UnitToUV_"));
 const FString UNiagaraDataInterfaceRWBase::CellSizeName(TEXT("CellSize_"));
