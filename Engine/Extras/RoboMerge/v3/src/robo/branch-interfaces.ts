@@ -233,9 +233,12 @@ export function gatesSame(lhs: GateInfo | null, rhs: GateInfo | null) {
 	for (let n = 0; n < lhs.integrationWindow.length; ++n) {
 		const lhsWindow = lhs.integrationWindow[n]
 		const rhsWindow = rhs.integrationWindow[n]
+		const lhsDays = lhsWindow.daysOfTheWeek || []
+		const rhsDays = rhsWindow.daysOfTheWeek || []
 		if (lhsWindow.startHourUTC !== rhsWindow.startHourUTC ||
 				lhsWindow.durationHours !== rhsWindow.durationHours ||
-				lhsWindow.dayOfTheWeek !== rhsWindow.dayOfTheWeek) {
+				lhsDays.length !== rhsDays.length ||
+				!lhsDays.every((lhsDay, index) => lhsDay === rhsDays[index])) {
 			return false
 		}
 	}
