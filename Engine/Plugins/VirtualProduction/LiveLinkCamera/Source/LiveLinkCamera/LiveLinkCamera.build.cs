@@ -24,7 +24,7 @@ public class LiveLinkCamera : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CameraCalibration",
+				"CameraCalibrationCore",
 				"CinematicCamera",
 				"Core",
 				"CoreUObject",
