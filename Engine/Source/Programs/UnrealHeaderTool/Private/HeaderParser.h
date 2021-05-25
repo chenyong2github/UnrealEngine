@@ -61,18 +61,6 @@ namespace EDelegateSpecifierAction
 	};
 }
 
-/** The category of variable declaration being parsed */
-namespace EVariableCategory
-{
-	enum Type
-	{
-		RegularParameter,
-		ReplicatedParameter,
-		Return,
-		Member
-	};
-}
-
 enum class ELayoutMacroType
 {
 	None = -1,
@@ -371,8 +359,8 @@ public:
 	*
 	* @return	a pointer to a UField with a name matching InIdentifier, or NULL if it wasn't found
 	*/
-	static FUnrealFunctionDefinitionInfo* FindFunction(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, const TCHAR* Thing = nullptr);
-	static FUnrealPropertyDefinitionInfo* FindProperty(FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, const TCHAR* Thing = nullptr);
+	static FUnrealFunctionDefinitionInfo* FindFunction(const FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, const TCHAR* Thing = nullptr);
+	static FUnrealPropertyDefinitionInfo* FindProperty(const FUnrealStructDefinitionInfo& InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, const TCHAR* Thing = nullptr);
 
 	// Checks ToValidate to make sure that its associated sparse class data struct, if one exists, is a valid structure to use for storing sparse class data.
 	static void CheckSparseClassData(const FUnrealStructDefinitionInfo& StructDef);
@@ -490,7 +478,7 @@ protected:
 		const FToken*                   OuterPropertyType,
 		const EPropertyFlags*			OuterPropertyFlags,
 		EPropertyDeclarationStyle::Type PropertyDeclarationStyle,
-		EVariableCategory::Type         VariableCategory,
+		EVariableCategory               VariableCategory,
 		FIndexRange*                    ParsedVarIndexRange = nullptr,
 		ELayoutMacroType*               OutLayoutMacroType = nullptr);
 
@@ -506,7 +494,7 @@ protected:
 	FUnrealPropertyDefinitionInfo& GetVarNameAndDim(
 		FUnrealStructDefinitionInfo& ParentStruct,
 		FPropertyBase& VarProperty,
-		EVariableCategory::Type VariableCategory,
+		EVariableCategory VariableCategory,
 		ELayoutMacroType LayoutMacroType = ELayoutMacroType::None);
 	
 	/**

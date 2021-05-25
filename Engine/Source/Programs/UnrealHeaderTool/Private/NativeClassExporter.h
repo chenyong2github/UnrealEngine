@@ -691,24 +691,31 @@ public:
 	}
 
 	template <typename T>
-	static FName GetOverriddenFName(const T* Item)
+	static FString GetOverriddenName(const T& Item)
 	{
-		FString OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		const FString& OverriddenName = Item.GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return OverriddenName.ReplaceCharWithEscapedChar();
+		}
+		return Item.GetName();
+	}
+
+	template <typename T>
+	static FName GetOverriddenFName(const T& Item)
+	{
+		FString OverriddenName = Item.GetMetaData(TEXT("OverrideNativeName"));
 		if (!OverriddenName.IsEmpty())
 		{
 			return FName(*OverriddenName);
 		}
-		return Item->GetFName();
+		return Item.GetFName();
 	}
 
-	static FString GetOverriddenPathName(const FUnrealPropertyDefinitionInfo& ItemDef)
+	template <typename T>
+	static FString GetOverriddenPathName(const T& Def)
 	{
-		return FString::Printf(TEXT("%s.%s"), *ItemDef.GetTypePackageName(), *GetOverriddenName(ItemDef.GetProperty()));
-	}
-
-	static FString GetOverriddenPathName(const FUnrealFieldDefinitionInfo& ItemDef)
-	{
-		return FString::Printf(TEXT("%s.%s"), *ItemDef.GetTypePackageName(), *GetOverriddenName(ItemDef.GetField()));
+		return FString::Printf(TEXT("%s.%s"), *Def.GetTypePackageName(), *GetOverriddenName(Def));
 	}
 
 	/**
