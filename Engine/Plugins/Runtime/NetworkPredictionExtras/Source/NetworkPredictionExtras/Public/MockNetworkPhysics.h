@@ -196,7 +196,7 @@ struct FMockManagedState
 {
 	GENERATED_BODY()
 
-	void AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const int32 SimulationFrame, const int32 LocalStorageFrame);
+	void AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const int32 SimulationFrame, const int32 LocalStorageFrame, const TArray<FSingleParticlePhysicsProxy*>& BallProxies);
 
 	UPROPERTY()
 	int32 Frame = INDEX_NONE;
@@ -271,12 +271,18 @@ public:
 	void PreNetSend(UWorld* World, float DeltaSeconds) override;
 	void ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) override;
 
+	void RegisterBall(FSingleParticlePhysicsProxy* Proxy);
+	void UnregisterBall(FSingleParticlePhysicsProxy* Proxy);
+
 private:
 
 	TArray<FMockManagedState*> ReplicatedMockManagedStates;
 	TArray<FMockManagedState*> InMockManagedStates;
 	TArray<FMockManagedState*> OutMockManagedStates;
 	class FMockAsyncObjectManagerCallback* AsyncCallback = nullptr;
+
+	TArray<FSingleParticlePhysicsProxy*> BallProxies;
+
 	
 	TWeakObjectPtr<UWorld> WeakWorld;
 };
