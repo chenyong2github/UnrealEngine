@@ -126,6 +126,8 @@ public:
 	FGPUSceneDynamicContext(FGPUScene& InGPUScene) : GPUScene(InGPUScene) {}
 	~FGPUSceneDynamicContext();
 
+	void Release();
+
 private:
 	friend class FGPUScene;
 	friend class FGPUScenePrimitiveCollector;

@@ -1418,6 +1418,11 @@ TRange<int32> FGPUScene::CommitPrimitiveCollector(FGPUScenePrimitiveCollector& P
 
 FGPUSceneDynamicContext::~FGPUSceneDynamicContext()
 {
+	Release();
+}
+
+void FGPUSceneDynamicContext::Release()
+{
 	for (auto UploadData : DymamicPrimitiveUploadData)
 	{
 		check(UploadData->InstanceDataOffset != INDEX_NONE);
