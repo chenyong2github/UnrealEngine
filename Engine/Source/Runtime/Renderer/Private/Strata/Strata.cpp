@@ -21,6 +21,12 @@ static TAutoConsoleVariable<int32> CVarStrata(
 	TEXT("Enable Strata materials (Beta)."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarStrataBackCompatibility(
+	TEXT("r.StrataBackCompatibility"),
+	0,
+	TEXT("Disables Strata multiple scattering and replaces Chan diffuse by Lambert."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
 	TEXT("r.Strata.BytesPerPixel"),
 	80,
