@@ -183,7 +183,7 @@ void FillSharedSimulationSizeSpecificData(FSharedSimulationSizeSpecificData& ToD
 	ToData.DamageThreshold = FromData.DamageThreshold;
 }
 
-FGeometryCollectionSizeSpecificData UGeometryCollection::GeometryCollectionSizeSpecificDataDefaults() const
+FGeometryCollectionSizeSpecificData UGeometryCollection::GeometryCollectionSizeSpecificDataDefaults() 
 {
 	FGeometryCollectionSizeSpecificData Data;
 	check(Data.CollisionShapes.Num());
@@ -201,6 +201,43 @@ FGeometryCollectionSizeSpecificData UGeometryCollection::GeometryCollectionSizeS
 	Data.DamageThreshold = 250.0f;
 	return Data;
 }
+
+
+void UGeometryCollection::UpdateSizeSpecificDataDefaults()
+{
+	auto HasDefault = [](const TArray<FGeometryCollectionSizeSpecificData>& DatasIn)
+	{
+		for (const FGeometryCollectionSizeSpecificData& Data : DatasIn)
+		{
+			if (FMath::IsNearlyEqual(Data.MaxSize, FLT_MAX))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+	if (!SizeSpecificData.Num() || !HasDefault(SizeSpecificData))
+	{
+		FGeometryCollectionSizeSpecificData Data = GeometryCollectionSizeSpecificDataDefaults();
+#if WITH_EDITORONLY_DATA
+		Data.CollisionShapes[0].CollisionType = CollisionType_DEPRECATED;
+		Data.CollisionShapes[0].ImplicitType = ImplicitType_DEPRECATED;
+		Data.CollisionShapes[0].LevelSet.MinLevelSetResolution = MinLevelSetResolution_DEPRECATED;
+		Data.CollisionShapes[0].LevelSet.MaxLevelSetResolution = MaxLevelSetResolution_DEPRECATED;
+		Data.CollisionShapes[0].LevelSet.MinClusterLevelSetResolution = MinClusterLevelSetResolution_DEPRECATED;
+		Data.CollisionShapes[0].LevelSet.MaxClusterLevelSetResolution = MaxClusterLevelSetResolution_DEPRECATED;
+		Data.CollisionShapes[0].CollisionObjectReductionPercentage = CollisionObjectReductionPercentage_DEPRECATED;
+#endif
+		if (Data.CollisionShapes[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
+		{
+			Data.CollisionShapes[0].CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
+		}
+		SizeSpecificData.Add(Data);
+	}
+	check(SizeSpecificData.Num() && SizeSpecificData[0].CollisionShapes.Num());
+}
+
 
 float KgCm3ToKgM3(float Density)
 {
@@ -615,7 +652,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 
 	if (!SizeSpecificData.Num())
 	{
-		SizeSpecificData.Add(GeometryCollectionSizeSpecificDataDefaults());
+		UpdateSizeSpecificDataDefaults();
 	}
 
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::DensityUnitsChanged)
@@ -703,34 +740,6 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GeometryCollectionUserDefinedCollisionShapes)
 	{
-		auto HasDefault = [](const TArray<FGeometryCollectionSizeSpecificData>& DatasIn)
-		{
-			for (const FGeometryCollectionSizeSpecificData& Data : DatasIn)
-			{
-				if (FMath::IsNearlyEqual(Data.MaxSize, FLT_MAX))
-				{
-					return true;
-				}
-			}
-			return false;
-		};
-
-		if (!SizeSpecificData.Num() || !HasDefault(SizeSpecificData))
-		{
-			FGeometryCollectionSizeSpecificData Data;
-			Data.CollisionShapes[0].CollisionType =	CollisionType_DEPRECATED;
-			Data.CollisionShapes[0].ImplicitType = ImplicitType_DEPRECATED;
-			Data.CollisionShapes[0].LevelSet.MinLevelSetResolution = MinLevelSetResolution_DEPRECATED;
-			Data.CollisionShapes[0].LevelSet.MaxLevelSetResolution = MaxLevelSetResolution_DEPRECATED;
-			Data.CollisionShapes[0].LevelSet.MinClusterLevelSetResolution = MinClusterLevelSetResolution_DEPRECATED;
-			Data.CollisionShapes[0].LevelSet.MaxClusterLevelSetResolution = MaxClusterLevelSetResolution_DEPRECATED;
-			Data.CollisionShapes[0].CollisionObjectReductionPercentage = CollisionObjectReductionPercentage_DEPRECATED;
-			if (Data.CollisionShapes[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
-				Data.CollisionShapes[0].CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
-			SizeSpecificData.Add(Data);
-		}
-		check(SizeSpecificData.Num() && SizeSpecificData[0].CollisionShapes.Num());
-
 		InvalidateCollection();
 		bCreateSimulationData = true;
 	}
