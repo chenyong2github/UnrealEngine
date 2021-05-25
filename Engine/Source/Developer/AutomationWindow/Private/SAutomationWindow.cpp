@@ -634,10 +634,10 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 				ToolbarBuilder.AddComboButton(
 					DefaultAction,
 					FOnGetContent::CreateStatic( &SAutomationWindow::GenerateTestsOptionsMenuContent, InAutomationWindow ),
-					LOCTEXT( "TestOptions_Label", "Test Options" ),
+					TAttribute<FText>(),
 					LOCTEXT( "TestOptionsToolTip", "Test Options" ),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "AutomationWindow.TestOptions"),
-					true);
+					false);
 
 				// Added button for running the currently open level test.
 #if WITH_EDITOR
