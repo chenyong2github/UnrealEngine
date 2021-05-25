@@ -509,9 +509,9 @@ public:
 	TArray<FGeometryCollectionSizeSpecificData> SizeSpecificData;
 
 	int GetDefaultSizeSpecificDataIndex() const;
-	FGeometryCollectionSizeSpecificData GeometryCollectionSizeSpecificDataDefaults() const;
 	FGeometryCollectionSizeSpecificData& GetDefaultSizeSpecificData();
 	const FGeometryCollectionSizeSpecificData& GetDefaultSizeSpecificData() const;
+	static FGeometryCollectionSizeSpecificData GeometryCollectionSizeSpecificDataDefaults();
 
 	/**
 	* Enable remove pieces on fracture
@@ -540,6 +540,11 @@ private:
 #if WITH_EDITOR
 	void CreateSimulationDataImp(bool bCopyFromDDC);
 #endif
+
+	/*
+	* Used to transfer deprecated properties to the size specific structures during serialization.
+	*/
+	void UpdateSizeSpecificDataDefaults();
 
 private:
 	/** Guid created on construction of this collection. It should be used to uniquely identify this collection */
