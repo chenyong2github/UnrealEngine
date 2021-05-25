@@ -6,7 +6,6 @@
 #include "Logging/LogMacros.h"
 
 class FCbObject;
-class FCbWriter;
 struct FGuid;
 
 namespace UE::DerivedData { class FBuildActionBuilder; }
@@ -14,12 +13,12 @@ namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { class FBuildInputsBuilder; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FCacheRecord; }
-namespace UE::DerivedData { class FCacheRecordBuilder; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuild; }
 namespace UE::DerivedData { class IBuildFunctionRegistry; }
+namespace UE::DerivedData { class IBuildScheduler; }
 namespace UE::DerivedData { class ICache; }
 
 namespace UE::DerivedData::Private
@@ -32,6 +31,9 @@ IBuild* CreateBuild(ICache& Cache);
 
 // Implemented in DerivedDataBuildFunctionRegistry.cpp
 IBuildFunctionRegistry* CreateBuildFunctionRegistry();
+
+// Implemented in DerivedDataBuildScheduler.cpp
+IBuildScheduler* CreateBuildScheduler();
 
 // Implemented in DerivedDataBuildDefinition.cpp
 FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Function);
