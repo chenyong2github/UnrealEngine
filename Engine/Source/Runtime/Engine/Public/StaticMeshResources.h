@@ -1281,13 +1281,7 @@ public:
 		Transform.M[3][0] = Origin.X;
 		Transform.M[3][1] = Origin.Y;
 		Transform.M[3][2] = Origin.Z;
-#if 1 
-		// GPUCULL_TODO: This causes problems when using this as a normal real proper matrix and concatenating!
 		Transform.M[3][3] = 0.f;
-#else
-		// But this on the other hand seems to break some assumption or other in the HISM
-		Transform.M[3][3] = 1.0f;
-#endif
 	}
 
 	FORCEINLINE_DEBUGGABLE void GetInstanceShaderValues(int32 InstanceIndex, FVector4 (&InstanceTransform)[3], FVector4& InstanceLightmapAndShadowMapUVBias, FVector4& InstanceOrigin) const

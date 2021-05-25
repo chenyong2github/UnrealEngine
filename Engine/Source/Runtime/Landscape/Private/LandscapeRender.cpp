@@ -1137,10 +1137,8 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		bShouldNotifyOnWorldAddRemove = true;
 	}
 
-#if GPUCULL_TODO
 	// GPUCULL_TODO: Move to base proxy
 	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel());
-#endif // GPUCULL_TODO
 
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
@@ -1355,7 +1353,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 #endif
 
-#if GPUCULL_TODO
 	// 100% generic default-instance
 	Instances.SetNum(1);
 	FPrimitiveInstance& Instance = Instances[0];
@@ -1365,8 +1362,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	Instance.RenderBounds = GetLocalBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
 	bSupportsInstanceDataBuffer = true;
-#endif // GPUCULL_TODO
-
 }
 
 void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
@@ -1924,12 +1919,10 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	// Recache mesh draw commands for changed uniform buffers
 	GetScene().UpdateCachedRenderStates(this);
 
-#if GPUCULL_TODO
 	// 
 	FPrimitiveInstance& Instance = Instances[0];
 	Instance.RenderBounds = GetLocalBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
-#endif // GPUCULL_TODO
 }
 
 /** Creates a mesh batch for virtual texture rendering. Will render a simple fixed grid with combined subsections. */
@@ -3173,9 +3166,7 @@ void FLandscapeVertexFactory::InitRHI()
 	// position decls
 	Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 
-#if GPUCULL_TODO
 	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, 1, Elements);
-#endif // GPUCULL_TODO
 	// create the actual device decls
 	InitDeclaration(Elements);
 }
@@ -3197,9 +3188,7 @@ void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-#if GPUCULL_TODO
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)));
-#endif // GPUCULL_TODO
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_Vertex, FLandscapeVertexFactoryVertexShaderParameters);
@@ -3216,7 +3205,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeVertexFactory, "/Engine/Private/Landscap
 	| EVertexFactoryFlags::SupportsCachingMeshDrawCommands
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
-	| (GPUCULL_TODO ? EVertexFactoryFlags::SupportsPrimitiveIdStream : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
 
 /**
@@ -3260,7 +3249,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeXYOffsetVertexFactory, "/Engine/Private/
 	| EVertexFactoryFlags::SupportsCachingMeshDrawCommands
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
-	| (GPUCULL_TODO ? EVertexFactoryFlags::SupportsPrimitiveIdStream : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
 
 //
@@ -3287,7 +3276,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeFixedGridVertexFactory, "/Engine/Private
 	| EVertexFactoryFlags::SupportsCachingMeshDrawCommands
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
-	| (GPUCULL_TODO ? EVertexFactoryFlags::SupportsPrimitiveIdStream : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
 
 /** ULandscapeMaterialInstanceConstant */

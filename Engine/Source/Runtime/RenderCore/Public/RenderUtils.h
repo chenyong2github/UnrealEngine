@@ -715,11 +715,7 @@ inline bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const 
 {
 	static const auto EnableCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.NonNaniteVSM"));
 
-#if GPUCULL_TODO
 	return EnableCVar->GetInt() != 0 && UseVirtualShadowMaps(ShaderPlatform, FeatureLevel);
-#else // !GPUCULL_TODO
-	return false;
-#endif // GPUCULL_TODO
 }
 
 /**

@@ -4183,7 +4183,6 @@ void FRendererModule::RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBu
 	}
 }
 
-#if GPUCULL_TODO
 
 class FScenePrimitiveRenderingContext : public IScenePrimitiveRenderingContext
 {
@@ -4218,7 +4217,6 @@ IScenePrimitiveRenderingContext* FRendererModule::BeginScenePrimitiveRendering(F
 	return ScenePrimitiveRenderingContext;
 }
 
-#endif // GPUCULL_TODO
 
 IAllocatedVirtualTexture* FRendererModule::AllocateVirtualTexture(const FAllocatedVTDescription& Desc)
 {

@@ -49,7 +49,6 @@ void FInstanceCullingContext::ResetCommands(int32 MaxNumCommands)
 
 void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives, bool bInMaterialMayModifyPosition)
 {
-#if GPUCULL_TODO
 	if (ensure(BatchType < PT_Num))
 	{
 		// default to PT_TriangleList & PT_RectList
@@ -79,28 +78,21 @@ void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint
 		CullingCommand.FirstInstanceRunOffset = InstanceRuns.Num();
 		CullingCommand.bMaterialMayModifyPosition = bInMaterialMayModifyPosition;
 	}
-#endif
 }
 
 void FInstanceCullingContext::AddPrimitiveToCullingCommand(int32 ScenePrimitiveId)
 {
-#if GPUCULL_TODO
 	PrimitiveIds.Add(ScenePrimitiveId);
-#endif
 }
 
 void FInstanceCullingContext::AddInstanceRunToCullingCommand(int32 ScenePrimitiveId, const uint32* Runs, uint32 NumRuns)
 {
-#if GPUCULL_TODO
 	//InstanceRuns.AddDefaulted(NumRuns);
 	for (uint32 Index = 0; Index < NumRuns; ++Index)
 	{
 		InstanceRuns.Add(FInstanceRun{ Runs[Index * 2], Runs[Index * 2 + 1], ScenePrimitiveId });
 	}
-#endif
 }
-
-#if GPUCULL_TODO
 
 #if ENABLE_DETERMINISTIC_INSTANCE_CULLING
 
@@ -871,14 +863,3 @@ void FInstanceCullingContext::BuildRenderingCommandsBatched(FRDGBuilder& GraphBu
 }
 
 
-#else // GPUCULL_TODO
-
-void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const TRange<int32>& DynamicPrimitiveIdRange, FInstanceCullingResult& Results) const
-{
-}
-
-void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, const TRange<int32>& DynamicPrimitiveIdRange, FInstanceCullingRdgParams& Params) const
-{
-}
-
-#endif // GPUCULL_TODO

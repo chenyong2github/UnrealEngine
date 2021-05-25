@@ -1339,8 +1339,6 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 					continue;
 				}
 
-
-#if GPUCULL_TODO
 				if (bUseGPUScene)
 				{
 					FMeshBatch& MeshBatch = Collector.AllocateMesh();
@@ -1413,7 +1411,6 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 				}
 				else
 				{
-#endif // GPUCULL_TODO
 					int32 NumBatches = 1;
 					int32 CurrentRun = 0;
 					int32 CurrentInstance = 0;
@@ -1529,9 +1526,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 							Collector.AddMesh(ElementParams.ViewIndex, MeshElement);
 						}
 					}
-#if GPUCULL_TODO
 				}
-#endif // GPUCULL_TODO
 			}
 		}
 	}
