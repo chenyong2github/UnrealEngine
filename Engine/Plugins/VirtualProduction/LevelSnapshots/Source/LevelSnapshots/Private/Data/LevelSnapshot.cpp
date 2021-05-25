@@ -117,7 +117,8 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		return;
 	}
 
-	if (TargetWorld->WorldType != EWorldType::Editor)
+	if (TargetWorld->WorldType != EWorldType::Editor
+		&& TargetWorld->WorldType != EWorldType::EditorPreview) // To suppor tests in editor preview maps
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (TargetWorld->IsPlayInEditor())

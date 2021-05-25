@@ -8,10 +8,31 @@
 #include "Restorability/StaticMeshCollisionPropertyComparer.h"
 #include "SnapshotRestorability.h"
 
-#include "Components/StaticMeshComponent.h"
 #include "EngineUtils.h"
 #include "Modules/ModuleManager.h"
-#include "Restorability/StaticMeshCollisionPropertyComparer.h"
+
+namespace
+{
+	void AddSoftObjectPathSupport(FLevelSnapshotsModule& Module)
+	{
+		// By default FSnapshotRestorability::IsRestorableProperty requires properties to have the CPF_Edit specifier
+		// FSoftObjectPath does not have this so we need to whitelist its properties
+
+		UStruct* SoftObjectPath = FindObject<UStruct>(nullptr, TEXT("/Script/CoreUObject.SoftObjectPath"));
+		if (!ensureMsgf(SoftObjectPath, TEXT("Investigate why this class could not be found")))
+		{
+			return;
+		}
+
+		TSet<const FProperty*> Properties;
+		for (TFieldIterator<FProperty> FieldIt(SoftObjectPath); FieldIt; ++FieldIt)
+		{
+			Properties.Add(*FieldIt);
+		}
+
+		Module.AddWhitelistedProperties(Properties);
+	}
+}
 
 FLevelSnapshotsModule& FLevelSnapshotsModule::GetInternalModuleInstance()
 {
@@ -30,6 +51,8 @@ void FLevelSnapshotsModule::StartupModule()
 		})
 	);
 	RegisterRestorabilityOverrider(Blacklist);
+	
+	AddSoftObjectPathSupport(*this);
 
 	FStaticMeshCollisionPropertyComparer::Register(*this);
 }
