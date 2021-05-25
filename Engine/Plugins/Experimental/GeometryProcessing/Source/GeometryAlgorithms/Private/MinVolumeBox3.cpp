@@ -22,6 +22,7 @@ THIRD_PARTY_INCLUDES_END
 
 #include "GteUtil.h"
 #include "Util/ProgressCancel.h"
+#include "Util/IteratorUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -124,6 +125,31 @@ bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<Real
 		Internal->SetPoint(k, Point);
 	}
 	
+	return Internal->ComputeResult(Progress);
+}
+
+
+template<typename RealType>
+bool TMinVolumeBox3<RealType>::SolveSubsample(int32 NumPoints, int32 MaxPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox, FProgressCancel* Progress)
+{
+	if (NumPoints <= MaxPoints)
+	{
+		return Solve(NumPoints, GetPointFunc, bUseExactBox, Progress);
+	}
+
+	Initialize(MaxPoints, bUseExactBox);
+	check(Internal);
+
+	int32 k = 0;
+	FModuloIteration Iter(NumPoints);
+	int32 Index;
+	while (Iter.GetNextIndex(Index) && k < MaxPoints)
+	{
+		FVector3<RealType> Point = GetPointFunc(Index);
+		Internal->SetPoint(k, Point);
+		k++;
+	}
+
 	return Internal->ComputeResult(Progress);
 }
 

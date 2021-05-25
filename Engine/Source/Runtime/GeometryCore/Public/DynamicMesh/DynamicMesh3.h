@@ -989,11 +989,13 @@ public:
 	/**
 	 * Compute a normal/tangent frame at vertex that is "stable" as long as
 	 * the mesh topology doesn't change, meaning that one axis of the frame
-	 * will be computed from projection of outgoing edge. Requires that vertex normals are available.
+	 * will be computed from projection of outgoing edge. 
 	 * By default, frame.Z is normal, and .X points along mesh edge.
-	 * If bFrameNormalY, then frame.Y is normal (X still points along mesh edge)
+	 * Requires that VertexNormals are available, or UseNormal != nullptr, otherwise returns default Frame3d
+	 * @param bFrameNormalY if true, then frame.Y is normal (X still points along mesh edge)
+	 * @param UseNormal if defined, this normal is used instead of VertexNormals normal
 	 */
-	FFrame3d GetVertexFrame(int VertexID, bool bFrameNormalY = false) const;
+	FFrame3d GetVertexFrame(int VertexID, bool bFrameNormalY = false, FVector3d* UseNormal = nullptr) const;
 
 	/** Calculate face normal of triangle */
 	FVector3d GetTriNormal(int TriangleID) const;

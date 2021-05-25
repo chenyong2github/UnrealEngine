@@ -25,6 +25,23 @@ namespace UE
 		 */
 		GEOMETRYCORE_API void VertexToTriangleOneRing(const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, TSet<int>& TriangleIDsOut);
 
+
+		/**
+		 * Call SetType.Add(VertexPosition) for all valid vertex indices in for_each(Enumeration)
+		 */
+		template<typename EnumeratorType, typename SetType>
+		void CollectVertexPositions(const FDynamicMesh3& Mesh, EnumeratorType Enumeration, SetType& Output)
+		{
+			for (int32 vid : Enumeration)
+			{
+				if (Mesh.IsVertex(vid))
+				{
+					Output.Add(Mesh.GetVertex(vid));
+				}
+			}
+		}
+
+
 		/**
 		 * Walk around VertexID from FromTriangleID to next connected triangle if it exists, walking "away" from PrevTriangleID.
 		 * @param TrisConnectedFunc returns true if two triangles should be considered connected, to support breaking at seams/etc that are not in base mesh topology
