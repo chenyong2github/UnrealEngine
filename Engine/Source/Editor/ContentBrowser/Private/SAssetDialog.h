@@ -119,6 +119,8 @@ private:
 
 	/** Handler for show in explorer */
 	void ExecuteExplore();
+	bool CanExecuteExplore();
+	bool ExecuteExploreInternal(bool bTest=false);
 
 	/** Setup function for the context menu creation of folder and assets */
 	void SetupContextMenuContent(FMenuBuilder& MenuBuilder, const TArray<FString>& SelectedPaths);

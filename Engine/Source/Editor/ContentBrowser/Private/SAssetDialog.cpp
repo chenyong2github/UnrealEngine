@@ -506,9 +506,50 @@ void SAssetDialog::SelectDefaultPaths()
 	AssetPicker->GetAssetView()->SetSourcesData(DefaultSourcesData);
 }
 
+bool SAssetDialog::ExecuteExploreInternal(bool bTest)
+{
+	bool bCanExplore = false;
+
+	TArray<FContentBrowserItem> SelectedItems = AssetPicker->GetAssetView()->GetSelectedItems();
+	if (SelectedItems.Num() == 0)
+	{
+		SelectedItems = PathPicker->GetPathView()->GetSelectedFolderItems();
+	}
+
+	for (const FContentBrowserItem& SelectedItem : SelectedItems)
+	{
+		FString ItemFilename;
+		if (SelectedItem.GetItemPhysicalPath(ItemFilename))
+		{
+			const bool bExists = SelectedItem.IsFile() ? FPaths::FileExists(ItemFilename) : FPaths::DirectoryExists(ItemFilename);
+			if (bExists)
+			{
+				bCanExplore = true;
+
+				if (!bTest)
+				{
+					FPlatformProcess::ExploreFolder(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ItemFilename));
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	return bCanExplore;
+}
+
 void SAssetDialog::ExecuteExplore()
 {
+	//ExecuteExploreInternal(/*bTest*/ false);
 	ContentBrowserUtils::ExploreFolders(AssetPicker->GetAssetView()->GetSelectedItems(), AssetPicker->GetAssetView().ToSharedRef());
+}
+
+bool SAssetDialog::CanExecuteExplore()
+{
+	return ExecuteExploreInternal(/*bTest*/ true);
 }
 
 bool SAssetDialog::CanExecuteCreateNewFolder() const
@@ -595,14 +636,15 @@ void SAssetDialog::SetupContextMenuContent(FMenuBuilder& MenuBuilder, const TArr
 
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("AssetDialogExplore", LOCTEXT("AssetDialogExploreHeading", "Explore"));
-
-	MenuBuilder.AddMenuEntry(ContentBrowserUtils::GetExploreFolderText(), 
-							 LOCTEXT("ExploreTooltip", "Finds this folder on disk."), 
-							 FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"), 
-							 FUIAction(FExecuteAction::CreateSP(this, &SAssetDialog::ExecuteExplore)));
-
-	MenuBuilder.EndSection();
+	if (CanExecuteExplore())
+	{
+		MenuBuilder.BeginSection("AssetDialogExplore", LOCTEXT("AssetDialogExploreHeading", "Explore"));
+		MenuBuilder.AddMenuEntry(ContentBrowserUtils::GetExploreFolderText(),
+			LOCTEXT("ExploreTooltip", "Finds this folder on disk."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+			FUIAction(FExecuteAction::CreateSP(this, &SAssetDialog::ExecuteExplore)));
+		MenuBuilder.EndSection();
+	}
 }
 
 EActiveTimerReturnType SAssetDialog::SetFocusPostConstruct( double InCurrentTime, float InDeltaTime )
@@ -917,6 +959,10 @@ FString SAssetDialog::GetObjectPathForSave() const
 		if (ConvertedType == EContentBrowserPathType::Internal)
 		{
 			Base = ConvertedPath.ToString();
+		}
+		else
+		{
+			return FString();
 		}
 	}
 

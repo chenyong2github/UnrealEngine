@@ -138,7 +138,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 			if (!Context->bNoFolderOnDisk)
 			{
 				Section.AddMenuEntry(
-					"ExploreTooltip",
+					"Explore",
 					ContentBrowserUtils::GetExploreFolderText(),
 					LOCTEXT("ExploreTooltip", "Finds this folder on disk."),
 					FSlateIcon(),
