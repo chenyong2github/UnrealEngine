@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/StringFwd.h"
+#include "Logging/LogMacros.h"
 
 class FCbObject;
 class FCbWriter;
@@ -18,13 +19,19 @@ namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuild; }
+namespace UE::DerivedData { class IBuildFunctionRegistry; }
 namespace UE::DerivedData { class ICache; }
 
 namespace UE::DerivedData::Private
 {
 
+DECLARE_LOG_CATEGORY_EXTERN(LogDerivedDataBuild, Log, All);
+
 // Implemented in DerivedDataBuild.cpp
 IBuild* CreateBuild(ICache& Cache);
+
+// Implemented in DerivedDataBuildFunctionRegistry.cpp
+IBuildFunctionRegistry* CreateBuildFunctionRegistry();
 
 // Implemented in DerivedDataBuildDefinition.cpp
 FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Function);

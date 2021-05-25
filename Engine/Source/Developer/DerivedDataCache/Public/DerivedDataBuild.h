@@ -15,6 +15,7 @@ namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
+namespace UE::DerivedData { class IBuildFunctionRegistry; }
 
 namespace UE::DerivedData
 {
@@ -97,6 +98,11 @@ public:
 	 * into build actions to keep the build output separate for different build versions.
 	 */
 	virtual const FGuid& GetVersion() const = 0;
+
+	/**
+	 * Returns the build function registry used by the build system.
+	 */
+	virtual IBuildFunctionRegistry& GetFunctionRegistry() const = 0;
 };
 
 } // UE::DerivedData

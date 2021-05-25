@@ -4,6 +4,7 @@
 
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildDefinition.h"
+#include "DerivedDataBuildFunctionRegistry.h"
 #include "DerivedDataBuildInputs.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
@@ -12,6 +13,8 @@
 
 namespace UE::DerivedData::Private
 {
+
+DEFINE_LOG_CATEGORY(LogDerivedDataBuild);
 
 class FBuild final : public IBuild
 {
@@ -33,8 +36,7 @@ public:
 
 	FBuildActionBuilder CreateAction(FStringView Name, FStringView Function) final
 	{
-		// DDC-TODO: Find the function version from the function registry.
-		return CreateBuildAction(Name, Function, FGuid::NewGuid(), Version);
+		return CreateBuildAction(Name, Function, FunctionRegistry->FindFunctionVersion(Function), Version);
 	}
 
 	FOptionalBuildAction LoadAction(FStringView Name, FCbObject&& Action) final
@@ -67,8 +69,14 @@ public:
 		return Version;
 	}
 
+	IBuildFunctionRegistry& GetFunctionRegistry() const final
+	{
+		return *FunctionRegistry;
+	}
+
 private:
 	ICache& Cache;
+	TUniquePtr<IBuildFunctionRegistry> FunctionRegistry{CreateBuildFunctionRegistry()};
 	const FGuid Version{TEXT("ac0574e5-62bd-4c2e-84ec-f2efe48c0fef")};
 };
 
