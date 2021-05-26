@@ -9,6 +9,7 @@
 #include "Materials/Material.h"
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveViewRelevance.h"
+#include "DynamicMeshBuilder.h"
 #include "StaticMeshResources.h"
 #include "IndexTypes.h"
 #include "Async/ParallelFor.h"

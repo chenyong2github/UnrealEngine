@@ -14,6 +14,7 @@
 
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "PhysicsProxy/PerSolverFieldSystem.h"
+#include "DynamicMeshBuilder.h"
 
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 #include "Chaos/Sphere.h"

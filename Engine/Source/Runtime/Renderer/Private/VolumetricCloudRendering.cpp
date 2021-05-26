@@ -13,6 +13,7 @@
 #include "ScenePrivate.h"
 #include "MeshPassProcessor.inl"
 #include "StaticMeshResources.h"
+#include "DynamicMeshBuilder.h"
 #include "SkyAtmosphereRendering.h"
 #include "VolumeLighting.h"
 #include "DynamicPrimitiveDrawing.h"
