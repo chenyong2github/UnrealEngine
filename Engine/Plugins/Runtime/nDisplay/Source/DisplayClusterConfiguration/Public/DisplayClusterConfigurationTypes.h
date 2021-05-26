@@ -503,7 +503,7 @@ struct FDisplayClusterConfigurationOCIOProfile
 
 ////////////////////////////////////////////////////////////////
 // Main configuration data container
-UCLASS(Blueprintable, BlueprintType)
+UCLASS(Blueprintable, BlueprintType, PerObjectConfig, config = EditorPerProjectUserSettings)
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationData
 	: public UDisplayClusterConfigurationData_Base
 {
@@ -560,7 +560,7 @@ public:
 #if WITH_EDITORONLY_DATA
 
 public:
-	UPROPERTY()
+	UPROPERTY(config)
 	FString PathToConfig;
 
 public:

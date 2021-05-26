@@ -6,7 +6,6 @@
 #include "DisplayClusterBlueprint.generated.h"
 
 
-
 UCLASS(BlueprintType, DisplayName = "nDisplay Blueprint")
 class DISPLAYCLUSTER_API UDisplayClusterBlueprint : public UBlueprint
 {
@@ -41,7 +40,7 @@ public:
 	 */
 	void SetConfigData(UDisplayClusterConfigurationData* InConfigData, bool bForceRecreate = false);
 
-	const FString& GetConfigPath() const { return PathToConfig; }
+	FString GetConfigPath() const { return ConfigData ? ConfigData->PathToConfig : TEXT(""); }
 	void SetConfigPath(const FString& InPath);
 	
 public:
@@ -55,9 +54,6 @@ private:
 	void UpdateConfigExportProperty();
 
 protected:
-	UPROPERTY()
-	FString PathToConfig;
-
 	UPROPERTY()
 	UDisplayClusterConfigurationData* ConfigData;
 
