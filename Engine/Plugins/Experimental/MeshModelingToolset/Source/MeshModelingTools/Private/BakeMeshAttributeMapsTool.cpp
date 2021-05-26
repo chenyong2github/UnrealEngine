@@ -8,12 +8,11 @@
 #include "DynamicMeshAttributeSet.h"
 #include "MeshTransforms.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "Sampling/MeshImageBakingCache.h"
-#include "Sampling/MeshNormalMapBaker.h"
-#include "Sampling/MeshOcclusionMapBaker.h"
-#include "Sampling/MeshCurvatureMapBaker.h"
-#include "Sampling/MeshPropertyMapBaker.h"
-#include "Sampling/MeshResampleImageBaker.h"
+#include "Sampling/MeshNormalMapEvaluator.h"
+#include "Sampling/MeshOcclusionMapEvaluator.h"
+#include "Sampling/MeshCurvatureMapEvaluator.h"
+#include "Sampling/MeshPropertyMapEvaluator.h"
+#include "Sampling/MeshResampleImageEvaluator.h"
 #include "Util/IndexUtil.h"
 
 #include "SimpleDynamicMeshComponent.h"
@@ -139,8 +138,8 @@ public:
 			return;
 		}
 
-		TSharedPtr<FMeshNormalMapBaker, ESPMode::ThreadSafe> NormalBaker = MakeShared<FMeshNormalMapBaker, ESPMode::ThreadSafe>();
-		Baker->AddBaker(NormalBaker);
+		TSharedPtr<FMeshNormalMapEvaluator, ESPMode::ThreadSafe> NormalEval = MakeShared<FMeshNormalMapEvaluator, ESPMode::ThreadSafe>();
+		Baker->AddBaker(NormalEval);
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
@@ -171,45 +170,35 @@ public:
 			return;
 		}
 
-		auto InitializeBaker = [this](TSharedPtr<FMeshOcclusionMapBaker>& BakerIn) {
-			BakerIn->NumOcclusionRays = Settings.OcclusionRays;
-			BakerIn->MaxDistance = Settings.MaxDistance;
-			BakerIn->SpreadAngle = Settings.SpreadAngle;
-			BakerIn->BlurRadius = Settings.BlurRadius;
-			BakerIn->BiasAngleDeg = Settings.BiasAngle;
+		TSharedPtr<FMeshOcclusionMapEvaluator> OcclusionEval = MakeShared<FMeshOcclusionMapEvaluator>();
+		OcclusionEval->OcclusionType = EMeshOcclusionMapType::All;
+		OcclusionEval->NumOcclusionRays = Settings.OcclusionRays;
+		OcclusionEval->MaxDistance = Settings.MaxDistance;
+		OcclusionEval->SpreadAngle = Settings.SpreadAngle;
+		OcclusionEval->BiasAngleDeg = Settings.BiasAngle;
 
-			switch (Settings.Distribution)
-			{
-			case EOcclusionMapDistribution::Cosine:
-				BakerIn->Distribution = FMeshOcclusionMapBaker::EDistribution::Cosine;
-				break;
-			case EOcclusionMapDistribution::Uniform:
-				BakerIn->Distribution = FMeshOcclusionMapBaker::EDistribution::Uniform;
-				break;
-			}
+		switch (Settings.Distribution)
+		{
+		case EOcclusionMapDistribution::Cosine:
+			OcclusionEval->Distribution = FMeshOcclusionMapEvaluator::EDistribution::Cosine;
+			break;
+		case EOcclusionMapDistribution::Uniform:
+			OcclusionEval->Distribution = FMeshOcclusionMapEvaluator::EDistribution::Uniform;
+			break;
+		}
 
-			switch (Settings.NormalSpace)
-			{
-			case ENormalMapSpace::Tangent:
-				BakerIn->NormalSpace = FMeshOcclusionMapBaker::ESpace::Tangent;
-				break;
-			case ENormalMapSpace::Object:
-				BakerIn->NormalSpace = FMeshOcclusionMapBaker::ESpace::Object;
-				break;
-			}
-		};
-
-		TSharedPtr<FMeshOcclusionMapBaker> OcclusionBaker = MakeShared<FMeshOcclusionMapBaker>();
-		InitializeBaker(OcclusionBaker);
-		OcclusionBaker->OcclusionType = EOcclusionMapType::AmbientOcclusion;
-
-		TSharedPtr<FMeshOcclusionMapBaker> BentNormalBaker = MakeShared<FMeshOcclusionMapBaker>();
-		InitializeBaker(BentNormalBaker);
-		BentNormalBaker->OcclusionType = EOcclusionMapType::BentNormal;
+		switch (Settings.NormalSpace)
+		{
+		case ENormalMapSpace::Tangent:
+			OcclusionEval->NormalSpace = FMeshOcclusionMapEvaluator::ESpace::Tangent;
+			break;
+		case ENormalMapSpace::Object:
+			OcclusionEval->NormalSpace = FMeshOcclusionMapEvaluator::ESpace::Object;
+			break;
+		}
 
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
-		Baker->AddBaker(OcclusionBaker);
-		Baker->AddBaker(BentNormalBaker);
+		Baker->AddBaker(OcclusionEval);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
 	}
@@ -238,13 +227,12 @@ public:
 			return;
 		}
 
-		TSharedPtr<FMeshCurvatureMapBaker> CurvatureBaker = MakeShared<FMeshCurvatureMapBaker>();
+		TSharedPtr<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe> CurvatureBaker = MakeShared<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe>();
 		CurvatureBaker->RangeScale = FMathd::Clamp(Settings.RangeMultiplier, 0.0001, 1000.0);
 		CurvatureBaker->MinRangeScale = FMathd::Clamp(Settings.MinRangeMultiplier, 0.0, 1.0);
-		CurvatureBaker->UseCurvatureType = (FMeshCurvatureMapBaker::ECurvatureType)Settings.CurvatureType;
-		CurvatureBaker->UseColorMode = (FMeshCurvatureMapBaker::EColorMode)Settings.ColorMode;
-		CurvatureBaker->UseClampMode = (FMeshCurvatureMapBaker::EClampMode)Settings.ClampMode;
-		CurvatureBaker->BlurRadius = Settings.BlurRadius;
+		CurvatureBaker->UseCurvatureType = (FMeshCurvatureMapEvaluator::ECurvatureType)Settings.CurvatureType;
+		CurvatureBaker->UseColorMode = (FMeshCurvatureMapEvaluator::EColorMode)Settings.ColorMode;
+		CurvatureBaker->UseClampMode = (FMeshCurvatureMapEvaluator::EClampMode)Settings.ClampMode;
 		Baker->AddBaker(CurvatureBaker);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
@@ -274,8 +262,8 @@ public:
 			return;
 		}
 
-		TSharedPtr<FMeshPropertyMapBaker> PropertyBaker = MakeShared<FMeshPropertyMapBaker>();
-		PropertyBaker->Property = (EMeshPropertyBakeType)Settings.PropertyTypeIndex;
+		TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+		PropertyBaker->Property = (EMeshPropertyMapType) Settings.PropertyTypeIndex;
 		Baker->AddBaker(PropertyBaker);
 		Baker->Bake();
 		SetResult(MoveTemp(Baker));
@@ -307,7 +295,7 @@ public:
 			return;
 		}
 
-		TSharedPtr<FMeshResampleImageBaker> ResampleBaker = MakeShared<FMeshResampleImageBaker>();
+		TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> ResampleBaker = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
 		ResampleBaker->DetailUVOverlay = UVOverlay;
 		ResampleBaker->SampleFunction = [this](FVector2d UVCoord) {
 			return TextureImage->BilinearSampleUV<float>(UVCoord, FVector4f(0, 0, 0, 1));
@@ -344,7 +332,7 @@ public:
 			return;
 		}
 
-		TSharedPtr<FMeshMultiResampleImageBaker> TextureBaker = MakeShared<FMeshMultiResampleImageBaker>();
+		TSharedPtr<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe> TextureBaker = MakeShared<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe>();
 		TextureBaker->DetailUVOverlay = UVOverlay;
 		TextureBaker->MultiTextures = MaterialToTextureImageMap;
 		Baker->AddBaker(TextureBaker);
@@ -1028,42 +1016,42 @@ UBakeMeshAttributeMapsTool::EOpState UBakeMeshAttributeMapsTool::UpdateResult_Cu
 	{
 	default:
 	case EBakedCurvatureTypeMode::MeanAverage:
-		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapBaker::ECurvatureType::Mean;
+		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapEvaluator::ECurvatureType::Mean;
 		break;
 	case EBakedCurvatureTypeMode::Gaussian:
-		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapBaker::ECurvatureType::Gaussian;
+		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapEvaluator::ECurvatureType::Gaussian;
 		break;
 	case EBakedCurvatureTypeMode::Max:
-		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapBaker::ECurvatureType::MaxPrincipal;
+		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapEvaluator::ECurvatureType::MaxPrincipal;
 		break;
 	case EBakedCurvatureTypeMode::Min:
-		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapBaker::ECurvatureType::MinPrincipal;
+		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapEvaluator::ECurvatureType::MinPrincipal;
 		break;
 	}
 	switch (CurvatureMapProps->ColorMode)
 	{
 	default:
 	case EBakedCurvatureColorMode::Grayscale:
-		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapBaker::EColorMode::BlackGrayWhite;
+		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapEvaluator::EColorMode::BlackGrayWhite;
 		break;
 	case EBakedCurvatureColorMode::RedBlue:
-		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapBaker::EColorMode::RedBlue;
+		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapEvaluator::EColorMode::RedBlue;
 		break;
 	case EBakedCurvatureColorMode::RedGreenBlue:
-		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapBaker::EColorMode::RedGreenBlue;
+		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapEvaluator::EColorMode::RedGreenBlue;
 		break;
 	}
 	switch (CurvatureMapProps->Clamping)
 	{
 	default:
 	case EBakedCurvatureClampMode::None:
-		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapBaker::EClampMode::FullRange;
+		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapEvaluator::EClampMode::FullRange;
 		break;
 	case EBakedCurvatureClampMode::Positive:
-		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapBaker::EClampMode::Positive;
+		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapEvaluator::EClampMode::Positive;
 		break;
 	case EBakedCurvatureClampMode::Negative:
-		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapBaker::EClampMode::Negative;
+		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapEvaluator::EClampMode::Negative;
 		break;
 	}
 	CurvatureMapSettings.BlurRadius = (CurvatureMapProps->bGaussianBlur) ? CurvatureMapProps->BlurRadius : 0.0;
@@ -1090,21 +1078,20 @@ UBakeMeshAttributeMapsTool::EOpState UBakeMeshAttributeMapsTool::UpdateResult_Me
 	switch (Settings->MapType)
 	{
 		case EBakeMapType::NormalImage:
-			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::Normal;
+			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyMapType::Normal;
 			break;
 		case EBakeMapType::FaceNormalImage:
-			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::FacetNormal;
+			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyMapType::FacetNormal;
 			break;
 		case EBakeMapType::PositionImage:
-			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::Position;
+			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyMapType::Position;
 			break;
 		case EBakeMapType::MaterialID:
-			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::MaterialID;
+			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyMapType::MaterialID;
 			break;
 		default:
 			check(false);		// should not be possible!
 	}
-	//MeshPropertyMapSettings.BlurRadius = (CurvatureMapProps->bGaussianBlur) ? CurvatureMapProps->BlurRadius : 0.0;
 
 	if (!(CachedMeshPropertyMapSettings == MeshPropertyMapSettings))
 	{
@@ -1430,7 +1417,7 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 	{
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedNormalMapSettings.Dimensions);
-		TextureBuilder.Copy(*NewResult->GetBakeResult(0));
+		TextureBuilder.Copy(*NewResult->GetBakeResults(0)[0]);
 		TextureBuilder.Commit(false);
 		CachedNormalMap = TextureBuilder.GetTexture2D();
 		break;
@@ -1439,13 +1426,13 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 	{
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, CachedOcclusionMapSettings.Dimensions);
-		TextureBuilder.Copy(*NewResult->GetBakeResult(0));
+		TextureBuilder.Copy(*NewResult->GetBakeResults(0)[0]);
 		TextureBuilder.Commit(false);
 		CachedOcclusionMap = TextureBuilder.GetTexture2D();
 
 		FTexture2DBuilder TextureNormalBuilder;
 		TextureNormalBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedOcclusionMapSettings.Dimensions);
-		TextureNormalBuilder.Copy(*NewResult->GetBakeResult(1));
+		TextureNormalBuilder.Copy(*NewResult->GetBakeResults(0)[1]);
 		TextureNormalBuilder.Commit(false);
 		CachedBentNormalMap = TextureNormalBuilder.GetTexture2D();
 		break;
@@ -1454,7 +1441,7 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 	{
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedCurvatureMapSettings.Dimensions);
-		TextureBuilder.Copy(*NewResult->GetBakeResult(0));
+		TextureBuilder.Copy(*NewResult->GetBakeResults(0)[0]);
 		TextureBuilder.Commit(false);
 		CachedCurvatureMap = TextureBuilder.GetTexture2D();
 		break;
@@ -1466,7 +1453,7 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 	{
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedMeshPropertyMapSettings.Dimensions);
-		TextureBuilder.Copy(*NewResult->GetBakeResult(0));
+		TextureBuilder.Copy(*NewResult->GetBakeResults(0)[0]);
 		TextureBuilder.Commit(false);
 		CachedMeshPropertyMap = TextureBuilder.GetTexture2D();
 		break;
@@ -1475,7 +1462,7 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 	{
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedTexture2DImageSettings.Dimensions);
-		TextureBuilder.Copy(*NewResult->GetBakeResult(0), true);
+		TextureBuilder.Copy(*NewResult->GetBakeResults(0)[0], true);
 		TextureBuilder.Commit(false);
 		CachedTexture2DImageMap = TextureBuilder.GetTexture2D();
 		break;
@@ -1484,7 +1471,7 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 	{
 		FTexture2DBuilder TextureBuilder;
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, CachedTexture2DImageSettings.Dimensions);
-		TextureBuilder.Copy(*NewResult->GetBakeResult(0), true);
+		TextureBuilder.Copy(*NewResult->GetBakeResults(0)[0], true);
 		TextureBuilder.Commit(false);
 		CachedTexture2DImageMap = TextureBuilder.GetTexture2D();
 		break;

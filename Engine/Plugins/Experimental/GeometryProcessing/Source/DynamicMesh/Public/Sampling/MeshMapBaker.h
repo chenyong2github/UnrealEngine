@@ -6,7 +6,7 @@
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshAABBTree3.h"
 #include "MeshTangents.h"
-#include "Sampling/MeshImageBaker.h"
+#include "Sampling/MeshMapEvaluator.h"
 #include "Sampling/MeshSurfaceSampler.h"
 #include "Spatial/DenseGrid2.h"
 #include "Image/ImageBuilder.h"
@@ -16,6 +16,41 @@ namespace UE
 {
 namespace Geometry
 {
+
+class FImageOccupancyMap;
+
+class FMeshMapTileBuffer
+{
+public:
+	FMeshMapTileBuffer(const FImageDimensions& TileIn, const int32 PixelSizeIn)
+		: Tile(TileIn)
+		, PixelSize(PixelSizeIn + 1) // + 1 for accumulated pixel weight.
+	{
+		Buffer = static_cast<float*>(FMemory::MallocZeroed(sizeof(float) * PixelSize * Tile.Num()));
+	}
+
+	~FMeshMapTileBuffer()
+	{
+		FMemory::Free(Buffer);
+	}
+
+	float& GetPixelWeight(int64 LinearIdx)
+	{
+		checkSlow(LinearIdx >= 0 && LinearIdx < Tile.Num());
+		return Buffer[LinearIdx * PixelSize];
+	}
+
+	float* GetPixel(int64 LinearIdx)
+	{
+		checkSlow(LinearIdx >= 0 && LinearIdx < Tile.Num());
+		return &Buffer[LinearIdx * PixelSize + 1];
+	}
+
+private:
+	const FImageDimensions Tile;
+	const int32 PixelSize;
+	float* Buffer;
+};
 
 class DYNAMICMESH_API FMeshMapBaker
 {
@@ -29,13 +64,13 @@ public:
 	void Bake();
 
 	/** Add a baker to be processed. */
-	int32 AddBaker(TSharedPtr<FMeshImageBaker> Target);
+	int32 AddBaker(TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe> Target);
 
 	/** Reset the list of bakers. */
 	void Reset();
 
 	/** @return the bake result image for a given baker index. */
-	const TSharedPtr<TImageBuilder<FVector4f>, ESPMode::ThreadSafe>& GetBakeResult(int32 Index) const { return BakeResults[Index]; }
+	const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> GetBakeResults(int32 BakerIdx);
 
 	/** if this function returns true, we should abort calculation */
 	TFunction<bool(void)> CancelF = []() { return false; };
@@ -92,10 +127,31 @@ public:
 	ECorrespondenceStrategy GetCorrespondenceStrategy() const { return CorrespondenceStrategy; }
 
 protected:
-	void BakePixel(FImageOccupancyMap& OccupancyMap, const FImageDimensions& Tile, int32 ImgX, int32 ImgY);
+	/** Evaluate samples for this tile pixel. */
+	void BakePixel(FMeshMapTileBuffer& TileBuffer, FImageOccupancyMap& OccupancyMap, const FImageDimensions& Tile, const FVector2i& TileCoords);
+
+	/** Evaluate this sample. */
+	void BakeSample(FMeshMapTileBuffer& TileBuffer, const FMeshMapEvaluator::FCorrespondenceSample& Sample, const FImageDimensions& Tile,
+		const FVector2i& TileCoords, const FVector2i& ImageCoords, const float& SampleWeight);
+
+	/** Initialize evaluation contexts and precompute data for bake evaluation. */
+	void InitBake();
+
+	/** Initialize bake sample default floats and colors. */
+	void InitBakeDefaults();
+
+	/**
+	 * Convert float buffer value to float4 color. This function
+	 * will advance the buffer pointer by the stride value.
+	 * 
+	 * @param Buffer [out] input buffer data.
+	 * @param Stride the data layout of the buffer pointer.
+	 * @param Weight the weight to apply to the buffer data.
+	 */
+	FVector4f FloatToPixel(float*& Buffer, FMeshMapEvaluator::EComponents Stride, float Weight);
 
 protected:
-	bool bParallel = true;
+	const bool bParallel = true;
 
 	const FDynamicMesh3* DetailMesh = nullptr;
 	const FDynamicMeshAABBTree3* DetailSpatial = nullptr;
@@ -103,19 +159,44 @@ protected:
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> TargetMeshTangents;
 
 	FDynamicMesh3 FlatMesh;
-	TMeshSurfaceUVSampler<FMeshImageBaker::FCorrespondenceSample> DetailMeshSampler;
+	TMeshSurfaceUVSampler<FMeshMapEvaluator::FCorrespondenceSample> DetailMeshSampler;
 
 	FImageDimensions Dimensions = FImageDimensions(128, 128);
 	int32 UVLayer = 0;
 	double Thickness = 3.0;
 	ECorrespondenceStrategy CorrespondenceStrategy = ECorrespondenceStrategy::RaycastStandard;
 	int32 GutterSize = 4;
+
+	/** The square dimensions for multisampling each pixel. */
 	int32 Multisampling = 1;
 
+	/** The square dimensions for tiled processing of the output image(s). */
 	const int32 TileSize = 32;
 
-	TArray<TSharedPtr<FMeshImageBaker, ESPMode::ThreadSafe>> Bakers;
-	TArray<TSharedPtr<TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> BakeResults;
+	/** The total size of the temporary float buffer for BakeSample. */
+	int32 BakeSampleBufferSize = 0;
+
+	/** The list of evaluators to process. */
+	TArray<TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe>> Bakers;
+
+	/** Evaluation contexts for each mesh evaluator. */
+	TArray<FMeshMapEvaluator::FEvaluationContext> BakeContexts;
+
+	/** Lists of Bake indices for each accumulation mode. */
+	TArray<TArray<int32>> BakeAccumulateLists;
+
+	/** Array of default values/colors per BakeResult. */
+	TArray<float> BakeDefaults;
+	TArray<FVector4f> BakeDefaultColors;
+	
+	/** Offsets per Baker into the BakeResults array.*/
+	TArray<int32> BakeOffsets;
+
+	/** Offsets per BakeResult into the BakeSample buffer.*/
+	TArray<int32> BakeSampleOffsets;
+
+	/** Array of bake result images. */
+	TArray<TUniquePtr<TImageBuilder<FVector4f>>> BakeResults;
 };
 
 } // end namespace UE::Geometry

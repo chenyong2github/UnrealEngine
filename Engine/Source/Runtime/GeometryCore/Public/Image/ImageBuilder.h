@@ -63,6 +63,32 @@ public:
 	/**
 	 * Get the Pixel at the given X/Y coordinates
 	 */
+	PixelType& GetPixel(int32 X, int32 Y)
+	{
+		int64 LinearIndex = Dimensions.GetIndex(FVector2i(X, Y));
+		return Image[LinearIndex];
+	}
+
+	/**
+	 * Get the Pixel at the given X/Y coordinates
+	 */
+	PixelType& GetPixel(const FVector2i& ImageCoords)
+	{
+		int64 LinearIndex = Dimensions.GetIndex(ImageCoords);
+		return Image[LinearIndex];
+	}
+
+	/**
+	 * Get the Pixel at the given linear index
+	 */
+	PixelType& GetPixel(int64 LinearIndex)
+	{
+		return Image[LinearIndex];
+	}
+
+	/**
+	 * Get the Pixel at the given X/Y coordinates
+	 */
 	const PixelType& GetPixel(int32 X, int32 Y) const
 	{
 		int64 LinearIndex = Dimensions.GetIndex(FVector2i(X,Y));

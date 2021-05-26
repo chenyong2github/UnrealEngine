@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sampling/MeshCurvatureMapBaker.h"
-#include "Sampling/MeshMapBaker.h"
 #include "Sampling/SphericalFibonacci.h"
 #include "Sampling/Gaussians.h"
 #include "MeshCurvature.h"
@@ -13,14 +12,14 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-void FMeshCurvatureMapBaker::CacheDetailCurvatures(const FDynamicMesh3* DetailMeshIn)
+void FMeshCurvatureMapBaker::CacheDetailCurvatures(const FDynamicMesh3* DetailMesh)
 {
 	if (! Curvatures)
 	{
 		Curvatures = MakeShared<FMeshVertexCurvatureCache>();
-		Curvatures->BuildAll(*DetailMeshIn);
+		Curvatures->BuildAll(*DetailMesh);
 	}
-	check(Curvatures->Num() == DetailMeshIn->MaxVertexID());
+	check(Curvatures->Num() == DetailMesh->MaxVertexID());
 
 }
 
@@ -29,7 +28,7 @@ void FMeshCurvatureMapBaker::Bake()
 {
 	const FMeshImageBakingCache* BakeCache = GetCache();
 	check(BakeCache);
-	DetailMesh = BakeCache->GetDetailMesh();
+	const FDynamicMesh3* DetailMesh = BakeCache->GetDetailMesh();
 
 	CacheDetailCurvatures(DetailMesh);
 
@@ -70,10 +69,12 @@ void FMeshCurvatureMapBaker::Bake()
 void FMeshCurvatureMapBaker::Bake_Single()
 {
 	const FMeshImageBakingCache* BakeCache = GetCache();
+	const FDynamicMesh3* DetailMesh = BakeCache->GetDetailMesh();
 	const FMeshVertexCurvatureCache& Cache = *Curvatures;
 
-	MinPreClamp = -TNumericLimits<double>::Max();
-	MaxPreClamp = TNumericLimits<double>::Max();
+
+	double MinPreClamp = -TNumericLimits<double>::Max();
+	double MaxPreClamp = TNumericLimits<double>::Max();
 	if (UseClampMode == EClampMode::Positive)
 	{
 		MinPreClamp = 0;
@@ -82,6 +83,23 @@ void FMeshCurvatureMapBaker::Bake_Single()
 	{
 		MaxPreClamp = 0;
 	}
+
+
+
+	auto GetCurvature = [&](int32 vid) {
+		switch (UseCurvatureType)
+		{
+		default:
+		case ECurvatureType::Mean:
+			return FMathd::Clamp(Cache[vid].Mean, MinPreClamp, MaxPreClamp);
+		case ECurvatureType::Gaussian:
+			return FMathd::Clamp(Cache[vid].Gaussian, MinPreClamp, MaxPreClamp);
+		case ECurvatureType::MaxPrincipal:
+			return FMathd::Clamp(Cache[vid].MaxPrincipal, MinPreClamp, MaxPreClamp);
+		case ECurvatureType::MinPrincipal:
+			return FMathd::Clamp(Cache[vid].MinPrincipal, MinPreClamp, MaxPreClamp);
+		}
+	};
 
 	FSampleSetStatisticsd CurvatureStats = Cache.MeanStats;
 	switch (UseCurvatureType)
@@ -107,13 +125,35 @@ void FMeshCurvatureMapBaker::Bake_Single()
 		ClampMax = RangeScale * OverrideRangeMax;
 	}
 	double MinClamp = MinRangeScale * ClampMax;
-	ClampRange = FInterval1d(MinClamp, ClampMax);
+	FInterval1d ClampRange(MinClamp, ClampMax);
 
+	// sample curvature of detail surface in tangent-space of base surface
+	auto CurvatureSampleFunction = [&](const FMeshImageBakingCache::FCorrespondenceSample& SampleData)
+	{
+		int32 DetailTriID = SampleData.DetailTriID;
+		if (DetailMesh->IsTriangle(DetailTriID))
+		{
+			FIndex3i DetailTri = DetailMesh->GetTriangle(DetailTriID);
+			double CurvatureA = GetCurvature(DetailTri.A);
+			double CurvatureB = GetCurvature(DetailTri.B);
+			double CurvatureC = GetCurvature(DetailTri.C);
+			double InterpCurvature = SampleData.DetailBaryCoords.X * CurvatureA
+				+ SampleData.DetailBaryCoords.Y * CurvatureB
+				+ SampleData.DetailBaryCoords.Z * CurvatureC;
+
+			return InterpCurvature;
+		}
+		return 0.0;
+	};
+
+
+
+	FVector3f NegativeColor, ZeroColor, PositiveColor;
 	GetColorMapRange(NegativeColor, ZeroColor, PositiveColor);
 
-	BakeCache->EvaluateSamples([this](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
+	BakeCache->EvaluateSamples([&](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
 	{
-		double Curvature = SampleFunction<FMeshImageBakingCache::FCorrespondenceSample>(Sample);
+		double Curvature = CurvatureSampleFunction(Sample);
 
 		double Sign = FMathd::Sign(Curvature);
 		float T = (float)ClampRange.GetT(FMathd::Abs(Curvature));
@@ -131,117 +171,26 @@ void FMeshCurvatureMapBaker::Bake_Multi()
 
 }
 
-double FMeshCurvatureMapBaker::GetCurvature(int32 vid)
-{
-	const FMeshVertexCurvatureCache& Cache = *Curvatures;
-	switch (UseCurvatureType)
-	{
-	default:
-	case ECurvatureType::Mean:
-		return FMathd::Clamp(Cache[vid].Mean, MinPreClamp, MaxPreClamp);
-	case ECurvatureType::Gaussian:
-		return FMathd::Clamp(Cache[vid].Gaussian, MinPreClamp, MaxPreClamp);
-	case ECurvatureType::MaxPrincipal:
-		return FMathd::Clamp(Cache[vid].MaxPrincipal, MinPreClamp, MaxPreClamp);
-	case ECurvatureType::MinPrincipal:
-		return FMathd::Clamp(Cache[vid].MinPrincipal, MinPreClamp, MaxPreClamp);
-	}
-}
 
-void FMeshCurvatureMapBaker::GetColorMapRange(FVector3f& NegativeColorOut, FVector3f& ZeroColorOut, FVector3f& PositiveColorOut)
+void FMeshCurvatureMapBaker::GetColorMapRange(FVector3f& NegativeColor, FVector3f& ZeroColor, FVector3f& PositiveColor)
 {
 	switch (UseColorMode)
 	{
 	default:
 	case EColorMode::BlackGrayWhite:
-		NegativeColorOut = FVector3f(0, 0, 0);
-		ZeroColorOut = FVector3f(0.5, 0.5, 0.5);
-		PositiveColorOut = FVector3f(1, 1, 1);
+		NegativeColor = FVector3f(0, 0, 0);
+		ZeroColor = FVector3f(0.5, 0.5, 0.5);
+		PositiveColor = FVector3f(1, 1, 1);
 		break;
 	case EColorMode::RedGreenBlue:
-		NegativeColorOut = FVector3f(1, 0, 0);
-		ZeroColorOut = FVector3f(0, 1, 0);
-		PositiveColorOut = FVector3f(0, 0, 1);
+		NegativeColor = FVector3f(1, 0, 0);
+		ZeroColor = FVector3f(0, 1, 0);
+		PositiveColor = FVector3f(0, 0, 1);
 		break;
 	case EColorMode::RedBlue:
-		NegativeColorOut = FVector3f(1, 0, 0);
-		ZeroColorOut = FVector3f(0, 0, 0);
-		PositiveColorOut = FVector3f(0, 0, 1);
+		NegativeColor = FVector3f(1, 0, 0);
+		ZeroColor = FVector3f(0, 0, 0);
+		PositiveColor = FVector3f(0, 0, 1);
 		break;
 	}
-}
-
-void FMeshCurvatureMapBaker::PreEvaluate(const FMeshMapBaker& Baker)
-{
-	DetailMesh = Baker.GetDetailMesh();
-	CacheDetailCurvatures(DetailMesh);
-
-	MinPreClamp = -TNumericLimits<double>::Max();
-	MaxPreClamp = TNumericLimits<double>::Max();
-	if (UseClampMode == EClampMode::Positive)
-	{
-		MinPreClamp = 0;
-	}
-	else if (UseClampMode == EClampMode::Negative)
-	{
-		MaxPreClamp = 0;
-	}
-
-	const FMeshVertexCurvatureCache& Cache = *Curvatures;
-	FSampleSetStatisticsd CurvatureStats = Cache.MeanStats;
-	switch (UseCurvatureType)
-	{
-	default:
-	case ECurvatureType::Mean:
-		CurvatureStats = Cache.MeanStats;
-		break;
-	case ECurvatureType::Gaussian:
-		CurvatureStats = Cache.GaussianStats;
-		break;
-	case ECurvatureType::MaxPrincipal:
-		CurvatureStats = Cache.MaxPrincipalStats;
-		break;
-	case ECurvatureType::MinPrincipal:
-		CurvatureStats = Cache.MinPrincipalStats;
-		break;
-	}
-
-	double ClampMax = RangeScale * (CurvatureStats.Mean + CurvatureStats.StandardDeviation);
-	if (bOverrideCurvatureRange)
-	{
-		ClampMax = RangeScale * OverrideRangeMax;
-	}
-	double MinClamp = MinRangeScale * ClampMax;
-	ClampRange = FInterval1d(MinClamp, ClampMax);
-
-	GetColorMapRange(NegativeColor, ZeroColor, PositiveColor);
-}
-
-FVector4f FMeshCurvatureMapBaker::EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample)
-{
-	double Curvature = SampleFunction<FCorrespondenceSample>(Sample);
-	double Sign = FMathd::Sign(Curvature);
-	float T = (float)ClampRange.GetT(FMathd::Abs(Curvature));
-	FVector3f CurvatureColor = (Sign < 0) ?
-		Lerp(ZeroColor, NegativeColor, T) : Lerp(ZeroColor, PositiveColor, T);
-	return FVector4f(CurvatureColor.X, CurvatureColor.Y, CurvatureColor.Z, 1.0f);
-}
-
-template<class SampleType>
-double FMeshCurvatureMapBaker::SampleFunction(const SampleType& SampleData)
-{
-	int32 DetailTriID = SampleData.DetailTriID;
-	if (DetailMesh->IsTriangle(DetailTriID))
-	{
-		FIndex3i DetailTri = DetailMesh->GetTriangle(DetailTriID);
-		double CurvatureA = GetCurvature(DetailTri.A);
-		double CurvatureB = GetCurvature(DetailTri.B);
-		double CurvatureC = GetCurvature(DetailTri.C);
-		double InterpCurvature = SampleData.DetailBaryCoords.X * CurvatureA
-			+ SampleData.DetailBaryCoords.Y * CurvatureB
-			+ SampleData.DetailBaryCoords.Z * CurvatureC;
-
-		return InterpCurvature;
-	}
-	return 0.0;
 }
