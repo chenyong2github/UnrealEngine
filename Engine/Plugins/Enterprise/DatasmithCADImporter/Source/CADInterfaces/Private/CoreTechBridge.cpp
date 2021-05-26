@@ -2,6 +2,8 @@
 
 #include "CoreTechBridge.h"
 
+#ifdef USE_KERNEL_IO_SDK
+
 #pragma warning(push)
 #pragma warning(disable:4996) // unsafe sprintf
 #pragma warning(disable:4828) // illegal character
@@ -1109,3 +1111,5 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 		}
 	}
 }
+
+#endif // USE_KERNEL_IO_SDK
