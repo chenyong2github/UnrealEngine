@@ -14,10 +14,13 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"Renderer",
 					"RHI",
-					"MessageLog",
 					"IntelOIDN"
 				}
 			);
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("MessageLog");
+			}
 		}
 	}
 }

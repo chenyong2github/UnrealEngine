@@ -15,8 +15,10 @@ public:
 	virtual void ShutdownModule() override;
 };
 
+#if WITH_EDITOR
 DECLARE_LOG_CATEGORY_EXTERN(LogOpenImageDenoise, Log, All);
 DEFINE_LOG_CATEGORY(LogOpenImageDenoise);
+#endif
 
 IMPLEMENT_MODULE(FOpenImageDenoiseModule, OpenImageDenoise)
 
@@ -24,8 +26,10 @@ static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTe
 {
 	const int DenoiserMode = 2; // TODO: Expose setting for this
 
+#if WITH_EDITOR
 	uint64 FilterExecuteTime = 0;
 	FilterExecuteTime -= FPlatformTime::Cycles64();
+#endif
 
 	FIntPoint Size = ColorTex->GetSizeXY();
 	FIntRect Rect = FIntRect(0, 0, Size.X, Size.Y);
@@ -68,6 +72,7 @@ static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTe
 
 	RHICmdList.UnlockTexture2D(OutputTex, 0, false);
 
+#if WITH_EDITOR
 	const char* errorMessage;
 	if (OIDNDevice.getError(errorMessage) != oidn::Error::None)
 	{
@@ -78,17 +83,22 @@ static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTe
 	FilterExecuteTime += FPlatformTime::Cycles64();
 	const double FilterExecuteTimeMS = 1000.0 * FPlatformTime::ToSeconds64(FilterExecuteTime);
 	UE_LOG(LogOpenImageDenoise, Log, TEXT("Denoised %d x %d pixels in %.2f ms"), Size.X, Size.Y, FilterExecuteTimeMS);
+#endif
 }
 
 
 void FOpenImageDenoiseModule::StartupModule()
 {
+#if WITH_EDITOR
 	UE_LOG(LogOpenImageDenoise, Log, TEXT("OIDN starting up"));
+#endif
 	GPathTracingDenoiserFunc = &Denoise;
 }
 
 void FOpenImageDenoiseModule::ShutdownModule()
 {
+#if WITH_EDITOR
 	UE_LOG(LogOpenImageDenoise, Log, TEXT("OIDN shutting down"));
+#endif
 	GPathTracingDenoiserFunc = nullptr;
 }
