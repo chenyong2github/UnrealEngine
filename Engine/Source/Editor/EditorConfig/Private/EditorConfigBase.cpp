@@ -7,11 +7,11 @@
 bool UEditorConfigBase::LoadEditorConfig()
 {
 	UEditorConfigSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEditorConfigSubsystem>();
-	return Subsystem->LoadConfigObject(this, this->GetClass());
+	return Subsystem->LoadConfigObject(this->GetClass(), this);
 }
 
 bool UEditorConfigBase::SaveEditorConfig() const
 {
 	UEditorConfigSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEditorConfigSubsystem>();
-	return Subsystem->SaveConfigObject(this, this->GetClass());
+	return Subsystem->SaveConfigObject(this->GetClass(), this);
 }

@@ -38,6 +38,9 @@ public:
 	template <typename T>
 	bool TryGetRootUObject(T& OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;
 
+	bool TryGetRootStruct(const UStruct* Class, void* OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;
+	bool TryGetRootUObject(const UClass* Class, UObject* OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;
+
 	template <typename T>
 	void SetStruct(FStringView Key, const T& InValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly);
 	template <typename T>
@@ -48,8 +51,8 @@ public:
 	template <typename T>
 	void SetRootUObject(const T& InValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly);
 
-	void SetRootUObject(const UClass* Class, const UObject* Instance, EPropertyFilter Filter = EPropertyFilter::MetadataOnly);
 	void SetRootStruct(const UStruct* Class, const void* Instance, EPropertyFilter Filter = EPropertyFilter::MetadataOnly);
+	void SetRootUObject(const UClass* Class, const UObject* Instance, EPropertyFilter Filter = EPropertyFilter::MetadataOnly);
 
 	bool HasOverride(FStringView Key) const;
 
@@ -142,17 +145,7 @@ bool FEditorConfig::TryGetUObject(FStringView Key, T& OutValue, EPropertyFilter 
 template <typename T>
 bool FEditorConfig::TryGetRootStruct(T& OutValue, EPropertyFilter Filter) const
 {
-	if (!IsValid())
-	{
-		return false;
-	}
-
-	TSharedPtr<FJsonObject> StructData = JsonConfig->GetRootObject();
-
-	const UStruct* Struct = T::StaticStruct();
-	ReadStruct(StructData, Struct, &OutValue, nullptr, Filter);
-
-	return true;
+	return TryGetRootStruct(T::StaticStruct(), &OutValue, Filter);
 }
 
 template <typename T>
@@ -160,17 +153,7 @@ bool FEditorConfig::TryGetRootUObject(T& OutValue, EPropertyFilter Filter) const
 {
 	static_assert(TIsDerivedFrom<T, UObject>::Value, "Type is not derived from UObject.");
 
-	if (!IsValid())
-	{
-		return false;
-	}
-
-	TSharedPtr<FJsonObject> UObjectData = JsonConfig->GetRootObject();
-
-	const UClass* Class = T::StaticClass();
-	ReadUObject(UObjectData, Class, &OutValue, Filter);
-
-	return true;
+	return TryGetRootUObject(T::StaticClass(), &OutValue, Filter);
 }
 
 template <typename T>

@@ -22,6 +22,7 @@ public:
 	/** 
 	 * Load a config from the root of the JSON file into a given UObject.
 	 * This loads the config from the UCLASS's EditorConfig="ConfigName" metadata.
+	 * @param Object The object to load into.
 	 * @param Filter Whether to load all properties, or only ones marked with the EditorConfig metadata.
 	 */
 	template <typename TObject>
@@ -30,6 +31,7 @@ public:
 	/** 
 	 * Save the given UObject to the root of the JSON config.
 	 * This saves the config to the UCLASS's EditorConfig="ConfigName" metadata.
+	 * @param Object The object to save.
 	 * @param Filter Whether to save all properties, or only ones marked with the EditorConfig metadata.
 	 */
 	template <typename TObject>
@@ -38,20 +40,20 @@ public:
 	/** 
 	 * Load a config from the root of the JSON file into a given UObject.
 	 * This loads the config from the UCLASS's EditorConfig="ConfigName" metadata.
-	 * @param Filter Whether to load all properties, or only ones marked with the EditorConfig metadata.
-	 * @param Object The UObject instance to load into.
 	 * @param Class The UClass of the object. 
+	 * @param Object The UObject instance to load into.
+	 * @param Filter Whether to load all properties, or only ones marked with the EditorConfig metadata.
 	 */
-	bool LoadConfigObject(UObject* Object, const UClass* Class, FEditorConfig::EPropertyFilter = FEditorConfig::EPropertyFilter::MetadataOnly);
+	bool LoadConfigObject(const UClass* Class, UObject* Object, FEditorConfig::EPropertyFilter = FEditorConfig::EPropertyFilter::MetadataOnly);
 	
 	/** 
 	 * Save the given UObject of the given class to the root of the JSON config.
 	 * This saves the config to the UCLASS's EditorConfig="ConfigName" metadata.
-	 * @param Object The UObject instance to save.
 	 * @param Class The UClass of the object. 
+	 * @param Object The UObject instance to save.
 	 * @param Filter Whether to save all properties, or only ones marked with the EditorConfig metadata.
 	 */
-	bool SaveConfigObject(const UObject* Object, const UClass* Class, FEditorConfig::EPropertyFilter = FEditorConfig::EPropertyFilter::MetadataOnly);
+	bool SaveConfigObject(const UClass* Class, const UObject* Object, FEditorConfig::EPropertyFilter = FEditorConfig::EPropertyFilter::MetadataOnly);
 	
 	/** 
 	 * Find a config with the given name that has already been loaded, load it if it hasn't been, or create one with the given name.
@@ -98,7 +100,7 @@ bool UEditorConfigSubsystem::LoadConfigObject(TObject* Object, FEditorConfig::EP
 	check(Object != nullptr);
 	
 	const UClass* Class = TObject::StaticClass();
-	return LoadConfigObject(static_cast<UObject*>(Object), Class, Filter);
+	return LoadConfigObject(Class, Object, Filter);
 }
 
 template <typename TObject>
@@ -108,5 +110,5 @@ bool UEditorConfigSubsystem::SaveConfigObject(const TObject* Object, FEditorConf
 	check(Object != nullptr);
 
 	const UClass* Class = TObject::StaticClass();
-	return SaveConfigObject(static_cast<const UObject*>(Object), Class);
+	return SaveConfigObject(Class, Object);
 }
