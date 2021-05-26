@@ -310,6 +310,16 @@ return TSuper::SupportsFeature(Feature);
 		TextureLODSettings = InTextureLODSettings;
 	}
 
+	virtual bool CanSupportRemoteShaderCompile() const override
+	{
+		return true;
+	}
+	
+	virtual void GetShaderCompilerDependencies(TArray<FString>& OutDependencies) const override
+	{
+		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/ThirdParty/ShaderConductor/Mac/libdxcompiler.dylib"));
+		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/ThirdParty/ShaderConductor/Mac/libShaderConductor.dylib"));
+	}
 
 	virtual FName GetWaveFormat( const class USoundWave* Wave ) const override
 	{

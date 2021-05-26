@@ -567,7 +567,7 @@ void FXGEControllerModule::ReadBackThreadProc()
 FString FXGEControllerModule::CreateUniqueFilePath()
 {
 	check(bSupported);
-	return FString::Printf(TEXT("%s/%d.xge"), *WorkingDirectory, NextFileID.Increment());
+	return FString::Printf(TEXT("%s/%d-xge"), *WorkingDirectory, NextFileID.Increment());
 }
 
 TFuture<FDistributedBuildTaskResult> FXGEControllerModule::EnqueueTask(const FTaskCommandData& CommandData)

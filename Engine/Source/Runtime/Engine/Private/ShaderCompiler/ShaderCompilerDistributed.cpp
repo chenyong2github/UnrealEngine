@@ -68,8 +68,9 @@ FShaderCompileDistributedThreadRunnable_Interface::~FShaderCompileDistributedThr
 
 void FShaderCompileDistributedThreadRunnable_Interface::DispatchShaderCompileJobsBatch(TArray<FShaderCommonCompileJobPtr>& JobsToSerialize)
 {
-	FString InputFilePath = CachedController.CreateUniqueFilePath();
-	FString OutputFilePath = CachedController.CreateUniqueFilePath();
+	const FString BaseFilePath = CachedController.CreateUniqueFilePath();
+	FString InputFilePath = BaseFilePath + TEXT(".in");
+	FString OutputFilePath = BaseFilePath + TEXT(".out");
 
 	const FString WorkingDirectory = FPaths::GetPath(InputFilePath);
 	const FString InputFileName = FPaths::GetCleanFilename(InputFilePath);
@@ -86,7 +87,7 @@ void FShaderCompileDistributedThreadRunnable_Interface::DispatchShaderCompileJob
 
 	// Serialize the jobs to the input file
 	FArchive* InputFileAr = IFileManager::Get().CreateFileWriter(*InputFilePath, FILEWRITE_EvenIfReadOnly | FILEWRITE_NoFail);
-	FShaderCompileUtilities::DoWriteTasks(JobsToSerialize, *InputFileAr);
+	FShaderCompileUtilities::DoWriteTasks(JobsToSerialize, *InputFileAr, CachedController.RequiresRelativePaths());
 	delete InputFileAr;
 
 	// Kick off the job
@@ -96,6 +97,8 @@ void FShaderCompileDistributedThreadRunnable_Interface::DispatchShaderCompileJob
 	TaskCommandData.Command = Manager->ShaderCompileWorkerName;
 	TaskCommandData.CommandArgs = WorkerParameters;
 	TaskCommandData.InputFileName = InputFilePath;
+	TaskCommandData.OutputFileName = OutputFilePath;
+	TaskCommandData.DispatcherPID = Manager->ProcessId;
 	TaskCommandData.Dependencies = GetDependencyFilesForJobs(JobsToSerialize);
 	
 	DispatchedTasks.Add(
