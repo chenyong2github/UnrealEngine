@@ -10,7 +10,7 @@
 	<Option Name="Robomerge" DefaultValue="Merge" Description="Robomerge action for this build, defaults to Merge"/>
 	<Option Name="TargetLibs" DefaultValue="PhysX+APEX" Description="Target libs"/>
 	<Option Name="TargetConfigs" DefaultValue="profile+release+checked" Description="Target Configs"/>
-	<Option Name="TargetWindowsCompilers" DefaultValue="VisualStudio2015" Description="Target Compilers"/>
+	<Option Name="TargetWindowsCompilers" DefaultValue="VisualStudio2019" Description="Target Compilers"/>
 	<Option Name="WithWin64" DefaultValue="false" Description="Compile for Win64"/>
 	<Option Name="WithHoloLens" DefaultValue="false" Description="Compile for HoloLens"/>
 	<Option Name="WithPS4" DefaultValue="false" Description="Compile for PS4"/>

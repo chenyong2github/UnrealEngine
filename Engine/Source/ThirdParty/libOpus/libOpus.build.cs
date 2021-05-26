@@ -53,7 +53,7 @@ public class libOpus : ModuleRules
 			}
 			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
 			{
-				LibraryPath += "Windows/VS" + (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED ? "2015" : "2012");
+				LibraryPath += "Windows/VS" + (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017 ? "2015" : "2012");
 				LibraryPath += "/ARM64/";
 			}
 			

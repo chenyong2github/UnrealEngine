@@ -30,9 +30,6 @@ namespace UnrealBuildTool
 	enum VCProjectFileFormat
 	{
 		Default,          // Default to the best installed version, but allow SDKs to override
-		VisualStudio2012, // Unsupported
-		VisualStudio2013, // Unsupported
-		VisualStudio2015,
 		VisualStudio2017,
 		VisualStudio2019,
 	}
@@ -129,11 +126,7 @@ namespace UnrealBuildTool
 				Settings.ProjectFileFormat = InProjectFileFormat;
 			}
 
-			if (InArguments.HasOption("-2015"))
-			{
-				BuildToolOverride = "-2015";
-			}
-			else if (InArguments.HasOption("-2017"))
+			if (InArguments.HasOption("-2017"))
 			{
 				BuildToolOverride = "-2017";
 			}
@@ -225,12 +218,6 @@ namespace UnrealBuildTool
 		{
 			switch (ProjectFileFormat)
 			{
-				case VCProjectFileFormat.VisualStudio2012:
-					return "4.0";
-				case VCProjectFileFormat.VisualStudio2013:
-					return "12.0";
-				case VCProjectFileFormat.VisualStudio2015:
-					return "14.0";
 				case VCProjectFileFormat.VisualStudio2017:
 					return "15.0";
 				case VCProjectFileFormat.VisualStudio2019:
@@ -244,12 +231,6 @@ namespace UnrealBuildTool
 		{
 			switch (ProjectFileFormat)
 			{
-				case VCProjectFileFormat.VisualStudio2012:
-					return "v110";
-				case VCProjectFileFormat.VisualStudio2013:
-					return "v120";
-				case VCProjectFileFormat.VisualStudio2015:
-					return "v140";
 				case VCProjectFileFormat.VisualStudio2017:
 					return "v141";
 				case VCProjectFileFormat.VisualStudio2019:
@@ -288,15 +269,7 @@ namespace UnrealBuildTool
 			base.SetupSupportedPlatformsAndConfigurations(IncludeAllPlatforms, out SupportedPlatformNames);
 
 			// If we have a non-default setting for visual studio, check the compiler exists. If not, revert to the default.
-			if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2015)
-			{
-				if (!WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2015_DEPRECATED))
-				{
-					Log.TraceWarning("Visual Studio C++ 2015 installation not found - ignoring preferred project file format.");
-					Settings.ProjectFileFormat = VCProjectFileFormat.Default;
-				}
-			}
-			else if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2017)
+			if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2017)
 			{
 				if (!WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2017))
 				{
@@ -326,10 +299,6 @@ namespace UnrealBuildTool
 				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2017) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2017))
 				{
 					Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2017;
-				}
-				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2015_DEPRECATED) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2015_DEPRECATED))
-				{
-					Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2015;
 				}
 
 				// Allow the SDKs to override
@@ -523,26 +492,6 @@ namespace UnrealBuildTool
 				VCSolutionFileContent.AppendLine("# Visual Studio 15");
 				VCSolutionFileContent.AppendLine("VisualStudioVersion = 15.0.25807.0");
 				VCSolutionFileContent.AppendLine("MinimumVisualStudioVersion = 10.0.40219.1");
-			}
-			else if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2015)
-			{
-				VCSolutionFileContent.AppendLine();
-				VCSolutionFileContent.AppendLine("Microsoft Visual Studio Solution File, Format Version 12.00");
-				VCSolutionFileContent.AppendLine("# Visual Studio 14");
-				VCSolutionFileContent.AppendLine("VisualStudioVersion = 14.0.22310.1");
-				VCSolutionFileContent.AppendLine("MinimumVisualStudioVersion = 10.0.40219.1");
-			}
-			else if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2013)
-			{
-				VCSolutionFileContent.AppendLine();
-				VCSolutionFileContent.AppendLine("Microsoft Visual Studio Solution File, Format Version 12.00");
-				VCSolutionFileContent.AppendLine("# Visual Studio 2013");
-			}
-			else if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2012)
-			{
-				VCSolutionFileContent.AppendLine();
-				VCSolutionFileContent.AppendLine("Microsoft Visual Studio Solution File, Format Version 12.00");
-				VCSolutionFileContent.AppendLine("# Visual Studio 2012");
 			}
 			else
 			{
@@ -852,15 +801,6 @@ namespace UnrealBuildTool
 				FileReference SolutionOptionsFileName;
 				switch (Settings.ProjectFileFormat)
 				{
-					case VCProjectFileFormat.VisualStudio2012:
-						SolutionOptionsFileName = FileReference.Combine(MasterProjectPath, Path.ChangeExtension(SolutionFileName, "v11.suo"));
-						break;
-					case VCProjectFileFormat.VisualStudio2013:
-						SolutionOptionsFileName = FileReference.Combine(MasterProjectPath, Path.ChangeExtension(SolutionFileName, "v12.suo"));
-						break;
-					case VCProjectFileFormat.VisualStudio2015:
-						SolutionOptionsFileName = FileReference.Combine(MasterProjectPath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v14", ".suo");
-						break;
 					case VCProjectFileFormat.VisualStudio2017:
 						SolutionOptionsFileName = FileReference.Combine(MasterProjectPath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v15", ".suo");
 						break;

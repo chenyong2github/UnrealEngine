@@ -44,8 +44,8 @@ namespace UnrealBuildTool
         protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
         {
 			// This can be reset by higher level code when it detects that we don't have
-			// VS2015 installed (TODO - add custom format for Mac?)
-			Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2015;
+			// VS2017 installed (TODO - add custom format for Mac?)
+			Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2017;
 
             // we can't generate native projects so clear them here, we will just
             // write out OtherProjectFiles and AutomationProjectFiles

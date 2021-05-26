@@ -24,9 +24,6 @@ namespace UnrealBuildTool
 		/// Types of project files to generate
 		/// </summary>
 		[CommandLine("-ProjectFileFormat")]
-		[CommandLine("-2012unsupported", Value = nameof(ProjectFileFormat.VisualStudio2012))]
-		[CommandLine("-2013unsupported", Value = nameof(ProjectFileFormat.VisualStudio2013))]
-		[CommandLine("-2015", Value = nameof(ProjectFileFormat.VisualStudio2015))] // + override compiler
 		[CommandLine("-2017", Value = nameof(ProjectFileFormat.VisualStudio2017))] // + override compiler
 		[CommandLine("-2019", Value = nameof(ProjectFileFormat.VisualStudio2019))] // + override compiler
 		[CommandLine("-Makefile", Value = nameof(ProjectFileFormat.Make))]
@@ -193,15 +190,6 @@ namespace UnrealBuildTool
 						break;
 					case ProjectFileFormat.VisualStudio:
 						Generator = new VCProjectFileGenerator(ProjectFile, VCProjectFileFormat.Default, Arguments);
-						break;
-					case ProjectFileFormat.VisualStudio2012:
-						Generator = new VCProjectFileGenerator(ProjectFile, VCProjectFileFormat.VisualStudio2012, Arguments);
-						break;
-					case ProjectFileFormat.VisualStudio2013:
-						Generator = new VCProjectFileGenerator(ProjectFile, VCProjectFileFormat.VisualStudio2013, Arguments);
-						break;
-					case ProjectFileFormat.VisualStudio2015:
-						Generator = new VCProjectFileGenerator(ProjectFile, VCProjectFileFormat.VisualStudio2015, Arguments);
 						break;
 					case ProjectFileFormat.VisualStudio2017:
 						Generator = new VCProjectFileGenerator(ProjectFile, VCProjectFileFormat.VisualStudio2017, Arguments);

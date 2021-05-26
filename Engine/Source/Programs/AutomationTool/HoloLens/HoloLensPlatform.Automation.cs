@@ -1760,7 +1760,6 @@ namespace HoloLens.Automation
 				case WindowsCompiler.VisualStudio2019:
 				case WindowsCompiler.VisualStudio2017:
 				//Compiler version is still 14 for 2017
-				case WindowsCompiler.VisualStudio2015_DEPRECATED:
 				case WindowsCompiler.Default:
 					VCVersionFragment = "14";
 					break;

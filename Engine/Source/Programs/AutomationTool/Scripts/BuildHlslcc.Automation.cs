@@ -15,7 +15,7 @@ using EpicGames.Core;
 [Help("Builds Hlslcc using CMake build system.")]
 [Help("TargetPlatforms", "Specify a list of target platforms to build, separated by '+' characters (eg. -TargetPlatforms=Win64+Linux+Mac). Architectures are specified with '-'. Default is Win64+Linux.")]
 [Help("TargetConfigs", "Specify a list of configurations to build, separated by '+' characters (eg. -TargetConfigs=Debug+RelWithDebInfo). Default is Debug+RelWithDebInfo.")]
-[Help("TargetWindowsCompilers", "Specify a list of target compilers to use when building for Windows, separated by '+' characters (eg. -TargetCompilers=VisualStudio2015+VisualStudio2017). Default is VisualStudio2015.")]
+[Help("TargetWindowsCompilers", "Specify a list of target compilers to use when building for Windows, separated by '+' characters (eg. -TargetCompilers=VisualStudio2017+VisualStudio2019). Default is VisualStudio2019.")]
 [Help("SkipBuild", "Do not perform build step. If this argument is not supplied libraries will be built (in accordance with TargetLibs, TargetPlatforms and TargetWindowsCompilers).")]
 [Help("SkipDeployLibs", "Do not perform library deployment to the engine. If this argument is not supplied libraries will be copied into the engine.")]
 [Help("SkipDeploySource", "Do not perform source deployment to the engine. If this argument is not supplied source will be copied into the engine.")]
@@ -54,7 +54,7 @@ class BuildHlslcc : BuildCommand
 	private static string[] APEXSpecialLibs = { "NvParameterized", "RenderDebug" };
 
 	// We cache our own MSDev and MSBuild executables
-	private static FileReference MsDev14Exe;
+	private static FileReference MsDev19Exe;
 	private static FileReference MsBuildExe;
 
 	// Cache directories under the PhysX/ directory
@@ -88,7 +88,8 @@ class BuildHlslcc : BuildCommand
 		string VisualStudioDirectoryName;
 		switch (TargetWindowsCompiler)
 		{
-			case WindowsCompiler.VisualStudio2015_DEPRECATED:
+			case WindowsCompiler.VisualStudio2017:
+			case WindowsCompiler.VisualStudio2019:
 				VisualStudioDirectoryName = "VS2015";
 				break;
 			default:
@@ -106,7 +107,7 @@ class BuildHlslcc : BuildCommand
 		}
 	}
 
-	private static DirectoryReference GetProjectDirectory(TargetPlatformData TargetData, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
+	private static DirectoryReference GetProjectDirectory(TargetPlatformData TargetData, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2019)
 	{
 		DirectoryReference Directory = SourceRootDirectory;
 
@@ -164,13 +165,16 @@ class BuildHlslcc : BuildCommand
 		return " -DCMAKE_TOOLCHAIN_FILE=\"" + SourceRootDirectory + "\\..\\..\\PhysX3\\Externals\\CMakeModules\\Linux\\LinuxCrossToolchain.multiarch.cmake\"" + " -DARCHITECTURE_TRIPLE=" + TargetData.Architecture;
 	}
 
-	private static string GetCMakeArguments(TargetPlatformData TargetData, string BuildConfig = "", WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
+	private static string GetCMakeArguments(TargetPlatformData TargetData, string BuildConfig = "", WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2019)
 	{
 		string VisualStudioName;
 		switch (TargetWindowsCompiler)
 		{
-			case WindowsCompiler.VisualStudio2015_DEPRECATED:
-				VisualStudioName = "Visual Studio 14 2015";
+			case WindowsCompiler.VisualStudio2017:
+				VisualStudioName = "Visual Studio 15 2017";
+				break;
+			case WindowsCompiler.VisualStudio2019:
+				VisualStudioName = "Visual Studio 16 2019";
 				break;
 			default:
 				throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
@@ -208,7 +212,7 @@ class BuildHlslcc : BuildCommand
 	{
 		if (TargetData.Platform == UnrealTargetPlatform.Win64)
 		{
-			return MsDev14Exe.ToString();
+			return MsDev19Exe.ToString();
 		}
 
 		throw new AutomationException(String.Format("Non-MSBuild or unsupported platform '{0}' supplied to GetMsDevExe", TargetData.ToString()));
@@ -263,7 +267,7 @@ class BuildHlslcc : BuildCommand
 				string[] TargetPlatformAndArch = TargetPlatformName.Split(new char[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
 
 				UnrealTargetPlatform TargetPlatform;
-				if (!Enum.TryParse(TargetPlatformAndArch[0], out TargetPlatform))
+				if (!UnrealTargetPlatform.TryParse(TargetPlatformAndArch[0], out TargetPlatform))
 				{
 					throw new AutomationException(String.Format("Unknown target platform '{0}' specified on command line", TargetPlatformName));
 				}
@@ -313,7 +317,7 @@ class BuildHlslcc : BuildCommand
 	private List<WindowsCompiler> GetTargetWindowsCompilers()
 	{
 		List<WindowsCompiler> TargetWindowsCompilers = new List<WindowsCompiler>();
-		string TargetWindowsCompilersFilter = ParseParamValue("TargetWindowsCompilers", "VisualStudio2015");
+		string TargetWindowsCompilersFilter = ParseParamValue("TargetWindowsCompilers", "VisualStudio2019");
 		if (TargetWindowsCompilersFilter != null)
 		{
 			foreach (string TargetWindowsCompilerName in TargetWindowsCompilersFilter.Split(new char[] { '+' }, StringSplitOptions.RemoveEmptyEntries))
@@ -474,7 +478,6 @@ class BuildHlslcc : BuildCommand
 	private static string GetMsDevExe(WindowsCompiler Version)
 	{
 		DirectoryReference VSPath;
-		// It's not fatal if VS2013 isn't installed for VS2015 builds (for example, so don't crash here)
 		if (WindowsExports.TryGetVSInstallDir(Version, out VSPath))
 		{
 			return FileReference.Combine(VSPath, "Common7", "IDE", "Devenv.com").FullName;
@@ -484,18 +487,10 @@ class BuildHlslcc : BuildCommand
 
 	private static string GetMsBuildExe(WindowsCompiler Version)
 	{
-		string VisualStudioToolchainVersion = "";
-		switch (Version)
+		DirectoryReference VSPath;
+		if (WindowsExports.TryGetVSInstallDir(Version, out VSPath))
 		{
-			case WindowsCompiler.VisualStudio2015_DEPRECATED:
-				VisualStudioToolchainVersion = "14.0";
-				break;
-		}
-		string ProgramFilesPath = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-		string MSBuildPath = Path.Combine(ProgramFilesPath, "MSBuild", VisualStudioToolchainVersion, "Bin", "MSBuild.exe");
-		if (File.Exists(MSBuildPath))
-		{
-			return MSBuildPath;
+			return FileReference.Combine(VSPath, "MSBuild", "Current", "Bin", "MSBuild.exe").FullName;
 		}
 		return null;
 	}
@@ -526,11 +521,11 @@ class BuildHlslcc : BuildCommand
 	{
 		if (Utils.IsRunningOnWindows)
 		{
-			string VS2015Path = GetMsDevExe(WindowsCompiler.VisualStudio2015_DEPRECATED);
-			if (VS2015Path != null)
+			string VS2019Path = GetMsDevExe(WindowsCompiler.VisualStudio2019);
+			if (VS2019Path != null)
 			{
-				MsDev14Exe = new FileReference(GetMsDevExe(WindowsCompiler.VisualStudio2015_DEPRECATED));
-				MsBuildExe = new FileReference(GetMsBuildExe(WindowsCompiler.VisualStudio2015_DEPRECATED));
+				MsDev19Exe = new FileReference(GetMsDevExe(WindowsCompiler.VisualStudio2019));
+				MsBuildExe = new FileReference(GetMsBuildExe(WindowsCompiler.VisualStudio2019));
 			}
 
 			// ================================================================================
@@ -552,7 +547,7 @@ class BuildHlslcc : BuildCommand
 		}
 	}
 
-	private static void BuildMSBuildTarget(TargetPlatformData TargetData, List<string> TargetConfigurations, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
+	private static void BuildMSBuildTarget(TargetPlatformData TargetData, List<string> TargetConfigurations, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2019)
 	{
 		string SolutionFile = GetTargetLibSolutionFileName(TargetData, TargetWindowsCompiler).ToString();
 		string MSDevExe = GetMsDevExe(TargetData);
@@ -666,7 +661,8 @@ class BuildHlslcc : BuildCommand
 		{
 			switch (TargetWindowsCompiler)
 			{
-				case WindowsCompiler.VisualStudio2015_DEPRECATED:
+				case WindowsCompiler.VisualStudio2017:
+				case WindowsCompiler.VisualStudio2019:
 					VisualStudioName = "VS2015";
 					break;
 				default:
@@ -721,7 +717,7 @@ class BuildHlslcc : BuildCommand
 		}
 	}
 
-	private static void FindOutputFiles(HashSet<FileReference> OutputFiles, TargetPlatformData TargetData, string TargetConfiguration, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
+	private static void FindOutputFiles(HashSet<FileReference> OutputFiles, TargetPlatformData TargetData, string TargetConfiguration, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2019)
 	{
 		string SearchSuffix = "";
 		if (TargetConfiguration == "Debug")
@@ -952,7 +948,7 @@ class BuildHlslcc : BuildCommand
 		}
 	}
 
-	private void CopyLibsToFinalDestination(TargetPlatformData TargetData, List<string> TargetConfigurations, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
+	private void CopyLibsToFinalDestination(TargetPlatformData TargetData, List<string> TargetConfigurations, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2019)
 	{
 		foreach (string TargetConfiguration in TargetConfigurations)
 		{
