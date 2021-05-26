@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IScriptGeneratorPluginInterface.h"
+#include "Exceptions.h"
 #include "UnrealHeaderTool.h"
-#include "UObject/ErrorException.h"
 #include "Algo/FindSortedStringCaseInsensitive.h"
+
+extern FString GManifestFilename; // This is a bit of a hack...
 
 EBuildModuleType::Type EBuildModuleType::Parse(const TCHAR* Value)
 {
@@ -24,7 +26,7 @@ EBuildModuleType::Type EBuildModuleType::Parse(const TCHAR* Value)
 	int32 TypeIndex = Algo::FindSortedStringCaseInsensitive(Value, AlphabetizedTypes);
 	if (TypeIndex < 0)
 	{
-		FError::Throwf(TEXT("Unrecognized EBuildModuleType name: %s"), Value);
+		FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("Unrecognized EBuildModuleType name: %s"), Value);
 	}
 
 	static EBuildModuleType::Type AlphabetizedValues[] = {
@@ -58,7 +60,7 @@ EPackageOverrideType::Type EPackageOverrideType::Parse(const TCHAR* Value)
 	int32 TypeIndex = Algo::FindSortedStringCaseInsensitive(Value, AlphabetizedTypes);
 	if (TypeIndex < 0)
 	{
-		FError::Throwf(TEXT("Unrecognized EPackageOverrideType name: %s"), Value);
+		FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("Unrecognized EPackageOverrideType name: %s"), Value);
 	}
 
 	static EPackageOverrideType::Type AlphabetizedValues[] = {

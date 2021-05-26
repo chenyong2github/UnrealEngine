@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ErrorException.h"
 #include "UObject/Package.h"
 #include "UObject/MetaData.h"
 #include "UObject/TextProperty.h"

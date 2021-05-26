@@ -7,7 +7,6 @@
 #include "UnrealSourceFile.h"
 #include "UnrealTypeDefinitionInfo.h"
 #include "UObject/Stack.h"
-#include "UObject/ErrorException.h"
 
 class UField;
 class UClass;

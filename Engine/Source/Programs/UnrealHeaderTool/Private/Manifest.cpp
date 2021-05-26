@@ -1,17 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Manifest.h"
+#include "Exceptions.h"
+#include "IScriptGeneratorPluginInterface.h"
 #include "UnrealHeaderTool.h"
 #include "Misc/DateTime.h"
 #include "Logging/LogMacros.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "UObject/ErrorException.h"
 #include "Misc/PackageName.h"
 #include "UnrealHeaderToolGlobals.h"
 #include "Serialization/JsonTypes.h"
 #include "Serialization/JsonSerializer.h"
+
+FString GManifestFilename;
 
 namespace
 {
@@ -27,7 +30,7 @@ namespace
 	{
 		if (JsonValue->Type != TJsonFieldType<T>::Value)
 		{
-			FError::Throwf(TEXT("'%s' is the wrong type"), Outer);
+			FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("'%s' is the wrong type"), Outer);
 		}
 
 		JsonValue->AsArgumentType(OutVal);
@@ -40,12 +43,12 @@ namespace
 
 		if (!JsonValue)
 		{
-			FError::Throwf(TEXT("Unable to find field '%s' in '%s'"), FieldName, Outer);
+			FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("Unable to find field '%s' in '%s'"), FieldName, Outer);
 		}
 
 		if ((*JsonValue)->Type != TJsonFieldType<T>::Value)
 		{
-			FError::Throwf(TEXT("Field '%s' in '%s' is the wrong type"), Outer);
+			FUHTException::Throwf(FString(GManifestFilename), 1, TEXT("Field '%s' in '%s' is the wrong type"), Outer);
 		}
 
 		(*JsonValue)->AsArgumentType(OutVal);
@@ -63,13 +66,14 @@ namespace
 
 FManifest FManifest::LoadFromFile(const FString& Filename)
 {
+	GManifestFilename = Filename;
 	FManifest Result;
 	FString FilenamePath = FPaths::GetPath(Filename);
 	FString Json;
 
 	if (!FFileHelper::LoadFileToString(Json, *Filename))
 	{
-		FError::Throwf(TEXT("Unable to load manifest: %s"), *Filename);
+		FUHTException::Throwf(FString(Filename), 1, TEXT("Unable to load manifest: %s"), *Filename);
 	}
 
 	TSharedPtr<FJsonObject> RootObject = TSharedPtr<FJsonObject>();
@@ -77,7 +81,7 @@ FManifest FManifest::LoadFromFile(const FString& Filename)
 
 	if (!FJsonSerializer::Deserialize(Reader, RootObject))
 	{
-		FError::Throwf(TEXT("Manifest is malformed: %s"), *Filename);
+		FUHTException::Throwf(FString(Filename), 1, TEXT("Manifest is malformed: %s"), *Filename);
 	}
 
 	TArray<TSharedPtr<FJsonValue>> ModulesArray;

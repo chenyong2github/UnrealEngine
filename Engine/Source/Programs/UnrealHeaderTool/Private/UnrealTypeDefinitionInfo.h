@@ -13,6 +13,7 @@
 #define UHT_ENABLE_ENGINE_TYPE_CHECKS 1
 
 // Forward declarations.
+class FHeaderParser;
 class FScope;
 class FUnrealSourceFile;
 struct FManifestModule;
@@ -90,12 +91,12 @@ class FUHTMetaData
 {
 public:
 
-	static void RemapMetaData(TMap<FName, FString>& MetaData);
+	static void RemapMetaData(FUnrealTypeDefinitionInfo& TypeDef, TMap<FName, FString>& MetaData);
 
 	template <typename Def>
 	static void RemapAndAddMetaData(Def& TypeDef, TMap<FName, FString>&& InMetaData)
 	{
-		RemapMetaData(InMetaData);
+		RemapMetaData(TypeDef, InMetaData);
 		TypeDef.ValidateMetaDataFormat(InMetaData);
 		TypeDef.AddMetaData(MoveTemp(InMetaData));
 	}
@@ -103,7 +104,7 @@ public:
 	template <typename Def>
 	static void RemapAndAddMetaData(Def& TypeDef, TMap<FName, FString>& InMetaData)
 	{
-		RemapMetaData(InMetaData);
+		RemapMetaData(TypeDef, InMetaData);
 		TypeDef.ValidateMetaDataFormat(InMetaData);
 		TypeDef.AddMetaData(MoveTemp(InMetaData));
 	}
@@ -204,7 +205,9 @@ private:
 /**
  * Class that stores information about type definitions.
  */
-class FUnrealTypeDefinitionInfo : public TSharedFromThis<FUnrealTypeDefinitionInfo>
+class FUnrealTypeDefinitionInfo 
+	: public TSharedFromThis<FUnrealTypeDefinitionInfo>
+	, public FUHTExceptionContext
 {
 private:
 	enum class EFinalizeState : uint8
@@ -429,11 +432,16 @@ public:
 	/**
 	 * Gets the line number in source file this type was defined in.
 	 */
-	int32 GetLineNumber() const
+	virtual int32 GetLineNumber() const override
 	{
 		check(HasSource());
 		return LineNumber;
 	}
+
+	/** 
+	 * Returns the filename from the source file
+	 */
+	virtual FString GetFilename() const override;
 
 	/**
 	 * Sets the input line in the rare case where the definition is created before fully parsed (sparse delegates)
@@ -1915,14 +1923,6 @@ public:
 
 	struct FDefinitionRange
 	{
-		void Validate()
-		{
-			if (End <= Start)
-			{
-				FError::Throwf(TEXT("The class definition range is invalid. Most probably caused by previous parsing error."));
-			}
-		}
-
 		const TCHAR* Start = nullptr;
 		const TCHAR* End = nullptr;
 	};
@@ -2156,6 +2156,17 @@ public:
 	void MarkGeneratedBody()
 	{
 		bHasGeneratedBody = true;
+	}
+
+	/**
+	 * Verify we have a valid definition range
+	 */
+	void ValidateDefinitionRange()
+	{
+		if (DefinitionRange.End <= DefinitionRange.Start)
+		{
+			FUHTException::Throwf(*this, TEXT("The class definition range is invalid. Most probably caused by previous parsing error."));
+		}
 	}
 
 	/**
@@ -2557,18 +2568,19 @@ public:
 	 * the prefix of the given name while searching. Throws an exception with the script error
 	 * if the class could not be found.
 	 *
-	 * @param   InClassName  Name w/ Unreal prefix to use when searching for a class
-	 * @return               The found class.
+	 * @param Parser Calling context for exceptions
+	 * @param InClassName Name w/ Unreal prefix to use when searching for a class
+	 * @return The found class.
 	 */
-	static FUnrealClassDefinitionInfo* FindScriptClassOrThrow(const FString& InClassName);
+	static FUnrealClassDefinitionInfo* FindScriptClassOrThrow(const FHeaderParser& Parser, const FString& InClassName);
 
 	/**
 	 * Attempts to find a script class based on the given name. Will attempt to strip
 	 * the prefix of the given name while searching. Optionally returns script errors when appropriate.
 	 *
-	 * @param   InClassName  Name w/ Unreal prefix to use when searching for a class
-	 * @param   OutErrorMsg  Error message (if any) giving the caller flexibility in how they present an error
-	 * @return               The found class, or NULL if the class was not found.
+	 * @param InClassName  Name w/ Unreal prefix to use when searching for a class
+	 * @param OutErrorMsg  Error message (if any) giving the caller flexibility in how they present an error
+	 * @return The found class, or NULL if the class was not found.
 	 */
 	static FUnrealClassDefinitionInfo* FindScriptClass(const FString& InClassName, FString* OutErrorMsg = nullptr);
 

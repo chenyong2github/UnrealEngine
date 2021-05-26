@@ -355,7 +355,7 @@ void FFuncInfo::SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef)
 			}
 			else if (CppImplName == FunctionName)
 			{
-				FError::Throwf(TEXT("Native implementation function must be different than original function name."));
+				FUHTException::Throwf(FunctionDef, TEXT("Native implementation function must be different than original function name."));
 			}
 
 			if (CppValidationImplName.IsEmpty() && FunctionDef.HasAllFunctionFlags(FUNC_NetValidate))
@@ -364,7 +364,7 @@ void FFuncInfo::SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef)
 			}
 			else if (CppValidationImplName == FunctionName)
 			{
-				FError::Throwf(TEXT("Validation function must be different than original function name."));
+				FUHTException::Throwf(FunctionDef, TEXT("Validation function must be different than original function name."));
 			}
 		}
 	}

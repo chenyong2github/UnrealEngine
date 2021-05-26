@@ -7,8 +7,16 @@
 #include "Misc/CompilationResult.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
+class FBaseParser;
 class FUnrealSourceFile;
 class FUnrealTypeDefinitionInfo;
+
+class FUHTExceptionContext
+{
+public:
+	virtual FString GetFilename() const = 0;
+	virtual int32 GetLineNumber() const = 0;
+};
 
 class FUHTException
 {
@@ -74,29 +82,39 @@ public:
 
 	/**
 	 * Generate an exception
-	 * @param InTypeDef The type definition generating the exception.  The filename and line number will be retrieved from the type definition if possible.
+	 * @param InContext The context of the exception
+	 * @param InText The text of the error
+	 */
+	UE_NORETURN static void Throwf(const FUHTExceptionContext& InContext, FString&& InText)
+	{
+		throw FUHTException(ECompilationResult::OtherCompilationError, InContext, MoveTemp(InText));
+	}
+
+	/**
+	 * Generate an exception
+	 * @param InContext The context of the exception
 	 * @param InFmt The format string
 	 * @param InArgs Arguments supplied to the format string
 	 */
 	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(FUnrealTypeDefinitionInfo& InTypeDef, const FmtType& InFmt, Types... InArgs)
+	UE_NORETURN static void VARARGS Throwf(const FUHTExceptionContext& InContext, const FmtType& InFmt, Types... InArgs)
 	{
 		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(ECompilationResult::OtherCompilationError, InTypeDef, MoveTemp(ResultString));
+		throw FUHTException(ECompilationResult::OtherCompilationError, InContext, MoveTemp(ResultString));
 	}
 
 	/**
 	 * Generate an exception
 	 * @param InResult Result code to be returned as the overall result of the compilation process
-	 * @param InTypeDef The type definition generating the exception.  The filename and line number will be retrieved from the type definition if possible.
+	 * @param InContext The context of the exception
 	 * @param InFmt The format string
 	 * @param InArgs Arguments supplied to the format string
 	 */
 	template <typename FmtType, typename... Types>
-	UE_NORETURN static void VARARGS Throwf(ECompilationResult::Type InResult, FUnrealTypeDefinitionInfo& InTypeDef, const FmtType& InFmt, Types... InArgs)
+	UE_NORETURN static void VARARGS Throwf(ECompilationResult::Type InResult, const FUHTExceptionContext& InContext, const FmtType& InFmt, Types... InArgs)
 	{
 		FString ResultString = FString::Printf(InFmt, InArgs ...);
-		throw FUHTException(InResult, InTypeDef, MoveTemp(ResultString));
+		throw FUHTException(InResult, InContext, MoveTemp(ResultString));
 	}
 
 	/**
@@ -139,8 +157,7 @@ private:
 
 	FUHTException(ECompilationResult::Type InResult, FString&& InFilename, int32 InLine, FString&& InMessage);
 	FUHTException(ECompilationResult::Type InResult, const FUnrealSourceFile& SourceFile, int32 InLine, FString&& InMessage);
-	FUHTException(ECompilationResult::Type InResult, FUnrealTypeDefinitionInfo& TypeDef, FString&& InMessage);
-	FUHTException(ECompilationResult::Type InResult, const UObject* Object, FString&& InMessage);
+	FUHTException(ECompilationResult::Type InResult, const FUHTExceptionContext& InContext, FString&& InMessage);
 };
 
 /** Helper methods for working with exceptions and compilation results */
@@ -170,6 +187,11 @@ struct FResults
 	 * Get the current results without processing for overall result
 	 */
 	static ECompilationResult::Type GetResults();
+
+	/**
+	 * Mark that a warning has happened
+	 */
+	static void MarkWarning();
 
 	/**
 	 * Get the overall results to be returned from compilation.
@@ -208,27 +230,36 @@ struct FResults
 	static void LogError(const FUnrealSourceFile& SourceFile, int32 Line, const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
 
 	/**
-	 * Log an error for the given source file where the object is defined
-	 * @param Object The source file and line number will be determined from the object
-	 * @param ErrorMsg The text of the error
-	 * @param Result Compilation result of the error
-	 */
-	static void LogError(const UObject& Object, const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
-
-	/**
 	 * Log an error for the given source file where the type is defined
-	 * @param InTypeDef The source file and line number will be determined from the type
+	 * @param Context The context of the exception
 	 * @param ErrorMsg The text of the error
 	 * @param Result Compilation result of the error
 	 */
-	static void LogError(FUnrealTypeDefinitionInfo& InTypeDef, const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
-	
+	static void LogError(const FUHTExceptionContext& Context, const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
+
 	/**
 	 * Log an error without any source file information
 	 * @param ErrorMsg The text of the error
 	 * @param Result Compilation result of the error
 	 */
 	static void LogError(const TCHAR* ErrorMsg, ECompilationResult::Type Result = ECompilationResult::OtherCompilationError);
+
+	/**
+	 * Log a warning.
+	 * @param Filename The filename generating the warning.  If empty, then no file and line number are included in the warning.
+	 * @param Line Line number of the warning
+	 * @param Message Message body of the warning
+	 * @param Result Compilation result of the warning
+	 */
+	static void LogWarning(FString&& Filename, int32 Line, const FString& Message);
+
+	/**
+	 * Log a warning for the given source file where the type is defined
+	 * @param Context The context of the warning
+	 * @param ErrorMsg The text of the warning
+	 * @param Result Compilation result of the warning
+	 */
+	static void LogWarning(const FUHTExceptionContext& Context, const TCHAR* ErrorMsg);
 
 	/**
 	 * Invoke the given lambda in a try block catching all supported exception types.
@@ -290,6 +321,31 @@ struct FResults
 	/**
 	 * Invoke the given lambda in a try block catching all supported exception types.
 	 * @param InLambda The code to be executed in the try block
+	 */
+	template<typename Lambda>
+	static void TryAlways(Lambda&& InLambda)
+	{
+#if !PLATFORM_EXCEPTIONS_DISABLED
+		try
+#endif
+		{
+			InLambda();
+		}
+#if !PLATFORM_EXCEPTIONS_DISABLED
+		catch (const FUHTException& Ex)
+		{
+			LogError(Ex);
+		}
+		catch (const TCHAR* ErrorMsg)
+		{
+			LogError(ErrorMsg);
+		}
+#endif
+	}
+
+	/**
+	 * Invoke the given lambda in a try block catching all supported exception types.
+	 * @param InLambda The code to be executed in the try block
 	 * @return The time in seconds it took to execute the lambda
 	 */
 	template<typename Lambda>
@@ -303,3 +359,6 @@ struct FResults
 		return DeltaTime;
 	}
 };
+
+#define UE_LOG_WARNING_UHT(Context, Format, ...) { FResults::LogWarning(Context, *FString::Printf(Format, ##__VA_ARGS__)); }
+#define UE_LOG_ERROR_UHT(Context, Format, ...) { FResults::LogError(Context, *FString::Printf(Format, ##__VA_ARGS__)); }

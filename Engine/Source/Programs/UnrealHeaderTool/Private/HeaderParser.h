@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "ParserHelper.h"
 #include "BaseParser.h"
-#include "Misc/CompilationResult.h"
 #include "Scope.h"
 #include "UnrealTypeDefinitionInfo.h"
 #include "GeneratedCodeVersion.h"
@@ -129,7 +128,7 @@ struct FDocumentationPolicy
 // Header parser class.  Extracts metadata from annotated C++ headers and gathers enough
 // information to autogenerate additional headers and other boilerplate code.
 //
-class FHeaderParser : public FBaseParser, public FContextSupplier
+class FHeaderParser : public FBaseParser
 {
 public:
 	// Performs a preliminary parse of the text in the specified buffer, pulling out:
@@ -153,17 +152,13 @@ public:
 	 * Parse the given header.
 	 * 
 	 * @param PackDef The owning package of the source
-	 * @param Warn The feedback context to use for any logging
 	 * @param SourceFile The source file being parsed
 	 */
-	static ECompilationResult::Type Parse(FUnrealPackageDefinitionInfo& PackageDef, FFeedbackContext* Warn, FUnrealSourceFile& SourceFile);
+	static void Parse(FUnrealPackageDefinitionInfo& PackageDef, FUnrealSourceFile& SourceFile);
 
 protected:
 	friend struct FScriptLocation;
 	friend struct FNativeClassHeaderGenerator;
-
-	// For compiling messages and errors.
-	FFeedbackContext* Warn;
 
 	// Filename currently being parsed
 	const FString Filename;
@@ -328,7 +323,7 @@ protected:
 	TMap<int32, FString> RPCsNeedingHookup;
 
 	// Constructor.
-	explicit FHeaderParser(FUnrealPackageDefinitionInfo& InPackageDef, FFeedbackContext* InWarn, FUnrealSourceFile& InSourceFile);
+	explicit FHeaderParser(FUnrealPackageDefinitionInfo& InPackageDef, FUnrealSourceFile& InSourceFile);
 
 	// Returns true if the token is a dynamic delegate declaration
 	bool IsValidDelegateDeclaration(const FToken& Token) const;
@@ -341,8 +336,8 @@ protected:
 
 public:
 	// Throws if a specifier value wasn't provided
-	static void RequireSpecifierValue(const FPropertySpecifier& Specifier, bool bRequireExactlyOne = false);
-	static FString RequireExactlyOneSpecifierValue(const FPropertySpecifier& Specifier);
+	static void RequireSpecifierValue(const FUHTExceptionContext& Context, const FPropertySpecifier& Specifier, bool bRequireExactlyOne = false);
+	static FString RequireExactlyOneSpecifierValue(const FUHTExceptionContext& Context, const FPropertySpecifier& Specifier);
 
 	/**
 	* Find a field in the specified context.  Starts with the specified scope, then iterates
@@ -383,19 +378,13 @@ protected:
 	*/
 	static TMap<FName, FString> GetParameterToolTipsFromFunctionComment(const FString& Input);
 	
-	FString GetSourceFileContext() const;
-
-	// FContextSupplier interface.
-	virtual FString GetContext() override;
-	// End of FContextSupplier interface.
-
 	// High-level compiling functions.
 	/**
 	 * Parses given source file.
 	 *
 	 * @returns Compilation result enum.
 	 */
-	ECompilationResult::Type ParseHeader();
+	void ParseHeader();
 	void CompileDirective();
 	FUnrealEnumDefinitionInfo& CompileEnum();
 	FUnrealScriptStructDefinitionInfo& CompileStructDeclaration();
@@ -572,7 +561,7 @@ protected:
 	void InitScriptLocation( FScriptLocation& Retry );
 	void ReturnToLocation( const FScriptLocation& Retry, bool Binary=1, bool Text=1 );
 
-	static void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const EPropertyFlags* OuterPropertyFlags);
+	void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, const EPropertyFlags* OuterPropertyFlags);
 
 	// Cache of ScriptStructs that have been validated for Net Replication and RPC
 	TSet<FUnrealScriptStructDefinitionInfo*> ScriptStructsValidForNet;
@@ -588,9 +577,6 @@ protected:
 private:
 	// Definition of package being parsed
 	FUnrealPackageDefinitionInfo& PackageDef;
-
-	// Source file currently parsed by UHT.
-	FUnrealSourceFile& SourceFile;
 
 	// True if the module currently being parsed is part of the engine, as opposed to being part of a game
 	bool bIsCurrentModulePartOfEngine;
@@ -623,7 +609,7 @@ private:
 	void VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
 	// Constructs the policy from a string
-	static FDocumentationPolicy GetDocumentationPolicyFromName(const FString& PolicyName);
+	static FDocumentationPolicy GetDocumentationPolicyFromName(const FUHTExceptionContext& Context, const FString& PolicyName);
 
 	// Constructs the policy for documentation checks for a given struct
 	static FDocumentationPolicy GetDocumentationPolicyForStruct(FUnrealStructDefinitionInfo& StructDef);
@@ -690,12 +676,12 @@ public:
 class FHeaderPreParser : public FBaseParser
 {
 public:
-	FHeaderPreParser()
+	FHeaderPreParser(FUnrealSourceFile& InSourceFile)
+		: FBaseParser(InSourceFile)
 	{
 	}
 
 	TSharedRef<FUnrealTypeDefinitionInfo> ParseClassDeclaration(
-		FUnrealSourceFile& SourceFile,
 		const TCHAR* InputText,
 		int32 InLineNumber,
 		bool bClassIsAnInterface,
@@ -703,13 +689,11 @@ public:
 	);
 
 	TSharedRef<FUnrealTypeDefinitionInfo> ParseEnumDeclaration(
-		FUnrealSourceFile& SourceFile,
 		const TCHAR* InputText,
 		int32 InLineNumber
 	);
 
 	TSharedRef<FUnrealTypeDefinitionInfo> ParseStructDeclaration(
-		FUnrealSourceFile& SourceFile,
 		const TCHAR* InputText,
 		int32 InLineNumber
 	);

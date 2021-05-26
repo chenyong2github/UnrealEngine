@@ -162,65 +162,66 @@ namespace
 	 *
 	 * NOTE: This method does not support container or enum types.
 	 */
-	template <template<typename PropertyTraits> typename FuncDispatch, typename RetValue, typename ... Args>
-	RetValue PropertyTypeDispatch(EPropertyType PropertyType, Args&& ... args)
+	template <template<typename PropertyTraits> typename FuncDispatch, typename RetValue, typename PropDefType, typename ... Args>
+	RetValue SimplePropertyTypeDispatch(PropDefType& PropDef, Args&& ... args)
 	{
-		switch (PropertyType)
+		switch (PropDef.GetPropertyBase().Type)
 		{
-		case CPT_Byte:						return FuncDispatch<FPropertyTypeTraitsByte>()(std::forward<Args>(args)...);
-		case CPT_Int8:						return FuncDispatch<FPropertyTypeTraitsInt8>()(std::forward<Args>(args)...);
-		case CPT_Int16:						return FuncDispatch<FPropertyTypeTraitsInt16>()(std::forward<Args>(args)...);
-		case CPT_Int:						return FuncDispatch<FPropertyTypeTraitsInt>()(std::forward<Args>(args)...);
-		case CPT_Int64:						return FuncDispatch<FPropertyTypeTraitsInt64>()(std::forward<Args>(args)...);
-		case CPT_UInt16:					return FuncDispatch<FPropertyTypeTraitsUInt16>()(std::forward<Args>(args)...);
-		case CPT_UInt32:					return FuncDispatch<FPropertyTypeTraitsUInt32>()(std::forward<Args>(args)...);
-		case CPT_UInt64:					return FuncDispatch<FPropertyTypeTraitsUInt64>()(std::forward<Args>(args)...);
-		case CPT_Bool:						return FuncDispatch<FPropertyTypeTraitsBool>()(std::forward<Args>(args)...);
-		case CPT_Bool8:						return FuncDispatch<FPropertyTypeTraitsBool8>()(std::forward<Args>(args)...);
-		case CPT_Bool16:					return FuncDispatch<FPropertyTypeTraitsBool16>()(std::forward<Args>(args)...);
-		case CPT_Bool32:					return FuncDispatch<FPropertyTypeTraitsBool32>()(std::forward<Args>(args)...);
-		case CPT_Bool64:					return FuncDispatch<FPropertyTypeTraitsBool64>()(std::forward<Args>(args)...);
-		case CPT_Float:						return FuncDispatch<FPropertyTypeTraitsFloat>()(std::forward<Args>(args)...);
-		case CPT_Double:					return FuncDispatch<FPropertyTypeTraitsDouble>()(std::forward<Args>(args)...);
-		case CPT_FLargeWorldCoordinatesReal:return FuncDispatch<FPropertyTypeTraitsLargeWorldCoordinatesReal>()(std::forward<Args>(args)...);
-		case CPT_ObjectReference:			return FuncDispatch<FPropertyTypeTraitsObjectReference>()(std::forward<Args>(args)...);
-		case CPT_WeakObjectReference:		return FuncDispatch<FPropertyTypeTraitsWeakObjectReference>()(std::forward<Args>(args)...);
-		case CPT_LazyObjectReference:		return FuncDispatch<FPropertyTypeTraitsLazyObjectReference>()(std::forward<Args>(args)...);
-		case CPT_ObjectPtrReference:		return FuncDispatch<FPropertyTypeTraitsObjectPtrReference>()(std::forward<Args>(args)...);
-		case CPT_SoftObjectReference:		return FuncDispatch<FPropertyTypeTraitsSoftObjectReference>()(std::forward<Args>(args)...);
-		case CPT_Interface:					return FuncDispatch<FPropertyTypeTraitsInterface>()(std::forward<Args>(args)...);
-		case CPT_Name:						return FuncDispatch<FPropertyTypeTraitsName>()(std::forward<Args>(args)...);
-		case CPT_String:					return FuncDispatch<FPropertyTypeTraitsString>()(std::forward<Args>(args)...);
-		case CPT_Text:						return FuncDispatch<FPropertyTypeTraitsText>()(std::forward<Args>(args)...);
-		case CPT_Struct:					return FuncDispatch<FPropertyTypeTraitsStruct>()(std::forward<Args>(args)...);
-		case CPT_Delegate:					return FuncDispatch<FPropertyTypeTraitsDelegate>()(std::forward<Args>(args)...);
-		case CPT_MulticastDelegate:			return FuncDispatch<FPropertyTypeTraitsMulticastDelegate>()(std::forward<Args>(args)...);
-		case CPT_FieldPath:					return FuncDispatch<FPropertyTypeTraitsFieldPath>()(std::forward<Args>(args)...);
-		default:							FError::Throwf(TEXT("Unknown property type %i"), (uint8)PropertyType);
+		case CPT_Byte:						return FuncDispatch<FPropertyTypeTraitsByte>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Int8:						return FuncDispatch<FPropertyTypeTraitsInt8>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Int16:						return FuncDispatch<FPropertyTypeTraitsInt16>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Int:						return FuncDispatch<FPropertyTypeTraitsInt>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Int64:						return FuncDispatch<FPropertyTypeTraitsInt64>()(PropDef, std::forward<Args>(args)...);
+		case CPT_UInt16:					return FuncDispatch<FPropertyTypeTraitsUInt16>()(PropDef, std::forward<Args>(args)...);
+		case CPT_UInt32:					return FuncDispatch<FPropertyTypeTraitsUInt32>()(PropDef, std::forward<Args>(args)...);
+		case CPT_UInt64:					return FuncDispatch<FPropertyTypeTraitsUInt64>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Bool:						return FuncDispatch<FPropertyTypeTraitsBool>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Bool8:						return FuncDispatch<FPropertyTypeTraitsBool8>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Bool16:					return FuncDispatch<FPropertyTypeTraitsBool16>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Bool32:					return FuncDispatch<FPropertyTypeTraitsBool32>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Bool64:					return FuncDispatch<FPropertyTypeTraitsBool64>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Float:						return FuncDispatch<FPropertyTypeTraitsFloat>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Double:					return FuncDispatch<FPropertyTypeTraitsDouble>()(PropDef, std::forward<Args>(args)...);
+		case CPT_FLargeWorldCoordinatesReal:return FuncDispatch<FPropertyTypeTraitsLargeWorldCoordinatesReal>()(PropDef, std::forward<Args>(args)...);
+		case CPT_ObjectReference:			return FuncDispatch<FPropertyTypeTraitsObjectReference>()(PropDef, std::forward<Args>(args)...);
+		case CPT_WeakObjectReference:		return FuncDispatch<FPropertyTypeTraitsWeakObjectReference>()(PropDef, std::forward<Args>(args)...);
+		case CPT_LazyObjectReference:		return FuncDispatch<FPropertyTypeTraitsLazyObjectReference>()(PropDef, std::forward<Args>(args)...);
+		case CPT_ObjectPtrReference:		return FuncDispatch<FPropertyTypeTraitsObjectPtrReference>()(PropDef, std::forward<Args>(args)...);
+		case CPT_SoftObjectReference:		return FuncDispatch<FPropertyTypeTraitsSoftObjectReference>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Interface:					return FuncDispatch<FPropertyTypeTraitsInterface>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Name:						return FuncDispatch<FPropertyTypeTraitsName>()(PropDef, std::forward<Args>(args)...);
+		case CPT_String:					return FuncDispatch<FPropertyTypeTraitsString>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Text:						return FuncDispatch<FPropertyTypeTraitsText>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Struct:					return FuncDispatch<FPropertyTypeTraitsStruct>()(PropDef, std::forward<Args>(args)...);
+		case CPT_Delegate:					return FuncDispatch<FPropertyTypeTraitsDelegate>()(PropDef, std::forward<Args>(args)...);
+		case CPT_MulticastDelegate:			return FuncDispatch<FPropertyTypeTraitsMulticastDelegate>()(PropDef, std::forward<Args>(args)...);
+		case CPT_FieldPath:					return FuncDispatch<FPropertyTypeTraitsFieldPath>()(PropDef, std::forward<Args>(args)...);
+		default:							FUHTException::Throwf(PropDef, TEXT("Unknown property type %i"), (uint8)PropDef.GetPropertyBase().Type);
 		}
 	}
 
 	/**
 	 * Given just the property type, invoke the dispatch functor.
 	 */
-	template <template <typename PropertyTraits> typename FuncDispatch, bool bHandleContainers, typename RetValue, typename ... Args>
-	RetValue PropertyTypeDispatch(const FPropertyBase& VarProperty, Args&& ... args)
+	template <template <typename PropertyTraits> typename FuncDispatch, bool bHandleContainers, typename RetValue, typename PropDefType, typename ... Args>
+	RetValue ComplexPropertyTypeDispatch(PropDefType& PropDef, Args&& ... args)
 	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		if constexpr (bHandleContainers)
 		{
 			switch (VarProperty.ArrayType)
 			{
 			case EArrayType::Static:
-				return FuncDispatch<FPropertyTypeTraitsStaticArray>()(std::forward<Args>(args)...);
+				return FuncDispatch<FPropertyTypeTraitsStaticArray>()(PropDef, std::forward<Args>(args)...);
 			case EArrayType::Dynamic:
-				return FuncDispatch<FPropertyTypeTraitsDynamicArray>()(std::forward<Args>(args)...);
+				return FuncDispatch<FPropertyTypeTraitsDynamicArray>()(PropDef, std::forward<Args>(args)...);
 			case EArrayType::Set:
-				return FuncDispatch<FPropertyTypeTraitsSet>()(std::forward<Args>(args)...);
+				return FuncDispatch<FPropertyTypeTraitsSet>()(PropDef, std::forward<Args>(args)...);
 			}
 
 			if (VarProperty.MapKeyProp.IsValid())
 			{
-				return FuncDispatch<FPropertyTypeTraitsMap>()(std::forward<Args>(args)...);
+				return FuncDispatch<FPropertyTypeTraitsMap>()(PropDef, std::forward<Args>(args)...);
 			}
 		}
 
@@ -228,10 +229,10 @@ namespace
 		// NOTE: VarProperty.EnumDef is a union and might not be an enum
 		if (VarProperty.IsEnum())
 		{
-			return FuncDispatch<FPropertyTypeTraitsEnum>()(std::forward<Args>(args)...);
+			return FuncDispatch<FPropertyTypeTraitsEnum>()(PropDef, std::forward<Args>(args)...);
 		}
 
-		return PropertyTypeDispatch<FuncDispatch, RetValue>(VarProperty.Type, std::forward<Args>(args)...);
+		return SimplePropertyTypeDispatch<FuncDispatch, RetValue>(PropDef, std::forward<Args>(args)...);
 	}
 
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -312,18 +313,18 @@ namespace
 	template <bool bHandleContainers>
 	void CreatePropertyHelper(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		return PropertyTypeDispatch<CreatePropertyDispatch, bHandleContainers, void>(PropDef.GetPropertyBase(), std::ref(PropDef));
+		return ComplexPropertyTypeDispatch<CreatePropertyDispatch, bHandleContainers, void>(PropDef);
 	}
 
 	template <bool bHandleContainers>
 	FProperty* CreateEngineTypeHelper(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
-		return PropertyTypeDispatch<CreateEngineTypeDispatch, bHandleContainers, FProperty*>(PropDef.GetPropertyBase(), std::ref(PropDef), Scope, std::ref(Name), ObjectFlags);
+		return ComplexPropertyTypeDispatch<CreateEngineTypeDispatch, bHandleContainers, FProperty*>(PropDef, Scope, std::ref(Name), ObjectFlags);
 	}
 
 	bool IsSupportedByBlueprintSansContainers(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
-		return PropertyTypeDispatch<IsSupportedByBlueprintDispatch, false, bool>(PropDef.GetPropertyBase(), std::ref(PropDef), bMemberVariable);
+		return ComplexPropertyTypeDispatch<IsSupportedByBlueprintDispatch, false, bool>(PropDef, bMemberVariable);
 	}
 }
 
@@ -971,7 +972,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 		}
 		if (Enum->HasMetaData(TEXT("Hidden"), EnumEntryIndex))
 		{
-			FError::Throwf(TEXT("Hidden enum entries cannot be used as default values: %s \"%s\" "), *PropDef.GetName(), *CppForm);
+			FUHTException::Throwf(PropDef, TEXT("Hidden enum entries cannot be used as default values: %s \"%s\" "), *PropDef.GetName(), *CppForm);
 		}
 		return true;
 	}
@@ -1673,7 +1674,7 @@ struct FPropertyTypeTraitsText : public FPropertyTypeTraitsBase
 		// These should be replaced with INVTEXT as FText::FromString can produce inconsistent keys
 		if (FDefaultValueHelper::StringFromCppString(CppForm, TEXT("FText::FromString"), OutForm))
 		{
-			UE_LOG_WARNING_UHT(TEXT("FText::FromString should be replaced with INVTEXT for default parameter values"));
+			UE_LOG_WARNING_UHT(PropDef, TEXT("FText::FromString should be replaced with INVTEXT for default parameter values"));
 			return true;
 		}
 
@@ -1699,7 +1700,7 @@ struct FPropertyTypeTraitsText : public FPropertyTypeTraitsBase
 			{
 				if (ParsedTextNamespace.GetValue().Equals(UHTDummyNamespace))
 				{
-					FError::Throwf(TEXT("LOCTEXT default parameter values are not supported; use NSLOCTEXT instead: %s \"%s\" "), *PropDef.GetName(), *CppForm);
+					FUHTException::Throwf(PropDef, TEXT("LOCTEXT default parameter values are not supported; use NSLOCTEXT instead: %s \"%s\" "), *PropDef.GetName(), *CppForm);
 				}
 			}
 		}
@@ -2244,17 +2245,17 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		return PropertyTypeDispatch<GetEngineClassNameDispatch, false, FString>(PropDef.GetPropertyBase(), std::ref(PropDef));
+		return ComplexPropertyTypeDispatch<GetEngineClassNameDispatch, false, FString>(PropDef);
 	}
 
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
-		return PropertyTypeDispatch<GetCPPTypeDispatch, false, FString>(PropDef.GetPropertyBase(), std::ref(PropDef), ExtendedTypeText, CPPExportFlags);
+		return ComplexPropertyTypeDispatch<GetCPPTypeDispatch, false, FString>(PropDef, ExtendedTypeText, CPPExportFlags);
 	}
 
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		return PropertyTypeDispatch<GetCPPTypeForwardDeclarationDispatch, false, FString>(PropDef.GetPropertyBase(), std::ref(PropDef));
+		return ComplexPropertyTypeDispatch<GetCPPTypeForwardDeclarationDispatch, false, FString>(PropDef);
 	}
 };
 
@@ -2504,7 +2505,7 @@ bool FPropertyTraits::DefaultValueStringCppFormatToInnerFormat(const FUnrealProp
 		return false;
 	}
 
-	return PropertyTypeDispatch<DefaultValueStringCppFormatToInnerFormatDispatch, false, bool>(PropDef.GetPropertyBase(), std::ref(PropDef), std::ref(CppForm), std::ref(OutForm));
+	return ComplexPropertyTypeDispatch<DefaultValueStringCppFormatToInnerFormatDispatch, false, bool>(PropDef, std::ref(CppForm), std::ref(OutForm));
 }
 
 TSharedRef<FUnrealPropertyDefinitionInfo> FPropertyTraits::CreateProperty(const FPropertyBase& VarProperty, FUnrealTypeDefinitionInfo& Outer, const FName& Name, EVariableCategory VariableCategory, EAccessSpecifier AccessSpecifier, const TCHAR* Dimensions, FUnrealSourceFile& SourceFile, int LineNumber, int ParsePosition)
@@ -2520,7 +2521,7 @@ TSharedRef<FUnrealPropertyDefinitionInfo> FPropertyTraits::CreateProperty(const 
 	// Technically, it should be added to the outermost property.
 	if (UHTCast<FUnrealPropertyDefinitionInfo>(Outer) == nullptr)
 	{
-		FUHTMetaData::RemapMetaData(PropDef.GetPropertyBase().MetaData);
+		FUHTMetaData::RemapMetaData(PropDef, PropDef.GetPropertyBase().MetaData);
 		PropDef.ValidateMetaDataFormat(PropDef.GetPropertyBase().MetaData);
 	}
 	return PropDefRef;
@@ -2586,22 +2587,22 @@ FProperty* FPropertyTraits::CreateEngineType(TSharedRef<FUnrealPropertyDefinitio
 
 bool FPropertyTraits::IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 {
-	return PropertyTypeDispatch<IsSupportedByBlueprintDispatch, true, bool>(PropDef.GetPropertyBase(), std::ref(PropDef), bMemberVariable);
+	return ComplexPropertyTypeDispatch<IsSupportedByBlueprintDispatch, true, bool>(PropDef, bMemberVariable);
 }
 
 FString FPropertyTraits::GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
 {
-	return PropertyTypeDispatch<GetEngineClassNameDispatch, true, FString>(PropDef.GetPropertyBase(), std::ref(PropDef));
+	return ComplexPropertyTypeDispatch<GetEngineClassNameDispatch, true, FString>(PropDef);
 }
 
 FString FPropertyTraits::GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText/* = nullptr */, uint32 CPPExportFlags/* = 0 */)
 {
-	return PropertyTypeDispatch<GetCPPTypeDispatch, true, FString>(PropDef.GetPropertyBase(), std::ref(PropDef), ExtendedTypeText, CPPExportFlags);
+	return ComplexPropertyTypeDispatch<GetCPPTypeDispatch, true, FString>(PropDef, ExtendedTypeText, CPPExportFlags);
 }
 
 FString FPropertyTraits::GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 {
-	return PropertyTypeDispatch<GetCPPTypeForwardDeclarationDispatch, true, FString>(PropDef.GetPropertyBase(), std::ref(PropDef));
+	return ComplexPropertyTypeDispatch<GetCPPTypeForwardDeclarationDispatch, true, FString>(PropDef);
 }
 
 bool FPropertyTraits::SameType(const FUnrealPropertyDefinitionInfo& Lhs, const FUnrealPropertyDefinitionInfo& Rhs)
