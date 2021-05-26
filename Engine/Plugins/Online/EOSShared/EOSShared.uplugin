@@ -13,8 +13,8 @@
 	"Modules": [
 		{
 			"Name": "EOSShared",
-			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
+			"Type": "RuntimeNoCommandlet",
+			"LoadingPhase": "None",
 			"WhitelistPlatforms": [
 				"Android",
 				"IOS",
