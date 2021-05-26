@@ -91,13 +91,6 @@ namespace HordeServer.Models
 		/// Acl entries
 		/// </summary>
 		public UpdateAclRequest? Acl { get; set; }
-
-		/// <summary>
-		/// Default constructor for serialization
-		/// </summary>
-		protected ProjectConfig()
-		{
-		}
 	}
 
 	/// <summary>
