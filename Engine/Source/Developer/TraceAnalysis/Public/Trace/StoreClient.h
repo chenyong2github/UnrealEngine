@@ -39,7 +39,7 @@ public:
 	};
 	
 						~FStoreClient() = default;
-	static FStoreClient*Connect(const TCHAR* Host, uint32 Port);
+	static FStoreClient*Connect(const TCHAR* Host, uint32 Port=0);
 	void				operator delete (void* Addr);
 	bool				IsValid() const;
 	uint32				GetStoreAddress() const;
