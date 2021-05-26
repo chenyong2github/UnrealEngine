@@ -409,6 +409,7 @@ public:
 typedef TCString<TCHAR>    FCString;
 typedef TCString<ANSICHAR> FCStringAnsi;
 typedef TCString<WIDECHAR> FCStringWide;
+typedef TCString<UTF8CHAR> FCStringUtf8;
 
 /*-----------------------------------------------------------------------------
 	generic TCString implementations
