@@ -19,7 +19,7 @@ FScope::FScope()
 
 void FScope::AddType(FUnrealFieldDefinitionInfo& Type)
 {
-	TypeMap.Add(Type.GetField()->GetFName(), &Type);
+	TypeMap.Add(Type.GetFName(), &Type);
 }
 
 /**
@@ -32,34 +32,31 @@ void FScope::AddType(FUnrealFieldDefinitionInfo& Type)
  */
 void DispatchType(FUnrealFieldDefinitionInfo& FieldDef, TArray<FUnrealEnumDefinitionInfo*>& Enums, TArray<FUnrealScriptStructDefinitionInfo*>& Structs, TArray<FUnrealFunctionDefinitionInfo*>& DelegateFunctions)
 {
-	UField* Type = FieldDef.GetField();
-	UClass* TypeClass = Type->GetClass();
-
-	if (TypeClass == UClass::StaticClass() || TypeClass == UStruct::StaticClass())
+	if (UHTCast<FUnrealClassDefinitionInfo>(FieldDef) != nullptr)
 	{
 		// Inner scopes.
 		FieldDef.GetScope()->SplitTypesIntoArrays(Enums, Structs, DelegateFunctions);
 	}
-	else if (TypeClass == UEnum::StaticClass())
+	else if (FUnrealEnumDefinitionInfo* EnumDef = UHTCast<FUnrealEnumDefinitionInfo>(FieldDef))
 	{
-		Enums.Add(&UHTCastChecked<FUnrealEnumDefinitionInfo>(FieldDef));
+		Enums.Add(EnumDef);
 	}
-	else if (TypeClass == UScriptStruct::StaticClass())
+	else if (FUnrealScriptStructDefinitionInfo* ScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(FieldDef))
 	{
-		Structs.Add(&UHTCastChecked<FUnrealScriptStructDefinitionInfo>(FieldDef));
+		Structs.Add(ScriptStructDef);
 	}
-	else if (TypeClass == UDelegateFunction::StaticClass() || TypeClass == USparseDelegateFunction::StaticClass())
+	else if (FUnrealFunctionDefinitionInfo* FunctionDef = UHTCast<FUnrealFunctionDefinitionInfo>(FieldDef))
 	{
-		bool bAdded = false;
-		UDelegateFunction* Function = (UDelegateFunction*)Type;
-
-		if (Function->GetSuperFunction() == NULL)
+		if (FunctionDef->IsDelegateFunction())
 		{
-			DelegateFunctions.Add(&UHTCastChecked<FUnrealFunctionDefinitionInfo>(FieldDef));
-			bAdded = true;
+			bool bAdded = false;
+			if (FunctionDef->GetSuperFunction() == nullptr)
+			{
+				DelegateFunctions.Add(FunctionDef);
+				bAdded = true;
+			}
+			check(bAdded);
 		}
-
-		check(bAdded);
 	}
 }
 
@@ -80,7 +77,7 @@ FUnrealFieldDefinitionInfo* FScope::FindTypeByName(FName Name)
 		while (TypeIterator.MoveNext())
 		{
 			FUnrealFieldDefinitionInfo* Type = *TypeIterator;
-			if (Type->GetField()->GetFName() == Name)
+			if (Type->GetFName() == Name)
 			{
 				return Type;
 			}
@@ -99,7 +96,7 @@ const FUnrealFieldDefinitionInfo* FScope::FindTypeByName(FName Name) const
 		while (TypeIterator.MoveNext())
 		{
 			FUnrealFieldDefinitionInfo* Type = *TypeIterator;
-			if (Type->GetField()->GetFName() == Name)
+			if (Type->GetFName() == Name)
 			{
 				return Type;
 			}

@@ -867,7 +867,7 @@ FUnrealFunctionDefinitionInfo* FHeaderParser::FindFunction
 				{
 					if (Thing)
 					{
-						FError::Throwf(TEXT("%s: expecting @todo: FProp, got %s"), Thing, /**FieldClass->GetName(),*/ *PropertyDef->GetEngineClassName());
+						FError::Throwf(TEXT("%s: expecting function or delegate, got a property"), Thing);
 					}
 					return nullptr;
 				}
@@ -904,7 +904,7 @@ FUnrealPropertyDefinitionInfo* FHeaderParser::FindProperty(const FUnrealStructDe
 				{
 					if (Thing)
 					{
-						FError::Throwf(TEXT("%s: expecting a property, got %s"), Thing, *FunctionDef->GetFunction()->GetClass()->GetName());
+						FError::Throwf(TEXT("%s: expecting a property, got a function or delegate"), Thing);
 					}
 					return nullptr;
 				}
@@ -5334,9 +5334,6 @@ FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& De
  */
 void PostParsingClassSetup(FUnrealClassDefinitionInfo& ClassDef)
 {
-	// Cleanup after first pass.
-	FHeaderParser::ComputeFunctionParametersSize(ClassDef);
-
 	// Set all optimization ClassFlags based on property types
 	auto HasAllOptimizationClassFlags = [&ClassDef]()
 	{
@@ -5445,7 +5442,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 	StructData.SetPrologLine(PrologFinishLine);
 
 	ClassDef.MergeAndValidateClassFlags(DeclaredClassName, PrevClassFlags);
-	Class->SetInternalFlags(EInternalObjectFlags::Native);
+	ClassDef.SetInternalFlags(EInternalObjectFlags::Native);
 
 	// Class metadata
 	MetaData.Append(ClassDef.MetaData);
@@ -5633,7 +5630,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 		FError::Throwf(TEXT("Native classes cannot extend non-native classes") );
 	}
 
-	InterfaceClass->SetInternalFlags(EInternalObjectFlags::Native);
+	InterfaceClassDef->SetInternalFlags(EInternalObjectFlags::Native);
 	InterfaceClassDef->SetClassFlags(CLASS_Native);
 
 	// Process all of the interface specifiers
@@ -5947,8 +5944,6 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 
 		FUnrealPropertyDefinitionInfo& PropDef = GetVarNameAndDim(FunctionDef, Property, VariableCategory);
 
-		FunctionDef.GetFunction()->NumParms++;
-
 		if( AdvancedDisplay.CanMarkMore() && AdvancedDisplay.ShouldMarkParameter(PropDef.GetName()) )
 		{
 			PropDef.SetPropertyFlags(CPF_AdvancedDisplay);
@@ -6229,14 +6224,13 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 		FCString::Strcpy( FuncInfo.Function.Identifier, *Name );
 	}
 
-	FUnrealFunctionDefinitionInfo& DelegateSignatureFunctionDef = bIsSparse ? CreateDelegateFunction<USparseDelegateFunction>(MoveTemp(FuncInfo)) : CreateDelegateFunction<UDelegateFunction>(MoveTemp(FuncInfo));
-	UDelegateFunction* DelegateSignatureFunction = CastChecked<UDelegateFunction>(DelegateSignatureFunctionDef.GetFunction());
-	FFuncInfo& FuncDefFuncInfo = DelegateSignatureFunctionDef.GetFunctionData();
+	FUnrealFunctionDefinitionInfo& DelegateSignatureFunctionDef = bIsSparse ? CreateDelegateFunction<USparseDelegateFunction>(MoveTemp(FuncInfo), EFunctionType::SparseDelegate) : CreateDelegateFunction<UDelegateFunction>(MoveTemp(FuncInfo), EFunctionType::Delegate);
+	const FFuncInfo& FuncDefFuncInfo = DelegateSignatureFunctionDef.GetFunctionData();
 
 	// determine whether this function should be 'const'
 	if (bDeclaredConst)
 	{
-		DelegateSignatureFunction->FunctionFlags |= FUNC_Const;
+		DelegateSignatureFunctionDef.SetFunctionFlags(FUNC_Const);
 	}
 
 	if (bIsSparse)
@@ -6257,9 +6251,8 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 			FError::Throwf(TEXT("Missing Delegate Name."));
 		}
 
-		USparseDelegateFunction* SDF = CastChecked<USparseDelegateFunction>(DelegateSignatureFunction);
-		SDF->OwningClassName = *GetClassNameWithoutPrefix(FString(OwningClass.Identifier));
-		SDF->DelegateName = DelegateName.Identifier;
+		DelegateSignatureFunctionDef.SetSparseOwningClassName(*GetClassNameWithoutPrefix(FString(OwningClass.Identifier)));
+		DelegateSignatureFunctionDef.SetSparseDelegateName(DelegateName.Identifier);
 	}
 
 	DelegateSignatureFunctionDef.SetLineNumber(InputLine);
@@ -6273,9 +6266,9 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 
 		// Check the expected versus actual number of parameters
 		int32 ParamCount = UE_PTRDIFF_TO_INT32(FoundParamCount - UHTConfig.DelegateParameterCountStrings.GetData()) + 1;
-		if (DelegateSignatureFunction->NumParms != ParamCount)
+		if (DelegateSignatureFunctionDef.GetProperties().Num() != ParamCount)
 		{
-			FError::Throwf(TEXT("Expected %d parameters but found %d parameters"), ParamCount, DelegateSignatureFunction->NumParms);
+			FError::Throwf(TEXT("Expected %d parameters but found %d parameters"), ParamCount, DelegateSignatureFunctionDef.GetProperties().Num());
 		}
 	}
 	else
@@ -6292,12 +6285,10 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 	{
 		ReturnType.PropertyFlags |= CPF_Parm | CPF_OutParm | CPF_ReturnParm;
 		FUnrealPropertyDefinitionInfo& PropDef = GetVarNameAndDim(DelegateSignatureFunctionDef, ReturnType, EVariableCategory::Return);
-
-		DelegateSignatureFunction->NumParms++;
 	}
 
 	// Try parsing metadata for the function
-	ParseFieldMetaData(MetaData, *(DelegateSignatureFunction->GetName()));
+	ParseFieldMetaData(MetaData, *DelegateSignatureFunctionDef.GetName());
 
 	AddFormattedPrevCommentAsTooltipMetaData(MetaData);
 
@@ -6314,7 +6305,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 	while (FunctionIterator.MoveNext())
 	{
 		FUnrealFunctionDefinitionInfo* TestFuncDef = *FunctionIterator;
-		if ((TestFuncDef->GetFName() == DelegateSignatureFunctionDef.GetFName()) && (TestFuncDef->GetFunction() != DelegateSignatureFunction))
+		if (TestFuncDef != &DelegateSignatureFunctionDef && TestFuncDef->GetFName() == DelegateSignatureFunctionDef.GetFName())
 		{
 			FError::Throwf(TEXT("Can't override delegate signature function '%s'"), FuncDefFuncInfo.Function.Identifier);
 		}
@@ -6632,8 +6623,8 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	}
 
 	FUnrealFunctionDefinitionInfo& FuncDef = CreateFunction(MoveTemp(FuncInfo));
-	UFunction* TopFunction = FuncDef.GetFunction();
-	FFuncInfo& FuncDefFuncInfo = FuncDef.GetFunctionData();
+	const FFuncInfo& FuncDefFuncInfo = FuncDef.GetFunctionData();
+	FUnrealFunctionDefinitionInfo* SuperFuncDef = FuncDef.GetSuperFunction();
 
 	// Get parameter list.
 	ParseParameterList(FuncDef, false, &MetaData);
@@ -6643,8 +6634,6 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	{
 		ReturnType.PropertyFlags |= CPF_Parm | CPF_OutParm | CPF_ReturnParm;
 		FUnrealPropertyDefinitionInfo& PropDef = GetVarNameAndDim(FuncDef, ReturnType, EVariableCategory::Return);
-
-		TopFunction->NumParms++;
 	}
 
 	// determine if there are any outputs for this function
@@ -6676,7 +6665,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 		}
 	}
 
-	if (!bHasAnyOutputs && (FuncDefFuncInfo.FunctionFlags & (FUNC_BlueprintPure)))
+	if (!bHasAnyOutputs && FuncDef.HasAnyFunctionFlags(FUNC_BlueprintPure))
 	{
 		// This bad behavior would be treated as a warning in the Blueprint editor, so when converted assets generates these bad functions
 		// we don't want to prevent compilation:
@@ -6690,13 +6679,13 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	// determine whether this function should be 'const'
 	if ( MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive) )
 	{
-		if( (TopFunction->FunctionFlags & (FUNC_Native)) == 0 )
+		if (FuncDef.HasAnyFunctionFlags(FUNC_Native))
 		{
 			// @TODO: UCREMOVAL Reconsider?
 			//FError::Throwf(TEXT("'const' may only be used for native functions"));
 		}
 
-		FuncDefFuncInfo.FunctionFlags |= FUNC_Const;
+		FuncDef.SetFunctionFlags(FUNC_Const);
 
 		// @todo: the presence of const and one or more outputs does not guarantee that there are
 		// no side effects. On GCC and clang we could use __attribure__((pure)) or __attribute__((const))
@@ -6704,14 +6693,14 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 		// const identifier to determine purity is not desirable. We should remove the following logic:
 
 		// If its a const BlueprintCallable function with some sort of output and is not being marked as an BlueprintPure=false function, mark it as BlueprintPure as well
-		if ( bHasAnyOutputs && ((FuncDefFuncInfo.FunctionFlags & FUNC_BlueprintCallable) != 0) && !FuncDefFuncInfo.bForceBlueprintImpure)
+		if (bHasAnyOutputs && FuncDef.HasAnyFunctionFlags(FUNC_BlueprintCallable) && !FuncDefFuncInfo.bForceBlueprintImpure)
 		{
-			FuncDefFuncInfo.FunctionFlags |= FUNC_BlueprintPure;
+			FuncDef.SetFunctionFlags(FUNC_BlueprintPure);
 		}
 	}
 
 	// Try parsing metadata for the function
-	ParseFieldMetaData(MetaData, *(TopFunction->GetName()));
+	ParseFieldMetaData(MetaData, *FuncDef.GetName());
 
 	AddFormattedPrevCommentAsTooltipMetaData(MetaData);
 
@@ -6742,52 +6731,48 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	if (bFoundFinal)
 	{
 		// This is a final (prebinding, non-overridable) function
-		FuncDefFuncInfo.FunctionFlags |= FUNC_Final;
-		FuncDefFuncInfo.FunctionExportFlags |= FUNCEXPORT_Final;
+		FuncDef.SetFunctionFlags(FUNC_Final);
+		FuncDef.SetFunctionExportFlags(FUNCEXPORT_Final);
 		if (GetCurrentClass()->HasAnyClassFlags(CLASS_Interface))
 		{
 			FError::Throwf(TEXT("Interface functions cannot be declared 'final'"));
 		}
-		else if (FuncDefFuncInfo.FunctionFlags & FUNC_BlueprintEvent)
+		else if (FuncDef.HasAnyFunctionFlags(FUNC_BlueprintEvent))
 		{
 			FError::Throwf(TEXT("Blueprint events cannot be declared 'final'"));
 		}
 	}
 
-	// Make sure any new flags made it to the function
-	//@TODO: UCREMOVAL: Ideally the flags didn't get copied midway thru parsing the function declaration, and we could avoid this
-	TopFunction->FunctionFlags |= FuncDefFuncInfo.FunctionFlags;
-
 	// Make sure that the replication flags set on an overridden function match the parent function
-	if (UFunction* SuperFunc = TopFunction->GetSuperFunction())
+	if (SuperFuncDef != nullptr)
 	{
-		if ((TopFunction->FunctionFlags & FUNC_NetFuncFlags) != (SuperFunc->FunctionFlags & FUNC_NetFuncFlags))
+		if ((FuncDef.GetFunctionFlags() & FUNC_NetFuncFlags) != (SuperFuncDef->GetFunctionFlags() & FUNC_NetFuncFlags))
 		{
-			FError::Throwf(TEXT("Overridden function '%s': Cannot specify different replication flags when overriding a function."), *TopFunction->GetName());
+			FError::Throwf(TEXT("Overridden function '%s': Cannot specify different replication flags when overriding a function."), *FuncDef.GetName());
 		}
 	}
 
 	// if this function is an RPC in state scope, verify that it is an override
 	// this is required because the networking code only checks the class for RPCs when initializing network data, not any states within it
-	if ((TopFunction->FunctionFlags & FUNC_Net) && (TopFunction->GetSuperFunction() == NULL) && Cast<UClass>(TopFunction->GetOuter()) == NULL)
+	if (FuncDef.HasAnyFunctionFlags(FUNC_Net) && SuperFuncDef == nullptr && UHTCast<FUnrealClassDefinitionInfo>(FuncDef.GetOuter()) == nullptr)
 	{
-		FError::Throwf(TEXT("Function '%s': Base implementation of RPCs cannot be in a state. Add a stub outside state scope."), *TopFunction->GetName());
+		FError::Throwf(TEXT("Function '%s': Base implementation of RPCs cannot be in a state. Add a stub outside state scope."), *FuncDef.GetName());
 	}
 
-	if (TopFunction->FunctionFlags & (FUNC_BlueprintCallable | FUNC_BlueprintEvent))
+	if (FuncDef.HasAnyFunctionFlags(FUNC_BlueprintCallable | FUNC_BlueprintEvent))
 	{
 		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : FuncDef.GetProperties())
 		{
 			if (PropertyDef->IsStaticArray())
 			{
-				FError::Throwf(TEXT("Static array cannot be exposed to blueprint. Function: %s Parameter %s\n"), *TopFunction->GetName(), *PropertyDef->GetName());
+				FError::Throwf(TEXT("Static array cannot be exposed to blueprint. Function: %s Parameter %s\n"), *FuncDef.GetName(), *PropertyDef->GetName());
 			}
 
 			if (!FPropertyTraits::IsSupportedByBlueprint(*PropertyDef, false))
 			{
 				FString ExtendedCPPType;
 				FString CPPType = PropertyDef->GetCPPType(&ExtendedCPPType);
-				UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *TopFunction->GetName(), *PropertyDef->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Type '%s%s' is not supported by blueprint. %s.%s"), *CPPType, *ExtendedCPPType, *FuncDef.GetName(), *PropertyDef->GetName());
 			}
 		}
 	}
@@ -7315,58 +7300,6 @@ bool FHeaderParser::CompileStatement(TArray<FUnrealFunctionDefinitionInfo*>& Del
 	return true;
 }
 
-//
-// Compute the function parameter size and save the return offset
-//
-//@TODO: UCREMOVAL: Need to rename ComputeFunctionParametersSize to reflect the additional work it's doing
-void FHeaderParser::ComputeFunctionParametersSize(FUnrealClassDefinitionInfo& ClassDef)
-{
-	// Recurse with all child states in this class.
-	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : ClassDef.GetFunctions())
-	{
-		UFunction* ThisFunction = FunctionDef->GetFunction();
-
-		// Fix up any structs that were used as a parameter in a delegate before being defined
-		if (FunctionDef->HasAnyFunctionFlags(FUNC_Delegate))
-		{
-			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : FunctionDef->GetProperties())
-			{
-				if (PropertyDef->IsStructOrStructStaticArray())
-				{
-					FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
-					if (StructDef.HasAnyStructFlags(STRUCT_HasInstancedReference))
-					{
-						PropertyDef->SetPropertyFlags(CPF_ContainsInstancedReference);
-					}
-				}
-			}
-			ThisFunction->StaticLink(true);
-		}
-
-		// Compute the function parameter size, propagate some flags to the outer function, and save the return offset
-		// Must be done in a second phase, as StaticLink resets various fields again!
-		ThisFunction->ParmsSize = 0;
-		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : FunctionDef->GetProperties())
-		{
-			if (PropertyDef->HasSpecificPropertyFlags(CPF_ReturnParm | CPF_OutParm, CPF_OutParm))
-			{
-				ThisFunction->FunctionFlags |= FUNC_HasOutParms;
-				FunctionDef->GetFunctionData().FunctionFlags |= FUNC_HasOutParms;
-			}
-				
-			if (PropertyDef->IsStructOrStructStaticArray())
-			{
-				FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
-				if (StructDef.HasDefaults())
-				{
-					ThisFunction->FunctionFlags |= FUNC_HasDefaults;
-					FunctionDef->GetFunctionData().FunctionFlags |= FUNC_HasDefaults;
-				}
-			}
-		}
-	}
-}
-
 /*-----------------------------------------------------------------------------
 	Code skipping.
 -----------------------------------------------------------------------------*/
@@ -7415,20 +7348,6 @@ void FHeaderParser::SkipStatements( int32 NestCount, const TCHAR* ErrorTag  )
 /*-----------------------------------------------------------------------------
 	Main script compiling routine.
 -----------------------------------------------------------------------------*/
-
-//
-// Finalize any script-exposed functions in the specified class
-//
-void FHeaderParser::FinalizeScriptExposedFunctions(FUnrealClassDefinitionInfo& ClassDef)
-{
-	// Finalize all of the children introduced in this class
-	UClass* Class = ClassDef.GetClass();
-	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : ClassDef.GetFunctions())
-	{
-		UFunction* Function = FunctionDef->GetFunction();
-		Class->AddFunctionToFunctionMap(Function, Function->GetFName());
-	}
-}
 
 //
 // Parses the header associated with the specified class.
@@ -7550,9 +7469,6 @@ ECompilationResult::Type FHeaderParser::ParseHeader()
 			FUnrealClassDefinitionInfo& ClassDef = UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef);
 			UClass* Class = ClassDef.GetClass();
 			PostParsingClassSetup(ClassDef);
-
-			// Finalize functions
-			FinalizeScriptExposedFunctions(ClassDef);
 
 			bNoExportClassesOnly = bNoExportClassesOnly && Class->HasAnyClassFlags(CLASS_NoExport);
 		}
@@ -8385,7 +8301,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseClassDeclaration(FU
 
 
 	// Create the definition
-	TSharedRef<FUnrealClassDefinitionInfo> ClassDef = MakeShareable(new FUnrealClassDefinitionInfo(SourceFile, InLineNumber, MoveTemp(ClassName), bClassIsAnInterface));
+	TSharedRef<FUnrealClassDefinitionInfo> ClassDef = MakeShareable(new FUnrealClassDefinitionInfo(SourceFile, InLineNumber, MoveTemp(ClassName), FName(ClassNameWithoutPrefixStr, FNAME_Add), bClassIsAnInterface));
 
 	// Parse the inheritance list
 	ParseInheritance(TEXT("class"), [this, &SourceFile, &ClassNameWithoutPrefixStr, &ClassDef = *ClassDef](const TCHAR* ClassName, bool bIsSuperClass)
@@ -8470,7 +8386,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(FUn
 		FError::Throwf(TEXT("Missing enumeration name"));
 	}
 
-	TSharedRef<FUnrealEnumDefinitionInfo> EnumDef = MakeShareable(new FUnrealEnumDefinitionInfo(SourceFile, InLineNumber, EnumToken.Identifier));
+	TSharedRef<FUnrealEnumDefinitionInfo> EnumDef = MakeShareable(new FUnrealEnumDefinitionInfo(SourceFile, InLineNumber, EnumToken.Identifier, FName(EnumToken.Identifier, FNAME_Add)));
 	return EnumDef;
 }
 
@@ -8511,7 +8427,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(F
 
 
 	// Create the structure definition
-	TSharedRef<FUnrealScriptStructDefinitionInfo> StructDef = MakeShareable(new FUnrealScriptStructDefinitionInfo(SourceFile, InLineNumber, MoveTemp(StructNameInScript)));
+	TSharedRef<FUnrealScriptStructDefinitionInfo> StructDef = MakeShareable(new FUnrealScriptStructDefinitionInfo(SourceFile, InLineNumber, MoveTemp(StructNameInScript), FName(StructNameStripped, FNAME_Add)));
 
 	// Parse the inheritance list
 	ParseInheritance(TEXT("struct"), [this, &SourceFile, &StructNameStripped, &StructDef = *StructDef](const TCHAR* StructName, bool bIsSuperClass)
@@ -8989,8 +8905,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(FUnrealStructDefinitionInf
 			TMap<FString, FName> ToolTipToFunc;
 			for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : ClassDef->GetFunctions())
 			{
-				UFunction* Func = FunctionDef->GetFunction();
-				FString ToolTip = Func->GetToolTipText().ToString();
+				FString ToolTip = FunctionDef->GetToolTipText().ToString();
 				if (ToolTip.IsEmpty())
 				{
 					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *ClassDef->GetName(), *FunctionDef->GetName());
@@ -9170,7 +9085,7 @@ void FHeaderParser::ConditionalLogPointerUsage(EPointerMemberBehavior PointerMem
 }
 
 template <class TFunctionType>
-FUnrealFunctionDefinitionInfo& CreateFunctionImpl(FUnrealSourceFile& SourceFile, int32 InputLine, FFuncInfo&& FuncInfo, FUnrealObjectDefinitionInfo& OuterDef, FScope* CurrentScope)
+FUnrealFunctionDefinitionInfo& CreateFunctionImpl(FUnrealSourceFile& SourceFile, int32 InputLine, FFuncInfo&& FuncInfo, EFunctionType InFunctionType, FUnrealObjectDefinitionInfo& OuterDef, FScope* CurrentScope)
 {
 	// Allocate local property frame, push nesting level and verify
 	// uniqueness at this scope level.
@@ -9179,22 +9094,16 @@ FUnrealFunctionDefinitionInfo& CreateFunctionImpl(FUnrealSourceFile& SourceFile,
 		while (TypeIterator.MoveNext())
 		{
 			FUnrealFieldDefinitionInfo* Type = *TypeIterator;
-			if (Type->GetField()->GetFName() == FuncInfo.Function.Identifier)
+			if (Type->GetFName() == FuncInfo.Function.Identifier)
 			{
-				FError::Throwf(TEXT("'%s' conflicts with '%s'"), FuncInfo.Function.Identifier, *Type->GetField()->GetFullName());
+				FError::Throwf(TEXT("'%s' conflicts with '%s'"), FuncInfo.Function.Identifier, *Type->GetFullName());
 			}
 		}
 	}
 
-	TFunctionType* Function = new(EC_InternalUseOnlyConstructor, OuterDef.GetObject(), FuncInfo.Function.Identifier, RF_Public) TFunctionType(FObjectInitializer(), nullptr);
-	Function->ReturnValueOffset = MAX_uint16;
-	Function->FirstPropertyToInit = nullptr;
-	Function->FunctionFlags |= FuncInfo.FunctionFlags;
-
-	TSharedRef<FUnrealFunctionDefinitionInfo> FuncDefRef = MakeShared<FUnrealFunctionDefinitionInfo>(SourceFile, InputLine, FString(FuncInfo.Function.Identifier), OuterDef, MoveTemp(FuncInfo));
+	TSharedRef<FUnrealFunctionDefinitionInfo> FuncDefRef = MakeShared<FUnrealFunctionDefinitionInfo>(SourceFile, InputLine, FString(FuncInfo.Function.Identifier), FName(FuncInfo.Function.Identifier, FNAME_Add), OuterDef, MoveTemp(FuncInfo), InFunctionType);
 	FUnrealFunctionDefinitionInfo& FuncDef = *FuncDefRef;
-	FuncDef.SetObject(Function);
-	GTypeDefinitionInfoMap.Add(Function, MoveTemp(FuncDefRef));
+
 	FuncDef.GetFunctionData().SetFunctionNames(FuncDef);
 
 	CurrentScope->AddType(FuncDef);
@@ -9202,11 +9111,7 @@ FUnrealFunctionDefinitionInfo& CreateFunctionImpl(FUnrealSourceFile& SourceFile,
 	if (!CurrentScope->IsFileScope())
 	{
 		FUnrealStructDefinitionInfo& StructDef = ((FStructScope*)CurrentScope)->GetStructDef();
-		UStruct* Struct = StructDef.GetStruct();
-
 		StructDef.AddFunction(FuncDefRef);
-		Function->Next = Struct->Children;
-		Struct->Children = Function;
 	}
 	else
 	{
@@ -9218,12 +9123,12 @@ FUnrealFunctionDefinitionInfo& CreateFunctionImpl(FUnrealSourceFile& SourceFile,
 
 FUnrealFunctionDefinitionInfo& FHeaderParser::CreateFunction(FFuncInfo&& FuncInfo) const
 {
-	return CreateFunctionImpl<UFunction>(SourceFile, InputLine, MoveTemp(FuncInfo), GetCurrentClassDef(), GetCurrentScope());
+	return CreateFunctionImpl<UFunction>(SourceFile, InputLine, MoveTemp(FuncInfo), EFunctionType::Function, GetCurrentClassDef(), GetCurrentScope());
 }
 
 template<class T>
-FUnrealFunctionDefinitionInfo& FHeaderParser::CreateDelegateFunction(FFuncInfo&& FuncInfo) const
+FUnrealFunctionDefinitionInfo& FHeaderParser::CreateDelegateFunction(FFuncInfo&& FuncInfo, EFunctionType InFunctionType) const
 {
 	FUnrealObjectDefinitionInfo& OuterDef = IsInAClass() ? static_cast<FUnrealObjectDefinitionInfo&>(GetCurrentClassDef()) : SourceFile.GetPackageDef();
-	return CreateFunctionImpl<T>(SourceFile, InputLine, MoveTemp(FuncInfo), OuterDef, GetCurrentScope());
+	return CreateFunctionImpl<T>(SourceFile, InputLine, MoveTemp(FuncInfo), InFunctionType, OuterDef, GetCurrentScope());
 }

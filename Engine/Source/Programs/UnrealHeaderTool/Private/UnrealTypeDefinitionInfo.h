@@ -76,6 +76,13 @@ enum class EVariableCategory
 	Member
 };
 
+enum class EFunctionType
+{
+	Function,
+	Delegate,
+	SparseDelegate,
+};
+
 /**
  * UHT Specific implementation of meta data support
  */
@@ -102,54 +109,96 @@ public:
 	}
 
 	/**
-	* Determines if the property has any metadata associated with the key
-	*
-	* @param Key The key to lookup in the metadata
-	* @return true if there is a (possibly blank) value associated with this key
-	*/
-	bool HasMetaData(const TCHAR* Key) const 
+	 * Determines if the property has any metadata associated with the key
+	 *
+	 * @param Key The key to lookup in the metadata
+	 * @param NameIndex if specified, will search for metadata linked to a specified value (in an enum); otherwise, searches for metadata for the object itself
+	 * @return true if there is a (possibly blank) value associated with this key
+	 */
+	bool HasMetaData(const TCHAR* Key, int32 NameIndex = INDEX_NONE) const
 	{
-		return FindMetaData(Key) != nullptr;
+		return FindMetaData(Key, NameIndex) != nullptr;
 	}
-	bool HasMetaData(const FName& Key) const 
+	bool HasMetaData(const FName& Key, int32 NameIndex = INDEX_NONE) const
 	{
-		return FindMetaData(Key) != nullptr;
+		return FindMetaData(Key, NameIndex) != nullptr;
 	}
 
 	/**
-	* Find the metadata value associated with the key
-	*
-	* @param Key The key to lookup in the metadata
-	* @return The value associated with the key if it exists, null otherwise
-	*/
-	const FString* FindMetaData(const TCHAR * Key) const
-	{
-		return FindMetaData(FName(Key, FNAME_Find));
-	}
-	virtual const FString* FindMetaData(const FName & Key) const
+	 * Find the metadata value associated with the key
+	 *
+	 * @param Key The key to lookup in the metadata
+	 * @param NameIndex if specified, will search for metadata linked to a specified value (in an enum); otherwise, searches for metadata for the object itself
+	 * @return The value associated with the key if it exists, null otherwise
+	 */
+	const FString* FindMetaData(const TCHAR* Key, int32 NameIndex = INDEX_NONE) const
 	{
 		TMap<FName, FString>* MetaDataMap = GetMetaDataMap();
-		return MetaDataMap ? MetaDataMap->Find(Key) : nullptr;
+		return MetaDataMap ? MetaDataMap->Find(GetMetaDataKey(Key, NameIndex, FNAME_Find)) : nullptr;
+	}
+	const FString* FindMetaData(const FName& Key, int32 NameIndex = INDEX_NONE) const
+	{
+		TMap<FName, FString>* MetaDataMap = GetMetaDataMap();
+		return MetaDataMap ? MetaDataMap->Find(GetMetaDataKey(Key, NameIndex, FNAME_Find)) : nullptr;
 	}
 
 	/**
-	* Find the metadata value associated with the key
-	*
-	* @param Key The key to lookup in the metadata
-	* @return The value associated with the key
-	*/
-	const FString& GetMetaData(const TCHAR* Key) const
+	 * Find the metadata value associated with the key
+	 *
+	 * @param Key The key to lookup in the metadata
+	 * @param NameIndex if specified, will search for metadata linked to a specified value (in an enum); otherwise, searches for metadata for the object itself
+	 * @return The value associated with the key
+	 */
+	FString GetMetaData(const TCHAR* Key, int32 NameIndex = INDEX_NONE, bool bAllowRemap = true) const
 	{
-		return GetMetaData(FName(Key, FNAME_Find));
+		return GetMetaDataHelper(GetMetaDataKey(Key, NameIndex, FNAME_Find), bAllowRemap);
 	}
-	virtual const FString& GetMetaData(const FName& Key) const;
+	FString GetMetaData(const FName& Key, int32  NameIndex = INDEX_NONE, bool bAllowRemap = true) const
+	{
+		return GetMetaDataHelper(GetMetaDataKey(Key, NameIndex, FNAME_Find), bAllowRemap);
+	}
+
+	/**
+	 * Set the metadata value associated with the specified key.
+	 *
+	 * @param	Key			the metadata tag to find the value for
+	 * @param	NameIndex	if specified, will search the metadata linked for that enum value; otherwise, searches the metadata for the enum itself
+	 * @param	InValue		Value of the metadata for the key
+	 *
+	 */
+	void SetMetaData(const TCHAR* Key, const TCHAR* InValue, int32 NameIndex = INDEX_NONE)
+	{
+		SetMetaDataHelper(GetMetaDataKey(Key, NameIndex, FNAME_Add), InValue);
+	}
+	void SetMetaData(const FName& Key, const TCHAR* InValue, int32 NameIndex = INDEX_NONE) 
+	{
+		SetMetaDataHelper(GetMetaDataKey(Key, NameIndex, FNAME_Add), InValue);
+	}
 
 	virtual TMap<FName, FString>* GetMetaDataMap() const = 0;
 
 protected:
+	virtual FString GetMetaDataIndexName(int32 NameIndex) const
+	{
+		checkf(false, TEXT("You can not perform indexed meta data searches on this type"));
+		return FString();
+	}
+
+	virtual const TCHAR* GetMetaDataRemapConfigName() const
+	{
+		checkf(false, TEXT("You can not perform remapping of meta data values on this type"));
+		return nullptr;
+	}
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const = 0;
 #endif
+
+private:
+	FName GetMetaDataKey(const TCHAR* Key, int32 NameIndex, EFindName FindName) const;
+	FName GetMetaDataKey(FName Key, int32 NameIndex, EFindName FindName) const;
+	const FString* FindMetaDataHelper(const FName& Key) const;
+	FString GetMetaDataHelper(const FName& Key, bool bAllowRemap) const;
+	virtual void SetMetaDataHelper(const FName& Key, const TCHAR* InValue);
 };
 
 /**
@@ -322,29 +371,14 @@ public:
 	}
 
 	/**
-	 * Perform any post parsing finalization and validation
+	 * Create UObject engine types
 	 */
-	void PostParseFinalize(bool bCreateEngineTypes)
-	{
-		switch (FinalizeState)
-		{
-		case EFinalizeState::None:
-			FinalizeState = EFinalizeState::InProgress;
-			PostParseFinalizeInternal(bCreateEngineTypes);
-			FinalizeState = EFinalizeState::Finished;
-			break;
-		case EFinalizeState::InProgress:
-			check(false);
-			break;
-		case EFinalizeState::Finished:
-			break;
-		}
-	}
+	void CreateUObjectEngineTypes();
 
 	/**
-	 * Return the C++ type name that represents this type (i.e. UClass)
+	 * Perform any post parsing finalization and validation
 	 */
-	virtual const TCHAR* GetSimplifiedTypeClass() const = 0;
+	void PostParseFinalize();
 
 	/**
 	 * Return the compilation scope associated with this object
@@ -375,6 +409,14 @@ public:
 	 */
 	virtual FString GetPathName(FUnrealObjectDefinitionInfo* StopOuter = nullptr) const = 0;
 	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const = 0;
+
+	/**
+	 * Walks up the chain of packages until it reaches the top level, which it ignores.
+	 *
+	 * @param	bStartWithOuter		whether to include this object's name in the returned string
+	 * @return	string containing the path name for this object, minus the outermost-package's name
+	 */
+	virtual FString GetFullGroupName(bool bStartWithOuter) const = 0;
 
 	/**
 	 * Return true if this type has source information
@@ -441,12 +483,6 @@ public:
 	}
 
 	/**
-	 * Helper function that checks if the field is a dynamic type (can be constructed post-startup)
-	 */
-	static bool IsDynamic(const UField* Field);
-	static bool IsDynamic(const FField* Field);
-
-	/**
 	 * Helper function that checks if the field is a dynamic type
 	 */
 	virtual bool IsDynamic() const
@@ -505,7 +541,10 @@ protected:
 
 	virtual void ValidateMetaDataFormat(const FName InKey, ECheckedMetadataSpecifier InCheckedMetadataSpecifier, const FString& InValue) const;
 
-	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes)
+	virtual void PostParseFinalizeInternal()
+	{}
+
+	virtual void CreateUObjectEngineTypesInternal()
 	{}
 
 private:
@@ -514,7 +553,8 @@ private:
 	FUnrealSourceFile* SourceFile = nullptr;
 	int32 LineNumber = 0;
 	std::atomic<uint32> Hash = 0;
-	EFinalizeState FinalizeState = EFinalizeState::None;
+	EFinalizeState CreateUObectEngineTypesState = EFinalizeState::None;
+	EFinalizeState PostParseFinalizeState = EFinalizeState::None;
 };
 
 /**
@@ -538,14 +578,6 @@ public:
 	virtual FUnrealPropertyDefinitionInfo* AsProperty() override
 	{
 		return this;
-	}
-
-	/**
-	 * Return the C++ type name that represents this type (i.e. UClass)
-	 */
-	virtual const TCHAR* GetSimplifiedTypeClass() const override
-	{
-		return TEXT("UProperty");
 	}
 
 	/**
@@ -615,9 +647,17 @@ public:
 	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const override;
 
 	/**
+	 * Walks up the chain of packages until it reaches the top level, which it ignores.
+	 *
+	 * @param	bStartWithOuter		whether to include this object's name in the returned string
+	 * @return	string containing the path name for this object, minus the outermost-package's name
+	 */
+	virtual FString GetFullGroupName(bool bStartWithOuter) const;
+
+	/**
 	 * Return the engine class name
 	 */
-	FString GetEngineClassName() const;
+	FString GetEngineClassName() const; //@TODO make this const &
 
 	/**
 	 * Return the package associated with this object
@@ -754,7 +794,7 @@ public:
 	virtual TMap<FName, FString> GenerateMetadataMap() const override
 	{
 		TMap<FName, FString> MetaDataMap;
-		const TMap<FName, FString>* FieldMetaDataMap = GetProperty()->GetMetaDataMap();
+		const TMap<FName, FString>* FieldMetaDataMap = GetMetaDataMap();
 		if (FieldMetaDataMap)
 		{
 			MetaDataMap = *FieldMetaDataMap;
@@ -1129,8 +1169,12 @@ public:
 
 	virtual TMap<FName, FString>* GetMetaDataMap() const override
 	{
+		//return const_cast<TMap<FName, FString>*>(GetProperty()->GetMetaDataMap());
 		return const_cast<TMap<FName, FString>*>(&PropertyBase.MetaData);
 	}
+
+	FUnrealObjectDefinitionInfo* GetOwnerObject() const;
+	FUnrealStructDefinitionInfo* GetOwnerStruct() const;
 
 protected:
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
@@ -1147,7 +1191,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+	virtual void PostParseFinalizeInternal() override;
 
 private:
 	FName Name;
@@ -1169,6 +1213,7 @@ private:
  */
 class FUnrealObjectDefinitionInfo
 	: public FUnrealTypeDefinitionInfo
+	, public FUHTMetaData
 {
 public:
 
@@ -1187,6 +1232,23 @@ public:
 	}
 
 	/**
+	 * Return the Engine instance associated with the compiler instance without the check that it is set
+	 */
+	UObject* GetObjectSafe() const
+	{
+		return Object;
+	}
+
+	/**
+	 * Return the engine class name
+	 */
+	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
+	{
+		static FString ClassName(TEXT("Object"));
+		return ClassName;
+	}
+
+	/**
 	 * Set the Engine instance associated with the compiler instance
 	 */
 	virtual void SetObject(UObject* InObject)
@@ -1194,6 +1256,10 @@ public:
 		check(InObject != nullptr);
 		check(Object == nullptr);
 		Object = InObject;
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(Object->GetFName() == Name);
+		check(Object->GetInternalFlags() == InternalObjectFlags);
+#endif
 	}
 
 	/**
@@ -1201,19 +1267,23 @@ public:
 	 */
 	virtual FString GetName() const override
 	{
-		return GetObject()->GetName();
+		FString Result = GetFName().ToString();
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetObjectSafe() == nullptr || GetObjectSafe()->GetName() == Result);
+#endif
+		return Result;
 	}
 
 	/** Returns the logical name of this object */
 	virtual FName GetFName() const override
 	{
-		return GetObject()->GetFName();
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetObjectSafe() == nullptr || GetObjectSafe()->GetFName() == Name);
+#endif
+		return Name;
 	}
 
-	virtual FString GetFullName() const override
-	{
-		return GetObject()->GetFullName();
-	}
+	virtual FString GetFullName() const override;
 
 	/**
 	 * Returns the fully qualified pathname for this object, in the format:
@@ -1221,6 +1291,14 @@ public:
 	 */
 	virtual FString GetPathName(FUnrealObjectDefinitionInfo* StopOuter = nullptr) const override;
 	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const override;
+
+	/**
+	 * Walks up the chain of packages until it reaches the top level, which it ignores.
+	 *
+	 * @param	bStartWithOuter		whether to include this object's name in the returned string
+	 * @return	string containing the path name for this object, minus the outermost-package's name
+	 */
+	virtual FString GetFullGroupName(bool bStartWithOuter) const override;
 
 	/**
 	 * Return the package associated with this object
@@ -1236,18 +1314,74 @@ public:
 	}
 
 	/**
+	 * Return the flags that were parsed as part of the pre-parse phase
+	 */
+	EInternalObjectFlags GetInternalFlags() const
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetObjectSafe() == nullptr || GetObjectSafe()->GetInternalFlags() == InternalObjectFlags);
+#endif
+		return InternalObjectFlags;
+	}
+
+	/**
+	 * Sets the given flags
+	 */
+	void SetInternalFlags(EInternalObjectFlags FlagsToSet)
+	{
+		InternalObjectFlags |= FlagsToSet;
+		if (UObject* Obj = GetObjectSafe())
+		{
+			Obj->SetInternalFlags(FlagsToSet);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+			check(Obj->GetInternalFlags() == InternalObjectFlags);
+#endif
+		}
+	}
+
+	/**
+	 * Clears the given flags
+	 */
+	void ClearInternalFlags(EInternalObjectFlags FlagsToClear)
+	{
+		InternalObjectFlags &= ~FlagsToClear;
+		if (UObject* Obj = GetObjectSafe())
+		{
+			Obj->ClearInternalFlags(FlagsToClear);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+			check(Obj->GetInternalFlags() == InternalObjectFlags);
+#endif
+		}
+	}
+
+	/**
+	 * Used to safely check whether the passed in flag is set.
+	 *
+	 * @param	FlagsToCheck		Flag(s) to check for
+	 * @return	true if the passed in flag is set, false otherwise
+	 */
+	bool HasAnyInternalFlags(EInternalObjectFlags FlagsToCheck) const
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetObjectSafe() == nullptr || GetObjectSafe()->GetInternalFlags() == InternalObjectFlags);
+#endif
+		return EnumHasAnyFlags(InternalObjectFlags, FlagsToCheck);
+	}
+
+	/**
+	 * Helper method to see if native
+	 */
+	bool IsNative() const
+	{
+		return HasAnyInternalFlags(EInternalObjectFlags::Native);
+	}
+
+	/**
 	 * Return the meta data in map form
 	 */
 	virtual TMap<FName, FString> GenerateMetadataMap() const override
 	{
-		UObject* Obj = GetObject();
-		check(Obj);
-		UPackage* Package = Obj->GetPackage();
-		check(Package);
-		UMetaData* Metadata = Package->GetMetaData();
-		check(Metadata);
-
-		TMap<FName, FString>* PackageMap = Metadata->ObjectMetaDataMap.Find(Obj);
+		TMap<FName, FString>* PackageMap = GetMetaDataMap();
 		TMap<FName, FString> Map;
 		if (PackageMap)
 		{
@@ -1263,32 +1397,63 @@ public:
 		return Map;
 	}
 
-	/**
-	 * Helper methods to remove dependencies on engine types
-	 */
-	bool IsADelegateFunction() const
+	virtual TMap<FName, FString>* GetMetaDataMap() const override
 	{
-		return GetObject()->IsA<UDelegateFunction>();
+		return GetUObjectMetaDataMap();
 	}
 
 protected:
-	// Used only by packages
-	explicit FUnrealObjectDefinitionInfo(FString&& InNameCPP)
-		: FUnrealTypeDefinitionInfo(MoveTemp(InNameCPP))
+	virtual void SetMetaDataHelper(const FName& Key, const TCHAR* InValue) override;
+
+	explicit FUnrealObjectDefinitionInfo(UObject* Object);
+
+	FUnrealObjectDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, FUnrealObjectDefinitionInfo& InOuter)
+		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InOuter)
+		, Name(InName)
 	{ }
 
-	FUnrealObjectDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FUnrealObjectDefinitionInfo& InOuter)
-		: FUnrealTypeDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InOuter)
-	{ }
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const override
+	{
+		if (UObject* Obj = GetObjectSafe())
+		{
+			TMap<FName, FString>* PackageMap = GetUObjectMetaDataMap();
+			const FString* CheckPtr = PackageMap ? PackageMap->Find(Key) : nullptr;
+			check((CheckPtr == nullptr && ValuePtr == nullptr) || (CheckPtr != nullptr && ValuePtr != nullptr && *CheckPtr == *ValuePtr));
+		}
+	}
+#endif
+
+	UMetaData* GetUObjectMetaData() const
+	{
+		if (UObject* Obj = GetObjectSafe())
+		{
+			UPackage* Package = Obj->GetPackage();
+			check(Package);
+			UMetaData* Metadata = Package->GetMetaData();
+			check(Metadata);
+			return Metadata;
+		}
+		return nullptr;
+	}
+
+	TMap<FName, FString>* GetUObjectMetaDataMap() const
+	{
+		UMetaData* Metadata = GetUObjectMetaData();
+		return Metadata ? Metadata->ObjectMetaDataMap.Find(GetObject()) : nullptr;
+	}
 
 private:
 	UObject* Object = nullptr;
+	FName Name = NAME_None;
+	EInternalObjectFlags InternalObjectFlags = EInternalObjectFlags::None;
 };
 
 /**
  * Class that stores information about packages.
  */
-class FUnrealPackageDefinitionInfo : public FUnrealObjectDefinitionInfo
+class FUnrealPackageDefinitionInfo 
+	: public FUnrealObjectDefinitionInfo
 {
 public:
 	// Constructor
@@ -1308,11 +1473,20 @@ public:
 	}
 
 	/**
-	 * Return the C++ type name that represents this type (i.e. UClass)
+	 * Return the Engine instance associated with the compiler instance
 	 */
-	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	UPackage* GetPackageSafe() const
 	{
-		return TEXT("UPackage");
+		return static_cast<UPackage*>(GetObjectSafe());
+	}
+
+	/**
+	 * Return the engine class name
+	 */
+	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
+	{
+		static FString ClassName(TEXT("Package"));
+		return ClassName;
 	}
 
 	/**
@@ -1403,9 +1577,14 @@ public:
 
 protected:
 	/**
+	 * Create UObject engine types
+	 */
+	virtual void CreateUObjectEngineTypesInternal() override;
+
+	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+	virtual void PostParseFinalizeInternal() override;
 
 private:
 	const FManifestModule& Module;
@@ -1444,58 +1623,30 @@ public:
 	}
 
 	/**
-	 * Determines if the property has any metadata associated with the key
-	 * 
-	 * @param Key The key to lookup in the metadata
-	 * @return true if there is a (possibly blank) value associated with this key
+	 * Return the Engine instance associated with the compiler instance without the check that it is set
 	 */
-	bool HasMetaData(const TCHAR* Key) const { return FindMetaData(Key) != nullptr; }
-	bool HasMetaData(const FName& Key) const { return FindMetaData(Key) != nullptr; }
-
-	/**
-	 * Find the metadata value associated with the key
-	 *
-	 * @param Key The key to lookup in the metadata
-	 * @return The value associated with the key if exists, null otherwise
-	 */
-	const FString* FindMetaData(const TCHAR* Key) const
+	UField* GetFieldSafe() const
 	{
-		return GetField()->FindMetaData(Key);
-	}
-	const FString* FindMetaData(const FName& Key) const
-	{
-		return GetField()->FindMetaData(Key);
+		return static_cast<UField*>(GetObjectSafe());
 	}
 
 	/**
-	 * Find the metadata value associated with the key
-	 * 
-	 * @param Key The key to lookup in the metadata
-	 * @return The value associated with the key
+	 * Return the engine class name
 	 */
-	const FString& GetMetaData(const TCHAR* Key) const
+	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
 	{
-		return GetField()->GetMetaData(Key);
-	}
-	const FString& GetMetaData(const FName& Key) const
-	{
-		return GetField()->GetMetaData(Key);
+		static FString ClassName(TEXT("Field"));
+		return ClassName;
 	}
 
 	/**
-	 * Sets the metadata value associated with the key
-	 * 
-	 * @param Key The key to lookup in the metadata
-	 * @return The value associated with the key
-	 */
-	void SetMetaData(const TCHAR* Key, const TCHAR* InValue)
-	{
-		GetField()->SetMetaData(Key, InValue);
-	}
-	void SetMetaData(const FName& Key, const TCHAR* InValue)
-	{
-		GetField()->SetMetaData(Key, InValue);
-	}
+	* Finds the localized tooltip or native tooltip as a fallback.
+	*
+	* @param bShortTooltip Look for a shorter version of the tooltip (falls back to the long tooltip if none was specified)
+	*
+	* @return The tooltip for this object.
+	*/
+	FText GetToolTipText(bool bShortTooltip = false) const;
 
 	/**
 	 * Add a unique cross module reference for this field
@@ -1558,7 +1709,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+	virtual void PostParseFinalizeInternal() override;
 
 private:
 	FString SingletonName[2];
@@ -1573,7 +1724,7 @@ private:
 class FUnrealEnumDefinitionInfo : public FUnrealFieldDefinitionInfo
 {
 public:
-	FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP);
+	FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName);
 
 	virtual FUnrealEnumDefinitionInfo* AsEnum() override
 	{
@@ -1581,11 +1732,12 @@ public:
 	}
 
 	/**
-	 * Return the C++ type name that represents this type (i.e. UClass)
+	 * Return the engine class name
 	 */
-	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
 	{
-		return TEXT("UEnum");
+		static FString ClassName(TEXT("Enum"));
+		return ClassName;
 	}
 
 	/**
@@ -1700,46 +1852,6 @@ public:
 	}
 
 	/**
-	 * Wrapper method for easily determining whether this enum has metadata associated with it.
-	 *
-	 * @param	Key			the metadata tag to check for
-	 * @param	NameIndex	if specified, will search for metadata linked to a specified value in this enum; otherwise, searches for metadata for the enum itself
-	 *
-	 * @return true if the specified key exists in the list of metadata for this enum, even if the value of that key is empty
-	 */
-	bool HasMetaData(const TCHAR* Key, int32 NameIndex = INDEX_NONE) const
-	{
-		return GetEnum()->HasMetaData(Key, NameIndex);
-	}
-
-	/**
-	 * Return the metadata value associated with the specified key.
-	 *
-	 * @param	Key			the metadata tag to find the value for
-	 * @param	NameIndex	if specified, will search the metadata linked for that enum value; otherwise, searches the metadata for the enum itself
-	 * @param	bAllowRemap	if true, the returned value may be remapped from a .ini if the value starts with ini: Pass false when you need the exact string, including any ini:
-	 *
-	 * @return	the value for the key specified, or an empty string if the key wasn't found or had no value.
-	 */
-	FString GetMetaData(const TCHAR* Key, int32 NameIndex = INDEX_NONE, bool bAllowRemap = true) const
-	{
-		return GetEnum()->GetMetaData(Key, NameIndex, bAllowRemap);
-	}
-
-	/**
-	 * Set the metadata value associated with the specified key.
-	 *
-	 * @param	Key			the metadata tag to find the value for
-	 * @param	NameIndex	if specified, will search the metadata linked for that enum value; otherwise, searches the metadata for the enum itself
-	 * @param	InValue		Value of the metadata for the key
-	 *
-	 */
-	void SetMetaData(const TCHAR* Key, const TCHAR* InValue, int32 NameIndex = INDEX_NONE) const
-	{
-		GetEnum()->SetMetaData(Key, InValue, NameIndex);
-	}
-
-	/**
 	 * Returns the underlying enumeration type
 	 */
 	EUnderlyingEnumType GetUnderlyingType() const
@@ -1769,6 +1881,19 @@ public:
 	void MakeEditorOnly()
 	{
 		bIsEditorOnly = true;
+	}
+
+protected:
+	virtual FString GetMetaDataIndexName(int32 NameIndex) const
+	{
+		FString EnumName = GetEnum()->GetNameStringByIndex(NameIndex);
+		check(!EnumName.IsEmpty());
+		return EnumName;
+	}
+
+	virtual const TCHAR* GetMetaDataRemapConfigName() const
+	{
+		return TEXT("EnumRemap");
 	}
 
 private:
@@ -1821,6 +1946,15 @@ public:
 	UStruct* GetStruct() const
 	{
 		return static_cast<UStruct*>(GetObject());
+	}
+
+	/**
+	 * Return the engine class name
+	 */
+	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
+	{
+		static FString ClassName(TEXT("Struct"));
+		return ClassName;
 	}
 
 	/**
@@ -1925,29 +2059,6 @@ public:
 		return BaseStructInfo;
 	}
 
-	/** Try and find boolean metadata with the given key. If not found on this class, work up hierarchy looking for it. */
-	bool GetBoolMetaDataHierarchical(const FName& Key) const
-	{
-		return GetStruct()->GetBoolMetaDataHierarchical(Key);
-	}
-
-	/** Try and find string metadata with the given key. If not found on this class, work up hierarchy looking for it. */
-	bool GetStringMetaDataHierarchical(const FName& Key, FString* OutValue = nullptr) const
-	{
-		return GetStruct()->GetStringMetaDataHierarchical(Key, OutValue);
-	}
-
-	/**
-	 * Determines if the struct or any of its super structs has any metadata associated with the provided key
-	 *
-	 * @param Key The key to lookup in the metadata
-	 * @return pointer to the UStruct that has associated metadata, nullptr if Key is not associated with any UStruct in the hierarchy
-	 */
-	const UStruct* HasMetaDataHierarchical(const FName& Key) const
-	{
-		return GetStruct()->HasMetaDataHierarchical(Key);
-	}
-
 	/**
 	 * Get the contains delegates flag
 	 */
@@ -1977,6 +2088,42 @@ public:
 			}
 		}
 		return false;
+	}
+
+	const FString* FindMetaDataHierarchical(const FName& Key) const
+	{
+		if (Key == NAME_None)
+		{
+			return nullptr;
+		}
+
+		for (const FUnrealStructDefinitionInfo* StructDef = this; StructDef; StructDef = StructDef->GetSuperStruct())
+		{
+			if (const FString* Found = StructDef->FindMetaData(Key))
+			{
+				return Found;
+			}
+		}
+		return nullptr;
+	}
+
+	/** Try and find boolean metadata with the given key. If not found on this class, work up hierarchy looking for it. */
+	bool GetBoolMetaDataHierarchical(const FName& Key) const
+	{
+		const FString* Found = FindMetaDataHierarchical(Key);
+		// FString == operator does case insensitive comparison
+		return Found != nullptr && *Found == "true";
+	}
+
+	/** Try and find string metadata with the given key. If not found on this class, work up hierarchy looking for it. */
+	bool GetStringMetaDataHierarchical(const FName& Key, FString* OutValue = nullptr) const
+	{
+		const FString* Found = FindMetaDataHierarchical(Key);
+		if (OutValue)
+		{
+			*OutValue = Found ? *Found : FString();
+		}
+		return Found != nullptr;
 	}
 
 	/**
@@ -2029,9 +2176,14 @@ public:
 
 protected:
 	/**
+	 * Create UObject engine types
+	 */
+	virtual void CreateUObjectEngineTypesInternal() override;
+
+	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+	virtual void PostParseFinalizeInternal() override;
 
 private:
 	TSharedPtr<FScope> StructScope;
@@ -2065,7 +2217,7 @@ private:
 class FUnrealScriptStructDefinitionInfo : public FUnrealStructDefinitionInfo
 {
 public:
-	FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP);
+	FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName);
 
 	virtual FUnrealScriptStructDefinitionInfo* AsScriptStruct() override
 	{
@@ -2075,11 +2227,12 @@ public:
 	virtual uint32 GetHash(bool bIncludeNoExport = true) const override;
 
 	/**
-	 * Return the C++ type name that represents this type (i.e. UClass)
+	 * Return the engine class name
 	 */
-	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
 	{
-		return TEXT("UScriptStruct");
+		static FString ClassName(TEXT("ScriptStruct"));
+		return ClassName;
 	}
 
 	/**
@@ -2165,9 +2318,10 @@ private:
 class FUnrealFunctionDefinitionInfo : public FUnrealStructDefinitionInfo
 {
 public:
-	FUnrealFunctionDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FUnrealObjectDefinitionInfo& InOuter, FFuncInfo&& InFuncInfo)
-		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InOuter)
+	FUnrealFunctionDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, FUnrealObjectDefinitionInfo& InOuter, FFuncInfo&& InFuncInfo, EFunctionType InFunctionType)
+		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InName, InOuter)
 		, FunctionData(MoveTemp(InFuncInfo))
+		, FunctionType(InFunctionType)
 	{ 
 	}
 
@@ -2177,11 +2331,31 @@ public:
 	}
 
 	/**
-	 * Return the C++ type name that represents this type (i.e. UClass)
+	 * Return the engine class name
 	 */
-	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
 	{
-		return TEXT("UFunction");
+		static FString FunctionClassName(TEXT("Function"));
+		static FString DelegateFunctionClassName(TEXT("DelegateFunction"));
+		static FString SparseDelegateFunctionClassName(TEXT("SparseDelegateFunction"));
+
+		if (bRootClassName)
+		{
+			return FunctionClassName;
+		}
+
+		switch (FunctionType)
+		{
+		case EFunctionType::Function:
+			return FunctionClassName;
+		case EFunctionType::Delegate:
+			return DelegateFunctionClassName;
+		case EFunctionType::SparseDelegate:
+			return SparseDelegateFunctionClassName;
+		default:
+			check(false);
+			return FunctionClassName;
+		}
 	}
 
 	/**
@@ -2189,7 +2363,15 @@ public:
 	 */
 	UFunction* GetFunction() const
 	{
-		return static_cast<UFunction*>(GetField());
+		return static_cast<UFunction*>(GetObject());
+	}
+
+	/**
+	 * Return the Engine instance associated with the compiler instance without the check to see if it is set
+	 */
+	UFunction* GetFunctionSafe() const
+	{
+		return static_cast<UFunction*>(GetObjectSafe());
 	}
 
 	/**
@@ -2197,7 +2379,25 @@ public:
 	 */
 	FORCEINLINE EFunctionFlags GetFunctionFlags() const
 	{
-		return GetFunction()->FunctionFlags;
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
+#endif
+		return FunctionData.FunctionFlags;
+	}
+
+	/**
+	 * Sets the given flags
+	 */
+	void SetFunctionFlags(EFunctionFlags FlagsToSet)
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
+#endif
+		if (GetFunctionSafe())
+		{
+			GetFunctionSafe()->FunctionFlags |= FlagsToSet;
+		}
+		FunctionData.FunctionFlags |= FlagsToSet;
 	}
 
 	/**
@@ -2210,7 +2410,10 @@ public:
 	 */
 	FORCEINLINE bool HasAnyFunctionFlags(EFunctionFlags FlagsToCheck) const
 	{
-		return GetFunction()->HasAnyFunctionFlags(FlagsToCheck);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
+#endif
+		return EnumHasAnyFlags(FunctionData.FunctionFlags, FlagsToCheck);
 	}
 
 	/**
@@ -2221,7 +2424,10 @@ public:
 	 */
 	FORCEINLINE bool HasAllFunctionFlags(EFunctionFlags FlagsToCheck) const
 	{
-		return GetFunction()->HasAllFunctionFlags(FlagsToCheck);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
+#endif
+		return EnumHasAllFlags(FunctionData.FunctionFlags, FlagsToCheck);
 	}
 
 	/**
@@ -2233,16 +2439,16 @@ public:
 	 */
 	FORCEINLINE bool HasSpecificFunctionFlags(EFunctionFlags FlagsToCheck, EFunctionFlags ExpectedFlags) const
 	{
-		EFunctionFlags Flags = GetFunction()->FunctionFlags;
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetFunctionSafe() == nullptr || GetFunctionSafe()->FunctionFlags == FunctionData.FunctionFlags);
+#endif
+		EFunctionFlags Flags = FunctionData.FunctionFlags;
 		return (Flags & FlagsToCheck) == ExpectedFlags;
 	}
 
-	/** @name getters */
-	//@{
 	FFuncInfo& GetFunctionData() { return FunctionData; }
 	const FFuncInfo& GetFunctionData() const { return FunctionData; }
 	FUnrealPropertyDefinitionInfo* GetReturn() const { return ReturnProperty.Get(); }
-	//@}
 
 	/**
 	 * Adds a new function property to be tracked.  Determines whether the property is a
@@ -2254,7 +2460,7 @@ public:
 	/**
 	 * Sets the specified function export flags
 	 */
-	void SetFunctionExportFlag(uint32 NewFlags)
+	void SetFunctionExportFlags(uint32 NewFlags)
 	{
 		FunctionData.FunctionExportFlags |= NewFlags;
 	}
@@ -2272,11 +2478,47 @@ public:
 	 */
 	FUnrealFunctionDefinitionInfo* GetSuperFunction() const;
 
+	/**
+	 * Set the name of the sparse owning class name
+	 */
+	void SetSparseOwningClassName(FName InSparseOwningClassName)
+	{
+		SparseOwningClassName = InSparseOwningClassName;
+	}
+
+	/**
+	 * Set the name of the sparse delegate name
+	 */
+	void SetSparseDelegateName(FName InSparseDelegateName)
+	{
+		SparseDelegateName = InSparseDelegateName;
+	}
+
+	EFunctionType GetFunctionType() const
+	{
+		return FunctionType;
+	}
+
+	bool IsDelegateFunction() const
+	{
+		return FunctionType == EFunctionType::Delegate || FunctionType == EFunctionType::SparseDelegate;
+	}
+
+	virtual TMap<FName, FString>* GetMetaDataMap() const override
+	{
+		return const_cast<TMap<FName, FString>*>(&MetaData);
+	}
+
 protected:
+	/**
+	 * Create UObject engine types
+	 */
+	virtual void CreateUObjectEngineTypesInternal() override;
+
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+	virtual void PostParseFinalizeInternal() override;
 
 private:
 
@@ -2285,6 +2527,11 @@ private:
 
 	/** return value for this function */
 	TSharedPtr<FUnrealPropertyDefinitionInfo> ReturnProperty;
+
+	TMap<FName, FString> MetaData;
+	FName SparseOwningClassName = NAME_None;
+	FName SparseDelegateName = NAME_None;
+	EFunctionType FunctionType = EFunctionType::Function;
 };
 
 /**
@@ -2294,10 +2541,10 @@ class FUnrealClassDefinitionInfo
 	: public FUnrealStructDefinitionInfo
 {
 public:
-	FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, bool bInIsInterface);
+	FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, bool bInIsInterface);
 
-	FUnrealClassDefinitionInfo(FString&& InNameCPP)
-		: FUnrealStructDefinitionInfo(MoveTemp(InNameCPP))
+	explicit FUnrealClassDefinitionInfo(UClass* Class) 
+		: FUnrealStructDefinitionInfo(Class)
 	{ }
 
 	/**
@@ -2331,11 +2578,12 @@ public:
 	}
 
 	/**
-	 * Return the C++ type name that represents this type (i.e. UClass)
+	 * Return the engine class name
 	 */
-	virtual const TCHAR* GetSimplifiedTypeClass() const override
+	virtual const FString& GetEngineClassName(bool bRootClassName = false) const
 	{
-		return TEXT("UClass");
+		static FString ClassName(TEXT("Class"));
+		return ClassName;
 	}
 
 	virtual uint32 GetHash(bool bIncludeNoExport = true) const override;
@@ -2359,14 +2607,7 @@ public:
 		FUnrealStructDefinitionInfo::SetObject(InObject);
 	}
 
-	FUnrealClassDefinitionInfo* GetSuperClass() const
-	{
-		if (FUnrealStructDefinitionInfo* SuperClass = GetSuperStructInfo().Struct)
-		{
-			return &SuperClass->AsClassChecked();
-		}
-		return nullptr;
-	}
+	FUnrealClassDefinitionInfo* GetSuperClass() const;
 
 	/**
 	 * Get the archive type
@@ -2582,7 +2823,7 @@ protected:
 	/**
 	 * Perform any post parsing finalization and validation
 	 */
-	virtual void PostParseFinalizeInternal(bool bCreateEngineTypes) override;
+	virtual void PostParseFinalizeInternal() override;
 
 public:
 	TMap<FName, FString> MetaData;

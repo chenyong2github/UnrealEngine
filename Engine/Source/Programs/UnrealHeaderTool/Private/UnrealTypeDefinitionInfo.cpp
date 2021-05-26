@@ -15,6 +15,7 @@
 
 #include "Algo/FindSortedStringCaseInsensitive.h"
 #include "Math/UnitConversion.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
 #include "UObject/ErrorException.h"
 #include "UObject/Interface.h"
@@ -24,6 +25,7 @@
 extern FUnrealClassDefinitionInfo* GUObjectDef;
 extern FUnrealClassDefinitionInfo* GUClassDef;
 extern FUnrealClassDefinitionInfo* GUInterfaceDef;
+extern FUnrealClassDefinitionInfo* GUPackageDef;
 
 namespace
 {
@@ -35,24 +37,24 @@ namespace
 	/**
 	 * As part of the singleton name, collect the parent chain names
 	 */
-	void AddOuterNames(FUHTStringBuilder& Out, UObject* Outer)
+	void AddOuterNames(FUHTStringBuilder& Out, FUnrealObjectDefinitionInfo* Outer)
 	{
 		if (Outer == nullptr)
 		{
 			return;
 		}
 
-		if (Cast<UClass>(Outer) || Cast<UScriptStruct>(Outer))
+		if (UHTCast<FUnrealClassDefinitionInfo>(Outer) != nullptr || UHTCast<FUnrealScriptStructDefinitionInfo>(Outer) != nullptr)
 		{
 			// Structs can also have UPackage outer.
-			if (!Outer->IsA<UClass>() && !Outer->GetOuter()->IsA<UPackage>())
+			if (UHTCast<FUnrealClassDefinitionInfo>(Outer) == nullptr && UHTCast<FUnrealPackageDefinitionInfo>(Outer->GetOuter()) == nullptr)
 			{
 				AddOuterNames(Out, Outer->GetOuter());
 			}
 			Out.Append(TEXT("_"));
-			Out.Append(FNameLookupCPP::GetNameCPP(Cast<UStruct>(Outer)));
+			Out.Append(UHTCastChecked<FUnrealStructDefinitionInfo>(Outer).GetAlternateNameCPP());
 		}
-		else if (UPackage* Package = Cast<UPackage>(Outer))
+		else if (FUnrealPackageDefinitionInfo* PackageDef = UHTCast<FUnrealPackageDefinitionInfo>(Outer))
 		{
 			Out.Append(TEXT("_"));
 			Out.Append(FPackageName::GetShortName(Outer->GetName()));
@@ -68,15 +70,13 @@ namespace
 	/**
 	 * Generates singleton name.
 	 */
-	void GenerateSingletonName(FUHTStringBuilder& Out, UField* Item, bool bRequiresValidObject)
+	void GenerateSingletonName(FUHTStringBuilder& Out, FUnrealFieldDefinitionInfo* Item, bool bRequiresValidObject)
 	{
-		check(Item);
-
-		Out.Append(TEXT("Z_Construct_"));
-		Out.Append(FNameLookupCPP::GetNameCPP(Item->GetClass()));
+		Out.Append(TEXT("Z_Construct_U"));
+		Out.Append(Item->GetEngineClassName());
 		AddOuterNames(Out, Item);
 
-		if (UClass* ItemClass = Cast<UClass>(Item))
+		if (FUnrealClassDefinitionInfo* ItemClass = UHTCast<FUnrealClassDefinitionInfo>(Item))
 		{
 			if (!bRequiresValidObject && !ItemClass->HasAllClassFlags(CLASS_Intrinsic))
 			{
@@ -169,20 +169,82 @@ void FUHTMetaData::RemapMetaData(TMap<FName, FString>& MetaData)
 	}
 }
 
-const FString& FUHTMetaData::GetMetaData(const FName& Key) const
+FString FUHTMetaData::GetMetaDataHelper(const FName& Key, bool bAllowRemap) const
 {
 	// if not found, return a static empty string
-	static FString EmptyString;
-
-	// every key needs to be valid and meta data needs to exist
-	if (Key == NAME_None)
+	const FString* Result = FindMetaDataHelper(Key);
+	if (Result == nullptr)
 	{
-		return EmptyString;
+		return FString();
 	}
 
-	// find and return either the located string or an empty string
-	const FString* ValuePtr = FindMetaData(Key);
-	return ValuePtr ? *ValuePtr : EmptyString;
+	if (bAllowRemap && Result->StartsWith(TEXT("ini:")))
+	{
+		FString ResultString = *Result;
+		if (!GConfig->GetString(GetMetaDataRemapConfigName(), *Key.ToString(), ResultString, GEngineIni))
+		{
+			// if this fails, then use what's after the ini:
+			ResultString.MidInline(4, MAX_int32, false);
+		}
+		return ResultString;
+	}
+	else
+	{
+		return *Result;
+	}
+}
+
+const FString* FUHTMetaData::FindMetaDataHelper(const FName& Key) const
+{
+	const FString* Result = nullptr;
+
+	if (Key != NAME_None)
+	{
+		if (TMap<FName, FString>* MetaDataMap = GetMetaDataMap())
+		{
+			Result = MetaDataMap->Find(Key);
+		}
+	}
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	CheckFindMetaData(Key, Result);
+#endif
+	return Result;
+}
+
+void FUHTMetaData::SetMetaDataHelper(const FName& Key, const TCHAR* InValue) 
+{
+	if (TMap<FName, FString>* MetaDataMap = GetMetaDataMap())
+	{
+		MetaDataMap->Add(Key, InValue);
+	}
+	else
+	{
+		checkf(false, TEXT("If GetMetaDataMap can return nullptr, this SetMetaDataHelper must be overridden"));
+	}
+}
+
+FName FUHTMetaData::GetMetaDataKey(const TCHAR* Key, int32 NameIndex, EFindName FindName) const
+{
+	if (NameIndex != INDEX_NONE)
+	{
+		return FName(GetMetaDataIndexName(NameIndex) + TEXT(".") + Key, FindName);
+	}
+	else
+	{
+		return FName(Key, FNAME_Find);
+	}
+}
+
+FName FUHTMetaData::GetMetaDataKey(FName Key, int32 NameIndex, EFindName FindName) const
+{
+	if (NameIndex != INDEX_NONE)
+	{
+		return FName(GetMetaDataIndexName(NameIndex) + TEXT(".") + Key.ToString(), FindName);
+	}
+	else
+	{
+		return Key;
+	}
 }
 
 FUnrealPropertyDefinitionInfo* FUnrealTypeDefinitionInfo::AsProperty()
@@ -269,14 +331,38 @@ void FUnrealTypeDefinitionInfo::GetHashTag(FUHTStringBuilder& Out) const
 	}
 }
 
-bool FUnrealTypeDefinitionInfo::IsDynamic(const UField* Field)
+void FUnrealTypeDefinitionInfo::CreateUObjectEngineTypes()
 {
-	return Field->HasMetaData(NAME_ReplaceConverted);
+	switch (CreateUObectEngineTypesState)
+	{
+	case EFinalizeState::None:
+		CreateUObectEngineTypesState = EFinalizeState::InProgress;
+		CreateUObjectEngineTypesInternal();
+		CreateUObectEngineTypesState = EFinalizeState::Finished;
+		break;
+	case EFinalizeState::InProgress:
+		checkf(false, TEXT("Recursive call to CreateUObectEngineTypes detected"))
+		break;
+	case EFinalizeState::Finished:
+		break;
+	}
 }
 
-bool FUnrealTypeDefinitionInfo::IsDynamic(const FField* Field)
+void FUnrealTypeDefinitionInfo::PostParseFinalize()
 {
-	return Field->HasMetaData(NAME_ReplaceConverted);
+	switch (PostParseFinalizeState)
+	{
+	case EFinalizeState::None:
+		PostParseFinalizeState = EFinalizeState::InProgress;
+		PostParseFinalizeInternal();
+		PostParseFinalizeState = EFinalizeState::Finished;
+		break;
+	case EFinalizeState::InProgress:
+		checkf(false, TEXT("Recursive call to PostParseFinalize detected"))
+		break;
+	case EFinalizeState::Finished:
+		break;
+	}
 }
 
 void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, const FString& InValue) const
@@ -310,7 +396,6 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 	{
 		if (const FUnrealFunctionDefinitionInfo* FuncDef = UHTCast<FUnrealFunctionDefinitionInfo>(this))
 		{
-			UFunction* Function = FuncDef->GetFunction();
 			if (FuncDef->HasAnyFunctionFlags(FUNC_Static))
 			{
 				// Determine if it's a function library
@@ -464,19 +549,9 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 	}
 }
 
-void FUnrealPropertyDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineTypes)
+void FUnrealPropertyDefinitionInfo::PostParseFinalizeInternal()
 {
-	// Finalize the sub property defs, but don't create the engine type
-	if (KeyPropDef.IsValid())
-	{
-		KeyPropDef->PostParseFinalize(false);
-	}
-	if (ValuePropDef.IsValid())
-	{
-		ValuePropDef->PostParseFinalize(false);
-	}
-
-	if (bCreateEngineTypes && GetPropertySafe() == nullptr)
+	if (GetPropertySafe() == nullptr)
 	{
 		FPropertyTraits::CreateEngineType(SharedThis(this));
 	}
@@ -529,6 +604,14 @@ FString FUnrealPropertyDefinitionInfo::GetPathName(FUnrealObjectDefinitionInfo* 
 {
 	TStringBuilder<256> ResultString;
 	GetPathName(StopOuter, ResultString);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	if (GetPropertySafe() != nullptr && (StopOuter == nullptr || StopOuter->GetObjectSafe() != nullptr))
+	{
+		TStringBuilder<256> OtherResultString;
+		GetPropertySafe()->GetPathName(StopOuter ? StopOuter->GetObjectSafe() : nullptr, OtherResultString); // Validation
+		check(FCString::Strcmp(OtherResultString.ToString(), ResultString.ToString()) == 0);
+	}
+#endif
 	return FString(FStringView(ResultString));
 }
 
@@ -555,14 +638,6 @@ void FUnrealPropertyDefinitionInfo::GetPathName(FUnrealObjectDefinitionInfo* Sto
 		ResultString << TEXT(".");
 	}
 	GetFName().AppendString(ResultString);
-#if UHT_ENABLE_ENGINE_TYPE_CHECKS
-	if (GetPropertySafe() != nullptr)
-	{
-		TStringBuilder<256> OtherResultString;
-		GetPropertySafe()->GetPathName(StopOuter ? StopOuter->GetObject() : nullptr, OtherResultString); // Validation
-		check(FCString::Strcmp(OtherResultString.ToString(), ResultString.ToString()) == 0);
-	}
-#endif
 }
 
 FString FUnrealPropertyDefinitionInfo::GetFullName() const
@@ -605,60 +680,8 @@ FString FUnrealPropertyDefinitionInfo::GetCPPTypeForwardDeclaration() const
 	return Out;
 }
 
-struct FUHTFieldDisplayNameHelper
+struct FUHTDisplayNameHelper
 {
-	static FUnrealObjectDefinitionInfo* GetOwnerObject(const FUnrealPropertyDefinitionInfo& Property)
-	{
-		for (FUnrealTypeDefinitionInfo* TypeDef = Property.GetOuter(); TypeDef; TypeDef = TypeDef->GetOuter())
-		{
-			if (FUnrealObjectDefinitionInfo* ObjectDef = UHTCast<FUnrealObjectDefinitionInfo>(TypeDef))
-			{
-				return ObjectDef;
-			}
-		}
-		return nullptr;
-	}
-
-	static FUnrealStructDefinitionInfo* GetOwnerStruct(const FUnrealPropertyDefinitionInfo& Property)
-	{
-		for (FUnrealTypeDefinitionInfo* TypeDef = Property.GetOuter(); TypeDef; TypeDef = TypeDef->GetOuter())
-		{
-			if (FUnrealStructDefinitionInfo* StructDef = UHTCast<FUnrealStructDefinitionInfo>(TypeDef))
-			{
-				return StructDef;
-			}
-		}
-		return nullptr;
-	}
-
-	static FString GetFullGroupName(const FUnrealPropertyDefinitionInfo& Property, bool bStartWithOuter)
-	{
-		if (bStartWithOuter)
-		{
-			if (FUnrealTypeDefinitionInfo* Owner = Property.GetOuter())
-			{
-				if (FUnrealObjectDefinitionInfo* ObjectOwner = UHTCast<FUnrealObjectDefinitionInfo>(Owner))
-				{
-					return ObjectOwner->GetPathName(&ObjectOwner->GetPackageDef());
-				}
-				else
-				{
-					FUnrealPropertyDefinitionInfo& PropertyOwner = UHTCastChecked<FUnrealPropertyDefinitionInfo>(Owner);
-					return PropertyOwner.GetPathName(&GetOwnerObject(PropertyOwner)->GetPackageDef());
-				}
-			}
-			else
-			{
-				return FString();
-			}
-		}
-		else
-		{
-			FUnrealObjectDefinitionInfo* ObjectOuter = GetOwnerObject(Property);
-			return Property.GetPathName(ObjectOuter ? &ObjectOuter->GetPackageDef() : nullptr);
-		}
-	}
-
 	static FString Get(const FUnrealPropertyDefinitionInfo& Property)
 	{
 		// The GetAuthoredNameForField only does something for user defined structures
@@ -668,7 +691,72 @@ struct FUHTFieldDisplayNameHelper
 		//}
 		return Property.GetName();
 	}
+
+	static FString Get(const FUnrealObjectDefinitionInfo& Object)
+	{
+		const FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(Object);
+		if (ClassDef && !ClassDef->HasAnyClassFlags(CLASS_Native))
+		{
+			FString Name = Object.GetName();
+			Name.RemoveFromEnd(TEXT("_C"));
+			Name.RemoveFromStart(TEXT("SKEL_"));
+			return Name;
+		}
+		return Object.GetName();
+	}
 };
+
+FUnrealObjectDefinitionInfo* FUnrealPropertyDefinitionInfo::GetOwnerObject() const
+{
+	for (FUnrealTypeDefinitionInfo* TypeDef = GetOuter(); TypeDef; TypeDef = TypeDef->GetOuter())
+	{
+		if (FUnrealObjectDefinitionInfo* ObjectDef = UHTCast<FUnrealObjectDefinitionInfo>(TypeDef))
+		{
+			return ObjectDef;
+		}
+	}
+	return nullptr;
+}
+
+FUnrealStructDefinitionInfo* FUnrealPropertyDefinitionInfo::GetOwnerStruct() const
+{
+	for (FUnrealTypeDefinitionInfo* TypeDef = GetOuter(); TypeDef; TypeDef = TypeDef->GetOuter())
+	{
+		if (FUnrealStructDefinitionInfo* StructDef = UHTCast<FUnrealStructDefinitionInfo>(TypeDef))
+		{
+			return StructDef;
+		}
+	}
+	return nullptr;
+}
+
+FString FUnrealPropertyDefinitionInfo::GetFullGroupName(bool bStartWithOuter) const
+{
+	if (bStartWithOuter)
+	{
+		if (FUnrealTypeDefinitionInfo* Owner = GetOuter())
+		{
+			if (FUnrealObjectDefinitionInfo* ObjectOwner = UHTCast<FUnrealObjectDefinitionInfo>(Owner))
+			{
+				return ObjectOwner->GetPathName(&ObjectOwner->GetPackageDef());
+			}
+			else
+			{
+				FUnrealPropertyDefinitionInfo& PropertyOwner = UHTCastChecked<FUnrealPropertyDefinitionInfo>(Owner);
+				return PropertyOwner.GetPathName(&PropertyOwner.GetOwnerObject()->GetPackageDef());
+			}
+		}
+		else
+		{
+			return FString();
+		}
+	}
+	else
+	{
+		FUnrealObjectDefinitionInfo* ObjectOuter = GetOwnerObject();
+		return GetPathName(ObjectOuter ? &ObjectOuter->GetPackageDef() : nullptr);
+	}
+}
 
 FText FUnrealPropertyDefinitionInfo::GetDisplayNameText() const
 {
@@ -677,7 +765,7 @@ FText FUnrealPropertyDefinitionInfo::GetDisplayNameText() const
 	static const FString Namespace = TEXT("UObjectDisplayNames");
 	static const FName NAME_DisplayName(TEXT("DisplayName"));
 
-	const FString Key = FUHTFieldDisplayNameHelper::GetFullGroupName(*this, false);
+	const FString Key = GetFullGroupName(false);
 
 	FString NativeDisplayName;
 	if (const FString* FoundMetaData = FindMetaData(NAME_DisplayName))
@@ -686,7 +774,7 @@ FText FUnrealPropertyDefinitionInfo::GetDisplayNameText() const
 	}
 	else
 	{
-		NativeDisplayName = FName::NameToDisplayString(FUHTFieldDisplayNameHelper::Get(*this), IsBooleanOrBooleanStaticArray());
+		NativeDisplayName = FName::NameToDisplayString(FUHTDisplayNameHelper::Get(*this), IsBooleanOrBooleanStaticArray());
 	}
 
 	if (!(FText::FindText(Namespace, Key, /*OUT*/LocalizedDisplayName, &NativeDisplayName)))
@@ -729,12 +817,12 @@ FText FUnrealPropertyDefinitionInfo::GetToolTipText(bool bShortTooltip) const
 	}
 
 	const FString Namespace = bFoundShortTooltip ? TEXT("UObjectShortTooltips") : TEXT("UObjectToolTips");
-	const FString Key = FUHTFieldDisplayNameHelper::GetFullGroupName(*this, false);
+	const FString Key = GetFullGroupName(false);
 	if (!FText::FindText(Namespace, Key, /*OUT*/LocalizedToolTip, &NativeToolTip))
 	{
 		if (NativeToolTip.IsEmpty())
 		{
-			NativeToolTip = FName::NameToDisplayString(FUHTFieldDisplayNameHelper::Get(*this), IsBooleanOrBooleanStaticArray());
+			NativeToolTip = FName::NameToDisplayString(FUHTDisplayNameHelper::Get(*this), IsBooleanOrBooleanStaticArray());
 		}
 		else
 		{
@@ -787,18 +875,111 @@ FUnrealPackageDefinitionInfo& FUnrealObjectDefinitionInfo::GetPackageDef() const
 	return GTypeDefinitionInfoMap.FindChecked<FUnrealPackageDefinitionInfo>(GetObject()->GetPackage());
 }
 
+FUnrealObjectDefinitionInfo::FUnrealObjectDefinitionInfo(UObject* Object)
+	: FUnrealTypeDefinitionInfo(Object->GetName())
+	, Name(Object->GetFName())
+	, InternalObjectFlags(Object->GetInternalFlags())
+{
+}
+
+FString FUnrealObjectDefinitionInfo::GetFullName() const
+{	
+	FString FullName = GetEngineClassName();
+	FullName += TEXT(" ");
+	FullName += GetPathName();
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	if (GetObjectSafe() != nullptr)
+	{
+		check(FullName == GetObjectSafe()->GetFullName()); // Validation
+	}
+#endif
+	return FullName;
+}
+
 FString FUnrealObjectDefinitionInfo::GetPathName(FUnrealObjectDefinitionInfo* StopOuter) const
 {
-	return GetObject()->GetPathName(StopOuter ? StopOuter->GetObject() : nullptr);
+	TStringBuilder<256> ResultBuilder;
+	GetPathName(StopOuter, ResultBuilder);
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	if (GetObjectSafe() != nullptr && (StopOuter == nullptr || StopOuter->GetObjectSafe() != nullptr))
+	{
+		TStringBuilder<256> OtherResultString;
+		GetObjectSafe()->GetPathName(StopOuter ? StopOuter->GetObjectSafe() : nullptr, OtherResultString); // Validation
+		check(FCString::Strcmp(OtherResultString.ToString(), ResultBuilder.ToString()) == 0);
+	}
+#endif
+	return FString(FStringView(ResultBuilder));
 }
 
 void FUnrealObjectDefinitionInfo::GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const
 {
-	return GetObject()->GetPathName(StopOuter ? StopOuter->GetObject() : nullptr, ResultString);
+	if (this != StopOuter && this != NULL)
+	{
+		FUnrealObjectDefinitionInfo* ObjOuter = GetOuter();
+		if (ObjOuter && ObjOuter != StopOuter)
+		{
+			ObjOuter->GetPathName(StopOuter, ResultString);
+
+			// SUBOBJECT_DELIMITER_CHAR is used to indicate that this object's outer is not a UPackage
+			if (UHTCast<FUnrealPackageDefinitionInfo>(ObjOuter) == nullptr
+				&& UHTCast<FUnrealPackageDefinitionInfo>(ObjOuter->GetOuter()) != nullptr)
+			{
+				ResultString << SUBOBJECT_DELIMITER_CHAR;
+			}
+			else
+			{
+				ResultString << TEXT('.');
+			}
+		}
+		GetFName().AppendString(ResultString);
+	}
+	else
+	{
+		ResultString << TEXT("None");
+	}
+}
+
+FString FUnrealObjectDefinitionInfo::GetFullGroupName(bool bStartWithOuter) const
+{
+	const FUnrealObjectDefinitionInfo* Obj = bStartWithOuter ? GetOuter() : this;
+	return Obj ? Obj->GetPathName(&GetPackageDef()) : TEXT("");
+}
+
+void FUnrealObjectDefinitionInfo::SetMetaDataHelper(const FName& Key, const TCHAR* InValue) 
+{
+	// If we don't have an existing meta data map, then we must be using the meta data off
+	// the object and no values have been set yet.  In that case just set the whole block
+	TMap<FName, FString>* MetaDataMap = GetMetaDataMap();
+	if (MetaDataMap == nullptr)
+	{
+		UMetaData* MetaData = GetUObjectMetaData();
+		MetaData->SetValue(GetObject(), Key, InValue); // This is valid
+	}
+
+	// Otherwise we are either using the objects meta data and it already exists, or
+	// we are using a UHT private meta data block.  If we have both, then first
+	// set the object followed by the private copy.
+	else
+	{
+		TMap<FName, FString>* UObjectMetaDataMap = GetUObjectMetaDataMap();
+		if (MetaDataMap != UObjectMetaDataMap)
+		{
+			if (UObjectMetaDataMap != nullptr)
+			{
+				UObjectMetaDataMap->Add(Key, InValue);
+			}
+			else if (UMetaData* MetaData = GetUObjectMetaData())
+			{
+				MetaData->SetValue(GetObject(), Key, InValue); // This is valid
+			}
+		}
+
+		MetaDataMap->Add(Key, InValue);
+	}
 }
 
 FUnrealPackageDefinitionInfo::FUnrealPackageDefinitionInfo(const FManifestModule& InModule, UPackage* InPackage)
-	: FUnrealObjectDefinitionInfo(FString())
+	: FUnrealObjectDefinitionInfo(InPackage)
 	, Module(InModule)
 	, ShortUpperName(FPackageName::GetShortName(InPackage).ToUpper())
 	, API(FString::Printf(TEXT("%s_API "), *ShortUpperName))
@@ -806,7 +987,18 @@ FUnrealPackageDefinitionInfo::FUnrealPackageDefinitionInfo(const FManifestModule
 	SetObject(InPackage);
 }
 
-void FUnrealPackageDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineTypes)
+void FUnrealPackageDefinitionInfo::CreateUObjectEngineTypesInternal()
+{
+	for (TSharedRef<FUnrealSourceFile>& LocalSourceFile : GetAllSourceFiles())
+	{
+		for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : LocalSourceFile->GetDefinedTypes())
+		{
+			TypeDef->CreateUObjectEngineTypes();
+		}
+	}
+}
+
+void FUnrealPackageDefinitionInfo::PostParseFinalizeInternal()
 {
 	UPackage* Package = GetPackage();
 
@@ -821,7 +1013,7 @@ void FUnrealPackageDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineT
 	{
 		for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : LocalSourceFile->GetDefinedTypes())
 		{
-			TypeDef->PostParseFinalize(bCreateEngineTypes);
+			TypeDef->PostParseFinalize();
 		}
 	}
 }
@@ -834,25 +1026,73 @@ void FUnrealPackageDefinitionInfo::AddCrossModuleReference(TSet<FString>* Unique
 	}
 }
 
-void FUnrealFieldDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineTypes)
+void FUnrealFieldDefinitionInfo::PostParseFinalizeInternal()
 {
-	const TCHAR* TypeStr = GetSimplifiedTypeClass();
-	UField* Field = GetField();
-	FString PackageShortName = FPackageName::GetShortName(Field->GetOutermost()).ToUpper();
+	const FString& ClassName = GetEngineClassName(true);
+	const FString& PackageShortName = GetPackageDef().GetShortUpperName();
 
 	FUHTStringBuilder Out;
-	GenerateSingletonName(Out, Field, false);
-	ExternDecl[0].Appendf(TEXT("\t%s_API %s* %s;\r\n"), *PackageShortName, TypeStr, *Out);
+	GenerateSingletonName(Out, this, false);
+	ExternDecl[0].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
 	SingletonName[0] = Out;
 	SingletonNameChopped[0] = SingletonName[0].LeftChop(2);
 
 	Out.Reset();
-	GenerateSingletonName(Out, Field, true);
-	ExternDecl[1].Appendf(TEXT("\t%s_API %s* %s;\r\n"), *PackageShortName, TypeStr, *Out);
+	GenerateSingletonName(Out, this, true);
+	ExternDecl[1].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
 	SingletonName[1] = Out;
 	SingletonNameChopped[1] = SingletonName[1].LeftChop(2);
 
 	TypePackageName = GetTypePackageNameHelper(*this);
+}
+
+FText FUnrealFieldDefinitionInfo::GetToolTipText(bool bShortTooltip) const
+{
+	bool bFoundShortTooltip = false;
+	static const FName NAME_Tooltip(TEXT("Tooltip"));
+	static const FName NAME_ShortTooltip(TEXT("ShortTooltip"));
+	FText LocalizedToolTip;
+	FString NativeToolTip;
+
+	if (bShortTooltip)
+	{
+		NativeToolTip = GetMetaData(NAME_ShortTooltip);
+		if (NativeToolTip.IsEmpty())
+		{
+			NativeToolTip = GetMetaData(NAME_Tooltip);
+		}
+		else
+		{
+			bFoundShortTooltip = true;
+		}
+	}
+	else
+	{
+		NativeToolTip = GetMetaData(NAME_Tooltip);
+	}
+
+	const FString Namespace = bFoundShortTooltip ? TEXT("UObjectShortTooltips") : TEXT("UObjectToolTips");
+	const FString Key = GetFullGroupName(false);
+	if (!FText::FindText(Namespace, Key, /*OUT*/LocalizedToolTip, &NativeToolTip))
+	{
+		if (NativeToolTip.IsEmpty())
+		{
+			NativeToolTip = FName::NameToDisplayString(FUHTDisplayNameHelper::Get(*this), false);
+		}
+		else if (!bShortTooltip && IsNative())
+		{
+			UField::FormatNativeToolTip(NativeToolTip, true);
+		}
+		LocalizedToolTip = FText::FromString(NativeToolTip);
+	}
+
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	if (GetFieldSafe())
+	{
+		check(LocalizedToolTip.ToString() == GetFieldSafe()->GetToolTipText(bShortTooltip).ToString());
+	}
+#endif
+	return LocalizedToolTip;
 }
 
 void FUnrealFieldDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject) const
@@ -860,8 +1100,8 @@ void FUnrealFieldDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCr
 	// We don't need to export UFunction externs, though we may need the externs for UDelegateFunctions
 	if (UniqueCrossModuleReferences)
 	{
-		UField* Field = GetField();
-		if (!Field->IsA<UFunction>() || IsADelegateFunction())
+		const FUnrealFunctionDefinitionInfo* FunctionDef = UHTCast<FUnrealFunctionDefinitionInfo>(this);
+		if (FunctionDef == nullptr || FunctionDef->IsDelegateFunction())
 		{
 			UniqueCrossModuleReferences->Add(GetExternDecl(bRequiresValidObject));
 		}
@@ -873,32 +1113,42 @@ void FUnrealFieldDefinitionInfo::AddMetaData(TMap<FName, FString>&& InMetaData)
 	// only add if we have some!
 	if (InMetaData.Num())
 	{
-		UField* Field = GetField();
-		check(Field);
 
-		// get (or create) a metadata object for this package
-		UMetaData* MetaData = Field->GetOutermost()->GetMetaData();
-		TMap<FName, FString>* ExistingMetaData = MetaData->GetMapForObject(Field);
-		if (ExistingMetaData && ExistingMetaData->Num())
+		// If we don't have an existing meta data map, then we must be using the meta data off
+		// the object and no values have been set yet.  In that case just set the whole block
+		TMap<FName, FString>* MetaDataMap = GetMetaDataMap();
+		if (MetaDataMap == nullptr)
 		{
-			// Merge the existing metadata
-			TMap<FName, FString> MergedMetaData;
-			MergedMetaData.Reserve(InMetaData.Num() + ExistingMetaData->Num());
-			MergedMetaData.Append(*ExistingMetaData);
-			MergedMetaData.Append(InMetaData);
-			MetaData->SetObjectValues(Field, MoveTemp(MergedMetaData));
+			UMetaData* MetaData = GetUObjectMetaData();
+			MetaData->SetObjectValues(GetObject(), MoveTemp(InMetaData)); // This is valid
 		}
+
+		// Otherwise we are either using the objects meta data and it already exists, or
+		// we are using a UHT private meta data block.  If we have both, then first
+		// set the object followed by the private copy.
 		else
 		{
-			// set the metadata for this field
-			MetaData->SetObjectValues(Field, MoveTemp(InMetaData));
+			TMap<FName, FString>* UObjectMetaDataMap = GetUObjectMetaDataMap();
+			if (MetaDataMap != UObjectMetaDataMap)
+			{
+				if (UObjectMetaDataMap != nullptr)
+				{
+					UObjectMetaDataMap->Append(InMetaData);
+				}
+				else if (UMetaData* MetaData = GetUObjectMetaData())
+				{
+					MetaData->SetObjectValues(GetObject(), InMetaData); // This is valid
+				}
+			}
+
+			MetaDataMap->Append(MoveTemp(InMetaData));
 		}
 	}
 }
 
 bool FUnrealFieldDefinitionInfo::IsDynamic() const
 {
-	return GetField()->HasMetaData(NAME_ReplaceConverted);
+	return HasMetaData(NAME_ReplaceConverted);
 }
 
 bool FUnrealFieldDefinitionInfo::IsOwnedByDynamicType() const
@@ -925,8 +1175,8 @@ FUnrealClassDefinitionInfo* FUnrealFieldDefinitionInfo::GetOwnerClass() const
 	return nullptr;
 }
 
-FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
-	: FUnrealFieldDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InSourceFile.GetPackageDef())
+FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName)
+	: FUnrealFieldDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InName, InSourceFile.GetPackageDef())
 { }
 
 void FUnrealStructDefinitionInfo::AddProperty(TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef)
@@ -952,31 +1202,54 @@ void FUnrealStructDefinitionInfo::AddProperty(TSharedRef<FUnrealPropertyDefiniti
 	}
 }
 
-void FUnrealStructDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineTypes)
+void FUnrealStructDefinitionInfo::CreateUObjectEngineTypesInternal()
 {
-	FUnrealFieldDefinitionInfo::PostParseFinalizeInternal(bCreateEngineTypes);
+	FUnrealFieldDefinitionInfo::CreateUObjectEngineTypesInternal();
 
 	if (SuperStructInfo.Struct)
 	{
-		SuperStructInfo.Struct->PostParseFinalize(bCreateEngineTypes);
+		SuperStructInfo.Struct->CreateUObjectEngineTypes();
 	}
 
 	for (const FBaseStructInfo& Info : BaseStructInfo)
 	{
 		if (Info.Struct)
 		{
-			Info.Struct->PostParseFinalize(bCreateEngineTypes);
+			Info.Struct->CreateUObjectEngineTypes();
 		}
-	}
-
-	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : Properties)
-	{
-		PropertyDef->PostParseFinalize(bCreateEngineTypes);
 	}
 
 	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : Functions)
 	{
-		FunctionDef->PostParseFinalize(bCreateEngineTypes);
+		FunctionDef->CreateUObjectEngineTypes();
+	}
+}
+
+void FUnrealStructDefinitionInfo::PostParseFinalizeInternal()
+{
+	FUnrealFieldDefinitionInfo::PostParseFinalizeInternal();
+
+	if (SuperStructInfo.Struct)
+	{
+		SuperStructInfo.Struct->PostParseFinalize();
+	}
+
+	for (const FBaseStructInfo& Info : BaseStructInfo)
+	{
+		if (Info.Struct)
+		{
+			Info.Struct->PostParseFinalize();
+		}
+	}
+
+	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : Functions)
+	{
+		FunctionDef->PostParseFinalize();
+	}
+
+	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : Properties)
+	{
+		PropertyDef->PostParseFinalize();
 	}
 
 	GetStruct()->Bind();
@@ -1015,8 +1288,8 @@ void FUnrealStructDefinitionInfo::AddFunction(TSharedRef<FUnrealFunctionDefiniti
 	}
 }
 
-FUnrealScriptStructDefinitionInfo::FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
-	: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InSourceFile.GetPackageDef())
+FUnrealScriptStructDefinitionInfo::FUnrealScriptStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName)
+	: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InName, InSourceFile.GetPackageDef())
 { }
 
 uint32 FUnrealScriptStructDefinitionInfo::GetHash(bool bIncludeNoExport) const
@@ -1057,8 +1330,8 @@ void FUnrealStructDefinitionInfo::SetObject(UObject* InObject)
 	}
 }
 
-FUnrealClassDefinitionInfo::FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, bool bInIsInterface)
-	: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InSourceFile.GetPackageDef())
+FUnrealClassDefinitionInfo::FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, bool bInIsInterface)
+	: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InName, InSourceFile.GetPackageDef())
 	, bIsInterface(bInIsInterface)
 {
 	if (bInIsInterface)
@@ -1158,9 +1431,11 @@ uint32 FUnrealClassDefinitionInfo::GetHash(bool bIncludeNoExport) const
 }
 
 
-void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineTypes)
+void FUnrealClassDefinitionInfo::PostParseFinalizeInternal()
 {
-	FUnrealStructDefinitionInfo::PostParseFinalizeInternal(bCreateEngineTypes);
+	UClass* Class = GetClass();
+
+	FUnrealStructDefinitionInfo::PostParseFinalizeInternal();
 
 	if (IsInterface() && GetStructMetaData().ParsedInterface == EParsedInterface::ParsedUInterface)
 	{
@@ -1170,6 +1445,13 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineTyp
 	}
 
 	FHeaderParser::CheckSparseClassData(*this);
+
+	// Finalize all of the children introduced in this class
+	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : GetFunctions())
+	{
+		UFunction* Function = FunctionDef->GetFunction();
+		Class->AddFunctionToFunctionMap(Function, Function->GetFName());
+	}
 
 	if (!HasAnyClassFlags(CLASS_Native))
 	{
@@ -1185,7 +1467,7 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineTyp
 	// This needs to be done outside of parallel blocks because it will modify UClass memory.
 	// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
 	// they will see the memory has already been set up, and just return the parent pointer.
-	GetClass()->SetUpUhtReplicationData();
+	Class->SetUpUhtReplicationData();
 }
 
 void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>&& InClassSpecifiers, const FString& InRequiredAPIMacroIfPresent)
@@ -1620,7 +1902,7 @@ void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& Decla
 			FError::Throwf(TEXT("'abstract': NoExport class missing abstract keyword from class declaration (must change C++ version first)"));
 			Class->ClassFlags |= CLASS_Abstract;
 		}
-		else if (Class->IsNative())
+		else if (IsNative())
 		{
 			FError::Throwf(TEXT("'abstract': missing abstract keyword from class declaration - class will no longer be exported as abstract"));
 		}
@@ -1789,6 +2071,11 @@ FString FUnrealClassDefinitionInfo::GetNameWithPrefix(EEnforceInterfacePrefix En
 	return FString::Printf(TEXT("%s%s"), Prefix, *GetName());
 }
 
+FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::GetSuperClass() const
+{
+	return UHTCast<FUnrealClassDefinitionInfo>(GetSuperStruct());
+}
+
 void FUnrealFunctionDefinitionInfo::AddProperty(TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef)
 {
 	check(PropertyDef->HasAnyPropertyFlags(CPF_Parm));
@@ -1806,10 +2093,96 @@ FUnrealFunctionDefinitionInfo* FUnrealFunctionDefinitionInfo::GetSuperFunction()
 	return UHTCast<FUnrealFunctionDefinitionInfo>(GetSuperStruct());
 }
 
-void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal(bool bCreateEngineTypes)
+void FUnrealFunctionDefinitionInfo::CreateUObjectEngineTypesInternal()
 {
-	FUnrealStructDefinitionInfo::PostParseFinalizeInternal(bCreateEngineTypes);
+	// Invoke the base class creatation
+	FUnrealStructDefinitionInfo::CreateUObjectEngineTypesInternal();
 
-	GetFunction()->Bind();
+	// We have to precreate the function prior to invoking the parent finalize
+	UFunction* Function = nullptr;
+	switch (FunctionType)
+	{
+	case EFunctionType::Function:
+		Function = new(EC_InternalUseOnlyConstructor, GetOuter()->GetObject(), *GetNameCPP(), RF_Public) UFunction(FObjectInitializer(), nullptr);
+		break;
+	case EFunctionType::Delegate:
+		Function = new(EC_InternalUseOnlyConstructor, GetOuter()->GetObject(), *GetNameCPP(), RF_Public) UDelegateFunction(FObjectInitializer(), nullptr);
+		break;
+	case EFunctionType::SparseDelegate:
+	{
+		USparseDelegateFunction* USPF = new(EC_InternalUseOnlyConstructor, GetOuter()->GetObject(), *GetNameCPP(), RF_Public) USparseDelegateFunction(FObjectInitializer(), nullptr);
+		USPF->OwningClassName = SparseOwningClassName;
+		USPF->DelegateName = SparseDelegateName;
+		Function = USPF;
+		break;
+	}
+	}
+	check(Function);
+
+	Function->ReturnValueOffset = MAX_uint16;
+	Function->FirstPropertyToInit = nullptr;
+	Function->FunctionFlags |= FunctionData.FunctionFlags;
+
+	SetObject(Function);
+	GTypeDefinitionInfoMap.Add(Function, SharedThis(this));
+
+	if (FUnrealStructDefinitionInfo* StructDef = UHTCast<FUnrealStructDefinitionInfo>(GetOuter()))
+	{
+		UStruct* Struct = StructDef->GetStruct();
+		Function->Next = Struct->Children;
+		Struct->Children = Function;
+	}
+	Function->NumParms = uint8(GetProperties().Num());
+	Function->Bind();
 }
 
+void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal()
+{
+	// Invoke the base class finalization
+	FUnrealStructDefinitionInfo::PostParseFinalizeInternal();
+
+	UFunction* Function = GetFunction();
+
+	// The following code is only performed on functions in a class.  
+	if (UHTCast<FUnrealClassDefinitionInfo>(GetOuter()) != nullptr)
+	{
+
+		// Fix up any structs that were used as a parameter in a delegate before being defined
+		if (HasAnyFunctionFlags(FUNC_Delegate))
+		{
+			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+			{
+				if (PropertyDef->IsStructOrStructStaticArray())
+				{
+					FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
+					if (StructDef.HasAnyStructFlags(STRUCT_HasInstancedReference))
+					{
+						PropertyDef->SetPropertyFlags(CPF_ContainsInstancedReference);
+					}
+				}
+			}
+		}
+
+		Function->StaticLink(true);
+
+		// Compute the function parameter size, propagate some flags to the outer function, and save the return offset
+		// Must be done in a second phase, as StaticLink resets various fields again!
+		Function->ParmsSize = 0;
+		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+		{
+			if (PropertyDef->HasSpecificPropertyFlags(CPF_ReturnParm | CPF_OutParm, CPF_OutParm))
+			{
+				SetFunctionFlags(FUNC_HasOutParms);
+			}
+
+			if (PropertyDef->IsStructOrStructStaticArray())
+			{
+				FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
+				if (StructDef.HasDefaults())
+				{
+					SetFunctionFlags(FUNC_HasDefaults);
+				}
+			}
+		}
+	}
+}

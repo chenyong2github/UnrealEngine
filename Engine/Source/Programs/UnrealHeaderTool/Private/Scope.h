@@ -138,23 +138,6 @@ public:
 	virtual FName GetName() const = 0;
 
 	/**
-	 * Gets scope types filtered by type.
-	 *
-	 * @param OutArray (Output parameter) Array to fill with types from this scope.
-	 */
-	template <class TTypeFilter>
-	void GetTypes(TArray<TTypeFilter*> OutArray)
-	{
-		for (const auto& NameTypePair : TypeMap)
-		{
-			if (NameTypePair.Value->GetField()->IsA<TTypeFilter>())
-			{
-				OutArray.Add((TTypeFilter*)NameTypePair.Value);
-			}
-		}
-	}
-
-	/**
 	 * Gets scope's parent.
 	 */
 	const FScope* GetParent() const

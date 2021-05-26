@@ -77,7 +77,7 @@ static TArray<FString> ChangeMessages;
 static bool bWriteContents = false;
 static bool bVerifyContents = false;
 
-UClass* ProcessParsedClass(bool bClassIsAnInterface, const FString& ClassName, const FString& BaseClassName, UObject* InParent, EObjectFlags Flags);
+UClass* ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef);
 UEnum* ProcessParsedEnum(const FString& EnumName, UObject* InParent, EObjectFlags Flags);
 UScriptStruct* ProcessParsedStruct(const FString& StructName, UObject* InParent, EObjectFlags Flags);
 
@@ -90,6 +90,7 @@ bool HasIdentifierExactMatch(const TCHAR* StringBegin, const TCHAR* StringEnd, c
 FUnrealClassDefinitionInfo* GUObjectDef = nullptr;
 FUnrealClassDefinitionInfo* GUClassDef = nullptr;
 FUnrealClassDefinitionInfo* GUInterfaceDef = nullptr;
+FUnrealClassDefinitionInfo* GUPackageDef = nullptr;
 
 namespace
 {
@@ -1822,6 +1823,12 @@ static TArray<FUnrealScriptStructDefinitionInfo*> FindNoExportStructs(FUnrealStr
 	return Result;
 }
 
+bool IsDelegateFunction(FUnrealFieldDefinitionInfo& FieldDef)
+{
+	FUnrealFunctionDefinitionInfo* FunctionDef = UHTCast<FUnrealFunctionDefinitionInfo>(FieldDef);
+	return FunctionDef != nullptr && FunctionDef->IsDelegateFunction();
+}
+
 void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, uint32 Hash)
 {
 	UPackage* Package = PackageDef.GetPackage();
@@ -1835,8 +1842,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 
 	Algo::Sort(Singletons, [](FUnrealFieldDefinitionInfo* A, FUnrealFieldDefinitionInfo* B)
 	{
-		bool bADel = A->IsADelegateFunction();
-		bool bBDel = B->IsADelegateFunction();
+		bool bADel = IsDelegateFunction(*A);
+		bool bBDel = IsDelegateFunction(*B);
 		if (bADel != bBDel)
 		{
 			return !bADel;
@@ -1920,13 +1927,13 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		if (bAlreadyIncluded)
 		{
 			// In a dynamic class the same function signature may be used for a Multi- and a Single-cast delegate.
-			if (!LocalFuncDef->IsADelegateFunction() || !bIsDynamic)
+			if (!LocalFuncDef->IsDelegateFunction() || !bIsDynamic)
 			{
 				FError::Throwf(TEXT("The same function linked twice. Function: %s Class: %s"), *LocalFuncDef->GetName(), *ClassDef.GetName());
 			}
 			continue;
 		}
-		if (!LocalFuncDef->IsADelegateFunction())
+		if (!LocalFuncDef->IsDelegateFunction())
 		{
 			bAllEditorOnlyFunctions &= LocalFuncDef->HasAnyFunctionFlags(FUNC_EditorOnly);
 		}
@@ -2018,7 +2025,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			{
 				const bool bIsEditorOnlyFunction = FunctionDef->HasAnyFunctionFlags(FUNC_EditorOnly);
 
-				if (!FunctionDef->IsADelegateFunction())
+				if (!FunctionDef->IsDelegateFunction())
 				{
 					ExportFunction(Out, OutReferenceGatherers, SourceFile, *FunctionDef, bIsNoExport);
 				}
@@ -6478,7 +6485,7 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedClasses())
 				{
 					FUnrealClassDefinitionInfo& ClassDef = TypeDef->AsClassChecked();
-					UClass* ResultClass = ProcessParsedClass(ClassDef.IsInterface(), ClassDef.GetNameCPP(), ClassDef.GetSuperStructInfo().Name, Package, RF_Public | RF_Standalone);
+					UClass* ResultClass = ProcessParsedClass(ClassDef);
 					GTypeDefinitionInfoMap.Add(ResultClass, TypeDef);
 					ClassDef.SetObject(ResultClass);
 					AllClasses.Add(ResultClass);
@@ -6521,6 +6528,7 @@ void ResolveParents(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	GUObjectDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UObject::StaticClass());
 	GUClassDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UClass::StaticClass());
 	GUInterfaceDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UInterface::StaticClass());
+	GUPackageDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UPackage::StaticClass());
 
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 	{
@@ -6643,8 +6651,16 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 	{
 		FResults::Try([PackageDef]()
+		{
+			PackageDef->CreateUObjectEngineTypes();
+		});
+	}
+		
+	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
+	{
+		FResults::Try([PackageDef]()
 			{
-				PackageDef->PostParseFinalize(true);
+				PackageDef->PostParseFinalize();
 			}
 		);
 	}
@@ -6655,7 +6671,7 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 		{ 
 			if (!TypeDef.HasSource())
 			{
-				TypeDef.PostParseFinalize(true);
+				TypeDef.PostParseFinalize();
 			}
 		});
 }
@@ -6817,7 +6833,7 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	// Use -WRITEREF and -VERIFYREF to detect these changes.
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
-		FUnrealClassDefinitionInfo* ClassDef = new FUnrealClassDefinitionInfo(FNameLookupCPP::GetNameCPP(*ClassIt));
+		FUnrealClassDefinitionInfo* ClassDef = new FUnrealClassDefinitionInfo(*ClassIt);
 		ClassDef->SetObject(*ClassIt);
 		GTypeDefinitionInfoMap.Add(*ClassIt, MakeShareable<FUnrealTypeDefinitionInfo>(ClassDef));
 	}
@@ -6918,9 +6934,12 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	return FResults::GetOverallResults();
 }
 
-UClass* ProcessParsedClass(bool bClassIsAnInterface, const FString& ClassName, const FString& BaseClassName, UObject* InParent, EObjectFlags Flags)
+UClass* ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 {
+	UPackage* Package = ClassDef.GetPackageDef().GetPackage();
+	const FString& ClassName = ClassDef.GetNameCPP();
 	FString ClassNameStripped = GetClassNameWithPrefixRemoved(*ClassName);
+	const FString& BaseClassName = ClassDef.GetSuperStructInfo().Name;
 
 	// All classes must start with a valid unreal prefix
 	if (!FHeaderParser::ClassNameHasValidPrefix(ClassName, ClassNameStripped))
@@ -6956,7 +6975,7 @@ UClass* ProcessParsedClass(bool bClassIsAnInterface, const FString& ClassName, c
 		FError::Throwf(TEXT("Class '%s' cannot inherit from itself"), *ClassName);
 	}
 
-	UClass* ResultClass = FEngineAPI::FindObject<UClass>(InParent, *ClassNameStripped);
+	UClass* ResultClass = FEngineAPI::FindObject<UClass>(Package, *ClassNameStripped);
 
 	// if we aren't generating headers, then we shouldn't set misaligned object, since it won't get cleared
 
@@ -6975,12 +6994,12 @@ UClass* ProcessParsedClass(bool bClassIsAnInterface, const FString& ClassName, c
 		}
 
 		// Create new class.
-		ResultClass = new(EC_InternalUseOnlyConstructor, InParent, *ClassNameStripped, Flags) UClass(FObjectInitializer(), nullptr);
+		ResultClass = new(EC_InternalUseOnlyConstructor, Package, *ClassNameStripped, RF_Public | RF_Standalone) UClass(FObjectInitializer(), nullptr);
 
 		// add CLASS_Interface flag if the class is an interface
 		// NOTE: at this pre-parsing/importing stage, we cannot know if our super class is an interface or not,
 		// we leave the validation to the main header parser
-		if (bClassIsAnInterface)
+		if (ClassDef.IsInterface())
 		{
 			ResultClass->ClassFlags |= CLASS_Interface;
 		}
@@ -6989,6 +7008,10 @@ UClass* ProcessParsedClass(bool bClassIsAnInterface, const FString& ClassName, c
 		{
 			UE_LOG(LogCompile, Log, TEXT("Imported: %s"), *ResultClass->GetFullName());
 		}
+	}
+	else
+	{
+		ClassDef.SetInternalFlags(ResultClass->GetInternalFlags());
 	}
 
 	return ResultClass;

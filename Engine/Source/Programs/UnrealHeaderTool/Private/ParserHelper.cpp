@@ -323,8 +323,7 @@ FToken& FToken::operator=(FToken&& Other)
 
 void FFuncInfo::SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef)
 {
-	UFunction* FunctionReference = FunctionDef.GetFunction();
-	FString FunctionName = FunctionReference->GetName();
+	FString FunctionName = FunctionDef.GetName();
 	if (FunctionDef.HasAnyFunctionFlags(FUNC_Delegate))
 	{
 		FunctionName.LeftChopInline(FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len(), false);
@@ -346,13 +345,13 @@ void FFuncInfo::SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef)
 		if (FunctionDef.HasAllFunctionFlags(FUNC_NetResponse))
 		{
 			// Response function implemented by programmer and called directly from thunk
-			CppImplName = FunctionReference->GetName();
+			CppImplName = FunctionDef.GetName();
 		}
 		else
 		{
 			if (CppImplName.IsEmpty())
 			{
-				CppImplName = FunctionReference->GetName() + TEXT("_Implementation");
+				CppImplName = FunctionDef.GetName() + TEXT("_Implementation");
 			}
 			else if (CppImplName == FunctionName)
 			{
@@ -361,7 +360,7 @@ void FFuncInfo::SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef)
 
 			if (CppValidationImplName.IsEmpty() && FunctionDef.HasAllFunctionFlags(FUNC_NetValidate))
 			{
-				CppValidationImplName = FunctionReference->GetName() + TEXT("_Validate");
+				CppValidationImplName = FunctionDef.GetName() + TEXT("_Validate");
 			}
 			else if (CppValidationImplName == FunctionName)
 			{
@@ -378,7 +377,7 @@ void FFuncInfo::SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef)
 	if (FunctionDef.HasAllFunctionFlags(FUNC_BlueprintEvent | FUNC_Native))
 	{
 		MarshallAndCallName = FunctionName;
-		CppImplName = FunctionReference->GetName() + TEXT("_Implementation");
+		CppImplName = FunctionDef.GetName() + TEXT("_Implementation");
 	}
 
 	if (CppImplName.IsEmpty())
