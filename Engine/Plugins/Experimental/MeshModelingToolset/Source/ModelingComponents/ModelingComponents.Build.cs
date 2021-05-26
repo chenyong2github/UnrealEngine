@@ -47,6 +47,7 @@ public class ModelingComponents : ModuleRules
 				"InputCore",
                 "RenderCore",
                 "RHI",
+				"ImageWriteQueue"
 
 				//"MeshUtilities",    // temp for saving mesh asset
 				//"UnrealEd"

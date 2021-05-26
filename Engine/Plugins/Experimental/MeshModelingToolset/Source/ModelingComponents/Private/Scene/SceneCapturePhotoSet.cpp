@@ -35,6 +35,9 @@ void FSceneCapturePhotoSet::SetCaptureTypeEnabled(ERenderCaptureType CaptureType
 		case ERenderCaptureType::Emissive:
 			bEnableEmissive = bEnabled;
 			break;
+		case ERenderCaptureType::CombinedMRS:
+			bEnablePackedMRS = bEnabled;
+			break;
 		default:
 			check(false);
 	}
@@ -165,6 +168,10 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 		{
 			CaptureImageTypeFunc_1f(ERenderCaptureType::Metallic, MetallicPhotoSet);
 		}
+		if (bEnablePackedMRS)
+		{
+			CaptureImageTypeFunc_3f(ERenderCaptureType::CombinedMRS, PackedMRSPhotoSet);
+		}
 		if (bEnableWorldNormal)
 		{
 			CaptureImageTypeFunc_3f(ERenderCaptureType::WorldNormal, WorldNormalPhotoSet);
@@ -242,6 +249,8 @@ FVector4f FSceneCapturePhotoSet::FSceneSample::GetValue4f(ERenderCaptureType Cap
 		return FVector4f(Metallic, Metallic, Metallic, 1.0f);
 	case ERenderCaptureType::Specular:
 		return FVector4f(Specular, Specular, Specular, 1.0f);
+	case ERenderCaptureType::CombinedMRS:
+		return FVector4f(Metallic, Roughness, Specular, 1.0f);
 	case ERenderCaptureType::Emissive:
 		return FVector4f(Emissive.X, Emissive.Y, Emissive.Z, 1.0f);
 	default:
@@ -285,6 +294,17 @@ bool FSceneCapturePhotoSet::ComputeSample(
 		DefaultsInResultsOut.Metallic =
 			MetallicPhotoSet.ComputeSample(Position, Normal, VisibilityFunction, DefaultsInResultsOut.Metallic);
 		DefaultsInResultsOut.HaveValues.bMetallic = true;
+	}
+	if (SampleChannels.bCombinedMRS)
+	{
+		FVector3f MRSValue(DefaultsInResultsOut.Metallic, DefaultsInResultsOut.Roughness, DefaultsInResultsOut.Specular);
+		MRSValue = PackedMRSPhotoSet.ComputeSample(Position, Normal, VisibilityFunction, MRSValue);
+		DefaultsInResultsOut.Metallic = MRSValue.X;
+		DefaultsInResultsOut.Roughness = MRSValue.Y;
+		DefaultsInResultsOut.Specular = MRSValue.Z;
+		DefaultsInResultsOut.HaveValues.bMetallic = true;
+		DefaultsInResultsOut.HaveValues.bRoughness = true;
+		DefaultsInResultsOut.HaveValues.bSpecular = true;
 	}
 	if (SampleChannels.bEmissive)
 	{

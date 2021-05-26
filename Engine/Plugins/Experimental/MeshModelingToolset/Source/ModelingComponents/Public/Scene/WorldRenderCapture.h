@@ -16,14 +16,15 @@ namespace Geometry
 /**
  * ERenderCaptureType defines which type of render buffer should be captured.
  */
-enum class ERenderCaptureType : uint8
+enum class ERenderCaptureType
 {
 	BaseColor = 1,
 	Roughness = 2,
 	Metallic = 4,
 	Specular = 8,
 	Emissive = 16,
-	WorldNormal = 32
+	WorldNormal = 32,
+	CombinedMRS = 128
 };
 
 /**
@@ -37,6 +38,7 @@ struct MODELINGCOMPONENTS_API FRenderCaptureTypeFlags
 	bool bSpecular = false;
 	bool bEmissive = false;
 	bool bWorldNormal = false;
+	bool bCombinedMRS = false;
 
 	/** @return FRenderCaptureTypeFlags with all types enabled/true */
 	static FRenderCaptureTypeFlags All();
@@ -128,6 +130,13 @@ protected:
 
 	/** Emissive is a special case and uses different code than capture of color/property channels */
 	bool CaptureEmissiveFromPosition(
+		const FFrame3d& Frame,
+		double HorzFOVDegrees,
+		double NearPlaneDist,
+		FImageAdapter& ResultImageOut);
+
+	/** Combined Metallic/Roughness/Specular uses a custom postprocess material */
+	bool CaptureMRSFromPosition(
 		const FFrame3d& Frame,
 		double HorzFOVDegrees,
 		double NearPlaneDist,

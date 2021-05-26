@@ -7,6 +7,8 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "EngineModule.h"
 #include "Rendering/Texture2DResource.h"
+#include "ImagePixelData.h"
+#include "ImageWriteStream.h"
 
 #include "PreviewScene.h"
 #include "Components/DirectionalLightComponent.h"
@@ -64,6 +66,9 @@ void FRenderCaptureTypeFlags::SetEnabled(ERenderCaptureType CaptureType, bool bE
 		break;
 	case ERenderCaptureType::Emissive:
 		bEmissive = bEnabled;
+		break;
+	case ERenderCaptureType::CombinedMRS:
+		bCombinedMRS = bEnabled;
 		break;
 	default:
 		check(false);
@@ -304,6 +309,11 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 	ViewFamily.EngineShowFlags.SetDiffuse(false);
 	ViewFamily.EngineShowFlags.SetSpecular(false);
 
+	ViewFamily.EngineShowFlags.SetScreenSpaceReflections(false);
+	ViewFamily.EngineShowFlags.SetLumenReflections(false);
+	ViewFamily.EngineShowFlags.SetRefraction(false);
+	ViewFamily.EngineShowFlags.SetReflectionEnvironment(false);
+
 	ViewFamily.EngineShowFlags.SetDynamicShadows(false);
 	ViewFamily.EngineShowFlags.SetCapsuleShadows(false);
 	ViewFamily.EngineShowFlags.SetContactShadows(false);
@@ -373,6 +383,238 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 	}
 
 	return true;
+}
+
+
+
+namespace UE 
+{
+namespace Internal
+{
+
+static bool ReadPixelDataToImage(TUniquePtr<FImagePixelData>& PixelData, FImageAdapter& ResultImageOut, bool bLinear)
+{
+	int64 SizeInBytes;
+	const void* OutRawData = nullptr;
+	PixelData->GetRawData(OutRawData, SizeInBytes);
+	int32 Width = PixelData->GetSize().X;
+	int32 Height = PixelData->GetSize().Y;
+
+	ResultImageOut.SetDimensions(FImageDimensions(Width, Height));
+
+	switch (PixelData->GetType())
+	{
+		case EImagePixelType::Color:
+		{
+			const uint8* SourceBuffer = (uint8*)OutRawData;
+			for (int32 yi = 0; yi < Height; ++yi)
+			{
+				for (int32 xi = 0; xi < Width; ++xi)
+				{
+					const uint8* BufferPixel = &SourceBuffer[(yi * Width + xi) * 4];
+					FColor Color(BufferPixel[2], BufferPixel[1], BufferPixel[0], BufferPixel[3]);		// BGRA
+					FLinearColor PixelColorf = (bLinear) ? Color.ReinterpretAsLinear() : FLinearColor(Color);
+					ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+				}
+			}
+			return true;
+		}
+
+		case EImagePixelType::Float16:
+		{
+			ensure(bLinear);		// data must be linear
+			const FFloat16Color* SourceBuffer = (FFloat16Color*)(OutRawData);
+			for (int32 yi = 0; yi < Height; ++yi)
+			{
+				for (int32 xi = 0; xi < Width; ++xi)
+				{
+					const FFloat16Color* BufferPixel = &SourceBuffer[yi * Width + xi];
+					FLinearColor PixelColorf = BufferPixel->GetFloats();
+					ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+				}
+			}
+			return true;
+		}
+
+		case EImagePixelType::Float32:
+		{
+			ensure(bLinear);		// data must be linear
+			const FLinearColor* SourceBuffer = (FLinearColor*)(OutRawData);
+			for (int32 yi = 0; yi < Height; ++yi)
+			{
+				for (int32 xi = 0; xi < Width; ++xi)
+				{
+					FLinearColor PixelColorf = SourceBuffer[yi * Width + xi];
+					ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+				}
+			}
+			return true;
+		}
+
+		default:
+		{
+			ensure(false);
+			return false;
+		}
+	}
+	return false;
+}
+
+} // end namespace Internal
+} // end namespace UE
+
+
+bool FWorldRenderCapture::CaptureMRSFromPosition(
+	const FFrame3d& ViewFrame,
+	double HorzFOVDegrees,
+	double NearPlaneDist,
+	FImageAdapter& ResultImageOut)
+{
+	// this post-process material renders an image with R=Metallic, G=Roughness, B=Specular, A=AmbientOcclusion
+	FString MRSPostProcessMaterialAssetPath = TEXT("/MeshModelingToolset/Materials/PostProcess_PackedMRSA.PostProcess_PackedMRSA");
+	TSoftObjectPtr<UMaterialInterface> PostProcessMaterialPtr = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(MRSPostProcessMaterialAssetPath));
+	UMaterialInterface* PostProcessMaterial = PostProcessMaterialPtr.LoadSynchronous();
+	if (!ensure(PostProcessMaterial))
+	{
+		return false;
+	}
+
+	check(this->World);
+	FSceneInterface* Scene = this->World->Scene;
+
+	UTextureRenderTarget2D* RenderTargetTexture = GetRenderTexture(true);
+	if (!ensure(RenderTargetTexture))
+	{
+		return false;
+	}
+	FRenderTarget* RenderTargetResource = RenderTargetTexture->GameThread_GetRenderTargetResource();
+
+	int32 Width = Dimensions.GetWidth();
+	int32 Height = Dimensions.GetHeight();
+
+	FQuat ViewOrientation = (FQuat)ViewFrame.Rotation;
+	FMatrix ViewRotationMatrix = FInverseRotationMatrix(ViewOrientation.Rotator());
+	FVector ViewOrigin = (FVector)ViewFrame.Origin;
+
+	// convert to rendering coordinate system
+	ViewRotationMatrix = ViewRotationMatrix * FMatrix(
+		FPlane(0, 0, 1, 0),
+		FPlane(1, 0, 0, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(0, 0, 0, 1));
+
+	const float HalfFOVRadians = FMath::DegreesToRadians<float>(HorzFOVDegrees) * 0.5f;
+	static_assert((int32)ERHIZBuffer::IsInverted != 0, "Check NearPlane and Projection Matrix");
+	FMatrix ProjectionMatrix = FReversedZPerspectiveMatrix(HalfFOVRadians, 1.0f, 1.0f, (float)NearPlaneDist);
+
+	EViewModeIndex ViewModeIndex = EViewModeIndex::VMI_Unlit;		// VMI_Lit, VMI_LightingOnly, VMI_VisualizeBuffer
+
+	FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
+	ApplyViewMode(ViewModeIndex, true, ShowFlags);
+
+	// unclear if these flags need to be set before creating ViewFamily
+	ShowFlags.SetAntiAliasing(false);
+	ShowFlags.SetDepthOfField(false);
+	ShowFlags.SetMotionBlur(false);
+	ShowFlags.SetBloom(false);
+	ShowFlags.SetSceneColorFringe(false);
+
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		RenderTargetResource, Scene, ShowFlags)
+		.SetWorldTimes(0, 0, 0)
+		.SetRealtimeUpdate(false));
+
+	// unclear whether these show flags are really necessary, since we are using
+	// a custom postprocess pass and reading it's output buffer directly
+
+	ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
+	ViewFamily.EngineShowFlags.MotionBlur = 0;
+	ViewFamily.EngineShowFlags.LOD = 0;
+
+	ViewFamily.EngineShowFlags.SetTonemapper(false);
+	ViewFamily.EngineShowFlags.SetColorGrading(false);
+	ViewFamily.EngineShowFlags.SetToneCurve(false);
+
+	ViewFamily.EngineShowFlags.SetPostProcessing(false);
+	ViewFamily.EngineShowFlags.SetFog(false);
+	ViewFamily.EngineShowFlags.SetGlobalIllumination(false);
+	ViewFamily.EngineShowFlags.SetEyeAdaptation(false);
+	ViewFamily.EngineShowFlags.SetDirectionalLights(false);
+	ViewFamily.EngineShowFlags.SetPointLights(false);
+	ViewFamily.EngineShowFlags.SetSpotLights(false);
+	ViewFamily.EngineShowFlags.SetRectLights(false);
+
+	ViewFamily.EngineShowFlags.SetDiffuse(false);
+	ViewFamily.EngineShowFlags.SetSpecular(false);
+
+	ViewFamily.EngineShowFlags.SetDynamicShadows(false);
+	ViewFamily.EngineShowFlags.SetCapsuleShadows(false);
+	ViewFamily.EngineShowFlags.SetContactShadows(false);
+
+	//ViewFamily.EngineShowFlags.SetScreenPercentage(false);
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.f, false));
+
+	// This is called in various other places, unclear if we should be doing this too
+	//EngineShowFlagOverride(EShowFlagInitMode::ESFIM_Game, ViewModeIndex, ViewFamily.EngineShowFlags, true);
+
+	FSceneViewInitOptions ViewInitOptions;
+	ViewInitOptions.SetViewRectangle(FIntRect(0, 0, Width, Height));
+	ViewInitOptions.ViewFamily = &ViewFamily;
+	if (VisiblePrimitives.Num() > 0)
+	{
+		ViewInitOptions.ShowOnlyPrimitives = VisiblePrimitives;
+	}
+	ViewInitOptions.ViewOrigin = ViewOrigin;
+	ViewInitOptions.ViewRotationMatrix = ViewRotationMatrix;
+	ViewInitOptions.ProjectionMatrix = ProjectionMatrix;
+	ViewInitOptions.FOV = HorzFOVDegrees;
+
+	FSceneView* NewView = new FSceneView(ViewInitOptions);
+	ViewFamily.Views.Add(NewView);
+
+	NewView->StartFinalPostprocessSettings(ViewInitOptions.ViewOrigin);
+
+	//
+	// Add custom PostProcessMaterial. This will be configured to write to a FImagePixelPipe,
+	// which will be filled by the renderer and available after we force the render
+	//
+	TUniquePtr<FImagePixelData> PostProcessPassPixelData;
+
+	// clear any existing PostProcess materials and add our own
+	NewView->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Empty();
+	NewView->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(PostProcessMaterial);
+
+	// create new FImagePixelPipe and add output lambda that takes ownership of the data
+	NewView->FinalPostProcessSettings.BufferVisualizationPipes.Empty();
+	TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe> ImagePixelPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
+	ImagePixelPipe->AddEndpoint([&PostProcessPassPixelData](TUniquePtr<FImagePixelData>&& Data) {
+		PostProcessPassPixelData = MoveTemp(Data);
+	});
+	NewView->FinalPostProcessSettings.BufferVisualizationPipes.Add(PostProcessMaterial->GetFName(), ImagePixelPipe);
+
+	// enable buffer visualization writing
+	NewView->FinalPostProcessSettings.bBufferVisualizationDumpRequired = true;
+	NewView->EndFinalPostprocessSettings(ViewInitOptions);
+
+	// can we fully disable auto-exposure?
+	NewView->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+
+	// do we actually need for force SM5 here? 
+	FCanvas Canvas = FCanvas(RenderTargetResource, nullptr, this->World, ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
+	Canvas.Clear(FLinearColor::Transparent);
+	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
+
+	// wait for render
+	FlushRenderingCommands();
+
+	// read back image
+	if (PostProcessPassPixelData.IsValid())
+	{
+		UE::Internal::ReadPixelDataToImage(PostProcessPassPixelData, ResultImageOut, true);
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -462,6 +704,10 @@ bool FWorldRenderCapture::CaptureFromPosition(
 	if (CaptureType == ERenderCaptureType::Emissive)
 	{
 		return CaptureEmissiveFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut);
+	}
+	else if (CaptureType == ERenderCaptureType::CombinedMRS)
+	{
+		return CaptureMRSFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut);
 	}
 
 	// Roughness visualization is rendered with gamma correction (unclear why)

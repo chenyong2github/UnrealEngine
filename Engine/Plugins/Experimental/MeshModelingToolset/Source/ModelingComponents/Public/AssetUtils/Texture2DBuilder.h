@@ -34,6 +34,7 @@ public:
 	enum class ETextureType
 	{
 		Color,
+		ColorLinear,
 		Roughness,
 		Metallic,
 		Specular,
@@ -88,12 +89,12 @@ public:
 			return false;
 		}
 
-		if (BuildType == ETextureType::Roughness || BuildType == ETextureType::Metallic || BuildType == ETextureType::Specular)
+		if (BuildType == ETextureType::ColorLinear || BuildType == ETextureType::Roughness || BuildType == ETextureType::Metallic || BuildType == ETextureType::Specular)
 		{
 			RawTexture2D->SRGB = false;
 			RawTexture2D->UpdateResource();
 		}
-		if (BuildType == ETextureType::NormalMap)
+		else if (BuildType == ETextureType::NormalMap)
 		{
 			RawTexture2D->CompressionSettings = TC_Normalmap;
 			RawTexture2D->SRGB = false;
@@ -442,6 +443,7 @@ public:
 		{
 		default:
 		case ETextureType::Color:
+		case ETextureType::ColorLinear:
 			return DefaultColor;
 		case ETextureType::Roughness:
 			return DefaultRoughness;
