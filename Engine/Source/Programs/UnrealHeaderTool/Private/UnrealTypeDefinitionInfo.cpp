@@ -24,7 +24,6 @@
 extern FUnrealClassDefinitionInfo* GUObjectDef;
 extern FUnrealClassDefinitionInfo* GUClassDef;
 extern FUnrealClassDefinitionInfo* GUInterfaceDef;
-extern FUnrealClassDefinitionInfo* GUPackageDef;
 
 namespace
 {
@@ -1183,6 +1182,260 @@ FUnrealEnumDefinitionInfo::FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSource
 	: FUnrealFieldDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP), InName, InSourceFile.GetPackageDef())
 { }
 
+FString FUnrealEnumDefinitionInfo::GenerateEnumPrefix() const
+{
+	FString Prefix;
+	if (Names.Num() > 0)
+	{
+		Names[0].Key.ToString(Prefix);
+
+		// For each item in the enumeration, trim the prefix as much as necessary to keep it a prefix.
+		// This ensures that once all items have been processed, a common prefix will have been constructed.
+		// This will be the longest common prefix since as little as possible is trimmed at each step.
+		for (int32 NameIdx = 1; NameIdx < Names.Num(); NameIdx++)
+		{
+			FString EnumItemName = Names[NameIdx].Key.ToString();
+
+			// Find the length of the longest common prefix of Prefix and EnumItemName.
+			int32 PrefixIdx = 0;
+			while (PrefixIdx < Prefix.Len() && PrefixIdx < EnumItemName.Len() && Prefix[PrefixIdx] == EnumItemName[PrefixIdx])
+			{
+				PrefixIdx++;
+			}
+
+			// Trim the prefix to the length of the common prefix.
+			Prefix.LeftInline(PrefixIdx, false);
+		}
+
+		// Find the index of the rightmost underscore in the prefix.
+		int32 UnderscoreIdx = Prefix.Find(TEXT("_"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+
+		// If an underscore was found, trim the prefix so only the part before the rightmost underscore is included.
+		if (UnderscoreIdx > 0)
+		{
+			Prefix.LeftInline(UnderscoreIdx, false);
+		}
+		else
+		{
+			// no underscores in the common prefix - this probably indicates that the names
+			// for this enum are not using Epic's notation, so just empty the prefix so that
+			// the max item will use the full name of the enum
+			Prefix.Empty();
+		}
+	}
+
+	// If no common prefix was found, or if the enum does not contain any entries,
+	// use the name of the enumeration instead.
+	if (Prefix.Len() == 0)
+	{
+		Prefix = GetName();
+	}
+
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	check(GetEnumSafe() == nullptr || GetEnumSafe()->GenerateEnumPrefix() == Prefix);
+#endif
+	return Prefix;
+}
+
+FString FUnrealEnumDefinitionInfo::GenerateFullEnumName(const TCHAR* InEnumName) const
+{
+	if (GetCppForm() == UEnum::ECppForm::Regular || UEnum::IsFullEnumName(InEnumName))
+	{
+		return InEnumName;
+	}
+
+	return FString::Printf(TEXT("%s::%s"), *GetName(), InEnumName);
+}
+
+bool FUnrealEnumDefinitionInfo::ContainsExistingMax() const
+{
+	if (GetIndexByName(*GenerateFullEnumName(TEXT("MAX")), EGetByNameFlags::CaseSensitive) != INDEX_NONE)
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetEnumSafe() == nullptr || GetEnumSafe()->ContainsExistingMax() == true);
+#endif
+		return true;
+	}
+
+	FName MaxEnumItem = *GenerateFullEnumName(*(GenerateEnumPrefix() + TEXT("_MAX")));
+	if (GetIndexByName(MaxEnumItem, EGetByNameFlags::CaseSensitive) != INDEX_NONE)
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetEnumSafe() == nullptr || GetEnumSafe()->ContainsExistingMax() == true);
+#endif
+		return true;
+	}
+
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	check(GetEnumSafe() == nullptr || GetEnumSafe()->ContainsExistingMax() == false);
+#endif
+	return false;
+}
+
+int64 FUnrealEnumDefinitionInfo::GetMaxEnumValue() const
+{
+	int32 NamesNum = Names.Num();
+	if (NamesNum == 0)
+	{
+		return 0;
+	}
+
+	int64 MaxValue = Names[0].Value;
+	for (int32 i = 0; i < NamesNum; ++i)
+	{
+		int64 CurrentValue = Names[i].Value;
+		if (CurrentValue > MaxValue)
+		{
+			MaxValue = CurrentValue;
+		}
+	}
+
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	check(GetEnumSafe() == nullptr || GetEnumSafe()->GetMaxEnumValue() == MaxValue);
+#endif
+	return MaxValue;
+}
+
+FName FUnrealEnumDefinitionInfo::GetNameByIndex(int32 Index) const
+{
+	if (Names.IsValidIndex(Index))
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetEnumSafe() == nullptr || GetEnumSafe()->GetNameByIndex(Index) == Names[Index].Key);
+#endif
+		return Names[Index].Key;
+	}
+
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	check(GetEnumSafe() == nullptr || GetEnumSafe()->GetNameByIndex(Index) == NAME_None);
+#endif
+	return NAME_None;
+}
+
+bool FUnrealEnumDefinitionInfo::IsValidEnumValue(int64 InValue) const
+{
+	int32 NamesNum = Names.Num();
+	for (int32 i = 0; i < NamesNum; ++i)
+	{
+		int64 CurrentValue = Names[i].Value;
+		if (CurrentValue == InValue)
+		{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+			check(GetEnumSafe() == nullptr || GetEnumSafe()->IsValidEnumValue(InValue) == true);
+#endif
+			return true;
+		}
+	}
+
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+	check(GetEnumSafe() == nullptr || GetEnumSafe()->IsValidEnumValue(InValue) == false);
+#endif
+	return false;
+}
+
+int32 FUnrealEnumDefinitionInfo::GetIndexByName(const FName InName, EGetByNameFlags Flags) const
+{
+	ENameCase ComparisonMethod = !!(Flags & EGetByNameFlags::CaseSensitive) ? ENameCase::CaseSensitive : ENameCase::IgnoreCase;
+
+	// First try the fast path
+	const int32 Count = Names.Num();
+	for (int32 Counter = 0; Counter < Count; ++Counter)
+	{
+		if (Names[Counter].Key.IsEqual(InName, ComparisonMethod))
+		{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+			check(GetEnumSafe() == nullptr || GetEnumSafe()->GetIndexByName(InName, Flags) == Counter);
+#endif
+			return Counter;
+		}
+	}
+
+	// Otherwise see if it is in the redirect table
+	int32 Result = GetIndexByNameString(InName.ToString(), Flags);
+	return Result;
+}
+
+int32 FUnrealEnumDefinitionInfo::GetIndexByNameString(const FString& InSearchString, EGetByNameFlags Flags) const
+{
+	ENameCase         NameComparisonMethod = !!(Flags & EGetByNameFlags::CaseSensitive) ? ENameCase::CaseSensitive : ENameCase::IgnoreCase;
+	ESearchCase::Type StringComparisonMethod = !!(Flags & EGetByNameFlags::CaseSensitive) ? ESearchCase::CaseSensitive : ESearchCase::IgnoreCase;
+
+	FString SearchEnumEntryString = InSearchString;
+	FString ModifiedEnumEntryString;
+
+	// Strip or add the namespace
+	int32 DoubleColonIndex = SearchEnumEntryString.Find(TEXT("::"), ESearchCase::CaseSensitive);
+	if (DoubleColonIndex == INDEX_NONE)
+	{
+		ModifiedEnumEntryString = GenerateFullEnumName(*SearchEnumEntryString);
+	}
+	else
+	{
+		ModifiedEnumEntryString = SearchEnumEntryString.RightChop(DoubleColonIndex + 2);
+	}
+
+	if (DoubleColonIndex != INDEX_NONE)
+	{
+		// If we didn't find a value redirect and our original string was namespaced, we need to fix the namespace now as it may have changed due to enum type redirect
+		SearchEnumEntryString = GenerateFullEnumName(*ModifiedEnumEntryString);
+	}
+
+	// Search for names both with and without namespace
+	FName SearchName = FName(*SearchEnumEntryString, FNAME_Find);
+	FName ModifiedName = FName(*ModifiedEnumEntryString, FNAME_Find);
+
+	const int32 Count = Names.Num();
+	for (int32 Counter = 0; Counter < Count; ++Counter)
+	{
+		if (Names[Counter].Key.IsEqual(SearchName, NameComparisonMethod) || Names[Counter].Key.IsEqual(ModifiedName, NameComparisonMethod))
+		{
+			return Counter;
+		}
+	}
+
+	if (!InSearchString.Equals(SearchEnumEntryString, StringComparisonMethod))
+	{
+		// There was an actual redirect, and we didn't find it
+		//UE_LOG(LogEnum, Warning, TEXT("EnumRedirect for enum %s maps '%s' to invalid value '%s'!"), *GetName(), *InSearchString, *SearchEnumEntryString);
+	}
+	return INDEX_NONE;
+}
+
+FString FUnrealEnumDefinitionInfo::GetNameStringByIndex(int32 InIndex) const
+{
+	if (Names.IsValidIndex(InIndex))
+	{
+		FName EnumEntryName = GetNameByIndex(InIndex);
+		if (CppForm == UEnum::ECppForm::Regular)
+		{
+			return EnumEntryName.ToString();
+		}
+
+		// Strip the namespace from the name.
+		FString EnumNameString(EnumEntryName.ToString());
+		int32 ScopeIndex = EnumNameString.Find(TEXT("::"), ESearchCase::CaseSensitive);
+		if (ScopeIndex != INDEX_NONE)
+		{
+			return EnumNameString.Mid(ScopeIndex + 2);
+		}
+	}
+	return FString();
+}
+
+void FUnrealEnumDefinitionInfo::CreateUObjectEngineTypesInternal()
+{
+	UPackage* Package = GetPackageDef().GetPackage();
+	const FString& EnumName = GetNameCPP();
+
+	// Create enum definition.
+	UEnum* Enum = new(EC_InternalUseOnlyConstructor, Package, FName(EnumName), RF_Public) UEnum(FObjectInitializer());
+	Enum->SetEnums(Names, CppForm, EnumFlags, false);
+	Enum->CppType = CppType;
+	Enum->GetPackage()->GetMetaData()->SetObjectValues(Enum, MetaData);
+	SetObject(Enum);
+	GTypeDefinitionInfoMap.AddObjectLookup(Enum, SharedThis(this));
+}
+
 void FUnrealStructDefinitionInfo::AddProperty(TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef)
 {
 	Properties.Add(PropertyDef);
@@ -1300,8 +1553,7 @@ uint32 FUnrealScriptStructDefinitionInfo::GetHash(bool bIncludeNoExport) const
 {
 	if (!bIncludeNoExport)
 	{
-		UScriptStruct* Struct = GetScriptStruct();
-		if ((Struct->StructFlags & STRUCT_NoExport) != 0)
+		if (HasAnyStructFlags(STRUCT_NoExport))
 		{
 			return 0;
 		}
@@ -2126,6 +2378,7 @@ void FUnrealFunctionDefinitionInfo::CreateUObjectEngineTypesInternal()
 	Function->ReturnValueOffset = MAX_uint16;
 	Function->FirstPropertyToInit = nullptr;
 	Function->FunctionFlags |= FunctionData.FunctionFlags;
+	Function->GetPackage()->GetMetaData()->SetObjectValues(Function, MetaData);
 
 	SetObject(Function);
 	GTypeDefinitionInfoMap.Add(Function, SharedThis(this));

@@ -61,7 +61,6 @@ namespace
 	static const FName NAME_ReturnValue(TEXT("ReturnValue"));
 	static const FName NAME_CppFromBpEvent(TEXT("CppFromBpEvent"));
 	static const FName NAME_CustomThunk(TEXT("CustomThunk"));
-	static const FName NAME_ArraySizeEnum(TEXT("ArraySizeEnum"));
 	static const FName NAME_EditInline(TEXT("EditInline"));
 	static const FName NAME_IncludePath(TEXT("IncludePath"));
 	static const FName NAME_ModuleRelativePath(TEXT("ModuleRelativePath"));
@@ -1265,9 +1264,11 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	}
 
 	// Register the list of enum names.
-	if (!EnumDef.SetEnums(EnumNames, CppForm, Flags, false))
+	if (!EnumDef.SetEnums(EnumNames, CppForm, Flags))
 	{
-		const FName MaxEnumItem      = *(EnumDef.GenerateEnumPrefix() + TEXT("_MAX"));
+		//@TODO - Two issues with this, first the SetEnums always returns true.  That was the case even with the original code.
+		// Second issue is that the code to generate the max string doesn't work in many cases (i.e. EPixelFormat)
+		const FName MaxEnumItem = *(EnumDef.GenerateEnumPrefix() + TEXT("_MAX"));
 		const int32 MaxEnumItemIndex = EnumDef.GetIndexByName(MaxEnumItem);
 		if (MaxEnumItemIndex != INDEX_NONE)
 		{
@@ -1279,20 +1280,16 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 
 	CheckDocumentationPolicyForEnum(EnumDef, EnumValueMetaData, EntryMetaData);
 
-	// Add the metadata gathered for the enum to the package
-	if (EnumValueMetaData.Num() > 0)
-	{
-		UMetaData* PackageMetaData = EnumDef.GetPackageDef().GetPackage()->GetMetaData();
-		checkSlow(PackageMetaData);
-
-		PackageMetaData->SetObjectValues(EnumDef.GetEnum(), MoveTemp(EnumValueMetaData));
-	}
-
 	if (!EnumDef.IsValidEnumValue(0) && EnumMetaData.Contains(FHeaderParserNames::NAME_BlueprintType))
 	{
 		UE_LOG_WARNING_UHT(EnumDef, TEXT("'%s' does not have a 0 entry! (This is a problem when the enum is initalized by default)"), *EnumDef.GetName());
 	}
 
+	// Add the metadata gathered for the enum to the package
+	if (EnumValueMetaData.Num() > 0)
+	{
+		EnumDef.AddMetaData(MoveTemp(EnumValueMetaData));
+	}
 	return EnumDef;
 }
 
@@ -2018,7 +2015,7 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 
 					if ( ch==0 )
 					{
-						FUHTException::Throwf(*this, TEXT("Unexpected end of struct definition %s"), *Struct->GetName());
+						FUHTException::Throwf(*this, TEXT("Unexpected end of struct definition %s"), *StructDef.GetName());
 					}
 					else if ( ch=='{' || (ch=='#' && (PeekIdentifier(TEXT("if"), ESearchCase::CaseSensitive) || PeekIdentifier(TEXT("ifdef"), ESearchCase::CaseSensitive))) )
 					{
@@ -2507,7 +2504,7 @@ void FHeaderParser::CheckSparseClassData(const FUnrealStructDefinitionInfo& Stru
 				UScriptStruct* ParentSparseClassDataStruct = ParentSparseClassDataStructDef->GetScriptStruct();
 				if (!SparseClassDataStructDef->GetScriptStruct()->IsChildOf(ParentSparseClassDataStruct))
 				{
-					FUHTException::Throwf(StructDef, TEXT("Class %s is a child of %s but its sparse class data struct, %s, does not inherit from %s."), *ClassDef->GetName(), *ParentClassDef->GetName(), *SparseClassDataStructDef->GetName(), *ParentSparseClassDataStruct->GetName());
+					FUHTException::Throwf(StructDef, TEXT("Class %s is a child of %s but its sparse class data struct, %s, does not inherit from %s."), *ClassDef->GetName(), *ParentClassDef->GetName(), *SparseClassDataStructDef->GetName(), *ParentSparseClassDataStructDef->GetName());
 				}
 			}
 		}
@@ -4595,70 +4592,6 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 
 		// Only static arrays are declared with [].  Dynamic arrays use TArray<> instead.
 		VarProperty.ArrayType = EArrayType::Static;
-
-		UEnum* Enum = nullptr;
-
-		if (*Dimensions.String)
-		{
-			FString Temp = Dimensions.String;
-
-			bool bAgain;
-			do
-			{
-				bAgain = false;
-
-				// Remove any casts
-				static const TCHAR* Casts[] = {
-					TEXT("(uint32)"),
-					TEXT("(int32)"),
-					TEXT("(uint16)"),
-					TEXT("(int16)"),
-					TEXT("(uint8)"),
-					TEXT("(int8)"),
-					TEXT("(int)"),
-					TEXT("(unsigned)"),
-					TEXT("(signed)"),
-					TEXT("(unsigned int)"),
-					TEXT("(signed int)")
-				};
-
-				// Remove any brackets
-				if (Temp[0] == TEXT('('))
-				{
-					int32 TempLen      = Temp.Len();
-					int32 ClosingParen = FindMatchingClosingParenthesis(Temp);
-					if (ClosingParen == TempLen - 1)
-					{
-						Temp.MidInline(1, TempLen - 2, false);
-						bAgain = true;
-					}
-				}
-
-				for (const TCHAR* Cast : Casts)
-				{
-					if (Temp.StartsWith(Cast, ESearchCase::CaseSensitive))
-					{
-						Temp.RightChopInline(FCString::Strlen(Cast), false);
-						bAgain = true;
-					}
-				}
-			}
-			while (bAgain);
-
-			UEnum::LookupEnumNameSlow(*Temp, &Enum);
-		}
-
-		if (!Enum)
-		{
-			// If the enum wasn't declared in this scope, then try to find it anywhere we can
-			Enum = FEngineAPI::FindObject<UEnum>(ANY_PACKAGE, Dimensions.String);
-		}
-
-		if (Enum)
-		{
-			// set the ArraySizeEnum if applicable
-			VarProperty.MetaData.Add(NAME_ArraySizeEnum, Enum->GetPathName());
-		}
 
 		if (LayoutMacroType == ELayoutMacroType::None)
 		{
@@ -6994,8 +6927,7 @@ struct FExposeOnSpawnValidator
 
 		if (!ProperNativeType && (CPT_Struct == Property.Type) && Property.ScriptStructDef)
 		{
-			UScriptStruct* Struct = Property.ScriptStructDef->GetScriptStruct();
-			ProperNativeType |= Struct->GetBoolMetaData(FHeaderParserNames::NAME_BlueprintType);
+			ProperNativeType |= Property.ScriptStructDef->GetBoolMetaData(FHeaderParserNames::NAME_BlueprintType);
 		}
 
 		return ProperNativeType;
@@ -7313,6 +7245,9 @@ void FHeaderParser::SkipStatements( int32 NestCount, const TCHAR* ErrorTag  )
 	Main script compiling routine.
 -----------------------------------------------------------------------------*/
 
+// Parse Class's annotated headers and optionally its child classes.
+static const FString ObjectHeader(TEXT("NoExportTypes.h"));
+
 //
 // Parses the header associated with the specified class.
 // Returns result enumeration.
@@ -7329,6 +7264,41 @@ void FHeaderParser::ParseHeader()
 
 	// Message.
 	UE_LOG(LogCompile, Verbose, TEXT("Parsing %s"), *SourceFile.GetFilename());
+
+	// Make sure that all of the requried include files are added to the outer scope
+	{
+		TArray<FUnrealSourceFile*> SourceFilesRequired;
+		for (FHeaderProvider& Include : SourceFile.GetIncludes())
+		{
+			if (Include.GetId() == ObjectHeader)
+			{
+				continue;
+			}
+
+			if (FUnrealSourceFile* DepFile = Include.Resolve(SourceFile))
+			{
+				SourceFilesRequired.Add(DepFile);
+			}
+		}
+
+		for (const TSharedRef<FUnrealTypeDefinitionInfo>& ClassDataPair : SourceFile.GetDefinedClasses())
+		{
+			FUnrealClassDefinitionInfo& ClassDef = ClassDataPair->AsClassChecked();
+			for (FUnrealClassDefinitionInfo* ParentClassDef = ClassDef.GetSuperClass(); ParentClassDef; ParentClassDef = ParentClassDef->GetSuperClass())
+			{
+				if (ParentClassDef->HasAnyClassFlags(CLASS_Parsed | CLASS_Intrinsic))
+				{
+					break;
+				}
+				SourceFilesRequired.Add(&ParentClassDef->GetUnrealSourceFile());
+			}
+		}
+
+		for (FUnrealSourceFile* RequiredFile : SourceFilesRequired)
+		{
+			SourceFile.GetScope()->IncludeScope(&RequiredFile->GetScope().Get());
+		}
+	}
 
 	// Init compiler variables.
 	ResetParser(*SourceFile.GetContent());
@@ -7427,14 +7397,20 @@ void FHeaderParser::ParseHeader()
 		const FString& ExpectedHeaderName = SourceFile.GetGeneratedHeaderFilename();
 		FUHTException::Throwf(*this, TEXT("Expected an include at the top of the header: '#include \"%s\"'"), *ExpectedHeaderName);
 	}
+
+	for (const TSharedRef<FUnrealTypeDefinitionInfo>& ClassDef : SourceFile.GetDefinedClasses())
+	{
+		ClassDef->AsClassChecked().SetClassFlags(CLASS_Parsed);
+	}
+
+	// Remember stats about this file
+	SourceFile.SetLinesParsed(LinesParsed);
+	SourceFile.SetStatementsParsed(StatementsParsed);
 }
 
 /*-----------------------------------------------------------------------------
 	Global functions.
 -----------------------------------------------------------------------------*/
-
-// Parse Class's annotated headers and optionally its child classes.
-static const FString ObjectHeader(TEXT("NoExportTypes.h"));
 
 FHeaderParser::FHeaderParser(FUnrealPackageDefinitionInfo& InPackageDef, FUnrealSourceFile& InSourceFile)
 	: FBaseParser(InSourceFile)
@@ -7499,62 +7475,7 @@ void FHeaderParser::Parse(
 	FUnrealSourceFile& SourceFile)
 {
 	SCOPE_SECONDS_COUNTER_UHT(Parse);
-
-	const FManifestModule& Module = PackageDef.GetModule();
-
-	// Disable loading of objects outside of this package (or more exactly, objects which aren't UFields, CDO, or templates)
-	TGuardValue<bool> AutoRestoreVerifyObjectRefsFlag(GVerifyObjectReferencesOnly, true);
-	// Create the header parser and register it as the warning context.
-	// Note: This must be declared outside the try block, since the catch block will log into it.
-	FHeaderParser HeaderParser(PackageDef, SourceFile);
-
-	// Hierarchically parse all classes.
-
-	TArray<FUnrealSourceFile*> SourceFilesRequired;
-	for (FHeaderProvider& Include : SourceFile.GetIncludes())
-	{
-		if (Include.GetId() == ObjectHeader)
-		{
-			continue;
-		}
-
-		if (FUnrealSourceFile* DepFile = Include.Resolve(SourceFile))
-		{
-			SourceFilesRequired.Add(DepFile);
-		}
-	}
-
-	for (const TSharedRef<FUnrealTypeDefinitionInfo>& ClassDataPair : SourceFile.GetDefinedClasses())
-	{
-		FUnrealClassDefinitionInfo& ClassDef = ClassDataPair->AsClassChecked();
-		for (FUnrealClassDefinitionInfo* ParentClassDef = ClassDef.GetSuperClass(); ParentClassDef; ParentClassDef = ParentClassDef->GetSuperClass())
-		{
-			if (ParentClassDef->HasAnyClassFlags(CLASS_Parsed | CLASS_Intrinsic))
-			{
-				break;
-			}
-			SourceFilesRequired.Add(&ParentClassDef->GetUnrealSourceFile());
-		}
-	}
-
-	for (FUnrealSourceFile* RequiredFile : SourceFilesRequired)
-	{
-		SourceFile.GetScope()->IncludeScope(&RequiredFile->GetScope().Get());
-	}
-
-	// Parse the file
-	{
-		HeaderParser.ParseHeader();
-
-		for (const TSharedRef<FUnrealTypeDefinitionInfo>& ClassDef : SourceFile.GetDefinedClasses())
-		{
-			ClassDef->AsClassChecked().SetClassFlags(CLASS_Parsed);
-		}
-	}
-
-	// Remember stats about this file
-	SourceFile.SetLinesParsed(HeaderParser.LinesParsed);
-	SourceFile.SetStatementsParsed(HeaderParser.StatementsParsed);
+	FHeaderParser(PackageDef, SourceFile).ParseHeader();
 }
 
 /** 
