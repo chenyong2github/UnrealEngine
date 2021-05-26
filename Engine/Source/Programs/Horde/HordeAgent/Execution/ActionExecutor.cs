@@ -156,21 +156,17 @@ namespace HordeAgent
 
 					Logger.LogInformation("exit: {ExitCode}", Process.ExitCode);
 
-					foreach (string OutputPath in Command.OutputPaths)
+					foreach (var (FileRef, OutputPath) in ResolveOutputPaths(SandboxDir, Command.OutputPaths))
 					{
-						FileReference FileRef = FileReference.Combine(SandboxDir, OutputPath);
-						if (FileReference.Exists(FileRef))
-						{
-							byte[] Bytes = await FileReference.ReadAllBytesAsync(FileRef);
-							Digest Digest = await Storage.PutBulkDataAsync(InstanceName, Bytes);
-
-							OutputFile OutputFileInfo = new OutputFile();
-							OutputFileInfo.Path = OutputPath;
-							OutputFileInfo.Digest = Digest;
-							Result.OutputFiles.Add(OutputFileInfo);
-
-							Logger.LogInformation("Uploaded {File} (digest: {Digest}, size: {Size})", FileRef, Digest.Hash, Digest.SizeBytes);
-						}
+						byte[] Bytes = await FileReference.ReadAllBytesAsync(FileRef);
+						Digest Digest = await Storage.PutBulkDataAsync(InstanceName, Bytes);
+				
+						OutputFile OutputFileInfo = new OutputFile();
+						OutputFileInfo.Path = OutputPath;
+						OutputFileInfo.Digest = Digest;
+						Result.OutputFiles.Add(OutputFileInfo);
+				
+						Logger.LogInformation("Uploaded {File} (digest: {Digest}, size: {Size})", FileRef, Digest.Hash, Digest.SizeBytes);
 					}
 
 					PostActionResultRequest PostResultRequest = new PostActionResultRequest();
@@ -219,6 +215,43 @@ namespace HordeAgent
 				DirectoryReference OutputSubDirectory = DirectoryReference.Combine(OutputDir, DirectoryNode.Name);
 				await SetupSandboxAsync(InputSubDirectory, OutputSubDirectory);
 			}
+		}
+
+		/// <summary>
+		/// Resolves a list of output paths into file references
+		///
+		/// The REAPI spec allows directories to be specified as an output path which require all sub dirs and files
+		/// to be resolved.
+		/// </summary>
+		/// <param name="SandboxDir">Base directory where execution is taking place</param>
+		/// <param name="OutputPaths">List of output paths relative to SandboxDir</param>
+		/// <returns>List of resolved paths (incl expanded dirs)</returns>
+		internal static List<(FileReference FileRef, string RelativePath)> ResolveOutputPaths(DirectoryReference SandboxDir, IEnumerable<string> OutputPaths)
+		{
+			var Files = new List<(FileReference FileRef, string RelativePath)>();
+
+			foreach (string OutputPath in OutputPaths)
+			{
+				DirectoryReference DirRef = DirectoryReference.Combine(SandboxDir, OutputPath);
+				if (DirectoryReference.Exists(DirRef))
+				{
+					IEnumerable<FileReference> ListedFiles = DirectoryReference.EnumerateFiles(DirRef, "*", SearchOption.AllDirectories);
+					foreach (FileReference ListedFileRef in ListedFiles)
+					{
+						Files.Add((ListedFileRef, ListedFileRef.MakeRelativeTo(SandboxDir).Replace("\\", "/")));
+					}
+				}
+				else
+				{
+					FileReference FileRef = FileReference.Combine(SandboxDir, OutputPath);
+					if (FileReference.Exists(FileRef))
+					{
+						Files.Add((FileRef, OutputPath));
+					}
+				}
+			}
+
+			return Files;
 		}
 	}
 }
