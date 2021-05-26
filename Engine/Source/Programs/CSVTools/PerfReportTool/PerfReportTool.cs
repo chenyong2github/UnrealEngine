@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.47";
+        private static string VersionString = "4.48";
 
         public static string Get() { return VersionString; }
     };
@@ -899,6 +899,10 @@ namespace PerfReportTool
             // Write out the summary table, if there is one
             if (summaryTable.Count > 0)
 			{
+				// Pre-sort the summary table to ensure determinism
+				summaryTable = summaryTable.SortRows(new List<string>(new string[] { "csvfilename" }),true);
+				perfLog.LogTiming("PreSort Summary table");
+
 				string summaryTableFilename = GetArg("summaryTableFilename", "SummaryTable");
 				if ( summaryTableFilename.ToLower().EndsWith(".html"))
 				{
@@ -974,7 +978,6 @@ namespace PerfReportTool
             {
                 filenameWithoutExtension = Path.Combine(outputDir, filenameWithoutExtension);
             }
-
             SummaryTable filteredTable = table.SortAndFilter(columnFilterList, rowSortList, reverseSort, weightByColumnName);
 			if (bCollated)
 			{
@@ -1067,13 +1070,21 @@ namespace PerfReportTool
 			Console.WriteLine("Writing clean (standard format, event stripped) csv file to " + outCsvFilename);
 			int minX = GetIntArg("minx", 0);
 			int maxX = GetIntArg("maxx", Int32.MaxValue);
+
+			// Check if we're stripping stats
+			bool bStripStatsByEvents = reportTypeInfo.bStripEvents;
+			if (GetBoolArg("noStripEvents"))
+			{
+				bStripStatsByEvents = false;
+			}
+
 			int numFramesStripped;
 			CsvStats unstrippedCsvStats;
-			CsvStats csvStats = ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX);
+			CsvStats csvStats = ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX, null, bStripStatsByEvents);
 			csvStats.WriteToCSV(outCsvFilename, false);
 		}
 
-		CsvStats ProcessCsv(CachedCsvFile csvFile, out int numFramesStripped, out CsvStats unstrippedCsvStats, int minX=0, int maxX=Int32.MaxValue, PerfLog perfLog=null)
+		CsvStats ProcessCsv(CachedCsvFile csvFile, out int numFramesStripped, out CsvStats unstrippedCsvStats, int minX=0, int maxX=Int32.MaxValue, PerfLog perfLog=null, bool bStripStatsByEvents = true)
 		{
 			numFramesStripped = 0;
 			CsvStats csvStats = ReadCsvStats(csvFile, minX, maxX);
@@ -1083,7 +1094,7 @@ namespace PerfReportTool
 				perfLog.LogTiming("    ReadCsvStats");
 			}
 
-			if (!GetBoolArg("noStripEvents"))
+			if (bStripStatsByEvents)
 			{
 				CsvStats strippedCsvStats = StripCsvStatsByEvents(unstrippedCsvStats, out numFramesStripped);
 				csvStats = strippedCsvStats;
@@ -1189,10 +1200,17 @@ namespace PerfReportTool
 			}
             perfLog.LogTiming("    Initial Processing");
 
+			// Check if we're stripping stats
+			bool bStripStatsByEvents = reportTypeInfo.bStripEvents;
+			if (GetBoolArg("noStripEvents"))
+			{
+				bStripStatsByEvents = false;
+			}
+
 			// Read the full csv while we wait for the graph processes to complete
 			int numFramesStripped;
 			CsvStats unstrippedCsvStats;
-			CsvStats csvStats=ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX, perfLog);
+			CsvStats csvStats=ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX, perfLog, bStripStatsByEvents);
 
             if ( writeDetailedReport )
             { 
@@ -1269,7 +1287,7 @@ namespace PerfReportTool
 					// Add every stat avg value to the metadata
 					foreach ( StatSamples stat in csvStats.Stats.Values )
 					{
-						rowData.Add(SummaryTableElement.Type.CsvStatAverage, stat.Name, stat.average.ToString());
+						rowData.Add(SummaryTableElement.Type.CsvStatAverage, stat.Name, (double)stat.average);
 					}
 				}
 
@@ -1469,7 +1487,7 @@ namespace PerfReportTool
                 }
 			}
 
-			bool bIncludeSummaryCsv = GetBoolArg("writeSummaryCsv") && !bBulkMode;
+			bool bWriteSummaryCsv = GetBoolArg("writeSummaryCsv") && !bBulkMode;
 
 			List<Summary> summaries = new List<Summary>(reportTypeInfo.summaries);
 			bool bExtraLinksSummary = GetBoolArg("extraLinksSummary");
@@ -1482,7 +1500,7 @@ namespace PerfReportTool
 			PeakSummary peakSummary = null;
             foreach (Summary summary in summaries)
             {
-                summary.WriteSummaryData(htmlFile, summary.useUnstrippedCsvStats ? unstrippedCsvStats : csvStats, bIncludeSummaryCsv, summaryRowData, htmlFilename);
+                summary.WriteSummaryData(htmlFile, summary.useUnstrippedCsvStats ? unstrippedCsvStats : csvStats, bWriteSummaryCsv, summaryRowData, htmlFilename);
                 if ( summary.GetType() == typeof(PeakSummary) )
                 {
                     peakSummary = (PeakSummary)summary;
@@ -1494,12 +1512,14 @@ namespace PerfReportTool
 				// Output the list of graphs
 				htmlFile.WriteLine("<h2>Graphs</h2>");
 
-				// If we are using a peak summary then we can separate the links into categories.
-				// To do that we piggy back off of the information in the hidePrefixes list in the peak summary.
-				List<string> sections = (peakSummary != null) ? peakSummary.sectionPrefixes : new List<string>(new string[] { "" });
+				// TODO: support sections for graphs
+				List<string> sections = new List<string>();
 
-				// We have to at least have the empty string in this array so that we can print the list of links.
-				if (sections.Count() == 0) { sections.Add(""); }
+				//// We have to at least have the empty string in this array so that we can print the list of links.
+				if (sections.Count() == 0) 
+				{ 
+					sections.Add(""); 
+				}
 
 				for (int index = 0; index < sections.Count; index++)
 				{
@@ -1623,13 +1643,13 @@ namespace PerfReportTool
 
             htmlFile.WriteLine("Overall Runtime: [Replace Me With Runtime]");
 
-			bool bIncludeSummaryCsv = GetBoolArg("writeSummaryCsv") && !bBulkMode;
+			bool bWriteSummaryCsv = GetBoolArg("writeSummaryCsv") && !bBulkMode;
 
 			// If the reporttype has summary info, then write out the summary]
 			PeakSummary peakSummary = null;
             foreach (Summary summary in reportTypeInfo.summaries)
             {
-                summary.WriteSummaryData(htmlFile, csvStats, bIncludeSummaryCsv, null, htmlFilename);
+                summary.WriteSummaryData(htmlFile, csvStats, bWriteSummaryCsv, null, htmlFilename);
                 if (summary.GetType() == typeof(PeakSummary))
                 {
                     peakSummary = (PeakSummary)summary;
@@ -1690,7 +1710,6 @@ namespace PerfReportTool
 				hideEventNames = true;
 			}
 			bool interactive = true;
-			double budget = graph.budget;
 			string smoothParams = "";
 			if (smooth)
 			{
@@ -1734,7 +1753,7 @@ namespace PerfReportTool
 				" -stats " + statString +
 				" -width " + (width * scaleby).ToString() +
 				" -height " + (height * scaleby).ToString() +
-				" -budget " + budget.ToString() +
+				OptionalHelper.GetDoubleSetting(graph.budget, " -budget ") + 
 				" -maxy " + maxy.ToString() +
 				" -uniqueID Graph_" + graphIndex.ToString() +
 				" -lineDecimalPlaces " + lineDecimalPlaces.ToString() +
@@ -1883,6 +1902,7 @@ namespace PerfReportTool
             summaries = new List<Summary>();
 			name = element.Attribute("name").Value;
 			title = element.Attribute("title").Value;
+			bStripEvents = XmlHelper.ReadAttributeBool(element, "stripEvents", true);
             foreach (XElement child in element.Elements())
             {
 				if (child.Name == "graph")
@@ -1934,12 +1954,13 @@ namespace PerfReportTool
 			summaryTableCacheID = HashHelper.StringToHashStr(sb.ToString(),16);
 		}
 
-	public List<ReportGraph> graphs;
+		public List<ReportGraph> graphs;
         public List<Summary> summaries;
 		public string name;
 		public string title;
 		public string [] metadataToShowList;
 		public string summaryTableCacheID;
+		public bool bStripEvents;
 	};
 
 
@@ -1948,17 +1969,15 @@ namespace PerfReportTool
         public ReportGraph(XElement element)
         {
             title = element.Attribute("title").Value;
-            budget = Convert.ToDouble(element.Attribute("budget").Value, System.Globalization.CultureInfo.InvariantCulture);
-            inSummary = XmlHelper.ReadAttributeBool(element, "inSummary", false);
-            isInMainSummary = XmlHelper.ReadAttributeBool(element, "inMainSummary", false);
+            budget = new OptionalDouble(element, "budget");
+			inSummary = XmlHelper.ReadAttributeBool(element, "inSummary", false);
 			isExternal = XmlHelper.ReadAttributeBool(element, "external", false);
 			minFilterStatValue = new OptionalDouble(element, "minFilterStatValue");
 		}
         public string title;
-        public double budget;
+        public OptionalDouble budget;
         public bool inSummary;
 		public bool isExternal;
-		public bool isInMainSummary;
 		public OptionalDouble minFilterStatValue;
         public GraphSettings settings;
     };

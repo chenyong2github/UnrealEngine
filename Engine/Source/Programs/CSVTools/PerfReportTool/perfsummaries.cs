@@ -105,7 +105,8 @@ namespace PerfSummaries
         public static Colour White = new Colour(1.0f, 1.0f, 1.0f, 1.0f);
         public static Colour Black = new Colour(0, 0, 0, 1.0f);
         public static Colour Orange = new Colour(1.0f, 0.5f, 0.0f, 1.0f);
-        public static Colour Red = new Colour(1.0f, 0.0f, 0.0f, 1.0f);
+		public static Colour Yellow = new Colour(1.0f, 1.0f, 0.0f, 1.0f);
+		public static Colour Red = new Colour(1.0f, 0.0f, 0.0f, 1.0f);
         public static Colour Green = new Colour(0.0f, 1.0f, 0.0f, 1.0f);
 
         public float r, g, b;
@@ -211,6 +212,14 @@ namespace PerfSummaries
 			}
 			return list.GetColourForValue(value);
 		}
+		public static string GetSafeColourForValue(ColourThresholdList list, double value)
+		{
+			if (list == null)
+			{
+				return "'#ffffff'";
+			}
+			return list.GetColourForValue(value);
+		}
 		public List<ThresholdInfo> Thresholds = new List<ThresholdInfo>();
 	};
 
@@ -287,7 +296,7 @@ namespace PerfSummaries
             StatThresholds = new Dictionary<string, ColourThresholdList>();
 
         }
-        public virtual void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+        public virtual void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
         { }
 
         public virtual void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
@@ -553,10 +562,10 @@ namespace PerfSummaries
 		}
 
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
         {
             System.IO.StreamWriter statsCsvFile = null;
-            if (bIncludeSummaryCsv)
+            if (bWriteSummaryCsv)
             {
                 string csvPath = Path.Combine(Path.GetDirectoryName(htmlFileName), "FrameStats_colored.csv");
                 statsCsvFile = new System.IO.StreamWriter(csvPath, false);
@@ -567,25 +576,25 @@ namespace PerfSummaries
 
             // Write the averages
             List<string> ColumnNames = new List<string>();
-            List<string> ColumnValues = new List<string>();
+            List<double> ColumnValues = new List<double>();
 			List<string> ColumnColors = new List<string>();
 			List<ColourThresholdList> ColumnColorThresholds = new List<ColourThresholdList>();
 
             ColumnNames.Add("Total Time (s)");
 			ColumnColorThresholds.Add(new ColourThresholdList());
-            ColumnValues.Add(fpsChartData.TotalTimeSeconds.ToString("0.0"));
-			ColumnColors.Add(ColourThresholdList.GetSafeColourForValue( ColumnColorThresholds.Last(), ColumnValues.Last()));
+            ColumnValues.Add(fpsChartData.TotalTimeSeconds);
+			ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
 
 			ColumnNames.Add("Hitches/Min");
 			ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
-			ColumnValues.Add(fpsChartData.HitchesPerMinute.ToString("0.00"));
+			ColumnValues.Add(fpsChartData.HitchesPerMinute);
 			ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
 
 			if (!bIgnoreHitchTimePercent)
 			{
 				ColumnNames.Add("HitchTimePercent");
 				ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
-				ColumnValues.Add(fpsChartData.HitchTimePercent.ToString("0.00"));
+				ColumnValues.Add(fpsChartData.HitchTimePercent);
 				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
 			}
 
@@ -593,7 +602,7 @@ namespace PerfSummaries
 			{
 				ColumnNames.Add("MVP" + fps.ToString());
 				ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
-				ColumnValues.Add(fpsChartData.MVP.ToString("0.00"));
+				ColumnValues.Add(fpsChartData.MVP);
 				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
 			}
 
@@ -630,7 +639,7 @@ namespace PerfSummaries
                 }
 				ColumnIsAvgValueList.Add(bIsAvg);
 				ColumnNames.Add(StatTokens[0] + ValueType);
-                ColumnValues.Add(value.ToString("0.00"));
+                ColumnValues.Add(value);
 				ColumnColorThresholds.Add(GetStatColourThresholdList(statName));
 				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
 			}
@@ -662,7 +671,7 @@ namespace PerfSummaries
 					}
 					rowData.Add(SummaryTableElement.Type.SummaryTableMetric, columnName, ColumnValues[i], ColumnColorThresholds[i]);
                 }
-                rowData.Add(SummaryTableElement.Type.SummaryTableMetric, "TargetFPS", fps.ToString());
+                rowData.Add(SummaryTableElement.Type.SummaryTableMetric, "TargetFPS", (double)fps);
             }
 
             // Output HTML
@@ -722,21 +731,21 @@ namespace PerfSummaries
                         continue;
                     }
 
-                    ColumnValues.Add(captureFpsChartData.TotalTimeSeconds.ToString("0.0"));
+                    ColumnValues.Add(captureFpsChartData.TotalTimeSeconds);
                     ColumnColors.Add("\'#ffffff\'");
 
-                    ColumnValues.Add(captureFpsChartData.HitchesPerMinute.ToString("0.00"));
+                    ColumnValues.Add(captureFpsChartData.HitchesPerMinute);
                     ColumnColors.Add(GetStatThresholdColour("Hitches/Min", captureFpsChartData.HitchesPerMinute));
 
 					if (!bIgnoreHitchTimePercent)
 					{
-						ColumnValues.Add(captureFpsChartData.HitchTimePercent.ToString("0.00"));
+						ColumnValues.Add(captureFpsChartData.HitchTimePercent);
 						ColumnColors.Add(GetStatThresholdColour("HitchTimePercent", captureFpsChartData.HitchTimePercent));
 					}
 
 					if (!bIgnoreMVP)
 					{
-						ColumnValues.Add(captureFpsChartData.MVP.ToString("0.00"));
+						ColumnValues.Add(captureFpsChartData.MVP);
 						ColumnColors.Add(GetStatThresholdColour("MVP" + fps.ToString(), captureFpsChartData.MVP));
 					}
 
@@ -764,7 +773,7 @@ namespace PerfSummaries
                             value = csvStats.Stats[StatTokens[0].ToLower()].ComputeAverage(CaptureFrameTimes.startIndex, CaptureFrameTimes.endIndex);
                         }
 
-                        ColumnValues.Add(value.ToString("0.00"));
+                        ColumnValues.Add(value);
                         ColumnColors.Add(GetStatThresholdColour(statName, value));
                     }
 
@@ -827,7 +836,7 @@ namespace PerfSummaries
 			colourThresholds = ReadColourThresholdsXML(element.Element("colourThresholds"));
         }
 
-        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
         {
             Dictionary<string, int> eventCountsDict = new Dictionary<string, int>();
             int eventCount= 0;
@@ -883,7 +892,7 @@ namespace PerfSummaries
                         thresholdList.Add(new ThresholdInfo(colourThresholds[i], null));
                     }
                 }
-                rowData.Add(SummaryTableElement.Type.SummaryTableMetric, summaryStatName, eventCount.ToString(), thresholdList);
+                rowData.Add(SummaryTableElement.Type.SummaryTableMetric, summaryStatName, (double)eventCount, thresholdList);
             }
         }
         public override void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
@@ -909,7 +918,7 @@ namespace PerfSummaries
             }
         }
 
-        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
+        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
         {
 			// Only HTML reporting is supported (does not summary table row data)
 			if (htmlFile == null)
@@ -922,7 +931,7 @@ namespace PerfSummaries
             htmlFile.WriteLine("  <tr><td></td>");
 
             StreamWriter statsCsvFile = null;
-            if (bIncludeSummaryCsv)
+            if (bWriteSummaryCsv)
             {
                 string csvPath = Path.Combine(Path.GetDirectoryName(htmlFileName), "HitchStats.csv");
                 statsCsvFile = new System.IO.StreamWriter(csvPath, false);
@@ -1017,7 +1026,7 @@ namespace PerfSummaries
             }
         }
 
-        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
+        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
         {
 			// Only HTML reporting is supported (does not output summary table row data)
 			if (htmlFile == null)
@@ -1142,122 +1151,152 @@ namespace PerfSummaries
 
     class PeakSummary : Summary
     {
+		/*
+		  A peak summary displays a list of stats by their peak values. 
+		  The stat list comes from the graphs, where inSummary='1' specifies that a graph's stats should be
+		  included. Specifying a budget for the graph also assigns budgets to its stats. 
+		  A list of summarySection elements can be specified. This groups stats into separate sections, displayed
+		  at the top of the report. 
+		  Note: a stat will only appear in in one section. If there are multiple compatble sections, it will appear 
+		  in the first.
+
+			<summarySection title="Audio">
+				<statFilter>LLM/Audio/*</statFilter>
+			</summarySection>
+		*/
+		class PeakSummarySection
+		{
+			public PeakSummarySection(string inTitle, string inStatFilterStr)
+			{
+				title = inTitle;
+				statNamesFilter = inStatFilterStr.Split(',');
+			}
+			public PeakSummarySection(XElement element)
+			{
+				XElement statFilterElement=element.Element("statFilter");
+				title = element.Attribute("title").Value;
+
+				statNamesFilter = statFilterElement.Value.Split(',');
+			}
+			public bool StatMatchesSection(CsvStats csvStats, string statName)
+			{
+				if (statNameFilterDict == null)
+				{
+					statNameFilterDict = csvStats.GetStatNamesMatchingStringList_Dict(statNamesFilter);
+				}
+				return statNameFilterDict.ContainsKey(statName);
+			}
+			public void AddStat(PeakStatInfo statInfo)
+			{
+				stats.Add(statInfo);
+			}
+			string[] statNamesFilter;
+			Dictionary<string, bool> statNameFilterDict;
+
+			public List<PeakStatInfo> stats = new List<PeakStatInfo>();
+			public string title;
+		};
+
         public PeakSummary(XElement element, string baseXmlDirectory)
         {
-			hidePrefixes = new List<string>();
-			sectionPrefixes = new List<string>();
-
 			//read the child elements (mostly for colourThresholds)
 			ReadStatsFromXML(element);
+			hideStatPrefix = XmlHelper.ReadAttribute(element, "hideStatPrefix", "").ToLower();
 
-            foreach (XElement child in element.Elements())
+			foreach (XElement child in element.Elements())
             {
-                if (child.Name == "hidePrefix")
+                if (child.Name == "summarySection")
                 {
-                    hidePrefixes.Add(child.Value.ToLower());
-                }
-                else if (child.Name == "sectionPrefix")
-                {
-                    sectionPrefixes.Add(child.Value.ToLower());
-                }
-            }
-        }
-
-        void WriteStatsToHTML(StreamWriter htmlFile, CsvStats csvStats, bool isMainSummary, string sectionPrefix, string htmlFileName, bool bIncludeSummaryCsv )
-        {
-            // Write the averages
-            // We are splitting the peaks summary into several different tables based on the hidePrefix and whether the
-            // stat should be in the main summary.
-            bool bSummaryStatsFound = false;
-
-
-            for (int j = 0; j < stats.Count; j++)
-            {
-				PeakStatInfo statInfo = getOrAddStatInfo(stats[j]);
-
-				if (statInfo.isInMainSummary == isMainSummary)
-                {
-                    bSummaryStatsFound = true;
-                    break;
+					peakSummarySections.Add(new PeakSummarySection(child));
                 }
             }
 
-            if (!bSummaryStatsFound && !bIncludeSummaryCsv)
-            {
-                return;
-            }
-
-			StreamWriter LLMCsvData = null;
-			if (bIncludeSummaryCsv)
+			// If we don't have any sections then add a default one
+			if (peakSummarySections.Count == 0)
 			{
-				string LLMCsvPath = Path.Combine(Path.GetDirectoryName(htmlFileName), "LLMStats_colored.csv");
-				LLMCsvData = new StreamWriter(LLMCsvPath);
+				PeakSummarySection section = new PeakSummarySection("Peaks","*");
+				peakSummarySections.Add(section);
 			}
-            List<string> StatValues = new List<string>();
-            List<string> ColumnColors = new List<string>();
 
+		}
+
+		void WriteStatSection(StreamWriter htmlFile, CsvStats csvStats, PeakSummarySection section, StreamWriter LLMCsvData, SummaryTableRowData summaryTableRowData)
+        {
             // Here we are deciding which title we have and write it to the file.
-            String titlePrefix = isMainSummary ? "Main Peaks" : sectionPrefix + " Peaks";
-            htmlFile.WriteLine("<h2>" + titlePrefix + "</h2>");
+            htmlFile.WriteLine("<h3>" + section.title + "</h3>");
             htmlFile.WriteLine("  <table border='0' style='width:400'>");
 
             //Hard-coded start of the table.
             htmlFile.WriteLine("    <tr><td style='width:200'></td><td style='width:75'><b>Average</b></td><td style='width:75'><b>Peak</b></td><td style='width:75'><b>Budget</b></td></tr>");
-			if (LLMCsvData != null)
+
+			foreach (PeakStatInfo statInfo in section.stats)
 			{
-				LLMCsvData.WriteLine("Stat,Average,Peak,Budget");
-			}
-            int i = 0;
+				// Do the calculations for the averages and peak, and then write it to the table along with the budget.
+				string statName = statInfo.name;
+				StatSamples csvStat = csvStats.Stats[statName.ToLower()];
+                double peak = (double)csvStat.ComputeMaxValue();
+                double average = (double)csvStat.average;
 
-            // Then for each stat we have registered in peak summary using AddStat, we
-            // decide whether it should be in the current table based on its hidePrefix and
-            // whether it's in the main summary.
-            foreach (string stat in stats)
-            {
-                string statName = stat.Split('(')[0];
+				string peakColour = "#ffffff";
+				string averageColour = "#ffffff";
+				string budgetString = "";
+				ColourThresholdList colorThresholdList = new ColourThresholdList();
 
-				PeakStatInfo statInfo = getOrAddStatInfo(stat);
+				if (statInfo.budget.isSet)
+				{
+					double budget = statInfo.budget.value;
+					float redValue = (float)budget * 1.5f;
+					float orangeValue = (float)budget * 1.25f;
+					float yellowValue = (float)budget * 1.0f;
+					float greenValue = (float)budget * 0.9f;
 
-				if ((csvStats.Stats.ContainsKey(statName.ToLower())) && // If the main stats table contains this stat AND
-                     (sectionPrefix == null || statName.StartsWith(sectionPrefix, true, null)) // If there is no hide prefix just display the stat, otherwise, make sure they match.
-                   )
-                {
-                    // Do the calculations for the averages and peak, and then write it to the table along with the budget.
-                    StatSamples csvStat = csvStats.Stats[statName.ToLower()];
-                    double peak = (double)csvStat.ComputeMaxValue() * statInfo.multiplier;
-                    double average = (double)csvStat.average * statInfo.multiplier;
-                    double budget = statInfo.budget;
+					colorThresholdList.Add(new ThresholdInfo(redValue, Colour.Red));
+					colorThresholdList.Add(new ThresholdInfo(orangeValue, Colour.Orange));
+					colorThresholdList.Add(new ThresholdInfo(yellowValue, Colour.Yellow));
+					colorThresholdList.Add(new ThresholdInfo(greenValue, Colour.Green));
 
-                    float redValue = (float)budget * 1.5f;
-                    float orangeValue = (float)budget * 1.25f;
-                    float yellowValue = (float)budget * 1.0f;
-                    float greenValue = (float)budget * 0.9f;
-                    string peakColour = ColourThresholdList.GetThresholdColour(peak, redValue, orangeValue, yellowValue, greenValue);
-                    string averageColour = ColourThresholdList.GetThresholdColour(average, redValue, orangeValue, yellowValue, greenValue);
-                    string cleanStatName = stats[i].Replace('/', ' ').Replace("$32$", " ");
+					peakColour = colorThresholdList.GetColourForValue(peak);
+					averageColour = colorThresholdList.GetColourForValue(average);
+					budgetString = budget.ToString("0");
+				}
+				htmlFile.WriteLine("    <tr><td>" + statInfo.shortName + "</td><td bgcolor=" + averageColour + ">" + average.ToString("0") + "</td><td bgcolor=" + peakColour + ">" + peak.ToString("0") + "</td><td>" + budgetString + "</td></tr>");
 
-					if (statInfo.isInMainSummary == isMainSummary) // If we are in the main summary then this stat appears ONLY in the main summary
+				// Pass through color data as part of database-friendly stuff.
+				if (LLMCsvData != null)
+				{
+					string csvStatName = statName.Replace('/', ' ').Replace("$32$", " ");
+					LLMCsvData.WriteLine(string.Format("{0},{1},{2},{3}", csvStatName, average.ToString("0"), peak.ToString("0"), budgetString, averageColour, peakColour));
+					LLMCsvData.WriteLine(string.Format("{0}_Colors,{1},{2},'#aaaaaa'", csvStatName, averageColour, peakColour));
+				}
+
+				SummaryTableElement smv;
+				if (summaryTableRowData.dict.TryGetValue(statName.ToLower(), out smv))
+				{
+					if (smv.type == SummaryTableElement.Type.CsvStatAverage)
 					{
-						htmlFile.WriteLine("    <tr><td>" + cleanStatName + "</td><td bgcolor=" + averageColour + ">" + average.ToString("0") + "</td><td bgcolor=" + peakColour + ">" + peak.ToString("0") + "</td><td>" + budget.ToString("0") + "</td></tr>");
+						smv.SetFlag(SummaryTableElement.Flags.Hidden, true);
 					}
+				}
+				summaryTableRowData.Add(SummaryTableElement.Type.SummaryTableMetric, statInfo.shortName + " Avg", average, colorThresholdList);
+				summaryTableRowData.Add(SummaryTableElement.Type.SummaryTableMetric, statInfo.shortName + " Max", peak, colorThresholdList);
 
-					if (LLMCsvData != null)
-					{
-						LLMCsvData.WriteLine(string.Format("{0},{1},{2},{3}", cleanStatName, average.ToString("0"), peak.ToString("0"), budget.ToString("0"), averageColour, peakColour));
-						// Pass through color data as part of database-friendly stuff.
-						LLMCsvData.WriteLine(string.Format("{0}_Colors,{1},{2},#aaaaaa", cleanStatName, averageColour, peakColour));
-					}
-                }
-                i++;
-            }
-			if (LLMCsvData != null)
-			{
-				LLMCsvData.Close();
 			}
-            htmlFile.WriteLine("  </table>");
+			htmlFile.WriteLine("  </table>");
         }
 
-        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
+		PeakSummarySection FindStatSection(CsvStats csvStats, string statName)
+		{
+			for (int i=0; i<peakSummarySections.Count;i++)
+			{
+				if ( peakSummarySections[i].StatMatchesSection(csvStats, statName) )
+				{
+					return peakSummarySections[i];
+				}
+			}
+			return null;
+		}
+
+        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData summaryTableRowData, string htmlFileName)
         {
 			// Only HTML reporting is supported (does not output summary table row data)
 			if (htmlFile == null)
@@ -1265,47 +1304,49 @@ namespace PerfSummaries
 				return;
 			}
 
-			//update metadata
-			if (metadata != null)
+			StreamWriter LLMCsvData = null;
+			if (bWriteSummaryCsv)
 			{
-				foreach (string statName in stats)
-				{
-					if (!csvStats.Stats.ContainsKey(statName.ToLower()))
-					{
-						continue;
-					}
+				// FIXME: This summary type is not specific to LLM. Pass filename in!
+				string LLMCsvPath = Path.Combine(Path.GetDirectoryName(htmlFileName), "LLMStats_colored.csv"); 
+				LLMCsvData = new StreamWriter(LLMCsvPath);
+				LLMCsvData.WriteLine("Stat,Average,Peak,Budget");
+			}
 
-					var statValue = csvStats.Stats[statName.ToLower()];
-					metadata.Add(SummaryTableElement.Type.SummaryTableMetric, statName + " Avg", statValue.average.ToString("0.00"), GetStatColourThresholdList(statName));
-					metadata.Add(SummaryTableElement.Type.SummaryTableMetric, statName + " Max", statValue.ComputeMaxValue().ToString("0.00"), GetStatColourThresholdList(statName));
-					metadata.Add(SummaryTableElement.Type.SummaryTableMetric, statName + " Min", statValue.ComputeMinValue().ToString("0.00"), GetStatColourThresholdList(statName));
+			// Add all stats to the appropriate sections
+			foreach (string stat in stats)
+			{
+				PeakSummarySection section = FindStatSection(csvStats, stat);
+				if ( section != null )
+				{
+					PeakStatInfo statInfo = getOrAddStatInfo(stat);
+					section.AddStat(statInfo);
 				}
 			}
 
-			// The first thing we always write is the main summary.
-			WriteStatsToHTML(htmlFile, csvStats, true, null, htmlFileName, bIncludeSummaryCsv);
+			htmlFile.WriteLine("<h2>Peaks Summary</h2>");
+			foreach (PeakSummarySection section in peakSummarySections)
+			{
+				WriteStatSection(htmlFile, csvStats, section, LLMCsvData, summaryTableRowData);
+			}
 
-            // Then we loop through all of the hide prefixes and write their individual table.
-            // However, we have to make sure we at least have the empty string in the array to print out the whole list.
-            if (sectionPrefixes.Count() == 0) { sectionPrefixes.Add(""); }
-            int i = 0;
-            for (i = 0; i < sectionPrefixes.Count(); i++)
-            {
-                string currentPrefix = sectionPrefixes[i];
-                WriteStatsToHTML(htmlFile, csvStats, false, currentPrefix, htmlFileName, false);
-            }
-        }
+			if (LLMCsvData != null)
+			{
+				LLMCsvData.Close();
+			}
+		}
 
 
 
-        void AddStat(string statName, double budget, double multiplier, bool bIsInMainSummary)
+		void AddStat(string statName, OptionalDouble budget)
         {
             stats.Add(statName);
 
 			PeakStatInfo info = getOrAddStatInfo(statName);
-			info.isInMainSummary = bIsInMainSummary;
-			info.multiplier = multiplier;
-			info.budget = budget;
+			if (budget.isSet)
+			{
+				info.budget = budget;
+			}
 		}
 		
         public override void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
@@ -1315,18 +1356,18 @@ namespace PerfSummaries
             {
                 if (graph.inSummary)
                 {
-                    // If the graph has a mainstat, use that
-                    if (graph.settings.mainStat.isSet)
+					if (graph.settings.mainStat.isSet)
                     {
-                        AddStat(graph.settings.mainStat.value, graph.budget, graph.settings.statMultiplier.isSet ? graph.settings.statMultiplier.value : 1.0, graph.isInMainSummary);
+                        AddStat(graph.settings.mainStat.value, graph.budget);
                     }
-                    else if (graph.settings.statString.isSet)
+                    if (graph.settings.statString.isSet)
                     {
                         string statString = graph.settings.statString.value;
-                        string[] statNames = statString.Split(',');
-                        foreach (string stat in statNames)
+						string[] statNames = statString.Split(',');
+						statNames = csvStats.GetStatNamesMatchingStringList(statNames).ToArray();
+						foreach (string stat in statNames)
                         {
-                            AddStat(stat, graph.budget, graph.settings.statMultiplier.isSet ? graph.settings.statMultiplier.value : 1.0, graph.isInMainSummary);
+                            AddStat(stat, graph.budget);
                         }
                     }
                 }
@@ -1335,24 +1376,20 @@ namespace PerfSummaries
 			base.PostInit(reportTypeInfo, csvStats);
 		}
 
-        public List<string> sectionPrefixes;
+        List<PeakSummarySection> peakSummarySections=new List<PeakSummarySection>();
 
 		Dictionary<string, PeakStatInfo> statInfoLookup = new Dictionary<string, PeakStatInfo>();
 		class PeakStatInfo
 		{
 			public PeakStatInfo(string inName, string inShortName)
 			{
-				isInMainSummary = false;
-				multiplier = 1.0;
-				budget = 0.0;
+				budget = new OptionalDouble();
 				name = inName;
 				shortName = inShortName;
 			}
 			public string name;
 			public string shortName;
-			public bool isInMainSummary;
-			public double multiplier;
-			public double budget;
+			public OptionalDouble budget;
 		};
 
 		PeakStatInfo getOrAddStatInfo(string statName)
@@ -1362,21 +1399,10 @@ namespace PerfSummaries
 				return statInfoLookup[statName];
 			}
 			// Find the best (longest) prefix which matches this stat, and strip it off
-			int bestPrefixIndex = -1;
-			int bestPrefixLength = 0;
 			string shortStatName = statName;
-			for (int i = 0; i < hidePrefixes.Count; i++)
+			if (hideStatPrefix.Length>0 && statName.ToLower().StartsWith(hideStatPrefix))
 			{
-				string prefix = hidePrefixes[i];
-				if (statName.ToLower().StartsWith(prefix) && prefix.Length > bestPrefixLength)
-				{
-					bestPrefixIndex = i;
-					bestPrefixLength = prefix.Length;
-				}
-			}
-			if (bestPrefixIndex >= 0)
-			{
-				shortStatName = statName.Substring(bestPrefixLength);
+				shortStatName = statName.Substring(hideStatPrefix.Length);
 			}
 
 			PeakStatInfo statInfo = new PeakStatInfo(statName,shortStatName);
@@ -1384,7 +1410,7 @@ namespace PerfSummaries
 			return statInfo;
 		}
 
-        List<string> hidePrefixes;
+        string hideStatPrefix;
     };
 
 	class BoundedStatValuesSummary : Summary
@@ -1458,7 +1484,7 @@ namespace PerfSummaries
 			}
 		}
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
 		{
 			int startFrame = -1;
 			int endFrame = int.MaxValue;
@@ -1670,13 +1696,13 @@ namespace PerfSummaries
 			}
 
 			// Output summary table row data
-			if (metadata != null)
+			if (rowData != null)
 			{
 				foreach (Column col in filteredColumns)
 				{
 					if ( col.summaryStatName != null )
 					{
-						metadata.Add(SummaryTableElement.Type.SummaryTableMetric, col.summaryStatName, col.value.ToString("0.00"), col.colourThresholdList);
+						rowData.Add(SummaryTableElement.Type.SummaryTableMetric, col.summaryStatName, col.value, col.colourThresholdList);
 					}
 				}
 			}
@@ -1794,7 +1820,7 @@ namespace PerfSummaries
 			return (int)(svgY + 0.5f);
 		}
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
 		{
 			// Output HTML
 			if (htmlFile != null)
@@ -1985,7 +2011,7 @@ namespace PerfSummaries
 			}
 		}
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
 		{
 			List<ExtraLink> links = new List<ExtraLink>();
 
@@ -2276,6 +2302,20 @@ namespace PerfSummaries
 			if (dict.ContainsKey(key))
 			{
 				dict.Remove(key);
+			}
+		}
+
+		public void Add(SummaryTableElement.Type type, string name, double value, ColourThresholdList colorThresholdList = null, string tooltip = "", uint flags = 0)
+		{
+			string key = name.ToLower();
+			SummaryTableElement metadataValue = new SummaryTableElement(type, name, value, colorThresholdList, tooltip, flags);
+			try
+			{
+				dict.Add(key, metadataValue);
+			}
+			catch (System.ArgumentException)
+			{
+				throw new Exception("Summary metadata key " + key + " has already been added");
 			}
 		}
 
@@ -3284,7 +3324,7 @@ namespace PerfSummaries
 			htmlFile.Close();
         }
 
-		SummaryTable SortRows(List<string> rowSortList, bool reverseSort)
+		public SummaryTable SortRows(List<string> rowSortList, bool reverseSort)
 		{
 			List<KeyValuePair<string, int>> columnRemapping = new List<KeyValuePair<string, int>>();
 			for (int i = 0; i < rowCount; i++)
