@@ -183,6 +183,10 @@ FString GetFormatedMessageErrorInExpectedResult(FString FileName, FString TestPl
 		*FileName, *TestPlanName, *ExpectedResultName, ExpectedResultIndex);
 }
 
+// Codegen optimization degenerates for very long functions like RunTest when combined with the invokation of lots of FORCEINLINE methods.
+// We don't need this code to be particularly fast anyway. The other way to improve this code would be to split the test in multiple functions.
+BEGIN_FUNCTION_BUILD_OPTIMIZATION
+
 /**
 * Execute the generic import test
 *
@@ -1971,3 +1975,5 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 
 	return CurTestSuccessful;
 }
+
+END_FUNCTION_BUILD_OPTIMIZATION
