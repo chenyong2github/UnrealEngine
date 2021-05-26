@@ -140,7 +140,7 @@ private:
 
 #else
 
-	namespace UE4Asserts_Private
+	namespace UEAsserts_Private
 	{
 		template <int32 VerbosityToCheck, typename CategoryType>
 		FORCEINLINE
@@ -170,7 +170,7 @@ private:
 	 * @param CategoryName name of the logging category
 	 * @param Verbosity, verbosity level to test against
 	**/
-	#define UE_LOG_ACTIVE(CategoryName, Verbosity) (::UE4Asserts_Private::IsLogActive<(int32)ELogVerbosity::Verbosity>(CategoryName))
+	#define UE_LOG_ACTIVE(CategoryName, Verbosity) (::UEAsserts_Private::IsLogActive<(int32)ELogVerbosity::Verbosity>(CategoryName))
 
 	#define UE_GET_LOG_VERBOSITY(CategoryName) \
 		CategoryName.GetVerbosity()
@@ -416,7 +416,7 @@ extern CORE_API int32 GEnsureOnNANDiagnostic;
 
 // Macro to either log an error or ensure on a NaN error.
 #if DO_CHECK && !USING_CODE_ANALYSIS
-namespace UE4Asserts_Private
+namespace UEAsserts_Private
 {
 	CORE_API void VARARGS InternalLogNANDiagnosticMessage(const TCHAR* FormattedMsg, ...); // UE_LOG(LogCore, Error, _FormatString_, ##__VA_ARGS__);
 }
@@ -426,7 +426,7 @@ namespace UE4Asserts_Private
 		static bool OnceOnly = false;\
 		if (!OnceOnly)\
 		{\
-			UE4Asserts_Private::InternalLogNANDiagnosticMessage(_FormatString_, ##__VA_ARGS__); \
+			UEAsserts_Private::InternalLogNANDiagnosticMessage(_FormatString_, ##__VA_ARGS__); \
 			OnceOnly = true;\
 		}\
 	}\

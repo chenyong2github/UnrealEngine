@@ -2,7 +2,7 @@
 
 #pragma once
 
-namespace UE4StaticAssertCompleteType_Private
+namespace UEStaticAssertCompleteType_Private
 {
 	class FIncompleteType;
 
@@ -24,7 +24,7 @@ namespace UE4StaticAssertCompleteType_Private
 }
 
 // Causes a compile error if a type is incomplete
-#define UE_STATIC_ASSERT_COMPLETE_TYPE(TypeToCheck, Message) static_assert(sizeof(UE4StaticAssertCompleteType_Private::TUEStaticAssertTypeChecker<TypeToCheck>::Func()), Message)
+#define UE_STATIC_ASSERT_COMPLETE_TYPE(TypeToCheck, Message) static_assert(sizeof(UEStaticAssertCompleteType_Private::TUEStaticAssertTypeChecker<TypeToCheck>::Func()), Message)
 
 // Tests
 
@@ -34,15 +34,15 @@ namespace UE4StaticAssertCompleteType_Private
 	UE_STATIC_ASSERT_COMPLETE_TYPE(      volatile void,                                     "CV void is incomplete");
 	UE_STATIC_ASSERT_COMPLETE_TYPE(const          void,                                     "CV void is incomplete");
 	UE_STATIC_ASSERT_COMPLETE_TYPE(const volatile void,                                     "CV void is incomplete");
-	UE_STATIC_ASSERT_COMPLETE_TYPE(UE4StaticAssertCompleteType_Private::FIncompleteType,    "A forward-declared-but-undefined class is incomplete");
-	UE_STATIC_ASSERT_COMPLETE_TYPE(UE4StaticAssertCompleteType_Private::FIncompleteType[2], "An array of an incomplete class is incomplete");
+	UE_STATIC_ASSERT_COMPLETE_TYPE(UEStaticAssertCompleteType_Private::FIncompleteType,    "A forward-declared-but-undefined class is incomplete");
+	UE_STATIC_ASSERT_COMPLETE_TYPE(UEStaticAssertCompleteType_Private::FIncompleteType[2], "An array of an incomplete class is incomplete");
 	UE_STATIC_ASSERT_COMPLETE_TYPE(int[],                                                   "An array of a complete type of unspecified bound is incomplete");
 #endif
 
 // Each of these should pass
 #if 0
-	UE_STATIC_ASSERT_COMPLETE_TYPE(UE4StaticAssertCompleteType_Private::FIncompleteType*,                                                         "A pointer to an incomplete type is complete");
-	UE_STATIC_ASSERT_COMPLETE_TYPE(UE4StaticAssertCompleteType_Private::FIncompleteType&,                                                         "A reference to an incomplete type is complete");
-	UE_STATIC_ASSERT_COMPLETE_TYPE(UE4StaticAssertCompleteType_Private::FIncompleteType   (UE4StaticAssertCompleteType_Private::FIncompleteType), "A function type is not incomplete, even if it returns or takes an incomplete type");
-	UE_STATIC_ASSERT_COMPLETE_TYPE(UE4StaticAssertCompleteType_Private::FIncompleteType(&)(UE4StaticAssertCompleteType_Private::FIncompleteType), "References to function types must give a good error");
+	UE_STATIC_ASSERT_COMPLETE_TYPE(UEStaticAssertCompleteType_Private::FIncompleteType*,                                                         "A pointer to an incomplete type is complete");
+	UE_STATIC_ASSERT_COMPLETE_TYPE(UEStaticAssertCompleteType_Private::FIncompleteType&,                                                         "A reference to an incomplete type is complete");
+	UE_STATIC_ASSERT_COMPLETE_TYPE(UEStaticAssertCompleteType_Private::FIncompleteType   (UEStaticAssertCompleteType_Private::FIncompleteType), "A function type is not incomplete, even if it returns or takes an incomplete type");
+	UE_STATIC_ASSERT_COMPLETE_TYPE(UEStaticAssertCompleteType_Private::FIncompleteType(&)(UEStaticAssertCompleteType_Private::FIncompleteType), "References to function types must give a good error");
 #endif

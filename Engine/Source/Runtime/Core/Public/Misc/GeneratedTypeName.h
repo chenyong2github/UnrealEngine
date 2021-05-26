@@ -20,7 +20,7 @@
 
 #if !UE_BUILD_DOCS
 
-namespace UE4TypeName_Private
+namespace UETypeName_Private
 {
 	// Class representing a substring of another string
 	struct FSubstr
@@ -110,7 +110,7 @@ namespace UE4TypeName_Private
 template <typename T>
 inline const TCHAR* GetGeneratedTypeName()
 {
-	static constexpr auto Result = UE4TypeName_Private::TypeSubstrToCharArray<T>(TMakeIntegerSequence<uint32, UE4TypeName_Private::GetTypeSubstr<T>().Len()>());
+	static constexpr auto Result = UETypeName_Private::TypeSubstrToCharArray<T>(TMakeIntegerSequence<uint32, UETypeName_Private::GetTypeSubstr<T>().Len()>());
 	return Result.Array;
 }
 
