@@ -12,6 +12,7 @@ public class PropertyEditor : ModuleRules
 				"UnrealEd",
                 "ActorPickerMode",
                 "SceneDepthPickerMode",
+				"EditorConfig",
 			}
 		);
 		
@@ -65,7 +66,6 @@ public class PropertyEditor : ModuleRules
                 "SceneOutliner",
 				"DesktopPlatform",
 				"PropertyPath",
-				"EditorConfig",
             }
         );
 
