@@ -294,9 +294,9 @@ static bool GetLocalLayerParameterInfo(const FMaterialLayersFunctions& MaterialL
 
 void FMaterialCachedParameters_UpdateForLayerParameters(FMaterialCachedParameters& Parameters, const FMaterialCachedExpressionContext& Context, UMaterialInstance* ParentMaterialInstance, const FStaticMaterialLayersParameter& LayerParameters)
 {
-	const FStaticParameterSet& StaticParameters = ParentMaterialInstance->GetStaticParameters();
+	const FStaticParameterSet& ParentStaticParameters = ParentMaterialInstance->GetStaticParameters();
 	const FMaterialLayersFunctions* ParentMaterialLayers = nullptr;
-	for (const FStaticMaterialLayersParameter& Param : StaticParameters.MaterialLayersParameters)
+	for (const FStaticMaterialLayersParameter& Param : ParentStaticParameters.MaterialLayersParameters)
 	{
 		if (Param.ParameterInfo == LayerParameters.ParameterInfo)
 		{
@@ -383,6 +383,33 @@ void FMaterialCachedParameters_UpdateForLayerParameters(FMaterialCachedParameter
 				{
 					Parameters.FontValues.Insert(Param.FontValue, Index);
 					Parameters.FontPageValues.Insert(Param.FontPage, Index);
+				}
+			}
+		}
+
+		for (const FStaticSwitchParameter& Param : ParentStaticParameters.StaticSwitchParameters)
+		{
+			FMaterialParameterInfo ParameterInfo;
+			if (GetLocalLayerParameterInfo(*ParentMaterialLayers, Param.ParameterInfo, LayerParameters.Value, ParameterInfo))
+			{
+				const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::StaticSwitch, ParameterInfo, FGuid());
+				if (Index != INDEX_NONE)
+				{
+					Parameters.StaticSwitchValues.Insert(Param.Value, Index);
+				}
+			}
+		}
+
+		for (const FStaticComponentMaskParameter& Param : ParentStaticParameters.StaticComponentMaskParameters)
+		{
+			FMaterialParameterInfo ParameterInfo;
+			if (GetLocalLayerParameterInfo(*ParentMaterialLayers, Param.ParameterInfo, LayerParameters.Value, ParameterInfo))
+			{
+				const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::StaticComponentMask, ParameterInfo, FGuid());
+				if (Index != INDEX_NONE)
+				{
+					const FStaticComponentMaskValue Value(Param.R, Param.G, Param.B, Param.A);
+					Parameters.StaticComponentMaskValues.Insert(Value, Index);
 				}
 			}
 		}
