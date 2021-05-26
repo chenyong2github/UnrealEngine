@@ -128,7 +128,7 @@ bool FSandboxPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine
 			// Special case - platform defined user directory will be used
 			SandboxDirectory = FPlatformProcess::UserDir();
 			SandboxDirectory += TEXT("My Games/");
-			SandboxDirectory += TEXT( "UE4/" );
+			SandboxDirectory += TEXT( "UE/" );
 			bSandboxIsAbsolute = true;
 		}
 		else if( CommandLineDirectory == TEXT("Unique") )
