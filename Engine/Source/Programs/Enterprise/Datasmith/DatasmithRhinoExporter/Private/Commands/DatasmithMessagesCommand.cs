@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using DatasmithRhino.Properties.Localization;
 using DatasmithRhino.Utils;
+
 using Eto.Drawing;
 using Eto.Forms;
 using Rhino;
@@ -38,9 +40,8 @@ namespace DatasmithRhino.Commands
 			get { return "DatasmithMessages"; }
 		}
 
-		//TODO: This needs to be localized.
 		public override string LocalName {
-			get { return "DatasmithMessages"; }
+			get { return Resources.DatasmithMessagesCommand; }
 		}
 
 		private class DatasmithLogForm : Eto.Forms.Form
@@ -83,7 +84,7 @@ namespace DatasmithRhino.Commands
 
 			private void Init(string Logs)
 			{
-				Title = "Datasmith Messages";
+				Title = Resources.DatasmithMessagesTitle;
 				ClientSize = new Size(400, 500);
 
 				Size DefaultSpacing = new Size(5, 5); // space between each cell
@@ -92,7 +93,7 @@ namespace DatasmithRhino.Commands
 				//Keeping the reference of the Log TextArea
 				LogTextArea = new TextArea { Text = Logs, ReadOnly = true };
 
-				Button ClearLogsButton = new Button { Text = "Clear messages" };
+				Button ClearLogsButton = new Button { Text = Resources.ClearMessagesButton };
 				ClearLogsButton.Click += (object Sender, EventArgs Args) =>
 				{
 					DatasmithRhinoPlugin.Instance.LogManager.ClearLogs();
@@ -105,7 +106,7 @@ namespace DatasmithRhino.Commands
 					Rows =
 					{
 						new TableRow(
-							new TableCell(new Label { Text = "Datasmith Messages:" }, true)
+							new TableCell(new Label { Text = Resources.DatasmithMessagesTitle + ":" }, true)
 						),
 						new TableRow
 						{ 

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using DatasmithRhino.Properties.Localization;
+
 using Rhino;
 using Rhino.DocObjects;
 using Rhino.DocObjects.Tables;
@@ -276,7 +278,7 @@ namespace DatasmithRhino.DirectLink
 			}
 			catch (Exception e)
 			{
-				RhinoApp.WriteLine("An unexpected error has occurred:");
+				RhinoApp.WriteLine(Resources.UnexpectedError);
 				RhinoApp.WriteLine(e.ToString());
 			}
 		}
