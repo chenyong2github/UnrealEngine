@@ -16,7 +16,7 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const FUTF8ToTCHAR ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 1 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, ConvertedValue.Get()) == 0);
+			TestTrue(FString(TEXT("Expected test string 1 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
 			TestTrue(FString(TEXT("Expected test string 1 to have different decoded value")), FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
 		}
 
@@ -24,7 +24,7 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 			const FUTF8ToTCHAR ConvertedValue(ExpectedResult);
 			const FTCHARToUTF8 ReverseConvertedValue(ConvertedValue.Get());
 			TestTrue(FString(TEXT("Expected test string 2 to have different encoded value")), FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 2 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, ReverseConvertedValue.Get()) == 0);
+			TestTrue(FString(TEXT("Expected test string 2 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
 		}
 	}
 
@@ -35,7 +35,7 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const FUTF8ToTCHAR ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 3 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, ConvertedValue.Get()) == 0);
+			TestTrue(FString(TEXT("Expected test string 3 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
 			TestTrue(FString(TEXT("Expected test string 3 to have different decoded value")), FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
 		}
 
@@ -43,7 +43,7 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 			const FUTF8ToTCHAR ConvertedValue(ExpectedResult);
 			const FTCHARToUTF8 ReverseConvertedValue(ConvertedValue.Get());
 			TestTrue(FString(TEXT("Expected test string 4 to have different encoded value")), FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 4 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, ReverseConvertedValue.Get()) == 0);
+			TestTrue(FString(TEXT("Expected test string 4 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
 		}
 	}
 
@@ -54,7 +54,7 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const FUTF8ToTCHAR ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 5 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, ConvertedValue.Get()) == 0);
+			TestTrue(FString(TEXT("Expected test string 5 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
 			TestTrue(FString(TEXT("Expected test string 5 to have different decoded value")), FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
 		}
 
@@ -62,7 +62,7 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 			const FUTF8ToTCHAR ConvertedValue(ExpectedResult);
 			const FTCHARToUTF8 ReverseConvertedValue(ConvertedValue.Get());
 			TestTrue(FString(TEXT("Expected test string 6 to have different encoded value")), FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 6 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, ReverseConvertedValue.Get()) == 0);
+			TestTrue(FString(TEXT("Expected test string 6 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
 		}
 	}
 
@@ -73,7 +73,7 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 		{
 			const FTCHARToUTF8 ConvertedValue(*TestString);
 			const FUTF8ToTCHAR ReverseConvertedValue(ConvertedValue.Get());
-			TestTrue(FString(TEXT("Expected test string 7 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, ConvertedValue.Get()) == 0);
+			TestTrue(FString(TEXT("Expected test string 7 to have different encoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ConvertedValue.Get()) == 0);
 			TestTrue(FString(TEXT("Expected test string 7 to have different decoded value")), FCString::Strcmp(*TestString, ReverseConvertedValue.Get()) == 0);
 		}
 
@@ -81,7 +81,7 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 			const FUTF8ToTCHAR ConvertedValue(ExpectedResult);
 			const FTCHARToUTF8 ReverseConvertedValue(ConvertedValue.Get());
 			TestTrue(FString(TEXT("Expected test string 8 to have different encoded value")), FCString::Strcmp(*TestString, ConvertedValue.Get()) == 0);
-			TestTrue(FString(TEXT("Expected test string 8 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, ReverseConvertedValue.Get()) == 0);
+			TestTrue(FString(TEXT("Expected test string 8 to have different decoded value")), FCStringAnsi::Strcmp(ExpectedResult, (const ANSICHAR*)ReverseConvertedValue.Get()) == 0);
 		}
 	}
 

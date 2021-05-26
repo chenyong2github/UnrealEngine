@@ -189,7 +189,7 @@ bool FStoreCborClient::Connect(const TCHAR* Host, uint16 Port)
 	FCStringAnsi::Sprintf(PortString, "%d", Port);
 
 	asio::ip::tcp::resolver Resolver(IoContext);
-	asio::ip::tcp::resolver::results_type Endpoints = Resolver.resolve(HostUtf8.Get(), PortString);
+	asio::ip::tcp::resolver::results_type Endpoints = Resolver.resolve((const char*)HostUtf8.Get(), PortString);
 
 	asio::error_code ErrorCode;
 #if PLATFORM_WINDOWS

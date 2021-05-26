@@ -114,7 +114,7 @@ namespace EventCacheStatic
 			// make space for the string
 			UTF8Stream.SetNumUninitialized(OldLen + StrLen, false);
 			// convert it to UTF8
-			int32 CharsWritten = FTCHARToUTF8_Convert::Convert((ANSICHAR*)&UTF8Stream[OldLen], StrLen, Str, Len);
+			int32 CharsWritten = FTCHARToUTF8_Convert::Convert((UTF8CHAR*)&UTF8Stream[OldLen], StrLen, Str, Len);
 			// figure out how many characters were actually written 
 			if (CharsWritten >= 0)
 			{
@@ -132,7 +132,7 @@ namespace EventCacheStatic
 					const int32 ActualCharsNeeded = FTCHARToUTF8_Convert::ConvertedLength(Str, Len);
 					UTF8Stream.SetNumUninitialized(OldLen + ActualCharsNeeded, false);
 					// convert it to UTF8 using the known number of charts
-					FTCHARToUTF8_Convert::Convert((ANSICHAR*)&UTF8Stream[OldLen], ActualCharsNeeded, Str, Len);
+					FTCHARToUTF8_Convert::Convert((UTF8CHAR*)&UTF8Stream[OldLen], ActualCharsNeeded, Str, Len);
 					bWroteFullString = true;
 				}
 			}

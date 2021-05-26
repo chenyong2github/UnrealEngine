@@ -74,7 +74,7 @@ void FLwsWebSocketsManager::InitWebSockets(TArrayView<const FString> Protocols)
 
 		// We need to hold on to the converted strings
 		ANSICHAR* Converted = static_cast<ANSICHAR*>(FMemory::Malloc(ConvertName.Length() + 1));
-		FCStringAnsi::Strcpy(Converted, ConvertName.Length(), ConvertName.Get());
+		FCStringAnsi::Strcpy(Converted, ConvertName.Length(), (const ANSICHAR*)ConvertName.Get());
 		lws_protocols LwsProtocol;
 		FMemory::Memset(&LwsProtocol, 0, sizeof(LwsProtocol));
 		LwsProtocol.name = Converted;
@@ -114,7 +114,7 @@ void FLwsWebSocketsManager::InitWebSockets(TArrayView<const FString> Protocols)
 	if (!ProxyAddress.IsEmpty())
 	{
 		Converter.Emplace(*ProxyAddress);
-		ContextInfo.http_proxy_address = Converter->Get();
+		ContextInfo.http_proxy_address = (const char*)Converter->Get();
 	}
 
 #if WITH_SSL

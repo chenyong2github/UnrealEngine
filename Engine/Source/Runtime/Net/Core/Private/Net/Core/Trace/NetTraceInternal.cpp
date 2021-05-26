@@ -491,7 +491,7 @@ FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
 		ThreadBuffer->DynamicNameHashToNameIdMap.Add(HashedName, NameId);
 
 		FTCHARToUTF8 Converter(Name);
-		FNetTraceInternal::Reporter::ReportAnsiName(NameId, Converter.Length() + 1, Converter.Get());		
+		FNetTraceInternal::Reporter::ReportAnsiName(NameId, Converter.Length() + 1, (const char*)Converter.Get());		
 		
 		return NameId;
 	}
@@ -524,7 +524,7 @@ FNetDebugNameId FNetTrace::TraceName(FName Name)
 		TCHAR Buffer[StringBufferSize];
 		uint32 NameLen = Name.ToString(Buffer);
 		FTCHARToUTF8 Converter(Buffer);
-		FNetTraceInternal::Reporter::ReportAnsiName(NameId, Converter.Length() + 1, Converter.Get());		
+		FNetTraceInternal::Reporter::ReportAnsiName(NameId, Converter.Length() + 1, (const char*)Converter.Get());		
 		
 		return NameId;
 	}

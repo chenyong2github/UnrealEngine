@@ -407,7 +407,7 @@ void FCbWriter::AddString(const FWideStringView Value)
 	StringData += SizeByteCount;
 	if (Size > 0)
 	{
-		FTCHARToUTF8_Convert::Convert(reinterpret_cast<ANSICHAR*>(StringData), Size, Value.GetData(), Value.Len());
+		FTCHARToUTF8_Convert::Convert(reinterpret_cast<UTF8CHAR*>(StringData), Size, Value.GetData(), Value.Len());
 	}
 	EndField(ECbFieldType::String);
 }
