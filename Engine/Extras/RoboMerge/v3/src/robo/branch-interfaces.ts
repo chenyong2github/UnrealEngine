@@ -193,7 +193,7 @@ export interface ForcedCl {
 export type GateInfo = {
 	cl: number
 	link?: string
-	date?: Date
+	timestamp?: number
 
 	// optional overrides for integration window (takes precedence over any in config)
 	integrationWindow?: IntegrationWindowPane[]
