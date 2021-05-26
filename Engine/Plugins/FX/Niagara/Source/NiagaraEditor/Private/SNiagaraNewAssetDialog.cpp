@@ -29,6 +29,11 @@ void SNiagaraNewAssetDialog::Construct(const FArguments& InArgs, FName InSaveCon
 	SelectedOptionIndex = DialogConfig.SelectedOptionIndex;
 
 	Options = InOptions;
+	// It is possible that the number of options has changed since the options config was last saved; make sure the SelectedOptionsIndex from the config is valid.
+	if (SelectedOptionIndex > Options.Num() - 1)
+	{
+		SelectedOptionIndex = Options.Num() - 1;
+	}
 
 	SetOnWindowClosed(FOnWindowClosed::CreateSP(this, &SNiagaraNewAssetDialog::OnWindowClosed));
 	
