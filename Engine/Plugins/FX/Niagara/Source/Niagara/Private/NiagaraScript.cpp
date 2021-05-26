@@ -1473,6 +1473,7 @@ void UNiagaraScript::PostLoad()
         	Source->ConditionalPostLoad();
 
 			// Synchronize with Definitions after source scripts have been postloaded.
+			// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
 			FVersionedNiagaraScript& VersionedScriptAdapter = VersionedScriptAdapters.Emplace_GetRef(this, Data.Version.VersionGuid);
 			VersionedScriptAdapter.PostLoadDefinitionsSubscriptions();
 			const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
@@ -1494,7 +1495,9 @@ void UNiagaraScript::PostLoad()
 			Args.bForceSynchronizeDefinitions = true;
 			Args.bSubscribeAllNameMatchParameters = true;
 			VersionedScriptAdapter.SynchronizeWithParameterDefinitions(Args);
-			VersionedScriptAdapter.InitParameterDefinitionsSubscriptions();
+
+			// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the script was already subscribed to, and do not force the sync.
+			VersionedScriptAdapter.SynchronizeWithParameterDefinitions();
 
         	bool bScriptVMNeedsRebuild = false;
         	FString RebuildReason;
@@ -1961,7 +1964,6 @@ FVersionedNiagaraScript FVersionedNiagaraScriptWeakPtr::Pin()
 	if (Script.IsValid())
 	{
 		FVersionedNiagaraScript PinnedVersionedNiagaraScript = FVersionedNiagaraScript(Script.Get(), Version);
-		PinnedVersionedNiagaraScript.InitParameterDefinitionsSubscriptions(); //@todo(ng) cleanup
 		return PinnedVersionedNiagaraScript;
 	}
 	return FVersionedNiagaraScript();
@@ -1998,7 +2000,6 @@ FString FVersionedNiagaraScript::GetSourceObjectPathName() const
 FVersionedNiagaraScriptWeakPtr FVersionedNiagaraScript::ToWeakPtr()
 {
 	FVersionedNiagaraScriptWeakPtr WeakVersionedNiagaraScript = FVersionedNiagaraScriptWeakPtr(Script, Version);
-	WeakVersionedNiagaraScript.InitParameterDefinitionsSubscriptions(); //@todo(ng) cleanup
 	return WeakVersionedNiagaraScript;
 }
 
@@ -2351,13 +2352,6 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 void UNiagaraScript::BeginDestroy()
 {
 	Super::BeginDestroy();
-
-#if WITH_EDITOR
-	for (FVersionedNiagaraScript& VersionedScriptAdapter : VersionedScriptAdapters)
-	{
-		VersionedScriptAdapter.CleanupParameterDefinitionsSubscriptions();
-	}
-#endif
 
 	if (!HasAnyFlags(RF_ClassDefaultObject) && ScriptResource)
 	{
