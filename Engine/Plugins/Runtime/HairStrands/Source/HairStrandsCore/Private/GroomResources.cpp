@@ -930,11 +930,12 @@ FHairStrandsDeformedRootResource::FHairStrandsDeformedRootResource(const FHairSt
 	}
 }
 
-void FHairStrandsDeformedRootResource::InternalAllocate(FRDGBuilder& GraphBuilder)
+void FHairStrandsDeformedRootResource::InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex)
 {
-	if (RootCount > 0)
+	if (RootCount > 0 && LODIndex >= 0 && LODIndex < LODs.Num())
 	{
-		for (FLOD& LOD : LODs)
+		FLOD& LOD = LODs[LODIndex];
+		if (LOD.Status == FLOD::EStatus::Invalid)
 		{		
 			LOD.Status = FLOD::EStatus::Initialized;
 			if (LOD.SampleCount > 0)
