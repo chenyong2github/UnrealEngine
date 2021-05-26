@@ -140,18 +140,18 @@ export namespace UnrealEngine {
 
       switch (message.Type) {
         case UnrealApi.PresetEvent.FieldsChanged: {
-          const preset = _.find(presets, p => p.Name === message.PresetName);
-          if (!preset)
-            break;
+          // const preset = _.find(presets, p => p.Name === message.PresetName);
+          // if (!preset)
+          //   break;
 
-          for (const field of message.ChangedFields) {
-            const property = _.find(preset.ExposedProperties, p => p.DisplayName === field.PropertyLabel); 
-            if (!property)
-              continue;
+          // for (const field of message.ChangedFields) {
+          //   const property = _.find(preset.ExposedProperties, p => p.DisplayName === field.PropertyLabel); 
+          //   if (!property)
+          //     continue;
 
-            setPayloadValueInternal(payloads, [message.PresetName, property.ID], field.PropertyValue);
-            Notify.emitValueChange(message.PresetName, property.ID, field.PropertyValue);
-          }
+          //   setPayloadValueInternal(payloads, [message.PresetName, property.ID], field.PropertyValue);
+          //   Notify.emitValueChange(message.PresetName, property.ID, field.PropertyValue);
+          // }
           break;
         }
 
@@ -527,18 +527,6 @@ export namespace UnrealEngine {
     }
   }
 
-  export async function renamePresetProperty(preset: string, type: string, property: string, label: string, onChanged: (value: string) => void): Promise<void> {
-    try {
-      const url = `/remote/preset/${preset}/${type}/${property}/label`;
-      const res = await put<UnrealApi.RenameLabel>(url, { NewLabel: label });
-      await refresh();
-      onChanged?.(res?.AssignedLabel ?? label);
-
-    } catch (err) {
-      console.log(`Failed to rename a property`);
-    }
-  }
-
   export async function setPresetPropertyMetadata(preset: string, property: string, metadata: string, value: string) {
     try {
 
@@ -551,32 +539,7 @@ export namespace UnrealEngine {
         Notify.emit('presets', presets);
       }
     } catch (err) {
-      console.log(`Failed to rename a property`);
-    }
-  }
-
-  export async function executeAssetAction(asset: string, action: AssetAction, meta: any): Promise<void> {
-    if (!asset)
-      return;
-
-    switch (action) {
-      case AssetAction.SequencePlay:
-        await playSequence(asset);
-        break;
-    }
-  }
-
-  async function playSequence(asset: string) {
-    const sequencer = '/Script/LevelSequenceEditor.Default__LevelSequenceEditorBlueprintLibrary';
-    const editor = '/Script/EditorScriptingUtilities.Default__EditorAssetLibrary';
-    try {
-      await put('/remote/object/call', { objectPath: editor, functionName: 'LoadAsset', parameters: { 'AssetPath': asset }  });
-      await put('/remote/object/call', { objectPath: sequencer, functionName: 'OpenLevelSequence', parameters: { 'LevelSequence': asset }  });
-      await put('/remote/object/call', { objectPath: sequencer, functionName: 'Pause' });
-      await put('/remote/object/call', { objectPath: sequencer, functionName: 'SetCurrentTime', parameters: { NewFrame: 0 } });
-      await put('/remote/object/call', { objectPath: sequencer, functionName: 'Play' });
-    } catch (err) {
-      console.log('Failed to play sequence');
+      console.log(`Failed to set property metadata`);
     }
   }
 

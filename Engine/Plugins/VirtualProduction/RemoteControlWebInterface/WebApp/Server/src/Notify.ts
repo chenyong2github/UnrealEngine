@@ -17,8 +17,6 @@ export namespace Notify {
         .on('actor', UnrealEngine.setActorValue)
         .on('reset', UnrealEngine.resetPayloadValue)
         .on('execute', UnrealEngine.executeFunction)
-        .on('asset', UnrealEngine.executeAssetAction)
-        .on('rename', UnrealEngine.renamePresetProperty)
         .on('metadata', UnrealEngine.setPresetPropertyMetadata);
 
       if (UnrealEngine.isConnected())

@@ -184,6 +184,7 @@ export enum TabLayout {
 
 export enum ScreenType {
   Snapshot =      'Snapshot',
+  Sequencer =     'Sequencer',
 }
 
 export interface IScreen {

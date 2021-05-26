@@ -2,7 +2,7 @@ import { Dispatch } from 'redux';
 import { createAction, createReducer } from 'redux-act';
 import dotProp from 'dot-prop-immutable';
 import io from 'socket.io-client';
-import { IAsset, IPayload, IPayloads, IPreset, IView, PropertyValue, AssetAction } from '../shared';
+import { IAsset, IPayload, IPayloads, IPreset, IView, PropertyValue, AssetAction, TabLayout } from '../shared';
 import _ from 'lodash';
 
 
@@ -117,7 +117,18 @@ export const _api = {
     select: (preset?: IPreset) => _dispatch(API.PRESET_SELECT(preset?.Name)),
   },
   views: {
-    get: (preset: string): Promise<IView> => _get(`/api/presets/view?preset=${preset}`, API.VIEW),
+    get: async(preset: string): Promise<IView> => {
+      let view = await _get(`/api/presets/view?preset=${preset}`);
+      if (typeof(view) !== 'object' || !view?.tabs?.length) {
+        view = {
+          tabs: [{ name: 'Tab 1', layout: TabLayout.Stack, panels: [] }]
+        };
+      }
+
+      _dispatch(API.VIEW(view));
+
+      return view;
+    },
     set: (view: IView) => {
       const preset = _internal.getPreset();
 
@@ -138,13 +149,6 @@ export const _api = {
     execute: (func: string) => {
       const preset = _internal.getPreset();
       _socket.emit('execute', preset, null, func);
-    },
-    asset: (asset: string, action: AssetAction, meta?: any) => {
-      _socket.emit('asset', asset, action, meta);
-    },
-    rename: (type: 'property' | 'function', property: string, label: string, callback: (label: string) => void) => {
-      const preset = _internal.getPreset();
-      _socket.emit('rename', preset, type, property, label, callback);
     },
     metadata: (property: string, meta: string, value: string) => {
       const preset = _internal.getPreset();
@@ -203,9 +207,13 @@ const reducer = createReducer<ApiState>({}, initialState);
 reducer
   .on(API.STATUS, (state, status) => dotProp.merge(state, 'status', status))
   .on(API.PRESETS, (state, presets) => {
-    state = dotProp.set(state, 'presets', _.keyBy(presets, 'Name'));
+    const presetsMap = _.keyBy(presets, 'Name');
+    state = dotProp.set(state, 'presets', presetsMap);
 
-    const preset = presets?.[0]?.Name;
+    let preset = localStorage.getItem('preset');
+    if (!preset || !presetsMap[preset])
+      preset = presets[0]?.Name;
+
     if (!state.preset && preset) {
       _api.views.get(preset);
       _api.payload.get(preset);
@@ -235,6 +243,7 @@ reducer
     return state;
   })
   .on(API.PRESET_SELECT, (state, preset) => {
+    localStorage.setItem('preset', preset);
     _api.views.get(preset);
     _api.payload.get(preset);
     return { ...state, preset, view: { tabs: [] }, payload: {} };
