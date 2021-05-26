@@ -931,13 +931,23 @@ const FSlateBrush* SDetailsView::OnGetLockButtonImageResource() const
 
 bool SDetailsView::IsShowHiddenPropertiesWhilePlayingChecked() const
 {
-	return GetDefault<UEditorStyleSettings>()->bShowHiddenPropertiesWhilePlaying;
+	const FDetailsViewConfig* ViewConfig = GetConstViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		return ViewConfig->bShowHiddenPropertiesWhilePlaying;
+	}
+
+	return false;
 }
 
 void SDetailsView::OnShowHiddenPropertiesWhilePlayingClicked()
 {
-	GetMutableDefault<UEditorStyleSettings>()->bShowHiddenPropertiesWhilePlaying = !GetDefault<UEditorStyleSettings>()->bShowHiddenPropertiesWhilePlaying;
-	GConfig->SetBool(TEXT("/Script/EditorStyle.EditorStyleSettings"), TEXT("bShowHiddenPropertiesWhilePlaying"), GetMutableDefault<UEditorStyleSettings>()->bShowHiddenPropertiesWhilePlaying, GEditorPerProjectIni);
+	const bool bNewValue = !IsShowHiddenPropertiesWhilePlayingChecked();
+
+	GetMutableViewConfig().bShowAllAdvanced = bNewValue;
+	SaveViewConfig();
+
+	GConfig->SetBool(TEXT("/Script/EditorStyle.EditorStyleSettings"), TEXT("bShowHiddenPropertiesWhilePlaying"), bNewValue, GEditorPerProjectIni);
 
 	// Force a refresh of the whole details panel, as the entire set of visible properties may be different
 	ForceRefresh();
@@ -958,6 +968,10 @@ FSlateColor SDetailsView::GetToggleFavoritesColor() const
 FReply SDetailsView::OnToggleFavoritesClicked()
 {
 	CurrentFilter.bShowFavoritesCategory = !CurrentFilter.bShowFavoritesCategory;
+
+	GetMutableViewConfig().bShowFavoritesCategory = CurrentFilter.bShowFavoritesCategory;
+	SaveViewConfig();
+
 	RerunCurrentFilter();
 
 	return FReply::Handled();

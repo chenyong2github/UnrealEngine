@@ -562,10 +562,10 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 	bool bPassesAllFilters = true;
 
 	if( InFilter.FilterStrings.Num() > 0 || 
-		InFilter.bShowOnlyModifiedProperties == true || 
+		InFilter.bShowOnlyModified == true || 
 		InFilter.bShowOnlyWhitelisted == true || 
-		InFilter.bShowKeyable == true || 
-		InFilter.bShowAnimated == true)
+		InFilter.bShowOnlyKeyable == true || 
+		InFilter.bShowOnlyAnimated == true)
 	{
 		const bool bSearchFilterIsEmpty = InFilter.FilterStrings.Num() == 0;
 
@@ -582,11 +582,11 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 			const bool bIsParentSeenDueToFiltering = PropertyNodePin->HasNodeFlags(EPropertyNodeFlags::IsParentSeenDueToFiltering) != 0;
 
 			const bool bPassesSearchFilter = bPassesCategoryFilter || bPassesValueFilter || bSearchFilterIsEmpty || ( bIsNotBeingFiltered || bIsSeenDueToFiltering || bIsParentSeenDueToFiltering );
-			const bool bPassesModifiedFilter = bPassesSearchFilter && ( InFilter.bShowOnlyModifiedProperties == false || PropertyNodePin->GetDiffersFromDefault() == true );
+			const bool bPassesModifiedFilter = bPassesSearchFilter && ( InFilter.bShowOnlyModified == false || PropertyNodePin->GetDiffersFromDefault() == true );
 			const bool bPassesWhitelistedFilter = InFilter.bShowOnlyWhitelisted ? InFilter.WhitelistedProperties.Contains(*FPropertyNode::CreatePropertyPath(PropertyNodePin.ToSharedRef())) : true;
 
 			bool bPassesKeyableFilter = true;
-			if (InFilter.bShowKeyable)
+			if (InFilter.bShowOnlyKeyable)
 			{
 				FObjectPropertyNode* ParentPropertyNode = PropertyNodePin->FindObjectItemParent();
 				if (ParentPropertyNode != nullptr)
@@ -599,7 +599,7 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 					bPassesKeyableFilter = false;
 				}
 			}
-			const bool bPassesAnimatedFilter = (InFilter.bShowAnimated == false || Local::ItemIsAnimated(ItemNode, PropertyNodePin));
+			const bool bPassesAnimatedFilter = (InFilter.bShowOnlyAnimated == false || Local::ItemIsAnimated(ItemNode, PropertyNodePin));
 
 			// The property node is visible (note categories are never visible unless they have a child that is visible )
 			bPassesAllFilters = bPassesSearchFilter && bPassesModifiedFilter && bPassesWhitelistedFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
@@ -607,19 +607,19 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 		else if (InCustomization.HasCustomWidget())
 		{
 			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, InCustomization.WidgetDecl->FilterTextString.ToString());
-			const bool bPassesModifiedFilter = InFilter.bShowOnlyModifiedProperties == false || InCustomization.WidgetDecl->EditConditionValue.Get(false);
+			const bool bPassesModifiedFilter = InFilter.bShowOnlyModified == false || InCustomization.WidgetDecl->EditConditionValue.Get(false);
 			//@todo we need to support custom widgets for keyable, animated, in particular for transforms(ComponentTransformDetails).
-			const bool bPassesKeyableFilter = (InFilter.bShowKeyable == false);
-			const bool bPassesAnimatedFilter = (InFilter.bShowAnimated == false);
+			const bool bPassesKeyableFilter = (InFilter.bShowOnlyKeyable == false);
+			const bool bPassesAnimatedFilter = (InFilter.bShowOnlyAnimated == false);
 			bPassesAllFilters = bPassesTextFilter && bPassesModifiedFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
 		}
 		else if (InCustomization.HasCustomBuilder())
 		{
 			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, InCustomization.CustomBuilderRow->GetWidgetRow().FilterTextString.ToString());
 			//@todo we need to support custom builders for modified, keyable, animated, in particular for transforms(ComponentTransformDetails).
-			const bool bPassesModifiedFilter = (InFilter.bShowOnlyModifiedProperties == false);
-			const bool bPassesKeyableFilter = (InFilter.bShowKeyable == false);
-			const bool bPassesAnimatedFilter = (InFilter.bShowAnimated == false);
+			const bool bPassesModifiedFilter = (InFilter.bShowOnlyModified == false);
+			const bool bPassesKeyableFilter = (InFilter.bShowOnlyKeyable == false);
+			const bool bPassesAnimatedFilter = (InFilter.bShowOnlyAnimated == false);
 			bPassesAllFilters = bPassesTextFilter && bPassesModifiedFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
 		}
 	}
@@ -744,7 +744,7 @@ TAttribute<bool> FDetailItemNode::IsPropertyEditingEnabled() const
 
 bool FDetailItemNode::IsPropertyEditingEnabledImpl() const
 {
-	bool IsParentEnabledValue = IsParentEnabled.Get(true);
+	const bool IsParentEnabledValue = IsParentEnabled.Get(true);
 	if (Customization.HasCustomWidget())
 	{
 		IDetailsViewPrivate* DetailsView = GetDetailsView();

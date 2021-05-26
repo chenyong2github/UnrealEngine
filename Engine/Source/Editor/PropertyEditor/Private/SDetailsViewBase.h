@@ -22,6 +22,7 @@
 #include "IDetailsViewPrivate.h"
 #include "PropertyRowGenerator.h"
 #include "PropertyCustomizationHelpers.h"
+#include "DetailsViewConfig.h"
 
 class FDetailCategoryImpl;
 class FDetailLayoutBuilderImpl;
@@ -39,12 +40,12 @@ typedef STreeView< TSharedRef<class FDetailTreeNode> > SDetailTree;
 /** Represents a filter which controls the visibility of items in the details view */
 struct FDetailFilter
 {
-	FDetailFilter()
-		: bShowOnlyModifiedProperties(false)
+	FDetailFilter() :
+		bShowOnlyModified(false)
 		, bShowAllAdvanced(false)
 		, bShowAllChildrenIfCategoryMatches(true)
-		, bShowKeyable(false)
-		, bShowAnimated(false)
+		, bShowOnlyKeyable(false)
+		, bShowOnlyAnimated(false)
 		, bShowFavoritesCategory(false)
 		, bShowOnlyWhitelisted(false)
 	{}
@@ -52,26 +53,25 @@ struct FDetailFilter
 	bool IsEmptyFilter() const 
 	{ 
 		return FilterStrings.Num() == 0 
-			&& bShowOnlyModifiedProperties == false 
 			&& bShowAllAdvanced == false 
 			&& bShowOnlyWhitelisted == false 
 			&& bShowAllChildrenIfCategoryMatches == false 
-			&& bShowKeyable == false 
-			&& bShowAnimated == false;
+			&& bShowOnlyKeyable == false 
+			&& bShowOnlyAnimated == false;
 	}
 
 	/** Any user search terms that items must match */
 	TArray<FString> FilterStrings;
 	/** If we should only show modified properties */
-	bool bShowOnlyModifiedProperties;
+	bool bShowOnlyModified;
 	/** If we should show all advanced properties */
 	bool bShowAllAdvanced;
 	/** If we should show all the children if their category name matches the search */
 	bool bShowAllChildrenIfCategoryMatches;
 	/** If we should only show keyable properties */
-	bool bShowKeyable;
+	bool bShowOnlyKeyable;
 	/** If we should only show animated properties */
-	bool bShowAnimated;
+	bool bShowOnlyAnimated;
 	/** If we should show the favorites category. */
 	bool bShowFavoritesCategory;
 	/** If we should only show whitelisted properties */
@@ -83,16 +83,7 @@ struct FDetailFilter
 class SDetailsViewBase : public IDetailsViewPrivate
 {
 public:
-	SDetailsViewBase() : 
-		bHasActiveFilter(false)
-		, bIsLocked(false)
-		, bHasOpenColorPicker(false)
-		, bDisableCustomDetailLayouts( false )
-		, NumVisibleTopLevelObjectNodes(0)
-		, bPendingCleanupTimerSet(false)
-	{
-	}
-
+	SDetailsViewBase();
 	virtual ~SDetailsViewBase();
 
 	/**
@@ -268,7 +259,7 @@ protected:
 	TSharedRef<ITableRow> OnGenerateRowForDetailTree( TSharedRef<FDetailTreeNode> InTreeNode, const TSharedRef<STableViewBase>& OwnerTable );
 
 	/** @return true if show only modified is checked */
-	bool IsShowOnlyModifiedChecked() const { return CurrentFilter.bShowOnlyModifiedProperties; }
+	bool IsShowOnlyModifiedChecked() const { return CurrentFilter.bShowOnlyModified; }
 
 	/** @return true if custom filter is checked */
 	bool IsCustomFilterChecked() const { return bCustomFilterActive; }
@@ -283,10 +274,10 @@ protected:
 	bool IsShowAllChildrenIfCategoryMatchesChecked() const { return CurrentFilter.bShowAllChildrenIfCategoryMatches; }
 	
 	/** @return true if show keyable is checked */
-	bool IsShowKeyableChecked() const { return CurrentFilter.bShowKeyable; }
+	bool IsShowKeyableChecked() const { return CurrentFilter.bShowOnlyKeyable; }
 	
 	/** @return true if show animated is checked */
-	bool IsShowAnimatedChecked() const { return CurrentFilter.bShowAnimated; }
+	bool IsShowAnimatedChecked() const { return CurrentFilter.bShowOnlyAnimated; }
 
 	/** Called when show only modified is clicked */
 	void OnShowOnlyModifiedClicked();
@@ -365,6 +356,10 @@ protected:
 	
 	void SavePreSearchExpandedItems();
 	void RestorePreSearchExpandedItems();
+
+	struct FDetailsViewConfig& GetMutableViewConfig();
+	const FDetailsViewConfig* GetConstViewConfig() const;
+	void SaveViewConfig();
 
 protected:
 	/** The user defined args for the details view */
@@ -458,4 +453,5 @@ protected:
 	FText CustomFilterLabel;
 
 	mutable TSharedPtr<FEditConditionParser> EditConditionParser;
+
 };
