@@ -60,7 +60,7 @@ void AppendStringToBuffer(const FStringView InString, const int32 InStartIndex, 
 	//				   In practice this may not be an issue as our platforms should all use the other functions, but to fix it we'd need UTF-8 iteration functions to find the correct points the buffer
 	FStringView SubString = InString.Mid(InStartIndex, InLength);
 	FTCHARToUTF8 SubStringUtf8(SubString.GetData(), SubString.Len());
-	hb_buffer_add_utf8(InHarfBuzzTextBuffer, SubStringUtf8.Get(), SubStringUtf8.Length(), 0, SubStringUtf8.Length());
+	hb_buffer_add_utf8(InHarfBuzzTextBuffer, (const char*)SubStringUtf8.Get(), SubStringUtf8.Length(), 0, SubStringUtf8.Length());
 }
 
 template <>

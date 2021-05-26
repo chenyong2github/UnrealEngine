@@ -20,7 +20,7 @@ static void AddMcppDefines(TArray<TArray<ANSICHAR>>& OutOptions, const TMap<FStr
 	{
 		FString Argument(FString::Printf(TEXT("-D%s=%s"), *(It.Key()), *(It.Value())));
 		FTCHARToUTF8 Converter(Argument.GetCharArray().GetData());
-		OutOptions.Emplace(Converter.Get(), Converter.Length() + 1);
+		OutOptions.Emplace((const ANSICHAR*)Converter.Get(), Converter.Length() + 1);
 	}
 }
 

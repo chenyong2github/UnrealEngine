@@ -145,7 +145,7 @@ void FLwsWebSocket::Close(int32 Code, const FString& Reason)
 	// We are doing this conversion here so we don't have to do it on the ws thread
 	FTCHARToUTF8 Convert(*Reason);
 	ANSICHAR* ANSIReason = static_cast<ANSICHAR*>(FMemory::Malloc(Convert.Length() + 1));
-	FCStringAnsi::Strcpy(ANSIReason, Convert.Length(), Convert.Get());
+	FCStringAnsi::Strcpy(ANSIReason, Convert.Length(), (const ANSICHAR*)Convert.Get());
 	ANSIReason[Convert.Length()] = 0;
 
 	UE_LOG(LogWebSockets, Verbose, TEXT("FLwsWebSocket[%d]::Close: Close queued with code=%d reason=%s"), Identifier, Code, *Reason);
@@ -713,7 +713,7 @@ void FLwsWebSocket::ConnectInternal(struct lws_context &LwsContext)
 		OptionalCombinedProtocolsUTF8.Emplace(*CombinedProtocols);
 	}
 
-	const char* const CombinedProtocolsUTF8 = OptionalCombinedProtocolsUTF8.IsSet() ? OptionalCombinedProtocolsUTF8.GetValue().Get() : nullptr;
+	const char* const CombinedProtocolsUTF8 = OptionalCombinedProtocolsUTF8.IsSet() ? (const char*)OptionalCombinedProtocolsUTF8.GetValue().Get() : nullptr;
 
 	struct lws_client_connect_info ConnectInfo = {};
 	ConnectInfo.context = &LwsContext;

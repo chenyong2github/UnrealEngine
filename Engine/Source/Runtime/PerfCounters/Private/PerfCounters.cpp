@@ -385,7 +385,7 @@ bool FPerfCounters::ReportUnplayableCondition(const FString& ConditionDescriptio
 
 	// include description for debugging
 	FTCHARToUTF8 Converter(*FString::Printf(TEXT("Unplayable condition encountered: %s\n"), *ConditionDescription));
-	ReportFile->Serialize(reinterpret_cast<void *>(const_cast<char *>(Converter.Get())), Converter.Length());
+	ReportFile->Serialize(reinterpret_cast<void *>(const_cast<char *>(reinterpret_cast<const char *>(Converter.Get()))), Converter.Length());
 
 	ReportFile->Close();
 	delete ReportFile;

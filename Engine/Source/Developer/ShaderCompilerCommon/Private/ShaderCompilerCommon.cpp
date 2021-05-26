@@ -1557,7 +1557,7 @@ void DumpDebugShaderText(const FShaderCompilerInput& Input, const FString& InSou
 	// Provide mutable container to pass string to FArchive inside inner function
 	TArray<ANSICHAR> SourceAnsi;
 	SourceAnsi.SetNum(InSource.Len() + 1);
-	FCStringAnsi::Strncpy(SourceAnsi.GetData(), StringConverter.Get(), SourceAnsi.Num());
+	FCStringAnsi::Strncpy(SourceAnsi.GetData(), (ANSICHAR*)StringConverter.Get(), SourceAnsi.Num());
 
 	// Forward temporary container to primary function
 	DumpDebugShaderText(Input, SourceAnsi.GetData(), InSource.Len(), FileExtension);

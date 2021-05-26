@@ -1586,7 +1586,7 @@ struct FEditorShaderCodeArchive
 				FString DumpFile = DebugLibFolder / TEXT("Dump.txt");
 				TUniquePtr<FArchive> DumpAr(IFileManager::Get().CreateFileWriter(*DumpFile));
 				FTCHARToUTF8 Converter(*ExtendedStats.TextualRepresentation);
-				DumpAr->Serialize(const_cast<char*>(Converter.Get()), Converter.Length());
+				DumpAr->Serialize(const_cast<UTF8CHAR*>(reinterpret_cast<const UTF8CHAR*>(Converter.Get())), Converter.Length());
 				UE_LOG(LogShaderLibrary, Display, TEXT("Textual dump saved to '%s'"), *DumpFile);
 			}
 #if 0 // creating a graphviz graph - maybe one day we'll return to this

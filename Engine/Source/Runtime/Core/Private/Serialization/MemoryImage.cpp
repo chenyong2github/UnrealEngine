@@ -1186,7 +1186,7 @@ FHashedName::FHashedName(const FName& InName)
 			}
 			UpperNameBuffer.Wide[NameLength] = 0;
 			const FTCHARToUTF8 UpperNameUTF8(UpperNameBuffer.Wide);
-			Hash = CityHash64WithSeed(UpperNameUTF8.Get(), UpperNameUTF8.Length(), InternalNumber);
+			Hash = CityHash64WithSeed((const char*)UpperNameUTF8.Get(), UpperNameUTF8.Length(), InternalNumber);
 #if WITH_EDITORONLY_DATA
 			{
 				const FTCHARToUTF8 NameUTF8(NameBuffer.Wide);

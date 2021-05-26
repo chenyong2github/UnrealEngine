@@ -116,7 +116,7 @@ void FOutputDeviceHelper::FormatCastAndSerializeLine(FArchive& Output, const TCH
 	const int32 ConvertedPrefixLength = FTCHARToUTF8_Convert::ConvertedLength(*Prefix, Prefix.Len());
 
 	// Allocate the conversion buffer. It's ok to always add some slack for the line terminator even if not required
-	TArray<ANSICHAR, TInlineAllocator<2 * DEFAULT_STRING_CONVERSION_SIZE>> ConvertedText;
+	TArray<UTF8CHAR, TInlineAllocator<2 * DEFAULT_STRING_CONVERSION_SIZE>> ConvertedText;
 	ConvertedText.AddUninitialized(ConvertedPrefixLength + ConvertedDataLength + (bAutoEmitLineTerminator ? ConvertedTerminatorLength : 0));
 	// Do the actual conversion to the pre-allocated buffer
 	FTCHARToUTF8_Convert::Convert(ConvertedText.GetData(), ConvertedPrefixLength, *Prefix, PrefixLength);

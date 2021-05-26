@@ -130,7 +130,7 @@ void FCborWriter::WriteValue(const FString& Value)
 	WriteUIntValue(ECborCode::TextString, *Stream, (uint64)UTF8String.Length());
 	// Write string
 	check(sizeof(decltype(*UTF8String.Get())) == 1);
-	Stream->Serialize(const_cast<char*>(UTF8String.Get()), UTF8String.Length());
+	Stream->Serialize(const_cast<char*>(reinterpret_cast<const char*>(UTF8String.Get())), UTF8String.Length());
 }
 
 void FCborWriter::WriteValue(const char* CString, uint64 Length)
