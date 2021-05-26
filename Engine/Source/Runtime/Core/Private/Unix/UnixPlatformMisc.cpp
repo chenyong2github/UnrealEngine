@@ -20,6 +20,7 @@
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
+#include "Misc/FileHelper.h"
 #include "Unix/UnixPlatformCrashContext.h"
 #include "Misc/ConfigCacheIni.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
@@ -28,6 +29,7 @@
 	#include <cpuid.h>
 #endif // PLATFORM_HAS_CPUID
 #include <sys/sysinfo.h>
+#include <sys/utsname.h>
 #include <sched.h>
 #include <sys/vfs.h>
 #include <sys/ioctl.h>
@@ -420,11 +422,138 @@ bool FUnixPlatformMisc::HasOverriddenReturnCode(uint8 * OverriddenReturnCodeToUs
 	return GHasOverriddenReturnCode;
 }
 
+namespace
+{
+	/**
+	 * Gets a Linux kernel version string
+	 */
+	FString GetKernelVersion()
+	{
+		struct utsname SysInfo;
+
+		if (uname(&SysInfo) == 0)
+		{
+			return FString(SysInfo.release);
+		}
+
+		return FString();
+	}
+
+	/**
+	 * Reads a Linux style configuration file ignoring # as comments
+	 */
+	TMap<FString, FString> ReadConfigurationFile(const TCHAR* Filename)
+	{
+		TMap<FString, FString> Contents;
+		TArray<FString> ConfigLines;
+		if (FFileHelper::LoadANSITextFileToStrings(Filename, &IFileManager::Get(), ConfigLines))
+		{
+			for (const FString& Line : ConfigLines)
+			{
+				FString CleanLine = Line.TrimStartAndEnd();
+				FString KeyString;
+				FString ValueString;
+				// Skip Comments
+				if (!CleanLine.StartsWith("#"))
+				{
+					if (CleanLine.Split(TEXT("="), &KeyString, &ValueString, ESearchCase::CaseSensitive))
+					{
+						KeyString.TrimStartAndEndInline();
+						ValueString.TrimStartAndEndInline();
+						if (ValueString.Left(1) == TEXT("\""))
+						{
+							ValueString.RightChopInline(1, false);
+						}
+						if (ValueString.Right(1) == TEXT("\""))
+						{
+							ValueString.LeftChopInline(1, false);
+						}
+						Contents.Add(KeyString, ValueString);
+					}
+				}
+			}
+		}
+		return Contents;
+	}
+}
+
+void FUnixPlatformMisc::GetOSVersions(FString& out_OSVersionLabel, FString& out_OSSubVersionLabel)
+{
+	// Set up Fallback Details
+	out_OSVersionLabel = FString(TEXT("GenericLinuxVersion"));
+	// Get Kernel Version
+	out_OSSubVersionLabel = GetKernelVersion();
+	// Get PRETTY_NAME/NAME or redhat-release line
+	TMap<FString, FString> OsInfo = ReadConfigurationFile(TEXT("/etc/os-release"));
+	if (OsInfo.Num() > 0)
+	{
+		FString* VersionAddress = OsInfo.Find(TEXT("PRETTY_NAME"));
+		if (VersionAddress)
+		{
+			FString* VersionNameAddress = nullptr;
+			if (VersionAddress->Equals(TEXT("Linux")))
+			{
+				VersionNameAddress = OsInfo.Find(TEXT("NAME"));
+				if (VersionNameAddress != nullptr)
+				{
+					VersionAddress = VersionNameAddress;
+				}
+			}
+
+			out_OSVersionLabel = FString(*VersionAddress);
+		}
+	}
+	else
+	{
+		TArray <FString> RedHatRelease;
+		if (FFileHelper::LoadANSITextFileToStrings(TEXT("/etc/redhat-release"), &IFileManager::Get(), RedHatRelease))
+		{
+			if (RedHatRelease.IsValidIndex(0))
+			{
+				out_OSVersionLabel = RedHatRelease[0];
+			}
+		}
+	}
+}
+
 FString FUnixPlatformMisc::GetOSVersion()
 {
-	// TODO [RCL] 2015-07-15: check if /etc/os-release or /etc/redhat-release exist and parse it
-	// See void FUnixPlatformSurvey::GetOSName(FHardwareSurveyResults& OutResults)
-	return FString();
+	TMap<FString, FString> OsInfo = ReadConfigurationFile(TEXT("/etc/os-release"));
+	if (OsInfo.Num() > 0)
+	{
+		FString Version;
+		FString* IDAddress = OsInfo.Find(TEXT("ID"));
+		if (IDAddress != nullptr)
+		{
+			Version = FString(*IDAddress);
+		}
+
+		IDAddress = OsInfo.Find(TEXT("VERSION_ID"));
+		if (IDAddress != nullptr)
+		{
+			Version += FString(*IDAddress);
+		}
+		else
+		{
+			Version += GetKernelVersion();
+		}
+
+		if (!Version.IsEmpty())
+		{
+			return Version;
+		}
+	}
+
+	TArray<FString> RedHatRelease;
+	if (FFileHelper::LoadANSITextFileToStrings(TEXT("/etc/redhat-release"), &IFileManager::Get(), RedHatRelease))
+	{
+		if (RedHatRelease.IsValidIndex(0))
+		{
+			return RedHatRelease[0];
+		}
+	}
+
+	return GetKernelVersion();
 }
 
 const TCHAR* FUnixPlatformMisc::GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error)

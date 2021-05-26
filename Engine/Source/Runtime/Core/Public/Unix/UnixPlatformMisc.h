@@ -131,6 +131,7 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 	 * @return true if the error code has been overriden, false if not
 	 */
 	static bool HasOverriddenReturnCode(uint8 * OverriddenReturnCodeToUsePtr);
+	static void GetOSVersions(FString& out_OSVersionLabel, FString& out_OSSubVersionLabel);
 	static FString GetOSVersion();
 	static FString GetLoginId();
 

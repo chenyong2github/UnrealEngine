@@ -20,11 +20,6 @@ struct FUnixPlatformSurvey : public FGenericPlatformSurvey
 private:
 
 	/**
-	 * Fills out the actual OS name ("distro" is an OS for all the practical purposes), as detailed as possible.
-	 */
-	static void GetOSName(FHardwareSurveyResults& Results);
-
-	/**
 	 * Safely write strings into the fixed length TCHAR buffers of a FHardwareSurveyResults member
 	 */
 	static void WriteFStringToResults(TCHAR* OutBuffer, const FString& InString);

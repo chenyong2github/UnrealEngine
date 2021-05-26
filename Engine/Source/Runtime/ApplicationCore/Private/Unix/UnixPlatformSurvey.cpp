@@ -10,6 +10,14 @@ bool FUnixPlatformSurvey::GetSurveyResults(FHardwareSurveyResults& OutResults, b
 {
 	FMemory::Memset(&OutResults, 0, sizeof(FHardwareSurveyResults));
 	WriteFStringToResults(OutResults.Platform, TEXT("Unix"));
+	
+	// OS
+	FString OSVersionLabel;
+	FString OSSubVersionLabel;
+	FPlatformMisc::GetOSVersions(OSVersionLabel, OSSubVersionLabel);
+	WriteFStringToResults(OutResults.OSVersion, OSVersionLabel);
+	WriteFStringToResults(OutResults.OSSubVersion, OSSubVersionLabel);
+	OutResults.OSBits = FPlatformMisc::Is64bitOperatingSystem() ? 64 : 32;
 
 	// CPU
 	OutResults.CPUCount = FPlatformMisc::NumberOfCores();  // TODO [RCL] 2015-07-15: parse /proc/cpuinfo for GHz/brand
@@ -30,19 +38,6 @@ bool FUnixPlatformSurvey::GetSurveyResults(FHardwareSurveyResults& OutResults, b
 	WriteFStringToResults(OutResults.LastSurveyErrorDetail, TEXT("CPU, OS details are missing"));
 
 	return true;
-}
-
-void FUnixPlatformSurvey::GetOSName(FHardwareSurveyResults& OutResults)
-{
-	// TODO [RCL] 2015-07-15: check if /etc/os-release or /etc/redhat-release exist and parse it
-
-	/*
-	TArray<FString> OsReleaseLines;
-	if( FFileHelper::LoadANSITextFileToStrings(TEXT("/etc/os-release"), &IFileManager::Get(), OsReleaseLines))
-	{
-		//...
-	}
-	*/
 }
 
 void FUnixPlatformSurvey::WriteFStringToResults(TCHAR* OutBuffer, const FString& InString)
