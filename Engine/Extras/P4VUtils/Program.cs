@@ -49,6 +49,7 @@ namespace P4VUtils
 			["edigrate"] = new EdigrateCommand(),
 			["preflight"] = new PreflightCommand(),
 			["preflightandsubmit"] = new PreflightAndSubmitCommand(),
+			["findlastedit"] = new FindLastEditCommand(),
 		};
 
 		static void PrintHelp(ILogger Logger)
@@ -67,7 +68,7 @@ namespace P4VUtils
 			}
 
 			Logger.LogInformation("Commands:");
-			HelpUtils.PrintTable(Table, 2, 15);
+			HelpUtils.PrintTable(Table, 2, 15, Logger);
 		}
 
 		static async Task<int> Main(string[] Args)
@@ -115,7 +116,7 @@ namespace P4VUtils
 				if (Args.Any(x => x.Equals("-help", StringComparison.OrdinalIgnoreCase)))
 				{
 					List<KeyValuePair<string, string>> Parameters = CommandLineArguments.GetParameters(Command.GetType());
-					HelpUtils.PrintHelp(Args[0], Command.GetType());
+					HelpUtils.PrintHelp(Args[0], Command.GetType(), Logger);
 					return 0;
 				}
 
