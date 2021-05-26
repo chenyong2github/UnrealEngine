@@ -25,10 +25,11 @@ public:
 	class FSlot : public TSlotBase<FSlot>
 	{
 	public:
-		FSlot()
-			: TSlotBase<FSlot>()
-		{
-		}
+		using TSlotBase<FSlot>::TSlotBase;
+
+		SLATE_SLOT_BEGIN_ARGS(FSlot, TSlotBase<FSlot>)
+		SLATE_SLOT_END_ARGS()
+		using TSlotBase<FSlot>::Construct;
 	};
 
 
@@ -39,12 +40,12 @@ public:
 		, _bDistributeItemsEvenly(true)
 		, _AngleBetweenItems(0.f)
 		, _SectorCentralAngle(360.f)
-	{
+		{
 			_Visibility = EVisibility::SelfHitTestInvisible;
 		}
 
 		/** The slot supported by this panel */
-		SLATE_SUPPORTS_SLOT( FSlot )
+		SLATE_SLOT_ARGUMENT( FSlot, Slots )
 
 		/** The preferred width, if not set will fill the space */
 		SLATE_ATTRIBUTE( float, PreferredWidth )
@@ -68,9 +69,10 @@ public:
 
 	SRadialBox();
 
-	static FSlot& Slot();
+	static FSlot::FSlotArguments Slot();
 
-	FSlot& AddSlot();
+	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
+	FScopedWidgetSlotArguments AddSlot();
 
 	/** Removes a slot from this radial box which contains the specified SWidget
 	 *

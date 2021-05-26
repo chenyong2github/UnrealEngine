@@ -17,34 +17,37 @@ SWidgetSwitcher::SWidgetSwitcher()
 	SetCanTick(false);
 }
 
-SWidgetSwitcher::FSlot& SWidgetSwitcher::AddSlot( int32 SlotIndex )
+SWidgetSwitcher::FSlot::FSlotArguments SWidgetSwitcher::Slot()
 {
-	FSlot* NewSlot = new FSlot();
+	return FSlot::FSlotArguments(MakeUnique<FSlot>());
+}
 
+SWidgetSwitcher::FScopedWidgetSlotArguments SWidgetSwitcher::AddSlot(int32 SlotIndex)
+{
 	if (!AllChildren.IsValidIndex(SlotIndex))
 	{
-		AllChildren.Add(NewSlot);
+		return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), AllChildren, INDEX_NONE };
 	}
 	else
 	{
-		AllChildren.Insert(NewSlot, SlotIndex);
-
-		// adjust the active WidgetIndex based on this slot change
-		if (!WidgetIndex.IsBound() && WidgetIndex.Get() >= SlotIndex)
-		{
-			WidgetIndex = WidgetIndex.Get() + 1;
-		}
+		TWeakPtr<SWidgetSwitcher> WeakSwitcher = SharedThis(this);
+		return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), AllChildren, INDEX_NONE, [WeakSwitcher](const FSlot*, int32 SlotIndex)
+			{
+				if (TSharedPtr<SWidgetSwitcher> Switcher = WeakSwitcher.Pin())
+				{
+					// adjust the active WidgetIndex based on this slot change
+					if (!Switcher->WidgetIndex.IsBound() && Switcher->WidgetIndex.Get() >= SlotIndex)
+					{
+						Switcher->WidgetIndex = Switcher->WidgetIndex.Get() + 1;
+					}
+				}
+			}};
 	}
-
-	return *NewSlot;
 }
 
 void SWidgetSwitcher::Construct( const FArguments& InArgs )
 {
-	for (int32 Index = 0; Index < InArgs.Slots.Num(); ++Index)
-	{
-		AllChildren.Add(InArgs.Slots[Index]);
-	}
+	AllChildren.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 
 	WidgetIndex = InArgs._WidgetIndex;
 }

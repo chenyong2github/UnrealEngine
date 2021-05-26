@@ -8,16 +8,14 @@ SRadialBox::SRadialBox()
 {
 }
 
-SRadialBox::FSlot& SRadialBox::Slot()
+SRadialBox::FSlot::FSlotArguments SRadialBox::Slot()
 {
-	return *( new SRadialBox::FSlot() );
+	return FSlot::FSlotArguments(MakeUnique<FSlot>());
 }
 
-SRadialBox::FSlot& SRadialBox::AddSlot()
+SRadialBox::FScopedWidgetSlotArguments SRadialBox::AddSlot()
 {
-	SRadialBox::FSlot* NewSlot = new SRadialBox::FSlot();
-	Slots.Add(NewSlot);
-	return *NewSlot;
+	return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), Slots, INDEX_NONE };
 }
 
 int32 SRadialBox::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
@@ -34,10 +32,7 @@ void SRadialBox::Construct( const FArguments& InArgs )
 	SectorCentralAngle = InternalNormalizeAngle(InArgs._SectorCentralAngle);
 	AngleBetweenItems = InArgs._AngleBetweenItems;
 
-	for ( int32 ChildIndex=0; ChildIndex < InArgs.Slots.Num(); ++ChildIndex )
-	{
-		Slots.Add( InArgs.Slots[ChildIndex] );
-	}
+	Slots.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 }
 
 void SRadialBox::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )

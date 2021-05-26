@@ -50,13 +50,11 @@ void SDockingSplitter::ReplaceChild( const TSharedRef<SDockingNode>& InChildToRe
 
 	Replacement->SetSizeCoefficient(InChildToReplace->GetSizeCoefficient());
 
-	Splitter->SlotAt( IndexInParentSplitter )
-	.Value( TAttribute<float>(Replacement, &SDockingNode::GetSizeCoefficient) )
-	.OnSlotResized( SSplitter::FOnSlotResized::CreateSP( Replacement, &SDockingNode::SetSizeCoefficient ) )
-	.SizeRule( TAttribute<SSplitter::ESizeRule>(Replacement, &SDockingNode::GetSizeRule) )
-	[
-		Replacement
-	];
+	SSplitter::FSlot& Slot = Splitter->SlotAt(IndexInParentSplitter);
+	Slot.SetSizeValue(TAttribute<float>(Replacement, &SDockingNode::GetSizeCoefficient));
+	Slot.OnSlotResized().BindSP(Replacement, &SDockingNode::SetSizeCoefficient);
+	Slot.SetSizingRule(TAttribute<SSplitter::ESizeRule>(Replacement, &SDockingNode::GetSizeRule));
+	Slot[Replacement];
 
 	Replacement->SetParentNode( SharedThis(this) );
 }

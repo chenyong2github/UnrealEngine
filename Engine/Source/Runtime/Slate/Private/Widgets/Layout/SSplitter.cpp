@@ -4,6 +4,31 @@
 #include "Layout/ArrangedChildren.h"
 #include "Rendering/DrawElements.h"
 
+void SSplitter::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+{
+	TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+	if (InArgs._Value.IsSet())
+	{
+		SizeValue = MoveTemp(InArgs._Value);
+	}
+	if (InArgs._Resizable.IsSet())
+	{
+		bIsResizable = InArgs._Resizable.GetValue();
+	}
+	if (InArgs._MinSize.IsSet())
+	{
+		MinSizeValue = InArgs._MinSize.GetValue();
+	}
+	if (InArgs._OnSlotResized.IsBound())
+	{
+		OnSlotResized_Handler = MoveTemp(InArgs._OnSlotResized);
+	}
+	if (InArgs._SizeRule.IsSet())
+	{
+		SizingRule = MoveTemp(InArgs._SizeRule);
+	}
+}
+
 bool SSplitter::FSlot::CanBeResized() const
 {
 	const ESizeRule CurrentSizingRule = SizingRule.Get();
@@ -17,26 +42,14 @@ bool SSplitter::FSlot::CanBeResized() const
 	}
 }
 
-SSplitter::FSlot& SSplitter::Slot()
+SSplitter::FSlot::FSlotArguments SSplitter::Slot()
 {
-	return (*new FSlot());
+	return FSlot::FSlotArguments(MakeUnique<FSlot>());
 }
 
-SSplitter::FSlot& SSplitter::AddSlot( int32 AtIndex )
+SSplitter::FScopedWidgetSlotArguments SSplitter::AddSlot( int32 AtIndex )
 {
-	FSlot& NewSlot = *new FSlot();
-	if ( AtIndex == INDEX_NONE )
-	{
-		// No index was specified; just add to the end of the list.
-		this->Children.Add( &NewSlot );
-	}
-	else
-	{
-		// Add a slot at the desired location
-		this->Children.Insert( &NewSlot, AtIndex );
-	}
-
-	return NewSlot;
+	return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), Children, AtIndex };
 }
 
 SSplitter::FSlot& SSplitter::SlotAt( int32 SlotIndex )
@@ -70,10 +83,7 @@ void SSplitter::Construct( const SSplitter::FArguments& InArgs )
 	Style = InArgs._Style;
 	OnGetMaxSlotSize = InArgs._OnGetMaxSlotSize;
 	MinSplitterChildLength = InArgs._MinimumSlotHeight;
-	for (int32 SlotIndex = 0; SlotIndex < InArgs.Slots.Num(); ++SlotIndex )
-	{
-		Children.Add( InArgs.Slots[SlotIndex] );
-	}
+	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 }
 
 TArray<FLayoutGeometry> SSplitter::ArrangeChildrenForLayout(const FGeometry& AllottedGeometry) const
@@ -831,6 +841,22 @@ int32 SSplitter::GetHandleBeingResizedFromMousePosition( float InPhysicalSplitte
 * by dragging the center of the splitter.							*
 ********************************************************************/
 
+SSplitter2x2::FSlot::FSlot(const TSharedRef<SWidget>& InWidget)
+	: TSlotBase<FSlot>(InWidget)
+	, PercentageAttribute(FVector2D(0.5, 0.5))
+{
+
+}
+
+void SSplitter2x2::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArg)
+{
+	TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArg));
+	if (InArg._Percentage.IsSet())
+	{
+		PercentageAttribute = MoveTemp(InArg._Percentage);
+	}
+}
+
 SSplitter2x2::SSplitter2x2()
 : Children(this)
 {
@@ -838,10 +864,10 @@ SSplitter2x2::SSplitter2x2()
 
 void SSplitter2x2::Construct( const FArguments& InArgs )
 {
-	Children.Add( new FSlot(InArgs._TopLeft.Widget) );
-	Children.Add( new FSlot(InArgs._BottomLeft.Widget) );
-	Children.Add( new FSlot(InArgs._TopRight.Widget) );
-	Children.Add( new FSlot(InArgs._BottomRight.Widget) );
+	Children.AddSlot(FSlot::FSlotArguments(MakeUnique<FSlot>(InArgs._TopLeft.Widget)));
+	Children.AddSlot(FSlot::FSlotArguments(MakeUnique<FSlot>(InArgs._BottomLeft.Widget)));
+	Children.AddSlot(FSlot::FSlotArguments(MakeUnique<FSlot>(InArgs._TopRight.Widget)));
+	Children.AddSlot(FSlot::FSlotArguments(MakeUnique<FSlot>(InArgs._BottomRight.Widget)));
 
 	SplitterHandleSize = 5.0f;
 	MinSplitterChildLength = 20.0f;
@@ -871,7 +897,7 @@ TArray<FLayoutGeometry> SSplitter2x2::ArrangeChildrenForLayout( const FGeometry&
 
 		// Calculate the amount of space that this child should take up.  
 		// It is based on the current percentage of space it should take up which is defined by a user moving the splitters
-		const FVector2D ChildSpace = SpaceAllottedForChildren * CurSlot.PercentageAttribute.Get();
+		const FVector2D ChildSpace = SpaceAllottedForChildren * CurSlot.GetPercentage();
 
 		// put them in their spot
 		Result.Emplace(FSlateLayoutTransform(Offset), ChildSpace);
@@ -1166,16 +1192,17 @@ void SSplitter2x2::SetBottomRightContent( TSharedRef< SWidget > BottomRightConte
 
 void SSplitter2x2::GetSplitterPercentages( TArray< FVector2D >& OutPercentages ) const
 {
-	OutPercentages.Empty();
+	OutPercentages.Reset(4);
 	for (int32 i = 0; i < 4; ++i)
 	{
-		OutPercentages.Add(Children[i].PercentageAttribute.Get());
+		OutPercentages.Add(Children[i].GetPercentage());
 	}
 }
 
-void SSplitter2x2::SetSplitterPercentages( const TArray< FVector2D >& InPercentages )
+void SSplitter2x2::SetSplitterPercentages( TArrayView< FVector2D > InPercentages )
 {
-	for (int32 i = 0; i < 4; ++i)
+	int32 MaxSize = FMath::Min(InPercentages.Num(), 4);
+	for (int32 i = 0; i < MaxSize; ++i)
 	{
 		Children[i].SetPercentage(InPercentages[i]);
 	}

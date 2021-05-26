@@ -2343,7 +2343,7 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 				SnapshotChildWidget.ToSharedRef()
 			]
 		]
-	].OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize);
+	].OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetSnapshotColumnSize);
 
 	const auto SlotDelegate1 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 1);;
 	SplitterPtr->SlotAt(1).SizeValue.Bind(SlotDelegate1);
@@ -2409,7 +2409,7 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 				WorldChildWidget.ToSharedRef()
 			]
 		]
-	].OnSlotResized_Handler.BindSP(this, &SLevelSnapshotsEditorResultsRow::SetWorldObjectColumnSize);
+	].OnSlotResized(this, &SLevelSnapshotsEditorResultsRow::SetWorldObjectColumnSize);
 
 	const auto SlotDelegate2 = TAttribute<float>::FGetter::CreateSP(this, &SLevelSnapshotsEditorResultsRow::GetSplitterSlotSize, 2);;
 	SplitterPtr->SlotAt(2).SizeValue.Bind(SlotDelegate2);
