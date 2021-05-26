@@ -38,7 +38,7 @@ public:
 		{ }
 
 		template<typename... PayloadTypes>
-		explicit FInvalidateWidgetReasonAttribute(typename FGetter::FStaticDelegate::FFuncPtr InFuncPtr, PayloadTypes&&... InputPayload)
+		explicit FInvalidateWidgetReasonAttribute(typename FGetter::template FStaticDelegate<PayloadTypes...>::FFuncPtr InFuncPtr, PayloadTypes&&... InputPayload)
 			: Reason(EInvalidateWidgetReason::None)
 			, Getter(FGetter::CreateStatic(InFuncPtr, Forward<PayloadTypes>(InputPayload)...))
 		{
