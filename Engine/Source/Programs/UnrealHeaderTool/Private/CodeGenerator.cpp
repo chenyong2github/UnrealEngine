@@ -77,7 +77,7 @@ static bool bWriteContents = false;
 static bool bVerifyContents = false;
 
 UClass* ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef);
-UEnum* ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef);
+void ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef);
 UScriptStruct* ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStructDef);
 
 // Array of all the temporary header async file tasks so we can ensure they have completed before issuing our timings
@@ -89,7 +89,6 @@ bool HasIdentifierExactMatch(const TCHAR* StringBegin, const TCHAR* StringEnd, c
 FUnrealClassDefinitionInfo* GUObjectDef = nullptr;
 FUnrealClassDefinitionInfo* GUClassDef = nullptr;
 FUnrealClassDefinitionInfo* GUInterfaceDef = nullptr;
-FUnrealClassDefinitionInfo* GUPackageDef = nullptr;
 
 namespace
 {
@@ -1565,7 +1564,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 
 	case EUHTPropertyType::Enum:
 	{
-		if (PropertyBase.EnumDef->GetEnum()->GetCppForm() != UEnum::ECppForm::EnumClass)
+		if (PropertyBase.EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
 		{
 			OutputByteProperty();
 		}
@@ -6451,9 +6450,8 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedEnums())
 				{
 					FUnrealEnumDefinitionInfo& EnumDef = TypeDef->AsEnumChecked();
-					UEnum* ResultEnum = ProcessParsedEnum(EnumDef);
-					EnumDef.SetObject(ResultEnum);
-					GTypeDefinitionInfoMap.Add(ResultEnum, TypeDef);
+					ProcessParsedEnum(EnumDef);
+					GTypeDefinitionInfoMap.AddNameLookup(UHTCastChecked<FUnrealObjectDefinitionInfo>(TypeDef));
 				}
 
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedStructs())
@@ -6485,7 +6483,6 @@ void ResolveParents(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	GUObjectDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UObject::StaticClass());
 	GUClassDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UClass::StaticClass());
 	GUInterfaceDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UInterface::StaticClass());
-	GUPackageDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UPackage::StaticClass());
 
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 	{
@@ -6580,13 +6577,98 @@ void TopologicalSort(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 
 void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 {
+	// Disable loading of objects outside of this package (or more exactly, objects which aren't UFields, CDO, or templates)
+	TGuardValue<bool> AutoRestoreVerifyObjectRefsFlag(GVerifyObjectReferencesOnly, true);
+
+// Concurrent parsing disabled
+#if 0 
+	/**
+	 * For every FUnrealSourceFile being processed, an instance of this class represents the data associated with generating the new output.
+	 */
+	struct FParseCPP
+	{
+		FParseCPP(FUnrealPackageDefinitionInfo& InPackageDef, FUnrealSourceFile& InSourceFile)
+			: PackageDef(InPackageDef)
+			, SourceFile(InSourceFile)
+		{}
+
+		/**
+		 * The package definition being exported
+		 */
+		FUnrealPackageDefinitionInfo& PackageDef;
+
+		/**
+		 * The source file being exported
+		 */
+		FUnrealSourceFile& SourceFile;
+
+		/**
+		 * This task represents the task that parses the source
+		 */
+		FGraphEventRef ParseTaskRef;
+	};
+
+	TArray<FParseCPP> ParsedCPPs;
+	ParsedCPPs.Reserve(OrderedSourceFiles.Num());
+	for (FUnrealSourceFile* SourceFile : OrderedSourceFiles)
+	{
+		ParsedCPPs.Emplace(SourceFile->GetPackageDef(), *SourceFile);
+	}
+
+	TSet<FUnrealSourceFile*> Includes;
+	Includes.Reserve(ParsedCPPs.Num());
+	FGraphEventArray TempTasks;
+	TempTasks.Reserve(ParsedCPPs.Num());
+	FGraphEventArray ParsedSourceTasks;
+	ParsedSourceTasks.Reserve(ParsedCPPs.Num());
+	for (FParseCPP& ParsedCPP : ParsedCPPs)
+	{
+		const FManifestModule& Module = ParsedCPP.PackageDef.GetModule();
+		FUnrealSourceFile& SourceFile = ParsedCPP.SourceFile;
+
+		FString ModuleRelativeFilename = SourceFile.GetFilename();
+		ConvertToBuildIncludePath(Module, ModuleRelativeFilename);
+
+		auto ParseSource = [&ParsedCPP]()
+		{
+			FResults::TryAlways([&ParsedCPP]()
+			{
+					FHeaderParser::Parse(ParsedCPP.PackageDef, ParsedCPP.SourceFile);
+			});
+		};
+
+		Includes.Reset();
+		for (FHeaderProvider& Header : SourceFile.GetIncludes())
+		{
+			if (FUnrealSourceFile* Include = Header.Resolve(SourceFile))
+			{
+				Includes.Add(Include);
+			}
+		}
+
+		// Our generation must wait on all of our includes generation to complete
+		TempTasks.Reset();
+		for (FUnrealSourceFile* Include : Includes)
+		{
+			FParseCPP& IncludeCPP = ParsedCPPs[Include->GetOrderedIndex()];
+			TempTasks.Add(IncludeCPP.ParseTaskRef);
+
+		}
+		ParsedCPP.ParseTaskRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(ParseSource), TStatId(), &TempTasks);
+		ParsedSourceTasks.Add(ParsedCPP.ParseTaskRef);
+	}
+
+	// Wait for the results
+	FTaskGraphInterface::Get().WaitUntilTasksComplete(ParsedSourceTasks);
+	FResults::WaitForErrorTasks();
+#else
 	for (FUnrealSourceFile* SourceFile : OrderedSourceFiles)
 	{
 		FUnrealPackageDefinitionInfo& PackageDef = SourceFile->GetPackageDef();
 		FScopedDurationTimer SourceTimer(SourceFile->GetTime(ESourceFileTime::Parse));
-
 		FResults::TryAlways([&PackageDef, SourceFile]() { FHeaderParser::Parse(PackageDef, *SourceFile); });
 	}
+#endif
 }
 
 void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
@@ -6946,14 +7028,14 @@ UClass* ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 	return ResultClass;
 }
 
-UEnum* ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef)
+void ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef)
 {
 	UPackage* Package = EnumDef.GetPackageDef().GetPackage();
 	const FString& EnumName = EnumDef.GetNameCPP();
 
-	if (UEnum* Existing = FEngineAPI::FindObject<UEnum>(ANY_PACKAGE, *EnumName))
+	if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*EnumName))
 	{
-		FUHTException::Throwf(EnumDef, TEXT("Duplicate enum name: %s also exists in file %s"), *EnumName, *Existing->GetOutermost()->GetName());
+		FUHTException::Throwf(EnumDef, TEXT("Duplicate enum name: %s also exists in file %s"), *EnumName, *(*Existing)->GetFilename());
 	}
 
 	// Check if the enum name is using a reserved keyword
@@ -6961,10 +7043,6 @@ UEnum* ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef)
 	{
 		FUHTException::Throwf(EnumDef, TEXT("enum: '%s' uses a reserved type name."), *EnumName);
 	}
-
-	// Create enum definition.
-	UEnum* Enum = new(EC_InternalUseOnlyConstructor, Package, FName(EnumName), RF_Public) UEnum(FObjectInitializer());
-	return Enum;
 }
 
 UScriptStruct* ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStructDef)

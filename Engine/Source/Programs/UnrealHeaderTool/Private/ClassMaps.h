@@ -39,15 +39,33 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 	void Add(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
 	{
 		check(!bFrozen);
-		DefinitionsByUObject.Add(Object, Definition);
-		DefinitionsByName.Add(Object->GetFName(), MoveTemp(Definition));
+		AddNameLookup(UHTCastChecked<FUnrealObjectDefinitionInfo>(Definition));
+		AddObjectLookup(Object, MoveTemp(Definition));
 	}
 
 	void Add(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>& Definition)
 	{
 		check(!bFrozen);
+		AddNameLookup(UHTCastChecked<FUnrealObjectDefinitionInfo>(Definition));
+		AddObjectLookup(Object, Definition);
+	}
+
+	void AddObjectLookup(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
+	{
+		//check(!bFrozen);
 		DefinitionsByUObject.Add(Object, Definition);
-		DefinitionsByName.Add(Object->GetFName(), Definition);
+	}
+
+	void AddObjectLookup(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>& Definition)
+	{
+		//check(!bFrozen);
+		DefinitionsByUObject.Add(Object, Definition);
+	}
+
+	void AddNameLookup(FUnrealObjectDefinitionInfo& Definition)
+	{
+		check(!bFrozen);
+		DefinitionsByName.Add(Definition.GetFName(), Definition.AsShared());
 	}
 
 	bool Contains(const UObject* Object)

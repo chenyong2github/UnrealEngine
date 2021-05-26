@@ -3,6 +3,7 @@
 #include "PropertyTypes.h"
 #include "BaseParser.h"
 #include "ClassMaps.h"
+#include "EngineAPI.h"
 #include "HeaderParser.h"
 #include "UnrealHeaderTool.h"
 #include "UnrealTypeDefinitionInfo.h"
@@ -86,6 +87,8 @@ struct FPropertyTypeTraitsEnum;
 
 namespace
 {
+	static const FName NAME_ArraySizeEnum(TEXT("ArraySizeEnum"));
+
 	void PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(EPropertyFlags& DestFlags, const TMap<FName, FString>& InMetaData, FUnrealPropertyDefinitionInfo& InnerDef)
 	{
 		// Copy some of the property flags to the container property.
@@ -433,9 +436,8 @@ struct FPropertyTypeTraitsByte : public FPropertyTypeTraitsNumericBase
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		UEnum* Enum = VarProperty.EnumDef ? VarProperty.EnumDef->GetEnum() : nullptr;
 		FByteProperty* Result = new FByteProperty(Scope, Name, ObjectFlags);
-		Result->Enum = Enum;
+		Result->Enum = VarProperty.EnumDef ? VarProperty.EnumDef->GetEnum() : nullptr;
 		check(VarProperty.IntType == EIntType::Sized);
 		return Result;
 	}
@@ -454,18 +456,17 @@ struct FPropertyTypeTraitsByte : public FPropertyTypeTraitsNumericBase
 	{
 		if (FUnrealEnumDefinitionInfo* EnumDef = PropDef.GetPropertyBase().AsEnum())
 		{
-			UEnum* Enum = EnumDef->GetEnum();
 			const bool bEnumClassForm = EnumDef->GetCppForm() == UEnum::ECppForm::EnumClass;
-			const bool bNonNativeEnum = Enum->GetClass() != UEnum::StaticClass(); // cannot use RF_Native flag, because in UHT the flag is not set
+			const bool bNonNativeEnum = false; // Enum->GetClass() != UEnum::StaticClass(); // cannot use RF_Native flag, because in UHT the flag is not set
 			const bool bRawParam = (CPPExportFlags & CPPF_ArgumentOrReturnValue)
 				&& ((PropDef.HasAnyPropertyFlags(CPF_ReturnParm) || !PropDef.HasAnyPropertyFlags(CPF_OutParm))
 					|| bNonNativeEnum);
 			const bool bConvertedCode = (CPPExportFlags & CPPF_BlueprintCppBackend) && bNonNativeEnum;
 
 			FString FullyQualifiedEnumName;
-			if (!Enum->CppType.IsEmpty())
+			if (!EnumDef->GetCppType().IsEmpty())
 			{
-				FullyQualifiedEnumName = Enum->CppType;
+				FullyQualifiedEnumName = EnumDef->GetCppType();
 			}
 			else
 			{
@@ -473,12 +474,11 @@ struct FPropertyTypeTraitsByte : public FPropertyTypeTraitsNumericBase
 				// been set, but we do this here in case existing code relies on it... somehow.
 				if ((CPPExportFlags & CPPF_BlueprintCppBackend) && bNonNativeEnum)
 				{
-					ensure(Enum->CppType.IsEmpty());
-					FullyQualifiedEnumName = ::UnicodeToCPPIdentifier(Enum->GetName(), false, TEXT("E__"));
+					FullyQualifiedEnumName = ::UnicodeToCPPIdentifier(EnumDef->GetName(), false, TEXT("E__"));
 				}
 				else
 				{
-					FullyQualifiedEnumName = Enum->GetName();
+					FullyQualifiedEnumName = EnumDef->GetName();
 				}
 			}
 
@@ -962,15 +962,15 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 {
 	static bool DefaultValueStringCppFormatToInnerFormat(const FUnrealPropertyDefinitionInfo& PropDef, const FString& CppForm, FString& OutForm)
 	{
-		UEnum* Enum = PropDef.GetPropertyBase().EnumDef->GetEnum();
+		FUnrealEnumDefinitionInfo* EnumDef = PropDef.GetPropertyBase().EnumDef;
 		OutForm = FDefaultValueHelper::GetUnqualifiedEnumValue(FDefaultValueHelper::RemoveWhitespaces(CppForm));
 
-		const int32 EnumEntryIndex = Enum->GetIndexByName(*OutForm);
+		const int32 EnumEntryIndex = EnumDef->GetIndexByName(*OutForm);
 		if (EnumEntryIndex == INDEX_NONE)
 		{
 			return false;
 		}
-		if (Enum->HasMetaData(TEXT("Hidden"), EnumEntryIndex))
+		if (EnumDef->HasMetaData(TEXT("Hidden"), EnumEntryIndex))
 		{
 			FUHTException::Throwf(PropDef, TEXT("Hidden enum entries cannot be used as default values: %s \"%s\" "), *PropDef.GetName(), *CppForm);
 		}
@@ -981,9 +981,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 
-		UEnum* Enum = VarProperty.EnumDef->GetEnum();
-
-		if (Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
+		if (VarProperty.EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
 		{
 			check(VarProperty.Type == EPropertyType::CPT_Byte);
 			return FPropertyTypeTraitsByte::CreateProperty(PropDef);
@@ -1026,9 +1024,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 
-		UEnum* Enum = VarProperty.EnumDef->GetEnum();
-
-		if (Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
+		if (VarProperty.EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
 		{
 			check(VarProperty.Type == EPropertyType::CPT_Byte);
 			return FPropertyTypeTraitsByte::CreateEngineType(PropDef, Scope, Name, ObjectFlags);
@@ -1037,7 +1033,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 		FEnumProperty* Result = new FEnumProperty(Scope, Name, ObjectFlags);
 		PropDef.SetProperty(Result);
 		Result->UnderlyingProp = CastFieldChecked<FNumericProperty>(FPropertyTraits::CreateEngineType(PropDef.GetValuePropDefRef()));
-		Result->Enum = Enum;
+		Result->Enum = VarProperty.EnumDef->GetEnum();
 		return Result;
 	}
 
@@ -1049,8 +1045,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		UEnum* Enum = VarProperty.EnumDef->GetEnum();
-		if (Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
+		if (VarProperty.EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
 		{
 			return FPropertyTypeTraitsByte::GetEngineClassName(PropDef);
 		}
@@ -1063,27 +1058,26 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		UEnum* Enum = VarProperty.EnumDef->GetEnum();
-		if (Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
+		FUnrealEnumDefinitionInfo* EnumDef = VarProperty.EnumDef;
+		if (EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
 		{
 			return FPropertyTypeTraitsByte::GetCPPType(PropDef, ExtendedTypeText, CPPExportFlags);
 		}
 		else
 		{
-			const bool bNonNativeEnum = Enum->GetClass() != UEnum::StaticClass(); // cannot use RF_Native flag, because in UHT the flag is not set
+			const bool bNonNativeEnum = false; // Enum->GetClass() != UEnum::StaticClass(); // cannot use RF_Native flag, because in UHT the flag is not set
 
-			if (!Enum->CppType.IsEmpty())
+			if (!EnumDef->GetCppType().IsEmpty())
 			{
-				return Enum->CppType;
+				return EnumDef->GetCppType();
 			}
 
-			FString EnumName = Enum->GetName();
+			FString EnumName = EnumDef->GetName();
 
 			// This would give the wrong result if it's a namespaced type and the CppType hasn't
 			// been set, but we do this here in case existing code relies on it... somehow.
 			if ((CPPExportFlags & CPPF_BlueprintCppBackend) && bNonNativeEnum)
 			{
-				ensure(Enum->CppType.IsEmpty());
 				FString Result = ::UnicodeToCPPIdentifier(EnumName, false, TEXT("E__"));
 				return Result;
 			}
@@ -1095,13 +1089,12 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		UEnum* Enum = VarProperty.EnumDef->GetEnum();
-		if (Enum->GetCppForm() != UEnum::ECppForm::EnumClass)
+		if (VarProperty.EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
 		{
 			return FPropertyTypeTraitsByte::GetCPPTypeForwardDeclaration(PropDef);
 		}
 
-		return FString::Printf(TEXT("enum class %s : %s;"), *Enum->GetName(), *PropDef.GetValuePropDef().GetCPPType());
+		return FString::Printf(TEXT("enum class %s : %s;"), *VarProperty.EnumDef->GetName(), *PropDef.GetValuePropDef().GetCPPType());
 	}
 };
 
@@ -1950,13 +1943,13 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		UScriptStruct* Struct = PropDef.GetPropertyBase().ScriptStructDef->GetScriptStruct();
+		FUnrealScriptStructDefinitionInfo* ScriptStructDef = VarProperty.ScriptStructDef;
 
 #if UHT_ENABLE_VALUE_PROPERTY_TAG
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ScriptStructDef);
 #endif
 
-		if (Struct->StructFlags & STRUCT_HasInstancedReference)
+		if (ScriptStructDef->HasAnyStructFlags(STRUCT_HasInstancedReference))
 		{
 			VarProperty.PropertyFlags |= CPF_ContainsInstancedReference;
 		}
@@ -1973,8 +1966,7 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		UScriptStruct* Struct = PropDef.GetPropertyBase().ScriptStructDef->GetScriptStruct();
-		return Struct->GetBoolMetaDataHierarchical(FHeaderParserNames::NAME_BlueprintType);
+		return VarProperty.ScriptStructDef->GetBoolMetaDataHierarchical(FHeaderParserNames::NAME_BlueprintType);
 	}
 
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
@@ -2233,6 +2225,70 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
+
+		if (PropDef.GetArrayDimensions())
+		{
+			UEnum* Enum = nullptr;
+
+			FString Temp = PropDef.GetArrayDimensions();
+
+			bool bAgain;
+			do
+			{
+				bAgain = false;
+
+				// Remove any casts
+				static const TCHAR* Casts[] = {
+					TEXT("(uint32)"),
+					TEXT("(int32)"),
+					TEXT("(uint16)"),
+					TEXT("(int16)"),
+					TEXT("(uint8)"),
+					TEXT("(int8)"),
+					TEXT("(int)"),
+					TEXT("(unsigned)"),
+					TEXT("(signed)"),
+					TEXT("(unsigned int)"),
+					TEXT("(signed int)")
+				};
+
+				// Remove any brackets
+				if (Temp[0] == TEXT('('))
+				{
+					int32 TempLen = Temp.Len();
+					int32 ClosingParen = FindMatchingClosingParenthesis(Temp);
+					if (ClosingParen == TempLen - 1)
+					{
+						Temp.MidInline(1, TempLen - 2, false);
+						bAgain = true;
+					}
+				}
+
+				for (const TCHAR* Cast : Casts)
+				{
+					if (Temp.StartsWith(Cast, ESearchCase::CaseSensitive))
+					{
+						Temp.RightChopInline(FCString::Strlen(Cast), false);
+						bAgain = true;
+					}
+				}
+			} while (bAgain);
+
+			UEnum::LookupEnumNameSlow(*Temp, &Enum);
+
+			if (!Enum)
+			{
+				// If the enum wasn't declared in this scope, then try to find it anywhere we can
+				Enum = FEngineAPI::FindObject<UEnum>(ANY_PACKAGE, PropDef.GetArrayDimensions());
+			}
+
+			if (Enum)
+			{
+				// set the ArraySizeEnum if applicable
+				PropDef.GetPropertyBase().MetaData.Add(NAME_ArraySizeEnum, Enum->GetPathName());
+			}
+		}
+
 		FProperty* Property = CreateEngineTypeHelper<false>(PropDef, Scope, Name, ObjectFlags);
 		Property->ArrayDim = 2;
 		return Property;
