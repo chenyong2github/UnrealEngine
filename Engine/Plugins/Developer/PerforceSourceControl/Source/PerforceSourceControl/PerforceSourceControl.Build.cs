@@ -19,7 +19,6 @@ public class PerforceSourceControl : ModuleRules
 		);
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Perforce");
-		PublicDefinitions.Add("USE_P4_API=1");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac)
 		{
