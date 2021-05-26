@@ -115,7 +115,7 @@ public:
 		//
 
 		// A new MIC derived from this material will be created and assigned to the generated mesh
-		UMaterialInterface* BakeMaterial = nullptr;		// if null, will use /MeshModelingToolset/Materials/FullMaterialBakePreviewMaterial instead
+		UMaterialInterface* BakeMaterial = nullptr;		// if null, will use /MeshModelingToolset/Materials/FullMaterialBakePreviewMaterial_PackedMRS instead
 		FName BaseColorTexParamName = FName("BaseColor");
 		bool bBakeBaseColor = true;
 		FName RoughnessTexParamName = FName("Roughness");
@@ -128,6 +128,9 @@ public:
 		bool bBakeEmissive = true;
 		FName NormalTexParamName = FName("NormalMap");
 		bool bBakeNormalMap = true;
+		
+		bool bUsePackedMRS = true;
+		FName PackedMRSTexParamName = FName("PackedMRS");
 
 		// output texture options
 		int32 TextureImageSize = 1024;
