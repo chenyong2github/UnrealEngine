@@ -81,6 +81,32 @@ bool FEditorConfig::HasOverride(FStringView Key) const
 	return JsonConfig->HasOverride(UE::FJsonPath(Key));
 }
 
+bool FEditorConfig::TryGetRootUObject(const UClass* Class, UObject* OutValue, EPropertyFilter Filter) const
+{
+	if (!IsValid())
+	{
+		return false;
+	}
+
+	TSharedPtr<FJsonObject> UObjectData = JsonConfig->GetRootObject();
+	ReadUObject(UObjectData, Class, OutValue, Filter);
+
+	return true;
+}
+
+bool FEditorConfig::TryGetRootStruct(const UStruct* Struct, void* OutValue, EPropertyFilter Filter) const
+{
+	if (!IsValid())
+	{
+		return false;
+	}
+
+	TSharedPtr<FJsonObject> StructData = JsonConfig->GetRootObject();
+	ReadStruct(StructData, Struct, OutValue, nullptr, Filter);
+
+	return true;
+}
+
 void FEditorConfig::SetRootUObject(const UClass* Class, const UObject* Instance, EPropertyFilter Filter)
 {
 	if (!IsValid())

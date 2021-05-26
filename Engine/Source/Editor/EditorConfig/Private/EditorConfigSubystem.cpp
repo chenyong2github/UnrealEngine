@@ -52,7 +52,7 @@ TStatId UEditorConfigSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UEditorConfigSubsystem, STATGROUP_Tickables);
 }
 
-bool UEditorConfigSubsystem::LoadConfigObject(UObject* Object, const UClass* Class, FEditorConfig::EPropertyFilter Filter)
+bool UEditorConfigSubsystem::LoadConfigObject(const UClass* Class, UObject* Object, FEditorConfig::EPropertyFilter Filter)
 {
 	const FString& EditorConfigName = Class->GetMetaData("EditorConfig");
 	if (!ensureMsgf(!EditorConfigName.IsEmpty(), TEXT("UEditorConfigSubsystem::LoadConfigObject - EditorConfig name is not set on class %s."), *Class->GetName()))
@@ -61,19 +61,19 @@ bool UEditorConfigSubsystem::LoadConfigObject(UObject* Object, const UClass* Cla
 	}
 
 	TSharedRef<FEditorConfig> EditorConfig = FindOrLoadConfig(EditorConfigName);
-	return EditorConfig->TryGetRootUObject(*Object, Filter);
+	return EditorConfig->TryGetRootUObject(Class, Object, Filter);
 }
 
-bool UEditorConfigSubsystem::SaveConfigObject(const UObject* Object, const UClass* Class, FEditorConfig::EPropertyFilter Filter)
+bool UEditorConfigSubsystem::SaveConfigObject(const UClass* Class, const UObject* Object, FEditorConfig::EPropertyFilter Filter)
 {
 	const FString& EditorConfigName = Class->GetMetaData("EditorConfig");
-	if (!ensureMsgf(EditorConfigName.IsEmpty(), TEXT("UEditorConfigSubsystem::SaveConfigObject - EditorConfig name is not set on class %s."), *Class->GetName()))
+	if (!ensureMsgf(!EditorConfigName.IsEmpty(), TEXT("UEditorConfigSubsystem::SaveConfigObject - EditorConfig name is not set on class %s."), *Class->GetName()))
 	{
 		return false;
 	}
 
 	TSharedRef<FEditorConfig> EditorConfig = FindOrLoadConfig(EditorConfigName);
-	EditorConfig->SetRootUObject(*Object, Filter);
+	EditorConfig->SetRootUObject(Class, Object, Filter);
 	SaveConfig(EditorConfig);
 	return true;
 }
