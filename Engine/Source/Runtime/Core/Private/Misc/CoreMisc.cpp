@@ -483,7 +483,7 @@ static FAutoConsoleVariableRef CVarGEnsureOnNANDiagnostic(
 #endif
 
 #if DO_CHECK
-namespace UE4Asserts_Private
+namespace UEAsserts_Private
 {
 	void VARARGS InternalLogNANDiagnosticMessage(const TCHAR* FormattedMsg, ...)
 	{		
