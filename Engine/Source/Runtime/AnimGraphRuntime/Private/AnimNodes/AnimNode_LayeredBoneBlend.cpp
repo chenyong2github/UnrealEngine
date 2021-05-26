@@ -29,15 +29,7 @@ void FAnimNode_LayeredBoneBlend::Initialize_AnyThread(const FAnimationInitialize
 	}
 }
 
-#if WITH_EDITOR
-void FAnimNode_LayeredBoneBlend::PostCompile(const class USkeleton* InSkeleton)
-{
-	FAnimNode_Base::PostCompile(InSkeleton);
-	RebuildCacheData(InSkeleton);
-}
-#endif // WITH_EDITOR
-
-void FAnimNode_LayeredBoneBlend::RebuildCacheData(const USkeleton* InSkeleton)
+void FAnimNode_LayeredBoneBlend::RebuildPerBoneBlendWeights(const USkeleton* InSkeleton)
 {
 	if (InSkeleton)
 	{
@@ -55,16 +47,21 @@ void FAnimNode_LayeredBoneBlend::RebuildCacheData(const USkeleton* InSkeleton)
 	}
 }
 
-bool FAnimNode_LayeredBoneBlend::IsCacheInvalid(const USkeleton* InSkeleton) const
+bool FAnimNode_LayeredBoneBlend::ArePerBoneBlendWeightsValid(const USkeleton* InSkeleton) const
 {
-	return (InSkeleton->GetGuid() != SkeletonGuid || InSkeleton->GetVirtualBoneGuid() != VirtualBoneGuid);
+	return (InSkeleton->GetGuid() == SkeletonGuid && InSkeleton->GetVirtualBoneGuid() == VirtualBoneGuid);
 }
 
-void FAnimNode_LayeredBoneBlend::ReinitializeBoneBlendWeights(const FBoneContainer& RequiredBones, const USkeleton* Skeleton)
+void FAnimNode_LayeredBoneBlend::UpdateCachedBoneData(const FBoneContainer& RequiredBones, const USkeleton* Skeleton)
 {
-	if (IsCacheInvalid(Skeleton))
+	if(RequiredBones.GetSerialNumber() == RequiredBonesSerialNumber)
 	{
-		RebuildCacheData(Skeleton);
+		return;
+	}
+
+	if (!ArePerBoneBlendWeightsValid(Skeleton))
+	{
+		RebuildPerBoneBlendWeights(Skeleton);
 	}
 	
 	// build desired bone weights
@@ -126,6 +123,8 @@ void FAnimNode_LayeredBoneBlend::ReinitializeBoneBlendWeights(const FBoneContain
 	{
 		CurvePoseSourceIndices.Reset();
 	}
+
+	RequiredBonesSerialNumber = RequiredBones.GetSerialNumber();
 }
 
 void FAnimNode_LayeredBoneBlend::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -138,10 +137,7 @@ void FAnimNode_LayeredBoneBlend::CacheBones_AnyThread(const FAnimationCacheBones
 		BlendPoses[ChildIndex].CacheBones(Context);
 	}
 
-	if (NumPoses > 0)
-	{
-		ReinitializeBoneBlendWeights(Context.AnimInstanceProxy->GetRequiredBones(), Context.AnimInstanceProxy->GetSkeleton());
-	}
+	UpdateCachedBoneData(Context.AnimInstanceProxy->GetRequiredBones(), Context.AnimInstanceProxy->GetSkeleton());
 }
 
 void FAnimNode_LayeredBoneBlend::Update_AnyThread(const FAnimationUpdateContext& Context)
@@ -163,23 +159,11 @@ void FAnimNode_LayeredBoneBlend::Update_AnyThread(const FAnimationUpdateContext&
 			{
 				if (bHasRelevantPoses == false)
 				{
-					// If our cache is invalid, attempt to update it.
-					if (IsCacheInvalid(Context.AnimInstanceProxy->GetSkeleton()))
-					{
-						ReinitializeBoneBlendWeights(Context.AnimInstanceProxy->GetRequiredBones(), Context.AnimInstanceProxy->GetSkeleton());
+					// Update cached data now we know we might be valid
+					UpdateCachedBoneData(Context.AnimInstanceProxy->GetRequiredBones(), Context.AnimInstanceProxy->GetSkeleton());
 
-						// If Cache is still invalid, we don't have correct DesiredBoneBlendWeights, so abort.
-						// bHasRelevantPoses == false, will passthrough in evaluate.
-						if (!ensure(IsCacheInvalid(Context.AnimInstanceProxy->GetSkeleton())))
-						{
-							break;
-						}
-					}
-					else
-					{
-						FAnimationRuntime::UpdateDesiredBoneWeight(DesiredBoneBlendWeights, CurrentBoneBlendWeights, BlendWeights);
-					}
-
+					// Update weights
+					FAnimationRuntime::UpdateDesiredBoneWeight(DesiredBoneBlendWeights, CurrentBoneBlendWeights, BlendWeights);
 					bHasRelevantPoses = true;
 
 					if(bBlendRootMotionBasedOnRootBone)
@@ -321,59 +305,3 @@ void FAnimNode_LayeredBoneBlend::GatherDebugData(FNodeDebugData& DebugData)
 		BlendPoses[ChildIndex].GatherDebugData(DebugData.BranchFlow(BlendWeights[ChildIndex]));
 	}
 }
-
-#if WITH_EDITOR
-void FAnimNode_LayeredBoneBlend::ValidateData()
-{
-	// ideally you don't like to get to situation where it becomes inconsistent, but this happened, 
-	// and we don't know what caused this. Possibly copy/paste, but I tried copy/paste and that didn't work
-	// so here we add code to fix this up manually in editor, so that they can continue working on it. 
-	int32 PoseNum = BlendPoses.Num();
-	int32 WeightNum = BlendWeights.Num();
-	int32 LayerNum = (BlendMode == ELayeredBoneBlendMode::BranchFilter) ? LayerSetup.Num() : BlendMasks.Num();
-
-	int32 Max = FMath::Max3(PoseNum, WeightNum, LayerNum);
-	int32 Min = FMath::Min3(PoseNum, WeightNum, LayerNum);
-	// if they are not all same
-	if (Min != Max)
-	{
-		// we'd like to increase to all Max
-		// sadly we don't have add X for how many
-		for (int32 Index=PoseNum; Index<Max; ++Index)
-		{
-			BlendPoses.Add(FPoseLink());
-		}
-
-		for(int32 Index=WeightNum; Index<Max; ++Index)
-		{
-			BlendWeights.Add(1.f);
-		}
-
-		if (BlendMode == ELayeredBoneBlendMode::BranchFilter)
-		{
-			for (int32 Index = LayerNum; Index < Max; ++Index)
-			{
-				LayerSetup.Add(FInputBlendPose());
-			}
-		}
-		else
-		{
-			// Get rid of our branch filters if we are not using them to avoid saving into the asset
-			LayerSetup.Reset();
-		}
-
-		if (BlendMode == ELayeredBoneBlendMode::BlendMask)
-		{
-			for (int32 Index = LayerNum; Index < Max; ++Index)
-			{
-				BlendMasks.Add(nullptr);
-			}
-		}
-		else
-		{
-			// Get rid of blend masks array if we are not using them to avoid saving into the asset
-			BlendMasks.Reset();
-		}
-	}
-}
-#endif

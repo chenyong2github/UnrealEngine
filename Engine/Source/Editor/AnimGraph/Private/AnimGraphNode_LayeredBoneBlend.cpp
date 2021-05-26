@@ -43,7 +43,6 @@ void UAnimGraphNode_LayeredBoneBlend::PostEditChangeProperty(struct FPropertyCha
 	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_LayeredBoneBlend, BlendMode))
 	{
 		// If we  change blend modes, we need to resize our containers
-		Node.ValidateData();
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
 	}
 
@@ -141,12 +140,6 @@ void UAnimGraphNode_LayeredBoneBlend::GetNodeContextMenuActions(UToolMenu* Menu,
 	}
 }
 
-void UAnimGraphNode_LayeredBoneBlend::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-	Node.ValidateData();
-}
-
 void UAnimGraphNode_LayeredBoneBlend::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)
 {
 	UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
@@ -179,10 +172,10 @@ void UAnimGraphNode_LayeredBoneBlend::ValidateAnimNodeDuringCompilation(class US
 		return;
 	}
 
-	// ensure to cache the data
- 	if (Node.IsCacheInvalid(ForSkeleton))
+	// ensure to cache the per-bone blend weights
+ 	if (!Node.ArePerBoneBlendWeightsValid(ForSkeleton))
  	{
- 		Node.RebuildCacheData(ForSkeleton);
+ 		Node.RebuildPerBoneBlendWeights(ForSkeleton);
  	}
 }
 #undef LOCTEXT_NAMESPACE
