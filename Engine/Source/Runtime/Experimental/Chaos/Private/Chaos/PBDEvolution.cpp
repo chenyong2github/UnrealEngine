@@ -249,6 +249,7 @@ void FPBDEvolution::PreIterationUpdate(
 
 void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDEvolution_AdvanceOneTimeStep);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVAdvanceTime);
 
 	// Advance time
@@ -260,6 +261,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 	const bool bWriteCCDContacts = CVarChaosPBDEvolutionWriteCCDContacts.GetValueOnAnyThread();
 
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDPreIterationUpdates);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDPreIterationUpdates);
 
 		MParticlesActiveView.RangeFor(
@@ -324,6 +326,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 	{
 		if (MCollisionKinematicUpdate)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDCollisionKinematicUpdate);
 			SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionKinematicUpdate);
 
 			MCollisionParticlesActiveView.SequentialFor(
@@ -338,6 +341,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 		}
 
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDClearCollidedArray);
 			SCOPE_CYCLE_COUNTER(STAT_ChaosPBDClearCollidedArray);
 			memset(MCollided.GetData(), 0, MCollided.Num() * sizeof(bool));
 		}
@@ -345,6 +349,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 
 	// Constraint init (clear XPBD's Lambdas, init self collisions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosXPBDConstraintsInit);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosXPBDConstraintsInit);
 		MConstraintInitsActiveView.SequentialFor(
 			[this, Dt](TArray<TFunction<void(const FPBDParticles&, const FReal)>>& ConstraintInits, int32 Index)
@@ -379,6 +384,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 
 	// Iteration loop
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDIterationLoop);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDIterationLoop);
 
 		for (int32 i = 0; i < MNumIterations; ++i)
@@ -386,6 +392,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 			MConstraintRulesActiveView.RangeFor(
 				[this, Dt](TArray<TFunction<void(FPBDParticles&, const FReal)>>& ConstraintRules, int32 Offset, int32 Range)
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDConstraintRule);
 					SCOPE_CYCLE_COUNTER(STAT_ChaosPBDConstraintRule);
 					for (int32 ConstraintIndex = Offset; ConstraintIndex < Range; ++ConstraintIndex)
 					{
@@ -394,10 +401,12 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 				}, bUseSingleThreadedRange);
 
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDCollisionRule);
 				SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRule);
 				MParticlesActiveView.RangeFor(
 					[this, &CollisionRule, &CCDCollisionRule, Dt](FPBDParticles& Particles, int32 Offset, int32 Range)
 					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDCollisionRuleP);
 						const uint32 DynamicGroupId = MParticleGroupIds[Offset];  // Particle group Id, must be the same across the entire range
 						const bool bUseCCD = MGroupUseCCDs[DynamicGroupId];
 						if (!bUseCCD)
@@ -432,6 +441,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 		MParticlesActiveView.ParallelFor(
 			[&CollisionRule, Dt](FPBDParticles& Particles, int32 Index)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDCollisionRuleFriction);
 				CollisionRule.ApplyFriction(Particles, Dt, Index);
 			}, bUseSingleThreadedRange, MinParallelBatchSize);
 	}

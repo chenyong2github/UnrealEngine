@@ -319,6 +319,7 @@ IClothingSimulationContext* FClothingSimulation::CreateContext()
 
 void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 InSimDataIndex)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulation_CreateActor);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothCreateActor);
 
 	check(InOwnerComponent);
@@ -492,6 +493,7 @@ bool FClothingSimulation::ShouldSimulate() const
 
 void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulation_Simulate);
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (ChaosClothingSimulationConsole::Command && ChaosClothingSimulationConsole::Command->MustStep(StepCount))
 #endif
@@ -578,6 +580,7 @@ void FClothingSimulation::GetSimulationData(
 	USkeletalMeshComponent* InOwnerComponent,
 	USkinnedMeshComponent* InOverrideComponent) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulation_GetSimulationData);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothGetSimulationData);
 
 	if (!Cloths.Num() || !InOwnerComponent)

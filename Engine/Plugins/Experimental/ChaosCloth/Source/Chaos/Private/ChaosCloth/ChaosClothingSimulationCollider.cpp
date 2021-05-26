@@ -658,6 +658,7 @@ void FClothingSimulationCollider::PreUpdate(FClothingSimulationSolver* Solver, F
 	check(Solver);
 	check(Cloth);
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationCollider_PreUpdate);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothingSimulationColliderUpdate);
 
 	// Add or re-add the external collision particles
@@ -676,7 +677,7 @@ void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClo
 {
 	check(Solver);
 	check(Cloth);
-
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationCollider_Update);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothingSimulationColliderUpdate);
 
 	// Update the collision transforms
