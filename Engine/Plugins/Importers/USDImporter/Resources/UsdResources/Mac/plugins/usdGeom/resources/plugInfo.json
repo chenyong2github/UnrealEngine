@@ -292,7 +292,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdGeom.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdGeom.dylib", 
             "Name": "usdGeom", 
             "ResourcePath": "resources", 
             "Root": "..", 

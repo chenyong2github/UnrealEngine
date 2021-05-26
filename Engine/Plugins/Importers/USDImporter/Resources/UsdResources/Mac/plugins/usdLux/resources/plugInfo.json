@@ -122,7 +122,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdLux.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdLux.dylib", 
             "Name": "usdLux", 
             "ResourcePath": "resources", 
             "Root": "..", 

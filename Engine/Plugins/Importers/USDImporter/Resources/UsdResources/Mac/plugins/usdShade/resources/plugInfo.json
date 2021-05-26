@@ -109,7 +109,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdShade.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdShade.dylib", 
             "Name": "usdShade", 
             "ResourcePath": "resources", 
             "Root": "..", 
