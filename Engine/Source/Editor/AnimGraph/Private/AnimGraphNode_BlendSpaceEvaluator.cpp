@@ -20,70 +20,10 @@ UAnimGraphNode_BlendSpaceEvaluator::UAnimGraphNode_BlendSpaceEvaluator(const FOb
 {
 }
 
-FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpace* InBlendSpace) const
-{
-	const FText BlendSpaceName = FText::FromString(InBlendSpace->GetName());
-
-	if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
-	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("BlendSpaceName"), BlendSpaceName);
-
-		// FText::Format() is slow, so we cache this to save on performance
-		CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(LOCTEXT("BlendSpaceEvaluatorListTitle", "Blendspace Evaluator '{BlendSpaceName}'"), Args), this);
-	}
-	else
-	{
-		FFormatNamedArguments TitleArgs;
-		TitleArgs.Add(TEXT("BlendSpaceName"), BlendSpaceName);
-		FText Title = FText::Format(LOCTEXT("BlendSpaceEvaluatorFullTitle", "{BlendSpaceName}\nBlendspace Evaluator"), TitleArgs);
-
-		if ((TitleType == ENodeTitleType::FullTitle) && (Node.GetGroupName() != NAME_None))
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Title"), Title);
-			Args.Add(TEXT("SyncGroupName"), FText::FromName(Node.GetGroupName()));
-			Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nSync group {SyncGroupName}"), Args);
-		}
-		// FText::Format() is slow, so we cache this to save on performance
-		CachedNodeTitles.SetCachedTitle(TitleType, Title, this);
-	}
-
-	return CachedNodeTitles[TitleType];
-}
-
 FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	if (Node.GetBlendSpace() == nullptr)
-	{
-		// we may have a valid variable connected or default pin value
-		UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace));
-		if (BlendSpacePin && BlendSpacePin->LinkedTo.Num() > 0)
-		{
-			return LOCTEXT("BlendSpaceEvaluator_Variable_Title", "Blendspace Evaluator");
-		}
-		else if (BlendSpacePin && BlendSpacePin->DefaultObject != nullptr)
-		{
-			return GetNodeTitleForBlendSpace(TitleType, CastChecked<UBlendSpace>(BlendSpacePin->DefaultObject));
-		}
-		else
-		{
-			if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
-			{
-				return LOCTEXT("BlendSpaceEvaluator_NONE_ListTitle", "Blendspace Evaluator '(None)'");
-			}
-			else
-			{
-				return LOCTEXT("BlendSpaceEvaluator_NONE_Title", "(None)\nBlendspace Evaluator");
-			}
-		}
-	}
-	// @TODO: the bone can be altered in the property editor, so we have to 
-	//        choose to mark this dirty when that happens for this to properly work
-	else //if (!CachedNodeTitles.IsTitleCached(TitleType, this))
-	{
-		return GetNodeTitleForBlendSpace(TitleType, Node.GetBlendSpace());
-	}
+	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpaceEvaluator, BlendSpace));
+	return GetNodeTitleHelper(TitleType, BlendSpacePin, LOCTEXT("PlayerDesc", "Blendspace Evaluator"));
 }
 
 void UAnimGraphNode_BlendSpaceEvaluator::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const

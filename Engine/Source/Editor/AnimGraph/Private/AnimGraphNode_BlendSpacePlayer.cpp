@@ -25,92 +25,10 @@ UAnimGraphNode_BlendSpacePlayer::UAnimGraphNode_BlendSpacePlayer(const FObjectIn
 {
 }
 
-FText UAnimGraphNode_BlendSpacePlayer::GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpace* InBlendSpace) const
-{
-	const FText BlendSpaceName = FText::FromString(InBlendSpace->GetName());
-
-	if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
-	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("BlendSpaceName"), BlendSpaceName);
-		// FText::Format() is slow, so we cache this to save on performance
-		CachedNodeTitles.SetCachedTitle(TitleType, FText::Format(LOCTEXT("BlendspacePlayer", "Blendspace Player '{BlendSpaceName}'"), Args), this);
-	}
-	else
-	{
-		FFormatNamedArguments TitleArgs;
-		TitleArgs.Add(TEXT("BlendSpaceName"), BlendSpaceName);
-		FText Title = FText::Format(LOCTEXT("BlendSpacePlayerFullTitle", "{BlendSpaceName}\nBlendspace Player"), TitleArgs);
-
-		if (TitleType == ENodeTitleType::FullTitle)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Title"), Title);
-
-			if(Node.GetGroupMethod() == EAnimSyncMethod::SyncGroup)
-			{
-				Args.Add(TEXT("SyncGroupName"), FText::FromName(Node.GetGroupName()));
-				Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nSync group {SyncGroupName}"), Args);
-			}
-			else if(Node.GetGroupMethod() == EAnimSyncMethod::Graph)
-			{
-				Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nGraph sync group"), Args);
-
-				UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged();
-				UAnimBlueprintGeneratedClass* GeneratedClass = GetAnimBlueprint()->GetAnimBlueprintGeneratedClass();
-				if (ObjectBeingDebugged && GeneratedClass)
-				{
-					int32 NodeIndex = GeneratedClass->GetNodeIndexFromGuid(NodeGuid);
-					if(NodeIndex != INDEX_NONE)
-					{
-						if(const FName* SyncGroupNamePtr = GeneratedClass->GetAnimBlueprintDebugData().NodeSyncsThisFrame.Find(NodeIndex))
-						{
-							Args.Add(TEXT("SyncGroupName"), FText::FromName(*SyncGroupNamePtr));
-							Title = FText::Format(LOCTEXT("BlendSpaceNodeGraphGroupSubtitle", "{Title}\nGraph sync group {SyncGroupName}"), Args);
-						}
-					}
-				}
-			}
-		}
-		// FText::Format() is slow, so we cache this to save on performance
-		CachedNodeTitles.SetCachedTitle(TitleType, Title, this);
-	}
-
-	return CachedNodeTitles[TitleType];
-}
-
 FText UAnimGraphNode_BlendSpacePlayer::GetNodeTitle(ENodeTitleType::Type TitleType) const
-{	
-	if (Node.GetBlendSpace() == nullptr)
-	{
-		// we may have a valid variable connected or default pin value
-		UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace));
-		if (BlendSpacePin && BlendSpacePin->LinkedTo.Num() > 0)
-		{
-			return LOCTEXT("BlendspacePlayer_Variable_Title", "Blendspace Player");
-		}
-		else if (BlendSpacePin && BlendSpacePin->DefaultObject != nullptr)
-		{
-			return GetNodeTitleForBlendSpace(TitleType, CastChecked<UBlendSpace>(BlendSpacePin->DefaultObject));
-		}
-		else
-		{
-			if (TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle)
-			{
-				return LOCTEXT("BlendspacePlayer_NONE_ListTitle", "Blendspace Player '(None)'");
-			}
-			else
-			{
-				return LOCTEXT("BlendspacePlayer_NONE_Title", "(None)\nBlendspace Player");
-			}
-		}
-	}
-	// @TODO: the bone can be altered in the property editor, so we have to 
-	//        choose to mark this dirty when that happens for this to properly work
-	else //if (!CachedNodeTitles.IsTitleCached(TitleType, this))
-	{
-		return GetNodeTitleForBlendSpace(TitleType, Node.GetBlendSpace());
-	}
+{
+	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace));
+	return GetNodeTitleHelper(TitleType, BlendSpacePin, LOCTEXT("PlayerDesc", "Blendspace Player"));
 }
 
 void UAnimGraphNode_BlendSpacePlayer::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)
