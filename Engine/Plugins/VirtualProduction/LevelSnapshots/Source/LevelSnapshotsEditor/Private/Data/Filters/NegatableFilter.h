@@ -31,6 +31,8 @@ public:
 
 	void IncrementFilterBehaviour();
 	void SetFilterBehaviour(EFilterBehavior NewFilterBehavior);
+
+	void OnRemoved();
 	
 	FText GetDisplayName() const;
 	EFilterBehavior GetFilterBehavior() const { return FilterBehavior; }
@@ -43,7 +45,9 @@ public:
 	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
 	//~ End ULevelSnapshotFilter Interface
 
-	
+	DECLARE_EVENT_OneParam(UNegatableFilter, FFilterDestroyed, UNegatableFilter*);
+	FFilterDestroyed OnFilterDestroyed;
+
 public: // Only public to use GET_MEMBER_NAME_CHECKED with compiler checks - do not use directly.
 	
 	/* Display name in editor. Defaults to class name if left empty. */

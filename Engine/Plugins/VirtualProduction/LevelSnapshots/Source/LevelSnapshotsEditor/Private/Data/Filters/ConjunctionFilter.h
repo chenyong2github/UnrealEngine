@@ -25,6 +25,8 @@ public:
 	/** Removes filter created by CreateChild. */
 	void RemoveChild(UNegatableFilter* Child);
 	const TArray<UNegatableFilter*>& GetChildren() const;
+
+	void OnRemoved();
 	
 	//~ Begin ULevelSnapshotFilter Interface
 	virtual EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;

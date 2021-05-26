@@ -47,6 +47,11 @@ SLevelSnapshotsEditorFilter::~SLevelSnapshotsEditorFilter()
 	{
 		EditorData->OnEditedFiterChanged.Remove(ActiveFilterChangedDelegateHandle);
 	}
+
+	if (SnapshotFilter.IsValid())
+	{
+		SnapshotFilter->OnFilterDestroyed.Remove(OnFilterDestroyedDelegateHandle);
+	}
 }
 
 void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
@@ -129,7 +134,15 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 
 	// Hightlight & unhighlight filter when being edited
 	FilterNamePtr->SetOnClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnSelectFilterForEdit));
-	ActiveFilterChangedDelegateHandle = InFilters->GetBuilder()->EditorDataPtr.Get()->OnEditedFiterChanged.AddRaw(this, &SLevelSnapshotsEditorFilter::OnActiveFilterChanged); 
+	
+	ActiveFilterChangedDelegateHandle = InFilters->GetBuilder()->EditorDataPtr.Get()->OnEditedFiterChanged.AddRaw(this, &SLevelSnapshotsEditorFilter::OnActiveFilterChanged);
+	OnFilterDestroyedDelegateHandle = InFilter->OnFilterDestroyed.AddLambda([this](UNegatableFilter* Filter)
+	{
+		if (ensure(EditorData.IsValid()) && EditorData->IsEditingFilter(Filter))
+		{
+			return EditorData->SetEditedFilter({});
+		}
+	});
 }
 
 const TWeakObjectPtr<UNegatableFilter>& SLevelSnapshotsEditorFilter::GetSnapshotFilter() const
@@ -201,7 +214,6 @@ FReply SLevelSnapshotsEditorFilter::OnNegateFilter()
 
 FReply SLevelSnapshotsEditorFilter::OnRemoveFilter()
 {
-	EditorData->SetEditedFilter(TOptional<UNegatableFilter*>());
 	OnClickRemoveFilter.Execute(SharedThis(this));
 	return FReply::Handled();
 }

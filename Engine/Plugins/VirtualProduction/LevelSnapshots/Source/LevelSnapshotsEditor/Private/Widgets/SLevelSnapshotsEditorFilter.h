@@ -49,6 +49,7 @@ private:
 	
 	FOnClickRemoveFilter OnClickRemoveFilter;
 
+	FDelegateHandle OnFilterDestroyedDelegateHandle;
 	FDelegateHandle ActiveFilterChangedDelegateHandle;
 	bool bShouldHighlightFilter = false;;
 	

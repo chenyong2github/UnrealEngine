@@ -65,7 +65,10 @@ UConjunctionFilter* UDisjunctiveNormalFormFilter::CreateChild()
 void UDisjunctiveNormalFormFilter::RemoveConjunction(UConjunctionFilter* Child)
 {
 	const bool bRemovedChild = Children.RemoveSingle(Child) != 0;
-	check(bRemovedChild);
+	if (ensure(bRemovedChild))
+	{
+		Child->OnRemoved();
+	}
 }
 
 const TArray<UConjunctionFilter*>& UDisjunctiveNormalFormFilter::GetChildren() const

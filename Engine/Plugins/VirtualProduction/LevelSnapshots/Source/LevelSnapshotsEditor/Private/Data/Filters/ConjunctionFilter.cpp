@@ -59,10 +59,16 @@ UNegatableFilter* UConjunctionFilter::CreateChild(const TSubclassOf<ULevelSnapsh
 
 void UConjunctionFilter::RemoveChild(UNegatableFilter* Child)
 {
+	if (!ensure(Child))
+	{
+		return;
+	}
+	
 	const bool bRemovedChild = Children.RemoveSingle(Child) != 0;
 	check(bRemovedChild);
 	if (bRemovedChild)
 	{
+		Child->OnRemoved();
 		OnChildRemoved.Broadcast(Child);
 	}
 }
@@ -70,6 +76,14 @@ void UConjunctionFilter::RemoveChild(UNegatableFilter* Child)
 const TArray<UNegatableFilter*>& UConjunctionFilter::GetChildren() const
 {
 	return Children;
+}
+
+void UConjunctionFilter::OnRemoved()
+{
+	for (UNegatableFilter* Child : Children)
+	{
+		Child->OnRemoved();
+	}
 }
 
 EFilterResult::Type UConjunctionFilter::IsActorValid(const FIsActorValidParams& Params) const

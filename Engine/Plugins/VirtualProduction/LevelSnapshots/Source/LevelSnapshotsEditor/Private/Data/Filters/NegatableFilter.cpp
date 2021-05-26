@@ -54,6 +54,11 @@ void UNegatableFilter::SetFilterBehaviour(EFilterBehavior NewFilterBehavior)
 	FilterBehavior = NewFilterBehavior;
 }
 
+void UNegatableFilter::OnRemoved()
+{
+	OnFilterDestroyed.Broadcast(this);
+}
+
 FText UNegatableFilter::GetDisplayName() const
 {
 	// Child filter is nullptr when user deletes filter class and force deletes
