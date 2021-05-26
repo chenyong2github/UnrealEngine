@@ -554,6 +554,8 @@ private:
 	void BootstrapTagDatas();
 	/** Called when we have detected enabled in processcommandline, or as late as possible if callers access features that require full initialisation before then */
 	void FinishInitialise();
+	void InitialiseTagDatas_SetLLMTagNames();
+	void InitialiseTagDatas_FinishRegister();
 	void InitialiseTagDatas();
 	void ClearTagDatas();
 	void RegisterTagDeclaration(FLLMTagDeclaration& TagDeclaration);
