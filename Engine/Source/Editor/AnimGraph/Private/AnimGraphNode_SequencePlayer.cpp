@@ -68,111 +68,16 @@ FSlateIcon UAnimGraphNode_SequencePlayer::GetIconAndTint(FLinearColor& OutColor)
 	return FSlateIcon("EditorStyle", "ClassIcon.AnimSequence");
 }
 
-FText UAnimGraphNode_SequencePlayer::GetNodeTitleForSequence(ENodeTitleType::Type TitleType, UAnimSequenceBase* InSequence) const
-{
-	const bool bAdditive = InSequence->IsValidAdditive();
-	const FText BasicTitle = GetTitleGivenAssetInfo(FText::FromName(InSequence->GetFName()), bAdditive);
-
-	if(Node.GetGroupMethod() == EAnimSyncMethod::SyncGroup)
-	{
-		const FText SyncGroupName = FText::FromName(Node.GetGroupName());
-
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("Title"), BasicTitle);
-		Args.Add(TEXT("SyncGroup"), SyncGroupName);
-
-		if (TitleType == ENodeTitleType::FullTitle)
-		{
-			return FText::Format(LOCTEXT("SequenceNodeGroupWithSubtitleFull", "{Title}\nSync group {SyncGroup}"), Args);
-		}
-		else
-		{
-			return FText::Format(LOCTEXT("SequenceNodeGroupWithSubtitleList", "{Title} (Sync group {SyncGroup})"), Args);
-		}
-	}
-	else if(Node.GetGroupMethod() == EAnimSyncMethod::Graph)
-	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("Title"), BasicTitle);
-
-		UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged();
-		UAnimBlueprintGeneratedClass* GeneratedClass = GetAnimBlueprint()->GetAnimBlueprintGeneratedClass();
-		if (ObjectBeingDebugged && GeneratedClass)
-		{
-			int32 NodeIndex = GeneratedClass->GetNodeIndexFromGuid(NodeGuid);
-			if(NodeIndex != INDEX_NONE)
-			{
-				if(const FName* SyncGroupNamePtr = GeneratedClass->GetAnimBlueprintDebugData().NodeSyncsThisFrame.Find(NodeIndex))
-				{
-					Args.Add(TEXT("SyncGroup"), FText::FromName(*SyncGroupNamePtr));
-
-					if (TitleType == ENodeTitleType::FullTitle)
-					{
-						return FText::Format(LOCTEXT("SequenceNodeGraphSyncDebuggedWithSubtitleFull", "{Title}\nGraph sync group {SyncGroup}"), Args);
-					}
-					else
-					{
-						return FText::Format(LOCTEXT("SequenceNodeGraphSyncDebuggedWithSubtitleList", "{Title} (Graph sync group {SyncGroup})"), Args);
-					}
-				}
-			}
-		}
-
-		// Indicate that the sync is graph-based if we have no debug data
-		if (TitleType == ENodeTitleType::FullTitle)
-		{
-			return FText::Format(LOCTEXT("SequenceNodeGraphSyncWithSubtitleFull", "{Title}\nGraph sync group"), Args);
-		}
-		else
-		{
-			return FText::Format(LOCTEXT("SequenceNodeGraphSyncWithSubtitleList", "{Title} (Graph sync group)"), Args);
-		}
-	}
-	else
-	{
-		return BasicTitle;
-	}
-}
-
 FText UAnimGraphNode_SequencePlayer::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	UAnimSequenceBase* Sequence = Node.GetSequence();
-	if (Sequence == nullptr)
-	{
-		// we may have a valid variable connected or default pin value
-		UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, Sequence));
-		if (SequencePin && SequencePin->LinkedTo.Num() > 0)
+	UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, Sequence));
+	return GetNodeTitleHelper(TitleType, SequencePin, LOCTEXT("PlayerDesc", "Sequence Player"),
+		[](UAnimationAsset* InAsset)
 		{
-			return LOCTEXT("SequenceNodeTitleVariable", "Play Animation Sequence");
-		}
-		else if (SequencePin && SequencePin->DefaultObject != nullptr)
-		{
-			return GetNodeTitleForSequence(TitleType, CastChecked<UAnimSequenceBase>(SequencePin->DefaultObject));
-		}
-		else
-		{
-			return LOCTEXT("SequenceNullTitle", "Play (None)");
-		}
-	}
-	else
-	{
-		return GetNodeTitleForSequence(TitleType, Sequence);
-	}
-}
-
-FText UAnimGraphNode_SequencePlayer::GetTitleGivenAssetInfo(const FText& AssetName, bool bKnownToBeAdditive)
-{
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("AssetName"), AssetName);
-
-	if (bKnownToBeAdditive)
-	{
-		return FText::Format(LOCTEXT("SequenceNodeTitleAdditive", "Play {AssetName} (additive)"), Args);
-	}
-	else
-	{
-		return FText::Format(LOCTEXT("SequenceNodeTitle", "Play {AssetName}"), Args);
-	}
+			UAnimSequenceBase* SequenceBase = CastChecked<UAnimSequenceBase>(InAsset);
+			const bool bAdditive = SequenceBase->IsValidAdditive();
+			return bAdditive ? LOCTEXT("AdditivePostFix", "(additive)") : FText::GetEmpty();
+		});
 }
 
 FText UAnimGraphNode_SequencePlayer::GetMenuCategory() const

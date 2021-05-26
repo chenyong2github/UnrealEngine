@@ -57,55 +57,10 @@ FText UAnimGraphNode_SequenceEvaluator::GetMenuCategory() const
 	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Animation);
 }
 
-FText UAnimGraphNode_SequenceEvaluator::GetNodeTitleForSequence(ENodeTitleType::Type TitleType, UAnimSequenceBase* InSequence) const
-{
-	const FText SequenceName = FText::FromString(InSequence->GetName());
-
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("SequenceName"), SequenceName);
-
-	// FText::Format() is slow, so we cache this to save on performance
-	if (InSequence->IsValidAdditive())
-	{
-		CachedNodeTitle.SetCachedText(FText::Format(LOCTEXT("EvaluateSequence_Additive", "Evaluate {SequenceName} (additive)"), Args), this);
-	}
-	else
-	{
-		CachedNodeTitle.SetCachedText(FText::Format(LOCTEXT("EvaluateSequence", "Evaluate {SequenceName}"), Args), this);
-	}
-
-	return CachedNodeTitle;
-}
-
 FText UAnimGraphNode_SequenceEvaluator::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	UAnimSequenceBase* Sequence = Node.GetSequence();
-	if (Sequence == nullptr)
-	{
-		// we may have a valid variable connected or default pin value
-		UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequenceEvaluator, Sequence));
-		if (SequencePin && SequencePin->LinkedTo.Num() > 0)
-		{
-			return LOCTEXT("EvaluateSequence_TitleVariable", "Evaluate Animation Sequence");
-		}
-		else if (SequencePin && SequencePin->DefaultObject != nullptr)
-		{
-			return GetNodeTitleForSequence(TitleType, CastChecked<UAnimSequenceBase>(SequencePin->DefaultObject));
-		}
-		else
-		{
-			return LOCTEXT("EvaluateSequence_TitleNONE", "Evaluate (None)");
-		}
-	}
-	// @TODO: don't know enough about this node type to comfortably assert that
-	//        the CacheName won't change after the node has spawned... until
-	//        then, we'll leave this optimization off
-	else //if (CachedNodeTitle.IsOutOfDate(this))
-	{
-		GetNodeTitleForSequence(TitleType, Sequence);
-	}
-
-	return CachedNodeTitle;
+	UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequenceEvaluator, Sequence));
+	return GetNodeTitleHelper(TitleType, SequencePin, LOCTEXT("PlayerDesc", "Sequence Evaluator"));
 }
 
 FSlateIcon UAnimGraphNode_SequenceEvaluator::GetIconAndTint(FLinearColor& OutColor) const
