@@ -75,6 +75,7 @@ namespace HordeServerTests
 				new StreamId("ue5-main"),
 				null,
 				"",
+				"",
 				new ProjectId("does-not-exist"),
 				new StreamConfig { Name = "//UE5/Main", Tabs = Tabs, Templates = Templates }
 			);

@@ -38,7 +38,7 @@ namespace HordeServerTests
 		{
 			TestSetup = GetTestSetup().Result;
 
-			IProject ? Project = TestSetup.ProjectService.TryCreateProjectAsync(new ProjectId("ue5"), "UE5", null, null, null).Result;
+			IProject ? Project = TestSetup.ProjectService.Collection.AddOrUpdateAsync(new ProjectId("ue5"), "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
 			Assert.IsNotNull(Project);
 
 			Template = TestSetup.TemplateService.CreateTemplateAsync("Test template", null, false, null, null, new List<TemplateCounter>(), new List<string>(), new List<Parameter>()).Result;
@@ -46,7 +46,7 @@ namespace HordeServerTests
 			Stream = TestSetup.StreamCollection.GetAsync(StreamId).Result!;
 			if (Stream == null)
 			{
-				Stream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), null, "", Project!.Id, new StreamConfig { Name = "//UE5/Main" }).Result!;
+				Stream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), null, "", "", Project!.Id, new StreamConfig { Name = "//UE5/Main" }).Result!;
 			}
 
 			InitialJobIds = new HashSet<ObjectId>(TestSetup.JobCollection.FindAsync().Result.Select(x => x.Id));
