@@ -193,10 +193,7 @@ namespace GeometryCollectionTest
 				*DynamicCollection, // Game thread collection
 				SimulationParams,
 				SimFilterData,
-				QueryFilterData,
-				nullptr,			// Init func
-				nullptr,			// Cache sync func
-				nullptr);			// Final sync func
+				QueryFilterData);
 		return new FGeometryCollectionWrapper(RestCollection, DynamicCollection, PhysObject);
 	}
 

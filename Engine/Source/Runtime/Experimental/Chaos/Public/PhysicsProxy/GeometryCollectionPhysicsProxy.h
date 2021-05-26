@@ -63,9 +63,6 @@ public:
 	typedef Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3> FClusterHandle;
 
 	/** Proxy publics */
-	using FInitFunc = TFunction<void(FSimulationParameters&)>;
-	using FCacheSyncFunc = TFunction<void(const FGeometryCollectionResults&)>;
-	using FFinalSyncFunc = TFunction<void(const FRecordedTransformTrack&)>;
 	using IPhysicsProxyBase::GetSolver;
 
 	FGeometryCollectionPhysicsProxy() = delete;
@@ -82,9 +79,6 @@ public:
 		const FSimulationParameters& SimulationParameters,
 		FCollisionFilterData InSimFilter,
 		FCollisionFilterData InQueryFilter,
-		FInitFunc InInitFunc, 
-		FCacheSyncFunc InCacheSyncFunc, 
-		FFinalSyncFunc InFinalSyncFunc  ,
 		const Chaos::EMultiBufferMode BufferMode=Chaos::EMultiBufferMode::TripleGuarded);
 	virtual ~FGeometryCollectionPhysicsProxy();
 
@@ -241,6 +235,8 @@ public:
 		}
 	}
 
+	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
+
 protected:
 	/**
 	 * Build a physics thread cluster parent particle.
@@ -319,12 +315,6 @@ private:
 	// Synced back to the component with SyncBeforeDestroy
 	FRecordedTransformTrack RecordedTracks;
 #endif
-
-	// Functions to handle engine-side events
-	FInitFunc InitFunc;
-	FCacheSyncFunc CacheSyncFunc;
-	FFinalSyncFunc FinalSyncFunc;
-
 
 	// Per object collision fraction.
 	float CollisionParticlesPerObjectFraction;

@@ -363,6 +363,8 @@ public:
 	virtual void OnRegister() override;
 	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = -1) const override;
 	virtual void SetNotifyRigidBodyCollision(bool bNewNotifyRigidBodyCollision) override;
+	virtual bool CanEditSimulatePhysics() override;
+	virtual void SetSimulatePhysics(bool bEnabled) override;
 	//~ End UPrimitiveComponent Interface.
 
 
@@ -436,11 +438,9 @@ public:
 	UPROPERTY(EditAnywhere, NoClear, BlueprintReadOnly, Category = "ChaosPhysics")
 	TArray<TObjectPtr<const AFieldSystemActor>> InitializationFields;
 
-	/**
-	* When Simulating is enabled the Component will initialize its rigid bodies within the solver.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
-	bool Simulating;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "GeometryCollection now abides the bSimulatePhysics flag from the base class."))
+	bool Simulating_DEPRECATED;
+
 	ESimulationInitializationState InitializationState;
 
 	/** ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic. */
@@ -549,7 +549,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Game|Damage")
 	FNotifyGeometryCollectionPhysicsStateChange NotifyGeometryCollectionPhysicsStateChange;
 
-	bool GetIsObjectDynamic() { return IsObjectDynamic; }
+	bool GetIsObjectDynamic() const;
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNotifyGeometryCollectionPhysicsLoadingStateChange, UGeometryCollectionComponent*, FracturedComponent);
 	UPROPERTY(BlueprintAssignable, Category = "Game|Loading")
@@ -596,6 +596,7 @@ public:
 	const TArray<bool>& GetDisabledFlags() const { return DisabledFlags; }
 
 	virtual void OnCreatePhysicsState() override;
+	void RegisterAndInitializePhysicsProxy();
 	virtual void OnDestroyPhysicsState() override;
 	virtual bool ShouldCreatePhysicsState() const override;
 	virtual bool HasValidPhysicsState() const override;
