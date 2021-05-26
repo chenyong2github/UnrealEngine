@@ -31,6 +31,7 @@
 #include "Misc/CoreDelegates.h"
 #include "EditorSupportDelegates.h"
 #include "GlobalShader.h"
+#include "SceneManagement.h"
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
 #include "RendererInterface.h"

@@ -934,6 +934,9 @@ private:
 	/** Opt out of material shader compilation and instead place an empty shader map. */
 	bool bNoShaderCompilation;
 
+	/** Used to show a notification accompanying progress. */
+	FAsyncCompilationNotification Notification;
+
 	/** Launches the worker, returns the launched process handle. */
 	FProcHandle LaunchWorker(const FString& WorkingDirectory, uint32 ProcessId, uint32 ThreadId, const FString& WorkerInputFile, const FString& WorkerOutputFile);
 
@@ -1119,8 +1122,6 @@ public:
 	 * Returns true if the given shader compile worker is still running.
 	 */
 	static bool IsShaderCompilerWorkerRunning(FProcHandle & WorkerHandle);
-
-	FAsyncCompilationNotification Notification;
 };
 
 /** The global shader compiling thread manager. */
