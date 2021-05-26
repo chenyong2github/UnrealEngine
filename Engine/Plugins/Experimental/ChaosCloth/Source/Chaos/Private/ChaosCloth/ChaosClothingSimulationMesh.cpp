@@ -127,6 +127,7 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 	const FVec3* Positions,
 	FVec3* OutPositions) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationMesh_WrapDeformLOD);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformMesh);
 
 	const int32 NumLODsPassed = FMath::Abs(LODIndex - PrevLODIndex);
@@ -168,6 +169,7 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 	FVec3* OutPositions1,
 	FVec3* OutVelocities) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationMesh_WrapDeformLOD);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformClothLOD);
 
 	const int32 NumLODsPassed = FMath::Abs(LODIndex - PrevLODIndex);
@@ -213,6 +215,7 @@ FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, c
 
 void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& LocalSpaceLocation, FVec3* OutPositions, FVec3* OutNormals) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationMesh_SkinPhysicsMesh);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSkinPhysicsMesh);
 	SCOPE_CYCLE_COUNTER(STAT_ClothSkinPhysMesh);
 

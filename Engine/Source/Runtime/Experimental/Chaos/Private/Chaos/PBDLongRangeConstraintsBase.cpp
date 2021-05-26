@@ -260,6 +260,7 @@ void FPBDLongRangeConstraintsBase::ComputeGeodesicConstraints(
     const TMap<int32, TSet<int32>>& PointToNeighbors,
     const int32 MaxNumTetherIslands)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDLongRangeConstraintsBase_ComputeGeodesicConstraints);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothComputeGeodesicConstraints);
 
 	// Fill up the list of all used indices

@@ -727,6 +727,7 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 
 void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_ApplyPreSimulationTransforms);
 	const FVec3 DeltaLocalSpaceLocation = LocalSpaceLocation - OldLocalSpaceLocation;
 
 	const TPBDActiveView<FPBDParticles>& ParticlesActiveView = Evolution->ParticlesActiveView();
@@ -735,6 +736,7 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 	ParticlesActiveView.RangeFor(
 		[this, &ParticleGroupIds, &DeltaLocalSpaceLocation](FPBDParticles& Particles, int32 Offset, int32 Range)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_ParticlePreSimulationTransforms);
 			SCOPE_CYCLE_COUNTER(STAT_ChaosClothParticlePreSimulationTransforms);
 
 			const int32 RangeSize = Range - Offset;
@@ -760,6 +762,7 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 #endif
 
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_CollisionPreSimulationTransforms);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothCollisionPreSimulationTransforms);
 
 		const TPBDActiveView<FKinematicGeometryClothParticles>& CollisionParticlesActiveView = Evolution->CollisionParticlesActiveView();
@@ -781,6 +784,7 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 
 void FClothingSimulationSolver::Update(FReal InDeltaTime)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_Update);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdate);
 
 	// Filter delta time to smoothen time variations and prevent unwanted vibrations
@@ -790,6 +794,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 
 	// Update Cloths and cloth colliders
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_UpdateCloths);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateCloths);
 
 		Swap(OldCollisionTransforms, CollisionTransforms);
@@ -820,6 +825,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 
 	// Pre solver step, apply group space transforms for teleport and linear/delta ratios, ...etc
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_UpdatePreSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdatePreSolverStep);
 
 		ApplyPreSimulationTransforms();
@@ -827,6 +833,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 
 	// Advance Sim
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_UpdateSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ClothInternalSolve);
 
@@ -845,6 +852,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 
 	// Post solver step, update normals, ...etc
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_UpdatePostSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdatePostSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ClothComputeNormals);
 
@@ -861,6 +869,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 
 FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_CalculateBounds);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverCalculateBounds);
 
 	const TPBDActiveView<FPBDParticles>& ParticlesActiveView = Evolution->ParticlesActiveView();

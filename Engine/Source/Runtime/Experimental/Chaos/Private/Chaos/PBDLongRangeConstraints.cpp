@@ -14,6 +14,7 @@ using namespace Chaos;
 
 void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*/, const TArray<int32>& ConstraintIndices) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDLongRangeConstraints_Apply);
 	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
 	if (!Stiffness.HasWeightMap())
 	{
@@ -37,6 +38,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 
 void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*/) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDLongRangeConstraints_Apply);
 	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
 
 	if (!Stiffness.HasWeightMap())

@@ -55,6 +55,7 @@ void FPBDAxialSpringConstraints::ApplyHelper(FPBDParticles& Particles, const FRe
 
 void FPBDAxialSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDAxialSpringConstraints_Apply);
 	SCOPE_CYCLE_COUNTER(STAT_PBD_AxialSpring);
 	if (ConstraintsPerColor.Num() > 0 && Constraints.Num() > Chaos_AxialSpring_ParallelConstraintCount)
 	{
