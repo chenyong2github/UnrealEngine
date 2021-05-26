@@ -3,46 +3,20 @@
 import { ContextualLogger } from "../common/logger";
 import { Change, PerforceContext } from "../common/perforce";
 import { gatesSame, GateEventContext, GateInfo } from "./branch-interfaces"
-import { DAYS_OF_THE_WEEK, EdgeOptions, IntegrationWindowPane } from "./branchdefs"
+import { DAYS_OF_THE_WEEK, CommonOptionFields, IntegrationWindowPane } from "./branchdefs"
 import { BotEventTriggers } from "./events"
 import { Context } from "./settings"
 
 
 const GATE_INFO_KEY = 'gate-info'
 
+
+type GateOptions = Partial<CommonOptionFields>
+
 export type GateContext = {
-	options: EdgeOptions
+	options: GateOptions
 	p4: PerforceContext | null // only allowed to be null for unit tests
 	logger: ContextualLogger
-}
-
-class DummyEventTriggers {
-
-	// pretend GateEventContext 
-	from: any = ''
-	to: any = ''
-	pauseCIS = false
-
-	constructor(public edgeLastCl: number) {
-	}
-
-	static Inner = class {
-		beginCalls = 0
-		endCalls = 0
-		reportBeginIntegratingToGate(_arg: any) {
-			++this.beginCalls
-		}
-
-		reportEndIntegratingToGate(_arg: any) {
-			++this.endCalls
-		}
-	}
-
-	get beginCalls() { return this.eventTriggers.beginCalls }
-	get endCalls() { return this.eventTriggers.endCalls }
-
-	// named to match EventTriggersAndStuff.context
-	eventTriggers = new DummyEventTriggers.Inner
 }
 
 async function getRequestedGateCl(context: GateContext, previousGateInfo?: GateInfo | null): Promise<GateInfo | null> {
@@ -92,15 +66,15 @@ async function getRequestedGateCl(context: GateContext, previousGateInfo?: GateI
 		result.link = clInfo.Url
 	}
 	if (previousGateInfo && previousGateInfo.cl === cl) {
-		if (previousGateInfo.date) {
-			result.date = previousGateInfo.date
+		if (previousGateInfo.timestamp) {
+			result.timestamp = previousGateInfo.timestamp
 		}
 	}
 	else {
 		try {
 			const description = await context.p4!.describe(cl)
 			if (description.date) {
-				result.date = description.date
+				result.timestamp = description.date.getTime()
 			}
 		}
 		catch (err) {
@@ -366,7 +340,9 @@ export class Gate {
 		if (mostRecentGate) {
 			outStatus.lastGoodCL = mostRecentGate.cl
 			outStatus.lastGoodCLJobLink = mostRecentGate.link
-			outStatus.lastGoodCLDate = mostRecentGate.date
+			if (mostRecentGate.timestamp) {
+				outStatus.lastGoodCLDate = new Date(mostRecentGate.timestamp)
+			}
 		}
 
 		const closedMessage = this.getGateClosedMessage()
@@ -499,7 +475,7 @@ export class Gate {
 			return
 		}
 
-		const data: any = {}
+		const data: any = {version: 1}
 		if (this.currentGateInfo) {
 			data.current = this.currentGateInfo
 		}
@@ -516,8 +492,10 @@ export class Gate {
 		}
 		const saved = this.persistence.get(GATE_INFO_KEY)
 		if (saved) {
+
 			this.context.logger.info(`Restoring saved gate info: current ${saved.current && saved.current.cl}`)
 
+			const version = saved.version || 0
 			if (saved.lastCl) {
 				this.setLastCl(saved.lastCl)
 			}
@@ -530,11 +508,18 @@ export class Gate {
 				}
 			}
 
-		// 	if (saved.queued) {
+			if (version < 1) {
+				if (saved.current) {
+					delete saved.current.date
+				}
+				return
+			}
+
+			if (saved.queued) {
 			// need to convert strings to dates for one thing
-		// 		this.context.logger.info('Queue: ' + saved.queued.map((info: GateInfo) => info.cl).join(', '))
-		// 		this.queuedGates = saved.queued
-		// 	}
+				this.context.logger.info('Queue: ' + saved.queued.map((info: GateInfo) => info.cl).join(', '))
+				this.queuedGates = saved.queued
+			}
 		}
 	}
 
@@ -554,6 +539,51 @@ export class Gate {
 	private queuedGates: GateInfo[] = []
 }
 
+/**
+Integration window flow
+- if outside window, gates get queued (no current)
+	(in tick, always queued, but tryNextGate not called if outside window)
+- if no current, window checked every tick
+- if finish catch-up and gates still queued outside of window
+	: updateLastCl calls tryNextGate
+		- if cl past all queued gates, current gate set and queue cleared
+		- if not within window, current set to null
+
+- first gate coming in outside window while waiting at gate
+	: in processGateChange, current gets set to null and new gate queued
+*/
+
+//////////////////
+// TESTS
+
+class DummyEventTriggers {
+
+	// pretend GateEventContext 
+	from: any = ''
+	to: any = ''
+	pauseCIS = false
+
+	constructor(public edgeLastCl: number) {
+	}
+
+	static Inner = class {
+		beginCalls = 0
+		endCalls = 0
+		reportBeginIntegratingToGate(_arg: any) {
+			++this.beginCalls
+		}
+
+		reportEndIntegratingToGate(_arg: any) {
+			++this.endCalls
+		}
+	}
+
+	get beginCalls() { return this.eventTriggers.beginCalls }
+	get endCalls() { return this.eventTriggers.endCalls }
+
+	// named to match EventTriggersAndStuff.context
+	eventTriggers = new DummyEventTriggers.Inner
+}
 
 const colors = require('colors')
 colors.enable()
@@ -566,7 +596,7 @@ function setLastCl(gate: Gate, cl: number) {
 export async function runTests(parentLogger: ContextualLogger) {
 	const logger = parentLogger.createChild('Gate')
 
-	const makeTestGate = (cl: number, options?: EdgeOptions): [DummyEventTriggers, Gate] => {
+	const makeTestGate = (cl: number, options?: GateOptions): [DummyEventTriggers, Gate] => {
 		const et = new DummyEventTriggers(cl)
 		return [et, new Gate(et, { options: options || {}, p4: null, logger})]
 	}
@@ -587,7 +617,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 
 	const simpleGateTest = async (exact: boolean) => {
 
-		const options: EdgeOptions = {
+		const options: GateOptions = {
 			lastGoodCLPath: 1
 		}
 
@@ -621,7 +651,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 		assert(et.beginCalls === 1 && et.endCalls === 1, 'caught up')
 	}
 
-	const openWindow = (opts: EdgeOptions) => {
+	const openWindow = (opts: GateOptions) => {
 		opts.integrationWindow!.push({
 			startHourUTC: (new Date).getUTCHours(),
 			durationHours: 2 // more than 1 to avoid edge cases
@@ -631,7 +661,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 	const replaceQueuedGates = async (replacement: string) => {
 
 		// queue gates until window opens
-		const options: EdgeOptions = {
+		const options: GateOptions = {
 			lastGoodCLPath: 4,
 			integrationWindow: []
 		}
@@ -689,7 +719,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 	const queueNoWindow = async (middleIntegration: boolean) => {
  		// add gates at 2 and 3 while 1 still pending, integrate 1, 2 and 3 (should make 2 optional)
 
-		const options: EdgeOptions = { lastGoodCLPath: 2 }
+		const options: GateOptions = { lastGoodCLPath: 2 }
 
 		// initial CL is 1, gate is 2
 		const [et, gate] = makeTestGate(1, options)
@@ -735,7 +765,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 	///
 	testName = 'window'
 	// start on cl 1, catch up to gate at 2 when window opens
-	const optionsw: EdgeOptions = {
+	const optionsw: GateOptions = {
 		lastGoodCLPath: 2,
 		integrationWindow: []
 	}
@@ -757,7 +787,7 @@ export async function runTests(parentLogger: ContextualLogger) {
 	await (async () => {
 
 		// queue gates until window opens
-		const options: EdgeOptions = {
+		const options: GateOptions = {
 			lastGoodCLPath: 2,
 			integrationWindow: []
 		}
