@@ -8,6 +8,7 @@
 #include "AudioThread.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectSubmix.h"
+#include "Sound/SoundModulationDestination.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
 #include "Misc/ScopeTryLock.h"
@@ -240,6 +241,23 @@ namespace Audio
 
 			CurrentDryLevel = FMath::Clamp(SoundSubmix->DryLevel, 0.0f, 1.0f);
 			TargetDryLevel = CurrentDryLevel;
+
+			FModulationDestination VolumeModulation;
+			VolumeModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+			VolumeModulation.UpdateModulator(SoundSubmix->OutputVolumeModulation.Modulator);
+			VolumeModBase = SoundSubmix->OutputVolumeModulation.Value;
+
+			FModulationDestination WetModulation;
+			WetModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+			WetModulation.UpdateModulator(SoundSubmix->WetLevelModulation.Modulator);
+			WetModBase = SoundSubmix->WetLevelModulation.Value;
+
+			FModulationDestination DryModulation;
+			DryModulation.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+			DryModulation.UpdateModulator(SoundSubmix->DryLevelModulation.Modulator);
+			DryModBase = SoundSubmix->DryLevelModulation.Value;
+
+			SetModulationSettings(VolumeModulation, WetModulation, DryModulation);
 
 			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 			{
@@ -1116,8 +1134,26 @@ namespace Audio
 
 		DryChannelBuffer.Reset();
 
+		// Update Dry Level using modulator
+		float ModulatedDryLevelStart = CurrentDryLevel;
+		float ModulatedDryLevelEnd = TargetDryLevel;
+
+		const bool bUseModulation = MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid();
+		if (bUseModulation)
+		{
+			const float PreModulation = DryLevelMod.GetValue();
+			DryLevelMod.ProcessControl(DryModBase);
+			const float PostModulation = DryLevelMod.GetValue();
+
+			if (DryLevelMod.IsActive())
+			{
+				ModulatedDryLevelStart *= DryLevelMod.GetHasProcessed() ? PreModulation : PostModulation;
+				ModulatedDryLevelEnd *= PostModulation;
+			}
+		}
+
 		// Check if we need to allocate a dry buffer. This is stored here before effects processing. We mix in with wet buffer after effects processing.
-		if (!FMath::IsNearlyEqual(CurrentDryLevel, TargetDryLevel) || !FMath::IsNearlyZero(CurrentDryLevel))
+		if (!FMath::IsNearlyEqual(ModulatedDryLevelStart, ModulatedDryLevelEnd) || !FMath::IsNearlyZero(ModulatedDryLevelStart))
 		{
 			DryChannelBuffer.Append(InputBuffer);
 		}
@@ -1187,16 +1223,33 @@ namespace Audio
 					FMemory::Memcpy((void*)BufferPtr, (void*)SubmixChainMixBuffer.GetData(), sizeof(float)* NumSamples);
 				}
 
-				// Apply the wet level here after processing effects. 
-				if (!FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel) || !FMath::IsNearlyEqual(CurrentWetLevel, 1.0f))
+				// Update Wet Level using modulator
+				float ModulatedWetLevelStart = CurrentWetLevel;
+				float ModulatedWetLevelEnd = TargetWetLevel;
+
+				if (bUseModulation)
 				{
-					if (FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel))
+					const float PreModulation = WetLevelMod.GetValue();
+					WetLevelMod.ProcessControl(WetModBase);
+					const float PostModulation = WetLevelMod.GetValue();
+
+					if (WetLevelMod.IsActive())
 					{
-						MultiplyBufferByConstantInPlace(InputBuffer, TargetWetLevel);
+						ModulatedWetLevelStart *= WetLevelMod.GetHasProcessed() ? PreModulation : PostModulation;
+						ModulatedWetLevelEnd *= PostModulation;
+					}
+				}
+
+				// Apply the wet level here after processing effects. 
+				if (!FMath::IsNearlyEqual(ModulatedWetLevelEnd, ModulatedWetLevelStart) || !FMath::IsNearlyEqual(ModulatedWetLevelStart, 1.0f))
+				{
+					if (FMath::IsNearlyEqual(ModulatedWetLevelEnd, ModulatedWetLevelStart))
+					{
+						MultiplyBufferByConstantInPlace(InputBuffer, ModulatedWetLevelEnd);
 					}
 					else
 					{
-						FadeBufferFast(InputBuffer, CurrentWetLevel, TargetWetLevel);
+						FadeBufferFast(InputBuffer, ModulatedWetLevelStart, ModulatedWetLevelEnd);
 						CurrentWetLevel = TargetWetLevel;
 					}
 				}
@@ -1207,14 +1260,14 @@ namespace Audio
 		if (DryChannelBuffer.Num() > 0)
 		{
 			// If we've already set the volume, only need to multiply by constant
-			if (FMath::IsNearlyEqual(TargetDryLevel, CurrentDryLevel))
+			if (FMath::IsNearlyEqual(ModulatedDryLevelEnd, ModulatedDryLevelStart))
 			{
-				MultiplyBufferByConstantInPlace(DryChannelBuffer, TargetDryLevel);
+				MultiplyBufferByConstantInPlace(DryChannelBuffer, ModulatedDryLevelEnd);
 			}
 			else
 			{
 				// To avoid popping, we do a fade on the buffer to the target volume
-				FadeBufferFast(DryChannelBuffer, CurrentDryLevel, TargetDryLevel);
+				FadeBufferFast(DryChannelBuffer, ModulatedDryLevelStart, ModulatedDryLevelEnd);
 				CurrentDryLevel = TargetDryLevel;
 			}
 			MixInBufferFast(DryChannelBuffer, InputBuffer);
@@ -1277,18 +1330,35 @@ namespace Audio
 			EnvelopeNumChannels = NumChannels;
 		}
 
+		// Update output volume using modulator
+		float ModulatedOutputVolumeStart = CurrentOutputVolume;
+		float ModulatedOutputVolumeEnd = TargetOutputVolume;
+
+		if (bUseModulation)
+		{
+			const float PreModulation = VolumeMod.GetValue();
+			VolumeMod.ProcessControl(VolumeModBase);
+			const float PostModulation = VolumeMod.GetValue();
+
+			if (VolumeMod.IsActive())
+			{
+				ModulatedOutputVolumeStart *= VolumeMod.GetHasProcessed() ? PreModulation : PostModulation;
+				ModulatedOutputVolumeEnd *= PostModulation;
+			}
+		}
+
 		// Now apply the output volume
-		if (!FMath::IsNearlyEqual(TargetOutputVolume, CurrentOutputVolume) || !FMath::IsNearlyEqual(CurrentOutputVolume, 1.0f))
+		if (!FMath::IsNearlyEqual(ModulatedOutputVolumeEnd, ModulatedOutputVolumeStart) || !FMath::IsNearlyEqual(ModulatedOutputVolumeStart, 1.0f))
 		{
 			// If we've already set the output volume, only need to multiply by constant
-			if (FMath::IsNearlyEqual(TargetOutputVolume, CurrentOutputVolume))
+			if (FMath::IsNearlyEqual(ModulatedOutputVolumeEnd, ModulatedOutputVolumeStart))
 			{
-				Audio::MultiplyBufferByConstantInPlace(InputBuffer, TargetOutputVolume);
+				Audio::MultiplyBufferByConstantInPlace(InputBuffer, ModulatedOutputVolumeEnd);
 			}
 			else
 			{
 				// To avoid popping, we do a fade on the buffer to the target volume
-				Audio::FadeBufferFast(InputBuffer, CurrentOutputVolume, TargetOutputVolume);
+				Audio::FadeBufferFast(InputBuffer, ModulatedOutputVolumeStart, ModulatedOutputVolumeEnd);
 				CurrentOutputVolume = TargetOutputVolume;
 			}
 		}
@@ -2058,6 +2128,20 @@ namespace Audio
 	void FMixerSubmix::SetWetLevel(float InWetLevel)
 	{
 		TargetWetLevel = FMath::Clamp(InWetLevel, 0.0f, 1.0f);
+	}
+
+	void FMixerSubmix::SetModulationSettings(FModulationDestination InOutputModulation, FModulationDestination InWetLevelModulation, FModulationDestination InDryLevelModulation)
+	{
+		VolumeMod = InOutputModulation;
+		WetLevelMod = InWetLevelModulation;
+		DryLevelMod = InDryLevelModulation;
+	}
+
+	void FMixerSubmix::SetModulationBaseLevels(float InVolumeModBase, float InWetModBase, float InDryModBase)
+	{
+		VolumeModBase = InVolumeModBase;
+		WetModBase = InWetModBase;
+		DryModBase = InDryModBase;
 	}
 
 	void FMixerSubmix::BroadcastDelegates()

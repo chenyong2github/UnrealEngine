@@ -8,6 +8,7 @@
 #include "ISoundfieldEndpoint.h"
 #include "SampleBufferIO.h"
 #include "SoundEffectSubmix.h"
+#include "SoundModulationDestination.h"
 #include "SoundSubmixSend.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -302,6 +303,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (ClampMin = "-160.0", ClampMax = "0.0", UIMin = "-60.0", UIMax = "0.0", EditCondition = "GainMode == EGainParamMode::Decibels", DisplayName = "Dry Level (dB)", EditConditionHides))
 	float DryLevelDB;
 #endif
+
+	/** Modulation to apply to the submix Output Volume (in dB)*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation, meta = (DisplayName = "Output Volume Modulation", AudioParam = "Volume"))
+	FSoundModulationDestinationSettings OutputVolumeModulation;
+
+	/** Modulation to apply to the submix Wet Level (in dB)*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation, meta = (DisplayName = "Wet Level Modulation", AudioParam = "Volume"))
+	FSoundModulationDestinationSettings WetLevelModulation;
+
+	/** Modulation to apply to the submix Dry Level (in dB)*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation, meta = (DisplayName = "Dry Level Modulation", AudioParam = "Volume"))
+	FSoundModulationDestinationSettings DryLevelModulation;
 
 	// Blueprint delegate for when a recorded file is finished exporting.
 	UPROPERTY(BlueprintAssignable)
