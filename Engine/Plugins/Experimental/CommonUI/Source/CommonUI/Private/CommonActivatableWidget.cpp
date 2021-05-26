@@ -69,6 +69,7 @@ void UCommonActivatableWidget::ActivateWidget()
 		InternalProcessActivation();
 	}
 }
+
 void UCommonActivatableWidget::InternalProcessActivation()
 {
 	bIsActive = true;
