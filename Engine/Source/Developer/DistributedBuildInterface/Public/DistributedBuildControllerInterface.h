@@ -17,6 +17,8 @@ struct FTaskCommandData
 	FString Command;
 	FString CommandArgs;
 	FString InputFileName;
+	FString OutputFileName;
+	uint32 DispatcherPID = 0;
 	TArray<FString> Dependencies;
 };
 
@@ -43,6 +45,8 @@ class IDistributedBuildController : public IModuleInterface, public IModularFeat
 {
 public:
 	virtual bool SupportsDynamicReloading() override { return false; }
+	
+	virtual bool RequiresRelativePaths() { return false; }
 
 	virtual void InitializeController() = 0;
 	

@@ -1,0 +1,56 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+struct FTask;
+
+class FDependencyEnumerator : public IPlatformFile::FDirectoryVisitor
+{
+public:
+	FDependencyEnumerator(FArchive& InScriptFile, const TCHAR* InPrefix, const TCHAR* InExtension)
+        : ScriptFile(InScriptFile)
+        , Prefix(InPrefix)
+        , Extension(InExtension)
+		
+	{
+	}
+
+	virtual bool Visit(const TCHAR* FilenameChar, bool bIsDirectory) override
+	{
+		if (!bIsDirectory)
+		{
+			const FString Filename = FString(FilenameChar);
+
+			if ((!Prefix || Filename.Contains(Prefix)) && (!Extension || Filename.EndsWith(Extension)))
+			{
+				const FString ExtraFile = TEXT("\t\t'") + IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*Filename) + TEXT("'," LINE_TERMINATOR_ANSI);
+				ScriptFile.Serialize((void*)StringCast<ANSICHAR>(*ExtraFile, ExtraFile.Len()).Get(), sizeof(ANSICHAR) * ExtraFile.Len());
+			}
+		}
+
+		return true;
+	}
+
+	FArchive& ScriptFile;
+	const TCHAR* Prefix;
+	const TCHAR* Extension;
+};
+
+class FastBuildUtilities
+{
+public:
+
+	static void FASTBuildWriteScriptFileHeader(const TArray<FTask*>& InCompilationTasks, FArchive& ScriptFile, const FString& WorkerName);
+	static FArchive* CreateFileHelper(const FString& InFileName);
+
+	static FString GetFastBuildExecutablePath();
+	static FString GetFastBuildCache();
+
+protected:
+	static FString GetShaderFullPathOfShaderDependency(const FString& InVirtualPath);
+	static void WriteShaderWorkerDependenciesToFile(FArchive& ScriptFile);
+	static FString ReplaceEnvironmentVariablesInPath(const FString& ExtraFilePartialPath);
+	static void WriteDependenciesToFileUsingWildcardPath(FArchive& ScriptFile, FString ParsedPath);
+	static void WritePlatformCompilerDependenciesToFile(FArchive& ScriptFile);
+	static void WriteDependenciesForShaderToScript(const TArray<FTask*>& InCompilationTasks, FArchive& ScriptFile);
+};
