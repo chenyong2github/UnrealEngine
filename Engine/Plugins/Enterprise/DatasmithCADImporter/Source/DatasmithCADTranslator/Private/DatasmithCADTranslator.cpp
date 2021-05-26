@@ -81,7 +81,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 {
 	ImportParameters.bEnableKernelIOTessellation = (CVarStaticCADTranslatorEnableKernelIOTessellation.GetValueOnAnyThread() != 0);;
 #ifdef CADKERNEL_DEBUG
-	//ImportParameters.bEnableKernelIOTessellation = false;
+	ImportParameters.bEnableKernelIOTessellation = false;
 #endif
 
 	ImportParameters.MetricUnit = 0.001;
@@ -150,16 +150,16 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescription);
 
-			Dispatcher.Process(bWithProcessor);
-		}
-
-		FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUEFileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
-		SceneGraphBuilder.Build();
-
-		MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUEGeomMap, CachePath, ImportParameters);
-
-		return true;
+		Dispatcher.Process(bWithProcessor);
 	}
+
+	FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUEFileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
+	SceneGraphBuilder.Build();
+
+	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUEGeomMap, CachePath, ImportParameters);
+
+	return true;
+}
 
 	ImportParameters.bEnableCacheUsage = false;
 

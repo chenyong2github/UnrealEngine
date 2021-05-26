@@ -22,6 +22,24 @@
 #include "CADData.h"
 #include "CADOptions.h"
 #include "DatasmithUtils.h"
+
+#include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/MetadataDictionary.h"
+#include "CADKernel/Core/Session.h"
+#include "CADKernel/Core/Types.h"
+
+#include "CADKernel/Mesh/Criteria/Criterion.h"
+#include "CADKernel/Mesh/Meshers/ParametricMesher.h"
+#include "CADKernel/Mesh/Structure/FaceMesh.h"
+#include "CADKernel/Mesh/Structure/ModelMesh.h"
+
+#include "CADKernel/Topo/Model.h"
+#include "CADKernel/Topo/Body.h"
+#include "CADKernel/Topo/Shell.h"
+#include "CADKernel/Topo/TopologicalEdge.h"
+#include "CADKernel/Topo/TopologicalFace.h"
+#include "CADKernel/Topo/TopologicalVertex.h"
+
 #include "HAL/FileManager.h"
 #include "Internationalization/Text.h"
 #include "Templates/TypeHash.h"
@@ -549,10 +567,10 @@ namespace CADLibrary
 			}
 			else
 			{
-				//if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, false))
-				//{
-				//	Context.SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
-				//}
+				if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, false))
+				{
+					Context.SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
+				}
 			}
 		}
 
@@ -707,6 +725,86 @@ namespace CADLibrary
 		Context.SceneGraphArchive.BodySet[Index].ColorFaceSet = BodyMesh.ColorSet;
 		Context.SceneGraphArchive.BodySet[Index].MaterialFaceSet = BodyMesh.MaterialSet;
 
+		return true;
+	}
+
+#ifdef CORETECHBRIDGE_DEBUG
+	static int32 BodyIndex = 0;
+#endif
+	bool FCoreTechFileReader::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
+	{
+		// Is this body a constructive geometry ?
+		CT_LIST_IO FaceList;
+		CT_BODY_IO::AskFaces(BodyId, FaceList);
+		if (1 == FaceList.Count())
+		{
+			FaceList.IteratorInitialize();
+			FString Value;
+			GetStringMetaDataValue(FaceList.IteratorIter(), TEXT("Constructive Plane"), Value);
+			if (Value == TEXT("true"))
+			{
+				return false;
+			}
+		}
+
+		int32 Index = Context.SceneGraphArchive.BodySet.Emplace(BodyId);
+		Context.SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, Index);
+		ReadNodeMetaData(BodyId, Context.SceneGraphArchive.BodySet[Index].MetaData);
+
+		int32 BodyMeshIndex = Context.BodyMeshes.Emplace(BodyId);
+
+		if (uint32 MaterialHash = GetObjectMaterial(Context.SceneGraphArchive.BodySet[Index]))
+		{
+			DefaultMaterialHash = MaterialHash;
+		}
+
+		FBodyMesh& BodyMesh = Context.BodyMeshes[BodyMeshIndex];
+		Context.SceneGraphArchive.BodySet[Index].MeshActorName = CoreTechFileReaderUtils::GetStaticMeshUuid(*Context.SceneGraphArchive.ArchiveFileName, BodyId);
+		BodyMesh.MeshActorName = Context.SceneGraphArchive.BodySet[Index].MeshActorName;
+
+		{
+			TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / Context.ImportParameters.MetricUnit);
+
+			TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession->GetModel();
+
+			CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession);
+
+			TSharedRef<CADKernel::FBody> CADKernelBody = CoreTechBridge.AddBody(BodyId);
+			CADKernelModel->Add(CADKernelBody);
+
+#ifdef CORETECHBRIDGE_DEBUG
+			FString FolderName = FPaths::GetCleanFilename(FileDescription.MainCadFilePath);
+			CADKernelSession->SaveDatabase(*FPaths::Combine(Context.CachePath, TEXT("CADKernel"), FolderName, FString::Printf(TEXT("%06d_"), BodyIndex++) + FileDescription.Name + TEXT(".ugeom")));
+#endif
+
+			// Save Body in CADKernelArchive file for re-tessellation
+			if (!Context.CachePath.IsEmpty())
+			{
+				FString BodyFile = FString::Printf(TEXT("UEx%08x"), Context.SceneGraphArchive.BodySet[Index].MeshActorName);
+				CADKernelSession->SaveDatabase(*FPaths::Combine(Context.CachePath, TEXT("body"), BodyFile + TEXT(".ugeom")), CADKernelBody);
+			}
+
+			// Tesselate the body
+			TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
+
+			DefineMeshCriteria(CADKernelModelMesh);
+
+			CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
+			Mesher.MeshEntity(CADKernelModel);
+
+			TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> ProcessFace;
+			ProcessFace = [&](FObjectDisplayDataId FaceMaterial, FObjectDisplayDataId BodyMaterial, int32 Index)
+			{
+				SetFaceMainMaterial(FaceMaterial, BodyMaterial, BodyMesh, Index);
+			};
+
+			CADKernelUtils::GetBodyTessellation(CADKernelModelMesh, CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
+
+			CADKernelSession->Clear();
+		}
+
+		Context.SceneGraphArchive.BodySet[Index].ColorFaceSet = BodyMesh.ColorSet;
+		Context.SceneGraphArchive.BodySet[Index].MaterialFaceSet = BodyMesh.MaterialSet;
 		return true;
 	}
 
@@ -1284,6 +1382,32 @@ namespace CADLibrary
 		for (auto& MetaPair : OutMetaData)
 		{
 			FDatasmithUtils::SanitizeStringInplace(MetaPair.Value);
+		}
+	}
+
+	void FCoreTechFileReader::DefineMeshCriteria(TSharedRef<CADKernel::FModelMesh>& MeshModel)
+	{
+		{
+			TSharedPtr<CADKernel::FCriterion> CurvatureCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::CADCurvature);
+			MeshModel->AddCriterion(CurvatureCriterion);
+		}
+
+		if (Context.ImportParameters.MaxEdgeLength > SMALL_NUMBER)
+		{
+			TSharedPtr<CADKernel::FCriterion> MaxSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MaxSize, Context.ImportParameters.MaxEdgeLength);
+			MeshModel->AddCriterion(MaxSizeCriterion);
+		}
+
+		if (Context.ImportParameters.ChordTolerance > SMALL_NUMBER)
+		{
+			TSharedPtr<CADKernel::FCriterion> ChordCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Sag, Context.ImportParameters.ChordTolerance);
+			MeshModel->AddCriterion(ChordCriterion);
+		}
+
+		if (Context.ImportParameters.MaxNormalAngle > SMALL_NUMBER)
+		{
+			TSharedPtr<CADKernel::FCriterion> MaxNormalAngleCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Angle, Context.ImportParameters.MaxNormalAngle);
+			MeshModel->AddCriterion(MaxNormalAngleCriterion);
 		}
 	}
 
@@ -1883,6 +2007,109 @@ namespace CADLibrary
 			}
 		}
 
+	}
+
+	namespace CADKernelUtils
+	{
+		uint32 GetFaceTessellation(const TSharedRef<CADKernel::FFaceMesh>& FaceMesh, FBodyMesh& OutBodyMesh)
+		{
+			// Something wrong happened, either an error or no data to collect
+			if (FaceMesh->TrianglesVerticesIndex.Num() == 0)
+			{
+				return 0;
+			}
+
+			FTessellationData& Tessellation = OutBodyMesh.Faces.Emplace_GetRef();
+			
+			const TSharedRef<CADKernel::FMetadataDictionary>& HaveMetadata = StaticCastSharedRef<CADKernel::FMetadataDictionary>(StaticCastSharedRef<CADKernel::FTopologicalFace>(FaceMesh->GetGeometricEntity()));
+			Tessellation.PatchId = HaveMetadata->GetPatchId();
+
+			Tessellation.PositionIndices = FaceMesh->VerticesGlobalIndex;
+			Tessellation.VertexIndices = FaceMesh->TrianglesVerticesIndex;
+
+			Tessellation.NormalArray.Reserve(FaceMesh->Normals.Num());
+			for (const CADKernel::FPoint& Normal : FaceMesh->Normals)
+			{
+				Tessellation.NormalArray.Emplace((float)Normal.X, (float)Normal.Y, (float)Normal.Z);
+			}
+
+			Tessellation.TexCoordArray.Reserve(FaceMesh->UVMap.Num());
+			for (const CADKernel::FPoint2D& TexCoord : FaceMesh->UVMap)
+			{
+				Tessellation.TexCoordArray.Emplace((float)TexCoord.U, (float)TexCoord.V);
+			}
+
+			return Tessellation.VertexIndices.Num() / 3;
+		}
+
+		template<class ClassType>
+		void GetDisplayDataIds(const TSharedRef<ClassType>& Entity, FObjectDisplayDataId& DisplayDataId)
+		{
+			const TSharedRef<CADKernel::FMetadataDictionary>& HaveMetadata = StaticCastSharedRef<CADKernel::FMetadataDictionary>(Entity);
+			DisplayDataId.Color = HaveMetadata->GetColorId();
+			DisplayDataId.Material = HaveMetadata->GetMaterialId();
+		}
+
+		void GetBodyTessellation(const TSharedRef<CADKernel::FModelMesh>& ModelMesh, const TSharedRef<CADKernel::FBody>& Body, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> SetFaceMainMaterial)
+		{
+			ModelMesh->GetNodeCoordinates(OutBodyMesh.VertexArray);
+
+			uint32 FaceSize = Body->FaceCount();
+
+			// Allocate memory space for tessellation data
+			OutBodyMesh.Faces.Reserve(FaceSize);
+			OutBodyMesh.ColorSet.Reserve(FaceSize);
+			OutBodyMesh.MaterialSet.Reserve(FaceSize);
+
+			FObjectDisplayDataId BodyMaterial;
+			BodyMaterial.DefaultMaterialName = DefaultMaterialHash;
+
+			GetDisplayDataIds(Body, BodyMaterial);
+
+			// Loop through the face of bodies and collect all tessellation data
+			int32 FaceIndex = 0;
+			for (const TSharedPtr<CADKernel::FShell>& Shell : Body->GetShells())
+			{
+				if (!Shell.IsValid())
+				{
+					continue;
+				}
+
+				FObjectDisplayDataId ShellMaterial = BodyMaterial;
+				GetDisplayDataIds(Shell.ToSharedRef(), ShellMaterial);
+
+				for (const CADKernel::FOrientedFace& Face : Shell->GetFaces())
+				{
+					if (!Face.Entity.IsValid())
+					{
+						continue;
+					}
+
+					if (!Face.Entity->HasTesselation())
+					{
+						continue;
+					}
+
+					FObjectDisplayDataId FaceMaterial;
+					GetDisplayDataIds(Face.Entity.ToSharedRef(), FaceMaterial);
+
+					uint32 TriangleNum = GetFaceTessellation(Face.Entity->GetMesh(), OutBodyMesh);
+
+					if (TriangleNum == 0)
+					{
+						continue;
+					}
+
+					OutBodyMesh.TriangleCount += TriangleNum;
+
+					if (SetFaceMainMaterial)
+					{
+						SetFaceMainMaterial(FaceMaterial, BodyMaterial, FaceIndex);
+					}
+					FaceIndex++;
+				}
+			}
+		}
 	}
 }
 

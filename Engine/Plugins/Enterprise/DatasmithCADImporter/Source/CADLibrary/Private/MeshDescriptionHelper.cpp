@@ -205,6 +205,90 @@ namespace CADLibrary
 		}
 	}
 
+	void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription)
+	{
+		int32 TriangleCount = Body.TriangleCount;
+		TArray<FTessellationData>& FaceTessellationSet = Body.Faces;
+
+		// Add offset to the bounding box to avoid to remove good vertex
+		FVector Size = Body.BBox.GetSize();
+		FBox BBox = Body.BBox.ExpandBy(Size.Size());
+		BBox.IsValid = Body.BBox.IsValid;
+		BBox.Min *= ImportParams.ScaleFactor;
+		BBox.Max *= ImportParams.ScaleFactor;
+
+		TVertexAttributesRef<FVector> VertexPositions = MeshDescription.GetVertexPositions();
+
+		FVector Position;
+
+		TArray<FVector>& VertexArray = Body.VertexArray;
+
+		for (FVector& Vertex : VertexArray)
+		{
+			Vertex *= ImportParams.ScaleFactor;
+			}
+
+		TArray<int32>& VertexIdSet = Body.VertexIds;
+		int32 VertexCount = VertexArray.Num();
+		VertexIdSet.SetNumZeroed(VertexCount);
+
+		if (BBox.IsValid)
+		{
+			int32 VertexIndex = 0;
+			for (const FVector& Vertex : VertexArray)
+			{
+				if (!BBox.IsInside(Vertex))
+				{
+					VertexIdSet[VertexIndex] = INDEX_NONE;
+				}
+				VertexIndex++;
+			}
+		}
+
+		// Make MeshDescription.VertexPositions and VertexID
+		MeshDescription.ReserveNewVertices(MeshParameters.bIsSymmetric ? VertexCount * 2 : VertexCount);
+
+		int32 VertexIndex = -1;
+		for (const FVector& Vertex : VertexArray)
+		{
+			VertexIndex++;
+
+			// Vertex is outside bbox
+			if (VertexIdSet[VertexIndex] == INDEX_NONE)
+			{
+				continue;
+			}
+
+			FVertexID VertexID = MeshDescription.CreateVertex();
+			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, Vertex);
+			VertexIdSet[VertexIndex] = VertexID;
+		}
+
+		// if Symmetric mesh, the symmetric side of the mesh have to be generated
+		if (MeshParameters.bIsSymmetric)
+		{
+			FMatrix SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(MeshParameters.SymmetricOrigin, MeshParameters.SymmetricNormal);
+
+			TArray<int32>& SymmetricVertexIds = Body.SymmetricVertexIds;
+			SymmetricVertexIds.SetNum(VertexArray.Num());
+
+			VertexIndex = 0;
+			for (const FVector& Vertex : VertexArray)
+			{
+				if (VertexIdSet[VertexIndex] == INDEX_NONE)
+				{
+					SymmetricVertexIds[VertexIndex++] = INDEX_NONE;
+					continue;
+				}
+
+				FVertexID VertexID = MeshDescription.CreateVertex();
+				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, Vertex);
+				VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
+				SymmetricVertexIds[VertexIndex++] = VertexID;
+			}
+		}
+	}
+
 	// PolygonAttributes name used into modeling tools (ExtendedMeshAttribute::PolyTriGroups)
 	const FName PolyTriGroups("PolyTriGroups");
 
@@ -495,7 +579,7 @@ namespace CADLibrary
 		}
 		else
 		{
-			//FillVertexPosition(ImportParams, MeshParameters, Body, MeshDescription);
+			FillVertexPosition(ImportParams, MeshParameters, Body, MeshDescription);
 		}
 		
 		if (!FillMesh(MeshParameters, ImportParams, Body, MeshDescription))
