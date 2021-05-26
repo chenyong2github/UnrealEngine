@@ -359,7 +359,36 @@ int32 UDataprepAsset::AddActions(const TArray<const UDataprepActionAsset*>& InAc
 				Action->SetFlags(EObjectFlags::RF_Transactional);
 				Action->SetLabel( InAction->GetLabel() );
 
-				ActionAssets.Add( Action );
+				if( Action->GetAppearance()->GroupId != INDEX_NONE )
+				{
+					int32 InsertIndex = INDEX_NONE;
+
+					// Maintain the correct grouping (actions with the same group need to be tightly packed)
+					for( int32 ActionIndex = 0; ActionIndex < ActionAssets.Num(); ++ActionIndex )
+					{
+						if( ActionAssets[ActionIndex]->GetAppearance()->GroupId == Action->GetAppearance()->GroupId )
+						{
+							InsertIndex = ActionIndex + 1;
+						}
+						else if( InsertIndex != INDEX_NONE )
+						{
+							break;
+						}
+					}
+
+					if( InsertIndex != INDEX_NONE )
+					{
+						ActionAssets.Insert( Action, InsertIndex );
+					}
+					else
+					{
+						ActionAssets.Add( Action );
+					}
+				}
+				else
+				{
+					ActionAssets.Add( Action );
+				}
 			}
 		}
 
