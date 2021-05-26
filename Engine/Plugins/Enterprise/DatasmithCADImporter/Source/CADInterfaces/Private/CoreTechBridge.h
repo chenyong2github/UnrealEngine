@@ -2,6 +2,8 @@
 #pragma once
 #include "CADKernel/Core/Types.h"
 
+#ifdef USE_KERNEL_IO_SDK 
+
 #ifdef CADKERNEL_DEV
 #include "CADKernel/Geo/Surfaces/Surface.h"
 #endif
@@ -110,3 +112,5 @@ namespace CADKernel
 
 	};
 }
+
+#endif // USE_KERNEL_IO_SDK
