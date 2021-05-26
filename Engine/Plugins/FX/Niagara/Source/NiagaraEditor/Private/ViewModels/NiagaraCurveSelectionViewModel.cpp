@@ -886,7 +886,8 @@ void UNiagaraCurveSelectionViewModel::Refresh()
 
 		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 		{
-			if (EmitterHandleViewModel->GetEmitterHandle())
+			// During transactions Emitters may not have their EditorData set if they were created during the transaction; skip if this is true.
+			if (EmitterHandleViewModel->GetEmitterHandle() && EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GetEditorData())
 			{
 				TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterNode = CreateNodeForEmitter(OldRootChildNodes, *EmitterHandleViewModel->GetEmitterHandle());
 				if (EmitterNode.IsValid())

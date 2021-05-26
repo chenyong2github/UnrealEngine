@@ -577,7 +577,11 @@ void FNiagaraOverviewGraphViewModel::SystemSelectionChanged()
 void FNiagaraOverviewGraphViewModel::PostUndo(bool bSuccess)
 {
 	// This is neccessary to have the graph editor respond correctly to data changes due to undo.
-	OverviewGraph->NotifyGraphChanged();
+	// Validate the OverviewGraph exists before notifying as we may be entering PostUndo from a transaction that predates the OverviewGraph.
+	if (OverviewGraph)
+	{
+		OverviewGraph->NotifyGraphChanged();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE // NiagaraScriptGraphViewModel
