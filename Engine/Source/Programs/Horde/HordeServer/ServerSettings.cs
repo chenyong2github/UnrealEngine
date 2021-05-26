@@ -372,6 +372,11 @@ namespace HordeServer
 		public string? P4BridgeServicePassword { get; set; }
 
 		/// <summary>
+		/// Whether to use the (temporary) P4 router while transitioning to p4 api 
+		/// </summary>
+		public bool P4UseRouter { get; set; } = false;
+
+		/// <summary>
 		/// Set the minimum size of the global thread pool
 		/// This value has been found in need of tweaking to avoid timeouts with the Redis client during bursts
 		/// of traffic. Default is 16 for .NET Core CLR. The correct value is dependent on the traffic the Horde Server
