@@ -63,8 +63,8 @@ public:
 	 */
 	virtual TArray<INiagaraParameterDefinitionsSubscriber*> GetOwnedParameterDefinitionsSubscribers() { return TArray<INiagaraParameterDefinitionsSubscriber*>(); };
 
-	const TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitions() const;
-	const TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitionsPendingSynchronization() const;
+	const TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitions();
+	const TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitionsPendingSynchronization();
 
 	void SubscribeToParameterDefinitions(UNiagaraParameterDefinitionsBase* NewParameterDefinitions, bool bDoNotAssertIfAlreadySubscribed = false);
 	void UnsubscribeFromParameterDefinitions(const FGuid& ParameterDefinitionsToRemoveId);
@@ -79,7 +79,7 @@ private:
 
 private:
 	/** Get the unique Id GUID of every UNiagaraScriptVariable owned by every subscribed parameter definitions. */
-	TArray<FGuid> GetSubscribedParameterDefinitionsParameterIds() const;
+	TArray<FGuid> GetSubscribedParameterDefinitionsParameterIds();
 
 	/** Update the cached change Id of specified Synchronized Subscribed Parameter Definition subscriptions so that they are not marked pending sync. */
 	void MarkSubscribedParameterDefinitionsSynchronized(TArray<FGuid> SynchronizedSubscribedParameterDefinitionsIds /*= TArray<FGuid>()*/);
