@@ -762,66 +762,8 @@ void FComputeShaderUtils::ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 		FIntVector(FMath::DivideAndRoundUp<int32>(PassParameters->NumEntries, 64), 1, 1));
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FCopyBufferParameters, )
-	RDG_BUFFER_ACCESS_ARRAY(Buffers)
-END_SHADER_PARAMETER_STRUCT()
-
-void FRDGBufferUploader::Upload(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags)
-{
-	check(Buffer && InitialData && InitialDataSize);
-
-	if (!EnumHasAnyFlags(InitialDataFlags, ERDGInitialDataFlags::NoCopy))
-	{
-		// Allocates memory for the lifetime of the pass, since execution is deferred.
-		void* InitialDataCopy = GraphBuilder.Alloc(InitialDataSize, 16);
-		FMemory::Memcpy(InitialDataCopy, InitialData, InitialDataSize);
-		InitialData = InitialDataCopy;
-	}
-
-	Buffers.Emplace(Buffer, ERHIAccess::CopyDest);
-	Datas.Emplace(InitialData, InitialDataSize);
-}
-
-void FRDGBufferUploader::Submit(FRDGBuilder& GraphBuilder)
-{
-	if (Buffers.IsEmpty())
-	{
-		return;
-	}
-
-	for (const FRDGBufferAccess& BufferAccess : Buffers)
-	{
-		BufferAccess->SetNonTransient();
-	}
-
-	const uint32 BufferCount = Buffers.Num();
-
-	FCopyBufferParameters* PassParameters = GraphBuilder.AllocParameters<FCopyBufferParameters>();
-	PassParameters->Buffers = MoveTemp(Buffers);
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("BufferUpload(Count: %d)", BufferCount),
-		PassParameters,
-		ERDGPassFlags::Copy,
-		[&Buffers = PassParameters->Buffers, Datas = MoveTemp(Datas)](FRHICommandListImmediate& RHICmdList)
-	{
-		for (int32 Index = 0; Index < Buffers.Num(); ++Index)
-		{
-			const FInitialData& InitialData = Datas[Index];
-
-			FRHIBuffer* RHIBuffer = Buffers[Index]->GetRHI();
-			void* DestPtr = RHICmdList.LockBuffer(RHIBuffer, 0, InitialData.Size, RLM_WriteOnly);
-			FMemory::Memcpy(DestPtr, InitialData.Ptr, InitialData.Size);
-			RHICmdList.UnlockBuffer(RHIBuffer);
-		}
-	});
-
-	check(Buffers.IsEmpty() && Datas.IsEmpty());
-}
-
 FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
-	FRDGBufferUploader& BufferUploader,
 	const TCHAR* Name,
 	uint32 BytesPerElement,
 	uint32 NumElements,
@@ -830,18 +772,12 @@ FRDGBufferRef CreateStructuredBuffer(
 	ERDGInitialDataFlags InitialDataFlags)
 {
 	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(BytesPerElement, NumElements), Name);
-
-	if (InitialData && InitialDataSize)
-	{
-		BufferUploader.Upload(GraphBuilder, Buffer, InitialData, InitialDataSize, InitialDataFlags);
-	}
-
+	GraphBuilder.QueueBufferUpload(Buffer, InitialData, InitialDataSize, InitialDataFlags);
 	return Buffer;
 }
 
 FRDGBufferRef CreateVertexBuffer(
 	FRDGBuilder& GraphBuilder,
-	FRDGBufferUploader& BufferUploader,
 	const TCHAR* Name,
 	const FRDGBufferDesc& Desc,
 	const void* InitialData,
@@ -852,12 +788,7 @@ FRDGBufferRef CreateVertexBuffer(
 	checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("CreateVertexBuffer called with an FRDGBufferDesc underlying type that is not 'VertexBuffer'. Buffer: %s"), Name);
 
 	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, Name);
-
-	if (InitialData && InitialDataSize)
-	{
-		BufferUploader.Upload(GraphBuilder, Buffer, InitialData, InitialDataSize, InitialDataFlags);
-	}
-
+	GraphBuilder.QueueBufferUpload(Buffer, InitialData, InitialDataSize, InitialDataFlags);
 	return Buffer;
 }
 

@@ -59,6 +59,8 @@ public:
 	void ValidateRegisterExternalTexture(FRDGTextureRef Texture);
 	void ValidateRegisterExternalBuffer(FRDGBufferRef Buffer);
 
+	void ValidateUploadBuffer(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize);
+
 	/** Validates a resource extraction operation. */
 	void ValidateExtractTexture(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr);
 	void ValidateExtractBuffer(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr);

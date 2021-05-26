@@ -170,6 +170,9 @@ public:
 	/** A hint to the builder to flush work to the RHI thread after the last queued pass on the execution timeline. */
 	void AddDispatchHint();
 
+	/** Queues a buffer upload operation prior to execution. The resource lifetime is extended and the data is uploaded prior to executing passes. */
+	void QueueBufferUpload(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
+
 	/** Queues a pooled render target extraction to happen at the end of graph execution. For graph-created textures, this extends
 	 *  the lifetime of the GPU resource until execution, at which point the pointer is filled. If specified, the texture is transitioned
 	 *  to the AccessFinal state, or kDefaultAccessFinal otherwise.
@@ -434,9 +437,52 @@ private:
 	FRDGPassesByPipeline ProloguePasses;
 	FRDGPass* EpiloguePass = nullptr;
 
-	/** Array of all requested resource extractions from the graph. */
-	TArray<TPair<FRDGTextureRef, TRefCountPtr<IPooledRenderTarget>*>, FRDGArrayAllocator> ExtractedTextures;
-	TArray<TPair<FRDGBufferRef, TRefCountPtr<FRDGPooledBuffer>*>, FRDGArrayAllocator> ExtractedBuffers;
+	struct FExtractedTexture
+	{
+		FExtractedTexture() = default;
+
+		FExtractedTexture(FRDGTexture* InTexture, TRefCountPtr<IPooledRenderTarget>* InPooledTexture)
+			: Texture(InTexture)
+			, PooledTexture(InPooledTexture)
+		{}
+
+		FRDGTexture* Texture{};
+		TRefCountPtr<IPooledRenderTarget>* PooledTexture{};
+	};
+
+	TArray<FExtractedTexture, FRDGArrayAllocator> ExtractedTextures;
+
+	struct FExtractedBuffer
+	{
+		FExtractedBuffer() = default;
+
+		FExtractedBuffer(FRDGBuffer* InBuffer, TRefCountPtr<FRDGPooledBuffer>* InPooledBuffer)
+			: Buffer(InBuffer)
+			, PooledBuffer(InPooledBuffer)
+		{}
+
+		FRDGBuffer* Buffer{};
+		TRefCountPtr<FRDGPooledBuffer>* PooledBuffer{};
+	};
+
+	TArray<FExtractedBuffer, FRDGArrayAllocator> ExtractedBuffers;
+
+	struct FUploadedBuffer
+	{
+		FUploadedBuffer() = default;
+
+		FUploadedBuffer(FRDGBuffer* InBuffer, const void* InData, uint64 InDataSize)
+			: Buffer(InBuffer)
+			, Data(InData)
+			, DataSize(InDataSize)
+		{}
+
+		FRDGBuffer* Buffer{};
+		const void* Data{};
+		uint64 DataSize{};
+	};
+
+	TArray<FUploadedBuffer, FRDGArrayAllocator> UploadedBuffers;
 
 	/** Array of all pooled references held during execution. */
 	FRDGPooledTextureArray ActivePooledTextures;
@@ -524,7 +570,7 @@ private:
 	void EndResourceRHI(FRDGPassHandle, FRDGTexture* Texture, uint32 ReferenceCount);
 	void EndResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer, uint32 ReferenceCount);
 
-	void FinalizeResourcesRHI(EExecuteMode ExecuteMode);
+	void UploadBuffers();
 
 	void SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, ERHIPipeline PassPipeline, bool bEmptyParameters);
 	FRDGPass* SetupPass(FRDGPass* Pass);

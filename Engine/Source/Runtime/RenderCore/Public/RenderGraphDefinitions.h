@@ -162,6 +162,22 @@ enum class ERDGViewType : uint8
 	MAX
 };
 
+enum class ERDGInitialDataFlags : uint8
+{
+	/** Specifies the default behavior, which is to make a copy of the initial data for replay when
+	 *  the graph is executed. The user does not need to preserve lifetime of the data pointer.
+	 */
+	None = 0,
+
+	/** Specifies that the user will maintain ownership of the data until the graph is executed. The
+	 *  upload pass will only use a reference to store the data. Use caution with this flag since graph
+	 *  execution is deferred! Useful to avoid the copy if the initial data lifetime is guaranteed to
+	 *  outlive the graph.
+	 */
+	 NoCopy = 1 << 0
+};
+ENUM_CLASS_FLAGS(ERDGInitialDataFlags)
+
 /** Returns the equivalent parent resource type for a view type. */
 inline ERDGParentResourceType GetParentResourceType(ERDGViewType ViewType)
 {
