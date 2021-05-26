@@ -26,6 +26,18 @@ void INiagaraParameterDefinitionsSubscriber::CleanupParameterDefinitionsSubscrip
 	}
 }
 
+void INiagaraParameterDefinitionsSubscriber::PostLoadDefinitionsSubscriptions()
+{
+	TArray<FParameterDefinitionsSubscription>& Subscriptions = GetParameterDefinitionsSubscriptions();
+	for (int32 Idx = Subscriptions.Num() - 1; Idx > -1; --Idx)
+	{
+		if (Subscriptions[Idx].ParameterDefinitions == nullptr)
+		{
+			Subscriptions.RemoveAt(Idx);
+		}
+	}
+}
+
 const TArray<UNiagaraParameterDefinitionsBase*> INiagaraParameterDefinitionsSubscriber::GetSubscribedParameterDefinitions()
 {
 	TArray<FParameterDefinitionsSubscription>& Subscriptions = GetParameterDefinitionsSubscriptions();
