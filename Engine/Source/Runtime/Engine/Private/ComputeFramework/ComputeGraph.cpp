@@ -126,8 +126,11 @@ FShaderParametersMetadata* UComputeGraph::BuildKernelShaderMetadata(int32 Kernel
 	for (int32 DataProviderIndex : DataProviderIndices)
 	{
 		UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
-		TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
-		DataInterface->GetShaderParameters(UID, Builder);
+		if (DataInterface != nullptr)
+		{
+			TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
+			DataInterface->GetShaderParameters(UID, Builder);
+		}
 	}
 
 	return Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, *GetName());
@@ -218,12 +221,14 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex) const
 			for (int32 DataProviderIndex : DataProviderIndices)
 			{
 				UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
-
-				// Add a unique prefix to generate unique names in the data interface shader code.
-				TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
-				HLSL += FString::Printf(TEXT("#define DI_UID %s_\n"), UID);
-				DataInterface->GetHLSL(HLSL);
-				HLSL += TEXT("#undef DI_UID\n");
+				if (DataInterface != nullptr)
+				{
+					// Add a unique prefix to generate unique names in the data interface shader code.
+					TCHAR const* UID = GetDataInterfaceUID(DataProviderIndex);
+					HLSL += FString::Printf(TEXT("#define DI_UID %s_\n"), UID);
+					DataInterface->GetHLSL(HLSL);
+					HLSL += TEXT("#undef DI_UID\n");
+				}
 			}
 
 			// Bind every external kernel function to the associated data input function.
@@ -273,7 +278,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 
 			FString ShaderEntryPoint = Kernel->KernelSource->GetEntryPoint();
 			FString ShaderSource = BuildKernelSource(KernelIndex);
-			uint64 ShaderSourceHash = FCrc::TypeCrc32(*ShaderSource, 0);
+			uint64 ShaderSourceHash = FCrc::TypeCrc32(*ShaderSource, Kernel->KernelSource->GetSourceCodeHash());
 			FShaderParametersMetadata* ShaderMetadata = BuildKernelShaderMetadata(KernelIndex);
 
 			const ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;

@@ -1083,7 +1083,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 		GPUSkinCache = new FGPUSkinCache(InFeatureLevel, bRequiresMemoryLimit);
 	}
 
-	if (SupportsComputeFramework(InFeatureLevel, GetFeatureLevelShaderPlatform(InFeatureLevel)))
+	if (ComputeFramework::IsEnabled(InFeatureLevel, GetFeatureLevelShaderPlatform(InFeatureLevel)))
 	{
 		ComputeGraphScheduler = new FComputeGraphScheduler();
 	}

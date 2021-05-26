@@ -106,6 +106,12 @@ public:
 	 */
 	static TCHAR const* GetDataInterfaceUID(int32 DataInterfaceIndex);
 
+	/**
+	 * Call after changing the graph to build the graph resources for rendering.
+	 * This will trigger any required shader compilation.
+	 */
+	void UpdateResources();
+
 protected:
 	//~ Begin UObject Interface.
 	void Serialize(FArchive& Ar) override;
@@ -117,12 +123,6 @@ protected:
 	void ClearAllCachedCookedPlatformData() override;
 #endif //WITH_EDITOR
 	//~ End UObject Interface.
-
-	/**
-	 * Call after changing the graph to build the graph resources for rendering.
-	 * This will trigger any required shader compilation.
-	 */
-	void UpdateResources();
 
 private:
 	/** Build the shader metadata which describes bindings for a kernel with its linked data interfaces.*/

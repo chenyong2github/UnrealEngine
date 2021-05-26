@@ -7,5 +7,11 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogComputeFramework, Log, All);
 
-/** Returns true if ComputeFramework is supported. */
-extern ENGINE_API bool SupportsComputeFramework(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform);
+namespace ComputeFramework
+{
+	/** Returns true if ComputeFramework is supported. */
+	ENGINE_API bool IsEnabled(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform);
+
+	/** Rebuild all compute graphs. */
+	ENGINE_API void RebuildComputeGraphs();
+}

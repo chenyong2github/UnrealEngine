@@ -33,6 +33,11 @@ public:
 	UPROPERTY()
 	uint64 SourceHash = 0;
 
+#if WITH_EDITOR
+	/** Parse the kernel source to get the kernel external functions and other data. */
+	void ReparseKernelSourceText();
+#endif
+
 protected:
 	//~ Begin UComputeKernelSource Interface.
 	FString GetEntryPoint() const override
@@ -65,9 +70,6 @@ protected:
 
 private:
 #if WITH_EDITOR
-	/** Parse the kernel source to get the kernel external functions and other data. */
-	void ReparseKernelSourceText();
-
 	FString KernelSourceText;
 	FFilePath PrevSourceFile;
 #endif
