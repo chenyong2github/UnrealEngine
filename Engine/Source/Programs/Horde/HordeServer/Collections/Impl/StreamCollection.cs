@@ -41,8 +41,8 @@ namespace HordeServer.Collections.Impl
 			[BsonRequired]
 			public string Name { get; set; }
 
-			[BsonIgnoreIfNull]
-			public string? Revision { get; set; }
+			public string ConfigPath { get; set; } = String.Empty;
+			public string ConfigRevision { get; set; } = String.Empty;
 
 			public int Order { get; set; } = DefaultOrder;
 			public string? NotificationChannel { get; set; }
@@ -53,7 +53,6 @@ namespace HordeServer.Collections.Impl
 			public Dictionary<string, AgentType> AgentTypes { get; set; } = new Dictionary<string, AgentType>(StringComparer.Ordinal);
 			public Dictionary<string, WorkspaceType> WorkspaceTypes { get; set; } = new Dictionary<string, WorkspaceType>(StringComparer.Ordinal);
 			public Dictionary<TemplateRefId, TemplateRef> Templates { get; set; } = new Dictionary<TemplateRefId, TemplateRef>();
-			public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
 			public DateTime? LastCommitTime { get; set; }
 			public DateTime? PausedUntil { get; set; }
 			public string? PauseComment { get; set; }
@@ -65,7 +64,6 @@ namespace HordeServer.Collections.Impl
 			IReadOnlyDictionary<string, AgentType> IStream.AgentTypes => AgentTypes;
 			IReadOnlyDictionary<string, WorkspaceType> IStream.WorkspaceTypes => WorkspaceTypes;
 			IReadOnlyDictionary<TemplateRefId, TemplateRef> IStream.Templates => Templates;
-			IReadOnlyDictionary<string, string> IStream.Properties => Properties;
 
 			[BsonConstructor]
 			private StreamDocument()
@@ -115,7 +113,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId Id, IStream? Stream, string Revision, ProjectId ProjectId, StreamConfig Config)
+		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId Id, IStream? Stream, string ConfigPath, string Revision, ProjectId ProjectId, StreamConfig Config)
 		{
 			List<StreamTab> Tabs = Config.Tabs.ConvertAll(x => StreamTab.FromRequest(x));
 			Dictionary<TemplateRefId, TemplateRef> TemplateRefs = await CreateTemplateRefsAsync(Config.Templates, null, TemplateCollection);
@@ -141,11 +139,11 @@ namespace HordeServer.Collections.Impl
 			Acl? Acl = Acl.Merge(new Acl(), Config.Acl);
 			if (Stream == null)
 			{
-				return await TryCreateAsync(Id, Config.Name, ProjectId, Revision, Config.Order, Config.NotificationChannel, Config.NotificationChannelFilter, Config.TriageChannel, DefaultPreflight, Tabs, AgentTypes, WorkspaceTypes, TemplateRefs, null, Acl);
+				return await TryCreateAsync(Id, ProjectId, ConfigPath, Revision, Config, DefaultPreflight, Tabs, AgentTypes, WorkspaceTypes, TemplateRefs, Acl);
 			}
 			else
 			{
-				return await TryReplaceAsync(Stream, Config.Name, ProjectId, Revision, Config.Order, Config.NotificationChannel, Config.NotificationChannelFilter, Config.TriageChannel, DefaultPreflight, Tabs, AgentTypes, WorkspaceTypes, TemplateRefs, null, Acl);
+				return await TryReplaceAsync(Stream, ProjectId, ConfigPath, Revision, Config, DefaultPreflight, Tabs, AgentTypes, WorkspaceTypes, TemplateRefs, Acl);
 			}
 		}
 
@@ -203,29 +201,16 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryCreateAsync(StreamId Id, string Name, ProjectId ProjectId, string? Revision, int? Order, string? NotificationChannel, string? NotificationChannelFilter, string? TriageChannel, DefaultPreflight? DefaultPreflight, List<StreamTab>? Tabs, Dictionary<string, AgentType>? AgentTypes, Dictionary<string, WorkspaceType>? WorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs, Dictionary<string, string>? Properties, Acl? Acl)
+		public async Task<IStream?> TryCreateAsync(StreamId Id, ProjectId ProjectId, string ConfigPath, string ConfigRevision, StreamConfig Config, DefaultPreflight? DefaultPreflight, List<StreamTab>? Tabs, Dictionary<string, AgentType>? AgentTypes, Dictionary<string, WorkspaceType>? WorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs, Acl? Acl)
 		{
-			StreamDocument NewStream = new StreamDocument(Id, Name, ProjectId);
-			if (Revision != null)
-			{
-				NewStream.Revision = Revision;
-			}
-			if (Order != null)
-			{
-				NewStream.Order = Order.Value;
-			}
-			if(NotificationChannel != null)
-			{
-				NewStream.NotificationChannel = NotificationChannel;
-			}
-			if (NotificationChannelFilter != null)
-			{
-				NewStream.NotificationChannelFilter = NotificationChannelFilter;
-			}
-			if (TriageChannel != null)
-			{
-				NewStream.TriageChannel = TriageChannel;
-			}
+			StreamDocument NewStream = new StreamDocument(Id, Config.Name, ProjectId);
+			NewStream.ConfigPath = ConfigPath;
+			NewStream.ConfigRevision = ConfigRevision;
+			NewStream.Order = Config.Order ?? StreamDocument.DefaultOrder;
+			NewStream.NotificationChannel = Config.NotificationChannel;
+			NewStream.NotificationChannelFilter = Config.NotificationChannelFilter;
+			NewStream.TriageChannel = Config.TriageChannel;
+
 			if (DefaultPreflight != null)
 			{
 				NewStream.DefaultPreflight = DefaultPreflight;
@@ -245,10 +230,6 @@ namespace HordeServer.Collections.Impl
 			if (TemplateRefs != null)
 			{
 				NewStream.Templates = TemplateRefs;
-			}
-			if (Properties != null)
-			{
-				NewStream.Properties = new Dictionary<string, string>(Properties, NewStream.Properties.Comparer);
 			}
 			if (Acl != null)
 			{
@@ -275,7 +256,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryReplaceAsync(IStream StreamInterface, string Name, ProjectId ProjectId, string? Revision, int? Order, string? NotificationChannel, string? NotificationChannelFilter, string? TriageChannel, DefaultPreflight? DefaultPreflight, List<StreamTab>? Tabs, Dictionary<string, AgentType>? AgentTypes, Dictionary<string, WorkspaceType>? WorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs, Dictionary<string, string>? Properties, Acl? Acl, DateTime? PausedUntil = null, string? PauseComment = null)
+		public async Task<IStream?> TryReplaceAsync(IStream StreamInterface, ProjectId ProjectId, string ConfigPath, string ConfigRevision, StreamConfig Config, DefaultPreflight? DefaultPreflight, List<StreamTab>? Tabs, Dictionary<string, AgentType>? AgentTypes, Dictionary<string, WorkspaceType>? WorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs, Acl? Acl)
 		{
 			StreamDocument Stream = (StreamDocument)StreamInterface;
 
@@ -283,25 +264,28 @@ namespace HordeServer.Collections.Impl
 
 			List<UpdateDefinition<StreamDocument>> Updates = new List<UpdateDefinition<StreamDocument>>();
 
-			Stream.Name = Name;
+			Stream.Name = Config.Name;
 			Updates.Add(UpdateBuilder.Set(x => x.Name, Stream.Name));
 
 			Stream.ProjectId = ProjectId;
 			Updates.Add(UpdateBuilder.Set(x => x.ProjectId, Stream.ProjectId));
 
-			Stream.Revision = Revision;
-			Updates.Add(UpdateBuilder.Set(x => x.Revision, Stream.Revision));
+			Stream.ConfigPath = ConfigPath;
+			Updates.Add(UpdateBuilder.Set(x => x.ConfigPath, Stream.ConfigPath));
 
-			Stream.Order = Order ?? StreamDocument.DefaultOrder;
+			Stream.ConfigRevision = ConfigRevision;
+			Updates.Add(UpdateBuilder.Set(x => x.ConfigRevision, Stream.ConfigRevision));
+
+			Stream.Order = Config.Order ?? StreamDocument.DefaultOrder;
 			Updates.Add(UpdateBuilder.Set(x => x.Order, Stream.Order));
 
-			Stream.NotificationChannel = NotificationChannel;
+			Stream.NotificationChannel = Config.NotificationChannel;
 			Updates.Add(UpdateBuilder.Set(x => x.NotificationChannel, Stream.NotificationChannel));
 
-			Stream.NotificationChannelFilter = NotificationChannelFilter;
+			Stream.NotificationChannelFilter = Config.NotificationChannelFilter;
 			Updates.Add(UpdateBuilder.Set(x => x.NotificationChannelFilter, Stream.NotificationChannelFilter));
 
-			Stream.TriageChannel = TriageChannel;
+			Stream.TriageChannel = Config.TriageChannel;
 			Updates.Add(UpdateBuilder.Set(x => x.TriageChannel, Stream.TriageChannel));
 
 			Stream.DefaultPreflight = DefaultPreflight;
@@ -319,18 +303,9 @@ namespace HordeServer.Collections.Impl
 			Stream.Templates = TemplateRefs ?? new Dictionary<TemplateRefId, TemplateRef>();
 			Updates.Add(UpdateBuilder.Set(x => x.Templates, Stream.Templates));
 
-			Stream.Properties = Properties ?? new Dictionary<string, string>();
-			Updates.Add(UpdateBuilder.Set(x => x.Properties, Stream.Properties));
-
 			Stream.Acl = Acl;
 			Updates.Add(UpdateBuilder.SetOrUnsetNullRef(x => x.Acl, Acl));
 			
-			Stream.PausedUntil = PausedUntil;
-			Updates.Add(UpdateBuilder.Set(x => x.PausedUntil, Stream.PausedUntil));
-			
-			Stream.PauseComment = PauseComment;
-			Updates.Add(UpdateBuilder.Set(x => x.PauseComment, Stream.PauseComment));
-
 			Stream.Validate();
 			if(await TryUpdateStreamAsync(Stream, UpdateBuilder.Combine(Updates)))
 			{
@@ -443,22 +418,6 @@ namespace HordeServer.Collections.Impl
 			{
 				Stream.Templates = NewTemplateRefs;
 				Updates.Add(UpdateBuilder.Set(x => x.Templates, Stream.Templates));
-			}
-			if (NewProperties != null)
-			{
-				foreach (KeyValuePair<string, string?> Pair in NewProperties)
-				{
-					if (Pair.Value == null)
-					{
-						Stream.Properties.Remove(Pair.Key);
-						Updates.Add(UpdateBuilder.Unset(x => x.Properties[Pair.Key]));
-					}
-					else
-					{
-						Stream.Properties[Pair.Key] = Pair.Value;
-						Updates.Add(UpdateBuilder.Set(x => x.Properties[Pair.Key], Pair.Value));
-					}
-				}
 			}
 			if (NewAcl != null)
 			{

@@ -29,11 +29,12 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Id">Unique id for the new stream</param>
 		/// <param name="Stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
+		/// <param name="ConfigPath">Path to the config file</param>
 		/// <param name="Revision">The config file revision</param>
 		/// <param name="ProjectId">The project id</param>
 		/// <param name="Config">The stream configuration</param>
 		/// <returns></returns>
-		Task<IStream?> TryCreateOrReplaceAsync(StreamId Id, IStream? Stream, string Revision, ProjectId ProjectId, StreamConfig Config);
+		Task<IStream?> TryCreateOrReplaceAsync(StreamId Id, IStream? Stream, string ConfigPath, string Revision, ProjectId ProjectId, StreamConfig Config);
 
 		/// <summary>
 		/// Gets a stream by ID
