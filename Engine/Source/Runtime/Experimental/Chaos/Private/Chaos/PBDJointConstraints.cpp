@@ -1266,6 +1266,9 @@ namespace Chaos
 		FGenericParticleHandle Particle0 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][Index0]);
 		FGenericParticleHandle Particle1 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][Index1]);
 
+		// zhenglin
+		UE_LOG(LogChaosJoint, Error, TEXT("ConstraintIndex:%d (%d-%d), kinematic:%d,%d"), ConstraintIndex, Particle1->UniqueIdx().Idx, Particle0->UniqueIdx().Idx, Particle1->IsKinematic(), Particle0->IsKinematic());
+
 		if ((Particle0->Sleeping() && Particle1->Sleeping())
 			|| (Particle0->IsKinematic() && Particle1->Sleeping()) 
 			|| (Particle0->Sleeping() && Particle1->IsKinematic())
@@ -1487,14 +1490,16 @@ namespace Chaos
 
 			TPBDRigidParticleHandle<FReal, 3>* Particle0 = ConstraintParticles[ConstraintIndex][0]->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* Particle1 = ConstraintParticles[ConstraintIndex][1]->CastToRigidParticle();
+			bool IsParticle0Dynamic = (Particle0 != nullptr) && (Particle0->ObjectState() == EObjectStateType::Dynamic || Particle0->ObjectState() == EObjectStateType::Sleeping);
+			bool IsParticle1Dynamic = (Particle1 != nullptr) && (Particle1->ObjectState() == EObjectStateType::Dynamic || Particle1->ObjectState() == EObjectStateType::Sleeping);
 
-			bool bContainsDynamic = (Particle0 != nullptr) || (Particle1 != nullptr);
+			bool bContainsDynamic = IsParticle0Dynamic || IsParticle1Dynamic;
 			if (bContainsDynamic)
 			{
 				ConstraintVertices[ConstraintIndex] = Graph.AddVertex();
 
 				// Set kinematic-connected constraints to level 0 to initialize level calculation
-				bool bContainsKinematic = (Particle0 == nullptr) || (Particle1 == nullptr);
+				bool bContainsKinematic = !IsParticle0Dynamic || !IsParticle1Dynamic;
 				if (bContainsKinematic)
 				{
 					Graph.SetVertexLevel(ConstraintVertices[ConstraintIndex], 0);
@@ -1535,10 +1540,18 @@ namespace Chaos
 			{
 				int32 ConstraintIndex0 = ParticleConstraintIndices[ParticleConstraintIndex0];
 				int32 VertexIndex0 = ConstraintVertices[ConstraintIndex0];
+				if(VertexIndex0 == INDEX_NONE)
+				{
+					continue;
+				}
 				for (int32 ParticleConstraintIndex1 = ParticleConstraintIndex0 + 1; ParticleConstraintIndex1 < NumParticleConstraintIndices; ++ParticleConstraintIndex1)
 				{
 					int32 ConstraintIndex1 = ParticleConstraintIndices[ParticleConstraintIndex1];
 					int32 VertexIndex1 = ConstraintVertices[ConstraintIndex1];
+					if(VertexIndex1 == INDEX_NONE)
+					{
+						continue;
+					}
 					Graph.AddEdge(VertexIndex0, VertexIndex1);
 				}
 			}
