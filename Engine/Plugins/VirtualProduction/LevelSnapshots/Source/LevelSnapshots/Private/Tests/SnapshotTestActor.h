@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Engine/StaticMesh.h"
 #include "GameFramework/Character.h"
 #include "Materials/MaterialInterface.h"
 #include "SnapshotTestActor.generated.h"
