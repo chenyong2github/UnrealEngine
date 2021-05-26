@@ -22,3 +22,9 @@ void StampDeferredDebugProbeMaterialPS(
 	TArrayView<const FViewInfo> Views,
 	const FRenderTargetBindingSlots& BasePassRenderTargets);
 
+
+void StampDeferredDebugProbeVelocityPS(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	const FRenderTargetBindingSlots& BasePassRenderTargets);
+
