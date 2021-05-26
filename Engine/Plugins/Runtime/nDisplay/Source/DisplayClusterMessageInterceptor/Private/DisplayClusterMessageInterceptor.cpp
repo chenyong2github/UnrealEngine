@@ -137,6 +137,7 @@ void FDisplayClusterMessageInterceptor::SyncMessages()
 
 					// Force treatment if not synced after a certain amount of time and the message is reliable
 					ContextToForward.Add(It.Value().ContextPtr);
+					It.RemoveCurrent();
 				}
 			}
 		}
