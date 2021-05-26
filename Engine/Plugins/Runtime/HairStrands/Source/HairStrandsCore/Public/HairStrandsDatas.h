@@ -162,7 +162,7 @@ struct FHairStrandsTangentFormat
 struct FHairStrandsInterpolationFormat
 {
 	typedef FHairInterpolationVertex Type;
-	typedef uint32 BulkType;
+	typedef FHairInterpolationVertex::BulkType BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -173,7 +173,7 @@ struct FHairStrandsInterpolationFormat
 struct FHairStrandsInterpolation0Format
 {
 	typedef FHairInterpolation0Vertex Type;
-	typedef uint64 BulkType;
+	typedef FHairInterpolation0Vertex::BulkType BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -184,7 +184,7 @@ struct FHairStrandsInterpolation0Format
 struct FHairStrandsInterpolation1Format
 {
 	typedef FHairInterpolation1Vertex Type;
-	typedef uint32 BulkType;
+	typedef FHairInterpolation1Vertex::BulkType BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -314,18 +314,21 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
 {
 	enum EDataFlags
 	{
-		DataFlags_HasSingleGuideData = 1,
+		DataFlags_HasData = 1,
+		DataFlags_HasSingleGuideData = 2,
 	};
 
 	void Reset();
-	void Serialize(FArchive& Ar);
-	uint32 GetPointCount() const { return (!!(Flags & DataFlags_HasSingleGuideData)) ? Interpolation.Num() : Interpolation0.Num(); };
+	void Serialize(FArchive& Ar, UObject* Owner);
+	uint32 GetPointCount() const { return PointCount; };
 
-	uint32 Flags;
-	TArray<FHairStrandsInterpolationFormat::Type> Interpolation;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a single guide
-	TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
-	TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
-	TArray<FHairStrandsRootIndexFormat::Type> SimRootPointIndex;	// Per-rendering-vertex index of the sim-root vertex
+	uint32 Flags = 0;
+	uint32 PointCount = 0;
+	uint32 SimPointCount = 0;
+	FByteBulkData Interpolation;	// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a single guide
+	FByteBulkData Interpolation0;	// FHairStrandsInterpolation0Format - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
+	FByteBulkData Interpolation1;	// FHairStrandsInterpolation1Format - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
+	FByteBulkData SimRootPointIndex;// FHairStrandsRootIndexFormat      - Per-rendering-vertex index of the sim-root vertex
 };
 
 /** Hair strands points attribute */
