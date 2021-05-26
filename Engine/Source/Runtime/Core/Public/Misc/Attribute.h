@@ -110,10 +110,11 @@ public:
 	 *
 	 * @param  InFuncPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
-	UE_NODISCARD static TAttribute Create( typename FGetter::FStaticDelegate::FFuncPtr InFuncPtr )
+	template <typename... VarTypes >
+	UE_NODISCARD static TAttribute Create( typename FGetter::template FStaticDelegate< VarTypes... >::FuncType InFuncPtr, VarTypes... Vars )
 	{
 		const bool bExplicitConstructor = true;
-		return TAttribute( FGetter::CreateStatic( InFuncPtr ), bExplicitConstructor );
+		return TAttribute( FGetter::CreateStatic( InFuncPtr, Vars... ), bExplicitConstructor );
 	}
 
 	/**
@@ -282,10 +283,11 @@ public:
 	 *
 	 * @param  InFuncPtr	Function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
-	void BindStatic( typename FGetter::FStaticDelegate::FFuncPtr InFuncPtr )
+	template < typename... VarTypes >
+	void BindStatic( typename FGetter::template FStaticDelegate< VarTypes... >::FFuncPtr InFuncPtr, VarTypes... Vars )
 	{
 		bIsSet = true;
-		Getter.BindStatic( InFuncPtr );
+		Getter.BindStatic( InFuncPtr, Vars... );
 	}
 	
 	/**
