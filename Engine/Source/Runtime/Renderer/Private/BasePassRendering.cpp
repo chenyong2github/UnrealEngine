@@ -18,6 +18,7 @@
 #include "OneColorShader.h"
 #include "ClearQuad.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "DebugProbeRendering.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarSelectiveBasePassOutputs(
@@ -908,6 +909,13 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		RenderAnisotropyPass(GraphBuilder, SceneTextures, bEnableParallelBasePasses);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterAnisotropyPass));
 	}
+
+#if !(UE_BUILD_SHIPPING)
+	if (!bForwardShadingEnabled)
+	{
+		StampDeferredDebugProbeMaterialPS(GraphBuilder, Views, BasePassRenderTargets);
+	}
+#endif
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FOpaqueBasePassParameters, )

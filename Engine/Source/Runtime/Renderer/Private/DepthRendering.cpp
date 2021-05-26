@@ -31,6 +31,7 @@
 #include "PixelShaderUtils.h"
 #include "RenderGraphUtils.h"
 #include "SceneRenderingUtils.h"
+#include "DebugProbeRendering.h"
 
 static TAutoConsoleVariable<int32> CVarParallelPrePass(
 	TEXT("r.ParallelPrePass"),
@@ -602,6 +603,14 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 			DrawClearQuad(RHICmdList, false, FLinearColor::Transparent, false, 0, true, 0);
 		});
 	}
+
+#if !(UE_BUILD_SHIPPING)
+	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
+	if (!bForwardShadingEnabled)
+	{
+		StampDeferredDebugProbeDepthPS(GraphBuilder, Views, SceneDepthTexture);
+	}
+#endif
 }
 
 bool FMobileSceneRenderer::ShouldRenderPrePass() const
