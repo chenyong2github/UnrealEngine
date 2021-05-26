@@ -353,7 +353,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public IEnumerable<string> GetEditorBusyChannels ()
 		{
-			return GetLogChannels(new string[] { "Automation", "FunctionalTest", "Material", "DerivedDataCache", "ShaderCompilers", "Texture", "SkeletalMesh", "StaticMesh" }, false);
+			return GetLogChannels(new string[] { "Automation", "FunctionalTest", "Material", "DerivedDataCache", "ShaderCompilers", "Texture", "SkeletalMesh", "StaticMesh", "Python" }, false);
 		}
 
 		/// <summary>
