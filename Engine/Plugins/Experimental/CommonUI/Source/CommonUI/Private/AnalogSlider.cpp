@@ -16,8 +16,6 @@ UAnalogSlider::UAnalogSlider(const FObjectInitializer& ObjectInitializer)
 	SliderBarColor = FLinearColor::White;
 	SliderHandleColor = FLinearColor::White;
 	StepSize = 0.01f;
-	SSlider::FArguments Defaults;
-	WidgetStyle = *Defaults._Style;
 	IsFocusable = true;
 }
 
