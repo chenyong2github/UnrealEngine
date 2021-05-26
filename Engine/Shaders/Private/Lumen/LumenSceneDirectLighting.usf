@@ -72,7 +72,7 @@ int VirtualShadowMapId;
 uint UseIESProfile;
 
 #if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
-Texture2D<float> ShadowMaskAtlas;
+Texture2D ShadowMaskAtlas;
 #endif
 
 float3 GetWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float BiasScale)
@@ -220,8 +220,7 @@ void LumenCardDirectLightingPS(
 				{
 					#if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
 					{
-						uint2 Pos2D = CardInterpolants.AtlasUV * LumenCardScene.PhysicalAtlasSize - float2(0.5, 0.5) / LumenCardScene.InvPhysicalAtlasSize;
-						ShadowFactor = ShadowMaskAtlas.Load(uint3(Pos2D, 0));
+						ShadowFactor = ShadowMaskAtlas.Load(uint3(CardInterpolants.AtlasUV * LumenCardScene.PhysicalAtlasSize, 0));
 					}
 					#else
 					{
