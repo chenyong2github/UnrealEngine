@@ -242,11 +242,6 @@ namespace HordeServer.Api
 		public List<GetProjectCategoryResponse>? Categories { get; set; }
 
 		/// <summary>
-		/// Properties for this project.
-		/// </summary>
-		public Dictionary<string, string> Properties { get; set; }
-
-		/// <summary>
 		/// Custom permissions for this object
 		/// </summary>
 		public GetAclResponse? Acl { get; set; }
@@ -258,7 +253,6 @@ namespace HordeServer.Api
 		{
 			Id = null!;
 			Name = null!;
-			Properties = null!;
 			Streams = null!;
 			Categories = null!;
 		}
@@ -271,16 +265,14 @@ namespace HordeServer.Api
 		/// <param name="Order">Order to show this project on the dashboard</param>
 		/// <param name="Streams">List of streams to display</param>
 		/// <param name="Categories">List of stream categories to display</param>
-		/// <param name="Properties">Properties for this project</param>
 		/// <param name="Acl">Custom permissions for this object</param>
-		public GetProjectResponse(string Id, string Name, int Order, List<GetProjectStreamResponse>? Streams, List<GetProjectCategoryResponse>? Categories, Dictionary<string, string> Properties, GetAclResponse? Acl)
+		public GetProjectResponse(string Id, string Name, int Order, List<GetProjectStreamResponse>? Streams, List<GetProjectCategoryResponse>? Categories, GetAclResponse? Acl)
 		{
 			this.Id = Id;
 			this.Name = Name;
 			this.Order = Order;
 			this.Streams = Streams;
 			this.Categories = Categories;
-			this.Properties = Properties;
 			this.Acl = Acl;
 		}
 	}

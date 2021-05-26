@@ -68,31 +68,6 @@ namespace HordeServer.Controllers
 		}
 
 		/// <summary>
-		/// Creates a new project
-		/// </summary>
-		/// <param name="Create">Parameters for the new project.</param>
-		/// <returns>Http result code</returns>
-		[HttpPost]
-		[Route("/api/v1/projects")]
-		public async Task<ActionResult<CreateProjectResponse>> CreateProjectAsync([FromBody] CreateProjectRequest Create)
-		{
-			if(!await AclService.AuthorizeAsync(AclAction.CreateProject, User, null))
-			{
-				return Forbid();
-			}
-
-			IProject? NewProject = await ProjectService.TryCreateProjectAsync(ProjectId.Sanitize(Create.Name), Create.Name, Create.Order, Create.Categories?.ConvertAll(x => new StreamCategory(x)), Create.Properties);
-			if (NewProject == null)
-			{
-				return BadRequest("Project already exists");
-			}
-			else
-			{
-				return new CreateProjectResponse(NewProject.Id.ToString());
-			}
-		}
-
-		/// <summary>
 		/// Query all the projects
 		/// </summary>
 		/// <param name="IncludeStreams">Whether to include streams in the response</param>
@@ -200,81 +175,6 @@ namespace HordeServer.Controllers
 			}
 
 			return new FileContentResult(ProjectLogo.Data, ProjectLogo.MimeType);
-		}
-
-		/// <summary>
-		/// Update a project's properties.
-		/// </summary>
-		/// <param name="ProjectId">Id of the project to update</param>
-		/// <param name="Update">Items on the project to update</param>
-		/// <returns>Http result code</returns>
-		[HttpPut]
-		[Route("/api/v1/projects/{ProjectId}")]
-		public async Task<ActionResult> UpdateProjectAsync(string ProjectId, [FromBody] UpdateProjectRequest Update)
-		{
-			ProjectId ProjectIdValue = new ProjectId(ProjectId);
-			for (; ; )
-			{
-				IProject? Project = await ProjectService.GetProjectAsync(ProjectIdValue);
-				if (Project == null)
-				{
-					if (!await AclService.AuthorizeAsync(AclAction.CreateProject, User, null))
-					{
-						return Forbid();
-					}
-					if (Update.Name == null)
-					{
-						return BadRequest("Project does not exist; 'Name' must be specified on update request to create it");
-					}
-
-					IProject? NewProject = await ProjectService.TryCreateProjectAsync(ProjectIdValue, Update.Name, Update.Order, Update.Categories?.ConvertAll(x => new StreamCategory(x)), Update.Properties);
-					if (NewProject != null)
-					{
-						return Ok();
-					}
-				}
-				else
-				{
-					ProjectPermissionsCache PermissionsCache = new ProjectPermissionsCache();
-					if (!await ProjectService.AuthorizeAsync(Project, AclAction.UpdateProject, User, PermissionsCache))
-					{
-						return Forbid();
-					}
-					if (Update.Acl != null && !await ProjectService.AuthorizeAsync(Project, AclAction.ChangePermissions, User, PermissionsCache))
-					{
-						return Forbid();
-					}
-
-					List<StreamCategory>? NewCategories = Update.Categories?.ConvertAll(x => new StreamCategory(x));
-					await ProjectService.UpdateProjectAsync(ProjectIdValue, Update.Name, Update.Order, NewCategories, Update.Properties, Acl.Merge(Project.Acl, Update.Acl));
-					return new OkResult();
-				}
-			}
-		}
-
-		/// <summary>
-		/// Delete a project
-		/// </summary>
-		/// <param name="ProjectId">Id of the project to update</param>
-		/// <returns>Http result code</returns>
-		[HttpDelete]
-		[Route("/api/v1/projects/{ProjectId}")]
-		public async Task<ActionResult> DeleteProjectAsync(string ProjectId)
-		{
-			ProjectId ProjectIdValue = new ProjectId(ProjectId);
-
-			IProject? Project = await ProjectService.GetProjectAsync(ProjectIdValue);
-			if (Project == null)
-			{
-				return NotFound();
-			}
-			if (!await ProjectService.AuthorizeAsync(Project, AclAction.DeleteProject, User, null))
-			{
-				return Forbid();
-			}
-
-			await ProjectService.DeleteProjectAsync(ProjectIdValue);
-			return new OkResult();
 		}
 	}
 }

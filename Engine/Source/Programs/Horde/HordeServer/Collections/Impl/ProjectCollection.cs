@@ -42,13 +42,11 @@ namespace HordeServer.Collections.Impl
 			public int Order { get; set; } = DefaultOrder;
 			public Acl? Acl { get; set; }
 			public List<StreamCategory> Categories { get; set; } = new List<StreamCategory>();
-			public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
 			[BsonIgnoreIfDefault, BsonDefaultValue(false)]
 			public bool Deleted { get; set; }
 
 			IReadOnlyList<StreamCategory> IProject.Categories => Categories;
-			IReadOnlyDictionary<string, string> IProject.Properties => Properties;
 
 			[BsonConstructor]
 			private ProjectDocument()
@@ -124,85 +122,6 @@ namespace HordeServer.Collections.Impl
 
 			await Projects.FindOneAndReplaceAsync<ProjectDocument>(x => x.Id == Id, NewProject, new FindOneAndReplaceOptions<ProjectDocument> { IsUpsert = true });
 			return NewProject;
-		}
-
-		/// <inheritdoc/>
-		public async Task<IProject?> TryAddAsync(ProjectId Id, string Name, int? Order, List<StreamCategory>? Categories, Dictionary<string, string>? Properties)
-		{
-			ProjectDocument NewProject = new ProjectDocument(Id, Name);
-			if (Order != null)
-			{
-				NewProject.Order = Order.Value;
-			}
-			if (Categories != null)
-			{
-				NewProject.Categories = Categories;
-			}
-			if (Properties != null)
-			{
-				NewProject.Properties = new Dictionary<string, string>(Properties, NewProject.Properties.Comparer);
-			}
-
-			// Attempt to insert the stream, but fail gracefully if it already exists
-			try
-			{
-				await Projects.InsertOneAsync(NewProject);
-				return NewProject;
-			}
-			catch (MongoWriteException Ex)
-			{
-				if (Ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
-				{
-					return null;
-				}
-				else
-				{
-					throw;
-				}
-			}
-		}
-
-		/// <inheritdoc/>
-		public async Task UpdateAsync(ProjectId ProjectId, string? NewName, int? NewOrder, List<StreamCategory>? NewCategories, Dictionary<string, string>? NewProperties, Acl? NewAcl)
-		{
-			UpdateDefinitionBuilder<ProjectDocument> UpdateBuilder = Builders<ProjectDocument>.Update;
-
-			List<UpdateDefinition<ProjectDocument>> Updates = new List<UpdateDefinition<ProjectDocument>>();
-			if (NewName != null)
-			{
-				Updates.Add(UpdateBuilder.Set(x => x.Name, NewName));
-			}
-			if (NewOrder != null)
-			{
-				Updates.Add(UpdateBuilder.Set(x => x.Order, NewOrder.Value));
-			}
-			if (NewCategories != null)
-			{
-				Updates.Add(UpdateBuilder.Set(x => x.Categories, NewCategories));
-			}
-			if (NewProperties != null)
-			{
-				foreach (KeyValuePair<string, string> Pair in NewProperties)
-				{
-					if (Pair.Value == null)
-					{
-						Updates.Add(UpdateBuilder.Unset(x => x.Properties[Pair.Key]));
-					}
-					else
-					{
-						Updates.Add(UpdateBuilder.Set(x => x.Properties[Pair.Key], Pair.Value));
-					}
-				}
-			}
-			if (NewAcl != null)
-			{
-				Updates.Add(Acl.CreateUpdate<ProjectDocument>(x => x.Acl!, NewAcl));
-			}
-
-			if (Updates.Count > 0)
-			{
-				await Projects.FindOneAndUpdateAsync<ProjectDocument>(x => x.Id == ProjectId, UpdateBuilder.Combine(Updates));
-			}
 		}
 
 		/// <inheritdoc/>
