@@ -818,10 +818,6 @@ void FEnvQueryInstance::FinalizeQuery()
 	}
 	else
 	{
-		Items.Reset();
-		ItemDetails.Reset();
-		RawData.Reset();
-
 		MarkAsFailed();
 	}
 }
