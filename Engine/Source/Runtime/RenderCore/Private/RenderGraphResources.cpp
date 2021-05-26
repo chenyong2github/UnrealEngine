@@ -32,6 +32,7 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bLastOwner(1)
 	, bCulled(1)
 	, bUsedByAsyncComputePass(0)
+	, bQueuedForUpload(0)
 {}
 
 bool FRDGProducerState::IsDependencyRequired(FRDGProducerState LastProducer, ERHIPipeline LastPipeline, FRDGProducerState NextState, ERHIPipeline NextPipeline)

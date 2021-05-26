@@ -184,6 +184,26 @@ FRDGPassRef FRDGBuilder::AddPass(
 	return AddPassInternal(Forward<FRDGEventName>(Name), ParameterStructType::FTypeInfo::GetStructMetadata(), ParameterStruct, Flags, Forward<ExecuteLambdaType>(ExecuteLambda));
 }
 
+inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags)
+{
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUploadBuffer(Buffer, InitialData, InitialDataSize));
+
+	if (InitialDataSize == 0)
+	{
+		return;
+	}
+
+	if (!EnumHasAnyFlags(InitialDataFlags, ERDGInitialDataFlags::NoCopy))
+	{
+		void* InitialDataCopy = Alloc(InitialDataSize, 16);
+		FMemory::Memcpy(InitialDataCopy, InitialData, InitialDataSize);
+		InitialData = InitialDataCopy;
+	}
+
+	UploadedBuffers.Emplace(Buffer, InitialData, InitialDataSize);
+	Buffer->bQueuedForUpload = 1;
+}
+
 inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERHIAccess AccessFinal)
 {
 	QueueTextureExtraction(Texture, OutTexturePtr);

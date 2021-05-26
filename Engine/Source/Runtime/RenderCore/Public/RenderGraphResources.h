@@ -293,6 +293,9 @@ protected:
 	/** If true, the resource has been used on an async compute pass and may have async compute states. */
 	uint8 bUsedByAsyncComputePass : 1;
 
+	/** If true, the resource has been queued for an upload operation. */
+	uint8 bQueuedForUpload : 1;
+
 	FRDGPassHandle FirstPass;
 	FRDGPassHandle LastPass;
 

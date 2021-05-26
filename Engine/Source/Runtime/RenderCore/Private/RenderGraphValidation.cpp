@@ -375,6 +375,13 @@ void FRDGUserValidation::ValidateCreateUniformBuffer(const void* ParameterStruct
 	ExecuteGuard(TEXT("CreateUniformBuffer"), Name);
 }
 
+void FRDGUserValidation::ValidateUploadBuffer(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize)
+{
+	check(Buffer);
+	checkf(!Buffer->bQueuedForUpload, TEXT("Buffer %s already has an upload queued. Only one upload can be done for each graph."), Buffer->Name);
+	check(InitialData || InitialDataSize == 0);
+}
+
 void FRDGUserValidation::ValidateExtractTexture(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr)
 {
 	ValidateExtractResource(Texture);
@@ -395,7 +402,7 @@ void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 		TEXT("Unable to queue the extraction of the resource %s because passes in the graph have already executed and it was made transient."),
 		Resource->Name);
 
-	checkf(Resource->bProduced || Resource->bExternal,
+	checkf(Resource->bProduced || Resource->bExternal || Resource->bQueuedForUpload,
 		TEXT("Unable to queue the extraction of the resource %s because it has not been produced by any pass."),
 		Resource->Name);
 
@@ -551,7 +558,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 	const auto MarkAsConsumed = [&] (FRDGParentResourceRef Resource)
 	{
-		ensureMsgf(Resource->bProduced || Resource->bExternal,
+		ensureMsgf(Resource->bProduced || Resource->bExternal || Resource->bQueuedForUpload,
 			TEXT("Pass %s has a read dependency on %s, but it was never written to."),
 			PassName, Resource->Name);
 

@@ -836,9 +836,9 @@ void FRDGBuilder::Compile(EExecuteMode ExecuteMode)
 
 		if (ExecuteMode == EExecuteMode::Final)
 		{
-			for (const auto& Query : ExtractedTextures)
+			for (const FExtractedTexture& ExtractedTexture : ExtractedTextures)
 			{
-				FRDGTextureRef Texture = Query.Key;
+				FRDGTextureRef Texture = ExtractedTexture.Texture;
 				for (auto& LastProducer : Texture->LastProducers)
 				{
 					FRDGProducerState StateFinal;
@@ -849,9 +849,9 @@ void FRDGBuilder::Compile(EExecuteMode ExecuteMode)
 				}
 			}
 
-			for (const auto& Query : ExtractedBuffers)
+			for (const FExtractedBuffer& ExtractedBuffer : ExtractedBuffers)
 			{
-				FRDGBufferRef Buffer = Query.Key;
+				FRDGBufferRef Buffer = ExtractedBuffer.Buffer;
 
 				FRDGProducerState StateFinal;
 				StateFinal.Access = Buffer->AccessFinal;
@@ -871,6 +871,9 @@ void FRDGBuilder::Compile(EExecuteMode ExecuteMode)
 		SCOPED_NAMED_EVENT(FRDGBuilder_Compile_Cull_Passes, FColor::Emerald);
 
 		PassStack.Emplace(EpiloguePassHandle);
+
+		// Mark the epilogue pass as culled so that it is traversed.
+		EpiloguePass->bCulled = 1;
 
 		// Manually mark the prologue passes as not culled.
 		ProloguePasses[ERHIPipeline::Graphics]->bCulled = 0;
@@ -957,6 +960,7 @@ void FRDGBuilder::Compile(EExecuteMode ExecuteMode)
 				FRDGTextureRef Texture = PassState.Texture;
 				Texture->ReferenceCount += PassState.ReferenceCount;
 				Texture->bUsedByAsyncComputePass |= bAsyncComputePass;
+				Texture->bCulled = false;
 
 			#if STATS
 				GRDGStatTextureReferenceCount += PassState.ReferenceCount;
@@ -978,6 +982,7 @@ void FRDGBuilder::Compile(EExecuteMode ExecuteMode)
 				FRDGBufferRef Buffer = PassState.Buffer;
 				Buffer->ReferenceCount += PassState.ReferenceCount;
 				Buffer->bUsedByAsyncComputePass |= bAsyncComputePass;
+				Buffer->bCulled = false;
 
 			#if STATS
 				GRDGStatBufferReferenceCount += PassState.ReferenceCount;
@@ -1405,6 +1410,8 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 	{
 		Compile(ExecuteMode);
 
+		UploadBuffers();
+
 		{
 			SCOPE_CYCLE_COUNTER(STAT_RDG_CollectResourcesTime);
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RDG_CollectResources);
@@ -1443,14 +1450,14 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 					}
 				}
 
-				for (const auto& Query : ExtractedTextures)
+				for (const FExtractedTexture& ExtractedTexture : ExtractedTextures)
 				{
-					EndResourceRHI(EpiloguePassHandle, Query.Key, 1);
+					EndResourceRHI(EpiloguePassHandle, ExtractedTexture.Texture, 1);
 				}
 
-				for (const auto& Query : ExtractedBuffers)
+				for (const FExtractedBuffer& ExtractedBuffer : ExtractedBuffers)
 				{
-					EndResourceRHI(EpiloguePassHandle, Query.Key, 1);
+					EndResourceRHI(EpiloguePassHandle, ExtractedBuffer.Buffer, 1);
 				}
 
 				EnumerateExtendedLifetimeResources(Textures, [&](FRDGTextureRef Texture)
@@ -1593,25 +1600,27 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 		if (NameForTemporalEffect != NAME_None)
 		{
 			TArray<FRHITexture*> BroadcastTexturesForTemporalEffect;
-			for (const auto& Query : ExtractedTextures)
+			for (const FExtractedTexture& ExtractedTexture : ExtractedTextures)
 			{
-				if (EnumHasAnyFlags(Query.Key->Flags, ERDGTextureFlags::MultiFrame))
+				if (EnumHasAnyFlags(ExtractedTexture.Texture->Flags, ERDGTextureFlags::MultiFrame))
 				{
-					BroadcastTexturesForTemporalEffect.Add(Query.Key->GetRHIUnchecked());
+					BroadcastTexturesForTemporalEffect.Add(ExtractedTexture.Texture->GetRHIUnchecked());
 				}
 			}
 			RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, BroadcastTexturesForTemporalEffect);
 		}
 	#endif
 
-		for (const auto& Query : ExtractedTextures)
+		for (const FExtractedTexture& ExtractedTexture : ExtractedTextures)
 		{
-			*Query.Value = Query.Key->PooledRenderTarget;
+			check(ExtractedTexture.Texture->PooledRenderTarget);
+			*ExtractedTexture.PooledTexture = ExtractedTexture.Texture->PooledRenderTarget;
 		}
 
-		for (const auto& Query : ExtractedBuffers)
+		for (const FExtractedBuffer& ExtractedBuffer : ExtractedBuffers)
 		{
-			*Query.Value = Query.Key->PooledBuffer;
+			check(ExtractedBuffer.Buffer->PooledBuffer);
+			*ExtractedBuffer.PooledBuffer = ExtractedBuffer.Buffer->PooledBuffer;
 		}
 
 		IF_RDG_ENABLE_TRACE(Trace.OutputGraphEnd(*this));
@@ -1859,15 +1868,20 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 					PassState.MergeState[Index] = &PassState.State[Index];
 				}
 			}
+
+			PassState.Texture->bCulled = false;
 		}
 
 		for (auto& PassState : Pass->BufferStates)
 		{
 			PassState.MergeState = &PassState.State;
+
+			PassState.Buffer->bCulled = false;
 		}
 
 		check(!EnumHasAnyFlags(PassPipeline, ERHIPipeline::AsyncCompute));
 
+		UploadBuffers();
 		BeginResourcesRHI(Pass, PassHandle);
 		CollectPassBarriers(Pass, PassHandle);
 		CreatePassBarriers();
@@ -1876,6 +1890,20 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 	}
 
 	IF_RDG_ENABLE_DEBUG(VisualizePassOutputs(Pass));
+}
+
+void FRDGBuilder::UploadBuffers()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGBuilder::UploadBuffers);
+
+	for (FUploadedBuffer& UploadedBuffer : UploadedBuffers)
+	{
+		const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = ConvertToExternalBuffer(UploadedBuffer.Buffer);
+		void* DestPtr = RHICmdList.LockBuffer(PooledBuffer->GetRHI(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
+		FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
+		RHICmdList.UnlockBuffer(PooledBuffer->GetRHI());
+	}
+	UploadedBuffers.Reset();
 }
 
 void FRDGBuilder::CreateUniformBuffers()
@@ -2113,7 +2141,6 @@ void FRDGBuilder::CollectPassBarriers(FRDGPass* Pass, FRDGPassHandle PassHandle)
 	{
 		FRDGTextureRef Texture = PassState.Texture;
 		AddTransition(PassHandle, Texture, PassState.MergeState);
-		Texture->bCulled = false;
 
 		IF_RDG_ENABLE_TRACE(Trace.AddTexturePassDependency(Texture, Pass));
 	}
@@ -2122,7 +2149,6 @@ void FRDGBuilder::CollectPassBarriers(FRDGPass* Pass, FRDGPassHandle PassHandle)
 	{
 		FRDGBufferRef Buffer = PassState.Buffer;
 		AddTransition(PassHandle, Buffer, *PassState.MergeState);
-		Buffer->bCulled = false;
 
 		IF_RDG_ENABLE_TRACE(Trace.AddBufferPassDependency(Buffer, Pass));
 	}
