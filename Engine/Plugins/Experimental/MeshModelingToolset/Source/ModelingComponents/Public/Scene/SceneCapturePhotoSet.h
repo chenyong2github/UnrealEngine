@@ -22,6 +22,7 @@ namespace Geometry
  *		Roughness
  *		Metallic
  *		Specular
+ *		PackedMRS   (Metallic / Roughness / Specular)
  *		Emissive
  *		WorldNormal
  * There are various efficiences possible by doing these captures as a group, rather
@@ -112,14 +113,24 @@ public:
 		FSceneSample& DefaultsInResultsOut) const;
 
 
+	const FSpatialPhotoSet3f& GetBaseColorPhotoSet() { return BaseColorPhotoSet; }
+	const FSpatialPhotoSet1f& GetRoughnessPhotoSet() { return RoughnessPhotoSet; }
+	const FSpatialPhotoSet1f& GetSpecularPhotoSet() { return SpecularPhotoSet; }
+	const FSpatialPhotoSet1f& GetMetallicPhotoSet() { return MetallicPhotoSet; }
+	const FSpatialPhotoSet3f& GetPackedMRSPhotoSet() { return PackedMRSPhotoSet; }
+	const FSpatialPhotoSet3f& GetWorldNormalPhotoSet() { return WorldNormalPhotoSet; }
+	const FSpatialPhotoSet3f& GetEmissivePhotoSet() { return EmissivePhotoSet; }
+
+
 protected:
 	UWorld* TargetWorld = nullptr;
 	TArray<AActor*> VisibleActors;
 
 	bool bEnableBaseColor = true;
-	bool bEnableRoughness = true;
-	bool bEnableSpecular = true;
-	bool bEnableMetallic = true;
+	bool bEnableRoughness = false;
+	bool bEnableSpecular = false;
+	bool bEnableMetallic = false;
+	bool bEnablePackedMRS = true;
 	bool bEnableWorldNormal = true;
 	bool bEnableEmissive = true;
 
@@ -127,6 +138,7 @@ protected:
 	FSpatialPhotoSet1f RoughnessPhotoSet;
 	FSpatialPhotoSet1f SpecularPhotoSet;
 	FSpatialPhotoSet1f MetallicPhotoSet;
+	FSpatialPhotoSet3f PackedMRSPhotoSet;
 	FSpatialPhotoSet3f WorldNormalPhotoSet;
 	FSpatialPhotoSet3f EmissivePhotoSet;
 };
