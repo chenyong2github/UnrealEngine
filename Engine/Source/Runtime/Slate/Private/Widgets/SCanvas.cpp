@@ -5,8 +5,25 @@
 #include "Layout/ArrangedChildren.h"
 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void SCanvas::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArg)
+{
+	TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArg));
+	if (InArg._Position.IsSet())
+	{
+		PositionAttr = MoveTemp(InArg._Position);
+	}
+	if (InArg._Size.IsSet())
+	{
+		SizeAttr = MoveTemp(InArg._Size);
+	}
+	TAlignmentWidgetSlotMixin<FSlot>::ConstructMixin(SlotOwner, MoveTemp(InArg));
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+
 SCanvas::SCanvas()
-: Children(this)
+	: Children(this)
 {
 	SetCanTick(false);
 	bCanSupportFocus = false;
@@ -14,11 +31,17 @@ SCanvas::SCanvas()
 
 void SCanvas::Construct( const SCanvas::FArguments& InArgs )
 {
-	const int32 NumSlots = InArgs.Slots.Num();
-	for ( int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex )
-	{
-		Children.Add( InArgs.Slots[SlotIndex] );
-	}
+	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
+}
+
+SCanvas::FSlot::FSlotArguments SCanvas::Slot()
+{
+	return FSlot::FSlotArguments(MakeUnique<FSlot>());
+}
+
+SCanvas::FScopedWidgetSlotArguments SCanvas::AddSlot()
+{
+	return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), Children, INDEX_NONE };
 }
 
 void SCanvas::ClearChildren( )
@@ -38,7 +61,7 @@ void SCanvas::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChi
 		for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
 		{
 			const SCanvas::FSlot& CurChild = Children[ChildIndex];
-			const FVector2D Size = CurChild.SizeAttr.Get();
+			const FVector2D Size = CurChild.GetSize();
 
 			//Handle HAlignment
 			FVector2D Offset(0.0f, 0.0f);
@@ -75,7 +98,7 @@ void SCanvas::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChi
 				// The child widget being arranged
 				CurChild.GetWidget(),
 				// Child's local position (i.e. position within parent)
-				CurChild.PositionAttr.Get() + Offset,
+				CurChild.GetPosition() + Offset,
 				// Child's size
 				Size
 			));

@@ -49,27 +49,43 @@ public:
 	 * 
 	 *  Note: FILL is NOT supported.
 	 */
-	class FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	class SLATE_API FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
 	{
-	public:		
-		FSlot& Position( const TAttribute<FVector2D>& InPosition )
+	public:
+		SLATE_SLOT_BEGIN_ARGS_OneMixin(FSlot, TSlotBase<FSlot>, TAlignmentWidgetSlotMixin<FSlot>)
+			SLATE_ATTRIBUTE(FVector2D, Position)
+			SLATE_ATTRIBUTE(FVector2D, Size)
+		SLATE_SLOT_END_ARGS()
+
+		void SetPosition( TAttribute<FVector2D> InPosition )
 		{
-			PositionAttr = InPosition;
-			return *this;
+			PositionAttr = MoveTemp(InPosition);
+		}
+		FVector2D GetPosition() const
+		{
+			return PositionAttr.Get();
 		}
 
-		FSlot& Size( const TAttribute<FVector2D>& InSize )
+		void SetSize( TAttribute<FVector2D> InSize )
 		{
-			SizeAttr = InSize;
-			return *this;
+			SizeAttr = MoveTemp(InSize);
+		}
+		FVector2D GetSize() const
+		{
+			return SizeAttr.Get();
 		}
 
+	public:
 		/** Position */
+		UE_DEPRECATED(5.0, "Direct access to PositionAttr is now deprecated. Use the getter or setter.")
 		TAttribute<FVector2D> PositionAttr;
 
 		/** Size */
+		UE_DEPRECATED(5.0, "Direct access to SizeAttr is now deprecated. Use the getter or setter.")
 		TAttribute<FVector2D> SizeAttr;
 
+	public:
 		/** Default values for a slot. */
 		FSlot()
 			: TSlotBase<FSlot>()
@@ -77,14 +93,17 @@ public:
 			, PositionAttr( FVector2D::ZeroVector )
 			, SizeAttr( FVector2D( 1.0f, 1.0f ) )
 		{ }
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArg);
 	};
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SLATE_BEGIN_ARGS( SCanvas )
 		{
 			_Visibility = EVisibility::SelfHitTestInvisible;
 		}
 
-		SLATE_SUPPORTS_SLOT( SCanvas::FSlot )
+		SLATE_SLOT_ARGUMENT( FSlot, Slots )
 
 	SLATE_END_ARGS()
 
@@ -97,22 +116,15 @@ public:
 	 */
 	void Construct( const FArguments& InArgs );
 
-	static FSlot& Slot()
-	{
-		return *(new FSlot());
-	}
+	static FSlot::FSlotArguments Slot();
 
+	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/**
 	 * Adds a content slot.
 	 *
 	 * @return The added slot.
 	 */
-	FSlot& AddSlot()
-	{
-		SCanvas::FSlot& NewSlot = *new FSlot();
-		this->Children.Add( &NewSlot );
-		return NewSlot;
-	}
+	FScopedWidgetSlotArguments AddSlot();
 
 	/**
 	 * Removes a particular content slot.

@@ -523,8 +523,8 @@ void SGameLayerManager::AddOrUpdatePlayerLayers(const FGeometry& AllottedGeometr
 				Size.Y -= WindowTitleBarVerticalBox->GetDesiredSize().Y;
 			}
 
-			PlayerLayer->Slot->Size(Size);
-			PlayerLayer->Slot->Position(Position);
+			PlayerLayer->Slot->SetSize(Size);
+			PlayerLayer->Slot->SetPosition(Position);
 		}
 	}
 }

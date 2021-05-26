@@ -37,7 +37,7 @@ void UUniformGridSlot::SetRow(int32 InRow)
 	Row = InRow;
 	if ( Slot )
 	{
-		Slot->Row = InRow;
+		Slot->SetRow(InRow);
 	}
 }
 
@@ -46,7 +46,7 @@ void UUniformGridSlot::SetColumn(int32 InColumn)
 	Column = InColumn;
 	if ( Slot )
 	{
-		Slot->Column = InColumn;
+		Slot->SetColumn(InColumn);
 	}
 }
 

@@ -19,29 +19,68 @@ class SLATE_API SUniformGridPanel : public SPanel
 {
 public:
 	/** Stores the per-child info for this panel type */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	struct FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
 	{
+		SLATE_SLOT_BEGIN_ARGS_OneMixin(FSlot, TSlotBase<FSlot>, TAlignmentWidgetSlotMixin<FSlot>)
+		SLATE_SLOT_END_ARGS()
+
 		FSlot( int32 InColumn, int32 InRow )
-		: TSlotBase<FSlot>()
-		, TAlignmentWidgetSlotMixin<FSlot>(HAlign_Fill, VAlign_Fill)
-		, Column( InColumn )
-		, Row( InRow )
+			: TSlotBase<FSlot>()
+			, TAlignmentWidgetSlotMixin<FSlot>(HAlign_Fill, VAlign_Fill)
+			, Column( InColumn )
+			, Row( InRow )
+			{
+			}
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 		{
+			TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+			TAlignmentWidgetSlotMixin<FSlot>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
 		}
 
+		void SetColumn(int32 InColumn)
+		{
+			if (InColumn != Column)
+			{
+				Column = InColumn;
+				Invalidate(EInvalidateWidgetReason::Layout);
+			}
+		}
+
+		int32 GetColumn() const
+		{
+			return Column;
+		}
+
+		int32 GetRow() const
+		{
+			return Row;
+		}
+
+		void SetRow(int32 InRow)
+		{
+			if (InRow != Row)
+			{
+				Row = InRow;
+				Invalidate(EInvalidateWidgetReason::Layout);
+			}
+		}
+
+	public:
+		UE_DEPRECATED(5.0, "Direct access to Column is now deprecated. Use the getter or setter.")
 		int32 Column;
+		UE_DEPRECATED(5.0, "Direct access to Row is now deprecated. Use the getter or setter.")
 		int32 Row;
 	};
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SUniformGridPanel();
 
 	/**
 	 * Used by declarative syntax to create a Slot in the specified Column, Row.
 	 */
-	static FSlot& Slot( int32 Column, int32 Row )
-	{
-		return *(new FSlot( Column, Row ));
-	}
+	static FSlot::FSlotArguments Slot( int32 Column, int32 Row );
 
 	SLATE_BEGIN_ARGS( SUniformGridPanel )
 		: _SlotPadding( FMargin(0.0f) )
@@ -52,7 +91,7 @@ public:
 		}
 
 		/** Slot type supported by this panel */
-		SLATE_SUPPORTS_SLOT(FSlot)
+		SLATE_SLOT_ARGUMENT(FSlot, Slots)
 		
 		/** Padding given to each slot */
 		SLATE_ATTRIBUTE(FMargin, SlotPadding)
@@ -81,12 +120,13 @@ public:
 	/** See MinDesiredSlotHeight attribute */
 	void SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight);
 
+	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/**
 	 * Dynamically add a new slot to the UI at specified Column and Row.
 	 *
 	 * @return A reference to the newly-added slot
 	 */
-	FSlot& AddSlot( int32 Column, int32 Row );
+	FScopedWidgetSlotArguments AddSlot( int32 Column, int32 Row );
 	
 	/**
 	 * Removes a slot from this panel which contains the specified SWidget

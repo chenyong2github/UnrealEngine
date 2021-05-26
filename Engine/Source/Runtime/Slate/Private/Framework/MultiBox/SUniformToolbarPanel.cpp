@@ -26,19 +26,12 @@ void SUniformToolbarPanel::Construct( const FArguments& InArgs )
 
 	ClippedIndex = INDEX_NONE;
 
-	Children.Reserve( InArgs.Slots.Num() );
-	for (FSlot* ChildSlot : InArgs.Slots)
-	{
-		Children.Add( ChildSlot );
-	}
+	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 
 	const FToolBarStyle& ToolBarStyle = StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName);
 	
-	// Add the optional dropdown arrow as a child.  
-	FSlot& NewSlot = *(new FSlot());
-
-	NewSlot
-	[
+	// Add the optional dropdown arrow as a child.
+	Children.AddSlot(FSlot::FSlotArguments(MakeUnique<FSlot>(
 		SAssignNew(Dropdown, SComboButton)
 		.HasDownArrow(false)
 		.ButtonStyle(&ToolBarStyle.ButtonStyle)
@@ -51,9 +44,7 @@ void SUniformToolbarPanel::Construct( const FArguments& InArgs )
 			SNew(SImage)
 			.Image(&ToolBarStyle.ExpandBrush)
 		]
-	];
-
-	Children.Add(&NewSlot);
+		)));
 }
 
 void SUniformToolbarPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
@@ -239,14 +230,14 @@ void SUniformToolbarPanel::SetSlotPadding(TAttribute<FMargin> InSlotPadding)
 	Invalidate(EInvalidateWidgetReason::Layout);
 }
 
-
-SUniformToolbarPanel::FSlot& SUniformToolbarPanel::AddSlot()
+SUniformToolbarPanel::FSlot::FSlotArguments SUniformToolbarPanel::Slot()
 {
-	FSlot& NewSlot = *(new FSlot());
+	return FSlot::FSlotArguments(MakeUnique<FSlot>());
+}
 
-	Children.Insert( &NewSlot, Children.Num()-1);
-
-	return NewSlot;
+SUniformToolbarPanel::FScopedWidgetSlotArguments SUniformToolbarPanel::AddSlot()
+{
+	return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), Children, INDEX_NONE };
 }
 
 bool SUniformToolbarPanel::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )

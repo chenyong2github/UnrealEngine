@@ -60,7 +60,7 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(FVector2D, FOnGetMaxSlotSize, int32);
 
 public:
-	class FSlot : public TSlotBase<FSlot>
+	class SLATE_API FSlot : public TSlotBase<FSlot>
 	{
 	public:		
 		FSlot()
@@ -70,45 +70,75 @@ public:
 		{
 		}
 
+		SLATE_SLOT_BEGIN_ARGS(FSlot, TSlotBase<FSlot>)
+			/** The size rule used by the slot. */
+			SLATE_ATTRIBUTE(ESizeRule, SizeRule)
+			/** When the RuleSize is set to FractionOfParent, the size of the slot is the Value percentage of its parent size. */
+			SLATE_ATTRIBUTE(float, Value)
+			/** Minimum slot size when resizing. */
+			SLATE_ARGUMENT(TOptional<float>, MinSize)
+			/** Can the slot be resize by the user. */
+			SLATE_ARGUMENT(TOptional<bool>, Resizable)
+			/** Callback when the slot is resized. */
+			SLATE_EVENT(FOnSlotResized, OnSlotResized)
+		SLATE_SLOT_END_ARGS()
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
+
 		/** When the RuleSize is set to FractionOfParent, the size of the slot is the Value percentage of its parent size. */
-		FSlot& Value( const TAttribute<float>& InValue )
+		void SetSizeValue( TAttribute<float> InValue )
 		{
-			SizeValue = InValue;
-			return *this;
+			SizeValue = MoveTemp(InValue);
+		}
+		float GetSizeValue() const
+		{
+			return SizeValue.Get();
 		}
 
 		/**
 		 * Can the slot be resize by the user.
 		 * @see CanBeResized()
 		 */
-		FSlot& Resizable(bool bInIsResizable)
+		void SetResizable(bool bInIsResizable)
 		{
 			bIsResizable = bInIsResizable;
-			return *this;
+		}
+		bool IsResizable() const
+		{
+			return bIsResizable.Get(false);
 		}
 
-		/** Minimun slot size when resizing. */
-		FSlot& MinSize(float InMinSize)
+		/** Minimum slot size when resizing. */
+		void SetMinSize(float InMinSize)
 		{
 			MinSizeValue = InMinSize;
-			return *this;
+		}
+		float GetMinSize() const
+		{
+			return MinSizeValue.Get(0.f);
 		}
 		
 		/**
 		 * Callback when the slot is resized.
 		 * @see CanBeResized()
 		 */
-		FSlot& OnSlotResized( const FOnSlotResized& InHandler )
+		FOnSlotResized& OnSlotResized()
 		{
-			OnSlotResized_Handler = InHandler;
-			return *this;
+			return OnSlotResized_Handler;
+		}
+		const FOnSlotResized& OnSlotResized() const
+		{
+			return OnSlotResized_Handler;
 		}
 
 		/** The size rule used by the slot. */
-		FSlot& SizeRule( const TAttribute<ESizeRule>& InSizeRule ) 
+		void SetSizingRule( TAttribute<ESizeRule> InSizeRule ) 
 		{
-			SizingRule = InSizeRule;
-			return *this;
+			SizingRule = MoveTemp(InSizeRule);
+		}
+		ESizeRule GetSizingRule() const
+		{
+			return SizingRule.Get();
 		}
 
 	public:
@@ -123,9 +153,10 @@ public:
 		TOptional<bool> bIsResizable;
 	};
 
-	/** @return a new SSplitter::FSlot() */
-	static FSlot& Slot();
+	/** @return Add a new FSlot() */
+	static FSlot::FSlotArguments Slot();
 	
+	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/**
 	 * Add a slot to the splitter at the specified index
 	 * Sample usage:
@@ -136,7 +167,7 @@ public:
 	 *
 	 * @return the new slot.
 	 */
-	FSlot& AddSlot( int32 AtIndex = INDEX_NONE );
+	FScopedWidgetSlotArguments AddSlot( int32 AtIndex = INDEX_NONE );
 
 	DECLARE_DELEGATE_OneParam(FOnHandleHovered, int32);
 
@@ -151,7 +182,7 @@ public:
 		{
 		}
 
-		SLATE_SUPPORTS_SLOT(FSlot)
+		SLATE_SLOT_ARGUMENT(FSlot, Slots)
 
 		/** Style used to draw this splitter */
 		SLATE_STYLE_ARGUMENT( FSplitterStyle, Style )
@@ -354,35 +385,34 @@ protected:
  */
 class SLATE_API SSplitter2x2 : public SPanel
 {
-public:
-	class FSlot : public TSlotBase<FSlot>
+private:
+	class SLATE_API FSlot : public TSlotBase<FSlot>
 	{
 	public:	
-		/** Default Constructor.  Initially each slot takes up a quarter of the entire space */
-		FSlot()
-			: TSlotBase<FSlot>( SNullWidget::NullWidget )
-			, PercentageAttribute( FVector2D(0.5, 0.5) )
-		{
-		}
-
-		/** Copy Constructor */
-		FSlot( const TSharedRef<SWidget>& InWidget )
-			: TSlotBase<FSlot>( InWidget )
-			, PercentageAttribute( FVector2D(0.5, 0.5) )
-		{
-		}
+		SLATE_SLOT_BEGIN_ARGS(FSlot, TSlotBase<FSlot>)
+			SLATE_ATTRIBUTE(FVector2D, Percentage)
+		SLATE_SLOT_END_ARGS()
 
 		/**
 		 * Sets the percentage attribute
 		 *
 		 * @param Value The new percentage value
 		 */
-		FSlot& SetPercentage( const FVector2D& Value )
+		void SetPercentage( const FVector2D& Value )
 		{
 			PercentageAttribute.Set( Value );
-			return *this;
 		}
-	public:
+
+		FVector2D GetPercentage() const
+		{
+			return PercentageAttribute.Get();
+		}
+
+		FSlot(const TSharedRef<SWidget>& InWidget);
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArg);
+
+	private:
 		/** The percentage of the alloted space of the splitter that this slot requires */
 		TAttribute<FVector2D> PercentageAttribute;
 	};
@@ -458,7 +488,7 @@ public:
 	void GetSplitterPercentages( TArray< FVector2D >& OutPercentages ) const;
 	
 	/** Sets the size percentages for the children in this order: TopLeft, BottomLeft, TopRight, BottomRight */
-	void SetSplitterPercentages( const TArray< FVector2D >& InPercentages );
+	void SetSplitterPercentages( TArrayView< FVector2D > InPercentages );
 
 
 private:
