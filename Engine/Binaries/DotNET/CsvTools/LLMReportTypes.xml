@@ -11,7 +11,6 @@
         - title:         Used to link the graph to the graph in ReportGraphs.xml, so they must be the same.
         - budget:        This is the value that we are going to compare to. How much we can use.
         - inSummary:     This indicated whether this should be included in the HTML report produced.
-        - inMainSummary: This indicated whether this is in the main report at the top.
         - ignoreList:    This is mainly used with wildcards, if you have stats in the CSV you want ignored for this graph, add them to this list.
                          It's a semi-colon separated list as such: "name1;name2;..."
        
@@ -34,12 +33,10 @@
 			<autodetection requiredstats="EngineInit">
 			</autodetection>
 
-			<summary type="peak">
-				<colourThresholds stat="Total">3000,4000,5000,6000</colourThresholds>
-			</summary>
+			<summary type="peak"/>
 
 			<!-- top-level LLM summary graphs -->
-			<graph title="Total"                       budget="4500"    inSummary="1"  inMainSummary="1"/>
+			<graph title="Total"                       budget="4500"    inSummary="1" />
 			<graph title="Content Summary"             budget="0"       inSummary="0"/>
 			<graph title="Rendering Summary"           budget="0"       inSummary="0"/>
 			<graph title="Misc Summary"                budget="0"       inSummary="0"/>
@@ -82,7 +79,7 @@
 				<colourThresholds stat="Total">3000,4000,5000,6000</colourThresholds>
 			</summary>
 
-			<graph title="Total"                                budget="4500"     inSummary="1" inMainSummary="1"/>
+			<graph title="Total"                                budget="4500"     inSummary="1"/>
 			<graph title="Memory Allocated"                     budget="4500"     inSummary="0"/>
 			<graph title="Untagged"                             budget="0"        inSummary="1"/>
 			<graph title="Platform Graphics"                    budget="0"        inSummary="1"/>
