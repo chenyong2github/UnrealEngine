@@ -2083,22 +2083,22 @@ FORCEINLINE VectorRegister4Double VectorATan(const VectorRegister4Double& Vec)
 }
 
 
-FORCEINLINE VectorRegister4Float VectorATan2(const VectorRegister4Float& X, const VectorRegister4Float& Y)
+FORCEINLINE VectorRegister4Float VectorATan2(const VectorRegister4Float& Y, const VectorRegister4Float& X)
 {
 	return MakeVectorRegisterFloat(
-		FMath::Atan2(X.V[0], Y.V[0]),
-		FMath::Atan2(X.V[1], Y.V[1]),
-		FMath::Atan2(X.V[2], Y.V[2]),
-		FMath::Atan2(X.V[3], Y.V[3]));
+		FMath::Atan2(Y.V[0], X.V[0]),
+		FMath::Atan2(Y.V[1], X.V[1]),
+		FMath::Atan2(Y.V[2], X.V[2]),
+		FMath::Atan2(Y.V[3], X.V[3]));
 }
 
-FORCEINLINE VectorRegister4Double VectorATan2(const VectorRegister4Double& X, const VectorRegister4Double& Y)
+FORCEINLINE VectorRegister4Double VectorATan2(const VectorRegister4Double& Y, const VectorRegister4Double& X)
 {
 	return MakeVectorRegisterDouble(
-		FMath::Atan2(X.V[0], Y.V[0]),
-		FMath::Atan2(X.V[1], Y.V[1]),
-		FMath::Atan2(X.V[2], Y.V[2]),
-		FMath::Atan2(X.V[3], Y.V[3]));
+		FMath::Atan2(Y.V[0], X.V[0]),
+		FMath::Atan2(Y.V[1], X.V[1]),
+		FMath::Atan2(Y.V[2], X.V[2]),
+		FMath::Atan2(Y.V[3], X.V[3]));
 }
 
 
@@ -2125,7 +2125,7 @@ FORCEINLINE void VectorSinCos(VectorRegister4Float* RESTRICT VSinAngles, VectorR
 
 FORCEINLINE void VectorSinCos(VectorRegister4Double* RESTRICT VSinAngles, VectorRegister4Double* RESTRICT VCosAngles, const VectorRegister4Double* RESTRICT VAngles)
 {
-	// TODO: No Fmath::SinCos function exists yet, but need to revisit if one is added
+	// TODO: No FMath::SinCos<double> function exists yet, but need to revisit if one is added
 	*VSinAngles = VectorSin(*VAngles);
 	*VCosAngles = VectorCos(*VAngles);
 }
