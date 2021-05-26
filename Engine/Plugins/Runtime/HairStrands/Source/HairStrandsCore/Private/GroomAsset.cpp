@@ -1441,7 +1441,7 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData::FCar
 		CardLODData.InterpolationBulkData.Serialize(Ar);
 
 		CardLODData.Guides.BulkData.Serialize(Ar, Owner);
-		CardLODData.Guides.InterpolationBulkData.Serialize(Ar);
+		CardLODData.Guides.InterpolationBulkData.Serialize(Ar, Owner);
 	}
 	else
 	{
@@ -1454,7 +1454,7 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData::FCar
 
 		FHairGroupData::FBaseWithInterpolation NoGuideData;
 		NoGuideData.BulkData.Serialize(Ar, Owner);
-		NoGuideData.InterpolationBulkData.Serialize(Ar);
+		NoGuideData.InterpolationBulkData.Serialize(Ar, Owner);
 	}
 }
 
@@ -1481,7 +1481,7 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData& Grou
 	{
 		GroupData.Strands.BulkData.Serialize(Ar, Owner);
 		GroupData.Guides.BulkData.Serialize(Ar, Owner);
-		GroupData.Strands.InterpolationBulkData.Serialize(Ar);
+		GroupData.Strands.InterpolationBulkData.Serialize(Ar, Owner);
 
 	}
 	else
@@ -1491,7 +1491,7 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData& Grou
 		// simulation or RBF deformation) on the target platform
 		NoStrandsData.Strands.BulkData.Serialize(Ar, Owner);
 		GroupData.Guides.BulkData.Serialize(Ar, Owner);
-		NoStrandsData.Strands.InterpolationBulkData.Serialize(Ar);
+		NoStrandsData.Strands.InterpolationBulkData.Serialize(Ar, Owner);
 	}
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairClusterCullingData)
@@ -1667,7 +1667,7 @@ void UGroomAsset::SetHairWidth(float Width)
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_DERIVED_DATA_VERSION TEXT("7188891507314F3D9F79461BA21DF850")
+#define GROOM_DERIVED_DATA_VERSION TEXT("DDFF529D572543C1BB7BD4E49E7B7B5E")
 
 #if WITH_EDITORONLY_DATA
 

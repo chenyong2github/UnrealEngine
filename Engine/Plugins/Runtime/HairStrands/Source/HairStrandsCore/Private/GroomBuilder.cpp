@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2f");
+	return TEXT("2j");
 }
 
 namespace FHairStrandsDecimation
@@ -1203,11 +1203,15 @@ namespace HairInterpolationBuilder
 		auto LowerPart = [](uint32 Index) -> uint16 { return uint16(Index & 0xFFFF); };
 		auto UpperPart = [](uint32 Index) -> uint8  { return uint8((Index >> 16) & 0xFF); };
 
+
+		OutBulkData.Flags = FHairStrandsInterpolationBulkData::DataFlags_HasData;
+		OutBulkData.PointCount = PointCount;
+
 		if (HairInterpolation.bUseUniqueGuide)
 		{
-			OutBulkData.Flags = FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData;
+			OutBulkData.Flags |= FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData;
 
-			TArray<FHairStrandsInterpolationFormat::Type>& OutPointsInterpolation = OutBulkData.Interpolation;
+			TArray<FHairStrandsInterpolationFormat::Type> OutPointsInterpolation;
 			OutPointsInterpolation.SetNum(PointCount * FHairStrandsInterpolationFormat::ComponentCount);
 
 			for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
@@ -1221,13 +1225,13 @@ namespace HairInterpolationBuilder
 				OutInterp.VertexGuideIndex1 = UpperPart(Indices[0]);
 				OutInterp.VertexLerp		= S[0] * 255.f;
 			}
+
+			HairStrandsBuilder::CopyToBulkData<FHairStrandsInterpolationFormat>(OutBulkData.Interpolation, OutPointsInterpolation);
 		}
 		else
 		{
-			OutBulkData.Flags = 0;
-
-			TArray<FHairStrandsInterpolation0Format::Type>& OutPointsInterpolation0 = OutBulkData.Interpolation0;
-			TArray<FHairStrandsInterpolation1Format::Type>& OutPointsInterpolation1 = OutBulkData.Interpolation1;
+			TArray<FHairStrandsInterpolation0Format::Type> OutPointsInterpolation0;
+			TArray<FHairStrandsInterpolation1Format::Type> OutPointsInterpolation1;
 
 			OutPointsInterpolation0.SetNum(PointCount * FHairStrandsInterpolation0Format::ComponentCount);
 			OutPointsInterpolation1.SetNum(PointCount * FHairStrandsInterpolation1Format::ComponentCount);
@@ -1255,19 +1259,29 @@ namespace HairInterpolationBuilder
 				OutInterp1.Pad0			= 0;
 				OutInterp1.Pad1			= 0;
 			}
+
+			HairStrandsBuilder::CopyToBulkData<FHairStrandsInterpolation0Format>(OutBulkData.Interpolation0, OutPointsInterpolation0);
+			HairStrandsBuilder::CopyToBulkData<FHairStrandsInterpolation1Format>(OutBulkData.Interpolation1, OutPointsInterpolation1);
 		}
 
-		const uint32 RootCount = SimDatas.GetNumCurves();
-		OutBulkData.SimRootPointIndex.SetNum(SimDatas.GetNumPoints());
-		for (uint32 CurveIndex = 0; CurveIndex < RootCount; ++CurveIndex)
 		{
-			const uint16 SimPointCount = SimDatas.StrandsCurves.CurvesCount[CurveIndex];
-			const uint32 SimPointOffset = SimDatas.StrandsCurves.CurvesOffset[CurveIndex];
-			for (uint32 PointIndex = 0; PointIndex < SimPointCount; ++PointIndex)
+			OutBulkData.SimPointCount = SimDatas.GetNumPoints();
+			const uint32 SimCurveCount = SimDatas.GetNumCurves();
+
+			TArray<FHairStrandsRootIndexFormat::Type> SimRootPointIndex;
+			SimRootPointIndex.SetNum(OutBulkData.SimPointCount);
+			for (uint32 CurveIndex = 0; CurveIndex < SimCurveCount; ++CurveIndex)
 			{
-				OutBulkData.SimRootPointIndex[PointIndex + SimPointOffset] = SimPointOffset;
+				const uint16 SimPointCount = SimDatas.StrandsCurves.CurvesCount[CurveIndex];
+				const uint32 SimPointOffset = SimDatas.StrandsCurves.CurvesOffset[CurveIndex];
+				for (uint32 PointIndex = 0; PointIndex < SimPointCount; ++PointIndex)
+				{
+					SimRootPointIndex[PointIndex + SimPointOffset] = SimPointOffset;
+				}
 			}
-		}		
+
+			HairStrandsBuilder::CopyToBulkData<FHairStrandsRootIndexFormat>(OutBulkData.SimRootPointIndex, SimRootPointIndex);
+		}
 	}
 
 	/** Fill the GroomAsset with the interpolation data that exists in the HairDescription */

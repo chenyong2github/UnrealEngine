@@ -165,30 +165,48 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 
 void FHairStrandsInterpolationBulkData::Reset()
 {
-	Interpolation.Empty();
-	Interpolation0.Empty();
-	Interpolation1.Empty();
-	SimRootPointIndex.Empty();
+	Flags = 0;
+	PointCount = 0;
+	SimPointCount = 0;
+	Interpolation.RemoveBulkData();
+	Interpolation0.RemoveBulkData();
+	Interpolation1.RemoveBulkData();
+	SimRootPointIndex.RemoveBulkData();
 }
 
-void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
+void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
 	static_assert(sizeof(FHairInterpolationVertex::BulkType) == sizeof(FHairInterpolationVertex));
 	static_assert(sizeof(FHairInterpolation0Vertex::BulkType) == sizeof(FHairInterpolation0Vertex));
 	static_assert(sizeof(FHairInterpolation1Vertex::BulkType) == sizeof(FHairInterpolation1Vertex));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
 
+	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+	Interpolation.SetBulkDataFlags(BulkFlags);
+	Interpolation0.SetBulkDataFlags(BulkFlags);
+	Interpolation1.SetBulkDataFlags(BulkFlags);
+	SimRootPointIndex.SetBulkDataFlags(BulkFlags);
+
 	Ar << Flags;
-	if (!!(Flags & DataFlags_HasSingleGuideData))
+	Ar << PointCount;
+	Ar << SimPointCount;
+
+	if (!!(Flags & DataFlags_HasData))
 	{
-		Interpolation.BulkSerialize(Ar);
+		const int32 ChunkIndex = 0;
+		bool bAttemptFileMapping = false;
+
+		if (!!(Flags & DataFlags_HasSingleGuideData))
+		{
+			Interpolation.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		}
+		else
+		{
+			Interpolation0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+			Interpolation1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		}
+		SimRootPointIndex.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
-	else
-	{
-		Interpolation0.BulkSerialize(Ar);
-		Interpolation1.BulkSerialize(Ar);
-	}
-	SimRootPointIndex.BulkSerialize(Ar);
 }
 
 void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
