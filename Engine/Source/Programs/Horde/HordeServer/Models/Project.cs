@@ -123,11 +123,6 @@ namespace HordeServer.Models
 		/// List of stream categories for this project. Controls how streams are displayed on the dashboard.
 		/// </summary>
 		public IReadOnlyList<StreamCategory> Categories { get; }
-
-		/// <summary>
-		/// Optional user-defined properties for this project
-		/// </summary>
-		public IReadOnlyDictionary<string, string> Properties { get; }
 	}
 	
 	/// <summary>
@@ -208,7 +203,7 @@ namespace HordeServer.Models
 			}
 
 			GetAclResponse? AclResponse = (bIncludeAcl && Project.Acl != null) ? new GetAclResponse(Project.Acl) : null;
-			return new GetProjectResponse(Project.Id.ToString(), Project.Name, Project.Order, StreamResponses, CategoryResponses, new Dictionary<string, string>(Project.Properties), AclResponse);
+			return new GetProjectResponse(Project.Id.ToString(), Project.Name, Project.Order, StreamResponses, CategoryResponses, AclResponse);
 		}
 
 		/// <summary>

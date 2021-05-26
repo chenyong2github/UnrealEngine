@@ -60,35 +60,6 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
-		/// Attempts to create a new project
-		/// </summary>
-		/// <param name="Id">Identifier for the new project</param>
-		/// <param name="Name">Name of the new project</param>
-		/// <param name="Order">Order to display this project on the dashboard</param>
-		/// <param name="Categories">Categories for the new project</param>
-		/// <param name="Properties">Properties for the new project</param>
-		/// <returns>The new project document</returns>
-		public Task<IProject?> TryCreateProjectAsync(ProjectId Id, string Name, int? Order, List<StreamCategory>? Categories, Dictionary<string, string>? Properties)
-		{
-			return Projects.TryAddAsync(Id, Name, Order, Categories, Properties);
-		}
-
-		/// <summary>
-		/// Updates an existing project
-		/// </summary>
-		/// <param name="ProjectId">Unique id of the project</param>
-		/// <param name="NewName">The new name for the project</param>
-		/// <param name="NewOrder">The new order for this project on the dashboard</param>
-		/// <param name="NewCategories">List of categories for the project</param>
-		/// <param name="NewProperties">Properties on the project to update. Any properties with a value of null will be removed.</param>
-		/// <param name="NewAcl">New acl for the project</param>
-		/// <returns>Async task object</returns>
-		public Task UpdateProjectAsync(ProjectId ProjectId, string? NewName, int? NewOrder, List<StreamCategory>? NewCategories, Dictionary<string, string>? NewProperties, Acl? NewAcl)
-		{
-			return Projects.UpdateAsync(ProjectId, NewName, NewOrder, NewCategories, NewProperties, NewAcl);
-		}
-
-		/// <summary>
 		/// Gets all the available projects
 		/// </summary>
 		/// <returns>List of project documents</returns>
