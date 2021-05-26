@@ -171,4 +171,7 @@ void FMallocTBB::Trim(bool bTrimThreadCaches)
 #endif
 }
 
+#undef DEBUG_FILL_FREED
+#undef DEBUG_FILL_NEW
+
 #endif // PLATFORM_SUPPORTS_TBB && TBB_ALLOCATOR_ALLOWED
