@@ -475,7 +475,15 @@ void FXmlFile::AddAttribute(const FString& InToken, TArray<FXmlAttribute>& OutAt
 	if(InToken.FindChar(TEXT('='), EqualsIdx))
 	{
 		bool bQuotesRemoved = false;
-		FString Value = InToken.Mid(EqualsIdx + 1).TrimQuotes(&bQuotesRemoved);
+		FString Value = InToken.Mid(EqualsIdx + 1);
+		Value.TrimQuotesInline(&bQuotesRemoved);
+
+		// The xml spec allows single and double quotes, so this is a valid case to support: https://www.w3.org/TR/xml/#NT-AttValue
+		if (!bQuotesRemoved)
+		{
+			Value.TrimCharInline('\'', &bQuotesRemoved);
+		}
+
 		if(bQuotesRemoved)
 		{
 			int32 AmpIdx;

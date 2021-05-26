@@ -556,31 +556,36 @@ FString FString::TrimEnd() &&
 	return MoveTemp(*this);
 }
 
-void FString::TrimQuotesInline(bool* bQuotesRemoved)
+void FString::TrimCharInline(const TCHAR CharacterToTrim, bool* bCharRemoved)
 {
 	bool bQuotesWereRemoved=false;
 	int32 Start = 0, Count = Len();
 	if ( Count > 0 )
 	{
-		if ( (*this)[0] == TCHAR('"') )
+		if ( (*this)[0] == CharacterToTrim )
 		{
 			Start++;
 			Count--;
 			bQuotesWereRemoved=true;
 		}
 
-		if ( Len() > 1 && (*this)[Len() - 1] == TCHAR('"') )
+		if ( Len() > 1 && (*this)[Len() - 1] == CharacterToTrim )
 		{
 			Count--;
 			bQuotesWereRemoved=true;
 		}
 	}
 
-	if ( bQuotesRemoved != nullptr )
+	if ( bCharRemoved != nullptr )
 	{
-		*bQuotesRemoved = bQuotesWereRemoved;
+		*bCharRemoved = bQuotesWereRemoved;
 	}
 	MidInline(Start, Count, false);
+}
+
+void FString::TrimQuotesInline(bool* bQuotesRemoved)
+{
+	TrimCharInline(TCHAR('"'), bQuotesRemoved);
 }
 
 FString FString::TrimQuotes(bool* bQuotesRemoved) const &
@@ -593,6 +598,19 @@ FString FString::TrimQuotes(bool* bQuotesRemoved) const &
 FString FString::TrimQuotes(bool* bQuotesRemoved) &&
 {
 	TrimQuotesInline(bQuotesRemoved);
+	return MoveTemp(*this);
+}
+
+FString FString::TrimChar(const TCHAR CharacterToTrim, bool* bCharRemoved) const &
+{
+	FString Result(*this);
+	Result.TrimCharInline(CharacterToTrim, bCharRemoved);
+	return Result;
+}
+
+FString FString::TrimChar(const TCHAR CharacterToTrim, bool* bCharRemoved) &&
+{
+	TrimCharInline(CharacterToTrim, bCharRemoved);
 	return MoveTemp(*this);
 }
 
