@@ -1301,8 +1301,8 @@ void FLowLevelMemTracker::FinishInitialise()
 	(void)LLMGetTagUniqueName(ELLMTag::Untagged);
 	InitialiseTagDatas();
 }
-
-void FLowLevelMemTracker::InitialiseTagDatas()
+ 
+void FLowLevelMemTracker::InitialiseTagDatas_SetLLMTagNames()
 {
 	using namespace UE::LLMPrivate;
 
@@ -1324,7 +1324,11 @@ void FLowLevelMemTracker::InitialiseTagDatas()
 	}
 	LLM_ENUM_GENERIC_TAGS(SET_ELLMTAG_NAMES);
 #undef SET_ELLMTAG_NAMES
+}
 
+void FLowLevelMemTracker::InitialiseTagDatas_FinishRegister()
+{
+	using namespace UE::LLMPrivate;
 
 	// Record the central list of ELLMTags in TagDataNameMap, and mark that bootstrapping is complete
 	{
@@ -1347,6 +1351,15 @@ void FLowLevelMemTracker::InitialiseTagDatas()
 
 		bIsBootstrapping = false;
 	}
+}
+
+void FLowLevelMemTracker::InitialiseTagDatas()
+{
+	using namespace UE::LLMPrivate;
+
+	InitialiseTagDatas_SetLLMTagNames();
+
+	InitialiseTagDatas_FinishRegister();
 
 	// Construct the remaining startup tags; allocations when constructing these tags are known to consist only of the central list of ELLMTags so we do not need to bootstrap
 	{
