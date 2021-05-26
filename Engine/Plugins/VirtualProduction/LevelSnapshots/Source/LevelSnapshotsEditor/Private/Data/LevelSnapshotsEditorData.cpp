@@ -47,12 +47,6 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
     {
         ClearActiveSnapshot();
     });
-
-	OnMapOpenedDelegateHandle = FEditorDelegates::OnMapOpened.AddLambda([this](const FString& FileName, bool bAsTemplate)
-    {
-		ClearActiveSnapshot();
-		ClearSelectedWorld();
-    });
 }
 
 void ULevelSnapshotsEditorData::BeginDestroy()
@@ -60,7 +54,6 @@ void ULevelSnapshotsEditorData::BeginDestroy()
 	Super::BeginDestroy();
 	
 	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanup);
-	FEditorDelegates::OnMapOpened.Remove(OnMapOpenedDelegateHandle);
 }
 
 void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
@@ -68,7 +61,6 @@ void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
 	OnActiveSnapshotChanged.Clear();
 	OnEditedFiterChanged.Clear();
 	OnUserDefinedFiltersChanged.Clear();
-	OnMapOpenedDelegateHandle.Reset();
 
 	SelectedWorld.Reset();
 	ActiveSnapshot.Reset();

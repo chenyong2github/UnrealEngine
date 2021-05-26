@@ -178,6 +178,7 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	void SetDisplayName(const FText InDisplayName);
 
 	const TArray<FLevelSnapshotsEditorResultsRowPtr>& GetChildRows() const;
+	int32 GetChildCount() const;
 	void SetChildRows(const TArray<FLevelSnapshotsEditorResultsRowPtr>& InChildRows);
 	void AddToChildRows(const FLevelSnapshotsEditorResultsRowPtr& InRow);
 	void InsertChildRowAtIndex(const FLevelSnapshotsEditorResultsRowPtr& InRow, const int32 AtIndex = 0);
@@ -348,6 +349,8 @@ public:
 	void UpdateSnapshotNameText(const TOptional<ULevelSnapshot*>& InLevelSnapshot) const;
 	void UpdateSnapshotInformationText();
 
+	void RefreshScroll() const;
+
 	/* This method builds a selection set of all visible and checked properties to pass back to apply to the world. */
 	void BuildSelectionSetFromSelectedPropertiesInEachActorGroup();
 
@@ -456,13 +459,17 @@ public:
 
 	~SLevelSnapshotsEditorResultsRow();
 
-	float GetSplitterSlotSize(const int32 SlotIndex) const;
+	float GetNameColumnSize() const;
+
+	float GetSnapshotColumnSize() const;
+
+	float GetWorldColumnSize() const;
 
 	void SetNameColumnSize(const float InWidth) const;
 
 	void SetSnapshotColumnSize(const float InWidth) const;
 
-	void SetWorldObjectColumnSize(const float InWidth) const;
+	void SetWorldColumnSize(const float InWidth) const;
 
 private:
 	
