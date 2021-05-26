@@ -81,11 +81,16 @@ UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, FName Strea
 
 		UObject* Object = TempPath.ResolveObject();
 
+#if WITH_EDITORONLY_DATA
 		if (!Object)
 		{
-			Object = TempPath.TryLoad();
+			UWorld* WorldContext = InContext->GetWorld();
+			if (!WorldContext || !WorldContext->IsPlayInEditor())
+			{
+				Object = TempPath.TryLoad();
+			}
 		}
-
+#endif
 		return Object;
 	}
 
