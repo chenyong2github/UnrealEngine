@@ -2819,6 +2819,20 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 		PendingTrackSelectionVid.Reset();
 		PendingTrackSelectionTxt.Reset();
 	}
+	else if (ManifestType == EMediaFormatType::HLS)
+	{
+		if (PendingTrackSelectionAud.IsValid() && CurrentPlayPeriodAudio.IsValid())
+		{
+			TSharedPtrTS<FBufferSourceInfo> BufferSourceInfo = CurrentPlayPeriodAudio->GetSelectedStreamBufferSourceInfo(EStreamType::Audio);
+			MultiStreamBufferAud.SelectTrackWhenAvailable(BufferSourceInfo);
+			StreamSelectionAttributesAud = *PendingTrackSelectionAud;
+			SelectedStreamAttributesAud.UpdateWith(BufferSourceInfo->Kind, BufferSourceInfo->Language, BufferSourceInfo->HardIndex);
+			PendingTrackSelectionAud.Reset();
+		}
+		// Ignore video and subtitle changes for now.
+		PendingTrackSelectionVid.Reset();
+		PendingTrackSelectionTxt.Reset();
+	}
 	else if (ManifestType == EMediaFormatType::DASH)
 	{
 		if (PendingStartRequest.IsValid() || PendingFirstSegmentRequest.IsValid())
