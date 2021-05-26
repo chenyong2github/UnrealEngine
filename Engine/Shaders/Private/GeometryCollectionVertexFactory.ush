@@ -344,12 +344,12 @@ FTransformData LoadTransformData(uint InstanceIdOffset, uint DrawInstanceId, uin
 	FTransformData TransformData;
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	TransformData.SceneData = GetSceneDataIntermediates(InstanceIdOffset, DrawInstanceId);
-	TransformData.InvScale = TransformData.SceneData.InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+	TransformData.InvScale = TransformData.SceneData.InstanceData.InvNonUniformScale;
 
 	float4x4 InstanceLocalToWorld = TransformData.SceneData.InstanceData.LocalToWorld;
 	float4x4 PrevInstanceLocalToWorld = TransformData.SceneData.InstanceData.PrevLocalToWorld;
 #else
-	TransformData.InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	TransformData.InvScale = Primitive.InvNonUniformScale;
 
 	// Note: if there are no instances, this is the same as the InstanceLocalToWorld
 	float4x4 InstanceLocalToWorld = Primitive.LocalToWorld;
@@ -391,10 +391,10 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// Just aliases, remove later probably...
 	Intermediates.PrimitiveId = Intermediates.SceneData.PrimitiveId;
 	Intermediates.InstanceId = Intermediates.SceneData.InstanceId;
-	float DeterminantSign = Intermediates.SceneData.InstanceData.InvNonUniformScaleAndDeterminantSign.w;
+	float DeterminantSign = Intermediates.SceneData.InstanceData.DeterminantSign;
 #else 
 	FTransformData TransformData = LoadTransformData(0U, 0U, GCVF_GET_INPUT_VERTEX_ID(Input));
-	float DeterminantSign = Primitive.InvNonUniformScaleAndDeterminantSign.w;
+	float DeterminantSign = GetPrimitive_DeterminantSign(Primitive);
 #endif
 
 	Intermediates.LocalToWorld = TransformData.LocalToWorld;

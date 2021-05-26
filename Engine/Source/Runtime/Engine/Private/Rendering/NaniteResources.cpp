@@ -619,8 +619,7 @@ void FSceneProxy::CreateRenderThreadResources()
 {
 	// These couldn't be copied on the game thread because they are initialized
 	// by the streaming manager on the render thread - initialize them now.
-	check(Resources->RuntimeResourceID != 0xFFFFFFFFu);
-	check(Resources->HierarchyOffset != -1);
+	check(Resources->RuntimeResourceID != 0xFFFFFFFFu && Resources->HierarchyOffset != INDEX_NONE);
 	const bool bHasImposter = Resources->ImposterAtlas.Num() > 0;
 	FNaniteInfo NaniteInfo = FNaniteInfo(Resources->RuntimeResourceID, Resources->HierarchyOffset, bHasImposter);
 	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)

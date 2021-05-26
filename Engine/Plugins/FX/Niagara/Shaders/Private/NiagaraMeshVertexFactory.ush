@@ -46,7 +46,7 @@ float3 SimToWorldPos(float3 SimSpacePos, float4x4 LocalToWorld)
 
 float3 LocalToWorldVec(float3 LocalSpaceVec, float4x4 LocalToWorld)
 {
-	const float3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	const float3 InvScale = Primitive.InvNonUniformScale;
 	return
 		InvScale.x * LocalToWorld[0].xyz * LocalSpaceVec.xxx +
 		InvScale.y * LocalToWorld[1].xyz * LocalSpaceVec.yyy +
@@ -55,7 +55,7 @@ float3 LocalToWorldVec(float3 LocalSpaceVec, float4x4 LocalToWorld)
 
 float3 WorldToLocalVec(float3 WorldSpaceVec, float4x4 LocalToWorld)
 {
-	const float3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	const float3 InvScale = Primitive.InvNonUniformScale;
 	float3x3 InvRot =
 	{
 		InvScale.x * LocalToWorld[0].xyz,
@@ -644,7 +644,7 @@ void CalculateTransforms(inout FVertexFactoryIntermediates Intermediates)
 		Intermediates.WorldToParticle = mul(Primitive.WorldToLocal, Intermediates.WorldToParticle);
 
 		Intermediates.ParticleToWorldNoScale = mul(Intermediates.ParticleToWorldNoScale, Primitive.LocalToWorld);
-		float3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+		float3 InvScale = Primitive.InvNonUniformScale;
 		Intermediates.ParticleToWorldNoScale[0].xyz *= InvScale.x;
 		Intermediates.ParticleToWorldNoScale[1].xyz *= InvScale.y;
 		Intermediates.ParticleToWorldNoScale[2].xyz *= InvScale.z;
@@ -794,7 +794,7 @@ void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates I
 	float3x3 TangentToWorld = mul(TangentToLocal, TransformNoScale);
 
 	TangentToWorld0 = normalize(TangentToWorld[0]);
-	TangentToWorld2 = float4(normalize(TangentToWorld[2]), TangentBias(Input.TangentZ.w) * Primitive.InvNonUniformScaleAndDeterminantSign.w);
+	TangentToWorld2 = float4(normalize(TangentToWorld[2]), TangentBias(Input.TangentZ.w) * GetPrimitive_DeterminantSign_FromFlags(Primitive.Flags));
 }
 
 FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)

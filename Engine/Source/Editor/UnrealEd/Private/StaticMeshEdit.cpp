@@ -1003,7 +1003,6 @@ struct FExistingStaticMeshData
 	// A mapping of vertex positions to their color in the existing static mesh
 	TMap<FVector3f, FColor>		ExistingVertexColorData;
 
-	float						LpvBiasMultiplier;
 	bool						bHasNavigationData;
 	FName						LODGroup;
 	FPerPlatformInt				MinLOD;

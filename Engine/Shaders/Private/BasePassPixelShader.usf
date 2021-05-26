@@ -1020,7 +1020,7 @@ void FPixelShaderInOut_MainPS(
 #else
 	BRANCH
 #endif
-		if (GetPrimitiveData(MaterialParameters.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
+		if ((GetPrimitiveData(MaterialParameters.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
 		{
 			uint DBufferMask = 0x07;
 #if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
@@ -1053,7 +1053,7 @@ void FPixelShaderInOut_MainPS(
 	FGBufferData GBuffer = (FGBufferData)0;
 
 	GBuffer.GBufferAO = MaterialAO;
-	GBuffer.PerObjectGBufferData = GetPrimitiveData(MaterialParameters.PrimitiveId).PerObjectGBufferData;
+	GBuffer.PerObjectGBufferData = GetPrimitive_PerObjectGBufferData(MaterialParameters.PrimitiveId);
 	GBuffer.Depth = MaterialParameters.ScreenPosition.w;
 	GBuffer.PrecomputedShadowFactors = GetPrecomputedShadowMasks(LightmapVTPageTableResult, Interpolants, MaterialParameters.PrimitiveId, MaterialParameters.AbsoluteWorldPosition, VolumetricLightmapBrickTextureUVs);
 
@@ -1084,7 +1084,7 @@ void FPixelShaderInOut_MainPS(
 
 #if WRITES_VELOCITY_TO_GBUFFER
 	BRANCH
-	if (GetPrimitiveData(MaterialParameters.PrimitiveId).OutputVelocity > 0 || View.ForceDrawAllVelocities != 0)
+	if ((GetPrimitiveData(MaterialParameters.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0 || View.ForceDrawAllVelocities != 0)
 	{
 		// 2d velocity, includes camera an object motion
 	#if !VF_NANITE
@@ -1096,7 +1096,7 @@ void FPixelShaderInOut_MainPS(
 		float4 EncodedVelocity = EncodeVelocityToTexture(Velocity);
 
 		FLATTEN
-		if (GetPrimitiveData(MaterialParameters.PrimitiveId).DrawsVelocity == 0.0 && View.ForceDrawAllVelocities == 0)
+		if ((GetPrimitiveData(MaterialParameters.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0 && View.ForceDrawAllVelocities == 0)
 		{
 			// TODO: remove one of the DrawsVelocity or OutputVelocity
 			EncodedVelocity = 0.0;
@@ -1447,7 +1447,14 @@ void FPixelShaderInOut_MainPS(
 		BRANCH
 		if (View.OutOfBoundsMask > 0)
 		{
-			if (any(abs(MaterialParameters.AbsoluteWorldPosition - GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz) > GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectBounds + 1))
+			float3 ObjectBounds =
+				float3(
+					GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectBoundsX,
+					GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectBoundsY,
+					GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectBoundsZ
+				);
+
+			if (any(abs(MaterialParameters.AbsoluteWorldPosition - GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz) > ObjectBounds + 1))
 			{
 				float Gradient = frac(dot(MaterialParameters.AbsoluteWorldPosition, float3(.577f, .577f, .577f)) / 500.0f);
 				Emissive = lerp(float3(1,1,0), float3(0,1,1), Gradient.xxx > .5f);

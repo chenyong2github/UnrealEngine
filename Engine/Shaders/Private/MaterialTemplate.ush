@@ -893,7 +893,7 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 	
 	float3 GetObjectOrientation(uint PrimitiveId)
 	{
-		return GetPrimitiveData(PrimitiveId).ObjectOrientation.xyz;
+		return GetPrimitiveData(PrimitiveId).ObjectOrientation;
 	}
 #endif // DECAL_PRIMITIVE
 
@@ -2906,7 +2906,7 @@ void CalcMaterialParametersEx(
 #if MATERIAL_TWOSIDED && HAS_PRIMITIVE_UNIFORM_BUFFER
     // #dxr: DirectX Raytracing's HitKind() intrinsic already accounts for negative scaling
     #if PIXELSHADER
-	    Parameters.TwoSidedSign *= ResolvedView.CullingSign * GetPrimitiveData(Parameters.PrimitiveId).InvNonUniformScaleAndDeterminantSign.w;
+	    Parameters.TwoSidedSign *= ResolvedView.CullingSign * GetPrimitive_DeterminantSign(Parameters.PrimitiveId);
     #endif
 
 #endif

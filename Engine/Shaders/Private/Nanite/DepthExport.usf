@@ -109,7 +109,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				uint OutStencil = 0;
 				// TODO: Move this into 'NaniteMask' to avoid an extra cluster decode, and to touch less memory
 				// by skipping the vbuffer (64b -> 8b)
-				if (GetPrimitiveData(InstanceData.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
+				if ((GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
 				{
 					OutStencil = DepthExportConfig.z;
 				}

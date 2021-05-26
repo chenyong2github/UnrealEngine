@@ -6858,31 +6858,21 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 	check(IsInRenderingThread());
 	if (!WorldSpacePrimitiveUniformBuffer.IsInitialized())
 	{
-		FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters = GetPrimitiveUniformShaderParameters(
-			FMatrix::Identity,
-			FMatrix::Identity,
-			GetActorPosition(),
-			GetBounds(),
-			GetLocalBounds(),
-			ReceivesDecals(),
-			false,
-			false,
-			UseSingleSampleShadowFromStationaryLights(),
-			GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
-			DrawsVelocity(),
-			GetLightingChannelMask(),
-			INDEX_NONE,
-			INDEX_NONE,
-			INDEX_NONE,
-			AlwaysHasVelocity(),
-			nullptr,
-			/* bCastContactShadow = */ true,
-			INDEX_NONE,
-			0,
-			/* bCastShadow = */ true
+		WorldSpacePrimitiveUniformBuffer.SetContents(
+			FPrimitiveUniformShaderParametersBuilder{}
+			.Defaults()
+				.LocalToWorld(FMatrix::Identity)
+				.ActorWorldPosition(GetActorPosition())
+				.WorldBounds(GetBounds())
+				.LocalBounds(GetLocalBounds())
+				.ReceivesDecals(ReceivesDecals())
+				.OutputVelocity(AlwaysHasVelocity())
+				.DrawsVelocity(DrawsVelocity())
+				.LightingChannelMask(GetLightingChannelMask())
+				.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights())
+				.UseVolumetricLightmap(GetScene().HasPrecomputedVolumetricLightmap_RenderThread())
+			.Build()
 		);
-
-		WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
 		WorldSpacePrimitiveUniformBuffer.InitResource();
 	}
 }

@@ -4929,7 +4929,7 @@ int32 FHLSLMaterialTranslator::ObjectRadius()
 
 int32 FHLSLMaterialTranslator::ObjectBounds()
 {
-	return GetPrimitiveProperty(MCT_Float3, TEXT("ObjectBounds"), TEXT("ObjectBounds.xyz"));
+	return AddInlinedCodeChunk(MCT_Float3, TEXT("float3(GetPrimitiveData(Parameters.PrimitiveId).ObjectBoundsX, GetPrimitiveData(Parameters.PrimitiveId).ObjectBoundsY, GetPrimitiveData(Parameters.PrimitiveId).ObjectBoundsZ)"));
 }
 
 int32 FHLSLMaterialTranslator::PreSkinnedLocalBounds(int32 OutputIndex)

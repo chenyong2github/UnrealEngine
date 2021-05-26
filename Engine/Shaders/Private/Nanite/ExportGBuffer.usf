@@ -149,7 +149,7 @@ void EmitSceneStencilPS(
 
 		// TODO: Move this into 'NaniteMask' to avoid the extra cluster decode, and to touch less memory
 		// by skipping the vbuffer (64b -> 8b)
-		if (GetPrimitiveData(InstanceData.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
+		if ((GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
 		{
 			OutDepth = asfloat(DepthInt);
 		}
@@ -200,7 +200,7 @@ void EmitSceneDepthStencilPS
 		OutDepth = asfloat(DepthInt);
 		OutNaniteMask = 0x1;
 
-		if (GetPrimitiveData(InstanceData.PrimitiveId).DecalReceiverMask > 0 && View.ShowDecalsMask > 0)
+		if ((GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
 		{
 			OutStencil = StencilDecal;
 		}
@@ -476,13 +476,13 @@ void FullScreenVS(
 		const uint2 TileMask = Nanite.MaterialRange.Load(uint3(GridPos, 0));
 
 		uint2 MaterialMask = uint2(0, 0);
-		if ((MaterialBucketId >> 5) & 1)
+		if ((MaterialBucketId >> 5) & 1u)
 		{
-			MaterialMask.y = 1 << (MaterialBucketId & 0x1f);
+			MaterialMask.y = 1u << (MaterialBucketId & 0x1f);
 		}
 		else
 		{
-			MaterialMask.x = 1 << (MaterialBucketId & 0x1f);
+			MaterialMask.x = 1u << (MaterialBucketId & 0x1f);
 		}
 
 		if (!any(TileMask & MaterialMask))

@@ -56,7 +56,7 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition, FInstanceSceneData 
 
 float3 RotateLocalToWorld(float3 LocalDirection, FInstanceSceneData InstanceSceneData)
 {
-	return RotateLocalToWorld(LocalDirection, InstanceSceneData.LocalToWorld, InstanceSceneData.InvNonUniformScaleAndDeterminantSign.xyz);
+	return RotateLocalToWorld(LocalDirection, InstanceSceneData.LocalToWorld, InstanceSceneData.InvNonUniformScale);
 }
 
 #endif // INSTANCE_SCENE_DATA_SUPPORTED
@@ -72,17 +72,17 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition)
 
 float3 RotateLocalToWorld(float3 LocalDirection, uint PrimitiveId)
 {
-	return RotateLocalToWorld(LocalDirection, GetPrimitiveData(PrimitiveId).LocalToWorld, GetPrimitiveData(PrimitiveId).InvNonUniformScaleAndDeterminantSign.xyz);
+	return RotateLocalToWorld(LocalDirection, GetPrimitiveData(PrimitiveId).LocalToWorld, GetPrimitiveData(PrimitiveId).InvNonUniformScale);
 }
 
 float3 RotateLocalToWorld(float3 LocalDirection)
 {
-	return RotateLocalToWorld(LocalDirection, Primitive.LocalToWorld, Primitive.InvNonUniformScaleAndDeterminantSign.xyz);
+	return RotateLocalToWorld(LocalDirection, Primitive.LocalToWorld, Primitive.InvNonUniformScale);
 }
 
 float3 RotateWorldToLocal(float3 WorldDirection)
 {
-	const float3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	const float3 InvScale = Primitive.InvNonUniformScale;
 	float3x3 InvRot = {
 		InvScale.x * Primitive.LocalToWorld[0].xyz,
 		InvScale.y * Primitive.LocalToWorld[1].xyz,
