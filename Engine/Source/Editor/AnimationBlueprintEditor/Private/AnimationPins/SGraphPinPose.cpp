@@ -76,34 +76,14 @@ public:
 		AnimGraphNode = InAnimGraphNode;
 		ActiveColor = AttributeDesc->Color.GetSpecifiedColor();
 		Color = ActiveColor;
-		BackgroundColor = FLinearColor::Transparent;
 		Value = 0.0f;
 
 		ChildSlot
 		[
-			SNew(SOverlay)
-			.ToolTipText(AttributeDesc->ToolTipText)
-			+SOverlay::Slot()
-			[
-				SNew(SBorder)
-				.Padding(FMargin(2.0f, 1.0f, 5.0f, 1.0f))
-				.BorderImage(FEditorStyle::GetBrush("AnimGraph.Attribute.Border.Solid"))
-				.BorderBackgroundColor_Lambda([this](){ return BackgroundColor; })
-			]
-			+SOverlay::Slot()
-			.Padding(FMargin(2.0f, 1.0f, 2.0f, 1.0f))
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				[
-					SNew(SImage)
-					.Image(&AttributeDesc->Icon)
-					.ColorAndOpacity_Lambda([this](){ return Color; })
-				]
-			]
+			SNew(SImage)
+			.Visibility_Lambda([this](){ return Value == 0.0f ? EVisibility::Hidden : EVisibility::Visible; })
+			.Image(&AttributeDesc->Icon)
+			.ColorAndOpacity_Lambda([this](){ return Color; })
 		];
 	}
 
@@ -134,15 +114,13 @@ public:
 		if(bActive)
 		{
 			Value = 1.0f;
-			Color = FLinearColor::Black;
-			BackgroundColor = ActiveColor;
 		}
 		else
 		{
 			Value = FMath::FInterpTo(Value, 0.0f, InDeltaTime, 4.0f);
-			Color = FMath::Lerp(ActiveColor, FLinearColor::Black, Value);
-			BackgroundColor = FMath::Lerp(FLinearColor::Transparent, ActiveColor, Value);
 		}
+
+		Color = FMath::Lerp(FLinearColor::Transparent, ActiveColor, Value);
 	}
 
 	UAnimBlueprint* AnimBlueprint;
@@ -152,7 +130,6 @@ public:
 	const UAnimGraphNode_Base* AnimGraphNode;
 	FLinearColor ActiveColor;
 	FLinearColor Color;
-	FLinearColor BackgroundColor;
 	float Value;
 };
 
