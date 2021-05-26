@@ -636,11 +636,6 @@ bool FDetailPropertyRow::GetEnabledState() const
 {
 	bool Result = IsParentEnabled.Get();
 
-	if (PropertyEditor.IsValid())
-	{
-		Result = Result && !PropertyEditor->IsEditConst();
-	}
-
 	if (CustomEditConditionValue.IsSet())
 	{
 		Result = Result && CustomEditConditionValue.Get();
