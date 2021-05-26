@@ -439,6 +439,7 @@ private:
 		SetVisualizeGlobalDistanceField(false);
 		SetVisualizeLumenScene(false);
 		SetVisualizeLumenIndirectDiffuse(false);
+		SetVisualizeIndirectLighting(false);
 		SetVisualizeDistanceFieldAO(false);
 		SetVisualizeSSR(false);
 		SetVisualizeSSS(false);
