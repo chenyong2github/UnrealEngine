@@ -1,31 +1,58 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDetailsViewBase.h"
-#include "GameFramework/Actor.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "Presentation/PropertyEditor/PropertyEditor.h"
-#include "ObjectPropertyNode.h"
-#include "Modules/ModuleManager.h"
-#include "Settings/EditorExperimentalSettings.h"
-#include "IDetailCustomization.h"
-#include "SDetailsView.h"
-#include "DetailLayoutBuilderImpl.h"
-#include "DetailCategoryBuilderImpl.h"
-#include "CategoryPropertyNode.h"
-#include "ScopedTransaction.h"
-#include "SDetailNameArea.h"
-#include "UserInterface/PropertyEditor/SPropertyEditorEditInline.h"
-#include "ObjectEditorUtils.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Widgets/Colors/SColorPicker.h"
-#include "DetailPropertyRow.h"
-#include "Widgets/Input/SSearchBox.h"
+
 #include "Classes/EditorStyleSettings.h"
+#include "Engine/Engine.h"
+#include "GameFramework/Actor.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Modules/ModuleManager.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "UserInterface/PropertyEditor/SPropertyEditorEditInline.h"
+#include "Widgets/Colors/SColorPicker.h"
+#include "Widgets/Input/SSearchBox.h"
+
+#include "CategoryPropertyNode.h"
+#include "DetailCategoryBuilderImpl.h"
+#include "DetailLayoutBuilderImpl.h"
 #include "DetailLayoutHelpers.h"
+#include "DetailPropertyRow.h"
 #include "EditConditionParser.h"
 #include "Editor.h"
+#include "EditorConfigSubsystem.h"
+#include "IDetailCustomization.h"
+#include "ObjectEditorUtils.h"
+#include "ObjectPropertyNode.h"
+#include "ScopedTransaction.h"
+#include "SDetailNameArea.h"
+#include "SDetailsView.h"
+
 #include "ThumbnailRendering/ThumbnailManager.h"
+
+SDetailsViewBase::SDetailsViewBase() :
+	bHasActiveFilter(false)
+	, bIsLocked(false)
+	, bHasOpenColorPicker(false)
+	, bDisableCustomDetailLayouts( false )
+	, NumVisibleTopLevelObjectNodes(0)
+	, bPendingCleanupTimerSet(false)
+{
+	UDetailsConfig* DetailsConfig = GetMutableDefault<UDetailsConfig>();
+	DetailsConfig->LoadEditorConfig();
+
+	FDetailsViewConfig* ViewConfig = DetailsConfig->Views.Find(DetailsViewArgs.ViewIdentifier);
+	if (ViewConfig != nullptr)
+	{
+		CurrentFilter.bShowAllAdvanced = ViewConfig->bShowAllAdvanced;
+		CurrentFilter.bShowAllChildrenIfCategoryMatches = ViewConfig->bShowAllChildrenIfCategoryMatches;
+		CurrentFilter.bShowOnlyAnimated = ViewConfig->bShowOnlyAnimated;
+		CurrentFilter.bShowOnlyKeyable = ViewConfig->bShowOnlyKeyable;
+		CurrentFilter.bShowOnlyModified = ViewConfig->bShowOnlyModified;
+		CurrentFilter.bShowOnlyWhitelisted = ViewConfig->bShowOnlyWhitelisted;
+
+	}
+}
 
 SDetailsViewBase::~SDetailsViewBase()
 {
@@ -581,9 +608,28 @@ TSharedPtr<IPropertyUtilities> SDetailsViewBase::GetPropertyUtilities()
 	return PropertyUtilities;
 }
 
+const FDetailsViewConfig* SDetailsViewBase::GetConstViewConfig() const 
+{
+	return GetDefault<UDetailsConfig>()->Views.Find(DetailsViewArgs.ViewIdentifier);
+}
+
+FDetailsViewConfig& SDetailsViewBase::GetMutableViewConfig()
+{
+	UDetailsConfig* DetailsConfig = GetMutableDefault<UDetailsConfig>();
+	return DetailsConfig->Views.FindOrAdd(DetailsViewArgs.ViewIdentifier);
+}
+
+void SDetailsViewBase::SaveViewConfig()
+{
+	GetMutableDefault<UDetailsConfig>()->SaveEditorConfig();
+}
+
 void SDetailsViewBase::OnShowOnlyModifiedClicked()
 {
-	CurrentFilter.bShowOnlyModifiedProperties = !CurrentFilter.bShowOnlyModifiedProperties;
+	CurrentFilter.bShowOnlyModified = !CurrentFilter.bShowOnlyModified;
+
+	GetMutableViewConfig().bShowOnlyModified = CurrentFilter.bShowOnlyModified;
+	SaveViewConfig();
 
 	UpdateFilteredDetails();
 }
@@ -600,8 +646,9 @@ void SDetailsViewBase::OnCustomFilterClicked()
 void SDetailsViewBase::OnShowAllAdvancedClicked()
 {
 	CurrentFilter.bShowAllAdvanced = !CurrentFilter.bShowAllAdvanced;
-	GetMutableDefault<UEditorStyleSettings>()->bShowAllAdvancedDetails = CurrentFilter.bShowAllAdvanced;
-	GConfig->SetBool(TEXT("/Script/EditorStyle.EditorStyleSettings"), TEXT("bShowAllAdvancedDetails"), GetMutableDefault<UEditorStyleSettings>()->bShowAllAdvancedDetails, GEditorPerProjectIni);
+
+	GetMutableViewConfig().bShowAllAdvanced = CurrentFilter.bShowAllAdvanced;
+	SaveViewConfig();
 
 	UpdateFilteredDetails();
 }
@@ -610,6 +657,9 @@ void SDetailsViewBase::OnShowOnlyWhitelistedClicked()
 {
 	CurrentFilter.bShowOnlyWhitelisted = !CurrentFilter.bShowOnlyWhitelisted;
 
+	GetMutableViewConfig().bShowOnlyWhitelisted = CurrentFilter.bShowOnlyWhitelisted;
+	SaveViewConfig();
+
 	UpdateFilteredDetails();
 }
 
@@ -617,22 +667,32 @@ void SDetailsViewBase::OnShowAllChildrenIfCategoryMatchesClicked()
 {
 	CurrentFilter.bShowAllChildrenIfCategoryMatches = !CurrentFilter.bShowAllChildrenIfCategoryMatches;
 
+	GetMutableViewConfig().bShowAllChildrenIfCategoryMatches = CurrentFilter.bShowAllChildrenIfCategoryMatches;
+	SaveViewConfig();
+
 	UpdateFilteredDetails();
 }
 
 void SDetailsViewBase::OnShowKeyableClicked()
 {
-	CurrentFilter.bShowKeyable = !CurrentFilter.bShowKeyable;
+	CurrentFilter.bShowOnlyKeyable = !CurrentFilter.bShowOnlyKeyable;
+
+	GetMutableViewConfig().bShowOnlyKeyable = CurrentFilter.bShowOnlyKeyable;
+	SaveViewConfig();
 
 	UpdateFilteredDetails();
 }
 
 void SDetailsViewBase::OnShowAnimatedClicked()
 {
-	CurrentFilter.bShowAnimated = !CurrentFilter.bShowAnimated;
+	CurrentFilter.bShowOnlyAnimated = !CurrentFilter.bShowOnlyAnimated;
+
+	GetMutableViewConfig().bShowOnlyAnimated = CurrentFilter.bShowOnlyAnimated;
+	SaveViewConfig();
 
 	UpdateFilteredDetails();
 }
+
 /** Called when the filter text changes.  This filters specific property nodes out of view */
 void SDetailsViewBase::OnFilterTextChanged(const FText& InFilterText)
 {
@@ -1206,22 +1266,27 @@ void SDetailsViewBase::UpdateFilteredDetails()
 	FDetailNodeList InitialRootNodeList;
 	
 	NumVisibleTopLevelObjectNodes = 0;
-	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 
-	if( GetDefault<UEditorStyleSettings>()->bShowAllAdvancedDetails )
+	CurrentFilter.bShowAllAdvanced = false;
+
+	const FDetailsViewConfig* DetailsViewConfig = GetMutableDefault<UDetailsConfig>()->Views.Find(DetailsViewArgs.ViewIdentifier);
+	if (DetailsViewConfig != nullptr)
 	{
-		CurrentFilter.bShowAllAdvanced = true;
+		CurrentFilter.bShowAllAdvanced = DetailsViewConfig->bShowAllAdvanced;
 	}
 	
+	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 	for(int32 RootNodeIndex = 0; RootNodeIndex < RootPropertyNodes.Num(); ++RootNodeIndex)
 	{
-		TSharedPtr<FComplexPropertyNode>& RootPropertyNode = RootPropertyNodes[RootNodeIndex];
+		const TSharedPtr<FComplexPropertyNode>& RootPropertyNode = RootPropertyNodes[RootNodeIndex];
 		if(RootPropertyNode.IsValid())
 		{
 			RootPropertyNode->FilterNodes(CurrentFilter.FilterStrings);
 			RootPropertyNode->ProcessSeenFlags(true);
 
-			TSharedPtr<FDetailLayoutBuilderImpl>& DetailLayout = DetailLayouts[RootNodeIndex].DetailLayout;
+			RestoreExpandedItems(RootPropertyNode.ToSharedRef());
+
+			const TSharedPtr<FDetailLayoutBuilderImpl>& DetailLayout = DetailLayouts[RootNodeIndex].DetailLayout;
 			if(DetailLayout.IsValid())
 			{
 				FRootPropertyNodeList& ExternalRootPropertyNodes = DetailLayout->GetExternalRootPropertyNodes();
