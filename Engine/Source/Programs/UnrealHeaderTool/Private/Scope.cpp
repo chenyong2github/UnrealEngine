@@ -147,5 +147,5 @@ FName FFileScope::GetName() const
 
 FName FStructScope::GetName() const
 {
-	return Struct->GetFName();
+	return StructDef.GetFName();
 }

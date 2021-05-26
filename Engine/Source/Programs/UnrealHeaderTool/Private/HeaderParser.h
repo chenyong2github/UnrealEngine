@@ -229,14 +229,6 @@ protected:
 	}
 
 	/**
-	 * Gets current class.
-	 */
-	UClass* GetCurrentClass() const
-	{
-		return (UClass*)GetCurrentClassScope()->GetStruct();
-	}
-
-	/**
 	 * Gets current class definition.
 	 */
 	FUnrealStructDefinitionInfo& GetCurrentClassDef() const

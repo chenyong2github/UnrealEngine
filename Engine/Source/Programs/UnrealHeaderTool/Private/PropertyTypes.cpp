@@ -10,6 +10,11 @@
 #include "Misc/DefaultValueHelper.h"
 #include "UObject/ObjectMacros.h"
 
+// Globals for common class definitions
+extern FUnrealClassDefinitionInfo* GUObjectDef = nullptr;
+extern FUnrealClassDefinitionInfo* GUClassDef = nullptr;
+extern FUnrealClassDefinitionInfo* GUInterfaceDef = nullptr;
+
 void AddEditInlineMetaData(TMap<FName, FString>& MetaData);
 
 // Following is the relationship between the property types
@@ -1126,13 +1131,12 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
 
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 		}
 		else
@@ -1149,19 +1153,17 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			FClassProperty* Result = new FClassProperty(Scope, Name, ObjectFlags);
 			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
-			Result->PropertyClass = PropertyClass;
+			Result->PropertyClass = VarProperty.ClassDef->GetClass();
 			return Result;
 		}
 		else
 		{
 			FObjectProperty* Result = new FObjectProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = PropertyClass;
+			Result->PropertyClass = VarProperty.ClassDef->GetClass();
 			return Result;
 		}
 	}
@@ -1175,8 +1177,7 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			return FClassProperty::StaticClass()->GetName();
 		}
@@ -1190,13 +1191,11 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			if (PropDef.HasAnyPropertyFlags(CPF_UObjectWrapper))
 			{
-				UClass* MetaClass = VarProperty.MetaClassDef->GetClass();
-				return FString::Printf(TEXT("TSubclassOf<%s%s> "), MetaClass->GetPrefixCPP(), *MetaClass->GetName());
+				return FString::Printf(TEXT("TSubclassOf<%s%s> "), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName());
 			}
 			else
 			{
@@ -1205,7 +1204,7 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 		}
 		else
 		{
-			return FString::Printf(TEXT("%s%s*"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+			return FString::Printf(TEXT("%s%s*"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 	}
 
@@ -1213,15 +1212,13 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
-			UClass* MetaClass = VarProperty.MetaClassDef->GetClass();
-			return FString::Printf(TEXT("class %s%s;"), MetaClass->GetPrefixCPP(), *MetaClass->GetName());
+			return FString::Printf(TEXT("class %s%s;"), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName());
 		}
 		else
 		{
-			return FString::Printf(TEXT("class %s%s;"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+			return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 	}
 };
@@ -1260,8 +1257,7 @@ struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObject
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		FString InnerNativeTypeName = FString::Printf(TEXT("%s%s"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+		FString InnerNativeTypeName = FString::Printf(TEXT("%s%s"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		if (PropDef.HasAnyPropertyFlags(CPF_AutoWeak))
 		{
 			return FString::Printf(TEXT("TAutoWeakObjectPtr<%s>"), *InnerNativeTypeName);
@@ -1273,8 +1269,7 @@ struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObject
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		return FString::Printf(TEXT("class %s%s;"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+		return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 	}
 };
 
@@ -1307,16 +1302,14 @@ struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObject
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		return FString::Printf(TEXT("TLazyObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+		return FString::Printf(TEXT("TLazyObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 	}
 
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		return FString::Printf(TEXT("class %s%s;"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+		return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 	}
 };
 
@@ -1326,13 +1319,12 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
 #endif
 
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 		}
 		else
@@ -1349,19 +1341,17 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			FClassPtrProperty* Result = new FClassPtrProperty(Scope, Name, ObjectFlags);
 			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
-			Result->PropertyClass = PropertyClass;
+			Result->PropertyClass = VarProperty.ClassDef->GetClass();
 			return Result;
 		}
 		else
 		{
 			FObjectPtrProperty* Result = new FObjectPtrProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = PropertyClass;
+			Result->PropertyClass = VarProperty.ClassDef->GetClass();
 			return Result;
 		}
 	}
@@ -1375,8 +1365,7 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			return FClassPtrProperty::StaticClass()->GetName();
 		}
@@ -1390,14 +1379,13 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
-			return FString::Printf(TEXT("TObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+			return FString::Printf(TEXT("TObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 		else
 		{
-			return FString::Printf(TEXT("TObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+			return FString::Printf(TEXT("TObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 	}
 
@@ -1405,15 +1393,13 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
-			UClass* MetaClass = VarProperty.MetaClassDef->GetClass();
-			return FString::Printf(TEXT("class %s%s;"), MetaClass->GetPrefixCPP(), *MetaClass->GetName());
+			return FString::Printf(TEXT("class %s%s;"), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName());
 		}
 		else
 		{
-			return FString::Printf(TEXT("class %s%s;"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+			return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 	}
 };
@@ -1433,19 +1419,17 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			FSoftClassProperty* Result = new FSoftClassProperty(Scope, Name, ObjectFlags);
 			Result->MetaClass = VarProperty.MetaClassDef ? VarProperty.MetaClassDef->GetClass() : nullptr;
-			Result->PropertyClass = PropertyClass;
+			Result->PropertyClass = VarProperty.ClassDef->GetClass();
 			return Result;
 		}
 		else
 		{
 			FSoftObjectProperty* Result = new FSoftObjectProperty(Scope, Name, ObjectFlags);
-			Result->PropertyClass = PropertyClass;
+			Result->PropertyClass = VarProperty.ClassDef->GetClass();
 			return Result;
 		}
 	}
@@ -1459,8 +1443,7 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			return FSoftClassProperty::StaticClass()->GetName();
 		}
@@ -1474,15 +1457,14 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			UClass* MetaClass = VarProperty.MetaClassDef->GetClass();
-			return FString::Printf(TEXT("TSoftClassPtr<%s%s> "), MetaClass->GetPrefixCPP(), *MetaClass->GetName()); //@TODO - This has an extra space in it
+			return FString::Printf(TEXT("TSoftClassPtr<%s%s> "), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName()); //@TODO - This has an extra space in it
 		}
 		else
 		{
-			return FString::Printf(TEXT("TSoftObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+			return FString::Printf(TEXT("TSoftObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 	}
 
@@ -1490,15 +1472,14 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
 			UClass* MetaClass = VarProperty.MetaClassDef->GetClass();
-			return FString::Printf(TEXT("class %s%s;"), MetaClass->GetPrefixCPP(), *MetaClass->GetName());
+			return FString::Printf(TEXT("class %s%s;"), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName());
 		}
 		else
 		{
-			return FString::Printf(TEXT("class %s%s;"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+			return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 	}
 };
@@ -1509,8 +1490,7 @@ struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		check(PropertyClass->HasAnyClassFlags(CLASS_Interface));
+		check(VarProperty.ClassDef->HasAnyClassFlags(CLASS_Interface));
 
 #if UHT_ENABLE_PTR_PROPERTY_TAG
 		PropDef.GetUnrealSourceFile().AddTypeDefIncludeIfNeeded(VarProperty.ClassDef);
@@ -1521,10 +1501,9 @@ struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 	{
 		FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
-		UClass* PropertyClass = VarProperty.ClassDef->GetClass();
-		check(PropertyClass->HasAnyClassFlags(CLASS_Interface));
+		check(VarProperty.ClassDef->HasAnyClassFlags(CLASS_Interface));
 		FInterfaceProperty* Result = new  FInterfaceProperty(Scope, Name, ObjectFlags);
-		Result->InterfaceClass = PropertyClass;
+		Result->InterfaceClass = VarProperty.ClassDef->GetClass();
 		return Result;
 	}
 

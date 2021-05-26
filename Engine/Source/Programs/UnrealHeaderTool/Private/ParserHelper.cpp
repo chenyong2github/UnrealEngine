@@ -8,6 +8,11 @@
 #include "UnrealTypeDefinitionInfo.h"
 #include "ClassMaps.h"
 
+// Globals for common class definitions
+extern FUnrealClassDefinitionInfo* GUObjectDef;
+extern FUnrealClassDefinitionInfo* GUClassDef;
+extern FUnrealClassDefinitionInfo* GUInterfaceDef;
+
 /////////////////////////////////////////////////////
 // FPropertyBase
 
@@ -89,7 +94,7 @@ EUHTPropertyType FPropertyBase::GetUHTPropertyType() const
 
 bool FPropertyBase::IsClassRefOrClassRefStaticArray() const
 {
-	return IsObjectRefOrObjectRefStaticArray() && ClassDef->GetClass()->IsChildOf(UClass::StaticClass());
+	return IsObjectRefOrObjectRefStaticArray() && ClassDef->IsChildOf(*GUClassDef);
 }
 
 bool FPropertyBase::IsByteEnumOrByteEnumStaticArray() const
@@ -193,34 +198,30 @@ bool FPropertyBase::MatchesType(const FPropertyBase& Other, bool bDisallowGenera
 		}
 		else
 		{
-			UClass* PropertyClass = ClassDef->GetClass();
-			UClass* OtherPropertyClass = Other.ClassDef->GetClass();
-			UClass* MetaClass = MetaClassDef ? MetaClassDef->GetClass() : nullptr;
-			UClass* OtherMetaClass = Other.MetaClassDef ? Other.MetaClassDef->GetClass() : nullptr;
 			// Generalization is ok (typical example of this check would look like: VarA = VarB;, where this is VarB and Other is VarA)
-			if (OtherPropertyClass->IsChildOf(PropertyClass))
+			if (Other.ClassDef->IsChildOf(*ClassDef))
 			{
 				if (!bIgnoreImplementedInterfaces || ((Type == CPT_Interface) == (Other.Type == CPT_Interface)))
 				{
-					if (!PropertyClass->IsChildOf(UClass::StaticClass()) || MetaClass == NULL || OtherMetaClass->IsChildOf(MetaClass) ||
-						(bReverseClassChainCheck && (OtherMetaClass == NULL || MetaClass->IsChildOf(OtherMetaClass))))
+					if (!ClassDef->IsChildOf(*GUClassDef) || MetaClassDef == nullptr || Other.MetaClassDef->IsChildOf(*MetaClassDef) ||
+						(bReverseClassChainCheck && (Other.MetaClassDef == nullptr || MetaClassDef->IsChildOf(*Other.MetaClassDef))))
 					{
 						return true;
 					}
 				}
 			}
 			// check the opposite class chain for object types
-			else if (bReverseClassChainCheck && Type != CPT_Interface && bIsObjectComparison && PropertyClass != NULL && PropertyClass->IsChildOf(OtherPropertyClass))
+			else if (bReverseClassChainCheck && Type != CPT_Interface && bIsObjectComparison && ClassDef != nullptr && ClassDef->IsChildOf(*Other.ClassDef))
 			{
-				if (!OtherPropertyClass->IsChildOf(UClass::StaticClass()) || MetaClass == NULL || OtherMetaClass == NULL || MetaClass->IsChildOf(OtherMetaClass) || OtherMetaClass->IsChildOf(MetaClass))
+				if (!Other.ClassDef->IsChildOf(*GUClassDef) || MetaClassDef == nullptr || Other.MetaClassDef == nullptr || MetaClassDef->IsChildOf(*Other.MetaClassDef) || Other.MetaClassDef->IsChildOf(*MetaClassDef))
 				{
 					return true;
 				}
 			}
 
-			if (PropertyClass->HasAnyClassFlags(CLASS_Interface) && !bIgnoreImplementedInterfaces)
+			if (ClassDef->HasAnyClassFlags(CLASS_Interface) && !bIgnoreImplementedInterfaces)
 			{
-				if (OtherPropertyClass->ImplementsInterface(PropertyClass))
+				if (Other.ClassDef->ImplementsInterface(*ClassDef))
 				{
 					return true;
 				}
@@ -262,13 +263,10 @@ bool FPropertyBase::MatchesType(const FPropertyBase& Other, bool bDisallowGenera
 			return false;
 		}
 
-		UScriptStruct* Struct = ScriptStructDef->GetScriptStruct();
-		UScriptStruct* OtherStruct = Other.ScriptStructDef->GetScriptStruct();
-
 		// Generalization is ok if this is not a dynamic array
 		if (ArrayType != EArrayType::Dynamic && Other.ArrayType != EArrayType::Dynamic)
 		{
-			if (!OtherStruct->IsChildOf(Struct) && Struct->IsChildOf(OtherStruct))
+			if (!Other.ScriptStructDef->IsChildOf(*ScriptStructDef) && ScriptStructDef->IsChildOf(*Other.ScriptStructDef))
 			{
 				return true;
 			}

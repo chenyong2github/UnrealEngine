@@ -76,9 +76,9 @@ static TArray<FString> ChangeMessages;
 static bool bWriteContents = false;
 static bool bVerifyContents = false;
 
-UClass* ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef);
+void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef);
 void ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef);
-UScriptStruct* ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStructDef);
+void ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStructDef);
 
 // Array of all the temporary header async file tasks so we can ensure they have completed before issuing our timings
 static FGraphEventArray GAsyncFileTasks;
@@ -170,7 +170,7 @@ namespace
 	const TCHAR EndEditorOnlyGuard[] = TEXT("#endif //WITH_EDITOR") LINE_TERMINATOR;
 
 	/** Whether or not the given class has any replicated properties. */
-	static bool ClassHasReplicatedProperties(FUnrealClassDefinitionInfo& ClassDef)
+	static bool ClassHasReplicatedProperties(const FUnrealClassDefinitionInfo& ClassDef)
 	{
 		if (!ClassDef.HasAnyClassFlags(CLASS_ReplicationDataIsSetUp))
 		{
@@ -183,13 +183,12 @@ namespace
 			}
 		}
 
-		UClass* Class = ClassDef.GetClass();
-		return Class->FirstOwnedClassRep < Class->ClassReps.Num();
+		return ClassDef.HasOwnedClassReps();
 	}
 
-	static void ExportNetData(FOutputDevice& Out, UClass* Class, const TCHAR* API)
+	static void ExportNetData(FOutputDevice& Out, const FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API)
 	{
-		const TArray<FRepRecord>& ClassReps = Class->ClassReps;
+		const TArray<FUnrealPropertyDefinitionInfo*>& ClassReps = ClassDef.GetClassReps();
 
 		FUHTStringBuilder NetFieldBuilder;
 		NetFieldBuilder.Logf(TEXT(""
@@ -201,12 +200,12 @@ namespace
 
 		bool bAnyStaticArrays = false;
 		bool bIsFirst = true;
-		for (int32 ClassRepIndex = Class->FirstOwnedClassRep; ClassRepIndex < ClassReps.Num(); ++ClassRepIndex)
+		for (int32 ClassRepIndex = ClassDef.GetFirstOwnedClassRep(); ClassRepIndex < ClassReps.Num(); ++ClassRepIndex)
 		{
-			const FRepRecord& ClassRep = ClassReps[ClassRepIndex];
-			const FString PropertyName = ClassRep.Property->GetName();
+			const FUnrealPropertyDefinitionInfo* PropertyDef = ClassReps[ClassRepIndex];
+			const FString PropertyName = PropertyDef->GetName();
 
-			if (ClassRep.Property->ArrayDim == 1)
+			if (!PropertyDef->IsStaticArray())
 			{
 				if (UNLIKELY(bIsFirst))
 				{
@@ -220,10 +219,8 @@ namespace
 			}
 			else
 			{
-				FUnrealPropertyDefinitionInfo& PropDef = GTypeDefinitionInfoMap.FindChecked<FUnrealPropertyDefinitionInfo>(ClassReps[ClassRepIndex].Property);
-
 				bAnyStaticArrays = true;
-				ArrayDimBuilder.Logf(TEXT("\t\t%s=%s,\r\n"), *PropertyName, PropDef.GetArrayDimensions());
+				ArrayDimBuilder.Logf(TEXT("\t\t%s=%s,\r\n"), *PropertyName, PropertyDef->GetArrayDimensions());
 
 				if (UNLIKELY(bIsFirst))
 				{
@@ -239,8 +236,8 @@ namespace
 			}
 		}
 
-		const FProperty* LastProperty = ClassReps.Last().Property;
-		NetFieldBuilder.Logf(TEXT("\t\tNETFIELD_REP_END=%s%s"), *LastProperty->GetName(), LastProperty->ArrayDim > 1 ? TEXT("_STATIC_ARRAY_END") : TEXT(""));
+		const FUnrealPropertyDefinitionInfo* LastPropertyDef = ClassReps.Last();
+		NetFieldBuilder.Logf(TEXT("\t\tNETFIELD_REP_END=%s%s"), *LastPropertyDef->GetName(), LastPropertyDef->IsStaticArray() ? TEXT("_STATIC_ARRAY_END") : TEXT(""));
 
 		NetFieldBuilder.Log(TEXT("\t};"));
 
@@ -271,7 +268,6 @@ namespace
 		const FUnrealSourceFile& SourceFile,
 		EExportClassOutFlags& OutFlags)
 	{
-		UClass* Class = ClassDef.GetClass();
 		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassDef.GetDefinitionRange().Start, ClassDef.GetDefinitionRange().End, STRING_GetLifetimeReplicatedPropsStr);
 
 		if (!bHasGetLifetimeReplicatedProps)
@@ -288,11 +284,11 @@ namespace
 		}
 
 
-		ExportNetData(Writer, Class, API);
+		ExportNetData(Writer, ClassDef, API);
 		
 		// If this class has replicated properties and it owns the first one, that means
 		// it's the base most replicated class. In that case, go ahead and add our interface macro.
-		if (Class->ClassReps.Num() > 0 && Class->FirstOwnedClassRep == 0)
+		if (ClassDef.HasClassReps() && ClassDef.GetFirstOwnedClassRep() == 0)
 		{
 			OutFlags |= EExportClassOutFlags::NeedsPushModelHeaders;
 			Writer.Logf(TEXT(
@@ -2061,13 +2057,9 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			FunctionsCount = TEXT("0");
 		}
 
-		TMap<FName, FString>* MetaDataMap = UMetaData::GetMapForObject(Class);
-		if (MetaDataMap)
+		if (ClassDef.GetStructMetaData().bObjectInitializerConstructorDeclared)
 		{
-			if (ClassDef.GetStructMetaData().bObjectInitializerConstructorDeclared)
-			{
-				MetaDataMap->Add(NAME_ObjectInitializerConstructorDeclared, FString());
-			}
+			ClassDef.SetMetaData(NAME_ObjectInitializerConstructorDeclared, TEXT(""));
 		}
 
 		FString MetaDataParams = OutputMetaDataCodeForObject(GeneratedClassRegisterFunctionText, StaticDefinitions, ClassDef, *FString::Printf(TEXT("%s::Class_MetaDataParams"), *StaticsStructName), TEXT("\t\t"), TEXT("\t"));
@@ -2179,7 +2171,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 		if (bIsDynamic)
 		{
-			FString* CustomDynamicClassInitializationMD = MetaDataMap ? MetaDataMap->Find(TEXT("CustomDynamicClassInitialization")) : nullptr;
+			const FString* CustomDynamicClassInitializationMD = ClassDef.FindMetaData(TEXT("CustomDynamicClassInitialization"));
 			if (CustomDynamicClassInitializationMD)
 			{
 				GeneratedClassRegisterFunctionText.Logf(TEXT("\t\t\t\t%s(CastChecked<UDynamicClass>(OuterClass));\n"), *(*CustomDynamicClassInitializationMD));
@@ -6121,74 +6113,81 @@ void GetScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins)
 	}
 }
 
+TArray<TSharedRef<FUnrealTypeDefinitionInfo>> GEngineClasses;
+
+/**
+ * Tries to resolve super classes for classes defined in the given class
+ */
+void ResolveSuperClasses(const TCHAR* PackageName, FUnrealClassDefinitionInfo& ClassDef)
+{
+	UClass* Class = ClassDef.GetClassSafe();
+
+	// Propagate any already set ClassWithin (this only happens for the temporary engine objects)
+	if (Class != nullptr && Class->ClassWithin != nullptr)
+	{
+		ClassDef.SetClassWithin(&GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*Class->ClassWithin->GetFName().ToString()));
+	}
+
+	// Resolve the base class
+	{
+		FUnrealStructDefinitionInfo::FBaseStructInfo& SuperClassInfo = ClassDef.GetSuperStructInfo();
+
+		if (Class == nullptr || Class->GetSuperClass() == nullptr)
+		{
+			if (!SuperClassInfo.Name.IsEmpty())
+			{
+				const FString& BaseClassName = SuperClassInfo.Name;
+				const FString& BaseClassNameStripped = GetClassNameWithPrefixRemoved(BaseClassName);
+
+				FUnrealClassDefinitionInfo* FoundBaseClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(*BaseClassNameStripped);
+				if (FoundBaseClassDef == nullptr)
+				{
+					FoundBaseClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(*BaseClassName);
+				}
+
+				if (FoundBaseClassDef == nullptr)
+				{
+					// Don't know its parent class. Raise error.
+					FUHTException::Throwf(ClassDef, TEXT("Couldn't find parent type for '%s' named '%s' in current module (Package: %s) or any other module parsed so far."), *ClassDef.GetName(), *BaseClassName, PackageName);
+				}
+
+				SuperClassInfo.Struct = FoundBaseClassDef;
+				ClassDef.SetClassCastFlags(FoundBaseClassDef->GetClassCastFlags());
+				if (Class != nullptr)
+				{
+					Class->SetSuperStruct(FoundBaseClassDef->GetClass());
+				}
+			}
+		}
+		else
+		{
+			SuperClassInfo.Struct = &GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*Class->GetSuperClass()->GetFName().ToString());
+		}
+	}
+
+	// Resolve the inherited classes
+	{
+		for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseClassInfo : ClassDef.GetBaseStructInfos())
+		{
+			BaseClassInfo.Struct = FUnrealClassDefinitionInfo::FindScriptClass(BaseClassInfo.Name);
+		}
+	}
+}
+
 /**
  * Tries to resolve super classes for classes defined in the given
  * module.
  *
  * @param Package Modules package.
  */
-void ResolveSuperClasses(UPackage* Package)
+void ResolveSuperClasses(FUnrealPackageDefinitionInfo& PackageDef)
 {
-	TArray<UObject*> Objects;
-	GetObjectsWithPackage(Package, Objects);
-
-	for (UObject* Object : Objects)
+	FString PackageName = PackageDef.GetName();
+	for (TSharedRef<FUnrealSourceFile> SourceFile : PackageDef.GetAllSourceFiles())
 	{
-		if (!Object->IsA<UClass>() || Object->HasAnyFlags(RF_ClassDefaultObject))
+		for (TSharedRef<FUnrealTypeDefinitionInfo> TypeDef : SourceFile->GetDefinedClasses())
 		{
-			continue;
-		}
-
-		UClass* DefinedClass = Cast<UClass>(Object);
-
-		FUnrealClassDefinitionInfo& ClassDef = GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(DefinedClass);
-
-		// Propagate any already set ClassWithin
-		if (DefinedClass->ClassWithin != nullptr)
-		{
-			ClassDef.SetClassWithin(&GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(DefinedClass->ClassWithin));
-		}
-
-		// Resolve the base class
-		{
-			FUnrealStructDefinitionInfo::FBaseStructInfo& SuperClassInfo = ClassDef.GetSuperStructInfo();
-
-			if (DefinedClass->GetSuperClass() == nullptr)
-			{
-				if (!SuperClassInfo.Name.IsEmpty() && !DefinedClass->GetSuperClass())
-				{
-					const FString& BaseClassName = SuperClassInfo.Name;
-					const FString& BaseClassNameStripped = GetClassNameWithPrefixRemoved(BaseClassName);
-
-					FUnrealClassDefinitionInfo* FoundBaseClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(*BaseClassNameStripped);
-					if (FoundBaseClassDef == nullptr)
-					{
-						FoundBaseClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(*BaseClassName);
-					}
-
-					if (FoundBaseClassDef == nullptr)
-					{
-						// Don't know its parent class. Raise error.
-						FUHTException::Throwf(ClassDef, TEXT("Couldn't find parent type for '%s' named '%s' in current module (Package: %s) or any other module parsed so far."), *DefinedClass->GetName(), *BaseClassName, *Package->GetName());
-					}
-
-					DefinedClass->SetSuperStruct(FoundBaseClassDef->GetClass());
-					DefinedClass->ClassCastFlags |= FoundBaseClassDef->GetClass()->ClassCastFlags;
-					SuperClassInfo.Struct = FoundBaseClassDef;
-				}
-			}
-			else
-			{
-				SuperClassInfo.Struct = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(DefinedClass->GetSuperClass());
-			}
-		}
-
-		// Resolve the inherited classes
-		{
-			for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseClassInfo : ClassDef.GetBaseStructInfo())
-			{
-				BaseClassInfo.Struct = FUnrealClassDefinitionInfo::FindScriptClass(BaseClassInfo.Name);
-			}
+			ResolveSuperClasses(*PackageName, UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef));
 		}
 	}
 }
@@ -6435,16 +6434,15 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 		{
 			FResults::Try(*SourceFile, [PackageDef, &SourceFile = *SourceFile]()
 			{
-				TArray<UClass*>& AllClasses = PackageDef->GetAllClasses();
+				TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& AllClasses = PackageDef->GetAllClasses();
 				UPackage* Package = PackageDef->GetPackage();
 
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedClasses())
 				{
 					FUnrealClassDefinitionInfo& ClassDef = TypeDef->AsClassChecked();
-					UClass* ResultClass = ProcessParsedClass(ClassDef);
-					GTypeDefinitionInfoMap.Add(ResultClass, TypeDef);
-					ClassDef.SetObject(ResultClass);
-					AllClasses.Add(ResultClass);
+					ProcessParsedClass(ClassDef);
+					GTypeDefinitionInfoMap.AddNameLookup(UHTCastChecked<FUnrealObjectDefinitionInfo>(TypeDef));
+					AllClasses.Add(TypeDef);
 				}
 
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedEnums())
@@ -6457,9 +6455,8 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 				for (TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedStructs())
 				{
 					FUnrealScriptStructDefinitionInfo& ScriptStructDef = TypeDef->AsScriptStructChecked();
-					UScriptStruct* ResultScriptStruct = ProcessParsedStruct(ScriptStructDef);
-					ScriptStructDef.SetObject(ResultScriptStruct);
-					GTypeDefinitionInfoMap.Add(ResultScriptStruct, TypeDef);
+					ProcessParsedStruct(ScriptStructDef);
+					GTypeDefinitionInfoMap.AddNameLookup(UHTCastChecked<FUnrealObjectDefinitionInfo>(TypeDef));
 				}
 
 				static const bool bVerbose = FParse::Param(FCommandLine::Get(), TEXT("VERBOSE"));
@@ -6480,13 +6477,26 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 
 void ResolveParents(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 {
-	GUObjectDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UObject::StaticClass());
-	GUClassDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UClass::StaticClass());
-	GUInterfaceDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(UInterface::StaticClass());
+	GUObjectDef = &GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*UObject::StaticClass()->GetFName().ToString());
+	GUClassDef = &GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*UClass::StaticClass()->GetFName().ToString());
+	GUInterfaceDef = &GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*UInterface::StaticClass()->GetFName().ToString());
+
+	for (TSharedRef<FUnrealTypeDefinitionInfo> TypeDef : GEngineClasses)
+	{
+		FUnrealClassDefinitionInfo& ClassDef = UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef);
+
+		// Some of the temporary classes are contained within the no export file.  When they are, a new
+		// instance of the definition will be created.  So ignore this one if the found class def doesn't
+		// match this one.
+		if (&GTypeDefinitionInfoMap.FindByNameChecked(*ClassDef.GetFName().ToString()) == &ClassDef)
+		{
+			ResolveSuperClasses(TEXT("EngineObject"), ClassDef);
+		}
+	}
 
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 	{
-		FResults::Try([PackageDef]() { ResolveSuperClasses(PackageDef->GetPackage()); });
+		FResults::Try([PackageDef]() { ResolveSuperClasses(*PackageDef); });
 	}
 	FResults::WaitForErrorTasks();
 }
@@ -6677,10 +6687,18 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	{
 		FResults::Try([PackageDef]()
 		{
-			PackageDef->CreateUObjectEngineTypes();
+			PackageDef->CreateUObjectEngineTypes(FUnrealTypeDefinitionInfo::ECreateEngineTypesPhase::Phase1);
 		});
 	}
-		
+
+	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
+	{
+		FResults::Try([PackageDef]()
+		{
+			PackageDef->CreateUObjectEngineTypes(FUnrealTypeDefinitionInfo::ECreateEngineTypesPhase::Phase2);
+		});
+	}
+
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 	{
 		FResults::Try([PackageDef]()
@@ -6691,11 +6709,15 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	FResults::WaitForErrorTasks();
 
 	// Until we fix the issue with types not having sources, we need to do this
-	GTypeDefinitionInfoMap.ForAllTypes([](FUnrealTypeDefinitionInfo& TypeDef) 
-	{ 
+	GTypeDefinitionInfoMap.ForAllTypesByName([](FUnrealTypeDefinitionInfo& TypeDef)
+	{
 		if (!TypeDef.HasSource())
 		{
 			TypeDef.PostParseFinalize();
+		}
+		if (FUnrealObjectDefinitionInfo* ObjectDef = UHTCast<FUnrealObjectDefinitionInfo>(TypeDef))
+		{
+			check(ObjectDef->GetObject());
 		}
 	});
 }
@@ -6769,9 +6791,9 @@ void ExportToScriptPlugins(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, F
 		const FManifestModule& Module = PackageDef->GetModule();
 
 		FClassTree ClassTree(UObject::StaticClass());
-		for (UClass* Class : PackageDef->GetAllClasses())
+		for (TSharedRef<FUnrealTypeDefinitionInfo> TypeDef : PackageDef->GetAllClasses())
 		{
-			ClassTree.AddClass(Class);
+			ClassTree.AddClass(UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef).GetClass());
 		}
 		ClassTree.Validate();
 
@@ -6857,9 +6879,9 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	// Use -WRITEREF and -VERIFYREF to detect these changes.
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
-		FUnrealClassDefinitionInfo* ClassDef = new FUnrealClassDefinitionInfo(*ClassIt);
-		ClassDef->SetObject(*ClassIt);
-		GTypeDefinitionInfoMap.Add(*ClassIt, MakeShareable<FUnrealTypeDefinitionInfo>(ClassDef));
+		TSharedRef<FUnrealClassDefinitionInfo> ClassDefRef = MakeShared<FUnrealClassDefinitionInfo>(*ClassIt);
+		GTypeDefinitionInfoMap.AddNameLookup(*ClassDefRef);
+		GEngineClasses.Add(ClassDefRef);
 	}
 
 	// Load the manifest file, giving a list of all modules to be processed, pre-sorted by dependency ordering
@@ -6945,7 +6967,7 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	return FResults::GetOverallResults();
 }
 
-UClass* ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
+void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 {
 	UPackage* Package = ClassDef.GetPackageDef().GetPackage();
 	const FString& ClassName = ClassDef.GetNameCPP();
@@ -6986,46 +7008,29 @@ UClass* ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 		FUHTException::Throwf(ClassDef, TEXT("Class '%s' cannot inherit from itself"), *ClassName);
 	}
 
-	UClass* ResultClass = FEngineAPI::FindObject<UClass>(Package, *ClassNameStripped);
+	UClass* ResultClass = FEngineAPI::FindObject<UClass>(ANY_PACKAGE, *ClassNameStripped);
 
 	// if we aren't generating headers, then we shouldn't set misaligned object, since it won't get cleared
 
 	const static bool bVerboseOutput = FParse::Param(FCommandLine::Get(), TEXT("VERBOSE"));
 
-	if (ResultClass == nullptr || !ResultClass->IsNative())
+	if (ResultClass == nullptr)
 	{
-		// detect if the same class name is used in multiple packages
-		if (ResultClass == nullptr)
+		if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*ClassNameStripped))
 		{
-			UClass* ConflictingClass = FEngineAPI::FindObject<UClass>(ANY_PACKAGE, *ClassNameStripped, true);
-			if (ConflictingClass != nullptr)
-			{
-				UE_LOG_WARNING_UHT(ClassDef, TEXT("Duplicate class name: %s also exists in file %s"), *ClassName, *ConflictingClass->GetOutermost()->GetName());
-			}
-		}
-
-		// Create new class.
-		ResultClass = new(EC_InternalUseOnlyConstructor, Package, *ClassNameStripped, RF_Public | RF_Standalone) UClass(FObjectInitializer(), nullptr);
-
-		// add CLASS_Interface flag if the class is an interface
-		// NOTE: at this pre-parsing/importing stage, we cannot know if our super class is an interface or not,
-		// we leave the validation to the main header parser
-		if (ClassDef.IsInterface())
-		{
-			ResultClass->ClassFlags |= CLASS_Interface;
+			FUHTException::Throwf(ClassDef, TEXT("Duplicate class name: %s also exists in file %s"), *ClassName, *(*Existing)->GetFilename());
 		}
 
 		if (bVerboseOutput)
 		{
-			UE_LOG(LogCompile, Log, TEXT("Imported: %s"), *ResultClass->GetFullName());
+			UE_LOG(LogCompile, Log, TEXT("Imported: %s"), *ClassDef.GetFullName());
 		}
 	}
 	else
 	{
-		ClassDef.SetInternalFlags(ResultClass->GetInternalFlags());
+		ClassDef.InitializeFromExistingUObject(ResultClass);
+		ClassDef.SetObject(ResultClass);
 	}
-
-	return ResultClass;
 }
 
 void ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef)
@@ -7045,16 +7050,14 @@ void ProcessParsedEnum(FUnrealEnumDefinitionInfo& EnumDef)
 	}
 }
 
-UScriptStruct* ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStructDef)
+void ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStructDef)
 {
-	UPackage* Package = ScriptStructDef.GetPackageDef().GetPackage();
 	const FString& StructName = ScriptStructDef.GetNameCPP();
-
 	FString StructNameStripped = GetClassNameWithPrefixRemoved(*StructName);
 
-	if (UScriptStruct* Existing = FEngineAPI::FindObject<UScriptStruct>(ANY_PACKAGE, *StructNameStripped))
+	if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*StructNameStripped))
 	{
-		FUHTException::Throwf(ScriptStructDef, TEXT("Duplicate struct name: %s also exists in file %s"), *StructNameStripped, *Existing->GetOutermost()->GetName());
+		FUHTException::Throwf(ScriptStructDef, TEXT("Duplicate struct name: %s also exists in file %s"), *StructNameStripped, *(*Existing)->GetFilename());
 	}
 
 	// Check if the enum name is using a reserved keyword
@@ -7062,8 +7065,4 @@ UScriptStruct* ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStru
 	{
 		FUHTException::Throwf(ScriptStructDef, TEXT("struct: '%s' uses a reserved type name."), *StructNameStripped);
 	}
-
-	// Create enum definition.
-	UScriptStruct* Struct = new(EC_InternalUseOnlyConstructor, Package, FName(StructNameStripped), RF_Public) UScriptStruct(FObjectInitializer());
-	return Struct;
 }
