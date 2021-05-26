@@ -32,8 +32,11 @@ OPENCV_INCLUDES_START
 // The check macro causes problems with opencv headers. 
 // e.g. OpenCV\include\opencv2/core/utility.hpp(53): fatal error C1021: invalid preprocessor command 'warning'
 #undef check 
-#include <opencv2/opencv.hpp>
+#pragma warning(push)
+#pragma warning(disable:6269) // Suppress warning in OpenCV/include/opencv2/flann/any.h 
+#include "opencv2/opencv.hpp"
 #include "opencv2/calib3d.hpp"
+#pragma warning(pop)
 OPENCV_INCLUDES_END
 #endif
 
