@@ -2128,14 +2128,16 @@ bool UMaterial::GetScalarParameterValue(const FHashedMaterialParameterInfo& Para
 
 bool UMaterial::GetScalarParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo, bOveriddenOnly);
-	if (Index == INDEX_NONE)
+	if (!bOveriddenOnly)
 	{
-		return false;
+		const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
+		if (Index != INDEX_NONE)
+		{
+			OutValue = CachedExpressionData.Parameters.ScalarValues[Index];
+			return true;
+		}
 	}
-
-	OutValue = CachedExpressionData.Parameters.ScalarValues[Index];
-	return true;
+	return false;
 }
 
 #if WITH_EDITOR
@@ -2267,13 +2269,16 @@ bool UMaterial::GetVectorParameterValue(const FHashedMaterialParameterInfo& Para
 
 bool UMaterial::GetVectorParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo, bOveriddenOnly);
-	if (Index == INDEX_NONE)
+	if (!bOveriddenOnly)
 	{
-		return false;
+		const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
+		if (Index != INDEX_NONE)
+		{
+			OutValue = CachedExpressionData.Parameters.VectorValues[Index];
+			return true;
+		}
 	}
-	OutValue = CachedExpressionData.Parameters.VectorValues[Index];
-	return true;
+	return false;
 }
 
 #if WITH_EDITOR
@@ -2392,14 +2397,17 @@ bool UMaterial::GetTextureParameterValue(const FHashedMaterialParameterInfo& Par
 
 bool UMaterial::GetTextureParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo, bOveriddenOnly);
-	if (Index == INDEX_NONE)
+	if (!bOveriddenOnly)
 	{
-		OutValue = nullptr;
-		return false;
+		const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
+		if (Index != INDEX_NONE)
+		{
+			OutValue = CachedExpressionData.Parameters.TextureValues[Index];
+			return true;
+		}
 	}
-	OutValue = CachedExpressionData.Parameters.TextureValues[Index];
-	return true;
+	OutValue = nullptr;
+	return false;
 }
 
 #if WITH_EDITOR
@@ -2497,14 +2505,17 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue(const FHashedMaterialPara
 
 bool UMaterial::GetRuntimeVirtualTextureParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, bOveriddenOnly);
-	if (Index == INDEX_NONE)
+	if (!bOveriddenOnly)
 	{
-		OutValue = nullptr;
-		return false;
+		const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo);
+		if (Index != INDEX_NONE)
+		{
+			OutValue = CachedExpressionData.Parameters.RuntimeVirtualTextureValues[Index];
+			return true;
+		}
 	}
-	OutValue = CachedExpressionData.Parameters.RuntimeVirtualTextureValues[Index];
-	return true;
+	OutValue = nullptr;
+	return false;
 }
 
 #if WITH_EDITOR
@@ -2616,16 +2627,20 @@ bool UMaterial::GetFontParameterValue(const FHashedMaterialParameterInfo& Parame
 
 bool UMaterial::GetFontParameterValue_New(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo, bOveriddenOnly);
-	if (Index == INDEX_NONE)
+	if (!bOveriddenOnly)
 	{
-		OutFontValue = nullptr;
-		OutFontPage = INDEX_NONE;
-		return false;
+		const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo);
+		if (Index != INDEX_NONE)
+		{
+			OutFontValue = CachedExpressionData.Parameters.FontValues[Index];
+			OutFontPage = CachedExpressionData.Parameters.FontPageValues[Index];
+			return true;
+		}
 	}
-	OutFontValue = CachedExpressionData.Parameters.FontValues[Index];
-	OutFontPage = CachedExpressionData.Parameters.FontPageValues[Index];
-	return true;
+
+	OutFontValue = nullptr;
+	OutFontPage = INDEX_NONE;
+	return false;
 }
 
 #if WITH_EDITOR
@@ -2701,31 +2716,35 @@ bool UMaterial::GetFontParameterValue_Legacy(const FHashedMaterialParameterInfo&
 #if WITH_EDITORONLY_DATA
 bool UMaterial::GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::StaticSwitch, ParameterInfo, bOveriddenOnly);
-	if (Index == INDEX_NONE)
+	if (!bOveriddenOnly)
 	{
-		return false;
+		const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::StaticSwitch, ParameterInfo);
+		if (Index != INDEX_NONE)
+		{
+			OutExpressionGuid = CachedExpressionData.Parameters.GetExpressionGuid(EMaterialParameterType::StaticSwitch, Index);
+			OutValue = CachedExpressionData.Parameters.StaticSwitchValues[Index];
+			return true;
+		}
 	}
-
-	OutExpressionGuid = CachedExpressionData.Parameters.GetExpressionGuid(EMaterialParameterType::StaticSwitch, Index);
-	OutValue = CachedExpressionData.Parameters.StaticSwitchValues[Index];
-	return true;
+	return false;
 }
 
 bool UMaterial::GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent) const
 {
-	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::StaticComponentMask, ParameterInfo, bOveriddenOnly);
-	if (Index == INDEX_NONE)
+	if (!bOveriddenOnly)
 	{
-		return false;
+		const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::StaticComponentMask, ParameterInfo);
+		if (Index != INDEX_NONE)
+		{
+			OutExpressionGuid = CachedExpressionData.Parameters.GetExpressionGuid(EMaterialParameterType::StaticComponentMask, Index);
+			R = CachedExpressionData.Parameters.StaticComponentMaskValues[Index].R;
+			G = CachedExpressionData.Parameters.StaticComponentMaskValues[Index].G;
+			B = CachedExpressionData.Parameters.StaticComponentMaskValues[Index].B;
+			A = CachedExpressionData.Parameters.StaticComponentMaskValues[Index].A;
+			return true;
+		}
 	}
-
-	OutExpressionGuid = CachedExpressionData.Parameters.GetExpressionGuid(EMaterialParameterType::StaticComponentMask, Index);
-	R = CachedExpressionData.Parameters.StaticComponentMaskValues[Index].R;
-	G = CachedExpressionData.Parameters.StaticComponentMaskValues[Index].G;
-	B = CachedExpressionData.Parameters.StaticComponentMaskValues[Index].B;
-	A = CachedExpressionData.Parameters.StaticComponentMaskValues[Index].A;
-	return true;
+	return false;
 }
 
 bool UMaterial::GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent /*= true*/) const

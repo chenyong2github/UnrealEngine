@@ -112,8 +112,6 @@ struct FMaterialCachedParameterEntry
 	UPROPERTY()
 	TArray<FGuid> ExpressionGuids; // editor-only?
 
-	UPROPERTY()
-	TArray<bool> Overrides;
 };
 
 USTRUCT()
@@ -150,11 +148,8 @@ struct FMaterialCachedParameters
 	inline int32 GetNumParameters(EMaterialParameterType Type) const { return GetParameterTypeEntry(Type).ParameterInfos.Num(); }
 	inline const FName& GetParameterName(EMaterialParameterType Type, int32 Index) const { return GetParameterTypeEntry(Type).ParameterInfos[Index].Name; }
 
-	int32 FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo, bool bOveriddenOnly) const;
 	int32 FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo) const;
-	bool IsParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly) const;
 	const FGuid& GetExpressionGuid(EMaterialParameterType Type, int32 Index) const;
-	bool IsDefaultParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const;
 	void GetAllParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 	void GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 	void Reset();
