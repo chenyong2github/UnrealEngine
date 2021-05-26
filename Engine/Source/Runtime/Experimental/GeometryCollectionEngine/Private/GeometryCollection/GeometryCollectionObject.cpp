@@ -203,7 +203,7 @@ FGeometryCollectionSizeSpecificData UGeometryCollection::GeometryCollectionSizeS
 }
 
 
-void UGeometryCollection::UpdateSizeSpecificDataDefaults()
+void UGeometryCollection::ValidateSizeSpecificDataDefaults()
 {
 	auto HasDefault = [](const TArray<FGeometryCollectionSizeSpecificData>& DatasIn)
 	{
@@ -652,7 +652,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 
 	if (!SizeSpecificData.Num())
 	{
-		UpdateSizeSpecificDataDefaults();
+		ValidateSizeSpecificDataDefaults();
 	}
 
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::DensityUnitsChanged)
@@ -1084,15 +1084,27 @@ void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& P
 {
 	if (PropertyChangedEvent.Property)
 	{
+		bool bRebuildSimulationData = false;
+
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, EnableNanite))
 		{
 			InvalidateCollection();
 			EnsureDataIsCooked();
 		}
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, SizeSpecificData))
+		{
+			ValidateSizeSpecificDataDefaults();
+			InvalidateCollection();
+			bRebuildSimulationData = true;
+		}
 		else if (PropertyChangedEvent.Property->GetFName() != GET_MEMBER_NAME_CHECKED(UGeometryCollection, Materials))
 		{
 			InvalidateCollection();
-			
+			bRebuildSimulationData = true;
+		}
+
+		if (bRebuildSimulationData)
+		{
 			if (!bManualDataCreate)
 			{
 				CreateSimulationData();
@@ -1109,6 +1121,7 @@ bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	if (Package->IsDirty())
 	{
 		InvalidateCollection();
+		ValidateSizeSpecificDataDefaults();
 	}
 
 	return bSuperResult;

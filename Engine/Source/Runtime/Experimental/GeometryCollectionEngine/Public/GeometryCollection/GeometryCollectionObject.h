@@ -542,9 +542,11 @@ private:
 #endif
 
 	/*
-	* Used to transfer deprecated properties to the size specific structures during serialization.
+	* Used to transfer deprecated properties to the size specific structures during serialization
+	* and to add back the default size specific data when deleted. 
 	*/
-	void UpdateSizeSpecificDataDefaults();
+	void ValidateSizeSpecificDataDefaults();
+
 
 private:
 	/** Guid created on construction of this collection. It should be used to uniquely identify this collection */
