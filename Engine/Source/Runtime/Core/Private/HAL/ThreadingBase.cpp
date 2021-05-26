@@ -645,32 +645,24 @@ void FEvent::ResetForStats()
 }
 
 FScopedEvent::FScopedEvent()
-	: Event(TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().GetEventFromPool())
+	: Event(TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().GetRawEvent())
 { }
 
 bool FScopedEvent::IsReady()
 {
-	if ( Event )
+	if ( Event->Wait(1) )
 	{
-		if ( Event->Wait(1) )
-		{
-			TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().ReturnToPool(Event);
-			Event = nullptr;
-			return true;
-		}
-		return false;
+		TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().ReturnRawEvent(Event);
+		Event = nullptr;
+		return true;
 	}
-	return true;
+	return false;
 }
 
 FScopedEvent::~FScopedEvent()
 {
-	if ( Event )
-	{
-		Event->Wait();
-		TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().ReturnToPool(Event);
-		Event = nullptr;
-	}
+	Event->Wait();
+	TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().ReturnRawEvent(Event);
 }
 
 
@@ -679,12 +671,37 @@ FScopedEvent::~FScopedEvent()
 -----------------------------------------------------------------------------*/
 
 FEventRef::FEventRef(EEventMode Mode /* = EEventMode::AutoReset */)
-	: Event(FPlatformProcess::GetSynchEventFromPool(Mode == EEventMode::ManualReset))
-{}
+{
+	if (Mode == EEventMode::AutoReset)
+	{
+		Event = TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().GetRawEvent();
+	}
+	else
+	{
+		Event = TLazySingleton<TEventPool<EEventMode::ManualReset>>::Get().GetRawEvent();
+	}
+}
 
 FEventRef::~FEventRef()
 {
-	FPlatformProcess::ReturnSynchEventToPool(Event);
+	if (Event->IsManualReset())
+	{
+		TLazySingleton<TEventPool<EEventMode::ManualReset>>::Get().ReturnRawEvent(Event);
+	}
+	else
+	{
+		TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().ReturnRawEvent(Event);
+	}
+}
+
+/*-----------------------------------------------------------------------------
+	FEventPtr
+-----------------------------------------------------------------------------*/
+
+FSharedEventRef::FSharedEventRef(EEventMode Mode  /* = EEventMode::AutoReset */)
+	: Ptr(TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().GetRawEvent(),
+		[](FEvent* Event) { TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().ReturnRawEvent(Event); })
+{
 }
 
 /*-----------------------------------------------------------------------------
