@@ -27,7 +27,11 @@ public:
 			InOutView.bCameraMotionBlur = true;
 			{
 				FViewMatrices::FMinimalInitializer Initializer;
-				Initializer.ViewRotationMatrix = FRotationMatrix::Make(BlurSetup.CameraRotation);
+				Initializer.ViewRotationMatrix = FInverseRotationMatrix(BlurSetup.CameraRotation) * FMatrix(
+					FPlane(0, 0, 1, 0),
+					FPlane(1, 0, 0, 0),
+					FPlane(0, 1, 0, 0),
+					FPlane(0, 0, 0, 1));
 				Initializer.ViewOrigin = BlurSetup.CameraLocation;
 				Initializer.ProjectionMatrix = ViewportContext.ProjectionMatrix;
 				FViewMatrices ViewMatrices(Initializer);
