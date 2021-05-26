@@ -149,6 +149,8 @@ AActor* CreateMeshAsset(FGeometryCollection& Collection, const FTransform& Colle
 	// normals and tangents should carry over from the geometry collection
 	NewStaticMesh->GetSourceModel(0).BuildSettings.bRecomputeNormals = false;
 	NewStaticMesh->GetSourceModel(0).BuildSettings.bRecomputeTangents = false;
+	NewStaticMesh->GetSourceModel(0).BuildSettings.bGenerateLightmapUVs = false;
+
 	FMeshDescription* OutputMeshDescription = NewStaticMesh->CreateMeshDescription(0);
 
 	NewStaticMesh->CreateBodySetup();
