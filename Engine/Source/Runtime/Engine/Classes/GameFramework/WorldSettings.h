@@ -614,10 +614,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Audio)
 	FInteriorSettings DefaultAmbientZoneSettings;
 
-	/** Distance from the player after which content will be rendered in mono if monoscopic far field rendering is activated */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=VR)
-	float MonoCullingDistance;
-
 	/** Default Base SoundMix.																			*/
 	UPROPERTY(EditAnywhere, Category=Audio)
 	class USoundMix* DefaultBaseSoundMix;
