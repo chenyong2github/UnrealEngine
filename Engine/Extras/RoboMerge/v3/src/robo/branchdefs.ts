@@ -67,7 +67,7 @@ export type IntegrationWindowPane = {
 	durationHours: number
 }
 
-type CommonOptionFields = {
+export type CommonOptionFields = {
 	lastGoodCLPath: string | number
 	pauseCISUnlessAtGate: boolean
 
