@@ -3,6 +3,7 @@
 #include "Exceptions.h"
 
 #include "ClassMaps.h"
+#include "BaseParser.h"
 #include "UnrealHeaderTool.h"
 #include "UnrealHeaderToolGlobals.h"
 #include "UnrealSourceFile.h"
@@ -32,11 +33,11 @@ FUHTException::FUHTException(ECompilationResult::Type InResult, const FUnrealSou
 {
 }
 
-FUHTException::FUHTException(ECompilationResult::Type InResult, FUnrealTypeDefinitionInfo& TypeDef, FString&& InMessage)
+FUHTException::FUHTException(ECompilationResult::Type InResult, const FUHTExceptionContext& InContext, FString&& InMessage)
 	: Result(InResult)
 	, Message(MoveTemp(InMessage))
-	, Filename(TypeDef.GetUnrealSourceFile().GetFilename())
-	, Line(TypeDef.GetLineNumber())
+	, Filename(InContext.GetFilename())
+	, Line(InContext.GetLineNumber())
 {
 }
 
@@ -44,6 +45,8 @@ namespace UE::UnrealHeaderTool::Exceptions::Private
 {
 	std::atomic<ECompilationResult::Type> OverallResults = ECompilationResult::Succeeded;
 	std::atomic<int32> NumFailures = 0;
+	std::atomic<bool> OverallWarnings = false;
+	std::atomic<int32> NumWarnings = 0;
 	FGraphEventArray ErrorTasks;
 	FCriticalSection ErrorTasksCS;
 
@@ -65,6 +68,26 @@ namespace UE::UnrealHeaderTool::Exceptions::Private
 		GWarn->Log(ELogVerbosity::Error, FormattedErrorMessage);
 
 		FResults::SetResult(InResult);
+	}
+
+	void LogWarningInternal(const FString& Filename, int32 Line, const FString& Message)
+	{
+		TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
+
+		FString FormattedErrorMessage;
+		if (Filename.IsEmpty())
+		{
+			FormattedErrorMessage = FString::Printf(TEXT("Warning: %s\r\n"), *Message);
+		}
+		else
+		{
+			FormattedErrorMessage = FString::Printf(TEXT("%s(%d): Warning: %s\r\n"), *Filename, Line, *Message);
+		}
+
+		UE_LOG(LogCompile, Log, TEXT("%s"), *FormattedErrorMessage);
+		GWarn->Log(ELogVerbosity::Warning, FormattedErrorMessage);
+
+		FResults::MarkWarning();
 	}
 }
 
@@ -122,30 +145,41 @@ void FResults::LogError(const FUnrealSourceFile& SourceFile, int32 Line, const T
 	LogError(MoveTemp(AbsFilename), Line, ErrorMsg, InResult);
 }
 
-void FResults::LogError(const UObject& Object, const TCHAR* ErrorMsg, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
+void FResults::LogError(const FUHTExceptionContext& Context, const TCHAR* ErrorMsg, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
 {
-	if (const UField* Field = Cast<UField>(&Object))
-	{
-		if (TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = GTypeDefinitionInfoMap.Find(Field))
-		{
-			LogError((*TypeDef)->GetUnrealSourceFile(), (*TypeDef)->GetLineNumber(), ErrorMsg, InResult);
-		}
-	}
-	LogError(ErrorMsg, InResult);
-}
-
-void FResults::LogError(FUnrealTypeDefinitionInfo& InTypeDef, const TCHAR* ErrorMsg, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
-{
-	if (InTypeDef.HasSource())
-	{
-		LogError(InTypeDef.GetUnrealSourceFile(), InTypeDef.GetLineNumber(), ErrorMsg, InResult);
-	}
-	LogError(ErrorMsg, InResult);
+	LogError(Context.GetFilename(), Context.GetLineNumber(), ErrorMsg, InResult);
 }
 
 void FResults::LogError(const TCHAR* ErrorMsg, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
 {
 	LogError(TEXT(""), 1, ErrorMsg, InResult);
+}
+
+void FResults::LogWarning(FString&& Filename, int32 Line, const FString& Message)
+{
+	using namespace UE::UnrealHeaderTool::Exceptions::Private;
+
+	if (IsInGameThread())
+	{
+		LogWarningInternal(Filename, Line, Message);
+	}
+	else
+	{
+		auto LogWarningTask = [Filename = MoveTemp(Filename), Line, Message]()
+		{
+			LogWarningInternal(Filename, Line, Message);
+		};
+
+		FGraphEventRef EventRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LogWarningTask), TStatId(), nullptr, ENamedThreads::GameThread);
+
+		FScopeLock Lock(&ErrorTasksCS);
+		ErrorTasks.Add(EventRef);
+	}
+}
+
+void FResults::LogWarning(const FUHTExceptionContext& Context, const TCHAR* ErrorMsg)
+{
+	LogWarning(Context.GetFilename(), Context.GetLineNumber(), ErrorMsg);
 }
 
 void FResults::WaitForErrorTasks()
@@ -181,6 +215,13 @@ ECompilationResult::Type FResults::GetResults()
 	using namespace UE::UnrealHeaderTool::Exceptions::Private;
 
 	return OverallResults;
+}
+
+void FResults::MarkWarning()
+{
+	using namespace UE::UnrealHeaderTool::Exceptions::Private;
+	OverallWarnings = true;
+	++NumWarnings;
 }
 
 ECompilationResult::Type FResults::GetOverallResults()

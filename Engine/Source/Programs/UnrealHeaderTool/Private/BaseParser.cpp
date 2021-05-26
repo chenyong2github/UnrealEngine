@@ -2,8 +2,8 @@
 
 #include "BaseParser.h"
 #include "UnrealHeaderTool.h"
+#include "UnrealSourceFile.h"
 #include "UObject/NameTypes.h"
-#include "UObject/ErrorException.h"
 
 #include "ParserHelper.h"
 
@@ -60,13 +60,13 @@ namespace
 			ValueActions.Add(FMetadataValueAction(InMapping, TEXT(""), EMetadataValueAction::Remove));
 		}
 
-		void ApplyToMetadata(TMap<FName, FString>& Metadata, const FString* Value = nullptr)
+		void ApplyToMetadata(FBaseParser& Parser, TMap<FName, FString>& Metadata, const FString* Value = nullptr)
 		{
 			for (const FMetadataValueAction& ValueAction : ValueActions)
 			{
 				if (ValueAction.ValueAction == EMetadataValueAction::Add)
 				{
-					FBaseParser::InsertMetaDataPair(Metadata, ValueAction.Mapping, Value ? *Value : ValueAction.DefaultValue);
+					Parser.InsertMetaDataPair(Metadata, ValueAction.Mapping, Value ? *Value : ValueAction.DefaultValue);
 				}
 				else
 				{
@@ -180,12 +180,18 @@ FString FPropertySpecifier::ConvertToString() const
 /////////////////////////////////////////////////////
 // FBaseParser
 
-FBaseParser::FBaseParser()
+FBaseParser::FBaseParser(FUnrealSourceFile& InSourceFile)
 	: UHTConfig(FUHTConfig::Get())
+	, SourceFile(InSourceFile)
 	, StatementsParsed(0)
 	, LinesParsed(0)
 {
 }
+
+FString FBaseParser::GetFilename() const
+{
+	return SourceFile.GetFilename();
+};
 
 void FBaseParser::ResetParser(const TCHAR* SourceBuffer, int32 StartingLineNumber)
 {
@@ -251,7 +257,7 @@ Loop:
 			if (!bInsideComment)
 			{
 				ClearComment();
-				FError::Throwf(TEXT("Unexpected '*/' outside of comment") );
+				FUHTException::Throwf(*this, TEXT("Unexpected '*/' outside of comment") );
 			}
 
 			/** Asterisk and slash always end comment. */
@@ -270,7 +276,7 @@ Loop:
 		if (c == 0)
 		{
 			ClearComment();
-			FError::Throwf(TEXT("End of class header encountered inside comment") );
+			FUHTException::Throwf(*this, TEXT("End of class header encountered inside comment") );
 		}
 		goto Loop;
 	}
@@ -395,7 +401,7 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 			Token.Identifier[Length++] = c;
 			if( Length >= NAME_SIZE )
 			{
-				FError::Throwf(TEXT("Identifer length exceeds maximum of %i"), (int32)NAME_SIZE);
+				FUHTException::Throwf(*this, TEXT("Identifer length exceeds maximum of %i"), (int32)NAME_SIZE);
 				Length = ((int32)NAME_SIZE) - 1;
 				break;
 			}
@@ -447,7 +453,7 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 			Token.Identifier[Length++] = c;
 			if( Length >= NAME_SIZE )
 			{
-				FError::Throwf(TEXT("Number length exceeds maximum of %i "), (int32)NAME_SIZE );
+				FUHTException::Throwf(*this, TEXT("Number length exceeds maximum of %i "), (int32)NAME_SIZE );
 				Length = ((int32)NAME_SIZE) - 1;
 				break;
 			}
@@ -499,7 +505,7 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 		c = GetChar(/*bLiteral=*/ true);
 		if (c != '\'')
 		{
-			FError::Throwf(TEXT("Unterminated character constant"));
+			FUHTException::Throwf(*this, TEXT("Unterminated character constant"));
 			UngetChar();
 		}
 
@@ -530,7 +536,7 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 			Temp[Length++] = c;
 			if( Length >= MAX_STRING_CONST_SIZE )
 			{
-				FError::Throwf(TEXT("String constant exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
+				FUHTException::Throwf(*this, TEXT("String constant exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
 				c = TEXT('\"');
 				Length = ((int32)MAX_STRING_CONST_SIZE) - 1;
 				break;
@@ -541,7 +547,7 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 
 		if( c != '"' )
 		{
-			FError::Throwf(TEXT("Unterminated string constant: %s"), Temp);
+			FUHTException::Throwf(*this, TEXT("Unterminated string constant: %s"), Temp);
 			UngetChar();
 		}
 
@@ -628,7 +634,7 @@ bool FBaseParser::GetRawTokenRespectingQuotes( FToken& Token, TCHAR StopChar /* 
 		Temp[Length++] = c;
 		if( Length >= MAX_STRING_CONST_SIZE )
 		{
-			FError::Throwf(TEXT("Identifier exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
+			FUHTException::Throwf(*this, TEXT("Identifier exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
 			c = GetChar(true);
 			Length = ((int32)MAX_STRING_CONST_SIZE) - 1;
 			break;
@@ -639,7 +645,7 @@ bool FBaseParser::GetRawTokenRespectingQuotes( FToken& Token, TCHAR StopChar /* 
 
 	if (bInQuote)
 	{
-		FError::Throwf(TEXT("Unterminated quoted string"));
+		FUHTException::Throwf(*this, TEXT("Unterminated quoted string"));
 	}
 
 	// Get rid of trailing whitespace.
@@ -678,7 +684,7 @@ bool FBaseParser::GetRawToken( FToken& Token, TCHAR StopChar /* = TCHAR('\n') */
 		Temp[Length++] = c;
 		if( Length >= MAX_STRING_CONST_SIZE )
 		{
-			FError::Throwf(TEXT("Identifier exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
+			FUHTException::Throwf(*this, TEXT("Identifier exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
 		}
 		c = GetChar(true);
 	}
@@ -763,7 +769,7 @@ bool FBaseParser::GetConstInt(int32& Result, const TCHAR* Tag)
 
 	if (Tag != NULL)
 	{
-		FError::Throwf(TEXT("%s: Missing constant integer"), Tag );
+		FUHTException::Throwf(*this, TEXT("%s: Missing constant integer"), Tag );
 	}
 
 	return false;
@@ -786,7 +792,7 @@ bool FBaseParser::GetConstInt64(int64& Result, const TCHAR* Tag)
 
 	if (Tag != NULL)
 	{
-		FError::Throwf(TEXT("%s: Missing constant integer"), Tag );
+		FUHTException::Throwf(*this, TEXT("%s: Missing constant integer"), Tag );
 	}
 
 	return false;
@@ -891,11 +897,11 @@ void FBaseParser::MatchSemi()
 		FToken Token;
 		if( GetToken(Token) )
 		{
-			FError::Throwf(TEXT("Missing ';' before '%s'"), Token.Identifier );
+			FUHTException::Throwf(*this, TEXT("Missing ';' before '%s'"), Token.Identifier );
 		}
 		else
 		{
-			FError::Throwf(TEXT("Missing ';'") );
+			FUHTException::Throwf(*this, TEXT("Missing ';'") );
 		}
 	}
 }
@@ -952,7 +958,7 @@ void FBaseParser::RequireSymbol( const TCHAR Match, const TCHAR* Tag, ESymbolPar
 {
 	if (!MatchSymbol(Match, bParseTemplateClosingBracket))
 	{
-		FError::Throwf(TEXT("Missing '%c' in %s"), Match, Tag );
+		FUHTException::Throwf(*this, TEXT("Missing '%c' in %s"), Match, Tag );
 	}
 }
 
@@ -960,7 +966,7 @@ void FBaseParser::RequireSymbol(const TCHAR Match, TFunctionRef<FString()> Error
 {
 	if (!MatchSymbol(Match, bParseTemplateClosingBracket))
 	{
-		FError::Throwf(TEXT("Missing '%c' in %s"), Match, *ErrorGetter());
+		FUHTException::Throwf(*this, TEXT("Missing '%c' in %s"), Match, *ErrorGetter());
 	}
 }
 
@@ -971,7 +977,7 @@ void FBaseParser::RequireConstInt( const TCHAR* Match, const TCHAR* Tag )
 {
 	if (!MatchConstInt(Match))
 	{
-		FError::Throwf(TEXT("Missing integer '%s' in %s"), Match, Tag );
+		FUHTException::Throwf(*this, TEXT("Missing integer '%s' in %s"), Match, Tag );
 	}
 }
 
@@ -979,7 +985,7 @@ void FBaseParser::RequireAnyConstInt( const TCHAR* Tag )
 {
 	if (!MatchAnyConstInt())
 	{
-		FError::Throwf(TEXT("Missing integer in %s"), Tag );
+		FUHTException::Throwf(*this, TEXT("Missing integer in %s"), Tag );
 	}
 }
 
@@ -990,7 +996,7 @@ void FBaseParser::RequireIdentifier( const TCHAR* Match, const ESearchCase::Type
 {
 	if (!MatchIdentifier(Match, SearchCase))
 	{
-		FError::Throwf(TEXT("Missing '%s' in %s"), Match, Tag );
+		FUHTException::Throwf(*this, TEXT("Missing '%s' in %s"), Match, Tag );
 	}
 }
 
@@ -1007,7 +1013,7 @@ FString FBaseParser::ReadNewStyleValue(const TCHAR* TypeOfSpecifier)
 	FToken ValueToken;
 	if (!GetToken(ValueToken, false))
 	{
-		FError::Throwf(TEXT("Expected a value when handling a %s"), TypeOfSpecifier);
+		FUHTException::Throwf(*this, TEXT("Expected a value when handling a %s"), TypeOfSpecifier);
 	}
 
 	FString Result;
@@ -1062,7 +1068,7 @@ void FBaseParser::ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FS
 	// Read an identifier
 	if (!GetIdentifier(NameToken))
 	{
-		FError::Throwf(TEXT("Missing %s name"), FailureMessage);
+		FUHTException::Throwf(*this, TEXT("Missing %s name"), FailureMessage);
 	}
 
 	// Is the identifier the name or an DLL import/export API macro?
@@ -1074,7 +1080,7 @@ void FBaseParser::ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FS
 		// Read the real name
 		if (!GetIdentifier(NameToken))
 		{
-			FError::Throwf(TEXT("Missing %s name"), FailureMessage);
+			FUHTException::Throwf(*this, TEXT("Missing %s name"), FailureMessage);
 		}
 		DeclaredName = NameToken.Identifier;
 	}
@@ -1106,7 +1112,7 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 		FToken Specifier;
 		if (!GetToken(Specifier))
 		{
-			FError::Throwf(TEXT("Expected %s"), *ErrorMessageGetter());
+			FUHTException::Throwf(*this, TEXT("Expected %s"), *ErrorMessageGetter());
 		}
 
 		if (Specifier.Matches(TEXT("meta"), ESearchCase::IgnoreCase))
@@ -1121,7 +1127,7 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 				FToken MetaKeyToken;
 				if (!GetIdentifier(MetaKeyToken))
 				{
-					FError::Throwf(TEXT("Expected a metadata key"));
+					FUHTException::Throwf(*this, TEXT("Expected a metadata key"));
 				}
 
 				FString Key = MetaKeyToken.Identifier;
@@ -1146,20 +1152,20 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 			{
 				if (MetadataKeyword->ValueArgument == EMetadataValueArgument::None)
 				{
-					FError::Throwf(TEXT("Incorrect = after metadata specifier '%s'"), Specifier.Identifier);
+					FUHTException::Throwf(*this, TEXT("Incorrect = after metadata specifier '%s'"), Specifier.Identifier);
 				}
 
 				FString Value = ReadNewStyleValue(TypeOfSpecifier);
-				MetadataKeyword->ApplyToMetadata(MetaData, &Value);
+				MetadataKeyword->ApplyToMetadata(*this, MetaData, &Value);
 			}
 			else
 			{
 				if (MetadataKeyword->ValueArgument == EMetadataValueArgument::Required)
 				{
-					FError::Throwf(TEXT("Missing = after metadata specifier '%s'"), Specifier.Identifier);
+					FUHTException::Throwf(*this, TEXT("Missing = after metadata specifier '%s'"), Specifier.Identifier);
 				}
 
-				MetadataKeyword->ApplyToMetadata(MetaData);
+				MetadataKeyword->ApplyToMetadata(*this, MetaData);
 			}
 		}
 		else
@@ -1185,7 +1191,7 @@ void FBaseParser::InsertMetaDataPair(TMap<FName, FString>& MetaData, FString Key
 	// make sure the key is valid
 	if (Key.Len() == 0)
 	{
-		FError::Throwf(TEXT("Invalid metadata"));
+		FUHTException::Throwf(*this, TEXT("Invalid metadata"));
 	}
 
 	// trim extra white space and quotes
@@ -1202,7 +1208,7 @@ void FBaseParser::InsertMetaDataPair(TMap<FName, FString>& MetaData, FName KeyNa
 	FString* ExistingValue = MetaData.Find(KeyName);
 	if (ExistingValue && Value != *ExistingValue)
 	{
-		FError::Throwf(TEXT("Metadata key '%s' first seen with value '%s' then '%s'"), *KeyName.ToString(), **ExistingValue, *Value);
+		FUHTException::Throwf(*this, TEXT("Metadata key '%s' first seen with value '%s' then '%s'"), *KeyName.ToString(), **ExistingValue, *Value);
 	}
 
 	// finally we have enough to put it into our metadata

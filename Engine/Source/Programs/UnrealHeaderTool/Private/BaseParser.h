@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Exceptions.h"
 #include "GeneratedCodeVersion.h"
 #include "ParserHelper.h"
 #include "Containers/UnrealString.h"
-#include "UObject/ErrorException.h"
 
 class FToken;
 
@@ -83,15 +83,20 @@ public:
 // Base class of header parsers.
 //
 
-class FBaseParser
+class FBaseParser 
+	: public FUHTExceptionContext
 {
 protected:
-	FBaseParser();
+	FBaseParser(FUnrealSourceFile& InSourceFile);
+	virtual ~FBaseParser() = default;
 
 	// UHTConfig data
 	const FUHTConfig& UHTConfig;
 
 public:
+	// Source being parsed
+	FUnrealSourceFile& SourceFile;
+
 	// Input text.
 	const TCHAR* Input;
 
@@ -118,6 +123,13 @@ public:
 
 	// Total number of lines parsed.
 	int32 LinesParsed;
+
+	virtual FString GetFilename() const override;
+
+	virtual int32 GetLineNumber() const override
+	{
+		return InputLine;
+	};
 
 	void ResetParser(const TCHAR* SourceBuffer, int32 StartingLineNumber = 1);
 
@@ -228,10 +240,10 @@ public:
 	void ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& SpecifiersFound, const TCHAR* TypeOfSpecifier, TMap<FName, FString>& MetaData);
 
 	// Validates and inserts one key-value pair into the meta data map
-	static void InsertMetaDataPair(TMap<FName, FString>& MetaData, FString InKey, FString InValue);
+	void InsertMetaDataPair(TMap<FName, FString>& MetaData, FString InKey, FString InValue);
 
 	// Validates and inserts one key-value pair into the meta data map
-	static void InsertMetaDataPair(TMap<FName, FString>& MetaData, FName InKey, FString InValue);
+	void InsertMetaDataPair(TMap<FName, FString>& MetaData, FName InKey, FString InValue);
 
 	/**
 	 * Parse class/struct inheritance.
@@ -264,7 +276,7 @@ void FBaseParser::ParseInheritance(const TCHAR* What, Lambda&& InLambda)
 		RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("inheritance"));
 		if (!GetIdentifier(Token))
 		{
-			FError::Throwf(TEXT("Missing %s name"), What);
+			FUHTException::Throwf(*this, TEXT("Missing %s name"), What);
 		}
 		RedirectTypeIdentifier(Token);
 		InLambda(Token.Identifier, true);
@@ -282,7 +294,7 @@ void FBaseParser::ParseInheritance(const TCHAR* What, Lambda&& InLambda)
 			FToken Token;
 			if (!GetIdentifier(Token, true))
 			{
-				FError::Throwf(TEXT("Failed to get interface class identifier"));
+				FUHTException::Throwf(*this, TEXT("Failed to get interface class identifier"));
 			}
 
 			InterfaceName += Token.Identifier;
@@ -297,7 +309,7 @@ void FBaseParser::ParseInheritance(const TCHAR* What, Lambda&& InLambda)
 				{
 					if (!GetToken(Token))
 					{
-						FError::Throwf(TEXT("Unexpected end of file"));
+						FUHTException::Throwf(*this, TEXT("Unexpected end of file"));
 					}
 
 					if (Token.TokenType == TOKEN_Symbol)
