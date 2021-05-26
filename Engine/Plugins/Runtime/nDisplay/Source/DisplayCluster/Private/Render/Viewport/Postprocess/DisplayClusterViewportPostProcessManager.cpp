@@ -51,19 +51,21 @@ static TAutoConsoleVariable<int32> CVarPostprocessFrameAfterWarpBlend(
 	ECVF_RenderThreadSafe
 );
 
+void ImplGetPPOperations(TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo>& OutPPOperations)
+{
+	// Get registered PP operations map
+	const TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
+	// Get operations array (sorted already by the rendering manager)
+	PPOperationsMap.GenerateValueArray(OutPPOperations);
+}
+
 void FDisplayClusterViewportPostProcessManager::PerformPostProcessBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const
 {
 	bool bIsCustomPPEnabled = (CVarCustomPPEnabled.GetValueOnRenderThread() != 0);
 
-	// Get registered PP operations map
-	const TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
-
 	// Post-process before warp&blend
 	if (bIsCustomPPEnabled)
 	{
-		// Get operations array (sorted already by the rendering manager)
-		PPOperationsMap.GenerateValueArray(FDisplayClusterViewportPostProcessManager::PPOperations);
-
 		// PP round 1: post-process for each view region before warp&blend
 		ImplPerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, InViewportManagerProxy);
 	}
@@ -89,6 +91,9 @@ bool FDisplayClusterViewportPostProcessManager::ShouldUseAdditionalFrameTargetab
 
 	if (bEnabled)
 	{
+		TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperations;
+		ImplGetPPOperations(PPOperations);
+
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
 			if (CurPP.Operation->IsPostProcessViewBeforeWarpBlendRequired())
@@ -111,6 +116,9 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewBefore
 
 	if (bEnabled && InViewportManagerProxy)
 	{
+		TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperations;
+		ImplGetPPOperations(PPOperations);
+
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
 			if (CurPP.Operation->IsPostProcessViewBeforeWarpBlendRequired())
@@ -136,6 +144,9 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewAfterW
 
 	if (bEnabled != 0 && InViewportManagerProxy)
 	{
+		TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperations;
+		ImplGetPPOperations(PPOperations);
+
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
 			if (CurPP.Operation->IsPostProcessViewAfterWarpBlendRequired())
@@ -166,6 +177,9 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessFrameAfter
 		TArray<FIntPoint> TargetOffset;
 		if (InViewportManagerProxy->GetFrameTargets_RenderThread(FrameResources, TargetOffset, &AdditionalFrameResources))
 		{
+			TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperations;
+			ImplGetPPOperations(PPOperations);
+
 			for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 			{
 				if (CurPP.Operation->IsPostProcessFrameAfterWarpBlendRequired())
