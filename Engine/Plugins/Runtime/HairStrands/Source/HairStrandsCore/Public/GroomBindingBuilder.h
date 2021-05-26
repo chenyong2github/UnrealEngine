@@ -21,4 +21,7 @@ struct HAIRSTRANDSCORE_API FGroomBindingBuilder
 
 	// Update the root mesh projection data with unique valid mesh section IDs, based on the projection data
 	static void BuildUniqueSections(FHairStrandsRootData::FMeshProjectionLOD& LOD);
+
+	// Extract root data from bulk data
+	static void GetRootData(FHairStrandsRootData& Out, const FHairStrandsRootBulkData& In);
 };

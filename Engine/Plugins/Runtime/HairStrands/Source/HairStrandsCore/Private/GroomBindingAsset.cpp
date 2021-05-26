@@ -20,23 +20,48 @@
 
 bool IsHairStrandsDDCLogEnable();
 
-FArchive& operator<<(FArchive& Ar, FHairStrandsRootData& RootData)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairStrandsRootBulkData>& GroupDatas)
 {
-	RootData.Serialize(Ar);
-	return Ar;
+	uint32 GroupCount = GroupDatas.Num();
+	Ar << GroupCount;
+	if (Ar.IsLoading())
+	{
+		GroupDatas.SetNum(GroupCount);
+	}
+	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+	{
+		GroupDatas[GroupIt].Serialize(Ar, Owner);
+	}
 }
 
-FArchive& operator<<(FArchive& Ar, UGroomBindingAsset::FHairGroupData& GroupData)
+static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupBulkData& GroupData)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
-	GroupData.SimRootData.Serialize(Ar);
-	GroupData.RenRootData.Serialize(Ar);
+	GroupData.SimRootBulkData.Serialize(Ar, Owner);
+	GroupData.RenRootBulkData.Serialize(Ar, Owner);
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairBindingAsset)
 	{
-		Ar << GroupData.CardsRootData;
+		InternalSerialize(Ar, Owner, GroupData.CardsRootBulkData);
 	}
-	return Ar;
 }
+
+static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupBulkData>& GroupDatas)
+{
+	uint32 GroupCount = GroupDatas.Num();
+	Ar << GroupCount;
+	if (Ar.IsLoading())
+	{
+		GroupDatas.SetNum(GroupCount);
+	}
+	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+	{
+		InternalSerialize(Ar, Owner, GroupDatas[GroupIt]);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void UGroomBindingAsset::Serialize(FArchive& Ar)
 {
@@ -58,21 +83,21 @@ void UGroomBindingAsset::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		if (bIsStrandsStrippedForCook)
 		{
-			FHairGroupDatas StrippedHairGroupDatas;
-			StrippedHairGroupDatas.SetNum(HairGroupDatas.Num());
-			for (int32 Index = 0; Index < HairGroupDatas.Num(); ++Index)
+			TArray<FHairGroupBulkData> StrippedHairGroupDatas;
+			StrippedHairGroupDatas.SetNum(HairGroupBulkDatas.Num());
+			for (int32 Index = 0; Index < HairGroupBulkDatas.Num(); ++Index)
 			{
-				FHairGroupData& HairGroupData = HairGroupDatas[Index];
-				StrippedHairGroupDatas[Index].SimRootData = HairGroupData.SimRootData;
-				StrippedHairGroupDatas[Index].CardsRootData = HairGroupData.CardsRootData;
+				FHairGroupBulkData& HairGroupBulkData = HairGroupBulkDatas[Index];
+				StrippedHairGroupDatas[Index].SimRootBulkData = HairGroupBulkData.SimRootBulkData;
+				StrippedHairGroupDatas[Index].CardsRootBulkData = HairGroupBulkData.CardsRootBulkData;
 			}
 
-			Ar << StrippedHairGroupDatas;
+			InternalSerialize(Ar, this, StrippedHairGroupDatas);
 		}
 		else
 #endif
 		{
-			Ar << HairGroupDatas;
+			InternalSerialize(Ar, this, HairGroupBulkDatas);
 		}
 		bIsValid = true;
 	}
@@ -82,38 +107,38 @@ void UGroomBindingAsset::InitResource()
 {
 	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
 
-	for (FHairGroupData& Data : HairGroupDatas)
+	for (FHairGroupBulkData& BulkData : HairGroupBulkDatas)
 	{
 		const int32 GroupIndex = HairGroupResources.Num();
 		FHairGroupResource& Resource = HairGroupResources.AddDefaulted_GetRef();
 
 		// Guides
 		Resource.SimRootResources = nullptr;
-		if (Data.SimRootData.IsValid())
+		if (BulkData.SimRootBulkData.IsValid())
 		{
-			Resource.SimRootResources = new FHairStrandsRestRootResource(Data.SimRootData, EHairStrandsResourcesType::Guides);
+			Resource.SimRootResources = new FHairStrandsRestRootResource(BulkData.SimRootBulkData, EHairStrandsResourcesType::Guides);
 			BeginInitResource(Resource.SimRootResources);
 		}
 
 		// Strands
 		Resource.RenRootResources = nullptr;
-		if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands) && Data.RenRootData.IsValid())
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands) && BulkData.RenRootBulkData.IsValid())
 		{
-			Resource.RenRootResources = new FHairStrandsRestRootResource(Data.RenRootData, EHairStrandsResourcesType::Strands);
+			Resource.RenRootResources = new FHairStrandsRestRootResource(BulkData.RenRootBulkData, EHairStrandsResourcesType::Strands);
 			BeginInitResource(Resource.RenRootResources);
 		}
 
 		// Cards
 		if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards))
 		{
-			const uint32 CardsLODCount = Data.CardsRootData.Num();
+			const uint32 CardsLODCount = BulkData.CardsRootBulkData.Num();
 			Resource.CardsRootResources.SetNum(CardsLODCount);
 			for (uint32 CardsLODIt=0; CardsLODIt<CardsLODCount; ++CardsLODIt)
 			{
 				Resource.CardsRootResources[CardsLODIt] = nullptr;
-				if (Data.CardsRootData[CardsLODIt].IsValid())
+				if (BulkData.CardsRootBulkData[CardsLODIt].IsValid())
 				{
-					Resource.CardsRootResources[CardsLODIt] = new FHairStrandsRestRootResource(Data.CardsRootData[CardsLODIt], EHairStrandsResourcesType::Cards);
+					Resource.CardsRootResources[CardsLODIt] = new FHairStrandsRestRootResource(BulkData.CardsRootBulkData[CardsLODIt], EHairStrandsResourcesType::Cards);
 					BeginInitResource(Resource.CardsRootResources[CardsLODIt]);
 				}
 			}
@@ -215,14 +240,14 @@ void UGroomBindingAsset::ReleaseResource()
 void UGroomBindingAsset::Reset()
 {
 	ReleaseResource();
-	for (FHairGroupData& Data : HairGroupDatas)
+	for (FHairGroupBulkData& Data : HairGroupBulkDatas)
 	{
-		Data.SimRootData.Reset();
-		Data.RenRootData.Reset();
+		Data.SimRootBulkData.Reset();
+		Data.RenRootBulkData.Reset();
 
-		for (FHairStrandsRootData& CardsRootData : Data.CardsRootData)
+		for (FHairStrandsRootBulkData& CardsRootBulkData : Data.CardsRootBulkData)
 		{
-			CardsRootData.Reset();
+			CardsRootBulkData.Reset();
 		}
 	}
 
@@ -391,26 +416,26 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 
 		for (const FHairGroupResource& Resource : InBinding->HairGroupResources)
 		{
-			if (Resource.SimRootResources && InSkeletalMesh->GetLODNum() != Resource.SimRootResources->RootData.MeshProjectionLODs.Num())
+			if (Resource.SimRootResources && InSkeletalMesh->GetLODNum() != Resource.SimRootResources->BulkData.MeshProjectionLODs.Num())
 			{
 				if (bIssueWarning)
 				{
 					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not have the same have LOD count (LOD sim:%d) than the skeletal mesh (%s, LOD:%d). The binding asset will not be used."),
 						*InBinding->GetName(),
-						Resource.SimRootResources->RootData.MeshProjectionLODs.Num(),
+						Resource.SimRootResources->BulkData.MeshProjectionLODs.Num(),
 						*InSkeletalMesh->GetName(),
 						InSkeletalMesh->GetLODNum());
 				}
 				return false;
 			}
 
-			if (Resource.RenRootResources && InSkeletalMesh->GetLODNum() != Resource.RenRootResources->RootData.MeshProjectionLODs.Num() && IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
+			if (Resource.RenRootResources && InSkeletalMesh->GetLODNum() != Resource.RenRootResources->BulkData.MeshProjectionLODs.Num() && IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 			{
 				if (bIssueWarning)
 				{
 					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not have the same have LOD count (LOD render:%d) than the skeletal mesh (%s, LOD:%d). The binding asset will not be used."),
 						*InBinding->GetName(),
-						Resource.RenRootResources->RootData.MeshProjectionLODs.Num(),
+						Resource.RenRootResources->BulkData.MeshProjectionLODs.Num(),
 						*InSkeletalMesh->GetName(),
 						InSkeletalMesh->GetLODNum());
 				}
@@ -641,7 +666,7 @@ void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_BINDING_DERIVED_DATA_VERSION TEXT("C931E6356B4541B1BB3AE6FCE7C45DB7")
+#define GROOM_BINDING_DERIVED_DATA_VERSION TEXT("5D1E46FE8AF848E792FFD94F6F00CB10")
 
 namespace GroomBindingDerivedDataCacheUtils
 {
@@ -720,7 +745,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 			Ar.SerializeCompressed(DecompressionBuffer, 0, NAME_Zlib);
 
 			FLargeMemoryReader LargeMemReader(DecompressionBuffer, UncompressedSize, ELargeMemoryReaderFlags::Persistent | ELargeMemoryReaderFlags::TakeOwnership);
-			LargeMemReader << HairGroupDatas;
+			InternalSerialize(LargeMemReader, this, HairGroupBulkDatas);
 
 			bIsValid = true;
 		}
@@ -737,7 +762,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 			{
 				// Using a LargeMemoryWriter for serialization since the data can be bigger than 2 GB
 				FLargeMemoryWriter LargeMemWriter(0, /*bIsPersistent=*/ true);
-				LargeMemWriter << HairGroupDatas;
+				InternalSerialize(LargeMemWriter, this, HairGroupBulkDatas);
 
 				int64 UncompressedSize = LargeMemWriter.TotalSize();
 
@@ -755,7 +780,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		}
 
 		// Patch hair group info if it does not match the DDC-read/deserialized data
-		const uint32 GroupCount = HairGroupDatas.Num();
+		const uint32 GroupCount = HairGroupBulkDatas.Num();
 		if (GroupInfos.Num() != GroupCount)
 		{
 			GroupInfos.SetNum(GroupCount);
@@ -763,12 +788,12 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		for (uint32 GroupIt=0; GroupIt< GroupCount; ++GroupIt)
 		{
 			FGoomBindingGroupInfo& Info = GroupInfos[GroupIt];
-			const UGroomBindingAsset::FHairGroupData& Data = HairGroupDatas[GroupIt];
+			const FHairGroupBulkData& Data = HairGroupBulkDatas[GroupIt];
 			{
-				Info.SimRootCount = Data.SimRootData.RootCount;
-				Info.SimLODCount  = Data.SimRootData.MeshProjectionLODs.Num();
-				Info.RenRootCount = Data.RenRootData.RootCount;
-				Info.RenLODCount  = Data.RenRootData.MeshProjectionLODs.Num();
+				Info.SimRootCount = Data.SimRootBulkData.RootCount;
+				Info.SimLODCount  = Data.SimRootBulkData.MeshProjectionLODs.Num();
+				Info.RenRootCount = Data.RenRootBulkData.RootCount;
+				Info.RenLODCount  = Data.RenRootBulkData.MeshProjectionLODs.Num();
 			}
 		}
 
@@ -787,7 +812,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 
 void UGroomBindingAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupDatas.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupBulkDatas.GetAllocatedSize());
 
 	for (const FHairGroupResource& Group : HairGroupResources)
 	{

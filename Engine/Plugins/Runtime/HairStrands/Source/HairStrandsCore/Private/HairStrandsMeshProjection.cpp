@@ -596,7 +596,7 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	FHairStrandsRestRootResource* RestResources,
 	FHairStrandsDeformedRootResource* DeformedResources)
 {
-	const uint32 RootCount = RestResources->RootData.RootCount;
+	const uint32 RootCount = RestResources->BulkData.RootCount;
 	if (RootCount == 0 || LODIndex < 0)
 	{
 		return;
@@ -627,7 +627,7 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	DeformedResources->MeshLODIndex = LODIndex;
 
 	// When the number of section of a mesh is above FHairUpdateMeshTriangleCS::SectionArrayCount, the update is split into several passes
-	const TArray<uint32>& ValidSectionIndices = RestResources->RootData.MeshProjectionLODs[LODIndex].ValidSectionIndices;
+	const TArray<uint32>& ValidSectionIndices = RestResources->BulkData.GetValidSectionIndices(LODIndex);
 	const uint32 ValidSectionCount = ValidSectionIndices.Num();
 	const uint32 PassCount = FMath::DivideAndRoundUp(ValidSectionCount, FHairUpdateMeshTriangleCS::SectionArrayCount);
 
@@ -919,7 +919,7 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 	FHairStrandsRestRootResource* RestResources,
 	FHairStrandsDeformedRootResource* DeformedResources)
 {
-	const uint32 RootCount = RestResources->RootData.RootCount;
+	const uint32 RootCount = RestResources->BulkData.RootCount;
 	if (RootCount == 0 || LODIndex < 0 || LODIndex >= RestResources->LODs.Num() || LODIndex >= DeformedResources->LODs.Num())
 	{
 		return;
@@ -1167,7 +1167,7 @@ void AddHairStrandInitMeshSamplesPass(
 	}
 
 	// When the number of section of a mesh is above FHairUpdateMeshTriangleCS::SectionArrayCount, the update is split into several passes
-	const TArray<uint32>& ValidSectionIndices = RestResources->RootData.MeshProjectionLODs[LODIndex].ValidSectionIndices;
+	const TArray<uint32>& ValidSectionIndices = RestResources->BulkData.GetValidSectionIndices(LODIndex);
 	const uint32 ValidSectionCount = ValidSectionIndices.Num();
 	const uint32 PassCount = FMath::DivideAndRoundUp(ValidSectionCount, FHairInitMeshSamplesCS::SectionArrayCount);
 
@@ -1520,7 +1520,7 @@ static void AddFollicleMaskPass(
 	FHairStrandsRestRootResource* RestResources,
 	FRDGTextureRef OutTexture)
 {
-	const uint32 RootCount = RestResources->RootData.RootCount;
+	const uint32 RootCount = RestResources->BulkData.RootCount;
 	if (LODIndex >= uint32(RestResources->LODs.Num()) || RootCount == 0)
 		return;
 

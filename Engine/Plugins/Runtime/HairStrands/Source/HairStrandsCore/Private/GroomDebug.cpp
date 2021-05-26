@@ -366,7 +366,7 @@ static void AddDebugProjectionHairPass(
 	FRDGTextureRef DepthTexture)
 {
 	const EPrimitiveType PrimitiveType = GeometryType == EDebugProjectionHairType::HairFrame ? PT_LineList : PT_TriangleList;
-	const uint32 RootCount = RestRootResources->RootData.RootCount;
+	const uint32 RootCount = RestRootResources->BulkData.RootCount;
 	const uint32 PrimitiveCount = RootCount;
 
 	if (PrimitiveCount == 0 || MeshLODIndex < 0 || MeshLODIndex >= RestRootResources->LODs.Num() || MeshLODIndex >= DeformedRootResources->LODs.Num())
