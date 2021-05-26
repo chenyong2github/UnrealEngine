@@ -16,10 +16,14 @@ class UNCONTROLLEDCHANGELISTS_API FUncontrolledChangelistsModule : public IModul
 {
 	typedef TMap<FUncontrolledChangelist, FUncontrolledChangelistStateRef> FUncontrolledChangelistsStateCache;
 
-public:
+public:	
 	static constexpr const TCHAR* VERSION_NAME = TEXT("version");
 	static constexpr const TCHAR* CHANGELISTS_NAME = TEXT("changelists");
 	static constexpr uint32 VERSION_NUMBER = 0;
+
+	/** Callback called when the state of the Uncontrolled Changelist Module (or any Uncontrolled Changelist) changed */
+	DECLARE_MULTICAST_DELEGATE(FOnUncontrolledChangelistModuleChanged);
+	FOnUncontrolledChangelistModuleChanged OnUncontrolledChangelistModuleChanged;
 
 public:
 	/** IModuleInterface implementation */
@@ -36,12 +40,11 @@ public:
 	 */
 	 TArray<FUncontrolledChangelistStateRef> GetChangelistStates() const;
 
-	/**
-	 * Called when a file has been made writable. Adds the file to the Default Uncontrolled Changelist
-	 * @param	InFilename			The file to be added.
-	 */
-	void OnMakeWritable(const FString& InFilename);
-
+	 /**
+	  * Called when a file has been made writable. Adds the file to the Default Uncontrolled Changelist
+	  * @param	InFilename			The file to be added.
+	  */
+	 void OnMakeWritable(const FString& InFilename);
 
 	/**
 	 * Updates the status of Uncontrolled Changelists and files.
@@ -59,6 +62,33 @@ public:
 	}
 
 	/**
+	 * Gets a message indicating the status of SCC coherence.
+	 * @return 	A text representing the status of SCC.
+	 */
+	FText GetReconcileStatus() const;
+
+	/** Called when "Reconcile loaded assets" button is clicked. Checks for uncontrolled modifications in previously loaded assets.
+	 *	Adds modified files to Uncontrolled Changelists
+	 */
+	void OnReconcileLoadedAssets();
+
+	/** Called when "Reconcile saved assets" button is clicked. Checks for uncontrolled modifications in previously saved assets.
+	 *	Adds modified files to Uncontrolled Changelists
+	 */
+	void OnReconcileSavedAssets();
+
+	/** Called when the "Reconcile all assets" button is clicked. Checks for uncontrolled modifications in previously loaded and saved assets.
+	 *	Adds modified files to Uncontrolled Changelists
+	 */
+	void OnReconcileAllAssets();
+
+	/** Clears the cache containing unchecked loaded assets. */
+	void OnClearLoadedAssetsCache();
+
+	/** Clears the cache containing unchecked saved assets. */
+	void OnClearSavedAssetsCache();
+
+	/**
 	 * Delegate callback called when assets are added to AssetRegistry.
 	 * @param 	AssetData 	The asset just added.
 	 */
@@ -71,11 +101,11 @@ public:
 	void OnAssetLoaded(UObject* InAsset);
 
 	/**
-	 * Delegate callback called when an object is transacted.
-	 * @param 	InObject 	        The transacted object.
-	 * @param 	InTransactionEvent 	The event representing the transaction.
+	 * Delegate callback called before an asset has been written to disk.
+	 * @param 	InAsset 			The saved asset.
+	 * @param 	InPreSaveContext 	Interface used to access saved parameters.
 	 */
-	void OnObjectTransacted(UObject* InObject, const class FTransactionObjectEvent& InTransactionEvent);
+	void OnObjectPreSaved(UObject* InAsset, const FObjectPreSaveContext& InPreSaveContext);
 
 	/**
 	 * Moves files to an Uncontrolled Changelist.
@@ -123,9 +153,24 @@ private:
 	 */
 	bool ShowConflictDialog(TArray<UPackage*> InPackageConflicts);
 
+	/** Called when a state changed either in the module or an Uncontrolled Changelist. */
+	void OnStateChanged();
+
+	/** Removes from asset caches files already present in Uncontrolled Changelists */
+	void CleanAssetsCaches();
+
+	/**
+	 * Try to add the provided filenames to the default Uncontrolled Changelist.
+	 * @param 	InFilenames 	The files to add.
+	 * @param 	InCheckFlags 	The required checks to check the file against before adding.
+	 */
+	void AddFilesToDefaultUncontrolledChangelist(const TArray<FString>& InFilenames, const FUncontrolledChangelistState::ECheckFlags InCheckFlags);
+
 private:
-	FUncontrolledChangelistsStateCache UncontrolledChangelistsStateCache;
-	FDelegateHandle OnAssetAddedDelegateHandle;
-	FDelegateHandle OnAssetLoadedDelegateHandle;
-	FDelegateHandle OnObjectTransactedDelegateHandle;
+	FUncontrolledChangelistsStateCache	UncontrolledChangelistsStateCache;
+	TSet<FString>						LoadedFilesCache;
+	TSet<FString>						SavedFilesCache;
+	FDelegateHandle						OnAssetAddedDelegateHandle;
+	FDelegateHandle						OnAssetLoadedDelegateHandle;
+	FDelegateHandle						OnObjectPreSavedDelegateHandle;
 };

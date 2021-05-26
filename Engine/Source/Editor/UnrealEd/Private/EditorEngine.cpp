@@ -1009,6 +1009,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("OutputLog"),
 			TEXT("SourceControl"),
 			TEXT("SourceControlWindows"),
+			TEXT("UncontrolledChangelists"),
 			TEXT("TextureCompressor"),
 			TEXT("MeshUtilities"),
 			TEXT("MovieSceneTools"),

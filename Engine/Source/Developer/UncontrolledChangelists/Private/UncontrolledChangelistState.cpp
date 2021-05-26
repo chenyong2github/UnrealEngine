@@ -3,7 +3,6 @@
 #include "UncontrolledChangelistState.h"
 
 #include "Algo/Transform.h"
-#include "Algo/ForEach.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "ISourceControlModule.h"
@@ -88,16 +87,17 @@ bool FUncontrolledChangelistState::Deserialize(const TSharedRef<FJsonObject> InJ
 	return true;
 }
 
-void FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, const ECheckFlags InCheckFlags)
+bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, const ECheckFlags InCheckFlags)
 {
 	TArray<FSourceControlStateRef> FileStates;
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	bool bCheckStatus = (InCheckFlags & ECheckFlags::Modified) != ECheckFlags::None;
 	bool bCheckCheckout = (InCheckFlags & ECheckFlags::NotCheckedOut) != ECheckFlags::None;
+	bool bOutChanged = false;
 
 	if (InFilenames.IsEmpty())
 	{
-		return;
+		return bOutChanged;
 	}
 
 	if (bCheckStatus)
@@ -119,35 +119,48 @@ void FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 			if (bIsCheckoutCompliant && bIsStatusCompliant)
 			{
 				Files.Add(FileState);
+				bOutChanged = true;
 			}
 		}
 	}
+
+	return bOutChanged;
 }
 
-void FUncontrolledChangelistState::RemoveFiles(const TArray<FSourceControlStateRef>& InFileStates)
+bool FUncontrolledChangelistState::RemoveFiles(const TArray<FSourceControlStateRef>& InFileStates)
 {
-	Algo::ForEach(InFileStates, [&Files = Files](const FSourceControlStateRef& FileState) { Files.Remove(FileState); });
+	bool bOutChanged = false;
+
+	for (const FSourceControlStateRef& FileState : InFileStates)
+	{
+		int32 OldSize = Files.Num();
+
+		Files.Remove(FileState);
+
+		bOutChanged |= OldSize != Files.Num();
+	}
+
+	return bOutChanged;
 }
 
-void FUncontrolledChangelistState::UpdateStatus()
+bool FUncontrolledChangelistState::UpdateStatus()
 {
 	TArray<FString> FilesToUpdate;
+	bool bOutChanged = false;
+
 	Algo::Transform(Files, FilesToUpdate, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
 
 	if (FilesToUpdate.Num() == 0)
 	{
-		return;
+		return bOutChanged;
 	}
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	auto UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
 	UpdateStatusOperation->SetUpdateModifiedState(true);
 
-	SourceControlProvider.Execute(UpdateStatusOperation, FilesToUpdate, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &FUncontrolledChangelistState::OnUpdateStatusCompleted));
-}
+	SourceControlProvider.Execute(UpdateStatusOperation, FilesToUpdate);
 
-void FUncontrolledChangelistState::OnUpdateStatusCompleted(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult)
-{
 	for (auto It = Files.CreateIterator(); It; ++It)
 	{
 		FSourceControlStateRef& State = *It;
@@ -155,7 +168,21 @@ void FUncontrolledChangelistState::OnUpdateStatusCompleted(const FSourceControlO
 		if (State->IsCheckedOut() || (!State->IsModified()))
 		{
 			It.RemoveCurrent();
+			bOutChanged = true;
 		}
+	}
+
+	return bOutChanged;
+}
+
+void FUncontrolledChangelistState::RemoveDuplicates(TSet<FString>& InOutLoadedFiles, TSet<FString>& InOutModifiedFiles)
+{
+	for (const FSourceControlStateRef& FileState : Files)
+	{
+		const FString& Filename = FileState->GetFilename();
+		
+		InOutLoadedFiles.Remove(Filename);
+		InOutModifiedFiles.Remove(Filename);
 	}
 }
 

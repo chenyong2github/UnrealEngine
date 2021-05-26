@@ -134,6 +134,9 @@ private:
 	/** Source control state changed delegate handle */
 	FDelegateHandle SourceControlStateChangedDelegateHandle;
 
+	/** Uncontrolled Changelist changed delegate handle */
+	FDelegateHandle UncontrolledChangelistChangedDelegateHandle;
+
 	bool bShouldRefresh;
 
 	void StartRefreshStatus();
