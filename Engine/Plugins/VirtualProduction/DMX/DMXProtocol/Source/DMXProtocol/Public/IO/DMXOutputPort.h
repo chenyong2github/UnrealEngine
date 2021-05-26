@@ -116,7 +116,7 @@ protected:
 
 public:
 	/** Sends DMX over the port */
-	void SendDMX(int32 UniverseID, const TMap<int32, uint8>& ChannelToValueMap);
+	void SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& ChannelToValueMap);
 
 	/** DEPRECATED 4.27. Sends DMX over the port with an extern (remote) Universe ID. Soly here to support legacy functions that would send to an extern universe  */
 	UE_DEPRECATED(4.27, "Use SenDMX instead. SendDMXToRemoteUniverse only exists to support deprecated blueprint nodes.")
