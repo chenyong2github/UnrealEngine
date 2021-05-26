@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-enum class ECheckedMetadataSpecifier
+enum class ECheckedMetadataSpecifier : int32
 {
 	None = -1
 

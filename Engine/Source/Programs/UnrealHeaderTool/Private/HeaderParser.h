@@ -132,9 +132,6 @@ struct FDocumentationPolicy
 class FHeaderParser : public FBaseParser, public FContextSupplier
 {
 public:
-	// Compute the function parameter size and save the return offset
-	static void ComputeFunctionParametersSize(FUnrealClassDefinitionInfo& ClassDef);
-
 	// Performs a preliminary parse of the text in the specified buffer, pulling out:
 	//   Class name and parent class name
 	//   Is it an interface
@@ -400,7 +397,6 @@ protected:
 	 */
 	ECompilationResult::Type ParseHeader();
 	void CompileDirective();
-	void FinalizeScriptExposedFunctions(FUnrealClassDefinitionInfo& ClassDef);
 	FUnrealEnumDefinitionInfo& CompileEnum();
 	FUnrealScriptStructDefinitionInfo& CompileStructDeclaration();
 	bool CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& DelegatesToFixup, FToken& Token);
@@ -435,7 +431,7 @@ protected:
 	 * Create new delegate function object based on given info structure.
 	 */
 	template<typename T>
-	FUnrealFunctionDefinitionInfo& CreateDelegateFunction(FFuncInfo&& FuncInfo) const;
+	FUnrealFunctionDefinitionInfo& CreateDelegateFunction(FFuncInfo&& FuncInfo, EFunctionType InFunctionType) const;
 
 	FUnrealClassDefinitionInfo& CompileClassDeclaration();
 	FUnrealFunctionDefinitionInfo& CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
