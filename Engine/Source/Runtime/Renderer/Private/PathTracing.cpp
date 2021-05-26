@@ -1154,7 +1154,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDenoiseTextureParameters, )
 	RDG_TEXTURE_ACCESS(InputTexture, ERHIAccess::CopySrc)
 	RDG_TEXTURE_ACCESS(InputAlbedo, ERHIAccess::CopySrc)
 	RDG_TEXTURE_ACCESS(InputNormal, ERHIAccess::CopySrc)
-	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::WritableMask)
+	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracing, TEXT("Path Tracing"));
@@ -1380,8 +1380,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 					FClearValueBinding::None,
 					TexCreate_ShaderResource | TexCreate_UAV);
 				DenoisedRadianceTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracer.DenoisedRadiance"), ERDGTextureFlags::MultiFrame);
-
-				ConvertToUntrackedExternalTexture(GraphBuilder, DenoisedRadianceTexture, View.ViewState->PathTracingRadianceDenoisedRT, ERHIAccess::WritableMask);
 			}
 
 			FDenoiseTextureParameters* DenoiseParameters = GraphBuilder.AllocParameters<FDenoiseTextureParameters>();
@@ -1399,6 +1397,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 						DenoiseParameters->OutputTexture->GetRHI()->GetTexture2D());
 				}
 			);
+
+			GraphBuilder.QueueTextureExtraction(DenoisedRadianceTexture, &View.ViewState->PathTracingRadianceDenoisedRT);
 		}
 	}
 	PrevDenoiserMode = DenoiserMode;
