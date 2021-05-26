@@ -1639,6 +1639,8 @@ export type DefaultPreflightRequest = {
 	/** Query for the change to use */
 	change?: ChangeQueryRequest;
 
+	/**  The last successful job type to use for the base changelist (DEPRECATED!)*/
+	changeTemplateId?: string;
 }
 
 /**Response describing a stream */
