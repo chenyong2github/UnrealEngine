@@ -5,7 +5,7 @@ using System.IO;
 
 public class libOpus : ModuleRules
 {
-	protected virtual string OpusVersion	  { get { return "opus-1.1"; } }
+	protected virtual string OpusVersion { get { return "opus-1.1"; } }
 	protected virtual string IncRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
 	protected virtual string LibRootDirectory { get { return Target.UEThirdPartySourceDirectory; } }
 
@@ -17,11 +17,10 @@ public class libOpus : ModuleRules
 		Type = ModuleType.External;
 
 		string LibraryPath = OpusLibPath + "/";
-		bool IsWinPlatform = Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32;
-		string OpusLibraryPath = Path.Combine(LibRootDirectory, "libOpus", "opus-1.3.1-12"); 
+		bool bIsNewOpus = Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Architecture == "x86_64-unknown-linux-gnu";
+		string OpusLibraryPath = Path.Combine(LibRootDirectory, "libOpus", "opus-1.3.1-12");
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32))
 		{
 			LibraryPath += "Windows/VS2012/";
 			if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -35,9 +34,9 @@ public class libOpus : ModuleRules
 
 			LibraryPath += "Release/";
 
- 			//PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
- 			//PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
- 			//PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
+			//PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
+			//PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
+			//PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
 			//PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
 			PublicAdditionalLibraries.Add(LibraryPath + "speex_resampler.lib");
 
@@ -77,13 +76,12 @@ public class libOpus : ModuleRules
 				LibraryPath += "Windows/VS" + (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED ? "2015" : "2012");
 				LibraryPath += "/ARM64/";
 			}
-			
 
 			LibraryPath += "Release/";
 
- 			PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
- 			PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
- 			PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
+			PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
+			PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
+			PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
 			PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
 			PublicAdditionalLibraries.Add(LibraryPath + "speex_resampler.lib");
 		}
@@ -95,38 +93,31 @@ public class libOpus : ModuleRules
 			PublicAdditionalLibraries.Add(OpusPath);
 			PublicAdditionalLibraries.Add(SpeexPath);
 		}
-        else if (Target.Platform == UnrealTargetPlatform.IOS)
-        {
-            string OpusPath = LibraryPath + "/IOS/libOpus.a";
-            PublicAdditionalLibraries.Add(OpusPath);
-        }
-	else if (Target.Platform == UnrealTargetPlatform.TVOS)
-        {
-            string OpusPath = LibraryPath + "/TVOS/libOpus.a";
-            PublicAdditionalLibraries.Add(OpusPath);
-        }
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-            if (Target.LinkType == TargetLinkType.Monolithic)
-            {
-                PublicAdditionalLibraries.Add(LibraryPath + "Linux/" + Target.Architecture + "/libopus.a");
-            }
-            else
-            {
-                PublicAdditionalLibraries.Add(LibraryPath + "Linux/" + Target.Architecture + "/libopus_fPIC.a");
-            }
+			string OpusPath = LibraryPath + "/IOS/libOpus.a";
+			PublicAdditionalLibraries.Add(OpusPath);
+		}
+		else if (Target.Platform == UnrealTargetPlatform.TVOS)
+		{
+			string OpusPath = LibraryPath + "/TVOS/libOpus.a";
+			PublicAdditionalLibraries.Add(OpusPath);
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			string Config = Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release";
 
-			if (Target.Architecture.StartsWith("x86_64"))
+			if (Target.Architecture == "x86_64-unknown-linux-gnu")
 			{
-				if (Target.LinkType == TargetLinkType.Monolithic)
-				{
-					PublicAdditionalLibraries.Add(LibraryPath + "Linux/" + Target.Architecture + "/libresampler.a");
-				}
-				else
-				{
-					PublicAdditionalLibraries.Add(LibraryPath + "Linux/" + Target.Architecture + "/libresampler_fPIC.a");
-				}
+				PublicAdditionalLibraries.Add(Path.Combine(OpusLibraryPath, "bin", Target.Platform.ToString(), Target.Architecture, Config, "libopus.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(OpusLibraryPath, "bin", Target.Platform.ToString(), Target.Architecture, Config, "libopus_sse41.a"));
 			}
+			else
+			{
+				PublicAdditionalLibraries.Add(Path.Combine(OpusLibPath, Target.Platform.ToString(), Target.Architecture, "libopus_fPIC.a"));
+			}
+
+			PublicAdditionalLibraries.Add(Path.Combine(OpusLibPath, Target.Platform.ToString(), Target.Architecture, "libresampler_fPIC.a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
@@ -137,13 +128,13 @@ public class libOpus : ModuleRules
 				"x64"
 			};
 
-			foreach(string Architecture in Architectures)
+			foreach (string Architecture in Architectures)
 			{
 				PublicAdditionalLibraries.Add(LibraryPath + "Android/" + Architecture + "/libopus.a");
 				PublicAdditionalLibraries.Add(LibraryPath + "Android/" + Architecture + "/libspeex_resampler.a");
 			}
 		}
 
-		PublicIncludePaths.Add(IsWinPlatform ? Path.Combine(OpusLibraryPath, "include") : OpusIncPath);
-    }
+		PublicIncludePaths.Add(bIsNewOpus ? Path.Combine(OpusLibraryPath, "include") : OpusIncPath);
+	}
 }

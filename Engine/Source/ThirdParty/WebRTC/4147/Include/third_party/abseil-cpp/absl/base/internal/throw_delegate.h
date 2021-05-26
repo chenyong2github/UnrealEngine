@@ -58,7 +58,9 @@ namespace base_internal {
 [[noreturn]] void ThrowStdUnderflowError(const std::string& what_arg);
 [[noreturn]] void ThrowStdUnderflowError(const char* what_arg);
 
+#if 0
 [[noreturn]] void ThrowStdBadFunctionCall();
+#endif // 0
 [[noreturn]] void ThrowStdBadAlloc();
 
 // ThrowStdBadArrayNewLength() cannot be consistently supported because

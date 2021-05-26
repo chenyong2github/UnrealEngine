@@ -37,7 +37,7 @@ class FLatencyTester
         static FLatencyTester& GetInstance();
 
         //Private constructor, only static methods are exposed.
-        FLatencyTester(){}
+        FLatencyTester() : TestStage(ELatencyTestStage::INACTIVE) {}
         unsigned long long EpochMillisNow();
 
         unsigned long long ReceiptTimeMs = 0;
@@ -46,5 +46,5 @@ class FLatencyTester
         unsigned long long PreEncodeTimeMs = 0;
         unsigned long long PostEncodeTimeMs = 0;
         uint32 FrameId = 0;
-        std::atomic<ELatencyTestStage> TestStage = ELatencyTestStage::INACTIVE;
+        std::atomic<ELatencyTestStage> TestStage;
 };
