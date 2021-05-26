@@ -29,6 +29,7 @@ class FPrimitiveSceneProxy;
 class UMaterialInterface;
 class UPrimitiveComponent;
 class UTexture;
+class URuntimeVirtualTexture;
 struct FCollisionShape;
 struct FConvexVolume;
 struct FEngineShowFlags;
