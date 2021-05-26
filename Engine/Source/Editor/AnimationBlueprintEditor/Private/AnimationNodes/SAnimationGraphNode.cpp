@@ -327,7 +327,19 @@ void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNod
 					// Add binding widget
 					PinWidget->GetLabelAndValue()->AddSlot()
 					[
-						UAnimGraphNode_Base::MakePropertyBindingWidget(Args)
+						SNew(SBox)
+						.Visibility_Lambda([PinName, InAnimGraphNode]()
+						{
+							if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(PinName))
+							{
+								return EVisibility::Visible;
+							}
+
+							return EVisibility::Collapsed;
+						})
+						[
+							UAnimGraphNode_Base::MakePropertyBindingWidget(Args)
+						]
 					];
 				}
 			}
