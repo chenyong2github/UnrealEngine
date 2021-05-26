@@ -1169,13 +1169,15 @@ uint32 UMaterialExpression::GetInputType(int32 InputIndex)
 uint32 UMaterialExpression::GetOutputType(int32 OutputIndex)
 {
 	// different outputs should be defined by sub classed expressions 
-	if (IsResultStrataMaterial(OutputIndex))
-	{
-		return MCT_Strata;
-	}
-	else if (IsResultMaterialAttributes(OutputIndex))
+
+	// Material attributes need to be tested first to work when plugged in main root node (to not return MCT_Strata when Strata mateiral is fed)
+	if (IsResultMaterialAttributes(OutputIndex))
 	{
 		return MCT_MaterialAttributes;
+	}
+	else if (IsResultStrataMaterial(OutputIndex))
+	{
+		return MCT_Strata;
 	}
 	else
 	{
