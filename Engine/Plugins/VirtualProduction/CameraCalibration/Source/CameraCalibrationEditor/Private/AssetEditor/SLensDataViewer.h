@@ -11,7 +11,7 @@
 #include "UObject/StrongObjectPtr.h"
 
 class FCurveEditor;
-class SCurveEditorPanel;
+class SCameraCalibrationCurveEditorPanel;
 class ULensFile;
 
 /**
@@ -143,7 +143,7 @@ private:
 	TSharedRef<SWidget> MakeLensDataWidget();
 
 	/** Makes the Toolbar with data manipulation buttons */
-	TSharedRef<SWidget> MakeToolbarWidget();
+	TSharedRef<SWidget> MakeToolbarWidget(TSharedRef<SCameraCalibrationCurveEditorPanel> InEditorPanel);
 
 	/** Called when user clicks on AddPoint button */
 	FReply OnAddDataPointClicked();
@@ -188,7 +188,9 @@ private:
 
 	/** Curve editor manager and panel to display */
 	TSharedPtr<FCurveEditor> CurveEditor;
-	TSharedPtr<SCurveEditorPanel> CurvePanel;
+
+	/** Child class of curve editor panel */
+	TSharedPtr<SCameraCalibrationCurveEditorPanel> CurvePanel;
 
 	/** Evaluated FIZ for the current frame */
 	TAttribute<FCachedFIZData> CachedFIZ;

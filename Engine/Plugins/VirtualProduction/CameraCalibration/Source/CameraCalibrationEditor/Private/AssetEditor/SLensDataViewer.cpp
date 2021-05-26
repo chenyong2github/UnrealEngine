@@ -2,18 +2,18 @@
 
 #include "SLensDataViewer.h"
 
+#include "SCameraCalibrationCurveEditorPanel.h"
+
 #include "CurveEditor.h"
 #include "ICurveEditorModule.h"
 #include "ISinglePropertyView.h"
 #include "LensFile.h"
 #include "RichCurveEditorModel.h"
-#include "SCurveEditorPanel.h"
 #include "SLensDataPointDialog.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
 
-
 #define LOCTEXT_NAMESPACE "LensDataViewer"
-
 
 namespace LensDataUtils
 {
@@ -52,7 +52,6 @@ namespace LensDataUtils
 		}
 	}
 }
-
 
 FLensDataItem::FLensDataItem(float InFocus)
 	: Focus(InFocus)
@@ -141,29 +140,34 @@ void SLensDataViewer::Construct(const FArguments& InArgs, ULensFile* InLensFile)
 	EditorBounds->SetInputBounds(0.05, 1.05);
 	CurveEditor->SetBounds(MoveTemp(EditorBounds));
 
-	CurvePanel = SNew(SCurveEditorPanel, CurveEditor.ToSharedRef());
+	// Snap only Y axis
+	FCurveEditorAxisSnap SnapYAxisOnly = CurveEditor->GetAxisSnap();
+	SnapYAxisOnly.RestrictedAxisList = EAxisList::Type::Y;
+	CurveEditor->SetAxisSnap(SnapYAxisOnly);
+
+	CurvePanel = SNew(SCameraCalibrationCurveEditorPanel, CurveEditor.ToSharedRef());
 	CurveEditor->ZoomToFit();
 
 	CachedFIZ = InArgs._CachedFIZData;
 
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.FillWidth(0.4f)
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			MakeLensDataWidget()
+			MakeToolbarWidget(CurvePanel.ToSharedRef())
 		]
-		+ SHorizontalBox::Slot()
-		.FillWidth(0.6f)
+		+ SVerticalBox::Slot()
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.4f)
 			[
-				MakeToolbarWidget()
+				MakeLensDataWidget()
 			]
-			+ SVerticalBox::Slot()
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.6f)
 			[
 				CurvePanel.ToSharedRef()
 			]
@@ -310,32 +314,36 @@ TSharedRef<SWidget> SLensDataViewer::MakeLensDataWidget()
 		];
 }
 
-
-TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget()
+TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibrationCurveEditorPanel> InEditorPanel)
 {
-	TSharedRef<SWidget> Toolbar = SNew(SBorder)
-	.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.f)
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-			.ContentPadding(FMargin(4.f, 4.f))
-			.OnClicked(this, &SLensDataViewer::OnAddDataPointClicked)
-			.IsEnabled(MakeAttributeLambda([this] { return true; }))
-			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-				.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-				.ColorAndOpacity(FLinearColor::White)
-			]
-		]
-	];
+	// Curve toolbar
+	FToolBarBuilder ToolBarBuilder(CurvePanel->GetCommands(), FMultiBoxCustomization::None, CurvePanel->GetToolbarExtender(), true);
+	ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
+	ToolBarBuilder.BeginSection("Asset");
+	
+	auto GetButtonWidget = [this]()
+	{
+		return SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.OnClicked(this, &SLensDataViewer::OnAddDataPointClicked)
+				.IsEnabled(MakeAttributeLambda([this] { return true; }))
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
+					.ColorAndOpacity(FLinearColor::White)
+				];
+	}; 
 
-	return Toolbar;
+	ToolBarBuilder.AddWidget(GetButtonWidget());
+		
+	ToolBarBuilder.EndSection();
+
+	return SNew(SBox)
+		.Padding(FMargin(2.f, 0.f))
+		[
+			ToolBarBuilder.MakeWidget()
+		];
 }
 
 FReply SLensDataViewer::OnAddDataPointClicked()
