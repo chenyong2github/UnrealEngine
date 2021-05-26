@@ -218,20 +218,23 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	Materials.SetBulkDataFlags(BulkFlags);
 	CurveOffsets.SetBulkDataFlags(BulkFlags);
 
-	const int32 ChunkIndex = 0;
-	bool bAttemptFileMapping = false;
+	if (!!(Flags & DataFlags_HasData))
+	{
+		const int32 ChunkIndex = 0;
+		bool bAttemptFileMapping = false;
 
-	Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	Attributes0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	if (!!(Flags & DataFlags_HasUDIMData))
-	{
-		Attributes1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Attributes0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		if (!!(Flags & DataFlags_HasUDIMData))
+		{
+			Attributes1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		}
+		if (!!(Flags & DataFlags_HasMaterialData))
+		{
+			Materials.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		}
+		CurveOffsets.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
-	if (!!(Flags & DataFlags_HasMaterialData))
-	{
-		Materials.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	}
-	CurveOffsets.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 }
 
 void FHairStrandsDatas::Reset()
