@@ -6,7 +6,6 @@
 #include "ISourceControlChangelistState.h"
 #include "ISourceControlOperation.h"
 #include "ISourceControlProvider.h"
-
 #include "UncontrolledChangelist.h"
 
 class FUncontrolledChangelistState : public TSharedFromThis<FUncontrolledChangelistState, ESPMode::ThreadSafe>
@@ -23,7 +22,10 @@ public:
 		Modified		= 1,
 
 		/** File is not checked out */
-		NotCheckedOut	= 1 << 1
+		NotCheckedOut	= 1 << 1,
+
+		/** All the above checks */
+		All = Modified | NotCheckedOut,
 	};
 
 public:
@@ -84,34 +86,33 @@ public:
 	 * Adds files to this Uncontrolled Changelist State.
 	 * @param 	InFilenames		The files to be added.
 	 * @param 	InCheckFlags 	Tells which checks have to pass to add a file.
-	 */	
-	void AddFiles(const TArray<FString>& InFilenames, const ECheckFlags InCheckFlags);
+	 * @return 	True if a change has been performed in the Uncontrolled Changelist State.
+	 */
+	bool AddFiles(const TArray<FString>& InFilenames, const ECheckFlags InCheckFlags);
 
 	/**
 	 * Removes files from this Uncontrolled Changelist State if present.
 	 * @param 	InFileStates 	The files to be removed.
+	 * @return 	True if a change has been performed in the Uncontrolled Changelist State.
 	 */
-	void RemoveFiles(const TArray<FSourceControlStateRef>& InFileStates);
+	bool RemoveFiles(const TArray<FSourceControlStateRef>& InFileStates);
 
 	/**
-	 * Updates the status of all files.
+	 * Updates the status of all files contained in this changelist.
+	 * @return 	True if the state has been modified.
 	 */
-	void UpdateStatus();
-
-private:
+	bool UpdateStatus();
 
 	/**
-	 * Called upon completion of FStatus operation
-	 * @param 	InOperation 	The operation just completed.
-	 * @param 	InResult 		The result of the operation.
+	 * Removes files present both in the Uncontrolled Changelist and the provided sets.
+	 * @param 	InOutLoadedFiles 	A Set representing loaded files to check against.
+	 * @param 	InOutModifiedFiles 	A Set representing modified files to check against.
 	 */
-	void OnUpdateStatusCompleted(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult);
+	void RemoveDuplicates(TSet<FString>& InOutLoadedFiles, TSet<FString>& InOutModifiedFiles);
 
 public:
 	FUncontrolledChangelist Changelist;
-
 	FString Description;
-
 	TSet<FSourceControlStateRef> Files;
 
 	/** The timestamp of the last update */

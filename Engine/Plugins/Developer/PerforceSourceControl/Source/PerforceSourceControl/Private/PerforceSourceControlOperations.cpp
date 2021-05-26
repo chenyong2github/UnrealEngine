@@ -323,6 +323,7 @@ bool FPerforceCheckOutWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			{
 				Parameters.Add(TEXT("-c"));
 				Parameters.Add(ChangelistNumber);
+				InChangelist = InCommand.Changelist;
 			}
 		}
 
@@ -337,6 +338,24 @@ bool FPerforceCheckOutWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 bool FPerforceCheckOutWorker::UpdateStates() const
 {
+	// If files have been checkedout directly to a CL, modify the cached state to reflect it.
+	if (InChangelist.IsInitialized())
+	{
+		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InChangelist);
+
+		for (TMap<FString, EPerforceState::Type>::TConstIterator It(OutResults); It; ++It)
+		{
+			if (It.Value() != EPerforceState::CheckedOut)
+			{
+				continue;
+			}
+
+			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(It.Key());
+			ChangelistState->Files.Add(State);
+		}
+	}
+
 	return UpdateCachedStates(OutResults);
 }
 
@@ -702,8 +721,20 @@ bool FPerforceRevertWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 bool FPerforceRevertWorker::UpdateStates() const
 {
+	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 	bool bUpdatedCachedStates = UpdateCachedStates(OutResults);
-	bool bUpdatedChangelists = ChangelistToUpdate.IsInitialized() && RemoveFilesFromChangelist(OutResults, ChangelistToUpdate);
+	bool bUpdatedChangelists = false;
+
+	bUpdatedChangelists = ChangelistToUpdate.IsInitialized() && RemoveFilesFromChangelist(OutResults, ChangelistToUpdate);
+
+	// Use reverted files to update changelist state.
+	for (TMap<FString, EPerforceState::Type>::TConstIterator It(OutResults); It; ++It)
+	{
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(It.Key());
+
+		bUpdatedChangelists |= State->Changelist.IsInitialized() && RemoveFilesFromChangelist(OutResults, State->Changelist);
+	}
+	
 	return bUpdatedCachedStates || bUpdatedChangelists;
 }
 
@@ -884,6 +915,7 @@ static FSourceControlDigest ComputeLocalDigest(FString InFilename, FString InDep
 
 static void ParseUpdateStatusResults(const FP4RecordSet& InRecords, const TArray<FText>& ErrorMessages, TArray<FPerforceSourceControlState>& OutStates, TArray<FString>& OutModifiedFiles, const FString& ContentRoot, TMap<FString, FBranchModification>& BranchModifications)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceUpdateStatusWorker_ParseUpdateStatusResults);
 	// Build up a map of any other branch states
 	for (int32 Index = 0; Index < InRecords.Num(); ++Index)
 	{
@@ -1534,6 +1566,7 @@ FName FPerforceUpdateStatusWorker::GetName() const
 
 bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceUpdateStatusWorker::Execute);
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
 	{

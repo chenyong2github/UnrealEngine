@@ -72,8 +72,11 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 {
 	// Register delegates
 	ISourceControlModule& SCCModule = ISourceControlModule::Get();
+	FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
+
 	SCCModule.RegisterProviderChanged(FSourceControlProviderChanged::FDelegate::CreateSP(this, &SSourceControlChangelistsWidget::OnSourceControlProviderChanged));
 	SourceControlStateChangedDelegateHandle = SCCModule.GetProvider().RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateSP(this, &SSourceControlChangelistsWidget::OnSourceControlStateChanged));
+	UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.AddSP(this, &SSourceControlChangelistsWidget::OnSourceControlStateChanged);
 
 	TreeView = CreateTreeviewWidget();
 
@@ -109,13 +112,31 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.Visibility_Lambda([this]() -> EVisibility
-			{
-				return bIsRefreshing ? EVisibility::Visible : EVisibility::Collapsed;
-			})
 			[
-				SNew(STextBlock)
-				.Text_Lambda([this]() { return RefreshStatus; })
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return RefreshStatus; })
+					.Visibility_Lambda([this]() -> EVisibility
+					{
+						return bIsRefreshing ? EVisibility::Visible : EVisibility::Collapsed;
+					})
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(2.f, 0.f))
+				[
+					SNew(STextBlock)
+					.Text_Lambda([]() { return FUncontrolledChangelistsModule::Get().GetReconcileStatus(); })
+					.Visibility_Lambda([]() -> EVisibility
+					{
+						return FUncontrolledChangelistsModule::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed;
+					})
+				]
 			]
 		]
 	];
@@ -1082,6 +1103,33 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDiffAgainstDepot)));
 	}
 
+	if (FUncontrolledChangelistsModule::Get().IsEnabled())
+	{
+		Section.AddSeparator("ReconcileSeparator");
+
+		Section.AddSubMenu("ReconcileSubMenu", LOCTEXT("ReconcileSubMenu", "Reconcile"), LOCTEXT("ReconcileSubMenu_ToolTip", "Opens the Reconcile sub menu"), FNewToolMenuDelegate::CreateLambda([](UToolMenu* Menu)
+		{
+			FToolMenuSection& SubSection = Menu->AddSection(TEXT("Reconcile"));
+			
+			SubSection.AddMenuEntry("Reconcile all assets", LOCTEXT("SourceControl_ReconcileAllAssets", "Reconcile all assets"), LOCTEXT("SourceControl_ReconcileAllAssets_Tooltip", "Look for uncontrolled modification in previously loaded and saved assets."), FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnReconcileAllAssets(); })));
+
+			SubSection.AddMenuEntry("Reconcile loaded assets", LOCTEXT("SourceControl_ReconcileLoadedAssets", "Reconcile loaded assets"), LOCTEXT("SourceControl_ReconcileLoadedAssets_Tooltip", "Look for uncontrolled modification in previously loaded assets."), FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnReconcileLoadedAssets(); })));
+
+			SubSection.AddMenuEntry("Reconcile saved assets", LOCTEXT("SourceControl_ReconcileSavedAssets", "Reconcile saved assets"), LOCTEXT("SourceControl_ReconcileSavedAssets_Tooltip", "Look for uncontrolled modification in previously saved assets."), FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnReconcileSavedAssets(); })));
+
+			SubSection.AddSeparator("ReconcileClearCacheSeparator");
+
+			SubSection.AddMenuEntry("Clear loaded assets cache", LOCTEXT("SourceControl_ClearLoadedAssetsCache", "Clear loaded assets cache"), LOCTEXT("SourceControl_ClearLoadedAssetsCache_Tooltip", "Clears the cache containing unchecked loaded assets."), FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnClearLoadedAssetsCache(); })));
+
+			SubSection.AddMenuEntry("Clear saved assets cache", LOCTEXT("SourceControl_ClearSavedAssetsCache", "Clear saved assets cache"), LOCTEXT("SourceControl_ClearSavedAssetsCache_Tooltip", "Clears the cache containing unchecked saved assets."), FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnClearSavedAssetsCache(); })));
+		}));
+	}
+
 	return ToolMenus->GenerateWidget(Menu);
 }
 
@@ -1599,7 +1647,7 @@ void SSourceControlChangelistsWidget::SaveExpandedState(TMap<FSourceControlChang
 {
 	for (FChangelistTreeItemPtr Root : ChangelistsNodes)
 	{
-		if (Root->GetTreeItemType() != IChangelistTreeItem::Changelist)
+		if ((Root->GetTreeItemType() != IChangelistTreeItem::Changelist) && (Root->GetTreeItemType() != IChangelistTreeItem::UncontrolledChangelist))
 		{
 			continue;
 		}
@@ -1628,7 +1676,7 @@ void SSourceControlChangelistsWidget::RestoreExpandedState(const TMap<FSourceCon
 {
 	for (FChangelistTreeItemPtr Root : ChangelistsNodes)
 	{
-		if (Root->GetTreeItemType() != IChangelistTreeItem::Changelist)
+		if ((Root->GetTreeItemType() != IChangelistTreeItem::Changelist) && (Root->GetTreeItemType() != IChangelistTreeItem::UncontrolledChangelist))
 		{
 			continue;
 		}
