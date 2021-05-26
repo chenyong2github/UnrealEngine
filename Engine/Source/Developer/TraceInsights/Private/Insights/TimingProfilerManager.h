@@ -15,6 +15,15 @@
 namespace Insights
 {
 	class FTimerButterflyAggregator;
+
+	enum class ETimingEventsColoringMode : uint32
+	{
+		ByName,
+		ById,
+		ByDuration,
+
+		Count
+	};
 }
 
 class STimingProfilerWindow;
@@ -145,6 +154,12 @@ public:
 
 	const FName& GetLogListingName() const { return LogListingName; }
 
+	Insights::ETimingEventsColoringMode GetColoringMode() const { return ColoringMode; }
+	void SetColoringMode(Insights::ETimingEventsColoringMode InColoringMode) { ColoringMode = InColoringMode; }
+
+	uint32 GetEventDepthLimit() const { return EventDepthLimit; }
+	void SetEventDepthLimit(uint32 InEventDepthLimit) { EventDepthLimit = InEventDepthLimit; }
+
 private:
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
@@ -215,6 +230,9 @@ private:
 
 	/** The name of the Timing Insights log listing. */
 	FName LogListingName;
+
+	Insights::ETimingEventsColoringMode ColoringMode = Insights::ETimingEventsColoringMode::ByName;
+	uint32 EventDepthLimit = 1000;
 
 	/** A shared pointer to the global instance of the Timing Profiler manager. */
 	static TSharedPtr<FTimingProfilerManager> Instance;
