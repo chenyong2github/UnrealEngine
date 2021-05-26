@@ -152,7 +152,7 @@ namespace P4VUtils.Commands
 			using (ManagedProcessGroup Group = new ManagedProcessGroup())
 			using (ManagedProcess Process = new ManagedProcess(Group, ShellFileName, ShellArguments, null, null, System.Diagnostics.ProcessPriorityClass.Normal))
 			{
-				await Process.CopyTo(Console.OpenStandardOutput(), CancellationToken.None);
+				await Process.CopyToAsync(Console.OpenStandardOutput(), CancellationToken.None);
 			}
 
 			return true;
