@@ -1534,7 +1534,6 @@ FName FPerforceUpdateStatusWorker::GetName() const
 
 bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
-#if USE_P4_API
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
 	{
@@ -1674,7 +1673,6 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 			RemoveRedundantErrors(InCommand, TEXT(" - file(s) not opened on this client"));
 		}
 	}
-#endif
 
 	return InCommand.bCommandSuccessful;
 }

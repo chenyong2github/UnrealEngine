@@ -36,7 +36,6 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 
 	if (PortName.IsEmpty() && UserName.IsEmpty())
 	{
-#if USE_P4_API
 		ClientApi TestP4;
 		TestP4.SetProg("UE");
 		Error P4Error;
@@ -48,7 +47,6 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 		PerforceSourceControl.AccessSettings().SetPort(PortName);
 		PerforceSourceControl.AccessSettings().SetUserName(UserName);
 		PerforceSourceControl.SaveSettings();
-#endif
 	}
 
 	ChildSlot
