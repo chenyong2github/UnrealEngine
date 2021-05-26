@@ -171,7 +171,18 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		this.botLogger.info(msg)
 		postToRobomergeAlerts(msg)
 
-		this.startBotsAsync()
+		if (this.branchGraph.branches.length !== 0) {
+			const workspaceNames = this.branchGraph.branches.map(branch => (branch.workspace as Workspace).name || (branch.workspace as string))
+			const mirrorWorkspace = AutoBranchUpdater.getMirrorWorkspace(this)
+			if (mirrorWorkspace) {
+				workspaceNames.push(mirrorWorkspace.name)
+			}
+
+			this.botLogger.info('Cleaning all workspaces')
+			await p4util.cleanWorkspaces(this.p4, workspaceNames)
+		}
+
+		await this.startBotsAsync()
 	}
 
 	// Don't call this unless you want to bring down the entire GraphBot in a crash!
@@ -185,16 +196,6 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 	private async startBotsAsync() {
 		if (!this.waitTime) {
 			throw new Error('runbots must be called before startBots')
-		}
-
-		if (this.branchGraph.branches.length !== 0) {
-			const workspaceNames = this.branchGraph.branches.map(branch => (branch.workspace as Workspace).name || (branch.workspace as string))
-			const mirrorWorkspace = AutoBranchUpdater.getMirrorWorkspace(this)
-			if (mirrorWorkspace) {
-				workspaceNames.push(mirrorWorkspace.name)
-			}
-
-			await p4util.cleanWorkspaces(this.p4, workspaceNames)
 		}
 
 		this._runningBots = true

@@ -5,6 +5,7 @@ import { OnUncaughtException, OnUnhandledRejection } from '@sentry/node/dist/int
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import * as p4util from '../common/p4util';
 import { Analytics } from '../common/analytics';
 import { Arg, readProcessArgs } from '../common/args';
 import { _setTimeout } from '../common/helper';
@@ -288,7 +289,7 @@ async function _initWorkspacesForGraphBot(graphBot: GraphBot, existingWorkspaces
 
 	if (workspacesToReset.length > 0) {
 		logger.info('The following workspaces already exist and will be reset: ' + workspacesToReset.join(', '))
-		await Promise.all(workspacesToReset.map(ws => robo.p4.sync(ws, `//${ws}/...#0`)))
+		await p4util.cleanWorkspaces(robo.p4, workspacesToReset)
 	}
 }
 

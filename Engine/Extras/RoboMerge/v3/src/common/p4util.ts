@@ -213,4 +213,7 @@ export async function cleanWorkspaces(p4: PerforceContext, workspaceNames: strin
 
 		await p4.deleteCl(workspace, change.change)
 	}
+
+	p4utilsLogger.info('Resetting all workspaces to revision 0')
+	await Promise.all(workspaceNames.map(ws => p4.sync(ws, `//${ws}/...#0`)))
 }
