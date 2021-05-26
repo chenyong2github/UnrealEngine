@@ -98,7 +98,7 @@ namespace RemoteControlUtil
 			// and it's either blueprint visible if in game or editable if in editor and it isn't read only if the access type is write
 			(bObjectInGamePackage ?
 				InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly)) :
-				InProperty->HasAnyPropertyFlags(CPF_Edit) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_EditConst)));
+				InAccessType == ERCAccess::READ_ACCESS || (InProperty->HasAnyPropertyFlags(CPF_Edit) && !InProperty->HasAnyPropertyFlags(CPF_EditConst)));
 	};
 
 	FARFilter GetBasePresetFilter()
