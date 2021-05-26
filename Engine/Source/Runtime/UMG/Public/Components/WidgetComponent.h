@@ -639,9 +639,6 @@ private:
 	/** The slate widget currently being drawn. */
 	TWeakPtr<SWidget> CurrentSlateWidget;
 
-	void UpdateWidgetOnScreen();
-	void AddWidgetToScreen(ULocalPlayer* TargetPlayer);
-
 	static EVisibility ConvertWindowVisibilityToVisibility(EWindowVisibility visibility);
 
 	void OnWidgetVisibilityChanged(ESlateVisibility InVisibility);
