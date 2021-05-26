@@ -732,29 +732,40 @@ bool IsOffScreen(uint bCameraCut, float2 ScreenPos, taa_half ParallaxRejectionMa
 	return (bIsCameraCut || bIsOutOfBounds || bIsParallaxRejected);
 }
 
-taa_half2 MeasureRejectionFactor(taa_half3x2 PrevYCoCg, taa_half3x2 ClampedPrevYCoCg, taa_half3x2 InputCenterYCoCg, taa_half3x2 InputMinYCoCg, taa_half3x2 InputMaxYCoCg)
+taa_half MeasureBackbufferLDRQuantizationError()
+{
+	// Assume the backbuffer is 10bit per channels
+	return taa_half(0.5 / 1024.0);
+}
+
+taa_half2 MeasureBackbufferLDRQuantizationErrorFromHDRLuma(taa_half2 Luma)
+{
+	taa_half2 Tonemap = Luma * HdrWeightY(Luma) + MeasureBackbufferLDRQuantizationError().xx;
+	taa_half2 PixelColorQuantizationError = abs(Tonemap * HdrWeightInvY(Tonemap) - Luma);
+
+	return PixelColorQuantizationError;
+}
+
+taa_half MeasureBackbufferLDRQuantizationErrorFromHDRLuma(taa_half Luma)
+{
+	return dpv_lo(MeasureBackbufferLDRQuantizationErrorFromHDRLuma(dpv_interleave_mono_registers(Luma)));
+}
+
+taa_half2 MeasureRejectionFactor(
+	taa_half3x2 PrevYCoCg,
+	taa_half3x2 ClampedPrevYCoCg,
+	taa_half3x2 InputCenterYCoCg,
+	taa_half3x2 InputMinYCoCg, taa_half3x2 InputMaxYCoCg,
+	taa_half2 BackbufferQuantizationError)
 {
 	taa_half3x2 BoxSize = InputMaxYCoCg - InputMinYCoCg;
 
 	taa_half3x2 ClampedEnergy = abs(ClampedPrevYCoCg - PrevYCoCg);
 	taa_half3x2 Delta = abs(InputCenterYCoCg - PrevYCoCg);
 
-	taa_half3x2 ClampError;
-	#if 0
-	{
-		ClampError = BoxSize * taa_half(0.25);
-	}
-	#else
-	{
-		taa_half2 Luma = max(ClampedPrevYCoCg[0], PrevYCoCg[0]);
-
-		// Measure the error due to the quantization of the color in channels.
-		taa_half2 Tonemap = Luma * HdrWeightY(Luma) + taa_half(0.5 / 1024.0);
-		taa_half2 PixelColorQuantizationError = abs(Tonemap * HdrWeightInvY(Tonemap) - Luma);
-		
-		ClampError = max(BoxSize * taa_half(0.25), taa_half3x2(PixelColorQuantizationError, PixelColorQuantizationError, PixelColorQuantizationError));
-	}
-	#endif
+	taa_half3x2 ClampError = max(
+		BoxSize * taa_half(0.25),
+		taa_half3x2(BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError));
 
 	taa_half3x2 Factor = taa_half(1.0) - saturate(max(ClampedEnergy - ClampError, taa_half3x2(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)) / max(Delta, BoxSize));
 
@@ -763,14 +774,20 @@ taa_half2 MeasureRejectionFactor(taa_half3x2 PrevYCoCg, taa_half3x2 ClampedPrevY
 	return Rejection;
 }
 
-taa_half MeasureRejectionFactor(taa_half3 PrevYCoCg, taa_half3 ClampedPrevYCoCg, taa_half3 InputCenterYCoCg, taa_half3 InputMinYCoCg, taa_half3 InputMaxYCoCg)
+taa_half MeasureRejectionFactor(
+	taa_half3 PrevYCoCg,
+	taa_half3 ClampedPrevYCoCg,
+	taa_half3 InputCenterYCoCg,
+	taa_half3 InputMinYCoCg, taa_half3 InputMaxYCoCg,
+	taa_half BackbufferQuantizationError)
 {
 	return dpv_lo(MeasureRejectionFactor(
 		dpv_interleave_mono_registers(PrevYCoCg), 
 		dpv_interleave_mono_registers(ClampedPrevYCoCg), 
 		dpv_interleave_mono_registers(InputCenterYCoCg), 
 		dpv_interleave_mono_registers(InputMinYCoCg), 
-		dpv_interleave_mono_registers(InputMaxYCoCg)));
+		dpv_interleave_mono_registers(InputMaxYCoCg), 
+		dpv_interleave_mono_registers(BackbufferQuantizationError)));
 }
 
 struct FSubpixelNeighborhood
