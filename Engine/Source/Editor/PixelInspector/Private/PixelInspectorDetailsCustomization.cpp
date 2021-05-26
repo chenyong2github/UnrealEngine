@@ -29,12 +29,6 @@ TSharedRef<SHorizontalBox> FPixelInspectorDetailsCustomization::GetGridColorCont
 	TSharedRef<SHorizontalBox> HorizontalMainGrid = SNew(SHorizontalBox);
 	for (int32 ColumnIndex = 0; ColumnIndex < FinalColorContextGridSize; ++ColumnIndex)
 	{
-		SBoxPanel::FSlot &HorizontalSlot = HorizontalMainGrid->AddSlot()
-			.AutoWidth()
-			.Padding(2.0f, 2.0f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center);
-
 		TSharedRef<SVerticalBox> VerticalColumn = SNew(SVerticalBox);
 		for (int32 RowIndex = 0; RowIndex < FinalColorContextGridSize; ++RowIndex)
 		{
@@ -47,7 +41,14 @@ TSharedRef<SHorizontalBox> FPixelInspectorDetailsCustomization::GetGridColorCont
 					CreateColorCell(RowIndex, ColumnIndex, PixelInspectorView->FinalColorContext[ColumnIndex + RowIndex*FinalColorContextGridSize])
 				];
 		}
-		HorizontalSlot[VerticalColumn];
+		HorizontalMainGrid->AddSlot()
+			.AutoWidth()
+			.Padding(2.0f, 2.0f)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			[
+				VerticalColumn
+			];
 	}
 	return HorizontalMainGrid;
 }

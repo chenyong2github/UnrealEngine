@@ -53,7 +53,7 @@ FVector2D SCurveEditorViewContainer::ComputeDesiredSize(float) const
 			// That will be the desired width of the whole panel.
 			MyDesiredSize.X = FMath::Max(MyDesiredSize.X, ChildDesiredSize.X + SlotPadding.GetTotalSpaceAlong<Orient_Horizontal>());
 
-			if (Child.SizeParam.SizeRule == FSizeParam::SizeRule_Stretch)
+			if (Child.GetSizeParam().SizeRule == FSizeParam::SizeRule_Stretch)
 			{
 				++NumStretchPanels;
 			}
@@ -327,7 +327,9 @@ void SCurveEditorViewContainer::AddView(TSharedRef<SCurveEditorView> ViewToAdd)
 	ViewToAdd->RelativeOrder = Views.Num();
 
 	Views.Add(ViewToAdd);
-	SVerticalBox::FSlot& Slot = AddSlot()
+	SVerticalBox::FSlot* SlotPointer = nullptr;
+	AddSlot()
+	.Expose(SlotPointer)
 	[
 		SNew(SBox)
 		.Padding(MakeAttributeSP(this, &SCurveEditorViewContainer::GetSlotPadding, InsertIndex))
@@ -339,7 +341,7 @@ void SCurveEditorViewContainer::AddView(TSharedRef<SCurveEditorView> ViewToAdd)
 
 	if (ViewToAdd->ShouldAutoSize())
 	{
-		Slot.AutoHeight();
+		SlotPointer->SetAutoHeight();
 	}
 }
 

@@ -56,14 +56,14 @@ void SConcertScrollBox::Construct(const FArguments& InArgs)
 		];
 
 	// Forward the slots to the inner scroll box.
-	for (SConcertScrollBox::FSlot* InSlot : InArgs.Slots)
+	for (const SConcertScrollBox::FSlot::FSlotArguments& InSlot : InArgs._Slots)
 	{
-		if (InSlot)
+		if (InSlot.GetAttachedWidget())
 		{
 			ScrollBox->AddSlot()
-				[
-					InSlot->GetWidget()
-				];
+			[
+				InSlot.GetAttachedWidget().ToSharedRef()
+			];
 		}
 	}
 }
@@ -88,9 +88,9 @@ void SConcertScrollBox::Tick(const FGeometry& AllottedGeometry, const double InC
 }
 
 
-SConcertScrollBox::FSlot& SConcertScrollBox::Slot()
+SConcertScrollBox::FSlot::FSlotArguments SConcertScrollBox::Slot()
 {
-	return *(new SConcertScrollBox::FSlot());
+	return SConcertScrollBox::FSlot::FSlotArguments(MakeUnique<SConcertScrollBox::FSlot>());
 }
 
 void SConcertScrollBox::HandleUserScrolled(float)

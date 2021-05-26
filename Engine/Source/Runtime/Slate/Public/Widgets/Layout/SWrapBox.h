@@ -52,54 +52,88 @@ class SLATE_API SWrapBox : public SPanel
 public:
 
 	/** A slot that support alignment of content and padding */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	class FSlot : public TBasicLayoutWidgetSlot<FSlot>
 	{
 	public:
 		FSlot()
 			: TBasicLayoutWidgetSlot<FSlot>(HAlign_Fill, VAlign_Fill)
-			, SlotFillLineWhenWidthLessThan()
 			, SlotFillLineWhenSizeLessThan()
 			, bSlotFillEmptySpace(false)
 			, bSlotForceNewLine(false)
 		{
 		}
 
-		UE_DEPRECATED(4.26, "Deprecated, please use FillLineWhenSizeLessThan() instead")
-		FSlot& FillLineWhenWidthLessThan(TOptional<float> InFillLineWhenWidthLessThan)
+		SLATE_SLOT_BEGIN_ARGS(FSlot, TBasicLayoutWidgetSlot<FSlot>)
+			SLATE_ARGUMENT(TOptional<float>, FillLineWhenSizeLessThan)
+			SLATE_ARGUMENT(TOptional<bool>, FillEmptySpace)
+			SLATE_ARGUMENT(TOptional<bool>, ForceNewLine)
+		SLATE_SLOT_END_ARGS()
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			SlotFillLineWhenWidthLessThan = InFillLineWhenWidthLessThan;
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			return *(static_cast<FSlot*>(this));
+			TBasicLayoutWidgetSlot<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+			if (InArgs._FillLineWhenSizeLessThan.IsSet())
+			{
+				SlotFillLineWhenSizeLessThan = InArgs._FillLineWhenSizeLessThan;
+			}
+			bSlotFillEmptySpace = InArgs._FillEmptySpace.Get(bSlotFillEmptySpace);
+			bSlotForceNewLine = InArgs._ForceNewLine.Get(bSlotForceNewLine);
 		}
 
 		/** Dependently of the Orientation, if the total available horizontal or vertical space in the wrap panel drops below this threshold, this slot will attempt to fill an entire line. */
-		FSlot& FillLineWhenSizeLessThan(TOptional<float> InFillLineWhenSizeLessThan)
+		void SetFillLineWhenSizeLessThan(TOptional<float> InFillLineWhenSizeLessThan)
 		{
-			SlotFillLineWhenSizeLessThan = InFillLineWhenSizeLessThan;
-			return *(static_cast<FSlot*>(this));
+			if (SlotFillLineWhenSizeLessThan != InFillLineWhenSizeLessThan)
+			{
+				SlotFillLineWhenSizeLessThan = InFillLineWhenSizeLessThan;
+				FSlotBase::Invalidate(EInvalidateWidgetReason::Layout);
+			}
+		}
+
+		TOptional<float> GetFillLineWhenSizeLessThan() const
+		{
+			return SlotFillLineWhenSizeLessThan;
 		}
 
 		/** Should this slot fill the remaining space on the line? */
-		FSlot& FillEmptySpace(bool bInFillEmptySpace)
+		void SetFillEmptySpace(bool bInFillEmptySpace)
 		{
-			bSlotFillEmptySpace = bInFillEmptySpace;
-			return *(static_cast<FSlot*>(this));
+			if (bSlotFillEmptySpace != bInFillEmptySpace)
+			{
+				bSlotFillEmptySpace = bInFillEmptySpace;
+				FSlotBase::Invalidate(EInvalidateWidgetReason::Layout);
+			}
 		}
 
-		FSlot& ForceNewLine(bool bInForceNewLine)
+		bool GetFillEmptySpace() const
 		{
-			bSlotForceNewLine = bInForceNewLine;
-			return *(static_cast<FSlot*>(this));
+			return bSlotFillEmptySpace;
 		}
 
-		UE_DEPRECATED(4.26, "Deprecated, please use SlotFillLineWhenSizeLessThan instead")
-		TOptional<float> SlotFillLineWhenWidthLessThan;
+		void SetForceNewLine(bool bInForceNewLine)
+		{
+			if (bSlotForceNewLine != bInForceNewLine)
+			{
+				bSlotForceNewLine = bInForceNewLine;
+				FSlotBase::Invalidate(EInvalidateWidgetReason::Layout);
+			}
+		}
 
+		bool GetForceNewLine() const
+		{
+			return bSlotForceNewLine;
+		}
+
+	public:
+		UE_DEPRECATED(5.0, "Direct access to SlotFillLineWhenSizeLessThan is now deprecated. Use the getter or setter.")
 		TOptional<float> SlotFillLineWhenSizeLessThan;
+		UE_DEPRECATED(5.0, "Direct access to bSlotFillEmptySpace is now deprecated. Use the getter or setter.")
 		bool bSlotFillEmptySpace;
+		UE_DEPRECATED(5.0, "Direct access to bSlotForceNewLine is now deprecated. Use the getter or setter.")
 		bool bSlotForceNewLine;
 	};
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 	SLATE_BEGIN_ARGS(SWrapBox)
@@ -115,7 +149,7 @@ public:
 		}
 
 		/** The slot supported by this panel */
-		SLATE_SUPPORTS_SLOT( FSlot )
+		SLATE_SLOT_ARGUMENT( FSlot, Slots )
 
 		/** The preferred width, if not set will fill the space */
 		SLATE_ATTRIBUTE( float, PreferredWidth )
@@ -141,9 +175,13 @@ public:
 
 	SWrapBox();
 
-	static FSlot& Slot();
+	static FSlot::FSlotArguments Slot()
+	{
+		return FSlot::FSlotArguments(MakeUnique<FSlot>());
+	}
 
-	FSlot& AddSlot();
+	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
+	FScopedWidgetSlotArguments AddSlot();
 
 	/** Removes a slot from this box panel which contains the specified SWidget
 	 *

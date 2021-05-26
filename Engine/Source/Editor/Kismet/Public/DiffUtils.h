@@ -315,5 +315,5 @@ namespace DiffViewUtils
 	KISMET_API FText SCSDiffMessage(const FSCSDiffEntry& Difference, FText ObjectName);
 	KISMET_API FText GetPanelLabel(const UBlueprint* Blueprint, const FRevisionInfo& Revision, FText Label);
 
-	KISMET_API SHorizontalBox::FSlot& Box(bool bIsPresent, FLinearColor Color);
+	KISMET_API SHorizontalBox::FSlot::FSlotArguments Box(bool bIsPresent, FLinearColor Color);
 }

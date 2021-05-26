@@ -88,9 +88,6 @@ void SNiagaraGraphParameterMapGetNode::CreatePinWidgets()
 	// Deferred pin adding to line up input/output pins by name.
 	for (int32 i = 0; i < OutputPins.Num() + 1; i++)
 	{
-		SVerticalBox::FSlot& Slot = PinContainerRoot->AddSlot();
-		Slot.AutoHeight();
-
 		// Get nodes have an unequal number of pins. 
 		TSharedPtr<SWidget> Widget;
 		if (i == 0)
@@ -149,8 +146,7 @@ void SNiagaraGraphParameterMapGetNode::CreatePinWidgets()
 				];
 		}
 
-		TSharedPtr<SBorder> Border;
-		SAssignNew(Border, SBorder)
+		TSharedRef<SBorder> Border = SNew(SBorder)
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding(FMargin(0, 3))
@@ -160,7 +156,12 @@ void SNiagaraGraphParameterMapGetNode::CreatePinWidgets()
 			];
 		Border->SetBorderImage(TAttribute<const FSlateBrush*>::Create(TAttribute<const FSlateBrush*>::FGetter::CreateRaw(this, &SNiagaraGraphParameterMapGetNode::GetBackgroundBrush, Widget)));
 
-		Slot.AttachWidget(Border.ToSharedRef());
+
+		PinContainerRoot->AddSlot()
+			.AutoHeight()
+			[
+				Border
+			];
 	}
 }
 

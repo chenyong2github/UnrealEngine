@@ -29,11 +29,10 @@ void UHorizontalBoxSlot::BuildSlot(TSharedRef<SHorizontalBox> HorizontalBox)
 		.HAlign(HorizontalAlignment)
 		.VAlign(VerticalAlignment)
 		.Padding(Padding)
+		.SizeParam(UWidget::ConvertSerializedSizeParamToRuntime(Size))
 		[
 			Content == NULL ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
-
-	Slot->SizeParam = UWidget::ConvertSerializedSizeParamToRuntime(Size);
 }
 
 void UHorizontalBoxSlot::SetPadding(FMargin InPadding)
@@ -50,7 +49,7 @@ void UHorizontalBoxSlot::SetSize(FSlateChildSize InSize)
 	Size = InSize;
 	if ( Slot )
 	{
-		Slot->SizeParam = UWidget::ConvertSerializedSizeParamToRuntime(InSize);
+		Slot->SetSizeParam(UWidget::ConvertSerializedSizeParamToRuntime(InSize));
 	}
 }
 

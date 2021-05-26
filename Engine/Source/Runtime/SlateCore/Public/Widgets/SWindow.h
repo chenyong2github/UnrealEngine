@@ -121,6 +121,119 @@ private:
 	TSharedPtr<SOverlay> Overlay;
 };
 
+
+/**
+ * Popups, tooltips, drag and drop decorators all can be executed without creating a new window.
+ * This slot along with the SWindow::AddPopupLayerSlot() API enabled it.
+ */
+struct FPopupLayerSlot : public TSlotBase<FPopupLayerSlot>
+{
+public:
+	FPopupLayerSlot()
+		: TSlotBase<FPopupLayerSlot>()
+		, DesktopPosition_Attribute(FVector2D::ZeroVector)
+		, WidthOverride_Attribute()
+		, HeightOverride_Attribute()
+		, Scale_Attribute(1.0f)
+		, Clamp_Attribute(false)
+		, ClampBuffer_Attribute(FVector2D::ZeroVector)
+	{}
+
+	SLATE_SLOT_BEGIN_ARGS(FPopupLayerSlot, TSlotBase<FPopupLayerSlot>)
+		/** Pixel position in desktop space */
+		SLATE_ATTRIBUTE(FVector2D, DesktopPosition)
+		/** Width override in pixels */
+		SLATE_ATTRIBUTE(float, WidthOverride)
+		/** Width override in pixels */
+		SLATE_ATTRIBUTE(float, HeightOverride)
+		/** DPI scaling to be applied to the contents of this slot */
+		SLATE_ATTRIBUTE(float, Scale)
+		/** Should this slot be kept within the parent window */
+		SLATE_ATTRIBUTE(bool, ClampToWindow)
+		/** If this slot is kept within the parent window, how far from the edges should we clamp it */
+		SLATE_ATTRIBUTE(FVector2D, ClampBuffer)
+	SLATE_SLOT_END_ARGS()
+
+	void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+	{
+		if (InArgs._DesktopPosition.IsSet())
+		{
+			SetDesktopPosition(MoveTemp(InArgs._DesktopPosition));
+		}
+		if (InArgs._WidthOverride.IsSet())
+		{
+			SetWidthOverride(MoveTemp(InArgs._WidthOverride));
+		}
+		if (InArgs._HeightOverride.IsSet())
+		{
+			SetHeightOverride(MoveTemp(InArgs._HeightOverride));
+		}
+		if (InArgs._Scale.IsSet())
+		{
+			SetScale(MoveTemp(InArgs._Scale));
+		}
+		if (InArgs._ClampToWindow.IsSet())
+		{
+			SetClampToWindow(MoveTemp(InArgs._ClampToWindow));
+		}
+		if (InArgs._ClampBuffer.IsSet())
+		{
+			SetClampBuffer(MoveTemp(InArgs._ClampBuffer));
+		}
+		TSlotBase<FPopupLayerSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+	}
+
+	/** Pixel position in desktop space */
+	void SetDesktopPosition(TAttribute<FVector2D> InDesktopPosition)
+	{
+		DesktopPosition_Attribute = MoveTemp(InDesktopPosition);
+	}
+
+	/** Width override in pixels */
+	void SetWidthOverride(TAttribute<float> InWidthOverride)
+	{
+		WidthOverride_Attribute = MoveTemp(InWidthOverride);
+	}
+
+	/** Width override in pixels */
+	void SetHeightOverride(TAttribute<float> InHeightOverride)
+	{
+		HeightOverride_Attribute = MoveTemp(InHeightOverride);
+	}
+
+	/** DPI scaling to be applied to the contents of this slot */
+	void SetScale(TAttribute<float> InScale)
+	{
+		Scale_Attribute = MoveTemp(InScale);
+	}
+
+	/** Should this slot be kept within the parent window */
+	void SetClampToWindow(TAttribute<bool> InClamp_Attribute)
+	{
+		Clamp_Attribute = MoveTemp(InClamp_Attribute);
+	}
+
+	/** If this slot is kept within the parent window, how far from the edges should we clamp it */
+	void SetClampBuffer(TAttribute<FVector2D> InClampBuffer_Attribute)
+	{
+		ClampBuffer_Attribute = MoveTemp(InClampBuffer_Attribute);
+	}
+
+private:
+	/** SPopupLayer arranges FPopupLayerSlots, so it needs to know all about */
+	friend class SPopupLayer;
+	/** TPanelChildren need access to the Widget member */
+	friend class TPanelChildren<FPopupLayerSlot>;
+
+	TAttribute<FVector2D> DesktopPosition_Attribute;
+	TAttribute<float> WidthOverride_Attribute;
+	TAttribute<float> HeightOverride_Attribute;
+	TAttribute<float> Scale_Attribute;
+	TAttribute<bool> Clamp_Attribute;
+	TAttribute<FVector2D> ClampBuffer_Attribute;
+};
+
+
 /**
  * SWindow is a platform-agnostic representation of a top-level window.
  */
@@ -551,8 +664,9 @@ public:
 	 */
 	virtual TSharedPtr<FPopupLayer> OnVisualizePopup(const TSharedRef<SWidget>& PopupContent) override;
 
+	using FScopedWidgetSlotArguments = TPanelChildren<FPopupLayerSlot>::FScopedWidgetSlotArguments;
 	/** Return a new slot in the popup layer. Assumes that the window has a popup layer. */
-	struct FPopupLayerSlot& AddPopupLayerSlot();
+	FScopedWidgetSlotArguments AddPopupLayerSlot();
 
 	/** Counterpart to AddPopupLayerSlot */
 	void RemovePopupLayerSlot( const TSharedRef<SWidget>& WidgetToRemove );
@@ -1236,81 +1350,6 @@ private:
 	/** The handle to the active timer */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 };
-
-
-/**
- * Popups, tooltips, drag and drop decorators all can be executed without creating a new window.
- * This slot along with the SWindow::AddPopupLayerSlot() API enabled it.
- */
-struct FPopupLayerSlot : public TSlotBase<FPopupLayerSlot>
-{
-public:
-	FPopupLayerSlot()
-	: TSlotBase<FPopupLayerSlot>()
-	, DesktopPosition_Attribute(FVector2D::ZeroVector)
-	, WidthOverride_Attribute()
-	, HeightOverride_Attribute()
-	, Scale_Attribute(1.0f)
-	, Clamp_Attribute(false)
-	, ClampBuffer_Attribute(FVector2D::ZeroVector)
-	{}
-
-	/** Pixel position in desktop space */
-	FPopupLayerSlot& DesktopPosition( const TAttribute<FVector2D>& InDesktopPosition )
-	{
-		DesktopPosition_Attribute = InDesktopPosition;
-		return *this;
-	}
-
-	/** Width override in pixels */
-	FPopupLayerSlot& WidthOverride( const TAttribute<float>& InWidthOverride )
-	{
-		WidthOverride_Attribute = InWidthOverride;
-		return *this;
-	}
-
-	/** Width override in pixels */
-	FPopupLayerSlot& HeightOverride( const TAttribute<float>& InHeightOverride )
-	{
-		HeightOverride_Attribute = InHeightOverride;
-		return *this;
-	}
-
-	/** DPI scaling to be applied to the contents of this slot */
-	FPopupLayerSlot& Scale( const TAttribute<float>& InScale )
-	{
-		Scale_Attribute = InScale;
-		return *this;
-	}
-
-	/** Should this slot be kept within the parent window */
-	FPopupLayerSlot& ClampToWindow( const TAttribute<bool>& InClamp_Attribute)
-	{
-		Clamp_Attribute = InClamp_Attribute;
-		return *this;
-	}
-
-	/** If this slot is kept within the parent window, how far from the edges should we clamp it */
-	FPopupLayerSlot& ClampBuffer( const TAttribute<FVector2D>& InClampBuffer_Attribute )
-	{
-		ClampBuffer_Attribute = InClampBuffer_Attribute;
-		return *this;
-	}
-
-private:
-	/** SPopupLayer arranges FPopupLayerSlots, so it needs to know all about */
-	friend class SPopupLayer;
-	/** TPanelChildren need access to the Widget member */
-	friend class TPanelChildren<FPopupLayerSlot>;
-
-	TAttribute<FVector2D> DesktopPosition_Attribute;
-	TAttribute<float> WidthOverride_Attribute;
-	TAttribute<float> HeightOverride_Attribute;
-	TAttribute<float> Scale_Attribute;
-	TAttribute<bool> Clamp_Attribute;
-	TAttribute<FVector2D> ClampBuffer_Attribute;
-};
-
 
 #if WITH_EDITOR
 

@@ -56,9 +56,11 @@ void UCommonWidgetCarouselNavBar::RebuildButtons()
 				ButtonGroup->AddWidget(ButtonUserWidget);
 
 				TSharedRef<SWidget> ButtonSWidget = ButtonUserWidget->TakeWidget();
-				SHorizontalBox::FSlot& NewSlot = MyContainer->AddSlot();
-				NewSlot.Padding(ButtonPadding);
-				NewSlot.AttachWidget(ButtonSWidget);
+				MyContainer->AddSlot()
+					.Padding(ButtonPadding)
+					[
+						ButtonSWidget
+					];
 			}
 		}
 

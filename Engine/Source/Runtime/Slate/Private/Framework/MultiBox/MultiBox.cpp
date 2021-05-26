@@ -687,28 +687,29 @@ void SMultiBoxWidget::AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHoriz
 
 			bool bOverride = Block.GetAlignmentOverrides(HAlign, VAlign, bAutoWidth);
 
-			SHorizontalBox::FSlot& Slot = HorizontalBox->AddSlot();
-		
-			if(bOverride)
 			{
-				if (bAutoWidth)
+				SHorizontalBox::FScopedWidgetSlotArguments NewSlot = HorizontalBox->AddSlot();
+
+				NewSlot.Padding(0.f)
+				[
+					FinalWidgetWithHook
+				];
+
+				if (bOverride)
 				{
-					Slot.AutoWidth();
+					if (bAutoWidth)
+					{
+						NewSlot.AutoWidth();
+					}
+
+					NewSlot.HAlign(HAlign)
+						.VAlign(VAlign);
 				}
-
-				Slot.HAlign(HAlign);
-				Slot.VAlign(VAlign);
+				else
+				{
+					NewSlot.AutoWidth();
+				}
 			}
-			else
-			{
-				Slot.AutoWidth();
-			}
-
-			Slot.Padding(0.f);
-			Slot
-			[
-				FinalWidgetWithHook
-			];
 		}
 		break;
 	case EMultiBoxType::VerticalToolBar:

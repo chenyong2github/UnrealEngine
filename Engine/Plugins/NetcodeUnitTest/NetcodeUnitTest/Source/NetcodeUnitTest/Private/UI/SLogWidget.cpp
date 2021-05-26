@@ -174,7 +174,7 @@ void SLogWidget::Construct(const FArguments& Args)
 
 	// Conditionally enable/disable some UI elements (e.g. Suspend/AutoClose), that aren't necessary for the status window
 	auto ConditionalSlot =
-		[] (bool bCondition, SHorizontalBox::FSlot& InSlot) -> SHorizontalBox::FSlot&
+		[] (bool bCondition, SHorizontalBox::FSlot::FSlotArguments& InSlot) -> SHorizontalBox::FSlot::FSlotArguments&
 		{
 			if (bCondition)
 			{
