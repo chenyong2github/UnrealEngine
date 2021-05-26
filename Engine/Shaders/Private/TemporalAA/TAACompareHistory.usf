@@ -90,7 +90,8 @@ void MainCS(
 
 		Rejection = MeasureRejectionFactor(
 			PrevColor, ClampedPrevColor,
-			InputCenterColor, InputMinColor, InputMaxColor);
+			InputCenterColor, InputMinColor, InputMaxColor,
+			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevColor[0], ClampedPrevColor[0])));
 		
 		Debug.rgb = abs(YCoCgToRGB(PrevColor - ClampedPrevColor)) / max3(YCoCgToRGB(InputMaxColor), YCoCgToRGB(InputCenterColor), 0.01);
 	}

@@ -195,11 +195,13 @@ void MainCS(
 		// TODO: reject with alpha too? Might not need since translucency is premultiplied RGBA 
 		taa_half ForwardRejection = MeasureRejectionFactor(
 			PrevTranslucency.xyz, ClampedPrevTranslucency.xyz,
-			Translucency.xyz, TranslucencyMin.xyz, TranslucencyMax.xyz);
+			Translucency.xyz, TranslucencyMin.xyz, TranslucencyMax.xyz,
+			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevTranslucency[0], ClampedPrevTranslucency[0])));
 		
 		taa_half BackwardRejection = MeasureRejectionFactor(
 			Translucency.xyz, ClampedTranslucency.xyz,
-			PrevTranslucency.xyz, PrevTranslucencyMin.xyz, PrevTranslucencyMax.xyz);
+			PrevTranslucency.xyz, PrevTranslucencyMin.xyz, PrevTranslucencyMax.xyz,
+			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(Translucency[0], ClampedTranslucency[0])));
 		
 		Rejection = min(ForwardRejection, BackwardRejection);
 	}

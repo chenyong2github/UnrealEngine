@@ -550,15 +550,19 @@ void MainCS(
 	// Rejects high frequency details if their low frequencies drift from the low frequency history
 	#if CONFIG_LOW_FREQUENCY_DRIFT_REJECTION
 	{
-		taa_half3x2 PrevHighFrequencyYCoCg = TransformColorForClampingBox(dpv_scale(PrevHistoryMoment1, SafeRcp(PrevHistoryValidity)));
+		taa_half3x2 NormalizedPrevHistoryMoment1 = dpv_scale(PrevHistoryMoment1, SafeRcp(PrevHistoryValidity));
+
+		taa_half3x2 PrevHighFrequencyYCoCg = TransformColorForClampingBox(NormalizedPrevHistoryMoment1);
 		taa_half3x2 PrevYCoCg = TransformColorForClampingBox(PrevFallbackColor);
 		taa_half3x2 ClampedPrevYCoCg = TransformColorForClampingBox(clamp(PrevFallbackColor, PrevHistoryMommentMin, PrevHistoryMommentMax));
 
 		taa_half2 HighFrequencyRejection = MeasureRejectionFactor(
 			PrevYCoCg, ClampedPrevYCoCg,
-			PrevHighFrequencyYCoCg, InputMinColor, InputMaxColor);
+			PrevHighFrequencyYCoCg, InputMinColor, InputMaxColor,
+			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevYCoCg[0], ClampedPrevYCoCg[0])));
 		
-		PrevHistoryMoment1 = dpv_scale(PrevHistoryMoment1, HighFrequencyRejection);
+		//PrevHistoryMoment1 = dpv_scale(PrevHistoryMoment1, HighFrequencyRejection);
+		PrevHistoryMoment1 = dpv_scale(clamp(NormalizedPrevHistoryMoment1, PrevHistoryMommentMin, PrevHistoryMommentMax), HighFrequencyRejection * PrevHistoryValidity);
 		PrevHistoryValidity *= HighFrequencyRejection;
 	}
 	#endif
@@ -584,7 +588,8 @@ void MainCS(
 		
 		FallbackRejection = MeasureRejectionFactor(
 			PrevYCoCg, ClampedPrevYCoCg,
-			InputCenterYCoCg, InputMinColor, InputMaxColor);
+			InputCenterYCoCg, InputMinColor, InputMaxColor,
+			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevYCoCg[0], ClampedPrevYCoCg[0])));
 
 		#if !CONFIG_CLAMP
 		{
