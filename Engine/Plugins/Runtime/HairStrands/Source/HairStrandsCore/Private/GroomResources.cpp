@@ -1011,6 +1011,18 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairStrandsRootBulk
 	const int32 ChunkIndex = 0;
 	bool bAttemptFileMapping = false;
 
+	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+	LOD.RootTriangleIndexBuffer.SetBulkDataFlags(BulkFlags);
+	LOD.RootTriangleBarycentricBuffer.SetBulkDataFlags(BulkFlags);
+	LOD.RestRootTrianglePosition0Buffer.SetBulkDataFlags(BulkFlags);
+	LOD.RestRootTrianglePosition1Buffer.SetBulkDataFlags(BulkFlags);
+	LOD.RestRootTrianglePosition2Buffer.SetBulkDataFlags(BulkFlags);
+
+	LOD.MeshInterpolationWeightsBuffer.SetBulkDataFlags(BulkFlags);
+	LOD.MeshSampleIndicesBuffer.SetBulkDataFlags(BulkFlags);
+	LOD.RestSamplePositionsBuffer.SetBulkDataFlags(BulkFlags);
+	LOD.ValidSectionIndices.SetBulkDataFlags(BulkFlags);
+
 	Ar << LOD.LODIndex;
 	LOD.RootTriangleIndexBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	LOD.RootTriangleBarycentricBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
@@ -1043,6 +1055,9 @@ void FHairStrandsRootBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
 	const int32 ChunkIndex = 0;
 	bool bAttemptFileMapping = false;
+
+	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+	VertexToCurveIndexBuffer.SetBulkDataFlags(BulkFlags);
 
 	if (!Ar.IsObjectReferenceCollector())
 	{
