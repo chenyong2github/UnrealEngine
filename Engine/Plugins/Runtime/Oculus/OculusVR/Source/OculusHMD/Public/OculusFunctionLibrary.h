@@ -394,7 +394,7 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	static void EnableOrientationTracking(bool bOrientationTracking);
 
 	/**
-	* Enables/disables orientation tracking on devices that support it.
+	* Set the Color Scale/Offset
 	*/
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
 	static void SetColorScaleAndOffset(FLinearColor ColorScale, FLinearColor ColorOffset, bool bApplyToAllLayers = false);
