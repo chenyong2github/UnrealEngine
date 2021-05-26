@@ -128,7 +128,21 @@ struct TRemoteControlTypeTraits<ValueType,
 template <>
 struct TRemoteControlPropertyTypeTraits<FNumericProperty>
 {
-	using Type = FNumericProperty;
+	using PropertyType = FNumericProperty;
+
+	/** Is ValueType supported as a range (protocol input) value? */
+	static constexpr bool IsSupportedRangeType() { return true; }
+
+	/** Is ValueType supported as a mapping (property output) value? */
+	static constexpr bool IsSupportedMappingType() { return true; }
+};
+
+template <typename InPropertyType>
+struct TRemoteControlPropertyTypeTraits<InPropertyType,
+	typename TEnableIf<TIsDerivedFrom<InPropertyType, FNumericProperty>::Value, void>::Type>
+{
+	using PropertyType = InPropertyType;
+	using ValueType = typename InPropertyType::TCppType;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return true; }
@@ -350,6 +364,7 @@ template <>
 struct TRemoteControlPropertyTypeTraits<FArrayProperty>
 {
 	using PropertyType = FArrayProperty;
+	using ValueType = uint8*;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return false; }
@@ -363,6 +378,7 @@ template <>
 struct TRemoteControlPropertyTypeTraits<FSetProperty>
 {
 	using PropertyType = FSetProperty;
+	using ValueType = uint8*;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return false; }
@@ -376,6 +392,7 @@ template <>
 struct TRemoteControlPropertyTypeTraits<FMapProperty>
 {
 	using PropertyType = FMapProperty;
+	using ValueType = uint8*;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return false; }
@@ -391,6 +408,7 @@ template <>
 struct TRemoteControlPropertyTypeTraits<FStructProperty>
 {
 	using PropertyType = FNameProperty;
+	using ValueType = uint8*;
 
 	/** Is ValueType supported as a range (protocol input) value? */
 	static constexpr bool IsSupportedRangeType() { return false; }

@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 
 #include "RCTypeTraits.h"
+#include "RCTypeUtilities.h"
+#include "Serialization/BufferArchive.h"
+#include "UObject/WeakFieldPtr.h"
 
 #if WITH_EDITOR
 #include "PropertyHandle.h"
@@ -18,39 +21,34 @@ namespace RemoteControlPropertyUtilities
 	{
 		TSharedPtr<IPropertyHandle> PropertyHandle = nullptr;
 
-		const FProperty* Property = nullptr;
+		TWeakFieldPtr<FProperty> Property = nullptr;
 		void* PropertyData = nullptr;
 		TArray<uint8>* PropertyContainer = nullptr;
 
-		bool bIsHandle = false;
+		bool bHasHandle = false;
 		int32 NumElements = -1;
 
 	public:
 		explicit FRCPropertyVariant() = default;
 
-		virtual ~FRCPropertyVariant()
-		{
-			auto o =123;
-			auto n = o;
-		}
-
+		/** Construct from an IPropertyHandle. */
 		FRCPropertyVariant(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
-			: bIsHandle(true)
+			: bHasHandle(true)
 		{
 			PropertyHandle = InPropertyHandle;
+			Property = PropertyHandle->GetProperty();
 		}
 
+		/** Construct from a Property, PropertyData ptr, and the expected element count (needed for arrays, strings, etc.). */
 		FRCPropertyVariant(const FProperty* InProperty, const void* InPropertyData, const int32& InNumElements = -1)
-			: bIsHandle(false)
-			, NumElements(InNumElements)
+			: NumElements(InNumElements)
 		{
 			Property = InProperty;
-			// @todo: make more elegant
 			PropertyData = const_cast<void*>(InPropertyData);
 		}
 
+		/** Construct from a Property and backing data array. Preferred over a raw ptr. */
 		FRCPropertyVariant(const FProperty* InProperty, TArray<uint8>& InPropertyData)
-			: bIsHandle(false)
 		{
 			Property = InProperty;
 
@@ -58,11 +56,23 @@ namespace RemoteControlPropertyUtilities
 			PropertyContainer = &InPropertyData;
 			NumElements = InPropertyData.Num();
 		}
-		
+
+		virtual ~FRCPropertyVariant() = default;
+
 		/** Gets the property. */
 		const FProperty* GetProperty() const
 		{
-			return bIsHandle ? PropertyHandle->GetProperty() : Property;
+			if(Property.IsValid())
+			{
+				return Property.Get();
+			}
+
+			if(bHasHandle && PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
+			{
+				return PropertyHandle->GetProperty();
+			}
+
+			return nullptr;
 		}
 
 		/** Gets the typed property, returns nullptr if not cast. */
@@ -72,33 +82,67 @@ namespace RemoteControlPropertyUtilities
 			static_assert(TIsDerivedFrom<PropertyType, FProperty>::Value, "PropertyType must derive from FProperty");
 
 			return CastField<PropertyType>(GetProperty());
+		} 
+
+		/** Gets the property container (byte array), if available. */
+		TArray<uint8>* GetPropertyContainer() const
+		{
+			if(PropertyContainer)
+			{
+				return PropertyContainer;
+			}
+
+			return nullptr;
 		}
 
 		/** Gets the data pointer */
-		void* GetPropertyData() const
+		void* GetPropertyData(int32 InIdx = 0) const
 		{
-			if(bIsHandle)
+			if(bHasHandle)
 			{
 				TArray<void*> Data;
 				PropertyHandle->AccessRawData(Data);
-				check(Data.IsValidIndex(0)); // check that there's at least one set of data
+				check(Data.IsValidIndex(InIdx)); // check that there's at least one set of data
 
-				return Data[0];
-			}			
+				return Data[InIdx];
+			}
+
+			if(PropertyContainer)
+			{
+				return PropertyContainer->GetData();
+			}
 
 			return PropertyData;
 		}
 
-		bool IsHandle() const { return bIsHandle; }
-
-		void Init(const int32 InSize)
+		/** Returns the data as the ValueType. */
+		template <typename ValueType>
+		ValueType* GetPropertyValue(int32 InIdx = 0) const
 		{
-			if(!bIsHandle && PropertyContainer)
+			return (ValueType*)(GetPropertyData(InIdx));
+		}
+
+		/** Is this backed by an IPropertyHandle? */
+		bool IsHandle() const { return bHasHandle; }
+
+		/** Initialize/allocate if necessary. */
+		void Init(int32 InSize = -1)
+		{
+			InSize = InSize > 0 ? InSize : GetProperty()->GetSize();			
+			if(!bHasHandle)
 			{
-				PropertyContainer->SetNumUninitialized(InSize);
-				PropertyData = PropertyContainer->GetData();
+				if(PropertyContainer)
+				{
+					PropertyContainer->SetNumUninitialized(InSize);
+					PropertyData = PropertyContainer->GetData();
+				}
+				else
+				{
+					PropertyData = FMemory::Malloc(InSize, GetProperty()->GetMinAlignment());
+				}
 				NumElements = InSize;
-				return;
+
+				GetProperty()->InitializeValue(PropertyData);
 			}
 		}
 
@@ -117,100 +161,79 @@ namespace RemoteControlPropertyUtilities
 		}
 	};
 
-	/** Gets from raw data to input property handle. */
-
-	// Non 'String-like' property types
-	template <typename PropertyType>
-	typename TEnableIf<TNot<RemoteControlTypeTraits::TIsStringLikeProperty<PropertyType>>::Value, bool>::Type
-	FromBytes(const FRCPropertyVariant& InSrc, FRCPropertyVariant& InDstProperty)
+	template <>
+	inline FString* FRCPropertyVariant::GetPropertyValue<FString>(int32 InIdx) const
 	{
-		InDstProperty.GetProperty()->CopyCompleteValue((uint8*)InDstProperty.GetPropertyData(), (uint8*)InSrc.GetPropertyData());
-
-		return true;
+		return GetProperty<FStrProperty>()->GetPropertyValuePtr(GetPropertyData(InIdx));
 	}
 
-	template <>
-	REMOTECONTROLCOMMON_API bool FromBytes<FStructProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& InDstProperty);
-
-	template <>
-	REMOTECONTROLCOMMON_API bool FromBytes<FArrayProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& InDstProperty);
-
-	template <>
-	REMOTECONTROLCOMMON_API bool FromBytes<FSetProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& InDstProperty);
-
-	// Specialization for 'String-like' property types
+	/** Reads the raw data from InSrc and deserializes to OutDst. */
 	template <typename PropertyType>
-	typename TEnableIf<RemoteControlTypeTraits::TIsStringLikeProperty<PropertyType>::Value, bool>::Type
-	FromBytes(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
+	typename TEnableIf<
+		TNot<
+			TOr<
+				TIsSame<PropertyType, FProperty>,
+				TIsSame<PropertyType, FNumericProperty>>>::Value, bool>::Type
+	FromBinary(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 	{
-		const int32 StrLen = InSrc.Num();
-		FString Str = BytesToString((uint8*)InSrc.GetPropertyData(), StrLen);
+		using ValueType = typename TRemoteControlPropertyTypeTraits<PropertyType>::ValueType;
 
-		if(!OutDst.IsHandle())
-		{
-			OutDst.Init(StrLen);
-		}
+		TArray<uint8>* PropertyContainer = InSrc.GetPropertyContainer();
+		checkf(PropertyContainer != nullptr, TEXT("FromBinary requires Src to have a backing container."));
 
-		OutDst.GetProperty()->InitializeValue((uint8*)OutDst.GetPropertyData());
-		OutDst.GetProperty()->ImportText(*Str, (uint8*)OutDst.GetPropertyData(), 0, nullptr);
+		OutDst.Init(); // initializes only if necessary
+		ValueType* CurrentValue = OutDst.GetPropertyValue<ValueType>();
+		FMemoryReader Reader(*PropertyContainer);
+		InSrc.GetProperty()->SerializeItem(FStructuredArchiveFromArchive(Reader).GetSlot(), CurrentValue, nullptr);
 
-#if !UE_BUILD_SHIPPING && UE_BUILD_DEBUG
-		// const typename PropertyType::TCppType* Value = reinterpret_cast<const typename PropertyType::TCppType*>((uint8*)OutDst.GetPropertyData());
-		// auto o = Value;
-#endif
+		return false;
+	}
+
+	/** Reads the property value from InSrc and serializes to OutDst. */
+	template <typename PropertyType>
+	typename TEnableIf<
+		TNot<
+			TOr<
+				TIsSame<PropertyType, FProperty>,
+				TIsSame<PropertyType, FNumericProperty>>>::Value, bool>::Type
+	ToBinary(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
+	{
+		using ValueType = typename TRemoteControlPropertyTypeTraits<PropertyType>::ValueType;
+
+		ValueType* Value = InSrc.GetPropertyValue<ValueType>();		
+		FMemoryWriter Writer(*OutDst.GetPropertyContainer());
+		OutDst.GetProperty()->SerializeItem(FStructuredArchiveFromArchive(Writer).GetSlot(), Value, nullptr);
+
+		return false;
+	}
+
+	/** Specialization for FProperty casts and forwards to specializations. */
+	template <typename PropertyType>
+	typename TEnableIf<
+		TOr<
+			TIsSame<PropertyType, FProperty>,
+			TIsSame<PropertyType, FNumericProperty>>::Value, bool>::Type
+	FromBinary(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
+	{
+		const FProperty* Property = OutDst.GetProperty();
+		FOREACH_CAST_PROPERTY(Property, FromBinary<CastPropertyType>(InSrc, OutDst))
 
 		return true;
 	}
 
 	/** Specialization for FProperty casts and forwards to specializations. */
-	template <> 
-	REMOTECONTROLCOMMON_API bool FromBytes<FProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& InDstProperty);
-
-	/** Sets raw data from input property handle. */
-
-	// Non 'String-like' property types
 	template <typename PropertyType>
-	typename TEnableIf<TNot<RemoteControlTypeTraits::TIsStringLikeProperty<PropertyType>>::Value, bool>::Type
-	ToBytes(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
+	typename TEnableIf<
+		TOr<
+			TIsSame<PropertyType, FProperty>,
+			TIsSame<PropertyType, FNumericProperty>>::Value, bool>::Type
+	ToBinary(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 	{
-		InSrc.GetProperty()->CopyCompleteValue((uint8*)OutDst.GetPropertyData(), (uint8*)InSrc.GetPropertyData());
+		const FProperty* Property = InSrc.GetProperty();
+		FOREACH_CAST_PROPERTY(Property, ToBinary<CastPropertyType>(InSrc, OutDst))
 
 		return true;
 	}
-
-	template <>
-	REMOTECONTROLCOMMON_API bool ToBytes<FStructProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst);
-
-	template <>
-	REMOTECONTROLCOMMON_API bool ToBytes<FArrayProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst);
-
-	template <>
-	REMOTECONTROLCOMMON_API bool ToBytes<FSetProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst);
-
-	template <>
-	REMOTECONTROLCOMMON_API bool ToBytes<FMapProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst);
-
-	// Specialization for 'String-like' property types
-	template <typename PropertyType>
-	typename TEnableIf<RemoteControlTypeTraits::TIsStringLikeProperty<PropertyType>::Value, bool>::Type
-	ToBytes(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
-	{
-		FString Str;
-		InSrc.GetProperty()->ExportTextItem(Str, (uint8*)InSrc.GetPropertyData(), nullptr, nullptr, PPF_None, nullptr);
-
-		TArray<uint8> Buffer;
-		Buffer.SetNumUninitialized(Str.Len());
-		StringToBytes(Str, Buffer.GetData(), Buffer.Num());
-
-		OutDst.Init(Str.Len());
-		FMemory::Memcpy((uint8*)OutDst.GetPropertyData(), Buffer.GetData(), Buffer.Num());
-
-		return true;
-	}
-
-	/** Specialization for FProperty casts and forwards to specializations. */
-	template <>
-	REMOTECONTROLCOMMON_API bool ToBytes<FProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst);
 
 #endif
 }

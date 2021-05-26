@@ -30,59 +30,112 @@ namespace RemoteControlTypeUtilities
 	 * 
 	 * FOREACH_CAST_PROPERTY(SomePropertyInstance, SomeFunc<CastPropertyType>(CastProperty))
 	 */
-	#define FOREACH_CAST_PROPERTY(Property, Func)											\
-		if(const FBoolProperty* CastProperty = CastField<FBoolProperty>(Property))			\
-		{																					\
-			using CastPropertyType = FBoolProperty;											\
-			return Func;																	\
-		}																					\
-		if(const FEnumProperty* CastProperty = CastField<FEnumProperty>(Property))			\
-		{																					\
-			using CastPropertyType = FEnumProperty;											\
-			return Func;																	\
-		}																					\
-		if(const FNumericProperty* CastProperty = CastField<FNumericProperty>(Property))	\
-		{																					\
-			using CastPropertyType = FNumericProperty;										\
-			return Func;																	\
-		}																					\
-		if(const FStructProperty* CastProperty = CastField<FStructProperty>(Property))		\
-		{																					\
-			using CastPropertyType = FStructProperty;										\
-			return Func;																	\
-		}																					\
-																							\
-		if(const FStrProperty* CastProperty = CastField<FStrProperty>(Property))			\
-		{																					\
-			using CastPropertyType = FStrProperty;											\
-			return Func;																	\
-		}																					\
-		if(const FNameProperty* CastProperty = CastField<FNameProperty>(Property))			\
-		{																					\
-			using CastPropertyType = FNameProperty;											\
-			return Func;																	\
-		}																					\
-		if(const FTextProperty* CastProperty = CastField<FTextProperty>(Property))			\
-		{																					\
-			using CastPropertyType = FTextProperty;											\
-			return Func;																	\
-		}																					\
-																							\
-		if(const FArrayProperty* CastProperty = CastField<FArrayProperty>(Property))		\
-		{																					\
-			using CastPropertyType = FArrayProperty;										\
-			return Func;																	\
-		}																					\
-		if(const FSetProperty* CastProperty = CastField<FSetProperty>(Property))			\
-		{																					\
-			using CastPropertyType = FSetProperty;											\
-			return Func;																	\
-		}																					\
-		if(const FMapProperty* CastProperty = CastField<FMapProperty>(Property))			\
-		{																					\
-			using CastPropertyType = FMapProperty;											\
-			return Func;																	\
-		}																					\
+#define FOREACH_CAST_PROPERTY(Property, Func)                                                                          \
+    if (const FBoolProperty* CastProperty = CastField<FBoolProperty>(Property))                                        \
+    {                                                                                                                  \
+        using CastPropertyType = FBoolProperty;                                                                        \
+        return Func;                                                                                                   \
+    }                                                                                                                  \
+    if (const FEnumProperty* CastProperty = CastField<FEnumProperty>(Property))                                        \
+    {                                                                                                                  \
+        using CastPropertyType = FEnumProperty;                                                                        \
+        return Func;                                                                                                   \
+    }                                                                                                                  \
+    if (const FNumericProperty* NumericCastProperty = CastField<FNumericProperty>(Property))                           \
+    {                                                                                                                  \
+        if (const FInt8Property* CastProperty = CastField<FInt8Property>(Property))                                    \
+        {                                                                                                              \
+            using CastPropertyType = FInt8Property;                                                                    \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FByteProperty* CastProperty = CastField<FByteProperty>(Property))                                    \
+        {                                                                                                              \
+            using CastPropertyType = FByteProperty;                                                                    \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FInt16Property* CastProperty = CastField<FInt16Property>(Property))                                  \
+        {                                                                                                              \
+            using CastPropertyType = FInt16Property;                                                                   \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FUInt16Property* CastProperty = CastField<FUInt16Property>(Property))                                \
+        {                                                                                                              \
+            using CastPropertyType = FUInt16Property;                                                                  \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FIntProperty* CastProperty = CastField<FIntProperty>(Property))                                      \
+        {                                                                                                              \
+            using CastPropertyType = FIntProperty;                                                                     \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FUInt32Property* CastProperty = CastField<FUInt32Property>(Property))                                \
+        {                                                                                                              \
+            using CastPropertyType = FUInt32Property;                                                                  \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FInt64Property* CastProperty = CastField<FInt64Property>(Property))                                  \
+        {                                                                                                              \
+            using CastPropertyType = FInt64Property;                                                                   \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FUInt64Property* CastProperty = CastField<FUInt64Property>(Property))                                \
+        {                                                                                                              \
+            using CastPropertyType = FUInt64Property;                                                                  \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FFloatProperty* CastProperty = CastField<FFloatProperty>(Property))                                  \
+        {                                                                                                              \
+            using CastPropertyType = FFloatProperty;                                                                   \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if (const FDoubleProperty* CastProperty = CastField<FDoubleProperty>(Property))                                \
+        {                                                                                                              \
+            using CastPropertyType = FDoubleProperty;                                                                  \
+            return Func;                                                                                               \
+        }                                                                                                              \
+        if(const FNumericProperty* CastProperty = NumericCastProperty)												   \
+        {                                                                                                              \
+            using CastPropertyType = FNumericProperty;                                                                 \
+            return Func;                                                                                               \
+        }                                                                                                              \
+    }                                                                                                                  \
+    if (const FStructProperty* CastProperty = CastField<FStructProperty>(Property))                                    \
+    {                                                                                                                  \
+        using CastPropertyType = FStructProperty;                                                                      \
+        return Func;                                                                                                   \
+    }                                                                                                                  \
+                                                                                                                       \
+    if (const FStrProperty* CastProperty = CastField<FStrProperty>(Property))                                          \
+    {                                                                                                                  \
+        using CastPropertyType = FStrProperty;                                                                         \
+        return Func;                                                                                                   \
+    }                                                                                                                  \
+    if (const FNameProperty* CastProperty = CastField<FNameProperty>(Property))                                        \
+    {                                                                                                                  \
+        using CastPropertyType = FNameProperty;                                                                        \
+        return Func;                                                                                                   \
+    }                                                                                                                  \
+    if (const FTextProperty* CastProperty = CastField<FTextProperty>(Property))                                        \
+    {                                                                                                                  \
+        using CastPropertyType = FTextProperty;                                                                        \
+        return Func;                                                                                                   \
+    }                                                                                                                  \
+                                                                                                                       \
+    if (const FArrayProperty* CastProperty = CastField<FArrayProperty>(Property))                                      \
+    {                                                                                                                  \
+        using CastPropertyType = FArrayProperty;                                                                       \
+        return Func;                                                                                                   \
+    }                                                                                                                  \
+    if (const FSetProperty* CastProperty = CastField<FSetProperty>(Property))                                          \
+    {                                                                                                                  \
+        using CastPropertyType = FSetProperty;                                                                         \
+        return Func;                                                                                                   \
+    }                                                                                                                  \
+    if (const FMapProperty* CastProperty = CastField<FMapProperty>(Property))                                          \
+    {                                                                                                                  \
+        using CastPropertyType = FMapProperty;                                                                         \
+        return Func;                                                                                                   \
+    }
 
 	#endif
 	#pragma endregion FOREACH_CAST_PROPERTY
