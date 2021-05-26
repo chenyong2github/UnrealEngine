@@ -20,7 +20,7 @@ namespace AudioModulation
 
 
 UCLASS()
-class UAudioModulationStatics : public UBlueprintFunctionLibrary
+class AUDIOMODULATION_API UAudioModulationStatics : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
