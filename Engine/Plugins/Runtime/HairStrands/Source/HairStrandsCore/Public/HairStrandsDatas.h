@@ -217,6 +217,7 @@ struct FHairStrandsRaytracingFormat
 struct HAIRSTRANDSCORE_API FHairStrandsIndexFormat
 {
 	using Type = uint32;
+	using BulkType = uint32;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UInt;
@@ -493,34 +494,89 @@ struct HAIRSTRANDSCORE_API FHairStrandsDebugDatas
 	};
 };
 
-/* Source/CPU data for root resources (GPU resources are stored into FHairStrandsRootResources) */
-struct FHairStrandsRootData
+/* Bulk data for root resources (GPU resources are stored into FHairStrandsRootResources) */
+struct FHairStrandsRootBulkData
 {
-	/** Build the hair strands resource */
-	FHairStrandsRootData();
-	void Serialize(FArchive& Ar);
+	FHairStrandsRootBulkData();
+	void Serialize(FArchive& Ar, UObject* Owner);
 	void Reset();
 	bool HasProjectionData() const;
 	bool IsValid() const { return RootCount > 0; }
+	const TArray<uint32>& GetValidSectionIndices(int32 LODIndex) const;
 
 	uint32 GetDataSize() const
 	{
 		uint32 Total = 0;
-		Total += VertexToCurveIndexBuffer.GetAllocatedSize();
+		Total += VertexToCurveIndexBuffer.IsBulkDataLoaded() ? VertexToCurveIndexBuffer.GetBulkDataSize() : 0u;
 		for (const FMeshProjectionLOD& LOD : MeshProjectionLODs)
 		{
-			Total += LOD.RootTriangleIndexBuffer.GetAllocatedSize();
-			Total += LOD.RootTriangleBarycentricBuffer.GetAllocatedSize();
-			Total += LOD.RestRootTrianglePosition0Buffer.GetAllocatedSize();
-			Total += LOD.RestRootTrianglePosition1Buffer.GetAllocatedSize();
-			Total += LOD.RestRootTrianglePosition2Buffer.GetAllocatedSize();
-			Total += LOD.MeshInterpolationWeightsBuffer.GetAllocatedSize();
-			Total += LOD.MeshSampleIndicesBuffer.GetAllocatedSize();
-			Total += LOD.RestSamplePositionsBuffer.GetAllocatedSize();
-			Total += LOD.ValidSectionIndices.GetAllocatedSize();
+			Total += LOD.RootTriangleIndexBuffer.IsBulkDataLoaded() ?			LOD.RootTriangleIndexBuffer.GetBulkDataSize() : 0u;
+			Total += LOD.RootTriangleBarycentricBuffer.IsBulkDataLoaded() ?		LOD.RootTriangleBarycentricBuffer.GetBulkDataSize() : 0u;
+			Total += LOD.RestRootTrianglePosition0Buffer.IsBulkDataLoaded() ?	LOD.RestRootTrianglePosition0Buffer.GetBulkDataSize() : 0u;
+			Total += LOD.RestRootTrianglePosition1Buffer.IsBulkDataLoaded() ?	LOD.RestRootTrianglePosition1Buffer.GetBulkDataSize() : 0u;
+			Total += LOD.RestRootTrianglePosition2Buffer.IsBulkDataLoaded() ?	LOD.RestRootTrianglePosition2Buffer.GetBulkDataSize() : 0u;
+			Total += LOD.MeshInterpolationWeightsBuffer.IsBulkDataLoaded() ?	LOD.MeshInterpolationWeightsBuffer.GetBulkDataSize() : 0u;
+			Total += LOD.MeshSampleIndicesBuffer.IsBulkDataLoaded() ?			LOD.MeshSampleIndicesBuffer.GetBulkDataSize() : 0u;
+			Total += LOD.RestSamplePositionsBuffer.IsBulkDataLoaded() ?			LOD.RestSamplePositionsBuffer.GetBulkDataSize() : 0u;
+			Total += LOD.ValidSectionIndices.IsBulkDataLoaded() ?				LOD.ValidSectionIndices.GetBulkDataSize() : 0u;
 		}
 		return Total;
 	}
+
+	struct FMeshProjectionLOD
+	{
+		int32 LODIndex = -1;
+
+		/* Triangle on which a root is attached */
+		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
+		   In this case we need to separate index computation. The barycentric coords remain the same however. */
+		FByteBulkData RootTriangleIndexBuffer;
+		FByteBulkData RootTriangleBarycentricBuffer;
+
+		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
+		FByteBulkData RestRootTrianglePosition0Buffer;
+		FByteBulkData RestRootTrianglePosition1Buffer;
+		FByteBulkData RestRootTrianglePosition2Buffer;
+
+		/* Number of samples used for the mesh interpolation */
+		uint32 SampleCount = 0;
+
+		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount */
+		FByteBulkData MeshInterpolationWeightsBuffer;
+
+		/* Store the samples vertex indices */
+		FByteBulkData MeshSampleIndicesBuffer;
+
+		/* Store the samples rest positions */
+		FByteBulkData RestSamplePositionsBuffer;
+
+		/* Store the mesh section indices which are relevant for this root LOD data */
+		FByteBulkData ValidSectionIndices;
+
+		/* When cached valid section indices from bulk to avoid lock/unlock operation everyframe */
+		mutable TArray<uint32> CachedValidSectionIndices;
+	};
+
+	/* Number of roots */
+	uint32 RootCount = 0;
+
+	/* Number of control points */
+	uint32 PointCount = 0;
+
+	/* Curve index for every vertices */
+	FByteBulkData VertexToCurveIndexBuffer;
+
+	/* Store the hair projection information for each mesh LOD */
+	TArray<FMeshProjectionLOD> MeshProjectionLODs;
+};
+
+/* Source data for building root bulk data */
+struct FHairStrandsRootData
+{
+	FHairStrandsRootData();
+	void Reset();
+	bool HasProjectionData() const;
+	bool IsValid() const { return RootCount > 0; }
 
 	struct FMeshProjectionLOD
 	{
@@ -555,6 +611,9 @@ struct FHairStrandsRootData
 
 	/* Number of roots */
 	uint32 RootCount = 0;
+
+	/* Number of control points */
+	uint32 PointCount = 0;
 
 	/* Curve index for every vertices */
 	TArray<FHairStrandsIndexFormat::Type> VertexToCurveIndexBuffer;

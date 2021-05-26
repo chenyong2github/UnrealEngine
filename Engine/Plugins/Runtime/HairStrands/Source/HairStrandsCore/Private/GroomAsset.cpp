@@ -235,11 +235,11 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 	{
 		if (AssetIt)
 		{			
-			const uint32 GroupCount = AssetIt->HairGroupDatas.Num();
+			const uint32 GroupCount = AssetIt->HairGroupBulkDatas.Num();
 			for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 			{
-				const uint32 CPUMemorySize_Guides  = AssetIt->HairGroupDatas[GroupIt].SimRootData.GetDataSize();
-				const uint32 CPUMemorySize_Strands = AssetIt->HairGroupDatas[GroupIt].RenRootData.GetDataSize();
+				const uint32 CPUMemorySize_Guides  = AssetIt->HairGroupBulkDatas[GroupIt].SimRootBulkData.GetDataSize();
+				const uint32 CPUMemorySize_Strands = AssetIt->HairGroupBulkDatas[GroupIt].RenRootBulkData.GetDataSize();
 
 				uint32 GPUMemorySize_Guides = 0;
 				if (const FHairStrandsRestRootResource* RootResource = AssetIt->HairGroupResources[GroupIt].SimRootResources)
@@ -254,10 +254,10 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 
 				uint32 CPUMemorySize_Cards = 0;
 				uint32 GPUMemorySize_Cards = 0;
-				const uint32 CardCount = AssetIt->HairGroupDatas[GroupIt].CardsRootData.Num();
+				const uint32 CardCount = AssetIt->HairGroupBulkDatas[GroupIt].CardsRootBulkData.Num();
 				for (uint32 CardIt = 0; CardIt < CardCount; ++CardIt)
 				{
-					CPUMemorySize_Cards += AssetIt->HairGroupDatas[GroupIt].CardsRootData[CardIt].GetDataSize();
+					CPUMemorySize_Cards += AssetIt->HairGroupBulkDatas[GroupIt].CardsRootBulkData[CardIt].GetDataSize();
 					if (const FHairStrandsRestRootResource* RootResource = AssetIt->HairGroupResources[GroupIt].CardsRootResources[CardIt])
 					{
 						GPUMemorySize_Cards += RootResource->GetResourcesSize();
@@ -275,7 +275,7 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 				Total_GPUMemorySize_Strands+= GPUMemorySize_Strands;
 				Total_GPUMemorySize_Cards  += GPUMemorySize_Cards;
 
-				const uint32 SkelLODCount = AssetIt->HairGroupDatas[GroupIt].RenRootData.MeshProjectionLODs.Num();
+				const uint32 SkelLODCount = AssetIt->HairGroupBulkDatas[GroupIt].RenRootBulkData.MeshProjectionLODs.Num();
 				if (bDetails)
 				{
 //					UE_LOG(LogHairStrands, Log, TEXT("--  No.  - LOD -    CPU Total (     Guides|    Strands|      Cards) -    GPU Total (     Guides|    Strands|      Cards) - Asset Name "));

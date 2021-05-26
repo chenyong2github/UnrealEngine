@@ -47,6 +47,22 @@ enum class EGroomBindingMeshType : uint8
 	GeometryCache
 };
 
+/** Binding data */
+struct FHairRootGroupData
+{
+	FHairStrandsRootData			SimRootData;
+	FHairStrandsRootData			RenRootData;
+	TArray<FHairStrandsRootData>	CardsRootData;
+};
+
+/** Binding bulk data */
+struct FHairGroupBulkData
+{
+	FHairStrandsRootBulkData		SimRootBulkData;
+	FHairStrandsRootBulkData		RenRootBulkData;
+	TArray<FHairStrandsRootBulkData>CardsRootBulkData;
+};
+
 /**
  * Implements an asset that can be used to store binding information between a groom and a skeletal mesh
  */
@@ -109,14 +125,8 @@ public:
 	   when the binding asset is recomputed */
 	TQueue<FHairGroupResource> HairGroupResourcesToDelete;
 
-	struct FHairGroupData
-	{
-		FHairStrandsRootData SimRootData;
-		FHairStrandsRootData RenRootData;
-		TArray<FHairStrandsRootData> CardsRootData;
-	};
-	typedef TArray<FHairGroupData> FHairGroupDatas;
-	FHairGroupDatas HairGroupDatas;
+	/** Root bulk data for each hair gruops */
+	TArray<FHairGroupBulkData> HairGroupBulkDatas;
 
 	//~ Begin UObject Interface.
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;

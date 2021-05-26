@@ -330,7 +330,7 @@ static void AddDeformSimHairStrandsPass(
 			Parameters->SimVertexToRootIndexBuffer = RegisterAsSRV(GraphBuilder, SimRestRootResources->VertexToCurveIndexBuffer);
 		}
 
-		const uint32 RootCount = SimRestRootResources ? SimRestRootResources->RootData.RootCount : 0;
+		const uint32 RootCount = SimRestRootResources ? SimRestRootResources->BulkData.RootCount : 0;
 		const bool bSupportDynamicMesh = 
 			RootCount > 0 && 
 			MeshLODIndex >= 0 && 
@@ -620,9 +620,9 @@ static void AddHairStrandsInterpolationPass(
 			Parameters->HairDebugMode = 2;
 			
 			if (Info.CullMode == EHairCullMode::Sim)
-				Parameters->HairStrandsCullIndex.Y = Info.ExplicitIndex >= 0 ? Info.ExplicitIndex : FMath::Clamp(uint32(Info.NormalizedIndex * SimRestRootResources->RootData.RootCount), 0u, SimRestRootResources->RootData.RootCount - 1);
+				Parameters->HairStrandsCullIndex.Y = Info.ExplicitIndex >= 0 ? Info.ExplicitIndex : FMath::Clamp(uint32(Info.NormalizedIndex * SimRestRootResources->BulkData.RootCount), 0u, SimRestRootResources->BulkData.RootCount - 1);
 			if (Info.CullMode == EHairCullMode::Render)
-				Parameters->HairStrandsCullIndex.X = Info.ExplicitIndex >= 0 ? Info.ExplicitIndex : FMath::Clamp(uint32(Info.NormalizedIndex * RenRestRootResources->RootData.RootCount), 0u, RenRestRootResources->RootData.RootCount - 1);
+				Parameters->HairStrandsCullIndex.X = Info.ExplicitIndex >= 0 ? Info.ExplicitIndex : FMath::Clamp(uint32(Info.NormalizedIndex * RenRestRootResources->BulkData.RootCount), 0u, RenRestRootResources->BulkData.RootCount - 1);
 		}
 
 		if (Parameters->HairDebugMode > 0 && OutRenderAttributeBuffer)
@@ -635,7 +635,7 @@ static void AddHairStrandsInterpolationPass(
 	const bool bSupportDynamicMesh = 
 		bIsVertexToCurveBuffersValid_Ren &&
 		RenRestRootResources &&
-		RenRestRootResources->RootData.RootCount > 0 && 
+		RenRestRootResources->BulkData.RootCount > 0 && 
 		MeshLODIndex >= 0 && 
 		MeshLODIndex < RenRestRootResources->LODs.Num() &&
 		MeshLODIndex < RenDeformedRootResources->LODs.Num() &&
@@ -954,7 +954,7 @@ static void AddHairCardsDeformationPass(
 		Instance->BindingType == EHairBindingType::Skinning &&
 		bIsVertexToCurveBuffersValid &&
 		RestRootResources &&
-		RestRootResources->RootData.RootCount > 0 &&
+		RestRootResources->BulkData.RootCount > 0 &&
 		MeshLODIndex >= 0 &&
 		MeshLODIndex < RestRootResources->LODs.Num() &&
 		MeshLODIndex < DeformedRootResources->LODs.Num() &&
