@@ -14,7 +14,7 @@
 #endif
 
 #ifndef UE_PLATFORM_MATH_USE_AVX_2
-#define UE_PLATFORM_MATH_USE_AVX_2			0 // PLATFORM_ALWAYS_HAS_AVX_2
+#define UE_PLATFORM_MATH_USE_AVX_2			0 //PLATFORM_ALWAYS_HAS_AVX_2
 #endif
 
 #ifndef UE_PLATFORM_MATH_USE_FMA3
@@ -23,10 +23,9 @@
 
 #ifndef UE_PLATFORM_MATH_USE_SVML
 	#if defined(_MSC_VER)
-	//////////// TEMPORARILY disabled until UnrealMathTest is expanded to test more trig functions, though it passes what exists there now. ////////////
-	#define UE_PLATFORM_MATH_USE_SVML			(0 && (_MSC_VER >= 1920)) // Support added to MSVC 2019 16.0+
+		#define UE_PLATFORM_MATH_USE_SVML			(_MSC_VER >= 1920) // Support added to MSVC 2019 16.0+
 	#else
-	#define UE_PLATFORM_MATH_USE_SVML			0
+		#define UE_PLATFORM_MATH_USE_SVML			0
 	#endif // defined(_MSC_VER)
 #endif
 
@@ -778,6 +777,8 @@ template<> FORCEINLINE VectorRegister2Double SelectVectorSwizzle2<2, 1>(const Ve
 template<int Index0, int Index1, int Index2, int Index3>
 FORCEINLINE VectorRegister4Double VectorSwizzleTemplate(const VectorRegister4Double& Vec)
 {
+	static_assert(Index0 >= 0 && Index0 <= 3 && Index1 >= 0 && Index1 <= 3 && Index2 >= 0 && Index2 <= 3 && Index3 >= 0 && Index3 <= 3);
+
 #if UE_PLATFORM_MATH_USE_AVX_2
 	VectorRegister4Double Result = _mm256_permute4x64_pd(Vec, SHUFFLEMASK(Index0, Index1, Index2, Index3));
 #else
@@ -845,6 +846,8 @@ FORCEINLINE VectorRegister4Double VectorReplicateImpl(const VectorRegister4Doubl
 template<int Index>
 FORCEINLINE VectorRegister4Double VectorReplicateTemplate(const VectorRegister4Double& Vec)
 {
+	static_assert(Index >= 0 && Index <= 3);
+
 #if UE_PLATFORM_MATH_USE_AVX_2
 	VectorRegister4Double Result = _mm256_permute4x64_pd(Vec, SHUFFLEMASK(Index, Index, Index, Index));
 #else
@@ -857,6 +860,7 @@ FORCEINLINE VectorRegister4Double VectorReplicateTemplate(const VectorRegister4D
 template<int Index0, int Index1, int Index2, int Index3>
 FORCEINLINE VectorRegister4Double VectorShuffleTemplate(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
+	static_assert(Index0 >= 0 && Index0 <= 3 && Index1 >= 0 && Index1 <= 3 && Index2 >= 0 && Index2 <= 3 && Index3 >= 0 && Index3 <= 3);
 	VectorRegister4Double Result;
 	Result.XY = SelectVectorSwizzle2<Index0, Index1>(Vec1);
 	Result.ZW = SelectVectorSwizzle2<Index2, Index3>(Vec2);
@@ -908,6 +912,7 @@ template<> FORCEINLINE VectorRegister4Float VectorSwizzleTemplate<0, 0, 0, 0>(co
 template<int Index>
 FORCEINLINE VectorRegister4Float VectorReplicateTemplate(const VectorRegister4Float& Vec)
 {
+	static_assert(Index >= 0 && Index <= 3);
 	return VectorSwizzleTemplate<Index, Index, Index, Index>(Vec);
 }
 
@@ -915,6 +920,7 @@ FORCEINLINE VectorRegister4Float VectorReplicateTemplate(const VectorRegister4Fl
 template<int Index0, int Index1, int Index2, int Index3>
 FORCEINLINE VectorRegister4Float VectorShuffleTemplate(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
+	static_assert(Index0 >= 0 && Index0 <= 3 && Index1 >= 0 && Index1 <= 3 && Index2 >= 0 && Index2 <= 3 && Index3 >= 0 && Index3 <= 3);
 	return _mm_shuffle_ps(Vec1, Vec2, SHUFFLEMASK(Index0, Index1, Index2, Index3));
 }
 
@@ -1088,68 +1094,64 @@ FORCEINLINE VectorRegister4Double VectorMultiply(const VectorRegister4Double& Ve
 
 
 /**
- * Multiplies two vectors (component-wise), adds in the third vector and returns the result.
+ * Multiplies two vectors (component-wise), adds in the third vector and returns the result. (A*B + C)
  *
- * @param Vec1	1st vector
- * @param Vec2	2nd vector
- * @param Vec3	3rd vector
- * @return		VectorRegister4Float( Vec1.x*Vec2.x + Vec3.x, Vec1.y*Vec2.y + Vec3.y, Vec1.z*Vec2.z + Vec3.z, Vec1.w*Vec2.w + Vec3.w )
+ * @param A		1st vector
+ * @param B		2nd vector
+ * @param C		3rd vector
+ * @return		VectorRegister4Float( A.x*B.x + C.x, A.y*B.y + C.y, A.z*B.z + C.z, A.w*B.w + C.w )
  */
-FORCEINLINE VectorRegister4Float VectorMultiplyAdd(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3)
+FORCEINLINE VectorRegister4Float VectorMultiplyAdd(const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& C)
 {
 #if UE_PLATFORM_MATH_USE_FMA3
-	return _mm_fmadd_ps(Vec1, Vec2, Vec3);
+	return _mm_fmadd_ps(A, B, C);
 #else
-	return VectorAdd(VectorMultiply(Vec1, Vec2), Vec3);
+	return VectorAdd(VectorMultiply(A, B), C);
 #endif
 }
 
-FORCEINLINE VectorRegister4Double VectorMultiplyAdd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2, const VectorRegister4Double& Vec3)
+FORCEINLINE VectorRegister4Double VectorMultiplyAdd(const VectorRegister4Double& A, const VectorRegister4Double& B, const VectorRegister4Double& C)
 {
-#if UE_PLATFORM_MATH_USE_FMA3
+#if UE_PLATFORM_MATH_USE_FMA3 && UE_PLATFORM_MATH_USE_AVX
+	return _mm256_fmadd_pd(A, B, C);
+#elif UE_PLATFORM_MATH_USE_FMA3
 	VectorRegister4Double Result;
-	#if !UE_PLATFORM_MATH_USE_AVX
-		Result.XY = _mm_fmadd_pd(Vec1.XY, Vec2.XY, Vec3.XY);
-		Result.ZW = _mm_fmadd_pd(Vec1.ZW, Vec2.ZW, Vec3.ZW);
-	#else
-		Result = _mm256_fmadd_pd(Vec1, Vec2, Vec3);
-	#endif
+	Result.XY = _mm_fmadd_pd(A.XY, B.XY, C.XY);
+	Result.ZW = _mm_fmadd_pd(A.ZW, B.ZW, C.ZW);
 	return Result;
 #else
-	return VectorAdd(VectorMultiply(Vec1, Vec2), Vec3);
+	return VectorAdd(VectorMultiply(A, B), C);
 #endif
 }
 
 /**
- * Multiplies two vectors (component-wise), negates the results and adds it to the third vector i.e. -AB + C = C - AB
+ * Multiplies two vectors (component-wise), negates the results and adds it to the third vector i.e. (-A*B + C) = (C - A*B)
  *
- * @param Vec1	1st vector
- * @param Vec2	2nd vector
- * @param Vec3	3rd vector
- * @return		VectorRegister( Vec3.x - Vec1.x*Vec2.x, Vec3.y - Vec1.y*Vec2.y, Vec3.z - Vec1.z*Vec2.z, Vec3.w - Vec1.w*Vec2.w )
+ * @param A		1st vector
+ * @param B		2nd vector
+ * @param C		3rd vector
+ * @return		VectorRegister( C.x - A.x*B.x, C.y - A.y*B.y, C.z - A.z*B.z, C.w - A.w*B.w )
  */
-FORCEINLINE VectorRegister4Float VectorNegateMultiplyAdd(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3)
+FORCEINLINE VectorRegister4Float VectorNegateMultiplyAdd(const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& C)
 {
 #if UE_PLATFORM_MATH_USE_FMA3
-	return _mm_fnmadd_ps(Vec1, Vec2, Vec3);
+	return _mm_fnmadd_ps(A, B, C);
 #else
-	return VectorSubtract(Vec3, VectorMultiply(Vec1, Vec2));
+	return VectorSubtract(C, VectorMultiply(A, B));
 #endif
 }
 
-FORCEINLINE VectorRegister4Double VectorNegateMultiplyAdd(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2, const VectorRegister4Double& Vec3)
+FORCEINLINE VectorRegister4Double VectorNegateMultiplyAdd(const VectorRegister4Double& A, const VectorRegister4Double& B, const VectorRegister4Double& C)
 {
-#if UE_PLATFORM_MATH_USE_FMA3
+#if UE_PLATFORM_MATH_USE_FMA3 && UE_PLATFORM_MATH_USE_AVX
+	return _mm256_fnmadd_pd(A, B, C);
+#elif UE_PLATFORM_MATH_USE_FMA3
 	VectorRegister4Double Result;
-	#if !UE_PLATFORM_MATH_USE_AVX
-		Result.XY = _mm_fnmadd_pd(Vec1.XY, Vec2.XY, Vec3.XY);
-		Result.ZW = _mm_fnmadd_pd(Vec1.ZW, Vec2.ZW, Vec3.ZW);
-	#else
-		Result = _mm256_fnmadd_pd(Vec1, Vec2, Vec3);
-	#endif
+	Result.XY = _mm_fnmadd_pd(A.XY, B.XY, C.XY);
+	Result.ZW = _mm_fnmadd_pd(A.ZW, B.ZW, C.ZW);
 	return Result;
 #else
-	return VectorSubtract(Vec3, VectorMultiply(Vec1, Vec2));
+	return VectorSubtract(C, VectorMultiply(A, B));
 #endif
 }
 
@@ -3095,39 +3097,37 @@ FORCEINLINE VectorRegister4Double VectorATan(const VectorRegister4Double& X)
 #endif
 }
 
-FORCEINLINE VectorRegister4Float VectorATan2(const VectorRegister4Float& X, const VectorRegister4Float& Y)
+FORCEINLINE VectorRegister4Float VectorATan2(const VectorRegister4Float& Y, const VectorRegister4Float& X)
 {
 #if UE_PLATFORM_MATH_USE_SVML
-	return _mm_atan2_ps(X, Y);
+	return _mm_atan2_ps(Y, X);
 #else
-	AlignedFloat4 FloatsX(X);
 	AlignedFloat4 FloatsY(Y);
-	FloatsX[0] = FMath::Atan2(FloatsX[0], FloatsY[0]);
-	FloatsX[1] = FMath::Atan2(FloatsX[1], FloatsY[1]);
-	FloatsX[2] = FMath::Atan2(FloatsX[2], FloatsY[2]);
-	FloatsX[3] = FMath::Atan2(FloatsX[3], FloatsY[3]);
-	return FloatsX.ToVectorRegister();
+	AlignedFloat4 FloatsX(X);
+	FloatsY[0] = FMath::Atan2(FloatsY[0], FloatsX[0]);
+	FloatsY[1] = FMath::Atan2(FloatsY[1], FloatsX[1]);
+	FloatsY[2] = FMath::Atan2(FloatsY[2], FloatsX[2]);
+	FloatsY[3] = FMath::Atan2(FloatsY[3], FloatsX[3]);
+	return FloatsY.ToVectorRegister();
 #endif
 }
 
-FORCEINLINE VectorRegister4Double VectorATan2(const VectorRegister4Double& X, const VectorRegister4Double& Y)
+FORCEINLINE VectorRegister4Double VectorATan2(const VectorRegister4Double& Y, const VectorRegister4Double& X)
 {
 #if UE_PLATFORM_MATH_USE_SVML_AVX
-	return _mm256_atan2_pd(X, Y);
+	return _mm256_atan2_pd(Y, X);
 #elif UE_PLATFORM_MATH_USE_SVML
-	return VectorRegister4Double(_mm_atan2_pd(X.XY, Y.XY), _mm_atan2_pd(X.ZW, Y.ZW));
+	return VectorRegister4Double(_mm_atan2_pd(Y.XY, X.XY), _mm_atan2_pd(Y.ZW, X.ZW));
 #else
-	AlignedDouble4 DoublesX(X);
 	AlignedDouble4 DoublesY(Y);
-	DoublesX[0] = FMath::Atan2(DoublesX[0], DoublesY[0]);
-	DoublesX[1] = FMath::Atan2(DoublesX[1], DoublesY[1]);
-	DoublesX[2] = FMath::Atan2(DoublesX[2], DoublesY[2]);
-	DoublesX[3] = FMath::Atan2(DoublesX[3], DoublesY[3]);
-	return DoublesX.ToVectorRegister();
+	AlignedDouble4 DoublesX(X);
+	DoublesY[0] = FMath::Atan2(DoublesY[0], DoublesX[0]);
+	DoublesY[1] = FMath::Atan2(DoublesY[1], DoublesX[1]);
+	DoublesY[2] = FMath::Atan2(DoublesY[2], DoublesX[2]);
+	DoublesY[3] = FMath::Atan2(DoublesY[3], DoublesX[3]);
+	return DoublesY.ToVectorRegister();
 #endif
 }
-
-// To be continued...
 
 
 //////////////////////////////////////////////////////////////////////////
