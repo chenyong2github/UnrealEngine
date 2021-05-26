@@ -37,7 +37,8 @@ namespace HordeServer.Collections.Impl
 			[BsonRequired]
 			public string Name { get; set; }
 
-			public string? Revision { get; set; }
+			public string? ConfigPath { get; set; }
+			public string? ConfigRevision { get; set; }
 
 			public int Order { get; set; } = DefaultOrder;
 			public Acl? Acl { get; set; }
@@ -68,6 +69,7 @@ namespace HordeServer.Collections.Impl
 		{
 			public ProjectId Id { get; set; }
 
+			public string Path { get; set; } = String.Empty;
 			public string Revision { get; set; } = String.Empty;
 			public string MimeType { get; set; } = String.Empty;
 
@@ -112,10 +114,11 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IProject?> AddOrUpdateAsync(ProjectId Id, string Revision, int Order, ProjectConfig Config)
+		public async Task<IProject?> AddOrUpdateAsync(ProjectId Id, string ConfigPath, string Revision, int Order, ProjectConfig Config)
 		{
 			ProjectDocument NewProject = new ProjectDocument(Id, Config.Name);
-			NewProject.Revision = Revision;
+			NewProject.ConfigPath = ConfigPath;
+			NewProject.ConfigRevision = Revision;
 			NewProject.Order = Order;
 			NewProject.Categories = Config.Categories.ConvertAll(x => new StreamCategory(x));
 			NewProject.Acl = Acl.Merge(new Acl(), Config.Acl);
@@ -144,11 +147,12 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task SetLogoAsync(ProjectId ProjectId, string Revision, string MimeType, byte[] Data)
+		public async Task SetLogoAsync(ProjectId ProjectId, string LogoPath, string LogoRevision, string MimeType, byte[] Data)
 		{
 			ProjectLogoDocument Logo = new ProjectLogoDocument();
 			Logo.Id = ProjectId;
-			Logo.Revision = Revision;
+			Logo.Path = LogoPath;
+			Logo.Revision = LogoRevision;
 			Logo.MimeType = MimeType;
 			Logo.Data = Data;
 			await ProjectLogos.ReplaceOneAsync(x => x.Id == ProjectId, Logo, new ReplaceOptions { IsUpsert = true });

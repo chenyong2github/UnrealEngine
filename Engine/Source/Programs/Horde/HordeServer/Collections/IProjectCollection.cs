@@ -28,11 +28,12 @@ namespace HordeServer.Collections
 		/// Updates the project configuration
 		/// </summary>
 		/// <param name="Id">The project id</param>
+		/// <param name="ConfigPath">Path to the config file used to configure this project</param>
 		/// <param name="Revision">The config file revision</param>
 		/// <param name="Order">Order of the project</param>
 		/// <param name="Config">The configuration</param>
 		/// <returns>New project instance</returns>
-		Task<IProject?> AddOrUpdateAsync(ProjectId Id, string Revision, int Order, ProjectConfig Config);
+		Task<IProject?> AddOrUpdateAsync(ProjectId Id, string ConfigPath, string Revision, int Order, ProjectConfig Config);
 
 		/// <summary>
 		/// Gets all the available projects
@@ -58,11 +59,12 @@ namespace HordeServer.Collections
 		/// Sets the logo for a project
 		/// </summary>
 		/// <param name="ProjectId">The project id</param>
+		/// <param name="Path">Path to the source file</param>
 		/// <param name="Revision">Revision of the file</param>
 		/// <param name="MimeType"></param>
 		/// <param name="Data"></param>
 		/// <returns></returns>
-		Task SetLogoAsync(ProjectId ProjectId, string Revision, string MimeType, byte[] Data);
+		Task SetLogoAsync(ProjectId ProjectId, string Path, string Revision, string MimeType, byte[] Data);
 
 		/// <summary>
 		/// Gets a project's permissions info by ID

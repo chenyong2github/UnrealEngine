@@ -582,7 +582,12 @@ namespace HordeServer.Api
 		/// <summary>
 		/// The config file path on the server
 		/// </summary>
-		public string? Revision { get; set; }
+		public string ConfigPath { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Revision of the config file 
+		/// </summary>
+		public string ConfigRevision { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Order to display in the list
@@ -668,7 +673,8 @@ namespace HordeServer.Api
 		/// <param name="Id">Unique id of the stream</param>
 		/// <param name="ProjectId">Unique id of the project containing the stream</param>
 		/// <param name="Name">Name of the stream</param>
-		/// <param name="Revision">The config file path on the server</param>
+		/// <param name="ConfigPath">Path to the config file for this stream</param>
+		/// <param name="ConfigRevision">The config file path on the server</param>
 		/// <param name="Order">Order to display this stream</param>
 		/// <param name="NotificationChannel"></param>
 		/// <param name="NotificationChannelFilter"></param>
@@ -681,12 +687,13 @@ namespace HordeServer.Api
 		/// <param name="Acl">Permissions for this object</param>
 		/// <param name="PausedUntil">Stream paused for new builds until this date</param>
 		/// <param name="PauseComment">Reason for stream being paused</param>
-		public GetStreamResponse(string Id, string ProjectId, string Name, string? Revision, int Order, string? NotificationChannel, string? NotificationChannelFilter, string? TriageChannel, DefaultPreflightRequest? DefaultPreflight, List<GetStreamTabResponse> Tabs, Dictionary<string, GetAgentTypeResponse> AgentTypes, Dictionary<string, GetWorkspaceTypeResponse>? WorkspaceTypes, List<GetTemplateRefResponse> Templates, GetAclResponse? Acl, DateTime? PausedUntil, string? PauseComment)
+		public GetStreamResponse(string Id, string ProjectId, string Name, string ConfigPath, string ConfigRevision, int Order, string? NotificationChannel, string? NotificationChannelFilter, string? TriageChannel, DefaultPreflightRequest? DefaultPreflight, List<GetStreamTabResponse> Tabs, Dictionary<string, GetAgentTypeResponse> AgentTypes, Dictionary<string, GetWorkspaceTypeResponse>? WorkspaceTypes, List<GetTemplateRefResponse> Templates, GetAclResponse? Acl, DateTime? PausedUntil, string? PauseComment)
 		{
 			this.Id = Id;
 			this.ProjectId = ProjectId;
 			this.Name = Name;
-			this.Revision = Revision;
+			this.ConfigPath = ConfigPath;
+			this.ConfigRevision = ConfigRevision;
 			this.Order = Order;
 			this.NotificationChannel = NotificationChannel;
 			this.NotificationChannelFilter = NotificationChannelFilter;

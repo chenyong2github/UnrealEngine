@@ -171,7 +171,7 @@ namespace HordeServer.Services
 				}
 
 				IProject? Project = Projects.FirstOrDefault(x => x.Id == ProjectRef.Id);
-				bool Update = (Project == null || Project.Revision != Revision);
+				bool Update = (Project == null || Project.ConfigPath != ConfigPath || Project.ConfigRevision != Revision);
 
 				ProjectConfig? ProjectConfig;
 				if (Update || !PrevCachedProjectConfigs.TryGetValue(ProjectRef.Id, out ProjectConfig))
@@ -186,7 +186,7 @@ namespace HordeServer.Services
 					if (Update)
 					{
 						Logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", ProjectRef.Id, Revision);
-						await ProjectService.Collection.AddOrUpdateAsync(ProjectRef.Id, Revision, Idx, ProjectConfig);
+						await ProjectService.Collection.AddOrUpdateAsync(ProjectRef.Id, ProjectPath, Revision, Idx, ProjectConfig);
 					}
 				}
 
@@ -215,7 +215,7 @@ namespace HordeServer.Services
 					if (Revision != CurrentRevision)
 					{
 						Logger.LogInformation("Updating logo for project {ProjectId} ({Revision})", ProjectId, Revision);
-						await ProjectService.Collection.SetLogoAsync(ProjectId, Revision, GetMimeTypeFromPath(Path), await ReadDataAsync(Path));
+						await ProjectService.Collection.SetLogoAsync(ProjectId, Path, Revision, GetMimeTypeFromPath(Path), await ReadDataAsync(Path));
 						CachedLogoRevisions[ProjectId] = Revision;
 					}
 				}
@@ -232,7 +232,7 @@ namespace HordeServer.Services
 				if (StreamRevisions.TryGetValue(Path, out string? Revision))
 				{
 					IStream? Stream = Streams.FirstOrDefault(x => x.Id == StreamRef.Id);
-					if (Stream == null || Stream.Revision != Revision)
+					if (Stream == null || Stream.ConfigPath != Path || Stream.ConfigRevision != Revision)
 					{
 						Logger.LogInformation("Updating configuration for stream {StreamRef} ({Revision})", StreamRef.Id, Revision);
 
@@ -241,7 +241,7 @@ namespace HordeServer.Services
 						{
 							for (; ; )
 							{
-								Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamRef.Id, Stream, Revision, ProjectId, StreamConfig);
+								Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamRef.Id, Stream, Path, Revision, ProjectId, StreamConfig);
 
 								if (Stream != null)
 								{

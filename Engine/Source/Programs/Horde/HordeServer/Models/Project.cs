@@ -105,9 +105,14 @@ namespace HordeServer.Models
 		public string Name { get; }
 
 		/// <summary>
+		/// Path to the config file used to configure this project
+		/// </summary>
+		public string? ConfigPath { get; }
+
+		/// <summary>
 		/// Revision of the config file used to configure this project
 		/// </summary>
-		public string? Revision { get; set; }
+		public string? ConfigRevision { get; }
 
 		/// <summary>
 		/// Order to display on the dashboard
@@ -134,6 +139,11 @@ namespace HordeServer.Models
 		/// The project id
 		/// </summary>
 		public ProjectId Id { get; }
+
+		/// <summary>
+		/// Path to the logo
+		/// </summary>
+		public string Path { get; }
 
 		/// <summary>
 		/// Revision of the file
