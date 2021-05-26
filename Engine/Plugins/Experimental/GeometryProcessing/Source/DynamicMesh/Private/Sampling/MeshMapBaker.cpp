@@ -127,6 +127,99 @@ static bool GetDetailMeshTrianglePoint_Nearest(
 	return false;
 }
 
+
+//
+// FMeshMapBaker
+//
+
+
+void FMeshMapBaker::InitBake()
+{
+	// Retrieve evaluation contexts and cache:
+	// - index lists of accumulation modes (BakeAccumulateLists)
+	// - evaluator to bake result offsets (BakeOffsets)
+	// - buffer size per sample (BakeSampleBufferSize)
+	int32 NumBakers = Bakers.Num();
+	BakeContexts.SetNum(NumBakers);
+	BakeOffsets.SetNumUninitialized(NumBakers + 1);
+	BakeAccumulateLists.SetNum((int32) FMeshMapEvaluator::EAccumulateMode::Last);
+	BakeSampleBufferSize = 0;
+	int32 Offset = 0;
+	for (int32 Idx = 0; Idx < NumBakers; ++Idx)
+	{
+		Bakers[Idx]->Setup(*this, BakeContexts[Idx]);
+		checkSlow(BakeContexts[Idx].Evaluate != nullptr && BakeContexts[Idx].EvaluateDefault != nullptr);
+		checkSlow(BakeContexts[Idx].DataLayout.Num() > 0);
+		int32 NumData = BakeContexts[Idx].DataLayout.Num();
+		for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
+		{
+			BakeSampleBufferSize += (int32) BakeContexts[Idx].DataLayout[DataIdx];
+		}
+		BakeOffsets[Idx] = Offset;
+		Offset += NumData;
+		BakeAccumulateLists[(int32) BakeContexts[Idx].AccumulateMode].Add(Idx);
+	}
+	BakeOffsets[NumBakers] = Offset;
+
+	// Initialize our BakeResults list and cache offsets into the sample buffer
+	// per bake result
+	const int32 NumResults = Offset;
+	BakeResults.SetNum(NumResults);
+	BakeSampleOffsets.SetNumUninitialized(NumResults + 1);
+	int32 SampleOffset = 0;
+	for (int32 Idx = 0; Idx < NumBakers; ++Idx)
+	{
+		int32 NumData = BakeContexts[Idx].DataLayout.Num();
+		for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
+		{
+			int32 ResultIdx = BakeOffsets[Idx] + DataIdx;
+			BakeResults[ResultIdx] = MakeUnique<TImageBuilder<FVector4f>>();
+			BakeResults[ResultIdx]->SetDimensions(Dimensions);
+
+			BakeSampleOffsets[ResultIdx] = SampleOffset;
+			SampleOffset += (int32) BakeContexts[Idx].DataLayout[DataIdx];
+		}
+	}
+	BakeSampleOffsets[NumResults] = SampleOffset;
+
+	InitBakeDefaults();
+
+	for (int32 Idx = 0; Idx < NumResults; ++Idx)
+	{
+		BakeResults[Idx]->Clear(BakeDefaultColors[Idx]);
+	}
+}
+
+void FMeshMapBaker::InitBakeDefaults()
+{
+	// Cache default float buffer and colors for each bake result.
+	checkSlow(BakeSampleBufferSize > 0);
+	BakeDefaults.SetNumUninitialized(BakeSampleBufferSize);
+	float* Buffer = BakeDefaults.GetData();
+	float* BufferPtr = Buffer;
+
+	const int32 NumBakers = Bakers.Num();
+	for (int32 Idx = 0; Idx < NumBakers; ++Idx)
+	{
+		BakeContexts[Idx].EvaluateDefault(BufferPtr, BakeContexts[Idx].EvalData);
+	}
+	checkSlow((BufferPtr - Buffer) == BakeSampleBufferSize);
+
+	BufferPtr = Buffer;
+	const int32 NumBakeResults = BakeResults.Num();
+	BakeDefaultColors.SetNumUninitialized(NumBakeResults);
+	for (int32 Idx = 0; Idx < NumBakers; ++Idx)
+	{
+		const int32 NumData = BakeContexts[Idx].DataLayout.Num();
+		for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
+		{
+			const int32 ResultIdx = BakeOffsets[Idx] + DataIdx;
+			BakeDefaultColors[ResultIdx] = FloatToPixel(BufferPtr, BakeContexts[Idx].DataLayout[DataIdx], 1.0f);
+		}
+	}
+	checkSlow((BufferPtr - Buffer) == BakeSampleBufferSize);
+}
+
 void FMeshMapBaker::Bake()
 {
 	if (Bakers.IsEmpty())
@@ -134,16 +227,7 @@ void FMeshMapBaker::Bake()
 		return;
 	}
 
-	// Initialize Bake targets and results.
-	BakeResults.SetNum(Bakers.Num());
-	for (int32 Idx = 0; Idx < Bakers.Num(); Idx++)
-	{
-		BakeResults[Idx] = MakeShared<TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();
-		BakeResults[Idx]->SetDimensions(Dimensions);
-		FVector4f ClearColor = Bakers[Idx]->DefaultSample();
-		BakeResults[Idx]->Clear(ClearColor);
-		Bakers[Idx]->PreEvaluate(*this);
-	}
+	InitBake();
 
 	// Generate UV space mesh
 	const FDynamicMesh3* Mesh = TargetMesh;
@@ -172,9 +256,9 @@ void FMeshMapBaker::Bake()
 		UseStrategy = ECorrespondenceStrategy::NearestPoint;
 	}
 
-	// this sampler finds the correspondence between base surface and detail surface
-	DetailMeshSampler.Initialize(Mesh, UVOverlay, EMeshSurfaceSamplerQueryType::TriangleAndUV, FMeshImageBaker::FCorrespondenceSample(),
-		[Mesh, NormalOverlay, UseStrategy, this](const FMeshUVSampleInfo& SampleInfo, FMeshImageBaker::FCorrespondenceSample& ValueOut)
+	// This sampler finds the correspondence between target surface and detail surface.
+	DetailMeshSampler.Initialize(Mesh, UVOverlay, EMeshSurfaceSamplerQueryType::TriangleAndUV, FMeshMapEvaluator::FCorrespondenceSample(),
+		[Mesh, NormalOverlay, UseStrategy, this](const FMeshUVSampleInfo& SampleInfo, FMeshMapEvaluator::FCorrespondenceSample& ValueOut)
 	{
 		NormalOverlay->GetTriBaryInterpolate<double>(SampleInfo.TriangleIndex, &SampleInfo.BaryCoords.X, &ValueOut.BaseNormal.X);
 		Normalize(ValueOut.BaseNormal);
@@ -193,21 +277,22 @@ void FMeshMapBaker::Bake()
 			bool bFoundTri = GetDetailMeshTrianglePoint_Nearest(*DetailMesh, *DetailSpatial, SampleInfo.SurfacePoint,
 				ValueOut.DetailTriID, ValueOut.DetailBaryCoords);
 		}
-		else	// fall back to raycast strategy
+		else	// Fall back to raycast strategy
 		{
 			double SampleThickness = this->GetThickness();		// could modulate w/ a map here...
 
-			// find detail mesh triangle point
+			// Find detail mesh triangle point
 			bool bFoundTri = GetDetailMeshTrianglePoint_Raycast(*DetailMesh, *DetailSpatial, SampleInfo.SurfacePoint, RayDir,
 				ValueOut.DetailTriID, ValueOut.DetailBaryCoords, SampleThickness,
 				(UseStrategy == ECorrespondenceStrategy::RaycastStandardThenNearest));
 		}
-
 	});
 
 	// Setup image tiling
 	FImageTiling Tiles(Dimensions, TileSize, TileSize, 0);
-	ParallelFor(Tiles.Num(), [this, &Tiles](int32 TileIdx)
+	const int32 NumBakers = Bakers.Num();
+	const int32 NumResults = BakeResults.Num();
+	ParallelFor(Tiles.Num(), [this, &Tiles, &NumBakers, &NumResults](int32 TileIdx)
 	{
 		FImageDimensions Tile = Tiles.GetTile(TileIdx);
 
@@ -216,102 +301,216 @@ void FMeshMapBaker::Bake()
 		OccupancyMap.Initialize(Tile, Multisampling);
 		OccupancyMap.ComputeFromUVSpaceMesh(FlatMesh, [this](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); });
 
-		// calculate interior texels
-		for (int32 ImgY = 0; ImgY < Tile.GetHeight(); ImgY++)
+		FMeshMapTileBuffer TileBuffer(Tile, BakeSampleBufferSize);
+
+		// Calculate interior texels
+		for (FVector2i Texel(0,0); Texel.Y < Tile.GetHeight(); ++Texel.Y)
 		{
-			for (int32 ImgX = 0; ImgX < Tile.GetWidth(); ImgX++)
+			for (Texel.X = 0; Texel.X < Tile.GetWidth(); ++Texel.X)
+			{
+				if (CancelF())
+				{
+					return;
+				}
+				BakePixel(TileBuffer, OccupancyMap, Tile, Texel);
+			}
+		}
+
+		// Convert TileBuffer data to color data.
+		for (FVector2i Texel(0,0); Texel.Y < Tile.GetHeight(); ++Texel.Y)
+		{
+			for (Texel.X = 0; Texel.X < Tile.GetWidth(); ++Texel.X)
 			{
 				if (CancelF())
 				{
 					return;
 				}
 
-				BakePixel(OccupancyMap, Tile, ImgX, ImgY);
+				const int64 PixelLinearIdx = Tile.GetIndex(Texel);
+				const float& PixelWeight = TileBuffer.GetPixelWeight(PixelLinearIdx);
+				if (PixelWeight > 0.0)
+				{
+					const int64 ImageLinearIdx = Tile.GetSourceIndex(Texel);
+					float* PixelBuffer = TileBuffer.GetPixel(PixelLinearIdx);
+					const float OneOverPixelWeight = 1.0f / PixelWeight;
+
+					auto WriteToPixel = [this, &PixelBuffer, &ImageLinearIdx](TArray<int32>& BakeIds, float Weight)
+					{
+						for (int32 Idx : BakeIds)
+						{
+							const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];
+							const int32 NumData = Context.DataLayout.Num();
+							const int32 ResultOffset = BakeOffsets[Idx];
+							for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
+							{
+								const int32 ResultIdx = ResultOffset + DataIdx;
+								const int32 Offset = BakeSampleOffsets[ResultIdx];
+								float* BufferPtr = &PixelBuffer[Offset];
+								const FMeshMapEvaluator::EComponents Stride = Context.DataLayout[DataIdx];
+								FVector4f& Pixel = BakeResults[ResultIdx]->GetPixel(ImageLinearIdx);
+								Pixel = FloatToPixel(BufferPtr, Stride, Weight);
+							}
+						}
+					};
+
+					WriteToPixel(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add], OneOverPixelWeight);
+					WriteToPixel(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Overwrite], 1.0f);
+				}
 			}
 		}
 
-		for (int64 k = 0; k < OccupancyMap.GutterTexels.Num(); k++)
+		for (int64 GutterIdx = 0; GutterIdx < OccupancyMap.GutterTexels.Num(); ++GutterIdx)
 		{
-			TPair<int64, int64> GutterTexel = OccupancyMap.GutterTexels[k];
-			for (int32 Idx = 0; Idx < Bakers.Num(); Idx++)
+			int64 GutterPixelTo;
+			int64 GutterPixelFrom;
+			Tie(GutterPixelTo, GutterPixelFrom) = OccupancyMap.GutterTexels[GutterIdx];
+			for (int32 Idx = 0; Idx < NumResults; Idx++)
 			{
-				BakeResults[Idx]->CopyPixel(GutterTexel.Value, GutterTexel.Key);
+				BakeResults[Idx]->CopyPixel(GutterPixelFrom, GutterPixelTo);
 			}
 		}
 	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
-
-	for (int32 Idx = 0; Idx < Bakers.Num(); Idx++)
-	{
-		Bakers[Idx]->PostEvaluate(*this, *BakeResults[Idx]);
-	}
 }
 
-void FMeshMapBaker::BakePixel(FImageOccupancyMap& OccupancyMap, const FImageDimensions& Tile, int32 ImgX, int32 ImgY)
+void FMeshMapBaker::BakePixel(FMeshMapTileBuffer& TileBuffer, FImageOccupancyMap& OccupancyMap, const FImageDimensions& Tile, const FVector2i& TileCoords)
 {
-	FVector2i ImageCoords = Tile.GetSourceCoords(ImgX, ImgY);
-
-	// If this texel contains any interior samples, we will accumulate
-	// the result, reset the clear color to black.
-	if (OccupancyMap.TexelNumSamples(Tile.GetIndex(ImgX, ImgY)) > 0)
-	{
-		for (int32 Idx = 0; Idx < Bakers.Num(); Idx++)
-		{
-			if (Bakers[Idx]->SupportsMultisampling())
-			{
-				BakeResults[Idx]->SetPixel(ImageCoords, FVector4f::Zero());
-			}
-		}
-	}
-	else
+	if (OccupancyMap.TexelNumSamples(Tile.GetIndex(TileCoords)) == 0)
 	{
 		return;
 	}
 
-	for (int32 SampleIdx = 0; SampleIdx < OccupancyMap.Multisampler.Num(); SampleIdx++)
+	const int64 TilePixelLinearIdx = Tile.GetIndex(TileCoords);
+	float* PixelBuffer = TileBuffer.GetPixel(TilePixelLinearIdx);
+	float& PixelWeight = TileBuffer.GetPixelWeight(TilePixelLinearIdx);
+
+	const FVector2i ImageCoords = Tile.GetSourceCoords(TileCoords.X, TileCoords.Y);
+	const int32 NumSamples = OccupancyMap.Multisampler.Num();
+	const int32 NumEvaluatorAdd = BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add].Num();
+	for (int32 SampleIdx = 0; SampleIdx < NumSamples; ++SampleIdx)
 	{
-		int64 LinearIdx = Tile.GetIndex(ImgX, ImgY) * OccupancyMap.Multisampler.Num() + SampleIdx;
-		double OneOverNumSamples = 1.0 / (double)OccupancyMap.Multisampler.Num();
-		if (OccupancyMap.IsInterior(LinearIdx) == false)
+		const int64 LinearIdx = TilePixelLinearIdx * OccupancyMap.Multisampler.Num() + SampleIdx;
+		if (!OccupancyMap.IsInterior(LinearIdx))
 		{
-			for (int32 Idx = 0; Idx < Bakers.Num(); Idx++)
+			PixelWeight += NumEvaluatorAdd > 0;
+			for (int32 Idx : BakeAccumulateLists[(int32) FMeshMapEvaluator::EAccumulateMode::Add] )
 			{
-				if (Bakers[Idx]->SupportsMultisampling())
+				const int32 NumData = BakeContexts[Idx].DataLayout.Num();
+				for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
 				{
-					FVector4f Result = BakeResults[Idx]->GetPixel(ImageCoords);
-					Result += Bakers[Idx]->DefaultSample() * OneOverNumSamples;
-					BakeResults[Idx]->SetPixel(ImageCoords, Result);
+					const int32 ResultIdx = BakeOffsets[Idx] + DataIdx;
+					const int32 Offset = BakeSampleOffsets[ResultIdx];
+					const int32 Stride = (int32) BakeContexts[Idx].DataLayout[DataIdx];
+					for (int32 BufIdx = 0; BufIdx < Stride; ++BufIdx)
+					{
+						PixelBuffer[Offset + BufIdx] += BakeDefaults[Offset + BufIdx];
+					}
 				}
 			}
 		}
 		else
 		{
-			FVector2d UVPosition = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
-			int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
+			const FVector2d UVPosition = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
+			const int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
 
-			FMeshImageBaker::FCorrespondenceSample Sample;
+			FMeshMapEvaluator::FCorrespondenceSample Sample;
 			DetailMeshSampler.SampleUV(UVTriangleID, UVPosition, Sample);
 
-			for (int32 Idx = 0; Idx < Bakers.Num(); Idx++)
-			{
-				FVector4f SampleResult = Bakers[Idx]->EvaluateSample(*this, Sample);
-				if (!Bakers[Idx]->SupportsMultisampling())
-				{
-					// TODO/FIXME: Can be more correct & optimal here by not multisampling at all.
-					// Currently the samples are precomputed in the occupancy map.
-					BakeResults[Idx]->SetPixel(ImageCoords, SampleResult);
-				}
-				else
-				{
-					FVector4f Result = BakeResults[Idx]->GetPixel(ImageCoords);
-					Result += SampleResult * OneOverNumSamples;
-					BakeResults[Idx]->SetPixel(ImageCoords, Result);
-				}
-			}
+			BakeSample(TileBuffer, Sample, Tile, TileCoords, ImageCoords, 1.0f);
 		}
 	}
 }
 
-int32 FMeshMapBaker::AddBaker(TSharedPtr<FMeshImageBaker> Sampler)
+void FMeshMapBaker::BakeSample(FMeshMapTileBuffer& TileBuffer, const FMeshMapEvaluator::FCorrespondenceSample& Sample, const FImageDimensions& Tile,
+	const FVector2i& TileCoords, const FVector2i& ImageCoords, const float& SampleWeight)
+{
+	const int64 TilePixelLinearIdx = Tile.GetIndex(TileCoords);
+	float* PixelBuffer = TileBuffer.GetPixel(TilePixelLinearIdx);
+	float& PixelWeight = TileBuffer.GetPixelWeight(TilePixelLinearIdx);
+	PixelWeight += SampleWeight;
+
+	float* Buffer = static_cast<float*>(FMemory_Alloca(sizeof(float) * BakeSampleBufferSize));
+	float* BufferPtr = Buffer;
+	const int32 NumBakers = Bakers.Num();
+	for (int32 Idx = 0; Idx < NumBakers; ++Idx)
+	{
+		BakeContexts[Idx].Evaluate(BufferPtr, Sample, BakeContexts[Idx].EvalData);
+	}
+	checkSlow((BufferPtr - Buffer) == BakeSampleBufferSize);
+
+	auto AddFn = [PixelBuffer, Buffer](const int32 Idx) -> void
+	{
+		PixelBuffer[Idx] += Buffer[Idx];
+	};
+
+	auto OverwriteFn = [PixelBuffer, Buffer](const int32 Idx) -> void
+	{
+		PixelBuffer[Idx] = Buffer[Idx];
+	};
+
+	auto AccumulateFn = [this](const TArray<int32>& BakeIds, auto&& Op)
+	{
+		for (int32 Idx : BakeIds)
+		{
+			const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];
+			const int32 NumData = Context.DataLayout.Num();
+			const int32 ResultOffset = BakeOffsets[Idx];
+			for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
+			{
+				const int32 ResultIdx = ResultOffset + DataIdx;
+				const int32 Offset = BakeSampleOffsets[ResultIdx];
+				const int32 Stride = (int32) Context.DataLayout[DataIdx];
+				for (int32 BufIdx = Offset; BufIdx < Offset + Stride; ++BufIdx)
+				{
+					Op(BufIdx);
+				}
+			}
+		}
+	};
+
+	AccumulateFn(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add], AddFn);
+	AccumulateFn(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Overwrite], OverwriteFn);
+}
+
+FVector4f FMeshMapBaker::FloatToPixel(float*& Buffer, FMeshMapEvaluator::EComponents Stride, float Weight)
+{
+	// TODO: Decompose this method into non-branching parts.
+	FVector4f Result = FVector4f(0.0, 0.0, 0.0, 1.0f);
+	switch (Stride)
+	{
+	case FMeshMapEvaluator::EComponents::Float1:
+	{
+		float X = Buffer[0] * Weight;
+		Result = FVector4f(X, X, X, 1.0f);
+		break;
+	}
+	case FMeshMapEvaluator::EComponents::Float2:
+	{
+		FVector2f Vec(Buffer[0], Buffer[1]);
+		Vec *= Weight;
+		Result = FVector4f(Vec.X, Vec.Y, 0.0f, 1.0f);
+		break;
+	}
+	case FMeshMapEvaluator::EComponents::Float3:
+	{
+		FVector3f Vec(Buffer[0], Buffer[1], Buffer[2]);
+		Vec *= Weight;
+		Result = FVector4f(Vec.X, Vec.Y, Vec.Z, 1.0f);
+		break;
+	}
+	case FMeshMapEvaluator::EComponents::Float4:
+	{
+		Result = FVector4f(Buffer[0], Buffer[1], Buffer[2], Buffer[3]);
+		Result *= Weight;
+		break;
+	}
+	default:
+		break;
+	}
+	Buffer += static_cast<int32>(Stride);
+	return Result;
+}
+
+int32 FMeshMapBaker::AddBaker(TSharedPtr<FMeshMapEvaluator> Sampler)
 {
 	return Bakers.Add(Sampler);
 }
@@ -320,6 +519,13 @@ void FMeshMapBaker::Reset()
 {
 	Bakers.Empty();
 	BakeResults.Empty();
+}
+
+const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> FMeshMapBaker::GetBakeResults(int32 BakerIdx)
+{
+	int32 ResultIdx = BakeOffsets[BakerIdx];
+	int32 NumResults = BakeOffsets[BakerIdx + 1] - ResultIdx;
+	return TArrayView<TUniquePtr<TImageBuilder<FVector4f>>>(&BakeResults[ResultIdx], NumResults);
 }
 
 void FMeshMapBaker::SetDetailMesh(const FDynamicMesh3* Mesh, const FDynamicMeshAABBTree3* Spatial)

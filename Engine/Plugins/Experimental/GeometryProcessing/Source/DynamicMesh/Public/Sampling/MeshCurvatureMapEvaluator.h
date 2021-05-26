@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "Sampling/MeshImageBaker.h"
-#include "Sampling/MeshImageBakingCache.h"
-#include "Image/ImageBuilder.h"
+#include "Sampling/MeshMapEvaluator.h"
 
 namespace UE
 {
@@ -13,15 +11,9 @@ namespace Geometry
 
 class FMeshVertexCurvatureCache;
 
-class DYNAMICMESH_API FMeshCurvatureMapBaker : public FMeshImageBaker
+class DYNAMICMESH_API FMeshCurvatureMapEvaluator : public FMeshMapEvaluator
 {
 public:
-	virtual ~FMeshCurvatureMapBaker() {}
-
-	//
-	// Options
-	//
-
 	enum class ECurvatureType
 	{
 		Mean = 0,
@@ -50,50 +42,42 @@ public:
 	double RangeScale = 1.0;
 	double MinRangeScale = 0.0;
 
-	// allows override of the max curvature; if false, range is set based on [-(avg+stddev), avg+stddev]
+	// Allows override of the max curvature; if false, range is set based on [-(avg+stddev), avg+stddev]
 	bool bOverrideCurvatureRange = false;
-	double OverrideRangeMax = .1;
+	double OverrideRangeMax = 0.1;
 
-
-	double BlurRadius = 0.0;
-
-	//
 	// Required input data, can be provided, will be computed otherwise
-	//
-
 	TSharedPtr<FMeshVertexCurvatureCache> Curvatures;
 
+public:
+	/** Invoked at start of bake to initialize baker. */
+	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
 
-	//
-	// Compute functions
-	//
+	static void EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);
 
-	/** Calculate bake result */
-	virtual void Bake() override;
+	static void EvaluateDefault(float*& Out, void* EvalData);
 
-	/** populate Curvatures member if valid data has not been provided */
+	/** Populate Curvatures member if valid data has not been provided */
 	void CacheDetailCurvatures(const FDynamicMesh3* DetailMesh);
 
-	//
-	// Output
-	//
-
-	const TUniquePtr<TImageBuilder<FVector3f>>& GetResult() const { return ResultBuilder; }
-
-	TUniquePtr<TImageBuilder<FVector3f>> TakeResult() { return MoveTemp(ResultBuilder); }
-
+protected:
+	// Cached data
+	const FDynamicMesh3* DetailMesh = nullptr;
+	double MinPreClamp = -TNumericLimits<double>::Max();
+	double MaxPreClamp = TNumericLimits<double>::Max();
+	FInterval1d ClampRange;
+	FVector3f NegativeColor;
+	FVector3f ZeroColor;
+	FVector3f PositiveColor;
 
 protected:
-	TUniquePtr<TImageBuilder<FVector3f>> ResultBuilder;
-
-	void Bake_Single();
-
-	void Bake_Multi();
-
-
+	double GetCurvature(int32 vid);
 	void GetColorMapRange(FVector3f& NegativeColor, FVector3f& ZeroColor, FVector3f& PositiveColor);
-};
 
+private:
+	double SampleFunction(const FCorrespondenceSample& Sample);
+};
 
 } // end namespace UE::Geometry
 } // end namespace UE
+

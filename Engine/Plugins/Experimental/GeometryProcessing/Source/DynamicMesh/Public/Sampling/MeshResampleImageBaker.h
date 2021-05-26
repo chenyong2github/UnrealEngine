@@ -42,26 +42,6 @@ public:
 
 protected:
 	TUniquePtr<TImageBuilder<FVector4f>> ResultBuilder;
-
-public:
-	//
-	// New Baker interface
-	//
-
-	/** Invoked at start of bake to initialize sampler. */
-	virtual void PreEvaluate(const FMeshMapBaker& Baker) override;
-
-	virtual FVector4f EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample) override;
-
-	virtual FVector4f DefaultSample() const override { return FVector4f(0.0f, 0.0f, 0.0f, 1.0f); }
-
-protected:
-	// Cached data
-	const FDynamicMesh3* DetailMesh = nullptr;
-
-private:
-	template <class SampleType>
-	FVector4f PropertySampleFunction(const SampleType& Sample);
 };
 
 
@@ -78,24 +58,6 @@ protected:
 
 	void InitResult();
 	void BakeMaterial(int32 MaterialID);
-
-public:
-	//
-	// New Baker interface
-	//
-
-	/** Invoked at start of bake to initialize baker. */
-	virtual void PreEvaluate(const FMeshMapBaker& Baker) override;
-
-	/** Evaluate the sample at this mesh correspondence point. */
-	virtual FVector4f EvaluateSample(const FMeshMapBaker& Baker, const FCorrespondenceSample& Sample) override;
-
-	/** @return the default sample value for the baker. */
-	virtual FVector4f DefaultSample() const override { return FVector4f(0.0f, 0.0f, 0.0f, 1.0f); }
-
-protected:
-	const FDynamicMeshMaterialAttribute* DetailMaterialIDAttrib = nullptr;
-	bool bValidDetailMesh = false;
 };
 
 } // end namespace UE::Geometry
