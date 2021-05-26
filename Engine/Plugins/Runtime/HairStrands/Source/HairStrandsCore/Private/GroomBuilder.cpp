@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2e");
+	return TEXT("2f");
 }
 
 namespace FHairStrandsDecimation
@@ -346,7 +346,7 @@ namespace HairStrandsBuilder
 		OutBulkData.PointCount = HairStrands.GetNumPoints();
 		OutBulkData.MaxLength = HairStrands.StrandsCurves.MaxLength;
 		OutBulkData.MaxRadius = HairStrands.StrandsCurves.MaxRadius;
-		OutBulkData.Flags = 0;
+		OutBulkData.Flags = FHairStrandsBulkData::DataFlags_HasData;
 
 		if (bHasMaterialData)	{ OutBulkData.Flags |= FHairStrandsBulkData::DataFlags_HasMaterialData; }	else { OutPackedMaterials.Empty(); }
 		if (bHasUDIMData)		{ OutBulkData.Flags |= FHairStrandsBulkData::DataFlags_HasUDIMData; }		else { OutPackedAttributes1.Empty(); }

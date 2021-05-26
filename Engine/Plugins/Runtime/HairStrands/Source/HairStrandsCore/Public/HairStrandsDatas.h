@@ -424,8 +424,9 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 {
 	enum EDataFlags
 	{
-		DataFlags_HasUDIMData = 1,
-		DataFlags_HasMaterialData = 2
+		DataFlags_HasData = 1,			// Contains valid data. Otherwise: Position, Attributes, ... are all empty
+		DataFlags_HasUDIMData = 2,		// Contains UDIM coords
+		DataFlags_HasMaterialData = 4	// Contains material data (albedo and/or roughness)
 	};
 
 	void Serialize(FArchive& Ar, UObject* Owner);
