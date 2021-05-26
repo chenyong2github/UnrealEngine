@@ -213,6 +213,11 @@ private:
 	/** Look up table of UID to FAnimCurveType UIDToNameLUT[InUID] = FAnimCurveType of curve. */
 	TArray<FAnimCurveType> UIDToCurveTypeLUT;
 
+	// The serial number of this bone container. This is incremented each time the container is regenerated and can
+	// be used to track whether to cache bone data. If this value is zero then the bone container is considered invalid
+	// as it has never been regenerated.
+	uint16 SerialNumber;
+
 	/** For debugging. */
 #if DO_CHECK
 	/** The LOD that we calculated required bones when regenerated */
@@ -494,6 +499,9 @@ public:
 	const FCachedSkeletonCurveMapping& GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping) const;
 	void MarkAllCachedCurveMappingsDirty();
 
+	// Get the serial number of this bone container. @see SerialNumber
+	uint16 GetSerialNumber() const { return SerialNumber; }
+	
 private:
 	/** The map of cached curve mapping indexes, which is used for skeleton remapping. The key of this table is the source skeleton of the asset we are sampling curve values from. */
 	mutable TMap<USkeleton*, FCachedSkeletonCurveMapping> CachedCurveMappingTable;
@@ -515,6 +523,9 @@ private:
 
 	/** Cache remapping data if current Asset is a Skeleton, with all compatible Skeletons. */
 	void RemapFromSkeleton(USkeleton const & SourceSkeleton);
+
+	// Regenerate the serial number after internal data is updated
+	void RegenerateSerialNumber();
 };
 
 

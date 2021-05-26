@@ -55,6 +55,7 @@ FBoneContainer::FBoneContainer()
 , AssetSkeleton(nullptr)
 , RefSkeleton(nullptr)
 , UIDToArrayIndexLUTValidCount(0)
+, SerialNumber(0)
 #if DO_CHECK
 , CalculatedForLOD(INDEX_NONE)
 #endif
@@ -75,6 +76,7 @@ FBoneContainer::FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndex
 , AssetSkeleton(nullptr)
 , RefSkeleton(nullptr)
 , UIDToArrayIndexLUTValidCount(0)
+, SerialNumber(0)
 #if DO_CHECK
 , CalculatedForLOD(INDEX_NONE)
 #endif
@@ -236,6 +238,8 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 
 	// Reset retargeting cached data look up table.
 	RetargetSourceCachedDataLUT.Reset();
+
+	RegenerateSerialNumber();
 }
 
 void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& CurveEvalOption)
@@ -349,6 +353,20 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 
 	// Make sure we regenerate our cached curve mappings next time they are requested.
 	MarkAllCachedCurveMappingsDirty();
+
+	RegenerateSerialNumber();
+}
+
+void FBoneContainer::RegenerateSerialNumber()
+{
+	// Bump the serial number
+	SerialNumber++;
+
+	// Skip zero as this is used to indicate an invalid bone container
+	if(SerialNumber == 0)
+	{
+		SerialNumber++;
+	}
 }
 
 void FBoneContainer::MarkAllCachedCurveMappingsDirty()
