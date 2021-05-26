@@ -12,18 +12,6 @@
 	#define USE_EVENT_POOLING 1
 #endif
 
-/**
- * Enumerates available event pool types.
- */
-enum class EEventPoolTypes
-{
-	/** Creates events that have their signaled state reset automatically. */
-	AutoReset,
-
-	/** Creates events that have their signaled state reset manually. */
-	ManualReset
-};
-
 class FSafeRecyclableEvent  final: public FEvent
 {
 public:
@@ -79,12 +67,12 @@ public:
  * @param PoolType Specifies the type of pool.
  * @see FEvent
  */
-template<EEventPoolTypes PoolType>
-class FEventPool
+template<EEventMode PoolType>
+class TEventPool
 {
 public:
 #if USE_EVENT_POOLING
-	~FEventPool()
+	~TEventPool()
 	{
 		EmptyPool();
 	}
@@ -98,21 +86,7 @@ public:
 	 */
 	FEvent* GetEventFromPool()
 	{
-		FEvent* Result = nullptr;
-
-#if USE_EVENT_POOLING
-		Result = Pool.Pop();
-		if (!Result)
-#endif
-		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			Result = FPlatformProcess::CreateSynchEvent((PoolType == EEventPoolTypes::ManualReset));
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-		check(Result);
-		Result->AdvanceStats();
-
-		return new FSafeRecyclableEvent(Result);
+		return new FSafeRecyclableEvent(GetRawEvent());
 	}
 
 	/**
@@ -124,17 +98,11 @@ public:
 	void ReturnToPool(FEvent* Event)
 	{
 		check(Event);
-		check(Event->IsManualReset() == (PoolType == EEventPoolTypes::ManualReset));
+		check(Event->IsManualReset() == (PoolType == EEventMode::ManualReset));
+
 		FSafeRecyclableEvent* SafeEvent = (FSafeRecyclableEvent*)Event;
-		FEvent* Result = SafeEvent->InnerEvent;
+		ReturnRawEvent(SafeEvent->InnerEvent);
 		delete SafeEvent;
-		check(Result);
-		Result->Reset();
-#if USE_EVENT_POOLING
-		Pool.Push(Result);
-#else
-		delete Result;
-#endif
 	}
 
 	void EmptyPool()
@@ -145,6 +113,50 @@ public:
 			delete Event;
 		}
 #endif
+	}
+
+	/**
+	* Gets a "raw" event (as opposite to `FSafeRecyclableEvent` handle returned by `GetEventFromPool`) from the pool or 
+	* creates one if necessary.
+	* @see ReturnRaw
+	*/
+	FEvent* GetRawEvent()
+	{
+		FEvent* Event =
+#if USE_EVENT_POOLING
+			Pool.Pop();
+#else
+			nullptr;
+#endif
+
+		if (Event == nullptr)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Event = FPlatformProcess::CreateSynchEvent(PoolType == EEventMode::ManualReset);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+
+		check(Event);
+
+		Event->AdvanceStats();
+
+		return Event;
+	}
+
+	/**
+	 * Returns a "raw" event to the pool.
+	 * @see GetRaw
+	 */
+	void ReturnRawEvent(FEvent* Event)
+	{
+		check(Event);
+
+#if USE_EVENT_POOLING
+		Event->Reset();
+		Pool.Push(Event);
+#else
+		delete Event;
+#endif	
 	}
 
 private:

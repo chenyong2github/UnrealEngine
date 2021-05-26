@@ -6,6 +6,7 @@
 #include "Math/NumericLimits.h"
 #include "Misc/Timespan.h"
 #include "Templates/Atomic.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Interface for waitable events.
@@ -126,7 +127,7 @@ protected:
 enum class EEventMode { AutoReset, ManualReset };
 
 /**
- * RAII-style `FEvent`
+ * RAII-style pooled `FEvent`
  *
  * non-copyable, non-movable
  */
@@ -147,6 +148,28 @@ public:
 		return Event;
 	}
 
+	FEvent* Get()
+	{
+		return Event;
+	}
+
 private:
 	FEvent* Event;
+};
+
+/**
+ * RAII-style shared and pooled `FEvent`
+ */
+class CORE_API FSharedEventRef final
+{
+public:
+	explicit FSharedEventRef(EEventMode Mode = EEventMode::AutoReset);
+
+	FEvent* operator->() const
+	{
+		return Ptr.Get();
+	}
+
+private:
+	TSharedPtr<FEvent> Ptr;
 };

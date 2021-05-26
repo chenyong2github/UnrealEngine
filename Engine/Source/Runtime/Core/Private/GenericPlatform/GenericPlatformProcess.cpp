@@ -496,14 +496,14 @@ FEvent* FGenericPlatformProcess::CreateSynchEvent(bool bIsManualReset)
 FEvent* FGenericPlatformProcess::GetSynchEventFromPool(bool bIsManualReset)
 {
 	return bIsManualReset
-		? TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::Get().GetEventFromPool()
-		: TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().GetEventFromPool();
+		? TLazySingleton<TEventPool<EEventMode::ManualReset>>::Get().GetEventFromPool()
+		: TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().GetEventFromPool();
 }
 
 void FGenericPlatformProcess::FlushPoolSyncEvents()
 {
-	TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::Get().EmptyPool();
-	TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().EmptyPool();
+	TLazySingleton<TEventPool<EEventMode::ManualReset>>::Get().EmptyPool();
+	TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().EmptyPool();
 }
 
 void FGenericPlatformProcess::ReturnSynchEventToPool(FEvent* Event)
@@ -515,11 +515,11 @@ void FGenericPlatformProcess::ReturnSynchEventToPool(FEvent* Event)
 
 	if (Event->IsManualReset())
 	{
-		TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::Get().ReturnToPool(Event);
+		TLazySingleton<TEventPool<EEventMode::ManualReset>>::Get().ReturnToPool(Event);
 	}
 	else
 	{
-		TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::Get().ReturnToPool(Event);
+		TLazySingleton<TEventPool<EEventMode::AutoReset>>::Get().ReturnToPool(Event);
 	}
 }
 
@@ -640,8 +640,8 @@ FSystemWideCriticalSectionNotImplemented::FSystemWideCriticalSectionNotImplement
 
 void FGenericPlatformProcess::TearDown()
 {
-	TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::TearDown();
-	TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::TearDown();
+	TLazySingleton<TEventPool<EEventMode::AutoReset>>::TearDown();
+	TLazySingleton<TEventPool<EEventMode::ManualReset>>::TearDown();
 }
 
 ENamedThreads::Type FGenericPlatformProcess::GetDesiredThreadForUObjectReferenceCollector()
