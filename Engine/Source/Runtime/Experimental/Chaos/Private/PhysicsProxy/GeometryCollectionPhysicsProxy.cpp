@@ -315,9 +315,6 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	const FSimulationParameters& SimulationParameters,
 	FCollisionFilterData InSimFilter,
 	FCollisionFilterData InQueryFilter,
-	FInitFunc InInitFunc,
-	FCacheSyncFunc InCacheSyncFunc,
-	FFinalSyncFunc InFinalSyncFunc,
 	const Chaos::EMultiBufferMode BufferMode)
 	: Base(InOwner)
 	, Parameters(SimulationParameters)
@@ -332,10 +329,6 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	, ProxySimDuration(0.0f)
 	, LastSyncCountGT(MAX_uint32)
 #endif
-	, InitFunc(InInitFunc)
-	, CacheSyncFunc(InCacheSyncFunc)
-	, FinalSyncFunc(InFinalSyncFunc)
-
 	, CollisionParticlesPerObjectFraction(CollisionParticlesPerObjectFractionDefault)
 
 	, GameThreadCollection(GameThreadCollectionIn)
@@ -378,13 +371,6 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 	SolverClusterHandles.Init(nullptr, NumParticles);
 	SolverParticleHandles.Init(nullptr, NumParticles);
 
-	//	
-	//  Give clients the opportunity to update the parameters before the simualtion is setup. 
-	//
-	if (InitFunc)
-	{
-		InitFunc(Parameters);
-	}
 	// compatibility requirement to make sure we at least initialize GameThreadPerFrameData properly
 	GameThreadPerFrameData.SetWorldTransform(Parameters.WorldTransform);
 
@@ -1392,12 +1378,7 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromScene()
 
 void FGeometryCollectionPhysicsProxy::SyncBeforeDestroy()
 {
-	if(FinalSyncFunc)
-	{
-#if TODO_REIMPLEMENT_RIGID_CACHING
-		FinalSyncFunc(RecordedTracks);
-#endif
-	}
+
 }
 
 void FGeometryCollectionPhysicsProxy::BufferGameState() 
@@ -1762,10 +1743,6 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		//question: why do we need this? Sleeping objects will always have to update GPU
 		DynamicCollection.MakeDirty();
 
-		if (CacheSyncFunc)
-		{
-			CacheSyncFunc(TargetResults);
-		}
 	}
 
 	return true;

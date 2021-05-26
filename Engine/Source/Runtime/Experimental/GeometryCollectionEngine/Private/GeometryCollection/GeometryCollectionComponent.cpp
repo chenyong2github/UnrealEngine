@@ -216,7 +216,6 @@ FGeomComponentCacheParameters::FGeomComponentCacheParameters()
 UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ChaosSolverActor(nullptr)
-	, Simulating(true)
 	, InitializationState(ESimulationInitializationState::Unintialized)
 	, ObjectType(EObjectStateTypeEnum::Chaos_Object_Dynamic)
 	, EnableClustering(true)
@@ -272,6 +271,9 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 
 	// By default use the destructible object channel unless the user specifies otherwise
 	BodyInstance.SetObjectType(ECC_Destructible);
+
+	// By default, we initialize immediately. If this is set false, we defer initialization.
+	BodyInstance.bSimulatePhysics = true;
 
 	EventDispatcher = ObjectInitializer.CreateDefaultSubobject<UChaosGameplayEventDispatcher>(this, TEXT("GameplayEventDispatcher"));
 
@@ -621,6 +623,22 @@ void UGeometryCollectionComponent::SetNotifyRigidBodyCollision(bool bNewNotifyRi
 {
 	Super::SetNotifyRigidBodyCollision(bNewNotifyRigidBodyCollision);
 	UpdateRBCollisionEventRegistration();
+}
+
+bool UGeometryCollectionComponent::CanEditSimulatePhysics()
+{
+	return true;
+}
+
+void UGeometryCollectionComponent::SetSimulatePhysics(bool bEnabled)
+{
+	Super::SetSimulatePhysics(bEnabled);
+
+	if (bEnabled && !PhysicsProxy)
+	{
+		RegisterAndInitializePhysicsProxy();
+	}
+
 }
 
 void UGeometryCollectionComponent::DispatchBreakEvent(const FChaosBreakEvent& Event)
@@ -1737,7 +1755,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 */
 	// Skip the chain - don't care about body instance setup
 	UActorComponent::OnCreatePhysicsState();
-	if (!Simulating) IsObjectLoading = false; // just mark as loaded if we are simulating.
+	if (!BodyInstance.bSimulatePhysics) IsObjectLoading = false; // just mark as loaded if we are simulating.
 
 /*#if WITH_PHYSX
 	DummyBodyInstance.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -1768,210 +1786,6 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 		{
 			FPhysxUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
 
-			FSimulationParameters SimulationParameters;
-			{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				SimulationParameters.Name = GetPathName();
-#endif
-				EClusterConnectionTypeEnum ClusterCollectionType = ClusterConnectionType_DEPRECATED;
-				if (RestCollection)
-				{
-					RestCollection->GetSharedSimulationParams(SimulationParameters.Shared);
-					SimulationParameters.RestCollection = RestCollection->GetGeometryCollection().Get();
-					ClusterCollectionType = RestCollection->ClusterConnectionType;
-				}
-				SimulationParameters.Simulating = Simulating;
-				SimulationParameters.EnableClustering = EnableClustering;
-				SimulationParameters.ClusterGroupIndex = EnableClustering ? ClusterGroupIndex : 0;
-				SimulationParameters.MaxClusterLevel = MaxClusterLevel;
-				SimulationParameters.bUseSizeSpecificDamageThresholds = bUseSizeSpecificDamageThreshold;
-				SimulationParameters.DamageThreshold = DamageThreshold;
-				SimulationParameters.ClusterConnectionMethod = (Chaos::FClusterCreationParameters::EConnectionMethod)ClusterCollectionType;
-				SimulationParameters.CollisionGroup = CollisionGroup;
-				SimulationParameters.CollisionSampleFraction = CollisionSampleFraction;
-				SimulationParameters.InitialVelocityType = InitialVelocityType;
-				SimulationParameters.InitialLinearVelocity = InitialLinearVelocity;
-				SimulationParameters.InitialAngularVelocity = InitialAngularVelocity;
-				SimulationParameters.bClearCache = true;
-				SimulationParameters.ObjectType = ObjectType;
-				SimulationParameters.CacheType = CacheParameters.CacheMode;
-				SimulationParameters.ReverseCacheBeginTime = CacheParameters.ReverseCacheBeginTime;
-				SimulationParameters.CollisionData.SaveCollisionData = CacheParameters.SaveCollisionData;
-				SimulationParameters.CollisionData.DoGenerateCollisionData = CacheParameters.DoGenerateCollisionData;
-				SimulationParameters.CollisionData.CollisionDataSizeMax = CacheParameters.CollisionDataSizeMax;
-				SimulationParameters.CollisionData.DoCollisionDataSpatialHash = CacheParameters.DoCollisionDataSpatialHash;
-				SimulationParameters.CollisionData.CollisionDataSpatialHashRadius = CacheParameters.CollisionDataSpatialHashRadius;
-				SimulationParameters.CollisionData.MaxCollisionPerCell = CacheParameters.MaxCollisionPerCell;
-				SimulationParameters.BreakingData.SaveBreakingData = CacheParameters.SaveBreakingData;
-				SimulationParameters.BreakingData.DoGenerateBreakingData = CacheParameters.DoGenerateBreakingData;
-				SimulationParameters.BreakingData.BreakingDataSizeMax = CacheParameters.BreakingDataSizeMax;
-				SimulationParameters.BreakingData.DoBreakingDataSpatialHash = CacheParameters.DoBreakingDataSpatialHash;
-				SimulationParameters.BreakingData.BreakingDataSpatialHashRadius = CacheParameters.BreakingDataSpatialHashRadius;
-				SimulationParameters.BreakingData.MaxBreakingPerCell = CacheParameters.MaxBreakingPerCell;
-				SimulationParameters.TrailingData.SaveTrailingData = CacheParameters.SaveTrailingData;
-				SimulationParameters.TrailingData.DoGenerateTrailingData = CacheParameters.DoGenerateTrailingData;
-				SimulationParameters.TrailingData.TrailingDataSizeMax = CacheParameters.TrailingDataSizeMax;
-				SimulationParameters.TrailingData.TrailingMinSpeedThreshold = CacheParameters.TrailingMinSpeedThreshold;
-				SimulationParameters.TrailingData.TrailingMinVolumeThreshold = CacheParameters.TrailingMinVolumeThreshold;
-				SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
-				SimulationParameters.WorldTransform = GetComponentToWorld();
-				SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
-
-				UPhysicalMaterial* EnginePhysicalMaterial = GetPhysicalMaterial();
-				if(ensure(EnginePhysicalMaterial))
-				{
-					SimulationParameters.PhysicalMaterialHandle = EnginePhysicalMaterial->GetPhysicsMaterial();
-				}
-			}
-
-
-			//
-			// Called from FGeometryCollectionPhysicsProxy::Initialize()
-			//
-			auto InitFunc = [this](FSimulationParameters& InParams)
-			{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				InParams.Name = GetPathName();
-#endif
-				GetInitializationCommands(InParams.InitializationCommands);
-				UGeometryCollectionCache* Cache = CacheParameters.TargetCache;
-				if(Cache && CacheParameters.CacheMode != EGeometryCollectionCacheType::None)
-				{
-					bool bCacheValid = false;
-
-					switch(CacheParameters.CacheMode)
-					{
-					case EGeometryCollectionCacheType::Record:
-					case EGeometryCollectionCacheType::RecordAndPlay:
-						bCacheValid = Cache->CompatibleWithForRecord(RestCollection);
-						break;
-					case EGeometryCollectionCacheType::Play:
-						bCacheValid = Cache->CompatibleWithForPlayback(RestCollection);
-						break;
-					default:
-						check(false);
-						break;
-					}
-
-					if(bCacheValid)
-					{
-						InParams.RecordedTrack = (InParams.IsCachePlaying() && CacheParameters.TargetCache) ? CacheParameters.TargetCache->GetData() : nullptr;
-					}
-					else
-					{
-						// We attempted to utilize a cache that was not compatible with this component. Report and do not use
-						UE_LOG(LogChaos, Error, TEXT("Geometry collection '%s' attempted to use cache '%s' but it is not compatible."), *GetName(), *(CacheParameters.TargetCache->GetName()));
-						InParams.RecordedTrack = nullptr;
-						InParams.CacheType = EGeometryCollectionCacheType::None;
-						CacheParameters.CacheMode = EGeometryCollectionCacheType::None;
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-						FMessageLog("PIE").Error()
-							->AddToken(FTextToken::Create(NSLOCTEXT("GeomCollectionComponent", "BadCache_01", "Geometry collection")))
-							->AddToken(FUObjectToken::Create(this))
-							->AddToken(FTextToken::Create(NSLOCTEXT("GeomCollectionComponent", "BadCache_02", "attempted to use cache")))
-							->AddToken(FUObjectToken::Create(CacheParameters.TargetCache))
-							->AddToken(FTextToken::Create(NSLOCTEXT("GeomCollectionComponent", "BadCache_03", "but it is not compatible")));
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
-					}
-				}
-
-			};
-
-			auto CacheSyncFunc = [this](const FGeometryCollectionResults& Results)
-			{
-#if GEOMETRYCOLLECTION_DEBUG_DRAW
-				const bool bHasNumParticlesChanged = (NumParticlesAdded != Results.NumParticlesAdded);  // Needs to be evaluated before NumParticlesAdded gets updated
-#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
-				//RigidBodyIds.Init(Results.RigidBodyIds);
-				BaseRigidBodyIndex = Results.BaseIndex;
-				NumParticlesAdded = Results.NumParticlesAdded;
-				DisabledFlags = Results.DisabledStates;
-			
-				if (!IsObjectDynamic && Results.IsObjectDynamic)
-				{
-					IsObjectDynamic = Results.IsObjectDynamic;
-
-					NotifyGeometryCollectionPhysicsStateChange.Broadcast(this);
-					SwitchRenderModels(GetOwner());
-				}
-
-				if (IsObjectLoading && !Results.IsObjectLoading)
-				{
-					IsObjectLoading = Results.IsObjectLoading;
-
-					NotifyGeometryCollectionPhysicsLoadingStateChange.Broadcast(this);
-				}
-
-
-				WorldBounds = Results.WorldBounds;
-
-				// Update replication data for clients if necessary
-				UpdateRepData();
-
-#if GEOMETRYCOLLECTION_DEBUG_DRAW
-				// Notify debug draw componentUGeometryCollectionDebugDrawComponent of particle changes
-				if (bHasNumParticlesChanged)
-				{
-					if (const AGeometryCollectionActor* const Owner = Cast<AGeometryCollectionActor>(GetOwner()))
-					{
-						if (UGeometryCollectionDebugDrawComponent* const GeometryCollectionDebugDrawComponent = Owner->GetGeometryCollectionDebugDrawComponent())
-						{
-							GeometryCollectionDebugDrawComponent->OnClusterChanged();
-						}
-					}
-				}
-#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
-			};
-
-			auto FinalSyncFunc = [this](const FRecordedTransformTrack& InTrack)
-			{
-#if WITH_EDITOR && WITH_EDITORONLY_DATA
-				if (CacheParameters.CacheMode == EGeometryCollectionCacheType::Record && InTrack.Records.Num() > 0)
-				{
-					Modify();
-					if (!CacheParameters.TargetCache)
-					{
-						CacheParameters.TargetCache = UGeometryCollectionCache::CreateCacheForCollection(RestCollection);
-					}
-
-					if (CacheParameters.TargetCache)
-					{
-						// Queue this up to be dirtied after PIE ends
-						FPhysScene_Chaos* Scene = GetInnerChaosScene();
-
-						CacheParameters.TargetCache->PreEditChange(nullptr);
-						CacheParameters.TargetCache->Modify();
-						CacheParameters.TargetCache->SetFromRawTrack(InTrack);
-						CacheParameters.TargetCache->PostEditChange();
-
-						Scene->AddPieModifiedObject(CacheParameters.TargetCache);
-
-						if (EditorActor)
-						{
-							UGeometryCollectionComponent* EditorComponent = Cast<UGeometryCollectionComponent>(EditorUtilities::FindMatchingComponentInstance(this, EditorActor));
-
-							if (EditorComponent)
-							{
-								EditorComponent->PreEditChange(FindFProperty<FProperty>(EditorComponent->GetClass(), GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, CacheParameters)));
-								EditorComponent->Modify();
-
-								EditorComponent->CacheParameters.TargetCache = CacheParameters.TargetCache;
-
-								EditorComponent->PostEditChange();
-
-								Scene->AddPieModifiedObject(EditorComponent);
-								Scene->AddPieModifiedObject(EditorActor);
-							}
-
-							EditorActor = nullptr;
-						}
-					}
-				}
-#endif
-			};
-
 			// If the Component is set to Dynamic, we look to the RestCollection for initial dynamic state override per transform.
 			TManagedArray<int32> & DynamicState = DynamicCollection->DynamicState;
 
@@ -1998,7 +1812,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			{
 				for (int i = 0; i < Active.Num(); i++)
 				{
-					Active[i] = Simulating;
+					Active[i] = true;
 				}
 			}
 			TManagedArray<int32> & CollisionGroupArray = DynamicCollection->CollisionGroup;
@@ -2031,11 +1845,11 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				InitialSimFilter.Word3 |= EPDF_ContactNotify;
 			}
 
- 			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialQueryFilter, InitialSimFilter, InitFunc, CacheSyncFunc, FinalSyncFunc);
-			FPhysScene_Chaos* Scene = GetInnerChaosScene();
-			Scene->AddObject(this, PhysicsProxy);
-
-			RegisterForEvents();
+			if (BodyInstance.bSimulatePhysics)
+			{
+				RegisterAndInitializePhysicsProxy();
+			}
+			
 		}
 	}
 
@@ -2046,6 +1860,71 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 	}
 #endif
 #endif // WITH_CHAOS
+}
+
+void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
+{
+	FSimulationParameters SimulationParameters;
+	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		SimulationParameters.Name = GetPathName();
+#endif
+		EClusterConnectionTypeEnum ClusterCollectionType = ClusterConnectionType_DEPRECATED;
+		if (RestCollection)
+		{
+			RestCollection->GetSharedSimulationParams(SimulationParameters.Shared);
+			SimulationParameters.RestCollection = RestCollection->GetGeometryCollection().Get();
+			ClusterCollectionType = RestCollection->ClusterConnectionType;
+		}
+		SimulationParameters.Simulating = BodyInstance.bSimulatePhysics;
+		SimulationParameters.EnableClustering = EnableClustering;
+		SimulationParameters.ClusterGroupIndex = EnableClustering ? ClusterGroupIndex : 0;
+		SimulationParameters.MaxClusterLevel = MaxClusterLevel;
+		SimulationParameters.bUseSizeSpecificDamageThresholds = bUseSizeSpecificDamageThreshold;
+		SimulationParameters.DamageThreshold = DamageThreshold;
+		SimulationParameters.ClusterConnectionMethod = (Chaos::FClusterCreationParameters::EConnectionMethod)ClusterCollectionType;
+		SimulationParameters.CollisionGroup = CollisionGroup;
+		SimulationParameters.CollisionSampleFraction = CollisionSampleFraction;
+		SimulationParameters.InitialVelocityType = InitialVelocityType;
+		SimulationParameters.InitialLinearVelocity = InitialLinearVelocity;
+		SimulationParameters.InitialAngularVelocity = InitialAngularVelocity;
+		SimulationParameters.bClearCache = true;
+		SimulationParameters.ObjectType = ObjectType;
+		SimulationParameters.CacheType = CacheParameters.CacheMode;
+		SimulationParameters.ReverseCacheBeginTime = CacheParameters.ReverseCacheBeginTime;
+		SimulationParameters.CollisionData.SaveCollisionData = CacheParameters.SaveCollisionData;
+		SimulationParameters.CollisionData.DoGenerateCollisionData = CacheParameters.DoGenerateCollisionData;
+		SimulationParameters.CollisionData.CollisionDataSizeMax = CacheParameters.CollisionDataSizeMax;
+		SimulationParameters.CollisionData.DoCollisionDataSpatialHash = CacheParameters.DoCollisionDataSpatialHash;
+		SimulationParameters.CollisionData.CollisionDataSpatialHashRadius = CacheParameters.CollisionDataSpatialHashRadius;
+		SimulationParameters.CollisionData.MaxCollisionPerCell = CacheParameters.MaxCollisionPerCell;
+		SimulationParameters.BreakingData.SaveBreakingData = CacheParameters.SaveBreakingData;
+		SimulationParameters.BreakingData.DoGenerateBreakingData = CacheParameters.DoGenerateBreakingData;
+		SimulationParameters.BreakingData.BreakingDataSizeMax = CacheParameters.BreakingDataSizeMax;
+		SimulationParameters.BreakingData.DoBreakingDataSpatialHash = CacheParameters.DoBreakingDataSpatialHash;
+		SimulationParameters.BreakingData.BreakingDataSpatialHashRadius = CacheParameters.BreakingDataSpatialHashRadius;
+		SimulationParameters.BreakingData.MaxBreakingPerCell = CacheParameters.MaxBreakingPerCell;
+		SimulationParameters.TrailingData.SaveTrailingData = CacheParameters.SaveTrailingData;
+		SimulationParameters.TrailingData.DoGenerateTrailingData = CacheParameters.DoGenerateTrailingData;
+		SimulationParameters.TrailingData.TrailingDataSizeMax = CacheParameters.TrailingDataSizeMax;
+		SimulationParameters.TrailingData.TrailingMinSpeedThreshold = CacheParameters.TrailingMinSpeedThreshold;
+		SimulationParameters.TrailingData.TrailingMinVolumeThreshold = CacheParameters.TrailingMinVolumeThreshold;
+		SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
+		SimulationParameters.WorldTransform = GetComponentToWorld();
+		SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
+
+		UPhysicalMaterial* EnginePhysicalMaterial = GetPhysicalMaterial();
+		if (ensure(EnginePhysicalMaterial))
+		{
+			SimulationParameters.PhysicalMaterialHandle = EnginePhysicalMaterial->GetPhysicsMaterial();
+		}
+	}
+
+	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialQueryFilter, InitialSimFilter);
+	FPhysScene_Chaos* Scene = GetInnerChaosScene();
+	Scene->AddObject(this, PhysicsProxy);
+
+	RegisterForEvents();
 }
 
 void UGeometryCollectionComponent::OnDestroyPhysicsState()
@@ -2592,6 +2471,10 @@ void UGeometryCollectionComponent::ApplyPhysicsField(bool Enabled, EGeometryColl
 	}
 }
 
+bool UGeometryCollectionComponent::GetIsObjectDynamic() const
+{ 
+	return PhysicsProxy ? PhysicsProxy->GetIsObjectDynamic() : IsObjectDynamic;
+}
 
 void UGeometryCollectionComponent::DispatchFieldCommand(const FFieldSystemCommand& InCommand)
 {
