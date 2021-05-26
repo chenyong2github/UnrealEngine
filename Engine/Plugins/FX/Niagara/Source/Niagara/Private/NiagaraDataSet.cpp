@@ -850,26 +850,24 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 #endif
 }
 
-void FNiagaraDataBuffer::AliasGPU(FNiagaraDataBuffer* BufferToAlias)
+void FNiagaraDataBuffer::SwapGPU(FNiagaraDataBuffer* BufferToAlias)
 {
 #if NIAGARA_MEMORY_TRACKING
-	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUParticleMemory, AllocationSizeBytes);
-	Owner->BufferSizeBytes -= AllocationSizeBytes;
-	AllocationSizeBytes = 0;
+	Swap(AllocationSizeBytes, BufferToAlias->AllocationSizeBytes);
 #endif
 
-	GPUInstanceCountBufferOffset = BufferToAlias->GPUInstanceCountBufferOffset;
-	GPUBufferFloat = BufferToAlias->GPUBufferFloat;
-	GPUBufferInt = BufferToAlias->GPUBufferInt;
-	GPUIDToIndexTable = BufferToAlias->GPUIDToIndexTable;
-	GPUBufferHalf = BufferToAlias->GPUBufferHalf;
-	NumInstances = BufferToAlias->NumInstances;
-	NumInstancesAllocated = BufferToAlias->NumInstancesAllocated;
-	FloatStride = BufferToAlias->FloatStride;
-	Int32Stride = BufferToAlias->Int32Stride;
-	HalfStride = BufferToAlias->HalfStride;
-	NumSpawnedInstances = BufferToAlias->NumSpawnedInstances;
-	IDAcquireTag = BufferToAlias->IDAcquireTag;
+	Swap(GPUInstanceCountBufferOffset, BufferToAlias->GPUInstanceCountBufferOffset);
+	Swap(GPUBufferFloat, BufferToAlias->GPUBufferFloat);
+	Swap(GPUBufferInt, BufferToAlias->GPUBufferInt);
+	Swap(GPUIDToIndexTable, BufferToAlias->GPUIDToIndexTable);
+	Swap(GPUBufferHalf, BufferToAlias->GPUBufferHalf);
+	Swap(NumInstances, BufferToAlias->NumInstances);
+	Swap(NumInstancesAllocated, BufferToAlias->NumInstancesAllocated);
+	Swap(FloatStride, BufferToAlias->FloatStride);
+	Swap(Int32Stride, BufferToAlias->Int32Stride);
+	Swap(HalfStride, BufferToAlias->HalfStride);
+	Swap(NumSpawnedInstances, BufferToAlias->NumSpawnedInstances);
+	Swap(IDAcquireTag, BufferToAlias->IDAcquireTag);
 }
 
 void FNiagaraDataBuffer::ReleaseGPU()
