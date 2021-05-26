@@ -18,14 +18,15 @@ public:
 
 	class FSlot : public TSlotBase<FSlot>
 	{
-		public:
-			FSlot()
-				: TSlotBase<FSlot>()
-			{}
+	public:
+		using TSlotBase<FSlot>::TSlotBase;
+
+		SLATE_SLOT_BEGIN_ARGS(FSlot, TSlotBase<FSlot>)
+		SLATE_SLOT_END_ARGS()
 	};
 
 	SLATE_BEGIN_ARGS(SConcertScrollBox) {}
-	SLATE_SUPPORTS_SLOT(FSlot)
+		SLATE_SLOT_ARGUMENT(FSlot, Slots)
 	SLATE_END_ARGS();
 
 	/**
@@ -43,7 +44,7 @@ public:
 	/**
 	 * @return a new slot. Slots contain children for SScrollBox 
 	 */
-	static FSlot& Slot();
+	static FSlot::FSlotArguments Slot();
 
 private:
 	

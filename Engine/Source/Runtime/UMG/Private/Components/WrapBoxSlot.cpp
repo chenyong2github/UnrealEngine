@@ -35,6 +35,7 @@ void UWrapBoxSlot::BuildSlot(TSharedRef<SWrapBox> WrapBox)
 		.FillEmptySpace(bFillEmptySpace)
 		.FillLineWhenSizeLessThan(FillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(FillSpanWhenLessThan))
 		.ForceNewLine(false)
+		.Expose(Slot)
 		[
 			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
@@ -54,7 +55,7 @@ void UWrapBoxSlot::SetFillEmptySpace(bool InbFillEmptySpace)
 	bFillEmptySpace = InbFillEmptySpace;
 	if ( Slot )
 	{
-		Slot->FillEmptySpace(InbFillEmptySpace);
+		Slot->SetFillEmptySpace(InbFillEmptySpace);
 	}
 }
 
@@ -63,7 +64,7 @@ void UWrapBoxSlot::SetFillSpanWhenLessThan(float InFillSpanWhenLessThan)
 	FillSpanWhenLessThan = InFillSpanWhenLessThan;
 	if ( Slot )
 	{
-		Slot->FillLineWhenSizeLessThan(InFillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(InFillSpanWhenLessThan));
+		Slot->SetFillLineWhenSizeLessThan(InFillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(InFillSpanWhenLessThan));
 	}
 }
 
@@ -90,7 +91,7 @@ void UWrapBoxSlot::SetNewLine(bool InForceNewLine)
 	bForceNewLine = InForceNewLine;
 	if (Slot)
 	{
-		Slot->bSlotForceNewLine = InForceNewLine;
+		Slot->SetForceNewLine(InForceNewLine);
 	}
 }
 

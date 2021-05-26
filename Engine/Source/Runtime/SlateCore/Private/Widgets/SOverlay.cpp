@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
- #include "Widgets/SOverlay.h"
- #include "Types/PaintArgs.h"
- #include "Layout/ArrangedChildren.h"
- #include "Layout/LayoutUtils.h"
+#include "Widgets/SOverlay.h"
+#include "Types/PaintArgs.h"
+#include "Layout/ArrangedChildren.h"
+#include "Layout/LayoutUtils.h"
 #include "Rendering/DrawElements.h"
 
 

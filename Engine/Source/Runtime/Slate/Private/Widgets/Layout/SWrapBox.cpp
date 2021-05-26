@@ -8,16 +8,9 @@ SWrapBox::SWrapBox()
 {
 }
 
-SWrapBox::FSlot& SWrapBox::Slot()
+SWrapBox::FScopedWidgetSlotArguments SWrapBox::AddSlot()
 {
-	return *( new SWrapBox::FSlot() );
-}
-
-SWrapBox::FSlot& SWrapBox::AddSlot()
-{
-	SWrapBox::FSlot* NewSlot = new SWrapBox::FSlot();
-	Slots.Add(NewSlot);
-	return *NewSlot;
+	return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), Slots, INDEX_NONE };
 }
 
 int32 SWrapBox::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
@@ -40,11 +33,8 @@ void SWrapBox::Construct( const FArguments& InArgs )
 	Orientation = InArgs._Orientation;
 	HAlign = InArgs._HAlign;
 
-	// Copy the children from the declaration to the widget
-	for ( int32 ChildIndex=0; ChildIndex < InArgs.Slots.Num(); ++ChildIndex )
-	{
-		Slots.Add( InArgs.Slots[ChildIndex] );
-	}
+	// Build the children from the declaration to the widget
+	Slots.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 }
 
 void SWrapBox::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
@@ -172,7 +162,7 @@ void SWrapBox::FChildArranger::Arrange()
 		{
 			const float BottomBoundOfChild = ArrangementData.SlotOffset.Y + ArrangementData.SlotSize.Y;
 
-			if (Slot.bSlotForceNewLine)
+			if (Slot.GetForceNewLine())
 			{
 				// Begin a new line if the current one isn't empty, because the slot demanded a new line.
 				if (!IsFirstChildInCurrentLine())
@@ -180,12 +170,9 @@ void SWrapBox::FChildArranger::Arrange()
 					BeginNewLine();
 				}
 			}
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			// Rule: If required due to a wrapping height under specified threshold, start a new line and allocate all of it to this child.
-			else if ((Slot.SlotFillLineWhenSizeLessThan.IsSet() && WrapBox.PreferredSize.Get() < Slot.SlotFillLineWhenSizeLessThan.GetValue())
-				|| (!Slot.SlotFillLineWhenSizeLessThan.IsSet() && Slot.SlotFillLineWhenWidthLessThan.IsSet() && WrapBox.PreferredSize.Get() < Slot.SlotFillLineWhenWidthLessThan.GetValue()))
+			else if (Slot.GetFillLineWhenSizeLessThan().IsSet() && WrapBox.PreferredSize.Get() < Slot.GetFillLineWhenSizeLessThan().GetValue())
 			{
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				// Begin a new line if the current one isn't empty, because we demand a whole line to ourselves.
 				if (!IsFirstChildInCurrentLine())
 				{
@@ -215,7 +202,7 @@ void SWrapBox::FChildArranger::Arrange()
 		{
 			const float RightBoundOfChild = ArrangementData.SlotOffset.X + ArrangementData.SlotSize.X;
 
-			if (Slot.bSlotForceNewLine)
+			if (Slot.GetForceNewLine())
 			{
 				// Begin a new line if the current one isn't empty, because the slot demanded a new line.
 				if (!IsFirstChildInCurrentLine())
@@ -223,12 +210,9 @@ void SWrapBox::FChildArranger::Arrange()
 					BeginNewLine();
 				}
 			}
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			// Rule: If required due to a wrapping width under specified threshold, start a new line and allocate all of it to this child.
-			else if ((Slot.SlotFillLineWhenSizeLessThan.IsSet() && WrapBox.PreferredSize.Get() < Slot.SlotFillLineWhenSizeLessThan.GetValue())
-				|| (!Slot.SlotFillLineWhenSizeLessThan.IsSet() && Slot.SlotFillLineWhenWidthLessThan.IsSet() && WrapBox.PreferredSize.Get() < Slot.SlotFillLineWhenWidthLessThan.GetValue()))
+			else if (Slot.GetFillLineWhenSizeLessThan().IsSet() && WrapBox.PreferredSize.Get() < Slot.GetFillLineWhenSizeLessThan().GetValue())
 			{
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				// Begin a new line if the current one isn't empty, because we demand a whole line to ourselves.
 				if (!IsFirstChildInCurrentLine())
 				{
@@ -277,7 +261,7 @@ void SWrapBox::FChildArranger::FinalizeLine(int32 IndexOfLastChildInCurrentLine)
 
 	// If we're doing this on a line where we fill the empty space,
 	// the widget of the current line will just be the whole line.
-	if (WrapBox.Slots.IsValidIndex(IndexOfLastChildInCurrentLine) && WrapBox.Slots[IndexOfLastChildInCurrentLine].bSlotFillEmptySpace)
+	if (WrapBox.Slots.IsValidIndex(IndexOfLastChildInCurrentLine) && WrapBox.Slots[IndexOfLastChildInCurrentLine].GetFillEmptySpace())
 	{
 		WidthOfCurrentLine = WrapBox.PreferredSize.Get();
 	}
@@ -302,7 +286,7 @@ void SWrapBox::FChildArranger::FinalizeLine(int32 IndexOfLastChildInCurrentLine)
 		RelativeChildIndex++;
 
 		// Rule: The last uncollapsed child in a line may request to fill the remaining empty space in the line.
-		if (ChildIndex == IndexOfLastChildInCurrentLine && Slot.bSlotFillEmptySpace)
+		if (ChildIndex == IndexOfLastChildInCurrentLine && Slot.GetFillEmptySpace())
 		{
 			if (WrapBox.Orientation == EOrientation::Orient_Vertical)
 			{

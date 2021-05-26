@@ -585,11 +585,9 @@ public:
         TSharedPtr<SGridPanel> WidgetGrid = SNew(SGridPanel);
 
         int WidgetNum = 0, RowCount = 15, Cols = 3;
-        auto NextSlot = [WidgetNum, RowCount, Cols](TSharedPtr<SGridPanel> Grid, const FText& InLabel) mutable -> SHorizontalBox::FSlot&
-        {
-
-            SHorizontalBox::FSlot* ContentsSlot;    
-            TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox)+SHorizontalBox::Slot().Expose(ContentsSlot).VAlign(VAlign_Center).HAlign(HAlign_Fill).AutoWidth();
+        auto NextSlot = [WidgetNum, RowCount, Cols](TSharedPtr<SGridPanel> Grid, const FText& InLabel) mutable -> SHorizontalBox::FScopedWidgetSlotArguments
+        { 
+            TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox);
 
             // Checkbox to show disabled state
             Grid->AddSlot((WidgetNum / RowCount)*Cols, WidgetNum % RowCount)
@@ -626,7 +624,12 @@ public:
             ];
 
             ++WidgetNum;
-            return *ContentsSlot;
+
+			SHorizontalBox::FScopedWidgetSlotArguments NewSlot = HBox->AddSlot();
+			NewSlot.VAlign(VAlign_Center)
+				.HAlign(HAlign_Fill)
+				.AutoWidth();
+			return MoveTemp(NewSlot);
         };
 
 
@@ -637,7 +640,7 @@ public:
 
         	if (!InIconName.IsNone())
         	{
-        		HBox->AddSlot()	
+        		HBox->AddSlot()
 	        	.AutoWidth()
 	            .VAlign(VAlign_Center)
 	            [

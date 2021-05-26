@@ -12,7 +12,7 @@ void SHeader::Construct( const FArguments& InArgs )
 
 	SHorizontalBox::Construct( SHorizontalBox::FArguments()
 
-	+ SHorizontalBox::Slot()
+		+ SHorizontalBox::Slot()
 		.Expose( FirstSlot )
 		.FillWidth(1)
 		.VAlign(VAlign_Center)
@@ -51,11 +51,11 @@ void SHeader::Construct( const FArguments& InArgs )
 			break;
 
 		case HAlign_Left:
-			FirstSlot->AutoWidth();
+			FirstSlot->SetAutoWidth();
 			break;
 
 		case HAlign_Right:
-			LastSlot->AutoWidth();
+			LastSlot->SetAutoWidth();
 			break;
 	};
 }

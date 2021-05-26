@@ -424,33 +424,27 @@ void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 
 		if (bIsHBox)
 		{
-			SHorizontalBox::FSlot* BoxPanelSlot = nullptr;
 			StaticCastSharedPtr<SHorizontalBox>(MyPanelWidget)->AddSlot()
-				.Expose(BoxPanelSlot)
 				.MaxWidth(MaxElementSize)
 				.HAlign(EntryHorizontalAlignment)
 				.VAlign(EntryVerticalAlignment)
+				.SizeParam(UWidget::ConvertSerializedSizeParamToRuntime(EntrySizeRule))
 				.Padding(Padding)
 				[
 					ChildWidget.TakeWidget()
 				];
-			// Todo, add to declaration when SBoxPanel because aware of FSlotArguments
-			BoxPanelSlot->SizeParam = UWidget::ConvertSerializedSizeParamToRuntime(EntrySizeRule);
 		}
 		else
 		{
-			SVerticalBox::FSlot* BoxPanelSlot = nullptr;
 			StaticCastSharedPtr<SVerticalBox>(MyPanelWidget)->AddSlot()
-				.Expose(BoxPanelSlot)
 				.MaxHeight(MaxElementSize)
 				.HAlign(EntryHorizontalAlignment)
 				.VAlign(EntryVerticalAlignment)
+				.SizeParam(UWidget::ConvertSerializedSizeParamToRuntime(EntrySizeRule))
 				.Padding(Padding)
 				[
 					ChildWidget.TakeWidget()
 				];
-			// Todo, add to declaration when SBoxPanel because aware of FSlotArguments
-			BoxPanelSlot->SizeParam = UWidget::ConvertSerializedSizeParamToRuntime(EntrySizeRule);
 		}
 	}
 }

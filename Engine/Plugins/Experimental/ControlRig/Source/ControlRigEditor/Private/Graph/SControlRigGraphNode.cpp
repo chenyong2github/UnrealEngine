@@ -284,9 +284,8 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			}
 			else
 			{
-				TPanelChildren<SBoxPanel::FSlot>* Slots = (TPanelChildren<SBoxPanel::FSlot>*)FullPinHorizontalRowWidget->GetChildren();
-				const int32 SlotToAdjustIndex = bPinWidgetForExpanderLeft ? 0 : Slots->Num() - 1;
-				SBoxPanel::FSlot& Slot = (*Slots)[SlotToAdjustIndex];
+				const int32 SlotToAdjustIndex = bPinWidgetForExpanderLeft ? 0 : FullPinHorizontalRowWidget->NumSlots() - 1;
+				SHorizontalBox::FSlot& Slot = FullPinHorizontalRowWidget->GetSlot(SlotToAdjustIndex);
 
 				FMargin Padding = Slot.GetPadding();
 				Padding = FMargin(RightIndentation + Padding.Left, Padding.Top, LeftIndentation + Padding.Right, Padding.Bottom);
@@ -337,7 +336,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 				if(PinInfo.bIsContainer)
 				{
 					// make sure to minimize the width of the label
-					FirstSlot->AutoWidth();
+					FirstSlot->SetAutoWidth();
 					
 					// add array plus button
 					SlotLayout->AddSlot()

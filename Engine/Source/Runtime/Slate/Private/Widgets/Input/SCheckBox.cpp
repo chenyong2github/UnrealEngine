@@ -549,7 +549,7 @@ void SCheckBox::BuildCheckBox(TSharedRef<SWidget> InContent)
 		];
 		if (bCheckBoxContentUsesAutoWidth)
 		{
-			ContentSlot->AutoWidth();
+			ContentSlot->SetAutoWidth();
 		}
 	}
 	else if (ensure(CheckBoxType == ESlateCheckBoxType::ToggleButton))

@@ -50,9 +50,7 @@ public:
 		{
 			_Visibility = EVisibility::SelfHitTestInvisible;
 		}
-
-		SLATE_SUPPORTS_SLOT( FPopupLayerSlot )
-
+		SLATE_SLOT_ARGUMENT( FPopupLayerSlot, Slots )
 	SLATE_END_ARGS()
 
 	SPopupLayer()
@@ -65,33 +63,20 @@ public:
 
 		OwnerWindow = InWindow;
 
-		const int32 NumSlots = InArgs.Slots.Num();
-		for ( int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex )
-		{
-			Children.Add( InArgs.Slots[SlotIndex] );
-		}
+		Children.AddSlots(MoveTemp(const_cast<TArray<FPopupLayerSlot::FSlotArguments>&>(InArgs._Slots)));
 	}
 
 	/** Make a new ListPanel::Slot  */
-	FPopupLayerSlot& Slot()
+	static FPopupLayerSlot::FSlotArguments Slot()
 	{
-		return *(new FPopupLayerSlot());
+		return FPopupLayerSlot::FSlotArguments(MakeUnique<FPopupLayerSlot>());
 	}
 
+	using FScopedWidgetSlotArguments = TPanelChildren<FPopupLayerSlot>::FScopedWidgetSlotArguments;
 	/** Add a slot to the ListPanel */
-	FPopupLayerSlot& AddSlot(int32 InsertAtIndex = INDEX_NONE)
+	FScopedWidgetSlotArguments AddSlot(int32 InsertAtIndex = INDEX_NONE)
 	{
-		FPopupLayerSlot& NewSlot = *new FPopupLayerSlot();
-		if (InsertAtIndex == INDEX_NONE)
-		{
-			this->Children.Add( &NewSlot );
-		}
-		else
-		{
-			this->Children.Insert( &NewSlot, InsertAtIndex );
-		}
-
-		return NewSlot;
+		return { MakeUnique<FPopupLayerSlot>(), Children, InsertAtIndex };
 	}
 
 	void RemoveSlot(const TSharedRef<SWidget>& WidgetToRemove)
@@ -1325,7 +1310,7 @@ TSharedPtr<FPopupLayer> SWindow::OnVisualizePopup(const TSharedRef<SWidget>& Pop
 }
 
 /** Return a new slot in the popup layer. Assumes that the window has a popup layer. */
-FPopupLayerSlot& SWindow::AddPopupLayerSlot()
+SWindow::FScopedWidgetSlotArguments SWindow::AddPopupLayerSlot()
 {
 	ensure( PopupLayer.IsValid() );
 	return PopupLayer->AddSlot();

@@ -801,24 +801,26 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 			.IsEnabled( IsEnabledAttrib );
 	}
 
-	SHorizontalBox::FSlot& Slot = NameHorizontalBox->AddSlot()
+	SHorizontalBox::FSlot* SlotPointer = nullptr;
+	NameHorizontalBox->AddSlot()
 	.HAlign(HAlign_Left)
+	.Expose(SlotPointer)
 	[
 		NameWidget.ToSharedRef()
 	];
 
 	if (bHasKeyNode)
 	{
-		Slot.Padding(0.0f, 0.0f, 2.0f, 0.0f);
+		SlotPointer->SetPadding(FMargin(0.0f, 0.0f, 2.0f, 0.0f));
 	}
 	else if (InCustomRow.IsValid())
 	{
 		//Allow custom name slot to fill all the area. If the user add a SHorizontalBox with left and right align slot
-		Slot.FillWidth(1.0f);
+		SlotPointer->SetFillWidth(1.0f);
 	}
 	else
 	{
-		Slot.AutoWidth();
+		SlotPointer->SetAutoWidth();
 	}
 
 	Row.NameContent()

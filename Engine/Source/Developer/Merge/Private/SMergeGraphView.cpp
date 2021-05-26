@@ -439,9 +439,9 @@ void SMergeGraphView::Construct(const FArguments InArgs
 				return DiffViewUtils::Identical();
 			};
 
-			const auto Box = [](bool bIsPresent, FLinearColor Color) -> SHorizontalBox::FSlot&
+			const auto Box = [](bool bIsPresent, FLinearColor Color) -> SHorizontalBox::FSlot::FSlotArguments
 			{
-				return SHorizontalBox::Slot()
+				return MoveTemp(SHorizontalBox::Slot()
 					.AutoWidth()
 					.HAlign(HAlign_Right)
 					.VAlign(VAlign_Center)
@@ -450,7 +450,7 @@ void SMergeGraphView::Construct(const FArguments InArgs
 						SNew(SImage)
 						.ColorAndOpacity(Color)
 						.Image(bIsPresent ? FEditorStyle::GetBrush("BlueprintDif.HasGraph") : FEditorStyle::GetBrush("BlueprintDif.MissingGraph"))
-					];
+					]);
 			};
 
 			FLinearColor RemoteColor = ComputeColor(InDifference->bAnyConflics, InDifference->bRemoteDifferences);
