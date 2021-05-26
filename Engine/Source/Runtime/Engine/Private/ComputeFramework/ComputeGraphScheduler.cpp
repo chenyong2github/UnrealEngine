@@ -50,14 +50,21 @@ void FComputeGraphScheduler::EnqueueForExecution(const FComputeGraphProxy* Compu
 		}
 	}
 
-	const int32 SubInvocationCount = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetInvocationCount() : 1;
+	const int32 NumSubInvocations = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetInvocationCount() : 1;
+	GraphInvocation.NumSubInvocations = NumSubInvocations;
 
 	for (FComputeGraphProxy::FKernelInvocation const& Invocation : ComputeGraph->KernelInvocations)
 	{
 		// todo[CF]: If you hit this then shader compilation might not have happened yet.
-		if (ensure(Invocation.Kernel->GetShader().IsValid()))
+		if (Invocation.Kernel->GetShader().IsValid())
 		{
-			for (int32 SubInvocationIndex = 0; SubInvocationIndex < SubInvocationCount; ++ SubInvocationIndex)
+			if (Invocation.Kernel->GetShader()->Bindings.StructureLayoutHash != Invocation.ShaderMetadata->GetLayoutHash())
+			{
+				// todo[CF]: Fix issue where shader metadata is updated out of sync with shader compilation.
+				continue;
+			}
+
+			for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++ SubInvocationIndex)
 			{
 				// todo[CF]: dispatch dimension logic needs to be way more involved
 				const FIntVector DispatchDim = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetDispatchDim(SubInvocationIndex, Invocation.GroupDim) : FIntVector(1, 1, 1);
@@ -115,6 +122,7 @@ void FComputeGraphScheduler::ExecuteBatches(
 			// Gather from all providers.
 			// todo[CF]: This is first pass and needs profiling. Probably with some care we can remove a bunch of heap allocations.
 			TArray<FComputeDataProviderRenderProxy::FBindings> AllBindings;
+			AllBindings.AddDefaulted(GraphInvocations[GraphIndex].NumSubInvocations);
 
 			TArray<FComputeDataProviderRenderProxy*> const& DataProviders = GraphInvocations[GraphIndex].DataProviders;
 			for (int32 DataProviderIndex = 0; DataProviderIndex < DataProviders.Num(); ++DataProviderIndex)
@@ -122,14 +130,9 @@ void FComputeGraphScheduler::ExecuteBatches(
 				FComputeDataProviderRenderProxy* DataProvider = DataProviders[DataProviderIndex];
 				if (DataProvider != nullptr)
 				{
-					if (AllBindings.Num() < DataProvider->GetInvocationCount())
-					{
-						AllBindings.SetNum(DataProvider->GetInvocationCount());
-					}
-
 					DataProvider->AllocateResources(GraphBuilder);
 
-					for (int32 InvocationIndex = 0; InvocationIndex < DataProvider->GetInvocationCount(); ++InvocationIndex)
+					for (int32 InvocationIndex = 0; InvocationIndex < AllBindings.Num(); ++InvocationIndex)
 					{
 						TCHAR const* UID = UComputeGraph::GetDataInterfaceUID(DataProviderIndex);
 						DataProvider->GetBindings(InvocationIndex, UID, AllBindings[InvocationIndex]);

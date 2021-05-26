@@ -73,6 +73,7 @@ private:
 		/** Shader invocations to dispatch. */
 		TArray<FShaderInvocation> ComputeShaders;
 		TArray<FComputeDataProviderRenderProxy*> DataProviders;
+		int32 NumSubInvocations;
 	
 		~FGraphInvocation();
 	};
