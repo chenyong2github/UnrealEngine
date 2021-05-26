@@ -180,11 +180,6 @@ namespace HordeServer.Models
 		public List<CreateTemplateRefRequest> Templates { get; set; } = new List<CreateTemplateRefRequest>();
 
 		/// <summary>
-		/// Properties for the new stream
-		/// </summary>
-		public Dictionary<string, string>? Properties { get; set; }
-
-		/// <summary>
 		/// Custom permissions for this object
 		/// </summary>
 		public UpdateAclRequest? Acl { get; set; }

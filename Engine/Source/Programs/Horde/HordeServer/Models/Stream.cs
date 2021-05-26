@@ -548,11 +548,6 @@ namespace HordeServer.Models
 		public IReadOnlyDictionary<TemplateRefId, TemplateRef> Templates { get; }
 
 		/// <summary>
-		/// Optional user-defined properties for this stream
-		/// </summary>
-		public IReadOnlyDictionary<string, string> Properties { get; }
-
-		/// <summary>
 		/// Last time that we queried for commits
 		/// </summary>
 		public DateTime? LastCommitTime { get; }
@@ -698,7 +693,7 @@ namespace HordeServer.Models
 			Dictionary<string, GetAgentTypeResponse> ApiAgentTypes = Stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
 			Dictionary<string, GetWorkspaceTypeResponse> ApiWorkspaceTypes = Stream.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
 			GetAclResponse? ApiAcl = (bIncludeAcl && Stream.Acl != null)? new GetAclResponse(Stream.Acl) : null;
-			return new Api.GetStreamResponse(Stream.Id.ToString(), Stream.ProjectId.ToString(), Stream.Name, Stream.Revision, Stream.Order, Stream.NotificationChannel, Stream.NotificationChannelFilter, Stream.TriageChannel, Stream.DefaultPreflight?.ToRequest(), ApiTabs, ApiAgentTypes, ApiWorkspaceTypes, ApiTemplateRefs, new Dictionary<string, string>(Stream.Properties), ApiAcl, Stream.PausedUntil, Stream.PauseComment);
+			return new Api.GetStreamResponse(Stream.Id.ToString(), Stream.ProjectId.ToString(), Stream.Name, Stream.Revision, Stream.Order, Stream.NotificationChannel, Stream.NotificationChannelFilter, Stream.TriageChannel, Stream.DefaultPreflight?.ToRequest(), ApiTabs, ApiAgentTypes, ApiWorkspaceTypes, ApiTemplateRefs, ApiAcl, Stream.PausedUntil, Stream.PauseComment);
 		}
 
 		/// <summary>
@@ -711,7 +706,6 @@ namespace HordeServer.Models
 			HordeCommon.Rpc.GetStreamResponse Response = new HordeCommon.Rpc.GetStreamResponse();
 			Response.Name = Stream.Name;
 			Response.AgentTypes.Add(Stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToRpcResponse()));
-			Response.Properties.Add(Stream.Properties);
 			Response.LastCommitTime = Stream.LastCommitTime.HasValue? Timestamp.FromDateTime(Stream.LastCommitTime.Value) : new Timestamp();
 			return Response;
 		}

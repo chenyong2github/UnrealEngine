@@ -635,11 +635,6 @@ namespace HordeServer.Api
 		public List<GetTemplateRefResponse> Templates { get; set; }
 
 		/// <summary>
-		/// Properties for this stream
-		/// </summary>
-		public Dictionary<string, string> Properties { get; set; }
-
-		/// <summary>
 		/// Custom permissions for this object
 		/// </summary>
 		public GetAclResponse? Acl { get; set; }
@@ -665,7 +660,6 @@ namespace HordeServer.Api
 			Tabs = null!;
 			AgentTypes = null!;
 			Templates = null!;
-			Properties = null!;
 		}
 
 		/// <summary>
@@ -684,11 +678,10 @@ namespace HordeServer.Api
 		/// <param name="AgentTypes">Map of agent type name to description</param>
 		/// <param name="WorkspaceTypes">Map of workspace name to description</param>
 		/// <param name="Templates">Templates for this stream</param>
-		/// <param name="Properties">Properties for the stream</param>
 		/// <param name="Acl">Permissions for this object</param>
 		/// <param name="PausedUntil">Stream paused for new builds until this date</param>
 		/// <param name="PauseComment">Reason for stream being paused</param>
-		public GetStreamResponse(string Id, string ProjectId, string Name, string? Revision, int Order, string? NotificationChannel, string? NotificationChannelFilter, string? TriageChannel, DefaultPreflightRequest? DefaultPreflight, List<GetStreamTabResponse> Tabs, Dictionary<string, GetAgentTypeResponse> AgentTypes, Dictionary<string, GetWorkspaceTypeResponse>? WorkspaceTypes, List<GetTemplateRefResponse> Templates, Dictionary<string, string> Properties, GetAclResponse? Acl, DateTime? PausedUntil, string? PauseComment)
+		public GetStreamResponse(string Id, string ProjectId, string Name, string? Revision, int Order, string? NotificationChannel, string? NotificationChannelFilter, string? TriageChannel, DefaultPreflightRequest? DefaultPreflight, List<GetStreamTabResponse> Tabs, Dictionary<string, GetAgentTypeResponse> AgentTypes, Dictionary<string, GetWorkspaceTypeResponse>? WorkspaceTypes, List<GetTemplateRefResponse> Templates, GetAclResponse? Acl, DateTime? PausedUntil, string? PauseComment)
 		{
 			this.Id = Id;
 			this.ProjectId = ProjectId;
@@ -704,7 +697,6 @@ namespace HordeServer.Api
 			this.AgentTypes = AgentTypes;
 			this.WorkspaceTypes = WorkspaceTypes;
 			this.Templates = Templates;
-			this.Properties = Properties;
 			this.Acl = Acl;
 			this.PausedUntil = PausedUntil;
 			this.PauseComment = PauseComment;
