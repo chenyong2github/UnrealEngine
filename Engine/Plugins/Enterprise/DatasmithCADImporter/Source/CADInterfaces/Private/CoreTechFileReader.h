@@ -10,6 +10,8 @@
 #include "CADSceneGraph.h"
 #include "CoreTechTypes.h"
 
+#include "CoreTechBridge.h"
+
 #include "Containers/Map.h"
 #include "Containers/Queue.h"
 #include "Misc/Paths.h"
@@ -27,6 +29,14 @@ struct FFileDescription;
 #include "kernel_io/material_io/material_io.h"
 #pragma warning(pop)
 
+namespace CADKernel
+{
+	class FBody;
+	class FBodyMesh;
+	class FFaceMesh;
+	class FModelMesh;
+}
+
 namespace CADLibrary
 {
 	namespace CoreTechFileReaderUtils
@@ -35,6 +45,14 @@ namespace CADLibrary
 		uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, FTessellationData& Tessellation);
 		void GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, TFunction<void(CT_OBJECT_ID, int32, FTessellationData&)> = TFunction<void(CT_OBJECT_ID, int32, FTessellationData&)>());
 	}
+
+	namespace CADKernelUtils
+	{
+		void GetBodyTessellation(const TSharedRef<CADKernel::FModelMesh>& ModelMesh, const TSharedRef<CADKernel::FBody>& Body, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> SetFaceMainMaterial);
+
+		uint32 GetFaceTessellation(const TSharedRef<CADKernel::FFaceMesh>& FaceMesh, FBodyMesh& OutBodyMesh);
+	}
+
 
 	class CADINTERFACES_API FCoreTechFileReader
 	{
@@ -83,6 +101,7 @@ namespace CADLibrary
 		bool ReadUnloadedComponent(CT_OBJECT_ID NodeId);
 
 		bool ReadKioBody(CT_OBJECT_ID NodeId, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, bool bNeedRepair);
+		bool ReadBody(CT_OBJECT_ID NodeId, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, bool bNeedRepair);
 
 		bool FindFile(FFileDescription& FileDescription);
 
@@ -99,6 +118,8 @@ namespace CADLibrary
 
 		CT_FLAGS SetCoreTechImportOption();
 		void GetAttributeValue(CT_ATTRIB_TYPE attrib_type, int ith_field, FString& value);
+
+		void DefineMeshCriteria(TSharedRef<CADKernel::FModelMesh>& MeshModel);
 
 	protected:
 		CADLibrary::FFileDescription FileDescription;
