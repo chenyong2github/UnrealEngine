@@ -1365,6 +1365,65 @@ namespace Audio
 		}
 	}
 
+	void FMixerDevice::SetSubmixModulationSettings(USoundSubmix* InSoundSubmix, FSoundModulationDestinationSettings InOutputModulation, FSoundModulationDestinationSettings InWetLevelModulation, FSoundModulationDestinationSettings InDryLevelModulation)
+	{
+		if (!IsInAudioThread())
+		{
+			FMixerDevice* MixerDevice = this;
+
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, InOutputModulation, InWetLevelModulation, InDryLevelModulation]() 
+			{
+				MixerDevice->SetSubmixModulationSettings(InSoundSubmix, InOutputModulation, InWetLevelModulation, InDryLevelModulation);
+			});
+			return;
+		}
+
+		FModulationDestination VolumeModulation;
+		VolumeModulation.Init(DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+		VolumeModulation.UpdateModulator(InOutputModulation.Modulator);
+
+		FModulationDestination WetModulation;
+		WetModulation.Init(DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+		WetModulation.UpdateModulator(InWetLevelModulation.Modulator);
+
+		FModulationDestination DryModulation;
+		DryModulation.Init(DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
+		DryModulation.UpdateModulator(InDryLevelModulation.Modulator);
+
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+
+		if (MixerSubmixPtr.IsValid())
+		{
+			AudioRenderThreadCommand([MixerSubmixPtr, VolumeModulation, WetModulation, DryModulation]() 
+			{
+				MixerSubmixPtr->SetModulationSettings(VolumeModulation, WetModulation, DryModulation);
+			});
+		}
+	}
+
+	void FMixerDevice::SetSubmixModulationBaseLevels(USoundSubmix* InSoundSubmix, float InVolumeModBase, float InWetModBase, float InDryModBase)
+	{
+		if (!IsInAudioThread())
+		{
+			FMixerDevice* MixerDevice = this;
+
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, InVolumeModBase, InWetModBase, InDryModBase]() 
+			{
+				MixerDevice->SetSubmixModulationBaseLevels(InSoundSubmix, InVolumeModBase, InWetModBase, InDryModBase);
+			});
+			return;
+		}
+
+		FMixerSubmixPtr MixerSubmixPtr = GetSubmixInstance(InSoundSubmix).Pin();
+		if (MixerSubmixPtr.IsValid())
+		{
+			AudioRenderThreadCommand([MixerSubmixPtr, InVolumeModBase, InWetModBase, InDryModBase]() 
+			{
+				MixerSubmixPtr->SetModulationBaseLevels(InVolumeModBase, InWetModBase, InDryModBase);
+			});
+		}
+	}
+
 	bool FMixerDevice::GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries)
 	{
 		TArray<FSourceEffectChainEntry>* ExistingOverride = SourceEffectChainOverrides.Find(SourceEffectChainId);

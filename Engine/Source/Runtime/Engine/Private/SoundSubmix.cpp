@@ -53,6 +53,9 @@ USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 	, DryLevelDB(-120.0f)
 #endif
 {
+	OutputVolumeModulation.Value = 0.f;
+	WetLevelModulation.Value = 0.f;
+	DryLevelModulation.Value = 0.f;
 }
 
 void USoundSubmix::PostLoad()
@@ -445,7 +448,32 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 				});
 			}
 
-			if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundSubmix, SubmixEffectChain))
+			FName MemberName = PropertyChangedEvent.MemberProperty->GetFName();
+
+			if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolumeModulation)
+				|| MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevelModulation)
+				|| MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevelModulation))
+			{
+				USoundSubmix* SoundSubmix = this;
+				FSoundModulationDestinationSettings NewVolumeMod = OutputVolumeModulation;
+				FSoundModulationDestinationSettings NewWetLevelMod = WetLevelModulation;
+				FSoundModulationDestinationSettings NewDryLevelMod = DryLevelModulation;
+
+				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, NewVolumeMod, NewWetLevelMod, NewDryLevelMod](Audio::FDeviceId Id, FAudioDevice* Device)
+					{
+						Device->SetSubmixModulationSettings(SoundSubmix, NewVolumeMod, NewWetLevelMod, NewDryLevelMod);
+					});
+
+				float NewVolumeModBase = OutputVolumeModulation.Value;
+				float NewWetModBase = WetLevelModulation.Value;
+				float NewDryModBase = DryLevelModulation.Value;
+
+				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, NewVolumeModBase, NewWetModBase, NewDryModBase](Audio::FDeviceId Id, FAudioDevice* Device) {
+					Device->SetSubmixModulationBaseLevels(SoundSubmix, NewVolumeModBase, NewWetModBase, NewDryModBase);
+					});
+			}
+
+			if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, SubmixEffectChain))
 			{
 				AudioDeviceManager->RegisterSoundSubmix(this);
 			}
