@@ -325,22 +325,13 @@ class FStructScope : public FScope
 {
 public:
 	// Constructor.
-	FStructScope(FUnrealStructDefinitionInfo& InStructDef, UStruct* InStruct, FScope* InParent)
+	FStructScope(FUnrealStructDefinitionInfo& InStructDef, FScope* InParent)
 		: FScope(InParent)
-		, Struct(InStruct)
 		, StructDef(InStructDef)
 	{
 	}
 
 	virtual FStructScope* AsStructScope() override { return this; }
-
-	/**
-	 * Gets struct associated with this scope.
-	 */
-	UStruct* GetStruct() const
-	{
-		return Struct;
-	}
 
 	/**
 	 * Get the structure definition associated with this scope
@@ -357,7 +348,6 @@ public:
 
 private:
 	// Struct associated with this scope.
-	UStruct* Struct;
 	FUnrealStructDefinitionInfo& StructDef;
 };
 
@@ -390,7 +380,7 @@ public:
 			if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(StructDef))
 			{
 				// Skip myself when starting this loop, we only care about the parents
-				for (ClassDef = ClassDef->GetSuperClass(); ClassDef && (ClassDef->GetClass()->ClassFlags & EClassFlags::CLASS_Intrinsic) == 0; ClassDef = ClassDef->GetSuperClass())
+				for (ClassDef = ClassDef->GetSuperClass(); ClassDef && !ClassDef->HasAnyClassFlags(EClassFlags::CLASS_Intrinsic); ClassDef = ClassDef->GetSuperClass())
 				{
 					ScopesToTraverse.Add(&ClassDef->GetScope().Get());
 				}

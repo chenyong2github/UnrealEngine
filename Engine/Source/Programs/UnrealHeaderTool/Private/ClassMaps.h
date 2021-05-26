@@ -146,9 +146,9 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 	}
 
 	template <typename Lambda>
-	void ForAllTypes(Lambda&& InLambda)
+	void ForAllTypesByName(Lambda&& InLambda)
 	{
-		for (const TPair<UObject*, TSharedRef<FUnrealTypeDefinitionInfo>>& KVP : DefinitionsByUObject)
+		for (const TPair<FName, TSharedRef<FUnrealTypeDefinitionInfo>>& KVP : DefinitionsByName)
 		{
 			InLambda(*KVP.Value);
 		}

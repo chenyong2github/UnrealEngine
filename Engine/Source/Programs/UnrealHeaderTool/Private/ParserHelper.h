@@ -194,7 +194,7 @@ public:
 	FUnrealClassDefinitionInfo* MetaClassDef = nullptr;
 
 	FName   DelegateName = NAME_None;
-	UClass*	DelegateSignatureOwnerClass = nullptr;
+	FUnrealClassDefinitionInfo* DelegateSignatureOwnerClassDef = nullptr;
 	FName   RepNotifyName = NAME_None;
 
 	/** Raw string (not type-checked) used for specifying special text when exporting a property to the *Classes.h file */
