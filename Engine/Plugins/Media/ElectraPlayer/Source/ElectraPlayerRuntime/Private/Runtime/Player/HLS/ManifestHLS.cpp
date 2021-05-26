@@ -410,7 +410,9 @@ void FPlayPeriodHLS::PrepareForPlay()
 	CurrentSourceBufferInfoVideo = MakeSharedTS<FBufferSourceInfo>();
 	CurrentSourceBufferInfoAudio = MakeSharedTS<FBufferSourceInfo>();
 	CurrentSourceBufferInfoVideo->PeriodAdaptationSetID = TEXT("video.0");
+	CurrentSourceBufferInfoVideo->HardIndex = 0;
 	CurrentSourceBufferInfoAudio->PeriodAdaptationSetID = TEXT("audio.0");
+	CurrentSourceBufferInfoAudio->HardIndex = 0;
 
 	CurrentReadyState = IManifest::IPlayPeriod::EReadyState::IsReady;
 }
