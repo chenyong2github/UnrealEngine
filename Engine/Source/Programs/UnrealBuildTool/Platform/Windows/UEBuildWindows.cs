@@ -36,17 +36,6 @@ namespace UnrealBuildTool
 		Intel,
 
 		/// <summary>
-		/// Visual Studio 2015 (Visual C++ 14.0)
-		/// </summary>
-		VisualStudio2015_DEPRECATED,
-
-		/// <summary>
-		/// Visual Studio 2015 (Visual C++ 14.0)
-		/// </summary>
-		[Obsolete("UE4 does not support building Visual Studio 2015 targets from the 4.22 release onwards.")]
-		VisualStudio2015 = VisualStudio2015_DEPRECATED,
-
-		/// <summary>
 		/// Visual Studio 2017 (Visual C++ 15.0)
 		/// </summary>
 		VisualStudio2017,
@@ -115,9 +104,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "CompilerVersion")]
 		[XmlConfigFile(Category = "WindowsPlatform")]
-		[CommandLine("-2015", Value = "VisualStudio2015")]
-		[CommandLine("-2017", Value = "VisualStudio2017")]
-		[CommandLine("-2019", Value = "VisualStudio2019")]
+		[CommandLine("-2017", Value = nameof(WindowsCompiler.VisualStudio2017))]
+		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019))]
 		[CommandLine("-Compiler=")]
 		public WindowsCompiler Compiler = WindowsCompiler.Default;
 
@@ -232,7 +220,7 @@ namespace UnrealBuildTool
 		/// Microsoft provides legacy_stdio_definitions library to enable building with VS2015 until they fix everything up.
 		public bool bNeedsLegacyStdioDefinitionsLib
 		{
-			get { return Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED || Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.Clang; }
+			get { return Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.Clang; }
 		}
 
 		/// <summary>
@@ -391,7 +379,6 @@ namespace UnrealBuildTool
 			{
 				case WindowsCompiler.Clang:
 				case WindowsCompiler.Intel:
-				case WindowsCompiler.VisualStudio2015_DEPRECATED:
 				case WindowsCompiler.VisualStudio2017:
 				case WindowsCompiler.VisualStudio2019:
 					return "2015"; // VS2017 is backwards compatible with VS2015 compiler
@@ -1001,8 +988,6 @@ namespace UnrealBuildTool
 		{
 			switch (Compiler)
 			{
-				case WindowsCompiler.VisualStudio2015_DEPRECATED:
-					return "Visual Studio 2015";
 				case WindowsCompiler.VisualStudio2017:
 					return "Visual Studio 2017";
 				case WindowsCompiler.VisualStudio2019:
@@ -1054,16 +1039,7 @@ namespace UnrealBuildTool
 				Installations = new List<VisualStudioInstallation>();
 			    if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			    {
-				    if(Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
-				    {
-					    // VS2015 just installs one toolchain; use that.
-					    DirectoryReference? InstallDir;
-					    if(MicrosoftPlatformSDK.TryReadInstallDirRegistryKey32("Microsoft\\VisualStudio\\SxS\\VS7", "14.0", out InstallDir))
-					    {
-						    Installations.Add(new VisualStudioInstallation(InstallDir));
-					    }
-				    }
-				    else if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019)
+				    if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019)
 				    {
 						try
 						{
@@ -1194,20 +1170,6 @@ namespace UnrealBuildTool
 							}
 						}
 					}
-				    else if(Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
-				    {
-					    // VS2015 just installs one toolchain; use that.
-					    List<VisualStudioInstallation> Installations = FindVisualStudioInstallations(Compiler);
-					    foreach(VisualStudioInstallation Installation in Installations)
-					    {
-							DirectoryReference ToolChainBaseDir = DirectoryReference.Combine(Installation.BaseDir, "VC");
-							if(IsValidToolChainDir2015(ToolChainBaseDir))
-							{
-								VersionNumber Version = new VersionNumber(14, 0);
-								ToolChains.Add(new ToolChainInstallation(Version, 0, Version, Has64BitToolChain(ToolChainBaseDir), Installation.bPreview, null, ToolChainBaseDir));
-							}
-					    }
-				    }
 				    else if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019)
 				    {
 						// Enumerate all the manually installed toolchains

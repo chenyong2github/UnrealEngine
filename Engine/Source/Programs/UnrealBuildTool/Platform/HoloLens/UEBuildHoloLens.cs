@@ -24,9 +24,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "CompilerVersion")]
 		[XmlConfigFile(Category = "HoloLensPlatform")]
-		[CommandLine("-2015", Value = "VisualStudio2015")]
-		[CommandLine("-2017", Value = "VisualStudio2017")]
-		[CommandLine("-2019", Value = "VisualStudio2019")]
+		[CommandLine("-2017", Value = nameof(WindowsCompiler.VisualStudio2017))]
+		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019))]
 		public WindowsCompiler Compiler = WindowsCompiler.Default;
 
 		/// <summary>
@@ -349,11 +348,7 @@ namespace UnrealBuildTool
 
 		public static DirectoryReference GetCppCXMetadataLocation(WindowsCompiler Compiler, DirectoryReference SelectedToolChainDir)
 		{
-			if (Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
-			{
-				return DirectoryReference.Combine(SelectedToolChainDir, "lib", "store", "references");
-			}
-			else if (Compiler >= WindowsCompiler.VisualStudio2017)
+			if (Compiler >= WindowsCompiler.VisualStudio2017)
 			{
 				return DirectoryReference.Combine(SelectedToolChainDir, "lib", "x86", "Store", "references");
 			}

@@ -309,15 +309,11 @@ public sealed class BuildPhysX : BuildCommand
 
 		public virtual bool UseMsBuild { get; }
 
-		public MSBuildTargetPlatform(string CompilerName = "VS2015")
+		public MSBuildTargetPlatform(string CompilerName = "VS2019")
 		{
 			this.CompilerName = CompilerName;
 			switch (CompilerName)
 			{
-				case "VS2015":
-					Compiler = WindowsCompiler.VisualStudio2015_DEPRECATED;
-					VisualStudioName = "Visual Studio 14 2015";
-					break;
 				case "VS2017":
 					Compiler = WindowsCompiler.VisualStudio2017;
 					VisualStudioName = "Visual Studio 15 2017";
