@@ -428,6 +428,12 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	
 	// Make a property binding widget to edit the bindings of the passed-in nodes
 	static TSharedRef<SWidget> MakePropertyBindingWidget(const FAnimPropertyBindingWidgetArgs& InArgs);
+
+	// Get the property corresponding to a pin. For array element pins returns the outer array property. Returns null if a property cannot be found.
+	FProperty* GetPinProperty(const UEdGraphPin* InPin) const;
+	
+	// Check whether the named pin is bindable
+	bool IsPinBindable(const UEdGraphPin* InPin) const;
 	
 protected:
 	friend class FAnimBlueprintCompilerContext;

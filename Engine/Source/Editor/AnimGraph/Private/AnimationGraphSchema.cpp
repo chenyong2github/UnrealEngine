@@ -602,6 +602,22 @@ void UAnimationGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCon
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphSchemaNodeActions", LOCTEXT("AnimNodeActionsMenuHeader", "Anim Node Actions"));
 			Section.AddMenuEntry(FAnimGraphCommands::Get().TogglePoseWatch);
 		}
+
+		if(Context->Pin && !IsPosePin(Context->Pin->PinType) && AnimGraphNode->IsPinBindable(Context->Pin))
+		{
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions");
+			
+			FProperty* PinProperty = AnimGraphNode->GetPinProperty(Context->Pin);
+			check(PinProperty);
+
+			const int32 OptionalPinIndex = AnimGraphNode->ShowPinForProperties.IndexOfByPredicate([PinProperty](const FOptionalPinFromProperty& InOptionalPin)
+			{
+				return PinProperty->GetFName() == InOptionalPin.PropertyName;
+			});
+			
+			const UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs Args({ const_cast<UAnimGraphNode_Base*>(AnimGraphNode) }, PinProperty, Context->Pin->GetFName(), OptionalPinIndex);
+			Section.AddEntry(FToolMenuEntry::InitWidget("BindingWidget", UAnimGraphNode_Base::MakePropertyBindingWidget(Args), LOCTEXT("BindingWidgetLabel", "Binding"), true));
+		}
 	}
 }
 

@@ -587,6 +587,30 @@ bool UAnimGraphNode_Base::IsPinExposedAndBound(const FString& InPinName, const E
 	return Pin != nullptr && Pin->LinkedTo.Num() == 0 && PropertyBindings.Find(Pin->GetFName()) != nullptr;
 }
 
+bool UAnimGraphNode_Base::IsPinBindable(const UEdGraphPin* InPin) const
+{
+	if(const FProperty* PinProperty = GetPinProperty(InPin))
+	{
+		const int32 OptionalPinIndex = ShowPinForProperties.IndexOfByPredicate([PinProperty](const FOptionalPinFromProperty& InOptionalPin)
+		{
+			return PinProperty->GetFName() == InOptionalPin.PropertyName;
+		});
+
+		return OptionalPinIndex != INDEX_NONE;
+	}
+
+	return false;
+}
+
+FProperty* UAnimGraphNode_Base::GetPinProperty(const UEdGraphPin* InPin) const
+{
+	// Compare FName without number to make sure we catch array properties that are split into multiple pins
+	FName ComparisonName = InPin->GetFName();
+	ComparisonName.SetNumber(0);
+	
+	return GetFNodeType()->FindPropertyByName(ComparisonName);
+}
+
 void UAnimGraphNode_Base::PinConnectionListChanged(UEdGraphPin* Pin)
 {
 	if(Pin->LinkedTo.Num() > 0)
