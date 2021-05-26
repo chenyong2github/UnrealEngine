@@ -2653,21 +2653,41 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	else if (InKeyEvent.GetKey() == EKeys::One)
 	{
 		LoadingSharedState->SetColorSchema(0);
+		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Two)
 	{
 		LoadingSharedState->SetColorSchema(1);
+		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Three)
 	{
 		LoadingSharedState->SetColorSchema(2);
+		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Four)
 	{
 		LoadingSharedState->SetColorSchema(3);
+		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Zero)
+	{
+		uint32 Mode = (uint32)FTimingProfilerManager::Get()->GetColoringMode();
+		Mode = (Mode + 1) % (uint32)Insights::ETimingEventsColoringMode::Count;
+		FTimingProfilerManager::Get()->SetColoringMode((Insights::ETimingEventsColoringMode)Mode);
+		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::X)
+	{
+		uint32 DepthLimit = FTimingProfilerManager::Get()->GetEventDepthLimit();
+		DepthLimit = (DepthLimit != 4) ? 4 : 1000;
+		FTimingProfilerManager::Get()->SetEventDepthLimit(DepthLimit);
+		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 		return FReply::Handled();
 	}
 #if ACTIVATE_BENCHMARK

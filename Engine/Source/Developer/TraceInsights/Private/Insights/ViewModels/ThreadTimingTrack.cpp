@@ -204,8 +204,31 @@ static void AddTimingEventToBuilder(ITimingEventsTrackDrawStateBuilder& Builder,
 									double EventStartTime, double EventEndTime, uint32 EventDepth,
 									uint32 TimerIndex, const TraceServices::FTimingProfilerTimer* Timer)
 {
-	//const uint32 EventColor = FTimingEvent::ComputeEventColor(Timer->Id);
-	const uint32 EventColor = FTimingEvent::ComputeEventColor(Timer->Name);
+	if (EventDepth >= FTimingProfilerManager::Get()->GetEventDepthLimit())
+	{
+		return;
+	}
+
+	uint32 EventColor;
+	switch (FTimingProfilerManager::Get()->GetColoringMode())
+	{
+		case Insights::ETimingEventsColoringMode::ByName:
+			EventColor = FTimingEvent::ComputeEventColor(Timer->Name);
+			break;
+		case Insights::ETimingEventsColoringMode::ById:
+			EventColor = FTimingEvent::ComputeEventColor(Timer->Id);
+			break;
+		case Insights::ETimingEventsColoringMode::ByDuration:
+		{
+			const double EventDuration = EventEndTime - EventStartTime;
+			EventColor = (EventDuration > 0.01) ? 0xFF883333 :
+						 (EventDuration > 0.001) ? 0xFF998833 :
+						 (EventDuration > 0.0001) ? 0xFF338833 : 0xFF333388;
+			break;
+		}
+		default:
+			EventColor = 0xFF000000;
+	}
 
 	Builder.AddEvent(EventStartTime, EventEndTime, EventDepth, EventColor,
 		[TimerIndex, Timer, EventStartTime, EventEndTime](float Width)
@@ -1073,11 +1096,13 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 					FString TrackName = Track.IsValid() ? Track->GetName() : TEXT("Unknown");
 					InOutTooltip.AddNameValueTextLine(TEXT("Launched:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.LaunchedTimestamp, *TimeUtils::FormatTimeAuto(Task.LaunchedTimestamp - Task.CreatedTimestamp), *TrackName));
 				}
+
 				{
 					TSharedPtr<FCpuTimingTrack> Track = SharedState.GetCpuTrack(Task.ScheduledThreadId);
 					FString TrackName = Track.IsValid() ? Track->GetName() : TEXT("Unknown");
 					InOutTooltip.AddNameValueTextLine(TEXT("Scheduled:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.ScheduledTimestamp, *TimeUtils::FormatTimeAuto(Task.ScheduledTimestamp - Task.LaunchedTimestamp), *TrackName));
 				}
+
 				InOutTooltip.AddNameValueTextLine(TEXT("Started:"), FString::Printf(TEXT("%f (+%s)"), Task.StartedTimestamp, *TimeUtils::FormatTimeAuto(Task.StartedTimestamp - Task.ScheduledTimestamp)));
 				if (Task.FinishedTimestamp != TraceServices::FTaskInfo::InvalidTimestamp)
 				{
