@@ -26,7 +26,8 @@ class FStampDeferredDebugProbePS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FStampDeferredDebugProbePS);
 	SHADER_USE_PARAMETER_STRUCT(FStampDeferredDebugProbePS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FRenderVelocity : SHADER_PERMUTATION_BOOL("PERMUTATION_RENDERVELOCITY");
+	using FPermutationDomain = TShaderPermutationDomain<FRenderVelocity>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -58,12 +59,14 @@ template<bool bEnableDepthWrite>
 static void CommonStampDeferredDebugProbeDrawCall(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
-	FStampDeferredDebugProbePS::FParameters* PassParameters)
+	FStampDeferredDebugProbePS::FParameters* PassParameters,
+	bool bRenderVelocity = false)
 {
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->DebugProbesMode = View.Family->EngineShowFlags.VisualizeIndirectLighting ? 3 : FMath::Clamp(CVarDebugIndirectLightingProbes.GetValueOnRenderThread(), 0, 3);
 		
 	FStampDeferredDebugProbePS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FStampDeferredDebugProbePS::FRenderVelocity>(bRenderVelocity);
 	TShaderMapRef<FStampDeferredDebugProbePS> PixelShader(View.ShaderMap, PermutationVector);
 
 	FPixelShaderUtils::AddFullscreenPass<FStampDeferredDebugProbePS>(
@@ -118,6 +121,30 @@ void StampDeferredDebugProbeMaterialPS(
 		PassParameters->RenderTargets = BasePassRenderTargets;
 
 		CommonStampDeferredDebugProbeDrawCall<false>(GraphBuilder, View, PassParameters);
+	}
+}
+
+void StampDeferredDebugProbeVelocityPS(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	const FRenderTargetBindingSlots& BasePassRenderTargets)
+{
+	RDG_EVENT_SCOPE(GraphBuilder, "StampDeferredDebugProbeVelocity");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, StampDeferredDebugProbe);
+
+	const bool bVisualizeIndirectLighting = CVarDebugIndirectLightingProbes.GetValueOnRenderThread() > 0;
+	for (const FViewInfo& View : Views)
+	{
+		if (!(bVisualizeIndirectLighting || View.Family->EngineShowFlags.VisualizeIndirectLighting))
+		{
+			continue;
+		}
+
+		FStampDeferredDebugProbePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStampDeferredDebugProbePS::FParameters>();
+		PassParameters->RenderTargets = BasePassRenderTargets;
+
+		const bool bRenderVelocity = true;
+		CommonStampDeferredDebugProbeDrawCall<false>(GraphBuilder, View, PassParameters, bRenderVelocity);
 	}
 }
 

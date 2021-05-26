@@ -21,6 +21,7 @@
 #endif
 #include "VisualizeTexture.h"
 #include "MeshPassProcessor.inl"
+#include "DebugProbeRendering.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarBasePassOutputsVelocity(
@@ -232,6 +233,9 @@ void FSceneRenderer::RenderVelocities(
 	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsVelocityWaitForTasksEnabled(ShaderPlatform));
 
 	const EMeshPass::Type MeshPass = GetMeshPassFromVelocityPass(VelocityPass);
+	FExclusiveDepthStencil ExclusiveDepthStencil = (VelocityPass == EVelocityPass::Opaque && !(Scene->EarlyZPassMode == DDM_AllOpaqueNoVelocity))
+														? FExclusiveDepthStencil::DepthRead_StencilWrite
+														: FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -275,9 +279,7 @@ void FSceneRenderer::RenderVelocities(
 				SceneTextures.Depth.Resolve,
 				ERenderTargetLoadAction::ELoad,
 				ERenderTargetLoadAction::ELoad,
-				(VelocityPass == EVelocityPass::Opaque && !(Scene->EarlyZPassMode == DDM_AllOpaqueNoVelocity))
-					? FExclusiveDepthStencil::DepthRead_StencilWrite
-					: FExclusiveDepthStencil::DepthWrite_StencilWrite);
+				ExclusiveDepthStencil);
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Velocity, VelocityLoadAction);
 
@@ -308,6 +310,24 @@ void FSceneRenderer::RenderVelocities(
 			}
 		}
 	}
+
+#if !(UE_BUILD_SHIPPING)
+	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
+	if (!bForwardShadingEnabled)
+	{
+		FRenderTargetBindingSlots VelocityRenderTargets;
+		VelocityRenderTargets[0] = FRenderTargetBinding(SceneTextures.Velocity, VelocityLoadAction);
+		VelocityRenderTargets.DepthStencil = FDepthStencilBinding(
+			SceneTextures.Depth.Resolve,
+			ERenderTargetLoadAction::ELoad,
+			ERenderTargetLoadAction::ELoad,
+			ExclusiveDepthStencil);
+
+		StampDeferredDebugProbeVelocityPS(GraphBuilder, Views, VelocityRenderTargets);
+	}
+#endif
+
+
 }
 
 EPixelFormat FVelocityRendering::GetFormat(EShaderPlatform ShaderPlatform)

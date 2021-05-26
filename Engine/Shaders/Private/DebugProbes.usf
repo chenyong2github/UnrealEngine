@@ -2,6 +2,7 @@
 
 
 #include "DeferredShadingCommon.ush"
+#include "VelocityCommon.ush"
 
 
 
@@ -12,8 +13,8 @@
 
 
 void DebugSphereIntersection(
-	float3 RayOrig, float3 RayDir, float3 SphereCenter, float SphereRadius, int NewProbeMode,
-	inout int ProbeMode, inout float RayT, inout float3 WorlPosition, inout float3 Normal)
+	float3 RayOrig, float3 RayDir, float3 SphereCenter, float SphereRadius, int NewProbeMode, in bool bNewProbeAttachedToCamera,
+	inout int ProbeMode, inout float RayT, inout float3 WorlPosition, inout float3 Normal, inout bool bProbeAttachedToCamera)
 {
 	float2 RayTs = RayIntersectSphere(RayOrig, RayDir, float4(SphereCenter, SphereRadius));
 	float NewRayT = max(0.0f, min(RayTs.x, RayTs.y));
@@ -24,6 +25,7 @@ void DebugSphereIntersection(
 		ProbeMode = NewProbeMode;
 		WorlPosition = RayOrig + RayDir * RayT;
 		Normal = normalize(WorlPosition - SphereCenter);
+		bProbeAttachedToCamera = bNewProbeAttachedToCamera;
 
 		if (ProbeMode == PROBE_MODE_BOTH)
 		{
@@ -43,12 +45,14 @@ int DebugProbesMode;
 
 void MainPS(
 	  in  float4 SvPosition		: SV_Position
-	, out float4 OutSceneColor	: SV_Target0
+	, out float4 OutColor		: SV_Target0
+#if PERMUTATION_RENDERVELOCITY == 0
 	, out float4 OutGBufferA	: SV_Target1
 	, out float4 OutGBufferB	: SV_Target2
 	, out float4 OutGBufferC	: SV_Target3
 	, out float4 OutGBufferD	: SV_Target4
 	, out float4 OutGBufferE	: SV_Target5
+#endif
 	, out float  OutDepth		: SV_DEPTH
 )
 {
@@ -63,6 +67,7 @@ void MainPS(
 	const float3 RayOrig = ResolvedView.WorldCameraOrigin;
 
 	int ProbeMode = false;
+	bool bProbeAttachedToCamera = false;
 	float RayT = -1.0f;
 	float3 WorlPosition = 0.0f;
 	float3 Normal = 0.0f;
@@ -76,16 +81,16 @@ void MainPS(
 			float  SphereRadius = 0.2f * METER_TO_CENTIMETER;
 
 			DebugSphereIntersection(
-				RayOrig, RayDir, SphereCenter, SphereRadius, PROBE_MODE_SPECULAR,
-				ProbeMode, RayT, WorlPosition, Normal);
+				RayOrig, RayDir, SphereCenter, SphereRadius, PROBE_MODE_SPECULAR, true,
+				ProbeMode, RayT, WorlPosition, Normal, bProbeAttachedToCamera);
 		}
 		{
 			float3 SphereCenter = ResolvedView.WorldCameraOrigin + (ResolvedView.ViewForward * 1.0f + ResolvedView.ViewRight * -0.5f + ResolvedView.ViewUp * -0.2f) * METER_TO_CENTIMETER;
 			float  SphereRadius = 0.2f * METER_TO_CENTIMETER;
 
 			DebugSphereIntersection(
-				RayOrig, RayDir, SphereCenter, SphereRadius, PROBE_MODE_DIFFUSE,
-				ProbeMode, RayT, WorlPosition, Normal);
+				RayOrig, RayDir, SphereCenter, SphereRadius, PROBE_MODE_DIFFUSE, true,
+				ProbeMode, RayT, WorlPosition, Normal, bProbeAttachedToCamera);
 		}
 	}
 
@@ -110,8 +115,8 @@ void MainPS(
 					float3 SphereCenter = SnappedOrigin + float3(x, y, z);
 
 					DebugSphereIntersection(
-						RayOrig, RayDir, SphereCenter, SphereRadius, PROBE_MODE_BOTH,
-						ProbeMode, RayT, WorlPosition, Normal);
+						RayOrig, RayDir, SphereCenter, SphereRadius, PROBE_MODE_BOTH, false,
+						ProbeMode, RayT, WorlPosition, Normal, bProbeAttachedToCamera);
 				}
 			}
 		}
@@ -130,7 +135,20 @@ void MainPS(
 	}
 
 
+#if PERMUTATION_RENDERVELOCITY
 
+	float3 Velocity = 0.0f;
+
+	if (!bProbeAttachedToCamera)
+	{
+		float4 ScreenPos	= mul(float4(WorlPosition.xyz + ResolvedView.PreViewTranslation, 1),	ResolvedView.TranslatedWorldToClip);
+		float4 PrevScreenPos= mul(float4(WorlPosition.xyz + ResolvedView.PrevPreViewTranslation, 1),ResolvedView.PrevTranslatedWorldToClip);
+		Velocity = Calculate3DVelocity(ScreenPos, PrevScreenPos);
+	}
+
+	OutColor = EncodeVelocityToTexture(Velocity);
+
+#else
 
 	const float PerObjectGBufferData = 0.0f;
 	const float SelectiveOutputMask = 0.0f;
@@ -143,7 +161,7 @@ void MainPS(
 
 	// We write all outputs, the rasterizer will discard what is not bound. That is fine since we do not care that much about performance for this debug view.
 
-	OutSceneColor = 0.0f;
+	OutColor = 0.0f;
 
 	OutGBufferA = float4(
 		EncodeNormal(Normal), 
@@ -160,6 +178,8 @@ void MainPS(
 	OutGBufferE = float4(1.0f, 1.0f, 1.0f, 1.0f);	// Pre computed shadow factor
 
 	// Not writting to the velocity buffer
+
+#endif
 
 	OutDepth = DeviceZ;
 
