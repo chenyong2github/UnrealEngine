@@ -334,6 +334,10 @@ namespace DatasmithRuntime
 				return;
 			}
 
+#ifdef LIVEUPDATE_TIME_LOGGING
+			Timer(GlobalStartTime, "GarbageCollect");
+#endif
+
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 			TasksToComplete &= ~EWorkerTask::GarbageCollect;
 		}
@@ -350,6 +354,10 @@ namespace DatasmithRuntime
 
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::UpdateElement))
 		{
+#ifdef LIVEUPDATE_TIME_LOGGING
+			Timer(GlobalStartTime, "UpdateElement");
+#endif
+
 			ProcessQueue(EQueueTask::UpdateQueue, EndTime, EWorkerTask::UpdateElement, EWorkerTask::SetupTasks);
 		}
 
@@ -371,6 +379,10 @@ namespace DatasmithRuntime
 
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::MeshCreate))
 		{
+#ifdef LIVEUPDATE_TIME_LOGGING
+			Timer(GlobalStartTime, "MeshCreate");
+#endif
+
 			ProcessQueue(EQueueTask::MeshQueue, EndTime, EWorkerTask::MeshCreate);
 		}
 
@@ -378,6 +390,10 @@ namespace DatasmithRuntime
 
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::MaterialCreate))
 		{
+#ifdef LIVEUPDATE_TIME_LOGGING
+			Timer(GlobalStartTime, "MaterialCreate");
+#endif
+
 			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
 			{
@@ -400,6 +416,10 @@ namespace DatasmithRuntime
 
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::TextureLoad))
 		{
+#ifdef LIVEUPDATE_TIME_LOGGING
+			Timer(GlobalStartTime, "TextureLoad");
+#endif
+
 			ProcessQueue(EQueueTask::TextureQueue, EndTime, EWorkerTask::TextureLoad);
 		}
 
@@ -407,6 +427,10 @@ namespace DatasmithRuntime
 
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::NonAsyncTasks))
 		{
+#ifdef LIVEUPDATE_TIME_LOGGING
+			Timer(GlobalStartTime, "NonAsyncTasks");
+#endif
+
 			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
 			{
@@ -440,6 +464,10 @@ namespace DatasmithRuntime
 		// Flag used to avoid deleting components and associated assets in the same frame
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::DeleteComponent))
 		{
+#ifdef LIVEUPDATE_TIME_LOGGING
+			Timer(GlobalStartTime, "DeleteComponent");
+#endif
+
 			// Terminate all rendering commands before deleting any component
 			FlushRenderingCommands();
 
@@ -464,6 +492,10 @@ namespace DatasmithRuntime
 
 			if (!IsGarbageCollecting())
 			{
+#ifdef LIVEUPDATE_TIME_LOGGING
+				Timer(GlobalStartTime, "GarbageCollect");
+#endif
+
 				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 				TasksToComplete &= ~EWorkerTask::GarbageCollect;
 			}
@@ -474,6 +506,10 @@ namespace DatasmithRuntime
 
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::DeleteAsset))
 		{
+#ifdef LIVEUPDATE_TIME_LOGGING
+			Timer(GlobalStartTime, "DeleteAsset");
+#endif
+
 			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
 			{
