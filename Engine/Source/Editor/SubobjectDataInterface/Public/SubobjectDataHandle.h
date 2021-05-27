@@ -58,6 +58,12 @@ struct SUBOBJECTDATAINTERFACE_API FSubobjectDataHandle
 	*/
 	static const FSubobjectDataHandle InvalidHandle;
 	
+	/** Get the hash code to use for the given FSubobjectDataHandle */
+	friend uint32 GetTypeHash(const FSubobjectDataHandle& Key)
+	{
+		return PointerHash(Key.DataPtr.Get());
+	}
+	
 private:
 	/** Pointer to the actual subobject data that this handle represents */
 	TSharedPtr<FSubobjectData> DataPtr;
