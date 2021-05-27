@@ -103,21 +103,22 @@ public class libOpus : ModuleRules
 			string OpusPath = LibraryPath + "/TVOS/libOpus.a";
 			PublicAdditionalLibraries.Add(OpusPath);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string Config = Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release";
-
-			if (Target.Architecture == "x86_64-unknown-linux-gnu")
+			// Only x86_64 was rebuilt with newer Opus
+			if (Target.Architecture.StartsWith("x86_64"))
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(OpusLibraryPath, "bin", Target.Platform.ToString(), Target.Architecture, Config, "libopus.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(OpusLibraryPath, "bin", Target.Platform.ToString(), Target.Architecture, Config, "libopus_sse41.a"));
+				string Config = Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release";
+
+				PublicAdditionalLibraries.Add(Path.Combine(OpusLibraryPath, "bin", "Linux", Target.Architecture, Config, "libopus.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(OpusLibraryPath, "bin", "Linux", Target.Architecture, Config, "libopus_sse41.a"));
+
+				PublicAdditionalLibraries.Add(Path.Combine(OpusLibPath, "Linux", Target.Architecture, "libresampler.a"));
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(OpusLibPath, Target.Platform.ToString(), Target.Architecture, "libopus_fPIC.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(OpusLibPath, "Linux", Target.Architecture, "libopus.a"));
 			}
-
-			PublicAdditionalLibraries.Add(Path.Combine(OpusLibPath, Target.Platform.ToString(), Target.Architecture, "libresampler_fPIC.a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
