@@ -604,7 +604,7 @@ UARPin* FHoloLensARSystem::OnPinComponent(USceneComponent* ComponentToPin, const
 				WMRAnchorId = FString::Format(TEXT("_RuntimeAnchor_{0}_{1}"), { DebugName.ToString(), RuntimeWMRAnchorCount });
 			} while (AnchorIdToPinMap.Contains(FName(*WMRAnchorId)));
 
-			bool bSuccess = WMRCreateAnchor(*WMRAnchorId, PinToTrackingTransform.GetLocation(), PinToTrackingTransform.GetRotation());
+			bool bSuccess = WMRCreateAnchor(*WMRAnchorId.ToLower(), PinToTrackingTransform.GetLocation(), PinToTrackingTransform.GetRotation());
 			if (!bSuccess)
 			{
 				UE_LOG(LogHoloLensAR, Warning, TEXT("OnPinComponent: Creation of anchor %s for component %s failed!  No anchor or pin created."), *WMRAnchorId, *ComponentToPin->GetReadableName());
@@ -647,7 +647,7 @@ void FHoloLensARSystem::OnRemovePin(UARPin* PinToRemove)
 		if (AnchorId.IsValid())
 		{
 			AnchorIdToPinMap.Remove(AnchorId);
-			WMRRemoveAnchor(*AnchorId.ToString());
+			WMRRemoveAnchor(*AnchorId.ToString().ToLower());
 			WMRARPin->SetAnchorId(FName());
 		}
 	}
@@ -664,7 +664,7 @@ void FHoloLensARSystem::UpdateWMRAnchors()
 		if (AnchorId.IsValid())
 		{
 			FTransform Transform;
-			if (WMRGetAnchorTransform(*AnchorId.ToString(), Transform))
+			if (WMRGetAnchorTransform(*AnchorId.ToString().ToLower(), Transform))
 			{
 				Pin->OnTransformUpdated(Transform);
 				Pin->OnTrackingStateChanged(EARTrackingState::Tracking);
@@ -764,7 +764,7 @@ bool FHoloLensARSystem::SaveARPin(FName InName, UARPin* InPin)
 		
 		// Force save identifier to lowercase because FName case is not guaranteed to be the same across multiple UE4 sessions.
 		const FString SaveId = InName.ToString().ToLower();
-		const FString AnchorId = WMRPin->GetAnchorIdName().ToString();
+		const FString AnchorId = WMRPin->GetAnchorIdName().ToString().ToLower();
 		bool Saved = WMRSaveAnchor(*SaveId, *AnchorId);
 		if (!Saved)
 		{
