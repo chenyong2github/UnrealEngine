@@ -9,6 +9,7 @@
 #include "Restorability/PropertyComparisonParams.h"
 
 #include "Algo/Accumulate.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "SnapshotRestorability.h"
