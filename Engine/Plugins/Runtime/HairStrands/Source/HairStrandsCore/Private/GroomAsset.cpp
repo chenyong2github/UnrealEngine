@@ -88,6 +88,22 @@ static FAutoConsoleVariableRef CVarHairStrandsDump_GroomBindingAsset(
 	TEXT("Dump information of all the loaded groom binding assets."),
 	FConsoleVariableDelegate::CreateStatic(DumpLoadedGroomBindingAssets));
 
+uint32 FHairGroupData::FStrands::GetDataSize() const
+{
+	uint32 Total = 0;
+	Total += FBaseWithInterpolation::GetDataSize();
+	uint32 CTotal = 0;
+	uint32 BTotal = 0;
+	CTotal += ClusterCullingBulkData.LODVisibility.GetAllocatedSize();
+	CTotal += ClusterCullingBulkData.CPULODScreenSize.GetAllocatedSize();
+	CTotal += ClusterCullingBulkData.ClusterLODInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.ClusterLODInfos.GetBulkDataSize() : 0;
+	BTotal += ClusterCullingBulkData.VertexToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.VertexToClusterIds.GetBulkDataSize() : 0;
+	BTotal += ClusterCullingBulkData.ClusterVertexIds.IsBulkDataLoaded()	? ClusterCullingBulkData.ClusterVertexIds.GetBulkDataSize() : 0;
+	CTotal += ClusterCullingBulkData.PackedClusterInfos.IsBulkDataLoaded()	? ClusterCullingBulkData.PackedClusterInfos.GetBulkDataSize() : 0;
+
+	return BTotal + Total + CTotal;
+}
+
 void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled)
 {
 	const bool bDetails = true;
@@ -476,7 +492,7 @@ static bool BuildHairGroup(
 			OutHairGroupsData[GroupIndex].Strands.InterpolationBulkData.Reset();
 		}
 
-		FGroomBuilder::BuildClusterData(StrandsData, HairDescriptionGroups.BoundRadius, HairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingData);
+		FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.BoundRadius, HairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
 	}
 	return bIsValid;
 }
@@ -503,7 +519,7 @@ static bool BuildHairGroupCluster(
 		FHairStrandsDatas StrandsData;
 		FHairStrandsDatas GuidesData;
 		FGroomBuilder::BuildData(HairGroup, HairGroupsInterpolation[GroupIndex], OutHairGroupsInfo[GroupIndex], StrandsData, GuidesData);
-		FGroomBuilder::BuildClusterData(StrandsData, HairDescriptionGroups.BoundRadius, HairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingData);
+		FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.BoundRadius, HairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
 	}
 	return bIsValid;
 }
@@ -847,7 +863,7 @@ void UGroomAsset::UpdateResource()
 					HairGroupsInfo,
 					HairGroupsData);
 
-				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingData);
+				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData);
 				BeginInitResource(GroupData.Strands.ClusterCullingResource);
 			}
 			else
@@ -1498,11 +1514,11 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupData& Grou
 	{
 		if (!Ar.IsCooking() || !GroupData.bIsCookedOut)
 		{
-			GroupData.Strands.ClusterCullingData.Serialize(Ar);
+			GroupData.Strands.ClusterCullingBulkData.Serialize(Ar, Owner);
 		}
 		else
 		{
-			NoStrandsData.Strands.ClusterCullingData.Serialize(Ar);
+			NoStrandsData.Strands.ClusterCullingBulkData.Serialize(Ar, Owner);
 		}
 
 		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeGroomCardsAndMeshes)
@@ -2760,16 +2776,16 @@ void UGroomAsset::InitStrandsResources()
 			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.BulkData, EHairStrandsResourcesType::Strands);
 			BeginInitResource(GroupData.Strands.RestResource);
 
-			if (GroupData.Strands.ClusterCullingData.IsValid())
+			if (GroupData.Strands.ClusterCullingBulkData.IsValid())
 			{
-				// LOD visibility is not serialized into FHairStrandsClusterCullingData as it does not affect the actual generated data. For consistency we 
+				// LOD visibility is not serialized into FHairStrandsClusterCullingBulkData as it does not affect the actual generated data. For consistency we 
 				// patch the LOD visibility with the groom asset value, which might be different from what has been serialized
-				for (uint32 LODIt = 0, LODCount = GroupData.Strands.ClusterCullingData.LODVisibility.Num(); LODIt < LODCount; ++LODIt)
+				for (uint32 LODIt = 0, LODCount = GroupData.Strands.ClusterCullingBulkData.LODVisibility.Num(); LODIt < LODCount; ++LODIt)
 				{
-					GroupData.Strands.ClusterCullingData.LODVisibility[LODIt] = HairGroupsLOD[GroupIndex].LODs[LODIt].bVisible;
+					GroupData.Strands.ClusterCullingBulkData.LODVisibility[LODIt] = HairGroupsLOD[GroupIndex].LODs[LODIt].bVisible;
 				}
 
-				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingData);
+				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData);
 				BeginInitResource(GroupData.Strands.ClusterCullingResource);
 			}
 

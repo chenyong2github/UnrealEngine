@@ -314,7 +314,7 @@ struct FHairStrandsDeformedResource : public FHairCommonResource
 
 struct FHairStrandsClusterCullingResource : public FHairCommonResource
 {
-	FHairStrandsClusterCullingResource(const FHairStrandsClusterCullingData& Data);
+	FHairStrandsClusterCullingResource(FHairStrandsClusterCullingBulkData& Data);
 
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -344,7 +344,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	/* Concatenated data for each cluster: list of VertexId pointed to by ClusterInfoBuffer */
 	FRDGExternalBuffer ClusterVertexIdBuffer;
 
-	const FHairStrandsClusterCullingData Data;
+	FHairStrandsClusterCullingBulkData& BulkData;
 };
 
 struct FHairStrandsInterpolationResource : public FHairCommonResource

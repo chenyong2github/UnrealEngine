@@ -307,6 +307,36 @@ void InternalCreateStructuredBufferRDG(FRDGBuilder& GraphBuilder, const TArray<F
 	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out);
 }
 
+template<typename FormatType>
+void InternalCreateStructuredBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, FByteBulkData& InBulkData, uint32 InDataCount, FRDGExternalBuffer& Out, const TCHAR* DebugName, EHairResourceUsageType UsageType)
+{
+	const uint32 InSizeInByte = sizeof(FormatType::Type);
+	const uint32 DataSizeInBytes = InSizeInByte * InDataCount;
+	check(InBulkData.GetBulkDataSize() == DataSizeInBytes);
+
+	if (DataSizeInBytes == 0)
+	{
+		Out.Buffer = nullptr;
+		return;
+	}
+
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(InSizeInByte, InDataCount);
+	if (UsageType != EHairResourceUsageType::Dynamic)
+	{
+		Desc.Usage = Desc.Usage & (~BUF_UnorderedAccess);
+	}
+
+	const typename FormatType::Type* Data = (const typename FormatType::Type*)InBulkData.Lock(LOCK_READ_ONLY);
+	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, DebugName, ERDGBufferFlags::MultiFrame);
+	if (Data && DataSizeInBytes)
+	{
+		GraphBuilder.QueueBufferUpload(Buffer, Data, DataSizeInBytes, ERDGInitialDataFlags::None);  // Copy data internally
+	}
+	InBulkData.Unlock();
+
+	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 static UTexture2D* CreateCardTexture(FIntPoint Resolution)
@@ -733,10 +763,7 @@ void FHairStrandsDeformedResource::InternalRelease()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-
-FArchive& operator<<(FArchive& Ar, FHairStrandsClusterCullingData::FHairClusterInfo& Info);
-FArchive& operator<<(FArchive& Ar, FHairStrandsClusterCullingData::FHairClusterLODInfo& Info);
-FArchive& operator<<(FArchive& Ar, FHairStrandsClusterCullingData::FHairClusterInfo::Packed& Info);
+// Cluster culling data
 
 FHairStrandsClusterCullingData::FHairStrandsClusterCullingData()
 {
@@ -748,33 +775,69 @@ void FHairStrandsClusterCullingData::Reset()
 	*this = FHairStrandsClusterCullingData();
 }
 
-void FHairStrandsClusterCullingData::Serialize(FArchive& Ar)
+/////////////////////////////////////////////////////////////////////////////////////////
+// Cluster culling bulk data
+FHairStrandsClusterCullingBulkData::FHairStrandsClusterCullingBulkData()
 {
-	Ar << ClusterCount;
-	Ar << VertexCount;
-	Ar << LODVisibility;
-	Ar << CPULODScreenSize;
-	Ar << ClusterInfos;
-	Ar << ClusterLODInfos;
-	Ar << VertexToClusterIds;
-	Ar << ClusterVertexIds;
-	Ar << PackedClusterInfos;
+
 }
 
-FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(const FHairStrandsClusterCullingData& InData): 
+void FHairStrandsClusterCullingBulkData::Reset()
+{
+	ClusterCount = 0;
+	ClusterLODCount = 0;
+	VertexCount = 0;
+	VertexLODCount = 0;
+
+	LODVisibility.Empty();;
+	CPULODScreenSize.Empty();
+
+	ClusterLODInfos.RemoveBulkData();
+	VertexToClusterIds.RemoveBulkData();
+	ClusterVertexIds.RemoveBulkData();
+	PackedClusterInfos.RemoveBulkData();
+}
+
+void FHairStrandsClusterCullingBulkData::Serialize(FArchive& Ar, UObject* Owner)
+{
+	Ar << ClusterCount;
+	Ar << ClusterLODCount;
+	Ar << VertexCount;
+	Ar << VertexLODCount;
+	Ar << LODVisibility;
+	Ar << CPULODScreenSize;
+
+	const int32 ChunkIndex = 0;
+	bool bAttemptFileMapping = false;
+
+	const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+	ClusterLODInfos.SetBulkDataFlags(BulkFlags);
+	VertexToClusterIds.SetBulkDataFlags(BulkFlags);
+	ClusterVertexIds.SetBulkDataFlags(BulkFlags);
+	PackedClusterInfos.SetBulkDataFlags(BulkFlags);
+
+	ClusterLODInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	VertexToClusterIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	ClusterVertexIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	PackedClusterInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// Cluster culling resources
+FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(FHairStrandsClusterCullingBulkData& InBulkData): 
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
-	Data(InData) 
+	BulkData(InBulkData)
 {
 
 }
 
 void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	InternalCreateStructuredBufferRDG(GraphBuilder, Data.PackedClusterInfos, sizeof(FHairStrandsClusterCullingData::FHairClusterInfo::Packed), ClusterInfoBuffer, TEXT("Hair.StrandsClusterCulling_ClusterInfoBuffer"), EHairResourceUsageType::Static);
-	InternalCreateStructuredBufferRDG(GraphBuilder, Data.ClusterLODInfos, sizeof(FHairStrandsClusterCullingData::FHairClusterLODInfo), ClusterLODInfoBuffer, TEXT("Hair.StrandsClusterCulling_ClusterLODInfoBuffer"), EHairResourceUsageType::Static);
+	InternalCreateStructuredBufferRDG_FromBulkData<FHairClusterInfoFormat>(GraphBuilder, BulkData.PackedClusterInfos, BulkData.ClusterCount, ClusterInfoBuffer, TEXT("Hair.StrandsClusterCulling_ClusterInfoBuffer"), EHairResourceUsageType::Static);
+	InternalCreateStructuredBufferRDG_FromBulkData<FHairClusterLODInfoFormat>(GraphBuilder, BulkData.ClusterLODInfos, BulkData.ClusterLODCount, ClusterLODInfoBuffer, TEXT("Hair.StrandsClusterCulling_ClusterLODInfoBuffer"), EHairResourceUsageType::Static);
 
-	InternalCreateVertexBufferRDG(GraphBuilder, Data.ClusterVertexIds, PF_R32_UINT, ClusterVertexIdBuffer, TEXT("Hair.StrandsClusterCulling_ClusterVertexIds"), EHairResourceUsageType::Static);
-	InternalCreateVertexBufferRDG(GraphBuilder, Data.VertexToClusterIds, PF_R32_UINT, VertexToClusterIdBuffer, TEXT("Hair.StrandsClusterCulling_VertexToClusterIds"), EHairResourceUsageType::Static);
+	InternalCreateVertexBufferRDG_FromBulkData<FHairClusterIndexFormat>(GraphBuilder, BulkData.VertexToClusterIds, BulkData.VertexCount, VertexToClusterIdBuffer, TEXT("Hair.StrandsClusterCulling_VertexToClusterIds"), EHairResourceUsageType::Static);
+	InternalCreateVertexBufferRDG_FromBulkData<FHairClusterIndexFormat>(GraphBuilder, BulkData.ClusterVertexIds, BulkData.VertexLODCount, ClusterVertexIdBuffer, TEXT("Hair.StrandsClusterCulling_ClusterVertexIds"), EHairResourceUsageType::Static);
 }
 
 void FHairStrandsClusterCullingResource::InternalRelease()

@@ -9,6 +9,7 @@
 
 struct FHairStrandsDatas;
 struct FHairStrandsClusterCullingData;
+struct FHairStrandsClusterCullingBulkData;
 struct FHairGroupsLOD;
 struct FHairGroupData;
 struct FHairDescriptionGroups;
@@ -73,9 +74,9 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 		FHairStrandsInterpolationBulkData& OutInterpolationData);
 
 	// 6. Build cluster data
-	static void BuildClusterData(
+	static void BuildClusterBulkData(
 		const FHairStrandsDatas& InRenData,
 		const float InGroomAssetRadius,
 		const FHairGroupsLOD& InSettings,
-		FHairStrandsClusterCullingData& OutClusterCullingData);
+		FHairStrandsClusterCullingBulkData& OutClusterCullingData);
 };
