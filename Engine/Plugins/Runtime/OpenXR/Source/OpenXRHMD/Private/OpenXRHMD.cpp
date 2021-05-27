@@ -2011,9 +2011,6 @@ void FOpenXRHMD::DestroySession()
 			Layer.LeftSwapchain.Reset();
 		});
 
-		Swapchain.Reset();
-		DepthSwapchain.Reset();
-
 		PipelinedLayerStateRendering.ColorSwapchain.Reset();
 		PipelinedLayerStateRendering.DepthSwapchain.Reset();
 		PipelinedLayerStateRendering.QuadSwapchains.Reset();
@@ -2160,6 +2157,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 
 	FClearValueBinding ClearColor = (SelectedEnvironmentBlendMode == XR_ENVIRONMENT_BLEND_MODE_OPAQUE) ? FClearValueBinding::Black : FClearValueBinding::Transparent;
 
+	FXRSwapChainPtr& Swapchain = PipelinedLayerStateRendering.ColorSwapchain;
 	const FRHITexture2D* const SwapchainTexture = Swapchain == nullptr ? nullptr : Swapchain->GetTexture2DArray() ? Swapchain->GetTexture2DArray() : Swapchain->GetTexture2D();
 	if (Swapchain == nullptr || SwapchainTexture == nullptr || Format != LastRequestedSwapchainFormat || SwapchainTexture->GetSizeX() != SizeX || SwapchainTexture->GetSizeY() != SizeY)
 	{
@@ -2198,6 +2196,8 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 
 bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
+	check(IsInRenderingThread());
+
 	// FIXME: UE4 constantly calls this function even when there is no reason to reallocate the depth texture
 	FReadScopeLock Lock(SessionHandleMutex);
 	if (!Session || !bDepthExtensionSupported)
@@ -2208,13 +2208,14 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 	// This is not a static swapchain
 	Flags |= TexCreate_Dynamic;
 
-	const FRHITexture2D* const DepthSwapchainTexture = DepthSwapchain == nullptr ? nullptr : DepthSwapchain->GetTexture2DArray() ? DepthSwapchain->GetTexture2DArray() : DepthSwapchain->GetTexture2D();
-	if (DepthSwapchain == nullptr || DepthSwapchainTexture == nullptr || Format != LastRequestedDepthSwapchainFormat || DepthSwapchainTexture->GetSizeX() != SizeX || DepthSwapchainTexture->GetSizeY() != SizeY)
+	FXRSwapChainPtr& Swapchain = PipelinedLayerStateRendering.DepthSwapchain;
+	const FRHITexture2D* const DepthSwapchainTexture = Swapchain == nullptr ? nullptr : Swapchain->GetTexture2DArray() ? Swapchain->GetTexture2DArray() : Swapchain->GetTexture2D();
+	if (Swapchain == nullptr || DepthSwapchainTexture == nullptr || Format != LastRequestedDepthSwapchainFormat || DepthSwapchainTexture->GetSizeX() != SizeX || DepthSwapchainTexture->GetSizeY() != SizeY)
 	{
 		ensureMsgf(NumSamples == 1, TEXT("OpenXR supports MSAA swapchains, but engine logic expects the swapchain target to be 1x."));
 
-		DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, FMath::Max(NumMips, 1u), NumSamples, Flags, TargetableTextureFlags, FClearValueBinding::DepthFar);
-		if (!DepthSwapchain)
+		Swapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, FMath::Max(NumMips, 1u), NumSamples, Flags, TargetableTextureFlags, FClearValueBinding::DepthFar);
+		if (!Swapchain)
 		{
 			return false;
 		}
@@ -2222,7 +2223,7 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 
 	bNeedReAllocatedDepth = false;
 
-	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)DepthSwapchain->GetTextureRef();
+	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)Swapchain->GetTextureRef();
 	LastRequestedDepthSwapchainFormat = Format;
 
 	return true;
@@ -2329,10 +2330,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 				Module->OnAcquireSwapchainImage(Session);
 			}
 		}
-
-		// Keep the swapchains alive in the LayerState to ensure the XrSwapchain handles remain valid until xrEndFrame.
-		PipelinedLayerStateRendering.ColorSwapchain = Swapchain;
-		PipelinedLayerStateRendering.DepthSwapchain = DepthSwapchain;
 
 		if (bNeedsAcquireOnRHI)
 		{

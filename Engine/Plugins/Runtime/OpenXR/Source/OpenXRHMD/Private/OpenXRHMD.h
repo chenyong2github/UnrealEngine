@@ -265,8 +265,6 @@ public:
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 	OPENXRHMD_API void ResetActionDevices();
 
-	OPENXRHMD_API FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
-	OPENXRHMD_API FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
 	OPENXRHMD_API bool IsExtensionEnabled(const FString& Name) const { return EnabledExtensions.Contains(Name); }
 	OPENXRHMD_API XrInstance GetInstance() { return Instance; }
 	OPENXRHMD_API XrSystemId GetSystem() { return System; }
@@ -325,8 +323,6 @@ private:
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
 	IRendererModule*		RendererModule;
 
-	FXRSwapChainPtr			Swapchain;
-	FXRSwapChainPtr			DepthSwapchain;
 	uint8					LastRequestedSwapchainFormat;
 	uint8					LastRequestedDepthSwapchainFormat;
 
