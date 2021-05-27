@@ -346,7 +346,7 @@ namespace Chaos
 			FManifoldPoint& ManifoldPoint = Constraint.SetActiveManifoldPoint(PointIndex, P0, Q0, P1, Q1);
 
 			// @todo(chaos): this should be set at initialization, but the old path requires it to be false by default and we want it to be true
-			const int32 NumStaticFrictionIterations = FMath::CeilToInt(Chaos_PBD_Collision_Position_StaticFrictionIterations * IterationParameters.NumIterations);
+			const int32 NumStaticFrictionIterations = FMath::CeilToInt((FReal)Chaos_PBD_Collision_Position_StaticFrictionIterations * (FReal)IterationParameters.NumIterations);
 			if (IterationParameters.Iteration == 0)
 			{
 				ManifoldPoint.bInsideStaticFrictionCone = (NumStaticFrictionIterations > 0);
@@ -389,7 +389,7 @@ namespace Chaos
 					(bIsRigidDynamic1 ? Collisions::ComputeFactorMatrix3(RelativeContactPoint1, InvI1, InvM1) : FMatrix33(0));
 				const FMatrix33 ContactMass = ContactMassInv.Inverse();
 				const FReal ContactMassInvNormal = FVec3::DotProduct(ContactNormal, Utilities::Multiply(ContactMassInv, ContactNormal));
-				const FReal ContactMassNormal = (ContactMassInvNormal > SMALL_NUMBER) ? 1.0 / ContactMassInvNormal : 0.0f;
+				const FReal ContactMassNormal = (ContactMassInvNormal > (FReal)SMALL_NUMBER) ? (FReal)1.0f / ContactMassInvNormal : (FReal)0.0f;
 
 				ApplyPositionCorrection(
 					Stiffness,
@@ -479,11 +479,11 @@ namespace Chaos
 						(bIsRigidDynamic1 ? Collisions::ComputeFactorMatrix3(RelativeContactPoint1, InvI1, InvM1) : FMatrix33(0));
 					const FMatrix33 ContactMass = ContactMassInv.Inverse();
 					const FReal ContactMassInvNormal = FVec3::DotProduct(ContactNormal, Utilities::Multiply(ContactMassInv, ContactNormal));
-					const FReal ContactMassNormal = (ContactMassInvNormal > SMALL_NUMBER) ? 1.0 / ContactMassInvNormal : 0.0f;
+					const FReal ContactMassNormal = (ContactMassInvNormal > (FReal)SMALL_NUMBER) ? (FReal)1.0f / ContactMassInvNormal : (FReal)0.0f;
 
 					// Only apply friction for 1 iteration - the last one
 					const bool bApplyDynamicFriction = (IterationParameters.Iteration == IterationParameters.NumIterations - 1) && bChaos_PBD_Collision_Velocity_DynamicFrictionEnabled;
-					const FReal DynamicFriction = (bApplyDynamicFriction) ? Constraint.Manifold.Friction : 0.0f;
+					const FReal DynamicFriction = (bApplyDynamicFriction) ? Constraint.Manifold.Friction : (FReal)0.0f;
 
 					const FReal Resitution = Constraint.Manifold.Restitution;
 
