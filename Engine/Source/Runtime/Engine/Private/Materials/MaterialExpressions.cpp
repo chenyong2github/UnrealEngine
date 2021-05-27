@@ -12991,7 +12991,7 @@ void FMaterialLayersFunctions::RemoveBlendedLayerAt(int32 Index)
 #if WITH_EDITOR
 		check(LayerNames.IsValidIndex(Index) && RestrictToLayerRelatives.IsValidIndex(Index) && RestrictToBlendRelatives.IsValidIndex(Index - 1));
 
-		if (LayerLinkStates[Index] == EMaterialLayerLinkState::LinkedToParent)
+		if (LayerLinkStates[Index] != EMaterialLayerLinkState::NotFromParent)
 		{
 			// Save the parent guid as explicitly deleted, so it's not added back
 			const FGuid& LayerGuid = LayerGuids[Index];
@@ -13175,8 +13175,11 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 			check(LayerGuid.IsValid());
 			check(LinkState == EMaterialLayerLinkState::UnlinkedFromParent || LinkState == EMaterialLayerLinkState::NotFromParent);
 
-			// If we are unlinked from parent, track the layer index we were previously linked to
-			ParentLayerIndex = Parent.LayerGuids.Find(LayerGuid);
+			if (LinkState == EMaterialLayerLinkState::UnlinkedFromParent)
+			{
+				// If we are unlinked from parent, track the layer index we were previously linked to
+				ParentLayerIndex = Parent.LayerGuids.Find(LayerGuid);
+			}
 			check(ParentLayerIndex == INDEX_NONE || !ParentLayerIndices.Contains(ParentLayerIndex));
 
 			// Update the link state, depending on if we can find this layer in the parent
