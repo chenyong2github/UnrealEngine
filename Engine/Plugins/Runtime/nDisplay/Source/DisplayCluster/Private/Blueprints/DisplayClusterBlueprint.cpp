@@ -154,12 +154,23 @@ void UDisplayClusterBlueprint::SetConfigData(UDisplayClusterConfigurationData* I
 #endif
 }
 
+const FString& UDisplayClusterBlueprint::GetConfigPath() const
+{
+	static FString EmptyString;
+#if WITH_EDITORONLY_DATA
+	return ConfigData ? ConfigData->PathToConfig : EmptyString;
+#else
+	return EmptyString;
+#endif
+}
+
 void UDisplayClusterBlueprint::SetConfigPath(const FString& InPath)
 {
-	// @TODO: Make ConfigPath editor only?
+#if WITH_EDITORONLY_DATA
 	if(UDisplayClusterConfigurationData* LoadedConfigData = GetOrLoadConfig())
 	{
 		LoadedConfigData->PathToConfig = InPath;
 		LoadedConfigData->SaveConfig();
 	}
+#endif
 }

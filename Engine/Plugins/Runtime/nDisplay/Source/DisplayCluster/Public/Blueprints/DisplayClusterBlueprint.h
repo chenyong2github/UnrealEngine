@@ -40,7 +40,7 @@ public:
 	 */
 	void SetConfigData(UDisplayClusterConfigurationData* InConfigData, bool bForceRecreate = false);
 
-	FString GetConfigPath() const { return ConfigData ? ConfigData->PathToConfig : TEXT(""); }
+	const FString& GetConfigPath() const;
 	void SetConfigPath(const FString& InPath);
 	
 public:
