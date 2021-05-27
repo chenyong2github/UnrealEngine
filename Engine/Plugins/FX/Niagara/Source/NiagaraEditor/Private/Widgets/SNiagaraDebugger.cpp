@@ -31,6 +31,9 @@
 #include "Customizations/NiagaraOutlinerCustomization.h"
 #include "IStructureDetailsView.h"
 
+
+#if WITH_NIAGARA_DEBUGGER
+
 #define LOCTEXT_NAMESPACE "SNiagaraDebugger"
 
 const FName SNiagaraDebugger::DebugWindowName(TEXT("NiagaraDebugger"));
@@ -1023,3 +1026,5 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 	return MenuBuilder.MakeWidget();
 }
 #undef LOCTEXT_NAMESPACE
+
+#endif

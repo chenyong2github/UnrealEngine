@@ -1077,11 +1077,15 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 		static TSharedRef<SWidget> FillDebugOptionsMenu(FNiagaraSystemToolkit* Toolkit)
 		{
 			FMenuBuilder MenuBuilder(true, Toolkit->GetToolkitCommands());
+
+#if WITH_NIAGARA_DEBUGGER
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenDebugHUD);
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenDebugOutliner);
+#endif
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenAttributeSpreadsheet);
 			return MenuBuilder.MakeWidget();
 		}
+
 
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FNiagaraSystemToolkit* Toolkit)
 		{
@@ -1379,6 +1383,7 @@ bool FNiagaraSystemToolkit::IsDrawOptionEnabled(int32 Element) const
 
 void FNiagaraSystemToolkit::OpenDebugHUD()
 {
+#if WITH_NIAGARA_DEBUGGER
 	TSharedPtr<SDockTab> DebugTab = FGlobalTabmanager::Get()->TryInvokeTab(SNiagaraDebugger::DebugWindowName);
 
 	if (DebugTab.IsValid())
@@ -1386,10 +1391,12 @@ void FNiagaraSystemToolkit::OpenDebugHUD()
 		TSharedRef<SNiagaraDebugger> Content = StaticCastSharedRef<SNiagaraDebugger>(DebugTab->GetContent());
 		Content->FocusDebugTab();
 	}
+#endif
 }
 
 void FNiagaraSystemToolkit::OpenDebugOutliner()
 {
+#if WITH_NIAGARA_DEBUGGER
 	TSharedPtr<SDockTab> DebugTab = FGlobalTabmanager::Get()->TryInvokeTab(SNiagaraDebugger::DebugWindowName);
 
 	if (DebugTab.IsValid())
@@ -1397,12 +1404,14 @@ void FNiagaraSystemToolkit::OpenDebugOutliner()
 		TSharedRef<SNiagaraDebugger> Content = StaticCastSharedRef<SNiagaraDebugger>(DebugTab->GetContent());
 		Content->FocusOutlineTab();
 	}
+#endif
 }
 
 void FNiagaraSystemToolkit::OpenAttributeSpreadsheet()
 {
 	InvokeTab(DebugSpreadsheetTabID);
 }
+
 
 void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds()
 {
