@@ -852,9 +852,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 				TickCount = 0;
 			}
 		}
-		else
-		{
-		}
 	}
 	else
 	{

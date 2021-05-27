@@ -115,7 +115,7 @@ public:
 	void Allocate(uint32 NumInstances, bool bMaintainExisting = false);
 
 	void AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumInstances, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
-	void AliasGPU(FNiagaraDataBuffer* BufferToAlias);
+	void SwapGPU(FNiagaraDataBuffer* BufferToAlias);
 	void ReleaseGPU();
 
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
@@ -166,7 +166,6 @@ public:
 	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt; }
 	FORCEINLINE FRWBuffer& GetGPUBufferHalf() { return GPUBufferHalf; }
 	FORCEINLINE uint32 GetGPUInstanceCountBufferOffset() const { return GPUInstanceCountBufferOffset; }
-	FORCEINLINE void ClearGPUInstanceCountBufferOffset() { GPUInstanceCountBufferOffset = INDEX_NONE; }
 	FORCEINLINE FRWBuffer& GetGPUIDToIndexTable() { return GPUIDToIndexTable; }
 
 	FORCEINLINE int32 GetSafeComponentBufferSize() const { return GetSafeComponentBufferSize(GetNumInstancesAllocated()); }
