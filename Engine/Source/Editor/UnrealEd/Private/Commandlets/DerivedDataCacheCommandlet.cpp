@@ -272,9 +272,8 @@ void UDerivedDataCacheCommandlet::CacheWorldPackages(UWorld* World, uint8 Packag
 		});
 	}
 
-	World->ClearWorldComponents();
-	World->CleanupWorld();
-	World->RemoveFromRoot();
+	const bool bBroadcastWorldDestroyedEvent = false;
+	World->DestroyWorld(bBroadcastWorldDestroyedEvent);
 }
 
 int32 UDerivedDataCacheCommandlet::Main( const FString& Params )

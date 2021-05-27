@@ -854,9 +854,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	ON_SCOPE_EXIT
 	{
-		MainWorld->ClearWorldComponents();
-		MainWorld->CleanupWorld();
-		MainWorld->RemoveFromRoot();
+		const bool bBroadcastWorldDestroyedEvent = false;
+		MainWorld->DestroyWorld(bBroadcastWorldDestroyedEvent);
 	};
 
 	UPackage* MainPackage = MainLevel->GetPackage();

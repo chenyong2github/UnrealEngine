@@ -2076,9 +2076,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 	}
 
 	// Cleanup
-	World->RemoveFromRoot();
-	World->ClearWorldComponents();
-	World->CleanupWorld();
+	const bool bBroadcastWorldDestroyedEvent = false;
+	World->DestroyWorld(bBroadcastWorldDestroyedEvent);
 	
 	// Restore previous world
 	WorldContext.SetCurrentWorld(PrevGWorld);
