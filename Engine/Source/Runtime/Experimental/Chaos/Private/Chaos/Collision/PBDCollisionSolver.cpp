@@ -13,8 +13,11 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
+bool bChaos_PBD_Collision_UseCorrectApplyPosition = true;	// Temp for testing
+FAutoConsoleVariableRef CVarChaos_PBD_Collision_UseCorrectApplyPosition(TEXT("p.Chaos.PBD.Collision.UseCorrectApplyPosition"), bChaos_PBD_Collision_UseCorrectApplyPosition, TEXT(""));
+
 bool bChaos_PBD_Collision_Position_SolveEnabled = true;
-float Chaos_PBD_Collision_Position_MinStiffness = 0.25f;
+float Chaos_PBD_Collision_Position_MinStiffness = 1.0f;
 float Chaos_PBD_Collision_Position_MaxStiffness = 1.0f;
 float Chaos_PBD_Collision_Position_MinInvMassScale = 0.0f;
 float Chaos_PBD_Collision_Position_StaticFrictionIterations = 0.5f;
@@ -83,9 +86,10 @@ namespace Chaos
 		const FReal Stiffness,
 		const Collisions::FContactIterationParameters& IterationParameters,
 		const Collisions::FContactParticleParameters& ParticleParameters,
-		const FVec3 RelativeContactPoint0,
-		const FVec3 RelativeContactPoint1,
-		const FVec3 ContactNormal,
+		const FVec3& ApplyContactPoint0,
+		const FVec3& ApplyContactPoint1,
+		const FVec3& ContactError,
+		const FVec3& ContactNormal,
 		const FMatrix33& ContactMass,
 		const FReal ContactMassNormal,
 		const FReal StaticFriction,
@@ -99,9 +103,6 @@ namespace Chaos
 		FRotation3& Q1,
 		FManifoldPoint& ManifoldPoint)
 	{
-		// Net error we need to correct, including lateral movement to correct for friction
-		FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0);
-
 		// Calculate the pushout required to correct the error for this iteration
 		FVec3 PushOut = FVec3(0);
 		if ((StaticFriction > 0) && ManifoldPoint.bInsideStaticFrictionCone)
@@ -150,7 +151,7 @@ namespace Chaos
 		// Update the particle state based on the pushout
 		if (InvM0 > SMALL_NUMBER)
 		{
-			const FVec3 AngularPushOut = FVec3::CrossProduct(RelativeContactPoint0, PushOut);
+			const FVec3 AngularPushOut = FVec3::CrossProduct(ApplyContactPoint0, PushOut);
 			const FVec3 DX0 = InvM0 * PushOut;
 			const FVec3 DR0 = InvI0 * AngularPushOut;
 
@@ -160,7 +161,7 @@ namespace Chaos
 		}
 		if (InvM1 > SMALL_NUMBER)
 		{
-			const FVec3 AngularPushOut = FVec3::CrossProduct(RelativeContactPoint1, PushOut);
+			const FVec3 AngularPushOut = FVec3::CrossProduct(ApplyContactPoint1, PushOut);
 			const FVec3 DX1 = -(InvM1 * PushOut);
 			const FVec3 DR1 = -(InvI1 * AngularPushOut);
 
@@ -177,9 +178,9 @@ namespace Chaos
 		const FReal Stiffness,
 		const Collisions::FContactIterationParameters& IterationParameters,
 		const Collisions::FContactParticleParameters& ParticleParameters,
-		const FVec3 RelativeContactPoint0,
-		const FVec3 RelativeContactPoint1,
-		const FVec3 ContactNormal,
+		const FVec3& ApplyContactPoint0,
+		const FVec3& ApplyContactPoint1,
+		const FVec3& ContactNormal,
 		const FMatrix33& ContactMass,
 		const FReal ContactMassNormal,
 		const FReal DynamicFriction,
@@ -194,8 +195,8 @@ namespace Chaos
 		FVec3& W1,
 		FManifoldPoint& ManifoldPoint)
 	{
-		const FVec3 ContactVelocity0 = V0 + FVec3::CrossProduct(W0, RelativeContactPoint0);
-		const FVec3 ContactVelocity1 = V1 + FVec3::CrossProduct(W1, RelativeContactPoint1);
+		const FVec3 ContactVelocity0 = V0 + FVec3::CrossProduct(W0, ApplyContactPoint0);
+		const FVec3 ContactVelocity1 = V1 + FVec3::CrossProduct(W1, ApplyContactPoint1);
 		const FVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
 		const FReal ContactVelocityNormal = FVec3::DotProduct(ContactVelocity, ContactNormal);
 
@@ -257,24 +258,18 @@ namespace Chaos
 		// Calculate the velocity deltas from the impulse
 		if (InvM0 > SMALL_NUMBER)
 		{
-			const FVec3 AngularImpulse = FVec3::CrossProduct(RelativeContactPoint0, Impulse);
+			const FVec3 AngularImpulse = FVec3::CrossProduct(ApplyContactPoint0, Impulse);
 			V0 += InvM0 * Impulse;
 			W0 += InvI0 * AngularImpulse;
 		}
 		if (InvM1 > SMALL_NUMBER)
 		{
-			const FVec3 AngularImpulse = FVec3::CrossProduct(RelativeContactPoint1, Impulse);
+			const FVec3 AngularImpulse = FVec3::CrossProduct(ApplyContactPoint1, Impulse);
 			V1 -= InvM1 * Impulse;
 			W1 -= InvI1 * AngularImpulse;
 		}
 
 		ManifoldPoint.NetImpulse = NetImpulse;
-
-		const FVec3 ContactVelocity0Final = V0 + FVec3::CrossProduct(W0, RelativeContactPoint0);
-		const FVec3 ContactVelocity1Final = V1 + FVec3::CrossProduct(W1, RelativeContactPoint1);
-		const FVec3 ContactVelocityFinal = ContactVelocity0Final - ContactVelocity1Final;
-		const FReal ContactVelocityNormalFinal = FVec3::DotProduct(ContactVelocityFinal, ContactNormal);
-
 	}
 
 
@@ -370,23 +365,33 @@ namespace Chaos
 				const FReal StaticFriction = bApplyStaticFriction ? FMath::Max(Constraint.Manifold.Friction, Constraint.Manifold.AngularFriction) : 0.0f;
 
 				// Relative contact points on each body in world-space
-				FVec3 LocalContactPoint0 = ManifoldPoint.CoMContactPoints[0];
-				FVec3 LocalContactPoint1 = ManifoldPoint.CoMContactPoints[1];
+				const FVec3 RelativeContactPoint0 = Q0 * ManifoldPoint.CoMContactPoints[0];
+				const FVec3 RelativeContactPoint1 = Q1 * ManifoldPoint.CoMContactPoints[1];
+				const FVec3 ContactPoint = FReal(0.5) * ((P1 + RelativeContactPoint1) + (P0 + RelativeContactPoint0));
+				const FVec3 ApplyContactPoint0 = (bChaos_PBD_Collision_UseCorrectApplyPosition) ? ContactPoint - P0 : RelativeContactPoint0;
+				const FVec3 ApplyContactPoint1 = (bChaos_PBD_Collision_UseCorrectApplyPosition) ? ContactPoint - P1 : RelativeContactPoint1;
+				FVec3 ContactError = (P1 + RelativeContactPoint1) - (P0 + RelativeContactPoint0);
+				
+				// If we have static friction, we attempt to move the bodies so that the old contact positions are aligned
 				if (bApplyStaticFriction)
 				{
-					Constraint.CalculatePrevCoMContactPoints(Particle0, Particle1, ManifoldPoint, IterationParameters.Dt, LocalContactPoint0, LocalContactPoint1);
+					FVec3 StaticFrictionLocalContactPoint0 = ManifoldPoint.CoMContactPoints[0];
+					FVec3 StaticFrictionLocalContactPoint1 = ManifoldPoint.CoMContactPoints[1];
+					Constraint.CalculatePrevCoMContactPoints(Particle0, Particle1, ManifoldPoint, IterationParameters.Dt, StaticFrictionLocalContactPoint0, StaticFrictionLocalContactPoint1);
+					const FVec3 StaticFrictionRelativeContactPoint0 = Q0 * StaticFrictionLocalContactPoint0;
+					const FVec3 StaticFrictionRelativeContactPoint1 = Q1 * StaticFrictionLocalContactPoint1;
+					ContactError = (P1 + StaticFrictionRelativeContactPoint1) - (P0 + StaticFrictionRelativeContactPoint0);
 				}
-				const FVec3 RelativeContactPoint0 = Q0 * LocalContactPoint0;
-				const FVec3 RelativeContactPoint1 = Q1 * LocalContactPoint1;
 
+				// Temporary shock propagation implementation...
 				const bool bUseMassScale = bIsRigidDynamic0 && bIsRigidDynamic1;
-				const bool bOnTop0 = FVec3::DotProduct(RelativeContactPoint0, ContactNormal) < 0.0f;
+				const bool bOnTop0 = FVec3::DotProduct(ApplyContactPoint0, ContactNormal) < 0.0f;
 				const FReal InvMassScale0 = (!bUseMassScale || bOnTop0) ? 1.0f : GetPositionInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations);
 				const FReal InvMassScale1 = (bUseMassScale && bOnTop0) ? GetPositionInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations) : 1.0f;
 
 				const FMatrix33 ContactMassInv =
-					(bIsRigidDynamic0 ? Collisions::ComputeFactorMatrix3(RelativeContactPoint0, InvI0, InvM0) : FMatrix33(0)) +
-					(bIsRigidDynamic1 ? Collisions::ComputeFactorMatrix3(RelativeContactPoint1, InvI1, InvM1) : FMatrix33(0));
+					(bIsRigidDynamic0 ? Collisions::ComputeFactorMatrix3(ApplyContactPoint0, InvI0, InvM0) : FMatrix33(0)) +
+					(bIsRigidDynamic1 ? Collisions::ComputeFactorMatrix3(ApplyContactPoint1, InvI1, InvM1) : FMatrix33(0));
 				const FMatrix33 ContactMass = ContactMassInv.Inverse();
 				const FReal ContactMassInvNormal = FVec3::DotProduct(ContactNormal, Utilities::Multiply(ContactMassInv, ContactNormal));
 				const FReal ContactMassNormal = (ContactMassInvNormal > (FReal)SMALL_NUMBER) ? (FReal)1.0f / ContactMassInvNormal : (FReal)0.0f;
@@ -395,8 +400,9 @@ namespace Chaos
 					Stiffness,
 					IterationParameters,
 					ParticleParameters,
-					RelativeContactPoint0,
-					RelativeContactPoint1,
+					ApplyContactPoint0,
+					ApplyContactPoint1,
+					ContactError,
 					ContactNormal,
 					ContactMass,
 					ContactMassNormal,
@@ -434,10 +440,10 @@ namespace Chaos
 		const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 		const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
-		FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
-		FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
-		FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
-		FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+		const FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+		const FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+		const FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+		const FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 		FVec3 V0 = Particle0->V();
 		FVec3 W0 = Particle0->W();
 		FVec3 V1 = Particle1->V();
@@ -455,34 +461,37 @@ namespace Chaos
 			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
 			const FReal Stiffness = GetVelocitySolveStiffness(IterationParameters.Iteration, IterationParameters.NumIterations);
 
+			// Only apply friction for 1 iteration - the last one
+			const bool bApplyDynamicFriction = (IterationParameters.Iteration == IterationParameters.NumIterations - 1) && bChaos_PBD_Collision_Velocity_DynamicFrictionEnabled;
+
 			for (int32 PointIndex = 0; PointIndex < ManifoldPoints.Num(); ++PointIndex)
 			{
 				FManifoldPoint& ManifoldPoint = Constraint.SetActiveManifoldPoint(PointIndex, P0, Q0, P1, Q1);
 
 				if (ManifoldPoint.bActive)
 				{
-					const FVec3 LocalContactPoint0 = ManifoldPoint.CoMContactPoints[0];
-					const FVec3 LocalContactPoint1 = ManifoldPoint.CoMContactPoints[1];
-					const FVec3 RelativeContactPoint0 = Q0 * LocalContactPoint0;
-					const FVec3 RelativeContactPoint1 = Q1 * LocalContactPoint1;
+					const FVec3 RelativeContactPoint0 = Q0 * ManifoldPoint.CoMContactPoints[0];
+					const FVec3 RelativeContactPoint1 = Q1 * ManifoldPoint.CoMContactPoints[1];
+					const FVec3 ContactPoint = FReal(0.5) * ((P1 + RelativeContactPoint1) + (P0 + RelativeContactPoint0));
+					const FVec3 ApplyContactPoint0 = (bChaos_PBD_Collision_UseCorrectApplyPosition) ? ContactPoint - P0 : RelativeContactPoint0;
+					const FVec3 ApplyContactPoint1 = (bChaos_PBD_Collision_UseCorrectApplyPosition) ? ContactPoint - P1 : RelativeContactPoint1;
 
 					const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Q0 : Q1;
 					const FVec3 ContactNormal = PlaneQ * ManifoldPoint.CoMContactNormal;
 
+					// Temporary shock propagation implementation
 					const bool bUseMassScale = bIsRigidDynamic0 && bIsRigidDynamic1;
-					const bool bOnTop0 = FVec3::DotProduct(RelativeContactPoint0, ContactNormal) < 0.0f;
+					const bool bOnTop0 = FVec3::DotProduct(ApplyContactPoint0, ContactNormal) < 0.0f;
 					const FReal InvMassScale0 = (!bUseMassScale || bOnTop0) ? 1.0f : GetVelocityInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations);
 					const FReal InvMassScale1 = (bUseMassScale && bOnTop0) ? GetVelocityInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations) : 1.0f;
 
 					const FMatrix33 ContactMassInv =
-						(bIsRigidDynamic0 ? Collisions::ComputeFactorMatrix3(RelativeContactPoint0, InvI0, InvM0) : FMatrix33(0)) +
-						(bIsRigidDynamic1 ? Collisions::ComputeFactorMatrix3(RelativeContactPoint1, InvI1, InvM1) : FMatrix33(0));
+						(bIsRigidDynamic0 ? Collisions::ComputeFactorMatrix3(ApplyContactPoint0, InvI0, InvM0) : FMatrix33(0)) +
+						(bIsRigidDynamic1 ? Collisions::ComputeFactorMatrix3(ApplyContactPoint1, InvI1, InvM1) : FMatrix33(0));
 					const FMatrix33 ContactMass = ContactMassInv.Inverse();
 					const FReal ContactMassInvNormal = FVec3::DotProduct(ContactNormal, Utilities::Multiply(ContactMassInv, ContactNormal));
 					const FReal ContactMassNormal = (ContactMassInvNormal > (FReal)SMALL_NUMBER) ? (FReal)1.0f / ContactMassInvNormal : (FReal)0.0f;
 
-					// Only apply friction for 1 iteration - the last one
-					const bool bApplyDynamicFriction = (IterationParameters.Iteration == IterationParameters.NumIterations - 1) && bChaos_PBD_Collision_Velocity_DynamicFrictionEnabled;
 					const FReal DynamicFriction = (bApplyDynamicFriction) ? Constraint.Manifold.Friction : (FReal)0.0f;
 
 					const FReal Resitution = Constraint.Manifold.Restitution;
@@ -491,8 +500,8 @@ namespace Chaos
 						Stiffness,
 						IterationParameters,
 						ParticleParameters,
-						RelativeContactPoint0,
-						RelativeContactPoint1,
+						ApplyContactPoint0,
+						ApplyContactPoint1,
 						ContactNormal,
 						ContactMass,
 						ContactMassNormal,
@@ -506,8 +515,11 @@ namespace Chaos
 				}
 			}
 
-			// @hack - disable dynamic friction after the first iteration - the formula is iteration-count sensitive (swith to XPBD)
-			Constraint.Manifold.Friction = 0;
+			// @hack - disable dynamic friction after the first iteration so that pair iteration count doesn't impact the result - the formula is iteration-count sensitive (swith to XPBD)
+			if (bApplyDynamicFriction)
+			{
+				Constraint.Manifold.Friction = 0;
+			}
 
 		}
 
