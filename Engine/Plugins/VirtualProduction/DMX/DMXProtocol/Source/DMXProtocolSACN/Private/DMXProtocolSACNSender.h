@@ -38,7 +38,7 @@ protected:
 	FDMXProtocolSACNSender(const FDMXProtocolSACNSender&) = delete;
 
 	/** Constructor. Hidden on purpose, use TryCreateUnicastSender and TryCreateMulticastSender instead. */
-	FDMXProtocolSACNSender(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& InSACNProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InNetworkInternetAddr, TSharedRef<FInternetAddr> InDestinationInternetAddr);
+	FDMXProtocolSACNSender(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& InSACNProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InNetworkInternetAddr, TSharedRef<FInternetAddr> InDestinationInternetAddr, const bool bInIsMulticast);
 
 public:
 	/** Destructor */
@@ -146,4 +146,7 @@ private:
 
 	/** Holds the thread object. */
 	FRunnableThread* Thread;
+
+	/** Is a Multicast sender ? */
+	const bool bIsMulticast;
 };

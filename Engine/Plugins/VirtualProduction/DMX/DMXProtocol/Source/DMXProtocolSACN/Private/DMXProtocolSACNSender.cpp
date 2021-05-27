@@ -3,6 +3,7 @@
 #include "DMXProtocolSACNSender.h"
 
 #include "DMXProtocolSACN.h"
+#include "DMXProtocolSACNReceiver.h"
 
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolLog.h"
@@ -44,20 +45,28 @@ namespace
 }
 
 
-FDMXProtocolSACNSender::FDMXProtocolSACNSender(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& InSACNProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InNetworkInterfaceInternetAddr, TSharedRef<FInternetAddr> InDestinationInternetAddr)
+FDMXProtocolSACNSender::FDMXProtocolSACNSender(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& InSACNProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InNetworkInterfaceInternetAddr, TSharedRef<FInternetAddr> InDestinationInternetAddr, const bool bInIsMulticast)
 	: Protocol(InSACNProtocol)
 	, Socket(&InSocket)
 	, NetworkInterfaceInternetAddr(InNetworkInterfaceInternetAddr)
 	, DestinationInternetAddr(InDestinationInternetAddr)
 	, bStopping(false)
 	, Thread(nullptr)
+	, bIsMulticast(bInIsMulticast)
 {
 	check(DestinationInternetAddr.IsValid());
 
 	FString SenderThreadName = FString(TEXT("sACNSender_")) + InDestinationInternetAddr->ToString(false);
 	Thread = FRunnableThread::Create(this, *SenderThreadName, 0U, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
-	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Created sACN Sender at %s sending to %s"), *NetworkInterfaceInternetAddr->ToString(false), *DestinationInternetAddr->ToString(false));
+	if (bIsMulticast)
+	{
+		UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Created sACN Multicast Sender at %s"), *NetworkInterfaceInternetAddr->ToString(false));
+	}
+	else
+	{
+		UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Created sACN Sender at %s sending to %s"), *NetworkInterfaceInternetAddr->ToString(false), *DestinationInternetAddr->ToString(false));
+	}
 }
 
 FDMXProtocolSACNSender::~FDMXProtocolSACNSender()
@@ -114,7 +123,7 @@ TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACNSender::TryCreateUnicastSende
 		return nullptr;
 	}
 
-	TSharedPtr<FDMXProtocolSACNSender> NewSender = MakeShareable(new FDMXProtocolSACNSender(SACNProtocol, *NewSocket, NewNetworkInterfaceInternetAddr.ToSharedRef(), NewUnicastInternetAddr.ToSharedRef()));
+	TSharedPtr<FDMXProtocolSACNSender> NewSender = MakeShareable(new FDMXProtocolSACNSender(SACNProtocol, *NewSocket, NewNetworkInterfaceInternetAddr.ToSharedRef(), NewUnicastInternetAddr.ToSharedRef(), false));
 
 	return NewSender;
 }
@@ -135,7 +144,7 @@ TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACNSender::TryCreateMulticastSen
 	FIPv4Endpoint NewNetworkInterfaceEndpoint = FIPv4Endpoint(NewNetworkInterfaceInternetAddr);
 
 	FSocket* NewSocket = 
-		FUdpSocketBuilder(TEXT("UDPSACNBroadcastSocket"))
+		FUdpSocketBuilder(TEXT("UDPSACNMulticastSocket"))
 #if PLATFORM_SUPPORTS_UDP_MULTICAST_GROUP
 		.WithMulticastInterface(NewNetworkInterfaceEndpoint.Address)
 		.WithMulticastTtl(1)
@@ -150,7 +159,7 @@ TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACNSender::TryCreateMulticastSen
 		return nullptr;
 	}
 
-	TSharedPtr<FDMXProtocolSACNSender> NewSender = MakeShareable(new FDMXProtocolSACNSender(SACNProtocol, *NewSocket, NewNetworkInterfaceInternetAddr.ToSharedRef(), NewNetworkInterfaceInternetAddr.ToSharedRef()));
+	TSharedPtr<FDMXProtocolSACNSender> NewSender = MakeShareable(new FDMXProtocolSACNSender(SACNProtocol, *NewSocket, NewNetworkInterfaceInternetAddr.ToSharedRef(), NewNetworkInterfaceInternetAddr.ToSharedRef(), true));
 
 	return NewSender;
 }
@@ -284,29 +293,42 @@ void FDMXProtocolSACNSender::Update()
 
 		FDMXProtocolE131RootLayerPacket RootLayer;
 		static FGuid Guid = FGuid::NewGuid();
-		FMemory::Memcpy(RootLayer.CID, &Guid, ACN_CIDBYTES);
+		FMemory::Memcpy(RootLayer.CID.GetData(), &Guid, ACN_CIDBYTES);
 
-		Packet.Append(*RootLayer.Pack());
+		Packet.Append(*RootLayer.Pack(ACN_DMX_SIZE));
 
 		FDMXProtocolE131FramingLayerPacket FramingLayer;
 		FramingLayer.Universe = UniverseID;
 		FramingLayer.SequenceNumber = UniverseIDToSequenceNumberMap.FindOrAdd(UniverseID, -1)++; // Init to max, let it wrap over to 0 at first
 
-		Packet.Append(*FramingLayer.Pack());
+		Packet.Append(*FramingLayer.Pack(ACN_DMX_SIZE));
 
 		FDMXProtocolE131DMPLayerPacket DMPLayer;
 		DMPLayer.AddressIncrement = ACN_ADDRESS_INC;
 		DMPLayer.PropertyValueCount = ACN_DMX_SIZE + 1;
-		FMemory::Memcpy(DMPLayer.DMX, DMXSignal->ChannelData.GetData(), ACN_DMX_SIZE);
+		FMemory::Memcpy(DMPLayer.DMX.GetData(), DMXSignal->ChannelData.GetData(), ACN_DMX_SIZE);
 
-		Packet.Append(*DMPLayer.Pack());
+		Packet.Append(*DMPLayer.Pack(ACN_DMX_SIZE));
 
 		const int32 SendDataSize = Packet.Num();
 		int32 BytesSent = -1;
 
 		// Try to send, log errors but avoid spaming the Log
 		static bool bErrorEverLogged = false;
-		if (Socket->SendTo(Packet.GetData(), Packet.Num(), BytesSent, *DestinationInternetAddr))
+		TSharedPtr<FInternetAddr> CurrentDestination = DestinationInternetAddr;
+
+		// if in multicast, compute the destination
+		if (bIsMulticast)
+		{
+			ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+			CurrentDestination = SocketSubsystem->CreateInternetAddr();
+
+			uint32 IpForUniverse = FDMXProtocolSACNReceiver::GetIpForUniverseID(UniverseID);
+			CurrentDestination->SetIp(IpForUniverse);
+			CurrentDestination->SetPort(ACN_PORT);
+		}
+
+		if (Socket->SendTo(Packet.GetData(), Packet.Num(), BytesSent, *CurrentDestination))
 		{
 			INC_DWORD_STAT(STAT_SACNPackagesSent);
 		}

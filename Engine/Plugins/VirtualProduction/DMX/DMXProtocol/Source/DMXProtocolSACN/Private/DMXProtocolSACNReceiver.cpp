@@ -39,8 +39,7 @@ namespace
 }
 
 FDMXProtocolSACNReceiver::FDMXProtocolSACNReceiver(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& InSACNProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InEndpointInternetAddr)
-	: HighestReceivedPriority(0)
-	, Protocol(InSACNProtocol)
+	: Protocol(InSACNProtocol)
 	, Socket(&InSocket)
 	, EndpointInternetAddr(InEndpointInternetAddr)
 	, bStopping(false)
@@ -195,7 +194,7 @@ bool FDMXProtocolSACNReceiver::Init()
 uint32 FDMXProtocolSACNReceiver::Run()
 {
 	// No receive refresh rate, it would deter the timestamp
-	
+
 	while (!bStopping)
 	{
 		Update(FTimespan::FromMilliseconds(1000.f));
@@ -283,32 +282,71 @@ void FDMXProtocolSACNReceiver::HandleDataPacket(uint16 UniverseID, const TShared
 	FDMXProtocolE131FramingLayerPacket IncomingDMXFramingLayer;
 	FDMXProtocolE131DMPLayerPacket IncomingDMXDMPLayer;
 
-	*PacketReader << IncomingDMXRootLayer;
-	*PacketReader << IncomingDMXFramingLayer;
-	*PacketReader << IncomingDMXDMPLayer;
+	uint16 RootPayloadLength = 0;
+	uint16 FramingPayloadLength = 0;
+	uint16 DMPPayloadLength = 0;
 
-	// Ignore packets of lower priority than the highest one we received.
-	if (HighestReceivedPriority > IncomingDMXFramingLayer.Priority)
-	{		return;
+	IncomingDMXRootLayer.Serialize(*PacketReader, RootPayloadLength);
+
+	// check if the advertised length is valid
+	if (RootPayloadLength + ACN_RLP_PREAMBLE_SIZE > PacketReader->Num())
+	{
+		return;
 	}
-	HighestReceivedPriority = IncomingDMXFramingLayer.Priority;
 
-	// Make sure we copy same amount of data
+	IncomingDMXFramingLayer.Serialize(*PacketReader, FramingPayloadLength);
+	// check if the advertised length is still valid
+	if (FramingPayloadLength + ACN_DMX_ROOT_PACKAGE_SIZE > PacketReader->Num())
+	{
+		return;
+	}
 
-	FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, TArray<uint8>(IncomingDMXDMPLayer.DMX, DMX_UNIVERSE_SIZE));
+	IncomingDMXDMPLayer.Serialize(*PacketReader, DMPPayloadLength);
+	// check if the advertised length is still valid
+	if ((DMPPayloadLength + ACN_DMX_ROOT_PACKAGE_SIZE + ACN_DMX_PDU_FRAMING_PACKAGE_SIZE) > PacketReader->Num())
+	{
+		return;
+	}
+
+	// check if the number of properties is consistent
+	if ((IncomingDMXDMPLayer.FirstPropertyAddress + IncomingDMXDMPLayer.PropertyValueCount) > (ACN_DMX_SIZE + 1))
+	{
+		return;
+	}
+
+	// E1.31 specs forces address increment to be 1
+	if (IncomingDMXDMPLayer.AddressIncrement != ACN_ADDRESS_INC)
+	{
+		return;
+	}
+
+	// Eventually build a history of values for each universe,
+	// this will allow to receive fewer values in e1.31 packets
+	TArray<uint8>* UniverseData = PropertiesCacheValues.Find(UniverseID);
+	if (!UniverseData)
+	{
+		TArray<uint8> DefaultProperties;
+		DefaultProperties.AddZeroed(ACN_DMX_SIZE);
+		UniverseData = &PropertiesCacheValues.Add(UniverseID, DefaultProperties);
+	}
+
+	// Copy relevant data
+	FMemory::Memcpy(UniverseData->GetData() + IncomingDMXDMPLayer.FirstPropertyAddress, IncomingDMXDMPLayer.DMX.GetData(), IncomingDMXDMPLayer.PropertyValueCount - 1);
+	
+	FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, PropertiesCacheValues[UniverseID]);
 	for (const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort : AssignedInputPorts)
 	{
 		InputPort->SingleProducerInputDMXSignal(DMXSignal);
 	}
-		
+
 	INC_DWORD_STAT(STAT_SACNPackagesReceived);
 }
 
 uint32 FDMXProtocolSACNReceiver::GetRootPacketType(const TSharedPtr<FArrayReader>& Buffer)
 {
 	uint32 Vector = 0x00000000;
-	const uint32 MinCheck = ACN_ADDRESS_ROOT_VECTOR + 4;
-	if (Buffer->Num() > MinCheck)
+	/* check for the minimal valid packet size (assuming at least one property) */
+	if (Buffer->Num() > ACN_DMX_MIN_PACKAGE_SIZE)
 	{
 		// Get OpCode
 		Buffer->Seek(ACN_ADDRESS_ROOT_VECTOR);

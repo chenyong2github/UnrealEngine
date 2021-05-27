@@ -298,7 +298,7 @@ void FDMXProtocolArtNetSender::Update()
 		ArtNetDMXPacket.Universe = UniverseID;
 		ArtNetDMXPacket.Sequence = 0x00; // As per Standard: The Sequence field is set to 0x00 to disable this feature.
 
-		TSharedPtr<FBufferArchive> BufferArchive = ArtNetDMXPacket.Pack();
+		TSharedPtr<FBufferArchive> BufferArchive = ArtNetDMXPacket.Pack(ARTNET_DMX_LENGTH);
 
 		int32 SendDataSize = BufferArchive->Num();
 		int32 BytesSent = -1;
