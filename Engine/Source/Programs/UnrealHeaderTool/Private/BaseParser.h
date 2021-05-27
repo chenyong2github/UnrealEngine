@@ -84,7 +84,7 @@ public:
 //
 
 class FBaseParser 
-	: public FUHTExceptionContext
+	: public FUHTMessageProvider
 {
 protected:
 	FBaseParser(FUnrealSourceFile& InSourceFile);
@@ -276,7 +276,7 @@ void FBaseParser::ParseInheritance(const TCHAR* What, Lambda&& InLambda)
 		RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("inheritance"));
 		if (!GetIdentifier(Token))
 		{
-			FUHTException::Throwf(*this, TEXT("Missing %s name"), What);
+			Throwf(TEXT("Missing %s name"), What);
 		}
 		RedirectTypeIdentifier(Token);
 		InLambda(Token.Identifier, true);
@@ -294,7 +294,7 @@ void FBaseParser::ParseInheritance(const TCHAR* What, Lambda&& InLambda)
 			FToken Token;
 			if (!GetIdentifier(Token, true))
 			{
-				FUHTException::Throwf(*this, TEXT("Failed to get interface class identifier"));
+				Throwf(TEXT("Failed to get interface class identifier"));
 			}
 
 			InterfaceName += Token.Identifier;
@@ -309,7 +309,7 @@ void FBaseParser::ParseInheritance(const TCHAR* What, Lambda&& InLambda)
 				{
 					if (!GetToken(Token))
 					{
-						FUHTException::Throwf(*this, TEXT("Unexpected end of file"));
+						Throwf(TEXT("Unexpected end of file"));
 					}
 
 					if (Token.TokenType == TOKEN_Symbol)

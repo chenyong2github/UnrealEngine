@@ -328,8 +328,8 @@ protected:
 
 public:
 	// Throws if a specifier value wasn't provided
-	static void RequireSpecifierValue(const FUHTExceptionContext& Context, const FPropertySpecifier& Specifier, bool bRequireExactlyOne = false);
-	static FString RequireExactlyOneSpecifierValue(const FUHTExceptionContext& Context, const FPropertySpecifier& Specifier);
+	static void RequireSpecifierValue(const FUHTMessageProvider& Context, const FPropertySpecifier& Specifier, bool bRequireExactlyOne = false);
+	static FString RequireExactlyOneSpecifierValue(const FUHTMessageProvider& Context, const FPropertySpecifier& Specifier);
 
 	/**
 	* Find a field in the specified context.  Starts with the specified scope, then iterates
@@ -406,13 +406,7 @@ protected:
 	/**
 	 * Create new function object based on given info structure.
 	 */
-	FUnrealFunctionDefinitionInfo& CreateFunction(FFuncInfo&& FuncInfo) const;
-
-	/**
-	 * Create new delegate function object based on given info structure.
-	 */
-	template<typename T>
-	FUnrealFunctionDefinitionInfo& CreateDelegateFunction(FFuncInfo&& FuncInfo, EFunctionType InFunctionType) const;
+	FUnrealFunctionDefinitionInfo& CreateFunction(FFuncInfo&& FuncInfo, EFunctionType InFunctionType) const;
 
 	FUnrealClassDefinitionInfo& CompileClassDeclaration();
 	FUnrealFunctionDefinitionInfo& CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
@@ -601,7 +595,7 @@ private:
 	void VerifyRepNotifyCallback(FUnrealPropertyDefinitionInfo& PropertyDef, FUnrealFunctionDefinitionInfo* TargetFuncDef);
 
 	// Constructs the policy from a string
-	static FDocumentationPolicy GetDocumentationPolicyFromName(const FUHTExceptionContext& Context, const FString& PolicyName);
+	static FDocumentationPolicy GetDocumentationPolicyFromName(const FUHTMessageProvider& Context, const FString& PolicyName);
 
 	// Constructs the policy for documentation checks for a given struct
 	static FDocumentationPolicy GetDocumentationPolicyForStruct(FUnrealStructDefinitionInfo& StructDef);

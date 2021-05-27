@@ -161,7 +161,7 @@ void FUHTMetaData::RemapMetaData(FUnrealTypeDefinitionInfo& TypeDef, TMap<FName,
 
 		if (NewKey != NAME_None)
 		{
-			UE_LOG_WARNING_UHT(TypeDef, TEXT("Remapping old metadata key '%s' to new key '%s', please update the declaration."), *CurrentKey.ToString(), *NewKey.ToString());
+			TypeDef.LogWarning(TEXT("Remapping old metadata key '%s' to new key '%s', please update the declaration."), *CurrentKey.ToString(), *NewKey.ToString());
 			CurrentKey = NewKey;
 		}
 	}
@@ -314,7 +314,7 @@ TSharedRef<FScope> FUnrealTypeDefinitionInfo::GetScope()
 {
 	if (!HasSource())
 	{
-		FUHTException::Throwf(*this, TEXT("Attempt to fetch the scope for type \"%s\" when it doesn't implement the method or there is no source file associated with the type."), *GetNameCPP());
+		Throwf(TEXT("Attempt to fetch the scope for type \"%s\" when it doesn't implement the method or there is no source file associated with the type."), *GetNameCPP());
 	}
 	return GetUnrealSourceFile().GetScope();
 }
@@ -328,7 +328,7 @@ uint32 FUnrealTypeDefinitionInfo::GetHash(bool bIncludeNoExport) const
 {
 	if (Hash == 0)
 	{
-		FUHTException::Throwf(*this, TEXT("Attempt to fetch the generated hash for type \"%s\" before it has been generated.  Include dependencies, topological sort, or job graph is in error."), *GetNameCPP());
+		Throwf(TEXT("Attempt to fetch the generated hash for type \"%s\" before it has been generated.  Include dependencies, topological sort, or job graph is in error."), *GetNameCPP());
 	}
 	return Hash;
 }
@@ -406,7 +406,7 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 	{
 		if (!InValue.IsNumeric())
 		{
-			FUHTException::Throwf(*this, TEXT("Metadata value for '%s' is non-numeric : '%s'"), *InKey.ToString(), *InValue);
+			Throwf(TEXT("Metadata value for '%s' is non-numeric : '%s'"), *InKey.ToString(), *InValue);
 		}
 	}
 	break;
@@ -425,7 +425,7 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 
 				if (ClassDef != nullptr && ClassDef->GetName() == TEXT("BlueprintFunctionLibrary"))
 				{
-					FUHTException::Throwf(*this, TEXT("%s doesn't make sense on static method '%s' in a blueprint function library"), *InKey.ToString(), *FuncDef->GetName());
+					Throwf(TEXT("%s doesn't make sense on static method '%s' in a blueprint function library"), *InKey.ToString(), *FuncDef->GetName());
 				}
 			}
 		}
@@ -469,7 +469,7 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 
 			if (!bGoodParams)
 			{
-				UE_LOG_ERROR_UHT(*FuncDef, TEXT("Commutative associative binary operators must have exactly 2 parameters of the same type and a return value."));
+				FuncDef->LogError(TEXT("Commutative associative binary operators must have exactly 2 parameters of the same type and a return value."));
 			}
 		}
 	}
@@ -503,7 +503,7 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 					FUnrealPropertyDefinitionInfo* FoundFieldDef = FHeaderParser::FindProperty(*FuncDef, *Entry, false);
 					if (!FoundFieldDef)
 					{
-						UE_LOG_ERROR_UHT(*FuncDef, TEXT("Function does not have a parameter named '%s'"), *Entry);
+						FuncDef->LogError(TEXT("Function does not have a parameter named '%s'"), *Entry);
 					}
 					else
 					{
@@ -517,7 +517,7 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 							}
 							else
 							{
-								UE_LOG_ERROR_UHT(*FuncDef, TEXT("Function already specified an ExpandEnumAsExec input (%s), but '%s' is also an input parameter. Only one is permitted."), *FirstInputDef->GetName(), *Entry);
+								FuncDef->LogError(TEXT("Function already specified an ExpandEnumAsExec input (%s), but '%s' is also an input parameter. Only one is permitted."), *FirstInputDef->GetName(), *Entry);
 							}
 						}
 					}
@@ -533,7 +533,7 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 		const FString ExperimentalValue(TEXT("Experimental"));
 		if ((InValue != EarlyAccessValue) && (InValue != ExperimentalValue))
 		{
-			FUHTException::Throwf(*this, TEXT("'%s' metadata was '%s' but it must be %s or %s"), *InKey.ToString(), *InValue, *ExperimentalValue, *EarlyAccessValue);
+			Throwf(TEXT("'%s' metadata was '%s' but it must be %s or %s"), *InKey.ToString(), *InValue, *ExperimentalValue, *EarlyAccessValue);
 		}
 	}
 	break;
@@ -545,13 +545,13 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 		{
 			if (!PropDef->IsNumericOrNumericStaticArray() && !PropDef->IsStructOrStructStaticArray())
 			{
-				FUHTException::Throwf(*this, TEXT("'Units' meta data can only be applied to numeric and struct properties"));
+				Throwf(TEXT("'Units' meta data can only be applied to numeric and struct properties"));
 			}
 		}
 
 		if (!FUnitConversion::UnitFromString(*InValue))
 		{
-			FUHTException::Throwf(*this, TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *GetFullName());
+			Throwf(TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *GetFullName());
 		}
 	}
 	break;
@@ -561,7 +561,7 @@ void FUnrealTypeDefinitionInfo::ValidateMetaDataFormat(const FName InKey, ECheck
 		const TCHAR* StrictValue = TEXT("Strict");
 		if (InValue != StrictValue)
 		{
-			FUHTException::Throwf(*this, TEXT("'%s' metadata was '%s' but it must be %s"), *InKey.ToString(), *InValue, *StrictValue);
+			Throwf(TEXT("'%s' metadata was '%s' but it must be %s"), *InKey.ToString(), *InValue, *StrictValue);
 		}
 	}
 	break;
@@ -1749,7 +1749,7 @@ FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindScriptClassOrThrow(c
 		return ResultDef;
 	}
 
-	FUHTException::Throwf(Parser, MoveTemp(ErrorMsg));
+	Parser.Throwf(MoveTemp(ErrorMsg));
 
 	// Unreachable, but compiler will warn otherwise because FUHTException::Throwf isn't declared noreturn
 	return nullptr;
@@ -1872,7 +1872,7 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal()
 	{
 		FString UName = GetNameCPP();
 		FString IName = TEXT("I") + UName.RightChop(1);
-		FUHTException::Throwf(*this, TEXT("UInterface '%s' parsed without a corresponding '%s'"), *UName, *IName);
+		Throwf(TEXT("UInterface '%s' parsed without a corresponding '%s'"), *UName, *IName);
 	}
 
 	FHeaderParser::CheckSparseClassData(*this);
@@ -2032,7 +2032,7 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 		case EClassMetadataSpecifier::DependsOn:
 
-			FUHTException::Throwf(*this, TEXT("The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead."));
+			Throwf(TEXT("The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead."));
 			break;
 
 		case EClassMetadataSpecifier::MinimalAPI:
@@ -2234,7 +2234,7 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 			break;
 
 		default:
-			FUHTException::Throwf(*this, TEXT("Unknown class specifier '%s'"), *PropSpecifier.Key);
+			Throwf(TEXT("Unknown class specifier '%s'"), *PropSpecifier.Key);
 		}
 	}
 	SetClassFlags(ParsedClassFlags);
@@ -2327,7 +2327,7 @@ void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& Decla
 	{
 		if (!HasAnyClassFlags(CLASS_NotPlaceable))
 		{
-			FUHTException::Throwf(*this, TEXT("The 'placeable' specifier is only allowed on classes which have a base class that's marked as not placeable. Classes are assumed to be placeable by default."));
+			Throwf(TEXT("The 'placeable' specifier is only allowed on classes which have a base class that's marked as not placeable. Classes are assumed to be placeable by default."));
 		}
 		ClearClassFlags(CLASS_NotPlaceable);
 		bWantsToBePlaceable = false; // Reset this flag after it's been merged
@@ -2345,21 +2345,21 @@ void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& Decla
 		// don't allow actor classes to be declared editinlinenew
 		if (IsActorClass(*this))
 		{
-			FUHTException::Throwf(*this, TEXT("Invalid class attribute: Creating actor instances via the property window is not allowed"));
+			Throwf(TEXT("Invalid class attribute: Creating actor instances via the property window is not allowed"));
 		}
 	}
 
 	// Make sure both RequiredAPI and MinimalAPI aren't specified
 	if (HasAllClassFlags(CLASS_MinimalAPI | CLASS_RequiredAPI))
 	{
-		FUHTException::Throwf(*this, TEXT("MinimalAPI cannot be specified when the class is fully exported using a MODULENAME_API macro"));
+		Throwf(TEXT("MinimalAPI cannot be specified when the class is fully exported using a MODULENAME_API macro"));
 	}
 
 	// All classes must start with a valid Unreal prefix
 	const FString ExpectedClassName = GetNameWithPrefix();
 	if (DeclaredClassName != ExpectedClassName)
 	{
-		FUHTException::Throwf(*this, TEXT("Class name '%s' is invalid, should be identified as '%s'"), *DeclaredClassName, *ExpectedClassName);
+		Throwf(TEXT("Class name '%s' is invalid, should be identified as '%s'"), *DeclaredClassName, *ExpectedClassName);
 	}
 
 	// This check only works if we already have an object.  This has to be moved to the engine type create code
@@ -2373,7 +2373,7 @@ void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& Decla
 		{
 			if (!HasAnyClassFlags(CLASS_Intrinsic) && EnumHasAnyFlags(InitialEngineClassFlags, CLASS_Native))
 			{
-				FUHTException::Throwf(*this, TEXT("'noexport': Must include CLASS_NoExport in native class declaration"));
+				Throwf(TEXT("'noexport': Must include CLASS_NoExport in native class declaration"));
 			}
 		}
 
@@ -2381,12 +2381,12 @@ void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& Decla
 		{
 			if (HasAnyClassFlags(CLASS_NoExport))
 			{
-				FUHTException::Throwf(*this, TEXT("'abstract': NoExport class missing abstract keyword from class declaration (must change C++ version first)"));
+				Throwf(TEXT("'abstract': NoExport class missing abstract keyword from class declaration (must change C++ version first)"));
 				SetClassFlags(CLASS_Abstract);
 			}
 			else if (IsNative())
 			{
-				FUHTException::Throwf(*this, TEXT("'abstract': missing abstract keyword from class declaration - class will no longer be exported as abstract"));
+				Throwf(TEXT("'abstract': missing abstract keyword from class declaration - class will no longer be exported as abstract"));
 			}
 		}
 	}
@@ -2403,12 +2403,12 @@ void FUnrealClassDefinitionInfo::SetAndValidateConfigName()
 			FUnrealClassDefinitionInfo* SuperClassDef = GetSuperClass();
 			if (!SuperClassDef)
 			{
-				FUHTException::Throwf(*this, TEXT("Cannot inherit config filename: %s has no super class"), *GetName());
+				Throwf(TEXT("Cannot inherit config filename: %s has no super class"), *GetName());
 			}
 
 			if (SuperClassDef->GetClassConfigName() == NAME_None)
 			{
-				FUHTException::Throwf(*this, TEXT("Cannot inherit config filename: parent class %s is not marked config."), *SuperClassDef->GetPathName());
+				Throwf(TEXT("Cannot inherit config filename: parent class %s is not marked config."), *SuperClassDef->GetPathName());
 			}
 		}
 		else
@@ -2432,11 +2432,11 @@ void FUnrealClassDefinitionInfo::SetAndValidateWithinClass()
 		FUnrealClassDefinitionInfo* RequiredWithinClassDef = FUnrealClassDefinitionInfo::FindClass(*ClassWithinStr);
 		if (!RequiredWithinClassDef)
 		{
-			FUHTException::Throwf(*this, TEXT("Within class '%s' not found."), *ClassWithinStr);
+			Throwf(TEXT("Within class '%s' not found."), *ClassWithinStr);
 		}
 		if (RequiredWithinClassDef->IsChildOf(*GUInterfaceDef))
 		{
-			FUHTException::Throwf(*this, TEXT("Classes cannot be 'within' interfaces"));
+			Throwf(TEXT("Classes cannot be 'within' interfaces"));
 		}
 		else if (ClassWithin == NULL || ClassWithin == GUObjectDef || RequiredWithinClassDef->IsChildOf(*ClassWithin))
 		{
@@ -2444,7 +2444,7 @@ void FUnrealClassDefinitionInfo::SetAndValidateWithinClass()
 		}
 		else if (ClassWithin != RequiredWithinClassDef)
 		{
-			FUHTException::Throwf(*this, TEXT("%s must be within %s, not %s"), *GetPathName(), *ClassWithin->GetPathName(), *RequiredWithinClassDef->GetPathName());
+			Throwf(TEXT("%s must be within %s, not %s"), *GetPathName(), *ClassWithin->GetPathName(), *RequiredWithinClassDef->GetPathName());
 		}
 	}
 	else
@@ -2457,7 +2457,7 @@ void FUnrealClassDefinitionInfo::SetAndValidateWithinClass()
 
 	if (!ClassWithin->IsChildOf(*ExpectedWithinDef))
 	{
-		FUHTException::Throwf(*this, TEXT("Parent class declared within '%s'.  Cannot override within class with '%s' since it isn't a child"), *ExpectedWithinDef->GetName(), *ClassWithin->GetName());
+		Throwf(TEXT("Parent class declared within '%s'.  Cannot override within class with '%s' since it isn't a child"), *ExpectedWithinDef->GetName(), *ClassWithin->GetName());
 	}
 }
 

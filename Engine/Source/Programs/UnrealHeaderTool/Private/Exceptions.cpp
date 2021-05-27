@@ -17,23 +17,7 @@
 
 #include <atomic>
 
-FUHTException::FUHTException(ECompilationResult::Type InResult, FString&& InFilename, int32 InLine, FString&& InMessage)
-	: Result(InResult)
-	, Message(MoveTemp(InMessage))
-	, Filename(MoveTemp(InFilename))
-	, Line(InLine)
-{
-}
-
-FUHTException::FUHTException(ECompilationResult::Type InResult, const FUnrealSourceFile& SourceFile, int32 InLine, FString&& InMessage)
-	: Result(InResult)
-	, Message(MoveTemp(InMessage))
-	, Filename(SourceFile.GetFilename())
-	, Line(InLine)
-{
-}
-
-FUHTException::FUHTException(ECompilationResult::Type InResult, const FUHTExceptionContext& InContext, FString&& InMessage)
+FUHTException::FUHTException(ECompilationResult::Type InResult, const FUHTMessageProvider& InContext, FString&& InMessage)
 	: Result(InResult)
 	, Message(MoveTemp(InMessage))
 	, Filename(InContext.GetFilename())
@@ -70,6 +54,30 @@ namespace UE::UnrealHeaderTool::Exceptions::Private
 		FResults::SetResult(InResult);
 	}
 
+	void LogErrorOuter(ECompilationResult::Type InResult, const FString& InFilename, int32 Line, FString&& Message)
+	{
+		using namespace UE::UnrealHeaderTool::Exceptions::Private;
+
+		FString Filename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*InFilename);
+
+		if (IsInGameThread())
+		{
+			LogErrorInternal(InResult, Filename, Line, Message);
+		}
+		else
+		{
+			auto LogWarningTask = [Filename = MoveTemp(Filename), Line, Message = MoveTemp(Message), InResult]()
+			{
+				LogErrorInternal(InResult, Filename, Line, Message);
+			};
+
+			FGraphEventRef EventRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LogWarningTask), TStatId(), nullptr, ENamedThreads::GameThread);
+
+			FScopeLock Lock(&ErrorTasksCS);
+			ErrorTasks.Add(EventRef);
+		}
+	}
+
 	void LogWarningInternal(const FString& Filename, int32 Line, const FString& Message)
 	{
 		TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
@@ -91,81 +99,38 @@ namespace UE::UnrealHeaderTool::Exceptions::Private
 	}
 }
 
-void FResults::LogError(FString&& Filename, int32 Line, const FString& Message, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
+void FResults::LogError(const FUHTMessageProvider& Context, const TCHAR* ErrorMsg, ECompilationResult::Type InResult)
 {
 	using namespace UE::UnrealHeaderTool::Exceptions::Private;
-
-	if (IsInGameThread())
-	{
-		LogErrorInternal(InResult, Filename, Line, Message);
-	}
-	else
-	{
-		auto LogExceptionTask = [Filename = MoveTemp(Filename), Line, Message, InResult]()
-		{
-			LogErrorInternal(InResult, Filename, Line, Message);
-		};
-
-		FGraphEventRef EventRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LogExceptionTask), TStatId(), nullptr, ENamedThreads::GameThread);
-
-		FScopeLock Lock(&ErrorTasksCS);
-		ErrorTasks.Add(EventRef);
-	}
+	LogErrorOuter(InResult, Context.GetFilename(), Context.GetLineNumber(), FString(ErrorMsg));
 }
 
 void FResults::LogError(const FUHTException& Ex)
 {
-	FString AbsFilename;
-	const TCHAR* Filename = Ex.GetFilename();
-	if (Filename != nullptr)
-	{
-		AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(Ex.GetFilename());
-	}
-	LogError(MoveTemp(AbsFilename), Ex.GetLine(), Ex.GetMessage());
+	using namespace UE::UnrealHeaderTool::Exceptions::Private;
+	LogErrorOuter(Ex.GetResult(), Ex.GetFilename(), Ex.GetLine(), FString(Ex.GetMessage()));
 }
 
-void FResults::LogError(const FUnrealSourceFile& SourceFile, const FUHTException& Ex)
+void FResults::LogError(const TCHAR* Message)
 {
-	FString AbsFilename;
-	const TCHAR* Filename = Ex.GetFilename();
-	if (Filename == nullptr)
-	{
-		Filename = *SourceFile.GetFilename();
-	}
-	if (Filename != nullptr)
-	{
-		AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(Ex.GetFilename());
-	}
-	LogError(MoveTemp(AbsFilename), Ex.GetLine(), Ex.GetMessage());
+	using namespace UE::UnrealHeaderTool::Exceptions::Private;
+	LogErrorOuter(ECompilationResult::Type::OtherCompilationError, TEXT("UnknownFile"), 1, FString(Message));
 }
 
-void FResults::LogError(const FUnrealSourceFile& SourceFile, int32 Line, const TCHAR* ErrorMsg, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
-{
-	FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*SourceFile.GetFilename());
-	LogError(MoveTemp(AbsFilename), Line, ErrorMsg, InResult);
-}
-
-void FResults::LogError(const FUHTExceptionContext& Context, const TCHAR* ErrorMsg, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
-{
-	LogError(Context.GetFilename(), Context.GetLineNumber(), ErrorMsg, InResult);
-}
-
-void FResults::LogError(const TCHAR* ErrorMsg, ECompilationResult::Type InResult/* = ECompilationResult::OtherCompilationError*/)
-{
-	LogError(TEXT(""), 1, ErrorMsg, InResult);
-}
-
-void FResults::LogWarning(FString&& Filename, int32 Line, const FString& Message)
+void FResults::LogWarning(const FUHTMessageProvider& Context, const TCHAR* ErrorMsg)
 {
 	using namespace UE::UnrealHeaderTool::Exceptions::Private;
 
+	FString Filename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Context.GetFilename());
+	int32 Line = Context.GetLineNumber();
+
 	if (IsInGameThread())
 	{
-		LogWarningInternal(Filename, Line, Message);
+		LogWarningInternal(Filename, Line, ErrorMsg);
 	}
 	else
 	{
-		auto LogWarningTask = [Filename = MoveTemp(Filename), Line, Message]()
+		auto LogWarningTask = [Filename = MoveTemp(Filename), Line, Message = FString(ErrorMsg)]()
 		{
 			LogWarningInternal(Filename, Line, Message);
 		};
@@ -175,11 +140,6 @@ void FResults::LogWarning(FString&& Filename, int32 Line, const FString& Message
 		FScopeLock Lock(&ErrorTasksCS);
 		ErrorTasks.Add(EventRef);
 	}
-}
-
-void FResults::LogWarning(const FUHTExceptionContext& Context, const TCHAR* ErrorMsg)
-{
-	LogWarning(Context.GetFilename(), Context.GetLineNumber(), ErrorMsg);
 }
 
 void FResults::WaitForErrorTasks()

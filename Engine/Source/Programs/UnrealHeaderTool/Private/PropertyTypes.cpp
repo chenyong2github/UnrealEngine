@@ -15,7 +15,7 @@ extern FUnrealClassDefinitionInfo* GUObjectDef;
 extern FUnrealClassDefinitionInfo* GUClassDef;
 extern FUnrealClassDefinitionInfo* GUInterfaceDef;
 
-void AddEditInlineMetaData(TMap<FName, FString>& MetaData);
+extern void AddEditInlineMetaData(TMap<FName, FString>& MetaData);
 
 // Following is the relationship between the property types
 //
@@ -204,7 +204,7 @@ namespace
 		case CPT_Delegate:					return FuncDispatch<FPropertyTypeTraitsDelegate>()(PropDef, std::forward<Args>(args)...);
 		case CPT_MulticastDelegate:			return FuncDispatch<FPropertyTypeTraitsMulticastDelegate>()(PropDef, std::forward<Args>(args)...);
 		case CPT_FieldPath:					return FuncDispatch<FPropertyTypeTraitsFieldPath>()(PropDef, std::forward<Args>(args)...);
-		default:							FUHTException::Throwf(PropDef, TEXT("Unknown property type %i"), (uint8)PropDef.GetPropertyBase().Type);
+		default:							PropDef.Throwf(TEXT("Unknown property type %i"), (uint8)PropDef.GetPropertyBase().Type);
 		}
 	}
 
@@ -977,7 +977,7 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 		}
 		if (EnumDef->HasMetaData(TEXT("Hidden"), EnumEntryIndex))
 		{
-			FUHTException::Throwf(PropDef, TEXT("Hidden enum entries cannot be used as default values: %s \"%s\" "), *PropDef.GetName(), *CppForm);
+			PropDef.Throwf(TEXT("Hidden enum entries cannot be used as default values: %s \"%s\" "), *PropDef.GetName(), *CppForm);
 		}
 		return true;
 	}
@@ -1646,7 +1646,7 @@ struct FPropertyTypeTraitsText : public FPropertyTypeTraitsBase
 		// These should be replaced with INVTEXT as FText::FromString can produce inconsistent keys
 		if (FDefaultValueHelper::StringFromCppString(CppForm, TEXT("FText::FromString"), OutForm))
 		{
-			UE_LOG_WARNING_UHT(PropDef, TEXT("FText::FromString should be replaced with INVTEXT for default parameter values"));
+			PropDef.LogWarning(TEXT("FText::FromString should be replaced with INVTEXT for default parameter values"));
 			return true;
 		}
 
@@ -1672,7 +1672,7 @@ struct FPropertyTypeTraitsText : public FPropertyTypeTraitsBase
 			{
 				if (ParsedTextNamespace.GetValue().Equals(UHTDummyNamespace))
 				{
-					FUHTException::Throwf(PropDef, TEXT("LOCTEXT default parameter values are not supported; use NSLOCTEXT instead: %s \"%s\" "), *PropDef.GetName(), *CppForm);
+					PropDef.Throwf(TEXT("LOCTEXT default parameter values are not supported; use NSLOCTEXT instead: %s \"%s\" "), *PropDef.GetName(), *CppForm);
 				}
 			}
 		}
