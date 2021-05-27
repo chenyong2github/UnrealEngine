@@ -807,9 +807,12 @@ void FOptimusEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& P
 						PropertyChangedEvent.MemberProperty,
 						PropertyChangedEvent.Property);
 
-					if (UOptimusEditorGraphNode* GraphNode = EditorGraph->FindGraphNodeFromModelNode(ModelNode))
+					if (ModelPin)
 					{
-						GraphNode->SynchronizeGraphPinValueWithModelPin(ModelPin);
+						if (UOptimusEditorGraphNode* GraphNode = EditorGraph->FindGraphNodeFromModelNode(ModelNode))
+						{
+							GraphNode->SynchronizeGraphPinValueWithModelPin(ModelPin);
+						}
 					}
 				}
 			}

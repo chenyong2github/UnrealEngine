@@ -125,12 +125,21 @@ protected:
 	void AddSubPin(
 		UOptimusNodePin* InSubPin);
 
-private:
-	uint8 *GetPropertyValuePtr() const;
+	bool SetDataType(
+	    FOptimusDataTypeRef InDataType
+		);
+
+	bool SetName(
+	    FName InName);
 
 	void Notify(EOptimusGraphNotifyType InNotifyType);
 
+private:
+	uint8 *GetPropertyValuePtr() const;
+
 	UOptimusActionStack* GetActionStack() const;
+
+	bool VerifyValue(const FString& InStringValue) const;
 
 	UPROPERTY()
 	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;

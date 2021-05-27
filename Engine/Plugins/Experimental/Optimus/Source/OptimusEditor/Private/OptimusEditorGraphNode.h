@@ -22,9 +22,11 @@ public:
 	UOptimusNodePin* FindModelPinFromGraphPin(const UEdGraphPin* InGraphPin);
 	UEdGraphPin* FindGraphPinFromModelPin(const UOptimusNodePin* InModelPin);
 
-	/// Synchronize the stored value on the graph pin with the value stored on the node. 
+	/// Synchronize the stored name/value/type on the graph pin with the value stored on the node. 
 	/// If the pin has sub-pins, the value update is done recursively.
+	void SynchronizeGraphPinNameWithModelPin(const UOptimusNodePin* InModelPin);
 	void SynchronizeGraphPinValueWithModelPin(const UOptimusNodePin* InModelPin);
+	void SynchronizeGraphPinTypeWithModelPin(const UOptimusNodePin* InModelPin);
 
 	// UEdGraphNode overrides
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -35,19 +37,30 @@ public:
 	UOptimusNode *ModelNode = nullptr;
 
 protected:
+	friend class UOptimusEditorGraph;
 	friend class SOptimusEditorGraphNode;
 
 	const TArray<UOptimusNodePin*>* GetTopLevelInputPins() const { return &TopLevelInputPins; }
 	const TArray<UOptimusNodePin*>* GetTopLevelOutputPins() const { return &TopLevelOutputPins; }
 
+	/** Called when a model pin is added after the node creation */
+	bool ModelPinAdded(
+	    const UOptimusNodePin* InModelPin
+		);
+
+	/** Called when a model pin is being removed */
+	bool ModelPinRemoved(
+	    const UOptimusNodePin* InModelPin
+		);
+
 private:
-	void CreateGraphPinFromModelPin(
+	void UpdateTopLevelPins();
+
+	bool CreateGraphPinFromModelPin(
 		const UOptimusNodePin* InModelPin,
 		EEdGraphPinDirection InDirection, 
-		UEdGraphPin *InParentPin = nullptr
-	);
+	    UEdGraphPin* InParentPin = nullptr);
 
-	void UpdateTopLevelPins();
 
 	TMap<FName, UOptimusNodePin*> PathToModelPinMap;
 	TMap<FName, UEdGraphPin*> PathToGraphPinMap;

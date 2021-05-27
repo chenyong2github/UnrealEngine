@@ -230,9 +230,15 @@ FLinearColor UOptimusEditorGraphSchema::GetColorFromPinType(const FEdGraphPinTyp
 	// UOptimusEditorGraphSchema::GetPinTypeFromDataType.
 	FOptimusDataTypeHandle DataType = FOptimusDataTypeRegistry::Get().FindType(InPinType.PinSubCategory);
 
+	// Unset data types get black pins.
+	if (!DataType.IsValid())
+	{
+		return FLinearColor::Black;
+	}
+
 	// If the data type has custom color, use that. Otherwise fall back on the K2 schema
 	// since we want to be compatible with known types (which also have preferences for them).
-	if (DataType.IsValid() && DataType->bHasCustomPinColor)
+	if (DataType->bHasCustomPinColor)
 	{
 		return DataType->CustomPinColor;
 	}

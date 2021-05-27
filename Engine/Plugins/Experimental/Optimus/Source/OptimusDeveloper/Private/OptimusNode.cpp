@@ -271,6 +271,69 @@ void UOptimusNode::CreatePins()
 }
 
 
+UOptimusNodePin* UOptimusNode::AddPin(
+	FName InName, 
+	EOptimusNodePinDirection InDirection, 
+	EOptimusNodePinStorageType InStorageType, 
+	FOptimusDataTypeRef InDataType
+	)
+{
+	UOptimusNodePin* Pin = CreatePinFromDataType(InName, InDirection, InStorageType, InDataType);
+
+	if (Pin)
+	{
+		Pin->Notify(EOptimusGraphNotifyType::PinAdded);
+	}
+
+	return Pin;
+}
+
+
+bool UOptimusNode::SetPinDataType(
+	UOptimusNodePin* InPin, 
+	FOptimusDataTypeRef InDataType
+	)
+{
+	// We can currently only change pin types if they have no underlying property.
+	if (ensure(InPin) && ensure(InDataType.IsValid()) && 
+	    ensure(InPin->GetPropertyFromPin() == nullptr))
+	{
+		return InPin->SetDataType(InDataType);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
+bool UOptimusNode::SetPinName(UOptimusNodePin* InPin, FName InNewName)
+{
+	// FIXME: Namespace check?
+	if (ensure(InPin) && InNewName != NAME_None)
+	{
+		const FName OldName = InPin->GetFName();
+		const bool bIsExpanded = ExpandedPins.Contains(OldName);
+
+		if (InPin->SetName(InNewName))
+		{
+			// Flush the lookup table
+			CachedPinLookup.Reset();
+
+			if (bIsExpanded)
+			{
+				ExpandedPins.Remove(OldName);
+				ExpandedPins.Add(InNewName);
+			}
+			return true;
+		}
+	}
+
+	// No success.
+	return false;
+}
+
+
 UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
     FName InName,
     EOptimusNodePinDirection InDirection,

@@ -78,6 +78,22 @@ void UOptimusEditorGraph::Reset()
 }
 
 
+void UOptimusEditorGraph::RefreshVisualNode(UOptimusEditorGraphNode* InGraphNode)
+{
+	// Ensure that SOptimusEditorGraphNode captures the latest.
+	InGraphNode->UpdateTopLevelPins();
+
+	// We send an AddNode notif to UEdGraph which magically removes the node
+	// if it already exists and recreates it.
+	FEdGraphEditAction EditAction;
+	EditAction.Graph = this;
+	EditAction.Action = GRAPHACTION_AddNode;
+	EditAction.bUserInvoked = false;
+	EditAction.Nodes.Add(InGraphNode);
+	NotifyGraphChanged(EditAction);	
+}
+
+
 const FSlateBrush* UOptimusEditorGraph::GetGraphTypeIcon(UOptimusNodeGraph* InModelGraph)
 {
 	// FIXME: Need icon types.
@@ -137,8 +153,8 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 				AddGraphNodeFromModelNode(ModelNode);
 			}
+		    break;
 		}
-		break;
 
 		case EOptimusGraphNotifyType::NodeRemoved:
 		{
@@ -153,8 +169,8 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 				GraphNode->ModelNode = nullptr;
 			}
+		    break;
 		}
-		break;
 
 		case EOptimusGraphNotifyType::LinkAdded:
 		case EOptimusGraphNotifyType::LinkRemoved:
@@ -181,13 +197,11 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 					}
 				}
 			}
+		    break;
 		}
-		break;
 
 		case EOptimusGraphNotifyType::NodeDisplayNameChanged:
-		{
 			ensure(false);
-		}
 		break;
 
 		case EOptimusGraphNotifyType::NodePositionChanged:
@@ -200,8 +214,39 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 				GraphNode->NodePosX = FMath::RoundToInt(ModelNode->GetGraphPosition().X);
 				GraphNode->NodePosY = FMath::RoundToInt(ModelNode->GetGraphPosition().Y);
 			}
+		    break;
+		}
+
+	    case EOptimusGraphNotifyType::PinAdded:
+		{
+		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+		    if (ensure(ModelPin))
+		    {
+			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+
+			    if (ensure(GraphNode))
+			    {
+					GraphNode->ModelPinAdded(ModelPin);
+				    RefreshVisualNode(GraphNode);
+			    }
 		}
 		break;
+		}
+	
+		case EOptimusGraphNotifyType::PinRenamed:
+		{
+		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+		    if (ensure(ModelPin))
+		    {
+			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+
+			    if (ensure(GraphNode))
+			    {
+				    GraphNode->SynchronizeGraphPinNameWithModelPin(ModelPin);
+			    }
+		    }
+			break;
+		}
 
 		case EOptimusGraphNotifyType::PinValueChanged:
 		{
@@ -218,8 +263,26 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 				    GraphNode->SynchronizeGraphPinValueWithModelPin(ModelPin);
 				}
 			}
+		    break;
+		}
+
+		case EOptimusGraphNotifyType::PinTypeChanged: 
+		{
+		    // The pin's value was changed on the model pin itself. The model pin has already
+		    // updated the stored node value. We just need to ensure that the graph node shows
+		    // the same value (which may now include clamping and sanitizing).
+		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+		    if (ensure(ModelPin))
+		    {
+			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+
+			    if (ensure(GraphNode))
+			    {
+				    GraphNode->SynchronizeGraphPinTypeWithModelPin(ModelPin);
+			    }
 		}
 		break;
+	    }
 	}
 }
 
