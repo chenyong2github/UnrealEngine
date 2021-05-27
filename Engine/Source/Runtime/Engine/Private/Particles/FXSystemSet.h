@@ -25,7 +25,7 @@ public:
 	TArray<FFXSystemInterface*> FXSystems;
 
 	virtual FFXSystemInterface* GetInterface(const FName& InName) override;
-	virtual void Tick(float DeltaSeconds) override;
+	virtual void Tick(UWorld* World, float DeltaSeconds) override;
 
 #if WITH_EDITOR
 	virtual void Suspend() override;

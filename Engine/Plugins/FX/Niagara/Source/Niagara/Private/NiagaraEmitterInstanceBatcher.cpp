@@ -6,8 +6,11 @@
 #include "CanvasTypes.h"
 #include "ClearQuad.h"
 #include "Engine/Canvas.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/World.h"
 #include "GPUSort.h"
 #include "Misc/ScopeExit.h"
+
 #include "NiagaraDataInterfaceRW.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
@@ -405,13 +408,23 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::Tick(float DeltaTime)
+void NiagaraEmitterInstanceBatcher::Tick(UWorld* World, float DeltaTime)
 {
+	bool bFlushTicks = false;
+
+	if ((World != nullptr) && World->IsGameWorld())
+	{
+		if (UGameViewportClient* GameViewport = World->GetGameViewport())
+		{
+			bFlushTicks |= GameViewport->bDisableWorldRendering;
+		}
+	}
+
 	check(IsInGameThread());
 	ENQUEUE_RENDER_COMMAND(NiagaraPumpBatcher)(
-		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
+		[RT_NiagaraBatcher=this, RT_bFlushTicks=bFlushTicks](FRHICommandListImmediate& RHICmdList)
 		{
-			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, false);
+			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, RT_bFlushTicks);
 			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool();
 		}
 	);

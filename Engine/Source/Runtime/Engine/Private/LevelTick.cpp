@@ -1733,7 +1733,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FXSystem);
 		SCOPE_TIME_GUARD_MS(TEXT("UWorld::Tick - FX"), 5);
-		FXSystem->Tick(DeltaSeconds);
+		FXSystem->Tick(this, DeltaSeconds);
 	}
 
 #if WITH_EDITOR

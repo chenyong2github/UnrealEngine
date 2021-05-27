@@ -170,7 +170,7 @@ public:
 	 * Tick the effects system.
 	 * @param DeltaSeconds The number of seconds by which to step simulations forward.
 	 */
-	virtual void Tick(float DeltaSeconds) = 0;
+	virtual void Tick(UWorld* World, float DeltaSeconds) = 0;
 
 #if WITH_EDITOR
 	/**
