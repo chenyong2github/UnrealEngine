@@ -23,7 +23,12 @@
 
 #if WITH_EDITOR
 
+#include "DerivedDataBuild.h"
+#include "DerivedDataBuildAction.h"
+#include "DerivedDataBuildOutput.h"
+#include "DerivedDataBuildSession.h"
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataPayload.h"
 #include "Engine/TextureCube.h"
 #include "Engine/VolumeTexture.h"
 #include "GenericPlatform/GenericPlatformMath.h"
@@ -32,7 +37,9 @@
 #include "Interfaces/ITextureFormat.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
+#include "Misc/FeedbackContext.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "TextureDerivedDataBuildUtils.h"
 #include "VT/VirtualTextureDataBuilder.h"
 
 static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnLoad(
@@ -48,6 +55,8 @@ static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnSave(
 	TEXT("Validates that VT data contains no compression errors before saving to DDC")
 	TEXT("This is slow, but allows debugging corrupt VT data")
 );
+
+void GetTextureDerivedDataKeyFromSuffix(const FString& KeySuffix, FString& OutKey);
 
 class FTextureStatusMessageContext : public FScopedSlowTask
 {
@@ -246,6 +255,78 @@ void FTextureSourceData::GetAsyncSourceMips(IImageWrapperModule* InImageWrapper)
 		}
 	}
 }
+void FTextureCacheDerivedDataWorker::ConsumeBuildFunctionOutput(const UE::DerivedData::FBuildOutput& BuildOutput, const FString& TexturePath, bool bReplaceExistingDDC)
+{
+	using namespace UE::DerivedData;
+
+	FSharedBuffer PrimaryData;
+	{
+		FPayloadId PrimaryPayloadId = FPayloadId::FromName(TEXT("Texture"));
+		const FPayload& PrimaryPayload = BuildOutput.GetPayload(PrimaryPayloadId);
+		if (PrimaryPayload.IsNull())
+		{
+			UE_LOG(LogTexture, Warning, TEXT("Texture build function missing primary output payload when building %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+			return;
+		}
+		PrimaryData = PrimaryPayload.GetData().Decompress();
+		TArrayView<const uint8> PrimaryDataView((const uint8*)PrimaryData.GetData(), PrimaryData.GetSize());
+
+		FMemoryReaderView Ar(PrimaryDataView, /*bIsPersistent=*/ true);
+		DerivedData->Serialize(Ar, NULL);
+	}
+
+	if (DerivedData->Mips.Num())
+	{
+		const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
+
+		for (int32 MipIndex = 0; MipIndex < DerivedData->Mips.Num(); ++MipIndex)
+		{
+			FTexture2DMipMap& Mip = DerivedData->Mips[MipIndex];
+			if (Mip.DerivedDataKey.IsEmpty())
+			{
+				break;
+			}
+
+			TStringBuilder<32> PayloadName;
+			PayloadName << "Mip" << MipIndex;
+
+			FPayloadId MipPayloadId = FPayloadId::FromName(*PayloadName);
+			const FPayload& MipPayload = BuildOutput.GetPayload(MipPayloadId);
+			if (MipPayload.IsNull())
+			{
+				UE_LOG(LogTexture, Warning, TEXT("Texture build function missing Mip%d output payload when building %s derived data for %s"), MipIndex, *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+				return;
+			}
+			FSharedBuffer MipData = MipPayload.GetData().Decompress();
+			TArrayView<const uint8> MipDataView((const uint8*)MipData.GetData(), MipData.GetSize());
+			GetDerivedDataCacheRef().Put(*Mip.DerivedDataKey, MipDataView, TexturePath, bReplaceExistingDDC);
+
+			if (bInlineMips && (MipIndex >= (int32)BuildSettingsPerLayer[0].LODBiasWithCinematicMips))
+			{
+				int32 MipSize = 0;
+				FMemoryReaderView Ar(MipDataView, /*bIsPersistent=*/ true);
+				Ar << MipSize;
+
+				Mip.BulkData.Lock(LOCK_READ_WRITE);
+				void* MipAllocData = Mip.BulkData.Realloc(MipSize);
+				Ar.Serialize(MipAllocData, MipSize);
+				Mip.BulkData.Unlock();
+				Mip.DerivedDataKey.Empty();
+			}
+		}
+
+		FString DerivedDataKey;
+		GetTextureDerivedDataKeyFromSuffix(KeySuffix, DerivedDataKey);
+		TArrayView<const uint8> PrimaryDataView((const uint8*)PrimaryData.GetData(), PrimaryData.GetSize());
+		GetDerivedDataCacheRef().Put(*DerivedDataKey, PrimaryDataView, TexturePath, bReplaceExistingDDC);
+
+		bSucceeded = true;
+	}
+	else
+	{
+		UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+	}
+}
 
 void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 {
@@ -345,72 +426,117 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 
 		BuildExporter.ExportTextureBuild(Texture, BuildSettingsPerLayer[0], 0, NUM_INLINE_DERIVED_MIPS);
 
-		// Compress the texture.
-		TArray<FCompressedImage2D> CompressedMips;
-		if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
-			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
-			BuildSettingsPerLayer[0],
-			CompressedMips,
-			OptData.NumMipsInTail,
-			OptData.ExtData))
+		if (!BuildFunctionName.IsEmpty())
 		{
-			check(CompressedMips.Num());
+			using namespace UE::DerivedData;
+			// Compress the texture by calling the DDC2 build function.  May be executed locally or remotely.
+			// The FBuildAction built here will be superceded by an FBuildDefinition in the future that will
+			// replace both the cache query/fill as well as execution.
+			IBuild& Build = GetDerivedDataBuildRef();
+			FString TexturePath = Texture.GetPathName();
+			FBuildActionBuilder ActionBuilder = Build.CreateAction(TexturePath, BuildFunctionName);
 
-			// Build the derived data.
-			const int32 MipCount = CompressedMips.Num();
-			for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
+			ComposeTextureBuildFunctionConstants(KeySuffix, Texture, BuildSettingsPerLayer[0], 0, NUM_INLINE_DERIVED_MIPS, 
+				[&ActionBuilder] (FStringView Key, const FCbObject& Value)
+				{
+					ActionBuilder.AddConstant(Key, Value);
+				});
+
+			for (const FBuildInputRecord& InputRecord : BuildInputRecords)
 			{
-				const FCompressedImage2D& CompressedImage = CompressedMips[MipIndex];
-				FTexture2DMipMap* NewMip = new FTexture2DMipMap();
-				DerivedData->Mips.Add(NewMip);
-				NewMip->SizeX = CompressedImage.SizeX;
-				NewMip->SizeY = CompressedImage.SizeY;
-				NewMip->SizeZ = CompressedImage.SizeZ;
-				NewMip->FileRegionType = FFileRegion::SelectType(EPixelFormat(CompressedImage.PixelFormat));
-				check(NewMip->SizeZ == 1 || BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray); // Only volume & arrays can have SizeZ != 1
-				NewMip->BulkData.Lock(LOCK_READ_WRITE);
-				check(CompressedImage.RawData.GetTypeSize() == 1);
-				void* NewMipData = NewMip->BulkData.Realloc(CompressedImage.RawData.Num());
-				FMemory::Memcpy(NewMipData, CompressedImage.RawData.GetData(), CompressedImage.RawData.Num());
-				NewMip->BulkData.Unlock();
-
-				if (MipIndex == 0)
-				{
-					DerivedData->SizeX = CompressedImage.SizeX;
-					DerivedData->SizeY = CompressedImage.SizeY;
-					DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
-					DerivedData->SetNumSlices(BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1);
-					DerivedData->SetIsCubemap(BuildSettingsPerLayer[0].bCubemap);
-				}
-				else
-				{
-					check(CompressedImage.PixelFormat == DerivedData->PixelFormat);
-				}
+				ActionBuilder.AddInput(InputRecord.Id, InputRecord.RawHash, InputRecord.RawSize);
 			}
 
-			DerivedData->SetOptData(OptData);
+			FBuildSession Session = Build.CreateSession(TexturePath, nullptr);
+			Session.BuildAction(ActionBuilder.Build(), InputsBuilder.Build(), EBuildPolicy::Default, EPriority::Blocking,
+				[this, &TexturePath, bReplaceExistingDDC] (FBuildActionCompleteParams&& Params)
+				{
+					#if !NO_LOGGING
+					Params.Output.IterateDiagnostics([this, &TexturePath] (const FBuildDiagnostic& Diagnostic)
+						{
+							if (GWarn)
+							{
+								FName CategoryName(Diagnostic.Category);
+								GWarn->Log(CategoryName, Diagnostic.Level == EBuildDiagnosticLevel::Error ? ELogVerbosity::Error : ELogVerbosity::Warning, *FString(Diagnostic.Message));
+							}
+						});
+					#endif
 
-			BuildExporter.ExportTextureOutput(*DerivedData, BuildSettingsPerLayer[0]);
-			
-			// Store it in the cache.
-			// @todo: This will remove the streaming bulk data, which we immediately reload below!
-			// Should ideally avoid this redundant work, but it only happens when we actually have 
-			// to build the texture, which should only ever be once.
-			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), BuildSettingsPerLayer[0].bCubemap || (BuildSettingsPerLayer[0].bVolume && !GSupportsVolumeTextureStreaming) || (BuildSettingsPerLayer[0].bTextureArray && !GSupportsTexture2DArrayStreaming), bReplaceExistingDDC);
-		}
-
-		if (DerivedData->Mips.Num())
-		{
-			const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
-			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
-			if (!bSucceeded)
-			{
-				UE_LOG(LogTexture, Display, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *Texture.GetPathName());
-			}
+					if (Params.Status == EStatus::Ok)
+					{
+						ConsumeBuildFunctionOutput(Params.Output, TexturePath, bReplaceExistingDDC);
+					}
+				}).Wait();
 		}
 		else
 		{
-			UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+			// Compress the texture by calling texture compressor directly.
+			TArray<FCompressedImage2D> CompressedMips;
+			if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
+				((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
+				BuildSettingsPerLayer[0],
+				CompressedMips,
+				OptData.NumMipsInTail,
+				OptData.ExtData))
+			{
+				check(CompressedMips.Num());
+
+				// Build the derived data.
+				const int32 MipCount = CompressedMips.Num();
+				for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
+				{
+					const FCompressedImage2D& CompressedImage = CompressedMips[MipIndex];
+					FTexture2DMipMap* NewMip = new FTexture2DMipMap();
+					DerivedData->Mips.Add(NewMip);
+					NewMip->SizeX = CompressedImage.SizeX;
+					NewMip->SizeY = CompressedImage.SizeY;
+					NewMip->SizeZ = CompressedImage.SizeZ;
+					NewMip->FileRegionType = FFileRegion::SelectType(EPixelFormat(CompressedImage.PixelFormat));
+					check(NewMip->SizeZ == 1 || BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray); // Only volume & arrays can have SizeZ != 1
+					NewMip->BulkData.Lock(LOCK_READ_WRITE);
+					check(CompressedImage.RawData.GetTypeSize() == 1);
+					void* NewMipData = NewMip->BulkData.Realloc(CompressedImage.RawData.Num());
+					FMemory::Memcpy(NewMipData, CompressedImage.RawData.GetData(), CompressedImage.RawData.Num());
+					NewMip->BulkData.Unlock();
+
+					if (MipIndex == 0)
+					{
+						DerivedData->SizeX = CompressedImage.SizeX;
+						DerivedData->SizeY = CompressedImage.SizeY;
+						DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
+						DerivedData->SetNumSlices(BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1);
+						DerivedData->SetIsCubemap(BuildSettingsPerLayer[0].bCubemap);
+					}
+					else
+					{
+						check(CompressedImage.PixelFormat == DerivedData->PixelFormat);
+					}
+				}
+
+				DerivedData->SetOptData(OptData);
+
+				BuildExporter.ExportTextureOutput(*DerivedData, BuildSettingsPerLayer[0]);
+				
+				// Store it in the cache.
+				// @todo: This will remove the streaming bulk data, which we immediately reload below!
+				// Should ideally avoid this redundant work, but it only happens when we actually have 
+				// to build the texture, which should only ever be once.
+				this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), BuildSettingsPerLayer[0].bCubemap || (BuildSettingsPerLayer[0].bVolume && !GSupportsVolumeTextureStreaming) || (BuildSettingsPerLayer[0].bTextureArray && !GSupportsTexture2DArrayStreaming), bReplaceExistingDDC);
+			}
+
+			if (DerivedData->Mips.Num())
+			{
+				const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
+				bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
+				if (!bSucceeded)
+				{
+					UE_LOG(LogTexture, Display, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *Texture.GetPathName());
+				}
+			}
+			else
+			{
+				UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+			}
 		}
 	}
 }
@@ -426,6 +552,7 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	, ImageWrapper(nullptr)
 	, DerivedData(InDerivedData)
 	, Texture(*InTexture)
+	, InputsBuilder(GetDerivedDataBuildRef().CreateInputs(InTexture->GetPathName()))
 	, CacheFlags(InCacheFlags)
 	, RequiredMemoryEstimate(InTexture->GetBuildRequiredMemory())
 	, bSucceeded(false)
@@ -460,6 +587,12 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	const bool bAllowAsyncBuild = (CacheFlags & ETextureCacheFlags::AllowAsyncBuild) != 0;
 	const bool bAllowAsyncLoading = (CacheFlags & ETextureCacheFlags::AllowAsyncLoading) != 0;
 	const bool bForVirtualTextureStreamingBuild = (CacheFlags & ETextureCacheFlags::ForVirtualTextureStreamingBuild) != 0;
+
+	static const bool bBuildFunctionEnabled = FParse::Param(FCommandLine::Get(), TEXT("DDC2TextureBuilds"));
+	if (bBuildFunctionEnabled && !bForVirtualTextureStreamingBuild && (BuildSettingsPerLayer.Num() == 1))
+	{
+		BuildFunctionName = GetTextureBuildFunctionName(BuildSettingsPerLayer[0]);
+	}
 
 	// FVirtualTextureDataBuilder always wants to load ImageWrapper module
 	// This is not strictly necessary, used only for debug output, but seems simpler to just always load this here, doesn't seem like it should be too expensive
@@ -629,6 +762,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			TextureData.GetSourceMips(Texture.Source, ImageWrapper);
 			BuildExporter.ExportTextureSourceBulkData(Texture.Source);
+			ConditionalAddBuildFunctionInput(Texture.Source);
 			bHasTextureSourceMips = true;
 		}
 
@@ -637,6 +771,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			CompositeTextureData.GetSourceMips(Texture.CompositeTexture->Source, ImageWrapper);
 			BuildExporter.ExportCompositeTextureSourceBulkData(Texture.CompositeTexture->Source);
+			ConditionalAddBuildFunctionInput(Texture.CompositeTexture->Source);
 			bHasCompositeTextureSourceMips = true;
 		}
 
@@ -644,6 +779,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			TextureData.GetAsyncSourceMips(ImageWrapper);
 			BuildExporter.ExportTextureSourceBulkData(TextureData.AsyncSource);
+			ConditionalAddBuildFunctionInput(TextureData.AsyncSource);
 			TextureData.AsyncSource.RemoveBulkData();
 		}
 
@@ -651,9 +787,10 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			CompositeTextureData.GetAsyncSourceMips(ImageWrapper);
 			if ((bool)Texture.CompositeTexture)
-		{
-			BuildExporter.ExportCompositeTextureSourceBulkData(CompositeTextureData.AsyncSource);
-		}
+			{
+				BuildExporter.ExportCompositeTextureSourceBulkData(CompositeTextureData.AsyncSource);
+				ConditionalAddBuildFunctionInput(CompositeTextureData.AsyncSource);
+			}
 			CompositeTextureData.AsyncSource.RemoveBulkData();
 		}
 

@@ -11,10 +11,11 @@
 #if WITH_EDITOR
 
 #include "Async/AsyncWork.h"
+#include "DerivedDataBuildInputs.h"
+#include "Engine/Texture2D.h"
+#include "IImageWrapperModule.h"
 #include "ImageCore.h"
 #include "TextureCompressorModule.h"
-#include "IImageWrapperModule.h"
-#include "Engine/Texture2D.h"
 #include "TextureDerivedDataBuildExporter.h"
 
 #endif // WITH_EDITOR
@@ -26,6 +27,8 @@ enum
 };
 
 #if WITH_EDITOR
+
+namespace UE::DerivedData { class FBuildOutput; }
 
 void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuildSettings* BuildSettingsPerLayer, FString& OutKeySuffix);
 uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC);
@@ -106,6 +109,13 @@ struct FTextureSourceData
  */
 class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 {
+	struct FBuildInputRecord
+	{
+		FString Id;
+		FIoHash RawHash;
+		uint64 RawSize;
+	};
+
 	/** Texture compressor module, must be loaded in the game thread. see FModuleManager::WarnIfItWasntSafeToLoadHere() */
 	ITextureCompressorModule* Compressor;
 	/** Image wrapper module, must be loaded in the game thread. see FModuleManager::WarnIfItWasntSafeToLoadHere() */
@@ -122,6 +132,12 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	FTextureSourceData TextureData;
 	/** Source mip images of the composite texture (e.g. normal map for compute roughness). Not necessarily in RGBA32F, usually only top mip as other mips need to be generated first */
 	FTextureSourceData CompositeTextureData;
+	/** DDC2 build function name to use to build this texture (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
+	FString BuildFunctionName;
+	/** DDC2 build input recrods for putting on the action (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
+	TArray<FBuildInputRecord> BuildInputRecords;
+	/** DDC2 build inputs builder that accumulates input blobs and their associated key (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
+	UE::DerivedData::FBuildInputsBuilder InputsBuilder;
 	/** Exporter that can optionally write out build actions and reference outputs for the purpose of testing remote execution of builds */
 	FTextureDerivedDataBuildExporter BuildExporter;
 	/** Texture cache flags. */
@@ -139,6 +155,23 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	/** Build the texture. This function is safe to call from any thread. */
 	void BuildTexture(bool bReplaceExistingDDC = false);
 
+	void ConditionalAddBuildFunctionInput(FTextureSource& Source)
+	{
+		if (!BuildFunctionName.IsEmpty())
+		{
+			Source.OperateOnLoadedBulkData([this, &Source] (const FSharedBuffer& BulkDataBuffer) 
+			{
+				FCompressedBuffer InputBuffer = FCompressedBuffer::Compress(NAME_Default, BulkDataBuffer);
+				FBuildInputRecord& NewRef = BuildInputRecords.AddDefaulted_GetRef();
+				NewRef.Id = Source.GetIdString();
+				NewRef.RawHash = InputBuffer.GetRawHash();
+				NewRef.RawSize = InputBuffer.GetRawSize();
+				InputsBuilder.AddInput(Source.GetIdString(), InputBuffer);
+			});
+		}
+	}
+
+	void ConsumeBuildFunctionOutput(const UE::DerivedData::FBuildOutput& BuildOutput, const FString& TexturePath, bool bReplaceExistingDDC);
 public:
 
 	/** Initialization constructor. */
