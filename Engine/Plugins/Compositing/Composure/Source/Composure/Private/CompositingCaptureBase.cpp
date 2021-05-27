@@ -38,6 +38,13 @@ void ACompositingCaptureBase::UpdateDistortion()
 		if (SubSystem)
 		{
 			LensDistortionHandler = SubSystem->FindDistortionModelHandler(DistortionSource);
+
+			// Get the focal length of the target camera (before any overscan could have been applied) to prevent double overscan
+			const bool bCouldBeDistorted = SubSystem->GetOriginalFocalLength(CineCameraComponent, OriginalFocalLength);
+			if (!bCouldBeDistorted)
+			{
+				OriginalFocalLength = CineCameraComponent->CurrentFocalLength;
+			}
 		}
 
 		if (LensDistortionHandler)

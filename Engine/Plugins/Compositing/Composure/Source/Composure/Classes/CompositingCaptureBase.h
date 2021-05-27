@@ -37,6 +37,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Composure|LensDistortion")
 	float OverscanFactor = 1.0f;
 
+	/** Focal length of the target camera before any overscan has been applied */
+	UPROPERTY(BlueprintReadOnly, Category = "Composure|LensDistortion")
+	float OriginalFocalLength = 35.0f;
+
 	/** Cached distortion MID produced by the Lens Distortion Handler, used to clean up the post-process materials in the case that the the MID changes */
 	UPROPERTY()
 	UMaterialInstanceDynamic* LastDistortionMID = nullptr;

@@ -72,7 +72,7 @@ void UComposureBlueprintLibrary::GetPlayerDisplayGamma(const APlayerCameraManage
 	DisplayGamma = SceneViewport ? SceneViewport->GetDisplayGamma() : 0.0;
 }
 
-void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraComponent* Src, USceneCaptureComponent2D* Dst, float OverscanFactor)
+void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraComponent* Src, USceneCaptureComponent2D* Dst, float OriginalFocalLength, float OverscanFactor)
 {
 	if (Src && Dst)
 	{
@@ -93,7 +93,7 @@ void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraCompone
 			else
 			{
 				const float OverscanSensorWidth = SrcCineCameraComponent->Filmback.SensorWidth * OverscanFactor;
-				Dst->FOVAngle = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * SrcCineCameraComponent->CurrentFocalLength)));
+				Dst->FOVAngle = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * OriginalFocalLength)));
 			}
 		}
 		else

@@ -104,6 +104,12 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 
 				ApplyFIZ(SelectedLensFile, CineCameraComponent, StaticData, FrameData);
 				ApplyDistortion(SelectedLensFile, CineCameraComponent, StaticData, FrameData);
+
+				UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+				if (SubSystem)
+				{
+					SubSystem->UpdateOriginalFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
+				}
 			}
 
 #if WITH_EDITORONLY_DATA

@@ -18,6 +18,14 @@
 
 class UCineCameraComponent;
 
+/** Utility struct to store the original and overscanned focal lengths of a camera */
+struct FCachedFocalLength
+{
+public:
+	float OriginalFocalLength = 0.0f;
+	float OverscanFocalLength = 0.0f;
+};
+
 /**
  * Camera Calibration subsystem
  */
@@ -91,6 +99,18 @@ public:
 	/** Remove a Lens Model from the registered model map */
 	void UnregisterDistortionModel(TSubclassOf<ULensModel> LensModel);
 
+	/** Update the original focal length of the input camera componet */
+	void UpdateOriginalFocalLength(UCineCameraComponent* Component, float InFocalLength);
+
+	/** Update the overscanned focal length of the input camera component */
+	void UpdateOverscanFocalLength(UCineCameraComponent* Component, float InFocalLength);
+
+	/** 
+	 * Get the original focal length of the input camera component, if it exists in the subsystems map. 
+	 * Returns false and does not update the output parameter if the input camera is not in the map. 
+	 */
+	bool GetOriginalFocalLength(UCineCameraComponent* Component, float& OutFocalLength);
+
 private:
 	/** Default lens file to use when no override has been provided */
 	UPROPERTY(Transient)
@@ -113,6 +133,9 @@ private:
 
 	/** Map of actor components to the authoritative lens model that should be used with that component */
 	TMultiMap<FObjectKey, ULensDistortionModelHandlerBase*> LensDistortionHandlerMap;
+
+	/** Map of camera components to a cached pair of focal lengths for that camera */
+	TMap<FObjectKey, FCachedFocalLength> CachedFocalLengthMap;
 
 private:
 

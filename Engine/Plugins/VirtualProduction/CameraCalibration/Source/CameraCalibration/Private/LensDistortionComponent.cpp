@@ -58,6 +58,8 @@ void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 		DistortionSource.TargetCameraComponent = CineCameraComponent;
 
+		UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+
 		// Evaluate the selected lens file for distortion data using the current settings of the target camera
 		ULensFile* LensFile = LensFilePicker.GetLensFile();
 		if (bEvaluateLensFileForDistortion && LensFile)
@@ -72,14 +74,19 @@ void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 			FDistortionData DistortionData;
 			const FVector2D CurrentSensorDimensions = FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
 
-			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, UndistortedFocalLength, CurrentSensorDimensions, ProducedLensDistortionHandler, DistortionData);
+			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, OriginalFocalLength, CurrentSensorDimensions, ProducedLensDistortionHandler, DistortionData);
+
+			// Track changes to the cine camera's focal length for consumers of distortion data
+			if (SubSystem)
+			{
+				SubSystem->UpdateOriginalFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
+			}
 		}
 	
 		if (bApplyDistortion)
 		{
 			// Get the lens distortion handler for the target camera and distortion source
 			ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
-			UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 			if (SubSystem)
 			{
 				LensDistortionHandler = SubSystem->FindDistortionModelHandler(DistortionSource);
@@ -100,20 +107,15 @@ void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 				// Cache the latest distortion MID
 				LastDistortionMID = NewDistortionMID;
 
-				// Check for focal length modifications made from outside of this component to update the "undistorted" focal length used
-				if (LastFocalLength != CineCameraComponent->CurrentFocalLength)
-				{
-					UndistortedFocalLength = CineCameraComponent->CurrentFocalLength;
-				}
+				SubSystem->GetOriginalFocalLength(CineCameraComponent, OriginalFocalLength);
 
 				// Get the overscan factor and use it to modify the target camera's FOV
 				const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
 				const float OverscanSensorWidth = CineCameraComponent->Filmback.SensorWidth * OverscanFactor;
-				const float OverscanFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * UndistortedFocalLength)));
+				const float OverscanFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * OriginalFocalLength)));
 				CineCameraComponent->SetFieldOfView(OverscanFOV);
 
-				//Stamp last applied focal length to detect if user has changed it
-				LastFocalLength = CineCameraComponent->CurrentFocalLength;
+				SubSystem->UpdateOverscanFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
 
 				bIsDistortionSetup = true;
 			}
@@ -219,15 +221,6 @@ void ULensDistortionComponent::PostDuplicate(bool bDuplicateForPIE)
 
 	InitDefaultCamera();
 
-	// Duplicate the last focal length (e.g. for PIE)
-	if (bIsDistortionSetup)
-	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
-		{
-			LastFocalLength = CineCameraComponent->CurrentFocalLength;
-		}
-	}
-
 	// When this component is duplicated (e.g. for PIE), the duplicated component needs a new unique ID
 	if (!DistortionProducerID.IsValid())
 	{
@@ -241,20 +234,24 @@ void ULensDistortionComponent::PostEditImport()
 
 	InitDefaultCamera();
 
-	// PostDuplicate is not called on components during actor duplication, such as alt-drag and copy-paste, so PostEditImport covers those duplication cases
-	// Duplicate the last focal length in these cases
-	if (bIsDistortionSetup)
-	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
-		{
-			LastFocalLength = CineCameraComponent->CurrentFocalLength;
-		}
-	}
-
 	// When this component is duplicated (e.g. copy-paste), the duplicated component needs a new unique ID
 	if (!DistortionProducerID.IsValid())
 	{
 		DistortionProducerID = FGuid::NewGuid();
+	}
+}
+
+void ULensDistortionComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (bIsDistortionSetup)
+	{
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
+		{
+			CleanupDistortion(CineCameraComponent);
+		}
+		bIsDistortionSetup = false;
 	}
 }
 
@@ -270,10 +267,14 @@ void ULensDistortionComponent::CleanupDistortion(UCineCameraComponent* const Cin
 		}
 
 		// Restore the original FOV of the target camera
-		const float UndistortedFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(CineCameraComponent->Filmback.SensorWidth / (2.0f * UndistortedFocalLength)));
+		const float UndistortedFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(CineCameraComponent->Filmback.SensorWidth / (2.0f * OriginalFocalLength)));
 		CineCameraComponent->SetFieldOfView(UndistortedFOV);
 
-		LastFocalLength = CineCameraComponent->CurrentFocalLength;
+		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+		if (SubSystem)
+		{
+			SubSystem->UpdateOverscanFocalLength(CineCameraComponent, 0.0f);
+		}
 	}
 
 	bIsDistortionSetup = false;

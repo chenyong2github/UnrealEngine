@@ -55,6 +55,9 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 				//Make sure the displacement map is up to date
 				LensDistortionHandler->ProcessCurrentDistortion();
 			}
+
+			// Track changes to the cine camera's focal length for consumers of distortion data
+			SubSystem->UpdateOriginalFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
 		}
 	}
 }

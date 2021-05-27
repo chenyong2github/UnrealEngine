@@ -32,6 +32,7 @@ public:
 #endif //WITH_EDITOR
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void PostEditImport() override;
+	virtual void PostLoad() override;
 	//~ End UObject interface
 
 private:
@@ -61,9 +62,9 @@ protected:
 	UPROPERTY()
 	bool bIsDistortionSetup = false;
 
-	/** Cached focal length of the target camera with no overscan applied */
+	/** Focal length of the target camera before any overscan has been applied */
 	UPROPERTY()
-	float UndistortedFocalLength = 35.0f;
+	float OriginalFocalLength = 35.0f;
 
 	/** Cached MID last applied to the target camera */
 	UPROPERTY()
@@ -91,8 +92,4 @@ protected:
 	/** Unique identifier representing the source of distortion data */
 	UPROPERTY(DuplicateTransient)
 	FGuid DistortionProducerID;
-
-private:
-	/** Cached focal length of the target camera, used to detect changes to this value from outside of this component */
-	float LastFocalLength = -1.0f;
 };
