@@ -1,0 +1,62 @@
+// Copyright Epic Games Tools LLC
+//   Licenced under the Unreal Engine EULA 
+#pragma once
+
+#if defined WINAPI_FAMILY && !defined PLATFORM_WINGDK && !defined _GAMING_XBOX_XBOXONE
+#include "MinWindows.h"
+#endif
+
+#define BUILDING_FOR_UNREAL_ONLY
+#define BINKPLUGIN_API BINKMEDIAPLAYER_API
+#include "binkplugin.h"
+
+#include "HAL/PlatformFilemanager.h"
+#include "Modules/ModuleManager.h"
+#include "Rendering/RenderingCommon.h"
+#include "TickableObjectRenderThread.h"
+#include "RHI.h"
+#include "RHIUtilities.h"
+#include "RHIDefinitions.h"
+
+#if PLATFORM_ANDROID
+#include <android/log.h>
+#include <android_native_app_glue.h>
+#include "Android/AndroidPlatformFile.h"
+#include "Android/AndroidJNI.h"
+#include "Android/AndroidApplication.h"
+#endif
+
+#include "BinkMovieStreamer.h"
+#include "BinkMoviePlayerSettings.h"
+
+#include "binkplugin_ue4.h"
+
+extern BINKMEDIAPLAYER_API unsigned bink_gpu_api;
+extern BINKMEDIAPLAYER_API unsigned bink_gpu_api_hdr;
+extern BINKMEDIAPLAYER_API EPixelFormat bink_force_pixel_format;
+extern BINKMEDIAPLAYER_API FString BinkUE4CookOnTheFlyPath(FString path, const TCHAR *filename);
+
+#include "AudioDeviceManager.h"
+#include "AudioMixer.h"
+#include "AudioMixerDevice.h"
+
+static int GetNumSpeakers() 
+{
+	if (!GEngine || !GEngine->GetAudioDeviceManager())
+	{
+		return 2;
+	}
+	FAudioDevice *dev = FAudioDevice::GetMainAudioDevice().GetAudioDevice();
+	if (dev && dev->IsAudioMixerEnabled()) {
+		Audio::FMixerDevice *mix = static_cast<Audio::FMixerDevice*>(dev);
+		if (mix) {
+			return mix->GetNumDeviceChannels();
+		}
+	}
+	return 2; // default case... unknown just assume 2 speakers stereo setup.
+}
+
+#ifndef LOCTEXT_NAMESPACE
+#define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
+#endif
+

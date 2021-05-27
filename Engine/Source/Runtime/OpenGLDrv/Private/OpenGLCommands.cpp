@@ -2950,28 +2950,60 @@ void FOpenGLDynamicRHI::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 
 void FOpenGLDynamicRHI::RHIPostExternalCommandsReset()
 {
-	auto &ContextState = RenderingContextState;
-	glUseProgram(0);
-	FOpenGL::BindProgramPipeline(ContextState.Program);
-	glViewport(ContextState.Viewport.Min.X, ContextState.Viewport.Min.Y, ContextState.Viewport.Max.X - ContextState.Viewport.Min.X, ContextState.Viewport.Max.Y - ContextState.Viewport.Min.Y);
-	FOpenGL::DepthRange(ContextState.DepthMinZ, ContextState.DepthMaxZ);
-	ContextState.bScissorEnabled ? glEnable(GL_SCISSOR_TEST) : glDisable(GL_SCISSOR_TEST);
-	glScissor(ContextState.Scissor.Min.X, ContextState.Scissor.Min.Y, ContextState.Scissor.Max.X - ContextState.Scissor.Min.X, ContextState.Scissor.Max.Y - ContextState.Scissor.Min.Y);
-	glBindFramebuffer(GL_FRAMEBUFFER, ContextState.Framebuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, ContextState.ArrayBufferBound);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ContextState.ElementArrayBufferBound);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, ContextState.PixelUnpackBufferBound);
-	glBindBuffer(GL_UNIFORM_BUFFER, ContextState.UniformBufferBound);
-	SharedContextState.BlendState = ContextState.BlendState = InvalidContextState.BlendState;
+	auto &RCS = RenderingContextState;
+	auto &SCS = SharedContextState;
+	if((int)RCS.Program >= 0) FOpenGL::BindProgramPipeline(RCS.Program);
+	glViewport(RCS.Viewport.Min.X, RCS.Viewport.Min.Y, RCS.Viewport.Max.X - RCS.Viewport.Min.X, RCS.Viewport.Max.Y - RCS.Viewport.Min.Y);
+	FOpenGL::DepthRange(RCS.DepthMinZ, RCS.DepthMaxZ);
+	RCS.bScissorEnabled ? glEnable(GL_SCISSOR_TEST) : glDisable(GL_SCISSOR_TEST);
+	glScissor(RCS.Scissor.Min.X, RCS.Scissor.Min.Y, RCS.Scissor.Max.X - RCS.Scissor.Min.X, RCS.Scissor.Max.Y - RCS.Scissor.Min.Y);
+	if((int)RCS.Framebuffer >= 0) glBindFramebuffer(GL_FRAMEBUFFER, RCS.Framebuffer);
+	if((int)RCS.ArrayBufferBound >= 0) glBindBuffer(GL_ARRAY_BUFFER, RCS.ArrayBufferBound);
+	if((int)RCS.ElementArrayBufferBound >= 0) glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, RCS.ElementArrayBufferBound);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, RCS.PixelUnpackBufferBound);
+	glBindBuffer(GL_UNIFORM_BUFFER, RCS.UniformBufferBound);
+	SCS.BlendState = RCS.BlendState = InvalidContextState.BlendState;
 	glActiveTexture(GL_TEXTURE0);
-	SharedContextState.ActiveTexture = ContextState.ActiveTexture = 0;
-	SharedContextState.RasterizerState = ContextState.RasterizerState = InvalidContextState.RasterizerState;
-	UpdateRasterizerStateInOpenGLContext(ContextState);
-	SharedContextState.ActiveStreamMask = ContextState.ActiveStreamMask = InvalidContextState.ActiveStreamMask;
+	SCS.ActiveTexture = RCS.ActiveTexture = 0;
+	SCS.RasterizerState = RCS.RasterizerState = InvalidContextState.RasterizerState;
+	UpdateRasterizerStateInOpenGLContext(RCS);
+	SCS.ActiveStreamMask = RCS.ActiveStreamMask = InvalidContextState.ActiveStreamMask;
 	for (GLuint UniformBufferIndex = 0; UniformBufferIndex < CrossCompiler::NUM_SHADER_STAGES * OGL_MAX_UNIFORM_BUFFER_BINDINGS; UniformBufferIndex++)
 	{
-		SharedContextState.UniformBuffers[UniformBufferIndex] = FOpenGLCachedUniformBuffer_Invalid;	// that'll enforce state update on next cache test
-		RenderingContextState.UniformBuffers[UniformBufferIndex] = FOpenGLCachedUniformBuffer_Invalid;	// that'll enforce state update on next cache test
+		SCS.UniformBuffers[UniformBufferIndex] = FOpenGLCachedUniformBuffer_Invalid;	// that'll enforce state update on next cache test
+		RCS.UniformBuffers[UniformBufferIndex] = FOpenGLCachedUniformBuffer_Invalid;	// that'll enforce state update on next cache test
+	}
+	for (uint32 Index = 0; Index < NUM_OPENGL_VERTEX_STREAMS; Index++)
+	{
+		if (RCS.VertexStreams[Index].VertexBuffer != nullptr)
+		{
+			FOpenGL::BindVertexBuffer(Index, RCS.VertexStreams[Index].VertexBuffer->Resource, RCS.VertexStreams[Index].Offset, RCS.VertexStreams[Index].Stride);
+		}
+		else
+		{
+			FOpenGL::BindVertexBuffer(Index, 0, 0, 0);
+		}
+	}
+
+	for (uint32 Index = 0; Index < NUM_OPENGL_VERTEX_STREAMS; Index++)
+	{
+		if(RCS.GetVertexAttrEnabled(Index)) 
+		{
+			FOpenGLCachedAttr& Attr = RCS.VertexAttrs[Index];
+			if (Attr.StreamIndex < NUM_OPENGL_VERTEX_STREAMS && RCS.VertexStreams[Attr.StreamIndex].VertexBuffer != nullptr)
+			{
+				if (!Attr.bShouldConvertToFloat)
+				{
+					FOpenGL::VertexAttribIFormat(Index, Attr.Size, Attr.Type, Attr.StreamOffset);
+				}
+				else
+				{
+					FOpenGL::VertexAttribFormat(Index, Attr.Size, Attr.Type, Attr.bNormalized, Attr.StreamOffset);
+				}
+				FOpenGL::VertexAttribBinding(Index, Attr.StreamIndex);
+				glEnableVertexAttribArray(Index);
+			}
+		}
 	}
 }
 
