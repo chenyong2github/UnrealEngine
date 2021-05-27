@@ -6103,17 +6103,9 @@ public:
 	 * @param InRecursionFlags	Rather to recurse into container and struct properties
 	 * @param InDeprecatedPropertyFlags	Rather to iterate over deprecated properties
 	 */
-	FPropertyValueIterator(FFieldClass* InPropertyClass, const UStruct* InStruct, const void* InStructValue,
+	COREUOBJECT_API FPropertyValueIterator(FFieldClass* InPropertyClass, const UStruct* InStruct, const void* InStructValue,
 		EPropertyValueIteratorFlags						InRecursionFlags = EPropertyValueIteratorFlags::FullRecursion,
-		EFieldIteratorFlags::DeprecatedPropertyFlags	InDeprecatedPropertyFlags = EFieldIteratorFlags::IncludeDeprecated)
-		: PropertyClass(InPropertyClass)
-		, RecursionFlags(InRecursionFlags)
-		, DeprecatedPropertyFlags(InDeprecatedPropertyFlags)
-		, bSkipRecursionOnce(false)
-	{
-		PropertyIteratorStack.Emplace(InStruct, InStructValue, InDeprecatedPropertyFlags);
-		IterateToNext();
-	}
+		EFieldIteratorFlags::DeprecatedPropertyFlags	InDeprecatedPropertyFlags = EFieldIteratorFlags::IncludeDeprecated);
 
 	/** Invalid iterator, start with empty stack */
 	FPropertyValueIterator()
@@ -6190,54 +6182,81 @@ public:
 	COREUOBJECT_API void GetPropertyChain(TArray<const FProperty*>& PropertyChain) const;
 
 private:
+	enum EPropertyValueFlags : uint8
+	{
+		IsMatch = 0x01,
+
+		ContainerMask = 0xF0,
+		IsArray = 0x10,
+		IsMap = 0x20,
+		IsSet = 0x40,
+		IsStruct = 0x80,
+	};
+
 	struct FPropertyValueStackEntry
 	{
-		/** Field iterator within a UStruct */
-		TFieldIterator<const FProperty> FieldIterator;
-
-		/** Address of owning UStruct */
-		const void* StructValue;
+		/** Address of owning UStruct or FProperty container */
+		const void* Owner = nullptr;
 		
 		/** List of current root property+value pairs for the current top level FProperty */
-		TArray<BasePairType> ValueArray;
+		typedef TPair<BasePairType, uint8> BasePairAndFlags;
+		typedef TArray<BasePairAndFlags, TInlineAllocator<8>> FValueArrayType;
+		FValueArrayType ValueArray;
 
 		/** Current position inside ValueArray */
-		int32 ValueIndex;
+		int32 ValueIndex = -1;
+
+		/** Next position inside ValueArray */
+		int32 NextValueIndex = 0;
+
+		FPropertyValueStackEntry(const void* InValue)
+			: Owner(InValue)
+		{}
 
 		FPropertyValueStackEntry(const UStruct* InStruct, const void* InValue, EFieldIteratorFlags::DeprecatedPropertyFlags InDeprecatedPropertyFlags)
-			: FieldIterator(InStruct, EFieldIteratorFlags::IncludeSuper, InDeprecatedPropertyFlags, EFieldIteratorFlags::ExcludeInterfaces)
-			, StructValue(InValue)
-			, ValueIndex(0)
+			: Owner(InValue)
 		{}
 
 		FORCEINLINE friend bool operator==(const FPropertyValueStackEntry& Lhs, const FPropertyValueStackEntry& Rhs)
 		{
-			return Lhs.ValueIndex == Rhs.ValueIndex && Lhs.FieldIterator == Rhs.FieldIterator && Lhs.StructValue == Rhs.StructValue;
+			return Lhs.Owner == Rhs.Owner && Lhs.ValueIndex == Rhs.ValueIndex;
 		}
 
 		FORCEINLINE const BasePairType& GetPropertyValue() const
 		{
 			// Index has to be valid to get this far
-			return ValueArray[ValueIndex];
+			return ValueArray[ValueIndex].Key;
 		}
 	};
 
-	/** Internal stack, one per UStruct */
-	TArray<FPropertyValueStackEntry> PropertyIteratorStack;
+	/** Internal stack, one per continer/struct */
+	TArray<FPropertyValueStackEntry, TInlineAllocator<8>> PropertyIteratorStack;
 
 	/** Property type that is explicitly checked for */
-	FFieldClass* PropertyClass;
+	FFieldClass* PropertyClass = nullptr;
 
-	/** Whether to recurse into containers and StructProperties */
+	/** Whether to recurse into containers/structs */
 	const EPropertyValueIteratorFlags RecursionFlags;
 
 	/** Inherits to child field iterator */
 	const EFieldIteratorFlags::DeprecatedPropertyFlags DeprecatedPropertyFlags;
 
 	/** If true, next iteration will skip recursing into containers/structs */
-	bool bSkipRecursionOnce;
+	bool bSkipRecursionOnce = false;
 
-	/** Goes to the next Property/value pair. Returns true if next value is valid */
+	/** If true, all properties will be matched without checking IsA(PropertyClass) */
+	bool bMatchAll = false;
+
+	/** Returns EPropertyValueFlags to describe if this Property is a match and/or a container/struct */
+	uint8 GetPropertyValueFlags(const FProperty* Property);
+
+	/** Fills the Entry.ValueArray with all relevant properties found in Struct */
+	void FillStructProperties(const UStruct* Struct, FPropertyValueStackEntry& Entry);
+
+	/**
+	 * Goes to the next Property/value pair.
+	 * Returns false on a match or out of properties, true when iteration should continue
+	 */
 	bool NextValue(EPropertyValueIteratorFlags RecursionFlags);
 
 	/** Iterates to next property being checked for or until reaching the end of the structure */
