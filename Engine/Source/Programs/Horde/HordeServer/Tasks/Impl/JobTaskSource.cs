@@ -643,6 +643,12 @@ namespace HordeServer.Tasks.Impl
 			}
 		}
 
+		/// <summary>
+		/// Attempts to assign a queue item to an agent waiting for work
+		/// </summary>
+		/// <param name="Item"></param>
+		/// <param name="Waiter"></param>
+		/// <returns></returns>
 		bool TryAssignItemToWaiter(QueueItem Item, QueueWaiter Waiter)
 		{
 			if (Item.AssignTask == null && Item.Batch.SessionId == null)
@@ -877,7 +883,7 @@ namespace HordeServer.Tasks.Impl
 
 			List<HordeCommon.Rpc.Messages.AgentWorkspace> Workspaces = new List<HordeCommon.Rpc.Messages.AgentWorkspace>();
 
-			AgentWorkspace? AutoSdkWorkspace = Agent.Workspaces.FirstOrDefault(x => x.Identifier == AgentWorkspace.AutoSdkIdentifier);
+			AgentWorkspace? AutoSdkWorkspace = Agent.GetAutoSdkWorkspace();
 			if (AutoSdkWorkspace != null)
 			{
 				if (!await Agent.TryAddWorkspaceMessage(AutoSdkWorkspace, Globals, PerforceLoadBalancer, Workspaces))

@@ -127,20 +127,11 @@ namespace HordeServer.Services
 		public async Task<HashSet<AgentWorkspace>> GetWorkspacesAsync(IAgent Agent, DateTime ValidAtTime)
 		{
 			HashSet<AgentWorkspace> Workspaces = new HashSet<AgentWorkspace>();
-			if (Agent.Capabilities.Devices.Count > 0)
+
+			AgentWorkspace? AutoSdkWorkspace = Agent.GetAutoSdkWorkspace();
+			if(AutoSdkWorkspace != null)
 			{
-				DeviceCapabilities PrimaryDevice = Agent.Capabilities.Devices[0];
-				if (PrimaryDevice.Properties != null)
-				{
-					if (PrimaryDevice.Properties.Contains("OSFamily=Windows"))
-					{
-						Workspaces.Add(new AgentWorkspace(null, null, AgentWorkspace.AutoSdkIdentifier, "//UE4/Private-AutoSDK-Windows", null, true));
-					}
-					else if (PrimaryDevice.Properties.Contains("OSVersion=MacOS"))
-					{
-						Workspaces.Add(new AgentWorkspace(null, null, AgentWorkspace.AutoSdkIdentifier, "//UE4/Private-AutoSDK-Mac", null, true));
-					}
-				}
+				Workspaces.Add(AutoSdkWorkspace);
 			}
 
 			Dictionary<PoolId, IPool> PoolMapping = await GetPoolLookupAsync(ValidAtTime);

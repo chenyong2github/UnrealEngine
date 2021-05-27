@@ -755,6 +755,53 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
+		/// Get the AutoSDK workspace required for an agent
+		/// </summary>
+		/// <param name="Agent"></param>
+		/// <returns></returns>
+		public static AgentWorkspace? GetAutoSdkWorkspace(this IAgent Agent)
+		{
+			if (Agent.Capabilities.Devices.Count > 0)
+			{
+				DeviceCapabilities PrimaryDevice = Agent.Capabilities.Devices[0];
+				if (PrimaryDevice.Properties != null)
+				{
+					if (PrimaryDevice.Properties.Contains("OSFamily=Windows"))
+					{
+						return new AgentWorkspace(null, null, AgentWorkspace.AutoSdkIdentifier, "//UE4/Private-AutoSDK-Windows", null, true);
+					}
+					else if (PrimaryDevice.Properties.Contains("OSVersion=MacOS"))
+					{
+						return new AgentWorkspace(null, null, AgentWorkspace.AutoSdkIdentifier, "//UE4/Private-AutoSDK-Mac", null, true);
+					}
+				}
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Check that an agent has the required workspaces to execute a task
+		/// </summary>
+		/// <param name="Agent"></param>
+		/// <param name="Workspace"></param>
+		/// <returns></returns>
+		public static bool HasRequiredWorkspaces(this IAgent Agent, AgentWorkspace Workspace)
+		{
+			if (!Agent.Workspaces.Contains(Workspace))
+			{
+				return false;
+			}
+
+			AgentWorkspace? AutoSdkWorkspace = Agent.GetAutoSdkWorkspace();
+			if (AutoSdkWorkspace != null && !Agent.Workspaces.Contains(AutoSdkWorkspace))
+			{
+				return false;
+			}
+
+			return true;
+		}
+
+		/// <summary>
 		/// Converts this workspace to an RPC message
 		/// </summary>
 		/// <param name="Agent">The agent to get a workspace for</param>
@@ -791,12 +838,6 @@ namespace HordeServer.Models
 					return false;
 				}
 				ServerAndPort = Server.ServerAndPort;
-			}
-
-			// HACK: Trying to debug issues with inconsistent workspace state. Possibly related to edge servers?
-			if (Agent.Id == new AgentId("10-99-114-249") || Agent.Id == new AgentId("10-99-115-36"))
-			{
-				ServerAndPort = "perforce:1666";
 			}
 
 			// Find the matching credentials for the desired user
