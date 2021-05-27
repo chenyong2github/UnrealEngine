@@ -166,9 +166,17 @@ struct FExpressionOutput
 
 template<class InputType> struct FMaterialInput : FExpressionInput
 {
+	FMaterialInput()
+	{
+#if WITH_EDITORONLY_DATA
+		UseConstant = 0;
+		Constant = InputType(0);
+#endif
+	}
+
 #if WITH_EDITORONLY_DATA
 	uint32	UseConstant : 1;
-	InputType	Constant;
+	InputType Constant;
 #endif
 };
 
