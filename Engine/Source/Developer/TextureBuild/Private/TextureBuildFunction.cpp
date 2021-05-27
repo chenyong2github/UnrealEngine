@@ -18,7 +18,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "TextureCompressorModule.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogTextureBuildWorker, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogTextureBuildFunction, Log, All);
 
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
@@ -253,7 +253,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 		ReadTextureSourceFromCompactBinary(AssociatedNormalSourceMipsCbObj, Context, AssociatedNormalSourceMips);
 	}
 
-	UE_LOG(LogTextureBuildWorker, Display, TEXT("Compressing %d source mip(s) (%dx%d) to %s..."), SourceMips.Num(), SourceMips[0].SizeX, SourceMips[0].SizeY, *BuildSettings.TextureFormatName.ToString());
+	UE_LOG(LogTextureBuildFunction, Display, TEXT("Compressing %d source mip(s) (%dx%d) to %s..."), SourceMips.Num(), SourceMips[0].SizeX, SourceMips[0].SizeY, *BuildSettings.TextureFormatName.ToString());
 
 	TArray<FCompressedImage2D> CompressedMips;
 	uint32 NumMipsInTail;
@@ -387,6 +387,6 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 
 
 		FCompositeBuffer CompositeResult(OrderedBuffers);
-		Context.AddPayload(UE::DerivedData::FPayloadId::FromName("Texture"), FCompressedBuffer::Compress(NAME_Default, CompositeResult));
+		Context.AddPayload(UE::DerivedData::FPayloadId::FromName(TEXT("Texture")), FCompressedBuffer::Compress(NAME_Default, CompositeResult));
 	}
 }
