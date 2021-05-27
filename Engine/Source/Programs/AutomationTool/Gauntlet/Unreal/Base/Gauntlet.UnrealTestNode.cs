@@ -1069,7 +1069,7 @@ namespace Gauntlet
 			}
 			else if (LogSummary.RequestedExit)
 			{
-				ExitReason = string.Format("Exit was requested: %s", LogSummary.RequestedExitReason);
+				ExitReason = string.Format("Exit was requested: {0}", LogSummary.RequestedExitReason);
 				ExitCode = 0;
 			}
 			else

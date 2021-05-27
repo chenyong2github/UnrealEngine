@@ -680,6 +680,14 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Clears all roles from this config. 
+		/// </summary>
+		public void ClearRoles()
+		{
+			RequiredRoles.Clear();
+		}
+
+		/// <summary>
 		/// Returns the number of roles of the specified type that exist for this test
 		/// </summary>
 		/// <param name="Role"></param>
