@@ -249,7 +249,7 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 			}
 
 			// Loopback to Listeners
-			if (bNeedsLoopbackToEngine)
+			if (bNeedsSendDMX || bNeedsLoopbackToEngine)
 			{
 				for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 				{
