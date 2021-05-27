@@ -393,7 +393,7 @@ bool FFileHelper::SaveStringToFile( FStringView String, const TCHAR* Filename,  
 	bool SaveAsUnicode = EncodingOptions == EEncodingOptions::ForceUnicode || ( EncodingOptions == EEncodingOptions::AutoDetect && !FCString::IsPureAnsi(String.GetData(), String.Len()) );
 	if( EncodingOptions == EEncodingOptions::ForceUTF8 )
 	{
-		UTF8CHAR UTF8BOM[] = { 0xEF, 0xBB, 0xBF };
+		UTF8CHAR UTF8BOM[] = { (UTF8CHAR)0xEF, (UTF8CHAR)0xBB, (UTF8CHAR)0xBF };
 		Ar->Serialize( &UTF8BOM, UE_ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR) );
 
 		FTCHARToUTF8 UTF8String(String.GetData(), String.Len());

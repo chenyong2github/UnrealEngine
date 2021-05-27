@@ -1468,7 +1468,7 @@ FString FWindowsPlatformProcess::ReadPipe( void* ReadPipe )
 		{
 			if (BytesRead > 0)
 			{
-				Buffer[BytesRead] = '\0';
+				Buffer[BytesRead] = (UTF8CHAR)'\0';
 				Output += FUTF8ToTCHAR((const ANSICHAR*)Buffer).Get();
 			}
 		}
@@ -1516,9 +1516,9 @@ bool FWindowsPlatformProcess::WritePipe(void* WritePipe, const FString& Message,
 	UTF8CHAR * Buffer = new UTF8CHAR[BytesAvailable + 2];
 	for (uint32 i = 0; i < BytesAvailable; i++)
 	{
-		Buffer[i] = Message[i];
+		Buffer[i] = (UTF8CHAR)Message[i];
 	}
-	Buffer[BytesAvailable] = '\n';
+	Buffer[BytesAvailable] = (UTF8CHAR)'\n';
 
 	// Write to pipe
 	uint32 BytesWritten = 0;
@@ -1527,7 +1527,7 @@ bool FWindowsPlatformProcess::WritePipe(void* WritePipe, const FString& Message,
 	// Get written message
 	if (OutWritten)
 	{
-		Buffer[BytesWritten] = '\0';
+		Buffer[BytesWritten] = (UTF8CHAR)'\0';
 		*OutWritten = FUTF8ToTCHAR((const ANSICHAR*)Buffer).Get();
 	}
 
