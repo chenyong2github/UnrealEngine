@@ -217,8 +217,12 @@ TSharedRef<SWidget> FOpenColorIOColorConversionSettingsCustomization::HandleColo
 						{
 							TArray<void*> RawData;
 							SourceColorSpaceProperty->AccessRawData(RawData);
-							FOpenColorIOColorSpace* PreviousColorSpaceValue = reinterpret_cast<FOpenColorIOColorSpace*>(RawData[0]);
-							return *PreviousColorSpaceValue == ColorSpace;
+							if (RawData.Num() > 0)
+							{
+								FOpenColorIOColorSpace* PreviousColorSpaceValue = reinterpret_cast<FOpenColorIOColorSpace*>(RawData[0]);
+								return *PreviousColorSpaceValue == ColorSpace;
+							}
+							return false;
 						})
 					),
 					NAME_None,
