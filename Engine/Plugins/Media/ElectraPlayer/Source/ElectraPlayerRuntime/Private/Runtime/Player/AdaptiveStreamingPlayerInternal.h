@@ -1187,15 +1187,66 @@ private:
 
 	struct FBufferStats
 	{
+		struct FStallMonitor
+		{
+			int64 DurationMillisec;
+			int64 PreviousCheckTime;
+			bool bPreviousState;
+			FStallMonitor()
+			{
+				Clear();
+			}
+			void Clear()
+			{
+				DurationMillisec = 0;
+				PreviousCheckTime = 0;
+				bPreviousState = false;
+			}
+			void Update(int64 tNowMillisec, bool bInCurrentStallState)
+			{
+				if (bInCurrentStallState)
+				{
+					if (!bPreviousState)
+					{
+						PreviousCheckTime = tNowMillisec;
+						DurationMillisec = 0;
+					}
+					else
+					{
+						DurationMillisec = tNowMillisec - PreviousCheckTime;
+					}
+				}
+				else
+				{
+					DurationMillisec = 0;
+				}
+				bPreviousState = bInCurrentStallState;
+			}
+			int64 GetStalledDurationMillisec() const
+			{
+				return DurationMillisec;
+			}
+		};
+
 		void Clear()
 		{
 			StreamBuffer.Clear();
 			DecoderInputBuffer.Clear();
 			DecoderOutputBuffer.Clear();
+			DecoderOutputStalledMonitor.Clear();
+		}
+		void UpdateStalledDuration(int64 tNowMillisec)
+		{
+			DecoderOutputStalledMonitor.Update(tNowMillisec, DecoderOutputBuffer.bOutputStalled);
+		}
+		int64 GetStalledDurationMillisec() const
+		{
+			return DecoderOutputStalledMonitor.GetStalledDurationMillisec();
 		}
 		FAccessUnitBufferInfo								StreamBuffer;
 		IAccessUnitBufferListener::FBufferStats				DecoderInputBuffer;
 		IDecoderOutputBufferListener::FDecodeReadyStats		DecoderOutputBuffer;
+		FStallMonitor										DecoderOutputStalledMonitor;
 	};
 
 	struct FPrerollVars
