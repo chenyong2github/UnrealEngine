@@ -61,7 +61,7 @@ protected:
 
 protected:
 
-	UPROPERTY(ReplicatedUsing = OnRep_StaticMesh)
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = Debug, ReplicatedUsing = OnRep_StaticMesh)
 	TSoftObjectPtr<UStaticMesh> StaticMesh;
 	UFUNCTION()
 	void OnRep_StaticMesh();

@@ -128,6 +128,9 @@ public:
 	}
 
 protected:
+	// Creates an actor to replace the instance specified by Handle
+	AActor* ConvertInstanceToActor(const FActorInstanceHandle& Handle);
+
 	// Takes a polymorphic struct to set the initial data for a new instance
 	int32 AddNewInstance(FLWIData* InitData);
 
@@ -146,6 +149,9 @@ protected:
 
 	// Sets the parameters for actor spawning.
 	virtual void SetSpawnParameters(FActorSpawnParameters& SpawnParams);
+
+	// Returns the class to use when spawning a new actor
+	virtual UClass* GetActorClassToSpawn() const;
 
 	// Called after spawning a new actor from a light weight instance
 	virtual void PostActorSpawn(const FActorInstanceHandle& Handle);
