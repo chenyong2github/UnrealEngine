@@ -658,6 +658,7 @@ private:
 #if WITH_EDITOR	
 
 	FRigVMDebugInfo DebugInfo;
+	TMap<FString, bool> LoggedMessages;
 	
 public:
 
