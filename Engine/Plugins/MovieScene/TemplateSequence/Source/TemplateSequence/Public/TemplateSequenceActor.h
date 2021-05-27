@@ -15,6 +15,12 @@
 
 class UTemplateSequence;
 
+/**
+ * Template sequence binding override data
+ *
+ * This is similar to FMovieSceneBindingOverrideData, but works only for a template sequence's root object,
+ * so we don't need it to store the object binding ID.
+ */
 USTRUCT(BlueprintType)
 struct FTemplateSequenceBindingOverrideData
 {
@@ -25,13 +31,18 @@ struct FTemplateSequenceBindingOverrideData
 	{
 	}
 
+	/** Specifies the object binding to override. */
 	UPROPERTY(EditAnywhere, Category = "Binding")
 	TWeakObjectPtr<UObject> Object;
 
+	/** Specifies whether the default assignment should remain bound (false) or if this should completely override the default binding (true). */
 	UPROPERTY(EditAnywhere, Category = "Binding")
 	bool bOverridesDefault;
 };
 
+/**
+ * Actor responsible for controlling a specific template sequence in the world.
+ */
 UCLASS(hideCategories = (Rendering, Physics, LOD, Activation, Input))
 class TEMPLATESEQUENCE_API ATemplateSequenceActor
 	: public AActor
@@ -55,25 +66,46 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General", meta = (AllowedClasses = "TemplateSequence"))
 	FSoftObjectPath TemplateSequence;
 
+	/** The override for the template sequence's root object binding. See SetBinding. */
 	UPROPERTY(BlueprintReadOnly, Category = "General")
 	FTemplateSequenceBindingOverrideData BindingOverride;
 
 public:
 
+	/**
+	 * Get the template sequence being played by this actor.
+	 *
+	 * @return the template sequence, or nullptr if it is not assigned or cannot be loaded
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	UTemplateSequence* GetSequence() const;
 
+	/**
+	 * Get the template sequence being played by this actor.
+	 *
+	 * @return the template sequence, or nullptr if it is not assigned or cannot be loaded
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	UTemplateSequence* LoadSequence() const;
 
+	/**
+	 * Set the template sequence being played by this actor.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	void SetSequence(UTemplateSequence* InSequence);
 
+	/**
+	 * Get the actor's sequence player, or nullptr if it not yet initialized.
+	 */
 	UFUNCTION(BlueprintGetter)
 	UTemplateSequencePlayer* GetSequencePlayer() const;
 
+	/**
+	 * Set the actor to play the template sequence onto, by setting up an override for the template
+	 * sequence's root object binding.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void SetBinding(AActor* Actor);
+	void SetBinding(AActor* Actor, bool bOverridesDefault = true);
 
 protected:
 
