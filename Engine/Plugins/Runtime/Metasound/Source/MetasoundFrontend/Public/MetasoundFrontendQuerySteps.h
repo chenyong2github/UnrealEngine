@@ -9,25 +9,18 @@
 
 namespace Metasound
 {
-	/** Generates all registered node classes */
-	class METASOUNDFRONTEND_API FGenerateAllAvailableNodeClasses : public IFrontendQueryGenerateStep
-	{
-	public:
 
-		void Generate(TArray<FFrontendQueryEntry>& OutEntries) const override;
-	};
-
-	/** Generates node classes that have been newly registered since last call
-	 * to this FGenerateNewlyAvailableClasses::Generate()
+	/** Streams node classes that have been newly registered or unregistered since last call to Stream()
 	 */
-	class METASOUNDFRONTEND_API FGenerateNewlyAvailableNodeClasses : public IFrontendQueryGenerateStep
+	class METASOUNDFRONTEND_API FNodeClassRegistrationEvents : public IFrontendQuerySource
 	{
 	public:
-		FGenerateNewlyAvailableNodeClasses();
-		void Generate(TArray<FFrontendQueryEntry>& OutEntries) const override;
+		FNodeClassRegistrationEvents();
+		void Stream(TArray<FFrontendQueryEntry>& OutEntries) override;
+		void Reset() override;
 
 	private:
-		mutable Frontend::FRegistryTransactionID CurrentTransactionID;
+		Frontend::FRegistryTransactionID CurrentTransactionID;
 	};
 
 	class METASOUNDFRONTEND_API FFilterClassesByInputVertexDataType : public IFrontendQueryFilterStep
@@ -95,7 +88,7 @@ namespace Metasound
 	class METASOUNDFRONTEND_API FReduceClassesToHighestVersion : public IFrontendQueryReduceStep
 	{
 	public:
-		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const override;
+		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override;
 	};
 
 	class METASOUNDFRONTEND_API FReduceClassesToMajorVersion : public IFrontendQueryReduceStep
@@ -103,7 +96,7 @@ namespace Metasound
 	public:
 		FReduceClassesToMajorVersion(int32 InMajorVersion);
 
-		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const override;
+		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override;
 
 	private:
 		int32 MajorVersion = -1;

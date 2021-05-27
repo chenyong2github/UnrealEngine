@@ -64,7 +64,7 @@ namespace Metasound
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
-				NewQuery->AddStep<FGenerateNewlyAvailableNodeClasses>();
+				NewQuery->AddStep<FNodeClassRegistrationEvents>();
 
 				if (!bInIncludeDeprecated)
 				{
@@ -79,7 +79,7 @@ namespace Metasound
 
 			if (ensure(Query))
 			{
-				FFrontendQuerySelectionView Selection = Query->ExecuteQueryAndAppend();
+				FFrontendQuerySelectionView Selection = Query->Execute();
 				TArrayView<const FFrontendQueryEntry* const> Entries = Selection.GetSelection();
 				for (const FFrontendQueryEntry* Entry : Selection.GetSelection())
 				{
@@ -104,7 +104,7 @@ namespace Metasound
 			if (!Query)
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-				NewQuery->AddStep<FGenerateNewlyAvailableNodeClasses>()
+				NewQuery->AddStep<FNodeClassRegistrationEvents>()
 					.AddStep<FFilterClassesByClassName>(InName);
 
 				if (bInSortByVersion)
@@ -119,7 +119,7 @@ namespace Metasound
 
 			if (ensure(nullptr != Query))
 			{
-				FFrontendQuerySelectionView Selection = Query->ExecuteQueryAndAppend();
+				FFrontendQuerySelectionView Selection = Query->Execute();
 				TArrayView<const FFrontendQueryEntry* const> Entries = Selection.GetSelection();
 				for (const FFrontendQueryEntry* Entry : Selection.GetSelection())
 				{
@@ -139,7 +139,7 @@ namespace Metasound
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
-				NewQuery->AddStep<FGenerateNewlyAvailableNodeClasses>()
+				NewQuery->AddStep<FNodeClassRegistrationEvents>()
 					.AddStep<FFilterClassesByClassName>(InName)
 					.AddStep<FMapClassNameToMajorVersion>()
 					.AddStep<FReduceClassesToHighestVersion>();
@@ -149,7 +149,7 @@ namespace Metasound
 
 			if (ensure(Query))
 			{
-				FFrontendQuerySelectionView Selection = Query->ExecuteQueryAndAppend();
+				FFrontendQuerySelectionView Selection = Query->Execute();
 				TArrayView<const FFrontendQueryEntry* const> Entries = Selection.GetSelection();
 				if (Entries.IsEmpty())
 				{
@@ -174,7 +174,7 @@ namespace Metasound
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
-				NewQuery->AddStep<FGenerateNewlyAvailableNodeClasses>()
+				NewQuery->AddStep<FNodeClassRegistrationEvents>()
 					.AddStep<FFilterClassesByClassName>(InName)
 					.AddStep<FMapClassNameToMajorVersion>()
 					.AddStep<FReduceClassesToMajorVersion>(InMajorVersion);
@@ -184,7 +184,7 @@ namespace Metasound
 
 			if (ensure(Query))
 			{
-				FFrontendQuerySelectionView Selection = Query->ExecuteQueryAndAppend();
+				FFrontendQuerySelectionView Selection = Query->Execute();
 				TArrayView<const FFrontendQueryEntry* const> Entries = Selection.GetSelection();
 				if (Entries.IsEmpty())
 				{

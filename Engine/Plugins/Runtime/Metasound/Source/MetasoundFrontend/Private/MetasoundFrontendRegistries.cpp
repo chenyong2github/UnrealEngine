@@ -574,7 +574,7 @@ namespace Metasound
 					// Store update to newly registered node in history so nodes
 					// can be queried by transaction ID
 					FNodeClassInfo ClassInfo = { EMetasoundFrontendClassType::External, Key };
-					RegistryTransactionHistory.Add(MakeNodeRegistrationTransaction(ClassInfo));
+					RegistryTransactionHistory.Add(MakeAddNodeRegistrationTransaction(ClassInfo));
 
 					// Store registry elements in map so nodes can be queried using registry key.
 					ExternalNodeRegistry.Add(MoveTemp(Key), MoveTemp(RegistryElement));
