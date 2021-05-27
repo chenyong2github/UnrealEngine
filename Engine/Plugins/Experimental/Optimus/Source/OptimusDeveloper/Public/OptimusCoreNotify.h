@@ -43,7 +43,11 @@ enum class EOptimusGraphNotifyType
 	LinkAdded,				/// A link between nodes has been added (Subject == UOptimusNodeLink)
 	LinkRemoved,			/// A link between nodes has been removed (Subject == UOptimusNodeLink)
 
+	PinAdded,				/// A pin has been added to a node (Subject = UOptimusNodePin)
+	PinRemoved,				/// A pin on a node is being removed (Subject = UOptimusNodePin)
 	PinValueChanged,		/// A pin on a node has had its value changed (Subject = UOptimusNodePin)
+	PinRenamed,				/// A pin's name has changed (Subject = UOptimusNodePin)
+	PinTypeChanged,			/// A pin's underlying type has changed (Subject = UOptimusNodePin)
 };
 
 // A delegate for subscribing / reacting to Optimus graph local notifications.

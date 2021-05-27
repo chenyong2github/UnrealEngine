@@ -8,6 +8,7 @@
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
+#include "Misc/DefaultValueHelper.h"
 
 #include "UObject/Package.h"
 
@@ -248,6 +249,49 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 	return bSuccess;
 }
 
+bool UOptimusNodePin::VerifyValue(const FString& InStringValue) const
+{
+	const FProperty *Property = GetPropertyFromPin();
+	if (!Property)
+	{
+		// If there's no property, then all values is invalid.
+		return false;
+	}
+
+	if (CastField<FBoolProperty>(Property))
+	{
+		// Snarfed from FBoolProperty::ImportText_Internal
+		const FCoreTexts& CoreTexts = FCoreTexts::Get();
+		return InStringValue == TEXT("1") || 
+			   InStringValue == TEXT("True") || 
+			   InStringValue == *CoreTexts.True.ToString() || 
+			   InStringValue == TEXT("Yes") || 
+			   InStringValue == *CoreTexts.Yes.ToString() ||
+			   InStringValue == TEXT("0") || 
+			   InStringValue == TEXT("False") || 
+			   InStringValue == *CoreTexts.False.ToString() || 
+			   InStringValue == TEXT("No") || 
+			   InStringValue == *CoreTexts.No.ToString();
+	}
+	else if (CastField<FIntProperty>(Property))
+	{
+		return FDefaultValueHelper::IsStringValidInteger(InStringValue);
+	}
+	else if (CastField<FFloatProperty>(Property))
+	{
+		return FDefaultValueHelper::IsStringValidFloat(InStringValue);
+	}
+	else if (CastField<FObjectProperty>(Property))
+	{
+		// FIXME: Verify class + pointer.
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 
 bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* OutReason) const
 {
@@ -358,6 +402,61 @@ void UOptimusNodePin::Initialize(
 void UOptimusNodePin::AddSubPin(UOptimusNodePin* InSubPin)
 {
 	SubPins.Add(InSubPin);
+}
+
+
+bool UOptimusNodePin::SetDataType(FOptimusDataTypeRef InDataType)
+{
+	FOptimusDataTypeHandle DataTypeHandle = InDataType.Resolve();
+	if (!DataTypeHandle)
+	{
+		return false;
+	}
+
+	if (DataTypeHandle == GetDataType())
+	{
+		return false;
+	}
+
+	// Make sure it's compatible with the storage type.
+	if (StorageType == EOptimusNodePinStorageType::Resource &&
+		!EnumHasAllFlags(DataTypeHandle->UsageFlags, EOptimusDataTypeUsageFlags::Resource))
+	{
+		return false;
+	}
+
+	// FIXME: For now we don't support changing data type on pins with sub-pins or into
+	// data types that require expansion if we're a value pin.
+	if (!ensure(SubPins.IsEmpty()))
+	{
+		return false;
+	}
+	if (!ensure(StorageType != EOptimusNodePinStorageType::Value ||
+				!EnumHasAllFlags(DataTypeHandle->TypeFlags, EOptimusDataTypeFlags::ShowElements)))
+	{
+		return false;
+	}
+
+	DataType = InDataType;
+
+	Notify(EOptimusGraphNotifyType::PinTypeChanged);
+
+	return true;
+}
+
+
+bool UOptimusNodePin::SetName(FName InName)
+{
+	if (GetFName() == InName)
+	{
+		return false;
+	}
+
+	Rename(*InName.ToString(), nullptr);
+
+	Notify(EOptimusGraphNotifyType::PinRenamed);
+
+	return true;
 }
 
 

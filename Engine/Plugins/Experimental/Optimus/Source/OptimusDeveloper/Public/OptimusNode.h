@@ -139,6 +139,27 @@ protected:
 
 	virtual void CreatePins();
 
+	// Add a new pin and notify the world.
+	UOptimusNodePin* AddPin(
+	    FName InName,
+	    EOptimusNodePinDirection InDirection,
+	    EOptimusNodePinStorageType InStorageType,
+	    FOptimusDataTypeRef InDataType
+		);
+
+	/** Set the pin data type. */
+	// FIXME: Currently not undoable
+	bool SetPinDataType(
+		UOptimusNodePin* InPin,
+		FOptimusDataTypeRef InDataType
+		);
+
+	bool SetPinName(
+	    UOptimusNodePin* InPin,
+	    FName InNewName
+		);
+
+
 	UOptimusNodePin* CreatePinFromDataType(
 		FName InName,
 	    EOptimusNodePinDirection InDirection,

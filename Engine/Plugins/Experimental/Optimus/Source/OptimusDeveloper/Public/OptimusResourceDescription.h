@@ -11,6 +11,14 @@
 
 #include "OptimusResourceDescription.generated.h"
 
+UENUM()
+enum class EOptimusResourceContext : uint8
+{
+	Vertex,
+	Triangle,
+	Index,
+	ExplicitCount
+};
 
 
 UCLASS()

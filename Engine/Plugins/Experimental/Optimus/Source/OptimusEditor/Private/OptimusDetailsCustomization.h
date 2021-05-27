@@ -6,6 +6,12 @@
 
 #include "IPropertyTypeCustomization.h"
 
+
+class FOptimusHLSLSyntaxHighlighter;
+class SMultiLineEditableText;
+class SScrollBar;
+
+
 class FOptimusDataTypeRefCustomization : 
 	public IPropertyTypeCustomization
 {
@@ -23,7 +29,7 @@ public:
 		TSharedRef<IPropertyHandle> InPropertyHandle, 
 		IDetailChildrenBuilder& InChildBuilder, 
 		IPropertyTypeCustomizationUtils& InCustomizationUtils
-		) override;;
+		) override;
 
 private:	
 	FOptimusDataTypeHandle GetCurrentDataType() const;
@@ -34,4 +40,47 @@ private:
 	TSharedPtr<IPropertyHandle> TypeNameProperty;
 	TAttribute<FOptimusDataTypeHandle> CurrentDataType;
 
+};
+
+
+
+class FOptimusType_ShaderTextCustomization : 
+	public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+	FOptimusType_ShaderTextCustomization();
+
+	// IPropertyTypeCustomization overrides
+	void CustomizeHeader(
+	    TSharedRef<IPropertyHandle> InPropertyHandle,
+	    FDetailWidgetRow& InHeaderRow,
+	    IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
+
+	void CustomizeChildren(
+	    TSharedRef<IPropertyHandle> InPropertyHandle,
+	    IDetailChildrenBuilder& InChildBuilder,
+	    IPropertyTypeCustomizationUtils& InCustomizationUtils) override {}
+
+private:
+	TSharedRef<FOptimusHLSLSyntaxHighlighter> SyntaxHighlighter;
+	TSharedRef<FOptimusHLSLSyntaxHighlighter> SyntaxHighlighterMain;
+
+	TSharedPtr<IPropertyHandle> ShaderPreambleProperty;
+	TSharedPtr<IPropertyHandle> ShaderTextProperty;
+	TSharedPtr<IPropertyHandle> ShaderEpilogueProperty;
+
+	TSharedPtr<SScrollBar> HorizontalScrollbar;
+	TSharedPtr<SScrollBar> VerticalScrollbar;
+
+	TSharedPtr<SMultiLineEditableText> ShaderEditor;
+
+	FText GetPreambleText() const;
+	FText GetShaderText() const;
+	FText GetEpilogueText() const;
+
+	void OnShaderTextChanged(const FText &InText);
+
+	FReply OnShaderTextKeyChar(const FGeometry& MyGeometry,const FCharacterEvent& InCharacterEvent);
 };

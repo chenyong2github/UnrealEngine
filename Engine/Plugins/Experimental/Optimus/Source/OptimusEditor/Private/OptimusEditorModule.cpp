@@ -12,6 +12,9 @@
 #include "OptimusEditorStyle.h"
 #include "OptimusTestGraphAssetActions.h"
 #include "SOptimusEditorGraphExplorer.h"
+#include "OptimusDetailsCustomization.h"
+
+#include "Types/OptimusType_ShaderText.h"
 
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
@@ -87,6 +90,10 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 		FOptimusDataTypeRef::StaticStruct()->GetFName(), 
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOptimusDataTypeRefCustomization::MakeInstance)
 		);
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+	    FOptimusType_ShaderText::StaticStruct()->GetFName(),
+	    FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOptimusType_ShaderTextCustomization::MakeInstance));
 }
 
 
@@ -100,6 +107,7 @@ void FOptimusEditorModule::UnregisterPropertyCustomizations()
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	PropertyModule.UnregisterCustomPropertyTypeLayout(FOptimusDataTypeRef::StaticStruct()->GetFName());
+	PropertyModule.UnregisterCustomPropertyTypeLayout(FOptimusType_ShaderText::StaticStruct()->GetFName());
 }
 
 

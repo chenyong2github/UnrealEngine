@@ -32,6 +32,9 @@ public:
 
 	const TSet<UOptimusEditorGraphNode*> &GetSelectedNodes() const { return SelectedNodes; }
 
+	// Do a visual refresh of the node.
+	void RefreshVisualNode(UOptimusEditorGraphNode *InGraphNode);
+
 	///
 	static const FSlateBrush* GetGraphTypeIcon(UOptimusNodeGraph* InModelGraph);
 

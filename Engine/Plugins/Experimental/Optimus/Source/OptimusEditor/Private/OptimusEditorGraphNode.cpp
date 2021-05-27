@@ -2,6 +2,7 @@
 
 #include "OptimusEditorGraphNode.h"
 
+#include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphSchema.h"
 
 #include "OptimusDataType.h"
@@ -9,6 +10,7 @@
 #include "OptimusNodePin.h"
 
 #include "EdGraphSchema_K2.h"
+#include "GraphEditAction.h"
 
 
 void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
@@ -66,6 +68,53 @@ UEdGraphPin* UOptimusEditorGraphNode::FindGraphPinFromModelPin(
 }
 
 
+void UOptimusEditorGraphNode::SynchronizeGraphPinNameWithModelPin(
+	const UOptimusNodePin* InModelPin
+	)
+{
+	// FindGraphPinFromModelPin will not work here since the model pin now carries the new pin
+	// path but our maps do not. We have to search linearly on the pointer to get the old name.
+	FName OldPinPath;
+	for (const TPair<FName, UOptimusNodePin*>& Item : PathToModelPinMap)
+	{
+		if (Item.Value == InModelPin)
+		{
+			OldPinPath = Item.Key;
+			break;
+		}
+	}
+
+	UEdGraphPin* GraphPin = nullptr;
+
+	if (!OldPinPath.IsNone())
+	{
+		GraphPin = PathToGraphPinMap.FindRef(OldPinPath);
+	}
+
+	if (GraphPin)
+	{
+		FName NewPinPath = InModelPin->GetUniqueName();
+
+		// Update the resolver maps first.
+		PathToModelPinMap.Remove(OldPinPath);
+		PathToModelPinMap.Add(NewPinPath, const_cast<UOptimusNodePin *>(InModelPin));
+
+		PathToGraphPinMap.Remove(OldPinPath);
+		PathToGraphPinMap.Add(NewPinPath, GraphPin);
+
+		GraphPin->PinName = NewPinPath;
+		GraphPin->PinFriendlyName = InModelPin->GetDisplayName();
+
+		for (UOptimusNodePin* ModelSubPin : InModelPin->GetSubPins())
+		{
+			SynchronizeGraphPinNameWithModelPin(ModelSubPin);
+		}
+	}
+
+	// The slate node will automatically pick up the new name on the next tick.
+}
+
+
 void UOptimusEditorGraphNode::SynchronizeGraphPinValueWithModelPin(
 	const UOptimusNodePin* InModelPin
 	)
@@ -98,6 +147,37 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinValueWithModelPin(
 	}
 }
 
+
+void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
+	const UOptimusNodePin* InModelPin
+	)
+{
+	// FIXME: We only support changing pins with no sub-pins for now.
+	if (!ensure(InModelPin->GetSubPins().IsEmpty()))
+	{
+		return;
+	}
+
+	FOptimusDataTypeHandle DataType = InModelPin->GetDataType();
+	if (!ensure(DataType.IsValid()))
+	{
+		return;
+	}
+
+	FEdGraphPinType PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
+	
+	// If the pin has sub-pins, we need to reconstruct.
+	UEdGraphPin* GraphPin = FindGraphPinFromModelPin(InModelPin);
+
+	if (GraphPin && GraphPin->SubPins.IsEmpty())
+	{
+		GraphPin->PinType = PinType;
+
+		Cast<UOptimusEditorGraph>(GetGraph())->RefreshVisualNode(this);
+	}
+}
+
+
 FText UOptimusEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if (ModelNode)
@@ -108,7 +188,7 @@ FText UOptimusEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) cons
 	return {};
 }
 
-void UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
+bool UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 	const UOptimusNodePin* InModelPin,
 	EEdGraphPinDirection InDirection,
 	UEdGraphPin* InParentPin
@@ -117,7 +197,7 @@ void UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 	FOptimusDataTypeHandle DataType = InModelPin->GetDataType();
 	if (!ensure(DataType.IsValid()))
 	{
-		return;
+		return false;
 	}
 
 	FEdGraphPinType PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
@@ -149,6 +229,43 @@ void UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 			CreateGraphPinFromModelPin(ModelSubPin, InDirection, GraphPin);
 		}
 	}
+	return true;
+}
+
+
+bool UOptimusEditorGraphNode::ModelPinAdded(const UOptimusNodePin* InModelPin)
+{
+	EEdGraphPinDirection GraphPinDirection;
+
+	if (InModelPin->GetDirection() == EOptimusNodePinDirection::Input)
+	{
+		GraphPinDirection = EGPD_Input;
+	}
+	else if (InModelPin->GetDirection() == EOptimusNodePinDirection::Output)
+	{
+		GraphPinDirection = EGPD_Output;
+	}
+	else
+	{
+		return false;
+	}
+	
+	if (!CreateGraphPinFromModelPin(InModelPin, GraphPinDirection))
+	{
+		return false;
+	}
+
+	UpdateTopLevelPins();
+
+	return true;
+}
+
+
+bool UOptimusEditorGraphNode::ModelPinRemoved(const UOptimusNodePin* InModelPin)
+{
+	// TBD
+	check(false);
+	return false;
 }
 
 
