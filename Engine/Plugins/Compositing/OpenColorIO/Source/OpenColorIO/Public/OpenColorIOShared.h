@@ -16,6 +16,7 @@
 #include "RHI.h"
 #include "SceneTypes.h"
 #include "Shader.h"
+#include "ShaderCompiler.h"
 #include "StaticParameterSet.h"
 #include "Templates/RefCounting.h"
 #include "OpenColorIOShaderCompilationManager.h"

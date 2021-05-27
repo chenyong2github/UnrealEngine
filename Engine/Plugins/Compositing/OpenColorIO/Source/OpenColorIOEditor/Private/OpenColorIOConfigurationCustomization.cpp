@@ -1,4 +1,3 @@
-#include "OpenColorIOConfigurationCustomization.h"
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OpenColorIOConfigurationCustomization.h"

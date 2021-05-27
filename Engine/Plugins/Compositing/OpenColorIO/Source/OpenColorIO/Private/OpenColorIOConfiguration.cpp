@@ -2,11 +2,9 @@
 
 #include "OpenColorIOConfiguration.h"
 
-#include "DirectoryWatcherModule.h"
 #include "EngineAnalytics.h"
 #include "Engine/VolumeTexture.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "IDirectoryWatcher.h"
 #include "Math/PackedVector.h"
 #include "Misc/PathViews.h"
 #include "Modules/ModuleManager.h"
@@ -21,9 +19,12 @@
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
+#include "DirectoryWatcherModule.h"
+#include "IDirectoryWatcher.h"
 #include "Interfaces/ITargetPlatform.h"
 #endif //WITH_EDITOR
 
+#if WITH_EDITOR && WITH_OCIO
 namespace OCIODirectoryWatcher
 {
 	/** OCIO supported extensions we should be checking for when something changes in the OCIO config folder. */
@@ -39,7 +40,7 @@ namespace OCIODirectoryWatcher
 
 	static const FName NAME_DirectoryWatcher = "DirectoryWatcher";
 }
-
+#endif
 
 UOpenColorIOConfiguration::UOpenColorIOConfiguration(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -102,7 +103,7 @@ bool UOpenColorIOConfiguration::Validate() const
 
 void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 {
-#if WITH_OCIO
+#if WITH_EDITOR && WITH_OCIO
 	TArray<FOpenColorIOColorSpace> ColorSpacesToBeReloaded = DesiredColorSpaces;
 	DesiredColorSpaces.Reset();
 	CleanupTransforms();
@@ -149,7 +150,7 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 
 void UOpenColorIOConfiguration::ConfigPathChangedEvent(const TArray<FFileChangeData>& InFileChanges, const FString InFileMountPath)
 {
-#if WITH_OCIO
+#if WITH_EDITOR && WITH_OCIO
 	// We want to stop reacting to these events while the message is still up.
 	if (WatchedDirectoryInfo.RawConfigChangedToast.IsValid())
 	{
@@ -198,7 +199,7 @@ void UOpenColorIOConfiguration::ConfigPathChangedEvent(const TArray<FFileChangeD
 
 void UOpenColorIOConfiguration::StartDirectoryWatch(const FString& FilePath)
 {
-#if WITH_OCIO
+#if WITH_EDITOR && WITH_OCIO
 	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(OCIODirectoryWatcher::NAME_DirectoryWatcher);
 	if (IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get())
 	{
@@ -221,7 +222,7 @@ void UOpenColorIOConfiguration::StartDirectoryWatch(const FString& FilePath)
 
 void UOpenColorIOConfiguration::StopDirectoryWatch()
 {
-#if WITH_OCIO
+#if WITH_EDITOR && WITH_OCIO
 	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(OCIODirectoryWatcher::NAME_DirectoryWatcher);
 	if (IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get())
 	{
