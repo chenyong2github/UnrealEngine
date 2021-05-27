@@ -940,44 +940,49 @@ void FPerInstanceRenderData::UpdateBoundsTransforms_Concurrent()
 			}
 
 	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[this]()
-	{
+			[this]()
+			{
 					UpdateBoundsTransforms();
-				},
-				TStatId(),
-				&Prerequisites
-			);
+			},
+			TStatId(),
+			&Prerequisites
+				);
 		}
 	);
 }
 
 void FPerInstanceRenderData::UpdateBoundsTransforms()
 {
-		const int32 InstanceCount = InstanceBuffer.GetNumInstances();
-			FBoxSphereBounds LocalBounds;
-			if (bTrackBounds)
-			{
-				LocalBounds = FBoxSphereBounds(InstanceLocalBounds);
+	const int32 InstanceCount = InstanceBuffer.GetNumInstances();
+	FBoxSphereBounds LocalBounds;
+	if (bTrackBounds)
+	{
+		LocalBounds = FBoxSphereBounds(InstanceLocalBounds);
 		PerInstanceBounds.Empty();
 		PerInstanceBounds.Reserve(InstanceCount);
-			}
-		PerInstanceTransforms.Empty();
-		PerInstanceTransforms.Reserve(InstanceCount);
+	}
+	PerInstanceTransforms.Empty();
+	PerInstanceTransforms.Reserve(InstanceCount);
 
-		for (int InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
+	for (int InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
+	{
+		if( !InstanceBuffer.GetInstanceData() || !InstanceBuffer.GetInstanceData()->IsValidIndex(InstanceIndex))
 		{
-			FMatrix InstTransform;
+			continue;
+		}
 
-			InstanceBuffer.GetInstanceTransform(InstanceIndex, InstTransform);
-			InstTransform.M[3][3] = 1.0f;
+		FMatrix InstTransform;
 
-				if (bTrackBounds)
-				{
+		InstanceBuffer.GetInstanceTransform(InstanceIndex, InstTransform);
+		InstTransform.M[3][3] = 1.0f;
+
+		if (bTrackBounds)
+		{
 			FBoxSphereBounds TransformedBounds = LocalBounds.TransformBy(InstTransform);
 			PerInstanceBounds.Add(FVector4(TransformedBounds.Origin, TransformedBounds.SphereRadius));
-				}
-			PerInstanceTransforms.Add(InstTransform);
 		}
+		PerInstanceTransforms.Add(InstTransform);
+	}
 }
 
 
