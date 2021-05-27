@@ -133,6 +133,7 @@ namespace UnrealBuildTool
 		VisualStudio,
 		VisualStudio2017,
 		VisualStudio2019,
+		VisualStudio2022,
 		XCode,
 		Eddie,
 		VisualStudioCode,
@@ -662,7 +663,13 @@ namespace UnrealBuildTool
 					Format = ProjectFileFormat.VisualStudio2019;
 					return true;
 				}
+				else if (PreferredAccessor == "visualstudio2022")
+				{
+					Format = ProjectFileFormat.VisualStudio2022;
+					return true;
+				}
 			}
+
 
 			Format = ProjectFileFormat.VisualStudio;
 			return false;

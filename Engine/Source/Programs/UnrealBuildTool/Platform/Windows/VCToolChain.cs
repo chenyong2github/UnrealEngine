@@ -851,6 +851,7 @@ namespace UnrealBuildTool
 							break;
 						case WindowsCompiler.VisualStudio2017:
 						case WindowsCompiler.VisualStudio2019:
+						case WindowsCompiler.VisualStudio2022:
 							Arguments[Arguments.Count - 1] += ":FASTLINK";
 							break;
 					}

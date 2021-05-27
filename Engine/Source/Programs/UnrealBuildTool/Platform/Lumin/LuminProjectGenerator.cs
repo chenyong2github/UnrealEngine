@@ -39,7 +39,8 @@ namespace UnrealBuildTool
 			{
 				// TODO: add a registry check or file exists check to confirm if MLExtension is installed on the given ProjectFileFormat.
 				VSDebuggingEnabled = (ProjectFileFormat == VCProjectFileFormat.VisualStudio2017 
-									|| ProjectFileFormat == VCProjectFileFormat.VisualStudio2019);
+									|| ProjectFileFormat == VCProjectFileFormat.VisualStudio2019
+									|| ProjectFileFormat == VCProjectFileFormat.VisualStudio2022);
 				VSSupportChecked = true;
 			}
             return VSDebuggingEnabled;

@@ -44,6 +44,11 @@ namespace UnrealBuildTool
 		/// Visual Studio 2019 (Visual C++ 16.0)
 		/// </summary>
 		VisualStudio2019,
+
+		/// <summary>
+		/// Visual Studio 2022 (Visual C++ 17.0)
+		/// </summary>
+		VisualStudio2022,
 	}
 
 	/// <summary>
@@ -106,6 +111,7 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-2017", Value = nameof(WindowsCompiler.VisualStudio2017))]
 		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019))]
+		[CommandLine("-2022", Value = nameof(WindowsCompiler.VisualStudio2022))]
 		[CommandLine("-Compiler=")]
 		public WindowsCompiler Compiler = WindowsCompiler.Default;
 
@@ -220,7 +226,7 @@ namespace UnrealBuildTool
 		/// Microsoft provides legacy_stdio_definitions library to enable building with VS2015 until they fix everything up.
 		public bool bNeedsLegacyStdioDefinitionsLib
 		{
-			get { return Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.Clang; }
+			get { return Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022 || Compiler == WindowsCompiler.Clang; }
 		}
 
 		/// <summary>
@@ -381,6 +387,7 @@ namespace UnrealBuildTool
 				case WindowsCompiler.Intel:
 				case WindowsCompiler.VisualStudio2017:
 				case WindowsCompiler.VisualStudio2019:
+				case WindowsCompiler.VisualStudio2022:
 					return "2015"; // VS2017 is backwards compatible with VS2015 compiler
 
 				default:
@@ -992,6 +999,8 @@ namespace UnrealBuildTool
 					return "Visual Studio 2017";
 				case WindowsCompiler.VisualStudio2019:
 					return "Visual Studio 2019";
+				case WindowsCompiler.VisualStudio2022:
+					return "Visual Studio 2022";
 				default:
 					return Compiler.ToString();
 			}
@@ -1039,7 +1048,7 @@ namespace UnrealBuildTool
 				Installations = new List<VisualStudioInstallation>();
 			    if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			    {
-				    if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019)
+				    if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022)
 				    {
 						try
 						{
@@ -1066,7 +1075,12 @@ namespace UnrealBuildTool
 									if (VersionNumber.TryParse(VersionString, out Version))
 									{
 										VersionNumber Version2019 = new VersionNumber(16);
-										if(Compiler == WindowsCompiler.VisualStudio2019 && Version < Version2019)
+										VersionNumber Version2022 = new VersionNumber(17);
+										if (Compiler == WindowsCompiler.VisualStudio2022 && Version < Version2022)
+										{
+											continue;
+										}
+										else if (Compiler == WindowsCompiler.VisualStudio2019 && Version < Version2019)
 										{
 											continue;
 										}
@@ -1170,7 +1184,7 @@ namespace UnrealBuildTool
 							}
 						}
 					}
-				    else if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019)
+				    else if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022)
 				    {
 						// Enumerate all the manually installed toolchains
 						List<VisualStudioInstallation> Installations = FindVisualStudioInstallations(Compiler);
@@ -1184,11 +1198,22 @@ namespace UnrealBuildTool
 						DirectoryReference PlatformDir;
 						if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out PlatformDir))
 						{
-							DirectoryReference ReleaseBaseDir = DirectoryReference.Combine(PlatformDir, "Win64", (Compiler == WindowsCompiler.VisualStudio2019) ? "VS2019" : "VS2017");
-							FindVisualStudioToolChains(ReleaseBaseDir, false, ToolChains);
+							string VSDir = string.Empty;
+							switch (Compiler)
+							{
+								case WindowsCompiler.VisualStudio2017: VSDir = "VS2017"; break;
+								case WindowsCompiler.VisualStudio2019: VSDir = "VS2019"; break;
+								case WindowsCompiler.VisualStudio2022: VSDir = "VS2022"; break;
+							}
 
-							DirectoryReference PreviewBaseDir = DirectoryReference.Combine(PlatformDir, "Win64", (Compiler == WindowsCompiler.VisualStudio2019) ? "VS2019-Preview" : "VS2017-Preview");
-							FindVisualStudioToolChains(PreviewBaseDir, true, ToolChains);
+							if (!string.IsNullOrEmpty(VSDir))
+							{
+								DirectoryReference ReleaseBaseDir = DirectoryReference.Combine(PlatformDir, "Win64", VSDir);
+								FindVisualStudioToolChains(ReleaseBaseDir, false, ToolChains);
+
+								DirectoryReference PreviewBaseDir = DirectoryReference.Combine(PlatformDir, "Win64", $"{VSDir}-Preview");
+								FindVisualStudioToolChains(PreviewBaseDir, true, ToolChains);
+							}
 						}
 					}
 					else
@@ -1321,16 +1346,6 @@ namespace UnrealBuildTool
 		static bool IsValidToolChainDirClang(DirectoryReference ToolChainDir)
 		{
 			return FileReference.Exists(FileReference.Combine(ToolChainDir, "bin", "clang-cl.exe"));
-		}
-
-		/// <summary>
-		/// Checks if the given directory contains a valid Visual Studio 2015 toolchain
-		/// </summary>
-		/// <param name="ToolChainDir">Directory to check</param>
-		/// <returns>True if the given directory is valid</returns>
-		static bool IsValidToolChainDir2015(DirectoryReference ToolChainDir)
-		{
-			return FileReference.Exists(FileReference.Combine(ToolChainDir, "bin", "amd64", "cl.exe")) || FileReference.Exists(FileReference.Combine(ToolChainDir, "bin", "x86_amd64", "cl.exe"));
 		}
 
 		/// <summary>
@@ -1642,10 +1657,21 @@ namespace UnrealBuildTool
 				DirectoryReference PlatformDir;
 				if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out PlatformDir))
 				{
-					DirectoryReference DiaSdkDir = DirectoryReference.Combine(PlatformDir, "Win64", "DIA SDK", (Compiler == WindowsCompiler.VisualStudio2019) ? "VS2019" : "VS2017");
-					if (IsValidDiaSdkDir(DiaSdkDir))
+					string VSDir = string.Empty;
+					switch (Compiler)
 					{
-						DiaSdkDirs.Add(DiaSdkDir);
+						case WindowsCompiler.VisualStudio2017: VSDir = "VS2017"; break;
+						case WindowsCompiler.VisualStudio2019: VSDir = "VS2019"; break;
+						case WindowsCompiler.VisualStudio2022: VSDir = "VS2022"; break;
+					}
+
+					if (!string.IsNullOrEmpty(VSDir))
+					{
+						DirectoryReference DiaSdkDir = DirectoryReference.Combine(PlatformDir, "Win64", "DIA SDK", VSDir);
+						if (IsValidDiaSdkDir(DiaSdkDir))
+						{
+							DiaSdkDirs.Add(DiaSdkDir);
+						}
 					}
 				}
 
