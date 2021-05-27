@@ -394,7 +394,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float DeterminantSign = Intermediates.SceneData.InstanceData.DeterminantSign;
 #else 
 	FTransformData TransformData = LoadTransformData(0U, 0U, GCVF_GET_INPUT_VERTEX_ID(Input));
-	float DeterminantSign = GetPrimitive_DeterminantSign(Primitive);
+	float DeterminantSign = GetPrimitive_DeterminantSign_FromFlags(Primitive.Flags);
 #endif
 
 	Intermediates.LocalToWorld = TransformData.LocalToWorld;
