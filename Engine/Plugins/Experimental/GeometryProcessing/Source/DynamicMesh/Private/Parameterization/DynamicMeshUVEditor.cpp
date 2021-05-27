@@ -7,10 +7,16 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "MeshBoundaryLoops.h"
 #include "DynamicMesh/MeshIndexUtil.h"
+#include "DynamicMesh/MeshTransforms.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "MeshQueries.h"
+#include "MeshWeights.h"
 
 #include "Parameterization/MeshDijkstra.h"
 #include "Parameterization/MeshLocalParam.h"
 #include "Solvers/MeshParameterizationSolvers.h"
+
+#include "Async/ParallelFor.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -47,6 +53,29 @@ void FDynamicMeshUVEditor::CreateUVLayer(int32 LayerIndex)
 	}
 }
 
+
+void FDynamicMeshUVEditor::ResetUVs()
+{
+	if (ensure(UVOverlay))
+	{
+		UVOverlay->ClearElements();
+	}
+}
+
+
+
+void FDynamicMeshUVEditor::TransformUVElements(const TArray<int32>& ElementIDs, TFunctionRef<FVector2f(const FVector2f&)> TransformFunc)
+{
+	for (int32 elemid : ElementIDs)
+	{
+		if (UVOverlay->IsElement(elemid))
+		{
+			FVector2f UV = UVOverlay->GetElement(elemid);
+			UV = TransformFunc(UV);
+			UVOverlay->SetElement(elemid, UV);
+		}
+	}
+}
 
 
 template<typename EnumerableType>
@@ -95,11 +124,24 @@ void FDynamicMeshUVEditor::SetPerTriangleUVs(double ScaleFactor, FUVEditResult* 
 	InternalSetPerTriangleUVs(Mesh->TriangleIndicesItr(), Mesh, UVOverlay, ScaleFactor, Result);
 }
 
-
 void FDynamicMeshUVEditor::SetTriangleUVsFromProjection(const TArray<int32>& Triangles, const FFrame3d& ProjectionFrame, FUVEditResult* Result)
+{
+	SetTriangleUVsFromPlanarProjection(Triangles, [](const FVector3d& P) { return P; },  
+		ProjectionFrame, FVector2d::One(), Result);
+}
+
+void FDynamicMeshUVEditor::SetTriangleUVsFromPlanarProjection(
+	const TArray<int32>& Triangles, 
+	TFunctionRef<FVector3d(const FVector3d&)> PointTransform,
+	const FFrame3d& ProjectionFrame, 
+	const FVector2d& Dimensions, 
+	FUVEditResult* Result)
 {
 	if (ensure(UVOverlay) == false) return;
 	if (!Triangles.Num()) return;
+
+	double ScaleX = (FMathd::Abs(Dimensions.X) > FMathf::ZeroTolerance) ? (1.0 / Dimensions.X) : 1.0;
+	double ScaleY = (FMathd::Abs(Dimensions.Y) > FMathf::ZeroTolerance) ? (1.0 / Dimensions.Y) : 1.0;
 
 	TMap<int32, int32> BaseToOverlayVIDMap;
 	TArray<int32> NewUVIndices;
@@ -113,7 +155,11 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromProjection(const TArray<int32>& Tri
 			const int32* FoundElementID = BaseToOverlayVIDMap.Find(BaseTri[j]);
 			if (FoundElementID == nullptr)
 			{
-				FVector2f UV = (FVector2f)ProjectionFrame.ToPlaneUV(Mesh->GetVertex(BaseTri[j]), 2);
+				FVector3d Pos = Mesh->GetVertex(BaseTri[j]);
+				FVector3d TransformPos = PointTransform(Pos);
+				FVector2f UV = (FVector2f)ProjectionFrame.ToPlaneUV(TransformPos, 2);
+				UV.X *= ScaleX;
+				UV.Y *= ScaleY;
 				ElemTri[j] = UVOverlay->AppendElement(UV);
 				NewUVIndices.Add(ElemTri[j]);
 				BaseToOverlayVIDMap.Add(BaseTri[j], ElemTri[j]);
@@ -133,6 +179,61 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromProjection(const TArray<int32>& Tri
 }
 
 
+bool FDynamicMeshUVEditor::EstimateGeodesicCenterFrameVertex(const FDynamicMesh3& Mesh, FFrame3d& FrameOut, int32& VertexIDOut, bool bAlignToUnitAxes)
+{
+	VertexIDOut = *Mesh.VertexIndicesItr().begin();
+	FVector3d Normal = FMeshNormals::ComputeVertexNormal(Mesh, VertexIDOut);
+
+	FMeshBoundaryLoops LoopsCalc(&Mesh, true);
+	if (ensure(LoopsCalc.GetLoopCount() > 0) == false )
+	{
+		FrameOut = Mesh.GetVertexFrame(VertexIDOut, false, &Normal);
+		return false;
+	}
+	const FEdgeLoop& Loop = LoopsCalc[LoopsCalc.GetMaxVerticesLoopIndex()];
+	TArray<FVector2d> SeedPoints;
+	for (int32 vid : Loop.Vertices)
+	{
+		SeedPoints.Add(FVector2d(vid, 0.0));
+	}
+
+	TMeshDijkstra<FDynamicMesh3> Dijkstra(&Mesh);
+	Dijkstra.ComputeToMaxDistance(SeedPoints, TNumericLimits<float>::Max());
+	int32 MaxDistVID = Dijkstra.GetMaxGraphDistancePointID();
+	if ( ensure(Mesh.IsVertex(MaxDistVID)) == false )
+	{
+		FrameOut = Mesh.GetVertexFrame(VertexIDOut, false, &Normal);
+		return false;
+	}
+	VertexIDOut = MaxDistVID;
+	Normal = FMeshNormals::ComputeVertexNormal(Mesh, MaxDistVID);
+	FrameOut = Mesh.GetVertexFrame(MaxDistVID, false, &Normal);
+
+	// try to generate consistent frame alignment...
+	if (bAlignToUnitAxes)
+	{
+		FrameOut.ConstrainedAlignPerpAxes(0, 1, 2, FVector3d::UnitX(), FVector3d::UnitY(), 0.95);
+	}
+
+	return true;
+}
+
+
+bool FDynamicMeshUVEditor::EstimateGeodesicCenterFrameVertex(const FDynamicMesh3& Mesh, const TArray<int32>& Triangles, FFrame3d& FrameOut, int32& VertexIDOut, bool bAlignToUnitAxes)
+{
+	FDynamicSubmesh3 SubmeshCalc(&Mesh, Triangles, (int)EMeshComponents::None, false);
+	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
+	FFrame3d SeedFrame;
+	int32 FrameVertexID;
+	bool bFrameOK = EstimateGeodesicCenterFrameVertex(Submesh, SeedFrame, FrameVertexID, true);
+	if (!bFrameOK)
+	{
+		return false;
+	}
+	FrameVertexID = SubmeshCalc.MapVertexToBaseMesh(FrameVertexID);
+	return true;
+}
+
 
 bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangles, FUVEditResult* Result)
 {
@@ -143,34 +244,17 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangl
 	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
 	FMeshNormals::QuickComputeVertexNormals(Submesh);
 
-	FMeshBoundaryLoops LoopsCalc(&Submesh, true);
-	if (LoopsCalc.GetLoopCount() == 0)
+	FFrame3d SeedFrame;
+	int32 FrameVertexID;
+	bool bFrameOK = EstimateGeodesicCenterFrameVertex(Submesh, SeedFrame, FrameVertexID, true);
+	if (!bFrameOK)
 	{
 		return false;
 	}
-	const FEdgeLoop& Loop = LoopsCalc[LoopsCalc.GetMaxVerticesLoopIndex()];
-	TArray<FVector2d> SeedPoints;
-	for (int32 vid : Loop.Vertices)
-	{
-		SeedPoints.Add(FVector2d(vid, 0.0));
-	}
-
-	TMeshDijkstra<FDynamicMesh3> Dijkstra(&Submesh);
-	Dijkstra.ComputeToMaxDistance(SeedPoints, TNumericLimits<float>::Max());
-	int32 MaxDistVID = Dijkstra.GetMaxGraphDistancePointID();
-	if (!Submesh.IsVertex(MaxDistVID))
-	{
-		return false;
-	}
-
-
-	FFrame3d SeedFrame(Submesh.GetVertex(MaxDistVID), (FVector3d)Submesh.GetVertexNormal(MaxDistVID));
-	// try to generate consistent frame alignment...
-	SeedFrame.ConstrainedAlignPerpAxes(0, 1, 2, FVector3d::UnitX(), FVector3d::UnitY(), 0.95);
 
 	TMeshLocalParam<FDynamicMesh3> Param(&Submesh);
 	Param.ParamMode = ELocalParamTypes::ExponentialMapUpwindAvg;
-	Param.ComputeToMaxDistance(MaxDistVID, SeedFrame, TNumericLimits<float>::Max());
+	Param.ComputeToMaxDistance(FrameVertexID, SeedFrame, TNumericLimits<float>::Max());
 
 	TArray<int32> VtxElementIDs;
 	TArray<int32> NewElementIDs;
@@ -208,6 +292,124 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangl
 }
 
 
+
+
+bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(
+	const TArray<int32>& Triangles,
+	TFunctionRef<FVector3d(const FVector3d&)> PointTransform,
+	const FFrame3d& ProjectionFrame,
+	const FVector2d& Dimensions,
+	int32 NormalSmoothingRounds,
+	double NormalSmoothingAlpha,
+	double FrameNormalBlendWeight,
+	FUVEditResult* Result)
+{
+	if (ensure(UVOverlay) == false) return false;
+	if (Triangles.Num() == 0) return false;
+
+	double ScaleX = (FMathd::Abs(Dimensions.X) > FMathf::ZeroTolerance) ? (1.0 / Dimensions.X) : 1.0;
+	double ScaleY = (FMathd::Abs(Dimensions.Y) > FMathf::ZeroTolerance) ? (1.0 / Dimensions.Y) : 1.0;
+
+	FDynamicSubmesh3 SubmeshCalc(Mesh, Triangles, (int)EMeshComponents::None, false);
+	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
+	MeshTransforms::ApplyTransform(Submesh, PointTransform, [&](const FVector3f& V) { return V;});
+	FMeshNormals::QuickComputeVertexNormals(Submesh);
+
+	NormalSmoothingRounds = FMath::Clamp(NormalSmoothingRounds, 0, 500);
+	NormalSmoothingAlpha = FMathd::Clamp(NormalSmoothingAlpha, 0.0, 1.0);
+	if (NormalSmoothingRounds > 0 && NormalSmoothingAlpha > 0)
+	{
+		int32 NumV = Submesh.MaxVertexID();
+		TArray<FVector3d> SmoothedNormals;
+		SmoothedNormals.SetNum(NumV);
+		for (int32 ri = 0; ri < NormalSmoothingRounds; ++ri)
+		{
+			SmoothedNormals.Init(FVector3d::Zero(), NumV);
+			for (int32 vid : Submesh.VertexIndicesItr())
+			{
+				FVector3d SmoothedNormal = FVector3d::Zero();
+				UE::Geometry::FMeshWeights::CotanWeightsBlendSafe(Submesh, vid, [&](int32 nbrvid, double Weight)
+				{
+					SmoothedNormal += Weight * (FVector3d)Submesh.GetVertexNormal(nbrvid);
+				});
+				SmoothedNormal.Normalize();
+				SmoothedNormals[vid] = Lerp((FVector3d)Submesh.GetVertexNormal(vid), SmoothedNormal, NormalSmoothingAlpha);
+			}
+			for (int32 vid : Submesh.VertexIndicesItr())
+			{
+				Submesh.SetVertexNormal(vid, (FVector3f)SmoothedNormals[vid]);
+			}
+		}
+	}
+
+	FDynamicMeshAABBTree3 Spatial(&Submesh, true);
+	double NearDistSqr;
+	int32 SeedTID = Spatial.FindNearestTriangle(ProjectionFrame.Origin, NearDistSqr);
+	FDistPoint3Triangle3d Query = TMeshQueries<FDynamicMesh3>::TriangleDistance(Submesh, SeedTID, ProjectionFrame.Origin);
+	FIndex3i TriVerts = Submesh.GetTriangle(SeedTID);
+
+	FFrame3d ParamSeedFrame = ProjectionFrame;
+	ParamSeedFrame.Origin = Query.ClosestTrianglePoint;
+	// correct for inverted frame
+	if (ParamSeedFrame.Z().Dot(Submesh.GetTriNormal(SeedTID)) < 0)
+	{
+		ParamSeedFrame.Rotate(FQuaterniond(ParamSeedFrame.X(), 180.0, true));
+	}
+
+	// apply normal blending
+	FrameNormalBlendWeight = FMathd::Clamp(FrameNormalBlendWeight, 0, 1);
+	if (FrameNormalBlendWeight > 0)
+	{
+		FVector3d FrameZ = ParamSeedFrame.Z();
+		for (int32 vid : Submesh.VertexIndicesItr())
+		{
+			FVector3d N = (FVector3d)Submesh.GetVertexNormal(vid);
+			N = Lerp(N, FrameZ, FrameNormalBlendWeight);
+			Submesh.SetVertexNormal(vid, (FVector3f)N);
+		}
+	}
+
+	TMeshLocalParam<FDynamicMesh3> Param(&Submesh);
+	Param.ParamMode = ELocalParamTypes::ExponentialMapUpwindAvg;
+	Param.ComputeToMaxDistance(ParamSeedFrame, TriVerts, TNumericLimits<float>::Max());
+
+	TArray<int32> VtxElementIDs;
+	TArray<int32> NewElementIDs;
+	VtxElementIDs.Init(IndexConstants::InvalidID, Submesh.MaxVertexID());
+	for (int32 vid : Submesh.VertexIndicesItr())
+	{
+		if (Param.HasUV(vid))
+		{
+			FVector2f UV = (FVector2f)Param.GetUV(vid);
+			UV.X *= ScaleX;
+			UV.Y *= ScaleY;
+			VtxElementIDs[vid] = UVOverlay->AppendElement(UV);
+			NewElementIDs.Add(VtxElementIDs[vid]);
+		}
+	}
+
+	int32 NumFailed = 0;
+	for (int32 tid : Submesh.TriangleIndicesItr())
+	{
+		FIndex3i SubTri = Submesh.GetTriangle(tid);
+		FIndex3i UVTri = { VtxElementIDs[SubTri.A], VtxElementIDs[SubTri.B], VtxElementIDs[SubTri.C] };
+		if (UVTri.A == IndexConstants::InvalidID || UVTri.B == IndexConstants::InvalidID || UVTri.C == IndexConstants::InvalidID)
+		{
+			NumFailed++;
+			continue;
+		}
+
+		int32 BaseTID = SubmeshCalc.MapTriangleToBaseMesh(tid);
+		UVOverlay->SetTriangle(BaseTID, UVTri);
+	}
+
+	if (Result != nullptr)
+	{
+		Result->NewUVElements = MoveTemp(NewElementIDs);
+	}
+
+	return (NumFailed == 0);
+}
 
 
 
@@ -551,4 +753,240 @@ bool FDynamicMeshUVEditor::CreateSeamAlongVertexPath(const TArray<int32>& Vertex
 	}
 
 	return true;
+}
+
+
+
+
+void FDynamicMeshUVEditor::SetTriangleUVsFromBoxProjection(
+	const TArray<int32>& Triangles, 
+	TFunctionRef<FVector3d(const FVector3d&)> PointTransform, 
+	const FFrame3d& BoxFrame, 
+	const FVector3d& BoxDimensions, 
+	FUVEditResult* Result)
+{
+	if (ensure(UVOverlay) == false) return;
+	int32 NumTriangles = Triangles.Num();
+	if (!NumTriangles) return;
+
+	const int Minor1s[3] = { 1, 0, 0 };
+	const int Minor2s[3] = { 2, 2, 1 };
+	const int Minor1Flip[3] = { -1, 1, 1 };
+	const int Minor2Flip[3] = { -1, -1, 1 };
+
+	auto GetTriNormal = [this, &PointTransform](int32 tid) -> FVector3d
+	{
+		FVector3d A, B, C;
+		Mesh->GetTriVertices(tid, A, B, C);
+		return VectorUtil::Normal(PointTransform(A), PointTransform(B), PointTransform(C));
+	};
+
+	double ScaleX = (FMathd::Abs(BoxDimensions.X) > FMathf::ZeroTolerance) ? (1.0 / BoxDimensions.X) : 1.0;
+	double ScaleY = (FMathd::Abs(BoxDimensions.Y) > FMathf::ZeroTolerance) ? (1.0 / BoxDimensions.Y) : 1.0;
+	double ScaleZ = (FMathd::Abs(BoxDimensions.Z) > FMathf::ZeroTolerance) ? (1.0 / BoxDimensions.Z) : 1.0;
+	FVector3d Scale(ScaleX, ScaleY, ScaleZ);
+
+	TArray<FVector3d> TriNormals;
+	TArray<FIndex2i> TriangleBoxPlaneAssignments;
+	TriNormals.SetNum(NumTriangles);
+	TriangleBoxPlaneAssignments.SetNum(NumTriangles);
+	ParallelFor(NumTriangles, [&](int32 i)
+	{
+		int32 tid = Triangles[i];
+		TriNormals[i] = GetTriNormal(tid);
+		FVector3d N = BoxFrame.ToFrameVector(TriNormals[i]);
+		N *= Scale;
+		FVector3d NAbs(FMathd::Abs(N.X), FMathd::Abs(N.Y), FMathd::Abs(N.Z));
+		int MajorAxis = NAbs[0] > NAbs[1] ? (NAbs[0] > NAbs[2] ? 0 : 2) : (NAbs[1] > NAbs[2] ? 1 : 2);
+		double MajorAxisSign = FMathd::Sign(N[MajorAxis]);
+		int Bucket = (MajorAxisSign > 0) ? (MajorAxis+3) : MajorAxis;
+		TriangleBoxPlaneAssignments[i] = FIndex2i(MajorAxis, Bucket);
+	});
+
+	auto ProjAxis = [](const FVector3d& P, int Axis1, int Axis2, float Axis1Scale, float Axis2Scale)
+	{
+		return FVector2f(float(P[Axis1]) * Axis1Scale, float(P[Axis2]) * Axis2Scale);
+	};
+
+	TMap<FIndex2i, int32> BaseToOverlayVIDMap;
+	TArray<int32> NewUVIndices;
+
+	for ( int32 i = 0; i < NumTriangles; ++i )
+	{
+		int32 tid = Triangles[i];
+		FIndex3i BaseTri = Mesh->GetTriangle(tid);
+		FIndex2i TriBoxInfo = TriangleBoxPlaneAssignments[i];
+		FVector3d N = BoxFrame.ToFrameVector(TriNormals[i]);
+
+		int MajorAxis = TriBoxInfo.A;
+		int Bucket = TriBoxInfo.B;
+		double MajorAxisSign = FMathd::Sign(N[MajorAxis]);
+		int Minor1 = Minor1s[MajorAxis];
+		int Minor2 = Minor2s[MajorAxis];
+
+		FIndex3i ElemTri;
+		for (int32 j = 0; j < 3; ++j)
+		{
+			FIndex2i ElementKey(BaseTri[j], Bucket);
+			const int32* FoundElementID = BaseToOverlayVIDMap.Find(ElementKey);
+			if (FoundElementID == nullptr)
+			{
+				FVector3d Pos = Mesh->GetVertex(BaseTri[j]);
+				FVector3d TransformPos = PointTransform(Pos);
+				FVector3d BoxPos = BoxFrame.ToFramePoint(TransformPos);
+				BoxPos *= Scale;
+
+				FVector2f UV = ProjAxis(BoxPos, Minor1, Minor2, MajorAxisSign * Minor1Flip[MajorAxis], Minor2Flip[MajorAxis]);
+
+				ElemTri[j] = UVOverlay->AppendElement(UV);
+				NewUVIndices.Add(ElemTri[j]);
+				BaseToOverlayVIDMap.Add(ElementKey, ElemTri[j]);
+			}
+			else
+			{
+				ElemTri[j] = *FoundElementID;
+			}
+		}
+		UVOverlay->SetTriangle(tid, ElemTri);
+	}
+
+	if (Result != nullptr)
+	{
+		Result->NewUVElements = MoveTemp(NewUVIndices);
+	}
+}
+
+
+
+
+
+
+void FDynamicMeshUVEditor::SetTriangleUVsFromCylinderProjection(
+	const TArray<int32>& Triangles, 
+	TFunctionRef<FVector3d(const FVector3d&)> PointTransform, 
+	const FFrame3d& BoxFrame, 
+	const FVector3d& BoxDimensions, 
+	FUVEditResult* Result)
+{
+	if (ensure(UVOverlay) == false) return;
+	int32 NumTriangles = Triangles.Num();
+	if (!NumTriangles) return;
+
+	const int Minor1s[3] = { 1, 0, 0 };
+	const int Minor2s[3] = { 2, 2, 1 };
+	const int Minor1Flip[3] = { -1, 1, 1 };
+	const int Minor2Flip[3] = { -1, -1, 1 };
+
+	auto GetTriNormalCentroid = [this, &PointTransform](int32 tid) -> TPair<FVector3d,FVector3d>
+	{
+		FVector3d A, B, C;
+		Mesh->GetTriVertices(tid, A, B, C);
+		A = PointTransform(A); B = PointTransform(B); C = PointTransform(C);
+		return TPair<FVector3d, FVector3d>{ VectorUtil::Normal(A, B, C), (A + B + C) / 3.0};
+	};
+
+	double ScaleX = (FMathd::Abs(BoxDimensions.X) > FMathf::ZeroTolerance) ? (1.0 / BoxDimensions.X) : 1.0;
+	double ScaleY = (FMathd::Abs(BoxDimensions.Y) > FMathf::ZeroTolerance) ? (1.0 / BoxDimensions.Y) : 1.0;
+	double ScaleZ = (FMathd::Abs(BoxDimensions.Z) > FMathf::ZeroTolerance) ? (1.0 / BoxDimensions.Z) : 1.0;
+	FVector3d Scale(ScaleX, ScaleY, ScaleZ);
+
+	double w = FMathd::Sqrt(BoxDimensions.X*BoxDimensions.X + BoxDimensions.Y*BoxDimensions.Y);
+	double h = BoxDimensions.Z;
+	double Angle = FMathd::Atan2(h, w);
+	double DotThresholdRejectFromPlane = FMathd::Cos(Angle);
+
+	TArray<FVector3d> TriNormals;
+	TArray<FIndex2i> TriangleCylinderAssignments;
+	TriNormals.SetNum(NumTriangles);
+	TriangleCylinderAssignments.SetNum(NumTriangles);
+	ParallelFor(NumTriangles, [&](int32 i)
+	{
+		int32 tid = Triangles[i];
+		TPair<FVector3d, FVector3d> NormalCentroid = GetTriNormalCentroid(tid);
+		TriNormals[i] = NormalCentroid.Key;
+		FVector3d N = BoxFrame.ToFrameVector(TriNormals[i]);
+		N = Normalized(N * Scale);
+
+		if (FMathd::Abs(N.Z) > DotThresholdRejectFromPlane)
+		{
+			int MajorAxis = 2;
+			double MajorAxisSign = FMathd::Sign(N[MajorAxis]);
+			// project to +/- Z
+			int Bucket = MajorAxisSign > 0 ? 1 : 0;
+
+			TriangleCylinderAssignments[i] = FIndex2i(MajorAxis, Bucket);
+		}
+		else
+		{
+			FVector3d Centroid = BoxFrame.ToFramePoint(NormalCentroid.Value);
+			double CentroidAngle = FMathd::Atan2(Centroid.Y, Centroid.X);
+			int Bucket = (CentroidAngle < 0) ? 3 : 4;
+			TriangleCylinderAssignments[i] = FIndex2i(-1, Bucket);
+		}
+	});
+
+	auto ProjAxis = [](const FVector3d& P, int Axis1, int Axis2, float Axis1Scale, float Axis2Scale)
+	{
+		return FVector2f(float(P[Axis1]) * Axis1Scale, float(P[Axis2]) * Axis2Scale);
+	};
+
+	TMap<FIndex2i, int32> BaseToOverlayVIDMap;
+	TArray<int32> NewUVIndices;
+
+	for ( int32 i = 0; i < NumTriangles; ++i )
+	{
+		int32 tid = Triangles[i];
+		FIndex3i BaseTri = Mesh->GetTriangle(tid);
+		FIndex2i TriBoxInfo = TriangleCylinderAssignments[i];
+		FVector3d N = BoxFrame.ToFrameVector(TriNormals[i]);
+
+		int MajorAxis = TriBoxInfo.A;
+		int Bucket = TriBoxInfo.B;
+
+		FIndex3i ElemTri;
+		for (int32 j = 0; j < 3; ++j)
+		{
+			FIndex2i ElementKey(BaseTri[j], Bucket);
+			const int32* FoundElementID = BaseToOverlayVIDMap.Find(ElementKey);
+			if (FoundElementID == nullptr)
+			{
+				FVector3d TransPos = PointTransform(Mesh->GetVertex(BaseTri[j]));
+				FVector3d BoxPos = Scale * BoxFrame.ToFramePoint(TransPos);
+
+				FVector2f UV = FVector2f::Zero();
+				if (Bucket <= 2)
+				{
+					UV = ProjAxis(BoxPos, 0, 1, FMathd::Sign(N[MajorAxis]) * Minor1Flip[MajorAxis], Minor2Flip[MajorAxis]);
+				}
+				else
+				{
+					double VAngle = FMathd::Atan2Positive(BoxPos.Y, BoxPos.X);
+					if (Bucket == 4 && VAngle < FMathd::HalfPi)
+					{
+						VAngle += FMathd::TwoPi;
+					}
+					else if (Bucket == 3 && VAngle > FMathd::HalfPi)
+					{
+						VAngle -= FMathd::TwoPi;
+					}
+					UV = FVector2f(-(float(VAngle) * FMathf::InvPi - 1.0f), -float(BoxPos.Z));
+				}
+
+				ElemTri[j] = UVOverlay->AppendElement(UV);
+				NewUVIndices.Add(ElemTri[j]);
+				BaseToOverlayVIDMap.Add(ElementKey, ElemTri[j]);
+			}
+			else
+			{
+				ElemTri[j] = *FoundElementID;
+			}
+		}
+
+		UVOverlay->SetTriangle(tid, ElemTri);
+	}
+
+	if (Result != nullptr)
+	{
+		Result->NewUVElements = MoveTemp(NewUVIndices);
+	}
 }
