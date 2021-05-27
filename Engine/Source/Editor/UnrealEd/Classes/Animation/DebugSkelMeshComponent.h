@@ -127,6 +127,10 @@ public:
 	{
 		return sizeof(*this) + GetAllocatedSize();
 	}
+
+private:
+
+	bool bSelectable;
 };
 
 UCLASS(transient)

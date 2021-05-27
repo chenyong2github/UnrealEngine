@@ -503,6 +503,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		}
 		
 	}, TStatId(), NULL, ENamedThreads::GameThread);
+
+	UpdateCapsules();
 }
 
 void FControlRigEditor::BindCommands()
@@ -1026,7 +1028,7 @@ void FControlRigEditor::ToggleSetupMode()
 			EditMode->RecreateGizmoActors(RigBlueprint->Hierarchy->GetSelectedKeys());
 		}
 
-		EditMode->Settings->bDisplaySpaces = bSetupModeEnabled;
+		EditMode->Settings->bDisplayNulls = bSetupModeEnabled;
 	}
 
 	if (PreviousSelection.Num() > 0)
@@ -2778,10 +2780,10 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 							SNew(SCheckBox)
 							.IsChecked(this, &FControlRigEditor::GetToolbarDrawNulls)
 							.OnCheckStateChanged(this, &FControlRigEditor::OnToolbarDrawNullsChanged)
-							.ToolTipText(LOCTEXT("ControlRigDrawNullsToolTip", "If checked all spaces are drawn as axes."))
+							.ToolTipText(LOCTEXT("ControlRigDrawNullsToolTip", "If checked all nulls are drawn as axes."))
 						]
 					],
-					LOCTEXT("ControlRigDisplaySpaces", "Display Spaces")
+					LOCTEXT("ControlRigDisplayNulls", "Display Nulls")
 				);
 
 				InMenuBuilder.AddWidget(
@@ -2933,6 +2935,10 @@ void FControlRigEditor::OnToolbarBoneRadiusChanged(float InValue)
 	{
 		MeshComponent->BoneRadiusMultiplier = InValue;
 	}
+	if(UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+	{
+		DebuggedControlRig->DebugBoneRadiusMultiplier = InValue;
+	}
 }
 
 ECheckBoxState FControlRigEditor::GetToolbarDrawAxesOnSelection() const
@@ -2968,7 +2974,7 @@ ECheckBoxState FControlRigEditor::GetToolbarDrawNulls() const
 {
 	if (FControlRigEditMode* EditMode = GetEditMode())
 	{
-		return EditMode->Settings->bDisplaySpaces ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return EditMode->Settings->bDisplayNulls ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 	return ECheckBoxState::Unchecked;
 }
@@ -2977,7 +2983,7 @@ void FControlRigEditor::OnToolbarDrawNullsChanged(ECheckBoxState InNewValue)
 {
 	if (FControlRigEditMode* EditMode = GetEditMode())
 	{
-		EditMode->Settings->bDisplaySpaces = InNewValue == ECheckBoxState::Checked;
+		EditMode->Settings->bDisplayNulls = InNewValue == ECheckBoxState::Checked;
 	}
 }
 
@@ -3108,9 +3114,9 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	GroundActor->GetStaticMeshComponent()->SetStaticMesh(FloorMesh);
 	GroundActor->GetStaticMeshComponent()->SetMaterial(0, DefaultMaterial);
 	GroundActor->SetMobility(EComponentMobility::Static);
-	//GroundActor->GetStaticMeshComponent()->SetVisibility(false);
 	GroundActor->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GroundActor->GetStaticMeshComponent()->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	GroundActor->GetStaticMeshComponent()->bSelectable = false;
 
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
 	Actor->SetFlags(RF_Transient);
@@ -3126,6 +3132,11 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 
 	// set root component, so we can attach to it. 
 	Actor->SetRootComponent(EditorSkelComp);
+	EditorSkelComp->bSelectable = false;
+	EditorSkelComp->MarkRenderStateDirty();
+	
+	InPersonaPreviewScene->SetAllowMeshHitProxies(false);
+	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
 
 	PreviewInstance = nullptr;
 	if (UControlRigLayerInstance* ControlRigLayerInstance = Cast<UControlRigLayerInstance>(EditorSkelComp->GetAnimInstance()))
@@ -3154,6 +3165,88 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 			OnToolbarBoneRadiusChanged(Blueprint->DebugBoneRadius);
 		}
 	}
+
+	UPersonaSelectionComponent* SelectionComponent = InPersonaPreviewScene->GetSelectionComponent();
+	check(SelectionComponent != nullptr);
+
+	// make sure the selection component ticks after the skeletal mesh comp
+	SelectionComponent->AddTickPrerequisiteComponent(EditorSkelComp);
+
+	SelectionComponent->OnUpdateCapsules().BindLambda([this](UPersonaSelectionComponent*, const TArray<int32>& InIndices, TArray<FPersonaSelectionCapsule>& OutCapsules)
+	{
+		if(UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+		{
+			URigHierarchy* Hierarchy = DebuggedControlRig->GetHierarchy();
+			check(Hierarchy != nullptr);
+			
+			for(int32 Index = 0; Index < InIndices.Num(); Index++)
+			{
+				const int32 CapsuleIndex = InIndices[Index];
+				const int32 HierarchyIndex = CapsuleToHierarchyIndex.FindChecked(CapsuleIndex);
+				check(Hierarchy->IsValidIndex(HierarchyIndex));
+				check(OutCapsules.IsValidIndex(CapsuleIndex));
+
+				FPersonaSelectionCapsule& OutCapsule = OutCapsules[CapsuleIndex];
+				OutCapsule.Transform = Hierarchy->GetGlobalTransform(HierarchyIndex);
+				OutCapsule.Radius = 10.f;
+				OutCapsule.HalfHeight = 5.f;
+
+				if(Hierarchy->GetKey(HierarchyIndex).Type == ERigElementType::Bone)
+				{
+					const int32 ParentIndex = Hierarchy->GetFirstParent(HierarchyIndex);
+
+					FVector Start, End;
+					if (ParentIndex >= 0)
+					{
+						Start = Hierarchy->GetGlobalTransform(ParentIndex).GetLocation();
+						End = OutCapsule.Transform.GetLocation();
+					}
+					else
+					{
+						Start = FVector::ZeroVector;
+						End = OutCapsule.Transform.GetLocation();
+					}
+					
+					UPersonaSelectionComponent::ComputeCapsuleFromBonePositions(
+						Start,
+						End,
+						100.f,
+						DebuggedControlRig->GetDebugBoneRadiusMultiplier(),
+						OutCapsule);
+				}
+			}
+		}
+	});
+
+	// setup the capsules in the preview scene
+	SelectionComponent->OnClicked().BindLambda([this] (UPersonaSelectionComponent*, int32 InCapsuleIndex, const FPersonaSelectionCapsule& InCapsule)
+	{
+		const int32 HierarchyIndex = CapsuleToHierarchyIndex.FindChecked(InCapsuleIndex);
+
+		if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
+		{
+			URigHierarchy* Hierarchy = ControlRigBP->Hierarchy;
+			const FRigElementKey ElementToSelect = Hierarchy->GetKey(HierarchyIndex);
+
+			if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+			{
+				Hierarchy->GetController()->SelectElement(ElementToSelect, true);
+			}
+			else if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
+			{
+				const bool bSelect = !Hierarchy->IsSelected(ElementToSelect);
+				Hierarchy->GetController()->SelectElement(ElementToSelect, bSelect);
+			}
+			else
+			{
+				TArray<FRigElementKey> NewSelection;
+				NewSelection.Add(ElementToSelect);
+				Hierarchy->GetController()->SetSelection(NewSelection);
+			}
+		}
+	});
+
+	UpdateCapsules();
 }
 
 void FControlRigEditor::UpdateControlRig()
@@ -3844,6 +3937,7 @@ void FControlRigEditor::OnHierarchyChanged()
 	}
 	
 	CacheNameLists();
+	UpdateCapsules();
 }
 
 
@@ -5052,6 +5146,46 @@ bool FControlRigEditor::IsHaltedAtBreakpoint() const
 		return ControlRig->GetVM()->GetHaltedAtInstruction() != INDEX_NONE;
 	}
 	return false;
+}
+
+void FControlRigEditor::UpdateCapsules()
+{
+	if(!PersonaToolkit.IsValid())
+	{
+		return;
+	}
+	
+	TSharedRef<IPersonaPreviewScene> CurrentPreviewScene = GetPersonaToolkit()->GetPreviewScene();
+	UPersonaSelectionComponent* SelectionComponent = CurrentPreviewScene->GetSelectionComponent();
+	check(SelectionComponent != nullptr);
+
+	SelectionComponent->Reset();
+	CapsuleToHierarchyIndex.Reset();
+	
+	if(UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+	{
+		URigHierarchy* Hierarchy = DebuggedControlRig->GetHierarchy();
+		
+		for(int32 Index = 0; Index < Hierarchy->Num(); Index++)
+		{
+			const FRigElementKey Key = Hierarchy->GetKey(Index);
+			switch(Key.Type)
+			{
+				case ERigElementType::Bone:
+				case ERigElementType::Null:
+				//case ERigElementType::Control:
+				{
+					const int32 CapsuleIndex = SelectionComponent->Add();
+					CapsuleToHierarchyIndex.Add(CapsuleIndex, Index);
+					break;
+				}
+				default:
+				{
+					break;
+				}						
+			}
+		}
+	}
 }
 
 void FControlRigEditor::UpdateGraphCompilerErrors()

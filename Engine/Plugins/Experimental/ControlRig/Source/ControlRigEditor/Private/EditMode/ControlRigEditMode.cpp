@@ -46,6 +46,8 @@
 //#include "IPersonaPreviewScene.h"
 //#include "Animation/DebugSkelMeshComponent.h"
 //#include "Persona/Private/AnimationEditorViewportClient.h"
+#include "IPersonaPreviewScene.h"
+#include "PersonaSelectionComponent.h"
 #include "Framework/Application/SlateApplication.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
@@ -547,15 +549,25 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 			});
 		}
 
-		if (Settings->bDisplaySpaces || ControlRig->IsSetupModeEnabled())
+		if (Settings->bDisplayNulls || ControlRig->IsSetupModeEnabled())
 		{
 			TArray<FTransform> SpaceTransforms;
-			Hierarchy->ForEach<FRigNullElement>([&SpaceTransforms, Hierarchy](FRigNullElement* NullElement) -> bool
+			TArray<FTransform> SelectedSpaceTransforms;
+			Hierarchy->ForEach<FRigNullElement>([&SpaceTransforms, &SelectedSpaceTransforms, Hierarchy](FRigNullElement* NullElement) -> bool
             {
-				SpaceTransforms.Add(Hierarchy->GetTransform(NullElement, ERigTransformType::CurrentGlobal));
+				if(Hierarchy->IsSelected(NullElement->GetIndex()))
+				{
+					SelectedSpaceTransforms.Add(Hierarchy->GetTransform(NullElement, ERigTransformType::CurrentGlobal));
+				}
+				else
+				{
+					SpaceTransforms.Add(Hierarchy->GetTransform(NullElement, ERigTransformType::CurrentGlobal));
+				}
 				return true;
 			});
+
 			GetControlRig(true)->DrawInterface.DrawAxes(FTransform::Identity, SpaceTransforms, Settings->AxisScale);
+			GetControlRig(true)->DrawInterface.DrawAxes(FTransform::Identity, SelectedSpaceTransforms, FLinearColor(1.0f, 0.34f, 0.0f, 1.0f), Settings->AxisScale);
 		}
 
 		if (Settings->bDisplayAxesOnSelection && Settings->AxisScale > SMALL_NUMBER)
@@ -888,6 +900,11 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 				}
 			}
 		}
+	}
+	else if(HPersonaSelectionHitProxy* CapsuleHitProxy = HitProxyCast<HPersonaSelectionHitProxy>(HitProxy))
+	{
+		static_cast<HPersonaSelectionHitProxy*>(HitProxy)->BroadcastClicked();
+		return true;
 	}
 
 	// for now we show this menu all the time if body is selected

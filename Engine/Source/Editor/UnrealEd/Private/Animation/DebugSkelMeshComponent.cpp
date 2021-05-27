@@ -892,6 +892,7 @@ bool UDebugSkelMeshComponent::IsReferencePoseShown() const
  ***************************************************/
 FDebugSkelMeshSceneProxy::FDebugSkelMeshSceneProxy(const UDebugSkelMeshComponent* InComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, const FColor& InWireframeOverlayColor /*= FColor::White*/) :
 	FSkeletalMeshSceneProxy(InComponent, InSkelMeshRenderData)
+	, bSelectable(false)
 {
 	DynamicData = nullptr;
 	SetWireframeColor(FLinearColor(InWireframeOverlayColor));
@@ -899,6 +900,11 @@ FDebugSkelMeshSceneProxy::FDebugSkelMeshSceneProxy(const UDebugSkelMeshComponent
 	if(GEngine->ClothPaintMaterial)
 	{
 		MaterialRelevance |= GEngine->ClothPaintMaterial->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
+	}
+
+	if(InComponent)
+	{
+		bSelectable = InComponent->bSelectable;
 	}
 }
 
@@ -912,7 +918,7 @@ void FDebugSkelMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 {
 	if(!DynamicData || DynamicData->bDrawMesh)
 	{
-		GetMeshElementsConditionallySelectable(Views, ViewFamily, /*bSelectable=*/true, VisibilityMap, Collector);
+		GetMeshElementsConditionallySelectable(Views, ViewFamily, bSelectable, VisibilityMap, Collector);
 	}
 
 	if(MeshObject && DynamicData && (DynamicData->bDrawNormals || DynamicData->bDrawTangents || DynamicData->bDrawBinormals))

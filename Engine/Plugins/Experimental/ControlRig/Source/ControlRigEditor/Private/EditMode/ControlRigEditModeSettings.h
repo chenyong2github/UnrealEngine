@@ -15,7 +15,7 @@ class UControlRigEditModeSettings : public UObject
 
 	UControlRigEditModeSettings()
 		: bDisplayHierarchy(false)
-		, bDisplaySpaces(false)
+		, bDisplayNulls(false)
 		, bHideManipulators(false)
 		, bDisplayAxesOnSelection(false)
 		, AxisScale(10.f)
@@ -37,9 +37,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bDisplayHierarchy;
 
-	/** Whether to show all spaces in the hierarchy */
+	/** Whether to show all nulls in the hierarchy */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
-	bool bDisplaySpaces;
+	bool bDisplayNulls;
 
 	/** Should we always hide manipulators in viewport */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
