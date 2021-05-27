@@ -30,9 +30,9 @@ namespace
 		return bAtLeastOneFilterSaidInclude ? EFilterResult::Include : EFilterResult::DoNotCare;
 	}
 	
-	EFilterResult::Type ExecuteAndChain(const TArray<UNegatableFilter*>& Children, ConjunctionFilterCallback FilterCallback)
+	EFilterResult::Type ExecuteAndChain(bool bIgnoreFilter, const TArray<UNegatableFilter*>& Children, ConjunctionFilterCallback FilterCallback)
 	{
-		if (Children.Num() == 0 )
+		if (bIgnoreFilter || Children.Num() == 0)
 		{
 			return EFilterResult::DoNotCare;
 		}
@@ -88,7 +88,7 @@ void UConjunctionFilter::OnRemoved()
 
 EFilterResult::Type UConjunctionFilter::IsActorValid(const FIsActorValidParams& Params) const
 {
-	return ExecuteAndChain(Children, [&Params](UNegatableFilter* Child)
+	return ExecuteAndChain(bIgnoreFilter, Children, [&Params](UNegatableFilter* Child)
 		{
 			return Child->IsActorValid(Params);
 		});
@@ -96,7 +96,7 @@ EFilterResult::Type UConjunctionFilter::IsActorValid(const FIsActorValidParams& 
 
 EFilterResult::Type UConjunctionFilter::IsPropertyValid(const FIsPropertyValidParams& Params) const
 {
-	return ExecuteAndChain(Children, [&Params](UNegatableFilter* Child)
+	return ExecuteAndChain(bIgnoreFilter, Children, [&Params](UNegatableFilter* Child)
 		{
 			return Child->IsPropertyValid(Params);
 		});
@@ -104,7 +104,7 @@ EFilterResult::Type UConjunctionFilter::IsPropertyValid(const FIsPropertyValidPa
 
 EFilterResult::Type UConjunctionFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
 {
-	return ExecuteAndChain(Children, [&Params](UNegatableFilter* Child)
+	return ExecuteAndChain(bIgnoreFilter, Children, [&Params](UNegatableFilter* Child)
 		{
 			return Child->IsDeletedActorValid(Params);
 		});
@@ -112,7 +112,7 @@ EFilterResult::Type UConjunctionFilter::IsDeletedActorValid(const FIsDeletedActo
 
 EFilterResult::Type UConjunctionFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
 {
-	return ExecuteAndChain(Children, [&Params](UNegatableFilter* Child)
+	return ExecuteAndChain(bIgnoreFilter, Children, [&Params](UNegatableFilter* Child)
 		{
 			return Child->IsAddedActorValid(Params);
 		});

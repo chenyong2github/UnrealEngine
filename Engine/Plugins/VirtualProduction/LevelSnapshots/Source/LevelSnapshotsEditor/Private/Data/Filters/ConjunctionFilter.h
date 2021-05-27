@@ -26,6 +26,9 @@ public:
 	void RemoveChild(UNegatableFilter* Child);
 	const TArray<UNegatableFilter*>& GetChildren() const;
 
+	void SetIsIgnored(bool Value) { bIgnoreFilter = Value; }
+	bool IsIgnored() const { return bIgnoreFilter; }
+	
 	void OnRemoved();
 	
 	//~ Begin ULevelSnapshotFilter Interface
@@ -43,4 +46,7 @@ private:
 
 	UPROPERTY()
 	TArray<UNegatableFilter*> Children;
+
+	UPROPERTY()
+	bool bIgnoreFilter = false;
 };

@@ -10,8 +10,10 @@
 #include "ILevelSnapshotsEditorView.h"
 #include "LevelSnapshotsEditorData.h"
 #include "NegatableFilter.h"
+#include "SHoverableFilterActions.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
@@ -56,7 +58,7 @@ SLevelSnapshotsEditorFilter::~SLevelSnapshotsEditorFilter()
 
 void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWeakObjectPtr<UNegatableFilter>& InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
 {
-	if (!ensure(InFilter.IsValid()))
+	if (!ensure(InFilter.IsValid() && InArgs._OnClickRemoveFilter.IsBound() && InArgs._IsParentFilterIgnored.IsBound()))
 	{
 		return;
 	}
@@ -65,72 +67,55 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 	EditorData = InFilters->GetBuilder()->EditorDataPtr;
 	FiltersModelPtr = InFilters;
 	OnClickRemoveFilter = InArgs._OnClickRemoveFilter;
+	IsParentFilterIgnored = InArgs._IsParentFilterIgnored;
 
 	ChildSlot
+	[
+		SNew(SOverlay)
+		.Visibility(EVisibility::Visible)
+
+		+SOverlay::Slot()
 		[
 			SNew(SBorder)
 			.Padding(0)
 			.BorderBackgroundColor( FLinearColor(0.2f, 0.2f, 0.2f, 0.2f) )
 			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterButtonBorder"))
+			.ColorAndOpacity_Lambda([this](){ return SnapshotFilter->IsIgnored() ? FLinearColor(0.15f, 0.15f, 0.15f, 1.f) : FLinearColor(1,1,1,1); })
 			[
 				SAssignNew(ToggleButtonPtr, SFilterCheckBox) 
-				.ToolTipText(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateLambda([this]()
-				{
-					if (SnapshotFilter.IsValid())
-					{
-						switch (SnapshotFilter->GetFilterBehavior())
-	                    {
-	                        case EFilterBehavior::DoNotNegate:
-								return LOCTEXT("DoNotNegate", "Filter result is neither negated nor ignored. Click to toggle.");
-	                        case EFilterBehavior::Negate:
-								return LOCTEXT("Negate", "Filter result is negated. Click to toggle.");
-	                        case EFilterBehavior::Ignore:
-								return LOCTEXT("Ignore", "Filter result is ignored. Click to toggle.");
-	                    }
-					}
-					return LOCTEXT("Invalid", "");
-				})))
+				.ToolTipText(this, &SLevelSnapshotsEditorFilter::GetFilterTooltip)
 				.OnFilterClickedOnce(this, &SLevelSnapshotsEditorFilter::OnNegateFilter)
-				.OnFilterAltClicked(this, &SLevelSnapshotsEditorFilter::OnRemoveFilter)
-				.OnFilterCtrlClicked(this, &SLevelSnapshotsEditorFilter::OnRemoveFilter)
-				.OnFilterMiddleButtonClicked(this, &SLevelSnapshotsEditorFilter::OnRemoveFilter)
-				.OnFilterRightButtonClicked(this, &SLevelSnapshotsEditorFilter::OnRemoveFilter)
-				.ForegroundColor(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateLambda([this]()
-				{
-					if (!ensure(SnapshotFilter.IsValid()))
-					{
-						return FLinearColor::Black;
-					}
-
-					switch (SnapshotFilter->GetFilterBehavior())
-					{
-						case EFilterBehavior::DoNotNegate:
-							return FLinearColor::Green;
-						case EFilterBehavior::Negate:
-							return FLinearColor::Red;
-						case EFilterBehavior::Ignore:
-							return FLinearColor::Gray;
-						default: 
-							return FLinearColor::Black;
-					}
-				})))
+				.ForegroundColor(this, &SLevelSnapshotsEditorFilter::GetFilterColor)
 				[
 					SAssignNew(FilterNamePtr, SClickableText)
-	                    .ToolTipText(LOCTEXT("RightClickToRemove", "Right-click to remove filter."))
-	                    .ColorAndOpacity(FLinearColor::White)
-	                    .Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
-	                    .ShadowOffset(FVector2D(1.f, 1.f))
-	                    .Text_Lambda([InFilter]()
-	                    {
-	                    	if (InFilter.IsValid())
-	                    	{
-	                    		return InFilter->GetDisplayName();
-	                    	}
-	                    	return FText();
-	                    })	
+					.ColorAndOpacity(FLinearColor::White)
+					.Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
+					.ShadowOffset(FVector2D(1.f, 1.f))
+					.Text_Lambda([InFilter]()
+					{
+						if (InFilter.IsValid())
+						{
+							return InFilter->GetDisplayName();
+						}
+						return FText();
+					})	
 				]
 			]
-		];
+		]
+
+		// Ignore check box
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		[
+			SNew(SHoverableFilterActions, SharedThis(this))
+			.Visibility(EVisibility::SelfHitTestInvisible)
+			.IsFilterIgnored_Lambda([this](){ return SnapshotFilter->IsIgnored(); })
+			.OnChangeFilterIgnored_Lambda([this](bool bNewValue) { SnapshotFilter->SetIsIgnored(bNewValue); })
+			.OnPressDelete_Lambda([this](){ OnRemoveFilter(); })
+			.BackgroundHoverColor(FSlateColor(FLinearColor(0.f, 0.f, 0.f, 0.4f)))
+		]
+	];
 
 	// Hightlight & unhighlight filter when being edited
 	FilterNamePtr->SetOnClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnSelectFilterForEdit));
@@ -173,6 +158,44 @@ int32 SLevelSnapshotsEditorFilter::OnPaint(const FPaintArgs& Args, const FGeomet
 	return LayerId;
 }
 
+FText SLevelSnapshotsEditorFilter::GetFilterTooltip() const
+{
+	if (SnapshotFilter.IsValid())
+	{
+		switch (SnapshotFilter->GetFilterBehavior())
+		{
+		case EFilterBehavior::DoNotNegate:
+			return LOCTEXT("DoNotNegate", "Filter result is neither negated nor ignored. Click to toggle.");
+		case EFilterBehavior::Negate:
+			return LOCTEXT("Negate", "Filter result is negated. Click to toggle.");
+		}
+	}
+	return LOCTEXT("Invalid", "");
+}
+
+FSlateColor SLevelSnapshotsEditorFilter::GetFilterColor() const
+{
+	if (!ensure(SnapshotFilter.IsValid()))
+	{
+		return FLinearColor::Black;
+	}
+
+	FLinearColor FinalColor;
+	switch (SnapshotFilter->GetFilterBehavior())
+	{
+	case EFilterBehavior::DoNotNegate:
+		FinalColor = FLinearColor::Green;
+		break;
+	case EFilterBehavior::Negate:
+		FinalColor = FLinearColor::Red;
+		break;
+	default: 
+		FinalColor = FLinearColor::Black;
+	}
+
+	return SnapshotFilter->IsIgnored() || IsParentFilterIgnored.Execute() ? FinalColor * FLinearColor(0.15, 0.15, 0.15, 1) : FinalColor;
+}
+
 FReply SLevelSnapshotsEditorFilter::OnSelectFilterForEdit()
 {
 	if (!ensure(EditorData.IsValid()))
@@ -194,20 +217,13 @@ FReply SLevelSnapshotsEditorFilter::OnSelectFilterForEdit()
 	return FReply::Handled();
 }
 
-void SLevelSnapshotsEditorFilter::OnActiveFilterChanged(const TOptional<UNegatableFilter*>& NewFilter)
-{
-	if (!SnapshotFilter.IsValid() || !FiltersModelPtr.IsValid()) // This can actually become stale after a save: UI rebuilds next tick but object was already destroyed.
-	{
-		return;
-	}
-	bShouldHighlightFilter = NewFilter.IsSet() && *NewFilter == SnapshotFilter.Get();
-}
-
 FReply SLevelSnapshotsEditorFilter::OnNegateFilter()
 {
 	if (ensure(SnapshotFilter.IsValid()))
 	{
-		SnapshotFilter->IncrementFilterBehaviour();
+		SnapshotFilter->SetFilterBehaviour(
+			SnapshotFilter->GetFilterBehavior() == EFilterBehavior::DoNotNegate ? EFilterBehavior::Negate : EFilterBehavior::DoNotNegate 
+		);
 	}
 	return FReply::Handled();
 }
@@ -216,6 +232,15 @@ FReply SLevelSnapshotsEditorFilter::OnRemoveFilter()
 {
 	OnClickRemoveFilter.Execute(SharedThis(this));
 	return FReply::Handled();
+}
+
+void SLevelSnapshotsEditorFilter::OnActiveFilterChanged(const TOptional<UNegatableFilter*>& NewFilter)
+{
+	if (!SnapshotFilter.IsValid() || !FiltersModelPtr.IsValid()) // This can actually become stale after a save: UI rebuilds next tick but object was already destroyed.
+		{
+		return;
+		}
+	bShouldHighlightFilter = NewFilter.IsSet() && *NewFilter == SnapshotFilter.Get();
 }
 
 

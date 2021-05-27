@@ -4,9 +4,9 @@
 
 namespace
 {
-	EFilterResult::Type ApplyFilter(EFilterBehavior NegationBehaviour, TFunction<EFilterResult::Type()> ApplyFilter)
+	EFilterResult::Type ApplyFilter(bool bIgnoreFilter, EFilterBehavior NegationBehaviour, TFunction<EFilterResult::Type()> ApplyFilter)
 	{
-		if (NegationBehaviour == EFilterBehavior::Ignore)
+		if (bIgnoreFilter)
 		{
 			return EFilterResult::DoNotCare; 
 		}
@@ -28,25 +28,6 @@ UNegatableFilter* UNegatableFilter::CreateNegatableFilter(ULevelSnapshotFilter* 
 	UNegatableFilter* Result = NewObject<UNegatableFilter>(NewFilterOuter);
 	Result->ChildFilter = ChildFilter;
 	return Result;
-}
-
-void UNegatableFilter::IncrementFilterBehaviour()
-{
-	switch (FilterBehavior)
-	{
-	case EFilterBehavior::DoNotNegate:
-		SetFilterBehaviour(EFilterBehavior::Negate);
-		break;
-	case EFilterBehavior::Negate:
-		SetFilterBehaviour(EFilterBehavior::Ignore);
-		break;
-	case EFilterBehavior::Ignore:
-		SetFilterBehaviour(EFilterBehavior::DoNotNegate);
-		break;
-	default:
-		// Needed for data migration
-		SetFilterBehaviour(EFilterBehavior::DoNotNegate);
-	}
 }
 
 void UNegatableFilter::SetFilterBehaviour(EFilterBehavior NewFilterBehavior)
@@ -73,7 +54,7 @@ FText UNegatableFilter::GetDisplayName() const
 
 EFilterResult::Type UNegatableFilter::IsActorValid(const FIsActorValidParams& Params) const
 {
-	return ApplyFilter(FilterBehavior, [this, &Params]()
+	return ApplyFilter(bIgnoreFilter, FilterBehavior, [this, &Params]()
 	{
 		// Child filter is nullptr when user deletes filter class and force deletes
 		return ChildFilter ? ChildFilter->IsActorValid(Params) : EFilterResult::DoNotCare;
@@ -82,7 +63,7 @@ EFilterResult::Type UNegatableFilter::IsActorValid(const FIsActorValidParams& Pa
 
 EFilterResult::Type UNegatableFilter::IsPropertyValid(const FIsPropertyValidParams& Params) const
 {
-	return ApplyFilter(FilterBehavior, [this, &Params]()
+	return ApplyFilter(bIgnoreFilter, FilterBehavior, [this, &Params]()
 	{
 		// Child filter is nullptr when user deletes filter class and force deletes
 		return ChildFilter ? ChildFilter->IsPropertyValid(Params) : EFilterResult::DoNotCare;
@@ -91,7 +72,7 @@ EFilterResult::Type UNegatableFilter::IsPropertyValid(const FIsPropertyValidPara
 
 EFilterResult::Type UNegatableFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
 {
-	return ApplyFilter(FilterBehavior, [this, &Params]()
+	return ApplyFilter(bIgnoreFilter, FilterBehavior, [this, &Params]()
 	{
 		// Child filter is nullptr when user deletes filter class and force deletes
 		return ChildFilter ? ChildFilter->IsDeletedActorValid(Params) : EFilterResult::DoNotCare;
@@ -100,7 +81,7 @@ EFilterResult::Type UNegatableFilter::IsDeletedActorValid(const FIsDeletedActorV
 
 EFilterResult::Type UNegatableFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
 {
-	return ApplyFilter(FilterBehavior, [this, &Params]()
+	return ApplyFilter(bIgnoreFilter, FilterBehavior, [this, &Params]()
 	{
 		// Child filter is nullptr when user deletes filter class and force deletes
 		return ChildFilter ? ChildFilter->IsAddedActorValid(Params) : EFilterResult::DoNotCare;

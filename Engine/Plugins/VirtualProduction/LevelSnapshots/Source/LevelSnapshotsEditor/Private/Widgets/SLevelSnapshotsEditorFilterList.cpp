@@ -150,6 +150,7 @@ void SLevelSnapshotsEditorFilterList::AddChild(UNegatableFilter* AddedFilter, TS
 		[
 			SNew(SLevelSnapshotsEditorFilter, AddedFilter, InEditorFilterModel)
 				.OnClickRemoveFilter(SLevelSnapshotsEditorFilter::FOnClickRemoveFilter::CreateSP(this, &SLevelSnapshotsEditorFilterList::OnClickRemoveFilter))
+				.IsParentFilterIgnored_Lambda([this]() { return ManagedAndCondition->IsIgnored(); })
 		];
 	
 	// AddFilterWidget should be last widget of row

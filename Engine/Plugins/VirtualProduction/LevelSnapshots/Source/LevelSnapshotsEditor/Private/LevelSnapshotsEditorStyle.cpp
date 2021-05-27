@@ -72,6 +72,7 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 
 	// Brush
 	Style->Set("LevelSnapshotsEditor.GroupBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
+	Style->Set("LevelSnapshotsEditor.LightGroupBorder", new BOX_BRUSH("Common/LightGroupBorder", FMargin(4.0f / 16.0f)));
 	Style->Set("LevelSnapshotsEditor.BrightBorder", new FSlateColorBrush(FColor(112, 112, 112, 100)));
 	Style->Set("LevelSnapshotsEditor.FilterSelected", new BOX_BRUSH("Common/Filter_Selected", FMargin(18.0f / 64.0f)));
 
@@ -83,6 +84,7 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 	Style->Set("LevelSnapshotsEditor.StructGroupBorder", new FSlateColorBrush(FColor(200, 255, 200, 100)));
 	Style->Set("LevelSnapshotsEditor.CollectionGroupBorder", new FSlateColorBrush(FColor(255, 200, 200, 100)));
 	Style->Set("LevelSnapshotsEditor.DefaultBorder", new FSlateColorBrush(FColor(0, 0, 0, 0)));
+	Style->Set("LevelSnapshotsEditor.IgnoreFilterBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
 
 	// Buttons
 	FButtonStyle RemoveFilterButtonStyle = FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton");

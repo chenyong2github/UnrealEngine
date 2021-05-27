@@ -9,9 +9,11 @@
 #include "SLevelSnapshotsEditorFilters.h"
 
 #include "EditorStyleSet.h"
+#include "SHoverableFilterActions.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
@@ -44,70 +46,55 @@ void SLevelSnapshotsEditorFilterRow::Construct(
 			SNew(SBox)
 				.WidthOverride(30.f);
 	}();
-	
+
 	ChildSlot
+	[
+		SNew(SHorizontalBox)
+
+		// OR in front of row
+		+ SHorizontalBox::Slot()
+		.Padding(7.f)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
 		[
-			SNew(SHorizontalBox)
+			FrontOfRow
+		]
 
-			// OR in front of row
-			+ SHorizontalBox::Slot()
-			.Padding(7.f)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
+		// Row
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.FillWidth(1.f)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(5.0f, 5.f))
+			.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
+			.BorderBackgroundColor_Lambda([this](){ return ManagedFilterWeakPtr->IsIgnored() ? FSlateColor(FLinearColor(0.45f, 0.45f, 0.45f, 1.f)) : FSlateColor(FLinearColor(1,1,1,1)); })
+			.ColorAndOpacity_Lambda([this](){ return ManagedFilterWeakPtr->IsIgnored() ? FLinearColor(0.35f, 0.35f, 0.35f, 1.f) : FLinearColor(1,1,1,1); })
 			[
-				FrontOfRow
-			]
+				SNew(SHorizontalBox)
 
-			// Row
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Fill)
-			.FillWidth(1.f)
-			[
-				SNew(SBorder)
-				.Padding(FMargin(5.0f, 5.f))
-				.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
+				// Filters
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.Padding(5.f, 5.f)
+				.FillWidth(1.f)
 				[
-					SNew(SHorizontalBox)
-
-					// Filters
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Fill)
-					.Padding(5.f, 5.f)
-					.FillWidth(1.f)
-					[
-						SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorFilters->GetFiltersModel().ToSharedRef())
-					]
-
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Top)
-					.AutoWidth()
-					[
-						SNew(SHorizontalBox)
-
-						// Remove Button
-						+ SHorizontalBox::Slot()
-						.Padding(0.f, 0.f)
-						.AutoWidth()
-						[
-							SNew(SButton)
-							.OnClicked_Lambda([this]()
-							{
-								OnClickRemoveRow.ExecuteIfBound(SharedThis(this));
-								return FReply::Handled();
-							})
-							.ButtonStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.RemoveFilterButton")
-							[
-								SNew(STextBlock)
-								.TextStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.Button.TextStyle")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-								.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
-							]
-						]
-					]
+					SAssignNew(FilterList, SLevelSnapshotsEditorFilterList, InManagedFilter, InEditorFilters->GetFiltersModel().ToSharedRef())
 				]
-			]			
-		];
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Top)
+				.AutoWidth()
+				[
+					SNew(SHoverableFilterActions, SharedThis(this))
+					.IsFilterIgnored_Lambda([this](){ return ManagedFilterWeakPtr->IsIgnored(); })
+					.OnChangeFilterIgnored_Lambda([this](bool bNewValue) { ManagedFilterWeakPtr->SetIsIgnored(bNewValue); })
+					.OnPressDelete_Lambda([this](){ OnClickRemoveRow.ExecuteIfBound(SharedThis(this)); })
+				]
+			]
+		]			
+	];
 }
 
 const TWeakObjectPtr<UConjunctionFilter>& SLevelSnapshotsEditorFilterRow::GetManagedFilter()

@@ -12,9 +12,7 @@ enum class EFilterBehavior : uint8
 	/* Pass on same result */
 	DoNotNegate,
 	/* Invert the result */ 
-	Negate,
-	/* Ignore the result */
-	Ignore
+	Negate
 };
 
 /*
@@ -29,13 +27,15 @@ public:
 	/* Wraps the given filter with a negation. Defaults to ChildFilter's outer. */
 	static UNegatableFilter* CreateNegatableFilter(ULevelSnapshotFilter* ChildFilter, const TOptional<UObject*>& Outer = TOptional<UObject*>());
 
-	void IncrementFilterBehaviour();
 	void SetFilterBehaviour(EFilterBehavior NewFilterBehavior);
+	EFilterBehavior GetFilterBehavior() const { return FilterBehavior; }
+	
+	void SetIsIgnored(bool Value) { bIgnoreFilter = Value; }
+	bool IsIgnored() const { return bIgnoreFilter; }
 
 	void OnRemoved();
 	
 	FText GetDisplayName() const;
-	EFilterBehavior GetFilterBehavior() const { return FilterBehavior; }
 	ULevelSnapshotFilter* GetChildFilter() const { return ChildFilter; }
 
 	//~ Begin ULevelSnapshotFilter Interface
@@ -59,6 +59,10 @@ private:
 	/* Whether to pass on the result of the filter, negate it, or ignore it. */
 	UPROPERTY(EditAnywhere, Category = "Filter")
 	EFilterBehavior FilterBehavior = EFilterBehavior::DoNotNegate;
+
+	/* Whether this filter should be ignored */
+	UPROPERTY()
+	bool bIgnoreFilter = false;
 	
 	UPROPERTY()
 	ULevelSnapshotFilter* ChildFilter;

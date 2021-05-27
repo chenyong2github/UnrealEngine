@@ -38,7 +38,7 @@ public:
 	//~ End SWidget Interface
 
 private:
-
+	
 	FOnClickRemoveRow OnClickRemoveRow;
 
 	TWeakObjectPtr<UConjunctionFilter> ManagedFilterWeakPtr;
