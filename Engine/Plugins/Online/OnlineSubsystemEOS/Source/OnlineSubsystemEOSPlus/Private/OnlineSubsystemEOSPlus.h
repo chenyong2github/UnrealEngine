@@ -10,6 +10,7 @@
 #include "OnlineAchievementsEOSPlus.h"
 #include "OnlineUserEOSPlus.h"
 #include "OnlineSessionEOSPlus.h"
+#include "OnlineLeaderboardsEOSPlus.h"
 
 
 /**
@@ -48,6 +49,7 @@ public:
 	virtual IOnlineStatsPtr GetStatsInterface() const override;
 	virtual IOnlineTurnBasedPtr GetTurnBasedInterface() const override;
 	virtual IOnlineTournamentPtr GetTournamentInterface() const override;
+	virtual bool IsLocalPlayer(const FUniqueNetId& UniqueId) const override;
 
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	virtual FText GetOnlineServiceName() const override;
@@ -76,6 +78,7 @@ PACKAGE_SCOPE:
 	FOnlineAchievementsEOSPlusPtr AchievementsInterfacePtr;
 	FOnlineUserEOSPlusPtr UserInterfacePtr;
 	FOnlineSessionEOSPlusPtr SessionInterfacePtr;
+	FOnlineLeaderboardsEOSPlusPtr LeaderboardsInterfacePtr;
 };
 
 typedef TSharedPtr<FOnlineSubsystemEOSPlus, ESPMode::ThreadSafe> FOnlineSubsystemEOSPlusPtr;

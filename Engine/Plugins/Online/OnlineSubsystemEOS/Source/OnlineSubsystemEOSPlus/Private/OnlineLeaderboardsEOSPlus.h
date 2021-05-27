@@ -1,0 +1,47 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/CoreOnline.h"
+#include "OnlineSubsystem.h"
+#include "Interfaces/OnlineLeaderboardInterface.h"
+
+class FOnlineSubsystemEOSPlus;
+class FUniqueNetIdEOSPlus;
+
+/**
+ * Interface for mirroring platform leaderboards to EOS leaderboards
+ */
+class FOnlineLeaderboardsEOSPlus :
+	public IOnlineLeaderboards
+{
+public:
+	FOnlineLeaderboardsEOSPlus() = delete;
+	virtual ~FOnlineLeaderboardsEOSPlus();
+
+// IOnlineLeaderboards Interface
+	virtual bool ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& ReadObject) override;
+	virtual bool ReadLeaderboardsForFriends(int32 LocalUserNum, FOnlineLeaderboardReadRef& ReadObject) override;
+	virtual bool ReadLeaderboardsAroundRank(int32 Rank, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) override;
+	virtual bool ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) override;
+	virtual void FreeStats(FOnlineLeaderboardRead& ReadObject) override;
+	virtual bool WriteLeaderboards(const FName& SessionName, const FUniqueNetId& Player, FOnlineLeaderboardWrite& WriteObject) override;
+	virtual bool FlushLeaderboards(const FName& SessionName) override;
+	virtual bool WriteOnlinePlayerRatings(const FName& SessionName, int32 LeaderboardId, const TArray<FOnlinePlayerScore>& PlayerScores) override;
+// ~IOnlineLeaderboards Interface
+
+PACKAGE_SCOPE:
+	FOnlineLeaderboardsEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem);
+
+private:
+	TSharedPtr<FUniqueNetIdEOSPlus> GetNetIdPlus(const FString& SourceId);
+
+	/** Reference to the owning EOS plus subsystem */
+	FOnlineSubsystemEOSPlus* EOSPlus;
+	/** Since we're going to bind to delegates, we need to hold onto these */
+	IOnlineLeaderboardsPtr BaseLeaderboardsInterface;
+	IOnlineLeaderboardsPtr EosLeaderboardsInterface;
+};
+
+typedef TSharedPtr<FOnlineLeaderboardsEOSPlus, ESPMode::ThreadSafe> FOnlineLeaderboardsEOSPlusPtr;

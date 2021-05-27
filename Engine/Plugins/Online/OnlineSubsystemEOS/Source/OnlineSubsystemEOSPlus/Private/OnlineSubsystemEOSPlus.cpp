@@ -51,6 +51,7 @@ bool FOnlineSubsystemEOSPlus::Init()
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOSPlus(this));
 	UserInterfacePtr = MakeShareable(new FOnlineUserEOSPlus(this));
 	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOSPlus(this));
+	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOSPlus(this));
 
 	return true;
 }
@@ -71,6 +72,7 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
 	DESTRUCT_INTERFACE(UserInterfacePtr);
 	DESTRUCT_INTERFACE(SessionInterfacePtr);
+	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
@@ -114,7 +116,7 @@ IOnlineEntitlementsPtr FOnlineSubsystemEOSPlus::GetEntitlementsInterface() const
 
 IOnlineLeaderboardsPtr FOnlineSubsystemEOSPlus::GetLeaderboardsInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetLeaderboardsInterface() : nullptr;
+	return LeaderboardsInterfacePtr;
 }
 
 IOnlineVoicePtr FOnlineSubsystemEOSPlus::GetVoiceInterface() const
@@ -154,7 +156,7 @@ IOnlinePurchasePtr FOnlineSubsystemEOSPlus::GetPurchaseInterface() const
 
 IOnlineEventsPtr FOnlineSubsystemEOSPlus::GetEventsInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetEventsInterface() : nullptr;
+	return StatsInterfacePtr;
 }
 
 IOnlineAchievementsPtr FOnlineSubsystemEOSPlus::GetAchievementsInterface() const
@@ -200,4 +202,28 @@ IOnlineTurnBasedPtr FOnlineSubsystemEOSPlus::GetTurnBasedInterface() const
 IOnlineTournamentPtr FOnlineSubsystemEOSPlus::GetTournamentInterface() const
 {
 	return BaseOSS != nullptr ? BaseOSS->GetTournamentInterface() : nullptr;
+}
+
+bool FOnlineSubsystemEOSPlus::IsLocalPlayer(const FUniqueNetId& UniqueId) const
+{
+	if (!IsDedicated())
+	{
+		if (UserInterfacePtr.IsValid())
+		{
+			TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = UserInterfacePtr->GetNetIdPlus(UniqueId.ToString());
+			if (NetIdPlus.IsValid())
+			{
+				for (int32 LocalUserNum = 0; LocalUserNum < MAX_LOCAL_PLAYERS; LocalUserNum++)
+				{
+					FUniqueNetIdPtr LocalUniqueId = UserInterfacePtr->GetUniquePlayerId(LocalUserNum);
+					if (LocalUniqueId.IsValid() && *NetIdPlus == *LocalUniqueId)
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
 }

@@ -104,6 +104,8 @@ PACKAGE_SCOPE:
 
 	IOnlineSessionPtr BaseSessionInterface;
 	IOnlineSessionPtr EOSSessionInterface;
+
+	TUniqueNetIdMap<TSharedRef<FOnlineSessionSearch>> CachedSearchSettingsPerSearchingUser;
 };
 
 typedef TSharedPtr<FOnlineSessionEOSPlus, ESPMode::ThreadSafe> FOnlineSessionEOSPlusPtr;

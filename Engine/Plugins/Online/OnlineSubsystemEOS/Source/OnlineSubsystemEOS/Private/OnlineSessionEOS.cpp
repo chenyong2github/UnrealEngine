@@ -12,6 +12,7 @@
 #include "NboSerializerEOS.h"
 #include "InternetAddrEOS.h"
 #include "IEOSSDKManager.h"
+#include "NetDriverEOS.h"
 
 #if WITH_EOS_SDK
 	#include "eos_sessions.h"
@@ -351,8 +352,14 @@ FOnlineSessionInfoEOS::FOnlineSessionInfoEOS()
 }
 
 FOnlineSessionInfoEOS::FOnlineSessionInfoEOS(const FString& InHostIp, const FString& InSessionId, EOS_HSessionDetails InSessionHandle)
+	: FOnlineSessionInfoEOS(InHostIp, FUniqueNetIdEOS::Create(InSessionId), InSessionHandle)
+{
+
+}
+
+FOnlineSessionInfoEOS::FOnlineSessionInfoEOS(const FString& InHostIp, FUniqueNetIdEOSRef UniqueNetId, EOS_HSessionDetails InSessionHandle)
 	: FOnlineSessionInfo()
-	, SessionId(FUniqueNetIdEOS::Create(InSessionId))
+	, SessionId(UniqueNetId)
 	, SessionHandle(InSessionHandle)
 	, bIsFromClone(false)
 {
@@ -1137,7 +1144,7 @@ uint32 FOnlineSessionEOS::CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineS
 	// If we are not a dedicated server and are using p2p sockets, then we need to add a custom URL for connecting
 	if (!bIsDedicatedServer && bIsUsingP2PSockets)
 	{
-		FInternetAddrEOS TempAddr(MakeStringFromProductUserId(Options.LocalUserId), Session->SessionName.ToString(), FURL::UrlConfig.DefaultPort);
+		FInternetAddrEOS TempAddr(MakeStringFromProductUserId(Options.LocalUserId), GetDefault<UNetDriverEOS>()->NetDriverName.ToString(), FURL::UrlConfig.DefaultPort);
 		HostAddr = TempAddr.ToString(true);
 		char HostAddrAnsi[EOS_OSS_STRING_BUFFER_LENGTH];
 		FCStringAnsi::Strncpy(HostAddrAnsi, TCHAR_TO_UTF8(*HostAddr), EOS_OSS_STRING_BUFFER_LENGTH);
@@ -1154,7 +1161,7 @@ uint32 FOnlineSessionEOS::CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineS
 		// This is basically ignored
 		HostAddr = TEXT("127.0.0.1");
 	}
-	Session->SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, Session->SessionName.ToString(), nullptr));
+	Session->SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, FUniqueNetIdEOS::EmptyId(), nullptr));
 
 	FUpdateSessionCallback* CallbackObj = new FUpdateSessionCallback();
 	CallbackObj->CallbackLambda = [this, Session](const EOS_Sessions_UpdateSessionCallbackInfo* Data)
@@ -3027,6 +3034,7 @@ uint32 FOnlineSessionEOS::CreateLobbySession(int32 HostingPlayerNum, FNamedOnlin
 	CreateLobbyOptions.MaxLobbyMembers = GetLobbyMaxMembersFromSessionSettings(Session->SessionSettings);
 	CreateLobbyOptions.PermissionLevel = GetLobbyPermissionLevelFromSessionSettings(Session->SessionSettings);
 	CreateLobbyOptions.bPresenceEnabled = Session->SessionSettings.bUsesPresence;
+	CreateLobbyOptions.BucketId = BucketIdAnsi;
 
 	/*When the operation finishes, the EOS_Lobby_OnCreateLobbyCallback will run with an EOS_Lobby_CreateLobbyCallbackInfo data structure.
 	If the data structure's ResultCode field indicates success, its LobbyId field contains the new lobby's ID value, which we will need to interact with the lobby further.*/
@@ -3046,7 +3054,7 @@ uint32 FOnlineSessionEOS::CreateLobbySession(int32 HostingPlayerNum, FNamedOnlin
 
 				Session->SessionState = EOnlineSessionState::Pending;
 
-				FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LocalUserId), SessionName.ToString(), FURL::UrlConfig.DefaultPort);
+				FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LocalUserId), GetDefault<UNetDriverEOS>()->NetDriverName.ToString(), FURL::UrlConfig.DefaultPort);
 				FString HostAddr = TempAddr.ToString(true);
 
 				Session->SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, Data->LobbyId, nullptr));
@@ -3209,9 +3217,21 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	check(Session != nullptr);
 
 	// The first will let us find it on session searches
-	FString ParamName(TEXT("FOSS=") + SEARCH_PRESENCE.ToString());
-	FLobbyAttributeOptions SearchAttribute(TCHAR_TO_UTF8(*ParamName), true);
-	AddLobbyAttribute(LobbyModificationHandle, &SearchAttribute);
+	FString SearchPresence(TEXT("FOSS=") + SEARCH_PRESENCE.ToString());
+	FLobbyAttributeOptions SearchPresenceAttribute(TCHAR_TO_UTF8(*SearchPresence), true);
+	AddLobbyAttribute(LobbyModificationHandle, &SearchPresenceAttribute);
+
+	// The second will let us find it on lobby searches
+	FString SearchLobbies(TEXT("FOSS=") + SEARCH_LOBBIES.ToString());
+	FLobbyAttributeOptions SearchLobbiesAttribute(TCHAR_TO_UTF8(*SearchLobbies), true);
+	AddLobbyAttribute(LobbyModificationHandle, &SearchLobbiesAttribute);
+
+	// The second will let us find it on lobby searches
+	FString Keyword;
+	Session->SessionSettings.Get(SEARCH_KEYWORDS, Keyword);
+	FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
+	FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), Keyword);
+	AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
 
 	// Now the session settings
 	FLobbyAttributeOptions Opt1("NumPrivateConnections", Session->SessionSettings.NumPrivateConnections);
@@ -3368,7 +3388,7 @@ uint32 FOnlineSessionEOS::DestroyLobbySession(FNamedOnlineSession* Session, cons
 		FName SessionName = Session->SessionName;
 
 		// If we are the owner of the lobby we will destroy it, since we will trigger an OSS session destruction anyway, forcing everyone else to leave the lobby too
-		if (*EOSSubsystem->UserManager->GetUniquePlayerId(EOSSubsystem->UserManager->GetDefaultLocalUser()) == *Session->OwningUserId)
+		if (Session->OwningUserId != nullptr && *EOSSubsystem->UserManager->GetUniquePlayerId(EOSSubsystem->UserManager->GetDefaultLocalUser()) == *Session->OwningUserId)
 		{
 			// Destroy Lobby
 			EOS_Lobby_DestroyLobbyOptions DestroyOptions = { 0 };
@@ -3582,7 +3602,7 @@ void FOnlineSessionEOS::AddLobbySearchResult(EOS_HLobbyDetails LobbyDetailsHandl
 		SearchResult.PingInMs = static_cast<int32>((FPlatformTime::Seconds() - SessionSearchStartInSeconds) * 1000);
 		
 		// This will set the host address and port
-		FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LobbyDetailsInfo->LobbyOwnerUserId), FString(LobbyDetailsInfo->LobbyId), FURL::UrlConfig.DefaultPort);
+		FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LobbyDetailsInfo->LobbyOwnerUserId), GetDefault<UNetDriverEOS>()->NetDriverName.ToString(), FURL::UrlConfig.DefaultPort);
 		FString HostAddr = TempAddr.ToString(true);
 
 		SearchResult.Session.SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, LobbyDetailsInfo->LobbyId, nullptr));
