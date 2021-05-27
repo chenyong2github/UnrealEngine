@@ -54,6 +54,8 @@
 
 #define LOCTEXT_NAMESPACE "ProjectBrowser"
 
+DEFINE_LOG_CATEGORY_STATIC(LogProjectBrowser, Log, All);
+
 namespace ProjectBrowserDefs
 {
 	constexpr float ProjectTileHeight = 153;
@@ -661,10 +663,14 @@ FReply SProjectBrowser::FindProjects()
 	TMap<FString, FString> EngineInstallations;
 	FDesktopPlatformModule::Get()->EnumerateEngineInstallations(EngineInstallations);
 
+	UE_LOG(LogProjectBrowser, Log, TEXT("Looking for projects..."));
+
 	// Add projects from every branch that we know about
 	for (TMap<FString, FString>::TConstIterator Iter(EngineInstallations); Iter; ++Iter)
 	{
 		TArray<FString> ProjectFiles;
+
+		UE_LOG(LogProjectBrowser, Log, TEXT("Found Engine Installation \"%s\"(%s)"), *Iter.Key(), *Iter.Value());
 
 		if (FDesktopPlatformModule::Get()->EnumerateProjectsKnownByEngine(Iter.Key(), false, ProjectFiles))
 		{
@@ -675,6 +681,14 @@ FReply SProjectBrowser::FindProjects()
 	// Add all the samples from the launcher
 	TArray<FString> LauncherSampleProjects;
 	FDesktopPlatformModule::Get()->EnumerateLauncherSampleProjects(LauncherSampleProjects);
+
+	UE_LOG(LogProjectBrowser, Log, TEXT("Enumerating Launcher Sample Projects..."));
+
+	for (const FString& Str : LauncherSampleProjects)
+	{
+		UE_LOG(LogProjectBrowser, Log, TEXT("Found Sample Project:\"%s\""), *Str);
+	}
+
 	AllFoundProjectFiles.Append(MoveTemp(LauncherSampleProjects));
 
 	// Add all the native project files we can find
@@ -713,7 +727,7 @@ FReply SProjectBrowser::FindProjects()
 		}
 	}
 
-	ProjectItemsSource.Sort([](auto& A, auto& B) { return A->LastAccessTime > B->LastAccessTime; });
+	ProjectItemsSource.Sort([](auto& A, auto& B) { return A->LastAccessTime < B->LastAccessTime; });
 
 	PopulateFilteredProjects();
 
