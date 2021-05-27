@@ -17,7 +17,12 @@ namespace HordeAgent.Parser.Matchers
 	{
 		public LogEvent? Match(ILogCursor Cursor, ILogContext Context)
 		{
-			// Return it as information, but add a property indicating it's something that should be 
+			if (Cursor.IsMatch(@"\(BuildService.exe\) is not running"))
+			{
+				LogEventBuilder Builder = new LogEventBuilder(Cursor);
+				return Builder.ToLogEvent(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
+			}
+
 			if (Cursor.IsMatch(@"^\s*--------------------Build System Warning[- ]"))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);

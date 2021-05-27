@@ -135,6 +135,11 @@ namespace HordeCommon
 		public static EventId Systemic_Xge_Standalone { get; } = new EventId(711);
 
 		/// <summary>
+		/// BuildService.exe is not running
+		/// </summary>
+		public static EventId Systemic_Xge_ServiceNotRunning { get; } = new EventId(712);
+
+		/// <summary>
 		/// DDC is slow
 		/// </summary>
 		public static EventId Systemic_SlowDDC { get; } = new EventId(720);
