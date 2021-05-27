@@ -256,7 +256,7 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::AddContainerForRowWidgets(TSharedRe
 			.Padding(0.f, 0.f, 3.f, 0.f)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Info"))
+				.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Message.CustomNote"))
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
