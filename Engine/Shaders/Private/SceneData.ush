@@ -326,13 +326,13 @@ uint GetPrimitive_LightingChannelMask_FromFlags(uint Flags)
 	return (Channel0 | (Channel1 << 1u) | (Channel2 << 2u));
 }
 
-float GetPrimitive_LightingChannelMask(uint PrimitiveId)
+uint GetPrimitive_LightingChannelMask(uint PrimitiveId)
 {
 	return GetPrimitive_LightingChannelMask_FromFlags(GetPrimitiveData(PrimitiveId).Flags);
 }
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
-float GetPrimitive_LightingChannelMask(FPrimitiveSceneData Primitive)
+uint GetPrimitive_LightingChannelMask(FPrimitiveSceneData Primitive)
 {
 	return GetPrimitive_LightingChannelMask_FromFlags(Primitive.Flags);
 }

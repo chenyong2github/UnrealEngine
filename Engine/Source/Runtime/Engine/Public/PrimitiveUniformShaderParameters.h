@@ -247,7 +247,7 @@ public:
 
 private:
 	FPrimitiveUniformShaderParameters Parameters;
-	uint32 LightingChannels : 1;
+	uint32 LightingChannels : 3;
 	uint32 bReceivesDecals : 1;
 	uint32 bUseSingleSampleShadowFromStationaryLights : 1;
 	uint32 bUseVolumetricLightmap : 1;
