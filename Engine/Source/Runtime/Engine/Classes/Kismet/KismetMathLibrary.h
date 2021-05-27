@@ -12,6 +12,7 @@
 #include "UObject/ScriptMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "Engine/NetSerialization.h"
 
 #include "KismetMathLibrary.generated.h"
 
@@ -4141,6 +4142,27 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Math|Smoothing", meta=(DisplayName="Dynamic Weighted Moving Average Rotator"))
 	static FRotator DynamicWeightedMovingAverage_FRotator(FRotator CurrentSample, FRotator PreviousSample, float MaxDistance, float MinWeight, float MaxWeight);
 
+
+	// NetQuantized vector make/breaks
+	// LWC_TODO: These can be removed once blueprints support FReal
+	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeMakeFunc))
+	static FVector_NetQuantize MakeVector_NetQuantize(float X, float Y, float Z) { return FVector_NetQuantize(X, Y, Z); }
+	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeMakeFunc))
+	static FVector_NetQuantize10 MakeVector_NetQuantize10(float X, float Y, float Z) { return FVector_NetQuantize10(X, Y, Z); }
+	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeMakeFunc))
+	static FVector_NetQuantize100 MakeVector_NetQuantize100(float X, float Y, float Z) { return FVector_NetQuantize100(X, Y, Z); }
+	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeMakeFunc))
+	static FVector_NetQuantizeNormal MakeVector_NetQuantizeNormal(float X, float Y, float Z) { return FVector_NetQuantizeNormal(X, Y, Z); }
+	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
+	static void BreakVector_NetQuantize(FVector_NetQuantize InVec, float& X, float& Y, float& Z) { BreakVector((FVector)InVec, X, Y, Z); }
+	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
+	static void BreakVector_NetQuantize10(FVector_NetQuantize10 InVec, float& X, float& Y, float& Z) { BreakVector((FVector)InVec, X, Y, Z); }
+	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
+	static void BreakVector_NetQuantize100(FVector_NetQuantize100 InVec, float& X, float& Y, float& Z) { BreakVector((FVector)InVec, X, Y, Z); }
+	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
+	static void BreakVector_NetQuantizeNormal(FVector_NetQuantizeNormal InVec, float& X, float& Y, float& Z) { BreakVector((FVector)InVec, X, Y, Z); }
+
+	
 private:
 
 	static void ReportError_Divide_ByteByte();
