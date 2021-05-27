@@ -21,14 +21,14 @@ namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { struct FBuildWorkerActionCompleteParams; }
-namespace UE::DerivedData { struct FBuildWorkerFilesCompleteParams; }
+namespace UE::DerivedData { struct FBuildWorkerFileDataCompleteParams; }
 namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
 
 namespace UE::DerivedData
 {
 
 using FOnBuildWorkerActionComplete = TUniqueFunction<void (FBuildWorkerActionCompleteParams&& Params)>;
-using FOnBuildWorkerFilesCompleteParams = TUniqueFunction<void (FBuildWorkerFilesCompleteParams&& Params)>;
+using FOnBuildWorkerFileDataComplete = TUniqueFunction<void (FBuildWorkerFileDataCompleteParams&& Params)>;
 
 class FBuildWorker
 {
@@ -38,6 +38,7 @@ public:
 	virtual FStringView GetPath() const = 0;
 	virtual FStringView GetHostPlatform() const = 0;
 	virtual FGuid GetBuildSystemVersion() const = 0;
+	virtual FRequest GetFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) const = 0;
 	virtual void IterateFunctions(TFunctionRef<void (FStringView Name, const FGuid& Version)> Visitor) const = 0;
 	virtual void IterateFiles(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
 	virtual void IterateExecutables(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
@@ -64,7 +65,7 @@ public:
 	virtual ~IBuildWorkerFactory() = default;
 
 	virtual void Build(FBuildWorkerBuilder& Builder) = 0;
-	virtual FRequest GetFiles(TConstArrayView<FIoHash> Files, EPriority Priority, FOnBuildWorkerFilesCompleteParams&& OnComplete) = 0;
+	virtual FRequest GetFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) = 0;
 
 	/** Returns the name of the build worker factory modular feature. */
 	static FName GetFeatureName()
@@ -82,10 +83,11 @@ public:
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
 		const FBuildWorker& Worker,
-		IBuildWorkerFactory& WorkerFactory,
 		EBuildPolicy Policy,
 		EPriority Priority,
 		FOnBuildWorkerActionComplete&& OnComplete) = 0;
+
+	virtual TConstArrayView<FStringView> GetHostPlatforms() const = 0;
 
 	/** Returns the name of the build worker executor modular feature. */
 	static FName GetFeatureName()
@@ -102,7 +104,7 @@ struct FBuildWorkerActionCompleteParams
 	EStatus Status = EStatus::Error;
 };
 
-struct FBuildWorkerFilesCompleteParams
+struct FBuildWorkerFileDataCompleteParams
 {
 	TConstArrayView<FCompressedBuffer> Files;
 	EStatus Status = EStatus::Error;
