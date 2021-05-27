@@ -377,7 +377,7 @@ void UDisplayClusterPreviewComponent::HandleRenderTargetTextureDeferredUpdate()
 
 	//! @todo: integrate to configurator logic
 	//! deffered update flag
-	bIsRenderTargetSurfaceChanged = true;
+	RenderTargetSurfaceChangedCnt = 2;
 }
 
 UTexture2D* UDisplayClusterPreviewComponent::GetOrCreateRenderTexture2D()
@@ -387,11 +387,11 @@ UTexture2D* UDisplayClusterPreviewComponent::GetOrCreateRenderTexture2D()
 		RemovePreviewTexture();
 	}
 	else
-	if (RenderTarget && bIsRenderTargetSurfaceChanged)
+	if (RenderTarget && RenderTargetSurfaceChangedCnt)
 	{
-		if (UpdatePreviewTexture())
+		if (--RenderTargetSurfaceChangedCnt == 0)
 		{
-			bIsRenderTargetSurfaceChanged = false;
+			UpdatePreviewTexture();
 		}
 	}
 
