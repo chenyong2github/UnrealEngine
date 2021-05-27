@@ -272,10 +272,8 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 				.Text_Static(&FSourceControlMenuHelpers::GetSourceControlStatusText)
 			]
 		]
-		.MenuContent()
-		[
-			GenerateSourceControlMenuContent()
-		];
+		.OnGetMenuContent(FOnGetContent::CreateStatic(&FSourceControlMenuHelpers::GenerateSourceControlMenuContent))
+		;
 }
 
 #undef LOCTEXT_NAMESPACE
