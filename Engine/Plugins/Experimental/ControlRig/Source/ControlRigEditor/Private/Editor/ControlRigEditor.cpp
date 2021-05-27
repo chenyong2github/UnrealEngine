@@ -1389,9 +1389,9 @@ void FControlRigEditor::SetDetailObject(UObject* Obj)
 		}
 		return;
 	}
-	else if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Obj))
+	else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Obj))
 	{
-		UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(CollapseNode->GetContainedGraph());
+		UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(LibraryNode->GetContainedGraph());
 		if (EdGraph)
 		{
 			TArray<UObject*> Objects;
