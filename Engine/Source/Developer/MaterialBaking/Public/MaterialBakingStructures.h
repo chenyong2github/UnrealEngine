@@ -95,6 +95,9 @@ struct FBakeOutput
 	/** Contains the resulting texture size for baking out a material's property */
 	TMap<EMaterialProperty, FIntPoint> PropertySizes;
 
+	/** Contains the resulting HDR texture data for baking out a material's property, may be empty */
+	TMap<EMaterialProperty, TArray<FFloat16Color>> HDRPropertyData;
+
 	/** Scale used to allow having wide ranges of emissive values in the source materials, the final proxy material will use this value to scale the emissive texture's pixel values */
 	float EmissiveScale;
 };
@@ -111,6 +114,9 @@ struct FBakeOutputEx
 
 	/** Contains the resulting texture size for baking out a extened material's property */
 	TMap<FMaterialPropertyEx, FIntPoint> PropertySizes;
+
+	/** Contains the resulting HDR texture data for baking out a material's property, may be empty */
+	TMap<FMaterialPropertyEx, TArray<FFloat16Color>> HDRPropertyData;
 
 	/** Scale used to allow having wide ranges of emissive values in the source materials, the final proxy material will use this value to scale the emissive texture's pixel values */
 	float EmissiveScale;
