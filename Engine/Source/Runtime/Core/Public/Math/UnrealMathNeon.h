@@ -60,13 +60,6 @@ typedef uint64x2_t GCC_ALIGN(16) VectorRegister2Int64;
 #define DECLARE_VECTOR_REGISTER(X, Y, Z, W) { X, Y, Z, W }
 #endif
 
-// LWC: Alias VectorRegister to correct precision based on LWC
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-	typedef VectorRegister4Double VectorRegister;
-#else
-	typedef VectorRegister4Float VectorRegister;
-#endif
-
 struct alignas(16) VectorRegister4Double
 {
 	union
@@ -97,6 +90,12 @@ struct alignas(16) VectorRegister4Double
 	}
 };
 
+// LWC: Alias VectorRegister to correct precision based on LWC
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+typedef VectorRegister4Double VectorRegister;
+#else
+typedef VectorRegister4Float VectorRegister;
+#endif
 
 // Forward declarations
 VectorRegister4Float VectorLoadAligned(const float* Ptr);

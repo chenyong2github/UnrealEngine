@@ -434,7 +434,7 @@ bool UAutoClusterFractureCommand::HasPath(int32 TransformIndexStart, int32 Trans
 
 float UAutoClusterFractureCommand::GetClosestDistance(const FBox& A, const FBox& B)
 {
-	float Dist[8] = {
+	FVector::FReal Dist[8] = {
 		B.ComputeSquaredDistanceToPoint(FVector(A.Min.X, A.Min.Y, A.Min.Z)),
 		B.ComputeSquaredDistanceToPoint(FVector(A.Min.X, A.Max.Y, A.Min.Z)),
 		B.ComputeSquaredDistanceToPoint(FVector(A.Max.X, A.Min.Y, A.Min.Z)),
@@ -446,7 +446,7 @@ float UAutoClusterFractureCommand::GetClosestDistance(const FBox& A, const FBox&
 		B.ComputeSquaredDistanceToPoint(FVector(A.Max.X, A.Max.Y, A.Max.Z)) 
 	};
 
-	float Distance = FLT_MAX;
+	FVector::FReal Distance = FLT_MAX;
 
 	for (int32 ii = 0; ii < 8; ++ii)
 	{
@@ -456,7 +456,7 @@ float UAutoClusterFractureCommand::GetClosestDistance(const FBox& A, const FBox&
 		}
 	}
 
-	return Distance;
+	return (float)Distance;			// LWC_TODO: Precision loss
 }
 
 

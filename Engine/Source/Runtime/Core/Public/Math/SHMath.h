@@ -351,7 +351,7 @@ public:
 		// we know the Vector will be (0,0,+1) or (0,0,-1).
 		if (FMath::Abs(Vector.X) > KINDA_SMALL_NUMBER || FMath::Abs(Vector.Y) > KINDA_SMALL_NUMBER)
 		{
-			const float	Phi = FMath::Atan2(Vector.Y, Vector.X);
+			const float	Phi = (float)FMath::Atan2(Vector.Y, Vector.X);
 
 			for (int32 BandIndex = 1; BandIndex < TSHVector::MaxSHOrder; BandIndex++)
 			{
