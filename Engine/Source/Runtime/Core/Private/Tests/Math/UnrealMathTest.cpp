@@ -1265,6 +1265,7 @@ bool RunDoubleVectorTest()
 	uint64 U1 = *(uint64*)&F1;
 	VectorRegister4Double V0, V1;
 	VectorRegister4Double V2, V3;
+	double Double0, Double1, Double2, Double3;
 
 	V0 = MakeVectorRegisterDouble(U1, U1, U1, U1);
 	V1 = MakeVectorRegisterDouble(F1, F1, F1, F1);
@@ -1362,14 +1363,15 @@ bool RunDoubleVectorTest()
 	// Shuffle
 	TestVectorShuffle<double, VectorRegister4Double>();
 
+	// VectorGetComponent
 	V0 = MakeVectorRegisterDouble(0., 0., 2., 0.);
 	V1 = MakeVectorRegisterDouble(0., 1., 0., 3.);
-	double D0 = VectorGetComponent(V0, 0);
-	double D1 = VectorGetComponent(V1, 1);
-	double D2 = VectorGetComponent(V0, 2);
-	double D3 = VectorGetComponent(V1, 3);
+	Double0 = VectorGetComponent(V0, 0);
+	Double1 = VectorGetComponent(V1, 1);
+	Double2 = VectorGetComponent(V0, 2);
+	Double3 = VectorGetComponent(V1, 3);
 	V0 = MakeVectorRegisterDouble(0., 1., 2., 3.);
-	V1 = MakeVectorRegisterDouble(D0, D1, D2, D3);
+	V1 = MakeVectorRegisterDouble(Double0, Double1, Double2, Double3);
 	LogTest<double>(TEXT("VectorGetComponent"), TestVectorsEqual(V0, V1));
 
 	// Abs
@@ -1418,6 +1420,20 @@ bool RunDoubleVectorTest()
 	V1 = VectorDot3(V0, V1);
 	V0 = MakeVectorRegisterDouble(68.0f, 68.0f, 68.0f, 68.0f);
 	LogTest<double>(TEXT("VectorDot3"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
+	Double0 = VectorDot3Scalar(V0, V1);
+	V1 = VectorSetDouble1(Double0);
+	V0 = MakeVectorRegisterDouble(28.0f, 28.0f, 28.0f, 28.0f);
+	LogTest<double>(TEXT("VectorDot3Scalar"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 5.0f);
+	V1 = MakeVectorRegisterDouble(7.0f, 11.0f, 13.0f, 17.0f);
+	Double0 = VectorDot3Scalar(V0, V1);
+	V1 = VectorSetDouble1(Double0);
+	V0 = MakeVectorRegisterDouble(68.0f, 68.0f, 68.0f, 68.0f);
+	LogTest<double>(TEXT("VectorDot3Scalar"), TestVectorsEqual(V0, V1));
 
 	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
 	V1 = MakeVectorRegisterDouble(1.0f, 2.0f, 3.0f, 4.0f);
@@ -1748,6 +1764,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	float F1 = 1.f;
 	uint32 D1 = *(uint32 *)&F1;
 	VectorRegister4Float V0, V1, V2, V3;
+	float Float0, Float1, Float2, Float3;
 
 	ResetPassing();
 
@@ -1843,10 +1860,10 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	V0 = MakeVectorRegisterFloat(0.f, 0.f, 2.f, 0.f);
 	V1 = MakeVectorRegisterFloat(0.f, 1.f, 0.f, 3.f);
-	float Float0 = VectorGetComponent(V0, 0);
-	float Float1 = VectorGetComponent(V1, 1);
-	float Float2 = VectorGetComponent(V0, 2);
-	float Float3 = VectorGetComponent(V1, 3);
+	Float0 = VectorGetComponent(V0, 0);
+	Float1 = VectorGetComponent(V1, 1);
+	Float2 = VectorGetComponent(V0, 2);
+	Float3 = VectorGetComponent(V1, 3);
 	V0 = MakeVectorRegisterFloat(0.f, 1.f, 2.f, 3.f);
 	V1 = MakeVectorRegisterFloat(Float0, Float1, Float2, Float3);
 	LogTest<float>(TEXT("VectorGetComponent<float>"), TestVectorsEqual(V0, V1));
@@ -1898,6 +1915,20 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V1 = VectorDot3(V0, V1);
 	V0 = MakeVectorRegister(68.0f, 68.0f, 68.0f, 68.0f);
 	LogTest<float>(TEXT("VectorDot3"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
+	V1 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 4.0f);
+	Float0 = VectorDot3Scalar(V0, V1);
+	V1 = VectorSetFloat1(Float0);
+	V0 = MakeVectorRegister(28.0f, 28.0f, 28.0f, 28.0f);
+	LogTest<float>(TEXT("VectorDot3Scalar"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 5.0f);
+	V1 = MakeVectorRegister(7.0f, 11.0f, 13.0f, 17.0f);
+	Float0 = VectorDot3Scalar(V0, V1);
+	V1 = VectorSetFloat1(Float0);
+	V0 = MakeVectorRegister(68.0f, 68.0f, 68.0f, 68.0f);
+	LogTest<float>(TEXT("VectorDot3Scalar"), TestVectorsEqual(V0, V1));
 
 	V0 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
 	V1 = MakeVectorRegister(1.0f, 2.0f, 3.0f, 4.0f);

@@ -5,11 +5,6 @@
 struct FGenericPlatformMath;
 struct FMath;
 
-FORCEINLINE bool VectorIsAligned(const void *Ptr, uint32 Alignment = SIMD_ALIGNMENT)
-{
-	return !(PTRINT(Ptr) & (Alignment - 1));
-}
-
 // Overload to resolve compiler ambiguity for things like MakeVectorRegister(V.X, V.Y, V.Z, 0.f) when V is a double type.
 FORCEINLINE VectorRegister4Double MakeVectorRegister(double X, double Y, double Z, float W)
 {
@@ -786,6 +781,11 @@ FORCEINLINE VectorRegister4Double operator*(const VectorRegister4Double& Vec1, c
 FORCEINLINE VectorRegister4Double VectorSetDouble(double X, double Y, double Z, double W)
 {
 	return MakeVectorRegisterDouble(X, Y, Z, W);
+}
+
+FORCEINLINE VectorRegister4Double VectorSetDouble1(double D)
+{
+	return VectorSetFloat1(D);
 }
 
 FORCEINLINE void VectorStoreDouble3(const VectorRegister4Double& Vec, double* Ptr)
