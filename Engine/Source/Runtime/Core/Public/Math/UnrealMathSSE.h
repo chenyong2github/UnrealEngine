@@ -41,10 +41,10 @@
 // If AVX is enabled, need additional defines.
 #if UE_PLATFORM_MATH_USE_AVX || UE_PLATFORM_MATH_USE_SVML
 #include <immintrin.h>
-#define UE_SSE_DOUBLE_ALIGNMENT 32
-#else
-#define UE_SSE_DOUBLE_ALIGNMENT 16
 #endif
+
+#define UE_SSE_FLOAT_ALIGNMENT	16
+#define UE_SSE_DOUBLE_ALIGNMENT 16
 
 #include "Math/sse_mathfun.h"
 
@@ -170,7 +170,7 @@ void VectorStoreAligned(const VectorRegister4Double& Vec, double* Dst);
 
 
 // Helper for conveniently aligning a float array for extraction from VectorRegister4Float
-struct alignas(16) AlignedFloat4
+struct alignas(UE_SSE_FLOAT_ALIGNMENT) AlignedFloat4
 {
 	float V[4];
 
