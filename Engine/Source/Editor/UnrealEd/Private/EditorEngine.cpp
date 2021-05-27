@@ -7008,8 +7008,9 @@ void UEditorEngine::UpdateIsVanillaProduct()
 		FString Identifier = DesktopPlatform->GetCurrentEngineIdentifier();
 		if (Identifier.Len() > 0)
 		{
-			FEngineVersion Version;
-			if (DesktopPlatform->TryParseStockEngineVersion(Identifier, Version))
+			TMap<FString, FString> Installations;
+			DesktopPlatform->EnumerateLauncherEngineInstallations(Installations);
+			if (Installations.Contains(Identifier))
 			{
 				// Check if we have any marketplace plugins enabled
 				bool bHasMarketplacePlugin = false;
