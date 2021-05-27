@@ -9020,17 +9020,6 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, const FString& SharedLocalBasisIndexMacro)
-{
-	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSheenBSDF(%s, %s, %s) /* %s */"),
-		*GetParameterCode(BaseColor),
-		*GetParameterCode(Roughness),
-		*SharedLocalBasisIndexMacro,
-		*GetParameterCode(Normal)
-	);
-}
-
 int32 FHLSLMaterialTranslator::StrataVolumetricFogCloudBSDF(int32 Albedo, int32 Extinction, int32 EmissiveColor, int32 AmbientOcclusion)
 {
 	return AddCodeChunk(
