@@ -242,7 +242,7 @@ namespace RemoteControlSetterUtils
 
 		if (SetterFunction)
 		{
-			CachedSetterFunctions.Add(Property,  SetterFunction);
+			CachedSetterFunctions.Add(Property, SetterFunction);
 		}
 
 		return SetterFunction;
@@ -1019,6 +1019,12 @@ public:
 	virtual void UnregisterDefaultEntityMetadata(FName MetadataKey) override
 	{
 		DefaultMetadataInitializers.Remove(MetadataKey);
+	}
+
+	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property) const override
+	{
+		constexpr bool bInGameOrPackage = true;
+		return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlSetterUtils::FindSetterFunction(Property));
 	}
 
 private:

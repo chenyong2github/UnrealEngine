@@ -533,6 +533,16 @@ struct FRCShortPresetDescription
 		Path = PresetAsset.ObjectPath;
 	}
 
+	FRCShortPresetDescription(const URemoteControlPreset* InPreset)
+	{
+		if (InPreset)
+		{
+			Name = InPreset->GetFName();
+			ID = InPreset->GetPresetId().ToString();
+			Path = *InPreset->GetPathName();
+		}
+	}
+
 	/**
 	 * Name of the preset.
 	 */

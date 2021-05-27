@@ -889,13 +889,13 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 		{
 			if (const TSharedPtr<FRemoteControlField> Field = FieldWidget->GetRemoteControlField().Pin())
 			{
-				if(Field->FieldType == (FieldType = EExposedFieldType::Property))
+				if(Field->GetStruct() == FRemoteControlProperty::StaticStruct())
 				{
 					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlProperty>(Field));
 				}
-				else if(Field->FieldType == (FieldType = EExposedFieldType::Function))
+				else if(Field->GetStruct() == FRemoteControlFunction::StaticStruct())
 				{
-					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlField>(Field));
+					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlFunction>(Field));
 				}
 				else
 				{

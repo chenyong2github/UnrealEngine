@@ -5,6 +5,7 @@
 #include "AssetToolsModule.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
+#include "EngineAnalytics.h"
 #include "IAssetTools.h"
 #include "Input/Reply.h"
 #include "Misc/PackageName.h"
@@ -172,7 +173,12 @@ bool UMediaPlayerFactoryNew::ConfigureProperties()
 	return Options.OkClicked;
 }
 
-
+/**
+ * @EventName MediaFramework.CreateNewMediaPlayer
+ * @Trigger Triggered when a media player asset is created.
+ * @Type Client
+ * @Owner MediaIO Team
+ */
 UObject* UMediaPlayerFactoryNew::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	auto NewMediaPlayer = NewObject<UMediaPlayer>(InParent, InClass, InName, Flags);
@@ -184,6 +190,11 @@ UObject* UMediaPlayerFactoryNew::FactoryCreateNew(UClass* InClass, UObject* InPa
 
 		FString OutAssetName;
 		FString OutPackageName;
+
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.CreateNewMediaPlayer"));
+		}
 
 		AssetTools.CreateUniqueAssetName(ParentName, TEXT("_Video"), OutPackageName, OutAssetName);
 		const FString PackagePath = FPackageName::GetLongPackagePath(OutPackageName);

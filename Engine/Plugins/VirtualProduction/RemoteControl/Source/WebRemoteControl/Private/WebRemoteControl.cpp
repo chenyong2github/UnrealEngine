@@ -14,6 +14,7 @@
 
 #if WITH_EDITOR
 // Settings
+#include "IRemoteControlUIModule.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -532,12 +533,19 @@ bool FWebRemoteControlModule::HandleInfoRoute(const FHttpServerRequest& Request,
 {
 	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
 
+	
 	bool bInPackaged = false;
+	URemoteControlPreset* ActivePreset = nullptr; 
+
 #if !WITH_EDITOR
 	bInPackaged = true;
+#else
+	// If we are running an editor, then also add the active preset being edited to the payload.
+	IRemoteControlUIModule& RemoteControlUIModule = FModuleManager::Get().LoadModuleChecked<IRemoteControlUIModule>(TEXT("RemoteControlUI"));
+	ActivePreset = RemoteControlUIModule.GetActivePreset();
 #endif
-	
-	FAPIInfoResponse RCResponse{RegisteredHttpRoutes.Array(), bInPackaged};
+
+	FAPIInfoResponse RCResponse{RegisteredHttpRoutes.Array(), bInPackaged, ActivePreset};
 	WebRemoteControlUtils::SerializeResponse(MoveTemp(RCResponse), Response->Body);
 	OnComplete(MoveTemp(Response));
 	return true;

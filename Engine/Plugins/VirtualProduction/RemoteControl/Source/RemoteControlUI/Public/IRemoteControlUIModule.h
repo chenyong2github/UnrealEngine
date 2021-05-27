@@ -60,4 +60,9 @@ public:
      * @param MetadataKey The metadata map entry to unregister the customization for.
      */
 	virtual void UnregisterMetadataCustomization(FName MetadataKey) = 0;
+
+	/**
+	 * Get the preset currently being edited in the editor.
+	 */
+	virtual URemoteControlPreset* GetActivePreset() const = 0;
 };

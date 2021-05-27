@@ -31,8 +31,7 @@ public class RemoteControlUI : ModuleRules
 				"SceneOutliner",
 				"Slate",
 				"SlateCore",
-				"UnrealEd",
-				"WebRemoteControl"
+				"UnrealEd"
 			}
 		);
     }

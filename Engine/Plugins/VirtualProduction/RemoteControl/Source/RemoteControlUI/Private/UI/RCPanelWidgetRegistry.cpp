@@ -106,7 +106,11 @@ TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::GetObjectTreeNode(UObject* I
 	}
 	else
 	{
-		Generator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(FPropertyRowGeneratorArgs()) ;
+		// Since we must keep many PRG objects alive in order to access the handle data, validating the nodes each tick is very taxing.
+		// We can override the validation with a lambda since the validation function in PRG is not necessary for our implementation
+		auto ValidationLambda = ([](const FRootPropertyNodeList& PropertyNodeList) { return true; });
+		Generator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(FPropertyRowGeneratorArgs());
+		Generator->SetCustomValidatePropertyNodesFunction(FOnValidatePropertyRowGeneratorNodes::CreateLambda(MoveTemp(ValidationLambda)));
 		Generator->SetObjects({InObject});
 		ObjectToRowGenerator.Add(WeakObject, Generator);
 	}
@@ -121,9 +125,8 @@ TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::GetObjectTreeNode(UObject* I
 TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::GetStructTreeNode(const TSharedPtr<FStructOnScope>& InStruct, const FString& InField, ERCFindNodeMethod InFindMethod)
 {
 	TSharedPtr<IPropertyRowGenerator> Generator;
-	TWeakPtr<FStructOnScope> WeakStructure = InStruct;
 	
-	if (TSharedPtr<IPropertyRowGenerator>* FoundGenerator = StructToRowGenerator.Find(WeakStructure))
+	if (TSharedPtr<IPropertyRowGenerator>* FoundGenerator = StructToRowGenerator.Find(InStruct))
 	{
 		Generator = *FoundGenerator;
 	}
@@ -135,7 +138,7 @@ TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::GetStructTreeNode(const TSha
 		
 		Generator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(Args);
 		Generator->SetStructure(InStruct);
-		StructToRowGenerator.Add(WeakStructure, Generator);
+		StructToRowGenerator.Add(InStruct, Generator);
 	}
 
 	return WidgetRegistryUtils::FindNode(Generator->GetRootTreeNodes(), InField, InFindMethod);
@@ -146,6 +149,14 @@ void FRCPanelWidgetRegistry::Refresh(UObject* InObject)
 	if (TSharedPtr<IPropertyRowGenerator>* Generator = ObjectToRowGenerator.Find({InObject}))
 	{
 		(*Generator)->SetObjects({InObject});
+	}
+}
+
+void FRCPanelWidgetRegistry::Refresh(const TSharedPtr<FStructOnScope>& InStruct)
+{
+	if (TSharedPtr<IPropertyRowGenerator>* Generator = StructToRowGenerator.Find(InStruct))
+	{
+		(*Generator)->SetStructure(InStruct);
 	}
 }
 

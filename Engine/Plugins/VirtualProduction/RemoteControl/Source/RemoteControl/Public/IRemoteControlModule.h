@@ -313,4 +313,9 @@ public:
 	 * @param MetadataKey The metadata entry to unregister.
 	 */
 	virtual void UnregisterDefaultEntityMetadata(FName MetadataKey) = 0;
+
+	/**
+	 * Returns whether the property can be modified through SetObjectProperties when running without an editor.
+	 */
+	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property) const = 0;
 };

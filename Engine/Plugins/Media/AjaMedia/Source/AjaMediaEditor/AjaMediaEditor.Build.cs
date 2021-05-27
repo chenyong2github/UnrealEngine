@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"EditorStyle",
+					"Engine",
 					"MediaAssets",
 					"MediaIOCore",
 					"MediaIOEditor",
@@ -22,13 +23,13 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"TimeManagement",
-					"UnrealEd",
+					"UnrealEd"
 				});
 
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"AJA",
-					"AssetTools",
+					"AssetTools"
 				});
 
 			PrivateIncludePaths.Add("AjaMediaEditor/Private");

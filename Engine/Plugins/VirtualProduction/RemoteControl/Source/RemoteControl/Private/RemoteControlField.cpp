@@ -4,6 +4,7 @@
 
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
+#include "IRemoteControlModule.h"
 #include "RemoteControlObjectVersion.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlBinding.h"
@@ -190,6 +191,11 @@ TSharedPtr<IRemoteControlPropertyHandle> FRemoteControlProperty::GetPropertyHand
 	constexpr FProperty* ParentProperty = nullptr;
 	const TCHAR* ParentFieldPath = TEXT("");
 	return FRemoteControlPropertyHandle::GetPropertyHandle(ThisPtr, Property, ParentProperty, ParentFieldPath, ArrayIndex);
+}
+
+bool FRemoteControlProperty::IsEditableInPackaged() const
+{
+	return bIsEditableInPackaged || IRemoteControlModule::Get().PropertySupportsRawModificationWithoutEditor(GetProperty());
 }
 
 bool FRemoteControlProperty::Serialize(FArchive& Ar)

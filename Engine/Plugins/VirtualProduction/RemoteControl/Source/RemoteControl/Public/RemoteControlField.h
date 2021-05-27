@@ -141,7 +141,7 @@ public:
 	TSharedPtr<IRemoteControlPropertyHandle> GetPropertyHandle() const;
 	
 	/** Returns whether the property is editable in a packaged build. */
-	bool IsEditableInPackaged() const { return bIsEditableInPackaged; }
+	bool IsEditableInPackaged() const;
 
 	bool Serialize(FArchive& Ar);
 	void PostSerialize(const FArchive& Ar);

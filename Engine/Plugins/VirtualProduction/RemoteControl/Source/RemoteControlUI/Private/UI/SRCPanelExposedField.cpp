@@ -146,7 +146,7 @@ void SRCPanelExposedField::Refresh()
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
 		CachedLabel = Field->GetLabel();
-
+		
 		if (Field->FieldType == EExposedFieldType::Property)
 		{
 			ConstructPropertyWidget();
@@ -368,6 +368,7 @@ void SRCPanelExposedField::ConstructPropertyWidget()
 	ChildSlot.AttachWidget(ConstructWidget());
 }
 
+PRAGMA_DISABLE_OPTIMIZATION
 void SRCPanelExposedField::ConstructFunctionWidget()
 {
 	TSharedPtr<SRCPanelExposedField> ExposedFieldWidget;
@@ -397,6 +398,7 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 						continue;
 					}
 
+					FRCPanelWidgetRegistry::Get().Refresh(RCFunction->FunctionArguments);
 					if (TSharedPtr<IDetailTreeNode> PropertyNode = FRCPanelWidgetRegistry::Get().GetStructTreeNode(RCFunction->FunctionArguments, It->GetFName().ToString(), ERCFindNodeMethod::Name))
 					{
 						ChildNodes.Add(SNew(SRCPanelFieldChildNode, PropertyNode.ToSharedRef(), ColumnSizeData));
@@ -417,6 +419,7 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 
 	ChildSlot.AttachWidget(ConstructWidget());
 }
+PRAGMA_ENABLE_OPTIMIZATION
 
 TSharedRef<SWidget> SRCPanelExposedField::ConstructCallFunctionButton(bool bIsEnabled)
 {

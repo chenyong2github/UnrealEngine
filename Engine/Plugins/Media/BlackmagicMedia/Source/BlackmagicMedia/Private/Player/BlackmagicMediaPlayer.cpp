@@ -27,6 +27,10 @@
 
 #include "BlackmagicMediaSource.h"
 
+#if WITH_EDITOR
+#include "EngineAnalytics.h"
+#endif
+
 
 #define LOCTEXT_NAMESPACE "BlackmagicMediaPlayer"
 
@@ -436,6 +440,12 @@ FGuid FBlackmagicMediaPlayer::GetPlayerPluginGUID() const
 	return PlayerPluginGUID;
 }
 
+/**
+ * @EventName MediaFramework.BlackmagicMediaSourceOpened
+ * @Trigger Triggered when a Blackmagic media source is opened through a media player.
+ * @Type Client
+ * @Owner MediaIO Team
+ */
 bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 {
 	if (!FBlackmagic::IsInitialized())
@@ -511,6 +521,22 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 		EventCallback->Uninitialize();
 		EventCallback = nullptr;
 	}
+#if WITH_EDITOR
+	else if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		
+		const int64 ResolutionWidth = Options->GetMediaOption( FMediaIOCoreMediaOption::ResolutionWidth, (int64)1920);
+		const int64 ResolutionHeight = Options->GetMediaOption( FMediaIOCoreMediaOption::ResolutionHeight, (int64)1080);
+	
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionWidth"), FString::Printf(TEXT("%d"), ResolutionWidth)));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionHeight"), FString::Printf(TEXT("%d"), ResolutionHeight)));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FrameRate"), *VideoFrameRate.ToPrettyText().ToString()));
+		
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.BlackmagicMediaSourceOpened"), EventAttributes);
+	}
+#endif
+
 	return bSuccess;
 }
 

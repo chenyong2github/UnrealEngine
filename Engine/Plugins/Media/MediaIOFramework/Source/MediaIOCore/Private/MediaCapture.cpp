@@ -2,6 +2,7 @@
 
 #include "MediaCapture.h"
 
+
 #include "Application/ThrottleManager.h"
 #include "Async/Async.h"
 #include "Engine/GameEngine.h"
@@ -23,7 +24,9 @@
 #include "RenderTargetPool.h"
 
 #if WITH_EDITOR
+#include "AnalyticsEventAttribute.h"
 #include "Editor.h"
+#include "EngineAnalytics.h"
 #include "IAssetViewport.h"
 #include "LevelEditor.h"
 #include "Editor/EditorEngine.h"
@@ -97,6 +100,27 @@ namespace MediaCaptureDetails
 
 	static const FName LevelEditorName(TEXT("LevelEditor"));
 }
+
+#if WITH_EDITOR
+namespace MediaCaptureAnalytics
+{
+	/**
+	 * @EventName MediaFramework.CaptureStarted
+	 * @Trigger Triggered when a capture of the viewport or render target is started.
+	 * @Type Client
+	 * @Owner MediaIO Team
+	 */
+	void SendCaptureEvent(const FString& CaptureType)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			TArray<FAnalyticsEventAttribute> EventAttributes;
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("CaptureType"), CaptureType));
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.CaptureStarted"), EventAttributes);
+		}
+	}
+}
+#endif
 
 
 /* UMediaCapture::FCaptureBaseData
@@ -247,6 +271,10 @@ bool UMediaCapture::CaptureSceneViewport(TSharedPtr<FSceneViewport>& InSceneView
 		MediaCaptureDetails::ShowSlateNotification();
 	}
 
+#if WITH_EDITOR
+	MediaCaptureAnalytics::SendCaptureEvent(TEXT("SceneViewport"));
+#endif
+	
 	return bInitialized;
 }
 
@@ -306,6 +334,10 @@ bool UMediaCapture::CaptureTextureRenderTarget2D(UTextureRenderTarget2D* InRende
 		MediaCaptureDetails::ShowSlateNotification();
 	}
 
+#if WITH_EDITOR
+	MediaCaptureAnalytics::SendCaptureEvent(TEXT("RenderTarget2D"));
+#endif
+	
 	return bInitialized;
 }
 

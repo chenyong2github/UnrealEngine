@@ -15,6 +15,10 @@
 #include "Slate/SceneViewport.h"
 #include "Widgets/SViewport.h"
 
+#if WITH_EDITOR
+#include "AnalyticsEventAttribute.h"
+#include "EngineAnalytics.h"
+#endif
 
 /* namespace AjaMediaCaptureDevice
 *****************************************************************************/
@@ -32,6 +36,30 @@ namespace AjaMediaCaptureDevice
 		return Timecode;
 	}
 }
+
+#if WITH_EDITOR
+namespace AjaMediaCaptureAnalytics
+{
+	/**
+	 * @EventName MediaFramework.AjaCaptureStarted
+	 * @Trigger Triggered when a Aja capture of the viewport or render target is started.
+	 * @Type Client
+	 * @Owner MediaIO Team
+	 */
+	void SendCaptureEvent(const FIntPoint& Resolution, const FFrameRate FrameRate, const FString& CaptureType)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			TArray<FAnalyticsEventAttribute> EventAttributes;
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("CaptureType"), CaptureType));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionWidth"), FString::Printf(TEXT("%d"), Resolution.X)));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionHeight"), FString::Printf(TEXT("%d"), Resolution.Y)));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FrameRate"), FrameRate.ToPrettyText().ToString()));
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.BlackmagicCaptureStarted"), EventAttributes);
+		}
+	}
+}
+#endif
 
 bool bAjaWritInputRawDataCmdEnable = false;
 static FAutoConsoleCommand AjaWriteInputRawDataCmd(
@@ -101,6 +129,9 @@ bool UAjaMediaCapture::CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSc
 	if (bResult)
 	{
 		ApplyViewportTextureAlpha(InSceneViewport);
+#if WITH_EDITOR
+		AjaMediaCaptureAnalytics::SendCaptureEvent(AjaMediaSource->GetRequestedSize(), FrameRate, TEXT("SceneViewport"));
+#endif
 	}
 	return bResult;
 }
@@ -109,6 +140,12 @@ bool UAjaMediaCapture::CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderT
 {
 	UAjaMediaOutput* AjaMediaSource = CastChecked<UAjaMediaOutput>(MediaOutput);
 	bool bResult = InitAJA(AjaMediaSource);
+#if WITH_EDITOR
+	if (bResult)
+	{
+		AjaMediaCaptureAnalytics::SendCaptureEvent(AjaMediaSource->GetRequestedSize(), FrameRate, TEXT("RenderTarget"));
+	}
+#endif
 	return bResult;
 }
 

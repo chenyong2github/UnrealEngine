@@ -47,6 +47,11 @@ public:
 	void Refresh(UObject* InObject);
 
 	/**
+	 * Update the generator for a given struct.
+	 */
+	void Refresh(const TSharedPtr<FStructOnScope>& InStruct);
+
+	/**
 	 * Clear the registry and its cache.
 	 */
 	void Clear();
@@ -55,7 +60,7 @@ private:
 	/** Map of objects to row generator, used to have one row generator per object. */
 	TMap<TWeakObjectPtr<UObject>, TSharedPtr<IPropertyRowGenerator>> ObjectToRowGenerator;
 	/** Map of struct on scope to row generator, used to have one row generator per struct ptr. */
-	TMap<TWeakPtr<FStructOnScope>, TSharedPtr<IPropertyRowGenerator>> StructToRowGenerator;
+	TMap<TSharedPtr<FStructOnScope>, TSharedPtr<IPropertyRowGenerator>> StructToRowGenerator;
 	/** Cache of Object&Field to tree nodes. */
 	TMap<TPair<TWeakObjectPtr<UObject>, FString>, TWeakPtr<IDetailTreeNode>> TreeNodeCache;
 };

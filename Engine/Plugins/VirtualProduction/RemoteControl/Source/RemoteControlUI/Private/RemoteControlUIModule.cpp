@@ -30,9 +30,9 @@ namespace RemoteControlUIModule
 {
 	const TArray<FName> CustomizedStructNames = {
 		FRemoteControlProperty::StaticStruct()->GetFName(),
-        FRemoteControlFunction::StaticStruct()->GetFName(),
-        FRemoteControlActor::StaticStruct()->GetFName()
-    };
+		FRemoteControlFunction::StaticStruct()->GetFName(),
+		FRemoteControlActor::StaticStruct()->GetFName()
+	};
 }
 
 void FRemoteControlUIModule::StartupModule()
@@ -141,6 +141,15 @@ void FRemoteControlUIModule::UnregisterDetailRowExtension()
 		FPropertyEditorModule& Module = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		Module.GetGlobalRowExtensionDelegate().RemoveAll(this);
 	}
+}
+
+URemoteControlPreset* FRemoteControlUIModule::GetActivePreset() const
+{
+	if (const TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
+	{
+		return Panel->GetPreset();
+	}
+	return nullptr;
 }
 
 void FRemoteControlUIModule::RegisterAssetTools()

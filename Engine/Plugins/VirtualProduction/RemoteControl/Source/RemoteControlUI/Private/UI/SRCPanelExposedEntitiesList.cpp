@@ -621,7 +621,11 @@ void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const
 		}
 	}
 
-	TreeView->RequestListRefresh();
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+	{
+		TreeView->RequestListRefresh();
+	}));
+
 	OnEntityListUpdatedDelegate.ExecuteIfBound();
 }
 
