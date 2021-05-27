@@ -75,9 +75,9 @@ public:
 	/**
 	 * Set the solver method to use in the Apply step
 	 */
-	void SetApplyType(ECollisionApplyType InApplyType)
+	void SetSolverType(EConstraintSolverType InSolverType)
 	{
-		ApplyType = InApplyType;
+		SolverType = InSolverType;
 	}
 
 	/**
@@ -383,7 +383,7 @@ private:
 	// Used by PushOut to decide on priority when two bodies are at same shock propagation level
 	FVec3 GravityDir;
 
-	ECollisionApplyType ApplyType;
+	EConstraintSolverType SolverType;
 
 	int32 LifespanCounter;
 

@@ -139,6 +139,10 @@ FAutoConsoleVariableRef CVarChaosSolverUseParticlePool(TEXT("p.Chaos.Solver.UseP
 int32 ChaosSolverParticlePoolNumFrameUntilShrink = 30;
 FAutoConsoleVariableRef CVarChaosSolverParticlePoolNumFrameUntilShrink(TEXT("p.Chaos.Solver.ParticlePoolNumFrameUntilShrink"), ChaosSolverParticlePoolNumFrameUntilShrink, TEXT("Num Frame until we can potentially shrink the pool"));
 
+// Select the solver technique to use until we settle on the final one...
+int32 ChaosSolver_SolverType = (int32)Chaos::EConstraintSolverType::GbfPbd;
+FAutoConsoleVariableRef CVarChaosSolverSolverType(TEXT("p.Chaos.Solver.SolverType"), ChaosSolver_SolverType, TEXT("0 = None; 1 = GbfPbd; 2 = Pbd; 3 = QuasiPbd"));
+
 // Iteration count cvars
 // These override the engine config if >= 0
 
@@ -728,6 +732,10 @@ namespace Chaos
 
 		// Apply CVAR overrides if set
 		{
+			GetEvolution()->GetCollisionConstraints().SetSolverType((EConstraintSolverType)ChaosSolver_SolverType);
+			// @todo(chaos): implement solver type switching for joints
+			//GetJointConstraints().SetSolverType((EConstraintSolverType)ChaosImmediate_SolverType);
+
 			if (ChaosSolverIterations >= 0)
 			{
 				SetIterations(ChaosSolverIterations);

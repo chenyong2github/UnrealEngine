@@ -42,7 +42,7 @@ namespace Chaos
 				, Iteration(0)
 				, NumIterations(0)
 				, NumPairIterations(0)
-				, ApplyType(ECollisionApplyType::None)
+				, SolverType(EConstraintSolverType::None)
 				, NeedsAnotherIteration(nullptr)
 			{}
 
@@ -51,13 +51,13 @@ namespace Chaos
 				const int32 InIteration,
 				const int32 InNumIterations,
 				const int32 InNumPairIterations,
-				const ECollisionApplyType InApplyType,
+				const EConstraintSolverType InSolverType,
 				bool* InNeedsAnotherIteration)
 				: Dt(InDt)
 				, Iteration(InIteration)
 				, NumIterations(InNumIterations)
 				, NumPairIterations(InNumPairIterations)
-				, ApplyType(InApplyType)
+				, SolverType(InSolverType)
 				, NeedsAnotherIteration(InNeedsAnotherIteration)
 			{}
 
@@ -65,7 +65,7 @@ namespace Chaos
 			const int32 Iteration;
 			const int32 NumIterations;
 			const int32 NumPairIterations;
-			const ECollisionApplyType ApplyType;	// @todo(chaos): a better way to customize the collision solver
+			const EConstraintSolverType SolverType;	// @todo(chaos): a better way to customize the collision solver
 			bool* NeedsAnotherIteration;
 		};
 
