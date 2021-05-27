@@ -1273,11 +1273,11 @@ FRDGBufferRef GetInternalDefaultBuffer(
 	while (HashDefaultBuffers.IsValid(Index) && DefaultBuffers[Index].Key != Key)
 	{
 		Index = HashDefaultBuffers.Next(Index);
-		check(DefaultBuffers[Index].Hash == Hash); //Sanitycheck
 	}
 
 	if (HashDefaultBuffers.IsValid(Index) && DefaultBuffers[Index].Buffer != nullptr)
 	{
+		check(DefaultBuffers[Index].Hash == Hash); //Sanitycheck
 		return GraphBuilder.RegisterExternalBuffer(DefaultBuffers[Index].Buffer);
 	}
 
