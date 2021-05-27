@@ -206,26 +206,19 @@ namespace HordeServer.Services
 					RemoveJobIds.Add(ActiveJobId);
 				}
 			}
+			if (RemoveJobIds.Count > 0)
+			{
+				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, null, new List<ObjectId>(), RemoveJobIds);
+			}
 
 			// Trigger this schedule
-			List<IJob> CreatedJobs = new List<IJob>();
 			try
 			{
-				await TriggerAsync(Stream, TemplateRefId, TemplateRef, Schedule, Schedule.ActiveJobs.Count - RemoveJobIds.Count, CreatedJobs);
+				await TriggerAsync(Stream, TemplateRefId, TemplateRef, Schedule, Schedule.ActiveJobs.Count - RemoveJobIds.Count, Now);
 			}
 			catch (Exception Ex)
 			{
 				Logger.LogError(Ex, "Failed to start schedule {StreamId}/{TemplateRefId}", Stream.Id, TemplateRefId);
-			}
-
-			// Update the stream
-			if (CreatedJobs.Count > 0)
-			{
-				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, CreatedJobs.Max(x => x.Change), CreatedJobs.ConvertAll(x => x.Id), RemoveJobIds);
-			}
-			else if (RemoveJobIds.Count > 0)
-			{
-				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, null, null, new List<ObjectId>(), RemoveJobIds);
 			}
 
 			// Return the next update time
@@ -240,9 +233,9 @@ namespace HordeServer.Services
 		/// <param name="TemplateRef"></param>
 		/// <param name="Schedule"></param>
 		/// <param name="NumActiveJobs"></param>
-		/// <param name="CreatedJobs"></param>
+		/// <param name="Now"></param>
 		/// <returns>Async task</returns>
-		private async Task TriggerAsync(IStream Stream, TemplateRefId TemplateRefId, TemplateRef TemplateRef, Schedule Schedule, int NumActiveJobs, List<IJob> CreatedJobs)
+		private async Task TriggerAsync(IStream Stream, TemplateRefId TemplateRefId, TemplateRef TemplateRef, Schedule Schedule, int NumActiveJobs, DateTimeOffset Now)
 		{
 			// Check we're not already at the maximum number of allowed jobs
 			if (Schedule.MaxActive != 0 && NumActiveJobs >= Schedule.MaxActive)
@@ -357,7 +350,7 @@ namespace HordeServer.Services
 				List<string> DefaultArguments = Template.GetDefaultArguments();
 				IJob NewJob = await JobService.CreateJobAsync(null, Stream.Id, TemplateRefId, Template.Id, Graph, Template.Name, Change, CodeChange, null, null, null, null, Template.Priority, null, null, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Counters, DefaultArguments);
 				Logger.LogInformation("Started new job for {StreamName} template {TemplateName} at CL {Change} (Code CL {CodeChange}): {JobId}", Stream.Id, TemplateRef.Name, Change, CodeChange, NewJob.Id);
-				CreatedJobs.Add(NewJob);
+				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, Change, new List<ObjectId> { NewJob.Id }, new List<ObjectId>());
 			}
 		}
 
