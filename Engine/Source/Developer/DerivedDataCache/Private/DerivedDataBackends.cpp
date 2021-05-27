@@ -31,6 +31,7 @@
 #include "Math/UnitConversion.h"
 #include "Internationalization/FastDecimalFormat.h"
 #include "Math/BasicMathExpressionEvaluator.h"
+#include "Serialization/CompactBinaryPackage.h"
 #include <atomic>
 
 DEFINE_LOG_CATEGORY(LogDerivedDataCache);
@@ -1127,6 +1128,16 @@ public:
 	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) override
 	{
 		return Private::CreateCacheRecordBuilder(Key);
+	}
+
+	virtual FCbPackage SaveRecord(const FCacheRecord& Record) override
+	{
+		return Private::SaveCacheRecord(Record);
+	}
+
+	virtual FOptionalCacheRecord LoadRecord(const FCbPackage& Package) override
+	{
+		return Private::LoadCacheRecord(Package);
 	}
 
 private:
