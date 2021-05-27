@@ -81,3 +81,14 @@ void UMovieSceneTrackExtensions::SetColorTint(UMovieSceneTrack* Track, const FCo
 #endif
 }
 
+UMovieSceneSection* UMovieSceneTrackExtensions::GetSectionToKey(UMovieSceneTrack* Track) 
+{ 
+	return Track->GetSectionToKey(); 
+}
+
+void UMovieSceneTrackExtensions::SetSectionToKey(UMovieSceneTrack* Track, UMovieSceneSection* Section) 
+{ 
+	Track->SetSectionToKey(Section); 
+}
+
+
