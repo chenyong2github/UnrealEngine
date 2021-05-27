@@ -39,12 +39,13 @@ public:
 	virtual FGuid CreatePossessable(UObject* ObjectToPossess) override;
 	virtual bool AllowsSpawnableObjects() const override;
 
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+
 #if WITH_EDITOR
 	virtual FText GetDisplayName() const override;
 
 	virtual ETrackSupport IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const override;
 	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
 
 private:
