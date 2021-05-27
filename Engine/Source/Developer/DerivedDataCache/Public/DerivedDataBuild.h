@@ -19,6 +19,7 @@ namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuildFunctionRegistry; }
 namespace UE::DerivedData { class IBuildInputResolver; }
 namespace UE::DerivedData { class IBuildScheduler; }
+namespace UE::DerivedData { class IBuildWorkerRegistry; }
 
 namespace UE::DerivedData
 {
@@ -127,6 +128,11 @@ public:
 	 * Returns the build function registry used by the build system.
 	 */
 	virtual IBuildFunctionRegistry& GetFunctionRegistry() const = 0;
+
+	/**
+	 * Returns the build worker registry used by the build system.
+	 */
+	virtual IBuildWorkerRegistry& GetWorkerRegistry() const = 0;
 };
 
 } // UE::DerivedData
