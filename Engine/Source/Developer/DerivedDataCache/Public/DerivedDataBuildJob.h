@@ -58,7 +58,8 @@ public:
 	virtual void BeginResolveKey() = 0;
 	virtual void BeginResolveAction() = 0;
 	virtual void BeginResolveInputs() = 0;
-	virtual void BeginExecuteBuild() = 0;
+	virtual void BeginExecuteRemote() = 0;
+	virtual void BeginExecuteLocal() = 0;
 
 	/** Called by the scheduler if it has cached output compatible with the build policy. */
 	virtual void SetOutput(const FBuildOutput& Output) = 0;
