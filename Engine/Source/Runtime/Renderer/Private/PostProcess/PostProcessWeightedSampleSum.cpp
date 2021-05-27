@@ -425,7 +425,7 @@ FScreenPassTexture AddGaussianBlurPass(
 				FScreenPassTextureViewport(Filter),
 				FScreenPassPipelineState(VertexShader, PixelShader),
 				PassParameters,
-				[VertexShader, PixelShader, PassParameters] (FRHICommandListImmediate& RHICmdList)
+				[VertexShader, PixelShader, PassParameters] (FRHICommandList& RHICmdList)
 			{
 				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->Filter);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);

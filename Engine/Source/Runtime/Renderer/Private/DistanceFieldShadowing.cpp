@@ -397,7 +397,7 @@ void ScatterObjectsToShadowTiles(
 			RDG_EVENT_NAME("ScatterMeshSDFsToLightGrid %ux%u", LightTileDimensions.X, LightTileDimensions.Y),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[LightTileDimensions, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
+			[LightTileDimensions, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -979,7 +979,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 			RDG_EVENT_NAME("Upsample"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View, PixelShader, ScissorRect, bProjectingForForwardShading, PassParameters](FRHICommandListImmediate& RHICmdList)
+			[this, &View, PixelShader, ScissorRect, bProjectingForForwardShading, PassParameters](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
