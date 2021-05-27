@@ -496,7 +496,7 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(const FS
 
 ELoginStatus::Type FOnlineUserEOSPlus::GetLoginStatus(int32 LocalUserNum) const
 {
-	return BaseIdentityInterface->GetLoginStatus(LocalUserNum);
+	return EOSIdentityInterface->GetLoginStatus(LocalUserNum);
 }
 
 ELoginStatus::Type FOnlineUserEOSPlus::GetLoginStatus(const FUniqueNetId& UserId) const
@@ -508,7 +508,7 @@ ELoginStatus::Type FOnlineUserEOSPlus::GetLoginStatus(const FUniqueNetId& UserId
 		return ELoginStatus::NotLoggedIn;
 	}
 
-	return BaseIdentityInterface->GetLoginStatus(*NetIdPlus->GetBaseNetId());
+	return EOSIdentityInterface->GetLoginStatus(*NetIdPlus->GetEOSNetId());
 }
 
 FString FOnlineUserEOSPlus::GetPlayerNickname(int32 LocalUserNum) const
