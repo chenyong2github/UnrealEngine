@@ -25,6 +25,7 @@ namespace UE::DerivedData { class IBuildFunctionRegistry; }
 namespace UE::DerivedData { class IBuildInputResolver; }
 namespace UE::DerivedData { class IBuildJob; }
 namespace UE::DerivedData { class IBuildScheduler; }
+namespace UE::DerivedData { class IBuildWorkerRegistry; }
 namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { struct FBuildKey; }
 namespace UE::DerivedData { template <typename RequestType> class TRequest; }
@@ -39,6 +40,9 @@ IBuild* CreateBuild(ICache& Cache);
 
 // Implemented in DerivedDataBuildFunctionRegistry.cpp
 IBuildFunctionRegistry* CreateBuildFunctionRegistry();
+
+// Implemented in DerivedDataBuildWorkerRegistry.cpp
+IBuildWorkerRegistry* CreateBuildWorkerRegistry();
 
 // Implemented in DerivedDataBuildScheduler.cpp
 IBuildScheduler* CreateBuildScheduler();

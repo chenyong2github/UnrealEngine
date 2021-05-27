@@ -10,6 +10,7 @@
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataBuildScheduler.h"
 #include "DerivedDataBuildSession.h"
+#include "DerivedDataBuildWorkerRegistry.h"
 #include "DerivedDataCache.h"
 #include "Misc/Guid.h"
 
@@ -126,9 +127,15 @@ public:
 		return *FunctionRegistry;
 	}
 
+	IBuildWorkerRegistry& GetWorkerRegistry() const final
+	{
+		return *WorkerRegistry;
+	}
+
 private:
 	ICache& Cache;
 	TUniquePtr<IBuildFunctionRegistry> FunctionRegistry{CreateBuildFunctionRegistry()};
+	TUniquePtr<IBuildWorkerRegistry> WorkerRegistry{CreateBuildWorkerRegistry()};
 	TUniquePtr<IBuildScheduler> DefaultScheduler{CreateBuildScheduler()};
 	const FGuid Version{TEXT("ac0574e5-62bd-4c2e-84ec-f2efe48c0fef")};
 };
