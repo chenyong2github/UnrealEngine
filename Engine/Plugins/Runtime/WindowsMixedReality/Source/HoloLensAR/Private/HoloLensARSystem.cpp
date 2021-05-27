@@ -1185,6 +1185,7 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 	// Trigger the proper notification delegate
 	if (bIsAdd)
 	{
+		// RequestSpawn should happen after UpdateTrackedGeometry so the TrackableAdded event has the correct object classification.
 		if (SessionConfig != nullptr)
 		{
 			AARActor::RequestSpawnARActor(CurrentMesh->Id, SessionConfig->GetMeshComponentClass());
