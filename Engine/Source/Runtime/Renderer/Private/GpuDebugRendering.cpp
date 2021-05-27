@@ -321,7 +321,7 @@ namespace ShaderDrawDebug
 				RDG_EVENT_NAME("ShaderDrawDebug"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[VertexShader, PixelShader, PassParameters, IndirectBuffer, LockedIndirectBuffer, bUseRdgInput](FRHICommandListImmediate& RHICmdListImmediate)
+				[VertexShader, PixelShader, PassParameters, IndirectBuffer, LockedIndirectBuffer, bUseRdgInput](FRHICommandList& RHICmdList)
 			{
 				// Marks the indirect draw parameter as used by the pass, given it's not used directly by any of the shaders.
 				if (bUseRdgInput)
@@ -330,7 +330,7 @@ namespace ShaderDrawDebug
 				}
 
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				RHICmdListImmediate.ApplyCachedRenderTargets(GraphicsPSOInit);
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI(); // Premultiplied-alpha composition
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None, true>::GetRHI();
@@ -338,10 +338,10 @@ namespace ShaderDrawDebug
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
 				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-				SetGraphicsPipelineState(RHICmdListImmediate, GraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-				SetShaderParameters(RHICmdListImmediate, VertexShader, VertexShader.GetVertexShader(), PassParameters->ShaderDrawVSParameters);
-				SetShaderParameters(RHICmdListImmediate, PixelShader, PixelShader.GetPixelShader(), PassParameters->ShaderDrawPSParameters);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->ShaderDrawVSParameters);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->ShaderDrawPSParameters);
 
 
 				if (bUseRdgInput)
@@ -349,11 +349,11 @@ namespace ShaderDrawDebug
 					// Marks the indirect draw parameter as used by the pass, given it's not used directly by any of the shaders.
 					FRHIBuffer* IndirectBufferRHI = PassParameters->ShaderDrawVSParameters.IndirectBuffer->GetIndirectRHICallBuffer();
 					check(IndirectBufferRHI != nullptr);
-					RHICmdListImmediate.DrawPrimitiveIndirect(IndirectBufferRHI, 0);
+					RHICmdList.DrawPrimitiveIndirect(IndirectBufferRHI, 0);
 				}
 				else
 				{
-					RHICmdListImmediate.DrawPrimitiveIndirect(LockedIndirectBuffer, 0);
+					RHICmdList.DrawPrimitiveIndirect(LockedIndirectBuffer, 0);
 				}
 			});
 		};

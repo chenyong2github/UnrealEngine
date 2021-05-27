@@ -156,7 +156,7 @@ FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 			Viewport,
 			FScreenPassPipelineState(VertexShader, PixelShader),
 			PassParameters,
-			[VertexShader, PixelShader, PassParameters] (FRHICommandListImmediate& RHICmdList)
+			[VertexShader, PixelShader, PassParameters] (FRHICommandList& RHICmdList)
 		{
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->BloomSetup);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);

@@ -390,7 +390,7 @@ ENUM_CLASS_FLAGS(EScreenPassDrawFlags);
  */
 template<typename TSetupFunction>
 void DrawScreenPass(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
@@ -472,9 +472,9 @@ FORCEINLINE void AddDrawScreenPass(
 		Forward<FRDGEventName&&>(PassName),
 		PixelShaderParameters,
 		ERDGPassFlags::Raster,
-		[&View, OutputViewport, InputViewport, PipelineState, PixelShader, PixelShaderParameters, Flags](FRHICommandListImmediate& RHICmdList)
+		[&View, OutputViewport, InputViewport, PipelineState, PixelShader, PixelShaderParameters, Flags](FRHICommandList& RHICmdList)
 	{
-		DrawScreenPass(RHICmdList, View, OutputViewport, InputViewport, PipelineState, Flags, [&](FRHICommandListImmediate&)
+		DrawScreenPass(RHICmdList, View, OutputViewport, InputViewport, PipelineState, Flags, [&](FRHICommandList&)
 		{
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PixelShaderParameters);
 		});
@@ -571,7 +571,7 @@ FORCEINLINE void AddDrawScreenPass(
 		Forward<FRDGEventName&&>(PassName),
 		PassParameterStruct,
 		ERDGPassFlags::Raster,
-		[&View, OutputViewport, InputViewport, PipelineState, SetupFunction, Flags] (FRHICommandListImmediate& RHICmdList)
+		[&View, OutputViewport, InputViewport, PipelineState, SetupFunction, Flags] (FRHICommandList& RHICmdList)
 	{
 		DrawScreenPass(RHICmdList, View, OutputViewport, InputViewport, PipelineState, Flags, SetupFunction);
 	});
