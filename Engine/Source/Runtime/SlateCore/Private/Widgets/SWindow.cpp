@@ -288,16 +288,6 @@ void SWindow::Construct(const FArguments& InArgs)
 	// calculate initial window position
 	FVector2D WindowPosition = InArgs._ScreenPosition;
 
-	// Get desktop metrics
-	FDisplayMetrics DisplayMetrics;
-	FSlateApplicationBase::Get().GetCachedDisplayMetrics( DisplayMetrics );
-	const FPlatformRect& VirtualDisplayRect = DisplayMetrics.VirtualDisplayRect;
-	FPlatformRect PrimaryDisplayRect = AutoCenterRule == EAutoCenter::PrimaryWorkArea ? DisplayMetrics.PrimaryDisplayWorkAreaRect : DisplayMetrics.GetMonitorWorkAreaFromPoint(WindowPosition);
-
-	// Correct window position for the case of a virtual top-left corner != (0, 0)
-	WindowPosition.X += VirtualDisplayRect.Left;
-	WindowPosition.Y += VirtualDisplayRect.Top;
-
 	const bool bAnchorWindowWindowPositionTopLeft = FPlatformApplicationMisc::AnchorWindowWindowPositionTopLeft();
 	if (bAnchorWindowWindowPositionTopLeft)
 	{
@@ -311,6 +301,12 @@ void SWindow::Construct(const FArguments& InArgs)
 	}
 
 	AutoCenterRule = InArgs._AutoCenter;
+
+	// Get desktop metrics
+	FDisplayMetrics DisplayMetrics;
+	FSlateApplicationBase::Get().GetCachedDisplayMetrics( DisplayMetrics );
+	const FPlatformRect& VirtualDisplayRect = DisplayMetrics.VirtualDisplayRect;
+	FPlatformRect PrimaryDisplayRect = AutoCenterRule == EAutoCenter::PrimaryWorkArea ? DisplayMetrics.PrimaryDisplayWorkAreaRect : DisplayMetrics.GetMonitorWorkAreaFromPoint(WindowPosition);
 
 	if (PrimaryDisplayRect == FPlatformRect(0, 0, 0, 0))
 	{
@@ -332,26 +328,15 @@ void SWindow::Construct(const FArguments& InArgs)
 		}
 	}
 
-	float DPIScale = 1.0f;
-	if (bAnchorWindowWindowPositionTopLeft)
-	{
-		WindowPosition.X = WindowPosition.Y = 0;
-		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WindowPosition.X, WindowPosition.Y);
-	}
-
-	// If the window has no OS border, simulate it ourselves, enlarging window by the size that OS border would have.
-	const FVector2D DPIScaledClientSize = InArgs._AdjustInitialSizeAndPositionForDPIScale ? InArgs._ClientSize * DPIScale: InArgs._ClientSize;
-	FVector2D WindowSize = GetWindowSizeFromClientSize(DPIScaledClientSize, DPIScale);
-
 	// If we're manually positioning the window we need to check if it's outside
 	// of the virtual bounds of the current displays or too large.
 	if ( AutoCenterRule == EAutoCenter::None && InArgs._SaneWindowPlacement )
 	{
 		// Check to see if the upper left corner of the window is outside the virtual
 		// bounds of the display, if so reset to preferred work area
-		if (WindowPosition.X < (VirtualDisplayRect.Left - WindowSize.X) ||
+		if (WindowPosition.X < VirtualDisplayRect.Left ||
 			WindowPosition.X >= VirtualDisplayRect.Right ||
-			WindowPosition.Y < (VirtualDisplayRect.Top - WindowSize.Y) ||
+			WindowPosition.Y < VirtualDisplayRect.Top ||
 			WindowPosition.Y >= VirtualDisplayRect.Bottom)
 		{
 			AutoCenterRule = EAutoCenter::PreferredWorkArea;
@@ -359,31 +344,38 @@ void SWindow::Construct(const FArguments& InArgs)
 	}
 
 	FSlateRect AutoCenterRect(0, 0, 0, 0);
-	if (!bAnchorWindowWindowPositionTopLeft)
+	float DPIScale = 1.0f;
+	if (bAnchorWindowWindowPositionTopLeft)
 	{
-		if (AutoCenterRule != EAutoCenter::None)
-		{
-			switch( AutoCenterRule )
-			{
-			default:
-			case EAutoCenter::PrimaryWorkArea:
-				AutoCenterRect = FSlateRect(
-					(float)PrimaryDisplayRect.Left,
-					(float)PrimaryDisplayRect.Top,
-					(float)PrimaryDisplayRect.Right,
-					(float)PrimaryDisplayRect.Bottom );
-				break;
-			case EAutoCenter::PreferredWorkArea:
-				AutoCenterRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
-				break;
-			}
-			DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(AutoCenterRect.Left, AutoCenterRect.Top);
-		}
-		else
-		{
-			DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WindowPosition.X, WindowPosition.Y);
-		}
+		WindowPosition.X = WindowPosition.Y = 0;
+		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WindowPosition.X, WindowPosition.Y);
 	}
+	else if (AutoCenterRule != EAutoCenter::None)
+	{
+		switch( AutoCenterRule )
+		{
+		default:
+		case EAutoCenter::PrimaryWorkArea:
+			AutoCenterRect = FSlateRect(
+				(float)PrimaryDisplayRect.Left,
+				(float)PrimaryDisplayRect.Top,
+				(float)PrimaryDisplayRect.Right,
+				(float)PrimaryDisplayRect.Bottom );
+			break;
+		case EAutoCenter::PreferredWorkArea:
+			AutoCenterRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
+			break;
+		}
+		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(AutoCenterRect.Left, AutoCenterRect.Top);
+	}
+	else
+	{
+		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WindowPosition.X, WindowPosition.Y);
+	}
+
+	// If the window has no OS border, simulate it ourselves, enlarging window by the size that OS border would have.
+	const FVector2D DPIScaledClientSize = InArgs._AdjustInitialSizeAndPositionForDPIScale ? InArgs._ClientSize * DPIScale: InArgs._ClientSize;
+	FVector2D WindowSize = GetWindowSizeFromClientSize(DPIScaledClientSize, DPIScale);
 
 	// If we're manually positioning the window we need to check if it's outside
 	// of the virtual bounds of the current displays or too large.
