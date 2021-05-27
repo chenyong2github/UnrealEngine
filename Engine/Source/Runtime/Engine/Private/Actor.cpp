@@ -5515,11 +5515,6 @@ bool AActor::IsHLODRelevant() const
 		return false;
 	}
 
-	if (IsEditorOnly())
-	{
-		return false;
-	}
-
 	if (IsTemplate())
 	{
 		return false;

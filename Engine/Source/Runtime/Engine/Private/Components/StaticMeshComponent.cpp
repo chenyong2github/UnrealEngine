@@ -2520,7 +2520,7 @@ bool UStaticMeshComponent::IsHLODRelevant() const
 		return false;
 	}
 
-	if (bIsEditorOnly)
+	if (IsVisualizationComponent())
 	{
 		return false;
 	}
