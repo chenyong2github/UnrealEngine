@@ -224,7 +224,7 @@ half3x3 CalcTangentToLocal(uint MetaData)
 half3x3 CalcTangentToWorldNoScale(in half3x3 TangentToLocal)
 {
 	half3x3 LocalToWorld = GetLocalToWorld3x3();
-	half3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	half3 InvScale = Primitive.InvNonUniformScale;
 	LocalToWorld[0] *= InvScale.x;
 	LocalToWorld[1] *= InvScale.y;
 	LocalToWorld[2] *= InvScale.z;
@@ -357,7 +357,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	Intermediates.SpriteSize = SpriteSize;
 	Intermediates.Scale = PrecomputedUV_Quad[Input.VertexId % 4];
-	Intermediates.TangentToWorldSign = Primitive.InvNonUniformScaleAndDeterminantSign.w;
+	Intermediates.TangentToWorldSign = GetPrimitive_DeterminantSign(Primitive);
 	Intermediates.TangentToWorld = CalcTangentToWorldNoScale(Intermediates.TangentToLocal);
 	
 	// Color

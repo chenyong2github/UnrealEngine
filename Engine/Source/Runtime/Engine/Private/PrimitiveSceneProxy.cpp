@@ -384,46 +384,50 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 		int32 SingleCaptureIndex;
 		bool bOutputVelocity;
 
-		Scene->GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+		Scene->GetPrimitiveUniformShaderParameters_RenderThread(
+			PrimitiveSceneInfo,
+			bHasPrecomputedVolumetricLightmap,
+			PreviousLocalToWorld,
+			SingleCaptureIndex,
+			bOutputVelocity
+		);
 
 		FBoxSphereBounds PreSkinnedLocalBounds;
 		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
 		// Update the uniform shader parameters.
-		const FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters = 
-			GetPrimitiveUniformShaderParameters(
-				LocalToWorld, 
-				PreviousLocalToWorld,
-				ActorPosition, 
-				Bounds, 
-				LocalBounds, 
-				PreSkinnedLocalBounds,
-				bReceivesDecals, 
-				HasDistanceFieldRepresentation(), 
-				HasDynamicIndirectShadowCasterRepresentation(), 
-				UseSingleSampleShadowFromStationaryLights(),
-				bHasPrecomputedVolumetricLightmap,
-				DrawsVelocity(), 
-				GetLightingChannelMask(),
-				// GPUCULL_TODO: Defaulting to zero here is not consistent with other places (where they default to INDEX_NONE)
-				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
-				GetLightMapCoordinateIndex(),
-				SingleCaptureIndex,
-				bOutputVelocity || AlwaysHasVelocity(),
-				GetCustomPrimitiveData(),
-				CastsContactShadow(),
-				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE,
-				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceDataEntries() : 0,
-				CastsDynamicShadow()
-			);
+		FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
+			.Defaults()
+				.LocalToWorld(LocalToWorld)
+				.PreviousLocalToWorld(PreviousLocalToWorld)
+				.ActorWorldPosition(ActorPosition)
+				.WorldBounds(Bounds)
+				.LocalBounds(LocalBounds)
+				.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
+				.ReceivesDecals(bReceivesDecals)
+				.OutputVelocity(bOutputVelocity || AlwaysHasVelocity())
+				.DrawsVelocity(DrawsVelocity())
+				.LightingChannelMask(GetLightingChannelMask())
+				.LightmapDataIndex(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0)
+				.LightmapUVIndex(GetLightMapCoordinateIndex())
+				.SingleCaptureIndex(SingleCaptureIndex)
+				.CustomPrimitiveData(GetCustomPrimitiveData())
+				.HasCapsuleRepresentation(HasDynamicIndirectShadowCasterRepresentation())
+				.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights())
+				.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
+				.CastContactShadow(CastsContactShadow())
+				.CastShadow(CastsDynamicShadow())
+				.InstanceDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE)
+				.NumInstanceDataEntries(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceDataEntries() : 0)
+			.Build();
 
 		if (UniformBuffer.GetReference())
 		{
-			UniformBuffer.UpdateUniformBufferImmediate(PrimitiveUniformShaderParameters);
+			UniformBuffer.UpdateUniformBufferImmediate(PrimitiveParams);
 		}
 		else
 		{
-			UniformBuffer = TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(PrimitiveUniformShaderParameters, UniformBuffer_MultiFrame);
+			UniformBuffer = TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(PrimitiveParams, UniformBuffer_MultiFrame);
 		}
 	}
 

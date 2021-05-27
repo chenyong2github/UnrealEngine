@@ -224,14 +224,13 @@ inline void InitPrimitiveInstance(FPrimitiveInstance& PrimitiveInstance, const F
 		FMath::Max3(FMath::Abs(Scale.X), FMath::Abs(Scale.Y), FMath::Abs(Scale.Z))
 	);
 
-	PrimitiveInstance.InvNonUniformScaleAndDeterminantSign = FVector4(
+	PrimitiveInstance.InvNonUniformScale = FVector3f(
 		Scale.X > KINDA_SMALL_NUMBER ? 1.0f / Scale.X : 0.0f,
 		Scale.Y > KINDA_SMALL_NUMBER ? 1.0f / Scale.Y : 0.0f,
-		Scale.Z > KINDA_SMALL_NUMBER ? 1.0f / Scale.Z : 0.0f,
-		FMath::FloatSelect(PrimitiveInstance.LocalToWorld.RotDeterminant(), (FMatrix::FReal)1.0, (FMatrix::FReal)-1.0)
-	);
-
+		Scale.Z > KINDA_SMALL_NUMBER ? 1.0f / Scale.Z : 0.0f);
+	PrimitiveInstance.DeterminantSign = FMath::FloatSelect(PrimitiveInstance.LocalToWorld.RotDeterminant(), (FMatrix::FReal)1.0, (FMatrix::FReal)-1.0);
 }
+
 inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const FPrimitiveTransforms& PrimitiveTransforms, const FBoxSphereBounds& LocalBounds, int32 PrimitiveID, uint32 SceneFrameNumber)
 {
 	// We always create an instance to ensure that we can always use the same code paths in the shader
@@ -242,7 +241,8 @@ inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const 
 	DummyInstance.LocalToWorld = FMatrix::Identity;
 	DummyInstance.PrevLocalToWorld = FMatrix::Identity;
 	DummyInstance.NonUniformScale = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-	DummyInstance.InvNonUniformScaleAndDeterminantSign = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	DummyInstance.InvNonUniformScale = FVector3f(1.0f, 1.0f, 1.0f);
+	DummyInstance.DeterminantSign = 1.0f;
 	DummyInstance.RenderBounds = LocalBounds;
 	DummyInstance.LocalBounds = LocalBounds;
 const bool bHasPreviousInstanceTransforms = false;
@@ -961,7 +961,8 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 								FVector::ZeroVector,
 								FVector::ZeroVector,
 								FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-								FVector4(1.0f, 1.0f, 1.0f, 1.0f),
+								FVector3f(1.0f, 1.0f, 1.0f),
+								1.0f,
 								FVector4(ForceInitToZero),
 								FNaniteInfo(),
 								~(uint32)0,

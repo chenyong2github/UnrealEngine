@@ -276,7 +276,9 @@ struct FVertexFactoryIntermediates
 	FSceneDataIntermediates SceneData;
 #endif
 
-	float4 InvNonUniformScaleAndDeterminantSign;
+	float3 InvNonUniformScale;
+	float DeterminantSign;
+
 	float4x4 LocalToWorld;
 	float4x4 WorldToLocal;
 	float4x4 PrevLocalToWorld;
@@ -760,12 +762,14 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	Intermediates.SceneData = GetSceneDataIntermediates(Input.InstanceIdOffset, Input.DrawInstanceId);
-	Intermediates.InvNonUniformScaleAndDeterminantSign = Intermediates.SceneData.InstanceData.InvNonUniformScaleAndDeterminantSign;
+	Intermediates.InvNonUniformScale = Intermediates.SceneData.InstanceData.InvNonUniformScale;
+	Intermediates.DeterminantSign    = Intermediates.SceneData.InstanceData.DeterminantSign;
 	Intermediates.LocalToWorld = Intermediates.SceneData.InstanceData.LocalToWorld;
 	Intermediates.WorldToLocal = Intermediates.SceneData.InstanceData.WorldToLocal;
 	Intermediates.PrevLocalToWorld = Intermediates.SceneData.InstanceData.PrevLocalToWorld;
 #else
-	Intermediates.InvNonUniformScaleAndDeterminantSign = Primitive.InvNonUniformScaleAndDeterminantSign;
+	Intermediates.InvNonUniformScale = Primitive.InvNonUniformScale;
+	Intermediates.DeterminantSign = GetPrimitive_DeterminantSign(Primitive);
 	Intermediates.LocalToWorld = Primitive.LocalToWorld;
 	Intermediates.WorldToLocal = Primitive.WorldToLocal;
 	Intermediates.PrevLocalToWorld = Primitive.PreviousLocalToWorld;
@@ -853,7 +857,7 @@ void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates I
 	float3x3 LocalToWorld = (float3x3)Intermediates.LocalToWorld;
 
 	// Remove scaling.
-	half3 InvScale = Intermediates.InvNonUniformScaleAndDeterminantSign.xyz;
+	half3 InvScale = Intermediates.InvNonUniformScale;
 	LocalToWorld[0] *= InvScale.x;
 	LocalToWorld[1] *= InvScale.y;
 	LocalToWorld[2] *= InvScale.z;
@@ -861,7 +865,7 @@ void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates I
 	float3x3 TangentToWorld = mul(Intermediates.TangentToLocal, LocalToWorld);
 
 	TangentToWorld0 = TangentToWorld[0];
-	TangentToWorld2 = float4(TangentToWorld[2], Input.TangentZ.w * Intermediates.InvNonUniformScaleAndDeterminantSign.w);
+	TangentToWorld2 = float4(TangentToWorld[2], Input.TangentZ.w * Intermediates.DeterminantSign);
 }
 
 float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)

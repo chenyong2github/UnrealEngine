@@ -632,7 +632,7 @@ float3 SimToWorldPos(float3 SimSpacePos, float4x4 LocalToWorld)
 
 float3 LocalToWorldVec(float3 LocalSpaceVec, float4x4 LocalToWorld)
 {
-	const float3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	const float3 InvScale = Primitive.InvNonUniformScale;
 	return
 		InvScale.x * LocalToWorld[0].xyz * LocalSpaceVec.xxx +
 		InvScale.y * LocalToWorld[1].xyz * LocalSpaceVec.yyy +

@@ -324,30 +324,19 @@ void FDynamicPrimitiveUniformBuffer::Set(
 {
 	check(IsInRenderingThread());
 	UniformBuffer.SetContents(
-		GetPrimitiveUniformShaderParameters(
-			LocalToWorld,
-			PreviousLocalToWorld,
-			WorldBounds.Origin,
-			WorldBounds,
-			LocalBounds,
-			PreSkinnedLocalBounds,
-			bReceivesDecals,
-			false,
-			false,
-			false,
-			bHasPrecomputedVolumetricLightmap,
-			bDrawsVelocity,
-			GetDefaultLightingChannelMask(),
-			INDEX_NONE,
-			INDEX_NONE,
-			INDEX_NONE,
-			bOutputVelocity,
-			nullptr,
-			true,
-			INDEX_NONE,
-			0,
-			true
-		)
+		FPrimitiveUniformShaderParametersBuilder{}
+		.Defaults()
+			.LocalToWorld(LocalToWorld)
+			.PreviousLocalToWorld(PreviousLocalToWorld)
+			.ActorWorldPosition(WorldBounds.Origin)
+			.WorldBounds(WorldBounds)
+			.LocalBounds(LocalBounds)
+			.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
+			.ReceivesDecals(bReceivesDecals)
+			.OutputVelocity(bOutputVelocity)
+			.DrawsVelocity(bDrawsVelocity)
+			.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
+		.Build()
 	);
 	UniformBuffer.InitResource();
 }

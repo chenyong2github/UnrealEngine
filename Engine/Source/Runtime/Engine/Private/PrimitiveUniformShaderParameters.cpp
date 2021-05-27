@@ -101,105 +101,104 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	int32 SingleCaptureIndex;
 	bool bOutputVelocity;
 
-	Proxy->GetScene().GetPrimitiveUniformShaderParameters_RenderThread(Proxy->GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+	Proxy->GetScene().GetPrimitiveUniformShaderParameters_RenderThread(
+		Proxy->GetPrimitiveSceneInfo(),
+		bHasPrecomputedVolumetricLightmap,
+		PreviousLocalToWorld,
+		SingleCaptureIndex,
+		bOutputVelocity
+	);
 
 	FBoxSphereBounds PreSkinnedLocalBounds;
 	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = Proxy->GetPrimitiveSceneInfo();
 
-	Setup(GetPrimitiveUniformShaderParameters(
-		Proxy->GetLocalToWorld(),
-		PreviousLocalToWorld,
-		Proxy->GetActorPosition(), 
-		Proxy->GetBounds(), 
-		Proxy->GetLocalBounds(),
-		PreSkinnedLocalBounds,
-		Proxy->ReceivesDecals(), 
-		Proxy->HasDistanceFieldRepresentation(), 
-		Proxy->HasDynamicIndirectShadowCasterRepresentation(), 
-		Proxy->UseSingleSampleShadowFromStationaryLights(),
-		bHasPrecomputedVolumetricLightmap,
-		Proxy->DrawsVelocity(), 
-		Proxy->GetLightingChannelMask(),
-		Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset(),
-		Proxy->GetLightMapCoordinateIndex(),
-		SingleCaptureIndex,
-		bOutputVelocity,
-		Proxy->GetCustomPrimitiveData(),
-		Proxy->CastsContactShadow(),
-		Proxy->GetPrimitiveSceneInfo()->GetInstanceDataOffset(),
-		Proxy->GetPrimitiveSceneInfo()->GetNumInstanceDataEntries(),
-		Proxy->CastsDynamicShadow()
-		));
+	Setup(
+		FPrimitiveUniformShaderParametersBuilder{}
+		.Defaults()
+			.LocalToWorld(Proxy->GetLocalToWorld())
+			.PreviousLocalToWorld(PreviousLocalToWorld)
+			.ActorWorldPosition(Proxy->GetActorPosition())
+			.WorldBounds(Proxy->GetBounds())
+			.LocalBounds(Proxy->GetLocalBounds())
+			.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
+			.CustomPrimitiveData(Proxy->GetCustomPrimitiveData())
+			.LightingChannelMask(Proxy->GetLightingChannelMask())
+			.LightmapDataIndex(Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset())
+			.LightmapUVIndex(Proxy->GetLightMapCoordinateIndex())
+			.SingleCaptureIndex(SingleCaptureIndex)
+			.InstanceDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstanceDataOffset())
+			.NumInstanceDataEntries(Proxy->GetPrimitiveSceneInfo()->GetNumInstanceDataEntries())
+			.ReceivesDecals(Proxy->ReceivesDecals())
+			.DrawsVelocity(Proxy->DrawsVelocity())
+			.OutputVelocity(bOutputVelocity)
+			.CastContactShadow(Proxy->CastsContactShadow())
+			.CastShadow(Proxy->CastsDynamicShadow())
+			.HasCapsuleRepresentation(Proxy->HasDynamicIndirectShadowCasterRepresentation())
+			.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
+		.Build()
+	);
 }
 
 void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& PrimitiveUniformShaderParameters)
 {
 	static_assert(sizeof(FPrimitiveUniformShaderParameters) == sizeof(FPrimitiveSceneShaderData), "The FPrimitiveSceneShaderData manual layout below and in usf must match FPrimitiveUniformShaderParameters.  Update this assert when adding a new member.");
-	
+	static_assert(NUM_LIGHTING_CHANNELS == 3, "The FPrimitiveSceneShaderData packing currently assumes a maximum of 3 lighting channels.");
+
 	// Note: layout must match GetPrimitiveData in usf
-	Data[0] = *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[0][0];
-	Data[1] = *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[1][0];
-	Data[2] = *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[2][0];
-	Data[3] = *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[3][0];
-
-	Data[4] = PrimitiveUniformShaderParameters.InvNonUniformScaleAndDeterminantSign;
-	Data[5] = PrimitiveUniformShaderParameters.ObjectWorldPositionAndRadius;
-
-	Data[6] = *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[0][0];
-	Data[7] = *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[1][0];
-	Data[8] = *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[2][0];
-	Data[9] = *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[3][0];
-	Data[10] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[0][0];
-	Data[11] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[1][0];
-	Data[12] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[2][0];
-	Data[13] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[3][0];
-	Data[14] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[0][0];
-	Data[15] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[1][0];
-	Data[16] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[2][0];
-	Data[17] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[3][0];
-
-	Data[18] = FVector4(PrimitiveUniformShaderParameters.ActorWorldPosition, PrimitiveUniformShaderParameters.UseSingleSampleShadowFromStationaryLights);
-	Data[19] = FVector4(PrimitiveUniformShaderParameters.ObjectBounds, 0.0f);
-
-	Data[20] = FVector4(
-		PrimitiveUniformShaderParameters.DecalReceiverMask, 
-		PrimitiveUniformShaderParameters.PerObjectGBufferData, 
-		PrimitiveUniformShaderParameters.UseVolumetricLightmapShadowFromStationaryLights, 
-		PrimitiveUniformShaderParameters.DrawsVelocity);
-	Data[21] = PrimitiveUniformShaderParameters.ObjectOrientation;
-	Data[22] = PrimitiveUniformShaderParameters.NonUniformScale;
 
 	// Set W directly in order to bypass NaN check, when passing int through FVector to shader.
-	Data[23] = FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, 0.0f);
-	Data[23].W = *(const float*)&PrimitiveUniformShaderParameters.LightingChannelMask;
 
-	Data[24] = FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, 0.0f);
-	Data[24].W = *(const float*)&PrimitiveUniformShaderParameters.LightmapDataIndex;
+	Data[0].X	= *(const float*)&PrimitiveUniformShaderParameters.Flags;
+	Data[0].Y	= *(const float*)&PrimitiveUniformShaderParameters.InstanceDataOffset;
+	Data[0].Z	= *(const float*)&PrimitiveUniformShaderParameters.NumInstanceDataEntries;
+	Data[0].W	= *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
 
-	Data[25] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMin, 0.0f);
-	Data[25].W = *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
+	Data[1]		= *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[0][0];
+	Data[2]		= *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[1][0];
+	Data[3]		= *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[2][0];
+	Data[4]		= *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[3][0];
 
-	Data[26] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMax, 0.0f);
-	Data[26].W = *(const float*)&PrimitiveUniformShaderParameters.OutputVelocity;
+	Data[5]		= *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[0][0];
+	Data[6]		= *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[1][0];
+	Data[7]		= *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[2][0];
+	Data[8]		= *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[3][0];
 
-	Data[27].X = *(const float*)&PrimitiveUniformShaderParameters.LightmapUVIndex;
-	Data[27].Y = *reinterpret_cast<const float*>(&PrimitiveUniformShaderParameters.InstanceDataOffset);
-	Data[27].Z = *reinterpret_cast<const float*>(&PrimitiveUniformShaderParameters.NumInstanceDataEntries);
-	Data[27].W = *(const float*)&PrimitiveUniformShaderParameters.Flags; // CastShadow=1
+	Data[9]		= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[0][0];
+	Data[10]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[1][0];
+	Data[11]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[2][0];
+	Data[12]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[3][0];
+
+	Data[13]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[0][0];
+	Data[14]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[1][0];
+	Data[15]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[2][0];
+	Data[16]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[3][0];
+
+	Data[17]	= FVector4(PrimitiveUniformShaderParameters.InvNonUniformScale, PrimitiveUniformShaderParameters.ObjectBoundsX);
+	Data[18]	= PrimitiveUniformShaderParameters.ObjectWorldPositionAndRadius;
+
+	Data[19]	= FVector4(PrimitiveUniformShaderParameters.ActorWorldPosition, 0.0f);
+	Data[19].W	= *(const float*)&PrimitiveUniformShaderParameters.LightmapUVIndex;
+
+	Data[20]	= FVector4(PrimitiveUniformShaderParameters.ObjectOrientation, 0.0f);
+	Data[20].W	= *(const float*)&PrimitiveUniformShaderParameters.LightmapDataIndex;
+
+	Data[21]	= PrimitiveUniformShaderParameters.NonUniformScale;
+
+	Data[22]	= FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMin, 0.0f);
+	Data[22].W	= *(const float*)&PrimitiveUniformShaderParameters.NaniteResourceID;
+
+	Data[23]	= FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMax, 0.0f);
+	Data[23].W	= *(const float*)&PrimitiveUniformShaderParameters.NaniteHierarchyOffset;
+
+	Data[24]	= FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.ObjectBoundsY);
+	Data[25]	= FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, PrimitiveUniformShaderParameters.ObjectBoundsZ);
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
-	const int32 CustomPrimitiveDataStartIndex = 28;
-	for (int i = 0; i < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; i++)
+	const int32 CustomPrimitiveDataStartIndex = 26;
+	for (int32 DataIndex = 0; DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; ++DataIndex)
 	{
-		Data[CustomPrimitiveDataStartIndex + i] = PrimitiveUniformShaderParameters.CustomPrimitiveData[i];
+		Data[CustomPrimitiveDataStartIndex + DataIndex] = PrimitiveUniformShaderParameters.CustomPrimitiveData[DataIndex];
 	}
-}
-
-uint16 FPrimitiveSceneShaderData::GetPrimitivesPerTextureLine()
-{
-	// @todo texture size limit over 65536, revisit this in the future :). Currently you can have(with primitiveData = 35 floats4) a max of 122,683,392 primitives
-	uint16 PrimitivesPerTextureLine = FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / (FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s);
-	return PrimitivesPerTextureLine;
 }

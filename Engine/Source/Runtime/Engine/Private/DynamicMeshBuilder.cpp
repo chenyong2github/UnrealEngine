@@ -854,30 +854,16 @@ void FDynamicMeshBuilder::GetMesh(
 
 			// Create the primitive uniform buffer.
 			OneFrameResources->PrimitiveUniformBuffer = new FDynamicMeshPrimitiveUniformBuffer();
-			FPrimitiveUniformShaderParameters PrimitiveParams = GetPrimitiveUniformShaderParameters(
-				LocalToWorld,
-				PreviousLocalToWorld,
-				LocalToWorld.GetOrigin(),
-				FBoxSphereBounds(EForceInit::ForceInit),
-				FBoxSphereBounds(EForceInit::ForceInit),
-				Settings.bReceivesDecals,
-				false,
-				false,
-				false,
-				false,
-				/* bDrawsVelocity = */ true,
-				GetDefaultLightingChannelMask(),
-				INDEX_NONE,
-				INDEX_NONE,
-				INDEX_NONE,
-				/* bOutputVelocity = */ false,
-				nullptr,
-				/* bCastContactShadow = */ true,
-				INDEX_NONE,
-				0,
-				/* bCastShadow = */ true
-			);
-
+			FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
+				.Defaults()
+					.LocalToWorld(LocalToWorld)
+					.PreviousLocalToWorld(PreviousLocalToWorld)
+					.ActorWorldPosition(LocalToWorld.GetOrigin())
+					.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
+					.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
+					.ReceivesDecals(Settings.bReceivesDecals)
+					.DrawsVelocity(true)
+				.Build();
 
 			if (IsInGameThread())
 			{
@@ -952,29 +938,15 @@ void FDynamicMeshBuilder::GetMeshElement(const FMatrix& LocalToWorld, const FMat
 
 			// Create the primitive uniform buffer.
 			OneFrameResource.PrimitiveUniformBuffer = new FDynamicMeshPrimitiveUniformBuffer();
-			FPrimitiveUniformShaderParameters PrimitiveParams = GetPrimitiveUniformShaderParameters(
-				LocalToWorld,
-				LocalToWorld,
-				LocalToWorld.GetOrigin(),
-				FBoxSphereBounds(EForceInit::ForceInit),
-				FBoxSphereBounds(EForceInit::ForceInit),
-				bReceivesDecals,
-				false,
-				false,
-				false,
-				false,
-				/* bDrawsVelocity = */ true,
-				GetDefaultLightingChannelMask(),
-				INDEX_NONE,
-				INDEX_NONE,
-				INDEX_NONE,
-				/* bOutputVelocity = */ false,
-				nullptr,
-				/* bCastContactShadow = */ true,
-				INDEX_NONE,
-				0,
-				/* bCastShadow = */ true
-			);
+			FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
+				.Defaults()
+					.LocalToWorld(LocalToWorld)
+					.ActorWorldPosition(LocalToWorld.GetOrigin())
+					.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
+					.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
+					.ReceivesDecals(bReceivesDecals)
+					.DrawsVelocity(true)
+				.Build();
 
 			if (IsInGameThread())
 			{
@@ -1036,30 +1008,15 @@ void FDynamicMeshBuilder::Draw(FPrimitiveDrawInterface* PDI,const FMatrix& Local
 
 		// Create the primitive uniform buffer.
 		FDynamicMeshPrimitiveUniformBuffer* PrimitiveUniformBuffer = new FDynamicMeshPrimitiveUniformBuffer();
-		FPrimitiveUniformShaderParameters PrimitiveParams = GetPrimitiveUniformShaderParameters(
-			LocalToWorld,
-			LocalToWorld,
-			LocalToWorld.GetOrigin(),
-			FBoxSphereBounds(EForceInit::ForceInit),
-			FBoxSphereBounds(EForceInit::ForceInit),
-			bReceivesDecals,
-			false,
-			false,
-			false,
-			false,
-			/* bDrawsVelocity = */ true,
-			GetDefaultLightingChannelMask(),
-			INDEX_NONE,
-			INDEX_NONE,
-			INDEX_NONE,
-			/* bOutputVelocity = */ false,
-			nullptr,
-			/* bCastContactShadow = */ true,
-			INDEX_NONE,
-			0,
-			/* bCastShadow = */ true
-		);
-
+		FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
+			.Defaults()
+				.LocalToWorld(LocalToWorld)
+				.ActorWorldPosition(LocalToWorld.GetOrigin())
+				.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
+				.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
+				.ReceivesDecals(bReceivesDecals)
+				.DrawsVelocity(true)
+			.Build();
 
 		if (IsInGameThread())
 		{

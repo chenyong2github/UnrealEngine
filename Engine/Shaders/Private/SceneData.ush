@@ -11,6 +11,21 @@
 
 #define INSTANCE_SCENE_DATA_SUPPORTED (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
 
+// Must match PrimitiveUniformShaderParameters.h
+#define PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS						0x1
+#define PRIMITIVE_SCENE_DATA_FLAG_USE_SINGLE_SAMPLE_SHADOW_SL		0x2
+#define PRIMITIVE_SCENE_DATA_FLAG_USE_VOLUMETRIC_LM_SHADOW_SL		0x4
+#define PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER					0x8
+#define PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY					0x10
+#define PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY					0x20
+#define PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN					0x40
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION		0x80
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW			0x100
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_PRIMITIVE_CUSTOM_DATA			0x200
+#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_0				0x400
+#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1				0x800
+#define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
+
 // GPUCULL_TODO: Eventually we need to remove this workaround
 #define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
 
@@ -28,7 +43,8 @@ struct FInstanceSceneData
 	float4x4 PrevLocalToWorld;
 	float4x4 WorldToLocal;
 	float4   NonUniformScale;
-	float4   InvNonUniformScaleAndDeterminantSign;
+	float3   InvNonUniformScale;
+	float    DeterminantSign;
 	float3   LocalBoundsCenter;
 	uint     PrimitiveId;
 	float3   LocalBoundsExtent;
@@ -106,18 +122,18 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 		Scale2.y = length2(InstanceData.LocalToWorld[1].xyz);
 		Scale2.z = length2(InstanceData.LocalToWorld[2].xyz);
 
-		InstanceData.InvNonUniformScaleAndDeterminantSign.xyz	= rsqrt(Scale2);
-		InstanceData.InvNonUniformScaleAndDeterminantSign.w		= (Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? -1.0f : 1.0f;
+		InstanceData.InvNonUniformScale							= rsqrt(Scale2);
+		InstanceData.DeterminantSign							= CondMask(Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
 
-		InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+		InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScale;
 
 		float3 AbsNonUniformScale								= abs(InstanceData.NonUniformScale.xyz);
 		InstanceData.NonUniformScale.w							= max3(AbsNonUniformScale.x, AbsNonUniformScale.y, AbsNonUniformScale.z);
 	
 		InstanceData.WorldToLocal								= InstanceData.LocalToWorld;
-		InstanceData.WorldToLocal[0].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.x);
-		InstanceData.WorldToLocal[1].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.y);
-		InstanceData.WorldToLocal[2].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.z);
+		InstanceData.WorldToLocal[0].xyz					   *= Pow2(InstanceData.InvNonUniformScale.x);
+		InstanceData.WorldToLocal[1].xyz					   *= Pow2(InstanceData.InvNonUniformScale.y);
+		InstanceData.WorldToLocal[2].xyz					   *= Pow2(InstanceData.InvNonUniformScale.z);
 		InstanceData.WorldToLocal[3].xyz						= 0.0f;
 		InstanceData.WorldToLocal								= transpose(InstanceData.WorldToLocal);
 		InstanceData.WorldToLocal[3].xyz						= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
@@ -143,47 +159,35 @@ StructuredBuffer<float4> GPUScenePrimitiveSceneData;
 // Must match FPrimitiveUniformShaderParameters in C++
 struct FPrimitiveSceneData
 {
-	float4x4 LocalToWorld;
-	float4 InvNonUniformScaleAndDeterminantSign;
-	float4 ObjectWorldPositionAndRadius;
-	float4x4 WorldToLocal;
-	float4x4 PreviousLocalToWorld;
-	float4x4 PreviousWorldToLocal;
-	float3 ActorWorldPosition;
-	float UseSingleSampleShadowFromStationaryLights;
-	float3 ObjectBounds;
-	float LpvBiasMultiplier;
-	float DecalReceiverMask;
-	float PerObjectGBufferData;
-	float UseVolumetricLightmapShadowFromStationaryLights;
-	float DrawsVelocity;
-	float4 ObjectOrientation;
-	float4 NonUniformScale;
-	float3 LocalObjectBoundsMin;
-	uint LightingChannelMask;
-	float3 LocalObjectBoundsMax;
-	uint LightmapDataIndex;
-	float3 PreSkinnedLocalBoundsMin;
-	int SingleCaptureIndex;
-	float3 PreSkinnedLocalBoundsMax;
-	uint OutputVelocity;
-	uint LightmapUVIndex;
-	// Link to the range of instances that belong to this primitive
-	int InstanceDataOffset;
-	int NumInstanceDataEntries;
-	// CastShadows=1
-	uint Flags;
-	float4 CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA];
+	uint		Flags; // TODO: Use 16 bits?
+	int			InstanceDataOffset; // Link to the range of instances that belong to this primitive
+	int			NumInstanceDataEntries;
+	uint		SingleCaptureIndex; // TODO: Use 16 bits? 8 bits?
+	float4x4	LocalToWorld;
+	float4x4	WorldToLocal;
+	float4x4	PreviousLocalToWorld;
+	float4x4	PreviousWorldToLocal;
+	float3		InvNonUniformScale;
+	float		ObjectBoundsX;
+	float4		ObjectWorldPositionAndRadius;
+	float3		ActorWorldPosition;
+	uint		LightmapUVIndex;   // TODO: Use 16 bits? // TODO: Move into associated array that disappears if static lighting is disabled
+	float3		ObjectOrientation; // TODO: More efficient representation?
+	uint		LightmapDataIndex; // TODO: Use 16 bits? // TODO: Move into associated array that disappears if static lighting is disabled
+	float4		NonUniformScale;
+	float3		PreSkinnedLocalBoundsMin;
+	uint		NaniteResourceID;
+	float3		PreSkinnedLocalBoundsMax;
+	uint		NaniteHierarchyOffset;
+	float3		LocalObjectBoundsMin;
+	float		ObjectBoundsY;
+	float3		LocalObjectBoundsMax;
+	float		ObjectBoundsZ;
+	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
 
 // Stride of a single primitive's data in float4's, must match C++
-#define PRIMITIVE_SCENE_DATA_STRIDE 37
-
-/*void UnpackLightmapDataAndUVIndex(uint Packed, out uint LightmapDataIndex, out uint LightmapUVIndex)
-{
-	LightmapDataIndex = (Packed & 0xFFFFFF00) >> 8u;
-	LightmapUVIndex   = (Packed & 0x000000FF);
-}*/
+#define PRIMITIVE_SCENE_DATA_STRIDE 35
 
 float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemIndex)
 {
@@ -218,64 +222,48 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 
 	FPrimitiveSceneData PrimitiveData;
 
-	PrimitiveData.LocalToWorld[0] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0);
-	PrimitiveData.LocalToWorld[1] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 1);
-	PrimitiveData.LocalToWorld[2] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 2);
-	PrimitiveData.LocalToWorld[3] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 3);
+	PrimitiveData.Flags							= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).x);
+	PrimitiveData.InstanceDataOffset			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).y);
+	PrimitiveData.NumInstanceDataEntries		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).z);
+	PrimitiveData.SingleCaptureIndex			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).w);
+	PrimitiveData.LocalToWorld[0]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 1);
+	PrimitiveData.LocalToWorld[1]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 2);
+	PrimitiveData.LocalToWorld[2]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 3);
+	PrimitiveData.LocalToWorld[3]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 4);
+	PrimitiveData.WorldToLocal[0]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 5);
+	PrimitiveData.WorldToLocal[1]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 6);
+	PrimitiveData.WorldToLocal[2]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 7);
+	PrimitiveData.WorldToLocal[3]				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 8);
+	PrimitiveData.PreviousLocalToWorld[0]		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 9);
+	PrimitiveData.PreviousLocalToWorld[1]		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 10);
+	PrimitiveData.PreviousLocalToWorld[2]		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 11);
+	PrimitiveData.PreviousLocalToWorld[3]		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 12);
+	PrimitiveData.PreviousWorldToLocal[0]		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 13);
+	PrimitiveData.PreviousWorldToLocal[1]		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 14);
+	PrimitiveData.PreviousWorldToLocal[2]		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 15);
+	PrimitiveData.PreviousWorldToLocal[3]		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 16);
+	PrimitiveData.InvNonUniformScale			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 17).xyz;
+	PrimitiveData.ObjectBoundsX					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 17).w;
+	PrimitiveData.ObjectWorldPositionAndRadius	= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 18);
+	PrimitiveData.ActorWorldPosition			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 19).xyz;
+	PrimitiveData.LightmapUVIndex				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 19).w);
+	PrimitiveData.ObjectOrientation				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).xyz;
+	PrimitiveData.LightmapDataIndex				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).w);
+	PrimitiveData.NonUniformScale				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 21);
+	PrimitiveData.PreSkinnedLocalBoundsMin		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 22).xyz;
+	PrimitiveData.NaniteResourceID				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 22).w;
+	PrimitiveData.PreSkinnedLocalBoundsMax		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).xyz;
+	PrimitiveData.NaniteHierarchyOffset			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).w;
+	PrimitiveData.LocalObjectBoundsMin			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).xyz;
+	PrimitiveData.ObjectBoundsY					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).w;
+	PrimitiveData.LocalObjectBoundsMax			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).xyz;
+	PrimitiveData.ObjectBoundsZ					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).w;
 
-	PrimitiveData.InvNonUniformScaleAndDeterminantSign = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 4);
-	PrimitiveData.ObjectWorldPositionAndRadius = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 5);
-
-	PrimitiveData.WorldToLocal[0] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 6);
-	PrimitiveData.WorldToLocal[1] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 7);
-	PrimitiveData.WorldToLocal[2] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 8);
-	PrimitiveData.WorldToLocal[3] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 9);
-
-	PrimitiveData.PreviousLocalToWorld[0] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 10);
-	PrimitiveData.PreviousLocalToWorld[1] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 11);
-	PrimitiveData.PreviousLocalToWorld[2] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 12);
-	PrimitiveData.PreviousLocalToWorld[3] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 13);
-
-	PrimitiveData.PreviousWorldToLocal[0] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 14);
-	PrimitiveData.PreviousWorldToLocal[1] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 15);
-	PrimitiveData.PreviousWorldToLocal[2] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 16);
-	PrimitiveData.PreviousWorldToLocal[3] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 17);
-
-	PrimitiveData.ActorWorldPosition = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 18).xyz;
-	PrimitiveData.UseSingleSampleShadowFromStationaryLights = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 18).w;
-
-	PrimitiveData.ObjectBounds = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 19).xyz;
-	PrimitiveData.LpvBiasMultiplier = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 19).w;
-
-	PrimitiveData.DecalReceiverMask = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).x;
-	PrimitiveData.PerObjectGBufferData = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).y;
-	PrimitiveData.UseVolumetricLightmapShadowFromStationaryLights = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).z;
-	PrimitiveData.DrawsVelocity = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).w;
-
-	PrimitiveData.ObjectOrientation = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 21);
-	PrimitiveData.NonUniformScale = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 22);
-
-	PrimitiveData.LocalObjectBoundsMin = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).xyz;
-	PrimitiveData.LightingChannelMask = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).w);
-
-	PrimitiveData.LocalObjectBoundsMax = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).xyz;
-	PrimitiveData.LightmapDataIndex = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).w);
-
-	PrimitiveData.PreSkinnedLocalBoundsMin = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).xyz;
-	PrimitiveData.SingleCaptureIndex = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).w);
-
-	PrimitiveData.PreSkinnedLocalBoundsMax = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).xyz;
-	PrimitiveData.OutputVelocity = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).w);
-
-	PrimitiveData.LightmapUVIndex = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).x);
-	PrimitiveData.InstanceDataOffset = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).y);
-	PrimitiveData.NumInstanceDataEntries = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).z);
-	PrimitiveData.Flags = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w);
-
+	// TODO: Move to associated array to shrink primitive data and better pack cachelines
 	UNROLL
-	for (int i = 0; i < NUM_CUSTOM_PRIMITIVE_DATA; i++)
+	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
-		PrimitiveData.CustomPrimitiveData[i] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  28 + i);
+		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  26 + DataIndex);
 	}
 
 	return PrimitiveData;
@@ -294,6 +282,62 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
 
+float GetPrimitive_DeterminantSign_FromFlags(uint Flags)
+{
+	return CondMask(Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
+}
+
+float GetPrimitive_DeterminantSign(uint PrimitiveId)
+{
+	return GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveData(PrimitiveId).Flags);
+}
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+float GetPrimitive_DeterminantSign(FPrimitiveSceneData Primitive)
+{
+	return GetPrimitive_DeterminantSign_FromFlags(Primitive.Flags);
+}
+#endif
+
+float GetPrimitive_PerObjectGBufferData_FromFlags(uint Flags)
+{
+	const float CapsuleRepresentation = CondMask(Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION, 1.0f, 0.0f);
+	const float CastContactShadow     = CondMask(Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW,    1.0f, 0.0f);
+	return (2.0f * CapsuleRepresentation + CastContactShadow) / 3.0f;
+}
+
+float GetPrimitive_PerObjectGBufferData(uint PrimitiveId)
+{
+	return GetPrimitive_PerObjectGBufferData_FromFlags(GetPrimitiveData(PrimitiveId).Flags);
+}
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+float GetPrimitive_PerObjectGBufferData(FPrimitiveSceneData Primitive)
+{
+	return GetPrimitive_PerObjectGBufferData_FromFlags(Primitive.Flags);
+}
+#endif
+
+uint GetPrimitive_LightingChannelMask_FromFlags(uint Flags)
+{
+	const uint Channel0 = CondMask(Flags & PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_0, 1u, 0u);
+	const uint Channel1 = CondMask(Flags & PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1, 1u, 0u);
+	const uint Channel2 = CondMask(Flags & PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2, 1u, 0u);
+	return (Channel0 | (Channel1 << 1u) | (Channel2 << 2u));
+}
+
+float GetPrimitive_LightingChannelMask(uint PrimitiveId)
+{
+	return GetPrimitive_LightingChannelMask_FromFlags(GetPrimitiveData(PrimitiveId).Flags);
+}
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+float GetPrimitive_LightingChannelMask(FPrimitiveSceneData Primitive)
+{
+	return GetPrimitive_LightingChannelMask_FromFlags(Primitive.Flags);
+}
+#endif
+
 struct FSceneDataIntermediates
 {
 	uint PrimitiveId;
@@ -303,7 +347,7 @@ struct FSceneDataIntermediates
 	uint InstanceIdLoadIndex;
 #if INSTANCE_SCENE_DATA_SUPPORTED
 	FInstanceSceneData InstanceData;
-#endif // INSTANCE_SCENE_DATA_SUPPORTED
+#endif
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	// GPUCULL_TODO: Move this definition out of ifdef in SceneData so we can have fewer ifdefs?

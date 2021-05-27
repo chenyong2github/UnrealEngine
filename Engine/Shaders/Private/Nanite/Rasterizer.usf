@@ -271,7 +271,7 @@ bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 	// Negative determinant sign for non uniform scale means
 	// that an odd number of components are negative, so
 	// we need to reverse the triangle winding order.
-	bool bReverseInstanceCull = (InstanceData.InvNonUniformScaleAndDeterminantSign.w < 0.0f);
+	bool bReverseInstanceCull = (InstanceData.DeterminantSign < 0.0f);
 	bool bRasterStateReverseCull = (RenderFlags & RENDER_FLAG_REVERSE_CULLING);
 	
 	// Logical XOR

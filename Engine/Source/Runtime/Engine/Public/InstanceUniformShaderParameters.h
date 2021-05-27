@@ -40,7 +40,8 @@ struct FPrimitiveInstance
 	FMatrix  LocalToWorld;
 	FMatrix  PrevLocalToWorld;
 	FVector4 NonUniformScale;
-	FVector4 InvNonUniformScaleAndDeterminantSign;
+	FVector3f InvNonUniformScale;
+	float DeterminantSign;
 	FBoxSphereBounds RenderBounds;
 	FBoxSphereBounds LocalBounds;
 	FVector4 LightMapAndShadowMapUVBias;
@@ -77,7 +78,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API
 	SHADER_PARAMETER(FMatrix44f,  LocalToWorld)
 	SHADER_PARAMETER(FMatrix44f,  PrevLocalToWorld)
 	SHADER_PARAMETER(FVector4, NonUniformScale)
-	SHADER_PARAMETER(FVector4, InvNonUniformScaleAndDeterminantSign)
+	SHADER_PARAMETER(FVector3f, InvNonUniformScale)
+	SHADER_PARAMETER(float, DeterminantSign)
 	SHADER_PARAMETER(FVector3f,  LocalBoundsCenter)
 	SHADER_PARAMETER(uint32,   PrimitiveId)
 	SHADER_PARAMETER(FVector3f,  LocalBoundsExtent)
@@ -96,7 +98,8 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	const FVector&  LocalBoundsCenter,
 	const FVector&  LocalBoundsExtent,
 	const FVector4& NonUniformScale,
-	const FVector4& InvNonUniformScaleAndDeterminantSign,
+	const FVector3f& InvNonUniformScale,
+	const float DeterminantSign,
 	const FVector4& LightMapAndShadowMapUVBias,
 	const FNaniteInfo& NaniteInfo,
 	uint32 PrimitiveId,
@@ -109,7 +112,8 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	Result.LocalToWorld							= (FMatrix44f)LocalToWorld;
 	Result.PrevLocalToWorld						= (FMatrix44f)PrevLocalToWorld;
 	Result.NonUniformScale						= NonUniformScale;
-	Result.InvNonUniformScaleAndDeterminantSign	= InvNonUniformScaleAndDeterminantSign;
+	Result.InvNonUniformScale					= InvNonUniformScale;
+	Result.DeterminantSign						= DeterminantSign;
 	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
 	Result.PrimitiveId							= PrimitiveId;
 	Result.LocalBoundsCenter					= (FVector3f)LocalBoundsCenter;
@@ -120,7 +124,7 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	Result.PerInstanceRandom					= PerInstanceRandom;
 	Result.Flags								= 0;
 	Result.Flags								|= bCastShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0;
-	Result.Flags								|= InvNonUniformScaleAndDeterminantSign.W < 0.0f ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0;
+	Result.Flags								|= DeterminantSign < 0.0f ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0;
 	Result.Flags								|= (NaniteInfo.HierarchyOffset_AndHasImposter & 1u) != 0u ? INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER : 0;
 	return Result;
 }
@@ -131,7 +135,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 	const FVector&  LocalBoundsCenter,
 	const FVector&  LocalBoundsExtent,
 	const FVector4& NonUniformScale,
-	const FVector4& InvNonUniformScaleAndDeterminantSign,
+	const FVector3f& InvNonUniformScale,
+	const float DeterminantSign,
 	const FVector4& LightMapAndShadowMapUVBias,
 	const FNaniteInfo& NaniteInfo,
 	uint32 PrimitiveId,
@@ -148,7 +153,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 			LocalBoundsCenter,
 			LocalBoundsExtent,
 			NonUniformScale,
-			InvNonUniformScaleAndDeterminantSign,
+			InvNonUniformScale,
+			DeterminantSign,
 			LightMapAndShadowMapUVBias,
 			NaniteInfo,
 			PrimitiveId,
@@ -176,7 +182,8 @@ struct FInstanceSceneShaderData
 			FVector::ZeroVector,
 			FVector::ZeroVector,
 			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
+			FVector3f(1.0f, 1.0f, 1.0f),
+			1.0f,
 			FVector4(ForceInitToZero),
 			FNaniteInfo(),
 			0,

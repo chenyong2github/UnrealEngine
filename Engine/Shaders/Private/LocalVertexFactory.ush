@@ -496,10 +496,10 @@ half3x3 CalcTangentToWorldNoScale(FVertexFactoryIntermediates Intermediates, hal
 {
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	half3x3 LocalToWorld = (half3x3)Intermediates.SceneData.InstanceData.LocalToWorld;
-	half3 InvScale = Intermediates.SceneData.InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+	half3 InvScale = Intermediates.SceneData.InstanceData.InvNonUniformScale;
 #else
 	half3x3 LocalToWorld = GetLocalToWorld3x3(Intermediates.PrimitiveId);
-	half3 InvScale = GetPrimitiveData(Intermediates.PrimitiveId).InvNonUniformScaleAndDeterminantSign.xyz;
+	half3 InvScale = GetPrimitiveData(Intermediates.PrimitiveId).InvNonUniformScale;
 #endif
 	LocalToWorld[0] *= InvScale.x;
 	LocalToWorld[1] *= InvScale.y;
@@ -865,9 +865,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
 	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates, Intermediates.TangentToLocal);
 #if VF_USE_PRIMITIVE_SCENE_DATA
-	Intermediates.TangentToWorldSign = TangentSign * Intermediates.SceneData.InstanceData.InvNonUniformScaleAndDeterminantSign.w;
+	Intermediates.TangentToWorldSign = TangentSign * Intermediates.SceneData.InstanceData.DeterminantSign;
 #else
-	Intermediates.TangentToWorldSign = TangentSign * GetPrimitiveData(Intermediates.PrimitiveId).InvNonUniformScaleAndDeterminantSign.w;
+	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign(Intermediates.PrimitiveId);
 #endif
 
 #if USE_INSTANCING

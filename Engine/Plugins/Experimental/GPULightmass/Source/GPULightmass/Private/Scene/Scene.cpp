@@ -790,30 +790,18 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 	{
 		FStaticMeshInstanceRenderStateRef InstanceRenderStateRef = RenderState.StaticMeshInstanceRenderStates.Emplace(MoveTemp(InstanceRenderState));
 
-		InstanceRenderStateRef->PrimitiveUniformShaderParameters = GetPrimitiveUniformShaderParameters(
-			InstanceRenderStateRef->LocalToWorld,
-			InstanceRenderStateRef->LocalToWorld,
-			InstanceRenderStateRef->ActorPosition,
-			InstanceRenderStateRef->WorldBounds,
-			InstanceRenderStateRef->LocalBounds,
-			InstanceRenderStateRef->LocalBounds,
-			false,
-			false,
-			false,
-			false,
-			false,
-			false,
-			0b111,
-			0,
-			INDEX_NONE,
-			INDEX_NONE,
-			/* bOutputVelocity = */ false,
-			nullptr,
-			/* bCastContactShadow = */ true,
-			INDEX_NONE,
-			0,
-			/* bCastShadow = */ true
-		);
+		FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters =
+			FPrimitiveUniformShaderParametersBuilder{}
+			.Defaults()
+				.LocalToWorld(InstanceRenderStateRef->LocalToWorld)
+				.ActorWorldPosition(InstanceRenderStateRef->ActorPosition)
+				.WorldBounds(InstanceRenderStateRef->WorldBounds)
+				.LocalBounds(InstanceRenderStateRef->LocalBounds)
+				.LightingChannelMask(0b111)
+				.LightmapDataIndex(0)
+				.CastContactShadow(true)
+				.CastShadow(true)
+			.Build();
 
 		for (int32 LODIndex = 0; LODIndex < InstanceLightmapRenderStateInitializers.Num(); LODIndex++)
 		{

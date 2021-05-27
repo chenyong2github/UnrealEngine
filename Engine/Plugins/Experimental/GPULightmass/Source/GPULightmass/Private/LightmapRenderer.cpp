@@ -326,7 +326,9 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 						PrimitiveUniformShaderParameters.PreviousLocalToWorld,
 						(PrimitiveUniformShaderParameters.LocalObjectBoundsMin + PrimitiveUniformShaderParameters.LocalObjectBoundsMax) * 0.5f,
 						PrimitiveUniformShaderParameters.LocalObjectBoundsMax - PrimitiveUniformShaderParameters.LocalObjectBoundsMin,
-						PrimitiveUniformShaderParameters.NonUniformScale, PrimitiveUniformShaderParameters.InvNonUniformScaleAndDeterminantSign,
+						PrimitiveUniformShaderParameters.NonUniformScale,
+						PrimitiveUniformShaderParameters.InvNonUniformScale,
+						(PrimitiveUniformShaderParameters.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? -1.0f : 1.0f,
 						FVector4(ForceInitToZero),
 						FNaniteInfo(),
 						InstanceIndex,
@@ -363,30 +365,20 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 			int32 NumInstancesThisGroup = (int32)InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances();
 
-			FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters = GetPrimitiveUniformShaderParameters(
-				InstanceGroup.LocalToWorld,
-				InstanceGroup.LocalToWorld,
-				InstanceGroup.ActorPosition,
-				InstanceGroup.WorldBounds,
-				InstanceGroup.LocalBounds,
-				InstanceGroup.LocalBounds,
-				false,
-				false,
-				false,
-				false,
-				false,
-				false,
-				0b111,
-				LightmapSceneDataStartOffsets[PrimitiveId],
-				INDEX_NONE,
-				INDEX_NONE,
-				/* bOutputVelocity = */ false,
-				nullptr,
-				/* bCastContactShadow = */ true,
-				InstanceSceneData.Num(),
-				NumInstancesThisGroup,
-				/* bCastShadow = */ true
-			);
+			FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters =
+				FPrimitiveUniformShaderParametersBuilder{}
+				.Defaults()
+					.LocalToWorld(InstanceGroup.LocalToWorld)
+					.ActorWorldPosition(InstanceGroup.ActorPosition)
+					.WorldBounds(InstanceGroup.WorldBounds)
+					.LocalBounds(InstanceGroup.LocalBounds)
+					.LightingChannelMask(0b111)
+					.LightmapDataIndex(LightmapSceneDataStartOffsets[PrimitiveId])
+					.InstanceDataOffset(InstanceSceneData.Num())
+					.NumInstanceDataEntries(NumInstancesThisGroup)
+					.CastContactShadow(true)
+					.CastShadow(true)
+				.Build();
 
 			InstanceDataOriginalOffsets.Add(InstanceSceneData.Num());
 
@@ -436,31 +428,21 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 		for (int32 LandscapeIndex = 0; LandscapeIndex < Scene.LandscapeRenderStates.Elements.Num(); LandscapeIndex++)
 		{
 			FLandscapeRenderState& Landscape = Scene.LandscapeRenderStates.Elements[LandscapeIndex];
-			
-			FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters = GetPrimitiveUniformShaderParameters(
-				Landscape.LocalToWorld,
-				Landscape.LocalToWorld,
-				Landscape.ActorPosition,
-				Landscape.WorldBounds,
-				Landscape.LocalBounds,
-				Landscape.LocalBounds,
-				false,
-				false,
-				false,
-				false,
-				false,
-				false,
-				0b111,
-				LightmapSceneDataStartOffsets[PrimitiveId],
-				INDEX_NONE,
-				INDEX_NONE,
-				/* bOutputVelocity = */ false,
-				nullptr,
-				/* bCastContactShadow = */ true,
-				InstanceSceneData.Num(),
-				1,
-				/* bCastShadow = */ true
-			);
+
+			FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters =
+				FPrimitiveUniformShaderParametersBuilder{}
+				.Defaults()
+					.LocalToWorld(Landscape.LocalToWorld)
+					.ActorWorldPosition(Landscape.ActorPosition)
+					.WorldBounds(Landscape.WorldBounds)
+					.LocalBounds(Landscape.LocalBounds)
+					.LightingChannelMask(0b111)
+					.LightmapDataIndex(LightmapSceneDataStartOffsets[PrimitiveId])
+					.InstanceDataOffset(InstanceSceneData.Num())
+					.NumInstanceDataEntries(1)
+					.CastContactShadow(true)
+					.CastShadow(true)
+				.Build();
 
 			InstanceDataOriginalOffsets.Add(InstanceSceneData.Num());
 
@@ -489,7 +471,9 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					PrimitiveUniformShaderParameters.PreviousLocalToWorld,
 					(PrimitiveUniformShaderParameters.LocalObjectBoundsMin + PrimitiveUniformShaderParameters.LocalObjectBoundsMax) * 0.5f,
 					PrimitiveUniformShaderParameters.LocalObjectBoundsMax - PrimitiveUniformShaderParameters.LocalObjectBoundsMin,
-					PrimitiveUniformShaderParameters.NonUniformScale, PrimitiveUniformShaderParameters.InvNonUniformScaleAndDeterminantSign,
+					PrimitiveUniformShaderParameters.NonUniformScale,
+					PrimitiveUniformShaderParameters.InvNonUniformScale,
+					(PrimitiveUniformShaderParameters.Flags& PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? -1.0f : 1.0f,
 					FVector4(ForceInitToZero),
 					FNaniteInfo(),
 					PrimitiveId,

@@ -132,7 +132,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 	SpecularScale = 0;
 #endif
 
-	uint LightingChannelMask = GetPrimitiveData(PrimitiveId).LightingChannelMask;
+	uint LightingChannelMask = GetPrimitive_LightingChannelMask(PrimitiveId);
 
 	const FDirectionalLightData DirectionalLightData = GetDirectionalLightData(EyeIndex);
 	FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);
