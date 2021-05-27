@@ -1643,14 +1643,54 @@ public:
 	 * @return The pose of the hierarchy
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-	FRigPose GetPose(bool bInitial = false) const;
+	FORCEINLINE FRigPose GetPose(
+		bool bInitial = false
+	) const
+	{
+		return GetPose(bInitial, ERigElementType::All, FRigElementKeyCollection());
+	}
+
+	/**
+	 * Returns the current / initial pose of the hierarchy
+	 * @param bInitial If set to true the initial pose will be returned
+	 * @param InElementType The types of elements to get
+	 * @param InItems An optional list of items to get
+	 * @return The pose of the hierarchy
+	 */
+	FRigPose GetPose(
+		bool bInitial,
+		ERigElementType InElementType,
+		const FRigElementKeyCollection& InItems 
+	) const;
 
 	/**
 	 * Sets the current / initial pose of the hierarchy
 	 * @param InPose The pose to set on the hierarchy
 	 * @param InTransformType The transform type to set
 	 */
-	void SetPose(const FRigPose& InPose, ERigTransformType::Type InTransformType = ERigTransformType::CurrentLocal);
+	FORCEINLINE void SetPose(
+		const FRigPose& InPose,
+		ERigTransformType::Type InTransformType = ERigTransformType::CurrentLocal
+	)
+	{
+		SetPose(InPose, InTransformType, ERigElementType::All, FRigElementKeyCollection(), 1.f);
+	}
+
+	/**
+	 * Sets the current / initial pose of the hierarchy
+	 * @param InPose The pose to set on the hierarchy
+	 * @param InTransformType The transform type to set
+	 * @param InElementType The types of elements to set
+	 * @param InItems An optional list of items to set
+	 * @param InWeight A weight to define how much the pose needs to be mixed in
+	 */
+	void SetPose(
+		const FRigPose& InPose,
+		ERigTransformType::Type InTransformType,
+		ERigElementType InElementType,
+		const FRigElementKeyCollection& InItems,
+		float InWeight
+	);
 
 	/**
 	 * Sets the current / initial pose of the hierarchy

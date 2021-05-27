@@ -12,6 +12,12 @@ struct CONTROLRIG_API FRigUnit_HierarchyBase : public FRigUnit
 	GENERATED_BODY()
 };
 
+USTRUCT(meta = (Abstract, NodeColor="0.462745, 1,0, 0.329412", Category = "Hierarchy"))
+struct CONTROLRIG_API FRigUnit_HierarchyBaseMutable : public FRigUnitMutable
+{
+	GENERATED_BODY()
+};
+
 /**
  * Returns the item's parent
  */
@@ -161,4 +167,338 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetSiblings : public FRigUnit_HierarchyB
 	// Used to cache the internally
 	UPROPERTY()
 	FRigElementKeyCollection CachedSiblings;
+};
+
+/**
+ * Returns the hierarchy's pose
+ */
+USTRUCT(meta=(DisplayName="Get Pose Cache", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyGetPose : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchyGetPose()
+	{
+		Initial = false;
+		ElementType = ERigElementType::All;
+		ItemsToGet = FRigElementKeyCollection();
+		Pose = FRigPose();
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	bool Initial;
+
+	UPROPERTY(meta = (Input))
+	ERigElementType ElementType;
+
+	// An optional collection to filter against
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection ItemsToGet;
+
+	UPROPERTY(meta = (Output))
+	FRigPose Pose;
+};
+
+/**
+ * Sets the hierarchy's pose
+ */
+USTRUCT(meta=(DisplayName="Apply Pose Cache", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchySetPose : public FRigUnit_HierarchyBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchySetPose()
+	{
+		Pose = FRigPose();
+		ElementType = ERigElementType::All;
+		Space = EBoneGetterSetterMode::LocalSpace;
+		ItemsToSet = FRigElementKeyCollection();
+		Weight = 1.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	UPROPERTY(meta = (Input))
+	ERigElementType ElementType;
+
+	UPROPERTY(meta = (Input))
+	EBoneGetterSetterMode Space;
+
+	// An optional collection to filter against
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection ItemsToSet;
+
+	UPROPERTY(meta = (Input))
+	float Weight;
+};
+
+/**
+* Returns true if the hierarchy pose is empty (has no items)
+*/
+USTRUCT(meta=(DisplayName="Is Pose Cache Empty", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_PoseIsEmpty : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_PoseIsEmpty()
+	{
+		Pose = FRigPose();
+		IsEmpty = true;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	UPROPERTY(meta = (Output))
+	bool IsEmpty;
+};
+
+/**
+* Returns the items in the hierarchy pose
+*/
+USTRUCT(meta=(DisplayName="Get Pose Cache Items", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_PoseGetItems : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_PoseGetItems()
+	{
+		Pose = FRigPose();
+		ElementType = ERigElementType::All;
+		Items = FRigElementKeyCollection();
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	UPROPERTY(meta = (Input))
+	ERigElementType ElementType;
+
+	UPROPERTY(meta = (Output))
+	FRigElementKeyCollection Items;
+};
+
+/**
+* Compares two pose caches and compares their values.
+*/
+USTRUCT(meta=(DisplayName="Get Pose Cache Delta", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_PoseGetDelta : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_PoseGetDelta()
+	{
+		PoseA = PoseB = FRigPose();
+		ElementType = ERigElementType::All;
+		ItemsToCompare = ItemsWithDelta = FRigElementKeyCollection();
+		PositionThreshold = 0.1f;
+		RotationThreshold = ScaleThreshold = CurveThreshold = 0.f;
+		PosesAreEqual = false;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose PoseA;
+
+	UPROPERTY(meta = (Input))
+	FRigPose PoseB;
+
+	// The delta threshold for a translation / position difference. 0.0 disables position differences.
+	UPROPERTY(meta = (Input))
+	float PositionThreshold;
+
+	// The delta threshold for a rotation difference (in degrees). 0.0 disables rotation differences.
+	UPROPERTY(meta = (Input))
+	float RotationThreshold;
+
+	// The delta threshold for a scale difference. 0.0 disables scale differences.
+	UPROPERTY(meta = (Input))
+	float ScaleThreshold;
+
+	// The delta threshold for curve value difference. 0.0 disables curve differences.
+	UPROPERTY(meta = (Input))
+	float CurveThreshold;
+
+	UPROPERTY(meta = (Input))
+	ERigElementType ElementType;
+	
+	// Defines in which space transform deltas should be computed
+	UPROPERTY(meta = (Input))
+	EBoneGetterSetterMode Space;
+
+	// An optional list of items to compare
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection ItemsToCompare;
+
+	UPROPERTY(meta = (Output))
+	bool PosesAreEqual;
+
+	UPROPERTY(meta = (Output))
+	FRigElementKeyCollection ItemsWithDelta;
+};
+
+/**
+* Returns the hierarchy's pose transform
+*/
+USTRUCT(meta=(DisplayName="Get Pose Cache Transform", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_PoseGetTransform : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_PoseGetTransform()
+	{
+		Pose = FRigPose();
+		Item = FRigElementKey();
+		Space = EBoneGetterSetterMode::GlobalSpace;
+		Valid = false;
+		Transform = FTransform::Identity;
+		CachedPoseElementIndex = CachedPoseHash = INDEX_NONE;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	UPROPERTY(meta = (Input))
+	FRigElementKey Item;
+
+	/**
+	* Defines if the transform should be retrieved in local or global space
+	*/ 
+	UPROPERTY(meta = (Input))
+	EBoneGetterSetterMode Space;
+
+	UPROPERTY(meta = (Output))
+	bool Valid;
+	
+	UPROPERTY(meta = (Output))
+	FTransform Transform;
+
+	UPROPERTY(meta = (Output))
+	float CurveValue;
+
+	UPROPERTY()
+	int32 CachedPoseElementIndex;
+
+	UPROPERTY()
+	int32 CachedPoseHash;
+};
+
+/**
+* Returns the hierarchy's pose curve value
+*/
+USTRUCT(meta=(DisplayName="Get Pose Cache Curve", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_PoseGetCurve : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_PoseGetCurve()
+	{
+		Pose = FRigPose();
+		Curve = NAME_None;
+		Valid = false;
+		CurveValue = 0.f;
+		CachedPoseElementIndex = CachedPoseHash = INDEX_NONE;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	UPROPERTY(meta = (Input, CustomWidget = "CurveName"))
+	FName Curve;
+
+	UPROPERTY(meta = (Output))
+	bool Valid;
+	
+	UPROPERTY(meta = (Output))
+	float CurveValue;
+
+	UPROPERTY()
+	int32 CachedPoseElementIndex;
+
+	UPROPERTY()
+	int32 CachedPoseHash;
+};
+
+/**
+* Given a pose, execute iteratively across all items in the pose
+*/
+USTRUCT(meta=(DisplayName="For Each Pose Cache Element", Keywords="Collection,Loop,Iterate", Icon="EditorStyle|GraphEditor.Macro.ForEach_16x"))
+struct CONTROLRIG_API FRigUnit_PoseLoop : public FRigUnit_HierarchyBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_PoseLoop()
+	{
+		Pose = FRigPose();
+		Item = FRigElementKey();
+		GlobalTransform = LocalTransform = FTransform::Identity;
+		CurveValue = 0.f;
+		Count = 0;
+		Index = 0;
+		Ratio = 0.f;
+		Continue = false;
+	}
+
+	// FRigVMStruct overrides
+	FORCEINLINE virtual bool IsForLoop() const override { return true; }
+	FORCEINLINE virtual int32 GetNumSlices() const override { return Count; }
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	UPROPERTY(meta = (Singleton, Output))
+	FRigElementKey Item;
+
+	UPROPERTY(meta = (Singleton, Output))
+	FTransform GlobalTransform;
+
+	UPROPERTY(meta = (Singleton, Output))
+	FTransform LocalTransform;
+
+	UPROPERTY(meta = (Singleton, Output))
+	float CurveValue;
+
+	UPROPERTY(meta = (Singleton, Output))
+	int32 Index;
+
+	UPROPERTY(meta = (Singleton, Output))
+	int32 Count;
+
+	/**
+	* Ranging from 0.0 (first item) and 1.0 (last item)
+	* This is useful to drive a consecutive node with a 
+	* curve or an ease to distribute a value.
+	*/
+	UPROPERTY(meta = (Singleton, Output))
+	float Ratio;
+
+	UPROPERTY(meta = (Singleton))
+	bool Continue;
+
+	UPROPERTY(meta = (Output))
+	FControlRigExecuteContext Completed;
 };

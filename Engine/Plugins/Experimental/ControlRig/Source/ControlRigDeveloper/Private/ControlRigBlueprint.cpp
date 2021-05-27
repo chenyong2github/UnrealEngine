@@ -1082,6 +1082,10 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 		{
 			return false;
 		}
+		if (InStruct == FRigPose::StaticStruct())
+		{
+			return false;
+		}
 		return true;
 		});
 
