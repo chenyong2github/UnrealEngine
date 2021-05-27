@@ -968,15 +968,19 @@ namespace HordeAgentTests
 				@"Remote tasks distribution:",
 				@"    Tasks execution is impeded due to low agent responsiveness",
 				@"-------------------------------------------------------------------------------",
+				@"    LogXGEController: Warning: XGE's background service (BuildService.exe) is not running - service is likely disabled on this machine.",
 			};
 
 			List<CapturedEvent> Events = Parse(Lines);
-			Assert.AreEqual(2, Events.Count);
+			Assert.AreEqual(3, Events.Count);
 			Assert.AreEqual(LogLevel.Information, Events[0].Level);
 			Assert.AreEqual(KnownLogEvents.Systemic_Xge_Standalone, Events[0].Id);
 
 			Assert.AreEqual(LogLevel.Information, Events[1].Level);
 			Assert.AreEqual(KnownLogEvents.Systemic_Xge, Events[1].Id);
+
+			Assert.AreEqual(LogLevel.Information, Events[2].Level);
+			Assert.AreEqual(KnownLogEvents.Systemic_Xge_ServiceNotRunning, Events[2].Id);
 		}
 
 		string GetSubProperty(CapturedEvent Event, string SpanName, string Name)
