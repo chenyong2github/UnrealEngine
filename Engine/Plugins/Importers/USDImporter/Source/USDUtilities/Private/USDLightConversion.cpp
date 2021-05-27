@@ -5,6 +5,7 @@
 #include "USDAssetCache.h"
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
+#include "USDLog.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
 
@@ -162,9 +163,18 @@ bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::U
 	}
 
 	const FString ResolvedDomeTexturePath = UsdUtils::GetResolvedTexturePath( DomeLight.GetTextureFileAttr() );
-
 	if ( ResolvedDomeTexturePath.IsEmpty() )
 	{
+		FScopedUsdAllocs Allocs;
+
+		pxr::SdfAssetPath TextureAssetPath;
+		DomeLight.GetTextureFileAttr().Get< pxr::SdfAssetPath >( &TextureAssetPath );
+
+		// Show a good warning for this because it's easy to pick some cubemap asset from the engine (that usually don't come with the
+		// source texture) and have the dome light silently not work again
+		FString TargetAssetPath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
+		UE_LOG( LogUsd, Warning, TEXT( "Failed to find texture '%s' used for UsdLuxDomeLight '%s'!" ), *TargetAssetPath, *UsdToUnreal::ConvertPath( DomeLight.GetPrim().GetPath() ) );
+
 		return true;
 	}
 
