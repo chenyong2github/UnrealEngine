@@ -1299,7 +1299,7 @@ namespace HordeServer.Collections.Impl
 						{
 							if (Dependency.GroupIdx == GroupIdx)
 							{
-								NewNodesToExecute.Add(Node);
+								NewNodesToExecute.Add(Group.Nodes[Dependency.NodeIdx]);
 							}
 						}
 					}
