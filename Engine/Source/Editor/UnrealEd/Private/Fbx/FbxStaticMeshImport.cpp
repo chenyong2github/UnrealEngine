@@ -472,8 +472,8 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		}
 		else
 		{
-			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_FailedToTriangulate", "Unable to triangulate mesh '{0}'"), FText::FromString(FbxNodeName))), FFbxErrors::Generic_Mesh_TriangulationFailed);
-			return false; // not clean, missing some dealloc
+			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_FailedToTriangulate", "Unable to triangulate mesh '{0}': it will be omitted."), FText::FromString(FbxNodeName))), FFbxErrors::Generic_Mesh_TriangulationFailed);
+			return false;
 		}
 		
 		BuildStaticMeshSlowTask.EnterProgressFrame(1);
@@ -1681,6 +1681,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 
 	bool bAllDegenerated = true;
 	TArray<FFbxMaterial> MeshMaterials;
+	int32 NodeFailCount = 0;
 	for (int32 MeshIndex = 0; MeshIndex < MeshNodeArray.Num(); MeshIndex++)
 	{
 		FScopedSlowTask BuildMeshSlowTask(MeshNodeArray.Num(), FText::Format(LOCTEXT("FbxStaticMeshBuildGeometryTask", "Importing Static Mesh Geometry {0} of {1}."), FText::AsNumber(1), FText::AsNumber(MeshNodeArray.Num())));
@@ -1712,17 +1713,21 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 				if (!BuildStaticMeshFromGeometry(Node, StaticMesh, MeshMaterials, LODIndex,
 					VertexColorImportOption, ExistingVertexColorData, ImportOptions->VertexOverrideColor))
 				{
-					bBuildStatus = false;
-					break;
+					// If this FBX node failed to build, make a note and continue.
+					// We should only fail the mesh/LOD import if every node failed.
+					NodeFailCount++;
 				}
 			}
 			else
 			{
 				CreateTokenizedErrorForDegeneratedPart(this, StaticMesh->GetName(), UTF8_TO_TCHAR(Node->GetName()));
+				NodeFailCount++;
 			}
 		}
 	}
-	if (bAllDegenerated)
+
+	// If every node in the list failed to build, this counts as a failure to import the entire mesh/LOD.
+	if (NodeFailCount == MeshNodeArray.Num() || bAllDegenerated)
 	{
 		bBuildStatus = false;
 	}
