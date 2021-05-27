@@ -2255,8 +2255,8 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 			// clean up any previous world
 			if (World != NULL)
 			{
-				World->CleanupWorld();
-				World->RemoveFromRoot();
+				const bool bBroadcastWorldDestroyedEvent = false;
+				World->DestroyWorld(bBroadcastWorldDestroyedEvent);
 			}
 
 			// load the package
@@ -2399,8 +2399,8 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 				}
 
 				// clear GWorld by removing it from the root set and replacing it with a new one
-				World->CleanupWorld();
-				World->RemoveFromRoot();
+				const bool bBroadcastWorldDestroyedEvent = false;
+				World->DestroyWorld(bBroadcastWorldDestroyedEvent);
 				World = GWorld = NULL;
 			}
 		}
