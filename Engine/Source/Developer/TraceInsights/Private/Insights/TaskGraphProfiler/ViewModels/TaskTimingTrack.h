@@ -94,14 +94,6 @@ class FTaskTimingTrack : public FTimingEventsTrack
 public:
 	static const uint32 InvalidTaskId;
 
-	struct FPendingEventInfo
-	{
-		double StartTime;
-		double EndTime;
-		uint32 Depth;
-		uint32 TimerIndex;
-	};
-
 	explicit FTaskTimingTrack(FTaskTimingSharedState& InSharedState, const FString& InName, uint32 InTimelineIndex)
 		: FTimingEventsTrack(InName)
 		, TimelineIndex(InTimelineIndex)

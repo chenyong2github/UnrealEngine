@@ -56,13 +56,13 @@ class FTaskGraphProfilerManager : public TSharedFromThis<FTaskGraphProfilerManag
 public:
 	typedef TFunctionRef<void(double /*SourceTimestamp*/, uint32 /*SourceThreadId*/, double /*TargetTimestamp*/, uint32 /*TargetThreadId*/, ETaskEventType /*Type*/)> FAddRelationCallback;
 
-	/** Creates the Memory Profiler manager, only one instance can exist. */
+	/** Creates the Task Graph Profiler manager, only one instance can exist. */
 	FTaskGraphProfilerManager(TSharedRef<FUICommandList> InCommandList);
 
 	/** Virtual destructor. */
 	virtual ~FTaskGraphProfilerManager();
 
-	/** Creates an instance of the Memory Profiler manager. */
+	/** Creates an instance of the Task Graph Profiler manager. */
 	static TSharedPtr<FTaskGraphProfilerManager> CreateInstance();
 
 	/**
@@ -95,6 +95,7 @@ public:
 	void ShowTaskRelations(const FThreadTrackEvent* InSelectedEvent, uint32 ThreadId);
 	void ShowTaskRelations(uint32 TaskId);
 	void AddRelation(const FThreadTrackEvent* InSelectedEvent, double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, ETaskEventType Type);
+	void AddRelation(const FThreadTrackEvent* InSelectedEvent, double SourceTimestamp, uint32 SourceThreadId, int32 SourceDepth, double TargetTimestamp, uint32 TargetThreadId, int32 TargetDepth, ETaskEventType Type);
 	void ClearTaskRelations();
 	FLinearColor GetColorForTaskEvent(ETaskEventType InEvent);
 
@@ -111,6 +112,8 @@ public:
 
 	bool GetShowNestedTasks() const { return bShowNestedTasks; }
 	void SetShowNestedTasks(bool bInValue) { bShowNestedTasks = bInValue; }
+
+	int32 GetDepthOfTaskExecution(double TaskStartedTime, double TaskFinishedTime, uint32 ThreadId);
 
 private:
 	/** Updates this manager, done through FCoreTicker. */
