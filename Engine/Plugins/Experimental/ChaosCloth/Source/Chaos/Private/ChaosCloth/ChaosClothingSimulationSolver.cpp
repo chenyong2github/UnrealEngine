@@ -637,35 +637,8 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 {
 	if (Evolution)
 	{
-		bool bHasVelocityField = false;
-		bool bHasForceField = false;
-
-		if (!PerSolverField.IsEmpty())
-		{
-			TArray<FVector>& SamplePositions = PerSolverField.GetSamplePositions();
-			TArray<FFieldContextIndex>& SampleIndices = PerSolverField.GetSampleIndices();
-
-			const uint32 NumParticles = Evolution->Particles().Size();
-
-			SamplePositions.SetNum(NumParticles,false);
-			SampleIndices.SetNum(NumParticles,false);
-
-			for (uint32 Index = 0; Index < NumParticles; ++Index)
-			{
-				SamplePositions[Index] = Evolution->Particles().X(Index) + LocalSpaceLocation;
-				SampleIndices[Index] = FFieldContextIndex(Index, Index);
-			}
-			PerSolverField.ComputeFieldLinearImpulse(GetTime());
-
-			if (PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearVelocity).Num() > 0)
-			{
-				bHasVelocityField = true;
-			}
-			if (PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearForce).Num() > 0)
-			{
-				bHasForceField = true;
-			}
-		}
+		const bool bHasVelocityField = !PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearVelocity).IsEmpty();
+		const bool bHasForceField = !PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearForce).IsEmpty();
 
 		const FVec3& AngularDisplacement = FictitiousAngularDisplacement[GroupId];
 		const bool bHasFictitiousForces = !AngularDisplacement.IsNearlyZero();
@@ -782,6 +755,27 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 	}
 }
 
+void FClothingSimulationSolver::UpdateSolverField()
+{
+	if (Evolution && !PerSolverField.IsEmpty())
+	{
+		TArray<FVector>& SamplePositions = PerSolverField.GetSamplePositions();
+		TArray<FFieldContextIndex>& SampleIndices = PerSolverField.GetSampleIndices();
+
+		const uint32 NumParticles = Evolution->Particles().Size();
+
+		SamplePositions.SetNum(NumParticles, false);
+		SampleIndices.SetNum(NumParticles, false);
+
+		for (uint32 Index = 0; Index < NumParticles; ++Index)
+		{
+			SamplePositions[Index] = Evolution->Particles().X(Index) + LocalSpaceLocation;
+			SampleIndices[Index] = FFieldContextIndex(Index, Index);
+		}
+		PerSolverField.ComputeFieldLinearImpulse(GetTime());
+	}
+}
+
 void FClothingSimulationSolver::Update(FReal InDeltaTime)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_Update);
@@ -802,6 +796,9 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 
 		// Clear external collisions so that they can be re-added
 		CollisionParticlesSize = 0;
+
+		// Compute the solver field forces/velocities for future use in the AddExternalForces
+		UpdateSolverField();
 
 		// Run sequential pre-updates first
 		for (FClothingSimulationCloth* const Cloth : Cloths)
