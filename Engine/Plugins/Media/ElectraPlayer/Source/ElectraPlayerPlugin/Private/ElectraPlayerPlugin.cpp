@@ -97,7 +97,8 @@ FElectraPlayerPlugin::~FElectraPlayerPlugin()
 
 Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOptions(EOptionType Type, const Electra::FVariantValue & Param)
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		FScopeLock lock(&PinnedHost->CallbackPointerLock);
 		if (PinnedHost->OptionInterface)
@@ -106,17 +107,19 @@ Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOption
 			{
 				case EOptionType::MaxVerticalStreamResolution:
 				{
-					return FVariantValue((int64)PinnedHost->OptionInterface->GetMediaOption(TEXT("MaxResolutionForMediaStreaming"), (int64)0));
+					static const FName MaxResolutionOptionKey = TEXT("MaxResolutionForMediaStreaming");
+					return FVariantValue((int64)PinnedHost->OptionInterface->GetMediaOption(MaxResolutionOptionKey, (int64)0));
 				}
 
 				case EOptionType::MaxBandwidthForStreaming:
 				{
-					return FVariantValue((int64)PinnedHost->OptionInterface->GetMediaOption(TEXT("ElectraMaxStreamingBandwidth"), (int64)0));
+					static const FName MaxBandwidthOptionKey = TEXT("ElectraMaxStreamingBandwidth");
+					return FVariantValue((int64)PinnedHost->OptionInterface->GetMediaOption(MaxBandwidthOptionKey, (int64)0));
 				}
 
 				case EOptionType::PlayListData:
 				{
-					const FName PlaylistOptionKey = TEXT("ElectraGetPlaylistData");
+					static const FName PlaylistOptionKey = TEXT("ElectraGetPlaylistData");
 					if (PinnedHost->OptionInterface->HasMediaOption(PlaylistOptionKey))
 					{
 						check(Param.IsType(FVariantValue::EDataType::TypeFString));
@@ -127,7 +130,7 @@ Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOption
 
 				case EOptionType::LicenseKeyData:
 				{
-					const FName LicenseKeyDataOptionKey = TEXT("ElectraGetLicenseKeyData");
+					static const FName LicenseKeyDataOptionKey = TEXT("ElectraGetLicenseKeyData");
 					if (PinnedHost->OptionInterface->HasMediaOption(LicenseKeyDataOptionKey))
 					{
 						check(Param.IsType(FVariantValue::EDataType::TypeFString));
@@ -138,7 +141,7 @@ Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOption
 
 				case EOptionType::PlaystartPosFromSeekPositions:
 				{
-					const FName PlaystartOptionKey = TEXT("ElectraGetPlaystartPosFromSeekPositions");
+					static const FName PlaystartOptionKey = TEXT("ElectraGetPlaystartPosFromSeekPositions");
 					if (PinnedHost->OptionInterface->HasMediaOption(PlaystartOptionKey))
 					{
 						check(Param.IsType(FVariantValue::EDataType::TypeSharedPointer));
@@ -170,7 +173,8 @@ Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOption
 
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::SendMediaEvent(EPlayerEvent Event)
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		FScopeLock lock(&PinnedHost->CallbackPointerLock);
 		if (PinnedHost->EventSink)
@@ -183,31 +187,34 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::SendMediaEvent(EPlayerEvent E
 
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::OnVideoFlush()
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		TRange<FTimespan> AllTime(FTimespan::MinValue(), FTimespan::MaxValue());
 		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> FlushSample;
 		while (PinnedHost->GetSamples().FetchVideo(AllTime, FlushSample))
-			;
+		{ }
 	}
 }
 
 
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::OnAudioFlush()
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		TRange<FTimespan> AllTime(FTimespan::MinValue(), FTimespan::MaxValue());
 		TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe> FlushSample;
 		while (PinnedHost->GetSamples().FetchAudio(AllTime, FlushSample))
-			;
+		{ }
 	}
 }
 
 
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentVideoFrame(const FVideoDecoderOutputPtr & InVideoFrame)
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		FElectraTextureSampleRef TextureSample = PinnedHost->OutputTexturePool.AcquireShared();
 		TextureSample->Initialize(InVideoFrame.Get());
@@ -218,7 +225,8 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentVideoFrame(const FVide
 
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentAudioFrame(const IAudioDecoderOutputPtr& InAudioFrame)
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		TSharedRef<FElectraPlayerAudioSample, ESPMode::ThreadSafe> AudioSample = PinnedHost->OutputAudioPool.AcquireShared();
 		AudioSample->Initialize(InAudioFrame);
@@ -228,7 +236,8 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentAudioFrame(const IAudi
 
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentMetadataSample(const IElectraBinarySampleRef& InMetadataSample)
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		PinnedHost->MediaSamples->AddMetadata(InMetadataSample);
 	}
@@ -237,7 +246,8 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentMetadataSample(const I
 
 bool FElectraPlayerPlugin::FPlayerAdapterDelegate::CanReceiveVideoSamples(int32 NumFrames)
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		return PinnedHost->MediaSamples->CanReceiveVideoSamples(NumFrames);
 	}
@@ -247,7 +257,8 @@ bool FElectraPlayerPlugin::FPlayerAdapterDelegate::CanReceiveVideoSamples(int32 
 
 bool FElectraPlayerPlugin::FPlayerAdapterDelegate::CanReceiveAudioSamples(int32 NumFrames)
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		return PinnedHost->MediaSamples->CanReceiveAudioSamples(NumFrames);
 	}
@@ -256,7 +267,8 @@ bool FElectraPlayerPlugin::FPlayerAdapterDelegate::CanReceiveAudioSamples(int32 
 
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::PrepareForDecoderShutdown()
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		PinnedHost->OutputTexturePool.PrepareForDecoderShutdown();
 	}
@@ -271,7 +283,8 @@ FString FElectraPlayerPlugin::FPlayerAdapterDelegate::GetVideoAdapterName() cons
 
 IElectraPlayerResourceDelegate* FElectraPlayerPlugin::FPlayerAdapterDelegate::GetResourceDelegate() const
 {
-	if (TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin())
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
 	{
 		return PinnedHost->PlayerResourceDelegate.Get();
 	}
