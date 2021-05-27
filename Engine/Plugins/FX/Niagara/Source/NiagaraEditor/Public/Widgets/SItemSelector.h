@@ -72,6 +72,7 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(const ItemKeyType&, FOnGetKeyForItem, const ItemType& /* Item */);
 	DECLARE_DELEGATE_RetVal_OneParam(const CategoryKeyType&, FOnGetKeyForCategory, const CategoryType& /* Category */);
 	DECLARE_DELEGATE_RetVal_OneParam(const SectionKeyType&, FOnGetKeyForSection, const SectionType& /* Section */);
+	DECLARE_DELEGATE_OneParam(FOnSuggestionUpdated, int32 /* Suggestion Index*/)
 
 public:
 	SLATE_BEGIN_ARGS(SItemSelector)
@@ -252,6 +253,7 @@ private:
 		virtual const FOnCompareItemsForSorting& GetOnCompareItemsForSorting() const = 0;
 
 		virtual const ItemKeyType GetKeyForItem(const ItemType& InItem) const = 0;
+		virtual bool ShouldHideSingleSection() const = 0;
 	};
 
 	class FItemSelectorItemViewModel
@@ -811,7 +813,39 @@ private:
 	public:
 	virtual void GetChildrenInternal(TArray<TSharedRef<FItemSelectorItemViewModel>>& OutChildren) const
 		{
-			OutChildren.Append(ChildSectionViewModels);
+			// if we want to hide a single section, we determine if either we have exactly one section, or if we have only one that passes
+			bool bAttachChildrenDirectly = false;
+			if(this->GetItemUtilities()->ShouldHideSingleSection() && ChildSectionViewModels.Num() >= 1)
+			{
+				int32 PassingSectionsCount = 0;
+				for(const TSharedRef<FSectionViewModel>& Section : ChildSectionViewModels)
+				{
+					if(Section->PassesFilter())
+					{
+						PassingSectionsCount++;
+					}
+				}
+
+				bAttachChildrenDirectly = ChildSectionViewModels.Num() == 1 || PassingSectionsCount == 1;
+			}
+
+			// just add the sections directly in case we have multiple that should be displayed or we don't want to hide a single section
+			if(!bAttachChildrenDirectly)
+			{
+				OutChildren.Append(ChildSectionViewModels);
+			}
+			else
+			{
+				// if we want to hide a single section, we need to perform an additional section pass test here
+				// because sections that wouldn't pass would get their children displayed regardless otherwise
+				for(const TSharedRef<FSectionViewModel>& Section : ChildSectionViewModels)
+				{
+					if(Section->PassesFilter())
+					{
+						Section->GetChildrenInternal(OutChildren);
+					}
+				}
+			}
 			OutChildren.Append(ChildCategoryViewModels);
 			OutChildren.Append(ChildItemViewModels);
 		}
@@ -832,9 +866,10 @@ private:
 			FOnCompareItemsForEquality InOnCompareItemsForEquality, FOnCompareItemsForSorting InOnCompareItemsForSorting,
 			FOnDoesItemMatchFilterText InOnDoesItemMatchFilterText, FOnGetItemWeight InOnGetItemWeight, 
 			FOnDoesItemPassCustomFilter InOnDoesItemPassCustomFilter, FOnDoesSectionPassCustomFilter InOnDoesSectionPassCustomFilter,
-			FOnGetSectionData InOnGetSectionData, TAttribute<bool> InHideSingleSection, bool bInPreseveExpansionOnRefresh, 
-			bool bInPreserveSelectionOnRefresh, FOnGetKeyForItem& InOnGetKeyForItem, FOnGetKeyForCategory& InOnGetKeyForCategory,
-			FOnGetKeyForSection& InOnGetKeyForSection)
+			FOnGetSectionData InOnGetSectionData, TAttribute<bool> InHideSingleSection,
+			bool bInPreseveExpansionOnRefresh, bool bInPreserveSelectionOnRefresh,
+			FOnGetKeyForItem& InOnGetKeyForItem, FOnGetKeyForCategory& InOnGetKeyForCategory, FOnGetKeyForSection& InOnGetKeyForSection,
+			FOnSuggestionUpdated InOnSuggestionUpdated)
 			: Items(InItems)
 			, DefaultCategoryPaths(InDefaultCategoryPaths)
 			, OnGetCategoriesForItem(InOnGetCategoriesForItem)
@@ -856,7 +891,35 @@ private:
 			, OnGetKeyForItem(InOnGetKeyForItem)
 			, OnGetKeyForCategory(InOnGetKeyForCategory)
 			, OnGetKeyForSection(InOnGetKeyForSection)
+			, OnSuggestionUpdated(InOnSuggestionUpdated)
 		{
+		}
+		
+		void UpdateSuggestedItem()
+		{
+			CurrentMaxWeight = INDEX_NONE;
+			CurrentSuggestionIndex = INDEX_NONE;
+			
+			FilteredFlattenedItems.Empty();
+			RootViewModel->FlattenChildren(FilteredFlattenedItems);
+					
+			TArray<FString> FilterTerms;
+			GetFilterText().ToString().ParseIntoArray(FilterTerms, TEXT(" "), true);
+			
+			if(FilterTerms.Num() > 0)
+			{
+				for(int32 ItemIndex = 0; ItemIndex < FilteredFlattenedItems.Num(); ItemIndex++)
+				{
+					int32 Weight = FilteredFlattenedItems[ItemIndex]->GetItemWeight(FilterTerms);
+					if(GetCurrentMaxWeight() < Weight)
+					{
+						UpdateCurrentMaxWeight(Weight);
+						UpdateCurrentSuggestionIndex(ItemIndex);
+					}
+				}
+			}
+			
+			OnSuggestionUpdated.ExecuteIfBound(CurrentSuggestionIndex);
 		}
 
 		const TArray<TSharedRef<FItemSelectorItemViewModel>>* GetRootItems()
@@ -875,48 +938,9 @@ private:
 				{
 					AddItemRecursive(Item);
 				}
-
-				// if we have a single section, do we want to remove it as it needlessly clutters the UI?
-				if (HideSingleSection.Get())
-				{
-					// determine if we are actively displaying only one section
-					int32 PassingSections = 0;
-					for (const TSharedRef<FSectionViewModel>& SectionViewModel : RootViewModel->GetSections())
-					{
-						if (SectionViewModel->PassesFilter())
-						{
-							PassingSections++;
-						}
-					}
-
-					// if we display one section, we reparent it to the root instead to get rid of the widget
-					if (PassingSections == 1)
-					{
-						RootViewModel->ReparentSectionItemsToRoot();
-					}
-					
-				}
 	
 				RootViewModel->SortChildren();
 				RootViewModel->GetChildren(RootTreeCategories);
-				
-				if(IsSearching())
-				{
-					RootViewModel->FlattenChildren(FilteredFlattenedItems);
-					
-					TArray<FString> FilterTerms;
-					GetFilterText().ToString().ParseIntoArray(FilterTerms, TEXT(" "), true);
-					
-					for(int32 ItemIndex = 0; ItemIndex < FilteredFlattenedItems.Num(); ItemIndex++)
-					{
-						int32 Weight = FilteredFlattenedItems[ItemIndex]->GetItemWeight(FilterTerms);
-						if(GetCurrentMaxWeight() < Weight)
-						{
-							UpdateCurrentMaxWeight(Weight);
-							UpdateCurrentSuggestionIndex(ItemIndex);
-						}
-					}
-				}
 			}
 			
 			return &RootTreeCategories;
@@ -1088,7 +1112,9 @@ private:
 		void SetFilterText(FText InFilterText, const TSharedPtr<STreeView<TSharedRef<FItemSelectorItemViewModel>>>& ItemTreeRef)
 		{
 			FilterText = InFilterText;
-			Refresh(Items, DefaultCategoryPaths, ItemTreeRef);
+			RootTreeCategories.Empty();
+			RootViewModel->GetChildren(RootTreeCategories);
+			UpdateSuggestedItem();
 		}
 
 		virtual bool IsFiltering() const override
@@ -1203,6 +1229,11 @@ private:
 			return OnGetKeyForItem.IsBound() ? OnGetKeyForItem.Execute(InItem) : ItemKeyType();
 		}
 
+		virtual bool ShouldHideSingleSection() const override
+		{
+			return HideSingleSection.Get();
+		}
+
 		bool CanCompareItems() const
 		{
 			return OnCompareItemsForSorting.IsBound();
@@ -1213,9 +1244,9 @@ private:
 			return OnCompareItemsForSorting.Execute(ItemA, ItemB);
 		}
 
-		virtual TSharedPtr<FItemSelectorItemViewModel> GetCurrentSuggestion() const
+		const TArray<TSharedRef<FItemSelectorItemContainerViewModel>>& GetFlattenedItems() const
 		{
-			return FilteredFlattenedItems[CurrentSuggestionIndex];
+			return FilteredFlattenedItems;
 		}
 
 		virtual int32 GetCurrentSuggestionIndex() const
@@ -1299,6 +1330,8 @@ private:
 			Items = InItems;
 			DefaultCategoryPaths = InDefaultCategoryPaths;
 			GetRootItems();
+
+			UpdateSuggestedItem();
 
 			TArray<TSharedRef<FItemSelectorItemViewModel>> Children;
 			// Set expansion state if necessary.
@@ -1401,6 +1434,8 @@ private:
 		TArray<TSharedRef<FItemSelectorItemContainerViewModel>> FilteredFlattenedItems;
 		FText FilterText;
 
+		FOnSuggestionUpdated OnSuggestionUpdated;
+		
 		TSet<CategoryKeyType> ExpandedCategoryKeyCache;
 		TSet<SectionKeyType> ExpandedSectionKeyCache;
 		TSet<ItemKeyType> SelectedItemKeyCache;
@@ -1558,6 +1593,8 @@ public:
 		SearchBoxAdjacentContentWidget = InArgs._SearchBoxAdjacentContent.Widget;
 		bIsSettingSelection = false;
 
+		OnSuggestionUpdated = FOnSuggestionUpdated::CreateSP(this, &SItemSelector::OnSuggestionChanged);
+		
 		// Bind the on refresh delegates.
 		for (auto DelegateIt = InArgs._RefreshItemSelectorDelegates.CreateConstIterator(); DelegateIt; ++DelegateIt)
 		{
@@ -1601,9 +1638,10 @@ public:
             OnCompareItemsForEquality, OnCompareItemsForSorting,
             OnDoesItemMatchFilterText, OnGetItemWeight, 
             OnDoesItemPassCustomFilter, OnDoesSectionPassCustomFilter,
-            OnGetSectionData, HideSingleSection, bPreserveExpansionOnRefresh,
-			bPreserveSelectionOnRefresh, OnGetKeyForItem, OnGetKeyForCategory,
-			OnGetKeyForSection);
+            OnGetSectionData, HideSingleSection,
+            bPreserveExpansionOnRefresh, bPreserveSelectionOnRefresh,
+			OnGetKeyForItem, OnGetKeyForCategory,	OnGetKeyForSection,
+			OnSuggestionUpdated);
 
 		// Search Box
 		SAssignNew(SearchBox, SSearchBox)
@@ -1658,7 +1696,6 @@ public:
 		ExpandSections();
 
 		SearchBox->SetOnKeyDownHandler(FOnKeyDown::CreateSP(this, &SItemSelector::OnKeyDown));
-
 	}
 
 	TArray<ItemType> GetSelectedItems()
@@ -1801,7 +1838,7 @@ public:
 				return FReply::Unhandled();
 			}
 
-			MarkActiveSuggestion();
+			OnSuggestionChanged(ViewModelUtilities->GetCurrentSuggestionIndex());
 			return FReply::Handled();
 		}
 		else
@@ -1843,8 +1880,8 @@ public:
 	void RefreshAllCurrentItems(bool bForceExpansion = false)
 	{
 		ViewModelUtilities->Refresh(Items, DefaultCategoryPaths, ItemTree);
-		// let's manually expand the tree here if we are still searching, as refreshing wipes the tree expansion state
-		if(IsSearching() || bForceExpansion)
+
+		if(bForceExpansion)
 		{
 			ExpandTree();
 		}
@@ -1913,15 +1950,6 @@ private:
 		return OnDoesItemMatchFilterText.IsBound() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
-	void MarkActiveSuggestion()
-	{
-		if(ViewModelUtilities->GetCurrentSuggestionIndex() != INDEX_NONE && ViewModelUtilities->GetCurrentSuggestionIndex() < ViewModelUtilities->NumFlattenedItems())
-		{
-			ItemTree->SetSelection(ViewModelUtilities->GetCurrentSuggestion().ToSharedRef(), ESelectInfo::OnNavigation);
-			ItemTree->RequestScrollIntoView(ViewModelUtilities->GetCurrentSuggestion().ToSharedRef());
-		}
-	}
-
 	void OnSearchTextChanged(const FText& SearchText)
 	{
 		if (ViewModelUtilities->GetFilterText().CompareTo(SearchText) != 0)
@@ -1929,10 +1957,9 @@ private:
 			if(!SearchText.IsEmpty())
 			{
 				ViewModelUtilities->SetFilterText(SearchText, ItemTree);
-				ExpandTree();
-				MarkActiveSuggestion();
-
 				ItemTree->RequestTreeRefresh();
+				
+				ExpandTree();
 			}
 			else
 			{
@@ -1940,9 +1967,10 @@ private:
 				// @todo cache expansion state. Not that easy since item data doesn't live across multiple refreshes.
 				// Even caching off the items doesn't help since their category information gets invalidated as internal cache gets cleared
 				ViewModelUtilities->SetFilterText(SearchText, ItemTree);
-				ExpandSections();
-
 				ItemTree->RequestTreeRefresh();
+
+				ItemTree->ClearExpandedItems();
+				ExpandSections();			
 			}
 		}
 	}
@@ -2055,6 +2083,19 @@ private:
 		}
 	}
 	
+	void OnSuggestionChanged(int32 SuggestionIndex)
+	{
+		if(SuggestionIndex != INDEX_NONE && SuggestionIndex < ViewModelUtilities->NumFlattenedItems())
+		{
+			ItemTree->SetSelection(ViewModelUtilities->GetFlattenedItems()[SuggestionIndex], ESelectInfo::OnNavigation);
+			ItemTree->RequestScrollIntoView(ViewModelUtilities->GetFlattenedItems()[SuggestionIndex]);
+		}
+		else
+		{
+			ItemTree->ClearSelection();
+		}
+	}
+	
 	void ExpandSections()
 	{
 		const TArray<TSharedRef<FSectionViewModel>>& ItemsToProcess = ViewModelUtilities->GetSections();
@@ -2109,6 +2150,7 @@ private:
 
 	TSharedPtr<FItemSelectorViewModel> ViewModelUtilities;
 	TSharedPtr<STreeView<TSharedRef<FItemSelectorItemViewModel>>> ItemTree;
+	FOnSuggestionUpdated OnSuggestionUpdated;
 
 	bool bIsSettingSelection;
 

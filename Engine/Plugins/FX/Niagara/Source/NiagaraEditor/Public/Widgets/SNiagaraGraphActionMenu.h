@@ -85,6 +85,7 @@ private:
 	TSharedRef<SWidget> OnGenerateWidgetForCategory(const FString& Category);
 	TSharedRef<SWidget> OnGenerateWidgetForItem(const TSharedPtr<FNiagaraAction_NewNode>& Item);
 	bool DoesItemPassCustomFilter(const TSharedPtr<FNiagaraAction_NewNode>& Item);
+	bool DoesSectionPassCustomFilter(const ENiagaraMenuSections& Section);
 	void OnItemActivated(const TSharedPtr<FNiagaraAction_NewNode>& Item);
 	void TriggerRefresh(const TMap<EScriptSource, bool>& SourceState);
 private:
