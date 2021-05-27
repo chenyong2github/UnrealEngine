@@ -284,6 +284,11 @@ namespace HordeServer.Models
 		public List<PerforceCluster> PerforceClusters { get; set; } = new List<PerforceCluster>();
 
 		/// <summary>
+		/// Maximum number of simultaneous conforms
+		/// </summary>
+		public int MaxConformCount { get; set; }
+
+		/// <summary>
 		/// Randomly generated JWT signing key
 		/// </summary>
 		public byte[]? JwtSigningKey { get; set; }

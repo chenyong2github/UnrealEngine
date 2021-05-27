@@ -6,14 +6,17 @@ using Google.Protobuf.WellKnownTypes;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using HordeServer.Api;
+using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace HordeServer.Tasks.Impl
@@ -21,31 +24,125 @@ namespace HordeServer.Tasks.Impl
 	/// <summary>
 	/// Generates tasks telling agents to sync their workspaces
 	/// </summary>
-	public class ConformTaskSource : TaskSourceBase<ConformTask>
+	public sealed class ConformTaskSource : TaskSourceBase<ConformTask>, IHostedService, IDisposable
 	{
 		DatabaseService DatabaseService;
+		IAgentCollection AgentCollection;
 		PoolService PoolService;
 		SingletonDocument<ConformList> ConformList;
 		PerforceLoadBalancer PerforceLoadBalancer;
 		ILogFileService LogService;
 		ILogger Logger;
+		ElectedTick? TickConformList;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="DatabaseService"></param>
+		/// <param name="AgentCollection"></param>
 		/// <param name="PoolService"></param>
 		/// <param name="LogService"></param>
 		/// <param name="PerforceLoadBalancer"></param>
 		/// <param name="Logger"></param>
-		public ConformTaskSource(DatabaseService DatabaseService, PoolService PoolService, ILogFileService LogService, PerforceLoadBalancer PerforceLoadBalancer, ILogger<ConformTaskSource> Logger)
+		public ConformTaskSource(DatabaseService DatabaseService, IAgentCollection AgentCollection, PoolService PoolService, ILogFileService LogService, PerforceLoadBalancer PerforceLoadBalancer, ILogger<ConformTaskSource> Logger)
 		{
 			this.DatabaseService = DatabaseService;
+			this.AgentCollection = AgentCollection;
 			this.PoolService = PoolService;
 			this.ConformList = new SingletonDocument<ConformList>(DatabaseService);
 			this.PerforceLoadBalancer = PerforceLoadBalancer;
 			this.LogService = LogService;
 			this.Logger = Logger;
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			TickConformList?.Dispose();
+		}
+
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken CancellationToken)
+		{
+			if (TickConformList == null)
+			{
+				TickConformList = new ElectedTick(DatabaseService, new ObjectId("60afc5cf555a9a76aff0a50c"), CleanConformListAsync, TimeSpan.FromMinutes(0.0), Logger);
+			}
+			return Task.CompletedTask;
+		}
+
+		/// <inheritdoc/>
+		public async Task StopAsync(CancellationToken CancellationToken)
+		{
+			if (TickConformList != null)
+			{
+				await TickConformList.DisposeAsync();
+				TickConformList = null;
+			}
+		}
+
+		/// <summary>
+		/// Clean up the conform list of any outdated entries
+		/// </summary>
+		/// <param name="CancellationToken">Cancellation token</param>
+		/// <returns>Async task</returns>
+		async Task CleanConformListAsync(CancellationToken CancellationToken)
+		{
+			DateTime UtcNow = DateTime.UtcNow;
+			DateTime LastCheckTimeUtc = UtcNow - TimeSpan.FromMinutes(30.0);
+
+			// Get the current state of the conform list
+			ConformList List = await ConformList.GetAsync();
+
+			// Update any leases that are older than LastCheckTimeUtc
+			Dictionary<ObjectId, bool> RemoveLeases = new Dictionary<ObjectId, bool>();
+			foreach (ConformListEntry Entry in List.Entries)
+			{
+				if (Entry.LastCheckTimeUtc < LastCheckTimeUtc)
+				{
+					IAgent? Agent = await AgentCollection.GetAsync(Entry.AgentId);
+
+					bool Remove = false;
+					if (Agent == null || !Agent.Leases.Any(x => x.Id == Entry.LeaseId))
+					{
+						Logger.LogWarning("Removing invalid lease from conform list: {AgentId} lease {LeaseId}", Entry.AgentId, Entry.LeaseId);
+						Remove = true;
+					}
+
+					RemoveLeases[Entry.LeaseId] = Remove;
+				}
+			}
+
+			// If there's anything to change, update the list
+			if (RemoveLeases.Count > 0)
+			{
+				await ConformList.UpdateAsync(List => UpdateConformList(List, UtcNow, RemoveLeases));
+			}
+		}
+
+		/// <summary>
+		/// Remove items from the conform list, and update timestamps for them
+		/// </summary>
+		/// <param name="List">The list to update</param>
+		/// <param name="UtcNow">Current time</param>
+		/// <param name="RemoveLeases">List of leases to update. Entries with values set to true will be removed, entries with values set to false will have their timestamp updated.</param>
+		static void UpdateConformList(ConformList List, DateTime UtcNow, Dictionary<ObjectId, bool> RemoveLeases)
+		{
+			for (int Idx = 0; Idx < List.Entries.Count; Idx++)
+			{
+				bool Remove;
+				if (RemoveLeases.TryGetValue(List.Entries[Idx].LeaseId, out Remove))
+				{
+					if (Remove)
+					{
+						List.Entries.RemoveAt(Idx--);
+					}
+					else if (List.Entries[Idx].LastCheckTimeUtc < UtcNow)
+					{
+						List.Entries[Idx].LastCheckTimeUtc = UtcNow;
+					}
+				}
+			}
 		}
 
 		/// <inheritdoc/>
@@ -60,11 +157,12 @@ namespace HordeServer.Tasks.Impl
 			if (Agent.Leases.Count == 0)
 			{
 				ObjectId LeaseId = ObjectId.GenerateNewId();
-				if (await AllocateConformLeaseAsync(LeaseId))
+				if (await AllocateConformLeaseAsync(Agent.Id, LeaseId))
 				{
 					ConformTask Task = new ConformTask();
 					if (!await GetWorkspacesAsync(Agent, Task.Workspaces))
 					{
+						await ReleaseConformLeaseAsync(LeaseId);
 						return null;
 					}
 
@@ -112,19 +210,26 @@ namespace HordeServer.Tasks.Impl
 		/// <summary>
 		/// Atempt to allocate a conform resource for the given lease
 		/// </summary>
+		/// <param name="AgentId">The agent id</param>
 		/// <param name="LeaseId">The lease id</param>
 		/// <returns>True if the resource was allocated, false otherwise</returns>
-		private async Task<bool> AllocateConformLeaseAsync(ObjectId LeaseId)
+		private async Task<bool> AllocateConformLeaseAsync(AgentId AgentId, ObjectId LeaseId)
 		{
+			Globals Globals = await DatabaseService.GetGlobalsAsync();
 			for (; ; )
 			{
 				ConformList CurrentValue = await ConformList.GetAsync();
-				if (CurrentValue.MaxCount != 0 && CurrentValue.LeaseIds.Count >= CurrentValue.MaxCount)
+				if (Globals.MaxConformCount != 0 && CurrentValue.Entries.Count >= Globals.MaxConformCount)
 				{
 					return false;
 				}
 
-				CurrentValue.LeaseIds.Add(LeaseId);
+				ConformListEntry Entry = new ConformListEntry();
+				Entry.AgentId = AgentId;
+				Entry.LeaseId = LeaseId;
+				Entry.LastCheckTimeUtc = DateTime.UtcNow;
+				CurrentValue.Entries.Add(Entry);
+
 				if (await ConformList.TryUpdateAsync(CurrentValue))
 				{
 					Logger.LogInformation("Added conform lease {LeaseId}", LeaseId);
@@ -143,7 +248,7 @@ namespace HordeServer.Tasks.Impl
 			for (; ; )
 			{
 				ConformList CurrentValue = await ConformList.GetAsync();
-				if (!CurrentValue.LeaseIds.Remove(LeaseId))
+				if (CurrentValue.Entries.RemoveAll(x => x.LeaseId == LeaseId) == 0)
 				{
 					Logger.LogInformation("Conform lease {LeaseId} is not in singelton", LeaseId);
 					break;
