@@ -44,7 +44,12 @@
 #endif
 
 #define UE_SSE_FLOAT_ALIGNMENT	16
+
+#if UE_PLATFORM_MATH_USE_AVX
+#define UE_SSE_DOUBLE_ALIGNMENT 32 // required for __m256d
+#else
 #define UE_SSE_DOUBLE_ALIGNMENT 16
+#endif
 
 #include "Math/sse_mathfun.h"
 
