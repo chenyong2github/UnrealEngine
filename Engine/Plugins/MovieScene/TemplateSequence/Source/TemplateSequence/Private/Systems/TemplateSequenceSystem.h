@@ -68,8 +68,10 @@ public:
 	using FPropertyScaleKey = TTuple<UE::MovieScene::FInstanceHandle, FGuid, FName>;
 	using FPropertyScaleValue = TTuple<ETemplateSectionPropertyScaleType, float>;
 
+	using FPropertyScaleValueArray = TArray<FPropertyScaleValue, TInlineAllocator<2>>;
+
 	void AddPropertyScale(const FPropertyScaleKey& Key, const FPropertyScaleValue& Value);
-	const FPropertyScaleValue* FindPropertyScale(const FPropertyScaleKey& Key);
+	void FindPropertyScales(const FPropertyScaleKey& Key, FPropertyScaleValueArray& OutValues) const;
 
 private:
 
@@ -77,6 +79,11 @@ private:
 	
 private:
 
-	TMap<FPropertyScaleKey, FPropertyScaleValue> PropertyScales;
+	struct FMultiPropertyScaleValue
+	{
+		FPropertyScaleValueArray Values;
+	};
+
+	TMap<FPropertyScaleKey, FMultiPropertyScaleValue> PropertyScales;
 };
 
