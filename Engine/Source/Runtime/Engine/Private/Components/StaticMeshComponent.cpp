@@ -2520,17 +2520,17 @@ bool UStaticMeshComponent::IsHLODRelevant() const
 		return false;
 	}
 
-	if (IsVisualizationComponent())
-	{
-		return false;
-	}
-
 	if (Mobility == EComponentMobility::Movable)
 	{
 		return false;
 	}
 
 #if WITH_EDITORONLY_DATA
+	if (IsVisualizationComponent())
+	{
+		return false;
+	}
+
 	if (!bEnableAutoLODGeneration)
 	{
 		return false;
