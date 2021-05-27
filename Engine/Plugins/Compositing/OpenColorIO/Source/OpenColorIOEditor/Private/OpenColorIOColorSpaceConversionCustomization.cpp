@@ -17,7 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "OpenColorIOColorSpaceConversionCustomization"
 
-void FOpenColorIOColorSpaceConversionCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+void FOpenColorIOColorConversionSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	ColorConversionProperty = InPropertyHandle;
 
@@ -65,7 +65,7 @@ void FOpenColorIOColorSpaceConversionCustomization::CustomizeHeader(TSharedRef<I
 	}
 }
 
-void FOpenColorIOColorSpaceConversionCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FOpenColorIOColorConversionSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	TArray<void*> RawData;
 	ColorConversionProperty->AccessRawData(RawData);
@@ -105,7 +105,7 @@ void FOpenColorIOColorSpaceConversionCustomization::CustomizeChildren(TSharedRef
 	InStructPropertyHandle->MarkHiddenByCustomization();
 }
 
-void FOpenColorIOColorSpaceConversionCustomization::AddColorSpaceRow(FDetailWidgetRow& InWidgetRow, TSharedRef<IPropertyHandle> InChildHandle, IPropertyTypeCustomizationUtils& InCustomizationUtils) const
+void FOpenColorIOColorConversionSettingsCustomization::AddColorSpaceRow(FDetailWidgetRow& InWidgetRow, TSharedRef<IPropertyHandle> InChildHandle, IPropertyTypeCustomizationUtils& InCustomizationUtils) const
 {
 	TSharedPtr<IPropertyUtilities> PropertyUtils = InCustomizationUtils.GetPropertyUtilities();
 	TSharedPtr<SResetToDefaultMenu> ResetToDefaultMenu;
@@ -159,7 +159,7 @@ void FOpenColorIOColorSpaceConversionCustomization::AddColorSpaceRow(FDetailWidg
 		ResetToDefaultMenu->AddProperty(InChildHandle);
 }
 
-TSharedRef<SWidget> FOpenColorIOColorSpaceConversionCustomization::HandleColorSpaceComboButtonMenuContent(TSharedPtr<IPropertyHandle> InPropertyHandle) const
+TSharedRef<SWidget> FOpenColorIOColorConversionSettingsCustomization::HandleColorSpaceComboButtonMenuContent(TSharedPtr<IPropertyHandle> InPropertyHandle) const
 {
 	TArray<void*> RawData;
 	ColorConversionProperty->AccessRawData(RawData);

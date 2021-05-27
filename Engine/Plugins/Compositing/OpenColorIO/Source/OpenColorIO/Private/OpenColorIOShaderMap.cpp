@@ -87,7 +87,7 @@ void FOpenColorIOShaderMapId::GetOpenColorIOHash(FSHAHash& OutHash) const
 {
 	FSHA1 HashState;
 
-	HashState.UpdateWithString(*ShaderCodeHash, ShaderCodeHash.Len());
+	HashState.UpdateWithString(*ShaderCodeAndConfigHash, ShaderCodeAndConfigHash.Len());
 	HashState.Update((const uint8*)&FeatureLevel, sizeof(FeatureLevel));
 
 	HashState.Final();
@@ -102,7 +102,7 @@ void FOpenColorIOShaderMapId::GetOpenColorIOHash(FSHAHash& OutHash) const
 */
 bool FOpenColorIOShaderMapId::operator==(const FOpenColorIOShaderMapId& InReferenceSet) const
 {
-	if (  ShaderCodeHash != InReferenceSet.ShaderCodeHash
+	if (  ShaderCodeAndConfigHash != InReferenceSet.ShaderCodeAndConfigHash
 		|| FeatureLevel != InReferenceSet.FeatureLevel)
 	{
 		return false;
@@ -134,7 +134,7 @@ bool FOpenColorIOShaderMapId::operator==(const FOpenColorIOShaderMapId& InRefere
 void FOpenColorIOShaderMapId::AppendKeyString(FString& OutKeyString) const
 {
 #if WITH_EDITOR
-	OutKeyString += ShaderCodeHash;
+	OutKeyString += ShaderCodeAndConfigHash;
 	OutKeyString += TEXT("_");
 
 	FString FeatureLevelString;
@@ -261,7 +261,7 @@ FShader* FOpenColorIOShaderType::FinishCompileShader(
  */
 FOpenColorIOShaderMap* FOpenColorIOShaderMap::FindId(const FOpenColorIOShaderMapId& InShaderMapId, EShaderPlatform InPlatform)
 {
-	check(!InShaderMapId.ShaderCodeHash.IsEmpty());
+	check(!InShaderMapId.ShaderCodeAndConfigHash.IsEmpty());
 	return GIdToOpenColorIOShaderMap[InPlatform].FindRef(InShaderMapId);
 }
 
