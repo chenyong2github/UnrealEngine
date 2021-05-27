@@ -18,12 +18,25 @@
 #include "ProjectionCommon.ush"
 
 #ifndef VSM_GENERATE_STATS
-	#define VSM_GENERATE_STATS 0
+#define VSM_GENERATE_STATS 0
 #endif // VSM_GENERATE_STATS
 
 #if VSM_GENERATE_STATS
 RWStructuredBuffer<uint> OutStatsBuffer;
 #endif // VSM_GENERATE_STATS
+
+void StatsBufferWrite(uint Index, uint Value)
+{
+#if VSM_GENERATE_STATS
+	OutStatsBuffer[Index] = Value;
+#endif
+}
+void StatsBufferInterlockedAdd(uint Index, uint Value)
+{
+#if VSM_GENERATE_STATS
+	InterlockedAdd(OutStatsBuffer[Index], Value);
+#endif
+}
 
 // Type of input data consume by the page allocation (i.e., data read from the source buffer: Gbuffer, HairStrands data, ...)
 #define INPUT_TYPE_GBUFFER 0
@@ -449,10 +462,7 @@ void CreatePageMapping( uint ShadowMapID, uint MipLevel, uint2 PageAddress, uint
 	{
 		uint pPageIndex = 0;
 		InterlockedAdd( AllocatedPagesOffset[0], 1, pPageIndex );
-
-#if VSM_GENERATE_STATS
-		InterlockedAdd(OutStatsBuffer[0], 1);
-#endif // VSM_GENERATE_STATS
+		StatsBufferInterlockedAdd( 0, 1 );
 
 		if (pPageIndex >= VirtualShadowMap.MaxPhysicalPages)
 		{
@@ -474,32 +484,24 @@ void CreatePageMapping( uint ShadowMapID, uint MipLevel, uint2 PageAddress, uint
 		FCachedPageInfo CachedPageInfo;
 
 		CachedPageInfo.PhysPageAddress = uint2(VSM_INVALID_PHYSICAL_PAGE_ADDRESS, VSM_INVALID_PHYSICAL_PAGE_ADDRESS);
-		CachedPageInfo.DepthOffset = 0.0f;
-		CachedPageInfo.Padding = 0.0f;
 
 #if HAS_CACHE_DATA
 		if (ShadowMapCacheData[ShadowMapID].VirtualShadowMapId != INDEX_NONE)
 		{
-			CachedPageInfo.DepthOffset = ShadowMapCacheData[ShadowMapID].DepthOffset;
-
 			int2 PrevPageAddress = int2(PageAddress) - (ShadowMapCacheData[ShadowMapID].SmPageOffset >> MipLevel);
-			// A page cannot be cached if it is above the alignment level, or the light has not moved
-			// This means that for small movement a CSM can cache everything as well.
-			bool bCanCache = MipLevel < VSM_CACHE_ALIGNMENT_LEVEL || all(ShadowMapCacheData[ShadowMapID].SmPageOffset == 0);
-			if (all(uint2(PrevPageAddress) < CalcLevelDimsPages(MipLevel)) && bCanCache)
+			if (all(uint2(PrevPageAddress) < CalcLevelDimsPages(MipLevel)))
 			{
 				uint PrevOffset = CalcPageOffset(ShadowMapCacheData[ShadowMapID].VirtualShadowMapId, MipLevel, PrevPageAddress);
 				uint PrevPageFlag = PrevPageFlags[PrevOffset];
 				// True if the page had moving stuff drawn into it
 				bool PrevDynPageFlag = PrevDynamicCasterPageFlags[PrevOffset] != 0;
 
-#if VSM_GENERATE_STATS
 				// stats for those pages who die from moving stuff
 				if (PrevPageFlag && PrevDynPageFlag)
 				{
-					InterlockedAdd(OutStatsBuffer[2], 1);
+					StatsBufferInterlockedAdd(2, 1);
 				}
-#endif // VSM_GENERATE_STATS
+
 				// If it was either rendered or cached previous frame, and not drawn to by a moving thing we may re-use
 				if (PrevPageFlag && !PrevDynPageFlag)
 				{
@@ -509,53 +511,10 @@ void CreatePageMapping( uint ShadowMapID, uint MipLevel, uint2 PageAddress, uint
 					FPhysicalPageMetaData MetaData = PrevPhysicalPageMetaData[PhysPageAddressToIndex(PrevPhysAddress)];
 					if (MetaData.State == VSM_PHYSICAL_PAGE_STATE_RENDERED)
 					{
-// 'rand robin' invalidation
-#if 0
-						// If cached for too long invalidate
-						if (MetaData.Age > 3 + (PageOffset & 3))
-						{
-#if VSM_GENERATE_STATS
-							InterlockedAdd(OutStatsBuffer[4], 1);
-#endif // VSM_GENERATE_STATS
-						}
-						else
-#endif
-						{
-#if VSM_GENERATE_STATS
-							InterlockedAdd(OutStatsBuffer[1], 1);
-#endif // VSM_GENERATE_STATS
-
-							CachedPageInfo.PhysPageAddress = PrevPhysAddress;
-						}
+						StatsBufferInterlockedAdd(1, 1);
+						CachedPageInfo.PhysPageAddress = PrevPhysAddress;
 					}
 				}
-// Needs more work (must disable page AND ensure fallback page is enabled)!
-#if 0
-				else
-				{
-					// Find fallback
-					uint PrevIncCoarserPageFlag = PrevPageFlag;
-					uint PrevCoarseOffset = 0;
-					// Check coarser levels (up to 4 levels away, arbitrary, hardcoded)
-					for (uint CoarseMipLevel = MipLevel + 1; CoarseMipLevel < min(MipLevel + 4, VSM_MAX_MIP_LEVELS); ++CoarseMipLevel)
-					{
-						PrevCoarseOffset = CalcPageOffset(ShadowMapCacheData[ShadowMapID].VirtualShadowMapId, CoarseMipLevel, PrevPageAddress >> (CoarseMipLevel - MipLevel));
-						uint PrevCoarserPageFlag = PrevPageFlags[PrevCoarseOffset];
-						if (PrevCoarserPageFlag)
-						{
-							PrevIncCoarserPageFlag = 1;
-							break;
-						}
-					}
-					if (PrevIncCoarserPageFlag)
-					{
-#if VSM_GENERATE_STATS
-#endif // VSM_GENERATE_STATS
-						InterlockedAdd(OutStatsBuffer[2], 1);
-						CachedPageInfo.PhysPageAddress = ShadowDecodePageTable(PrevPageTable[PrevCoarseOffset]).PageIndex;
-					}
-				}
-#endif
 			}
 		}
 #endif // HAS_CACHE_DATA
@@ -587,12 +546,10 @@ void CreatePageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : SV
 		return;
 	}
 
-#if VSM_GENERATE_STATS
 	if (all(ThreadId == 0))
 	{
-		OutStatsBuffer[3] = VirtualShadowMap.NumShadowMaps;
+		StatsBufferWrite(3, VirtualShadowMap.NumShadowMaps);
 	}
-#endif // VSM_GENERATE_STATS
 
 	uint Level0RowMask = ((1U << VSM_LOG2_LEVEL0_DIM_PAGES_XY) - 1U);
 
@@ -830,10 +787,10 @@ void ClearPhysicalPages( uint3 TileThreadID : SV_GroupThreadID, uint3 TileIndex 
 	{
 		const uint2 TileOffset = (CachedPageInfo.PhysPageAddress << uint2(VSM_LOG2_PAGE_SIZE, VSM_LOG2_PAGE_SIZE)) + (uint2(LocalTileX, LocalTileY) << uint2(LOG2_TILE_SIZE, LOG2_TILE_SIZE));
 		const uint2 BasePos = TileOffset + (TileThreadID.xy << 1u);
-		ClearValue[0] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(0, 0)]) + CachedPageInfo.DepthOffset));
-		ClearValue[1] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(1, 0)]) + CachedPageInfo.DepthOffset));
-		ClearValue[2] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(0, 1)]) + CachedPageInfo.DepthOffset));
-		ClearValue[3] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(1, 1)]) + CachedPageInfo.DepthOffset));
+		ClearValue[0] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(0, 0)])));
+		ClearValue[1] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(1, 0)])));
+		ClearValue[2] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(0, 1)])));
+		ClearValue[3] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(1, 1)])));
 
 		MetaData = PrevPhysicalPageMetaData[PhysPageAddressToIndex(CachedPageInfo.PhysPageAddress)];
 		// This data has survived one more frame
@@ -860,7 +817,7 @@ void ClearPhysicalPages( uint3 TileThreadID : SV_GroupThreadID, uint3 TileIndex 
 
 
 /**
- * Invoke to update the sate of all pages after copying & clearing has been performed.
+ * Invoke to update the state of all pages after copying & clearing has been performed.
  */
 [numthreads(64, 1, 1)]
 void UpdatePhysicalPageMetaDataClearState(uint PageIndex : SV_DispatchThreadID)
@@ -941,7 +898,7 @@ void InitializePhysicalPagesPS(uint PageIndex : TEXCOORD0, float4 SVPos : SV_POS
 	if (CachedPageInfo.PhysPageAddress.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS)
 	{
 		const uint2 CachedPos = CachedPageInfo.PhysPageAddress * VSM_PAGE_SIZE + PagePixelPos;
-		ClearValue = max(0.0f, PrevPhysicalPagePoolHw.Load(int3(CachedPos, 0)) + CachedPageInfo.DepthOffset);
+		ClearValue = max(0.0f, PrevPhysicalPagePoolHw.Load(int3(CachedPos, 0)));
 	}
 #endif // HAS_CACHE_DATA
 
@@ -1209,8 +1166,6 @@ void AllocatePagesUsingRects(uint GroupThreadId : SV_GroupThreadID, uint2 Dispat
 						FCachedPageInfo CachedPageInfo;
 
 						CachedPageInfo.PhysPageAddress = uint2(VSM_INVALID_PHYSICAL_PAGE_ADDRESS, VSM_INVALID_PHYSICAL_PAGE_ADDRESS);
-						CachedPageInfo.DepthOffset = 0.0f;
-						CachedPageInfo.Padding = 0.0f;
 						// Store data that is used later in the process (for each physical page).
 						OutCachedPageInfos[pPage.y * VirtualShadowMap.PhysicalPoolSizePages.x + pPage.x] = CachedPageInfo;
 

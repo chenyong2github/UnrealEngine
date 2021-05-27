@@ -19,7 +19,6 @@ static TAutoConsoleVariable<int32> CVarAccumulateStats(
 	ECVF_RenderThreadSafe
 );
 
-
 static TAutoConsoleVariable<int32> CVarCacheVirtualSMs(
 	TEXT("r.Shadow.Virtual.Cache"),
 	1,
@@ -32,43 +31,78 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	int32 VirtualShadowMapId,
 	const FMatrix &WorldToLight,
 	FIntPoint PageSpaceLocation,
-	float GlobalDepth)
+	float LevelRadius,
+	float ViewCenterZ,
+	float ViewRadiusZ)
 {
-	// Swap previous frame data over.
-	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
-	PrevPageSpaceLocation = CurrentPageSpaceLocation;
-	PrevShadowMapGlobalDepth = CurrentShadowMapGlobalDepth;
+	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE);
 	
-	if (WorldToLight != ClipmapCacheValidKey.WorldToLight)
+	if (bCacheValid && WorldToLight != Clipmap.WorldToLight)
 	{
-		PrevVirtualShadowMapId = INDEX_NONE;
-		ClipmapCacheValidKey.WorldToLight = WorldToLight;
+		bCacheValid = false;
+		//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) due to light movement"), VirtualShadowMapId);
 	}
 
+#if 0
+	// Disable cache panning for directional lights (debug)
+	if (bCacheValid)
+	{
+		bCacheValid = bCacheValid && PageSpaceLocation.X == PrevPageSpaceLocation.X;
+		bCacheValid = bCacheValid && PageSpaceLocation.Y == PrevPageSpaceLocation.Y;
+		if (!bCacheValid)
+		{
+			//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) with page space location %d,%d (Prev %d, %d)"),
+			//	VirtualShadowMapId, PageSpaceLocation.X, PageSpaceLocation.Y, PrevPageSpaceLocation.X, PrevPageSpaceLocation.Y);
+		}
+	}
+#endif
+
+	// Invalidate if the new Z radius strayed too close/outside the guardband of the cached shadow map
+	if (bCacheValid)
+	{
+		float DeltaZ = FMath::Abs(ViewCenterZ - Clipmap.ViewCenterZ);
+		if ((DeltaZ + LevelRadius) > 0.9f * Clipmap.ViewRadiusZ)
+		{
+			bCacheValid = false;
+			//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) due to depth range movement"), VirtualShadowMapId);
+		}
+	}
+
+	if (bCacheValid)
+	{
+		PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
+	}
+	else
+	{
+		// New cached level
+		PrevVirtualShadowMapId = INDEX_NONE;
+		Clipmap.WorldToLight = WorldToLight;
+		Clipmap.ViewCenterZ = ViewCenterZ;
+		Clipmap.ViewRadiusZ = ViewRadiusZ;
+	}
+		
+	PrevPageSpaceLocation = CurrentPageSpaceLocation;
+	
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	CurrentPageSpaceLocation = PageSpaceLocation;
-	CurrentShadowMapGlobalDepth = GlobalDepth;
 }
 
-void FVirtualShadowMapCacheEntry::Update(int32 VirtualShadowMapId, const FWholeSceneProjectedShadowInitializer &InCacheValidKey)
+void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FWholeSceneProjectedShadowInitializer &InCacheValidKey)
 {
 	// Swap previous frame data over.
 	PrevPageSpaceLocation = CurrentPageSpaceLocation;
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
-	PrevShadowMapGlobalDepth = CurrentShadowMapGlobalDepth;
 
 	// Check cache validity based of shadow setup
-	if (!CacheValidKey.IsCachedShadowValid(InCacheValidKey))
+	if (!LocalCacheValidKey.IsCachedShadowValid(InCacheValidKey))
 	{
 		PrevVirtualShadowMapId = INDEX_NONE;
 		//UE_LOG(LogRenderer, Display, TEXT("Invalidated!"));
 	}
-
-	CacheValidKey = InCacheValidKey;
+	LocalCacheValidKey = InCacheValidKey;
 
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	PrevPageSpaceLocation = CurrentPageSpaceLocation = FIntPoint(0, 0);
-	PrevShadowMapGlobalDepth = CurrentShadowMapGlobalDepth = 0.0f;
 }
 
 

@@ -67,6 +67,8 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 {
 	check(WorldToLightRotationMatrix.GetOrigin() == FVector(0, 0, 0));	// Should not contain translation or scaling
 
+	const bool bCacheValid = VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->IsValid();
+
 	const FMatrix FaceMatrix(
 		FPlane( 0, 0, 1, 0 ),
 		FPlane( 0, 1, 0, 0 ),
@@ -103,14 +105,13 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	for (int32 Index = 0; Index < LevelCount; ++Index)
 	{
 		FLevelData& Level = LevelData[Index];
-		const int32 LevelIndex = Index + FirstLevel;		// Absolute (virtual) level index
+		const int32 AbsoluteLevel = Index + FirstLevel;		// Absolute (virtual) level index
 
 		// TODO: Allocate these as a chunk if we continue to use one per clipmap level
-		// This isn't actually required at the moment but enforcing it keeps optimization options open
 		Level.VirtualShadowMap = VirtualShadowMapArray.Allocate();
 		ensure(Index == 0 || (Level.VirtualShadowMap->ID == (LevelData[Index-1].VirtualShadowMap->ID + 1)));
 
-		const float RawLevelRadius = GetLevelRadius(LevelIndex);
+		const float RawLevelRadius = GetLevelRadius(AbsoluteLevel);
 
 		float HalfLevelDim = 2.0f * RawLevelRadius;
 		float SnapSize = RawLevelRadius;
@@ -128,29 +129,50 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 		const FVector SnappedWorldCenter = ViewToWorldRotationMatrix.TransformPosition(ViewCenter);
 
-		const float ZScale = 0.5f / RawLevelRadius;
-		const float ZOffset = RawLevelRadius;
-
 		Level.WorldCenter = SnappedWorldCenter;
-		Level.ViewToClip = FReversedZOrthoMatrix(HalfLevelDim, HalfLevelDim, ZScale, ZOffset);
 		Level.CornerOffset = CornerOffset;
 
-		if (VirtualShadowMapArrayCacheManager)
+		// Check if we have a cache entry for this level
+		// If we do and it covers our required depth range, we can use cached pages. Otherwise we need to invalidate.
+		TSharedPtr<FVirtualShadowMapCacheEntry> CacheEntry = nullptr;
+		if (bCacheValid)
 		{
 			// NOTE: We use the absolute (virtual) level index so that the caching is robust against changes to the chosen level range
-			TSharedPtr<FVirtualShadowMapCacheEntry> CacheEntry = VirtualShadowMapArrayCacheManager->FindCreateCacheEntry(LightSceneInfo.Id, LevelIndex);
-			if (CacheEntry)
-			{
-				// We snap to half the size of the VSM at each level
-				check((FVirtualShadowMap::Level0DimPagesXY & 1) == 0);
-				FIntPoint PageOffset(CornerOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2));
-				float DepthOffset = -ViewCenter.Z * ZScale;
-
-				CacheEntry->UpdateClipmap(Level.VirtualShadowMap->ID, WorldToLightRotationMatrix, PageOffset, DepthOffset);
-
-				Level.VirtualShadowMap->VirtualShadowMapCacheEntry = CacheEntry;
-			}
+			CacheEntry = VirtualShadowMapArrayCacheManager->FindCreateCacheEntry(LightSceneInfo.Id, AbsoluteLevel);
 		}
+
+		// We expand the depth range of the clipmap level to allow for camera movement without having to invalidate cached shadow data
+		// (See VirtualShadowMapCacheManager::UpdateClipmap for invalidation logic.)
+		// Hard-coded constant currently; should probably always be at least 2.0f, otherwise the cache will be frequently invalidated.
+		const float ViewRadiusZMultiplier = 5.0f;
+
+		float ViewRadiusZ = RawLevelRadius * ViewRadiusZMultiplier;
+		float ViewCenterDeltaZ = 0.0f;
+
+		if (CacheEntry)
+		{
+			// We snap to half the size of the VSM at each level
+			check((FVirtualShadowMap::Level0DimPagesXY & 1) == 0);
+			FIntPoint PageOffset(CornerOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2));
+
+			CacheEntry->UpdateClipmap(Level.VirtualShadowMap->ID,
+				WorldToLightRotationMatrix,
+				PageOffset,
+				RawLevelRadius,
+				ViewCenter.Z,
+				ViewRadiusZ);
+
+			Level.VirtualShadowMap->VirtualShadowMapCacheEntry = CacheEntry;
+
+			// Update min/max Z based on the cached page (if present and valid)
+			// We need to ensure we use a consistent depth range as the camera moves for each level
+			ViewCenterDeltaZ = ViewCenter.Z - CacheEntry->Clipmap.ViewCenterZ;
+			ViewRadiusZ = CacheEntry->Clipmap.ViewRadiusZ;
+		}
+
+		const float ZScale = 0.5f / ViewRadiusZ;
+		const float ZOffset = ViewRadiusZ + ViewCenterDeltaZ;
+		Level.ViewToClip = FReversedZOrthoMatrix(HalfLevelDim, HalfLevelDim, ZScale, ZOffset);
 	}
 }
 

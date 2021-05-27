@@ -18,15 +18,11 @@ struct FShadowMapCacheData
 	int2 SmPageOffset;
 	// ID of the corresponding virtual SM in the chached data 
 	int VirtualShadowMapId;
-	// Depth offset to add to SM texels when copying
-	float DepthOffset;
 };
 
 struct FCachedPageInfo
 {
 	uint2 PhysPageAddress;
-	float DepthOffset;
-	float Padding;
 };
 
 #if HAS_CACHE_DATA

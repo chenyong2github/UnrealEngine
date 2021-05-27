@@ -24,8 +24,6 @@ struct FShadowMapCacheData
 	FIntPoint SmPageOffset;
 	// ID of the corresponding virtual SM in the chached data 
 	int32 VirtualShadowMapId;
-	// Depth offset to add to SM texels when copying
-	float DepthOffset;
 };
 
 
@@ -35,12 +33,9 @@ struct FPhysicalPageMetaData
 	uint32 Age;
 };
 
-
 struct FCachedPageInfo
 {
 	FIntPoint PhysPageAddress;
-	float DepthOffset;
-	float Padding;
 };
 
 int32 GEnableVirtualShadowMaps = 0;
@@ -225,13 +220,11 @@ static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray
 		{
 			ShadowMapCacheData[SmIndex].SmPageOffset = VirtualShadowMapCacheEntry->GetPageSpaceOffset();
 			ShadowMapCacheData[SmIndex].VirtualShadowMapId = VirtualShadowMapCacheEntry->PrevVirtualShadowMapId;
-			ShadowMapCacheData[SmIndex].DepthOffset = VirtualShadowMapCacheEntry->GetDepthOffset();
 		}
 		else
 		{
 			ShadowMapCacheData[SmIndex].SmPageOffset = FIntPoint(0, 0);
 			ShadowMapCacheData[SmIndex].VirtualShadowMapId = INDEX_NONE;
-			ShadowMapCacheData[SmIndex].DepthOffset = 0.0f;
 		}
 	}
 	CacheDataParameters.ShadowMapCacheData = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.ShadowMapCacheData"), ShadowMapCacheData));
@@ -340,7 +333,6 @@ void FVirtualShadowMapArray::SetShaderDefines(FShaderCompilerEnvironment& OutEnv
 	OutEnvironment.SetDefine(TEXT("VSM_VIRTUAL_MAX_RESOLUTION_XY"), FVirtualShadowMap::VirtualMaxResolutionXY);
 	OutEnvironment.SetDefine(TEXT("VSM_RASTER_WINDOW_PAGES"), FVirtualShadowMap::RasterWindowPages);
 	OutEnvironment.SetDefine(TEXT("VSM_PAGE_TABLE_SIZE"), FVirtualShadowMap::PageTableSize);
-	OutEnvironment.SetDefine(TEXT("VSM_CACHE_ALIGNMENT_LEVEL"), FVirtualShadowMapArrayCacheManager::AlignmentLevel);
 	OutEnvironment.SetDefine(TEXT("INDEX_NONE"), INDEX_NONE);
 }
 
