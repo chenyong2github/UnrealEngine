@@ -36,7 +36,7 @@ namespace GLTF
 	{
 	}
 
-	void FPrimitive::GetTangents(TArray<FVector>& Buffer) const
+	void FPrimitive::GetTangents(TArray<FVector3f>& Buffer) const
 	{
 		Buffer.Reserve(Tangent.Count);
 		for (uint32 Index = 0; Index < Tangent.Count; ++Index)

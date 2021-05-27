@@ -43,7 +43,7 @@ namespace GLTF
 			return Vector4dBuffers[Index];
 		}
 
-		inline TArray<FVector>& GetVectorBuffer(int32 Index)
+		inline TArray<FVector3f>& GetVectorBuffer(int32 Index)
 		{
 			check(Index < (sizeof(VectorBuffers) / sizeof(VectorBuffers[0])));
 			uint32 ReserveSize = VectorBuffers[Index].Num() + VectorBuffers[Index].GetSlack();
@@ -89,7 +89,7 @@ namespace GLTF
 		TArray<FIndexVertexIdMap>    PositionIndexToVertexIdPerPrim;
 
 		TArray<FVector2D>                       Vector2dBuffers[MAX_MESH_TEXTURE_COORDS_MD + 1];
-		TArray<FVector>                         VectorBuffers[VectorBufferCount];
+		TArray<FVector3f>                       VectorBuffers[VectorBufferCount];
 		TArray<FVector4>                        Vector4dBuffers[Vector4dBufferCount];
 		TArray<uint32>                          IntBuffer;
 		TArray<FVertexInstanceID>				CornerVertexInstanceIDs;
@@ -112,7 +112,7 @@ namespace GLTF
 			}
 		}
 
-		void GenerateFlatNormals(const TArray<FVector>& Positions, const TArray<uint32>& Indices, TArray<FVector>& Normals)
+		void GenerateFlatNormals(const TArray<FVector3f>& Positions, const TArray<uint32>& Indices, TArray<FVector3f>& Normals)
 		{
 			Normals.Empty();
 
@@ -122,11 +122,11 @@ namespace GLTF
 
 			for (uint32 i = 0; i < N; i += 3)
 			{
-				const FVector& A = Positions[Indices[i]];
-				const FVector& B = Positions[Indices[i + 1]];
-				const FVector& C = Positions[Indices[i + 2]];
+				const FVector3f& A = Positions[Indices[i]];
+				const FVector3f& B = Positions[Indices[i + 1]];
+				const FVector3f& C = Positions[Indices[i + 2]];
 
-				const FVector Normal = FVector::CrossProduct(A - B, A - C).GetSafeNormal();
+				const FVector3f Normal = FVector3f::CrossProduct(A - B, A - C).GetSafeNormal();
 				// Same for each corner of the triangle.
 				Normals[i] = Normal;
 				Normals[i + 1] = Normal;
@@ -182,7 +182,7 @@ namespace GLTF
 			// Remember which primitives use which materials.
 			MaterialIndicesUsed.Add(Primitive.MaterialIndex);
 
-			TArray<FVector>& Positions = GetVectorBuffer(PositionBufferIndex);
+			TArray<FVector3f>& Positions = GetVectorBuffer(PositionBufferIndex);
 			Primitive.GetPositions(Positions);
 
 			FIndexVertexIdMap& PositionIndexToVertexId = PositionIndexToVertexIdPerPrim[Index];
@@ -260,7 +260,7 @@ namespace GLTF
 		TArray<uint32>& Indices = GetIntBuffer();
 		Primitive.GetTriangleIndices(Indices);
 
-		TArray<FVector>& Normals = GetVectorBuffer(NormalBufferIndex);
+		TArray<FVector3f>& Normals = GetVectorBuffer(NormalBufferIndex);
 		// glTF does not guarantee each primitive within a mesh has the same attributes.
 		// Fill in gaps as needed:
 		// - missing normals will be flat, based on triangle orientation
@@ -268,22 +268,22 @@ namespace GLTF
 		// - missing tangents will be (0,0,1)
 		if (Primitive.HasNormals())
 		{
-			TArray<FVector>& ReindexBuffer = GetVectorBuffer(ReindexBufferIndex);
+			TArray<FVector3f>& ReindexBuffer = GetVectorBuffer(ReindexBufferIndex);
 			Primitive.GetNormals(Normals);
 			ReIndex(Normals, Indices, ReindexBuffer);
 			Swap(Normals, ReindexBuffer);
 		}
 		else
 		{
-			TArray<FVector>& Positions = GetVectorBuffer(PositionBufferIndex);
+			TArray<FVector3f>& Positions = GetVectorBuffer(PositionBufferIndex);
 			Primitive.GetPositions(Positions);
 			GenerateFlatNormals(Positions, Indices, Normals);
 		}
 
-		TArray<FVector>& Tangents = GetVectorBuffer(TangentBufferIndex);
+		TArray<FVector3f>& Tangents = GetVectorBuffer(TangentBufferIndex);
 		if (Primitive.HasTangents())
 		{
-			TArray<FVector>& ReindexBuffer = GetVectorBuffer(ReindexBufferIndex);
+			TArray<FVector3f>& ReindexBuffer = GetVectorBuffer(ReindexBufferIndex);
 			Primitive.GetTangents(Tangents);
 			ReIndex(Tangents, Indices, ReindexBuffer);
 			Swap(Tangents, ReindexBuffer);
@@ -401,7 +401,7 @@ namespace GLTF
 		const uint32 ReserveSize = FMath::Min(uint32(IntBuffer.Num() + IntBuffer.GetSlack()), MaxReserveSize);  // cap reserved size
 		IntBuffer.Empty(ReserveSize);
 		Vector2dBuffers[0].Empty(ReserveSize);
-		for (TArray<FVector>& Array : VectorBuffers)
+		for (TArray<FVector3f>& Array : VectorBuffers)
 		{
 			Array.Empty(ReserveSize);
 		}

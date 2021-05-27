@@ -102,18 +102,18 @@ namespace GLTF
 		virtual void GetFloatArray(float* Buffer) const;
 		void         GetVec2Array(TArray<FVector2D>& Buffer) const;
 		virtual void GetVec2Array(FVector2D* Buffer) const;
-		void         GetVec3Array(TArray<FVector>& Buffer) const;
-		virtual void GetVec3Array(FVector* Buffer) const;
+		void         GetVec3Array(TArray<FVector3f>& Buffer) const;
+		virtual void GetVec3Array(FVector3f* Buffer) const;
 		///@note Performs axis conversion for vec3s(i.e. from glTF right-handed and Y-up to left-handed and Z-up).
-		void         GetCoordArray(TArray<FVector>& Buffer) const;
-		void         GetCoordArray(FVector* Buffer) const;
+		void         GetCoordArray(TArray<FVector3f>& Buffer) const;
+		void         GetCoordArray(FVector3f* Buffer) const;
 		void         GetVec4Array(TArray<FVector4>& Buffer) const;
 		virtual void GetVec4Array(FVector4* Buffer) const;
 		///@note Performs axis conversion for quaternion(i.e. from glTF right-handed and Y-up to left-handed and Z-up).
 		void         GetQuatArray(TArray<FVector4>& Buffer) const;
 		void         GetQuatArray(FVector4* Buffer) const;
-		void         GetMat4Array(TArray<FMatrix>& Buffer) const;
-		virtual void GetMat4Array(FMatrix* Buffer) const;
+		void         GetMat4Array(TArray<FMatrix44f>& Buffer) const;
+		virtual void GetMat4Array(FMatrix44f* Buffer) const;
 	};
 
 	struct GLTFCORE_API FValidAccessor final : FAccessor
@@ -136,9 +136,9 @@ namespace GLTF
 		void GetUnsignedIntArray(uint32* Buffer) const override;
 		void GetFloatArray(float* Buffer) const override;
 		void GetVec2Array(FVector2D* Buffer) const override;
-		void GetVec3Array(FVector* Buffer) const override;
+		void GetVec3Array(FVector3f* Buffer) const override;
 		void GetVec4Array(FVector4* Buffer) const override;
-		void GetMat4Array(FMatrix* Buffer) const override;
+		void GetMat4Array(FMatrix44f* Buffer) const override;
 
 	private:
 		const FBufferView& BufferView;
@@ -183,14 +183,14 @@ namespace GLTF
 		GetVec2Array(Buffer.GetData());
 	}
 
-	inline void FAccessor::GetVec3Array(TArray<FVector>& Buffer) const
+	inline void FAccessor::GetVec3Array(TArray<FVector3f>& Buffer) const
 	{
 		if (IsValid())
 			Buffer.SetNumUninitialized(Count, false);
 		GetVec3Array(Buffer.GetData());
 	}
 
-	inline void FAccessor::GetCoordArray(TArray<FVector>& Buffer) const
+	inline void FAccessor::GetCoordArray(TArray<FVector3f>& Buffer) const
 	{
 		if (IsValid())
 			Buffer.SetNumUninitialized(Count, false);
@@ -211,7 +211,7 @@ namespace GLTF
 		GetQuatArray(Buffer.GetData());
 	}
 
-	inline void FAccessor::GetMat4Array(TArray<FMatrix>& Buffer) const
+	inline void FAccessor::GetMat4Array(TArray<FMatrix44f>& Buffer) const
 	{
 		if (IsValid())
 			Buffer.SetNumUninitialized(Count, false);

@@ -131,22 +131,22 @@ namespace DatasmithGLTFImporterImpl
 
 		void ResampleTranslation(
 			GLTF::FAnimation::EInterpolation Interpolation,
-			const FVector* FrameSourceBuffer,
+			const FVector3f* FrameSourceBuffer,
 			float ScaleFactor)
 		{
-			ResampleTrack<FVector>(FrameRate,
+			ResampleTrack<FVector3f>(FrameRate,
 				FrameTimeBuffer, FrameSourceBuffer, Interpolation,
-				[ScaleFactor](const FVector& Vec) { return Vec * ScaleFactor; },
+				[ScaleFactor](const FVector3f& Vec) { return Vec * ScaleFactor; },
 				AnimationElement, EDatasmithTransformType::Translation);
 		}
 
 		void ResampleScale(
 			GLTF::FAnimation::EInterpolation Interpolation,
-			const FVector* FrameSourceBuffer)
+			const FVector3f* FrameSourceBuffer)
 		{
-			ResampleTrack<FVector>(FrameRate,
+			ResampleTrack<FVector3f>(FrameRate,
 				FrameTimeBuffer, FrameSourceBuffer, Interpolation,
-				[](const FVector& Vec) { return Vec; },
+				[](const FVector3f& Vec) { return Vec; },
 				AnimationElement, EDatasmithTransformType::Scale);
 		}
 
@@ -252,7 +252,7 @@ uint32 FDatasmithGLTFAnimationImporter::ResampleAnimationFrames(const GLTF::FAni
 		case GLTF::FAnimation::EPath::Translation:
 		{
 			FrameDataBuffer.SetNumUninitialized(Sampler.Output.Count * 3);
-			FVector* SourceData = reinterpret_cast<FVector*>(FrameDataBuffer.GetData());
+			FVector3f* SourceData = reinterpret_cast<FVector3f*>(FrameDataBuffer.GetData());
 			Sampler.Output.GetCoordArray(SourceData);
 
 			Resampler.ResampleTranslation(Sampler.Interpolation, SourceData, ScaleFactor);
@@ -263,7 +263,7 @@ uint32 FDatasmithGLTFAnimationImporter::ResampleAnimationFrames(const GLTF::FAni
 		case GLTF::FAnimation::EPath::Scale:
 		{
 			FrameDataBuffer.SetNumUninitialized(Sampler.Output.Count * 3);
-			FVector* SourceData = reinterpret_cast<FVector*>(FrameDataBuffer.GetData());
+			FVector3f* SourceData = reinterpret_cast<FVector3f*>(FrameDataBuffer.GetData());
 			Sampler.Output.GetCoordArray(SourceData);
 
 			Resampler.ResampleScale(Sampler.Interpolation, SourceData);
