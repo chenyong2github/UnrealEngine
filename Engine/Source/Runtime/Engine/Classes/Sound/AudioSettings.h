@@ -11,6 +11,9 @@
 
 struct FPropertyChangedChainEvent;
 
+class USoundClass;
+class USoundConcurrency;
+
 // Enumeration for what our options are for sample rates used for VOIP.
 UENUM()
 enum class EVoiceSampleRate : int32
@@ -220,7 +223,23 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	FAudioSettingsChanged AudioSettingsChanged;
 #endif // WITH_EDITOR
 
+private:
+	UPROPERTY(Transient)
+	USoundClass* DefaultSoundClass;
+
+	UPROPERTY(Transient)
+	USoundClass* DefaultMediaSoundClass;
+
+	UPROPERTY(Transient)
+	USoundConcurrency* DefaultSoundConcurrency;
+
 public:
+	void LoadDefaultObjects();
+
+	USoundClass* GetDefaultSoundClass() const;
+	USoundClass* GetDefaultMediaSoundClass() const;
+	USoundConcurrency* GetDefaultSoundConcurrency() const;
+
 	// Get the quality level settings at the provided level index
 	const FAudioQualitySettings& GetQualityLevelSettings(int32 QualityLevel) const;
 	
@@ -249,6 +268,7 @@ private:
 	TArray<FAudioQualitySettings> CachedQualityLevels;
 	FSoftObjectPath CachedAmbisonicSubmix;
 	FSoftObjectPath CachedMasterSubmix;
+	FSoftObjectPath CachedSoundClass;
 #endif // WITH_EDITOR
 
 	void AddDefaultSettings();

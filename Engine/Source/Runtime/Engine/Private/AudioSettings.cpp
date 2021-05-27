@@ -7,6 +7,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "Sound/SoundBase.h"
+#include "Sound/SoundClass.h"
+#include "Sound/SoundConcurrency.h"
 #include "Sound/SoundNodeQualityLevel.h"
 #include "Sound/SoundSubmix.h"
 #include "UObject/UObjectHash.h"
@@ -46,6 +48,8 @@ void UAudioSettings::AddDefaultSettings()
 #if WITH_EDITOR
 void UAudioSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
+	CachedSoundClass = DefaultSoundClassName;
+
 	// Cache master submix in case user tries to set to submix that isn't a top-level submix
 	CachedMasterSubmix = MasterSubmix;
 
@@ -60,6 +64,9 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		bool bReconcileQualityNodes = false;
 		bool bPromptRestartRequired = false;
 		FName PropertyName = PropertyChangedEvent.Property->GetFName();
+
+		LoadDefaultObjects();
+
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, MasterSubmix))
 		{
 			if (USoundSubmix* NewSubmix = Cast<USoundSubmix>(MasterSubmix.TryLoad()))
@@ -172,6 +179,80 @@ int32 UAudioSettings::GetQualityLevelSettingsNum() const
 	return QualityLevels.Num();
 }
 
+void UAudioSettings::LoadDefaultObjects()
+{
+	UE_LOG(LogAudio, Display, TEXT("Loading Default Audio Settings Objects..."));
+
+	// TODO: Move all soft object paths to load here (SoundMixes, Submixes, etc.)
+	static const FString EngineSoundsDir = TEXT("/Engine/EngineSounds");
+
+	DefaultSoundClass = nullptr;
+	if (UObject* SoundClassObject = DefaultSoundClassName.TryLoad())
+	{
+		DefaultSoundClass = CastChecked<USoundClass>(SoundClassObject);
+	}
+
+#if WITH_EDITOR
+	if (!DefaultSoundClass)
+	{
+		DefaultSoundClassName = CachedSoundClass;
+		if (UObject* SoundClassObject = DefaultSoundClassName.TryLoad())
+		{
+			DefaultSoundClass = CastChecked<USoundClass>(SoundClassObject);
+		}
+	}
+#endif // WITH_EDITOR
+
+	if (!DefaultSoundClass)
+	{
+		UE_LOG(LogAudio, Warning, TEXT("Failed to load Default SoundClassObject from path '%s'.  Attempting to fall back to engine default."), *DefaultSoundClassName.GetAssetPathString());
+		DefaultSoundClassName.SetPath(EngineSoundsDir / TEXT("Master"));
+		if (UObject* SoundClassObject = DefaultSoundClassName.TryLoad())
+		{
+			DefaultSoundClass = CastChecked<USoundClass>(SoundClassObject);
+		}
+	}
+
+	if (!DefaultSoundClass)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Failed to load Default SoundClassObject from path '%s'."), *DefaultSoundClassName.GetAssetPathString());
+	}
+
+	DefaultMediaSoundClass = nullptr;
+	if (UObject* MediaSoundClassObject = DefaultMediaSoundClassName.TryLoad())
+	{
+		DefaultMediaSoundClass = CastChecked<USoundClass>(MediaSoundClassObject);
+	}
+	else
+	{
+		UE_LOG(LogAudio, Display, TEXT("No default MediaSoundClassObject specified (or failed to load)."));
+	}
+
+	DefaultSoundConcurrency = nullptr;
+	if (UObject* SoundConcurrencyObject = DefaultSoundConcurrencyName.TryLoad())
+	{
+		DefaultSoundConcurrency = CastChecked<USoundConcurrency>(SoundConcurrencyObject);
+	}
+	else
+	{
+		UE_LOG(LogAudio, Display, TEXT("No default SoundConcurrencyObject specified (or failed to load)."));
+	}
+}
+
+USoundClass* UAudioSettings::GetDefaultMediaSoundClass() const
+{
+	return DefaultMediaSoundClass;
+}
+
+USoundClass* UAudioSettings::GetDefaultSoundClass() const
+{
+	return DefaultSoundClass;
+}
+
+USoundConcurrency* UAudioSettings::GetDefaultSoundConcurrency() const
+{
+	return DefaultSoundConcurrency;
+}
 
 void UAudioSettings::SetAudioMixerEnabled(const bool bInAudioMixerEnabled)
 {

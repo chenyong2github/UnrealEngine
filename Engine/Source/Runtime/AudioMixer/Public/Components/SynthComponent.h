@@ -253,6 +253,7 @@ public:
 	void AddAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 	void RemoveAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 
+	virtual USoundClass* GetSoundClass();
 
 	virtual void BeginDestroy() override;
 

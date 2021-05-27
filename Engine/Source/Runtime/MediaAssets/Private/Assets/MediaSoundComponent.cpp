@@ -26,11 +26,6 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(MEDIA_API, MediaStreaming);
 
 static const int32 MaxAudioInputSamples = 8;	// accept at most these many samples into our input queue
 
-/* Static initialization
- *****************************************************************************/
-
-USoundClass* UMediaSoundComponent::DefaultMediaSoundClassObject = nullptr;
-
 
 /* UMediaSoundComponent structors
  *****************************************************************************/
@@ -256,27 +251,6 @@ void UMediaSoundComponent::Deactivate()
 
 /* UObject interface
  *****************************************************************************/
-
-void UMediaSoundComponent::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	if (UMediaSoundComponent::DefaultMediaSoundClassObject == nullptr)
-	{
-		const FSoftObjectPath DefaultMediaSoundClassName = GetDefault<UAudioSettings>()->DefaultMediaSoundClassName;
-
-		if (DefaultMediaSoundClassName.IsValid())
-		{
-			UMediaSoundComponent::DefaultMediaSoundClassObject = LoadObject<USoundClass>(nullptr, *DefaultMediaSoundClassName.ToString());
-		}
-	}
-
-	// We have a different default sound class object for media sound components
-	if (SoundClass == USoundBase::DefaultSoundClassObject || SoundClass == nullptr)
-	{
-		SoundClass = UMediaSoundComponent::DefaultMediaSoundClassObject;
-	}
-}
 
 
 void UMediaSoundComponent::PostLoad()
