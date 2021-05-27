@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlayerCore.h"
+#include "ElectraPlayerPrivate.h"
 #include "ManifestHLS.h"
 #include "ManifestBuilderHLS.h"
 #include "PlaylistReaderHLS.h"
@@ -10,6 +11,10 @@
 #include "SynchronizedClock.h"
 #include "Utilities/StringHelpers.h"
 #include "Utilities/URLParser.h"
+
+
+DECLARE_CYCLE_STAT(TEXT("FPlayPeriodHLS::FindSegment"), STAT_ElectraPlayer_HLS_FindSegment, STATGROUP_ElectraPlayer);
+DECLARE_CYCLE_STAT(TEXT("FPlayPeriodHLS::GetSegmentInformation"), STAT_ElectraPlayer_HLS_GetSegmentInformation, STATGROUP_ElectraPlayer);
 
 
 namespace Electra
@@ -521,6 +526,10 @@ IManifest::FResult FPlayPeriodHLS::GetMediaStreamForID(TSharedPtrTS<FManifestHLS
  */
 IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentRequestHLSfmp4>& OutRequest, TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> InPlaylist, TSharedPtrTS<FManifestHLSInternal::FMediaStream> InStream, uint32 StreamUniqueID, EStreamType StreamType, const FPlayPeriodHLS::FSegSearchParam& SearchParam, IManifest::ESearchType SearchType)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_FindSegment);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_FindSegment);
+
+
 	// VOD or EVENT playlist?
 ///////	if (InStream->PlaylistType == FManifestHLSInternal::FMediaStream::EPlaylistType::VOD || InStream->PlaylistType == FManifestHLSInternal::FMediaStream::EPlaylistType::Event)
 
@@ -1195,6 +1204,9 @@ void FPlayPeriodHLS::RefreshBlacklistState()
  */
 void FPlayPeriodHLS::GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_GetSegmentInformation);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_GetSegmentInformation);
+
 	OutSegmentInformation.Empty();
 	OutAverageSegmentDuration.SetToInvalid();
 

@@ -15,11 +15,15 @@
 #include "Utilities/StringHelpers.h"
 #include "DecoderErrors_Apple.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ElectraPlayerPrivate.h"
 
 #include <AudioToolbox/AudioToolbox.h>
 
 
 #define MAGIC_INSUFFICIENT_INPUT_MARKER		4711
+
+DECLARE_CYCLE_STAT(TEXT("FAudioDecoderAAC::Decode()"), STAT_ElectraPlayer_AudioAACDecode, STATGROUP_ElectraPlayer);
+DECLARE_CYCLE_STAT(TEXT("FAudioDecoderAAC::ConvertOutput()"), STAT_ElectraPlayer_AudioAACConvertOutput, STATGROUP_ElectraPlayer);
 
 namespace Electra
 {
@@ -655,6 +659,8 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 		// Need a new output buffer?
 		if (CurrentOutputBuffer == nullptr)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 			UEMediaError bufResult = Renderer->AcquireBuffer(CurrentOutputBuffer, 0, BufferAcquireOptions);
 			check(bufResult == UEMEDIA_ERROR_OK || bufResult == UEMEDIA_ERROR_INSUFFICIENT_DATA);
 			if (bufResult != UEMEDIA_ERROR_OK && bufResult != UEMEDIA_ERROR_INSUFFICIENT_DATA)
@@ -715,6 +721,8 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 
 					if (InOutPacketSize)
 					{
+						SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACConvertOutput);
+						CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACConvertOutput);
 						NumSamplesProduced += InOutPacketSize;
 
 						int32 OutputByteCount = InOutPacketSize * NumberOfChannels * sizeof(int16);
@@ -748,6 +756,8 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 
 				if (NumSamplesProduced)
 				{
+					SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACConvertOutput);
+					CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACConvertOutput);
 					FTimeValue Duration;
 					Duration.SetFromND(NumSamplesProduced, SamplingRate);
 
@@ -765,10 +775,11 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 
 					CurrentPTS += Duration;
 				}
-
 			}
 			else
 			{
+				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACConvertOutput);
+				CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACConvertOutput);
 				// Check if we are in dummy decode mode already.
 				if (!bInDummyDecodeMode)
 				{
@@ -850,7 +861,7 @@ bool FAudioDecoderAAC::IsDifferentFormat(const FAccessUnit* Data)
  */
 void FAudioDecoderAAC::WorkerThread()
 {
-	LLM_SCOPE(ELLMTag::MediaStreaming);
+	LLM_SCOPE(ELLMTag::ElectraPlayer);
 
 	FAccessUnit*	CurrentAccessUnit = nullptr;
 	bool			bError			  = false;
@@ -869,6 +880,8 @@ void FAudioDecoderAAC::WorkerThread()
 		// Notify the buffer listener that we will now be needing an AU for our input buffer.
 		if (!bError && InputBufferListener && AccessUnits.Num() == 0)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 			FAccessUnitBufferInfo	sin;
 			IAccessUnitBufferListener::FBufferStats	stats;
 			AccessUnits.GetStats(sin);
@@ -892,7 +905,9 @@ void FAudioDecoderAAC::WorkerThread()
 
 			// Check if the format has changed such that we need to destroy and re-create the decoder.
 			if (CurrentAccessUnit->bTrackChangeDiscontinuity || IsDifferentFormat(CurrentAccessUnit) || (CurrentAccessUnit->bIsDummyData && !bInDummyDecodeMode))
-				{
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+				CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 				if (DecoderInstance)
 				{
 					InternalDecoderDestroy();
@@ -906,6 +921,8 @@ void FAudioDecoderAAC::WorkerThread()
 			// Parse the CSD into a configuration record.
 			if (!ConfigRecord.IsValid() && !bError)
 			{
+				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+				CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 				if (CurrentAccessUnit->AUCodecData.IsValid())
 				{
 					CurrentCodecData = CurrentAccessUnit->AUCodecData;
@@ -964,6 +981,8 @@ void FAudioDecoderAAC::WorkerThread()
 		// Flush?
 		if (FlushDecoderSignal.IsSignaled())
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
 			ReturnUnusedOutputBuffer();
 			AccessUnits.Flush();
 

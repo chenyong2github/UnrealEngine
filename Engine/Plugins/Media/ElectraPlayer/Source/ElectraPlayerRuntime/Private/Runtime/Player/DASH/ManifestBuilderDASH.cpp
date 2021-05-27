@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlayerCore.h"
+#include "ElectraPlayerPrivate.h"
 #include "Player/Manifest.h"
 #include "Player/PlaybackTimeline.h"
 
@@ -42,6 +43,9 @@
 #define ERRCODE_DASH_MPD_BUILDER_MEDIAPRESENTATIONDURATION_NEEDED	202
 #define ERRCODE_DASH_MPD_BUILDER_BAD_PERIOD_DURATION				203
 
+
+DECLARE_CYCLE_STAT(TEXT("FManifestDASHInternal::Build"), STAT_ElectraPlayer_FManifestDASHInternal_Build, STATGROUP_ElectraPlayer);
+DECLARE_CYCLE_STAT(TEXT("FManifestDASHInternal::XLink"), STAT_ElectraPlayer_FManifestDASHInternal_XLink, STATGROUP_ElectraPlayer);
 
 
 namespace Electra
@@ -1027,6 +1031,9 @@ FErrorDetail FManifestDASHInternal::Build(IPlayerSessionServices* InPlayerSessio
 
 FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload()
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FManifestDASHInternal_Build);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, FManifestDASHInternal_Build);
+
 	FErrorDetail Error;
 
 	bool bWarnedPresentationDuration = false;
@@ -1221,6 +1228,10 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 		{
 			return;
 		}
+
+		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FManifestDASHInternal_Build);
+		CSV_SCOPED_TIMING_STAT(ElectraPlayer, FManifestDASHInternal_Build);
+
 		Period->AdaptationSets.Empty();
 		const TArray<TSharedPtrTS<FDashMPD_AdaptationSetType>>& MPDAdaptationSets = MPDPeriod->GetAdaptationSets();
 		for(int32 nAdapt=0, nAdaptMax=MPDAdaptationSets.Num(); nAdapt<nAdaptMax; ++nAdapt)
@@ -1715,6 +1726,9 @@ void FManifestDASHInternal::SendEventsFromAllPeriodEventStreams(TSharedPtrTS<FPe
  */
 FErrorDetail FManifestDASHInternal::ResolveInitialRemoteElementRequest(TSharedPtrTS<FMPDLoadRequestDASH> RequestResponse, FString XMLResponse, bool bSuccess)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FManifestDASHInternal_XLink);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, FManifestDASHInternal_XLink);
+
 	// Because this is intended solely for initial MPD entities we do not need to worry about anyone accessing our internal structures
 	// while we update them. The player proper has not been informed yet that the initial manifest is ready for use.
 	FErrorDetail Error;
