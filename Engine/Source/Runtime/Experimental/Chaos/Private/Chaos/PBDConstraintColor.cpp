@@ -266,10 +266,6 @@ void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDCons
 				continue;
 			}
 
-			// Assign the level and update max level for the island if required
-			ColorEdge.Level = Level;
-			IslandData[Island].MaxLevel = FGenericPlatformMath::Max(IslandData[Island].MaxLevel, ColorEdge.Level);
-
 			// Find adjacent node and recurse
 			int32 OtherNode = INDEX_NONE;
 			if(GraphEdge.FirstNode == NodeIndex)
@@ -281,10 +277,22 @@ void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDCons
 				OtherNode = GraphEdge.FirstNode;
 			}
 
-			// If we have a node, append it to our queue on the next level
-			if(OtherNode != INDEX_NONE)
+			// Assign the level and update max level for the island if required
+			// NOTE: if we hit a non-dynamic particle (node), it will contain all of
+			// the contacts (edges) for dynamic particles interacting with it. They
+			// may not all be in the same island, which is ok (e.g., two separated
+			// boxes sat on a large plane). We need to ignore edges that are in other islands
+			// @todo(chaos): we should probably store the island index with each edge.
+			if (ConstraintGraph.Nodes[OtherNode].Island == Island)
 			{
-				NodeQueue.Emplace(ColorEdge.Level + 1, OtherNode);
+				ColorEdge.Level = Level;
+				IslandData[Island].MaxLevel = FGenericPlatformMath::Max(IslandData[Island].MaxLevel, ColorEdge.Level);
+
+				// If we have an other node, append it to our queue on the next level
+				if (OtherNode != INDEX_NONE)
+				{
+					NodeQueue.Emplace(ColorEdge.Level + 1, OtherNode);
+				}
 			}
 		}
 	}
