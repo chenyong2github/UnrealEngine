@@ -79,11 +79,6 @@ namespace HordeServer.Controllers
 		UpgradeService UpgradeService;
 
 		/// <summary>
-		/// List of conforms running
-		/// </summary>
-		SingletonDocument<ConformList> ConformList;
-
-		/// <summary>
 		/// Settings for the server
 		/// </summary>
 		IOptionsMonitor<ServerSettings> Settings;
@@ -100,7 +95,6 @@ namespace HordeServer.Controllers
 			this.DatabaseService = DatabaseService;
 			this.AclService = AclService;
 			this.UpgradeService = UpgradeService;
-			this.ConformList = new SingletonDocument<ConformList>(DatabaseService);
 			this.Settings = Settings;
 		}
 
@@ -137,52 +131,6 @@ namespace HordeServer.Controllers
 			}
 		}
 
-
-		/// <summary>
-		/// Gets the scheduled downtime 
-		/// </summary>
-		/// <returns>Async task</returns>
-		[HttpGet]
-		[Route("/api/v1/admin/downtime")]
-		public async Task<ActionResult<List<ScheduledDowntime>>> GetScheduledDowntimeAsync()
-		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
-			{
-				return Forbid();
-			}
-
-			Globals Globals = await DatabaseService.GetGlobalsAsync();
-			return Globals.ScheduledDowntime;
-		}
-
-		/// <summary>
-		/// Sets the scheduled downtime
-		/// </summary>
-		/// <param name="Schedules">List of downtime</param>
-		/// <returns>Async task</returns>
-		[HttpPut]
-		[Route("/api/v1/admin/downtime")]
-		public async Task<ActionResult> SetScheduledDowntimeAsync(List<ScheduledDowntime> Schedules)
-		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
-			{
-				return Forbid();
-			}
-
-			for (; ; )
-			{
-				Globals Globals = await DatabaseService.GetGlobalsAsync();
-				Globals.ScheduledDowntime = Schedules;
-
-				if (await DatabaseService.TryUpdateSingletonAsync(Globals))
-				{
-					break;
-				}
-			}
-
-			return Ok();
-		}
-
 		/// <summary>
 		/// Upgrade the database to the latest schema
 		/// </summary>
@@ -198,88 +146,6 @@ namespace HordeServer.Controllers
 
 			await UpgradeService.UpgradeSchemaAsync(FromVersion);
 			return Ok();
-		}
-
-		/// <summary>
-		/// Update the conform limit
-		/// </summary>
-		[HttpPut]
-		[Route("/api/v1/admin/conform")]
-		public async Task<ActionResult> SetConformSettingsAsync([FromBody] ConformSettings NewSettings)
-		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
-			{
-				return Forbid();
-			}
-
-			for (; ; )
-			{
-				ConformList CurrentValue = await ConformList.GetAsync();
-				CurrentValue.MaxCount = NewSettings.MaxCount;
-
-				if (await ConformList.TryUpdateAsync(CurrentValue))
-				{
-					return Ok();
-				}
-			}
-		}
-
-		/// <summary>
-		/// Gets the current perforce settinsg
-		/// </summary>
-		/// <returns>List of Perforce clusters</returns>
-		[HttpGet]
-		[Route("/api/v1/admin/conform")]
-		public async Task<ActionResult<ConformSettings>> GetConformSettingsAsync()
-		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
-			{
-				return Forbid();
-			}
-
-			ConformList CurrentValue = await ConformList.GetAsync();
-			return new ConformSettings { MaxCount = CurrentValue.MaxCount };
-		}
-
-		/// <summary>
-		/// Update Perforce server settings
-		/// </summary>
-		[HttpPut]
-		[Route("/api/v1/admin/perforce")]
-		public async Task<ActionResult> UpdatePerforceSettingsAsync([FromBody] List<PerforceCluster> Clusters)
-		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
-			{
-				return Forbid();
-			}
-
-			for (; ; )
-			{
-				Globals Globals = await DatabaseService.GetGlobalsAsync();
-				Globals.PerforceClusters = Clusters;
-
-				if (await DatabaseService.TryUpdateSingletonAsync(Globals))
-				{
-					return Ok("Settings have been updated");
-				}
-			}
-		}
-
-		/// <summary>
-		/// Gets the current perforce settinsg
-		/// </summary>
-		/// <returns>List of Perforce clusters</returns>
-		[HttpGet]
-		[Route("/api/v1/admin/perforce")]
-		public async Task<ActionResult<List<PerforceCluster>>> GetPerforceSettingsAsync()
-		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
-			{
-				return Forbid();
-			}
-
-			Globals Globals = await DatabaseService.GetGlobalsAsync();
-			return Globals.PerforceClusters;
 		}
 
 		/// <summary>

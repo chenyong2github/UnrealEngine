@@ -526,6 +526,8 @@ namespace HordeServer
 			Services.AddSingleton<ITaskSource, JobTaskSource>(Provider => Provider.GetRequiredService<JobTaskSource>());
 			Services.AddSingleton<ITaskSource, ActionTaskSource>(Provider => Provider.GetRequiredService<ActionTaskSource>());
 
+			Services.AddHostedService(Provider => Provider.GetRequiredService<ConformTaskSource>());
+
 			// Allow longer to shutdown so we can debug missing cancellation tokens
 			Services.Configure<HostOptions>(Options =>
 			{

@@ -134,6 +134,7 @@ namespace HordeServer.Services
 				Globals.Notices = CachedGlobalConfig.Notices;
 				Globals.PerforceClusters = CachedGlobalConfig.PerforceClusters;
 				Globals.ScheduledDowntime = CachedGlobalConfig.Downtime;
+				Globals.MaxConformCount = CachedGlobalConfig.MaxConformCount;
 
 				if (await DatabaseService.TryUpdateSingletonAsync(Globals))
 				{

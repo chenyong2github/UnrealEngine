@@ -281,11 +281,6 @@ namespace HordeServer.Tasks.Impl
 		IOptionsMonitor<ServerSettings> Settings;
 
 		/// <summary>
-		/// List of active conform tasks
-		/// </summary>
-		SingletonDocument<ConformList> ConformList;
-
-		/// <summary>
 		/// Log writer
 		/// </summary>
 		ILogger<JobTaskSource> Logger;
@@ -369,7 +364,6 @@ namespace HordeServer.Tasks.Impl
 			this.PerforceLoadBalancer = PerforceLoadBalancer;
 			this.ApplicationLifetime = ApplicationLifetime;
 			this.StoppingTask = new CancellationTask(ApplicationLifetime.ApplicationStopping);
-			this.ConformList = new SingletonDocument<ConformList>(DatabaseService);
 			this.Settings = Settings;
 			this.Logger = Logger;
 		}
