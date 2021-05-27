@@ -12,11 +12,20 @@
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformTime.h"
 #include "MoviePipelineUtils.h"
-
 void UMoviePipelineVideoOutputBase::OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk)
 {
 	if (bFlushToDisk)
 	{
+		// If they don't have {shot_name} or {camera_name} in their output path, this probably doesn't do what they expect
+		// as it will finalize and then overwrite itself.
+		UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+		check(OutputSettings);
+		FString FullPath = OutputSettings->OutputDirectory.Path / OutputSettings->FileNameFormat;
+		if (!(FullPath.Contains(TEXT("{shot_name}")) || FullPath.Contains(TEXT("{camera_name}"))))
+		{
+			UE_LOG(LogMovieRenderPipelineIO, Warning, TEXT("Asked MoviePipeline to flush file writes to disk after each shot, but filename format doesn't seem to separate video files per shot. This will cause the file to overwrite itself, is this intended?"));
+		}
+
 		UE_LOG(LogMovieRenderPipelineIO, Log, TEXT("MoviePipelineVideoOutputBase flushing %d tasks to disk..."), AllWriters.Num());
 		const double FlushBeginTime = FPlatformTime::Seconds();
 
