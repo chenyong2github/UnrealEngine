@@ -29,6 +29,9 @@
 #define ERRCODE_DASH_MPD_REMOTE_ENTITY_FAILED				5
 
 
+DECLARE_CYCLE_STAT(TEXT("FPlaylistReaderDASH_WorkerThread"), STAT_ElectraPlayer_DASH_PlaylistWorker, STATGROUP_ElectraPlayer);
+
+
 //#define DO_NOT_PERFORM_CONDITIONAL_GET
 
 namespace Electra
@@ -721,7 +724,6 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 void FPlaylistReaderDASH::WorkerThread()
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
-	CSV_SCOPED_TIMING_STAT(ElectraPlayer, MPDReaderDASH_Worker);
 
 	bInbandEventByStreamType[0] = false;
 	bInbandEventByStreamType[1] = false;
@@ -754,19 +756,23 @@ void FPlaylistReaderDASH::WorkerThread()
 		{
 			break;
 		}
-		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
-
-		HandleCompletedRequests(Now);
-
-		ExecutePendingRequests(Now);
-
-		// Check if the MPD must be updated.
-		CheckForMPDUpdate();
-
-		// Time sync
-		if (NextTimeSyncTime.IsValid() && Now >= NextTimeSyncTime)
 		{
-			TriggerTimeSynchronization();
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_PlaylistWorker);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_PlaylistWorker);
+			FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+
+			HandleCompletedRequests(Now);
+
+			ExecutePendingRequests(Now);
+
+			// Check if the MPD must be updated.
+			CheckForMPDUpdate();
+
+			// Time sync
+			if (NextTimeSyncTime.IsValid() && Now >= NextTimeSyncTime)
+			{
+				TriggerTimeSynchronization();
+			}
 		}
 	}
 

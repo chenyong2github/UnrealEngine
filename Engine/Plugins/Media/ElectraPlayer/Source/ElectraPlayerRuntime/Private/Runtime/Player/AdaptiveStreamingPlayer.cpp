@@ -15,6 +15,9 @@
 #include "HAL/LowLevelMemTracker.h"
 
 
+DECLARE_CYCLE_STAT(TEXT("FAdaptiveStreamingPlayer::WorkerThread"), STAT_ElectraPlayer_AdaptiveWorker, STATGROUP_ElectraPlayer);
+DECLARE_CYCLE_STAT(TEXT("FAdaptiveStreamingPlayer::EventThread"), STAT_ElectraPlayer_EventWorker, STATGROUP_ElectraPlayer);
+
 
 namespace Electra
 {
@@ -1193,6 +1196,7 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 		FWorkerThread::FMessage msg;
 		if (WorkerThread.WorkMessages.ReceiveMessage(msg, 1000 * 20))
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AdaptiveWorker);
 			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AdaptiveStreamingPlayer_Worker);
 
 			// While closed ignore all but the quit message.
@@ -1446,6 +1450,7 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 
 		if (!bIsClosing)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AdaptiveWorker);
 			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AdaptiveStreamingPlayer_Worker);
 
 			// Update the play position we return to the interested caller.
@@ -3859,6 +3864,7 @@ void FAdaptiveStreamingPlayerEventHandler::StopWorkerThread()
 
 void FAdaptiveStreamingPlayerEventHandler::WorkerThreadFN()
 {
+	LLM_SCOPE(ELLMTag::ElectraPlayer);
 	while(1)
 	{
 		TSharedPtrTS<FMetricEvent> pEvt = EventQueue.ReceiveMessage();
@@ -3867,93 +3873,98 @@ void FAdaptiveStreamingPlayerEventHandler::WorkerThreadFN()
 			break;
 		}
 
-		// Get the player that sends the event. If it no longer exists ignore the event.
-		TSharedPtr<FAdaptiveStreamingPlayer, ESPMode::ThreadSafe>	Player = pEvt->Player.Pin();
-		if (Player.IsValid())
 		{
-			// Call listeners under lock. They are not allowed to add or remove themselves or other listeners.
-			Player->LockMetricsReceivers();
-			const TArray<IAdaptiveStreamingPlayerMetrics*, TInlineAllocator<4>>& MetricListeners = Player->GetMetricsReceivers();
-			for(int32 i=0; i<MetricListeners.Num(); ++i)
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_EventWorker);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AdaptiveStreamingPlayer_Event);
+
+			// Get the player that sends the event. If it no longer exists ignore the event.
+			TSharedPtr<FAdaptiveStreamingPlayer, ESPMode::ThreadSafe>	Player = pEvt->Player.Pin();
+			if (Player.IsValid())
 			{
-				switch(pEvt->Type)
+				// Call listeners under lock. They are not allowed to add or remove themselves or other listeners.
+				Player->LockMetricsReceivers();
+				const TArray<IAdaptiveStreamingPlayerMetrics*, TInlineAllocator<4>>& MetricListeners = Player->GetMetricsReceivers();
+				for(int32 i=0; i<MetricListeners.Num(); ++i)
 				{
-					case FMetricEvent::EType::OpenSource:
-						MetricListeners[i]->ReportOpenSource(pEvt->Param.URL);
-						break;
-					case FMetricEvent::EType::ReceivedMasterPlaylist:
-						MetricListeners[i]->ReportReceivedMasterPlaylist(pEvt->Param.URL);
-						break;
-					case FMetricEvent::EType::ReceivedPlaylists:
-						MetricListeners[i]->ReportReceivedPlaylists();
-						break;
-					case FMetricEvent::EType::TracksChanged:
-						MetricListeners[i]->ReportTracksChanged();
-						break;
-					case FMetricEvent::EType::BufferingStart:
-						MetricListeners[i]->ReportBufferingStart(pEvt->Param.BufferingReason);
-						break;
-					case FMetricEvent::EType::BufferingEnd:
-						MetricListeners[i]->ReportBufferingEnd(pEvt->Param.BufferingReason);
-						break;
-					case FMetricEvent::EType::Bandwidth:
-						MetricListeners[i]->ReportBandwidth(pEvt->Param.Bandwidth.EffectiveBps, pEvt->Param.Bandwidth.ThroughputBps, pEvt->Param.Bandwidth.Latency);
-						break;
-					case FMetricEvent::EType::BufferUtilization:
-						MetricListeners[i]->ReportBufferUtilization(pEvt->Param.BufferStats);
-						break;
-					case FMetricEvent::EType::PlaylistDownload:
-						MetricListeners[i]->ReportPlaylistDownload(pEvt->Param.PlaylistStats);
-						break;
-					case FMetricEvent::EType::SegmentDownload:
-						MetricListeners[i]->ReportSegmentDownload(pEvt->Param.SegmentStats);
-						break;
-					case FMetricEvent::EType::LicenseKey:
-						MetricListeners[i]->ReportLicenseKey(pEvt->Param.LicenseKeyStats);
-						break;
-					case FMetricEvent::EType::DataAvailabilityChange:
-						MetricListeners[i]->ReportDataAvailabilityChange(pEvt->Param.DataAvailability);
-						break;
-					case FMetricEvent::EType::VideoQualityChange:
-						MetricListeners[i]->ReportVideoQualityChange(pEvt->Param.QualityChange.NewBitrate, pEvt->Param.QualityChange.PrevBitrate, pEvt->Param.QualityChange.bIsDrastic);
-						break;
-					case FMetricEvent::EType::PrerollStart:
-						MetricListeners[i]->ReportPrerollStart();
-						break;
-					case FMetricEvent::EType::PrerollEnd:
-						MetricListeners[i]->ReportPrerollEnd();
-						break;
-					case FMetricEvent::EType::PlaybackStart:
-						MetricListeners[i]->ReportPlaybackStart();
-						break;
-					case FMetricEvent::EType::PlaybackPaused:
-						MetricListeners[i]->ReportPlaybackPaused();
-						break;
-					case FMetricEvent::EType::PlaybackResumed:
-						MetricListeners[i]->ReportPlaybackResumed();
-						break;
-					case FMetricEvent::EType::PlaybackEnded:
-						MetricListeners[i]->ReportPlaybackEnded();
-						break;
-					case FMetricEvent::EType::PlaybackJumped:
-						MetricListeners[i]->ReportJumpInPlayPosition(pEvt->Param.TimeJump.ToNewTime, pEvt->Param.TimeJump.FromTime, pEvt->Param.TimeJump.Reason);
-						break;
-					case FMetricEvent::EType::PlaybackStopped:
-						MetricListeners[i]->ReportPlaybackStopped();
-						break;
-					case FMetricEvent::EType::Errored:
-						MetricListeners[i]->ReportError(pEvt->Param.ErrorDetail.GetPrintable());
-						break;
-					case FMetricEvent::EType::LogMessage:
-						MetricListeners[i]->ReportLogMessage(pEvt->Param.LogMessage.Level, pEvt->Param.LogMessage.Message, pEvt->Param.LogMessage.AtMillis);
-						break;
+					switch(pEvt->Type)
+					{
+						case FMetricEvent::EType::OpenSource:
+							MetricListeners[i]->ReportOpenSource(pEvt->Param.URL);
+							break;
+						case FMetricEvent::EType::ReceivedMasterPlaylist:
+							MetricListeners[i]->ReportReceivedMasterPlaylist(pEvt->Param.URL);
+							break;
+						case FMetricEvent::EType::ReceivedPlaylists:
+							MetricListeners[i]->ReportReceivedPlaylists();
+							break;
+						case FMetricEvent::EType::TracksChanged:
+							MetricListeners[i]->ReportTracksChanged();
+							break;
+						case FMetricEvent::EType::BufferingStart:
+							MetricListeners[i]->ReportBufferingStart(pEvt->Param.BufferingReason);
+							break;
+						case FMetricEvent::EType::BufferingEnd:
+							MetricListeners[i]->ReportBufferingEnd(pEvt->Param.BufferingReason);
+							break;
+						case FMetricEvent::EType::Bandwidth:
+							MetricListeners[i]->ReportBandwidth(pEvt->Param.Bandwidth.EffectiveBps, pEvt->Param.Bandwidth.ThroughputBps, pEvt->Param.Bandwidth.Latency);
+							break;
+						case FMetricEvent::EType::BufferUtilization:
+							MetricListeners[i]->ReportBufferUtilization(pEvt->Param.BufferStats);
+							break;
+						case FMetricEvent::EType::PlaylistDownload:
+							MetricListeners[i]->ReportPlaylistDownload(pEvt->Param.PlaylistStats);
+							break;
+						case FMetricEvent::EType::SegmentDownload:
+							MetricListeners[i]->ReportSegmentDownload(pEvt->Param.SegmentStats);
+							break;
+						case FMetricEvent::EType::LicenseKey:
+							MetricListeners[i]->ReportLicenseKey(pEvt->Param.LicenseKeyStats);
+							break;
+						case FMetricEvent::EType::DataAvailabilityChange:
+							MetricListeners[i]->ReportDataAvailabilityChange(pEvt->Param.DataAvailability);
+							break;
+						case FMetricEvent::EType::VideoQualityChange:
+							MetricListeners[i]->ReportVideoQualityChange(pEvt->Param.QualityChange.NewBitrate, pEvt->Param.QualityChange.PrevBitrate, pEvt->Param.QualityChange.bIsDrastic);
+							break;
+						case FMetricEvent::EType::PrerollStart:
+							MetricListeners[i]->ReportPrerollStart();
+							break;
+						case FMetricEvent::EType::PrerollEnd:
+							MetricListeners[i]->ReportPrerollEnd();
+							break;
+						case FMetricEvent::EType::PlaybackStart:
+							MetricListeners[i]->ReportPlaybackStart();
+							break;
+						case FMetricEvent::EType::PlaybackPaused:
+							MetricListeners[i]->ReportPlaybackPaused();
+							break;
+						case FMetricEvent::EType::PlaybackResumed:
+							MetricListeners[i]->ReportPlaybackResumed();
+							break;
+						case FMetricEvent::EType::PlaybackEnded:
+							MetricListeners[i]->ReportPlaybackEnded();
+							break;
+						case FMetricEvent::EType::PlaybackJumped:
+							MetricListeners[i]->ReportJumpInPlayPosition(pEvt->Param.TimeJump.ToNewTime, pEvt->Param.TimeJump.FromTime, pEvt->Param.TimeJump.Reason);
+							break;
+						case FMetricEvent::EType::PlaybackStopped:
+							MetricListeners[i]->ReportPlaybackStopped();
+							break;
+						case FMetricEvent::EType::Errored:
+							MetricListeners[i]->ReportError(pEvt->Param.ErrorDetail.GetPrintable());
+							break;
+						case FMetricEvent::EType::LogMessage:
+							MetricListeners[i]->ReportLogMessage(pEvt->Param.LogMessage.Level, pEvt->Param.LogMessage.Message, pEvt->Param.LogMessage.AtMillis);
+							break;
+					}
 				}
+				Player->UnlockMetricsReceivers();
 			}
-			Player->UnlockMetricsReceivers();
-		}
-		if (pEvt->EventSignal)
-		{
-			pEvt->EventSignal->Signal();
+			if (pEvt->EventSignal)
+			{
+				pEvt->EventSignal->Signal();
+			}
 		}
 	}
 }

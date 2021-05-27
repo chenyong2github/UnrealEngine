@@ -13,6 +13,8 @@
 #define INTERNAL_ERROR_INIT_SEGMENT_LICENSEKEY_ERROR				10
 
 
+DECLARE_CYCLE_STAT(TEXT("FStreamReaderHLSfmp4_HandleRequest"), STAT_ElectraPlayer_HLS_StreamReader, STATGROUP_ElectraPlayer);
+
 
 namespace Electra
 {
@@ -588,6 +590,9 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 			// Note: It is only safe to access the connection info when the HTTP request has completed or the request been removed.
 			PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP, false);
 			Request->ConnectionInfo = HTTP->ConnectionInfo;
+
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_StreamReader);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_StreamReader);
 			if (!HTTP->ConnectionInfo.StatusInfo.ErrorDetail.IsError())
 			{
 // TODO: If encrypted we must now decrypt it!!
@@ -633,8 +638,6 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 
 void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 {
-//CSV_SCOPED_TIMING_STAT(ElectraPlayer, StreamReaderMP4_Worker);
-
 	UEMediaError								Error;
 	bool										bIsEmptyFillerSegment = false;
 
@@ -865,7 +868,11 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 					UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionService, MP4InitSegment.Get());
 					if (parseError == UEMEDIA_ERROR_OK)
 					{
-						parseError = MP4Parser->PrepareTracks(MP4InitSegment);
+						{
+							SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_StreamReader);
+							CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_StreamReader);
+							parseError = MP4Parser->PrepareTracks(MP4InitSegment);
+						}
 						if (parseError == UEMEDIA_ERROR_OK)
 						{
 							// For the time being we only want to have a single track in the movie segments.
@@ -964,6 +971,8 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 										// Shall we pass on any AUs we already read?
 										if (bAllowEarlyEmitting)
 										{
+											SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_StreamReader);
+											CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_StreamReader);
 											while(AccessUnitFIFO.Num() && !HasReadBeenAborted())
 											{
 												FAccessUnit* pNext = AccessUnitFIFO.FrontRef();
@@ -1284,6 +1293,9 @@ int64 FStreamReaderHLSfmp4::FStreamHandler::ReadData(void* IntoBuffer, int64 Num
 				ds.ABRState.ProgressDecision = StreamSelectorDecision;
 				if ((StreamSelectorDecision.Flags & FABRDownloadProgressDecision::EDecisionFlags::eABR_EmitPartialData) != 0)
 				{
+					SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_StreamReader);
+					CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_StreamReader);
+
 					bAllowEarlyEmitting = true;
 					// Deliver all enqueued AUs right now. Unless the request also gets aborted we could be stuck
 					// in here for a while longer.
@@ -1349,6 +1361,9 @@ int64 FStreamReaderHLSfmp4::FStreamHandler::ReadData(void* IntoBuffer, int64 Num
 			}
 			else
 			{
+				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_StreamReader);
+				CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_StreamReader);
+
 				SourceBuffer.Lock();
 				// Check the available size. If the read was aborted there may not be enough in here as the wait got released early.
 				if (SourceBuffer.Num() >= RequiredEncryptedSize)
@@ -1439,6 +1454,8 @@ int64 FStreamReaderHLSfmp4::FStreamHandler::ReadData(void* IntoBuffer, int64 Num
 			}
 			else
 			{
+				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_StreamReader);
+				CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_StreamReader);
 				SourceBuffer.Lock();
 				if (SourceBuffer.Num() >= ReadBuffer.ParsePos + NumBytesToRead)
 				{

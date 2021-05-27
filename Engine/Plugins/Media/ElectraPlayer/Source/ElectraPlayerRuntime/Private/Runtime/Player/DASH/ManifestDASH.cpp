@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlayerCore.h"
+#include "ElectraPlayerPrivate.h"
 #include "ManifestDASH.h"
 #include "ManifestBuilderDASH.h"
 #include "PlaylistReaderDASH.h"
@@ -18,6 +19,9 @@
 #include "Player/AdaptivePlayerOptionKeynames.h"
 #include "Player/DRM/DRMManager.h"
 
+
+DECLARE_CYCLE_STAT(TEXT("FRepresentation::FindSegment"), STAT_ElectraPlayer_DASH_FindSegment, STATGROUP_ElectraPlayer);
+DECLARE_CYCLE_STAT(TEXT("FDASHPlayPeriod::GetSegmentInformation"), STAT_ElectraPlayer_DASH_GetSegmentInformation, STATGROUP_ElectraPlayer);
 
 namespace Electra
 {
@@ -1279,6 +1283,9 @@ void FDASHPlayPeriod::IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount
 
 void FDASHPlayPeriod::GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_GetSegmentInformation);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_GetSegmentInformation);
+
 	OutSegmentInformation.Empty();
 	OutAverageSegmentDuration.SetToInvalid();
 
@@ -1802,6 +1809,9 @@ void FManifestDASHInternal::FRepresentation::CollectInbandEventStreams(IPlayerSe
 
 FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRepresentation::FindSegment(IPlayerSessionServices* InPlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_FindSegment);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_FindSegment);
+
 	/*
 		Note: We use the DASH-IF-IOP specification and timing model. This is more strict than the general DASH standard and removes ambiguities
 		      and otherwise conflicting information.
