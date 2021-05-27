@@ -101,6 +101,7 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 		.OnGenerateRow(this, &SCurveEditorTree::GenerateRow)
 		.OnSetExpansionRecursive(this, &SCurveEditorTree::SetItemExpansionRecursive)
 		.OnMouseButtonDoubleClick(InArgs._OnMouseButtonDoubleClick)
+		.OnTreeViewScrolled(InArgs._OnTreeViewScrolled)
 		.OnSelectionChanged_Lambda(
 			[this](TListTypeTraits<FCurveEditorTreeItemID>::NullableType InItemID, ESelectInfo::Type Type)
 			{
