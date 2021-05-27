@@ -57,7 +57,7 @@ static FAutoConsoleVariableRef CVarHairStrandsBindingBuilderWarningEnable(TEXT("
 FString FGroomBindingBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2b");
+	return TEXT("2d");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1856,7 +1856,7 @@ static void BuildRootBulkData(
 		CopyToBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestRootTrianglePosition1Buffer, In.MeshProjectionLODs[MeshLODIt].RestRootTrianglePosition1Buffer);
 		CopyToBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestRootTrianglePosition2Buffer, In.MeshProjectionLODs[MeshLODIt].RestRootTrianglePosition2Buffer);
 
-		CopyToBulkData<FHairStrandsIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].ValidSectionIndices, In.MeshProjectionLODs[MeshLODIt].ValidSectionIndices);
+		Out.MeshProjectionLODs[MeshLODIt].ValidSectionIndices = In.MeshProjectionLODs[MeshLODIt].ValidSectionIndices;
 
 		if (bHasValidSamples)
 		{
@@ -1899,7 +1899,7 @@ static void BuildRootData(
 		CopyFromBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestRootTrianglePosition1Buffer, In.MeshProjectionLODs[MeshLODIt].RestRootTrianglePosition1Buffer);
 		CopyFromBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestRootTrianglePosition2Buffer, In.MeshProjectionLODs[MeshLODIt].RestRootTrianglePosition2Buffer);
 
-		CopyFromBulkData<FHairStrandsIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].ValidSectionIndices, In.MeshProjectionLODs[MeshLODIt].ValidSectionIndices);
+		Out.MeshProjectionLODs[MeshLODIt].ValidSectionIndices = In.MeshProjectionLODs[MeshLODIt].ValidSectionIndices;
 
 		if (bHasValidSamples)
 		{
