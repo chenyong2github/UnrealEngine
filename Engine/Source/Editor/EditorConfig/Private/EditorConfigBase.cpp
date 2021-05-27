@@ -6,22 +6,26 @@
 
 bool UEditorConfigBase::LoadEditorConfig()
 {
-	UEditorConfigSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEditorConfigSubsystem>();
-	if (Subsystem)
+	if (GEditor)
 	{
-		return Subsystem->LoadConfigObject(this->GetClass(), this);
+		UEditorConfigSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEditorConfigSubsystem>();
+		if (Subsystem)
+		{
+			return Subsystem->LoadConfigObject(this->GetClass(), this);
+		}
 	}
-
 	return false;
 }
 
 bool UEditorConfigBase::SaveEditorConfig() const
 {
-	UEditorConfigSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEditorConfigSubsystem>();
-	if (Subsystem)
+	if (GEditor)
 	{
-		return Subsystem->SaveConfigObject(this->GetClass(), this);
+		UEditorConfigSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEditorConfigSubsystem>();
+		if (Subsystem)
+		{
+			return Subsystem->SaveConfigObject(this->GetClass(), this);
+		}
 	}
-
 	return false;
 }
