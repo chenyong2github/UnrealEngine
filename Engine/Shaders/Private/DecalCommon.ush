@@ -5,6 +5,10 @@
 =============================================================================*/
 
 #include "Common.ush"
+
+#define SceneTexturesStruct DecalPass.SceneTextures
+#define EyeAdaptationStruct DecalPass
+
 #include "DeferredShadingCommon.ush"		// GBufferData
 #include "DBufferDecalShared.ush"
 
