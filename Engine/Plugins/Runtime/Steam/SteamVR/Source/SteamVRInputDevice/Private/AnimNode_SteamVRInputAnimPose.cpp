@@ -315,6 +315,11 @@ FSteamVRInputDevice* FAnimNode_SteamVRInputAnimPose::GetSteamVRInputDevice()
 	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
 	for (auto MotionController : MotionControllers)
 	{
+		if (MotionController == nullptr || MotionController->GetMotionControllerDeviceTypeName() != FName(TEXT("SteamVRInputDevice")))
+		{
+			continue;
+		}
+
 		FSteamVRInputDevice* TestSteamVRDevice = static_cast<FSteamVRInputDevice*>(MotionController);
 		if (TestSteamVRDevice != nullptr  && TestSteamVRDevice->DeviceSignature == 2019)
 		{
