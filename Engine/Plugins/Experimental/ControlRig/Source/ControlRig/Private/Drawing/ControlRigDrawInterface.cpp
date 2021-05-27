@@ -156,6 +156,57 @@ void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FRi
 	Instructions.Add(InstructionZ);
 }
 
+void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FTransform& Transform,
+	const FLinearColor& InColor, float Size, float Thickness)
+{
+	if (!IsEnabled())
+	{
+		return;
+	}
+
+	FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, InColor, Thickness, WorldOffset);
+
+	Instruction.Positions.Reserve(6);
+	Instruction.Positions.Add(Transform.GetLocation());
+	Instruction.Positions.Add(Transform.TransformPosition(FVector(Size, 0.f, 0.f)));
+	Instruction.Positions.Add(Transform.GetLocation());
+	Instruction.Positions.Add(Transform.TransformPosition(FVector(0.f, Size, 0.f)));
+	Instruction.Positions.Add(Transform.GetLocation());
+	Instruction.Positions.Add(Transform.TransformPosition(FVector(0.f, 0.f, Size)));
+
+	Instructions.Add(Instruction);
+}
+
+void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FRigVMFixedArray<FTransform>& Transforms,
+	const FLinearColor& InColor, float Size, float Thickness)
+{
+	if (!IsEnabled())
+	{
+		return;
+	}
+
+	if (Transforms.Num() == 0)
+	{
+		return;
+	}
+
+	FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, InColor, Thickness, WorldOffset);
+
+	Instruction.Positions.Reserve(Transforms.Num() * 6);
+
+	for (const FTransform& Transform : Transforms)
+	{
+		Instruction.Positions.Add(Transform.GetLocation());
+		Instruction.Positions.Add(Transform.TransformPosition(FVector(Size, 0.f, 0.f)));
+		Instruction.Positions.Add(Transform.GetLocation());
+		Instruction.Positions.Add(Transform.TransformPosition(FVector(0.f, Size, 0.f)));
+		Instruction.Positions.Add(Transform.GetLocation());
+		Instruction.Positions.Add(Transform.TransformPosition(FVector(0.f, 0.f, Size)));
+	}
+
+	Instructions.Add(Instruction);
+}
+
 void FControlRigDrawInterface::DrawRectangle(const FTransform& WorldOffset, const FTransform& Transform, float Size, const FLinearColor& Color, float Thickness)
 {
 	if (!IsEnabled())
@@ -235,7 +286,7 @@ void FControlRigDrawInterface::DrawBezier(const FTransform& WorldOffset, const F
 	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, URigHierarchy* Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, URigHierarchy* Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness, const FRigPose* InPose)
 {
 	if (!IsEnabled())
 	{
@@ -257,7 +308,33 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, URig
 
 			Hierarchy->ForEach<FRigTransformElement>([&](FRigTransformElement* Child) -> bool
 			{
-				const FTransform Transform = Hierarchy->GetTransform(Child, ERigTransformType::CurrentGlobal);
+				auto GetTransformLambda = [InPose, Hierarchy](FRigTransformElement* InElement, FTransform& Transform) -> bool
+				{
+					bool bValid = true;
+					if(InPose)
+					{
+						const int32 ElementIndex = InPose->GetIndex(InElement->GetKey());
+						if(ElementIndex != INDEX_NONE)
+						{
+							Transform = InPose->operator[](ElementIndex).GlobalTransform;
+							return true;
+						}
+						else
+						{
+							bValid = false;
+						}
+					}
+
+					Transform = Hierarchy->GetTransform(InElement, ERigTransformType::CurrentGlobal);
+					return bValid;
+				};
+				
+				FTransform Transform = FTransform::Identity;
+				if(!GetTransformLambda(Child, Transform))
+				{
+					return true;
+				}
+
 				const FVector P0 = Transform.GetLocation();
 				const FVector PX = Transform.TransformPosition(FVector(Scale, 0.f, 0.f));
 				const FVector PY = Transform.TransformPosition(FVector(0.f, Scale, 0.f));
@@ -274,7 +351,9 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, URig
 				{
 					if(FRigTransformElement* ParentTransformElement = Cast<FRigTransformElement>(Parent))
 					{
-						const FTransform ParentTransform = Hierarchy->GetTransform(ParentTransformElement, ERigTransformType::CurrentGlobal);
+						FTransform ParentTransform = FTransform::Identity;
+						GetTransformLambda(ParentTransformElement, ParentTransform);
+
 						const FVector P1 = ParentTransform.GetLocation();
 						InstructionParent.Positions.Add(P0);
 						InstructionParent.Positions.Add(P1);

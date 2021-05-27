@@ -347,6 +347,11 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 				return FLinearColor(0.0, 0.6588, 0.9490);
 			}
 
+			if (Struct == FRigElementKey::StaticStruct() || Struct == FRigPose::StaticStruct())
+			{
+				return FLinearColor(0.0, 0.3588, 0.5490);
+			}
+
 			// external types can register their own colors, check if there are any
 			if (IControlRigDeveloperModule* Module = FModuleManager::GetModulePtr<IControlRigDeveloperModule>("ControlRigDeveloper"))
 			{

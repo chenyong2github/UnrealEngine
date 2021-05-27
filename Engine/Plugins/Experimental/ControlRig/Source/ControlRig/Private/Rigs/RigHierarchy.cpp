@@ -999,13 +999,35 @@ URigHierarchyController* URigHierarchy::GetController(bool bCreateIfNeeded)
 	return nullptr;
 }
 
-FRigPose URigHierarchy::GetPose(bool bInitial) const
+FRigPose URigHierarchy::GetPose(
+	bool bInitial,
+	ERigElementType InElementType,
+	const FRigElementKeyCollection& InItems 
+) const
 {
 	FRigPose Pose;
+	Pose.HierarchyTopologyVersion = GetTopologyVersion();
+	Pose.PoseHash = Pose.HierarchyTopologyVersion;
 
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 	{
 		FRigBaseElement* Element = Elements[ElementIndex];
+
+		// filter by type
+		if (((uint8)InElementType & (uint8)Element->GetType()) == 0)
+		{
+			continue;
+		}
+
+		// filter by optional collection
+		if(InItems.Num() > 0)
+		{
+			if(!InItems.Contains(Element->GetKey()))
+			{
+				continue;
+			}
+		}
+		
 		FRigPoseElement PoseElement;
 		PoseElement.Index.UpdateCache(Element->GetKey(), this);
 		
@@ -1023,28 +1045,61 @@ FRigPose URigHierarchy::GetPose(bool bInitial) const
 			continue;
 		}
 		Pose.Elements.Add(PoseElement);
+		Pose.PoseHash = HashCombine(Pose.PoseHash, GetTypeHash(PoseElement.Index.GetKey()));
 	}
 	return Pose;
 }
 
-void URigHierarchy::SetPose(const FRigPose& InPose, ERigTransformType::Type InTransformType)
+void URigHierarchy::SetPose(
+	const FRigPose& InPose,
+	ERigTransformType::Type InTransformType,
+	ERigElementType InElementType,
+	const FRigElementKeyCollection& InItems,
+	float InWeight
+)
 {
+	const float U = FMath::Clamp(InWeight, 0.f, 1.f);
+	if(U < SMALL_NUMBER)
+	{
+		return;
+	}
+	
 	for(const FRigPoseElement& PoseElement : InPose)
 	{
 		FCachedRigElement Index = PoseElement.Index;
+
+		// filter by type
+		if (((uint8)InElementType & (uint8)Index.GetKey().Type) == 0)
+		{
+			continue;
+		}
+
+		// filter by optional collection
+		if(InItems.Num() > 0)
+		{
+			if(!InItems.Contains(Index.GetKey()))
+			{
+				continue;
+			}
+		}
+
 		if(Index.UpdateCache(this))
 		{
 			FRigBaseElement* Element = Get(Index.GetIndex());
 			if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Element))
 			{
-				if(ERigTransformType::IsLocal(InTransformType))
+				FTransform TransformToSet =
+					ERigTransformType::IsLocal(InTransformType) ?
+						PoseElement.LocalTransform :
+						PoseElement.GlobalTransform;
+				
+				if(U < 1.f - SMALL_NUMBER)
 				{
-					SetTransform(TransformElement, PoseElement.LocalTransform, InTransformType, true);
+					const FTransform PreviousTransform = GetTransform(TransformElement, InTransformType);
+					TransformToSet = FControlRigMathLibrary::LerpTransform(PreviousTransform, TransformToSet, U);
 				}
-				else
-				{
-					SetTransform(TransformElement, PoseElement.GlobalTransform, InTransformType, true);
-				}
+
+				SetTransform(TransformElement, TransformToSet, InTransformType, true);
 			}
 			else if(FRigCurveElement* CurveElement = Cast<FRigCurveElement>(Element))
 			{
