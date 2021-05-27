@@ -21,7 +21,8 @@ class IBuildInputsInternal
 public:
 	virtual ~IBuildInputsInternal() = default;
 	virtual FStringView GetName() const = 0;
-	virtual const FCompressedBuffer& GetInput(FStringView Key) const = 0;
+	virtual const FCompressedBuffer& FindInput(FStringView Key) const = 0;
+	virtual void IterateInputs(TFunctionRef<void (FStringView Key, const FCompressedBuffer& Buffer)> Visitor) const = 0;
 	virtual void AddRef() const = 0;
 	virtual void Release() const = 0;
 };
@@ -56,8 +57,14 @@ public:
 	/** Returns the name by which to identify the inputs for logging and profiling. */
 	inline FStringView GetName() const { return Inputs->GetName(); }
 
+	/** Finds an input by key, or a null buffer if not found. */
+	inline const FCompressedBuffer& FindInput(FStringView Key) const { return Inputs->FindInput(Key); }
+
 	/** Visits every input in order by key. */
-	inline const FCompressedBuffer& GetInput(FStringView Key) const { return Inputs->GetInput(Key); }
+	inline void IterateInputs(TFunctionRef<void (FStringView Key, const FCompressedBuffer& Buffer)> Visitor) const
+	{
+		Inputs->IterateInputs(Visitor);
+	}
 
 private:
 	friend class FOptionalBuildInputs;
