@@ -1516,6 +1516,10 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 	}
 
 	FNiagaraSystemUpdateContext UpdateContext;
+
+	//TODO: Some path through the system sim init code is causing this to break running systems.
+	UpdateContext.SetDestroySystemSim(false);
+
 	UpdateContext.GetPostWork().BindLambda(
 		[ReinitMode, bResetAge](UNiagaraComponent* Component)
 		{

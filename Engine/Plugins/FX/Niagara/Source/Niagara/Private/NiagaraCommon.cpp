@@ -261,7 +261,7 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 
 	Comp->BeginUpdateContextReset();
 
-	if (bReInit)
+	if (bReInit && bDestroySystemSim)
 	{
 		//Always destroy the system sims on a reinit, even if we're not reactivating the component.
 		SystemSimsToDestroy.AddUnique(Comp->GetAsset());
