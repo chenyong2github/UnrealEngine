@@ -53,5 +53,6 @@ protected:
 
 	//~ FPropertyTrackEditor interface
 
+	virtual void OnAnimatedPropertyChanged( const FPropertyChangedParams& PropertyChangedParams ) override;
 	virtual void GenerateKeysFromPropertyChanged(const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys) override;
 };

@@ -10,6 +10,14 @@ TSharedRef<ISequencerTrackEditor> FActorReferencePropertyTrackEditor::CreateTrac
 	return MakeShareable(new FActorReferencePropertyTrackEditor(OwningSequencer));
 }
 
+void FActorReferencePropertyTrackEditor::OnAnimatedPropertyChanged( const FPropertyChangedParams& PropertyChangedParams )
+{
+	// Override the params by always manually adding a key/track so that we don't reference other spawnables and their levels
+	FPropertyChangedParams OverridePropertyChangedParams(PropertyChangedParams.ObjectsThatChanged, PropertyChangedParams.PropertyPath, PropertyChangedParams.StructPathToKey, ESequencerKeyMode::ManualKey);
+
+	FPropertyTrackEditor::OnAnimatedPropertyChanged( OverridePropertyChangedParams );
+}
+
 void FActorReferencePropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
 	// Care is taken here to ensure that GetPropertyValue is templated on UObject* which causes it to use the correct instantiation of GetPropertyValueImpl
