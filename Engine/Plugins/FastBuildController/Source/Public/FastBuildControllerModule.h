@@ -4,6 +4,7 @@
 
 #include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
 #include "Containers/Array.h"
+#include "Containers/Queue.h"
 
 class FFastBuildJobProcessor;
 

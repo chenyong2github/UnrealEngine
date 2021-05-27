@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/PlatformFile.h"
+
 struct FTask;
 
 class FDependencyEnumerator : public IPlatformFile::FDirectoryVisitor
