@@ -288,14 +288,27 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 		WMRInterop->SetLogCallback(&OnLog);
 	}
 
+	// If spatial mapping was requested before the session started, start it now.
 #if WITH_EDITOR
-	if (SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+	if (bShouldStartSpatialMapping && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 #else
-	if (!WMRInterop->IsRemoting() && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+	if (bShouldStartSpatialMapping && !WMRInterop->IsRemoting() && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 #endif
 	{
 		// Start spatial mesh mapping
 		SetupMeshObserver();
+	}
+
+	// If QR was requested before the session started, start it now.
+	if (bShouldStartQRDetection)
+	{
+		UHoloLensARFunctionLibrary::StartQRCodeCapture();
+	}
+
+	// If the camera was requested before the session started, start it now.
+	if (bShouldStartPVCamera)
+	{
+		UHoloLensARFunctionLibrary::StartCameraCapture();
 	}
 
 	SessionStatus.Status = EARSessionStatus::Running;
@@ -353,7 +366,7 @@ bool FHoloLensARSystem::SetupCameraImageSupport()
 
 void FHoloLensARSystem::OnPauseARSession()
 {
-	if (SessionConfig != nullptr && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+	if (bShouldStartSpatialMapping && SessionConfig != nullptr && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 	{
 		// Stop spatial mesh mapping. Existing meshes will remain
 		WMRInterop->StopSpatialMapping();
@@ -362,7 +375,7 @@ void FHoloLensARSystem::OnPauseARSession()
 
 void FHoloLensARSystem::OnResumeARSession()
 {
-	if (!WITH_EDITOR && SessionConfig != nullptr && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+	if (bShouldStartSpatialMapping && !WITH_EDITOR && SessionConfig != nullptr && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 	{
 		SetupMeshObserver();
 	}
@@ -480,30 +493,53 @@ bool FHoloLensARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureTyp
 		case EARCaptureType::Camera:
 			if (bOnOff)
 			{
-				return UHoloLensARFunctionLibrary::StartCameraCapture();
+				bShouldStartPVCamera = true;
+				if (SessionConfig != nullptr)
+				{
+					// We need a valid SessionConfig for camera setup.
+					return UHoloLensARFunctionLibrary::StartCameraCapture();
+				}
+				return true;
 			}
 			else
 			{
+				bShouldStartPVCamera = false;
 				return UHoloLensARFunctionLibrary::StopCameraCapture();
 			}
 			break;
 		case EARCaptureType::QRCode:
 			if (bOnOff)
 			{
-				return UHoloLensARFunctionLibrary::StartQRCodeCapture();
+				bShouldStartQRDetection = true;
+				if (SessionConfig != nullptr)
+				{
+					// When spawning QRCode objects, we need a valid SessionConfig for the QRCode class.
+					return UHoloLensARFunctionLibrary::StartQRCodeCapture();
+				}
+				return true;
 			}
 			else
 			{
+				bShouldStartQRDetection = false;
 				return UHoloLensARFunctionLibrary::StopQRCodeCapture();
 			}
 			break;
 		case EARCaptureType::SpatialMapping:
 			if (bOnOff)
 			{
-				return SetupMeshObserver();
+				bShouldStartSpatialMapping = true;
+				if (SessionConfig != nullptr && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+				{
+					// If we already have a session config, start spatial mapping now.
+					// Otherwise ToggleARCapture was called before the ARSession started, 
+					// spatial mapping will start when the ARSession starts.
+					return SetupMeshObserver();
+				}
+				return true;
 			}
 			else
 			{
+				bShouldStartSpatialMapping = false;
 				return WMRInterop->StopSpatialMapping();
 			}
 			break;
@@ -544,7 +580,8 @@ bool FHoloLensARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureTyp
 			break;
 	}
 
-	return false;
+	// If we got here, this is an unsupported ARCapture type - return true to avoid a retry.
+	return true;
 }
 
 void FHoloLensARSystem::OnSetEnabledXRCamera(bool bOnOff)

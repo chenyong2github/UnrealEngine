@@ -184,6 +184,9 @@ public:
 	TSet<FGuid> LastKnownMeshes;
 	FCriticalSection HandMeshLock;
 	TArray<FMeshUpdate> HandMeshes;
+	bool bShouldStartSpatialMapping = false;
+	bool bShouldStartQRDetection = false;
+	bool bShouldStartPVCamera = false;
 	//~ Mesh observer callback support
 
 private:
