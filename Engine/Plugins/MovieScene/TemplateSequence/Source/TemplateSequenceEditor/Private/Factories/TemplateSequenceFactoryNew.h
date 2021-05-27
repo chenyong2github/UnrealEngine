@@ -15,8 +15,12 @@ class UTemplateSequenceFactoryNew : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
-public:
 	// UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	virtual bool ConfigureProperties() override;
 	virtual bool ShouldShowInNewMenu() const override;
+
+	// The root object binding class of the created template sequence.
+	UPROPERTY(EditAnywhere, Category=TemplateSequenceFactory)
+	TSubclassOf<UObject> BoundActorClass;
 };
