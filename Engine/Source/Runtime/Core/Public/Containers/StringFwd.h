@@ -19,6 +19,8 @@ using FStringBuilderBase = TStringBuilderBase<TCHAR>;
 using FAnsiStringBuilderBase = TStringBuilderBase<ANSICHAR>;
 /** The base string builder type for WIDECHAR. */
 using FWideStringBuilderBase = TStringBuilderBase<WIDECHAR>;
+/** The base string builder type for UTF8CHAR. */
+using FUtf8StringBuilderBase = TStringBuilderBase<UTF8CHAR>;
 
 /** An extendable string builder for TCHAR. */
 template <int32 BufferSize> using TStringBuilder = TStringBuilderWithBuffer<TCHAR, BufferSize>;
@@ -26,6 +28,8 @@ template <int32 BufferSize> using TStringBuilder = TStringBuilderWithBuffer<TCHA
 template <int32 BufferSize> using TAnsiStringBuilder = TStringBuilderWithBuffer<ANSICHAR, BufferSize>;
 /** An extendable string builder for WIDECHAR. */
 template <int32 BufferSize> using TWideStringBuilder = TStringBuilderWithBuffer<WIDECHAR, BufferSize>;
+/** An extendable string builder for UTF8CHAR. */
+template <int32 BufferSize> using TUtf8StringBuilder = TStringBuilderWithBuffer<UTF8CHAR, BufferSize>;
 
 /** A fixed-size string builder for TCHAR. */
 template <int32 BufferSize> using TFixedStringBuilder UE_DEPRECATED(4.25, "'TFixedStringBuilder' is deprecated. Please use 'TStringBuilder' instead!") = TStringBuilderWithBuffer<TCHAR, BufferSize>;
@@ -41,3 +45,4 @@ template <typename CharType> struct TIsContiguousContainer<TStringView<CharType>
 using FStringView = TStringView<TCHAR>;
 using FAnsiStringView = TStringView<ANSICHAR>;
 using FWideStringView = TStringView<WIDECHAR>;
+using FUtf8StringView = TStringView<UTF8CHAR>;
