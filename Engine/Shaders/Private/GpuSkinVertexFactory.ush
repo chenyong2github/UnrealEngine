@@ -769,7 +769,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.PrevLocalToWorld = Intermediates.SceneData.InstanceData.PrevLocalToWorld;
 #else
 	Intermediates.InvNonUniformScale = Primitive.InvNonUniformScale;
-	Intermediates.DeterminantSign = GetPrimitive_DeterminantSign(Primitive);
+	Intermediates.DeterminantSign = GetPrimitive_DeterminantSign_FromFlags(Primitive.Flags);
 	Intermediates.LocalToWorld = Primitive.LocalToWorld;
 	Intermediates.WorldToLocal = Primitive.WorldToLocal;
 	Intermediates.PrevLocalToWorld = Primitive.PreviousLocalToWorld;
