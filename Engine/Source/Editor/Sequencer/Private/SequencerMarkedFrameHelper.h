@@ -14,7 +14,7 @@ class FSequencerMarkedFrameHelper
 {
 public:
 	/** Find all marked frames in a sequence hierarchy, relative to the Sequencer's currently focused sequence */
-	static void FindGlobalMarkedFrames(ISequencer& Sequencer, TArray<FMovieSceneMarkedFrame>& OutGlobalMarkedFrames);
+	static void FindGlobalMarkedFrames(ISequencer& Sequencer, TArray<uint32> LoopCounter, TArray<FMovieSceneMarkedFrame>& OutGlobalMarkedFrames);
 
 	/** Clear the setting to show marked frames globally across an entire sequence hierarchy */
 	static void ClearGlobalMarkedFrames(ISequencer& Sequencer);

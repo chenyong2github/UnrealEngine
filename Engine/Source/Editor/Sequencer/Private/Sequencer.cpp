@@ -1308,16 +1308,23 @@ void FSequencer::UpdateSubSequenceData()
 			// of the loop. Note, again, that we only compute the new loop index for UI display purposes at this
 			// point (see comment at the beginning of this method). We will commit to the new loop indices
 			// once we're done scrubbing.
-			LocalLoopIndexOffsetDuringScrubbing = 0;
+			uint32 CurLoopIndex = 0;
 			while (LocalTimeWithLastLoopUnwarped >= PlayRangeUpperBound)
 			{
 				LocalTimeWithLastLoopUnwarped = LocalTimeWithLastLoopUnwarped - PlayRangeSize;
-				++LocalLoopIndexOffsetDuringScrubbing;
+				++CurLoopIndex;
 			}
 			while (LocalTimeWithLastLoopUnwarped <= PlayRangeLowerBound)
 			{
 				LocalTimeWithLastLoopUnwarped = LocalTimeWithLastLoopUnwarped + PlayRangeSize;
-				--LocalLoopIndexOffsetDuringScrubbing;
+				--CurLoopIndex;
+			}
+			if (CurLoopIndex != LocalLoopIndexOffsetDuringScrubbing)
+			{
+				LocalLoopIndexOffsetDuringScrubbing = CurLoopIndex;
+				// If we jumped to the previous or next loop, we need to invalidate the global marked frames because
+				// the focused (currently edited) sequence's time transform just changed.
+				InvalidateGlobalMarkedFramesCache();
 			}
 		}
 	}
@@ -11569,7 +11576,12 @@ void FSequencer::UpdateGlobalMarkedFramesCache()
 {
 	GlobalMarkedFramesCache.Empty();
 
-	FSequencerMarkedFrameHelper::FindGlobalMarkedFrames(*this, GlobalMarkedFramesCache);
+	TArray<uint32> LoopCounts = RootToLocalLoopCounter.WarpCounts;
+	if (LoopCounts.Num() > 0)
+	{
+		LoopCounts.Last() += LocalLoopIndexOffsetDuringScrubbing;
+	}
+	FSequencerMarkedFrameHelper::FindGlobalMarkedFrames(*this, LoopCounts, GlobalMarkedFramesCache);
 	
 	bGlobalMarkedFramesCached = true;
 }
