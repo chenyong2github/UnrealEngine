@@ -4715,16 +4715,23 @@ int32 FHLSLMaterialTranslator::TextureSample(
 
 int32 FHLSLMaterialTranslator::TextureProperty(int32 TextureIndex, EMaterialExposedTextureProperty Property)
 {
-	EMaterialValueType TextureType = GetParameterType(TextureIndex);
-
-	if(TextureType != MCT_Texture2D && TextureType != MCT_TextureVirtual && TextureType != MCT_VolumeTexture)
+	const EMaterialValueType TextureType = GetParameterType(TextureIndex);
+	if (TextureType != MCT_Texture2D &&
+		TextureType != MCT_TextureVirtual &&
+		TextureType != MCT_VolumeTexture &&
+		TextureType != MCT_Texture2DArray)
 	{
-		return Errorf(TEXT("Texture size only available for Texture2D, TextureVirtual, and VolumeTexture, not %s"),DescribeType(TextureType));
+		return Errorf(TEXT("Texture size only available for Texture2D, TextureVirtual, Texture2DArray, and VolumeTexture, not %s"),DescribeType(TextureType));
 	}
 		
-	auto TextureExpression = (FMaterialUniformExpressionTexture*) (*CurrentScopeChunks)[TextureIndex].UniformExpression.GetReference();
+	FMaterialUniformExpressionTexture* TextureExpression = (*CurrentScopeChunks)[TextureIndex].UniformExpression->GetTextureUniformExpression();
+	if (!TextureExpression)
+	{
+		return Errorf(TEXT("Expected a texture expression"));
+	}
 
-	return AddUniformExpression(new FMaterialUniformExpressionTextureProperty(TextureExpression, Property), (TextureType == MCT_VolumeTexture ? MCT_Float3 : MCT_Float2), TEXT(""));
+	const EMaterialValueType ValueType = (TextureType == MCT_VolumeTexture || TextureType == MCT_Texture2DArray) ? MCT_Float3 : MCT_Float2;
+	return AddUniformExpression(new FMaterialUniformExpressionTextureProperty(TextureExpression, Property), ValueType, TEXT(""));
 }
 
 int32 FHLSLMaterialTranslator::TextureDecalMipmapLevel(int32 TextureSizeInput)
