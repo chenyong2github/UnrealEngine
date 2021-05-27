@@ -177,6 +177,9 @@ namespace Chaos
 		void ParticleMassUpdateDensity(const FTriangleMesh& Mesh, FReal Density);
 		void ParticleMassClampAndEnslave(int32 Offset, int32 Size, FReal MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
+		// Update the solver field forces/velocities at the particles location
+		void UpdateSolverField();
+
 	private:
 		TUniquePtr<FPBDEvolution> Evolution;
 
