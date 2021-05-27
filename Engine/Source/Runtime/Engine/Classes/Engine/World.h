@@ -823,7 +823,7 @@ struct FStreamingLevelsToConsider
 	GENERATED_BODY()
 
 	FStreamingLevelsToConsider()
-		: bStreamingLevelsBeingConsidered(false)
+		: StreamingLevelsBeingConsidered(0)
 	{}
 
 private:
@@ -841,8 +841,8 @@ private:
 	/** Streaming levels that had their priority changed or were added to the container while consideration was underway. */
 	TSortedMap<ULevelStreaming*, EProcessReason> LevelsToProcess;
 
-	/** Whether the streaming levels are under active consideration or not */
-	bool bStreamingLevelsBeingConsidered;
+	/** Whether the streaming levels are under active consideration */
+	int32 StreamingLevelsBeingConsidered;
 
 	/** 
 	 * Add an element to the container. 
@@ -858,6 +858,7 @@ public:
 
 	void BeginConsideration();
 	void EndConsideration();
+	bool AreStreamingLevelsBeingConsidered() { return StreamingLevelsBeingConsidered > 0; }
 
 	/** Add an element to the container if not already in the container. */
 	void Add(ULevelStreaming* StreamingLevel) { Add_Internal(StreamingLevel, false); }
