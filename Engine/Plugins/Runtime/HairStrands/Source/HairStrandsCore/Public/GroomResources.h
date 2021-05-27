@@ -56,7 +56,7 @@ struct FHairCommonResource : public FRenderResource
 struct FHairStrandsRestRootResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRestRootResource(const FHairStrandsRootBulkData& BulkData, EHairStrandsResourcesType CurveType);
+	FHairStrandsRestRootResource(FHairStrandsRootBulkData& BulkData, EHairStrandsResourcesType CurveType);
 
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -120,7 +120,7 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	TArray<FLOD> LODs;
 
 	/* Store CPU data for root info & root binding */
-	const FHairStrandsRootBulkData& BulkData;
+	FHairStrandsRootBulkData& BulkData;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
@@ -196,7 +196,7 @@ struct FHairStrandsDeformedRootResource : public FHairCommonResource
 struct FHairStrandsRestResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsRestResource(const FHairStrandsBulkData& InBulkData, EHairStrandsResourcesType CurveType);
+	FHairStrandsRestResource(FHairStrandsBulkData& InBulkData, EHairStrandsResourcesType CurveType);
 
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -241,7 +241,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	FRDGExternalBuffer MaterialBuffer;
 
 	/* Reference to the hair strands render data */
-	const FHairStrandsBulkData& BulkData;
+	FHairStrandsBulkData& BulkData;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
@@ -252,7 +252,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 struct FHairStrandsDeformedResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsDeformedResource(const FHairStrandsBulkData& BulkData, bool bInitializeData, EHairStrandsResourcesType CurveType);
+	FHairStrandsDeformedResource(FHairStrandsBulkData& BulkData, bool bInitializeData, EHairStrandsResourcesType CurveType);
 
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -284,7 +284,7 @@ struct FHairStrandsDeformedResource : public FHairCommonResource
 	FVector PositionOffset[2] = {FVector::ZeroVector, FVector::ZeroVector};
 
 	/* Reference to the hair strands render data */
-	const FHairStrandsBulkData& BulkData;
+	FHairStrandsBulkData& BulkData;
 
 	/* Whether the GPU data should be initialized with the asset data or not */
 	const bool bInitializedData = false;
@@ -350,7 +350,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 struct FHairStrandsInterpolationResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsInterpolationResource(const FHairStrandsInterpolationBulkData& InBulkData);
+	FHairStrandsInterpolationResource(FHairStrandsInterpolationBulkData& InBulkData);
 	
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -378,7 +378,7 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 	FRDGExternalBuffer SimRootPointIndexBuffer;
 
 	/* Reference to the hair strands interpolation render data */
-	const FHairStrandsInterpolationBulkData& BulkData;
+	FHairStrandsInterpolationBulkData& BulkData;
 };
 
 #if RHI_RAYTRACING
@@ -603,7 +603,7 @@ struct HAIRSTRANDSCORE_API FHairCardsInterpolationBulkData
 struct FHairCardsInterpolationResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
-	FHairCardsInterpolationResource(const FHairCardsInterpolationBulkData& InBulkData);
+	FHairCardsInterpolationResource(FHairCardsInterpolationBulkData& InBulkData);
 
 	/* Init/release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -623,7 +623,7 @@ struct FHairCardsInterpolationResource : public FHairCommonResource
 	FRDGExternalBuffer InterpolationBuffer;
 
 	/* Reference to the hair strands interpolation render data */
-	const FHairCardsInterpolationBulkData& BulkData;
+	FHairCardsInterpolationBulkData& BulkData;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

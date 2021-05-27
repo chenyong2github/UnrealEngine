@@ -521,7 +521,7 @@ struct FHairStrandsRootBulkData
 			Total += LOD.MeshInterpolationWeightsBuffer.IsBulkDataLoaded() ?	LOD.MeshInterpolationWeightsBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.MeshSampleIndicesBuffer.IsBulkDataLoaded() ?			LOD.MeshSampleIndicesBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.RestSamplePositionsBuffer.IsBulkDataLoaded() ?			LOD.RestSamplePositionsBuffer.GetBulkDataSize() : 0u;
-			Total += LOD.ValidSectionIndices.IsBulkDataLoaded() ?				LOD.ValidSectionIndices.GetBulkDataSize() : 0u;
+			Total += LOD.ValidSectionIndices.GetAllocatedSize();
 		}
 		return Total;
 	}
@@ -554,10 +554,7 @@ struct FHairStrandsRootBulkData
 		FByteBulkData RestSamplePositionsBuffer;
 
 		/* Store the mesh section indices which are relevant for this root LOD data */
-		FByteBulkData ValidSectionIndices;
-
-		/* When cached valid section indices from bulk to avoid lock/unlock operation everyframe */
-		mutable TArray<uint32> CachedValidSectionIndices;
+		TArray<uint32> ValidSectionIndices;
 	};
 
 	/* Number of roots */

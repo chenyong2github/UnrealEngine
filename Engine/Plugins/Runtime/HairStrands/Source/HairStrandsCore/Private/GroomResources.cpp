@@ -116,7 +116,7 @@ static FRDGBufferRef InternalCreateVertexBuffer(
 }
 
 template<typename FormatType>
-void InternalCreateVertexBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, const FByteBulkData& InBulkData, uint32 InDataCount, FRDGExternalBuffer& Out, const TCHAR* DebugName, EHairResourceUsageType UsageType)
+void InternalCreateVertexBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, FByteBulkData& InBulkData, uint32 InDataCount, FRDGExternalBuffer& Out, const TCHAR* DebugName, EHairResourceUsageType UsageType)
 {
 	const uint32 InDataCount_Check = InBulkData.GetBulkDataSize() / sizeof(typename FormatType::BulkType);
 	check(InDataCount_Check == InDataCount);
@@ -134,7 +134,7 @@ void InternalCreateVertexBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, const
 		Desc.Usage = Desc.Usage & (~BUF_UnorderedAccess);
 	}
 
-	const typename FormatType::BulkType* BulkData = (const typename FormatType::BulkType*)InBulkData.LockReadOnly();
+	const typename FormatType::BulkType* BulkData = (const typename FormatType::BulkType*)InBulkData.Lock(LOCK_READ_ONLY);
 	FRDGBufferRef Buffer = InternalCreateVertexBuffer(
 		GraphBuilder,
 		DebugName,
@@ -621,7 +621,7 @@ void FHairMeshesDeformedResource::InternalRelease()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsRestResource::FHairStrandsRestResource(const FHairStrandsBulkData& InBulkData, EHairStrandsResourcesType InCurveType) :
+FHairStrandsRestResource::FHairStrandsRestResource(FHairStrandsBulkData& InBulkData, EHairStrandsResourcesType InCurveType) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	PositionBuffer(), Attribute0Buffer(), Attribute1Buffer(), MaterialBuffer(), BulkData(InBulkData), CurveType(InCurveType)
 {}
@@ -689,7 +689,7 @@ void FHairStrandsRestResource::InternalRelease()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsDeformedResource::FHairStrandsDeformedResource(const FHairStrandsBulkData& InBulkData, bool bInInitializedData, EHairStrandsResourcesType InCurveType) :
+FHairStrandsDeformedResource::FHairStrandsDeformedResource(FHairStrandsBulkData& InBulkData, bool bInInitializedData, EHairStrandsResourcesType InCurveType) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	BulkData(InBulkData), bInitializedData(bInInitializedData), CurveType(InCurveType)
 {
@@ -787,7 +787,7 @@ void FHairStrandsClusterCullingResource::InternalRelease()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsRestRootResource::FHairStrandsRestRootResource(const FHairStrandsRootBulkData& InBulkData, EHairStrandsResourcesType InCurveType) :
+FHairStrandsRestRootResource::FHairStrandsRestRootResource(FHairStrandsRootBulkData& InBulkData, EHairStrandsResourcesType InCurveType) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	BulkData(InBulkData), CurveType(InCurveType)
 {
@@ -838,7 +838,7 @@ void FHairStrandsRestRootResource::InternalAllocateLOD(FRDGBuilder& GraphBuilder
 			return;
 		}
 
-		const FHairStrandsRootBulkData::FMeshProjectionLOD& CPUData = BulkData.MeshProjectionLODs[LODIndex];
+		FHairStrandsRootBulkData::FMeshProjectionLOD& CPUData = BulkData.MeshProjectionLODs[LODIndex];
 		const bool bHasValidCPUData = CPUData.RootTriangleBarycentricBuffer.GetBulkDataSize() > 0;
 		if (bHasValidCPUData)
 		{
@@ -987,19 +987,7 @@ bool FHairStrandsRootBulkData::HasProjectionData() const
 const TArray<uint32>& FHairStrandsRootBulkData::GetValidSectionIndices(int32 LODIndex) const
 {
 	check(LODIndex >= 0 && LODIndex < MeshProjectionLODs.Num());
-
-	if (MeshProjectionLODs[LODIndex].CachedValidSectionIndices.IsEmpty())
-	{
-		const uint32 SizeInBytes = MeshProjectionLODs[LODIndex].ValidSectionIndices.GetBulkDataSize();
-		const uint32 ElementCount = SizeInBytes / sizeof(uint32);
-		MeshProjectionLODs[LODIndex].CachedValidSectionIndices.SetNum(ElementCount);
-
-		uint32* CachedData = MeshProjectionLODs[LODIndex].CachedValidSectionIndices.GetData();
-		const uint32* Data = (uint32*)MeshProjectionLODs[LODIndex].ValidSectionIndices.LockReadOnly();
-		FMemory::Memcpy(CachedData, Data, SizeInBytes);
-		MeshProjectionLODs[LODIndex].ValidSectionIndices.Unlock();
-	}
-	return MeshProjectionLODs[LODIndex].CachedValidSectionIndices;
+	return MeshProjectionLODs[LODIndex].ValidSectionIndices;
 }
 
 static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairStrandsRootBulkData::FMeshProjectionLOD& LOD)
@@ -1017,7 +1005,6 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairStrandsRootBulk
 	LOD.MeshInterpolationWeightsBuffer.SetBulkDataFlags(BulkFlags);
 	LOD.MeshSampleIndicesBuffer.SetBulkDataFlags(BulkFlags);
 	LOD.RestSamplePositionsBuffer.SetBulkDataFlags(BulkFlags);
-	LOD.ValidSectionIndices.SetBulkDataFlags(BulkFlags);
 
 	Ar << LOD.LODIndex;
 	LOD.RootTriangleIndexBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
@@ -1030,7 +1017,7 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairStrandsRootBulk
 	LOD.MeshInterpolationWeightsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	LOD.MeshSampleIndicesBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	LOD.RestSamplePositionsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	LOD.ValidSectionIndices.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+	LOD.ValidSectionIndices.BulkSerialize(Ar);
 }
 
 static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairStrandsRootBulkData::FMeshProjectionLOD>& LODs)
@@ -1078,8 +1065,7 @@ void FHairStrandsRootBulkData::Reset()
 		LOD.MeshInterpolationWeightsBuffer.RemoveBulkData();
 		LOD.MeshSampleIndicesBuffer.RemoveBulkData();
 		LOD.RestSamplePositionsBuffer.RemoveBulkData();
-		LOD.ValidSectionIndices.RemoveBulkData();
-		LOD.CachedValidSectionIndices.Empty();
+		LOD.ValidSectionIndices.Empty();
 	}
 	MeshProjectionLODs.Empty();
 }
@@ -1121,7 +1107,7 @@ void FHairStrandsRootData::Reset()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHairStrandsInterpolationBulkData& InBulkData) :
+FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(FHairStrandsInterpolationBulkData& InBulkData) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	InterpolationBuffer(), Interpolation0Buffer(), Interpolation1Buffer(), BulkData(InBulkData)
 {
@@ -1170,7 +1156,7 @@ void FHairCardsInterpolationBulkData::Serialize(FArchive& Ar)
 	Ar << Interpolation;
 }
 
-FHairCardsInterpolationResource::FHairCardsInterpolationResource(const FHairCardsInterpolationBulkData& InBulkData) :
+FHairCardsInterpolationResource::FHairCardsInterpolationResource(FHairCardsInterpolationBulkData& InBulkData) :
 	FHairCommonResource(EHairStrandsAllocationType::Immediate),
 	InterpolationBuffer(), BulkData(InBulkData)
 {
