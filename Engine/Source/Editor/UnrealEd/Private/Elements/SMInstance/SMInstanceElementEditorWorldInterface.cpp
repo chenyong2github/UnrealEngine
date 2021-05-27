@@ -122,7 +122,7 @@ void USMInstanceElementEditorWorldInterface::DuplicateElements(TArrayView<const 
 				const bool bOffsetIsZero = InLocationOffset.IsZero();
 
 				OutNewElements.Reserve(OutNewElements.Num() + NewInstanceIds.Num());
-				for (const FSMInstanceId& NewInstanceId : BatchedInstancesToDuplicatePair.Value)
+				for (const FSMInstanceId& NewInstanceId : NewInstanceIds)
 				{
 					if (!bOffsetIsZero)
 					{
