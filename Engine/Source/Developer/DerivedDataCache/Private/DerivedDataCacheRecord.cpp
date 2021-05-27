@@ -2,13 +2,19 @@
 
 #include "DerivedDataCacheRecord.h"
 
+#include "Algo/AllOf.h"
+#include "Containers/StringConv.h"
 #include "Containers/UnrealString.h"
+#include "DerivedDataCache.h"
 #include "DerivedDataCacheKey.h"
+#include "DerivedDataCachePrivate.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryPackage.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "UObject/NameTypes.h"
 #include <atomic>
 
@@ -261,6 +267,132 @@ FCacheRecordBuilder CreateCacheRecordBuilder(ICacheRecordBuilderInternal* Record
 FCacheRecordBuilder CreateCacheRecordBuilder(const FCacheKey& Key)
 {
 	return CreateCacheRecordBuilder(new FCacheRecordBuilderInternal(Key));
+}
+
+FCbPackage SaveCacheRecord(const FCacheRecord& Record)
+{
+	FCbPackage Package;
+	FCbWriter Writer;
+	Writer.BeginObject();
+	{
+		const FCacheKey& Key = Record.GetKey();
+		Writer.BeginObject("Key"_ASV);
+		Writer.AddString("Bucket"_ASV, Key.Bucket.ToString<ANSICHAR>());
+		Writer.AddHash("Hash"_ASV, Key.Hash);
+		Writer.EndObject();
+	}
+
+	if (const FCbObject& Meta = Record.GetMeta())
+	{
+		Writer.AddObject("Meta"_ASV, Meta);
+	}
+	auto SavePayload = [&Package, &Writer](const FPayload& Payload)
+	{
+		Writer.BeginObject();
+		Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId().GetView()));
+		Writer.AddHash("RawHash"_ASV, Payload.GetRawHash());
+		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
+		const FCompositeBuffer CompressedBuffer = Payload.GetData().GetCompressed();
+		FCbAttachment AttachedCompressed(CompressedBuffer.Flatten());
+		Writer.AddAttachment("CompressedHash", AttachedCompressed);
+		Package.AddAttachment(AttachedCompressed);
+		Writer.EndObject();
+	};
+	if (const FPayload& Value = Record.GetValuePayload())
+	{
+		Writer.SetName("Value"_ASV);
+		SavePayload(Value);
+	}
+	TConstArrayView<FPayload> Attachments = Record.GetAttachmentPayloads();
+	if (!Attachments.IsEmpty())
+	{
+		Writer.BeginArray("Attachments"_ASV);
+		for (const FPayload& Attachment : Attachments)
+		{
+			SavePayload(Attachment);
+		}
+		Writer.EndArray();
+	}
+	Writer.EndObject();
+
+	Package.SetObject(Writer.Save().AsObject());
+	return Package;
+}
+
+FOptionalCacheRecord LoadCacheRecord(const FCbPackage& Package)
+{
+	FCbObjectView RecordObject = Package.GetObject();
+	
+	FCacheKey Key;
+	FCbObjectView KeyObject = RecordObject["Key"_ASV].AsObjectView();
+	auto TrySetBucketName = [](FStringView Name, FCacheKey& Key)
+	{
+		if (FCString::IsPureAnsi(Name.GetData(), Name.Len())
+			&& Algo::AllOf(Name, FChar::IsAlnum) && !Name.IsEmpty() && Name.Len() < 256)
+		{
+			Key.Bucket = CreateCacheBucket(Name);
+			return true;
+		}
+		return false;
+	};
+	if (!TrySetBucketName(FUTF8ToTCHAR(KeyObject["Bucket"_ASV].AsString()), Key))
+	{
+		return FOptionalCacheRecord();
+	}
+	Key.Hash = KeyObject["Hash"_ASV].AsHash();
+
+	FCacheRecordBuilder Builder = CreateCacheRecordBuilder(Key);
+
+	Builder.SetMeta(Package.GetObject()["Meta"_ASV].AsObject());
+
+	auto LoadPayload = [&Package](const FCbObjectView& PayloadObject)
+	{
+		const FPayloadId PayloadId(PayloadObject["Id"].AsObjectId().GetView());
+		if (PayloadId.IsNull())
+		{
+			return FPayload();
+		}
+
+		if (const FCbAttachment* Attachment = Package.FindAttachment(PayloadObject["CompressedHash"].AsHash()))
+		{
+			if (FCompressedBuffer Compressed = FCompressedBuffer::FromCompressed(Attachment->AsBinaryView()))
+			{
+				return FPayload(PayloadId, Compressed);
+			}
+		}
+		FIoHash RawHash = PayloadObject["RawHash"].AsHash();
+		uint64 RawSize = PayloadObject["RawSize"].AsUInt64(MAX_uint64);
+		if (!RawHash.IsZero() && RawSize != MAX_uint64)
+		{
+			return FPayload(PayloadId, RawHash, RawSize);
+		}
+		else
+		{
+			return FPayload();
+		}
+	};
+
+	if (FCbObjectView ValueObject = RecordObject["Value"_ASV].AsObjectView())
+	{
+		FPayload Value = LoadPayload(ValueObject);
+		if (!Value)
+		{
+			return FOptionalCacheRecord();
+		}
+		Builder.SetValue(Value);
+	}
+
+	for (FCbFieldView AttachmentField : RecordObject["Attachments"_ASV])
+	{
+		FPayload Attachment = LoadPayload(AttachmentField.AsObjectView());
+		if (!Attachment)
+		{
+			return FOptionalCacheRecord();
+		}
+		Builder.AddAttachment(Attachment);
+	}
+
+	return Builder.Build();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

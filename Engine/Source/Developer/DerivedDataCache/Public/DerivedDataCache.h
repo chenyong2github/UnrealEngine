@@ -8,12 +8,15 @@
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
 
+class FCbPackage;
+
 namespace UE::DerivedData
 {
 
 class FCacheBucket;
 class FCacheRecord;
 class FCacheRecordBuilder;
+class FOptionalCacheRecord;
 class FPayload;
 struct FCacheGetCompleteParams;
 struct FCacheGetPayloadCompleteParams;
@@ -110,6 +113,19 @@ public:
 	 * Create a cache record builder from a cache key.
 	 */
 	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) = 0;
+
+	/**
+	 * Save the cache record to a compact binary package.
+	 */
+	virtual FCbPackage SaveRecord(const FCacheRecord& Record) = 0;
+
+	/**
+	 * Load a cache record from compact binary.
+	 *
+	 * @param Package   A package saved from a cache record.
+	 * @return A valid cache record, or null on error.
+	 */
+	virtual FOptionalCacheRecord LoadRecord(const FCbPackage& Package) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

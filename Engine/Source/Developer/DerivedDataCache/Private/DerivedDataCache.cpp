@@ -17,6 +17,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "Serialization/CompactBinaryPackage.h"
 #include "Stats/Stats.h"
 #include "Stats/StatsMisc.h"
 #include <atomic>
@@ -661,6 +662,16 @@ public:
 	FCacheBucket CreateBucket(FStringView Name) final { return CreateCacheBucket(Name); }
 
 	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return CreateCacheRecordBuilder(Key); }
+
+	FCbPackage SaveRecord(const FCacheRecord& Record) final
+	{
+		return SaveCacheRecord(Record);
+	}
+
+	FOptionalCacheRecord LoadRecord(const FCbPackage& Package) final
+	{
+		return LoadCacheRecord(Package);
+	}
 
 	FRequest Put(
 		TConstArrayView<FCacheRecord> Records,
