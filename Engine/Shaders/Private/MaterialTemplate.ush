@@ -2431,12 +2431,12 @@ half4 GetMaterialSubsurfaceData(FPixelMaterialInputs PixelMaterialInputs)
 	return OutSubsurface;
 }
 
-half GetMaterialCustomData0(FMaterialPixelParameters Parameters)
+half GetMaterialCustomData0(in out FMaterialPixelParameters Parameters)
 {
 %s;
 }
 
-half GetMaterialCustomData1(FMaterialPixelParameters Parameters)
+half GetMaterialCustomData1(in out FMaterialPixelParameters Parameters)
 {
 %s;
 }
@@ -2502,7 +2502,7 @@ float3 TransformTangentNormalToWorld(MaterialFloat3x3 TangentToWorld, float3 Tan
 
 #endif //DECAL_PRIMITIVE
 
-float3 CalculateAnisotropyTangent(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs)
+float3 CalculateAnisotropyTangent(in out FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs)
 {
 	float3 Normal = Parameters.WorldNormal;
 
