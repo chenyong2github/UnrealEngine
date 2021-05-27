@@ -26,9 +26,10 @@ public:
 	void AddInput(FStringView Key, const FCompressedBuffer& Buffer) final
 	{
 		const uint32 KeyHash = GetTypeHash(Key);
+		checkf(Buffer, TEXT("Null buffer used in input for build of '%s'."), *Name);
 		checkf(!Key.IsEmpty(), TEXT("Empty key used in input for build of '%s'."), *Name);
-		checkf(!Inputs.ContainsByHash(KeyHash, Key), TEXT("Duplicate key '%.*s' used in input for "),
-			TEXT("build of '%s'."), Key.Len(), Key.GetData(), *Name);
+		checkf(!Inputs.ContainsByHash(KeyHash, Key), TEXT("Duplicate key '%.*s' used in input for build of '%s'."),
+			Key.Len(), Key.GetData(), *Name);
 		Inputs.EmplaceByHash(KeyHash, Key, Buffer);
 	}
 
@@ -49,7 +50,8 @@ public:
 
 	FStringView GetName() const final { return Name; }
 
-	const FCompressedBuffer& GetInput(FStringView Key) const final;
+	const FCompressedBuffer& FindInput(FStringView Key) const final;
+	void IterateInputs(TFunctionRef<void (FStringView Key, const FCompressedBuffer& Buffer)> Visitor) const final;
 
 	inline void AddRef() const final
 	{
@@ -79,13 +81,21 @@ FBuildInputsInternal::FBuildInputsInternal(FBuildInputsBuilderInternal&& InputsB
 	Inputs.KeySort(TLess<>());
 }
 
-const FCompressedBuffer& FBuildInputsInternal::GetInput(FStringView Key) const
+const FCompressedBuffer& FBuildInputsInternal::FindInput(FStringView Key) const
 {
 	if (const FCompressedBuffer* Buffer = Inputs.FindByHash(GetTypeHash(Key), Key))
 	{
 		return *Buffer;
 	}
 	return FCompressedBuffer::Null;
+}
+
+void FBuildInputsInternal::IterateInputs(TFunctionRef<void (FStringView Key, const FCompressedBuffer& Buffer)> Visitor) const
+{
+	for (const TPair<FString, FCompressedBuffer>& Input : Inputs)
+	{
+		Input.ApplyAfter(Visitor);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
