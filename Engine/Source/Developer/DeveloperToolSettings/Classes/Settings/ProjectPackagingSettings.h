@@ -31,7 +31,7 @@ enum class EProjectPackagingBuildConfigurations : uint8
 	PPBC_Shipping UMETA(DisplayName="Shipping"),
 
 	/** Number of entries in the enum. */
-	PPBC_MAX
+	PPBC_MAX UMETA(Hidden)
 };
 
 /**
