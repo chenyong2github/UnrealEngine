@@ -89,6 +89,15 @@ void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
 			ParameterEditorLibraryValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
 		}
 	}
+	else if (Variable->GetOuter()->IsA<UNiagaraParameterDefinitions>())
+	{
+		if (TypeUtilityLibraryValue && ParameterEditorLibraryValue)
+		{
+			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
+			Variable->CopyDefaultValueDataTo(ParameterValue->GetStructMemory());
+			ParameterEditorLibraryValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
+		}
+	}
 	else
 	{
 		if (UEdGraphPin* Pin = GetAnyDefaultPin())

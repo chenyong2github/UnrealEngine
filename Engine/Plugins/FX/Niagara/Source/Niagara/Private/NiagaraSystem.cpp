@@ -331,7 +331,7 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 	const bool bIsDedicatedServer = !GIsClient && GIsServer;
 
 	if (!GetOutermost()->bIsCookedForEditor && !bIsDedicatedServer)
-	{		
+	{
 		TArray<UNiagaraScript*> AllSystemScripts;
 		UNiagaraScriptSourceBase* SystemScriptSource;
 		if (SystemSpawnScript == nullptr)
@@ -782,6 +782,11 @@ void UNiagaraSystem::PostLoad()
 	// there will be no merging or compiling which makes it safe to do so.
 	UpdateSystemAfterLoad();
 #endif
+	// see the equivalent in NiagaraEmitter for details
+	if(bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
+	}
 }
 
 #if WITH_EDITORONLY_DATA
