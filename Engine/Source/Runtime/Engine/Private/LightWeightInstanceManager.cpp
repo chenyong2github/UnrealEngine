@@ -50,16 +50,7 @@ AActor* ALightWeightInstanceManager::FetchActorFromHandle(const FActorInstanceHa
 		if ((FoundActor = Actors.Find(Handle.GetInstanceIndex())) == nullptr)
 		{
 			// spawn a new actor
-			FActorSpawnParameters SpawnParams;
-			SetSpawnParameters(SpawnParams);
-
-			AActor* Actor = GetLevel()->GetWorld()->SpawnActor<AActor>(RepresentedClass, InstanceTransforms[Handle.GetInstanceIndex()], SpawnParams);
-			check(Actor);
-
-			Handle.Actor = Actor;
-			Actors.Add(Handle.GetInstanceIndex(), Actor);
-
-			PostActorSpawn(Handle);
+			ConvertInstanceToActor(Handle);
 		}
 		else
 		{
@@ -69,6 +60,28 @@ AActor* ALightWeightInstanceManager::FetchActorFromHandle(const FActorInstanceHa
 
 	ensure(Handle.Actor.IsValid());
 	return Handle.Actor.Get();
+}
+
+AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstanceHandle& Handle)
+{
+	// we shouldn't be calling this on indices that already have an actor representing them
+	if (Actors.Contains(Handle.GetInstanceIndex()) && Actors[Handle.GetInstanceIndex()] != nullptr)
+	{
+		return Actors[Handle.GetInstanceIndex()];
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SetSpawnParameters(SpawnParams);
+
+	AActor* NewActor = GetLevel()->GetWorld()->SpawnActor<AActor>(GetActorClassToSpawn(), InstanceTransforms[Handle.GetInstanceIndex()], SpawnParams);
+	check(NewActor);
+
+	Handle.Actor = NewActor;
+	Actors.Add(Handle.GetInstanceIndex(), NewActor);
+
+	PostActorSpawn(Handle);
+
+	return NewActor;
 }
 
 int32 ALightWeightInstanceManager::FindIndexForActor(const AActor* InActor) const
@@ -161,6 +174,11 @@ void ALightWeightInstanceManager::SetSpawnParameters(FActorSpawnParameters& Spaw
 	SpawnParams.OverrideLevel = GetLevel();
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.ObjectFlags = RF_Transactional;
+}
+
+UClass* ALightWeightInstanceManager::GetActorClassToSpawn() const
+{
+	return RepresentedClass;
 }
 
 void ALightWeightInstanceManager::PostActorSpawn(const FActorInstanceHandle& Handle)
