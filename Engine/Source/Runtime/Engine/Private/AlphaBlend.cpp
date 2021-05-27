@@ -235,6 +235,14 @@ FAlphaBlendArgs::FAlphaBlendArgs()
 
 }
 
+FAlphaBlendArgs::FAlphaBlendArgs(float InBlendTime)
+	: CustomCurve(nullptr)
+	, BlendTime(InBlendTime)
+	, BlendOption(EAlphaBlendOption::Linear)
+{
+
+}
+
 FAlphaBlendArgs::FAlphaBlendArgs(const struct FAlphaBlend& InAlphaBlend)
 	: CustomCurve(InAlphaBlend.GetCustomCurve())
 	, BlendTime(InAlphaBlend.GetBlendTime())

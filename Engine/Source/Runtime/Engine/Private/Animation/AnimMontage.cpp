@@ -3010,6 +3010,15 @@ UAnimMontage* FAnimMontageInstance::PreviewSequencerMontagePosition(FName SlotNa
 
 UAnimMontage* UAnimMontage::CreateSlotAnimationAsDynamicMontage(UAnimSequenceBase* Asset, FName SlotNodeName, float BlendInTime, float BlendOutTime, float InPlayRate, int32 LoopCount, float BlendOutTriggerTime, float InTimeToStartMontageAt)
 {
+	FMontageBlendSettings BlendInSettings(BlendInTime);
+	FMontageBlendSettings BlendOutSettings(BlendOutTime);
+
+	// InTimeToStartMontageAt is an unused argument. Keeping it to avoid changing public api.
+	return CreateSlotAnimationAsDynamicMontage_WithBlendSettings(Asset, SlotNodeName, BlendInSettings, BlendOutSettings, InPlayRate, LoopCount, BlendOutTriggerTime);
+}
+
+UAnimMontage* UAnimMontage::CreateSlotAnimationAsDynamicMontage_WithBlendSettings(UAnimSequenceBase* Asset, FName SlotNodeName, const FMontageBlendSettings& BlendInSettings, const FMontageBlendSettings& BlendOutSettings, float InPlayRate, int32 LoopCount, float InBlendOutTriggerTime)
+{
 	// create temporary montage and play
 	bool bValidAsset = Asset && !Asset->IsA(UAnimMontage::StaticClass());
 	if (!bValidAsset)
@@ -3059,9 +3068,16 @@ UAnimMontage* UAnimMontage::CreateSlotAnimationAsDynamicMontage(UAnimSequenceBas
 
 	// add new section
 	NewMontage->CompositeSections.Add(NewSection);
-	NewMontage->BlendIn.SetBlendTime(BlendInTime);
-	NewMontage->BlendOut.SetBlendTime(BlendOutTime);
-	NewMontage->BlendOutTriggerTime = BlendOutTriggerTime;
+
+	NewMontage->BlendIn = FAlphaBlend(BlendInSettings.Blend);
+	NewMontage->BlendModeIn = BlendInSettings.BlendMode;
+	NewMontage->BlendProfileIn = BlendInSettings.BlendProfile;
+
+	NewMontage->BlendOut = FAlphaBlend(BlendOutSettings.Blend);
+	NewMontage->BlendModeOut = BlendOutSettings.BlendMode;
+	NewMontage->BlendProfileOut = BlendOutSettings.BlendProfile;
+
+	NewMontage->BlendOutTriggerTime = InBlendOutTriggerTime;
 	return NewMontage;
 }
 
@@ -3103,8 +3119,17 @@ void UAnimMontage::BakeTimeStretchCurve()
 
 FMontageBlendSettings::FMontageBlendSettings()
 	: BlendProfile(nullptr)
-	, Blend(FAlphaBlendArgs())
 	, BlendMode(EMontageBlendMode::Standard)
-{
+{}
 
-}
+FMontageBlendSettings::FMontageBlendSettings(float BlendTime)
+	: BlendProfile(nullptr)
+	, Blend(BlendTime)
+	, BlendMode(EMontageBlendMode::Standard)
+{}
+
+FMontageBlendSettings::FMontageBlendSettings(const FAlphaBlendArgs& BlendArgs)
+	: BlendProfile(nullptr)
+	, Blend(BlendArgs)
+	, BlendMode(EMontageBlendMode::Standard)
+{}
