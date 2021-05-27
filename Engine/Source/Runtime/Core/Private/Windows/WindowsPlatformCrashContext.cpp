@@ -745,6 +745,20 @@ int32 ReportCrashForMonitor(
 	bool bCapturedCrashingThreadId = false;
 	if (ThreadSnapshot != INVALID_HANDLE_VALUE)
 	{
+		// Helper function to capture a thread and store its name and id in the context.
+		auto CaptureThread = [&SharedContext, &ThreadIdx](const THREADENTRY32& ThreadEntry)
+		{
+			SharedContext->ThreadIds[ThreadIdx] = ThreadEntry.th32ThreadID;
+			const FString& TmThreadName = FThreadManager::GetThreadName(ThreadEntry.th32ThreadID);
+			const TCHAR* ThreadName = TmThreadName.IsEmpty() ? TEXT("Unknown") : *TmThreadName;
+			FCString::Strcpy(
+				&SharedContext->ThreadNames[ThreadIdx*CR_MAX_THREAD_NAME_CHARS],
+				CR_MAX_THREAD_NAME_CHARS - 1,
+				ThreadName
+			);
+			ThreadIdx++;
+		};
+
 		THREADENTRY32 ThreadEntry;
 		ThreadEntry.dwSize = sizeof(THREADENTRY32);
 		if (Thread32First(ThreadSnapshot, &ThreadEntry))
@@ -753,23 +767,25 @@ int32 ReportCrashForMonitor(
 			{
 				if (ThreadEntry.th32OwnerProcessID == CurrentProcessId)
 				{
-					if (CrashingThreadId == ThreadEntry.th32ThreadID)
+					if (ThreadEntry.th32ThreadID == CrashingThreadId)
 					{
+						// Always capture the crashing thread.
 						bCapturedCrashingThreadId = true;
-					}
+						CaptureThread(ThreadEntry);
 
-					// Always keep one spot for the crashing thread in case the number of captured threads is about to reach our limit.
-					if (bCapturedCrashingThreadId || ThreadIdx < CR_MAX_THREADS - 1)
+						if (FPlatformCrashContext::IsTypeContinuable(Type))
+						{
+							// Early out for continuable types (ensure/stall etc), only capture the responsible thread for performance reasons. (CRC processing 1 thread vs 256 thread is significant).
+							break;
+						}
+					}
+					else if (!FPlatformCrashContext::IsTypeContinuable(Type))
 					{
-						SharedContext->ThreadIds[ThreadIdx] = ThreadEntry.th32ThreadID;
-						const FString& TmThreadName = FThreadManager::GetThreadName(ThreadEntry.th32ThreadID);
-						const TCHAR* ThreadName = TmThreadName.IsEmpty() ? TEXT("Unknown") : *TmThreadName;
-						FCString::Strcpy(
-							&SharedContext->ThreadNames[ThreadIdx*CR_MAX_THREAD_NAME_CHARS],
-							CR_MAX_THREAD_NAME_CHARS - 1,
-							ThreadName
-						);
-						ThreadIdx++;
+						// Capture the thread if enough entries are left (always keep one entry for the crashing thread).
+						if (bCapturedCrashingThreadId || ThreadIdx < CR_MAX_THREADS - 1)
+						{
+							CaptureThread(ThreadEntry);
+						}
 					}
 				}
 			} while (Thread32Next(ThreadSnapshot, &ThreadEntry) && (ThreadIdx < CR_MAX_THREADS));
