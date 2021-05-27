@@ -1,4 +1,6 @@
-﻿#include "XmlFile.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "XmlFile.h"
 #include "Misc/AutomationTest.h"
 BEGIN_DEFINE_SPEC(FXmlFileSpec, "System.Core.XmlFile", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
