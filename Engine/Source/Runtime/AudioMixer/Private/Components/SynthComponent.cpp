@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/SynthComponent.h"
+
 #include "AudioDevice.h"
 #include "AudioMixerLog.h"
+#include "Sound/AudioSettings.h"
+
 
 USynthSound::USynthSound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -139,10 +142,6 @@ USynthComponent::USynthComponent(const FObjectInitializer& ObjectInitializer)
 	bIsInitialized = false;
 	bIsUISound = false;
 	bAlwaysPlay = true;
-	Synth = nullptr;
-
-	// Set the default sound class
-	SoundClass = USoundBase::DefaultSoundClassObject;
 	Synth = nullptr;
 
 	PreferredBufferLength = DEFAULT_PROCEDURAL_SOUNDWAVE_BUFFER_SIZE;
@@ -350,6 +349,21 @@ void USynthComponent::OnUnregister()
 	}
 }
 
+USoundClass* USynthComponent::GetSoundClass()
+{
+	if (SoundClass)
+	{
+		return SoundClass;
+	}
+
+	if (const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>())
+	{
+		return AudioSettings->GetDefaultSoundClass();
+	}
+
+	return nullptr;
+}
+
 bool USynthComponent::IsReadyForOwnerToAutoDestroy() const
 {
 	const bool bIsAudioComponentReadyForDestroy = !AudioComponent || (AudioComponent && !AudioComponent->IsPlaying());
@@ -402,6 +416,19 @@ void USynthComponent::Serialize(FArchive& Ar)
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	if (Ar.IsCooking())
+	{
+		if (!SoundClass)
+		{
+			SoundClass = GetDefault<UAudioSettings>()->GetDefaultSoundClass();
+		}
+
+		if (ConcurrencySet.IsEmpty())
+		{
+			ConcurrencySet.Add(GetDefault<UAudioSettings>()->GetDefaultSoundConcurrency());
+		}
+	}
 }
 
 void USynthComponent::PumpPendingMessages()

@@ -538,8 +538,13 @@ bool FAudioDeviceManager::InitializeManager()
 	{
 		check(AudioDeviceModule);
 
+		UAudioSettings* AudioSettings = GetMutableDefault<UAudioSettings>();
+		check(AudioSettings);
+
+		AudioSettings->LoadDefaultObjects();
+
 		const bool bIsAudioMixerEnabled = AudioDeviceModule->IsAudioMixerModule();
-		GetMutableDefault<UAudioSettings>()->SetAudioMixerEnabled(bIsAudioMixerEnabled);
+		AudioSettings->SetAudioMixerEnabled(bIsAudioMixerEnabled);
 
 #if WITH_EDITOR
 		if (bIsAudioMixerEnabled)
@@ -610,7 +615,7 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 		bUsingAudioMixer = false;
 	}
 	else if(bForceAudioMixer)
-	{
+	{ 
 		GConfig->GetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), AudioMixerModuleName, GEngineIni);
 	}
 

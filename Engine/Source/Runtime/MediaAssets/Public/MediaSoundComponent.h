@@ -135,6 +135,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Media|MediaSoundComponent")
 	UMediaPlayer* GetMediaPlayer() const;
 
+	virtual USoundClass* GetSoundClass() override
+	{
+		if (SoundClass)
+		{
+			return SoundClass;
+		}
+
+		if (const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>())
+		{
+			if (USoundClass* DefaultSoundClass = AudioSettings->GetDefaultMediaSoundClass())
+			{
+				return DefaultSoundClass;
+			}
+
+			if (USoundClass* DefaultSoundClass = AudioSettings->GetDefaultSoundClass())
+			{
+				return DefaultSoundClass;
+			}
+		}
+
+		return nullptr;
+	}
+
 	/**
 	 * Set the media player that provides the audio samples.
 	 *
@@ -210,7 +233,6 @@ public:
 public:
 
 	//~ UObject interface
-	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 
 #if WITH_EDITOR
@@ -302,8 +324,4 @@ private:
 
 	/** Whether or not envelope follower settings changed. */
 	bool bEnvelopeFollowerSettingsChanged;
-
-private:
-
-	static USoundClass* DefaultMediaSoundClassObject;
 };

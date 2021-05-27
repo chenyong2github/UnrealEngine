@@ -479,19 +479,26 @@ void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurre
 {
 	OutConcurrencyHandles.Reset();
 
-	if (!ConcurrencySet.Num() && Sound)
-	{
-		Sound->GetConcurrencyHandles(OutConcurrencyHandles);
-	}
-	else
+	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
+	check(AudioSettings);
+
+	if (ConcurrencySet.Num() > 0)
 	{
 		for (const USoundConcurrency* Concurrency : ConcurrencySet)
 		{
 			if (Concurrency)
 			{
-				OutConcurrencyHandles.Emplace(FConcurrencyHandle(*Concurrency));
+				OutConcurrencyHandles.Emplace(*Concurrency);
 			}
 		}
+	}
+	else if (Sound)
+	{
+		Sound->GetConcurrencyHandles(OutConcurrencyHandles);
+	}
+	else if (const USoundConcurrency* DefaultConcurrency = AudioSettings->GetDefaultSoundConcurrency())
+	{
+		OutConcurrencyHandles.Emplace(*DefaultConcurrency);
 	}
 }
 

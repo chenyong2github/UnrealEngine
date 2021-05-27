@@ -8,6 +8,8 @@
 #include "Audio.h"
 #include "CoreMinimal.h"
 #include "IAudioExtensionPlugin.h"
+#include "Sound/AudioSettings.h"
+#include "Sound/SoundClass.h"
 #include "SoundConcurrency.h"
 #include "SoundModulationDestination.h"
 #include "SoundSourceBusSend.h"
@@ -58,9 +60,6 @@ class ENGINE_API USoundBase : public UObject, public IInterface_AssetUserData
 	GENERATED_UCLASS_BODY()
 
 public:
-	static USoundClass* DefaultSoundClassObject;
-	static USoundConcurrency* DefaultSoundConcurrencyObject;
-
 	/** Sound class this sound belongs to */
 	UPROPERTY(EditAnywhere, Category = Sound, meta = (DisplayName = "Class"), AssetRegistrySearchable)
 	TObjectPtr<USoundClass> SoundClassObject;
@@ -189,9 +188,7 @@ public:
 	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 public:
-
 	//~ Begin UObject Interface.
-	virtual void PostInitProperties() override;
 #if WITH_EDITORONLY_DATA
 	virtual void PostLoad() override;
 #endif
