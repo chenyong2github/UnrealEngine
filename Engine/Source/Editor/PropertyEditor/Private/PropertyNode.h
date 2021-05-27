@@ -371,7 +371,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	//Flags
-	uint32 HasNodeFlags(const EPropertyNodeFlags::Type InTestFlags) const { return PropertyNodeFlags & InTestFlags; }
+	bool HasNodeFlags(const EPropertyNodeFlags::Type InTestFlags) const { return (PropertyNodeFlags & InTestFlags) != 0; }
 	/**
 	 * Sets the flags used by the window and the root node
 	 * @param InFlags - flags to turn on or off
