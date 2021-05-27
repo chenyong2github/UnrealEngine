@@ -416,6 +416,20 @@ bool FMovieSceneSubSectionCoreWarpingAndScalingTransformsTest::RunTest(const FSt
 		TestEqual("Inverse time 18", FFrameNumber(4) * Inv, FFrameTime(32));
 	}
 
+	{
+		// Sub-sequence at 3, playing at x2, with start offset 20, but all contained inside a higher offset of 100.
+		FMovieSceneSequenceTransform Transform;
+		Transform.LinearTransform.Offset = FFrameTime(-100);
+		Transform.NestedTransforms.Emplace(FMovieSceneTimeTransform(-6 + 20, 2.f), FMovieSceneTimeWarping(20, 50));
+		TestEqual("Transform time 19", FFrameNumber(113) * Transform, FFrameTime(40));
+		TestEqual("Transform time 20", FFrameNumber(121) * Transform, FFrameTime(26));
+
+		FMovieSceneTimeTransform Inv = Transform.InverseFromWarp(TArray<uint32> { 0 });
+		TestEqual("Inverse time 21", FFrameNumber(40) * Inv, FFrameTime(113));
+		Inv = Transform.InverseFromWarp(TArray<uint32> { 1 });
+		TestEqual("Inverse time 22", FFrameNumber(40) * Inv, FFrameTime(128));
+	}
+
 	return true;
 }
 

@@ -58,6 +58,7 @@ bool IsInVoxelBounds(float3 P, float3 MinP, float3 MaxP)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define INVALID_VOXEL_PAGE_INDEX 0xFFFFFFFF
+#define INVALID_MACRO_GROUP_ID 0xFF
 
 #define VOXEL_HAIR_MASK		0x00FFFFFF
 #define VOXEL_OPAQUE_MASK	0xFF000000

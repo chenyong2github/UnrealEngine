@@ -7,7 +7,7 @@
 
 #include "DisplayClusterConfigurationLog.h"
 #include "DisplayClusterConfigurationTypes.h"
-#include "DisplayClusterCOnfigurationStrings.h"
+#include "DisplayClusterConfigurationStrings.h"
 
 #include "JsonObjectConverter.h"
 

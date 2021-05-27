@@ -11,5 +11,8 @@ struct FDisplayClusterClusterEventBinary;
 class IDisplayClusterProtocolEventsBinary
 {
 public:
+	virtual ~IDisplayClusterProtocolEventsBinary() = default;
+
+public:
 	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event) = 0;
 };

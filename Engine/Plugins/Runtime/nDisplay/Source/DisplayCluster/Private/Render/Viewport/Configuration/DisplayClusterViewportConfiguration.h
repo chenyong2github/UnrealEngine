@@ -13,7 +13,8 @@ struct FDisplayClusterRenderFrameSettings;
 class FDisplayClusterViewportManager;
 class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationData;
-class UDisplayClusterConfigurationRenderFrame;
+struct FDisplayClusterConfigurationRenderFrame;
+struct FDisplayClusterConfigurationViewportPreview;
 
 class FDisplayClusterViewportConfiguration
 {
@@ -40,11 +41,11 @@ public:
 	bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId);
 
 #if WITH_EDITOR
-	bool UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration);
+	bool UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& PreviewConfiguration);
 #endif
 
 private:
-	void ImplUpdateRenderFrameConfiguration(const UDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration);
+	void ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration);
 	void ImplUpdateConfiguration(const TArray<FString>& InClusterNodeIds, ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);
 	void ImplUpdateConfigurationICVFX(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);
 	void ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);

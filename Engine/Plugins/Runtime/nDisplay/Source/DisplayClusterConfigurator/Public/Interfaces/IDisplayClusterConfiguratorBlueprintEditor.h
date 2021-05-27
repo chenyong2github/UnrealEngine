@@ -12,6 +12,9 @@ class IDisplayClusterConfiguratorBlueprintEditor
 	: public FBlueprintEditor
 {
 public:
+	virtual ~IDisplayClusterConfiguratorBlueprintEditor() = default;
+
+public:
 	DECLARE_MULTICAST_DELEGATE(FOnConfigReloaded);
 	DECLARE_MULTICAST_DELEGATE(FOnObjectSelected);
 	DECLARE_MULTICAST_DELEGATE(FOnInvalidateViews);

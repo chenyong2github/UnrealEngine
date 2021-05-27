@@ -968,6 +968,14 @@ struct FVectorKernelLog2 : public TUnaryVectorKernel<FVectorKernelLog2>
 	}
 };
 
+struct FVectorKernelStep : public TBinaryVectorKernel<FVectorKernelStep>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	{
+		*Dst = VectorStep(VectorSubtract(Src1, Src0));
+	}
+};
+
 struct FVectorKernelClamp : public TTrinaryVectorKernel<FVectorKernelClamp>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1,VectorRegister Src2)
@@ -1320,14 +1328,6 @@ struct FVectorKernelSign : public TUnaryVectorKernel<FVectorKernelSign>
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
 	{
 		*Dst = VectorSign(Src0);
-	}
-};
-
-struct FVectorKernelStep : public TUnaryVectorKernel<FVectorKernelStep>
-{
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
-	{
-		*Dst = VectorStep(Src0);
 	}
 };
 

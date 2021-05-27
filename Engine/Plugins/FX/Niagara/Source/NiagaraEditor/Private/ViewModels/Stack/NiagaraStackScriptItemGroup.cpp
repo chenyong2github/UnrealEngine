@@ -111,7 +111,7 @@ public:
 	{
 		FText DisplayName = LOCTEXT("NewScratchModuleName", "New Scratch Pad Module");
 		FText Description = LOCTEXT("NewScratchModuleDescription", "Description: Create a new scratch pad module.");
-		return MakeShareable(new FScriptGroupAddAction( DisplayName, {}, Description, FText(), true, true, FNiagaraVariable(), false, FAssetData(), nullptr, true, false));
+		return MakeShareable(new FScriptGroupAddAction( DisplayName, {}, Description, FText(), false, true, FNiagaraVariable(), false, FAssetData(), nullptr, true, false));
 	}
 
 	static TSharedRef<FScriptGroupAddAction> CreateNewSetSpecificModuleAction()
@@ -1260,6 +1260,11 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 
 			if (NewFunctionCallNode != nullptr)
 			{
+				for(const auto& Message : ClipboardFunction->Messages)
+				{
+					NewFunctionCallNode->AddCustomNote(Message);	
+				}
+				
 				ClipboardFunction->OnPastedFunctionCallNodeDelegate.ExecuteIfBound(NewFunctionCallNode);
 				ClipboardFunctionAndNodeFunctionPairs.Add(TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>(ClipboardFunction, NewFunctionCallNode));
 				CurrentPasteIndex++;

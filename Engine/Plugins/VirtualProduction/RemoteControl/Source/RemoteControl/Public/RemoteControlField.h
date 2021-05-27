@@ -77,7 +77,7 @@ public:
 	 * The map holds protocol bindings stores the protocol mapping and protocol-specific mapping
 	 */
 	UPROPERTY()
-	TSet<FRemoteControlProtocolBinding> ProtocolBinding;
+	TSet<FRemoteControlProtocolBinding> ProtocolBindings;
 	
 protected:
 	/**
@@ -208,6 +208,10 @@ public:
 	TSharedPtr<class FStructOnScope> FunctionArguments;
 
 private:
+	/** Parse function metadata to get the function's default parameters */
+	void AssignDefaultFunctionArguments();
+
+private:
 	/** Whether the function is callable in a packaged build. */
 	UPROPERTY()
 	bool bIsCallableInPackaged = false;
@@ -216,9 +220,9 @@ private:
 	UPROPERTY()
 	FSoftObjectPath FunctionPath;
 
-private:
-	/** Parse function metadata to get the function`s default parameters */
-	void AssignDefaultFunctionArguments();
+	/** Cached resolved underlying function used to avoid doing a findobject while serializing. */
+	mutable TWeakObjectPtr<UFunction> CachedFunction;
+
 };
 
 template<> struct TStructOpsTypeTraits<FRemoteControlFunction> : public TStructOpsTypeTraitsBase2<FRemoteControlFunction>
@@ -236,5 +240,5 @@ template<> struct TStructOpsTypeTraits<FRemoteControlProperty> : public TStructO
 	{
 		WithSerializer = true,
 		WithPostSerialize = true
-    };
+	};
 };

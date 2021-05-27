@@ -67,6 +67,7 @@ template<> TMap<UNiagaraSystem*, TArray<FNiagaraSystemViewModel*>> TNiagaraViewM
 FNiagaraSystemViewModelOptions::FNiagaraSystemViewModelOptions()
 	: bCanAutoCompile(true)
 	, bCanSimulate(true)
+	, bIsForDataProcessingOnly(false)
 {
 }
 
@@ -103,6 +104,7 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	EditMode = InOptions.EditMode;
 	OnGetSequencerAddMenuContent = InOptions.OnGetSequencerAddMenuContent;
 	SystemMessageLogGuidKey = InOptions.MessageLogGuid;
+	bIsForDataProcessingOnly = InOptions.bIsForDataProcessingOnly;
 
 	SystemChangedDelegateHandle = System->OnSystemPostEditChange().AddSP(this, &FNiagaraSystemViewModel::SystemChanged);
 
@@ -144,8 +146,6 @@ void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
 
 void FNiagaraSystemViewModel::Cleanup()
 {
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("Cleanup System view model %p"), this);
-
 	if (SystemInstance)
 	{
 		SystemInstance->OnInitialized().RemoveAll(this);
@@ -234,8 +234,6 @@ void FNiagaraSystemViewModel::Cleanup()
 FNiagaraSystemViewModel::~FNiagaraSystemViewModel()
 {
 	Cleanup();
-
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("Deleting System view model %p"), this);
 }
 
 INiagaraParameterDefinitionsSubscriber* FNiagaraSystemViewModel::GetParameterDefinitionsSubscriber()
@@ -876,6 +874,11 @@ TStatId FNiagaraSystemViewModel::GetStatId() const
 TSharedRef<FNiagaraPlaceholderDataInterfaceManager> FNiagaraSystemViewModel::GetPlaceholderDataInterfaceManager()
 {
 	return PlaceholderDataInterfaceManager.ToSharedRef();
+}
+
+bool FNiagaraSystemViewModel::GetIsForDataProcessingOnly() const
+{
+	return bIsForDataProcessingOnly;
 }
 
 void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const

@@ -15,8 +15,6 @@
 #include "Engine/Scene.h"
 #include "GameFramework/WorldSettings.h"
 
-#include "ScenePrivate.h"
-
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
@@ -32,7 +30,7 @@
 #include "ClearQuad.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////
-//          FDisplayClusterViewportManager
+// FDisplayClusterViewportManager
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
@@ -96,7 +94,7 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	}
 }
 
-bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration, class ADisplayClusterRootActor* InRootActorPtr)
+bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& PreviewConfiguration, class ADisplayClusterRootActor* InRootActorPtr)
 {
 	Configuration->SetRootActor(InRootActorPtr);
 	return Configuration->UpdatePreviewConfiguration(PreviewConfiguration);
@@ -131,7 +129,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 				FRenderTarget* DstResource = RenderTargetIt.RenderTargetPtr;
 				// Create the view family for rendering the world scene to the viewport's render target
 				FSceneViewFamilyContext ViewFamily(
-					FSceneViewFamily::ConstructionValues(DstResource, PreviewScene->GetRenderScene(), EngineShowFlags)
+					FSceneViewFamily::ConstructionValues(DstResource, PreviewScene, EngineShowFlags)
 					.SetResolveScene(true)
 					.SetRealtimeUpdate(true)
 					.SetAdditionalViewFamily(AdditionalViewFamily));
@@ -188,7 +186,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 		FinalizeNewFrame();
 
 		// After all render target rendered call nDisplay frame rendering:
-		RenderFrame(InRenderFrame.bWarpBlendEnabled, InViewport);
+		RenderFrame(InViewport);
 
 		return true;
 	}

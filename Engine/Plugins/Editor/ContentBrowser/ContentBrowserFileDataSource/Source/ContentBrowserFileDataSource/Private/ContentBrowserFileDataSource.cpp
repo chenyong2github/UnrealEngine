@@ -16,6 +16,8 @@
 #include "DirectoryWatcherModule.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserDataUtils.h"
+#include "AssetTypeCategories.h"
+#include "AssetTypeActions_Base.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserFileDataSource"
 
@@ -34,6 +36,57 @@ namespace ContentBrowserFileDataSource
 
 		return InPath;
 	}
+
+	FString GetFilterNamePrefix()
+	{
+		return TEXT("ContentBrowserDataFilterFile");
+	}
+}
+
+/** Asset type actions for files filter */
+class FAssetTypeActions_FileDataSource : public FAssetTypeActions_Base
+{
+public:
+	// Begin IAssetTypeActions interface
+	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
+	virtual bool IsImportedAsset() const override { return false; }
+
+	virtual FText GetName() const override;
+	virtual FText GetAssetDescription(const FAssetData& AssetData) const override;
+	virtual UClass* GetSupportedClass() const override;
+	virtual FColor GetTypeColor() const override;
+	virtual FName GetFilterName() const override;
+	// End IAssetTypeActions interface
+
+	FName FilterName;
+	FText Name;
+	FText Description;
+	FColor TypeColor;
+};
+
+FText FAssetTypeActions_FileDataSource::GetAssetDescription(const struct FAssetData& AssetData) const
+{
+	return Description;
+}
+
+UClass* FAssetTypeActions_FileDataSource::GetSupportedClass() const
+{
+	return nullptr;
+}
+
+FText FAssetTypeActions_FileDataSource::GetName() const
+{
+	return Name;
+}
+
+FColor FAssetTypeActions_FileDataSource::GetTypeColor() const
+{
+	return TypeColor;
+}
+
+FName FAssetTypeActions_FileDataSource::GetFilterName() const
+{
+	return FilterName;
 }
 
 class FContentBrowserFileDataDiscovery : public FRunnable
@@ -311,10 +364,33 @@ void UContentBrowserFileDataSource::Initialize(const ContentBrowserFileData::FFi
 			}));
 		}
 	}
+
+	// Register asset type actions
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	Config.EnumerateFileActions([this, &AssetTools](TSharedRef<const ContentBrowserFileData::FFileActions> InFileActions)
+	{
+		TSharedRef<FAssetTypeActions_FileDataSource> AssetTypeAction = MakeShared<FAssetTypeActions_FileDataSource>();
+		AssetTypeAction->Name = InFileActions->TypeShortDescription;
+		AssetTypeAction->Description = InFileActions->TypeFullDescription;
+		AssetTypeAction->TypeColor = InFileActions->TypeColor.ToFColor(true);
+		AssetTypeAction->FilterName = *(ContentBrowserFileDataSource::GetFilterNamePrefix() + InFileActions->TypeName.ToString());
+		AssetTools.RegisterAssetTypeActions(AssetTypeAction);
+		RegisteredAssetTypeActions.Add(AssetTypeAction);
+		return true;
+	});
 }
 
 void UContentBrowserFileDataSource::Shutdown()
 {
+	// Unregister asset type actions
+	if (FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools"))
+	{
+		for (const TSharedRef<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
+		{
+			AssetToolsModule->Get().UnregisterAssetTypeActions(Action);
+		}
+	}
+
 	if (BackgroundDiscovery)
 	{
 		BackgroundDiscovery->EnsureCompletion();
@@ -488,14 +564,53 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 		return;
 	}
 
-	// If we have any inclusive object, path, or class filters, then skip files
-	// TODO: Add a way to filter on file types
+	TArray<FString> FileExtensionsToInclude;
+	if (ClassFilter)
+	{
+		if (ClassFilter->ClassNamesToInclude.Num() > 0)
+		{
+			TArray<FName, TInlineAllocator<2>> ClassNamesToLookFor;
+			TArray<FString, TInlineAllocator<2>> ClassFileExtensions;
+
+			Config.EnumerateFileActions([&ClassNamesToLookFor, &ClassFileExtensions](TSharedRef<const ContentBrowserFileData::FFileActions> InFileActions)
+			{
+				TStringBuilder<64> ClassNameToLookFor;
+				ClassNameToLookFor.Append(ContentBrowserFileDataSource::GetFilterNamePrefix());
+				FNameBuilder TypeNameBuilder(InFileActions->TypeName);
+				ClassNameToLookFor.Append(TypeNameBuilder);
+				ClassNamesToLookFor.Add(ClassNameToLookFor.ToString());
+
+				ClassFileExtensions.Add(InFileActions->TypeExtension);
+				return true;
+			});
+
+			// Determine if any are one of this instance's file data source
+			for (const FName ClassName : ClassFilter->ClassNamesToInclude)
+			{
+				int32 FoundIndex = INDEX_NONE;
+				if (ClassNamesToLookFor.Find(ClassName, FoundIndex))
+				{
+					FileExtensionsToInclude.Add(ClassFileExtensions[FoundIndex]);
+				}
+			}
+		}
+	}
+
+	// If we have any inclusive object, path, then skip files
 	if ((ObjectFilter && (ObjectFilter->ObjectNamesToInclude.Num() > 0 || ObjectFilter->TagsAndValuesToInclude.Num() > 0)) ||
-		(PackageFilter && (PackageFilter->PackageNamesToInclude.Num() > 0 || PackageFilter->PackagePathsToInclude.Num() > 0)) ||
-		(ClassFilter && (ClassFilter->ClassNamesToInclude.Num() > 0))
+		(PackageFilter && (PackageFilter->PackageNamesToInclude.Num() > 0 || PackageFilter->PackagePathsToInclude.Num() > 0))
 		)
 	{
 		return;
+	}
+
+	// When a class filter is active, only show files if a file filter is also active
+	if (ClassFilter && (ClassFilter->ClassNamesToInclude.Num() > 0))
+	{
+		if (FileExtensionsToInclude.Num() == 0)
+		{
+			return;
+		}
 	}
 
 	// TODO: Support adding loose files to collections via their internal mount paths - for now just bail
@@ -509,6 +624,7 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 	FileDataFilter.VirtualPath = InPath.ToString();
 	FileDataFilter.bRecursivePaths = InFilter.bRecursivePaths;
 	FileDataFilter.ItemAttributeFilter = InFilter.ItemAttributeFilter;
+	FileDataFilter.FileExtensionsToInclude.Append(FileExtensionsToInclude);
 	if (PackageFilter && PackageFilter->PathBlacklist && PackageFilter->PathBlacklist->HasFiltering())
 	{
 		FileDataFilter.Blacklist = PackageFilter->PathBlacklist;
@@ -658,7 +774,7 @@ void UContentBrowserFileDataSource::EnumerateItemsMatchingFilter(const FContentB
 					}
 					else if (DiscoveredChildItem->Type == FDiscoveredItem::EType::File)
 					{
-						if (bIncludeFiles)
+						if (bIncludeFiles && PassesFileTypeFilter(DiscoveredChildItem->DiskPath))
 						{
 							if (!Callback(DataSource->CreateFileItem(ChildItemName, DiscoveredChildItem->DiskPath)))
 							{
@@ -671,6 +787,26 @@ void UContentBrowserFileDataSource::EnumerateItemsMatchingFilter(const FContentB
 
 			return true;
 		};
+
+		bool PassesFileTypeFilter(const FStringView DiskPath)
+		{
+			if (FileDataFilter.FileExtensionsToInclude.Num() == 0)
+			{
+				return true;
+			}
+
+			int32 LastDot = INDEX_NONE;
+			if (DiskPath.FindLastChar(TEXT('.'), LastDot))
+			{
+				const FStringView FileExtension = DiskPath.Right(DiskPath.Len() - LastDot - 1);
+				if (FileDataFilter.FileExtensionsToInclude.Contains(FileExtension))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
 
 		bool IncludeFolders() const
 		{

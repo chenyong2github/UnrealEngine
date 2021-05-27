@@ -9,14 +9,16 @@
 #include "Graphics2D.h"
 #include "Folder.hpp"
 
+#include "Paths.h"
+#include "DatasmithUtils.h"
+
 BEGIN_NAMESPACE_UE_AC
 
-FTexturesCache::FTexturesCache()
-	: bUseRelative(false)
+FTexturesCache::FTexturesCache(const GS::UniString& InAssetsCache)
+	: AssetsCache(InAssetsCache)
 {
-	AbsolutePath = GetAddonDataDirectory() + UE_AC_DirSep + GetGSName(kName_Textures) + UE_AC_DirSep;
-	RelativePath = AbsolutePath;
-	bUseRelative = false;
+	AbsolutePath = AssetsCache + UE_AC_DirSep + GS::UniString("Textures") + UE_AC_DirSep;
+	IESTexturesPath = AssetsCache + UE_AC_DirSep + GS::UniString("IESTextures") + UE_AC_DirSep;
 }
 
 const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSyncContext& InSyncContext,
@@ -95,11 +97,10 @@ const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSync
 			Texture.Fingerprint = GSGuid2APIGuid(GS::Guid(fp));
 			UE_AC_VerboseF("Texture name=\"%s\": ACFingerprint=\"%s\"\n", Texture.TextureLabel.ToUtf8(), fp.ToUtf8());
 		}
-		Texture.TexturePath =
-			(bUseRelative ? RelativePath : AbsolutePath) + Texture.TextureLabel + GetGSName(kName_TextureExtension);
 
-		WriteTexture(AcTexture, AbsolutePath + Texture.TextureLabel + GetGSName(kName_TextureExtension),
-					 InSyncContext.bUseFingerPrint);
+		CreateCacheFolders();
+		Texture.TexturePath = AbsolutePath + Texture.TextureLabel + GetGSName(kName_TextureExtension);
+		WriteTexture(AcTexture, Texture.TexturePath, InSyncContext.bUseFingerPrint);
 	}
 	else
 	{
@@ -135,15 +136,192 @@ const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSync
 	return Texture;
 }
 
+/* Tool class to search file in Folder and Sub folder of a Parent folder.
+ * If found, copy the file to destination folder */
+class FSearchAndCopyFile
+{
+  public:
+	// Constructor
+	FSearchAndCopyFile(IO::Folder& InDestination, const IO::Name& InFileName)
+		: Destination(InDestination)
+		, FileName(InFileName)
+		, bFileInDestination(false)
+	{
+		// Check if the file is already in the destination folder
+		GSErrCode GSErr = InDestination.Contains(InFileName, &bFileInDestination);
+		if (GSErr != NoError)
+		{
+			UE_AC_DebugF("FSearchAndCopyFile::FSearchAndCopyFile - IESTexturesFolder.Contains return error %s\n",
+						 GetErrorName(GSErr));
+		}
+	}
+
+	// Search in the folder tree starting at parent folder.
+	bool DoSearchIn(const IO::Folder& Parent) { return Parent.Enumerate(EnumCallBack, this); }
+
+	// Callback function called for each element of the parent specified
+	bool EnumCallBack(const IO::Folder& Parent, const IO::Name& EntryName, bool bIsFolder);
+
+	// Return true if the file is in the destination folder
+	bool IsFileInDestination() const { return bFileInDestination; }
+
+  private:
+	// Callback to folder enumerate function
+	static bool CCALL EnumCallBack(const IO::Folder& Parent, const IO::Name& EntryName, bool bIsFolder, void* UserData);
+
+	// Destination where we must copy the file
+	IO::Folder& Destination;
+
+	// File's name to be copied
+	const IO::Name& FileName;
+
+	// True if the file is in the destination folder
+	bool bFileInDestination;
+};
+
+// Callback to folder enumerate function
+bool CCALL FSearchAndCopyFile::EnumCallBack(const IO::Folder& Parent, const IO::Name& EntryName, bool bIsFolder,
+											void* UserData)
+{
+	return reinterpret_cast< FSearchAndCopyFile* >(UserData)->EnumCallBack(Parent, EntryName, bIsFolder);
+}
+
+// Callback function called for each element of the parent specified
+bool FSearchAndCopyFile::EnumCallBack(const IO::Folder& Parent, const IO::Name& EntryName, bool bIsFolder)
+{
+	if (bIsFolder)
+	{
+		// Search in sub folder
+		DoSearchIn(IO::Folder(Parent, EntryName));
+	}
+	else
+	{
+		if (EntryName == FileName)
+		{
+			// Try to copy the file
+			GSErrCode GSErr = Parent.Copy(EntryName, Destination, FileName);
+			if (GSErr == NoError)
+			{
+				bFileInDestination = true;
+			}
+			else
+			{
+				UE_AC_DebugF("FSearchAndCopyFile::EnumCallBack - IO::Folder::Copy returned error %s\n",
+							 GetErrorName(GSErr));
+			}
+		}
+	}
+
+	return !bFileInDestination; // Stop if copy is done
+}
+
+// Insure we have a copy of the IES file in the cache folder
+GS::UniString FTexturesCache::CopyIESFile(const GS::UniString& InIESFileName)
+{
+	IO::Location IESTexturesLocation(IESTexturesPath);
+	IO::Name	 IESFileName(InIESFileName);
+
+	// Create the cached texture path
+	IO::Location  IESTextureLocation(IESTexturesLocation, IESFileName);
+	GS::UniString IESTexturePath;
+	IESTextureLocation.ToPath(&IESTexturePath);
+
+	// Create the texture folder if it's not present
+	IO::Folder IESTexturesFolder(IESTexturesLocation, IO::Folder::Create);
+
+	// Search the IES file and copy it in the cache
+	FSearchAndCopyFile SearchAndCopyIESFile(IESTexturesFolder, IESFileName);
+	if (!SearchAndCopyIESFile.IsFileInDestination())
+	{
+		GS::Array< API_LibraryInfo > LibInfoArray;
+		GSErrCode					 GSErr = ACAPI_Environment(APIEnv_GetLibrariesID, &LibInfoArray);
+		if (GSErr == NoError)
+		{
+			for (UInt32 IndexLibrary = 0;
+				 IndexLibrary < LibInfoArray.GetSize() && !SearchAndCopyIESFile.IsFileInDestination(); IndexLibrary++)
+			{
+				const API_LibraryInfo& LibInfo = LibInfoArray[IndexLibrary];
+
+				if (LibInfo.libraryType == API_LocalLibrary || LibInfo.libraryType == API_EmbeddedLibrary ||
+					LibInfo.libraryType == API_ServerLibrary)
+				{
+					IO::Folder LibraryFolder(LibInfo.location, IO::Folder::Ignore);
+					SearchAndCopyIESFile.DoSearchIn(LibraryFolder);
+				}
+			}
+		}
+	}
+
+	if (!SearchAndCopyIESFile.IsFileInDestination())
+	{
+		UE_AC_ReportF("FTexturesCache::CopyIESFile - Cannot find IES File \"%s\"\n", InIESFileName.ToUtf8());
+	}
+
+	return IESTexturePath;
+}
+
+// Create IES texture
+const FTexturesCache::FIESTexturesCacheElem& FTexturesCache::GetIESTexture(const FSyncContext& InSyncContext,
+																		   const FString&	   InIESFileName)
+{
+	CreateCacheFolders();
+	FTexturesCache::FIESTexturesCacheElem* found = IESTextures.Find(InIESFileName);
+	if (found == nullptr)
+	{
+		// Find and copy the texture in the cache.
+		FString IESFilePath(GSStringToUE(CopyIESFile(UEToGSString(*InIESFileName))));
+
+		// Create IES texture
+		const FString BaseFilename = FPaths::GetBaseFilename(IESFilePath);
+		FString		  TextureName = FDatasmithUtils::SanitizeObjectName(BaseFilename + TEXT("_IES"));
+
+		TSharedPtr< IDatasmithTextureElement > Texture = FDatasmithSceneFactory::CreateTexture(*TextureName);
+		Texture->SetTextureMode(EDatasmithTextureMode::Ies);
+		Texture->SetLabel(*BaseFilename);
+		Texture->SetFile(*IESFilePath);
+
+		InSyncContext.GetScene().AddTexture(Texture);
+
+		found = &IESTextures.Add(InIESFileName, TextureName);
+	}
+
+	return *found;
+}
+
+void FTexturesCache::CreateCacheFolders()
+{
+	if (bCacheFoldersCreated == false)
+	{
+		{
+			// Create the asset folder if it's not present
+			IO::Location AssetsFolderLocation(AssetsCache);
+			IO::Folder	 AssetsFolder(AssetsFolderLocation, IO::Folder::Create);
+			if (AssetsFolder.GetStatus() != NoError)
+			{
+				UE_AC_ReportF("Unable to create/access assets cache folder: \"%s\"", AssetsCache.ToUtf8());
+				UE_AC::ThrowGSError(AssetsFolder.GetStatus(), __FILE__, __LINE__);
+			}
+		}
+
+		{
+			// Create the textures folder if it's not present
+			IO::Location TexturesLocation(AbsolutePath);
+			IO::Folder	 TexturesFolder(TexturesLocation, IO::Folder::Create);
+			if (TexturesFolder.GetStatus() != NoError)
+			{
+				UE_AC_ReportF("Unable to create/access cache textures cache folder: \"%s\"", AbsolutePath.ToUtf8());
+				UE_AC::ThrowGSError(TexturesFolder.GetStatus(), __FILE__, __LINE__);
+			}
+		}
+
+		bCacheFoldersCreated = true;
+	}
+}
+
+// Write the texture to the cache
 void FTexturesCache::WriteTexture(const ModelerAPI::Texture& InACTexture, const GS::UniString& InPath,
 								  bool InIsFingerprint) const
 {
-	// Create the texture folder if it's not present
-	IO::Location FolderLocation(AbsolutePath);
-
-	IO::Folder TextureFolder(FolderLocation, IO::Folder::Create);
-	UE_AC_TestGSError(TextureFolder.GetStatus());
-
 	IO::Location TextureLoc(InPath);
 
 	// If texture already exist, we do nothing
@@ -152,7 +330,9 @@ void FTexturesCache::WriteTexture(const ModelerAPI::Texture& InACTexture, const 
 		IO::File TextureFile(TextureLoc);
 		if ((TextureFile.GetStatus() == NoError) &&
 			(TextureFile.IsOpen() || (TextureFile.Open(IO::File::ReadMode) == NoError)))
+		{
 			return;
+		}
 	}
 
 	// Create a pixmap of the same size of the texture

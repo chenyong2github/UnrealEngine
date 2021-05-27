@@ -141,11 +141,13 @@ private:
 	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const override;
 	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
 	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
+	virtual void ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult) override;
 	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
 	virtual void TeardownShakePatternImpl() override;
 
 	static void RegisterCameraStandIn();
 
+	void UpdateCamera(FFrameTime NewPosition, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& OutResult);
 	void UpdateInitialCameraStandInPropertyValues();
 
 private:
@@ -202,6 +204,11 @@ public:
 	void Jump(FFrameTime NewPosition);
 	/** Stop playing the sequence */
 	void Stop();
+
+	/** Sets the player in scrub mode */
+	void StartScrubbing();
+	/** Ends scrub mode */
+	void EndScrubbing();
 
 	/** Gets the current play position */
 	FFrameTime GetCurrentPosition() const { return PlayPosition.GetCurrentPosition(); }

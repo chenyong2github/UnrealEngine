@@ -23,6 +23,8 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 	// UObject interface
 	virtual void PostLoad() override;
 
+	UNiagaraScriptSource* CreateCompilationCopy();
+
 	// UNiagaraScriptSourceBase interface.
 	//virtual ENiagaraScriptCompileStatus Compile(UNiagaraScript* ScriptOwner, FString& OutGraphLevelErrorMessages) override;
 	virtual bool IsSynchronized(const FGuid& InChangeId) override;

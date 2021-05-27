@@ -606,7 +606,7 @@ bool FRewindData::RewindToFrame(int32 Frame)
 {
 	ensure(IsInPhysicsThreadContext());
 	//Can't go too far back
-	const int32 EarliestFrame = CurFrame - FramesSaved;
+	const int32 EarliestFrame = GetEarliestFrame_Internal();
 	if(Frame < EarliestFrame)
 	{
 		return false;
@@ -624,6 +624,9 @@ bool FRewindData::RewindToFrame(int32 Frame)
 	{
 		DirtyParticleInfo.bDesync = false;	//after rewind particle is pristine
 		DirtyParticleInfo.MostDesynced = ESyncState::InSync;
+
+		//Rewind so want to make sure data is pushed back to external thread
+		Solver->GetEvolution()->GetParticles().MarkTransientDirtyParticle(DirtyParticleInfo.GetPTParticle());
 
 		//Note: it's debatable if we should rewind to PrePushData or PostPushData
 		//If you rewind to PrePushData and resim the data will be reapplied automatically
@@ -688,6 +691,8 @@ void FRewindData::RemoveParticle(const FUniqueIdx UniqueIdx)
 FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame) const
 {
 	ensure(!IsResim());
+	ensure(Frame >= GetEarliestFrame_Internal());	//can't get state from before the frame we rewound to
+
 	const FDirtyParticleInfo* Info = FindParticle(Handle.UniqueIdx());
 	const FGeometryParticleStateBase* State = Info ? GetStateAtFrameImp(*Info, Frame) : nullptr;
 	return FGeometryParticleState(State,Handle, PropertiesPool);
@@ -940,6 +945,18 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 	}
 }
 
+void FRewindData::SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy)
+{
+	if(Proxy.GetInitializedStep() > CurFrame)
+	{
+		FGeometryParticleHandle* Handle = Proxy.GetHandle_LowLevel();
+		FindOrAddParticle(*Handle, CurFrame);
+
+		Solver->GetEvolution()->EnableParticle(Handle, nullptr);
+		Proxy.SetInitialized(CurFrame);
+	}
+}
+
 void FRewindData::MarkDirtyFromPT(FGeometryParticleHandle& Handle)
 {
 	FDirtyParticleInfo& Info = FindOrAddParticle(Handle);
@@ -957,8 +974,7 @@ void FRewindData::PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Handle,const
 	FDirtyParticleInfo& Info = FindOrAddParticle(Handle);
 	Info.LastDirtyFrame = CurFrame;
 	FParticleHistoryEntry& Latest = Info.AddFrame(CurFrame, Buffer, PropertiesPool);
-	//TODO: bring this ensure back one duplicate dirty particles are fixed
-	//ensure(Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).IsClean());	//PostCallbacks should be clean before we write sim results
+	ensure(Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).IsClean());	//PostCallbacks should be clean before we write sim results
 	Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).RecordSimResults(Handle, PropertiesPool);
 	CoalesceBack(Info.Frames, FParticleHistoryEntry::PostCallbacks);
 #if 0
@@ -1038,7 +1054,6 @@ FRewindData::FDirtyParticleInfo& FRewindData::FindOrAddParticle(TGeometryParticl
 	ParticleToAllDirtyIdx.Add(UniqueIdx,DirtyIdx);
 	if(InitializedOnFrame != INDEX_NONE)
 	{
-		ensure(AllDirtyParticles[DirtyIdx].InitializedOnStep == INDEX_NONE);	//initializing now, shouldn't have this marked already
 		AllDirtyParticles[DirtyIdx].InitializedOnStep = InitializedOnFrame;
 	}
 

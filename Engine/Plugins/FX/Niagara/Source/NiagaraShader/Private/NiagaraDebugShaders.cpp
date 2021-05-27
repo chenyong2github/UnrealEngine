@@ -9,6 +9,7 @@
 
 #include "RenderGraphBuilder.h"
 #include "Runtime/Renderer/Private/ScreenPass.h"
+#include "PipelineStateCache.h"
 
 int GNiagaraGpuComputeDebug_ShowNaNInf = 1;
 static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_ShowNaNInf(
@@ -178,7 +179,7 @@ void NiagaraDebugShaders::ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAcc
 	const uint32 NumThreadGroups = FMath::DivideAndRoundUp(UIntsToSet, FNiagaraClearUAVCS::ThreadGroupSize);
 
 	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-	RHICmdList.SetComputeShader(ShaderRHI);
+	SetComputePipelineState(RHICmdList, ShaderRHI);
 	SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, PassParameters);
 	RHICmdList.DispatchComputeShader(NumThreadGroups, 1, 1);
 	UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);

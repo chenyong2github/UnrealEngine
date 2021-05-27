@@ -20,9 +20,9 @@ class IPDisplayClusterClusterManager :
 	public IPDisplayClusterManager
 {
 public:
-	virtual ~IPDisplayClusterClusterManager()
-	{ }
+	virtual ~IPDisplayClusterClusterManager() = default;
 
+public:
 	virtual IDisplayClusterNodeController* GetController() const = 0;
 
 	virtual void ExportSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) const = 0;

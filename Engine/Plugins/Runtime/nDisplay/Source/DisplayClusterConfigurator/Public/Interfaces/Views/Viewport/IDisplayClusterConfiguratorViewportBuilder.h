@@ -9,6 +9,9 @@ class IDisplayClusterConfiguratorViewportBuilder
 	: public IDisplayClusterConfiguratorBuilder
 {
 public:
+	virtual ~IDisplayClusterConfiguratorViewportBuilder() = default;
+
+public:
 	virtual void BuildViewport() = 0;
 
 	virtual void ClearViewportSelection() = 0;

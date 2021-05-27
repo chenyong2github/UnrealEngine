@@ -4,16 +4,20 @@
 
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
+#include "RemoteControlLogger.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixtureType.h"
 
+#if WITH_EDITOR
+#include "IRCProtocolBindingList.h"
+#include "IRemoteControlProtocolWidgetsModule.h"
+#endif
 
-TStatId FRemoteControlProtocolDMX::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(FRemoteControlProtocolDMX, STATGROUP_Tickables);
-}
+#define LOCTEXT_NAMESPACE "RemoteControlProtocolDMX"
+
+const FName FRemoteControlProtocolDMX::ProtocolName = TEXT("DMX");
 
 FRemoteControlDMXProtocolEntity::~FRemoteControlDMXProtocolEntity()
 {
@@ -110,7 +114,7 @@ void FRemoteControlProtocolDMX::Unbind(FRemoteControlProtocolEntityPtr InRemoteC
 	ProtocolsBindings.RemoveAllSwap(CreateProtocolComparator(DMXProtocolEntity->GetPropertyId()));
 }
 
-void FRemoteControlProtocolDMX::Tick(float DeltaTime)
+void FRemoteControlProtocolDMX::OnEndFrame()
 {
 	if (!ProtocolsBindings.Num())
 	{
@@ -140,14 +144,21 @@ void FRemoteControlProtocolDMX::Tick(float DeltaTime)
 			// Get universe DMX signal
 			InputPort->GameThreadGetDMXSignal(DMXProtocolEntity->Universe, DMXProtocolEntity->LastSignalPtr);
 			if (DMXProtocolEntity->LastSignalPtr.IsValid())
-			{					
+			{
+				const FDMXSignalSharedPtr& LastSignalPtr = DMXProtocolEntity->LastSignalPtr;
 				const int32 DMXOffset = DMXProtocolEntity->ExtraSetting.StartingChannel - 1;
 				check(DMXOffset >= 0 && DMXOffset < DMX_UNIVERSE_SIZE);
+
+#if WITH_EDITOR
+				ProcessAutoBinding(ProtocolEntity);
+#endif
 				
-				ProcessAndApplyProtocolValue(DMXProtocolEntity->LastSignalPtr, DMXOffset, ProtocolEntity);
+				ProcessAndApplyProtocolValue(LastSignalPtr, DMXOffset, ProtocolEntity);
 			}
 		}
 	}
+
+	FRemoteControlProtocol::OnEndFrame();
 }
 
 void FRemoteControlProtocolDMX::ProcessAndApplyProtocolValue(const FDMXSignalSharedPtr& InSignal, int32 InDMXOffset, const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr)
@@ -157,27 +168,103 @@ void FRemoteControlProtocolDMX::ProcessAndApplyProtocolValue(const FDMXSignalSha
 		return;
 	}
 	
-	const uint8* ChannelData = &InSignal->ChannelData[InDMXOffset];	
 	FRemoteControlDMXProtocolEntity* DMXProtocolEntity = InProtocolEntityPtr->CastChecked<FRemoteControlDMXProtocolEntity>();
+	const uint8* ChannelData = &InSignal->ChannelData[InDMXOffset];	
 	const uint8 NumChannelsToOccupy = UDMXEntityFixtureType::NumChannelsToOccupy(DMXProtocolEntity->DataType);
 
 	if(DMXProtocolEntity->CacheDMXBuffer.Num() != NumChannelsToOccupy ||
 		FMemory::Memcmp(DMXProtocolEntity->CacheDMXBuffer.GetData(), ChannelData, NumChannelsToOccupy) != 0)
 	{
 		const uint32 DMXValue = UDMXEntityFixtureType::BytesToInt(DMXProtocolEntity->DataType, DMXProtocolEntity->bUseLSB, ChannelData);
-
-		// Check if the protocol value was successfully applied
-		if(!DMXProtocolEntity->ApplyProtocolValueToProperty(DMXValue))
+		
+#if WITH_EDITOR
+		FRemoteControlLogger::Get().Log(ProtocolName, [&InSignal, DMXValue]
 		{
-			ensure(false);
-		}
+			return FText::Format(LOCTEXT("DMXEventLog","ExternUniverseID {0}, DMXValue {1}"), InSignal->ExternUniverseID, DMXValue);
+		});
+#endif
+	
+		QueueValue(InProtocolEntityPtr, DMXValue);
 
 		// update cached buffer
 		DMXProtocolEntity->CacheDMXBuffer = TArray<uint8>(ChannelData, NumChannelsToOccupy);
 	}
 }
 
+#if WITH_EDITOR
+void FRemoteControlProtocolDMX::ProcessAutoBinding(const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr)
+{
+	// Bind only in Editor
+	if (!GIsEditor)
+	{
+		return;
+	}
+
+	// Check if entity is valid
+	if (!InProtocolEntityPtr.IsValid())
+	{
+		return;
+	}
+
+	FRemoteControlDMXProtocolEntity* DMXProtocolEntity = InProtocolEntityPtr->CastChecked<FRemoteControlDMXProtocolEntity>();
+	
+	// Assign binding
+	IRemoteControlProtocolWidgetsModule& RCWidgetsModule = IRemoteControlProtocolWidgetsModule::Get();
+	const TSharedPtr<IRCProtocolBindingList> RCProtocolBindingList = RCWidgetsModule.GetProtocolBindingList();
+	if (RCProtocolBindingList.IsValid())
+	{
+		if (DMXProtocolEntity->GetBindingStatus() == ERCBindingStatus::Awaiting)
+		{
+			const TArray<uint8>& ChannelData = DMXProtocolEntity->LastSignalPtr->ChannelData;
+			int32 FoundChannelDifference = -1;
+			uint8 FoundChannelDifferenceValue = 0;
+
+			if (CacheUniverseDMXBuffer.Num())
+			{
+				if (ensure(ChannelData.Num() == CacheUniverseDMXBuffer.Num()))
+				{
+					// Compare buffers
+					for (int32 ChannelValueIndex = 0; ChannelValueIndex < ChannelData.Num(); ++ChannelValueIndex)
+					{
+						const uint8 SignalChannelValue = ChannelData[ChannelValueIndex];
+						if (CacheUniverseDMXBuffer[ChannelValueIndex] != SignalChannelValue)
+						{
+							FoundChannelDifference = ChannelValueIndex;
+							FoundChannelDifferenceValue = SignalChannelValue;
+							break;
+						}
+					}	
+				}
+			}
+
+			if  (FoundChannelDifference >= 0)
+			{
+				Unbind(InProtocolEntityPtr);
+				const int32 FinalChannelValue = FoundChannelDifference + 1;
+				DMXProtocolEntity->ExtraSetting.StartingChannel = FinalChannelValue;
+				Bind(InProtocolEntityPtr);
+
+				// Print to log
+				const FDMXSignalSharedPtr& LastSignalPtr = DMXProtocolEntity->LastSignalPtr;
+				FRemoteControlLogger::Get().Log(ProtocolName, [&LastSignalPtr, FinalChannelValue, FoundChannelDifferenceValue]
+				{
+					return FText::Format(
+						LOCTEXT("DMXEventLog",
+								"AutoBinding new value. ExternUniverseID {0}, Channel {1}, New Value {2}"),
+						LastSignalPtr->ExternUniverseID, FinalChannelValue, FoundChannelDifferenceValue);
+				});
+			}
+
+			// Copy buffer
+			CacheUniverseDMXBuffer = DMXProtocolEntity->LastSignalPtr->ChannelData;
+		}
+	}
+}
+#endif
+
 void FRemoteControlProtocolDMX::UnbindAll()
 {
 	ProtocolsBindings.Empty();
 }
+
+#undef LOCTEXT_NAMESPACE

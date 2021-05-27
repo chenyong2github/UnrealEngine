@@ -8,7 +8,6 @@
 // [SG compatible] - Yes
 // ****************************************************************************/
 
-#include "DatasmithARCHICADExporter.grc.rc2"
 #include "DatasmithARCHICADExporterFix.grc.rc2"
 
 1	ICON    LOADONCALL MOVEABLE IMPURE  ACAP.ico

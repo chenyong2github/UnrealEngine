@@ -45,7 +45,7 @@ public:
 	virtual void GenerateHeaderRowContent( FDetailWidgetRow& NodeRow ) override {}
 	virtual void GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder ) override;
 	virtual bool RequiresTick() const override { return true; }
-	virtual FName GetName() const override { return NAME_None; }
+	virtual FName GetName() const override { return "Transform"; }
 	virtual bool InitiallyCollapsed() const override { return false; }
 	virtual void Tick( float DeltaTime ) override;
 	virtual void SetOnRebuildChildren( FSimpleDelegate OnRebuildChildren ) override{}

@@ -792,7 +792,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 	{
 		int32 LOD = StaticMeshEditor->GetCurrentLODLevel();
 		return (LOD == 0) ?
-			ComputeStaticMeshLOD(StaticMesh->GetRenderData(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View, StaticMesh->GetMinLOD().Default)
+			ComputeStaticMeshLOD(StaticMesh->GetRenderData(), StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View, StaticMesh->GetDefaultMinLOD())
 			:
 			LOD - 1;
 	}();

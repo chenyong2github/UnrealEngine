@@ -12,9 +12,9 @@
 class IDisplayClusterSerializable
 {
 public:
-	virtual ~IDisplayClusterSerializable() = 0
-	{ }
+	virtual ~IDisplayClusterSerializable() = default;
 
+public:
 	virtual bool Serialize  (FMemoryWriter& ar) = 0;
 	virtual bool Deserialize(FMemoryReader& ar) = 0;
 };

@@ -754,6 +754,8 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsBlacklistChecked)),
 			NAME_None,
 			EUserInterfaceActionType::Check);
+			
+		bAddedMenuEntry = true;
 	}
 
 	if (WidgetRow.CustomMenuItems.Num() > 0)
@@ -880,14 +882,15 @@ void SDetailSingleItemRow::OnToggleWhitelist() const
 	const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin();
 	if (Owner)
 	{
+		const FName OwnerName = "DetailRowContextMenu";
 		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
 		if (IsWhitelistChecked())
 		{
-			FPropertyEditorWhitelist::Get().RemoveFromWhitelist(ExactStruct, Owner->GetNodeName());
+			FPropertyEditorWhitelist::Get().RemoveFromWhitelist(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
 		else
 		{
-			FPropertyEditorWhitelist::Get().AddToWhitelist(ExactStruct, Owner->GetNodeName());
+			FPropertyEditorWhitelist::Get().AddToWhitelist(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
 	}
 }
@@ -907,14 +910,15 @@ void SDetailSingleItemRow::OnToggleBlacklist() const
 	const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin();
 	if (Owner)
 	{
+		const FName OwnerName = "DetailRowContextMenu";
 		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
 		if (IsBlacklistChecked())
 		{
-			FPropertyEditorWhitelist::Get().RemoveFromBlacklist(ExactStruct, Owner->GetNodeName());
+			FPropertyEditorWhitelist::Get().RemoveFromBlacklist(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
 		else
 		{
-			FPropertyEditorWhitelist::Get().AddToBlacklist(ExactStruct, Owner->GetNodeName());
+			FPropertyEditorWhitelist::Get().AddToBlacklist(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
 	}
 }

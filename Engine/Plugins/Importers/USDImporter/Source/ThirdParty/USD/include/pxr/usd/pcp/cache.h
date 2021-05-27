@@ -35,6 +35,7 @@
 #include "pxr/usd/sdf/path.h"
 #include "pxr/usd/sdf/pathTable.h"
 
+#include "pxr/usd/ar/ar.h"
 #include "pxr/usd/ar/resolverContext.h"
 #include "pxr/base/tf/declarePtrs.h"
 #include "pxr/base/tf/hashset.h"
@@ -114,7 +115,7 @@ public:
 
     /// Get the identifier of the layerStack used for composition.
     PCP_API
-    PcpLayerStackIdentifier GetLayerStackIdentifier() const;
+    const PcpLayerStackIdentifier& GetLayerStackIdentifier() const;
 
     /// Get the layer stack for GetLayerStackIdentifier().  Note that
     /// this will neither compute the layer stack nor report errors.
@@ -181,12 +182,19 @@ public:
     /// the muted layer did not exist, which means a composition error will 
     /// be generated.
     ///
+#if AR_VERSION == 1
     /// A canonical identifier for each layer in \p layersToMute will be
     /// computed using ArResolver::ComputeRepositoryPath.  Any layer 
     /// encountered during composition with the same repository path will
     /// be considered muted and ignored.  Relative paths will be assumed to
     /// be relative to the cache's root layer.  Search paths are immediately 
     /// resolved and the result is used for computing the canonical path.
+#else
+    /// A canonical identifier for each layer in \p layersToMute will be
+    /// computed using ArResolver::CreateIdentifier using the cache's root
+    /// layer as the anchoring asset. Any layer encountered during composition
+    /// with the same identifier will be considered muted and ignored.
+#endif
     ///
     /// Note that muting a layer will cause this cache to release all
     /// references to that layer.  If no other client is holding on to
@@ -200,10 +208,16 @@ public:
     /// changes necessary to see the change in muted layers.  Otherwise,
     /// those changes are applied immediately.
     /// 
+    /// \p newLayersMuted and \p newLayersUnmuted contains the pruned vector
+    /// of layers which are muted or unmuted by this call to RequestLayerMuting.
+    ///
     PCP_API 
     void RequestLayerMuting(const std::vector<std::string>& layersToMute,
                             const std::vector<std::string>& layersToUnmute,
-                            PcpChanges* changes = nullptr);
+                            PcpChanges* changes = nullptr,
+                            std::vector<std::string>* newLayersMuted = nullptr,
+                            std::vector<std::string>* newLayersUnmuted = 
+                                nullptr);
 
     /// Returns the list of canonical identifiers for muted layers
     /// in this cache.  See documentation on RequestLayerMuting for
@@ -365,8 +379,10 @@ public:
     /// this will compose relationship targets from local nodes only.  If
     /// \p stopProperty is not \c NULL then this will stop composing
     /// relationship targets at \p stopProperty, including \p stopProperty
-    /// iff \p includeStopProperty is \c true.  \p allErrors will contain any
-    /// errors encountered while performing this operation.
+    /// iff \p includeStopProperty is \c true.  If not \c NULL, \p deletedPaths
+    /// will be populated with target paths whose deletion contributed to
+    /// the computed result.  \p allErrors will contain any errors encountered
+    /// while performing this operation.
     PCP_API
     void
     ComputeRelationshipTargetPaths(const SdfPath &relationshipPath, 
@@ -374,6 +390,7 @@ public:
                                    bool localOnly,
                                    const SdfSpecHandle &stopProperty,
                                    bool includeStopProperty,
+                                   SdfPathVector *deletedPaths,
                                    PcpErrorVector *allErrors);
 
     /// Compute the attribute connection paths for the attribute at
@@ -381,8 +398,10 @@ public:
     /// this will compose attribute connections from local nodes only.  If
     /// \p stopProperty is not \c NULL then this will stop composing
     /// attribute connections at \p stopProperty, including \p stopProperty
-    /// iff \p includeStopProperty is \c true.  \p allErrors will contain any
-    /// errors encountered while performing this operation.
+    /// iff \p includeStopProperty is \c true.  If not \c NULL, \p deletedPaths
+    /// will be populated with connection paths whose deletion contributed to
+    /// the computed result.  \p allErrors will contain any errors encountered
+    /// while performing this operation.
     PCP_API
     void
     ComputeAttributeConnectionPaths(const SdfPath &attributePath,
@@ -390,6 +409,7 @@ public:
                                     bool localOnly,
                                     const SdfSpecHandle &stopProperty,
                                     bool includeStopProperty,
+                                    SdfPathVector *deletedPaths,
                                     PcpErrorVector *allErrors);
 
     /// @}
@@ -669,7 +689,7 @@ private:
     // to enable parallel teardown in the destructor.
     SdfLayerRefPtr _rootLayer;
     SdfLayerRefPtr _sessionLayer;
-    const ArResolverContext _pathResolverContext;
+    const PcpLayerStackIdentifier _layerStackIdentifier;
 
     // Flag that configures PcpCache to use the restricted set of USD features.
     // Currently it governs whether relocates, inherits, permissions,

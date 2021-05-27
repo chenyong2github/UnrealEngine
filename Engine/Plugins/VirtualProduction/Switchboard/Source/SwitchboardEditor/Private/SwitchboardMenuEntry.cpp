@@ -12,12 +12,11 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "SwitchboardEditorModule.h"
 #include "SwitchboardEditorSettings.h"
 #include "SwitchboardEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "SwitchboardEditor"
-
-DEFINE_LOG_CATEGORY(LogSwitchboardPlugin);
 
 
 class FSwitchboardUICommands : public TCommands<FSwitchboardUICommands>
@@ -75,9 +74,6 @@ struct FSwitchboardMenuEntryImpl
 
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 		LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolBarExtender);
-	
-		PathToListenerInstaller = FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir() + FString(TEXT("VirtualProduction")));
-		PathToListenerInstaller /= FString(TEXT("Switchboard")) / FString(TEXT("Source")) / FString(TEXT("install_listener.py"));
 	}
 
 	~FSwitchboardMenuEntryImpl()
@@ -105,19 +101,25 @@ struct FSwitchboardMenuEntryImpl
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::LaunchListener))
 			);
+
 #if PLATFORM_WINDOWS
 			MenuBuilder.AddMenuSeparator();
+
+			// The FGetActionCheckState delegate is called continually while the menu is open.
+			// Cache the state now as the combo is initially expanded.
+			CachedAutolaunchCheckState = GetAutolaunchCheckState();
+
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ListenerInstallLabel", "Install SwitchboardListener"),
-				LOCTEXT("ListenerInstallTooltip", "Configures SwitchboardListener to automatically run on system start."),
+				LOCTEXT("ListenerAutolaunchLabel", "Launch Switchboard Listener on Login"),
+				LOCTEXT("ListenerAutolaunchTooltip", "Controls whether SwitchboardListener runs automatically when you log into Windows."),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::InstallListener))
-			);
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ListenerUninstallLabel", "Uninstall SwitchboardListener"),
-				LOCTEXT("ListenerUninstallTooltip", "Stop SwitchboardListener from automatically running on system start."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::UninstallListener))
+				FUIAction(
+					FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::ToggleAutolaunch),
+					FCanExecuteAction(),
+					FGetActionCheckState::CreateLambda([&](){ return CachedAutolaunchCheckState; })
+				),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
 			);
 #endif
 		}
@@ -148,95 +150,75 @@ struct FSwitchboardMenuEntryImpl
 		}
 	}
 
-	void InstallListener()
+#if PLATFORM_WINDOWS
+	ECheckBoxState GetAutolaunchCheckState()
 	{
-		FString PythonInterpreter = GetPathToPython();
-		if (PythonInterpreter.IsEmpty())
-		{
-			const FString ErrorMsg = TEXT("Could not find path to python interpreter which is required to run the installation script!");
-			UE_LOG(LogSwitchboardPlugin, Error, TEXT("%s"), *ErrorMsg);
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("No Python interpreter"));
-			return;
-		}
+		return FSwitchboardEditorModule::Get().IsListenerAutolaunchEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
 
-		const FString ListenerPath = GetDefault<USwitchboardEditorSettings>()->ListenerPath.FilePath;
-		if (!FPaths::FileExists(ListenerPath))
+	void ToggleAutolaunch()
+	{
+		if (CachedAutolaunchCheckState == ECheckBoxState::Checked)
 		{
-			const FString ErrorMsg = TEXT("Could not find SwitchboardListener! Make sure it was compiled.");
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error installing listener"));
-			return;
-		}
-
-		const FString ListenerArgs = GetDefault<USwitchboardEditorSettings>()->ListenerCommandlineArguments;
-		const FString Args = FString::Printf(TEXT("%s install \"\\\"%s\\\" %s\""), *PathToListenerInstaller, *ListenerPath, *ListenerArgs);
-		if (RunProcess(PythonInterpreter, Args))
-		{
-			const FString Msg = TEXT("Successfully installed the SwitchboardListener. It will automatically run on the next system start.");
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *Msg, TEXT("Success"));
+			FSwitchboardEditorModule::Get().SetListenerAutolaunchEnabled(false);
 		}
 		else
 		{
-			const FString ErrorMsg = TEXT("Unable to install listener! Check the log for details.");
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error installing listener"));
-		}
-	}
+			if (!FPaths::FileExists(GetDefault<USwitchboardEditorSettings>()->ListenerPath.FilePath))
+			{
+				const FString ErrorMsg = TEXT("Could not find SwitchboardListener! Make sure it has been compiled.");
+				FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error enabling SwitchboardListener auto-launch"));
+				return;
+			}
 
-	void UninstallListener()
-	{
-		FString PythonInterpreter = GetPathToPython();
-		if (PythonInterpreter.IsEmpty())
-		{
-			return;
+			FSwitchboardEditorModule::Get().SetListenerAutolaunchEnabled(true);
 		}
 
-		const FString Args = FString::Printf(TEXT("%s uninstall"), *PathToListenerInstaller);
-		if (RunProcess(PythonInterpreter, Args))
-		{
-			const FString Msg = TEXT("Successfully removed the SwitchboardListener from Autorun.");
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *Msg, TEXT("Success"));
-		}
-		else
-		{
-			const FString ErrorMsg = TEXT("Unable to uninstall listener! Check the log for details.");
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("Error uninstalling listener"));
-		}
+		CachedAutolaunchCheckState = GetAutolaunchCheckState();
 	}
+#endif // #if PLATFORM_WINDOWS
 
 	FString GetPathToPython()
 	{
-		const FFilePath PythonPath = GetDefault<USwitchboardEditorSettings>()->PythonInterpreterPath;
-		FString PythonInterpreter = PythonPath.FilePath;
-		if (PythonInterpreter.IsEmpty())
+		// First try the user-specified path from settings.
+		const FString& UserInterpreter = GetDefault<USwitchboardEditorSettings>()->PythonInterpreterPath.FilePath;
+		if (!UserInterpreter.IsEmpty() && FPaths::FileExists(UserInterpreter))
 		{
-			FString PythonExeName;
-#if PLATFORM_WINDOWS
-			PythonExeName = TEXT("python.exe");
-#elif PLATFORM_LINUX
-			PythonExeName = TEXT("python");
-#endif
-
-			PythonInterpreter = FPaths::EngineDir() / TEXT("Extras") / TEXT("ThirdPartyNotUE") /
-				TEXT("SwitchboardThirdParty") / TEXT("Python") / TEXT("current") / PythonExeName;
-			if (!FPaths::FileExists(PythonInterpreter)) // python will not exist in ThirdPartyNotUE (yet) if SB was never run
-			{
-				// so we fall back onto the interpreter that ships with the engine
-				PythonInterpreter = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() + FString(TEXT("Binaries")));
-				PythonInterpreter /= FString(TEXT("ThirdParty")) / FString(TEXT("Python3")) / PythonExeName;
-			}
+			return UserInterpreter;
 		}
 
-		if (!FPaths::FileExists(PythonInterpreter))
-		{
-			FString EnginePythonPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("ThirdParty") / TEXT("Python3");
+		const FString PythonExeName =
 #if PLATFORM_WINDOWS
-			EnginePythonPath = EnginePythonPath / TEXT("Win64") / TEXT("python.exe");
-#elif PLATFORM_LINUX
-			EnginePythonPath = EnginePythonPath / TEXT("Linux") / TEXT("bin") / TEXT("python");
+			TEXT("python.exe");
+#else
+			TEXT("python");
 #endif
-			PythonInterpreter = EnginePythonPath;
+
+		// If it's been installed, fall back to Switchboard's embedded Python distribution.
+		const FString SwitchboardInterpreter = FPaths::EngineDir() / TEXT("Extras") / TEXT("ThirdPartyNotUE") /
+			TEXT("SwitchboardThirdParty") / TEXT("Python") / TEXT("current") / PythonExeName;
+		if (FPaths::FileExists(SwitchboardInterpreter))
+		{
+			return SwitchboardInterpreter;
 		}
 
-		return PythonInterpreter;
+		// Finally, fall back to the engine ThirdParty Python.
+		const FString EngineInterpreter = FPaths::EngineDir() / TEXT("Binaries") / TEXT("ThirdParty")
+			/ TEXT("Python3") / FPlatformProcess::GetBinariesSubdirectory()
+#if !PLATFORM_WINDOWS
+			/ TEXT("bin")
+#endif
+			/ PythonExeName;
+		if (FPaths::FileExists(EngineInterpreter))
+		{
+			return EngineInterpreter;
+		}
+
+		// If we made it this far, we've failed.
+		const FString ErrorMsg = TEXT("Unable to locate Python interpreter. Run Switchboard first-time setup, or configure the Switchboard plugin PythonInterpreterPath setting.");
+		UE_LOG(LogSwitchboardPlugin, Error, TEXT("%s"), *ErrorMsg);
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMsg, TEXT("No Python interpreter found"));
+		return FString();
 	}
 
 	void OnLaunchSwitchboardClicked()
@@ -302,7 +284,7 @@ struct FSwitchboardMenuEntryImpl
 
 private:
 	TSharedPtr<FExtender> ToolBarExtender;
-	FString PathToListenerInstaller;
+	ECheckBoxState CachedAutolaunchCheckState;
 
 public:
 	static TUniquePtr<FSwitchboardMenuEntryImpl> Implementation;

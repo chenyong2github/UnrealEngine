@@ -205,6 +205,8 @@ public:
 	/** Get the current orientation of the scrollbox. */
 	EOrientation GetOrientation();
 
+	void SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination);
+
 	void SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel);
 
 	/** Sets the current orientation of the scrollbox and updates the layout */

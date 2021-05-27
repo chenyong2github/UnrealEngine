@@ -5,6 +5,7 @@
 #include "ConcertTakeRecorderMessages.h"
 #include "ConcertMessages.h"
 #include "Delegates/IDelegateInstance.h"
+#include "HAL/Platform.h"
 #include "UObject/StrongObjectPtr.h"
 #include "TakePreset.h"
 #include "ConcertSyncClient/Public/IConcertClientTransactionBridge.h"
@@ -75,6 +76,8 @@ private:
 	void CreateExtensionWidget(TArray<TSharedRef<class SWidget>>& OutExtensions);
 	void CreateRecordButtonOverlay(TArray<TSharedRef<SWidget>>& OutExtensions);
 
+	SIZE_T RemoteRecorders() const;
+	bool ShouldIconBeVisible() const;
 	EVisibility GetMultiUserIconVisibility() const;
 
 	bool IsTakeSyncEnabled() const;
@@ -88,6 +91,8 @@ private:
 
 	ETransactionFilterResult ShouldObjectBeTransacted(UObject* InObject, UPackage* InPackage);
 private:
+	FTakeRecorderParameters SetupTakeParametersForMultiuser(const FTakeRecorderParameters& Input);
+
 	void ReportRecordingError(FText &);
 	bool CanRecord() const;
 	bool CanAnyRecord() const;
@@ -123,4 +128,7 @@ private:
 	 * Denotes if we are currently in recording mode.
 	 */
 	bool bIsRecording = false;
+
+	/** Indicates if we have warned the user about multiple recorders. */
+	bool bHaveWarned = false;
 };

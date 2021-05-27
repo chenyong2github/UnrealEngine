@@ -1,22 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Recorder/TakeRecorder.h"
+
+#include "Algo/Accumulate.h"
+#include "AssetRegistryModule.h"
+#include "CoreGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
-#include "Recorder/TakeRecorderBlueprintLibrary.h"
-#include "TakePreset.h"
-#include "TakeMetaData.h"
-#include "TakeRecorderSources.h"
-#include "TakeRecorderOverlayWidget.h"
-#include "LevelSequence.h"
-#include "Tickable.h"
-#include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
-#include "Stats/Stats.h"
 #include "ISequencer.h"
-#include "SequencerSettings.h"
+#include "LevelSequence.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Recorder/TakeRecorderBlueprintLibrary.h"
+#include "TakeMetaData.h"
+#include "TakePreset.h"
+#include "TakeRecorderOverlayWidget.h"
+#include "TakeRecorderSources.h"
 #include "TakesUtils.h"
+#include "Tickable.h"
+#include "Stats/Stats.h"
+#include "SequencerSettings.h"
 
 // LevelSequenceEditor includes
 #include "ILevelSequenceEditorToolkit.h"
@@ -354,6 +359,16 @@ static TStrongObjectPtr<UTakeRecorder>& GetCurrentRecorder()
 }
 FOnTakeRecordingInitialized UTakeRecorder::OnRecordingInitializedEvent;
 
+void FTakeRecorderParameterOverride::RegisterHandler(FName OverrideName, FTakeRecorderParameterDelegate Delegate)
+{
+	Delegates.FindOrAdd(MoveTemp(OverrideName), MoveTemp(Delegate));
+}
+
+void  FTakeRecorderParameterOverride::UnregisterHandler(FName OverrideName)
+{
+	Delegates.Remove(MoveTemp(OverrideName));
+}
+
 // Static functions for UTakeRecorder
 UTakeRecorder* UTakeRecorder::GetActiveRecorder()
 {
@@ -363,6 +378,12 @@ UTakeRecorder* UTakeRecorder::GetActiveRecorder()
 FOnTakeRecordingInitialized& UTakeRecorder::OnRecordingInitialized()
 {
 	return OnRecordingInitializedEvent;
+}
+
+FTakeRecorderParameterOverride& UTakeRecorder::TakeInitializeParameterOverride()
+{
+	static FTakeRecorderParameterOverride Overrides;
+	return Overrides;
 }
 
 bool UTakeRecorder::SetActiveRecorder(UTakeRecorder* NewActiveRecorder)
@@ -393,6 +414,19 @@ void UTakeRecorder::SetDisableSaveTick(bool InValue)
 	Parameters.bDisableRecordingAndSave = InValue;
 }
 
+namespace TakeInitHelper
+{
+FTakeRecorderParameters AccumulateParamsOverride(const FTakeRecorderParameters& InParam)
+{
+	TMap<FName, FTakeRecorderParameterDelegate>& TheDelegates = UTakeRecorder::TakeInitializeParameterOverride().Delegates;
+	auto Op = [](FTakeRecorderParameters InParameters, const TPair<FName,FTakeRecorderParameterDelegate>& Pair)
+	{
+		return Pair.Value.Execute(MoveTemp(InParameters));
+	};
+	return Algo::Accumulate(TheDelegates, InParam, MoveTemp(Op));
+}
+}
+
 bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, const FTakeRecorderParameters& InParameters, FText* OutError )
 {
 	FGCObjectScopeGuard GCGuard(this);
@@ -419,16 +453,17 @@ bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorde
 
 	UTakeRecorderBlueprintLibrary::OnTakeRecorderPreInitialize();
 
-	if (InParameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence)
+	FTakeRecorderParameters FinalParameters = TakeInitHelper::AccumulateParamsOverride(InParameters);
+	if (FinalParameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence)
 	{
-		if (!CreateDestinationAsset(*InParameters.Project.GetTakeAssetPath(), LevelSequenceBase, Sources, MetaData, OutError))
+		if (!CreateDestinationAsset(*FinalParameters.Project.GetTakeAssetPath(), LevelSequenceBase, Sources, MetaData, OutError))
 		{
 			return false;
 		}
 	}
 	else
 	{
-		if (!SetupDestinationAsset(InParameters, LevelSequenceBase, Sources, MetaData, OutError))
+		if (!SetupDestinationAsset(FinalParameters, LevelSequenceBase, Sources, MetaData, OutError))
 		{
 			return false;
 		}
@@ -440,7 +475,7 @@ bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorde
 
 	AddToRoot();
 
-	Parameters = InParameters;
+	Parameters = FinalParameters;
 	State      = ETakeRecorderState::CountingDown;
 
 	// Override parameters for recording into a current sequence
@@ -459,7 +494,8 @@ bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorde
 	InitializeFromParameters();
 
 	// Open a recording notification
-	// @todo: is this too intrusive? does it potentially overlap the takerecorder slate UI?
+
+	if (ShouldShowNotifications())
 	{
 		TSharedRef<STakeRecorderNotification> Content = SNew(STakeRecorderNotification, this);
 
@@ -705,6 +741,17 @@ void UTakeRecorder::InitializeFromParameters()
 	}
 }
 
+bool UTakeRecorder::ShouldShowNotifications()
+{
+	// -TAKERECORDERISHEADLESS in the command line can force headless behavior and disable the notifications.
+	static const bool bCmdLineTakeRecorderIsHeadless = FParse::Param(FCommandLine::Get(), TEXT("TAKERECORDERISHEADLESS"));
+
+	return Parameters.Project.bShowNotifications
+		&& !bCmdLineTakeRecorderIsHeadless
+		&& !FApp::IsUnattended()
+		&& !GIsRunningUnattendedScript;
+}
+
 UWorld* UTakeRecorder::GetWorld() const
 {
 	return WeakWorld.Get();
@@ -904,6 +951,12 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 		Sources->StartRecording(SequenceAsset, InTimecodeSource, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
 	}
 
+	if (!ShouldShowNotifications())
+	{
+		// Log in lieu of the notification widget
+		UE_LOG(LogTakesCore, Log, TEXT("Started recording"));
+	}
+
 	OnRecordingStartedEvent.Broadcast(this);
 
 	UTakeRecorderBlueprintLibrary::OnTakeRecorderStarted();
@@ -960,6 +1013,12 @@ void UTakeRecorder::Stop()
 
 	if (bDidEverStartRecording)
 	{
+		if (!ShouldShowNotifications())
+		{
+			// Log in lieu of the notification widget
+			UE_LOG(LogTakesCore, Log, TEXT("Stopped recording"));
+		}
+
 		UTakeRecorderBlueprintLibrary::OnTakeRecorderStopped();
 
 		if (MovieScene)
@@ -1108,13 +1167,16 @@ void UTakeRecorder::HandlePIE(bool bIsSimulating)
 {
 	ULevelSequence* FinishedAsset = GetSequence();
 
-	TSharedRef<STakeRecorderNotification> Content = SNew(STakeRecorderNotification, this, FinishedAsset);
+	if (ShouldShowNotifications())
+	{
+		TSharedRef<STakeRecorderNotification> Content = SNew(STakeRecorderNotification, this, FinishedAsset);
 
-	FNotificationInfo Info(Content);
-	Info.ExpireDuration = 5.f;
+		FNotificationInfo Info(Content);
+		Info.ExpireDuration = 5.f;
 
-	TSharedPtr<SNotificationItem> PendingNotification = FSlateNotificationManager::Get().AddNotification(Info);
-	PendingNotification->SetCompletionState(SNotificationItem::CS_Success);
+		TSharedPtr<SNotificationItem> PendingNotification = FSlateNotificationManager::Get().AddNotification(Info);
+		PendingNotification->SetCompletionState(SNotificationItem::CS_Success);
+	}
 	
 	Stop();
 

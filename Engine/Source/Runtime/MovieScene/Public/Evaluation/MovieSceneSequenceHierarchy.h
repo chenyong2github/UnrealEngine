@@ -58,9 +58,18 @@ struct FMovieSceneSubSequenceData
 	*/
 	MOVIESCENE_API FGuid GetSubSectionSignature() const { return SubSectionSignature; }
 
+	/**
+	 * Re-creates a sub-section parameter struct.
+	 */
+	MOVIESCENE_API FMovieSceneSectionParameters ToSubSectionParameters() const;
+
 	/** The sequence that the sub section references */
 	UPROPERTY(meta=(AllowedClasses="MovieSceneSequence"))
 	FSoftObjectPath Sequence;
+
+	/** The transform from this sub sequence's parent to its own play space. */
+	UPROPERTY()
+	FMovieSceneSequenceTransform OuterToInnerTransform;
 
 	/** Transform that transforms a given time from the sequences outer space, to its authored space. */
 	UPROPERTY()
@@ -73,6 +82,26 @@ struct FMovieSceneSubSequenceData
 	/** This sequence's deterministic sequence ID. Used in editor to reduce the risk of collisions on recompilation. */ 
 	UPROPERTY()
 	FMovieSceneSequenceID DeterministicSequenceID;
+
+	/** The play range of the parent section */
+	UPROPERTY()
+	FMovieSceneFrameRange ParentPlayRange;
+
+	/** The start frame offset of the parent section */
+	UPROPERTY()
+	FFrameNumber ParentStartFrameOffset;
+
+	/** The end frame offset of the parent section */
+	UPROPERTY()
+	FFrameNumber ParentEndFrameOffset;
+
+	/** The offset for the first loop of the sub-sequence */
+	UPROPERTY()
+	FFrameNumber ParentFirstLoopStartFrameOffset;
+
+	/** Whether this sub-sequence can loop */
+	UPROPERTY()
+	bool bCanLoop = false;
 	
 	/** This sub sequence's playback range according to its parent sub section. Clamped recursively during template generation */
 	UPROPERTY()
@@ -127,10 +156,6 @@ private:
 	/** The sub section's signature at the time this structure was populated. */
 	UPROPERTY()
 	FGuid SubSectionSignature;
-
-	/** The transform from this sub sequence's parent to its own play space. */
-	UPROPERTY()
-	FMovieSceneSequenceTransform OuterToInnerTransform;
 };
 
 /**

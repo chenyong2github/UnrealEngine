@@ -81,6 +81,9 @@ struct NIAGARAEDITOR_API FNiagaraSystemViewModelOptions
 
 	/** Gets the current editing mode for this system. */
 	ENiagaraSystemViewModelEditMode EditMode;
+
+	/** Specifies that the view model is being constructed for data processing only and will not be displayed in the UI. */
+	bool bIsForDataProcessingOnly;
 };
 
 struct FNiagaraStackModuleData
@@ -378,6 +381,9 @@ public:
 
 	TSharedRef<FNiagaraPlaceholderDataInterfaceManager> GetPlaceholderDataInterfaceManager();
 
+	/** Gets whether or not this view model is for data processing only and will not be displayed in the UI. */
+	bool GetIsForDataProcessingOnly() const;
+
 private:
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
 	void SendLastCompileMessageJobs() const;
@@ -651,4 +657,7 @@ private:
 
 	/** Flag for when messages have been added/removed through the viewmodel to signal that the message manager needs to be refreshed. */
 	mutable bool bPendingAssetMessagesChanged;
+
+	/** Specifies that this view model is for data processing only and will not be displayed in the UI. */
+	bool bIsForDataProcessingOnly;
 };

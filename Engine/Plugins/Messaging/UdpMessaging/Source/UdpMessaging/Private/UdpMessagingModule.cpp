@@ -8,7 +8,6 @@
 #include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
-#include "Containers/Ticker.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Stats/Stats.h"
 
@@ -469,7 +468,6 @@ protected:
 		UE_LOG(LogUdpMessaging, Log, TEXT("Initializing bridge on interface %s to multicast group %s."), *UnicastEndpoint.ToString(), *MulticastEndpoint.ToText().ToString());
 
 		TSharedRef<FUdpMessageTransport, ESPMode::ThreadSafe> Transport = MakeShared<FUdpMessageTransport, ESPMode::ThreadSafe>(UnicastEndpoint, MulticastEndpoint, MoveTemp(StaticEndpoints), Settings->MulticastTimeToLive);
-		Transport->OnTransportError().BindRaw(this, &FUdpMessagingModule::HandleTransportError);
 		WeakBridgeTransport = Transport;
 		MessageBridge = FMessageBridgeBuilder()
 			.UsingTransport(Transport);
@@ -563,7 +561,6 @@ protected:
 	/** Shuts down the message bridge. */
 	void ShutdownBridge()
 	{
-		StopAutoRepairRoutine();
 		WeakBridgeTransport.Reset();
 		if (MessageBridge.IsValid())
 		{
@@ -615,59 +612,6 @@ private:
 		}
 	}
 
-	void HandleTransportError()
-	{
-		const UUdpMessagingSettings* Settings = GetDefault<UUdpMessagingSettings>();
-		if (Settings->bAutoRepair)
-		{
-			StartAutoRepairRoutine(Settings->AutoRepairAttemptLimit);
-		}
-		else
-		{
-			UE_LOG(LogUdpMessaging, Error, TEXT("UDP messaging encountered an error. Please restart the service for proper functionality"));
-		}
-
-	}
-
-	void StartAutoRepairRoutine(uint32 MaxRetryAttempt)
-	{
-		StopAutoRepairRoutine();
-		FTimespan CheckDelay(0, 0, 1);
-		uint32 CheckNumber = 1;
-		AutoRepairHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakTransport = WeakBridgeTransport, LastTime = FDateTime::UtcNow(), CheckDelay, CheckNumber, MaxRetryAttempt](float DeltaTime) mutable
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FUdpMessagingModule_AutoRepair);
-			bool bContinue = true;
-			FDateTime UtcNow = FDateTime::UtcNow();
-			if (LastTime + (CheckDelay * CheckNumber) <= UtcNow)
-			{
-				if (auto Transport = WeakTransport.Pin())
-				{
-					// if the restart fail, continue the routine if we are still under the retry attempt limit
-					bContinue = !Transport->RestartTransport();
-					bContinue = bContinue && CheckNumber <= MaxRetryAttempt;
-				}
-				// if we do not have a valid transport also stop the routine
-				else
-				{
-					bContinue = false;
-				}
-				++CheckNumber;
-				LastTime = UtcNow;
-			}
-			return bContinue;
-		}), 1.0f);
-		UE_LOG(LogUdpMessaging, Warning, TEXT("UDP messaging encountered an error. Auto repair routine started for reinitialization"));
-	}
-
-	void StopAutoRepairRoutine()
-	{
-		if (AutoRepairHandle.IsValid())
-		{
-			FTicker::GetCoreTicker().RemoveTicker(AutoRepairHandle);
-		}
-	}
-
 private:
 	/** Name of the network messaging extension. */
 	static FName UdpMessagingName;
@@ -683,9 +627,6 @@ private:
 
 	/** Holds additional static endpoints added through the modular feature interface. */
 	TSet<FIPv4Endpoint> AdditionalStaticEndpoints;
-
-	/** Holds the delegate handle for the auto repair routine. */
-	FDelegateHandle AutoRepairHandle;
 
 #if PLATFORM_DESKTOP
 	/** Holds the message tunnel if present. */

@@ -85,6 +85,12 @@ struct ENGINE_API TPerPlatformProperty
 
 #endif
 
+	_ValueType GetDefault() const
+	{
+		const _StructType* This = StaticCast<const _StructType*>(this);
+		return This->Default;
+	}
+	
 	_ValueType GetValue() const
 	{
 #if WITH_EDITORONLY_DATA && WITH_EDITOR

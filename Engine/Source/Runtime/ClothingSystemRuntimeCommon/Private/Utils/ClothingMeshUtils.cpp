@@ -580,6 +580,60 @@ namespace ClothingMeshUtils
 		}
 	}
 
+
+	void ComputeVertexContributions(
+		TArray<FMeshToMeshVertData>& InOutSkinningData,
+		const FPointWeightMap* const InMaxDistances,
+		const bool bInSmoothTransition
+		)
+	{
+		if (InMaxDistances && InMaxDistances->Num())
+		{
+			for (FMeshToMeshVertData& VertData : InOutSkinningData)
+			{
+				const bool IsStatic0 = InMaxDistances->IsBelowThreshold(VertData.SourceMeshVertIndices[0]);
+				const bool IsStatic1 = InMaxDistances->IsBelowThreshold(VertData.SourceMeshVertIndices[1]);
+				const bool IsStatic2 = InMaxDistances->IsBelowThreshold(VertData.SourceMeshVertIndices[2]);
+
+				// None of the cloth vertices will move due to max distance constraints.
+				if (IsStatic0 && IsStatic1 && IsStatic2)
+				{
+					VertData.SourceMeshVertIndices[3] = 0xFFFF;
+				}
+				// If all of the vertices are dynamic _or_ if we disallow smooth transition,
+				// ensure there's no blending between cloth and skinned mesh and that the cloth
+				// mesh dominates.
+				else if ((!IsStatic0 && !IsStatic1 && !IsStatic2) || !bInSmoothTransition)
+				{
+					VertData.SourceMeshVertIndices[3] = 0;
+				}
+				else
+				{
+					// Compute how much the vertex actually contributes. A value of 0xFFFF
+					// means that it stays static relative to the skinned mesh, a value of 0x0000
+					// means that only the cloth simulation contributes. 
+					float StaticAlpha = 
+						IsStatic0 * VertData.PositionBaryCoordsAndDist.X +
+						IsStatic1 * VertData.PositionBaryCoordsAndDist.Y +
+						IsStatic2 * VertData.PositionBaryCoordsAndDist.Z;
+					StaticAlpha = FMath::Clamp(StaticAlpha, 0.0f, 1.0f);
+					
+					VertData.SourceMeshVertIndices[3] = static_cast<uint16>(StaticAlpha * 0xFFFF);
+				}	
+			}
+		}
+		else
+		{
+			// Can't determine contribution from the max distance map, so the entire mesh overrides.
+			for (FMeshToMeshVertData& VertData : InOutSkinningData)
+			{
+				VertData.SourceMeshVertIndices[3] = 0;
+			}
+		}
+		
+	}
+
+
 	void FVertexParameterMapper::Map(TArrayView<const float> Source, TArray<float>& Dest)
 	{
 		Map(Source, Dest, [](FVector3f Bary, float A, float B, float C)

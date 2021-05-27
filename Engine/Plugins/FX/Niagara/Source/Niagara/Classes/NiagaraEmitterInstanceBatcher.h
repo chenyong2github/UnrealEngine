@@ -288,4 +288,15 @@ private:
 	};
 	TArray<FDebugReadbackInfo> GpuDebugReadbackInfos;
 	TUniquePtr<FNiagaraGpuReadbackManager> GpuReadbackManagerPtr;
+
+#if WITH_MGPU
+	static const FName TemporalEffectName;
+	TArray<FRHIBuffer*> TemporalEffectBuffers;
+	ENiagaraGpuComputeTickStage::Type StageToWaitForTemporalEffect = ENiagaraGpuComputeTickStage::First;
+	ENiagaraGpuComputeTickStage::Type StageToBroadcastTemporalEffect = ENiagaraGpuComputeTickStage::First;
+
+	void AddTemporalEffectBuffers(FNiagaraDataBuffer* FinalData);
+	void BroadcastTemporalEffect(FRHICommandList& RHICmdList);
+#endif // WITH_MGPU
+
 };

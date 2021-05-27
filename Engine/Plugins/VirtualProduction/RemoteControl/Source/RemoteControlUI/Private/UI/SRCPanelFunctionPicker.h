@@ -25,8 +25,11 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override;
+	//~ Begin SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
+	//~ End SWidget interface
 
+	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override;
 	virtual bool SupportsKeyboardFocus() const override
 	{
 		return true;
@@ -48,4 +51,6 @@ private:
 	FText Label;
 	/** Allow default objects when refreshing. */
 	bool bAllowDefaultObjects = false;
+	/** Keep track of the last time this widget tick in order to focus it if it's been more than a frame. */
+	double LastTimeSinceTick = 0.0;
 };

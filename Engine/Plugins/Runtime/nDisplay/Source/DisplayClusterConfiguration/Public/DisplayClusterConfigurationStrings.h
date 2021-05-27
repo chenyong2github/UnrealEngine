@@ -14,6 +14,23 @@ namespace DisplayClusterConfigurationStrings
 		}
 	}
 
+	// Property Categories
+	namespace categories
+	{
+		static constexpr auto DefaultCategory              = TEXT("NDisplay");
+
+		static constexpr auto ClusterCategory              = TEXT("NDisplay Cluster");
+		static constexpr auto ClusterConfigurationCategory = TEXT("NDisplay Cluster Configuration");
+		static constexpr auto ClusterPostprocessCategory   = TEXT("Post Process");
+		static constexpr auto ChromaKeyCategory            = TEXT("Chromakey");
+		static constexpr auto LightcardCategory            = TEXT("Light Cards");
+		
+		static constexpr auto ICVFXCategory                = TEXT("In Camera ICVFX");
+		static constexpr auto ConfigurationCategory        = TEXT("NDisplay Configuration");
+		static constexpr auto PreviewCategory              = TEXT("Editor Preview");
+		static constexpr auto AdvancedCategory              = TEXT("Advanced");
+	}
+
 	// Command line arguments
 	namespace args
 	{
@@ -57,9 +74,9 @@ namespace DisplayClusterConfigurationStrings
 
 			namespace render_sync
 			{
-				static constexpr auto None     = TEXT("none");
-				
-				static constexpr auto Ethernet = TEXT("ethernet");
+				static constexpr auto None              = TEXT("none");
+				static constexpr auto Ethernet          = TEXT("ethernet");
+				static constexpr auto EthernetBarrier   = TEXT("ethernet_barrier");
 
 				static constexpr auto Nvidia            = TEXT("nvidia");
 				static constexpr auto NvidiaSwapBarrier = TEXT("swap_barrier");

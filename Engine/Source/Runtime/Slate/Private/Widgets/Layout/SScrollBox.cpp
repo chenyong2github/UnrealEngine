@@ -470,6 +470,11 @@ EOrientation SScrollBox::GetOrientation()
 	return Orientation;
 }
 
+void SScrollBox::SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination)
+{
+	NavigationDestination = NewNavigationDestination;
+}
+
 void SScrollBox::SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel)
 {
 	ConsumeMouseWheel = NewConsumeMouseWheel;

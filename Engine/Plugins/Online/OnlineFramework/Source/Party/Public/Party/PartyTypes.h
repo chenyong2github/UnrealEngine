@@ -225,12 +225,45 @@ enum class EApprovalAction : uint8
 };
 
 UENUM()
-enum class ESocialPartyInviteMethod : uint8 {
+enum class ESocialPartyInviteMethod : uint8 
+{
 	/** Default value for try invite */
 	Other = 0,
 	/** Invite was sent from a toast */
 	Notification
 };
+
+UENUM()
+enum class ESocialPartyInviteFailureReason : uint8 
+{
+	Success = 0,
+	NotOnline,
+	NotAcceptingMembers,
+	NotFriends,
+	AlreadyInParty,
+	OssValidationFailed,
+	PlatformInviteFailed,
+	PartyInviteFailed
+};
+
+
+inline const TCHAR* LexToString(ESocialPartyInviteFailureReason Type)
+{
+	switch (Type)
+	{
+	case ESocialPartyInviteFailureReason::Success: return TEXT("Success");
+	case ESocialPartyInviteFailureReason::NotOnline: return TEXT("NotOnline");
+	case ESocialPartyInviteFailureReason::NotAcceptingMembers: return TEXT("NotAcceptingMembers");
+	case ESocialPartyInviteFailureReason::NotFriends: return TEXT("NotFriends");
+	case ESocialPartyInviteFailureReason::AlreadyInParty: return TEXT("AlreadyInParty");
+	case ESocialPartyInviteFailureReason::OssValidationFailed: return TEXT("OssValidationFailed");
+	case ESocialPartyInviteFailureReason::PlatformInviteFailed: return TEXT("PlatformInviteFailed");
+	case ESocialPartyInviteFailureReason::PartyInviteFailed: return TEXT("PartyInviteFailed");
+	default:
+		checkNoEntry();
+		return TEXT("Unknown");
+	}
+}
 
 // Gives a smidge more meaning to the intended use for the string. These should just be UniqueId's (and are), but not reliably allocated as shared ptrs, so they cannot be replicated via FUniqueNetIdRepl.
 using FSessionId = FString;

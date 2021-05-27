@@ -4,6 +4,7 @@
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 #include "Stack/SNiagaraStackItemGroupAddMenu.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorCommon.h"
@@ -19,6 +20,9 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "NiagaraMessages.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackEditorWidgetsUtilities"
 
@@ -255,20 +259,71 @@ void DeleteItem(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
 
 void ToggleEnabledState(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
 {
+	TSet<UNiagaraStackItem*> ItemsToToggle;
+
 	UNiagaraStackItem* StackItem = StackItemWeak.Get();
 	if (StackItem != nullptr)
 	{
-		StackItem->SetIsEnabled(!StackItem->GetIsEnabled());
+		ItemsToToggle.Add(StackItem);
+		bool bShouldBeEnabled = !StackItem->GetIsEnabled();
+		
+		TArray<UNiagaraStackEntry*> StackEntries;
+		StackItem->GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEntries(StackEntries);
+
+		for(UNiagaraStackEntry* StackEntry : StackEntries)
+		{
+			UNiagaraStackItem* AdditionalStackItem = Cast<UNiagaraStackItem>(StackEntry);
+
+			if (AdditionalStackItem != nullptr)
+			{
+				ItemsToToggle.Add(AdditionalStackItem);
+			}
+		}
+
+		// we assume the same state for all of the selected entries rather than toggling item-by-item
+		for(UNiagaraStackItem* CurrentStackItem : ItemsToToggle)
+		{
+			CurrentStackItem->SetIsEnabled(bShouldBeEnabled);		
+		}
 	}
+
 }
 
 void ToggleShouldDebugDraw(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
 {
+	TSet<UNiagaraStackModuleItem*> ItemsToToggle;
+
 	UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(StackItemWeak.Get());
 	if (ModuleItem != nullptr)
 	{
-		ModuleItem->SetDebugDrawEnabled(!ModuleItem->IsDebugDrawEnabled());
+		ItemsToToggle.Add(ModuleItem);
+		bool bShouldBeEnabled = !ModuleItem->IsDebugDrawEnabled();
+
+		TArray<UNiagaraStackEntry*> StackEntries;
+		ModuleItem->GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEntries(StackEntries);
+
+		for(UNiagaraStackEntry* StackEntry : StackEntries)
+		{
+			UNiagaraStackModuleItem* AdditionalStackModuleItem = Cast<UNiagaraStackModuleItem>(StackEntry);
+
+			if (AdditionalStackModuleItem != nullptr)
+			{
+				ItemsToToggle.Add(AdditionalStackModuleItem);
+			}
+		}
+
+		// we assume the same state for all of the selected entries rather than toggling item-by-item
+		for(UNiagaraStackModuleItem* CurrentStackItem : ItemsToToggle)
+		{
+			CurrentStackItem->SetDebugDrawEnabled(bShouldBeEnabled);
+		}
 	}
+}
+
+void EnableNoteMode(TWeakObjectPtr<UNiagaraStackModuleItem> ModuleItem)
+{
+	ModuleItem->GetSystemViewModel()->GetSelectionViewModel()->UpdateSelectedEntries({ModuleItem.Get()}, {}, true);
+	ModuleItem->SetNoteMode(true);
 }
 
 bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackItem& StackItem)
@@ -292,6 +347,7 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBu
 			}
 
 			UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(&StackItem);
+			
 			if (ModuleItem && ModuleItem->GetModuleNode().ContainsDebugSwitch())
 			{
 				FUIAction Action(FExecuteAction::CreateStatic(&ToggleShouldDebugDraw, TWeakObjectPtr<UNiagaraStackItem>(&StackItem)),
@@ -304,6 +360,15 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBu
 					Action,
 					NAME_None,
 					EUserInterfaceActionType::Check);
+			}
+
+			if(ModuleItem)
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("AddNote", "Add Note"),
+					LOCTEXT("AddNoteToolTip", "Add a note to this module item."),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateStatic(&EnableNoteMode, TWeakObjectPtr<UNiagaraStackModuleItem>(ModuleItem))));
 			}
 
 		}
@@ -331,7 +396,7 @@ void ShowInsertModuleMenu(TWeakObjectPtr<UNiagaraStackModuleItem> StackModuleIte
 bool FNiagaraStackEditorWidgetsUtilities::AddStackModuleItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackModuleItem& StackModuleItem, TSharedRef<SWidget> TargetWidget)
 {
 	MenuBuilder.BeginSection("ModuleActions", LOCTEXT("ModuleActions", "Module Actions"));
-	{
+	{		
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("InsertModuleAbove", "Insert Above"),
 			LOCTEXT("InsertModuleAboveToolTip", "Insert a new module above this module in the stack."),

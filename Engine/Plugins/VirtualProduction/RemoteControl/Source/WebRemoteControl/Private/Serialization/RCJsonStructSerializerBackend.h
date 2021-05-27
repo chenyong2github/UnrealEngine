@@ -13,14 +13,16 @@ class FRCJsonStructSerializerBackend
 	: public FJsonStructSerializerBackend
 {
 public:
+	/** Default flags for serializing structures in Web RC. */
+	static const EStructSerializerBackendFlags DefaultSerializerFlags = EStructSerializerBackendFlags::WriteByteArrayAsByteStream;
 
 	/**
 	 * Creates and initializes a new instance with the given flags.
 	 *
 	 * @param InArchive The archive to serialize into.
-	 * @param InFlags The flags that control the serialization behavior (typically EStructSerializerBackendFlags::Default).
+	 * @param InFlags The flags that control the serialization behavior (typically FRCJsonStructSerializerBackend::DefaultSerializerFlags).
 	 */
-	FRCJsonStructSerializerBackend(FArchive& InArchive, const EStructSerializerBackendFlags InFlags)
+	FRCJsonStructSerializerBackend(FArchive& InArchive, const EStructSerializerBackendFlags InFlags = DefaultSerializerFlags)
 		: FJsonStructSerializerBackend(InArchive, InFlags)
 	{ }
 

@@ -45,6 +45,9 @@ class IDisplayClusterConfiguratorTreeItem
 	: public IDisplayClusterConfiguratorItem
 {
 public:
+	virtual ~IDisplayClusterConfiguratorTreeItem() = default;
+
+public:
 	NDISPLAY_TREE_BASE_ITEM_TYPE(IDisplayClusterConfiguratorTreeItem)
 
 	/** Initializes the tree item */

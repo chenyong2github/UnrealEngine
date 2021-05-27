@@ -43,7 +43,7 @@ using namespace UE_AC;
 
 API_AddonType __ACENV_CALL CheckEnvironment(API_EnvirParams* envir)
 {
-	UE_AC_TraceF("--- UE_AC CheckEnvironment\n");
+	UE_AC_TraceF("-> UE_AC CheckEnvironment\n");
 
 	short		  IdDescription = LocalizeResId(kStrListSyncPlugInDescription);
 	GS::UniString versStr("\n\t");
@@ -55,6 +55,8 @@ API_AddonType __ACENV_CALL CheckEnvironment(API_EnvirParams* envir)
 	RSGetIndString(&envir->addOnInfo.description, IdDescription, 2, ACAPI_GetOwnResModule());
 	envir->addOnInfo.description += versStr;
 
+	UE_AC_TraceF("<- UE_AC CheckEnvironment\n");
+
 	return APIAddon_Preload;
 }
 
@@ -64,7 +66,7 @@ API_AddonType __ACENV_CALL CheckEnvironment(API_EnvirParams* envir)
 
 GSErrCode __ACENV_CALL RegisterInterface(void)
 {
-	UE_AC_TraceF("--- UE_AC RegisterInterface\n");
+	UE_AC_TraceF("-> UE_AC RegisterInterface\n");
 
 	GSErrCode GSErr = FExport::Register();
 	if (GSErr == NoError)
@@ -82,6 +84,8 @@ GSErrCode __ACENV_CALL RegisterInterface(void)
 
 	ACAPI_KeepInMemory(true);
 
+	UE_AC_TraceF("<- UE_AC RegisterInterface\n");
+
 	return GSErr;
 }
 
@@ -92,7 +96,7 @@ GSErrCode __ACENV_CALL RegisterInterface(void)
 
 GSErrCode __ACENV_CALL Initialize(void)
 {
-	UE_AC_TraceF("--- UE_AC Initialize\n");
+	UE_AC_TraceF("-> UE_AC Initialize\n");
 
 	LoadDatasmithDlls();
 	FTraceListener::Get();
@@ -122,6 +126,9 @@ GSErrCode __ACENV_CALL Initialize(void)
 	FPalette::Register();
 
 	ACAPI_KeepInMemory(true);
+
+	UE_AC_TraceF("<- UE_AC Initialize\n");
+
 	return GSErr;
 }
 
@@ -132,7 +139,7 @@ GSErrCode __ACENV_CALL Initialize(void)
 
 GSErrCode __ACENV_CALL FreeData(void)
 {
-	UE_AC_TraceF("--- UE_AC FreeData\n");
+	UE_AC_TraceF("-> UE_AC FreeData\n");
 
 	FPalette::Delete();
 	FPalette::Unregister();
@@ -140,6 +147,8 @@ GSErrCode __ACENV_CALL FreeData(void)
 	UnloadDatasmithDlls(true);
 	FReportWindow::Delete();
 	FTraceListener::Delete();
+
+	UE_AC_TraceF("<- UE_AC FreeData\n");
 
 	return NoError;
 }

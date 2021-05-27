@@ -412,6 +412,10 @@ int32 FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones(const ITargetPlatform* Targe
 		MaxGPUSkinBones = FMath::Min(MaxGPUSkinBones, GCVarMaxGPUSkinBones);
 		
 	}
+
+	//We cannot go under MAX_TOTAL_INFLUENCES
+	MaxGPUSkinBones = FMath::Max(MaxGPUSkinBones, MAX_TOTAL_INFLUENCES);
+
 	if (GCVarSupport16BitBoneIndex > 0)
 	{
 		// 16-bit bone index is supported

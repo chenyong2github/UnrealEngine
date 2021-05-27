@@ -20,6 +20,11 @@
 			"Name": "RemoteControlProtocolDMX",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RemoteControlProtocolDMXEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

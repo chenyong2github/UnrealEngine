@@ -24,11 +24,11 @@ public:
 	virtual void OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) = 0;
 
 	// Streamer-only
-	virtual void OnOffer(uint32 PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
+	virtual void OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
 	{ unimplemented(); }
-	virtual void OnRemoteIceCandidate(uint32 PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate)
+	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate)
 	{ unimplemented(); }
-	virtual void OnPlayerDisconnected(uint32 PlayerId)
+	virtual void OnPlayerDisconnected(FPlayerId PlayerId)
 	{ unimplemented(); }
 
 	// Player-only
@@ -36,21 +36,21 @@ public:
 	{ unimplemented(); }
 	virtual void OnRemoteIceCandidate(TUniquePtr<webrtc::IceCandidateInterface> Candidate)
 	{ unimplemented(); }
-	virtual void OnPlayerCount(uint32 PlayerId)
+	virtual void OnPlayerCount(uint32 Count)
 	{ unimplemented(); }
 };
 
 class FSignallingServerConnection final
 {
 public:
-	explicit FSignallingServerConnection(const FString& Url, FSignallingServerConnectionObserver& Observer);
+	explicit FSignallingServerConnection(const FString& Url, FSignallingServerConnectionObserver& Observer, const FString& StreamerId);
 	~FSignallingServerConnection();
 
 	void SendOffer(const webrtc::SessionDescriptionInterface& SDP);
-	void SendAnswer(uint32 PlayerId, const webrtc::SessionDescriptionInterface& SDP);
+	void SendAnswer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);
 	void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate);
-	void SendIceCandidate(uint32 PlayerId, const webrtc::IceCandidateInterface& IceCandidate);
-	void SendDisconnectPlayer(uint32 PlayerId, const FString& Reason);
+	void SendIceCandidate(FPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate);
+	void SendDisconnectPlayer(FPlayerId PlayerId, const FString& Reason);
 
 private:
 	void KeepAlive();
@@ -62,6 +62,7 @@ private:
 
 	using FJsonObjectPtr = TSharedPtr<FJsonObject>;
 
+	void OnIdRequested();
 	void OnConfig(const FJsonObjectPtr& Json);
 	void OnSessionDescription(const FJsonObjectPtr& Json);
 	void OnStreamerIceCandidate(const FJsonObjectPtr& Json);
@@ -71,6 +72,7 @@ private:
 
 private:
 	FSignallingServerConnectionObserver& Observer;
+	FString StreamerId;
 
 	FDelegateHandle OnConnectedHandle;
 	FDelegateHandle OnConnectionErrorHandle;

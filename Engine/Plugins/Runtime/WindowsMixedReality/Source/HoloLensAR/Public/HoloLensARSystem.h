@@ -9,6 +9,8 @@
 #include "ARActor.h"
 #include <functional>
 
+#include "IHandTracker.h"
+
 #pragma warning(disable:4668)  
 #include <DirectXMath.h>
 #pragma warning(default:4668)
@@ -60,7 +62,8 @@ private:
 class FHoloLensARSystem :
 	public FARSystemSupportBase,
 	public FGCObject,
-	public TSharedFromThis<FHoloLensARSystem, ESPMode::ThreadSafe>
+	public TSharedFromThis<FHoloLensARSystem, ESPMode::ThreadSafe>,
+	public IHandTracker
 {
 public:
 	FHoloLensARSystem();
@@ -117,6 +120,7 @@ private:
 	virtual TArray<FARVideoFormat> OnGetSupportedVideoFormats(EARSessionType SessionType) const override;
 	virtual TArray<FVector> OnGetPointCloud() const override;
 	virtual bool OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth) override;
+	virtual bool OnGetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const;
 
 	// @todo JoeG - Figure out why we have these and if we really need them
 	virtual void* GetARSessionRawPointer() override { return nullptr; }
@@ -148,6 +152,12 @@ public:
 	void StartCameraCapture();
 	void StopCameraCapture();
 
+	// Use the legacy MRMesh support for rendering the hand tracker.  Otherwise, use XRVisualization.
+	void SetUseLegacyHandMeshVisualization(bool bInUseLegacyHandMeshVisualization)
+	{
+		bUseLegacyHandMeshVisualization = bInUseLegacyHandMeshVisualization;
+	}
+
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	/** Starts the camera with the desired settings */
 	void SetupCameraImageSupport();
@@ -176,7 +186,13 @@ public:
 	TArray<FMeshUpdateSet*> MeshUpdateList;
 	/** Holds the set of last known meshes so we can detect removed meshes. Only touched on the game thread */
 	TSet<FGuid> LastKnownMeshes;
+	FCriticalSection HandMeshLock;
+	TArray<FMeshUpdate> HandMeshes;
 	//~ Mesh observer callback support
+
+private:
+	bool bUseLegacyHandMeshVisualization = false;
+	bool bShowHandMeshes = false;
 
 public:
 	/** Starts the interop layer QR code observer that will notify us of QR codes tracked by the system */
@@ -266,4 +282,19 @@ private:
 
 	//for networked callbacks
 	FDelegateHandle SpawnARActorDelegateHandle;
+
+	// Inherited via IHandTracker
+	virtual FName GetHandTrackerDeviceTypeName() const override;
+	virtual bool IsHandTrackingStateValid() const override;
+	// We are using IHandTracker here for hand meshes, keypoint states are found in WindowsMixedRealityHandTracking
+	virtual bool GetKeypointState(EControllerHand Hand, EHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius) const override
+	{
+		return false;
+	}
+	virtual bool GetAllKeypointStates(EControllerHand Hand, TArray<FVector>& OutPositions, TArray<FQuat>& OutRotations, TArray<float>& OutRadii) const override
+	{
+		return false;
+	}
+	virtual bool HasHandMeshData() const override;
+	virtual bool GetHandMeshData(EControllerHand Hand, TArray<FVector>& OutVertices, TArray<FVector>& OutNormals, TArray<int32>& OutIndices, FTransform& OutHandMeshTransform) const override;
 };

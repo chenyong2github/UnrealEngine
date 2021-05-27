@@ -100,7 +100,8 @@ void FSkeletalMeshComponentDetails::UpdateAnimationCategory(IDetailLayoutBuilder
 	AnimationModeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMeshComponent, AnimationMode));
 	check (AnimationModeHandle->IsValidHandle());
 
-	AnimationBlueprintHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMeshComponent, AnimClass));
+	const FName AnimationBlueprintName = GET_MEMBER_NAME_CHECKED(USkeletalMeshComponent, AnimClass);
+	AnimationBlueprintHandle = DetailBuilder.GetProperty(AnimationBlueprintName);
 	check(AnimationBlueprintHandle->IsValidHandle());
 
 	AnimationCategory.AddProperty(AnimationModeHandle);
@@ -110,6 +111,7 @@ void FSkeletalMeshComponentDetails::UpdateAnimationCategory(IDetailLayoutBuilder
 
 	DetailBuilder.HideProperty(AnimationBlueprintHandle);
 	AnimationCategory.AddCustomRow(AnimationBlueprintHandle->GetPropertyDisplayName())
+		.RowTag(AnimationBlueprintName)
 		.Visibility(BlueprintVisibility)
 		.NameContent()
 		[

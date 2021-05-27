@@ -38,6 +38,7 @@ namespace DisplayClusterStrings
 	{
 		static constexpr auto D3D11  = TEXT("D3D11");
 		static constexpr auto D3D12  = TEXT("D3D12");
+		static constexpr auto Vulkan = TEXT("Vulkan");
 	}
 
 	// Log strings

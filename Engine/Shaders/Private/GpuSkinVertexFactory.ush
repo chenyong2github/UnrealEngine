@@ -297,9 +297,9 @@ struct FVertexFactoryIntermediates
 
 #if GPUSKIN_APEX_CLOTH
 	// in world space (non translated)
-	float3 SimulatedPosition;
+	float4 SimulatedPosition;
 	// in world space (non translated)
-	float3 PreviousSimulatedPosition;
+	float4 PreviousSimulatedPosition;
 	
 	FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VERTEX];
 #endif
@@ -344,6 +344,11 @@ bool IsSimulatedVertex(FClothVertex Input)
 	return (Input.SimulIndices.w < FIXED_VERTEX_INDEX);
 }
 
+float GetClothSimulWeight(uint StaticAlpha)
+{
+	return 1.0f - (StaticAlpha / 65535.0f);
+}
+
 float3 GetClothSimulPosition(int Index, bool bPrevious)
 {
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
@@ -380,17 +385,18 @@ float3 GetClothSimulNormal(int Index, bool bPrevious)
 #endif //FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 }
 
-float3 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VERTEX], bool bPrevious)
+float4 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VERTEX], bool bPrevious)
 {
 	int NumInfluences = 0;
 	float SumWeights = 0.0f;
+	float SimulWeight = 0.0f; 
 	float3 AveragedSimulatedPosition = float3(0, 0, 0);
 
     for (int i = 0; i < NUM_INFLUENCES_PER_VERTEX; ++i )
     {
         const FClothVertex Influence = ClothVertexInfluences[i];
 
-	    if( Influence.SimulIndices.w < 0xFFFF )
+	    if( IsSimulatedVertex(Influence) )
 	    { 
             ++NumInfluences;
 
@@ -402,6 +408,8 @@ float3 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
 		    float3 NB = GetClothSimulNormal(Influence.SimulIndices.y, bPrevious);
 		    float3 NC = GetClothSimulNormal(Influence.SimulIndices.z, bPrevious);
 
+	    	SimulWeight += GetClothSimulWeight(Influence.SimulIndices.w);
+	    	
 			float Weight = 1.0f;
 			if ( NUM_INFLUENCES_PER_VERTEX > 1 )
 			{
@@ -438,7 +446,9 @@ float3 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
 		AveragedSimulatedPosition = float3(0, 0, 0);
 	}
 
-	return AveragedSimulatedPosition;
+	SimulWeight /= NUM_INFLUENCES_PER_VERTEX;
+
+	return float4(AveragedSimulatedPosition, SimulWeight);
 }
 
 #endif //#if GPUSKIN_APEX_CLOTH
@@ -655,12 +665,13 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
         float3 TangentPosition = float3(0,0,0);
         int NumInfluences = 0;
 	    float SumWeights = 0.0;
+		float SimulWeight = 0.0;
 
         for (int i = 0; i < NUM_INFLUENCES_PER_VERTEX; ++i )
         {
             const FClothVertex Influence = Intermediates.ClothVertexInfluences[i];
 
-	        if( Influence.SimulIndices.w < 0xFFFF )
+	        if( IsSimulatedVertex(Influence) )
 	        { 
                 ++NumInfluences;
 		        TempClothBlendWeight = ClothBlendWeight;
@@ -673,6 +684,8 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 		        float3 NB = GetClothSimulNormal(Influence.SimulIndices.y, bPrevious);
 		        float3 NC = GetClothSimulNormal(Influence.SimulIndices.z, bPrevious);
 
+	        	SimulWeight += GetClothSimulWeight(Influence.SimulIndices.w);
+	        	
 			    float Weight = 1.0f;
 			    if ( NUM_INFLUENCES_PER_VERTEX > 1 )
 			    {
@@ -703,8 +716,8 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
             TangentPosition *= InvWeight;
             NormalPosition *= InvWeight;
 
-		    TangentToLocal[0] = normalize(TangentPosition - Intermediates.SimulatedPosition);
-		    TangentToLocal[2] = normalize(NormalPosition - Intermediates.SimulatedPosition);
+		    TangentToLocal[0] = normalize(TangentPosition - Intermediates.SimulatedPosition.xyz);
+		    TangentToLocal[2] = normalize(NormalPosition - Intermediates.SimulatedPosition.xyz);
 
 		    // cloth data are all in world space so need to change into local space
 		    TangentToLocal[0] = mul(TangentToLocal[0], (half3x3)Intermediates.WorldToLocal);
@@ -712,9 +725,10 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
         }
 	    else
 	    {
-		    Intermediates.SimulatedPosition = float3(0, 0, 0);
 		    TempClothBlendWeight = 0.0f;
 	    }
+
+		TempClothBlendWeight *= SimulWeight;
 
 		// derive the new binormal by getting the cross product of the normal and tangent
 		// and flip vector based on sign of tangent basis determinant
@@ -772,7 +786,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Intermediates.PreviousSimulatedPosition = Intermediates.SimulatedPosition = Intermediates.UnpackedPosition;
+		Intermediates.PreviousSimulatedPosition = Intermediates.SimulatedPosition = float4(Intermediates.UnpackedPosition, 0.0f);
 	}
 	
 #endif
@@ -798,7 +812,7 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 		float4 TransformedSkinPos = mul(SkinnedPosition, Intermediates.LocalToWorld);
 
 		// Intermediates.SimulatedPosition is a clothing position in world coord
-		float3 BlendedPos = lerp(TransformedSkinPos.xyz, Intermediates.SimulatedPosition, ClothBlendWeight);
+		float3 BlendedPos = lerp(TransformedSkinPos.xyz, Intermediates.SimulatedPosition.xyz, ClothBlendWeight * Intermediates.SimulatedPosition.w);
 		return float4(BlendedPos + ResolvedView.PreViewTranslation, 1);
 	}
 	else
@@ -918,8 +932,8 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 #if GPUSKIN_APEX_CLOTH
 	if (IsSimulatedVertex(Intermediates.ClothVertexInfluences[0]))
 	{
-		float3 PrevSimulatedPos = Intermediates.PreviousSimulatedPosition + ResolvedView.PrevPreViewTranslation;
-		float3 BlendedPrevPos = lerp(PrevSkinPosInWorld.xyz, PrevSimulatedPos.xyz, ClothBlendWeight);
+		float3 PrevSimulatedPos = Intermediates.PreviousSimulatedPosition.xyz + ResolvedView.PrevPreViewTranslation;
+		float3 BlendedPrevPos = lerp(PrevSkinPosInWorld.xyz, PrevSimulatedPos.xyz, ClothBlendWeight * Intermediates.PreviousSimulatedPosition.w);
 		return float4(BlendedPrevPos, 1);
 	}
 #endif // GPUSKIN_APEX_CLOTH

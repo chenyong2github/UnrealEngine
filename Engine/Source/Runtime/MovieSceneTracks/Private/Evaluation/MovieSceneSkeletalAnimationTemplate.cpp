@@ -12,7 +12,8 @@
 #include "IMovieScenePlayer.h"
 #include "UObject/ObjectKey.h"
 #include "Rendering/MotionVectorSimulation.h"
-#include "Evaluation/IMovieSceneMotionVectorSimulation.h"
+#include "Systems/MovieSceneMotionVectorSimulationSystem.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "UObject/StrongObjectPtr.h"
 #include "SkeletalMeshRestoreState.h"
 #include "AnimSequencerInstanceProxy.h"
@@ -331,16 +332,17 @@ namespace MovieScene
 				}
 			}
 
-			if (InFinalValue.SimulatedAnimations.Num() != 0 && Player.MotionVectorSimulation.IsValid())
+			if (InFinalValue.SimulatedAnimations.Num() != 0)
 			{
-				ApplyAnimations(PersistentData, Player, SkeletalMeshComponent, InFinalValue.SimulatedAnimations, DeltaTime, bPreviewPlayback, bFireNotifies, bResetDynamics);
+				UMovieSceneMotionVectorSimulationSystem* MotionVectorSim = Player.GetEvaluationTemplate().GetEntitySystemLinker()->FindSystem<UMovieSceneMotionVectorSimulationSystem>();
+				if (MotionVectorSim && MotionVectorSim->IsSimulationEnabled())
+				{
+					ApplyAnimations(PersistentData, Player, SkeletalMeshComponent, InFinalValue.SimulatedAnimations, DeltaTime, bPreviewPlayback, bFireNotifies, bResetDynamics);
+					SkeletalMeshComponent->TickAnimation(0.f, false);
+					SkeletalMeshComponent->ForceMotionVector();
 
-				SkeletalMeshComponent->TickAnimation(0.f, false);
-				SkeletalMeshComponent->RefreshBoneTransforms();
-				SkeletalMeshComponent->FinalizeBoneTransform();
-				SkeletalMeshComponent->ForceMotionVector();
-
-				SimulateMotionVectors(PersistentData, SkeletalMeshComponent, Player);
+					SimulateMotionVectors(PersistentData, SkeletalMeshComponent, MotionVectorSim);
+				}
 			}
 
 			ApplyAnimations(PersistentData, Player, SkeletalMeshComponent, InFinalValue.AllAnimations, DeltaTime, bPreviewPlayback, bFireNotifies, bResetDynamics);
@@ -389,7 +391,7 @@ namespace MovieScene
 			return nullptr;
 		}
 
-		void SimulateMotionVectors(FPersistentEvaluationData& PersistentData, USkeletalMeshComponent* SkeletalMeshComponent, IMovieScenePlayer& Player)
+		void SimulateMotionVectors(FPersistentEvaluationData& PersistentData, USkeletalMeshComponent* SkeletalMeshComponent, UMovieSceneMotionVectorSimulationSystem* MotionVectorSim)
 		{
 			for (USceneComponent* Child : SkeletalMeshComponent->GetAttachChildren())
 			{
@@ -397,7 +399,7 @@ namespace MovieScene
 				if (SocketName != NAME_None)
 				{
 					FTransform SocketTransform = SkeletalMeshComponent->GetSocketTransform(SocketName, RTS_Component);
-					Player.MotionVectorSimulation->Add(SkeletalMeshComponent, SocketTransform, SocketName);
+					MotionVectorSim->AddSimulatedTransform(SkeletalMeshComponent, SocketTransform, SocketName);
 				}
 			}
 		}
@@ -601,9 +603,9 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 		);
 		ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<UE::MovieScene::FBlendedAnimation>(AnimParams, BlendType.Get(), 1.f));
 
-		if (IMovieSceneMotionVectorSimulation::IsEnabled(PersistentData, Context))
+		if (FMotionVectorSimulation::IsEnabled())
 		{
-			FFrameTime SimulatedTime = IMovieSceneMotionVectorSimulation::GetSimulationTime(Context);
+			FFrameTime SimulatedTime = UE::MovieScene::GetSimulatedMotionVectorTime(Context);
 
 			// Calculate the time at which to evaluate the animation
 			float CurrentEvalTime = Params.MapTimeToAnimation(Context.GetTime(), Context.GetFrameRate());

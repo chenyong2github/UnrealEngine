@@ -53,7 +53,7 @@ public:
 		const FLinkerInstancingContext* InstancingContext) override
 	{
 		// Use the old loader if an uncooked package exists on disk
-		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExist(PackagePath) && !DoesPackageExistInIoStore(PackagePath.GetPackageFName());
+		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked) != FPackageName::EPackageLocationFilter::None;
 		if (bDoesUncookedPackageExist)
 		{
 			UE_LOG(LogEditorPackageLoader, Verbose, TEXT("Loading uncooked package '%s' from filesystem"), *PackagePath.GetDebugName());

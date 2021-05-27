@@ -105,7 +105,7 @@ class FMaterialsDatabase
 										 GS::Int32 inACTextureIndex, ESided InSided);
 
   private:
-	typedef TMap< FMaterialKey, FMaterialSyncData > MapSyncData; // Map Material key to Material sync data
+	typedef TMap< FMaterialKey, TUniquePtr< FMaterialSyncData > > MapSyncData; // Map Material key to Material sync data
 
 	typedef TSet< FString > SetMaterialsNames;
 

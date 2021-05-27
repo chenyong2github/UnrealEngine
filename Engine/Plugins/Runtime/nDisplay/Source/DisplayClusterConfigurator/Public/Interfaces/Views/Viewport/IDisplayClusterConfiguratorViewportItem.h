@@ -8,4 +8,6 @@
 class IDisplayClusterConfiguratorViewportItem
 	: public IDisplayClusterConfiguratorItem
 {
+public:
+	virtual ~IDisplayClusterConfiguratorViewportItem() = default;
 };

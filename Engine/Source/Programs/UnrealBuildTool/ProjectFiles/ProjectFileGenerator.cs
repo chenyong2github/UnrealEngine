@@ -2420,14 +2420,17 @@ namespace UnrealBuildTool
 					}
 
 					ProjectTarget ProjectTarget = new ProjectTarget()
-					{
-						TargetRules = TargetRulesObject,
-						TargetFilePath = TargetFilePath,
-						ProjectFilePath = ProjectFilePath,
-						UnrealProjectFilePath = CheckProjectFile,
-						SupportedPlatforms = TargetRulesObject.GetSupportedPlatforms().Where(x => UEBuildPlatform.TryGetBuildPlatform(x, out _)).ToArray(),
-						CreateRulesDelegate = (Platform, Configuration) => RulesAssembly.CreateTargetRules(TargetName, Platform, Configuration, "", CheckProjectFile, new CommandLineArguments(GetTargetArguments(Arguments)))
-					};
+						{
+							TargetRules = TargetRulesObject,
+							TargetFilePath = TargetFilePath,
+							ProjectFilePath = ProjectFilePath,
+							UnrealProjectFilePath = CheckProjectFile,
+							SupportedPlatforms = TargetRulesObject.GetSupportedPlatforms().Where(
+													x => UEBuildPlatform.TryGetBuildPlatform(x, out _) && 
+													(TargetRulesObject.LinkType != TargetLinkType.Modular || !UEBuildPlatform.PlatformRequiresMonolithicBuilds(x, TargetRulesObject.Configuration))
+													).ToArray(),
+							CreateRulesDelegate = (Platform, Configuration) => RulesAssembly.CreateTargetRules(TargetName, Platform, Configuration, "", CheckProjectFile, new CommandLineArguments(GetTargetArguments(Arguments)))
+                        };
 
 					ProjectFile.ProjectTargets.Add(ProjectTarget);
 

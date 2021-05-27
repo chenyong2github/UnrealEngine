@@ -17,12 +17,34 @@
 		{
 			"Name": "CameraCalibration",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit"
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "CameraCalibrationEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "CameraCalibrationCore",
+			"Enabled": true
+		},
+		{
+			"Name": "LiveLink",
+			"Enabled": true
+		},
+		{
+			"Name": "Composure",
+			"Enabled": true
+		},
+		{
+			"Name": "MediaFrameworkUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "OpenCVLensDistortion",
+			"Enabled": true
 		}
 	]
 }

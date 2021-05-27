@@ -1688,10 +1688,20 @@ void APlayerController::ServerRecvClientInputFrame_Implementation(int32 InRecvCl
 
 	for (int32 DroppedFrame = InputBuffer.HeadFrame()+1; DroppedFrame < InRecvClientInputFrame && DroppedFrame > 0; ++DroppedFrame)
 	{
+		UE_LOG(LogPlayerController, Warning, TEXT( "ClientInput Gap in frames (Dropped). %s [%s]. DroppedFrame: %d. RecvFrame: %d. LastProcessInputFrame: %d" ), *GetName(), PlayerState ? *PlayerState->GetPlayerName() : TEXT("???"), DroppedFrame, InRecvClientInputFrame, ServerFrameInfo.LastProcessedInputFrame);
+		ServerFrameInfo.LastProcessedInputFrame++; // Ehh lets try this for now
 		InputBuffer.Write(DroppedFrame) = InputBuffer.Get(DroppedFrame-1);
 	}
 
 	InputBuffer.Write(InRecvClientInputFrame) = MoveTemp(const_cast<TArray<uint8>&>(Data));
+
+	if (ServerFrameInfo.LastProcessedInputFrame < InputBuffer.TailFrame())
+	{
+		// At this point, things are pretty bad and we are going to drop commands. 
+		// We still need guards client side to not send too many commands
+		UE_LOG(LogPlayerController, Warning, TEXT( "ClientInput buffer overflow. %s [%s]. RecvFrame: %d. LastProcessInputFrame: %d." ), *GetName(), PlayerState ? *PlayerState->GetPlayerName() : TEXT("???"), InRecvClientInputFrame, ServerFrameInfo.LastProcessedInputFrame);
+		ServerFrameInfo.LastProcessedInputFrame = (InputBuffer.TailFrame() + InputBuffer.HeadFrame()) / 2;
+	}
 }
 
 void APlayerController::ClientRecvServerAckFrame_Implementation(int32 InClientInputFrame, int32 InServerFrameNumber)

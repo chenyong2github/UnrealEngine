@@ -539,13 +539,23 @@ namespace Audio
 		}
 
 		++NumSubmixEffects;
-		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
+		if (EffectChains.Num() > 0)
 		{
-			if (FadeInfo.bIsCurrentChain)
+			for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
 			{
-				FadeInfo.EffectChain.Add(InSoundEffectSubmix);
-				return;
+				if (FadeInfo.bIsCurrentChain)
+				{
+					FadeInfo.EffectChain.Add(InSoundEffectSubmix);
+					return;
+				}
 			}
+		}
+		else
+		{
+			FSubmixEffectFadeInfo& NewSubmixEffectChain = EffectChains.Add_GetRef(FSubmixEffectFadeInfo());
+			NewSubmixEffectChain.bIsCurrentChain = true;
+			NewSubmixEffectChain.FadeVolume = FDynamicParameter(1.0f);
+			NewSubmixEffectChain.EffectChain.Add(InSoundEffectSubmix);
 		}
 	}
 

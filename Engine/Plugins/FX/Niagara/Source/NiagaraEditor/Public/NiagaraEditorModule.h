@@ -101,6 +101,11 @@ public:
 
 	TSharedRef<FNiagaraScriptMergeManager> GetScriptMergeManager() const;
 
+	// Object pooling methods used to prevent unnecessary object allocation during compiles
+	NIAGARAEDITOR_API UObject* GetPooledDuplicateObject(UObject* Source, EFieldIteratorFlags::SuperClassFlags CopySuperProperties = EFieldIteratorFlags::ExcludeSuper);
+	NIAGARAEDITOR_API void ReleaseObjectToPool(UObject* Obj);
+	NIAGARAEDITOR_API void ClearObjectPool();
+
 	void RegisterParameterTrackCreatorForType(const UScriptStruct& StructType, FOnCreateMovieSceneTrackForParameter CreateTrack);
 	void UnregisterParameterTrackCreatorForType(const UScriptStruct& StructType);
 	bool CanCreateParameterTrackForType(const UScriptStruct& StructType);
@@ -272,6 +277,8 @@ private:
 	TArray<TSharedRef<const FDeferredDestructionContainerBase>> EnqueuedForDeferredDestruction;
 
 	TMap<FName, INiagaraStackObjectIssueGenerator*> StackIssueGenerators;
+
+	TMap<UClass*, TArray<UObject*>> ObjectPool;
 
 	// Parameter library assets reserve the name/type pairs of their parameters engine-wide.
 	mutable TSet<FName> ReservedLibraryParameterNames;

@@ -883,9 +883,9 @@ struct FPlatformTypeLayoutParameters
 	CORE_API FArchive& Serialize(FArchive& Ar);
 
 	/**
-	 * Allow the layout parameters to modify the given DDC key string
-	 * Normally this should not be used, and instead hashed layouts of any dependent types should be preferred
-	 * This is mostly needed when fixing bugs related to writing memory images with certain parameter combinations
+	 * Allow the layout parameters to modify the given DDC key string.
+	 * Since layout parameters are part of e.g. material shadermap ID, they should result in two different DDC entries for two different IDs,
+	 * even if binary layouts happen to be compatible.
 	 */
 	CORE_API void AppendKeyString(FString& KeyString) const;
 };

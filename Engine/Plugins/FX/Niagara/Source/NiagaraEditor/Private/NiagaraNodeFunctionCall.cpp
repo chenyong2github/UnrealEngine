@@ -26,6 +26,7 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeStaticSwitch.h"
+#include "ScopedTransaction.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
@@ -110,7 +111,7 @@ void UNiagaraNodeFunctionCall::PostLoad()
 	{
 		ComputeNodeName();
 	}
-
+	
 	// check if maybe the parameter names in the referenced module were changed and try to move over existing values
 	FixupPinNames();
 }
@@ -161,6 +162,40 @@ TSharedPtr<SGraphNode> UNiagaraNodeFunctionCall::CreateVisualWidget()
 	else
 	{
 		return SNew(SNiagaraGraphNodeFunctionCallWithSpecifiers, this);
+	}
+}
+
+void UNiagaraNodeFunctionCall::AddCustomNote(const FNiagaraStackMessage& StackMessage)
+{
+	StackMessages.Add(StackMessage);
+    OnCustomNotesChangedDelegate.ExecuteIfBound();
+    GetNiagaraGraph()->NotifyGraphChanged();
+}
+
+void UNiagaraNodeFunctionCall::RemoveCustomNote(const FGuid& MessageKey)
+{
+	StackMessages.RemoveAll([&](const FNiagaraStackMessage& Message)
+	{
+		return Message.Guid == MessageKey;
+	});
+		
+	OnCustomNotesChangedDelegate.ExecuteIfBound();
+	GetNiagaraGraph()->NotifyGraphChanged();
+}
+
+void UNiagaraNodeFunctionCall::RemoveCustomNoteViaDelegate(const FGuid MessageKey)
+{
+	const bool bContainsMessage = StackMessages.ContainsByPredicate([&](const FNiagaraStackMessage& Message)
+	{
+		return Message.Guid == MessageKey;
+	});
+
+	if(bContainsMessage)
+	{
+		FScopedTransaction Transaction(LOCTEXT("NoteRemoved", "Note Removed"));
+		Modify();
+			
+		RemoveCustomNote(MessageKey);
 	}
 }
 
@@ -1224,9 +1259,13 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		FPinCollectorArray InputPins;
 		GetInputPins(InputPins);
 
-		ENiagaraFunctionDebugState OldDebugState = OutHistory.ConstantResolver.SetDebugState(DebugState);
-		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, OutHistory.ConstantResolver);
-		OutHistory.ConstantResolver.SetDebugState(OldDebugState);
+		FCompileConstantResolver FunctionResolver = OutHistory.ConstantResolver.WithDebugState(DebugState);
+		if (OutHistory.HasCurrentUsageContext())
+		{
+			// if we traverse a full emitter graph the usage might change during the traversal, so we need to update the constant resolver
+			FunctionResolver = FunctionResolver.WithUsage(OutHistory.GetCurrentUsageContext());
+		}
+		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, FunctionResolver);
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
@@ -1366,9 +1405,7 @@ UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FNa
 			TArray<UEdGraphPin*> InputPins;
 			GetInputPins(InputPins);
 
-			ENiagaraFunctionDebugState PreviousDebugState = ConstantResolver.SetDebugState(DebugState);
-			FNiagaraEditorUtilities::SetStaticSwitchConstants(ScriptSource->NodeGraph, InputPins, ConstantResolver);
-			ConstantResolver.SetDebugState(PreviousDebugState);
+			FNiagaraEditorUtilities::SetStaticSwitchConstants(ScriptSource->NodeGraph, InputPins, ConstantResolver.WithDebugState(DebugState));
 			
 			return ScriptSource->NodeGraph->FindParameterMapDefaultValuePin(VariableName, FunctionScript->GetUsage(), InParentUsage);
 		}

@@ -1277,7 +1277,7 @@ private:
 					{
 						if (SelectedItemViewModel->GetType() == EItemSelectorItemViewModelType::Item)
 						{
-							SelectedItemKeyCache.Add(StaticCastSharedRef<FItemSelectorItemContainerViewModel>(SelectedItemViewModel)->GetItemKey());
+							SelectedItemKeyCache.Add(OnGetKeyForItem.Execute(StaticCastSharedRef<FItemSelectorItemContainerViewModel>(SelectedItemViewModel)->GetItem()));
 						}
 						else if (SelectedItemViewModel->GetType() == EItemSelectorItemViewModelType::Category)
 						{

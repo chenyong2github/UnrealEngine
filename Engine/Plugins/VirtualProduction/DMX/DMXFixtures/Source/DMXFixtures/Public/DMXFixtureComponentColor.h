@@ -7,7 +7,7 @@
 #include "DMXFixtureComponentColor.generated.h"
 
 // Specific class to handle color mixing using 4 channels (rgb, cmy, rgbw)
-UCLASS(ClassGroup = DMXFixtureComponent, meta = (IsBlueprintBase = true), HideCategories = ("Variable", "Tags", "Activation", "Cooking", "ComponentReplication", "AssetUserData", "Collision", "Sockets"))
+UCLASS(ClassGroup = DMXFixtureComponent, meta = (IsBlueprintBase = true))
 class DMXFIXTURES_API UDMXFixtureComponentColor : public UDMXFixtureComponent
 {
 	GENERATED_BODY()

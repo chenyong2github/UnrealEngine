@@ -2,10 +2,18 @@
 from . import message_protocol
 from .switchboard_logging import LOGGER
 
+from PySide2 import QtCore
+
 import datetime, select, socket, uuid, traceback, typing
 
 from collections import deque
 from threading import Thread
+
+
+class ListenerQtHandler(QtCore.QObject):
+    listener_connecting = QtCore.Signal(object)
+    listener_connected = QtCore.Signal(object)
+    listener_connection_failed = QtCore.Signal(object)
 
 
 class ListenerClient(object):
@@ -27,6 +35,8 @@ class ListenerClient(object):
         self.ip_address = ip_address
         self.port = port
         self.buffer_size = buffer_size
+
+        self.listener_qt_handler = ListenerQtHandler()
 
         self.message_queue = deque()
         self.close_socket = False
@@ -78,18 +88,42 @@ class ListenerClient(object):
             return False
         return False
 
-    def connect(self, ip_address=None):
+    def connect(self, ip_address=None, blocking=False):
+        '''
+        Initiates a connection.
+
+        By default, calling this function starts the connection setup on a background
+        thread. The caller should connect slots to the listener_qt_handler's
+        "listener_connected" and "listener_connection_failed" signals to determine
+        whether the connection was created successfully.
+
+        When "blocking" is True, this function will not return until establishing the
+        connection either succeeds or fails, and True or False will be returned, respectively.
+        '''
         self.disconnect()
 
         if ip_address:
             self.ip_address = ip_address
         elif not self.ip_address:
             LOGGER.debug('No ip_address has been set. Cannot connect')
+            self.listener_qt_handler.listener_connection_failed.emit(self)
             return False
 
         self.close_socket = False
         self.last_activity = datetime.datetime.now()
 
+        if blocking:
+            # Since we're blocking while creating the connection, we don't pass through
+            # the CONNECTING status.
+            return self._establish_connection()
+
+        self.listener_qt_handler.listener_connecting.emit(self)
+        establish_connection_thread = Thread(target=self._establish_connection)
+        establish_connection_thread.start()
+
+        return True
+
+    def _establish_connection(self):
         try:
             LOGGER.info(f"Connecting to {self.ip_address}:{self.port}")
 
@@ -103,8 +137,10 @@ class ListenerClient(object):
         except OSError:
             LOGGER.error(f"Socket error: {self.ip_address}:{self.port}")
             self.socket = None
+            self.listener_qt_handler.listener_connection_failed.emit(self)
             return False
 
+        self.listener_qt_handler.listener_connected.emit(self)
         return True
 
     def disconnect(self, unexpected=False, exception=None):

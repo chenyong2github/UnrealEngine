@@ -29,6 +29,7 @@
 #if WITH_EDITOR
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+#include "ImportUtils/SkeletalMeshImportUtils.h"
 #include "MeshUtilities.h"
 #endif // WITH_EDITOR
 
@@ -1240,11 +1241,6 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 			uint32 NumColors = UsdColors.size();
 			pxr::TfToken USDInterpType = ColorPrimvar.GetInterpolation();
 
-			auto ConvertToColor = []( const pxr::GfVec3f& UsdColor ) -> FColor
-			{
-				return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) ).ToFColor(true);
-			};
-
 			if ( USDInterpType == pxr::UsdGeomTokens->uniform )
 			{
 				NumExpectedColors = NumFaces;
@@ -1271,7 +1267,8 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 				Colors.Reserve( NumColors );
 				for ( uint32 Index = 0; Index < NumColors; ++Index )
 				{
-					Colors.Add( ConvertToColor( UsdColors[ Index ] ) );
+					const bool bSRGB = true;
+					Colors.Add( UsdToUnreal::ConvertColor( UsdColors[ Index ] ).ToFColor( bSRGB ) );
 				}
 
 				SkelMeshImportData.bHasVertexColors = true;
@@ -2067,7 +2064,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	int32 SkeletalDepth = 0;
 	FSkeletalMeshImportData DummyData;
 	DummyData.RefBonesBinary = InSkeletonBones;
-	if ( !SkeletalMeshHelper::ProcessImportMeshSkeleton( SkeletalMesh->GetSkeleton(), SkeletalMesh->GetRefSkeleton(), SkeletalDepth, DummyData ) )
+	if ( !SkeletalMeshImportUtils::ProcessImportMeshSkeleton( SkeletalMesh->GetSkeleton(), SkeletalMesh->GetRefSkeleton(), SkeletalDepth, DummyData ) )
 	{
 		return nullptr;
 	}
@@ -2112,7 +2109,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 		FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels.Last();
 
 		// Process bones influence (normalization and optimization) (optional)
-		SkeletalMeshHelper::ProcessImportMeshInfluences(LODImportData, SkeletalMesh->GetPathName());
+		SkeletalMeshImportUtils::ProcessImportMeshInfluences(LODImportData, SkeletalMesh->GetPathName());
 
 		FSkeletalMeshLODInfo& NewLODInfo = SkeletalMesh->AddLODInfo();
 		NewLODInfo.ReductionSettings.NumOfTrianglesPercentage = 1.0f;
@@ -2697,6 +2694,9 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 			RotationsAttr.Set( Rotations, pxr::UsdTimeCode( TimeCode ) );
 			ScalesAttr.Set( Scales, pxr::UsdTimeCode( TimeCode ) );
 		}
+
+		// Actively delete it or else it will remain visible on the viewport
+		DebugSkelMeshComponent->DestroyComponent();
 	}
 
 	const int32 StageEndTimeCode = SkelAnimPrim.GetStage()->GetEndTimeCode();

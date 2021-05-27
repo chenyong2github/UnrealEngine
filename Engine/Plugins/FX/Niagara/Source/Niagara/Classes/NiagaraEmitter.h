@@ -239,6 +239,7 @@ public:
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
 	/** Helper method for when a rename has been detected within the graph. Covers renaming the internal renderer bindings.*/
@@ -393,10 +394,7 @@ public:
 	void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData);
 	void CacheFromShaderCompiled();
 
-	// Reference to the async update task that is responsible to do any outstanding work like emitter merging on the game thread
-	FGraphEventRef UpdateTaskRef;
-
-	void UpdateEmitterAfterLoad();
+	NIAGARA_API void UpdateEmitterAfterLoad();
 
 #if WITH_EDITORONLY_DATA
 	/** 'Source' data/graphs for the scripts used by this emitter. */
@@ -404,7 +402,7 @@ public:
 	TObjectPtr<class UNiagaraScriptSourceBase>	GraphSource;
 
 	/** Should we enable rapid iteration removal if the system is also set to remove rapid iteration parameters on compile? This value defaults to true.*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (DisplayName = "Supports Baked Rapid Iteration"))
 	uint32 bBakeOutRapidIteration : 1;
 
 	bool NIAGARA_API AreAllScriptAndSourcesSynchronized() const;

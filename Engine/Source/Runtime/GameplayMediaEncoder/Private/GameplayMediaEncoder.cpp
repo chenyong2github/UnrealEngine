@@ -20,8 +20,6 @@
 
 #include "AudioEncoderFactory.h"
 
-#include "VideoCommon.h"
-
 DEFINE_LOG_CATEGORY(GameplayMediaEncoder);
 CSV_DEFINE_CATEGORY(GameplayMediaEncoder, true);
 
@@ -232,7 +230,7 @@ bool FGameplayMediaEncoder::Initialize()
 	VideoConfig.Bitrate = FMath::Clamp(VideoConfig.Bitrate, (uint32)MinVideoBitrate, (uint32)MaxVideoBitrate);
 
 
-	AVEncoder::FVideoEncoder::FInit videoInit;
+	AVEncoder::FVideoEncoder::FLayerConfig videoInit;
 	videoInit.Width = VideoConfig.Width;
 	videoInit.Height = VideoConfig.Height;
 	videoInit.MaxBitrate = MaxVideoBitrate;
@@ -610,19 +608,25 @@ void FGameplayMediaEncoder::SetVideoFramerate(uint32 Framerate)
 
 bool FGameplayMediaEncoder::ChangeVideoConfig()
 {
-	if (bChangeBitrate)
+	if (bChangeBitrate || bChangeFramerate)
 	{
-		VideoEncoder->UpdateLayerBitrate(0, MaxVideoBitrate, NewVideoBitrate);
-		bChangeBitrate = false;
-	}
+		auto config = VideoEncoder->GetLayerConfig(0);
 
-	if (bChangeFramerate)
-	{
-		UE_LOG(GameplayMediaEncoder, Verbose, TEXT("framerate -> %d"), NewVideoFramerate.Load());
+		if (bChangeBitrate)
+		{
+			config.MaxBitrate = MaxVideoBitrate;
+			config.TargetBitrate = NewVideoBitrate;
+		}
 
-		VideoEncoder->UpdateFrameRate(NewVideoFramerate);
+		if (bChangeFramerate)
+		{
+			config.MaxFramerate = NewVideoFramerate;
+			NumCapturedFrames = 0;
+		}
+
+		VideoEncoder->UpdateLayerConfig(0, config);
 		bChangeFramerate = false;
-		NumCapturedFrames = 0;
+		bChangeBitrate = false;
 	}
 
 	return true;

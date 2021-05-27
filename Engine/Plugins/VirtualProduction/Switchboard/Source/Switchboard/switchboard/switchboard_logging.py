@@ -98,7 +98,6 @@ class HTMLogger(object):
         self.logger = logger
         self.file_handler = None
 
-        self.info(self.logger.getEffectiveLevel())
         self.add_custom_levels()
 
     def add_custom_levels(self):

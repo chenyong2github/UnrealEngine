@@ -27,6 +27,7 @@
 #include "NiagaraDebuggerClient.h"
 #include "Particles/FXBudget.h"
 #include "Engine/StaticMesh.h"
+#include "UObject/UObjectGlobals.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -195,6 +196,8 @@ void INiagaraModule::StartupModule()
 	// This includes the ability to compile scripts and load WITH_EDITOR_ONLY data.
 	// Note that when loading with the Editor, the NiagaraEditor module is loaded based on the plugin description.
 	FModuleManager::Get().LoadModule(TEXT("NiagaraEditor"));
+
+	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &INiagaraModule::OnAssetLoaded);
 #endif
 
 	//Init commonly used FNiagaraVariables
@@ -406,6 +409,10 @@ void INiagaraModule::ShutdownModule()
 
 	FNiagaraTypeRegistry::TearDown();
 
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+#endif
+
 #if WITH_NIAGARA_DEBUGGER
 	DebuggerClient.Reset();
 #endif
@@ -513,6 +520,18 @@ void INiagaraModule::UnregisterPrecompiler(FDelegateHandle DelegateHandle)
 	checkf(ObjectPrecompilerDelegate.IsBound(), TEXT("ObjectPrecompiler is not registered"));
 	checkf(ObjectPrecompilerDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the ObjectPrecompiler delegate with the handle it was registered with."));
 	ObjectPrecompilerDelegate.Unbind();
+}
+
+void INiagaraModule::OnAssetLoaded(UObject* Asset)
+{
+	if (Asset->IsA<UNiagaraSystem>())
+	{
+		CastChecked<UNiagaraSystem>(Asset)->UpdateSystemAfterLoad();
+	}
+	else if (Asset->IsA<UNiagaraEmitter>())
+	{
+		CastChecked<UNiagaraEmitter>(Asset)->UpdateEmitterAfterLoad();
+	}
 }
 
 #endif

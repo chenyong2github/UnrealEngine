@@ -19,8 +19,6 @@
 #include "USDIncludesEnd.h"
 #endif // #if USE_USD_SDK
 
-#define USD_IDENTIFIER_TOKEN TEXT("@identifier:")
-
 #if USE_USD_SDK
 PXR_NAMESPACE_OPEN_SCOPE
 	class GfMatrix4d;
@@ -315,8 +313,11 @@ namespace UnrealIdentifiers
 
 	// Token used to indicate that a material parsed from a material prim should use world space normals
 	extern UNREALUSDWRAPPER_API const pxr::TfToken WorldSpaceNormals;
-
 #endif // #if USE_USD_SDK
+
+	extern UNREALUSDWRAPPER_API const TCHAR* Invisible;
+	extern UNREALUSDWRAPPER_API const TCHAR* Inherited;
+	extern UNREALUSDWRAPPER_API const TCHAR* IdentifierPrefix;
 }
 
 struct UNREALUSDWRAPPER_API FUsdDelegates

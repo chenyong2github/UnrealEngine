@@ -42,12 +42,15 @@ void FRemoteControlProtocolOSCModule::StartupModule()
 	}
 #endif // WITH_EDITOR
 
-	URemoteControlProtocolOSCSettings* OSCSettings = GetMutableDefault<URemoteControlProtocolOSCSettings>();
-	
-	IRemoteControlProtocolModule::Get().AddProtocol(FRemoteControlProtocolOSC::ProtocolName, MakeShared<FRemoteControlProtocolOSC>());
+	const IRemoteControlProtocolModule& RemoteControlProtocolModule = IRemoteControlProtocolModule::Get();
+	if (!RemoteControlProtocolModule.IsRCProtocolsDisable())
+	{
+		IRemoteControlProtocolModule::Get().AddProtocol(FRemoteControlProtocolOSC::ProtocolName, MakeShared<FRemoteControlProtocolOSC>());
 
-	// Init OSC servers after AddProtocol 
-	OSCSettings->InitOSCServers();
+		// Init OSC servers after AddProtocol
+		URemoteControlProtocolOSCSettings* OSCSettings = GetMutableDefault<URemoteControlProtocolOSCSettings>();
+		OSCSettings->InitOSCServers();
+	}
 }
 
 void FRemoteControlProtocolOSCModule::ShutdownModule()

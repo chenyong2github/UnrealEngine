@@ -1306,7 +1306,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 				// Create a new UNiagaraScriptVariable to represent this parameter for the lifetime of the ParameterPanelViewModel.
 				ScriptVar = NewObject<UNiagaraScriptVariable>(GetTransientPackage());
 				ScriptVar->AddToRoot();
-				ScriptVar->Variable = Var;
+				ScriptVar->Init(Var, FNiagaraVariableMetaData());
 				TransientParameterToScriptVarMap.Add(Var, ScriptVar);
 			}
 
@@ -1377,7 +1377,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 			FNiagaraParameterMapHistoryBuilder Builder;
 			UNiagaraEmitter* GraphOwningEmitter = Graph->GetTypedOuter<UNiagaraEmitter>();
 			FCompileConstantResolver ConstantResolver = GraphOwningEmitter != nullptr
-				? FCompileConstantResolver(GraphOwningEmitter, ENiagaraScriptUsage::Function)
+				? FCompileConstantResolver(GraphOwningEmitter, OutputNode->GetUsage())
 				: FCompileConstantResolver();
 				 
 			Builder.SetIgnoreDisabled(bIgnoreDisabled);
@@ -1393,7 +1393,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 				}
 			}
 			Builder.BeginUsage(StageUsage, StageName);
-			NodeToTraverse->BuildParameterMapHistory(Builder, true, false);
+			NodeToTraverse->BuildParameterMapHistory(Builder, true, true);
 			Builder.EndUsage();
 
 			if (Builder.Histories.Num() != 1)
@@ -1460,7 +1460,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 						// Create a new UNiagaraScriptVariable to represent this parameter for the lifetime of the ParameterPanelViewModel.
 						ScriptVar = NewObject<UNiagaraScriptVariable>(&SystemViewModel->GetSystem());
 						ScriptVar->AddToRoot();
-						ScriptVar->Variable = Var;
+						ScriptVar->Init(Var, FNiagaraVariableMetaData());
 						TransientParameterToScriptVarMap.Add(Var, ScriptVar);
 					}
 
@@ -1929,6 +1929,38 @@ void FNiagaraScriptToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 	}
 }
 
+void FNiagaraScriptToolkitParameterPanelViewModel::DuplicateParameter(const FNiagaraParameterPanelItem ItemToDuplicate) const
+{
+	FScopedTransaction Transaction(LOCTEXT("DuplicateParameterTransaction", "Duplicate parameter"));
+	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
+	bool bSuccess = false;
+
+	TSet<FName> Names;
+	for (const UNiagaraGraph* Graph : GetEditableGraphsConst())
+	{
+		for (auto It = Graph->GetParameterReferenceMap().CreateConstIterator(); It; ++It)
+		{
+			Names.Add(It.Key().GetName());
+		}
+	}
+	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(ItemToDuplicate.GetVariable().GetName(), Names);
+	FNiagaraVariable NewVariable(ItemToDuplicate.GetVariable().GetType(), NewUniqueName);
+	FNiagaraVariableMetaData ParameterMetadata = ItemToDuplicate.ScriptVariable ? ItemToDuplicate.ScriptVariable->Metadata : FNiagaraVariableMetaData();
+
+	for (UNiagaraGraph* Graph : GetEditableGraphs())
+	{
+		Graph->Modify();
+		Graph->AddParameter(NewVariable, ParameterMetadata, false, false);
+		bSuccess = true;
+	}
+
+	if (bSuccess)
+	{
+		Refresh();
+		SelectParameterItemByName(NewUniqueName, true);
+	}
+}
+
 void FNiagaraScriptToolkitParameterPanelViewModel::SetParameterIsSubscribedToLibrary(const FNiagaraParameterPanelItem ItemToModify, const bool bSubscribed) const
 {
 	if (ensureMsgf(ItemToModify.bExternallyReferenced == false, TEXT("Cannot modify an externally referenced parameter.")) == false)
@@ -2318,7 +2350,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraScriptToolkitParameterPanelViewModel:
 					// Create a new UNiagaraScriptVariable to represent this parameter for the lifetime of the ParameterPanelViewModel.
 					ScriptVar = NewObject<UNiagaraScriptVariable>(ScriptViewModel->GetStandaloneScript().Script);
 					ScriptVar->AddToRoot();
-					ScriptVar->Variable = Var;
+					ScriptVar->Init(Var, FNiagaraVariableMetaData());
 					TransientParameterToScriptVarMap.Add(Var, ScriptVar);
 				}
 

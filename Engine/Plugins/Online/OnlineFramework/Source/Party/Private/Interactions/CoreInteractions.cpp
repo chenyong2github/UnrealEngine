@@ -38,7 +38,7 @@ bool FSocialInteraction_AddFriend::CanExecute(const USocialUser& User)
 
 void FSocialInteraction_AddFriend::ExecuteInteraction(USocialUser& User)
 {
-	User.SendFriendInvite(ESocialSubsystem::Primary);
+	User.SendFriendInvite(ESocialSubsystem::Primary, ESocialFriendRequestMethod::SocialInteraction_AddFriend);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -75,7 +75,7 @@ bool FSocialInteraction_AddPlatformFriend::CanExecute(const USocialUser& User)
 
 void FSocialInteraction_AddPlatformFriend::ExecuteInteraction(USocialUser& User)
 {
-	User.SendFriendInvite(ESocialSubsystem::Platform);
+	User.SendFriendInvite(ESocialSubsystem::Platform, ESocialFriendRequestMethod::SocialInteraction_AddPlatformFriend);
 }
 
 //////////////////////////////////////////////////////////////////////////

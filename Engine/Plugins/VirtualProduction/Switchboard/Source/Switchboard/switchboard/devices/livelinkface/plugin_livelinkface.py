@@ -46,7 +46,7 @@ class DeviceLiveLinkFace(Device):
 
     def connect_listener(self):
         # If the device was disconnected, set to closed
-        if self.status == DeviceStatus.DISCONNECTED:
+        if self.is_disconnected:
             self.status = DeviceStatus.CLOSED
 
         self.status = DeviceStatus.READY
@@ -111,13 +111,13 @@ class DeviceLiveLinkFace(Device):
 
     def osc_add_send_target_confirm(self):
         # If the mobile is left on and CP is relaunched the normal bootup sequence doesn't happen 
-        if self.status == DeviceStatus.DISCONNECTED:
+        if self.is_disconnected:
             #self.close() # Close the session if it was left open
             self.status = DeviceStatus.OPEN
             self.launch()
 
     def record_start(self, slate, take, description):
-        if self.status == DeviceStatus.DISCONNECTED or not self.is_recording_device:
+        if self.is_disconnected or not self.is_recording_device:
             return
 
         self.send_osc_message(osc.RECORD_START, [slate, take])

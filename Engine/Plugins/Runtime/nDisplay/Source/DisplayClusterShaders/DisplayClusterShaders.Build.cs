@@ -49,15 +49,23 @@ public class DisplayClusterShaders : ModuleRules
 		PathInc = Path.Combine(ThirdPartyPath, "MPCDI/Include");
 
 		// Libs
-		PublicAdditionalLibraries.Add(Path.Combine(PathLib, "mpcdi.lib"));
-		PublicAdditionalLibraries.Add(Path.Combine(PathLib, "tinyxml2.lib"));
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "mpcdi.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "tinyxml2.lib"));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
+		{
+			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "libmpcdi.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "libtinyxml2.a"));
+		}
 
 		// Include paths
-		PublicIncludePaths.Add(PathInc);
-		PublicIncludePaths.Add(Path.Combine(PathInc, "Base"));
-		PublicIncludePaths.Add(Path.Combine(PathInc, "Container"));
-		PublicIncludePaths.Add(Path.Combine(PathInc, "Creators"));
-		PublicIncludePaths.Add(Path.Combine(PathInc, "IO"));
-		PublicIncludePaths.Add(Path.Combine(PathInc, "Utils"));
+		PrivateIncludePaths.Add(PathInc);
+		PrivateIncludePaths.Add(Path.Combine(PathInc, "Base"));
+		PrivateIncludePaths.Add(Path.Combine(PathInc, "Container"));
+		PrivateIncludePaths.Add(Path.Combine(PathInc, "Creators"));
+		PrivateIncludePaths.Add(Path.Combine(PathInc, "IO"));
+		PrivateIncludePaths.Add(Path.Combine(PathInc, "Utils"));
 	}
 }

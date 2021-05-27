@@ -98,8 +98,6 @@ SpectralReverb::SpectralReverb(int sample_rate, size_t frames_per_buffer)
   DCHECK_GT(sample_rate, 0);
   DCHECK_GT(frames_per_buffer_, 0U);
 
-  // Seed std::rand, used for phase selection.
-  std::srand(1);
   GenerateRandomPhaseBuffer();
   GenerateAnalysisWindow();
   InitializeCircularBuffersAndAccumulators();

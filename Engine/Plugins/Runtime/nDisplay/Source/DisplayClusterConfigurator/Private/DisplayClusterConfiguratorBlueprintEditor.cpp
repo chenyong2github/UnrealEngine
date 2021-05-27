@@ -19,6 +19,7 @@
 #include "Components/DisplayClusterScreenComponent.h"
 
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
+#include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
 #include "Views/General/DisplayClusterConfiguratorViewGeneral.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
@@ -35,6 +36,7 @@
 #include "GameFramework/Actor.h"
 
 #include "EditorDirectories.h"
+#include "EditorSupportDelegates.h"
 #include "EditorViewportTabContent.h"
 #include "ISCSEditorUICustomization.h"
 #include "SBlueprintEditorToolbar.h"
@@ -194,6 +196,30 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 
 	RenameVariableHandle = FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable);
 	FocusChangedHandle = FSlateApplication::Get().OnFocusChanging().AddSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnFocusChanged);
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::PostUndo(bool bSuccess)
+{
+	FBlueprintEditor::PostUndo(bSuccess);
+
+	// Make sure to force any property window displaying this actor class to refresh in case 
+	// the cluster hierarchy was changed in the undo transaction
+	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
+	{
+		FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(Actor->GetClass());
+	}
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::PostRedo(bool bSuccess)
+{
+	FBlueprintEditor::PostRedo(bSuccess);
+
+	// Make sure to force any property window displaying this actor class to refresh in case 
+	// the cluster hierarchy was changed in the redo transaction
+	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
+	{
+		FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(Actor->GetClass());
+	}
 }
 
 UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::GetEditorData() const
@@ -374,6 +400,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::ClusterChanged(bool bStructureC
 	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
 	{
 		Actor->UpdatePreviewComponents();
+		FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(Actor->GetClass());
 	}
 
 	OnClusterChanged.Broadcast();
@@ -663,18 +690,33 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable(UBlueprint* Bl
 				// of the parameters in the custom case
 				if (!Viewport->ProjectionPolicy.bIsCustom)
 				{
-					for (TPair<FString, FString>& PolicyParameters : Viewport->ProjectionPolicy.Parameters)
+					TMap<FString, FString> PolicyCopy = Viewport->ProjectionPolicy.Parameters;
+
+					const TSharedPtr<ISinglePropertyView> ProjectPolicyView =
+						DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+							Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, ProjectionPolicy));
+					check(ProjectPolicyView);
+					
+					const TSharedPtr<IPropertyHandle> ParametersHandle = ProjectPolicyView->GetPropertyHandle()->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationProjection, Parameters));
+					check(ParametersHandle);
+
+					FStructProperty* StructProperty = FindFProperty<FStructProperty>(Viewport->GetClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, ProjectionPolicy));
+					check(StructProperty);
+					uint8* MapContainer = StructProperty->ContainerPtrToValuePtr<uint8>(Viewport);
+					
+					for (TPair<FString, FString>& PolicyParameters : PolicyCopy)
 					{
 						if (PolicyParameters.Value == OldVariableName.ToString())
 						{
-							PolicyParameters.Value = NewVariableName.ToString();
+							DisplayClusterConfiguratorPropertyUtils::RemoveKeyFromMap(MapContainer, ParametersHandle, PolicyParameters.Key);
+							DisplayClusterConfiguratorPropertyUtils::AddKeyValueToMap(MapContainer, ParametersHandle, PolicyParameters.Key, NewVariableName.ToString());
 						}
 					}
 				}
 
 				if (Viewport->Camera == OldVariableName.ToString())
 				{
-					Viewport->Camera = NewVariableName.ToString();
+					DisplayClusterConfiguratorPropertyUtils::SetPropertyHandleValue(Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Camera), NewVariableName.ToString());
 				}
 			}
 		}

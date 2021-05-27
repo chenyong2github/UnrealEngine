@@ -222,29 +222,33 @@ void FMaterialInfo::UpdateMaterial(const TSharedPtr< IDatasmithUEPbrMaterialElem
 			TextureCoordinateExpression->SetCoordinateIndex(0);
 			TextureCoordinateExpression->ConnectExpression(*UVEditExpression->GetInput(0));
 		}
-		if (Texture->bHasAlpha && Texture->bAlphaIsTransparence && bIsTransparent)
+		if (Texture->bHasAlpha && Texture->bAlphaIsTransparence)
 		{
-			IDatasmithMaterialExpressionGeneric* MultiplyExpression =
-				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
-			MultiplyExpression->SetExpressionName(TEXT("Multiply"));
-			MultiplyExpression->SetName(TEXT("Multiply Expression"));
+			if (bIsTransparent)
+			{
+				IDatasmithMaterialExpressionGeneric* MultiplyExpression =
+					DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				MultiplyExpression->SetExpressionName(TEXT("Multiply"));
+				MultiplyExpression->SetName(TEXT("Multiply Expression"));
 
-			IDatasmithMaterialExpressionScalar* OpacityExpression =
-				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
-			OpacityExpression->GetScalar() = Opacity;
-			OpacityExpression->SetName(TEXT("Opacity"));
+				IDatasmithMaterialExpressionScalar* OpacityExpression =
+					DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+				OpacityExpression->GetScalar() = Opacity;
+				OpacityExpression->SetName(TEXT("Opacity"));
 
-			IDatasmithExpressionInput* MultiplyInputA = MultiplyExpression->GetInput(0);
-			IDatasmithExpressionInput* MultiplyInputB = MultiplyExpression->GetInput(1);
+				IDatasmithExpressionInput* MultiplyInputA = MultiplyExpression->GetInput(0);
+				IDatasmithExpressionInput* MultiplyInputB = MultiplyExpression->GetInput(1);
 
-			MultiplyExpression->ConnectExpression(DSMaterial->GetOpacity());
+				MultiplyExpression->ConnectExpression(DSMaterial->GetOpacity());
 
-			BaseTextureExpression->ConnectExpression(*MultiplyInputA, 4);
-			OpacityExpression->ConnectExpression(*MultiplyInputB);
-		}
-		else if (Texture->bHasAlpha && Texture->bAlphaIsTransparence)
-		{
-			BaseTextureExpression->ConnectExpression(DSMaterial->GetOpacity(), 4);
+				BaseTextureExpression->ConnectExpression(*MultiplyInputA, 4);
+				OpacityExpression->ConnectExpression(*MultiplyInputB);
+			}
+			else
+			{
+				BaseTextureExpression->ConnectExpression(DSMaterial->GetOpacity(), 4);
+			}
+			bHasAphaMask = true;
 		}
 	}
 	else
@@ -322,9 +326,10 @@ bool FMaterialsDatabase::CheckModify()
 {
 	FAutoChangeDatabase changeDB(APIWind_3DModelID);
 
-	for (TPair< FMaterialKey, FMaterialSyncData >& Iter : MapMaterials)
+	for (TPair< FMaterialKey, TUniquePtr< FMaterialSyncData > >& Iter : MapMaterials)
 	{
-		if (Iter.Value.CheckModify(Iter.Key))
+		UE_AC_Assert(Iter.Value.IsValid());
+		if (Iter.Value->CheckModify(Iter.Key))
 		{
 			return true;
 		}
@@ -335,14 +340,15 @@ bool FMaterialsDatabase::CheckModify()
 // Scan all material and update modified ones
 void FMaterialsDatabase::UpdateModified(const FSyncContext& SyncContext)
 {
-	for (TPair< FMaterialKey, FMaterialSyncData >& Iter : MapMaterials)
+	for (TPair< FMaterialKey, TUniquePtr< FMaterialSyncData > >& Iter : MapMaterials)
 	{
-		Iter.Value.Update(SyncContext, Iter.Key);
+		UE_AC_Assert(Iter.Value.IsValid());
+		Iter.Value->Update(SyncContext, Iter.Key);
 	}
 }
 
 // Return true if the material have been modified
-bool FMaterialsDatabase::FMaterialSyncData::CheckModify(const FMaterialKey& MaterialKey)
+bool FMaterialsDatabase::FMaterialSyncData::CheckModify(const FMaterialKey& /* MaterialKey */)
 {
 	if (!bIsDuplicate && !bIdIsSynthetized && MaterialIndex != kInvalidMaterialIndex)
 	{
@@ -390,13 +396,15 @@ const FMaterialsDatabase::FMaterialSyncData& FMaterialsDatabase::GetMaterial(con
 	}
 	FMaterialKey MaterialKey(inACMaterialIndex, inACTextureIndex, InSided);
 
-	FMaterialsDatabase::FMaterialSyncData& material = MapMaterials.FindOrAdd(MaterialKey);
-	if (!material.bIsInitialized)
+	TUniquePtr< FMaterialSyncData >& material = MapMaterials.FindOrAdd(MaterialKey);
+	if (!material.IsValid())
 	{
-		material.Init(SyncContext, MaterialKey);
+		FMaterialSyncData* MatSyncData = new FMaterialSyncData();
+		material.Reset(MatSyncData);
+		MatSyncData->Init(SyncContext, MaterialKey);
 	}
 
-	return material;
+	return *material;
 }
 
 void FMaterialsDatabase::FMaterialSyncData::Init(const FSyncContext& SyncContext, const FMaterialKey& MaterialKey)

@@ -75,44 +75,52 @@ FReply SDMXPixelMappingHierarchyItem::OnDraggingWidget(const FGeometry& MyGeomet
 {
 	check(Model.IsValid());
 
-	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New({ Model.Pin()->GetReference() }));
+	TArray<FDMXPixelMappingDragDropOp::FDraggingComponentReference> DraggingComponents;
+	FDMXPixelMappingDragDropOp::FDraggingComponentReference DraggingComponentReference;
+	DraggingComponentReference.ComponentReference = Model.Pin()->GetReference();
+	DraggingComponentReference.DraggedOffset = FVector2D::ZeroVector;
+	DraggingComponents.Add(DraggingComponentReference);
+
+	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(DraggingComponents));
 }
 
 FReply SDMXPixelMappingHierarchyItem::OnDropWidget(const FDragDropEvent& InDragDropEvent)
 {
 	const FScopedTransaction Transaction(FText::FromString("MoveComponent"));
 	TSharedPtr<FDMXPixelMappingDragDropOp> ComponentDragDropOp = InDragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
-	if (ComponentDragDropOp.IsValid())
+	if (ComponentDragDropOp.IsValid()
+		&& HierarchyView.IsValid())
 	{
-		UDMXPixelMappingBaseComponent* Source = ComponentDragDropOp->TryGetBaseComponent();
-
-		if (Source && HierarchyView.IsValid())
+		for (const FDMXPixelMappingDragDropOp::FDraggingComponentReference& DraggingComponentReference : ComponentDragDropOp->GetDraggingComponentReferences())
 		{
-			UDMXPixelMappingBaseComponent* Destination = Model.Pin()->GetReference().GetComponent();
-			
-			UDMXPixelMappingBaseComponent* NewParent = nullptr;
-			if (Source->CanBeMovedTo(Destination))
+			if (UDMXPixelMappingBaseComponent* Source = DraggingComponentReference.ComponentReference.GetComponent())
 			{
-				NewParent = Destination;
-			}
-			else if (Source->CanBeMovedTo(Destination->Parent))
-			{
-				NewParent = Destination->Parent;
-			}
+				UDMXPixelMappingBaseComponent* Destination = Model.Pin()->GetReference().GetComponent();
 
-			if (NewParent)
-			{
-				NewParent->Modify();
-				Source->Modify();
-				Source->Parent->Modify();
+				UDMXPixelMappingBaseComponent* NewParent = nullptr;
+				if (Source->CanBeMovedTo(Destination))
+				{
+					NewParent = Destination;
+				}
+				else if (Source->CanBeMovedTo(Destination->Parent))
+				{
+					NewParent = Destination->Parent;
+				}
 
-				Source->Parent->RemoveChild(Source);
-				NewParent->AddChild(Source);
+				if (NewParent)
+				{
+					NewParent->Modify();
+					Source->Modify();
+					Source->Parent->Modify();
 
-				HierarchyView->RequestComponentRedraw(NewParent);
-				HierarchyView->RequestRebuildTree();
+					Source->Parent->RemoveChild(Source);
+					NewParent->AddChild(Source);
+
+					HierarchyView->RequestComponentRedraw(NewParent);
+					HierarchyView->RequestRebuildTree();
+				}
 			}
-		}
+		}		
 	}
 	return FReply::Unhandled();
 }

@@ -256,20 +256,19 @@ public:
 		return FArchiveReplaceObjectRefBase::operator<<(Obj);
 	}
 
-	// @fixme Disabled until this is fixed: https://jira.it.epicgames.com/browse/FORT-370824
-	//virtual FArchive& operator<<(FSoftObjectPath& Value) override 
-	//{
-	//	if (UObject* Obj = Value.ResolveObject())
-	//	{
-	//		*this << Obj;
-	//		Value = Obj;
-	//	}
-	//	else
-	//	{
-	//		FArchiveReplaceObjectRefBase::operator<<(Value);
-	//	}
-	//	return *this;
-	//}
+	virtual FArchive& operator<<(FSoftObjectPath& Value) override 
+	{
+		if (UObject* Obj = Value.ResolveObject())
+		{
+			*this << Obj;
+			Value = Obj;
+		}
+		else
+		{
+			FArchiveReplaceObjectRefBase::operator<<(Value);
+		}
+		return *this;
+	}
 
 protected:
 	/** Map of objects to find references to -> object to replace references with */

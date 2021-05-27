@@ -10,9 +10,9 @@
 class IDisplayClusterStringSerializable
 {
 public:
-	virtual ~IDisplayClusterStringSerializable() = 0
-	{ }
+	virtual ~IDisplayClusterStringSerializable() = default;
 
+public:
 	virtual FString SerializeToString() const = 0;
 	virtual bool DeserializeFromString(const FString& ar) = 0;
 };

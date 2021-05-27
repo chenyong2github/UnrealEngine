@@ -243,121 +243,6 @@ public:
 		}
 	}
 
-	// XXX: REMOVE before shipping
-	// Used for simple testing on the plugin side what is being sent to DL
-	void ExportCurrentDatasmithSceneWithoutCleanup()
-	{
-		{
-			TSharedRef<IDatasmithScene> DatasmithScene = ExportedScene.GetDatasmithSceneRef();
-			FString FilePath = FPaths::Combine(ExportedScene.GetSceneExporterRef()->GetOutputPath(), ExportedScene.GetSceneExporterRef()->GetName()) + TEXT(".") + FDatasmithUtils::GetFileExtension();
-
-			TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(*FilePath));
-
-			if (!Archive.IsValid())
-			{
-				// XXX - removed 
-				//if (Impl->Logger.IsValid())
-				//{
-				//	Impl->Logger->AddGeneralError(*(TEXT("Unable to create file ") + FilePath + TEXT(", Aborting the export process")));
-				//}
-				return;
-			}
-
-			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-			PlatformFile.CreateDirectoryTree(ExportedScene.GetSceneExporterRef()->GetAssetsOutputPath());
-
-			// Add Bump maps from Material objects to scene as TextureElement
-			// XXX - removed Impl->CheckBumpMaps(DatasmithScene);
-
-			// XXX - removed FDatasmithSceneUtils::CleanUpScene(DatasmithScene, bCleanupUnusedElements);
-
-			// Update TextureElements
-			// XXX - removed Impl->UpdateTextureElements(DatasmithScene);
-
-			// XXX - note todo
-			// todo: keep relative myself
-			// Convert paths to relative
-			FString AbsoluteDir = FString(ExportedScene.GetSceneExporterRef()->GetOutputPath()) + TEXT("/");
-
-			for (int32 MeshIndex = 0; MeshIndex < DatasmithScene->GetMeshesCount(); ++MeshIndex)
-			{
-				TSharedPtr< IDatasmithMeshElement > Mesh = DatasmithScene->GetMesh(MeshIndex);
-
-				FString RelativePath = Mesh->GetFile();
-				FPaths::MakePathRelativeTo(RelativePath, *AbsoluteDir);
-
-				Mesh->SetFile(*RelativePath);
-			}
-
-			for (int32 TextureIndex = 0; TextureIndex < DatasmithScene->GetTexturesCount(); ++TextureIndex)
-			{
-				TSharedPtr< IDatasmithTextureElement > Texture = DatasmithScene->GetTexture(TextureIndex);
-
-				FString TextureFile = Texture->GetFile();
-				FPaths::MakePathRelativeTo(TextureFile, *AbsoluteDir);
-				Texture->SetFile(*TextureFile);
-			}
-
-			// XXX - removed 
-			//FDatasmithAnimationSerializer AnimSerializer;
-			//int32 NumSequences = DatasmithScene->GetLevelSequencesCount();
-			//for (int32 SequenceIndex = 0; SequenceIndex < NumSequences; ++SequenceIndex)
-			//{
-			//	const TSharedPtr<IDatasmithLevelSequenceElement>& LevelSequence = DatasmithScene->GetLevelSequence(SequenceIndex);
-			//	if (LevelSequence.IsValid())
-			//	{
-			//		FString AnimFilePath = FPaths::Combine(Impl->AssetsOutputPath, LevelSequence->GetName()) + DATASMITH_ANIMATION_EXTENSION;
-
-			//		if (AnimSerializer.Serialize(LevelSequence.ToSharedRef(), *AnimFilePath))
-			//		{
-			//			TUniquePtr<FArchive> AnimArchive(IFileManager::Get().CreateFileReader(*AnimFilePath));
-			//			if (AnimArchive)
-			//			{
-			//				LevelSequence->SetFileHash(FMD5Hash::HashFileFromArchive(AnimArchive.Get()));
-			//			}
-
-			//			FPaths::MakePathRelativeTo(AnimFilePath, *AbsoluteDir);
-			//			LevelSequence->SetFile(*AnimFilePath);
-			//		}
-			//	}
-			//}
-
-			// XXX - removed 
-			// Log time spent to export scene in seconds
-			//int ElapsedTime = (int)FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - Impl->ExportStartCycles);
-			//DatasmithScene->SetExportDuration(ElapsedTime);
-
-			FDatasmithSceneXmlWriter DatasmithSceneXmlWriter;
-			DatasmithSceneXmlWriter.Serialize(DatasmithScene, *Archive);
-
-			Archive->Close();
-
-			// Run the garbage collector at this point so that we're in a good state for the next export
-			FDatasmithExporterManager::RunGarbageCollection();
-		}
-
-		TSharedRef<IDatasmithScene> DatasmithScene = ExportedScene.GetDatasmithSceneRef();
-
-		// Convert paths back to absolute(they were changes by Export)
-		FString AbsoluteDir = FString(ExportedScene.GetSceneExporterRef()->GetOutputPath()) + TEXT("/");
-		for (int32 MeshIndex = 0; MeshIndex < DatasmithScene->GetMeshesCount(); ++MeshIndex)
-		{
-			TSharedPtr< IDatasmithMeshElement > Mesh = DatasmithScene->GetMesh(MeshIndex);
-
-			FString RelativePath = Mesh->GetFile();
-			Mesh->SetFile(*FPaths::ConvertRelativePathToFull(AbsoluteDir, *RelativePath));
-		}
-
-		for (int32 TextureIndex = 0; TextureIndex < DatasmithScene->GetTexturesCount(); ++TextureIndex)
-		{
-			TSharedPtr< IDatasmithTextureElement > Texture = DatasmithScene->GetTexture(TextureIndex);
-
-			FString RelativePath = Texture->GetFile();
-
-			Texture->SetFile(*FPaths::ConvertRelativePathToFull(AbsoluteDir, *RelativePath));
-		}
-	}
-
 	void ExportCurrentDatasmithScene()
 	{
 		ExportedScene.GetSceneExporterRef()->Export(ExportedScene.GetDatasmithSceneRef());
@@ -427,45 +312,6 @@ public:
 		}
 
 		return false;
-	}
-
-	bool OnEntityModified(SUEntityRef Entity)
-	{
-		switch (SUEntityGetType(Entity))
-		{
-		case SURefType_Group:
-		case SURefType_ComponentInstance:
-		{
-			OnComponentInstanceChanged(Entity);
-			break;
-		}
-		case SURefType_Face:
-		{
-			int32_t FaceId = 0;
-			if (SUEntityGetID(Entity, &FaceId) == SU_ERROR_NONE)
-			{
-				InvalidateGeometryForFace(DatasmithSketchUp::FEntityIDType(FaceId));
-				// todo: can we change DatasmithMesh in-place?
-				// - In case mesh need to be updated on DatasmithMeshActors:
-				// - and reset on every MeshActor, (or create if was empty? or not - modified, not added, not expected)
-			}
-			else
-			{
-				// todo: unexpected
-			}
-			break;
-		}
-		case SURefType_Material:
-		{
-			Context.Materials.InvalidateMaterial(SUMaterialFromEntity(Entity));
-			break;
-		}
-		default:
-		{
-			// todo: not expected
-		}
-		}
-		return true;
 	}
 
 	bool OnGeometryModified(DatasmithSketchUp::FEntityIDType EntityId)
@@ -566,6 +412,16 @@ public:
 		Context.Materials.CreateMaterial(EntityId);
 		return true;
 	}
+
+	bool OnLayerModified(SUEntityRef Entity)
+	{
+		DatasmithSketchUp::FEntityIDType LayerId = DatasmithSketchUpUtils::GetEntityID(Entity);
+		Context.ComponentInstances.LayerModified(LayerId);
+		Context.EntitiesObjects.LayerModified(LayerId);
+		return true;
+	}
+
+
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -674,17 +530,6 @@ VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene(VALUE s
 	return Qtrue;
 }
 
-VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene_no_cleanup(VALUE self)
-{
-	// Converting args
-	FDatasmithSketchUpDirectLinkExporter* ptr;
-	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, ptr);
-	// Done converting args
-
-	ptr->ExportCurrentDatasmithSceneWithoutCleanup();
-	return Qtrue;
-}
-
 #ifndef SKP_SDK_2019
 VALUE DatasmithSketchUpDirectLinkExporter_on_component_instance_changed(VALUE self, VALUE ruby_entity)
 {
@@ -699,26 +544,6 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_component_instance_changed(VALUE se
 	// Done converting args
 
 	Ptr->OnComponentInstanceChanged(Entity);
-
-	return Qtrue;
-}
-
-VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified(VALUE self, VALUE ruby_entity)
-{
-	// Converting args
-	FDatasmithSketchUpDirectLinkExporter* Ptr;
-	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
-
-	int RubyEntityRubyObjectType = TYPE(ruby_entity);
-
-	SUEntityRef Entity = SU_INVALID;
-
-	if (SUEntityFromRuby(ruby_entity, &Entity) != SU_ERROR_NONE) {
-		rb_raise(rb_eTypeError, "Expected SketchUp Entity or nil");
-	}
-	// Done converting args
-
-	Ptr->OnEntityModified(Entity);
 
 	return Qtrue;
 }
@@ -745,6 +570,27 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby
 
 	return Qtrue;
 }
+
+VALUE DatasmithSketchUpDirectLinkExporter_on_layer_modified(VALUE self, VALUE ruby_entity)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	int RubyEntityRubyObjectType = TYPE(ruby_entity);
+
+	SUEntityRef Entity = SU_INVALID;
+
+	if (SUEntityFromRuby(ruby_entity, &Entity) != SU_ERROR_NONE) {
+		rb_raise(rb_eTypeError, "Expected SketchUp Entity or nil");
+	}
+	// Done converting args
+
+	Ptr->OnLayerModified(Entity);
+
+	return Qtrue;
+}
+
 #endif
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id(VALUE self, VALUE ruby_entity_id)
@@ -897,8 +743,8 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUpRuby()
 
 #ifndef SKP_SDK_2019
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_component_instance_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_component_instance_changed), 1);
-	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified), 1);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_added", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_added), 2);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_layer_modified", ToRuby(DatasmithSketchUpDirectLinkExporter_on_layer_modified), 1);
 #endif
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id), 1);
@@ -911,8 +757,6 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUpRuby()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "send_update", ToRuby(DatasmithSketchUpDirectLinkExporter_send_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene), 0);
-	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene_no_cleanup", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene_no_cleanup), 0);
-	
 }
 
 /* todo:

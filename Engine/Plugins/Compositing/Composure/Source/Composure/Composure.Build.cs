@@ -16,7 +16,7 @@ namespace UnrealBuildTool.Rules
             PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"CameraCalibration",
+					"CameraCalibrationCore",
 					"CinematicCamera",
 					"Core",
                     "CoreUObject",

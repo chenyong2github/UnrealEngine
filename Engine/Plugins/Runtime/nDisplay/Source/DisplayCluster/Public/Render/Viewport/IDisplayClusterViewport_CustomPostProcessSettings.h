@@ -8,6 +8,9 @@
 class DISPLAYCLUSTER_API IDisplayClusterViewport_CustomPostProcessSettings
 {
 public:
+	virtual ~IDisplayClusterViewport_CustomPostProcessSettings() = default;
+
+public:
 	enum class ERenderPass : int
 	{
 		Start,

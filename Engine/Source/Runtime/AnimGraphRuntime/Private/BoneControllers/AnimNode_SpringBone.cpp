@@ -232,19 +232,23 @@ void FAnimNode_SpringBone::InitializeBoneReferences(const FBoneContainer& Requir
 
 void FAnimNode_SpringBone::PreUpdate(const UAnimInstance* InAnimInstance)
 {
-	const USkeletalMeshComponent* SkelComp = InAnimInstance->GetSkelMeshComponent();
-	const UWorld* World = SkelComp->GetWorld();
-	check(World->GetWorldSettings());
-	TimeDilation = World->GetWorldSettings()->GetEffectiveTimeDilation();
+	if (const USkeletalMeshComponent* SkelComp = InAnimInstance->GetSkelMeshComponent())
+	{
+		if (const UWorld* World = SkelComp->GetWorld())
+		{
+			check(World->GetWorldSettings());
+			TimeDilation = World->GetWorldSettings()->GetEffectiveTimeDilation();
 
-	AActor* SkelOwner = SkelComp->GetOwner();
-	if (SkelComp->GetAttachParent() != NULL && (SkelOwner == NULL))
-	{
-		SkelOwner = SkelComp->GetAttachParent()->GetOwner();
-		OwnerVelocity = SkelOwner->GetVelocity();
+			AActor* SkelOwner = SkelComp->GetOwner();
+			if (SkelComp->GetAttachParent() != nullptr && (SkelOwner == nullptr))
+			{
+				SkelOwner = SkelComp->GetAttachParent()->GetOwner();
+				OwnerVelocity = SkelOwner->GetVelocity();
+			}
+			else
+			{
+				OwnerVelocity = FVector::ZeroVector;
+			}
+		}
 	}
-	else
-	{
-		OwnerVelocity = FVector::ZeroVector;
-	}	
 }

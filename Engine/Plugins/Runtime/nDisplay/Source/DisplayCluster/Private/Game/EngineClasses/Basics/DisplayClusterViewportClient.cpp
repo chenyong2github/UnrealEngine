@@ -47,26 +47,14 @@
 
 #include "Config/DisplayClusterConfigManager.h"
 
-// Enable/disable warp&blend
-static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
-	TEXT("nDisplay.render.WarpBlendEnabled"),
-	1,
-	TEXT("Warp & Blend status\n")
-	TEXT("0 : disabled\n")
-	TEXT("1 : enabled\n")
-	,
-	ECVF_RenderThreadSafe
-);
 
-
-UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper) : Super(Helper)
+UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper)
+	: Super(Helper)
 {
-	
 }
 
 UDisplayClusterViewportClient::~UDisplayClusterViewportClient()
 {
-
 }
 
 /** Util to find named canvas in transient package, and create if not found */
@@ -602,7 +590,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		SceneCanvas->Flush_GameThread();
 
 		// After all render target rendered call nDisplay frame rendering
-		RenderFrame.ViewportManager->RenderFrame(CVarWarpBlendEnabled.GetValueOnGameThread() != 0, InViewport);
+		RenderFrame.ViewportManager->RenderFrame(InViewport);
 
 		OnDrawn().Broadcast();
 

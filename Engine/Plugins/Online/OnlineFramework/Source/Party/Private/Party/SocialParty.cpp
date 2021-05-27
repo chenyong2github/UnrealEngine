@@ -263,43 +263,44 @@ bool USocialParty::HasUserBeenInvited(const USocialUser& User) const
 
 bool USocialParty::CanInviteUser(const USocialUser& User) const
 {
-	return CanInviteUserInternal(User);
+	return CanInviteUserInternal(User) == ESocialPartyInviteFailureReason::Success;
 }
 
-bool USocialParty::CanInviteUserInternal(const USocialUser& User) const
+ESocialPartyInviteFailureReason USocialParty::CanInviteUserInternal(const USocialUser& User) const
 {
 	// Only users that are online can be invited
 	if (!User.IsOnline() && !User.CanReceiveOfflineInvite())
 	{
-		return false;
+		return ESocialPartyInviteFailureReason::NotOnline;
 	}
 
 	if (!CurrentConfig.bIsAcceptingMembers && CurrentConfig.NotAcceptingMembersReason != (int32)EPartyJoinDenialReason::PartyPrivate)
 	{
 		// We aren't accepting members for a reason other than party privacy, so a direct invite won't help
-		return false;
+		return ESocialPartyInviteFailureReason::NotAcceptingMembers;
 	}
 
 	//@todo DanH Party: The problem with CanLocalUserInvite is that it the "friend" restriction is applied to mcp friends only, so a console friend doesn't count (but should) #required
 	//		Need to check in with OGS about that...
 	if (!OssParty->CanLocalUserInvite(*OwningLocalUserId))
 	{
-		return false;
+		return ESocialPartyInviteFailureReason::OssValidationFailed;
 	}
 
 	if (GetPartyMember(User.GetUserId(ESocialSubsystem::Primary)))
 	{
 		// Already in the party
-		return false;
+		return ESocialPartyInviteFailureReason::AlreadyInParty;
 	}
 
-	return true;
+	return ESocialPartyInviteFailureReason::Success;
 }
 
 bool USocialParty::TryInviteUser(const USocialUser& UserToInvite, const ESocialPartyInviteMethod InviteMethod)
 {
 	bool bSentInvite = false;
-	if (CanInviteUser(UserToInvite))
+	ESocialPartyInviteFailureReason CanInviteResult = CanInviteUserInternal(UserToInvite);
+	if (CanInviteResult == ESocialPartyInviteFailureReason::Success)
 	{
 		const bool bPreferPlatformInvite = USocialSettings::ShouldPreferPlatformInvites();
 		const bool bMustSendPrimaryInvite = USocialSettings::MustSendPrimaryInvites();
@@ -337,7 +338,8 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite, const ESocialP
 					bSentPlatformInvite = PlatformSessionInterface->SendSessionInviteToFriend(*LocalUserPlatformId, NAME_PartySession, *UserPlatformId);
 				}
 			}
-			OnInviteSentInternal(ESocialSubsystem::Platform, UserToInvite, bSentPlatformInvite, InviteMethod);
+			ESocialPartyInviteFailureReason FailureReason = bSentPlatformInvite ? ESocialPartyInviteFailureReason::Success : ESocialPartyInviteFailureReason::PlatformInviteFailed;
+			OnInviteSentInternal(ESocialSubsystem::Platform, UserToInvite, bSentPlatformInvite, FailureReason, InviteMethod);
 			bSentInvite |= bSentPlatformInvite;
 		}
 		if ((!bSentInvite || bMustSendPrimaryInvite) && UserPrimaryId.IsValid())
@@ -345,13 +347,14 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite, const ESocialP
 			// Primary subsystem invites can be sent directly to the user via the party interface
 			const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 			const bool bSentPrimaryInvite = PartyInterface->SendInvitation(*OwningLocalUserId, GetPartyId(), *UserPrimaryId);
-			OnInviteSentInternal(ESocialSubsystem::Primary, UserToInvite, bSentPrimaryInvite, InviteMethod);
+			ESocialPartyInviteFailureReason FailureReason = bSentPrimaryInvite ? ESocialPartyInviteFailureReason::Success : ESocialPartyInviteFailureReason::PartyInviteFailed;
+			OnInviteSentInternal(ESocialSubsystem::Primary, UserToInvite, bSentPrimaryInvite, FailureReason, InviteMethod);
 			bSentInvite |= bSentPrimaryInvite;
 		}
 	}
 	else
 	{
-		OnInviteSentInternal(ESocialSubsystem::MAX, UserToInvite, false, InviteMethod);
+		OnInviteSentInternal(ESocialSubsystem::MAX, UserToInvite, false, CanInviteResult, InviteMethod);
 	}
 	return bSentInvite;
 }
@@ -629,7 +632,7 @@ void USocialParty::OnLeftPartyInternal(EMemberExitedReason Reason)
 	OnPartyLeft().Broadcast(Reason);
 }
 
-void USocialParty::OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful, const ESocialPartyInviteMethod InviteMethod)
+void USocialParty::OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful, const ESocialPartyInviteFailureReason FailureReason, const ESocialPartyInviteMethod InviteMethod)
 {
 	OnInviteSent().Broadcast(InvitedUser);
 

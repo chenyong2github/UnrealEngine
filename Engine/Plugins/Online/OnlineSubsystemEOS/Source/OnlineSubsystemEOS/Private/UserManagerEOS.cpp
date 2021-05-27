@@ -88,23 +88,30 @@ static inline EOS_Presence_EStatus ToEOS_Presence_EStatus(EOnlinePresenceState::
 	return EOS_Presence_EStatus::EOS_PS_Offline;
 }
 
-static inline EOS_EExternalCredentialType ToEOS_EExternalCredentialType(FName OSSName)
+static inline EOS_EExternalCredentialType ToEOS_EExternalCredentialType(FName OSSName, const FOnlineAccountCredentials& AccountCredentials)
 {
 	if (OSSName == STEAM_SUBSYSTEM)
 	{
 		return EOS_EExternalCredentialType::EOS_ECT_STEAM_APP_TICKET;
 	}
-	else if (OSSName == PS4_SUBSYSTEM)
+	else if (OSSName == PS4_SUBSYSTEM || USE_PSN_ID_TOKEN)
 	{
 		return EOS_EExternalCredentialType::EOS_ECT_PSN_ID_TOKEN;
 	}
-	else if (OSSName == LIVE_SUBSYSTEM)
+	else if (OSSName == LIVE_SUBSYSTEM || USE_XBL_XSTS_TOKEN)
 	{
 		return EOS_EExternalCredentialType::EOS_ECT_XBL_XSTS_TOKEN;
 	}
 	else if (OSSName == SWITCH_SUBSYSTEM)
 	{
-		return EOS_EExternalCredentialType::EOS_ECT_NINTENDO_ID_TOKEN;
+		if (AccountCredentials.Type == TEXT("NintendoAccount"))
+		{
+			return EOS_EExternalCredentialType::EOS_ECT_NINTENDO_ID_TOKEN;
+		}
+		else
+		{
+			return EOS_EExternalCredentialType::EOS_ECT_NINTENDO_NSA_ID_TOKEN;
+		}
 	}
 	else if (OSSName == APPLE_SUBSYSTEM)
 	{
@@ -259,8 +266,35 @@ struct FAuthCredentials :
 		Token = TokenAnsi;
 	}
 
-	FAuthCredentials(EOS_EExternalCredentialType InExternalType, const TArray<uint8>& InToken) :
+	FAuthCredentials(EOS_EExternalCredentialType InExternalType, const FExternalAuthToken& AuthToken) :
 		EOS_Auth_Credentials()
+	{
+		if (AuthToken.HasTokenData())
+		{
+			Init(InExternalType, AuthToken.TokenData);
+		}
+		else if (AuthToken.HasTokenString())
+		{
+			Init(InExternalType, AuthToken.TokenString);
+		}
+		else
+		{
+			UE_LOG_ONLINE(Error, TEXT("FAuthCredentials object cannot be constructed with invalid FExternalAuthToken parameter"));
+		}
+	}
+
+	void Init(EOS_EExternalCredentialType InExternalType, const FString& InTokenString)
+	{
+		ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
+		Type = EOS_ELoginCredentialType::EOS_LCT_ExternalAuth;
+		ExternalType = InExternalType;
+		Id = IdAnsi;
+		Token = TokenAnsi;
+
+		FCStringAnsi::Strncpy(TokenAnsi, TCHAR_TO_UTF8(*InTokenString), InTokenString.Len()+1);
+	}
+
+	void Init(EOS_EExternalCredentialType InExternalType, const TArray<uint8>& InToken)
 	{
 		ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
 		Type = EOS_ELoginCredentialType::EOS_LCT_ExternalAuth;
@@ -271,14 +305,19 @@ struct FAuthCredentials :
 		uint32_t InOutBufferLength = EOS_OSS_STRING_BUFFER_LENGTH;
 		EOS_ByteArray_ToString(InToken.GetData(), InToken.Num(), TokenAnsi, &InOutBufferLength);
 	}
+
 	char IdAnsi[EOS_OSS_STRING_BUFFER_LENGTH];
 	char TokenAnsi[EOS_MAX_TOKEN_SIZE];
 };
 
 bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials)
 {
+	LocalUserNumToLastLoginCredentials.Emplace(LocalUserNum, MakeShared<FOnlineAccountCredentials>(AccountCredentials));
+
+	FEOSSettings Settings = UEOSSettings::GetSettings();
+
 	// Are we configured to run at all?
-	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && !GetDefault<UEOSSettings>()->bUseEAS && !GetDefault<UEOSSettings>()->bUseEOSConnect)
+	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && !Settings.bUseEAS && !Settings.bUseEOSConnect)
 	{
 		UE_LOG_ONLINE(Warning, TEXT("Neither EAS nor EOS are configured to be used. Failed to login in user (%d)"), LocalUserNum);
 		TriggerOnLoginCompleteDelegates(LocalUserNum, false, *GetLocalUniqueNetIdEOS(LocalUserNum), FString(TEXT("Not configured")));
@@ -286,7 +325,7 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	}
 
 	// See if we are configured to just use EOS and not EAS
-	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && !GetDefault<UEOSSettings>()->bUseEAS && GetDefault<UEOSSettings>()->bUseEOSConnect)
+	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && !Settings.bUseEAS && Settings.bUseEOSConnect)
 	{
 		// Call the EOS + Platform login path
 		return ConnectLoginNoEAS(LocalUserNum);
@@ -301,7 +340,7 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	}
 
 	// See if we are logging in using platform credentials to link to EAS
-	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && GetDefault<UEOSSettings>()->bUseEAS)
+	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && Settings.bUseEAS)
 	{
 		LoginViaExternalAuth(LocalUserNum);
 		return true;
@@ -367,7 +406,7 @@ void FUserManagerEOS::LoginViaExternalAuth(int32 LocalUserNum)
 	GetPlatformAuthToken(LocalUserNum,
 		FOnGetLinkedAccountAuthTokenCompleteDelegate::CreateLambda([this](int32 LocalUserNum, bool bWasSuccessful, const FExternalAuthToken& AuthToken)
 		{
-			if (!bWasSuccessful || !AuthToken.HasTokenData())
+			if (!bWasSuccessful || !AuthToken.IsValid())
 			{
 				UE_LOG_ONLINE(Warning, TEXT("Unable to Login() user (%d) due to an empty platform auth token"), LocalUserNum);
 				TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdEOS::EmptyId(), FString(TEXT("Missing platform auth token")));
@@ -378,7 +417,8 @@ void FUserManagerEOS::LoginViaExternalAuth(int32 LocalUserNum)
 			LoginOptions.ApiVersion = EOS_AUTH_LOGIN_API_LATEST;
 			LoginOptions.ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_BasicProfile | EOS_EAuthScopeFlags::EOS_AS_FriendsList | EOS_EAuthScopeFlags::EOS_AS_Presence;
 
-			FAuthCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName()), AuthToken.TokenData);
+			check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
+			FAuthCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), *LocalUserNumToLastLoginCredentials[LocalUserNum]), AuthToken);
 			LoginOptions.Credentials = &Credentials;
 
 			FLoginCallback* CallbackObj = new FLoginCallback();
@@ -467,7 +507,8 @@ bool FUserManagerEOS::ConnectLoginNoEAS(int32 LocalUserNum)
 			}
 
 			// Now login into our EOS account
-			FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName()), AuthToken.TokenData);
+			check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
+			FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), *LocalUserNumToLastLoginCredentials[LocalUserNum]), AuthToken.TokenData);
 			EOS_Connect_LoginOptions Options = { };
 			Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
 			Options.Credentials = &Credentials;
@@ -729,6 +770,8 @@ bool FUserManagerEOS::Logout(int32 LocalUserNum)
 
 	EOS_Auth_Logout(EOSSubsystem->AuthHandle, &LogoutOptions, CallbackObj, CallbackObj->GetCallbackPtr());
 
+	LocalUserNumToLastLoginCredentials.Remove(LocalUserNum);
+
 	return true;
 }
 
@@ -748,6 +791,9 @@ bool FUserManagerEOS::AutoLogin(int32 LocalUserNum)
 		return false;
 	}
 	FOnlineAccountCredentials Creds(AuthType, LoginId, Password);
+
+	LocalUserNumToLastLoginCredentials.Emplace(LocalUserNum, MakeShared<FOnlineAccountCredentials>(Creds));
+
 	return Login(LocalUserNum, Creds);
 }
 
@@ -1533,16 +1579,16 @@ void FUserManagerEOS::AddRemotePlayer(const FString& NetId, EOS_EpicAccountId Ep
 void FUserManagerEOS::UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountId, EOS_ProductUserId UserId)
 {
 	// See if the net ids have changed for this user and bail if they are the same
-	FString NewNetIdStr = MakeNetIdStringFromIds(AccountId, UserId);
-	const FString& PrevNetIdStr = AccountIdToStringMap[AccountId];
+	const FString NewNetIdStr = MakeNetIdStringFromIds(AccountId, UserId);
+	const FString PrevNetIdStr = AccountIdToStringMap[AccountId];
 	if (PrevNetIdStr == NewNetIdStr)
 	{
 		// No change, so skip any work
 		return;
 	}
 
-	FString AccountIdStr = MakeStringFromEpicAccountId(AccountId);
-	FString UserIdStr = MakeStringFromProductUserId(UserId);
+	const FString AccountIdStr = MakeStringFromEpicAccountId(AccountId);
+	const FString UserIdStr = MakeStringFromProductUserId(UserId);
 
 	// Get the unique net id and rebuild the string for it
 	IAttributeAccessInterfaceRef AttrAccess = NetIdStringToAttributeAccessMap[PrevNetIdStr];
@@ -1569,8 +1615,17 @@ void FUserManagerEOS::UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountI
 	StringToAccountIdMap.Remove(PrevNetIdStr);
 	StringToAccountIdMap.Add(NewNetIdStr, AccountId);
 	StringToProductUserIdMap.Add(NewNetIdStr, UserId);
-	FOnlineUserPtr OnlineUser = NetIdStringToOnlineUserMap[PrevNetIdStr];
-	NetIdStringToOnlineUserMap.Remove(PrevNetIdStr);
+	// If it's the first time we're updating this remote player, it will be indexed by its epic account id
+	FOnlineUserPtr OnlineUser = NetIdStringToOnlineUserMap[AccountIdStr];
+	if (OnlineUser.IsValid())
+	{
+		NetIdStringToOnlineUserMap.Remove(AccountIdStr);
+	}
+	else
+	{
+		OnlineUser = NetIdStringToOnlineUserMap[PrevNetIdStr];
+		NetIdStringToOnlineUserMap.Remove(PrevNetIdStr);
+	}
 	NetIdStringToOnlineUserMap.Add(NewNetIdStr, OnlineUser);
 	NetIdStringToAttributeAccessMap.Remove(PrevNetIdStr);
 	NetIdStringToAttributeAccessMap.Add(NewNetIdStr, AttrAccess);

@@ -13,8 +13,7 @@ class FDisplayClusterRenderSyncPolicyFactoryInternal
 {
 public:
 	FDisplayClusterRenderSyncPolicyFactoryInternal() = default;
-	virtual ~FDisplayClusterRenderSyncPolicyFactoryInternal()
-	{ }
+	virtual ~FDisplayClusterRenderSyncPolicyFactoryInternal() = default;
 
 public:
 	virtual TSharedPtr<IDisplayClusterRenderSyncPolicy> Create(const FString& InPolicyType, const FString& InRHIName, const TMap<FString, FString>& Parameters) override;

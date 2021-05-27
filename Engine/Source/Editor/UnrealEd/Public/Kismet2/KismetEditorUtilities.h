@@ -54,6 +54,8 @@ enum class EBlueprintCompileOptions
 	SkipDefaultObjectValidation = 0x100,
 	/** Skips Find-in-Blueprint search data update - in some cases (e.g. creating new assets) this is being deferred until after compilation */
 	SkipFiBSearchMetaUpdate = 0x200,
+	/** Allow the delta serialization during FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects */
+	UseDeltaSerializationDuringReinstancing = 0x400,
 };
 
 ENUM_CLASS_FLAGS(EBlueprintCompileOptions)

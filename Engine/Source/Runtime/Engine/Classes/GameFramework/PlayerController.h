@@ -2015,6 +2015,7 @@ public:
 	struct FInputCmdBuffer
 	{
 		int32 HeadFrame() const { return LastWritten; }
+		int32 TailFrame() const { return FMath::Max(0, LastWritten - Buffer.Num() + 1); }
 		TArray<uint8>& Write(int32 Frame) { LastWritten = Frame; return Buffer[Frame % Buffer.Num()]; }
 		const TArray<uint8>& Get(int32 Frame) const { return Buffer[Frame % Buffer.Num()]; }
 

@@ -2,6 +2,21 @@
 
 #include "NegatableFilter.h"
 
+namespace
+{
+	EFilterResult::Type ApplyFilter(EEditorFilterBehavior NegationBehaviour, TFunction<EFilterResult::Type()> ApplyFilter)
+	{
+		if (NegationBehaviour == EEditorFilterBehavior::Ignore)
+		{
+			return EFilterResult::DoNotCare; 
+		}
+
+		const EFilterResult::Type Result = ApplyFilter();
+		const bool bShouldNegate = NegationBehaviour == EEditorFilterBehavior::Negate;
+		return bShouldNegate ? EFilterResult::Negate(Result) : Result;
+	}
+}
+
 UNegatableFilter* UNegatableFilter::CreateNegatableFilter(ULevelSnapshotFilter* ChildFilter, const TOptional<UObject*>& Outer)
 {
 	if (!ensure(ChildFilter))
@@ -22,38 +37,48 @@ ULevelSnapshotFilter* UNegatableFilter::GetChildFilter() const
 
 FText UNegatableFilter::GetDisplayName() const
 {
+	// Child filter is nullptr when user deletes filter class and force deletes
+	if (!ChildFilter)
+	{
+		return FText::FromString(TEXT("Missing Filter Class"));
+	}
+
 	const bool bHasName = Name.Len() != 0;
 	return bHasName ? FText::FromString(Name) : ChildFilter->GetClass()->GetDisplayNameText();
 }
 
 EFilterResult::Type UNegatableFilter::IsActorValid(const FIsActorValidParams& Params) const
 {
-	if (EditorFilterBehavior == EEditorFilterBehavior::Ignore)
+	return ApplyFilter(EditorFilterBehavior, [this, &Params]()
 	{
-		return EFilterResult::DoNotCare; // This filter is always used in an AND-chain
-	}
-
-	if (ensure(ChildFilter))
-	{
-		EFilterResult::Type Result = ChildFilter->IsActorValid(Params);
-		const bool bShouldNegate = EditorFilterBehavior == EEditorFilterBehavior::Negate;
-		return bShouldNegate ? EFilterResult::Negate(Result) : Result;
-	}
-	return EFilterResult::DoNotCare;
+		// Child filter is nullptr when user deletes filter class and force deletes
+		return ChildFilter ? ChildFilter->IsActorValid(Params) : EFilterResult::DoNotCare;
+	});
 }
 
 EFilterResult::Type UNegatableFilter::IsPropertyValid(const FIsPropertyValidParams& Params) const
 {
-	if (EditorFilterBehavior == EEditorFilterBehavior::Ignore)
+	return ApplyFilter(EditorFilterBehavior, [this, &Params]()
 	{
-		return EFilterResult::DoNotCare; // This filter is always used in an AND-chain
-	}
-	
-	if (ensure(ChildFilter))
+		// Child filter is nullptr when user deletes filter class and force deletes
+		return ChildFilter ? ChildFilter->IsPropertyValid(Params) : EFilterResult::DoNotCare;
+	});
+}
+
+EFilterResult::Type UNegatableFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
+{
+	return ApplyFilter(EditorFilterBehavior, [this, &Params]()
 	{
-		EFilterResult::Type Result = ChildFilter->IsPropertyValid(Params);
-		const bool bShouldNegate = EditorFilterBehavior == EEditorFilterBehavior::Negate;
-		return bShouldNegate ? EFilterResult::Negate(Result) : Result;
-	}
-	return EFilterResult::DoNotCare;
+		// Child filter is nullptr when user deletes filter class and force deletes
+		return ChildFilter ? ChildFilter->IsDeletedActorValid(Params) : EFilterResult::DoNotCare;
+	});
+}
+
+EFilterResult::Type UNegatableFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
+{
+	return ApplyFilter(EditorFilterBehavior, [this, &Params]()
+	{
+		// Child filter is nullptr when user deletes filter class and force deletes
+		return ChildFilter ? ChildFilter->IsAddedActorValid(Params) : EFilterResult::DoNotCare;
+	});
 }

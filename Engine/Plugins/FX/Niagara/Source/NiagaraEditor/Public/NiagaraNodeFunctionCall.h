@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "NiagaraEditorCommon.h"
+#include "NiagaraMessages.h"
 #include "NiagaraNodeWithDynamicPins.h"
 #include "NiagaraNodeInput.h"
 #include "UpgradeNiagaraScriptResults.h"
@@ -55,7 +56,6 @@ class UNiagaraNodeFunctionCall : public UNiagaraNodeWithDynamicPins
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnInputsChanged);
-
 
 	UPROPERTY(EditAnywhere, Category = "Function")
 	TObjectPtr<UNiagaraScript> FunctionScript;
@@ -167,10 +167,19 @@ public:
 
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 
-	NIAGARAEDITOR_API const TMap<FGuid, TObjectPtr<UNiagaraMessageData>>& GetMessages() const { return MessageKeyToMessageMap; };
+	// Messages API
+	NIAGARAEDITOR_API const TMap<FGuid, UNiagaraMessageData*>& GetMessages() const { return MessageKeyToMessageMap; };
 	NIAGARAEDITOR_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageData* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
 	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+
+	// Custom Notes API
+	NIAGARAEDITOR_API const TArray<FNiagaraStackMessage>& GetCustomNotes() const { return StackMessages; };
+	NIAGARAEDITOR_API void AddCustomNote(const FNiagaraStackMessage& StackMessage);
+	NIAGARAEDITOR_API void RemoveCustomNote(const FGuid& MessageKey);
+	NIAGARAEDITOR_API FSimpleDelegate& OnCustomNotesChanged() { return OnCustomNotesChangedDelegate; }
+	void RemoveCustomNoteViaDelegate(const FGuid MessageKey);
+
 protected:
 
 	virtual bool GetValidateDataInterfaces() const { return true; };
@@ -207,11 +216,16 @@ protected:
 	FString FunctionDisplayName;
 
 	UPROPERTY(meta = (SkipForCompileHash="true"))
-	TMap<FGuid, TObjectPtr<UNiagaraMessageData>> MessageKeyToMessageMap;
+	TMap<FGuid, UNiagaraMessageData*> MessageKeyToMessageMap;
+	
+	UPROPERTY(meta = (SkipForCompileHash="true"))
+	TArray<FNiagaraStackMessage> StackMessages;
 
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TMap<FGuid, FName> BoundPinNames;
 
 	FOnInputsChanged OnInputsChangedDelegate;
+
+	FSimpleDelegate OnCustomNotesChangedDelegate;
 };
 

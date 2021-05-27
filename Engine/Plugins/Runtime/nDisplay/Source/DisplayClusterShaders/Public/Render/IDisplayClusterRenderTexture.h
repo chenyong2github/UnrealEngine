@@ -12,9 +12,9 @@
 class IDisplayClusterRenderTexture
 {
 public:
-	virtual ~IDisplayClusterRenderTexture() = 0
-	{ }
+	virtual ~IDisplayClusterRenderTexture() = default;
 
+public:
 	/**
 	* Create texture from memory data:
 	*

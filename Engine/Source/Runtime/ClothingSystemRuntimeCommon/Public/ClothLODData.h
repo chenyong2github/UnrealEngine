@@ -27,6 +27,10 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothLODDataCommon
 	UPROPERTY()
 	float SkinningKernelRadius = 100.0f;
 
+	// Whether to enable smooth transition from skinned mesh to clothed mesh.
+	UPROPERTY()
+	bool bSmoothTransition = false;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FClothParameterMask_Legacy> ParameterMasks_DEPRECATED;

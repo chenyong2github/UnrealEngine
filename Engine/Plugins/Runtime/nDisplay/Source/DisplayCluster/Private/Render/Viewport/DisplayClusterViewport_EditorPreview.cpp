@@ -18,8 +18,6 @@
 #include "Engine/Scene.h"
 #include "GameFramework/WorldSettings.h"
 
-#include "ScenePrivate.h"
-
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"

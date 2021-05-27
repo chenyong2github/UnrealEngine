@@ -60,7 +60,7 @@ export class IntegrationMethod {
 export const DAYS_OF_THE_WEEK = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 type DayOfTheWeek = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
 
-type IntegrationWindowPane = {
+export type IntegrationWindowPane = {
 	// if day not specified, daily
 	dayOfTheWeek?: DayOfTheWeek
 	startHourUTC: number

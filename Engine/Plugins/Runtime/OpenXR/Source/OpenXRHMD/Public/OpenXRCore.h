@@ -12,8 +12,18 @@ constexpr const TCHAR* OpenXRResultToString(XrResult e)
 {
 	switch (e)
 	{
-		XR_LIST_ENUM_XrResult(XR_ENUM_CASE_STR)
+		XR_LIST_ENUM_XrResult(XR_ENUM_CASE_STR);
 		default: return TEXT("Unknown");
+	}
+}
+
+#define XR_SESSION_STATE_STR(name, val) case name: return TEXT(#name);
+constexpr const TCHAR* OpenXRSessionStateToString(XrSessionState e)
+{
+	switch (e)
+	{
+		XR_LIST_ENUM_XrSessionState(XR_SESSION_STATE_STR);
+	default: return TEXT("Unknown");
 	}
 }
 
@@ -79,6 +89,11 @@ FORCEINLINE FIntRect ToFIntRect(XrRect2Di Rect)
 FORCEINLINE XrRect2Di ToXrRect(FIntRect Rect)
 {
 	return XrRect2Di{ { Rect.Min.X, Rect.Min.Y }, { Rect.Width(), Rect.Height() } };
+}
+
+FORCEINLINE FVector2D ToFVector2D(XrExtent2Df Extent, float Scale = 1.0f)
+{
+	return FVector2D(Extent.width * Scale, Extent.height * Scale);
 }
 
 FORCEINLINE XrExtent2Df ToXrExtent2D(FVector2D Vector, float Scale = 1.0f)

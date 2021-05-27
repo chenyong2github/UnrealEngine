@@ -333,10 +333,6 @@ private:
 	void HandleWorkspaceSyncEvent(const FDisplayClusterClusterEventJson& InEvent)
 	{
 		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Handle multi-user workspace sync -> %s."), *InEvent.Name);
-		if (bCanFinalizeWorkspace)
-		{
-			return;
-		}
 
 		IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
 		NodesReady.Add(InEvent.Name);
@@ -370,7 +366,8 @@ private:
 	{
 		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Temporarily disabling multi-user workspace sync."));
 		bCanFinalizeWorkspace = false;
-		NodesReady.Empty();
+		// Note, we intentially do not reset NodesReady here because of the timing of joining the MU session thereby causing the node
+		// to forever not receive updates.
 	}
 
 	bool bWasEverDisconnected = false;

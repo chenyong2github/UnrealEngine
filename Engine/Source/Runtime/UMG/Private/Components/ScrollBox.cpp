@@ -292,6 +292,16 @@ void UScrollBox::PostLoad()
 
 #endif // if WITH_EDITORONLY_DATA
 
+void UScrollBox::SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination)
+{
+	NavigationDestination = NewNavigationDestination;
+
+	if (MyScrollBox.IsValid())
+	{
+		MyScrollBox->SetNavigationDestination(NewNavigationDestination);
+	}
+}
+
 void UScrollBox::SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel)
 {
 	ConsumeMouseWheel = NewConsumeMouseWheel;

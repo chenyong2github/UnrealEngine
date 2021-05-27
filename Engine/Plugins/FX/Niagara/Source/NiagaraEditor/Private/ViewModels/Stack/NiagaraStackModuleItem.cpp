@@ -86,6 +86,11 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 		, FObjectKey(FunctionCallNode)
 		, MessageManagerRegistrationKey
 	).BindUObject(this, &UNiagaraStackModuleItem::OnMessageManagerRefresh);
+
+	FunctionCallNode->OnCustomNotesChanged().BindLambda([this]()
+	{
+		RefreshChildren();
+	});
 }
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
@@ -125,6 +130,9 @@ void UNiagaraStackModuleItem::FinalizeInternal()
 	{
 		FNiagaraMessageManager::Get()->Unsubscribe(FText::FromString("StackModuleItem"), MessageLogGuid, MessageManagerRegistrationKey);
 	}
+
+	FunctionCallNode->OnCustomNotesChanged().Unbind();
+	
 	Super::FinalizeInternal();
 }
 
@@ -833,6 +841,18 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 	}
 
 	NewIssues.Append(MessageManagerIssues);
+	for(auto& Message : FunctionCallNode->GetCustomNotes())
+	{
+		TArray<FLinkNameAndDelegate> Links;
+		const FText LinkText = LOCTEXT("DeleteNoteLinkLabel", "Delete note");
+
+		// we delete the message rather than dismissing it
+		FSimpleDelegate MessageDelegate = FSimpleDelegate::CreateUObject(FunctionCallNode, &UNiagaraNodeFunctionCall::RemoveCustomNoteViaDelegate, Message.Guid);
+		const FLinkNameAndDelegate Link = FLinkNameAndDelegate(LinkText, MessageDelegate);
+		Links.Add(Link);
+
+		NewIssues.Add(FNiagaraMessageUtilities::StackMessageToStackIssue(Message, GetStackEditorDataKey(), Links));
+	}
 
 	if (FunctionCallNode->FunctionScript == nullptr && FunctionCallNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass())
 	{
@@ -1317,7 +1337,7 @@ void UNiagaraStackModuleItem::Copy(UNiagaraClipboardContent* ClipboardContent) c
 	else
 	{
 		checkf(FunctionCallNode->FunctionScript != nullptr, TEXT("Can't copy this module because it's script is invalid.  Call TestCanCopyWithMessage to check this."));
-		ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, FunctionCallNode->GetFunctionName(), FunctionCallNode->FunctionScript, FunctionCallNode->SelectedScriptVersion);
+		ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, FunctionCallNode->GetFunctionName(), FunctionCallNode->FunctionScript, FunctionCallNode->SelectedScriptVersion, FunctionCallNode->GetCustomNotes());
 	}
 
 	ClipboardFunction->DisplayName = GetAlternateDisplayName().Get(FText::GetEmpty());

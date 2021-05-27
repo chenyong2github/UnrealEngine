@@ -72,7 +72,7 @@ void FDMXOutputPort::UpdateFromConfig(const FDMXOutputPortConfig& OutputPortConf
 	// Find if the port needs update its registration with the protocol
 	const bool bNeedsUpdateRegistration = [this, &OutputPortConfig]()
 	{
-		if (!IsRegistered())
+		if (IsRegistered() != CommunicationDeterminator.NeedsSendDMX())
 		{
 			return true;
 		}
@@ -116,7 +116,7 @@ void FDMXOutputPort::UpdateFromConfig(const FDMXOutputPortConfig& OutputPortConf
 	// Re-register the port if required
 	if (bNeedsUpdateRegistration)
 	{
-		if (IsValidPortSlow())
+		if (IsValidPortSlow() && CommunicationDeterminator.NeedsSendDMX())
 		{
 			Register();
 		}
@@ -351,11 +351,33 @@ bool FDMXOutputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPt
 void FDMXOutputPort::OnSetSendDMXEnabled(bool bEnabled)
 {
 	CommunicationDeterminator.SetSendEnabled(bEnabled);
+
+	UpdateFromConfig(*FindOutputPortConfigChecked());
 }
 
 void FDMXOutputPort::OnSetReceiveDMXEnabled(bool bEnabled)
 {
 	CommunicationDeterminator.SetReceiveEnabled(bEnabled);
+
+	UpdateFromConfig(*FindOutputPortConfigChecked());
+}
+
+const FDMXOutputPortConfig* FDMXOutputPort::FindOutputPortConfigChecked() const
+{
+	const UDMXProtocolSettings* ProjectSettings = GetDefault<UDMXProtocolSettings>();
+
+	for (const FDMXOutputPortConfig& OutputPortConfig : ProjectSettings->OutputPortConfigs)
+	{
+		if (OutputPortConfig.GetPortGuid() == PortGuid)
+		{
+			return &OutputPortConfig;
+		}
+	}
+
+	// Check failed, no config found
+	checkNoEntry();
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

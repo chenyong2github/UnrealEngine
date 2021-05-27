@@ -83,8 +83,18 @@ void UDMXProtocolSettings::PostInitProperties()
 		Attribute.CleanupKeywords();
 	}
 
-	bOverrideSendDMXEnabled = bDefaultSendDMXEnabled;
-	bOverrideReceiveDMXEnabled = bDefaultReceiveDMXEnabled;
+	// Parse command line options for send and receive dmx
+	if (FParse::Bool(FCommandLine::Get(), TEXT("DEFAULTSENDDMXENABLED="), bDefaultSendDMXEnabled))
+	{
+		UE_LOG(LogDMXProtocol, Log, TEXT("Overridden Default Send DMX Enabled from command line, set to %s."), bDefaultSendDMXEnabled ? TEXT("True") : TEXT("False"));
+	}
+	OverrideSendDMXEnabled(bDefaultSendDMXEnabled);
+
+	if (FParse::Bool(FCommandLine::Get(), TEXT("DEFAULTRECEIVEDMXENABLED="), bDefaultReceiveDMXEnabled))
+	{
+		UE_LOG(LogDMXProtocol, Log, TEXT("Overridden Default Receive DMX Enabled from command line, set to %s."), bDefaultReceiveDMXEnabled ? TEXT("True") : TEXT("False"));
+	}
+	OverrideReceiveDMXEnabled(bDefaultReceiveDMXEnabled);
 }
 
 #if WITH_EDITOR

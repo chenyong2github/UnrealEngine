@@ -110,13 +110,14 @@ bool UNiagaraClipboardFunctionInput::CopyValuesFrom(const UNiagaraClipboardFunct
 	return true;
 }
 
-UNiagaraClipboardFunction* UNiagaraClipboardFunction::CreateScriptFunction(UObject* InOuter, FString InFunctionName, UNiagaraScript* InScript, const FGuid& InScriptVersion)
+UNiagaraClipboardFunction* UNiagaraClipboardFunction::CreateScriptFunction(UObject* InOuter, FString InFunctionName, UNiagaraScript* InScript, const FGuid& InScriptVersion, const TArray<FNiagaraStackMessage> InMessages)
 {
 	UNiagaraClipboardFunction* NewFunction = Cast<UNiagaraClipboardFunction>(NewObject<UNiagaraClipboardFunction>(InOuter));
 	NewFunction->ScriptMode = ENiagaraClipboardFunctionScriptMode::ScriptAsset;
 	NewFunction->FunctionName = InFunctionName;
 	NewFunction->Script = InScript;
 	NewFunction->ScriptVersion = InScriptVersion;
+	NewFunction->Messages = InMessages;
 	return NewFunction;
 }
 

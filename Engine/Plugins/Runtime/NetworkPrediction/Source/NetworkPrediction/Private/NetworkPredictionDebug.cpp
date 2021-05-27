@@ -6,6 +6,10 @@
 #include "GameFramework/Actor.h"
 #include "DrawDebugHelpers.h"
 #include "NetworkPredictionWorldManager.h"
+#include "Engine/NetConnection.h"
+#include "Engine/NetDriver.h"
+#include "EngineUtils.h"
+#include "UObject/UObjectIterator.h"
 
 namespace NetworkPredictionDebug
 {
@@ -31,6 +35,63 @@ namespace NetworkPredictionDebug
 
 		DrawDebugString(World, Transform.GetLocation(), Str, nullptr, DrawColor, Lifetime, false);
 	}
+
+	FNetworkGUID FindObjectNetGUID(UObject* Obj)
+	{
+		FNetworkGUID NetGUID;
+		if (UWorld* World = Obj->GetWorld())
+		{
+			if (UNetDriver* NetDriver = World->GetNetDriver())
+			{
+				if (UNetConnection* NetConnection = NetDriver->ServerConnection)
+				{
+					NetGUID = NetConnection->PackageMap->GetNetGUIDFromObject(Obj);
+				}
+				else if (NetDriver->ClientConnections.Num() > 0)
+				{
+					NetGUID = NetDriver->ClientConnections[0]->PackageMap->GetNetGUIDFromObject(Obj);
+				}
+			}
+		}
+		return NetGUID;
+	}
+
+	UObject* FindReplicatedObjectOnPIEServer(UObject* ClientObject)
+	{
+		if (ClientObject == nullptr)
+		{
+			return nullptr;
+		}
+
+		UObject* ServerObject = nullptr;
+
+#if WITH_EDITOR
+		FNetworkGUID NetGUID = FindObjectNetGUID(ClientObject);
+		if (NetGUID.IsValid())
+		{
+			// Find the PIE server world
+			for (TObjectIterator<UWorld> It; It; ++It)
+			{
+				if (It->WorldType == EWorldType::PIE && It->GetNetMode() != NM_Client)
+				{
+					if (UNetDriver* ServerNetDriver = It->GetNetDriver())
+					{
+						if (ServerNetDriver->ClientConnections.Num() > 0)
+						{
+							UPackageMap* ServerPackageMap = ServerNetDriver->ClientConnections[0]->PackageMap;
+							ServerObject = ServerPackageMap->GetObjectFromNetGUID(NetGUID, true);
+							break;
+						}
+					}
+				}
+			}
+		}
+#endif
+
+		return ServerObject;
+	}
+
+	
 };
 
 

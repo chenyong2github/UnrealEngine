@@ -10,6 +10,7 @@ UTestBTTask_Log::UTestBTTask_Log(const FObjectInitializer& ObjectInitializer) : 
 	LogIndex = 0;
 	LogFinished = -1;
 	LogResult = EBTNodeResult::Succeeded;
+	LogTickIndex = -1;
 
 	bNotifyTick = true;
 }
@@ -31,6 +32,11 @@ EBTNodeResult::Type UTestBTTask_Log::ExecuteTask(UBehaviorTreeComponent& OwnerCo
 void UTestBTTask_Log::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
 	FBTLogTaskMemory* MyMemory = (FBTLogTaskMemory*)NodeMemory;
+
+	if (LogTickIndex != -1)
+	{
+		LogExecution(OwnerComp, LogTickIndex);
+	}
 
 	if (FAITestHelpers::FramesCounter() >= MyMemory->EndFrameIdx)
 	{

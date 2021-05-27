@@ -44,7 +44,9 @@ public:
 		if (EtwLogChannel != nullptr)
 		{
 			Windows::Foundation::Diagnostics::LoggingLevel LogWithLevel = GetWindowsLoggingLevelFromUEVerbosity(Verbosity);
-			if (LogWithLevel >= Windows::Foundation::Diagnostics::LoggingLevel::Warning)
+			// we need to use Information level as minimal for getting all information to the editor
+			// and giving user ability to read the whole meaningful device's log
+			if (LogWithLevel >= Windows::Foundation::Diagnostics::LoggingLevel::Information)
 			{
 				EtwLogChannel->LogMessage(ref new Platform::String(Buffer), LogWithLevel);
 			}

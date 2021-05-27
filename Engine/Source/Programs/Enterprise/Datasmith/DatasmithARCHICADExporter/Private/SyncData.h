@@ -222,13 +222,13 @@ class FSyncData::FActor : public FSyncData
 	// Return Element as an actor
 	virtual const TSharedPtr< IDatasmithActorElement >& GetActorElement() const override { return ActorElement; }
 
-	typedef TArray< FString > FTagsArray;
+	typedef GS::Array< GS::UniString > FTagsArray;
 
 	// Update tags data
 	void UpdateTags(const FTagsArray& InTags);
 
 	// Add tags data
-	void AddTags(const FElementID& InElementID);
+	void AddTags(FElementID& InElementID);
 
 	void ReplaceMetaData(IDatasmithScene& IOScene, const TSharedPtr< IDatasmithMetaDataElement >& InNewMetaData);
 
@@ -280,7 +280,7 @@ class FSyncData::FElement : public FSyncData::FActor
 	virtual bool AttachObserver(FAttachObservers* IOAttachObservers) override;
 
 	// Rebuild the meta data of this element
-	void UpdateMetaData(IDatasmithScene& IOScene);
+	void UpdateMetaData(FProcessInfo* IOProcessInfo);
 
 	// Return true if this element and all it's childs have been cut out
 	bool CheckAllCutOut() override;
@@ -354,6 +354,17 @@ class FSyncData::FLight : public FSyncData::FActor
 		}
 	}
 
+	void SetValuesFromParameters(double InIntensity, bool bInUseIES, const GS::UniString& InIESFileName)
+	{
+		if (Intensity != InIntensity || bUseIES != bInUseIES || IESFileName != InIESFileName)
+		{
+			Intensity = InIntensity;
+			bUseIES = bInUseIES;
+			IESFileName = InIESFileName;
+			bIsModified = true;
+		}
+	}
+
 	void Placement(const FVector& InPosition, const FQuat& InRotation)
 	{
 		if (Position != InPosition || Rotation != InRotation)
@@ -374,6 +385,9 @@ class FSyncData::FLight : public FSyncData::FActor
 	FLinearColor			Color;
 	FVector					Position;
 	FQuat					Rotation;
+	double					Intensity;
+	bool					bUseIES;
+	GS::UniString			IESFileName;
 };
 
 class FSyncData::FHotLinksRoot : public FSyncData::FActor

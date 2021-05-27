@@ -11,7 +11,6 @@ public class DisplayClusterPostprocess : ModuleRules
 			new string[] {
 				"Core",
 				"Engine",
-				"DisplayCluster",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -19,10 +18,17 @@ public class DisplayClusterPostprocess : ModuleRules
 				"DisplayCluster",
 				"DisplayClusterShaders",
 				"RHI",
-				"TextureShare",
-				"TextureShareCore",
-				"TextureShareD3D12"
 			});
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"TextureShare",
+					"TextureShareCore",
+					"TextureShareD3D12"
+				});
+		}
 
 		if (Target.bBuildEditor == true)
 		{

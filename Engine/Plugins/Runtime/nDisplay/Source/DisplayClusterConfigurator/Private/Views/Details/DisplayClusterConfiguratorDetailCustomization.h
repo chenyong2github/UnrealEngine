@@ -42,8 +42,6 @@ class FDisplayClusterConfiguratorDetailCustomization
 	: public IDetailCustomization
 {
 public:
-	FDisplayClusterConfiguratorDetailCustomization();
-
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
 	/** End IDetailCustomization interface */
@@ -65,12 +63,8 @@ protected:
 	bool IsRunningForBlueprintEditor() const { return ToolkitPtr.IsValid(); }
 
 protected:
-	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr = nullptr;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr;
-	
-	IDetailLayoutBuilder* LayoutBuilder;
-
-	IDetailCategoryBuilder* NDisplayCategory;
 };
 
 /**
@@ -116,26 +110,17 @@ public:
 
 private:
 	void ResetCameraOptions();
-
-	void AddCameraRow();
-
+	TSharedRef<SWidget> CreateCustomCameraWidget();
 	TSharedRef<SWidget> MakeCameraOptionComboWidget(TSharedPtr<FString> InItem);
-
 	void OnCameraSelected(TSharedPtr<FString> InCamera, ESelectInfo::Type SelectInfo);
-
 	FText GetSelectedCameraText() const;
 
 private:
 	TArray< TSharedPtr< FString > >	CameraOptions;
-
 	TSharedPtr<IPropertyHandle> CameraHandle;
-
 	TSharedPtr<FString>	NoneOption;
-
 	TWeakObjectPtr<UDisplayClusterConfigurationViewport> ConfigurationViewportPtr;
-
 	TWeakObjectPtr<UDisplayClusterConfigurationData> ConfigurationDataPtr;
-
 	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> CameraComboBox;
 };
 
@@ -414,5 +399,19 @@ private:
 	TWeakObjectPtr<UDisplayClusterConfigurationClusterNode> ClusterNodePtr;
 	TSharedPtr<IPropertyHandle> ImagePathHandle;
 };
+
+
+/**
+ * Component Ref Type Customization (Prevents struct from expanding)
+ */
+class FDisplayClusterConfiguratorComponentRefCustomization final
+	: public FDisplayClusterConfiguratorTypeCustomization
+{
+protected:
+	//~ IPropertyTypeCustomization interface begin
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	//~ IPropertyTypeCustomization interface end
+};
+
 
 #undef CONSTRUCT_CUSTOMIZATION

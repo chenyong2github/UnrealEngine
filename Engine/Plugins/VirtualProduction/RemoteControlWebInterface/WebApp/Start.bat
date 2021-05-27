@@ -1,7 +1,10 @@
 @echo off
 
-rem First we check if nodejs is installed
-for %%X in (node.exe) do (SET node=%%~$PATH:X)
+rem Add default nodejs installation folder to path, in case it was not added / overwritten
+SET PATH=%PATH%;%ProgramFiles%\nodejs\
+
+rem Check if nodejs is in the env variable PATH 
+for %%X in (node.exe) do (set node=%%~$PATH:X)
 if not defined node (
   echo ERROR: Couldn't find node.js installed, Please install latest nodejs from https://nodejs.org/en/download/
   exit 1

@@ -19,6 +19,18 @@ struct FRCObjectReference;
 
 using FGetProtocolMappingCallback = TFunctionRef<void(FRemoteControlProtocolMapping&)>;
 
+/**
+ * Status of the binding 
+ */
+UENUM()
+enum class ERCBindingStatus : uint8
+{
+	Unassigned,
+	Awaiting ,
+	Bound
+};
+
+
 /*
  * Mapping of the range of the values for the protocol
  * This class holds a generic range buffer.
@@ -353,6 +365,18 @@ public:
 	/** Get Size of the range property value */
 	uint8 GetRangePropertySize() const;
 
+	/** Get current binding state of the entity */
+	ERCBindingStatus GetBindingStatus() const { return BindingStatus; }
+
+	/**
+	 * Toggle the binding
+	 * @return Current binding state
+	 */
+	ERCBindingStatus ToggleBindingStatus();
+
+	/** Reset the binding set to default */ 
+	void ResetDefaultBindingState();
+
 private:
 
 	/**
@@ -377,10 +401,6 @@ protected:
 	UPROPERTY()
 	FGuid PropertyId;
 
-	/** Should property generate transaction events? */
-	UPROPERTY(EditAnywhere, Category = Mapping)
-	bool bGenerateTransaction = true;
-
 protected:
 	/** 
 	 * Property mapping ranges set
@@ -388,6 +408,11 @@ protected:
 	 */
 	UPROPERTY()
 	TSet<FRemoteControlProtocolMapping> Mappings;
+
+private:
+	/** Binding status of this protocol entity */
+	UPROPERTY()
+	ERCBindingStatus BindingStatus = ERCBindingStatus::Unassigned;
 };
 
 /**

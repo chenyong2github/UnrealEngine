@@ -60,6 +60,12 @@ TWeakObjectPtr<ULevelSnapshotFilter> UFilteredResults::GetUserFilters() const
 	return UserFilters;
 }
 
+void UFilteredResults::ClearSelectedWorld()
+{
+	SelectedWorld = nullptr;
+	CleanReferences();
+}
+
 void UFilteredResults::SetSelectedWorld(UWorld* InWorld)
 {
 	SelectedWorld = InWorld;

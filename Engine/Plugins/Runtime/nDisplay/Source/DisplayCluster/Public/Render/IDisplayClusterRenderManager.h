@@ -22,8 +22,7 @@ struct FPostProcessSettings;
 class IDisplayClusterRenderManager
 {
 public:
-	virtual ~IDisplayClusterRenderManager() = 0
-	{ }
+	virtual ~IDisplayClusterRenderManager() = default;
 
 public:
 	// Post-process operation wrapper

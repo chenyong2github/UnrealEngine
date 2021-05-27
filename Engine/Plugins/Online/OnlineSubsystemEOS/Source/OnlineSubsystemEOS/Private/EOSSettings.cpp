@@ -4,6 +4,7 @@
 #include "OnlineSubsystemEOS.h"
 #include "OnlineSubsystemEOSModule.h"
 
+#include "Algo/Transform.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 
@@ -66,7 +67,7 @@ FEOSArtifactSettings FArtifactSettings::ToNative() const
 	return Native;
 }
 
-inline FString StripQuotes(FString& Source)
+inline FString StripQuotes(const FString& Source)
 {
 	if (Source.StartsWith(TEXT("\"")))
 	{
@@ -75,7 +76,7 @@ inline FString StripQuotes(FString& Source)
 	return Source;
 }
 
-void FEOSArtifactSettings::ParseRawArrayEntry(FString& RawLine)
+void FEOSArtifactSettings::ParseRawArrayEntry(const FString& RawLine)
 {
 	const TCHAR* Delims[4] = { TEXT("("), TEXT(")"), TEXT("="), TEXT(",") };
 	TArray<FString> Values;
@@ -120,12 +121,6 @@ void FEOSArtifactSettings::ParseRawArrayEntry(FString& RawLine)
 	}
 }
 
-UEOSSettings::UEOSSettings()
-	: CacheDir(TEXT("CacheDir"))
-{
-
-}
-
 FEOSSettings UEOSSettings::GetSettings()
 {
 	if (UObjectInitialized())
@@ -144,21 +139,21 @@ FEOSSettings UEOSSettings::ManualGetSettings()
 {
 	FEOSSettings Native;
 
+	GConfig->GetString(INI_SECTION, TEXT("CacheDir"), Native.CacheDir, GEngineIni);
+	GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), Native.DefaultArtifactName, GEngineIni);
+	GConfig->GetInt(INI_SECTION, TEXT("TickBudgetInMilliseconds"), Native.TickBudgetInMilliseconds, GEngineIni);
+	GConfig->GetInt(INI_SECTION, TEXT("TitleStorageReadChunkLength"), Native.TitleStorageReadChunkLength, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bEnableOverlay"), Native.bEnableOverlay, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bEnableSocialOverlay"), Native.bEnableSocialOverlay, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bShouldEnforceBeingLaunchedByEGS"), Native.bShouldEnforceBeingLaunchedByEGS, GEngineIni);
-	GConfig->GetString(INI_SECTION, TEXT("CacheDir"), Native.CacheDir, GEngineIni);
-	GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), Native.DefaultArtifactName, GEngineIni);
-	GConfig->GetArray(INI_SECTION, TEXT("TitleStorageTags"), Native.TitleStorageTags, GEngineIni);
-	GConfig->GetInt(INI_SECTION, TEXT("TickBudgetInMilliseconds"), Native.TickBudgetInMilliseconds, GEngineIni);
-	GConfig->GetInt(INI_SECTION, TEXT("TitleStorageReadChunkLength"), Native.TitleStorageReadChunkLength, GEngineIni);
-
 	GConfig->GetBool(INI_SECTION, TEXT("bUseEAS"), Native.bUseEAS, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bUseEOSConnect"), Native.bUseEOSConnect, GEngineIni);
+	GConfig->GetBool(INI_SECTION, TEXT("bUseEOSSessions"), Native.bUseEOSSessions, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bMirrorStatsToEOS"), Native.bMirrorStatsToEOS, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bMirrorAchievementsToEOS"), Native.bMirrorAchievementsToEOS, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bUseEOSSessions"), Native.bUseEOSSessions, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bMirrorPresenceToEAS"), Native.bMirrorPresenceToEAS, GEngineIni);
+	// Artifacts explicitly skipped
+	GConfig->GetArray(INI_SECTION, TEXT("TitleStorageTags"), Native.TitleStorageTags, GEngineIni);
 
 	return Native;
 }
@@ -167,18 +162,21 @@ FEOSSettings UEOSSettings::ToNative() const
 {
 	FEOSSettings Native;
 
-	Native.bEnableOverlay = bEnableOverlay;
-	Native.bEnableSocialOverlay = bEnableSocialOverlay;
 	Native.CacheDir = CacheDir;
 	Native.DefaultArtifactName = DefaultArtifactName;
-	Native.TitleStorageTags = TitleStorageTags;
 	Native.TickBudgetInMilliseconds = TickBudgetInMilliseconds;
 	Native.TitleStorageReadChunkLength = TitleStorageReadChunkLength;
-
-	for (const FArtifactSettings& ArtifactSettings : Artifacts)
-	{
-		Native.Artifacts.Add(ArtifactSettings.ToNative());
-	}
+	Native.bEnableOverlay = bEnableOverlay;
+	Native.bEnableSocialOverlay = bEnableSocialOverlay;
+	Native.bShouldEnforceBeingLaunchedByEGS = bShouldEnforceBeingLaunchedByEGS;
+	Native.bUseEAS = bUseEAS;
+	Native.bUseEOSConnect = bUseEOSConnect;
+	Native.bUseEOSSessions = bUseEOSSessions;
+	Native.bMirrorStatsToEOS = bMirrorStatsToEOS;
+	Native.bMirrorAchievementsToEOS = bMirrorAchievementsToEOS;
+	Native.bMirrorPresenceToEAS = bMirrorPresenceToEAS;
+	Algo::Transform(Artifacts, Native.Artifacts, &FArtifactSettings::ToNative);
+	Native.TitleStorageTags = TitleStorageTags;
 
 	return Native;
 }
@@ -201,7 +199,7 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 
 	TArray<FString> Artifacts;
 	GConfig->GetArray(INI_SECTION, TEXT("Artifacts"), Artifacts, GEngineIni);
-	for (FString& Line : Artifacts)
+	for (const FString& Line : Artifacts)
 	{
 		FEOSArtifactSettings Artifact;
 		Artifact.ParseRawArrayEntry(Line);
@@ -216,7 +214,7 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 		ArtifactNameOverride = ArtifactName;
 	}
 	// Search by name and then default if not found
-	for (FEOSArtifactSettings& Artifact : ArtifactSettings)
+	for (const FEOSArtifactSettings& Artifact : ArtifactSettings)
 	{
 		if (Artifact.ArtifactName == ArtifactNameOverride)
 		{
@@ -224,7 +222,7 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 			return true;
 		}
 	}
-	for (FEOSArtifactSettings& Artifact : ArtifactSettings)
+	for (const FEOSArtifactSettings& Artifact : ArtifactSettings)
 	{
 		if (Artifact.ArtifactName == DefaultArtifactName)
 		{

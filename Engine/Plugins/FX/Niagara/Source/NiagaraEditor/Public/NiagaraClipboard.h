@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "NiagaraMessages.h"
 #include "NiagaraTypes.h"
+#include "Engine/UserDefinedEnum.h"
 #include "UObject/GCObject.h"
 #include "UObject/SoftObjectPtr.h"
 #include "NiagaraClipboard.generated.h"
@@ -92,7 +94,7 @@ class NIAGARAEDITOR_API UNiagaraClipboardFunction : public UObject
 public:
 	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnPastedFunctionCallNode, UNiagaraNodeFunctionCall*, PastedFunctionCall);
 
-	static UNiagaraClipboardFunction* CreateScriptFunction(UObject* InOuter, FString InFunctionName, UNiagaraScript* InScript, const FGuid& InScriptVersion = FGuid());
+	static UNiagaraClipboardFunction* CreateScriptFunction(UObject* InOuter, FString InFunctionName, UNiagaraScript* InScript, const FGuid& InScriptVersion = FGuid(), const TArray<FNiagaraStackMessage> InStackMessages = TArray<FNiagaraStackMessage>());
 
 	static UNiagaraClipboardFunction* CreateAssignmentFunction(UObject* InOuter, FString InFunctionName, const TArray<FNiagaraVariable>& InAssignmentTargets, const TArray<FString>& InAssignmentDefaults);
 
@@ -122,6 +124,9 @@ public:
 
 	UPROPERTY()
 	FGuid ScriptVersion;
+
+	UPROPERTY()
+	TArray<FNiagaraStackMessage> Messages;
 };
 
 UCLASS()

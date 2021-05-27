@@ -14,7 +14,7 @@ class FStreamer : public FSignallingServerConnectionObserver
 public:
 	static bool CheckPlatformCompatibility();
 
-	explicit FStreamer(const FString& SignallingServerUrl);
+	explicit FStreamer(const FString& SignallingServerUrl, const FString& StreamerId);
 	virtual ~FStreamer() override;
 
 	void SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor);
@@ -49,10 +49,10 @@ private:
 	void DeleteAllPlayerSessions();
 	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
 	void AddStreams(FPlayerId PlayerId);
-	void SendVideoEncoderQP();
 
 private:
 	FString SignallingServerUrl;
+	FString StreamerId;
 
 #if PLATFORM_WINDOWS
 	DWORD WebRtcSignallingThreadId = 0;

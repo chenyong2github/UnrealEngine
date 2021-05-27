@@ -116,9 +116,14 @@ public:
 	* It is common to do this in StartupModule of your IModuleInterface class (which may also be the class that implements this interface).
 	* The module's LoadingPhase must be PostInitConfig or earlier because OpenXRHMD will look for these after it is loaded in that phase.
 	*/
-	virtual void RegisterOpenXRExtensionModularFeature()
+	void RegisterOpenXRExtensionModularFeature()
 	{
 		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
+	}
+
+	void UnregisterOpenXRExtensionModularFeature()
+	{
+		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 	}
 
 	/**
@@ -137,6 +142,16 @@ public:
 	{
 		return false;
 	}
+	
+	/**
+	* Optionally provide a custom render bridge for the OpenXR plugin.
+	* Note: this returns a pointer to a new instance allocated with "new".  Calling code is responsible for eventually deleting it.
+	*/
+	virtual class FOpenXRRenderBridge* GetCustomRenderBridge(XrInstance InInstance, XrSystemId InSystem)
+	{
+		return nullptr;
+	}
+
 
 	/**
 	* Fill the array with extensions required by the plugin
@@ -194,6 +209,17 @@ public:
 
 	/** Get custom capture interface if provided by this extension. */
 	virtual IOpenXRCustomCaptureSupport* GetCustomCaptureSupport(const EARCaptureType CaptureType) { return nullptr; }
+
+	virtual void* OnEnumerateViewConfigurationViews(XrInstance InInstance, XrSystemId InSystem, XrViewConfigurationType InViewConfigurationType, uint32_t InViewIndex, void* InNext)
+	{
+		return InNext;
+	}
+
+	virtual const void* OnLocateViews(XrSession InSession, XrTime InDisplayTime, const void* InNext)
+	{
+		return InNext;
+	}
+
 	/**
 	* Callback to provide extra view configurations that should be rendered in the main render pass
 	*/
@@ -232,6 +258,10 @@ public:
 		return InNext;
 	}
 
+	virtual void PostCreateSession(XrSession InSession)
+	{
+	}
+
 	virtual const void* OnBeginSession(XrSession InSession, const void* InNext)
 	{
 		return InNext;
@@ -243,7 +273,12 @@ public:
 		return InNext;
 	}
 
-	// OpenXRHMD::OnBeginRendering_RenderThread
+	// OpenXRHMD::OnBeginRendering_RenderThread, before acquiring swapchain
+	virtual void OnAcquireSwapchainImage(XrSession InSession)
+	{
+	}
+
+	// OpenXRHMD::OnBeginRendering_RHIThread
 	virtual const void* OnBeginFrame(XrSession InSession, XrTime DisplayTime, const void* InNext)
 	{
 		return InNext;

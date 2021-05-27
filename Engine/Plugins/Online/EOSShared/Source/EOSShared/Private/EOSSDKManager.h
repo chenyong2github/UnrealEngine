@@ -14,6 +14,8 @@
 
 #include "IEOSSDKManager.h"
 
+struct FEOSPlatformHandle;
+
 class FEOSSDKManager : public IEOSSDKManager
 {
 public:
@@ -24,10 +26,7 @@ public:
 	virtual EOS_EResult Initialize() override;
 	virtual bool IsInitialized() const override { return bInitialized; }
 
-	virtual EOS_HPlatform CreatePlatform(const EOS_Platform_Options& PlatformOptions) override;
-	virtual void ReleasePlatform(EOS_HPlatform EosPlatformHandle) override;
-
-	virtual bool Tick(float) override;
+	virtual IEOSPlatformHandlePtr CreatePlatform(const EOS_Platform_Options& PlatformOptions) override;
 
 	virtual FString GetProductName() const override;
 	virtual FString GetProductVersion() const override;
@@ -38,23 +37,36 @@ public:
 protected:
 	virtual EOS_EResult EOSInitialize(EOS_InitializeOptions& Options);
 
-	void UpdateConfiguration();
+private:
+	friend struct FEOSPlatformHandle;
+
+	void ReleasePlatform(EOS_HPlatform PlatformHandle);
+	bool Tick(float);
 
 #if EOSSDK_RUNTIME_LOAD_REQUIRED
 	void* SDKHandle = nullptr;
 #endif
 
-	struct
-	{
-		FString LogLevel;
-	} Config;
-
 	/** Are we currently initialized */
 	bool bInitialized = false;
-	/** Set of EOS platforms created with CreatePlatform */
-	TSet<EOS_HPlatform> EosPlatformHandles;
+	/** Created platforms */
+	TArray<EOS_HPlatform> PlatformHandles;
 	/** Handle to ticker delegate for Tick(), valid whenever EosPlatformHandles is non-empty. */
 	FDelegateHandle TickerHandle;
+};
+
+struct FEOSPlatformHandle : public IEOSPlatformHandle
+{
+	FEOSPlatformHandle(FEOSSDKManager& InManager, EOS_HPlatform InPlatformHandle)
+		: IEOSPlatformHandle(InPlatformHandle), Manager(InManager)
+	{
+	}
+
+	virtual ~FEOSPlatformHandle();
+	virtual void Tick() override;
+
+	/* Reference to the EOSSDK manager */
+	FEOSSDKManager& Manager;
 };
 
 #endif // WITH_EOS_SDK

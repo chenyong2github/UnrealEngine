@@ -87,6 +87,7 @@ public:
 	void DestroySystemInstance(FNiagaraSystemInstancePtr& InPtr);	
 
 	void MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation);
+	void MarkSimulationsForEndOfFrameWait(FNiagaraSystemSimulation* SystemSimulation);
 
 	void Tick(ETickingGroup TickGroup, float DeltaSeconds, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 
@@ -243,6 +244,8 @@ private:
 	TMap<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SystemSimulations[NiagaraNumTickGroups];
 
 	TArray<TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SimulationsWithPostActorWork;
+
+	TArray<TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SimulationsWithEndOfFrameWait;
 
 	int32 CachedEffectsQuality;
 

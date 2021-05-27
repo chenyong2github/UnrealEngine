@@ -227,7 +227,10 @@ namespace DatasmithRuntime
 
 		if (Texture)
 		{
-			DirectLink::FElementHash TextureHash = GetTypeHash(TextureElement->CalculateElementHash(true), EDataType::Texture);
+			// Apply metadata on newly created texture if any
+			ApplyMetadata(AssetData.MetadataId, Texture);
+
+			uint32 TextureHash = GetTypeHash(TextureElement->CalculateElementHash(true), EDataType::Texture);
 
 			FAssetRegistry::UnregisteredAssetsData(THelper, SceneKey, [this, &Texture, TextureHash](FAssetData& AssetData) -> void
 				{
@@ -338,7 +341,7 @@ namespace DatasmithRuntime
 
 		IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(Elements[ TextureId ].Get());
 
-		DirectLink::FElementHash TextureHash = GetTypeHash(TextureElement->CalculateElementHash(true), EDataType::Texture);
+		uint32 TextureHash = GetTypeHash(TextureElement->CalculateElementHash(true), EDataType::Texture);
 
 		if (UObject* Asset = FAssetRegistry::FindObjectFromHash(TextureHash))
 		{

@@ -322,7 +322,19 @@ public:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
 
+	/** DEPRECATED 4.27 */
+	UE_DEPRECATED(4.27, "Use UpdateChannelSpan instead.")
 	void UpdateModeChannelProperties(FDMXFixtureMode& Mode);
+
+	/** Updates the channel span of the Mode */
+	void UpdateChannelSpan(FDMXFixtureMode& Mode);
+
+	/** Updates the FixtureMatrixConfig's YCells property given num XCells for the specified Mode */
+	void UpdateYCellsFromXCells(FDMXFixtureMode& Mode);
+
+	/** Updates the FixtureMatrixConfig's XCells property given num YCells for the specified Mode */
+	void UpdateXCellsFromYCells(FDMXFixtureMode& Mode);
+
 #endif // WITH_EDITOR
 
 private:

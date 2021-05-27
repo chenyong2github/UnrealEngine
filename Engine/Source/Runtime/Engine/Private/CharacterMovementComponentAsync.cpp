@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CharacterMovementComponentAsync.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/SpatialAccelerationCollection.h"
 #include "PBDRigidsSolver.h"
@@ -624,7 +625,7 @@ void FCharacterMovementAsyncInput::UpdateBasedMovement(float DeltaSeconds, FChar
 				// Do we need this value after all?
 
 				CharacterInput->FaceRotation(TargetRotator, 0.0f, *this, Output);
-				FinalQuat =    Output.CharacterOwnerRotation.Quaternion();//UpdatedComponent->GetComponentQuat(); supposed to be modified by MockFaceRotation, si this ok?
+				FinalQuat =  Output.Pawn->Rotation.Quaternion();//UpdatedComponent->GetComponentQuat(); supposed to be modified by MockFaceRotation, si this ok?
 
 
 				if (PawnOldQuat.Equals(FinalQuat, 1e-6f))
@@ -1057,15 +1058,15 @@ void FCharacterMovementAsyncInput::PhysFalling(float deltaTime, int32 Iterations
 
 		// If jump is providing force, gravity may be affected.
 		bool bEndingJumpForce = false;
-		if (Output.JumpForceTimeRemaining > 0.0f)
+		if (Output.Pawn->JumpForceTimeRemaining > 0.0f)
 		{
 			// Consume some of the force time. Only the remaining time (if any) is affected by gravity when bApplyGravityWhileJumping=false.
-			const float JumpForceTime = FMath::Min(Output.JumpForceTimeRemaining, timeTick);
+			const float JumpForceTime = FMath::Min(Output.Pawn->JumpForceTimeRemaining, timeTick);
 			GravityTime = bApplyGravityWhileJumping ? timeTick : FMath::Max(0.0f, timeTick - JumpForceTime);
 
 			// Update Character state
-			Output.JumpForceTimeRemaining -= JumpForceTime;
-			if (Output.JumpForceTimeRemaining <= 0.0f)
+			Output.Pawn->JumpForceTimeRemaining -= JumpForceTime;
+			if (Output.Pawn->JumpForceTimeRemaining <= 0.0f)
 			{
 				CharacterInput->ResetJumpState(*this, Output);
 				bEndingJumpForce = true;
@@ -1780,8 +1781,7 @@ void FCharacterMovementAsyncInput::OnMovementModeChanged(EMovementMode PreviousM
 		}*/
 	}
 
-	// TODO Character->OnMovementModeChanged
-	//CharacterOwner->OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+	CharacterInput->OnMovementModeChanged(PreviousMovementMode, *this, Output, PreviousCustomMode);
 
 	//ensureMsgf(GroundMovementMode == MOVE_Walking || GroundMovementMode == MOVE_NavWalking, TEXT("Invalid GroundMovementMode %d. MovementMode: %d, PreviousMovementMode: %d"), GroundMovementMode.GetValue(), MovementMode.GetValue(), PreviousMovementMode);
 }
@@ -4376,7 +4376,7 @@ void FCharacterAsyncInput::FaceRotation(FRotator NewControlRotation, float Delta
 	// Only if we actually are going to use any component of rotation.
 	if (bUseControllerRotationPitch || bUseControllerRotationYaw || bUseControllerRotationRoll)
 	{
-		FRotator& CurrentRotation = Output.CharacterOwnerRotation;
+		FRotator& CurrentRotation = Output.Pawn->Rotation;
 		if (!bUseControllerRotationPitch)
 		{
 			NewControlRotation.Pitch = CurrentRotation.Pitch;
@@ -4406,16 +4406,16 @@ void FCharacterAsyncInput::FaceRotation(FRotator NewControlRotation, float Delta
 
 void FCharacterAsyncInput::CheckJumpInput(float DeltaSeconds, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const
 {
-	Output.JumpCurrentCountPreJump = Output.JumpCurrentCount;
+	Output.Pawn->JumpCurrentCountPreJump = Output.Pawn->JumpCurrentCount;
 
-	if (Output.bPressedJump)
+	if (Output.Pawn->bPressedJump)
 	{
 		// If this is the first jump and we're already falling,
 		// then increment the JumpCount to compensate.
-		const bool bFirstJump = Output.JumpCurrentCount == 0;
+		const bool bFirstJump = Output.Pawn->JumpCurrentCount == 0;
 		if (bFirstJump && Input.IsFalling(Output))
 		{
-			Output.JumpCurrentCount++;
+			Output.Pawn->JumpCurrentCount++;
 		}
 
 		// TODO bClientUpdating
@@ -4423,35 +4423,36 @@ void FCharacterAsyncInput::CheckJumpInput(float DeltaSeconds, const FCharacterMo
 		if (bDidJump)
 		{
 			// Transition from not (actively) jumping to jumping.
-			if (!Output.bWasJumping)
+			if (!Output.Pawn->bWasJumping)
 			{
-				Output.JumpCurrentCount++;
-				Output.JumpForceTimeRemaining = JumpMaxHoldTime;
+				Output.Pawn->JumpCurrentCount++;
+				Output.Pawn->JumpForceTimeRemaining = JumpMaxHoldTime;
 				//OnJumped(); TODO Jumping
 			}
 		}
 
-		Output.bWasJumping = bDidJump;
+		Output.Pawn->bWasJumping = bDidJump;
 	}
 }
 
 void FCharacterAsyncInput::ClearJumpInput(float DeltaSeconds, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const
 {
-	if (Output.bPressedJump)
+	if (Output.Pawn->bPressedJump)
 	{
-		Output.JumpKeyHoldTime += DeltaSeconds;
+		Output.Pawn->JumpKeyHoldTime += DeltaSeconds;
 
 		// Don't disable bPressedJump right away if it's still held.
 		// Don't modify JumpForceTimeRemaining because a frame of update may be remaining.
-		if (Output.JumpKeyHoldTime >= JumpMaxHoldTime)
+		if (Output.Pawn->JumpKeyHoldTime >= JumpMaxHoldTime)
 		{
-			Output.bPressedJump = false;
+			Output.Pawn->bClearJumpInput = true;
+			Output.Pawn->bPressedJump = false;
 		}
 	}
 	else
 	{
-		Output.JumpForceTimeRemaining = 0.0f;
-		Output.bWasJumping = false;
+		Output.Pawn->JumpForceTimeRemaining = 0.0f;
+		Output.Pawn->bWasJumping = false;
 	}
 }
 
@@ -4466,15 +4467,15 @@ bool FCharacterAsyncInput::CanJump(const FCharacterMovementAsyncInput& Input, FC
 	if (bCanJump)
 	{
 		// Ensure JumpHoldTime and JumpCount are valid.
-		if (!Output.bWasJumping || Input.CharacterInput->JumpMaxHoldTime <= 0.0f)
+		if (!Output.Pawn->bWasJumping || Input.CharacterInput->JumpMaxHoldTime <= 0.0f)
 		{
-			if (Output.JumpCurrentCount == 0 && Input.IsFalling(Output))
+			if (Output.Pawn->JumpCurrentCount == 0 && Input.IsFalling(Output))
 			{
-				bCanJump = Output.JumpCurrentCount + 1 < Input.CharacterInput->JumpMaxCount;
+				bCanJump = Output.Pawn->JumpCurrentCount + 1 < Input.CharacterInput->JumpMaxCount;
 			}
 			else
 			{
-				bCanJump = Output.JumpCurrentCount < Input.CharacterInput->JumpMaxCount;
+				bCanJump = Output.Pawn->JumpCurrentCount < Input.CharacterInput->JumpMaxCount;
 			}
 		}
 		else
@@ -4482,9 +4483,9 @@ bool FCharacterAsyncInput::CanJump(const FCharacterMovementAsyncInput& Input, FC
 			// Only consider JumpKeyHoldTime as long as:
 			// A) The jump limit hasn't been met OR
 			// B) The jump limit has been met AND we were already jumping
-			const bool bJumpKeyHeld = (Output.bPressedJump && Output.JumpKeyHoldTime < Input.CharacterInput->JumpMaxHoldTime);
+			const bool bJumpKeyHeld = (Output.Pawn->bPressedJump && Output.Pawn->JumpKeyHoldTime < Input.CharacterInput->JumpMaxHoldTime);
 			bCanJump = bJumpKeyHeld &&
-				((Output.JumpCurrentCount < Input.CharacterInput->JumpMaxCount) || (Output.bWasJumping && Output.JumpCurrentCount == Input.CharacterInput->JumpMaxCount));
+				((Output.Pawn->JumpCurrentCount < Input.CharacterInput->JumpMaxCount) || (Output.Pawn->bWasJumping && Output.Pawn->JumpCurrentCount == Input.CharacterInput->JumpMaxCount));
 		}
 	}
 
@@ -4493,14 +4494,99 @@ bool FCharacterAsyncInput::CanJump(const FCharacterMovementAsyncInput& Input, FC
 
 void FCharacterAsyncInput::ResetJumpState(const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output) const
 {
-	Output.bPressedJump = false;
-	Output.bWasJumping = false;
-	Output.JumpKeyHoldTime = 0.0f;
-	Output.JumpForceTimeRemaining = 0.0f;
-
-	if (Input.IsFalling(Output))
+	if (Output.Pawn->bPressedJump == true)
 	{
-		Output.JumpCurrentCount = 0;
-		Output.JumpCurrentCountPreJump = 0;
+		Output.Pawn->bClearJumpInput = true;
+	}
+
+	Output.Pawn->bPressedJump = false;
+	Output.Pawn->bWasJumping = false;
+	Output.Pawn->JumpKeyHoldTime = 0.0f;
+	Output.Pawn->JumpForceTimeRemaining = 0.0f;
+
+	if (!Input.IsFalling(Output))
+	{
+		Output.Pawn->JumpCurrentCount = 0;
+		Output.Pawn->JumpCurrentCountPreJump = 0;
 	}
 }
+
+void FCharacterAsyncInput::OnMovementModeChanged(EMovementMode PrevMovementMode, const FCharacterMovementAsyncInput& Input, FCharacterMovementAsyncOutput& Output, uint8 PreviousCustomMode)
+{
+	if (!Output.Pawn->bPressedJump || !Input.IsFalling(Output))
+	{
+		ResetJumpState(Input, Output);
+	}
+	
+	// TODO Proxy
+	// Record jump force start time for proxies. Allows us to expire the jump even if not continually ticking down a timer.
+	/*if (bProxyIsJumpForceApplied && Input->IsFalling(Output))
+	{
+		ProxyJumpForceStartedTime = GetWorld()->GetTimeSeconds();
+	}*/
+
+	// TODO Blueprint calls
+	//K2_OnMovementModeChanged(PrevMovementMode, CharacterMovement->MovementMode, PrevCustomMode, CharacterMovement->CustomMovementMode);
+	//MovementModeChangedDelegate.Broadcast(this, PrevMovementMode, PrevCustomMode);
+}
+
+void FCharacterMovementAsyncCallback::OnPreSimulate_Internal()
+{
+	PreSimulateImpl<FCharacterMovementAsyncInput, FCharacterMovementAsyncOutput>(*this);
+}
+
+void FCharacterMovementAsyncOutput::Copy(const FCharacterMovementAsyncOutput& Value)
+{
+	bIsValid = Value.bIsValid;
+
+	bWasSimulatingRootMotion = Value.bWasSimulatingRootMotion;
+	MovementMode = Value.MovementMode;
+	GroundMovementMode = Value.GroundMovementMode;
+	CustomMovementMode = Value.CustomMovementMode;
+	Acceleration = Value.Acceleration;
+	AnalogInputModifier = Value.AnalogInputModifier;
+	LastUpdateLocation = Value.LastUpdateLocation;
+	LastUpdateRotation = Value.LastUpdateRotation;
+	LastUpdateVelocity = Value.LastUpdateVelocity;
+	bForceNextFloorCheck = Value.bForceNextFloorCheck;
+	CurrentRootMotion = Value.CurrentRootMotion;
+	Velocity = Value.Velocity;
+	bDeferUpdateBasedMovement = Value.bDeferUpdateBasedMovement;
+	MoveComponentFlags = Value.MoveComponentFlags;
+	PendingForceToApply = Value.PendingForceToApply;
+	PendingImpulseToApply = Value.PendingImpulseToApply;
+	PendingLaunchVelocity = Value.PendingLaunchVelocity;
+	bCrouchMaintainsBaseLocation = Value.bCrouchMaintainsBaseLocation;
+	bJustTeleported = Value.bJustTeleported;
+	ScaledCapsuleRadius = Value.ScaledCapsuleRadius;
+	ScaledCapsuleHalfHeight = Value.ScaledCapsuleHalfHeight;
+	bIsCrouched = Value.bIsCrouched;
+	bWantsToCrouch = Value.bWantsToCrouch;
+	bMovementInProgress = Value.bMovementInProgress;
+	CurrentFloor = Value.CurrentFloor;
+	bHasRequestedVelocity = Value.bHasRequestedVelocity;
+	bRequestedMoveWithMaxSpeed = Value.bRequestedMoveWithMaxSpeed;
+	RequestedVelocity = Value.RequestedVelocity;
+	NumJumpApexAttempts = Value.NumJumpApexAttempts;
+	RootMotionParams = Value.RootMotionParams;
+	bShouldApplyDeltaToMeshPhysicsTransforms = Value.bShouldApplyDeltaToMeshPhysicsTransforms;
+	DeltaPosition = Value.DeltaPosition;
+	DeltaQuat = Value.DeltaQuat;
+	DeltaTime = Value.DeltaTime;
+	OldVelocity = Value.OldVelocity;
+	OldLocation = Value.OldLocation;
+
+	// See MaybeUpdateBasedMovement
+	// TODO MovementBase, handle tick group changes properly
+	bShouldDisablePostPhysicsTick = Value.bShouldDisablePostPhysicsTick;
+	bShouldEnablePostPhysicsTick = Value.bShouldEnablePostPhysicsTick;
+	bShouldAddMovementBaseTickDependency = Value.bShouldAddMovementBaseTickDependency;
+	bShouldRemoveMovementBaseTickDependency = Value.bShouldRemoveMovementBaseTickDependency;
+
+	NewMovementBase = Value.NewMovementBase;
+	NewMovementBaseOwner = Value.NewMovementBaseOwner;
+
+	UpdatedComponent = Value.UpdatedComponent;
+	*Pawn = *Value.Pawn;
+}
+

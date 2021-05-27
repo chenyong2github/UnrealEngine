@@ -104,6 +104,13 @@ void UNiagaraScriptSource::PostLoad()
 	}
 }
 
+UNiagaraScriptSource* UNiagaraScriptSource::CreateCompilationCopy()
+{
+	UNiagaraScriptSource* Result = NewObject<UNiagaraScriptSource>();
+	Result->NodeGraph = NodeGraph->CreateCompilationCopy();
+	return Result;
+}
+
 bool UNiagaraScriptSource::IsSynchronized(const FGuid& InChangeId)
 {
 	if (NodeGraph)

@@ -26,8 +26,7 @@ class UMeshComponent;
 class IDisplayClusterProjectionPolicy
 {
 public:
-	virtual ~IDisplayClusterProjectionPolicy() = 0
-	{ }
+	virtual ~IDisplayClusterProjectionPolicy() = default;
 
 public:
 	/**

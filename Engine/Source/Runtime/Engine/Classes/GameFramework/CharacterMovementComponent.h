@@ -19,6 +19,7 @@
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/CharacterMovementReplication.h"
 #include "Interfaces/NetworkPredictionInterface.h"
+#include "CharacterMovementComponentAsync.h"
 #include "CharacterMovementComponent.generated.h"
 
 class ACharacter;
@@ -28,18 +29,6 @@ class FSavedMove_Character;
 class UPrimitiveComponent;
 class INavigationData;
 class UCharacterMovementComponent;
-class FCharacterMovementAsyncCallback;
-struct FCharacterMovementAsyncInput;
-struct FCharacterMovementAsyncOutput;
-
-// Enum used to control GetPawnCapsuleExtent behavior
-enum EShrinkCapsuleExtent
-{
-	SHRINK_None,			// Don't change the size of the capsule
-	SHRINK_RadiusCustom,	// Change only the radius, based on a supplied param
-	SHRINK_HeightCustom,	// Change only the height, based on a supplied param
-	SHRINK_AllCustom,		// Change both radius and height, based on a supplied param
-};
 
 DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FOnProcessRootMotion, const FTransform&, UCharacterMovementComponent*, float)
 
@@ -55,92 +44,6 @@ namespace CharacterMovementCVars
 	extern ENGINE_API int32 AsyncCharacterMovement;
 	extern int32 ForceJumpPeakSubstep;
 }
-
-/** Data about the floor for walking movement, used by CharacterMovementComponent. */
-USTRUCT(BlueprintType)
-struct ENGINE_API FFindFloorResult
-{
-	GENERATED_USTRUCT_BODY()
-
-	/**
-	* True if there was a blocking hit in the floor test that was NOT in initial penetration.
-	* The HitResult can give more info about other circumstances.
-	*/
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=CharacterFloor)
-	uint32 bBlockingHit:1;
-
-	/** True if the hit found a valid walkable floor. */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=CharacterFloor)
-	uint32 bWalkableFloor:1;
-
-	/** True if the hit found a valid walkable floor using a line trace (rather than a sweep test, which happens when the sweep test fails to yield a walkable surface). */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=CharacterFloor)
-	uint32 bLineTrace:1;
-
-	/** The distance to the floor, computed from the swept capsule trace. */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=CharacterFloor)
-	float FloorDist;
-	
-	/** The distance to the floor, computed from the trace. Only valid if bLineTrace is true. */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=CharacterFloor)
-	float LineDist;
-
-	/** Hit result of the test that found a floor. Includes more specific data about the point of impact and surface normal at that point. */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=CharacterFloor)
-	FHitResult HitResult;
-
-public:
-
-	FFindFloorResult()
-		: bBlockingHit(false)
-		, bWalkableFloor(false)
-		, bLineTrace(false)
-		, FloorDist(0.f)
-		, LineDist(0.f)
-		, HitResult(1.f)
-	{
-	}
-
-	/** Returns true if the floor result hit a walkable surface. */
-	bool IsWalkableFloor() const
-	{
-		return bBlockingHit && bWalkableFloor;
-	}
-
-	void Clear()
-	{
-		bBlockingHit = false;
-		bWalkableFloor = false;
-		bLineTrace = false;
-		FloorDist = 0.f;
-		LineDist = 0.f;
-		HitResult.Reset(1.f, false);
-	}
-
-	/** Gets the distance to floor, either LineDist or FloorDist. */
-	float GetDistanceToFloor() const
-	{
-		// When the floor distance is set using SetFromSweep, the LineDist value will be reset.
-		// However, when SetLineFromTrace is used, there's no guarantee that FloorDist is set.
-		return bLineTrace ? LineDist : FloorDist;
-	}
-
-	void SetFromSweep(const FHitResult& InHit, const float InSweepFloorDist, const bool bIsWalkableFloor);
-	void SetFromLineTrace(const FHitResult& InHit, const float InSweepFloorDist, const float InLineDist, const bool bIsWalkableFloor);
-};
-
-
-/** Struct updated by StepUp() to return result of final step down, if applicable. */
-struct FStepDownResult
-{
-	uint32 bComputedFloor : 1;		// True if the floor was computed as a result of the step down.
-	FFindFloorResult FloorResult;	// The result of the floor test if the floor was updated.
-
-	FStepDownResult()
-		: bComputedFloor(false)
-	{
-	}
-};
 
 /** 
  * Tick function that calls UCharacterMovementComponent::PostPhysicsTickComponent
@@ -263,8 +166,14 @@ public:
 	UPROPERTY(Category="Character Movement: Jumping / Falling", EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(ClampMin="0", UIMin="0"))
 	float JumpOffJumpZFactor;
 
+
+private:
 	FCharacterMovementAsyncCallback* AsyncCallback;
 
+protected:
+	// This is the most recent async state from simulated. Only safe for access on physics thread.
+	TSharedPtr<FCharacterMovementAsyncOutput, ESPMode::ThreadSafe> AsyncSimState;
+	bool bMovementModeDirty = false; // Gamethread changed movement mode, need to update sim.
 private:
 
 	/**
@@ -2114,11 +2023,17 @@ protected:
 	virtual void OnUnableToFollowBaseMove(const FVector& DeltaPosition, const FVector& OldLocation, const FHitResult& MoveOnBaseHit);
 
 
-private:
+protected:
 	/* Prepare inputs for asynchronous simulation on physics thread */ 
 	virtual void FillAsyncInput(const FVector& InputVector, FCharacterMovementAsyncInput& AsyncInput) const;
+	virtual void BuildAsyncInput();
+	virtual void PostBuildAsyncInput();
 	/* Apply outputs from async sim. */
 	virtual void ApplyAsyncOutput(FCharacterMovementAsyncOutput& Output);
+	virtual void ProcessAsyncOutput();
+	
+	/* Register async callback with physics system. */
+	virtual void RegisterAsyncCallback();
 	
 public:
 

@@ -75,7 +75,7 @@ GSErrCode FProjectEvent::Initialize()
 GSErrCode FProjectEvent::Event(API_NotifyEventID NotifID, Int32 Param)
 {
 	(void)Param;
-	UE_AC_VerboseF("--- FProjectEvent::Event(%s, %d)\n", TAssEnumName< API_NotifyEventID >::GetName(NotifID), Param);
+	UE_AC_VerboseF("-> FProjectEvent::Event(%s, %d)\n", TAssEnumName< API_NotifyEventID >::GetName(NotifID), Param);
 	FSynchronizer* Synchronizer = FSynchronizer::GetCurrent();
 	switch (NotifID)
 	{
@@ -113,6 +113,7 @@ GSErrCode FProjectEvent::Event(API_NotifyEventID NotifID, Int32 Param)
 			break;
 	}
 
+	UE_AC_VerboseF("<- FProjectEvent::Event\n");
 	return NoError;
 }
 

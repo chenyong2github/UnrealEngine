@@ -64,7 +64,7 @@ GSErrCode FElementEvent::Initialize()
 
 GSErrCode FElementEvent::Event(const API_NotifyElementType& ElemType)
 {
-	UE_AC_TraceF("--- FElementEvent::Event(%s)\n", TAssEnumName< API_ElementDBEventID >::GetName(ElemType.notifID));
+	UE_AC_TraceF("-> FElementEvent::Event(%s)\n", TAssEnumName< API_ElementDBEventID >::GetName(ElemType.notifID));
 	GS::UniString ElemTypeName;
 	if (ACAPI_Goodies(APIAny_GetElemTypeNameID, (void*)(size_t)ElemType.elemHead.typeID, &ElemTypeName) != NoError)
 	{
@@ -131,6 +131,8 @@ GSErrCode FElementEvent::Event(const API_NotifyElementType& ElemType)
 			break;
 	}
 	FSynchronizer::PostDoSnapshot("Element modified");
+
+	UE_AC_TraceF("<- FElementEvent::Event\n");
 	return NoError;
 }
 

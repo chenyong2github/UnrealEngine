@@ -175,6 +175,16 @@ bool SDisplayClusterConfiguratorViewportNode::IsNodeVisible() const
 	return SDisplayClusterConfiguratorBaseNode::IsNodeVisible() && bIsVisible;
 }
 
+float SDisplayClusterConfiguratorViewportNode::GetNodeMinimumSize() const
+{
+	return UDisplayClusterConfigurationViewport::ViewportMinimumSize;
+}
+
+float SDisplayClusterConfiguratorViewportNode::GetNodeMaximumSize() const
+{
+	return UDisplayClusterConfigurationViewport::ViewportMaximumSize;
+}
+
 bool SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed() const
 {
 	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();

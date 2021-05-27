@@ -69,4 +69,9 @@ class FElement2String
 	static void RemoveLeadingAndTrailing(utf8_string* IOString);
 };
 
+class FDump2String
+{
+	static utf8_string ListLibraries();
+};
+
 END_NAMESPACE_UE_AC

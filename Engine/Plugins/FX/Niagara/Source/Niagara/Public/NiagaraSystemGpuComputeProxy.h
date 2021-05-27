@@ -17,7 +17,9 @@ namespace ENiagaraGpuComputeTickStage
 		PreInitViews,
 		PostInitViews,
 		PostOpaqueRender,
-		Max
+		Max,
+		First = PreInitViews,
+		Last = PostOpaqueRender,
 	};
 };
 

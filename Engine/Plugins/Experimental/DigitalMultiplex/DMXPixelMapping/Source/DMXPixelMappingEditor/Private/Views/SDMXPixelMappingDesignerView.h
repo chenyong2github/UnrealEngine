@@ -121,7 +121,7 @@ private:
 	void OnSelectedComponenetChanged();
 
 	/** Adds any pending selected Components to the selection set */
-	void ResolvePendingSelectedComponents(const FPointerEvent& MouseEvent);
+	void ResolvePendingSelectedComponents(bool bClearPreviousSelection = false);
 	
 	/** Adds a new component from a drag drop op from the palette */
 	void AddComponentFromPalette(const FGeometry& MyGeometry, const TSharedPtr<FDMXPixelMappingDragDropOp>& TemplateDragDropOp);
@@ -176,19 +176,13 @@ private:
 	/** The ruler bar on the left side of the designer. */
 	TSharedPtr<SDMXPixelMappingRuler> SideRuler;
 
-	/** Cache last mouse position to be used as a paste drop location */
-	FVector2D CachedMousePosition;
-
-	/** The location in selected widget local space where the context menu was summoned. */
-	FVector2D DragOffset;
-
 	TWeakObjectPtr<UDMXPixelMappingBaseComponent> PendingSelectedComponent;
 
-	/** True if an existing widget is being moved in its current container, or into a new container. */
-	bool bMovingExistingWidget;
+	/** True if new components are being dragged. */
+	bool bDraggingNewGroupItems = false;
 
 	/** If true, terminates any existing drag drop op without handling it */
-	bool bRequestTerminateDragDrop;
+	bool bRequestTerminateDragDrop = false;
 
 	/** The position in screen space where the user began dragging a widget */
 	FVector2D DraggingStartPositionScreenSpace;

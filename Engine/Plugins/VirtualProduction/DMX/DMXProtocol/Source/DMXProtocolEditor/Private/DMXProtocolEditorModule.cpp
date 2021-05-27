@@ -22,13 +22,13 @@ IMPLEMENT_MODULE( FDMXProtocolEditorModule, DMXProtocolEditor );
 void FDMXProtocolEditorModule::StartupModule()
 {
 	FDMXProtocolModule& ProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	ProtocolModule.OnProtocolsRegisteredDelegate.AddRaw(this, &FDMXProtocolEditorModule::OnProtocolsRegistered);
+	ProtocolModule.OnProtocolsRegistered.AddRaw(this, &FDMXProtocolEditorModule::OnProtocolsRegistered);
 }
 
 void FDMXProtocolEditorModule::ShutdownModule()
 {
 	FDMXProtocolModule& ProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	ProtocolModule.OnProtocolsRegisteredDelegate.RemoveAll(this);
+	ProtocolModule.OnProtocolsRegistered.RemoveAll(this);
 
 	UnregisterDetailsCustomizations();
 }

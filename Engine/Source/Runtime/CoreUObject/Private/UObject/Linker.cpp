@@ -625,7 +625,7 @@ static bool IsConvertedDynamicPackage(FName PackageName)
 {
 	return
 #if WITH_EDITORONLY_DATA
-		GLinkerAllowDynamicClasses &&
+		GLinkerAllowDynamicClasses && 
 #endif
 		GetConvertedDynamicPackageNameToTypeName().Contains(PackageName);
 }
@@ -648,11 +648,14 @@ FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bSkip
 	{
 		return FString(); // we won't load this anyway, don't prestream
 	}
-	bool DoesPackageExist = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
-#if WITH_IOSTORE_IN_EDITOR
+
+#if WITH_IOSTORE_IN_EDITOR 
 	// Only look for non cooked packages on disk
-	DoesPackageExist &= !DoesPackageExistInIoStore(PackageFName);
+	bool DoesPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked, nullptr, false, &PackagePath) != FPackageName::EPackageLocationFilter::None;
+#else
+	bool DoesPackageExist = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
 #endif
+
 	if (!IsConvertedDynamicPackage(PackageFName) && !DoesPackageExist)
 	{
 		return FString();
@@ -687,7 +690,7 @@ static FPackagePath GetPackagePath(UPackage* InOuter, const TCHAR* InPackageName
 		return FPackagePath();
 	}
 }
-
+		
 COREUOBJECT_API FLinkerLoad* GetPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags,
 	UPackageMap* Sandbox, FGuid* CompatibleGuid, FArchive* InReaderOverride, FUObjectSerializeContext** InOutLoadContext,
 	FLinkerLoad* ImportLinker, const FLinkerInstancingContext* InstancingContext)

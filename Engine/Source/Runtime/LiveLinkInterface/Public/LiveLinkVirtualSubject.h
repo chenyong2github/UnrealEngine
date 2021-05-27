@@ -25,20 +25,27 @@ class LIVELINKINTERFACE_API ULiveLinkVirtualSubject : public UObject, public ILi
 public:
 	virtual void Initialize(FLiveLinkSubjectKey SubjectKey, TSubclassOf<ULiveLinkRole> Role, ILiveLinkClient* LiveLinkClient) override;
 	virtual void Update() override;
+	virtual bool EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual void ClearFrames() override;
 	virtual FLiveLinkSubjectKey GetSubjectKey() const override { return SubjectKey; }
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const override { return Role; }
 	virtual bool HasValidFrameSnapshot() const override;
-	virtual FLiveLinkStaticDataStruct& GetStaticData() override { return FrameSnapshot.StaticData; }
-	virtual const FLiveLinkStaticDataStruct& GetStaticData() const override { return FrameSnapshot.StaticData; }
+	virtual FLiveLinkStaticDataStruct& GetStaticData() override { return CurrentFrameSnapshot.StaticData; }
+	virtual const FLiveLinkStaticDataStruct& GetStaticData() const override { return CurrentFrameSnapshot.StaticData; }
 	virtual const TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> GetFrameTranslators() const override { return CurrentFrameTranslators; }
 	virtual TArray<FLiveLinkTime> GetFrameTimes() const override;
 	virtual bool IsRebroadcasted() const override { return bRebroadcastSubject; }
 	virtual bool HasStaticDataBeenRebroadcasted() const override { return bHasStaticDataBeenRebroadcast; }
 	virtual void SetStaticDataAsRebroadcasted(const bool bInSent) override { bHasStaticDataBeenRebroadcast = bInSent; }
 protected:
-	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const override { return FrameSnapshot; }
+	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const override { return CurrentFrameSnapshot; }
 	//~ End ILiveLinkSubject Interface
+
+	/** Whether snapshot has valid static data */
+	bool HasValidStaticData() const;
+
+	/** Whether snapshot has valid frame data */
+	bool HasValidFrameData() const;
 
 public:
 	ILiveLinkClient* GetClient() const { return LiveLinkClient; }
@@ -50,13 +57,27 @@ public:
 	const TArray<ULiveLinkFrameTranslator*>& GetTranslators() const { return FrameTranslators; }
 
 	/** Returns the current frame data of this virtual subject */
-	const FLiveLinkFrameDataStruct& GetFrameData() const { return FrameSnapshot.FrameData; }
+	const FLiveLinkFrameDataStruct& GetFrameData() const { return CurrentFrameSnapshot.FrameData; }
 
 	/** Returns true whether this virtual subject depends on the Subject named SubjectName */
 	virtual bool DependsOnSubject(FName SubjectName) const;
 	
 protected:
+
+	/** Updates the list of translators valid for this frame */
 	void UpdateTranslatorsForThisFrame();
+
+	/** Updates our snapshot's static data */
+	void UpdateStaticDataSnapshot(FLiveLinkStaticDataStruct&& NewStaticData);
+
+	/** Updates our snapshot's frame data */
+	void UpdateFrameDataSnapshot(FLiveLinkFrameDataStruct&& NewFrameData);
+
+	/** Invalidates our snapshot's static data */
+	void InvalidateStaticData();
+
+	/** Invalidates our snapshot's frame data */
+	void InvalidateFrameData();
 
 protected:
 	/** The role the subject was build with. */
@@ -78,7 +99,7 @@ protected:
 	/** LiveLinkClient to get access to subjects */
 	ILiveLinkClient* LiveLinkClient;
 
-	/** Last evaluated frame for this subject. */
+	UE_DEPRECATED(4.27, "VirtualSubject FrameSnapshot is now private to have thread safe accesses. Please use UpdateStaticDataSnapshot or UpdateFrameDataSnapshot to update its value")
 	FLiveLinkSubjectFrameData FrameSnapshot;
 
 	/** Name of the subject */
@@ -87,6 +108,17 @@ protected:
 	/** If true, static data has been sent for this rebroadcast */
 	bool bHasStaticDataBeenRebroadcast = false;
 
+	/** Lock to protect the FrameSnapshot. 
+	 * VirtualSubjects can be manipulated from anywhere versus LiveSubjects 
+	 * that have an access controlled in the Source Collection.
+	 * Evaluating subjects is AnyThread so we can be evaluated 
+	 * while our snapshot is getting set
+	 */
+	mutable FCriticalSection SnapshotAccessCriticalSection;
+
 private:
 	TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> CurrentFrameTranslators;
+
+	/** Last evaluated frame for this subject. */
+	FLiveLinkSubjectFrameData CurrentFrameSnapshot;
 };

@@ -37,4 +37,4 @@ export UNREAL_ENGINE_RELEASE
 export EXTRA_PEERCONNECTION_OPTIONS
 export PUBLIC_IP
 export PWD=$(pwd)
-docker-compose up $COMPOSE_FLAGS
+docker-compose up --force-recreate $COMPOSE_FLAGS

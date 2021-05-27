@@ -2,6 +2,8 @@
 
 #include "ElementID.h"
 
+#include <stdexcept>
+
 BEGIN_NAMESPACE_UE_AC
 
 template <>
@@ -64,10 +66,111 @@ FAssValueName::SAssValueName TAssEnumName< ModelerAPI::Element::Type >::AssEnumN
 	EnumName(ModelerAPI::Element, OtherElement),
 	EnumEnd(-1)};
 
+// Contructor
+FElementID::FElementID(const FSyncContext& InSyncContext)
+	: SyncContext(InSyncContext)
+	, Index3D(0)
+	, SyncData(nullptr)
+	, LibPartInfo(nullptr)
+	, bFullElementFetched(false)
+	, bLibPartInfoFetched(false)
+{
+}
+
+// Initialize with 3D element
+void FElementID::InitElement(GS::Int32 InIndex3d)
+{
+	Index3D = InIndex3d;
+	SyncContext.GetModel().GetElement(Index3D, &Element3D);
+	APIElement.header.guid = APINULLGuid;
+	bFullElementFetched = false;
+	LibPartInfo = nullptr;
+	bLibPartInfoFetched = false;
+}
+
+// Initialize with sync data
+void FElementID::InitElement(FSyncData* IOSyncdata)
+{
+	UE_AC_TestPtr(IOSyncdata);
+	SyncData = IOSyncdata;
+	Index3D = IOSyncdata->GetIndex3D();
+	if (Index3D > 0)
+	{
+		SyncContext.GetModel().GetElement(Index3D, &Element3D);
+	}
+	bFullElementFetched = false;
+	LibPartInfo = nullptr;
+	bLibPartInfoFetched = false;
+}
+
+// Initialize element header from 3D element
+bool FElementID::InitHeader()
+{
+	if (IsInvalid())
+	{
+		throw std::runtime_error(
+			Utf8StringFormat("FElementID::InitHeader - Invalid element for index=%d\n", Index3D).c_str());
+	}
+	bFullElementFetched = false;
+	Zap(&APIElement.header);
+	APIElement.header.guid = GSGuid2APIGuid(Element3D.GetElemGuid());
+	GSErrCode GSErr = ACAPI_Element_GetHeader(&APIElement.header, 0);
+	if (GSErr != NoError)
+	{
+		utf8_string ErrorName(GetErrorName(GSErr));
+		utf8_string TypeName(GetTypeName());
+		UE_AC_DebugF("Error \"%s\" with element %d {%s} Type=%s\n", ErrorName.c_str(), Index3D,
+					 Element3D.GetElemGuid().ToUniString().ToUtf8(), TypeName.c_str());
+		if (GSErr != APIERR_BADID)
+		{
+			UE_AC::ThrowGSError(GSErr, __FILE__, __LINE__);
+		}
+		return false;
+	}
+	return true;
+}
+
+const API_Element& FElementID::GetAPIElement()
+{
+	if (bFullElementFetched == false)
+	{
+		API_Guid guid = APIElement.header.guid;
+		Zap(&APIElement);
+		APIElement.header.guid = guid;
+		UE_AC_TestGSError(ACAPI_Element_Get(&APIElement, 0));
+		bFullElementFetched = true;
+	}
+
+	return APIElement;
+}
+
+// If this element is related to a lib part ?
+const FLibPartInfo* FElementID::GetLibPartInfo()
+{
+	if (bLibPartInfoFetched == false)
+	{
+		// Get the lib part from it's UnId
+		FGSUnID::Buffer lpfUnID = {0};
+		GSErrCode		GSErr = ACAPI_Goodies(APIAny_GetElemLibPartUnIdID, &APIElement.header, lpfUnID);
+		if (GSErr == NoError)
+		{
+			LibPartInfo = SyncContext.GetSyncDatabase().GetLibPartInfo(lpfUnID);
+		}
+		else if (GSErr != APIERR_BADID)
+		{
+			UE_AC_DebugF("FElementID::InitLibPartInfo - APIAny_GetElemLibPartUnIdID return error %s\n",
+						 GetErrorName(GSErr));
+		}
+		bLibPartInfoFetched = true;
+	}
+
+	return LibPartInfo;
+}
+
 void FElementID::CollectDependantElementsType(API_ElemTypeID TypeID) const
 {
 	GS::Array< API_Guid > ConnectedElements;
-	UE_AC_TestGSError(ACAPI_Element_GetConnectedElements(ElementHeader.guid, TypeID, &ConnectedElements));
+	UE_AC_TestGSError(ACAPI_Element_GetConnectedElements(APIElement.header.guid, TypeID, &ConnectedElements));
 	for (USize i = 0; i < ConnectedElements.GetSize(); ++i)
 	{
 		FSyncData*& ChildSyncData = SyncContext.GetSyncDatabase().GetSyncData(APIGuid2GSGuid(ConnectedElements[i]));
@@ -83,24 +186,24 @@ void FElementID::CollectDependantElementsType(API_ElemTypeID TypeID) const
 
 void FElementID::HandleDepedencies() const
 {
-	if (ElementHeader.typeID == API_WallID)
+	if (APIElement.header.typeID == API_WallID)
 	{
 		CollectDependantElementsType(API_WindowID);
 		CollectDependantElementsType(API_DoorID);
 	}
-	else if (ElementHeader.typeID == API_RoofID || ElementHeader.typeID == API_ShellID)
+	else if (APIElement.header.typeID == API_RoofID || APIElement.header.typeID == API_ShellID)
 	{
 		CollectDependantElementsType(API_SkylightID);
 	}
-	else if (ElementHeader.typeID == API_WindowID || ElementHeader.typeID == API_DoorID ||
-			 ElementHeader.typeID == API_SkylightID)
+	else if (APIElement.header.typeID == API_WindowID || APIElement.header.typeID == API_DoorID ||
+			 APIElement.header.typeID == API_SkylightID)
 	{
 		// Do nothing
 	}
 	else
 	{
-		GS::Guid				  OwnerElemGuid = APIGuid2GSGuid(ElementHeader.guid);
-		API_Guid				  OwnerElemApiGuid = ElementHeader.guid;
+		GS::Guid				  OwnerElemGuid = APIGuid2GSGuid(APIElement.header.guid);
+		API_Guid				  OwnerElemApiGuid = APIElement.header.guid;
 		API_HierarchicalElemType  HierarchicalElemType = API_SingleElem;
 		API_HierarchicalOwnerType HierarchicalOwnerType = API_RootHierarchicalOwner;
 		GSErrCode GSErr = ACAPI_Goodies(APIAny_GetHierarchicalElementOwnerID, &OwnerElemGuid, &HierarchicalOwnerType,

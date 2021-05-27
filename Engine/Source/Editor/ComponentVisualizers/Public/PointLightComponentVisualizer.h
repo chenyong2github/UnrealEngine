@@ -17,7 +17,7 @@ public:
 	void DrawVisualization(UTextureLightProfile* TextureLightProfile, const FTransform& LightTM, const FSceneView* View, FPrimitiveDrawInterface* PDI);
 
 private:
-	void UpdateIntensitiesCache(UTextureLightProfile* TextureLightProfile, const FTransform& LightTM);
+	bool UpdateIntensitiesCache(UTextureLightProfile* TextureLightProfile, const FTransform& LightTM);
 
 	const UTextureLightProfile* CachedLightProfile;
 	TArray< float > IntensitiesCache;

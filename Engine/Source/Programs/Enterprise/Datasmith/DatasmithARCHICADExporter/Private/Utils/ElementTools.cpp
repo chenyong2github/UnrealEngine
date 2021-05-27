@@ -6,6 +6,104 @@
 BEGIN_NAMESPACE_UE_AC
 
 // clang-format off
+
+template <>
+FAssValueName::SAssValueName TAssEnumName< API_ElemTypeID >::AssEnumName[] = {
+	{ API_ZombieElemID, 				"Zombie" },
+
+	{ API_WallID, 						"Wall" },
+	{ API_ColumnID, 					"Column" },
+	{ API_BeamID, 						"Beam" },
+	{ API_WindowID, 					"Window" },
+	{ API_DoorID, 						"Door" },
+	{ API_ObjectID, 					"Object" },
+	{ API_LampID, 						"Lamp" },
+	{ API_SlabID, 						"Slab" },
+	{ API_RoofID, 						"Roof" },
+	{ API_MeshID, 						"Mesh" },
+
+	{ API_DimensionID, 					"Dimension" },
+	{ API_RadialDimensionID, 			"RadialDimension" },
+	{ API_LevelDimensionID, 			"LevelDimension" },
+	{ API_AngleDimensionID, 			"AngleDimension" },
+
+	{ API_TextID, 						"Text" },
+	{ API_LabelID, 						"Label" },
+	{ API_ZoneID, 						"Zone" },
+
+	{ API_HatchID, 						"Hatch" },
+	{ API_LineID, 						"Line" },
+	{ API_PolyLineID, 					"PolyLine" },
+	{ API_ArcID, 						"Arc" },
+	{ API_CircleID, 					"Circle" },
+	{ API_SplineID, 					"Spline" },
+	{ API_HotspotID, 					"Hotspot" },
+
+	{ API_CutPlaneID, 					"CutPlane" },
+	{ API_CameraID, 					"Camera" },
+	{ API_CamSetID, 					"CamSet" },
+
+	{ API_GroupID, 						"Group" },
+	{ API_SectElemID, 					"SectElem" },
+
+	{ API_DrawingID, 					"Drawing" },
+	{ API_PictureID, 					"Picture" },
+	{ API_DetailID, 					"Detail" },
+	{ API_ElevationID, 					"Elevation" },
+	{ API_InteriorElevationID, 			"InteriorElevation" },
+	{ API_WorksheetID, 					"Worksheet" },
+
+	{ API_HotlinkID, 					"Hotlink" },
+
+	{ API_CurtainWallID, 				"CurtainWall" },
+	{ API_CurtainWallSegmentID, 		"CurtainWallSegment" },
+	{ API_CurtainWallFrameID, 			"CurtainWallFrame" },
+	{ API_CurtainWallPanelID, 			"CurtainWallPanel" },
+	{ API_CurtainWallJunctionID, 		"CurtainWallJunction" },
+	{ API_CurtainWallAccessoryID, 		"CurtainWallAccessory" },
+	{ API_ShellID, 						"Shell" },
+	{ API_SkylightID, 					"Skylight" },
+	{ API_MorphID, 						"Morph" },
+	{ API_ChangeMarkerID, 				"ChangeMarker" },
+	{ API_StairID, 						"Stair" },
+	{ API_RiserID, 						"Riser" },
+	{ API_TreadID, 						"Tread" },
+	{ API_StairStructureID, 			"StairStructure" },
+	{ API_RailingID, 					"Railing" },
+	{ API_RailingToprailID, 			"RailingToprail" },
+	{ API_RailingHandrailID, 			"RailingHandrail" },
+	{ API_RailingRailID, 				"RailingRail" },
+	{ API_RailingPostID, 				"RailingPost" },
+	{ API_RailingInnerPostID, 			"RailingInnerPost" },
+	{ API_RailingBalusterID, 			"RailingBaluster" },
+	{ API_RailingPanelID, 				"RailingPanel" },
+	{ API_RailingSegmentID, 			"RailingSegment" },
+	{ API_RailingNodeID, 				"RailingNode" },
+	{ API_RailingBalusterSetID, 		"RailingBalusterSet" },
+	{ API_RailingPatternID, 			"RailingPattern" },
+	{ API_RailingToprailEndID, 			"RailingToprailEnd" },
+	{ API_RailingHandrailEndID, 		"RailingHandrailEnd" },
+	{ API_RailingRailEndID, 			"RailingRailEnd" },
+	{ API_RailingToprailConnectionID, 	"RailingToprailConnection" },
+	{ API_RailingHandrailConnectionID, 	"RailingHandrailConnection" },
+	{ API_RailingRailConnectionID, 		"RailingRailConnection" },
+	{ API_RailingEndFinishID, 			"RailingEndFinish" },
+
+	{ API_AnalyticalSupportID, 			"AnalyticalSupport" },
+	{ API_AnalyticalLinkID, 			"AnalyticalLink" },
+
+	{ API_BeamSegmentID, 				"BeamSegment" },
+	{ API_ColumnSegmentID, 				"ColumnSegment" },
+	{ API_OpeningID, 					"Opening" },
+#if AC_VERSION > 24
+	{ API_AnalyticalPointLoadID, 		"AnalyticalPointLoad" },
+	{ API_AnalyticalEdgeLoadID, 		"AnalyticalEdgeLoad" },
+	{ API_AnalyticalSurfaceLoadID, 		"AnalyticalSurfaceLoad" },
+#endif
+
+	{ -1, nullptr }
+};
+
 template <>
 FAssValueName::SAssValueName TAssEnumName< API_ElemVariationID >::AssEnumName[] = {
 	ValueName(APIVarId_Generic),
@@ -33,18 +131,18 @@ FAssValueName::SAssValueName TAssEnumName< API_ElemVariationID >::AssEnumName[] 
 	ValueName(APIVarId_LabelCWJunction),
 #endif
 
-	ValueName(APIVarId_SymbStair),
-	ValueName(APIVarId_WallEnd),
-
-	ValueName(APIVarId_Door),
-	ValueName(APIVarId_Skylight),
-	ValueName(APIVarId_Object),
-	ValueName(APIVarId_GridElement),
-	ValueName(APIVarId_Light),
-	ValueName(APIVarId_CornerWindow),
+	{ APIVarId_SymbStair, 		"SymbStair" },
+	{ APIVarId_WallEnd, 		"WallEnd" },
+	{ APIVarId_SymbStair, 		"SymbStair" },
+	{ APIVarId_Door, 			"Door" },
+	{ APIVarId_Object, 			"Object" },
+	{ APIVarId_GridElement, 	"GridElement" },
+	{ APIVarId_Light, 			"Light" },
+	{ APIVarId_CornerWindow, 	"CornerWindow" },
 
 	EnumEnd(-1)
 };
+
 // clang-format on
 
 // Tool: return the info string (≈ name)
@@ -60,28 +158,22 @@ bool FElementTools::GetInfoString(const API_Guid& InGUID, GS::UniString* OutStri
 }
 
 // Tool: Return the localize name for element type id
-const GS::UniString& FElementTools::TypeName(API_ElemTypeID InElementType)
+const utf8_t* FElementTools::TypeName(API_ElemTypeID InElementType)
 {
 	UE_AC_Assert(API_FirstElemType <= InElementType && InElementType <= API_LastElemType);
 
-	static std::unique_ptr< GS::UniString > TypeNames[API_LastElemType + 1] = {};
+	static const utf8_t* TypeNames[API_LastElemType + 1] = {};
 
 	if (TypeNames[InElementType] == nullptr)
 	{
-		TypeNames[InElementType] = std::make_unique< GS::UniString >();
-		GSErrCode GSErr =
-			ACAPI_Goodies(APIAny_GetElemTypeNameID, (void*)(size_t)InElementType, TypeNames[InElementType].get());
-		if (GSErr != NoError)
-		{
-			UE_AC_DebugF("CElement::TypeName - Error %d for type%d\n", GSErr, InElementType);
-		}
+		TypeNames[InElementType] = TAssEnumName< API_ElemTypeID >::GetName(InElementType);
 	}
 
-	return *TypeNames[InElementType];
+	return TypeNames[InElementType];
 }
 
 // Tool: Return the localize name for element's type
-const GS::UniString& FElementTools::TypeName(const API_Guid& InElementGuid)
+const utf8_t* FElementTools::TypeName(const API_Guid& InElementGuid)
 {
 	API_Elem_Head ElementHead;
 	Zap(&ElementHead);
@@ -145,6 +237,100 @@ GS::Int32 FElementTools::GetLibPartIndex(const API_Element& InElement)
 		default:
 			return 0;
 	}
+}
+
+class GSUnID
+{
+  public:
+	typedef char Buffer[128];
+	GS::Guid	 Main;
+	GS::Guid	 Rev;
+
+	static const char* UnIDNullStr;
+
+	GS::GSErrCode InitWithString(const Buffer inStr);
+};
+const char* GSUnID::UnIDNullStr = "{00000000-0000-0000-0000-000000000000}-{00000000-0000-0000-0000-000000000000}";
+
+GS::GSErrCode GSUnID::InitWithString(const Buffer inStr)
+{
+	GS::Guid	main, rev;
+	char		guidStr[60];
+	const Int32 strLen = sizeof(guidStr) / sizeof(guidStr[0]);
+	Int32		i;
+
+	const char* uiStr = inStr;
+	while (*uiStr == ' ' || *uiStr == '\t')
+	{
+		uiStr++;
+	}
+
+	if (*uiStr++ != '{')
+	{
+		return Error;
+	}
+
+	for (i = 0; i < strLen - 1 && *uiStr != 0 && *uiStr != '}'; i++, uiStr++)
+	{
+		guidStr[i] = *uiStr;
+	}
+	if (*uiStr != '}')
+	{
+		return Error;
+	}
+	guidStr[i] = 0;
+
+	if (main.ConvertFromString(guidStr) != NoError)
+	{
+		return Error;
+	}
+
+	if (*(++uiStr)++ != '-' || *uiStr++ != '{')
+	{
+		return Error;
+	}
+
+	for (i = 0; i < strLen - 1 && *uiStr != 0 && *uiStr != '}'; i++, uiStr++)
+	{
+		guidStr[i] = *uiStr;
+	}
+	if (*uiStr != '}')
+	{
+		return Error;
+	}
+	guidStr[i] = 0;
+
+	if (rev.ConvertFromString(guidStr) != NoError)
+	{
+		return Error;
+	}
+
+	Main = main;
+	Rev = rev;
+
+	return NoError;
+}
+
+GS::Guid FElementTools::GetLibPartId(const API_Elem_Head& InElement)
+{
+	GSUnID::Buffer lpfUnID = {0};
+
+	GS::GSErrCode GSErr = ACAPI_Goodies(APIAny_GetElemLibPartUnIdID, const_cast< API_Elem_Head* >(&InElement), lpfUnID);
+	if (GSErr == NoError)
+	{
+		GSUnID LibPartUnIdID;
+		GSErr = LibPartUnIdID.InitWithString(lpfUnID);
+		if (GSErr == NoError)
+		{
+			return LibPartUnIdID.Main;
+		}
+		UE_AC_DebugF("CElementID::InitLibPartInfo - InitWithString (error=%s)\n", GetErrorName(GSErr));
+	}
+	else
+	{
+		UE_AC_DebugF("CElementID::InitLibPartInfo - Can't get element lib part id (error=%s)\n", GetErrorName(GSErr));
+	}
+	return GS::NULLGuid;
 }
 
 // Tool: return element's owner guid

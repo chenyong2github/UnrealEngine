@@ -43,7 +43,6 @@ extern bool IsUniformBufferBound( GLuint Buffer );
 namespace OpenGLConsoleVariables
 {
 	extern int32 bUseMapBuffer;
-	extern int32 bUseVAB;
 	extern int32 MaxSubDataSize;
 	extern int32 bUseStagingBuffer;
 	extern int32 bBindlessTexture;
@@ -428,31 +427,28 @@ public:
 
 		RealSize = ResourceSize ? ResourceSize : InSize;
 
-		if( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || !( InUsage & BUF_ZeroStride ) )
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+		if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
 		{
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-			if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
+			CreateGLBuffer(InData, ResourceToUse, ResourceSize);
+		}
+		else
+		{
+			void* BuffData = nullptr;
+			if (InData)
 			{
-				CreateGLBuffer(InData, ResourceToUse, ResourceSize);
+				BuffData = RHICmdList.Alloc(RealSize, 16);
+				FMemory::Memcpy(BuffData, InData, RealSize);
 			}
-			else
+			TransitionFence.Reset();
+			ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() 
 			{
-				void* BuffData = nullptr;
-				if (InData)
-				{
-					BuffData = RHICmdList.Alloc(RealSize, 16);
-					FMemory::Memcpy(BuffData, InData, RealSize);
-				}
-				TransitionFence.Reset();
-				ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() 
-				{
-					CreateGLBuffer(BuffData, ResourceToUse, ResourceSize); 
-					TransitionFence.WriteAssertFence();
-				});
-				TransitionFence.SetRHIThreadFence();
+				CreateGLBuffer(BuffData, ResourceToUse, ResourceSize); 
+				TransitionFence.WriteAssertFence();
+			});
+			TransitionFence.SetRHIThreadFence();
 
-			}
 		}
 	}
 
@@ -540,14 +536,12 @@ public:
 	void Bind()
 	{
 		VERIFY_GL_SCOPE();
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		BufBind(Type, Resource);
 	}
 
 	uint8 *Lock(uint32 InOffset, uint32 InSize, bool bReadOnly, bool bDiscard)
 	{
 		SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLMapBufferTime);
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		check(InOffset + InSize <= this->GetSize());
 		//check( LockBuffer == NULL );	// Only one outstanding lock is allowed at a time!
 		check( !bIsLocked );	// Only one outstanding lock is allowed at a time!
@@ -640,7 +634,6 @@ public:
 	uint8 *LockWriteOnlyUnsynchronized(uint32 InOffset, uint32 InSize, bool bDiscard)
 	{
 		//SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLMapBufferTime);
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		check(InOffset + InSize <= this->GetSize());
 		//check( LockBuffer == NULL );	// Only one outstanding lock is allowed at a time!
 		check( !bIsLocked );	// Only one outstanding lock is allowed at a time!
@@ -708,7 +701,6 @@ public:
 	void Unlock()
 	{
 		//SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLUnmapBufferTime);
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		VERIFY_GL_SCOPE();
 		if (bIsLocked)
 		{
@@ -781,7 +773,6 @@ public:
 
 	void Update(void *InData, uint32 InOffset, uint32 InSize, bool bDiscard)
 	{
-		check( (FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) || ( this->GetUsage() & BUF_ZeroStride ) == 0 );
 		check(InOffset + InSize <= this->GetSize());
 		VERIFY_GL_SCOPE();
 		Bind();
@@ -870,41 +861,19 @@ private:
 class FOpenGLBaseBuffer : public FRHIBuffer
 {
 public:
-	FOpenGLBaseBuffer() : ZeroStrideBuffer(0)
+	FOpenGLBaseBuffer()
 	{}
 
-	FOpenGLBaseBuffer(uint32 InStride, uint32 InSize, uint32 InUsage): FRHIBuffer(InSize, InUsage, InStride), ZeroStrideBuffer(0)
+	FOpenGLBaseBuffer(uint32 InStride, uint32 InSize, uint32 InUsage): FRHIBuffer(InSize, InUsage, InStride)
 	{
-		if(!(FOpenGL::SupportsVertexAttribBinding() && OpenGLConsoleVariables::bUseVAB) && (InUsage & BUF_ZeroStride))
-		{
-			ZeroStrideBuffer = FMemory::Malloc( InSize );
-		}
-
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, InSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);
 	}
 
 	~FOpenGLBaseBuffer( void )
 	{
-		if( ZeroStrideBuffer )
-		{
-			FMemory::Free( ZeroStrideBuffer );
-		}
-
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -(int64)GetSize(), ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
-	}
-
-	void* GetZeroStrideBuffer( void )
-	{
-		check( ZeroStrideBuffer );
-		return ZeroStrideBuffer;
-	}
-
-	void Swap(FOpenGLBaseBuffer& Other)
-	{
-		FRHIBuffer::Swap(Other);
-		::Swap(ZeroStrideBuffer, Other.ZeroStrideBuffer);
 	}
 
 	static bool OnDelete(GLuint Resource,uint32 Size,bool bStreamDraw,uint32 Offset)
@@ -923,8 +892,6 @@ public:
 		// @todo-mobile
 	}
 
-private:
-	void*	ZeroStrideBuffer;
 };
 
 struct FOpenGLEUniformBufferData : public FRefCountedObject
@@ -1646,6 +1613,8 @@ public:
 	virtual bool CanBeEvicted() override;
 	virtual void TryEvictGLResource() override;
 private:
+	void Fill2DGLTextureImage(const FOpenGLTextureFormat& GLFormat, const bool bSRGB, uint32 MipIndex, const void* LockedBuffer, uint32 LockedSize, uint32 ArrayIndex);
+
 	TArray< TRefCountPtr<FOpenGLPixelBuffer> > PixelBuffers;
 
 	uint32 GetEffectiveSizeZ( void ) { return this->GetSizeZ() ? this->GetSizeZ() : 1; }

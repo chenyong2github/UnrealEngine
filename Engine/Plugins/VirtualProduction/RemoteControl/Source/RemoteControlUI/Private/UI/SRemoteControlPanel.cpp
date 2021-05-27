@@ -25,9 +25,11 @@
 #include "RemoteControlActor.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlField.h"
+#include "RemoteControlLogger.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
+#include "RemoteControlUISettings.h"
 #include "ScopedTransaction.h"
 #include "SClassViewer.h"
 #include "SRCPanelExposedEntitiesList.h"
@@ -47,6 +49,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -98,11 +101,29 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	
 	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get())
 		.DisplayValues(true)
-		.OnEntityListUpdated_Lambda([this] () { UpdateRebindButtonVisibility(); })
+		.OnEntityListUpdated_Lambda([this] ()
+		{
+			UpdateEntityDetailsView(EntityList->GetSelection());
+			UpdateRebindButtonVisibility();
+		})
 		.EditMode_Lambda([this](){ return bIsInEditMode; });
 	
 	EntityList->OnSelectionChange().AddSP(this, &SRemoteControlPanel::UpdateEntityDetailsView);
-	
+
+	const TAttribute<float> TreeBindingSplitRatioTop = TAttribute<float>::Create(
+		TAttribute<float>::FGetter::CreateLambda([]()
+		{
+			URemoteControlUISettings* Settings = GetMutableDefault<URemoteControlUISettings>();
+			return Settings->TreeBindingSplitRatio;
+		}));
+
+	const TAttribute<float> TreeBindingSplitRatioBottom = TAttribute<float>::Create(
+		TAttribute<float>::FGetter::CreateLambda([]()
+		{
+			URemoteControlUISettings* Settings = GetMutableDefault<URemoteControlUISettings>();
+			return 1.0f - Settings->TreeBindingSplitRatio;
+		}));
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -178,31 +199,38 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 					.IsChecked_Lambda([this]() { return this->bIsInEditMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 					.OnCheckStateChanged(this, &SRemoteControlPanel::OnEditModeCheckboxToggle)
 				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("EnableLogLabel", "Enable Log: "))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
+				]
 			]
 		]
 		+ SVerticalBox::Slot()
 		[
-			SNew(SBorder)
-			.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			+ SSplitter::Slot()
+			.Value(.8f)
 			[
-				SNew(SWidgetSwitcher)
-				.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
-				+ SWidgetSwitcher::Slot()
+				SNew(SBorder)
+				.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				[
-					// Exposed entities List
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					[
-						EntityList.ToSharedRef()
-					]
-				]
-				+ SWidgetSwitcher::Slot()
-				[
-					SNew(SSplitter)
-					.Orientation(EOrientation::Orient_Vertical)
-					+ SSplitter::Slot()
-					.Value(0.7f)
+					SNew(SWidgetSwitcher)
+					.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
+					+ SWidgetSwitcher::Slot()
 					[
 						// Exposed entities List
 						SNew(SBorder)
@@ -211,27 +239,65 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 							EntityList.ToSharedRef()
 						]
 					]
-					+ SSplitter::Slot()
-					.Value(0.3f)
+					+ SWidgetSwitcher::Slot()
 					[
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-						.Padding(5.f)
+						SNew(SSplitter)
+						.Orientation(EOrientation::Orient_Vertical)						
+						+ SSplitter::Slot()
+						.Value(TreeBindingSplitRatioTop)
+						.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewSize)
+						{
+							URemoteControlUISettings* Settings = GetMutableDefault<URemoteControlUISettings>();
+							Settings->TreeBindingSplitRatio = InNewSize;
+						}))
+						[
+							// Exposed entities List
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							[
+								EntityList.ToSharedRef()
+							]
+						]
+						+ SSplitter::Slot()
+						.Value(TreeBindingSplitRatioBottom)
 						[
 							SNew(SSplitter)
 							.Orientation(Orient_Vertical)
+							.HitDetectionSplitterHandleSize(0.0f) // Effectively disables user manipulation (but keeps visuals)
 							+ SSplitter::Slot()
-							.Value(0.4f)
+							.SizeRule(SSplitter::SizeToContent)
 							[
-								CreateEntityDetailsView()
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								[
+									SNew(SBox)
+									.MinDesiredHeight(40.0f)
+									[
+										CreateEntityDetailsView()
+									]
+								]
 							]
 							+ SSplitter::Slot()
-							.Value(0.6f)
 							[
-								EntityProtocolDetails.ToSharedRef()
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								[
+									EntityProtocolDetails.ToSharedRef()
+								]
 							]
 						]
 					]
+				]
+			]
+			+ SSplitter::Slot()
+			.Value(.2f)
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.Visibility_Lambda([](){ return FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Padding(2.f)
+				[
+					FRemoteControlLogger::Get().GetWidget()
 				]
 			]
 		]
@@ -240,7 +306,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	for (const TSharedRef<SWidget>& Widget : ExtensionWidgets)
 	{
 		// We want to insert the widgets before the edit mode buttons.
-		TopExtensions->InsertSlot(TopExtensions->NumSlots()-2)
+		TopExtensions->InsertSlot(TopExtensions->NumSlots()-4)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
@@ -257,6 +323,13 @@ SRemoteControlPanel::~SRemoteControlPanel()
 {
 	UnregisterEvents();
 	FRCPanelWidgetRegistry::Get().Clear();
+
+	// Clear the log
+	FRemoteControlLogger::Get().ClearLog();
+
+	// Remove protocol bindings
+	IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>("RemoteControlProtocolWidgets");
+	ProtocolWidgetsModule.ResetProtocolBindingList();	
 }
 
 void SRemoteControlPanel::PostUndo(bool bSuccess)
@@ -393,8 +466,6 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateCPUThrottleButton() const
 TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 {	
 	FMenuBuilder MenuBuilder(true, nullptr);
-
-	
 	
 	SAssignNew(BlueprintPicker, SRCPanelFunctionPicker)
 		.AllowDefaultObjects(true)
@@ -577,7 +648,27 @@ void SRemoteControlPanel::OnActorAddedToLevel(AActor* Actor)
 		{
 			ClassPicker->Refresh();
 		}
+
+		UpdateActorFunctionPicker();
 	}
+}
+
+void SRemoteControlPanel::OnLevelActorsRemoved(AActor* Actor)
+{
+	if (Actor)
+	{
+		if (ClassPicker)
+		{
+			ClassPicker->Refresh();
+		}
+
+		UpdateActorFunctionPicker();
+	}
+}
+
+void SRemoteControlPanel::OnLevelActorListChanged()
+{
+	UpdateActorFunctionPicker();
 }
 
 void SRemoteControlPanel::CacheActorClass(AActor* Actor)
@@ -618,6 +709,8 @@ void SRemoteControlPanel::RegisterEvents()
 	if (GEngine)
 	{
 		GEngine->OnLevelActorAdded().AddSP(this, &SRemoteControlPanel::OnActorAddedToLevel);
+		GEngine->OnLevelActorListChanged().AddSP(this, &SRemoteControlPanel::OnLevelActorListChanged);
+		GEngine->OnLevelActorDeleted().AddSP(this, &SRemoteControlPanel::OnLevelActorsRemoved);
 	}
 
 	Preset->OnEntityExposed().AddSP(this, &SRemoteControlPanel::OnEntityExposed);
@@ -631,6 +724,8 @@ void SRemoteControlPanel::UnregisterEvents()
 	
 	if (GEngine)
 	{
+		GEngine->OnLevelActorDeleted().RemoveAll(this);
+		GEngine->OnLevelActorListChanged().RemoveAll(this);
 		GEngine->OnLevelActorAdded().RemoveAll(this);
 	}
 	
@@ -647,6 +742,7 @@ void SRemoteControlPanel::Refresh()
 	BlueprintPicker->Refresh();
 	ActorFunctionPicker->Refresh();
 	SubsystemFunctionPicker->Refresh();
+	EntityList->Refresh();
 }
 
 void SRemoteControlPanel::Unexpose(const TSharedPtr<IPropertyHandle>& Handle)
@@ -697,8 +793,14 @@ void SRemoteControlPanel::Unexpose(const TSharedPtr<IPropertyHandle>& Handle)
 
 void SRemoteControlPanel::OnEditModeCheckboxToggle(ECheckBoxState State)
 {
-	bIsInEditMode = State == ECheckBoxState::Checked ? true : false;
+	bIsInEditMode = (State == ECheckBoxState::Checked) ? true : false;
 	OnEditModeChange.ExecuteIfBound(SharedThis(this), bIsInEditMode);
+}
+
+void SRemoteControlPanel::OnLogCheckboxToggle(ECheckBoxState State)
+{
+	const bool bIsLogEnabled = (State == ECheckBoxState::Checked) ? true : false;
+	FRemoteControlLogger::Get().EnableLog(bIsLogEnabled);
 }
  
 void SRemoteControlPanel::OnBlueprintReinstanced()
@@ -773,6 +875,7 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
 	{
 		return EntityDetailsView->GetWidget().ToSharedRef();
 	}
+
 	return SNullWidget::NullWidget;
 }
 
@@ -857,6 +960,17 @@ FReply SRemoteControlPanel::OnClickRebindAllButton()
 		UpdateRebindButtonVisibility();
 	}
 	return FReply::Handled();
+}
+
+void SRemoteControlPanel::UpdateActorFunctionPicker()
+{
+	if (GEditor && ActorFunctionPicker)
+	{
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+		{
+			ActorFunctionPicker->Refresh();
+		}));
+	}
 }
 
 void SRemoteControlPanel::OnEntityExposed(URemoteControlPreset* InPreset, const FGuid& InEntityId)

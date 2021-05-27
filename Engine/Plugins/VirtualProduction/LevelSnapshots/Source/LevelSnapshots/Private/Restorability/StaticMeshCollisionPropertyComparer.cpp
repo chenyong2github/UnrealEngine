@@ -51,7 +51,7 @@ IPropertyComparer::EPropertyComparison FStaticMeshCollisionPropertyComparer::Sho
 		const bool bUseDefaultCollision = SnapshotObject->bUseDefaultCollision;
 		return bDefaultCollisionConfigIsEqual
 			?
-			bUseDefaultCollision ? EPropertyComparison::TreatEqual : EPropertyComparison::TreatUnequal
+			bUseDefaultCollision ? EPropertyComparison::TreatEqual : EPropertyComparison::CheckNormally
 			:
 			EPropertyComparison::CheckNormally;
 	}

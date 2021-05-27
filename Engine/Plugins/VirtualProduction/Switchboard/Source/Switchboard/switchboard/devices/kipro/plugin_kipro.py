@@ -82,7 +82,7 @@ class DeviceKiPro(Device):
 
     @unresponsive_kipro
     def record_start(self, slate, take, description):
-        if self.status == DeviceStatus.DISCONNECTED or not self.is_recording_device:
+        if self.is_disconnected or not self.is_recording_device:
             return
 
         self.set_media_state_for_record_play()
@@ -150,7 +150,7 @@ class DeviceKiPro(Device):
 
     @unresponsive_kipro
     def play(self):
-        if self.status == DeviceStatus.DISCONNECTED:
+        if self.is_disconnected:
             return
 
         self.set_media_state_for_record_play()
@@ -160,7 +160,7 @@ class DeviceKiPro(Device):
 
     @unresponsive_kipro
     def stop(self):
-        #if self.status == DeviceStatus.DISCONNECTED:
+        #if self.is_disconnected:
         #    return
 
         self.set_media_state_for_record_play()
@@ -170,7 +170,7 @@ class DeviceKiPro(Device):
 
     @unresponsive_kipro
     def record(self):
-        if self.status == DeviceStatus.DISCONNECTED:
+        if self.is_disconnected:
             return
 
         self.set_media_state_for_record_play()
@@ -180,7 +180,7 @@ class DeviceKiPro(Device):
 
     @unresponsive_kipro
     def fast_forward(self):
-        if self.status == DeviceStatus.DISCONNECTED:
+        if self.is_disconnected:
             return
 
         self.set_media_state_for_record_play()
@@ -190,7 +190,7 @@ class DeviceKiPro(Device):
 
     @unresponsive_kipro
     def fast_reverse(self):
-        if self.status == DeviceStatus.DISCONNECTED:
+        if self.is_disconnected:
             return
 
         self.set_media_state_for_record_play()
@@ -269,7 +269,7 @@ class DeviceWidgetKiPro(DeviceWidget):
     def update_status(self, status, previous_status):
         super().update_status(status, previous_status)
 
-        if status == DeviceStatus.DISCONNECTED:
+        if status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}:
             self.play_button.setDisabled(True)
             self.stop_button.setDisabled(True)
         elif status >= DeviceStatus.CLOSED:

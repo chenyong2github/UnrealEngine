@@ -23,22 +23,85 @@
 
         //**********************
         //Config setup
-        //**********************;
+        //**********************
 		this.cfg = parOptions.peerConnectionOptions || {};
 		this.cfg.sdpSemantics = 'unified-plan';
+        // this.cfg.rtcAudioJitterBufferMaxPackets = 10;
+        // this.cfg.rtcAudioJitterBufferFastAccelerate = true;
+        // this.cfg.rtcAudioJitterBufferMinDelayMs = 0;
+
+
 		//If this is true in Chrome 89+ SDP is sent that is incompatible with UE WebRTC and breaks.
-        this.cfg.offerExtmapAllowMixed = false;
+        //this.cfg.offerExtmapAllowMixed = false;
         this.pcClient = null;
         this.dcClient = null;
         this.tnClient = null;
 
         this.sdpConstraints = {
-          offerToReceiveAudio: 1,
+          offerToReceiveAudio: 1, //Note: if you don't need audio you can get improved latency by turning this off.
           offerToReceiveVideo: 1
         };
 
         // See https://www.w3.org/TR/webrtc/#dom-rtcdatachannelinit for values
         this.dataChannelOptions = {ordered: true};
+
+        // ToDo: get this useMic from url string like ?useMic or similar
+        //this.useMic = false;
+
+        //**********************
+        //Variables
+        //**********************
+        this.latencyTestTimings = 
+        {
+            TestStartTimeMs: null,
+            ReceiptTimeMs: null,
+            PreCaptureTimeMs: null,
+            PostCaptureTimeMs: null,
+            PreEncodeTimeMs: null,
+            PostEncodeTimeMs: null,
+            FrameDisplayTimeMs: null,
+            Reset: function()
+            {
+                this.TestStartTimeMs = null;
+                this.ReceiptTimeMs = null;
+                this.PreCaptureTimeMs = null;
+                this.PostCaptureTimeMs = null;
+                this.PreEncodeTimeMs = null;
+                this.PostEncodeTimeMs = null;
+                this.FrameDisplayTimeMs = null;
+            },
+            HasAllTimings: function()
+            {
+                return this.TestStartTimeMs && 
+                this.ReceiptTimeMs && 
+                this.PreCaptureTimeMs && 
+                this.PostCaptureTimeMs && 
+                this.PreEncodeTimeMs && 
+                this.PostEncodeTimeMs && 
+                this.FrameDisplayTimeMs;
+            },
+            SetUETimings: function(UETimings)
+            {
+                this.ReceiptTimeMs = UETimings.ReceiptTimeMs;
+                this.PreCaptureTimeMs = UETimings.PreCaptureTimeMs;
+                this.PostCaptureTimeMs = UETimings.PostCaptureTimeMs;
+                this.PreEncodeTimeMs = UETimings.PreEncodeTimeMs;
+                this.PostEncodeTimeMs = UETimings.PostEncodeTimeMs;
+                if(this.HasAllTimings())
+                {
+                    this.OnAllLatencyTimingsReady(this);
+                }
+            },
+            SetFrameDisplayTime: function(TimeMs)
+            {
+                this.FrameDisplayTimeMs = TimeMs;
+                if(this.HasAllTimings())
+                {
+                    this.OnAllLatencyTimingsReady(this);
+                }
+            },
+            OnAllLatencyTimingsReady: function(Timings){}
+        }
 
         //**********************
         //Functions
@@ -56,6 +119,28 @@
                     self.onVideoInitialised();
                 }
             }, true);
+			
+			// Check if request video frame callback is supported
+			if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+				// The API is supported! 
+				
+				const onVideoFrameReady = (now, metadata) => {
+					
+					if(metadata.receiveTime && metadata.expectedDisplayTime)
+					{
+						const receiveToCompositeMs = metadata.presentationTime - metadata.receiveTime;
+						self.aggregatedStats.receiveToCompositeMs = receiveToCompositeMs;
+					}
+					
+				  
+					// Re-register the callback to be notified about the next frame.
+					video.requestVideoFrameCallback(onVideoFrameReady);
+				};
+				
+				// Initially register the callback to be notified about the first frame.
+				video.requestVideoFrameCallback(onVideoFrameReady);
+			}
+			
             return video;
         }
 
@@ -91,12 +176,16 @@
 				console.log('Set video stream from ontrack');
 				
             }
+			
         };
 
         setupDataChannel = function(pc, label, options) {
             try {
-                var datachannel = pc.createDataChannel(label, options)
+                let datachannel = pc.createDataChannel(label, options);
                 console.log(`Created datachannel (${label})`)
+
+                // Inform browser we would like binary data as an ArrayBuffer (FF chooses Blob by default!)
+                datachannel.binaryType = "arraybuffer";
                 
                 datachannel.onopen = function (e) {
                   console.log(`data channel (${label}) connect`)
@@ -136,7 +225,8 @@
             		// (andriy): increase start bitrate from 300 kbps to 20 mbps and max bitrate from 2.5 mbps to 100 mbps
                     // (100 mbps means we don't restrict encoder at all)
                     // after we `setLocalDescription` because other browsers are not c happy to see google-specific config
-            		offer.sdp = offer.sdp.replace(/(a=fmtp:\d+ .*level-asymmetry-allowed=.*)\r\n/gm, "$1;x-google-start-bitrate=10000;x-google-max-bitrate=20000\r\n");
+            		offer.sdp = offer.sdp.replace(/(a=fmtp:\d+ .*level-asymmetry-allowed=.*)\r\n/gm, "$1;x-google-start-bitrate=10000;x-google-max-bitrate=100000\r\n");
+                    //offer.sdp = offer.sdp.replace("http://www.webrtc.org/experiments/rtp-hdrext/playout-delay", "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay 0 0\r\na=name:playout-delay");
             		self.onWebRtcOffer(offer);
                 }
             },
@@ -225,7 +315,12 @@
                     }
                 });
 
-                //console.log(JSON.stringify(newStat));
+				
+				if(self.aggregatedStats.receiveToCompositeMs)
+				{
+					newStat.receiveToCompositeMs = self.aggregatedStats.receiveToCompositeMs;
+				}
+				
                 self.aggregatedStats = newStat;
 
                 if(self.onAggregatedStats)
@@ -233,9 +328,71 @@
             }
         };
 
+        setupTracksToSendAsync = async function(pc){
+            const stream = await navigator.mediaDevices.getUserMedia({video: false, audio: false});
+            if(stream)
+            {
+                for (const track of stream.getTracks()) {
+                    if(track.kind && track.kind == "audio")
+                    {
+                        pc.addTrack(track);
+                    }
+                }
+            }
+        };
+
+
         //**********************
         //Public functions
         //**********************
+
+        this.startLatencyTest = function(onTestStarted) {
+            // Can't start latency test without a video element
+            if(!self.video)
+            {
+                return;
+            }
+            let videoCanvas = document.createElement("canvas");
+            videoCanvas.style.display = 'none';
+            var ctx = videoCanvas.getContext('2d');
+            videoCanvas.width = self.video.videoWidth;
+            videoCanvas.height = self.video.videoHeight;
+
+            self.latencyTestTimings.Reset();
+            self.video.focus();
+
+            let checkCanvasSpecialLatencyPixels = function()
+            {
+                // Once we have our canvas pixel checker running we consider the test started properly
+                if(self.latencyTestTimings.TestStartTimeMs == null)
+                {
+                    self.latencyTestTimings.TestStartTimeMs = Date.now();
+                    onTestStarted(self.latencyTestTimings.TestStartTimeMs);
+                }
+
+                // draw the video to the canvas so we can analyse pixels in the canvas
+                ctx.drawImage(self.video, 0,0);
+                let middlePixelW = self.video.videoWidth * 0.5
+                let middlePixelH = self.video.videoHeight * 0.5
+                let data = ctx.getImageData(middlePixelW, middlePixelH, 1, 1).data;
+                let rgb = [ data[0], data[1], data[2] ];
+                let redValue = rgb[0];
+                if(redValue == 255)
+                {
+                    delete videoCanvas;
+                    console.log("Got special latency frame!");
+                    self.latencyTestTimings.SetFrameDisplayTime(Date.now());
+                }
+                else
+                {
+                    window.requestAnimationFrame(checkCanvasSpecialLatencyPixels);
+                }
+            }
+
+            // start checking for special latency pixels
+            window.requestAnimationFrame(checkCanvasSpecialLatencyPixels);
+            
+        }
 
         //This is called when revceiving new ice candidates individually instead of part of the offer
         //This is currently not used but would be called externally from this class
@@ -255,9 +412,19 @@
                 self.pcClient = null;
             }
             self.pcClient = new RTCPeerConnection(self.cfg);
+
             setupPeerConnection(self.pcClient);
             self.dcClient = setupDataChannel(self.pcClient, 'cirrus', self.dataChannelOptions);
             handleCreateOffer(self.pcClient);
+
+            //if we were going to support browser sending mic/video into UE
+            // setupTracksToSendAsync(self.pcClient).finally(function()
+            // {
+            //     setupPeerConnection(self.pcClient);
+            //     self.dcClient = setupDataChannel(self.pcClient, 'cirrus', self.dataChannelOptions);
+            //     handleCreateOffer(self.pcClient);
+            // });
+            
         };
 
         //Called externaly when an answer is received from the server
@@ -265,6 +432,12 @@
             console.log(`Received answer:\n${answer}`);
             var answerDesc = new RTCSessionDescription(answer);
             self.pcClient.setRemoteDescription(answerDesc);
+
+            let receivers = self.pcClient.getReceivers();
+            for(let receiver of receivers)
+            {
+                receiver.playoutDelayHint = 0;
+            }
         };
 
         this.close = function(){

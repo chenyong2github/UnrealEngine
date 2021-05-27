@@ -445,6 +445,13 @@ public:
 	virtual TSharedPtr<IAutomationReport> GetNextReportToExecute(bool& bOutAllTestsComplete, const int32 ClusterIndex, const int32 PassIndex, const int32 NumDevicesInCluster) = 0;
 
 	/**
+	 * Returns all the enabled test reports.
+	 *
+	 * @param an array to be filled with all reports
+	 */
+	virtual void GetEnabledTestReports(TArray<TSharedPtr<IAutomationReport>>& OutReports) = 0;
+
+	/**
 	 * Returns if there have been any errors in the test.
 	 *
 	 * @return True If there were errors.

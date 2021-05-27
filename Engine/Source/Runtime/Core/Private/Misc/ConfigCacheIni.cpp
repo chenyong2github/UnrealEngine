@@ -513,7 +513,26 @@ static bool SaveConfigFileWrapper(const TCHAR* IniFile, const FString& Contents)
 	FCoreDelegates::PreSaveConfigFileDelegate.Broadcast(IniFile, Contents, SavedCount);
 
 	// save it even if a delegate did as well
-	bool bLocalWriteSucceeded = FFileHelper::SaveStringToFile(Contents, IniFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+	bool bLocalWriteSucceeded = false;
+
+	if (FConfigFile::WriteTempFileThenMove())
+	{
+		const FString BaseFilename = FPaths::GetBaseFilename(IniFile);
+		const FString TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
+		bLocalWriteSucceeded = FFileHelper::SaveStringToFile(Contents, *TempFilename, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+		if (bLocalWriteSucceeded)
+		{
+			if (!IFileManager::Get().Move(IniFile, *TempFilename))
+			{
+				IFileManager::Get().Delete(*TempFilename);
+				bLocalWriteSucceeded = false;
+			}
+		}
+	}
+	else
+	{
+		bLocalWriteSucceeded = FFileHelper::SaveStringToFile(Contents, IniFile, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+	}
 
 	// success is based on a delegate or file write working (or both)
 	return SavedCount > 0 || bLocalWriteSucceeded;
@@ -1509,6 +1528,17 @@ static void ClearHierarchyCache( const TCHAR* BaseIniName )
 #endif
 }
 
+bool FConfigFile::WriteTempFileThenMove()
+{
+#if PLATFORM_DESKTOP && WITH_EDITOR
+	bool bWriteTempFileThenMove = !FApp::IsGame() && !FApp::IsUnattended();
+#else // PLATFORM_DESKTOP
+	bool bWriteTempFileThenMove = false;
+#endif
+
+	return bWriteTempFileThenMove;
+}
+
 bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite/* = true*/, const FString& PrefixText/*=FString()*/)
 {
 	TMap<FString, FString> SectionTexts;
@@ -1994,6 +2024,11 @@ void FConfigFile::SetDouble(const TCHAR* Section, const TCHAR* Key, double Value
 	TCHAR Text[MAX_SPRINTF] = TEXT("");
 	FCString::Sprintf(Text, TEXT("%.*g"), std::numeric_limits<double>::max_digits10, Value);
 	SetString(Section, Key, Text);
+}
+
+void FConfigFile::SetBool(const TCHAR* Section, const TCHAR* Key, bool Value)
+{
+	SetString(Section, Key, Value ? TEXT("True") : TEXT("False"));
 }
 
 void FConfigFile::SetInt64( const TCHAR* Section, const TCHAR* Key, int64 Value )
@@ -2643,25 +2678,12 @@ void FConfigCacheIni::SetString( const TCHAR* Section, const TCHAR* Key, const T
 {
 	FConfigFile* File = Find(Filename);
 
-	if ( !File )
+	if (!File)
 	{
 		return;
 	}
 
-	FConfigSection* Sec = File->FindOrAddSection( Section );
-
-	FConfigValue* ConfigValue = Sec->Find( Key );
-	if( !ConfigValue )
-	{
-		Sec->Add( Key, Value );
-		File->Dirty = true;
-	}
-	// Use GetSavedValueForWriting rather than GetSavedValue to avoid having the is-it-dirty query mark the values as having been accessed for dependency tracking
-	else if( FCString::Strcmp(*UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue),Value)!=0 )
-	{
-		File->Dirty = true;
-		*ConfigValue = FConfigValue(Value);
-	}
+	File->SetString(Section, Key, Value);
 }
 
 void FConfigCacheIni::SetText( const TCHAR* Section, const TCHAR* Key, const FText& Value, const FString& Filename )
@@ -3142,7 +3164,13 @@ void FConfigCacheIni::SetBool
 	const FString&	Filename
 )
 {
-	SetString( Section, Key, Value ? TEXT("True") : TEXT("False"), Filename );
+	FConfigFile* File = Find(Filename);
+	if (!File)
+	{
+		return;
+	}
+
+	File->SetBool(Section, Key, Value);
 }
 
 void FConfigCacheIni::SetArray

@@ -885,7 +885,7 @@ bool FMaterial::MaterialMayModifyMeshPosition() const
 {
 	// Conservative estimate when called before material translation has occurred. 
 	// This function is only intended for use in deciding whether or not shader permutations are required.
-	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected() || HasMaterialAttributesConnected();
+	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected();
 }
 
 bool FMaterial::MaterialUsesPixelDepthOffset() const
@@ -1301,8 +1301,8 @@ bool FMaterialResource::IsUsedWithEditorCompositing() const { return Material->b
 bool FMaterialResource::IsDeferredDecal() const { return Material->MaterialDomain == MD_DeferredDecal; }
 bool FMaterialResource::IsVolumetricPrimitive() const { return Material->MaterialDomain == MD_Volume; }
 bool FMaterialResource::IsSpecialEngineMaterial() const { return Material->bUsedAsSpecialEngineMaterial; }
-bool FMaterialResource::HasVertexPositionOffsetConnected() const { return HasMaterialAttributesConnected() || (!Material->bUseMaterialAttributes && Material->WorldPositionOffset.IsConnected()); }
-bool FMaterialResource::HasPixelDepthOffsetConnected() const { return HasMaterialAttributesConnected() || (!Material->bUseMaterialAttributes && Material->PixelDepthOffset.IsConnected()); }
+bool FMaterialResource::HasVertexPositionOffsetConnected() const { return Material->HasVertexPositionOffsetConnected(); }
+bool FMaterialResource::HasPixelDepthOffsetConnected() const { return Material->HasPixelDepthOffsetConnected(); }
 bool FMaterialResource::HasMaterialAttributesConnected() const { return (Material->bUseMaterialAttributes && Material->MaterialAttributes.IsConnected()) || Material->bEnableExecWire; }
 EMaterialShadingRate FMaterialResource::GetShadingRate() const { return Material->ShadingRate; }
 FString FMaterialResource::GetBaseMaterialPathName() const { return Material->GetPathName(); }
@@ -1599,22 +1599,22 @@ uint32 FMaterialResource::GetMaterialDecalResponse() const
 
 bool FMaterialResource::HasBaseColorConnected() const
 {
-	return HasMaterialAttributesConnected() || Material->HasBaseColorConnected();
+	return Material->HasBaseColorConnected();
 }
 
 bool FMaterialResource::HasNormalConnected() const
 {
-	return HasMaterialAttributesConnected() || Material->HasNormalConnected();
+	return Material->HasNormalConnected();
 }
 
 bool FMaterialResource::HasRoughnessConnected() const
 {
-	return HasMaterialAttributesConnected() || Material->HasRoughnessConnected();
+	return Material->HasRoughnessConnected();
 }
 
 bool FMaterialResource::HasSpecularConnected() const
 {
-	return HasMaterialAttributesConnected() || Material->HasSpecularConnected();
+	return Material->HasSpecularConnected();
 }
 
 bool FMaterialResource::HasMetallicConnected() const
@@ -1624,17 +1624,17 @@ bool FMaterialResource::HasMetallicConnected() const
 
 bool FMaterialResource::HasEmissiveColorConnected() const
 {
-	return HasMaterialAttributesConnected() || Material->HasEmissiveColorConnected();
+	return Material->HasEmissiveColorConnected();
 }
 
 bool FMaterialResource::HasAnisotropyConnected() const
 {
-	return HasMaterialAttributesConnected() || Material->HasAnisotropyConnected();
+	return Material->HasAnisotropyConnected();
 }
 
 bool FMaterialResource::HasAmbientOcclusionConnected() const
 {
-	return HasMaterialAttributesConnected() || Material->HasAmbientOcclusionConnected();
+	return Material->HasAmbientOcclusionConnected();
 }
 
 bool FMaterialResource::IsStrataMaterial() const

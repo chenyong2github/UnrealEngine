@@ -185,6 +185,10 @@ class DeviceWidget(QtWidgets.QWidget):
             pixmap = QtGui.QPixmap(f":/icons/images/status_blank_disabled.png")
             self.status_icon.setPixmap(pixmap)
             self.status_icon.setToolTip("Disconnected")
+        elif status == DeviceStatus.CONNECTING:
+            pixmap = QtGui.QPixmap(f":/icons/images/status_orange.png")
+            self.status_icon.setPixmap(pixmap)
+            self.status_icon.setToolTip("Connecting...")
         elif status == DeviceStatus.OPEN:
             pixmap = QtGui.QPixmap(f":/icons/images/status_orange.png")
             self.status_icon.setPixmap(pixmap)
@@ -194,7 +198,7 @@ class DeviceWidget(QtWidgets.QWidget):
             self.status_icon.setToolTip("Connected")
 
         # Device icon
-        if status == DeviceStatus.DISCONNECTED:
+        if status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}:
             for label in [self.name_line_edit, self.ip_address_line_edit]:
                 label.setProperty("disconnected", True)
                 label.setStyle(label.style())
@@ -202,10 +206,16 @@ class DeviceWidget(QtWidgets.QWidget):
             pixmap = self.icon_for_state("disabled").pixmap(QtCore.QSize(40, 40))
             self.device_icon.setPixmap(pixmap)
 
-            # Make the Name and IP editable
-            self.name_line_edit.setReadOnly(False)
-            self.ip_address_line_edit.setReadOnly(False)
-        elif previous_status == DeviceStatus.DISCONNECTED and status > DeviceStatus.DISCONNECTED:
+            if status == DeviceStatus.DISCONNECTED:
+                # Make the Name and IP editable when disconnected.
+                self.name_line_edit.setReadOnly(False)
+                self.ip_address_line_edit.setReadOnly(False)
+            elif status == DeviceStatus.CONNECTING:
+                # Make the Name and IP non-editable while connecting.
+                self.name_line_edit.setReadOnly(True)
+                self.ip_address_line_edit.setReadOnly(True)
+        elif ((previous_status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}) and
+                status > DeviceStatus.CONNECTING):
             for label in [self.name_line_edit, self.ip_address_line_edit]:
                 label.setProperty("disconnected", False)
                 label.setStyle(label.style())
@@ -213,7 +223,7 @@ class DeviceWidget(QtWidgets.QWidget):
             pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(40, 40))
             self.device_icon.setPixmap(pixmap)
 
-            # Make the Name and IP editable
+            # Make the Name and IP non-editable when connected.
             self.name_line_edit.setReadOnly(True)
             self.ip_address_line_edit.setReadOnly(True)
 

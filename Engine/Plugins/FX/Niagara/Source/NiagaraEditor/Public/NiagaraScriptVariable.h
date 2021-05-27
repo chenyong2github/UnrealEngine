@@ -23,6 +23,7 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	void Init(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InVarMetaData);
+	void InitFrom(UNiagaraScriptVariable* Value);
 
 	/** The default mode. Can be Value, Binding or Custom. */
 	UPROPERTY(EditAnywhere, Category = "Default Value")

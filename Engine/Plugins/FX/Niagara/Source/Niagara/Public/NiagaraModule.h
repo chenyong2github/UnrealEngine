@@ -85,6 +85,8 @@ public:
 	FDelegateHandle RegisterPrecompiler(FOnPrecompile PreCompiler);
 	void UnregisterPrecompiler(FDelegateHandle DelegateHandle);
 
+	void OnAssetLoaded(UObject* Asset);
+
 #endif
 
 #if NIAGARA_PERF_BASELINES

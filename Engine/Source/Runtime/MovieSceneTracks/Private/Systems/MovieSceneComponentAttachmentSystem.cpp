@@ -288,7 +288,7 @@ void UMovieSceneComponentAttachmentSystem::SavePreAnimatedState(const FPreAnimat
 			// state regardless of the detach rules used during normal playback.
 			FCachePreAnimatedValueParams ForcePersistParams;
 			ForcePersistParams.bForcePersist = true;
-			ComponentTransformStorage->CachePreAnimatedValues(ForcePersistParams, BoundObjectArray);
+			ComponentTransformStorage->CachePreAnimatedTransforms(ForcePersistParams, BoundObjectArray);
 
 			FPreAnimatedTrackerParams AttachmentParams(Item);
 			AttachmentParams.bWantsRestoreState = false;

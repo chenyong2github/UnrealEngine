@@ -567,3 +567,28 @@ bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime(UObject* 
 	}
 	return false;
 }
+
+
+FVector2D UHeadMountedDisplayFunctionLibrary::GetPlayAreaBounds(TEnumAsByte<EHMDTrackingOrigin::Type> InOrigin)
+{
+	if (GEngine->XRSystem.IsValid())
+	{
+		EHMDTrackingOrigin::Type Origin = EHMDTrackingOrigin::Stage;
+		switch (InOrigin)
+		{
+		case EHMDTrackingOrigin::Eye:
+			Origin = EHMDTrackingOrigin::Eye;
+			break;
+		case EHMDTrackingOrigin::Floor:
+			Origin = EHMDTrackingOrigin::Floor;
+			break;
+		case EHMDTrackingOrigin::Stage:
+			Origin = EHMDTrackingOrigin::Stage;
+			break;
+		default:
+			break;
+		}
+		return GEngine->XRSystem->GetPlayAreaBounds(Origin);
+	}
+	return FVector2D::ZeroVector;
+}

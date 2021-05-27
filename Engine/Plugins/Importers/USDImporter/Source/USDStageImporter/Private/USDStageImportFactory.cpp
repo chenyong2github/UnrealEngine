@@ -7,6 +7,7 @@
 #include "USDStageImporterModule.h"
 #include "USDStageImportOptions.h"
 
+#include "AssetImportTask.h"
 #include "AssetRegistryModule.h"
 #include "AssetSelection.h"
 #include "Editor.h"
@@ -40,6 +41,11 @@ UUsdStageImportFactory::UUsdStageImportFactory(const FObjectInitializer& ObjectI
 UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
 	UObject* ImportedObject = nullptr;
+
+	if ( AssetImportTask && IsAutomatedImport() )
+	{
+		ImportContext.ImportOptions = Cast<UUsdStageImportOptions>( AssetImportTask->Options );
+	}
 
 #if USE_USD_SDK
 	const FString InitialPackagePath =InParent ? InParent->GetName() : TEXT( "/Game/" );

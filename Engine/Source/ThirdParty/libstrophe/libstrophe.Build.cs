@@ -5,18 +5,7 @@ using System.IO;
 
 public class libstrophe : ModuleRules
 {
-	protected virtual string StropheVersion {
-		get { 
-			if (Target.Platform == UnrealTargetPlatform.Android)
-			{
-				return  "libstrophe-0.9.3"; 
-			}
-			else
-			{
-				return  "libstrophe-0.9.1";
-			}
-		} 
-	}
+	protected virtual string StropheVersion { get { return (Target.Platform == UnrealTargetPlatform.Mac) ? "libstrophe-0.9.1" : "libstrophe-0.9.3"; } } 
 
 	protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
 

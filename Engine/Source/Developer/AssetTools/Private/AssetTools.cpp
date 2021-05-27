@@ -319,8 +319,17 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions)
 {
-	const UClass* SupportedClass = NewActions->GetSupportedClass();
-	NewActions->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
+	bool bSupported = false;
+	if (const UClass* SupportedClass = NewActions->GetSupportedClass())
+	{
+		bSupported = AssetClassBlacklist->PassesFilter(SupportedClass->GetFName());
+	}
+	else
+	{
+		bSupported = !NewActions->GetFilterName().IsNone();
+	}
+
+	NewActions->SetSupported(bSupported);
 
 	AssetTypeActionsList.Add(NewActions);
 }
@@ -707,57 +716,77 @@ void UAssetToolsImpl::GenerateAdvancedCopyDestinations(FAdvancedCopyParams& InPa
 
 			if (bFileOKToCopy)
 			{
-				UPackage* Pkg = LoadPackage(nullptr, *PackageNameString, LOAD_None);
-				if (Pkg)
+				FString Parent = FString();
+				if (bGenerateRelativePaths)
 				{
-					FString Name = ObjectTools::SanitizeObjectName(FPaths::GetBaseFilename(SrcFilename));
-					UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), Pkg, *Name);
-					if (ExistingObject)
+					FString RootFolder = UAdvancedCopyCustomization::StaticClass()->GetDefaultObject<UAdvancedCopyCustomization>()->GetPackageThatInitiatedCopy();
+					if (RootFolder != PackageNameString)
 					{
-						FString Parent = FString();
-						if (bGenerateRelativePaths)
+						FString BaseParent = FString();
+						int32 MinLength = RootFolder.Len() < PackageNameString.Len() ? RootFolder.Len() : PackageNameString.Len();
+						for (int Char = 0; Char < MinLength; Char++)
 						{
-							FString RootFolder = UAdvancedCopyCustomization::StaticClass()->GetDefaultObject<UAdvancedCopyCustomization>()->GetPackageThatInitiatedCopy();
-							if (RootFolder != FPaths::GetPath(ExistingObject->GetPathName()))
+							if (RootFolder[Char] == PackageNameString[Char])
 							{
-								FString BaseParent = FString();
-								int32 MinLength = RootFolder.Len() < PackageNameString.Len() ? RootFolder.Len() : PackageNameString.Len();
-								for (int Char = 0; Char < MinLength; Char++)
-								{
-									if (RootFolder[Char] == PackageNameString[Char])
-									{
-										BaseParent += RootFolder[Char];
-									}
-									else
-									{
-										break;
-									}
-								}
-								// If we are in the root content folder, don't break down the folder string
-								if (BaseParent == TEXT("/Game"))
-								{
-									Parent = BaseParent;
-								}
-								else
-								{
-									BaseParent.Split(TEXT("/"), &Parent, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-								}
+								BaseParent += RootFolder[Char];
+							}
+							else
+							{
+								break;
 							}
 						}
 
-						ObjectTools::FMoveDialogInfo MoveDialogInfo;
-						MoveDialogInfo.bOkToAll = InParams.bCopyOverAllDestinationOverlaps;
-						MoveDialogInfo.bPromptForRenameOnConflict = false;
-						// The default value for save packages is true if SCC is enabled because the user can use SCC to revert a change
-						MoveDialogInfo.bSavePackages = ISourceControlModule::Get().IsEnabled();
-						ObjectTools::GetMoveDialogInfo(NSLOCTEXT("UnrealEd", "DuplicateObjects", "Copy Objects"), ExistingObject, InParams.bGenerateUniqueNames, Parent, DestinationFolder, MoveDialogInfo);
-						OutPackagesAndDestinations.Add(PackageNameString, MoveDialogInfo.PGN.PackageName);
+						// If we are in the root content folder, don't break down the folder string
+						if (BaseParent == TEXT("/Game"))
+						{
+							Parent = BaseParent;
+						}
+						else
+						{
+							BaseParent.Split(TEXT("/"), &Parent, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+						}
 					}
 				}
+
+				const FString DestinationPackageName = UAssetToolsImpl::GenerateAdvancedCopyDestinationPackageName(PackageNameString, Parent, DestinationFolder);
+				OutPackagesAndDestinations.Add(PackageNameString, DestinationPackageName);
 			}
 		}
 	}
-	
+}
+
+FString UAssetToolsImpl::GenerateAdvancedCopyDestinationPackageName(const FString& SourcePackage, const FString& SourcePath, const FString& DestinationFolder)
+{
+	FString DestinationPackageName;
+
+	const bool bIsRelativeOperation = SourcePath.Len() && DestinationFolder.Len() && SourcePackage.StartsWith(SourcePath);
+	if (bIsRelativeOperation)
+	{
+		// Folder copy/move.
+
+		// Collect the relative path then use it to determine the new location
+		// For example, if SourcePath = /Game/MyPath and SourcePackage = /Game/MyPath/MySubPath/MyAsset
+		//     /Game/MyPath/MySubPath/MyAsset -> /MySubPath/
+
+		const int32 ShortPackageNameLen = FPackageName::GetShortName(SourcePackage).Len();
+		const int32 RelativePathLen = SourcePackage.Len() - ShortPackageNameLen - SourcePath.Len();
+		const FString RelativeDestPath = SourcePackage.Mid(SourcePath.Len(), RelativePathLen);
+
+		DestinationPackageName = DestinationFolder + RelativeDestPath + FPackageName::GetShortName(SourcePackage);
+	}
+	else if (DestinationFolder.Len())
+	{
+		// Use the passed in default path
+		// Normal path
+		DestinationPackageName = DestinationFolder + "/" + FPackageName::GetShortName(SourcePackage);
+	}
+	else
+	{
+		// Use the path from the old package
+		DestinationPackageName = SourcePackage;
+	}
+
+	return DestinationPackageName;
 }
 
 bool UAssetToolsImpl::FlattenAdvancedCopyDestinations(const TArray<TMap<FString, FString>> PackagesAndDestinations, TMap<FString, FString>& FlattenedPackagesAndDestinations) const
@@ -3173,9 +3202,8 @@ void UAssetToolsImpl::BeginAdvancedCopyPackages(const TArray<FName>& InputNamesT
 	const bool bSaveContentPackages = true;
 	if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages))
 	{
-
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		if (AssetRegistryModule.Get().IsLoadingAssets())
+		IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
+		if (AssetRegistry.IsLoadingAssets())
 		{
 			// Open a dialog asking the user to wait while assets are being discovered
 			SDiscoveringAssetsDialog::OpenDiscoveringAssetsDialog(
@@ -3190,11 +3218,48 @@ void UAssetToolsImpl::BeginAdvancedCopyPackages(const TArray<FName>& InputNamesT
 	}
 }
 
+TArray<FName> UAssetToolsImpl::ExpandAssetsAndFoldersToJustAssets(TArray<FName> SelectedAssetAndFolderNames) const
+{
+	IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
+
+	TSet<FName> ExpandedAssets;
+	for (auto NameIt = SelectedAssetAndFolderNames.CreateIterator(); NameIt; ++NameIt)
+	{
+		FName OriginalName = *NameIt;
+		const FString& OriginalNameString = OriginalName.ToString();
+		if (!FPackageName::DoesPackageExist(OriginalNameString))
+		{
+			TArray<FAssetData> AssetsInFolder;
+			AssetRegistry.GetAssetsByPath(OriginalName, AssetsInFolder, true, false);
+			for (const FAssetData& Asset : AssetsInFolder)
+			{
+				ExpandedAssets.Add(Asset.PackageName);
+			}
+
+			NameIt.RemoveCurrent();
+		}
+		else
+		{
+			ExpandedAssets.Add(OriginalName);
+		}
+	}
+
+	TArray<FName> ExpandedAssetArray;
+	for (FName ExpandedAsset : ExpandedAssets)
+	{
+		ExpandedAssetArray.Add(ExpandedAsset);
+	}
+
+	return ExpandedAssetArray;
+}
+
 void UAssetToolsImpl::PerformAdvancedCopyPackages(TArray<FName> SelectedAssetAndFolderNames, FString TargetPath) const
 {	
 	TargetPath.RemoveFromEnd(TEXT("/"));
+
+	//TArray<FName> ExpandedAssets = ExpandAssetsAndFoldersToJustAssets(SelectedAssetAndFolderNames);
 	FAdvancedCopyParams CopyParams = FAdvancedCopyParams(SelectedAssetAndFolderNames, TargetPath);
-	CopyParams.bShouldCheckForDependencies = SelectedAssetAndFolderNames.Num() == 1;
+	CopyParams.bShouldCheckForDependencies = true;
 
 	// Suppress UI if we're running in unattended mode
 	if (FApp::IsUnattended())
@@ -3211,6 +3276,7 @@ void UAssetToolsImpl::PerformAdvancedCopyPackages(TArray<FName> SelectedAssetAnd
 		const FString& OriginalNameString = OriginalName.ToString();
 		FString SrcFilename;
 		UObject* ExistingObject = nullptr;
+
 		if (FPackageName::DoesPackageExist(OriginalNameString, nullptr, &SrcFilename))
 		{
 			UPackage* Pkg = LoadPackage(nullptr, *OriginalNameString, LOAD_None);
@@ -3220,6 +3286,7 @@ void UAssetToolsImpl::PerformAdvancedCopyPackages(TArray<FName> SelectedAssetAnd
 				ExistingObject = StaticFindObject(UObject::StaticClass(), Pkg, *Name);
 			}
 		}
+
 		if (ExistingObject)
 		{
 			// Try to find the customization in the settings
@@ -3255,7 +3322,7 @@ void UAssetToolsImpl::InitAdvancedCopyFromCopyParams(FAdvancedCopyParams CopyPar
 	TArray<TMap<FName, FName>> CompleteDependencyMap;
 	TArray<TMap<FString, FString>> CompleteDestinationMap;
 
-	TArray<FName> SelectedPackageNames = CopyParams.GetSelectedPackageNames();
+	TArray<FName> SelectedPackageNames = CopyParams.GetSelectedPackageOrFolderNames();
 
 	FScopedSlowTask SlowTask(SelectedPackageNames.Num(), LOCTEXT("AdvancedCopyPrepareSlowTask", "Preparing Files for Advanced Copy"));
 	SlowTask.MakeDialog();
@@ -3266,6 +3333,7 @@ void UAssetToolsImpl::InitAdvancedCopyFromCopyParams(FAdvancedCopyParams CopyPar
 	{
 		FName Package = SelectedPackageNames[CustomizationIndex];
 		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("AdvancedCopy_PreparingDependencies", "Preparing dependencies for {0}"), FText::FromString(Package.ToString())));
+
 		UAdvancedCopyCustomization* CopyCustomization = CustomizationsToUse[CustomizationIndex];
 		// Give the customization a chance to edit the copy parameters
 		CopyCustomization->EditCopyParams(CopyParams);
@@ -3274,13 +3342,12 @@ void UAssetToolsImpl::InitAdvancedCopyFromCopyParams(FAdvancedCopyParams CopyPar
 
 		// Get all packages to be copied
 		GetAllAdvancedCopySources(Package, CopyParams, PackageNamesToCopy, DependencyMap, CopyCustomization);
+		
 		// Allow the customization to apply any additional filters
 		CopyCustomization->ApplyAdditionalFiltering(PackageNamesToCopy);
-
 		CopyCustomization->SetPackageThatInitiatedCopy(Package.ToString());
+
 		TMap<FString, FString> DestinationMap = TMap<FString, FString>();
-
-
 		GenerateAdvancedCopyDestinations(CopyParams, PackageNamesToCopy, CopyCustomization, DestinationMap);
 		CopyCustomization->TransformDestinationPaths(DestinationMap);
 		CompleteDestinationMap.Add(DestinationMap);
@@ -3373,8 +3440,17 @@ void UAssetToolsImpl::AssetClassBlacklistChanged()
 {
 	for (TSharedRef<IAssetTypeActions>& ActionsIt : AssetTypeActionsList)
 	{
-		const UClass* SupportedClass = ActionsIt->GetSupportedClass();
-		ActionsIt->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
+		bool bSupported = false;
+		if (const UClass* SupportedClass = ActionsIt->GetSupportedClass())
+		{
+			bSupported = AssetClassBlacklist->PassesFilter(SupportedClass->GetFName());
+		}
+		else
+		{
+			bSupported = !ActionsIt->GetFilterName().IsNone();
+		}
+
+		ActionsIt->SetSupported(bSupported);
 	}
 }
 

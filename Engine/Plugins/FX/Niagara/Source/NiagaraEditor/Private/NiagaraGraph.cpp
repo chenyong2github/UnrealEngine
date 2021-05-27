@@ -1,36 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGraph.h"
+
+#include "EdGraphSchema_Niagara.h"
+#include "GraphEditAction.h"
+#include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraCommon.h"
-#include "NiagaraEditorModule.h"
-#include "NiagaraScript.h"
 #include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
-#include "NiagaraSystem.h"
-#include "NiagaraNodeOutput.h"
-#include "NiagaraNodeInput.h"
-#include "NiagaraScriptSource.h"
-#include "NiagaraParameterDefinitions.h"
-#include "GraphEditAction.h"
-#include "EdGraphSchema_Niagara.h"
+#include "NiagaraCustomVersion.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorUtilities.h"
+#include "NiagaraHlslTranslator.h"
+#include "NiagaraModule.h"
+#include "NiagaraNode.h"
 #include "NiagaraNodeAssignment.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeInput.h"
+#include "NiagaraNodeOutput.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraNodeReroute.h"
-#include "INiagaraEditorTypeUtilities.h"
-#include "NiagaraEditorUtilities.h"
-#include "NiagaraNode.h"
-#include "NiagaraCustomVersion.h"
 #include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraParameterDefinitions.h"
+#include "NiagaraScript.h"
+#include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
-#include "NiagaraHlslTranslator.h"
-#include "NiagaraNodeFunctionCall.h"
-#include "Misc/SecureHash.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Misc/SecureHash.h"
+#include "Modules/ModuleManager.h"
 #include "String/ParseTokens.h"
-#include "ViewModels/NiagaraParameterDefinitionsSubscriberViewModel.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - PostLoad"), STAT_NiagaraEditor_Graph_PostLoad, STATGROUP_NiagaraEditor);
@@ -148,6 +150,7 @@ void UNiagaraGraph::PostLoad()
 		if (ScriptVar == nullptr)
 		{
 			ScriptVar = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this));
+			ScriptVar->Init(Var, FNiagaraVariableMetaData());
 			UE_LOG(LogNiagaraEditor, Display, TEXT("Fixed null UNiagaraScriptVariable | variable %s | asset path %s"), *Var.GetName().ToString(), *GetPathName());
 		}
 		else
@@ -155,6 +158,7 @@ void UNiagaraGraph::PostLoad()
 			// Conditional postload all ScriptVars to ensure static switch default values are allocated as these are required when postloading all graph nodes later.
 			ScriptVar->ConditionalPostLoad();
 		}
+		ScriptVar->SetIsStaticSwitch(FindStaticSwitchInputs().Contains(Var));
 	}
 
 	for (UEdGraphNode* Node : Nodes)
@@ -776,6 +780,12 @@ void UNiagaraGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	RefreshParameterReferences();
 }
 
+void UNiagaraGraph::BeginDestroy()
+{
+	Super::BeginDestroy();
+	ReleaseCompilationCopy();
+}
+
 class UNiagaraScriptSource* UNiagaraGraph::GetSource() const
 {
 	return CastChecked<UNiagaraScriptSource>(GetOuter());
@@ -937,6 +947,78 @@ void UNiagaraGraph::FindEquivalentOutputNodes(ENiagaraScriptUsage TargetUsageTyp
 	}
 
 	OutputNodes = NodesFound;
+}
+
+UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
+{
+	check(!bIsForCompilationOnly);
+	UNiagaraGraph* Result = NewObject<UNiagaraGraph>();
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+
+	// create a shallow copy
+	for (TFieldIterator<FProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(this);
+        uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(Result);
+
+        Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+	}
+	Result->bIsForCompilationOnly = true;
+
+	// get new script variables from the pool
+	for (auto& It : Result->VariableToScriptVariable)
+	{
+		It.Value = CastChecked<UNiagaraScriptVariable>(NiagaraEditorModule.GetPooledDuplicateObject(It.Value));
+	}
+
+	// duplicate the nodes
+	TMap<UEdGraphNode*, UEdGraphNode*> DuplicationMapping;
+	TArray<UEdGraphNode*> NewNodes;
+	for (UEdGraphNode* Node : Result->Nodes)
+	{
+		UEdGraphNode* DupNode = NewNodes.Add_GetRef(DuplicateObject(Node, Result));
+		DuplicationMapping.Add(Node, DupNode);
+	}
+	for (UEdGraphNode* Node : NewNodes)
+	{
+		// fix up linked pins
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			for (int i = 0; i < Pin->LinkedTo.Num(); i++)
+			{
+				UEdGraphPin* LinkedPin = Pin->LinkedTo[i];
+				UEdGraphNode* NewNode = DuplicationMapping[LinkedPin->GetOwningNode()];
+				UEdGraphPin** NodePin = NewNode->Pins.FindByPredicate([LinkedPin](UEdGraphPin* Pin) { return Pin->PinId == LinkedPin->PinId; });
+				check(NodePin);
+				Pin->LinkedTo[i] = *NodePin;
+			}
+		}
+	}
+	Result->Nodes = NewNodes;
+
+	// probably not necessary for compilation, but remove references to the original graph
+	Result->ParameterToReferencesMap.Empty();
+	Result->RefreshParameterReferences();
+	
+	return Result;
+}
+
+void UNiagaraGraph::ReleaseCompilationCopy()
+{
+	if (!bIsForCompilationOnly)
+	{
+		return;
+	}
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	for (auto It : VariableToScriptVariable)
+	{
+		NiagaraEditorModule.ReleaseObjectToPool(It.Value);
+	}
+
+	// clear script variables and kill this object to surface any invalid access after it's released
+	VariableToScriptVariable.Empty();
+	MarkPendingKill();
 }
 
 UNiagaraNodeOutput* UNiagaraGraph::FindOutputNode(ENiagaraScriptUsage TargetUsageType, FGuid TargetUsageId) const
@@ -2540,6 +2622,7 @@ void UNiagaraGraph::MarkGraphRequiresSynchronization(FString Reason)
 {
 	Modify();
 	ChangeId = FGuid::NewGuid();
+	NotifyGraphChanged();
 	if (GEnableVerboseNiagaraChangeIdLogging)
 	{
 		UE_LOG(LogNiagaraEditor, Verbose, TEXT("Graph %s was marked requires synchronization.  Reason: %s"), *GetPathName(), *Reason);
@@ -2579,6 +2662,7 @@ void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVar
 		Modify();
 		UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
 		NewScriptVariable->Init(InVar, InMetaData);
+		NewScriptVariable->SetIsStaticSwitch(FindStaticSwitchInputs().Contains(InVar));
 	}
 }
 
@@ -2676,7 +2760,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 			}
 		}
 	}
-
+	
 	// Check all pins on all nodes in the graph to find parameter pins which may have been missed in the parameter map traversal.  This
 	// can happen for nodes which are not fully connected and therefore don't show up in the traversal.
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetNiagaraSchema();

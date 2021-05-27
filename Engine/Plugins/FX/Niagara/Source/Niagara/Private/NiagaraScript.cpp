@@ -378,6 +378,23 @@ void UNiagaraScript::CheckVersionDataAvailable()
 	ExposedVersion = Data.Version.VersionGuid;
 }
 
+UNiagaraScript* UNiagaraScript::CreateCompilationCopy()
+{
+	UNiagaraScript* Result = NewObject<UNiagaraScript>();
+
+	// create a shallow copy
+	for (TFieldIterator<FProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(this);
+		uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(Result);
+
+		Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+	}
+	
+	return Result;
+}
+
 #endif
 
 bool FNiagaraVMExecutableDataId::IsValid() const
@@ -1301,8 +1318,36 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		}
 	}
 
+#if WITH_EDITOR
+	if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && FShaderLibraryCooker::NeedsShaderStableKeys(EShaderPlatform::SP_NumPlatforms))
+	{
+		SaveShaderStableKeys(Ar.CookingTarget());
+	}
+#endif
+
 	SerializeNiagaraShaderMaps(Ar, NiagaraVer, IsValidShaderScript);
 }
+
+#if WITH_EDITOR
+void UNiagaraScript::SaveShaderStableKeys(const class ITargetPlatform* TP)
+{
+	FStableShaderKeyAndValue SaveKeyVal;
+	SaveKeyVal.ClassNameAndObjectPath.SetCompactFullNameFromObject(this);
+	static FName FName_Niagara(TEXT("Niagara"));
+	SaveKeyVal.MaterialDomain = FName_Niagara;
+	const TArray<FNiagaraShaderScript*>* ScriptResourcesToSavePtr = CachedScriptResourcesForCooking.Find(TP);
+	if (ScriptResourcesToSavePtr != nullptr)
+	{
+		for (FNiagaraShaderScript* Resource : *ScriptResourcesToSavePtr)
+		{
+			if (Resource)
+			{
+				Resource->SaveShaderStableKeys(EShaderPlatform::SP_NumPlatforms, SaveKeyVal);
+			}
+		}
+	}
+}
+#endif
 
 FNiagaraCompilerTag* FNiagaraCompilerTag::FindTag(TArray< FNiagaraCompilerTag>& InTags, const FNiagaraVariableBase& InSearchVar)
 {

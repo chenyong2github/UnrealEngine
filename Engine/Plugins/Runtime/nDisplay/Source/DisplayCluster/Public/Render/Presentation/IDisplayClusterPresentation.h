@@ -11,8 +11,7 @@
 class IDisplayClusterPresentation
 {
 public:
-	virtual ~IDisplayClusterPresentation() = 0
-	{ }
+	virtual ~IDisplayClusterPresentation() = default;
 
 public:
 

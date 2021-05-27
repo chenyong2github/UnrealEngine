@@ -148,7 +148,7 @@ public:
 	virtual void BuildBackendFilter(FARFilter& InFilter) override
 	{
 		// Add the supported class for this type to a filter
-		InFilter.ClassNames.Add(GetSupportedClass()->GetFName());
+		InFilter.ClassNames.Add(GetFilterName());
 		InFilter.bRecursiveClasses = true;
 	}
 	
@@ -165,6 +165,11 @@ public:
 	virtual bool IsSupported() const final
 	{
 		return bIsSupported;
+	}
+
+	virtual FName GetFilterName() const override
+	{
+		return GetSupportedClass()->GetFName();
 	}
 
 protected:

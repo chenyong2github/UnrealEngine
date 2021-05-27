@@ -29,6 +29,7 @@
 #include "FbxMeshUtils.h"
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "SPerQualityLevelPropertiesWidget.h"
 #include "PlatformInfo.h"
 #include "ContentStreaming.h"
 #include "EditorDirectories.h"
@@ -3207,12 +3208,15 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 			.OnSelectionChanged(this, &FLevelOfDetailSettingsLayout::OnImportLOD)
 		];
 
+	int32 PlatformNumber = PlatformInfo::GetAllPlatformGroupNames().Num();
+	bool bDisablePerPlatformMinLod = GEngine->UsePerQualityLevelProperty && StaticMesh->GetQualityLevelMinLOD().bIsEnabled;
+	
 	{
 		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames));
 		FPerPlatformPropertyCustomNodeBuilderArgs Args;
 		Args.NameWidget =
 			SNew(STextBlock)
-			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1)
+			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1 && !bDisablePerPlatformMinLod)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.Text(LOCTEXT("MinLOD", "Minimum LOD"));
 
@@ -3225,6 +3229,39 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		LODSettingsCategory.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
 	}
 
+	LODSettingsCategory.AddCustomRow(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
+		]
+	.ValueContent()
+		.MinDesiredWidth((float)(StaticMesh->GetQualityLevelMinLOD().PerQuality.Num() + 1)*125.0f)
+		.MaxDesiredWidth((float)((int32)QualityLevelProperty::EQualityLevels::Num + 1)*125.0f)
+		[
+			SNew(SPerQualityLevelPropertiesWidget)
+			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1 && bDisablePerPlatformMinLod)
+		.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODWidget)
+		.OnAddEntry(this, &FLevelOfDetailSettingsLayout::AddMinLODQualityLevelOverride)
+		.OnRemoveEntry(this, &FLevelOfDetailSettingsLayout::RemoveMinLODQualityLevelOverride)
+		.EntryNames(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODOverrideNames)
+		];
+
+	LODSettingsCategory.AddCustomRow(LOCTEXT("QualityLevelMinLODEnable", "Enable"))
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &FLevelOfDetailSettingsLayout::IsMinLODQualityLevelChecked)
+			.OnCheckStateChanged(this, &FLevelOfDetailSettingsLayout::OnMinLODQualityLevelChecked)
+		.HAlign(HAlign_Right)
+			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+			.Content()
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(LOCTEXT("QualityLevelMinLODEnable", "Enable"))
+			]
+		];
 	{
 		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames));
 		FPerPlatformPropertyCustomNodeBuilderArgs Args;
@@ -3914,6 +3951,29 @@ void FLevelOfDetailSettingsLayout::OnLODGroupChanged(TSharedPtr<FString> NewValu
 	}
 }
 
+bool FLevelOfDetailSettingsLayout::IsMinLODQualityLevelEnabled() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	return StaticMesh->GetQualityLevelMinLOD().bIsEnabled;
+}
+
+ECheckBoxState FLevelOfDetailSettingsLayout::IsMinLODQualityLevelChecked() const
+{
+	return IsMinLODQualityLevelEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FLevelOfDetailSettingsLayout::OnMinLODQualityLevelChecked(ECheckBoxState NewState)
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	FPerQualityLevelInt PerQualityLevel = StaticMesh->GetQualityLevelMinLOD();
+	PerQualityLevel.bIsEnabled = (NewState == ECheckBoxState::Checked) ? true : false;
+	StaticMesh->SetQualityLevelMinLOD(PerQualityLevel);
+	StaticMeshEditor.RefreshTool();
+}
+
 bool FLevelOfDetailSettingsLayout::IsAutoLODEnabled() const
 {
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
@@ -4213,6 +4273,114 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames() con
 	StaticMesh->GetMinLOD().PerPlatform.GenerateKeyArray(KeyArray);
 	KeyArray.Sort(FNameLexicalLess());
 	return KeyArray;
+}
+
+int32 FLevelOfDetailSettingsLayout::GetMinQualityLevelLOD(FName QualityLevel) const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+	const int32* ValuePtr = (QualityLevel == NAME_None) ? nullptr : StaticMesh->GetQualityLevelMinLOD().PerQuality.Find(QLKey);
+	return (ValuePtr != nullptr) ? *ValuePtr : StaticMesh->GetQualityLevelMinLOD().Default;
+}
+
+void FLevelOfDetailSettingsLayout::OnMinQualityLevelLODChanged(int32 NewValue, FName QualityLevel)
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	{
+		FStaticMeshComponentRecreateRenderStateContext ReregisterContext(StaticMesh, false);
+		NewValue = FMath::Clamp<int32>(NewValue, 0, MAX_STATIC_MESH_LODS - 1);
+		FPerQualityLevelInt MinLOD = StaticMesh->GetQualityLevelMinLOD();
+		int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+		if (QualityLevel == NAME_None || QLKey == INDEX_NONE)
+		{
+			MinLOD.Default = NewValue;
+		}
+		else
+		{
+			int32* ValuePtr = MinLOD.PerQuality.Find(QLKey);
+			if (ValuePtr != nullptr)
+			{
+				*ValuePtr = NewValue;
+			}
+		}
+		StaticMesh->SetQualityLevelMinLOD(MoveTemp(MinLOD));
+		StaticMesh->Modify();
+	}
+	StaticMeshEditor.RefreshViewport();
+}
+
+void FLevelOfDetailSettingsLayout::OnMinQualityLevelLODCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel)
+{
+	OnMinQualityLevelLODChanged(InValue, QualityLevel);
+}
+
+TSharedRef<SWidget> FLevelOfDetailSettingsLayout::GetMinQualityLevelLODWidget(FName QualityLevelName) const
+{
+	return SNew(SSpinBox<int32>)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Value(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLOD, QualityLevelName)
+		.OnValueChanged(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnMinQualityLevelLODChanged, QualityLevelName)
+		.OnValueCommitted(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnMinQualityLevelLODCommitted, QualityLevelName)
+		.MinValue(0)
+		.MaxValue(MAX_STATIC_MESH_LODS)
+		.ToolTipText(this, &FLevelOfDetailSettingsLayout::GetMinLODTooltip)
+		.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1);
+}
+
+bool FLevelOfDetailSettingsLayout::AddMinLODQualityLevelOverride(FName QualityLevelName)
+{
+	FScopedTransaction Transaction(LOCTEXT("AddMinLODQualityLevelOverride", "Add Min LOD Quality Level Override"));
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	StaticMesh->Modify();
+	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	if (StaticMesh->GetQualityLevelMinLOD().PerQuality.Find(QLKey) == nullptr)
+	{
+		FPerQualityLevelInt MinLOD = StaticMesh->GetQualityLevelMinLOD();
+		float Value = MinLOD.Default;
+		MinLOD.PerQuality.Add(QLKey, Value);
+		StaticMesh->SetQualityLevelMinLOD(MoveTemp(MinLOD));
+		OnMinQualityLevelLODChanged(Value, QualityLevelName);
+		return true;
+	}
+	return false;
+}
+
+bool FLevelOfDetailSettingsLayout::RemoveMinLODQualityLevelOverride(FName QualityLevelName)
+{
+	FScopedTransaction Transaction(LOCTEXT("RemoveMinLODQualityLevelOverride", "Remove Min LOD Quality Level Override"));
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	StaticMesh->Modify();
+
+	FPerQualityLevelInt MinLOD = StaticMesh->GetQualityLevelMinLOD();
+	int32 QL = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	if (QL != INDEX_NONE && MinLOD.PerQuality.Remove(QL) != 0)
+	{
+		float Value = MinLOD.Default;
+		StaticMesh->SetQualityLevelMinLOD(MoveTemp(MinLOD));
+		OnMinQualityLevelLODChanged(Value, QualityLevelName);
+		return true;
+	}
+	return false;
+}
+
+TArray<FName> FLevelOfDetailSettingsLayout::GetMinQualityLevelLODOverrideNames() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	TArray<FName> OverrideNames;
+	for (const TPair<int32, int32>& Pair : StaticMesh->GetQualityLevelMinLOD().PerQuality)
+	{
+		OverrideNames.Add(QualityLevelProperty::QualityLevelToFName(Pair.Key));
+	}
+	OverrideNames.Sort(FNameLexicalLess());
+	return OverrideNames;
 }
 
 /** @return - whether value was different */

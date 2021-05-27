@@ -7,6 +7,7 @@
 #include "Misc/Guid.h"
 #include "MovieSceneSignedObject.h"
 #include "MovieSceneTrack.h"
+#include "MovieSceneSequenceID.h"
 #include "MovieSceneSequence.generated.h"
 
 class ITargetPlatform;
@@ -199,7 +200,7 @@ public:
 	/**
 	 * Called to retrieve or construct a director instance to be used for the specified player
 	 */
-	virtual UObject* CreateDirectorInstance(IMovieScenePlayer& Player) { return nullptr; }
+	virtual UObject* CreateDirectorInstance(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID) { return nullptr; }
 
 	MOVIESCENE_API virtual EMovieSceneServerClientMask OverrideNetworkMask(EMovieSceneServerClientMask InDefaultMask) const;
 

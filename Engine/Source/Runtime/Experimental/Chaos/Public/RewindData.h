@@ -756,6 +756,8 @@ public:
 
 	void CHAOS_API RemoveParticle(const FUniqueIdx UniqueIdx);
 
+	int32 CHAOS_API GetEarliestFrame_Internal() const { return CurFrame - FramesSaved; }
+
 	TArray<FDesyncedParticleInfo> CHAOS_API ComputeDesyncInfo() const;
 
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
@@ -830,6 +832,8 @@ public:
 	void PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const int32 SrcDataIdx);
 
 	void CHAOS_API MarkDirtyFromPT(FGeometryParticleHandle& Handle);
+
+	void CHAOS_API SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy);
 
 private:
 

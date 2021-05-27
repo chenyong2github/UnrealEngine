@@ -92,6 +92,29 @@ enum class EProjectPackagingBlueprintNativizationMethod : uint8
 };
 
 USTRUCT()
+struct FPakOrderFileSpec
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString Pattern;
+
+	UPROPERTY()
+	int32 Priority;
+
+	FPakOrderFileSpec()
+		: Priority(0)
+	{
+	}
+
+	FPakOrderFileSpec(FString InPattern)
+		: Pattern(MoveTemp(InPattern))
+		, Priority(0)
+	{
+	}
+};
+
+USTRUCT()
 struct FProjectBuildSettings
 {
 	GENERATED_BODY();

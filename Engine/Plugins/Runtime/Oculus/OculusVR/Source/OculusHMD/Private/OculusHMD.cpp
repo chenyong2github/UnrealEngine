@@ -1023,6 +1023,20 @@ namespace OculusHMD
 		return true;
 	}
 
+	FVector2D FOculusHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
+	{
+		ovrpVector3f Dimensions;
+
+		if (Origin == EHMDTrackingOrigin::Stage &&
+			OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetBoundaryDimensions2(ovrpBoundary_PlayArea, &Dimensions)))
+		{
+			Dimensions.z *= -1.0;
+			FVector Bounds = ConvertVector_M2U(Dimensions);
+			return FVector2D(Bounds.X, Bounds.Z);
+		}
+		return FVector2D::ZeroVector;
+	}
+
 	bool FOculusHMD::IsHMDConnected()
 	{
 		CheckInGameThread();

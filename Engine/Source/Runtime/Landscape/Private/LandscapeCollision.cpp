@@ -2981,6 +2981,11 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 bool ULandscapeHeightfieldCollisionComponent::FillHeightTile(TArrayView<float> Heights, int32 Offset, int32 Stride) const
 {
 #if WITH_CHAOS
+	if (!IsValidRef(HeightfieldRef))
+	{
+		return false;
+	}
+
 	TUniquePtr<Chaos::FHeightField>& HeightFieldData = HeightfieldRef->Heightfield;
 
 	// If the heightfield data isn't valid, simply return
@@ -3023,6 +3028,11 @@ bool ULandscapeHeightfieldCollisionComponent::FillHeightTile(TArrayView<float> H
 bool ULandscapeHeightfieldCollisionComponent::FillMaterialIndexTile(TArrayView<uint8> Materials, int32 Offset, int32 Stride) const
 {
 #if WITH_CHAOS
+	if (!IsValidRef(HeightfieldRef))
+	{
+		return false;
+	}
+
 	TUniquePtr<Chaos::FHeightField>& HeightFieldData = HeightfieldRef->Heightfield;
 
 	// If the heightfield data isn't valid, simply return

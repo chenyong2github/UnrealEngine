@@ -3,7 +3,6 @@
 #include "ActorSnapshotData.h"
 
 #include "ApplySnapshotDataArchiveV2.h"
-#include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsLog.h"
 #include "PropertySelectionMap.h"
 #include "TakeWorldObjectSnapshotArchive.h"
@@ -11,6 +10,7 @@
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "UObject/Package.h"
 
 FActorSnapshotData FActorSnapshotData::SnapshotActor(AActor* OriginalActor, FWorldSnapshotData& WorldData)
 {
@@ -38,7 +38,7 @@ FActorSnapshotData FActorSnapshotData::SnapshotActor(AActor* OriginalActor, FWor
 	return Result;
 }
 
-void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, const FPropertySelectionMap& SelectedProperties)
+void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties)
 {
 	auto DeserializeActor = [this, &WorldData, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
@@ -48,7 +48,7 @@ void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld
 #if WITH_EDITOR
 			OriginalActor->Modify();
 #endif
-			FApplySnapshotDataArchiveV2::ApplyToExistingWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, *ActorPropertySelection);
+			FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, SelectedProperties, *ActorPropertySelection);
 		}
 	};
 	auto DeserializeComponent = [&SelectedProperties, &WorldData](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
@@ -59,31 +59,31 @@ void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld
 #if WITH_EDITOR
 			Original->Modify();
 #endif
-			CompData.DeserializeIntoExistingWorldActor(SerializedCompData, Original, Deserialized, WorldData, *ComponentSelectedProperties);
+			FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(SerializedCompData, WorldData, Original, Deserialized, SelectedProperties, *ComponentSelectedProperties);
 		};
 	};
 
-	DeserializeIntoWorldActor(SnapshotWorld, OriginalActor, WorldData, DeserializeActor, DeserializeComponent);
+	DeserializeIntoWorldActor(SnapshotWorld, OriginalActor, WorldData, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);
 }
 
-void FActorSnapshotData::DeserializeIntoRecreatedWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData)
+void FActorSnapshotData::DeserializeIntoRecreatedEditorWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties)
 {
-	auto DeserializeActor = [this, &WorldData](AActor* OriginalActor, AActor* DeserializedActor)
+	auto DeserializeActor = [this, &WorldData, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
 #if WITH_EDITOR
 		OriginalActor->Modify();
 #endif
-		FApplySnapshotDataArchiveV2::ApplyToRecreatedWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor);
+		FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, SelectedProperties);
 	};
-	auto DeserializeComponent = [&WorldData](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
+	auto DeserializeComponent = [&WorldData, &SelectedProperties](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
 	{
 #if WITH_EDITOR
 		Original->Modify();
 #endif
-		CompData.DeserializeIntoRecreatedWorldActor(SerializedCompData, Original, Deserialized, WorldData);
+		FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(SerializedCompData, WorldData, Original, Deserialized, SelectedProperties); 
 	};
 	
-	DeserializeIntoWorldActor(SnapshotWorld, OriginalActor, WorldData, DeserializeActor, DeserializeComponent);
+	DeserializeIntoWorldActor(SnapshotWorld, OriginalActor, WorldData, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);
 }
 
 TOptional<AActor*> FActorSnapshotData::GetPreallocatedIfValidButDoNotAllocate() const
@@ -107,11 +107,8 @@ TOptional<AActor*> FActorSnapshotData::GetPreallocated(UWorld* SnapshotWorld, FW
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Template = Cast<AActor>(WorldData.GetClassDefault(TargetClass));
 		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-		if (ensureMsgf(SpawnParams.Template, TEXT("Failed to class default. This should not happen. Investigate.")))
+		if (ensureMsgf(SpawnParams.Template, TEXT("Failed to get class default. This should not happen. Investigate.")))
 		{
-			// We're passing in SpawnParams.Template->GetClass() instead of TargetClass:
-				// When you recompile a Blueprint, it creates a new REINST class.
-				// This would cause the SpawnParams.Template to have a different class than TargetClass: that would cause SpawnActor to fail.
 			UClass* ClassToUse = SpawnParams.Template->GetClass();
 			SpawnParams.Name = *FString("SnapshotObjectInstance_").Append(*MakeUniqueObjectName(SnapshotWorld, ClassToUse).ToString());
 			CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(ClassToUse, SpawnParams);
@@ -122,11 +119,18 @@ TOptional<AActor*> FActorSnapshotData::GetPreallocated(UWorld* SnapshotWorld, FW
 		}
 	}
 
-	ensureAlwaysMsgf(CachedSnapshotActor.IsValid(), TEXT("Failed to spawn actor of class '%s'"), *ActorClass.ToString());
+#if WITH_EDITOR
+	// Hide this actor so external systems can see that this components should not render, i.e. make USceneComponent::ShouldRender return false
+	if (ensureMsgf(CachedSnapshotActor.IsValid(), TEXT("Failed to spawn actor of class '%s'"), *ActorClass.ToString()))
+	{
+		CachedSnapshotActor->SetIsTemporarilyHiddenInEditor(true);
+	}
+#endif
+	
 	return CachedSnapshotActor.IsValid() ? TOptional<AActor*>(CachedSnapshotActor.Get()) : TOptional<AActor*>();
 }
 
-TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData)
+TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage)
 {
 	if (bReceivedSerialisation && CachedSnapshotActor.IsValid())
 	{
@@ -141,15 +145,22 @@ TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FW
 	bReceivedSerialisation = true;
 	
 	AActor* PreallocatedActor = Preallocated.GetValue();
-	FSnapshotArchive Serializer = FSnapshotArchive::MakeArchiveForRestoring(SerializedActorData, WorldData);
-	PreallocatedActor->Serialize(Serializer);
+	FSnapshotArchive::ApplyToSnapshotWorldObject(SerializedActorData, WorldData, PreallocatedActor, InLocalisationSnapshotPackage);
 
-	DeserializeComponents(PreallocatedActor, WorldData, [](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Comp, FWorldSnapshotData& SharedData)
+	DeserializeComponents(PreallocatedActor, WorldData, [InLocalisationSnapshotPackage](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Comp, FWorldSnapshotData& SharedData)
 	{
-		CompData.DeserializeIntoTransient(SerializedCompData, Comp, SharedData);
+		CompData.DeserializeIntoTransient(SerializedCompData, Comp, SharedData, InLocalisationSnapshotPackage);
 	});
 
 	PreallocatedActor->UpdateComponentTransforms();
+#if WITH_EDITOR
+	// Hide this actor so external systems can see that this components should not render, i.e. make USceneComponent::ShouldRender return false
+	if (!ensureMsgf(PreallocatedActor->IsTemporarilyHiddenInEditor(), TEXT("Transient property bHiddenEdTemporary was set to false by serializer. This should not happen. Investigate.")))
+	{
+		CachedSnapshotActor->SetIsTemporarilyHiddenInEditor(true);
+	}
+#endif
+	
 	return Preallocated;
 }
 
@@ -158,9 +169,9 @@ FSoftClassPath FActorSnapshotData::GetActorClass() const
 	return ActorClass;
 }
 
-void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent)
+void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent)
 {
-	const TOptional<AActor*> Deserialized = GetDeserialized(SnapshotWorld, WorldData);
+	const TOptional<AActor*> Deserialized = GetDeserialized(SnapshotWorld, WorldData, InLocalisationSnapshotPackage);
 	if (!Deserialized)
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to serialize into actor %s. Skipping..."), *OriginalActor->GetName());

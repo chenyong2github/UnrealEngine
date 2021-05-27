@@ -163,13 +163,13 @@ enum AMF_VIDEO_ENCODER_PICTURE_TRANSFER_MODE_ENUM
 #define AMF_VIDEO_ENCODER_COLOR_BIT_DEPTH                       L"ColorBitDepth"            // amf_int64(AMF_COLOR_BIT_DEPTH_ENUM); default = AMF_COLOR_BIT_DEPTH_8
 
 #define AMF_VIDEO_ENCODER_INPUT_COLOR_PROFILE                   L"InColorProfile"           // amf_int64(AMF_VIDEO_CONVERTER_COLOR_PROFILE_ENUM); default = AMF_VIDEO_CONVERTER_COLOR_PROFILE_UNKNOWN - mean AUTO by size
-#define AMF_VIDEO_ENCODER_INPUT_TRANSFER_CHARACTERISTIC         L"InColorTransferChar"      // amf_int64(AMF_COLOR_TRANSFER_CHARACTERISTIC_ENUM); default = AMF_COLOR_TRANSFER_CHARACTERISTIC_UNDEFINED, ISO/IEC 23001-8_2013 § 7.2 See VideoDecoderUVD.h for enum 
-#define AMF_VIDEO_ENCODER_INPUT_COLOR_PRIMARIES                 L"InColorPrimaries"         // amf_int64(AMF_COLOR_PRIMARIES_ENUM); default = AMF_COLOR_PRIMARIES_UNDEFINED, ISO/IEC 23001-8_2013 § 7.1 See ColorSpace.h for enum 
+#define AMF_VIDEO_ENCODER_INPUT_TRANSFER_CHARACTERISTIC         L"InColorTransferChar"      // amf_int64(AMF_COLOR_TRANSFER_CHARACTERISTIC_ENUM); default = AMF_COLOR_TRANSFER_CHARACTERISTIC_UNDEFINED, ISO/IEC 23001-8_2013 Section 7.2 See VideoDecoderUVD.h for enum 
+#define AMF_VIDEO_ENCODER_INPUT_COLOR_PRIMARIES                 L"InColorPrimaries"         // amf_int64(AMF_COLOR_PRIMARIES_ENUM); default = AMF_COLOR_PRIMARIES_UNDEFINED, ISO/IEC 23001-8_2013 Section 7.1 See ColorSpace.h for enum 
 #define AMF_VIDEO_ENCODER_INPUT_HDR_METADATA                    L"InHDRMetadata"            // AMFBuffer containing AMFHDRMetadata; default NULL
 
 #define AMF_VIDEO_ENCODER_OUTPUT_COLOR_PROFILE                  L"OutColorProfile"          // amf_int64(AMF_VIDEO_CONVERTER_COLOR_PROFILE_ENUM); default = AMF_VIDEO_CONVERTER_COLOR_PROFILE_UNKNOWN - mean AUTO by size
-#define AMF_VIDEO_ENCODER_OUTPUT_TRANSFER_CHARACTERISTIC        L"OutColorTransferChar"     // amf_int64(AMF_COLOR_TRANSFER_CHARACTERISTIC_ENUM); default = AMF_COLOR_TRANSFER_CHARACTERISTIC_UNDEFINED, ISO/IEC 23001-8_2013 § 7.2 See VideoDecoderUVD.h for enum 
-#define AMF_VIDEO_ENCODER_OUTPUT_COLOR_PRIMARIES                L"OutColorPrimaries"        // amf_int64(AMF_COLOR_PRIMARIES_ENUM); default = AMF_COLOR_PRIMARIES_UNDEFINED, ISO/IEC 23001-8_2013 § 7.1 See ColorSpace.h for enum 
+#define AMF_VIDEO_ENCODER_OUTPUT_TRANSFER_CHARACTERISTIC        L"OutColorTransferChar"     // amf_int64(AMF_COLOR_TRANSFER_CHARACTERISTIC_ENUM); default = AMF_COLOR_TRANSFER_CHARACTERISTIC_UNDEFINED, ISO/IEC 23001-8_2013 Section 7.2 See VideoDecoderUVD.h for enum 
+#define AMF_VIDEO_ENCODER_OUTPUT_COLOR_PRIMARIES                L"OutColorPrimaries"        // amf_int64(AMF_COLOR_PRIMARIES_ENUM); default = AMF_COLOR_PRIMARIES_UNDEFINED, ISO/IEC 23001-8_2013 Section 7.1 See ColorSpace.h for enum 
 #define AMF_VIDEO_ENCODER_OUTPUT_HDR_METADATA                   L"OutHDRMetadata"           // AMFBuffer containing AMFHDRMetadata; default NULL
 
 
@@ -287,7 +287,7 @@ enum AMF_VIDEO_ENCODER_PICTURE_TRANSFER_MODE_ENUM
 #define AMF_VIDEO_ENCODER_STATISTIC_BITCOUNT_INTER              L"StatisticsFeedbackBitcountInter"          // amf_uin32; The bit count that are assigned to inter CTBs
 #define AMF_VIDEO_ENCODER_STATISTIC_BITCOUNT_INTRA              L"StatisticsFeedbackBitcountIntra"          // amf_uin32; The bit count that are assigned to intra CTBs
 #define AMF_VIDEO_ENCODER_STATISTIC_BITCOUNT_ALL_MINUS_HEADER   L"StatisticsFeedbackBitcountAllMinusHeader" // amf_uin32; The bit count of the bitstream excluding header
-#define AMF_VIDEO_ENCODER_STATISTIC_MV_X                        L"StatisticsFeedbackMvX"                    // amf_uin32; Accumulated absolute values of horizontal MV’s
-#define AMF_VIDEO_ENCODER_STATISTIC_MV_Y                        L"StatisticsFeedbackMvY"                    // amf_uin32; Accumulated absolute values of vertical MV’s
+#define AMF_VIDEO_ENCODER_STATISTIC_MV_X                        L"StatisticsFeedbackMvX"                    // amf_uin32; Accumulated absolute values of horizontal MV's
+#define AMF_VIDEO_ENCODER_STATISTIC_MV_Y                        L"StatisticsFeedbackMvY"                    // amf_uin32; Accumulated absolute values of vertical MV's
 
 #endif //#ifndef AMF_VideoEncoderVCE_h

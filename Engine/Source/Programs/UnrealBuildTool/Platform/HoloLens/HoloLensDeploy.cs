@@ -17,8 +17,9 @@ namespace UnrealBuildTool
 	/// </summary>
 	class HoloLensDeploy : UEBuildDeploy
 	{
-		//private FileReference MakeAppXPath;
-		//private FileReference SignToolPath;
+		private FileReference MakeAppXPath;
+		private FileReference SignToolPath;
+		private string Extension = ".appx";
 
 		/// <summary>
 		/// Utility function to delete a file
@@ -206,8 +207,8 @@ namespace UnrealBuildTool
 				ConfigDirRef = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath());
 			}
 
-			//MakeAppXPath = HoloLensExports.GetWindowsSdkToolPath("makeappx.exe");
-			//SignToolPath = HoloLensExports.GetWindowsSdkToolPath("signtool.exe");
+			MakeAppXPath = HoloLensExports.GetWindowsSdkToolPath("makeappx.exe");
+			SignToolPath = HoloLensExports.GetWindowsSdkToolPath("signtool.exe");
 
 			return true;
 		}
@@ -217,7 +218,7 @@ namespace UnrealBuildTool
 			string OutputName = String.Format("{0}_{1}_{2}_{3}", Receipt.TargetName, Receipt.Platform, Receipt.Configuration, WindowsExports.GetArchitectureSubpath(Architecture));
 			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : UnrealBuildTool.EngineDirectory.FullName, "Intermediate", "Deploy", WindowsExports.GetArchitectureSubpath(Architecture));
 			string OutputDirectory = Receipt.Launch.Directory.FullName;
-			string OutputAppX = Path.Combine(OutputDirectory, OutputName + ".appx");
+			string OutputAppX = Path.Combine(OutputDirectory, OutputName + Extension);
 			string SigningCertificate = @"Build\HoloLens\SigningCertificate.pfx";
 			string SigningCertificatePath = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : UnrealBuildTool.EngineDirectory.FullName, SigningCertificate);
 
@@ -425,7 +426,32 @@ namespace UnrealBuildTool
 			}
 			File.WriteAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
 
-			NewReceipt.BuildProducts.Add(new BuildProduct(new FileReference(MapFilename), BuildProductType.MapFile));
+			string MakeAppXCommandLine = String.Format("pack /o /f \"{0}\" /p \"{1}\"", MapFilename, OutputAppX);
+
+			var StartInfo = new ProcessStartInfo(MakeAppXPath.FullName, MakeAppXCommandLine);
+			StartInfo.UseShellExecute = false;
+			StartInfo.CreateNoWindow = true;
+			var ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo);
+			if (ExitCode < 0)
+			{
+				throw new BuildException("Failed to generate AppX file.  See log for details.");
+			}
+
+			if (File.Exists(SigningCertificatePath))
+			{
+				string SignToolCommandLine = String.Format("sign /a /f \"{0}\" /fd SHA256 \"{1}\"", SigningCertificatePath, OutputAppX);
+				StartInfo = new ProcessStartInfo(SignToolPath.FullName, SignToolCommandLine);
+				StartInfo.UseShellExecute = false;
+				StartInfo.CreateNoWindow = true;
+				ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo);
+				if (ExitCode < 0)
+				{
+					throw new BuildException("Failed to generate AppX file.  See log for details.");
+				}
+			}
+
+			Log.TraceInformation("AppX successfully packaged to \'{0}{1}\'", OutputName, Extension);
+			NewReceipt.BuildProducts.Add(new BuildProduct(new FileReference(OutputAppX), BuildProductType.Package));
 		}
 
 

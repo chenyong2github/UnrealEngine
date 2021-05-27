@@ -279,6 +279,11 @@ public:
 	/** Set whether to show channel colors */
 	void SetShowChannelColors(bool bInShowChannelColors);
 
+	/** @return The key area height when showing curves */
+	float GetKeyAreaHeightWithCurves() const;
+	/** Set the key area height when showing curves */
+	void SetKeyAreaHeightWithCurves(float InKeyAreaHeightWithCurves);
+
 	/** @return The tolerance to use when reducing keys */
 	float GetReduceKeysTolerance() const;
 	/** Set the tolerance to use when reducing keys */
@@ -505,6 +510,10 @@ protected:
 	/** Enable or disable displaying channel bar colors for vector properties. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bShowChannelColors;
+
+	/** The key area height when showing curves */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	float KeyAreaHeightWithCurves;
 
 	/** The tolerance to use when reducing keys */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)

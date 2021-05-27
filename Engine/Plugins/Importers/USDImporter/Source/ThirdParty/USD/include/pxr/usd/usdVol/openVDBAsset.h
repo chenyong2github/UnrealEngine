@@ -65,8 +65,13 @@ class UsdVolOpenVDBAsset : public UsdVolFieldAsset
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
-    /// \sa UsdSchemaType
-    static const UsdSchemaType schemaType = UsdSchemaType::ConcreteTyped;
+    /// \sa UsdSchemaKind
+    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
+
+    /// \deprecated
+    /// Same as schemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    static const UsdSchemaKind schemaType = UsdSchemaKind::ConcreteTyped;
 
     /// Construct a UsdVolOpenVDBAsset on UsdPrim \p prim .
     /// Equivalent to UsdVolOpenVDBAsset::Get(prim.GetStage(), prim.GetPath())
@@ -136,11 +141,17 @@ public:
     Define(const UsdStagePtr &stage, const SdfPath &path);
 
 protected:
-    /// Returns the type of schema this class belongs to.
+    /// Returns the kind of schema this class belongs to.
     ///
-    /// \sa UsdSchemaType
+    /// \sa UsdSchemaKind
     USDVOL_API
-    UsdSchemaType _GetSchemaType() const override;
+    UsdSchemaKind _GetSchemaKind() const override;
+
+    /// \deprecated
+    /// Same as _GetSchemaKind, provided to maintain temporary backward 
+    /// compatibility with older generated schemas.
+    USDVOL_API
+    UsdSchemaKind _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -156,26 +167,56 @@ private:
 
 public:
     // --------------------------------------------------------------------- //
-    // FIELDNAME 
+    // FIELDDATATYPE 
     // --------------------------------------------------------------------- //
-    /// Name of an individual grid within the file specified by
-    /// the filePath attribute.
+    /// Token which is used to indicate the data type of an
+    /// individual field. Authors use this to tell consumers more
+    /// about the field without opening the file on disk. The list of 
+    /// allowed tokens reflects the available choices for OpenVDB 
+    /// volumes.
     ///
     /// | ||
     /// | -- | -- |
-    /// | Declaration | `token fieldName` |
+    /// | Declaration | `token fieldDataType` |
     /// | C++ Type | TfToken |
     /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    /// | \ref UsdVolTokens "Allowed Values" | half, float, double, int, uint, int64, half2, float2, double2, int2, half3, float3, double3, int3, matrix3d, matrix4d, quatd, bool, mask, string |
     USDVOL_API
-    UsdAttribute GetFieldNameAttr() const;
+    UsdAttribute GetFieldDataTypeAttr() const;
 
-    /// See GetFieldNameAttr(), and also 
+    /// See GetFieldDataTypeAttr(), and also 
     /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
     /// If specified, author \p defaultValue as the attribute's default,
     /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
     /// the default for \p writeSparsely is \c false.
     USDVOL_API
-    UsdAttribute CreateFieldNameAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
+    UsdAttribute CreateFieldDataTypeAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
+
+public:
+    // --------------------------------------------------------------------- //
+    // FIELDCLASS 
+    // --------------------------------------------------------------------- //
+    /// Optional token which can be used to indicate the class of
+    /// an individual grid. This is a mapping to openvdb::GridClass
+    /// where the values are GRID_LEVEL_SET, GRID_FOG_VOLUME, 
+    /// GRID_STAGGERED, and GRID_UNKNOWN.
+    ///
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `token fieldClass` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    /// | \ref UsdVolTokens "Allowed Values" | levelSet, fogVolume, staggered, unknown |
+    USDVOL_API
+    UsdAttribute GetFieldClassAttr() const;
+
+    /// See GetFieldClassAttr(), and also 
+    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
+    /// If specified, author \p defaultValue as the attribute's default,
+    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
+    /// the default for \p writeSparsely is \c false.
+    USDVOL_API
+    UsdAttribute CreateFieldClassAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
 
 public:
     // ===================================================================== //

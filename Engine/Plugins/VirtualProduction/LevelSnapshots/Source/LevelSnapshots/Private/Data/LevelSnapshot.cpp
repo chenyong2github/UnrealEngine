@@ -2,7 +2,6 @@
 
 #include "Data/LevelSnapshot.h"
 
-#include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "LevelSnapshotsStats.h"
@@ -15,8 +14,10 @@
 #include "GameFramework/Actor.h"
 #include "SnapshotRestorability.h"
 #include "UObject/Package.h"
-
+#include "UObject/TextProperty.h"
+#include "UObject/UnrealType.h"
 #if WITH_EDITOR
+#include "Logging/MessageLog.h"
 #include "ScopedTransaction.h"
 #endif
 
@@ -25,36 +26,17 @@ namespace
 	/* If this function return false, the objects are not equivalent. If true, ignore the object references. */
 	bool ShouldConsiderObjectsEquivalent(const FWorldSnapshotData& SnapshotData, const FObjectPropertyBase* ObjectProperty, void* SnapshotValuePtr, void* WorldValuePtr, AActor* SnapshotActor, AActor* WorldActor)
 	{
+		// Native identity check handles:
+			// - external references, e.g. UMaterial in content browser
+			// - soft object paths: if SnapshotValuePtr is a TSoftObjectPtr<AActor> property, it points to a world actor instead of to an equivalent snapshot actor
+		if (ObjectProperty->Identical(SnapshotValuePtr, WorldValuePtr, 0))
+		{
+			return true;
+		}
+		
 		UObject* SnapshotObject = ObjectProperty->GetObjectPropertyValue(SnapshotValuePtr);
 		UObject* WorldObject = ObjectProperty->GetObjectPropertyValue(WorldValuePtr);
-		if (SnapshotObject == nullptr && WorldObject == nullptr)
-		{
-			return true;
-		}
-
-		UObject* PossiblySubobject = WorldObject ? WorldObject : SnapshotObject;
-		AActor* PossiblyOwner = WorldObject ?  WorldActor : SnapshotActor;
-		// Handle subobjects created within actor
-		const bool bIsSubobject = PossiblySubobject->IsIn(PossiblyOwner);
-		if (bIsSubobject)
-		{
-			return true;
-		}
-		// Handle temporary 'subobjects'
-		const bool bIsTempTransientObject = PossiblySubobject->HasAnyFlags(RF_Transient) || PossiblySubobject->GetPackage()->HasAnyFlags(RF_Transient);
-		if (bIsTempTransientObject)
-		{
-			return true;
-		}
-
-		// Handle internal reference to other objects within the same world
-		if (SnapshotData.AreReferencesEquivalent(SnapshotObject, WorldObject))
-		{
-			return true;
-		}
-
-		// Anything this far should be an asset reference, e.g. to a data asset or material.
-		return ObjectProperty->Identical(SnapshotValuePtr, WorldValuePtr, 0);
+		return SnapshotData.AreReferencesEquivalent(SnapshotObject, WorldObject, SnapshotActor, WorldActor);
 	}
 	
 	void EnqueueMatchingComponents(TInlineComponentArray<TPair<UObject*, UObject*>>& SnapshotOriginalPairsToProcess, AActor* SnapshotActor, AActor* WorldActor)
@@ -98,22 +80,33 @@ namespace
 
 void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet)
 {
+	if (TargetWorld == nullptr)
+	{
+		return;
+	}
+	
+	if (MapPath != FSoftObjectPath(TargetWorld))
+	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (TargetWorld->IsPlayInEditor())
+		{
+			FMessageLog("PIE").Warning(
+				FText::Format(NSLOCTEXT("LevelSnapshots", "IncompatibleWorlds", "This snapshot was taken in world '%s' and cannot be applied to PIE world '%s'. Snapshots can only be applied to the world they were taken in."),
+				FText::FromString(MapPath.ToString()),
+				FText::FromString(TargetWorld->GetPathName())
+				)
+			);
+		}
+#endif
+		UE_LOG(LogLevelSnapshots, Error, TEXT("This snapshot was taken for world '%s' and cannot be applied to world '%s': snapshots currently only support applying to the world they were taken in. "), *MapPath.ToString(), *TargetWorld->GetPathName());
+		return;
+	}
+	
 	EnsureWorldInitialised();
-
 #if WITH_EDITOR
 	FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
 #endif
-	
-	// Temporary fix until asset migration is implemented: simply use old system for old data.
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	if (bHasLegacyData)
-	{
-		LegacyApplySnapshotToWorld(SelectionSet);
-	}
-	else
-	{
-		SerializedData.ApplyToWorld(TargetWorld, SelectionSet);
-	}
+	SerializedData.ApplyToWorld(TargetWorld, GetPackage(), SelectionSet);
 }
 
 void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
@@ -125,10 +118,17 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		return;
 	}
 
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	if (bHasLegacyData)
+	if (TargetWorld->WorldType != EWorldType::Editor)
 	{
-		ActorSnapshots.Empty();
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (TargetWorld->IsPlayInEditor())
+		{
+			FMessageLog("PIE").Warning(
+			NSLOCTEXT("LevelSnapshots", "IncompatibleWorlds", "Taking snapshots in PIE is an experimental feature. The snapshot will work in the same PIE session but may no longer work when you start a new PIE session.")
+			);
+		}
+#endif
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("Level snapshots currently only support editors. Snapshots taken in other world types are experimental any may not function as expected."));
 	}
 	
 	EnsureWorldInitialised();
@@ -260,6 +260,13 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 		{
 			// TODO: Use custom function. Need to do something similar to UE4SetProperty_Private::IsPermutation
 		}
+
+		if (const FTextProperty* TextProperty = CastField<FTextProperty>(LeafProperty))
+		{
+			const FText& SnapshotText = TextProperty->GetPropertyValue_InContainer(SnapshotContainer);
+			const FText& WorldText = TextProperty->GetPropertyValue_InContainer(WorldContainer);
+			return SnapshotText.IdenticalTo(WorldText, ETextIdenticalModeFlags::None) || SnapshotText.ToString().Equals(WorldText.ToString());
+		}
 		
 		// Use normal property comparison for all other properties
 		if (!LeafProperty->Identical_InContainer(SnapshotContainer, WorldContainer, i, PPF_DeepComparison | PPF_DeepCompareDSOsOnly))
@@ -273,25 +280,14 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 TOptional<AActor*> ULevelSnapshot::GetDeserializedActor(const FSoftObjectPath& OriginalActorPath)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("GetDeserializedActor"), STAT_GetDeserializedActor, STATGROUP_LevelSnapshots);
+	
 	EnsureWorldInitialised();
-
-	// Temporary fix until asset migration is implemented: simply use old system for old data.
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	if (bHasLegacyData)
-	{
-		FLevelSnapshot_Actor* LegacySnapshotData = ActorSnapshots.Find(OriginalActorPath);
-		return LegacySnapshotData ? LegacySnapshotData->GetDeserializedActor(SnapshotContainerWorld) : TOptional<AActor*>();
-	}
-	else
-	{
-		return SerializedData.GetDeserializedActor(OriginalActorPath);
-	}
+	return SerializedData.GetDeserializedActor(OriginalActorPath, GetPackage());
 }
 
 int32 ULevelSnapshot::GetNumSavedActors() const
 {
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	return bHasLegacyData ? ActorSnapshots.Num() : SerializedData.GetNumSavedActors();
+	return SerializedData.GetNumSavedActors();
 }
 
 void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const
@@ -299,16 +295,6 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("DiffWorld"), STAT_DiffWorld, STATGROUP_LevelSnapshots);
 	if (!ensure(World && HandleMatchedActor.IsBound() && HandleRemovedActor.IsBound() && HandleAddedActor.IsBound()))
 	{
-		return;
-	}
-
-	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
-	if (bHasLegacyData)
-	{
-		for (auto It = ActorSnapshots.CreateConstIterator(); It; ++It)
-		{
-			HandleMatchedActor.Execute(It->Key);
-		}
 		return;
 	}
 
@@ -390,8 +376,10 @@ void ULevelSnapshot::EnsureWorldInitialised()
 	if (SnapshotContainerWorld == nullptr)
 	{
 		SnapshotContainerWorld = NewObject<UWorld>(GetTransientPackage(), NAME_None);
-		SnapshotContainerWorld->WorldType = EWorldType::EditorPreview; 
-		
+		SnapshotContainerWorld->WorldType = EWorldType::EditorPreview;
+
+		// Note: Do NOT create a FWorldContext for this world.
+		// If you do, the render thread will send render commands every tick (and crash cuz we do not init the scene below).
 		SnapshotContainerWorld->InitializeNewWorld(UWorld::InitializationValues()
 			.InitializeScenes(false)		// This is memory only world: no rendering
             .AllowAudioPlayback(false)
@@ -438,50 +426,5 @@ void ULevelSnapshot::DestroyWorld()
 	
 		SnapshotContainerWorld->CleanupWorld();
 		SnapshotContainerWorld = nullptr;
-	}
-}
-
-void ULevelSnapshot::LegacyApplySnapshotToWorld(const FPropertySelectionMap& SelectionSet)
-{
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ApplySnapshotToWorld"), STAT_ApplySnapshotToWorld, STATGROUP_LevelSnapshots);
-
-	ULevelSnapshotSelectionSet* LegacySelectionSet = NewObject<ULevelSnapshotSelectionSet>();
-	LegacySelectionSet->AddPropertyMap(SelectionSet);
-	
-	TSet<AActor*> EvaluatedActors;
-	for (const FSoftObjectPath& Path : LegacySelectionSet->GetSelectedWorldObjectPaths())
-	{
-		if (Path.IsValid())
-		{
-			AActor* ActorToPass = nullptr;
-				
-			if (UObject* SelectedObject = Path.ResolveObject())
-			{
-				if (AActor* AsActor = Cast<AActor>(SelectedObject))
-				{
-					ActorToPass = AsActor;
-				}
-				else if (UActorComponent* AsComponent = Cast<UActorComponent>(SelectedObject))
-				{
-					if (AActor* OwningActor = AsComponent->GetOwner())
-					{
-						ActorToPass = OwningActor;
-					}
-				}
-			}
-
-			if (ensure(ActorToPass))
-			{
-				if (!EvaluatedActors.Contains(ActorToPass))
-				{
-					if (const FLevelSnapshot_Actor* ActorSnapshot = ActorSnapshots.Find(ActorToPass))
-					{
-						ActorSnapshot->DeserializeIntoWorldActor(ActorToPass, LegacySelectionSet);
-					}
-						
-					EvaluatedActors.Add(ActorToPass);
-				}
-			}
-		}
 	}
 }

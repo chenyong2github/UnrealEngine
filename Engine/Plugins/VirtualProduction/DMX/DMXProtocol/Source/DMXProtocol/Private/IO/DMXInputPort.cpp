@@ -69,7 +69,7 @@ void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
 	// Find if the port needs update its registration with the protocol
 	const bool bNeedsUpdateRegistration = [this, &InputPortConfig]()
 	{
-		if (!IsRegistered())
+		if (IsRegistered() != bReceiveDMXEnabled)
 		{
 			return true;
 		}
@@ -108,7 +108,7 @@ void FDMXInputPort::UpdateFromConfig(const FDMXInputPortConfig& InputPortConfig)
 	// Re-register the port if required
 	if (bNeedsUpdateRegistration)
 	{
-		if (IsValidPortSlow())
+		if (IsValidPortSlow() && bReceiveDMXEnabled)
 		{
 			Register();
 		}
@@ -264,6 +264,8 @@ bool FDMXInputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr
 void FDMXInputPort::OnSetReceiveDMXEnabled(bool bEnabled)
 {
 	bReceiveDMXEnabled = bEnabled;
+
+	UpdateFromConfig(*FindInputPortConfigChecked());
 }
 
 const FDMXInputPortConfig* FDMXInputPort::FindInputPortConfigChecked() const

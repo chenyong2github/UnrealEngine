@@ -26,6 +26,9 @@ class UTestBTTask_Log : public UBTTaskNode
 	int32 ExecutionTicks;
 
 	UPROPERTY()
+	int32 LogTickIndex;
+
+	UPROPERTY()
 	TEnumAsByte<EBTNodeResult::Type> LogResult;
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;

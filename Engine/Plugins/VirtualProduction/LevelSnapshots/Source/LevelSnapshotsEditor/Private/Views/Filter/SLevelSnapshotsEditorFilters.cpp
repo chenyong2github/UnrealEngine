@@ -18,6 +18,7 @@
 #include "EditorStyleSet.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IDetailsView.h"
+#include "NegatableFilterDetailsCustomization.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
@@ -129,8 +130,11 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-
+	
 	FilterDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
+	FilterDetailsView->RegisterInstancedCustomPropertyLayout(UNegatableFilter::StaticClass(),
+		FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FNegatableFilterDetailsCustomization>(); })
+		);
 
 
 	

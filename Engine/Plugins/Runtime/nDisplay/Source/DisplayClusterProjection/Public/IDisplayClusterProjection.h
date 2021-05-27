@@ -17,8 +17,7 @@ public:
 	static constexpr auto ModuleName = TEXT("DisplayClusterProjection");
 
 public:
-	virtual ~IDisplayClusterProjection()
-	{ }
+	virtual ~IDisplayClusterProjection() = default;
 
 public:
 	/**

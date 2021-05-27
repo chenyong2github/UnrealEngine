@@ -33,7 +33,6 @@ enum class EAutomationCommand : uint8
 {
 	ListAllTests,			//List all tests for the session
 	RunCommandLineTests,	//Run only tests that are listed on the commandline
-	RunCheckpointTests,		// Run only tests listed on the commandline with checkpoints in case of a crash.
 	RunAll,					//Run all the tests that are supported
 	RunFilter,              //
 	Quit					//quit the app when tests are done
@@ -266,24 +265,6 @@ if (bMeetsMatch)
 			}
 		}
 
-		// If we have the TestsRun array set up and are using the same command as before, clear out already run tests. 
-		if (TestsRun.Num() > 0)
-		{
-			if (TestsRun[0] == StringCommand)
-			{
-				for (int i = 1; i < TestsRun.Num(); i++)
-				{
-					if (OutTestNames.Remove(TestsRun[i]))
-					{
-						UE_LOG(LogAutomationCommandLine, Display, TEXT("Skipping %s due to Checkpoint."), *TestsRun[i]);
-					}
-				}
-			}
-			else
-			{
-				AutomationController->CleanUpCheckpointFile();
-			}
-		}
 	}
 
 	void FindWorkers(float DeltaTime)
@@ -393,29 +374,6 @@ if (bMeetsMatch)
 			// The delegate will be readded in Init whenever a new command is executed
 			AutomationController->OnTestsRefreshed().Remove(TestsRefreshedHandle);
 			TestsRefreshedHandle.Reset();
-		}
-		else if (AutomationCommand == EAutomationCommand::RunCheckpointTests)
-		{
-			TArray <FString> FilteredTestNames;
-			GenerateTestNamesFromCommandLine(AllTestNames, FilteredTestNames);
-			if (FilteredTestNames.Num())
-			{
-				AutomationController->StopTests();
-				AutomationController->SetEnabledTests(FilteredTestNames);
-				if (TestsRun.Num())
-				{
-					AutomationController->WriteLoadedCheckpointDataToFile();
-				}
-				else
-				{
-					AutomationController->WriteLineToCheckpointFile(StringCommand);
-				}
-				bRunTests = true;
-			}
-			else
-			{
-				AutomationTestState = EAutomationTestState::Complete;
-			}
 		}
 		else if (AutomationCommand == EAutomationCommand::RunFilter)
 		{
@@ -606,14 +564,6 @@ if (bMeetsMatch)
 					Ar.Logf(TEXT("Automation: RunTests='%s' Queued."), *StringCommand);
 					AutomationCommandQueue.Add(EAutomationCommand::RunCommandLineTests);
 				}
-				else if (FParse::Command(&TempCmd, TEXT("RunCheckpointedTests")))
-				{
-					StringCommand = TempCmd;
-					Ar.Logf(TEXT("Running all tests with checkpoints matching substring: %s"), *StringCommand);
-					AutomationCommandQueue.Add(EAutomationCommand::RunCheckpointTests);
-					TestsRun = AutomationController->GetCheckpointFileContents();
-					AutomationController->CleanUpCheckpointFile();
-				}
 				else if (FParse::Command(&TempCmd, TEXT("SetMinimumPriority")))
 				{
 					StringCommand = TempCmd;
@@ -760,10 +710,6 @@ private:
 
 	//Dictionary that maps flag names to flag values.
 	TMap<FString, int32> FilterMaps;
-
-	FString CheckpointCommand;
-
-	TArray<FString> TestsRun;
 
 	// Any that we encountered during processing. Used in 'Quit' to determine error code
 	TArray<FString> Errors;

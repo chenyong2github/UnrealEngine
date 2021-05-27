@@ -9,7 +9,6 @@
 #include "Engine/EngineTypes.h"
 #include "LensDistortionModelHandlerBase.h"
 #include "LensFile.h"
-#include "Materials/MaterialInstanceDynamic.h"
 
 #include "LiveLinkCameraController.generated.h"
 
@@ -60,6 +59,49 @@ class LIVELINKCAMERA_API ULiveLinkCameraController : public ULiveLinkControllerB
 	GENERATED_BODY()
 
 public:
+	ULiveLinkCameraController();
+
+	//~ Begin ULiveLinkControllerBase interface
+	virtual void Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData) override;
+	virtual bool IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport) override;
+	virtual TSubclassOf<UActorComponent> GetDesiredComponentClass() const override;
+	virtual void SetAttachedComponent(UActorComponent* ActorComponent) override;
+	virtual void Cleanup() override;
+	virtual void OnEvaluateRegistered() override;
+	//~ End ULiveLinkControllerBase interface
+
+	//~ Begin UObject interface
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void PostEditImport() override;
+	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif	
+	//~ End UObject interface
+
+	/** Returns true if encoder mapping is required for FIZ data */
+	bool IsEncoderMappingNeeded() const { return bIsEncoderMappingNeeded; }
+
+	/** Returns a const reference to input data used to evaluate the lens file */
+	const FLensFileEvalData& GetLensFileEvalDataRef() const;
+
+	/** Enables/disables the application of the nodal offset to the camera component */
+	void SetApplyNodalOffset(bool bInApplyNodalOffset);
+
+protected:
+	/** Applies FIZ data coming from LiveLink stream. Lens file is used if encoder mapping is required  */
+	void ApplyFIZ(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData);
+
+	/** Applies nodal offset from lens file for the given Focus/Zoom values of CineCamera */
+	void ApplyNodalOffset(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent);
+
+	/** Update distortion state */
+	void ApplyDistortion(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData);
+
+	/** Verify base transform and apply nodal offset on top of everything else done in tick */
+	void OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds);
+
+public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FComponentReference ComponentToControl_DEPRECATED;
@@ -81,21 +123,13 @@ public:
 	bool bApplyNodalOffset = true;
 
 protected:
-	/** Whether or not to apply a post-process distortion effect directly to the attached CineCamera */
-	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
-	bool bApplyDistortion = false;
-
 	/** Cached distortion handler associated with attached camera component */
-	UPROPERTY(EditAnywhere, Category = "Camera Calibration", Transient)
+	UPROPERTY(Transient)
 	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
-	/** Cached distortion MID the handler produced. Used to clean up old one in case it changes */
-	UPROPERTY(Transient)
-	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
-
-	/** Original focal length settings of the attached cinecamera component to reapply when distortion isn't applied anymore */
-	UPROPERTY()
-	float UndistortedFocalLength = 50.0f;
+	/** Unique identifier representing the source of distortion data */
+	UPROPERTY(DuplicateTransient)
+	FGuid DistortionProducerID;
 
 	/** Original cinecamera component rotation that we set back on when nodal offset isn't applied anymore */
 	UPROPERTY()
@@ -106,79 +140,30 @@ protected:
 	FVector OriginalCameraLocation;
 
 	/** Used to control which data from LiveLink is actually applied to camera */
-	UPROPERTY(EditAnywhere, Category="Settings")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	FLiveLinkCameraControllerUpdateFlags UpdateFlags;
 
 #if WITH_EDITORONLY_DATA
 	/** Whether to refresh frustum drawing on value change */
-	UPROPERTY(EditAnywhere, Category="Debug")
+	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool bShouldUpdateVisualComponentOnChange = true;
 #endif
 
+protected:
+
+	/** Caches the latest inputs to the LensFile evaluation */
+	FLensFileEvalData LensFileEvalData;
+
 private:
-	
 	/** Whether incoming data requires encoder mapping */
 	bool bIsEncoderMappingNeeded = false;
-
-	/** Keep track of what needs to be setup to apply distortion */
-	bool bIsDistortionSetup = false;
 
 	/** Timestamp when we made the last warning log. Intervals to avoid log spamming */
 	double LastInvalidLoggingLoggedTimestamp = 0.0f;
 	static constexpr float TimeBetweenLoggingSeconds = 10.0f;
 
 	//Last values used to detect changes made by the user and update our original caches
-	float LastFocalLength = -1.0f;
 	FCameraFilmbackSettings LastFilmback;
 	FRotator LastRotation;
 	FVector LastLocation;
-
-public:
-
-	ULiveLinkCameraController();
-
-	//~ Begin ULiveLinkControllerBase interface
-	virtual void Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData) override;
-	virtual bool IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport) override;
-	virtual TSubclassOf<UActorComponent> GetDesiredComponentClass() const override;
-	virtual void SetAttachedComponent(UActorComponent* ActorComponent) override;
-	virtual void Cleanup() override;
-	virtual void OnEvaluateRegistered() override;
-	//~ End ULiveLinkControllerBase interface
-
-	//~ Begin UObject interface
-	virtual void PostLoad() override;
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif	
-	//~ End UObject interface
-
-	/** Returns true if encoder mapping is required for FIZ data */
-	bool IsEncoderMappingNeeded() const { return bIsEncoderMappingNeeded; }
-
-	/** Make sure what is required for distortion is setup or cleaned whether we apply or not distortion */
-	void UpdateDistortionSetup();
-
-protected:
-
-	/** Applies FIZ data coming from LiveLink stream. Lens file is used if encoder mapping is required  */
-	void ApplyFIZ(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData);
-
-	/** Applies nodal offset from lens file for the given Focus/Zoom values of CineCamera */
-	void ApplyNodalOffset(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent);
-
-	/** Update distortion state */
-	void ApplyDistortion(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent);
-
-	/** Refresh distortion handler's, in case user deletes it  */
-	void UpdateDistortionHandler(UCineCameraComponent* CineCameraComponent);
-
-	/** Update cached focal length in case it was changed */
-	void UpdateCachedFocalLength(UCineCameraComponent* CineCameraComponent);
-
-	/** Cleanup distortion objects we could have added to camera */
-	void CleanupDistortion();
-
-	/** Verify base transform and apply nodal offset on top of everything else done in tick */
-	void OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 };

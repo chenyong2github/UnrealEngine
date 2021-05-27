@@ -40,11 +40,11 @@ struct FDisplayClusterWarpBlendConstruct
 	};
 };
 
+
 class IDisplayClusterWarpBlendManager
 {
 public:
-	virtual ~IDisplayClusterWarpBlendManager()
-	{ }
+	virtual ~IDisplayClusterWarpBlendManager() = default;
 
 public:
 	virtual bool Create(const FDisplayClusterWarpBlendConstruct::FLoadMPCDIFile&  InConstructParameters, TSharedPtr<IDisplayClusterWarpBlend>& OutWarpBlend) const = 0;

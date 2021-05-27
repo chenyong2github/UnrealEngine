@@ -7,6 +7,7 @@
 class ACompositingElement;
 class UCompositingMediaCaptureOutput;
 class AActor;
+class UPackage;
 template<typename TItemType> class IFilter;
 
 /** */
@@ -35,7 +36,7 @@ public:
 	 * @param  LevelContext Optional actor whose world level you want to spawn into.
 	 * @return The newly created actor object for the named element.
 	 */
-	virtual TWeakObjectPtr<ACompositingElement> CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext = nullptr) = 0;
+	virtual TWeakObjectPtr<ACompositingElement> CreateElement(const FName& ElementName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext = nullptr, UPackage* OverridePackage = nullptr) = 0;
  
 	/**
 	 * Gets the actor object of the named element.

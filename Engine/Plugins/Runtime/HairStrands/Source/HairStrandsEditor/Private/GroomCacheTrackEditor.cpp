@@ -134,7 +134,7 @@ int32 FGroomCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) cons
 
 			// Draw the current time next to the scrub handle
 			const float AnimTime = Section.MapTimeToAnimation(Duration, CurrentTime, TickResolution);
-			int32 FrameTime = GroomCache->GetFrameNumberAtTime(AnimTime);
+			int32 FrameTime = GroomCache->GetFrameNumberAtTime(AnimTime, false);
 			FString FrameString = FString::FromInt(FrameTime);
 
 			const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);

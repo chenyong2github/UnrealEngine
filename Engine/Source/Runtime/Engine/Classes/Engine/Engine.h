@@ -1419,6 +1419,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Screenshots)
 	FDirectoryPath GameScreenshotSaveDirectory;
 
+	UPROPERTY(config, EditAnywhere, Category = PerQualityLevelProperty, AdvancedDisplay)
+	bool UsePerQualityLevelProperty;
+
 	/** The state of the current map transition.  */
 	UPROPERTY()
 	ETransitionType TransitionType;

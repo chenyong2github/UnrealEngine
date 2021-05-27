@@ -113,6 +113,10 @@ private:
 	void OnCurrentConversationNodeModified();
 #endif
 
+protected:
+
+	TArray<FClientConversationOptionEntry> CurrentUserChoices;
+
 private:
 	UPROPERTY()
 	FConversationParticipants Participants;
@@ -131,7 +135,6 @@ private:
 	TArray<FCheckpoint> ClientBranchPoints;
 
 	TArray<FConversationBranchPoint> CurrentBranchPoints;
-	TArray<FClientConversationOptionEntry> CurrentUserChoices;
 
 	TArray<FConversationChoiceReference> ScopeStack;
 

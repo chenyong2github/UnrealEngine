@@ -755,6 +755,9 @@ void FDatasmithSceneXmlReader::ParseActor(FXmlNode* InNode, TSharedPtr<IDatasmit
 
 	InOutElement->SetIsAComponent( ValueFromString<bool>( InNode->GetAttribute(TEXT("component"))) );
 
+	FString VisibleAtribute = InNode->GetAttribute(TEXT("visible"));
+	InOutElement->SetVisibility(VisibleAtribute.IsEmpty() ? true : ValueFromString<bool>(VisibleAtribute));
+
 	for (FXmlNode* ChildNode : InNode->GetChildrenNodes())
 	{
 		if (ChildNode->GetTag() == TEXT("transform"))
@@ -767,9 +770,6 @@ void FDatasmithSceneXmlReader::ParseActor(FXmlNode* InNode, TSharedPtr<IDatasmit
 		}
 		else if (ChildNode->GetTag() == TEXT("children"))
 		{
-			// @todo: If attribute does not exist, default value should be true not false.
-			InOutElement->SetVisibility(ValueFromString<bool>(ChildNode->GetAttribute(TEXT("visible"))));
-
 			// Recursively parse the children, can be of any supported actor type
 			for (FXmlNode* ChildActorNode : ChildNode->GetChildrenNodes())
 			{

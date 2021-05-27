@@ -770,6 +770,9 @@ public:
 
 	void SetHlslOutput(const FString& InHlslOutput) { HlslOutput = InHlslOutput; }
 	void SetSourceName(FString InSourceName) { SourceName = InSourceName; }
+
+	/** Save "stable" shader for identifying the shader in the recorded PSO cache. */
+	NIAGARASHADER_API void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, struct FStableShaderKeyAndValue& SaveKeyVal); // arg is non-const, we modify it as we go
 #endif
 
 	const FString& GetFriendlyName() const { return FriendlyName; }

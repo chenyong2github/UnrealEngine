@@ -20,13 +20,13 @@ const defaultConfig = {
 	UseHTTPS: false,
 	UseAuthentication: false,
 	LogToFile: true,
-	HomepageFile: 'player.htm',
+	HomepageFile: 'player.html',
 	AdditionalRoutes: new Map(),
 	EnableWebserver: true
 };
 
 const argv = require('yargs').argv;
-var configFile = (typeof argv.configFile != 'undefined') ? argv.configFile.toString() : '.\\config.json';
+var configFile = (typeof argv.configFile != 'undefined') ? argv.configFile.toString() : './config.json';
 console.log(`configFile ${configFile}`);
 const config = require('./modules/config.js').init(configFile, defaultConfig);
 
@@ -174,7 +174,7 @@ sendGameSessionData();
 if(config.UseAuthentication){
 	if(config.EnableWebserver) {
 		app.get('/login', function(req, res){
-			res.sendFile(__dirname + '/login.htm');
+			res.sendFile(__dirname + '/login.html');
 		});
 	}
 
@@ -217,7 +217,7 @@ try {
 if(config.EnableWebserver) {
 	app.get('/', isAuthenticated('/login'), function (req, res) {
 		homepageFile = (typeof config.HomepageFile != 'undefined' && config.HomepageFile != '') ? config.HomepageFile.toString() : defaultConfig.HomepageFile;
-		homepageFilePath = path.join(__dirname, homepageFile)
+		homepageFilePath = path.join(__dirname, '/public', homepageFile)
 
 		fs.access(homepageFilePath, (err) => {
 			if (err) {
@@ -350,7 +350,7 @@ playerServer.on('connection', function (ws, req) {
 		return;
 	}
 
-	let playerId = ++nextPlayerId;
+	let playerId = (++nextPlayerId).toString();
 	console.log(`player ${playerId} (${req.connection.remoteAddress}) connected`);
 	players.set(playerId, { ws: ws, id: playerId });
 

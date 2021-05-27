@@ -11,6 +11,8 @@
 #include "Containers/UnrealString.h"
 #include "Templates/SharedPointer.h"
 
+#include "Async/Future.h"
+
 class FDatasmithSceneExporter;
 
 class IDatasmithActorElement;
@@ -48,6 +50,7 @@ namespace DatasmithSketchUp
 
 		TSharedPtr<FComponentInstance> AddComponentInstance(FDefinition& ParentDefinition, SUComponentInstanceRef InComponentInstanceRef); // Register ComponentInstance as a child of ParentDefinition
 		bool RemoveComponentInstance(FComponentInstanceIDType ParentEntityId, FComponentInstanceIDType ComponentInstanceId); // Take note that ComponentInstance removed from ParentDefinition children
+		void RemoveComponentInstance(TSharedPtr<FComponentInstance> ComponentInstance);
 
 		bool InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
 		void InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID);
@@ -55,15 +58,17 @@ namespace DatasmithSketchUp
 		void UpdateProperties();
 		void UpdateGeometry();
 
+		void LayerModified(DatasmithSketchUp::FEntityIDType LayerId);
+
 		TSharedPtr<FComponentInstance>* FindComponentInstance(FComponentInstanceIDType ComponentInstanceID)
 		{
 			return ComponentInstanceMap.Find(ComponentInstanceID);
 		}
 
+		TMap<FComponentInstanceIDType, TSharedPtr<FComponentInstance>> ComponentInstanceMap;
 	private:
 		FExportContext& Context;
 
-		TMap<FComponentInstanceIDType, TSharedPtr<FComponentInstance>> ComponentInstanceMap;
 	};
 
 	class FComponentDefinitionCollection
@@ -119,12 +124,16 @@ namespace DatasmithSketchUp
 
 		TSharedPtr<DatasmithSketchUp::FEntities> AddEntities(FDefinition& InDefinition, SUEntitiesRef EntitiesRef);
 
-		void RegisterEntitiesFaces(DatasmithSketchUp::FEntities&, const TSet<int32>& FaceIds);
+		void RegisterEntities(DatasmithSketchUp::FEntities&);
+		void UnregisterEntities(DatasmithSketchUp::FEntities&);
 		DatasmithSketchUp::FEntities* FindFace(int32 FaceId);
+
+		void LayerModified(FEntityIDType LayerId);
 
 	private:
 		FExportContext& Context;
 		TMap<int32, DatasmithSketchUp::FEntities*> FaceIdForEntitiesMap; // Identify Entities for each Face
+		TMap<DatasmithSketchUp::FEntityIDType, TSet<DatasmithSketchUp::FEntities*>> LayerIdForEntitiesMap; // Identify Entities for each Face
 	};
 
 	// Tracks information related to SketchUp "Scenes"(or "Pages" in older UI)
@@ -211,5 +220,7 @@ namespace DatasmithSketchUp
 		FMaterialCollection Materials;
 		FSceneCollection Scenes;
 		FTextureCollection Textures;
+
+		TArray<TFuture<bool>> MeshExportTasks;
 	};
 }

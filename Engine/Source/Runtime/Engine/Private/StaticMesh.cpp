@@ -6,6 +6,7 @@
 
 #include "Engine/StaticMesh.h"
 #include "Serialization/MemoryWriter.h"
+#include "Serialization/LargeMemoryWriter.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageSegment.h"
 #include "Misc/ScopedSlowTask.h"
@@ -138,6 +139,23 @@ static TAutoConsoleVariable<int32> CVarStripDistanceFieldDataDuringLoad(
 	TEXT("r.StaticMesh.StripDistanceFieldDataDuringLoad"),
 	0,
 	TEXT("If non-zero, data for distance fields will be discarded on load. TODO: change to discard during cook!."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+const TCHAR* GMinLodQualityLevelCVarName = TEXT("r.StaticMesh.MinLodQualityLevel");
+const TCHAR* GMinLodQualityLevelScalabilitySection = TEXT("ViewDistanceQuality");
+int32 GMinLodQualityLevel = -1;
+static FAutoConsoleVariableRef CVarMinLodQualityLevel(
+	GMinLodQualityLevelCVarName,
+	GMinLodQualityLevel,
+	TEXT("The quality level for the Min stripping LOD. \n"),
+	FConsoleVariableDelegate::CreateStatic(&UStaticMesh::OnLodStrippingQualityLevelChanged),
+	ECVF_Scalability);
+
+int32 GDisableMinLODQualityLevel = 1;
+static FAutoConsoleVariableRef CVarCDisableMinLODQualityLevel(
+	TEXT("r.StaticMesh.DisableMinLODQualityLevel"),
+	GDisableMinLODQualityLevel,
+	TEXT("Disable MinLOD Quality Level Override (Fallback on PerPlatform). \n"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 #if ENABLE_COOK_STATS
@@ -293,7 +311,34 @@ int32 FStaticMeshLODResources::GetPlatformMinLODIdx(const ITargetPlatform* Targe
 {
 #if WITH_EDITOR
 	check(TargetPlatform && StaticMesh);
-	return StaticMesh->GetMinLOD().GetValueForPlatform(*TargetPlatform->IniPlatformName());
+	if (StaticMesh->IsMinLodQualityLevelEnable())
+	{
+		// get all supported quality level from scalability + engine ini files
+		FSupportedQualityLevelArray SupportedQualityLevels = StaticMesh->GetQualityLevelMinLOD().GetSupportedQualityLevels(*TargetPlatform->PlatformName());
+		
+		// loop through all the supported quality level to find the min lod index
+		int32 MinLodIdx = MAX_int32;
+		for (int32& QL : SupportedQualityLevels)
+		{
+			// check if have data for the supported quality level
+			if (StaticMesh->GetQualityLevelMinLOD().IsQualityLevelValid(QL))
+			{
+				MinLodIdx = FMath::Min(StaticMesh->GetQualityLevelMinLOD().GetValueForQualityLevel(QL), MinLodIdx);
+			}
+		}
+
+		if (MinLodIdx == MAX_int32)
+		{
+			MinLodIdx = StaticMesh->GetQualityLevelMinLOD().Default;
+		}
+
+		return MinLodIdx;
+	}
+	else
+	{
+		return StaticMesh->GetMinLOD().GetValueForPlatform(*TargetPlatform->IniPlatformName());
+	}
+	
 #else
 	return 0;
 #endif
@@ -1578,7 +1623,17 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 	}
 #endif
 	Ar << NumInlinedLODs;
-	CurrentFirstLODIdx = LODResources.Num() - NumInlinedLODs;
+
+#if WITH_EDITOR
+	if (bCooked && Ar.IsLoading())
+	{
+		CurrentFirstLODIdx = 0;
+	}
+	else
+#endif
+	{
+		CurrentFirstLODIdx = LODResources.Num() - NumInlinedLODs;
+	}
 
 	if (Ar.IsLoading())
 	{
@@ -2676,7 +2731,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			}
 			
 			bLODsShareStaticLighting = Owner->CanLODsShareStaticLighting();
-			FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
+			FLargeMemoryWriter Ar(0, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
 			check(NaniteResources.RootClusterPage.Num() == 0 || NaniteResources.bLZCompressed);
 
@@ -2704,9 +2759,12 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				bSaveDDC = false;
 			}
 #endif
-			if (bSaveDDC)
+			int64 DerivedDataNum = Ar.TotalSize();
+			bool bCanStoreInDDC = DerivedDataNum <= TNumericLimits<TArrayView<uint8>::SizeType>::Max();
+			if (bSaveDDC && bCanStoreInDDC)
 			{
-				GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, Owner->GetPathName());
+				TArrayView<uint8> DataView(Ar.GetData(), DerivedDataNum);
+				GetDerivedDataCacheRef().Put(*DerivedDataKey, DataView, Owner->GetPathName());
 			}
 
 			double T1 = FPlatformTime::Seconds();
@@ -2715,7 +2773,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				*Owner->GetPathName()
 				);
 			FPlatformAtomics::InterlockedAdd(&StaticMeshDerivedDataTimings::BuildCycles, T1 - T0);
-			COOK_STAT(Timer.AddMiss(DerivedData.Num()));
+			COOK_STAT(Timer.AddMiss(DerivedDataNum));
 		}
 	}
 
@@ -2835,6 +2893,8 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	BuildCacheAutomationTestGuid.Invalidate();
 #endif
+	SetQualityLevelMinLOD(0);
+	MinQualityLevelLOD.Init(GMinLodQualityLevelCVarName, GMinLodQualityLevelScalabilitySection);
 }
 
 // We don't care if the default implementation of the destructor is cleaning up 
@@ -2943,7 +3003,7 @@ void UStaticMesh::InitResources()
 	{
 		{
 			const int32 NumLODs = GetNumLODs();
-			const int32 MinFirstLOD = GetMinLOD().GetValue();
+			const int32 MinFirstLOD = GetMinLODIdx();
 
 			CachedSRRState.NumNonStreamingLODs = GetRenderData()->NumInlinedLODs;
 			CachedSRRState.NumNonOptionalLODs = GetRenderData()->GetNumNonOptionalLODs();
@@ -3086,7 +3146,7 @@ bool UStaticMesh::HasValidRenderData(bool bCheckLODForVerts, int32 LODIndex) con
 		{
 			if (LODIndex == INDEX_NONE)
 			{
-				LODIndex = FMath::Clamp<int32>(GetMinLOD().GetValue(), 0, GetRenderData()->LODResources.Num() - 1);
+				LODIndex = FMath::Clamp<int32>(GetMinLODIdx(), 0, GetRenderData()->LODResources.Num() - 1);
 			}
 
 			return (GetRenderData()->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0);
@@ -5269,8 +5329,11 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 	{
 		// check the MinLOD values are all within range
 		bool bFixedMinLOD = false;
+		bool bFixedQualityMinLOD = false;
 		int32 MinAvailableLOD = FMath::Max<int32>(GetRenderData()->LODResources.Num() - 1, 0);
 		FPerPlatformInt LocalMinLOD = GetMinLOD();
+		FPerQualityLevelInt QualityLocalMinLOD = GetQualityLevelMinLOD();
+
 		if (!GetRenderData()->LODResources.IsValidIndex(LocalMinLOD.Default))
 		{
 			FFormatNamedArguments Arguments;
@@ -5293,6 +5356,19 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 
 			LocalMinLOD.Default = MinAvailableLOD;
 			bFixedMinLOD = true;
+		}
+
+		if (!GetRenderData()->LODResources.IsValidIndex(QualityLocalMinLOD.Default))
+		{
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("QualityLevelMinLOD"), FText::AsNumber(QualityLocalMinLOD.Default));
+			Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
+			FMessageLog("LoadErrors").Warning()
+				->AddToken(FUObjectToken::Create(this))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadQualityLevelMinLOD", "Min LOD value of {QualityLevelMinLOD} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+
+			QualityLocalMinLOD.Default = MinAvailableLOD;
+			bFixedQualityMinLOD = true;
 		}
 		
 		for (TMap<FName, int32>::TIterator It(LocalMinLOD.PerPlatform); It; ++It)
@@ -5323,11 +5399,34 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 			}
 		}
 
+		for (TMap<int32, int32>::TIterator It(QualityLocalMinLOD.PerQuality); It; ++It)
+		{
+			if (!GetRenderData()->LODResources.IsValidIndex(It.Value()))
+			{
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("QualityLevelMinLOD"), FText::AsNumber(It.Value()));
+				Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
+				Arguments.Add(TEXT("Quality"), FText::FromString(QualityLevelProperty::QualityLevelToFName(It.Key()).ToString()));
+				FMessageLog("LoadErrors").Warning()
+					->AddToken(FUObjectToken::Create(this))
+					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLODOverride", "Min LOD override of {QualityLevelMinLOD} for {Quality} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+
+				It.Value() = MinAvailableLOD;
+				bFixedQualityMinLOD = true;
+			}
+		}
+
 		if (bFixedMinLOD)
 		{
 			SetMinLOD(MoveTemp(LocalMinLOD));
 			// Make sure Slate gets called from the game thread
 			Async(EAsyncExecution::TaskGraphMainThread, []() { FMessageLog("LoadErrors").Open(); });
+		}
+
+		if (bFixedQualityMinLOD)
+		{
+			SetQualityLevelMinLOD(MoveTemp(QualityLocalMinLOD));
+			FMessageLog("LoadErrors").Open();
 		}
 	}
 
@@ -5722,6 +5821,12 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	SetRenderData(MakeUnique<FStaticMeshRenderData>());
 	GetRenderData()->AllocateLODResources(MeshDescriptions.Num());
 
+	FStaticMeshLODResourcesArray& LODResourcesArray = GetRenderData()->LODResources;
+	for (int32 LODIndex = 0; LODIndex < LODResourcesArray.Num(); ++LODIndex)
+	{
+		LODResourcesArray[LODIndex].IndexBuffer.TrySetAllowCPUAccess(bAllowCPUAccess || Params.bAllowCpuAccess);
+	}
+
 	// Build render data from each mesh description
 
 #if WITH_EDITOR
@@ -5875,7 +5980,7 @@ bool UStaticMesh::GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutP
 	bool bSucceed = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
 	check(bSucceed);
 	OutPackagePath = MoveTemp(PackagePath);
-	OutPackageSegment = MipIndex < GetMinLOD().Default ? EPackageSegment::BulkDataOptional : EPackageSegment::BulkDataDefault;
+	OutPackageSegment = MipIndex < GetDefaultMinLOD() ? EPackageSegment::BulkDataOptional : EPackageSegment::BulkDataDefault;
 	return true;
 }
 #endif // USE_BULKDATA_STREAMING_TOKEN
@@ -7103,6 +7208,63 @@ void UStaticMesh::RemoveSocket(UStaticMeshSocket* Socket)
 	Sockets.Remove(Socket);
 }
 
+ENGINE_API int32 UStaticMesh::GetDefaultMinLOD() const
+{
+	if (IsMinLodQualityLevelEnable())
+	{
+		return GetQualityLevelMinLOD().GetDefault();
+	}
+	else
+	{
+		return GetMinLOD().GetDefault();
+	}
+}
+
+ENGINE_API int32 UStaticMesh::GetMinLODIdx() const
+{
+	if (IsMinLodQualityLevelEnable())
+	{
+		return GetQualityLevelMinLOD().GetValue(GMinLodQualityLevel);
+	}
+	else
+	{
+		return GetMinLOD().GetValue();
+	}
+}
+
+ENGINE_API void UStaticMesh::SetMinLODIdx(int32 InMinLOD)
+{
+	if (IsMinLodQualityLevelEnable())
+	{
+		SetQualityLevelMinLOD(InMinLOD);
+	}
+	else
+	{
+		SetMinLOD(InMinLOD);
+	}
+}
+
+/** Check the QualitLevel property is enabled for MinLod. */
+bool UStaticMesh::IsMinLodQualityLevelEnable() const
+{
+	return !GDisableMinLODQualityLevel && GetQualityLevelMinLOD().bIsEnabled;
+}
+
+void UStaticMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable){
+#ifdef WITH_EDITOR
+	if (GEngine && GEngine->UsePerQualityLevelProperty)
+	{
+		for (TObjectIterator<UStaticMesh> It; It; ++It)
+		{
+			UStaticMesh* StaticMesh = *It;
+			if (StaticMesh && StaticMesh->IsMinLodQualityLevelEnable())
+			{
+				FStaticMeshComponentRecreateRenderStateContext Context(StaticMesh, false);
+			}
+		}
+	}
+#endif
+}
 /*-----------------------------------------------------------------------------
 UStaticMeshSocket
 -----------------------------------------------------------------------------*/

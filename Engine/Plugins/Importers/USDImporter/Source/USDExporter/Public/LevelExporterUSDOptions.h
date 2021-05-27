@@ -40,6 +40,10 @@ public:
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
     bool bBakeMaterials;
 
+	/** Resolution to use when baking materials into textures */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bBakeMaterials", ClampMin = "1" ) )
+	FIntPoint BakeResolution = FIntPoint( 512, 512 );
+
 	/** Whether to remove the 'unrealMaterial' attribute after binding the corresponding baked material */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bBakeMaterials" ) )
 	bool bRemoveUnrealMaterials;
@@ -47,6 +51,10 @@ public:
 	/** If true, the actual static/skeletal mesh data is exported in "payload" files, and referenced via the payload composition arc */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
 	bool bUsePayload;
+
+	/** USD format to use for exported payload files */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bUsePayload", GetOptions = GetUsdExtensions ) )
+	FString PayloadFormat;
 
 	/** Whether to use UE actor folders as empty prims */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
@@ -63,17 +71,30 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
 	int32 HighestLandscapeLOD;
 
+	/** Resolution to use when baking landscape materials into textures  */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "1" ) )
+	FIntPoint LandscapeBakeResolution = FIntPoint( 1024, 1024 );
+
 	/** If true, will export sub-levels as separate layers (referenced as sublayers). If false, will collapse all sub-levels in a single exported root layer */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers" )
     bool bExportSublayers;
 
-	/** The exporter will only export actors if their level name is within this set. An empty set will allow all actors. */
+	/** Names of levels that should be ignored when collecting actors to export (e.g. "Persistent Level", "Level1", "MySubLevel", etc.) */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers" )
-    TSet<FString> LevelFilter;
+    TSet<FString> LevelsToIgnore;
 
 public:
 	// We temporarily stash our export task here as a way of passing our options down to
 	// the Python exporter, that does the actual level exporting
 	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, Category = Hidden )
 	UAssetExportTask* CurrentTask;
+
+private:
+	UFUNCTION()
+	static TArray<FString> GetUsdExtensions()
+	{
+		TArray<FString> Extensions = UnrealUSDWrapper::GetAllSupportedFileFormats();
+		Extensions.Remove( TEXT( "usdz" ) );
+		return Extensions;
+	}
 };

@@ -127,7 +127,7 @@ class DeviceMotive(Device):
         # because the socket is UDP, we can only be sure that a "connection" has been established
         # when the connect response has beeen received. that's why the connection state is updated
         # here instead of in connect_listener().
-        if self.status == DeviceStatus.DISCONNECTED:
+        if self.is_disconnected:
             self.status = DeviceStatus.CLOSED
 
     def disconnect_listener(self):
@@ -236,7 +236,7 @@ class DeviceMotive(Device):
 
     def record_start(self, slate, take, description):
         """ Called by switchboard_dialog when recording was started, will start recording in Motive. """
-        if self.status == DeviceStatus.DISCONNECTED or not self.trigger_start:
+        if self.is_disconnected or not self.trigger_start:
             return
 
         self.set_slate(slate)
@@ -250,7 +250,7 @@ class DeviceMotive(Device):
 
     def record_stop(self):
         """ Called by switchboard_dialog when recording was stopped, will stop recording in Motive. """
-        if self.status == DeviceStatus.DISCONNECTED or not self.trigger_stop:
+        if self.is_disconnected or not self.trigger_stop:
             return
 
         self.send_request_to_motive('StopRecording')

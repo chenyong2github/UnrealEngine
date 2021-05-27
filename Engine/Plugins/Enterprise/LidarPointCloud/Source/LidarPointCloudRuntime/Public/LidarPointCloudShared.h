@@ -472,6 +472,36 @@ enum class ELidarPointCloudAsyncMode : uint8
 	Progress
 };
 
+UENUM(BlueprintType)
+enum class ELidarPointCloudScalingMethod : uint8
+{
+	/**
+	 * Points are scaled based on the estimated density of their containing node.
+	 * Recommended for assets with high variance of point densities, but may produce less fine detail overall.
+	 * Default method in 4.25 and 4.26
+	 */
+	PerNode,
+
+	/**
+	 * Similar to PerNode, but the density is calculated adaptively based on the current view.
+	 * Produces good amount of fine detail while being generally resistant to density variance.
+	 */
+	PerNodeAdaptive,
+
+	/**
+	 * Points are scaled based on their individual calculated depth.
+	 * Capable of resolving the highest amount of fine detail, but is the most susceptible to 
+	 * density changes across the dataset, and may result in patches of varying point sizes.
+	 */
+	PerPoint,
+
+	/**
+	 * Sprites will be rendered using screen-space scaling method.
+	 * In that mode, Point Size property will work as Screen Percentage.
+	 */
+	FixedScreenSize
+};
+
 /** Used to help track multiple buffer allocations */
 class LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudDataBuffer
 {
@@ -533,7 +563,7 @@ private:
 };
 
 /** Used for Raycasting */
-struct FLidarPointCloudRay
+struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudRay
 {
 public:
 	FVector Origin;
@@ -547,6 +577,11 @@ public:
 	FLidarPointCloudRay(const FVector& Origin, const FVector& Direction) : Origin(Origin)
 	{
 		SetDirection(Direction);
+	}
+
+	static FORCEINLINE FLidarPointCloudRay FromLocations(const FVector& Origin, const FVector& Destination)
+	{
+		return FLidarPointCloudRay(Origin, (Destination - Origin).GetSafeNormal());
 	}
 
 	FLidarPointCloudRay& TransformBy(const FTransform& Transform)
@@ -622,6 +657,94 @@ public:
 
 		return d2 <= RadiusSq;
 	}
+};
+
+UENUM(BlueprintType)
+enum class ELidarClippingVolumeMode : uint8
+{
+	/** This will clip all points inside the volume */
+	ClipInside,
+	/** This will clip all points outside of the volume */
+	ClipOutside,
+};
+
+/** Used to pass clipping information for async processing, to avoid accessing UObjects in non-GT */
+struct FLidarPointCloudClippingVolumeParams
+{
+	ELidarClippingVolumeMode Mode;
+	int32 Priority;
+	FBox Bounds;
+	FMatrix PackedShaderData;
+
+	FORCEINLINE bool operator<(const FLidarPointCloudClippingVolumeParams& O) const
+	{
+		return (Priority < O.Priority) || (Priority == O.Priority && Mode > O.Mode);
+	}
+
+	FLidarPointCloudClippingVolumeParams(const class ALidarClippingVolume* ClippingVolume);
+};
+
+UENUM(BlueprintType)
+enum class ELidarPointCloudColorationMode : uint8
+{
+	/** Uses color tint only */
+	None,
+	/** Uses imported RGB / Intensity data */
+	Data,
+	/** The cloud's color will be overridden with elevation-based color */
+	Elevation,
+	/** The cloud's color will be overridden with relative position-based color */
+	Position,
+	/** Uses Classification ID of the point along with the component's Classification Colors property to sample the color */
+	Classification
+};
+
+UENUM(BlueprintType)
+enum class ELidarPointCloudSpriteShape : uint8
+{
+	Square,
+	Circle,
+};
+
+/** Convenience struct to group all component's rendering params into one */
+struct FLidarPointCloudComponentRenderParams
+{
+	int32 MinDepth;
+	int32 MaxDepth;
+
+	float BoundsScale;
+	FVector BoundsSize;
+	FVector LocationOffset;
+	float ComponentScale;
+
+	float PointSize;
+	float PointSizeBias;
+	float GapFillingStrength;
+	
+	bool bOwnedByEditor;
+	bool bDrawNodeBounds;
+	bool bUseScreenSizeScaling;
+	bool bShouldRenderFacingNormals;
+	bool bUseFrustumCulling;
+
+	ELidarPointCloudColorationMode ColorSource;
+	ELidarPointCloudSpriteShape PointShape;
+	ELidarPointCloudScalingMethod ScalingMethod;
+
+	FVector4 Saturation;
+	FVector4 Contrast;
+	FVector4 Gamma;
+	FVector4 Offset;
+	FVector ColorTint;
+	float IntensityInfluence;
+
+	TMap<int32, FLinearColor> ClassificationColors;
+	FLinearColor ElevationColorBottom;
+	FLinearColor ElevationColorTop;
+
+	class UMaterialInterface* Material = nullptr;
+
+	void UpdateFromComponent(class ULidarPointCloudComponent* Component);
 };
 
 struct FBenchmarkTimer

@@ -146,7 +146,7 @@ public:
 
 	// Experimental: Support special frame builder mode - merge viewports to single viewfamily by group num
 	// [not implemented yet]
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY()
 	int RenderFamilyGroup = -1;
 };
 
@@ -175,23 +175,23 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 	uint8 bOverride_Offset:1;
 
 	// Saturation
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Saturation"))
+	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Saturation", ColorGradingMode = "saturation"))
 	FVector4 Saturation = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Contrast
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Contrast"))
+	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Contrast", ColorGradingMode = "contrast"))
 	FVector4 Contrast = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Gamma
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Gamma"))
+	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Gamma", ColorGradingMode = "gamma"))
 	FVector4 Gamma = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Gain
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Gain"))
+	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Gain", ColorGradingMode = "gain"))
 	FVector4 Gain = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Offset
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "-1.0", UIMax = "1.0", Delta = "0.001", EditCondition = "bOverride_Offset"))
+	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "-1.0", UIMax = "1.0", Delta = "0.001", EditCondition = "bOverride_Offset", ColorGradingMode = "offset"))
 	FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 };
 
@@ -294,6 +294,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	bool bAllowRendering = true;
 
+	// @todo: GUI: Toggle visibility of this property: hide for camera projection policy, and show for other
 	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
 	FString Camera;
 
@@ -342,76 +343,72 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
 	bool bIsVisible = true;
 #endif
+
+public:
+	static const float ViewportMinimumSize;
+	static const float ViewportMaximumSize;
 };
 
 // This struct now stored in UDisplayClusterConfigurationData, and replicated with MultiUser
-UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationRenderFrame
-	: public UActorComponent
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationRenderFrame
 {
 	GENERATED_BODY()
 
 public:
-	UDisplayClusterConfigurationRenderFrame()
-	{};
-
-public:
 	// Performance: Allow change global MGPU settings
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	EDisplayClusterConfigurationRenderMGPUMode MultiGPUMode = EDisplayClusterConfigurationRenderMGPUMode::Enabled;
 
 	// Performance: Allow merge multiple viewports on single RTT with atlasing (required for bAllowViewFamilyMergeOptimization)
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
+	// [not implemented yet] Experimental
+	UPROPERTY()
 	bool bAllowRenderTargetAtlasing = false;
 
 	// Performance: Allow viewfamily merge optimization (render multiple viewports contexts within single family)
 	// [not implemented yet] Experimental
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
+	UPROPERTY()
 	EDisplayClusterConfigurationRenderFamilyMode ViewFamilyMode = EDisplayClusterConfigurationRenderFamilyMode::None;
 
 	// Performance: Allow to use parent ViewFamily from parent viewport 
 	// (icvfx has child viewports: lightcard and chromakey with prj_view matrices copied from parent viewport. May sense to use same viewfamily?)
 	// [not implemented yet] Experimental
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
+	UPROPERTY()
 	bool bShouldUseParentViewportRenderFamily = false;
 
 	// Multiply all downscale ratio inside all viewports settings for whole cluster
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float ClusterRenderTargetRatioMult = 1.f;
 
 	// Multiply all buffer ratios for whole cluster by this value
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterBufferRatioMult = 1.f;
 
 	// Allow warpblend render
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, Category = NDisplay)
 	bool bAllowWarpBlend = true;
 };
 
-UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationViewportPreview
-	: public UDisplayClusterConfigurationData_Base
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewportPreview
 {
 	GENERATED_BODY()
 
 public:
-	UDisplayClusterConfigurationViewportPreview();
-
-public:
 	// Allow preview render
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY()
 	bool bEnable = true;
 
 	// Render single node preview or whole cluster
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)")
+	UPROPERTY()
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
 	// Update preview texture period in tick
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
+	UPROPERTY()
 	int TickPerFrame = 1;
 
 	// Preview texture size get from viewport, and scaled by this value
-	UPROPERTY(EditAnywhere, Category = "NDisplay Preview (Editor only)", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY()
 	float PreviewRenderTargetRatioMult = 0.25;
 };
 

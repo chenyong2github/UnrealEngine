@@ -26,8 +26,8 @@ public class AVEncoder : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
 			"Engine",
-			"nvEncode"
-			// "Amf" // TODO waiting on cross platform Amf encoder
+			"nvEncode",
+			"Amf"
 		});
 
 		PublicDependencyModuleNames.AddRange(new string[] {
@@ -41,8 +41,20 @@ public class AVEncoder : ModuleRules
 			// ... add any modules that your module loads dynamically here ...
 		});
 
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			PrivateIncludePathModuleNames.Add("VulkanRHI");
+		}
+
+		string EngineSourceDirectory = Path.GetFullPath(Target.RelativeEnginePath);
+		PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private"));
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
+			PublicDependencyModuleNames.Add("D3D12RHI");
+
 			// d3d to be able to use NVENC
 			PublicSystemLibraries.AddRange(new string[] {
 				"dxgi.lib",
@@ -51,10 +63,13 @@ public class AVEncoder : ModuleRules
 				"mfplat.lib",
 				"mfuuid.lib"
 			});
+
+			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			PrivateDependencyModuleNames.Add("CUDA");			
+			PrivateDependencyModuleNames.Add("CUDA"); 
+			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
 		}
 		
 		// TEMPORARY: set this to zero for all platforms until CUDA TPS review clears

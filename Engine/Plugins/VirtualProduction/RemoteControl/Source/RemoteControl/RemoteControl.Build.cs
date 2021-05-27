@@ -19,14 +19,22 @@ public class RemoteControl : ModuleRules
 				"Engine",
 				"RemoteControlInterception",
 				"Serialization",
+				"SlateCore"
 			}
 		);
 
 		if (Target.bBuildEditor)
 		{
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"RemoteControlCommon",
+				}
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"EditorFramework",
+					"DeveloperSettings",
+					"MessageLog",
 					"UnrealEd",
 				}
 			);

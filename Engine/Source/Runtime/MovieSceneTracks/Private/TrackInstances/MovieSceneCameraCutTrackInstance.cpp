@@ -2,7 +2,6 @@
 
 #include "TrackInstances/MovieSceneCameraCutTrackInstance.h"
 #include "ContentStreaming.h"
-#include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "GameFramework/Actor.h"
 #include "Generators/MovieSceneEasingCurves.h"
@@ -94,8 +93,14 @@ namespace MovieScene
 
 		virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& RestoreParams) override
 		{
+			IMovieScenePlayer* Player = RestoreParams.GetTerminalPlayer();
+			if (!ensure(Player))
+			{
+				return;
+			}
+			
 			EMovieSceneCameraCutParams Params;
-			RestoreParams.GetTerminalPlayer()->UpdateCameraCut(nullptr, Params);
+			Player->UpdateCameraCut(nullptr, Params);
 		}
 	};
 
@@ -167,8 +172,6 @@ namespace MovieScene
 				CameraCutParams.UnlockIfCameraObject = CameraCutCache.LastLockedCamera.Get();
 				Player.UpdateCameraCut(CameraActor, CameraCutParams);
 				CameraCutCache.LastLockedCamera = CameraActor;
-				// TODO-ludovic
-				//IMovieSceneMotionVectorSimulation::EnableThisFrame(PersistentData);
 				return true;
 			}
 			else if (CameraActor || CameraCutParams.BlendTime > 0.f)

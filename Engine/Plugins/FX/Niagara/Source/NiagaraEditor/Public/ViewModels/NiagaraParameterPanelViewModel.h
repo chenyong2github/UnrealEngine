@@ -358,6 +358,8 @@ public:
 
 	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const override;
 
+	virtual void DuplicateParameter(const FNiagaraParameterPanelItem ItemToDuplicate) const override;
+
 	virtual void SetParameterIsSubscribedToLibrary(const FNiagaraParameterPanelItem ItemToModify, const bool bSubscribed) const override;
 
 	virtual void OnParameterItemSelected(const FNiagaraParameterPanelItem& SelectedItem, ESelectInfo::Type SelectInfo) const override;

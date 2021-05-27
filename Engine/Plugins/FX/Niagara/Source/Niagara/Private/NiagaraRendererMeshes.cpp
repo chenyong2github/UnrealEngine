@@ -15,6 +15,7 @@
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
 #include "Renderer/Private/ScenePrivate.h"
+#include "PipelineStateCache.h"
 #include "IXRTrackingSystem.h"
 
 #ifdef HMD_MODULE_INCLUDED
@@ -178,7 +179,7 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 			MeshData.PivotOffset = MeshProperties.PivotOffset;
 			MeshData.PivotOffsetSpace = MeshProperties.PivotOffsetSpace;
 			MeshData.Scale = MeshProperties.Scale;
-			MeshData.MinimumLOD = Mesh->GetMinLOD().GetValue();
+			MeshData.MinimumLOD = MeshProperties.Mesh->GetMinLODIdx();
 
 			// Create an index remap from mesh material index to it's index in the master material list
 			TArray<UMaterialInterface*> MeshMaterials;
@@ -1377,7 +1378,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 				if (bHasRotation)
 				{
 					FQuat InstanceQuat = GetInstanceQuat(InstanceIndex);
-					FTransform RotationTransform(InstanceQuat/*.GetNormalized()*/);
+					FTransform RotationTransform(InstanceQuat.GetNormalized());
 					FMatrix RotationMatrix = RotationTransform.ToMatrixWithScale();
 					InstanceTransform = RotationMatrix * InstanceTransform;
 				}
@@ -1434,7 +1435,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			FNiagaraGPURayTracingTransformsCS::FPermutationDomain PermutationVector;
 
 			TShaderMapRef<FNiagaraGPURayTracingTransformsCS> GPURayTracingTransformsCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
-			RHICmdList.SetComputeShader(GPURayTracingTransformsCS.GetComputeShader());
+			SetComputePipelineState(RHICmdList, GPURayTracingTransformsCS.GetComputeShader());
 
 			const FUintVector4 NiagaraOffsets(
 				VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset(),

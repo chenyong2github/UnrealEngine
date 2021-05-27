@@ -1,0 +1,305 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Policy/EasyBlend/Windows/DX11/DisplayClusterProjectionEasyBlendViewAdapterDX11.h"
+#include "Policy/EasyBlend/Windows/DX11/DisplayClusterProjectionEasyBlendLibraryDX11.h"
+
+#include "DisplayClusterProjectionLog.h"
+#include "Misc/DisplayClusterHelpers.h"
+
+#include "RHI.h"
+#include "RHIResources.h"
+#include "RHIUtilities.h"
+
+#include "Windows/D3D11RHI/Private/D3D11RHIPrivate.h"
+
+#include "Engine/GameViewportClient.h"
+#include "Engine/Engine.h"
+#include "Engine/RendererSettings.h"
+#include "Misc/Paths.h"
+#include "UnrealClient.h"
+
+#include "Render/Viewport/IDisplayClusterViewport.h"
+#include "Render/Viewport/IDisplayClusterViewportProxy.h"
+
+
+FDisplayClusterProjectionEasyBlendViewAdapterDX11::FDisplayClusterProjectionEasyBlendViewAdapterDX11(const FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams& InitParams)
+	: FDisplayClusterProjectionEasyBlendViewAdapterBase(InitParams)
+	, bIsRenderResourcesInitialized(false)
+{
+	check(InitParams.NumViews > 0)
+
+	Views.AddDefaulted(InitParams.NumViews);
+}
+
+FDisplayClusterProjectionEasyBlendViewAdapterDX11::~FDisplayClusterProjectionEasyBlendViewAdapterDX11()
+{
+	for (FViewData& View : Views)
+	{
+		if (View.bIsMeshInitialized)
+		{
+			// Release the mesh data only if it was previously initialized
+			DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendUninitializeFunc(View.EasyBlendMeshData.Get());
+		}
+	}
+}
+
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString& File)
+{
+	// Initialize EasyBlend DLL API
+	if (!DisplayClusterProjectionEasyBlendLibraryDX11::Initialize())
+	{
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't link to the EasyBlend DLL"));
+		return false;
+	}
+
+	// Check if EasyBlend geometry file exists
+	if (!FPaths::FileExists(File))
+	{
+		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("File '%s' not found"), *File);
+		return false;
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay EasyBlend::Initialize);
+
+		// Initialize EasyBlend data for each view
+		const char* const FileName = TCHAR_TO_ANSI(*File);
+		for (FViewData& It : Views)
+		{
+			// Initialize the mesh data
+			{
+				FScopeLock lock(&DllAccessCS);
+
+				check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc);
+				const EasyBlendSDKDXError Result = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc(FileName, It.EasyBlendMeshData.Get());
+				if (!EasyBlendSDKDX_SUCCEEDED(Result))
+				{
+					UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend internals"));
+					return false;
+				}
+			}
+
+			// EasyBlendMeshData has been initialized
+			It.bIsMeshInitialized = true;
+
+			// Only perspective projection is supported so far
+			if (It.EasyBlendMeshData->Projection != EasyBlendSDKDX_PROJECTION_Perspective)
+			{
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("EasyBlend mesh data has projection value %d. Only perspective projection is allowed at this version."), EasyBlendSDKDX_PROJECTION_Perspective);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void FDisplayClusterProjectionEasyBlendViewAdapterDX11::ImplInitializeResources_RenderThread()
+{
+	check(IsInRenderingThread());
+
+	if (!bIsRenderResourcesInitialized)
+	{
+		bIsRenderResourcesInitialized = true;
+		FScopeLock Lock(&RenderingResourcesInitializationCS);
+
+		check(GDynamicRHI);
+		check(GEngine);
+		check(GEngine->GameViewport);
+
+		FViewport* MainViewport = GEngine->GameViewport->Viewport;
+
+		if (GD3D11RHI && MainViewport)
+		{
+			FD3D11Device* Device = GD3D11RHI->GetDevice();
+			FD3D11DeviceContext* DeviceContext = GD3D11RHI->GetDeviceContext();
+
+			check(Device);
+			check(DeviceContext);
+
+			FD3D11Viewport* Viewport = static_cast<FD3D11Viewport*>(MainViewport->GetViewportRHI().GetReference());
+			IDXGISwapChain* SwapChain = (IDXGISwapChain*)Viewport->GetSwapChain();
+
+			check(Viewport);
+			check(SwapChain);
+
+			// Create RT texture for viewport warp
+			for (FViewData& It : Views)
+			{
+				// Initialize EasyBlend internals
+				check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitDeviceObjectsFunc);
+				EasyBlendSDKDXError sdkErr = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitDeviceObjectsFunc(It.EasyBlendMeshData.Get(), Device, DeviceContext, SwapChain);
+				if (EasyBlendSDKDX_FAILED(sdkErr))
+				{
+					UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend Device/DeviceContext/SwapChain"));
+				}
+			}
+		}
+	}
+}
+
+// Location/Rotation inside the function is in EasyBlend space with a scale applied
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+{
+	check(Views.Num() > (int)InContextNum);
+
+	ZNear = NCP;
+	ZFar = FCP;
+
+	// Convert to EasyBlend coordinate system
+	FVector EasyBlendEyeLocation;
+	EasyBlendEyeLocation.X = InOutViewLocation.Y;
+	EasyBlendEyeLocation.Y = -InOutViewLocation.Z;
+	EasyBlendEyeLocation.Z = InOutViewLocation.X;
+
+	// View rotation
+	double Yaw = 0.l;
+	double Pitch = 0.l;
+	double Roll = 0.l;
+
+	{
+		FScopeLock lock(&DllAccessCS);
+
+		// Update view location
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetEyepointFunc);
+		DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetEyepointFunc(Views[InContextNum].EasyBlendMeshData.Get(), EasyBlendEyeLocation.X, EasyBlendEyeLocation.Y, EasyBlendEyeLocation.Z);
+
+		// Get actual view rotation
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSDK_GetHeadingPitchRollFunc);
+		DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSDK_GetHeadingPitchRollFunc(Yaw, Pitch, Roll, Views[InContextNum].EasyBlendMeshData.Get());
+	}
+
+	// Forward view rotation to a caller
+	InOutViewRotation = FRotator(-(float)Pitch, (float)Yaw, (float)Roll);
+
+	return true;
+}
+
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
+{
+	check(Views.Num() > (int)InContextNum);
+
+	// Build Projection matrix:
+	const float Left   = Views[InContextNum].EasyBlendMeshData->Frustum.LeftAngle;
+	const float Right  = Views[InContextNum].EasyBlendMeshData->Frustum.RightAngle;
+	const float Bottom = Views[InContextNum].EasyBlendMeshData->Frustum.BottomAngle;
+	const float Top    = Views[InContextNum].EasyBlendMeshData->Frustum.TopAngle;
+
+	InViewport->CalculateProjectionMatrix(InContextNum, Left, Right, Top, Bottom, ZNear, ZFar, true);
+	OutPrjMatrix = InViewport->GetContexts()[InContextNum].ProjectionMatrix;
+
+	return true;
+}
+
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* InViewportProxy)
+{
+	check(IsInRenderingThread());
+	check(InViewportProxy);
+
+	if (!GEngine)
+	{
+		return false;
+	}
+
+	// Get in\out remp resources ref from viewport
+	TArray<FRHITexture2D*> InputTextures, OutputTextures;
+	if (!InViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InputShaderResource, InputTextures) || !InViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::AdditionalTargetableResource, OutputTextures))
+	{
+		return false;
+	}
+
+	check(InputTextures.Num() == OutputTextures.Num());
+	check(InViewportProxy->GetContexts_RenderThread().Num() == InputTextures.Num());
+
+	// External SDK not use our RHI flow, call flush to finish resolve context image to input resource
+	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+
+	// Easyblend require one time initializetion with our D3D11 resources
+	ImplInitializeResources_RenderThread();
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay EasyBlend::Render);
+	for (int ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
+	{
+		if (!ImplApplyWarpBlend_RenderThread(RHICmdList, ContextNum, InputTextures[ContextNum], OutputTextures[ContextNum]))
+		{
+			return false;
+		}
+	}
+
+	// resolve warp result images from temp targetable to FrameTarget
+	return InViewportProxy->ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::AdditionalTargetableResource, InViewportProxy->GetOutputResourceType());
+}
+
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int ContextNum, FRHITexture2D* InputTexture, FRHITexture2D* OutputTexture)
+{
+	FViewport* MainViewport = GEngine->GameViewport->Viewport;
+	if (GD3D11RHI == nullptr || MainViewport == nullptr)
+	{
+		return false;
+	}
+
+	// Prepare the textures
+	FD3D11TextureBase* SrcTextureRHI = static_cast<FD3D11TextureBase*>(InputTexture->GetTextureBaseRHI());
+	FD3D11TextureBase* DstTextureRHI = static_cast<FD3D11TextureBase*>(OutputTexture->GetTextureBaseRHI());
+
+	ID3D11RenderTargetView* DstTextureRTV = DstTextureRHI->GetRenderTargetView(0, -1);
+
+	ID3D11Texture2D* DstTextureD3D11 = static_cast<ID3D11Texture2D*>(DstTextureRHI->GetResource());
+	ID3D11Texture2D* SrcTextureD3D11 = static_cast<ID3D11Texture2D*>(SrcTextureRHI->GetResource());
+
+	// Setup In/Out EasyBlend textures
+	{
+		FScopeLock Lock(&DllAccessCS);
+
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetInputTexture2DFunc);
+		const EasyBlendSDKDXError EasyBlendSDKDXError1 = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetInputTexture2DFunc(Views[ContextNum].EasyBlendMeshData.Get(), SrcTextureD3D11);
+
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetOutputTexture2DFunc);
+		const EasyBlendSDKDXError EasyBlendSDKDXError2 = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetOutputTexture2DFunc(Views[ContextNum].EasyBlendMeshData.Get(), DstTextureD3D11);
+
+		if (!(EasyBlendSDKDX_SUCCEEDED(EasyBlendSDKDXError1) && EasyBlendSDKDX_SUCCEEDED(EasyBlendSDKDXError2)))
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Coulnd't configure in/out textures"));
+			return false;
+		}
+	}
+
+	D3D11_VIEWPORT RenderViewportData;
+	RenderViewportData.MinDepth = 0.0f;
+	RenderViewportData.MaxDepth = 1.0f;
+	RenderViewportData.Width = static_cast<float>(OutputTexture->GetSizeX());
+	RenderViewportData.Height = static_cast<float>(OutputTexture->GetSizeY());
+	RenderViewportData.TopLeftX = 0.0f;
+	RenderViewportData.TopLeftY = 0.0f;
+
+	FD3D11Device* Device = GD3D11RHI->GetDevice();
+	FD3D11DeviceContext* DeviceContext = GD3D11RHI->GetDeviceContext();
+
+	FD3D11Viewport* Viewport = static_cast<FD3D11Viewport*>(MainViewport->GetViewportRHI().GetReference());
+	IDXGISwapChain* SwapChain = (IDXGISwapChain*)Viewport->GetSwapChain();
+
+	DeviceContext->RSSetViewports(1, &RenderViewportData);
+	DeviceContext->OMSetRenderTargets(1, &DstTextureRTV, nullptr);
+	DeviceContext->Flush();
+
+	{
+		FScopeLock Lock(&DllAccessCS);
+
+		// Perform warp&blend by the EasyBlend
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendDXRenderFunc);
+		EasyBlendSDKDXError EasyBlendSDKDXError = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendDXRenderFunc(
+			Views[ContextNum].EasyBlendMeshData.Get(),
+			Device,
+			DeviceContext,
+			SwapChain,
+			false);
+
+		if (!EasyBlendSDKDX_SUCCEEDED(EasyBlendSDKDXError))
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("EasyBlend couldn't perform rendering operation"));
+			return false;
+		}
+	}
+
+	return true;
+}

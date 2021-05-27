@@ -16,6 +16,7 @@ DECLARE_STATS_GROUP(TEXT("EOS"), STATGROUP_EOS, STATCAT_Advanced);
 #include "eos_sdk.h"
 
 class IEOSSDKManager;
+using IEOSPlatformHandlePtr = TSharedPtr<struct IEOSPlatformHandle, ESPMode::ThreadSafe>;
 
 class FUserManagerEOS;
 typedef TSharedPtr<class FUserManagerEOS, ESPMode::ThreadSafe> FUserManagerEOSPtr;
@@ -108,38 +109,7 @@ public:
 PACKAGE_SCOPE:
 	/** Only the factory makes instances */
 	FOnlineSubsystemEOS() = delete;
-	explicit FOnlineSubsystemEOS(FName InInstanceName) :
-		FOnlineSubsystemImpl(EOS_SUBSYSTEM, InInstanceName)
-		, EOSSDKManager(nullptr)
-		, EOSPlatformHandle(nullptr)
-		, AuthHandle(nullptr)
-		, UIHandle(nullptr)
-		, FriendsHandle(nullptr)
-		, UserInfoHandle(nullptr)
-		, PresenceHandle(nullptr)
-		, ConnectHandle(nullptr)
-		, SessionsHandle(nullptr)
-		, StatsHandle(nullptr)
-		, LeaderboardsHandle(nullptr)
-		, MetricsHandle(nullptr)
-		, AchievementsHandle(nullptr)
-		, P2PHandle(nullptr)
-		, EcomHandle(nullptr)
-		, TitleStorageHandle(nullptr)
-		, PlayerDataStorageHandle(nullptr)
-		, UserManager(nullptr)
-		, SessionInterfacePtr(nullptr)
-		, LeaderboardsInterfacePtr(nullptr)
-		, AchievementsInterfacePtr(nullptr)
-		, StoreInterfacePtr(nullptr)
-		, TitleFileInterfacePtr(nullptr)
-		, UserCloudInterfacePtr(nullptr)
-		, bWasLaunchedByEGS(false)
-		, bIsDefaultOSS(false)
-		, bIsPlatformOSS(false)
-	{
-		StopTicker();
-	}
+	explicit FOnlineSubsystemEOS(FName InInstanceName);
 
 	char ProductNameAnsi[EOS_PRODUCTNAME_MAX_BUFFER_LEN];
 	char ProductVersionAnsi[EOS_PRODUCTVERSION_MAX_BUFFER_LEN];
@@ -147,7 +117,7 @@ PACKAGE_SCOPE:
 	IEOSSDKManager* EOSSDKManager;
 
 	/** EOS handles */
-	EOS_HPlatform EOSPlatformHandle;
+	IEOSPlatformHandlePtr EOSPlatformHandle;
 	EOS_HAuth AuthHandle;
 	EOS_HUI UIHandle;
 	EOS_HFriends FriendsHandle;

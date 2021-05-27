@@ -746,8 +746,14 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 
 	FName PropertyName = ChildHandle->GetProperty()->GetFName();
 
+	// For cards & meshes the incoming index is actually the cards/mesh description index, not the group index
+	// For the rest, the group index refers to the actual group index.
+	const bool bIsCardDescIndexValid = GroupIndex < GroomAsset->HairGroupsCards.Num();
+	const bool bIsMeshDescIndexValid = GroupIndex < GroomAsset->HairGroupsMeshes.Num();
+	const bool bIsGroupIndexValid = GroupIndex < GroomAsset->GetNumHairGroups();
+		
 	// Hair strands
-	if (GroupIndex < GroomAsset->HairGroupsRendering.Num())
+	if (bIsGroupIndexValid)
 	{
 		{
 			FHairGeometrySettings Default;
@@ -772,7 +778,7 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 	}
 
 	// Interpolation
-	if (GroupIndex < GroomAsset->HairGroupsInterpolation.Num())
+	if (bIsGroupIndexValid)
 	{
 		{
 			FHairDecimationSettings Default;
@@ -790,7 +796,7 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 	}
 
 	// LODs
-	if (GroupIndex < GroomAsset->HairGroupsLOD.Num())
+	if (bIsGroupIndexValid)
 	{
 		{
 			FHairGroupsLOD Default;
@@ -811,7 +817,7 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 	}
 
 	// Cards
-	if (GroupIndex < GroomAsset->HairGroupsCards.Num())
+	if (bIsCardDescIndexValid)
 	{
 		{
 			FHairGroupsCardsSourceDescription Default;
@@ -833,7 +839,7 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 	}
 
 	// Meshes
-	if (GroupIndex < GroomAsset->HairGroupsMeshes.Num())
+	if (bIsMeshDescIndexValid)
 	{
 		{
 			FHairGroupsMeshesSourceDescription Default;
@@ -853,7 +859,7 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 	}
 
 	// Physics
-	if (GroupIndex < GroomAsset->HairGroupsPhysics.Num())
+	if (bIsGroupIndexValid)
 	{
 		{
 			FHairSolverSettings Default;

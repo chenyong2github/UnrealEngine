@@ -134,6 +134,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges);
 
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination);
+
 	/** Instantly stops any inertial scrolling that is currently in progress */
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void EndInertialScrolling();

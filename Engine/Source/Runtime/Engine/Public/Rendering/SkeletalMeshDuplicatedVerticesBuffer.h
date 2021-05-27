@@ -53,7 +53,7 @@ public:
         }
 
         DupVertData.ResizeBuffer(NumDups ? NumDups : 1);
-        DupVertIndexData.ResizeBuffer(NumVertices);
+        DupVertIndexData.ResizeBuffer(NumVertices ? NumVertices : 1);
 
         uint8* VertData = DupVertData.GetDataPointer();
         uint32 VertStride = DupVertData.GetStride();

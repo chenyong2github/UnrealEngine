@@ -249,6 +249,16 @@ struct FMaterialCachedExpressionData
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
+	bool IsMaterialAttributePropertyConnected(EMaterialProperty Property) const
+	{
+		return ((MaterialAttributesPropertyConnectedBitmask >> (uint32)Property) & 0x1) != 0;
+	}
+
+	void SetMaterialAttributePropertyConnected(EMaterialProperty Property, bool bIsConnected)
+	{
+		MaterialAttributesPropertyConnectedBitmask = bIsConnected ? MaterialAttributesPropertyConnectedBitmask | (1 << (uint32)Property) : MaterialAttributesPropertyConnectedBitmask & ~(1 << (uint32)Property);
+	}
+
 	UPROPERTY()
 	FMaterialCachedParameters Parameters;
 
@@ -284,6 +294,10 @@ struct FMaterialCachedExpressionData
 
 	UPROPERTY()
 	uint32 bHasSceneColor : 1;
+
+	/** Each bit corresponds to EMaterialProperty connection status. */
+	UPROPERTY()
+	uint32 MaterialAttributesPropertyConnectedBitmask = 0;
 };
 
 USTRUCT()

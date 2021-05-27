@@ -1169,9 +1169,9 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 	TranslateResults.bHLSLGenSucceeded = false;
 	TranslateResults.OutputHLSL = "";
 
-	UNiagaraGraph* SourceGraph = CompileData->NodeGraphDeepCopy;
+	TWeakObjectPtr<UNiagaraGraph> SourceGraph = CompileData->NodeGraphDeepCopy;
 
-	if (!SourceGraph)
+	if (!SourceGraph.IsValid())
 	{
 		Error(LOCTEXT("GetGraphFail", "Cannot find graph node!"), nullptr, nullptr);
 		return TranslateResults;
@@ -5148,6 +5148,10 @@ bool FHlslNiagaraTranslator::HandleBoundConstantVariableToDataSetRead(FNiagaraVa
 			const FString SysParamEnginePositionSymbolNameString = GetSanitizedSymbolName(SYS_PARAM_ENGINE_POSITION.GetName().ToString(), true);
 			const FString ConstantStr = FString::Printf(TEXT("%s%s"), *SysParamEnginePositionSymbolNameString, *FString(TEXT(".xyz")));
 			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType());
+			if (CodeChunks.IsValidIndex(Output))
+			{
+				CodeChunks[Output].Original = InVariable;
+			}
 			return true;
 		}
 		else
@@ -5155,7 +5159,11 @@ bool FHlslNiagaraTranslator::HandleBoundConstantVariableToDataSetRead(FNiagaraVa
 			InVariable.SetValue(FVector(EForceInit::ForceInitToZero));
 			float* ValuePtr = (float*)InVariable.GetData();
 			const FString ConstantStr = FString::Printf(TEXT("float3(%g,%g,%g)"), *ValuePtr, *(ValuePtr + 1), *(ValuePtr + 2));
-			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType());
+			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType()); 
+			if (CodeChunks.IsValidIndex(Output))
+			{
+				CodeChunks[Output].Original = InVariable;
+			}
 			return true;
 		}
 	}
@@ -6725,13 +6733,16 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 			{
 				// If the cdo wasn't found, the data interface was not passed through a parameter map and so it won't be bound correctly, so add a compile error
 				// and invalidate the signature.
-				Error(LOCTEXT("DataInterfaceNotFoundCustomHLSL", "Data interface used by custom hlsl, but not found in precompiled data. Please notify Niagara team of bug."), nullptr, nullptr);
+				Error(FText::Format(LOCTEXT("DataInterfaceNotFoundCustomHLSL", "Data interface ({0}) used by custom hlsl, but not found in precompiled data. Please notify Niagara team of bug."),
+					FText::FromName(Input.GetName())),
+					InNodeForErrorReporting,
+					nullptr);
 				return;
 			}
 			int32 OwnerIdx = Inputs[i];
 			if (OwnerIdx < 0 || OwnerIdx >= CompilationOutput.ScriptData.DataInterfaceInfo.Num())
 			{
-				Error(LOCTEXT("FunctionCallDataInterfaceMissingRegistration", "Function call signature does not match to a registered DataInterface. Valid DataInterfaces should be wired into a DataInterface function call."), nullptr, nullptr);
+				Error(LOCTEXT("FunctionCallDataInterfaceMissingRegistration", "Function call signature does not match to a registered DataInterface. Valid DataInterfaces should be wired into a DataInterface function call."), InNodeForErrorReporting, nullptr);
 				return;
 			}
 
@@ -8034,13 +8045,18 @@ void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UE
 						{
 							InputCompileResult = CodeChunks[InputCompileResult].SourceChunks[0]; // Follow the linkage
 						}
-						else if (CodeChunks[InputCompileResult].Original.IsDataAllocated())
+						else if (CodeChunks[InputCompileResult].Original.IsDataAllocated()) // Handle constants
 						{
 							Variable.AllocateData();
 							CodeChunks[InputCompileResult].Original.CopyTo(Variable.GetData());
 							bSearch = false;
 						}
-						else
+						else if (CodeChunks[InputCompileResult].Original.IsValid()) // Handle default assignments
+						{
+							Value = CodeChunks[InputCompileResult].Original.GetName().ToString();
+							bSearch = false;
+						}
+						else // Handle setting to defaults as we didn't find a match.
 						{
 							TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(TypeDef);
 							if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanHandlePinDefaults() && CodeChunks[InputCompileResult].Definition.IsEmpty() == false)

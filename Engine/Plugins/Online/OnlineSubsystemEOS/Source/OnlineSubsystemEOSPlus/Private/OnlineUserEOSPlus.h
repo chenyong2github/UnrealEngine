@@ -418,6 +418,7 @@ PACKAGE_SCOPE:
 	void OnLoginStatusChanged(int32 LocalUserNum, ELoginStatus::Type OldStatus, ELoginStatus::Type NewStatus, const FUniqueNetId& NewId);
 	void OnControllerPairingChanged(int32 LocalUserNum, FControllerPairingChangedUserInfo PreviousUser, FControllerPairingChangedUserInfo NewUser);
 	void OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error);
+	void OnBaseLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorStr);
 	void OnLogoutComplete(int32 LocalUserNum, bool bWasSuccessful);
 	void OnPresenceReceived(const FUniqueNetId& UserId, const TSharedRef<FOnlineUserPresence>& Presence);
 	void OnPresenceArrayUpdated(const FUniqueNetId& UserId, const TArray<TSharedRef<FOnlineUserPresence>>& NewPresenceArray);
@@ -430,9 +431,9 @@ PACKAGE_SCOPE:
 	void OnInviteAborted(const FUniqueNetId& UserId, const FUniqueNetId& FriendId);
 	void OnFriendRemoved(const FUniqueNetId& UserId, const FUniqueNetId& FriendId);
 
-	FUniqueNetIdEOSPlusPtr GetNetIdPlus(const FString& SourceId);
-	FUniqueNetIdPtr GetBaseNetId(const FString& SourceId);
-	FUniqueNetIdPtr GetEOSNetId(const FString& SourceId);
+	FUniqueNetIdEOSPlusPtr GetNetIdPlus(const FString& SourceId) const;
+	FUniqueNetIdPtr GetBaseNetId(const FString& SourceId) const;
+	FUniqueNetIdPtr GetEOSNetId(const FString& SourceId) const;
 
 private:
 	void AddPlayer(int32 LocalUserNum);
@@ -468,6 +469,9 @@ private:
 	TMap<FString, TSharedRef<FOnlineFriendPlus>> NetIdPlusToFriendMap;
 	TMap<FString, TSharedRef<FOnlineRecentPlayerPlus>> NetIdPlusToRecentPlayerMap;
 	TMap<FString, TSharedRef<FOnlineBlockedPlayerPlus>> NetIdPlusToBlockedPlayerMap;
+
+	/** Last Login Credentials used for a login attempt */
+	TMap<int32, TSharedRef<FOnlineAccountCredentials>> LocalUserNumToLastLoginCredentials;
 };
 
 typedef TSharedPtr<FOnlineUserEOSPlus, ESPMode::ThreadSafe> FOnlineUserEOSPlusPtr;

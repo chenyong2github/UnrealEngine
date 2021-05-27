@@ -126,8 +126,8 @@ enum AMF_COLOR_RANGE_ENUM
 // IDs are the same as in decoder properties
 // can be used to dynamically pass color data between components:
 // Decoder, Capture, Encoder. Presenter etc.
-#define AMF_VIDEO_COLOR_TRANSFER_CHARACTERISTIC         L"ColorTransferChar"    // amf_int64(AMF_COLOR_TRANSFER_CHARACTERISTIC_ENUM); default = AMF_COLOR_TRANSFER_CHARACTERISTIC_UNDEFINED, ISO/IEC 23001-8_2013 § 7.2 See ColorSpace.h for enum 
-#define AMF_VIDEO_COLOR_PRIMARIES                       L"ColorPrimaries"       // amf_int64(AMF_COLOR_PRIMARIES_ENUM); default = AMF_COLOR_PRIMARIES_UNDEFINED, ISO/IEC 23001-8_2013 § 7.1 See ColorSpace.h for enum 
+#define AMF_VIDEO_COLOR_TRANSFER_CHARACTERISTIC         L"ColorTransferChar"    // amf_int64(AMF_COLOR_TRANSFER_CHARACTERISTIC_ENUM); default = AMF_COLOR_TRANSFER_CHARACTERISTIC_UNDEFINED, ISO/IEC 23001-8_2013 Section 7.2 See ColorSpace.h for enum 
+#define AMF_VIDEO_COLOR_PRIMARIES                       L"ColorPrimaries"       // amf_int64(AMF_COLOR_PRIMARIES_ENUM); default = AMF_COLOR_PRIMARIES_UNDEFINED, ISO/IEC 23001-8_2013 Section 7.1 See ColorSpace.h for enum 
 #define AMF_VIDEO_COLOR_RANGE                           L"ColorRange"           // amf_int64(AMF_COLOR_RANGE_ENUM) default = AMF_COLOR_RANGE_UNDEFINED
 #define AMF_VIDEO_COLOR_HDR_METADATA                    L"HdrMetadata"          // AMFBuffer containing AMFHDRMetadata; default NULL
 

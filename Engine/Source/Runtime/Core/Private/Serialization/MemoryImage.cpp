@@ -108,6 +108,7 @@ FArchive& FPlatformTypeLayoutParameters::Serialize(FArchive& Ar)
 
 void FPlatformTypeLayoutParameters::AppendKeyString(FString& KeyString) const
 {
+	KeyString += FString::Printf(TEXT("FL_%08x_MFA_%08x_"), Flags, MaxFieldAlignment);
 }
 
 // evaluated during static-initialization, so logging from regular check() macros won't work correctly

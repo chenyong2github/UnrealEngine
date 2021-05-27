@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IStructSerializerBackend.h"
 #include "Serialization/RCJsonStructSerializerBackend.h"
 #include "Serialization/RCJsonStructDeserializerBackend.h"
 #include "HttpServerResponse.h"
@@ -282,7 +283,7 @@ namespace WebRemoteControlUtils
 	{
 		TArray<uint8> WorkingBuffer;
 		FMemoryWriter Writer(WorkingBuffer);
-		FRCJsonStructSerializerBackend SerializeBackend{Writer, EStructSerializerBackendFlags::Default};
+		FRCJsonStructSerializerBackend SerializeBackend{Writer, FRCJsonStructSerializerBackend::DefaultSerializerFlags};
 		FStructSerializer::Serialize(InResponseObject, SerializeBackend, FStructSerializerPolicies());
 		ConvertToUTF8(WorkingBuffer, OutResponsePayload);
 	}

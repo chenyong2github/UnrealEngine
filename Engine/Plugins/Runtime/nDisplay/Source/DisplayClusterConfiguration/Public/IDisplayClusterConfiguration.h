@@ -17,9 +17,10 @@ class IDisplayClusterConfiguration : public IModuleInterface
 public:
 	static constexpr auto ModuleName = TEXT("DisplayClusterConfiguration");
 
-	virtual ~IDisplayClusterConfiguration() = 0
-	{ }
+public:
+	virtual ~IDisplayClusterConfiguration() = default;
 
+public:
 	/**
 	* Singleton-like access to this module's interface.  This is just for convenience!
 	* Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.

@@ -41,14 +41,26 @@ void FRemoteControlEntity::SetMetadataValue(FName Key, FString Value)
 
 void FRemoteControlEntity::BindObject(UObject* InObjectToBind)
 {
-	if (Bindings.Num() && InObjectToBind)
+	if (!InObjectToBind)
 	{
-		if (URemoteControlBinding* Binding = Bindings[0].Get())
-		{
-			Binding->Modify();
-			Binding->SetBoundObject(InObjectToBind);
-			OnEntityModifiedDelegate.ExecuteIfBound(Id);
-		}
+		return;
+	}
+
+	URemoteControlBinding* Binding = nullptr;
+
+	if (Bindings.Num() == 0)
+	{
+		Binding = Owner->FindOrAddBinding(InObjectToBind);
+		Bindings.Emplace(Binding);
+	}
+
+	Binding = Bindings[0].Get();
+
+	if (Binding)
+	{
+		Binding->Modify();
+		Binding->SetBoundObject(InObjectToBind);
+		OnEntityModifiedDelegate.ExecuteIfBound(Id);
 	}
 }
 
@@ -73,6 +85,15 @@ FRemoteControlEntity::FRemoteControlEntity(URemoteControlPreset* InPreset, FName
 	, Id(FGuid::NewGuid())
 {
 	Bindings.Append(InBindings);
+}
+
+const UScriptStruct* FRemoteControlEntity::GetStruct() const
+{
+	if (URemoteControlPreset* Preset = Owner.Get())
+	{
+		return Preset->GetExposedEntityType(Id);
+	}
+	return nullptr;
 }
 
 FName FRemoteControlEntity::Rename(FName NewLabel)

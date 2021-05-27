@@ -3,6 +3,7 @@
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorClusterNodeViewModel.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
@@ -43,6 +44,11 @@ const FDisplayClusterConfigurationRectangle& UDisplayClusterConfiguratorWindowNo
 
 FString UDisplayClusterConfiguratorWindowNode::GetCfgHost() const
 {
+	if (!IsObjectValid())
+	{
+		return TEXT("");
+	}
+
 	UDisplayClusterConfigurationClusterNode* CfgClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 	return CfgClusterNode->Host;
 }
@@ -55,12 +61,22 @@ const FString& UDisplayClusterConfiguratorWindowNode::GetPreviewImagePath() cons
 
 bool UDisplayClusterConfiguratorWindowNode::IsFixedAspectRatio() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationClusterNode* CfgClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 	return CfgClusterNode->bFixedAspectRatio;
 }
 
 bool UDisplayClusterConfiguratorWindowNode::IsMaster() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 	return FDisplayClusterConfiguratorClusterUtils::IsClusterNodeMaster(ClusterNode);
 }
@@ -77,6 +93,11 @@ void UDisplayClusterConfiguratorWindowNode::UnregisterOnPreviewImageChanged(FDel
 
 bool UDisplayClusterConfiguratorWindowNode::IsNodeVisible() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 
 	if (ClusterNode->bIsVisible)
@@ -100,6 +121,11 @@ bool UDisplayClusterConfiguratorWindowNode::IsNodeVisible() const
 
 bool UDisplayClusterConfiguratorWindowNode::IsNodeEnabled() const
 {
+	if (!IsObjectValid())
+	{
+		return false;
+	}
+
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 
 	if (ClusterNode->bIsEnabled)
@@ -121,8 +147,22 @@ bool UDisplayClusterConfiguratorWindowNode::IsNodeEnabled() const
 	return bIsChildEnabled;
 }
 
+bool UDisplayClusterConfiguratorWindowNode::CanNodeExceedParentBounds() const
+{
+	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
+	return !OutputMapping->GetOutputMappingSettings().bKeepClusterNodesInHosts;
+}
+
 void UDisplayClusterConfiguratorWindowNode::DeleteObject()
 {
+	if (!IsObjectValid())
+	{
+		return;
+	}
+
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 	FDisplayClusterConfiguratorClusterUtils::RemoveClusterNodeFromCluster(ClusterNode);
 }
@@ -154,6 +194,12 @@ void UDisplayClusterConfiguratorWindowNode::OnPostEditChangeChainProperty(const 
 	// If the pointer to the blueprint editor is no longer valid, its likely that the editor this node was created for was closed,
 	// and this node is orphaned and will eventually be GCed.
 	if (!ToolkitPtr.IsValid())
+	{
+		return;
+	}
+
+	// If the object is no longer valid, don't attempt to sync properties
+	if (!IsObjectValid())
 	{
 		return;
 	}

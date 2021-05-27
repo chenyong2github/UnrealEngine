@@ -26,13 +26,13 @@ public:
 	void ClearWhitelist();
 
 	/** Add a specific property to a UStruct's whitelist */
-	void AddToWhitelist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName);
+	void AddToWhitelist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner = NAME_None);
 	/** Remove a specific property from a UStruct's whitelist */
-	void RemoveFromWhitelist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName);
+	void RemoveFromWhitelist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner = NAME_None);
 	/** Add a specific property to a UStruct's blacklist */
-	void AddToBlacklist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName);
+	void AddToBlacklist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner = NAME_None);
 	/** Remove a specific property from a UStruct's blacklist */
-    void RemoveFromBlacklist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName);
+    void RemoveFromBlacklist(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner = NAME_None);
 
 	/** When the whitelist or blacklist for any struct was added to or removed from. */
     FWhitelistUpdated WhitelistUpdatedDelegate;

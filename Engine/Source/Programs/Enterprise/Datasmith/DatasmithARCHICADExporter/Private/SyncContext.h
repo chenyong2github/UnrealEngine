@@ -6,7 +6,7 @@
 
 #include "SyncDatabase.h"
 #include "SyncData.h"
-#include "Progression.h"
+#include "Utils/Progression.h"
 #include "StatsCounter.h"
 
 class FDatasmithDirectLink;

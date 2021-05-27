@@ -207,15 +207,12 @@ namespace HoloLens.Automation
 
 		bool ProcessHasExited;
 
-		public HoloLensDevicePortalCreatedProcess(Microsoft.Tools.WindowsDevicePortal.DevicePortal InPortal, string InPackageName, string InFriendlyName, uint InProcId)
+		public HoloLensDevicePortalCreatedProcess(Microsoft.Tools.WindowsDevicePortal.DevicePortal InPortal, string InPackageName, string InFriendlyName)
 		{
 			Portal = InPortal;
-			ProcId = InProcId;
 			PackageName = InPackageName;
 			FriendlyName = InFriendlyName;
 			StateLock = new object();
-			Portal.RunningProcessesMessageReceived += Portal_RunningProcessesMessageReceived;
-			Portal.StartListeningForRunningProcessesAsync().Wait();
 			//MonitorThread = new System.Threading.Thread(()=>(MonitorProcess))
 
 			// No ETW on Xbox One, so can't collect trace that way
@@ -226,6 +223,13 @@ namespace HoloLens.Automation
 				Portal.RealtimeEventsMessageReceived += Portal_RealtimeEventsMessageReceived;
 				Portal.StartListeningForEtwEventsAsync().Wait();
 			}
+		}
+
+		public void SetProcId(uint InProcId)
+		{
+			ProcId = InProcId;
+			Portal.RunningProcessesMessageReceived += Portal_RunningProcessesMessageReceived;
+			Portal.StartListeningForRunningProcessesAsync().Wait();
 		}
 
 		private void Portal_RealtimeEventsMessageReceived(Microsoft.Tools.WindowsDevicePortal.DevicePortal sender, Microsoft.Tools.WindowsDevicePortal.WebSocketMessageReceivedEventArgs<Microsoft.Tools.WindowsDevicePortal.DevicePortal.EtwEvents> args)
@@ -716,6 +720,9 @@ namespace HoloLens.Automation
 			var AppXRecipeBuiltFiles = new StringBuilder();
 
 			string MapFilename = Path.Combine(SC.StageDirectory.FullName, OutputName + ".pkgmap");
+			AppXRecipeBuiltFiles.AppendLine("[ResourceMetadata]");
+			AppXRecipeBuiltFiles.AppendLine("\"ResourceId\"\t\"UnrealAssets\"");
+			AppXRecipeBuiltFiles.AppendLine("");
 			AppXRecipeBuiltFiles.AppendLine(@"[Files]");
 
 			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputName + Extension);
@@ -746,11 +753,11 @@ namespace HoloLens.Automation
 				}
 			}
 
-			AppXRecipeBuiltFiles.AppendLine(String.Format("\"{0}\"\t\"{1}\"", Path.Combine(SC.StageDirectory.FullName, "AppxManifest_assets.xml"), "AppxManifest.xml"));
+			//AppXRecipeBuiltFiles.AppendLine(String.Format("\"{0}\"\t\"{1}\"", Path.Combine(SC.StageDirectory.FullName, "AppxManifest_assets.xml"), "AppxManifest.xml"));
 
 			File.WriteAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
 
-			string MakeAppXCommandLine = String.Format(@"pack /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
+			string MakeAppXCommandLine = String.Format(@"pack /r /o /f ""{0}"" /p ""{1}"" /m ""{2}""", MapFilename, OutputAppX, Path.Combine(SC.StageDirectory.FullName, "AppxManifest_assets.xml"));
 			RunAndLog(CmdEnv, MakeAppXPath.FullName, MakeAppXCommandLine, null, 0, null, ERunOptions.None);
 			SignPackage(Params, SC, OutputAppX);
 		}
@@ -1042,7 +1049,7 @@ namespace HoloLens.Automation
 			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputNameBase + Extension);
 			{
 				OutputAppX += "bundle";
-				bool SeparateAssetPackaging = false;
+				bool SeparateAssetPackaging = true;
 				bool bStartInVR = false;
 
 				//auto update
@@ -1053,7 +1060,7 @@ namespace HoloLens.Automation
 				ConfigHierarchy PlatformEngineConfig = null;
 				if (Params.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
 				{
-					PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bUseAssetPackage", out SeparateAssetPackaging);
+					//PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bUseAssetPackage", out SeparateAssetPackaging);
 					
 					// Get auto update vars
 					PlatformEngineConfig.GetBool("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bShouldCreateAppInstaller", out bShouldCreateAppInstaller);
@@ -1615,13 +1622,14 @@ namespace HoloLens.Automation
 					}
 				}
 
+				var Result = new HoloLensDevicePortalCreatedProcess(portal, FullName, Params.ShortProjectName);
 				var LaunchTask = portal.LaunchApplicationAsync(Aumid, FullName);
 
 				// Message back to the UE4 Editor to correctly set the app id for each device
 				Console.WriteLine("Running Package@Device:{0}@{1}", FullName, DeviceAddress);
 
 				LaunchTask.Wait();
-				IProcessResult Result = new HoloLensDevicePortalCreatedProcess(portal, FullName, Params.ShortProjectName, LaunchTask.Result);
+				Result.SetProcId(LaunchTask.Result);
 
 				ProcessManager.AddProcess(Result);
 				if (!ClientRunFlags.HasFlag(ERunOptions.NoWaitForExit))

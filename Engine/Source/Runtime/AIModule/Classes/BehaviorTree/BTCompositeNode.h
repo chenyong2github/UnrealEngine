@@ -119,8 +119,8 @@ class AIMODULE_API UBTCompositeNode : public UBTNode
 	void OnChildActivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex) const;
 
 	/** called after child has finished search */
-	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult) const;
-	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult) const;
+	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const;
+	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const;
 
 	/** called when start enters this node */
 	void OnNodeActivation(FBehaviorTreeSearchData& SearchData) const;
@@ -175,6 +175,12 @@ class AIMODULE_API UBTCompositeNode : public UBTNode
 
 	bool IsApplyingDecoratorScope() const;
 
+	// Deprecated methods
+	UE_DEPRECATED(5.0, "This function is deprecated. Please use RequestBranchDeactivation instead.")
+	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult) const { OnChildDeactivation(SearchData, ChildNode, NodeResult, true/*bIsRequestFromActiveInstance*/); }
+	UE_DEPRECATED(5.0, "This function is deprecated. Please use RequestBranchDeactivation instead.")
+	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult) const { OnChildDeactivation(SearchData, ChildIndex, NodeResult, true /*bIsRequestFromActiveInstance*/); }
+
 protected:
 
 	/** if set, all decorators in branch below will be removed when execution flow leaves (decorators on this node are not affected) */
@@ -224,7 +230,7 @@ protected:
 	void NotifyDecoratorsOnActivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx) const;
 
 	/** runs through decorators on given child node and notify them about deactivation */
-	void NotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult) const;
+	void NotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult, const bool bIsInSameActiveInstance) const;
 
 	/** runs through decorators on given child node and notify them about failed activation */
 	void NotifyDecoratorsOnFailedActivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult) const;

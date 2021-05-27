@@ -1029,6 +1029,25 @@ public:
 
 	void MergeGeometry(TArray<TUniquePtr<FImplicitObject>>&& Objects) { VerifyContext(); GetParticle_LowLevel()->MergeGeometry(MoveTemp(Objects)); }
 
+	bool IsKinematicTargetDirty() const
+	{
+		VerifyContext();
+		if (auto Kinematic = GetParticle_LowLevel()->CastToKinematicParticle())
+		{
+			return Kinematic->IsKinematicTargetDirty();
+		}
+		return false;
+	}
+
+	void ClearKinematicTarget()
+	{
+		VerifyContext();
+		if (auto Kinematic = GetParticle_LowLevel()->CastToKinematicParticle())
+		{
+			return Kinematic->ClearKinematicTarget();
+		}
+	}
+
 	void SetCCDEnabled(bool bEnabled)
 	{
 		VerifyContext();

@@ -13,6 +13,7 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
+#include "PipelineStateCache.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfacePressureGrid"
 DEFINE_LOG_CATEGORY_STATIC(LogPressureGrid, Log, All);
@@ -507,7 +508,7 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type Feat
 	if (DestinationGridBufferUAV != nullptr && CurrentGridBufferSRV != nullptr && CurrentGridBufferUAV != nullptr)
 	{
 		TShaderMapRef<FClearPressureGridCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+		SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
 		FRHITransitionInfo Transitions[] = {
 			FRHITransitionInfo(CurrentGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),

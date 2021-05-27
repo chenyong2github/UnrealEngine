@@ -308,7 +308,7 @@ TFieldType* FindRemappedFieldImpl(FName FieldClassOutermostName, FName FieldClas
 				// Try remapping class, this only works if class is in memory
 				FString ClassName = NewRedirectName.OuterName.ToString();
 
-				if (NewRedirectName.PackageName != NAME_Name)
+				if ( !NewRedirectName.PackageName.IsNone() )
 				{
 					// Use package if it's there
 					ClassName = FString::Printf(TEXT("%s.%s"), *NewRedirectName.PackageName.ToString(), *NewRedirectName.OuterName.ToString());
