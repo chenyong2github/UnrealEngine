@@ -7,6 +7,11 @@
 extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing);
 extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bRequireSoftwareTracing);
 
+inline double BoxSurfaceArea(FVector Extent)
+{
+	return 2.0 * (Extent.X * Extent.Y + Extent.Y * Extent.Z + Extent.Z * Extent.X);
+}
+
 namespace Lumen
 {
 	// Must match usf

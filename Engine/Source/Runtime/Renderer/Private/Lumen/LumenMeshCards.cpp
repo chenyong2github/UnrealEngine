@@ -421,18 +421,17 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 
 void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveGroup, FMeshCardsBuildData& MeshCardsBuildData, FMatrix& MeshCardsLocalToWorld)
 {
-	MeshCardsBuildData.MaxLODLevel = 0;
-	MeshCardsBuildData.Bounds.Init();
-
-	FBox MergedWorldSpaceBounds;
-	MergedWorldSpaceBounds.Init();
-
 	MeshCardsLocalToWorld.SetIdentity();
 
+	// Pick first largest bbox as a reference frame
+	float LargestInstanceArea = -1.0f;
 	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
 	{
 		const FMatrix& PrimitiveLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 		const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
+
+		float InstanceArea = BoxSurfaceArea(PrimitiveSceneInfo->Proxy->GetBounds().BoxExtent);
+		FMatrix InstanceMeshCardsLocalToWorld = PrimitiveLocalToWorld;
 
 		if (PrimitiveInstances && PrimitiveInstances->Num() > 0)
 		{
@@ -440,31 +439,64 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 			for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 			{
 				const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
-				MergedWorldSpaceBounds += Instance.RenderBounds.GetBox().TransformBy(Instance.InstanceToLocal * PrimitiveLocalToWorld);
+				InstanceArea = BoxSurfaceArea(Instance.LocalBounds.BoxExtent);
+				InstanceMeshCardsLocalToWorld = Instance.InstanceToLocal * PrimitiveLocalToWorld;
+			}
+		}
+
+		if (InstanceArea > LargestInstanceArea)
+		{
+			MeshCardsLocalToWorld = InstanceMeshCardsLocalToWorld;
+			LargestInstanceArea = InstanceArea;
+		}
+	}
+
+	const FMatrix WorldToMeshCardsLocal = MeshCardsLocalToWorld.Inverse();
+
+	MeshCardsBuildData.MaxLODLevel = 0;
+	MeshCardsBuildData.Bounds.Init();
+
+	FBox MergedMeshCardsBounds;
+	MergedMeshCardsBounds.Init();
+
+	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
+	{
+		const FMatrix& PrimitiveLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+		const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
+
+		const FMatrix PrimitiveLocalToMeshCardsLocal = PrimitiveLocalToWorld * WorldToMeshCardsLocal;
+
+		if (PrimitiveInstances && PrimitiveInstances->Num() > 0)
+		{
+			const int32 NumInstances = PrimitiveInstances->Num();
+			for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+			{
+				const FPrimitiveInstance& Instance = (*PrimitiveInstances)[InstanceIndex];
+				MergedMeshCardsBounds += Instance.RenderBounds.GetBox().TransformBy(Instance.InstanceToLocal * PrimitiveLocalToMeshCardsLocal);
 			}
 		}
 		else
 		{
-			MergedWorldSpaceBounds += PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
+			MergedMeshCardsBounds += PrimitiveSceneInfo->Proxy->GetLocalBounds().GetBox().TransformBy(PrimitiveLocalToMeshCardsLocal);
 		}
 	}
 
-	if (MergedWorldSpaceBounds.IsValid)
+	if (MergedMeshCardsBounds.IsValid)
 	{
 		// Make sure BBox isn't empty and we can generate card representation for it. This handles e.g. infinitely thin planes.
-		const FVector SafeCenter = MergedWorldSpaceBounds.GetCenter();
-		const FVector SafeExtent = FVector::Max(MergedWorldSpaceBounds.GetExtent() + 1.0f, FVector(5.0f));
-		MergedWorldSpaceBounds = FBox(SafeCenter - SafeExtent, SafeCenter + SafeExtent);
+		const FVector SafeCenter = MergedMeshCardsBounds.GetCenter();
+		const FVector SafeExtent = FVector::Max(MergedMeshCardsBounds.GetExtent() + 1.0f, FVector(5.0f));
+		MergedMeshCardsBounds = FBox(SafeCenter - SafeExtent, SafeCenter + SafeExtent);
 
 		MeshCardsBuildData.MaxLODLevel = 0;
-		MeshCardsBuildData.Bounds = MergedWorldSpaceBounds;
+		MeshCardsBuildData.Bounds = MergedMeshCardsBounds;
 
 		MeshCardsBuildData.CardBuildData.SetNum(6);
 		for (uint32 Orientation = 0; Orientation < 6; ++Orientation)
 		{
 			FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[Orientation];
-			CardBuildData.Center = MergedWorldSpaceBounds.GetCenter();
-			CardBuildData.Extent = FLumenCardBuildData::TransformFaceExtent(MergedWorldSpaceBounds.GetExtent() + FVector(1), Orientation);
+			CardBuildData.Center = MergedMeshCardsBounds.GetCenter();
+			CardBuildData.Extent = FLumenCardBuildData::TransformFaceExtent(MergedMeshCardsBounds.GetExtent() + FVector(1.0f), Orientation);
 			CardBuildData.Orientation = Orientation;
 			CardBuildData.LODLevel = 0;
 		}
@@ -477,7 +509,17 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 
 	if (PrimitiveGroup.MeshCardsIndex < 0)
 	{
-		if (PrimitiveGroup.PrimitiveInstanceIndex >= 0)
+		const bool bMergeInstances = PrimitiveGroup.HasMergedInstances();
+
+		if (bMergeInstances)
+		{
+			FMatrix LocalToWorld;
+			FMeshCardsBuildData MeshCardsBuildData;
+			BuildMeshCardsDataForMergedInstances(PrimitiveGroup, MeshCardsBuildData, LocalToWorld);
+
+			PrimitiveGroup.MeshCardsIndex = AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup.CardResolutionScale);
+		}
+		else
 		{
 			ensure(PrimitiveGroup.Primitives.Num() == 1);
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveGroup.Primitives[0];
@@ -485,11 +527,10 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 			FMatrix LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 			const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
 
-			if (PrimitiveInstances
-				&& PrimitiveGroup.PrimitiveInstanceIndex >= 0
-				&& PrimitiveGroup.PrimitiveInstanceIndex < PrimitiveInstances->Num())
+			if (PrimitiveInstances)
 			{
-				LocalToWorld = (*PrimitiveInstances)[PrimitiveGroup.PrimitiveInstanceIndex].InstanceToLocal * LocalToWorld;
+				const int32 PrimitiveInstanceIndex = FMath::Clamp(PrimitiveGroup.PrimitiveInstanceIndex, 0, PrimitiveInstances->Num() - 1);
+				LocalToWorld = (*PrimitiveInstances)[PrimitiveInstanceIndex].InstanceToLocal * LocalToWorld;
 			}
 
 			const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
@@ -498,14 +539,6 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 				const FMeshCardsBuildData& MeshCardsBuildData = CardRepresentationData->MeshCardsBuildData;
 				PrimitiveGroup.MeshCardsIndex = AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup.CardResolutionScale);
 			}
-		}
-		else
-		{
-			FMatrix LocalToWorld;
-			FMeshCardsBuildData MeshCardsBuildData;
-			BuildMeshCardsDataForMergedInstances(PrimitiveGroup, MeshCardsBuildData, LocalToWorld);
-
-			PrimitiveGroup.MeshCardsIndex = AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup.CardResolutionScale);
 		}
 
 		// Update surface cache mapping
