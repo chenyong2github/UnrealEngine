@@ -323,6 +323,7 @@ public:
 	/** Set whether bones can be selected by their physics bodies */
 	virtual void SetUsePhysicsBodiesForBoneSelection(bool bUsePhysicsBodies) override;
 
+	virtual UPersonaSelectionComponent* GetSelectionComponent() override;
 
 private:
 	/** Set preview mesh internal use only. The mesh should be verified by now. */
@@ -473,4 +474,7 @@ private:
 
 	/** Delegate Remove attach component */
 	FOnRemoveAttachedComponentFilter OnRemoveAttachedComponentFilter;
+
+	/** The component storing the capsules */
+	TWeakObjectPtr<UPersonaSelectionComponent> SelectionComponentPtr;
 };

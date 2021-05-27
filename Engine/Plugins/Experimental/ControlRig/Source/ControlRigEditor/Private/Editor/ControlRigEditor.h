@@ -337,6 +337,8 @@ private:
 
 	bool IsHaltedAtBreakpoint() const;
 
+	void UpdateCapsules();
+
 protected:
 
 	/** Toolbox hosting widget */
@@ -436,6 +438,8 @@ protected:
 	URigVMNode* HaltedAtNode;
 
 	bool bSuspendDetailsPanelRefresh;
+
+	TMap<int32, int32> CapsuleToHierarchyIndex;
 
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;

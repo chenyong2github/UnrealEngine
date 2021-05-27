@@ -1112,6 +1112,27 @@ void FAnimationEditorPreviewScene::SetUsePhysicsBodiesForBoneSelection(bool bUse
 	bUsePhysicsBodiesForBoneSelection = bUsePhysicsBodies;
 }
 
+UPersonaSelectionComponent* FAnimationEditorPreviewScene::GetSelectionComponent()
+{
+	if(!SelectionComponentPtr.IsValid())
+	{
+		FActorSpawnParameters SelectionActorParameters;
+		SelectionActorParameters.Name = TEXT("SelectionComponent");
+		AActor* SelectionActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SelectionActorParameters);
+		check(SelectionActor);
+
+		SelectionActor->SetFlags(RF_Transient);
+		UPersonaSelectionComponent* SelectionComponent = NewObject<UPersonaSelectionComponent>(SelectionActor);
+		SelectionActor->AddOwnedComponent(SelectionComponent);
+		SelectionActor->SetRootComponent(SelectionComponent);
+		SelectionComponent->RegisterComponent();
+		SelectionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+		SelectionComponentPtr = SelectionComponent;
+	}
+	return SelectionComponentPtr.Get();
+}
+
 void FAnimationEditorPreviewScene::SetAllowMeshHitProxies(bool bState)
 {
 	bEnableMeshHitProxies = bState;

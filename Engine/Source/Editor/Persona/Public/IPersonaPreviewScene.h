@@ -7,6 +7,7 @@
 #include "Containers/ArrayView.h"
 #include "Types/SlateEnums.h"
 #include "Animation/AnimBlueprint.h"
+#include "PersonaSelectionComponent.h"
 
 class UAnimationAsset;
 class UDebugSkelMeshComponent;
@@ -304,4 +305,8 @@ public:
 
 	/** Set whether bones can be selected by their physics bodies */
 	virtual void SetUsePhysicsBodiesForBoneSelection(bool bUsePhysicsBodies) = 0;
+
+	/** Returns the persona selection component (or nullptr) */
+	virtual UPersonaSelectionComponent* GetSelectionComponent() = 0;
 };
+
