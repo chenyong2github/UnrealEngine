@@ -2522,7 +2522,14 @@ void FConfigCacheIni::LoadFile( const FString& Filename, const FConfigFile* Fall
 
 void FConfigCacheIni::SetFile( const FString& Filename, const FConfigFile* NewConfigFile )
 {
-	Add(Filename, *NewConfigFile);
+	if (FConfigFile* FoundFile = KnownFiles.GetMutableFile(FName(*Filename, FNAME_Find)))
+	{
+		*FoundFile = *NewConfigFile;
+	}
+	else
+	{
+		Add(Filename, *NewConfigFile);
+	}
 }
 
 

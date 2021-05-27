@@ -859,33 +859,56 @@ FString UOnlineHotfixManager::GetStrippedConfigFileName(const FString& IniName)
 	return StrippedIniName;
 }
 
-FString UOnlineHotfixManager::GetConfigFileNamePath(const FString& IniName)
+FString UOnlineHotfixManager::BuildConfigCacheKey(const FString& IniName)
 {
-	return FPaths::GeneratedConfigDir() + ANSI_TO_TCHAR(FPlatformProperties::PlatformName()) / IniName;
+	const FString IniNameNoExtension = FPaths::GetBaseFilename(IniName);
+
+	// Known ini files such as Engine, Game, etc.. are referred to as just the name with no extension within the config system.
+	if (GConfig->IsKnownConfigName(FName(*IniNameNoExtension, FNAME_Find)))
+	{
+		return IniNameNoExtension;
+	}
+	else
+	{
+		// Non-known ini files are looked up using their full path.
+		return GConfig->GetDestIniFilename(*IniNameNoExtension, nullptr, *FPaths::GeneratedConfigDir());
+	}
 }
 
 FConfigFile* UOnlineHotfixManager::GetConfigFile(const FString& IniName)
 {
-	FString StrippedIniName(GetStrippedConfigFileName(IniName));
-	FString StrippedIniNameNoExtension = FPaths::GetBaseFilename(StrippedIniName);
+	const FString StrippedIniName(GetStrippedConfigFileName(IniName));
+	const FString StrippedIniNameNoExtension = FPaths::GetBaseFilename(StrippedIniName);
 	
 	FConfigFile* ConfigFile = nullptr;
-	// Look for the first matching INI file entry
-	for (const FString& IniFilename : GConfig->GetFilenames())
+
+	// Start by searching for a known config name.
+	if (GConfig->IsKnownConfigName(FName(*StrippedIniNameNoExtension, FNAME_Find)))
 	{
-		if (IniFilename.EndsWith(StrippedIniName) || IniFilename == StrippedIniNameNoExtension)
-		{
-			ConfigFile = GConfig->FindConfigFile(IniFilename);
-			break;
-		}
+		ConfigFile = GConfig->FindConfigFile(StrippedIniNameNoExtension);
 	}
-	// If not found, add this file to the config cache
+
+	// Fall back to a partial path search.
 	if (ConfigFile == nullptr)
 	{
-		const FString IniNameWithPath = GetConfigFileNamePath(StrippedIniName);
+		// Look for the first matching INI file entry
+		for (const FString& IniFilename : GConfig->GetFilenames())
+		{
+			if (IniFilename.EndsWith(StrippedIniName) || IniFilename == StrippedIniNameNoExtension)
+			{
+				ConfigFile = GConfig->FindConfigFile(IniFilename);
+				break;
+			}
+		}
+	}
+
+	// If not found, add this file to the config cache.
+	if (ConfigFile == nullptr)
+	{
+		const FString ProcessedName(BuildConfigCacheKey(StrippedIniName));
 		FConfigFile Empty;
-		GConfig->SetFile(IniNameWithPath, &Empty);
-		ConfigFile = GConfig->Find(IniNameWithPath);
+		GConfig->SetFile(ProcessedName, &Empty);
+		ConfigFile = GConfig->Find(ProcessedName);
 	}
 	check(ConfigFile);
 	// We never want to save these merged files
@@ -1337,7 +1360,7 @@ void UOnlineHotfixManager::OnReadFileProgress(const FString& FileName, uint64 By
 
 UOnlineHotfixManager::FConfigFileBackup& UOnlineHotfixManager::BackupIniFile(const FString& IniName, const FConfigFile* ConfigFile)
 {
-	FString BackupIniName = GetConfigFileNamePath(GetStrippedConfigFileName(IniName));
+	FString BackupIniName = BuildConfigCacheKey(GetStrippedConfigFileName(IniName));
 	if (FConfigFileBackup* Backup = IniBackups.FindByPredicate([&BackupIniName](const FConfigFileBackup& Entry) { return Entry.IniName == BackupIniName; }))
 	{
 		// Only store one copy of each ini file, consisting of the original state
@@ -1371,7 +1394,7 @@ void UOnlineHotfixManager::RestoreBackupIniFiles()
 	{
 		if (FileHeader.FileName.EndsWith(TEXT(".INI")))
 		{
-			const FString ProcessedName = GetConfigFileNamePath(GetStrippedConfigFileName(FileHeader.FileName));
+			const FString ProcessedName = BuildConfigCacheKey(GetStrippedConfigFileName(FileHeader.FileName));
 			for (int32 Index = 0; Index < IniBackups.Num(); Index++)
 			{
 				const FConfigFileBackup& BackupFile = IniBackups[Index];
@@ -1392,7 +1415,7 @@ void UOnlineHotfixManager::RestoreBackupIniFiles()
 	{
 		if (FileHeader.FileName.EndsWith(TEXT(".INI")))
 		{
-			const FString ProcessedName = GetConfigFileNamePath(GetStrippedConfigFileName(FileHeader.FileName));
+			const FString ProcessedName = BuildConfigCacheKey(GetStrippedConfigFileName(FileHeader.FileName));
 			for (int32 Index = 0; Index < IniBackups.Num(); Index++)
 			{
 				const FConfigFileBackup& BackupFile = IniBackups[Index];

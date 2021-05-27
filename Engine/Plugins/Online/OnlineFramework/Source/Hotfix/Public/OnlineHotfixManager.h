@@ -206,8 +206,8 @@ protected:
 	/** @return the config file entry for the ini file name in question */
 	FConfigFile* GetConfigFile(const FString& IniName);
 
-	/** @return the config file name with full path info */
-	FString GetConfigFileNamePath(const FString& IniName);
+	/** @return the config cache key used to associate ini file entries within the config cache */
+	FString BuildConfigCacheKey(const FString& IniName);
 	/** @return the config file name after stripping any extra info (platform, debug prefix, etc.) */
 	virtual FString GetStrippedConfigFileName(const FString& IniName);
 
