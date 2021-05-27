@@ -8,6 +8,8 @@
 #include "Insights/ITimingViewExtender.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+class FUICommandList;
+
 class FThreadTrackEvent;
 class STimingView;
 
