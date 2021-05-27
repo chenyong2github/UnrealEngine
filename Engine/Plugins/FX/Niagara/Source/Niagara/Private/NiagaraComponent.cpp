@@ -605,11 +605,10 @@ void UNiagaraComponent::ReleaseToPool()
 
 	if (PoolingMethod != ENCPoolMethod::ManualRelease)
 	{		
-		if (UNiagaraComponentPool::Enabled())//Only emit this warning if pooling is enabled. If it's not, all components will have PoolingMethod none.
+		// Only emit this warning if pooling is enabled. If it's not, all components will have PoolingMethod none.
+		if (UNiagaraComponentPool::Enabled())
 		{	
-			UE_LOG(LogNiagara, Warning, TEXT("Manually releasing a PSC to the pool that was not spawned with ENCPoolMethod::ManualRelease. Asset=%s Component=%s"),
-				Asset ? *Asset->GetPathName() : TEXT("NULL"), *GetPathName()
-			);
+			UE_LOG(LogNiagara, Warning, TEXT("ReleaseToPool called but PoolingMethod is (%s) when it should be ENCPoolMethod::ManualRelease. Asset=%s Component=%s"), *StaticEnum<ENCPoolMethod>()->GetNameStringByValue(int64(PoolingMethod)), *GetPathNameSafe(Asset), *GetPathName());
 		}
 		return;
 	}
