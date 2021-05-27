@@ -222,8 +222,8 @@ void FBuildOutputInternal::Save(FCbWriter& Writer) const
 		{
 			Writer.BeginObject();
 			Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId().GetView()));
-			Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 			Writer.AddBinaryAttachment("RawHash"_ASV, Payload.GetRawHash());
+			Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 			Writer.EndObject();
 		}
 		Writer.EndArray();
