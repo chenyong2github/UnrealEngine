@@ -152,7 +152,8 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> FromElements(const FReal X, const FReal Y, const FReal Z, const FReal W)
 		{
-			return FQuat(X, Y, Z, W);
+			using FQuatReal = decltype(FQuat::X);	// LWC_TODO: Remove once FQuat supports variants
+			return FQuat((FQuatReal)X, (FQuatReal)Y, (FQuatReal)Z, (FQuatReal)W);
 		}
 
 		/**
@@ -168,7 +169,7 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> FromAxisAngle(const ::Chaos::TVector<FReal, 3>& Axis, const FReal AngleRad)
 		{
-			return FQuat(FVector(Axis.X, Axis.Y, Axis.Z), AngleRad);
+			return FQuat(FVector(Axis.X, Axis.Y, Axis.Z), (decltype(FQuat::X))AngleRad);
 		}
 
 		/**
@@ -176,14 +177,15 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> FromVector(const ::Chaos::TVector<FReal, 3>& V)
 		{
+			using FQuatReal = decltype(FQuat::X);	// LWC_TODO: Remove once FQuat supports variants
 			TRotation<FReal, 3> Rot;
 			FReal HalfSize = 0.5f * V.Size();
 			FReal sinc = (FMath::Abs(HalfSize) > 1e-8) ? FMath::Sin(HalfSize) / HalfSize : 1;
 			auto RotV = 0.5f * sinc * V;
-			Rot.X = RotV.X;
-			Rot.Y = RotV.Y;
-			Rot.Z = RotV.Z;
-			Rot.W = FMath::Cos(HalfSize);
+			Rot.X = (FQuatReal)RotV.X;
+			Rot.Y = (FQuatReal)RotV.Y;
+			Rot.Z = (FQuatReal)RotV.Z;
+			Rot.W = (FQuatReal)FMath::Cos(HalfSize);
 			return Rot;
 		}
 
@@ -231,7 +233,7 @@ namespace Chaos
 			R1.EnforceShortestArcWith(R0);
 
 			// W = 2 * dQ/dT * Qinv
-			const TRotation<FReal, 3> DRDt = (R1 - R0) / InDt;
+			const TRotation<FReal, 3> DRDt = (R1 - R0) / (decltype(R0.X))InDt;
 			const TRotation<FReal, 3> RInv = Conjugate(R0);
 			const TRotation<FReal, 3> W = (DRDt * RInv) * 2.0f;
 
@@ -289,7 +291,7 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> IntegrateRotationWithAngularVelocity(const TRotation<FReal, 3>& InR0, const TVector<FReal, 3>& InW, const FReal InDt)
 		{
-			TRotation<FReal, 3> R1 = InR0 + (TRotation<FReal, 3>::FromElements(InW.X, InW.Y, InW.Z, 0.f) * InR0) * (InDt * 0.5f);
+			TRotation<FReal, 3> R1 = InR0 + (TRotation<FReal, 3>::FromElements(InW.X, InW.Y, InW.Z, 0.f) * InR0) * decltype(InR0.X)(InDt * 0.5f);
 			return R1.GetNormalized();
 		}
 

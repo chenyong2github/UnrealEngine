@@ -51,7 +51,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 			{
 				if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
 				{
-					const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
+					const Chaos::FReal TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
 					FFieldContext FieldContext(
 						ExecutionDatas,
@@ -134,7 +134,7 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 			{
 				if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
 				{
-					const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
+					const Chaos::FReal TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
 					FFieldContext FieldContext(
 						ExecutionDatas,
@@ -204,7 +204,7 @@ FORCEINLINE void EvaluateImpulseField(
 
 void ComputeFieldRigidImpulseInternal(
 	FFieldExecutionDatas& ExecutionDatas,
-	const float SolverTime,
+	const Chaos::FReal SolverTime,
 	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
 {
 	const int32 NumCommands = Commands.Num();
@@ -225,7 +225,7 @@ void ComputeFieldRigidImpulseInternal(
 
 			if ((ObjectType == EFieldObjectType::Field_Object_Character) || (ObjectType == EFieldObjectType::Field_Object_All) || (ObjectType == EFieldObjectType::Field_Object_Max))
 			{
-				const float TimeSeconds = SolverTime - FieldCommand.TimeCreation;
+				const Chaos::FReal TimeSeconds = SolverTime - FieldCommand.TimeCreation;
 
 				FFieldContext FieldContext(
 					ExecutionDatas,
@@ -278,7 +278,7 @@ void ComputeFieldRigidImpulseInternal(
 }
 
 void FPerSolverFieldSystem::ComputeFieldRigidImpulse(
-	const float SolverTime)
+	const Chaos::FReal SolverTime)
 {
 	static const TArray<EFieldCommandOutputType> EmptyTargets = { EFieldCommandOutputType::LinearVelocity,
 																  EFieldCommandOutputType::LinearForce,
@@ -294,7 +294,7 @@ void FPerSolverFieldSystem::ComputeFieldRigidImpulse(
 
 void ComputeFieldLinearImpulseInternal(
 	FFieldExecutionDatas& ExecutionDatas,
-	const float SolverTime,
+	const Chaos::FReal SolverTime,
 	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
 {
 	const int32 NumCommands = Commands.Num();
@@ -315,7 +315,7 @@ void ComputeFieldLinearImpulseInternal(
 
 			if ((ObjectType == EFieldObjectType::Field_Object_Cloth) || (ObjectType == EFieldObjectType::Field_Object_All) || (ObjectType == EFieldObjectType::Field_Object_Max))
 			{
-				const float TimeSeconds = SolverTime - FieldCommand.TimeCreation;
+				const Chaos::FReal TimeSeconds = SolverTime - FieldCommand.TimeCreation;
 
 				FFieldContext FieldContext(
 					ExecutionDatas,
@@ -355,7 +355,7 @@ void ComputeFieldLinearImpulseInternal(
 	}
 }
 
-void FPerSolverFieldSystem::ComputeFieldLinearImpulse(const float SolverTime)
+void FPerSolverFieldSystem::ComputeFieldLinearImpulse(const Chaos::FReal SolverTime)
 {
 	static const TArray<EFieldCommandOutputType> EmptyTargets = { EFieldCommandOutputType::LinearVelocity,
 												EFieldCommandOutputType::LinearForce };

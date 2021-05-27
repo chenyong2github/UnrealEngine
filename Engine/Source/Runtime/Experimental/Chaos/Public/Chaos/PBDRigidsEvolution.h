@@ -673,7 +673,7 @@ public:
 				else
 				{
 					TargetPos = FVec3::Lerp(PrevX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
-					TargetRot = FRotation3::Slerp(PrevR, KinematicTarget.GetTarget().GetRotation(), StepFraction);
+					TargetRot = FRotation3::Slerp(PrevR, KinematicTarget.GetTarget().GetRotation(), decltype(FQuat::X)(StepFraction));
 				}
 				if (Dt > MinDt)
 				{

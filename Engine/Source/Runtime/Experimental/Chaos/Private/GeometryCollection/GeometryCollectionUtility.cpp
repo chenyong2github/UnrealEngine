@@ -48,14 +48,15 @@ namespace GeometryCollection
 
 		// set the vertex information
 		int32 Index = 0;
-		Vertices[0] = FVector3f(-Scale.X / 2.f, -Scale.Y / 2.f, -Scale.Z / 2.f);
-		Vertices[1] = FVector3f(+Scale.X / 2.f, -Scale.Y / 2.f, -Scale.Z / 2.f);
-		Vertices[2] = FVector3f(-Scale.X / 2.f, +Scale.Y / 2.f, -Scale.Z / 2.f);
-		Vertices[3] = FVector3f(+Scale.X / 2.f, +Scale.Y / 2.f, -Scale.Z / 2.f);
-		Vertices[4] = FVector3f(-Scale.X / 2.f, -Scale.Y / 2.f, +Scale.Z / 2.f);
-		Vertices[5] = FVector3f(+Scale.X / 2.f, -Scale.Y / 2.f, +Scale.Z / 2.f);
-		Vertices[6] = FVector3f(-Scale.X / 2.f, +Scale.Y / 2.f, +Scale.Z / 2.f);
-		Vertices[7] = FVector3f(+Scale.X / 2.f, +Scale.Y / 2.f, +Scale.Z / 2.f);
+		FVector3f Scale3f = FVector3f(Scale);	// LWC_TODO: Precision loss - Not significant as everything it applies to is already float.
+		Vertices[0] = FVector3f(-Scale3f.X / 2.f, -Scale3f.Y / 2.f, -Scale3f.Z / 2.f);
+		Vertices[1] = FVector3f(+Scale3f.X / 2.f, -Scale3f.Y / 2.f, -Scale3f.Z / 2.f);
+		Vertices[2] = FVector3f(-Scale3f.X / 2.f, +Scale3f.Y / 2.f, -Scale3f.Z / 2.f);
+		Vertices[3] = FVector3f(+Scale3f.X / 2.f, +Scale3f.Y / 2.f, -Scale3f.Z / 2.f);
+		Vertices[4] = FVector3f(-Scale3f.X / 2.f, -Scale3f.Y / 2.f, +Scale3f.Z / 2.f);
+		Vertices[5] = FVector3f(+Scale3f.X / 2.f, -Scale3f.Y / 2.f, +Scale3f.Z / 2.f);
+		Vertices[6] = FVector3f(-Scale3f.X / 2.f, +Scale3f.Y / 2.f, +Scale3f.Z / 2.f);
+		Vertices[7] = FVector3f(+Scale3f.X / 2.f, +Scale3f.Y / 2.f, +Scale3f.Z / 2.f);
 
 		Normals[0] = FVector3f(-1.f, -1.f, -1.f).GetSafeNormal();
 		Normals[1] = FVector3f(1.f, -1.f, -1.f).GetSafeNormal();
@@ -303,8 +304,8 @@ namespace GeometryCollection
 					}
 
 					// build vertex summary information
-					TArray<FVector> Center;
-					Center.Init(FVector(0), GeometryIndices.Num());
+					TArray<FVector3f> Center;
+					Center.Init(FVector3f(0), GeometryIndices.Num());
 					int CurrentParticleIndex = FGeometryCollection::Invalid;
 					for (int vdx = 0; vdx < Vertex.Num(); vdx++)
 					{
@@ -337,7 +338,7 @@ namespace GeometryCollection
 					{
 						if (VertexCount[GeometryIndex])
 						{
-							Center[GeometryIndex] /= static_cast<Chaos::FReal>(VertexCount[GeometryIndex]);
+							Center[GeometryIndex] /= static_cast<Chaos::FRealSingle>(VertexCount[GeometryIndex]);
 						}
 					}
 
@@ -372,7 +373,7 @@ namespace GeometryCollection
 					for (int vdx = 0; vdx < Vertex.Num(); vdx++)
 					{
 						int32 GeometryIndex = ReverseMap[BoneMap[vdx]]; // double indexing safe due to check in previous loop.
-						float Delta = (Center[GeometryIndex] - Vertex[vdx]).Size();
+						Chaos::FRealSingle Delta = (Center[GeometryIndex] - Vertex[vdx]).Size();
 						InnerRadius[GeometryIndex] = FMath::Min(InnerRadius[GeometryIndex], Delta);
 						OuterRadius[GeometryIndex] = FMath::Max(OuterRadius[GeometryIndex], Delta);
 					}

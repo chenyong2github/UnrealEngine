@@ -15,14 +15,14 @@
 namespace Chaos
 {
 	void ComputeHashTable(const TArray<Chaos::FRigidBodyPointContactConstraint>& ConstraintsArray,
-						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FRealSingle SpatialHashRadius)
+						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FReal SpatialHashRadius)
 	{
-		FRealSingle CellSize = 2.f * SpatialHashRadius;
-		check(CellSize > 0.f);
+		FReal CellSize = 2 * SpatialHashRadius;
+		check(CellSize > 0);
 
 		// Compute number of cells along the principal axis
-		FVector Extent = 2.f * BoundingBox.GetExtent();
-		FRealSingle PrincipalAxisLength;
+		FVector Extent = 2 * BoundingBox.GetExtent();
+		FReal PrincipalAxisLength;
 		if (Extent.X > Extent.Y && Extent.X > Extent.Z)
 		{
 			PrincipalAxisLength = Extent.X;
@@ -38,8 +38,8 @@ namespace Chaos
 		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
-		CellSize = PrincipalAxisLength / (FRealSingle)NumberOfCells;
-		FRealSingle CellSizeInv = 1.f / CellSize;
+		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
+		FReal CellSizeInv = 1 / CellSize;
 
 		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
 		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
@@ -63,14 +63,14 @@ namespace Chaos
 	}
 
 	void ComputeHashTable(const TArray<FCollidingData>& CollisionsArray,
-						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FRealSingle SpatialHashRadius)
+						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FReal SpatialHashRadius)
 	{
-		FRealSingle CellSize = 2.f * SpatialHashRadius;
-		check(CellSize > 0.f);
+		FReal CellSize = 2 * SpatialHashRadius;
+		check(CellSize > 0);
 
 		// Compute number of cells along the principal axis
-		FVector Extent = 2.f * BoundingBox.GetExtent();
-		FRealSingle PrincipalAxisLength;
+		FVector Extent = 2 * BoundingBox.GetExtent();
+		FReal PrincipalAxisLength;
 		if (Extent.X > Extent.Y && Extent.X > Extent.Z)
 		{
 			PrincipalAxisLength = Extent.X;
@@ -86,8 +86,8 @@ namespace Chaos
 		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
-		CellSize = PrincipalAxisLength / (FRealSingle)NumberOfCells;
-		FRealSingle CellSizeInv = 1.f / CellSize;
+		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
+		FReal CellSizeInv = 1 / CellSize;
 
 		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
 		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
@@ -111,14 +111,14 @@ namespace Chaos
 	}
 
 	void ComputeHashTable(const TArray<FCollidingDataExt>& CollisionsArray,
-						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FRealSingle SpatialHashRadius)
+						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FReal SpatialHashRadius)
 	{
-		FRealSingle CellSize = 2.f * SpatialHashRadius;
-		check(CellSize > 0.f);
+		FReal CellSize = 2 * SpatialHashRadius;
+		check(CellSize > 0);
 
 		// Compute number of cells along the principal axis
-		FVector Extent = 2.f * BoundingBox.GetExtent();
-		FRealSingle PrincipalAxisLength;
+		FVector Extent = 2 * BoundingBox.GetExtent();
+		FReal PrincipalAxisLength;
 		if (Extent.X > Extent.Y && Extent.X > Extent.Z)
 		{
 			PrincipalAxisLength = Extent.X;
@@ -134,8 +134,8 @@ namespace Chaos
 		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
-		CellSize = PrincipalAxisLength / (FRealSingle)NumberOfCells;
-		FRealSingle CellSizeInv = 1.f / CellSize;
+		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
+		FReal CellSizeInv = 1 / CellSize;
 
 		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
 		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
@@ -149,7 +149,7 @@ namespace Chaos
 		if (NumberOfCellsXYZ < 0)
 		{
 			CellSize = PrincipalAxisLength / 1000;
-			CellSizeInv = 1.f / CellSize;
+			CellSizeInv = 1 / CellSize;
 			NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
 			NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
 			NumberOfCellsZ = FMath::CeilToInt(Extent.Z * CellSizeInv) + 1;
@@ -169,14 +169,14 @@ namespace Chaos
 		}
 	}
 
-	void ComputeHashTable(const TArray<FVector>& ParticleArray, const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FRealSingle SpatialHashRadius)
+	void ComputeHashTable(const TArray<FVector>& ParticleArray, const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FReal SpatialHashRadius)
 	{
-		FRealSingle CellSize = 2.f * SpatialHashRadius;
-		check(CellSize > 0.f);
+		FReal CellSize = 2 * SpatialHashRadius;
+		check(CellSize > 0);
 
 		// Compute number of cells along the principal axis
-		FVector Extent = 2.f * BoundingBox.GetExtent();
-		FRealSingle PrincipalAxisLength;
+		FVector Extent = 2 * BoundingBox.GetExtent();
+		FReal PrincipalAxisLength;
 		if (Extent.X > Extent.Y && Extent.X > Extent.Z)
 		{
 			PrincipalAxisLength = Extent.X;
@@ -192,8 +192,8 @@ namespace Chaos
 		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
-		CellSize = PrincipalAxisLength / (FRealSingle)NumberOfCells;
-		FRealSingle CellSizeInv = 1.f / CellSize;
+		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
+		FReal CellSizeInv = 1 / CellSize;
 
 		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
 		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
@@ -217,14 +217,14 @@ namespace Chaos
 	}
 
 	void ComputeHashTable(const TArray<FBreakingData>& BreakingsArray,
-						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FRealSingle SpatialHashRadius)
+						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FReal SpatialHashRadius)
 	{
-		FRealSingle CellSize = 2.f * SpatialHashRadius;
-		check(CellSize > 0.f);
+		FReal CellSize = 2 * SpatialHashRadius;
+		check(CellSize > 0);
 
 		// Compute number of cells along the principal axis
-		FVector Extent = 2.f * BoundingBox.GetExtent();
-		FRealSingle PrincipalAxisLength;
+		FVector Extent = 2 * BoundingBox.GetExtent();
+		FReal PrincipalAxisLength;
 		if (Extent.X > Extent.Y && Extent.X > Extent.Z)
 		{
 			PrincipalAxisLength = Extent.X;
@@ -240,8 +240,8 @@ namespace Chaos
 		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
-		CellSize = PrincipalAxisLength / (FRealSingle)NumberOfCells;
-		FRealSingle CellSizeInv = 1.f / CellSize;
+		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
+		FReal CellSizeInv = 1 / CellSize;
 
 		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
 		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
@@ -265,14 +265,14 @@ namespace Chaos
 	}
 
 	void ComputeHashTable(const TArray<FBreakingDataExt>& BreakingsArray,
-						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FRealSingle SpatialHashRadius)
+						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const FReal SpatialHashRadius)
 	{
-		FRealSingle CellSize = 2.f * SpatialHashRadius;
-		check(CellSize > 0.f);
+		FReal CellSize = 2 * SpatialHashRadius;
+		check(CellSize > 0);
 
 		// Compute number of cells along the principal axis
-		FVector Extent = 2.f * BoundingBox.GetExtent();
-		FRealSingle PrincipalAxisLength;
+		FVector Extent = 2 * BoundingBox.GetExtent();
+		FReal PrincipalAxisLength;
 		if (Extent.X > Extent.Y && Extent.X > Extent.Z)
 		{
 			PrincipalAxisLength = Extent.X;
@@ -288,8 +288,8 @@ namespace Chaos
 		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
-		CellSize = PrincipalAxisLength / (FRealSingle)NumberOfCells;
-		FRealSingle CellSizeInv = 1.f / CellSize;
+		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
+		FReal CellSizeInv = 1 / CellSize;
 
 		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
 		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;

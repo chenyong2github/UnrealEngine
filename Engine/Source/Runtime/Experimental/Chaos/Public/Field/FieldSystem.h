@@ -251,7 +251,7 @@ struct CHAOS_API FFieldContext
 	FFieldContext & operator =(FFieldContext&&) = delete;
 
 	FFieldContext(const TFieldArrayView< FFieldContextIndex >& SampleIndicesIn, const TFieldArrayView<FVector>& SamplePositionsIn,
-		const UniquePointerMap & MetaDataIn, const float TimeSecondsIn, TArray<FVector>& VectorResultsIn, TArray<float>& ScalarResultsIn, 
+		const UniquePointerMap & MetaDataIn, const Chaos::FReal TimeSecondsIn, TArray<FVector>& VectorResultsIn, TArray<float>& ScalarResultsIn,
 		TArray<int32>& IntegerResultsIn, TArray<FFieldContextIndex>& IndexResultsIn, TArray<FFieldContextIndex>& CullingResultsIn)
 		: SampleIndices(SampleIndicesIn)
 		, SamplePositions(SamplePositionsIn)
@@ -271,7 +271,7 @@ struct CHAOS_API FFieldContext
 		MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Culling, CullingData.Get());
 	}
 	FFieldContext(const TFieldArrayView< FFieldContextIndex >& SampleIndicesIn, const TFieldArrayView<FVector>& SamplePositionsIn,
-		const PointerMap & MetaDataIn, const float TimeSecondsIn, TArray<FVector>& VectorResultsIn, TArray<float>& ScalarResultsIn, 
+		const PointerMap & MetaDataIn, const Chaos::FReal TimeSecondsIn, TArray<FVector>& VectorResultsIn, TArray<float>& ScalarResultsIn,
 				TArray<int32>& IntegerResultsIn, TArray<FFieldContextIndex>& IndexResultsIn, TArray<FFieldContextIndex>& CullingResultsIn)
 		: SampleIndices(SampleIndicesIn)
 		, SamplePositions(SamplePositionsIn)
@@ -287,7 +287,7 @@ struct CHAOS_API FFieldContext
 	}
 
 	FFieldContext(FFieldExecutionDatas& ExecutionDatas,
-		const UniquePointerMap& MetaDataIn, const float TimeSecondsIn)
+		const UniquePointerMap& MetaDataIn, const Chaos::FReal TimeSecondsIn)
 		: SampleIndices(ExecutionDatas.SampleIndices, 0, ExecutionDatas.SampleIndices.Num())
 		, SamplePositions(ExecutionDatas.SamplePositions, 0, ExecutionDatas.SamplePositions.Num())
 		, TimeSeconds(TimeSecondsIn)
@@ -329,7 +329,7 @@ struct CHAOS_API FFieldContext
 
 	PointerMap MetaData;
 	TUniquePtr<FFieldSystemMetaDataCulling> CullingData;
-	float TimeSeconds;
+	Chaos::FReal TimeSeconds;
 
 	TArray<FVector>& VectorResults;
 	TArray<float>& ScalarResults;

@@ -43,10 +43,7 @@ namespace UnrealBuildTool.Rules
 				PublicDefinitions.Add("CHAOS_MEMORY_TRACKING=0");
 			}
 			
-			if (!Target.GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=0")) // LWC_TODO: Temporarily disabled for LWC while these are properly fixed
-			{
-				UnsafeTypeCastWarningLevel = WarningLevel.Warning;
-			}
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		}
     }
 }

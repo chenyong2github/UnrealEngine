@@ -691,7 +691,7 @@ namespace Chaos
 	TSet<FPBDRigidParticleHandle*> 
 	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ReleaseClusterParticles(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
-		const TMap<FGeometryParticleHandle*, float>* ExternalStrainMap,
+		const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap,
 		bool bForceRelease)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticles_STRAIN);
@@ -766,7 +766,7 @@ namespace Chaos
 
 			if(ExternalStrainMap)
 			{
-				const float* MapStrain = ExternalStrainMap->Find(Child);
+				const Chaos::FReal* MapStrain = ExternalStrainMap->Find(Child);
 				ChildStrain = MapStrain ? *MapStrain : Child->CollisionImpulses();
 			}
 			else
@@ -966,7 +966,7 @@ namespace Chaos
 	TSet<FPBDRigidParticleHandle*>
 		TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ReleaseClusterParticlesNoInternalCluster(
 			FPBDRigidClusteredParticleHandle* ClusteredParticle,
-			const TMap<FGeometryParticleHandle*, float>* ExternalStrainMap,
+			const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap,
 			bool bForceRelease)
 	{
 		/* This is a near duplicate of the ReleaseClusterParticles() method with the internal cluster creation removed.
@@ -1046,7 +1046,7 @@ namespace Chaos
 
 			if (ExternalStrainMap)
 			{
-				const float* MapStrain = ExternalStrainMap->Find(Child);
+				const Chaos::FReal* MapStrain = ExternalStrainMap->Find(Child);
 				ChildStrain = MapStrain ? *MapStrain : Child->CollisionImpulses();
 			}
 			else
@@ -1203,7 +1203,7 @@ namespace Chaos
 			FPBDRigidParticleHandle* ClusterHandle = nullptr;
 			//todo(ocohen): refactor incoming, for now just assume these all belong to same cluster and hack strain array
 			
-			TMap<FGeometryParticleHandle*, float> FakeStrain;
+			TMap<FGeometryParticleHandle*, FReal> FakeStrain;
 
 			bool bPreDoGenerateData = DoGenerateBreakingData;
 			DoGenerateBreakingData = false;
@@ -1374,7 +1374,7 @@ namespace Chaos
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> 
 	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::BreakingModel(
-		TMap<FGeometryParticleHandle*, float>* ExternalStrainMap)
+		TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BreakingModel);
 

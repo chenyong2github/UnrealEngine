@@ -106,8 +106,9 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 			const FVec3& Start = Particles.X(Index);
 			const FVec3 Direction = Particles.V(Index).GetSafeNormal();
 			const FVec3 End = Particles.P(Index) + Direction * Height;
-			const FVector4 Start4(Start.X, Start.Y, Start.Z, 0);
-			const FVector4 End4(End.X, End.Y, End.Z, 0);
+			using FVec4Real = decltype(FVector4::X);
+			const FVector4 Start4((FVec4Real)Start.X, (FVec4Real)Start.Y, (FVec4Real)Start.Z, 0);
+			const FVector4 End4((FVec4Real)End.X, (FVec4Real)End.Y, (FVec4Real)End.Z, 0);
 			TkDOPLineCollisionCheck<const FMeshBuildDataProvider, uint32> Ray(Start4, End4, true, DopDataProvider, &Result);
 			if (DopTree.LineCheck(Ray))
 			{
