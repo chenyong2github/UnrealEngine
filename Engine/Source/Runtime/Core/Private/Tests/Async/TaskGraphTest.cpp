@@ -696,9 +696,9 @@ namespace OldTaskGraphTests
 	);
 
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOldBenchmark, "System.Core.Async.TaskGraph.OldBenchmark", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphOldBenchmark, "System.Core.Async.TaskGraph.OldBenchmark", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::EngineFilter);
 
-	bool FOldBenchmark::RunTest(const FString& Parameters)
+	bool FTaskGraphOldBenchmark::RunTest(const FString& Parameters)
 	{
 		TArray<FString> Args;
 		TaskGraphBenchmark(Args);
@@ -716,9 +716,9 @@ namespace OldTaskGraphTests
 
 namespace TaskGraphTests
 {
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGraphEventTest, "System.Core.Async.TaskGraph.GraphEventTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphGraphEventTest, "System.Core.Async.TaskGraph.GraphEventTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
-	bool FGraphEventTest::RunTest(const FString& Parameters)
+	bool FTaskGraphGraphEventTest::RunTest(const FString& Parameters)
 	{
 		{	// task completes before it's waited for
 			FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
@@ -914,7 +914,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (IsAudioThreadRunning())
 		{	// AudioThread
 			bool bExecuted = false;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FFunctionGraphTask::CreateAndDispatchWhenReady([&bExecuted] { bExecuted = true; }, TStatId{}, nullptr, ENamedThreads::AudioThread)->Wait();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			check(bExecuted);
 		}
 

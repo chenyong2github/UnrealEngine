@@ -10,6 +10,8 @@
 #include "Templates/Atomic.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+#include <atomic>
+
 class Error;
 class FConfigCacheIni;
 class FFixedUObjectArray;
@@ -477,13 +479,6 @@ extern CORE_API uint32 GRenderThreadId;
 /** Thread ID of the slate thread, if any */
 extern CORE_API uint32 GSlateLoadingThreadId;
 
-/** Thread ID of the audio thread, if any */
-UE_DEPRECATED(4.26, "Please use `IsAudioThreadRunning()` or `IsInAudioThread()`")
-extern CORE_API uint32 GAudioThreadId;
-
-/** Whether the audio thread is suspended */
-extern CORE_API TAtomic<bool> GIsAudioThreadSuspended;
-
 /** Has GGameThreadId been set yet? */
 extern CORE_API bool GIsGameThreadIdInitialized;
 
@@ -543,7 +538,11 @@ enum class ETaskTag : int32
 	EStaticInit					= 1 << 0,
 	EGameThread					= 1 << 1,
 	ESlateThread				= 1 << 2,
-	EAudioThread				= 1 << 3,
+#if UE_AUDIO_THREAD_AS_PIPE	
+	EAudioThread UE_DEPRECATED(5.0, "AudioThread was removed and ETaskTag::EAudioThread is not used anymore. Please remove it.") = 1 << 3,
+#else
+	EAudioThread = 1 << 3,
+#endif
 	ERenderingThread			= 1 << 4,
 	ERhiThread					= 1 << 5,
 	EAsyncLoadingThread			= 1 << 6,
@@ -640,9 +639,13 @@ extern CORE_API bool IsAudioThreadRunning();
 /** @return True if called from the audio thread, and not merely a thread calling audio functions. */
 extern CORE_API bool IsInAudioThread();
 
+#if !UE_AUDIO_THREAD_AS_PIPE
+
 /** Thread used for audio */
 UE_DEPRECATED(4.26, "Please use `IsAudioThreadRunning()` or `IsInAudioThread()`")
 extern CORE_API FRunnableThread* GAudioThread;
+
+#endif
 
 /** @return True if called from the slate thread, and not merely a thread calling slate functions. */
 extern CORE_API bool IsInSlateThread();
