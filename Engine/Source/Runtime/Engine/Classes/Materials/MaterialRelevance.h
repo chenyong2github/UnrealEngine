@@ -35,6 +35,7 @@ struct ENGINE_API FMaterialRelevance
 			uint8 bUsesSingleLayerWaterMaterial : 1;
 			uint8 bHasVolumeMaterialDomain : 1;
 			uint8 bUsesCustomDepthStencil : 1;
+			uint8 bShouldRenderDepthToTranslucency : 1;
 			uint8 bUsesDistanceCullFade : 1;
 			uint8 bDisableDepthTest : 1;
 			uint8 bUsesAnisotropy : 1;

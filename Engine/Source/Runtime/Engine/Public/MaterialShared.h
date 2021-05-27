@@ -1753,6 +1753,7 @@ public:
 	virtual bool HasMaterialLayers() const { return false; }
 	virtual bool CastsRayTracedShadows() const { return true; }
 	virtual EMaterialShadingRate GetShadingRate() const { return MSR_1x1; }
+	virtual bool ShouldWriteDepthToTranslucentMaterial() const { return false; }
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
@@ -2608,6 +2609,7 @@ public:
 	ENGINE_API virtual bool HasMaterialLayers() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 	ENGINE_API  virtual UMaterialInterface* GetMaterialInterface() const override;
+	ENGINE_API virtual bool ShouldWriteDepthToTranslucentMaterial() const override;
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */

@@ -1934,6 +1934,7 @@ struct FRelevancePacket
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
 	bool bUsesCustomDepthStencil;
+	bool bShouldRenderDepthToTranslucency;
 	bool bSceneHasSkyMaterial;
 	bool bHasSingleLayerWaterMaterial;
 	bool bHasTranslucencySeparateModulation;
@@ -1970,6 +1971,7 @@ struct FRelevancePacket
 		, bTranslucentSurfaceLighting(false)
 		, bUsesSceneDepth(false)
 		, bUsesCustomDepthStencil(false)
+		, bShouldRenderDepthToTranslucency(false)
 		, bSceneHasSkyMaterial(false)
 		, bHasSingleLayerWaterMaterial(false)
 		, bHasTranslucencySeparateModulation(false)
@@ -2096,6 +2098,7 @@ struct FRelevancePacket
 			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
 			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
 			bHasTranslucencySeparateModulation |= ViewRelevance.bSeparateTranslucencyModulate;
+			bShouldRenderDepthToTranslucency |= ViewRelevance.bShouldRenderDepthToTranslucency;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2471,6 +2474,7 @@ struct FRelevancePacket
 		WriteView.bHasDistortionPrimitives |= bHasDistortionPrimitives;
 		WriteView.bHasCustomDepthPrimitives |= bHasCustomDepthPrimitives;
 		WriteView.bUsesCustomDepthStencilInTranslucentMaterials |= bUsesCustomDepthStencil;
+		WriteView.bShouldRenderDepthToTranslucency |= bShouldRenderDepthToTranslucency;
 		DirtyIndirectLightingCacheBufferPrimitives.AppendTo(WriteView.DirtyIndirectLightingCacheBufferPrimitives);
 
 		WriteView.MeshDecalBatches.Append(MeshDecalBatches);

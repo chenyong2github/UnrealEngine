@@ -802,6 +802,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 Wireframe : 1;
 
+	/** Write depth to translucent materials in the mobile forward renderer (currently only supported on the HoloLens 2 device). */
+	UPROPERTY(EditAnywhere, Category = "Hololens", AdvancedDisplay, meta = (DisplayName = "Write Depth to Translucent Material"))
+	uint8 WriteDepthToTranslucentMaterial : 1;
+
 	/** Select what shading rate to apply for platforms that have variable rate shading */
 	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay)
 	TEnumAsByte<EMaterialShadingRate> ShadingRate;

@@ -1243,6 +1243,7 @@ public:
 	uint32 bUsesSceneDepth : 1;
 	uint32 bCustomDepthStencilValid : 1;
 	uint32 bUsesCustomDepthStencilInTranslucentMaterials : 1;
+	uint32 bShouldRenderDepthToTranslucency : 1;
 
 	/** Whether fog should only be computed on rendered opaque pixels or not. */
 	uint32 bFogOnlyOnRenderedOpaque : 1;
@@ -2221,6 +2222,7 @@ private:
 	bool bIsFullPrepassEnabled;
 	bool bShouldRenderVelocities;
 	bool bShouldRenderHZB;
+	bool bShouldRenderDepthToTranslucency;
 	static FGlobalDynamicIndexBuffer DynamicIndexBuffer;
 	static FGlobalDynamicVertexBuffer DynamicVertexBuffer;
 	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBuffer;

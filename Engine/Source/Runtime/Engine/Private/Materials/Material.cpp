@@ -976,6 +976,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	PhysMaterial = nullptr;
 	PhysMaterialMask = nullptr;
+
+	WriteDepthToTranslucentMaterial = false;
 }
 
 void UMaterial::PreSave(const class ITargetPlatform* TargetPlatform)

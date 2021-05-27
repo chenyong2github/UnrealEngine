@@ -900,6 +900,7 @@ void FViewInfo::Init()
 	bAllowStencilDither = false;
 	bCustomDepthStencilValid = false;
 	bUsesCustomDepthStencilInTranslucentMaterials = false;
+	bShouldRenderDepthToTranslucency = false;
 
 	ForwardLightingResources = nullptr;
 

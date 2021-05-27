@@ -206,6 +206,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bRequiresAmbientOcclusionPass = false;
 	bRequiresDistanceFieldShadowingPass = false;
 	bIsFullPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
+	bShouldRenderDepthToTranslucency = false;
 
 	// Don't do occlusion queries when doing scene captures
 	for (FViewInfo& View : Views)
@@ -458,6 +459,14 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 			bShouldRenderCustomDepth |= Views[ViewIndex].bCustomDepthStencilValid;
 		}
 	}
+
+#if PLATFORM_HOLOLENS
+	// Check if any material renders depth to translucent materials.
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		bShouldRenderDepthToTranslucency |= Views[ViewIndex].bShouldRenderDepthToTranslucency;
+	}
+#endif
 	
 	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 	
@@ -1180,6 +1189,13 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		{
 			DepthTargetAction = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
 		}
+
+#if PLATFORM_HOLOLENS
+		if (bShouldRenderDepthToTranslucency)
+		{
+			ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+		}
+#endif
 
 		FRHIRenderPassInfo TranslucentRenderPassInfo(
 			SceneColor,

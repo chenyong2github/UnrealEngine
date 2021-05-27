@@ -1206,6 +1206,7 @@ bool FMaterialResource::HasVertexPositionOffsetConnected() const { return HasMat
 bool FMaterialResource::HasPixelDepthOffsetConnected() const { return HasMaterialAttributesConnected() || (!Material->bUseMaterialAttributes && Material->PixelDepthOffset.IsConnected()); }
 bool FMaterialResource::HasMaterialAttributesConnected() const { return Material->bUseMaterialAttributes && Material->MaterialAttributes.IsConnected(); }
 EMaterialShadingRate FMaterialResource::GetShadingRate() const { return Material->ShadingRate; }
+bool FMaterialResource::ShouldWriteDepthToTranslucentMaterial() const { return Material->WriteDepthToTranslucentMaterial; }
 FString FMaterialResource::GetBaseMaterialPathName() const { return Material->GetPathName(); }
 FString FMaterialResource::GetDebugName() const
 {
