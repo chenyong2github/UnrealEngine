@@ -60,6 +60,8 @@ $ GeneratedCodeVersion (EGeneratedCodeVersion): Allow target module to override 
 
 $ bEnableMeshEditor (Boolean): Whether to enable the mesh editor.
 
+$ bUseVerse (Boolean): Whether to use the verse script interface.
+
 $ bCompileChaos (Boolean): Whether to compile the Chaos physics plugin.
 
 $ bUseChaos (Boolean): Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
@@ -81,6 +83,8 @@ $ bCompileICU (Boolean): Whether to include ICU unicode/i18n support in Core.
 $ bCompileCEF3 (Boolean): Whether to compile CEF3 support.
 
 $ bCompileISPC (Boolean): Whether to compile using ISPC.
+
+$ bCompilePython (Boolean): Whether to compile in python support
 
 $ bForceBuildTargetPlatforms (Boolean): Whether to force compiling the target platform modules, even if they wouldn't normally be built.
 
