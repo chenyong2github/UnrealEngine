@@ -15,12 +15,12 @@
 
 namespace RemoteControlPropertyUtilities
 {
-#if WITH_EDITOR
 	/** Container that can hold either a PropertyHandle, or Property/Data pair. Similar to FFieldVariant */
 	class FRCPropertyVariant
 	{
+#if WITH_EDITOR
 		TSharedPtr<IPropertyHandle> PropertyHandle = nullptr;
-
+#endif
 		TWeakFieldPtr<FProperty> Property = nullptr;
 		void* PropertyData = nullptr;
 		TArray<uint8>* PropertyContainer = nullptr;
@@ -31,6 +31,7 @@ namespace RemoteControlPropertyUtilities
 	public:
 		explicit FRCPropertyVariant() = default;
 
+#if WITH_EDITOR
 		/** Construct from an IPropertyHandle. */
 		FRCPropertyVariant(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 			: bHasHandle(true)
@@ -38,6 +39,7 @@ namespace RemoteControlPropertyUtilities
 			PropertyHandle = InPropertyHandle;
 			Property = PropertyHandle->GetProperty();
 		}
+#endif
 
 		/** Construct from a Property, PropertyData ptr, and the expected element count (needed for arrays, strings, etc.). */
 		FRCPropertyVariant(const FProperty* InProperty, const void* InPropertyData, const int32& InNumElements = -1)
@@ -67,10 +69,12 @@ namespace RemoteControlPropertyUtilities
 				return Property.Get();
 			}
 
+#if WITH_EDITOR
 			if(bHasHandle && PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
 			{
 				return PropertyHandle->GetProperty();
 			}
+#endif
 
 			return nullptr;
 		}
@@ -98,6 +102,7 @@ namespace RemoteControlPropertyUtilities
 		/** Gets the data pointer */
 		void* GetPropertyData(int32 InIdx = 0) const
 		{
+#if WITH_EDITOR
 			if(bHasHandle)
 			{
 				TArray<void*> Data;
@@ -106,6 +111,7 @@ namespace RemoteControlPropertyUtilities
 
 				return Data[InIdx];
 			}
+#endif
 
 			if(PropertyContainer)
 			{
@@ -139,9 +145,8 @@ namespace RemoteControlPropertyUtilities
 				else
 				{
 					PropertyData = FMemory::Malloc(InSize, GetProperty()->GetMinAlignment());
-				}
+				}				
 				NumElements = InSize;
-
 				GetProperty()->InitializeValue(PropertyData);
 			}
 		}
@@ -234,6 +239,4 @@ namespace RemoteControlPropertyUtilities
 
 		return true;
 	}
-
-#endif
 }

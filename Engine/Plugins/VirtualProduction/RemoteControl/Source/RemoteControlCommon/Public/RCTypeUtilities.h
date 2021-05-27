@@ -164,6 +164,7 @@ namespace RemoteControlTypeUtilities
 			RemoteControlTypeTraits::TNumericValueConstraint<ValueType>>::Value, ValueType>::Type
 	GetMetadataValue(const PropertyType* InProperty, const FName& InKey, const ValueType& InDefaultValue)
 	{
+#if WITH_EDITORONLY_DATA
 		if(InProperty->HasMetaData(InKey))
 		{
 			if(const FNumericProperty* NumericProperty = CastField<FNumericProperty>(InProperty))
@@ -179,6 +180,7 @@ namespace RemoteControlTypeUtilities
 				}
 			}
 		}
+#endif
 
 		return InDefaultValue;
 	}

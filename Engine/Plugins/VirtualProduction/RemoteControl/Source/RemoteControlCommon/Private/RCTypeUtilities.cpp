@@ -39,25 +39,5 @@ SIZE_T RemoteControlTypeUtilities::GetPropertySize(const TSharedPtr<IPropertyHan
 	check(Data.IsValidIndex(0));
 
 	return GetPropertySize(InPropertyHandle->GetProperty(), Data[0]);
-
-	FString StrValue;
-	if (InPropertyHandle->GetValue(StrValue) == FPropertyAccess::Success)
-	{
-		return StrValue.Len();
-	}
-
-	FName NameValue;
-	if (InPropertyHandle->GetValue(NameValue) == FPropertyAccess::Success)
-	{
-		return NameValue.GetStringLength();
-	}
-
-	FText TextValue;
-	if (InPropertyHandle->GetValue(TextValue) == FPropertyAccess::Success)
-	{
-		return TextValue.ToString().Len();
-	}
-
-	return InPropertyHandle->GetProperty()->GetSize();
 }
 #endif
