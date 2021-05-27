@@ -692,7 +692,7 @@ namespace PerfSummaries
                         columnName += " (ms)";
                     }
                     HeaderRow += "<th>" + TableUtil.FormatStatName(columnName) + "</th>";
-                    ValueRow += "<td bgcolor=" + ColumnColors[i] + ">" + ColumnValues[i] + "</td>";
+                    ValueRow += "<td bgcolor=" + ColumnColors[i] + ">" + ColumnValues[i].ToString("0.00") + "</td>";
                 }
 				htmlFile.WriteLine("  <h2>FPSChart</h2>");
 				htmlFile.WriteLine("<table border='0' style='width:400'>");
@@ -787,7 +787,7 @@ namespace PerfSummaries
                         ValueRow += "<td>"+ CapRange.name + "</td>";
                         for (int i = 0; i < ColumnNames.Count; i++)
                         {
-                            ValueRow += "<td bgcolor=" + ColumnColors[i] + ">" + ColumnValues[i] + "</td>";
+                            ValueRow += "<td bgcolor=" + ColumnColors[i] + ">" + ColumnValues[i].ToString("0.00") + "</td>";
                         }
                         htmlFile.WriteLine("  <tr>" + ValueRow + "</tr>");
 					}
