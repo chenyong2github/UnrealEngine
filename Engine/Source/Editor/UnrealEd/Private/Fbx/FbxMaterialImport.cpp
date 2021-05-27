@@ -536,15 +536,18 @@ bool CanUseMaterialWithInstance(const FbxSurfaceMaterial& FbxMaterial, const cha
 				{
 					return false;
 				}
-				FbxFileTexture* FbxTexture = FbxProperty.GetSrcObject<FbxFileTexture>(0);
-				float ScaleU = FbxTexture->GetScaleU();
-				float ScaleV = FbxTexture->GetScaleV();
-				FbxString UVSetName = FbxTexture->UVSet.Get();
-				FString LocalUVSetName = UTF8_TO_TCHAR(UVSetName.Buffer());
-				int32 SetIndex = UVSet.Find(LocalUVSetName);
-				if ((SetIndex != 0 && SetIndex != INDEX_NONE) || ScaleU != 1.0f || ScaleV != 1.0f)
+
+				if (FbxFileTexture* FbxTexture = FbxProperty.GetSrcObject<FbxFileTexture>(0))
 				{
-					return false; // no support for custom uv with instanced yet
+					float ScaleU = FbxTexture->GetScaleU();
+					float ScaleV = FbxTexture->GetScaleV();
+					FbxString UVSetName = FbxTexture->UVSet.Get();
+					FString LocalUVSetName = UTF8_TO_TCHAR(UVSetName.Buffer());
+					int32 SetIndex = UVSet.Find(LocalUVSetName);
+					if ((SetIndex != 0 && SetIndex != INDEX_NONE) || ScaleU != 1.0f || ScaleV != 1.0f)
+					{
+						return false; // no support for custom uv with instanced yet
+					}
 				}
 			}
 			else if (TextureCount > 1)
