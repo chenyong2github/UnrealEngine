@@ -65,3 +65,8 @@ Can be overridden by setting to 1 or 0 in the project's .Target.cs files.
 #ifndef NO_CVARS
 	#define NO_CVARS 0
 #endif
+
+#if !defined(UE_AUDIO_THREAD_AS_PIPE)
+	#define UE_AUDIO_THREAD_AS_PIPE 1
+#endif
+

@@ -8,23 +8,46 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
+
+#include "Tasks/Pipe.h"
+
+
+#if !UE_AUDIO_THREAD_AS_PIPE
+
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/Runnable.h"
 #include "Containers/Queue.h"
 
+#endif
+
 ////////////////////////////////////
 // Audio thread API
+// (the naming is outdated as the thread was replaced by piped tasks)
 ////////////////////////////////////
 
 DECLARE_STATS_GROUP(TEXT("Audio Thread Commands"), STATGROUP_AudioThreadCommands, STATCAT_Advanced);
 
-class FAudioThread : public FRunnable
+class FAudioThread
+#if !UE_AUDIO_THREAD_AS_PIPE
+	: public FRunnable
+#endif
 {
 private:
-	/**
-	* Whether to run with an audio thread
-	*/
+	/** Whether to run with an audio thread */
 	static bool bUseThreadedAudio;
+
+#if UE_AUDIO_THREAD_AS_PIPE
+
+	static UE::Tasks::FTaskEvent ResumeEvent;
+	static int32 SuspendCount;  // accessed only from GT
+
+	// GC callback handles
+	static FDelegateHandle PreGC;
+	static FDelegateHandle PostGC;
+	static FDelegateHandle PreGCDestroy;
+	static FDelegateHandle PostGCDestroy;
+
+#else
 
 	/** 
 	* Sync event to make sure that audio thread is bound to the task graph before main thread queues work against it.
@@ -43,6 +66,8 @@ private:
 	void OnPreGarbageCollect();
 	void OnPostGarbageCollect();
 
+#endif
+
 	/** Stat id of the currently executing audio thread command. */
 	static TStatId CurrentAudioThreadStatId;
 	static TStatId LongestAudioThreadStatId;
@@ -59,6 +84,8 @@ private:
 
 public:
 
+#if !UE_AUDIO_THREAD_AS_PIPE
+
 	FAudioThread();
 	virtual ~FAudioThread();
 
@@ -67,13 +94,15 @@ public:
 	virtual void Exit() override;
 	virtual uint32 Run() override;
 
+#endif
+
 	/** Starts the audio thread. */
 	static ENGINE_API void StartAudioThread();
 
 	/** Stops the audio thread. */
 	static ENGINE_API void StopAudioThread();
 
-	/** Execute a command on the audio thread. If GIsAudioThreadRunning is false the command will execute immediately */
+	/** Execute a command on the audio thread. If it's safe the command will execute immediately. */
 	static ENGINE_API void RunCommandOnAudioThread(TUniqueFunction<void()> InFunction, const TStatId InStatId = TStatId());
 
 	/** Processes all enqueued audio thread commands. */
@@ -121,7 +150,9 @@ struct FAudioThreadSuspendContext
 class ENGINE_API FAudioCommandFence
 {
 public:
+#if !UE_AUDIO_THREAD_AS_PIPE
 	FAudioCommandFence();
+#endif
 	~FAudioCommandFence();
 
 	/**
@@ -141,9 +172,19 @@ public:
 	bool IsFenceComplete() const;
 
 private:
+
+#if UE_AUDIO_THREAD_AS_PIPE
+
+	/** The last audio batch task **/
+	mutable UE::Tasks::FTask Fence;
+
+#else
+
 	/** Graph event that represents completion of this fence **/
 	mutable FGraphEventRef CompletionEvent;
 	/** Event that fires when CompletionEvent is done. **/
 	mutable FEvent* FenceDoneEvent;
+
+#endif
 };
 

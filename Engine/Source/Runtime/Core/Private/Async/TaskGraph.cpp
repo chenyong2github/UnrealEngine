@@ -57,6 +57,10 @@ static int32 GNumWorkerThreadsToIgnore = 0;
 	#define YIELD_BETWEEN_TASKS 0
 #endif
 
+#if !defined(UE_TASKGRAPH_BUSYWAIT)
+	#define UE_TASKGRAPH_BUSYWAIT 0
+#endif
+
 namespace ENamedThreads
 {
 	CORE_API TAtomic<Type> FRenderThreadStatics::RenderThread(ENamedThreads::GameThread); // defaults to game and is set and reset by the render thread itself
@@ -825,7 +829,9 @@ private:
 		{
 			return TEXT("RHI Thread");
 		}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		else if (ThreadId == ENamedThreads::AudioThread)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			return TEXT("Audio Thread");
 		}
@@ -1407,6 +1413,30 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 	}
 
+#if UE_AUDIO_THREAD_AS_PIPE
+
+	// AudioThread was removed and replaced by a pipe. While all engine code was converted where's a tiny possibilty that 
+	// an external code is using it directly. Redirect all audio tasks to the pipe
+	static void RedirectAudioTasksToPipe(FBaseGraphTask* Task)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) == ENamedThreads::AudioThread)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		{
+			extern CORE_API UE::Tasks::FPipe GAudioPipe;
+			GAudioPipe.Launch(UE_SOURCE_LOCATION,
+				[Task]
+				{
+					TArray<FBaseGraphTask*> Dummy;
+					Task->Execute(Dummy, ENamedThreads::AnyThread, true);
+				}
+			);
+			return;
+		}
+	}
+
+#endif
+
 	// API inherited from FTaskGraphInterface
 
 	/** 
@@ -1420,6 +1450,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TASKGRAPH_SCOPE_CYCLE_COUNTER(2, STAT_TaskGraph_QueueTask);
 
 		RedirectStatsTasksToPipe(Task);
+#if UE_AUDIO_THREAD_AS_PIPE
+		RedirectAudioTasksToPipe(Task);
+#endif
 
 		if (ENamedThreads::GetThreadIndex(ThreadToExecuteOn) == ENamedThreads::AnyThread)
 		{
@@ -2077,6 +2110,7 @@ private:
 			TGraphTask<FReturnGraphTask>::CreateTask(&Tasks, CurrentThread).ConstructAndDispatchWhenReady(CurrentThread);
 			ProcessThreadUntilRequestReturn(CurrentThread);
 		}
+#if UE_TASKGRAPH_BUSYWAIT
 		else if (LowLevelTasks::FScheduler::Get().IsWorkerThread())
 		{
 			LowLevelTasks::BusyWaitUntil([Index(0), &Tasks]() mutable
@@ -2092,6 +2126,7 @@ private:
 				return true;
 			});
 		}
+#endif
 		else
 		{
 			if (!FTaskGraphInterface::IsMultithread())
@@ -2571,10 +2606,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		Tasks.Add(TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("RT"), ENamedThreads::SetTaskPriority(RenderThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr));
 	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (FTaskGraphInterface::Get().IsThreadProcessingTasks(ENamedThreads::AudioThread))
 	{
 		Tasks.Add(TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("AudioT"), ENamedThreads::SetTaskPriority(ENamedThreads::AudioThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr));
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Callback(ENamedThreads::GameThread_Local);
 
