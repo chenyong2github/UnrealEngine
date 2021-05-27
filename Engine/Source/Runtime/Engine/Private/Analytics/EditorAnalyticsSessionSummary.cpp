@@ -53,8 +53,9 @@ FEditorAnalyticsSessionSummary::FEditorAnalyticsSessionSummary(TSharedPtr<IAnaly
 	EditorAnalyticsProperties::ProcessDiagnostics.Set(GetStore(), static_cast<uint32>(FPlatformMisc::GetProcessDiagnostics()));
 
 	// The current summary revision number. Identify the key set used and its behavior. If we add/remove keys, we should increment the number. The number can
-	// also be incremented when we change some behaviors to be able to compare between versions.
-	EditorAnalyticsProperties::SummaryEventVersion.Set(GetStore(), 1);
+	// also be incremented when we change some behaviors to be able to compare between versions. Mostly useful for 'dev' branches where users bypasses UGS to update/build.
+	//    - V3 -> Windows optimization for stall/ensure -> The engine only captures the responsible thread so CRC walks 1 thread rather than all threads.
+	EditorAnalyticsProperties::SummaryEventVersion.Set(GetStore(), 3);
 
 	// Persist the session to disk.
 	GetStore()->Flush();
