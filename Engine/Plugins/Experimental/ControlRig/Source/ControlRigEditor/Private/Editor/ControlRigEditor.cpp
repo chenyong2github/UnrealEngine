@@ -1225,6 +1225,14 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 					EditMode->SetObjects(DebuggedControlRig, EditorSkelComp,nullptr);
 				}
 			}
+			
+			DebuggedControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(EditorSkelComp);
+			if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+			{
+				// copy the initial transforms back to the blueprint
+				RigBlueprint->Hierarchy->Modify();
+				RigBlueprint->Hierarchy->CopyPose(DebuggedControlRig->GetHierarchy(), false, true);
+			}
 		}
 
 		DebuggedControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditor::OnHierarchyModified_AnyThread);
