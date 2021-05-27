@@ -2763,20 +2763,15 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 
 	for (TObjectIterator<UNiagaraScript> It; It; ++It)
 	{
-		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable() || It->GetOutermost() == GetTransientPackage())
+		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable())
 		{
 			continue;
 		}
 
 		// First see if it is directly called, as this will force a need to refresh from external changes...
 		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(It->GetLatestSource());
-		if (!Source)
+		if (!Source || !Source->NodeGraph)
 		{
-			continue;
-		}
-		if (Source->NodeGraph == nullptr)
-		{
-			ensureMsgf(false, TEXT("Encountered null nodegraph on source script: %s (outer: %s)"), *Source->GetName(), *Source->GetOuter()->GetName());
 			continue;
 		}
 		TArray<UNiagaraNode*> NiagaraNodes;
