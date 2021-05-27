@@ -110,7 +110,7 @@ namespace GLTF
 		FTextureMap Emissive;
 		float       NormalScale;
 		float       OcclusionStrength;
-		FVector     EmissiveFactor;
+		FVector3f   EmissiveFactor;
 
 		// material properties
 		bool       bIsDoubleSided;

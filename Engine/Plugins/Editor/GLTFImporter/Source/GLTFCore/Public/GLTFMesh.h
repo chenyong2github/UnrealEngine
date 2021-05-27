@@ -61,11 +61,11 @@ namespace GLTF
 		bool IsValid() const;
 		FMD5Hash GetHash() const;
 
-		void GetPositions(TArray<FVector>& Buffer) const;
+		void GetPositions(TArray<FVector3f>& Buffer) const;
 		bool HasNormals() const;
-		void GetNormals(TArray<FVector>& Buffer) const;
+		void GetNormals(TArray<FVector3f>& Buffer) const;
 		bool HasTangents() const;
-		void GetTangents(TArray<FVector>& Buffer) const;
+		void GetTangents(TArray<FVector3f>& Buffer) const;
 		bool HasTexCoords(uint32 Index) const;
 		void GetTexCoords(uint32 Index, TArray<FVector2D>& Buffer) const;
 		void GetColors(TArray<FVector4>& Buffer) const;
@@ -140,12 +140,12 @@ namespace GLTF
 		return Color0.IsValid();
 	}
 
-	inline void FPrimitive::GetPositions(TArray<FVector>& Buffer) const
+	inline void FPrimitive::GetPositions(TArray<FVector3f>& Buffer) const
 	{
 		Position.GetCoordArray(Buffer);
 	}
 
-	inline void FPrimitive::GetNormals(TArray<FVector>& Buffer) const
+	inline void FPrimitive::GetNormals(TArray<FVector3f>& Buffer) const
 	{
 		Normal.GetCoordArray(Buffer);
 	}

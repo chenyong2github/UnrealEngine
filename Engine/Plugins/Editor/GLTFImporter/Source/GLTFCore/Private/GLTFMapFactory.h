@@ -51,7 +51,9 @@ namespace GLTF
 
 			void SetValue(const FVector& Vec)
 			{
-				*reinterpret_cast<FVector*>(VecValue) = Vec;
+				VecValue[0] = (float)Vec.X;
+				VecValue[1] = (float)Vec.Y;
+				VecValue[2] = (float)Vec.Z;
 			}
 
 		private:
@@ -74,7 +76,7 @@ namespace GLTF
 
 		void CreateNormalMap(const GLTF::FTexture& Map, int CoordinateIndex, float NormalScale);
 
-		FMaterialExpression* CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector& Color, const TCHAR* MapName,
+		FMaterialExpression* CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector3f& Color, const TCHAR* MapName,
 		                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput);
 
 		FMaterialExpression* CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector4& Color, const TCHAR* MapName,
