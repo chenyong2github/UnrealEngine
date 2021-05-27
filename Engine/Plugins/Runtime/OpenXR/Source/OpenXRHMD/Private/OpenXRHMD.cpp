@@ -1196,12 +1196,8 @@ void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const en
 	int32 ViewIndex = GetViewIndexForPass(StereoPass);
 	float NearZ = GNearClippingPlane / GetWorldToMetersScale();
 
-	// Keep the swapchains alive in the LayerState to ensure the XrSwapchain handles remain valid until xrEndFrame.
-	PipelinedLayerStateRendering.ColorSwapchain = Swapchain;
-	PipelinedLayerStateRendering.DepthSwapchain = DepthSwapchain;
-
 	XrSwapchainSubImage& ColorImage = PipelinedLayerStateRendering.ColorImages[ViewIndex];
-	ColorImage.swapchain = Swapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle() : XR_NULL_HANDLE;
+	ColorImage.swapchain = PipelinedLayerStateRendering.ColorSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.ColorSwapchain.Get())->GetHandle() : XR_NULL_HANDLE;
 	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled && ViewIndex < 2 ? ViewIndex : 0;
 	ColorImage.imageRect = {
 		{ FinalViewRect.Min.X, FinalViewRect.Min.Y },
@@ -1211,7 +1207,7 @@ void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const en
 	XrSwapchainSubImage& DepthImage = PipelinedLayerStateRendering.DepthImages[ViewIndex];
 	if (bDepthExtensionSupported)
 	{
-		DepthImage.swapchain = DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle() : XR_NULL_HANDLE;
+		DepthImage.swapchain = PipelinedLayerStateRendering.DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.DepthSwapchain.Get())->GetHandle() : XR_NULL_HANDLE;
 		DepthImage.imageArrayIndex = bIsMobileMultiViewEnabled && ViewIndex < 2 ? ViewIndex : 0;
 		DepthImage.imageRect = ColorImage.imageRect;
 	}
@@ -1235,7 +1231,7 @@ void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const en
 	Projection.next = nullptr;
 	Projection.subImage = ColorImage;
 
-	if (bDepthExtensionSupported && DepthSwapchain.IsValid())
+	if (bDepthExtensionSupported && PipelinedLayerStateRendering.DepthSwapchain.IsValid())
 	{
 		DepthLayer.type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR;
 		DepthLayer.next = nullptr;
@@ -2329,27 +2325,30 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 				Module->OnAcquireSwapchainImage(Session);
 			}
 		}
+
+		// Keep the swapchains alive in the LayerState to ensure the XrSwapchain handles remain valid until xrEndFrame.
+		PipelinedLayerStateRendering.ColorSwapchain = Swapchain;
+		PipelinedLayerStateRendering.DepthSwapchain = DepthSwapchain;
+
 		if (bNeedsAcquireOnRHI)
 		{
 			// TODO: Current spec incorrectly requires this function to have access to the Vulkan queue.
 			// Thus we have to synchronize with the RHI thread
 			ExecuteOnRHIThread([this](FRHICommandListImmediate& InRHICmdList)
 			{
-				Swapchain->IncrementSwapChainIndex_RHIThread();
-				if (bDepthExtensionSupported && DepthSwapchain)
+				PipelinedLayerStateRendering.ColorSwapchain->IncrementSwapChainIndex_RHIThread();
+				if (bDepthExtensionSupported && PipelinedLayerStateRendering.DepthSwapchain)
 				{
-					ensure(DepthSwapchain != nullptr);
-					DepthSwapchain->IncrementSwapChainIndex_RHIThread();
+					PipelinedLayerStateRendering.DepthSwapchain->IncrementSwapChainIndex_RHIThread();
 				}
 			});
 		}
 		else
 		{
-			Swapchain->IncrementSwapChainIndex_RHIThread();
-			if (bDepthExtensionSupported && DepthSwapchain)
+			PipelinedLayerStateRendering.ColorSwapchain->IncrementSwapChainIndex_RHIThread();
+			if (bDepthExtensionSupported && PipelinedLayerStateRendering.DepthSwapchain)
 			{
-				ensure(DepthSwapchain != nullptr);
-				DepthSwapchain->IncrementSwapChainIndex_RHIThread();
+				PipelinedLayerStateRendering.DepthSwapchain->IncrementSwapChainIndex_RHIThread();
 			}
 		}
 
@@ -2605,12 +2604,17 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 
 	if (XR_SUCCEEDED(Result))
 	{
+		// Only the swapchains are valid to pull out of PipelinedLayerStateRendering
+		// Full population is deferred until SetFinalViewRect.
+		// TODO Possibly move these Waits to SetFinalViewRect??
+		PipelinedLayerStateRHI.ColorSwapchain = PipelinedLayerStateRendering.ColorSwapchain;
+		PipelinedLayerStateRHI.DepthSwapchain = PipelinedLayerStateRendering.DepthSwapchain;
+
 		if (PipelinedLayerStateRHI.ColorSwapchain)
 		{
 			PipelinedLayerStateRHI.ColorSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
 			if (bDepthExtensionSupported && PipelinedLayerStateRHI.DepthSwapchain)
 			{
-				ensure(PipelinedLayerStateRHI.DepthSwapchain != nullptr);
 				PipelinedLayerStateRHI.DepthSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
 			}
 		}
