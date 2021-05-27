@@ -480,7 +480,7 @@ namespace HordeServer.Collections.Impl
 				Updates.Add(Builders<StreamDocument>.Update.Set(LastTriggerTimeField, LastTriggerTime.Value));
 				Schedule.LastTriggerTime = LastTriggerTime.Value;
 			}
-			if (LastTriggerChange.HasValue && LastTriggerChange.Value != Schedule.LastTriggerChange)
+			if (LastTriggerChange.HasValue && LastTriggerChange.Value > Schedule.LastTriggerChange)
 			{
 				FieldDefinition<StreamDocument, int> LastTriggerChangeField = $"{nameof(Stream.Templates)}.{TemplateRefId}.{nameof(Schedule)}.{nameof(Schedule.LastTriggerChange)}";
 				Updates.Add(Builders<StreamDocument>.Update.Set(LastTriggerChangeField, LastTriggerChange.Value));
