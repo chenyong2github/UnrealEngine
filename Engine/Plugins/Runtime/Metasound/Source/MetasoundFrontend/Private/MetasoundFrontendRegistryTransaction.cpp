@@ -95,7 +95,7 @@ namespace Metasound
 			
 		}
 
-		FRegistryTransactionPtr MakeNodeRegistrationTransaction(const FNodeClassInfo& InInfo)
+		FRegistryTransactionPtr MakeAddNodeRegistrationTransaction(const FNodeClassInfo& InInfo)
 		{
 			class FNodeRegistrationTransaction : public IRegistryTransaction
 			{
@@ -103,6 +103,44 @@ namespace Metasound
 				FNodeRegistrationTransaction(const FNodeClassInfo& InNodeClassInfo)
 				: NodeClassInfo(InNodeClassInfo)
 				{
+				}
+
+				ETransactionType GetTransactionType() const override
+				{
+					return ETransactionType::Add;
+				}
+
+				TUniquePtr<IRegistryTransaction> Clone() const override
+				{
+					return MakeUnique<FNodeRegistrationTransaction>(*this);
+				}
+
+				const FNodeClassInfo* GetNodeClassInfo() const 
+				{
+					return &NodeClassInfo;
+				}
+
+			private:
+
+				FNodeClassInfo NodeClassInfo;
+			};
+
+			return MakeUnique<FNodeRegistrationTransaction>(InInfo);
+		}
+
+		FRegistryTransactionPtr MakeRemoveNodeRegistrationTransaction(const FNodeClassInfo& InInfo)
+		{
+			class FNodeRegistrationTransaction : public IRegistryTransaction
+			{
+			public:
+				FNodeRegistrationTransaction(const FNodeClassInfo& InNodeClassInfo)
+				: NodeClassInfo(InNodeClassInfo)
+				{
+				}
+
+				ETransactionType GetTransactionType() const override
+				{
+					return ETransactionType::Remove;
 				}
 
 				TUniquePtr<IRegistryTransaction> Clone() const override

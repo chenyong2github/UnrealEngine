@@ -23,9 +23,16 @@ namespace Metasound
 		FValue Value;
 		float Score = 0.f;
 
-		template<typename... ArgTypes>
-		FFrontendQueryEntry(ArgTypes&&... Args)
-		:	Value(Forward<ArgTypes>(Args)...)
+		FFrontendQueryEntry(const FFrontendQueryEntry&) = default;
+		FFrontendQueryEntry& operator=(const FFrontendQueryEntry&) = default;
+
+		FFrontendQueryEntry(FValue&& InValue)
+		:	Value(MoveTemp(InValue))
+		{
+		}
+
+		FFrontendQueryEntry(const FValue& InValue)
+		:	Value(InValue)
 		{
 		}
 	};
@@ -54,31 +61,26 @@ namespace Metasound
 
 		public:
 			// Set initial entries which are stored elsewhere
-			FReduceOutputView(TArrayView<FFrontendQueryEntry*> InEntries);
+			FReduceOutputView(TArrayView<FFrontendQueryEntry* const> InEntries);
 			~FReduceOutputView() = default;
 
 			/** Add a result to the selection */
 			void Add(FFrontendQueryEntry& InResult);
 
-			/** Get selection which was also in initial entries. */
-			TArrayView<FFrontendQueryEntry*> GetSelectedInitialEntries();
 
-			/** Get selection which was not in the initial entries. */
-			TArrayView<FFrontendQueryEntry> GetSelectedNewEntries();
 
 		private:
+			friend class FFrontendQuerySelection;
 
 			TArray<FFrontendQueryEntry*> InitialEntries;
 
-			TArray<FFrontendQueryEntry*> ExistingEntryPointers;
-			TArray<FFrontendQueryEntry> NewEntryStorage;
+			TArray<FFrontendQueryEntry*> SelectedExistingEntries;
+			TArray<TUniquePtr<FFrontendQueryEntry>> SelectedNewEntries;
 		};
 
-		/** Get an array of all entries stored in this selection. */
-		TArrayView<FFrontendQueryEntry> GetStorage();
-
-		/** Get an array of all entries stored in this selection. */
-		TArrayView<const FFrontendQueryEntry> GetStorage() const;
+		FFrontendQuerySelection() = default;
+		FFrontendQuerySelection(const FFrontendQuerySelection&);
+		FFrontendQuerySelection& operator=(const FFrontendQuerySelection&);
 
 		/** Get an array of all entries selected. */
 		TArrayView<FFrontendQueryEntry*> GetSelection();
@@ -90,16 +92,36 @@ namespace Metasound
 		void AppendToStorageAndSelection(const FFrontendQuerySelection& InSelection);
 
 		/** Add entries to both storage and current selection. */
+		void AppendToStorageAndSelection(FFrontendQuerySelection&& InSelection);
+
+		/** Add entries to both storage and current selection. */
 		void AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry> InEntries);
 
 		/** Add entries to both storage and current selection. */
-		void AppendToStorageAndSelection(FReduceOutputView& InReduceView);
+		void AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry* const> InEntries);
+
+		/** Add entries to both storage and current selection. */
+		void AppendToStorageAndSelection(FReduceOutputView&& InReduceView);
+
 
 		/** Reset both storage and selection. */
 		void ResetStorageAndSelection();
 
 		/** Reset selection, but keep storage. */
 		void ResetSelection();
+
+		/** Filters the selection by calling Func on each entry. If Func returns
+		 * false, the entry is removed.
+		 */
+		template<typename FilterFuncType>
+		int32 FilterSelection(FilterFuncType Func)
+		{
+			auto InvertedFilter = [&](const FFrontendQueryEntry* InEntry) -> bool
+			{
+				return !Func(InEntry);
+			};
+			return Selection.RemoveAll(InvertedFilter);
+		}
 
 		/** Set selection. All entries must already be in storage. */
 		void SetSelection(TArrayView<FFrontendQueryEntry*> InEntries);
@@ -108,11 +130,14 @@ namespace Metasound
 		void AddToSelection(FFrontendQueryEntry* InEntry);
 
 		/** Append entries to selection. Each selection must already be in storage. */
-		void AppendToSelection(TArrayView<FFrontendQueryEntry*> InEntries);
+		void AppendToSelection(TArrayView<FFrontendQueryEntry * const> InEntries);
 
 	private:
+		void AppendToStorageAndSelection(TArray<TUniquePtr<FFrontendQueryEntry>>&& InEntries);
+		void ShrinkStorageToSelection();
+
 		TArray<FFrontendQueryEntry*> Selection;
-		TArray<FFrontendQueryEntry> Storage;
+		TArray<TUniquePtr<FFrontendQueryEntry>> Storage;
 	};
 
 	/** FFrontendQuerySelectionView holds the result of query. */
@@ -126,14 +151,20 @@ namespace Metasound
 		 */
 		FFrontendQuerySelectionView(TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> InResult);
 
-		/** Get all the stored results. */
-		TArrayView<const FFrontendQueryEntry> GetStorage() const;
-
 		/** Get the selected results. */
 		TArrayView<const FFrontendQueryEntry* const> GetSelection() const;
 
 	private:
 		TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> Result;
+	};
+
+	class IFrontendQuerySource
+	{
+		public:
+			virtual ~IFrontendQuerySource() = default;
+
+			virtual void Stream(TArray<FFrontendQueryEntry>& OutEntries) = 0;
+			virtual void Reset() = 0;
 	};
 
 	/** Interface for an individual step in a query */
@@ -143,12 +174,12 @@ namespace Metasound
 			virtual ~IFrontendQueryStep() = default;
 	};
 
-	/** Interface for a query step which generates entries. */
-	class IFrontendQueryGenerateStep : public IFrontendQueryStep
+	/** Interface for a query step which streams new entries. */
+	class IFrontendQueryStreamStep : public IFrontendQueryStep
 	{
 		public:
-			virtual ~IFrontendQueryGenerateStep() = default;
-			virtual void Generate(TArray<FFrontendQueryEntry>& OutEntries) const = 0;
+			virtual ~IFrontendQueryStreamStep() = default;
+			virtual void Stream(TArray<FFrontendQueryEntry>& OutEntries) = 0;
 	};
 
 	/** Interface for a query step which maps entries to keys. */
@@ -166,7 +197,7 @@ namespace Metasound
 			using FReduceOutputView = FFrontendQuerySelection::FReduceOutputView;
 
 			virtual ~IFrontendQueryReduceStep() = default;
-			virtual void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const = 0;
+			virtual void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const = 0;
 	};
 
 	/** Interface for a query step which filters entries. */
@@ -206,29 +237,62 @@ namespace Metasound
 	class METASOUNDFRONTEND_API FFrontendQueryStep
 	{
 		FFrontendQueryStep() = delete;
+
 	public:
+		enum class EResultModificationState : uint8
+		{
+			Modified,
+			Unmodified,
+		};
+
+		/* Interface for executing a step in the query. */
+		struct IStepExecuter
+		{
+			using EResultModificationState = FFrontendQueryStep::EResultModificationState;
+
+			virtual ~IStepExecuter() = default;
+
+			// Perform an incremental step. Assume a previous result already exists. 
+			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) = 0;
+
+			// Merge an incremental result with the prior result from this step.
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) = 0;
+
+			// Execute step. Assume not other prior results exist.
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) = 0;
+
+			// Reset internal state.
+			virtual void Reset() = 0;
+
+			// Returns true if a merge is required for a modified incremental update.
+			// 
+			// If this is true, Merge() will be called after Incremental() if Incremental
+			// returns EResultModificationState::Modified. 
+			virtual bool IsMergeRequiredForIncremental() const = 0;
+		};
 
 		using FReduceOutputView = FFrontendQuerySelection::FReduceOutputView;
 
-		using FGenerateFunction = TFunction<void (TArray<FFrontendQueryEntry>&)>;
+		using FStreamFunction = TUniqueFunction<void (TArray<FFrontendQueryEntry>&)>;
 		using FMapFunction = TFunction<FFrontendQueryEntry::FKey (const FFrontendQueryEntry&)>;
-		using FReduceFunction = TFunction<void (FFrontendQueryEntry::FKey, TArrayView<FFrontendQueryEntry*>, FReduceOutputView& )>;
+		using FReduceFunction = TFunction<void (FFrontendQueryEntry::FKey, TArrayView<FFrontendQueryEntry * const>, FReduceOutputView& )>;
 		using FFilterFunction = TFunction<bool (const FFrontendQueryEntry&)>;
 		using FScoreFunction = TFunction<float (const FFrontendQueryEntry&)>;
 		using FSortFunction = TFunction<bool (const FFrontendQueryEntry& InEntryLHS, const FFrontendQueryEntry& InEntryRHS)>;
 		using FLimitFunction = TFunction<int32 ()>;
 
 		/** Create query step using TFunction or lambda. */
-		FFrontendQueryStep(FGenerateFunction InFunc);
-		FFrontendQueryStep(FMapFunction InFunc);
-		FFrontendQueryStep(FReduceFunction InFunc);
-		FFrontendQueryStep(FFilterFunction InFilt);
-		FFrontendQueryStep(FScoreFunction InScore);
-		FFrontendQueryStep(FSortFunction InSort);
-		FFrontendQueryStep(FLimitFunction InLimit);
+		FFrontendQueryStep(FStreamFunction&& InFunc);
+		FFrontendQueryStep(FMapFunction&& InFunc);
+		FFrontendQueryStep(FReduceFunction&& InFunc);
+		FFrontendQueryStep(FFilterFunction&& InFilt);
+		FFrontendQueryStep(FScoreFunction&& InScore);
+		FFrontendQueryStep(FSortFunction&& InSort);
+		FFrontendQueryStep(FLimitFunction&& InLimit);
 
 		/** Create a query step using a IFrotnedQueryStep */
-		FFrontendQueryStep(TUniquePtr<IFrontendQueryGenerateStep>&& InStep);
+		FFrontendQueryStep(TUniquePtr<IFrontendQuerySource>&& InSource);
+		FFrontendQueryStep(TUniquePtr<IFrontendQueryStreamStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryMapStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryReduceStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryFilterStep>&& InStep);
@@ -236,14 +300,24 @@ namespace Metasound
 		FFrontendQueryStep(TUniquePtr<IFrontendQuerySortStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryLimitStep>&& InStep);
 
-		/** Execute a step on a selection. */
-		void ExecuteStep(FFrontendQuerySelection& InOutResult);
 
-		struct IStepExecuter
-		{
-			virtual ~IStepExecuter() = default;
-			virtual void ExecuteStep(FFrontendQuerySelection& InOutResult) const = 0;
-		};
+		// Perform an incremental step. Assume a previous result already exists. 
+		EResultModificationState Increment(FFrontendQuerySelection& InOutResult);
+
+		// Merge an incremental result with the prior result from this step.
+		EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult);
+
+		// Execute step. Assume not other prior results exist.
+		EResultModificationState Execute(FFrontendQuerySelection& InOutResult);
+
+		// Returns true if a merge is required for a modified incremental update.
+		// 
+		// If this is true, Merge() will be called after Incremental() if Incremental
+		// returns EResultModificationState::Modified. 
+		bool IsMergeRequiredForIncremental() const;
+
+		// Reset internal state.
+		void Reset();
 
 	private:
 
@@ -257,7 +331,8 @@ namespace Metasound
 	{
 	public:
 
-		using FGenerateFunction = FFrontendQueryStep::FGenerateFunction;
+		using EResultModificationState = FFrontendQueryStep::EResultModificationState;
+		using FStreamFunction = FFrontendQueryStep::FStreamFunction;
 		using FMapFunction = FFrontendQueryStep::FMapFunction;
 		using FReduceFunction = FFrontendQueryStep::FReduceFunction;
 		using FFilterFunction = FFrontendQueryStep::FFilterFunction;
@@ -281,40 +356,39 @@ namespace Metasound
 		}
 
 		template<typename FuncType>
-		FFrontendQuery& AddFunctionStep(TFunction<FuncType> InFunc)
+		FFrontendQuery& AddFunctionStep(FuncType&& InFunc)
 		{
-			return AddStep(MakeUnique<FFrontendQueryStep>(InFunc));
+			return AddStep(MakeUnique<FFrontendQueryStep>(MoveTemp(InFunc)));
 		}
 
-		FFrontendQuery& AddGenerateLambdaStep(FGenerateFunction InFunc);
-		FFrontendQuery& AddMapLambdaStep(FMapFunction InFunc);
-		FFrontendQuery& AddReduceLambdaStep(FReduceFunction InFunc);
-		FFrontendQuery& AddFilterLambdaStep(FFilterFunction InFunc);
-		FFrontendQuery& AddScoreLambdaStep(FScoreFunction InFunc);
-		FFrontendQuery& AddSortLambdaStep(FSortFunction InFunc);
-		FFrontendQuery& AddLimitLambdaStep(FLimitFunction InFunc);
+		FFrontendQuery& AddStreamLambdaStep(FStreamFunction&& InFunc);
+		FFrontendQuery& AddMapLambdaStep(FMapFunction&& InFunc);
+		FFrontendQuery& AddReduceLambdaStep(FReduceFunction&& InFunc);
+		FFrontendQuery& AddFilterLambdaStep(FFilterFunction&& InFunc);
+		FFrontendQuery& AddScoreLambdaStep(FScoreFunction&& InFunc);
+		FFrontendQuery& AddSortLambdaStep(FSortFunction&& InFunc);
+		FFrontendQuery& AddLimitLambdaStep(FLimitFunction&& InFunc);
 
 		/** Add a step to the query. */
 		FFrontendQuery& AddStep(TUniquePtr<FFrontendQueryStep>&& InStep);
 
 		/** Calls all steps in the query and returns the selection. */
-		FFrontendQuerySelectionView ExecuteQuery();
+		FFrontendQuerySelectionView Execute();
 
 		/** Resets the query result by removing all entries. */
 		FFrontendQuerySelectionView Reset();
-
-		/** Executes the query again and appends the results to the existing results. */
-		FFrontendQuerySelectionView ExecuteQueryAndAppend();
 
 		/** Returns the current result. */
 		FFrontendQuerySelectionView GetSelection() const;
 
 	private:
 
-		void Execute(FFrontendQuerySelection& OutSelection);
+		void UpdateResult();
+		void ExecuteSteps(int32 InStartStepIndex);
 
 		TSharedRef<FFrontendQuerySelection, ESPMode::ThreadSafe> Result;
 
 		TArray<TUniquePtr<FFrontendQueryStep>> Steps;
+		TMap<int32, FFrontendQuerySelection> StepResultCache;
 	};
 }

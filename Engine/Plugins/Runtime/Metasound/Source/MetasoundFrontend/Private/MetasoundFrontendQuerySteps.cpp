@@ -9,29 +9,26 @@
 
 namespace Metasound
 {
-	void FGenerateAllAvailableNodeClasses::Generate(TArray<FFrontendQueryEntry>& OutEntries) const
-	{
-		const TArray<Frontend::FNodeClassInfo> ClassInfos = Frontend::GetAllAvailableNodeClasses();
 
-		for (const Frontend::FNodeClassInfo& ClassInfo : ClassInfos)
-		{
-			OutEntries.Emplace(TInPlaceType<FMetasoundFrontendClass>(), Frontend::GenerateClassDescription(ClassInfo));
-		}
-	}
-
-	FGenerateNewlyAvailableNodeClasses::FGenerateNewlyAvailableNodeClasses()
+	FNodeClassRegistrationEvents::FNodeClassRegistrationEvents()
 	: CurrentTransactionID(Frontend::GetOriginRegistryTransactionID())
 	{
 	}
 
-	void FGenerateNewlyAvailableNodeClasses::Generate(TArray<FFrontendQueryEntry>& OutEntries) const
+	void FNodeClassRegistrationEvents::Stream(TArray<FFrontendQueryEntry>& OutEntries)
 	{
 		const TArray<Frontend::FNodeClassInfo> ClassInfos = Frontend::GetNodeClassesRegisteredSince(CurrentTransactionID, &CurrentTransactionID);
 
 		for (const Frontend::FNodeClassInfo& ClassInfo : ClassInfos)
 		{
-			OutEntries.Emplace(TInPlaceType<FMetasoundFrontendClass>(), Frontend::GenerateClassDescription(ClassInfo));
+			FFrontendQueryEntry::FValue Value(TInPlaceType<FMetasoundFrontendClass>(), Frontend::GenerateClassDescription(ClassInfo));
+			OutEntries.Emplace(MoveTemp(Value));
 		}
+	}
+
+	void FNodeClassRegistrationEvents::Reset()
+	{
+		CurrentTransactionID = Frontend::GetOriginRegistryTransactionID();
 	}
 
 	FFilterClassesByInputVertexDataType::FFilterClassesByInputVertexDataType(const FName& InTypeName)
@@ -93,7 +90,7 @@ namespace Metasound
 		return static_cast<FFrontendQueryEntry::FKey>(HashKey);
 	}
 
-	void FReduceClassesToHighestVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const
+	void FReduceClassesToHighestVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const
 	{
 		FFrontendQueryEntry* HighestVersionEntry = nullptr;
 		int32 HighestMajorVersion = -1;
@@ -120,7 +117,7 @@ namespace Metasound
 	{
 	}
 
-	void FReduceClassesToMajorVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const
+	void FReduceClassesToMajorVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const
 	{
 		for (FFrontendQueryEntry* Entry : InEntries)
 		{

@@ -14,12 +14,22 @@ namespace Metasound
 		/** Returns an ID representing the beginning of the transaction history. */
 		FRegistryTransactionID GetOriginRegistryTransactionID();
 
+		/** Describes the type of transaction. */
+		enum class ETransactionType : uint8
+		{
+			Add,     //< Something was added to the registry.
+			Remove   //< Something was removed from the registry.
+		};
+
 		/** Interface for a registry transaction. */
 		class IRegistryTransaction
 		{
 		public:
 			virtual ~IRegistryTransaction() = default;
 			virtual TUniquePtr<IRegistryTransaction> Clone() const = 0;
+
+			/** Returns the type of transaction */
+			virtual ETransactionType GetTransactionType() const = 0;
 
 			/** If a FNodeClassInfo added during the transaction, this will return
 			 * a non-null pointer to the FNodeClassInfo. */
@@ -29,7 +39,10 @@ namespace Metasound
 		using FRegistryTransactionPtr = TUniquePtr<IRegistryTransaction>;
 
 		/** Create a node registration transaction. */
-		FRegistryTransactionPtr MakeNodeRegistrationTransaction(const FNodeClassInfo& InInfo);
+		FRegistryTransactionPtr MakeAddNodeRegistrationTransaction(const FNodeClassInfo& InInfo);
+
+		/** Create a node unregistration transaction. */
+		FRegistryTransactionPtr MakeRemoveNodeRegistrationTransaction(const FNodeClassInfo& InInfo);
 
 		/** Maintains a history of IRegistryTransactions. Calls are threadsafe (excluding
 		 * the constructor and destructor.)

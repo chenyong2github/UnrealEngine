@@ -2,34 +2,37 @@
 
 #include "MetasoundFrontendQuery.h"
 
+#include "Algo/IsSorted.h"
 #include "Algo/Sort.h"
+#include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "MetasoundFrontendDocument.h"
 
 namespace Metasound
 {
-
 	namespace FrontendQueryPrivate
 	{
-		struct FGenerateFunctionFrontendQueryStep: IFrontendQueryGenerateStep
+		// Wrapper for step defined by function
+		struct FStreamFunctionFrontendQueryStep: IFrontendQueryStreamStep
 		{
-			using FGenerateFunction = FFrontendQueryStep::FGenerateFunction;
+			using FStreamFunction = FFrontendQueryStep::FStreamFunction;
 
-			FGenerateFunctionFrontendQueryStep(FGenerateFunction InFunc)
-			:	Func(InFunc)
+			FStreamFunctionFrontendQueryStep(FStreamFunction&& InFunc)
+			:	Func(MoveTemp(InFunc))
 			{
 			}
 
-			void Generate(TArray<FFrontendQueryEntry>& OutEntries) const override
+			void Stream(TArray<FFrontendQueryEntry>& OutEntries) override
 			{
 				Func(OutEntries);
 			}
 
 			private:
 
-			FGenerateFunction Func;
+			FStreamFunction Func;
 		};
 
+		// Wrapper for step defined by function
 		struct FMapFunctionFrontendQueryStep: IFrontendQueryMapStep
 		{
 			using FMapFunction = FFrontendQueryStep::FMapFunction;
@@ -47,6 +50,7 @@ namespace Metasound
 			FMapFunction Func;
 		};
 
+		// Wrapper for step defined by function
 		struct FReduceFunctionFrontendQueryStep: IFrontendQueryReduceStep
 		{
 			using FReduceFunction = FFrontendQueryStep::FReduceFunction;
@@ -56,7 +60,7 @@ namespace Metasound
 			{
 			}
 
-			void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry*>& InEntries, FReduceOutputView& OutResult) const override
+			void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override
 			{
 				return Func(InKey, InEntries, OutResult);
 			}
@@ -64,6 +68,7 @@ namespace Metasound
 			FReduceFunction Func;
 		};
 
+		// Wrapper for step defined by function
 		struct FFilterFunctionFrontendQueryStep: IFrontendQueryFilterStep
 		{
 			using FFilterFunction = FFrontendQueryStep::FFilterFunction;
@@ -81,6 +86,7 @@ namespace Metasound
 			FFilterFunction Func;
 		};
 
+		// Wrapper for step defined by function
 		struct FScoreFunctionFrontendQueryStep: IFrontendQueryScoreStep
 		{
 			using FScoreFunction = FFrontendQueryStep::FScoreFunction;
@@ -98,6 +104,7 @@ namespace Metasound
 			FScoreFunction Func;
 		};
 
+		// Wrapper for step defined by function
 		struct FSortFunctionFrontendQueryStep: IFrontendQuerySortStep
 		{
 			using FSortFunction = FFrontendQueryStep::FSortFunction;
@@ -115,6 +122,7 @@ namespace Metasound
 			FSortFunction Func;
 		};
 
+		// Wrapper for step defined by function
 		struct FLimitFunctionFrontendQueryStep: IFrontendQueryLimitStep
 		{
 			using FLimitFunction = FFrontendQueryStep::FLimitFunction;
@@ -132,32 +140,128 @@ namespace Metasound
 			FLimitFunction Func;
 		};
 
+		// Base implementation of a query step execution.
+		struct FStepExecuterBase : public FFrontendQueryStep::IStepExecuter
+		{
+
+			// Appends incremental results to the output results.
+			EResultModificationState Append(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) const
+			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
+				if (InIncremental.GetSelection().Num() > 0)
+				{
+					InOutResult.AppendToStorageAndSelection(InIncremental);
+					ResultState = EResultModificationState::Modified;
+				}
+
+				return ResultState;
+			}
+		};
+
+		// Implements execution of a source
+		struct FSourceStepExecuter : public FStepExecuterBase
+		{
+			FSourceStepExecuter(TUniquePtr<IFrontendQuerySource>&& InSource)
+			: Source(MoveTemp(InSource))
+			{
+			}
+
+			// Get the latest entries from the source
+			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			{
+				if (Source.IsValid())
+				{
+					TArray<FFrontendQueryEntry> NewEntries;
+					Source->Stream(NewEntries);
+
+					if (NewEntries.Num() > 0)
+					{
+						InOutResult.AppendToStorageAndSelection(NewEntries);
+						return EResultModificationState::Modified;
+					}
+				}
+
+				return EResultModificationState::Unmodified;
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				return Append(InIncremental, InOutResult);
+			}
+
+			virtual bool IsMergeRequiredForIncremental() const override
+			{
+				return false;
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				Reset(); // Reset source to original state.
+				return Increment(InOutResult);
+			}
+
+			virtual void Reset() override 
+			{ 
+				if (Source.IsValid())
+				{
+					Source->Reset();
+				}
+			}
+
+		private:
+
+			TUniquePtr<IFrontendQuerySource> Source;
+		};
+
 		template<typename StepType>
-		struct TStepExecuter : public FFrontendQueryStep::IStepExecuter
+		struct TStepExecuter : public FStepExecuterBase
 		{
 			TStepExecuter(TUniquePtr<StepType>&& InStep)
 			:	Step(MoveTemp(InStep))
 			{
 			}
 
+			virtual void Reset() override { }
+
+			virtual bool IsMergeRequiredForIncremental() const override { return false; }
+
+		protected:
+
 			TUniquePtr<StepType> Step;
 		};
 
-
-		struct FGenerateStepExecuter : TStepExecuter<IFrontendQueryGenerateStep>
+		struct FStreamStepExecuter : TStepExecuter<IFrontendQueryStreamStep>
 		{
-			using TStepExecuter<IFrontendQueryGenerateStep>::TStepExecuter;
+			using TStepExecuter<IFrontendQueryStreamStep>::TStepExecuter;
 
-			void ExecuteStep(FFrontendQuerySelection& InOutResult) const override
+			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
 			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
 				if (Step.IsValid())
 				{
 					TArray<FFrontendQueryEntry> NewEntries;
+					Step->Stream(NewEntries);
 
-					Step->Generate(NewEntries);
-
-					InOutResult.AppendToStorageAndSelection(NewEntries);
+					if (NewEntries.Num() > 0)
+					{
+						ResultState = EResultModificationState::Modified;
+						InOutResult.AppendToStorageAndSelection(NewEntries);
+					}
 				}
+
+				return ResultState;
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				return Append(InIncremental, InOutResult);
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				return Increment(InOutResult);
 			}
 		};
 
@@ -165,10 +269,17 @@ namespace Metasound
 		{
 			using TStepExecuter<IFrontendQueryMapStep>::TStepExecuter;
 
-			void ExecuteStep(FFrontendQuerySelection& InOutResult) const override
+			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
 			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
 				if (Step.IsValid())
 				{
+					if (InOutResult.GetSelection().Num() > 0)
+					{
+						ResultState = EResultModificationState::Modified;
+					}
+
 					for (FFrontendQueryEntry* Entry : InOutResult.GetSelection())
 					{
 						if (nullptr != Entry)
@@ -177,66 +288,161 @@ namespace Metasound
 						}
 					}
 				}
+
+				return ResultState;
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				return Append(InIncremental, InOutResult);
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				return Increment(InOutResult);
 			}
 		};
 
 		struct FReduceStepExecuter : TStepExecuter<IFrontendQueryReduceStep>
 		{
-			using TStepExecuter<IFrontendQueryReduceStep>::TStepExecuter;
+			using FKey = FFrontendQueryEntry::FKey;
 
-			void ExecuteStep(FFrontendQuerySelection& InOutResult) const override
+		private:
+
+			static FFrontendQueryEntry::FKey GetKey(const FFrontendQueryEntry* InEntry)
 			{
-				if (Step.IsValid())
+				return (nullptr != InEntry) ? InEntry->Key : FFrontendQueryEntry::InvalidKey;
+			}
+
+			// Reduce entries.
+			//
+			// @parma InKey - The key associated with InEntriesToReduce
+			// @parma InEntriesToReduce - Entries to either append or reduce.
+			// @param OutResult - The output query selection to append to.
+			void Reduce(const FFrontendQueryEntry::FKey& InKey, TArrayView<FFrontendQueryEntry* const> InEntriesToReduce, FFrontendQuerySelection& OutResult)
+			{
+				check(Step.IsValid());
+
+				// Note: InEntriesToReduce is has valid storage in OutResult.
+				FFrontendQuerySelection::FReduceOutputView ReduceResult(InEntriesToReduce);
+				Step->Reduce(InKey, InEntriesToReduce, ReduceResult);
+				OutResult.AppendToStorageAndSelection(MoveTemp(ReduceResult));
+			}
+
+			// Iterate over sorted entries.
+			template<typename FuncType>
+			void IterSortedEntries(TArrayView<FFrontendQueryEntry* const> SortedSelection, FuncType InFunc)
+			{
+				// input selection must be sorted by key.
+				check(Algo::IsSortedBy(SortedSelection, FReduceStepExecuter::GetKey));
+
+				if (SortedSelection.Num() > 0)
 				{
-					if (InOutResult.GetSelection().Num() > 0)
+					int32 StartIndex = 0;
+					
+					FFrontendQueryEntry::FKey CurrentKey = GetKey(SortedSelection[0]);
+
+					const int32 Num = SortedSelection.Num();
+					for (int32 EndIndex = 1; EndIndex < Num; EndIndex++)
 					{
-						TArrayView<FFrontendQueryEntry*> SelectionView = InOutResult.GetSelection();
-						TArray<FFrontendQueryEntry*> SortedSelection(SelectionView.GetData(), SelectionView.Num()); 
-						InOutResult.ResetSelection();
-
-						Algo::SortBy(SortedSelection, [](const FFrontendQueryEntry* InEntry)
-							{
-								if (nullptr == InEntry)
-								{
-									return FFrontendQueryEntry::InvalidKey;
-								}
-
-								return InEntry->Key;
-							}
-						);
-
-						if (!SortedSelection.IsEmpty())
+						FFrontendQueryEntry::FKey ThisKey = GetKey(SortedSelection[EndIndex]);
+						if (CurrentKey != ThisKey)
 						{
-							int32 StartIndex = 0;
-							FFrontendQueryEntry::FKey CurrentKey = SortedSelection[0] ? SortedSelection[0]->Key : FFrontendQueryEntry::InvalidKey;
+							InFunc(CurrentKey, SortedSelection.Slice(StartIndex, EndIndex - StartIndex));
 
-							auto ReduceFunc = [&](int32 Index)
-							{
-								TArrayView<FFrontendQueryEntry*> ResultsToReduce(&SortedSelection[StartIndex], Index - StartIndex);
-								FFrontendQuerySelection::FReduceOutputView ReduceResult(ResultsToReduce);
-
-								Step->Reduce(CurrentKey, ResultsToReduce, ReduceResult);
-
-								InOutResult.AppendToStorageAndSelection(ReduceResult);
-							};
-
-							const int32 Num = SortedSelection.Num();
-							for (int32 ResultIndex = 1; ResultIndex < Num; ResultIndex++)
-							{
-								FFrontendQueryEntry::FKey ThisKey = SortedSelection[ResultIndex] ? SortedSelection[ResultIndex]->Key : FFrontendQueryEntry::InvalidKey;
-								if (CurrentKey != ThisKey)
-								{
-									ReduceFunc(ResultIndex);
-
-									CurrentKey = ThisKey;
-									StartIndex = ResultIndex;
-								}
-							}
-
-							ReduceFunc(Num);
+							CurrentKey = ThisKey;
+							StartIndex = EndIndex;
 						}
 					}
+
+					InFunc(CurrentKey, SortedSelection.Slice(StartIndex, SortedSelection.Num() - StartIndex));
 				}
+			}
+
+			TArray<FFrontendQueryEntry*> GetSortedSelection(TArrayView<FFrontendQueryEntry* const> InSelection)
+			{
+				TArray<FFrontendQueryEntry*> SortedSelection(InSelection.GetData(), InSelection.Num()); 
+				Algo::SortBy(SortedSelection, GetKey);
+				return SortedSelection;
+			}
+
+		public:
+
+			using TStepExecuter<IFrontendQueryReduceStep>::TStepExecuter;
+
+			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			{
+				check(IsMergeRequiredForIncremental());
+				return Execute(InOutResult);
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
+				if (Step.IsValid())
+				{ 	
+					if (InIncremental.GetSelection().Num() > 0)
+					{
+						TSet<FKey> NewKeys;
+
+						Algo::Transform(InIncremental.GetSelection(), NewKeys, GetKey);
+
+						InOutResult.AppendToStorageAndSelection(InIncremental);
+						TArray<FFrontendQueryEntry*> SortedSelection = GetSortedSelection(InOutResult.GetSelection());
+						InOutResult.ResetSelection();
+
+						IterSortedEntries(SortedSelection, [&](const FKey& InKey, TArrayView<FFrontendQueryEntry* const> InEntriesToReduce)
+						{
+							if (NewKeys.Contains(InKey))
+							{
+								// Some of the entries re new. Need to re-reduce.
+								this->Reduce(InKey, InEntriesToReduce, InOutResult);
+							}
+							else
+							{
+								// All these entries are owned by the result already.
+								InOutResult.AppendToSelection(InEntriesToReduce);
+							}
+						});
+
+						ResultState = EResultModificationState::Modified;
+					}
+				}
+
+				return ResultState;
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
+				if (Step.IsValid())
+				{ 	
+					if (InOutResult.GetSelection().Num() > 0)
+					{
+						TArray<FFrontendQueryEntry*> SortedSelection = GetSortedSelection(InOutResult.GetSelection());
+						InOutResult.ResetSelection();
+
+						IterSortedEntries(SortedSelection, [&](const FKey& InKey, TArrayView<FFrontendQueryEntry* const> InEntriesToReduce)
+						{
+							this->Reduce(InKey, InEntriesToReduce, InOutResult);
+						});
+
+						ResultState = EResultModificationState::Modified;
+					}
+				}
+
+				return ResultState;
+			}
+
+
+			virtual bool IsMergeRequiredForIncremental() const override
+			{
+				// Merge is required during an incremental update because
+				// existing results and new results may share the same key and
+				// need re-reducing.
+				return true;
 			}
 		};
 
@@ -244,21 +450,35 @@ namespace Metasound
 		{
 			using TStepExecuter<IFrontendQueryFilterStep>::TStepExecuter;
 
-			void ExecuteStep(FFrontendQuerySelection& InOutResult) const override
+			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
 			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
 				if (Step.IsValid())
 				{
-					TArrayView<FFrontendQueryEntry*> Selection = InOutResult.GetSelection();
+					auto FilterFunc = [&](const FFrontendQueryEntry* Entry)
+					{
+						return (nullptr != Entry) && Step->Filter(*Entry);
+					};
 
-					InOutResult.ResetSelection();
-
-					InOutResult.AppendToSelection(Selection.FilterByPredicate(
-						[&](const FFrontendQueryEntry* Entry)
-						{
-							return (nullptr != Entry) && Step->Filter(*Entry);
-						}
-					));
+					int32 NumRemoved = InOutResult.FilterSelection(FilterFunc);
+					if (NumRemoved > 0)
+					{
+						ResultState = EResultModificationState::Modified;
+					}
 				}
+
+				return ResultState;
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				return Append(InIncremental, InOutResult);
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				return Increment(InOutResult);
 			}
 		};
 
@@ -266,10 +486,17 @@ namespace Metasound
 		{
 			using TStepExecuter<IFrontendQueryScoreStep>::TStepExecuter;
 
-			void ExecuteStep(FFrontendQuerySelection& InOutResult) const override
+			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
 			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
 				if (Step.IsValid())
 				{
+					if (InOutResult.GetSelection().Num() > 0)
+					{
+						ResultState = EResultModificationState::Modified;
+					}
+
 					for (FFrontendQueryEntry* Entry : InOutResult.GetSelection())
 					{
 						if (nullptr != Entry)
@@ -278,6 +505,18 @@ namespace Metasound
 						}
 					}
 				}
+
+				return ResultState;
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				return Append(InIncremental, InOutResult);
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				return Increment(InOutResult);
 			}
 		};
 		
@@ -285,17 +524,66 @@ namespace Metasound
 		{
 			using TStepExecuter<IFrontendQuerySortStep>::TStepExecuter;
 
-			void ExecuteStep(FFrontendQuerySelection& InOutResult) const override
+			EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
 			{
+				check(IsMergeRequiredForIncremental());
+				return Execute(InOutResult);
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
 				if (Step.IsValid())
 				{
-					InOutResult.GetSelection().Sort(
-						[&](const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS)
-						{
-							return Step->Sort(InLHS, InRHS);
-						}
-					);
+					const bool bIncrementalHasNonEmptySelection = InIncremental.GetSelection().Num() > 0;
+
+					if (bIncrementalHasNonEmptySelection)
+					{
+						// Append incremental data to this result
+						InOutResult.AppendToStorageAndSelection(InIncremental);
+
+						InOutResult.GetSelection().Sort(
+							[&](const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS)
+							{
+								return Step->Sort(InLHS, InRHS);
+							}
+						);
+
+						ResultState = EResultModificationState::Modified;
+					}
 				}
+
+				return ResultState;
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
+				if (Step.IsValid())
+				{
+					if (InOutResult.GetSelection().Num() > 0)
+					{
+						InOutResult.GetSelection().Sort(
+							[&](const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS)
+							{
+								return Step->Sort(InLHS, InRHS);
+							}
+						);
+
+						ResultState = EResultModificationState::Modified;
+					}
+				}
+
+				return ResultState;
+			}
+
+			virtual bool IsMergeRequiredForIncremental() const 
+			{
+				// Merging is required during incremental update because sort
+				// order may change after merge.
+				return true;
 			}
 		};
 
@@ -303,21 +591,76 @@ namespace Metasound
 		{
 			using TStepExecuter<IFrontendQueryLimitStep>::TStepExecuter;
 
-			void ExecuteStep(FFrontendQuerySelection& InOutResult) const override
+			EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
 			{
+				check(IsMergeRequiredForIncremental());
+				return Execute(InOutResult);
+			}
+
+			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
+			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
 				if (Step.IsValid())
 				{
 					int32 Limit = Step->Limit();
+
+					if (InIncremental.GetSelection().Num() > 0)
+					{
+						ResultState = EResultModificationState::Modified;
+						InOutResult.AppendToStorageAndSelection(InIncremental);
+
+						if (InOutResult.GetSelection().Num() > Limit)
+						{
+							InOutResult.SetSelection(InOutResult.GetSelection().Slice(0, Limit));
+						}
+					}
+				}
+
+				return ResultState;
+			}
+
+			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			{
+				EResultModificationState ResultState = EResultModificationState::Unmodified;
+
+				if (Step.IsValid())
+				{
+					int32 Limit = Step->Limit();
+
 					if (InOutResult.GetSelection().Num() > Limit)
 					{
+						ResultState = EResultModificationState::Modified;
 						InOutResult.SetSelection(InOutResult.GetSelection().Slice(0, Limit));
 					}
 				}
+
+				return ResultState;
+			}
+
+			virtual bool IsMergeRequiredForIncremental() const 
+			{
+				// Merge is required because values under limit may be different
+				// after merge.
+				return true;
 			}
 		};
 	}
 
-	FFrontendQuerySelection::FReduceOutputView::FReduceOutputView(TArrayView<FFrontendQueryEntry*> InEntries)
+	FFrontendQuerySelection::FFrontendQuerySelection(const FFrontendQuerySelection& InOther)
+	{
+		AppendToStorageAndSelection(InOther);
+	}
+
+	FFrontendQuerySelection& FFrontendQuerySelection::operator=(const FFrontendQuerySelection& InOther)
+	{
+		ResetStorageAndSelection();
+		AppendToStorageAndSelection(InOther);
+
+		return *this;
+	}
+
+	FFrontendQuerySelection::FReduceOutputView::FReduceOutputView(TArrayView<FFrontendQueryEntry* const> InEntries)
 	:	InitialEntries(InEntries)
 	{
 	}
@@ -326,33 +669,14 @@ namespace Metasound
 	{
 		if (!InitialEntries.Contains(&InResult))
 		{
-			NewEntryStorage.Add(InResult);
+			SelectedNewEntries.Add(MakeUnique<FFrontendQueryEntry>(InResult));
 		}
 		else
 		{
-			ExistingEntryPointers.Add(&InResult);
+			SelectedExistingEntries.Add(&InResult);
 		}
 	}
 
-	TArrayView<FFrontendQueryEntry*> FFrontendQuerySelection::FReduceOutputView::GetSelectedInitialEntries()
-	{
-		return ExistingEntryPointers;
-	}
-
-	TArrayView<FFrontendQueryEntry> FFrontendQuerySelection::FReduceOutputView::GetSelectedNewEntries() 
-	{
-		return NewEntryStorage;
-	}
-
-	TArrayView<FFrontendQueryEntry> FFrontendQuerySelection::GetStorage()
-	{
-		return Storage;
-	}
-
-	TArrayView<const FFrontendQueryEntry> FFrontendQuerySelection::GetStorage() const
-	{
-		return Storage;
-	}
 
 	TArrayView<FFrontendQueryEntry*> FFrontendQuerySelection::GetSelection()
 	{
@@ -367,28 +691,13 @@ namespace Metasound
 	void FFrontendQuerySelection::AppendToStorageAndSelection(const FFrontendQuerySelection& InSelection)
 	{
 		TArrayView<const FFrontendQueryEntry* const> InEntries = InSelection.GetSelection();
-			
-		int32 StorageIndex = Storage.Num();
-		int32 SelectionIndex = Selection.Num();
+		AppendToStorageAndSelection(InSelection.GetSelection());
+	}
 
-		for (const FFrontendQueryEntry* Entry : InEntries)
-		{
-			Storage.Add(*Entry);
-		}
-
-		const int32 Num = Storage.Num() - StorageIndex;
-
-		if (Num > 0)
-		{
-			Selection.AddZeroed(Num);
-
-			for (int32 i = 0; i < Num; i++)
-			{
-				Selection[SelectionIndex] = &Storage[StorageIndex];
-				SelectionIndex++;
-				StorageIndex++;
-			}
-		}
+	void FFrontendQuerySelection::AppendToStorageAndSelection(FFrontendQuerySelection&& InSelection)
+	{
+		InSelection.ShrinkStorageToSelection();
+		AppendToStorageAndSelection(MoveTemp(InSelection.Storage));
 	}
 
 	void FFrontendQuerySelection::AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry> InEntries)
@@ -400,22 +709,88 @@ namespace Metasound
 			int32 StorageIndex = Storage.Num();
 			int32 SelectionIndex = Selection.Num();
 
-			Storage.Append(InEntries.GetData(), InEntries.Num());
+			for (const FFrontendQueryEntry& Entry : InEntries)
+			{
+				Storage.Add(MakeUnique<FFrontendQueryEntry>(Entry));
+			}
 			Selection.AddZeroed(Num);
 
 			for (int32 i = 0; i < Num; i++)
 			{
-				Selection[SelectionIndex] = &Storage[StorageIndex];
+				Selection[SelectionIndex] = Storage[StorageIndex].Get();
 				SelectionIndex++;
 				StorageIndex++;
 			}
 		}
 	}
 
-	void FFrontendQuerySelection::AppendToStorageAndSelection(FReduceOutputView& InReduceView)
+	void FFrontendQuerySelection::AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry* const> InEntries)
 	{
-		AppendToStorageAndSelection(InReduceView.GetSelectedNewEntries());
-		AppendToSelection(InReduceView.GetSelectedInitialEntries());
+		if (InEntries.Num() >  0)
+		{
+			int32 StorageIndex = Storage.Num();
+			int32 SelectionIndex = Selection.Num();
+
+			int32 NumAdded = 0;
+			for (const FFrontendQueryEntry* Entry : InEntries)
+			{
+				if (nullptr != Entry)
+				{
+					Storage.Add(MakeUnique<FFrontendQueryEntry>(*Entry));
+					NumAdded++;
+				}
+			}
+
+			if (NumAdded > 0)
+			{
+				Selection.AddZeroed(NumAdded);
+
+				for (int32 i = 0; i < NumAdded; i++)
+				{
+					Selection[SelectionIndex] = Storage[StorageIndex].Get();
+					SelectionIndex++;
+					StorageIndex++;
+				}
+			}
+		}
+	}
+
+	void FFrontendQuerySelection::AppendToStorageAndSelection(FReduceOutputView&& InReduceView)
+	{
+		AppendToStorageAndSelection(MoveTemp(InReduceView.SelectedNewEntries));
+		AppendToSelection(InReduceView.SelectedExistingEntries);
+	}
+
+	void FFrontendQuerySelection::AppendToStorageAndSelection(TArray<TUniquePtr<FFrontendQueryEntry>>&& InEntries)
+	{
+		if (InEntries.Num() >  0)
+		{
+			int32 StorageIndex = Storage.Num();
+			int32 SelectionIndex = Selection.Num();
+
+			int32 NumAdded = 0;
+			for (TUniquePtr<FFrontendQueryEntry>& Entry : InEntries)
+			{
+				if (Entry.IsValid())
+				{
+					Storage.Add(MoveTemp(Entry));
+					NumAdded++;
+				}
+			}
+
+			if (NumAdded > 0)
+			{
+				Selection.AddZeroed(NumAdded);
+
+				for (int32 i = 0; i < NumAdded; i++)
+				{
+					Selection[SelectionIndex] = Storage[StorageIndex].Get();
+					SelectionIndex++;
+					StorageIndex++;
+				}
+			}
+		}
+
 	}
 
 	void FFrontendQuerySelection::ResetStorageAndSelection()
@@ -442,11 +817,19 @@ namespace Metasound
 		}
 	}
 
-	void FFrontendQuerySelection::AppendToSelection(TArrayView<FFrontendQueryEntry*> InEntries)
+	void FFrontendQuerySelection::AppendToSelection(TArrayView<FFrontendQueryEntry * const> InEntries)
 	{
 		Selection.Append(InEntries.GetData(), InEntries.Num());
 	}
 
+	void FFrontendQuerySelection::ShrinkStorageToSelection()
+	{
+		TSet<FFrontendQueryEntry*> SelectionSet(Selection);
+		Storage.RemoveAll([&](const TUniquePtr<FFrontendQueryEntry>& InEntry)
+		{
+			return !SelectionSet.Contains(InEntry.Get());
+		});
+	}
 
 
 	FFrontendQuerySelectionView::FFrontendQuerySelectionView(TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> InResult)
@@ -454,53 +837,53 @@ namespace Metasound
 	{
 	}
 
-	TArrayView<const FFrontendQueryEntry> FFrontendQuerySelectionView::GetStorage() const
-	{
-		return Result->GetStorage();
-	}
-
 	TArrayView<const FFrontendQueryEntry* const> FFrontendQuerySelectionView::GetSelection() const
 	{
 		return Result->GetSelection();
 	}
 
-	FFrontendQueryStep::FFrontendQueryStep(FGenerateFunction InFunc)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FGenerateStepExecuter>(MakeUnique<FrontendQueryPrivate::FGenerateFunctionFrontendQueryStep>(InFunc)))
+	FFrontendQueryStep::FFrontendQueryStep(FStreamFunction&& InFunc)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FStreamStepExecuter>(MakeUnique<FrontendQueryPrivate::FStreamFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
 	}
 
-	FFrontendQueryStep::FFrontendQueryStep(FMapFunction InFunc)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FMapStepExecuter>(MakeUnique<FrontendQueryPrivate::FMapFunctionFrontendQueryStep>(InFunc)))
+	FFrontendQueryStep::FFrontendQueryStep(FMapFunction&& InFunc)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FMapStepExecuter>(MakeUnique<FrontendQueryPrivate::FMapFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
 	}
 
-	FFrontendQueryStep::FFrontendQueryStep(FReduceFunction InFunc)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FReduceStepExecuter>(MakeUnique<FrontendQueryPrivate::FReduceFunctionFrontendQueryStep>(InFunc)))
+	FFrontendQueryStep::FFrontendQueryStep(FReduceFunction&& InFunc)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FReduceStepExecuter>(MakeUnique<FrontendQueryPrivate::FReduceFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
 	}
 
-	FFrontendQueryStep::FFrontendQueryStep(FFilterFunction InFunc)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FFilterStepExecuter>(MakeUnique<FrontendQueryPrivate::FFilterFunctionFrontendQueryStep>(InFunc)))
+	FFrontendQueryStep::FFrontendQueryStep(FFilterFunction&& InFunc)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FFilterStepExecuter>(MakeUnique<FrontendQueryPrivate::FFilterFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
 	}
 	
-	FFrontendQueryStep::FFrontendQueryStep(FScoreFunction InFunc)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FScoreStepExecuter>(MakeUnique<FrontendQueryPrivate::FScoreFunctionFrontendQueryStep>(InFunc)))
+	FFrontendQueryStep::FFrontendQueryStep(FScoreFunction&& InFunc)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FScoreStepExecuter>(MakeUnique<FrontendQueryPrivate::FScoreFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
 	}
 
-	FFrontendQueryStep::FFrontendQueryStep(FSortFunction InFunc)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FSortStepExecuter>(MakeUnique<FrontendQueryPrivate::FSortFunctionFrontendQueryStep>(InFunc)))
+	FFrontendQueryStep::FFrontendQueryStep(FSortFunction&& InFunc)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FSortStepExecuter>(MakeUnique<FrontendQueryPrivate::FSortFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
 	}
 
-	FFrontendQueryStep::FFrontendQueryStep(FLimitFunction InFunc)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FLimitStepExecuter>(MakeUnique<FrontendQueryPrivate::FLimitFunctionFrontendQueryStep>(InFunc)))
+	FFrontendQueryStep::FFrontendQueryStep(FLimitFunction&& InFunc)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FLimitStepExecuter>(MakeUnique<FrontendQueryPrivate::FLimitFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
 	}
 
-	FFrontendQueryStep::FFrontendQueryStep(TUniquePtr<IFrontendQueryGenerateStep>&& InStep)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FGenerateStepExecuter>(MoveTemp(InStep)))
+	FFrontendQueryStep::FFrontendQueryStep(TUniquePtr<IFrontendQuerySource>&& InSource)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FSourceStepExecuter>(MoveTemp(InSource)))
+	{
+	}
+
+	FFrontendQueryStep::FFrontendQueryStep(TUniquePtr<IFrontendQueryStreamStep>&& InStep)
+	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FStreamStepExecuter>(MoveTemp(InStep)))
 	{
 	}
 	
@@ -534,11 +917,51 @@ namespace Metasound
 	{
 	}
 
-	void FFrontendQueryStep::ExecuteStep(FFrontendQuerySelection& InOutResult)
+	FFrontendQueryStep::EResultModificationState FFrontendQueryStep::Execute(FFrontendQuerySelection& InOutResult)
 	{
 		if (StepExecuter.IsValid())
 		{
-			StepExecuter->ExecuteStep(InOutResult);
+			return StepExecuter->Execute(InOutResult);
+		}
+
+		return EResultModificationState::Unmodified;
+	}
+
+	FFrontendQueryStep::EResultModificationState FFrontendQueryStep::Increment(FFrontendQuerySelection& InOutResult)
+	{
+		if (StepExecuter.IsValid())
+		{
+			return StepExecuter->Increment(InOutResult);
+		}
+
+		return EResultModificationState::Unmodified;
+	}
+
+	FFrontendQueryStep::EResultModificationState FFrontendQueryStep::Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult)
+	{
+		if (StepExecuter.IsValid())
+		{
+			return StepExecuter->Merge(InIncremental, InOutResult);
+		}
+
+		return EResultModificationState::Unmodified;
+	}
+
+	bool FFrontendQueryStep::IsMergeRequiredForIncremental() const
+	{
+		if (StepExecuter.IsValid())
+		{
+			return StepExecuter->IsMergeRequiredForIncremental();
+		}
+
+		return false;
+	}
+
+	void FFrontendQueryStep::Reset()
+	{
+		if (StepExecuter.IsValid())
+		{
+			StepExecuter->Reset();
 		}
 	}
 
@@ -552,52 +975,60 @@ namespace Metasound
 		return Steps;
 	}
 
-	FFrontendQuery& FFrontendQuery::AddGenerateLambdaStep(FGenerateFunction InFunc)
+
+	FFrontendQuery& FFrontendQuery::AddStreamLambdaStep(FStreamFunction&& InFunc)
 	{
-		return AddFunctionStep(InFunc);
+		return AddFunctionStep(MoveTemp(InFunc));
 	}
 
-	FFrontendQuery& FFrontendQuery::AddMapLambdaStep(FMapFunction InFunc)
+	FFrontendQuery& FFrontendQuery::AddMapLambdaStep(FMapFunction&& InFunc)
 	{
-		return AddFunctionStep(InFunc);
+		return AddFunctionStep(MoveTemp(InFunc));
 	}
 
-	FFrontendQuery& FFrontendQuery::AddReduceLambdaStep(FReduceFunction InFunc)
+	FFrontendQuery& FFrontendQuery::AddReduceLambdaStep(FReduceFunction&& InFunc)
 	{
-		return AddFunctionStep(InFunc);
+		return AddFunctionStep(MoveTemp(InFunc));
 	}
 
-	FFrontendQuery& FFrontendQuery::AddFilterLambdaStep(FFilterFunction InFunc)
+	FFrontendQuery& FFrontendQuery::AddFilterLambdaStep(FFilterFunction&& InFunc)
 	{
-		return AddFunctionStep(InFunc);
+		return AddFunctionStep(MoveTemp(InFunc));
 	}
 
-	FFrontendQuery& FFrontendQuery::AddScoreLambdaStep(FScoreFunction InFunc)
+	FFrontendQuery& FFrontendQuery::AddScoreLambdaStep(FScoreFunction&& InFunc)
 	{
-		return AddFunctionStep(InFunc);
+		return AddFunctionStep(MoveTemp(InFunc));
 	}
 
-	FFrontendQuery& FFrontendQuery::AddSortLambdaStep(FSortFunction InFunc)
+	FFrontendQuery& FFrontendQuery::AddSortLambdaStep(FSortFunction&& InFunc)
 	{
-		return AddFunctionStep(InFunc);
+		return AddFunctionStep(MoveTemp(InFunc));
 	}
 
-	FFrontendQuery& FFrontendQuery::AddLimitLambdaStep(FLimitFunction InFunc)
+	FFrontendQuery& FFrontendQuery::AddLimitLambdaStep(FLimitFunction&& InFunc)
 	{
-		return AddFunctionStep(InFunc);
+		return AddFunctionStep(MoveTemp(InFunc));
 	}
 
 	FFrontendQuery& FFrontendQuery::AddStep(TUniquePtr<FFrontendQueryStep>&& InStep)
 	{
-		Steps.Add(MoveTemp(InStep));
+		if (ensure(InStep.IsValid()))
+		{
+			int32 StepIndex = Steps.Num();
+			if (InStep->IsMergeRequiredForIncremental())
+			{
+				StepResultCache.Add(StepIndex);
+			}
+
+			Steps.Add(MoveTemp(InStep));
+		}
 		return *this;
 	}
 
-	FFrontendQuerySelectionView FFrontendQuery::ExecuteQuery()
+	FFrontendQuerySelectionView FFrontendQuery::Execute()
 	{
-		Reset();
-
-		Execute(*Result);
+		UpdateResult();
 
 		return FFrontendQuerySelectionView(Result);
 	}
@@ -605,18 +1036,15 @@ namespace Metasound
 	FFrontendQuerySelectionView FFrontendQuery::Reset()
 	{
 		Result->ResetStorageAndSelection();
+
+		for (int32 StepIndex = 0; StepIndex < Steps.Num(); StepIndex++)
+		{
+			if (Steps[StepIndex].IsValid())
+			{
+				Steps[StepIndex]->Reset();
+			}
+		}
 		
-		return FFrontendQuerySelectionView(Result);
-	}
-
-	FFrontendQuerySelectionView FFrontendQuery::ExecuteQueryAndAppend()
-	{
-		FFrontendQuerySelection NewSelection;
-
-		Execute(NewSelection);
-
-		Result->AppendToStorageAndSelection(NewSelection);
-
 		return FFrontendQuerySelectionView(Result);
 	}
 
@@ -625,16 +1053,80 @@ namespace Metasound
 		return FFrontendQuerySelectionView(Result);
 	}
 
-	void FFrontendQuery::Execute(FFrontendQuerySelection& OutSelection)
+	void FFrontendQuery::UpdateResult()
 	{
+		FFrontendQuerySelection IncrementalResult;
+
+		EResultModificationState IncrementalResultState = EResultModificationState::Unmodified;
+
+		// Perform incremental update sequentially
 		for (int32 StepIndex = 0; StepIndex < Steps.Num(); StepIndex++)
 		{
-			if (!Steps[StepIndex].IsValid())
+			if (ensure(Steps[StepIndex].IsValid()))
 			{
-				continue;
-			}
+				FFrontendQueryStep& Step = *Steps[StepIndex];
 
-			Steps[StepIndex]->ExecuteStep(OutSelection);
+				IncrementalResultState = Step.Increment(IncrementalResult);
+
+				const bool bMergeIncrementalResults = Step.IsMergeRequiredForIncremental() && (EResultModificationState::Modified == IncrementalResultState);
+
+				if (bMergeIncrementalResults)
+				{
+					const bool bIsResultCacheEmpty = StepResultCache[StepIndex].GetSelection().Num() == 0;
+
+					if (bIsResultCacheEmpty)
+					{
+						// If the prior result for this step is empty, we can continue
+						// using the incremental path.
+						StepResultCache[StepIndex] = IncrementalResult;
+					}
+					else
+					{
+						Step.Merge(IncrementalResult, StepResultCache[StepIndex]);
+
+						*Result = StepResultCache[StepIndex];
+
+						// After results are merged, downstream steps can no longer 
+						// work on incremental data. Run downstream steps on full
+						// result set.
+						ExecuteSteps(StepIndex + 1);
+						return;
+					}
+				}
+			}
+		}
+
+		if (Steps.Num() > 0)
+		{
+			if (ensure(Steps.Last().IsValid()))
+			{
+				FFrontendQueryStep& Step = *Steps.Last();
+				if (EResultModificationState::Modified == IncrementalResultState)
+				{
+					// If all incremental steps are performed and result is modified,
+					// merge the incremental result with the output result.
+					Step.Merge(IncrementalResult, *Result);
+				}
+			}
+		}
+	}
+
+	void FFrontendQuery::ExecuteSteps(int32 InStartStepIndex)
+	{
+		for (int32 StepIndex = InStartStepIndex; StepIndex < Steps.Num(); StepIndex++)
+		{
+			if (ensure(Steps[StepIndex].IsValid()))
+			{
+				FFrontendQueryStep& Step = *Steps[StepIndex];
+
+				EResultModificationState ExecuteResultState = Step.Execute(*Result);
+
+				const bool bNeedsStepResultCached = (EResultModificationState::Modified == ExecuteResultState) && Step.IsMergeRequiredForIncremental();
+				if (bNeedsStepResultCached)
+				{
+					StepResultCache[StepIndex] = *Result;
+				}
+			}
 		}
 	}
 }

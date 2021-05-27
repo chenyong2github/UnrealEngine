@@ -18,6 +18,7 @@
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundLiteral.h"
 #include "MetasoundUObjectRegistry.h"
 #include "Modules/ModuleManager.h"
@@ -609,26 +610,17 @@ namespace Metasound
 
 			else if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(&InGraphNode))
 			{
-				FFrontendQuery Query;
-				const FFrontendQuerySelectionView Result = Query
-					.AddStep<FGenerateAllAvailableNodeClasses>()
-					.AddStep<FFilterClassesByClassName>(ExternalNode->ClassName)
-					.ExecuteQuery();
-
-				TArrayView<const FFrontendQueryEntry* const> Selection = Result.GetSelection();
-				if (ensure(!Selection.IsEmpty()))
+				FMetasoundFrontendClass FrontendClass;
+				bool bDidFindClassWithName = ISearchEngine::Get().FindClassWithHighestVersion(ExternalNode->ClassName.ToNodeClassName(), FrontendClass);
+				if (ensure(bDidFindClassWithName))
 				{
-					const FMetasoundFrontendClass* FrontendClass = Selection[0]->Value.TryGet<FMetasoundFrontendClass>();
-					if (ensure(FrontendClass))
-					{
-						FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
-						check(MetasoundAsset);
+					FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
+					check(MetasoundAsset);
 
-						Frontend::FNodeHandle NewNode = MetasoundAsset->GetRootGraphHandle()->AddNode(FrontendClass->Metadata);
-						ExternalNode->SetNodeID(NewNode->GetID());
+					Frontend::FNodeHandle NewNode = MetasoundAsset->GetRootGraphHandle()->AddNode(FrontendClass.Metadata);
+					ExternalNode->SetNodeID(NewNode->GetID());
 
-						NodeHandle = NewNode;
-					}
+					NodeHandle = NewNode;
 				}
 			}
 
