@@ -240,6 +240,17 @@ void UNiagaraParameterCollectionInstance::SetOverridesParameter(const FNiagaraVa
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraParameterCollectionInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraParameterCollectionInstance, Collection))
+	{
+		SetParent(Collection);
+	}
+}
+#endif
 //Blueprint Accessors
 bool UNiagaraParameterCollectionInstance::GetBoolParameter(const FString& InVariableName)
 {

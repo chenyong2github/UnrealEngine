@@ -69,6 +69,11 @@ private:
 	//UPROPERTY()
 	//TMap<FString, FNiagaraParameterStore>
 
+	//~UObject interface
+#if WITH_EDITORONLY_DATA
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)override;
+#endif
+	//~UObject interface
 public:
 	//Accessors from Blueprint. For now just exposing common types but ideally we can expose any somehow in future.
 	
