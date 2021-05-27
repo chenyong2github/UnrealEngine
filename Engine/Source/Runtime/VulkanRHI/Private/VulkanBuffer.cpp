@@ -437,7 +437,14 @@ void FVulkanResourceMultiBuffer::Unlock(bool bFromRenderingThread)
 void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
 {
 	FRHIBuffer::Swap(Other);
-	::Swap(*this, Other);
+	
+	::Swap(UEUsage, Other.UEUsage);
+	::Swap(BufferUsageFlags, Other.BufferUsageFlags);
+	::Swap(NumBuffers, Other.NumBuffers);
+	::Swap(DynamicBufferIndex, Other.DynamicBufferIndex);
+	::Swap(Buffers, Other.Buffers);
+	::Swap(Current, Other.Current);
+	::Swap(VolatileLockInfo, Other.VolatileLockInfo);
 }
 
 FBufferRHIRef FVulkanDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
