@@ -25,10 +25,6 @@ public:
 	UPROPERTY()
 	bool bShowHiddenPropertiesWhilePlaying { false };
 
-	/** Show only whitelisted properties. */
-	UPROPERTY()
-	bool bShowOnlyWhitelisted { false };
-
 	/** Show all category children if the category matches the filter. */
 	UPROPERTY()
 	bool bShowAllChildrenIfCategoryMatches { false };
