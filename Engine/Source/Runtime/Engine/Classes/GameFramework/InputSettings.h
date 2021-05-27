@@ -113,7 +113,7 @@ private:
 	UPROPERTY(config, EditAnywhere, Category="Bindings")
 	TArray<struct FInputAxisKeyMapping> AxisMappings;
 
-	/** List of Axis Mappings */
+	/** List of Speech Mappings */
 	UPROPERTY(config, EditAnywhere, Category = "Bindings")
 	TArray<struct FInputActionSpeechMapping> SpeechMappings;
 
