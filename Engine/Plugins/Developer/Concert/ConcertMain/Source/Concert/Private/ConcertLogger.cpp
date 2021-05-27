@@ -517,7 +517,7 @@ void FConcertLogger::InternalStartLogging()
 	CSVArchive = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*CSVFilename, EFileWrite::FILEWRITE_AllowRead));
 	if (CSVArchive)
 	{
-		UTF8CHAR UTF8BOM[] = { 0xEF, 0xBB, 0xBF };
+		UTF8CHAR UTF8BOM[] = { (UTF8CHAR)0xEF, (UTF8CHAR)0xBB, (UTF8CHAR)0xBF };
 		CSVArchive->Serialize(&UTF8BOM, UE_ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR));
 	}
 	LogHeader();
