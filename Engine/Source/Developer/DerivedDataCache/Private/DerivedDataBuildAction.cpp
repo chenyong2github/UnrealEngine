@@ -66,8 +66,8 @@ private:
 	{
 		const uint32 KeyHash = GetTypeHash(Key);
 		checkf(!Key.IsEmpty(), TEXT("Empty key used in action for build of '%s' by %s."), *Name, *Function);
-		checkf(!Inputs.ContainsByHash(KeyHash, Key), TEXT("Duplicate key '%.*s' used in action for "),
-			TEXT("build of '%s' by %s."), Key.Len(), Key.GetData(), *Name, *Function);
+		checkf(!Inputs.ContainsByHash(KeyHash, Key), TEXT("Duplicate key '%.*s' used in action ")
+			TEXT("for build of '%s' by %s."), Key.Len(), Key.GetData(), *Name, *Function);
 		Inputs.EmplaceByHash(KeyHash, Key, InputType(TInPlaceType<ValueType>(), Value));
 	}
 };
