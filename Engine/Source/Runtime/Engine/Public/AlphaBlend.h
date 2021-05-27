@@ -52,6 +52,7 @@ struct ENGINE_API FAlphaBlendArgs
 	GENERATED_BODY()
 
 	FAlphaBlendArgs();
+	FAlphaBlendArgs(float InBlendTime);
 	FAlphaBlendArgs(const struct FAlphaBlend& InAlphaBlend);
 
 	/** If you're using Custom BlendOption, you can specify curve */

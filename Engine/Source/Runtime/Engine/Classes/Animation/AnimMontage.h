@@ -299,6 +299,8 @@ struct ENGINE_API FMontageBlendSettings
 	GENERATED_BODY()
 
 	FMontageBlendSettings();
+	FMontageBlendSettings(float BlendTime);
+	FMontageBlendSettings(const FAlphaBlendArgs& BlendArgs);
 
 	/** Blend Profile to use for this blend */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta = (DisplayAfter = "Blend"))
@@ -928,6 +930,10 @@ public:
 
 	/** Utility function to create dynamic montage from AnimSequence */
 	ENGINE_API static UAnimMontage* CreateSlotAnimationAsDynamicMontage(UAnimSequenceBase* Asset, FName SlotNodeName, float BlendInTime = 0.25f, float BlendOutTime = 0.25f, float InPlayRate = 1.f, int32 LoopCount = 1, float BlendOutTriggerTime = -1.f, float InTimeToStartMontageAt = 0.f);
+
+	/** Utility function to create dynamic montage from AnimSequence with blend in settings */
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	static ENGINE_API UAnimMontage* CreateSlotAnimationAsDynamicMontage_WithBlendSettings(UAnimSequenceBase* Asset, FName SlotNodeName, const FMontageBlendSettings& BlendInSettings, const FMontageBlendSettings& BlendOutSettings, float InPlayRate = 1.f, int32 LoopCount = 1, float InBlendOutTriggerTime = -1.f);
 
 	//~Begin Time Stretch Curve
 public:
