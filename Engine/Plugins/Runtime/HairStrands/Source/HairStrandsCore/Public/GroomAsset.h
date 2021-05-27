@@ -150,21 +150,22 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			return Total;
 		}
 
-		uint32 GetDataSize() const
+		uint32 GetDataSize() const;
+#if 0
 		{
 			uint32 Total = 0;
 			Total += FBaseWithInterpolation::GetDataSize();
 
-			Total += ClusterCullingData.LODVisibility.GetAllocatedSize();
-			Total += ClusterCullingData.CPULODScreenSize.GetAllocatedSize();
-			Total += ClusterCullingData.ClusterInfos.GetAllocatedSize();
-			Total += ClusterCullingData.ClusterLODInfos.GetAllocatedSize();
-			Total += ClusterCullingData.VertexToClusterIds.GetAllocatedSize();
-			Total += ClusterCullingData.ClusterVertexIds.GetAllocatedSize();
+			Total += ClusterCullingBulkData.LODVisibility.GetAllocatedSize();
+			Total += ClusterCullingBulkData.CPULODScreenSize.GetAllocatedSize();
+			Total += ClusterCullingBulkData.ClusterInfos.IsBulkDataLoaded()			? ClusterCullingBulkData.ClusterInfos.GetBulkDataSize() : 0;
+			Total += ClusterCullingBulkData.ClusterLODInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.ClusterLODInfos.GetBulkDataSize() : 0;
+			Total += ClusterCullingBulkData.VertexToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.VertexToClusterIds.GetBulkDataSize() : 0;
+			Total += ClusterCullingBulkData.ClusterVertexIds.IsBulkDataLoaded()		? ClusterCullingBulkData.ClusterVertexIds.GetBulkDataSize() : 0;
 			return Total;
 		}
-
-		FHairStrandsClusterCullingData		ClusterCullingData;
+#endif
+		FHairStrandsClusterCullingBulkData	ClusterCullingBulkData;
 		FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
 
 		#if RHI_RAYTRACING

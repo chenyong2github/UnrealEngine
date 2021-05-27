@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2j");
+	return TEXT("2m");
 }
 
 namespace FHairStrandsDecimation
@@ -1955,13 +1955,15 @@ void Decimate(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Cluster culling data
 
+namespace GroomBuilder_Cluster
+{
 struct FClusterGrid
 {
 	struct FCurve
 	{
 		FCurve()
 		{
-			for (uint8 LODIt = 0; LODIt < FHairStrandsClusterCullingData::MaxLOD; ++LODIt)
+			for (uint8 LODIt = 0; LODIt < FHairClusterInfo::MaxLOD; ++LODIt)
 			{
 				CountPerLOD[LODIt] = 0;
 			}
@@ -1971,7 +1973,7 @@ struct FClusterGrid
 		float Area = 0;
 		float AvgRadius = 0;
 		float MaxRadius = 0;
-		uint32 CountPerLOD[FHairStrandsClusterCullingData::MaxLOD];
+		uint32 CountPerLOD[FHairClusterInfo::MaxLOD];
 	};
 
 	struct FCluster
@@ -2082,7 +2084,7 @@ static void DecimateCurve(
 	}
 
 	const uint32 LODCount = Settings.Num();
-	check(LODCount <= FHairStrandsClusterCullingData::MaxLOD);
+	check(LODCount <= FHairClusterInfo::MaxLOD);
 
 	for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
 	{
@@ -2152,7 +2154,7 @@ inline uint32 to10Bits(float V)
 	return FMath::Clamp(uint32(V * 1024), 0u, 1023u);
 }
 
-void FGroomBuilder::BuildClusterData(
+static void BuildClusterData(
 	const FHairStrandsDatas& InRenStrandsData,
 	const float InGroomAssetRadius, 
 	const FHairGroupsLOD& InSettings, 
@@ -2161,7 +2163,7 @@ void FGroomBuilder::BuildClusterData(
 	// 0. Rest existing culling data
 	Out.Reset();
 
-	const uint32 LODCount = FMath::Min(uint32(InSettings.LODs.Num()), FHairStrandsClusterCullingData::MaxLOD);
+	const uint32 LODCount = FMath::Min(uint32(InSettings.LODs.Num()), FHairClusterInfo::MaxLOD);
 	check(LODCount > 0);
 
 	const uint32 RenCurveCount = InRenStrandsData.GetNumCurves();
@@ -2244,7 +2246,7 @@ void FGroomBuilder::BuildClusterData(
 		}
 	}
 	Out.ClusterCount = ValidClusterIndices.Num();
-	Out.ClusterInfos.Init(FHairStrandsClusterCullingData::FHairClusterInfo(), Out.ClusterCount);
+	Out.ClusterInfos.Init(FHairClusterInfo(), Out.ClusterCount);
 	Out.VertexToClusterIds.SetNum(Out.VertexCount);
 
 	// Conservative allocation for inserting vertex indices for the various curves LOD
@@ -2257,8 +2259,8 @@ void FGroomBuilder::BuildClusterData(
 	VertexLODMasks.SetNum(InRenStrandsData.GetNumPoints());
 
 	// Local variable for being capture by the lambda
-	TArray<FHairStrandsClusterCullingData::FHairClusterInfo>& LocalClusterInfos = Out.ClusterInfos;
-	TArray<FHairStrandsClusterCullingData::FHairClusterLODInfo>& LocalClusterLODInfos = Out.ClusterLODInfos;
+	TArray<FHairClusterInfo>& LocalClusterInfos = Out.ClusterInfos;
+	TArray<FHairClusterLODInfo>& LocalClusterLODInfos = Out.ClusterLODInfos;
 	TArray<uint32>& LocalVertexToClusterIds = Out.VertexToClusterIds;
 #define USE_PARALLE_FOR 1
 #if USE_PARALLE_FOR
@@ -2402,12 +2404,12 @@ void FGroomBuilder::BuildClusterData(
 		TArray<uint32> LocalClusterVertexIds;
 		LocalClusterVertexIds.Reserve(LODCount * Cluster.ClusterCurves.Num() * 32); // Guestimate pre-allocation (32 points per curve in average)
 
-		FHairStrandsClusterCullingData::FHairClusterInfo& ClusterInfo = LocalClusterInfos[ClusterIt];
+		FHairClusterInfo& ClusterInfo = LocalClusterInfos[ClusterIt];
 		ClusterInfo.LODCount = LODCount;
 		ClusterInfo.LODInfoOffset = LODCount * ClusterIt;
 		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
-			FHairStrandsClusterCullingData::FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
+			FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
 			ClusterLODInfo.VertexOffset = LocalClusterVertexIds.Num(); // At the end, it will be the offset at which the data are inserted into ClusterVertexIds
 			ClusterLODInfo.VertexCount0 = 0;
 			ClusterLODInfo.VertexCount1 = 0;
@@ -2449,7 +2451,7 @@ void FGroomBuilder::BuildClusterData(
 		FMemory::Memcpy(RawClusterVertexIds + AllocOffset, LocalClusterVertexIds.GetData(), LocalClusterVertexIds.Num() * sizeof(uint32));
 		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
-			FHairStrandsClusterCullingData::FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
+			FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
 			ClusterLODInfo.VertexOffset += AllocOffset;
 		}
 
@@ -2498,7 +2500,7 @@ void FGroomBuilder::BuildClusterData(
 
 			ClusterInfo.ScreenSize[LODIt] = InSettings.LODs[LODIt].ScreenSize * ScreenSizeScale;
 			ClusterInfo.bIsVisible[LODIt] = InSettings.LODs[LODIt].bVisible;
-			FHairStrandsClusterCullingData::FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
+			FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
 			ClusterLODInfo.RadiusScale0 = LODScale;
 			ClusterLODInfo.RadiusScale1 = LODScale;
 		}
@@ -2506,8 +2508,8 @@ void FGroomBuilder::BuildClusterData(
 		// Fill in transition radius between LOD to insure that the interpolation is continuous
 		for (uint8 LODIt = 0; LODIt < LODCount - 1; ++LODIt)
 		{
-			FHairStrandsClusterCullingData::FHairClusterLODInfo& Curr = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
-			FHairStrandsClusterCullingData::FHairClusterLODInfo& Next = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt + 1];
+			FHairClusterLODInfo& Curr = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
+			FHairClusterLODInfo& Next = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt + 1];
 			Curr.RadiusScale1 = Next.RadiusScale0;
 		}
 	}
@@ -2528,16 +2530,40 @@ void FGroomBuilder::BuildClusterData(
 	FMemory::Memcpy(Out.ClusterVertexIds.GetData(), RawClusterVertexIds, RawClusterVertexCount * sizeof(uint32));
 
 	delete[] RawClusterVertexIds;
+}
+
+static void BuildClusterBulkData(
+	const FHairStrandsClusterCullingData& In,
+	FHairStrandsClusterCullingBulkData& Out)
+{
+	Out.ClusterCount	= In.ClusterCount;
+	Out.VertexCount		= In.VertexCount;
+	Out.VertexLODCount	= In.ClusterVertexIds.Num();
+	Out.ClusterLODCount = In.ClusterLODInfos.Num();
+
+	Out.CPULODScreenSize= In.CPULODScreenSize;
+	Out.LODVisibility	= In.LODVisibility;
+
+	// Sanity check
+	check(Out.ClusterCount			== uint32(In.ClusterInfos.Num()));
+	check(Out.ClusterLODCount		== uint32(In.ClusterLODInfos.Num()));
+	check(Out.VertexCount			== uint32(In.VertexToClusterIds.Num()));
+	check(Out.VertexLODCount		== uint32(In.ClusterVertexIds.Num()));
+	
+	HairStrandsBuilder::CopyToBulkData<FHairClusterLODInfoFormat>(Out.ClusterLODInfos, In.ClusterLODInfos);
+	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.VertexToClusterIds, In.VertexToClusterIds);
+	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.ClusterVertexIds, In.ClusterVertexIds);
 
 	// Pack LODInfo into GPU format
 	{
-		check(uint32(Out.ClusterInfos.Num()) == Out.ClusterCount);
-		check(uint32(Out.VertexToClusterIds.Num()) == Out.VertexCount);
-		
-		Out.PackedClusterInfos.Reserve(Out.ClusterInfos.Num());
-		for (const FHairStrandsClusterCullingData::FHairClusterInfo& Info : Out.ClusterInfos)
+		check(uint32(In.ClusterInfos.Num()) == Out.ClusterCount);
+		check(uint32(In.VertexToClusterIds.Num()) == Out.VertexCount);
+	
+		TArray<FHairClusterInfo::Packed> PackedClusterInfos;
+		PackedClusterInfos.Reserve(In.ClusterInfos.Num());
+		for (const FHairClusterInfo& Info : In.ClusterInfos)
 		{
-			FHairStrandsClusterCullingData::FHairClusterInfo::Packed& PackedInfo = Out.PackedClusterInfos.AddDefaulted_GetRef();
+			FHairClusterInfo::Packed& PackedInfo = PackedClusterInfos.AddDefaulted_GetRef();
 			PackedInfo.LODCount = FMath::Clamp(Info.LODCount, 0u, 0xFFu);
 			PackedInfo.LODInfoOffset = FMath::Clamp(Info.LODInfoOffset, 0u, (1u << 24u) - 1u);
 			PackedInfo.LOD_ScreenSize_0 = to10Bits(Info.ScreenSize[0]);
@@ -2549,7 +2575,7 @@ void FGroomBuilder::BuildClusterData(
 			PackedInfo.LOD_ScreenSize_6 = to10Bits(Info.ScreenSize[6]);
 			PackedInfo.LOD_ScreenSize_7 = to10Bits(Info.ScreenSize[7]);
 			PackedInfo.LOD_bIsVisible = 0;
-			for (uint32 LODIt = 0; LODIt < FHairStrandsClusterCullingData::MaxLOD; ++LODIt)
+			for (uint32 LODIt = 0; LODIt < FHairClusterInfo::MaxLOD; ++LODIt)
 			{
 				if (Info.bIsVisible[LODIt])
 				{
@@ -2561,7 +2587,22 @@ void FGroomBuilder::BuildClusterData(
 			PackedInfo.Pad1 = 0;
 			PackedInfo.Pad2 = 0;
 		}
+
+		HairStrandsBuilder::CopyToBulkData<FHairClusterInfoFormat>(Out.PackedClusterInfos, PackedClusterInfos);
 	}
+}
+
+} // namespace GroomBuilder_Cluster
+
+void FGroomBuilder::BuildClusterBulkData(
+	const FHairStrandsDatas& InRenStrandsData,
+	const float InGroomAssetRadius,
+	const FHairGroupsLOD& InSettings,
+	FHairStrandsClusterCullingBulkData& Out)
+{
+	FHairStrandsClusterCullingData ClusterData;
+	GroomBuilder_Cluster::BuildClusterData(InRenStrandsData, InGroomAssetRadius, InSettings, ClusterData);
+	GroomBuilder_Cluster::BuildClusterBulkData(ClusterData, Out);
 }
 
 #undef LOCTEXT_NAMESPACE

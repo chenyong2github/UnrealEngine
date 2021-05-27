@@ -116,7 +116,7 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 					FGroomBuilder::BuildInterplationData(HairGroup.Info, StrandsData, GuidesData, GroomAssetForCache->HairGroupsInterpolation[GroupIndex].InterpolationSettings, InterpolationData);
 					FGroomBuilder::BuildInterplationBulkData(GuidesData, InterpolationData, HairGroupsData[GroupIndex].Strands.InterpolationBulkData);
 
-					FGroomBuilder::BuildClusterData(StrandsData, HairDescriptionGroups.BoundRadius, GroomAssetForCache->HairGroupsLOD[GroupIndex], HairGroupsData[GroupIndex].Strands.ClusterCullingData);
+					FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.BoundRadius, GroomAssetForCache->HairGroupsLOD[GroupIndex], HairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
 				}
 
 				// The HairGroupData is converted into animated groom data by the GroomCacheProcessor

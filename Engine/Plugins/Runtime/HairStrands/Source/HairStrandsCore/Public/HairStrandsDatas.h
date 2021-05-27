@@ -622,66 +622,88 @@ struct FHairStrandsRootData
 	TArray<FMeshProjectionLOD> MeshProjectionLODs;
 };
 
+
+/* Structure describing the LOD settings (Screen size, vertex info, ...) for each clusters.
+	The packed version of this structure corresponds to the GPU data layout (HairStrandsClusterCommon.ush)
+	This uses by the GPU LOD selection. */
+struct FHairClusterInfo
+{
+	static const uint32 MaxLOD = 8;
+
+	struct Packed
+	{
+		uint32 LODInfoOffset : 24;
+		uint32 LODCount : 8;
+
+		uint32 LOD_ScreenSize_0 : 10;
+		uint32 LOD_ScreenSize_1 : 10;
+		uint32 LOD_ScreenSize_2 : 10;
+		uint32 Pad0 : 2;
+
+		uint32 LOD_ScreenSize_3 : 10;
+		uint32 LOD_ScreenSize_4 : 10;
+		uint32 LOD_ScreenSize_5 : 10;
+		uint32 Pad1 : 2;
+
+		uint32 LOD_ScreenSize_6 : 10;
+		uint32 LOD_ScreenSize_7 : 10;
+		uint32 LOD_bIsVisible : 8;
+		uint32 Pad2 : 4;
+	};
+
+	FHairClusterInfo()
+	{
+		for (uint32 LODIt = 0; LODIt < MaxLOD; ++LODIt)
+		{
+			ScreenSize[LODIt] = 0;
+			bIsVisible[LODIt] = true;
+		}
+	}
+
+	uint32 LODCount = 0;
+	uint32 LODInfoOffset = 0;
+	TStaticArray<float,MaxLOD> ScreenSize;
+	TStaticArray<bool, MaxLOD> bIsVisible;
+};
+
+/* Structure describing the LOD settings common to all clusters. The layout of this structure is
+	identical the GPU data layout (HairStrandsClusterCommon.ush). This uses by the GPU LOD selection. */
+struct FHairClusterLODInfo
+{
+	uint32 VertexOffset = 0;
+	uint32 VertexCount0 = 0;
+	uint32 VertexCount1 = 0;
+	FFloat16 RadiusScale0 = 0;
+	FFloat16 RadiusScale1 = 0;
+};
+
+struct FHairClusterInfoFormat
+{
+	typedef FHairClusterInfo::Packed Type;
+	typedef FHairClusterInfo::Packed BulkType;
+	static const uint32 SizeInByte = sizeof(Type);
+};
+
+struct FHairClusterLODInfoFormat
+{
+	typedef FHairClusterLODInfo Type;
+	typedef FHairClusterLODInfo BulkType;
+	static const uint32 SizeInByte = sizeof(Type);
+};
+
+struct FHairClusterIndexFormat
+{
+	typedef uint32 Type;
+	typedef uint32 BulkType;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EPixelFormat Format = PF_R32_UINT;
+};
+
 struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 {
 	FHairStrandsClusterCullingData();
 	void Reset();
-	void Serialize(FArchive& Ar);
 	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
-
-	static const uint32 MaxLOD = 8;
-
-	/* Structure describing the LOD settings (Screen size, vertex info, ...) for each clusters.
-		The packed version of this structure corresponds to the GPU data layout (HairStrandsClusterCommon.ush)
-		This uses by the GPU LOD selection. */
-	struct FHairClusterInfo
-	{
-		struct Packed
-		{
-			uint32 LODInfoOffset : 24;
-			uint32 LODCount : 8;
-
-			uint32 LOD_ScreenSize_0 : 10;
-			uint32 LOD_ScreenSize_1 : 10;
-			uint32 LOD_ScreenSize_2 : 10;
-			uint32 Pad0 : 2;
-
-			uint32 LOD_ScreenSize_3 : 10;
-			uint32 LOD_ScreenSize_4 : 10;
-			uint32 LOD_ScreenSize_5 : 10;
-			uint32 Pad1 : 2;
-
-			uint32 LOD_ScreenSize_6 : 10;
-			uint32 LOD_ScreenSize_7 : 10;
-			uint32 LOD_bIsVisible : 8;
-			uint32 Pad2 : 4;
-		};
-
-		FHairClusterInfo()
-		{
-			for (uint32 LODIt = 0; LODIt < MaxLOD; ++LODIt)
-			{
-				ScreenSize[LODIt] = 0;
-				bIsVisible[LODIt] = true;
-			}
-		}
-
-		uint32 LODCount = 0;
-		uint32 LODInfoOffset = 0;
-		TStaticArray<float, MaxLOD>  ScreenSize;
-		TStaticArray<bool, MaxLOD>   bIsVisible;
-	};
-
-	/* Structure describing the LOD settings common to all clusters. The layout of this structure is
-		identical the GPU data layout (HairStrandsClusterCommon.ush). This uses by the GPU LOD selection. */
-	struct FHairClusterLODInfo
-	{
-		uint32 VertexOffset = 0;
-		uint32 VertexCount0 = 0;
-		uint32 VertexCount1 = 0;
-		FFloat16 RadiusScale0 = 0;
-		FFloat16 RadiusScale1 = 0;
-	};
 
 	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
 	TArray<bool>				LODVisibility;
@@ -695,12 +717,35 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 	TArray<uint32>				VertexToClusterIds;
 	TArray<uint32>				ClusterVertexIds;
 
-	/* Packed LOD info packed into GPU format */
-	TArray<FHairClusterInfo::Packed> PackedClusterInfos;
-
 	/* Number of cluster  */
 	uint32 ClusterCount = 0;
 
 	/* Number of vertex  */
 	uint32 VertexCount = 0;
 };
+
+struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData
+{
+	FHairStrandsClusterCullingBulkData();
+	void Reset();
+	void Serialize(FArchive& Ar, UObject* Owner);
+	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
+
+	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
+	TArray<bool>	LODVisibility;
+
+	/* Screen size at which LOD should switches on CPU */
+	TArray<float>	CPULODScreenSize;
+
+	/* LOD info for the various clusters for LOD management on GPU */
+	FByteBulkData	PackedClusterInfos;		// Size - ClusterCount
+	FByteBulkData	ClusterLODInfos;		// Size - ClusterLODCount
+	FByteBulkData	VertexToClusterIds;		// Size - VertexCount
+	FByteBulkData	ClusterVertexIds;		// Size - VertexLODCount
+
+	uint32 ClusterCount = 0;
+	uint32 ClusterLODCount = 0;
+	uint32 VertexCount = 0;
+	uint32 VertexLODCount = 0;
+};
+
