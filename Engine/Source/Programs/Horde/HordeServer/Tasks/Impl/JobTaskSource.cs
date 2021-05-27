@@ -1038,7 +1038,7 @@ namespace HordeServer.Tasks.Impl
 				{
 					if (Batch.Error != JobStepBatchError.None)
 					{
-						Logger.LogError("Failed job {JobId}, batch {BatchId} with error {Error}", Job.Id, Batch.Id, Batch.Error);
+						Logger.LogInformation("Failed job {JobId}, batch {BatchId} with error {Error}", Job.Id, Batch.Id, Batch.Error);
 					}
 					if (RunningStepIdx != -1)
 					{
