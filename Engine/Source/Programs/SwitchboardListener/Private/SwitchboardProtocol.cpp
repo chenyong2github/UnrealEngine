@@ -200,11 +200,25 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		TSharedPtr<FJsonValue> DestinationField = TryGetCommandRequiredField(JsonData, TEXT("destination"));
 		TSharedPtr<FJsonValue> FileContentField = TryGetCommandRequiredField(JsonData, TEXT("content"));
 		
-		if (DestinationField.IsValid() && FileContentField.IsValid())
+		if (!DestinationField || !FileContentField)
 		{
-			OutTask = MakeUnique<FSwitchboardReceiveFileFromClientTask>(MessageID, InEndpoint, DestinationField->AsString(), FileContentField->AsString());
-			return true;
+			return false;
 		}
+
+		TUniquePtr<FSwitchboardReceiveFileFromClientTask> Task = MakeUnique<FSwitchboardReceiveFileFromClientTask>(
+			MessageID,
+			InEndpoint,
+			DestinationField->AsString(),
+			FileContentField->AsString()
+		);
+
+		if (TSharedPtr<FJsonValue> ForceOverwriteField = JsonData->TryGetField(TEXT("force_overwrite")))
+		{
+			ForceOverwriteField->TryGetBool(Task->bForceOverwrite);
+		}
+
+		OutTask = MoveTemp(Task);
+		return true;
 	}
 	else if (CommandName == TEXT("receive file"))
 	{

@@ -1,22 +1,26 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-from switchboard import message_protocol
-from switchboard import switchboard_utils as sb_utils
-from switchboard.config import CONFIG, Setting, SETTINGS
-from switchboard.devices.device_base import Device
-from switchboard.devices.device_widget_base import AddDeviceDialog
-from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, DeviceWidgetUnreal
-from switchboard.switchboard_logging import LOGGER
-from switchboard.devices.unreal.uassetparser import UassetParser
-
-from .ndisplay_monitor_ui import nDisplayMonitorUI
-from .ndisplay_monitor    import nDisplayMonitor
+import concurrent.futures
+import os
+import json
+import socket
+import struct
+import traceback
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 from PySide2 import QtWidgets, QtCore
 
-import os, traceback, json, socket, struct, fnmatch
-from pathlib import Path
-import concurrent.futures
+from switchboard import message_protocol
+from switchboard import switchboard_utils as sb_utils
+from switchboard.config import CONFIG, Setting, SETTINGS
+from switchboard.devices.device_widget_base import AddDeviceDialog
+from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, DeviceWidgetUnreal
+from switchboard.devices.unreal.uassetparser import UassetParser
+from switchboard.switchboard_logging import LOGGER
+
+from .ndisplay_monitor_ui import nDisplayMonitorUI
+from .ndisplay_monitor    import nDisplayMonitor
 
 
 class AddnDisplayDialog(AddDeviceDialog):
@@ -213,7 +217,7 @@ class AddnDisplayDialog(AddDeviceDialog):
     def devices_to_add(self):
         cfg_file = self.current_config_path()
         try:
-            devices = DevicenDisplay.parse_config(cfg_file)
+            (devices, _) = DevicenDisplay.parse_config(cfg_file)
             if len(devices) == 0:
                 LOGGER.error(f"Could not read any devices from nDisplay config file {cfg_file}")
             return devices
@@ -233,31 +237,31 @@ class DevicenDisplay(DeviceUnreal):
     
     csettings = {
         'ndisplay_config_file': Setting(
-            attr_name="ndisplay_cfg_file", 
-            nice_name="nDisplay Config File", 
-            value="", 
+            attr_name="ndisplay_cfg_file",
+            nice_name="nDisplay Config File",
+            value="",
             tool_tip="Path to nDisplay config file"
         ),
         'use_all_available_cores': Setting(
-            attr_name="use_all_available_cores", 
-            nice_name="Use All Available Cores", 
+            attr_name="use_all_available_cores",
+            nice_name="Use All Available Cores",
             value=False,
         ),
         'texture_streaming': Setting(
-            attr_name="texture_streaming", 
-            nice_name="Texture Streaming", 
+            attr_name="texture_streaming",
+            nice_name="Texture Streaming",
             value=True,
         ),
         'render_api': Setting(
-            attr_name="render_api", 
-            nice_name="Render API", 
-            value="dx12", 
+            attr_name="render_api",
+            nice_name="Render API",
+            value="dx12",
             possible_values=["dx11", "dx12"],
         ),
         'render_mode': Setting(
-            attr_name="render_mode", 
-            nice_name="Render Mode", 
-            value="Mono", 
+            attr_name="render_mode",
+            nice_name="Render Mode",
+            value="Mono",
             possible_values=["Mono", "Frame sequential", "Side-by-Side", "Top-bottom"]
         ),
         'executable_filename': Setting(
@@ -266,14 +270,14 @@ class DevicenDisplay(DeviceUnreal):
             value="UE4Editor.exe",
         ),
         'ndisplay_cmd_args': Setting(
-            attr_name="ndisplay_cmd_args", 
-            nice_name="Extra Cmd Line Args", 
+            attr_name="ndisplay_cmd_args",
+            nice_name="Extra Cmd Line Args",
             value="",
         ),
         'ndisplay_exec_cmds': Setting(
-            attr_name="ndisplay_exec_cmds", 
-            nice_name='ExecCmds', 
-            value="", 
+            attr_name="ndisplay_exec_cmds",
+            nice_name='ExecCmds',
+            value="",
             tool_tip=f'ExecCmds to be passed. No need for outer double quotes.',
         ),
         'ndisplay_dp_cvars': Setting(
@@ -283,7 +287,7 @@ class DevicenDisplay(DeviceUnreal):
             tool_tip="Device profile console variables (comma separated)."
         ),
         'max_gpu_count': Setting(
-            attr_name="max_gpu_count", 
+            attr_name="max_gpu_count",
             nice_name="Number of GPUs",
             value=2,
             possible_values=list(range(1, 17)),
@@ -313,36 +317,41 @@ class DevicenDisplay(DeviceUnreal):
 
         self.settings = {
             'ue_command_line': Setting(
-                attr_name="ue_command_line", 
-                nice_name="UE Command Line", 
-                value=kwargs.get("ue_command_line", ''), 
+                attr_name="ue_command_line",
+                nice_name="UE Command Line",
+                value=kwargs.get("ue_command_line", ''),
                 show_ui=True
             ),
             'window_position': Setting(
-                attr_name="window_position", 
-                nice_name="Window Position", 
-                value=tuple(kwargs.get("window_position", (0,0))), 
+                attr_name="window_position",
+                nice_name="Window Position",
+                value=tuple(kwargs.get("window_position", (0,0))),
                 show_ui=False
             ),
             'window_resolution': Setting(
-                attr_name="window_resolution", 
-                nice_name="Window Resolution", 
-                value=tuple(kwargs.get("window_resolution", (100,100))), show_ui=False
+                attr_name="window_resolution",
+                nice_name="Window Resolution",
+                value=tuple(kwargs.get("window_resolution", (100,100))),
+                show_ui=False
             ),
             'fullscreen': Setting(
-                attr_name="fullscreen", 
-                nice_name="fullscreen", 
-                value=kwargs.get("fullscreen", False), show_ui=False
+                attr_name="fullscreen",
+                nice_name="fullscreen",
+                value=kwargs.get("fullscreen", False),
+                show_ui=False
             ),
         }
 
         self.render_mode_cmdline_opts = {
-            "Mono"            : "-dc_dev_mono", 
-            "Frame sequential": "-quad_buffer_stereo", 
-            "Side-by-Side"    : "-dc_dev_side_by_side", 
+            "Mono"            : "-dc_dev_mono",
+            "Frame sequential": "-quad_buffer_stereo",
+            "Side-by-Side"    : "-dc_dev_side_by_side",
             "Top-bottom"      : "-dc_dev_top_bottom"
         }
 
+        self.pending_transfer_cfg = False
+        self.pending_transfer_uasset = False
+        self.bp_object_path: Optional[str] = None
         self.path_to_config_on_host = DevicenDisplay.csettings['ndisplay_config_file'].get_value()
 
         if len(self.settings['ue_command_line'].get_value()) == 0:
@@ -357,7 +366,7 @@ class DevicenDisplay(DeviceUnreal):
         for csetting in self.__class__.plugin_settings():
             csetting.signal_setting_changed.connect(self.on_change_setting_affecting_command_line)
 
-        self.unreal_client.send_file_completed_delegate = self.on_ndisplay_config_transfer_complete
+        self.unreal_client.send_file_completed_delegate = self.on_send_file_completed
         self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
         self.unreal_client.delegates['refresh mosaics'] = self.on_refresh_mosaics
 
@@ -500,7 +509,7 @@ class DevicenDisplay(DeviceUnreal):
             f'{additional_args}',              # specified in settings
             f'{vproles}',                      # VP roles for this instance
             f'{friendly_name}',                # Stage Friendly Name
-            f'{session_id}',                   # Session ID. 
+            f'{session_id}',                   # Session ID.
             f'{max_gpu_count}',                # Max GPU count (mGPU)
             f'{dp_cvars}',                     # Device profile CVars
             f'-dc_cfg="{cfg_file}"',           # nDisplay config file
@@ -558,10 +567,21 @@ class DevicenDisplay(DeviceUnreal):
 
         return path_to_exe, args_expanded
 
-    def on_ndisplay_config_transfer_complete(self, destination):
-        LOGGER.info(f"{self.name}: nDisplay config file was successfully transferred to {destination} on host")
-        self.path_to_config_on_host = destination
-        super().launch(map_name=self.map_name_to_launch)
+    def on_send_file_completed(self, destination: str):
+        ext = os.path.splitext(destination)[1].lower()
+        if (ext == '.uasset') and self.pending_transfer_uasset:
+            self.pending_transfer_uasset = False
+            LOGGER.info(f"{self.name}: nDisplay uasset successfully transferred to {destination} on host")
+        elif (ext in ('.ndisplay', '.cfg')) and self.pending_transfer_cfg:
+            self.pending_transfer_cfg = False
+            self.path_to_config_on_host = destination
+            LOGGER.info(f"{self.name}: nDisplay config file successfully transferred to {destination} on host")
+        else:
+            LOGGER.error(f"{self.name}: Unexpected send file completion for {destination}")
+            return
+
+        if not (self.pending_transfer_cfg or self.pending_transfer_uasset):
+            super().launch(map_name=self.map_name_to_launch)
 
     def on_get_sync_status(self, message):
         ''' Called when 'get sync status' is received. '''
@@ -583,10 +603,9 @@ class DevicenDisplay(DeviceUnreal):
                 LOGGER.error(f'"refresh mosaics" command rejected ({message})')
         except KeyError:
             LOGGER.error(f'Error parsing "refresh mosaics" response ({message})')
-            return
 
     @classmethod
-    def extract_configexport_from_uasset(cls, cfg_file):
+    def extract_configexport_from_uasset(cls, cfg_file) -> str:
         ''' Extract the configexport from the config uasset '''
 
         # Initialize uasset parser
@@ -606,17 +625,17 @@ class DevicenDisplay(DeviceUnreal):
         return cls.parse_config_json_string(jsstr)
 
     @classmethod
-    def parse_config_json_string(cls, jsstr):
-        ''' Parses nDisplay config file of type json string '''
+    def parse_config_json_string(cls, jsstr) -> Tuple[List, Optional[str]]:
+        ''' Parses nDisplay config JSON string, returning (nodes, uasset_path) '''
 
         js = json.loads(jsstr)
 
         nodes = []
         cnodes = js['nDisplay']['cluster']['nodes']
         masterNode = js['nDisplay']['cluster']['masterNode']
+        uasset_path = js['nDisplay'].get('assetPath')
 
         for name, cnode in cnodes.items():
-
             kwargs = {"ue_command_line": ""}
 
             winx = int(cnode['window'].get('x', 0))
@@ -638,7 +657,7 @@ class DevicenDisplay(DeviceUnreal):
                 "kwargs": kwargs,
             })
 
-        return nodes
+        return (nodes, uasset_path)
 
     @classmethod
     def parse_config_json(cls, cfg_file):
@@ -735,10 +754,10 @@ class DevicenDisplay(DeviceUnreal):
                 "kwargs": kwargs,
             })
 
-        return nodes
+        return (nodes, None)
 
     @classmethod
-    def parse_config(cls, cfg_file):
+    def parse_config(cls, cfg_file) -> Tuple[List, Optional[str]]:
         ''' Parses an nDisplay file and returns the nodes with the relevant information '''
         ext = os.path.splitext(cfg_file)[1].lower()
 
@@ -754,14 +773,14 @@ class DevicenDisplay(DeviceUnreal):
 
         except Exception as e:
             LOGGER.error(f'Error while parsing nDisplay config file "{cfg_file}": {e}')
-            return []
+            return ([], None)
 
         LOGGER.error(f'Unknown nDisplay config file "{cfg_file}"')
-        return []
+        return ([], None)
 
     def update_settings_controlled_by_config(self, cfg_file):
         ''' Updates settings that are exclusively controlled by the config file '''
-        nodes = self.__class__.parse_config(cfg_file)
+        nodes, self.bp_object_path = self.__class__.parse_config(cfg_file)
 
         # find which node is self:
         try:
@@ -776,12 +795,27 @@ class DevicenDisplay(DeviceUnreal):
         self.settings['window_resolution'].update_value(menode['kwargs'].get("window_resolution", (100,100)))
         self.settings['fullscreen'].update_value(menode['kwargs'].get("fullscreen", False))
 
+    @classmethod
+    def uasset_path_from_object_path(cls, object_path: str, project_dir: str) -> str:
+        ''' Given a full object path, return the package file path, treating "`project_dir`/Content/" as "/Game/". '''
+        expected_root = '/Game/'
+        if not object_path.startswith(expected_root):
+            raise ValueError('Unsupported object path root')
+
+        # If object_path is: /Game/PathA/PathB/Package.Object:SubObject
+        # Then package_rel_path is: PathA/PathB/Package
+        path_end_idx = object_path.rindex('/')
+        package_end_idx = object_path.index('.', path_end_idx)
+        package_rel_path = object_path[len(expected_root):package_end_idx]
+
+        return os.path.normpath(os.path.join(project_dir, 'Content', f'{package_rel_path}.uasset'))
+
     def launch(self, map_name):
         self.map_name_to_launch = map_name
 
         # Update settings controlled exclusively by the nDisplay config file.
+        cfg_file = DevicenDisplay.csettings['ndisplay_config_file'].get_value(self.name)
         try:
-            cfg_file = DevicenDisplay.csettings['ndisplay_config_file'].get_value(self.name)
             self.update_settings_controlled_by_config(cfg_file)
         except:
             LOGGER.error(f"{self.name}: Could not update from '{cfg_file}' before launch. \n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
@@ -789,26 +823,34 @@ class DevicenDisplay(DeviceUnreal):
             return
 
         # Transfer config file
-
         if not os.path.exists(cfg_file):
             LOGGER.error(f"{self.name}: Could not find nDisplay config file at {cfg_file}")
             self.widget._close()
             return
 
-        ext = os.path.splitext(cfg_file)[1]
+        cfg_ext = os.path.splitext(cfg_file)[1].lower()
 
-        # If the config file is a uasset, we send a .ndisplay instead to save bandwidth.
-        if ext.lower() == '.uasset':
-            ext = '.ndisplay'
-            file_content = self.__class__.extract_configexport_from_uasset(cfg_file).encode('utf-8')
+        # If the config file is a uasset, we send it as well as the extracted JSON
+        if cfg_ext == '.uasset':
+            cfg_ext = '.ndisplay'
+            cfg_content = self.__class__.extract_configexport_from_uasset(cfg_file).encode('utf-8')
         else:
             with open(cfg_file, 'rb') as f:
-                file_content = f.read()
+                cfg_content = f.read()
 
-        destination = f"%TEMP%/ndisplay/%RANDOM%{ext}"
+        cfg_destination = f"%TEMP%/ndisplay/%RANDOM%{cfg_ext}"
 
-        self._last_issued_command_id, msg = message_protocol.create_send_filecontent_message(file_content, destination)
-        self.unreal_client.send_message(msg)
+        self.pending_transfer_cfg = True
+        _, cfg_msg = message_protocol.create_send_filecontent_message(cfg_content, cfg_destination)
+        self.unreal_client.send_message(cfg_msg)
+
+        if self.bp_object_path:
+            local_uasset_path = self.uasset_path_from_object_path(self.bp_object_path, os.path.dirname(CONFIG.UPROJECT_PATH.get_value()))
+            dest_uasset_path = self.uasset_path_from_object_path(self.bp_object_path, os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
+
+            self.pending_transfer_uasset = True
+            _, uasset_msg = message_protocol.create_send_file_message(local_uasset_path, dest_uasset_path, force_overwrite=True)
+            self.unreal_client.send_message(uasset_msg)
 
     @classmethod
     def plug_into_ui(cls, menubar, tabs):

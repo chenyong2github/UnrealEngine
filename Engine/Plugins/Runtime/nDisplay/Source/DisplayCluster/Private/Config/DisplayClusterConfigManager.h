@@ -39,7 +39,7 @@ public:
 
 	virtual FString GetConfigPath() const override
 	{
-		return ConfigData.IsValid() ? ConfigData.Get()->Meta.FilePath : FString();
+		return ConfigData.IsValid() ? ConfigData.Get()->Meta.ImportFilePath : FString();
 	}
 
 	virtual FString GetLocalNodeId() const override

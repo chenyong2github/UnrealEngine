@@ -602,9 +602,12 @@ bool FDisplayClusterConfiguratorBlueprintEditor::CanExportConfig() const
 bool FDisplayClusterConfiguratorBlueprintEditor::SaveToFile(const FString& InFilePath)
 {
 	UDisplayClusterConfiguratorEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UDisplayClusterConfiguratorEditorSubsystem>();
-	if (EditorSubsystem != nullptr && EditorSubsystem->SaveConfig(GetEditorData(), InFilePath))
+	UDisplayClusterConfigurationData* Data = GetEditorData();
+	if (EditorSubsystem && Data)
 	{
-		if (UDisplayClusterConfigurationData* Data = GetEditorData())
+		Data->Meta.ExportAssetPath = LoadedBlueprint->GetPathName();
+
+		if (EditorSubsystem->SaveConfig(Data, InFilePath))
 		{
 			LoadedBlueprint->SetConfigPath(Data->PathToConfig);
 			return true;

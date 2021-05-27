@@ -16,6 +16,7 @@
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFilemanager.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IPAddress.h"
 #include "Misc/Base64.h"
@@ -916,10 +917,18 @@ bool FSwitchboardListener::Task_ReceiveFileFromClient(const FSwitchboardReceiveF
 
 	if (FPaths::FileExists(Destination))
 	{
-		const FString ErrorMsg = FString::Printf(TEXT("Destination %s already exist"), *Destination);
-		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
-		SendMessage(CreateReceiveFileFromClientFailedMessage(Destination, ErrorMsg), InReceiveFileFromClientTask.Recipient);
-		return false;
+		if (!InReceiveFileFromClientTask.bForceOverwrite)
+		{
+			const FString ErrorMsg = FString::Printf(TEXT("Destination %s already exist"), *Destination);
+			UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
+			SendMessage(CreateReceiveFileFromClientFailedMessage(Destination, ErrorMsg), InReceiveFileFromClientTask.Recipient);
+			return false;
+		}
+		else
+		{
+			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+			PlatformFile.SetReadOnly(*Destination, false);
+		}
 	}
 
 	TArray<uint8> DecodedFileContent = {};

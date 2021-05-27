@@ -478,6 +478,9 @@ public:
 	FString Version;
 
 	UPROPERTY()
+	FString AssetPath;
+
+	UPROPERTY()
 	FDisplayClusterConfigurationJsonScene Scene;
 
 	UPROPERTY()

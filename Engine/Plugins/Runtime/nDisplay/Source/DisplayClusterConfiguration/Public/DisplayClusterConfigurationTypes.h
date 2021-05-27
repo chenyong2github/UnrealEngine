@@ -479,8 +479,9 @@ public:
 
 struct FDisplayClusterConfigurationDataMetaInfo
 {
-	EDisplayClusterConfigurationDataSource DataSource;
-	FString FilePath;
+	EDisplayClusterConfigurationDataSource ImportDataSource;
+	FString ImportFilePath;
+	FString ExportAssetPath;
 };
 
 /*
