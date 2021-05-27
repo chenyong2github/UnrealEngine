@@ -41,7 +41,7 @@ SDetailsViewBase::SDetailsViewBase() :
 	UDetailsConfig* DetailsConfig = GetMutableDefault<UDetailsConfig>();
 	DetailsConfig->LoadEditorConfig();
 
-	FDetailsViewConfig* ViewConfig = DetailsConfig->Views.Find(DetailsViewArgs.ViewIdentifier);
+	const FDetailsViewConfig* ViewConfig = DetailsConfig->Views.Find(DetailsViewArgs.ViewIdentifier);
 	if (ViewConfig != nullptr)
 	{
 		CurrentFilter.bShowAllAdvanced = ViewConfig->bShowAllAdvanced;
@@ -49,8 +49,6 @@ SDetailsViewBase::SDetailsViewBase() :
 		CurrentFilter.bShowOnlyAnimated = ViewConfig->bShowOnlyAnimated;
 		CurrentFilter.bShowOnlyKeyable = ViewConfig->bShowOnlyKeyable;
 		CurrentFilter.bShowOnlyModified = ViewConfig->bShowOnlyModified;
-		CurrentFilter.bShowOnlyWhitelisted = ViewConfig->bShowOnlyWhitelisted;
-
 	}
 }
 
@@ -656,9 +654,6 @@ void SDetailsViewBase::OnShowAllAdvancedClicked()
 void SDetailsViewBase::OnShowOnlyWhitelistedClicked()
 {
 	CurrentFilter.bShowOnlyWhitelisted = !CurrentFilter.bShowOnlyWhitelisted;
-
-	GetMutableViewConfig().bShowOnlyWhitelisted = CurrentFilter.bShowOnlyWhitelisted;
-	SaveViewConfig();
 
 	UpdateFilteredDetails();
 }
