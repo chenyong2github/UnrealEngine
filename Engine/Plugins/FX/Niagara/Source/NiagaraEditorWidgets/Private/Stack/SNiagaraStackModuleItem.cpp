@@ -218,7 +218,7 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::AddContainerForRowWidgets(TSharedRe
 			FScopedTransaction Transaction(LOCTEXT("NoteAdded", "Note Added"));
 			ModuleItem->GetModuleNode().Modify();
 			
-			FNiagaraStackMessage StackMessage(DescriptionTextBox->GetText(), ShortDescriptionTextBox->GetText(), ENiagaraMessageSeverity::Info, false);
+			FNiagaraStackMessage StackMessage(DescriptionTextBox->GetText(), ShortDescriptionTextBox->GetText(), ENiagaraMessageSeverity::CustomNote, false);
 			ModuleItem->GetModuleNode().AddCustomNote(StackMessage);
 		}
 		
