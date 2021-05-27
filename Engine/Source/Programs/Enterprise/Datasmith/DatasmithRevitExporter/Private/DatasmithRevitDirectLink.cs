@@ -369,7 +369,7 @@ namespace DatasmithRevitExporter
 
 			foreach (var Link in RootCache.LinkedDocumentsCache.Values)
 			{
-				if (ModifiedLinkedDocuments.Contains(Link.SourceDocument))
+				if (Link.SourceDocument.IsValidObject && ModifiedLinkedDocuments.Contains(Link.SourceDocument))
 				{
 					Link.SetAllElementsModified();
 				}
