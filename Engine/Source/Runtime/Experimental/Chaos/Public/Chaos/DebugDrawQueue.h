@@ -93,8 +93,8 @@ struct CHAOS_API FLatentDrawCommand
 	float LifeTime;
 	uint8 DepthPriority;
 	float Thickness;
-	float Radius;
-	float HalfHeight;
+	FReal Radius;
+	FReal HalfHeight;
 	FVector Center;
 	FVector Extent;
 	FQuat Rotation;
@@ -169,7 +169,7 @@ struct CHAOS_API FLatentDrawCommand
 		return Command;
 	}
 
-	static FLatentDrawCommand DrawDebugSphere(const FVector& Center, float Radius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
+	static FLatentDrawCommand DrawDebugSphere(const FVector& Center, FVector::FReal Radius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 	{
 		FLatentDrawCommand Command;
 		Command.LineStart = Center;
@@ -214,7 +214,7 @@ struct CHAOS_API FLatentDrawCommand
 		return Command;
 	}
 
-	static FLatentDrawCommand DrawDebugCircle(const FVector& Center, float Radius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness, const FVector& YAxis, const FVector& ZAxis, bool bDrawAxis)
+	static FLatentDrawCommand DrawDebugCircle(const FVector& Center, FReal Radius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness, const FVector& YAxis, const FVector& ZAxis, bool bDrawAxis)
 	{
 		FLatentDrawCommand Command;
 		Command.Center = Center;
@@ -232,7 +232,7 @@ struct CHAOS_API FLatentDrawCommand
 		return Command;
 	}
 
-	static FLatentDrawCommand DrawDebugCapsule(const FVector& Center, float HalfHeight, float Radius, const FQuat& Rotation, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
+	static FLatentDrawCommand DrawDebugCapsule(const FVector& Center, FReal HalfHeight, FReal Radius, const FQuat& Rotation, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 	{
 		FLatentDrawCommand Command;
 		Command.Center = Center;
@@ -307,7 +307,7 @@ public:
 		}
 	}
 
-	void DrawDebugCoordinateSystem(const FVector& Position, const FRotator& AxisRot, float Scale, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
+	void DrawDebugCoordinateSystem(const FVector& Position, const FRotator& AxisRot, FReal Scale, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
 	{
 		if (IsDebugDrawingEnabled())
 		{
@@ -328,7 +328,7 @@ public:
 	}
 
 
-	void DrawDebugSphere(FVector const& Center, float Radius, int32 Segments, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
+	void DrawDebugSphere(FVector const& Center, FReal Radius, int32 Segments, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
 	{
 		if (IsDebugDrawingEnabled())
 		{
@@ -366,7 +366,7 @@ public:
 		}
 	}
 
-	void DrawDebugCircle(const FVector& Center, float Radius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness, const FVector& YAxis, const FVector& ZAxis, bool bDrawAxis)
+	void DrawDebugCircle(const FVector& Center, FReal Radius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness, const FVector& YAxis, const FVector& ZAxis, bool bDrawAxis)
 	{
 		if (IsDebugDrawingEnabled())
 		{
@@ -378,7 +378,7 @@ public:
 		}
 	}
 
-	void DrawDebugCapsule(const FVector& Center, float HalfHeight, float Radius, const FQuat& Rotation, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
+	void DrawDebugCapsule(const FVector& Center, FReal HalfHeight, FReal Radius, const FQuat& Rotation, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 	{
 		if (IsDebugDrawingEnabled())
 		{
@@ -483,7 +483,7 @@ private:
 	FCriticalSection ConsumersCS;
 
 	FVector CenterOfInterest;
-	float RadiusOfInterest;
+	FReal RadiusOfInterest;
 	bool bEnableDebugDrawing;
 };
 }

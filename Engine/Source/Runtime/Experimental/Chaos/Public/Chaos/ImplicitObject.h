@@ -364,7 +364,7 @@ protected:
 	FVec3 ScaledNormalHelper(const FVec3& Normal, const FVec3& Scale) const
 	{
 		const FVec3 ScaledNormal = Scale * Normal;
-		const float ScaledNormalLen = ScaledNormal.Size();
+		const FReal ScaledNormalLen = ScaledNormal.Size();
 		return ensure(ScaledNormalLen > TNumericLimits<FReal>::Min())
 			? ScaledNormal / ScaledNormalLen
 			: FVec3(0.f, 0.f, 1.f);

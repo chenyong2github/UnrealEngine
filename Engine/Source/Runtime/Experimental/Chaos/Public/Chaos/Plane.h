@@ -321,8 +321,9 @@ TVector<T, 2> ComputeBarycentricInPlane(const TVector<T, d>& P0, const TVector<T
 	T ProjP1 = TVector<T, d>::DotProduct(PP0, P10);
 	T ProjP2 = TVector<T, d>::DotProduct(PP0, P20);
 	T Denom = Size10 * Size20 - ProjSides * ProjSides;
-	Bary.X = (Size20 * ProjP1 - ProjSides * ProjP2) / Denom;
-	Bary.Y = (Size10 * ProjP2 - ProjSides * ProjP1) / Denom;
+	using FVec2Real = decltype(Bary.X);
+	Bary.X = FVec2Real((Size20 * ProjP1 - ProjSides * ProjP2) / Denom);
+	Bary.Y = FVec2Real((Size10 * ProjP2 - ProjSides * ProjP1) / Denom);
 	return Bary;
 }
 

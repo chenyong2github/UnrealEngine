@@ -108,7 +108,7 @@ namespace Chaos
 				}
 				else
 				{
-					const float Speed = FMath::Abs(Particle->V().Length());
+					const FReal Speed = FMath::Abs(Particle->V().Length());
 					if (Speed < SpeedThreshold)
 					{
 						AxisWorld = FMath::Lerp(FVec3(0.f, 0.f, 1.f), AxisWorld, Speed / SpeedThreshold);

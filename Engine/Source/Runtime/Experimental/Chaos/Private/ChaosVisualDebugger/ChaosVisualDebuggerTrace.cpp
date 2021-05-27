@@ -5,9 +5,9 @@
 UE_TRACE_CHANNEL_DEFINE(PhysicsChannel);
 
 UE_TRACE_EVENT_BEGIN(Physics, ParticlePosition)
-UE_TRACE_EVENT_FIELD(float, PositionX)
-UE_TRACE_EVENT_FIELD(float, PositionY)
-UE_TRACE_EVENT_FIELD(float, PositionZ)
+UE_TRACE_EVENT_FIELD(Chaos::FReal, PositionX)
+UE_TRACE_EVENT_FIELD(Chaos::FReal, PositionY)
+UE_TRACE_EVENT_FIELD(Chaos::FReal, PositionZ)
 UE_TRACE_EVENT_END()
 
 using namespace Chaos;

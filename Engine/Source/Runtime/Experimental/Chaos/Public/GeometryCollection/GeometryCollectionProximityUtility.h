@@ -21,9 +21,9 @@ public:
 
 	struct FVertexPair
 	{
-		FVector Vertex1, Vertex2;
-		float Distance() { return (Vertex1 - Vertex2).Size(); }
-		float DistanceSquared() { return (Vertex1 - Vertex2).SizeSquared(); }
+		FVector Vertex1, Vertex2;	// World space vertex positions
+		FVector::FReal Distance() { return (Vertex1 - Vertex2).Size(); }
+		FVector::FReal DistanceSquared() { return (Vertex1 - Vertex2).SizeSquared(); }
 	};
 
 	struct FOverlappingFacePair

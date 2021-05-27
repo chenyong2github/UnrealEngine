@@ -478,7 +478,7 @@ private:
 
 	TArray<FNodeIndex> FreeList;
 	/** The extent of a leaf at the maximum allowed depth of the tree. */
-	float MinLeafExtent;
+	FVector::FReal MinLeafExtent;
 
 	FNodeIndex AllocateEightNodes()
 	{
@@ -989,7 +989,7 @@ public:
 	}
 
 	/** Initialization constructor. */
-	TOctree2(const FVector& InOrigin,float InExtent)
+	TOctree2(const FVector& InOrigin,FVector::FReal InExtent)
 		: RootNodeContext(FBoxCenterAndExtent(InOrigin, FVector(InExtent, InExtent, InExtent)), 0, 0)
 		, MinLeafExtent(InExtent* FMath::Pow((1.0f + 1.0f / (float)FOctreeNodeContext::LoosenessDenominator) / 2.0f, OctreeSemantics::MaxNodeDepth))
 	{

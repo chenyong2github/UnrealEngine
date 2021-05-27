@@ -191,7 +191,7 @@ FCollisionStructureManager::NewImplicit(
 	const Chaos::FParticles& MeshParticles,
 	const Chaos::FTriangleMesh& TriMesh,
 	const FBox& CollisionBounds,
-	const float Radius,
+	const Chaos::FReal Radius,
 	const int32 MinRes,
 	const int32 MaxRes,
 	const float CollisionObjectReduction,
@@ -227,7 +227,7 @@ FCollisionStructureManager::NewImplicitBox(
 	// @todo(chaos): pass margin settings into the collision manager?
 	float CollisionMarginFraction = 0.1f;// FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
 	float CollisionMarginMax = 10.0f;// FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
-	const float Margin = FMath::Min(CollisionMarginFraction * 0.5f * HalfExtents.GetMin(), CollisionMarginMax);
+	const Chaos::FReal Margin = FMath::Min(CollisionMarginFraction * 0.5f * HalfExtents.GetMin(), CollisionMarginMax);
 
 	Chaos::FImplicitObject* Implicit = new Chaos::TBox<Chaos::FReal, 3>(Center - HalfExtents, Center + HalfExtents, Margin);
 	UpdateImplicitFlags(Implicit, CollisionType);
@@ -236,7 +236,7 @@ FCollisionStructureManager::NewImplicitBox(
 
 FCollisionStructureManager::FImplicit*
 FCollisionStructureManager::NewImplicitSphere(
-	const float Radius,
+	const Chaos::FReal Radius,
 	const float CollisionObjectReduction,
 	const ECollisionTypeEnum CollisionType)
 {
@@ -247,8 +247,8 @@ FCollisionStructureManager::NewImplicitSphere(
 
 FCollisionStructureManager::FImplicit*
 FCollisionStructureManager::NewImplicitCapsule(
-	const float Radius,
-	const float Length,
+	const Chaos::FReal Radius,
+	const Chaos::FReal Length,
 	const float CollisionObjectReduction,
 	const ECollisionTypeEnum CollisionType)
 {
@@ -366,7 +366,7 @@ Chaos::FLevelSet* FCollisionStructureManager::NewLevelset(
 FVector 
 FCollisionStructureManager::CalculateUnitMassInertiaTensor(
 	const FBox& Bounds,
-	const float Radius,
+	const Chaos::FReal Radius,
 	const EImplicitTypeEnum ImplicitType
 )
 {	
@@ -385,10 +385,10 @@ FCollisionStructureManager::CalculateUnitMassInertiaTensor(
 	return Tensor;
 }
 
-float
+Chaos::FReal
 FCollisionStructureManager::CalculateVolume(
 	const FBox& Bounds,
-	const float Radius,
+	const Chaos::FReal Radius,
 	const EImplicitTypeEnum ImplicitType
 )
 {

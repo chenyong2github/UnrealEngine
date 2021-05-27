@@ -688,7 +688,7 @@ public:
 					// as a reminder, stepfraction is the remaing fraction of the step from the remaining steps
 					// for total of 4 steps and current step of 2, this will be 1/3 ( 1 step passed, 3 steps remains )
 					NewX = FVec3::Lerp(CurrentX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
-					NewR = FRotation3::Slerp(CurrentR, KinematicTarget.GetTarget().GetRotation(), StepFraction);
+					NewR = FRotation3::Slerp(CurrentR, KinematicTarget.GetTarget().GetRotation(), decltype(FQuat::X)(StepFraction));
 				}
 				if (Dt > MinDt)
 				{

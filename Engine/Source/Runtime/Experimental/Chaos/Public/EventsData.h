@@ -13,8 +13,8 @@ namespace Chaos
 	// base class for data that requires time of creation to be recorded
 	struct FTimeResource
 	{
-		FTimeResource() : TimeCreated(-FLT_MAX) {}
-		float TimeCreated;
+		FTimeResource() : TimeCreated(-TNumericLimits<FReal>::Max()) {}
+		FReal TimeCreated;
 	};
 
 	typedef TArray<FCollidingData> FCollisionDataArray;

@@ -149,7 +149,7 @@ void PopulateSimulatedParticle(
 	FGeometryDynamicCollection::FSharedImplicit Implicit,
 	const FCollisionFilterData SimFilterIn,
 	const FCollisionFilterData QueryFilterIn,
-	float MassIn,
+	Chaos::FReal MassIn,
 	FVector3f InertiaTensorVec,
 	const FTransform& WorldTransform, 
 	const uint8 DynamicState, 
@@ -174,10 +174,10 @@ void PopulateSimulatedParticle(
 	{
 		Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Uninitialized);
 
-		if (!CHAOS_ENSURE_MSG(FMath::IsWithinInclusive(MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp),
+		if (!CHAOS_ENSURE_MSG(FMath::IsWithinInclusive<Chaos::FReal>(MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp),
 			TEXT("Clamped mass[%3.5f] to range [%3.5f,%3.5f]"), MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp))
 		{
-			MassIn = FMath::Clamp(MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp);
+			MassIn = FMath::Clamp<Chaos::FReal>(MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp);
 		}
 
 		if (!CHAOS_ENSURE_MSG(!FMath::IsNaN(InertiaTensorVec[0]) && !FMath::IsNaN(InertiaTensorVec[1]) && !FMath::IsNaN(InertiaTensorVec[2]),
@@ -651,7 +651,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 				if (CollisionParticles)
 				{
 					Chaos::FReal NumCollisionParticles = static_cast<Chaos::FReal>(CollisionParticles->Size());
-					int32 CollisionParticlesSize = FMath::TruncToInt(Chaos::FReal(FMath::Max(0, FMath::Min(int(NumCollisionParticles * CollisionParticlesPerObjectFraction), NumCollisionParticles))));
+					int32 CollisionParticlesSize = FMath::TruncToInt(Chaos::FReal(FMath::Max((Chaos::FReal)0, FMath::Min(Chaos::FReal(NumCollisionParticles * CollisionParticlesPerObjectFraction), NumCollisionParticles))));
 					CollisionParticles->Resize(CollisionParticlesSize); // Truncates!
 				}
 
@@ -882,7 +882,7 @@ FAutoConsoleVariableRef CVarReportNoLevelsetCluster(TEXT("p.gc.ReportNoLevelsetC
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters"), STAT_BuildClusters, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters:GlobalMatrices"), STAT_BuildClustersGlobalMatrices, STATGROUP_Chaos);
 
-int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeSpecificData, float Volume)
+int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeSpecificData, Chaos::FReal Volume)
 {
 	check(SizeSpecificData.Num());
 	int32 UseIdx = 0;
@@ -944,7 +944,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	{
 		const Chaos::FReal NumCollisionParticles = static_cast<Chaos::FReal>(ClusterCreationParameters.CollisionParticles->Size());
 		const int32 ClampedCollisionParticlesSize = 
-			FMath::TruncToInt(Chaos::FReal(FMath::Max(0, FMath::Min(int(NumCollisionParticles * CollisionParticlesPerObjectFraction), NumCollisionParticles))));
+			FMath::TruncToInt(Chaos::FReal(FMath::Max(0, FMath::Min(NumCollisionParticles * CollisionParticlesPerObjectFraction, NumCollisionParticles))));
 		ClusterCreationParameters.CollisionParticles->Resize(ClampedCollisionParticlesSize);
 	}
 	TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*> ChildHandlesCopy(ChildHandles);
@@ -1800,8 +1800,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TManagedArray<FVector3f>& CollectionInertiaTensor =
 		RestCollection.AddAttribute<FVector3f>(
 			TEXT("InertiaTensor"), FTransformCollection::TransformGroup);
-	TManagedArray<float>& CollectionMass =
-		RestCollection.AddAttribute<float>(
+	TManagedArray<FReal>& CollectionMass =
+		RestCollection.AddAttribute<FReal>(
 			TEXT("Mass"), FTransformCollection::TransformGroup);
 	TManagedArray<TUniquePtr<FSimplicial>>& CollectionSimplicials =
 		RestCollection.AddAttribute<TUniquePtr<FSimplicial>>(
@@ -1868,7 +1868,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	// until we complete the loop before reporting the skips.
 	bool bSkippedSmallGeometry = false;
 	
-	float TotalVolume = 0.f;
+	FReal TotalVolume = 0.f;
 	// The geometry group has a set of transform indices that maps a geometry index
 	// to a transform index, but only in the case where there is a 1-to-1 mapping 
 	// between the two.  In the event where a geometry is instanced for multiple
@@ -1958,7 +1958,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				const int32 VCount = VertexCount[GeometryIndex];
 				if (VCount != 0)
 				{
-					const FVector Center = BoundingBox[GeometryIndex].GetCenter();
+					const FVector3f Center = (FVector3f)BoundingBox[GeometryIndex].GetCenter();
 					const int32 VStart = VertexStart[GeometryIndex];
 
 					InnerRadius[GeometryIndex] = VCount ? TNumericLimits<FRealSingle>::Max() : 0.0f;
@@ -1967,7 +1967,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					{
 						const int32 PtIdx = VStart + VIdx;
 						const FVector3f& Pt = Vertex[PtIdx];
-						const float DistSq = FVector::DistSquared(Pt, Center);
+						const float DistSq = FVector3f::DistSquared(Pt, Center);
 						if (InnerRadius[GeometryIndex] > DistSq)
 						{
 							InnerRadius[GeometryIndex] = DistSq;
@@ -2000,9 +2000,9 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	//Density must be the same for individual parts and the total. Density_i = Density = Mass_i / Volume_i
 	//Total mass must equal sum of individual parts. Mass_i = TotalMass * Volume_i / TotalVolume => Density_i = TotalMass / TotalVolume
 	TotalVolume = FMath::Max(TotalVolume, MinBoundsExtents * MinBoundsExtents * MinBoundsExtents);
-	const float DesiredTotalMass = SharedParams.bMassAsDensity ? SharedParams.Mass * TotalVolume : SharedParams.Mass;
-	const float ClampedTotalMass = FMath::Clamp(DesiredTotalMass, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp);
-	const float DesiredDensity = ClampedTotalMass / TotalVolume;
+	const FReal DesiredTotalMass = SharedParams.bMassAsDensity ? SharedParams.Mass * TotalVolume : SharedParams.Mass;
+	const FReal ClampedTotalMass = FMath::Clamp(DesiredTotalMass, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp);
+	const FReal DesiredDensity = ClampedTotalMass / TotalVolume;
 
 	FVec3 MaxChildBounds(1);
 	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
@@ -2012,7 +2012,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 		Chaos::FErrorReporter LocalErrorReporter;
 		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
 
-		const float Volume_i = MassPropertiesArray[GeometryIndex].Volume;
+		const FReal Volume_i = MassPropertiesArray[GeometryIndex].Volume;
 		if (CollectionSimulatableParticles[TransformGroupIndex])
 		{
 			//Must clamp each individual mass regardless of desired density
@@ -2031,8 +2031,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			TUniquePtr<FTriangleMesh>& TriMesh = TriangleMeshesArray[TransformGroupIndex];
 			FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
-			const float Mass_i = FMath::Max(DesiredDensity * Volume_i, SharedParams.MinimumMassClamp);
-			const float Density_i = Mass_i / Volume_i;
+			const FReal Mass_i = FMath::Max(DesiredDensity * Volume_i, SharedParams.MinimumMassClamp);
+			const FReal Density_i = Mass_i / Volume_i;
 			CollectionMass[TransformGroupIndex] = Mass_i;
 
 			if (InertiaComputationNeeded[GeometryIndex])
@@ -2150,8 +2150,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
 				{
 					const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
-					const float Radius = BBoxExtent.GetAbsMin();
-					const float Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
+					const Chaos::FReal Radius = BBoxExtent.GetAbsMin();
+					const Chaos::FReal Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
 
 					if (Length < SMALL_NUMBER)
 					{
@@ -2339,8 +2339,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 				TUniquePtr<FTriangleMesh> UnionMesh(new FTriangleMesh(MoveTemp(UnionMeshIndices)));
 				const FMatrix& InertiaMatrix = CollectionSpaceParticles->I(ClusterTransformIdx);
-				const FVector3f InertiaDiagonal(InertiaMatrix.M[0][0], InertiaMatrix.M[1][1], InertiaMatrix.M[2][2]);
-				CollectionInertiaTensor[ClusterTransformIdx] = InertiaDiagonal;
+				const FVector InertiaDiagonal(InertiaMatrix.M[0][0], InertiaMatrix.M[1][1], InertiaMatrix.M[2][2]);
+				CollectionInertiaTensor[ClusterTransformIdx] = (FVector3f)InertiaDiagonal;	// LWC_TODO: Precision loss
 				CollectionMass[ClusterTransformIdx] = CollectionSpaceParticles->M(ClusterTransformIdx);
 
 				const int32 SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, InstanceBoundingBox);
@@ -2349,18 +2349,18 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
 				{
 					const FVec3 Scale = 2 * InstanceBoundingBox.GetExtent() / MaxChildBounds; // FBox's extents are 1/2 (Max - Min)
-					const float ScaleMax = Scale.GetAbsMax();
-					const float ScaleMin = Scale.GetAbsMin();
+					const FReal ScaleMax = Scale.GetAbsMax();
+					const FReal ScaleMin = Scale.GetAbsMin();
 
-					float MinResolution = ScaleMin * (float)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution;
-					MinResolution = FMath::Clamp<float>(MinResolution,
-						(float)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution,
-						(float)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinClusterLevelSetResolution);
+					FReal MinResolution = ScaleMin * (FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution;
+					MinResolution = FMath::Clamp(MinResolution,
+						(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinLevelSetResolution,
+						(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MinClusterLevelSetResolution);
 
-					float MaxResolution = ScaleMax * (float)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution;
-					MaxResolution = FMath::Clamp<float>(MaxResolution,
-						(float)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution,
-						(float)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxClusterLevelSetResolution);
+					FReal MaxResolution = ScaleMax * (FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution;
+					MaxResolution = FMath::Clamp(MaxResolution,
+						(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution,
+						(FReal)SizeSpecificData.CollisionShapesData[0].LevelSetData.MaxClusterLevelSetResolution);
 
 					//don't support non level-set serialization
 					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
@@ -2415,8 +2415,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
 				{
 					const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
-					const float Radius = BBoxExtent.GetAbsMin(); 
-					const float Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
+					const FReal Radius = BBoxExtent.GetAbsMin();
+					const FReal Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
 
 					if (Length < SMALL_NUMBER)
 					{
@@ -2601,7 +2601,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 			{
 				if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
 				{
-					const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
+					const Chaos::FReal TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
 					FFieldContext FieldContext(
 						ExecutionDatas,
@@ -2756,7 +2756,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigid
 			{
 				if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
 				{
-					const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
+					const Chaos::FReal TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
 					FFieldContext FieldContext(
 						ExecutionDatas,

@@ -122,8 +122,8 @@ struct TTraversalHistory
  */
 FORCEINLINE bool appLineCheckTriangle(const FVector4& Start, const FVector4& End, const FVector4& Dir, const FVector4& V0, const FVector4& V1, const FVector4& V2, const FVector4& Normal, float& IntersectionTime)
 {
-	const float StartDist = FPlane(Normal).PlaneDot(Start);
-	const float EndDist = FPlane(Normal).PlaneDot(End);
+	const FPlane::FReal StartDist = FPlane(Normal).PlaneDot(Start);
+	const FPlane::FReal EndDist = FPlane(Normal).PlaneDot(End);
 
 	// Check if the line is completely on one side of the triangle, or if it's co-planar.
 #if 1
@@ -136,7 +136,7 @@ FORCEINLINE bool appLineCheckTriangle(const FVector4& Start, const FVector4& End
 	}
 
 	// Figure out when it will hit the triangle
-	float Time = -StartDist / (EndDist - StartDist);
+	float Time = float(-StartDist / (EndDist - StartDist));	// LWC_TODO: Precision loss
 
 	// If this triangle is not closer than the previous hit, reject it
 	if (Time < 0.f || Time >= IntersectionTime)
@@ -341,12 +341,13 @@ struct FFourBox
 	 */
 	void SetBox( int32 BoundingVolumeIndex, const FBox& Box )
 	{
-		Min[0].Component(BoundingVolumeIndex) = Box.Min.X;
-		Min[1].Component(BoundingVolumeIndex) = Box.Min.Y;
-		Min[2].Component(BoundingVolumeIndex) = Box.Min.Z;
-		Max[0].Component(BoundingVolumeIndex) = Box.Max.X;
-		Max[1].Component(BoundingVolumeIndex) = Box.Max.Y;
-		Max[2].Component(BoundingVolumeIndex) = Box.Max.Z;
+		using FVec4Real = decltype(FVector4::X);
+		Min[0].Component(BoundingVolumeIndex) = (FVec4Real)Box.Min.X;
+		Min[1].Component(BoundingVolumeIndex) = (FVec4Real)Box.Min.Y;
+		Min[2].Component(BoundingVolumeIndex) = (FVec4Real)Box.Min.Z;
+		Max[0].Component(BoundingVolumeIndex) = (FVec4Real)Box.Max.X;
+		Max[1].Component(BoundingVolumeIndex) = (FVec4Real)Box.Max.Y;
+		Max[2].Component(BoundingVolumeIndex) = (FVec4Real)Box.Max.Z;
 	}
 
 	/**
@@ -900,9 +901,9 @@ struct TkDOPNode
 			if ( SubIndex >= 0 )
 			{
 				bHit = true;
-				Check.LocalHitNormal.X = VectorGetComponentDynamic(TriangleSOA.Normals.X, SubIndex);
-				Check.LocalHitNormal.Y = VectorGetComponentDynamic(TriangleSOA.Normals.Y, SubIndex);
-				Check.LocalHitNormal.Z = VectorGetComponentDynamic(TriangleSOA.Normals.Z, SubIndex);
+				Check.LocalHitNormal.X = (decltype(FVector4::X))VectorGetComponentDynamic(TriangleSOA.Normals.X, SubIndex);
+				Check.LocalHitNormal.Y = (decltype(FVector4::Y))VectorGetComponentDynamic(TriangleSOA.Normals.Y, SubIndex);
+				Check.LocalHitNormal.Z = (decltype(FVector4::X))VectorGetComponentDynamic(TriangleSOA.Normals.Z, SubIndex);
 				Check.Result->Item = TriangleSOA.Payload[SubIndex];
 				Check.HitNodeIndex = History.GetOldestNode();
 

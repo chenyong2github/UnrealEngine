@@ -81,7 +81,7 @@ public:
 		const Chaos::FParticles& MeshParticles,
 		const Chaos::FTriangleMesh& TriMesh,
 		const FBox& CollisionBounds,
-		const float Radius,
+		const Chaos::FReal Radius,
 		const int32 MinRes,
 		const int32 MaxRes,
 		const float CollisionObjectReduction,
@@ -94,13 +94,13 @@ public:
 		const ECollisionTypeEnum CollisionType);
 
 	static FImplicit* NewImplicitSphere(
-		const float Radius,
+		const Chaos::FReal Radius,
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
 	static FImplicit* NewImplicitCapsule(
-		const float Radius,
-		const float Length,
+		const Chaos::FReal Radius,
+		const Chaos::FReal Length,
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
@@ -125,11 +125,11 @@ public:
 
 	static FVector CalculateUnitMassInertiaTensor(
 		const FBox& BoundingBox,
-		const float Radius,
+		const Chaos::FReal Radius,
 		const EImplicitTypeEnum ImplicitType);
 
-	static float CalculateVolume(
+	static Chaos::FReal CalculateVolume(
 		const FBox& BoundingBox,
-		const float Radius,
+		const Chaos::FReal Radius,
 		const EImplicitTypeEnum ImplicitType);
 };

@@ -369,6 +369,7 @@ namespace Chaos
 	class TVector<FReal, 4> : public FVector4
 	{
 	public:
+		using FElement = decltype(FVector4::X);
 		using FVector4::W;
 		using FVector4::X;
 		using FVector4::Y;
@@ -388,6 +389,7 @@ namespace Chaos
 	class TVector<FReal, 3> : public UE::Math::TVector<FReal>
 	{
 	public:
+		using FElement = FReal;
 		using UE::Math::TVector<FReal>::X;
 		using UE::Math::TVector<FReal>::Y;
 		using UE::Math::TVector<FReal>::Z;
@@ -587,7 +589,7 @@ namespace Chaos
 	class TVector<FReal, 2> : public FVector2D
 	{
 	public:
-
+		using FElement = decltype(FVector2D::X);
 		using FVector2D::X;
 		using FVector2D::Y;
 
@@ -607,8 +609,8 @@ namespace Chaos
 		template <typename OtherT>
 		TVector(const TVector<OtherT, 2>& InVector)
 		{
-			X = ((FReal)InVector[0]);
-			Y = ((FReal)InVector[1]);
+			X = ((decltype(X))InVector[0]);	// LWC_TODO: Remove casts once FVector2D supports variants
+			Y = ((decltype(Y))InVector[1]);
 		}
 		void Write(std::ostream& Stream) const
 		{
@@ -673,6 +675,8 @@ namespace Chaos
 	class TVector<T, 3>
 	{
 	public:
+		using FElement = T;
+
 		FORCEINLINE TVector() {}
 		FORCEINLINE explicit TVector(T InX)
 		    : X(InX), Y(InX), Z(InX) {}
@@ -967,12 +971,12 @@ namespace Chaos
 	template<typename T, int d>
 	inline FArchive& SerializeReal(FArchive& Ar, TVector<T, d>& ValueIn)
 	{
-		static_assert(TIsSame<T, float>::Value || TIsSame<T, double>::Value, "only float or double are supoprted by this function");
+		static_assert(TIsSame<T, float>::Value || TIsSame<T, double>::Value, "only float or double are supported by this function");
 		for (int32 Idx = 0; Idx < d; ++Idx)
 		{
 			FRealSingle RealSingle = (FRealSingle)ValueIn[Idx];
 			Ar << RealSingle;
-			ValueIn[Idx] = (T)RealSingle;
+			ValueIn[Idx] = (typename TVector<T, d>::FElement)RealSingle;
 		}
 		return Ar;
 	}

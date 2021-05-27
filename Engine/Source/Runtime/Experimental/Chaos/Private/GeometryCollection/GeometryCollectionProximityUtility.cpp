@@ -75,10 +75,10 @@ typedef TOctree2<FProximityTriangle, FMeshProximityTriangleOctreeSemantics> FPro
 
 bool FGeometryCollectionProximityUtility::IsPointInsideOfTriangle(const FVector& P, const FVector& Vertex0, const FVector& Vertex1, const FVector& Vertex2, float Threshold)
 {
-	float FaceArea  = 0.5f * FVector::CrossProduct((Vertex1 - Vertex0), (Vertex2 - Vertex0)).SizeSquared();
-	float Face1Area = 0.5f * FVector::CrossProduct((Vertex0 - P),(Vertex2 - P)).SizeSquared();
-	float Face2Area = 0.5f * FVector::CrossProduct((Vertex0 - P),(Vertex1 - P)).SizeSquared();
-	float Face3Area = 0.5f * FVector::CrossProduct((Vertex2 - P),(Vertex1 - P)).SizeSquared();
+	FVector::FReal FaceArea  = 0.5f * FVector::CrossProduct((Vertex1 - Vertex0), (Vertex2 - Vertex0)).SizeSquared();
+	FVector::FReal Face1Area = 0.5f * FVector::CrossProduct((Vertex0 - P),(Vertex2 - P)).SizeSquared();
+	FVector::FReal Face2Area = 0.5f * FVector::CrossProduct((Vertex0 - P),(Vertex1 - P)).SizeSquared();
+	FVector::FReal Face3Area = 0.5f * FVector::CrossProduct((Vertex2 - P),(Vertex1 - P)).SizeSquared();
 
 	return (FMath::Abs(Face1Area + Face2Area + Face3Area - FaceArea) < Threshold * Threshold);
 }
@@ -515,15 +515,15 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 		FaceByConnectedTransformsMap.MultiFind(Elem, FaceIndexArray);
 
 		// Find the centroid of the region and save it into BreakingRegionCentroidArray
-		FVector Centroid = FVector(ForceInitToZero);
+		FVector3f Centroid = FVector3f(ForceInitToZero);
 		float TotalArea = 0.f;
 		for (int32 LocalIdxFace = 0; LocalIdxFace < FaceIndexArray.Num(); ++LocalIdxFace)
 		{
-			const FVector& Vertex0 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][0]];
-			const FVector& Vertex1 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][1]];
-			const FVector& Vertex2 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][2]];
+			const FVector3f& Vertex0 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][0]];
+			const FVector3f& Vertex1 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][1]];
+			const FVector3f& Vertex2 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][2]];
 
-			FVector FaceCentroid((Vertex0 + Vertex1 + Vertex2) / 3.f);
+			FVector3f FaceCentroid((Vertex0 + Vertex1 + Vertex2) / 3.f);
 			float FaceArea = 0.5f * ((Vertex1 - Vertex0) ^ (Vertex2 - Vertex0)).Size();
 
 			Centroid = (TotalArea * Centroid + FaceArea * FaceCentroid) / (TotalArea + FaceArea);
@@ -536,7 +536,7 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 		float RadiusMin = FLT_MAX;
 		float RadiusMax = FLT_MIN;
 
-		TArray<FVector> TestPoints;
+		TArray<FVector3f> TestPoints;
 		for (int32 LocalIdxFace = 0; LocalIdxFace < FaceIndexArray.Num(); ++LocalIdxFace)
 		{
 			for (int32 Idx = 0; Idx < 3; Idx++)
@@ -560,9 +560,9 @@ void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* G
 		BreakingRegionRadiusArray[IdxBreak] = RadiusMin;
 
 		// Normal
-		const FVector& VertexA = VertexArray[IndicesArray[FaceIndexArray[0]][0]];
-		const FVector& VertexB = VertexArray[IndicesArray[FaceIndexArray[0]][1]];
-		const FVector& VertexC = VertexArray[IndicesArray[FaceIndexArray[0]][2]];
+		const FVector3f& VertexA = VertexArray[IndicesArray[FaceIndexArray[0]][0]];
+		const FVector3f& VertexB = VertexArray[IndicesArray[FaceIndexArray[0]][1]];
+		const FVector3f& VertexC = VertexArray[IndicesArray[FaceIndexArray[0]][2]];
 		BreakingRegionNormalArray[IdxBreak] = ((VertexA - VertexB) ^ (VertexC - VertexB)).GetSafeNormal();
 
 		// grab the first face from the region and save it into BreakingFaceIndexArray

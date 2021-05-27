@@ -143,7 +143,7 @@ public:
 		ParticleToWorldTransforms.SetNumUninitialized(NumTransforms);
 	}
 
-	float SolverDt;
+	Chaos::FReal SolverDt;
 	int32 BaseIndex;
 	int32 NumParticlesAdded;
 	TArray<bool> DisabledStates;

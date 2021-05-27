@@ -197,7 +197,7 @@ namespace Chaos
 			return FMath::Min((FReal)1, (ResultsTime - LatestDivergeTime) * InvResimInterpTime);
 		};
 
-		Results.Alpha = GlobalAlpha;
+		Results.Alpha = (float)GlobalAlpha;	 // LWC_TODO: Precision loss
 
 		if(ParticleToResimInfo.Num() == 0)	//no resim interpolation so just exit
 		{
@@ -223,7 +223,7 @@ namespace Chaos
 						if(LeashInfo->bDiverged)
 						{
 							//RigidData.LeashAlpha = LeashAlpha;
-							RigidData.LeashAlpha = ResimInterpStrength;
+							RigidData.LeashAlpha = (float)ResimInterpStrength;		 // LWC_TODO: Precision loss
 						}
 					}
 				}
@@ -250,7 +250,7 @@ namespace Chaos
 
 					RigidData.Next = Itr.Value.Next;	//not dirty from sim, so just use whatever last next was
 					RigidData.Prev = RigidData.Next;	//prev same as next since we're just using leash
-					RigidData.LeashAlpha = LeashAlpha < 1 ? ResimInterpStrength : 1;	//if last step with leash just snap to end
+					RigidData.LeashAlpha = LeashAlpha < 1 ? (float)ResimInterpStrength : 1;	//if last step with leash just snap to end		 // LWC_TODO: Precision loss
 				}
 				
 				if (LeashAlpha >= 1)	//leash will snap to end so not needed after this

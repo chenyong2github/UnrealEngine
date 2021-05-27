@@ -54,7 +54,7 @@ public:
 	 * EFieldPhysicsType::Field_AngularVelocity
 	 * EFieldPhysicsType::Field_AngularrTorque
 	 */
-	void ComputeFieldRigidImpulse(const float SolverTime);
+	void ComputeFieldRigidImpulse(const Chaos::FReal SolverTime);
 
 	/**
 	 * Compute field linear velocity/force given a list of samples (positions + indices)
@@ -63,7 +63,7 @@ public:
 	 * EFieldPhysicsType::Field_LinearVelocity
 	 * EFieldPhysicsType::Field_LinearForce
 	 */
-	void ComputeFieldLinearImpulse(const float SolverTime);
+	void ComputeFieldLinearImpulse(const Chaos::FReal SolverTime);
 
 	/** Add the transient field command */
 	void AddTransientCommand(const FFieldSystemCommand& FieldCommand);
