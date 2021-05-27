@@ -174,7 +174,7 @@ void TestExpectedValues(float Latitude, float Longitude, float TimeZone, bool bI
 
 	// Test azimuth values
 	float AzError = FMath::Abs(SunPositionData.Azimuth - ExpectedAzimuth)/ ExpectedAzimuth * 100.0f;
-	if (ElevError > AcceptableError)
+	if (AzError > AcceptableError)
 	{
 		UE_LOG(LogSunPosition, Warning, TEXT("Azimuth error above threshold %0.2f%%"), AzError);
 	}
