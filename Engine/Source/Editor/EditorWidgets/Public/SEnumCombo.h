@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SComboButton.h"
 
-class EDITORWIDGETS_API SEnumComboBox : public SComboBox<TSharedPtr<int32>>
+class EDITORWIDGETS_API SEnumComboBox : public SComboButton
 {
 public:
 	DECLARE_DELEGATE_TwoParams(FOnEnumSelectionChanged, int32, ESelectInfo::Type);
@@ -31,22 +31,35 @@ public:
 private:
 	FText GetCurrentValueText() const;
 	FText GetCurrentValueTooltip() const;
-	bool GetValueIsEnabled(TWeakPtr<int32> InValueWeak) const;
-	TSharedRef<SWidget> OnGenerateWidget(TSharedPtr<int32> InItem);
-	void OnComboSelectionChanged(TSharedPtr<int32> InSelectedItem, ESelectInfo::Type SelectInfo);
-	void OnComboMenuOpening();
+	TSharedRef<SWidget> OnGetMenuContent();
 
 private:
+
+	struct FEnumInfo
+	{
+		FEnumInfo() = default;
+		FEnumInfo(const int32 InIndex, const int32 InValue, const FText InDisplayName, const FText InTooltipText)
+			: Index(InIndex), Value(InValue), DisplayName(InDisplayName), TooltipText(InTooltipText)
+		{}
+		
+		int32 Index = 0;
+		int32 Value = 0;
+		FText DisplayName;
+		FText TooltipText;
+	};
+	
 	const UEnum* Enum;
 
 	TAttribute<int32> CurrentValue;
 
 	TAttribute<FSlateFontInfo> Font;
 
-	TArray<TSharedPtr<int32>> VisibleEnumNameIndices;
+	TArray<FEnumInfo> VisibleEnums;
 
 	bool bUpdatingSelectionInternally;
 
+	bool bIsBitflagsEnum;
+	
 	FOnGetToolTipForValue OnGetToolTipForValue;
 
 	FOnEnumSelectionChanged OnEnumSelectionChangedDelegate;
