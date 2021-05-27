@@ -3678,7 +3678,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 							// Note: the caching for spot lights only handles static lights and does not need the border, this also means pages can cache at all levels.
 							if( VirtualSmCacheEntry != nullptr )
 							{
-								VirtualSmCacheEntry->Update(VirtualShadowMap->ID, ProjectedShadowInitializer);
+								VirtualSmCacheEntry->UpdateLocal(VirtualShadowMap->ID, ProjectedShadowInitializer);
 								VirtualShadowMap->VirtualShadowMapCacheEntry = VirtualSmCacheEntry;
 							}
 						}

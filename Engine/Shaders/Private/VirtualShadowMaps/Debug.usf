@@ -151,8 +151,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 				if (ShadowMapCacheData[VirtualShadowMapId].VirtualShadowMapId != INDEX_NONE)// && MipLevel < VSM_MAX_MIP_LEVELS - 1)
 				{
 					int2 PrevPageAddress = int2(PageAddress) - (ShadowMapCacheData[VirtualShadowMapId].SmPageOffset >> MipLevel);
-					bool bCanCache = MipLevel < VSM_CACHE_ALIGNMENT_LEVEL || all(ShadowMapCacheData[VirtualShadowMapId].SmPageOffset == 0);
-					if (all(PrevPageAddress >= 0 && PrevPageAddress < CalcLevelDimsPages(MipLevel)) && bCanCache)
+					if (all(PrevPageAddress >= 0 && PrevPageAddress < CalcLevelDimsPages(MipLevel)))
 					{
 						uint PrevOffset = CalcPageOffset(ShadowMapCacheData[VirtualShadowMapId].VirtualShadowMapId, MipLevel, PrevPageAddress);
 						PrevPageFlag = PrevPageFlags[PrevOffset];
