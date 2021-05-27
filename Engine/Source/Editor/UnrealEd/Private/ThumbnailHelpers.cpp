@@ -221,7 +221,7 @@ void FParticleSystemThumbnailScene::SetParticleSystem(UParticleSystem* ParticleS
 				{
 					ParticleSystem->PreviewComponent->TickComponent(WarmupTimestep, LEVELTICK_All, NULL);
 					WarmupElapsed += WarmupTimestep;
-					ThumbnailFXSystem->Tick(WarmupTimestep);
+					ThumbnailFXSystem->Tick(ParticleSystem->PreviewComponent->GetWorld(), WarmupTimestep);
 				}
 			}
 		}

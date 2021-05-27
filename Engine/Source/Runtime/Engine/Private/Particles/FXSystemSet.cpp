@@ -26,12 +26,12 @@ FFXSystemInterface* FFXSystemSet::GetInterface(const FName& InName)
 	return nullptr;
 }
 
-void FFXSystemSet::Tick(float DeltaSeconds)
+void FFXSystemSet::Tick(UWorld* World, float DeltaSeconds)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->Tick(DeltaSeconds);
+		FXSystem->Tick(World, DeltaSeconds);
 	}
 }
 

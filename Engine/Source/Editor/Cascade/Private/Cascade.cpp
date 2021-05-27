@@ -1608,12 +1608,12 @@ void FCascade::Tick(float DeltaTime)
 			ParticleSystemComponent->CascadeTickComponent(CurrDeltaTime, LEVELTICK_All);
 		}
 		ParticleSystemComponent->DoDeferredRenderUpdates_Concurrent();
-		GetFXSystem()->Tick(CurrDeltaTime);
+		UWorld* World = PreviewViewport->GetViewportClient()->GetPreviewScene().GetWorld();
+		GetFXSystem()->Tick(World, CurrDeltaTime);
 		TotalTime += CurrDeltaTime;
 		ParticleSystem->UpdateTime_Delta = fSaveUpdateDelta;
 
 		// Tick the physics scene
-		UWorld* World = PreviewViewport->GetViewportClient()->GetPreviewScene().GetWorld();
 		FPhysScene* PhysScene = World->GetPhysicsScene();
 		AWorldSettings * WorldSettings = World->GetWorldSettings();
 		check(WorldSettings);

@@ -255,7 +255,7 @@ FFXSystemInterface* FFXSystem::GetInterface(const FName& InName)
 	return InName == Name ? this : nullptr;
 }
 
-void FFXSystem::Tick(float DeltaSeconds)
+void FFXSystem::Tick(UWorld* World, float DeltaSeconds)
 {
 	if (RHISupportsGPUParticles())
 	{
