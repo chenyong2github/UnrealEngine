@@ -38,7 +38,8 @@ public:
 	virtual void DispatchResolveKey(IBuildJob* Job) { Job->BeginResolveKey(); }
 	virtual void DispatchResolveAction(IBuildJob* Job) { Job->BeginResolveAction(); }
 	virtual void DispatchResolveInputs(IBuildJob* Job) { Job->BeginResolveInputs(); }
-	virtual void DispatchExecuteBuild(IBuildJob* Job) { Job->BeginExecuteBuild(); }
+	virtual void DispatchExecuteRemote(IBuildJob* Job) { Job->BeginExecuteRemote(); }
+	virtual void DispatchExecuteLocal(IBuildJob* Job) { Job->BeginExecuteLocal(); }
 
 	/** Called when the output of the job is available. Always called once, and always between BeginJob and EndJob. */
 	virtual void CompleteJob(const FBuildJobCompleteParams& Params) {}
