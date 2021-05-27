@@ -974,7 +974,7 @@ typedef FPlatformTypes::WIDECHAR	WIDECHAR;
 /// Either ANSICHAR or WIDECHAR, depending on whether the platform supports wide characters or the requirements of the licensee.
 typedef FPlatformTypes::TCHAR		TCHAR;
 /// An 8-bit character containing a UTF8 (Unicode, 8-bit, variable-width) code unit.
-typedef FPlatformTypes::CHAR8		UTF8CHAR;
+typedef FPlatformTypes::UTF8CHAR	UTF8CHAR;
 /// A 16-bit character containing a UCS2 (Unicode, 16-bit, fixed-width) code unit, used for compatibility with 'Windows TCHAR' across multiple platforms.
 typedef FPlatformTypes::CHAR16		UCS2CHAR;
 /// A 16-bit character containing a UTF16 (Unicode, 16-bit, variable-width) code unit.
@@ -1089,6 +1089,27 @@ namespace TypeTests
 	#else
 		#define TEXT_PASTE(x) L ## x
 	#endif
-	#define TEXT(x) TEXT_PASTE(x)
+		#define TEXT(x) TEXT_PASTE(x)
 #endif
 
+#define UTF8TEXT_PASTE(x) u8 ## x
+
+#if defined(__cpp_char8_t)
+	#define UTF8TEXT(x) UTF8TEXT_PASTE(x)
+#else
+	namespace UE::Core::Private
+	{
+		template <SIZE_T N>
+		FORCEINLINE auto ToUTF8Literal(const char(&Array)[N]) -> const UTF8CHAR(&)[N]
+		{
+			return (const UTF8CHAR(&)[N])Array;
+		}
+
+		FORCEINLINE UTF8CHAR ToUTF8Literal(unsigned long long Ch)
+		{
+			return (UTF8CHAR)Ch;
+		}
+	}
+
+	#define UTF8TEXT(x) (UE::Core::Private::ToUTF8Literal(UTF8TEXT_PASTE(x)))
+#endif

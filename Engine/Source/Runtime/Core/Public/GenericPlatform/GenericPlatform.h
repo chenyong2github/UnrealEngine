@@ -67,7 +67,15 @@ struct FGenericPlatformTypes
 	// A wide character. In-memory only. ?-bit fixed-width representation of the platform's natural wide character set. Could be different sizes on different platforms.
 	typedef wchar_t				WIDECHAR;
 	
-	// An 8-bit character type. In-memory only. 8-bit representation. Should really be char8_t but making this the generic option is easier for compilers which don't fully support C++11 yet (i.e. MSVC).
+	// An 8-bit character type. In-memory only. 8-bit representation. Should really be char8_t but making this the generic option is easier for compilers which don't fully support C++20 yet.
+#if defined(__cpp_char8_t)
+	typedef char8_t				UTF8CHAR;
+#else
+	enum UTF8CHAR : unsigned char {};
+#endif
+	
+	// An 8-bit character type. In-memory only. 8-bit representation.
+	/* UE_DEPRECATED(5.0) */[[deprecated("FPlatformTypes::CHAR8 is deprecated, please use FPlatformTypes::UTF8CHAR instead.")]]
 	typedef uint8				CHAR8;
 	
 	// A 16-bit character type. In-memory only.  16-bit representation. Should really be char16_t but making this the generic option is easier for compilers which don't fully support C++11 yet (i.e. MSVC).
@@ -95,3 +103,31 @@ struct FGenericPlatformTypes
 	typedef decltype(nullptr)		TYPE_OF_NULLPTR;
 };
 
+#if !defined(__cpp_char8_t)
+	constexpr FGenericPlatformTypes::UTF8CHAR& operator++(FGenericPlatformTypes::UTF8CHAR& Ch     ) {                                              ++*(unsigned char*)&Ch; return Ch;     }
+	constexpr FGenericPlatformTypes::UTF8CHAR& operator--(FGenericPlatformTypes::UTF8CHAR& Ch     ) {                                              --*(unsigned char*)&Ch; return Ch;     }
+	constexpr FGenericPlatformTypes::UTF8CHAR  operator++(FGenericPlatformTypes::UTF8CHAR& Ch, int) { FGenericPlatformTypes::UTF8CHAR Result = Ch; ++*(unsigned char*)&Ch; return Result; }
+	constexpr FGenericPlatformTypes::UTF8CHAR  operator--(FGenericPlatformTypes::UTF8CHAR& Ch, int) { FGenericPlatformTypes::UTF8CHAR Result = Ch; --*(unsigned char*)&Ch; return Result; }
+
+	template <typename T> inline auto operator+= (FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch +=  (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch +=  (T&&)InValue); }
+	template <typename T> inline auto operator-= (FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch -=  (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch -=  (T&&)InValue); }
+	template <typename T> inline auto operator/= (FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch /=  (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch /=  (T&&)InValue); }
+	template <typename T> inline auto operator*= (FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch *=  (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch *=  (T&&)InValue); }
+	template <typename T> inline auto operator%= (FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch %=  (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch %=  (T&&)InValue); }
+	template <typename T> inline auto operator&= (FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch &=  (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch &=  (T&&)InValue); }
+	template <typename T> inline auto operator|= (FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch |=  (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch |=  (T&&)InValue); }
+	template <typename T> inline auto operator^= (FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch ^=  (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch ^=  (T&&)InValue); }
+	template <typename T> inline auto operator<<=(FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch <<= (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch <<= (T&&)InValue); }
+	template <typename T> inline auto operator>>=(FGenericPlatformTypes::UTF8CHAR& Ch, T&& InValue) -> decltype((FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch >>= (T&&)InValue)) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch >>= (T&&)InValue); }
+
+	inline FGenericPlatformTypes::UTF8CHAR& operator+= (FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch +=  *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator-= (FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch -=  *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator/= (FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch /=  *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator*= (FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch *=  *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator%= (FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch %=  *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator&= (FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch &=  *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator|= (FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch |=  *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator^= (FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch ^=  *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator<<=(FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch <<= *(unsigned char*)&InValue); }
+	inline FGenericPlatformTypes::UTF8CHAR& operator>>=(FGenericPlatformTypes::UTF8CHAR& Ch, FGenericPlatformTypes::UTF8CHAR InValue) { return (FGenericPlatformTypes::UTF8CHAR&)(*(unsigned char*)&Ch >>= *(unsigned char*)&InValue); }
+#endif
