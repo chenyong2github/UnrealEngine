@@ -25,10 +25,12 @@ struct FNiagaraSimStageData
 	{
 		bFirstStage = false;
 		bLastStage = false;
+		bSetDataToRender = false;
 	}
 
 	uint32 bFirstStage : 1;
 	uint32 bLastStage : 1;
+	uint32 bSetDataToRender : 1;
 
 	uint32 StageIndex = INDEX_NONE;
 
