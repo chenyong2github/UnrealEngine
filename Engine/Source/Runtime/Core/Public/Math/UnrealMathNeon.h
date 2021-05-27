@@ -240,6 +240,11 @@ FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(double X, double Y, d
 	return MakeVectorRegister(X, Y, Z, W);
 }
 
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(const VectorRegister2Double& XY, const VectorRegister2Double& ZW)
+{
+	return VectorRegister4Double(XY, ZW);
+}
+
 FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(uint64 X, uint64 Y, uint64 Z, uint64 W)
 {
 	union U

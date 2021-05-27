@@ -26,6 +26,11 @@ struct VectorRegister4Int
 };
 
 
+struct VectorRegister2Double
+{
+	double V[2];
+};
+
 /**
 *	double[4] vector register type, where the first double (X) is stored in the lowest 64 bits, and so on.
 */
@@ -35,8 +40,16 @@ struct alignas(16) VectorRegister4Double
 
 	VectorRegister4Double() = default;
 
+	FORCEINLINE VectorRegister4Double(const VectorRegister2Double& InXY, const VectorRegister2Double& InZW)
+	{
+		V[0] = InXY.V[0];
+		V[1] = InXY.V[1];
+		V[2] = InZW.V[0];
+		V[3] = InZW.V[1];
+	}
+
 	// Construct from a vector of 4 floats
-	VectorRegister4Double(const VectorRegister4Float& FloatVector)
+	FORCEINLINE VectorRegister4Double(const VectorRegister4Float& FloatVector)
 	{
 		V[0] = FloatVector.V[0];
 		V[1] = FloatVector.V[1];
@@ -45,7 +58,7 @@ struct alignas(16) VectorRegister4Double
 	}
 
 	// Assign from a vector of 4 floats
-	VectorRegister4Double& operator=(const VectorRegister4Float& From)
+	FORCEINLINE VectorRegister4Double& operator=(const VectorRegister4Float& From)
 	{
 		V[0] = From.V[0];
 		V[1] = From.V[1];
@@ -53,11 +66,6 @@ struct alignas(16) VectorRegister4Double
 		V[3] = From.V[3];
 		return *this;
 	}
-};
-
-struct VectorRegister2Double
-{
-	double V[2];
 };
 
 // Aliases
@@ -215,6 +223,11 @@ FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(double X, double Y, d
 	Vec.V[2] = Z;
 	Vec.V[3] = W;
 	return Vec;
+}
+
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(const VectorRegister2Double& XY, const VectorRegister2Double& ZW)
+{
+	return VectorRegister4Double(XY, ZW);
 }
 
 FORCEINLINE VectorRegister4Float MakeVectorRegister(float X, float Y, float Z, float W)
@@ -453,11 +466,6 @@ FORCEINLINE VectorRegister4Float VectorSetFloat1(float F)
 }
 
 FORCEINLINE VectorRegister4Double VectorSetFloat1(double D)
-{
-	return MakeVectorRegisterDouble(D, D, D, D);
-}
-
-FORCEINLINE VectorRegister4Double VectorSetDouble1(double D)
 {
 	return MakeVectorRegisterDouble(D, D, D, D);
 }
@@ -778,6 +786,25 @@ FORCEINLINE VectorRegister4Double VectorDivide(const VectorRegister4Double& Vec1
 }
 
 /**
+ * Calculates the dot3 product of two vectors and returns a scalar value.
+ *
+ * @param Vec1	1st vector
+ * @param Vec2	2nd vector
+ * @return		d = dot3(Vec1.xyz, Vec2.xyz)
+ */
+FORCEINLINE float VectorDot3Scalar(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
+{
+	float D = Vec1.V[0] * Vec2.V[0] + Vec1.V[1] * Vec2.V[1] + Vec1.V[2] * Vec2.V[2];
+	return D;
+}
+
+FORCEINLINE double VectorDot3Scalar(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
+{
+	double D = Vec1.V[0] * Vec2.V[0] + Vec1.V[1] * Vec2.V[1] + Vec1.V[2] * Vec2.V[2];
+	return D;
+}
+
+/**
  * Calculates the dot3 product of two vectors and returns a vector with the result in all 4 components.
  *
  * @param Vec1	1st vector
@@ -786,18 +813,17 @@ FORCEINLINE VectorRegister4Double VectorDivide(const VectorRegister4Double& Vec1
  */
 FORCEINLINE VectorRegister4Float VectorDot3(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
-	float D = Vec1.V[0] * Vec2.V[0] + Vec1.V[1] * Vec2.V[1] + Vec1.V[2] * Vec2.V[2];
+	float D = VectorDot3Scalar(Vec1, Vec2);
 	VectorRegister4Float Vec = MakeVectorRegisterFloat(D, D, D, D);
 	return Vec;
 }
 
 FORCEINLINE VectorRegister4Double VectorDot3(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
-	double D = Vec1.V[0] * Vec2.V[0] + Vec1.V[1] * Vec2.V[1] + Vec1.V[2] * Vec2.V[2];
+	double D = VectorDot3Scalar(Vec1, Vec2);
 	VectorRegister4Double Vec = MakeVectorRegisterDouble(D, D, D, D);
 	return Vec;
 }
-
 
 /**
  * Calculates the dot4 product of two vectors and returns a vector with the result in all 4 components.
