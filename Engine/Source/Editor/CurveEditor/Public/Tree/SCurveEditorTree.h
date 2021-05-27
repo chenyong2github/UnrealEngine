@@ -14,6 +14,7 @@ class STableViewBase;
 
 class CURVEEDITOR_API SCurveEditorTree : public STreeView<FCurveEditorTreeItemID>
 {
+
 public:
 
 	SLATE_BEGIN_ARGS(SCurveEditorTree)
@@ -21,17 +22,21 @@ public:
 		{}
 		SLATE_ARGUMENT(float, SelectColumnWidth)
 		SLATE_EVENT(FOnMouseButtonDoubleClick, OnMouseButtonDoubleClick)
+		SLATE_EVENT(FOnTableViewScrolled, OnTreeViewScrolled)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> InCurveEditor);
 
+	const TArray<FCurveEditorTreeItemID>& GetSourceItems() const { return RootItems; }
+
+	TSharedRef<ITableRow> GenerateRow(FCurveEditorTreeItemID ItemID, const TSharedRef<STableViewBase>& OwnerTable);
+	
 private:
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 
-	TSharedRef<ITableRow> GenerateRow(FCurveEditorTreeItemID ItemID, const TSharedRef<STableViewBase>& OwnerTable);
 
 	void GetTreeItemChildren(FCurveEditorTreeItemID Parent, TArray<FCurveEditorTreeItemID>& OutChildren);
 
@@ -60,4 +65,5 @@ private:
 
 	bool bUpdatingTreeWidgetSelection;
 	bool bUpdatingCurveEditorTreeSelection;
+
 };

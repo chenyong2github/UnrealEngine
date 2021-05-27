@@ -11,6 +11,24 @@ FRealCurve* FCurveTableEditorHandle::GetCurve() const
 	return nullptr;
 }
 
+FRichCurve* FCurveTableEditorHandle::GetRichCurve() const
+{
+	if (CurveTable != nullptr && RowName != NAME_None)
+	{
+		return CurveTable.Get()->FindRichCurve(RowName, TEXT("CurveTableEditorHandle::GetCurve"));
+	}
+	return nullptr;
+}
+
+bool FCurveTableEditorHandle::HasRichCurves() const
+{
+	if (CurveTable != nullptr)
+	{
+		return CurveTable.Get()->HasRichCurves();
+	}
+	return false;
+}
+
 TArray<FRichCurveEditInfoConst> FCurveTableEditorHandle::GetCurves() const
 {
 	TArray<FRichCurveEditInfoConst> Curves;

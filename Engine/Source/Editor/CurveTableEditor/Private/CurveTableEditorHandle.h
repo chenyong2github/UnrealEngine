@@ -57,4 +57,8 @@ struct FCurveTableEditorHandle : public FCurveOwnerInterface
 
 	/** Get the curve straight from the row handle */
 	FRealCurve* GetCurve() const;
+	FRichCurve* GetRichCurve() const;
+
+	/** Returns true if the owning table uses RichCurves instead of Real Curves */
+	bool HasRichCurves() const;
 };

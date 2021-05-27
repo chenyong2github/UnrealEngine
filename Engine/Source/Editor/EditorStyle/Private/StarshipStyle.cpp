@@ -6530,6 +6530,23 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 	// CurveTable Editor
 	{
 		Set( "CurveTableEditor.Tabs.Properties", new IMAGE_BRUSH( "/Icons/icon_tab_SelectionDetails_16x", Icon16x16 ) );
+		Set( "CurveTableEditor.CurveView", new IMAGE_BRUSH("GenericCurveEditor/Icons/GenericCurveEditor_48x", Icon20x20));
+		Set( "CurveTableEditor.TableView", new CORE_IMAGE_BRUSH_SVG("Starship/Common/layout-spreadsheet",  Icon20x20));
+
+		// SEditableTextBox defaults...
+		Set("CurveTableEditor.Cell.Text", FEditableTextBoxStyle()
+			.SetBackgroundImageNormal(FSlateNoResource())
+			.SetBackgroundImageHovered(FSlateRoundedBoxBrush(FStyleColors::Input, 0.0, FStyleColors::Hover, 1.0))
+			.SetBackgroundImageFocused(FSlateRoundedBoxBrush(FStyleColors::Input, 0.0, FStyleColors::Primary, 1.0))
+			.SetBackgroundImageReadOnly(FSlateNoResource())
+			.SetPadding(FMargin(4.f, 5.0f, 4.f, 4.0f)) // The padding should be 4 top, 5 bottom
+			.SetForegroundColor(FStyleColors::Foreground)
+			.SetBackgroundColor(FStyleColors::White)
+			.SetReadOnlyForegroundColor(FSlateColor::UseForeground())
+			.SetFocusedForegroundColor(FStyleColors::White)
+		);
+
+
 	}
 
 	// DataTable Editor

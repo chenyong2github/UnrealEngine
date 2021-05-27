@@ -71,6 +71,7 @@ public:
 		, _SpinBoxStyle(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("NumericEntrySpinBox") )
 		, _Label()
 		, _LabelVAlign( VAlign_Fill )
+		, _Justification(ETextJustify::Left)
 		, _LabelLocation(ELabelLocation::Outside)
 		, _LabelPadding(FMargin(3.f,0.f) )
 		, _BorderForegroundColor(FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("NumericEntrySpinBox").ForegroundColor)
@@ -99,6 +100,9 @@ public:
 		SLATE_NAMED_SLOT( FArguments, Label )
 		/** Vertical alignment of the label content */
 		SLATE_ARGUMENT( EVerticalAlignment, LabelVAlign )
+		/** How should the value be justified in the editable text field. */
+		SLATE_ATTRIBUTE(ETextJustify::Type, Justification)
+
 		SLATE_ARGUMENT(ELabelLocation, LabelLocation)
 		/** Padding around the label content */
 		SLATE_ARGUMENT( FMargin, LabelPadding )
@@ -231,6 +235,7 @@ public:
 			.OnTextCommitted(this, &SNumericEntryBox<NumericType>::OnTextCommitted)
 			.SelectAllTextOnCommit(true)
 			.ContextMenuExtender(InArgs._ContextMenuExtender)
+			.Justification(InArgs._Justification)
 			.MinDesiredWidth(InArgs._MinDesiredValueWidth);
 
 		TSharedRef<SOverlay> Overlay = SNew(SOverlay);
