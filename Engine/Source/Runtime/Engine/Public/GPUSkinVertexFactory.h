@@ -521,6 +521,8 @@ public:
 	{
 		PositionStreamIndex = -1;
 		TangentStreamIndex = -1;
+		PositionVBAlias.ReleaseRHI();
+		TangentVBAlias.ReleaseRHI();
 	}
 
 	virtual void ReleaseRHI() override
