@@ -613,7 +613,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 					break;
 
 				case 3:
-					bVisible = bVisible && PrimitiveGroup.HasMergedPrimitives();
+					bVisible = bVisible && PrimitiveGroup.HasMergedInstances() && PrimitiveGroup.HasMergedPrimitives();
 					break;
 			}
 

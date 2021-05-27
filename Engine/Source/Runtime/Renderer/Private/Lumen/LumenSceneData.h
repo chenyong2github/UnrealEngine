@@ -215,10 +215,7 @@ public:
 	int32 MeshCardsIndex = -1;
 	bool bValidMeshCards = false;
 
-	bool HasMergedInstances() const 
-	{
-		return PrimitiveInstanceIndex < 0;
-	}
+	bool HasMergedInstances() const;
 
 	bool HasMergedPrimitives() const
 	{

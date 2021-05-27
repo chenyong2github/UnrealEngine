@@ -1138,7 +1138,7 @@ public:
 					const int32 MaxSnappedRes = FMath::RoundUpToPowerOfTwo(FMath::Min(FMath::TruncToInt(MaxProjectedSize), GetCardMaxResolution()));
 					const int32 ResLevel = FMath::FloorLog2(MaxSnappedRes);
 
-					const bool bVisible = ViewerDistance < MaxDistanceFromCamera&& MaxSnappedRes >= Lumen::MinCardResolution;
+					const bool bVisible = ViewerDistance < MaxDistanceFromCamera && MaxSnappedRes >= Lumen::MinCardResolution;
 
 					if (!bVisible && LumenCard.bVisible)
 					{

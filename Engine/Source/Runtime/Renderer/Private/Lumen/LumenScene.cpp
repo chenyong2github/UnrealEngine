@@ -54,6 +54,31 @@ FIntPoint GetDesiredPhysicalAtlasSize()
 	return GetDesiredPhysicalAtlasSizeInPages() * Lumen::PhysicalPageSize;
 }
 
+bool FLumenPrimitiveGroup::HasMergedInstances() const
+{
+	bool HasInstancesToMerge = false;
+
+	if (PrimitiveInstanceIndex < 0)
+	{
+		// Check if there is more than 1 instance for merging
+
+		uint32 NumInstances = 0;
+		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : Primitives)
+		{
+			const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
+			NumInstances += PrimitiveInstances ? PrimitiveInstances->Num() : 1;
+
+			if (NumInstances > 1)
+			{
+				HasInstancesToMerge = true;
+				break;
+			}
+		}
+	}
+
+	return HasInstancesToMerge;
+}
+
 FLumenSurfaceCacheAllocator::FPageBin::FPageBin(FIntPoint InElementSize)
 {
 	ensure(InElementSize.GetMax() <= Lumen::PhysicalPageSize);
@@ -522,11 +547,6 @@ void FLumenSceneData::UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex)
 	{
 		PrimitivesToUpdateMeshCards.Add(PrimitiveIndex);
 	}
-}
-
-double BoxSurfaceArea(FVector Extent)
-{
-	return 2.0 * (Extent.X * Extent.Y + Extent.Y * Extent.Z + Extent.Z * Extent.X);
 }
 
 void UpdateLumenScenePrimitives(FScene* Scene)
