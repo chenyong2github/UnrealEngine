@@ -34,7 +34,7 @@ public:
  * static const TBuildFunctionFactory<TExampleFunction<FType>> ExampleFunctionFactory(Name, Version);
  */
 template <typename FunctionType>
-class TBuildFunctionFactory final : private IBuildFunctionFactory
+class TBuildFunctionFactory final : public IBuildFunctionFactory
 {
 	static_assert(sizeof(FunctionType) == sizeof(IBuildFunction), "IBuildFunction must be pure and maintain no state.");
 
@@ -51,12 +51,12 @@ public:
 		IModularFeatures::Get().UnregisterModularFeature(GetFeatureName(), this);
 	}
 
-private:
 	const IBuildFunction& GetFunction() const final
 	{
 		return Function;
 	}
 
+private:
 	const FunctionType Function;
 };
 

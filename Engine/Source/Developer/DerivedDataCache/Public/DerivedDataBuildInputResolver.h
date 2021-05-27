@@ -68,10 +68,10 @@ public:
 /** Metadata for build inputs. */
 struct FBuildInputMeta
 {
-	/** Size of the raw (uncompressed) input in bytes. */
-	uint64 RawSize = 0;
 	/** Hash of the raw (uncompressed) input. */
 	FIoHash RawHash;
+	/** Size of the raw (uncompressed) input in bytes. */
+	uint64 RawSize = 0;
 };
 
 /** Parameters for the resolved callback for build definition requests. */
