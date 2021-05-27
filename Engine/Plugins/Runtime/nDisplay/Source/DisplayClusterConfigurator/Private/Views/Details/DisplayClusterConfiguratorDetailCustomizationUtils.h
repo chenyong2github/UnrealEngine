@@ -24,20 +24,40 @@ class IPropertyHandle;
 	CurrentCategory.AddProperty(PropertyHandle).ShouldAutoExpand(true); \
 }
 
+#define ADD_ADVANCED_PROPERTY(ClassName, PropertyName) { \
+	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle, EPropertyLocation::Advanced); \
+}
+
 #define ADD_CUSTOM_PROPERTY(FilterText) CurrentCategory.AddCustomRow(FilterText)
 
-#define ADD_NESTED_PROPERTY(NestedPropertyHelper, PropertyPath) { \
-	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(PropertyPath); \
+#define ADD_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
 	check(PropertyHandle.IsValid()); \
 	check(PropertyHandle->IsValidHandle()); \
 	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
 }
 
-#define ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, PropertyPath) { \
-	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(PropertyPath); \
+#define ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
 	check(PropertyHandle.IsValid()); \
 	check(PropertyHandle->IsValidHandle()); \
 	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).ShouldAutoExpand(true); \
+}
+
+#define ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef(), EPropertyLocation::Advanced); \
+}
+
+#define RENAME_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).DisplayName(NewPropertyName); \
 }
 
 #define REPLACE_PROPERTY_WITH_CUSTOM(ClassName, PropertyName, Widget) { \
@@ -64,8 +84,8 @@ class IPropertyHandle;
 	CurrentGroup.AddPropertyRow(PropertyHandle).ShouldAutoExpand(true); \
 }
 
-#define ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, PropertyPath) { \
-	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(PropertyPath); \
+#define ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
 	check(PropertyHandle.IsValid()); \
 	check(PropertyHandle->IsValidHandle()); \
 	CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()); \

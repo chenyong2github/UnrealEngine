@@ -284,7 +284,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraC
 
 public:
 	// Allow use local settings for chromakey and markers
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Chromakey"))
 	bool bEnable = false;
 
 	UPROPERTY(EditAnywhere, Category = NDisplay)
@@ -316,11 +316,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraS
 
 public:
 	// Enable this camera
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum"))
 	bool bEnable = true;
 
 	// Allow ScreenPercentage, for values!=1
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Inner Frustum Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
 	float BufferRatio = 1;
 
 	UPROPERTY(EditAnywhere, Category = NDisplay)
@@ -331,11 +331,11 @@ public:
 	FVector  SoftEdge = FVector::ZeroVector;
 
 	// Rotate incamera frustum on this value to fix broken lens on physic camera
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Inner Frustum Rotation"))
 	FRotator  FrustumRotation = FRotator::ZeroRotator;
 
 	// Move incamera frustum on this value to fix broken lens on physic camera
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Inner Frustum Offset"))
 	FVector FrustumOffset = FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay)

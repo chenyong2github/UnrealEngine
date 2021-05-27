@@ -14,7 +14,7 @@ TSharedPtr<IPropertyHandle> FDisplayClusterConfiguratorNestedPropertyHelper::Get
 	}
 
 	TArray<FString> Properties;
-	PropertyPath.ParseIntoArray(Properties, TEXT("."));
+	PropertyPath.Replace(TEXT("->"), TEXT(".")).ParseIntoArray(Properties, TEXT("."));
 
 	if (Properties.Num())
 	{
@@ -47,7 +47,7 @@ TSharedPtr<IPropertyHandle> FDisplayClusterConfiguratorNestedPropertyHelper::Get
 void FDisplayClusterConfiguratorNestedPropertyHelper::GetNestedProperties(const FString& PropertyPath, TArray<TSharedPtr<IPropertyHandle>>& OutPropertyHandles)
 {
 	TArray<FString> Properties;
-	PropertyPath.ParseIntoArray(Properties, TEXT("."));
+	PropertyPath.Replace(TEXT("->"), TEXT(".")).ParseIntoArray(Properties, TEXT("."));
 
 	if (Properties.Num())
 	{

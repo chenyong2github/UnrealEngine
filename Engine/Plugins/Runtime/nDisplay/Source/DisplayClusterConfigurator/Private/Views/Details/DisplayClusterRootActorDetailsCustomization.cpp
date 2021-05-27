@@ -125,7 +125,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				END_GROUP();
 
 				ADD_PROPERTY(ADisplayClusterRootActor, InnerFrustumPriority);
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, TEXT("CurrentConfigData.RenderFrameSettings.ClusterRenderTargetRatioMult"))
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterRenderTargetRatioMult)
 				
 				TArray<TSharedPtr<IPropertyHandle>> ScreenPercentageHandles;
 				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.BufferRatio"), ScreenPercentageHandles);
@@ -142,22 +142,22 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			}
 
 			BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from nDisplay"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, TEXT("CurrentConfigData.StageSettings.HideList.ActorLayers"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, TEXT("CurrentConfigData.StageSettings.HideList.Actors"))
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.ActorLayers)
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.Actors)
 			END_GROUP();
 		END_CATEGORY();
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ChromaKeyCategory)
-			ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, TEXT("CurrentConfigData.StageSettings.Chromakey"))
+			ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Chromakey)
 		END_CATEGORY();
 		
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::LightcardCategory)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, TEXT("CurrentConfigData.StageSettings.Lightcard.bEnable"))
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, TEXT("CurrentConfigData.StageSettings.Lightcard.BlendingMode"))
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode)
 
 			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Content Visibile Only in Outer Viewports"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, TEXT("CurrentConfigData.StageSettings.Lightcard.ShowOnlyList.ActorLayers"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, TEXT("CurrentConfigData.StageSettings.Lightcard.ShowOnlyList.Actors"))
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers)
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors)
 			END_GROUP();
 		END_CATEGORY();
 	}

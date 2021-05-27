@@ -31,7 +31,7 @@ public:
 
 public:
 	// Use external cine camera actor
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (DisplayName = "Cine Camera Actor"))
 	TSoftObjectPtr<ACineCameraActor> ExternalCameraActor;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (ShowInnerProperties))
