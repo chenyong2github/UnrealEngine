@@ -46,19 +46,6 @@ enum class EEnforceInterfacePrefix
 	U
 };
 
-enum class EUnderlyingEnumType
-{
-	Unspecified,
-	uint8,
-	uint16,
-	uint32,
-	uint64,
-	int8,
-	int16,
-	int32,
-	int64
-};
-
 enum class ESerializerArchiveType
 {
 	None = 0,
@@ -134,13 +121,11 @@ public:
 	 */
 	const FString* FindMetaData(const TCHAR* Key, int32 NameIndex = INDEX_NONE) const
 	{
-		TMap<FName, FString>* MetaDataMap = GetMetaDataMap();
-		return MetaDataMap ? MetaDataMap->Find(GetMetaDataKey(Key, NameIndex, FNAME_Find)) : nullptr;
+		return GetMetaDataMap().Find(GetMetaDataKey(Key, NameIndex, FNAME_Find));
 	}
 	const FString* FindMetaData(const FName& Key, int32 NameIndex = INDEX_NONE) const
 	{
-		TMap<FName, FString>* MetaDataMap = GetMetaDataMap();
-		return MetaDataMap ? MetaDataMap->Find(GetMetaDataKey(Key, NameIndex, FNAME_Find)) : nullptr;
+		return GetMetaDataMap().Find(GetMetaDataKey(Key, NameIndex, FNAME_Find));
 	}
 
 	/**
@@ -201,7 +186,7 @@ public:
 	void GetStringArrayMetaData(const FName& Key, TArray<FString>& Out) const;
 	TArray<FString> GetStringArrayMetaData(const FName& Key) const;
 
-	virtual TMap<FName, FString>* GetMetaDataMap() const = 0;
+	virtual TMap<FName, FString>& GetMetaDataMap() const = 0;
 
 protected:
 	virtual FString GetMetaDataIndexName(int32 NameIndex) const
@@ -711,7 +696,7 @@ public:
 	/**
 	 * Return the engine class name
 	 */
-	FString GetEngineClassName() const; //@TODO make this const &
+	FString GetEngineClassName() const;
 
 	/**
 	 * Return the package associated with this object
@@ -847,13 +832,7 @@ public:
 	 */
 	virtual TMap<FName, FString> GenerateMetadataMap() const override
 	{
-		TMap<FName, FString> MetaDataMap;
-		const TMap<FName, FString>* FieldMetaDataMap = GetMetaDataMap();
-		if (FieldMetaDataMap)
-		{
-			MetaDataMap = *FieldMetaDataMap;
-		}
-		return MetaDataMap;
+		return GetMetaDataMap();
 	}
 
 	/**
@@ -1218,13 +1197,12 @@ public:
 	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override
 	{
 		check(Property == nullptr);
-		GetMetaDataMap()->Append(MoveTemp(InMetaData));
+		GetMetaDataMap().Append(MoveTemp(InMetaData));
 	}
 
-	virtual TMap<FName, FString>* GetMetaDataMap() const override
+	virtual TMap<FName, FString>& GetMetaDataMap() const override
 	{
-		//return const_cast<TMap<FName, FString>*>(GetProperty()->GetMetaDataMap());
-		return const_cast<TMap<FName, FString>*>(&PropertyBase.MetaData);
+		return const_cast<TMap<FName, FString>&>(PropertyBase.MetaData);
 	}
 
 	FUnrealObjectDefinitionInfo* GetOwnerObject() const;
@@ -1435,26 +1413,27 @@ public:
 	 */
 	virtual TMap<FName, FString> GenerateMetadataMap() const override
 	{
-		TMap<FName, FString>* PackageMap = GetMetaDataMap();
 		TMap<FName, FString> Map;
-		if (PackageMap)
+		for (const TPair<FName, FString>& MetaKeyValue : GetMetaDataMap())
 		{
-			for (const TPair<FName, FString>& MetaKeyValue : *PackageMap)
+			FString Key = MetaKeyValue.Key.ToString();
+			if (!Key.StartsWith(TEXT("/Script")))
 			{
-				FString Key = MetaKeyValue.Key.ToString();
-				if (!Key.StartsWith(TEXT("/Script")))
-				{
-					Map.Add(MetaKeyValue.Key, MetaKeyValue.Value);
-				}
+				Map.Add(MetaKeyValue.Key, MetaKeyValue.Value);
 			}
 		}
 		return Map;
 	}
 
-	virtual TMap<FName, FString>* GetMetaDataMap() const override
+	virtual TMap<FName, FString>& GetMetaDataMap() const override
 	{
-		return GetUObjectMetaDataMap();
+		return const_cast<TMap<FName, FString>&>(MetaData);
 	}
+
+	/**
+	 * Add meta data for the given definition
+	 */
+	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override;
 
 protected:
 	virtual void SetMetaDataHelper(const FName& Key, const TCHAR* InValue) override;
@@ -1498,6 +1477,7 @@ protected:
 	}
 
 private:
+	TMap<FName, FString> MetaData;
 	UObject* Object = nullptr;
 	FName Name = NAME_None;
 	EInternalObjectFlags InternalObjectFlags = EInternalObjectFlags::None;
@@ -1740,11 +1720,6 @@ public:
 	}
 
 	/**
-	 * Add meta data for the given definition
-	 */
-	virtual void AddMetaData(TMap<FName, FString>&& InMetaData) override;
-
-	/**
 	 * Helper function that checks if the field is a dynamic type
 	 */
 	virtual bool IsDynamic() const override;
@@ -1778,7 +1753,7 @@ private:
 class FUnrealEnumDefinitionInfo : public FUnrealFieldDefinitionInfo
 {
 public:
-	FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName);
+	FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, UEnum::ECppForm InCppForm, EUnderlyingEnumType InUnderlyingType);
 
 	virtual FUnrealEnumDefinitionInfo* AsEnum() override
 	{
@@ -1917,7 +1892,7 @@ public:
 	bool SetEnums(TArray<TPair<FName, int64>>& InNames, UEnum::ECppForm InCppForm, EEnumFlags InFlags = EEnumFlags::None)
 	{
 		Names = InNames;
-		CppForm = InCppForm;
+		check(CppForm == InCppForm);
 		EnumFlags = InFlags;
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 		if (UEnum* Enum = GetEnumSafe())
@@ -1935,14 +1910,6 @@ public:
 	EUnderlyingEnumType GetUnderlyingType() const
 	{
 		return UnderlyingType;
-	}
-
-	/** 
-	 * Set the underlying enum type
-	 */
-	void SetUnderlyingType(EUnderlyingEnumType InUnderlyingType)
-	{
-		UnderlyingType = InUnderlyingType;
 	}
 
 	/**
@@ -1967,11 +1934,6 @@ protected:
 	 */
 	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
 
-	virtual TMap<FName, FString>* GetMetaDataMap() const override
-	{
-		return const_cast<TMap<FName, FString>*>(&MetaData);
-	}
-
 	virtual FString GetMetaDataIndexName(int32 NameIndex) const
 	{
 		FString EnumName = GetNameStringByIndex(NameIndex);
@@ -1990,7 +1952,6 @@ protected:
 
 private:
 	TArray<TPair<FName, int64>> Names;
-	TMap<FName, FString> MetaData;
 	FString CppType;
 	EUnderlyingEnumType UnderlyingType = EUnderlyingEnumType::Unspecified;
 	EEnumFlags EnumFlags = EEnumFlags::None;
@@ -2457,11 +2418,6 @@ public:
 		MacroDeclaredLineNumber = InMacroDeclaredLineNumber;
 	}
 
-	virtual TMap<FName, FString>* GetMetaDataMap() const override
-	{
-		return const_cast<TMap<FName, FString>*>(&MetaData);
-	}
-
 protected:
 	/**
 	 * Create UObject engine types
@@ -2474,7 +2430,6 @@ protected:
 	virtual void PostParseFinalizeInternal() override;
 
 private:
-	TMap<FName, FString> MetaData;
 	int32 MacroDeclaredLineNumber = INDEX_NONE;
 	EStructFlags StructFlags = STRUCT_NoFlags;
 };
@@ -2671,11 +2626,6 @@ public:
 		return FunctionType == EFunctionType::Delegate || FunctionType == EFunctionType::SparseDelegate;
 	}
 
-	virtual TMap<FName, FString>* GetMetaDataMap() const override
-	{
-		return const_cast<TMap<FName, FString>*>(&MetaData);
-	}
-
 protected:
 	/**
 	 * Create UObject engine types
@@ -2695,7 +2645,6 @@ private:
 	/** return value for this function */
 	TSharedPtr<FUnrealPropertyDefinitionInfo> ReturnProperty;
 
-	TMap<FName, FString> MetaData;
 	FName SparseOwningClassName = NAME_None;
 	FName SparseDelegateName = NAME_None;
 	EFunctionType FunctionType = EFunctionType::Function;
@@ -3124,11 +3073,6 @@ public:
 
 	FString GetNameWithPrefix(EEnforceInterfacePrefix EnforceInterfacePrefix = EEnforceInterfacePrefix::None) const;
 
-	virtual TMap<FName, FString>* GetMetaDataMap() const override
-	{
-		return const_cast<TMap<FName, FString>*>(&MetaData);
-	}
-
 protected:
 	/**
 	 * Create UObject engine types
@@ -3148,7 +3092,6 @@ private:
 	/** Sets and validates 'ConfigName' property */
 	void SetAndValidateConfigName();
 
-	TMap<FName, FString> MetaData; // Actual live meta data
 	TMap<FName, FString> ParsedMetaData; // Meta data from the preparse phase
 	TArray<FString> ShowCategories;
 	TArray<FString> ShowFunctions;

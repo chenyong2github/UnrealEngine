@@ -1219,3 +1219,60 @@ void FBaseParser::InitMetadataKeywords()
 {
 	InitMetadataKeyswordsInternal();
 }
+
+EUnderlyingEnumType FBaseParser::ParseUnderlyingEnumType()
+{
+	EUnderlyingEnumType UnderlyingType = EUnderlyingEnumType::uint8;
+	if (MatchSymbol(TEXT(':')))
+	{
+		FToken BaseToken;
+		if (!GetIdentifier(BaseToken))
+		{
+			Throwf(TEXT("Missing enum base"));
+		}
+
+		if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint8")))
+		{
+			UnderlyingType = EUnderlyingEnumType::uint8;
+		}
+		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint16")))
+		{
+			UnderlyingType = EUnderlyingEnumType::uint16;
+		}
+		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint32")))
+		{
+			UnderlyingType = EUnderlyingEnumType::uint32;
+		}
+		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint64")))
+		{
+			UnderlyingType = EUnderlyingEnumType::uint64;
+		}
+		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int8")))
+		{
+			UnderlyingType = EUnderlyingEnumType::int8;
+		}
+		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int16")))
+		{
+			UnderlyingType = EUnderlyingEnumType::int16;
+		}
+		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int32")))
+		{
+			UnderlyingType = EUnderlyingEnumType::int32;
+		}
+		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int64")))
+		{
+			UnderlyingType = EUnderlyingEnumType::int64;
+		}
+		else
+		{
+			Throwf(TEXT("Unsupported enum class base type: %s"), BaseToken.Identifier);
+		}
+	}
+	else
+	{
+		UnderlyingType = EUnderlyingEnumType::Unspecified;
+	}
+
+	return UnderlyingType;
+}
+
